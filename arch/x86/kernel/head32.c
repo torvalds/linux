@@ -26,7 +26,7 @@ static void __init i386_default_early_setup(void)
 	x86_init.resources.reserve_resources = i386_reserve_resources;
 	x86_init.mpparse.setup_ioapic_ids = setup_ioapic_ids_from_mpc;
 
-	reserve_ebda_region();
+	reserve_bios_regions();
 }
 
 asmlinkage __visible void __init i386_start_kernel(void)

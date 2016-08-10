@@ -81,6 +81,8 @@ make_no_libbionic   := NO_LIBBIONIC=1
 make_no_auxtrace    := NO_AUXTRACE=1
 make_no_libbpf	    := NO_LIBBPF=1
 make_no_libcrypto   := NO_LIBCRYPTO=1
+make_with_babeltrace:= LIBBABELTRACE=1
+make_no_sdt	    := NO_SDT=1
 make_tags           := tags
 make_cscope         := cscope
 make_help           := help
@@ -104,7 +106,7 @@ make_minimal        := NO_LIBPERL=1 NO_LIBPYTHON=1 NO_NEWT=1 NO_GTK2=1
 make_minimal        += NO_DEMANGLE=1 NO_LIBELF=1 NO_LIBUNWIND=1 NO_BACKTRACE=1
 make_minimal        += NO_LIBNUMA=1 NO_LIBAUDIT=1 NO_LIBBIONIC=1
 make_minimal        += NO_LIBDW_DWARF_UNWIND=1 NO_AUXTRACE=1 NO_LIBBPF=1
-make_minimal        += NO_LIBCRYPTO=1
+make_minimal        += NO_LIBCRYPTO=1 NO_SDT=1
 
 # $(run) contains all available tests
 run := make_pure
@@ -136,6 +138,7 @@ run += make_no_libaudit
 run += make_no_libbionic
 run += make_no_auxtrace
 run += make_no_libbpf
+run += make_with_babeltrace
 run += make_help
 run += make_doc
 run += make_perf_o

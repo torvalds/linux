@@ -3,6 +3,7 @@
  */
 #include <linux/sunrpc/svc.h>
 #include <linux/exportfs.h>
+#include <linux/iomap.h>
 #include <linux/nfs4.h>
 
 #include "nfsd.h"

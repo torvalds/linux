@@ -283,6 +283,7 @@ struct i40e_pf {
 #endif /* I40E_FCOE */
 	u16 num_lan_qps;           /* num lan queues this PF has set up */
 	u16 num_lan_msix;          /* num queue vectors for the base PF vsi */
+	u16 num_fdsb_msix;         /* num queue vectors for sideband Fdir */
 	u16 num_iwarp_msix;        /* num of iwarp vectors for this PF */
 	int iwarp_base_vector;
 	int queues_left;           /* queues left unclaimed */
@@ -447,6 +448,14 @@ struct i40e_pf {
 	u16 phy_led_val;
 };
 
+enum i40e_filter_state {
+	I40E_FILTER_INVALID = 0,	/* Invalid state */
+	I40E_FILTER_NEW,		/* New, not sent to FW yet */
+	I40E_FILTER_ACTIVE,		/* Added to switch by FW */
+	I40E_FILTER_FAILED,		/* Rejected by FW */
+	I40E_FILTER_REMOVE,		/* To be removed */
+/* There is no 'removed' state; the filter struct is freed */
+};
 struct i40e_mac_filter {
 	struct list_head list;
 	u8 macaddr[ETH_ALEN];
@@ -455,8 +464,7 @@ struct i40e_mac_filter {
 	u8 counter;		/* number of instances of this filter */
 	bool is_vf;		/* filter belongs to a VF */
 	bool is_netdev;		/* filter belongs to a netdev */
-	bool changed;		/* filter needs to be sync'd to the HW */
-	bool is_laa;		/* filter is a Locally Administered Address */
+	enum i40e_filter_state state;
 };
 
 struct i40e_veb {
@@ -521,6 +529,9 @@ struct i40e_vsi {
 	/* These are containers of ring pointers, allocated at run-time */
 	struct i40e_ring **rx_rings;
 	struct i40e_ring **tx_rings;
+
+	u32  active_filters;
+	u32  promisc_threshold;
 
 	u16 work_limit;
 	u16 int_rate_limit;  /* value in usecs */

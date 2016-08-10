@@ -356,7 +356,6 @@ xfs_da3_split(
 	struct xfs_da_state_blk	*newblk;
 	struct xfs_da_state_blk	*addblk;
 	struct xfs_da_intnode	*node;
-	struct xfs_buf		*bp;
 	int			max;
 	int			action = 0;
 	int			error;
@@ -397,7 +396,9 @@ xfs_da3_split(
 				break;
 			}
 			/*
-			 * Entry wouldn't fit, split the leaf again.
+			 * Entry wouldn't fit, split the leaf again. The new
+			 * extrablk will be consumed by xfs_da3_node_split if
+			 * the node is split.
 			 */
 			state->extravalid = 1;
 			if (state->inleaf) {
@@ -446,6 +447,14 @@ xfs_da3_split(
 		return 0;
 
 	/*
+	 * xfs_da3_node_split() should have consumed any extra blocks we added
+	 * during a double leaf split in the attr fork. This is guaranteed as
+	 * we can't be here if the attr fork only has a single leaf block.
+	 */
+	ASSERT(state->extravalid == 0 ||
+	       state->path.blk[max].magic == XFS_DIR2_LEAFN_MAGIC);
+
+	/*
 	 * Split the root node.
 	 */
 	ASSERT(state->path.active == 0);
@@ -457,43 +466,33 @@ xfs_da3_split(
 	}
 
 	/*
-	 * Update pointers to the node which used to be block 0 and
-	 * just got bumped because of the addition of a new root node.
-	 * There might be three blocks involved if a double split occurred,
-	 * and the original block 0 could be at any position in the list.
+	 * Update pointers to the node which used to be block 0 and just got
+	 * bumped because of the addition of a new root node.  Note that the
+	 * original block 0 could be at any position in the list of blocks in
+	 * the tree.
 	 *
-	 * Note: the magic numbers and sibling pointers are in the same
-	 * physical place for both v2 and v3 headers (by design). Hence it
-	 * doesn't matter which version of the xfs_da_intnode structure we use
-	 * here as the result will be the same using either structure.
+	 * Note: the magic numbers and sibling pointers are in the same physical
+	 * place for both v2 and v3 headers (by design). Hence it doesn't matter
+	 * which version of the xfs_da_intnode structure we use here as the
+	 * result will be the same using either structure.
 	 */
 	node = oldblk->bp->b_addr;
 	if (node->hdr.info.forw) {
-		if (be32_to_cpu(node->hdr.info.forw) == addblk->blkno) {
-			bp = addblk->bp;
-		} else {
-			ASSERT(state->extravalid);
-			bp = state->extrablk.bp;
-		}
-		node = bp->b_addr;
+		ASSERT(be32_to_cpu(node->hdr.info.forw) == addblk->blkno);
+		node = addblk->bp->b_addr;
 		node->hdr.info.back = cpu_to_be32(oldblk->blkno);
-		xfs_trans_log_buf(state->args->trans, bp,
-		    XFS_DA_LOGRANGE(node, &node->hdr.info,
-		    sizeof(node->hdr.info)));
+		xfs_trans_log_buf(state->args->trans, addblk->bp,
+				  XFS_DA_LOGRANGE(node, &node->hdr.info,
+				  sizeof(node->hdr.info)));
 	}
 	node = oldblk->bp->b_addr;
 	if (node->hdr.info.back) {
-		if (be32_to_cpu(node->hdr.info.back) == addblk->blkno) {
-			bp = addblk->bp;
-		} else {
-			ASSERT(state->extravalid);
-			bp = state->extrablk.bp;
-		}
-		node = bp->b_addr;
+		ASSERT(be32_to_cpu(node->hdr.info.back) == addblk->blkno);
+		node = addblk->bp->b_addr;
 		node->hdr.info.forw = cpu_to_be32(oldblk->blkno);
-		xfs_trans_log_buf(state->args->trans, bp,
-		    XFS_DA_LOGRANGE(node, &node->hdr.info,
-		    sizeof(node->hdr.info)));
+		xfs_trans_log_buf(state->args->trans, addblk->bp,
+				  XFS_DA_LOGRANGE(node, &node->hdr.info,
+				  sizeof(node->hdr.info)));
 	}
 	addblk->bp = NULL;
 	return 0;

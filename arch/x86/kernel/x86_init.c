@@ -92,6 +92,7 @@ static void default_nmi_init(void) { };
 static int default_i8042_detect(void) { return 1; };
 
 struct x86_platform_ops x86_platform = {
+	.calibrate_cpu			= native_calibrate_cpu,
 	.calibrate_tsc			= native_calibrate_tsc,
 	.get_wallclock			= mach_get_cmos_time,
 	.set_wallclock			= mach_set_rtc_mmss,

@@ -73,17 +73,25 @@ endif
 #
 #   make DEBUG=1 LIBUNWIND_DIR=/opt/libunwind/
 #
+
+libunwind_arch_set_flags = $(eval $(libunwind_arch_set_flags_code))
+define libunwind_arch_set_flags_code
+  FEATURE_CHECK_CFLAGS-libunwind-$(1)  = -I$(LIBUNWIND_DIR)/include
+  FEATURE_CHECK_LDFLAGS-libunwind-$(1) = -L$(LIBUNWIND_DIR)/lib
+endef
+
 ifdef LIBUNWIND_DIR
   LIBUNWIND_CFLAGS  = -I$(LIBUNWIND_DIR)/include
   LIBUNWIND_LDFLAGS = -L$(LIBUNWIND_DIR)/lib
+  LIBUNWIND_ARCHS = x86 x86_64 arm aarch64 debug-frame-arm debug-frame-aarch64
+  $(foreach libunwind_arch,$(LIBUNWIND_ARCHS),$(call libunwind_arch_set_flags,$(libunwind_arch)))
 endif
-LIBUNWIND_LDFLAGS += $(LIBUNWIND_LIBS)
 
 # Set per-feature check compilation flags
 FEATURE_CHECK_CFLAGS-libunwind = $(LIBUNWIND_CFLAGS)
-FEATURE_CHECK_LDFLAGS-libunwind = $(LIBUNWIND_LDFLAGS)
+FEATURE_CHECK_LDFLAGS-libunwind = $(LIBUNWIND_LDFLAGS) $(LIBUNWIND_LIBS)
 FEATURE_CHECK_CFLAGS-libunwind-debug-frame = $(LIBUNWIND_CFLAGS)
-FEATURE_CHECK_LDFLAGS-libunwind-debug-frame = $(LIBUNWIND_LDFLAGS)
+FEATURE_CHECK_LDFLAGS-libunwind-debug-frame = $(LIBUNWIND_LDFLAGS) $(LIBUNWIND_LIBS)
 
 ifeq ($(NO_PERF_REGS),0)
   CFLAGS += -DHAVE_PERF_REGS_SUPPORT
@@ -107,7 +115,7 @@ endif
 FEATURE_CHECK_CFLAGS-libbabeltrace := $(LIBBABELTRACE_CFLAGS)
 FEATURE_CHECK_LDFLAGS-libbabeltrace := $(LIBBABELTRACE_LDFLAGS) -lbabeltrace-ctf
 
-FEATURE_CHECK_CFLAGS-bpf = -I. -I$(srctree)/tools/include -I$(srctree)/arch/$(ARCH)/include/uapi -I$(srctree)/include/uapi
+FEATURE_CHECK_CFLAGS-bpf = -I. -I$(srctree)/tools/include -I$(srctree)/tools/arch/$(ARCH)/include/uapi -I$(srctree)/tools/include/uapi
 # include ARCH specific config
 -include $(src-perf)/arch/$(ARCH)/Makefile
 
@@ -198,11 +206,11 @@ endif
 
 CFLAGS += -I$(src-perf)/util/include
 CFLAGS += -I$(src-perf)/arch/$(ARCH)/include
+CFLAGS += -I$(srctree)/tools/include/uapi
 CFLAGS += -I$(srctree)/tools/include/
-CFLAGS += -I$(srctree)/arch/$(ARCH)/include/uapi
-CFLAGS += -I$(srctree)/arch/$(ARCH)/include
-CFLAGS += -I$(srctree)/include/uapi
-CFLAGS += -I$(srctree)/include
+CFLAGS += -I$(srctree)/tools/arch/$(ARCH)/include/uapi
+CFLAGS += -I$(srctree)/tools/arch/$(ARCH)/include/
+CFLAGS += -I$(srctree)/tools/arch/$(ARCH)/
 
 # $(obj-perf)      for generated common-cmds.h
 # $(obj-perf)/util for generated bison/flex headers
@@ -249,7 +257,7 @@ else
       LIBC_SUPPORT := 1
     endif
     ifeq ($(LIBC_SUPPORT),1)
-      msg := $(warning No libelf found, disables 'probe' tool and BPF support in 'perf record', please install elfutils-libelf-devel/libelf-dev);
+      msg := $(warning No libelf found, disables 'probe' tool and BPF support in 'perf record', please install libelf-dev, libelf-devel or elfutils-libelf-devel);
 
       NO_LIBELF := 1
       NO_DWARF := 1
@@ -301,6 +309,16 @@ ifndef NO_LIBELF
     CFLAGS += -DHAVE_ELF_GETPHDRNUM_SUPPORT
   endif
 
+  ifeq ($(feature-libelf-gelf_getnote), 1)
+    CFLAGS += -DHAVE_GELF_GETNOTE_SUPPORT
+  else
+    msg := $(warning gelf_getnote() not found on libelf, SDT support disabled);
+  endif
+
+  ifeq ($(feature-libelf-getshdrstrndx), 1)
+    CFLAGS += -DHAVE_ELF_GETSHDRSTRNDX_SUPPORT
+  endif
+
   ifndef NO_DWARF
     ifeq ($(origin PERF_HAVE_DWARF_REGS), undefined)
       msg := $(warning DWARF register mappings have not been defined for architecture $(ARCH), DWARF support disabled);
@@ -337,6 +355,16 @@ ifndef NO_LIBELF
   endif # NO_LIBBPF
 endif # NO_LIBELF
 
+ifndef NO_SDT
+  ifneq ($(feature-sdt), 1)
+    msg := $(warning No sys/sdt.h found, no SDT events are defined, please install systemtap-sdt-devel or systemtap-sdt-dev);
+    NO_SDT := 1;
+  else
+    CFLAGS += -DHAVE_SDT_EVENT
+    $(call detected,CONFIG_SDT_EVENT)
+  endif
+endif
+
 ifdef PERF_HAVE_JITDUMP
   ifndef NO_DWARF
     $(call detected,CONFIG_JITDUMP)
@@ -351,10 +379,42 @@ ifeq ($(ARCH),powerpc)
 endif
 
 ifndef NO_LIBUNWIND
+  have_libunwind :=
+
+  ifeq ($(feature-libunwind-x86), 1)
+    $(call detected,CONFIG_LIBUNWIND_X86)
+    CFLAGS += -DHAVE_LIBUNWIND_X86_SUPPORT
+    LDFLAGS += -lunwind-x86
+    EXTLIBS_LIBUNWIND += -lunwind-x86
+    have_libunwind = 1
+  endif
+
+  ifeq ($(feature-libunwind-aarch64), 1)
+    $(call detected,CONFIG_LIBUNWIND_AARCH64)
+    CFLAGS += -DHAVE_LIBUNWIND_AARCH64_SUPPORT
+    LDFLAGS += -lunwind-aarch64
+    EXTLIBS_LIBUNWIND += -lunwind-aarch64
+    have_libunwind = 1
+    $(call feature_check,libunwind-debug-frame-aarch64)
+    ifneq ($(feature-libunwind-debug-frame-aarch64), 1)
+      msg := $(warning No debug_frame support found in libunwind-aarch64);
+      CFLAGS += -DNO_LIBUNWIND_DEBUG_FRAME_AARCH64
+    endif
+  endif
+
   ifneq ($(feature-libunwind), 1)
     msg := $(warning No libunwind found. Please install libunwind-dev[el] >= 1.1 and/or set LIBUNWIND_DIR);
+    NO_LOCAL_LIBUNWIND := 1
+  else
+    have_libunwind := 1
+    $(call detected,CONFIG_LOCAL_LIBUNWIND)
+  endif
+
+  ifneq ($(have_libunwind), 1)
     NO_LIBUNWIND := 1
   endif
+else
+  NO_LOCAL_LIBUNWIND := 1
 endif
 
 ifndef NO_LIBBPF
@@ -392,7 +452,7 @@ else
   NO_DWARF_UNWIND := 1
 endif
 
-ifndef NO_LIBUNWIND
+ifndef NO_LOCAL_LIBUNWIND
   ifeq ($(ARCH),$(filter $(ARCH),arm arm64))
     $(call feature_check,libunwind-debug-frame)
     ifneq ($(feature-libunwind-debug-frame), 1)
@@ -403,10 +463,15 @@ ifndef NO_LIBUNWIND
     # non-ARM has no dwarf_find_debug_frame() function:
     CFLAGS += -DNO_LIBUNWIND_DEBUG_FRAME
   endif
-  CFLAGS  += -DHAVE_LIBUNWIND_SUPPORT
   EXTLIBS += $(LIBUNWIND_LIBS)
+  LDFLAGS += $(LIBUNWIND_LIBS)
+endif
+
+ifndef NO_LIBUNWIND
+  CFLAGS  += -DHAVE_LIBUNWIND_SUPPORT
   CFLAGS  += $(LIBUNWIND_CFLAGS)
   LDFLAGS += $(LIBUNWIND_LDFLAGS)
+  EXTLIBS += $(EXTLIBS_LIBUNWIND)
 endif
 
 ifndef NO_LIBAUDIT
@@ -437,7 +502,7 @@ endif
 
 ifndef NO_SLANG
   ifneq ($(feature-libslang), 1)
-    msg := $(warning slang not found, disables TUI support. Please install slang-devel or libslang-dev);
+    msg := $(warning slang not found, disables TUI support. Please install slang-devel, libslang-dev or libslang2-dev);
     NO_SLANG := 1
   else
     # Fedora has /usr/include/slang/slang.h, but ubuntu /usr/include/slang.h

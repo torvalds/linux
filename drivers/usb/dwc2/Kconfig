@@ -55,6 +55,7 @@ endchoice
 config USB_DWC2_PCI
 	tristate "DWC2 PCI"
 	depends on PCI
+	depends on USB_GADGET || !USB_GADGET
 	default n
 	select NOP_USB_XCEIV
 	help

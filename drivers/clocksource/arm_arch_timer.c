@@ -79,6 +79,14 @@ static enum ppi_nr arch_timer_uses_ppi = VIRT_PPI;
 static bool arch_timer_c3stop;
 static bool arch_timer_mem_use_virtual;
 
+static bool evtstrm_enable = IS_ENABLED(CONFIG_ARM_ARCH_TIMER_EVTSTREAM);
+
+static int __init early_evtstrm_cfg(char *buf)
+{
+	return strtobool(buf, &evtstrm_enable);
+}
+early_param("clocksource.arm_arch_timer.evtstrm", early_evtstrm_cfg);
+
 /*
  * Architected system timer support.
  */
@@ -372,7 +380,7 @@ static int arch_timer_setup(struct clock_event_device *clk)
 		enable_percpu_irq(arch_timer_ppi[PHYS_NONSECURE_PPI], 0);
 
 	arch_counter_set_user_access();
-	if (IS_ENABLED(CONFIG_ARM_ARCH_TIMER_EVTSTREAM))
+	if (evtstrm_enable)
 		arch_timer_configure_evtstream();
 
 	return 0;
@@ -693,25 +701,26 @@ arch_timer_needs_probing(int type, const struct of_device_id *matches)
 	return needs_probing;
 }
 
-static void __init arch_timer_common_init(void)
+static int __init arch_timer_common_init(void)
 {
 	unsigned mask = ARCH_CP15_TIMER | ARCH_MEM_TIMER;
 
 	/* Wait until both nodes are probed if we have two timers */
 	if ((arch_timers_present & mask) != mask) {
 		if (arch_timer_needs_probing(ARCH_MEM_TIMER, arch_timer_mem_of_match))
-			return;
+			return 0;
 		if (arch_timer_needs_probing(ARCH_CP15_TIMER, arch_timer_of_match))
-			return;
+			return 0;
 	}
 
 	arch_timer_banner(arch_timers_present);
 	arch_counter_register(arch_timers_present);
-	arch_timer_arch_init();
+	return arch_timer_arch_init();
 }
 
-static void __init arch_timer_init(void)
+static int __init arch_timer_init(void)
 {
+	int ret;
 	/*
 	 * If HYP mode is available, we know that the physical timer
 	 * has been configured to be accessible from PL1. Use it, so
@@ -739,23 +748,30 @@ static void __init arch_timer_init(void)
 
 		if (!has_ppi) {
 			pr_warn("arch_timer: No interrupt available, giving up\n");
-			return;
+			return -EINVAL;
 		}
 	}
 
-	arch_timer_register();
-	arch_timer_common_init();
+	ret = arch_timer_register();
+	if (ret)
+		return ret;
+
+	ret = arch_timer_common_init();
+	if (ret)
+		return ret;
 
 	arch_timer_kvm_info.virtual_irq = arch_timer_ppi[VIRT_PPI];
+	
+	return 0;
 }
 
-static void __init arch_timer_of_init(struct device_node *np)
+static int __init arch_timer_of_init(struct device_node *np)
 {
 	int i;
 
 	if (arch_timers_present & ARCH_CP15_TIMER) {
 		pr_warn("arch_timer: multiple nodes in dt, skipping\n");
-		return;
+		return 0;
 	}
 
 	arch_timers_present |= ARCH_CP15_TIMER;
@@ -774,23 +790,23 @@ static void __init arch_timer_of_init(struct device_node *np)
 	    of_property_read_bool(np, "arm,cpu-registers-not-fw-configured"))
 		arch_timer_uses_ppi = PHYS_SECURE_PPI;
 
-	arch_timer_init();
+	return arch_timer_init();
 }
 CLOCKSOURCE_OF_DECLARE(armv7_arch_timer, "arm,armv7-timer", arch_timer_of_init);
 CLOCKSOURCE_OF_DECLARE(armv8_arch_timer, "arm,armv8-timer", arch_timer_of_init);
 
-static void __init arch_timer_mem_init(struct device_node *np)
+static int __init arch_timer_mem_init(struct device_node *np)
 {
 	struct device_node *frame, *best_frame = NULL;
 	void __iomem *cntctlbase, *base;
-	unsigned int irq;
+	unsigned int irq, ret = -EINVAL;
 	u32 cnttidr;
 
 	arch_timers_present |= ARCH_MEM_TIMER;
 	cntctlbase = of_iomap(np, 0);
 	if (!cntctlbase) {
 		pr_err("arch_timer: Can't find CNTCTLBase\n");
-		return;
+		return -ENXIO;
 	}
 
 	cnttidr = readl_relaxed(cntctlbase + CNTTIDR);
@@ -830,6 +846,7 @@ static void __init arch_timer_mem_init(struct device_node *np)
 		best_frame = of_node_get(frame);
 	}
 
+	ret= -ENXIO;
 	base = arch_counter_base = of_iomap(best_frame, 0);
 	if (!base) {
 		pr_err("arch_timer: Can't map frame's registers\n");
@@ -841,6 +858,7 @@ static void __init arch_timer_mem_init(struct device_node *np)
 	else
 		irq = irq_of_parse_and_map(best_frame, 0);
 
+	ret = -EINVAL;
 	if (!irq) {
 		pr_err("arch_timer: Frame missing %s irq",
 		       arch_timer_mem_use_virtual ? "virt" : "phys");
@@ -848,11 +866,15 @@ static void __init arch_timer_mem_init(struct device_node *np)
 	}
 
 	arch_timer_detect_rate(base, np);
-	arch_timer_mem_register(base, irq);
-	arch_timer_common_init();
+	ret = arch_timer_mem_register(base, irq);
+	if (ret)
+		goto out;
+
+	return arch_timer_common_init();
 out:
 	iounmap(cntctlbase);
 	of_node_put(best_frame);
+	return ret;
 }
 CLOCKSOURCE_OF_DECLARE(armv7_arch_timer_mem, "arm,armv7-timer-mem",
 		       arch_timer_mem_init);

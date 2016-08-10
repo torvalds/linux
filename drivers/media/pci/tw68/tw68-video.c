@@ -378,7 +378,7 @@ static int tw68_buffer_count(unsigned int size, unsigned int count)
 
 static int tw68_queue_setup(struct vb2_queue *q,
 			   unsigned int *num_buffers, unsigned int *num_planes,
-			   unsigned int sizes[], void *alloc_ctxs[])
+			   unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct tw68_dev *dev = vb2_get_drv_priv(q);
 	unsigned tot_bufs = q->num_buffers + *num_buffers;
@@ -388,7 +388,6 @@ static int tw68_queue_setup(struct vb2_queue *q,
 		tot_bufs = 2;
 	tot_bufs = tw68_buffer_count(size, tot_bufs);
 	*num_buffers = tot_bufs - q->num_buffers;
-	alloc_ctxs[0] = dev->alloc_ctx;
 	/*
 	 * We allow create_bufs, but only if the sizeimage is >= as the
 	 * current sizeimage. The tw68_buffer_count calculation becomes quite
@@ -983,6 +982,7 @@ int tw68_video_init2(struct tw68_dev *dev, int video_nr)
 	dev->vidq.buf_struct_size = sizeof(struct tw68_buf);
 	dev->vidq.lock = &dev->lock;
 	dev->vidq.min_buffers_needed = 2;
+	dev->vidq.dev = &dev->pci->dev;
 	ret = vb2_queue_init(&dev->vidq);
 	if (ret)
 		return ret;

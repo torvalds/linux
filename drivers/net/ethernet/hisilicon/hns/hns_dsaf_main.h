@@ -39,6 +39,9 @@ struct hns_mac_cb;
 
 #define DSAF_DUMP_REGS_NUM 504
 #define DSAF_STATIC_NUM 28
+#define DSAF_V2_STATIC_NUM	44
+#define DSAF_PRIO_NR	8
+#define DSAF_REG_PER_ZONE	3
 
 #define DSAF_STATS_READ(p, offset) (*((u64 *)((u8 *)(p) + (offset))))
 #define HNS_DSAF_IS_DEBUG(dev) (dev->dsaf_mode == DSAF_MODE_DISABLE_SP)
@@ -176,6 +179,8 @@ struct dsaf_hw_stats {
 	u64 local_addr_false;
 	u64 vlan_drop;
 	u64 stp_drop;
+	u64 rx_pfc[DSAF_PRIO_NR];
+	u64 tx_pfc[DSAF_PRIO_NR];
 	u64 tx_pkts;
 };
 
@@ -268,6 +273,27 @@ struct dsaf_int_stat {
 
 };
 
+struct dsaf_misc_op {
+	void (*cpld_set_led)(struct hns_mac_cb *mac_cb, int link_status,
+			     u16 speed, int data);
+	void (*cpld_reset_led)(struct hns_mac_cb *mac_cb);
+	int (*cpld_set_led_id)(struct hns_mac_cb *mac_cb,
+			       enum hnae_led_state status);
+	/* reset seris function, it will be reset if the dereseet is 0 */
+	void (*dsaf_reset)(struct dsaf_device *dsaf_dev, bool dereset);
+	void (*xge_srst)(struct dsaf_device *dsaf_dev, u32 port, bool dereset);
+	void (*xge_core_srst)(struct dsaf_device *dsaf_dev, u32 port,
+			      bool dereset);
+	void (*ge_srst)(struct dsaf_device *dsaf_dev, u32 port, bool dereset);
+	void (*ppe_srst)(struct dsaf_device *dsaf_dev, u32 port, bool dereset);
+	void (*ppe_comm_srst)(struct dsaf_device *dsaf_dev, bool dereset);
+
+	phy_interface_t (*get_phy_if)(struct hns_mac_cb *mac_cb);
+	int (*get_sfp_prsnt)(struct hns_mac_cb *mac_cb, int *sfp_prsnt);
+
+	int (*cfg_serdes_loopback)(struct hns_mac_cb *mac_cb, bool en);
+};
+
 /* Dsaf device struct define ,and mac ->  dsaf */
 struct dsaf_device {
 	struct device *dev;
@@ -292,9 +318,12 @@ struct dsaf_device {
 	struct ppe_common_cb *ppe_common[DSAF_COMM_DEV_NUM];
 	struct rcb_common_cb *rcb_common[DSAF_COMM_DEV_NUM];
 	struct hns_mac_cb *mac_cb[DSAF_MAX_PORT_NUM];
+	struct dsaf_misc_op *misc_op;
 
 	struct dsaf_hw_stats hw_stats[DSAF_NODE_NUM];
 	struct dsaf_int_stat int_stat;
+	/* make sure tcam table config spinlock */
+	spinlock_t tcam_lock;
 };
 
 static inline void *hns_dsaf_dev_priv(const struct dsaf_device *dsaf_dev)
@@ -388,27 +417,17 @@ int hns_dsaf_get_mac_entry_by_index(
 	u16 entry_index,
 	struct dsaf_drv_mac_multi_dest_entry *mac_entry);
 
-void hns_dsaf_rst(struct dsaf_device *dsaf_dev, u32 val);
-
-void hns_ppe_srst_by_port(struct dsaf_device *dsaf_dev, u32 port, u32 val);
-
-void hns_ppe_com_srst(struct ppe_common_cb *ppe_common, u32 val);
-
 void hns_dsaf_fix_mac_mode(struct hns_mac_cb *mac_cb);
 
 int hns_dsaf_ae_init(struct dsaf_device *dsaf_dev);
 void hns_dsaf_ae_uninit(struct dsaf_device *dsaf_dev);
 
-void hns_dsaf_xge_srst_by_port(struct dsaf_device *dsaf_dev, u32 port, u32 val);
-void hns_dsaf_ge_srst_by_port(struct dsaf_device *dsaf_dev, u32 port, u32 val);
-void hns_dsaf_xge_core_srst_by_port(struct dsaf_device *dsaf_dev,
-				    u32 port, u32 val);
-
 void hns_dsaf_update_stats(struct dsaf_device *dsaf_dev, u32 inode_num);
 
-int hns_dsaf_get_sset_count(int stringset);
+int hns_dsaf_get_sset_count(struct dsaf_device *dsaf_dev, int stringset);
 void hns_dsaf_get_stats(struct dsaf_device *ddev, u64 *data, int port);
-void hns_dsaf_get_strings(int stringset, u8 *data, int port);
+void hns_dsaf_get_strings(int stringset, u8 *data, int port,
+			  struct dsaf_device *dsaf_dev);
 
 void hns_dsaf_get_regs(struct dsaf_device *ddev, u32 port, void *data);
 int hns_dsaf_get_regs_count(void);

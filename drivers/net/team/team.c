@@ -1203,8 +1203,10 @@ static int team_port_add(struct team *team, struct net_device *port_dev)
 		goto err_dev_open;
 	}
 
+	netif_addr_lock_bh(dev);
 	dev_uc_sync_multiple(port_dev, dev);
 	dev_mc_sync_multiple(port_dev, dev);
+	netif_addr_unlock_bh(dev);
 
 	err = vlan_vids_add_by_dev(port_dev, dev);
 	if (err) {
@@ -1574,23 +1576,6 @@ static const struct team_option team_options[] = {
 	},
 };
 
-static struct lock_class_key team_netdev_xmit_lock_key;
-static struct lock_class_key team_netdev_addr_lock_key;
-static struct lock_class_key team_tx_busylock_key;
-
-static void team_set_lockdep_class_one(struct net_device *dev,
-				       struct netdev_queue *txq,
-				       void *unused)
-{
-	lockdep_set_class(&txq->_xmit_lock, &team_netdev_xmit_lock_key);
-}
-
-static void team_set_lockdep_class(struct net_device *dev)
-{
-	lockdep_set_class(&dev->addr_list_lock, &team_netdev_addr_lock_key);
-	netdev_for_each_tx_queue(dev, team_set_lockdep_class_one, NULL);
-	dev->qdisc_tx_busylock = &team_tx_busylock_key;
-}
 
 static int team_init(struct net_device *dev)
 {
@@ -1626,7 +1611,7 @@ static int team_init(struct net_device *dev)
 		goto err_options_register;
 	netif_carrier_off(dev);
 
-	team_set_lockdep_class(dev);
+	netdev_lockdep_set_classes(dev);
 
 	return 0;
 
@@ -2017,6 +2002,8 @@ static const struct net_device_ops team_netdev_ops = {
 	.ndo_add_slave		= team_add_slave,
 	.ndo_del_slave		= team_del_slave,
 	.ndo_fix_features	= team_fix_features,
+	.ndo_neigh_construct	= netdev_default_l2upper_neigh_construct,
+	.ndo_neigh_destroy	= netdev_default_l2upper_neigh_destroy,
 	.ndo_change_carrier     = team_change_carrier,
 	.ndo_bridge_setlink	= switchdev_port_bridge_setlink,
 	.ndo_bridge_getlink	= switchdev_port_bridge_getlink,

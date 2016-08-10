@@ -89,6 +89,7 @@
 #include <linux/slab.h>
 #include <linux/perf_event.h>
 #include <asm/cpu_device_id.h>
+#include <asm/intel-family.h>
 #include "../perf_event.h"
 
 MODULE_LICENSE("GPL");
@@ -511,37 +512,37 @@ static const struct cstate_model slm_cstates __initconst = {
 	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, (unsigned long) &(states) }
 
 static const struct x86_cpu_id intel_cstates_match[] __initconst = {
-	X86_CSTATES_MODEL(30, nhm_cstates),    /* 45nm Nehalem              */
-	X86_CSTATES_MODEL(26, nhm_cstates),    /* 45nm Nehalem-EP           */
-	X86_CSTATES_MODEL(46, nhm_cstates),    /* 45nm Nehalem-EX           */
+	X86_CSTATES_MODEL(INTEL_FAM6_NEHALEM,    nhm_cstates),
+	X86_CSTATES_MODEL(INTEL_FAM6_NEHALEM_EP, nhm_cstates),
+	X86_CSTATES_MODEL(INTEL_FAM6_NEHALEM_EX, nhm_cstates),
 
-	X86_CSTATES_MODEL(37, nhm_cstates),    /* 32nm Westmere             */
-	X86_CSTATES_MODEL(44, nhm_cstates),    /* 32nm Westmere-EP          */
-	X86_CSTATES_MODEL(47, nhm_cstates),    /* 32nm Westmere-EX          */
+	X86_CSTATES_MODEL(INTEL_FAM6_WESTMERE,    nhm_cstates),
+	X86_CSTATES_MODEL(INTEL_FAM6_WESTMERE_EP, nhm_cstates),
+	X86_CSTATES_MODEL(INTEL_FAM6_WESTMERE_EX, nhm_cstates),
 
-	X86_CSTATES_MODEL(42, snb_cstates),    /* 32nm SandyBridge          */
-	X86_CSTATES_MODEL(45, snb_cstates),    /* 32nm SandyBridge-E/EN/EP  */
+	X86_CSTATES_MODEL(INTEL_FAM6_SANDYBRIDGE,   snb_cstates),
+	X86_CSTATES_MODEL(INTEL_FAM6_SANDYBRIDGE_X, snb_cstates),
 
-	X86_CSTATES_MODEL(58, snb_cstates),    /* 22nm IvyBridge            */
-	X86_CSTATES_MODEL(62, snb_cstates),    /* 22nm IvyBridge-EP/EX      */
+	X86_CSTATES_MODEL(INTEL_FAM6_IVYBRIDGE,   snb_cstates),
+	X86_CSTATES_MODEL(INTEL_FAM6_IVYBRIDGE_X, snb_cstates),
 
-	X86_CSTATES_MODEL(60, snb_cstates),    /* 22nm Haswell Core         */
-	X86_CSTATES_MODEL(63, snb_cstates),    /* 22nm Haswell Server       */
-	X86_CSTATES_MODEL(70, snb_cstates),    /* 22nm Haswell + GT3e       */
+	X86_CSTATES_MODEL(INTEL_FAM6_HASWELL_CORE, snb_cstates),
+	X86_CSTATES_MODEL(INTEL_FAM6_HASWELL_X,	   snb_cstates),
+	X86_CSTATES_MODEL(INTEL_FAM6_HASWELL_GT3E, snb_cstates),
 
-	X86_CSTATES_MODEL(69, hswult_cstates), /* 22nm Haswell ULT          */
+	X86_CSTATES_MODEL(INTEL_FAM6_HASWELL_ULT, hswult_cstates),
 
-	X86_CSTATES_MODEL(55, slm_cstates),    /* 22nm Atom Silvermont      */
-	X86_CSTATES_MODEL(77, slm_cstates),    /* 22nm Atom Avoton/Rangely  */
-	X86_CSTATES_MODEL(76, slm_cstates),    /* 22nm Atom Airmont         */
+	X86_CSTATES_MODEL(INTEL_FAM6_ATOM_SILVERMONT1, slm_cstates),
+	X86_CSTATES_MODEL(INTEL_FAM6_ATOM_SILVERMONT2, slm_cstates),
+	X86_CSTATES_MODEL(INTEL_FAM6_ATOM_AIRMONT,     slm_cstates),
 
-	X86_CSTATES_MODEL(61, snb_cstates),    /* 14nm Broadwell Core-M     */
-	X86_CSTATES_MODEL(86, snb_cstates),    /* 14nm Broadwell Xeon D     */
-	X86_CSTATES_MODEL(71, snb_cstates),    /* 14nm Broadwell + GT3e     */
-	X86_CSTATES_MODEL(79, snb_cstates),    /* 14nm Broadwell Server     */
+	X86_CSTATES_MODEL(INTEL_FAM6_BROADWELL_CORE,   snb_cstates),
+	X86_CSTATES_MODEL(INTEL_FAM6_BROADWELL_XEON_D, snb_cstates),
+	X86_CSTATES_MODEL(INTEL_FAM6_BROADWELL_GT3E,   snb_cstates),
+	X86_CSTATES_MODEL(INTEL_FAM6_BROADWELL_X,      snb_cstates),
 
-	X86_CSTATES_MODEL(78, snb_cstates),    /* 14nm Skylake Mobile       */
-	X86_CSTATES_MODEL(94, snb_cstates),    /* 14nm Skylake Desktop      */
+	X86_CSTATES_MODEL(INTEL_FAM6_SKYLAKE_MOBILE,  snb_cstates),
+	X86_CSTATES_MODEL(INTEL_FAM6_SKYLAKE_DESKTOP, snb_cstates),
 	{ },
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_cstates_match);

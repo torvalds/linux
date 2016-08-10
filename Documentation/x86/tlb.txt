@@ -5,7 +5,7 @@ memory, it has two choices:
     from areas other than the one we are trying to flush will be
     destroyed and must be refilled later, at some cost.
  2. Use the invlpg instruction to invalidate a single page at a
-    time.  This could potentialy cost many more instructions, but
+    time.  This could potentially cost many more instructions, but
     it is a much more precise operation, causing no collateral
     damage to other TLB entries.
 
@@ -19,7 +19,7 @@ Which method to do depends on a few things:
     work.
  3. The size of the TLB.  The larger the TLB, the more collateral
     damage we do with a full flush.  So, the larger the TLB, the
-    more attrative an individual flush looks.  Data and
+    more attractive an individual flush looks.  Data and
     instructions have separate TLBs, as do different page sizes.
  4. The microarchitecture.  The TLB has become a multi-level
     cache on modern CPUs, and the global flushes have become more

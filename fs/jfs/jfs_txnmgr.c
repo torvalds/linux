@@ -3040,7 +3040,6 @@ static int jfs_txanchor_proc_open(struct inode *inode, struct file *file)
 }
 
 const struct file_operations jfs_txanchor_proc_fops = {
-	.owner		= THIS_MODULE,
 	.open		= jfs_txanchor_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -3081,7 +3080,6 @@ static int jfs_txstats_proc_open(struct inode *inode, struct file *file)
 }
 
 const struct file_operations jfs_txstats_proc_fops = {
-	.owner		= THIS_MODULE,
 	.open		= jfs_txstats_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

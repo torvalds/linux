@@ -99,6 +99,7 @@ MODULE_PARM_DESC(dvb_mfe_wait_time, "Wait up to <mfe_wait_time> seconds on open(
 static DEFINE_MUTEX(frontend_mutex);
 
 struct dvb_frontend_private {
+	struct kref refcount;
 
 	/* thread/frontend values */
 	struct dvb_device *dvbdev;
@@ -136,6 +137,23 @@ struct dvb_frontend_private {
 	struct media_pipeline pipe;
 #endif
 };
+
+static void dvb_frontend_private_free(struct kref *ref)
+{
+	struct dvb_frontend_private *fepriv =
+		container_of(ref, struct dvb_frontend_private, refcount);
+	kfree(fepriv);
+}
+
+static void dvb_frontend_private_put(struct dvb_frontend_private *fepriv)
+{
+	kref_put(&fepriv->refcount, dvb_frontend_private_free);
+}
+
+static void dvb_frontend_private_get(struct dvb_frontend_private *fepriv)
+{
+	kref_get(&fepriv->refcount);
+}
 
 static void dvb_frontend_wakeup(struct dvb_frontend *fe);
 static int dtv_get_frontend(struct dvb_frontend *fe,
@@ -2543,6 +2561,8 @@ static int dvb_frontend_open(struct inode *inode, struct file *file)
 		fepriv->events.eventr = fepriv->events.eventw = 0;
 	}
 
+	dvb_frontend_private_get(fepriv);
+
 	if (adapter->mfe_shared)
 		mutex_unlock (&adapter->mfe_lock);
 	return ret;
@@ -2590,6 +2610,8 @@ static int dvb_frontend_release(struct inode *inode, struct file *file)
 		if (fe->ops.ts_bus_ctrl)
 			fe->ops.ts_bus_ctrl(fe, 0);
 	}
+
+	dvb_frontend_private_put(fepriv);
 
 	return ret;
 }
@@ -2679,6 +2701,8 @@ int dvb_register_frontend(struct dvb_adapter* dvb,
 	}
 	fepriv = fe->frontend_priv;
 
+	kref_init(&fepriv->refcount);
+
 	sema_init(&fepriv->sem, 1);
 	init_waitqueue_head (&fepriv->wait_queue);
 	init_waitqueue_head (&fepriv->events.wait_queue);
@@ -2713,18 +2737,11 @@ int dvb_unregister_frontend(struct dvb_frontend* fe)
 
 	mutex_lock(&frontend_mutex);
 	dvb_frontend_stop (fe);
-	mutex_unlock(&frontend_mutex);
-
-	if (fepriv->dvbdev->users < -1)
-		wait_event(fepriv->dvbdev->wait_queue,
-				fepriv->dvbdev->users==-1);
-
-	mutex_lock(&frontend_mutex);
 	dvb_unregister_device (fepriv->dvbdev);
 
 	/* fe is invalid now */
-	kfree(fepriv);
 	mutex_unlock(&frontend_mutex);
+	dvb_frontend_private_put(fepriv);
 	return 0;
 }
 EXPORT_SYMBOL(dvb_unregister_frontend);

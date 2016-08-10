@@ -319,6 +319,8 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 		pr_warn("force_sf_dma_mode is ignored if force_thresh_dma_mode is set.");
 	}
 
+	of_property_read_u32(np, "snps,ps-speed", &plat->mac_port_sel_speed);
+
 	plat->axi = stmmac_axi_setup(pdev);
 
 	return plat;
@@ -411,7 +413,9 @@ static int stmmac_pltfr_suspend(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 
 	ret = stmmac_suspend(dev);
-	if (priv->plat->exit)
+	if (priv->plat->suspend)
+		priv->plat->suspend(pdev, priv->plat->bsp_priv);
+	else if (priv->plat->exit)
 		priv->plat->exit(pdev, priv->plat->bsp_priv);
 
 	return ret;
@@ -430,7 +434,9 @@ static int stmmac_pltfr_resume(struct device *dev)
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	struct platform_device *pdev = to_platform_device(dev);
 
-	if (priv->plat->init)
+	if (priv->plat->resume)
+		priv->plat->resume(pdev, priv->plat->bsp_priv);
+	else if (priv->plat->init)
 		priv->plat->init(pdev, priv->plat->bsp_priv);
 
 	return stmmac_resume(dev);

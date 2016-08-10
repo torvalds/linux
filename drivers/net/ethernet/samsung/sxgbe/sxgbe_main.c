@@ -124,12 +124,13 @@ static void sxgbe_eee_ctrl_timer(unsigned long arg)
  */
 bool sxgbe_eee_init(struct sxgbe_priv_data * const priv)
 {
+	struct net_device *ndev = priv->dev;
 	bool ret = false;
 
 	/* MAC core supports the EEE feature. */
 	if (priv->hw_cap.eee) {
 		/* Check if the PHY supports EEE */
-		if (phy_init_eee(priv->phydev, 1))
+		if (phy_init_eee(ndev->phydev, 1))
 			return false;
 
 		priv->eee_active = 1;
@@ -152,12 +153,14 @@ bool sxgbe_eee_init(struct sxgbe_priv_data * const priv)
 
 static void sxgbe_eee_adjust(const struct sxgbe_priv_data *priv)
 {
+	struct net_device *ndev = priv->dev;
+
 	/* When the EEE has been already initialised we have to
 	 * modify the PLS bit in the LPI ctrl & status reg according
 	 * to the PHY link status. For this reason.
 	 */
 	if (priv->eee_enabled)
-		priv->hw->mac->set_eee_pls(priv->ioaddr, priv->phydev->link);
+		priv->hw->mac->set_eee_pls(priv->ioaddr, ndev->phydev->link);
 }
 
 /**
@@ -203,7 +206,7 @@ static inline u32 sxgbe_tx_avail(struct sxgbe_tx_queue *queue, int tx_qsize)
 static void sxgbe_adjust_link(struct net_device *dev)
 {
 	struct sxgbe_priv_data *priv = netdev_priv(dev);
-	struct phy_device *phydev = priv->phydev;
+	struct phy_device *phydev = dev->phydev;
 	u8 new_state = 0;
 	u8 speed = 0xff;
 
@@ -305,9 +308,6 @@ static int sxgbe_init_phy(struct net_device *ndev)
 
 	netdev_dbg(ndev, "%s: attached to PHY (UID 0x%x) Link = %d\n",
 		   __func__, phydev->phy_id, phydev->link);
-
-	/* save phy device in private structure */
-	priv->phydev = phydev;
 
 	return 0;
 }
@@ -1173,8 +1173,8 @@ static int sxgbe_open(struct net_device *dev)
 	priv->hw->dma->start_tx(priv->ioaddr, SXGBE_TX_QUEUES);
 	priv->hw->dma->start_rx(priv->ioaddr, SXGBE_RX_QUEUES);
 
-	if (priv->phydev)
-		phy_start(priv->phydev);
+	if (dev->phydev)
+		phy_start(dev->phydev);
 
 	/* initialise TX coalesce parameters */
 	sxgbe_tx_init_coalesce(priv);
@@ -1194,8 +1194,8 @@ static int sxgbe_open(struct net_device *dev)
 
 init_error:
 	free_dma_desc_resources(priv);
-	if (priv->phydev)
-		phy_disconnect(priv->phydev);
+	if (dev->phydev)
+		phy_disconnect(dev->phydev);
 phy_error:
 	clk_disable_unprepare(priv->sxgbe_clk);
 
@@ -1216,10 +1216,9 @@ static int sxgbe_release(struct net_device *dev)
 		del_timer_sync(&priv->eee_ctrl_timer);
 
 	/* Stop and disconnect the PHY */
-	if (priv->phydev) {
-		phy_stop(priv->phydev);
-		phy_disconnect(priv->phydev);
-		priv->phydev = NULL;
+	if (dev->phydev) {
+		phy_stop(dev->phydev);
+		phy_disconnect(dev->phydev);
 	}
 
 	netif_tx_stop_all_queues(dev);
@@ -1969,7 +1968,6 @@ static void sxgbe_poll_controller(struct net_device *dev)
  */
 static int sxgbe_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
-	struct sxgbe_priv_data *priv = netdev_priv(dev);
 	int ret = -EOPNOTSUPP;
 
 	if (!netif_running(dev))
@@ -1979,9 +1977,9 @@ static int sxgbe_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	case SIOCGMIIPHY:
 	case SIOCGMIIREG:
 	case SIOCSMIIREG:
-		if (!priv->phydev)
+		if (!dev->phydev)
 			return -EINVAL;
-		ret = phy_mii_ioctl(priv->phydev, rq, cmd);
+		ret = phy_mii_ioctl(dev->phydev, rq, cmd);
 		break;
 	default:
 		break;

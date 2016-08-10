@@ -398,7 +398,7 @@ static int rsi_mgmt_pkt_to_core(struct rsi_common *common,
 			return -ENOLINK;
 
 		msg_len -= pad_bytes;
-		if ((msg_len <= 0) || (!msg)) {
+		if (msg_len <= 0) {
 			rsi_dbg(MGMT_RX_ZONE,
 				"%s: Invalid rx msg of len = %d\n",
 				__func__, msg_len);

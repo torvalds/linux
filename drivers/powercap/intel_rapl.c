@@ -33,6 +33,7 @@
 
 #include <asm/processor.h>
 #include <asm/cpu_device_id.h>
+#include <asm/intel-family.h>
 
 /* Local defines */
 #define MSR_PLATFORM_POWER_LIMIT	0x0000065C
@@ -335,14 +336,14 @@ static int release_zone(struct powercap_zone *power_zone)
 
 static int find_nr_power_limit(struct rapl_domain *rd)
 {
-	int i;
+	int i, nr_pl = 0;
 
 	for (i = 0; i < NR_POWER_LIMITS; i++) {
-		if (rd->rpl[i].name == NULL)
-			break;
+		if (rd->rpl[i].name)
+			nr_pl++;
 	}
 
-	return i;
+	return nr_pl;
 }
 
 static int set_domain_enable(struct powercap_zone *power_zone, bool mode)
@@ -425,15 +426,38 @@ static const struct powercap_zone_ops zone_ops[] = {
 	},
 };
 
-static int set_power_limit(struct powercap_zone *power_zone, int id,
+
+/*
+ * Constraint index used by powercap can be different than power limit (PL)
+ * index in that some  PLs maybe missing due to non-existant MSRs. So we
+ * need to convert here by finding the valid PLs only (name populated).
+ */
+static int contraint_to_pl(struct rapl_domain *rd, int cid)
+{
+	int i, j;
+
+	for (i = 0, j = 0; i < NR_POWER_LIMITS; i++) {
+		if ((rd->rpl[i].name) && j++ == cid) {
+			pr_debug("%s: index %d\n", __func__, i);
+			return i;
+		}
+	}
+
+	return -EINVAL;
+}
+
+static int set_power_limit(struct powercap_zone *power_zone, int cid,
 			u64 power_limit)
 {
 	struct rapl_domain *rd;
 	struct rapl_package *rp;
 	int ret = 0;
+	int id;
 
 	get_online_cpus();
 	rd = power_zone_to_rapl_domain(power_zone);
+	id = contraint_to_pl(rd, cid);
+
 	rp = rd->rp;
 
 	if (rd->state & DOMAIN_STATE_BIOS_LOCKED) {
@@ -460,16 +484,18 @@ set_exit:
 	return ret;
 }
 
-static int get_current_power_limit(struct powercap_zone *power_zone, int id,
+static int get_current_power_limit(struct powercap_zone *power_zone, int cid,
 					u64 *data)
 {
 	struct rapl_domain *rd;
 	u64 val;
 	int prim;
 	int ret = 0;
+	int id;
 
 	get_online_cpus();
 	rd = power_zone_to_rapl_domain(power_zone);
+	id = contraint_to_pl(rd, cid);
 	switch (rd->rpl[id].prim_id) {
 	case PL1_ENABLE:
 		prim = POWER_LIMIT1;
@@ -491,14 +517,17 @@ static int get_current_power_limit(struct powercap_zone *power_zone, int id,
 	return ret;
 }
 
-static int set_time_window(struct powercap_zone *power_zone, int id,
+static int set_time_window(struct powercap_zone *power_zone, int cid,
 								u64 window)
 {
 	struct rapl_domain *rd;
 	int ret = 0;
+	int id;
 
 	get_online_cpus();
 	rd = power_zone_to_rapl_domain(power_zone);
+	id = contraint_to_pl(rd, cid);
+
 	switch (rd->rpl[id].prim_id) {
 	case PL1_ENABLE:
 		rapl_write_data_raw(rd, TIME_WINDOW1, window);
@@ -513,14 +542,17 @@ static int set_time_window(struct powercap_zone *power_zone, int id,
 	return ret;
 }
 
-static int get_time_window(struct powercap_zone *power_zone, int id, u64 *data)
+static int get_time_window(struct powercap_zone *power_zone, int cid, u64 *data)
 {
 	struct rapl_domain *rd;
 	u64 val;
 	int ret = 0;
+	int id;
 
 	get_online_cpus();
 	rd = power_zone_to_rapl_domain(power_zone);
+	id = contraint_to_pl(rd, cid);
+
 	switch (rd->rpl[id].prim_id) {
 	case PL1_ENABLE:
 		ret = rapl_read_data_raw(rd, TIME_WINDOW1, true, &val);
@@ -539,15 +571,17 @@ static int get_time_window(struct powercap_zone *power_zone, int id, u64 *data)
 	return ret;
 }
 
-static const char *get_constraint_name(struct powercap_zone *power_zone, int id)
+static const char *get_constraint_name(struct powercap_zone *power_zone, int cid)
 {
-	struct rapl_power_limit *rpl;
 	struct rapl_domain *rd;
+	int id;
 
 	rd = power_zone_to_rapl_domain(power_zone);
-	rpl = (struct rapl_power_limit *) &rd->rpl[id];
+	id = contraint_to_pl(rd, cid);
+	if (id >= 0)
+		return rd->rpl[id].name;
 
-	return rpl->name;
+	return NULL;
 }
 
 
@@ -1096,27 +1130,36 @@ static const struct rapl_defaults rapl_defaults_cht = {
 		}
 
 static const struct x86_cpu_id rapl_ids[] __initconst = {
-	RAPL_CPU(0x2a, rapl_defaults_core),/* Sandy Bridge */
-	RAPL_CPU(0x2d, rapl_defaults_core),/* Sandy Bridge EP */
-	RAPL_CPU(0x37, rapl_defaults_byt),/* Valleyview */
-	RAPL_CPU(0x3a, rapl_defaults_core),/* Ivy Bridge */
-	RAPL_CPU(0x3c, rapl_defaults_core),/* Haswell */
-	RAPL_CPU(0x3d, rapl_defaults_core),/* Broadwell */
-	RAPL_CPU(0x3f, rapl_defaults_hsw_server),/* Haswell servers */
-	RAPL_CPU(0x4f, rapl_defaults_hsw_server),/* Broadwell servers */
-	RAPL_CPU(0x45, rapl_defaults_core),/* Haswell ULT */
-	RAPL_CPU(0x46, rapl_defaults_core),/* Haswell */
-	RAPL_CPU(0x47, rapl_defaults_core),/* Broadwell-H */
-	RAPL_CPU(0x4E, rapl_defaults_core),/* Skylake */
-	RAPL_CPU(0x4C, rapl_defaults_cht),/* Braswell/Cherryview */
-	RAPL_CPU(0x4A, rapl_defaults_tng),/* Tangier */
-	RAPL_CPU(0x56, rapl_defaults_core),/* Future Xeon */
-	RAPL_CPU(0x5A, rapl_defaults_ann),/* Annidale */
-	RAPL_CPU(0X5C, rapl_defaults_core),/* Broxton */
-	RAPL_CPU(0x5E, rapl_defaults_core),/* Skylake-H/S */
-	RAPL_CPU(0x57, rapl_defaults_hsw_server),/* Knights Landing */
-	RAPL_CPU(0x8E, rapl_defaults_core),/* Kabylake */
-	RAPL_CPU(0x9E, rapl_defaults_core),/* Kabylake */
+	RAPL_CPU(INTEL_FAM6_SANDYBRIDGE,	rapl_defaults_core),
+	RAPL_CPU(INTEL_FAM6_SANDYBRIDGE_X,	rapl_defaults_core),
+
+	RAPL_CPU(INTEL_FAM6_IVYBRIDGE,		rapl_defaults_core),
+	RAPL_CPU(INTEL_FAM6_IVYBRIDGE_X,	rapl_defaults_core),
+
+	RAPL_CPU(INTEL_FAM6_HASWELL_CORE,	rapl_defaults_core),
+	RAPL_CPU(INTEL_FAM6_HASWELL_ULT,	rapl_defaults_core),
+	RAPL_CPU(INTEL_FAM6_HASWELL_GT3E,	rapl_defaults_core),
+	RAPL_CPU(INTEL_FAM6_HASWELL_X,		rapl_defaults_hsw_server),
+
+	RAPL_CPU(INTEL_FAM6_BROADWELL_CORE,	rapl_defaults_core),
+	RAPL_CPU(INTEL_FAM6_BROADWELL_GT3E,	rapl_defaults_core),
+	RAPL_CPU(INTEL_FAM6_BROADWELL_XEON_D,	rapl_defaults_core),
+	RAPL_CPU(INTEL_FAM6_BROADWELL_X,	rapl_defaults_hsw_server),
+
+	RAPL_CPU(INTEL_FAM6_SKYLAKE_DESKTOP,	rapl_defaults_core),
+	RAPL_CPU(INTEL_FAM6_SKYLAKE_MOBILE,	rapl_defaults_core),
+	RAPL_CPU(INTEL_FAM6_SKYLAKE_X,		rapl_defaults_hsw_server),
+	RAPL_CPU(INTEL_FAM6_KABYLAKE_MOBILE,	rapl_defaults_core),
+	RAPL_CPU(INTEL_FAM6_KABYLAKE_DESKTOP,	rapl_defaults_core),
+
+	RAPL_CPU(INTEL_FAM6_ATOM_SILVERMONT1,	rapl_defaults_byt),
+	RAPL_CPU(INTEL_FAM6_ATOM_AIRMONT,	rapl_defaults_cht),
+	RAPL_CPU(INTEL_FAM6_ATOM_MERRIFIELD1,	rapl_defaults_tng),
+	RAPL_CPU(INTEL_FAM6_ATOM_MERRIFIELD2,	rapl_defaults_ann),
+	RAPL_CPU(INTEL_FAM6_ATOM_GOLDMONT,	rapl_defaults_core),
+	RAPL_CPU(INTEL_FAM6_ATOM_DENVERTON,	rapl_defaults_core),
+
+	RAPL_CPU(INTEL_FAM6_XEON_PHI_KNL,	rapl_defaults_hsw_server),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, rapl_ids);
@@ -1373,6 +1416,37 @@ static int rapl_check_domain(int cpu, int domain)
 	return 0;
 }
 
+
+/*
+ * Check if power limits are available. Two cases when they are not available:
+ * 1. Locked by BIOS, in this case we still provide read-only access so that
+ *    users can see what limit is set by the BIOS.
+ * 2. Some CPUs make some domains monitoring only which means PLx MSRs may not
+ *    exist at all. In this case, we do not show the contraints in powercap.
+ *
+ * Called after domains are detected and initialized.
+ */
+static void rapl_detect_powerlimit(struct rapl_domain *rd)
+{
+	u64 val64;
+	int i;
+
+	/* check if the domain is locked by BIOS, ignore if MSR doesn't exist */
+	if (!rapl_read_data_raw(rd, FW_LOCK, false, &val64)) {
+		if (val64) {
+			pr_info("RAPL package %d domain %s locked by BIOS\n",
+				rd->rp->id, rd->name);
+			rd->state |= DOMAIN_STATE_BIOS_LOCKED;
+		}
+	}
+	/* check if power limit MSRs exists, otherwise domain is monitoring only */
+	for (i = 0; i < NR_POWER_LIMITS; i++) {
+		int prim = rd->rpl[i].prim_id;
+		if (rapl_read_data_raw(rd, prim, false, &val64))
+			rd->rpl[i].name = NULL;
+	}
+}
+
 /* Detect active and valid domains for the given CPU, caller must
  * ensure the CPU belongs to the targeted package and CPU hotlug is disabled.
  */
@@ -1381,7 +1455,6 @@ static int rapl_detect_domains(struct rapl_package *rp, int cpu)
 	int i;
 	int ret = 0;
 	struct rapl_domain *rd;
-	u64 locked;
 
 	for (i = 0; i < RAPL_DOMAIN_MAX; i++) {
 		/* use physical package id to read counters */
@@ -1392,7 +1465,7 @@ static int rapl_detect_domains(struct rapl_package *rp, int cpu)
 	}
 	rp->nr_domains = bitmap_weight(&rp->domain_map,	RAPL_DOMAIN_MAX);
 	if (!rp->nr_domains) {
-		pr_err("no valid rapl domains found in package %d\n", rp->id);
+		pr_debug("no valid rapl domains found in package %d\n", rp->id);
 		ret = -ENODEV;
 		goto done;
 	}
@@ -1406,17 +1479,9 @@ static int rapl_detect_domains(struct rapl_package *rp, int cpu)
 	}
 	rapl_init_domains(rp);
 
-	for (rd = rp->domains; rd < rp->domains + rp->nr_domains; rd++) {
-		/* check if the domain is locked by BIOS */
-		ret = rapl_read_data_raw(rd, FW_LOCK, false, &locked);
-		if (ret)
-			return ret;
-		if (locked) {
-			pr_info("RAPL package %d domain %s locked by BIOS\n",
-				rp->id, rd->name);
-			rd->state |= DOMAIN_STATE_BIOS_LOCKED;
-		}
-	}
+	for (rd = rp->domains; rd < rp->domains + rp->nr_domains; rd++)
+		rapl_detect_powerlimit(rd);
+
 
 
 done:

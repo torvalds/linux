@@ -81,6 +81,49 @@ static const struct bpf_func_proto bpf_probe_read_proto = {
 	.arg3_type	= ARG_ANYTHING,
 };
 
+static u64 bpf_probe_write_user(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
+{
+	void *unsafe_ptr = (void *) (long) r1;
+	void *src = (void *) (long) r2;
+	int size = (int) r3;
+
+	/*
+	 * Ensure we're in user context which is safe for the helper to
+	 * run. This helper has no business in a kthread.
+	 *
+	 * access_ok() should prevent writing to non-user memory, but in
+	 * some situations (nommu, temporary switch, etc) access_ok() does
+	 * not provide enough validation, hence the check on KERNEL_DS.
+	 */
+
+	if (unlikely(in_interrupt() ||
+		     current->flags & (PF_KTHREAD | PF_EXITING)))
+		return -EPERM;
+	if (unlikely(segment_eq(get_fs(), KERNEL_DS)))
+		return -EPERM;
+	if (!access_ok(VERIFY_WRITE, unsafe_ptr, size))
+		return -EPERM;
+
+	return probe_kernel_write(unsafe_ptr, src, size);
+}
+
+static const struct bpf_func_proto bpf_probe_write_user_proto = {
+	.func		= bpf_probe_write_user,
+	.gpl_only	= true,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_ANYTHING,
+	.arg2_type	= ARG_PTR_TO_STACK,
+	.arg3_type	= ARG_CONST_STACK_SIZE,
+};
+
+static const struct bpf_func_proto *bpf_get_probe_write_proto(void)
+{
+	pr_warn_ratelimited("%s[%d] is installing a program with bpf_probe_write_user helper that may corrupt user memory!",
+			    current->comm, task_pid_nr(current));
+
+	return &bpf_probe_write_user_proto;
+}
+
 /*
  * limited trace_printk()
  * only %d %u %x %ld %lu %lx %lld %llu %llx %p %s conversion specifiers allowed
@@ -188,25 +231,33 @@ const struct bpf_func_proto *bpf_get_trace_printk_proto(void)
 	return &bpf_trace_printk_proto;
 }
 
-static u64 bpf_perf_event_read(u64 r1, u64 index, u64 r3, u64 r4, u64 r5)
+static u64 bpf_perf_event_read(u64 r1, u64 flags, u64 r3, u64 r4, u64 r5)
 {
 	struct bpf_map *map = (struct bpf_map *) (unsigned long) r1;
 	struct bpf_array *array = container_of(map, struct bpf_array, map);
+	unsigned int cpu = smp_processor_id();
+	u64 index = flags & BPF_F_INDEX_MASK;
+	struct bpf_event_entry *ee;
 	struct perf_event *event;
-	struct file *file;
 
+	if (unlikely(flags & ~(BPF_F_INDEX_MASK)))
+		return -EINVAL;
+	if (index == BPF_F_CURRENT_CPU)
+		index = cpu;
 	if (unlikely(index >= array->map.max_entries))
 		return -E2BIG;
 
-	file = READ_ONCE(array->ptrs[index]);
-	if (unlikely(!file))
+	ee = READ_ONCE(array->ptrs[index]);
+	if (!ee)
 		return -ENOENT;
 
-	event = file->private_data;
+	event = ee->event;
+	if (unlikely(event->attr.type != PERF_TYPE_HARDWARE &&
+		     event->attr.type != PERF_TYPE_RAW))
+		return -EINVAL;
 
 	/* make sure event is local and doesn't have pmu::count */
-	if (event->oncpu != smp_processor_id() ||
-	    event->pmu->count)
+	if (unlikely(event->oncpu != cpu || event->pmu->count))
 		return -EINVAL;
 
 	/*
@@ -225,45 +276,56 @@ static const struct bpf_func_proto bpf_perf_event_read_proto = {
 	.arg2_type	= ARG_ANYTHING,
 };
 
-static u64 bpf_perf_event_output(u64 r1, u64 r2, u64 flags, u64 r4, u64 size)
+static __always_inline u64
+__bpf_perf_event_output(struct pt_regs *regs, struct bpf_map *map,
+			u64 flags, struct perf_raw_record *raw)
 {
-	struct pt_regs *regs = (struct pt_regs *) (long) r1;
-	struct bpf_map *map = (struct bpf_map *) (long) r2;
 	struct bpf_array *array = container_of(map, struct bpf_array, map);
+	unsigned int cpu = smp_processor_id();
 	u64 index = flags & BPF_F_INDEX_MASK;
-	void *data = (void *) (long) r4;
 	struct perf_sample_data sample_data;
+	struct bpf_event_entry *ee;
 	struct perf_event *event;
-	struct file *file;
-	struct perf_raw_record raw = {
-		.size = size,
-		.data = data,
-	};
 
-	if (unlikely(flags & ~(BPF_F_INDEX_MASK)))
-		return -EINVAL;
 	if (index == BPF_F_CURRENT_CPU)
-		index = raw_smp_processor_id();
+		index = cpu;
 	if (unlikely(index >= array->map.max_entries))
 		return -E2BIG;
 
-	file = READ_ONCE(array->ptrs[index]);
-	if (unlikely(!file))
+	ee = READ_ONCE(array->ptrs[index]);
+	if (!ee)
 		return -ENOENT;
 
-	event = file->private_data;
-
+	event = ee->event;
 	if (unlikely(event->attr.type != PERF_TYPE_SOFTWARE ||
 		     event->attr.config != PERF_COUNT_SW_BPF_OUTPUT))
 		return -EINVAL;
 
-	if (unlikely(event->oncpu != smp_processor_id()))
+	if (unlikely(event->oncpu != cpu))
 		return -EOPNOTSUPP;
 
 	perf_sample_data_init(&sample_data, 0, 0);
-	sample_data.raw = &raw;
+	sample_data.raw = raw;
 	perf_event_output(event, &sample_data, regs);
 	return 0;
+}
+
+static u64 bpf_perf_event_output(u64 r1, u64 r2, u64 flags, u64 r4, u64 size)
+{
+	struct pt_regs *regs = (struct pt_regs *)(long) r1;
+	struct bpf_map *map  = (struct bpf_map *)(long) r2;
+	void *data = (void *)(long) r4;
+	struct perf_raw_record raw = {
+		.frag = {
+			.size = size,
+			.data = data,
+		},
+	};
+
+	if (unlikely(flags & ~(BPF_F_INDEX_MASK)))
+		return -EINVAL;
+
+	return __bpf_perf_event_output(regs, map, flags, &raw);
 }
 
 static const struct bpf_func_proto bpf_perf_event_output_proto = {
@@ -279,30 +341,40 @@ static const struct bpf_func_proto bpf_perf_event_output_proto = {
 
 static DEFINE_PER_CPU(struct pt_regs, bpf_pt_regs);
 
-static u64 bpf_event_output(u64 r1, u64 r2, u64 flags, u64 r4, u64 size)
+u64 bpf_event_output(struct bpf_map *map, u64 flags, void *meta, u64 meta_size,
+		     void *ctx, u64 ctx_size, bpf_ctx_copy_t ctx_copy)
 {
 	struct pt_regs *regs = this_cpu_ptr(&bpf_pt_regs);
+	struct perf_raw_frag frag = {
+		.copy		= ctx_copy,
+		.size		= ctx_size,
+		.data		= ctx,
+	};
+	struct perf_raw_record raw = {
+		.frag = {
+			{
+				.next	= ctx_size ? &frag : NULL,
+			},
+			.size	= meta_size,
+			.data	= meta,
+		},
+	};
 
 	perf_fetch_caller_regs(regs);
 
-	return bpf_perf_event_output((long)regs, r2, flags, r4, size);
+	return __bpf_perf_event_output(regs, map, flags, &raw);
 }
 
-static const struct bpf_func_proto bpf_event_output_proto = {
-	.func		= bpf_event_output,
+static u64 bpf_get_current_task(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
+{
+	return (long) current;
+}
+
+static const struct bpf_func_proto bpf_get_current_task_proto = {
+	.func		= bpf_get_current_task,
 	.gpl_only	= true,
 	.ret_type	= RET_INTEGER,
-	.arg1_type	= ARG_PTR_TO_CTX,
-	.arg2_type	= ARG_CONST_MAP_PTR,
-	.arg3_type	= ARG_ANYTHING,
-	.arg4_type	= ARG_PTR_TO_STACK,
-	.arg5_type	= ARG_CONST_STACK_SIZE,
 };
-
-const struct bpf_func_proto *bpf_get_event_output_proto(void)
-{
-	return &bpf_event_output_proto;
-}
 
 static const struct bpf_func_proto *tracing_func_proto(enum bpf_func_id func_id)
 {
@@ -321,6 +393,8 @@ static const struct bpf_func_proto *tracing_func_proto(enum bpf_func_id func_id)
 		return &bpf_tail_call_proto;
 	case BPF_FUNC_get_current_pid_tgid:
 		return &bpf_get_current_pid_tgid_proto;
+	case BPF_FUNC_get_current_task:
+		return &bpf_get_current_task_proto;
 	case BPF_FUNC_get_current_uid_gid:
 		return &bpf_get_current_uid_gid_proto;
 	case BPF_FUNC_get_current_comm:
@@ -331,6 +405,8 @@ static const struct bpf_func_proto *tracing_func_proto(enum bpf_func_id func_id)
 		return &bpf_get_smp_processor_id_proto;
 	case BPF_FUNC_perf_event_read:
 		return &bpf_perf_event_read_proto;
+	case BPF_FUNC_probe_write_user:
+		return bpf_get_probe_write_proto();
 	default:
 		return NULL;
 	}
@@ -349,20 +425,15 @@ static const struct bpf_func_proto *kprobe_prog_func_proto(enum bpf_func_id func
 }
 
 /* bpf+kprobe programs can access fields of 'struct pt_regs' */
-static bool kprobe_prog_is_valid_access(int off, int size, enum bpf_access_type type)
+static bool kprobe_prog_is_valid_access(int off, int size, enum bpf_access_type type,
+					enum bpf_reg_type *reg_type)
 {
-	/* check bounds */
 	if (off < 0 || off >= sizeof(struct pt_regs))
 		return false;
-
-	/* only read is allowed */
 	if (type != BPF_READ)
 		return false;
-
-	/* disallow misaligned access */
 	if (off % size != 0)
 		return false;
-
 	return true;
 }
 
@@ -427,7 +498,8 @@ static const struct bpf_func_proto *tp_prog_func_proto(enum bpf_func_id func_id)
 	}
 }
 
-static bool tp_prog_is_valid_access(int off, int size, enum bpf_access_type type)
+static bool tp_prog_is_valid_access(int off, int size, enum bpf_access_type type,
+				    enum bpf_reg_type *reg_type)
 {
 	if (off < sizeof(void *) || off >= PERF_MAX_TRACE_SIZE)
 		return false;

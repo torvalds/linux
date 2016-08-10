@@ -5,7 +5,7 @@
   </refmeta>
   <refnamediv>
     <refname><constant>V4L2_PIX_FMT_Z16</constant></refname>
-    <refpurpose>Interleaved grey-scale image, e.g. from a stereo-pair</refpurpose>
+    <refpurpose>16-bit depth data with distance values at each pixel</refpurpose>
   </refnamediv>
   <refsect1>
     <title>Description</title>

@@ -95,7 +95,7 @@ static int beyond_eof(struct inode *inode, loff_t bix)
  * of each character and pick a prime nearby, preferably a bit-sparse
  * one.
  */
-static u32 hash_32(const char *s, int len, u32 seed)
+static u32 logfs_hash_32(const char *s, int len, u32 seed)
 {
 	u32 hash = seed;
 	int i;
@@ -159,7 +159,7 @@ static struct page *logfs_get_dd_page(struct inode *dir, struct dentry *dentry)
 	struct qstr *name = &dentry->d_name;
 	struct page *page;
 	struct logfs_disk_dentry *dd;
-	u32 hash = hash_32(name->name, name->len, 0);
+	u32 hash = logfs_hash_32(name->name, name->len, 0);
 	pgoff_t index;
 	int round;
 
@@ -370,7 +370,7 @@ static int logfs_write_dir(struct inode *dir, struct dentry *dentry,
 {
 	struct page *page;
 	struct logfs_disk_dentry *dd;
-	u32 hash = hash_32(dentry->d_name.name, dentry->d_name.len, 0);
+	u32 hash = logfs_hash_32(dentry->d_name.name, dentry->d_name.len, 0);
 	pgoff_t index;
 	int round, err;
 

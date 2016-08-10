@@ -237,7 +237,11 @@ void orinoco_add_hostscan_results(struct orinoco_private *priv,
 
  scan_abort:
 	if (priv->scan_request) {
-		cfg80211_scan_done(priv->scan_request, abort);
+		struct cfg80211_scan_info info = {
+			.aborted = abort,
+		};
+
+		cfg80211_scan_done(priv->scan_request, &info);
 		priv->scan_request = NULL;
 	}
 }
@@ -245,7 +249,11 @@ void orinoco_add_hostscan_results(struct orinoco_private *priv,
 void orinoco_scan_done(struct orinoco_private *priv, bool abort)
 {
 	if (priv->scan_request) {
-		cfg80211_scan_done(priv->scan_request, abort);
+		struct cfg80211_scan_info info = {
+			.aborted = abort,
+		};
+
+		cfg80211_scan_done(priv->scan_request, &info);
 		priv->scan_request = NULL;
 	}
 }

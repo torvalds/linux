@@ -259,7 +259,7 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
 		bio_end_io_t end_write_func)
 {
 	struct bio *bio;
-	int ret, rw = WRITE;
+	int ret;
 	struct swap_info_struct *sis = page_swap_info(page);
 
 	if (sis->flags & SWP_FILE) {
@@ -317,12 +317,13 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
 		ret = -ENOMEM;
 		goto out;
 	}
+	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 	if (wbc->sync_mode == WB_SYNC_ALL)
-		rw |= REQ_SYNC;
+		bio->bi_rw |= REQ_SYNC;
 	count_vm_event(PSWPOUT);
 	set_page_writeback(page);
 	unlock_page(page);
-	submit_bio(rw, bio);
+	submit_bio(bio);
 out:
 	return ret;
 }
@@ -369,8 +370,9 @@ int swap_readpage(struct page *page)
 		ret = -ENOMEM;
 		goto out;
 	}
+	bio_set_op_attrs(bio, REQ_OP_READ, 0);
 	count_vm_event(PSWPIN);
-	submit_bio(READ, bio);
+	submit_bio(bio);
 out:
 	return ret;
 }

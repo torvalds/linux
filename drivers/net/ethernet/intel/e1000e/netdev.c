@@ -2789,7 +2789,7 @@ static void e1000e_vlan_filter_enable(struct e1000_adapter *adapter)
 }
 
 /**
- * e1000e_vlan_strip_enable - helper to disable HW VLAN stripping
+ * e1000e_vlan_strip_disable - helper to disable HW VLAN stripping
  * @adapter: board private structure to initialize
  **/
 static void e1000e_vlan_strip_disable(struct e1000_adapter *adapter)
@@ -4352,7 +4352,8 @@ static cycle_t e1000e_cyclecounter_read(const struct cyclecounter *cc)
 
 			time_delta = systim_next - systim;
 			temp = time_delta;
-			rem = do_div(temp, incvalue);
+			/* VMWare users have seen incvalue of zero, don't div / 0 */
+			rem = incvalue ? do_div(temp, incvalue) : (time_delta != 0);
 
 			systim = systim_next;
 
@@ -6914,6 +6915,14 @@ static netdev_features_t e1000_fix_features(struct net_device *netdev,
 	/* Jumbo frame workaround on 82579 and newer requires CRC be stripped */
 	if ((hw->mac.type >= e1000_pch2lan) && (netdev->mtu > ETH_DATA_LEN))
 		features &= ~NETIF_F_RXFCS;
+
+	/* Since there is no support for separate Rx/Tx vlan accel
+	 * enable/disable make sure Tx flag is always in same state as Rx.
+	 */
+	if (features & NETIF_F_HW_VLAN_CTAG_RX)
+		features |= NETIF_F_HW_VLAN_CTAG_TX;
+	else
+		features &= ~NETIF_F_HW_VLAN_CTAG_TX;
 
 	return features;
 }

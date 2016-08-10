@@ -52,7 +52,7 @@ ENTRY(__flush_cache_user_range)
 	sub	x3, x2, #1
 	bic	x4, x0, x3
 1:
-USER(9f, dc	cvau, x4	)		// clean D line to PoU
+user_alt 9f, "dc cvau, x4",  "dc civac, x4",  ARM64_WORKAROUND_CLEAN_CACHE
 	add	x4, x4, x2
 	cmp	x4, x1
 	b.lo	1b

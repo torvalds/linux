@@ -87,7 +87,7 @@ int restrict_link_by_signature(struct key *trust_keyring,
 
 	sig = payload->data[asym_auth];
 	if (!sig->auth_ids[0] && !sig->auth_ids[1])
-		return 0;
+		return -ENOKEY;
 
 	if (ca_keyid && !asymmetric_key_id_partial(sig->auth_ids[1], ca_keyid))
 		return -EPERM;

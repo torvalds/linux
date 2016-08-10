@@ -1813,9 +1813,6 @@ static s32 ixgbe_start_hw_82599(struct ixgbe_hw *hw)
 	/* We need to run link autotry after the driver loads */
 	hw->mac.autotry_restart = true;
 
-	if (ret_val)
-		return ret_val;
-
 	return ixgbe_verify_fw_version_82599(hw);
 }
 

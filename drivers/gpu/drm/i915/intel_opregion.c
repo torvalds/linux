@@ -1038,5 +1038,16 @@ intel_opregion_get_panel_type(struct drm_device *dev)
 		return -ENODEV;
 	}
 
+	/*
+	 * FIXME On Dell XPS 13 9350 the OpRegion panel type (0) gives us
+	 * low vswing for eDP, whereas the VBT panel type (2) gives us normal
+	 * vswing instead. Low vswing results in some display flickers, so
+	 * let's simply ignore the OpRegion panel type on SKL for now.
+	 */
+	if (IS_SKYLAKE(dev)) {
+		DRM_DEBUG_KMS("Ignoring OpRegion panel type (%d)\n", ret - 1);
+		return -ENODEV;
+	}
+
 	return ret - 1;
 }

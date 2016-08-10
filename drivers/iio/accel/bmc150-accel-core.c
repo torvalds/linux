@@ -901,7 +901,7 @@ static int __bmc150_accel_fifo_flush(struct iio_dev *indio_dev,
 	 */
 	if (!irq) {
 		data->old_timestamp = data->timestamp;
-		data->timestamp = iio_get_time_ns();
+		data->timestamp = iio_get_time_ns(indio_dev);
 	}
 
 	/*
@@ -1303,7 +1303,7 @@ static irqreturn_t bmc150_accel_irq_handler(int irq, void *private)
 	int i;
 
 	data->old_timestamp = data->timestamp;
-	data->timestamp = iio_get_time_ns();
+	data->timestamp = iio_get_time_ns(indio_dev);
 
 	for (i = 0; i < BMC150_ACCEL_TRIGGERS; i++) {
 		if (data->triggers[i].enabled) {

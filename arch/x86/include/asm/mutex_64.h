@@ -118,10 +118,10 @@ do {								\
 static inline int __mutex_fastpath_trylock(atomic_t *count,
 					   int (*fail_fn)(atomic_t *))
 {
-	if (likely(atomic_cmpxchg(count, 1, 0) == 1))
+	if (likely(atomic_read(count) == 1 && atomic_cmpxchg(count, 1, 0) == 1))
 		return 1;
-	else
-		return 0;
+
+	return 0;
 }
 
 #endif /* _ASM_X86_MUTEX_64_H */

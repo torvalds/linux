@@ -70,6 +70,7 @@ libperf-y += stat.o
 libperf-y += stat-shadow.o
 libperf-y += record.o
 libperf-y += srcline.o
+libperf-y += str_error_r.o
 libperf-y += data.o
 libperf-y += tsc.o
 libperf-y += cloexec.o
@@ -84,6 +85,7 @@ libperf-y += parse-regs-options.o
 libperf-y += term.o
 libperf-y += help-unknown-cmd.o
 libperf-y += mem-events.o
+libperf-y += vsprintf.o
 
 libperf-$(CONFIG_LIBBPF) += bpf-loader.o
 libperf-$(CONFIG_BPF_PROLOGUE) += bpf-prologue.o
@@ -99,7 +101,10 @@ libperf-$(CONFIG_DWARF) += probe-finder.o
 libperf-$(CONFIG_DWARF) += dwarf-aux.o
 
 libperf-$(CONFIG_LIBDW_DWARF_UNWIND) += unwind-libdw.o
+libperf-$(CONFIG_LOCAL_LIBUNWIND)    += unwind-libunwind-local.o
 libperf-$(CONFIG_LIBUNWIND)          += unwind-libunwind.o
+libperf-$(CONFIG_LIBUNWIND_X86)      += libunwind/x86_32.o
+libperf-$(CONFIG_LIBUNWIND_AARCH64)  += libunwind/arm64.o
 
 libperf-$(CONFIG_LIBBABELTRACE) += data-convert-bt.o
 
@@ -108,6 +113,7 @@ libperf-y += scripting-engines/
 libperf-$(CONFIG_ZLIB) += zlib.o
 libperf-$(CONFIG_LZMA) += lzma.o
 libperf-y += demangle-java.o
+libperf-y += demangle-rust.o
 
 ifdef CONFIG_JITDUMP
 libperf-$(CONFIG_LIBELF) += jitdump.o
@@ -170,6 +176,14 @@ $(OUTPUT)util/libstring.o: ../lib/string.c FORCE
 	$(call rule_mkdir)
 	$(call if_changed_dep,cc_o_c)
 
+$(OUTPUT)util/str_error_r.o: ../lib/str_error_r.c FORCE
+	$(call rule_mkdir)
+	$(call if_changed_dep,cc_o_c)
+
 $(OUTPUT)util/hweight.o: ../lib/hweight.c FORCE
+	$(call rule_mkdir)
+	$(call if_changed_dep,cc_o_c)
+
+$(OUTPUT)util/vsprintf.o: ../lib/vsprintf.c FORCE
 	$(call rule_mkdir)
 	$(call if_changed_dep,cc_o_c)

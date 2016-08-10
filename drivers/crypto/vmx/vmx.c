@@ -31,10 +31,12 @@ extern struct shash_alg p8_ghash_alg;
 extern struct crypto_alg p8_aes_alg;
 extern struct crypto_alg p8_aes_cbc_alg;
 extern struct crypto_alg p8_aes_ctr_alg;
+extern struct crypto_alg p8_aes_xts_alg;
 static struct crypto_alg *algs[] = {
 	&p8_aes_alg,
 	&p8_aes_cbc_alg,
 	&p8_aes_ctr_alg,
+	&p8_aes_xts_alg,
 	NULL,
 };
 

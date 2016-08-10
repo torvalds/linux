@@ -19,6 +19,7 @@
 
 #include <linux/gfp.h>
 #include <linux/acpi.h>
+#include <linux/bootmem.h>
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/genalloc.h>
@@ -28,6 +29,8 @@
 #include <linux/swiotlb.h>
 
 #include <asm/cacheflush.h>
+
+static int swiotlb __read_mostly;
 
 static pgprot_t __get_dma_pgprot(struct dma_attrs *attrs, pgprot_t prot,
 				 bool coherent)
@@ -341,6 +344,13 @@ static int __swiotlb_get_sgtable(struct device *dev, struct sg_table *sgt,
 	return ret;
 }
 
+static int __swiotlb_dma_supported(struct device *hwdev, u64 mask)
+{
+	if (swiotlb)
+		return swiotlb_dma_supported(hwdev, mask);
+	return 1;
+}
+
 static struct dma_map_ops swiotlb_dma_ops = {
 	.alloc = __dma_alloc,
 	.free = __dma_free,
@@ -354,7 +364,7 @@ static struct dma_map_ops swiotlb_dma_ops = {
 	.sync_single_for_device = __swiotlb_sync_single_for_device,
 	.sync_sg_for_cpu = __swiotlb_sync_sg_for_cpu,
 	.sync_sg_for_device = __swiotlb_sync_sg_for_device,
-	.dma_supported = swiotlb_dma_supported,
+	.dma_supported = __swiotlb_dma_supported,
 	.mapping_error = swiotlb_dma_mapping_error,
 };
 
@@ -513,6 +523,9 @@ EXPORT_SYMBOL(dummy_dma_ops);
 
 static int __init arm64_dma_init(void)
 {
+	if (swiotlb_force || max_pfn > (arm64_dma_phys_limit >> PAGE_SHIFT))
+		swiotlb = 1;
+
 	return atomic_pool_init();
 }
 arch_initcall(arm64_dma_init);
@@ -848,15 +861,16 @@ static int __iommu_attach_notifier(struct notifier_block *nb,
 {
 	struct iommu_dma_notifier_data *master, *tmp;
 
-	if (action != BUS_NOTIFY_ADD_DEVICE)
+	if (action != BUS_NOTIFY_BIND_DRIVER)
 		return 0;
 
 	mutex_lock(&iommu_dma_notifier_lock);
 	list_for_each_entry_safe(master, tmp, &iommu_dma_masters, list) {
-		if (do_iommu_attach(master->dev, master->ops,
-				master->dma_base, master->size)) {
+		if (data == master->dev && do_iommu_attach(master->dev,
+				master->ops, master->dma_base, master->size)) {
 			list_del(&master->list);
 			kfree(master);
+			break;
 		}
 	}
 	mutex_unlock(&iommu_dma_notifier_lock);
@@ -870,17 +884,8 @@ static int __init register_iommu_dma_ops_notifier(struct bus_type *bus)
 
 	if (!nb)
 		return -ENOMEM;
-	/*
-	 * The device must be attached to a domain before the driver probe
-	 * routine gets a chance to start allocating DMA buffers. However,
-	 * the IOMMU driver also needs a chance to configure the iommu_group
-	 * via its add_device callback first, so we need to make the attach
-	 * happen between those two points. Since the IOMMU core uses a bus
-	 * notifier with default priority for add_device, do the same but
-	 * with a lower priority to ensure the appropriate ordering.
-	 */
+
 	nb->notifier_call = __iommu_attach_notifier;
-	nb->priority = -100;
 
 	ret = bus_register_notifier(bus, nb);
 	if (ret) {
@@ -904,10 +909,6 @@ static int __init __iommu_dma_init(void)
 	if (!ret)
 		ret = register_iommu_dma_ops_notifier(&pci_bus_type);
 #endif
-
-	/* handle devices queued before this arch_initcall */
-	if (!ret)
-		__iommu_attach_notifier(NULL, BUS_NOTIFY_ADD_DEVICE, NULL);
 	return ret;
 }
 arch_initcall(__iommu_dma_init);

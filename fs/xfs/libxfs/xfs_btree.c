@@ -543,12 +543,12 @@ xfs_btree_ptr_addr(
  */
 STATIC struct xfs_btree_block *
 xfs_btree_get_iroot(
-       struct xfs_btree_cur    *cur)
+	struct xfs_btree_cur	*cur)
 {
-       struct xfs_ifork        *ifp;
+	struct xfs_ifork	*ifp;
 
-       ifp = XFS_IFORK_PTR(cur->bc_private.b.ip, cur->bc_private.b.whichfork);
-       return (struct xfs_btree_block *)ifp->if_broot;
+	ifp = XFS_IFORK_PTR(cur->bc_private.b.ip, cur->bc_private.b.whichfork);
+	return (struct xfs_btree_block *)ifp->if_broot;
 }
 
 /*
@@ -4151,4 +4151,23 @@ xfs_btree_sblock_verify(
 		return false;
 
 	return true;
+}
+
+/*
+ * Calculate the number of btree levels needed to store a given number of
+ * records in a short-format btree.
+ */
+uint
+xfs_btree_compute_maxlevels(
+	struct xfs_mount	*mp,
+	uint			*limits,
+	unsigned long		len)
+{
+	uint			level;
+	unsigned long		maxblocks;
+
+	maxblocks = (len + limits[0] - 1) / limits[0];
+	for (level = 1; maxblocks > 1; level++)
+		maxblocks = (maxblocks + limits[1] - 1) / limits[1];
+	return level;
 }

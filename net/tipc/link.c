@@ -42,6 +42,7 @@
 #include "name_distr.h"
 #include "discover.h"
 #include "netlink.h"
+#include "monitor.h"
 
 #include <linux/pkt_sched.h>
 
@@ -87,7 +88,6 @@ struct tipc_stats {
  * @peer_bearer_id: bearer id used by link's peer endpoint
  * @bearer_id: local bearer id used by link
  * @tolerance: minimum link continuity loss needed to reset link [in ms]
- * @keepalive_intv: link keepalive timer interval
  * @abort_limit: # of unacknowledged continuity probes needed to reset link
  * @state: current state of link FSM
  * @peer_caps: bitmap describing capabilities of peer node
@@ -96,6 +96,7 @@ struct tipc_stats {
  * @pmsg: convenience pointer to "proto_msg" field
  * @priority: current link priority
  * @net_plane: current link network plane ('A' through 'H')
+ * @mon_state: cookie with information needed by link monitor
  * @backlog_limit: backlog queue congestion thresholds (indexed by importance)
  * @exp_msg_count: # of tunnelled messages expected during link changeover
  * @reset_rcv_checkpt: seq # of last acknowledged message at time of link reset
@@ -131,7 +132,6 @@ struct tipc_link {
 	u32 peer_bearer_id;
 	u32 bearer_id;
 	u32 tolerance;
-	unsigned long keepalive_intv;
 	u32 abort_limit;
 	u32 state;
 	u16 peer_caps;
@@ -140,6 +140,7 @@ struct tipc_link {
 	char if_name[TIPC_MAX_IF_NAME];
 	u32 priority;
 	char net_plane;
+	struct tipc_mon_state mon_state;
 	u16 rst_cnt;
 
 	/* Failover/synch */
@@ -349,6 +350,8 @@ void tipc_link_remove_bc_peer(struct tipc_link *snd_l,
 	u16 ack = snd_l->snd_nxt - 1;
 
 	snd_l->ackers--;
+	rcv_l->bc_peer_is_up = true;
+	rcv_l->state = LINK_ESTABLISHED;
 	tipc_link_bc_ack_rcv(rcv_l, ack, xmitq);
 	tipc_link_reset(rcv_l);
 	rcv_l->state = LINK_RESET;
@@ -704,24 +707,32 @@ static void link_profile_stats(struct tipc_link *l)
  */
 int tipc_link_timeout(struct tipc_link *l, struct sk_buff_head *xmitq)
 {
-	int mtyp, rc = 0;
+	int mtyp = 0;
+	int rc = 0;
 	bool state = false;
 	bool probe = false;
 	bool setup = false;
 	u16 bc_snt = l->bc_sndlink->snd_nxt - 1;
 	u16 bc_acked = l->bc_rcvlink->acked;
-
-	link_profile_stats(l);
+	struct tipc_mon_state *mstate = &l->mon_state;
 
 	switch (l->state) {
 	case LINK_ESTABLISHED:
 	case LINK_SYNCHING:
-		if (l->silent_intv_cnt > l->abort_limit)
-			return tipc_link_fsm_evt(l, LINK_FAILURE_EVT);
 		mtyp = STATE_MSG;
+		link_profile_stats(l);
+		tipc_mon_get_state(l->net, l->addr, mstate, l->bearer_id);
+		if (mstate->reset || (l->silent_intv_cnt > l->abort_limit))
+			return tipc_link_fsm_evt(l, LINK_FAILURE_EVT);
 		state = bc_acked != bc_snt;
-		probe = l->silent_intv_cnt;
-		l->silent_intv_cnt++;
+		state |= l->bc_rcvlink->rcv_unacked;
+		state |= l->rcv_unacked;
+		state |= !skb_queue_empty(&l->transmq);
+		state |= !skb_queue_empty(&l->deferdq);
+		probe = mstate->probing;
+		probe |= l->silent_intv_cnt;
+		if (probe || mstate->monitoring)
+			l->silent_intv_cnt++;
 		break;
 	case LINK_RESET:
 		setup = l->rst_cnt++ <= 4;
@@ -832,6 +843,7 @@ void tipc_link_reset(struct tipc_link *l)
 	l->stats.recv_info = 0;
 	l->stale_count = 0;
 	l->bc_peer_is_up = false;
+	memset(&l->mon_state, 0, sizeof(l->mon_state));
 	tipc_link_reset_stats(l);
 }
 
@@ -1240,6 +1252,9 @@ static void tipc_link_build_proto_msg(struct tipc_link *l, int mtyp, bool probe,
 	struct tipc_msg *hdr;
 	struct sk_buff_head *dfq = &l->deferdq;
 	bool node_up = link_is_up(l->bc_rcvlink);
+	struct tipc_mon_state *mstate = &l->mon_state;
+	int dlen = 0;
+	void *data;
 
 	/* Don't send protocol message during reset or link failover */
 	if (tipc_link_is_blocked(l))
@@ -1252,12 +1267,13 @@ static void tipc_link_build_proto_msg(struct tipc_link *l, int mtyp, bool probe,
 		rcvgap = buf_seqno(skb_peek(dfq)) - l->rcv_nxt;
 
 	skb = tipc_msg_create(LINK_PROTOCOL, mtyp, INT_H_SIZE,
-			      TIPC_MAX_IF_NAME, l->addr,
+			      tipc_max_domain_size, l->addr,
 			      tipc_own_addr(l->net), 0, 0, 0);
 	if (!skb)
 		return;
 
 	hdr = buf_msg(skb);
+	data = msg_data(hdr);
 	msg_set_session(hdr, l->session);
 	msg_set_bearer_id(hdr, l->bearer_id);
 	msg_set_net_plane(hdr, l->net_plane);
@@ -1273,14 +1289,18 @@ static void tipc_link_build_proto_msg(struct tipc_link *l, int mtyp, bool probe,
 
 	if (mtyp == STATE_MSG) {
 		msg_set_seq_gap(hdr, rcvgap);
-		msg_set_size(hdr, INT_H_SIZE);
 		msg_set_probe(hdr, probe);
+		tipc_mon_prep(l->net, data, &dlen, mstate, l->bearer_id);
+		msg_set_size(hdr, INT_H_SIZE + dlen);
+		skb_trim(skb, INT_H_SIZE + dlen);
 		l->stats.sent_states++;
 		l->rcv_unacked = 0;
 	} else {
 		/* RESET_MSG or ACTIVATE_MSG */
 		msg_set_max_pkt(hdr, l->advertised_mtu);
-		strcpy(msg_data(hdr), l->if_name);
+		strcpy(data, l->if_name);
+		msg_set_size(hdr, INT_H_SIZE + TIPC_MAX_IF_NAME);
+		skb_trim(skb, INT_H_SIZE + TIPC_MAX_IF_NAME);
 	}
 	if (probe)
 		l->stats.sent_probes++;
@@ -1373,7 +1393,9 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 	u16 peers_tol = msg_link_tolerance(hdr);
 	u16 peers_prio = msg_linkprio(hdr);
 	u16 rcv_nxt = l->rcv_nxt;
+	u16 dlen = msg_data_sz(hdr);
 	int mtyp = msg_type(hdr);
+	void *data;
 	char *if_name;
 	int rc = 0;
 
@@ -1382,6 +1404,10 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 
 	if (tipc_own_addr(l->net) > msg_prevnode(hdr))
 		l->net_plane = msg_net_plane(hdr);
+
+	skb_linearize(skb);
+	hdr = buf_msg(skb);
+	data = msg_data(hdr);
 
 	switch (mtyp) {
 	case RESET_MSG:
@@ -1393,8 +1419,6 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 		/* fall thru' */
 
 	case ACTIVATE_MSG:
-		skb_linearize(skb);
-		hdr = buf_msg(skb);
 
 		/* Complete own link name with peer's interface name */
 		if_name =  strrchr(l->name, ':') + 1;
@@ -1402,7 +1426,7 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 			break;
 		if (msg_data_sz(hdr) < TIPC_MAX_IF_NAME)
 			break;
-		strncpy(if_name, msg_data(hdr),	TIPC_MAX_IF_NAME);
+		strncpy(if_name, data, TIPC_MAX_IF_NAME);
 
 		/* Update own tolerance if peer indicates a non-zero value */
 		if (in_range(peers_tol, TIPC_MIN_LINK_TOL, TIPC_MAX_LINK_TOL))
@@ -1450,6 +1474,8 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 				rc = TIPC_LINK_UP_EVT;
 			break;
 		}
+		tipc_mon_rcv(l->net, data, dlen, l->addr,
+			     &l->mon_state, l->bearer_id);
 
 		/* Send NACK if peer has sent pkts we haven't received yet */
 		if (more(peers_snd_nxt, rcv_nxt) && !tipc_link_is_synching(l))
@@ -1558,7 +1584,12 @@ void tipc_link_bc_sync_rcv(struct tipc_link *l, struct tipc_msg *hdr,
 	if (!msg_peer_node_is_up(hdr))
 		return;
 
-	l->bc_peer_is_up = true;
+	/* Open when peer ackowledges our bcast init msg (pkt #1) */
+	if (msg_ack(hdr))
+		l->bc_peer_is_up = true;
+
+	if (!l->bc_peer_is_up)
+		return;
 
 	/* Ignore if peers_snd_nxt goes beyond receive window */
 	if (more(peers_snd_nxt, l->rcv_nxt + l->window))

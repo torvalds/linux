@@ -1,0 +1,255 @@
+<refentry id="cec-ioc-g-mode">
+  <refmeta>
+    <refentrytitle>ioctl CEC_G_MODE, CEC_S_MODE</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>CEC_G_MODE</refname>
+    <refname>CEC_S_MODE</refname>
+    <refpurpose>Get or set exclusive use of the CEC adapter</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>__u32 *<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>File descriptor returned by
+	  <link linkend='cec-func-open'><function>open()</function></link>.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>CEC_G_MODE, CEC_S_MODE</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>
+      Note: this documents the proposed CEC API. This API is not yet finalized and
+      is currently only available as a staging kernel module.
+    </para>
+
+    <para>By default any filehandle can use &CEC-TRANSMIT; and &CEC-RECEIVE;, but
+in order to prevent applications from stepping on each others toes it must be possible
+to obtain exclusive access to the CEC adapter. This ioctl sets the filehandle
+to initiator and/or follower mode which can be exclusive depending on the chosen
+mode. The initiator is the filehandle that is used
+to initiate messages, i.e. it commands other CEC devices. The follower is the filehandle
+that receives messages sent to the CEC adapter and processes them. The same filehandle
+can be both initiator and follower, or this role can be taken by two different
+filehandles.</para>
+
+    <para>When a CEC message is received, then the CEC framework will decide how
+it will be processed. If the message is a reply to an earlier transmitted message,
+then the reply is sent back to the filehandle that is waiting for it. In addition
+the CEC framework will process it.</para>
+
+    <para>If the message is not a reply, then the CEC framework will process it
+first. If there is no follower, then the message is just discarded and a feature
+abort is sent back to the initiator if the framework couldn't process it. If there
+is a follower, then the message is passed on to the follower who will use
+&CEC-RECEIVE; to dequeue the new message. The framework expects the follower to
+make the right decisions.</para>
+
+    <para>The CEC framework will process core messages unless requested otherwise
+by the follower. The follower can enable the passthrough mode. In that case, the
+CEC framework will pass on most core messages without processing them and
+the follower will have to implement those messages. There are some messages
+that the core will always process, regardless of the passthrough mode. See
+<xref linkend="cec-core-processing" /> for details.</para>
+
+    <para>If there is no initiator, then any CEC filehandle can use &CEC-TRANSMIT;.
+If there is an exclusive initiator then only that initiator can call &CEC-TRANSMIT;.
+The follower can of course always call &CEC-TRANSMIT;.</para>
+
+    <para>Available initiator modes are:</para>
+
+    <table pgwide="1" frame="none" id="cec-mode-initiator">
+      <title>Initiator Modes</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>CEC_MODE_NO_INITIATOR</constant></entry>
+	    <entry>0x0</entry>
+	    <entry>This is not an initiator, i.e. it cannot transmit CEC messages
+	    or make any other changes to the CEC adapter.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>CEC_MODE_INITIATOR</constant></entry>
+	    <entry>0x1</entry>
+	    <entry>This is an initiator (the default when the device is opened) and it
+	    can transmit CEC messages and make changes to the CEC adapter, unless there
+	    is an exclusive initiator.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>CEC_MODE_EXCL_INITIATOR</constant></entry>
+	    <entry>0x2</entry>
+	    <entry>This is an exclusive initiator and this file descriptor is the only one
+	    that can transmit CEC messages and make changes to the CEC adapter. If someone
+	    else is already the exclusive initiator then an attempt to become one will return
+	    the &EBUSY; error.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <para>Available follower modes are:</para>
+
+    <table pgwide="1" frame="none" id="cec-mode-follower">
+      <title>Follower Modes</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>CEC_MODE_NO_FOLLOWER</constant></entry>
+	    <entry>0x00</entry>
+	    <entry>This is not a follower (the default when the device is opened).</entry>
+	  </row>
+	  <row>
+	    <entry><constant>CEC_MODE_FOLLOWER</constant></entry>
+	    <entry>0x10</entry>
+	    <entry>This is a follower and it will receive CEC messages unless there is
+	    an exclusive follower. You cannot become a follower if <constant>CEC_CAP_TRANSMIT</constant>
+	    is not set or if <constant>CEC_MODE_NO_INITIATOR</constant> was specified,
+	    &EINVAL; is returned in that case.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>CEC_MODE_EXCL_FOLLOWER</constant></entry>
+	    <entry>0x20</entry>
+	    <entry>This is an exclusive follower and only this file descriptor will receive
+	    CEC messages for processing. If someone else is already the exclusive follower
+	    then an attempt to become one will return the &EBUSY; error. You cannot become
+	    a follower if <constant>CEC_CAP_TRANSMIT</constant> is not set or if
+	    <constant>CEC_MODE_NO_INITIATOR</constant> was specified, &EINVAL; is returned
+	    in that case.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>CEC_MODE_EXCL_FOLLOWER_PASSTHRU</constant></entry>
+	    <entry>0x30</entry>
+	    <entry>This is an exclusive follower and only this file descriptor will receive
+	    CEC messages for processing. In addition it will put the CEC device into
+	    passthrough mode, allowing the exclusive follower to handle most core messages
+	    instead of relying on the CEC framework for that. If someone else is already the
+	    exclusive follower then an attempt to become one will return the &EBUSY; error.
+	    You cannot become a follower if <constant>CEC_CAP_TRANSMIT</constant>
+            is not set or if <constant>CEC_MODE_NO_INITIATOR</constant> was specified,
+            &EINVAL; is returned in that case.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>CEC_MODE_MONITOR</constant></entry>
+	    <entry>0xe0</entry>
+	    <entry>Put the file descriptor into monitor mode. Can only be used in combination
+	    with <constant>CEC_MODE_NO_INITIATOR</constant>, otherwise &EINVAL; will be
+	    returned. In monitor mode all messages this CEC device transmits and all messages
+	    it receives (both broadcast messages and directed messages for one its logical
+	    addresses) will be reported. This is very useful for debugging. This is only
+	    allowed if the process has the <constant>CAP_NET_ADMIN</constant>
+	    capability. If that is not set, then &EPERM; is returned.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>CEC_MODE_MONITOR_ALL</constant></entry>
+	    <entry>0xf0</entry>
+	    <entry>Put the file descriptor into 'monitor all' mode. Can only be used in combination
+            with <constant>CEC_MODE_NO_INITIATOR</constant>, otherwise &EINVAL; will be
+            returned. In 'monitor all' mode all messages this CEC device transmits and all messages
+            it receives, including directed messages for other CEC devices will be reported. This
+	    is very useful for debugging, but not all devices support this. This mode requires that
+	    the <constant>CEC_CAP_MONITOR_ALL</constant> capability is set, otherwise &EINVAL; is
+	    returned. This is only allowed if the process has the <constant>CAP_NET_ADMIN</constant>
+	    capability. If that is not set, then &EPERM; is returned.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <para>Core message processing details:</para>
+
+    <table pgwide="1" frame="none" id="cec-core-processing">
+      <title>Core Message Processing</title>
+      <tgroup cols="2">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>CEC_MSG_GET_CEC_VERSION</constant></entry>
+	    <entry>When in passthrough mode this message has to be handled by userspace,
+	    otherwise the core will return the CEC version that was set with &CEC-ADAP-S-LOG-ADDRS;.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>CEC_MSG_GIVE_DEVICE_VENDOR_ID</constant></entry>
+	    <entry>When in passthrough mode this message has to be handled by userspace,
+	    otherwise the core will return the vendor ID that was set with &CEC-ADAP-S-LOG-ADDRS;.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>CEC_MSG_ABORT</constant></entry>
+	    <entry>When in passthrough mode this message has to be handled by userspace,
+	    otherwise the core will return a feature refused message as per the specification.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>CEC_MSG_GIVE_PHYSICAL_ADDR</constant></entry>
+	    <entry>When in passthrough mode this message has to be handled by userspace,
+	    otherwise the core will report the current physical address.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>CEC_MSG_GIVE_OSD_NAME</constant></entry>
+	    <entry>When in passthrough mode this message has to be handled by userspace,
+	    otherwise the core will report the current OSD name as was set with
+	    &CEC-ADAP-S-LOG-ADDRS;.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>CEC_MSG_GIVE_FEATURES</constant></entry>
+	    <entry>When in passthrough mode this message has to be handled by userspace,
+	    otherwise the core will report the current features as was set with
+	    &CEC-ADAP-S-LOG-ADDRS; or the message is ignore if the CEC version was
+	    older than 2.0.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>CEC_MSG_USER_CONTROL_PRESSED</constant></entry>
+	    <entry>If <constant>CEC_CAP_RC</constant> is set, then generate a remote control
+	    key press. This message is always passed on to userspace.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>CEC_MSG_USER_CONTROL_RELEASED</constant></entry>
+	    <entry>If <constant>CEC_CAP_RC</constant> is set, then generate a remote control
+	    key release. This message is always passed on to userspace.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>CEC_MSG_REPORT_PHYSICAL_ADDR</constant></entry>
+	    <entry>The CEC framework will make note of the reported physical address
+	    and then just pass the message on to userspace.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+  </refsect1>
+
+  <refsect1>
+    &return-value;
+  </refsect1>
+</refentry>

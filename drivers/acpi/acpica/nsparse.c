@@ -47,7 +47,6 @@
 #include "acparser.h"
 #include "acdispat.h"
 #include "actables.h"
-#include "acinterp.h"
 
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nsparse")
@@ -171,8 +170,6 @@ acpi_ns_parse_table(u32 table_index, struct acpi_namespace_node *start_node)
 
 	ACPI_FUNCTION_TRACE(ns_parse_table);
 
-	acpi_ex_enter_interpreter();
-
 	/*
 	 * AML Parse, pass 1
 	 *
@@ -188,7 +185,7 @@ acpi_ns_parse_table(u32 table_index, struct acpi_namespace_node *start_node)
 	status = acpi_ns_one_complete_parse(ACPI_IMODE_LOAD_PASS1,
 					    table_index, start_node);
 	if (ACPI_FAILURE(status)) {
-		goto error_exit;
+		return_ACPI_STATUS(status);
 	}
 
 	/*
@@ -204,10 +201,8 @@ acpi_ns_parse_table(u32 table_index, struct acpi_namespace_node *start_node)
 	status = acpi_ns_one_complete_parse(ACPI_IMODE_LOAD_PASS2,
 					    table_index, start_node);
 	if (ACPI_FAILURE(status)) {
-		goto error_exit;
+		return_ACPI_STATUS(status);
 	}
 
-error_exit:
-	acpi_ex_exit_interpreter();
 	return_ACPI_STATUS(status);
 }

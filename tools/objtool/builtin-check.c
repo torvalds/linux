@@ -26,6 +26,7 @@
  */
 
 #include <string.h>
+#include <stdlib.h>
 #include <subcmd/parse-options.h>
 
 #include "builtin.h"
@@ -122,10 +123,14 @@ static bool ignore_func(struct objtool_file *file, struct symbol *func)
 
 	/* check for STACK_FRAME_NON_STANDARD */
 	if (file->whitelist && file->whitelist->rela)
-		list_for_each_entry(rela, &file->whitelist->rela->rela_list, list)
-			if (rela->sym->sec == func->sec &&
+		list_for_each_entry(rela, &file->whitelist->rela->rela_list, list) {
+			if (rela->sym->type == STT_SECTION &&
+			    rela->sym->sec == func->sec &&
 			    rela->addend == func->offset)
 				return true;
+			if (rela->sym->type == STT_FUNC && rela->sym == func)
+				return true;
+		}
 
 	/* check if it has a context switching instruction */
 	func_for_each_insn(file, func, insn)
@@ -663,7 +668,7 @@ static int add_func_switch_tables(struct objtool_file *file,
 				  struct symbol *func)
 {
 	struct instruction *insn, *prev_jump;
-	struct rela *text_rela, *rodata_rela, *prev_rela;
+	struct rela *text_rela, *rodata_rela, *prev_rela = NULL;
 	int ret;
 
 	prev_jump = NULL;

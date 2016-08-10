@@ -913,24 +913,26 @@ static int gen9_init_workarounds(struct intel_engine_cs *engine)
 {
 	struct drm_device *dev = engine->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t tmp;
 	int ret;
 
-	/* WaEnableLbsSlaRetryTimerDecrement:skl */
+	/* WaConextSwitchWithConcurrentTLBInvalidate:skl,bxt,kbl */
+	I915_WRITE(GEN9_CSFE_CHICKEN1_RCS, _MASKED_BIT_ENABLE(GEN9_PREEMPT_GPGPU_SYNC_SWITCH_DISABLE));
+
+	/* WaEnableLbsSlaRetryTimerDecrement:skl,bxt,kbl */
 	I915_WRITE(BDW_SCRATCH1, I915_READ(BDW_SCRATCH1) |
 		   GEN9_LBS_SLA_RETRY_TIMER_DECREMENT_ENABLE);
 
-	/* WaDisableKillLogic:bxt,skl */
+	/* WaDisableKillLogic:bxt,skl,kbl */
 	I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) |
 		   ECOCHK_DIS_TLB);
 
-	/* WaClearFlowControlGpgpuContextSave:skl,bxt */
-	/* WaDisablePartialInstShootdown:skl,bxt */
+	/* WaClearFlowControlGpgpuContextSave:skl,bxt,kbl */
+	/* WaDisablePartialInstShootdown:skl,bxt,kbl */
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
 			  FLOW_CONTROL_ENABLE |
 			  PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE);
 
-	/* Syncing dependencies between camera and graphics:skl,bxt */
+	/* Syncing dependencies between camera and graphics:skl,bxt,kbl */
 	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3,
 			  GEN9_DISABLE_OCL_OOB_SUPPRESS_LOGIC);
 
@@ -952,18 +954,18 @@ static int gen9_init_workarounds(struct intel_engine_cs *engine)
 		 */
 	}
 
-	/* WaEnableYV12BugFixInHalfSliceChicken7:skl,bxt */
-	/* WaEnableSamplerGPGPUPreemptionSupport:skl,bxt */
+	/* WaEnableYV12BugFixInHalfSliceChicken7:skl,bxt,kbl */
+	/* WaEnableSamplerGPGPUPreemptionSupport:skl,bxt,kbl */
 	WA_SET_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN7,
 			  GEN9_ENABLE_YV12_BUGFIX |
 			  GEN9_ENABLE_GPGPU_PREEMPTION);
 
-	/* Wa4x4STCOptimizationDisable:skl,bxt */
-	/* WaDisablePartialResolveInVc:skl,bxt */
+	/* Wa4x4STCOptimizationDisable:skl,bxt,kbl */
+	/* WaDisablePartialResolveInVc:skl,bxt,kbl */
 	WA_SET_BIT_MASKED(CACHE_MODE_1, (GEN8_4x4_STC_OPTIMIZATION_DISABLE |
 					 GEN9_PARTIAL_RESOLVE_IN_VC_DISABLE));
 
-	/* WaCcsTlbPrefetchDisable:skl,bxt */
+	/* WaCcsTlbPrefetchDisable:skl,bxt,kbl */
 	WA_CLR_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN5,
 			  GEN9_CCS_TLB_PREFETCH_ENABLE);
 
@@ -973,31 +975,57 @@ static int gen9_init_workarounds(struct intel_engine_cs *engine)
 		WA_SET_BIT_MASKED(SLICE_ECO_CHICKEN0,
 				  PIXEL_MASK_CAMMING_DISABLE);
 
-	/* WaForceContextSaveRestoreNonCoherent:skl,bxt */
-	tmp = HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT;
-	if (IS_SKL_REVID(dev, SKL_REVID_F0, REVID_FOREVER) ||
-	    IS_BXT_REVID(dev, BXT_REVID_B0, REVID_FOREVER))
-		tmp |= HDC_FORCE_CSR_NON_COHERENT_OVR_DISABLE;
-	WA_SET_BIT_MASKED(HDC_CHICKEN0, tmp);
+	/* WaForceContextSaveRestoreNonCoherent:skl,bxt,kbl */
+	WA_SET_BIT_MASKED(HDC_CHICKEN0,
+			  HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT |
+			  HDC_FORCE_CSR_NON_COHERENT_OVR_DISABLE);
 
-	/* WaDisableSamplerPowerBypassForSOPingPong:skl,bxt */
-	if (IS_SKYLAKE(dev) || IS_BXT_REVID(dev, 0, BXT_REVID_B0))
+	/* WaForceEnableNonCoherent and WaDisableHDCInvalidation are
+	 * both tied to WaForceContextSaveRestoreNonCoherent
+	 * in some hsds for skl. We keep the tie for all gen9. The
+	 * documentation is a bit hazy and so we want to get common behaviour,
+	 * even though there is no clear evidence we would need both on kbl/bxt.
+	 * This area has been source of system hangs so we play it safe
+	 * and mimic the skl regardless of what bspec says.
+	 *
+	 * Use Force Non-Coherent whenever executing a 3D context. This
+	 * is a workaround for a possible hang in the unlikely event
+	 * a TLB invalidation occurs during a PSD flush.
+	 */
+
+	/* WaForceEnableNonCoherent:skl,bxt,kbl */
+	WA_SET_BIT_MASKED(HDC_CHICKEN0,
+			  HDC_FORCE_NON_COHERENT);
+
+	/* WaDisableHDCInvalidation:skl,bxt,kbl */
+	I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) |
+		   BDW_DISABLE_HDC_INVALIDATION);
+
+	/* WaDisableSamplerPowerBypassForSOPingPong:skl,bxt,kbl */
+	if (IS_SKYLAKE(dev_priv) ||
+	    IS_KABYLAKE(dev_priv) ||
+	    IS_BXT_REVID(dev_priv, 0, BXT_REVID_B0))
 		WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3,
 				  GEN8_SAMPLER_POWER_BYPASS_DIS);
 
-	/* WaDisableSTUnitPowerOptimization:skl,bxt */
+	/* WaDisableSTUnitPowerOptimization:skl,bxt,kbl */
 	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN2, GEN8_ST_PO_DISABLE);
 
-	/* WaOCLCoherentLineFlush:skl,bxt */
+	/* WaOCLCoherentLineFlush:skl,bxt,kbl */
 	I915_WRITE(GEN8_L3SQCREG4, (I915_READ(GEN8_L3SQCREG4) |
 				    GEN8_LQSC_FLUSH_COHERENT_LINES));
 
-	/* WaEnablePreemptionGranularityControlByUMD:skl,bxt */
+	/* WaVFEStateAfterPipeControlwithMediaStateClear:skl,bxt */
+	ret = wa_ring_whitelist_reg(engine, GEN9_CTX_PREEMPT_REG);
+	if (ret)
+		return ret;
+
+	/* WaEnablePreemptionGranularityControlByUMD:skl,bxt,kbl */
 	ret= wa_ring_whitelist_reg(engine, GEN8_CS_CHICKEN1);
 	if (ret)
 		return ret;
 
-	/* WaAllowUMDToModifyHDCChicken1:skl,bxt */
+	/* WaAllowUMDToModifyHDCChicken1:skl,bxt,kbl */
 	ret = wa_ring_whitelist_reg(engine, GEN8_HDC_CHICKEN1);
 	if (ret)
 		return ret;
@@ -1092,22 +1120,6 @@ static int skl_init_workarounds(struct intel_engine_cs *engine)
 		WA_SET_BIT_MASKED(HIZ_CHICKEN,
 				  BDW_HIZ_POWER_COMPILER_CLOCK_GATING_DISABLE);
 
-	/* This is tied to WaForceContextSaveRestoreNonCoherent */
-	if (IS_SKL_REVID(dev, 0, REVID_FOREVER)) {
-		/*
-		 *Use Force Non-Coherent whenever executing a 3D context. This
-		 * is a workaround for a possible hang in the unlikely event
-		 * a TLB invalidation occurs during a PSD flush.
-		 */
-		/* WaForceEnableNonCoherent:skl */
-		WA_SET_BIT_MASKED(HDC_CHICKEN0,
-				  HDC_FORCE_NON_COHERENT);
-
-		/* WaDisableHDCInvalidation:skl */
-		I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) |
-			   BDW_DISABLE_HDC_INVALIDATION);
-	}
-
 	/* WaBarrierPerformanceFixDisable:skl */
 	if (IS_SKL_REVID(dev, SKL_REVID_C0, SKL_REVID_D0))
 		WA_SET_BIT_MASKED(HDC_CHICKEN0,
@@ -1119,6 +1131,9 @@ static int skl_init_workarounds(struct intel_engine_cs *engine)
 		WA_SET_BIT_MASKED(
 			GEN7_HALF_SLICE_CHICKEN1,
 			GEN7_SBE_SS_CACHE_DISPATCH_PORT_SHARING_DISABLE);
+
+	/* WaDisableGafsUnitClkGating:skl */
+	WA_SET_BIT(GEN7_UCGCTL4, GEN8_EU_GAUNIT_CLOCK_GATE_DISABLE);
 
 	/* WaDisableLSQCROPERFforOCL:skl */
 	ret = wa_ring_whitelist_reg(engine, GEN8_L3SQCREG4);
@@ -1174,6 +1189,63 @@ static int bxt_init_workarounds(struct intel_engine_cs *engine)
 			return ret;
 	}
 
+	/* WaInsertDummyPushConstPs:bxt */
+	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_B0))
+		WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
+				  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
+
+	return 0;
+}
+
+static int kbl_init_workarounds(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->dev->dev_private;
+	int ret;
+
+	ret = gen9_init_workarounds(engine);
+	if (ret)
+		return ret;
+
+	/* WaEnableGapsTsvCreditFix:kbl */
+	I915_WRITE(GEN8_GARBCNTL, (I915_READ(GEN8_GARBCNTL) |
+				   GEN9_GAPS_TSV_CREDIT_DISABLE));
+
+	/* WaDisableDynamicCreditSharing:kbl */
+	if (IS_KBL_REVID(dev_priv, 0, KBL_REVID_B0))
+		WA_SET_BIT(GAMT_CHKN_BIT_REG,
+			   GAMT_CHKN_DISABLE_DYNAMIC_CREDIT_SHARING);
+
+	/* WaDisableFenceDestinationToSLM:kbl (pre-prod) */
+	if (IS_KBL_REVID(dev_priv, KBL_REVID_A0, KBL_REVID_A0))
+		WA_SET_BIT_MASKED(HDC_CHICKEN0,
+				  HDC_FENCE_DEST_SLM_DISABLE);
+
+	/* GEN8_L3SQCREG4 has a dependency with WA batch so any new changes
+	 * involving this register should also be added to WA batch as required.
+	 */
+	if (IS_KBL_REVID(dev_priv, 0, KBL_REVID_E0))
+		/* WaDisableLSQCROPERFforOCL:kbl */
+		I915_WRITE(GEN8_L3SQCREG4, I915_READ(GEN8_L3SQCREG4) |
+			   GEN8_LQSC_RO_PERF_DIS);
+
+	/* WaInsertDummyPushConstPs:kbl */
+	if (IS_KBL_REVID(dev_priv, 0, KBL_REVID_B0))
+		WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
+				  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
+
+	/* WaDisableGafsUnitClkGating:kbl */
+	WA_SET_BIT(GEN7_UCGCTL4, GEN8_EU_GAUNIT_CLOCK_GATE_DISABLE);
+
+	/* WaDisableSbeCacheDispatchPortSharing:kbl */
+	WA_SET_BIT_MASKED(
+		GEN7_HALF_SLICE_CHICKEN1,
+		GEN7_SBE_SS_CACHE_DISPATCH_PORT_SHARING_DISABLE);
+
+	/* WaDisableLSQCROPERFforOCL:kbl */
+	ret = wa_ring_whitelist_reg(engine, GEN8_L3SQCREG4);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
@@ -1198,6 +1270,9 @@ int init_workarounds_ring(struct intel_engine_cs *engine)
 
 	if (IS_BROXTON(dev))
 		return bxt_init_workarounds(engine);
+
+	if (IS_KABYLAKE(dev_priv))
+		return kbl_init_workarounds(engine);
 
 	return 0;
 }

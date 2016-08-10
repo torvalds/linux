@@ -6,6 +6,7 @@
  */
 #include <asm/checksum.h>
 #include <linux/module.h>
+#include <linux/uaccess.h>
 #include <asm/smap.h>
 
 /**

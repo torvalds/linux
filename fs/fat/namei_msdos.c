@@ -154,7 +154,7 @@ static int msdos_hash(const struct dentry *dentry, struct qstr *qstr)
 
 	error = msdos_format_name(qstr->name, qstr->len, msdos_name, options);
 	if (!error)
-		qstr->hash = full_name_hash(msdos_name, MSDOS_NAME);
+		qstr->hash = full_name_hash(dentry, msdos_name, MSDOS_NAME);
 	return 0;
 }
 

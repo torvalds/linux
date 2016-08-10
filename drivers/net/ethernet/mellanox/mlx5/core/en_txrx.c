@@ -136,6 +136,10 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 
 	for (i = 0; i < c->num_tc; i++)
 		mlx5e_cq_arm(&c->sq[i].cq);
+
+	if (test_bit(MLX5E_RQ_STATE_AM, &c->rq.state))
+		mlx5e_rx_am(&c->rq);
+
 	mlx5e_cq_arm(&c->rq.cq);
 	mlx5e_cq_arm(&c->icosq.cq);
 
@@ -146,6 +150,7 @@ void mlx5e_completion_event(struct mlx5_core_cq *mcq)
 {
 	struct mlx5e_cq *cq = container_of(mcq, struct mlx5e_cq, mcq);
 
+	cq->event_ctr++;
 	set_bit(MLX5E_CHANNEL_NAPI_SCHED, &cq->channel->flags);
 	napi_schedule(cq->napi);
 }

@@ -238,7 +238,7 @@ static void __init gt_delay_timer_init(void)
 	register_current_timer_delay(&gt_delay_timer);
 }
 
-static void __init gt_clocksource_init(void)
+static int __init gt_clocksource_init(void)
 {
 	writel(0, gt_base + GT_CONTROL);
 	writel(0, gt_base + GT_COUNTER0);
@@ -249,7 +249,7 @@ static void __init gt_clocksource_init(void)
 #ifdef CONFIG_CLKSRC_ARM_GLOBAL_TIMER_SCHED_CLOCK
 	sched_clock_register(gt_sched_clock_read, 64, gt_clk_rate);
 #endif
-	clocksource_register_hz(&gt_clocksource, gt_clk_rate);
+	return clocksource_register_hz(&gt_clocksource, gt_clk_rate);
 }
 
 static int gt_cpu_notify(struct notifier_block *self, unsigned long action,
@@ -270,7 +270,7 @@ static struct notifier_block gt_cpu_nb = {
 	.notifier_call = gt_cpu_notify,
 };
 
-static void __init global_timer_of_register(struct device_node *np)
+static int __init global_timer_of_register(struct device_node *np)
 {
 	struct clk *gt_clk;
 	int err = 0;
@@ -283,19 +283,19 @@ static void __init global_timer_of_register(struct device_node *np)
 	if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9
 	    && (read_cpuid_id() & 0xf0000f) < 0x200000) {
 		pr_warn("global-timer: non support for this cpu version.\n");
-		return;
+		return -ENOSYS;
 	}
 
 	gt_ppi = irq_of_parse_and_map(np, 0);
 	if (!gt_ppi) {
 		pr_warn("global-timer: unable to parse irq\n");
-		return;
+		return -EINVAL;
 	}
 
 	gt_base = of_iomap(np, 0);
 	if (!gt_base) {
 		pr_warn("global-timer: invalid base address\n");
-		return;
+		return -ENXIO;
 	}
 
 	gt_clk = of_clk_get(np, 0);
@@ -332,11 +332,17 @@ static void __init global_timer_of_register(struct device_node *np)
 	}
 
 	/* Immediately configure the timer on the boot CPU */
-	gt_clocksource_init();
-	gt_clockevents_init(this_cpu_ptr(gt_evt));
+	err = gt_clocksource_init();
+	if (err)
+		goto out_irq;
+	
+	err = gt_clockevents_init(this_cpu_ptr(gt_evt));
+	if (err)
+		goto out_irq;
+
 	gt_delay_timer_init();
 
-	return;
+	return 0;
 
 out_irq:
 	free_percpu_irq(gt_ppi, gt_evt);
@@ -347,6 +353,8 @@ out_clk:
 out_unmap:
 	iounmap(gt_base);
 	WARN(err, "ARM Global timer register failed (%d)\n", err);
+
+	return err;
 }
 
 /* Only tested on r2p2 and r3p0  */

@@ -36,6 +36,9 @@ enum sknetlink_groups sock_diag_destroy_group(const struct sock *sk)
 {
 	switch (sk->sk_family) {
 	case AF_INET:
+		if (sk->sk_type == SOCK_RAW)
+			return SKNLGRP_NONE;
+
 		switch (sk->sk_protocol) {
 		case IPPROTO_TCP:
 			return SKNLGRP_INET_TCP_DESTROY;
@@ -45,6 +48,9 @@ enum sknetlink_groups sock_diag_destroy_group(const struct sock *sk)
 			return SKNLGRP_NONE;
 		}
 	case AF_INET6:
+		if (sk->sk_type == SOCK_RAW)
+			return SKNLGRP_NONE;
+
 		switch (sk->sk_protocol) {
 		case IPPROTO_TCP:
 			return SKNLGRP_INET6_TCP_DESTROY;

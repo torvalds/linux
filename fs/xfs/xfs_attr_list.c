@@ -65,7 +65,7 @@ xfs_attr_shortform_compare(const void *a, const void *b)
  * we have to calculate each entries' hashvalue and sort them before
  * we can begin returning them to the user.
  */
-int
+static int
 xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 {
 	attrlist_cursor_kern_t *cursor;

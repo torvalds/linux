@@ -34,18 +34,29 @@ static inline void atomic_add(int i, atomic_t *v)
 	_atomic_xchg_add(&v->counter, i);
 }
 
-#define ATOMIC_OP(op)							\
-unsigned long _atomic_##op(volatile unsigned long *p, unsigned long mask); \
+#define ATOMIC_OPS(op)							\
+unsigned long _atomic_fetch_##op(volatile unsigned long *p, unsigned long mask); \
 static inline void atomic_##op(int i, atomic_t *v)			\
 {									\
-	_atomic_##op((unsigned long *)&v->counter, i);			\
+	_atomic_fetch_##op((unsigned long *)&v->counter, i);		\
+}									\
+static inline int atomic_fetch_##op(int i, atomic_t *v)			\
+{									\
+	smp_mb();							\
+	return _atomic_fetch_##op((unsigned long *)&v->counter, i);	\
 }
 
-ATOMIC_OP(and)
-ATOMIC_OP(or)
-ATOMIC_OP(xor)
+ATOMIC_OPS(and)
+ATOMIC_OPS(or)
+ATOMIC_OPS(xor)
 
-#undef ATOMIC_OP
+#undef ATOMIC_OPS
+
+static inline int atomic_fetch_add(int i, atomic_t *v)
+{
+	smp_mb();
+	return _atomic_xchg_add(&v->counter, i);
+}
 
 /**
  * atomic_add_return - add integer and return
@@ -126,16 +137,29 @@ static inline void atomic64_add(long long i, atomic64_t *v)
 	_atomic64_xchg_add(&v->counter, i);
 }
 
-#define ATOMIC64_OP(op)						\
-long long _atomic64_##op(long long *v, long long n);		\
+#define ATOMIC64_OPS(op)					\
+long long _atomic64_fetch_##op(long long *v, long long n);	\
 static inline void atomic64_##op(long long i, atomic64_t *v)	\
 {								\
-	_atomic64_##op(&v->counter, i);				\
+	_atomic64_fetch_##op(&v->counter, i);			\
+}								\
+static inline long long atomic64_fetch_##op(long long i, atomic64_t *v)	\
+{								\
+	smp_mb();						\
+	return _atomic64_fetch_##op(&v->counter, i);		\
 }
 
-ATOMIC64_OP(and)
-ATOMIC64_OP(or)
-ATOMIC64_OP(xor)
+ATOMIC64_OPS(and)
+ATOMIC64_OPS(or)
+ATOMIC64_OPS(xor)
+
+#undef ATOMIC64_OPS
+
+static inline long long atomic64_fetch_add(long long i, atomic64_t *v)
+{
+	smp_mb();
+	return _atomic64_xchg_add(&v->counter, i);
+}
 
 /**
  * atomic64_add_return - add integer and return
@@ -186,13 +210,13 @@ static inline void atomic64_set(atomic64_t *v, long long n)
 #define atomic64_inc_return(v)		atomic64_add_return(1LL, (v))
 #define atomic64_inc_and_test(v)	(atomic64_inc_return(v) == 0)
 #define atomic64_sub_return(i, v)	atomic64_add_return(-(i), (v))
+#define atomic64_fetch_sub(i, v)	atomic64_fetch_add(-(i), (v))
 #define atomic64_sub_and_test(a, v)	(atomic64_sub_return((a), (v)) == 0)
 #define atomic64_sub(i, v)		atomic64_add(-(i), (v))
 #define atomic64_dec(v)			atomic64_sub(1LL, (v))
 #define atomic64_dec_return(v)		atomic64_sub_return(1LL, (v))
 #define atomic64_dec_and_test(v)	(atomic64_dec_return((v)) == 0)
 #define atomic64_inc_not_zero(v)	atomic64_add_unless((v), 1LL, 0LL)
-
 
 #endif /* !__ASSEMBLY__ */
 
@@ -242,16 +266,16 @@ struct __get_user {
 	unsigned long val;
 	int err;
 };
-extern struct __get_user __atomic_cmpxchg(volatile int *p,
+extern struct __get_user __atomic32_cmpxchg(volatile int *p,
 					  int *lock, int o, int n);
-extern struct __get_user __atomic_xchg(volatile int *p, int *lock, int n);
-extern struct __get_user __atomic_xchg_add(volatile int *p, int *lock, int n);
-extern struct __get_user __atomic_xchg_add_unless(volatile int *p,
+extern struct __get_user __atomic32_xchg(volatile int *p, int *lock, int n);
+extern struct __get_user __atomic32_xchg_add(volatile int *p, int *lock, int n);
+extern struct __get_user __atomic32_xchg_add_unless(volatile int *p,
 						  int *lock, int o, int n);
-extern struct __get_user __atomic_or(volatile int *p, int *lock, int n);
-extern struct __get_user __atomic_and(volatile int *p, int *lock, int n);
-extern struct __get_user __atomic_andn(volatile int *p, int *lock, int n);
-extern struct __get_user __atomic_xor(volatile int *p, int *lock, int n);
+extern struct __get_user __atomic32_fetch_or(volatile int *p, int *lock, int n);
+extern struct __get_user __atomic32_fetch_and(volatile int *p, int *lock, int n);
+extern struct __get_user __atomic32_fetch_andn(volatile int *p, int *lock, int n);
+extern struct __get_user __atomic32_fetch_xor(volatile int *p, int *lock, int n);
 extern long long __atomic64_cmpxchg(volatile long long *p, int *lock,
 					long long o, long long n);
 extern long long __atomic64_xchg(volatile long long *p, int *lock, long long n);
@@ -259,9 +283,9 @@ extern long long __atomic64_xchg_add(volatile long long *p, int *lock,
 					long long n);
 extern long long __atomic64_xchg_add_unless(volatile long long *p,
 					int *lock, long long o, long long n);
-extern long long __atomic64_and(volatile long long *p, int *lock, long long n);
-extern long long __atomic64_or(volatile long long *p, int *lock, long long n);
-extern long long __atomic64_xor(volatile long long *p, int *lock, long long n);
+extern long long __atomic64_fetch_and(volatile long long *p, int *lock, long long n);
+extern long long __atomic64_fetch_or(volatile long long *p, int *lock, long long n);
+extern long long __atomic64_fetch_xor(volatile long long *p, int *lock, long long n);
 
 /* Return failure from the atomic wrappers. */
 struct __get_user __atomic_bad_address(int __user *addr);

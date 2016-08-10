@@ -195,7 +195,7 @@ static int vmd_msi_init(struct irq_domain *domain, struct msi_domain_info *info,
 	vmdirq->virq = virq;
 
 	irq_domain_set_info(domain, virq, vmdirq->irq->vmd_vector, info->chip,
-			    vmdirq, handle_simple_irq, vmd, NULL);
+			    vmdirq, handle_untracked_irq, vmd, NULL);
 	return 0;
 }
 

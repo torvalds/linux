@@ -1724,9 +1724,9 @@ static int pinmux_xway_probe(struct platform_device *pdev)
 	}
 	xway_pctrl_desc.pins = xway_info.pads;
 
-	/* load the gpio chip */
+	/* register the gpio chip */
 	xway_chip.parent = &pdev->dev;
-	ret = gpiochip_add(&xway_chip);
+	ret = devm_gpiochip_add_data(&pdev->dev, &xway_chip, NULL);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register gpio chip\n");
 		return ret;
@@ -1749,7 +1749,6 @@ static int pinmux_xway_probe(struct platform_device *pdev)
 	/* register with the generic lantiq layer */
 	ret = ltq_pinctrl_register(pdev, &xway_info);
 	if (ret) {
-		gpiochip_remove(&xway_chip);
 		dev_err(&pdev->dev, "Failed to register pinctrl driver\n");
 		return ret;
 	}

@@ -41,16 +41,22 @@
  * be moved to FW_FAILED.
  */
 
+#define I915_CSR_KBL "i915/kbl_dmc_ver1.bin"
+MODULE_FIRMWARE(I915_CSR_KBL);
+#define KBL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 1)
+
 #define I915_CSR_SKL "i915/skl_dmc_ver1.bin"
+MODULE_FIRMWARE(I915_CSR_SKL);
+#define SKL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 23)
+
 #define I915_CSR_BXT "i915/bxt_dmc_ver1.bin"
+MODULE_FIRMWARE(I915_CSR_BXT);
+#define BXT_CSR_VERSION_REQUIRED	CSR_VERSION(1, 7)
 
 #define FIRMWARE_URL  "https://01.org/linuxgraphics/intel-linux-graphics-firmwares"
 
-MODULE_FIRMWARE(I915_CSR_SKL);
-MODULE_FIRMWARE(I915_CSR_BXT);
 
-#define SKL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 23)
-#define BXT_CSR_VERSION_REQUIRED	CSR_VERSION(1, 7)
+
 
 #define CSR_MAX_FW_SIZE			0x2FFF
 #define CSR_DEFAULT_FW_OFFSET		0xFFFFFFFF
@@ -169,12 +175,10 @@ struct stepping_info {
 	char substepping;
 };
 
-/*
- * Kabylake derivated from Skylake H0, so SKL H0
- * is the right firmware for KBL A0 (revid 0).
- */
 static const struct stepping_info kbl_stepping_info[] = {
-	{'H', '0'}, {'I', '0'}
+	{'A', '0'}, {'B', '0'}, {'C', '0'},
+	{'D', '0'}, {'E', '0'}, {'F', '0'},
+	{'G', '0'}, {'H', '0'}, {'I', '0'},
 };
 
 static const struct stepping_info skl_stepping_info[] = {
@@ -298,7 +302,9 @@ static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
 
 	csr->version = css_header->version;
 
-	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
+	if (IS_KABYLAKE(dev_priv)) {
+		required_min_version = KBL_CSR_VERSION_REQUIRED;
+	} else if (IS_SKYLAKE(dev_priv)) {
 		required_min_version = SKL_CSR_VERSION_REQUIRED;
 	} else if (IS_BROXTON(dev_priv)) {
 		required_min_version = BXT_CSR_VERSION_REQUIRED;
@@ -446,7 +452,9 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 	if (!HAS_CSR(dev_priv))
 		return;
 
-	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
+	if (IS_KABYLAKE(dev_priv))
+		csr->fw_path = I915_CSR_KBL;
+	else if (IS_SKYLAKE(dev_priv))
 		csr->fw_path = I915_CSR_SKL;
 	else if (IS_BROXTON(dev_priv))
 		csr->fw_path = I915_CSR_BXT;

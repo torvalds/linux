@@ -21,6 +21,7 @@
 #define HPAGE_SIZE	(1UL << HPAGE_SHIFT)
 #define HPAGE_MASK	(~(HPAGE_SIZE - 1))
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
+#define HUGE_MAX_HSTATE		2
 
 #define ARCH_HAS_SETCLEAR_HUGE_PTE
 #define ARCH_HAS_HUGE_PTE_TYPE
@@ -30,11 +31,12 @@
 #include <asm/setup.h>
 #ifndef __ASSEMBLY__
 
+void __storage_key_init_range(unsigned long start, unsigned long end);
+
 static inline void storage_key_init_range(unsigned long start, unsigned long end)
 {
-#if PAGE_DEFAULT_KEY
-	__storage_key_init_range(start, end);
-#endif
+	if (PAGE_DEFAULT_KEY)
+		__storage_key_init_range(start, end);
 }
 
 #define clear_page(page)	memset((page), 0, PAGE_SIZE)

@@ -65,6 +65,17 @@ struct octeon_droq_info {
 
 #define OCT_DROQ_INFO_SIZE   (sizeof(struct octeon_droq_info))
 
+struct octeon_skb_page_info {
+	/* DMA address for the page */
+	dma_addr_t dma;
+
+	/* Page for the rx dma  **/
+	struct page *page;
+
+	/** which offset into page */
+	unsigned int page_offset;
+};
+
 /** Pointer to data buffer.
  *  Driver keeps a pointer to the data buffer that it made available to
  *  the Octeon device. Since the descriptor ring keeps physical (bus)
@@ -77,6 +88,9 @@ struct octeon_recv_buffer {
 
 	/** Data in the packet buffer.  */
 	u8 *data;
+
+	/** pg_info **/
+	struct octeon_skb_page_info pg_info;
 };
 
 #define OCT_DROQ_RECVBUF_SIZE    (sizeof(struct octeon_recv_buffer))
@@ -106,6 +120,13 @@ struct oct_droq_stats {
 
 	/** Num of Packets dropped due to receive path failures. */
 	u64 rx_dropped;
+
+	/** Num of vxlan packets received; */
+	u64 rx_vxlan;
+
+	/** Num of failures of recv_buffer_alloc() */
+	u64 rx_alloc_failure;
+
 };
 
 #define POLL_EVENT_INTR_ARRIVED  1
@@ -213,7 +234,8 @@ struct octeon_droq_ops {
 	 *  data in the buffer. The receive header gives the port
 	 *  number to the caller.  Function pointer is set by caller.
 	 */
-	void (*fptr)(u32, void *, u32, union octeon_rh *, void *);
+	void (*fptr)(u32, void *, u32, union octeon_rh *, void *, void *);
+	void *farg;
 
 	/* This function will be called by the driver for all NAPI related
 	 * events. The first param is the octeon id. The second param is the
@@ -394,24 +416,9 @@ int octeon_register_dispatch_fn(struct octeon_device *oct,
 				u16 subcode,
 				octeon_dispatch_fn_t fn, void *fn_arg);
 
-/**  Remove registration for an opcode/subcode. This will delete the mapping for
- *   an opcode/subcode. The dispatch function will be unregistered and will no
- *   longer be called if a packet with the opcode/subcode arrives in the driver
- *   output queues.
- *   @param  oct        -  the octeon device to unregister from.
- *   @param  opcode     -  the opcode to be unregistered.
- *   @param  subcode    -  the subcode to be unregistered.
- *
- *   @return Success: 0; Failure: 1
- */
-int octeon_unregister_dispatch_fn(struct octeon_device *oct,
-				  u16 opcode,
-				  u16 subcode);
-
 void octeon_droq_print_stats(void);
 
-u32 octeon_droq_check_hw_for_pkts(struct octeon_device *oct,
-				  struct octeon_droq *droq);
+u32 octeon_droq_check_hw_for_pkts(struct octeon_droq *droq);
 
 int octeon_create_droq(struct octeon_device *oct, u32 q_no,
 		       u32 num_descs, u32 desc_size, void *app_ctx);

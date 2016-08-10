@@ -36,7 +36,7 @@ configuration with CDC ECM which should work better under Linux.
 
 ** Windows host drivers
 
-For the gadget two work under Windows two conditions have to be met:
+For the gadget to work under Windows two conditions have to be met:
 
 *** Detecting as composite gadget
 

@@ -212,13 +212,6 @@ xfs_free_extent(
 	xfs_fsblock_t	bno,	/* starting block number of extent */
 	xfs_extlen_t	len);	/* length of extent */
 
-int					/* error */
-xfs_alloc_lookup_le(
-	struct xfs_btree_cur	*cur,	/* btree cursor */
-	xfs_agblock_t		bno,	/* starting block of extent */
-	xfs_extlen_t		len,	/* length of extent */
-	int			*stat);	/* success/failure */
-
 int				/* error */
 xfs_alloc_lookup_ge(
 	struct xfs_btree_cur	*cur,	/* btree cursor */
@@ -236,5 +229,7 @@ xfs_alloc_get_rec(
 int xfs_read_agf(struct xfs_mount *mp, struct xfs_trans *tp,
 			xfs_agnumber_t agno, int flags, struct xfs_buf **bpp);
 int xfs_alloc_fix_freelist(struct xfs_alloc_arg *args, int flags);
+int xfs_free_extent_fix_freelist(struct xfs_trans *tp, xfs_agnumber_t agno,
+		struct xfs_buf **agbp);
 
 #endif	/* __XFS_ALLOC_H__ */

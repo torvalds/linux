@@ -1,0 +1,104 @@
+<refentry id="cec-func-open">
+  <refmeta>
+    <refentrytitle>cec open()</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>cec-open</refname>
+    <refpurpose>Open a cec device</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcsynopsisinfo>#include &lt;fcntl.h&gt;</funcsynopsisinfo>
+      <funcprototype>
+	<funcdef>int <function>open</function></funcdef>
+	<paramdef>const char *<parameter>device_name</parameter></paramdef>
+	<paramdef>int <parameter>flags</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>device_name</parameter></term>
+	<listitem>
+	  <para>Device to be opened.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>flags</parameter></term>
+	<listitem>
+	  <para>Open flags. Access mode must be <constant>O_RDWR</constant>.
+	  </para>
+	  <para>When the <constant>O_NONBLOCK</constant> flag is
+given, the &CEC-RECEIVE; ioctl will return &EAGAIN; when no message is
+available, and the &CEC-TRANSMIT;, &CEC-ADAP-S-PHYS-ADDR; and
+&CEC-ADAP-S-LOG-ADDRS; ioctls all act in non-blocking mode.</para>
+	  <para>Other flags have no effect.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+  <refsect1>
+    <title>Description</title>
+    <para>
+      Note: this documents the proposed CEC API. This API is not yet finalized and
+      is currently only available as a staging kernel module.
+    </para>
+
+    <para>To open a cec device applications call <function>open()</function>
+    with the desired device name. The function has no side effects; the device
+    configuration remain unchanged.</para>
+    <para>When the device is opened in read-only mode, attempts to modify its
+    configuration will result in an error, and <varname>errno</varname> will be
+    set to <errorcode>EBADF</errorcode>.</para>
+  </refsect1>
+  <refsect1>
+    <title>Return Value</title>
+
+    <para><function>open</function> returns the new file descriptor on success.
+    On error, -1 is returned, and <varname>errno</varname> is set appropriately.
+    Possible error codes include:</para>
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EACCES</errorcode></term>
+	<listitem>
+	  <para>The requested access to the file is not allowed.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EMFILE</errorcode></term>
+	<listitem>
+	  <para>The  process  already  has  the  maximum number of files open.
+	  </para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>ENFILE</errorcode></term>
+	<listitem>
+	  <para>The system limit on the total number of open files has been
+	  reached.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>ENOMEM</errorcode></term>
+	<listitem>
+	  <para>Insufficient kernel memory was available.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>ENXIO</errorcode></term>
+	<listitem>
+	  <para>No device corresponding to this device special file exists.
+	  </para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>

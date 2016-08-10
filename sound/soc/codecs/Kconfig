@@ -483,9 +483,10 @@ config SND_SOC_DMIC
 	tristate
 
 config SND_SOC_HDMI_CODEC
-       tristate
-       select SND_PCM_ELD
-       select SND_PCM_IEC958
+	tristate
+	select SND_PCM_ELD
+	select SND_PCM_IEC958
+	select HDMI
 
 config SND_SOC_ES8328
 	tristate "Everest Semi ES8328 CODEC"

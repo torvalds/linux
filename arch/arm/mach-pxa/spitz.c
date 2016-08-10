@@ -464,7 +464,7 @@ static struct gpio_led spitz_gpio_leds[] = {
 	},
 	{
 		.name			= "spitz:green:hddactivity",
-		.default_trigger	= "ide-disk",
+		.default_trigger	= "disk-activity",
 		.gpio			= SPITZ_GPIO_LED_GREEN,
 	},
 };

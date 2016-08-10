@@ -1286,8 +1286,8 @@ void switchdev_fib_ipv4_abort(struct fib_info *fi)
 }
 EXPORT_SYMBOL_GPL(switchdev_fib_ipv4_abort);
 
-static bool switchdev_port_same_parent_id(struct net_device *a,
-					  struct net_device *b)
+bool switchdev_port_same_parent_id(struct net_device *a,
+				   struct net_device *b)
 {
 	struct switchdev_attr a_attr = {
 		.orig_dev = a,
@@ -1323,6 +1323,7 @@ static u32 switchdev_port_fwd_mark_get(struct net_device *dev,
 
 	return dev->ifindex;
 }
+EXPORT_SYMBOL_GPL(switchdev_port_same_parent_id);
 
 static void switchdev_port_fwd_mark_reset(struct net_device *group_dev,
 					  u32 old_mark, u32 *reset_mark)

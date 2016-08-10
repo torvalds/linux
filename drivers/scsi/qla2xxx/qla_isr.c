@@ -710,16 +710,23 @@ skip_rio:
 
 	case MBA_RSP_TRANSFER_ERR:	/* Response Transfer Error */
 		ql_log(ql_log_warn, vha, 0x5007,
-		    "ISP Response Transfer Error.\n");
+		    "ISP Response Transfer Error (%x).\n", mb[1]);
 
 		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		break;
 
 	case MBA_WAKEUP_THRES:		/* Request Queue Wake-up */
 		ql_dbg(ql_dbg_async, vha, 0x5008,
-		    "Asynchronous WAKEUP_THRES.\n");
-
+		    "Asynchronous WAKEUP_THRES (%x).\n", mb[1]);
 		break;
+
+	case MBA_LOOP_INIT_ERR:
+		ql_log(ql_log_warn, vha, 0x5090,
+		    "LOOP INIT ERROR (%x).\n", mb[1]);
+		ha->isp_ops->fw_dump(vha, 1);
+		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+		break;
+
 	case MBA_LIP_OCCURRED:		/* Loop Initialization Procedure */
 		ql_dbg(ql_dbg_async, vha, 0x5009,
 		    "LIP occurred (%x).\n", mb[1]);
@@ -1152,10 +1159,18 @@ global_port_update:
 
 	case MBA_DPORT_DIAGNOSTICS:
 		ql_dbg(ql_dbg_async, vha, 0x5052,
-		    "D-Port Diagnostics: %04x %04x=%s\n", mb[0], mb[1],
+		    "D-Port Diagnostics: %04x result=%s\n",
+		    mb[0],
 		    mb[1] == 0 ? "start" :
-		    mb[1] == 1 ? "done (ok)" :
+		    mb[1] == 1 ? "done (pass)" :
 		    mb[1] == 2 ? "done (error)" : "other");
+		break;
+
+	case MBA_TEMPERATURE_ALERT:
+		ql_dbg(ql_dbg_async, vha, 0x505e,
+		    "TEMPERATURE ALERT: %04x %04x %04x\n", mb[1], mb[2], mb[3]);
+		if (mb[1] == 0x12)
+			schedule_work(&ha->board_disable);
 		break;
 
 	default:
@@ -2548,7 +2563,7 @@ void qla24xx_process_response_queue(struct scsi_qla_host *vha,
 	if (!vha->flags.online)
 		return;
 
-	if (rsp->msix->cpuid != smp_processor_id()) {
+	if (rsp->msix && rsp->msix->cpuid != smp_processor_id()) {
 		/* if kernel does not notify qla of IRQ's CPU change,
 		 * then set it here.
 		 */
@@ -3086,6 +3101,8 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 	/* Enable MSI-X vectors for the base queue */
 	for (i = 0; i < 2; i++) {
 		qentry = &ha->msix_entries[i];
+		qentry->rsp = rsp;
+		rsp->msix = qentry;
 		if (IS_P3P_TYPE(ha))
 			ret = request_irq(qentry->vector,
 				qla82xx_msix_entries[i].handler,
@@ -3097,8 +3114,6 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 		if (ret)
 			goto msix_register_fail;
 		qentry->have_irq = 1;
-		qentry->rsp = rsp;
-		rsp->msix = qentry;
 
 		/* Register for CPU affinity notification. */
 		irq_set_affinity_notifier(qentry->vector, &qentry->irq_notify);
@@ -3119,12 +3134,12 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 	 */
 	if (QLA_TGT_MODE_ENABLED() && IS_ATIO_MSIX_CAPABLE(ha)) {
 		qentry = &ha->msix_entries[ATIO_VECTOR];
+		qentry->rsp = rsp;
+		rsp->msix = qentry;
 		ret = request_irq(qentry->vector,
 			qla83xx_msix_entries[ATIO_VECTOR].handler,
 			0, qla83xx_msix_entries[ATIO_VECTOR].name, rsp);
 		qentry->have_irq = 1;
-		qentry->rsp = rsp;
-		rsp->msix = qentry;
 	}
 
 msix_register_fail:

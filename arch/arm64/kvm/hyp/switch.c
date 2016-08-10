@@ -198,7 +198,7 @@ static bool __hyp_text __translate_far_to_hpfar(u64 far, u64 *hpfar)
 static bool __hyp_text __populate_fault_info(struct kvm_vcpu *vcpu)
 {
 	u64 esr = read_sysreg_el2(esr);
-	u8 ec = esr >> ESR_ELx_EC_SHIFT;
+	u8 ec = ESR_ELx_EC(esr);
 	u64 hpfar, far;
 
 	vcpu->arch.fault.esr_el2 = esr;

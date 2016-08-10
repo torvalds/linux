@@ -8,6 +8,9 @@
 struct real_mode_header *real_mode_header;
 u32 *trampoline_cr4_features;
 
+/* Hold the pgd entry used on booting additional CPUs */
+pgd_t trampoline_pgd_entry;
+
 void __init reserve_real_mode(void)
 {
 	phys_addr_t mem;
@@ -84,7 +87,7 @@ void __init setup_real_mode(void)
 	*trampoline_cr4_features = __read_cr4();
 
 	trampoline_pgd = (u64 *) __va(real_mode_header->trampoline_pgd);
-	trampoline_pgd[0] = init_level4_pgt[pgd_index(__PAGE_OFFSET)].pgd;
+	trampoline_pgd[0] = trampoline_pgd_entry.pgd;
 	trampoline_pgd[511] = init_level4_pgt[511].pgd;
 #endif
 }

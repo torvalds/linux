@@ -312,7 +312,7 @@ EXPORT_SYMBOL(__nd_driver_register);
 
 int nvdimm_revalidate_disk(struct gendisk *disk)
 {
-	struct device *dev = disk->driverfs_dev;
+	struct device *dev = disk_to_dev(disk)->parent;
 	struct nd_region *nd_region = to_nd_region(dev->parent);
 	const char *pol = nd_region->ro ? "only" : "write";
 

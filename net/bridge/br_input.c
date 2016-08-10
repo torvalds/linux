@@ -60,6 +60,9 @@ static int br_pass_frame_up(struct sk_buff *skb)
 	skb = br_handle_vlan(br, vg, skb);
 	if (!skb)
 		return NET_RX_DROP;
+	/* update the multicast stats if the packet is IGMP/MLD */
+	br_multicast_count(br, NULL, skb, br_multicast_igmp_type(skb),
+			   BR_MCAST_DIR_TX);
 
 	return NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN,
 		       dev_net(indev), NULL, skb, indev, NULL,
@@ -128,13 +131,12 @@ static void br_do_proxy_arp(struct sk_buff *skb, struct net_bridge *br,
 /* note: already called with rcu_read_lock */
 int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	const unsigned char *dest = eth_hdr(skb)->h_dest;
+	bool local_rcv = false, mcast_hit = false, unicast = true;
 	struct net_bridge_port *p = br_port_get_rcu(skb->dev);
-	struct net_bridge *br;
-	struct net_bridge_fdb_entry *dst;
+	const unsigned char *dest = eth_hdr(skb)->h_dest;
+	struct net_bridge_fdb_entry *dst = NULL;
 	struct net_bridge_mdb_entry *mdst;
-	struct sk_buff *skb2;
-	bool unicast = true;
+	struct net_bridge *br;
 	u16 vid = 0;
 
 	if (!p || p->state == BR_STATE_DISABLED)
@@ -157,53 +159,46 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 
 	BR_INPUT_SKB_CB(skb)->brdev = br->dev;
 
-	/* The packet skb2 goes to the local host (NULL to skip). */
-	skb2 = NULL;
-
-	if (br->dev->flags & IFF_PROMISC)
-		skb2 = skb;
-
-	dst = NULL;
+	local_rcv = !!(br->dev->flags & IFF_PROMISC);
 
 	if (IS_ENABLED(CONFIG_INET) && skb->protocol == htons(ETH_P_ARP))
 		br_do_proxy_arp(skb, br, vid, p);
 
 	if (is_broadcast_ether_addr(dest)) {
-		skb2 = skb;
+		local_rcv = true;
 		unicast = false;
 	} else if (is_multicast_ether_addr(dest)) {
 		mdst = br_mdb_get(br, skb, vid);
 		if ((mdst || BR_INPUT_SKB_CB_MROUTERS_ONLY(skb)) &&
 		    br_multicast_querier_exists(br, eth_hdr(skb))) {
 			if ((mdst && mdst->mglist) ||
-			    br_multicast_is_router(br))
-				skb2 = skb;
-			br_multicast_forward(mdst, skb, skb2);
-			skb = NULL;
-			if (!skb2)
-				goto out;
-		} else
-			skb2 = skb;
-
+			    br_multicast_is_router(br)) {
+				local_rcv = true;
+				br->dev->stats.multicast++;
+			}
+			mcast_hit = true;
+		} else {
+			local_rcv = true;
+			br->dev->stats.multicast++;
+		}
 		unicast = false;
-		br->dev->stats.multicast++;
-	} else if ((dst = __br_fdb_get(br, dest, vid)) &&
-			dst->is_local) {
-		skb2 = skb;
+	} else if ((dst = __br_fdb_get(br, dest, vid)) && dst->is_local) {
 		/* Do not forward the packet since it's local. */
-		skb = NULL;
+		return br_pass_frame_up(skb);
 	}
 
-	if (skb) {
-		if (dst) {
-			dst->used = jiffies;
-			br_forward(dst->dst, skb, skb2);
-		} else
-			br_flood_forward(br, skb, skb2, unicast);
+	if (dst) {
+		dst->used = jiffies;
+		br_forward(dst->dst, skb, local_rcv, false);
+	} else {
+		if (!mcast_hit)
+			br_flood(br, skb, unicast, local_rcv, false);
+		else
+			br_multicast_flood(mdst, skb, local_rcv, false);
 	}
 
-	if (skb2)
-		return br_pass_frame_up(skb2);
+	if (local_rcv)
+		return br_pass_frame_up(skb);
 
 out:
 	return 0;
@@ -213,8 +208,7 @@ drop:
 }
 EXPORT_SYMBOL_GPL(br_handle_frame_finish);
 
-/* note: already called with rcu_read_lock */
-static int br_handle_local_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
+static void __br_handle_local_finish(struct sk_buff *skb)
 {
 	struct net_bridge_port *p = br_port_get_rcu(skb->dev);
 	u16 vid = 0;
@@ -222,6 +216,14 @@ static int br_handle_local_finish(struct net *net, struct sock *sk, struct sk_bu
 	/* check if vlan is allowed, to avoid spoofing */
 	if (p->flags & BR_LEARNING && br_should_learn(p, skb, &vid))
 		br_fdb_update(p->br, p, eth_hdr(skb)->h_source, vid, false);
+}
+
+/* note: already called with rcu_read_lock */
+static int br_handle_local_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
+{
+	struct net_bridge_port *p = br_port_get_rcu(skb->dev);
+
+	__br_handle_local_finish(skb);
 
 	BR_INPUT_SKB_CB(skb)->brdev = p->br->dev;
 	br_pass_frame_up(skb);
@@ -274,10 +276,20 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 			if (p->br->stp_enabled == BR_NO_STP ||
 			    fwd_mask & (1u << dest[5]))
 				goto forward;
-			break;
+			*pskb = skb;
+			__br_handle_local_finish(skb);
+			return RX_HANDLER_PASS;
 
 		case 0x01:	/* IEEE MAC (Pause) */
 			goto drop;
+
+		case 0x0E:	/* 802.1AB LLDP */
+			fwd_mask |= p->br->group_fwd_mask;
+			if (fwd_mask & (1u << dest[5]))
+				goto forward;
+			*pskb = skb;
+			__br_handle_local_finish(skb);
+			return RX_HANDLER_PASS;
 
 		default:
 			/* Allow selective forwarding for most other protocols */

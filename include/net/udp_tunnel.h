@@ -84,6 +84,46 @@ struct udp_tunnel_sock_cfg {
 void setup_udp_tunnel_sock(struct net *net, struct socket *sock,
 			   struct udp_tunnel_sock_cfg *sock_cfg);
 
+/* -- List of parsable UDP tunnel types --
+ *
+ * Adding to this list will result in serious debate.  The main issue is
+ * that this list is essentially a list of workarounds for either poorly
+ * designed tunnels, or poorly designed device offloads.
+ *
+ * The parsing supported via these types should really be used for Rx
+ * traffic only as the network stack will have already inserted offsets for
+ * the location of the headers in the skb.  In addition any ports that are
+ * pushed should be kept within the namespace without leaking to other
+ * devices such as VFs or other ports on the same device.
+ *
+ * It is strongly encouraged to use CHECKSUM_COMPLETE for Rx to avoid the
+ * need to use this for Rx checksum offload.  It should not be necessary to
+ * call this function to perform Tx offloads on outgoing traffic.
+ */
+enum udp_parsable_tunnel_type {
+	UDP_TUNNEL_TYPE_VXLAN,		/* RFC 7348 */
+	UDP_TUNNEL_TYPE_GENEVE,		/* draft-ietf-nvo3-geneve */
+	UDP_TUNNEL_TYPE_VXLAN_GPE,	/* draft-ietf-nvo3-vxlan-gpe */
+};
+
+struct udp_tunnel_info {
+	unsigned short type;
+	sa_family_t sa_family;
+	__be16 port;
+};
+
+/* Notify network devices of offloadable types */
+void udp_tunnel_push_rx_port(struct net_device *dev, struct socket *sock,
+			     unsigned short type);
+void udp_tunnel_notify_add_rx_port(struct socket *sock, unsigned short type);
+void udp_tunnel_notify_del_rx_port(struct socket *sock, unsigned short type);
+
+static inline void udp_tunnel_get_rx_info(struct net_device *dev)
+{
+	ASSERT_RTNL();
+	call_netdevice_notifiers(NETDEV_UDP_TUNNEL_PUSH_INFO, dev);
+}
+
 /* Transmit the skb using UDP encapsulation. */
 void udp_tunnel_xmit_skb(struct rtable *rt, struct sock *sk, struct sk_buff *skb,
 			 __be32 src, __be32 dst, __u8 tos, __u8 ttl,
@@ -105,12 +145,14 @@ struct metadata_dst *udp_tun_rx_dst(struct sk_buff *skb, unsigned short family,
 				    __be16 flags, __be64 tunnel_id,
 				    int md_size);
 
+#ifdef CONFIG_INET
 static inline int udp_tunnel_handle_offloads(struct sk_buff *skb, bool udp_csum)
 {
 	int type = udp_csum ? SKB_GSO_UDP_TUNNEL_CSUM : SKB_GSO_UDP_TUNNEL;
 
 	return iptunnel_handle_offloads(skb, type);
 }
+#endif
 
 static inline void udp_tunnel_encap_enable(struct socket *sock)
 {

@@ -96,7 +96,7 @@ static void mlx5e_build_tc_tx_bw(struct ieee_ets *ets, u8 *tc_tx_bw,
 			tc_tx_bw[i] = MLX5E_MAX_BW_ALLOC;
 			break;
 		case IEEE_8021QAZ_TSA_ETS:
-			tc_tx_bw[i] = ets->tc_tx_bw[i] ?: MLX5E_MIN_BW_ALLOC;
+			tc_tx_bw[i] = ets->tc_tx_bw[i];
 			break;
 		}
 	}
@@ -140,8 +140,12 @@ static int mlx5e_dbcnl_validate_ets(struct ieee_ets *ets)
 
 	/* Validate Bandwidth Sum */
 	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
-		if (ets->tc_tsa[i] == IEEE_8021QAZ_TSA_ETS)
+		if (ets->tc_tsa[i] == IEEE_8021QAZ_TSA_ETS) {
+			if (!ets->tc_tx_bw[i])
+				return -EINVAL;
+
 			bw_sum += ets->tc_tx_bw[i];
+		}
 	}
 
 	if (bw_sum != 0 && bw_sum != 100)
@@ -191,7 +195,6 @@ static int mlx5e_dcbnl_ieee_setpfc(struct net_device *dev,
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct mlx5_core_dev *mdev = priv->mdev;
-	enum mlx5_port_status ps;
 	u8 curr_pfc_en;
 	int ret;
 
@@ -200,14 +203,8 @@ static int mlx5e_dcbnl_ieee_setpfc(struct net_device *dev,
 	if (pfc->pfc_en == curr_pfc_en)
 		return 0;
 
-	mlx5_query_port_admin_status(mdev, &ps);
-	if (ps == MLX5_PORT_UP)
-		mlx5_set_port_admin_status(mdev, MLX5_PORT_DOWN);
-
 	ret = mlx5_set_port_pfc(mdev, pfc->pfc_en, pfc->pfc_en);
-
-	if (ps == MLX5_PORT_UP)
-		mlx5_set_port_admin_status(mdev, MLX5_PORT_UP);
+	mlx5_toggle_port_link(mdev);
 
 	return ret;
 }

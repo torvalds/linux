@@ -2340,7 +2340,6 @@ static irqreturn_t udc_data_in_isr(struct udc *dev, int ep_ix)
 	struct udc_ep *ep;
 	struct udc_request *req;
 	struct udc_data_dma *td;
-	unsigned dma_done;
 	unsigned len;
 
 	ep = &dev->ep[ep_ix];
@@ -2385,13 +2384,8 @@ static irqreturn_t udc_data_in_isr(struct udc *dev, int ep_ix)
 			 */
 			if (use_dma_ppb_du) {
 				td = udc_get_last_dma_desc(req);
-				if (td) {
-					dma_done =
-						AMD_GETBITS(td->status,
-						UDC_DMA_IN_STS_BS);
-					/* don't care DMA done */
+				if (td)
 					req->req.actual = req->req.length;
-				}
 			} else {
 				/* assume all bytes transferred */
 				req->req.actual = req->req.length;
@@ -3417,4 +3411,3 @@ module_pci_driver(udc_pci_driver);
 MODULE_DESCRIPTION(UDC_MOD_DESCRIPTION);
 MODULE_AUTHOR("Thomas Dahlmann");
 MODULE_LICENSE("GPL");
-

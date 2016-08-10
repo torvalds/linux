@@ -98,7 +98,6 @@ struct tegra_gpio_info {
 	const struct tegra_gpio_soc_config	*soc;
 	struct gpio_chip			gc;
 	struct irq_chip				ic;
-	struct lock_class_key			lock_class;
 	u32					bank_count;
 };
 
@@ -547,6 +546,12 @@ static const struct dev_pm_ops tegra_gpio_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(tegra_gpio_suspend, tegra_gpio_resume)
 };
 
+/*
+ * This lock class tells lockdep that GPIO irqs are in a different category
+ * than their parents, so it won't report false recursion.
+ */
+static struct lock_class_key gpio_lock_class;
+
 static int tegra_gpio_probe(struct platform_device *pdev)
 {
 	const struct tegra_gpio_soc_config *config;
@@ -660,7 +665,7 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 
 		bank = &tgi->bank_info[GPIO_BANK(gpio)];
 
-		irq_set_lockdep_class(irq, &tgi->lock_class);
+		irq_set_lockdep_class(irq, &gpio_lock_class);
 		irq_set_chip_data(irq, bank);
 		irq_set_chip_and_handler(irq, &tgi->ic, handle_simple_irq);
 	}

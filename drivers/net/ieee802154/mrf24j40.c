@@ -1054,6 +1054,8 @@ static irqreturn_t mrf24j40_isr(int irq, void *data)
 	disable_irq_nosync(irq);
 
 	devrec->irq_buf[0] = MRF24J40_READSHORT(REG_INTSTAT);
+	devrec->irq_buf[1] = 0;
+
 	/* Read the interrupt status */
 	ret = spi_async(devrec->spi, &devrec->irq_msg);
 	if (ret) {

@@ -1528,21 +1528,18 @@ static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
 {
 	struct mlx5_flow_table	*ft = ft_prio->flow_table;
 	struct mlx5_ib_flow_handler *handler;
+	struct mlx5_flow_spec *spec;
 	void *ib_flow = flow_attr + 1;
-	u8 match_criteria_enable = 0;
 	unsigned int spec_index;
-	u32 *match_c;
-	u32 *match_v;
 	u32 action;
 	int err = 0;
 
 	if (!is_valid_attr(flow_attr))
 		return ERR_PTR(-EINVAL);
 
-	match_c = kzalloc(MLX5_ST_SZ_BYTES(fte_match_param), GFP_KERNEL);
-	match_v = kzalloc(MLX5_ST_SZ_BYTES(fte_match_param), GFP_KERNEL);
+	spec = mlx5_vzalloc(sizeof(*spec));
 	handler = kzalloc(sizeof(*handler), GFP_KERNEL);
-	if (!handler || !match_c || !match_v) {
+	if (!handler || !spec) {
 		err = -ENOMEM;
 		goto free;
 	}
@@ -1550,7 +1547,8 @@ static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
 	INIT_LIST_HEAD(&handler->list);
 
 	for (spec_index = 0; spec_index < flow_attr->num_of_specs; spec_index++) {
-		err = parse_flow_attr(match_c, match_v, ib_flow);
+		err = parse_flow_attr(spec->match_criteria,
+				      spec->match_value, ib_flow);
 		if (err < 0)
 			goto free;
 
@@ -1558,11 +1556,11 @@ static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
 	}
 
 	/* Outer header support only */
-	match_criteria_enable = (!outer_header_zero(match_c)) << 0;
+	spec->match_criteria_enable = (!outer_header_zero(spec->match_criteria))
+		<< 0;
 	action = dst ? MLX5_FLOW_CONTEXT_ACTION_FWD_DEST :
 		MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO;
-	handler->rule = mlx5_add_flow_rule(ft, match_criteria_enable,
-					   match_c, match_v,
+	handler->rule = mlx5_add_flow_rule(ft, spec,
 					   action,
 					   MLX5_FS_DEFAULT_FLOW_TAG,
 					   dst);
@@ -1578,8 +1576,7 @@ static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
 free:
 	if (err)
 		kfree(handler);
-	kfree(match_c);
-	kfree(match_v);
+	kvfree(spec);
 	return err ? ERR_PTR(err) : handler;
 }
 

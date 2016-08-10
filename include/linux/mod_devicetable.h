@@ -657,4 +657,20 @@ struct ulpi_device_id {
 	kernel_ulong_t driver_data;
 };
 
+/**
+ * struct fsl_mc_device_id - MC object device identifier
+ * @vendor: vendor ID
+ * @obj_type: MC object type
+ * @ver_major: MC object version major number
+ * @ver_minor: MC object version minor number
+ *
+ * Type of entries in the "device Id" table for MC object devices supported by
+ * a MC object device driver. The last entry of the table has vendor set to 0x0
+ */
+struct fsl_mc_device_id {
+	__u16 vendor;
+	const char obj_type[16];
+};
+
+
 #endif /* LINUX_MOD_DEVICETABLE_H */

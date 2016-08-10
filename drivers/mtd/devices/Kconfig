@@ -114,7 +114,7 @@ config MTD_SST25L
 
 config MTD_BCM47XXSFLASH
 	tristate "R/O support for serial flash on BCMA bus"
-	depends on BCMA_SFLASH
+	depends on BCMA_SFLASH && (MIPS || ARM)
 	help
 	  BCMA bus can have various flash memories attached, they are
 	  registered by bcma as platform devices. This enables driver for

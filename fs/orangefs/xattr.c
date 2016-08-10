@@ -59,8 +59,8 @@ static inline int convert_to_internal_xattr_flags(int setxattr_flags)
  * unless the key does not exist for the file and/or if
  * there were errors in fetching the attribute value.
  */
-ssize_t orangefs_inode_getxattr(struct inode *inode, const char *prefix,
-		const char *name, void *buffer, size_t size)
+ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
+				void *buffer, size_t size)
 {
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	struct orangefs_kernel_op_s *new_op = NULL;
@@ -70,17 +70,17 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *prefix,
 	int fsgid;
 
 	gossip_debug(GOSSIP_XATTR_DEBUG,
-		     "%s: prefix %s name %s, buffer_size %zd\n",
-		     __func__, prefix, name, size);
+		     "%s: name %s, buffer_size %zd\n",
+		     __func__, name, size);
 
-	if ((strlen(name) + strlen(prefix)) >= ORANGEFS_MAX_XATTR_NAMELEN) {
+	if (strlen(name) >= ORANGEFS_MAX_XATTR_NAMELEN) {
 		gossip_err("Invalid key length (%d)\n",
-			   (int)(strlen(name) + strlen(prefix)));
+			   (int)strlen(name));
 		return -EINVAL;
 	}
 
-	fsuid = from_kuid(current_user_ns(), current_fsuid());
-	fsgid = from_kgid(current_user_ns(), current_fsgid());
+	fsuid = from_kuid(&init_user_ns, current_fsuid());
+	fsgid = from_kgid(&init_user_ns, current_fsgid());
 
 	gossip_debug(GOSSIP_XATTR_DEBUG,
 		     "getxattr on inode %pU, name %s "
@@ -97,15 +97,14 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *prefix,
 		goto out_unlock;
 
 	new_op->upcall.req.getxattr.refn = orangefs_inode->refn;
-	ret = snprintf((char *)new_op->upcall.req.getxattr.key,
-		       ORANGEFS_MAX_XATTR_NAMELEN, "%s%s", prefix, name);
+	strcpy(new_op->upcall.req.getxattr.key, name);
 
 	/*
 	 * NOTE: Although keys are meant to be NULL terminated textual
 	 * strings, I am going to explicitly pass the length just in case
 	 * we change this later on...
 	 */
-	new_op->upcall.req.getxattr.key_sz = ret + 1;
+	new_op->upcall.req.getxattr.key_sz = strlen(name) + 1;
 
 	ret = service_operation(new_op, "orangefs_inode_getxattr",
 				get_interruptible_flag(inode));
@@ -163,10 +162,8 @@ out_unlock:
 	return ret;
 }
 
-static int orangefs_inode_removexattr(struct inode *inode,
-			    const char *prefix,
-			    const char *name,
-			    int flags)
+static int orangefs_inode_removexattr(struct inode *inode, const char *name,
+				      int flags)
 {
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	struct orangefs_kernel_op_s *new_op = NULL;
@@ -183,12 +180,8 @@ static int orangefs_inode_removexattr(struct inode *inode,
 	 * textual strings, I am going to explicitly pass the
 	 * length just in case we change this later on...
 	 */
-	ret = snprintf((char *)new_op->upcall.req.removexattr.key,
-		       ORANGEFS_MAX_XATTR_NAMELEN,
-		       "%s%s",
-		       (prefix ? prefix : ""),
-		       name);
-	new_op->upcall.req.removexattr.key_sz = ret + 1;
+	strcpy(new_op->upcall.req.removexattr.key, name);
+	new_op->upcall.req.removexattr.key_sz = strlen(name) + 1;
 
 	gossip_debug(GOSSIP_XATTR_DEBUG,
 		     "orangefs_inode_removexattr: key %s, key_sz %d\n",
@@ -223,8 +216,8 @@ out_unlock:
  * Returns a -ve number on error and 0 on success.  Key is text, but value
  * can be binary!
  */
-int orangefs_inode_setxattr(struct inode *inode, const char *prefix,
-		const char *name, const void *value, size_t size, int flags)
+int orangefs_inode_setxattr(struct inode *inode, const char *name,
+			    const void *value, size_t size, int flags)
 {
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	struct orangefs_kernel_op_s *new_op;
@@ -232,8 +225,8 @@ int orangefs_inode_setxattr(struct inode *inode, const char *prefix,
 	int ret = -ENOMEM;
 
 	gossip_debug(GOSSIP_XATTR_DEBUG,
-		     "%s: prefix %s, name %s, buffer_size %zd\n",
-		     __func__, prefix, name, size);
+		     "%s: name %s, buffer_size %zd\n",
+		     __func__, name, size);
 
 	if (size >= ORANGEFS_MAX_XATTR_VALUELEN ||
 	    flags < 0) {
@@ -245,29 +238,19 @@ int orangefs_inode_setxattr(struct inode *inode, const char *prefix,
 
 	internal_flag = convert_to_internal_xattr_flags(flags);
 
-	if (prefix) {
-		if (strlen(name) + strlen(prefix) >= ORANGEFS_MAX_XATTR_NAMELEN) {
-			gossip_err
-			    ("orangefs_inode_setxattr: bogus key size (%d)\n",
-			     (int)(strlen(name) + strlen(prefix)));
-			return -EINVAL;
-		}
-	} else {
-		if (strlen(name) >= ORANGEFS_MAX_XATTR_NAMELEN) {
-			gossip_err
-			    ("orangefs_inode_setxattr: bogus key size (%d)\n",
-			     (int)(strlen(name)));
-			return -EINVAL;
-		}
+	if (strlen(name) >= ORANGEFS_MAX_XATTR_NAMELEN) {
+		gossip_err
+		    ("orangefs_inode_setxattr: bogus key size (%d)\n",
+		     (int)(strlen(name)));
+		return -EINVAL;
 	}
 
 	/* This is equivalent to a removexattr */
 	if (size == 0 && value == NULL) {
 		gossip_debug(GOSSIP_XATTR_DEBUG,
-			     "removing xattr (%s%s)\n",
-			     prefix,
+			     "removing xattr (%s)\n",
 			     name);
-		return orangefs_inode_removexattr(inode, prefix, name, flags);
+		return orangefs_inode_removexattr(inode, name, flags);
 	}
 
 	gossip_debug(GOSSIP_XATTR_DEBUG,
@@ -288,11 +271,8 @@ int orangefs_inode_setxattr(struct inode *inode, const char *prefix,
 	 * strings, I am going to explicitly pass the length just in
 	 * case we change this later on...
 	 */
-	ret = snprintf((char *)new_op->upcall.req.setxattr.keyval.key,
-		       ORANGEFS_MAX_XATTR_NAMELEN,
-		       "%s%s",
-		       prefix, name);
-	new_op->upcall.req.setxattr.keyval.key_sz = ret + 1;
+	strcpy(new_op->upcall.req.setxattr.keyval.key, name);
+	new_op->upcall.req.setxattr.keyval.key_sz = strlen(name) + 1;
 	memcpy(new_op->upcall.req.setxattr.keyval.val, value, size);
 	new_op->upcall.req.setxattr.keyval.val_sz = size;
 
@@ -455,12 +435,7 @@ static int orangefs_xattr_set_default(const struct xattr_handler *handler,
 				      size_t size,
 				      int flags)
 {
-	return orangefs_inode_setxattr(inode,
-				    ORANGEFS_XATTR_NAME_DEFAULT_PREFIX,
-				    name,
-				    buffer,
-				    size,
-				    flags);
+	return orangefs_inode_setxattr(inode, name, buffer, size, flags);
 }
 
 static int orangefs_xattr_get_default(const struct xattr_handler *handler,
@@ -470,57 +445,12 @@ static int orangefs_xattr_get_default(const struct xattr_handler *handler,
 				      void *buffer,
 				      size_t size)
 {
-	return orangefs_inode_getxattr(inode,
-				    ORANGEFS_XATTR_NAME_DEFAULT_PREFIX,
-				    name,
-				    buffer,
-				    size);
+	return orangefs_inode_getxattr(inode, name, buffer, size);
 
 }
-
-static int orangefs_xattr_set_trusted(const struct xattr_handler *handler,
-				     struct dentry *unused,
-				     struct inode *inode,
-				     const char *name,
-				     const void *buffer,
-				     size_t size,
-				     int flags)
-{
-	return orangefs_inode_setxattr(inode,
-				    ORANGEFS_XATTR_NAME_TRUSTED_PREFIX,
-				    name,
-				    buffer,
-				    size,
-				    flags);
-}
-
-static int orangefs_xattr_get_trusted(const struct xattr_handler *handler,
-				      struct dentry *unused,
-				      struct inode *inode,
-				      const char *name,
-				      void *buffer,
-				      size_t size)
-{
-	return orangefs_inode_getxattr(inode,
-				    ORANGEFS_XATTR_NAME_TRUSTED_PREFIX,
-				    name,
-				    buffer,
-				    size);
-}
-
-static struct xattr_handler orangefs_xattr_trusted_handler = {
-	.prefix = ORANGEFS_XATTR_NAME_TRUSTED_PREFIX,
-	.get = orangefs_xattr_get_trusted,
-	.set = orangefs_xattr_set_trusted,
-};
 
 static struct xattr_handler orangefs_xattr_default_handler = {
-	/*
-	 * NOTE: this is set to be the empty string.
-	 * so that all un-prefixed xattrs keys get caught
-	 * here!
-	 */
-	.prefix = ORANGEFS_XATTR_NAME_DEFAULT_PREFIX,
+	.prefix = "",  /* match any name => handlers called with full name */
 	.get = orangefs_xattr_get_default,
 	.set = orangefs_xattr_set_default,
 };
@@ -528,7 +458,6 @@ static struct xattr_handler orangefs_xattr_default_handler = {
 const struct xattr_handler *orangefs_xattr_handlers[] = {
 	&posix_acl_access_xattr_handler,
 	&posix_acl_default_xattr_handler,
-	&orangefs_xattr_trusted_handler,
 	&orangefs_xattr_default_handler,
 	NULL
 };

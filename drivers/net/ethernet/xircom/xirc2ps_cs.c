@@ -1144,8 +1144,8 @@ xirc2ps_interrupt(int irq, void *dev_id)
 	    dev->stats.tx_packets += lp->last_ptr_value - n;
 	netif_wake_queue(dev);
     }
-    if (tx_status & 0x0002) {	/* Execessive collissions */
-	pr_debug("tx restarted due to execssive collissions\n");
+    if (tx_status & 0x0002) {	/* Excessive collisions */
+	pr_debug("tx restarted due to excessive collisions\n");
 	PutByte(XIRCREG_CR, RestartTx);  /* restart transmitter process */
     }
     if (tx_status & 0x0040)

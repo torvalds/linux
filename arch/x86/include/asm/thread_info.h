@@ -57,9 +57,6 @@ struct thread_info {
 	__u32			flags;		/* low level flags */
 	__u32			status;		/* thread synchronous flags */
 	__u32			cpu;		/* current CPU */
-	mm_segment_t		addr_limit;
-	unsigned int		sig_on_uaccess_error:1;
-	unsigned int		uaccess_err:1;	/* uaccess failed */
 };
 
 #define INIT_THREAD_INFO(tsk)			\
@@ -67,7 +64,6 @@ struct thread_info {
 	.task		= &tsk,			\
 	.flags		= 0,			\
 	.cpu		= 0,			\
-	.addr_limit	= KERNEL_DS,		\
 }
 
 #define init_thread_info	(init_thread_union.thread_info)
@@ -185,11 +181,6 @@ static inline unsigned long current_stack_pointer(void)
 #ifdef CONFIG_X86_64
 # define cpu_current_top_of_stack (cpu_tss + TSS_sp0)
 #endif
-
-/* Load thread_info address into "reg" */
-#define GET_THREAD_INFO(reg) \
-	_ASM_MOV PER_CPU_VAR(cpu_current_top_of_stack),reg ; \
-	_ASM_SUB $(THREAD_SIZE),reg ;
 
 /*
  * ASM operand which evaluates to a 'thread_info' address of

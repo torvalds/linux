@@ -81,8 +81,6 @@ struct fence {
 	unsigned long flags;
 	ktime_t timestamp;
 	int status;
-	struct list_head child_list;
-	struct list_head active_list;
 };
 
 enum fence_flag_bits {

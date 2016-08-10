@@ -244,9 +244,7 @@ static int nfs_direct_cmp_commit_data_verf(struct nfs_direct_req *dreq,
 /**
  * nfs_direct_IO - NFS address space operation for direct I/O
  * @iocb: target I/O control block
- * @iov: array of vectors that define I/O buffer
- * @pos: offset in file to begin the operation
- * @nr_segs: size of iovec array
+ * @iter: I/O buffer
  *
  * The presence of this routine in the address space ops vector means
  * the NFS client supports direct I/O. However, for most direct IO, we
@@ -353,10 +351,12 @@ static ssize_t nfs_direct_wait(struct nfs_direct_req *dreq)
 
 	result = wait_for_completion_killable(&dreq->completion);
 
+	if (!result) {
+		result = dreq->count;
+		WARN_ON_ONCE(dreq->count < 0);
+	}
 	if (!result)
 		result = dreq->error;
-	if (!result)
-		result = dreq->count;
 
 out:
 	return (ssize_t) result;
@@ -386,8 +386,10 @@ static void nfs_direct_complete(struct nfs_direct_req *dreq, bool write)
 
 	if (dreq->iocb) {
 		long res = (long) dreq->error;
-		if (!res)
+		if (dreq->count != 0) {
 			res = (long) dreq->count;
+			WARN_ON_ONCE(dreq->count < 0);
+		}
 		dreq->iocb->ki_complete(dreq->iocb, res, 0);
 	}
 

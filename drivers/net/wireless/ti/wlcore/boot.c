@@ -130,7 +130,7 @@ fail:
 	wl1271_error("Your WiFi FW version (%u.%u.%u.%u.%u) is invalid.\n"
 		     "Please use at least FW %s\n"
 		     "You can get the latest firmwares at:\n"
-		     "git://github.com/TI-OpenLink/firmwares.git",
+		     "git://git.ti.com/wilink8-wlan/wl18xx_fw.git",
 		     fw_ver[FW_VER_CHIP], fw_ver[FW_VER_IF_TYPE],
 		     fw_ver[FW_VER_MAJOR], fw_ver[FW_VER_SUBTYPE],
 		     fw_ver[FW_VER_MINOR], min_fw_str);

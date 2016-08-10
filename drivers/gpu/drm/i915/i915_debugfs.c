@@ -2100,9 +2100,10 @@ static int i915_dump_lrc(struct seq_file *m, void *unused)
 		return ret;
 
 	list_for_each_entry(ctx, &dev_priv->context_list, link)
-		if (ctx != dev_priv->kernel_context)
+		if (ctx != dev_priv->kernel_context) {
 			for_each_engine(engine, dev_priv)
 				i915_dump_lrc_obj(m, ctx, engine);
+		}
 
 	mutex_unlock(&dev->struct_mutex);
 
@@ -2365,16 +2366,16 @@ static int i915_ppgtt_info(struct seq_file *m, void *data)
 		task = get_pid_task(file->pid, PIDTYPE_PID);
 		if (!task) {
 			ret = -ESRCH;
-			goto out_put;
+			goto out_unlock;
 		}
 		seq_printf(m, "\nproc: %s\n", task->comm);
 		put_task_struct(task);
 		idr_for_each(&file_priv->context_idr, per_file_ctx,
 			     (void *)(unsigned long)m);
 	}
+out_unlock:
 	mutex_unlock(&dev->filelist_mutex);
 
-out_put:
 	intel_runtime_pm_put(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
 

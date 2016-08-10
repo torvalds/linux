@@ -223,7 +223,6 @@ static int axon_ram_probe(struct platform_device *device)
 	bank->disk->first_minor = azfs_minor;
 	bank->disk->fops = &axon_ram_devops;
 	bank->disk->private_data = bank;
-	bank->disk->driverfs_dev = &device->dev;
 
 	sprintf(bank->disk->disk_name, "%s%d",
 			AXON_RAM_DEVICE_NAME, axon_ram_bank_id);
@@ -238,7 +237,7 @@ static int axon_ram_probe(struct platform_device *device)
 	set_capacity(bank->disk, bank->size >> AXON_RAM_SECTOR_SHIFT);
 	blk_queue_make_request(bank->disk->queue, axon_ram_make_request);
 	blk_queue_logical_block_size(bank->disk->queue, AXON_RAM_SECTOR_SIZE);
-	add_disk(bank->disk);
+	device_add_disk(&device->dev, bank->disk);
 
 	bank->irq_id = irq_of_parse_and_map(device->dev.of_node, 0);
 	if (bank->irq_id == NO_IRQ) {

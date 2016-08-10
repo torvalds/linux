@@ -174,6 +174,8 @@
 #define PPC_INST_MFSPR_DSCR_USER_MASK	0xfc1fffff
 #define PPC_INST_MTSPR_DSCR_USER	0x7c0303a6
 #define PPC_INST_MTSPR_DSCR_USER_MASK	0xfc1fffff
+#define PPC_INST_MFVSRD			0x7c000066
+#define PPC_INST_MTVSRD			0x7c000166
 #define PPC_INST_SLBFEE			0x7c0007a7
 
 #define PPC_INST_STRING			0x7c00042a
@@ -188,6 +190,8 @@
 #define PPC_INST_WAIT			0x7c00007c
 #define PPC_INST_TLBIVAX		0x7c000624
 #define PPC_INST_TLBSRX_DOT		0x7c0006a5
+#define PPC_INST_VPMSUMW		0x10000488
+#define PPC_INST_VPMSUMD		0x100004c8
 #define PPC_INST_XXLOR			0xf0000510
 #define PPC_INST_XXSWAPD		0xf0000250
 #define PPC_INST_XVCPSGNDP		0xf0000780
@@ -359,6 +363,14 @@
 					       VSX_XX1((s), a, b))
 #define LXVD2X(s, a, b)		stringify_in_c(.long PPC_INST_LXVD2X | \
 					       VSX_XX1((s), a, b))
+#define MFVRD(a, t)		stringify_in_c(.long PPC_INST_MFVSRD | \
+					       VSX_XX1((t)+32, a, R0))
+#define MTVRD(t, a)		stringify_in_c(.long PPC_INST_MTVSRD | \
+					       VSX_XX1((t)+32, a, R0))
+#define VPMSUMW(t, a, b)	stringify_in_c(.long PPC_INST_VPMSUMW | \
+					       VSX_XX3((t), a, b))
+#define VPMSUMD(t, a, b)	stringify_in_c(.long PPC_INST_VPMSUMD | \
+					       VSX_XX3((t), a, b))
 #define XXLOR(t, a, b)		stringify_in_c(.long PPC_INST_XXLOR | \
 					       VSX_XX3((t), a, b))
 #define XXSWAPD(t, a)		stringify_in_c(.long PPC_INST_XXSWAPD | \

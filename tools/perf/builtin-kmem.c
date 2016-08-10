@@ -4,7 +4,7 @@
 #include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/util.h"
-#include "util/cache.h"
+#include "util/config.h"
 #include "util/symbol.h"
 #include "util/thread.h"
 #include "util/header.h"
@@ -1354,7 +1354,7 @@ static int __cmd_kmem(struct perf_session *session)
 		goto out;
 	}
 
-	evlist__for_each(session->evlist, evsel) {
+	evlist__for_each_entry(session->evlist, evsel) {
 		if (!strcmp(perf_evsel__name(evsel), "kmem:mm_page_alloc") &&
 		    perf_evsel__field(evsel, "pfn")) {
 			use_pfn = true;

@@ -3204,7 +3204,7 @@ static void handle_lease(struct ceph_mds_client *mdsc,
 		WARN_ON(1);
 		goto release;  /* hrm... */
 	}
-	dname.hash = full_name_hash(dname.name, dname.len);
+	dname.hash = full_name_hash(parent, dname.name, dname.len);
 	dentry = d_lookup(parent, &dname);
 	dput(parent);
 	if (!dentry)

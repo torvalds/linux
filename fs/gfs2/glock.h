@@ -247,4 +247,14 @@ extern void gfs2_unregister_debugfs(void);
 
 extern const struct lm_lockops gfs2_dlm_ops;
 
+static inline void gfs2_holder_mark_uninitialized(struct gfs2_holder *gh)
+{
+	gh->gh_gl = NULL;
+}
+
+static inline bool gfs2_holder_initialized(struct gfs2_holder *gh)
+{
+	return gh->gh_gl;
+}
+
 #endif /* __GLOCK_DOT_H__ */

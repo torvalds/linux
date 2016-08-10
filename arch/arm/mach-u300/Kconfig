@@ -4,7 +4,7 @@ menuconfig ARCH_U300
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
 	select ARM_VIC
-	select CLKSRC_MMIO
+	select U300_TIMER
 	select CPU_ARM926T
 	select HAVE_TCM
 	select PINCTRL

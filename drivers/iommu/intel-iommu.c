@@ -4272,10 +4272,11 @@ int dmar_check_one_atsr(struct acpi_dmar_header *hdr, void *arg)
 	if (!atsru)
 		return 0;
 
-	if (!atsru->include_all && atsru->devices && atsru->devices_cnt)
+	if (!atsru->include_all && atsru->devices && atsru->devices_cnt) {
 		for_each_active_dev_scope(atsru->devices, atsru->devices_cnt,
 					  i, dev)
 			return -EBUSY;
+	}
 
 	return 0;
 }
@@ -4602,13 +4603,13 @@ static void free_all_cpu_cached_iovas(unsigned int cpu)
 	for (i = 0; i < g_num_of_iommus; i++) {
 		struct intel_iommu *iommu = g_iommus[i];
 		struct dmar_domain *domain;
-		u16 did;
+		int did;
 
 		if (!iommu)
 			continue;
 
-		for (did = 0; did < 0xffff; did++) {
-			domain = get_iommu_domain(iommu, did);
+		for (did = 0; did < cap_ndoms(iommu->cap); did++) {
+			domain = get_iommu_domain(iommu, (u16)did);
 
 			if (!domain)
 				continue;

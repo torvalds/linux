@@ -1238,7 +1238,7 @@ static void disable_plx_interrupts(struct comedi_device *dev)
 
 	devpriv->plx_intcsr_bits = 0;
 	writel(devpriv->plx_intcsr_bits,
-	       devpriv->plx9080_iobase + PLX_INTRCS_REG);
+	       devpriv->plx9080_iobase + PLX_REG_INTCSR);
 }
 
 static void disable_ai_interrupts(struct comedi_device *dev)
@@ -1291,14 +1291,14 @@ static void init_plx9080(struct comedi_device *dev)
 	void __iomem *plx_iobase = devpriv->plx9080_iobase;
 
 	devpriv->plx_control_bits =
-		readl(devpriv->plx9080_iobase + PLX_CONTROL_REG);
+		readl(devpriv->plx9080_iobase + PLX_REG_CNTRL);
 
 #ifdef __BIG_ENDIAN
-	bits = BIGEND_DMA0 | BIGEND_DMA1;
+	bits = PLX_BIGEND_DMA0 | PLX_BIGEND_DMA1;
 #else
 	bits = 0;
 #endif
-	writel(bits, devpriv->plx9080_iobase + PLX_BIGEND_REG);
+	writel(bits, devpriv->plx9080_iobase + PLX_REG_BIGEND);
 
 	disable_plx_interrupts(dev);
 
@@ -1308,38 +1308,39 @@ static void init_plx9080(struct comedi_device *dev)
 	/*  configure dma0 mode */
 	bits = 0;
 	/*  enable ready input, not sure if this is necessary */
-	bits |= PLX_DMA_EN_READYIN_BIT;
+	bits |= PLX_DMAMODE_READYIEN;
 	/*  enable bterm, not sure if this is necessary */
-	bits |= PLX_EN_BTERM_BIT;
+	bits |= PLX_DMAMODE_BTERMIEN;
 	/*  enable dma chaining */
-	bits |= PLX_EN_CHAIN_BIT;
+	bits |= PLX_DMAMODE_CHAINEN;
 	/*  enable interrupt on dma done
 	 *  (probably don't need this, since chain never finishes) */
-	bits |= PLX_EN_DMA_DONE_INTR_BIT;
+	bits |= PLX_DMAMODE_DONEIEN;
 	/*  don't increment local address during transfers
 	 *  (we are transferring from a fixed fifo register) */
-	bits |= PLX_LOCAL_ADDR_CONST_BIT;
+	bits |= PLX_DMAMODE_LACONST;
 	/*  route dma interrupt to pci bus */
-	bits |= PLX_DMA_INTR_PCI_BIT;
+	bits |= PLX_DMAMODE_INTRPCI;
 	/*  enable demand mode */
-	bits |= PLX_DEMAND_MODE_BIT;
+	bits |= PLX_DMAMODE_DEMAND;
 	/*  enable local burst mode */
-	bits |= PLX_DMA_LOCAL_BURST_EN_BIT;
+	bits |= PLX_DMAMODE_BURSTEN;
 	/*  4020 uses 32 bit dma */
 	if (board->layout == LAYOUT_4020)
-		bits |= PLX_LOCAL_BUS_32_WIDE_BITS;
+		bits |= PLX_DMAMODE_WIDTH32;
 	else		/*  localspace0 bus is 16 bits wide */
-		bits |= PLX_LOCAL_BUS_16_WIDE_BITS;
-	writel(bits, plx_iobase + PLX_DMA1_MODE_REG);
+		bits |= PLX_DMAMODE_WIDTH16;
+	writel(bits, plx_iobase + PLX_REG_DMAMODE1);
 	if (ao_cmd_is_supported(board))
-		writel(bits, plx_iobase + PLX_DMA0_MODE_REG);
+		writel(bits, plx_iobase + PLX_REG_DMAMODE0);
 
 	/*  enable interrupts on plx 9080 */
 	devpriv->plx_intcsr_bits |=
-	    ICS_AERR | ICS_PERR | ICS_PIE | ICS_PLIE | ICS_PAIE | ICS_LIE |
-	    ICS_DMA0_E | ICS_DMA1_E;
+	    PLX_INTCSR_LSEABORTEN | PLX_INTCSR_LSEPARITYEN | PLX_INTCSR_PIEN |
+	    PLX_INTCSR_PLIEN | PLX_INTCSR_PABORTIEN | PLX_INTCSR_LIOEN |
+	    PLX_INTCSR_DMA0IEN | PLX_INTCSR_DMA1IEN;
 	writel(devpriv->plx_intcsr_bits,
-	       devpriv->plx9080_iobase + PLX_INTRCS_REG);
+	       devpriv->plx9080_iobase + PLX_REG_INTCSR);
 }
 
 static void disable_ai_pacing(struct comedi_device *dev)
@@ -1533,8 +1534,8 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 			cpu_to_le32((devpriv->ai_dma_desc_bus_addr +
 				     ((i + 1) % ai_dma_ring_count(board)) *
 				     sizeof(devpriv->ai_dma_desc[0])) |
-				    PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT |
-				    PLX_XFER_LOCAL_TO_PCI);
+				    PLX_DMADPR_DESCPCI | PLX_DMADPR_TCINTR |
+				    PLX_DMADPR_XFERL2P);
 	}
 	if (ao_cmd_is_supported(board)) {
 		for (i = 0; i < AO_DMA_RING_COUNT; i++) {
@@ -1548,8 +1549,8 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 				cpu_to_le32((devpriv->ao_dma_desc_bus_addr +
 					     ((i + 1) % (AO_DMA_RING_COUNT)) *
 					     sizeof(devpriv->ao_dma_desc[0])) |
-					    PLX_DESC_IN_PCI_BIT |
-					    PLX_INTR_TERM_COUNT);
+					    PLX_DMADPR_DESCPCI |
+					    PLX_DMADPR_TCINTR);
 		}
 	}
 	return 0;
@@ -1613,9 +1614,9 @@ static const int i2c_low_udelay = 10;
 static void i2c_set_sda(struct comedi_device *dev, int state)
 {
 	struct pcidas64_private *devpriv = dev->private;
-	static const int data_bit = CTL_EE_W;
+	static const int data_bit = PLX_CNTRL_EEWB;
 	void __iomem *plx_control_addr = devpriv->plx9080_iobase +
-					 PLX_CONTROL_REG;
+					 PLX_REG_CNTRL;
 
 	if (state) {
 		/*  set data line high */
@@ -1634,9 +1635,9 @@ static void i2c_set_sda(struct comedi_device *dev, int state)
 static void i2c_set_scl(struct comedi_device *dev, int state)
 {
 	struct pcidas64_private *devpriv = dev->private;
-	static const int clock_bit = CTL_USERO;
+	static const int clock_bit = PLX_CNTRL_USERO;
 	void __iomem *plx_control_addr = devpriv->plx9080_iobase +
-					 PLX_CONTROL_REG;
+					 PLX_REG_CNTRL;
 
 	if (state) {
 		/*  set clock line high */
@@ -1707,7 +1708,7 @@ static void i2c_write(struct comedi_device *dev, unsigned int address,
 	 */
 
 	/*  make sure we dont send anything to eeprom */
-	devpriv->plx_control_bits &= ~CTL_EE_CS;
+	devpriv->plx_control_bits &= ~PLX_CNTRL_EECS;
 
 	i2c_stop(dev);
 	i2c_start(dev);
@@ -2367,14 +2368,8 @@ static inline void dma_start_sync(struct comedi_device *dev,
 
 	/*  spinlock for plx dma control/status reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
-	if (channel)
-		writeb(PLX_DMA_EN_BIT | PLX_DMA_START_BIT |
-		       PLX_CLEAR_DMA_INTR_BIT,
-		       devpriv->plx9080_iobase + PLX_DMA1_CS_REG);
-	else
-		writeb(PLX_DMA_EN_BIT | PLX_DMA_START_BIT |
-		       PLX_CLEAR_DMA_INTR_BIT,
-		       devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
+	writeb(PLX_DMACSR_ENABLE | PLX_DMACSR_START | PLX_DMACSR_CLEARINTR,
+	       devpriv->plx9080_iobase + PLX_REG_DMACSR(channel));
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 }
 
@@ -2552,21 +2547,17 @@ static inline void load_first_dma_descriptor(struct comedi_device *dev,
 	 * block.  Initializing them to zero seems to fix the problem.
 	 */
 	if (dma_channel) {
-		writel(0,
-		       devpriv->plx9080_iobase + PLX_DMA1_TRANSFER_SIZE_REG);
-		writel(0, devpriv->plx9080_iobase + PLX_DMA1_PCI_ADDRESS_REG);
-		writel(0,
-		       devpriv->plx9080_iobase + PLX_DMA1_LOCAL_ADDRESS_REG);
+		writel(0, devpriv->plx9080_iobase + PLX_REG_DMASIZ1);
+		writel(0, devpriv->plx9080_iobase + PLX_REG_DMAPADR1);
+		writel(0, devpriv->plx9080_iobase + PLX_REG_DMALADR1);
 		writel(descriptor_bits,
-		       devpriv->plx9080_iobase + PLX_DMA1_DESCRIPTOR_REG);
+		       devpriv->plx9080_iobase + PLX_REG_DMADPR1);
 	} else {
-		writel(0,
-		       devpriv->plx9080_iobase + PLX_DMA0_TRANSFER_SIZE_REG);
-		writel(0, devpriv->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG);
-		writel(0,
-		       devpriv->plx9080_iobase + PLX_DMA0_LOCAL_ADDRESS_REG);
+		writel(0, devpriv->plx9080_iobase + PLX_REG_DMASIZ0);
+		writel(0, devpriv->plx9080_iobase + PLX_REG_DMAPADR0);
+		writel(0, devpriv->plx9080_iobase + PLX_REG_DMALADR0);
 		writel(descriptor_bits,
-		       devpriv->plx9080_iobase + PLX_DMA0_DESCRIPTOR_REG);
+		       devpriv->plx9080_iobase + PLX_REG_DMADPR0);
 	}
 }
 
@@ -2643,9 +2634,9 @@ static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/*  give location of first dma descriptor */
 		load_first_dma_descriptor(dev, 1,
 					  devpriv->ai_dma_desc_bus_addr |
-					  PLX_DESC_IN_PCI_BIT |
-					  PLX_INTR_TERM_COUNT |
-					  PLX_XFER_LOCAL_TO_PCI);
+					  PLX_DMADPR_DESCPCI |
+					  PLX_DMADPR_TCINTR |
+					  PLX_DMADPR_XFERL2P);
 
 		dma_start_sync(dev, 1);
 	}
@@ -2803,12 +2794,7 @@ static void drain_dma_buffers(struct comedi_device *dev, unsigned int channel)
 	int num_samples = 0;
 	void __iomem *pci_addr_reg;
 
-	if (channel)
-		pci_addr_reg =
-		    devpriv->plx9080_iobase + PLX_DMA1_PCI_ADDRESS_REG;
-	else
-		pci_addr_reg =
-		    devpriv->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG;
+	pci_addr_reg = devpriv->plx9080_iobase + PLX_REG_DMAPADR(channel);
 
 	/*  loop until we have read all the full buffers */
 	for (j = 0, next_transfer_addr = readl(pci_addr_reg);
@@ -2850,12 +2836,12 @@ static void handle_ai_interrupt(struct comedi_device *dev,
 	}
 	/*  spin lock makes sure no one else changes plx dma control reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
-	dma1_status = readb(devpriv->plx9080_iobase + PLX_DMA1_CS_REG);
-	if (plx_status & ICS_DMA1_A) {	/*  dma chan 1 interrupt */
-		writeb((dma1_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT,
-		       devpriv->plx9080_iobase + PLX_DMA1_CS_REG);
+	dma1_status = readb(devpriv->plx9080_iobase + PLX_REG_DMACSR1);
+	if (plx_status & PLX_INTCSR_DMA1IA) {	/*  dma chan 1 interrupt */
+		writeb((dma1_status & PLX_DMACSR_ENABLE) | PLX_DMACSR_CLEARINTR,
+		       devpriv->plx9080_iobase + PLX_REG_DMACSR1);
 
-		if (dma1_status & PLX_DMA_EN_BIT)
+		if (dma1_status & PLX_DMACSR_ENABLE)
 			drain_dma_buffers(dev, 1);
 	}
 	spin_unlock_irqrestore(&dev->spinlock, flags);
@@ -2902,12 +2888,12 @@ static int last_ao_dma_load_completed(struct comedi_device *dev)
 	unsigned short dma_status;
 
 	buffer_index = prev_ao_dma_index(dev);
-	dma_status = readb(devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
-	if ((dma_status & PLX_DMA_DONE_BIT) == 0)
+	dma_status = readb(devpriv->plx9080_iobase + PLX_REG_DMACSR0);
+	if ((dma_status & PLX_DMACSR_DONE) == 0)
 		return 0;
 
 	transfer_address =
-		readl(devpriv->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG);
+		readl(devpriv->plx9080_iobase + PLX_REG_DMAPADR0);
 	if (transfer_address != devpriv->ao_buffer_bus_addr[buffer_index])
 		return 0;
 
@@ -2917,8 +2903,8 @@ static int last_ao_dma_load_completed(struct comedi_device *dev)
 static inline int ao_dma_needs_restart(struct comedi_device *dev,
 				       unsigned short dma_status)
 {
-	if ((dma_status & PLX_DMA_DONE_BIT) == 0 ||
-	    (dma_status & PLX_DMA_EN_BIT) == 0)
+	if ((dma_status & PLX_DMACSR_DONE) == 0 ||
+	    (dma_status & PLX_DMACSR_ENABLE) == 0)
 		return 0;
 	if (last_ao_dma_load_completed(dev))
 		return 0;
@@ -2931,9 +2917,8 @@ static void restart_ao_dma(struct comedi_device *dev)
 	struct pcidas64_private *devpriv = dev->private;
 	unsigned int dma_desc_bits;
 
-	dma_desc_bits =
-		readl(devpriv->plx9080_iobase + PLX_DMA0_DESCRIPTOR_REG);
-	dma_desc_bits &= ~PLX_END_OF_CHAIN_BIT;
+	dma_desc_bits = readl(devpriv->plx9080_iobase + PLX_REG_DMADPR0);
+	dma_desc_bits &= ~PLX_DMADPR_CHAINEND;
 	load_first_dma_descriptor(dev, 0, dma_desc_bits);
 
 	dma_start_sync(dev, 0);
@@ -2974,14 +2959,14 @@ static unsigned int load_ao_dma_buffer(struct comedi_device *dev,
 	devpriv->ao_dma_desc[buffer_index].transfer_size = cpu_to_le32(nbytes);
 	/* set end of chain bit so we catch underruns */
 	next_bits = le32_to_cpu(devpriv->ao_dma_desc[buffer_index].next);
-	next_bits |= PLX_END_OF_CHAIN_BIT;
+	next_bits |= PLX_DMADPR_CHAINEND;
 	devpriv->ao_dma_desc[buffer_index].next = cpu_to_le32(next_bits);
 	/*
 	 * clear end of chain bit on previous buffer now that we have set it
 	 * for the last buffer
 	 */
 	next_bits = le32_to_cpu(devpriv->ao_dma_desc[prev_buffer_index].next);
-	next_bits &= ~PLX_END_OF_CHAIN_BIT;
+	next_bits &= ~PLX_DMADPR_CHAINEND;
 	devpriv->ao_dma_desc[prev_buffer_index].next = cpu_to_le32(next_bits);
 
 	devpriv->ao_dma_index = (buffer_index + 1) % AO_DMA_RING_COUNT;
@@ -2994,8 +2979,7 @@ static void load_ao_dma(struct comedi_device *dev, const struct comedi_cmd *cmd)
 	struct pcidas64_private *devpriv = dev->private;
 	unsigned int num_bytes;
 	unsigned int next_transfer_addr;
-	void __iomem *pci_addr_reg =
-		devpriv->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG;
+	void __iomem *pci_addr_reg = devpriv->plx9080_iobase + PLX_REG_DMAPADR0;
 	unsigned int buffer_index;
 
 	do {
@@ -3030,17 +3014,18 @@ static void handle_ao_interrupt(struct comedi_device *dev,
 
 	/*  spin lock makes sure no one else changes plx dma control reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
-	dma0_status = readb(devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
-	if (plx_status & ICS_DMA0_A) {	/*  dma chan 0 interrupt */
-		if ((dma0_status & PLX_DMA_EN_BIT) &&
-		    !(dma0_status & PLX_DMA_DONE_BIT))
-			writeb(PLX_DMA_EN_BIT | PLX_CLEAR_DMA_INTR_BIT,
-			       devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
-		else
-			writeb(PLX_CLEAR_DMA_INTR_BIT,
-			       devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
+	dma0_status = readb(devpriv->plx9080_iobase + PLX_REG_DMACSR0);
+	if (plx_status & PLX_INTCSR_DMA0IA) {	/*  dma chan 0 interrupt */
+		if ((dma0_status & PLX_DMACSR_ENABLE) &&
+		    !(dma0_status & PLX_DMACSR_DONE)) {
+			writeb(PLX_DMACSR_ENABLE | PLX_DMACSR_CLEARINTR,
+			       devpriv->plx9080_iobase + PLX_REG_DMACSR0);
+		} else {
+			writeb(PLX_DMACSR_CLEARINTR,
+			       devpriv->plx9080_iobase + PLX_REG_DMACSR0);
+		}
 		spin_unlock_irqrestore(&dev->spinlock, flags);
-		if (dma0_status & PLX_DMA_EN_BIT) {
+		if (dma0_status & PLX_DMACSR_ENABLE) {
 			load_ao_dma(dev, cmd);
 			/* try to recover from dma end-of-chain event */
 			if (ao_dma_needs_restart(dev, dma0_status))
@@ -3069,7 +3054,7 @@ static irqreturn_t handle_interrupt(int irq, void *d)
 	uint32_t plx_status;
 	uint32_t plx_bits;
 
-	plx_status = readl(devpriv->plx9080_iobase + PLX_INTRCS_REG);
+	plx_status = readl(devpriv->plx9080_iobase + PLX_REG_INTCSR);
 	status = readw(devpriv->main_iobase + HW_STATUS_REG);
 
 	/*
@@ -3083,10 +3068,11 @@ static irqreturn_t handle_interrupt(int irq, void *d)
 	handle_ai_interrupt(dev, status, plx_status);
 	handle_ao_interrupt(dev, status, plx_status);
 
-	/*  clear possible plx9080 interrupt sources */
-	if (plx_status & ICS_LDIA) {	/*  clear local doorbell interrupt */
-		plx_bits = readl(devpriv->plx9080_iobase + PLX_DBR_OUT_REG);
-		writel(plx_bits, devpriv->plx9080_iobase + PLX_DBR_OUT_REG);
+	/* clear possible plx9080 interrupt sources */
+	if (plx_status & PLX_INTCSR_LDBIA) {
+		/* clear local doorbell interrupt */
+		plx_bits = readl(devpriv->plx9080_iobase + PLX_REG_L2PDBELL);
+		writel(plx_bits, devpriv->plx9080_iobase + PLX_REG_L2PDBELL);
 	}
 
 	return IRQ_HANDLED;
@@ -3324,7 +3310,7 @@ static int ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	set_dac_select_reg(dev, cmd);
 	set_dac_interval_regs(dev, cmd);
 	load_first_dma_descriptor(dev, 0, devpriv->ao_dma_desc_bus_addr |
-				  PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT);
+				  PLX_DMADPR_DESCPCI | PLX_DMADPR_TCINTR);
 
 	set_dac_control1_reg(dev, cmd);
 	s->async->inttrig = ao_inttrig;
@@ -3725,19 +3711,19 @@ static uint16_t read_eeprom(struct comedi_device *dev, uint8_t address)
 	unsigned int bitstream = (read_command << 8) | address;
 	unsigned int bit;
 	void __iomem * const plx_control_addr =
-		devpriv->plx9080_iobase + PLX_CONTROL_REG;
+		devpriv->plx9080_iobase + PLX_REG_CNTRL;
 	uint16_t value;
 	static const int value_length = 16;
 	static const int eeprom_udelay = 1;
 
 	udelay(eeprom_udelay);
-	devpriv->plx_control_bits &= ~CTL_EE_CLK & ~CTL_EE_CS;
+	devpriv->plx_control_bits &= ~PLX_CNTRL_EESK & ~PLX_CNTRL_EECS;
 	/*  make sure we don't send anything to the i2c bus on 4020 */
-	devpriv->plx_control_bits |= CTL_USERO;
+	devpriv->plx_control_bits |= PLX_CNTRL_USERO;
 	writel(devpriv->plx_control_bits, plx_control_addr);
 	/*  activate serial eeprom */
 	udelay(eeprom_udelay);
-	devpriv->plx_control_bits |= CTL_EE_CS;
+	devpriv->plx_control_bits |= PLX_CNTRL_EECS;
 	writel(devpriv->plx_control_bits, plx_control_addr);
 
 	/*  write read command and desired memory address */
@@ -3745,16 +3731,16 @@ static uint16_t read_eeprom(struct comedi_device *dev, uint8_t address)
 		/*  set bit to be written */
 		udelay(eeprom_udelay);
 		if (bitstream & bit)
-			devpriv->plx_control_bits |= CTL_EE_W;
+			devpriv->plx_control_bits |= PLX_CNTRL_EEWB;
 		else
-			devpriv->plx_control_bits &= ~CTL_EE_W;
+			devpriv->plx_control_bits &= ~PLX_CNTRL_EEWB;
 		writel(devpriv->plx_control_bits, plx_control_addr);
 		/*  clock in bit */
 		udelay(eeprom_udelay);
-		devpriv->plx_control_bits |= CTL_EE_CLK;
+		devpriv->plx_control_bits |= PLX_CNTRL_EESK;
 		writel(devpriv->plx_control_bits, plx_control_addr);
 		udelay(eeprom_udelay);
-		devpriv->plx_control_bits &= ~CTL_EE_CLK;
+		devpriv->plx_control_bits &= ~PLX_CNTRL_EESK;
 		writel(devpriv->plx_control_bits, plx_control_addr);
 	}
 	/*  read back value from eeprom memory location */
@@ -3762,19 +3748,19 @@ static uint16_t read_eeprom(struct comedi_device *dev, uint8_t address)
 	for (bit = 1 << (value_length - 1); bit; bit >>= 1) {
 		/*  clock out bit */
 		udelay(eeprom_udelay);
-		devpriv->plx_control_bits |= CTL_EE_CLK;
+		devpriv->plx_control_bits |= PLX_CNTRL_EESK;
 		writel(devpriv->plx_control_bits, plx_control_addr);
 		udelay(eeprom_udelay);
-		devpriv->plx_control_bits &= ~CTL_EE_CLK;
+		devpriv->plx_control_bits &= ~PLX_CNTRL_EESK;
 		writel(devpriv->plx_control_bits, plx_control_addr);
 		udelay(eeprom_udelay);
-		if (readl(plx_control_addr) & CTL_EE_R)
+		if (readl(plx_control_addr) & PLX_CNTRL_EERB)
 			value |= bit;
 	}
 
 	/*  deactivate eeprom serial input */
 	udelay(eeprom_udelay);
-	devpriv->plx_control_bits &= ~CTL_EE_CS;
+	devpriv->plx_control_bits &= ~PLX_CNTRL_EECS;
 	writel(devpriv->plx_control_bits, plx_control_addr);
 
 	return value;
@@ -3962,7 +3948,8 @@ static int setup_subdevices(struct comedi_device *dev)
 
 	/* serial EEPROM, if present */
 	s = &dev->subdevices[8];
-	if (readl(devpriv->plx9080_iobase + PLX_CONTROL_REG) & CTL_EECHK) {
+	if (readl(devpriv->plx9080_iobase + PLX_REG_CNTRL) &
+	    PLX_CNTRL_EEPRESENT) {
 		s->type = COMEDI_SUBD_MEMORY;
 		s->subdev_flags = SDF_READABLE | SDF_INTERNAL;
 		s->n_chan = 128;
@@ -4019,16 +4006,16 @@ static int auto_attach(struct comedi_device *dev,
 	}
 
 	/*  figure out what local addresses are */
-	local_range = readl(devpriv->plx9080_iobase + PLX_LAS0RNG_REG) &
-		      LRNG_MEM_MASK;
-	local_decode = readl(devpriv->plx9080_iobase + PLX_LAS0MAP_REG) &
-		       local_range & LMAP_MEM_MASK;
+	local_range = readl(devpriv->plx9080_iobase + PLX_REG_LAS0RR) &
+		      PLX_LASRR_MEM_MASK;
+	local_decode = readl(devpriv->plx9080_iobase + PLX_REG_LAS0BA) &
+		       local_range & PLX_LASBA_MEM_MASK;
 	devpriv->local0_iobase = ((uint32_t)devpriv->main_phys_iobase &
 				  ~local_range) | local_decode;
-	local_range = readl(devpriv->plx9080_iobase + PLX_LAS1RNG_REG) &
-		      LRNG_MEM_MASK;
-	local_decode = readl(devpriv->plx9080_iobase + PLX_LAS1MAP_REG) &
-		       local_range & LMAP_MEM_MASK;
+	local_range = readl(devpriv->plx9080_iobase + PLX_REG_LAS1RR) &
+		      PLX_LASRR_MEM_MASK;
+	local_decode = readl(devpriv->plx9080_iobase + PLX_REG_LAS1BA) &
+		       local_range & PLX_LASBA_MEM_MASK;
 	devpriv->local1_iobase = ((uint32_t)devpriv->dio_counter_phys_iobase &
 				  ~local_range) | local_decode;
 

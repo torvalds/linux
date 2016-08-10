@@ -457,4 +457,7 @@ int __qed_configure_pf_min_bandwidth(struct qed_hwfn *p_hwfn,
 				     struct qed_ptt *p_ptt,
 				     struct qed_mcp_link_state *p_link,
 				     u8 min_bw);
+
+int qed_hw_init_first_eth(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, u8 *p_pf);
 #endif

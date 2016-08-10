@@ -158,7 +158,6 @@ static const struct file_operations exports_proc_operations = {
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= seq_release,
-	.owner		= THIS_MODULE,
 };
 
 static int exports_nfsd_open(struct inode *inode, struct file *file)
@@ -171,7 +170,6 @@ static const struct file_operations exports_nfsd_operations = {
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= seq_release,
-	.owner		= THIS_MODULE,
 };
 
 static int export_features_show(struct seq_file *m, void *v)
@@ -217,7 +215,6 @@ static const struct file_operations pool_stats_operations = {
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= nfsd_pool_stats_release,
-	.owner		= THIS_MODULE,
 };
 
 static struct file_operations reply_cache_stats_operations = {

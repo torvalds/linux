@@ -445,6 +445,7 @@ struct igb_adapter {
 	unsigned long ptp_tx_start;
 	unsigned long last_rx_ptp_check;
 	unsigned long last_rx_timestamp;
+	unsigned int ptp_flags;
 	spinlock_t tmreg_lock;
 	struct cyclecounter cc;
 	struct timecounter tc;
@@ -474,12 +475,15 @@ struct igb_adapter {
 	u16 eee_advert;
 };
 
+/* flags controlling PTP/1588 function */
+#define IGB_PTP_ENABLED		BIT(0)
+#define IGB_PTP_OVERFLOW_CHECK	BIT(1)
+
 #define IGB_FLAG_HAS_MSI		BIT(0)
 #define IGB_FLAG_DCA_ENABLED		BIT(1)
 #define IGB_FLAG_QUAD_PORT_A		BIT(2)
 #define IGB_FLAG_QUEUE_PAIRS		BIT(3)
 #define IGB_FLAG_DMAC			BIT(4)
-#define IGB_FLAG_PTP			BIT(5)
 #define IGB_FLAG_RSS_FIELD_IPV4_UDP	BIT(6)
 #define IGB_FLAG_RSS_FIELD_IPV6_UDP	BIT(7)
 #define IGB_FLAG_WOL_SUPPORTED		BIT(8)
@@ -546,6 +550,7 @@ void igb_set_fw_version(struct igb_adapter *);
 void igb_ptp_init(struct igb_adapter *adapter);
 void igb_ptp_stop(struct igb_adapter *adapter);
 void igb_ptp_reset(struct igb_adapter *adapter);
+void igb_ptp_suspend(struct igb_adapter *adapter);
 void igb_ptp_rx_hang(struct igb_adapter *adapter);
 void igb_ptp_rx_rgtstamp(struct igb_q_vector *q_vector, struct sk_buff *skb);
 void igb_ptp_rx_pktstamp(struct igb_q_vector *q_vector, unsigned char *va,

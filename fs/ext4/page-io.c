@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/backing-dev.h>
+#include <linux/fscrypto.h>
 
 #include "ext4_jbd2.h"
 #include "xattr.h"
@@ -67,7 +68,6 @@ static void ext4_finish_bio(struct bio *bio)
 		struct page *page = bvec->bv_page;
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
 		struct page *data_page = NULL;
-		struct ext4_crypto_ctx *ctx = NULL;
 #endif
 		struct buffer_head *bh, *head;
 		unsigned bio_start = bvec->bv_offset;
@@ -82,8 +82,7 @@ static void ext4_finish_bio(struct bio *bio)
 		if (!page->mapping) {
 			/* The bounce data pages are unmapped. */
 			data_page = page;
-			ctx = (struct ext4_crypto_ctx *)page_private(data_page);
-			page = ctx->w.control_page;
+			fscrypt_pullback_bio_page(&page, false);
 		}
 #endif
 
@@ -113,8 +112,8 @@ static void ext4_finish_bio(struct bio *bio)
 		local_irq_restore(flags);
 		if (!under_io) {
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
-			if (ctx)
-				ext4_restore_control_page(data_page);
+			if (data_page)
+				fscrypt_restore_control_page(data_page);
 #endif
 			end_page_writeback(page);
 		}
@@ -340,9 +339,10 @@ void ext4_io_submit(struct ext4_io_submit *io)
 	struct bio *bio = io->io_bio;
 
 	if (bio) {
-		int io_op = io->io_wbc->sync_mode == WB_SYNC_ALL ?
-			    WRITE_SYNC : WRITE;
-		submit_bio(io_op, io->io_bio);
+		int io_op_flags = io->io_wbc->sync_mode == WB_SYNC_ALL ?
+				  WRITE_SYNC : 0;
+		bio_set_op_attrs(io->io_bio, REQ_OP_WRITE, io_op_flags);
+		submit_bio(io->io_bio);
 	}
 	io->io_bio = NULL;
 }
@@ -472,7 +472,7 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 		gfp_t gfp_flags = GFP_NOFS;
 
 	retry_encrypt:
-		data_page = ext4_encrypt(inode, page, gfp_flags);
+		data_page = fscrypt_encrypt_page(inode, page, gfp_flags);
 		if (IS_ERR(data_page)) {
 			ret = PTR_ERR(data_page);
 			if (ret == -ENOMEM && wbc->sync_mode == WB_SYNC_ALL) {
@@ -510,7 +510,7 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 	if (ret) {
 	out:
 		if (data_page)
-			ext4_restore_control_page(data_page);
+			fscrypt_restore_control_page(data_page);
 		printk_ratelimited(KERN_ERR "%s: ret = %d\n", __func__, ret);
 		redirty_page_for_writepage(wbc, page);
 		do {

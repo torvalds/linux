@@ -226,7 +226,8 @@ static unsigned long __dma_alloc_iommu(struct device *dev,
 	boundary_size = ALIGN(dma_get_seg_boundary(dev) + 1,
 			      PAGE_SIZE) >> PAGE_SHIFT;
 	return iommu_area_alloc(zdev->iommu_bitmap, zdev->iommu_pages,
-				start, size, 0, boundary_size, 0);
+				start, size, zdev->start_dma >> PAGE_SHIFT,
+				boundary_size, 0);
 }
 
 static unsigned long dma_alloc_iommu(struct device *dev, int size)
@@ -469,6 +470,7 @@ int zpci_dma_init_device(struct zpci_dev *zdev)
 	 * Also set zdev->end_dma to the actual end address of the usable
 	 * range, instead of the theoretical maximum as reported by hardware.
 	 */
+	zdev->start_dma = PAGE_ALIGN(zdev->start_dma);
 	zdev->iommu_size = min3((u64) high_memory,
 				ZPCI_TABLE_SIZE_RT - zdev->start_dma,
 				zdev->end_dma - zdev->start_dma + 1);

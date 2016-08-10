@@ -328,6 +328,11 @@ void __init radix__early_init_mmu(void)
 	__vmalloc_end = RADIX_VMALLOC_END;
 	vmemmap = (struct page *)RADIX_VMEMMAP_BASE;
 	ioremap_bot = IOREMAP_BASE;
+
+#ifdef CONFIG_PCI
+	pci_io_base = ISA_IO_BASE;
+#endif
+
 	/*
 	 * For now radix also use the same frag size
 	 */

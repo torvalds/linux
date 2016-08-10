@@ -366,12 +366,12 @@ static void __net_exit xfrm6_net_sysctl_exit(struct net *net)
 		kfree(table);
 }
 #else /* CONFIG_SYSCTL */
-static int inline xfrm6_net_sysctl_init(struct net *net)
+static inline int xfrm6_net_sysctl_init(struct net *net)
 {
 	return 0;
 }
 
-static void inline xfrm6_net_sysctl_exit(struct net *net)
+static inline void xfrm6_net_sysctl_exit(struct net *net)
 {
 }
 #endif

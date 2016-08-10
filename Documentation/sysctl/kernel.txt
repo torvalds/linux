@@ -58,6 +58,7 @@ show up in /proc/sys/kernel:
 - panic_on_stackoverflow
 - panic_on_unrecovered_nmi
 - panic_on_warn
+- panic_on_rcu_stall
 - perf_cpu_time_max_percent
 - perf_event_paranoid
 - perf_event_max_stack
@@ -615,6 +616,17 @@ a kernel rebuild when attempting to kdump at the location of a WARN().
 0: only WARN(), default behaviour.
 
 1: call panic() after printing out WARN() location.
+
+==============================================================
+
+panic_on_rcu_stall:
+
+When set to 1, calls panic() after RCU stall detection messages. This
+is useful to define the root cause of RCU stalls using a vmcore.
+
+0: do not panic() when RCU stall takes place, default behavior.
+
+1: panic() after printing RCU stall messages.
 
 ==============================================================
 

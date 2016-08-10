@@ -194,7 +194,7 @@ static int mlxsw_sp_port_pb_prio_init(struct mlxsw_sp_port *mlxsw_sp_port)
 
 	mlxsw_reg_pptb_pack(pptb_pl, mlxsw_sp_port->local_port);
 	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
-		mlxsw_reg_pptb_prio_to_buff_set(pptb_pl, i, 0);
+		mlxsw_reg_pptb_prio_to_buff_pack(pptb_pl, i, 0);
 	return mlxsw_reg_write(mlxsw_sp_port->mlxsw_sp->core, MLXSW_REG(pptb),
 			       pptb_pl);
 }

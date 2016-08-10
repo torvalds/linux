@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -145,7 +141,7 @@ static int use_privileged_port = 1;
 module_param(use_privileged_port, int, 0644);
 MODULE_PARM_DESC(use_privileged_port, "use privileged port when initiating connection");
 
-kib_tunables_t kiblnd_tunables = {
+struct kib_tunables kiblnd_tunables = {
 	.kib_dev_failover      = &dev_failover,
 	.kib_service           = &service,
 	.kib_cksum             = &cksum,

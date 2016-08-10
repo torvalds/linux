@@ -1022,8 +1022,7 @@ int saa7164_encoder_register(struct saa7164_port *port)
 
 	dprintk(DBGLVL_ENC, "%s()\n", __func__);
 
-	if (port->type != SAA7164_MPEG_ENCODER)
-		BUG();
+	BUG_ON(port->type != SAA7164_MPEG_ENCODER);
 
 	/* Sanity check that the PCI configuration space is active */
 	if (port->hwcfg.BARLocation == 0) {
@@ -1151,8 +1150,7 @@ void saa7164_encoder_unregister(struct saa7164_port *port)
 
 	dprintk(DBGLVL_ENC, "%s(port=%d)\n", __func__, port->nr);
 
-	if (port->type != SAA7164_MPEG_ENCODER)
-		BUG();
+	BUG_ON(port->type != SAA7164_MPEG_ENCODER);
 
 	if (port->v4l_device) {
 		if (port->v4l_device->minor != -1)

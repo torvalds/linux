@@ -4,6 +4,9 @@
  * numa: Simulate NUMA-sensitive workload and measure their NUMA performance
  */
 
+/* For the CLR_() macros */
+#include <pthread.h>
+
 #include "../perf.h"
 #include "../builtin.h"
 #include "../util/util.h"
@@ -21,7 +24,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <pthread.h>
 #include <sys/mman.h>
 #include <sys/time.h>
 #include <sys/resource.h>

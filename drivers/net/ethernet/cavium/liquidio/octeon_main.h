@@ -126,22 +126,27 @@ static inline int octeon_map_pci_barx(struct octeon_device *oct,
 }
 
 static inline void *
-cnnic_alloc_aligned_dma(struct pci_dev *pci_dev,
-			u32 size,
-			u32 *alloc_size,
-			size_t *orig_ptr,
-			size_t *dma_addr __attribute__((unused)))
+cnnic_numa_alloc_aligned_dma(u32 size,
+			     u32 *alloc_size,
+			     size_t *orig_ptr,
+			     int numa_node)
 {
 	int retries = 0;
 	void *ptr = NULL;
 
 #define OCTEON_MAX_ALLOC_RETRIES     1
 	do {
-		ptr =
-		    (void *)__get_free_pages(GFP_KERNEL,
-					     get_order(size));
+		struct page *page = NULL;
+
+		page = alloc_pages_node(numa_node,
+					GFP_KERNEL,
+					get_order(size));
+		if (!page)
+			page = alloc_pages(GFP_KERNEL,
+					   get_order(size));
+		ptr = (void *)page_address(page);
 		if ((unsigned long)ptr & 0x07) {
-			free_pages((unsigned long)ptr, get_order(size));
+			__free_pages(page, get_order(size));
 			ptr = NULL;
 			/* Increment the size required if the first
 			 * attempt failed.
@@ -169,7 +174,7 @@ sleep_cond(wait_queue_head_t *wait_queue, int *condition)
 
 	init_waitqueue_entry(&we, current);
 	add_wait_queue(wait_queue, &we);
-	while (!(ACCESS_ONCE(*condition))) {
+	while (!(READ_ONCE(*condition))) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (signal_pending(current))
 			goto out;

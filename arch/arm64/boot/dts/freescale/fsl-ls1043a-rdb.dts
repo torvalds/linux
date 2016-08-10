@@ -49,6 +49,10 @@
 
 / {
 	model = "LS1043A RDB Board";
+
+	aliases {
+		crypto = &crypto;
+	};
 };
 
 &i2c0 {

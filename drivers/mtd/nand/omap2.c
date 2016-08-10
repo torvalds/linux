@@ -1657,8 +1657,11 @@ static int omap_get_dt_info(struct device *dev, struct omap_nand_info *info)
 
 	/* detect availability of ELM module. Won't be present pre-OMAP4 */
 	info->elm_of_node = of_parse_phandle(child, "ti,elm-id", 0);
-	if (!info->elm_of_node)
-		dev_dbg(dev, "ti,elm-id not in DT\n");
+	if (!info->elm_of_node) {
+		info->elm_of_node = of_parse_phandle(child, "elm_id", 0);
+		if (!info->elm_of_node)
+			dev_dbg(dev, "ti,elm-id not in DT\n");
+	}
 
 	/* select ecc-scheme for NAND */
 	if (of_property_read_string(child, "ti,nand-ecc-opt", &s)) {

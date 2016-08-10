@@ -270,7 +270,6 @@ static struct apic apic_x2apic_cluster = {
 
 	.get_apic_id			= x2apic_get_apic_id,
 	.set_apic_id			= x2apic_set_apic_id,
-	.apic_id_mask			= 0xFFFFFFFFu,
 
 	.cpu_mask_to_apicid_and		= x2apic_cpu_mask_to_apicid_and,
 

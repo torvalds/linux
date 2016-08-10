@@ -128,7 +128,6 @@ static int xqm_proc_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations xqm_proc_fops = {
-	.owner		= THIS_MODULE,
 	.open		= xqm_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

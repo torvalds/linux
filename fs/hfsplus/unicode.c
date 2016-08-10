@@ -346,7 +346,7 @@ int hfsplus_hash_dentry(const struct dentry *dentry, struct qstr *str)
 
 	casefold = test_bit(HFSPLUS_SB_CASEFOLD, &HFSPLUS_SB(sb)->flags);
 	decompose = !test_bit(HFSPLUS_SB_NODECOMPOSE, &HFSPLUS_SB(sb)->flags);
-	hash = init_name_hash();
+	hash = init_name_hash(dentry);
 	astr = str->name;
 	len = str->len;
 	while (len > 0) {

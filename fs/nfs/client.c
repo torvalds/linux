@@ -1102,7 +1102,6 @@ static const struct file_operations nfs_server_list_fops = {
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= seq_release_net,
-	.owner		= THIS_MODULE,
 };
 
 static int nfs_volume_list_open(struct inode *inode, struct file *file);
@@ -1123,7 +1122,6 @@ static const struct file_operations nfs_volume_list_fops = {
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= seq_release_net,
-	.owner		= THIS_MODULE,
 };
 
 /*

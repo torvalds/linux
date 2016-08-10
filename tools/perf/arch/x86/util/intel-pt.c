@@ -131,7 +131,7 @@ static int intel_pt_read_config(struct perf_pmu *intel_pt_pmu, const char *str,
 	if (!mask)
 		return -EINVAL;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->attr.type == intel_pt_pmu->type) {
 			*res = intel_pt_masked_bits(mask, evsel->attr.config);
 			return 0;
@@ -511,7 +511,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 	ptr->evlist = evlist;
 	ptr->snapshot_mode = opts->auxtrace_snapshot_mode;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->attr.type == intel_pt_pmu->type) {
 			if (intel_pt_evsel) {
 				pr_err("There may be only one " INTEL_PT_PMU_NAME " event\n");
@@ -725,7 +725,7 @@ static int intel_pt_snapshot_start(struct auxtrace_record *itr)
 			container_of(itr, struct intel_pt_recording, itr);
 	struct perf_evsel *evsel;
 
-	evlist__for_each(ptr->evlist, evsel) {
+	evlist__for_each_entry(ptr->evlist, evsel) {
 		if (evsel->attr.type == ptr->intel_pt_pmu->type)
 			return perf_evsel__disable(evsel);
 	}
@@ -738,7 +738,7 @@ static int intel_pt_snapshot_finish(struct auxtrace_record *itr)
 			container_of(itr, struct intel_pt_recording, itr);
 	struct perf_evsel *evsel;
 
-	evlist__for_each(ptr->evlist, evsel) {
+	evlist__for_each_entry(ptr->evlist, evsel) {
 		if (evsel->attr.type == ptr->intel_pt_pmu->type)
 			return perf_evsel__enable(evsel);
 	}
@@ -1011,7 +1011,7 @@ static int intel_pt_read_finish(struct auxtrace_record *itr, int idx)
 			container_of(itr, struct intel_pt_recording, itr);
 	struct perf_evsel *evsel;
 
-	evlist__for_each(ptr->evlist, evsel) {
+	evlist__for_each_entry(ptr->evlist, evsel) {
 		if (evsel->attr.type == ptr->intel_pt_pmu->type)
 			return perf_evlist__enable_event_idx(ptr->evlist, evsel,
 							     idx);

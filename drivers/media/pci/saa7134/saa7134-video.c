@@ -963,7 +963,7 @@ static int buffer_prepare(struct vb2_buffer *vb2)
 
 static int queue_setup(struct vb2_queue *q,
 			   unsigned int *nbuffers, unsigned int *nplanes,
-			   unsigned int sizes[], void *alloc_ctxs[])
+			   unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct saa7134_dmaqueue *dmaq = q->drv_priv;
 	struct saa7134_dev *dev = dmaq->dev;
@@ -980,7 +980,6 @@ static int queue_setup(struct vb2_queue *q,
 	*nbuffers = saa7134_buffer_count(size, *nbuffers);
 	*nplanes = 1;
 	sizes[0] = size;
-	alloc_ctxs[0] = dev->alloc_ctx;
 
 	saa7134_enable_analog_tuner(dev);
 
@@ -2173,6 +2172,7 @@ int saa7134_video_init1(struct saa7134_dev *dev)
 	q->buf_struct_size = sizeof(struct saa7134_buf);
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &dev->lock;
+	q->dev = &dev->pci->dev;
 	ret = vb2_queue_init(q);
 	if (ret)
 		return ret;
@@ -2191,6 +2191,7 @@ int saa7134_video_init1(struct saa7134_dev *dev)
 	q->buf_struct_size = sizeof(struct saa7134_buf);
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &dev->lock;
+	q->dev = &dev->pci->dev;
 	ret = vb2_queue_init(q);
 	if (ret)
 		return ret;

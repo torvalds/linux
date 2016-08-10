@@ -445,7 +445,6 @@ static int pic32_uart_startup(struct uart_port *port)
 				       sport->idx);
 	if (!sport->irq_rx_name) {
 		dev_err(port->dev, "%s: kasprintf err!", __func__);
-		kfree(sport->irq_fault_name);
 		ret = -ENOMEM;
 		goto out_f;
 	}

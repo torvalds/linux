@@ -260,16 +260,6 @@ static void sem_rcu_free(struct rcu_head *head)
 }
 
 /*
- * spin_unlock_wait() and !spin_is_locked() are not memory barriers, they
- * are only control barriers.
- * The code must pair with spin_unlock(&sem->lock) or
- * spin_unlock(&sem_perm.lock), thus just the control barrier is insufficient.
- *
- * smp_rmb() is sufficient, as writes cannot pass the control barrier.
- */
-#define ipc_smp_acquire__after_spin_is_unlocked()	smp_rmb()
-
-/*
  * Wait until all currently ongoing simple ops have completed.
  * Caller must own sem_perm.lock.
  * New simple ops cannot start, because simple ops first check
@@ -292,7 +282,6 @@ static void sem_wait_array(struct sem_array *sma)
 		sem = sma->sem_base + i;
 		spin_unlock_wait(&sem->lock);
 	}
-	ipc_smp_acquire__after_spin_is_unlocked();
 }
 
 /*
@@ -350,7 +339,7 @@ static inline int sem_lock(struct sem_array *sma, struct sembuf *sops,
 			 *	complex_count++;
 			 *	spin_unlock(sem_perm.lock);
 			 */
-			ipc_smp_acquire__after_spin_is_unlocked();
+			smp_acquire__after_ctrl_dep();
 
 			/*
 			 * Now repeat the test of complex_count:

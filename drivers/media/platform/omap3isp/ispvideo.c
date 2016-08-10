@@ -331,7 +331,7 @@ isp_video_check_format(struct isp_video *video, struct isp_video_fh *vfh)
 
 static int isp_video_queue_setup(struct vb2_queue *queue,
 				 unsigned int *count, unsigned int *num_planes,
-				 unsigned int sizes[], void *alloc_ctxs[])
+				 unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct isp_video_fh *vfh = vb2_get_drv_priv(queue);
 	struct isp_video *video = vfh->video;
@@ -341,8 +341,6 @@ static int isp_video_queue_setup(struct vb2_queue *queue,
 	sizes[0] = vfh->format.fmt.pix.sizeimage;
 	if (sizes[0] == 0)
 		return -EINVAL;
-
-	alloc_ctxs[0] = video->alloc_ctx;
 
 	*count = min(*count, video->capture_mem / PAGE_ALIGN(sizes[0]));
 
@@ -1308,6 +1306,7 @@ static int isp_video_open(struct file *file)
 	queue->mem_ops = &vb2_dma_contig_memops;
 	queue->buf_struct_size = sizeof(struct isp_buffer);
 	queue->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	queue->dev = video->isp->dev;
 
 	ret = vb2_queue_init(&handle->queue);
 	if (ret < 0) {
@@ -1414,15 +1413,9 @@ int omap3isp_video_init(struct isp_video *video, const char *name)
 		return -EINVAL;
 	}
 
-	video->alloc_ctx = vb2_dma_contig_init_ctx(video->isp->dev);
-	if (IS_ERR(video->alloc_ctx))
-		return PTR_ERR(video->alloc_ctx);
-
 	ret = media_entity_pads_init(&video->video.entity, 1, &video->pad);
-	if (ret < 0) {
-		vb2_dma_contig_cleanup_ctx(video->alloc_ctx);
+	if (ret < 0)
 		return ret;
-	}
 
 	mutex_init(&video->mutex);
 	atomic_set(&video->active, 0);
@@ -1451,7 +1444,6 @@ int omap3isp_video_init(struct isp_video *video, const char *name)
 
 void omap3isp_video_cleanup(struct isp_video *video)
 {
-	vb2_dma_contig_cleanup_ctx(video->alloc_ctx);
 	media_entity_cleanup(&video->video.entity);
 	mutex_destroy(&video->queue_lock);
 	mutex_destroy(&video->stream_lock);

@@ -49,6 +49,7 @@ struct qed_start_vport_params {
 	bool drop_ttl0;
 	u8 vport_id;
 	u16 mtu;
+	bool clear_stats;
 };
 
 struct qed_stop_rxq_params {
@@ -113,6 +114,7 @@ struct qed_queue_start_common_params {
 	u8 vport_id;
 	u16 sb;
 	u16 sb_idx;
+	u16 vf_qid;
 };
 
 struct qed_tunn_params {
@@ -127,10 +129,72 @@ struct qed_eth_cb_ops {
 	void (*force_mac) (void *dev, u8 *mac);
 };
 
+#ifdef CONFIG_DCB
+/* Prototype declaration of qed_eth_dcbnl_ops should match with the declaration
+ * of dcbnl_rtnl_ops structure.
+ */
+struct qed_eth_dcbnl_ops {
+	/* IEEE 802.1Qaz std */
+	int (*ieee_getpfc)(struct qed_dev *cdev, struct ieee_pfc *pfc);
+	int (*ieee_setpfc)(struct qed_dev *cdev, struct ieee_pfc *pfc);
+	int (*ieee_getets)(struct qed_dev *cdev, struct ieee_ets *ets);
+	int (*ieee_setets)(struct qed_dev *cdev, struct ieee_ets *ets);
+	int (*ieee_peer_getets)(struct qed_dev *cdev, struct ieee_ets *ets);
+	int (*ieee_peer_getpfc)(struct qed_dev *cdev, struct ieee_pfc *pfc);
+	int (*ieee_getapp)(struct qed_dev *cdev, struct dcb_app *app);
+	int (*ieee_setapp)(struct qed_dev *cdev, struct dcb_app *app);
+
+	/* CEE std */
+	u8 (*getstate)(struct qed_dev *cdev);
+	u8 (*setstate)(struct qed_dev *cdev, u8 state);
+	void (*getpgtccfgtx)(struct qed_dev *cdev, int prio, u8 *prio_type,
+			     u8 *pgid, u8 *bw_pct, u8 *up_map);
+	void (*getpgbwgcfgtx)(struct qed_dev *cdev, int pgid, u8 *bw_pct);
+	void (*getpgtccfgrx)(struct qed_dev *cdev, int prio, u8 *prio_type,
+			     u8 *pgid, u8 *bw_pct, u8 *up_map);
+	void (*getpgbwgcfgrx)(struct qed_dev *cdev, int pgid, u8 *bw_pct);
+	void (*getpfccfg)(struct qed_dev *cdev, int prio, u8 *setting);
+	void (*setpfccfg)(struct qed_dev *cdev, int prio, u8 setting);
+	u8 (*getcap)(struct qed_dev *cdev, int capid, u8 *cap);
+	int (*getnumtcs)(struct qed_dev *cdev, int tcid, u8 *num);
+	u8 (*getpfcstate)(struct qed_dev *cdev);
+	int (*getapp)(struct qed_dev *cdev, u8 idtype, u16 id);
+	u8 (*getfeatcfg)(struct qed_dev *cdev, int featid, u8 *flags);
+
+	/* DCBX configuration */
+	u8 (*getdcbx)(struct qed_dev *cdev);
+	void (*setpgtccfgtx)(struct qed_dev *cdev, int prio,
+			     u8 pri_type, u8 pgid, u8 bw_pct, u8 up_map);
+	void (*setpgtccfgrx)(struct qed_dev *cdev, int prio,
+			     u8 pri_type, u8 pgid, u8 bw_pct, u8 up_map);
+	void (*setpgbwgcfgtx)(struct qed_dev *cdev, int pgid, u8 bw_pct);
+	void (*setpgbwgcfgrx)(struct qed_dev *cdev, int pgid, u8 bw_pct);
+	u8 (*setall)(struct qed_dev *cdev);
+	int (*setnumtcs)(struct qed_dev *cdev, int tcid, u8 num);
+	void (*setpfcstate)(struct qed_dev *cdev, u8 state);
+	int (*setapp)(struct qed_dev *cdev, u8 idtype, u16 idval, u8 up);
+	u8 (*setdcbx)(struct qed_dev *cdev, u8 state);
+	u8 (*setfeatcfg)(struct qed_dev *cdev, int featid, u8 flags);
+
+	/* Peer apps */
+	int (*peer_getappinfo)(struct qed_dev *cdev,
+			       struct dcb_peer_app_info *info,
+			       u16 *app_count);
+	int (*peer_getapptable)(struct qed_dev *cdev, struct dcb_app *table);
+
+	/* CEE peer */
+	int (*cee_peer_getpfc)(struct qed_dev *cdev, struct cee_pfc *pfc);
+	int (*cee_peer_getpg)(struct qed_dev *cdev, struct cee_pg *pg);
+};
+#endif
+
 struct qed_eth_ops {
 	const struct qed_common_ops *common;
 #ifdef CONFIG_QED_SRIOV
 	const struct qed_iov_hv_ops *iov;
+#endif
+#ifdef CONFIG_DCB
+	const struct qed_eth_dcbnl_ops *dcb;
 #endif
 
 	int (*fill_dev_info)(struct qed_dev *cdev,

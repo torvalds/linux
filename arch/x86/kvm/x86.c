@@ -55,9 +55,6 @@
 #include <linux/irqbypass.h>
 #include <trace/events/kvm.h>
 
-#define CREATE_TRACE_POINTS
-#include "trace.h"
-
 #include <asm/debugreg.h>
 #include <asm/msr.h>
 #include <asm/desc.h>
@@ -67,6 +64,9 @@
 #include <asm/pvclock.h>
 #include <asm/div64.h>
 #include <asm/irq_remapping.h>
+
+#define CREATE_TRACE_POINTS
+#include "trace.h"
 
 #define MAX_IO_MSRS 256
 #define KVM_MAX_MCE_BANKS 32
@@ -1243,12 +1243,6 @@ static atomic_t kvm_guest_has_master_clock = ATOMIC_INIT(0);
 
 static DEFINE_PER_CPU(unsigned long, cpu_tsc_khz);
 static unsigned long max_tsc_khz;
-
-static inline u64 nsec_to_cycles(struct kvm_vcpu *vcpu, u64 nsec)
-{
-	return pvclock_scale_delta(nsec, vcpu->arch.virtual_tsc_mult,
-				   vcpu->arch.virtual_tsc_shift);
-}
 
 static u32 adjust_tsc_khz(u32 khz, s32 ppm)
 {

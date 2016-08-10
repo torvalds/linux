@@ -59,7 +59,7 @@ int hfs_hash_dentry(const struct dentry *dentry, struct qstr *this)
 	if (len > HFS_NAMELEN)
 		len = HFS_NAMELEN;
 
-	hash = init_name_hash();
+	hash = init_name_hash(dentry);
 	for (; len; len--)
 		hash = partial_name_hash(caseorder[*name++], hash);
 	this->hash = end_name_hash(hash);

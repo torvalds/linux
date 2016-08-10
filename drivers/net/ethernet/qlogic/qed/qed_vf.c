@@ -117,36 +117,64 @@ exit:
 }
 
 #define VF_ACQUIRE_THRESH 3
-#define VF_ACQUIRE_MAC_FILTERS 1
+static void qed_vf_pf_acquire_reduce_resc(struct qed_hwfn *p_hwfn,
+					  struct vf_pf_resc_request *p_req,
+					  struct pf_vf_resc *p_resp)
+{
+	DP_VERBOSE(p_hwfn,
+		   QED_MSG_IOV,
+		   "PF unwilling to fullill resource request: rxq [%02x/%02x] txq [%02x/%02x] sbs [%02x/%02x] mac [%02x/%02x] vlan [%02x/%02x] mc [%02x/%02x]. Try PF recommended amount\n",
+		   p_req->num_rxqs,
+		   p_resp->num_rxqs,
+		   p_req->num_rxqs,
+		   p_resp->num_txqs,
+		   p_req->num_sbs,
+		   p_resp->num_sbs,
+		   p_req->num_mac_filters,
+		   p_resp->num_mac_filters,
+		   p_req->num_vlan_filters,
+		   p_resp->num_vlan_filters,
+		   p_req->num_mc_filters, p_resp->num_mc_filters);
+
+	/* humble our request */
+	p_req->num_txqs = p_resp->num_txqs;
+	p_req->num_rxqs = p_resp->num_rxqs;
+	p_req->num_sbs = p_resp->num_sbs;
+	p_req->num_mac_filters = p_resp->num_mac_filters;
+	p_req->num_vlan_filters = p_resp->num_vlan_filters;
+	p_req->num_mc_filters = p_resp->num_mc_filters;
+}
 
 static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
 {
 	struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
 	struct pfvf_acquire_resp_tlv *resp = &p_iov->pf2vf_reply->acquire_resp;
 	struct pf_vf_pfdev_info *pfdev_info = &resp->pfdev_info;
-	u8 rx_count = 1, tx_count = 1, num_sbs = 1;
-	u8 num_mac = VF_ACQUIRE_MAC_FILTERS;
+	struct vf_pf_resc_request *p_resc;
 	bool resources_acquired = false;
 	struct vfpf_acquire_tlv *req;
 	int rc = 0, attempts = 0;
 
 	/* clear mailbox and prep first tlv */
 	req = qed_vf_pf_prep(p_hwfn, CHANNEL_TLV_ACQUIRE, sizeof(*req));
+	p_resc = &req->resc_request;
 
 	/* starting filling the request */
 	req->vfdev_info.opaque_fid = p_hwfn->hw_info.opaque_fid;
 
-	req->resc_request.num_rxqs = rx_count;
-	req->resc_request.num_txqs = tx_count;
-	req->resc_request.num_sbs = num_sbs;
-	req->resc_request.num_mac_filters = num_mac;
-	req->resc_request.num_vlan_filters = QED_ETH_VF_NUM_VLAN_FILTERS;
+	p_resc->num_rxqs = QED_MAX_VF_CHAINS_PER_PF;
+	p_resc->num_txqs = QED_MAX_VF_CHAINS_PER_PF;
+	p_resc->num_sbs = QED_MAX_VF_CHAINS_PER_PF;
+	p_resc->num_mac_filters = QED_ETH_VF_NUM_MAC_FILTERS;
+	p_resc->num_vlan_filters = QED_ETH_VF_NUM_VLAN_FILTERS;
 
 	req->vfdev_info.os_type = VFPF_ACQUIRE_OS_LINUX;
 	req->vfdev_info.fw_major = FW_MAJOR_VERSION;
 	req->vfdev_info.fw_minor = FW_MINOR_VERSION;
 	req->vfdev_info.fw_revision = FW_REVISION_VERSION;
 	req->vfdev_info.fw_engineering = FW_ENGINEERING_VERSION;
+	req->vfdev_info.eth_fp_hsi_major = ETH_HSI_VER_MAJOR;
+	req->vfdev_info.eth_fp_hsi_minor = ETH_HSI_VER_MINOR;
 
 	/* Fill capability field with any non-deprecated config we support */
 	req->vfdev_info.capabilities |= VFPF_ACQUIRE_CAP_100G;
@@ -185,21 +213,21 @@ static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
 			resources_acquired = true;
 		} else if (resp->hdr.status == PFVF_STATUS_NO_RESOURCE &&
 			   attempts < VF_ACQUIRE_THRESH) {
-			DP_VERBOSE(p_hwfn,
-				   QED_MSG_IOV,
-				   "PF unwilling to fullfill resource request. Try PF recommended amount\n");
-
-			/* humble our request */
-			req->resc_request.num_txqs = resp->resc.num_txqs;
-			req->resc_request.num_rxqs = resp->resc.num_rxqs;
-			req->resc_request.num_sbs = resp->resc.num_sbs;
-			req->resc_request.num_mac_filters =
-			    resp->resc.num_mac_filters;
-			req->resc_request.num_vlan_filters =
-			    resp->resc.num_vlan_filters;
+			qed_vf_pf_acquire_reduce_resc(p_hwfn, p_resc,
+						      &resp->resc);
 
 			/* Clear response buffer */
 			memset(p_iov->pf2vf_reply, 0, sizeof(union pfvf_tlvs));
+		} else if ((resp->hdr.status == PFVF_STATUS_NOT_SUPPORTED) &&
+			   pfdev_info->major_fp_hsi &&
+			   (pfdev_info->major_fp_hsi != ETH_HSI_VER_MAJOR)) {
+			DP_NOTICE(p_hwfn,
+				  "PF uses an incompatible fastpath HSI %02x.%02x [VF requires %02x.%02x]. Please change to a VF driver using %02x.xx.\n",
+				  pfdev_info->major_fp_hsi,
+				  pfdev_info->minor_fp_hsi,
+				  ETH_HSI_VER_MAJOR,
+				  ETH_HSI_VER_MINOR, pfdev_info->major_fp_hsi);
+			return -EINVAL;
 		} else {
 			DP_ERR(p_hwfn,
 			       "PF returned error %d to VF acquisition request\n",
@@ -223,6 +251,13 @@ static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
 			DP_NOTICE(p_hwfn, "100g VF\n");
 			p_hwfn->cdev->num_hwfns = 2;
 		}
+	}
+
+	if (ETH_HSI_VER_MINOR &&
+	    (resp->pfdev_info.minor_fp_hsi < ETH_HSI_VER_MINOR)) {
+		DP_INFO(p_hwfn,
+			"PF is using older fastpath HSI; %02x.%02x is configured\n",
+			ETH_HSI_VER_MAJOR, resp->pfdev_info.minor_fp_hsi);
 	}
 
 	return 0;
@@ -405,8 +440,8 @@ int qed_vf_pf_txq_start(struct qed_hwfn *p_hwfn,
 			u16 pbl_size, void __iomem **pp_doorbell)
 {
 	struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
+	struct pfvf_start_queue_resp_tlv *resp;
 	struct vfpf_start_txq_tlv *req;
-	struct pfvf_def_resp_tlv *resp;
 	int rc;
 
 	/* clear mailbox and prep first tlv */
@@ -424,20 +459,24 @@ int qed_vf_pf_txq_start(struct qed_hwfn *p_hwfn,
 	qed_add_tlv(p_hwfn, &p_iov->offset,
 		    CHANNEL_TLV_LIST_END, sizeof(struct channel_list_end_tlv));
 
-	resp = &p_iov->pf2vf_reply->default_resp;
+	resp = &p_iov->pf2vf_reply->queue_start;
 	rc = qed_send_msg2pf(p_hwfn, &resp->hdr.status, sizeof(*resp));
 	if (rc)
-		return rc;
+		goto exit;
 
-	if (resp->hdr.status != PFVF_STATUS_SUCCESS)
-		return -EINVAL;
+	if (resp->hdr.status != PFVF_STATUS_SUCCESS) {
+		rc = -EINVAL;
+		goto exit;
+	}
 
 	if (pp_doorbell) {
-		u8 cid = p_iov->acquire_resp.resc.cid[tx_queue_id];
+		*pp_doorbell = (u8 __iomem *)p_hwfn->doorbells + resp->offset;
 
-		*pp_doorbell = (u8 __iomem *)p_hwfn->doorbells +
-					     qed_db_addr(cid, DQ_DEMS_LEGACY);
+		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+			   "Txq[0x%02x]: doorbell at %p [offset 0x%08x]\n",
+			   tx_queue_id, *pp_doorbell, resp->offset);
 	}
+exit:
 
 	return rc;
 }

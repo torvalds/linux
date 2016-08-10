@@ -1828,9 +1828,8 @@ xfs_difree_inode_chunk(
 
 	if (!xfs_inobt_issparse(rec->ir_holemask)) {
 		/* not sparse, calculate extent info directly */
-		xfs_bmap_add_free(XFS_AGB_TO_FSB(mp, agno,
-				  XFS_AGINO_TO_AGBNO(mp, rec->ir_startino)),
-				  mp->m_ialloc_blks, flist, mp);
+		xfs_bmap_add_free(mp, flist, XFS_AGB_TO_FSB(mp, agno, sagbno),
+				  mp->m_ialloc_blks);
 		return;
 	}
 
@@ -1873,8 +1872,8 @@ xfs_difree_inode_chunk(
 
 		ASSERT(agbno % mp->m_sb.sb_spino_align == 0);
 		ASSERT(contigblk % mp->m_sb.sb_spino_align == 0);
-		xfs_bmap_add_free(XFS_AGB_TO_FSB(mp, agno, agbno), contigblk,
-				  flist, mp);
+		xfs_bmap_add_free(mp, flist, XFS_AGB_TO_FSB(mp, agno, agbno),
+				  contigblk);
 
 		/* reset range to current bit and carry on... */
 		startidx = endidx = nextbit;
@@ -2395,20 +2394,11 @@ void
 xfs_ialloc_compute_maxlevels(
 	xfs_mount_t	*mp)		/* file system mount structure */
 {
-	int		level;
-	uint		maxblocks;
-	uint		maxleafents;
-	int		minleafrecs;
-	int		minnoderecs;
+	uint		inodes;
 
-	maxleafents = (1LL << XFS_INO_AGINO_BITS(mp)) >>
-		XFS_INODES_PER_CHUNK_LOG;
-	minleafrecs = mp->m_inobt_mnr[0];
-	minnoderecs = mp->m_inobt_mnr[1];
-	maxblocks = (maxleafents + minleafrecs - 1) / minleafrecs;
-	for (level = 1; maxblocks > 1; level++)
-		maxblocks = (maxblocks + minnoderecs - 1) / minnoderecs;
-	mp->m_in_maxlevels = level;
+	inodes = (1LL << XFS_INO_AGINO_BITS(mp)) >> XFS_INODES_PER_CHUNK_LOG;
+	mp->m_in_maxlevels = xfs_btree_compute_maxlevels(mp, mp->m_inobt_mnr,
+							 inodes);
 }
 
 /*

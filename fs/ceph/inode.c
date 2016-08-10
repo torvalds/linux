@@ -1164,7 +1164,7 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 
 			dname.name = rinfo->dname;
 			dname.len = rinfo->dname_len;
-			dname.hash = full_name_hash(dname.name, dname.len);
+			dname.hash = full_name_hash(parent, dname.name, dname.len);
 			vino.ino = le64_to_cpu(rinfo->targeti.in->ino);
 			vino.snap = le64_to_cpu(rinfo->targeti.in->snapid);
 retry_lookup:
@@ -1508,7 +1508,7 @@ int ceph_readdir_prepopulate(struct ceph_mds_request *req,
 
 		dname.name = rde->name;
 		dname.len = rde->name_len;
-		dname.hash = full_name_hash(dname.name, dname.len);
+		dname.hash = full_name_hash(parent, dname.name, dname.len);
 
 		vino.ino = le64_to_cpu(rde->inode.in->ino);
 		vino.snap = le64_to_cpu(rde->inode.in->snapid);

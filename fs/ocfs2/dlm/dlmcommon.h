@@ -47,7 +47,7 @@
 #define DLM_HASH_BUCKETS	(DLM_HASH_PAGES * DLM_BUCKETS_PER_PAGE)
 
 /* Intended to make it easier for us to switch out hash functions */
-#define dlm_lockid_hash(_n, _l) full_name_hash(_n, _l)
+#define dlm_lockid_hash(_n, _l) full_name_hash(NULL, _n, _l)
 
 enum dlm_mle_type {
 	DLM_MLE_BLOCK = 0,

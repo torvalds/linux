@@ -480,10 +480,12 @@ static inline void old_vsyscall_fixup(struct timekeeper *tk)
 	* users are removed, this can be killed.
 	*/
 	remainder = tk->tkr_mono.xtime_nsec & ((1ULL << tk->tkr_mono.shift) - 1);
-	tk->tkr_mono.xtime_nsec -= remainder;
-	tk->tkr_mono.xtime_nsec += 1ULL << tk->tkr_mono.shift;
-	tk->ntp_error += remainder << tk->ntp_error_shift;
-	tk->ntp_error -= (1ULL << tk->tkr_mono.shift) << tk->ntp_error_shift;
+	if (remainder != 0) {
+		tk->tkr_mono.xtime_nsec -= remainder;
+		tk->tkr_mono.xtime_nsec += 1ULL << tk->tkr_mono.shift;
+		tk->ntp_error += remainder << tk->ntp_error_shift;
+		tk->ntp_error -= (1ULL << tk->tkr_mono.shift) << tk->ntp_error_shift;
+	}
 }
 #else
 #define old_vsyscall_fixup(tk)
@@ -2186,6 +2188,7 @@ struct timespec64 get_monotonic_coarse64(void)
 
 	return now;
 }
+EXPORT_SYMBOL(get_monotonic_coarse64);
 
 /*
  * Must hold jiffies_lock

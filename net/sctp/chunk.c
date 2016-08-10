@@ -335,13 +335,32 @@ errout:
 /* Check whether this message has expired. */
 int sctp_chunk_abandoned(struct sctp_chunk *chunk)
 {
-	struct sctp_datamsg *msg = chunk->msg;
+	if (!chunk->asoc->prsctp_enable ||
+	    !SCTP_PR_POLICY(chunk->sinfo.sinfo_flags)) {
+		struct sctp_datamsg *msg = chunk->msg;
 
-	if (!msg->can_abandon)
+		if (!msg->can_abandon)
+			return 0;
+
+		if (time_after(jiffies, msg->expires_at))
+			return 1;
+
 		return 0;
+	}
 
-	if (time_after(jiffies, msg->expires_at))
+	if (SCTP_PR_TTL_ENABLED(chunk->sinfo.sinfo_flags) &&
+	    time_after(jiffies, chunk->prsctp_param)) {
+		if (chunk->sent_count)
+			chunk->asoc->abandoned_sent[SCTP_PR_INDEX(TTL)]++;
+		else
+			chunk->asoc->abandoned_unsent[SCTP_PR_INDEX(TTL)]++;
 		return 1;
+	} else if (SCTP_PR_RTX_ENABLED(chunk->sinfo.sinfo_flags) &&
+		   chunk->sent_count > chunk->prsctp_param) {
+		chunk->asoc->abandoned_sent[SCTP_PR_INDEX(RTX)]++;
+		return 1;
+	}
+	/* PRIO policy is processed by sendmsg, not here */
 
 	return 0;
 }

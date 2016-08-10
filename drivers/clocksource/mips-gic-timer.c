@@ -146,7 +146,7 @@ static struct clocksource gic_clocksource = {
 	.archdata	= { .vdso_clock_mode = VDSO_CLOCK_GIC },
 };
 
-static void __init __gic_clocksource_init(void)
+static int __init __gic_clocksource_init(void)
 {
 	int ret;
 
@@ -159,6 +159,8 @@ static void __init __gic_clocksource_init(void)
 	ret = clocksource_register_hz(&gic_clocksource, gic_frequency);
 	if (ret < 0)
 		pr_warn("GIC: Unable to register clocksource\n");
+
+	return ret;
 }
 
 void __init gic_clocksource_init(unsigned int frequency)
@@ -179,31 +181,35 @@ static void __init gic_clocksource_of_init(struct device_node *node)
 	struct clk *clk;
 	int ret;
 
-	if (WARN_ON(!gic_present || !node->parent ||
-		    !of_device_is_compatible(node->parent, "mti,gic")))
-		return;
+	if (!gic_present || !node->parent ||
+	    !of_device_is_compatible(node->parent, "mti,gic")) {
+		pr_warn("No DT definition for the mips gic driver");
+		return -ENXIO;
+	}
 
 	clk = of_clk_get(node, 0);
 	if (!IS_ERR(clk)) {
 		if (clk_prepare_enable(clk) < 0) {
 			pr_err("GIC failed to enable clock\n");
 			clk_put(clk);
-			return;
+			return PTR_ERR(clk);
 		}
 
 		gic_frequency = clk_get_rate(clk);
 	} else if (of_property_read_u32(node, "clock-frequency",
 					&gic_frequency)) {
 		pr_err("GIC frequency not specified.\n");
-		return;
+		return -EINVAL;;
 	}
 	gic_timer_irq = irq_of_parse_and_map(node, 0);
 	if (!gic_timer_irq) {
 		pr_err("GIC timer IRQ not specified.\n");
-		return;
+		return -EINVAL;;
 	}
 
-	__gic_clocksource_init();
+	ret = __gic_clocksource_init();
+	if (ret)
+		return ret;
 
 	ret = gic_clockevent_init();
 	if (!ret && !IS_ERR(clk)) {
@@ -213,6 +219,8 @@ static void __init gic_clocksource_of_init(struct device_node *node)
 
 	/* And finally start the counter */
 	gic_start_count();
+
+	return 0;
 }
 CLOCKSOURCE_OF_DECLARE(mips_gic_timer, "mti,gic-timer",
 		       gic_clocksource_of_init);

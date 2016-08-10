@@ -89,6 +89,7 @@ config ARCH_BCM_MOBILE
 	select HAVE_ARM_ARCH_TIMER
 	select PINCTRL
 	select ARCH_BCM_MOBILE_SMP if SMP
+	select BCM_KONA_TIMER
 	help
 	  This enables support for systems based on Broadcom mobile SoCs.
 
@@ -143,6 +144,7 @@ config ARCH_BCM2835
 	select ARM_TIMER_SP804
 	select HAVE_ARM_ARCH_TIMER if ARCH_MULTI_V7
 	select CLKSRC_OF
+	select BCM2835_TIMER
 	select PINCTRL
 	select PINCTRL_BCM2835
 	help

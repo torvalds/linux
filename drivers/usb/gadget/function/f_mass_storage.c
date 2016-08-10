@@ -2655,18 +2655,6 @@ void fsg_common_put(struct fsg_common *common)
 }
 EXPORT_SYMBOL_GPL(fsg_common_put);
 
-/* check if fsg_num_buffers is within a valid range */
-static inline int fsg_num_buffers_validate(unsigned int fsg_num_buffers)
-{
-#define FSG_MAX_NUM_BUFFERS	32
-
-	if (fsg_num_buffers >= 2 && fsg_num_buffers <= FSG_MAX_NUM_BUFFERS)
-		return 0;
-	pr_err("fsg_num_buffers %u is out of range (%d to %d)\n",
-	       fsg_num_buffers, 2, FSG_MAX_NUM_BUFFERS);
-	return -EINVAL;
-}
-
 static struct fsg_common *fsg_common_setup(struct fsg_common *common)
 {
 	if (!common) {
@@ -2709,11 +2697,7 @@ static void _fsg_common_free_buffers(struct fsg_buffhd *buffhds, unsigned n)
 int fsg_common_set_num_buffers(struct fsg_common *common, unsigned int n)
 {
 	struct fsg_buffhd *bh, *buffhds;
-	int i, rc;
-
-	rc = fsg_num_buffers_validate(n);
-	if (rc != 0)
-		return rc;
+	int i;
 
 	buffhds = kcalloc(n, sizeof(*buffhds), GFP_KERNEL);
 	if (!buffhds)
@@ -3398,10 +3382,6 @@ static ssize_t fsg_opts_num_buffers_store(struct config_item *item,
 		goto end;
 	}
 	ret = kstrtou8(page, 0, &num);
-	if (ret)
-		goto end;
-
-	ret = fsg_num_buffers_validate(num);
 	if (ret)
 		goto end;
 

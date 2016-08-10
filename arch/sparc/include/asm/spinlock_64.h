@@ -8,6 +8,9 @@
 
 #ifndef __ASSEMBLY__
 
+#include <asm/processor.h>
+#include <asm/barrier.h>
+
 /* To get debugging spinlocks which detect and catch
  * deadlock situations, set CONFIG_DEBUG_SPINLOCK
  * and rebuild your kernel.
@@ -23,9 +26,10 @@
 
 #define arch_spin_is_locked(lp)	((lp)->lock != 0)
 
-#define arch_spin_unlock_wait(lp)	\
-	do {	rmb();			\
-	} while((lp)->lock)
+static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
+{
+	smp_cond_load_acquire(&lock->lock, !VAL);
+}
 
 static inline void arch_spin_lock(arch_spinlock_t *lock)
 {

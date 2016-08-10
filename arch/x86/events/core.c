@@ -263,7 +263,7 @@ static bool check_hw_exists(void)
 
 msr_fail:
 	pr_cont("Broken PMU hardware detected, using software events only.\n");
-	pr_info("%sFailed to access perfctr msr (MSR %x is %Lx)\n",
+	printk("%sFailed to access perfctr msr (MSR %x is %Lx)\n",
 		boot_cpu_has(X86_FEATURE_HYPERVISOR) ? KERN_INFO : KERN_ERR,
 		reg, val_new);
 
@@ -1622,6 +1622,29 @@ ssize_t events_sysfs_show(struct device *dev, struct device_attribute *attr, cha
 }
 EXPORT_SYMBOL_GPL(events_sysfs_show);
 
+ssize_t events_ht_sysfs_show(struct device *dev, struct device_attribute *attr,
+			  char *page)
+{
+	struct perf_pmu_events_ht_attr *pmu_attr =
+		container_of(attr, struct perf_pmu_events_ht_attr, attr);
+
+	/*
+	 * Report conditional events depending on Hyper-Threading.
+	 *
+	 * This is overly conservative as usually the HT special
+	 * handling is not needed if the other CPU thread is idle.
+	 *
+	 * Note this does not (and cannot) handle the case when thread
+	 * siblings are invisible, for example with virtualization
+	 * if they are owned by some other guest.  The user tool
+	 * has to re-read when a thread sibling gets onlined later.
+	 */
+	return sprintf(page, "%s",
+			topology_max_smt_threads() > 1 ?
+			pmu_attr->event_str_ht :
+			pmu_attr->event_str_noht);
+}
+
 EVENT_ATTR(cpu-cycles,			CPU_CYCLES		);
 EVENT_ATTR(instructions,		INSTRUCTIONS		);
 EVENT_ATTR(cache-references,		CACHE_REFERENCES	);
@@ -2319,7 +2342,7 @@ void
 perf_callchain_user(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs)
 {
 	struct stack_frame frame;
-	const void __user *fp;
+	const unsigned long __user *fp;
 
 	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
 		/* TODO: We don't support guest os callchain now */
@@ -2332,7 +2355,7 @@ perf_callchain_user(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs
 	if (regs->flags & (X86_VM_MASK | PERF_EFLAGS_VM))
 		return;
 
-	fp = (void __user *)regs->bp;
+	fp = (unsigned long __user *)regs->bp;
 
 	perf_callchain_store(entry, regs->ip);
 
@@ -2345,16 +2368,17 @@ perf_callchain_user(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs
 	pagefault_disable();
 	while (entry->nr < entry->max_stack) {
 		unsigned long bytes;
+
 		frame.next_frame	     = NULL;
 		frame.return_address = 0;
 
-		if (!access_ok(VERIFY_READ, fp, 16))
+		if (!access_ok(VERIFY_READ, fp, sizeof(*fp) * 2))
 			break;
 
-		bytes = __copy_from_user_nmi(&frame.next_frame, fp, 8);
+		bytes = __copy_from_user_nmi(&frame.next_frame, fp, sizeof(*fp));
 		if (bytes != 0)
 			break;
-		bytes = __copy_from_user_nmi(&frame.return_address, fp+8, 8);
+		bytes = __copy_from_user_nmi(&frame.return_address, fp + 1, sizeof(*fp));
 		if (bytes != 0)
 			break;
 

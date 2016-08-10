@@ -151,7 +151,7 @@ i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 static int
 i915_gem_object_get_pages_phys(struct drm_i915_gem_object *obj)
 {
-	struct address_space *mapping = file_inode(obj->base.filp)->i_mapping;
+	struct address_space *mapping = obj->base.filp->f_mapping;
 	char *vaddr = obj->phys_handle->vaddr;
 	struct sg_table *st;
 	struct scatterlist *sg;
@@ -218,7 +218,7 @@ i915_gem_object_put_pages_phys(struct drm_i915_gem_object *obj)
 		obj->dirty = 0;
 
 	if (obj->dirty) {
-		struct address_space *mapping = file_inode(obj->base.filp)->i_mapping;
+		struct address_space *mapping = obj->base.filp->f_mapping;
 		char *vaddr = obj->phys_handle->vaddr;
 		int i;
 
@@ -2155,7 +2155,7 @@ i915_gem_object_invalidate(struct drm_i915_gem_object *obj)
 	if (obj->base.filp == NULL)
 		return;
 
-	mapping = file_inode(obj->base.filp)->i_mapping,
+	mapping = obj->base.filp->f_mapping,
 	invalidate_mapping_pages(mapping, 0, (loff_t)-1);
 }
 
@@ -2271,7 +2271,7 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	 *
 	 * Fail silently without starting the shrinker
 	 */
-	mapping = file_inode(obj->base.filp)->i_mapping;
+	mapping = obj->base.filp->f_mapping;
 	gfp = mapping_gfp_constraint(mapping, ~(__GFP_IO | __GFP_RECLAIM));
 	gfp |= __GFP_NORETRY | __GFP_NOWARN;
 	sg = st->sgl;
@@ -4522,7 +4522,7 @@ struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 		mask |= __GFP_DMA32;
 	}
 
-	mapping = file_inode(obj->base.filp)->i_mapping;
+	mapping = obj->base.filp->f_mapping;
 	mapping_set_gfp_mask(mapping, mask);
 
 	i915_gem_object_init(obj, &i915_gem_object_ops);

@@ -311,6 +311,36 @@ static int kszphy_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+static int ksz8041_config_init(struct phy_device *phydev)
+{
+	struct device_node *of_node = phydev->mdio.dev.of_node;
+
+	/* Limit supported and advertised modes in fiber mode */
+	if (of_property_read_bool(of_node, "micrel,fiber-mode")) {
+		phydev->dev_flags |= MICREL_PHY_FXEN;
+		phydev->supported &= SUPPORTED_FIBRE |
+				     SUPPORTED_100baseT_Full |
+				     SUPPORTED_100baseT_Half;
+		phydev->advertising &= ADVERTISED_FIBRE |
+				       ADVERTISED_100baseT_Full |
+				       ADVERTISED_100baseT_Half;
+		phydev->autoneg = AUTONEG_DISABLE;
+	}
+
+	return kszphy_config_init(phydev);
+}
+
+static int ksz8041_config_aneg(struct phy_device *phydev)
+{
+	/* Skip auto-negotiation in fiber mode */
+	if (phydev->dev_flags & MICREL_PHY_FXEN) {
+		phydev->speed = SPEED_100;
+		return 0;
+	}
+
+	return genphy_config_aneg(phydev);
+}
+
 static int ksz9021_load_values_from_of(struct phy_device *phydev,
 				       const struct device_node *of_node,
 				       u16 reg,
@@ -788,8 +818,8 @@ static struct phy_driver ksphy_driver[] = {
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
 	.driver_data	= &ksz8041_type,
 	.probe		= kszphy_probe,
-	.config_init	= kszphy_config_init,
-	.config_aneg	= genphy_config_aneg,
+	.config_init	= ksz8041_config_init,
+	.config_aneg	= ksz8041_config_aneg,
 	.read_status	= genphy_read_status,
 	.ack_interrupt	= kszphy_ack_interrupt,
 	.config_intr	= kszphy_config_intr,

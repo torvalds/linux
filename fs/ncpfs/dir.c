@@ -139,7 +139,7 @@ ncp_hash_dentry(const struct dentry *dentry, struct qstr *this)
 		int i;
 
 		t = NCP_IO_TABLE(sb);
-		hash = init_name_hash();
+		hash = init_name_hash(dentry);
 		for (i=0; i<this->len ; i++)
 			hash = partial_name_hash(ncp_tolower(t, this->name[i]),
 									hash);
