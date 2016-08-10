@@ -3710,6 +3710,7 @@ enum {
 
 #define _PP_ON_DELAYS			0x61208
 #define PP_ON_DELAYS(pps_idx)		_MMIO_PPS(pps_idx, _PP_ON_DELAYS)
+#define  PANEL_PORT_SELECT_SHIFT	30
 #define  PANEL_PORT_SELECT_MASK		(3 << 30)
 #define  PANEL_PORT_SELECT_LVDS		(0 << 30)
 #define  PANEL_PORT_SELECT_DPA		(1 << 30)
