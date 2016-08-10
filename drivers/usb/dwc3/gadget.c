@@ -1579,20 +1579,12 @@ static int dwc3_gadget_pullup(struct usb_gadget *g, int is_on)
 {
 	struct dwc3		*dwc = gadget_to_dwc(g);
 	unsigned long		flags;
-	int			ret = 0;
-	u32			reg;
+	int			ret;
 
 	is_on = !!is_on;
 
 	spin_lock_irqsave(&dwc->lock, flags);
-
-	dwc->enabled = is_on;
-
-	reg = dwc3_readl(dwc->regs, DWC3_GCTL);
-
-	if (DWC3_GCTL_PRTCAP(reg) == DWC3_GCTL_PRTCAP_DEVICE)
-		ret = dwc3_gadget_run_stop(dwc, is_on, false);
-
+	ret = dwc3_gadget_run_stop(dwc, is_on, false);
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
 	return ret;
@@ -1656,10 +1648,6 @@ static int dwc3_gadget_start(struct usb_gadget *g,
 
 	dwc->gadget_driver	= driver;
 
-	reg = dwc3_readl(dwc->regs, DWC3_GCTL);
-	if (DWC3_GCTL_PRTCAP(reg) != DWC3_GCTL_PRTCAP_DEVICE)
-		goto mode_mismatch;
-
 	reg = dwc3_readl(dwc->regs, DWC3_DCFG);
 	reg &= ~(DWC3_DCFG_SPEED_MASK);
 
@@ -1722,7 +1710,6 @@ static int dwc3_gadget_start(struct usb_gadget *g,
 
 	dwc3_gadget_enable_irq(dwc);
 
-mode_mismatch:
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
 	return 0;
@@ -1747,17 +1734,12 @@ static int dwc3_gadget_stop(struct usb_gadget *g)
 	struct dwc3		*dwc = gadget_to_dwc(g);
 	unsigned long		flags;
 	int			irq;
-	u32			reg;
 
 	spin_lock_irqsave(&dwc->lock, flags);
 
-	reg = dwc3_readl(dwc->regs, DWC3_GCTL);
-
-	if (DWC3_GCTL_PRTCAP(reg) == DWC3_GCTL_PRTCAP_DEVICE) {
-		dwc3_gadget_disable_irq(dwc);
-		__dwc3_gadget_ep_disable(dwc->eps[0]);
-		__dwc3_gadget_ep_disable(dwc->eps[1]);
-	}
+	dwc3_gadget_disable_irq(dwc);
+	__dwc3_gadget_ep_disable(dwc->eps[0]);
+	__dwc3_gadget_ep_disable(dwc->eps[1]);
 
 	dwc->gadget_driver	= NULL;
 
@@ -2996,254 +2978,5 @@ err1:
 	__dwc3_gadget_ep_disable(dwc->eps[0]);
 
 err0:
-	return ret;
-}
-
-static int dwc3_gadget_reinit(struct dwc3 *dwc)
-{
-	u32			hwparams4 = dwc->hwparams.hwparams4;
-	u32			reg;
-	int			ret;
-	struct dwc3_ep		*dep = NULL;
-
-	reg = dwc3_readl(dwc->regs, DWC3_GSNPSID);
-	/* This should read as U3 followed by revision number */
-	if ((reg & DWC3_GSNPSID_MASK) == 0x55330000) {
-		/* Detected DWC_usb3 IP */
-		dwc->revision = reg;
-	} else if ((reg & DWC3_GSNPSID_MASK) == 0x33310000) {
-		/* Detected DWC_usb31 IP */
-		dwc->revision = dwc3_readl(dwc->regs, DWC3_VER_NUMBER);
-		dwc->revision |= DWC3_REVISION_IS_DWC31;
-	} else {
-		dev_err(dwc->dev, "this is not a DesignWare USB3 DRD Core\n");
-		ret = -ENODEV;
-		goto err0;
-	}
-
-	/*
-	 * Write Linux Version Code to our GUID register so it's easy to figure
-	 * out which kernel version a bug was found.
-	 */
-	dwc3_writel(dwc->regs, DWC3_GUID, LINUX_VERSION_CODE);
-
-	/* Handle USB2.0-only core configuration */
-	if (DWC3_GHWPARAMS3_SSPHY_IFC(dwc->hwparams.hwparams3) ==
-			DWC3_GHWPARAMS3_SSPHY_IFC_DIS) {
-		if (dwc->maximum_speed == USB_SPEED_SUPER)
-			dwc->maximum_speed = USB_SPEED_HIGH;
-	}
-
-	/* issue device SoftReset too */
-	ret = dwc3_soft_reset(dwc);
-	if (ret)
-		goto err0;
-
-	reg = dwc3_readl(dwc->regs, DWC3_GCTL);
-	reg &= ~DWC3_GCTL_SCALEDOWN_MASK;
-
-	switch (DWC3_GHWPARAMS1_EN_PWROPT(dwc->hwparams.hwparams1)) {
-	case DWC3_GHWPARAMS1_EN_PWROPT_CLK:
-		/**
-		 * WORKAROUND: DWC3 revisions between 2.10a and 2.50a have an
-		 * issue which would cause xHCI compliance tests to fail.
-		 *
-		 * Because of that we cannot enable clock gating on such
-		 * configurations.
-		 *
-		 * Refers to:
-		 *
-		 * STAR#9000588375: Clock Gating, SOF Issues when ref_clk-Based
-		 * SOF/ITP Mode Used
-		 */
-		if ((dwc->dr_mode == USB_DR_MODE_HOST ||
-		     dwc->dr_mode == USB_DR_MODE_OTG) &&
-		     (dwc->revision >= DWC3_REVISION_210A &&
-		     dwc->revision <= DWC3_REVISION_250A))
-			reg |= DWC3_GCTL_DSBLCLKGTNG | DWC3_GCTL_SOFITPSYNC;
-		else
-			reg &= ~DWC3_GCTL_DSBLCLKGTNG;
-		break;
-	case DWC3_GHWPARAMS1_EN_PWROPT_HIB:
-		/* enable hibernation here */
-		dwc->nr_scratch = DWC3_GHWPARAMS4_HIBER_SCRATCHBUFS(hwparams4);
-
-		/*
-		 * REVISIT Enabling this bit so that host-mode hibernation
-		 * will work. Device-mode hibernation is not yet implemented.
-		 */
-		reg |= DWC3_GCTL_GBLHIBERNATIONEN;
-		break;
-	default:
-		dwc3_trace(trace_dwc3_core,
-			   "No power optimization available\n");
-	}
-
-	/* check if current dwc3 is on simulation board */
-	if (dwc->hwparams.hwparams6 & DWC3_GHWPARAMS6_EN_FPGA) {
-		dwc3_trace(trace_dwc3_core,
-			   "running on FPGA platform\n");
-		dwc->is_fpga = true;
-	}
-
-	WARN_ONCE(dwc->disable_scramble_quirk && !dwc->is_fpga,
-		  "disable_scramble cannot be used on non-FPGA builds\n");
-
-	if (dwc->disable_scramble_quirk && dwc->is_fpga)
-		reg |= DWC3_GCTL_DISSCRAMBLE;
-	else
-		reg &= ~DWC3_GCTL_DISSCRAMBLE;
-
-	if (dwc->u2exit_lfps_quirk)
-		reg |= DWC3_GCTL_U2EXIT_LFPS;
-
-	/*
-	 * WORKAROUND: DWC3 revisions <1.90a have a bug
-	 * where the device can fail to connect at SuperSpeed
-	 * and falls back to high-speed mode which causes
-	 * the device to enter a Connect/Disconnect loop
-	 */
-	if (dwc->revision < DWC3_REVISION_190A)
-		reg |= DWC3_GCTL_U2RSTECN;
-	dwc3_writel(dwc->regs, DWC3_GCTL, reg);
-
-	ret = dwc3_event_buffers_setup(dwc);
-
-	if (ret) {
-		dev_err(dwc->dev, "failed to setup event buffers\n");
-		goto err1;
-	}
-
-	reg = dwc3_readl(dwc->regs, DWC3_DCFG);
-	reg |= DWC3_DCFG_LPM_CAP;
-	reg &= ~(DWC3_DCFG_SPEED_MASK);
-
-	/**
-	 * WORKAROUND: DWC3 revision < 2.20a have an issue
-	 * which would cause metastability state on Run/Stop
-	 * bit if we try to force the IP to USB2-only mode.
-	 *
-	 * Because of that, we cannot configure the IP to any
-	 * speed other than the SuperSpeed
-	 *
-	 * Refers to:
-	 *
-	 * STAR#9000525659: Clock Domain Crossing on DCTL in
-	 * USB 2.0 Mode
-	 */
-	if (dwc->revision < DWC3_REVISION_220A) {
-		reg |= DWC3_DCFG_SUPERSPEED;
-	} else {
-		switch (dwc->maximum_speed) {
-		case USB_SPEED_LOW:
-			reg |= DWC3_DSTS_LOWSPEED;
-			break;
-		case USB_SPEED_FULL:
-			reg |= DWC3_DSTS_FULLSPEED1;
-			break;
-		case USB_SPEED_HIGH:
-			reg |= DWC3_DSTS_HIGHSPEED;
-			break;
-		case USB_SPEED_SUPER:	/* FALLTHROUGH */
-		case USB_SPEED_UNKNOWN:	/* FALTHROUGH */
-		default:
-			reg |= DWC3_DSTS_SUPERSPEED;
-		}
-	}
-	dwc3_writel(dwc->regs, DWC3_DCFG, reg);
-
-	/* Start with SuperSpeed Default */
-	dwc3_gadget_ep0_desc.wMaxPacketSize = cpu_to_le16(512);
-
-	dep = dwc->eps[0];
-	ret = __dwc3_gadget_ep_enable(dep, &dwc3_gadget_ep0_desc, NULL, false,
-				      false);
-	if (ret) {
-		dev_err(dwc->dev, "failed to enable %s\n", dep->name);
-		goto err1;
-	}
-
-	dep = dwc->eps[1];
-	ret = __dwc3_gadget_ep_enable(dep, &dwc3_gadget_ep0_desc, NULL, false,
-				      false);
-	if (ret) {
-		dev_err(dwc->dev, "failed to enable %s\n", dep->name);
-		goto err2;
-	}
-
-	/* begin to receive SETUP packets */
-	dwc->ep0state = EP0_SETUP_PHASE;
-	dwc3_ep0_out_start(dwc);
-
-	return 0;
-err2:
-	__dwc3_gadget_ep_disable(dwc->eps[0]);
-err1:
-	dwc3_event_buffers_cleanup(dwc);
-err0:
-	return ret;
-}
-
-int dwc3_gadget_restart(struct dwc3 *dwc, bool start)
-{
-	struct dwc3_event_buffer	*evt;
-	int				ret = 0;
-	int				i;
-	u32				reg;
-
-	if (start) {
-		ret = dwc3_gadget_reinit(dwc);
-		if (ret < 0) {
-			dev_err(dwc->dev,
-				"dwc3 gadget reinit error = %d\n", ret);
-			goto err;
-		}
-
-		if (dwc->enabled) {
-			ret = dwc3_gadget_run_stop(dwc, start, false);
-			if (ret < 0) {
-				dev_err(dwc->dev,
-					"dwc3 gadget run stop err = %d\n", ret);
-				goto err;
-			}
-		}
-		dwc3_gadget_enable_irq(dwc);
-	} else {
-		/*
-		 * Per databook, DEVCTRLHLT bit setting requires
-		 * interrupts to be acknowledged. so acknowledge
-		 * the events that are generated (by writing to
-		 * GEVNTCOUNTn) first. And we also mask interrupts
-		 * and clear SW states to avoid generating other
-		 * interrupts after do gadget disconnnect operation.
-		 */
-		dwc3_gadget_disable_irq(dwc);
-
-		for (i = 0; i < dwc->num_event_buffers; i++) {
-			evt = dwc->ev_buffs[i];
-			evt->count = 0;
-			evt->flags &= ~DWC3_EVENT_PENDING;
-			reg = dwc3_readl(dwc->regs, DWC3_GEVNTSIZ(i));
-			reg |= DWC3_GEVNTSIZ_INTMASK;
-			dwc3_writel(dwc->regs, DWC3_GEVNTSIZ(i), reg);
-			reg = dwc3_readl(dwc->regs, DWC3_GEVNTCOUNT(i));
-			dwc3_writel(dwc->regs, DWC3_GEVNTCOUNT(i), reg);
-		}
-
-		/*
-		 * DEVCTRLHLT bit sometimes does not get set
-		 * even when GEVNTCOUNT is acked so do not
-		 * care run stop function return value.
-		 */
-		dwc3_gadget_run_stop(dwc, start, false);
-
-		if (dwc->gadget.state != USB_STATE_NOTATTACHED)
-			dwc3_gadget_disconnect_interrupt(dwc);
-
-		__dwc3_gadget_ep_disable(dwc->eps[0]);
-		__dwc3_gadget_ep_disable(dwc->eps[1]);
-	}
-
-err:
 	return ret;
 }

@@ -109,7 +109,7 @@ static int dwc3_core_soft_reset(struct dwc3 *dwc)
  * dwc3_soft_reset - Issue soft reset
  * @dwc: Pointer to our controller context structure
  */
-int dwc3_soft_reset(struct dwc3 *dwc)
+static int dwc3_soft_reset(struct dwc3 *dwc)
 {
 	unsigned long timeout;
 	u32 reg;
@@ -253,7 +253,7 @@ static int dwc3_alloc_event_buffers(struct dwc3 *dwc, unsigned length)
  *
  * Returns 0 on success otherwise negative errno.
  */
-int dwc3_event_buffers_setup(struct dwc3 *dwc)
+static int dwc3_event_buffers_setup(struct dwc3 *dwc)
 {
 	struct dwc3_event_buffer	*evt;
 	int				n;
@@ -279,7 +279,7 @@ int dwc3_event_buffers_setup(struct dwc3 *dwc)
 	return 0;
 }
 
-void dwc3_event_buffers_cleanup(struct dwc3 *dwc)
+static void dwc3_event_buffers_cleanup(struct dwc3 *dwc)
 {
 	struct dwc3_event_buffer	*evt;
 	int				n;
@@ -807,76 +807,6 @@ static void dwc3_core_exit_mode(struct dwc3 *dwc)
 		/* do nothing */
 		break;
 	}
-}
-
-/* Returns true if the controller is capable of DRD. */
-bool dwc3_hw_is_drd(struct dwc3 *dwc)
-{
-	u32 op_mode = DWC3_GHWPARAMS0_USB3_MODE(dwc->hwparams.hwparams0);
-
-	return (op_mode == DWC3_GHWPARAMS0_USB3_DRD);
-}
-
-bool dwc3_force_mode(struct dwc3 *dwc, u32 mode)
-{
-	u32			reg;
-	unsigned long		flags;
-	struct usb_hcd          *hcd;
-
-	/*
-	 * Force mode has no effect if the hardware is not drd mode.
-	 */
-	if (!dwc3_hw_is_drd(dwc))
-		return false;
-	/*
-	 * If dr_mode is either peripheral or host only, there is no
-	 * need to ever force the mode to the opposite mode.
-	 */
-	if (WARN_ON(mode == DWC3_GCTL_PRTCAP_DEVICE &&
-		    dwc->dr_mode == USB_DR_MODE_HOST))
-		return false;
-
-	if (WARN_ON(mode == DWC3_GCTL_PRTCAP_HOST &&
-		    dwc->dr_mode == USB_DR_MODE_PERIPHERAL))
-		return false;
-
-	reg = dwc3_readl(dwc->regs, DWC3_GCTL);
-	if (DWC3_GCTL_PRTCAP(reg) == mode)
-		return false;
-
-	hcd = dev_get_drvdata(&dwc->xhci->dev);
-
-	switch (mode) {
-	case DWC3_GCTL_PRTCAP_DEVICE:
-		if (hcd->state != HC_STATE_HALT) {
-			usb_remove_hcd(hcd->shared_hcd);
-			usb_remove_hcd(hcd);
-		}
-
-		spin_lock_irqsave(&dwc->lock, flags);
-		dwc3_set_mode(dwc, mode);
-		dwc3_gadget_restart(dwc, true);
-		spin_unlock_irqrestore(&dwc->lock, flags);
-
-		break;
-	case DWC3_GCTL_PRTCAP_HOST:
-		spin_lock_irqsave(&dwc->lock, flags);
-		dwc3_gadget_restart(dwc, false);
-		dwc3_set_mode(dwc, mode);
-		spin_unlock_irqrestore(&dwc->lock, flags);
-
-		if (hcd->state == HC_STATE_HALT) {
-			usb_add_hcd(hcd, hcd->irq, IRQF_SHARED);
-			usb_add_hcd(hcd->shared_hcd, hcd->irq, IRQF_SHARED);
-		}
-
-		break;
-	default:
-		/* do nothing  */
-		break;
-	}
-
-	return true;
 }
 
 #define DWC3_ALIGN_MASK		(16 - 1)
