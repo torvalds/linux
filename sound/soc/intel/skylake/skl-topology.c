@@ -475,12 +475,10 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 
 		/* check if module ids are populated */
 		if (mconfig->id.module_id < 0) {
-			ret = snd_skl_get_module_info(skl->skl_sst, mconfig);
-			if (ret < 0) {
-				dev_err(skl->skl_sst->dev,
-					"query module info failed: %d\n", ret);
-				return ret;
-			}
+			dev_err(skl->skl_sst->dev,
+					"module %pUL id not populated\n",
+					(uuid_le *)mconfig->guid);
+			return -EIO;
 		}
 
 		/* check resource available */
