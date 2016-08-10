@@ -312,6 +312,13 @@ config MICROSEMI_PHY
     ---help---
       Currently supports the VSC8531 and VSC8541 PHYs
 
+config XILINX_GMII2RGMII
+       tristate "Xilinx GMII2RGMII converter driver"
+       ---help---
+         This driver support xilinx GMII to RGMII IP core it provides
+         the Reduced Gigabit Media Independent Interface(RGMII) between
+         Ethernet physical media devices and the Gigabit Ethernet controller.
+
 endif # PHYLIB
 
 config MICREL_KS8995MA
