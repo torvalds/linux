@@ -37,6 +37,8 @@ struct net init_net = {
 };
 EXPORT_SYMBOL(init_net);
 
+static bool init_net_initialized;
+
 #define INITIAL_NET_GEN_PTRS	13 /* +1 for len +2 for rcu_head */
 
 static unsigned int max_gen_ptrs = INITIAL_NET_GEN_PTRS;
@@ -750,6 +752,8 @@ static int __init net_ns_init(void)
 	if (setup_net(&init_net, &init_user_ns))
 		panic("Could not setup the initial network namespace");
 
+	init_net_initialized = true;
+
 	rtnl_lock();
 	list_add_tail_rcu(&init_net.list, &net_namespace_list);
 	rtnl_unlock();
@@ -811,15 +815,24 @@ static void __unregister_pernet_operations(struct pernet_operations *ops)
 static int __register_pernet_operations(struct list_head *list,
 					struct pernet_operations *ops)
 {
+	if (!init_net_initialized) {
+		list_add_tail(&ops->list, list);
+		return 0;
+	}
+
 	return ops_init(ops, &init_net);
 }
 
 static void __unregister_pernet_operations(struct pernet_operations *ops)
 {
-	LIST_HEAD(net_exit_list);
-	list_add(&init_net.exit_list, &net_exit_list);
-	ops_exit_list(ops, &net_exit_list);
-	ops_free_list(ops, &net_exit_list);
+	if (!init_net_initialized) {
+		list_del(&ops->list);
+	} else {
+		LIST_HEAD(net_exit_list);
+		list_add(&init_net.exit_list, &net_exit_list);
+		ops_exit_list(ops, &net_exit_list);
+		ops_free_list(ops, &net_exit_list);
+	}
 }
 
 #endif /* CONFIG_NET_NS */
