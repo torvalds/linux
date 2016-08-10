@@ -162,10 +162,11 @@ static inline void cec_msg_standby(struct cec_msg *msg)
 
 
 /* One Touch Record Feature */
-static inline void cec_msg_record_off(struct cec_msg *msg)
+static inline void cec_msg_record_off(struct cec_msg *msg, bool reply)
 {
 	msg->len = 2;
 	msg->msg[1] = CEC_MSG_RECORD_OFF;
+	msg->reply = reply ? CEC_MSG_RECORD_STATUS : 0;
 }
 
 struct cec_op_arib_data {
@@ -323,6 +324,7 @@ static inline void cec_msg_record_on_phys_addr(struct cec_msg *msg,
 }
 
 static inline void cec_msg_record_on(struct cec_msg *msg,
+				     bool reply,
 				     const struct cec_op_record_src *rec_src)
 {
 	switch (rec_src->type) {
@@ -346,6 +348,7 @@ static inline void cec_msg_record_on(struct cec_msg *msg,
 					    rec_src->ext_phys_addr.phys_addr);
 		break;
 	}
+	msg->reply = reply ? CEC_MSG_RECORD_STATUS : 0;
 }
 
 static inline void cec_ops_record_on(const struct cec_msg *msg,
