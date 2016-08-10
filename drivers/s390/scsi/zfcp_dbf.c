@@ -241,7 +241,8 @@ static void zfcp_dbf_set_common(struct zfcp_dbf_rec *rec,
 	if (sdev) {
 		rec->lun_status = atomic_read(&sdev_to_zfcp(sdev)->status);
 		rec->lun = zfcp_scsi_dev_lun(sdev);
-	}
+	} else
+		rec->lun = ZFCP_DBF_INVALID_LUN;
 }
 
 /**
