@@ -47,8 +47,22 @@
 
 	vdd_log: vdd-log {
 		compatible = "pwm-regulator";
+		rockchip,pwm_id = <2>;
+		rockchip,pwm_voltage = <900000>;
 		pwms = <&pwm2 0 25000 0>;
 		regulator-name = "vdd_log";
+		regulator-min-microvolt = <800000>;
+		regulator-max-microvolt = <1400000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	vdd_center: vdd-center {
+		compatible = "pwm-regulator";
+		rockchip,pwm_id = <3>;
+		rockchip,pwm_voltage = <900000>;
+		pwms = <&pwm3 0 25000 0>;
+		regulator-name = "vdd_center";
 		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <1400000>;
 		regulator-always-on;
@@ -315,6 +329,10 @@
 };
 
 &pwm2 {
+	status = "okay";
+};
+
+&pwm3 {
 	status = "okay";
 };
 

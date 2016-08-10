@@ -50,16 +50,6 @@
 	compatible = "rockchip,android", "rockchip,rk3399-evb-rev1", "rockchip,rk3399";
 };
 
-&vdd_log {
-	rockchip,pwm_id= <2>;
-	rockchip,pwm_voltage = <900000>;
-};
-
-&vdd_center {
-	rockchip,pwm_id= <3>;
-	rockchip,pwm_voltage = <900000>;
-};
-
 &rk_screen {
 	#include <dt-bindings/display/screen-timing/lcd-tv080wum-nl0-mipi.dtsi>
 };

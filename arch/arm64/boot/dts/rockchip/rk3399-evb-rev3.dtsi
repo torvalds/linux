@@ -53,6 +53,18 @@
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 	};
+
+	vdd_center: vdd-center {
+		compatible = "pwm-regulator";
+		rockchip,pwm_id = <2>;
+		rockchip,pwm_voltage = <900000>;
+		pwms = <&pwm2 0 25000 0>;
+		regulator-name = "vdd_center";
+		regulator-min-microvolt = <800000>;
+		regulator-max-microvolt = <1400000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
 };
 
 &cluster0_opp {
@@ -471,4 +483,8 @@
 		int-n-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
+};
+
+&pwm2 {
+	status = "okay";
 };
