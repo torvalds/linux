@@ -2315,22 +2315,18 @@ static struct file_system_type cgroup2_fs_type = {
 	.fs_flags = FS_USERNS_MOUNT,
 };
 
-static char *cgroup_path_ns_locked(struct cgroup *cgrp, char *buf, size_t buflen,
-				   struct cgroup_namespace *ns)
+static int cgroup_path_ns_locked(struct cgroup *cgrp, char *buf, size_t buflen,
+				 struct cgroup_namespace *ns)
 {
 	struct cgroup *root = cset_cgroup_from_root(ns->root_cset, cgrp->root);
-	int ret;
 
-	ret = kernfs_path_from_node(cgrp->kn, root->kn, buf, buflen);
-	if (ret < 0 || ret >= buflen)
-		return NULL;
-	return buf;
+	return kernfs_path_from_node(cgrp->kn, root->kn, buf, buflen);
 }
 
-char *cgroup_path_ns(struct cgroup *cgrp, char *buf, size_t buflen,
-		     struct cgroup_namespace *ns)
+int cgroup_path_ns(struct cgroup *cgrp, char *buf, size_t buflen,
+		   struct cgroup_namespace *ns)
 {
-	char *ret;
+	int ret;
 
 	mutex_lock(&cgroup_mutex);
 	spin_lock_irq(&css_set_lock);
@@ -2357,12 +2353,12 @@ EXPORT_SYMBOL_GPL(cgroup_path_ns);
  *
  * Return value is the same as kernfs_path().
  */
-char *task_cgroup_path(struct task_struct *task, char *buf, size_t buflen)
+int task_cgroup_path(struct task_struct *task, char *buf, size_t buflen)
 {
 	struct cgroup_root *root;
 	struct cgroup *cgrp;
 	int hierarchy_id = 1;
-	char *path = NULL;
+	int ret;
 
 	mutex_lock(&cgroup_mutex);
 	spin_lock_irq(&css_set_lock);
@@ -2371,16 +2367,15 @@ char *task_cgroup_path(struct task_struct *task, char *buf, size_t buflen)
 
 	if (root) {
 		cgrp = task_cgroup_from_root(task, root);
-		path = cgroup_path_ns_locked(cgrp, buf, buflen, &init_cgroup_ns);
+		ret = cgroup_path_ns_locked(cgrp, buf, buflen, &init_cgroup_ns);
 	} else {
 		/* if no hierarchy exists, everyone is in "/" */
-		if (strlcpy(buf, "/", buflen) < buflen)
-			path = buf;
+		ret = strlcpy(buf, "/", buflen);
 	}
 
 	spin_unlock_irq(&css_set_lock);
 	mutex_unlock(&cgroup_mutex);
-	return path;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(task_cgroup_path);
 
@@ -5716,7 +5711,7 @@ core_initcall(cgroup_wq_init);
 int proc_cgroup_show(struct seq_file *m, struct pid_namespace *ns,
 		     struct pid *pid, struct task_struct *tsk)
 {
-	char *buf, *path;
+	char *buf;
 	int retval;
 	struct cgroup_root *root;
 
@@ -5759,17 +5754,17 @@ int proc_cgroup_show(struct seq_file *m, struct pid_namespace *ns,
 		 * " (deleted)" is appended to the cgroup path.
 		 */
 		if (cgroup_on_dfl(cgrp) || !(tsk->flags & PF_EXITING)) {
-			path = cgroup_path_ns_locked(cgrp, buf, PATH_MAX,
+			retval = cgroup_path_ns_locked(cgrp, buf, PATH_MAX,
 						current->nsproxy->cgroup_ns);
-			if (!path) {
+			if (retval >= PATH_MAX) {
 				retval = -ENAMETOOLONG;
 				goto out_unlock;
 			}
-		} else {
-			path = "/";
-		}
 
-		seq_puts(m, path);
+			seq_puts(m, buf);
+		} else {
+			seq_puts(m, "/");
+		}
 
 		if (cgroup_on_dfl(cgrp) && cgroup_is_dead(cgrp))
 			seq_puts(m, " (deleted)\n");
@@ -6035,8 +6030,9 @@ static void cgroup_release_agent(struct work_struct *work)
 {
 	struct cgroup *cgrp =
 		container_of(work, struct cgroup, release_agent_work);
-	char *pathbuf = NULL, *agentbuf = NULL, *path;
+	char *pathbuf = NULL, *agentbuf = NULL;
 	char *argv[3], *envp[3];
+	int ret;
 
 	mutex_lock(&cgroup_mutex);
 
@@ -6046,13 +6042,13 @@ static void cgroup_release_agent(struct work_struct *work)
 		goto out;
 
 	spin_lock_irq(&css_set_lock);
-	path = cgroup_path_ns_locked(cgrp, pathbuf, PATH_MAX, &init_cgroup_ns);
+	ret = cgroup_path_ns_locked(cgrp, pathbuf, PATH_MAX, &init_cgroup_ns);
 	spin_unlock_irq(&css_set_lock);
-	if (!path)
+	if (ret >= PATH_MAX)
 		goto out;
 
 	argv[0] = agentbuf;
-	argv[1] = path;
+	argv[1] = pathbuf;
 	argv[2] = NULL;
 
 	/* minimal command environment */

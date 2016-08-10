@@ -97,7 +97,7 @@ int cgroup_add_legacy_cftypes(struct cgroup_subsys *ss, struct cftype *cfts);
 int cgroup_rm_cftypes(struct cftype *cfts);
 void cgroup_file_notify(struct cgroup_file *cfile);
 
-char *task_cgroup_path(struct task_struct *task, char *buf, size_t buflen);
+int task_cgroup_path(struct task_struct *task, char *buf, size_t buflen);
 int cgroupstats_build(struct cgroupstats *stats, struct dentry *dentry);
 int proc_cgroup_show(struct seq_file *m, struct pid_namespace *ns,
 		     struct pid *pid, struct task_struct *tsk);
@@ -538,15 +538,9 @@ static inline int cgroup_name(struct cgroup *cgrp, char *buf, size_t buflen)
 	return kernfs_name(cgrp->kn, buf, buflen);
 }
 
-static inline char * __must_check cgroup_path(struct cgroup *cgrp, char *buf,
-					      size_t buflen)
+static inline int cgroup_path(struct cgroup *cgrp, char *buf, size_t buflen)
 {
-	int ret;
-
-	ret = kernfs_path(cgrp->kn, buf, buflen);
-	if (ret < 0 || ret >= buflen)
-		return NULL;
-	return buf;
+	return kernfs_path(cgrp->kn, buf, buflen);
 }
 
 static inline void pr_cont_cgroup_name(struct cgroup *cgrp)
@@ -639,8 +633,8 @@ struct cgroup_namespace *copy_cgroup_ns(unsigned long flags,
 					struct user_namespace *user_ns,
 					struct cgroup_namespace *old_ns);
 
-char *cgroup_path_ns(struct cgroup *cgrp, char *buf, size_t buflen,
-		     struct cgroup_namespace *ns);
+int cgroup_path_ns(struct cgroup *cgrp, char *buf, size_t buflen,
+		   struct cgroup_namespace *ns);
 
 #else /* !CONFIG_CGROUPS */
 
