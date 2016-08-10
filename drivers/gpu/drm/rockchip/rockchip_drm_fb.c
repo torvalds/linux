@@ -58,6 +58,7 @@ static void rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
 			drm_gem_object_unreference_unlocked(obj);
 	}
 
+#ifndef MODULE
 	if (rockchip_fb->sgt) {
 		void *start = phys_to_virt(rockchip_fb->start);
 		void *end = phys_to_virt(rockchip_fb->size);
@@ -68,6 +69,9 @@ static void rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
 		memblock_free(rockchip_fb->start, rockchip_fb->size);
 		free_reserved_area(start, end, -1, "drm_fb");
 	}
+#else
+	WARN_ON(rockchip_fb->sgt);
+#endif
 
 	drm_framebuffer_cleanup(fb);
 	kfree(rockchip_fb);
@@ -120,6 +124,7 @@ rockchip_fb_alloc(struct drm_device *dev, struct drm_mode_fb_cmd2 *mode_cmd,
 			rk_obj = to_rockchip_obj(obj[i]);
 			rockchip_fb->dma_addr[i] = rk_obj->dma_addr;
 		}
+#ifndef MODULE
 	} else if (res) {
 		unsigned long nr_pages;
 		struct page **pages;
@@ -155,6 +160,7 @@ rockchip_fb_alloc(struct drm_device *dev, struct drm_mode_fb_cmd2 *mode_cmd,
 		rockchip_fb->sgt = sgt;
 		rockchip_fb->start = res->start;
 		rockchip_fb->size = size;
+#endif
 	} else {
 		ret = -EINVAL;
 		dev_err(dev->dev, "Failed to find available buffer\n");
