@@ -354,6 +354,28 @@ static const struct clk_ops clk_pllv3_enet_ops = {
 	.recalc_rate	= clk_pllv3_enet_recalc_rate,
 };
 
+static unsigned long clk_pllv3_generic_recalc_rate(struct clk_hw *hw,
+					   unsigned long parent_rate)
+{
+	struct clk_pllv3 *pll = to_clk_pllv3(hw);
+	u32 div = (readl_relaxed(pll->base) >> pll->div_shift)  & pll->div_mask;
+	u32 mfn = readl_relaxed(pll->base + pll->num_offset);
+	u32 mfd = readl_relaxed(pll->base + pll->denom_offset);
+	u64 temp64 = (u64)parent_rate;
+
+	temp64 *= mfn;
+	do_div(temp64, mfd);
+
+	return (parent_rate * ((div == 1) ? 22 : 20)) + (u32)temp64;
+}
+
+static const struct clk_ops clk_pllv3_generic_ops = {
+	.prepare	= clk_pllv3_prepare,
+	.unprepare	= clk_pllv3_unprepare,
+	.is_prepared	= clk_pllv3_is_prepared,
+	.recalc_rate	= clk_pllv3_generic_recalc_rate,
+};
+
 struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
 			  const char *parent_name, void __iomem *base,
 			  u32 div_mask)
@@ -370,6 +392,9 @@ struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
 	switch (type) {
 	case IMX_PLLV3_SYS:
 		ops = &clk_pllv3_sys_ops;
+		break;
+	case IMX_PLLV3_GENERIC:
+		ops = &clk_pllv3_generic_ops;
 		break;
 	case IMX_PLLV3_SYSV2:
 		ops = &clk_pllv3_ops;
@@ -398,7 +423,8 @@ struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
 
 	if (cpu_is_imx7d() && type == IMX_PLLV3_ENET)
 		pll->powerdown = ENET_PLL_POWER;
-	else if (cpu_is_imx7d() && type == IMX_PLLV3_AV) {
+	else if ((cpu_is_imx7d() && type == IMX_PLLV3_AV) ||
+		(cpu_is_imx6() && type == IMX_PLLV3_GENERIC)) {
 		pll->num_offset = PLL_AV_NUM_OFFSET;
 		pll->denom_offset = PLL_AV_DENOM_OFFSET;
 	}
