@@ -407,7 +407,7 @@ void zfcp_dbf_san_res(char *tag, struct zfcp_fsf_req *fsf)
 
 	length = (u16)(ct_els->resp->length + FC_CT_HDR_LEN);
 	zfcp_dbf_san(tag, dbf, sg_virt(ct_els->resp), ZFCP_DBF_SAN_RES, length,
-		     fsf->req_id, 0);
+		     fsf->req_id, ct_els->d_id);
 }
 
 /**
