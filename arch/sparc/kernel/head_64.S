@@ -922,12 +922,7 @@ prom_tba:	.xword	0
 tlb_type:	.word	0	/* Must NOT end up in BSS */
 	.section	".fixup",#alloc,#execinstr
 
-	.globl	__ret_efault, __retl_efault, __ret_one, __retl_one
-ENTRY(__ret_efault)
-	ret
-	 restore %g0, -EFAULT, %o0
-ENDPROC(__ret_efault)
-
+	.globl	__retl_efault, __ret_one, __retl_one
 ENTRY(__retl_efault)
 	retl
 	 mov	-EFAULT, %o0
