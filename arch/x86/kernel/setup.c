@@ -1141,8 +1141,6 @@ void __init setup_arch(char **cmdline_p)
 		/* A CPU has %cr4 if and only if it has CPUID. */
 		mmu_cr4_features = __read_cr4();
 
-	setup_real_mode();
-
 	memblock_set_current_limit(get_max_mapped());
 
 	/*

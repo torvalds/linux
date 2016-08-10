@@ -30,7 +30,7 @@ void __init reserve_real_mode(void)
 	       base, (unsigned long long)mem, size);
 }
 
-void __init setup_real_mode(void)
+static void __init setup_real_mode(void)
 {
 	u16 real_mode_seg;
 	const u32 *rel;
@@ -101,7 +101,7 @@ void __init setup_real_mode(void)
  * need to mark it executable at do_pre_smp_initcalls() at least,
  * thus run it as a early_initcall().
  */
-static int __init set_real_mode_permissions(void)
+static void __init set_real_mode_permissions(void)
 {
 	unsigned char *base = (unsigned char *) real_mode_header;
 	size_t size = PAGE_ALIGN(real_mode_blob_end - real_mode_blob);
@@ -120,7 +120,16 @@ static int __init set_real_mode_permissions(void)
 	set_memory_nx((unsigned long) base, size >> PAGE_SHIFT);
 	set_memory_ro((unsigned long) base, ro_size >> PAGE_SHIFT);
 	set_memory_x((unsigned long) text_start, text_size >> PAGE_SHIFT);
+}
+
+static int __init init_real_mode(void)
+{
+	if (!real_mode_header)
+		panic("Real mode trampoline was not allocated");
+
+	setup_real_mode();
+	set_real_mode_permissions();
 
 	return 0;
 }
-early_initcall(set_real_mode_permissions);
+early_initcall(init_real_mode);
