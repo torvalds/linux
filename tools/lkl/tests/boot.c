@@ -676,6 +676,7 @@ static void test_thread(void *data)
 		fprintf(stderr, "%s: %s\n", __func__, lkl_strerror(ret));
 	}
 
+	lkl_stop_syscall_thread();
 }
 
 static int test_syscall_thread(char *str, int len)
