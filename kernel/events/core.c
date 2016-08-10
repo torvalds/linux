@@ -448,7 +448,7 @@ static u64 __report_allowed;
 
 static void perf_duration_warn(struct irq_work *w)
 {
-	printk_ratelimited(KERN_WARNING
+	printk_ratelimited(KERN_INFO
 		"perf: interrupt took too long (%lld > %lld), lowering "
 		"kernel.perf_event_max_sample_rate to %d\n",
 		__report_avg, __report_allowed,
@@ -5617,16 +5617,26 @@ void perf_output_sample(struct perf_output_handle *handle,
 	}
 
 	if (sample_type & PERF_SAMPLE_RAW) {
-		if (data->raw) {
-			u32 raw_size = data->raw->size;
-			u32 real_size = round_up(raw_size + sizeof(u32),
-						 sizeof(u64)) - sizeof(u32);
-			u64 zero = 0;
+		struct perf_raw_record *raw = data->raw;
 
-			perf_output_put(handle, real_size);
-			__output_copy(handle, data->raw->data, raw_size);
-			if (real_size - raw_size)
-				__output_copy(handle, &zero, real_size - raw_size);
+		if (raw) {
+			struct perf_raw_frag *frag = &raw->frag;
+
+			perf_output_put(handle, raw->size);
+			do {
+				if (frag->copy) {
+					__output_custom(handle, frag->copy,
+							frag->data, frag->size);
+				} else {
+					__output_copy(handle, frag->data,
+						      frag->size);
+				}
+				if (perf_raw_frag_last(frag))
+					break;
+				frag = frag->next;
+			} while (1);
+			if (frag->pad)
+				__output_skip(handle, NULL, frag->pad);
 		} else {
 			struct {
 				u32	size;
@@ -5751,14 +5761,28 @@ void perf_prepare_sample(struct perf_event_header *header,
 	}
 
 	if (sample_type & PERF_SAMPLE_RAW) {
-		int size = sizeof(u32);
+		struct perf_raw_record *raw = data->raw;
+		int size;
 
-		if (data->raw)
-			size += data->raw->size;
-		else
-			size += sizeof(u32);
+		if (raw) {
+			struct perf_raw_frag *frag = &raw->frag;
+			u32 sum = 0;
 
-		header->size += round_up(size, sizeof(u64));
+			do {
+				sum += frag->size;
+				if (perf_raw_frag_last(frag))
+					break;
+				frag = frag->next;
+			} while (1);
+
+			size = round_up(sum + sizeof(u32), sizeof(u64));
+			raw->size = size - sizeof(u32);
+			frag->pad = raw->size - sum;
+		} else {
+			size = sizeof(u64);
+		}
+
+		header->size += size;
 	}
 
 	if (sample_type & PERF_SAMPLE_BRANCH_STACK) {
@@ -7398,7 +7422,7 @@ static struct pmu perf_swevent = {
 static int perf_tp_filter_match(struct perf_event *event,
 				struct perf_sample_data *data)
 {
-	void *record = data->raw->data;
+	void *record = data->raw->frag.data;
 
 	/* only top level events have filters set */
 	if (event->parent)
@@ -7454,8 +7478,10 @@ void perf_tp_event(u16 event_type, u64 count, void *record, int entry_size,
 	struct perf_event *event;
 
 	struct perf_raw_record raw = {
-		.size = entry_size,
-		.data = record,
+		.frag = {
+			.size = entry_size,
+			.data = record,
+		},
 	};
 
 	perf_sample_data_init(&data, 0, 0);
@@ -7596,7 +7622,7 @@ static void perf_event_free_bpf_prog(struct perf_event *event)
 	prog = event->tp_event->prog;
 	if (prog) {
 		event->tp_event->prog = NULL;
-		bpf_prog_put_rcu(prog);
+		bpf_prog_put(prog);
 	}
 }
 
@@ -10331,7 +10357,7 @@ static void __init perf_event_init_all_cpus(void)
 	}
 }
 
-static void perf_event_init_cpu(int cpu)
+int perf_event_init_cpu(unsigned int cpu)
 {
 	struct swevent_htable *swhash = &per_cpu(swevent_htable, cpu);
 
@@ -10344,6 +10370,7 @@ static void perf_event_init_cpu(int cpu)
 		rcu_assign_pointer(swhash->swevent_hlist, hlist);
 	}
 	mutex_unlock(&swhash->hlist_mutex);
+	return 0;
 }
 
 #if defined CONFIG_HOTPLUG_CPU || defined CONFIG_KEXEC_CORE
@@ -10375,14 +10402,17 @@ static void perf_event_exit_cpu_context(int cpu)
 	}
 	srcu_read_unlock(&pmus_srcu, idx);
 }
+#else
 
-static void perf_event_exit_cpu(int cpu)
+static void perf_event_exit_cpu_context(int cpu) { }
+
+#endif
+
+int perf_event_exit_cpu(unsigned int cpu)
 {
 	perf_event_exit_cpu_context(cpu);
+	return 0;
 }
-#else
-static inline void perf_event_exit_cpu(int cpu) { }
-#endif
 
 static int
 perf_reboot(struct notifier_block *notifier, unsigned long val, void *v)
@@ -10404,46 +10434,6 @@ static struct notifier_block perf_reboot_notifier = {
 	.priority = INT_MIN,
 };
 
-static int
-perf_cpu_notify(struct notifier_block *self, unsigned long action, void *hcpu)
-{
-	unsigned int cpu = (long)hcpu;
-
-	switch (action & ~CPU_TASKS_FROZEN) {
-
-	case CPU_UP_PREPARE:
-		/*
-		 * This must be done before the CPU comes alive, because the
-		 * moment we can run tasks we can encounter (software) events.
-		 *
-		 * Specifically, someone can have inherited events on kthreadd
-		 * or a pre-existing worker thread that gets re-bound.
-		 */
-		perf_event_init_cpu(cpu);
-		break;
-
-	case CPU_DOWN_PREPARE:
-		/*
-		 * This must be done before the CPU dies because after that an
-		 * active event might want to IPI the CPU and that'll not work
-		 * so great for dead CPUs.
-		 *
-		 * XXX smp_call_function_single() return -ENXIO without a warn
-		 * so we could possibly deal with this.
-		 *
-		 * This is safe against new events arriving because
-		 * sys_perf_event_open() serializes against hotplug using
-		 * get_online_cpus().
-		 */
-		perf_event_exit_cpu(cpu);
-		break;
-	default:
-		break;
-	}
-
-	return NOTIFY_OK;
-}
-
 void __init perf_event_init(void)
 {
 	int ret;
@@ -10456,7 +10446,7 @@ void __init perf_event_init(void)
 	perf_pmu_register(&perf_cpu_clock, NULL, -1);
 	perf_pmu_register(&perf_task_clock, NULL, -1);
 	perf_tp_register();
-	perf_cpu_notifier(perf_cpu_notify);
+	perf_event_init_cpu(smp_processor_id());
 	register_reboot_notifier(&perf_reboot_notifier);
 
 	ret = init_hw_breakpoint();

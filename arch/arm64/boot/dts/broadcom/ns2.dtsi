@@ -251,6 +251,22 @@
 			mmu-masters;
 		};
 
+		pinctrl: pinctrl@6501d130 {
+			compatible = "brcm,ns2-pinmux";
+			reg = <0x6501d130 0x08>,
+			      <0x660a0028 0x04>,
+			      <0x660009b0 0x40>;
+		};
+
+		gpio_aon: gpio@65024800 {
+			compatible = "brcm,iproc-gpio";
+			reg = <0x65024800 0x50>,
+			      <0x65024008 0x18>;
+			ngpios = <6>;
+			#gpio-cells = <2>;
+			gpio-controller;
+		};
+
 		gic: interrupt-controller@65210000 {
 			compatible = "arm,gic-400";
 			#interrupt-cells = <3>;
@@ -261,6 +277,65 @@
 			      <0x65260000 0x1000>;
 			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_RAW(0xf) |
 				      IRQ_TYPE_LEVEL_HIGH)>;
+		};
+
+		cci@65590000 {
+			compatible = "arm,cci-400";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x65590000 0x1000>;
+			ranges = <0 0x65590000 0x10000>;
+
+			pmu@9000 {
+				compatible = "arm,cci-400-pmu,r1",
+					     "arm,cci-400-pmu";
+				reg = <0x9000 0x4000>;
+				interrupts = <GIC_SPI 344 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 345 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 346 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 347 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 348 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 349 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		mdio_mux_iproc: mdio-mux@6602023c {
+			compatible = "brcm,mdio-mux-iproc";
+			reg = <0x6602023c 0x14>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mdio@0 {
+				reg = <0x0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				pci_phy0: pci-phy@0 {
+					compatible = "brcm,ns2-pcie-phy";
+					reg = <0x0>;
+					#phy-cells = <0>;
+					status = "disabled";
+				};
+			};
+
+			mdio@7 {
+				reg = <0x7>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				pci_phy1: pci-phy@0 {
+					compatible = "brcm,ns2-pcie-phy";
+					reg = <0x0>;
+					#phy-cells = <0>;
+					status = "disabled";
+				};
+			};
+
+			mdio@10 {
+				reg = <0x10>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
 		};
 
 		timer0: timer@66030000 {
@@ -321,6 +396,16 @@
 			clock-names = "wdogclk", "apb_pclk";
 		};
 
+		gpio_g: gpio@660a0000 {
+			compatible = "brcm,iproc-gpio";
+			reg = <0x660a0000 0x50>;
+			ngpios = <32>;
+			#gpio-cells = <2>;
+			gpio-controller;
+			interrupt-controller;
+			interrupts = <GIC_SPI 400 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
 		i2c1: i2c@660b0000 {
 			compatible = "brcm,iproc-i2c";
 			reg = <0x660b0000 0x100>;
@@ -328,6 +413,36 @@
 			#size-cells = <0>;
 			interrupts = <GIC_SPI 395 IRQ_TYPE_NONE>;
 			clock-frequency = <100000>;
+			status = "disabled";
+		};
+
+		uart0: serial@66100000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x66100000 0x100>;
+			interrupts = <GIC_SPI 390 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&iprocslow>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			status = "disabled";
+		};
+
+		uart1: serial@66110000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x66110000 0x100>;
+			interrupts = <GIC_SPI 391 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&iprocslow>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			status = "disabled";
+		};
+
+		uart2: serial@66120000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x66120000 0x100>;
+			interrupts = <GIC_SPI 392 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&iprocslow>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
 			status = "disabled";
 		};
 
@@ -366,6 +481,49 @@
 		hwrng: hwrng@66220000 {
 			compatible = "brcm,iproc-rng200";
 			reg = <0x66220000 0x28>;
+		};
+
+		sata_phy: sata_phy@663f0100 {
+			compatible = "brcm,iproc-ns2-sata-phy";
+			reg = <0x663f0100 0x1f00>,
+			      <0x663f004c 0x10>;
+			reg-names = "phy", "phy-ctrl";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			sata_phy0: sata-phy@0 {
+				reg = <0>;
+				#phy-cells = <0>;
+				status = "disabled";
+			};
+
+			sata_phy1: sata-phy@1 {
+				reg = <1>;
+				#phy-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		sata: ahci@663f2000 {
+			compatible = "brcm,iproc-ahci", "generic-ahci";
+			reg = <0x663f2000 0x1000>;
+			reg-names = "ahci";
+			interrupts = <GIC_SPI 438 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+
+			sata0: sata-port@0 {
+				reg = <0>;
+				phys = <&sata_phy0>;
+				phy-names = "sata-phy";
+			};
+
+			sata1: sata-port@1 {
+				reg = <1>;
+				phys = <&sata_phy1>;
+				phy-names = "sata-phy";
+			};
 		};
 
 		sdio0: sdhci@66420000 {

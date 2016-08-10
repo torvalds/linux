@@ -31,7 +31,6 @@
 #include "xenbus_probe.h"
 
 
-static struct workqueue_struct *xenbus_frontend_wq;
 
 /* device/<type>/<id> => <type>-<id> */
 static int frontend_bus_id(char bus_id[XEN_BUS_ID_SIZE], const char *nodename)
@@ -109,13 +108,7 @@ static int xenbus_frontend_dev_resume(struct device *dev)
 	if (xen_store_domain_type == XS_LOCAL) {
 		struct xenbus_device *xdev = to_xenbus_device(dev);
 
-		if (!xenbus_frontend_wq) {
-			pr_err("%s: no workqueue to process delayed resume\n",
-			       xdev->nodename);
-			return -EFAULT;
-		}
-
-		queue_work(xenbus_frontend_wq, &xdev->work);
+		schedule_work(&xdev->work);
 
 		return 0;
 	}
@@ -484,12 +477,6 @@ static int __init xenbus_probe_frontend_init(void)
 		return err;
 
 	register_xenstore_notifier(&xenstore_notifier);
-
-	if (xen_store_domain_type == XS_LOCAL) {
-		xenbus_frontend_wq = create_workqueue("xenbus_frontend");
-		if (!xenbus_frontend_wq)
-			pr_warn("create xenbus frontend workqueue failed, S3 resume is likely to fail\n");
-	}
 
 	return 0;
 }

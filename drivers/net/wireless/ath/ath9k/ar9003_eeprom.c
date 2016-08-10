@@ -3202,8 +3202,7 @@ static int ar9300_compress_decision(struct ath_hw *ah,
 			it, length);
 		break;
 	case _CompressBlock:
-		if (reference == 0) {
-		} else {
+		if (reference != 0) {
 			eep = ar9003_eeprom_struct_find_by_id(reference);
 			if (eep == NULL) {
 				ath_dbg(common, EEPROM,
@@ -4176,7 +4175,7 @@ static void ath9k_hw_ar9300_set_board_values(struct ath_hw *ah,
 	if (!AR_SREV_9330(ah) && !AR_SREV_9340(ah) && !AR_SREV_9531(ah))
 		ar9003_hw_internal_regulator_apply(ah);
 	ar9003_hw_apply_tuning_caps(ah);
-	ar9003_hw_apply_minccapwr_thresh(ah, chan);
+	ar9003_hw_apply_minccapwr_thresh(ah, is2ghz);
 	ar9003_hw_txend_to_xpa_off_apply(ah, is2ghz);
 	ar9003_hw_thermometer_apply(ah);
 	ar9003_hw_thermo_cal_apply(ah);

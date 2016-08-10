@@ -166,7 +166,6 @@ extern struct cpuidle_exynos_data cpuidle_coupled_exynos_data;
 
 extern void exynos_set_delayed_reset_assertion(bool enable);
 
-extern void s5p_init_cpu(void __iomem *cpuid_addr);
 extern unsigned int samsung_rev(void);
 extern void exynos_core_restart(u32 core_id);
 extern int exynos_set_boot_addr(u32 core_id, unsigned long boot_addr);
@@ -174,12 +173,12 @@ extern int exynos_get_boot_addr(u32 core_id, unsigned long *boot_addr);
 
 static inline void pmu_raw_writel(u32 val, u32 offset)
 {
-	__raw_writel(val, pmu_base_addr + offset);
+	writel_relaxed(val, pmu_base_addr + offset);
 }
 
 static inline u32 pmu_raw_readl(u32 offset)
 {
-	return __raw_readl(pmu_base_addr + offset);
+	return readl_relaxed(pmu_base_addr + offset);
 }
 
 #endif /* __ARCH_ARM_MACH_EXYNOS_COMMON_H */

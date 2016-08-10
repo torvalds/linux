@@ -24,6 +24,7 @@
 #include "xfs_bit.h"
 #include "xfs_sb.h"
 #include "xfs_mount.h"
+#include "xfs_defer.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
 #include "xfs_inode.h"
@@ -41,6 +42,7 @@
 #include "xfs_trace.h"
 #include "xfs_icache.h"
 #include "xfs_sysfs.h"
+#include "xfs_rmap_btree.h"
 
 
 static DEFINE_MUTEX(xfs_uuid_table_mutex);
@@ -230,6 +232,8 @@ xfs_initialize_perag(
 
 	if (maxagi)
 		*maxagi = index;
+
+	mp->m_ag_prealloc_blocks = xfs_prealloc_blocks(mp);
 	return 0;
 
 out_unwind:
@@ -272,13 +276,15 @@ xfs_readsb(
 	buf_ops = NULL;
 
 	/*
-	 * Allocate a (locked) buffer to hold the superblock.
-	 * This will be kept around at all times to optimize
-	 * access to the superblock.
+	 * Allocate a (locked) buffer to hold the superblock. This will be kept
+	 * around at all times to optimize access to the superblock. Therefore,
+	 * set XBF_NO_IOACCT to make sure it doesn't hold the buftarg count
+	 * elevated.
 	 */
 reread:
 	error = xfs_buf_read_uncached(mp->m_ddev_targp, XFS_SB_DADDR,
-				   BTOBB(sector_size), 0, &bp, buf_ops);
+				      BTOBB(sector_size), XBF_NO_IOACCT, &bp,
+				      buf_ops);
 	if (error) {
 		if (loud)
 			xfs_warn(mp, "SB validate failed with error %d.", error);
@@ -677,6 +683,7 @@ xfs_mountfs(
 	xfs_bmap_compute_maxlevels(mp, XFS_DATA_FORK);
 	xfs_bmap_compute_maxlevels(mp, XFS_ATTR_FORK);
 	xfs_ialloc_compute_maxlevels(mp);
+	xfs_rmapbt_compute_maxlevels(mp);
 
 	xfs_set_maxicount(mp);
 
@@ -1214,7 +1221,7 @@ xfs_mod_fdblocks(
 		batch = XFS_FDBLOCKS_BATCH;
 
 	__percpu_counter_add(&mp->m_fdblocks, delta, batch);
-	if (__percpu_counter_compare(&mp->m_fdblocks, XFS_ALLOC_SET_ASIDE(mp),
+	if (__percpu_counter_compare(&mp->m_fdblocks, mp->m_alloc_set_aside,
 				     XFS_FDBLOCKS_BATCH) >= 0) {
 		/* we had space! */
 		return 0;

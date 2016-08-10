@@ -1996,7 +1996,8 @@ static int rocker_port_change_proto_down(struct net_device *dev,
 	return 0;
 }
 
-static void rocker_port_neigh_destroy(struct neighbour *n)
+static void rocker_port_neigh_destroy(struct net_device *dev,
+				      struct neighbour *n)
 {
 	struct rocker_port *rocker_port = netdev_priv(n->dev);
 	int err;

@@ -41,13 +41,13 @@ static bool nft_rbtree_equal(const struct nft_set *set, const void *this,
 	return memcmp(this, nft_set_ext_key(&interval->ext), set->klen) == 0;
 }
 
-static bool nft_rbtree_lookup(const struct nft_set *set, const u32 *key,
-			      const struct nft_set_ext **ext)
+static bool nft_rbtree_lookup(const struct net *net, const struct nft_set *set,
+			      const u32 *key, const struct nft_set_ext **ext)
 {
 	const struct nft_rbtree *priv = nft_set_priv(set);
 	const struct nft_rbtree_elem *rbe, *interval = NULL;
+	u8 genmask = nft_genmask_cur(net);
 	const struct rb_node *parent;
-	u8 genmask = nft_genmask_cur(read_pnet(&set->pnet));
 	const void *this;
 	int d;
 
@@ -93,13 +93,13 @@ out:
 	return false;
 }
 
-static int __nft_rbtree_insert(const struct nft_set *set,
+static int __nft_rbtree_insert(const struct net *net, const struct nft_set *set,
 			       struct nft_rbtree_elem *new)
 {
 	struct nft_rbtree *priv = nft_set_priv(set);
+	u8 genmask = nft_genmask_next(net);
 	struct nft_rbtree_elem *rbe;
 	struct rb_node *parent, **p;
-	u8 genmask = nft_genmask_next(read_pnet(&set->pnet));
 	int d;
 
 	parent = NULL;
@@ -132,14 +132,14 @@ static int __nft_rbtree_insert(const struct nft_set *set,
 	return 0;
 }
 
-static int nft_rbtree_insert(const struct nft_set *set,
+static int nft_rbtree_insert(const struct net *net, const struct nft_set *set,
 			     const struct nft_set_elem *elem)
 {
 	struct nft_rbtree_elem *rbe = elem->priv;
 	int err;
 
 	spin_lock_bh(&nft_rbtree_lock);
-	err = __nft_rbtree_insert(set, rbe);
+	err = __nft_rbtree_insert(net, set, rbe);
 	spin_unlock_bh(&nft_rbtree_lock);
 
 	return err;
@@ -156,21 +156,23 @@ static void nft_rbtree_remove(const struct nft_set *set,
 	spin_unlock_bh(&nft_rbtree_lock);
 }
 
-static void nft_rbtree_activate(const struct nft_set *set,
+static void nft_rbtree_activate(const struct net *net,
+				const struct nft_set *set,
 				const struct nft_set_elem *elem)
 {
 	struct nft_rbtree_elem *rbe = elem->priv;
 
-	nft_set_elem_change_active(set, &rbe->ext);
+	nft_set_elem_change_active(net, set, &rbe->ext);
 }
 
-static void *nft_rbtree_deactivate(const struct nft_set *set,
+static void *nft_rbtree_deactivate(const struct net *net,
+				   const struct nft_set *set,
 				   const struct nft_set_elem *elem)
 {
 	const struct nft_rbtree *priv = nft_set_priv(set);
 	const struct rb_node *parent = priv->root.rb_node;
 	struct nft_rbtree_elem *rbe, *this = elem->priv;
-	u8 genmask = nft_genmask_cur(read_pnet(&set->pnet));
+	u8 genmask = nft_genmask_next(net);
 	int d;
 
 	while (parent != NULL) {
@@ -196,7 +198,7 @@ static void *nft_rbtree_deactivate(const struct nft_set *set,
 				parent = parent->rb_right;
 				continue;
 			}
-			nft_set_elem_change_active(set, &rbe->ext);
+			nft_set_elem_change_active(net, set, &rbe->ext);
 			return rbe;
 		}
 	}

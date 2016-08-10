@@ -152,68 +152,48 @@ static void init_x2apic_ldr(void)
 	}
 }
 
- /*
-  * At CPU state changes, update the x2apic cluster sibling info.
-  */
-static int
-update_clusterinfo(struct notifier_block *nfb, unsigned long action, void *hcpu)
+/*
+ * At CPU state changes, update the x2apic cluster sibling info.
+ */
+int x2apic_prepare_cpu(unsigned int cpu)
 {
-	unsigned int this_cpu = (unsigned long)hcpu;
-	unsigned int cpu;
-	int err = 0;
+	if (!zalloc_cpumask_var(&per_cpu(cpus_in_cluster, cpu), GFP_KERNEL))
+		return -ENOMEM;
 
-	switch (action) {
-	case CPU_UP_PREPARE:
-		if (!zalloc_cpumask_var(&per_cpu(cpus_in_cluster, this_cpu),
-					GFP_KERNEL)) {
-			err = -ENOMEM;
-		} else if (!zalloc_cpumask_var(&per_cpu(ipi_mask, this_cpu),
-					       GFP_KERNEL)) {
-			free_cpumask_var(per_cpu(cpus_in_cluster, this_cpu));
-			err = -ENOMEM;
-		}
-		break;
-	case CPU_UP_CANCELED:
-	case CPU_UP_CANCELED_FROZEN:
-	case CPU_DEAD:
-		for_each_online_cpu(cpu) {
-			if (x2apic_cluster(this_cpu) != x2apic_cluster(cpu))
-				continue;
-			cpumask_clear_cpu(this_cpu, per_cpu(cpus_in_cluster, cpu));
-			cpumask_clear_cpu(cpu, per_cpu(cpus_in_cluster, this_cpu));
-		}
-		free_cpumask_var(per_cpu(cpus_in_cluster, this_cpu));
-		free_cpumask_var(per_cpu(ipi_mask, this_cpu));
-		break;
+	if (!zalloc_cpumask_var(&per_cpu(ipi_mask, cpu), GFP_KERNEL)) {
+		free_cpumask_var(per_cpu(cpus_in_cluster, cpu));
+		return -ENOMEM;
 	}
 
-	return notifier_from_errno(err);
+	return 0;
 }
 
-static struct notifier_block x2apic_cpu_notifier = {
-	.notifier_call = update_clusterinfo,
-};
-
-static int x2apic_init_cpu_notifier(void)
+int x2apic_dead_cpu(unsigned int this_cpu)
 {
-	int cpu = smp_processor_id();
+	int cpu;
 
-	zalloc_cpumask_var(&per_cpu(cpus_in_cluster, cpu), GFP_KERNEL);
-	zalloc_cpumask_var(&per_cpu(ipi_mask, cpu), GFP_KERNEL);
-
-	BUG_ON(!per_cpu(cpus_in_cluster, cpu) || !per_cpu(ipi_mask, cpu));
-
-	cpumask_set_cpu(cpu, per_cpu(cpus_in_cluster, cpu));
-	register_hotcpu_notifier(&x2apic_cpu_notifier);
-	return 1;
+	for_each_online_cpu(cpu) {
+		if (x2apic_cluster(this_cpu) != x2apic_cluster(cpu))
+			continue;
+		cpumask_clear_cpu(this_cpu, per_cpu(cpus_in_cluster, cpu));
+		cpumask_clear_cpu(cpu, per_cpu(cpus_in_cluster, this_cpu));
+	}
+	free_cpumask_var(per_cpu(cpus_in_cluster, this_cpu));
+	free_cpumask_var(per_cpu(ipi_mask, this_cpu));
+	return 0;
 }
 
 static int x2apic_cluster_probe(void)
 {
-	if (x2apic_mode)
-		return x2apic_init_cpu_notifier();
-	else
+	int cpu = smp_processor_id();
+
+	if (!x2apic_mode)
 		return 0;
+
+	cpumask_set_cpu(cpu, per_cpu(cpus_in_cluster, cpu));
+	cpuhp_setup_state(CPUHP_X2APIC_PREPARE, "X2APIC_PREPARE",
+			  x2apic_prepare_cpu, x2apic_dead_cpu);
+	return 1;
 }
 
 static const struct cpumask *x2apic_cluster_target_cpus(void)

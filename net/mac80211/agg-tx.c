@@ -194,17 +194,21 @@ static void
 ieee80211_agg_stop_txq(struct sta_info *sta, int tid)
 {
 	struct ieee80211_txq *txq = sta->sta.txq[tid];
+	struct ieee80211_sub_if_data *sdata;
+	struct fq *fq;
 	struct txq_info *txqi;
 
 	if (!txq)
 		return;
 
 	txqi = to_txq_info(txq);
+	sdata = vif_to_sdata(txq->vif);
+	fq = &sdata->local->fq;
 
 	/* Lock here to protect against further seqno updates on dequeue */
-	spin_lock_bh(&txqi->queue.lock);
+	spin_lock_bh(&fq->lock);
 	set_bit(IEEE80211_TXQ_STOP, &txqi->flags);
-	spin_unlock_bh(&txqi->queue.lock);
+	spin_unlock_bh(&fq->lock);
 }
 
 static void

@@ -356,7 +356,7 @@ void security_inode_free(struct inode *inode)
 }
 
 int security_dentry_init_security(struct dentry *dentry, int mode,
-					struct qstr *name, void **ctx,
+					const struct qstr *name, void **ctx,
 					u32 *ctxlen)
 {
 	return call_int_hook(dentry_init_security, -EOPNOTSUPP, dentry, mode,
@@ -700,18 +700,39 @@ int security_inode_killpriv(struct dentry *dentry)
 
 int security_inode_getsecurity(struct inode *inode, const char *name, void **buffer, bool alloc)
 {
+	struct security_hook_list *hp;
+	int rc;
+
 	if (unlikely(IS_PRIVATE(inode)))
 		return -EOPNOTSUPP;
-	return call_int_hook(inode_getsecurity, -EOPNOTSUPP, inode, name,
-				buffer, alloc);
+	/*
+	 * Only one module will provide an attribute with a given name.
+	 */
+	list_for_each_entry(hp, &security_hook_heads.inode_getsecurity, list) {
+		rc = hp->hook.inode_getsecurity(inode, name, buffer, alloc);
+		if (rc != -EOPNOTSUPP)
+			return rc;
+	}
+	return -EOPNOTSUPP;
 }
 
 int security_inode_setsecurity(struct inode *inode, const char *name, const void *value, size_t size, int flags)
 {
+	struct security_hook_list *hp;
+	int rc;
+
 	if (unlikely(IS_PRIVATE(inode)))
 		return -EOPNOTSUPP;
-	return call_int_hook(inode_setsecurity, -EOPNOTSUPP, inode, name,
-				value, size, flags);
+	/*
+	 * Only one module will provide an attribute with a given name.
+	 */
+	list_for_each_entry(hp, &security_hook_heads.inode_setsecurity, list) {
+		rc = hp->hook.inode_setsecurity(inode, name, value, size,
+								flags);
+		if (rc != -EOPNOTSUPP)
+			return rc;
+	}
+	return -EOPNOTSUPP;
 }
 
 int security_inode_listsecurity(struct inode *inode, char *buffer, size_t buffer_size)

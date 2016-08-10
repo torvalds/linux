@@ -1288,7 +1288,7 @@ struct vp_rpt_id_entry_24xx {
 
 	uint8_t vp_idx_map[16];
 
-	uint8_t reserved_4[28];
+	uint8_t reserved_4[24];
 	uint16_t bbcr;
 	uint8_t reserved_5[6];
 };

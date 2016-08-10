@@ -608,6 +608,7 @@ static const struct {
 	const char *compact;
 } gfp_compact_table[] = {
 	{ "GFP_TRANSHUGE",		"THP" },
+	{ "GFP_TRANSHUGE_LIGHT",	"THL" },
 	{ "GFP_HIGHUSER_MOVABLE",	"HUM" },
 	{ "GFP_HIGHUSER",		"HU" },
 	{ "GFP_USER",			"U" },

@@ -232,6 +232,9 @@ static void __drm_helper_disable_unused_functions(struct drm_device *dev)
  */
 void drm_helper_disable_unused_functions(struct drm_device *dev)
 {
+	if (drm_core_check_feature(dev, DRIVER_ATOMIC))
+		DRM_ERROR("Called for atomic driver, this is not what you want.\n");
+
 	drm_modeset_lock_all(dev);
 	__drm_helper_disable_unused_functions(dev);
 	drm_modeset_unlock_all(dev);
@@ -1123,36 +1126,3 @@ int drm_helper_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	return drm_plane_helper_commit(plane, plane_state, old_fb);
 }
 EXPORT_SYMBOL(drm_helper_crtc_mode_set_base);
-
-/**
- * drm_helper_crtc_enable_color_mgmt - enable color management properties
- * @crtc: DRM CRTC
- * @degamma_lut_size: the size of the degamma lut (before CSC)
- * @gamma_lut_size: the size of the gamma lut (after CSC)
- *
- * This function lets the driver enable the color correction properties on a
- * CRTC. This includes 3 degamma, csc and gamma properties that userspace can
- * set and 2 size properties to inform the userspace of the lut sizes.
- */
-void drm_helper_crtc_enable_color_mgmt(struct drm_crtc *crtc,
-				       int degamma_lut_size,
-				       int gamma_lut_size)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_mode_config *config = &dev->mode_config;
-
-	drm_object_attach_property(&crtc->base,
-				   config->degamma_lut_property, 0);
-	drm_object_attach_property(&crtc->base,
-				   config->ctm_property, 0);
-	drm_object_attach_property(&crtc->base,
-				   config->gamma_lut_property, 0);
-
-	drm_object_attach_property(&crtc->base,
-				   config->degamma_lut_size_property,
-				   degamma_lut_size);
-	drm_object_attach_property(&crtc->base,
-				   config->gamma_lut_size_property,
-				   gamma_lut_size);
-}
-EXPORT_SYMBOL(drm_helper_crtc_enable_color_mgmt);

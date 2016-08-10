@@ -15,7 +15,7 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "bat_algo.h"
+#include "bat_iv_ogm.h"
 #include "main.h"
 
 #include <linux/atomic.h>
@@ -30,8 +30,9 @@
 #include <linux/if_ether.h>
 #include <linux/init.h>
 #include <linux/jiffies.h>
-#include <linux/list.h>
+#include <linux/kernel.h>
 #include <linux/kref.h>
+#include <linux/list.h>
 #include <linux/lockdep.h>
 #include <linux/netdevice.h>
 #include <linux/pkt_sched.h>
@@ -48,15 +49,20 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
+#include "bat_algo.h"
 #include "bitarray.h"
 #include "hard-interface.h"
 #include "hash.h"
+#include "log.h"
 #include "network-coding.h"
 #include "originator.h"
 #include "packet.h"
 #include "routing.h"
 #include "send.h"
 #include "translation-table.h"
+#include "tvlv.h"
+
+static void batadv_iv_send_outstanding_bat_ogm_packet(struct work_struct *work);
 
 /**
  * enum batadv_dup_status - duplicate status
@@ -336,7 +342,8 @@ batadv_iv_ogm_neigh_new(struct batadv_hard_iface *hard_iface,
 {
 	struct batadv_neigh_node *neigh_node;
 
-	neigh_node = batadv_neigh_node_new(orig_node, hard_iface, neigh_addr);
+	neigh_node = batadv_neigh_node_get_or_create(orig_node,
+						     hard_iface, neigh_addr);
 	if (!neigh_node)
 		goto out;
 
@@ -730,7 +737,7 @@ static void batadv_iv_ogm_aggregate_new(const unsigned char *packet_buff,
 
 	/* start timer for this packet */
 	INIT_DELAYED_WORK(&forw_packet_aggr->delayed_work,
-			  batadv_send_outstanding_bat_ogm_packet);
+			  batadv_iv_send_outstanding_bat_ogm_packet);
 	queue_delayed_work(batadv_event_workqueue,
 			   &forw_packet_aggr->delayed_work,
 			   send_time - jiffies);
@@ -936,6 +943,19 @@ static void batadv_iv_ogm_schedule(struct batadv_hard_iface *hard_iface)
 	u32 seqno;
 	u16 tvlv_len = 0;
 	unsigned long send_time;
+
+	if ((hard_iface->if_status == BATADV_IF_NOT_IN_USE) ||
+	    (hard_iface->if_status == BATADV_IF_TO_BE_REMOVED))
+		return;
+
+	/* the interface gets activated here to avoid race conditions between
+	 * the moment of activating the interface in
+	 * hardif_activate_interface() where the originator mac is set and
+	 * outdated packets (especially uninitialized mac addresses) in the
+	 * packet queue
+	 */
+	if (hard_iface->if_status == BATADV_IF_TO_BE_ACTIVATED)
+		hard_iface->if_status = BATADV_IF_ACTIVE;
 
 	primary_if = batadv_primary_if_get_selected(bat_priv);
 
@@ -1778,6 +1798,45 @@ static void batadv_iv_ogm_process(const struct sk_buff *skb, int ogm_offset,
 	batadv_orig_node_put(orig_node);
 }
 
+static void batadv_iv_send_outstanding_bat_ogm_packet(struct work_struct *work)
+{
+	struct delayed_work *delayed_work;
+	struct batadv_forw_packet *forw_packet;
+	struct batadv_priv *bat_priv;
+
+	delayed_work = to_delayed_work(work);
+	forw_packet = container_of(delayed_work, struct batadv_forw_packet,
+				   delayed_work);
+	bat_priv = netdev_priv(forw_packet->if_incoming->soft_iface);
+	spin_lock_bh(&bat_priv->forw_bat_list_lock);
+	hlist_del(&forw_packet->list);
+	spin_unlock_bh(&bat_priv->forw_bat_list_lock);
+
+	if (atomic_read(&bat_priv->mesh_state) == BATADV_MESH_DEACTIVATING)
+		goto out;
+
+	batadv_iv_ogm_emit(forw_packet);
+
+	/* we have to have at least one packet in the queue to determine the
+	 * queues wake up time unless we are shutting down.
+	 *
+	 * only re-schedule if this is the "original" copy, e.g. the OGM of the
+	 * primary interface should only be rescheduled once per period, but
+	 * this function will be called for the forw_packet instances of the
+	 * other secondary interfaces as well.
+	 */
+	if (forw_packet->own &&
+	    forw_packet->if_incoming == forw_packet->if_outgoing)
+		batadv_iv_ogm_schedule(forw_packet->if_incoming);
+
+out:
+	/* don't count own packet */
+	if (!forw_packet->own)
+		atomic_inc(&bat_priv->batman_queue_left);
+
+	batadv_forw_packet_free(forw_packet);
+}
+
 static int batadv_iv_ogm_receive(struct sk_buff *skb,
 				 struct batadv_hard_iface *if_incoming)
 {
@@ -1794,7 +1853,7 @@ static int batadv_iv_ogm_receive(struct sk_buff *skb,
 	/* did we receive a B.A.T.M.A.N. IV OGM packet on an interface
 	 * that does not have B.A.T.M.A.N. IV enabled ?
 	 */
-	if (bat_priv->bat_algo_ops->bat_ogm_emit != batadv_iv_ogm_emit)
+	if (bat_priv->algo_ops->iface.enable != batadv_iv_ogm_iface_enable)
 		return NET_RX_DROP;
 
 	batadv_inc_counter(bat_priv, BATADV_CNT_MGMT_RX);
@@ -2052,21 +2111,32 @@ out:
 	return ret;
 }
 
+static void batadv_iv_iface_activate(struct batadv_hard_iface *hard_iface)
+{
+	/* begin scheduling originator messages on that interface */
+	batadv_iv_ogm_schedule(hard_iface);
+}
+
 static struct batadv_algo_ops batadv_batman_iv __read_mostly = {
 	.name = "BATMAN_IV",
-	.bat_iface_enable = batadv_iv_ogm_iface_enable,
-	.bat_iface_disable = batadv_iv_ogm_iface_disable,
-	.bat_iface_update_mac = batadv_iv_ogm_iface_update_mac,
-	.bat_primary_iface_set = batadv_iv_ogm_primary_iface_set,
-	.bat_ogm_schedule = batadv_iv_ogm_schedule,
-	.bat_ogm_emit = batadv_iv_ogm_emit,
-	.bat_neigh_cmp = batadv_iv_ogm_neigh_cmp,
-	.bat_neigh_is_similar_or_better = batadv_iv_ogm_neigh_is_sob,
-	.bat_neigh_print = batadv_iv_neigh_print,
-	.bat_orig_print = batadv_iv_ogm_orig_print,
-	.bat_orig_free = batadv_iv_ogm_orig_free,
-	.bat_orig_add_if = batadv_iv_ogm_orig_add_if,
-	.bat_orig_del_if = batadv_iv_ogm_orig_del_if,
+	.iface = {
+		.activate = batadv_iv_iface_activate,
+		.enable = batadv_iv_ogm_iface_enable,
+		.disable = batadv_iv_ogm_iface_disable,
+		.update_mac = batadv_iv_ogm_iface_update_mac,
+		.primary_set = batadv_iv_ogm_primary_iface_set,
+	},
+	.neigh = {
+		.cmp = batadv_iv_ogm_neigh_cmp,
+		.is_similar_or_better = batadv_iv_ogm_neigh_is_sob,
+		.print = batadv_iv_neigh_print,
+	},
+	.orig = {
+		.print = batadv_iv_ogm_orig_print,
+		.free = batadv_iv_ogm_orig_free,
+		.add_if = batadv_iv_ogm_orig_add_if,
+		.del_if = batadv_iv_ogm_orig_del_if,
+	},
 };
 
 int __init batadv_iv_init(void)

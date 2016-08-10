@@ -8,7 +8,6 @@
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
 #include <linux/spinlock.h>
-#include <linux/module.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>

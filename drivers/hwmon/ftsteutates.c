@@ -242,7 +242,7 @@ static int fts_wd_set_resolution(struct fts_data *data,
 	}
 
 	if (resolution == seconds)
-		set_bit(1, (unsigned long *)&ret);
+		ret |= BIT(1);
 	else
 		ret &= ~BIT(1);
 

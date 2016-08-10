@@ -613,6 +613,12 @@ static inline void rcu_preempt_sleep_check(void)
 	rcu_dereference_sparse(p, space); \
 	((typeof(*p) __force __kernel *)(p)); \
 })
+#define rcu_dereference_raw(p) \
+({ \
+	/* Dependency order vs. p above. */ \
+	typeof(p) ________p1 = lockless_dereference(p); \
+	((typeof(*p) __force __kernel *)(________p1)); \
+})
 
 /**
  * RCU_INITIALIZER() - statically initialize an RCU-protected global variable
@@ -739,8 +745,6 @@ static inline void rcu_preempt_sleep_check(void)
 #define rcu_dereference_sched_check(p, c) \
 	__rcu_dereference_check((p), (c) || rcu_read_lock_sched_held(), \
 				__rcu)
-
-#define rcu_dereference_raw(p) rcu_dereference_check(p, 1) /*@@@ needed? @@@*/
 
 /*
  * The tracing infrastructure traces RCU (we want that), but unfortunately

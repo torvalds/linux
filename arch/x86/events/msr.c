@@ -36,11 +36,11 @@ static bool test_intel(int idx)
 
 	switch (boot_cpu_data.x86_model) {
 	case INTEL_FAM6_NEHALEM:
+	case INTEL_FAM6_NEHALEM_G:
 	case INTEL_FAM6_NEHALEM_EP:
 	case INTEL_FAM6_NEHALEM_EX:
 
 	case INTEL_FAM6_WESTMERE:
-	case INTEL_FAM6_WESTMERE2:
 	case INTEL_FAM6_WESTMERE_EP:
 	case INTEL_FAM6_WESTMERE_EX:
 

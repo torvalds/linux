@@ -105,12 +105,6 @@ static int cursor_dbg_show(struct seq_file *s, void *data)
 {
 	struct drm_info_node *node = s->private;
 	struct sti_cursor *cursor = (struct sti_cursor *)node->info_ent->data;
-	struct drm_device *dev = node->minor->dev;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
 
 	seq_printf(s, "%s: (vaddr = 0x%p)",
 		   sti_plane_to_str(&cursor->plane), cursor->regs);
@@ -129,7 +123,6 @@ static int cursor_dbg_show(struct seq_file *s, void *data)
 	DBGFS_DUMP(CUR_AWE);
 	seq_puts(s, "\n");
 
-	mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
 
@@ -336,6 +329,33 @@ static const struct drm_plane_helper_funcs sti_cursor_helpers_funcs = {
 	.atomic_disable = sti_cursor_atomic_disable,
 };
 
+static void sti_cursor_destroy(struct drm_plane *drm_plane)
+{
+	DRM_DEBUG_DRIVER("\n");
+
+	drm_plane_helper_disable(drm_plane);
+	drm_plane_cleanup(drm_plane);
+}
+
+static int sti_cursor_late_register(struct drm_plane *drm_plane)
+{
+	struct sti_plane *plane = to_sti_plane(drm_plane);
+	struct sti_cursor *cursor = to_sti_cursor(plane);
+
+	return cursor_debugfs_init(cursor, drm_plane->dev->primary);
+}
+
+struct drm_plane_funcs sti_cursor_plane_helpers_funcs = {
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
+	.destroy = sti_cursor_destroy,
+	.set_property = drm_atomic_helper_plane_set_property,
+	.reset = sti_plane_reset,
+	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
+	.late_register = sti_cursor_late_register,
+};
+
 struct drm_plane *sti_cursor_create(struct drm_device *drm_dev,
 				    struct device *dev, int desc,
 				    void __iomem *baseaddr,
@@ -370,7 +390,7 @@ struct drm_plane *sti_cursor_create(struct drm_device *drm_dev,
 
 	res = drm_universal_plane_init(drm_dev, &cursor->plane.drm_plane,
 				       possible_crtcs,
-				       &sti_plane_helpers_funcs,
+				       &sti_cursor_plane_helpers_funcs,
 				       cursor_supported_formats,
 				       ARRAY_SIZE(cursor_supported_formats),
 				       DRM_PLANE_TYPE_CURSOR, NULL);
@@ -383,9 +403,6 @@ struct drm_plane *sti_cursor_create(struct drm_device *drm_dev,
 			     &sti_cursor_helpers_funcs);
 
 	sti_plane_init_property(&cursor->plane, DRM_PLANE_TYPE_CURSOR);
-
-	if (cursor_debugfs_init(cursor, drm_dev->primary))
-		DRM_ERROR("CURSOR debugfs setup failed\n");
 
 	return &cursor->plane.drm_plane;
 

@@ -24,8 +24,8 @@
 #include <linux/percpu.h>
 #include <linux/clk-provider.h>
 #include <linux/cpu.h>
+#include <linux/of.h>
 #include <linux/of_fdt.h>
-#include <linux/of_platform.h>
 
 #if defined(CONFIG_VGA_CONSOLE) || defined(CONFIG_DUMMY_CONSOLE)
 # include <linux/console.h>
@@ -255,7 +255,6 @@ void __init early_init_devtree(void *params)
 static int __init xtensa_device_probe(void)
 {
 	of_clk_init(NULL);
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 	return 0;
 }
 

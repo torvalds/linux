@@ -232,6 +232,11 @@ struct stmmac_extra_stats {
 #define DMA_HW_FEAT_ACTPHYIF	0x70000000	/* Active/selected PHY iface */
 #define DEFAULT_DMA_PBL		8
 
+/* PCS status and mask defines */
+#define	PCS_ANE_IRQ		BIT(2)	/* PCS Auto-Negotiation */
+#define	PCS_LINK_IRQ		BIT(1)	/* PCS Link */
+#define	PCS_RGSMIIIS_IRQ	BIT(0)	/* RGMII or SMII Interrupt */
+
 /* Max/Min RI Watchdog Timer count value */
 #define MAX_DMA_RIWT		0xff
 #define MIN_DMA_RIWT		0x20
@@ -272,9 +277,6 @@ enum dma_irq_status {
 #define	CORE_IRQ_RX_PATH_IN_LPI_MODE	(1 << 2)
 #define	CORE_IRQ_RX_PATH_EXIT_LPI_MODE	(1 << 3)
 
-#define	CORE_PCS_ANE_COMPLETE		(1 << 5)
-#define	CORE_PCS_LINK_STATUS		(1 << 6)
-#define	CORE_RGMII_IRQ			(1 << 7)
 #define CORE_IRQ_MTL_RX_OVERFLOW	BIT(8)
 
 /* Physical Coding Sublayer */
@@ -469,9 +471,12 @@ struct stmmac_ops {
 	void (*reset_eee_mode)(struct mac_device_info *hw);
 	void (*set_eee_timer)(struct mac_device_info *hw, int ls, int tw);
 	void (*set_eee_pls)(struct mac_device_info *hw, int link);
-	void (*ctrl_ane)(struct mac_device_info *hw, bool restart);
-	void (*get_adv)(struct mac_device_info *hw, struct rgmii_adv *adv);
 	void (*debug)(void __iomem *ioaddr, struct stmmac_extra_stats *x);
+	/* PCS calls */
+	void (*pcs_ctrl_ane)(void __iomem *ioaddr, bool ane, bool srgmi_ral,
+			     bool loopback);
+	void (*pcs_rane)(void __iomem *ioaddr, bool restart);
+	void (*pcs_get_adv_lp)(void __iomem *ioaddr, struct rgmii_adv *adv);
 };
 
 /* PTP and HW Timer helpers */
@@ -524,6 +529,9 @@ struct mac_device_info {
 	int unicast_filter_entries;
 	int mcast_bits_log2;
 	unsigned int rx_csum;
+	unsigned int pcs;
+	unsigned int pmt;
+	unsigned int ps;
 };
 
 struct mac_device_info *dwmac1000_setup(void __iomem *ioaddr, int mcbins,
@@ -546,6 +554,7 @@ void stmmac_dwmac4_get_mac_addr(void __iomem *ioaddr, unsigned char *addr,
 void stmmac_dwmac4_set_mac(void __iomem *ioaddr, bool enable);
 
 void dwmac_dma_flush_tx_fifo(void __iomem *ioaddr);
+
 extern const struct stmmac_mode_ops ring_mode_ops;
 extern const struct stmmac_mode_ops chain_mode_ops;
 extern const struct stmmac_desc_ops dwmac4_desc_ops;

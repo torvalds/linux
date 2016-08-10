@@ -788,6 +788,7 @@ static int asoc_mcbsp_probe(struct platform_device *pdev)
 	match = of_match_device(omap_mcbsp_of_match, &pdev->dev);
 	if (match) {
 		struct device_node *node = pdev->dev.of_node;
+		struct omap_mcbsp_platform_data *pdata_quirk = pdata;
 		int buffer_size;
 
 		pdata = devm_kzalloc(&pdev->dev,
@@ -799,6 +800,8 @@ static int asoc_mcbsp_probe(struct platform_device *pdev)
 		memcpy(pdata, match->data, sizeof(*pdata));
 		if (!of_property_read_u32(node, "ti,buffer-size", &buffer_size))
 			pdata->buffer_size = buffer_size;
+		if (pdata_quirk)
+			pdata->force_ick_on = pdata_quirk->force_ick_on;
 	} else if (!pdata) {
 		dev_err(&pdev->dev, "missing platform data.\n");
 		return -EINVAL;
@@ -832,7 +835,7 @@ static int asoc_mcbsp_remove(struct platform_device *pdev)
 	if (mcbsp->pdata->ops && mcbsp->pdata->ops->free)
 		mcbsp->pdata->ops->free(mcbsp->id);
 
-	omap_mcbsp_sysfs_remove(mcbsp);
+	omap_mcbsp_cleanup(mcbsp);
 
 	clk_put(mcbsp->fclk);
 

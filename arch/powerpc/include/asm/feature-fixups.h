@@ -184,4 +184,8 @@ label##3:					       	\
 	FTR_ENTRY_OFFSET label##1b-label##3b;		\
 	.popsection;
 
+#ifndef __ASSEMBLY__
+void apply_feature_fixups(void);
+#endif
+
 #endif /* __ASM_POWERPC_FEATURE_FIXUPS_H */

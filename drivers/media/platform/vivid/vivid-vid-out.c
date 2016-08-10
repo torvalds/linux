@@ -34,7 +34,7 @@
 
 static int vid_out_queue_setup(struct vb2_queue *vq,
 		       unsigned *nbuffers, unsigned *nplanes,
-		       unsigned sizes[], void *alloc_ctxs[])
+		       unsigned sizes[], struct device *alloc_devs[])
 {
 	struct vivid_dev *dev = vb2_get_drv_priv(vq);
 	const struct vivid_fmt *vfmt = dev->fmt_out;
@@ -86,11 +86,6 @@ static int vid_out_queue_setup(struct vb2_queue *vq,
 		*nbuffers = 2 - vq->num_buffers;
 
 	*nplanes = planes;
-
-	/*
-	 * videobuf2-vmalloc allocator is context-less so no need to set
-	 * alloc_ctxs array.
-	 */
 
 	dprintk(dev, 1, "%s: count=%d\n", __func__, *nbuffers);
 	for (p = 0; p < planes; p++)

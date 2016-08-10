@@ -80,6 +80,9 @@ config MEDIA_RC_SUPPORT
 
 	  Say Y when you have a TV or an IR device.
 
+config MEDIA_CEC_EDID
+	bool
+
 #
 # Media controller
 #	Selectable only for webcam/grabbers, as other drivers don't use it

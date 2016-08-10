@@ -53,13 +53,20 @@ gt215_mc_intr[] = {
 	{},
 };
 
+static void
+gt215_mc_intr_mask(struct nvkm_mc *mc, u32 mask, u32 stat)
+{
+	nvkm_mask(mc->subdev.device, 0x000640, mask, stat);
+}
+
 static const struct nvkm_mc_func
 gt215_mc = {
 	.init = nv50_mc_init,
 	.intr = gt215_mc_intr,
 	.intr_unarm = nv04_mc_intr_unarm,
 	.intr_rearm = nv04_mc_intr_rearm,
-	.intr_mask = nv04_mc_intr_mask,
+	.intr_mask = gt215_mc_intr_mask,
+	.intr_stat = nv04_mc_intr_stat,
 	.reset = gt215_mc_reset,
 };
 

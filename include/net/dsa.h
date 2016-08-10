@@ -26,10 +26,13 @@ enum dsa_tag_protocol {
 	DSA_TAG_PROTO_TRAILER,
 	DSA_TAG_PROTO_EDSA,
 	DSA_TAG_PROTO_BRCM,
+	DSA_TAG_LAST,		/* MUST BE LAST */
 };
 
 #define DSA_MAX_SWITCHES	4
 #define DSA_MAX_PORTS		12
+
+#define DSA_RTABLE_NONE		-1
 
 struct dsa_chip_data {
 	/*
@@ -58,12 +61,11 @@ struct dsa_chip_data {
 	struct device_node *port_dn[DSA_MAX_PORTS];
 
 	/*
-	 * An array (with nr_chips elements) of which element [a]
-	 * indicates which port on this switch should be used to
-	 * send packets to that are destined for switch a.  Can be
-	 * NULL if there is only one switch chip.
+	 * An array of which element [a] indicates which port on this
+	 * switch should be used to send packets to that are destined
+	 * for switch a. Can be NULL if there is only one switch chip.
 	 */
-	s8		*rtable;
+	s8		rtable[DSA_MAX_SWITCHES];
 };
 
 struct dsa_platform_data {
@@ -85,6 +87,17 @@ struct dsa_platform_data {
 struct packet_type;
 
 struct dsa_switch_tree {
+	struct list_head	list;
+
+	/* Tree identifier */
+	u32 tree;
+
+	/* Number of switches attached to this tree */
+	struct kref refcount;
+
+	/* Has this tree been applied to the hardware? */
+	bool applied;
+
 	/*
 	 * Configuration data for the platform device that owns
 	 * this dsa switch tree instance.
@@ -100,12 +113,12 @@ struct dsa_switch_tree {
 				       struct net_device *dev,
 				       struct packet_type *pt,
 				       struct net_device *orig_dev);
-	enum dsa_tag_protocol	tag_protocol;
 
 	/*
 	 * Original copy of the master netdev ethtool_ops
 	 */
 	struct ethtool_ops	master_ethtool_ops;
+	const struct ethtool_ops *master_orig_ethtool_ops;
 
 	/*
 	 * The switch and port to which the CPU is attached.
@@ -117,6 +130,18 @@ struct dsa_switch_tree {
 	 * Data for the individual switch chips.
 	 */
 	struct dsa_switch	*ds[DSA_MAX_SWITCHES];
+
+	/*
+	 * Tagging protocol operations for adding and removing an
+	 * encapsulation tag.
+	 */
+	const struct dsa_device_ops *tag_ops;
+};
+
+struct dsa_port {
+	struct net_device	*netdev;
+	struct device_node	*dn;
+	unsigned int		ageing_time;
 };
 
 struct dsa_switch {
@@ -144,6 +169,13 @@ struct dsa_switch {
 	 */
 	struct dsa_switch_driver	*drv;
 
+	/*
+	 * An array of which element [a] indicates which port on this
+	 * switch should be used to send packets to that are destined
+	 * for switch a. Can be NULL if there is only one switch chip.
+	 */
+	s8		rtable[DSA_MAX_SWITCHES];
+
 #ifdef CONFIG_NET_DSA_HWMON
 	/*
 	 * Hardware monitoring information
@@ -153,13 +185,19 @@ struct dsa_switch {
 #endif
 
 	/*
+	 * The lower device this switch uses to talk to the host
+	 */
+	struct net_device *master_netdev;
+
+	/*
 	 * Slave mii_bus and devices for the individual ports.
 	 */
 	u32			dsa_port_mask;
+	u32			cpu_port_mask;
 	u32			enabled_port_mask;
 	u32			phys_mii_mask;
+	struct dsa_port		ports[DSA_MAX_PORTS];
 	struct mii_bus		*slave_mii_bus;
-	struct net_device	*ports[DSA_MAX_PORTS];
 };
 
 static inline bool dsa_is_cpu_port(struct dsa_switch *ds, int p)
@@ -174,7 +212,7 @@ static inline bool dsa_is_dsa_port(struct dsa_switch *ds, int p)
 
 static inline bool dsa_is_port_initialized(struct dsa_switch *ds, int p)
 {
-	return ds->enabled_port_mask & (1 << p) && ds->ports[p];
+	return ds->enabled_port_mask & (1 << p) && ds->ports[p].netdev;
 }
 
 static inline u8 dsa_upstream_port(struct dsa_switch *ds)
@@ -190,7 +228,7 @@ static inline u8 dsa_upstream_port(struct dsa_switch *ds)
 	if (dst->cpu_switch == ds->index)
 		return dst->cpu_port;
 	else
-		return ds->cd->rtable[dst->cpu_switch];
+		return ds->rtable[dst->cpu_switch];
 }
 
 struct switchdev_trans;
@@ -292,6 +330,7 @@ struct dsa_switch_driver {
 	/*
 	 * Bridge integration
 	 */
+	int	(*set_ageing_time)(struct dsa_switch *ds, unsigned int msecs);
 	int	(*port_bridge_join)(struct dsa_switch *ds, int port,
 				    struct net_device *bridge);
 	void	(*port_bridge_leave)(struct dsa_switch *ds, int port);
@@ -344,4 +383,7 @@ static inline bool dsa_uses_tagged_protocol(struct dsa_switch_tree *dst)
 {
 	return dst->rcv != NULL;
 }
+
+void dsa_unregister_switch(struct dsa_switch *ds);
+int dsa_register_switch(struct dsa_switch *ds, struct device_node *np);
 #endif

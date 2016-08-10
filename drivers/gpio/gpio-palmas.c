@@ -208,7 +208,6 @@ static int palmas_gpio_probe(struct platform_device *pdev)
 
 static struct platform_driver palmas_gpio_driver = {
 	.driver.name	= "palmas-gpio",
-	.driver.owner	= THIS_MODULE,
 	.driver.of_match_table = of_palmas_gpio_match,
 	.probe		= palmas_gpio_probe,
 };

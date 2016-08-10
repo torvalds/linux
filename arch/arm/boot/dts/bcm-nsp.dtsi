@@ -57,7 +57,7 @@
 			compatible = "arm,cortex-a9";
 			next-level-cache = <&L2>;
 			enable-method = "brcm,bcm-nsp-smp";
-			secondary-boot-reg = <0xffff042c>;
+			secondary-boot-reg = <0xffff0fec>;
 			reg = <0x1>;
 		};
 	};
@@ -192,6 +192,23 @@
 			status = "disabled";
 		};
 
+		dma@20000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0x20000 0x1000>;
+			interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&iprocslow>;
+			clock-names = "apb_pclk";
+			#dma-cells = <1>;
+		};
+
 		nand: nand@26000 {
 			compatible = "brcm,nand-iproc", "brcm,brcmnand-v6.1";
 			reg = <0x026000 0x600>,
@@ -204,6 +221,11 @@
 			#size-cells = <0>;
 
 			brcm,nand-has-wp;
+		};
+
+		rng: rng@33000 {
+			compatible = "brcm,bcm-nsp-rng";
+			reg = <0x33000 0x14>;
 		};
 
 		ccbtimer0: timer@34000 {
@@ -266,6 +288,48 @@
 			      <0x30028 0x04>,
 			      <0x3f408 0x04>;
 		};
+
+		sata_phy: sata_phy@40100 {
+			compatible = "brcm,iproc-nsp-sata-phy";
+			reg = <0x40100 0x340>;
+			reg-names = "phy";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			sata_phy0: sata-phy@0 {
+				reg = <0>;
+				#phy-cells = <0>;
+				status = "disabled";
+			};
+
+			sata_phy1: sata-phy@1 {
+				reg = <1>;
+				#phy-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		sata: ahci@41000 {
+			compatible = "brcm,bcm-nsp-ahci";
+			reg-names = "ahci", "top-ctrl";
+			reg = <0x41000 0x1000>, <0x40020 0x1c>;
+			interrupts = <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+
+			sata0: sata-port@0 {
+				reg = <0>;
+				phys = <&sata_phy0>;
+				phy-names = "sata-phy";
+			};
+
+			sata1: sata-port@1 {
+				reg = <1>;
+				phys = <&sata_phy1>;
+				phy-names = "sata-phy";
+			};
+		};
 	};
 
 	pcie0: pcie@18012000 {
@@ -290,6 +354,18 @@
 		ranges = <0x82000000 0 0x08000000 0x08000000 0 0x8000000>;
 
 		status = "disabled";
+
+		msi-parent = <&msi0>;
+		msi0: msi@18012000 {
+			compatible = "brcm,iproc-msi";
+			msi-controller;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 127 IRQ_TYPE_NONE>,
+				     <GIC_SPI 128 IRQ_TYPE_NONE>,
+				     <GIC_SPI 129 IRQ_TYPE_NONE>,
+				     <GIC_SPI 130 IRQ_TYPE_NONE>;
+			brcm,pcie-msi-inten;
+		};
 	};
 
 	pcie1: pcie@18013000 {
@@ -314,6 +390,18 @@
 		ranges = <0x82000000 0 0x40000000 0x40000000 0 0x8000000>;
 
 		status = "disabled";
+
+		msi-parent = <&msi1>;
+		msi1: msi@18013000 {
+			compatible = "brcm,iproc-msi";
+			msi-controller;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 133 IRQ_TYPE_NONE>,
+				     <GIC_SPI 134 IRQ_TYPE_NONE>,
+				     <GIC_SPI 135 IRQ_TYPE_NONE>,
+				     <GIC_SPI 136 IRQ_TYPE_NONE>;
+			brcm,pcie-msi-inten;
+		};
 	};
 
 	pcie2: pcie@18014000 {
@@ -338,5 +426,17 @@
 		ranges = <0x82000000 0 0x48000000 0x48000000 0 0x8000000>;
 
 		status = "disabled";
+
+		msi-parent = <&msi2>;
+		msi2: msi@18014000 {
+			compatible = "brcm,iproc-msi";
+			msi-controller;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 139 IRQ_TYPE_NONE>,
+				     <GIC_SPI 140 IRQ_TYPE_NONE>,
+				     <GIC_SPI 141 IRQ_TYPE_NONE>,
+				     <GIC_SPI 142 IRQ_TYPE_NONE>;
+			brcm,pcie-msi-inten;
+		};
 	};
 };

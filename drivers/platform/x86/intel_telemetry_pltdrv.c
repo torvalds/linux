@@ -83,7 +83,7 @@
 #define TELEM_SET_VERBOSITY_BITS(x, y)	((x) |= ((y) << 27))
 
 #define TELEM_CPU(model, data) \
-	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_MWAIT, (unsigned long)&data }
+	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, (unsigned long)&data }
 
 enum telemetry_action {
 	TELEM_UPDATE = 0,

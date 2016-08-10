@@ -151,6 +151,22 @@ static const struct counter_desc vport_stats_desc[] = {
 		VPORT_COUNTER_OFF(transmitted_eth_broadcast.packets) },
 	{ "tx_vport_broadcast_bytes",
 		VPORT_COUNTER_OFF(transmitted_eth_broadcast.octets) },
+	{ "rx_vport_rdma_unicast_packets",
+		VPORT_COUNTER_OFF(received_ib_unicast.packets) },
+	{ "rx_vport_rdma_unicast_bytes",
+		VPORT_COUNTER_OFF(received_ib_unicast.octets) },
+	{ "tx_vport_rdma_unicast_packets",
+		VPORT_COUNTER_OFF(transmitted_ib_unicast.packets) },
+	{ "tx_vport_rdma_unicast_bytes",
+		VPORT_COUNTER_OFF(transmitted_ib_unicast.octets) },
+	{ "rx_vport_rdma_multicast_packets",
+		VPORT_COUNTER_OFF(received_ib_multicast.packets) },
+	{ "rx_vport_rdma_multicast_bytes",
+		VPORT_COUNTER_OFF(received_ib_multicast.octets) },
+	{ "tx_vport_rdma_multicast_packets",
+		VPORT_COUNTER_OFF(transmitted_ib_multicast.packets) },
+	{ "tx_vport_rdma_multicast_bytes",
+		VPORT_COUNTER_OFF(transmitted_ib_multicast.octets) },
 };
 
 #define PPORT_802_3_OFF(c) \
@@ -238,11 +254,12 @@ static const struct counter_desc pport_per_prio_traffic_stats_desc[] = {
 };
 
 static const struct counter_desc pport_per_prio_pfc_stats_desc[] = {
-	{ "rx_prio%d_pause", PPORT_PER_PRIO_OFF(rx_pause) },
-	{ "rx_prio%d_pause_duration", PPORT_PER_PRIO_OFF(rx_pause_duration) },
-	{ "tx_prio%d_pause", PPORT_PER_PRIO_OFF(tx_pause) },
-	{ "tx_prio%d_pause_duration", PPORT_PER_PRIO_OFF(tx_pause_duration) },
-	{ "rx_prio%d_pause_transition", PPORT_PER_PRIO_OFF(rx_pause_transition) },
+	/* %s is "global" or "prio{i}" */
+	{ "rx_%s_pause", PPORT_PER_PRIO_OFF(rx_pause) },
+	{ "rx_%s_pause_duration", PPORT_PER_PRIO_OFF(rx_pause_duration) },
+	{ "tx_%s_pause", PPORT_PER_PRIO_OFF(tx_pause) },
+	{ "tx_%s_pause_duration", PPORT_PER_PRIO_OFF(tx_pause_duration) },
+	{ "rx_%s_pause_transition", PPORT_PER_PRIO_OFF(rx_pause_transition) },
 };
 
 struct mlx5e_rq_stats {

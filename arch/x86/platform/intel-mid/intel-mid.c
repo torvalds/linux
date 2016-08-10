@@ -20,7 +20,7 @@
 #include <linux/scatterlist.h>
 #include <linux/sfi.h>
 #include <linux/irq.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/notifier.h>
 
 #include <asm/setup.h>

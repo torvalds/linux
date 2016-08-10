@@ -600,6 +600,19 @@ do {									\
 	__ret;								\
 })
 
+#define __wait_event_killable_exclusive(wq, condition)			\
+	___wait_event(wq, condition, TASK_KILLABLE, 1, 0,		\
+		      schedule())
+
+#define wait_event_killable_exclusive(wq, condition)			\
+({									\
+	int __ret = 0;							\
+	might_sleep();							\
+	if (!(condition))						\
+		__ret = __wait_event_killable_exclusive(wq, condition);	\
+	__ret;								\
+})
+
 
 #define __wait_event_freezable_exclusive(wq, condition)			\
 	___wait_event(wq, condition, TASK_INTERRUPTIBLE, 1, 0,		\

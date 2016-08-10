@@ -745,12 +745,14 @@ static struct pf_desc gss_kerberos_pfs[] = {
 		.qop = GSS_C_QOP_DEFAULT,
 		.service = RPC_GSS_SVC_INTEGRITY,
 		.name = "krb5i",
+		.datatouch = true,
 	},
 	[2] = {
 		.pseudoflavor = RPC_AUTH_GSS_KRB5P,
 		.qop = GSS_C_QOP_DEFAULT,
 		.service = RPC_GSS_SVC_PRIVACY,
 		.name = "krb5p",
+		.datatouch = true,
 	},
 };
 

@@ -121,9 +121,9 @@ static char *dump_type_str(enum dump_type type)
  * Must be in data section since the bss section
  * is not cleared when these are accessed.
  */
-static u8 ipl_ssid __attribute__((__section__(".data"))) = 0;
-static u16 ipl_devno __attribute__((__section__(".data"))) = 0;
-u32 ipl_flags __attribute__((__section__(".data"))) = 0;
+static u8 ipl_ssid __section(.data) = 0;
+static u16 ipl_devno __section(.data) = 0;
+u32 ipl_flags __section(.data) = 0;
 
 enum ipl_method {
 	REIPL_METHOD_CCW_CIO,
@@ -174,7 +174,7 @@ static inline int __diag308(unsigned long subcode, void *addr)
 
 	asm volatile(
 		"	diag	%0,%2,0x308\n"
-		"0:\n"
+		"0:	nopr	%%r7\n"
 		EX_TABLE(0b,0b)
 		: "+d" (_addr), "+d" (_rc)
 		: "d" (subcode) : "cc", "memory");
@@ -563,7 +563,7 @@ static struct kset *ipl_kset;
 
 static void __ipl_run(void *unused)
 {
-	diag308(DIAG308_IPL, NULL);
+	diag308(DIAG308_LOAD_CLEAR, NULL);
 	if (MACHINE_IS_VM)
 		__cpcmd("IPL", NULL, 0, NULL);
 	else if (ipl_info.type == IPL_TYPE_CCW)
@@ -1085,21 +1085,24 @@ static void __reipl_run(void *unused)
 		break;
 	case REIPL_METHOD_CCW_DIAG:
 		diag308(DIAG308_SET, reipl_block_ccw);
-		diag308(DIAG308_IPL, NULL);
+		if (MACHINE_IS_LPAR)
+			diag308(DIAG308_LOAD_NORMAL_DUMP, NULL);
+		else
+			diag308(DIAG308_LOAD_CLEAR, NULL);
 		break;
 	case REIPL_METHOD_FCP_RW_DIAG:
 		diag308(DIAG308_SET, reipl_block_fcp);
-		diag308(DIAG308_IPL, NULL);
+		diag308(DIAG308_LOAD_CLEAR, NULL);
 		break;
 	case REIPL_METHOD_FCP_RO_DIAG:
-		diag308(DIAG308_IPL, NULL);
+		diag308(DIAG308_LOAD_CLEAR, NULL);
 		break;
 	case REIPL_METHOD_FCP_RO_VM:
 		__cpcmd("IPL", NULL, 0, NULL);
 		break;
 	case REIPL_METHOD_NSS_DIAG:
 		diag308(DIAG308_SET, reipl_block_nss);
-		diag308(DIAG308_IPL, NULL);
+		diag308(DIAG308_LOAD_CLEAR, NULL);
 		break;
 	case REIPL_METHOD_NSS:
 		get_ipl_string(buf, reipl_block_nss, REIPL_METHOD_NSS);
@@ -1108,7 +1111,7 @@ static void __reipl_run(void *unused)
 	case REIPL_METHOD_DEFAULT:
 		if (MACHINE_IS_VM)
 			__cpcmd("IPL", NULL, 0, NULL);
-		diag308(DIAG308_IPL, NULL);
+		diag308(DIAG308_LOAD_CLEAR, NULL);
 		break;
 	case REIPL_METHOD_FCP_DUMP:
 		break;
@@ -1423,7 +1426,7 @@ static void diag308_dump(void *dump_block)
 {
 	diag308(DIAG308_SET, dump_block);
 	while (1) {
-		if (diag308(DIAG308_DUMP, NULL) != 0x302)
+		if (diag308(DIAG308_LOAD_NORMAL_DUMP, NULL) != 0x302)
 			break;
 		udelay_simple(USEC_PER_SEC);
 	}

@@ -33,6 +33,8 @@
 #define CLK_RECALC_NEW_RATES	BIT(9) /* recalc rates after notifications */
 #define CLK_SET_RATE_UNGATE	BIT(10) /* clock needs to run to set rate */
 #define CLK_IS_CRITICAL		BIT(11) /* do not gate, ever */
+/* parents need enable during gate/ungate, set rate and re-parent */
+#define CLK_OPS_PARENT_ENABLE	BIT(12)
 
 struct clk;
 struct clk_hw;
@@ -293,6 +295,7 @@ void clk_unregister_fixed_rate(struct clk *clk);
 struct clk_hw *clk_hw_register_fixed_rate_with_accuracy(struct device *dev,
 		const char *name, const char *parent_name, unsigned long flags,
 		unsigned long fixed_rate, unsigned long fixed_accuracy);
+void clk_hw_unregister_fixed_rate(struct clk_hw *hw);
 
 void of_fixed_clk_setup(struct device_node *np);
 

@@ -343,7 +343,6 @@ static int tc3589x_gpio_probe(struct platform_device *pdev)
 
 static struct platform_driver tc3589x_gpio_driver = {
 	.driver.name	= "tc3589x-gpio",
-	.driver.owner	= THIS_MODULE,
 	.probe		= tc3589x_gpio_probe,
 };
 

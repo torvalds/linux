@@ -56,7 +56,7 @@
 #include "iowait.h"
 
 struct verbs_txreq {
-	struct hfi1_pio_header	phdr;
+	struct hfi1_sdma_header	phdr;
 	struct sdma_txreq       txreq;
 	struct rvt_qp           *qp;
 	struct rvt_swqe         *wqe;

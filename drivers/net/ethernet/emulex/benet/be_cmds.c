@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2015 Emulex
+ * Copyright (C) 2005 - 2016 Broadcom
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -86,6 +86,11 @@ static struct be_cmd_priv_map cmd_priv_map[] = {
 		OPCODE_LOWLEVEL_SET_LOOPBACK_MODE,
 		CMD_SUBSYSTEM_LOWLEVEL,
 		BE_PRIV_DEVCFG | BE_PRIV_DEVSEC
+	},
+	{
+		OPCODE_COMMON_SET_HSW_CONFIG,
+		CMD_SUBSYSTEM_COMMON,
+		BE_PRIV_DEVCFG | BE_PRIV_VHADM
 	},
 };
 
@@ -3850,6 +3855,10 @@ int be_cmd_set_hsw_config(struct be_adapter *adapter, u16 pvid,
 	void *ctxt;
 	int status;
 
+	if (!be_cmd_allowed(adapter, OPCODE_COMMON_SET_HSW_CONFIG,
+			    CMD_SUBSYSTEM_COMMON))
+		return -EPERM;
+
 	spin_lock_bh(&adapter->mcc_lock);
 
 	wrb = wrb_from_mccq(adapter);
@@ -3871,7 +3880,7 @@ int be_cmd_set_hsw_config(struct be_adapter *adapter, u16 pvid,
 		AMAP_SET_BITS(struct amap_set_hsw_context, pvid_valid, ctxt, 1);
 		AMAP_SET_BITS(struct amap_set_hsw_context, pvid, ctxt, pvid);
 	}
-	if (!BEx_chip(adapter) && hsw_mode) {
+	if (hsw_mode) {
 		AMAP_SET_BITS(struct amap_set_hsw_context, interface_id,
 			      ctxt, adapter->hba_port_num);
 		AMAP_SET_BITS(struct amap_set_hsw_context, pport, ctxt, 1);
@@ -4023,7 +4032,10 @@ int be_cmd_get_acpi_wol_cap(struct be_adapter *adapter)
 		resp = (struct be_cmd_resp_acpi_wol_magic_config_v1 *)cmd.va;
 
 		adapter->wol_cap = resp->wol_settings;
-		if (adapter->wol_cap & BE_WOL_CAP)
+
+		/* Non-zero macaddr indicates WOL is enabled */
+		if (adapter->wol_cap & BE_WOL_CAP &&
+		    !is_zero_ether_addr(resp->magic_mac))
 			adapter->wol_en = true;
 	}
 err:
@@ -4360,9 +4372,35 @@ err:
 	return status;
 }
 
+/* This routine returns a list of all the NIC PF_nums in the adapter */
+u16 be_get_nic_pf_num_list(u8 *buf, u32 desc_count, u16 *nic_pf_nums)
+{
+	struct be_res_desc_hdr *hdr = (struct be_res_desc_hdr *)buf;
+	struct be_pcie_res_desc *pcie = NULL;
+	int i;
+	u16 nic_pf_count = 0;
+
+	for (i = 0; i < desc_count; i++) {
+		if (hdr->desc_type == PCIE_RESOURCE_DESC_TYPE_V0 ||
+		    hdr->desc_type == PCIE_RESOURCE_DESC_TYPE_V1) {
+			pcie = (struct be_pcie_res_desc *)hdr;
+			if (pcie->pf_state && (pcie->pf_type == MISSION_NIC ||
+					       pcie->pf_type == MISSION_RDMA)) {
+				nic_pf_nums[nic_pf_count++] = pcie->pf_num;
+			}
+		}
+
+		hdr->desc_len = hdr->desc_len ? : RESOURCE_DESC_SIZE_V0;
+		hdr = (void *)hdr + hdr->desc_len;
+	}
+	return nic_pf_count;
+}
+
 /* Will use MBOX only if MCCQ has not been created */
 int be_cmd_get_profile_config(struct be_adapter *adapter,
-			      struct be_resources *res, u8 query, u8 domain)
+			      struct be_resources *res,
+			      struct be_port_resources *port_res,
+			      u8 profile_type, u8 query, u8 domain)
 {
 	struct be_cmd_resp_get_profile_config *resp;
 	struct be_cmd_req_get_profile_config *req;
@@ -4389,7 +4427,7 @@ int be_cmd_get_profile_config(struct be_adapter *adapter,
 
 	if (!lancer_chip(adapter))
 		req->hdr.version = 1;
-	req->type = ACTIVE_PROFILE_TYPE;
+	req->type = profile_type;
 	req->hdr.domain = domain;
 
 	/* When QUERY_MODIFIABLE_FIELDS_TYPE bit is set, cmd returns the
@@ -4405,6 +4443,28 @@ int be_cmd_get_profile_config(struct be_adapter *adapter,
 
 	resp = cmd.va;
 	desc_count = le16_to_cpu(resp->desc_count);
+
+	if (port_res) {
+		u16 nic_pf_cnt = 0, i;
+		u16 nic_pf_num_list[MAX_NIC_FUNCS];
+
+		nic_pf_cnt = be_get_nic_pf_num_list(resp->func_param,
+						    desc_count,
+						    nic_pf_num_list);
+
+		for (i = 0; i < nic_pf_cnt; i++) {
+			nic = be_get_func_nic_desc(resp->func_param, desc_count,
+						   nic_pf_num_list[i]);
+			if (nic->link_param == adapter->port_num) {
+				port_res->nic_pfs++;
+				pcie = be_get_pcie_desc(resp->func_param,
+							desc_count,
+							nic_pf_num_list[i]);
+				port_res->max_vfs += le16_to_cpu(pcie->num_vfs);
+			}
+		}
+		return status;
+	}
 
 	pcie = be_get_pcie_desc(resp->func_param, desc_count,
 				adapter->pf_num);
@@ -4465,7 +4525,7 @@ static int be_cmd_set_profile_config(struct be_adapter *adapter, void *desc,
 }
 
 /* Mark all fields invalid */
-static void be_reset_nic_desc(struct be_nic_res_desc *nic)
+void be_reset_nic_desc(struct be_nic_res_desc *nic)
 {
 	memset(nic, 0, sizeof(*nic));
 	nic->unicast_mac_count = 0xFFFF;
@@ -4534,73 +4594,9 @@ int be_cmd_config_qos(struct be_adapter *adapter, u32 max_rate, u16 link_speed,
 					 1, version, domain);
 }
 
-static void be_fill_vf_res_template(struct be_adapter *adapter,
-				    struct be_resources pool_res,
-				    u16 num_vfs, u16 num_vf_qs,
-				    struct be_nic_res_desc *nic_vft)
-{
-	u32 vf_if_cap_flags = pool_res.vf_if_cap_flags;
-	struct be_resources res_mod = {0};
-
-	/* Resource with fields set to all '1's by GET_PROFILE_CONFIG cmd,
-	 * which are modifiable using SET_PROFILE_CONFIG cmd.
-	 */
-	be_cmd_get_profile_config(adapter, &res_mod, RESOURCE_MODIFIABLE, 0);
-
-	/* If RSS IFACE capability flags are modifiable for a VF, set the
-	 * capability flag as valid and set RSS and DEFQ_RSS IFACE flags if
-	 * more than 1 RSSQ is available for a VF.
-	 * Otherwise, provision only 1 queue pair for VF.
-	 */
-	if (res_mod.vf_if_cap_flags & BE_IF_FLAGS_RSS) {
-		nic_vft->flags |= BIT(IF_CAPS_FLAGS_VALID_SHIFT);
-		if (num_vf_qs > 1) {
-			vf_if_cap_flags |= BE_IF_FLAGS_RSS;
-			if (pool_res.if_cap_flags & BE_IF_FLAGS_DEFQ_RSS)
-				vf_if_cap_flags |= BE_IF_FLAGS_DEFQ_RSS;
-		} else {
-			vf_if_cap_flags &= ~(BE_IF_FLAGS_RSS |
-					     BE_IF_FLAGS_DEFQ_RSS);
-		}
-	} else {
-		num_vf_qs = 1;
-	}
-
-	if (res_mod.vf_if_cap_flags & BE_IF_FLAGS_VLAN_PROMISCUOUS) {
-		nic_vft->flags |= BIT(IF_CAPS_FLAGS_VALID_SHIFT);
-		vf_if_cap_flags &= ~BE_IF_FLAGS_VLAN_PROMISCUOUS;
-	}
-
-	nic_vft->cap_flags = cpu_to_le32(vf_if_cap_flags);
-	nic_vft->rq_count = cpu_to_le16(num_vf_qs);
-	nic_vft->txq_count = cpu_to_le16(num_vf_qs);
-	nic_vft->rssq_count = cpu_to_le16(num_vf_qs);
-	nic_vft->cq_count = cpu_to_le16(pool_res.max_cq_count /
-					(num_vfs + 1));
-
-	/* Distribute unicast MACs, VLANs, IFACE count and MCCQ count equally
-	 * among the PF and it's VFs, if the fields are changeable
-	 */
-	if (res_mod.max_uc_mac == FIELD_MODIFIABLE)
-		nic_vft->unicast_mac_count = cpu_to_le16(pool_res.max_uc_mac /
-							 (num_vfs + 1));
-
-	if (res_mod.max_vlans == FIELD_MODIFIABLE)
-		nic_vft->vlan_count = cpu_to_le16(pool_res.max_vlans /
-						  (num_vfs + 1));
-
-	if (res_mod.max_iface_count == FIELD_MODIFIABLE)
-		nic_vft->iface_count = cpu_to_le16(pool_res.max_iface_count /
-						   (num_vfs + 1));
-
-	if (res_mod.max_mcc_count == FIELD_MODIFIABLE)
-		nic_vft->mcc_count = cpu_to_le16(pool_res.max_mcc_count /
-						 (num_vfs + 1));
-}
-
 int be_cmd_set_sriov_config(struct be_adapter *adapter,
 			    struct be_resources pool_res, u16 num_vfs,
-			    u16 num_vf_qs)
+			    struct be_resources *vft_res)
 {
 	struct {
 		struct be_pcie_res_desc pcie;
@@ -4620,12 +4616,26 @@ int be_cmd_set_sriov_config(struct be_adapter *adapter,
 	be_reset_nic_desc(&desc.nic_vft);
 	desc.nic_vft.hdr.desc_type = NIC_RESOURCE_DESC_TYPE_V1;
 	desc.nic_vft.hdr.desc_len = RESOURCE_DESC_SIZE_V1;
-	desc.nic_vft.flags = BIT(VFT_SHIFT) | BIT(IMM_SHIFT) | BIT(NOSV_SHIFT);
+	desc.nic_vft.flags = vft_res->flags | BIT(VFT_SHIFT) |
+			     BIT(IMM_SHIFT) | BIT(NOSV_SHIFT);
 	desc.nic_vft.pf_num = adapter->pdev->devfn;
 	desc.nic_vft.vf_num = 0;
+	desc.nic_vft.cap_flags = cpu_to_le32(vft_res->vf_if_cap_flags);
+	desc.nic_vft.rq_count = cpu_to_le16(vft_res->max_rx_qs);
+	desc.nic_vft.txq_count = cpu_to_le16(vft_res->max_tx_qs);
+	desc.nic_vft.rssq_count = cpu_to_le16(vft_res->max_rss_qs);
+	desc.nic_vft.cq_count = cpu_to_le16(vft_res->max_cq_count);
 
-	be_fill_vf_res_template(adapter, pool_res, num_vfs, num_vf_qs,
-				&desc.nic_vft);
+	if (vft_res->max_uc_mac)
+		desc.nic_vft.unicast_mac_count =
+					cpu_to_le16(vft_res->max_uc_mac);
+	if (vft_res->max_vlans)
+		desc.nic_vft.vlan_count = cpu_to_le16(vft_res->max_vlans);
+	if (vft_res->max_iface_count)
+		desc.nic_vft.iface_count =
+				cpu_to_le16(vft_res->max_iface_count);
+	if (vft_res->max_mcc_count)
+		desc.nic_vft.mcc_count = cpu_to_le16(vft_res->max_mcc_count);
 
 	return be_cmd_set_profile_config(adapter, &desc,
 					 2 * RESOURCE_DESC_SIZE_V1, 2, 1, 0);

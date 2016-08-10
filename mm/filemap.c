@@ -95,8 +95,8 @@
  *    ->swap_lock		(try_to_unmap_one)
  *    ->private_lock		(try_to_unmap_one)
  *    ->tree_lock		(try_to_unmap_one)
- *    ->zone.lru_lock		(follow_page->mark_page_accessed)
- *    ->zone.lru_lock		(check_pte_range->isolate_lru_page)
+ *    ->zone_lru_lock(zone)	(follow_page->mark_page_accessed)
+ *    ->zone_lru_lock(zone)	(check_pte_range->isolate_lru_page)
  *    ->private_lock		(page_remove_rmap->set_page_dirty)
  *    ->tree_lock		(page_remove_rmap->set_page_dirty)
  *    bdi.wb->list_lock		(page_remove_rmap->set_page_dirty)
@@ -114,14 +114,14 @@ static void page_cache_tree_delete(struct address_space *mapping,
 				   struct page *page, void *shadow)
 {
 	struct radix_tree_node *node;
+	int i, nr = PageHuge(page) ? 1 : hpage_nr_pages(page);
 
-	VM_BUG_ON(!PageLocked(page));
-
-	node = radix_tree_replace_clear_tags(&mapping->page_tree, page->index,
-								shadow);
+	VM_BUG_ON_PAGE(!PageLocked(page), page);
+	VM_BUG_ON_PAGE(PageTail(page), page);
+	VM_BUG_ON_PAGE(nr != 1 && shadow, page);
 
 	if (shadow) {
-		mapping->nrexceptional++;
+		mapping->nrexceptional += nr;
 		/*
 		 * Make sure the nrexceptional update is committed before
 		 * the nrpages update so that final truncate racing
@@ -130,31 +130,38 @@ static void page_cache_tree_delete(struct address_space *mapping,
 		 */
 		smp_wmb();
 	}
-	mapping->nrpages--;
+	mapping->nrpages -= nr;
 
-	if (!node)
-		return;
-
-	workingset_node_pages_dec(node);
-	if (shadow)
-		workingset_node_shadows_inc(node);
-	else
-		if (__radix_tree_delete_node(&mapping->page_tree, node))
+	for (i = 0; i < nr; i++) {
+		node = radix_tree_replace_clear_tags(&mapping->page_tree,
+				page->index + i, shadow);
+		if (!node) {
+			VM_BUG_ON_PAGE(nr != 1, page);
 			return;
+		}
 
-	/*
-	 * Track node that only contains shadow entries. DAX mappings contain
-	 * no shadow entries and may contain other exceptional entries so skip
-	 * those.
-	 *
-	 * Avoid acquiring the list_lru lock if already tracked.  The
-	 * list_empty() test is safe as node->private_list is
-	 * protected by mapping->tree_lock.
-	 */
-	if (!dax_mapping(mapping) && !workingset_node_pages(node) &&
-	    list_empty(&node->private_list)) {
-		node->private_data = mapping;
-		list_lru_add(&workingset_shadow_nodes, &node->private_list);
+		workingset_node_pages_dec(node);
+		if (shadow)
+			workingset_node_shadows_inc(node);
+		else
+			if (__radix_tree_delete_node(&mapping->page_tree, node))
+				continue;
+
+		/*
+		 * Track node that only contains shadow entries. DAX mappings
+		 * contain no shadow entries and may contain other exceptional
+		 * entries so skip those.
+		 *
+		 * Avoid acquiring the list_lru lock if already tracked.
+		 * The list_empty() test is safe as node->private_list is
+		 * protected by mapping->tree_lock.
+		 */
+		if (!dax_mapping(mapping) && !workingset_node_pages(node) &&
+				list_empty(&node->private_list)) {
+			node->private_data = mapping;
+			list_lru_add(&workingset_shadow_nodes,
+					&node->private_list);
+		}
 	}
 }
 
@@ -166,6 +173,7 @@ static void page_cache_tree_delete(struct address_space *mapping,
 void __delete_from_page_cache(struct page *page, void *shadow)
 {
 	struct address_space *mapping = page->mapping;
+	int nr = hpage_nr_pages(page);
 
 	trace_mm_filemap_delete_from_page_cache(page);
 	/*
@@ -178,6 +186,7 @@ void __delete_from_page_cache(struct page *page, void *shadow)
 	else
 		cleancache_invalidate_page(mapping, page);
 
+	VM_BUG_ON_PAGE(PageTail(page), page);
 	VM_BUG_ON_PAGE(page_mapped(page), page);
 	if (!IS_ENABLED(CONFIG_DEBUG_VM) && unlikely(page_mapped(page))) {
 		int mapcount;
@@ -209,9 +218,14 @@ void __delete_from_page_cache(struct page *page, void *shadow)
 
 	/* hugetlb pages do not participate in page cache accounting. */
 	if (!PageHuge(page))
-		__dec_zone_page_state(page, NR_FILE_PAGES);
-	if (PageSwapBacked(page))
-		__dec_zone_page_state(page, NR_SHMEM);
+		__mod_node_page_state(page_pgdat(page), NR_FILE_PAGES, -nr);
+	if (PageSwapBacked(page)) {
+		__mod_node_page_state(page_pgdat(page), NR_SHMEM, -nr);
+		if (PageTransHuge(page))
+			__dec_node_page_state(page, NR_SHMEM_THPS);
+	} else {
+		VM_BUG_ON_PAGE(PageTransHuge(page) && !PageHuge(page), page);
+	}
 
 	/*
 	 * At this point page must be either written or cleaned by truncate.
@@ -235,9 +249,8 @@ void __delete_from_page_cache(struct page *page, void *shadow)
  */
 void delete_from_page_cache(struct page *page)
 {
-	struct address_space *mapping = page->mapping;
+	struct address_space *mapping = page_mapping(page);
 	unsigned long flags;
-
 	void (*freepage)(struct page *);
 
 	BUG_ON(!PageLocked(page));
@@ -250,11 +263,17 @@ void delete_from_page_cache(struct page *page)
 
 	if (freepage)
 		freepage(page);
-	put_page(page);
+
+	if (PageTransHuge(page) && !PageHuge(page)) {
+		page_ref_sub(page, HPAGE_PMD_NR);
+		VM_BUG_ON_PAGE(page_count(page) <= 0, page);
+	} else {
+		put_page(page);
+	}
 }
 EXPORT_SYMBOL(delete_from_page_cache);
 
-static int filemap_check_errors(struct address_space *mapping)
+int filemap_check_errors(struct address_space *mapping)
 {
 	int ret = 0;
 	/* Check for outstanding write errors */
@@ -266,6 +285,7 @@ static int filemap_check_errors(struct address_space *mapping)
 		ret = -EIO;
 	return ret;
 }
+EXPORT_SYMBOL(filemap_check_errors);
 
 /**
  * __filemap_fdatawrite_range - start writeback on mapping dirty pages in range
@@ -549,9 +569,9 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
 		 * hugetlb pages do not participate in page cache accounting.
 		 */
 		if (!PageHuge(new))
-			__inc_zone_page_state(new, NR_FILE_PAGES);
+			__inc_node_page_state(new, NR_FILE_PAGES);
 		if (PageSwapBacked(new))
-			__inc_zone_page_state(new, NR_SHMEM);
+			__inc_node_page_state(new, NR_SHMEM);
 		spin_unlock_irqrestore(&mapping->tree_lock, flags);
 		mem_cgroup_migrate(old, new);
 		radix_tree_preload_end();
@@ -658,7 +678,7 @@ static int __add_to_page_cache_locked(struct page *page,
 
 	/* hugetlb pages do not participate in page cache accounting. */
 	if (!huge)
-		__inc_zone_page_state(page, NR_FILE_PAGES);
+		__inc_node_page_state(page, NR_FILE_PAGES);
 	spin_unlock_irq(&mapping->tree_lock);
 	if (!huge)
 		mem_cgroup_commit_charge(page, memcg, false, false);
@@ -867,9 +887,9 @@ EXPORT_SYMBOL(end_page_writeback);
  * After completing I/O on a page, call this routine to update the page
  * flags appropriately
  */
-void page_endio(struct page *page, int rw, int err)
+void page_endio(struct page *page, bool is_write, int err)
 {
-	if (rw == READ) {
+	if (!is_write) {
 		if (!err) {
 			SetPageUptodate(page);
 		} else {
@@ -877,7 +897,7 @@ void page_endio(struct page *page, int rw, int err)
 			SetPageError(page);
 		}
 		unlock_page(page);
-	} else { /* rw == WRITE */
+	} else {
 		if (err) {
 			SetPageError(page);
 			if (page->mapping)
@@ -1053,7 +1073,7 @@ EXPORT_SYMBOL(page_cache_prev_hole);
 struct page *find_get_entry(struct address_space *mapping, pgoff_t offset)
 {
 	void **pagep;
-	struct page *page;
+	struct page *head, *page;
 
 	rcu_read_lock();
 repeat:
@@ -1073,8 +1093,16 @@ repeat:
 			 */
 			goto out;
 		}
-		if (!page_cache_get_speculative(page))
+
+		head = compound_head(page);
+		if (!page_cache_get_speculative(head))
 			goto repeat;
+
+		/* The page was split under us? */
+		if (compound_head(page) != head) {
+			put_page(head);
+			goto repeat;
+		}
 
 		/*
 		 * Has the page moved?
@@ -1082,7 +1110,7 @@ repeat:
 		 * include/linux/pagemap.h for details.
 		 */
 		if (unlikely(page != *pagep)) {
-			put_page(page);
+			put_page(head);
 			goto repeat;
 		}
 	}
@@ -1118,12 +1146,12 @@ repeat:
 	if (page && !radix_tree_exception(page)) {
 		lock_page(page);
 		/* Has the page been truncated? */
-		if (unlikely(page->mapping != mapping)) {
+		if (unlikely(page_mapping(page) != mapping)) {
 			unlock_page(page);
 			put_page(page);
 			goto repeat;
 		}
-		VM_BUG_ON_PAGE(page->index != offset, page);
+		VM_BUG_ON_PAGE(page_to_pgoff(page) != offset, page);
 	}
 	return page;
 }
@@ -1255,7 +1283,7 @@ unsigned find_get_entries(struct address_space *mapping,
 
 	rcu_read_lock();
 	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
-		struct page *page;
+		struct page *head, *page;
 repeat:
 		page = radix_tree_deref_slot(slot);
 		if (unlikely(!page))
@@ -1272,12 +1300,20 @@ repeat:
 			 */
 			goto export;
 		}
-		if (!page_cache_get_speculative(page))
+
+		head = compound_head(page);
+		if (!page_cache_get_speculative(head))
 			goto repeat;
+
+		/* The page was split under us? */
+		if (compound_head(page) != head) {
+			put_page(head);
+			goto repeat;
+		}
 
 		/* Has the page moved? */
 		if (unlikely(page != *slot)) {
-			put_page(page);
+			put_page(head);
 			goto repeat;
 		}
 export:
@@ -1318,7 +1354,7 @@ unsigned find_get_pages(struct address_space *mapping, pgoff_t start,
 
 	rcu_read_lock();
 	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
-		struct page *page;
+		struct page *head, *page;
 repeat:
 		page = radix_tree_deref_slot(slot);
 		if (unlikely(!page))
@@ -1337,12 +1373,19 @@ repeat:
 			continue;
 		}
 
-		if (!page_cache_get_speculative(page))
+		head = compound_head(page);
+		if (!page_cache_get_speculative(head))
 			goto repeat;
+
+		/* The page was split under us? */
+		if (compound_head(page) != head) {
+			put_page(head);
+			goto repeat;
+		}
 
 		/* Has the page moved? */
 		if (unlikely(page != *slot)) {
-			put_page(page);
+			put_page(head);
 			goto repeat;
 		}
 
@@ -1379,7 +1422,7 @@ unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t index,
 
 	rcu_read_lock();
 	radix_tree_for_each_contig(slot, &mapping->page_tree, &iter, index) {
-		struct page *page;
+		struct page *head, *page;
 repeat:
 		page = radix_tree_deref_slot(slot);
 		/* The hole, there no reason to continue */
@@ -1399,12 +1442,19 @@ repeat:
 			break;
 		}
 
-		if (!page_cache_get_speculative(page))
+		head = compound_head(page);
+		if (!page_cache_get_speculative(head))
 			goto repeat;
+
+		/* The page was split under us? */
+		if (compound_head(page) != head) {
+			put_page(head);
+			goto repeat;
+		}
 
 		/* Has the page moved? */
 		if (unlikely(page != *slot)) {
-			put_page(page);
+			put_page(head);
 			goto repeat;
 		}
 
@@ -1413,7 +1463,7 @@ repeat:
 		 * otherwise we can get both false positives and false
 		 * negatives, which is just confusing to the caller.
 		 */
-		if (page->mapping == NULL || page->index != iter.index) {
+		if (page->mapping == NULL || page_to_pgoff(page) != iter.index) {
 			put_page(page);
 			break;
 		}
@@ -1451,7 +1501,7 @@ unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *index,
 	rcu_read_lock();
 	radix_tree_for_each_tagged(slot, &mapping->page_tree,
 				   &iter, *index, tag) {
-		struct page *page;
+		struct page *head, *page;
 repeat:
 		page = radix_tree_deref_slot(slot);
 		if (unlikely(!page))
@@ -1476,12 +1526,19 @@ repeat:
 			continue;
 		}
 
-		if (!page_cache_get_speculative(page))
+		head = compound_head(page);
+		if (!page_cache_get_speculative(head))
 			goto repeat;
+
+		/* The page was split under us? */
+		if (compound_head(page) != head) {
+			put_page(head);
+			goto repeat;
+		}
 
 		/* Has the page moved? */
 		if (unlikely(page != *slot)) {
-			put_page(page);
+			put_page(head);
 			goto repeat;
 		}
 
@@ -1525,7 +1582,7 @@ unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t start,
 	rcu_read_lock();
 	radix_tree_for_each_tagged(slot, &mapping->page_tree,
 				   &iter, start, tag) {
-		struct page *page;
+		struct page *head, *page;
 repeat:
 		page = radix_tree_deref_slot(slot);
 		if (unlikely(!page))
@@ -1543,12 +1600,20 @@ repeat:
 			 */
 			goto export;
 		}
-		if (!page_cache_get_speculative(page))
+
+		head = compound_head(page);
+		if (!page_cache_get_speculative(head))
 			goto repeat;
+
+		/* The page was split under us? */
+		if (compound_head(page) != head) {
+			put_page(head);
+			goto repeat;
+		}
 
 		/* Has the page moved? */
 		if (unlikely(page != *slot)) {
-			put_page(page);
+			put_page(head);
 			goto repeat;
 		}
 export:
@@ -2128,21 +2193,21 @@ page_not_uptodate:
 }
 EXPORT_SYMBOL(filemap_fault);
 
-void filemap_map_pages(struct vm_area_struct *vma, struct vm_fault *vmf)
+void filemap_map_pages(struct fault_env *fe,
+		pgoff_t start_pgoff, pgoff_t end_pgoff)
 {
 	struct radix_tree_iter iter;
 	void **slot;
-	struct file *file = vma->vm_file;
+	struct file *file = fe->vma->vm_file;
 	struct address_space *mapping = file->f_mapping;
+	pgoff_t last_pgoff = start_pgoff;
 	loff_t size;
-	struct page *page;
-	unsigned long address = (unsigned long) vmf->virtual_address;
-	unsigned long addr;
-	pte_t *pte;
+	struct page *head, *page;
 
 	rcu_read_lock();
-	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, vmf->pgoff) {
-		if (iter.index > vmf->max_pgoff)
+	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter,
+			start_pgoff) {
+		if (iter.index > end_pgoff)
 			break;
 repeat:
 		page = radix_tree_deref_slot(slot);
@@ -2156,12 +2221,19 @@ repeat:
 			goto next;
 		}
 
-		if (!page_cache_get_speculative(page))
+		head = compound_head(page);
+		if (!page_cache_get_speculative(head))
 			goto repeat;
+
+		/* The page was split under us? */
+		if (compound_head(page) != head) {
+			put_page(head);
+			goto repeat;
+		}
 
 		/* Has the page moved? */
 		if (unlikely(page != *slot)) {
-			put_page(page);
+			put_page(head);
 			goto repeat;
 		}
 
@@ -2179,14 +2251,15 @@ repeat:
 		if (page->index >= size >> PAGE_SHIFT)
 			goto unlock;
 
-		pte = vmf->pte + page->index - vmf->pgoff;
-		if (!pte_none(*pte))
-			goto unlock;
-
 		if (file->f_ra.mmap_miss > 0)
 			file->f_ra.mmap_miss--;
-		addr = address + (page->index - vmf->pgoff) * PAGE_SIZE;
-		do_set_pte(vma, addr, page, pte, false, false);
+
+		fe->address += (iter.index - last_pgoff) << PAGE_SHIFT;
+		if (fe->pte)
+			fe->pte += iter.index - last_pgoff;
+		last_pgoff = iter.index;
+		if (alloc_set_pte(fe, NULL, page))
+			goto unlock;
 		unlock_page(page);
 		goto next;
 unlock:
@@ -2194,7 +2267,10 @@ unlock:
 skip:
 		put_page(page);
 next:
-		if (iter.index == vmf->max_pgoff)
+		/* Huge page is mapped? No need to proceed. */
+		if (pmd_trans_huge(*fe->pmd))
+			break;
+		if (iter.index == end_pgoff)
 			break;
 	}
 	rcu_read_unlock();

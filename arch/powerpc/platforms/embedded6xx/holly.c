@@ -193,7 +193,7 @@ void holly_show_cpuinfo(struct seq_file *m)
 	seq_printf(m, "machine\t\t: PPC750 GX/CL\n");
 }
 
-void holly_restart(char *cmd)
+void __noreturn holly_restart(char *cmd)
 {
 	__be32 __iomem *ocn_bar1 = NULL;
 	unsigned long bar;
@@ -250,9 +250,7 @@ void holly_halt(void)
  */
 static int __init holly_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if (!of_flat_dt_is_compatible(root, "ibm,holly"))
+	if (!of_machine_is_compatible("ibm,holly"))
 		return 0;
 	return 1;
 }

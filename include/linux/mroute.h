@@ -104,6 +104,7 @@ struct mfc_cache {
 			unsigned long bytes;
 			unsigned long pkt;
 			unsigned long wrong_if;
+			unsigned long lastuse;
 			unsigned char ttls[MAXVIFS];	/* TTL thresholds		*/
 		} res;
 	} mfc_un;

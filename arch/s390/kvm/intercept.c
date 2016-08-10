@@ -351,8 +351,26 @@ static int handle_partial_execution(struct kvm_vcpu *vcpu)
 	return -EOPNOTSUPP;
 }
 
+static int handle_operexc(struct kvm_vcpu *vcpu)
+{
+	vcpu->stat.exit_operation_exception++;
+	trace_kvm_s390_handle_operexc(vcpu, vcpu->arch.sie_block->ipa,
+				      vcpu->arch.sie_block->ipb);
+
+	if (vcpu->arch.sie_block->ipa == 0xb256 &&
+	    test_kvm_facility(vcpu->kvm, 74))
+		return handle_sthyi(vcpu);
+
+	if (vcpu->arch.sie_block->ipa == 0 && vcpu->kvm->arch.user_instr0)
+		return -EOPNOTSUPP;
+
+	return kvm_s390_inject_program_int(vcpu, PGM_OPERATION);
+}
+
 int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu)
 {
+	int rc, per_rc = 0;
+
 	if (kvm_is_ucontrol(vcpu->kvm))
 		return -EOPNOTSUPP;
 
@@ -361,7 +379,8 @@ int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu)
 	case 0x18:
 		return handle_noop(vcpu);
 	case 0x04:
-		return handle_instruction(vcpu);
+		rc = handle_instruction(vcpu);
+		break;
 	case 0x08:
 		return handle_prog(vcpu);
 	case 0x14:
@@ -372,9 +391,19 @@ int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu)
 		return handle_validity(vcpu);
 	case 0x28:
 		return handle_stop(vcpu);
+	case 0x2c:
+		rc = handle_operexc(vcpu);
+		break;
 	case 0x38:
-		return handle_partial_execution(vcpu);
+		rc = handle_partial_execution(vcpu);
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}
+
+	/* process PER, also if the instrution is processed in user space */
+	if (vcpu->arch.sie_block->icptstatus & 0x02 &&
+	    (!rc || rc == -EOPNOTSUPP))
+		per_rc = kvm_s390_handle_per_ifetch_icpt(vcpu);
+	return per_rc ? per_rc : rc;
 }

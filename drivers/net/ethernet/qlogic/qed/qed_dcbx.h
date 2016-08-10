@@ -33,6 +33,24 @@ struct qed_dcbx_app_data {
 	u8 tc;			/* Traffic Class */
 };
 
+#ifdef CONFIG_DCB
+#define QED_DCBX_VERSION_DISABLED       0
+#define QED_DCBX_VERSION_IEEE           1
+#define QED_DCBX_VERSION_CEE            2
+
+struct qed_dcbx_set {
+#define QED_DCBX_OVERRIDE_STATE	        BIT(0)
+#define QED_DCBX_OVERRIDE_PFC_CFG       BIT(1)
+#define QED_DCBX_OVERRIDE_ETS_CFG       BIT(2)
+#define QED_DCBX_OVERRIDE_APP_CFG       BIT(3)
+#define QED_DCBX_OVERRIDE_DSCP_CFG      BIT(4)
+	u32 override_flags;
+	bool enabled;
+	struct qed_dcbx_admin_params config;
+	u32 ver_num;
+};
+#endif
+
 struct qed_dcbx_results {
 	bool dcbx_enabled;
 	u8 pf_id;
@@ -55,6 +73,9 @@ struct qed_dcbx_info {
 	struct qed_dcbx_results results;
 	struct dcbx_mib operational;
 	struct dcbx_mib remote;
+#ifdef CONFIG_DCB
+	struct qed_dcbx_set set;
+#endif
 	u8 dcbx_cap;
 };
 
@@ -66,6 +87,13 @@ struct qed_dcbx_mib_meta_data {
 	size_t size;
 	u32 addr;
 };
+
+#ifdef CONFIG_DCB
+int qed_dcbx_get_config_params(struct qed_hwfn *, struct qed_dcbx_set *);
+
+int qed_dcbx_config_params(struct qed_hwfn *,
+			   struct qed_ptt *, struct qed_dcbx_set *, bool);
+#endif
 
 /* QED local interface routines */
 int

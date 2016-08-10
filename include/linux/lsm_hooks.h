@@ -1356,7 +1356,7 @@ union security_list_options {
 					struct super_block *newsb);
 	int (*sb_parse_opts_str)(char *options, struct security_mnt_opts *opts);
 	int (*dentry_init_security)(struct dentry *dentry, int mode,
-					struct qstr *name, void **ctx,
+					const struct qstr *name, void **ctx,
 					u32 *ctxlen);
 
 

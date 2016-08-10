@@ -6,6 +6,7 @@
 struct dentry;
 struct iattr;
 struct inode;
+struct iomap;
 struct super_block;
 struct vfsmount;
 
@@ -186,21 +187,6 @@ struct fid {
  *    get_parent is called with child->d_inode->i_mutex down
  *    get_name is not (which is possibly inconsistent)
  */
-
-/* types of block ranges for multipage write mappings. */
-#define IOMAP_HOLE	0x01	/* no blocks allocated, need allocation */
-#define IOMAP_DELALLOC	0x02	/* delayed allocation blocks */
-#define IOMAP_MAPPED	0x03	/* blocks allocated @blkno */
-#define IOMAP_UNWRITTEN	0x04	/* blocks allocated @blkno in unwritten state */
-
-#define IOMAP_NULL_BLOCK -1LL	/* blkno is not valid */
-
-struct iomap {
-	sector_t	blkno;	/* first sector of mapping */
-	loff_t		offset;	/* file offset of mapping, bytes */
-	u64		length;	/* length of mapping, bytes */
-	int		type;	/* type of mapping */
-};
 
 struct export_operations {
 	int (*encode_fh)(struct inode *inode, __u32 *fh, int *max_len,

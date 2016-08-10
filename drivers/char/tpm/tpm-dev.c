@@ -61,7 +61,7 @@ static int tpm_open(struct inode *inode, struct file *file)
 	 * by the check of is_open variable, which is protected
 	 * by driver_lock. */
 	if (test_and_set_bit(0, &chip->is_open)) {
-		dev_dbg(chip->pdev, "Another process owns this TPM\n");
+		dev_dbg(&chip->dev, "Another process owns this TPM\n");
 		return -EBUSY;
 	}
 
@@ -79,7 +79,6 @@ static int tpm_open(struct inode *inode, struct file *file)
 	INIT_WORK(&priv->work, timeout_work);
 
 	file->private_data = priv;
-	get_device(chip->pdev);
 	return 0;
 }
 
@@ -137,9 +136,18 @@ static ssize_t tpm_write(struct file *file, const char __user *buf,
 		return -EFAULT;
 	}
 
-	/* atomic tpm command send and result receive */
+	/* atomic tpm command send and result receive. We only hold the ops
+	 * lock during this period so that the tpm can be unregistered even if
+	 * the char dev is held open.
+	 */
+	if (tpm_try_get_ops(priv->chip)) {
+		mutex_unlock(&priv->buffer_mutex);
+		return -EPIPE;
+	}
 	out_size = tpm_transmit(priv->chip, priv->data_buffer,
 				sizeof(priv->data_buffer));
+
+	tpm_put_ops(priv->chip);
 	if (out_size < 0) {
 		mutex_unlock(&priv->buffer_mutex);
 		return out_size;
@@ -166,7 +174,6 @@ static int tpm_release(struct inode *inode, struct file *file)
 	file->private_data = NULL;
 	atomic_set(&priv->data_pending, 0);
 	clear_bit(0, &priv->chip->is_open);
-	put_device(priv->chip->pdev);
 	kfree(priv);
 	return 0;
 }

@@ -109,7 +109,8 @@ static inline bool ila_csum_neutral_set(struct ila_identifier ident)
 	return !!(ident.csum_neutral);
 }
 
-void ila_update_ipv6_locator(struct sk_buff *skb, struct ila_params *p);
+void ila_update_ipv6_locator(struct sk_buff *skb, struct ila_params *p,
+			     bool set_csum_neutral);
 
 void ila_init_saved_csum(struct ila_params *p);
 

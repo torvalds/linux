@@ -99,7 +99,8 @@ static inline void context_tracking_init(void) { }
 
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
-static inline void guest_enter(void)
+/* must be called with irqs disabled */
+static inline void guest_enter_irqoff(void)
 {
 	if (vtime_accounting_cpu_enabled())
 		vtime_guest_enter(current);
@@ -108,9 +109,19 @@ static inline void guest_enter(void)
 
 	if (context_tracking_is_enabled())
 		__context_tracking_enter(CONTEXT_GUEST);
+
+	/* KVM does not hold any references to rcu protected data when it
+	 * switches CPU into a guest mode. In fact switching to a guest mode
+	 * is very similar to exiting to userspace from rcu point of view. In
+	 * addition CPU may stay in a guest mode for quite a long time (up to
+	 * one time slice). Lets treat guest mode as quiescent state, just like
+	 * we do with user-mode execution.
+	 */
+	if (!context_tracking_cpu_is_enabled())
+		rcu_virt_note_context_switch(smp_processor_id());
 }
 
-static inline void guest_exit(void)
+static inline void guest_exit_irqoff(void)
 {
 	if (context_tracking_is_enabled())
 		__context_tracking_exit(CONTEXT_GUEST);
@@ -122,7 +133,7 @@ static inline void guest_exit(void)
 }
 
 #else
-static inline void guest_enter(void)
+static inline void guest_enter_irqoff(void)
 {
 	/*
 	 * This is running in ioctl context so its safe
@@ -131,14 +142,33 @@ static inline void guest_enter(void)
 	 */
 	vtime_account_system(current);
 	current->flags |= PF_VCPU;
+	rcu_virt_note_context_switch(smp_processor_id());
 }
 
-static inline void guest_exit(void)
+static inline void guest_exit_irqoff(void)
 {
 	/* Flush the guest cputime we spent on the guest */
 	vtime_account_system(current);
 	current->flags &= ~PF_VCPU;
 }
 #endif /* CONFIG_VIRT_CPU_ACCOUNTING_GEN */
+
+static inline void guest_enter(void)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	guest_enter_irqoff();
+	local_irq_restore(flags);
+}
+
+static inline void guest_exit(void)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	guest_exit_irqoff();
+	local_irq_restore(flags);
+}
 
 #endif

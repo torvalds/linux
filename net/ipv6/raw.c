@@ -878,6 +878,11 @@ static int rawv6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	if (inet->hdrincl)
 		fl6.flowi6_flags |= FLOWI_FLAG_KNOWN_NH;
 
+	if (ipc6.tclass < 0)
+		ipc6.tclass = np->tclass;
+
+	fl6.flowlabel = ip6_make_flowinfo(ipc6.tclass, fl6.flowlabel);
+
 	dst = ip6_dst_lookup_flow(sk, &fl6, final_p);
 	if (IS_ERR(dst)) {
 		err = PTR_ERR(dst);
@@ -885,9 +890,6 @@ static int rawv6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	}
 	if (ipc6.hlimit < 0)
 		ipc6.hlimit = ip6_sk_dst_hoplimit(np, &fl6, dst);
-
-	if (ipc6.tclass < 0)
-		ipc6.tclass = np->tclass;
 
 	if (ipc6.dontfrag < 0)
 		ipc6.dontfrag = np->dontfrag;

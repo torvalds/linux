@@ -55,6 +55,7 @@ extern const struct nla_policy tipc_nl_prop_policy[];
 extern const struct nla_policy tipc_nl_bearer_policy[];
 extern const struct nla_policy tipc_nl_media_policy[];
 extern const struct nla_policy tipc_nl_udp_policy[];
+extern const struct nla_policy tipc_nl_monitor_policy[];
 
 int tipc_netlink_start(void);
 int tipc_netlink_compat_start(void);

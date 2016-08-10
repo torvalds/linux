@@ -112,11 +112,12 @@ struct aead_request {
  *		 supplied during the decryption operation. This function is also
  *		 responsible for checking the authentication tag size for
  *		 validity.
- * @setkey: see struct ablkcipher_alg
- * @encrypt: see struct ablkcipher_alg
- * @decrypt: see struct ablkcipher_alg
- * @geniv: see struct ablkcipher_alg
- * @ivsize: see struct ablkcipher_alg
+ * @setkey: see struct skcipher_alg
+ * @encrypt: see struct skcipher_alg
+ * @decrypt: see struct skcipher_alg
+ * @geniv: see struct skcipher_alg
+ * @ivsize: see struct skcipher_alg
+ * @chunksize: see struct skcipher_alg
  * @init: Initialize the cryptographic transformation object. This function
  *	  is used to initialize the cryptographic transformation object.
  *	  This function is called only once at the instantiation time, right
@@ -145,6 +146,7 @@ struct aead_alg {
 
 	unsigned int ivsize;
 	unsigned int maxauthsize;
+	unsigned int chunksize;
 
 	struct crypto_alg base;
 };

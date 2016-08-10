@@ -31,6 +31,24 @@
 			power-domains = <&pd_a2sl>;
 			next-level-cache = <&L2_CA15>;
 		};
+
+		L2_CA15: cache-controller@0 {
+			compatible = "cache";
+			reg = <0>;
+			clocks = <&cpg_clocks R8A73A4_CLK_Z>;
+			power-domains = <&pd_a3sm>;
+			cache-unified;
+			cache-level = <2>;
+		};
+
+		L2_CA7: cache-controller@100 {
+			compatible = "cache";
+			reg = <0x100>;
+			clocks = <&cpg_clocks R8A73A4_CLK_Z2>;
+			power-domains = <&pd_a3km>;
+			cache-unified;
+			cache-level = <2>;
+		};
 	};
 
 	ptm {
@@ -44,22 +62,6 @@
 			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
 			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
 			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
-	};
-
-	L2_CA15: cache-controller@0 {
-		compatible = "cache";
-		clocks = <&cpg_clocks R8A73A4_CLK_Z>;
-		power-domains = <&pd_a3sm>;
-		cache-unified;
-		cache-level = <2>;
-	};
-
-	L2_CA7: cache-controller@1 {
-		compatible = "cache";
-		clocks = <&cpg_clocks R8A73A4_CLK_Z2>;
-		power-domains = <&pd_a3km>;
-		cache-unified;
-		cache-level = <2>;
 	};
 
 	dbsc1: memory-controller@e6790000 {

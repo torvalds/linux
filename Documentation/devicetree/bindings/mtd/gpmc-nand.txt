@@ -39,7 +39,7 @@ Optional properties:
 
 		"prefetch-polled"	Prefetch polled mode (default)
 		"polled"		Polled mode, without prefetch
-		"prefetch-dma"		Prefetch enabled sDMA mode
+		"prefetch-dma"		Prefetch enabled DMA mode
 		"prefetch-irq"		Prefetch enabled irq mode
 
  - elm_id:	<deprecated> use "ti,elm-id" instead

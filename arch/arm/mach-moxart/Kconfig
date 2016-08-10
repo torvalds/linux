@@ -5,7 +5,7 @@ menuconfig ARCH_MOXART
 	select ARM_DMA_MEM_BUFFERABLE
 	select MOXART_TIMER
 	select GENERIC_IRQ_CHIP
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select PHYLIB if NETDEVICES
 	help
 	  Say Y here if you want to run your kernel on hardware with a

@@ -126,7 +126,7 @@ static int mdio_mux_mmioreg_probe(struct platform_device *pdev)
 	}
 
 	ret = mdio_mux_init(&pdev->dev, mdio_mux_mmioreg_switch_fn,
-			    &s->mux_handle, s);
+			    &s->mux_handle, s, NULL);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register mdio-mux bus %s\n",
 			np->full_name);

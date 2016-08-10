@@ -444,8 +444,7 @@ static void cdv_intel_lvds_destroy(struct drm_connector *connector)
 {
 	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
 
-	if (gma_encoder->i2c_bus)
-		psb_intel_i2c_destroy(gma_encoder->i2c_bus);
+	psb_intel_i2c_destroy(gma_encoder->i2c_bus);
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(connector);
@@ -780,12 +779,10 @@ out:
 failed_find:
 	mutex_unlock(&dev->mode_config.mutex);
 	printk(KERN_ERR "Failed find\n");
-	if (gma_encoder->ddc_bus)
-		psb_intel_i2c_destroy(gma_encoder->ddc_bus);
+	psb_intel_i2c_destroy(gma_encoder->ddc_bus);
 failed_ddc:
 	printk(KERN_ERR "Failed DDC\n");
-	if (gma_encoder->i2c_bus)
-		psb_intel_i2c_destroy(gma_encoder->i2c_bus);
+	psb_intel_i2c_destroy(gma_encoder->i2c_bus);
 failed_blc_i2c:
 	printk(KERN_ERR "Failed BLC\n");
 	drm_encoder_cleanup(encoder);

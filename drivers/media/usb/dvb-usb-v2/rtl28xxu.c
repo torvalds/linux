@@ -624,7 +624,7 @@ static int rtl28xxu_identify_state(struct dvb_usb_device *d, const char **name)
 	dev_dbg(&d->intf->dev, "chip_id=%u\n", dev->chip_id);
 
 	/* Retry failed I2C messages */
-	d->i2c_adap.retries = 1;
+	d->i2c_adap.retries = 3;
 	d->i2c_adap.timeout = msecs_to_jiffies(10);
 
 	return WARM;

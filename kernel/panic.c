@@ -108,6 +108,7 @@ void panic(const char *fmt, ...)
 	long i, i_next = 0;
 	int state = 0;
 	int old_cpu, this_cpu;
+	bool _crash_kexec_post_notifiers = crash_kexec_post_notifiers;
 
 	/*
 	 * Disable local interrupts. This will prevent panic_smp_self_stop
@@ -160,7 +161,7 @@ void panic(const char *fmt, ...)
 	 *
 	 * Bypass the panic_cpu check and call __crash_kexec directly.
 	 */
-	if (!crash_kexec_post_notifiers) {
+	if (!_crash_kexec_post_notifiers) {
 		printk_nmi_flush_on_panic();
 		__crash_kexec(NULL);
 	}
@@ -191,7 +192,7 @@ void panic(const char *fmt, ...)
 	 *
 	 * Bypass the panic_cpu check and call __crash_kexec directly.
 	 */
-	if (crash_kexec_post_notifiers)
+	if (_crash_kexec_post_notifiers)
 		__crash_kexec(NULL);
 
 	bust_spinlocks(0);
@@ -571,13 +572,7 @@ EXPORT_SYMBOL(__stack_chk_fail);
 core_param(panic, panic_timeout, int, 0644);
 core_param(pause_on_oops, pause_on_oops, int, 0644);
 core_param(panic_on_warn, panic_on_warn, int, 0644);
-
-static int __init setup_crash_kexec_post_notifiers(char *s)
-{
-	crash_kexec_post_notifiers = true;
-	return 0;
-}
-early_param("crash_kexec_post_notifiers", setup_crash_kexec_post_notifiers);
+core_param(crash_kexec_post_notifiers, crash_kexec_post_notifiers, bool, 0644);
 
 static int __init oops_setup(char *s)
 {

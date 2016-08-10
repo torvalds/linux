@@ -47,7 +47,7 @@ static void sclp_cpu_capability_notify(struct work_struct *work)
 	int cpu;
 	struct device *dev;
 
-	s390_adjust_jiffies();
+	s390_update_cpu_mhz();
 	pr_info("CPU capability may have changed\n");
 	get_online_cpus();
 	for_each_online_cpu(cpu) {

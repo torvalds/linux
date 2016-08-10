@@ -305,16 +305,4 @@ static struct w1_family w1_family_23 = {
 	.fid = W1_EEPROM_DS2433,
 	.fops = &w1_f23_fops,
 };
-
-static int __init w1_f23_init(void)
-{
-	return w1_register_family(&w1_family_23);
-}
-
-static void __exit w1_f23_fini(void)
-{
-	w1_unregister_family(&w1_family_23);
-}
-
-module_init(w1_f23_init);
-module_exit(w1_f23_fini);
+module_w1_family(w1_family_23);

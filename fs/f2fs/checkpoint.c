@@ -48,7 +48,8 @@ repeat:
 		goto repeat;
 	}
 	f2fs_wait_on_page_writeback(page, META, true);
-	SetPageUptodate(page);
+	if (!PageUptodate(page))
+		SetPageUptodate(page);
 	return page;
 }
 
@@ -63,14 +64,15 @@ static struct page *__get_meta_page(struct f2fs_sb_info *sbi, pgoff_t index,
 	struct f2fs_io_info fio = {
 		.sbi = sbi,
 		.type = META,
-		.rw = READ_SYNC | REQ_META | REQ_PRIO,
+		.op = REQ_OP_READ,
+		.op_flags = READ_SYNC | REQ_META | REQ_PRIO,
 		.old_blkaddr = index,
 		.new_blkaddr = index,
 		.encrypted_page = NULL,
 	};
 
 	if (unlikely(!is_meta))
-		fio.rw &= ~REQ_META;
+		fio.op_flags &= ~REQ_META;
 repeat:
 	page = f2fs_grab_cache_page(mapping, index, false);
 	if (!page) {
@@ -157,13 +159,14 @@ int ra_meta_pages(struct f2fs_sb_info *sbi, block_t start, int nrpages,
 	struct f2fs_io_info fio = {
 		.sbi = sbi,
 		.type = META,
-		.rw = sync ? (READ_SYNC | REQ_META | REQ_PRIO) : READA,
+		.op = REQ_OP_READ,
+		.op_flags = sync ? (READ_SYNC | REQ_META | REQ_PRIO) : REQ_RAHEAD,
 		.encrypted_page = NULL,
 	};
 	struct blk_plug plug;
 
 	if (unlikely(type == META_POR))
-		fio.rw &= ~REQ_META;
+		fio.op_flags &= ~REQ_META;
 
 	blk_start_plug(&plug);
 	for (; nrpages-- > 0; blkno++) {
@@ -264,6 +267,7 @@ static int f2fs_write_meta_pages(struct address_space *mapping,
 				struct writeback_control *wbc)
 {
 	struct f2fs_sb_info *sbi = F2FS_M_SB(mapping);
+	struct blk_plug plug;
 	long diff, written;
 
 	/* collect a number of dirty meta pages and write together */
@@ -276,7 +280,9 @@ static int f2fs_write_meta_pages(struct address_space *mapping,
 	/* if mounting is failed, skip writing node pages */
 	mutex_lock(&sbi->cp_mutex);
 	diff = nr_pages_to_write(sbi, META, wbc);
+	blk_start_plug(&plug);
 	written = sync_meta_pages(sbi, META, wbc->nr_to_write);
+	blk_finish_plug(&plug);
 	mutex_unlock(&sbi->cp_mutex);
 	wbc->nr_to_write = max((long)0, wbc->nr_to_write - written - diff);
 	return 0;
@@ -364,9 +370,10 @@ static int f2fs_set_meta_page_dirty(struct page *page)
 {
 	trace_f2fs_set_page_dirty(page, META);
 
-	SetPageUptodate(page);
+	if (!PageUptodate(page))
+		SetPageUptodate(page);
 	if (!PageDirty(page)) {
-		__set_page_dirty_nobuffers(page);
+		f2fs_set_page_dirty_nobuffers(page);
 		inc_page_count(F2FS_P_SB(page), F2FS_DIRTY_META);
 		SetPagePrivate(page);
 		f2fs_trace_pid(page);
@@ -508,10 +515,11 @@ void release_orphan_inode(struct f2fs_sb_info *sbi)
 	spin_unlock(&im->ino_lock);
 }
 
-void add_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
+void add_orphan_inode(struct inode *inode)
 {
 	/* add new orphan ino entry into list */
-	__add_ino_entry(sbi, ino, ORPHAN_INO);
+	__add_ino_entry(F2FS_I_SB(inode), inode->i_ino, ORPHAN_INO);
+	update_inode_page(inode);
 }
 
 void remove_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
@@ -759,28 +767,25 @@ fail_no_cp:
 static void __add_dirty_inode(struct inode *inode, enum inode_type type)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
-	struct f2fs_inode_info *fi = F2FS_I(inode);
 	int flag = (type == DIR_INODE) ? FI_DIRTY_DIR : FI_DIRTY_FILE;
 
-	if (is_inode_flag_set(fi, flag))
+	if (is_inode_flag_set(inode, flag))
 		return;
 
-	set_inode_flag(fi, flag);
-	list_add_tail(&fi->dirty_list, &sbi->inode_list[type]);
+	set_inode_flag(inode, flag);
+	list_add_tail(&F2FS_I(inode)->dirty_list, &sbi->inode_list[type]);
 	stat_inc_dirty_inode(sbi, type);
 }
 
 static void __remove_dirty_inode(struct inode *inode, enum inode_type type)
 {
-	struct f2fs_inode_info *fi = F2FS_I(inode);
 	int flag = (type == DIR_INODE) ? FI_DIRTY_DIR : FI_DIRTY_FILE;
 
-	if (get_dirty_pages(inode) ||
-			!is_inode_flag_set(F2FS_I(inode), flag))
+	if (get_dirty_pages(inode) || !is_inode_flag_set(inode, flag))
 		return;
 
-	list_del_init(&fi->dirty_list);
-	clear_inode_flag(fi, flag);
+	list_del_init(&F2FS_I(inode)->dirty_list);
+	clear_inode_flag(inode, flag);
 	stat_dec_dirty_inode(F2FS_I_SB(inode), type);
 }
 
@@ -793,13 +798,12 @@ void update_dirty_page(struct inode *inode, struct page *page)
 			!S_ISLNK(inode->i_mode))
 		return;
 
-	if (type != FILE_INODE || test_opt(sbi, DATA_FLUSH)) {
-		spin_lock(&sbi->inode_lock[type]);
+	spin_lock(&sbi->inode_lock[type]);
+	if (type != FILE_INODE || test_opt(sbi, DATA_FLUSH))
 		__add_dirty_inode(inode, type);
-		spin_unlock(&sbi->inode_lock[type]);
-	}
-
 	inode_inc_dirty_pages(inode);
+	spin_unlock(&sbi->inode_lock[type]);
+
 	SetPagePrivate(page);
 	f2fs_trace_pid(page);
 }
@@ -862,6 +866,34 @@ retry:
 	goto retry;
 }
 
+int f2fs_sync_inode_meta(struct f2fs_sb_info *sbi)
+{
+	struct list_head *head = &sbi->inode_list[DIRTY_META];
+	struct inode *inode;
+	struct f2fs_inode_info *fi;
+	s64 total = get_pages(sbi, F2FS_DIRTY_IMETA);
+
+	while (total--) {
+		if (unlikely(f2fs_cp_error(sbi)))
+			return -EIO;
+
+		spin_lock(&sbi->inode_lock[DIRTY_META]);
+		if (list_empty(head)) {
+			spin_unlock(&sbi->inode_lock[DIRTY_META]);
+			return 0;
+		}
+		fi = list_entry(head->next, struct f2fs_inode_info,
+							gdirty_list);
+		inode = igrab(&fi->vfs_inode);
+		spin_unlock(&sbi->inode_lock[DIRTY_META]);
+		if (inode) {
+			update_inode_page(inode);
+			iput(inode);
+		}
+	};
+	return 0;
+}
+
 /*
  * Freeze all the FS-operations for checkpoint.
  */
@@ -883,6 +915,14 @@ retry_flush_dents:
 	if (get_pages(sbi, F2FS_DIRTY_DENTS)) {
 		f2fs_unlock_all(sbi);
 		err = sync_dirty_inodes(sbi, DIR_INODE);
+		if (err)
+			goto out;
+		goto retry_flush_dents;
+	}
+
+	if (get_pages(sbi, F2FS_DIRTY_IMETA)) {
+		f2fs_unlock_all(sbi);
+		err = f2fs_sync_inode_meta(sbi);
 		if (err)
 			goto out;
 		goto retry_flush_dents;
@@ -912,6 +952,8 @@ out:
 static void unblock_operations(struct f2fs_sb_info *sbi)
 {
 	up_write(&sbi->node_write);
+
+	build_free_nids(sbi);
 	f2fs_unlock_all(sbi);
 }
 
@@ -952,7 +994,7 @@ static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	 * This avoids to conduct wrong roll-forward operations and uses
 	 * metapages, so should be called prior to sync_meta_pages below.
 	 */
-	if (discard_next_dnode(sbi, discard_blk))
+	if (!test_opt(sbi, LFS) && discard_next_dnode(sbi, discard_blk))
 		invalidate = true;
 
 	/* Flush all the NAT/SIT pages */

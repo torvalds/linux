@@ -28,6 +28,8 @@ struct tpm_private {
 	unsigned int evtchn;
 	int ring_ref;
 	domid_t backend_id;
+	int irq;
+	wait_queue_head_t read_queue;
 };
 
 enum status_bits {
@@ -39,7 +41,7 @@ enum status_bits {
 
 static u8 vtpm_status(struct tpm_chip *chip)
 {
-	struct tpm_private *priv = TPM_VPRIV(chip);
+	struct tpm_private *priv = dev_get_drvdata(&chip->dev);
 	switch (priv->shr->state) {
 	case VTPM_STATE_IDLE:
 		return VTPM_STATUS_IDLE | VTPM_STATUS_CANCELED;
@@ -60,7 +62,7 @@ static bool vtpm_req_canceled(struct tpm_chip *chip, u8 status)
 
 static void vtpm_cancel(struct tpm_chip *chip)
 {
-	struct tpm_private *priv = TPM_VPRIV(chip);
+	struct tpm_private *priv = dev_get_drvdata(&chip->dev);
 	priv->shr->state = VTPM_STATE_CANCEL;
 	wmb();
 	notify_remote_via_evtchn(priv->evtchn);
@@ -73,7 +75,7 @@ static unsigned int shr_data_offset(struct vtpm_shared_page *shr)
 
 static int vtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 {
-	struct tpm_private *priv = TPM_VPRIV(chip);
+	struct tpm_private *priv = dev_get_drvdata(&chip->dev);
 	struct vtpm_shared_page *shr = priv->shr;
 	unsigned int offset = shr_data_offset(shr);
 
@@ -87,8 +89,8 @@ static int vtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 		return -EINVAL;
 
 	/* Wait for completion of any existing command or cancellation */
-	if (wait_for_tpm_stat(chip, VTPM_STATUS_IDLE, chip->vendor.timeout_c,
-			&chip->vendor.read_queue, true) < 0) {
+	if (wait_for_tpm_stat(chip, VTPM_STATUS_IDLE, chip->timeout_c,
+			&priv->read_queue, true) < 0) {
 		vtpm_cancel(chip);
 		return -ETIME;
 	}
@@ -104,7 +106,7 @@ static int vtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 	duration = tpm_calc_ordinal_duration(chip, ordinal);
 
 	if (wait_for_tpm_stat(chip, VTPM_STATUS_IDLE, duration,
-			&chip->vendor.read_queue, true) < 0) {
+			&priv->read_queue, true) < 0) {
 		/* got a signal or timeout, try to cancel */
 		vtpm_cancel(chip);
 		return -ETIME;
@@ -115,7 +117,7 @@ static int vtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 
 static int vtpm_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 {
-	struct tpm_private *priv = TPM_VPRIV(chip);
+	struct tpm_private *priv = dev_get_drvdata(&chip->dev);
 	struct vtpm_shared_page *shr = priv->shr;
 	unsigned int offset = shr_data_offset(shr);
 	size_t length = shr->length;
@@ -124,8 +126,8 @@ static int vtpm_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 		return -ECANCELED;
 
 	/* In theory the wait at the end of _send makes this one unnecessary */
-	if (wait_for_tpm_stat(chip, VTPM_STATUS_RESULT, chip->vendor.timeout_c,
-			&chip->vendor.read_queue, true) < 0) {
+	if (wait_for_tpm_stat(chip, VTPM_STATUS_RESULT, chip->timeout_c,
+			&priv->read_queue, true) < 0) {
 		vtpm_cancel(chip);
 		return -ETIME;
 	}
@@ -161,7 +163,7 @@ static irqreturn_t tpmif_interrupt(int dummy, void *dev_id)
 	switch (priv->shr->state) {
 	case VTPM_STATE_IDLE:
 	case VTPM_STATE_FINISH:
-		wake_up_interruptible(&priv->chip->vendor.read_queue);
+		wake_up_interruptible(&priv->read_queue);
 		break;
 	case VTPM_STATE_SUBMIT:
 	case VTPM_STATE_CANCEL:
@@ -179,10 +181,10 @@ static int setup_chip(struct device *dev, struct tpm_private *priv)
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
 
-	init_waitqueue_head(&chip->vendor.read_queue);
+	init_waitqueue_head(&priv->read_queue);
 
 	priv->chip = chip;
-	TPM_VPRIV(chip) = priv;
+	dev_set_drvdata(&chip->dev, priv);
 
 	return 0;
 }
@@ -217,7 +219,7 @@ static int setup_ring(struct xenbus_device *dev, struct tpm_private *priv)
 		xenbus_dev_fatal(dev, rv, "allocating TPM irq");
 		return rv;
 	}
-	priv->chip->vendor.irq = rv;
+	priv->irq = rv;
 
  again:
 	rv = xenbus_transaction_start(&xbt);
@@ -277,8 +279,8 @@ static void ring_free(struct tpm_private *priv)
 	else
 		free_page((unsigned long)priv->shr);
 
-	if (priv->chip && priv->chip->vendor.irq)
-		unbind_from_irqhandler(priv->chip->vendor.irq, priv);
+	if (priv->irq)
+		unbind_from_irqhandler(priv->irq, priv);
 
 	kfree(priv);
 }
@@ -318,10 +320,10 @@ static int tpmfront_probe(struct xenbus_device *dev,
 static int tpmfront_remove(struct xenbus_device *dev)
 {
 	struct tpm_chip *chip = dev_get_drvdata(&dev->dev);
-	struct tpm_private *priv = TPM_VPRIV(chip);
+	struct tpm_private *priv = dev_get_drvdata(&chip->dev);
 	tpm_chip_unregister(chip);
 	ring_free(priv);
-	TPM_VPRIV(chip) = NULL;
+	dev_set_drvdata(&chip->dev, NULL);
 	return 0;
 }
 

@@ -32,75 +32,6 @@ static struct device_type drm_sysfs_device_minor = {
 
 struct class *drm_class;
 
-/**
- * __drm_class_suspend - internal DRM class suspend routine
- * @dev: Linux device to suspend
- * @state: power state to enter
- *
- * Just figures out what the actual struct drm_device associated with
- * @dev is and calls its suspend hook, if present.
- */
-static int __drm_class_suspend(struct device *dev, pm_message_t state)
-{
-	if (dev->type == &drm_sysfs_device_minor) {
-		struct drm_minor *drm_minor = to_drm_minor(dev);
-		struct drm_device *drm_dev = drm_minor->dev;
-
-		if (drm_minor->type == DRM_MINOR_LEGACY &&
-		    !drm_core_check_feature(drm_dev, DRIVER_MODESET) &&
-		    drm_dev->driver->suspend)
-			return drm_dev->driver->suspend(drm_dev, state);
-	}
-	return 0;
-}
-
-/**
- * drm_class_suspend - internal DRM class suspend hook. Simply calls
- * __drm_class_suspend() with the correct pm state.
- * @dev: Linux device to suspend
- */
-static int drm_class_suspend(struct device *dev)
-{
-	return __drm_class_suspend(dev, PMSG_SUSPEND);
-}
-
-/**
- * drm_class_freeze - internal DRM class freeze hook. Simply calls
- * __drm_class_suspend() with the correct pm state.
- * @dev: Linux device to freeze
- */
-static int drm_class_freeze(struct device *dev)
-{
-	return __drm_class_suspend(dev, PMSG_FREEZE);
-}
-
-/**
- * drm_class_resume - DRM class resume hook
- * @dev: Linux device to resume
- *
- * Just figures out what the actual struct drm_device associated with
- * @dev is and calls its resume hook, if present.
- */
-static int drm_class_resume(struct device *dev)
-{
-	if (dev->type == &drm_sysfs_device_minor) {
-		struct drm_minor *drm_minor = to_drm_minor(dev);
-		struct drm_device *drm_dev = drm_minor->dev;
-
-		if (drm_minor->type == DRM_MINOR_LEGACY &&
-		    !drm_core_check_feature(drm_dev, DRIVER_MODESET) &&
-		    drm_dev->driver->resume)
-			return drm_dev->driver->resume(drm_dev);
-	}
-	return 0;
-}
-
-static const struct dev_pm_ops drm_class_dev_pm_ops = {
-	.suspend	= drm_class_suspend,
-	.resume		= drm_class_resume,
-	.freeze		= drm_class_freeze,
-};
-
 static char *drm_devnode(struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "dri/%s", dev_name(dev));
@@ -130,8 +61,6 @@ int drm_sysfs_init(void)
 	drm_class = class_create(THIS_MODULE, "drm");
 	if (IS_ERR(drm_class))
 		return PTR_ERR(drm_class);
-
-	drm_class->pm = &drm_class_dev_pm_ops;
 
 	err = class_create_file(drm_class, &class_attr_version.attr);
 	if (err) {

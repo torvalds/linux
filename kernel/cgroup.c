@@ -61,7 +61,7 @@
 #include <linux/cpuset.h>
 #include <linux/proc_ns.h>
 #include <linux/nsproxy.h>
-#include <linux/proc_ns.h>
+#include <linux/file.h>
 #include <net/sock.h>
 
 /*
@@ -1160,18 +1160,12 @@ static void cgroup_exit_root_id(struct cgroup_root *root)
 {
 	lockdep_assert_held(&cgroup_mutex);
 
-	if (root->hierarchy_id) {
-		idr_remove(&cgroup_hierarchy_idr, root->hierarchy_id);
-		root->hierarchy_id = 0;
-	}
+	idr_remove(&cgroup_hierarchy_idr, root->hierarchy_id);
 }
 
 static void cgroup_free_root(struct cgroup_root *root)
 {
 	if (root) {
-		/* hierarchy ID should already have been released */
-		WARN_ON_ONCE(root->hierarchy_id);
-
 		idr_destroy(&root->cgroup_idr);
 		kfree(root);
 	}
@@ -2215,12 +2209,8 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 		goto out_unlock;
 	}
 
-	/*
-	 * We know this subsystem has not yet been bound.  Users in a non-init
-	 * user namespace may only mount hierarchies with no bound subsystems,
-	 * i.e. 'none,name=user1'
-	 */
-	if (!opts.none && !capable(CAP_SYS_ADMIN)) {
+	/* Hierarchies may only be created in the initial cgroup namespace. */
+	if (ns != &init_cgroup_ns) {
 		ret = -EPERM;
 		goto out_unlock;
 	}
@@ -2962,6 +2952,7 @@ int cgroup_attach_task_all(struct task_struct *from, struct task_struct *tsk)
 	int retval = 0;
 
 	mutex_lock(&cgroup_mutex);
+	percpu_down_write(&cgroup_threadgroup_rwsem);
 	for_each_root(root) {
 		struct cgroup *from_cgrp;
 
@@ -2976,6 +2967,7 @@ int cgroup_attach_task_all(struct task_struct *from, struct task_struct *tsk)
 		if (retval)
 			break;
 	}
+	percpu_up_write(&cgroup_threadgroup_rwsem);
 	mutex_unlock(&cgroup_mutex);
 
 	return retval;
@@ -4343,6 +4335,8 @@ int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from)
 
 	mutex_lock(&cgroup_mutex);
 
+	percpu_down_write(&cgroup_threadgroup_rwsem);
+
 	/* all tasks in @from are being moved, all csets are source */
 	spin_lock_irq(&css_set_lock);
 	list_for_each_entry(link, &from->cset_links, cset_link)
@@ -4371,6 +4365,7 @@ int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from)
 	} while (task && !ret);
 out_err:
 	cgroup_migrate_finish(&preloaded_csets);
+	percpu_up_write(&cgroup_threadgroup_rwsem);
 	mutex_unlock(&cgroup_mutex);
 	return ret;
 }
@@ -5146,6 +5141,8 @@ static struct cgroup_subsys_state *css_create(struct cgroup *cgrp,
 	lockdep_assert_held(&cgroup_mutex);
 
 	css = ss->css_alloc(parent_css);
+	if (!css)
+		css = ERR_PTR(-ENOMEM);
 	if (IS_ERR(css))
 		return css;
 
@@ -6172,7 +6169,7 @@ struct cgroup_subsys_state *css_tryget_online_from_dir(struct dentry *dentry,
 struct cgroup_subsys_state *css_from_id(int id, struct cgroup_subsys *ss)
 {
 	WARN_ON_ONCE(!rcu_read_lock_held());
-	return id > 0 ? idr_find(&ss->css_idr, id) : NULL;
+	return idr_find(&ss->css_idr, id);
 }
 
 /**
@@ -6208,6 +6205,40 @@ struct cgroup *cgroup_get_from_path(const char *path)
 	return cgrp;
 }
 EXPORT_SYMBOL_GPL(cgroup_get_from_path);
+
+/**
+ * cgroup_get_from_fd - get a cgroup pointer from a fd
+ * @fd: fd obtained by open(cgroup2_dir)
+ *
+ * Find the cgroup from a fd which should be obtained
+ * by opening a cgroup directory.  Returns a pointer to the
+ * cgroup on success. ERR_PTR is returned if the cgroup
+ * cannot be found.
+ */
+struct cgroup *cgroup_get_from_fd(int fd)
+{
+	struct cgroup_subsys_state *css;
+	struct cgroup *cgrp;
+	struct file *f;
+
+	f = fget_raw(fd);
+	if (!f)
+		return ERR_PTR(-EBADF);
+
+	css = css_tryget_online_from_dir(f->f_path.dentry, NULL);
+	fput(f);
+	if (IS_ERR(css))
+		return ERR_CAST(css);
+
+	cgrp = css->cgroup;
+	if (!cgroup_on_dfl(cgrp)) {
+		cgroup_put(cgrp);
+		return ERR_PTR(-EBADF);
+	}
+
+	return cgrp;
+}
+EXPORT_SYMBOL_GPL(cgroup_get_from_fd);
 
 /*
  * sock->sk_cgrp_data handling.  For more info, see sock_cgroup_data
@@ -6309,14 +6340,11 @@ struct cgroup_namespace *copy_cgroup_ns(unsigned long flags,
 	if (!ns_capable(user_ns, CAP_SYS_ADMIN))
 		return ERR_PTR(-EPERM);
 
-	mutex_lock(&cgroup_mutex);
+	/* It is not safe to take cgroup_mutex here */
 	spin_lock_irq(&css_set_lock);
-
 	cset = task_css_set(current);
 	get_css_set(cset);
-
 	spin_unlock_irq(&css_set_lock);
-	mutex_unlock(&cgroup_mutex);
 
 	new_ns = alloc_cgroup_ns();
 	if (IS_ERR(new_ns)) {

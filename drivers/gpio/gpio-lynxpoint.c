@@ -383,7 +383,6 @@ static int lp_gpio_probe(struct platform_device *pdev)
 					   handle_simple_irq, IRQ_TYPE_NONE);
 		if (ret) {
 			dev_err(dev, "failed to add irqchip\n");
-			gpiochip_remove(gc);
 			return ret;
 		}
 

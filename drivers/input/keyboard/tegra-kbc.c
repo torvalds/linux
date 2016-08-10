@@ -552,7 +552,7 @@ static int tegra_kbc_parse_dt(struct tegra_kbc *kbc)
 
 	if (!num_rows || !num_cols || ((num_rows + num_cols) > KBC_MAX_GPIO)) {
 		dev_err(kbc->dev,
-			"keypad rows/columns not porperly specified\n");
+			"keypad rows/columns not properly specified\n");
 		return -EINVAL;
 	}
 

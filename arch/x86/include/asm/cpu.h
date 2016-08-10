@@ -16,6 +16,7 @@ extern void prefill_possible_map(void);
 static inline void prefill_possible_map(void) {}
 
 #define cpu_physical_id(cpu)			boot_cpu_physical_apicid
+#define cpu_acpi_id(cpu)			0
 #define safe_smp_processor_id()			0
 
 #endif /* CONFIG_SMP */

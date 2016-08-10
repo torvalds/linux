@@ -61,6 +61,14 @@ config SCSI_UFSHCD_PCI
 
 	  If unsure, say N.
 
+config SCSI_UFS_DWC_TC_PCI
+	tristate "DesignWare pci support using a G210 Test Chip"
+	depends on SCSI_UFSHCD && PCI
+	---help---
+	  Synopsys Test Chip is a PHY for prototyping purposes.
+
+	  If unsure, say N.
+
 config SCSI_UFSHCD_PLATFORM
 	tristate "Platform bus based UFS Controller support"
 	depends on SCSI_UFSHCD
@@ -69,6 +77,14 @@ config SCSI_UFSHCD_PLATFORM
 	you have an UFS controller on Platform bus.
 
 	If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
+config SCSI_UFS_DWC_TC_PLATFORM
+	tristate "DesignWare platform support using a G210 Test Chip"
+	depends on SCSI_UFSHCD_PLATFORM
+	---help---
+	  Synopsys Test Chip is a PHY for prototyping purposes.
 
 	  If unsure, say N.
 

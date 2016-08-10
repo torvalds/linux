@@ -79,7 +79,7 @@
 #define TELEM_EVT_LEN(x) (sizeof(x)/sizeof((x)[0]))
 
 #define TELEM_DEBUGFS_CPU(model, data) \
-	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_MWAIT, (unsigned long)&data}
+	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, (unsigned long)&data}
 
 #define TELEM_CHECK_AND_PARSE_EVTS(EVTID, EVTNUM, BUF, EVTLOG, EVTDAT, MASK) { \
 	if (evtlog[index].telem_evtid == (EVTID)) { \

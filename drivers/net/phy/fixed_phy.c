@@ -23,9 +23,10 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/gpio.h>
+#include <linux/seqlock.h>
 #include <linux/idr.h>
 
-#define MII_REGS_NUM 29
+#include "swphy.h"
 
 struct fixed_mdio_bus {
 	struct mii_bus *mii_bus;
@@ -34,8 +35,8 @@ struct fixed_mdio_bus {
 
 struct fixed_phy {
 	int addr;
-	u16 regs[MII_REGS_NUM];
 	struct phy_device *phydev;
+	seqcount_t seqcount;
 	struct fixed_phy_status status;
 	int (*link_update)(struct net_device *, struct fixed_phy_status *);
 	struct list_head node;
@@ -47,103 +48,10 @@ static struct fixed_mdio_bus platform_fmb = {
 	.phys = LIST_HEAD_INIT(platform_fmb.phys),
 };
 
-static int fixed_phy_update_regs(struct fixed_phy *fp)
+static void fixed_phy_update(struct fixed_phy *fp)
 {
-	u16 bmsr = BMSR_ANEGCAPABLE;
-	u16 bmcr = 0;
-	u16 lpagb = 0;
-	u16 lpa = 0;
-
 	if (gpio_is_valid(fp->link_gpio))
 		fp->status.link = !!gpio_get_value_cansleep(fp->link_gpio);
-
-	if (fp->status.duplex) {
-		switch (fp->status.speed) {
-		case 1000:
-			bmsr |= BMSR_ESTATEN;
-			break;
-		case 100:
-			bmsr |= BMSR_100FULL;
-			break;
-		case 10:
-			bmsr |= BMSR_10FULL;
-			break;
-		default:
-			break;
-		}
-	} else {
-		switch (fp->status.speed) {
-		case 1000:
-			bmsr |= BMSR_ESTATEN;
-			break;
-		case 100:
-			bmsr |= BMSR_100HALF;
-			break;
-		case 10:
-			bmsr |= BMSR_10HALF;
-			break;
-		default:
-			break;
-		}
-	}
-
-	if (fp->status.link) {
-		bmsr |= BMSR_LSTATUS | BMSR_ANEGCOMPLETE;
-
-		if (fp->status.duplex) {
-			bmcr |= BMCR_FULLDPLX;
-
-			switch (fp->status.speed) {
-			case 1000:
-				bmcr |= BMCR_SPEED1000;
-				lpagb |= LPA_1000FULL;
-				break;
-			case 100:
-				bmcr |= BMCR_SPEED100;
-				lpa |= LPA_100FULL;
-				break;
-			case 10:
-				lpa |= LPA_10FULL;
-				break;
-			default:
-				pr_warn("fixed phy: unknown speed\n");
-				return -EINVAL;
-			}
-		} else {
-			switch (fp->status.speed) {
-			case 1000:
-				bmcr |= BMCR_SPEED1000;
-				lpagb |= LPA_1000HALF;
-				break;
-			case 100:
-				bmcr |= BMCR_SPEED100;
-				lpa |= LPA_100HALF;
-				break;
-			case 10:
-				lpa |= LPA_10HALF;
-				break;
-			default:
-				pr_warn("fixed phy: unknown speed\n");
-			return -EINVAL;
-			}
-		}
-
-		if (fp->status.pause)
-			lpa |= LPA_PAUSE_CAP;
-
-		if (fp->status.asym_pause)
-			lpa |= LPA_PAUSE_ASYM;
-	}
-
-	fp->regs[MII_PHYSID1] = 0;
-	fp->regs[MII_PHYSID2] = 0;
-
-	fp->regs[MII_BMSR] = bmsr;
-	fp->regs[MII_BMCR] = bmcr;
-	fp->regs[MII_LPA] = lpa;
-	fp->regs[MII_STAT1000] = lpagb;
-
-	return 0;
 }
 
 static int fixed_mdio_read(struct mii_bus *bus, int phy_addr, int reg_num)
@@ -151,29 +59,23 @@ static int fixed_mdio_read(struct mii_bus *bus, int phy_addr, int reg_num)
 	struct fixed_mdio_bus *fmb = bus->priv;
 	struct fixed_phy *fp;
 
-	if (reg_num >= MII_REGS_NUM)
-		return -1;
-
-	/* We do not support emulating Clause 45 over Clause 22 register reads
-	 * return an error instead of bogus data.
-	 */
-	switch (reg_num) {
-	case MII_MMD_CTRL:
-	case MII_MMD_DATA:
-		return -1;
-	default:
-		break;
-	}
-
 	list_for_each_entry(fp, &fmb->phys, node) {
 		if (fp->addr == phy_addr) {
-			/* Issue callback if user registered it. */
-			if (fp->link_update) {
-				fp->link_update(fp->phydev->attached_dev,
-						&fp->status);
-				fixed_phy_update_regs(fp);
-			}
-			return fp->regs[reg_num];
+			struct fixed_phy_status state;
+			int s;
+
+			do {
+				s = read_seqcount_begin(&fp->seqcount);
+				/* Issue callback if user registered it. */
+				if (fp->link_update) {
+					fp->link_update(fp->phydev->attached_dev,
+							&fp->status);
+					fixed_phy_update(fp);
+				}
+				state = fp->status;
+			} while (read_seqcount_retry(&fp->seqcount, s));
+
+			return swphy_read_reg(reg_num, &state);
 		}
 	}
 
@@ -225,6 +127,7 @@ int fixed_phy_update_state(struct phy_device *phydev,
 
 	list_for_each_entry(fp, &fmb->phys, node) {
 		if (fp->addr == phydev->mdio.addr) {
+			write_seqcount_begin(&fp->seqcount);
 #define _UPD(x) if (changed->x) \
 	fp->status.x = status->x
 			_UPD(link);
@@ -233,7 +136,8 @@ int fixed_phy_update_state(struct phy_device *phydev,
 			_UPD(pause);
 			_UPD(asym_pause);
 #undef _UPD
-			fixed_phy_update_regs(fp);
+			fixed_phy_update(fp);
+			write_seqcount_end(&fp->seqcount);
 			return 0;
 		}
 	}
@@ -250,11 +154,15 @@ int fixed_phy_add(unsigned int irq, int phy_addr,
 	struct fixed_mdio_bus *fmb = &platform_fmb;
 	struct fixed_phy *fp;
 
+	ret = swphy_validate_state(status);
+	if (ret < 0)
+		return ret;
+
 	fp = kzalloc(sizeof(*fp), GFP_KERNEL);
 	if (!fp)
 		return -ENOMEM;
 
-	memset(fp->regs, 0xFF,  sizeof(fp->regs[0]) * MII_REGS_NUM);
+	seqcount_init(&fp->seqcount);
 
 	if (irq != PHY_POLL)
 		fmb->mii_bus->irq[phy_addr] = irq;
@@ -270,17 +178,12 @@ int fixed_phy_add(unsigned int irq, int phy_addr,
 			goto err_regs;
 	}
 
-	ret = fixed_phy_update_regs(fp);
-	if (ret)
-		goto err_gpio;
+	fixed_phy_update(fp);
 
 	list_add_tail(&fp->node, &fmb->phys);
 
 	return 0;
 
-err_gpio:
-	if (gpio_is_valid(fp->link_gpio))
-		gpio_free(fp->link_gpio);
 err_regs:
 	kfree(fp);
 	return ret;

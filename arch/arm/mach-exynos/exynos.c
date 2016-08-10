@@ -14,7 +14,6 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_fdt.h>
-#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/irqchip.h>
 #include <linux/soc/samsung/exynos-regs-pmu.h>
@@ -25,9 +24,9 @@
 #include <asm/mach/map.h>
 
 #include <mach/map.h>
+#include <plat/cpu.h>
 
 #include "common.h"
-#include "mfc.h"
 
 static struct map_desc exynos4_iodesc[] __initdata = {
 	{
@@ -217,8 +216,6 @@ static void __init exynos_dt_machine_init(void)
 	    of_machine_is_compatible("samsung,exynos3250") ||
 	    of_machine_is_compatible("samsung,exynos5250"))
 		platform_device_register(&exynos_cpuidle);
-
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
 static char const *const exynos_dt_compat[] __initconst = {
@@ -236,23 +233,6 @@ static char const *const exynos_dt_compat[] __initconst = {
 	"samsung,exynos5440",
 	NULL
 };
-
-static void __init exynos_reserve(void)
-{
-#ifdef CONFIG_S5P_DEV_MFC
-	int i;
-	char *mfc_mem[] = {
-		"samsung,mfc-v5",
-		"samsung,mfc-v6",
-		"samsung,mfc-v7",
-		"samsung,mfc-v8",
-	};
-
-	for (i = 0; i < ARRAY_SIZE(mfc_mem); i++)
-		if (of_scan_flat_dt(s5p_fdt_alloc_mfc_mem, mfc_mem[i]))
-			break;
-#endif
-}
 
 static void __init exynos_dt_fixup(void)
 {
@@ -275,6 +255,5 @@ DT_MACHINE_START(EXYNOS_DT, "SAMSUNG EXYNOS (Flattened Device Tree)")
 	.init_machine	= exynos_dt_machine_init,
 	.init_late	= exynos_init_late,
 	.dt_compat	= exynos_dt_compat,
-	.reserve	= exynos_reserve,
 	.dt_fixup	= exynos_dt_fixup,
 MACHINE_END

@@ -458,13 +458,15 @@ static int nsp_gpio_get_strength(struct nsp_gpio *chip, unsigned gpio,
 	return 0;
 }
 
-int nsp_pin_config_group_get(struct pinctrl_dev *pctldev, unsigned selector,
+static int nsp_pin_config_group_get(struct pinctrl_dev *pctldev,
+				    unsigned selector,
 			     unsigned long *config)
 {
 	return 0;
 }
 
-int nsp_pin_config_group_set(struct pinctrl_dev *pctldev, unsigned selector,
+static int nsp_pin_config_group_set(struct pinctrl_dev *pctldev,
+				    unsigned selector,
 			     unsigned long *configs, unsigned num_configs)
 {
 	return 0;

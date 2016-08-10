@@ -155,8 +155,8 @@ test_hash_init(void)
 		buf[j] = '\0';
 
 		for (i = 0; i <= j; i++) {
-			u64 hashlen = hashlen_string(buf+i);
-			u32 h0 = full_name_hash(buf+i, j-i);
+			u64 hashlen = hashlen_string(buf+i, buf+i);
+			u32 h0 = full_name_hash(buf+i, buf+i, j-i);
 
 			/* Check that hashlen_string gets the length right */
 			if (hashlen_len(hashlen) != j-i) {

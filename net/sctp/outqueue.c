@@ -326,6 +326,9 @@ int sctp_outq_tail(struct sctp_outq *q, struct sctp_chunk *chunk, gfp_t gfp)
 
 			sctp_chunk_hold(chunk);
 			sctp_outq_tail_data(q, chunk);
+			if (chunk->asoc->prsctp_enable &&
+			    SCTP_PR_PRIO_ENABLED(chunk->sinfo.sinfo_flags))
+				chunk->asoc->sent_cnt_removable++;
 			if (chunk->chunk_hdr->flags & SCTP_DATA_UNORDERED)
 				SCTP_INC_STATS(net, SCTP_MIB_OUTUNORDERCHUNKS);
 			else
@@ -370,6 +373,96 @@ static void sctp_insert_list(struct list_head *head, struct list_head *new)
 	}
 	if (!done)
 		list_add_tail(new, head);
+}
+
+static int sctp_prsctp_prune_sent(struct sctp_association *asoc,
+				  struct sctp_sndrcvinfo *sinfo,
+				  struct list_head *queue, int msg_len)
+{
+	struct sctp_chunk *chk, *temp;
+
+	list_for_each_entry_safe(chk, temp, queue, transmitted_list) {
+		if (!SCTP_PR_PRIO_ENABLED(chk->sinfo.sinfo_flags) ||
+		    chk->prsctp_param <= sinfo->sinfo_timetolive)
+			continue;
+
+		list_del_init(&chk->transmitted_list);
+		sctp_insert_list(&asoc->outqueue.abandoned,
+				 &chk->transmitted_list);
+
+		asoc->sent_cnt_removable--;
+		asoc->abandoned_sent[SCTP_PR_INDEX(PRIO)]++;
+
+		if (!chk->tsn_gap_acked) {
+			if (chk->transport)
+				chk->transport->flight_size -=
+						sctp_data_size(chk);
+			asoc->outqueue.outstanding_bytes -= sctp_data_size(chk);
+		}
+
+		msg_len -= SCTP_DATA_SNDSIZE(chk) +
+			   sizeof(struct sk_buff) +
+			   sizeof(struct sctp_chunk);
+		if (msg_len <= 0)
+			break;
+	}
+
+	return msg_len;
+}
+
+static int sctp_prsctp_prune_unsent(struct sctp_association *asoc,
+				    struct sctp_sndrcvinfo *sinfo,
+				    struct list_head *queue, int msg_len)
+{
+	struct sctp_chunk *chk, *temp;
+
+	list_for_each_entry_safe(chk, temp, queue, list) {
+		if (!SCTP_PR_PRIO_ENABLED(chk->sinfo.sinfo_flags) ||
+		    chk->prsctp_param <= sinfo->sinfo_timetolive)
+			continue;
+
+		list_del_init(&chk->list);
+		asoc->sent_cnt_removable--;
+		asoc->abandoned_unsent[SCTP_PR_INDEX(PRIO)]++;
+
+		msg_len -= SCTP_DATA_SNDSIZE(chk) +
+			   sizeof(struct sk_buff) +
+			   sizeof(struct sctp_chunk);
+		sctp_chunk_free(chk);
+		if (msg_len <= 0)
+			break;
+	}
+
+	return msg_len;
+}
+
+/* Abandon the chunks according their priorities */
+void sctp_prsctp_prune(struct sctp_association *asoc,
+		       struct sctp_sndrcvinfo *sinfo, int msg_len)
+{
+	struct sctp_transport *transport;
+
+	if (!asoc->prsctp_enable || !asoc->sent_cnt_removable)
+		return;
+
+	msg_len = sctp_prsctp_prune_sent(asoc, sinfo,
+					 &asoc->outqueue.retransmit,
+					 msg_len);
+	if (msg_len <= 0)
+		return;
+
+	list_for_each_entry(transport, &asoc->peer.transport_addr_list,
+			    transports) {
+		msg_len = sctp_prsctp_prune_sent(asoc, sinfo,
+						 &transport->transmitted,
+						 msg_len);
+		if (msg_len <= 0)
+			return;
+	}
+
+	sctp_prsctp_prune_unsent(asoc, sinfo,
+				 &asoc->outqueue.out_chunk_list,
+				 msg_len);
 }
 
 /* Mark all the eligible packets on a transport for retransmission.  */
@@ -962,6 +1055,9 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 
 				/* Mark as failed send. */
 				sctp_chunk_fail(chunk, SCTP_ERROR_INV_STRM);
+				if (asoc->prsctp_enable &&
+				    SCTP_PR_PRIO_ENABLED(chunk->sinfo.sinfo_flags))
+					asoc->sent_cnt_removable--;
 				sctp_chunk_free(chunk);
 				continue;
 			}
@@ -1251,6 +1347,9 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_chunk *chunk)
 		tsn = ntohl(tchunk->subh.data_hdr->tsn);
 		if (TSN_lte(tsn, ctsn)) {
 			list_del_init(&tchunk->transmitted_list);
+			if (asoc->prsctp_enable &&
+			    SCTP_PR_PRIO_ENABLED(chunk->sinfo.sinfo_flags))
+				asoc->sent_cnt_removable--;
 			sctp_chunk_free(tchunk);
 		}
 	}

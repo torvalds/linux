@@ -503,16 +503,6 @@ void account_process_tick(struct task_struct *p, int user_tick)
 }
 
 /*
- * Account multiple ticks of steal time.
- * @p: the process from which the cpu time has been stolen
- * @ticks: number of stolen ticks
- */
-void account_steal_ticks(unsigned long ticks)
-{
-	account_steal_time(jiffies_to_cputime(ticks));
-}
-
-/*
  * Account multiple ticks of idle time.
  * @ticks: number of stolen ticks
  */

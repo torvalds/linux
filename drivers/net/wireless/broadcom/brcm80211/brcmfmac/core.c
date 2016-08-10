@@ -516,7 +516,7 @@ int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked)
 	/* set appropriate operations */
 	ndev->netdev_ops = &brcmf_netdev_ops_pri;
 
-	ndev->hard_header_len += drvr->hdrlen;
+	ndev->needed_headroom += drvr->hdrlen;
 	ndev->ethtool_ops = &brcmf_ethtool_ops;
 
 	drvr->rxsz = ndev->mtu + ndev->hard_header_len +
@@ -548,12 +548,16 @@ fail:
 	return -EBADE;
 }
 
-static void brcmf_net_detach(struct net_device *ndev)
+static void brcmf_net_detach(struct net_device *ndev, bool rtnl_locked)
 {
-	if (ndev->reg_state == NETREG_REGISTERED)
-		unregister_netdev(ndev);
-	else
+	if (ndev->reg_state == NETREG_REGISTERED) {
+		if (rtnl_locked)
+			unregister_netdevice(ndev);
+		else
+			unregister_netdev(ndev);
+	} else {
 		brcmf_cfg80211_free_netdev(ndev);
+	}
 }
 
 void brcmf_net_setcarrier(struct brcmf_if *ifp, bool on)
@@ -634,7 +638,7 @@ fail:
 }
 
 struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bsscfgidx, s32 ifidx,
-			      bool is_p2pdev, char *name, u8 *mac_addr)
+			      bool is_p2pdev, const char *name, u8 *mac_addr)
 {
 	struct brcmf_if *ifp;
 	struct net_device *ndev;
@@ -651,7 +655,7 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bsscfgidx, s32 ifidx,
 			brcmf_err("ERROR: netdev:%s already exists\n",
 				  ifp->ndev->name);
 			netif_stop_queue(ifp->ndev);
-			brcmf_net_detach(ifp->ndev);
+			brcmf_net_detach(ifp->ndev, false);
 			drvr->iflist[bsscfgidx] = NULL;
 		} else {
 			brcmf_dbg(INFO, "netdev:%s ignore IF event\n",
@@ -699,7 +703,8 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bsscfgidx, s32 ifidx,
 	return ifp;
 }
 
-static void brcmf_del_if(struct brcmf_pub *drvr, s32 bsscfgidx)
+static void brcmf_del_if(struct brcmf_pub *drvr, s32 bsscfgidx,
+			 bool rtnl_locked)
 {
 	struct brcmf_if *ifp;
 
@@ -729,7 +734,7 @@ static void brcmf_del_if(struct brcmf_pub *drvr, s32 bsscfgidx)
 			cancel_work_sync(&ifp->multicast_work);
 			cancel_work_sync(&ifp->ndoffload_work);
 		}
-		brcmf_net_detach(ifp->ndev);
+		brcmf_net_detach(ifp->ndev, rtnl_locked);
 	} else {
 		/* Only p2p device interfaces which get dynamically created
 		 * end up here. In this case the p2p module should be informed
@@ -743,38 +748,14 @@ static void brcmf_del_if(struct brcmf_pub *drvr, s32 bsscfgidx)
 	}
 }
 
-void brcmf_remove_interface(struct brcmf_if *ifp)
+void brcmf_remove_interface(struct brcmf_if *ifp, bool rtnl_locked)
 {
 	if (!ifp || WARN_ON(ifp->drvr->iflist[ifp->bsscfgidx] != ifp))
 		return;
 	brcmf_dbg(TRACE, "Enter, bsscfgidx=%d, ifidx=%d\n", ifp->bsscfgidx,
 		  ifp->ifidx);
 	brcmf_fws_del_interface(ifp);
-	brcmf_del_if(ifp->drvr, ifp->bsscfgidx);
-}
-
-int brcmf_get_next_free_bsscfgidx(struct brcmf_pub *drvr)
-{
-	int ifidx;
-	int bsscfgidx;
-	bool available;
-	int highest;
-
-	available = false;
-	bsscfgidx = 2;
-	highest = 2;
-	for (ifidx = 0; ifidx < BRCMF_MAX_IFS; ifidx++) {
-		if (drvr->iflist[ifidx]) {
-			if (drvr->iflist[ifidx]->bsscfgidx == bsscfgidx)
-				bsscfgidx = highest + 1;
-			else if (drvr->iflist[ifidx]->bsscfgidx > highest)
-				highest = drvr->iflist[ifidx]->bsscfgidx;
-		} else {
-			available = true;
-		}
-	}
-
-	return available ? bsscfgidx : -ENOMEM;
+	brcmf_del_if(ifp->drvr, ifp->bsscfgidx, rtnl_locked);
 }
 
 #ifdef CONFIG_INET
@@ -1081,9 +1062,9 @@ fail:
 		brcmf_fws_deinit(drvr);
 	}
 	if (ifp)
-		brcmf_net_detach(ifp->ndev);
+		brcmf_net_detach(ifp->ndev, false);
 	if (p2p_ifp)
-		brcmf_net_detach(p2p_ifp->ndev);
+		brcmf_net_detach(p2p_ifp->ndev, false);
 	drvr->iflist[0] = NULL;
 	drvr->iflist[1] = NULL;
 	if (drvr->settings->ignore_probe_fail)
@@ -1152,7 +1133,7 @@ void brcmf_detach(struct device *dev)
 
 	/* make sure primary interface removed last */
 	for (i = BRCMF_MAX_IFS-1; i > -1; i--)
-		brcmf_remove_interface(drvr->iflist[i]);
+		brcmf_remove_interface(drvr->iflist[i], false);
 
 	brcmf_cfg80211_detach(drvr->config);
 

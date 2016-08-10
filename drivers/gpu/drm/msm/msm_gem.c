@@ -276,6 +276,26 @@ uint64_t msm_gem_mmap_offset(struct drm_gem_object *obj)
 	return offset;
 }
 
+static void
+put_iova(struct drm_gem_object *obj)
+{
+	struct drm_device *dev = obj->dev;
+	struct msm_drm_private *priv = obj->dev->dev_private;
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	int id;
+
+	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+
+	for (id = 0; id < ARRAY_SIZE(msm_obj->domain); id++) {
+		struct msm_mmu *mmu = priv->mmus[id];
+		if (mmu && msm_obj->domain[id].iova) {
+			uint32_t offset = msm_obj->domain[id].iova;
+			mmu->funcs->unmap(mmu, offset, msm_obj->sgt, obj->size);
+			msm_obj->domain[id].iova = 0;
+		}
+	}
+}
+
 /* should be called under struct_mutex.. although it can be called
  * from atomic context without struct_mutex to acquire an extra
  * iova ref if you know one is already held.
@@ -388,7 +408,7 @@ fail:
 	return ret;
 }
 
-void *msm_gem_vaddr_locked(struct drm_gem_object *obj)
+void *msm_gem_get_vaddr_locked(struct drm_gem_object *obj)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	WARN_ON(!mutex_is_locked(&obj->dev->struct_mutex));
@@ -401,16 +421,89 @@ void *msm_gem_vaddr_locked(struct drm_gem_object *obj)
 		if (msm_obj->vaddr == NULL)
 			return ERR_PTR(-ENOMEM);
 	}
+	msm_obj->vmap_count++;
 	return msm_obj->vaddr;
 }
 
-void *msm_gem_vaddr(struct drm_gem_object *obj)
+void *msm_gem_get_vaddr(struct drm_gem_object *obj)
 {
 	void *ret;
 	mutex_lock(&obj->dev->struct_mutex);
-	ret = msm_gem_vaddr_locked(obj);
+	ret = msm_gem_get_vaddr_locked(obj);
 	mutex_unlock(&obj->dev->struct_mutex);
 	return ret;
+}
+
+void msm_gem_put_vaddr_locked(struct drm_gem_object *obj)
+{
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	WARN_ON(!mutex_is_locked(&obj->dev->struct_mutex));
+	WARN_ON(msm_obj->vmap_count < 1);
+	msm_obj->vmap_count--;
+}
+
+void msm_gem_put_vaddr(struct drm_gem_object *obj)
+{
+	mutex_lock(&obj->dev->struct_mutex);
+	msm_gem_put_vaddr_locked(obj);
+	mutex_unlock(&obj->dev->struct_mutex);
+}
+
+/* Update madvise status, returns true if not purged, else
+ * false or -errno.
+ */
+int msm_gem_madvise(struct drm_gem_object *obj, unsigned madv)
+{
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+
+	WARN_ON(!mutex_is_locked(&obj->dev->struct_mutex));
+
+	if (msm_obj->madv != __MSM_MADV_PURGED)
+		msm_obj->madv = madv;
+
+	return (msm_obj->madv != __MSM_MADV_PURGED);
+}
+
+void msm_gem_purge(struct drm_gem_object *obj)
+{
+	struct drm_device *dev = obj->dev;
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+
+	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+	WARN_ON(!is_purgeable(msm_obj));
+	WARN_ON(obj->import_attach);
+
+	put_iova(obj);
+
+	msm_gem_vunmap(obj);
+
+	put_pages(obj);
+
+	msm_obj->madv = __MSM_MADV_PURGED;
+
+	drm_vma_node_unmap(&obj->vma_node, dev->anon_inode->i_mapping);
+	drm_gem_free_mmap_offset(obj);
+
+	/* Our goal here is to return as much of the memory as
+	 * is possible back to the system as we are called from OOM.
+	 * To do this we must instruct the shmfs to drop all of its
+	 * backing pages, *now*.
+	 */
+	shmem_truncate_range(file_inode(obj->filp), 0, (loff_t)-1);
+
+	invalidate_mapping_pages(file_inode(obj->filp)->i_mapping,
+			0, (loff_t)-1);
+}
+
+void msm_gem_vunmap(struct drm_gem_object *obj)
+{
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+
+	if (!msm_obj->vaddr || WARN_ON(!is_vunmapable(msm_obj)))
+		return;
+
+	vunmap(msm_obj->vaddr);
+	msm_obj->vaddr = NULL;
 }
 
 /* must be called before _move_to_active().. */
@@ -464,6 +557,7 @@ void msm_gem_move_to_active(struct drm_gem_object *obj,
 		struct msm_gpu *gpu, bool exclusive, struct fence *fence)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	WARN_ON(msm_obj->madv != MSM_MADV_WILLNEED);
 	msm_obj->gpu = gpu;
 	if (exclusive)
 		reservation_object_add_excl_fence(msm_obj->resv, fence);
@@ -532,13 +626,27 @@ void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 	struct reservation_object_list *fobj;
 	struct fence *fence;
 	uint64_t off = drm_vma_node_start(&obj->vma_node);
+	const char *madv;
 
 	WARN_ON(!mutex_is_locked(&obj->dev->struct_mutex));
 
-	seq_printf(m, "%08x: %c %2d (%2d) %08llx %p %zu\n",
+	switch (msm_obj->madv) {
+	case __MSM_MADV_PURGED:
+		madv = " purged";
+		break;
+	case MSM_MADV_DONTNEED:
+		madv = " purgeable";
+		break;
+	case MSM_MADV_WILLNEED:
+	default:
+		madv = "";
+		break;
+	}
+
+	seq_printf(m, "%08x: %c %2d (%2d) %08llx %p %zu%s\n",
 			msm_obj->flags, is_active(msm_obj) ? 'A' : 'I',
 			obj->name, obj->refcount.refcount.counter,
-			off, msm_obj->vaddr, obj->size);
+			off, msm_obj->vaddr, obj->size, madv);
 
 	rcu_read_lock();
 	fobj = rcu_dereference(robj->fence);
@@ -578,9 +686,7 @@ void msm_gem_describe_objects(struct list_head *list, struct seq_file *m)
 void msm_gem_free_object(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
-	struct msm_drm_private *priv = obj->dev->dev_private;
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
-	int id;
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
@@ -589,13 +695,7 @@ void msm_gem_free_object(struct drm_gem_object *obj)
 
 	list_del(&msm_obj->mm_list);
 
-	for (id = 0; id < ARRAY_SIZE(msm_obj->domain); id++) {
-		struct msm_mmu *mmu = priv->mmus[id];
-		if (mmu && msm_obj->domain[id].iova) {
-			uint32_t offset = msm_obj->domain[id].iova;
-			mmu->funcs->unmap(mmu, offset, msm_obj->sgt, obj->size);
-		}
-	}
+	put_iova(obj);
 
 	if (obj->import_attach) {
 		if (msm_obj->vaddr)
@@ -609,7 +709,7 @@ void msm_gem_free_object(struct drm_gem_object *obj)
 
 		drm_prime_gem_destroy(obj, msm_obj->sgt);
 	} else {
-		vunmap(msm_obj->vaddr);
+		msm_gem_vunmap(obj);
 		put_pages(obj);
 	}
 
@@ -688,6 +788,7 @@ static int msm_gem_new_impl(struct drm_device *dev,
 		msm_obj->vram_node = (void *)&msm_obj[1];
 
 	msm_obj->flags = flags;
+	msm_obj->madv = MSM_MADV_WILLNEED;
 
 	if (resv) {
 		msm_obj->resv = resv;
@@ -729,9 +830,7 @@ struct drm_gem_object *msm_gem_new(struct drm_device *dev,
 	return obj;
 
 fail:
-	if (obj)
-		drm_gem_object_unreference(obj);
-
+	drm_gem_object_unreference(obj);
 	return ERR_PTR(ret);
 }
 
@@ -774,8 +873,6 @@ struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 	return obj;
 
 fail:
-	if (obj)
-		drm_gem_object_unreference_unlocked(obj);
-
+	drm_gem_object_unreference_unlocked(obj);
 	return ERR_PTR(ret);
 }

@@ -454,7 +454,7 @@ static bool _rtl8821ae_phy_rf6052_config_parafile(struct ieee80211_hw *hw)
 
 		if (!rtstatus) {
 			RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-				 "Radio[%d] Fail!!", rfpath);
+				 "Radio[%d] Fail!!\n", rfpath);
 			return false;
 		}
 	}

@@ -357,16 +357,17 @@ static struct tcf_proto __rcu **atm_tc_find_tcf(struct Qdisc *sch,
 
 /* --------------------------- Qdisc operations ---------------------------- */
 
-static int atm_tc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
+static int atm_tc_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+			  struct sk_buff **to_free)
 {
 	struct atm_qdisc_data *p = qdisc_priv(sch);
 	struct atm_flow_data *flow;
 	struct tcf_result res;
 	int result;
-	int ret = NET_XMIT_POLICED;
+	int ret = NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
 
 	pr_debug("atm_tc_enqueue(skb %p,sch %p,[qdisc %p])\n", skb, sch, p);
-	result = TC_POLICE_OK;	/* be nice to gcc */
+	result = TC_ACT_OK;	/* be nice to gcc */
 	flow = NULL;
 	if (TC_H_MAJ(skb->priority) != sch->handle ||
 	    !(flow = (struct atm_flow_data *)atm_tc_get(sch, skb->priority))) {
@@ -398,12 +399,12 @@ done:
 		switch (result) {
 		case TC_ACT_QUEUED:
 		case TC_ACT_STOLEN:
-			kfree_skb(skb);
+			__qdisc_drop(skb, to_free);
 			return NET_XMIT_SUCCESS | __NET_XMIT_STOLEN;
 		case TC_ACT_SHOT:
-			kfree_skb(skb);
+			__qdisc_drop(skb, to_free);
 			goto drop;
-		case TC_POLICE_RECLASSIFY:
+		case TC_ACT_RECLASSIFY:
 			if (flow->excess)
 				flow = flow->excess;
 			else
@@ -413,7 +414,7 @@ done:
 #endif
 	}
 
-	ret = qdisc_enqueue(skb, flow->q);
+	ret = qdisc_enqueue(skb, flow->q, to_free);
 	if (ret != NET_XMIT_SUCCESS) {
 drop: __maybe_unused
 		if (net_xmit_drop_count(ret)) {
@@ -517,20 +518,6 @@ static struct sk_buff *atm_tc_peek(struct Qdisc *sch)
 	pr_debug("atm_tc_peek(sch %p,[qdisc %p])\n", sch, p);
 
 	return p->link.q->ops->peek(p->link.q);
-}
-
-static unsigned int atm_tc_drop(struct Qdisc *sch)
-{
-	struct atm_qdisc_data *p = qdisc_priv(sch);
-	struct atm_flow_data *flow;
-	unsigned int len;
-
-	pr_debug("atm_tc_drop(sch %p,[qdisc %p])\n", sch, p);
-	list_for_each_entry(flow, &p->flows, list) {
-		if (flow->q->ops->drop && (len = flow->q->ops->drop(flow->q)))
-			return len;
-	}
-	return 0;
 }
 
 static int atm_tc_init(struct Qdisc *sch, struct nlattr *opt)
@@ -637,7 +624,8 @@ atm_tc_dump_class_stats(struct Qdisc *sch, unsigned long arg,
 {
 	struct atm_flow_data *flow = (struct atm_flow_data *)arg;
 
-	if (gnet_stats_copy_basic(d, NULL, &flow->bstats) < 0 ||
+	if (gnet_stats_copy_basic(qdisc_root_sleeping_running(sch),
+				  d, NULL, &flow->bstats) < 0 ||
 	    gnet_stats_copy_queue(d, NULL, &flow->qstats, flow->q->q.qlen) < 0)
 		return -1;
 
@@ -671,7 +659,6 @@ static struct Qdisc_ops atm_qdisc_ops __read_mostly = {
 	.enqueue	= atm_tc_enqueue,
 	.dequeue	= atm_tc_dequeue,
 	.peek		= atm_tc_peek,
-	.drop		= atm_tc_drop,
 	.init		= atm_tc_init,
 	.reset		= atm_tc_reset,
 	.destroy	= atm_tc_destroy,

@@ -539,7 +539,7 @@ static int uart_clps711x_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id __maybe_unused clps711x_uart_dt_ids[] = {
-	{ .compatible = "cirrus,clps711x-uart", },
+	{ .compatible = "cirrus,ep7209-uart", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, clps711x_uart_dt_ids);

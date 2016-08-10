@@ -28,17 +28,13 @@
 #define MIPS_EXC_MAX                12
 /* XXXSL More to follow */
 
-extern char __kvm_mips_vcpu_run_end[];
-extern char mips32_exception[], mips32_exceptionEnd[];
-extern char mips32_GuestException[], mips32_GuestExceptionEnd[];
-
 #define C_TI        (_ULCAST_(1) << 30)
 
 #define KVM_MIPS_IRQ_DELIVER_ALL_AT_ONCE (0)
 #define KVM_MIPS_IRQ_CLEAR_ALL_AT_ONCE   (0)
 
-void kvm_mips_queue_irq(struct kvm_vcpu *vcpu, uint32_t priority);
-void kvm_mips_dequeue_irq(struct kvm_vcpu *vcpu, uint32_t priority);
+void kvm_mips_queue_irq(struct kvm_vcpu *vcpu, unsigned int priority);
+void kvm_mips_dequeue_irq(struct kvm_vcpu *vcpu, unsigned int priority);
 int kvm_mips_pending_timer(struct kvm_vcpu *vcpu);
 
 void kvm_mips_queue_timer_int_cb(struct kvm_vcpu *vcpu);
@@ -48,7 +44,7 @@ void kvm_mips_queue_io_int_cb(struct kvm_vcpu *vcpu,
 void kvm_mips_dequeue_io_int_cb(struct kvm_vcpu *vcpu,
 				struct kvm_mips_interrupt *irq);
 int kvm_mips_irq_deliver_cb(struct kvm_vcpu *vcpu, unsigned int priority,
-			    uint32_t cause);
+			    u32 cause);
 int kvm_mips_irq_clear_cb(struct kvm_vcpu *vcpu, unsigned int priority,
-			  uint32_t cause);
-void kvm_mips_deliver_interrupts(struct kvm_vcpu *vcpu, uint32_t cause);
+			  u32 cause);
+void kvm_mips_deliver_interrupts(struct kvm_vcpu *vcpu, u32 cause);

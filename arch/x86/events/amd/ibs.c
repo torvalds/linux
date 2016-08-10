@@ -7,7 +7,8 @@
  */
 
 #include <linux/perf_event.h>
-#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/export.h>
 #include <linux/pci.h>
 #include <linux/ptrace.h>
 #include <linux/syscore_ops.h>
@@ -655,8 +656,12 @@ fail:
 	}
 
 	if (event->attr.sample_type & PERF_SAMPLE_RAW) {
-		raw.size = sizeof(u32) + ibs_data.size;
-		raw.data = ibs_data.data;
+		raw = (struct perf_raw_record){
+			.frag = {
+				.size = sizeof(u32) + ibs_data.size,
+				.data = ibs_data.data,
+			},
+		};
 		data.raw = &raw;
 	}
 
@@ -721,12 +726,9 @@ static __init int perf_ibs_pmu_init(struct perf_ibs *perf_ibs, char *name)
 	return ret;
 }
 
-static __init int perf_event_ibs_init(void)
+static __init void perf_event_ibs_init(void)
 {
 	struct attribute **attr = ibs_op_format_attrs;
-
-	if (!ibs_caps)
-		return -ENODEV;	/* ibs not supported by the cpu */
 
 	perf_ibs_pmu_init(&perf_ibs_fetch, "ibs_fetch");
 
@@ -738,13 +740,11 @@ static __init int perf_event_ibs_init(void)
 
 	register_nmi_handler(NMI_LOCAL, perf_ibs_nmi_handler, 0, "perf_ibs");
 	pr_info("perf: AMD IBS detected (0x%08x)\n", ibs_caps);
-
-	return 0;
 }
 
 #else /* defined(CONFIG_PERF_EVENTS) && defined(CONFIG_CPU_SUP_AMD) */
 
-static __init int perf_event_ibs_init(void) { return 0; }
+static __init void perf_event_ibs_init(void) { }
 
 #endif
 
@@ -921,7 +921,7 @@ static inline int get_ibs_lvt_offset(void)
 	return val & IBSCTL_LVT_OFFSET_MASK;
 }
 
-static void setup_APIC_ibs(void *dummy)
+static void setup_APIC_ibs(void)
 {
 	int offset;
 
@@ -936,7 +936,7 @@ failed:
 		smp_processor_id());
 }
 
-static void clear_APIC_ibs(void *dummy)
+static void clear_APIC_ibs(void)
 {
 	int offset;
 
@@ -945,18 +945,24 @@ static void clear_APIC_ibs(void *dummy)
 		setup_APIC_eilvt(offset, 0, APIC_EILVT_MSG_FIX, 1);
 }
 
+static int x86_pmu_amd_ibs_starting_cpu(unsigned int cpu)
+{
+	setup_APIC_ibs();
+	return 0;
+}
+
 #ifdef CONFIG_PM
 
 static int perf_ibs_suspend(void)
 {
-	clear_APIC_ibs(NULL);
+	clear_APIC_ibs();
 	return 0;
 }
 
 static void perf_ibs_resume(void)
 {
 	ibs_eilvt_setup();
-	setup_APIC_ibs(NULL);
+	setup_APIC_ibs();
 }
 
 static struct syscore_ops perf_ibs_syscore_ops = {
@@ -975,27 +981,15 @@ static inline void perf_ibs_pm_init(void) { }
 
 #endif
 
-static int
-perf_ibs_cpu_notifier(struct notifier_block *self, unsigned long action, void *hcpu)
+static int x86_pmu_amd_ibs_dying_cpu(unsigned int cpu)
 {
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_STARTING:
-		setup_APIC_ibs(NULL);
-		break;
-	case CPU_DYING:
-		clear_APIC_ibs(NULL);
-		break;
-	default:
-		break;
-	}
-
-	return NOTIFY_OK;
+	clear_APIC_ibs();
+	return 0;
 }
 
 static __init int amd_ibs_init(void)
 {
 	u32 caps;
-	int ret = -EINVAL;
 
 	caps = __get_ibs_caps();
 	if (!caps)
@@ -1004,22 +998,25 @@ static __init int amd_ibs_init(void)
 	ibs_eilvt_setup();
 
 	if (!ibs_eilvt_valid())
-		goto out;
+		return -EINVAL;
 
 	perf_ibs_pm_init();
-	cpu_notifier_register_begin();
+
 	ibs_caps = caps;
 	/* make ibs_caps visible to other cpus: */
 	smp_mb();
-	smp_call_function(setup_APIC_ibs, NULL, 1);
-	__perf_cpu_notifier(perf_ibs_cpu_notifier);
-	cpu_notifier_register_done();
+	/*
+	 * x86_pmu_amd_ibs_starting_cpu will be called from core on
+	 * all online cpus.
+	 */
+	cpuhp_setup_state(CPUHP_AP_PERF_X86_AMD_IBS_STARTING,
+			  "AP_PERF_X86_AMD_IBS_STARTING",
+			  x86_pmu_amd_ibs_starting_cpu,
+			  x86_pmu_amd_ibs_dying_cpu);
 
-	ret = perf_event_ibs_init();
-out:
-	if (ret)
-		pr_err("Failed to setup IBS, %d\n", ret);
-	return ret;
+	perf_event_ibs_init();
+
+	return 0;
 }
 
 /* Since we need the pci subsystem to init ibs we can't do this earlier: */

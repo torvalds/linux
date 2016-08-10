@@ -124,7 +124,12 @@ void bpf_map_put_with_uref(struct bpf_map *map)
 
 static int bpf_map_release(struct inode *inode, struct file *filp)
 {
-	bpf_map_put_with_uref(filp->private_data);
+	struct bpf_map *map = filp->private_data;
+
+	if (map->ops->map_release)
+		map->ops->map_release(map, filp);
+
+	bpf_map_put_with_uref(map);
 	return 0;
 }
 
@@ -387,6 +392,13 @@ static int map_update_elem(union bpf_attr *attr)
 		err = bpf_percpu_hash_update(map, key, value, attr->flags);
 	} else if (map->map_type == BPF_MAP_TYPE_PERCPU_ARRAY) {
 		err = bpf_percpu_array_update(map, key, value, attr->flags);
+	} else if (map->map_type == BPF_MAP_TYPE_PERF_EVENT_ARRAY ||
+		   map->map_type == BPF_MAP_TYPE_PROG_ARRAY ||
+		   map->map_type == BPF_MAP_TYPE_CGROUP_ARRAY) {
+		rcu_read_lock();
+		err = bpf_fd_array_map_update_elem(map, f.file, key, value,
+						   attr->flags);
+		rcu_read_unlock();
 	} else {
 		rcu_read_lock();
 		err = map->ops->map_update_elem(map, key, value, attr->flags);
@@ -612,7 +624,7 @@ static void bpf_prog_uncharge_memlock(struct bpf_prog *prog)
 	free_uid(user);
 }
 
-static void __prog_put_common(struct rcu_head *rcu)
+static void __bpf_prog_put_rcu(struct rcu_head *rcu)
 {
 	struct bpf_prog_aux *aux = container_of(rcu, struct bpf_prog_aux, rcu);
 
@@ -621,17 +633,10 @@ static void __prog_put_common(struct rcu_head *rcu)
 	bpf_prog_free(aux->prog);
 }
 
-/* version of bpf_prog_put() that is called after a grace period */
-void bpf_prog_put_rcu(struct bpf_prog *prog)
-{
-	if (atomic_dec_and_test(&prog->aux->refcnt))
-		call_rcu(&prog->aux->rcu, __prog_put_common);
-}
-
 void bpf_prog_put(struct bpf_prog *prog)
 {
 	if (atomic_dec_and_test(&prog->aux->refcnt))
-		__prog_put_common(&prog->aux->rcu);
+		call_rcu(&prog->aux->rcu, __bpf_prog_put_rcu);
 }
 EXPORT_SYMBOL_GPL(bpf_prog_put);
 
@@ -639,7 +644,7 @@ static int bpf_prog_release(struct inode *inode, struct file *filp)
 {
 	struct bpf_prog *prog = filp->private_data;
 
-	bpf_prog_put_rcu(prog);
+	bpf_prog_put(prog);
 	return 0;
 }
 
@@ -653,7 +658,7 @@ int bpf_prog_new_fd(struct bpf_prog *prog)
 				O_RDWR | O_CLOEXEC);
 }
 
-static struct bpf_prog *__bpf_prog_get(struct fd f)
+static struct bpf_prog *____bpf_prog_get(struct fd f)
 {
 	if (!f.file)
 		return ERR_PTR(-EBADF);
@@ -665,33 +670,50 @@ static struct bpf_prog *__bpf_prog_get(struct fd f)
 	return f.file->private_data;
 }
 
-struct bpf_prog *bpf_prog_inc(struct bpf_prog *prog)
+struct bpf_prog *bpf_prog_add(struct bpf_prog *prog, int i)
 {
-	if (atomic_inc_return(&prog->aux->refcnt) > BPF_MAX_REFCNT) {
-		atomic_dec(&prog->aux->refcnt);
+	if (atomic_add_return(i, &prog->aux->refcnt) > BPF_MAX_REFCNT) {
+		atomic_sub(i, &prog->aux->refcnt);
 		return ERR_PTR(-EBUSY);
 	}
 	return prog;
 }
+EXPORT_SYMBOL_GPL(bpf_prog_add);
 
-/* called by sockets/tracing/seccomp before attaching program to an event
- * pairs with bpf_prog_put()
- */
-struct bpf_prog *bpf_prog_get(u32 ufd)
+struct bpf_prog *bpf_prog_inc(struct bpf_prog *prog)
+{
+	return bpf_prog_add(prog, 1);
+}
+
+static struct bpf_prog *__bpf_prog_get(u32 ufd, enum bpf_prog_type *type)
 {
 	struct fd f = fdget(ufd);
 	struct bpf_prog *prog;
 
-	prog = __bpf_prog_get(f);
+	prog = ____bpf_prog_get(f);
 	if (IS_ERR(prog))
 		return prog;
+	if (type && prog->type != *type) {
+		prog = ERR_PTR(-EINVAL);
+		goto out;
+	}
 
 	prog = bpf_prog_inc(prog);
+out:
 	fdput(f);
-
 	return prog;
 }
-EXPORT_SYMBOL_GPL(bpf_prog_get);
+
+struct bpf_prog *bpf_prog_get(u32 ufd)
+{
+	return __bpf_prog_get(ufd, NULL);
+}
+
+struct bpf_prog *bpf_prog_get_type(u32 ufd, enum bpf_prog_type type)
+{
+	return __bpf_prog_get(ufd, &type);
+}
+EXPORT_SYMBOL_GPL(bpf_prog_get_type);
 
 /* last field in 'union bpf_attr' used by this command */
 #define	BPF_PROG_LOAD_LAST_FIELD kern_version

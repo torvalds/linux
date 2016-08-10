@@ -54,5 +54,5 @@ obj-$(CONFIG_PHY_TUSB1210)		+= phy-tusb1210.o
 obj-$(CONFIG_PHY_BRCM_SATA)		+= phy-brcm-sata.o
 obj-$(CONFIG_PHY_PISTACHIO_USB)		+= phy-pistachio-usb.o
 obj-$(CONFIG_PHY_CYGNUS_PCIE)		+= phy-bcm-cygnus-pcie.o
-
 obj-$(CONFIG_ARCH_TEGRA) += tegra/
+obj-$(CONFIG_PHY_NS2_PCIE)		+= phy-bcm-ns2-pcie.o

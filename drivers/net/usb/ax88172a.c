@@ -149,24 +149,6 @@ static const struct net_device_ops ax88172a_netdev_ops = {
 	.ndo_set_rx_mode        = asix_set_multicast,
 };
 
-static int ax88172a_get_settings(struct net_device *net,
-				 struct ethtool_cmd *cmd)
-{
-	if (!net->phydev)
-		return -ENODEV;
-
-	return phy_ethtool_gset(net->phydev, cmd);
-}
-
-static int ax88172a_set_settings(struct net_device *net,
-				 struct ethtool_cmd *cmd)
-{
-	if (!net->phydev)
-		return -ENODEV;
-
-	return phy_ethtool_sset(net->phydev, cmd);
-}
-
 static int ax88172a_nway_reset(struct net_device *net)
 {
 	if (!net->phydev)
@@ -185,9 +167,9 @@ static const struct ethtool_ops ax88172a_ethtool_ops = {
 	.get_eeprom_len		= asix_get_eeprom_len,
 	.get_eeprom		= asix_get_eeprom,
 	.set_eeprom		= asix_set_eeprom,
-	.get_settings		= ax88172a_get_settings,
-	.set_settings		= ax88172a_set_settings,
 	.nway_reset		= ax88172a_nway_reset,
+	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
+	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
 };
 
 static int ax88172a_reset_phy(struct usbnet *dev, int embd_phy)

@@ -373,6 +373,8 @@ Optional properties:
 - #clock-cells			: it must be 0 if your system has audio_clkout
 				  it must be 1 if your system has audio_clkout0/1/2/3
 - clock-frequency		: for all audio_clkout0/1/2/3
+- clkout-lr-asynchronous	: boolean property. it indicates that audio_clkoutn
+				  is asynchronizes with lr-clock.
 
 SSI subnode properties:
 - interrupts			: Should contain SSI interrupt for PIO transfer

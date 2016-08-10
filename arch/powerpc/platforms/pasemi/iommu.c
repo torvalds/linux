@@ -88,7 +88,7 @@ static int iommu_table_iobmap_inited;
 static int iobmap_build(struct iommu_table *tbl, long index,
 			 long npages, unsigned long uaddr,
 			 enum dma_data_direction direction,
-			 struct dma_attrs *attrs)
+			 unsigned long attrs)
 {
 	u32 *ip;
 	u32 rpn;
@@ -202,6 +202,11 @@ int __init iob_init(struct device_node *dn)
 
 	pr_debug(" -> %s\n", __func__);
 
+	/* For 2G space, 8x64 pages (2^21 bytes) is max total l2 size */
+	iob_l2_base = (u32 *)__va(memblock_alloc_base(1UL<<21, 1UL<<21, 0x80000000));
+
+	printk(KERN_INFO "IOBMAP L2 allocated at: %p\n", iob_l2_base);
+
 	/* Allocate a spare page to map all invalid IOTLB pages. */
 	tmp = memblock_alloc(IOBMAP_PAGE_SIZE, IOBMAP_PAGE_SIZE);
 	if (!tmp)
@@ -260,13 +265,3 @@ void __init iommu_init_early_pasemi(void)
 	set_pci_dma_ops(&dma_iommu_ops);
 }
 
-void __init alloc_iobmap_l2(void)
-{
-#ifndef CONFIG_PPC_PASEMI_IOMMU
-	return;
-#endif
-	/* For 2G space, 8x64 pages (2^21 bytes) is max total l2 size */
-	iob_l2_base = (u32 *)__va(memblock_alloc_base(1UL<<21, 1UL<<21, 0x80000000));
-
-	printk(KERN_INFO "IOBMAP L2 allocated at: %p\n", iob_l2_base);
-}

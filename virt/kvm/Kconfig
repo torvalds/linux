@@ -16,9 +16,6 @@ config HAVE_KVM_EVENTFD
        bool
        select EVENTFD
 
-config KVM_APIC_ARCHITECTURE
-       bool
-
 config KVM_MMIO
        bool
 

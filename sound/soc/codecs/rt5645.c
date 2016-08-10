@@ -63,6 +63,7 @@ static const struct reg_sequence init_list[] = {
 	{RT5645_PR_BASE + 0x20,	0x611f},
 	{RT5645_PR_BASE + 0x21,	0x4040},
 	{RT5645_PR_BASE + 0x23,	0x0004},
+	{RT5645_ASRC_4, 0x0120},
 };
 
 static const struct reg_sequence rt5650_init_list[] = {
@@ -157,7 +158,7 @@ static const struct reg_default rt5645_reg[] = {
 	{ 0x83, 0x0000 },
 	{ 0x84, 0x0000 },
 	{ 0x85, 0x0000 },
-	{ 0x8a, 0x0000 },
+	{ 0x8a, 0x0120 },
 	{ 0x8e, 0x0004 },
 	{ 0x8f, 0x1100 },
 	{ 0x90, 0x0646 },
@@ -314,7 +315,7 @@ static const struct reg_default rt5650_reg[] = {
 	{ 0x83, 0x0000 },
 	{ 0x84, 0x0000 },
 	{ 0x85, 0x0000 },
-	{ 0x8a, 0x0000 },
+	{ 0x8a, 0x0120 },
 	{ 0x8e, 0x0004 },
 	{ 0x8f, 0x1100 },
 	{ 0x90, 0x0646 },
@@ -440,6 +441,7 @@ static bool rt5645_volatile_register(struct device *dev, unsigned int reg)
 
 	switch (reg) {
 	case RT5645_RESET:
+	case RT5645_PRIV_INDEX:
 	case RT5645_PRIV_DATA:
 	case RT5645_IN1_CTRL1:
 	case RT5645_IN1_CTRL2:
@@ -740,6 +742,14 @@ static int rt5645_spk_put_volsw(struct snd_kcontrol *kcontrol,
 	return ret;
 }
 
+static const char * const rt5645_dac1_vol_ctrl_mode_text[] = {
+	"immediately", "zero crossing", "soft ramp"
+};
+
+static SOC_ENUM_SINGLE_DECL(
+	rt5645_dac1_vol_ctrl_mode, RT5645_PR_BASE,
+	RT5645_DA1_ZDET_SFT, rt5645_dac1_vol_ctrl_mode_text);
+
 static const struct snd_kcontrol_new rt5645_snd_controls[] = {
 	/* Speaker Output Volume */
 	SOC_DOUBLE("Speaker Channel Switch", RT5645_SPK_VOL,
@@ -806,6 +816,9 @@ static const struct snd_kcontrol_new rt5645_snd_controls[] = {
 	SOC_SINGLE("I2S2 Func Switch", RT5645_GPIO_CTRL1, RT5645_I2S2_SEL_SFT,
 		1, 1),
 	RT5645_HWEQ("Speaker HWEQ"),
+
+	/* Digital Soft Volume Control */
+	SOC_ENUM("DAC1 Digital Volume Control Func", rt5645_dac1_vol_ctrl_mode),
 };
 
 /**
@@ -3531,6 +3544,7 @@ MODULE_DEVICE_TABLE(i2c, rt5645_i2c_id);
 static const struct acpi_device_id rt5645_acpi_match[] = {
 	{ "10EC5645", 0 },
 	{ "10EC5650", 0 },
+	{ "10EC5640", 0 },
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, rt5645_acpi_match);
@@ -3559,6 +3573,12 @@ static const struct dmi_system_id dmi_platform_intel_braswell[] = {
 		.ident = "Google Setzer",
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Setzer"),
+		},
+	},
+	{
+		.ident = "Microsoft Surface 3",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Surface 3"),
 		},
 	},
 	{ }

@@ -302,9 +302,6 @@ struct fiji_hwmgr {
 	bool                           pg_acp_init;
 	bool                           frtc_enabled;
 	bool                           frtc_status_changed;
-
-	/* soft pptable for re-uploading into smu */
-	void *soft_pp_table;
 };
 
 /* To convert to Q8.8 format for firmware */

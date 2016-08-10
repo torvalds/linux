@@ -622,13 +622,8 @@ static int rtl8192eu_parse_efuse(struct rtl8xxxu_priv *priv)
 		dev_info(&priv->udev->dev,
 			 "%s: dumping efuse (0x%02zx bytes):\n",
 			 __func__, sizeof(struct rtl8192eu_efuse));
-		for (i = 0; i < sizeof(struct rtl8192eu_efuse); i += 8) {
-			dev_info(&priv->udev->dev, "%02x: "
-				 "%02x %02x %02x %02x %02x %02x %02x %02x\n", i,
-				 raw[i], raw[i + 1], raw[i + 2],
-				 raw[i + 3], raw[i + 4], raw[i + 5],
-				 raw[i + 6], raw[i + 7]);
-		}
+		for (i = 0; i < sizeof(struct rtl8192eu_efuse); i += 8)
+			dev_info(&priv->udev->dev, "%02x: %8ph\n", i, &raw[i]);
 	}
 	return 0;
 }
@@ -1249,11 +1244,9 @@ static void rtl8192eu_phy_iq_calibrate(struct rtl8xxxu_priv *priv)
 		reg_e94 = result[i][0];
 		reg_e9c = result[i][1];
 		reg_ea4 = result[i][2];
-		reg_eac = result[i][3];
 		reg_eb4 = result[i][4];
 		reg_ebc = result[i][5];
 		reg_ec4 = result[i][6];
-		reg_ecc = result[i][7];
 	}
 
 	if (candidate >= 0) {

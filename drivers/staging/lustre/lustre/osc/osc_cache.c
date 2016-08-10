@@ -1864,7 +1864,8 @@ void osc_dec_unstable_pages(struct ptlrpc_request *req)
 	LASSERT(page_count >= 0);
 
 	for (i = 0; i < page_count; i++)
-		dec_zone_page_state(desc->bd_iov[i].kiov_page, NR_UNSTABLE_NFS);
+		dec_node_page_state(desc->bd_iov[i].kiov_page,
+							NR_UNSTABLE_NFS);
 
 	atomic_sub(page_count, &cli->cl_cache->ccc_unstable_nr);
 	LASSERT(atomic_read(&cli->cl_cache->ccc_unstable_nr) >= 0);
@@ -1898,7 +1899,8 @@ void osc_inc_unstable_pages(struct ptlrpc_request *req)
 	LASSERT(page_count >= 0);
 
 	for (i = 0; i < page_count; i++)
-		inc_zone_page_state(desc->bd_iov[i].kiov_page, NR_UNSTABLE_NFS);
+		inc_node_page_state(desc->bd_iov[i].kiov_page,
+							NR_UNSTABLE_NFS);
 
 	LASSERT(atomic_read(&cli->cl_cache->ccc_unstable_nr) >= 0);
 	atomic_add(page_count, &cli->cl_cache->ccc_unstable_nr);

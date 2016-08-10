@@ -62,6 +62,8 @@
 #include <linux/cdev.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
+#include <linux/i2c.h>
+#include <linux/i2c-algo-bit.h>
 #include <rdma/rdma_vt.h>
 
 #include "chip_registers.h"
@@ -253,7 +255,7 @@ struct hfi1_ctxtdata {
 	/* chip offset of PIO buffers for this ctxt */
 	u32 piobufs;
 	/* per-context configuration flags */
-	u32 flags;
+	unsigned long flags;
 	/* per-context event flags for fileops/intr communication */
 	unsigned long event_flags;
 	/* WAIT_RCV that timed out, no interrupt */
@@ -268,9 +270,6 @@ struct hfi1_ctxtdata {
 	u32 urgent;
 	/* saved total number of polled urgent packets for poll edge trigger */
 	u32 urgent_poll;
-	/* pid of process using this ctxt */
-	pid_t pid;
-	pid_t subpid[HFI1_MAX_SHARED_CTXTS];
 	/* same size as task_struct .comm[], command that opened context */
 	char comm[TASK_COMM_LEN];
 	/* so file ops can get at unit */
@@ -365,11 +364,6 @@ struct hfi1_packet {
 	u8 rcv_flags;
 	u8 etype;
 };
-
-static inline bool has_sc4_bit(struct hfi1_packet *p)
-{
-	return !!rhf_dc_info(p->rhf);
-}
 
 /*
  * Private data for snoop/capture support.
@@ -805,10 +799,19 @@ struct hfi1_temp {
 	u8 triggers;      /* temperature triggers */
 };
 
+struct hfi1_i2c_bus {
+	struct hfi1_devdata *controlling_dd; /* current controlling device */
+	struct i2c_adapter adapter;	/* bus details */
+	struct i2c_algo_bit_data algo;	/* bus algorithm details */
+	int num;			/* bus number, 0 or 1 */
+};
+
 /* common data between shared ASIC HFIs */
 struct hfi1_asic_data {
 	struct hfi1_devdata *dds[2];	/* back pointers */
 	struct mutex asic_resource_mutex;
+	struct hfi1_i2c_bus *i2c_bus0;
+	struct hfi1_i2c_bus *i2c_bus1;
 };
 
 /* device data struct now contains only "general per-device" info.
@@ -1128,7 +1131,8 @@ struct hfi1_devdata {
 		NUM_SEND_DMA_ENG_ERR_STATUS_COUNTERS];
 	/* Software counter that aggregates all cce_err_status errors */
 	u64 sw_cce_err_status_aggregate;
-
+	/* Software counter that aggregates all bypass packet rcv errors */
+	u64 sw_rcv_bypass_packet_errors;
 	/* receive interrupt functions */
 	rhf_rcv_function_ptr *rhf_rcv_function_map;
 	rhf_rcv_function_ptr normal_rhf_rcv_functions[8];
@@ -1174,6 +1178,8 @@ struct hfi1_devdata {
 
 /* 8051 firmware version helper */
 #define dc8051_ver(a, b) ((a) << 8 | (b))
+#define dc8051_ver_maj(a) ((a & 0xff00) >> 8)
+#define dc8051_ver_min(a)  (a & 0x00ff)
 
 /* f_put_tid types */
 #define PT_EXPECTED 0
@@ -1182,6 +1188,7 @@ struct hfi1_devdata {
 
 struct tid_rb_node;
 struct mmu_rb_node;
+struct mmu_rb_handler;
 
 /* Private data for file operations */
 struct hfi1_filedata {
@@ -1192,7 +1199,7 @@ struct hfi1_filedata {
 	/* for cpu affinity; -1 if none */
 	int rec_cpu_num;
 	u32 tid_n_pinned;
-	struct rb_root tid_rb_root;
+	struct mmu_rb_handler *handler;
 	struct tid_rb_node **entry_to_rb;
 	spinlock_t tid_lock; /* protect tid_[limit,used] counters */
 	u32 tid_limit;
@@ -1201,6 +1208,7 @@ struct hfi1_filedata {
 	u32 invalid_tid_idx;
 	/* protect invalid_tids array and invalid_tid_idx */
 	spinlock_t invalid_lock;
+	struct mm_struct *mm;
 };
 
 extern struct list_head hfi1_dev_list;
@@ -1234,6 +1242,8 @@ int handle_receive_interrupt_nodma_rtail(struct hfi1_ctxtdata *, int);
 int handle_receive_interrupt_dma_rtail(struct hfi1_ctxtdata *, int);
 void set_all_slowpath(struct hfi1_devdata *dd);
 
+extern const struct pci_device_id hfi1_pci_tbl[];
+
 /* receive packet handler dispositions */
 #define RCV_PKT_OK      0x0 /* keep going */
 #define RCV_PKT_LIMIT   0x1 /* stop, hit limit, start thread */
@@ -1259,7 +1269,7 @@ void receive_interrupt_work(struct work_struct *work);
 static inline int hdr2sc(struct hfi1_message_header *hdr, u64 rhf)
 {
 	return ((be16_to_cpu(hdr->lrh[0]) >> 12) & 0xf) |
-	       ((!!(rhf & RHF_DC_INFO_SMASK)) << 4);
+	       ((!!(rhf_dc_info(rhf))) << 4);
 }
 
 static inline u16 generate_jkey(kuid_t uid)
@@ -1569,6 +1579,22 @@ static inline struct hfi1_ibport *to_iport(struct ib_device *ibdev, u8 port)
 	return &dd->pport[pidx].ibport_data;
 }
 
+void hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
+			       bool do_cnp);
+static inline bool process_ecn(struct rvt_qp *qp, struct hfi1_packet *pkt,
+			       bool do_cnp)
+{
+	struct hfi1_other_headers *ohdr = pkt->ohdr;
+	u32 bth1;
+
+	bth1 = be32_to_cpu(ohdr->bth[1]);
+	if (unlikely(bth1 & (HFI1_BECN_SMASK | HFI1_FECN_SMASK))) {
+		hfi1_process_ecn_slowpath(qp, pkt, do_cnp);
+		return bth1 & HFI1_FECN_SMASK;
+	}
+	return false;
+}
+
 /*
  * Return the indexed PKEY from the port PKEY table.
  */
@@ -1586,12 +1612,21 @@ static inline u16 hfi1_get_pkey(struct hfi1_ibport *ibp, unsigned index)
 }
 
 /*
- * Readers of cc_state must call get_cc_state() under rcu_read_lock().
- * Writers of cc_state must call get_cc_state() under cc_state_lock.
+ * Called by readers of cc_state only, must call under rcu_read_lock().
  */
 static inline struct cc_state *get_cc_state(struct hfi1_pportdata *ppd)
 {
 	return rcu_dereference(ppd->cc_state);
+}
+
+/*
+ * Called by writers of cc_state only,  must call under cc_state_lock.
+ */
+static inline
+struct cc_state *get_cc_state_protected(struct hfi1_pportdata *ppd)
+{
+	return rcu_dereference_protected(ppd->cc_state,
+					 lockdep_is_held(&ppd->cc_state_lock));
 }
 
 /*
@@ -1669,9 +1704,12 @@ void shutdown_led_override(struct hfi1_pportdata *ppd);
  */
 #define DEFAULT_RCVHDR_ENTSIZE 32
 
-bool hfi1_can_pin_pages(struct hfi1_devdata *, u32, u32);
-int hfi1_acquire_user_pages(unsigned long, size_t, bool, struct page **);
-void hfi1_release_user_pages(struct mm_struct *, struct page **, size_t, bool);
+bool hfi1_can_pin_pages(struct hfi1_devdata *dd, struct mm_struct *mm,
+			u32 nlocked, u32 npages);
+int hfi1_acquire_user_pages(struct mm_struct *mm, unsigned long vaddr,
+			    size_t npages, bool writable, struct page **pages);
+void hfi1_release_user_pages(struct mm_struct *mm, struct page **p,
+			     size_t npages, bool dirty);
 
 static inline void clear_rcvhdrtail(const struct hfi1_ctxtdata *rcd)
 {
@@ -1947,4 +1985,55 @@ static inline u32 qsfp_resource(struct hfi1_devdata *dd)
 
 int hfi1_tempsense_rd(struct hfi1_devdata *dd, struct hfi1_temp *temp);
 
+#define DD_DEV_ENTRY(dd)       __string(dev, dev_name(&(dd)->pcidev->dev))
+#define DD_DEV_ASSIGN(dd)      __assign_str(dev, dev_name(&(dd)->pcidev->dev))
+
+#define packettype_name(etype) { RHF_RCV_TYPE_##etype, #etype }
+#define show_packettype(etype)                  \
+__print_symbolic(etype,                         \
+	packettype_name(EXPECTED),              \
+	packettype_name(EAGER),                 \
+	packettype_name(IB),                    \
+	packettype_name(ERROR),                 \
+	packettype_name(BYPASS))
+
+#define ib_opcode_name(opcode) { IB_OPCODE_##opcode, #opcode  }
+#define show_ib_opcode(opcode)                             \
+__print_symbolic(opcode,                                   \
+	ib_opcode_name(RC_SEND_FIRST),                     \
+	ib_opcode_name(RC_SEND_MIDDLE),                    \
+	ib_opcode_name(RC_SEND_LAST),                      \
+	ib_opcode_name(RC_SEND_LAST_WITH_IMMEDIATE),       \
+	ib_opcode_name(RC_SEND_ONLY),                      \
+	ib_opcode_name(RC_SEND_ONLY_WITH_IMMEDIATE),       \
+	ib_opcode_name(RC_RDMA_WRITE_FIRST),               \
+	ib_opcode_name(RC_RDMA_WRITE_MIDDLE),              \
+	ib_opcode_name(RC_RDMA_WRITE_LAST),                \
+	ib_opcode_name(RC_RDMA_WRITE_LAST_WITH_IMMEDIATE), \
+	ib_opcode_name(RC_RDMA_WRITE_ONLY),                \
+	ib_opcode_name(RC_RDMA_WRITE_ONLY_WITH_IMMEDIATE), \
+	ib_opcode_name(RC_RDMA_READ_REQUEST),              \
+	ib_opcode_name(RC_RDMA_READ_RESPONSE_FIRST),       \
+	ib_opcode_name(RC_RDMA_READ_RESPONSE_MIDDLE),      \
+	ib_opcode_name(RC_RDMA_READ_RESPONSE_LAST),        \
+	ib_opcode_name(RC_RDMA_READ_RESPONSE_ONLY),        \
+	ib_opcode_name(RC_ACKNOWLEDGE),                    \
+	ib_opcode_name(RC_ATOMIC_ACKNOWLEDGE),             \
+	ib_opcode_name(RC_COMPARE_SWAP),                   \
+	ib_opcode_name(RC_FETCH_ADD),                      \
+	ib_opcode_name(UC_SEND_FIRST),                     \
+	ib_opcode_name(UC_SEND_MIDDLE),                    \
+	ib_opcode_name(UC_SEND_LAST),                      \
+	ib_opcode_name(UC_SEND_LAST_WITH_IMMEDIATE),       \
+	ib_opcode_name(UC_SEND_ONLY),                      \
+	ib_opcode_name(UC_SEND_ONLY_WITH_IMMEDIATE),       \
+	ib_opcode_name(UC_RDMA_WRITE_FIRST),               \
+	ib_opcode_name(UC_RDMA_WRITE_MIDDLE),              \
+	ib_opcode_name(UC_RDMA_WRITE_LAST),                \
+	ib_opcode_name(UC_RDMA_WRITE_LAST_WITH_IMMEDIATE), \
+	ib_opcode_name(UC_RDMA_WRITE_ONLY),                \
+	ib_opcode_name(UC_RDMA_WRITE_ONLY_WITH_IMMEDIATE), \
+	ib_opcode_name(UD_SEND_ONLY),                      \
+	ib_opcode_name(UD_SEND_ONLY_WITH_IMMEDIATE),       \
+	ib_opcode_name(CNP))
 #endif                          /* _HFI1_KERNEL_H */

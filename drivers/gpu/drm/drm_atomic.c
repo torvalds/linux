@@ -33,6 +33,20 @@
 
 #include "drm_crtc_internal.h"
 
+static void crtc_commit_free(struct kref *kref)
+{
+	struct drm_crtc_commit *commit =
+		container_of(kref, struct drm_crtc_commit, ref);
+
+	kfree(commit);
+}
+
+void drm_crtc_commit_put(struct drm_crtc_commit *commit)
+{
+	kref_put(&commit->ref, crtc_commit_free);
+}
+EXPORT_SYMBOL(drm_crtc_commit_put);
+
 /**
  * drm_atomic_state_default_release -
  * release memory initialized by drm_atomic_state_init
@@ -44,11 +58,8 @@
 void drm_atomic_state_default_release(struct drm_atomic_state *state)
 {
 	kfree(state->connectors);
-	kfree(state->connector_states);
 	kfree(state->crtcs);
-	kfree(state->crtc_states);
 	kfree(state->planes);
-	kfree(state->plane_states);
 }
 EXPORT_SYMBOL(drm_atomic_state_default_release);
 
@@ -72,17 +83,9 @@ drm_atomic_state_init(struct drm_device *dev, struct drm_atomic_state *state)
 			       sizeof(*state->crtcs), GFP_KERNEL);
 	if (!state->crtcs)
 		goto fail;
-	state->crtc_states = kcalloc(dev->mode_config.num_crtc,
-				     sizeof(*state->crtc_states), GFP_KERNEL);
-	if (!state->crtc_states)
-		goto fail;
 	state->planes = kcalloc(dev->mode_config.num_total_plane,
 				sizeof(*state->planes), GFP_KERNEL);
 	if (!state->planes)
-		goto fail;
-	state->plane_states = kcalloc(dev->mode_config.num_total_plane,
-				      sizeof(*state->plane_states), GFP_KERNEL);
-	if (!state->plane_states)
 		goto fail;
 
 	state->dev = dev;
@@ -139,40 +142,48 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 	DRM_DEBUG_ATOMIC("Clearing atomic state %p\n", state);
 
 	for (i = 0; i < state->num_connector; i++) {
-		struct drm_connector *connector = state->connectors[i];
+		struct drm_connector *connector = state->connectors[i].ptr;
 
 		if (!connector)
 			continue;
 
 		connector->funcs->atomic_destroy_state(connector,
-						       state->connector_states[i]);
-		state->connectors[i] = NULL;
-		state->connector_states[i] = NULL;
+						       state->connectors[i].state);
+		state->connectors[i].ptr = NULL;
+		state->connectors[i].state = NULL;
 		drm_connector_unreference(connector);
 	}
 
 	for (i = 0; i < config->num_crtc; i++) {
-		struct drm_crtc *crtc = state->crtcs[i];
+		struct drm_crtc *crtc = state->crtcs[i].ptr;
 
 		if (!crtc)
 			continue;
 
 		crtc->funcs->atomic_destroy_state(crtc,
-						  state->crtc_states[i]);
-		state->crtcs[i] = NULL;
-		state->crtc_states[i] = NULL;
+						  state->crtcs[i].state);
+
+		if (state->crtcs[i].commit) {
+			kfree(state->crtcs[i].commit->event);
+			state->crtcs[i].commit->event = NULL;
+			drm_crtc_commit_put(state->crtcs[i].commit);
+		}
+
+		state->crtcs[i].commit = NULL;
+		state->crtcs[i].ptr = NULL;
+		state->crtcs[i].state = NULL;
 	}
 
 	for (i = 0; i < config->num_total_plane; i++) {
-		struct drm_plane *plane = state->planes[i];
+		struct drm_plane *plane = state->planes[i].ptr;
 
 		if (!plane)
 			continue;
 
 		plane->funcs->atomic_destroy_state(plane,
-						   state->plane_states[i]);
-		state->planes[i] = NULL;
-		state->plane_states[i] = NULL;
+						   state->planes[i].state);
+		state->planes[i].ptr = NULL;
+		state->planes[i].state = NULL;
 	}
 }
 EXPORT_SYMBOL(drm_atomic_state_default_clear);
@@ -270,8 +281,8 @@ drm_atomic_get_crtc_state(struct drm_atomic_state *state,
 	if (!crtc_state)
 		return ERR_PTR(-ENOMEM);
 
-	state->crtc_states[index] = crtc_state;
-	state->crtcs[index] = crtc;
+	state->crtcs[index].state = crtc_state;
+	state->crtcs[index].ptr = crtc;
 	crtc_state->state = state;
 
 	DRM_DEBUG_ATOMIC("Added [CRTC:%d:%s] %p state to %p\n",
@@ -393,8 +404,7 @@ drm_atomic_replace_property_blob(struct drm_property_blob **blob,
 	if (old_blob == new_blob)
 		return;
 
-	if (old_blob)
-		drm_property_unreference_blob(old_blob);
+	drm_property_unreference_blob(old_blob);
 	if (new_blob)
 		drm_property_reference_blob(new_blob);
 	*blob = new_blob;
@@ -632,8 +642,8 @@ drm_atomic_get_plane_state(struct drm_atomic_state *state,
 	if (!plane_state)
 		return ERR_PTR(-ENOMEM);
 
-	state->plane_states[index] = plane_state;
-	state->planes[index] = plane;
+	state->planes[index].state = plane_state;
+	state->planes[index].ptr = plane;
 	plane_state->state = state;
 
 	DRM_DEBUG_ATOMIC("Added [PLANE:%d:%s] %p state to %p\n",
@@ -701,6 +711,8 @@ int drm_atomic_plane_set_property(struct drm_plane *plane,
 		state->src_h = val;
 	} else if (property == config->rotation_property) {
 		state->rotation = val;
+	} else if (property == plane->zpos_property) {
+		state->zpos = val;
 	} else if (plane->funcs->atomic_set_property) {
 		return plane->funcs->atomic_set_property(plane, state,
 				property, val);
@@ -757,6 +769,8 @@ drm_atomic_plane_get_property(struct drm_plane *plane,
 		*val = state->src_h;
 	} else if (property == config->rotation_property) {
 		*val = state->rotation;
+	} else if (property == plane->zpos_property) {
+		*val = state->zpos;
 	} else if (plane->funcs->atomic_get_property) {
 		return plane->funcs->atomic_get_property(plane, state, property, val);
 	} else {
@@ -897,8 +911,7 @@ drm_atomic_get_connector_state(struct drm_atomic_state *state,
 	index = drm_connector_index(connector);
 
 	if (index >= state->num_connector) {
-		struct drm_connector **c;
-		struct drm_connector_state **cs;
+		struct __drm_connnectors_state *c;
 		int alloc = max(index + 1, config->num_connector);
 
 		c = krealloc(state->connectors, alloc * sizeof(*state->connectors), GFP_KERNEL);
@@ -909,26 +922,19 @@ drm_atomic_get_connector_state(struct drm_atomic_state *state,
 		memset(&state->connectors[state->num_connector], 0,
 		       sizeof(*state->connectors) * (alloc - state->num_connector));
 
-		cs = krealloc(state->connector_states, alloc * sizeof(*state->connector_states), GFP_KERNEL);
-		if (!cs)
-			return ERR_PTR(-ENOMEM);
-
-		state->connector_states = cs;
-		memset(&state->connector_states[state->num_connector], 0,
-		       sizeof(*state->connector_states) * (alloc - state->num_connector));
 		state->num_connector = alloc;
 	}
 
-	if (state->connector_states[index])
-		return state->connector_states[index];
+	if (state->connectors[index].state)
+		return state->connectors[index].state;
 
 	connector_state = connector->funcs->atomic_duplicate_state(connector);
 	if (!connector_state)
 		return ERR_PTR(-ENOMEM);
 
 	drm_connector_reference(connector);
-	state->connector_states[index] = connector_state;
-	state->connectors[index] = connector;
+	state->connectors[index].state = connector_state;
+	state->connectors[index].ptr = connector;
 	connector_state->state = state;
 
 	DRM_DEBUG_ATOMIC("Added [CONNECTOR:%d] %p state to %p\n",
@@ -1457,7 +1463,8 @@ EXPORT_SYMBOL(drm_atomic_nonblocking_commit);
  */
 
 static struct drm_pending_vblank_event *create_vblank_event(
-		struct drm_device *dev, struct drm_file *file_priv, uint64_t user_data)
+		struct drm_device *dev, struct drm_file *file_priv,
+		struct fence *fence, uint64_t user_data)
 {
 	struct drm_pending_vblank_event *e = NULL;
 	int ret;
@@ -1470,11 +1477,16 @@ static struct drm_pending_vblank_event *create_vblank_event(
 	e->event.base.length = sizeof(e->event);
 	e->event.user_data = user_data;
 
-	ret = drm_event_reserve_init(dev, file_priv, &e->base, &e->event.base);
-	if (ret) {
-		kfree(e);
-		return NULL;
+	if (file_priv) {
+		ret = drm_event_reserve_init(dev, file_priv, &e->base,
+					     &e->event.base);
+		if (ret) {
+			kfree(e);
+			return NULL;
+		}
 	}
+
+	e->base.fence = fence;
 
 	return e;
 }
@@ -1715,7 +1727,8 @@ retry:
 		for_each_crtc_in_state(state, crtc, crtc_state, i) {
 			struct drm_pending_vblank_event *e;
 
-			e = create_vblank_event(dev, file_priv, arg->user_data);
+			e = create_vblank_event(dev, file_priv, NULL,
+						arg->user_data);
 			if (!e) {
 				ret = -ENOMEM;
 				goto out;

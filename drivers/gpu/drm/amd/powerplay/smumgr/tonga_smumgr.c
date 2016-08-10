@@ -479,7 +479,6 @@ static int tonga_request_smu_reload_fw(struct pp_smumgr *smumgr)
 	struct tonga_smumgr *tonga_smu =
 		(struct tonga_smumgr *)(smumgr->backend);
 	uint16_t fw_to_load;
-	int result = 0;
 	struct SMU_DRAMData_TOC *toc;
 	/**
 	 * First time this gets called during SmuMgr init,
@@ -563,7 +562,7 @@ static int tonga_request_smu_reload_fw(struct pp_smumgr *smumgr)
 		smumgr, PPSMC_MSG_LoadUcodes, fw_to_load),
 		"Fail to Request SMU Load uCode", return 0);
 
-	return result;
+	return 0;
 }
 
 static int tonga_request_smu_load_specific_fw(struct pp_smumgr *smumgr,

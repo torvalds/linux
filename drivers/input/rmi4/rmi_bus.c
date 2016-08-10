@@ -232,10 +232,7 @@ err_put_device:
 void rmi_unregister_function(struct rmi_function *fn)
 {
 	device_del(&fn->dev);
-
-	if (fn->dev.of_node)
-		of_node_put(fn->dev.of_node);
-
+	of_node_put(fn->dev.of_node);
 	put_device(&fn->dev);
 }
 

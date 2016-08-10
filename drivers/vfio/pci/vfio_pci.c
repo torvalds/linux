@@ -110,6 +110,74 @@ static inline bool vfio_pci_is_vga(struct pci_dev *pdev)
 	return (pdev->class >> 8) == PCI_CLASS_DISPLAY_VGA;
 }
 
+static void vfio_pci_probe_mmaps(struct vfio_pci_device *vdev)
+{
+	struct resource *res;
+	int bar;
+	struct vfio_pci_dummy_resource *dummy_res;
+
+	INIT_LIST_HEAD(&vdev->dummy_resources_list);
+
+	for (bar = PCI_STD_RESOURCES; bar <= PCI_STD_RESOURCE_END; bar++) {
+		res = vdev->pdev->resource + bar;
+
+		if (!IS_ENABLED(CONFIG_VFIO_PCI_MMAP))
+			goto no_mmap;
+
+		if (!(res->flags & IORESOURCE_MEM))
+			goto no_mmap;
+
+		/*
+		 * The PCI core shouldn't set up a resource with a
+		 * type but zero size. But there may be bugs that
+		 * cause us to do that.
+		 */
+		if (!resource_size(res))
+			goto no_mmap;
+
+		if (resource_size(res) >= PAGE_SIZE) {
+			vdev->bar_mmap_supported[bar] = true;
+			continue;
+		}
+
+		if (!(res->start & ~PAGE_MASK)) {
+			/*
+			 * Add a dummy resource to reserve the remainder
+			 * of the exclusive page in case that hot-add
+			 * device's bar is assigned into it.
+			 */
+			dummy_res = kzalloc(sizeof(*dummy_res), GFP_KERNEL);
+			if (dummy_res == NULL)
+				goto no_mmap;
+
+			dummy_res->resource.name = "vfio sub-page reserved";
+			dummy_res->resource.start = res->end + 1;
+			dummy_res->resource.end = res->start + PAGE_SIZE - 1;
+			dummy_res->resource.flags = res->flags;
+			if (request_resource(res->parent,
+						&dummy_res->resource)) {
+				kfree(dummy_res);
+				goto no_mmap;
+			}
+			dummy_res->index = bar;
+			list_add(&dummy_res->res_next,
+					&vdev->dummy_resources_list);
+			vdev->bar_mmap_supported[bar] = true;
+			continue;
+		}
+		/*
+		 * Here we don't handle the case when the BAR is not page
+		 * aligned because we can't expect the BAR will be
+		 * assigned into the same location in a page in guest
+		 * when we passthrough the BAR. And it's hard to access
+		 * this BAR in userspace because we have no way to get
+		 * the BAR's location in a page.
+		 */
+no_mmap:
+		vdev->bar_mmap_supported[bar] = false;
+	}
+}
+
 static void vfio_pci_try_bus_reset(struct vfio_pci_device *vdev);
 static void vfio_pci_disable(struct vfio_pci_device *vdev);
 
@@ -218,12 +286,15 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 		}
 	}
 
+	vfio_pci_probe_mmaps(vdev);
+
 	return 0;
 }
 
 static void vfio_pci_disable(struct vfio_pci_device *vdev)
 {
 	struct pci_dev *pdev = vdev->pdev;
+	struct vfio_pci_dummy_resource *dummy_res, *tmp;
 	int i, bar;
 
 	/* Stop the device from further DMA */
@@ -250,6 +321,13 @@ static void vfio_pci_disable(struct vfio_pci_device *vdev)
 		pci_iounmap(pdev, vdev->barmap[bar]);
 		pci_release_selected_regions(pdev, 1 << bar);
 		vdev->barmap[bar] = NULL;
+	}
+
+	list_for_each_entry_safe(dummy_res, tmp,
+				 &vdev->dummy_resources_list, res_next) {
+		list_del(&dummy_res->res_next);
+		release_resource(&dummy_res->resource);
+		kfree(dummy_res);
 	}
 
 	vdev->needs_reset = true;
@@ -623,9 +701,7 @@ static long vfio_pci_ioctl(void *device_data,
 
 			info.flags = VFIO_REGION_INFO_FLAG_READ |
 				     VFIO_REGION_INFO_FLAG_WRITE;
-			if (IS_ENABLED(CONFIG_VFIO_PCI_MMAP) &&
-			    pci_resource_flags(pdev, info.index) &
-			    IORESOURCE_MEM && info.size >= PAGE_SIZE) {
+			if (vdev->bar_mmap_supported[info.index]) {
 				info.flags |= VFIO_REGION_INFO_FLAG_MMAP;
 				if (info.index == vdev->msix_bar) {
 					ret = msix_sparse_mmap_cap(vdev, &caps);
@@ -1049,16 +1125,16 @@ static int vfio_pci_mmap(void *device_data, struct vm_area_struct *vma)
 		return -EINVAL;
 	if (index >= VFIO_PCI_ROM_REGION_INDEX)
 		return -EINVAL;
-	if (!(pci_resource_flags(pdev, index) & IORESOURCE_MEM))
+	if (!vdev->bar_mmap_supported[index])
 		return -EINVAL;
 
-	phys_len = pci_resource_len(pdev, index);
+	phys_len = PAGE_ALIGN(pci_resource_len(pdev, index));
 	req_len = vma->vm_end - vma->vm_start;
 	pgoff = vma->vm_pgoff &
 		((1U << (VFIO_PCI_OFFSET_SHIFT - PAGE_SHIFT)) - 1);
 	req_start = pgoff << PAGE_SHIFT;
 
-	if (phys_len < PAGE_SIZE || req_start + req_len > phys_len)
+	if (req_start + req_len > phys_len)
 		return -EINVAL;
 
 	if (index == vdev->msix_bar) {

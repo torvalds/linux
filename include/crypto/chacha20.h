@@ -16,6 +16,7 @@ struct chacha20_ctx {
 	u32 key[8];
 };
 
+void chacha20_block(u32 *state, void *stream);
 void crypto_chacha20_init(u32 *state, struct chacha20_ctx *ctx, u8 *iv);
 int crypto_chacha20_setkey(struct crypto_tfm *tfm, const u8 *key,
 			   unsigned int keysize);

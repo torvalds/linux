@@ -538,22 +538,12 @@ static void gic_cpu_init(void)
 }
 
 #ifdef CONFIG_SMP
-static int gic_secondary_init(struct notifier_block *nfb,
-			      unsigned long action, void *hcpu)
-{
-	if (action == CPU_STARTING || action == CPU_STARTING_FROZEN)
-		gic_cpu_init();
-	return NOTIFY_OK;
-}
 
-/*
- * Notifier for enabling the GIC CPU interface. Set an arbitrarily high
- * priority because the GIC needs to be up before the ARM generic timers.
- */
-static struct notifier_block gic_cpu_notifier = {
-	.notifier_call = gic_secondary_init,
-	.priority = 100,
-};
+static int gic_starting_cpu(unsigned int cpu)
+{
+	gic_cpu_init();
+	return 0;
+}
 
 static u16 gic_compute_target_list(int *base_cpu, const struct cpumask *mask,
 				   unsigned long cluster_id)
@@ -634,7 +624,9 @@ static void gic_raise_softirq(const struct cpumask *mask, unsigned int irq)
 static void gic_smp_init(void)
 {
 	set_smp_cross_call(gic_raise_softirq);
-	register_cpu_notifier(&gic_cpu_notifier);
+	cpuhp_setup_state_nocalls(CPUHP_AP_IRQ_GICV3_STARTING,
+				  "AP_IRQ_GICV3_STARTING", gic_starting_cpu,
+				  NULL);
 }
 
 static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,

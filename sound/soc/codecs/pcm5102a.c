@@ -57,7 +57,6 @@ static struct platform_driver pcm5102a_codec_driver = {
 	.remove		= pcm5102a_remove,
 	.driver		= {
 		.name	= "pcm5102a-codec",
-		.owner	= THIS_MODULE,
 		.of_match_table = pcm5102a_of_match,
 	},
 };

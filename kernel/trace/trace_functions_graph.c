@@ -319,7 +319,7 @@ int trace_graph_entry(struct ftrace_graph_ent *trace)
 	int cpu;
 	int pc;
 
-	if (!ftrace_trace_task(current))
+	if (!ftrace_trace_task(tr))
 		return 0;
 
 	/* trace it when it is-nested-in or is a function enabled. */
@@ -338,6 +338,13 @@ int trace_graph_entry(struct ftrace_graph_ent *trace)
 	if (ftrace_graph_notrace_addr(trace->func))
 		return 1;
 
+	/*
+	 * Stop here if tracing_threshold is set. We only write function return
+	 * events to the ring buffer.
+	 */
+	if (tracing_thresh)
+		return 1;
+
 	local_irq_save(flags);
 	cpu = raw_smp_processor_id();
 	data = per_cpu_ptr(tr->trace_buffer.data, cpu);
@@ -353,14 +360,6 @@ int trace_graph_entry(struct ftrace_graph_ent *trace)
 	local_irq_restore(flags);
 
 	return ret;
-}
-
-static int trace_graph_thresh_entry(struct ftrace_graph_ent *trace)
-{
-	if (tracing_thresh)
-		return 1;
-	else
-		return trace_graph_entry(trace);
 }
 
 static void
@@ -457,7 +456,7 @@ static int graph_trace_init(struct trace_array *tr)
 	set_graph_array(tr);
 	if (tracing_thresh)
 		ret = register_ftrace_graph(&trace_graph_thresh_return,
-					    &trace_graph_thresh_entry);
+					    &trace_graph_entry);
 	else
 		ret = register_ftrace_graph(&trace_graph_return,
 					    &trace_graph_entry);

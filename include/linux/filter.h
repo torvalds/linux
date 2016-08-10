@@ -368,6 +368,11 @@ struct bpf_skb_data_end {
 	void *data_end;
 };
 
+struct xdp_buff {
+	void *data;
+	void *data_end;
+};
+
 /* compute the linear packet data range [data, data_end) which
  * will be accessed by cls_bpf and act_bpf programs
  */
@@ -427,6 +432,18 @@ static inline u32 bpf_prog_run_clear_cb(const struct bpf_prog *prog,
 		memset(cb_data, 0, BPF_SKB_CB_LEN);
 
 	return BPF_PROG_RUN(prog, skb);
+}
+
+static inline u32 bpf_prog_run_xdp(const struct bpf_prog *prog,
+				   struct xdp_buff *xdp)
+{
+	u32 ret;
+
+	rcu_read_lock();
+	ret = BPF_PROG_RUN(prog, (void *)xdp);
+	rcu_read_unlock();
+
+	return ret;
 }
 
 static inline unsigned int bpf_prog_size(unsigned int proglen)
@@ -513,6 +530,7 @@ bool bpf_helper_changes_skb_data(void *func);
 
 struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
 				       const struct bpf_insn *patch, u32 len);
+void bpf_warn_invalid_xdp_action(u32 act);
 
 #ifdef CONFIG_BPF_JIT
 extern int bpf_jit_enable;

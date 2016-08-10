@@ -236,7 +236,8 @@ void tcp_select_initial_window(int __space, __u32 mss,
 		/* Set window scaling on max possible window
 		 * See RFC1323 for an explanation of the limit to 14
 		 */
-		space = max_t(u32, sysctl_tcp_rmem[2], sysctl_rmem_max);
+		space = max_t(u32, space, sysctl_tcp_rmem[2]);
+		space = max_t(u32, space, sysctl_rmem_max);
 		space = min_t(u32, space, *window_clamp);
 		while (space > 65535 && (*rcv_wscale) < 14) {
 			space >>= 1;
@@ -911,9 +912,12 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 	int err;
 
 	BUG_ON(!skb || !tcp_skb_pcount(skb));
+	tp = tcp_sk(sk);
 
 	if (clone_it) {
 		skb_mstamp_get(&skb->skb_mstamp);
+		TCP_SKB_CB(skb)->tx.in_flight = TCP_SKB_CB(skb)->end_seq
+			- tp->snd_una;
 
 		if (unlikely(skb_cloned(skb)))
 			skb = pskb_copy(skb, gfp_mask);
@@ -924,7 +928,6 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 	}
 
 	inet = inet_sk(sk);
-	tp = tcp_sk(sk);
 	tcb = TCP_SKB_CB(skb);
 	memset(&opts, 0, sizeof(opts));
 

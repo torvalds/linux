@@ -470,7 +470,7 @@ retry_tsb_alloc:
 int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 {
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
-	unsigned long huge_pte_count;
+	unsigned long total_huge_pte_count;
 #endif
 	unsigned int i;
 
@@ -479,12 +479,14 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 	mm->context.sparc64_ctx_val = 0UL;
 
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
-	/* We reset it to zero because the fork() page copying
+	/* We reset them to zero because the fork() page copying
 	 * will re-increment the counters as the parent PTEs are
 	 * copied into the child address space.
 	 */
-	huge_pte_count = mm->context.huge_pte_count;
-	mm->context.huge_pte_count = 0;
+	total_huge_pte_count = mm->context.hugetlb_pte_count +
+			 mm->context.thp_pte_count;
+	mm->context.hugetlb_pte_count = 0;
+	mm->context.thp_pte_count = 0;
 #endif
 
 	/* copy_mm() copies over the parent's mm_struct before calling
@@ -500,8 +502,8 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 	tsb_grow(mm, MM_TSB_BASE, get_mm_rss(mm));
 
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
-	if (unlikely(huge_pte_count))
-		tsb_grow(mm, MM_TSB_HUGE, huge_pte_count);
+	if (unlikely(total_huge_pte_count))
+		tsb_grow(mm, MM_TSB_HUGE, total_huge_pte_count);
 #endif
 
 	if (unlikely(!mm->context.tsb_block[MM_TSB_BASE].tsb))

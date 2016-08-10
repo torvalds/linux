@@ -5,6 +5,10 @@
 config RTC_LIB
 	bool
 
+config RTC_MC146818_LIB
+	bool
+	select RTC_LIB
+
 menuconfig RTC_CLASS
 	bool "Real Time Clock"
 	default n
@@ -574,10 +578,10 @@ config RTC_DRV_EM3027
 	  will be called rtc-em3027.
 
 config RTC_DRV_RV8803
-	tristate "Micro Crystal RV8803"
+	tristate "Micro Crystal RV8803, Epson RX8900"
 	help
-	  If you say yes here you get support for the Micro Crystal
-	  RV8803 RTC chips.
+	  If you say yes here you get support for the Micro Crystal RV8803 and
+	  Epson RX8900 RTC chips.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-rv8803.
@@ -669,6 +673,18 @@ config RTC_DRV_DS1390
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ds1390.
+
+config RTC_DRV_MAX6916
+	tristate "Maxim MAX6916"
+	help
+	  If you say yes here you will get support for the
+	  Maxim MAX6916 SPI RTC chip.
+
+	  This driver only supports the RTC feature, and not other chip
+	  features such as alarms.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-max6916.
 
 config RTC_DRV_R9701
 	tristate "Epson RTC-9701JE"
@@ -795,8 +811,9 @@ comment "Platform RTC drivers"
 
 config RTC_DRV_CMOS
 	tristate "PC-style 'CMOS'"
-	depends on X86 || ARM || M32R || PPC || MIPS || SPARC64
+	depends on X86 || ARM || M32R || PPC || MIPS || SPARC64 || MN10300
 	default y if X86
+	select RTC_MC146818_LIB
 	help
 	  Say "yes" here to get direct support for the real time clock
 	  found in every PC or ACPI-based system, and some other boards.
@@ -815,6 +832,7 @@ config RTC_DRV_CMOS
 config RTC_DRV_ALPHA
 	bool "Alpha PC-style CMOS"
 	depends on ALPHA
+	select RTC_MC146818_LIB
 	default y
 	help
 	  Direct support for the real-time clock found on every Alpha

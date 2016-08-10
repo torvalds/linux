@@ -63,9 +63,10 @@ void btrfs_free_qgroup_config(struct btrfs_fs_info *fs_info);
 struct btrfs_delayed_extent_op;
 int btrfs_qgroup_prepare_account_extents(struct btrfs_trans_handle *trans,
 					 struct btrfs_fs_info *fs_info);
-struct btrfs_qgroup_extent_record
-*btrfs_qgroup_insert_dirty_extent(struct btrfs_delayed_ref_root *delayed_refs,
-				  struct btrfs_qgroup_extent_record *record);
+struct btrfs_qgroup_extent_record *
+btrfs_qgroup_insert_dirty_extent(struct btrfs_fs_info *fs_info,
+				 struct btrfs_delayed_ref_root *delayed_refs,
+				 struct btrfs_qgroup_extent_record *record);
 int
 btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans,
 			    struct btrfs_fs_info *fs_info,
@@ -88,7 +89,7 @@ static inline void btrfs_qgroup_free_delayed_ref(struct btrfs_fs_info *fs_info,
 						 u64 ref_root, u64 num_bytes)
 {
 	btrfs_qgroup_free_refroot(fs_info, ref_root, num_bytes);
-	trace_btrfs_qgroup_free_delayed_ref(ref_root, num_bytes);
+	trace_btrfs_qgroup_free_delayed_ref(fs_info, ref_root, num_bytes);
 }
 void assert_qgroups_uptodate(struct btrfs_trans_handle *trans);
 

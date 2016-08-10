@@ -2,7 +2,7 @@ This document describes the device tree bindings associated with the
 keystone network coprocessor(NetCP) driver support.
 
 The network coprocessor (NetCP) is a hardware accelerator that processes
-Ethernet packets. NetCP has a gigabit Ethernet (GbE) subsytem with a ethernet
+Ethernet packets. NetCP has a gigabit Ethernet (GbE) subsystem with a ethernet
 switch sub-module to send and receive packets. NetCP also includes a packet
 accelerator (PA) module to perform packet classification operations such as
 header matching, and packet modification operations such as checksum

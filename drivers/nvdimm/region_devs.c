@@ -14,13 +14,97 @@
 #include <linux/highmem.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/hash.h>
+#include <linux/pmem.h>
 #include <linux/sort.h>
 #include <linux/io.h>
 #include <linux/nd.h>
 #include "nd-core.h"
 #include "nd.h"
 
+/*
+ * For readq() and writeq() on 32-bit builds, the hi-lo, lo-hi order is
+ * irrelevant.
+ */
+#include <linux/io-64-nonatomic-hi-lo.h>
+
 static DEFINE_IDA(region_ida);
+static DEFINE_PER_CPU(int, flush_idx);
+
+static int nvdimm_map_flush(struct device *dev, struct nvdimm *nvdimm, int dimm,
+		struct nd_region_data *ndrd)
+{
+	int i, j;
+
+	dev_dbg(dev, "%s: map %d flush address%s\n", nvdimm_name(nvdimm),
+			nvdimm->num_flush, nvdimm->num_flush == 1 ? "" : "es");
+	for (i = 0; i < nvdimm->num_flush; i++) {
+		struct resource *res = &nvdimm->flush_wpq[i];
+		unsigned long pfn = PHYS_PFN(res->start);
+		void __iomem *flush_page;
+
+		/* check if flush hints share a page */
+		for (j = 0; j < i; j++) {
+			struct resource *res_j = &nvdimm->flush_wpq[j];
+			unsigned long pfn_j = PHYS_PFN(res_j->start);
+
+			if (pfn == pfn_j)
+				break;
+		}
+
+		if (j < i)
+			flush_page = (void __iomem *) ((unsigned long)
+					ndrd->flush_wpq[dimm][j] & PAGE_MASK);
+		else
+			flush_page = devm_nvdimm_ioremap(dev,
+					PHYS_PFN(pfn), PAGE_SIZE);
+		if (!flush_page)
+			return -ENXIO;
+		ndrd->flush_wpq[dimm][i] = flush_page
+			+ (res->start & ~PAGE_MASK);
+	}
+
+	return 0;
+}
+
+int nd_region_activate(struct nd_region *nd_region)
+{
+	int i, num_flush = 0;
+	struct nd_region_data *ndrd;
+	struct device *dev = &nd_region->dev;
+	size_t flush_data_size = sizeof(void *);
+
+	nvdimm_bus_lock(&nd_region->dev);
+	for (i = 0; i < nd_region->ndr_mappings; i++) {
+		struct nd_mapping *nd_mapping = &nd_region->mapping[i];
+		struct nvdimm *nvdimm = nd_mapping->nvdimm;
+
+		/* at least one null hint slot per-dimm for the "no-hint" case */
+		flush_data_size += sizeof(void *);
+		num_flush = min_not_zero(num_flush, nvdimm->num_flush);
+		if (!nvdimm->num_flush)
+			continue;
+		flush_data_size += nvdimm->num_flush * sizeof(void *);
+	}
+	nvdimm_bus_unlock(&nd_region->dev);
+
+	ndrd = devm_kzalloc(dev, sizeof(*ndrd) + flush_data_size, GFP_KERNEL);
+	if (!ndrd)
+		return -ENOMEM;
+	dev_set_drvdata(dev, ndrd);
+
+	ndrd->flush_mask = (1 << ilog2(num_flush)) - 1;
+	for (i = 0; i < nd_region->ndr_mappings; i++) {
+		struct nd_mapping *nd_mapping = &nd_region->mapping[i];
+		struct nvdimm *nvdimm = nd_mapping->nvdimm;
+		int rc = nvdimm_map_flush(&nd_region->dev, nvdimm, i, ndrd);
+
+		if (rc)
+			return rc;
+	}
+
+	return 0;
+}
 
 static void nd_region_release(struct device *dev)
 {
@@ -242,12 +326,12 @@ static DEVICE_ATTR_RO(available_size);
 static ssize_t init_namespaces_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct nd_region_namespaces *num_ns = dev_get_drvdata(dev);
+	struct nd_region_data *ndrd = dev_get_drvdata(dev);
 	ssize_t rc;
 
 	nvdimm_bus_lock(dev);
-	if (num_ns)
-		rc = sprintf(buf, "%d/%d\n", num_ns->active, num_ns->count);
+	if (ndrd)
+		rc = sprintf(buf, "%d/%d\n", ndrd->ns_active, ndrd->ns_count);
 	else
 		rc = -ENXIO;
 	nvdimm_bus_unlock(dev);
@@ -433,8 +517,6 @@ static void nd_region_notify_driver_action(struct nvdimm_bus *nvdimm_bus,
 
 		if (is_nd_pmem(dev))
 			return;
-
-		to_nd_blk_region(dev)->disable(nvdimm_bus, dev);
 	}
 	if (dev->parent && is_nd_blk(dev->parent) && probe) {
 		nd_region = to_nd_region(dev->parent);
@@ -698,7 +780,6 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 		if (ndbr) {
 			nd_region = &ndbr->nd_region;
 			ndbr->enable = ndbr_desc->enable;
-			ndbr->disable = ndbr_desc->disable;
 			ndbr->do_io = ndbr_desc->do_io;
 		}
 		region_buf = ndbr;
@@ -793,6 +874,67 @@ struct nd_region *nvdimm_volatile_region_create(struct nvdimm_bus *nvdimm_bus,
 			__func__);
 }
 EXPORT_SYMBOL_GPL(nvdimm_volatile_region_create);
+
+/**
+ * nvdimm_flush - flush any posted write queues between the cpu and pmem media
+ * @nd_region: blk or interleaved pmem region
+ */
+void nvdimm_flush(struct nd_region *nd_region)
+{
+	struct nd_region_data *ndrd = dev_get_drvdata(&nd_region->dev);
+	int i, idx;
+
+	/*
+	 * Try to encourage some diversity in flush hint addresses
+	 * across cpus assuming a limited number of flush hints.
+	 */
+	idx = this_cpu_read(flush_idx);
+	idx = this_cpu_add_return(flush_idx, hash_32(current->pid + idx, 8));
+
+	/*
+	 * The first wmb() is needed to 'sfence' all previous writes
+	 * such that they are architecturally visible for the platform
+	 * buffer flush.  Note that we've already arranged for pmem
+	 * writes to avoid the cache via arch_memcpy_to_pmem().  The
+	 * final wmb() ensures ordering for the NVDIMM flush write.
+	 */
+	wmb();
+	for (i = 0; i < nd_region->ndr_mappings; i++)
+		if (ndrd->flush_wpq[i][0])
+			writeq(1, ndrd->flush_wpq[i][idx & ndrd->flush_mask]);
+	wmb();
+}
+EXPORT_SYMBOL_GPL(nvdimm_flush);
+
+/**
+ * nvdimm_has_flush - determine write flushing requirements
+ * @nd_region: blk or interleaved pmem region
+ *
+ * Returns 1 if writes require flushing
+ * Returns 0 if writes do not require flushing
+ * Returns -ENXIO if flushing capability can not be determined
+ */
+int nvdimm_has_flush(struct nd_region *nd_region)
+{
+	struct nd_region_data *ndrd = dev_get_drvdata(&nd_region->dev);
+	int i;
+
+	/* no nvdimm == flushing capability unknown */
+	if (nd_region->ndr_mappings == 0)
+		return -ENXIO;
+
+	for (i = 0; i < nd_region->ndr_mappings; i++)
+		/* flush hints present, flushing required */
+		if (ndrd->flush_wpq[i][0])
+			return 1;
+
+	/*
+	 * The platform defines dimm devices without hints, assume
+	 * platform persistence mechanism like ADR
+	 */
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nvdimm_has_flush);
 
 void __exit nd_region_devs_exit(void)
 {

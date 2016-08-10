@@ -273,4 +273,10 @@ unsigned long __round_jiffies_up_relative(unsigned long j, int cpu);
 unsigned long round_jiffies_up(unsigned long j);
 unsigned long round_jiffies_up_relative(unsigned long j);
 
+#ifdef CONFIG_HOTPLUG_CPU
+int timers_dead_cpu(unsigned int cpu);
+#else
+#define timers_dead_cpu NULL
+#endif
+
 #endif

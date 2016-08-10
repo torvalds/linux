@@ -293,7 +293,7 @@ static void header_from_disk(struct log_header_core *core, struct log_header_dis
 
 static int rw_header(struct log_c *lc, int rw)
 {
-	lc->io_req.bi_rw = rw;
+	lc->io_req.bi_op = rw;
 
 	return dm_io(&lc->io_req, 1, &lc->header_location, NULL);
 }
@@ -306,7 +306,8 @@ static int flush_header(struct log_c *lc)
 		.count = 0,
 	};
 
-	lc->io_req.bi_rw = WRITE_FLUSH;
+	lc->io_req.bi_op = REQ_OP_WRITE;
+	lc->io_req.bi_op_flags = WRITE_FLUSH;
 
 	return dm_io(&lc->io_req, 1, &null_location, NULL);
 }

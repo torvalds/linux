@@ -526,18 +526,9 @@ static int sun4i_tv_comp_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-static struct drm_encoder *
-sun4i_tv_comp_best_encoder(struct drm_connector *connector)
-{
-	struct sun4i_tv *tv = drm_connector_to_sun4i_tv(connector);
-
-	return &tv->encoder;
-}
-
 static struct drm_connector_helper_funcs sun4i_tv_comp_connector_helper_funcs = {
 	.get_modes	= sun4i_tv_comp_get_modes,
 	.mode_valid	= sun4i_tv_comp_mode_valid,
-	.best_encoder	= sun4i_tv_comp_best_encoder,
 };
 
 static enum drm_connector_status

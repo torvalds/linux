@@ -313,23 +313,41 @@ static int mwifiex_cmd_rf_antenna(struct mwifiex_private *priv,
 
 	cmd->command = cpu_to_le16(HostCmd_CMD_RF_ANTENNA);
 
-	if (cmd_action != HostCmd_ACT_GEN_SET)
-		return 0;
-
-	if (priv->adapter->hw_dev_mcs_support == HT_STREAM_2X2) {
-		cmd->size = cpu_to_le16(sizeof(struct host_cmd_ds_rf_ant_mimo) +
-					S_DS_GEN);
-		ant_mimo->action_tx = cpu_to_le16(HostCmd_ACT_SET_TX);
-		ant_mimo->tx_ant_mode = cpu_to_le16((u16)ant_cfg->tx_ant);
-		ant_mimo->action_rx = cpu_to_le16(HostCmd_ACT_SET_RX);
-		ant_mimo->rx_ant_mode = cpu_to_le16((u16)ant_cfg->rx_ant);
-	} else {
-		cmd->size = cpu_to_le16(sizeof(struct host_cmd_ds_rf_ant_siso) +
-					S_DS_GEN);
-		ant_siso->action = cpu_to_le16(HostCmd_ACT_SET_BOTH);
-		ant_siso->ant_mode = cpu_to_le16((u16)ant_cfg->tx_ant);
+	switch (cmd_action) {
+	case HostCmd_ACT_GEN_SET:
+		if (priv->adapter->hw_dev_mcs_support == HT_STREAM_2X2) {
+			cmd->size = cpu_to_le16(sizeof(struct
+						host_cmd_ds_rf_ant_mimo)
+						+ S_DS_GEN);
+			ant_mimo->action_tx = cpu_to_le16(HostCmd_ACT_SET_TX);
+			ant_mimo->tx_ant_mode = cpu_to_le16((u16)ant_cfg->
+							    tx_ant);
+			ant_mimo->action_rx = cpu_to_le16(HostCmd_ACT_SET_RX);
+			ant_mimo->rx_ant_mode = cpu_to_le16((u16)ant_cfg->
+							    rx_ant);
+		} else {
+			cmd->size = cpu_to_le16(sizeof(struct
+						host_cmd_ds_rf_ant_siso) +
+						S_DS_GEN);
+			ant_siso->action = cpu_to_le16(HostCmd_ACT_SET_BOTH);
+			ant_siso->ant_mode = cpu_to_le16((u16)ant_cfg->tx_ant);
+		}
+		break;
+	case HostCmd_ACT_GEN_GET:
+		if (priv->adapter->hw_dev_mcs_support == HT_STREAM_2X2) {
+			cmd->size = cpu_to_le16(sizeof(struct
+						host_cmd_ds_rf_ant_mimo) +
+						S_DS_GEN);
+			ant_mimo->action_tx = cpu_to_le16(HostCmd_ACT_GET_TX);
+			ant_mimo->action_rx = cpu_to_le16(HostCmd_ACT_GET_RX);
+		} else {
+			cmd->size = cpu_to_le16(sizeof(struct
+						host_cmd_ds_rf_ant_siso) +
+						S_DS_GEN);
+			ant_siso->action = cpu_to_le16(HostCmd_ACT_GET_BOTH);
+		}
+		break;
 	}
-
 	return 0;
 }
 
@@ -1130,9 +1148,8 @@ static int mwifiex_cmd_reg_access(struct host_cmd_ds_command *cmd,
 		cmd->size = cpu_to_le16(sizeof(*mac_reg) + S_DS_GEN);
 		mac_reg = &cmd->params.mac_reg;
 		mac_reg->action = cpu_to_le16(cmd_action);
-		mac_reg->offset =
-			cpu_to_le16((u16) le32_to_cpu(reg_rw->offset));
-		mac_reg->value = reg_rw->value;
+		mac_reg->offset = cpu_to_le16((u16) reg_rw->offset);
+		mac_reg->value = cpu_to_le32(reg_rw->value);
 		break;
 	}
 	case HostCmd_CMD_BBP_REG_ACCESS:
@@ -1142,9 +1159,8 @@ static int mwifiex_cmd_reg_access(struct host_cmd_ds_command *cmd,
 		cmd->size = cpu_to_le16(sizeof(*bbp_reg) + S_DS_GEN);
 		bbp_reg = &cmd->params.bbp_reg;
 		bbp_reg->action = cpu_to_le16(cmd_action);
-		bbp_reg->offset =
-			cpu_to_le16((u16) le32_to_cpu(reg_rw->offset));
-		bbp_reg->value = (u8) le32_to_cpu(reg_rw->value);
+		bbp_reg->offset = cpu_to_le16((u16) reg_rw->offset);
+		bbp_reg->value = (u8) reg_rw->value;
 		break;
 	}
 	case HostCmd_CMD_RF_REG_ACCESS:
@@ -1154,8 +1170,8 @@ static int mwifiex_cmd_reg_access(struct host_cmd_ds_command *cmd,
 		cmd->size = cpu_to_le16(sizeof(*rf_reg) + S_DS_GEN);
 		rf_reg = &cmd->params.rf_reg;
 		rf_reg->action = cpu_to_le16(cmd_action);
-		rf_reg->offset = cpu_to_le16((u16) le32_to_cpu(reg_rw->offset));
-		rf_reg->value = (u8) le32_to_cpu(reg_rw->value);
+		rf_reg->offset = cpu_to_le16((u16) reg_rw->offset);
+		rf_reg->value = (u8) reg_rw->value;
 		break;
 	}
 	case HostCmd_CMD_PMIC_REG_ACCESS:
@@ -1165,9 +1181,8 @@ static int mwifiex_cmd_reg_access(struct host_cmd_ds_command *cmd,
 		cmd->size = cpu_to_le16(sizeof(*pmic_reg) + S_DS_GEN);
 		pmic_reg = &cmd->params.pmic_reg;
 		pmic_reg->action = cpu_to_le16(cmd_action);
-		pmic_reg->offset =
-				cpu_to_le16((u16) le32_to_cpu(reg_rw->offset));
-		pmic_reg->value = (u8) le32_to_cpu(reg_rw->value);
+		pmic_reg->offset = cpu_to_le16((u16) reg_rw->offset);
+		pmic_reg->value = (u8) reg_rw->value;
 		break;
 	}
 	case HostCmd_CMD_CAU_REG_ACCESS:
@@ -1177,9 +1192,8 @@ static int mwifiex_cmd_reg_access(struct host_cmd_ds_command *cmd,
 		cmd->size = cpu_to_le16(sizeof(*cau_reg) + S_DS_GEN);
 		cau_reg = &cmd->params.rf_reg;
 		cau_reg->action = cpu_to_le16(cmd_action);
-		cau_reg->offset =
-				cpu_to_le16((u16) le32_to_cpu(reg_rw->offset));
-		cau_reg->value = (u8) le32_to_cpu(reg_rw->value);
+		cau_reg->offset = cpu_to_le16((u16) reg_rw->offset);
+		cau_reg->value = (u8) reg_rw->value;
 		break;
 	}
 	case HostCmd_CMD_802_11_EEPROM_ACCESS:
@@ -1190,8 +1204,8 @@ static int mwifiex_cmd_reg_access(struct host_cmd_ds_command *cmd,
 
 		cmd->size = cpu_to_le16(sizeof(*cmd_eeprom) + S_DS_GEN);
 		cmd_eeprom->action = cpu_to_le16(cmd_action);
-		cmd_eeprom->offset = rd_eeprom->offset;
-		cmd_eeprom->byte_count = rd_eeprom->byte_count;
+		cmd_eeprom->offset = cpu_to_le16(rd_eeprom->offset);
+		cmd_eeprom->byte_count = cpu_to_le16(rd_eeprom->byte_count);
 		cmd_eeprom->value = 0;
 		break;
 	}

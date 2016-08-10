@@ -868,6 +868,7 @@ struct vfdi_status;
  *	be held to modify it.
  * @port_initialized: Port initialized?
  * @net_dev: Operating system network device. Consider holding the rtnl lock
+ * @fixed_features: Features which cannot be turned off
  * @stats_buffer: DMA buffer for statistics
  * @phy_type: PHY type
  * @phy_op: PHY interface
@@ -916,7 +917,6 @@ struct vfdi_status;
  * @stats_lock: Statistics update lock. Must be held when calling
  *	efx_nic_type::{update,start,stop}_stats.
  * @n_rx_noskb_drops: Count of RX packets dropped due to failure to allocate an skb
- * @mc_promisc: Whether in multicast promiscuous mode when last changed
  *
  * This is stored in the private area of the &struct net_device.
  */
@@ -1008,6 +1008,8 @@ struct efx_nic {
 	bool port_initialized;
 	struct net_device *net_dev;
 
+	netdev_features_t fixed_features;
+
 	struct efx_buffer stats_buffer;
 	u64 rx_nodesc_drops_total;
 	u64 rx_nodesc_drops_while_down;
@@ -1065,7 +1067,6 @@ struct efx_nic {
 	int last_irq_cpu;
 	spinlock_t stats_lock;
 	atomic_t n_rx_noskb_drops;
-	bool mc_promisc;
 };
 
 static inline int efx_dev_registered(struct efx_nic *efx)
@@ -1333,6 +1334,8 @@ struct efx_nic_type {
 	int (*ptp_set_ts_config)(struct efx_nic *efx,
 				 struct hwtstamp_config *init);
 	int (*sriov_configure)(struct efx_nic *efx, int num_vfs);
+	int (*vlan_rx_add_vid)(struct efx_nic *efx, __be16 proto, u16 vid);
+	int (*vlan_rx_kill_vid)(struct efx_nic *efx, __be16 proto, u16 vid);
 	int (*sriov_init)(struct efx_nic *efx);
 	void (*sriov_fini)(struct efx_nic *efx);
 	bool (*sriov_wanted)(struct efx_nic *efx);
@@ -1519,6 +1522,18 @@ static inline bool efx_xmit_with_hwtstamp(struct sk_buff *skb)
 static inline void efx_xmit_hwtstamp_pending(struct sk_buff *skb)
 {
 	skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+}
+
+/* Get all supported features.
+ * If a feature is not fixed, it is present in hw_features.
+ * If a feature is fixed, it does not present in hw_features, but
+ * always in features.
+ */
+static inline netdev_features_t efx_supported_features(const struct efx_nic *efx)
+{
+	const struct net_device *net_dev = efx->net_dev;
+
+	return net_dev->features | net_dev->hw_features;
 }
 
 #endif /* EFX_NET_DRIVER_H */

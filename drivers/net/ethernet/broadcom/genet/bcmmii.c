@@ -86,7 +86,7 @@ static int bcmgenet_mii_write(struct mii_bus *bus, int phy_id,
 void bcmgenet_mii_setup(struct net_device *dev)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
-	struct phy_device *phydev = priv->phydev;
+	struct phy_device *phydev = dev->phydev;
 	u32 reg, cmd_bits = 0;
 	bool status_changed = false;
 
@@ -183,9 +183,9 @@ void bcmgenet_mii_reset(struct net_device *dev)
 	if (GENET_IS_V4(priv))
 		return;
 
-	if (priv->phydev) {
-		phy_init_hw(priv->phydev);
-		phy_start_aneg(priv->phydev);
+	if (dev->phydev) {
+		phy_init_hw(dev->phydev);
+		phy_start_aneg(dev->phydev);
 	}
 }
 
@@ -236,6 +236,7 @@ static void bcmgenet_internal_phy_setup(struct net_device *dev)
 
 static void bcmgenet_moca_phy_setup(struct bcmgenet_priv *priv)
 {
+	struct net_device *ndev = priv->dev;
 	u32 reg;
 
 	/* Speed settings are set in bcmgenet_mii_setup() */
@@ -244,14 +245,14 @@ static void bcmgenet_moca_phy_setup(struct bcmgenet_priv *priv)
 	bcmgenet_sys_writel(priv, reg, SYS_PORT_CTRL);
 
 	if (priv->hw_params->flags & GENET_HAS_MOCA_LINK_DET)
-		fixed_phy_set_link_update(priv->phydev,
+		fixed_phy_set_link_update(ndev->phydev,
 					  bcmgenet_fixed_phy_link_update);
 }
 
 int bcmgenet_mii_config(struct net_device *dev)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
-	struct phy_device *phydev = priv->phydev;
+	struct phy_device *phydev = dev->phydev;
 	struct device *kdev = &priv->pdev->dev;
 	const char *phy_name = NULL;
 	u32 id_mode_dis = 0;
@@ -302,7 +303,7 @@ int bcmgenet_mii_config(struct net_device *dev)
 		 * capabilities, use that knowledge to also configure the
 		 * Reverse MII interface correctly.
 		 */
-		if ((priv->phydev->supported & PHY_BASIC_FEATURES) ==
+		if ((phydev->supported & PHY_BASIC_FEATURES) ==
 				PHY_BASIC_FEATURES)
 			port_ctrl = PORT_MODE_EXT_RVMII_25;
 		else
@@ -371,7 +372,7 @@ int bcmgenet_mii_probe(struct net_device *dev)
 			return -ENODEV;
 		}
 	} else {
-		phydev = priv->phydev;
+		phydev = dev->phydev;
 		phydev->dev_flags = phy_flags;
 
 		ret = phy_connect_direct(dev, phydev, bcmgenet_mii_setup,
@@ -382,8 +383,6 @@ int bcmgenet_mii_probe(struct net_device *dev)
 		}
 	}
 
-	priv->phydev = phydev;
-
 	/* Configure port multiplexer based on what the probed PHY device since
 	 * reading the 'max-speed' property determines the maximum supported
 	 * PHY speed which is needed for bcmgenet_mii_config() to configure
@@ -391,7 +390,7 @@ int bcmgenet_mii_probe(struct net_device *dev)
 	 */
 	ret = bcmgenet_mii_config(dev);
 	if (ret) {
-		phy_disconnect(priv->phydev);
+		phy_disconnect(phydev);
 		return ret;
 	}
 
@@ -401,7 +400,7 @@ int bcmgenet_mii_probe(struct net_device *dev)
 	 * Ethernet MAC ISRs
 	 */
 	if (priv->internal_phy)
-		priv->phydev->irq = PHY_IGNORE_INTERRUPT;
+		phydev->irq = PHY_IGNORE_INTERRUPT;
 
 	return 0;
 }
@@ -606,7 +605,6 @@ static int bcmgenet_mii_pd_init(struct bcmgenet_priv *priv)
 
 	}
 
-	priv->phydev = phydev;
 	priv->phy_interface = pd->phy_interface;
 
 	return 0;

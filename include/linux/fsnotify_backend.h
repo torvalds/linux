@@ -267,10 +267,8 @@ static inline int fsnotify_inode_watches_children(struct inode *inode)
  * Update the dentry with a flag indicating the interest of its parent to receive
  * filesystem events when those events happens to this dentry->d_inode.
  */
-static inline void __fsnotify_update_dcache_flags(struct dentry *dentry)
+static inline void fsnotify_update_flags(struct dentry *dentry)
 {
-	struct dentry *parent;
-
 	assert_spin_locked(&dentry->d_lock);
 
 	/*
@@ -280,19 +278,10 @@ static inline void __fsnotify_update_dcache_flags(struct dentry *dentry)
 	 * find our entry, so it will spin until we complete here, and update
 	 * us with the new state.
 	 */
-	parent = dentry->d_parent;
-	if (parent->d_inode && fsnotify_inode_watches_children(parent->d_inode))
+	if (fsnotify_inode_watches_children(dentry->d_parent->d_inode))
 		dentry->d_flags |= DCACHE_FSNOTIFY_PARENT_WATCHED;
 	else
 		dentry->d_flags &= ~DCACHE_FSNOTIFY_PARENT_WATCHED;
-}
-
-/*
- * fsnotify_d_instantiate - instantiate a dentry for inode
- */
-static inline void __fsnotify_d_instantiate(struct dentry *dentry)
-{
-	__fsnotify_update_dcache_flags(dentry);
 }
 
 /* called from fsnotify listeners, such as fanotify or dnotify */
@@ -386,10 +375,7 @@ static inline void __fsnotify_inode_delete(struct inode *inode)
 static inline void __fsnotify_vfsmount_delete(struct vfsmount *mnt)
 {}
 
-static inline void __fsnotify_update_dcache_flags(struct dentry *dentry)
-{}
-
-static inline void __fsnotify_d_instantiate(struct dentry *dentry)
+static inline void fsnotify_update_flags(struct dentry *dentry)
 {}
 
 static inline u32 fsnotify_get_cookie(void)

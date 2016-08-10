@@ -209,8 +209,7 @@ nouveau_bo_new(struct drm_device *dev, int size, int align,
 	nvbo->tile_flags = tile_flags;
 	nvbo->bo.bdev = &drm->ttm.bdev;
 
-	if (!nvxx_device(&drm->device)->func->cpu_coherent)
-		nvbo->force_coherent = flags & TTM_PL_FLAG_UNCACHED;
+	nvbo->force_coherent = flags & TTM_PL_FLAG_UNCACHED;
 
 	nvbo->page_shift = 12;
 	if (drm->client.vm) {
@@ -424,13 +423,7 @@ nouveau_bo_map(struct nouveau_bo *nvbo)
 	if (ret)
 		return ret;
 
-	/*
-	 * TTM buffers allocated using the DMA API already have a mapping, let's
-	 * use it instead.
-	 */
-	if (!nvbo->force_coherent)
-		ret = ttm_bo_kmap(&nvbo->bo, 0, nvbo->bo.mem.num_pages,
-				  &nvbo->kmap);
+	ret = ttm_bo_kmap(&nvbo->bo, 0, nvbo->bo.mem.num_pages, &nvbo->kmap);
 
 	ttm_bo_unreserve(&nvbo->bo);
 	return ret;
@@ -442,12 +435,7 @@ nouveau_bo_unmap(struct nouveau_bo *nvbo)
 	if (!nvbo)
 		return;
 
-	/*
-	 * TTM buffers allocated using the DMA API already had a coherent
-	 * mapping which we used, no need to unmap.
-	 */
-	if (!nvbo->force_coherent)
-		ttm_bo_kunmap(&nvbo->kmap);
+	ttm_bo_kunmap(&nvbo->kmap);
 }
 
 void
@@ -506,35 +494,13 @@ nouveau_bo_validate(struct nouveau_bo *nvbo, bool interruptible,
 	return 0;
 }
 
-static inline void *
-_nouveau_bo_mem_index(struct nouveau_bo *nvbo, unsigned index, void *mem, u8 sz)
-{
-	struct ttm_dma_tt *dma_tt;
-	u8 *m = mem;
-
-	index *= sz;
-
-	if (m) {
-		/* kmap'd address, return the corresponding offset */
-		m += index;
-	} else {
-		/* DMA-API mapping, lookup the right address */
-		dma_tt = (struct ttm_dma_tt *)nvbo->bo.ttm;
-		m = dma_tt->cpu_address[index / PAGE_SIZE];
-		m += index % PAGE_SIZE;
-	}
-
-	return m;
-}
-#define nouveau_bo_mem_index(o, i, m) _nouveau_bo_mem_index(o, i, m, sizeof(*m))
-
 void
 nouveau_bo_wr16(struct nouveau_bo *nvbo, unsigned index, u16 val)
 {
 	bool is_iomem;
 	u16 *mem = ttm_kmap_obj_virtual(&nvbo->kmap, &is_iomem);
 
-	mem = nouveau_bo_mem_index(nvbo, index, mem);
+	mem += index;
 
 	if (is_iomem)
 		iowrite16_native(val, (void __force __iomem *)mem);
@@ -548,7 +514,7 @@ nouveau_bo_rd32(struct nouveau_bo *nvbo, unsigned index)
 	bool is_iomem;
 	u32 *mem = ttm_kmap_obj_virtual(&nvbo->kmap, &is_iomem);
 
-	mem = nouveau_bo_mem_index(nvbo, index, mem);
+	mem += index;
 
 	if (is_iomem)
 		return ioread32_native((void __force __iomem *)mem);
@@ -562,7 +528,7 @@ nouveau_bo_wr32(struct nouveau_bo *nvbo, unsigned index, u32 val)
 	bool is_iomem;
 	u32 *mem = ttm_kmap_obj_virtual(&nvbo->kmap, &is_iomem);
 
-	mem = nouveau_bo_mem_index(nvbo, index, mem);
+	mem += index;
 
 	if (is_iomem)
 		iowrite32_native(val, (void __force __iomem *)mem);
@@ -1082,7 +1048,6 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 				ret = ttm_bo_move_accel_cleanup(bo,
 								&fence->base,
 								evict,
-								no_wait_gpu,
 								new_mem);
 				nouveau_fence_unref(&fence);
 			}
@@ -1104,6 +1069,10 @@ nouveau_bo_move_init(struct nouveau_drm *drm)
 			    struct ttm_mem_reg *, struct ttm_mem_reg *);
 		int (*init)(struct nouveau_channel *, u32 handle);
 	} _methods[] = {
+		{  "COPY", 4, 0xc1b5, nve0_bo_move_copy, nve0_bo_move_init },
+		{  "GRCE", 0, 0xc1b5, nve0_bo_move_copy, nvc0_bo_move_init },
+		{  "COPY", 4, 0xc0b5, nve0_bo_move_copy, nve0_bo_move_init },
+		{  "GRCE", 0, 0xc0b5, nve0_bo_move_copy, nvc0_bo_move_init },
 		{  "COPY", 4, 0xb0b5, nve0_bo_move_copy, nve0_bo_move_init },
 		{  "GRCE", 0, 0xb0b5, nve0_bo_move_copy, nvc0_bo_move_init },
 		{  "COPY", 4, 0xa0b5, nve0_bo_move_copy, nve0_bo_move_init },
@@ -1182,7 +1151,7 @@ nouveau_bo_move_flipd(struct ttm_buffer_object *bo, bool evict, bool intr,
 	if (ret)
 		goto out;
 
-	ret = ttm_bo_move_ttm(bo, true, no_wait_gpu, new_mem);
+	ret = ttm_bo_move_ttm(bo, true, intr, no_wait_gpu, new_mem);
 out:
 	ttm_bo_mem_put(bo, &tmp_mem);
 	return ret;
@@ -1210,7 +1179,7 @@ nouveau_bo_move_flips(struct ttm_buffer_object *bo, bool evict, bool intr,
 	if (ret)
 		return ret;
 
-	ret = ttm_bo_move_ttm(bo, true, no_wait_gpu, &tmp_mem);
+	ret = ttm_bo_move_ttm(bo, true, intr, no_wait_gpu, &tmp_mem);
 	if (ret)
 		goto out;
 
@@ -1289,6 +1258,10 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
 	struct nouveau_drm_tile *new_tile = NULL;
 	int ret = 0;
 
+	ret = ttm_bo_wait(bo, intr, no_wait_gpu);
+	if (ret)
+		return ret;
+
 	if (nvbo->pin_refcnt)
 		NV_WARN(drm, "Moving pinned object %p!\n", nvbo);
 
@@ -1324,7 +1297,7 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
 	/* Fallback to software copy. */
 	ret = ttm_bo_wait(bo, intr, no_wait_gpu);
 	if (ret == 0)
-		ret = ttm_bo_move_memcpy(bo, evict, no_wait_gpu, new_mem);
+		ret = ttm_bo_move_memcpy(bo, evict, intr, no_wait_gpu, new_mem);
 
 out:
 	if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA) {
@@ -1488,14 +1461,6 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm)
 	dev = drm->dev;
 	pdev = device->dev;
 
-	/*
-	 * Objects matching this condition have been marked as force_coherent,
-	 * so use the DMA API for them.
-	 */
-	if (!nvxx_device(&drm->device)->func->cpu_coherent &&
-	    ttm->caching_state == tt_uncached)
-		return ttm_dma_populate(ttm_dma, dev->dev);
-
 #if IS_ENABLED(CONFIG_AGP)
 	if (drm->agp.bridge) {
 		return ttm_agp_tt_populate(ttm);
@@ -1552,16 +1517,6 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 	device = nvxx_device(&drm->device);
 	dev = drm->dev;
 	pdev = device->dev;
-
-	/*
-	 * Objects matching this condition have been marked as force_coherent,
-	 * so use the DMA API for them.
-	 */
-	if (!nvxx_device(&drm->device)->func->cpu_coherent &&
-	    ttm->caching_state == tt_uncached) {
-		ttm_dma_unpopulate(ttm_dma, dev->dev);
-		return;
-	}
 
 #if IS_ENABLED(CONFIG_AGP)
 	if (drm->agp.bridge) {

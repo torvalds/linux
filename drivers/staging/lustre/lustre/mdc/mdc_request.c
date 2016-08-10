@@ -415,7 +415,7 @@ static int mdc_unpack_acl(struct ptlrpc_request *req, struct lustre_md *md)
 		return rc;
 	}
 
-	rc = posix_acl_valid(acl);
+	rc = posix_acl_valid(&init_user_ns, acl);
 	if (rc) {
 		CERROR("validate acl: %d\n", rc);
 		posix_acl_release(acl);

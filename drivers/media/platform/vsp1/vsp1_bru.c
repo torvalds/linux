@@ -249,7 +249,7 @@ static int bru_set_selection(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-static struct v4l2_subdev_pad_ops bru_pad_ops = {
+static const struct v4l2_subdev_pad_ops bru_pad_ops = {
 	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = bru_enum_mbus_code,
 	.enum_frame_size = bru_enum_frame_size,
@@ -259,7 +259,7 @@ static struct v4l2_subdev_pad_ops bru_pad_ops = {
 	.set_selection = bru_set_selection,
 };
 
-static struct v4l2_subdev_ops bru_ops = {
+static const struct v4l2_subdev_ops bru_ops = {
 	.pad    = &bru_pad_ops,
 };
 
@@ -269,12 +269,15 @@ static struct v4l2_subdev_ops bru_ops = {
 
 static void bru_configure(struct vsp1_entity *entity,
 			  struct vsp1_pipeline *pipe,
-			  struct vsp1_dl_list *dl)
+			  struct vsp1_dl_list *dl, bool full)
 {
 	struct vsp1_bru *bru = to_bru(&entity->subdev);
 	struct v4l2_mbus_framefmt *format;
 	unsigned int flags;
 	unsigned int i;
+
+	if (!full)
+		return;
 
 	format = vsp1_entity_get_pad_format(&bru->entity, bru->entity.config,
 					    bru->entity.source_pad);
@@ -390,7 +393,8 @@ struct vsp1_bru *vsp1_bru_create(struct vsp1_device *vsp1)
 	bru->entity.type = VSP1_ENTITY_BRU;
 
 	ret = vsp1_entity_init(vsp1, &bru->entity, "bru",
-			       vsp1->info->num_bru_inputs + 1, &bru_ops);
+			       vsp1->info->num_bru_inputs + 1, &bru_ops,
+			       MEDIA_ENT_F_PROC_VIDEO_COMPOSER);
 	if (ret < 0)
 		return ERR_PTR(ret);
 

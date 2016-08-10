@@ -421,29 +421,6 @@ static int acp_suspend(void *handle)
 
 static int acp_resume(void *handle)
 {
-	int i, ret;
-	struct acp_pm_domain *apd;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	/* return early if no ACP */
-	if (!adev->acp.acp_genpd)
-		return 0;
-
-	/* SMU block will power on ACP irrespective of ACP runtime status.
-	 * Power off explicitly based on genpd ACP runtime status so that ACP
-	 * hw and ACP-genpd status are in sync.
-	 * 'suspend_power_off' represents "Power status before system suspend"
-	*/
-	if (adev->acp.acp_genpd->gpd.suspend_power_off == true) {
-		apd = container_of(&adev->acp.acp_genpd->gpd,
-					struct acp_pm_domain, gpd);
-
-		for (i = 4; i >= 0 ; i--) {
-			ret = acp_suspend_tile(apd->cgs_dev, ACP_TILE_P1 + i);
-			if (ret)
-				pr_err("ACP tile %d tile suspend failed\n", i);
-		}
-	}
 	return 0;
 }
 

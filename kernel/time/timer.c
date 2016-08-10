@@ -1804,7 +1804,7 @@ static void migrate_timer_list(struct timer_base *new_base, struct hlist_head *h
 	}
 }
 
-static void migrate_timers(int cpu)
+int timers_dead_cpu(unsigned int cpu)
 {
 	struct timer_base *old_base;
 	struct timer_base *new_base;
@@ -1831,29 +1831,9 @@ static void migrate_timers(int cpu)
 		spin_unlock_irq(&new_base->lock);
 		put_cpu_ptr(&timer_bases);
 	}
+	return 0;
 }
 
-static int timer_cpu_notify(struct notifier_block *self,
-				unsigned long action, void *hcpu)
-{
-	switch (action) {
-	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
-		migrate_timers((long)hcpu);
-		break;
-	default:
-		break;
-	}
-
-	return NOTIFY_OK;
-}
-
-static inline void timer_register_cpu_notifier(void)
-{
-	cpu_notifier(timer_cpu_notify, 0);
-}
-#else
-static inline void timer_register_cpu_notifier(void) { }
 #endif /* CONFIG_HOTPLUG_CPU */
 
 static void __init init_timer_cpu(int cpu)
@@ -1881,7 +1861,6 @@ void __init init_timers(void)
 {
 	init_timer_cpus();
 	init_timer_stats();
-	timer_register_cpu_notifier();
 	open_softirq(TIMER_SOFTIRQ, run_timer_softirq);
 }
 

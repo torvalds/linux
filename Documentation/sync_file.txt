@@ -6,8 +6,8 @@
 
 This document serves as a guide for device drivers writers on what the
 sync_file API is, and how drivers can support it. Sync file is the carrier of
-the fences(struct fence) that needs to synchronized between drivers or across
-process boundaries.
+the fences(struct fence) that are needed to synchronize between drivers or
+across process boundaries.
 
 The sync_file API is meant to be used to send and receive fence information
 to/from userspace. It enables userspace to do explicit fencing, where instead
@@ -32,7 +32,7 @@ in-fences and out-fences
 Sync files can go either to or from userspace. When a sync_file is sent from
 the driver to userspace we call the fences it contains 'out-fences'. They are
 related to a buffer that the driver is processing or is going to process, so
-the driver an create out-fence to be able to notify, through fence_signal(),
+the driver creates an out-fence to be able to notify, through fence_signal(),
 when it has finished using (or processing) that buffer. Out-fences are fences
 that the driver creates.
 
