@@ -32,7 +32,6 @@
 #include <linux/list.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
-#include <linux/extcon.h>
 #include <linux/of.h>
 #include <linux/acpi.h>
 #include <linux/pinctrl/consumer.h>
@@ -880,170 +879,6 @@ bool dwc3_force_mode(struct dwc3 *dwc, u32 mode)
 	return true;
 }
 
-static void rockchip_otg_extcon_evt_worker(struct work_struct *work)
-{
-	struct dwc3 *dwc =
-		container_of(work, struct dwc3, cable.otg_work.work);
-	struct extcon_dev *edev = dwc->cable.edev;
-	struct usb_hcd	*hcd;
-	unsigned long	flags;
-	int		ret;
-	u32		reg;
-
-	if (extcon_get_cable_state_(edev, EXTCON_USB) > 0) {
-		dev_info(dwc->dev, "USB peripheral connected\n");
-
-		if  (dwc->cable.connected) {
-			reg = dwc3_readl(dwc->regs, DWC3_GCTL);
-
-			if (DWC3_GCTL_PRTCAP(reg) != DWC3_GCTL_PRTCAP_DEVICE) {
-				spin_lock_irqsave(&dwc->lock, flags);
-				dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_DEVICE);
-				spin_unlock_irqrestore(&dwc->lock, flags);
-			}
-
-			return;
-		}
-
-		/*
-		 * If dr_mode is host only, never to set
-		 * the mode to the peripheral mode.
-		 */
-		if (WARN_ON(dwc->dr_mode == USB_DR_MODE_HOST))
-			return;
-
-		ret = phy_power_on(dwc->usb2_generic_phy);
-		if (ret < 0)
-			return;
-
-		ret = phy_power_on(dwc->usb3_generic_phy);
-		if (ret < 0)
-			return;
-
-		spin_lock_irqsave(&dwc->lock, flags);
-
-		dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_DEVICE);
-		dwc3_gadget_restart(dwc, true);
-
-		spin_unlock_irqrestore(&dwc->lock, flags);
-
-		dwc->cable.connected = true;
-	} else if (extcon_get_cable_state_(edev, EXTCON_USB_HOST) > 0) {
-		dev_info(dwc->dev, "USB HOST connected\n");
-
-		if (dwc->cable.connected) {
-			reg = dwc3_readl(dwc->regs, DWC3_GCTL);
-
-			if (DWC3_GCTL_PRTCAP(reg) != DWC3_GCTL_PRTCAP_HOST) {
-				spin_lock_irqsave(&dwc->lock, flags);
-				dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_HOST);
-				spin_unlock_irqrestore(&dwc->lock, flags);
-			}
-
-			return;
-		}
-
-		/*
-		 * If dr_mode is device only, never to
-		 * set the mode to the host mode.
-		 */
-		if (WARN_ON(dwc->dr_mode == USB_DR_MODE_PERIPHERAL))
-			return;
-
-		ret = phy_power_on(dwc->usb2_generic_phy);
-		if (ret < 0)
-			return;
-
-		ret = phy_power_on(dwc->usb3_generic_phy);
-		if (ret < 0)
-			return;
-
-		hcd = dev_get_drvdata(&dwc->xhci->dev);
-
-		spin_lock_irqsave(&dwc->lock, flags);
-
-		dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_HOST);
-
-		spin_unlock_irqrestore(&dwc->lock, flags);
-
-		if (hcd->state == HC_STATE_HALT) {
-			usb_add_hcd(hcd, hcd->irq, IRQF_SHARED);
-			usb_add_hcd(hcd->shared_hcd, hcd->irq, IRQF_SHARED);
-		}
-
-		dwc->cable.connected = true;
-	} else {
-		dev_info(dwc->dev, "USB unconnected\n");
-
-		if (!dwc->cable.connected)
-			return;
-
-		reg = dwc3_readl(dwc->regs, DWC3_GCTL);
-
-		if (DWC3_GCTL_PRTCAP(reg) == DWC3_GCTL_PRTCAP_DEVICE ||
-		    DWC3_GCTL_PRTCAP(reg) == DWC3_GCTL_PRTCAP_OTG) {
-			spin_lock_irqsave(&dwc->lock, flags);
-			dwc3_gadget_restart(dwc, false);
-			spin_unlock_irqrestore(&dwc->lock, flags);
-		}
-
-		if (DWC3_GCTL_PRTCAP(reg) == DWC3_GCTL_PRTCAP_HOST ||
-		    DWC3_GCTL_PRTCAP(reg) == DWC3_GCTL_PRTCAP_OTG) {
-			hcd = dev_get_drvdata(&dwc->xhci->dev);
-
-			if (hcd->state != HC_STATE_HALT) {
-				usb_remove_hcd(hcd->shared_hcd);
-				usb_remove_hcd(hcd);
-			}
-		}
-
-		spin_lock_irqsave(&dwc->lock, flags);
-
-		switch (dwc->dr_mode) {
-		case USB_DR_MODE_PERIPHERAL:
-			dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_DEVICE);
-			break;
-		case USB_DR_MODE_HOST:
-			dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_HOST);
-			break;
-		case USB_DR_MODE_OTG:
-			dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_OTG);
-			break;
-		default:
-			return;
-		}
-
-		spin_unlock_irqrestore(&dwc->lock, flags);
-
-		phy_power_off(dwc->usb2_generic_phy);
-		phy_power_off(dwc->usb3_generic_phy);
-
-		dwc->cable.connected = false;
-	}
-}
-
-static int dwc3_rockchip_device_notifier(struct notifier_block *nb,
-					 unsigned long event, void *ptr)
-{
-	struct  dwc3 *dwc =
-		container_of(nb, struct dwc3, cable.device_nb);
-
-	schedule_delayed_work(&dwc->cable.otg_work, 0);
-
-	return NOTIFY_DONE;
-}
-
-static int dwc3_rockchip_host_notifier(struct notifier_block *nb,
-				       unsigned long event, void *ptr)
-{
-	struct  dwc3 *dwc =
-		container_of(nb, struct dwc3, cable.host_nb);
-
-	schedule_delayed_work(&dwc->cable.otg_work, 0);
-
-	return NOTIFY_DONE;
-}
-
 #define DWC3_ALIGN_MASK		(16 - 1)
 
 static int dwc3_probe(struct platform_device *pdev)
@@ -1056,7 +891,6 @@ static int dwc3_probe(struct platform_device *pdev)
 	u8			tx_de_emphasis;
 	u8			hird_threshold;
 	u32			fladj = 0;
-	struct extcon_dev	*edev;
 
 	int			ret;
 
@@ -1084,50 +918,6 @@ static int dwc3_probe(struct platform_device *pdev)
 		ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (ret)
 			return ret;
-	}
-
-	if (device_property_read_bool(dev, "extcon")) {
-		edev = extcon_get_edev_by_phandle(dev, 0);
-		if (IS_ERR(edev)) {
-			if (PTR_ERR(edev) != -EPROBE_DEFER)
-				dev_err(dev, "couldn't get extcon device\n");
-			return PTR_ERR(edev);
-		}
-
-		/* Register for extcon notification */
-		INIT_DELAYED_WORK(&dwc->cable.otg_work,
-				  rockchip_otg_extcon_evt_worker);
-		dwc->cable.device_nb.notifier_call =
-				dwc3_rockchip_device_notifier;
-		dwc->cable.host_nb.notifier_call =
-				dwc3_rockchip_host_notifier;
-
-		ret = extcon_register_notifier(edev, EXTCON_USB,
-					       &dwc->cable.device_nb);
-		if (ret < 0) {
-			dev_err(dev, "failed to register notifier for USB\n");
-			return ret;
-		}
-
-		ret = extcon_register_notifier(edev, EXTCON_USB_HOST,
-					       &dwc->cable.host_nb);
-		if (ret < 0) {
-			dev_err(dev, "failed to register notifier for USB HOST\n");
-			extcon_unregister_notifier(edev, EXTCON_USB,
-						   &dwc->cable.device_nb);
-			return ret;
-		}
-
-		/*
-		 * cable.connected flag is used for otg device/host
-		 * connect status, true means connection and false
-		 * means disconnection. However, we initialize the
-		 * cable.connected with true, though nothing connect
-		 * with the usb port. It aims to do phy power off
-		 * and disable controller in cable.work.
-		 */
-		dwc->cable.connected = true;
-		dwc->cable.edev = edev;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
@@ -1331,7 +1121,6 @@ static int dwc3_probe(struct platform_device *pdev)
 
 	usb_phy_set_suspend(dwc->usb2_phy, 0);
 	usb_phy_set_suspend(dwc->usb3_phy, 0);
-
 	ret = phy_power_on(dwc->usb2_generic_phy);
 	if (ret < 0)
 		goto err2;
@@ -1355,9 +1144,6 @@ static int dwc3_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to initialize debugfs\n");
 		goto err6;
 	}
-
-	if (dwc->cable.edev)
-		schedule_delayed_work(&dwc->cable.otg_work, (2 * HZ));
 
 	pm_runtime_allow(dev);
 

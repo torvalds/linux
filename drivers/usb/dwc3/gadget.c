@@ -2918,7 +2918,6 @@ static int dwc3_gadget_reinit(struct dwc3 *dwc)
 	u32			hwparams4 = dwc->hwparams.hwparams4;
 	u32			reg;
 	int			ret;
-	unsigned long		flags;
 	struct dwc3_ep		*dep = NULL;
 
 	reg = dwc3_readl(dwc->regs, DWC3_GSNPSID);
@@ -2949,14 +2948,10 @@ static int dwc3_gadget_reinit(struct dwc3 *dwc)
 			dwc->maximum_speed = USB_SPEED_HIGH;
 	}
 
-	spin_unlock_irqrestore(&dwc->lock, flags);
-
 	/* issue device SoftReset too */
 	ret = dwc3_soft_reset(dwc);
 	if (ret)
 		goto err0;
-
-	spin_lock_irqsave(&dwc->lock, flags);
 
 	reg = dwc3_readl(dwc->regs, DWC3_GCTL);
 	reg &= ~DWC3_GCTL_SCALEDOWN_MASK;
@@ -3034,6 +3029,7 @@ static int dwc3_gadget_reinit(struct dwc3 *dwc)
 	}
 
 	reg = dwc3_readl(dwc->regs, DWC3_DCFG);
+	reg |= DWC3_DCFG_LPM_CAP;
 	reg &= ~(DWC3_DCFG_SPEED_MASK);
 
 	/**
@@ -3102,14 +3098,6 @@ err0:
 	return ret;
 }
 
-/**
- * dwc3_gadget_restart - reinit gadget related registers
- * @dwc: pointer to our controller context structure
- *
- * The caller must own the device lock.
- *
- * Returns 0 on success otherwise negative errno.
- */
 int dwc3_gadget_restart(struct dwc3 *dwc, bool start)
 {
 	struct dwc3_event_buffer	*evt;

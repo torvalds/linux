@@ -706,7 +706,6 @@ struct dwc3_scratchpad_array {
  * @hwparams: copy of hwparams registers
  * @root: debugfs root folder pointer
  * @regset: debugfs pointer to regdump file
- * @cable: extcon cable for otg device/host mode notifier
  * @test_mode: true when we're entering a USB test mode
  * @test_mode_nr: test feature selector
  * @lpm_nyet_threshold: LPM NYET response threshold
@@ -862,14 +861,6 @@ struct dwc3 {
 	struct dwc3_hwparams	hwparams;
 	struct dentry		*root;
 	struct debugfs_regset32	*regset;
-
-	struct {
-		struct extcon_dev	*edev;
-		bool			connected;
-		struct notifier_block	device_nb;
-		struct notifier_block	host_nb;
-		struct delayed_work	otg_work;
-	} cable;
 
 	u8			test_mode;
 	u8			test_mode_nr;
