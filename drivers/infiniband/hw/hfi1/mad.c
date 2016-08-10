@@ -3398,7 +3398,7 @@ static void apply_cc_state(struct hfi1_pportdata *ppd)
 
 	spin_unlock(&ppd->cc_state_lock);
 
-	call_rcu(&old_cc_state->rcu, cc_state_reclaim);
+	kfree_rcu(old_cc_state, rcu);
 }
 
 static int __subn_set_opa_cong_setting(struct opa_smp *smp, u32 am, u8 *data,
@@ -3551,13 +3551,6 @@ static int __subn_get_opa_cc_table(struct opa_smp *smp, u32 am, u8 *data,
 		*resp_len += sizeof(u16) * (IB_CCT_ENTRIES * n_blocks + 1);
 
 	return reply((struct ib_mad_hdr *)smp);
-}
-
-void cc_state_reclaim(struct rcu_head *rcu)
-{
-	struct cc_state *cc_state = container_of(rcu, struct cc_state, rcu);
-
-	kfree(cc_state);
 }
 
 static int __subn_set_opa_cc_table(struct opa_smp *smp, u32 am, u8 *data,

@@ -1656,7 +1656,6 @@ struct cc_state *get_cc_state_protected(struct hfi1_pportdata *ppd)
 struct hfi1_devdata *hfi1_init_dd(struct pci_dev *,
 				  const struct pci_device_id *);
 void hfi1_free_devdata(struct hfi1_devdata *);
-void cc_state_reclaim(struct rcu_head *rcu);
 struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev, size_t extra);
 
 /* LED beaconing functions */
