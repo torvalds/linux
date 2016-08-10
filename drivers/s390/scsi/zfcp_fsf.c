@@ -3,7 +3,7 @@
  *
  * Implementation of FSF commands.
  *
- * Copyright IBM Corp. 2002, 2013
+ * Copyright IBM Corp. 2002, 2015
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -508,7 +508,10 @@ static int zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *req)
 		fc_host_port_type(shost) = FC_PORTTYPE_PTP;
 		break;
 	case FSF_TOPO_FABRIC:
-		fc_host_port_type(shost) = FC_PORTTYPE_NPORT;
+		if (bottom->connection_features & FSF_FEATURE_NPIV_MODE)
+			fc_host_port_type(shost) = FC_PORTTYPE_NPIV;
+		else
+			fc_host_port_type(shost) = FC_PORTTYPE_NPORT;
 		break;
 	case FSF_TOPO_AL:
 		fc_host_port_type(shost) = FC_PORTTYPE_NLPORT;
@@ -613,7 +616,6 @@ static void zfcp_fsf_exchange_port_evaluate(struct zfcp_fsf_req *req)
 
 	if (adapter->connection_features & FSF_FEATURE_NPIV_MODE) {
 		fc_host_permanent_port_name(shost) = bottom->wwpn;
-		fc_host_port_type(shost) = FC_PORTTYPE_NPIV;
 	} else
 		fc_host_permanent_port_name(shost) = fc_host_port_name(shost);
 	fc_host_maxframe_size(shost) = bottom->maximum_frame_size;
