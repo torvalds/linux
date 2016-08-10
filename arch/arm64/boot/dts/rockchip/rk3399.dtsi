@@ -431,7 +431,7 @@
 	};
 
 	usbdrd3_0: usb@fe800000 {
-		compatible = "rockchip,dwc3";
+		compatible = "rockchip,rk3399-dwc3";
 		clocks = <&cru SCLK_USB3OTG0_REF>, <&cru SCLK_USB3OTG0_SUSPEND>,
 			 <&cru ACLK_USB3OTG0>, <&cru ACLK_USB3_RKSOC_AXI_PERF>,
 			 <&cru ACLK_USB3>, <&cru ACLK_USB3_GRF>;
@@ -450,17 +450,17 @@
 			dr_mode = "otg";
 			phys = <&u2phy0_otg>;
 			phy-names = "usb2-phy";
+			phy_type = "utmi_wide";
 			snps,dis_enblslpm_quirk;
-			snps,phyif_utmi_16_bits;
-			snps,dis_u2_freeclk_exists_quirk;
-			snps,dis_del_phy_power_chg_quirk;
-			snps,xhci_slow_suspend_quirk;
+			snps,dis-u2-freeclk-exists-quirk;
+			snps,dis-del-phy-power-chg-quirk;
+			snps,xhci-slow-suspend-quirk;
 			status = "disabled";
 		};
 	};
 
 	usbdrd3_1: usb@fe900000 {
-		compatible = "rockchip,dwc3";
+		compatible = "rockchip,rk3399-dwc3";
 		clocks = <&cru SCLK_USB3OTG1_REF>, <&cru SCLK_USB3OTG1_SUSPEND>,
 			 <&cru ACLK_USB3OTG1>, <&cru ACLK_USB3_RKSOC_AXI_PERF>,
 			 <&cru ACLK_USB3>, <&cru ACLK_USB3_GRF>;
@@ -479,11 +479,11 @@
 			dr_mode = "otg";
 			phys = <&u2phy1_otg>;
 			phy-names = "usb2-phy";
+			phy_type = "utmi_wide";
 			snps,dis_enblslpm_quirk;
-			snps,phyif_utmi_16_bits;
-			snps,dis_u2_freeclk_exists_quirk;
-			snps,dis_del_phy_power_chg_quirk;
-			snps,xhci_slow_suspend_quirk;
+			snps,dis-u2-freeclk-exists-quirk;
+			snps,dis-del-phy-power-chg-quirk;
+			snps,xhci-slow-suspend-quirk;
 			status = "disabled";
 		};
 	};
