@@ -82,7 +82,6 @@ static inline int access_ok(int type, const void __user * addr, unsigned long si
 	return 1;
 }
 
-void __ret_efault(void);
 void __retl_efault(void);
 
 /* Uh, these should become the main single-value transfer routines..
