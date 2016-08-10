@@ -152,13 +152,29 @@ int gb_control_disconnected_operation(struct gb_control *control, u16 cport_id)
 int gb_control_disconnecting_operation(struct gb_control *control,
 					u16 cport_id)
 {
-	struct gb_control_disconnecting_request request;
+	struct gb_control_disconnecting_request *request;
+	struct gb_operation *operation;
+	int ret;
 
-	request.cport_id = cpu_to_le16(cport_id);
+	operation = gb_operation_create_core(control->connection,
+					GB_CONTROL_TYPE_DISCONNECTING,
+					sizeof(*request), 0, 0,
+					GFP_KERNEL);
+	if (!operation)
+		return -ENOMEM;
 
-	return gb_operation_sync(control->connection,
-				 GB_CONTROL_TYPE_DISCONNECTING, &request,
-				 sizeof(request), NULL, 0);
+	request = operation->request->payload;
+	request->cport_id = cpu_to_le16(cport_id);
+
+	ret = gb_operation_request_send_sync(operation);
+	if (ret) {
+		dev_err(&control->dev, "failed to send disconnecting: %d\n",
+				ret);
+	}
+
+	gb_operation_put(operation);
+
+	return ret;
 }
 
 int gb_control_mode_switch_operation(struct gb_control *control)
