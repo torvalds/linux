@@ -35,6 +35,9 @@ MODULE_AUTHOR("Hauke Mehrtens");
 MODULE_DESCRIPTION("Common USB driver for BCMA Bus");
 MODULE_LICENSE("GPL");
 
+/* See BCMA_CLKCTLST_EXTRESREQ and BCMA_CLKCTLST_EXTRESST */
+#define USB_BCMA_CLKCTLST_USB_CLK_REQ			0x00000100
+
 struct bcma_hcd_device {
 	struct bcma_device *core;
 	struct platform_device *ehci_dev;
@@ -164,6 +167,76 @@ static void bcma_hcd_init_chip_mips(struct bcma_device *dev)
 
 		bcma_hcd_4716wa(dev);
 	}
+}
+
+/**
+ * bcma_hcd_usb20_old_arm_init - Initialize old USB 2.0 controller on ARM
+ *
+ * Old USB 2.0 core is identified as BCMA_CORE_USB20_HOST and was introduced
+ * long before Northstar devices. It seems some cheaper chipsets like BCM53573
+ * still use it.
+ * Initialization of this old core differs between MIPS and ARM.
+ */
+static int bcma_hcd_usb20_old_arm_init(struct bcma_hcd_device *usb_dev)
+{
+	struct bcma_device *core = usb_dev->core;
+	struct device *dev = &core->dev;
+	struct bcma_device *pmu_core;
+
+	usleep_range(10000, 20000);
+	if (core->id.rev < 5)
+		return 0;
+
+	pmu_core = bcma_find_core(core->bus, BCMA_CORE_PMU);
+	if (!pmu_core) {
+		dev_err(dev, "Could not find PMU core\n");
+		return -ENOENT;
+	}
+
+	/* Take USB core out of reset */
+	bcma_awrite32(core, BCMA_IOCTL, BCMA_IOCTL_CLK | BCMA_IOCTL_FGC);
+	usleep_range(100, 200);
+	bcma_awrite32(core, BCMA_RESET_CTL, BCMA_RESET_CTL_RESET);
+	usleep_range(100, 200);
+	bcma_awrite32(core, BCMA_RESET_CTL, 0);
+	usleep_range(100, 200);
+	bcma_awrite32(core, BCMA_IOCTL, BCMA_IOCTL_CLK);
+	usleep_range(100, 200);
+
+	/* Enable Misc PLL */
+	bcma_write32(core, BCMA_CLKCTLST, BCMA_CLKCTLST_FORCEHT |
+					  BCMA_CLKCTLST_HQCLKREQ |
+					  USB_BCMA_CLKCTLST_USB_CLK_REQ);
+	usleep_range(100, 200);
+
+	bcma_write32(core, 0x510, 0xc7f85000);
+	bcma_write32(core, 0x510, 0xc7f85003);
+	usleep_range(300, 600);
+
+	/* Program USB PHY PLL parameters */
+	bcma_write32(pmu_core, BCMA_CC_PMU_PLLCTL_ADDR, 0x6);
+	bcma_write32(pmu_core, BCMA_CC_PMU_PLLCTL_DATA, 0x005360c1);
+	usleep_range(100, 200);
+	bcma_write32(pmu_core, BCMA_CC_PMU_PLLCTL_ADDR, 0x7);
+	bcma_write32(pmu_core, BCMA_CC_PMU_PLLCTL_DATA, 0x0);
+	usleep_range(100, 200);
+	bcma_set32(pmu_core, BCMA_CC_PMU_CTL, BCMA_CC_PMU_CTL_PLL_UPD);
+	usleep_range(100, 200);
+
+	bcma_write32(core, 0x510, 0x7f8d007);
+	udelay(1000);
+
+	/* Take controller out of reset */
+	bcma_write32(core, 0x200, 0x4ff);
+	usleep_range(25, 50);
+	bcma_write32(core, 0x200, 0x6ff);
+	usleep_range(25, 50);
+	bcma_write32(core, 0x200, 0x7ff);
+	usleep_range(25, 50);
+
+	of_platform_default_populate(dev->of_node, NULL, dev);
+
+	return 0;
 }
 
 static void bcma_hcd_init_chip_arm_phy(struct bcma_device *dev)
@@ -370,19 +443,24 @@ static int bcma_hcd_probe(struct bcma_device *core)
 
 	switch (core->id.id) {
 	case BCMA_CORE_USB20_HOST:
+		if (IS_ENABLED(CONFIG_ARM))
+			err = bcma_hcd_usb20_old_arm_init(usb_dev);
+		else if (IS_ENABLED(CONFIG_MIPS))
+			err = bcma_hcd_usb20_init(usb_dev);
+		else
+			err = -ENOTSUPP;
+		break;
 	case BCMA_CORE_NS_USB20:
 		err = bcma_hcd_usb20_init(usb_dev);
-		if (err)
-			return err;
 		break;
 	case BCMA_CORE_NS_USB30:
 		err = bcma_hcd_usb30_init(usb_dev);
-		if (err)
-			return err;
 		break;
 	default:
 		return -ENODEV;
 	}
+	if (err)
+		return err;
 
 	bcma_set_drvdata(core, usb_dev);
 	return 0;
