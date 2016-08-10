@@ -756,13 +756,22 @@ static int stmpe1801_enable(struct stmpe *stmpe, unsigned int blocks,
 				enable ? mask : 0);
 }
 
-static int stmpe1801_reset(struct stmpe *stmpe)
+static int stmpe_reset(struct stmpe *stmpe)
 {
+	u16 id_val = stmpe->variant->id_val;
 	unsigned long timeout;
 	int ret = 0;
+	u8 reset_bit;
+
+	if (id_val == STMPE811_ID)
+		/* STMPE801 and STMPE610 use bit 1 of SYS_CTRL register */
+		reset_bit = STMPE811_SYS_CTRL_RESET;
+	else
+		/* all other STMPE variant use bit 7 of SYS_CTRL register */
+		reset_bit = STMPE_SYS_CTRL_RESET;
 
 	ret = __stmpe_set_bits(stmpe, stmpe->regs[STMPE_IDX_SYS_CTRL],
-		STMPE1801_MSK_SYS_CTRL_RESET, STMPE1801_MSK_SYS_CTRL_RESET);
+			       reset_bit, reset_bit);
 	if (ret < 0)
 		return ret;
 
@@ -771,7 +780,7 @@ static int stmpe1801_reset(struct stmpe *stmpe)
 		ret = __stmpe_reg_read(stmpe, stmpe->regs[STMPE_IDX_SYS_CTRL]);
 		if (ret < 0)
 			return ret;
-		if (!(ret & STMPE1801_MSK_SYS_CTRL_RESET))
+		if (!(ret & reset_bit))
 			return 0;
 		usleep_range(100, 200);
 	}
@@ -1095,11 +1104,9 @@ static int stmpe_chip_init(struct stmpe *stmpe)
 	if (ret)
 		return ret;
 
-	if (id == STMPE1801_ID)	{
-		ret =  stmpe1801_reset(stmpe);
-		if (ret < 0)
-			return ret;
-	}
+	ret =  stmpe_reset(stmpe);
+	if (ret < 0)
+		return ret;
 
 	if (stmpe->irq >= 0) {
 		if (id == STMPE801_ID)

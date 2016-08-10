@@ -104,6 +104,8 @@ int stmpe_remove(struct stmpe *stmpe);
 #define STMPE_ICR_LSB_EDGE	(1 << 1)
 #define STMPE_ICR_LSB_GIM	(1 << 0)
 
+#define STMPE_SYS_CTRL_RESET	(1 << 7)
+
 /*
  * STMPE801
  */
@@ -126,6 +128,7 @@ int stmpe_remove(struct stmpe *stmpe);
 /*
  * STMPE811
  */
+#define STMPE811_ID			0x0811
 
 #define STMPE811_IRQ_TOUCH_DET		0
 #define STMPE811_IRQ_FIFO_TH		1
@@ -154,6 +157,8 @@ int stmpe_remove(struct stmpe *stmpe);
 #define STMPE811_REG_GPIO_RE		0x15
 #define STMPE811_REG_GPIO_FE		0x16
 #define STMPE811_REG_GPIO_AF		0x17
+
+#define STMPE811_SYS_CTRL_RESET		(1 << 1)
 
 #define STMPE811_SYS_CTRL2_ADC_OFF	(1 << 0)
 #define STMPE811_SYS_CTRL2_TSC_OFF	(1 << 1)
@@ -243,8 +248,6 @@ int stmpe_remove(struct stmpe *stmpe);
 #define STMPE1801_REG_GPIO_PULL_UP_LOW		0x22
 #define STMPE1801_REG_GPIO_PULL_UP_MID		0x23
 #define STMPE1801_REG_GPIO_PULL_UP_HIGH		0x24
-
-#define STMPE1801_MSK_SYS_CTRL_RESET		(1 << 7)
 
 #define STMPE1801_MSK_INT_EN_KPC		(1 << 1)
 #define STMPE1801_MSK_INT_EN_GPIO		(1 << 3)
