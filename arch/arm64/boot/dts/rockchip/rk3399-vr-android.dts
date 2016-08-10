@@ -932,6 +932,7 @@
 
 &fb {
 	rockchip,uboot-logo-on = <1>;
+	rockchip,disp-mode = <NO_DUAL>;
 };
 
 &vopb_rk_fb {
