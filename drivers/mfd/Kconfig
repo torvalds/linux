@@ -291,6 +291,14 @@ config MFD_DLN2
 	  etc. must be enabled in order to use the functionality of
 	  the device.
 
+config MFD_EXYNOS_LPASS
+	tristate "Samsung Exynos SoC Low Power Audio Subsystem"
+	select MFD_CORE
+	select REGMAP_MMIO
+	help
+	  Select this option to enable support for Samsung Exynos Low Power
+	  Audio Subsystem.
+
 config MFD_MC13XXX
 	tristate
 	depends on (SPI_MASTER || I2C)
