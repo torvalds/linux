@@ -1763,7 +1763,7 @@ DECLARE_PER_CPU(struct update_util_data *, cpufreq_update_util_data);
 
 /**
  * cpufreq_update_util - Take a note about CPU utilization changes.
- * @time: Current time.
+ * @rq: Runqueue to carry out the update for.
  * @flags: Update reason flags.
  *
  * This function is called by the scheduler on the CPU whose utilization is
@@ -1783,16 +1783,23 @@ DECLARE_PER_CPU(struct update_util_data *, cpufreq_update_util_data);
  * but that really is a band-aid.  Going forward it should be replaced with
  * solutions targeted more specifically at RT and DL tasks.
  */
-static inline void cpufreq_update_util(u64 time, unsigned int flags)
+static inline void cpufreq_update_util(struct rq *rq, unsigned int flags)
 {
 	struct update_util_data *data;
 
 	data = rcu_dereference_sched(*this_cpu_ptr(&cpufreq_update_util_data));
 	if (data)
-		data->func(data, time, flags);
+		data->func(data, rq_clock(rq), flags);
+}
+
+static inline void cpufreq_update_this_cpu(struct rq *rq, unsigned int flags)
+{
+	if (cpu_of(rq) == smp_processor_id())
+		cpufreq_update_util(rq, flags);
 }
 #else
-static inline void cpufreq_update_util(u64 time, unsigned int flags) {}
+static inline void cpufreq_update_util(struct rq *rq, unsigned int flags) {}
+static inline void cpufreq_update_this_cpu(struct rq *rq, unsigned int flags) {}
 #endif /* CONFIG_CPU_FREQ */
 
 #ifdef arch_scale_freq_capacity

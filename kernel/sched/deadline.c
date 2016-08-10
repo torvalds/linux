@@ -736,8 +736,7 @@ static void update_curr_dl(struct rq *rq)
 	}
 
 	/* kick cpufreq (see the comment in kernel/sched/sched.h). */
-	if (cpu_of(rq) == smp_processor_id())
-		cpufreq_update_util(rq_clock(rq), SCHED_CPUFREQ_DL);
+	cpufreq_update_this_cpu(rq, SCHED_CPUFREQ_DL);
 
 	schedstat_set(curr->se.statistics.exec_max,
 		      max(curr->se.statistics.exec_max, delta_exec));
