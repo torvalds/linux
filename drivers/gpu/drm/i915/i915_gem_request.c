@@ -461,9 +461,7 @@ static void i915_gem_mark_busy(const struct intel_engine_cs *engine)
  * request is not being tracked for completion but the work itself is
  * going to happen on the hardware. This would be a Bad Thing(tm).
  */
-void __i915_add_request(struct drm_i915_gem_request *request,
-			struct drm_i915_gem_object *obj,
-			bool flush_caches)
+void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 {
 	struct intel_engine_cs *engine;
 	struct intel_ring *ring;
@@ -503,14 +501,6 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	trace_i915_gem_request_add(request);
 
 	request->head = request_start;
-
-	/* Whilst this request exists, batch_obj will be on the
-	 * active_list, and so will hold the active reference. Only when this
-	 * request is retired will the the batch_obj be moved onto the
-	 * inactive_list and lose its active reference. Hence we do not need
-	 * to explicitly hold another reference here.
-	 */
-	request->batch_obj = obj;
 
 	/* Seal the request and mark it as pending execution. Note that
 	 * we may inspect this state, without holding any locks, during

@@ -225,13 +225,11 @@ static inline void i915_gem_request_assign(struct drm_i915_gem_request **pdst,
 	*pdst = src;
 }
 
-void __i915_add_request(struct drm_i915_gem_request *req,
-			struct drm_i915_gem_object *batch_obj,
-			bool flush_caches);
+void __i915_add_request(struct drm_i915_gem_request *req, bool flush_caches);
 #define i915_add_request(req) \
-	__i915_add_request(req, NULL, true)
+	__i915_add_request(req, true)
 #define i915_add_request_no_flush(req) \
-	__i915_add_request(req, NULL, false)
+	__i915_add_request(req, false)
 
 struct intel_rps_client;
 #define NO_WAITBOOST ERR_PTR(-1)

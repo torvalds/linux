@@ -1702,6 +1702,14 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		goto err_batch_unpin;
 	}
 
+	/* Whilst this request exists, batch_obj will be on the
+	 * active_list, and so will hold the active reference. Only when this
+	 * request is retired will the the batch_obj be moved onto the
+	 * inactive_list and lose its active reference. Hence we do not need
+	 * to explicitly hold another reference here.
+	 */
+	params->request->batch_obj = params->batch->obj;
+
 	ret = i915_gem_request_add_to_client(params->request, file);
 	if (ret)
 		goto err_request;
@@ -1720,7 +1728,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	ret = execbuf_submit(params, args, &eb->vmas);
 err_request:
-	__i915_add_request(params->request, params->batch->obj, ret == 0);
+	__i915_add_request(params->request, ret == 0);
 
 err_batch_unpin:
 	/*
