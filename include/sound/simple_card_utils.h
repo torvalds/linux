@@ -65,4 +65,6 @@ int asoc_simple_card_canonicalize_dailink(struct snd_soc_dai_link *dai_link);
 void asoc_simple_card_canonicalize_cpu(struct snd_soc_dai_link *dai_link,
 				      int is_single_links);
 
+int asoc_simple_card_clean_reference(struct snd_soc_card *card);
+
 #endif /* __SIMPLE_CARD_CORE_H */
