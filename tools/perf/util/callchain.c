@@ -193,7 +193,6 @@ int perf_callchain_config(const char *var, const char *value)
 
 	if (!strcmp(var, "record-mode"))
 		return parse_callchain_record_opt(value, &callchain_param);
-#ifdef HAVE_DWARF_UNWIND_SUPPORT
 	if (!strcmp(var, "dump-size")) {
 		unsigned long size = 0;
 		int ret;
@@ -203,7 +202,6 @@ int perf_callchain_config(const char *var, const char *value)
 
 		return ret;
 	}
-#endif
 	if (!strcmp(var, "print-type"))
 		return parse_callchain_mode(value);
 	if (!strcmp(var, "order"))
