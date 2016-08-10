@@ -874,22 +874,41 @@ gf100_gr_trap_gpc_rop(struct gf100_gr *gr, int gpc)
 }
 
 static const struct nvkm_enum gf100_mp_warp_error[] = {
-	{ 0x00, "NO_ERROR" },
-	{ 0x01, "STACK_MISMATCH" },
+	{ 0x01, "STACK_ERROR" },
+	{ 0x02, "API_STACK_ERROR" },
+	{ 0x03, "RET_EMPTY_STACK_ERROR" },
+	{ 0x04, "PC_WRAP" },
 	{ 0x05, "MISALIGNED_PC" },
-	{ 0x08, "MISALIGNED_GPR" },
-	{ 0x09, "INVALID_OPCODE" },
-	{ 0x0d, "GPR_OUT_OF_BOUNDS" },
-	{ 0x0e, "MEM_OUT_OF_BOUNDS" },
-	{ 0x0f, "UNALIGNED_MEM_ACCESS" },
+	{ 0x06, "PC_OVERFLOW" },
+	{ 0x07, "MISALIGNED_IMMC_ADDR" },
+	{ 0x08, "MISALIGNED_REG" },
+	{ 0x09, "ILLEGAL_INSTR_ENCODING" },
+	{ 0x0a, "ILLEGAL_SPH_INSTR_COMBO" },
+	{ 0x0b, "ILLEGAL_INSTR_PARAM" },
+	{ 0x0c, "INVALID_CONST_ADDR" },
+	{ 0x0d, "OOR_REG" },
+	{ 0x0e, "OOR_ADDR" },
+	{ 0x0f, "MISALIGNED_ADDR" },
 	{ 0x10, "INVALID_ADDR_SPACE" },
-	{ 0x11, "INVALID_PARAM" },
+	{ 0x11, "ILLEGAL_INSTR_PARAM2" },
+	{ 0x12, "INVALID_CONST_ADDR_LDC" },
+	{ 0x13, "GEOMETRY_SM_ERROR" },
+	{ 0x14, "DIVERGENT" },
+	{ 0x15, "WARP_EXIT" },
 	{}
 };
 
 static const struct nvkm_bitfield gf100_mp_global_error[] = {
+	{ 0x00000001, "SM_TO_SM_FAULT" },
+	{ 0x00000002, "L1_ERROR" },
 	{ 0x00000004, "MULTIPLE_WARP_ERRORS" },
-	{ 0x00000008, "OUT_OF_STACK_SPACE" },
+	{ 0x00000008, "PHYSICAL_STACK_OVERFLOW" },
+	{ 0x00000010, "BPT_INT" },
+	{ 0x00000020, "BPT_PAUSE" },
+	{ 0x00000040, "SINGLE_STEP_COMPLETE" },
+	{ 0x20000000, "ECC_SEC_ERROR" },
+	{ 0x40000000, "ECC_DED_ERROR" },
+	{ 0x80000000, "TIMEOUT" },
 	{}
 };
 

@@ -21,37 +21,33 @@
 #include <asm-generic/qspinlock_types.h>
 
 /**
+ * queued_spin_unlock_wait - wait until the _current_ lock holder releases the lock
+ * @lock : Pointer to queued spinlock structure
+ *
+ * There is a very slight possibility of live-lock if the lockers keep coming
+ * and the waiter is just unfortunate enough to not see any unlock state.
+ */
+#ifndef queued_spin_unlock_wait
+extern void queued_spin_unlock_wait(struct qspinlock *lock);
+#endif
+
+/**
  * queued_spin_is_locked - is the spinlock locked?
  * @lock: Pointer to queued spinlock structure
  * Return: 1 if it is locked, 0 otherwise
  */
+#ifndef queued_spin_is_locked
 static __always_inline int queued_spin_is_locked(struct qspinlock *lock)
 {
 	/*
-	 * queued_spin_lock_slowpath() can ACQUIRE the lock before
-	 * issuing the unordered store that sets _Q_LOCKED_VAL.
+	 * See queued_spin_unlock_wait().
 	 *
-	 * See both smp_cond_acquire() sites for more detail.
-	 *
-	 * This however means that in code like:
-	 *
-	 *   spin_lock(A)		spin_lock(B)
-	 *   spin_unlock_wait(B)	spin_is_locked(A)
-	 *   do_something()		do_something()
-	 *
-	 * Both CPUs can end up running do_something() because the store
-	 * setting _Q_LOCKED_VAL will pass through the loads in
-	 * spin_unlock_wait() and/or spin_is_locked().
-	 *
-	 * Avoid this by issuing a full memory barrier between the spin_lock()
-	 * and the loads in spin_unlock_wait() and spin_is_locked().
-	 *
-	 * Note that regular mutual exclusion doesn't care about this
-	 * delayed store.
+	 * Any !0 state indicates it is locked, even if _Q_LOCKED_VAL
+	 * isn't immediately observable.
 	 */
-	smp_mb();
-	return atomic_read(&lock->val) & _Q_LOCKED_MASK;
+	return atomic_read(&lock->val);
 }
+#endif
 
 /**
  * queued_spin_value_unlocked - is the spinlock structure unlocked?
@@ -120,21 +116,6 @@ static __always_inline void queued_spin_unlock(struct qspinlock *lock)
 	atomic_sub(_Q_LOCKED_VAL, &lock->val);
 }
 #endif
-
-/**
- * queued_spin_unlock_wait - wait until current lock holder releases the lock
- * @lock : Pointer to queued spinlock structure
- *
- * There is a very slight possibility of live-lock if the lockers keep coming
- * and the waiter is just unfortunate enough to not see any unlock state.
- */
-static inline void queued_spin_unlock_wait(struct qspinlock *lock)
-{
-	/* See queued_spin_is_locked() */
-	smp_mb();
-	while (atomic_read(&lock->val) & _Q_LOCKED_MASK)
-		cpu_relax();
-}
 
 #ifndef virt_spin_lock
 static __always_inline bool virt_spin_lock(struct qspinlock *lock)

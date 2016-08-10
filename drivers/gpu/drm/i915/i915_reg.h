@@ -7357,6 +7357,8 @@ enum skl_disp_power_wells {
 #define  TRANS_CLK_SEL_DISABLED		(0x0<<29)
 #define  TRANS_CLK_SEL_PORT(x)		(((x)+1)<<29)
 
+#define CDCLK_FREQ			0x46200
+
 #define TRANSA_MSA_MISC			0x60410
 #define TRANSB_MSA_MISC			0x61410
 #define TRANSC_MSA_MISC			0x62410

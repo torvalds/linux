@@ -74,7 +74,7 @@ extern void *__init __fixmap_remap_fdt(phys_addr_t dt_phys, int *size,
  * containing function pointers) to be reinitialized, and zero-initialized
  * .bss variables will be reset to 0.
  */
-u64 __init kaslr_early_init(u64 dt_phys)
+u64 __init kaslr_early_init(u64 dt_phys, u64 modulo_offset)
 {
 	void *fdt;
 	u64 seed, offset, mask, module_range;
@@ -132,8 +132,8 @@ u64 __init kaslr_early_init(u64 dt_phys)
 	 * boundary (for 4KB/16KB/64KB granule kernels, respectively). If this
 	 * happens, increase the KASLR offset by the size of the kernel image.
 	 */
-	if ((((u64)_text + offset) >> SWAPPER_TABLE_SHIFT) !=
-	    (((u64)_end + offset) >> SWAPPER_TABLE_SHIFT))
+	if ((((u64)_text + offset + modulo_offset) >> SWAPPER_TABLE_SHIFT) !=
+	    (((u64)_end + offset + modulo_offset) >> SWAPPER_TABLE_SHIFT))
 		offset = (offset + (u64)(_end - _text)) & mask;
 
 	if (IS_ENABLED(CONFIG_KASAN))

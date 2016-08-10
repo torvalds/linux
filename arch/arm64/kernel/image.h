@@ -73,6 +73,8 @@
 
 #ifdef CONFIG_EFI
 
+__efistub_stext_offset = stext - _text;
+
 /*
  * Prevent the symbol aliases below from being emitted into the kallsyms
  * table, by forcing them to be absolute symbols (which are conveniently

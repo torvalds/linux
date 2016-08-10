@@ -387,7 +387,7 @@ config ARC_HAS_LLSC
 
 config ARC_STAR_9000923308
 	bool "Workaround for llock/scond livelock"
-	default y
+	default n
 	depends on ISA_ARCV2 && SMP && ARC_HAS_LLSC
 
 config ARC_HAS_SWAPE
