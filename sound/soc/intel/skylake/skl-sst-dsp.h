@@ -20,6 +20,7 @@
 #include <sound/memalloc.h>
 #include "skl-sst-cldma.h"
 #include "skl-tplg-interface.h"
+#include "skl-topology.h"
 
 struct sst_dsp;
 struct skl_sst;
@@ -210,10 +211,10 @@ int bxt_sst_init_fw(struct device *dev, struct skl_sst *ctx);
 void skl_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx);
 void bxt_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx);
 
-int snd_skl_get_module_info(struct skl_sst *ctx, u8 *uuid,
-		struct skl_dfw_module *dfw_config);
+int snd_skl_get_module_info(struct skl_sst *ctx,
+				struct skl_module_cfg *mconfig);
 int snd_skl_parse_uuids(struct sst_dsp *ctx, const struct firmware *fw,
-		unsigned int offset, int index);
+				unsigned int offset, int index);
 void skl_freeup_uuid_list(struct skl_sst *ctx);
 
 int skl_dsp_strip_extended_manifest(struct firmware *fw);

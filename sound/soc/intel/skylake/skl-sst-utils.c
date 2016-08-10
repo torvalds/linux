@@ -115,18 +115,18 @@ struct skl_ext_manifest_hdr {
 	u32 entries;
 };
 
-int snd_skl_get_module_info(struct skl_sst *ctx, u8 *uuid,
-			struct skl_dfw_module *dfw_config)
+int snd_skl_get_module_info(struct skl_sst *ctx,
+				struct skl_module_cfg *mconfig)
 {
 	struct uuid_module *module;
 	uuid_le *uuid_mod;
 
-	uuid_mod = (uuid_le *)uuid;
+	uuid_mod = (uuid_le *)mconfig->guid;
 
 	list_for_each_entry(module, &ctx->uuid_list, list) {
 		if (uuid_le_cmp(*uuid_mod, module->uuid) == 0) {
-			dfw_config->module_id = module->id;
-			dfw_config->is_loadable = module->is_loadable;
+			mconfig->id.module_id = module->id;
+			mconfig->is_loadable = module->is_loadable;
 
 			return 0;
 		}
