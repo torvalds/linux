@@ -197,7 +197,6 @@ struct qcom_smd_channel {
 	void *drvdata;
 
 	struct list_head list;
-	struct list_head dev_list;
 };
 
 /**
@@ -891,8 +890,6 @@ static int qcom_smd_dev_remove(struct device *dev)
 	struct qcom_smd_device *qsdev = to_smd_device(dev);
 	struct qcom_smd_driver *qsdrv = to_smd_driver(dev);
 	struct qcom_smd_channel *channel = qsdev->channel;
-	struct qcom_smd_channel *tmp;
-	struct qcom_smd_channel *ch;
 
 	qcom_smd_channel_set_state(channel, SMD_CHANNEL_CLOSING);
 
@@ -911,15 +908,9 @@ static int qcom_smd_dev_remove(struct device *dev)
 	if (qsdrv->remove)
 		qsdrv->remove(qsdev);
 
-	/*
-	 * The client is now gone, close and release all channels associated
-	 * with this sdev
-	 */
-	list_for_each_entry_safe(ch, tmp, &channel->dev_list, dev_list) {
-		qcom_smd_channel_close(ch);
-		list_del(&ch->dev_list);
-		ch->qsdev = NULL;
-	}
+	/* The client is now gone, close the primary channel */
+	qcom_smd_channel_close(channel);
+	channel->qsdev = NULL;
 
 	return 0;
 }
@@ -1091,6 +1082,8 @@ qcom_smd_find_channel(struct qcom_smd_edge *edge, const char *name)
  *
  * Returns a channel handle on success, or -EPROBE_DEFER if the channel isn't
  * ready.
+ *
+ * Any channels returned must be closed with a call to qcom_smd_close_channel()
  */
 struct qcom_smd_channel *qcom_smd_open_channel(struct qcom_smd_channel *parent,
 					       const char *name,
@@ -1120,14 +1113,20 @@ struct qcom_smd_channel *qcom_smd_open_channel(struct qcom_smd_channel *parent,
 		return ERR_PTR(ret);
 	}
 
-	/*
-	 * Append the list of channel to the channels associated with the sdev
-	 */
-	list_add_tail(&channel->dev_list, &sdev->channel->dev_list);
-
 	return channel;
 }
 EXPORT_SYMBOL(qcom_smd_open_channel);
+
+/**
+ * qcom_smd_close_channel() - close an additionally opened channel
+ * @channel:	channel handle, returned by qcom_smd_open_channel()
+ */
+void qcom_smd_close_channel(struct qcom_smd_channel *channel)
+{
+	qcom_smd_channel_close(channel);
+	channel->qsdev = NULL;
+}
+EXPORT_SYMBOL(qcom_smd_close_channel);
 
 /*
  * Allocate the qcom_smd_channel object for a newly found smd channel,
@@ -1150,7 +1149,6 @@ static struct qcom_smd_channel *qcom_smd_create_channel(struct qcom_smd_edge *ed
 	if (!channel)
 		return ERR_PTR(-ENOMEM);
 
-	INIT_LIST_HEAD(&channel->dev_list);
 	channel->edge = edge;
 	channel->name = devm_kstrdup(smd->dev, name, GFP_KERNEL);
 	if (!channel->name)
