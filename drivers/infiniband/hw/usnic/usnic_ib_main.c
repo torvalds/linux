@@ -664,7 +664,8 @@ static int __init usnic_ib_init(void)
 		return err;
 	}
 
-	if (pci_register_driver(&usnic_ib_pci_driver)) {
+	err = pci_register_driver(&usnic_ib_pci_driver);
+	if (err) {
 		usnic_err("Unable to register with PCI\n");
 		goto out_umem_fini;
 	}
