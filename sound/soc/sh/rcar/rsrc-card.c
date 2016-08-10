@@ -134,7 +134,6 @@ static int rsrc_card_parse_links(struct device_node *np,
 	struct device *dev = rsrc_priv_to_dev(priv);
 	struct snd_soc_dai_link *dai_link = rsrc_priv_to_link(priv, idx);
 	struct asoc_simple_dai *dai_props = rsrc_priv_to_props(priv, idx);
-	int is_single_links = 0;
 	int ret;
 
 	/* Parse TDM slot */
@@ -147,6 +146,8 @@ static int rsrc_card_parse_links(struct device_node *np,
 		return ret;
 
 	if (is_fe) {
+		int is_single_links = 0;
+
 		/* BE is dummy */
 		dai_link->codec_of_node		= NULL;
 		dai_link->codec_dai_name	= "snd-soc-dummy-dai";
@@ -171,17 +172,7 @@ static int rsrc_card_parse_links(struct device_node *np,
 		if (ret < 0)
 			return ret;
 
-		/*
-		 * In soc_bind_dai_link() will check cpu name after
-		 * of_node matching if dai_link has cpu_dai_name.
-		 * but, it will never match if name was created by
-		 * fmt_single_name() remove cpu_dai_name if cpu_args
-		 * was 0. See:
-		 *	fmt_single_name()
-		 *	fmt_multiple_name()
-		 */
-		if (is_single_links)
-			dai_link->cpu_dai_name = NULL;
+		asoc_simple_card_canonicalize_cpu(dai_link, is_single_links);
 	} else {
 		const struct rsrc_card_of_data *of_data;
 
