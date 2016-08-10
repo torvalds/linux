@@ -131,6 +131,8 @@ struct zfcp_dbf_hba_res {
 	u8  prot_status_qual[FSF_PROT_STATUS_QUAL_SIZE];
 	u32 fsf_status;
 	u8  fsf_status_qual[FSF_STATUS_QUALIFIER_SIZE];
+	u32 port_handle;
+	u32 lun_handle;
 } __packed;
 
 /**
