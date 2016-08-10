@@ -24,6 +24,7 @@
 int cxd2820r_set_frontend_c(struct dvb_frontend *fe)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
+	struct i2c_client *client = priv->client[0];
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret, i;
 	unsigned int utmp;
@@ -47,8 +48,10 @@ int cxd2820r_set_frontend_c(struct dvb_frontend *fe)
 		{ 0x10071, !priv->ts_clk_inv << 4, 0x10 },
 	};
 
-	dev_dbg(&priv->i2c->dev, "%s: frequency=%d symbol_rate=%d\n", __func__,
-			c->frequency, c->symbol_rate);
+	dev_dbg(&client->dev,
+		"delivery_system=%d modulation=%d frequency=%u symbol_rate=%u inversion=%d\n",
+		c->delivery_system, c->modulation, c->frequency,
+		c->symbol_rate, c->inversion);
 
 	/* program tuner */
 	if (fe->ops.tuner_ops.set_params)
@@ -71,8 +74,7 @@ int cxd2820r_set_frontend_c(struct dvb_frontend *fe)
 		ret = fe->ops.tuner_ops.get_if_frequency(fe, &if_frequency);
 		if (ret)
 			goto error;
-		dev_dbg(&priv->i2c->dev, "%s: if_frequency=%u\n", __func__,
-			if_frequency);
+		dev_dbg(&client->dev, "if_frequency=%u\n", if_frequency);
 	} else {
 		ret = -EINVAL;
 		goto error;
@@ -95,7 +97,7 @@ int cxd2820r_set_frontend_c(struct dvb_frontend *fe)
 
 	return ret;
 error:
-	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
 }
 
@@ -103,8 +105,11 @@ int cxd2820r_get_frontend_c(struct dvb_frontend *fe,
 			    struct dtv_frontend_properties *c)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
+	struct i2c_client *client = priv->client[0];
 	int ret;
 	u8 buf[2];
+
+	dev_dbg(&client->dev, "\n");
 
 	ret = cxd2820r_rd_regs(priv, 0x1001a, buf, 2);
 	if (ret)
@@ -145,13 +150,14 @@ int cxd2820r_get_frontend_c(struct dvb_frontend *fe,
 
 	return ret;
 error:
-	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
 }
 
 int cxd2820r_read_status_c(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
+	struct i2c_client *client = priv->client[0];
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
 	unsigned int utmp;
@@ -172,8 +178,7 @@ int cxd2820r_read_status_c(struct dvb_frontend *fe, enum fe_status *status)
 		}
 	}
 
-	dev_dbg(&priv->i2c->dev, "%s: lock=%02x %02x\n", __func__, buf[0],
-			buf[1]);
+	dev_dbg(&client->dev, "lock=%*ph\n", 2, buf);
 
 	/* Signal strength */
 	if (*status & FE_HAS_SIGNAL) {
@@ -275,14 +280,17 @@ int cxd2820r_read_status_c(struct dvb_frontend *fe, enum fe_status *status)
 
 	return ret;
 error:
-	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
 }
 
 int cxd2820r_init_c(struct dvb_frontend *fe)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
+	struct i2c_client *client = priv->client[0];
 	int ret;
+
+	dev_dbg(&client->dev, "\n");
 
 	ret = cxd2820r_wr_reg(priv, 0x00085, 0x07);
 	if (ret)
@@ -290,13 +298,14 @@ int cxd2820r_init_c(struct dvb_frontend *fe)
 
 	return ret;
 error:
-	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
 }
 
 int cxd2820r_sleep_c(struct dvb_frontend *fe)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
+	struct i2c_client *client = priv->client[0];
 	int ret, i;
 	struct reg_val_mask tab[] = {
 		{ 0x000ff, 0x1f, 0xff },
@@ -306,7 +315,7 @@ int cxd2820r_sleep_c(struct dvb_frontend *fe)
 		{ 0x00080, 0x00, 0xff },
 	};
 
-	dev_dbg(&priv->i2c->dev, "%s\n", __func__);
+	dev_dbg(&client->dev, "\n");
 
 	priv->delivery_system = SYS_UNDEFINED;
 
@@ -319,7 +328,7 @@ int cxd2820r_sleep_c(struct dvb_frontend *fe)
 
 	return ret;
 error:
-	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
 }
 
