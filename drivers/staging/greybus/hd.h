@@ -22,6 +22,7 @@ struct gb_hd_driver {
 	int (*cport_enable)(struct gb_host_device *hd, u16 cport_id,
 				unsigned long flags);
 	int (*cport_disable)(struct gb_host_device *hd, u16 cport_id);
+	int (*cport_connected)(struct gb_host_device *hd, u16 cport_id);
 	int (*cport_flush)(struct gb_host_device *hd, u16 cport_id);
 	int (*cport_ping)(struct gb_host_device *hd, u16 cport_id);
 	int (*message_send)(struct gb_host_device *hd, u16 dest_cport_id,

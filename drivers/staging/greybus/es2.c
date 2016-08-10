@@ -746,6 +746,25 @@ static int cport_disable(struct gb_host_device *hd, u16 cport_id)
 	return 0;
 }
 
+static int es2_cport_connected(struct gb_host_device *hd, u16 cport_id)
+{
+	struct es2_ap_dev *es2 = hd_to_es2(hd);
+	struct device *dev = &es2->usb_dev->dev;
+	struct arpc_cport_connected_req req;
+	int ret;
+
+	req.cport_id = cpu_to_le16(cport_id);
+	ret = arpc_sync(es2, ARPC_TYPE_CPORT_CONNECTED, &req, sizeof(req),
+			NULL, ES2_ARPC_CPORT_TIMEOUT);
+	if (ret) {
+		dev_err(dev, "failed to set connected state for cport %u: %d\n",
+				cport_id, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int latency_tag_enable(struct gb_host_device *hd, u16 cport_id)
 {
 	int retval;
@@ -930,6 +949,7 @@ static struct gb_hd_driver es2_driver = {
 	.cport_release			= es2_cport_release,
 	.cport_enable			= cport_enable,
 	.cport_disable			= cport_disable,
+	.cport_connected		= es2_cport_connected,
 	.latency_tag_enable		= latency_tag_enable,
 	.latency_tag_disable		= latency_tag_disable,
 	.output				= output,
