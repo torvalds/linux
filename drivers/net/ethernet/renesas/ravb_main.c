@@ -2104,7 +2104,7 @@ static int ravb_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int ravb_runtime_suspend(struct device *dev)
+static int ravb_suspend(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	int ret = 0;
@@ -2117,7 +2117,7 @@ static int ravb_runtime_suspend(struct device *dev)
 	return ret;
 }
 
-static int ravb_runtime_resume(struct device *dev)
+static int ravb_resume(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct ravb_private *priv = netdev_priv(ndev);
@@ -2165,7 +2165,7 @@ static int ravb_runtime_nop(struct device *dev)
 }
 
 static const struct dev_pm_ops ravb_dev_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(ravb_runtime_suspend, ravb_runtime_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(ravb_suspend, ravb_resume)
 	SET_RUNTIME_PM_OPS(ravb_runtime_nop, ravb_runtime_nop, NULL)
 };
 
