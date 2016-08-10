@@ -170,6 +170,7 @@
 #define AMSTREAM_IOC_GET_SUBTITLE_INFO       _IOR(AMSTREAM_IOC_MAGIC, 0xad, unsigned long)
 #define AMSTREAM_IOC_SET_SUBTITLE_INFO       _IOW(AMSTREAM_IOC_MAGIC, 0xae, unsigned long)
 #define AMSTREAM_IOC_SET_OMX_VPTS            _IOW(AMSTREAM_IOC_MAGIC, 0xaf, unsigned long)
+#define AMSTREAM_IOC_GET_OMX_VPTS            _IOW(AMSTREAM_IOC_MAGIC, 0xb0, unsigned long)
 #define TRICKMODE_NONE       0x00
 #define TRICKMODE_I          0x01
 #define TRICKMODE_FFFB       0x02
