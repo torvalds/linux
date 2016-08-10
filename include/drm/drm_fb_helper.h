@@ -32,6 +32,7 @@
 
 struct drm_fb_helper;
 
+#include <drm/drm_crtc.h>
 #include <linux/kgdb.h>
 
 enum mode_set_atomic {
@@ -282,6 +283,12 @@ drm_pick_cmdline_mode(struct drm_fb_helper_connector *fb_helper_conn,
 int drm_fb_helper_add_one_connector(struct drm_fb_helper *fb_helper, struct drm_connector *connector);
 int drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,
 				       struct drm_connector *connector);
+static inline int
+drm_fb_helper_remove_conflicting_framebuffers(struct apertures_struct *a,
+					      const char *name, bool primary)
+{
+	return remove_conflicting_framebuffers(a, name, primary);
+}
 #else
 static inline int drm_fb_helper_modinit(void)
 {
@@ -472,6 +479,13 @@ drm_fb_helper_add_one_connector(struct drm_fb_helper *fb_helper,
 static inline int
 drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,
 				   struct drm_connector *connector)
+{
+	return 0;
+}
+
+static inline int
+drm_fb_helper_remove_conflicting_framebuffers(struct apertures_struct *a,
+					      const char *name, bool primary)
 {
 	return 0;
 }

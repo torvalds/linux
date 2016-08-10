@@ -341,7 +341,7 @@ static int amdgpu_kick_out_firmware_fb(struct pci_dev *pdev)
 #ifdef CONFIG_X86
 	primary = pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW;
 #endif
-	remove_conflicting_framebuffers(ap, "amdgpudrmfb", primary);
+	drm_fb_helper_remove_conflicting_framebuffers(ap, "amdgpudrmfb", primary);
 	kfree(ap);
 
 	return 0;
