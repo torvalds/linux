@@ -833,7 +833,7 @@ static int timesync_enable(struct gb_host_device *hd, u8 count,
 	request->strobe_delay = cpu_to_le32(strobe_delay);
 	request->refclk = cpu_to_le32(refclk);
 	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
-				 REQUEST_TIMESYNC_ENABLE,
+				 GB_APB_REQUEST_TIMESYNC_ENABLE,
 				 USB_DIR_OUT | USB_TYPE_VENDOR |
 				 USB_RECIP_INTERFACE, 0, 0, request,
 				 sizeof(*request), ES2_USB_CTRL_TIMEOUT);
@@ -851,7 +851,7 @@ static int timesync_disable(struct gb_host_device *hd)
 	struct usb_device *udev = es2->usb_dev;
 
 	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
-				 REQUEST_TIMESYNC_DISABLE,
+				 GB_APB_REQUEST_TIMESYNC_DISABLE,
 				 USB_DIR_OUT | USB_TYPE_VENDOR |
 				 USB_RECIP_INTERFACE, 0, 0, NULL,
 				 0, ES2_USB_CTRL_TIMEOUT);
@@ -876,7 +876,7 @@ static int timesync_authoritative(struct gb_host_device *hd, u64 *frame_time)
 		request->frame_time[i] = cpu_to_le64(frame_time[i]);
 
 	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
-				 REQUEST_TIMESYNC_AUTHORITATIVE,
+				 GB_APB_REQUEST_TIMESYNC_AUTHORITATIVE,
 				 USB_DIR_OUT | USB_TYPE_VENDOR |
 				 USB_RECIP_INTERFACE, 0, 0, request,
 				 sizeof(*request), ES2_USB_CTRL_TIMEOUT);
@@ -899,7 +899,7 @@ static int timesync_get_last_event(struct gb_host_device *hd, u64 *frame_time)
 		return -ENOMEM;
 
 	retval = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
-				 REQUEST_TIMESYNC_GET_LAST_EVENT,
+				 GB_APB_REQUEST_TIMESYNC_GET_LAST_EVENT,
 				 USB_DIR_IN | USB_TYPE_VENDOR |
 				 USB_RECIP_INTERFACE, 0, 0, response_frame_time,
 				 sizeof(*response_frame_time),
@@ -1165,7 +1165,7 @@ static int arpc_send(struct es2_ap_dev *es2, struct arpc *rpc, int timeout)
 	int retval;
 
 	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
-				 APBA_REQUEST_ARPC_RUN,
+				 GB_APB_REQUEST_ARPC_RUN,
 				 USB_DIR_OUT | USB_TYPE_VENDOR |
 				 USB_RECIP_INTERFACE,
 				 0, 0,

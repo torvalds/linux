@@ -250,17 +250,17 @@ struct gb_control_intf_pm_response {
 #define GB_APB_REQUEST_CPORT_FEAT_EN		0x0b
 #define GB_APB_REQUEST_CPORT_FEAT_DIS		0x0c
 
-/* TimeSync commands */
-#define REQUEST_TIMESYNC_ENABLE			0x0d
-#define REQUEST_TIMESYNC_DISABLE		0x0e
-#define REQUEST_TIMESYNC_AUTHORITATIVE		0x0f
-#define REQUEST_TIMESYNC_GET_LAST_EVENT		0x10
+/* TimeSync requests */
+#define GB_APB_REQUEST_TIMESYNC_ENABLE		0x0d
+#define GB_APB_REQUEST_TIMESYNC_DISABLE		0x0e
+#define GB_APB_REQUEST_TIMESYNC_AUTHORITATIVE	0x0f
+#define GB_APB_REQUEST_TIMESYNC_GET_LAST_EVENT	0x10
 
 /* requests to set Greybus CPort flags */
 #define GB_APB_REQUEST_CPORT_FLAGS		0x11
 
-/* ARPC command */
-#define APBA_REQUEST_ARPC_RUN			0x12
+/* ARPC request */
+#define GB_APB_REQUEST_ARPC_RUN			0x12
 
 struct gb_apb_request_cport_flags {
 	__le32	flags;
