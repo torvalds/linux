@@ -765,6 +765,35 @@ static int es2_cport_connected(struct gb_host_device *hd, u16 cport_id)
 	return 0;
 }
 
+static int es2_cport_quiesce(struct gb_host_device *hd, u16 cport_id,
+				size_t peer_space, unsigned int timeout)
+{
+	struct es2_ap_dev *es2 = hd_to_es2(hd);
+	struct device *dev = &es2->usb_dev->dev;
+	struct arpc_cport_quiesce_req req;
+	int result;
+	int ret;
+
+	if (peer_space > U16_MAX)
+		return -EINVAL;
+
+	if (timeout > U16_MAX)
+		return -EINVAL;
+
+	req.cport_id = cpu_to_le16(cport_id);
+	req.peer_space = cpu_to_le16(peer_space);
+	req.timeout = cpu_to_le16(timeout);
+	ret = arpc_sync(es2, ARPC_TYPE_CPORT_QUIESCE, &req, sizeof(req),
+			&result, ES2_ARPC_CPORT_TIMEOUT + timeout);
+	if (ret) {
+		dev_err(dev, "failed to quiesce cport %u: %d (%d)\n",
+				cport_id, ret, result);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int latency_tag_enable(struct gb_host_device *hd, u16 cport_id)
 {
 	int retval;
@@ -950,6 +979,7 @@ static struct gb_hd_driver es2_driver = {
 	.cport_enable			= cport_enable,
 	.cport_disable			= cport_disable,
 	.cport_connected		= es2_cport_connected,
+	.cport_quiesce			= es2_cport_quiesce,
 	.latency_tag_enable		= latency_tag_enable,
 	.latency_tag_disable		= latency_tag_disable,
 	.output				= output,

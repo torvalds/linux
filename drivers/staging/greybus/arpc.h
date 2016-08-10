@@ -78,6 +78,7 @@ struct arpc_response_message {
 /* ARPC requests */
 #define ARPC_TYPE_CPORT_RESET			0x00
 #define ARPC_TYPE_CPORT_CONNECTED		0x01
+#define ARPC_TYPE_CPORT_QUIESCE			0x02
 
 struct arpc_cport_reset_req {
 	__le16 cport_id;
@@ -85,6 +86,12 @@ struct arpc_cport_reset_req {
 
 struct arpc_cport_connected_req {
 	__le16 cport_id;
+} __packed;
+
+struct arpc_cport_quiesce_req {
+	__le16 cport_id;
+	__le16 peer_space;
+	__le16 timeout;
 } __packed;
 
 
