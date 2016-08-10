@@ -3,7 +3,7 @@
  *
  * Debug traces for zfcp.
  *
- * Copyright IBM Corp. 2002, 2013
+ * Copyright IBM Corp. 2002, 2015
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -65,7 +65,7 @@ void zfcp_dbf_pl_write(struct zfcp_dbf *dbf, void *data, u16 length, char *area,
  * @tag: tag indicating which kind of unsolicited status has been received
  * @req: request for which a response was received
  */
-void zfcp_dbf_hba_fsf_res(char *tag, struct zfcp_fsf_req *req)
+void zfcp_dbf_hba_fsf_res(char *tag, int level, struct zfcp_fsf_req *req)
 {
 	struct zfcp_dbf *dbf = req->adapter->dbf;
 	struct fsf_qtcb_prefix *q_pref = &req->qtcb->prefix;
@@ -97,7 +97,7 @@ void zfcp_dbf_hba_fsf_res(char *tag, struct zfcp_fsf_req *req)
 				  rec->pl_len, "fsf_res", req->req_id);
 	}
 
-	debug_event(dbf->hba, 1, rec, sizeof(*rec));
+	debug_event(dbf->hba, level, rec, sizeof(*rec));
 	spin_unlock_irqrestore(&dbf->hba_lock, flags);
 }
 
@@ -399,7 +399,8 @@ void zfcp_dbf_san_in_els(char *tag, struct zfcp_fsf_req *fsf)
  * @sc: pointer to struct scsi_cmnd
  * @fsf: pointer to struct zfcp_fsf_req
  */
-void zfcp_dbf_scsi(char *tag, struct scsi_cmnd *sc, struct zfcp_fsf_req *fsf)
+void zfcp_dbf_scsi(char *tag, int level, struct scsi_cmnd *sc,
+		   struct zfcp_fsf_req *fsf)
 {
 	struct zfcp_adapter *adapter =
 		(struct zfcp_adapter *) sc->device->host->hostdata[0];
@@ -442,7 +443,7 @@ void zfcp_dbf_scsi(char *tag, struct scsi_cmnd *sc, struct zfcp_fsf_req *fsf)
 		}
 	}
 
-	debug_event(dbf->scsi, 1, rec, sizeof(*rec));
+	debug_event(dbf->scsi, level, rec, sizeof(*rec));
 	spin_unlock_irqrestore(&dbf->scsi_lock, flags);
 }
 
