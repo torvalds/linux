@@ -389,7 +389,7 @@ void zfcp_dbf_san_req(char *tag, struct zfcp_fsf_req *fsf, u32 d_id)
 	struct zfcp_fsf_ct_els *ct_els = fsf->data;
 	u16 length;
 
-	length = (u16)(ct_els->req->length + FC_CT_HDR_LEN);
+	length = (u16)(ct_els->req->length);
 	zfcp_dbf_san(tag, dbf, sg_virt(ct_els->req), ZFCP_DBF_SAN_REQ, length,
 		     fsf->req_id, d_id);
 }
@@ -405,7 +405,7 @@ void zfcp_dbf_san_res(char *tag, struct zfcp_fsf_req *fsf)
 	struct zfcp_fsf_ct_els *ct_els = fsf->data;
 	u16 length;
 
-	length = (u16)(ct_els->resp->length + FC_CT_HDR_LEN);
+	length = (u16)(ct_els->resp->length);
 	zfcp_dbf_san(tag, dbf, sg_virt(ct_els->resp), ZFCP_DBF_SAN_RES, length,
 		     fsf->req_id, ct_els->d_id);
 }
