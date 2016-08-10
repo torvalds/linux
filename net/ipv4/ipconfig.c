@@ -1493,14 +1493,6 @@ static int __init ip_auto_config(void)
 		return -1;
 
 	/*
-	 * Close all network devices except the device we've
-	 * autoconfigured and set up routes.
-	 */
-	ic_close_devs();
-	if (ic_setup_if() < 0 || ic_setup_routes() < 0)
-		return -1;
-
-	/*
 	 * Record which protocol was actually used.
 	 */
 #ifdef IPCONFIG_DYNAMIC
@@ -1533,6 +1525,15 @@ static int __init ip_auto_config(void)
 			pr_cont(", nameserver%u=%pI4", i, &ic_nameservers[i]);
 	pr_cont("\n");
 #endif /* !SILENT */
+
+	/*
+	 * Close all network devices except the device we've
+	 * autoconfigured and set up routes.
+	 */
+	ic_close_devs();
+	if (ic_setup_if() < 0 || ic_setup_routes() < 0)
+		return -1;
+
 
 	return 0;
 }
