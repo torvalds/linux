@@ -80,6 +80,7 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 #define VIRTUAL_SOC			66
 #define VIRTUAL_PRESET			1
 #define VIRTUAL_TEMPERATURE		188
+#define VIRTUAL_STATUS			POWER_SUPPLY_STATUS_CHARGING
 
 /* charge */
 #define FINISH_CHRG_CUR			1000
@@ -830,6 +831,7 @@ static enum power_supply_property rk818_bat_props[] = {
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_TEMP,
+	POWER_SUPPLY_PROP_STATUS,
 };
 
 static int rk818_battery_get_property(struct power_supply *psy,
@@ -867,6 +869,16 @@ static int rk818_battery_get_property(struct power_supply *psy,
 		val->intval = di->temperature;
 		if (di->pdata->bat_mode == MODE_VIRTUAL)
 			val->intval = VIRTUAL_TEMPERATURE;
+		break;
+	case POWER_SUPPLY_PROP_STATUS:
+		if (di->pdata->bat_mode == MODE_VIRTUAL)
+			val->intval = VIRTUAL_STATUS;
+		else if (di->dsoc == 100)
+			val->intval = POWER_SUPPLY_STATUS_FULL;
+		else if (rk818_bat_chrg_online(di))
+			val->intval = POWER_SUPPLY_STATUS_CHARGING;
+		else
+			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
 		break;
 	default:
 		return -EINVAL;
