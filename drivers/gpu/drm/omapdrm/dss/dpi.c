@@ -67,6 +67,45 @@ static struct dpi_data *dpi_get_data_from_pdev(struct platform_device *pdev)
 	return dev_get_drvdata(&pdev->dev);
 }
 
+static enum dss_clk_source dpi_get_clk_src_dra7xx(enum omap_channel channel)
+{
+	/*
+	 * Possible clock sources:
+	 * LCD1: FCK/PLL1_1/HDMI_PLL
+	 * LCD2: FCK/PLL1_3/HDMI_PLL (DRA74x: PLL2_3)
+	 * LCD3: FCK/PLL1_3/HDMI_PLL (DRA74x: PLL2_1)
+	 */
+
+	switch (channel) {
+	case OMAP_DSS_CHANNEL_LCD:
+	{
+		if (dss_pll_find_by_src(DSS_CLK_SRC_PLL1_1))
+			return DSS_CLK_SRC_PLL1_1;
+		break;
+	}
+	case OMAP_DSS_CHANNEL_LCD2:
+	{
+		if (dss_pll_find_by_src(DSS_CLK_SRC_PLL1_3))
+			return DSS_CLK_SRC_PLL1_3;
+		if (dss_pll_find_by_src(DSS_CLK_SRC_PLL2_3))
+			return DSS_CLK_SRC_PLL2_3;
+		break;
+	}
+	case OMAP_DSS_CHANNEL_LCD3:
+	{
+		if (dss_pll_find_by_src(DSS_CLK_SRC_PLL2_1))
+			return DSS_CLK_SRC_PLL2_1;
+		if (dss_pll_find_by_src(DSS_CLK_SRC_PLL1_3))
+			return DSS_CLK_SRC_PLL1_3;
+		break;
+	}
+	default:
+		break;
+	}
+
+	return DSS_CLK_SRC_FCK;
+}
+
 static enum dss_clk_source dpi_get_clk_src(enum omap_channel channel)
 {
 	/*
@@ -107,16 +146,7 @@ static enum dss_clk_source dpi_get_clk_src(enum omap_channel channel)
 		}
 
 	case OMAPDSS_VER_DRA7xx:
-		switch (channel) {
-		case OMAP_DSS_CHANNEL_LCD:
-			return DSS_CLK_SRC_PLL1_1;
-		case OMAP_DSS_CHANNEL_LCD2:
-			return DSS_CLK_SRC_PLL1_3;
-		case OMAP_DSS_CHANNEL_LCD3:
-			return DSS_CLK_SRC_PLL2_1;
-		default:
-			return DSS_CLK_SRC_FCK;
-		}
+		return dpi_get_clk_src_dra7xx(channel);
 
 	default:
 		return DSS_CLK_SRC_FCK;
