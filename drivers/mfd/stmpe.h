@@ -138,6 +138,7 @@ int stmpe_remove(struct stmpe *stmpe);
 #define STMPE811_NR_INTERNAL_IRQS	8
 
 #define STMPE811_REG_CHIP_ID		0x00
+#define STMPE811_REG_SYS_CTRL		0x03
 #define STMPE811_REG_SYS_CTRL2		0x04
 #define STMPE811_REG_SPI_CFG		0x08
 #define STMPE811_REG_INT_CTRL		0x09
@@ -264,6 +265,7 @@ int stmpe_remove(struct stmpe *stmpe);
 #define STMPE24XX_NR_INTERNAL_IRQS	9
 
 #define STMPE24XX_REG_SYS_CTRL		0x02
+#define STMPE24XX_REG_SYS_CTRL2		0x03
 #define STMPE24XX_REG_ICR_LSB		0x11
 #define STMPE24XX_REG_IER_LSB		0x13
 #define STMPE24XX_REG_ISR_MSB		0x14
