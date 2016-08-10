@@ -227,6 +227,7 @@ struct rockchip_usb2phy {
 	enum usb_chg_state	chg_state;
 	enum power_supply_type	chg_type;
 	u8			dcd_retries;
+	u8			primary_retries;
 	struct extcon_dev	*edev;
 	const struct rockchip_usb2phy_cfg	*phy_cfg;
 	struct rockchip_usb2phy_port	ports[USB2PHY_NUM_PORTS];
@@ -703,6 +704,7 @@ static void rockchip_chg_detect_work(struct work_struct *work)
 		rockchip_chg_enable_dcd(rphy, true);
 		rphy->chg_state = USB_CHG_STATE_WAIT_FOR_DCD;
 		rphy->dcd_retries = 0;
+		rphy->primary_retries = 0;
 		delay = CHG_DCD_POLL_TIME;
 		break;
 	case USB_CHG_STATE_WAIT_FOR_DCD:
@@ -738,6 +740,19 @@ static void rockchip_chg_detect_work(struct work_struct *work)
 				rphy->chg_state = USB_CHG_STATE_DETECTED;
 				delay = 0;
 			} else {
+				if (rphy->primary_retries < 2) {
+					/* Turn off DCD circuitry */
+					rockchip_chg_enable_dcd(rphy, false);
+					/* Voltage Source on DP, Probe on DM */
+					rockchip_chg_enable_primary_det(rphy,
+									true);
+					delay = CHG_PRIMARY_DET_TIME;
+					rphy->chg_state =
+						USB_CHG_STATE_DCD_DONE;
+					rphy->primary_retries++;
+					/* break USB_CHG_STATE_DCD_DONE */
+					break;
+				}
 				rphy->chg_type = POWER_SUPPLY_TYPE_USB;
 				rphy->chg_state = USB_CHG_STATE_DETECTED;
 				delay = 0;
