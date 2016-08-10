@@ -139,44 +139,45 @@ struct fw_mgmt_ioc_backend_fw_update {
 
 1. FW_MGMT_IOC_GET_INTF_FW:
 
-   This ioctl shall be used the user to get the version and firmware-tag of the
-   currently running Interface Firmware. All the fields of the 'struct
+   This ioctl shall be used by the user to get the version and firmware-tag of
+   the currently running Interface Firmware. All the fields of the 'struct
    fw_mgmt_ioc_get_fw' are filled by the kernel.
 
 2. FW_MGMT_IOC_GET_BACKEND_FW:
 
-   This ioctl shall be used the user to get the version of a currently running
-   Backend Interface Firmware identified by a firmware-tag. The user is required
-   to fill the 'firmware_tag' field of the 'struct fw_mgmt_ioc_get_fw' in this
-   case. The 'major' and 'minor' fields are set by the kernel in response.
+   This ioctl shall be used by the user to get the version of a currently
+   running Backend Interface Firmware identified by a firmware-tag. The user is
+   required to fill the 'firmware_tag' field of the 'struct fw_mgmt_ioc_get_fw'
+   in this case. The 'major' and 'minor' fields are set by the kernel in
+   response.
 
 3. FW_MGMT_IOC_INTF_LOAD_AND_VALIDATE:
 
-   This ioctl shall be used the user to load an Interface Firmware package on an
-   Interface. The user needs to fill the 'firmware_tag' and 'load_method' fields
-   of the 'struct fw_mgmt_ioc_intf_load_and_validate'. The 'status', 'major' and
-   'minor' fields are set by the kernel in response.
+   This ioctl shall be used by the user to load an Interface Firmware package on
+   an Interface. The user needs to fill the 'firmware_tag' and 'load_method'
+   fields of the 'struct fw_mgmt_ioc_intf_load_and_validate'. The 'status',
+   'major' and 'minor' fields are set by the kernel in response.
 
 4. FW_MGMT_IOC_INTF_BACKEND_FW_UPDATE:
 
-   This ioctl shall be used the user to request an Interface to update a Backend
-   Interface Firmware.  The user is required to fill the 'firmware_tag' field of
-   the 'struct fw_mgmt_ioc_get_fw' in this case. The 'status' field is set by
-   the kernel in response.
+   This ioctl shall be used by the user to request an Interface to update a
+   Backend Interface Firmware.  The user is required to fill the 'firmware_tag'
+   field of the 'struct fw_mgmt_ioc_get_fw' in this case. The 'status' field is
+   set by the kernel in response.
 
 5. FW_MGMT_IOC_SET_TIMEOUT_MS:
 
-   This ioctl shall be used the user to increase the timeout interval within
+   This ioctl shall be used by the user to increase the timeout interval within
    which the firmware must get loaded by the Module. The default timeout is 1
    second. The user needs to pass the timeout in milliseconds.
 
 6. FW_MGMT_IOC_MODE_SWITCH:
 
-   This ioctl shall be used the user to mode-switch the module to the previously
-   loaded interface firmware. If the interface firmware isn't loaded previously,
-   or if another unsuccessful FW_MGMT_IOC_INTF_LOAD_AND_VALIDATE operation is
-   started after loading interface firmware, then the firmware core wouldn't
-   allow mode-switch.
+   This ioctl shall be used by the user to mode-switch the module to the
+   previously loaded interface firmware. If the interface firmware isn't loaded
+   previously, or if another unsuccessful FW_MGMT_IOC_INTF_LOAD_AND_VALIDATE
+   operation is started after loading interface firmware, then the firmware core
+   wouldn't allow mode-switch.
 
 
 Sysfs Interfaces - Authentication
@@ -279,13 +280,13 @@ struct cap_ioc_authenticate {
 
 1. CAP_IOC_GET_ENDPOINT_UID:
 
-   This ioctl shall be used the user to get the endpoint UID associated with the
-   Interface.  All the fields of the 'struct cap_ioc_get_endpoint_uid' are
+   This ioctl shall be used by the user to get the endpoint UID associated with
+   the Interface.  All the fields of the 'struct cap_ioc_get_endpoint_uid' are
    filled by the kernel.
 
 2. CAP_IOC_GET_IMS_CERTIFICATE:
 
-   This ioctl shall be used the user to retrieve one of the available
+   This ioctl shall be used by the user to retrieve one of the available
    cryptographic certificates held by the Interface for use in Component
    Authentication. The user is required to fill the 'certificate_class' and
    'certificate_id' field of the 'struct cap_ioc_get_ims_certificate' in this
@@ -295,8 +296,8 @@ struct cap_ioc_authenticate {
 
 3. CAP_IOC_AUTHENTICATE:
 
-   This ioctl shall be used the user to authenticate the Module attached to an
-   Interface.  The user needs to fill the 'auth_type', 'uid', and 'challenge'
+   This ioctl shall be used by the user to authenticate the Module attached to
+   an Interface.  The user needs to fill the 'auth_type', 'uid', and 'challenge'
    fields of the 'struct cap_ioc_authenticate'. The other fields will be set by
    the kernel in response.  The first 'signature_size' bytes of the 'signature'
    shall be read by the user and others must be discarded.
