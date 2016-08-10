@@ -6854,7 +6854,7 @@ int sysctl_min_unmapped_ratio_sysctl_handler(struct ctl_table *table, int write,
 		return rc;
 
 	for_each_online_pgdat(pgdat)
-		pgdat->min_slab_pages = 0;
+		pgdat->min_unmapped_pages = 0;
 
 	for_each_zone(zone)
 		zone->zone_pgdat->min_unmapped_pages += (zone->managed_pages *
