@@ -14,6 +14,7 @@
 #include <linux/list.h>
 #include <asm/unaligned.h>
 
+#include "arpc.h"
 #include "greybus.h"
 #include "greybus_trace.h"
 #include "kernel_ver.h"
