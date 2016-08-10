@@ -1057,8 +1057,4 @@ static struct platform_driver armv8_pmu_driver = {
 	.probe		= armv8_pmu_device_probe,
 };
 
-static int __init register_armv8_pmu_driver(void)
-{
-	return platform_driver_register(&armv8_pmu_driver);
-}
-device_initcall(register_armv8_pmu_driver);
+builtin_platform_driver(armv8_pmu_driver);
