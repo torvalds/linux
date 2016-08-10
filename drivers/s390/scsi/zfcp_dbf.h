@@ -115,6 +115,7 @@ struct zfcp_dbf_san {
 	u32 d_id;
 #define ZFCP_DBF_SAN_MAX_PAYLOAD (FC_CT_HDR_LEN + 32)
 	char payload[ZFCP_DBF_SAN_MAX_PAYLOAD];
+	u16 pl_len;
 } __packed;
 
 /**
