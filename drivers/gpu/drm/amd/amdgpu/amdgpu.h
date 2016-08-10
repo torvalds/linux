@@ -92,7 +92,7 @@ extern unsigned amdgpu_cg_mask;
 extern unsigned amdgpu_pg_mask;
 extern char *amdgpu_disable_cu;
 extern int amdgpu_sclk_deep_sleep_en;
-extern int amdgpu_virtual_display;
+extern char *amdgpu_virtual_display;
 
 #define AMDGPU_WAIT_IDLE_TIMEOUT_IN_MS	        3000
 #define AMDGPU_MAX_USEC_TIMEOUT			100000	/* 100 ms */
@@ -2072,6 +2072,7 @@ struct amdgpu_device {
 	atomic_t			gpu_reset_counter;
 
 	/* display */
+	bool				enable_virtual_display;
 	struct amdgpu_mode_info		mode_info;
 	struct work_struct		hotplug_work;
 	struct amdgpu_irq_src		crtc_irq;

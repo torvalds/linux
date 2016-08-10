@@ -1441,7 +1441,7 @@ static const struct amdgpu_ip_block_version cz_ip_blocks_vd[] =
 
 int vi_set_ip_blocks(struct amdgpu_device *adev)
 {
-	if (amdgpu_virtual_display) {
+	if (adev->enable_virtual_display) {
 		switch (adev->asic_type) {
 		case CHIP_TOPAZ:
 			adev->ip_blocks = topaz_ip_blocks_vd;
