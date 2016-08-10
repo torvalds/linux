@@ -2,7 +2,7 @@
  * zfcp device driver
  * debug feature declarations
  *
- * Copyright IBM Corp. 2008, 2010
+ * Copyright IBM Corp. 2008, 2015
  */
 
 #ifndef ZFCP_DBF_H
@@ -16,6 +16,11 @@
 #define ZFCP_DBF_TAG_LEN       7
 
 #define ZFCP_DBF_INVALID_LUN	0xFFFFFFFFFFFFFFFFull
+
+enum zfcp_dbf_pseudo_erp_act_type {
+	ZFCP_PSEUDO_ERP_ACTION_RPORT_ADD = 0xff,
+	ZFCP_PSEUDO_ERP_ACTION_RPORT_DEL = 0xfe,
+};
 
 /**
  * struct zfcp_dbf_rec_trigger - trace record for triggered recovery action
