@@ -1476,6 +1476,7 @@ widget:
 	if (widget == NULL) {
 		dev_err(tplg->dev, "ASoC: failed to create widget %s controls\n",
 			w->name);
+		ret = -ENOMEM;
 		goto hdr_err;
 	}
 
