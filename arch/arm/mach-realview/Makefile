@@ -4,6 +4,6 @@
 ccflags-$(CONFIG_ARCH_MULTIPLATFORM) := -I$(srctree)/$(src)/include \
 	-I$(srctree)/arch/arm/plat-versatile/include
 
-obj-$(CONFIG_REALVIEW_DT)		+= realview-dt.o
+obj-y					+= realview-dt.o
 obj-$(CONFIG_SMP)			+= platsmp-dt.o
 obj-$(CONFIG_HOTPLUG_CPU)		+= hotplug.o
