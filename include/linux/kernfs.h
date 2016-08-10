@@ -344,6 +344,11 @@ static inline int kernfs_name(struct kernfs_node *kn, char *buf, size_t buflen)
 static inline size_t kernfs_path_len(struct kernfs_node *kn)
 { return 0; }
 
+static inline int kernfs_path_from_node(struct kernfs_node *root_kn,
+					struct kernfs_node *kn,
+					char *buf, size_t buflen)
+{ return -ENOSYS; }
+
 static inline char *kernfs_path(struct kernfs_node *kn, char *buf,
 				size_t buflen)
 { return NULL; }
