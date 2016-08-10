@@ -1348,22 +1348,6 @@ static int qcom_smd_parse_edge(struct device *dev,
 
 	edge->of_node = of_node_get(node);
 
-	irq = irq_of_parse_and_map(node, 0);
-	if (irq < 0) {
-		dev_err(dev, "required smd interrupt missing\n");
-		return -EINVAL;
-	}
-
-	ret = devm_request_irq(dev, irq,
-			       qcom_smd_edge_intr, IRQF_TRIGGER_RISING,
-			       node->name, edge);
-	if (ret) {
-		dev_err(dev, "failed to request smd irq\n");
-		return ret;
-	}
-
-	edge->irq = irq;
-
 	key = "qcom,smd-edge";
 	ret = of_property_read_u32(node, key, &edge->edge_id);
 	if (ret) {
@@ -1397,6 +1381,22 @@ static int qcom_smd_parse_edge(struct device *dev,
 		dev_err(dev, "no bit in %s\n", key);
 		return -EINVAL;
 	}
+
+	irq = irq_of_parse_and_map(node, 0);
+	if (irq < 0) {
+		dev_err(dev, "required smd interrupt missing\n");
+		return -EINVAL;
+	}
+
+	ret = devm_request_irq(dev, irq,
+			       qcom_smd_edge_intr, IRQF_TRIGGER_RISING,
+			       node->name, edge);
+	if (ret) {
+		dev_err(dev, "failed to request smd irq\n");
+		return ret;
+	}
+
+	edge->irq = irq;
 
 	return 0;
 }
