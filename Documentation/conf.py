@@ -268,7 +268,9 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'TheLinuxKernel.tex', 'The Linux Kernel Documentation',
+    ('kernel-documentation', 'kernel-documentation.tex', 'The Linux Kernel Documentation',
+     'The kernel development community', 'manual'),
+    ('gpu/index', 'gpu.tex', 'Linux GPU Driver Developer\'s Guide',
      'The kernel development community', 'manual'),
 ]
 
