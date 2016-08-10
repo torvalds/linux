@@ -85,6 +85,8 @@ void zfcp_dbf_hba_fsf_res(char *tag, int level, struct zfcp_fsf_req *req)
 	rec->u.res.req_issued = req->issued;
 	rec->u.res.prot_status = q_pref->prot_status;
 	rec->u.res.fsf_status = q_head->fsf_status;
+	rec->u.res.port_handle = q_head->port_handle;
+	rec->u.res.lun_handle = q_head->lun_handle;
 
 	memcpy(rec->u.res.prot_status_qual, &q_pref->prot_status_qual,
 	       FSF_PROT_STATUS_QUAL_SIZE);
