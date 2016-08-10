@@ -25,8 +25,8 @@ else ifneq ($(DOCBOOKS),)
 
 else # HAVE_SPHINX
 
-# User-friendly check for rst2pdf
-HAVE_RST2PDF := $(shell if python -c "import rst2pdf" >/dev/null 2>&1; then echo 1; else echo 0; fi)
+# User-friendly check for pdflatex
+HAVE_PDFLATEX := $(shell if which pdflatex >/dev/null 2>&1; then echo 1; else echo 0; fi)
 
 # Internal variables.
 PAPEROPT_a4     = -D latex_paper_size=a4
@@ -44,12 +44,13 @@ htmldocs:
 	$(call cmd,sphinx,html)
 
 pdfdocs:
-ifeq ($(HAVE_RST2PDF),0)
-	$(warning The Python 'rst2pdf' module was not found. Make sure you have the module installed to produce PDF output.)
+ifeq ($(HAVE_PDFLATEX),0)
+	$(warning The 'pdflatex' command was not found. Make sure you have it installed and in PATH to produce PDF output.)
 	@echo "  SKIP    Sphinx $@ target."
-else # HAVE_RST2PDF
-	$(call cmd,sphinx,pdf)
-endif # HAVE_RST2PDF
+else # HAVE_PDFLATEX
+	$(call cmd,sphinx,latex)
+	$(Q)$(MAKE) -C $(BUILDDIR)/latex
+endif # HAVE_PDFLATEX
 
 epubdocs:
 	$(call cmd,sphinx,epub)
