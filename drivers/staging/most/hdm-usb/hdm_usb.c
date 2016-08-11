@@ -650,10 +650,8 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 		return -ENODEV;
 
 	urb = usb_alloc_urb(NO_ISOCHRONOUS_URB, GFP_ATOMIC);
-	if (!urb) {
-		dev_err(dev, "Failed to allocate URB\n");
+	if (!urb)
 		return -ENOMEM;
-	}
 
 	anchor = kzalloc(sizeof(*anchor), GFP_ATOMIC);
 	if (!anchor) {
