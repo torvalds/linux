@@ -347,7 +347,7 @@ static const struct vm_operations_struct dax_dev_vm_ops = {
 	.close = dax_dev_vm_close,
 };
 
-static int dax_dev_mmap(struct file *filp, struct vm_area_struct *vma)
+static int dax_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct dax_dev *dax_dev = filp->private_data;
 	int rc;
@@ -365,7 +365,7 @@ static int dax_dev_mmap(struct file *filp, struct vm_area_struct *vma)
 }
 
 /* return an unmapped area aligned to the dax region specified alignment */
-static unsigned long dax_dev_get_unmapped_area(struct file *filp,
+static unsigned long dax_get_unmapped_area(struct file *filp,
 		unsigned long addr, unsigned long len, unsigned long pgoff,
 		unsigned long flags)
 {
@@ -411,7 +411,7 @@ static struct device *dax_dev_find(dev_t dev_t)
 	return class_find_device(dax_class, NULL, &dev_t, __match_devt);
 }
 
-static int dax_dev_open(struct inode *inode, struct file *filp)
+static int dax_open(struct inode *inode, struct file *filp)
 {
 	struct dax_dev *dax_dev = NULL;
 	struct device *dev;
@@ -437,7 +437,7 @@ static int dax_dev_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int dax_dev_release(struct inode *inode, struct file *filp)
+static int dax_release(struct inode *inode, struct file *filp)
 {
 	struct dax_dev *dax_dev = filp->private_data;
 	struct device *dev = dax_dev->dev;
@@ -452,10 +452,10 @@ static int dax_dev_release(struct inode *inode, struct file *filp)
 static const struct file_operations dax_fops = {
 	.llseek = noop_llseek,
 	.owner = THIS_MODULE,
-	.open = dax_dev_open,
-	.release = dax_dev_release,
-	.get_unmapped_area = dax_dev_get_unmapped_area,
-	.mmap = dax_dev_mmap,
+	.open = dax_open,
+	.release = dax_release,
+	.get_unmapped_area = dax_get_unmapped_area,
+	.mmap = dax_mmap,
 };
 
 static void unregister_dax_dev(void *_dev)
