@@ -329,6 +329,7 @@ static int really_probe(struct device *dev, struct device_driver *drv)
 {
 	int ret = -EPROBE_DEFER;
 	int local_trigger_count = atomic_read(&deferred_trigger_count);
+	bool test_remove = IS_ENABLED(CONFIG_DEBUG_TEST_DRIVER_REMOVE);
 
 	if (defer_all_probes) {
 		/*
@@ -346,6 +347,7 @@ static int really_probe(struct device *dev, struct device_driver *drv)
 		 drv->bus->name, __func__, drv->name, dev_name(dev));
 	WARN_ON(!list_empty(&dev->devres_head));
 
+re_probe:
 	dev->driver = drv;
 
 	/* If using pinctrl, bind pins now before probing */
@@ -381,6 +383,25 @@ static int really_probe(struct device *dev, struct device_driver *drv)
 		ret = drv->probe(dev);
 		if (ret)
 			goto probe_failed;
+	}
+
+	if (test_remove) {
+		test_remove = false;
+
+		if (dev->bus && dev->bus->remove)
+			dev->bus->remove(dev);
+		else if (drv->remove)
+			drv->remove(dev);
+
+		devres_release_all(dev);
+		driver_sysfs_remove(dev);
+		dev->driver = NULL;
+		dev_set_drvdata(dev, NULL);
+		if (dev->pm_domain && dev->pm_domain->dismiss)
+			dev->pm_domain->dismiss(dev);
+		pm_runtime_reinit(dev);
+
+		goto re_probe;
 	}
 
 	pinctrl_init_done(dev);
