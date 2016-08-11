@@ -283,7 +283,7 @@ static const DECLARE_TLV_DB_RANGE(mic_gain_tlv,
 	8, ARRAY_SIZE(mic_gain_table)-1, TLV_DB_SCALE_ITEM(-6500, 100, 0),
 );
 
-int pdmic_get_mic_volsw(struct snd_kcontrol *kcontrol,
+static int pdmic_get_mic_volsw(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
