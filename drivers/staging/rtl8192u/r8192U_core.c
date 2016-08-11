@@ -1702,11 +1702,8 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff *skb)
 		}
 		if (bSend0Byte) {
 			tx_urb_zero = usb_alloc_urb(0, GFP_ATOMIC);
-			if (!tx_urb_zero) {
-				RT_TRACE(COMP_ERR,
-					 "can't alloc urb for zero byte\n");
+			if (!tx_urb_zero)
 				return -ENOMEM;
-			}
 			usb_fill_bulk_urb(tx_urb_zero, udev,
 					  usb_sndbulkpipe(udev, idx_pipe),
 					  &zero, 0, tx_zero_isr, dev);
