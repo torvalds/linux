@@ -167,6 +167,8 @@ static int wkup_m3_rproc_probe(struct platform_device *pdev)
 		goto err;
 	}
 
+	rproc->auto_boot = false;
+
 	wkupm3 = rproc->priv;
 	wkupm3->rproc = rproc;
 	wkupm3->pdev = pdev;

@@ -932,6 +932,10 @@ static void rproc_fw_config_virtio(const struct firmware *fw, void *context)
 	/* look for virtio devices and register them */
 	ret = rproc_handle_resources(rproc, tablesz, rproc_vdev_handler);
 
+	/* if rproc is marked always-on, request it to boot */
+	if (rproc->auto_boot)
+		rproc_boot_nowait(rproc);
+
 out:
 	release_firmware(fw);
 	/* allow rproc_del() contexts, if any, to proceed */
@@ -977,10 +981,15 @@ static int rproc_add_virtio_devices(struct rproc *rproc)
 int rproc_trigger_recovery(struct rproc *rproc)
 {
 	struct rproc_vdev *rvdev, *rvtmp;
+	int ret;
 
 	dev_err(&rproc->dev, "recovering %s\n", rproc->name);
 
 	init_completion(&rproc->crash_comp);
+
+	/* shut down the remote */
+	/* TODO: make sure this works with rproc->power > 1 */
+	rproc_shutdown(rproc);
 
 	/* clean up remote vdev entries */
 	list_for_each_entry_safe(rvdev, rvtmp, &rproc->rvdevs, node)
@@ -992,7 +1001,18 @@ int rproc_trigger_recovery(struct rproc *rproc)
 	/* Free the copy of the resource table */
 	kfree(rproc->cached_table);
 
-	return rproc_add_virtio_devices(rproc);
+	ret = rproc_add_virtio_devices(rproc);
+	if (ret)
+		return ret;
+
+	/*
+	 * boot the remote processor up again, if the async firmware loader
+	 * didn't do so already, waiting for the async fw load to finish
+	 */
+	if (!rproc->auto_boot)
+		rproc_boot(rproc);
+
+	return 0;
 }
 
 /**
@@ -1373,6 +1393,7 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 	rproc->name = name;
 	rproc->ops = ops;
 	rproc->priv = &rproc[1];
+	rproc->auto_boot = true;
 
 	device_initialize(&rproc->dev);
 	rproc->dev.parent = dev;
@@ -1450,6 +1471,11 @@ int rproc_del(struct rproc *rproc)
 
 	/* if rproc is just being registered, wait */
 	wait_for_completion(&rproc->firmware_loading_complete);
+
+	/* if rproc is marked always-on, rproc_add() booted it */
+	/* TODO: make sure this works with rproc->power > 1 */
+	if (rproc->auto_boot)
+		rproc_shutdown(rproc);
 
 	/* clean up remote vdev entries */
 	list_for_each_entry_safe(rvdev, tmp, &rproc->rvdevs, node)
