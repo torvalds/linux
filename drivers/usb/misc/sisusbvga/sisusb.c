@@ -3084,7 +3084,6 @@ static int sisusb_probe(struct usb_interface *intf,
 	/* Allocate URBs */
 	sisusb->sisurbin = usb_alloc_urb(0, GFP_KERNEL);
 	if (!sisusb->sisurbin) {
-		dev_err(&sisusb->sisusb_dev->dev, "Failed to allocate URBs\n");
 		retval = -ENOMEM;
 		goto error_3;
 	}
@@ -3093,8 +3092,6 @@ static int sisusb_probe(struct usb_interface *intf,
 	for (i = 0; i < sisusb->numobufs; i++) {
 		sisusb->sisurbout[i] = usb_alloc_urb(0, GFP_KERNEL);
 		if (!sisusb->sisurbout[i]) {
-			dev_err(&sisusb->sisusb_dev->dev,
-					"Failed to allocate URBs\n");
 			retval = -ENOMEM;
 			goto error_4;
 		}
