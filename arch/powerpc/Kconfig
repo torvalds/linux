@@ -12,11 +12,6 @@ config 64BIT
 	bool
 	default y if PPC64
 
-config WORD_SIZE
-	int
-	default 64 if PPC64
-	default 32 if !PPC64
-
 config ARCH_PHYS_ADDR_T_64BIT
        def_bool PPC64 || PHYS_64BIT
 
