@@ -341,11 +341,15 @@ static struct sk_buff *eem_wrap(struct gether *port, struct sk_buff *skb)
 {
 	struct sk_buff	*skb2 = NULL;
 	struct usb_ep	*in = port->in_ep;
-	int		padlen = 0;
+	int		headroom, tailroom, padlen = 0;
 	u16		len = skb->len;
 
-	int headroom = skb_headroom(skb);
-	int tailroom = skb_tailroom(skb);
+	if (!skb)
+		return NULL;
+
+	len = skb->len;
+	headroom = skb_headroom(skb);
+	tailroom = skb_tailroom(skb);
 
 	/* When (len + EEM_HLEN + ETH_FCS_LEN) % in->maxpacket) is 0,
 	 * stick two bytes of zero-length EEM packet on the end.
