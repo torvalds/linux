@@ -34,6 +34,7 @@
 #include <asm/pgtable-hwdef.h>
 #include <asm/sections.h>
 #include <asm/suspend.h>
+#include <asm/sysreg.h>
 #include <asm/virt.h>
 
 /*
@@ -216,12 +217,22 @@ static int create_safe_exec_page(void *src_start, size_t length,
 	set_pte(pte, __pte(virt_to_phys((void *)dst) |
 			 pgprot_val(PAGE_KERNEL_EXEC)));
 
-	/* Load our new page tables */
-	asm volatile("msr	ttbr0_el1, %0;"
-		     "isb;"
-		     "tlbi	vmalle1is;"
-		     "dsb	ish;"
-		     "isb" : : "r"(virt_to_phys(pgd)));
+	/*
+	 * Load our new page tables. A strict BBM approach requires that we
+	 * ensure that TLBs are free of any entries that may overlap with the
+	 * global mappings we are about to install.
+	 *
+	 * For a real hibernate/resume cycle TTBR0 currently points to a zero
+	 * page, but TLBs may contain stale ASID-tagged entries (e.g. for EFI
+	 * runtime services), while for a userspace-driven test_resume cycle it
+	 * points to userspace page tables (and we must point it at a zero page
+	 * ourselves). Elsewhere we only (un)install the idmap with preemption
+	 * disabled, so T0SZ should be as required regardless.
+	 */
+	cpu_set_reserved_ttbr0();
+	local_flush_tlb_all();
+	write_sysreg(virt_to_phys(pgd), ttbr0_el1);
+	isb();
 
 	*phys_dst_addr = virt_to_phys((void *)dst);
 
