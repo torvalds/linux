@@ -1516,6 +1516,7 @@ retry:
 		error = ext4_xattr_ibody_set(handle, inode, &i, is);
 		if (error)
 			goto cleanup;
+		total_ino -= entry_size;
 
 		entry = IFIRST(header);
 		if (entry_size + EXT4_XATTR_SIZE(size) >= isize_diff)
@@ -1526,11 +1527,11 @@ retry:
 		ext4_xattr_shift_entries(entry, -shift_bytes,
 			(void *)raw_inode + EXT4_GOOD_OLD_INODE_SIZE +
 			EXT4_I(inode)->i_extra_isize + shift_bytes,
-			(void *)header, total_ino - entry_size,
-			inode->i_sb->s_blocksize);
+			(void *)header, total_ino, inode->i_sb->s_blocksize);
 
 		isize_diff -= shift_bytes;
 		EXT4_I(inode)->i_extra_isize += shift_bytes;
+		header = IHDR(inode, raw_inode);
 
 		i.name = b_entry_name;
 		i.value = buffer;
