@@ -970,10 +970,8 @@ static int redrat3_dev_probe(struct usb_interface *intf,
 
 	/* set up bulk-in endpoint */
 	rr3->read_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!rr3->read_urb) {
-		dev_err(dev, "Read urb allocation failure\n");
+	if (!rr3->read_urb)
 		goto error;
-	}
 
 	rr3->ep_in = ep_in;
 	rr3->bulk_in_buf = usb_alloc_coherent(udev,
