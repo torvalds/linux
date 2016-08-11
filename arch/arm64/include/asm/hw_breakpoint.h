@@ -141,8 +141,6 @@ static inline void ptrace_hw_copy_thread(struct task_struct *task)
 }
 #endif
 
-extern struct pmu perf_ops_bp;
-
 /* Determine number of BRP registers available. */
 static inline int get_num_brps(void)
 {
