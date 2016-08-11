@@ -752,6 +752,7 @@ static int rproc_handle_resources(struct rproc *rproc, int len,
 static void rproc_resource_cleanup(struct rproc *rproc)
 {
 	struct rproc_mem_entry *entry, *tmp;
+	struct rproc_vdev *rvdev, *rvtmp;
 	struct device *dev = &rproc->dev;
 
 	/* clean up debugfs trace entries */
@@ -784,6 +785,10 @@ static void rproc_resource_cleanup(struct rproc *rproc)
 		list_del(&entry->node);
 		kfree(entry);
 	}
+
+	/* clean up remote vdev entries */
+	list_for_each_entry_safe(rvdev, rvtmp, &rproc->rvdevs, node)
+		rproc_remove_virtio_dev(rvdev);
 }
 
 /*
@@ -833,6 +838,13 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 
 	/* reset max_notifyid */
 	rproc->max_notifyid = -1;
+
+	/* look for virtio devices and register them */
+	ret = rproc_handle_resources(rproc, tablesz, rproc_vdev_handler);
+	if (ret) {
+		dev_err(dev, "Failed to handle vdev resources: %d\n", ret);
+		goto clean_up;
+	}
 
 	/* handle fw resources which are required to boot rproc */
 	ret = rproc_handle_resources(rproc, tablesz, rproc_loading_handlers);
@@ -897,7 +909,7 @@ static void rproc_fw_config_virtio(const struct firmware *fw, void *context)
 {
 	struct rproc *rproc = context;
 	struct resource_table *table;
-	int ret, tablesz;
+	int tablesz;
 
 	if (rproc_fw_sanity_check(rproc, fw) < 0)
 		goto out;
@@ -920,9 +932,6 @@ static void rproc_fw_config_virtio(const struct firmware *fw, void *context)
 		goto out;
 
 	rproc->table_ptr = rproc->cached_table;
-
-	/* look for virtio devices and register them */
-	ret = rproc_handle_resources(rproc, tablesz, rproc_vdev_handler);
 
 	/* if rproc is marked always-on, request it to boot */
 	if (rproc->auto_boot)
@@ -972,9 +981,6 @@ static int rproc_add_virtio_devices(struct rproc *rproc)
  */
 int rproc_trigger_recovery(struct rproc *rproc)
 {
-	struct rproc_vdev *rvdev, *rvtmp;
-	int ret;
-
 	dev_err(&rproc->dev, "recovering %s\n", rproc->name);
 
 	init_completion(&rproc->crash_comp);
@@ -983,26 +989,13 @@ int rproc_trigger_recovery(struct rproc *rproc)
 	/* TODO: make sure this works with rproc->power > 1 */
 	rproc_shutdown(rproc);
 
-	/* clean up remote vdev entries */
-	list_for_each_entry_safe(rvdev, rvtmp, &rproc->rvdevs, node)
-		rproc_remove_virtio_dev(rvdev);
-
 	/* wait until there is no more rproc users */
 	wait_for_completion(&rproc->crash_comp);
 
-	/* Free the copy of the resource table */
-	kfree(rproc->cached_table);
-
-	ret = rproc_add_virtio_devices(rproc);
-	if (ret)
-		return ret;
-
 	/*
-	 * boot the remote processor up again, if the async firmware loader
-	 * didn't do so already, waiting for the async fw load to finish
+	 * boot the remote processor up again
 	 */
-	if (!rproc->auto_boot)
-		rproc_boot(rproc);
+	rproc_boot(rproc);
 
 	return 0;
 }
