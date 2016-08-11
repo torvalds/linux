@@ -1171,7 +1171,7 @@ static int tvp5150_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	return 0;
 }
 
-static int tvp5150_registered_async(struct v4l2_subdev *sd)
+static int tvp5150_registered(struct v4l2_subdev *sd)
 {
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct tvp5150 *decoder = to_tvp5150(sd);
@@ -1220,7 +1220,6 @@ static const struct v4l2_subdev_core_ops tvp5150_core_ops = {
 	.g_register = tvp5150_g_register,
 	.s_register = tvp5150_s_register,
 #endif
-	.registered_async = tvp5150_registered_async,
 };
 
 static const struct v4l2_subdev_tuner_ops tvp5150_tuner_ops = {
@@ -1256,6 +1255,10 @@ static const struct v4l2_subdev_ops tvp5150_ops = {
 	.video = &tvp5150_video_ops,
 	.vbi = &tvp5150_vbi_ops,
 	.pad = &tvp5150_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops tvp5150_internal_ops = {
+	.registered = tvp5150_registered,
 };
 
 
@@ -1471,6 +1474,7 @@ static int tvp5150_probe(struct i2c_client *c,
 	}
 
 	v4l2_i2c_subdev_init(sd, c, &tvp5150_ops);
+	sd->internal_ops = &tvp5150_internal_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
