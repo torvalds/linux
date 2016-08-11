@@ -28,7 +28,7 @@
 
 #define RX51_LCD_RESET_GPIO	90
 
-#if defined(CONFIG_FB_OMAP2) || defined(CONFIG_FB_OMAP2_MODULE)
+#if IS_ENABLED(CONFIG_FB_OMAP2)
 
 static struct connector_atv_platform_data rx51_tv_pdata = {
 	.name = "tv",
@@ -64,4 +64,4 @@ static int __init rx51_video_init(void)
 }
 
 omap_subsys_initcall(rx51_video_init);
-#endif /* defined(CONFIG_FB_OMAP2) || defined(CONFIG_FB_OMAP2_MODULE) */
+#endif /* IS_ENABLED(CONFIG_FB_OMAP2) */

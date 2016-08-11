@@ -86,7 +86,7 @@ enum {
 static struct wl1251_platform_data wl1251_pdata;
 static struct tsc2005_platform_data tsc2005_pdata;
 
-#if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)
+#if IS_ENABLED(CONFIG_SENSORS_LIS3_I2C)
 static int lis302_setup(void)
 {
 	int err;
@@ -156,13 +156,13 @@ static struct lis3lv02d_platform_data rx51_lis3lv02d_data = {
 };
 #endif
 
-#if defined(CONFIG_SENSORS_TSL2563) || defined(CONFIG_SENSORS_TSL2563_MODULE)
+#if IS_ENABLED(CONFIG_SENSORS_TSL2563)
 static struct tsl2563_platform_data rx51_tsl2563_platform_data = {
 	.cover_comp_gain = 16,
 };
 #endif
 
-#if defined(CONFIG_LEDS_LP5523) || defined(CONFIG_LEDS_LP5523_MODULE)
+#if IS_ENABLED(CONFIG_LEDS_LP5523)
 static struct lp55xx_led_config rx51_lp5523_led_config[] = {
 	{
 		.name		= "lp5523:kb1",
@@ -299,7 +299,7 @@ static void __init rx51_charger_init(void)
 	platform_device_register(&rx51_charger_device);
 }
 
-#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
+#if IS_ENABLED(CONFIG_KEYBOARD_GPIO)
 
 #define RX51_GPIO_CAMERA_LENS_COVER	110
 #define RX51_GPIO_CAMERA_FOCUS		68
@@ -377,7 +377,7 @@ static void __init rx51_add_gpio_keys(void)
 static void __init rx51_add_gpio_keys(void)
 {
 }
-#endif /* CONFIG_KEYBOARD_GPIO || CONFIG_KEYBOARD_GPIO_MODULE */
+#endif /* IS_ENABLED(CONFIG_KEYBOARD_GPIO) */
 
 static uint32_t board_keymap[] = {
 	/*
@@ -1018,13 +1018,13 @@ static struct i2c_board_info __initdata rx51_peripherals_i2c_board_info_2[] = {
 		I2C_BOARD_INFO("tlv320aic3x", 0x19),
 		.platform_data = &rx51_aic3x_data2,
 	},
-#if defined(CONFIG_SENSORS_TSL2563) || defined(CONFIG_SENSORS_TSL2563_MODULE)
+#if IS_ENABLED(CONFIG_SENSORS_TSL2563)
 	{
 		I2C_BOARD_INFO("tsl2563", 0x29),
 		.platform_data = &rx51_tsl2563_platform_data,
 	},
 #endif
-#if defined(CONFIG_LEDS_LP5523) || defined(CONFIG_LEDS_LP5523_MODULE)
+#if IS_ENABLED(CONFIG_LEDS_LP5523)
 	{
 		I2C_BOARD_INFO("lp5523", 0x32),
 		.platform_data  = &rx51_lp5523_platform_data,
@@ -1040,7 +1040,7 @@ static struct i2c_board_info __initdata rx51_peripherals_i2c_board_info_2[] = {
 };
 
 static struct i2c_board_info __initdata rx51_peripherals_i2c_board_info_3[] = {
-#if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)
+#if IS_ENABLED(CONFIG_SENSORS_LIS3_I2C)
 	{
 		I2C_BOARD_INFO("lis3lv02d", 0x1d),
 		.platform_data = &rx51_lis3lv02d_data,
@@ -1081,7 +1081,7 @@ static int __init rx51_i2c_init(void)
 #endif
 	omap_register_i2c_bus(2, 100, rx51_peripherals_i2c_board_info_2,
 			      ARRAY_SIZE(rx51_peripherals_i2c_board_info_2));
-#if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)
+#if IS_ENABLED(CONFIG_SENSORS_LIS3_I2C)
 	rx51_lis3lv02d_data.irq2 = gpio_to_irq(LIS302_IRQ2_GPIO);
 	rx51_peripherals_i2c_board_info_3[0].irq = gpio_to_irq(LIS302_IRQ1_GPIO);
 #endif
@@ -1090,8 +1090,7 @@ static int __init rx51_i2c_init(void)
 	return 0;
 }
 
-#if defined(CONFIG_MTD_ONENAND_OMAP2) || \
-	defined(CONFIG_MTD_ONENAND_OMAP2_MODULE)
+#if IS_ENABLED(CONFIG_MTD_ONENAND_OMAP2)
 
 static struct mtd_partition onenand_partitions[] = {
 	{
@@ -1239,7 +1238,7 @@ static struct pwm_omap_dmtimer_pdata __maybe_unused pwm_dmtimer_pdata = {
 };
 #endif
 
-#if defined(CONFIG_IR_RX51) || defined(CONFIG_IR_RX51_MODULE)
+#if IS_ENABLED(CONFIG_IR_RX51)
 static struct lirc_rx51_platform_data rx51_lirc_data = {
 	.set_max_mpu_wakeup_lat = omap_pm_set_max_mpu_wakeup_lat,
 };
