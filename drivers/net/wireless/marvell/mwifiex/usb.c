@@ -657,11 +657,8 @@ static int mwifiex_usb_tx_init(struct mwifiex_adapter *adapter)
 	card->tx_cmd.ep = card->tx_cmd_ep;
 
 	card->tx_cmd.urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!card->tx_cmd.urb) {
-		mwifiex_dbg(adapter, ERROR,
-			    "tx_cmd.urb allocation failed\n");
+	if (!card->tx_cmd.urb)
 		return -ENOMEM;
-	}
 
 	for (i = 0; i < MWIFIEX_TX_DATA_PORT; i++) {
 		port = &card->port[i];
@@ -677,11 +674,8 @@ static int mwifiex_usb_tx_init(struct mwifiex_adapter *adapter)
 			port->tx_data_list[j].ep = port->tx_data_ep;
 			port->tx_data_list[j].urb =
 					usb_alloc_urb(0, GFP_KERNEL);
-			if (!port->tx_data_list[j].urb) {
-				mwifiex_dbg(adapter, ERROR,
-					    "urb allocation failed\n");
+			if (!port->tx_data_list[j].urb)
 				return -ENOMEM;
-			}
 		}
 	}
 
@@ -697,10 +691,8 @@ static int mwifiex_usb_rx_init(struct mwifiex_adapter *adapter)
 	card->rx_cmd.ep = card->rx_cmd_ep;
 
 	card->rx_cmd.urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!card->rx_cmd.urb) {
-		mwifiex_dbg(adapter, ERROR, "rx_cmd.urb allocation failed\n");
+	if (!card->rx_cmd.urb)
 		return -ENOMEM;
-	}
 
 	card->rx_cmd.skb = dev_alloc_skb(MWIFIEX_RX_CMD_BUF_SIZE);
 	if (!card->rx_cmd.skb)
@@ -714,11 +706,8 @@ static int mwifiex_usb_rx_init(struct mwifiex_adapter *adapter)
 		card->rx_data_list[i].ep = card->rx_data_ep;
 
 		card->rx_data_list[i].urb = usb_alloc_urb(0, GFP_KERNEL);
-		if (!card->rx_data_list[i].urb) {
-			mwifiex_dbg(adapter, ERROR,
-				    "rx_data_list[] urb allocation failed\n");
+		if (!card->rx_data_list[i].urb)
 			return -1;
-		}
 		if (mwifiex_usb_submit_rx_urb(&card->rx_data_list[i],
 					      MWIFIEX_RX_DATA_BUF_SIZE))
 			return -1;
