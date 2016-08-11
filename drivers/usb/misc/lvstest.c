@@ -395,10 +395,8 @@ static int lvs_rh_probe(struct usb_interface *intf,
 
 	/* submit urb to poll interrupt endpoint */
 	lvs->urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!lvs->urb) {
-		dev_err(&intf->dev, "couldn't allocate lvs urb\n");
+	if (!lvs->urb)
 		return -ENOMEM;
-	}
 
 	INIT_WORK(&lvs->rh_work, lvs_rh_work);
 
