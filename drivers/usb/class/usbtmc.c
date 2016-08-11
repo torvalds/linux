@@ -1467,10 +1467,8 @@ static int usbtmc_probe(struct usb_interface *intf,
 	if (data->iin_ep_present) {
 		/* allocate int urb */
 		data->iin_urb = usb_alloc_urb(0, GFP_KERNEL);
-		if (!data->iin_urb) {
-			dev_err(&intf->dev, "Failed to allocate int urb\n");
+		if (!data->iin_urb)
 			goto error_register;
-		}
 
 		/* will reference data in int urb */
 		kref_get(&data->kref);
