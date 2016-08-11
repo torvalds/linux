@@ -569,6 +569,7 @@ static int vce_v3_0_check_soft_reset(void *handle)
 	 *
 	 * VCE team suggest use bit 3--bit 6 for busy status check
 	 */
+	mutex_lock(&adev->grbm_idx_mutex);
 	WREG32_FIELD(GRBM_GFX_INDEX, INSTANCE_INDEX, 0);
 	if (RREG32(mmVCE_STATUS) & AMDGPU_VCE_STATUS_BUSY_MASK) {
 		srbm_soft_reset = REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_VCE0, 1);
@@ -588,6 +589,7 @@ static int vce_v3_0_check_soft_reset(void *handle)
 		adev->ip_block_status[AMD_IP_BLOCK_TYPE_VCE].hang = false;
 		adev->vce.srbm_soft_reset = 0;
 	}
+	mutex_unlock(&adev->grbm_idx_mutex);
 	return 0;
 }
 
