@@ -144,10 +144,8 @@ static int anon_pipe_buf_steal(struct pipe_inode_info *pipe,
 	struct page *page = buf->page;
 
 	if (page_count(page) == 1) {
-		if (memcg_kmem_enabled()) {
+		if (memcg_kmem_enabled())
 			memcg_kmem_uncharge(page, 0);
-			__ClearPageKmemcg(page);
-		}
 		__SetPageLocked(page);
 		return 0;
 	}

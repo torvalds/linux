@@ -330,24 +330,32 @@ TRACE_EVENT(itimer_expire,
 #ifdef CONFIG_NO_HZ_COMMON
 
 #define TICK_DEP_NAMES					\
-		tick_dep_name(NONE)			\
+		tick_dep_mask_name(NONE)		\
 		tick_dep_name(POSIX_TIMER)		\
 		tick_dep_name(PERF_EVENTS)		\
 		tick_dep_name(SCHED)			\
 		tick_dep_name_end(CLOCK_UNSTABLE)
 
 #undef tick_dep_name
+#undef tick_dep_mask_name
 #undef tick_dep_name_end
 
-#define tick_dep_name(sdep) TRACE_DEFINE_ENUM(TICK_DEP_MASK_##sdep);
-#define tick_dep_name_end(sdep)  TRACE_DEFINE_ENUM(TICK_DEP_MASK_##sdep);
+/* The MASK will convert to their bits and they need to be processed too */
+#define tick_dep_name(sdep) TRACE_DEFINE_ENUM(TICK_DEP_BIT_##sdep); \
+	TRACE_DEFINE_ENUM(TICK_DEP_MASK_##sdep);
+#define tick_dep_name_end(sdep)  TRACE_DEFINE_ENUM(TICK_DEP_BIT_##sdep); \
+	TRACE_DEFINE_ENUM(TICK_DEP_MASK_##sdep);
+/* NONE only has a mask defined for it */
+#define tick_dep_mask_name(sdep) TRACE_DEFINE_ENUM(TICK_DEP_MASK_##sdep);
 
 TICK_DEP_NAMES
 
 #undef tick_dep_name
+#undef tick_dep_mask_name
 #undef tick_dep_name_end
 
 #define tick_dep_name(sdep) { TICK_DEP_MASK_##sdep, #sdep },
+#define tick_dep_mask_name(sdep) { TICK_DEP_MASK_##sdep, #sdep },
 #define tick_dep_name_end(sdep) { TICK_DEP_MASK_##sdep, #sdep }
 
 #define show_tick_dep_name(val)				\
