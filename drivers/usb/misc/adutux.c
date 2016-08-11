@@ -744,20 +744,16 @@ static int adu_probe(struct usb_interface *interface,
 	memset(dev->interrupt_in_buffer, 'i', in_end_size);
 
 	dev->interrupt_in_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!dev->interrupt_in_urb) {
-		dev_err(&interface->dev, "Couldn't allocate interrupt_in_urb\n");
+	if (!dev->interrupt_in_urb)
 		goto error;
-	}
 	dev->interrupt_out_buffer = kmalloc(out_end_size, GFP_KERNEL);
 	if (!dev->interrupt_out_buffer) {
 		dev_err(&interface->dev, "Couldn't allocate interrupt_out_buffer\n");
 		goto error;
 	}
 	dev->interrupt_out_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!dev->interrupt_out_urb) {
-		dev_err(&interface->dev, "Couldn't allocate interrupt_out_urb\n");
+	if (!dev->interrupt_out_urb)
 		goto error;
-	}
 
 	if (!usb_string(udev, udev->descriptor.iSerialNumber, dev->serial_number,
 			sizeof(dev->serial_number))) {
