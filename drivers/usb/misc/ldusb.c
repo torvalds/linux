@@ -714,10 +714,8 @@ static int ld_usb_probe(struct usb_interface *intf, const struct usb_device_id *
 		goto error;
 	}
 	dev->interrupt_in_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!dev->interrupt_in_urb) {
-		dev_err(&intf->dev, "Couldn't allocate interrupt_in_urb\n");
+	if (!dev->interrupt_in_urb)
 		goto error;
-	}
 	dev->interrupt_out_endpoint_size = dev->interrupt_out_endpoint ? usb_endpoint_maxp(dev->interrupt_out_endpoint) :
 									 udev->descriptor.bMaxPacketSize0;
 	dev->interrupt_out_buffer = kmalloc(write_buffer_size*dev->interrupt_out_endpoint_size, GFP_KERNEL);
@@ -726,10 +724,8 @@ static int ld_usb_probe(struct usb_interface *intf, const struct usb_device_id *
 		goto error;
 	}
 	dev->interrupt_out_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!dev->interrupt_out_urb) {
-		dev_err(&intf->dev, "Couldn't allocate interrupt_out_urb\n");
+	if (!dev->interrupt_out_urb)
 		goto error;
-	}
 	dev->interrupt_in_interval = min_interrupt_in_interval > dev->interrupt_in_endpoint->bInterval ? min_interrupt_in_interval : dev->interrupt_in_endpoint->bInterval;
 	if (dev->interrupt_out_endpoint)
 		dev->interrupt_out_interval = min_interrupt_out_interval > dev->interrupt_out_endpoint->bInterval ? min_interrupt_out_interval : dev->interrupt_out_endpoint->bInterval;
