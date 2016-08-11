@@ -62,8 +62,6 @@ struct amdgpu_pte_update_params {
 	struct amdgpu_device *adev;
 	/* address where to copy page table entries from */
 	uint64_t src;
-	/* DMA addresses to use for mapping */
-	dma_addr_t *pages_addr;
 	/* indirect buffer to fill with commands */
 	struct amdgpu_ib *ib;
 };
@@ -492,11 +490,6 @@ static void amdgpu_vm_update_pages(struct amdgpu_pte_update_params *params,
 		amdgpu_vm_copy_pte(params->adev, params->ib,
 			pe, (params->src + (addr >> 12) * 8), count);
 
-	} else if (params->pages_addr) {
-		amdgpu_vm_write_pte(params->adev, params->ib,
-			params->pages_addr,
-			pe, addr, count, incr, flags);
-
 	} else if (count < 3) {
 		amdgpu_vm_write_pte(params->adev, params->ib, NULL, pe, addr,
 				    count, incr, flags);
@@ -826,7 +819,7 @@ static void amdgpu_vm_frag_ptes(struct amdgpu_pte_update_params	*params,
 	uint32_t frag;
 
 	/* system pages are non continuously */
-	if (params->src || params->pages_addr || !(flags & AMDGPU_PTE_VALID) ||
+	if (params->src || !(flags & AMDGPU_PTE_VALID) ||
 	    (frag_start >= frag_end)) {
 
 		amdgpu_vm_update_ptes(params, vm, start, end, dst, flags);
@@ -894,7 +887,6 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	memset(&params, 0, sizeof(params));
 	params.adev = adev;
 	params.src = src;
-	params.pages_addr = pages_addr;
 
 	/* sync to everything on unmapping */
 	if (!(flags & AMDGPU_PTE_VALID))
