@@ -94,7 +94,7 @@ static int bq32k_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		return error;
 
 	tm->tm_sec = bcd2bin(regs.seconds & BQ32K_SECONDS_MASK);
-	tm->tm_min = bcd2bin(regs.minutes & BQ32K_SECONDS_MASK);
+	tm->tm_min = bcd2bin(regs.minutes & BQ32K_MINUTES_MASK);
 	tm->tm_hour = bcd2bin(regs.cent_hours & BQ32K_HOURS_MASK);
 	tm->tm_mday = bcd2bin(regs.date);
 	tm->tm_wday = bcd2bin(regs.day) - 1;
