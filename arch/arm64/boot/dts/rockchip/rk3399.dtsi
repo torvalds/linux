@@ -2048,6 +2048,8 @@
 		reg-io-width = <4>;
 		rockchip,grf = <&grf>;
 		#sound-dai-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hdmi_i2c_xfer>;
 		status = "disabled";
 
 		ports {
