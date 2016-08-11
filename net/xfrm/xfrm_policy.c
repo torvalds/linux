@@ -385,9 +385,11 @@ static struct hlist_head *policy_hash_bysel(struct net *net,
 	__get_hash_thresh(net, family, dir, &dbits, &sbits);
 	hash = __sel_hash(sel, family, hmask, dbits, sbits);
 
-	return (hash == hmask + 1 ?
-		&net->xfrm.policy_inexact[dir] :
-		net->xfrm.policy_bydst[dir].table + hash);
+	if (hash == hmask + 1)
+		return &net->xfrm.policy_inexact[dir];
+
+	return rcu_dereference_check(net->xfrm.policy_bydst[dir].table,
+		     lockdep_is_held(&net->xfrm.xfrm_policy_lock)) + hash;
 }
 
 static struct hlist_head *policy_hash_direct(struct net *net,
@@ -403,7 +405,8 @@ static struct hlist_head *policy_hash_direct(struct net *net,
 	__get_hash_thresh(net, family, dir, &dbits, &sbits);
 	hash = __addr_hash(daddr, saddr, family, hmask, dbits, sbits);
 
-	return net->xfrm.policy_bydst[dir].table + hash;
+	return rcu_dereference_check(net->xfrm.policy_bydst[dir].table,
+		     lockdep_is_held(&net->xfrm.xfrm_policy_lock)) + hash;
 }
 
 static void xfrm_dst_hash_transfer(struct net *net,
@@ -468,8 +471,8 @@ static void xfrm_bydst_resize(struct net *net, int dir)
 	unsigned int hmask = net->xfrm.policy_bydst[dir].hmask;
 	unsigned int nhashmask = xfrm_new_hash_mask(hmask);
 	unsigned int nsize = (nhashmask + 1) * sizeof(struct hlist_head);
-	struct hlist_head *odst = net->xfrm.policy_bydst[dir].table;
 	struct hlist_head *ndst = xfrm_hash_alloc(nsize);
+	struct hlist_head *odst;
 	int i;
 
 	if (!ndst)
@@ -477,13 +480,18 @@ static void xfrm_bydst_resize(struct net *net, int dir)
 
 	write_lock_bh(&net->xfrm.xfrm_policy_lock);
 
+	odst = rcu_dereference_protected(net->xfrm.policy_bydst[dir].table,
+				lockdep_is_held(&net->xfrm.xfrm_policy_lock));
+
 	for (i = hmask; i >= 0; i--)
 		xfrm_dst_hash_transfer(net, odst + i, ndst, nhashmask, dir);
 
-	net->xfrm.policy_bydst[dir].table = ndst;
+	rcu_assign_pointer(net->xfrm.policy_bydst[dir].table, ndst);
 	net->xfrm.policy_bydst[dir].hmask = nhashmask;
 
 	write_unlock_bh(&net->xfrm.xfrm_policy_lock);
+
+	synchronize_rcu();
 
 	xfrm_hash_free(odst, (hmask + 1) * sizeof(struct hlist_head));
 }
