@@ -2300,10 +2300,8 @@ static int hso_serial_common_create(struct hso_serial *serial, int num_urbs,
 	serial->rx_data_length = rx_size;
 	for (i = 0; i < serial->num_rx_urbs; i++) {
 		serial->rx_urb[i] = usb_alloc_urb(0, GFP_KERNEL);
-		if (!serial->rx_urb[i]) {
-			dev_err(dev, "Could not allocate urb?\n");
+		if (!serial->rx_urb[i])
 			goto exit;
-		}
 		serial->rx_urb[i]->transfer_buffer = NULL;
 		serial->rx_urb[i]->transfer_buffer_length = 0;
 		serial->rx_data[i] = kzalloc(serial->rx_data_length,
@@ -2314,10 +2312,8 @@ static int hso_serial_common_create(struct hso_serial *serial, int num_urbs,
 
 	/* TX, allocate urb and initialize */
 	serial->tx_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!serial->tx_urb) {
-		dev_err(dev, "Could not allocate urb?\n");
+	if (!serial->tx_urb)
 		goto exit;
-	}
 	serial->tx_urb->transfer_buffer = NULL;
 	serial->tx_urb->transfer_buffer_length = 0;
 	/* prepare our TX buffer */
@@ -2555,20 +2551,16 @@ static struct hso_device *hso_create_net_device(struct usb_interface *interface,
 	/* start allocating */
 	for (i = 0; i < MUX_BULK_RX_BUF_COUNT; i++) {
 		hso_net->mux_bulk_rx_urb_pool[i] = usb_alloc_urb(0, GFP_KERNEL);
-		if (!hso_net->mux_bulk_rx_urb_pool[i]) {
-			dev_err(&interface->dev, "Could not allocate rx urb\n");
+		if (!hso_net->mux_bulk_rx_urb_pool[i])
 			goto exit;
-		}
 		hso_net->mux_bulk_rx_buf_pool[i] = kzalloc(MUX_BULK_RX_BUF_SIZE,
 							   GFP_KERNEL);
 		if (!hso_net->mux_bulk_rx_buf_pool[i])
 			goto exit;
 	}
 	hso_net->mux_bulk_tx_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!hso_net->mux_bulk_tx_urb) {
-		dev_err(&interface->dev, "Could not allocate tx urb\n");
+	if (!hso_net->mux_bulk_tx_urb)
 		goto exit;
-	}
 	hso_net->mux_bulk_tx_buf = kzalloc(MUX_BULK_TX_BUF_SIZE, GFP_KERNEL);
 	if (!hso_net->mux_bulk_tx_buf)
 		goto exit;
@@ -2787,10 +2779,8 @@ struct hso_shared_int *hso_create_shared_int(struct usb_interface *interface)
 	}
 
 	mux->shared_intr_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!mux->shared_intr_urb) {
-		dev_err(&interface->dev, "Could not allocate intr urb?\n");
+	if (!mux->shared_intr_urb)
 		goto exit;
-	}
 	mux->shared_intr_buf =
 		kzalloc(le16_to_cpu(mux->intr_endp->wMaxPacketSize),
 			GFP_KERNEL);
