@@ -46,13 +46,64 @@
 / {
 	compatible = "rockchip,rk3399-sapphire", "rockchip,rk3399";
 
-	vcc5v0_sys: vcc5v0-sys {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc5v0_sys";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
+	clkin_gmac: external-gmac-clock {
+		compatible = "fixed-clock";
+		clock-frequency = <125000000>;
+		clock-output-names = "clkin_gmac";
+		#clock-cells = <0>;
+	};
+
+	dw_hdmi_audio: dw-hdmi-audio {
+		status = "okay";
+		compatible = "rockchip,dw-hdmi-audio";
+		#sound-dai-cells = <0>;
+	};
+
+	hdmi_sound: hdmi-sound {
+		status = "okay";
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,hdmi";
+
+		simple-audio-card,cpu {
+			sound-dai = <&i2s2>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&dw_hdmi_audio>;
+		};
+	};
+
+	io-domains {
+		compatible = "rockchip,rk3399-io-voltage-domain";
+		rockchip,grf = <&grf>;
+
+		bt656-supply = <&vcc_3v0>;		/* bt656_gpio2ab_ms */
+		audio-supply = <&vcca1v8_codec>;	/* audio_gpio3d4a_ms */
+		sdmmc-supply = <&vcc_sd>;		/* sdmmc_gpio4b_ms */
+		gpio1830-supply = <&vcc_3v0>;		/* gpio1833_gpio4cd_ms */
+	};
+
+	pmu-io-domains {
+		compatible = "rockchip,rk3399-pmu-io-voltage-domain";
+		rockchip,grf = <&pmugrf>;
+		pmu1830-supply = <&vcc_3v0>;
+	};
+
+	sdio_pwrseq: sdio-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		clocks = <&rk808 1>;
+		clock-names = "ext_clock";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_enable_h>;
+
+		/*
+		 * On the module itself this is one of these (depending
+		 * on the actual card populated):
+		 * - SDIO_RESET_L_WL_REG_ON
+		 * - PDN (power down when low)
+		 */
+		reset-gpios = <&gpio0 10 GPIO_ACTIVE_LOW>; /* GPIO0_B2 */
 	};
 
 	vcc3v3_sys: vcc3v3-sys {
@@ -73,6 +124,22 @@
 		regulator-name = "vcc5v0_host";
 	};
 
+	vcc5v0_sys: vcc5v0-sys {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+	};
+
+	vcc_phy: vcc-phy-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_phy";
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
 	vdd_log: vdd-log {
 		compatible = "pwm-regulator";
 		pwms = <&pwm2 0 25000 0>;
@@ -85,72 +152,6 @@
 		/* for rockchip boot on */
 		rockchip,pwm_id= <2>;
 		rockchip,pwm_voltage = <1000000>;
-	};
-
-	clkin_gmac: external-gmac-clock {
-		compatible = "fixed-clock";
-		clock-frequency = <125000000>;
-		clock-output-names = "clkin_gmac";
-		#clock-cells = <0>;
-	};
-
-	vcc_phy: vcc-phy-regulator {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc_phy";
-		regulator-always-on;
-		regulator-boot-on;
-	};
-
-	io-domains {
-		compatible = "rockchip,rk3399-io-voltage-domain";
-		rockchip,grf = <&grf>;
-
-		bt656-supply = <&vcc_3v0>; /* bt656_gpio2ab_ms */
-		audio-supply = <&vcca1v8_codec>; /* audio_gpio3d4a_ms */
-		sdmmc-supply = <&vcc_sd>; /* sdmmc_gpio4b_ms */
-		gpio1830-supply = <&vcc_3v0>; /* gpio1833_gpio4cd_ms */
-	};
-
-	pmu-io-domains {
-		compatible = "rockchip,rk3399-pmu-io-voltage-domain";
-		rockchip,grf = <&pmugrf>;
-		pmu1830-supply = <&vcc_3v0>;
-	};
-
-	hdmi_sound: hdmi-sound {
-		status = "okay";
-		compatible = "simple-audio-card";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,name = "rockchip,hdmi";
-		simple-audio-card,cpu {
-			sound-dai = <&i2s2>;
-		};
-		simple-audio-card,codec {
-			sound-dai = <&dw_hdmi_audio>;
-		};
-	};
-
-	dw_hdmi_audio: dw-hdmi-audio {
-		status = "okay";
-		compatible = "rockchip,dw-hdmi-audio";
-		#sound-dai-cells = <0>;
-	};
-
-	sdio_pwrseq: sdio-pwrseq {
-		compatible = "mmc-pwrseq-simple";
-		clocks = <&rk808 1>;
-		clock-names = "ext_clock";
-		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_enable_h>;
-
-		/*
-		 * On the module itself this is one of these (depending
-		 * on the actual card populated):
-		 * - SDIO_RESET_L_WL_REG_ON
-		 * - PDN (power down when low)
-		 */
-		reset-gpios = <&gpio0 10 GPIO_ACTIVE_LOW>; /* GPIO0_B2 */
 	};
 };
 
@@ -178,45 +179,6 @@
 	cpu-supply = <&vdd_cpu_b>;
 };
 
-&gpu {
-	status = "okay";
-	mali-supply = <&vdd_gpu>;
-};
-
-&sdmmc {
-	clock-frequency = <150000000>;
-	clock-freq-min-max = <100000 150000000>;
-	supports-sd;
-	bus-width = <4>;
-	cap-mmc-highspeed;
-	cap-sd-highspeed;
-	disable-wp;
-	num-slots = <1>;
-	//sd-uhs-sdr104;
-	vqmmc-supply = <&vcc_sd>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd &sdmmc_bus4>;
-	status = "okay";
-};
-
-&sdio0 {
-	clock-frequency = <50000000>;
-	clock-freq-min-max = <200000 50000000>;
-	supports-sdio;
-	bus-width = <4>;
-	disable-wp;
-	cap-sd-highspeed;
-	cap-sdio-irq;
-	keep-power-in-suspend;
-	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
-	num-slots = <1>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&sdio0_bus4 &sdio0_cmd &sdio0_clk>;
-	sd-uhs-sdr104;
-	status = "okay";
-};
-
 &emmc_phy {
 	freq-sel = <200000000>;
 	dr-sel = <50>;
@@ -224,27 +186,25 @@
 	status = "okay";
 };
 
-&sdhci {
-	bus-width = <8>;
-	mmc-hs400-1_8v;
-	supports-emmc;
-	non-removable;
-	keep-power-in-suspend;
-	mmc-hs400-enhanced-strobe;
+&gmac {
+	phy-supply = <&vcc_phy>;
+	phy-mode = "rgmii";
+	clock_in_out = "input";
+	snps,reset-gpio = <&gpio3 15 GPIO_ACTIVE_LOW>;
+	snps,reset-active-low;
+	snps,reset-delays-us = <0 10000 50000>;
+	assigned-clocks = <&cru SCLK_RMII_SRC>;
+	assigned-clock-parents = <&clkin_gmac>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&rgmii_pins>;
+	tx_delay = <0x28>;
+	rx_delay = <0x11>;
 	status = "okay";
 };
 
-&i2s0 {
+&gpu {
 	status = "okay";
-	rockchip,i2s-broken-burst-len;
-	rockchip,playback-channels = <8>;
-	rockchip,capture-channels = <8>;
-	#sound-dai-cells = <0>;
-};
-
-&i2s2 {
-	#sound-dai-cells = <0>;
-	status = "okay";
+	mali-supply = <&vdd_gpu>;
 };
 
 &i2c0 {
@@ -471,6 +431,19 @@
 	};
 };
 
+&i2s0 {
+	status = "okay";
+	rockchip,i2s-broken-burst-len;
+	rockchip,playback-channels = <8>;
+	rockchip,capture-channels = <8>;
+	#sound-dai-cells = <0>;
+};
+
+&i2s2 {
+	#sound-dai-cells = <0>;
+	status = "okay";
+};
+
 &pcie0 {
 	assigned-clocks = <&cru SCLK_PCIEPHY_REF>;
 	assigned-clock-parents = <&cru SCLK_PCIEPHY_REF100M>;
@@ -479,6 +452,62 @@
 	num-lanes = <4>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie_clkreqn>;
+	status = "okay";
+};
+
+&pwm0 {
+	status = "okay";
+};
+
+&pwm2 {
+	status = "okay";
+};
+
+&sdhci {
+	bus-width = <8>;
+	mmc-hs400-1_8v;
+	supports-emmc;
+	non-removable;
+	keep-power-in-suspend;
+	mmc-hs400-enhanced-strobe;
+	status = "okay";
+};
+
+&sdio0 {
+	clock-frequency = <50000000>;
+	clock-freq-min-max = <200000 50000000>;
+	supports-sdio;
+	bus-width = <4>;
+	disable-wp;
+	cap-sd-highspeed;
+	cap-sdio-irq;
+	keep-power-in-suspend;
+	mmc-pwrseq = <&sdio_pwrseq>;
+	non-removable;
+	num-slots = <1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdio0_bus4 &sdio0_cmd &sdio0_clk>;
+	sd-uhs-sdr104;
+	status = "okay";
+};
+
+&sdmmc {
+	clock-frequency = <150000000>;
+	clock-freq-min-max = <100000 150000000>;
+	supports-sd;
+	bus-width = <4>;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	disable-wp;
+	num-slots = <1>;
+	//sd-uhs-sdr104;
+	vqmmc-supply = <&vcc_sd>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd &sdmmc_bus4>;
+	status = "okay";
+};
+
+&saradc {
 	status = "okay";
 };
 
@@ -516,6 +545,27 @@
 	};
 };
 
+&uart2 {
+	status = "okay";
+};
+
+&usbdrd3_0 {
+	status = "okay";
+};
+
+&usbdrd3_1 {
+	status = "okay";
+};
+
+&usbdrd_dwc3_0 {
+	status = "okay";
+};
+
+&usbdrd_dwc3_1 {
+	status = "okay";
+	dr_mode = "host";
+};
+
 &usb_host0_ehci {
 	status = "okay";
 };
@@ -529,55 +579,6 @@
 };
 
 &usb_host1_ohci {
-	status = "okay";
-};
-
-&usbdrd3_0 {
-	status = "okay";
-};
-
-&usbdrd_dwc3_0 {
-	status = "okay";
-};
-
-&usbdrd3_1 {
-	status = "okay";
-};
-
-&usbdrd_dwc3_1 {
-	status = "okay";
-	dr_mode = "host";
-};
-
-&uart2 {
-	status = "okay";
-};
-
-&pwm0 {
-	status = "okay";
-};
-
-&pwm2 {
-	status = "okay";
-};
-
-&saradc {
-	status = "okay";
-};
-
-&gmac {
-	phy-supply = <&vcc_phy>;
-	phy-mode = "rgmii";
-	clock_in_out = "input";
-	snps,reset-gpio = <&gpio3 15 GPIO_ACTIVE_LOW>;
-	snps,reset-active-low;
-	snps,reset-delays-us = <0 10000 50000>;
-	assigned-clocks = <&cru SCLK_RMII_SRC>;
-	assigned-clock-parents = <&clkin_gmac>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&rgmii_pins>;
-	tx_delay = <0x28>;
-	rx_delay = <0x11>;
 	status = "okay";
 };
 
@@ -666,9 +667,9 @@
 		1024  1108	/* 1992MHz */
 	>;
 	idle-cost-data = <
-	      15
-	      15
-	       0
+		15
+		15
+		0
 	>;
 };
 
@@ -683,9 +684,9 @@
 		401    222	/* 1512M */
 	>;
 	idle-cost-data = <
-	      6
-	      6
-	      0
+		6
+		6
+		0
 	>;
 };
 
@@ -702,9 +703,9 @@
 		1024  1108	/* 1992MHz */
 	>;
 	idle-cost-data = <
-		 65
-		 65
-		 65
+		65
+		65
+		65
 	>;
 };
 
