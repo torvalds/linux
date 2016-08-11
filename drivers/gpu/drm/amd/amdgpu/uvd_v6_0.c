@@ -397,15 +397,13 @@ static int uvd_v6_0_start(struct amdgpu_device *adev)
 	uvd_v6_0_mc_resume(adev);
 
 	/* disable clock gating */
-	tmp = RREG32(mmUVD_CGC_CTRL);
-	tmp &= ~UVD_CGC_CTRL__DYN_CLOCK_MODE_MASK;
-	WREG32(mmUVD_CGC_CTRL, tmp);
+	WREG32_FIELD(UVD_CGC_CTRL, DYN_CLOCK_MODE, 0);
 
 	/* disable interupt */
-	WREG32_P(mmUVD_MASTINT_EN, 0, ~UVD_MASTINT_EN__VCPU_EN_MASK);
+	WREG32_FIELD(UVD_MASTINT_EN, VCPU_EN, 0);
 
 	/* stall UMC and register bus before resetting VCPU */
-	WREG32_P(mmUVD_LMI_CTRL2, UVD_LMI_CTRL2__STALL_ARB_UMC_MASK, ~UVD_LMI_CTRL2__STALL_ARB_UMC_MASK);
+	WREG32_FIELD(UVD_LMI_CTRL2, STALL_ARB_UMC, 1);
 	mdelay(1);
 
 	/* put LMI, VCPU, RBC etc... into reset */
@@ -421,7 +419,7 @@ static int uvd_v6_0_start(struct amdgpu_device *adev)
 	mdelay(5);
 
 	/* take UVD block out of reset */
-	WREG32_P(mmSRBM_SOFT_RESET, 0, ~SRBM_SOFT_RESET__SOFT_RESET_UVD_MASK);
+	WREG32_FIELD(SRBM_SOFT_RESET, SOFT_RESET_UVD, 0);
 	mdelay(5);
 
 	/* initialize UVD memory controller */
@@ -456,7 +454,7 @@ static int uvd_v6_0_start(struct amdgpu_device *adev)
 	WREG32(mmUVD_VCPU_CNTL, UVD_VCPU_CNTL__CLK_EN_MASK);
 
 	/* enable UMC */
-	WREG32_P(mmUVD_LMI_CTRL2, 0, ~UVD_LMI_CTRL2__STALL_ARB_UMC_MASK);
+	WREG32_FIELD(UVD_LMI_CTRL2, STALL_ARB_UMC, 0);
 
 	/* boot up the VCPU */
 	WREG32(mmUVD_SOFT_RESET, 0);
@@ -476,11 +474,9 @@ static int uvd_v6_0_start(struct amdgpu_device *adev)
 			break;
 
 		DRM_ERROR("UVD not responding, trying to reset the VCPU!!!\n");
-		WREG32_P(mmUVD_SOFT_RESET, UVD_SOFT_RESET__VCPU_SOFT_RESET_MASK,
-				~UVD_SOFT_RESET__VCPU_SOFT_RESET_MASK);
+		WREG32_FIELD(UVD_SOFT_RESET, VCPU_SOFT_RESET, 1);
 		mdelay(10);
-		WREG32_P(mmUVD_SOFT_RESET, 0,
-			 ~UVD_SOFT_RESET__VCPU_SOFT_RESET_MASK);
+		WREG32_FIELD(UVD_SOFT_RESET, VCPU_SOFT_RESET, 0);
 		mdelay(10);
 		r = -1;
 	}
@@ -497,15 +493,14 @@ static int uvd_v6_0_start(struct amdgpu_device *adev)
 	/* clear the bit 4 of UVD_STATUS */
 	WREG32_P(mmUVD_STATUS, 0, ~(2 << UVD_STATUS__VCPU_REPORT__SHIFT));
 
+	/* force RBC into idle state */
 	rb_bufsz = order_base_2(ring->ring_size);
-	tmp = 0;
-	tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_BUFSZ, rb_bufsz);
+	tmp = REG_SET_FIELD(0, UVD_RBC_RB_CNTL, RB_BUFSZ, rb_bufsz);
 	tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_BLKSZ, 1);
 	tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_NO_FETCH, 1);
 	tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_WPTR_POLL_EN, 0);
 	tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_NO_UPDATE, 1);
 	tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_RPTR_WR_EN, 1);
-	/* force RBC into idle state */
 	WREG32(mmUVD_RBC_RB_CNTL, tmp);
 
 	/* set the write pointer delay */
@@ -526,7 +521,7 @@ static int uvd_v6_0_start(struct amdgpu_device *adev)
 	ring->wptr = RREG32(mmUVD_RBC_RB_RPTR);
 	WREG32(mmUVD_RBC_RB_WPTR, ring->wptr);
 
-	WREG32_P(mmUVD_RBC_RB_CNTL, 0, ~UVD_RBC_RB_CNTL__RB_NO_FETCH_MASK);
+	WREG32_FIELD(UVD_RBC_RB_CNTL, RB_NO_FETCH, 0);
 
 	return 0;
 }
@@ -743,7 +738,7 @@ static int uvd_v6_0_wait_for_idle(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		if (!(RREG32(mmSRBM_STATUS) & SRBM_STATUS__UVD_BUSY_MASK))
+		if (uvd_v6_0_is_idle(handle))
 			return 0;
 	}
 	return -ETIMEDOUT;
