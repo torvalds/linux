@@ -213,6 +213,7 @@ static int arm_ccn_node_to_xp_port(int node)
 #define CCN_CONFIG_TYPE(_config)	(((_config) >> 8) & 0xff)
 #define CCN_CONFIG_EVENT(_config)	(((_config) >> 16) & 0xff)
 #define CCN_CONFIG_PORT(_config)	(((_config) >> 24) & 0x3)
+#define CCN_CONFIG_BUS(_config)		(((_config) >> 24) & 0x3)
 #define CCN_CONFIG_VC(_config)		(((_config) >> 26) & 0x7)
 #define CCN_CONFIG_DIR(_config)		(((_config) >> 29) & 0x1)
 #define CCN_CONFIG_MASK(_config)	(((_config) >> 30) & 0xf)
@@ -242,6 +243,7 @@ static CCN_FORMAT_ATTR(xp, "config:0-7");
 static CCN_FORMAT_ATTR(type, "config:8-15");
 static CCN_FORMAT_ATTR(event, "config:16-23");
 static CCN_FORMAT_ATTR(port, "config:24-25");
+static CCN_FORMAT_ATTR(bus, "config:24-25");
 static CCN_FORMAT_ATTR(vc, "config:26-28");
 static CCN_FORMAT_ATTR(dir, "config:29-29");
 static CCN_FORMAT_ATTR(mask, "config:30-33");
@@ -254,6 +256,7 @@ static struct attribute *arm_ccn_pmu_format_attrs[] = {
 	&arm_ccn_pmu_format_attr_type.attr.attr,
 	&arm_ccn_pmu_format_attr_event.attr.attr,
 	&arm_ccn_pmu_format_attr_port.attr.attr,
+	&arm_ccn_pmu_format_attr_bus.attr.attr,
 	&arm_ccn_pmu_format_attr_vc.attr.attr,
 	&arm_ccn_pmu_format_attr_dir.attr.attr,
 	&arm_ccn_pmu_format_attr_mask.attr.attr,
@@ -351,10 +354,14 @@ static ssize_t arm_ccn_pmu_event_show(struct device *dev,
 		break;
 	case CCN_TYPE_XP:
 		res += snprintf(buf + res, PAGE_SIZE - res,
-				",xp=?,port=?,vc=?,dir=?");
+				",xp=?,vc=?");
 		if (event->event == CCN_EVENT_WATCHPOINT)
 			res += snprintf(buf + res, PAGE_SIZE - res,
-					",cmp_l=?,cmp_h=?,mask=?");
+					",port=?,dir=?,cmp_l=?,cmp_h=?,mask=?");
+		else
+			res += snprintf(buf + res, PAGE_SIZE - res,
+					",bus=?");
+
 		break;
 	case CCN_TYPE_MN:
 		res += snprintf(buf + res, PAGE_SIZE - res, ",node=%d", ccn->mn_id);
@@ -1029,7 +1036,7 @@ static void arm_ccn_pmu_xp_event_config(struct perf_event *event)
 	hw->event_base = CCN_XP_DT_CONFIG__DT_CFG__XP_PMU_EVENT(hw->config_base);
 
 	id = (CCN_CONFIG_VC(event->attr.config) << 4) |
-			(CCN_CONFIG_PORT(event->attr.config) << 3) |
+			(CCN_CONFIG_BUS(event->attr.config) << 3) |
 			(CCN_CONFIG_EVENT(event->attr.config) << 0);
 
 	val = readl(source->base + CCN_XP_PMU_EVENT_SEL);
