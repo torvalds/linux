@@ -1306,7 +1306,7 @@ static int efx_ptp_probe_channel(struct efx_channel *channel)
 {
 	struct efx_nic *efx = channel->efx;
 
-	channel->irq_moderation = 0;
+	channel->irq_moderation_us = 0;
 	channel->rx_queue.core_index = 0;
 
 	return efx_ptp_probe(efx, channel);

@@ -378,12 +378,15 @@ static void falcon_push_irq_moderation(struct efx_channel *channel)
 	struct efx_nic *efx = channel->efx;
 
 	/* Set timer register */
-	if (channel->irq_moderation) {
+	if (channel->irq_moderation_us) {
+		unsigned int ticks;
+
+		ticks = efx_usecs_to_ticks(efx, channel->irq_moderation_us);
 		EFX_POPULATE_DWORD_2(timer_cmd,
 				     FRF_AB_TC_TIMER_MODE,
 				     FFE_BB_TIMER_MODE_INT_HLDOFF,
 				     FRF_AB_TC_TIMER_VAL,
-				     channel->irq_moderation - 1);
+				     ticks - 1);
 	} else {
 		EFX_POPULATE_DWORD_2(timer_cmd,
 				     FRF_AB_TC_TIMER_MODE,

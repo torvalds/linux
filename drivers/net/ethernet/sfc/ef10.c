@@ -1749,27 +1749,43 @@ static size_t efx_ef10_update_stats_vf(struct efx_nic *efx, u64 *full_stats,
 static void efx_ef10_push_irq_moderation(struct efx_channel *channel)
 {
 	struct efx_nic *efx = channel->efx;
-	unsigned int mode, value;
+	unsigned int mode, usecs;
 	efx_dword_t timer_cmd;
 
-	if (channel->irq_moderation) {
+	if (channel->irq_moderation_us) {
 		mode = 3;
-		value = channel->irq_moderation - 1;
+		usecs = channel->irq_moderation_us;
 	} else {
 		mode = 0;
-		value = 0;
+		usecs = 0;
 	}
 
-	if (EFX_EF10_WORKAROUND_35388(efx)) {
+	if (EFX_EF10_WORKAROUND_61265(efx)) {
+		MCDI_DECLARE_BUF(inbuf, MC_CMD_SET_EVQ_TMR_IN_LEN);
+		unsigned int ns = usecs * 1000;
+
+		MCDI_SET_DWORD(inbuf, SET_EVQ_TMR_IN_INSTANCE,
+			       channel->channel);
+		MCDI_SET_DWORD(inbuf, SET_EVQ_TMR_IN_TMR_LOAD_REQ_NS, ns);
+		MCDI_SET_DWORD(inbuf, SET_EVQ_TMR_IN_TMR_RELOAD_REQ_NS, ns);
+		MCDI_SET_DWORD(inbuf, SET_EVQ_TMR_IN_TMR_MODE, mode);
+
+		efx_mcdi_rpc_async(efx, MC_CMD_SET_EVQ_TMR,
+				   inbuf, sizeof(inbuf), 0, NULL, 0);
+	} else if (EFX_EF10_WORKAROUND_35388(efx)) {
+		unsigned int ticks = efx_usecs_to_ticks(efx, usecs);
+
 		EFX_POPULATE_DWORD_3(timer_cmd, ERF_DD_EVQ_IND_TIMER_FLAGS,
 				     EFE_DD_EVQ_IND_TIMER_FLAGS,
 				     ERF_DD_EVQ_IND_TIMER_MODE, mode,
-				     ERF_DD_EVQ_IND_TIMER_VAL, value);
+				     ERF_DD_EVQ_IND_TIMER_VAL, ticks);
 		efx_writed_page(efx, &timer_cmd, ER_DD_EVQ_INDIRECT,
 				channel->channel);
 	} else {
+		unsigned int ticks = efx_usecs_to_ticks(efx, usecs);
+
 		EFX_POPULATE_DWORD_2(timer_cmd, ERF_DZ_TC_TIMER_MODE, mode,
-				     ERF_DZ_TC_TIMER_VAL, value);
+				     ERF_DZ_TC_TIMER_VAL, ticks);
 		efx_writed_page(efx, &timer_cmd, ER_DZ_EVQ_TMR,
 				channel->channel);
 	}
@@ -2615,10 +2631,11 @@ static int efx_ef10_ev_init(struct efx_channel *channel)
 	/* Successfully created event queue on channel 0 */
 	rc = efx_mcdi_get_workarounds(efx, &implemented, &enabled);
 	if (rc == -ENOSYS) {
-		/* GET_WORKAROUNDS was implemented before the bug26807
-		 * workaround, thus the latter must be unavailable in this fw
+		/* GET_WORKAROUNDS was implemented before these workarounds,
+		 * thus they must be unavailable in this firmware.
 		 */
 		nic_data->workaround_26807 = false;
+		nic_data->workaround_61265 = false;
 		rc = 0;
 	} else if (rc) {
 		goto fail;
@@ -2658,6 +2675,9 @@ static int efx_ef10_ev_init(struct efx_channel *channel)
 				rc = 0;
 			}
 		}
+
+		nic_data->workaround_61265 =
+			!!(implemented & MC_CMD_GET_WORKAROUNDS_OUT_BUG61265);
 	}
 
 	if (!rc)
