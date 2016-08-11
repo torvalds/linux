@@ -1317,15 +1317,6 @@ static int tonga_populate_smc_mvdd_table(struct pp_hwmgr *hwmgr,
 }
 
 /**
- * Convert a voltage value in mv unit to VID number required by SMU firmware
- */
-static uint8_t convert_to_vid(uint16_t vddc)
-{
-	return (uint8_t) ((6200 - (vddc * VOLTAGE_SCALE)) / 25);
-}
-
-
-/**
  * Preparation of vddc and vddgfx CAC tables for SMC.
  *
  * @param    hwmgr      the address of the hardware manager

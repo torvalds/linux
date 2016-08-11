@@ -29,6 +29,7 @@
 #include "cgs_common.h"
 #include "linux/delay.h"
 
+
 int smum_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 {
 	struct pp_smumgr *smumgr;

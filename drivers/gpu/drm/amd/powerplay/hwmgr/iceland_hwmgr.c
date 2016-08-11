@@ -1355,14 +1355,6 @@ static int iceland_populate_smc_mvdd_table(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-/**
- * Convert a voltage value in mv unit to VID number required by SMU firmware
- */
-static uint8_t convert_to_vid(uint16_t vddc)
-{
-	return (uint8_t) ((6200 - (vddc * VOLTAGE_SCALE)) / 25);
-}
-
 int iceland_populate_bapm_vddc_vid_sidd(struct pp_hwmgr *hwmgr)
 {
 	int i;

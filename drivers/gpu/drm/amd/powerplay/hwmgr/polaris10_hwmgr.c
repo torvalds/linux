@@ -736,11 +736,6 @@ int polaris10_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-uint8_t convert_to_vid(uint16_t vddc)
-{
-	return (uint8_t) ((6200 - (vddc * VOLTAGE_SCALE)) / 25);
-}
-
 /**
  * Mvdd table preparation for SMC.
  *

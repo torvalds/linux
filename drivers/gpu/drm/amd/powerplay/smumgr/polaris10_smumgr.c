@@ -40,7 +40,6 @@
 #include "cgs_common.h"
 
 #define POLARIS10_SMC_SIZE 0x20000
-#define VOLTAGE_SCALE 4
 
 /* Microcode file is stored in this buffer */
 #define BUFFER_SIZE                 80000

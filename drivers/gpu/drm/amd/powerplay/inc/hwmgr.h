@@ -42,6 +42,10 @@ extern int amdgpu_powercontainment;
 extern int amdgpu_sclk_deep_sleep_en;
 extern unsigned amdgpu_pp_feature_mask;
 
+#define VOLTAGE_SCALE 4
+
+uint8_t convert_to_vid(uint16_t vddc);
+
 enum DISPLAY_GAP {
 	DISPLAY_GAP_VBLANK_OR_WM = 0,   /* Wait for vblank or MCHG watermark. */
 	DISPLAY_GAP_VBLANK       = 1,   /* Wait for vblank. */

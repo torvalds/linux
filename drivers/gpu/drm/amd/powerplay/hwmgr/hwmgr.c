@@ -35,8 +35,6 @@
 #include "pp_acpi.h"
 #include "amd_acpi.h"
 
-#define VOLTAGE_SCALE               4
-
 extern int cz_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int tonga_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int fiji_hwmgr_init(struct pp_hwmgr *hwmgr);
@@ -45,6 +43,11 @@ extern int iceland_hwmgr_init(struct pp_hwmgr *hwmgr);
 
 static void hwmgr_init_default_caps(struct pp_hwmgr *hwmgr);
 static int hwmgr_set_user_specify_caps(struct pp_hwmgr *hwmgr);
+
+uint8_t convert_to_vid(uint16_t vddc)
+{
+	return (uint8_t) ((6200 - (vddc * VOLTAGE_SCALE)) / 25);
+}
 
 int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 {
