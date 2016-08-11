@@ -2221,9 +2221,8 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 	err = wait_on_bit_timeout(&data->flags, BTUSB_DOWNLOADING,
 				  TASK_INTERRUPTIBLE,
 				  msecs_to_jiffies(5000));
-	if (err == 1) {
+	if (err == -EINTR) {
 		BT_ERR("%s: Firmware loading interrupted", hdev->name);
-		err = -EINTR;
 		goto done;
 	}
 
@@ -2275,7 +2274,7 @@ done:
 				  TASK_INTERRUPTIBLE,
 				  msecs_to_jiffies(1000));
 
-	if (err == 1) {
+	if (err == -EINTR) {
 		BT_ERR("%s: Device boot interrupted", hdev->name);
 		return -EINTR;
 	}
