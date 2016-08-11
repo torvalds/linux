@@ -48,10 +48,8 @@ SwLedOn_8188EU(
 	u8	LedCfg;
 	//HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
 
-	if( (padapter->bSurpriseRemoved == _TRUE) || ( padapter->bDriverStopped == _TRUE))
-	{
+	if (RTW_CANNOT_RUN(padapter))
 		return;
-	}
 
 	LedCfg = rtw_read8(padapter, REG_LEDCFG2);
 	switch(pLed->LedPin)
@@ -85,10 +83,8 @@ SwLedOff_8188EU(
 	u8	LedCfg;
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
 
-	if(padapter->bSurpriseRemoved == _TRUE)
-	{
+	if (RTW_CANNOT_RUN(padapter))
 		goto exit;
-	}
 
 
 	LedCfg = rtw_read8(padapter, REG_LEDCFG2);//0x4E

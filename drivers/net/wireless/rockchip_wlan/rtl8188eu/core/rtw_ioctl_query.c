@@ -82,7 +82,7 @@ u8 query_802_11_association_information(	_adapter *padapter,PNDIS_802_11_ASSOCIA
 	struct wlan_network *tgt_network;
 	struct	mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
 	struct	security_priv  *psecuritypriv=&(padapter->securitypriv);
-	WLAN_BSSID_EX	*psecnetwork=(WLAN_BSSID_EX*)&(psecuritypriv->sec_bss);					
+	WLAN_BSSID_EX	*psecnetwork = (WLAN_BSSID_EX *)&pmlmepriv->cur_network.network;					
 	u8 *	pDest = (u8 *)pAssocInfo + sizeof(NDIS_802_11_ASSOCIATION_INFORMATION);
 	unsigned char i,*auth_ie,*supp_ie;
 

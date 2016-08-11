@@ -60,9 +60,6 @@
 	#define Rtl8723B_FwBTImgArray				Rtl8723BFwBTImgArray
 	#define Rtl8723B_FwBTImgArrayLength		Rtl8723BFwBTImgArrayLength
 
-	#define Rtl8723B_FwMPImageArray			Rtl8723BFwMPImgArray
-	#define Rtl8723B_FwMPImgArrayLength		Rtl8723BMPImgArrayLength
-
 	#define Rtl8723B_PHY_REG_Array_MP			Rtl8723B_PHYREG_Array_MP
 	#define Rtl8723B_PHY_REG_Array_MPLength	Rtl8723B_PHYREG_Array_MPLength
 #endif
@@ -82,14 +79,6 @@ typedef struct _RT_FIRMWARE {
 	u8			szFwBuffer[FW_8723B_SIZE];
 #endif
 	u32			ulFwLength;
-
-#ifdef CONFIG_EMBEDDED_FWIMG
-	u8*			szBTFwBuffer;
-	u8			myBTFwBuffer[FW_8723B_SIZE];
-#else
-	u8			szBTFwBuffer[FW_8723B_SIZE];
-#endif
-	u32			ulBTFwLength;
 } RT_FIRMWARE_8723B, *PRT_FIRMWARE_8723B;
 
 //
@@ -132,8 +121,20 @@ typedef struct _RT_8723B_FIRMWARE_HDR
 #define PAGE_SIZE_TX_8723B			128
 #define PAGE_SIZE_RX_8723B			8
 
-#define RX_DMA_SIZE_8723B			0x4000	// 16K
+#define TX_DMA_SIZE_8723B			0x8000	/* 32K(TX) */
+#define RX_DMA_SIZE_8723B			0x4000	/* 16K(RX) */
+
+#ifdef CONFIG_WOWLAN
+#define RESV_FMWF	WKFMCAM_SIZE*MAX_WKFM_NUM /* 16 entries, for each is 24 bytes*/
+#else
+#define RESV_FMWF	0
+#endif
+
+#ifdef CONFIG_FW_C2H_DEBUG 
+#define RX_DMA_RESERVED_SIZE_8723B	0x100	// 256B, reserved for c2h debug message
+#else
 #define RX_DMA_RESERVED_SIZE_8723B	0x80	// 128B, reserved for tx report
+#endif
 #define RX_DMA_BOUNDARY_8723B		(RX_DMA_SIZE_8723B - RX_DMA_RESERVED_SIZE_8723B - 1)
 
 
@@ -152,7 +153,6 @@ typedef struct _RT_8723B_FIRMWARE_HDR
 #undef BCNQ1_PAGE_NUM_8723B
 #define BCNQ1_PAGE_NUM_8723B		0x00 // 0x04
 #endif
-#define MAX_RX_DMA_BUFFER_SIZE_8723B	0x2800	// RX 10K
 
 //For WoWLan , more reserved page
 //ARP Rsp:1, RWC:1, GTK Info:1,GTK RSP:2,GTK EXT MEM:2, PNO: 6
@@ -164,7 +164,7 @@ typedef struct _RT_8723B_FIRMWARE_HDR
 
 #ifdef CONFIG_PNO_SUPPORT
 #undef WOWLAN_PAGE_NUM_8723B
-#define WOWLAN_PAGE_NUM_8723B	0x0d
+#define WOWLAN_PAGE_NUM_8723B	0x15
 #endif
 
 #ifdef CONFIG_AP_WOWLAN
@@ -217,23 +217,6 @@ typedef struct _RT_8723B_FIRMWARE_HDR
 
 #define EFUSE_PROTECT_BYTES_BANK		16
 
-// Description: Determine the types of C2H events that are the same in driver and Fw.
-// Fisrt constructed by tynli. 2009.10.09.
-typedef enum _C2H_EVT
-{
-	C2H_DBG = 0,
-	C2H_TSF = 1,
-	C2H_AP_RPT_RSP = 2,
-	C2H_CCX_TX_RPT = 3,	// The FW notify the report of the specific tx packet.
-	C2H_BT_RSSI = 4,
-	C2H_BT_OP_MODE = 5,
-	C2H_EXT_RA_RPT = 6,
-	C2H_8723B_BT_INFO = 9,
-	C2H_HW_INFO_EXCH = 10,
-	C2H_8723B_BT_MP_INFO = 11,
-	MAX_C2HEVENT
-} C2H_EVT;
-
 typedef struct _C2H_EVT_HDR
 {
 	u8	CmdID;
@@ -282,15 +265,20 @@ void Hal_EfuseParseXtal_8723B(PADAPTER pAdapter, u8 *hwinfo, u8 AutoLoadFail);
 void Hal_EfuseParseThermalMeter_8723B(PADAPTER padapter, u8 *hwinfo, u8 AutoLoadFail);
 VOID Hal_EfuseParsePackageType_8723B(PADAPTER pAdapter,u8* hwinfo,BOOLEAN AutoLoadFail);
 VOID Hal_EfuseParseVoltage_8723B(PADAPTER pAdapter,u8* hwinfo,BOOLEAN 	AutoLoadFail); 
+VOID Hal_EfuseParseBoardType_8723B(PADAPTER Adapter,	u8*	PROMContent,BOOLEAN AutoloadFail);
 
 #ifdef CONFIG_C2H_PACKET_EN
-void C2HPacketHandler_8723B(PADAPTER padapter, u8 *pbuffer, u16 length);
+void rtl8723b_c2h_packet_handler(PADAPTER padapter, u8 *pbuf, u16 length);
 #endif
 
 
 void rtl8723b_set_hal_ops(struct hal_ops *pHalFunc);
+void init_hal_spec_8723b(_adapter *adapter);
 void SetHwReg8723B(PADAPTER padapter, u8 variable, u8 *val);
 void GetHwReg8723B(PADAPTER padapter, u8 variable, u8 *val);
+#ifdef CONFIG_C2H_PACKET_EN
+void SetHwRegWithBuf8723B(PADAPTER padapter, u8 variable, u8 *pbuf, int len);
+#endif // CONFIG_C2H_PACKET_EN
 u8 SetHalDefVar8723B(PADAPTER padapter, HAL_DEF_VARIABLE variable, void *pval);
 u8 GetHalDefVar8723B(PADAPTER padapter, HAL_DEF_VARIABLE variable, void *pval);
 
@@ -299,7 +287,7 @@ void rtl8723b_InitBeaconParameters(PADAPTER padapter);
 void rtl8723b_InitBeaconMaxError(PADAPTER padapter, u8 InfraMode);
 void	_InitBurstPktLen_8723BS(PADAPTER Adapter);
 void _8051Reset8723(PADAPTER padapter);
-#ifdef CONFIG_WOWLAN
+#if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
 void Hal_DetectWoWMode(PADAPTER pAdapter);
 #endif //CONFIG_WOWLAN
 
@@ -325,9 +313,9 @@ s32 c2h_handler_8723b(PADAPTER padapter, u8 *pC2hEvent);
 u8 MRateToHwRate8723B(u8  rate);
 u8 HwRateToMRate8723B(u8	 rate);
 
-#ifdef CONFIG_RF_GAIN_OFFSET
+#ifdef CONFIG_RF_POWER_TRIM
 void Hal_ReadRFGainOffset(PADAPTER pAdapter,u8* hwinfo,BOOLEAN AutoLoadFail);
-#endif //CONFIG_RF_GAIN_OFFSET
+#endif /*CONFIG_RF_POWER_TRIM*/
 
 #ifdef CONFIG_PCI_HCI
 BOOLEAN	InterruptRecognized8723BE(PADAPTER Adapter);

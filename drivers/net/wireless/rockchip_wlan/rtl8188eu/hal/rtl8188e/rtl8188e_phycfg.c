@@ -460,6 +460,8 @@ phy_RFSerialRead(
 	u32						NewOffset;
 	u32 						tmplong,tmplong2;
 	u8					RfPiEnable=0;
+
+	_enter_critical_mutex(&(adapter_to_dvobj(Adapter)->rf_read_reg_mutex) , NULL);
 #if 0
 	if(pHalData->RFChipID == RF_8225 && Offset > 0x24) //36 valid regs
 		return	retValue;
@@ -519,7 +521,7 @@ phy_RFSerialRead(
 		//DBG_8192C("Readback from RF-SI : 0x%x\n", retValue);
 	}
 	//DBG_8192C("RFR-%d Addr[0x%x]=0x%x\n", eRFPath, pPhyReg->rfLSSIReadBack, retValue);
-
+	_exit_critical_mutex(&(adapter_to_dvobj(Adapter)->rf_read_reg_mutex) , NULL);
 	return retValue;
 
 }
@@ -783,8 +785,9 @@ s32 PHY_MACConfig8188E(PADAPTER Adapter)
 {
 	int		rtStatus = _SUCCESS;
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
-	s8			*pszMACRegFile;
-	s8			sz8188EMACRegFile[] = RTL8188E_PHY_MACREG;
+	s8		*pszMACRegFile;
+	s8		sz8188EMACRegFile[] = RTL8188E_PHY_MACREG;
+	u16		val=0;
 
 	pszMACRegFile = sz8188EMACRegFile;
 
@@ -805,7 +808,10 @@ s32 PHY_MACConfig8188E(PADAPTER Adapter)
 	}
 
 	// 2010.07.13 AMPDU aggregation number B
-	rtw_write8(Adapter, REG_MAX_AGGR_NUM, MAX_AGGR_NUM);
+	val |= MAX_AGGR_NUM;
+	val = val << 8;
+	val |= MAX_AGGR_NUM;
+	rtw_write16(Adapter, REG_MAX_AGGR_NUM, val);
 	//rtw_write8(Adapter, REG_MAX_AGGR_NUM, 0x0B); 
 
 	return rtStatus;
@@ -895,7 +901,7 @@ storePwrIndexDiffRateOffset(
 		//printk("MCSTxPowerLevelOriginalOffset[%d][6]-TxAGC_A_CCK1_Mcs32 = 0x%x\n", pHalData->pwrGroupCnt,
 		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][6]);
 	}
-	if(RegAddr == rTxAGC_B_CCK11_A_CCK2_11 && BitMask == 0xffffff00)
+	if(RegAddr == rTxAGC_B_CCK11_A_CCK2_11 && BitMask == bMaskH3Bytes)
 	{
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][7] = Data;
 		//printk("MCSTxPowerLevelOriginalOffset[%d][7]-TxAGC_B_CCK11_A_CCK2_11 = 0x%x\n", pHalData->pwrGroupCnt,
@@ -1041,42 +1047,14 @@ phy_BB8188E_Config_ParaFile(
 
 	u8	sz8188EBBRegFile[] = RTL8188E_PHY_REG;
 	u8	sz8188EAGCTableFile[] = RTL8188E_AGC_TAB;
-	u8	sz8188EBBRegPgFile[] = RTL8188E_PHY_REG_PG;
 	u8	sz8188EBBRegMpFile[] = RTL8188E_PHY_REG_MP;
-	u8	sz8188EBBRegLimitFile[] = RTL8188E_TXPWR_LMT;
-
-	u8	*pszBBRegFile = NULL, *pszAGCTableFile = NULL, *pszBBRegPgFile = NULL, *pszBBRegMpFile=NULL,
-		*pszRFTxPwrLmtFile = NULL;
-
+	u8	*pszBBRegFile = NULL, *pszAGCTableFile = NULL, *pszBBRegMpFile = NULL;
 
 	//RT_TRACE(COMP_INIT, DBG_TRACE, ("==>phy_BB8192S_Config_ParaFile\n"));
 
 	pszBBRegFile = sz8188EBBRegFile ;
 	pszAGCTableFile = sz8188EAGCTableFile;
-	pszBBRegPgFile = sz8188EBBRegPgFile;
 	pszBBRegMpFile = sz8188EBBRegMpFile;
-	pszRFTxPwrLmtFile = sz8188EBBRegLimitFile;
-
-	PHY_InitTxPowerLimit( Adapter );
-
- 	if ( Adapter->registrypriv.RegEnableTxPowerLimit == 1 || 
-	     ( Adapter->registrypriv.RegEnableTxPowerLimit == 2 && pHalData->EEPROMRegulatory == 1 ) )
- 	{
-#ifdef CONFIG_LOAD_PHY_PARA_FROM_FILE
-		if (PHY_ConfigRFWithPowerLimitTableParaFile( Adapter, pszRFTxPwrLmtFile )== _FAIL)
-#endif
-		{
-#ifdef CONFIG_EMBEDDED_FWIMG
-			if (HAL_STATUS_SUCCESS != ODM_ConfigRFWithHeaderFile(&pHalData->odmpriv, CONFIG_RF_TXPWR_LMT, (ODM_RF_RADIO_PATH_E)0))
-				rtStatus = _FAIL;
-#endif
-		}
-
-		if(rtStatus != _SUCCESS){
-			DBG_871X("phy_BB8188E_Config_ParaFile():Read Tx power limit fail!!\n");
-			goto phy_BB8190_Config_ParaFile_Fail;
-		}
- 	}
 
 	//
 	// 1. Read PHY_REG.TXT BB INIT!!
@@ -1120,38 +1098,6 @@ phy_BB8188E_Config_ParaFile(
 #endif	// #if (MP_DRIVER == 1)
 
 	//
-	// 2. If EEPROM or EFUSE autoload OK, We must config by PHY_REG_PG.txt
-	//
-	PHY_InitTxPowerByRate( Adapter );
-	if ( ( Adapter->registrypriv.RegEnableTxPowerByRate == 1 || 
-	     ( Adapter->registrypriv.RegEnableTxPowerByRate == 2 && pHalData->EEPROMRegulatory != 2 )  ) )
-	{
-		pHalData->pwrGroupCnt = 0;
-
-#ifdef CONFIG_LOAD_PHY_PARA_FROM_FILE
-		if (phy_ConfigBBWithPgParaFile(Adapter, pszBBRegPgFile) == _FAIL)
-#endif
-		{
-#ifdef CONFIG_EMBEDDED_FWIMG			
-			if(HAL_STATUS_FAILURE ==ODM_ConfigBBWithHeaderFile(&pHalData->odmpriv, CONFIG_BB_PHY_REG_PG))
-				rtStatus = _FAIL;			
-#endif
-		}
-
-		if ( pHalData->odmpriv.PhyRegPgValueType == PHY_REG_PG_EXACT_VALUE )
-			PHY_TxPowerByRateConfiguration(Adapter);
-
-		if ( Adapter->registrypriv.RegEnableTxPowerLimit == 1 || 
-	         ( Adapter->registrypriv.RegEnableTxPowerLimit == 2 && pHalData->EEPROMRegulatory == 1 ) )
-			PHY_ConvertTxPowerLimitToPowerIndex( Adapter );
-
-		if(rtStatus != _SUCCESS){
-			DBG_871X("%s(): CONFIG_BB_PHY_REG_PG Fail!!\n",__FUNCTION__	);
-			goto phy_BB8190_Config_ParaFile_Fail;
-		}
-	}
-
-	//
 	// 3. BB AGC table Initialization
 	//
 #ifdef CONFIG_LOAD_PHY_PARA_FROM_FILE
@@ -1185,7 +1131,7 @@ PHY_BBConfig8188E(
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
 	u32	RegVal;
 	u8	TmpU1B=0;
-	u8	value8,CrystalCap;
+	u8	value8;
 
 	phy_InitBBRFRegisterDefinition(Adapter);
 
@@ -1235,9 +1181,7 @@ PHY_BBConfig8188E(
 	//
 	rtStatus = phy_BB8188E_Config_ParaFile(Adapter);
 
-	// write 0x24[16:11] = 0x24[22:17] = CrystalCap
-	CrystalCap = pHalData->CrystalCap & 0x3F;
-	PHY_SetBBReg(Adapter, REG_AFE_XTAL_CTRL, 0x7ff800, (CrystalCap | (CrystalCap << 6)));
+	hal_set_crystal_cap(Adapter, pHalData->CrystalCap);
 	
 	return rtStatus;
 	
@@ -1592,8 +1536,7 @@ PHY_ScanOperationBackup8188E(
 #if 0
 	IO_TYPE	IoType;
 
-	if(!Adapter->bDriverStopped)
-	{
+	if (!rtw_is_drv_stopped(padapter)) {
 		switch(Operation)
 		{
 			case SCAN_OPT_BACKUP:
@@ -1680,7 +1623,7 @@ _PHY_SetBWMode88E(
 	if(pHalData->rf_chip==RF_8225)
 		return;
 
-	if(Adapter->bDriverStopped)
+	if (rtw_is_drv_stopped(Adapter))
 		return;
 
 	// Added it for 20/40 mhz switch time evaluation by guangan 070531
@@ -1863,8 +1806,7 @@ PHY_SetBWMode8188E(
 	pHalData->nCur40MhzPrimeSC = Offset;
 #endif
 
-	if((!Adapter->bDriverStopped) && (!Adapter->bSurpriseRemoved))
-	{
+	if (!RTW_CANNOT_RUN(Adapter)) {
 	#if 0
 		//PlatformSetTimer(Adapter, &(pHalData->SetBWModeTimer), 0);
 	#else
@@ -1935,9 +1877,9 @@ PHY_SwChnl8188E(	// Call after initialization
 	//if(pHalData->SetBWModeInProgress)
 	//	return;
 
-	while(pHalData->odmpriv.RFCalibrateInfo.bLCKInProgress) {
-		DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" bLCKInProgress\n", FUNC_ADPT_ARG(Adapter));
-		rtw_msleep_os(50);
+	while(pHalData->odmpriv.RFCalibrateInfo.bLCKInProgress)
+	{
+		rtw_msleep_os(50);		
 	}	
 
 	//--------------------------------------------
@@ -1972,8 +1914,7 @@ PHY_SwChnl8188E(	// Call after initialization
 	//pHalData->SwChnlStage=0;
 	//pHalData->SwChnlStep=0;
 
-	if((!Adapter->bDriverStopped) && (!Adapter->bSurpriseRemoved))
-	{
+	if (!RTW_CANNOT_RUN(Adapter)) {
 		#if 0
 		//PlatformSetTimer(Adapter, &(pHalData->SwChnlTimer), 0);
 		#else
@@ -2118,8 +2059,7 @@ static VOID _PHY_SetRFPathSwitch(
 {
 	u8	u1bTmp;
 
-	if(!pAdapter->hw_init_completed)
-	{
+	if (!rtw_is_hw_init_completed(pAdapter)) {
 		u1bTmp = rtw_read8(pAdapter, REG_LEDCFG2) | BIT7;
 		rtw_write8(pAdapter, REG_LEDCFG2, u1bTmp);
 		//PHY_SetBBReg(pAdapter, REG_LEDCFG0, BIT23, 0x01);
@@ -2154,8 +2094,7 @@ static BOOLEAN _PHY_QueryRFPathSwitch(
 //	if(is2T)
 //		return _TRUE;
 
-	if(!pAdapter->hw_init_completed)
-	{
+	if (!rtw_is_hw_init_completed(pAdapter)) {
 		PHY_SetBBReg(pAdapter, REG_LEDCFG0, BIT23, 0x01);
 		PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFParameter, BIT13, 0x01);
 	}

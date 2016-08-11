@@ -12,4 +12,5 @@ config WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
 	  Wifi driver will be load (use late_initcall) when kernel bootup
 
 source "drivers/net/wireless/rockchip_wlan/rkwifi/Kconfig"
+source "drivers/net/wireless/rockchip_wlan/rtl8188eu/Kconfig"
 endif # WL_ROCKCHIP

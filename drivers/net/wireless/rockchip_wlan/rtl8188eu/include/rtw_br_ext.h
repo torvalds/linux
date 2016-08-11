@@ -29,7 +29,7 @@
 #define DEBUG_INFO		//DBG_8192C
 #define DEBUG_ERR		DBG_8192C
 //#define GET_MY_HWADDR		((GET_MIB(priv))->dot11OperationEntry.hwaddr)
-#define GET_MY_HWADDR(padapter)		((padapter)->eeprompriv.mac_addr)
+#define GET_MY_HWADDR(padapter)		(adapter_mac_addr(padapter))
 #endif	// rtw_wifi_driver
 
 #define NAT25_HASH_BITS		4

@@ -77,10 +77,11 @@ void rtl8188eu_cal_txdesc_chksum(struct tx_desc	*ptxdesc)
 //
 void rtl8188e_fill_fake_txdesc(
 	PADAPTER	padapter,
-	u8*			pDesc,
-	u32			BufferLen,
-	u8			IsPsPoll,
-	u8			IsBTQosNull)
+	u8*		pDesc,
+	u32		BufferLen,
+	u8		IsPsPoll,
+	u8		IsBTQosNull,
+	u8		bDataFrame)
 {
 	struct tx_desc *ptxdesc;
 
@@ -117,6 +118,36 @@ void rtl8188e_fill_fake_txdesc(
 
 	//offset 16
 	ptxdesc->txdw4 |= cpu_to_le32(BIT(8));//driver uses rate
+
+	//
+	// Encrypt the data frame if under security mode excepct null data. Suggested by CCW.
+	//
+	if (_TRUE ==bDataFrame)
+	{
+		u32 EncAlg;
+
+		EncAlg = padapter->securitypriv.dot11PrivacyAlgrthm;
+		switch (EncAlg)
+		{
+			case _NO_PRIVACY_:
+				SET_TX_DESC_SEC_TYPE_8188E(pDesc, 0x0);
+				break;
+			case _WEP40_:
+			case _WEP104_:
+			case _TKIP_:
+				SET_TX_DESC_SEC_TYPE_8188E(pDesc, 0x1);
+				break;
+			case _SMS4_:
+				SET_TX_DESC_SEC_TYPE_8188E(pDesc, 0x2);
+				break;
+			case _AES_:
+				SET_TX_DESC_SEC_TYPE_8188E(pDesc, 0x3);
+				break;
+			default:
+				SET_TX_DESC_SEC_TYPE_8188E(pDesc, 0x0);
+				break;
+		}
+	}
 
 #if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI)
 	// USB interface drop packet if the checksum of descriptor isn't correct.
@@ -224,12 +255,12 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz ,u8 bag
       int	pull=0;
 	uint	qsel;
 	bool sgi = 0;
-	u8 data_rate,pwr_status,offset;
+	u8 data_rate = 0,pwr_status,offset;
 	_adapter			*padapter = pxmitframe->padapter;
 	struct mlme_priv	*pmlmepriv = &padapter->mlmepriv;		
 	struct pkt_attrib	*pattrib = &pxmitframe->attrib;
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
-	//struct dm_priv	*pdmpriv = &pHalData->dmpriv;
+	
 	struct tx_desc	*ptxdesc = (struct tx_desc *)pmem;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
@@ -286,9 +317,6 @@ if (padapter->registrypriv.mp_mode == 0)
 	if (pxmitframe->pkt_offset > 0)
 		ptxdesc->txdw1 |= cpu_to_le32((pxmitframe->pkt_offset << 26) & 0x7c000000);
 
-	//driver uses rate
-	ptxdesc->txdw4 |= cpu_to_le32(USERATE);//rate control always by driver
-
 	if((pxmitframe->frame_tag&0x0f) == DATA_FRAMETAG)
 	{
 		//DBG_8192C("pxmitframe->frame_tag == DATA_FRAMETAG\n");		
@@ -306,7 +334,8 @@ if (padapter->registrypriv.mp_mode == 0)
 
 		if(pattrib->ampdu_en==_TRUE){
 			ptxdesc->txdw2 |= cpu_to_le32(AGG_EN);//AGG EN
-		
+			ptxdesc->txdw2 |= (pattrib->ampdu_spacing << AMPDU_DENSITY_SHT)&0x00700000;	
+			
 			//SET_TX_DESC_MAX_AGG_NUM_88E(pDesc, 0x1F);
 			//SET_TX_DESC_MCSG1_MAX_LEN_88E(pDesc, 0x6);
 			//SET_TX_DESC_MCSG2_MAX_LEN_88E(pDesc, 0x6);
@@ -351,28 +380,35 @@ if (padapter->registrypriv.mp_mode == 0)
 			ptxdesc->txdw5 |= cpu_to_le32(0x0001ff00);//DATA/RTS  Rate FB LMT			
 
 #if (RATE_ADAPTIVE_SUPPORT == 1)
-			/* driver-based RA*/
-			if (pattrib->ht_en)
-				sgi = ODM_RA_GetShortGI_8188E(&pHalData->odmpriv,pattrib->mac_id);
+			if(pHalData->fw_ractrl == _FALSE){
+				/* driver-based RA*/
+				//driver uses rate
+				ptxdesc->txdw4 |= cpu_to_le32(USERATE);//rate control always by driver
+				if (pattrib->ht_en)
+					sgi = ODM_RA_GetShortGI_8188E(&pHalData->odmpriv,pattrib->mac_id);
 
-			data_rate = ODM_RA_GetDecisionRate_8188E(&pHalData->odmpriv,pattrib->mac_id);
+				data_rate = ODM_RA_GetDecisionRate_8188E(&pHalData->odmpriv,pattrib->mac_id);
 
-			#if (POWER_TRAINING_ACTIVE==1)
-			pwr_status = ODM_RA_GetHwPwrStatus_8188E(&pHalData->odmpriv,pattrib->mac_id);
-			ptxdesc->txdw4 |= cpu_to_le32((pwr_status & 0x7) << PWR_STATUS_SHT);
-			#endif
-#else//if (RATE_ADAPTIVE_SUPPORT == 1)
-			/* FW-based RA, TODO */
-			if(pattrib->ht_en)
-				sgi = 1;
-
-			data_rate = 0x13; //default rate: MCS7
+				#if (POWER_TRAINING_ACTIVE==1)
+				pwr_status = ODM_RA_GetHwPwrStatus_8188E(&pHalData->odmpriv,pattrib->mac_id);
+				ptxdesc->txdw4 |= cpu_to_le32((pwr_status & 0x7) << PWR_STATUS_SHT);
+				#endif
+			}
+			else
 #endif//if (RATE_ADAPTIVE_SUPPORT == 1)
+			{
+				/* FW-based RA, TODO */
+				if(pattrib->ht_en)
+					sgi = 1;
+
+				data_rate = 0x13; //default rate: MCS7
+			}
 
 			if (padapter->fix_rate != 0xFF) {
 				data_rate = padapter->fix_rate;
 				ptxdesc->txdw4 |= cpu_to_le32(USERATE);
-				ptxdesc->txdw4 |= cpu_to_le32(DISDATAFB);
+				if (!padapter->data_fb)
+					ptxdesc->txdw4 |= cpu_to_le32(DISDATAFB);
 				sgi = (padapter->fix_rate & BIT(7))?1:0;
 			}
 
@@ -387,6 +423,8 @@ if (padapter->registrypriv.mp_mode == 0)
 			// Use the 1M data rate to send the EAP/ARP packet.
 			// This will maybe make the handshake smooth.
 
+			//driver uses rate
+			ptxdesc->txdw4 |= cpu_to_le32(USERATE);//rate control always by driver
 			ptxdesc->txdw2 |= cpu_to_le32(AGG_BK);//AGG BK		   
 
 			if (pmlmeinfo->preamble_mode == PREAMBLE_SHORT)
@@ -404,10 +442,28 @@ if (padapter->registrypriv.mp_mode == 0)
 			DBG_8192C("ptxdesc->txdw7 = %08x\n", ptxdesc->txdw7);
 		}
 #endif
+
+#ifdef CONFIG_TDLS
+#ifdef CONFIG_XMIT_ACK
+		/* CCX-TXRPT ack for xmit mgmt frames. */
+		if (pxmitframe->ack_report) {
+			#ifdef DBG_CCX
+			static u16 ccx_sw = 0x123;
+
+			ptxdesc->txdw7 |= cpu_to_le32(((ccx_sw)<<16)&0x0fff0000);
+			DBG_871X("%s set ccx, sw:0x%03x\n", __func__, ccx_sw);
+			ccx_sw = (ccx_sw+1)%0xfff;
+			#endif
+			ptxdesc->txdw2 |= cpu_to_le32(BIT(19));
+		}
+#endif /* CONFIG_XMIT_ACK */
+#endif
 	}
 	else if((pxmitframe->frame_tag&0x0f)== MGNT_FRAMETAG)
 	{
 		//DBG_8192C("pxmitframe->frame_tag == MGNT_FRAMETAG\n");	
+		//driver uses rate
+		ptxdesc->txdw4 |= cpu_to_le32(USERATE);//rate control always by driver
 		
 		//offset 4		
 		ptxdesc->txdw1 |= cpu_to_le32(pattrib->mac_id&0x3f);
@@ -501,7 +557,7 @@ if (padapter->registrypriv.mp_mode == 0)
 		
 	}
 
-#ifdef CONFIG_HW_ANTENNA_DIVERSITY //CONFIG_ANTENNA_DIVERSITY 
+#ifdef CONFIG_ANTENNA_DIVERSITY 
 	ODM_SetTxAntByTxInfo(&pHalData->odmpriv, pmem, pattrib->mac_id);
 #endif
 
@@ -538,12 +594,12 @@ s32 rtl8188eu_xmit_buf_handler(PADAPTER padapter)
 				 ("%s: down SdioXmitBufSema fail!\n", __FUNCTION__));
 		return _FAIL;
 	}
-
-	ret = (padapter->bDriverStopped == _TRUE) || (padapter->bSurpriseRemoved == _TRUE);
-	if (ret) {
-		RT_TRACE(_module_hal_xmit_c_, _drv_notice_,
-				 ("%s: bDriverStopped(%d) bSurpriseRemoved(%d)!\n",
-				  __FUNCTION__, padapter->bDriverStopped, padapter->bSurpriseRemoved));
+	if (RTW_CANNOT_RUN(padapter)) {
+		RT_TRACE(_module_hal_xmit_c_, _drv_notice_
+				, ("%s: bDriverStopped(%s) bSurpriseRemoved(%s)!\n"
+				, __func__
+				, rtw_is_drv_stopped(padapter)?"True":"False"
+				, rtw_is_surprise_removed(padapter)?"True":"False");
 		return _FAIL;
 	}
 
@@ -714,6 +770,9 @@ s32 rtl8188eu_xmitframe_complete(_adapter *padapter, struct xmit_priv *pxmitpriv
 	// dump frame variable
 	u32 ff_hwaddr;
 
+	_list *sta_plist, *sta_phead;
+	u8 single_sta_in_queue = _FALSE;
+
 #ifndef IDEA_CONDITION
 	int res = _SUCCESS;
 #endif
@@ -847,6 +906,10 @@ s32 rtl8188eu_xmitframe_complete(_adapter *padapter, struct xmit_priv *pxmitpriv
 
 	_enter_critical_bh(&pxmitpriv->lock, &irqL);
 
+	sta_phead = get_list_head(phwxmit->sta_queue);
+	sta_plist = get_next(sta_phead);
+	single_sta_in_queue = rtw_end_of_queue_search(sta_phead, get_next(sta_plist));
+
 	xmitframe_phead = get_list_head(&ptxservq->sta_pending);
 	xmitframe_plist = get_next(xmitframe_phead);
 	
@@ -856,9 +919,9 @@ s32 rtl8188eu_xmitframe_complete(_adapter *padapter, struct xmit_priv *pxmitpriv
 		xmitframe_plist = get_next(xmitframe_plist);
 
 		if(_FAIL == rtw_hal_busagg_qsel_check(padapter,pfirstframe->attrib.qsel,pxmitframe->attrib.qsel))
-			break;
+			break;		
 
-		pxmitframe->agg_num = 0; // not first frame of aggregation
+             pxmitframe->agg_num = 0; // not first frame of aggregation
 		#ifdef CONFIG_TX_EARLY_MODE
 		pxmitframe->pkt_offset = 1;// not first frame of aggregation,reserve offset for EM Info
 		#else
@@ -941,9 +1004,13 @@ s32 rtl8188eu_xmitframe_complete(_adapter *padapter, struct xmit_priv *pxmitpriv
 			bulkPtr = ((pbuf / bulkSize) + 1) * bulkSize;
 		}
 	}//end while( aggregate same priority and same DA(AP or STA) frames)
-
 	if (_rtw_queue_empty(&ptxservq->sta_pending) == _TRUE)
 		rtw_list_delete(&ptxservq->tx_pending);
+	else if (single_sta_in_queue == _FALSE) {
+		/* Re-arrange the order of stations in this ac queue to balance the service for these stations */
+		rtw_list_delete(&ptxservq->tx_pending);
+		rtw_list_insert_tail(&ptxservq->tx_pending, get_list_head(phwxmit->sta_queue));
+	}
 
 	_exit_critical_bh(&pxmitpriv->lock, &irqL);
 
@@ -1108,6 +1175,7 @@ static s32 pre_xmitframe(_adapter *padapter, struct xmit_frame *pxmitframe)
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct pkt_attrib *pattrib = &pxmitframe->attrib;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
+	u8 lg_sta_num;
 	
 	_enter_critical_bh(&pxmitpriv->lock, &irqL);
 
@@ -1119,14 +1187,12 @@ static s32 pre_xmitframe(_adapter *padapter, struct xmit_frame *pxmitframe)
 		goto enqueue;
 	}
 
-
-	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY|_FW_UNDER_LINKING) == _TRUE)
+	if (rtw_xmit_ac_blocked(padapter) == _TRUE)
 		goto enqueue;
 
-#ifdef CONFIG_CONCURRENT_MODE	
-	if (check_buddy_fwstate(padapter, _FW_UNDER_SURVEY|_FW_UNDER_LINKING) == _TRUE)
+	rtw_dev_iface_status(padapter, NULL, NULL , &lg_sta_num, NULL, NULL);
+	if (lg_sta_num)
 		goto enqueue;
-#endif
 
 	pxmitbuf = rtw_alloc_xmitbuf(pxmitpriv);
 	if (pxmitbuf == NULL)

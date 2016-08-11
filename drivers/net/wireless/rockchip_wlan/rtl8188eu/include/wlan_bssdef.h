@@ -73,7 +73,7 @@ typedef struct _NDIS_802_11_CONFIGURATION
     ULONG           Length;             // Length of structure
     ULONG           BeaconPeriod;       // units are Kusec
     ULONG           ATIMWindow;         // units are Kusec
-    ULONG           DSConfig;           // Frequency, units are kHz
+	ULONG           DSConfig;           /* channel number */
     NDIS_802_11_CONFIGURATION_FH    FHConfig;
 } NDIS_802_11_CONFIGURATION, *PNDIS_802_11_CONFIGURATION;
 
@@ -346,7 +346,7 @@ typedef struct _NDIS_802_11_CONFIGURATION
     ULONG           Length;             // Length of structure
     ULONG           BeaconPeriod;       // units are Kusec
     ULONG           ATIMWindow;         // units are Kusec
-    ULONG           DSConfig;           // Frequency, units are kHz
+	ULONG           DSConfig;           /* channel number */ 
     NDIS_802_11_CONFIGURATION_FH    FHConfig;
 } NDIS_802_11_CONFIGURATION, *PNDIS_802_11_CONFIGURATION;
 
@@ -622,6 +622,12 @@ WLAN_BSSID_EX, *PWLAN_BSSID_EX;
 #ifdef PLATFORM_WINDOWS
 #pragma pack(pop)
 #endif
+
+#define BSS_EX_IES(bss_ex) ((bss_ex)->IEs)
+#define BSS_EX_IES_LEN(bss_ex) ((bss_ex)->IELength)
+#define BSS_EX_FIXED_IE_OFFSET(bss_ex) ((bss_ex)->Reserved[0] == 2 ? 0 : 12)
+#define BSS_EX_TLV_IES(bss_ex) (BSS_EX_IES((bss_ex)) + BSS_EX_FIXED_IE_OFFSET((bss_ex)))
+#define BSS_EX_TLV_IES_LEN(bss_ex) (BSS_EX_IES_LEN((bss_ex)) - BSS_EX_FIXED_IE_OFFSET((bss_ex)))
 
 __inline  static uint get_WLAN_BSSID_EX_sz(WLAN_BSSID_EX *bss)
 {

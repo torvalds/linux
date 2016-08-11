@@ -30,8 +30,13 @@
 #define _WEP_WPA_MIXED_	0x07  // WEP + WPA
 #define _SMS4_				0x06
 #ifdef CONFIG_IEEE80211W
-#define _BIP_				0x8 
+#define _BIP_				0x8
 #endif //CONFIG_IEEE80211W
+/* 802.11W use wrong key */
+#define IEEE80211W_RIGHT_KEY	0x0
+#define IEEE80211W_WRONG_KEY	0x1
+#define IEEE80211W_NO_KEY		0x2
+
 #define is_wep_enc(alg) (((alg) == _WEP40_) || ((alg) == _WEP104_))
 
 const char *security_type_str(u8 value);
@@ -177,8 +182,6 @@ struct security_priv
 	//keeps the auth_type & enc_status from upper layer ioctl(wpa_supplicant or wzc)
 	u32 ndisauthtype;	// NDIS_802_11_AUTHENTICATION_MODE
 	u32 ndisencryptstatus;	// NDIS_802_11_ENCRYPTION_STATUS
-
-	WLAN_BSSID_EX sec_bss;  //for joinbss (h2c buffer) usage
 
 	NDIS_802_11_WEP ndiswep;
 #ifdef PLATFORM_WINDOWS
@@ -468,6 +471,8 @@ void wpa_tdls_generate_tpk(_adapter *padapter, PVOID sta);
 int wpa_tdls_ftie_mic(u8 *kck, u8 trans_seq, 
 						u8 *lnkid, u8 *rsnie, u8 *timeoutie, u8 *ftie,
 						u8 *mic);
+int wpa_tdls_teardown_ftie_mic(u8 *kck, u8 *lnkid, u16 reason, 
+	u8 dialog_token, u8 trans_seq, u8 *ftie, u8 *mic);
 int tdls_verify_mic(u8 *kck, u8 trans_seq, 
 						u8 *lnkid, u8 *rsnie, u8 *timeoutie, u8 *ftie);
 #endif //CONFIG_TDLS
@@ -476,6 +481,10 @@ void rtw_use_tkipkey_handler(RTW_TIMER_HDL_ARGS);
 
 void rtw_sec_restore_wep_key(_adapter *adapter);
 u8 rtw_handle_tkip_countermeasure(_adapter* adapter, const char *caller);
+
+#ifdef CONFIG_WOWLAN
+u16 rtw_calc_crc(u8  *pdata, int length);
+#endif /*CONFIG_WOWLAN*/
 
 #endif	//__RTL871X_SECURITY_H_
 

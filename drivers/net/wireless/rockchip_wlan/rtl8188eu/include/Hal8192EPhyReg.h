@@ -425,10 +425,8 @@
 
 #define		RF_TX_BB1					0x23	// 
 
-//#if HARDWARE_TYPE_IS_RTL8192D	== 1
-#define		RF_T_METER_92D					0x42	// 
-//#else
-#define		RF_T_METER_88E					0x42	// 
+#define		RF_T_METER_8192E			0x42	// 
+#define		RF_T_METER_88E				0x42	//
 #define		RF_T_METER					0x24	// 
 
 //#endif
@@ -510,6 +508,8 @@
 #define		bOFDMTxStatus				0x2
 
 #define 		IS_BB_REG_OFFSET_92S(_Offset)		((_Offset >= 0x800) && (_Offset <= 0xfff))
+#define		RF_TX_GAIN_OFFSET_8192E(_val)		((abs((_val)) << 1) | (((_val) > 0) ? BIT0 : 0))
+
 
 // 2. Page8(0x800)
 #define		bRFMOD						0x1	// Reg 0x800 rFPGA0_RFMOD
@@ -1065,6 +1065,7 @@
 #define		bMaskHWord                		0xffff0000
 #define		bMaskLWord                		0x0000ffff
 #define		bMaskDWord                		0xffffffff
+#define		bMaskH3Bytes				0xffffff00
 #define		bMask12Bits				0xfff	
 #define		bMaskH4Bits				0xf0000000	
 #define 		bMaskOFDM_D			0xffc00000

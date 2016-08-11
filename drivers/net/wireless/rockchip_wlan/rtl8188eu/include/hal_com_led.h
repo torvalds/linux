@@ -264,7 +264,8 @@ typedef struct _LED_USB{
 
 	_timer				BlinkTimer; // Timer object for led blinking.
 
-	_workitem			BlinkWorkItem; // Workitem used by BlinkTimer to manipulate H/W to blink LED.
+	_workitem			BlinkWorkItem; // Workitem used by BlinkTimer to manipulate H/W to blink LED.'
+	ATOMIC_T			bCancelWorkItem; //check if WorkItem is cancelled
 } LED_USB, *PLED_USB;
 
 typedef struct _LED_USB	LED_DATA, *PLED_DATA;

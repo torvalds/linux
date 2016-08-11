@@ -20,7 +20,48 @@
 #ifndef __RTL8188E_RECV_H__
 #define __RTL8188E_RECV_H__
 
-#include <rtl8192c_recv.h>
+#define RECV_BLK_SZ 512
+#define RECV_BLK_CNT 16
+#define RECV_BLK_TH RECV_BLK_CNT
+
+#if defined(CONFIG_USB_HCI)
+
+#ifndef MAX_RECVBUF_SZ
+#ifdef PLATFORM_OS_CE
+#define MAX_RECVBUF_SZ (8192+1024) // 8K+1k
+#else
+	#ifndef CONFIG_MINIMAL_MEMORY_USAGE
+		//#define MAX_RECVBUF_SZ (32768) // 32k
+		//#define MAX_RECVBUF_SZ (16384) //16K
+		//#define MAX_RECVBUF_SZ (10240) //10K
+		#ifdef CONFIG_PLATFORM_MSTAR
+			#define MAX_RECVBUF_SZ (8192) // 8K
+		#else
+		        #define MAX_RECVBUF_SZ (15360) // 15k < 16k
+		#endif
+		//#define MAX_RECVBUF_SZ (8192+1024) // 8K+1k
+	#else
+		#define MAX_RECVBUF_SZ (4000) // about 4K
+	#endif
+#endif
+#endif //!MAX_RECVBUF_SZ
+
+#elif defined(CONFIG_PCI_HCI)
+//#ifndef CONFIG_MINIMAL_MEMORY_USAGE
+//	#define MAX_RECVBUF_SZ (9100)
+//#else
+	#define MAX_RECVBUF_SZ (4000) // about 4K
+//#endif
+
+
+#elif defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
+
+#define MAX_RECVBUF_SZ (10240)
+
+#endif
+
+// Rx smooth factor
+#define	Rx_Smooth_Factor (20)
 
 #define TX_RPT1_PKT_LEN 8
 
@@ -109,20 +150,18 @@ typedef struct rxreport_8188e
 } RXREPORT, *PRXREPORT;
 
 
-#ifdef CONFIG_SDIO_HCI
+#if defined (CONFIG_SDIO_HCI)||defined(CONFIG_GSPI_HCI)
 s32 rtl8188es_init_recv_priv(PADAPTER padapter);
 void rtl8188es_free_recv_priv(PADAPTER padapter);
 void rtl8188es_recv_hdl(PADAPTER padapter, struct recv_buf *precvbuf);
 #endif
 
 #ifdef CONFIG_USB_HCI
-#define INTERRUPT_MSG_FORMAT_LEN 60
 void rtl8188eu_init_recvbuf(_adapter *padapter, struct recv_buf *precvbuf);
 s32 rtl8188eu_init_recv_priv(PADAPTER padapter);
 void rtl8188eu_free_recv_priv(PADAPTER padapter);
 void rtl8188eu_recv_hdl(PADAPTER padapter, struct recv_buf *precvbuf);
 void rtl8188eu_recv_tasklet(void *priv);
-
 #endif
 
 #ifdef CONFIG_PCI_HCI
@@ -130,10 +169,7 @@ s32 rtl8188ee_init_recv_priv(PADAPTER padapter);
 void rtl8188ee_free_recv_priv(PADAPTER padapter);
 #endif
 
-void rtl8188e_query_rx_phy_status(union recv_frame *prframe, struct phy_stat *pphy_stat);
-void rtl8188e_process_phy_info(PADAPTER padapter, void *prframe);
-void update_recvframe_phyinfo_88e(union recv_frame	*precvframe,struct phy_stat *pphy_status);
-void update_recvframe_attrib_88e(	union recv_frame *precvframe,	struct recv_stat *prxstat);
+void rtl8188e_query_rx_desc_status(union recv_frame *precvframe, struct recv_stat *prxstat);
 
-#endif
+#endif /* __RTL8188E_RECV_H__ */
 

@@ -166,6 +166,10 @@ typedef enum _RATEID_IDX_ {
 	RATEID_IDX_B = 8,
 	RATEID_IDX_VHT_2SS = 9,
 	RATEID_IDX_VHT_1SS = 10,
+	RATEID_IDX_MIX1 = 11,
+	RATEID_IDX_MIX2 = 12,
+	RATEID_IDX_VHT_3SS = 13,
+	RATEID_IDX_BGN_3SS = 14,
 } RATEID_IDX, *PRATEID_IDX;
 
 typedef enum _RATR_TABLE_MODE{
@@ -207,13 +211,13 @@ enum NETWORK_TYPE
 	//Type for registry default wireless mode
 	WIRELESS_11AGN = (WIRELESS_11A|WIRELESS_11G|WIRELESS_11_24N|WIRELESS_11_5N), // tx: ofdm & MCS, rx: ofdm & MCS, hw: ofdm only
 	WIRELESS_11ABGN = (WIRELESS_11A|WIRELESS_11B|WIRELESS_11G|WIRELESS_11_24N|WIRELESS_11_5N),
-	WIRELESS_MODE_24G = (WIRELESS_11B|WIRELESS_11G|WIRELESS_11_24N|WIRELESS_11AC),
+	WIRELESS_MODE_24G = (WIRELESS_11B|WIRELESS_11G|WIRELESS_11_24N),
 	WIRELESS_MODE_5G = (WIRELESS_11A|WIRELESS_11_5N|WIRELESS_11AC),
 	WIRELESS_MODE_MAX = (WIRELESS_11A|WIRELESS_11B|WIRELESS_11G|WIRELESS_11_24N|WIRELESS_11_5N|WIRELESS_11AC),
 };
 
-#define SUPPORTED_24G_NETTYPE_MSK (WIRELESS_11B | WIRELESS_11G | WIRELESS_11_24N)
-#define SUPPORTED_5G_NETTYPE_MSK (WIRELESS_11A | WIRELESS_11_5N)
+#define SUPPORTED_24G_NETTYPE_MSK WIRELESS_MODE_24G
+#define SUPPORTED_5G_NETTYPE_MSK WIRELESS_MODE_5G 
 
 #define IsLegacyOnly(NetType)  ((NetType) == ((NetType) & (WIRELESS_11BG|WIRELESS_11A)))
 
@@ -836,11 +840,81 @@ enum MGN_RATE{
 	MGN_UNKNOWN
 };
 
-#define IS_HT_RATE(_rate)				(_rate >= MGN_MCS0 && _rate <= MGN_MCS31)
-#define IS_VHT_RATE(_rate)				(_rate >= MGN_VHT1SS_MCS0 && _rate <= MGN_VHT4SS_MCS9)
-#define IS_CCK_RATE(_rate) 				(MGN_1M == _rate || _rate == MGN_2M || _rate == MGN_5_5M || _rate == MGN_11M )
-#define IS_OFDM_RATE(_rate)				(MGN_6M <= _rate && _rate <= MGN_54M  && _rate != MGN_11M)
+#define IS_HT_RATE(_rate)	((_rate) >= MGN_MCS0 && (_rate) <= MGN_MCS31)
+#define IS_VHT_RATE(_rate)	((_rate) >= MGN_VHT1SS_MCS0 && (_rate) <= MGN_VHT4SS_MCS9)
+#define IS_CCK_RATE(_rate)	((_rate) == MGN_1M || (_rate) == MGN_2M || (_rate) == MGN_5_5M || (_rate) == MGN_11M)
+#define IS_OFDM_RATE(_rate)	((_rate) >= MGN_6M && (_rate) <= MGN_54M  && (_rate) != MGN_11M)
 
+#define IS_HT1SS_RATE(_rate) ((_rate) >= MGN_MCS0 && (_rate) <= MGN_MCS7)
+#define IS_HT2SS_RATE(_rate) ((_rate) >= MGN_MCS8 && (_rate) <= MGN_MCS15)
+#define IS_HT3SS_RATE(_rate) ((_rate) >= MGN_MCS16 && (_rate) <= MGN_MCS23)
+#define IS_HT4SS_RATE(_rate) ((_rate) >= MGN_MCS24 && (_rate) <= MGN_MCS31)
+
+#define IS_VHT1SS_RATE(_rate) ((_rate) >= MGN_VHT1SS_MCS0 && (_rate) <= MGN_VHT1SS_MCS9)
+#define IS_VHT2SS_RATE(_rate) ((_rate) >= MGN_VHT2SS_MCS0 && (_rate) <= MGN_VHT2SS_MCS9)
+#define IS_VHT3SS_RATE(_rate) ((_rate) >= MGN_VHT3SS_MCS0 && (_rate) <= MGN_VHT3SS_MCS9)
+#define IS_VHT4SS_RATE(_rate) ((_rate) >= MGN_VHT4SS_MCS0 && (_rate) <= MGN_VHT4SS_MCS9)
+
+#define IS_1T_RATE(_rate)	(IS_CCK_RATE((_rate)) || IS_OFDM_RATE((_rate)) || IS_HT1SS_RATE((_rate)) || IS_VHT1SS_RATE((_rate)))
+#define IS_2T_RATE(_rate)	(IS_HT2SS_RATE((_rate)) || IS_VHT2SS_RATE((_rate)))
+#define IS_3T_RATE(_rate)	(IS_HT3SS_RATE((_rate)) || IS_VHT3SS_RATE((_rate)))
+#define IS_4T_RATE(_rate)	(IS_HT4SS_RATE((_rate)) || IS_VHT4SS_RATE((_rate)))
+
+typedef enum _RATE_SECTION {
+	CCK = 0,
+	OFDM = 1,
+	HT_MCS0_MCS7 = 2,
+	HT_MCS8_MCS15 = 3,
+	HT_MCS16_MCS23 = 4,
+	HT_MCS24_MCS31 = 5,
+	HT_1SS = HT_MCS0_MCS7,
+	HT_2SS = HT_MCS8_MCS15,
+	HT_3SS = HT_MCS16_MCS23,
+	HT_4SS = HT_MCS24_MCS31,
+	VHT_1SSMCS0_1SSMCS9 = 6,
+	VHT_2SSMCS0_2SSMCS9 = 7,
+	VHT_3SSMCS0_3SSMCS9 = 8,
+	VHT_4SSMCS0_4SSMCS9 = 9,
+	VHT_1SS = VHT_1SSMCS0_1SSMCS9,
+	VHT_2SS = VHT_2SSMCS0_2SSMCS9,
+	VHT_3SS = VHT_3SSMCS0_3SSMCS9,
+	VHT_4SS = VHT_4SSMCS0_4SSMCS9,
+	RATE_SECTION_NUM,
+} RATE_SECTION;
+
+const char *rate_section_str(u8 section);
+
+#define IS_CCK_RATE_SECTION(section) ((section) == CCK)
+#define IS_OFDM_RATE_SECTION(section) ((section) == OFDM)
+#define IS_HT_RATE_SECTION(section) ((section) >= HT_1SS && (section) <= HT_4SS)
+#define IS_VHT_RATE_SECTION(section) ((section) >= VHT_1SS && (section) <= VHT_4SS)
+
+#define IS_1T_RATE_SECTION(section) ((section) == CCK || (section) == OFDM || (section) == HT_1SS || (section) == VHT_1SS)
+#define IS_2T_RATE_SECTION(section) ((section) == HT_2SS || (section) == VHT_2SS)
+#define IS_3T_RATE_SECTION(section) ((section) == HT_3SS || (section) == VHT_3SS)
+#define IS_4T_RATE_SECTION(section) ((section) == HT_4SS || (section) == VHT_4SS)
+
+extern u8 mgn_rates_cck[];
+extern u8 mgn_rates_ofdm[];
+extern u8 mgn_rates_mcs0_7[];
+extern u8 mgn_rates_mcs8_15[];
+extern u8 mgn_rates_mcs16_23[];
+extern u8 mgn_rates_mcs24_31[];
+extern u8 mgn_rates_vht1ss[];
+extern u8 mgn_rates_vht2ss[];
+extern u8 mgn_rates_vht3ss[];
+extern u8 mgn_rates_vht4ss[];
+
+struct rate_section_ent {
+	u8 tx_num; /* value of RF_TX_NUM */
+	u8 rate_num;
+	u8 *rates;
+};
+
+extern struct rate_section_ent rates_by_sections[];
+
+#define rate_section_to_tx_num(section) (rates_by_sections[(section)].tx_num)
+#define rate_section_rate_num(section) (rates_by_sections[(section)].rate_num)
 
 /* NOTE: This data is for statistical purposes; not all hardware provides this
  *       information for frames received.  Not setting these will not cause
@@ -1307,6 +1381,8 @@ enum ieee80211_state {
 #define MAC_ARG(x) ((u8*)(x))[0],((u8*)(x))[1],((u8*)(x))[2],((u8*)(x))[3],((u8*)(x))[4],((u8*)(x))[5]
 #define IP_FMT "%d.%d.%d.%d"
 #define IP_ARG(x) ((u8*)(x))[0],((u8*)(x))[1],((u8*)(x))[2],((u8*)(x))[3]
+#define PORT_FMT "%u"
+#define PORT_ARG(x) ntohs(*((u16 *)(x)))
 
 #ifdef PLATFORM_FREEBSD //Baron change func to macro
 #define is_multicast_mac_addr(Addr) ((((Addr[0]) & 0x01) == 0x01) && ((Addr[0]) != 0xff))
@@ -1342,7 +1418,7 @@ typedef struct tx_pending_t{
 
 
 
-#define MAXTID	16
+#define TID_NUM	16
 
 #define IEEE_A            (1<<0)
 #define IEEE_B            (1<<1)
@@ -1460,6 +1536,13 @@ enum rtw_ieee80211_back_parties {
 	RTW_WLAN_BACK_INITIATOR = 1,
 	RTW_WLAN_BACK_TIMER = 2,
 };
+
+/*20/40 BSS Coexistence element */
+#define RTW_WLAN_20_40_BSS_COEX_INFO_REQ            BIT(0)
+#define RTW_WLAN_20_40_BSS_COEX_40MHZ_INTOL         BIT(1)
+#define RTW_WLAN_20_40_BSS_COEX_20MHZ_WIDTH_REQ     BIT(2)
+#define RTW_WLAN_20_40_BSS_COEX_OBSS_EXEMPT_REQ     BIT(3)
+#define RTW_WLAN_20_40_BSS_COEX_OBSS_EXEMPT_GRNT    BIT(4)
 
 /* VHT features action code */
 enum rtw_ieee80211_vht_actioncode{
@@ -1671,33 +1754,50 @@ u8 *rtw_get_wps_attr_content(u8 *wps_ie, uint wps_ielen, u16 target_attr_id ,u8 
 #define for_each_ie(ie, buf, buf_len) \
 	for (ie = (void*)buf; (((u8*)ie) - ((u8*)buf) + 1) < buf_len; ie = (void*)(((u8*)ie) + *(((u8*)ie)+1) + 2))
 
-void dump_ies(u8 *buf, u32 buf_len);
-void dump_wps_ie(u8 *ie, u32 ie_len);
+void dump_ies(void *sel, u8 *buf, u32 buf_len);
+	
+#ifdef CONFIG_80211N_HT
+void dump_ht_cap_ie_content(void *sel, u8 *buf, u32 buf_len);
+#endif
 
-#ifdef CONFIG_P2P
+void dump_wps_ie(void *sel, u8 *ie, u32 ie_len);
+
+void rtw_ies_get_chbw(u8 *ies, int ies_len, u8 *ch, u8 *bw, u8 *offset);
+
+void rtw_bss_get_chbw(WLAN_BSSID_EX *bss, u8 *ch, u8 *bw, u8 *offset);
+
+bool rtw_is_chbw_grouped(u8 ch_a, u8 bw_a, u8 offset_a
+	, u8 ch_b, u8 bw_b, u8 offset_b);
+void rtw_sync_chbw(u8 *req_ch, u8 *req_bw, u8 *req_offset
+	, u8 *g_ch, u8 *g_bw, u8 *g_offset);
+
 u32 rtw_get_p2p_merged_ies_len(u8 *in_ie, u32 in_len);
 int rtw_p2p_merge_ies(u8 *in_ie, u32 in_len, u8 *merge_ie);
-void dump_p2p_ie(u8 *ie, u32 ie_len);
+void dump_p2p_ie(void *sel, u8 *ie, u32 ie_len);
 u8 *rtw_get_p2p_ie(u8 *in_ie, int in_len, u8 *p2p_ie, uint *p2p_ielen);
-u8 *rtw_get_p2p_ie_from_scan_queue(u8 *in_ie, int in_len, u8 *p2p_ie, uint *p2p_ielen, u8 frame_type);
 u8 *rtw_get_p2p_attr(u8 *p2p_ie, uint p2p_ielen, u8 target_attr_id ,u8 *buf_attr, u32 *len_attr);
 u8 *rtw_get_p2p_attr_content(u8 *p2p_ie, uint p2p_ielen, u8 target_attr_id ,u8 *buf_content, uint *len_content);
 u32 rtw_set_p2p_attr_content(u8 *pbuf, u8 attr_id, u16 attr_len, u8 *pdata_attr);
-void rtw_WLAN_BSSID_EX_remove_p2p_attr(WLAN_BSSID_EX *bss_ex, u8 attr_id);
-#endif
+uint rtw_del_p2p_ie(u8 *ies, uint ies_len_ori, const char *msg);
+uint rtw_del_p2p_attr(u8 *ie, uint ielen_ori, u8 attr_id);
+u8 *rtw_bss_ex_get_p2p_ie(WLAN_BSSID_EX *bss_ex, u8 *p2p_ie, uint *p2p_ielen);
+void rtw_bss_ex_del_p2p_ie(WLAN_BSSID_EX *bss_ex);
+void rtw_bss_ex_del_p2p_attr(WLAN_BSSID_EX *bss_ex, u8 attr_id);
 
-#ifdef CONFIG_WFD
-void dump_wfd_ie(u8 *ie, u32 ie_len);
-int rtw_get_wfd_ie(u8 *in_ie, int in_len, u8 *wfd_ie, uint *wfd_ielen);
-int rtw_get_wfd_ie_from_scan_queue(u8 *in_ie, int in_len, u8 *p2p_ie, uint *p2p_ielen, u8 frame_type);
-int rtw_get_wfd_attr_content(u8 *wfd_ie, uint wfd_ielen, u8 target_attr_id ,u8 *attr_content, uint *attr_contentlen);
-#endif // CONFIG_WFD
+void dump_wfd_ie(void *sel, u8 *ie, u32 ie_len);
+u8 *rtw_get_wfd_ie(u8 *in_ie, int in_len, u8 *wfd_ie, uint *wfd_ielen);
+u8 *rtw_get_wfd_attr(u8 *wfd_ie, uint wfd_ielen, u8 target_attr_id, u8 *buf_attr, u32 *len_attr);
+u8 *rtw_get_wfd_attr_content(u8 *wfd_ie, uint wfd_ielen, u8 target_attr_id, u8 *buf_content, uint *len_content);
+uint rtw_del_wfd_ie(u8 *ies, uint ies_len_ori, const char *msg);
+uint rtw_del_wfd_attr(u8 *ie, uint ielen_ori, u8 attr_id);
+u8 *rtw_bss_ex_get_wfd_ie(WLAN_BSSID_EX *bss_ex, u8 *wfd_ie, uint *wfd_ielen);
+void rtw_bss_ex_del_wfd_ie(WLAN_BSSID_EX *bss_ex);
+void rtw_bss_ex_del_wfd_attr(WLAN_BSSID_EX *bss_ex, u8 attr_id);
 
 uint	rtw_get_rateset_len(u8	*rateset);
 
 struct registry_priv;
 int rtw_generate_ie(struct registry_priv *pregistrypriv);
-
 
 int rtw_get_bit_value_from_ieee_value(u8 val);
 
@@ -1709,12 +1809,20 @@ int rtw_check_network_type(unsigned char *rate, int ratelen, int channel);
 
 void rtw_get_bcn_info(struct wlan_network *pnetwork);
 
-void rtw_macaddr_cfg(u8 *mac_addr);
+u8 rtw_check_invalid_mac_address(u8 *mac_addr, u8 check_local_bit);
+void rtw_macaddr_cfg(u8 *out, const u8 *hw_mac_addr);
 
 u16 rtw_mcs_rate(u8 rf_type, u8 bw_40MHz, u8 short_GI, unsigned char * MCS_rate);
+u8	rtw_ht_mcsset_to_nss(u8 *supp_mcs_set);
 
 int rtw_action_frame_parse(const u8 *frame, u32 frame_len, u8* category, u8 *action);
 const char *action_public_str(u8 action);
+
+u8 key_2char2num(u8 hch, u8 lch);
+u8 str_2char2num(u8 hch, u8 lch);
+void macstr2num(u8 *dst, u8 *src);
+u8 convert_ip_addr(u8 hch, u8 mch, u8 lch);
+int wifirate2_ratetbl_inx(unsigned char rate);
 
 #endif /* IEEE80211_H */
 

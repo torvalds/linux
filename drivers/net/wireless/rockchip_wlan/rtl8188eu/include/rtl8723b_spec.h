@@ -164,7 +164,10 @@
 //	0x0100h ~ 0x01FFh	MACTOP General Configuration
 //
 //-----------------------------------------------------
-
+#undef IS_E_CUT
+#define IS_E_CUT(version)		FALSE
+#undef IS_F_CUT
+#define IS_F_CUT(version)		((GET_CVID_CUT_VERSION(version) == E_CUT_VERSION) ? TRUE : FALSE)
 
 //-----------------------------------------------------
 //
@@ -208,14 +211,14 @@
 //	0x0600h ~ 0x07FFh	WMAC Configuration
 //
 //-----------------------------------------------------
-#ifdef CONFIG_RF_GAIN_OFFSET
+#ifdef CONFIG_RF_POWER_TRIM
 
 #ifdef CONFIG_RTL8723B
 #define EEPROM_RF_GAIN_OFFSET			0xC1
 #endif
 
 #define EEPROM_RF_GAIN_VAL				0x1F6
-#endif //CONFIG_RF_GAIN_OFFSET
+#endif /*CONFIG_RF_POWER_TRIM*/
 
 
 //----------------------------------------------------------------------------
@@ -278,16 +281,16 @@
 #define RT_AC_INT_MASKS	(IMR_VIDOK_8723B | IMR_VODOK_8723B | IMR_BEDOK_8723B|IMR_BKDOK_8723B)
 #endif
 
-#endif
+//========================================================
+// General definitions
+//========================================================
 
-#ifdef CONFIG_USB_HCI
-//should be renamed and moved to another file
-typedef	enum _BOARD_TYPE_8192CUSB{
-	BOARD_USB_DONGLE 			= 0,		// USB dongle
-	BOARD_USB_High_PA 		= 1,		// USB dongle with high power PA
-	BOARD_MINICARD		  	= 2,		// Minicard
-	BOARD_USB_SOLO 		 	= 3,		// USB solo-Slim module
-	BOARD_USB_COMBO			= 4,		// USB Combo-Slim module
-} BOARD_TYPE_8723BUSB, *PBOARD_TYPE_8723BUSB;
+#define MACID_NUM_8723B 128
+#define SEC_CAM_ENT_NUM_8723B 64
+#define NSS_NUM_8723B 1
+#define BAND_CAP_8723B (BAND_CAP_2G)
+#define BW_CAP_8723B (BW_CAP_20M | BW_CAP_40M)
+#define PROTO_CAP_8723B (PROTO_CAP_11B|PROTO_CAP_11G|PROTO_CAP_11N)
 
-#endif
+#endif /* __RTL8723B_SPEC_H__ */
+

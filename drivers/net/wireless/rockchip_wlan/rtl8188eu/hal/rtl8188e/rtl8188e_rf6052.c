@@ -20,7 +20,7 @@
 /******************************************************************************
  *
  *
- * Module:	rtl8192c_rf6052.c	( Source C File)
+ * Module:	rtl8188e_rf6052.c	( Source C File)
  *
  * Note:	Provide RF 6052 series relative API.
  *

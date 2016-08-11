@@ -35,6 +35,8 @@
 //	0x0000h ~ 0x00FFh	System Configuration
 //
 //-----------------------------------------------------
+#define REG_SYS_CLKR_8812A				0x0008
+#define REG_AFE_PLL_CTRL_8812A		0x0028
 #define REG_HSIMR_8812					0x0058
 #define REG_HSISR_8812					0x005c
 #define REG_GPIO_EXT_CTRL				0x0060
@@ -56,9 +58,11 @@
 //	0x0100h ~ 0x01FFh	MACTOP General Configuration
 //
 //-----------------------------------------------------
+#define REG_CR_8812A					0x100
 #define REG_PKTBUF_DBG_ADDR 			(REG_PKTBUF_DBG_CTRL)
 #define REG_RXPKTBUF_DBG				(REG_PKTBUF_DBG_CTRL+2)
 #define REG_TXPKTBUF_DBG				(REG_PKTBUF_DBG_CTRL+3)
+#define REG_WOWLAN_WAKE_REASON			REG_MCUTST_WOWLAN
 
 #define REG_RSVD3_8812					0x0168
 #define REG_C2HEVT_CMD_SEQ_88XX		0x01A1
@@ -83,7 +87,8 @@
 //	0x0280h ~ 0x02FFh	RXDMA Configuration
 //
 //-----------------------------------------------------
-#define REG_RXDMA_CONTROL_8812		0x0286 // Control the RX DMA.
+#define REG_TDECTRL_8812A				0x0208
+#define REG_RXDMA_CONTROL_8812A		0x0286		/*Control the RX DMA.*/
 #define REG_RXDMA_PRO_8812			0x0290
 #define REG_EARLY_MODE_CONTROL_8812	0x02BC
 #define REG_RSVD5_8812					0x02F0
@@ -97,6 +102,7 @@
 //	0x0300h ~ 0x03FFh	PCIe
 //
 //-----------------------------------------------------
+#define	REG_PCIE_CTRL_REG_8812A		0x0300
 #define	REG_DBI_WDATA_8812			0x0348	// DBI Write Data
 #define	REG_DBI_RDATA_8812			0x034C	// DBI Read Data
 #define	REG_DBI_ADDR_8812				0x0350	// DBI Address
@@ -111,7 +117,9 @@
 //	0x0400h ~ 0x047Fh	Protocol Configuration
 //
 //-----------------------------------------------------
-#define REG_TXBF_CTRL_8812				0x042C
+#define REG_TXPKT_EMPTY_8812A			0x041A
+#define REG_FWHW_TXQ_CTRL_8812A		0x0420
+#define REG_TXBF_CTRL_8812A			0x042C
 #define REG_ARFR0_8812					0x0444
 #define REG_ARFR1_8812					0x044C
 #define REG_CCK_CHECK_8812				0x0454
@@ -120,8 +128,12 @@
 
 #define REG_AMPDU_MAX_LENGTH_8812	0x0458
 #define REG_TXPKTBUF_WMAC_LBK_BF_HD_8812	0x045D
-#define REG_NDPA_OPT_CTRL_8812		0x045F
+#define REG_NDPA_OPT_CTRL_8812A		0x045F
 #define REG_DATA_SC_8812				0x0483
+#ifdef CONFIG_WOWLAN
+#define REG_TXPKTBUF_IV_LOW             0x0484
+#define REG_TXPKTBUF_IV_HIGH            0x0488
+#endif
 #define REG_ARFR2_8812					0x048C
 #define REG_ARFR3_8812					0x0494
 #define REG_TXRPT_START_OFFSET		0x04AC
@@ -134,9 +146,10 @@
 //	0x0500h ~ 0x05FFh	EDCA Configuration
 //
 //-----------------------------------------------------
+#define REG_TXPAUSE_8812A				0x0522
 #define REG_CTWND_8812					0x0572
 #define REG_SECONDARY_CCA_CTRL_8812	0x0577
-#define REG_SCH_TXCMD_8812			0x05F8
+#define REG_SCH_TXCMD_8812A			0x05F8
 
 //-----------------------------------------------------
 //
@@ -148,15 +161,15 @@
 #define REG_MAC_TX_SM_STATE_8812		0x06B4
 
 // Power
-#define REG_BFMER0_INFO_8812			0x06E4
-#define REG_BFMER1_INFO_8812			0x06EC
-#define REG_CSI_RPT_PARAM_BW20_8812	0x06F4
-#define REG_CSI_RPT_PARAM_BW40_8812	0x06F8
-#define REG_CSI_RPT_PARAM_BW80_8812	0x06FC
+#define REG_BFMER0_INFO_8812A			0x06E4
+#define REG_BFMER1_INFO_8812A			0x06EC
+#define REG_CSI_RPT_PARAM_BW20_8812A	0x06F4
+#define REG_CSI_RPT_PARAM_BW40_8812A	0x06F8
+#define REG_CSI_RPT_PARAM_BW80_8812A	0x06FC
 
 // Hardware Port 2
-#define REG_BFMEE_SEL_8812				0x0714
-#define REG_SND_PTCL_CTRL_8812		0x0718
+#define REG_BFMEE_SEL_8812A			0x0714
+#define REG_SND_PTCL_CTRL_8812A		0x0718
 
 
 //-----------------------------------------------------
@@ -244,9 +257,20 @@
 #define	AcmHw_ViqStatus_8812			BIT(6)
 #define	AcmHw_BeqStatus_8812			BIT(7)
 
-#endif //__RTL8188E_SPEC_H__
+//========================================================
+// General definitions
+//========================================================
+
+#define MACID_NUM_8812A 128
+#define SEC_CAM_ENT_NUM_8812A 64
+#define NSS_NUM_8812A 2
+#define BAND_CAP_8812A (BAND_CAP_2G | BAND_CAP_5G)
+#define BW_CAP_8812A (BW_CAP_20M | BW_CAP_40M | BW_CAP_80M)
+#define PROTO_CAP_8812A (PROTO_CAP_11B|PROTO_CAP_11G|PROTO_CAP_11N|PROTO_CAP_11AC)
+
+#endif /* __RTL8812A_SPEC_H__ */
 
 #ifdef CONFIG_RTL8821A
 #include "rtl8821a_spec.h"
-#endif // CONFIG_RTL8821A
+#endif /* CONFIG_RTL8821A */
 

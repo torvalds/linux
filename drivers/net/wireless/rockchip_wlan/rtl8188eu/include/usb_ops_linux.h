@@ -29,6 +29,7 @@
 #define RECV_BULK_IN_ADDR		0x80//assign by drv,not real address 
 #define RECV_INT_IN_ADDR		0x81//assign by drv,not real address 
 
+#define INTERRUPT_MSG_FORMAT_LEN 60
 
 #if defined(CONFIG_VENDOR_REQ_RETRY) && defined(CONFIG_USB_VENDOR_REQ_MUTEX)
 /* vendor req retry should be in the situation when each vendor req is atomically submitted from others */
@@ -65,5 +66,24 @@ u32 usb_write_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *wmem);
 void usb_write_port_cancel(struct intf_hdl *pintfhdl);
 
 int usbctrl_vendorreq(struct intf_hdl *pintfhdl, u8 request, u16 value, u16 index, void *pdata, u16 len, u8 requesttype);
+#ifdef CONFIG_USB_SUPPORT_ASYNC_VDN_REQ
+int _usbctrl_vendorreq_async_write(struct usb_device *udev, u8 request,
+	u16 value, u16 index, void *pdata, u16 len, u8 requesttype);
+#endif /* CONFIG_USB_SUPPORT_ASYNC_VDN_REQ */
+
+u8 usb_read8(struct intf_hdl *pintfhdl, u32 addr);
+u16 usb_read16(struct intf_hdl *pintfhdl, u32 addr);
+u32 usb_read32(struct intf_hdl *pintfhdl, u32 addr);
+int usb_write8(struct intf_hdl *pintfhdl, u32 addr, u8 val);
+int usb_write16(struct intf_hdl *pintfhdl, u32 addr, u16 val);
+int usb_write32(struct intf_hdl *pintfhdl, u32 addr, u32 val);
+int usb_writeN(struct intf_hdl *pintfhdl, u32 addr, u32 length, u8 *pdata);
+u32 usb_read_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem);
+void usb_recv_tasklet(void *priv);
+
+#ifdef CONFIG_USB_INTERRUPT_IN_PIPE
+void usb_read_interrupt_complete(struct urb *purb, struct pt_regs *regs);
+u32 usb_read_interrupt(struct intf_hdl *pintfhdl, u32 addr);
+#endif
 #endif
 

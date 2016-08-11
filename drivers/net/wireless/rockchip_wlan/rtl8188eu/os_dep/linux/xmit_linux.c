@@ -144,11 +144,11 @@ int rtw_os_xmit_resource_alloc(_adapter *padapter, struct xmit_buf *pxmitbuf, u3
 		for(i=0; i<8; i++)
 	      	{
 	      		pxmitbuf->pxmit_urb[i] = usb_alloc_urb(0, GFP_KERNEL);
-	             	if(pxmitbuf->pxmit_urb[i] == NULL) 
-	             	{
-	             		DBG_871X("pxmitbuf->pxmit_urb[i]==NULL");
-		        	return _FAIL;	 
-	             	}
+	             if(pxmitbuf->pxmit_urb[i] == NULL) 
+	             {
+	             	DBG_871X("pxmitbuf->pxmit_urb[i]==NULL");
+		       	return _FAIL;	 
+	             }
 	      	}
 #endif
 	}
@@ -378,6 +378,8 @@ int rtw_mlcst2unicst(_adapter *padapter, struct sk_buff *skb)
 	int i;
 	s32	res;
 
+	DBG_COUNTER(padapter->tx_logs.os_tx_m2u);
+
 	_enter_critical_bh(&pstapriv->asoc_list_lock, &irqL);
 	phead = &pstapriv->asoc_list;
 	plist = get_next(phead);
@@ -398,14 +400,22 @@ int rtw_mlcst2unicst(_adapter *padapter, struct sk_buff *skb)
 	for (i = 0; i < chk_alive_num; i++) {
 		psta = rtw_get_stainfo_by_offset(pstapriv, chk_alive_list[i]);
 		if(!(psta->state &_FW_LINKED))
+		{
+			DBG_COUNTER(padapter->tx_logs.os_tx_m2u_ignore_fw_linked);
 			continue;		
+		}
 		
 		/* avoid come from STA1 and send back STA1 */ 
 		if (_rtw_memcmp(psta->hwaddr, &skb->data[6], 6) == _TRUE
 			|| _rtw_memcmp(psta->hwaddr, null_addr, 6) == _TRUE
 			|| _rtw_memcmp(psta->hwaddr, bc_addr, 6) == _TRUE
 		)
+		{
+			DBG_COUNTER(padapter->tx_logs.os_tx_m2u_ignore_self);
 			continue;
+		}
+
+		DBG_COUNTER(padapter->tx_logs.os_tx_m2u_entry);
 
 		newskb = rtw_skb_copy(skb);
 
@@ -413,11 +423,13 @@ int rtw_mlcst2unicst(_adapter *padapter, struct sk_buff *skb)
 			_rtw_memcpy(newskb->data, psta->hwaddr, 6);
 			res = rtw_xmit(padapter, &newskb);
 			if (res < 0) {
-				DBG_871X("%s()-%d: rtw_xmit() return error!\n", __FUNCTION__, __LINE__);
+				DBG_COUNTER(padapter->tx_logs.os_tx_m2u_entry_err_xmit);
+				DBG_871X("%s()-%d: rtw_xmit() return error! res=%d\n", __FUNCTION__, __LINE__, res);
 				pxmitpriv->tx_drop++;
 				rtw_skb_free(newskb);
 			}
 		} else {
+			DBG_COUNTER(padapter->tx_logs.os_tx_m2u_entry_err_skb);
 			DBG_871X("%s-%d: rtw_skb_copy() failed!\n", __FUNCTION__, __LINE__);
 			pxmitpriv->tx_drop++;
 			//rtw_skb_free(skb);
@@ -451,9 +463,11 @@ _func_enter_;
 		DBG_871X("MP_TX_DROP_OS_FRAME\n");
 		goto drop_packet;
 	}
+	DBG_COUNTER(padapter->tx_logs.os_tx);
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_, ("+xmit_enry\n"));
 
 	if (rtw_if_up(padapter) == _FALSE) {
+		DBG_COUNTER(padapter->tx_logs.os_tx_err_up);
 		RT_TRACE(_module_xmit_osdep_c_, _drv_err_, ("rtw_xmit_entry: rtw_if_up fail\n"));
 		#ifdef DBG_TX_DROP_FRAME
 		DBG_871X("DBG_TX_DROP_FRAME %s if_up fail\n", __FUNCTION__);
@@ -483,6 +497,7 @@ _func_enter_;
 		} else {
 			//DBG_871X("Stop M2U(%d, %d)! ", pxmitpriv->free_xmitframe_cnt, pxmitpriv->free_xmitbuf_cnt);
 			//DBG_871X("!m2u );
+			DBG_COUNTER(padapter->tx_logs.os_tx_m2u_stop);
 		}
 	}	
 #endif	// CONFIG_TX_MCAST2UNI	
@@ -512,11 +527,18 @@ _func_exit_;
 
 int rtw_xmit_entry(_pkt *pkt, _nic_hdl pnetdev)
 {
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(pnetdev);
+	struct	mlme_priv	*pmlmepriv = &(padapter->mlmepriv);
 	int ret = 0;
 
 	if (pkt) {
-		rtw_mstat_update(MSTAT_TYPE_SKB, MSTAT_ALLOC_SUCCESS, pkt->truesize);
-		ret = _rtw_xmit_entry(pkt, pnetdev);
+		if (check_fwstate(pmlmepriv, WIFI_MONITOR_STATE) == _TRUE) {
+			rtw_monitor_xmit_entry((struct sk_buff *)pkt, pnetdev);
+		} else {
+			rtw_mstat_update(MSTAT_TYPE_SKB, MSTAT_ALLOC_SUCCESS, pkt->truesize);
+			ret = _rtw_xmit_entry(pkt, pnetdev);
+		}
+
 	}
 
 	return ret;
