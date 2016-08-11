@@ -151,50 +151,43 @@ static int imx_drm_atomic_check(struct drm_device *dev,
 	return ret;
 }
 
+static int imx_drm_atomic_commit(struct drm_device *dev,
+				 struct drm_atomic_state *state,
+				 bool nonblock)
+{
+	struct drm_plane_state *plane_state;
+	struct drm_plane *plane;
+	struct dma_buf *dma_buf;
+	int i;
+
+	/*
+	 * If the plane fb has an dma-buf attached, fish out the exclusive
+	 * fence for the atomic helper to wait on.
+	 */
+	for_each_plane_in_state(state, plane, plane_state, i) {
+		if ((plane->state->fb != plane_state->fb) && plane_state->fb) {
+			dma_buf = drm_fb_cma_get_gem_obj(plane_state->fb,
+							 0)->base.dma_buf;
+			if (!dma_buf)
+				continue;
+			plane_state->fence =
+				reservation_object_get_excl_rcu(dma_buf->resv);
+		}
+	}
+
+	return drm_atomic_helper_commit(dev, state, nonblock);
+}
+
 static const struct drm_mode_config_funcs imx_drm_mode_config_funcs = {
 	.fb_create = drm_fb_cma_create,
 	.output_poll_changed = imx_drm_output_poll_changed,
 	.atomic_check = imx_drm_atomic_check,
-	.atomic_commit = drm_atomic_helper_commit,
+	.atomic_commit = imx_drm_atomic_commit,
 };
 
 static void imx_drm_atomic_commit_tail(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
-	struct drm_plane_state *plane_state;
-	struct drm_gem_cma_object *cma_obj;
-	struct fence *excl;
-	unsigned shared_count;
-	struct fence **shared;
-	unsigned int i, j;
-	int ret;
-
-	/* Wait for fences. */
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		plane_state = crtc->primary->state;
-		if (plane_state->fb) {
-			cma_obj = drm_fb_cma_get_gem_obj(plane_state->fb, 0);
-			if (cma_obj->base.dma_buf) {
-				ret = reservation_object_get_fences_rcu(
-					cma_obj->base.dma_buf->resv, &excl,
-					&shared_count, &shared);
-				if (unlikely(ret))
-					DRM_ERROR("failed to get fences "
-						  "for buffer\n");
-
-				if (excl) {
-					fence_wait(excl, false);
-					fence_put(excl);
-				}
-				for (j = 0; j < shared_count; i++) {
-					fence_wait(shared[j], false);
-					fence_put(shared[j]);
-				}
-			}
-		}
-	}
 
 	drm_atomic_helper_commit_modeset_disables(dev, state);
 
