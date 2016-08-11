@@ -1141,7 +1141,6 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 
 		urb = usb_alloc_urb(iso_packets, GFP_KERNEL);
 		if (!urb) {
-			dev_err(dev, "%s: no memory for urb %d!\n", __func__, i);
 			error = -ENOMEM;
 			goto fail_unbind;
 		}
