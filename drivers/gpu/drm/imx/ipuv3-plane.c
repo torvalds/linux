@@ -213,8 +213,12 @@ static void ipu_plane_enable(struct ipu_plane *ipu_plane)
 		ipu_dp_enable_channel(ipu_plane->dp);
 }
 
-static void ipu_plane_disable(struct ipu_plane *ipu_plane)
+static int ipu_disable_plane(struct drm_plane *plane)
 {
+	struct ipu_plane *ipu_plane = to_ipu_plane(plane);
+
+	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
+
 	ipu_idmac_wait_busy(ipu_plane->ipu_ch, 50);
 
 	if (ipu_plane->dp)
@@ -223,15 +227,6 @@ static void ipu_plane_disable(struct ipu_plane *ipu_plane)
 	ipu_dmfc_disable_channel(ipu_plane->dmfc);
 	if (ipu_plane->dp)
 		ipu_dp_disable(ipu_plane->ipu);
-}
-
-static int ipu_disable_plane(struct drm_plane *plane)
-{
-	struct ipu_plane *ipu_plane = to_ipu_plane(plane);
-
-	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
-
-	ipu_plane_disable(ipu_plane);
 
 	return 0;
 }
