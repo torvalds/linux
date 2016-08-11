@@ -49,6 +49,7 @@ static struct xfrm_policy_afinfo __rcu *xfrm_policy_afinfo[NPROTO]
 						__read_mostly;
 
 static struct kmem_cache *xfrm_dst_cache __read_mostly;
+static __read_mostly seqcount_t xfrm_policy_hash_generation;
 
 static void xfrm_init_pmtu(struct dst_entry *dst);
 static int stale_bundle(struct dst_entry *dst);
@@ -479,6 +480,10 @@ static void xfrm_bydst_resize(struct net *net, int dir)
 		return;
 
 	write_lock_bh(&net->xfrm.xfrm_policy_lock);
+	write_seqcount_begin(&xfrm_policy_hash_generation);
+
+	odst = rcu_dereference_protected(net->xfrm.policy_bydst[dir].table,
+				lockdep_is_held(&net->xfrm.xfrm_policy_lock));
 
 	odst = rcu_dereference_protected(net->xfrm.policy_bydst[dir].table,
 				lockdep_is_held(&net->xfrm.xfrm_policy_lock));
@@ -489,6 +494,7 @@ static void xfrm_bydst_resize(struct net *net, int dir)
 	rcu_assign_pointer(net->xfrm.policy_bydst[dir].table, ndst);
 	net->xfrm.policy_bydst[dir].hmask = nhashmask;
 
+	write_seqcount_end(&xfrm_policy_hash_generation);
 	write_unlock_bh(&net->xfrm.xfrm_policy_lock);
 
 	synchronize_rcu();
@@ -1104,7 +1110,8 @@ static struct xfrm_policy *xfrm_policy_lookup_bytype(struct net *net, u8 type,
 	struct xfrm_policy *pol, *ret;
 	const xfrm_address_t *daddr, *saddr;
 	struct hlist_head *chain;
-	u32 priority = ~0U;
+	unsigned int sequence;
+	u32 priority;
 
 	daddr = xfrm_flowi_daddr(fl, family);
 	saddr = xfrm_flowi_saddr(fl, family);
@@ -1112,7 +1119,13 @@ static struct xfrm_policy *xfrm_policy_lookup_bytype(struct net *net, u8 type,
 		return NULL;
 
 	read_lock_bh(&net->xfrm.xfrm_policy_lock);
-	chain = policy_hash_direct(net, daddr, saddr, family, dir);
+ retry:
+	do {
+		sequence = read_seqcount_begin(&xfrm_policy_hash_generation);
+		chain = policy_hash_direct(net, daddr, saddr, family, dir);
+	} while (read_seqcount_retry(&xfrm_policy_hash_generation, sequence));
+
+	priority = ~0U;
 	ret = NULL;
 	hlist_for_each_entry_rcu(pol, chain, bydst) {
 		err = xfrm_policy_match(pol, fl, type, family, dir);
@@ -1147,6 +1160,9 @@ static struct xfrm_policy *xfrm_policy_lookup_bytype(struct net *net, u8 type,
 			break;
 		}
 	}
+
+	if (read_seqcount_retry(&xfrm_policy_hash_generation, sequence))
+		goto retry;
 
 	xfrm_pol_hold(ret);
 fail:
@@ -3090,6 +3106,7 @@ static struct pernet_operations __net_initdata xfrm_net_ops = {
 void __init xfrm_init(void)
 {
 	register_pernet_subsys(&xfrm_net_ops);
+	seqcount_init(&xfrm_policy_hash_generation);
 	xfrm_input_init();
 }
 
