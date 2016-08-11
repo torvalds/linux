@@ -801,9 +801,6 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 	struct resource_table *table, *loaded_table;
 	int ret, tablesz;
 
-	if (!rproc->table_ptr)
-		return -ENOMEM;
-
 	ret = rproc_fw_sanity_check(rproc, fw);
 	if (ret)
 		return ret;
@@ -830,11 +827,17 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 		goto clean_up;
 	}
 
-	/* Verify that resource table in loaded fw is unchanged */
-	if (rproc->table_csum != crc32(0, table, tablesz)) {
-		dev_err(dev, "resource checksum failed, fw changed?\n");
+	/*
+	 * Create a copy of the resource table. When a virtio device starts
+	 * and calls vring_new_virtqueue() the address of the allocated vring
+	 * will be stored in the cached_table. Before the device is started,
+	 * cached_table will be copied into device memory.
+	 */
+	rproc->cached_table = kmemdup(table, tablesz, GFP_KERNEL);
+	if (!rproc->cached_table)
 		goto clean_up;
-	}
+
+	rproc->table_ptr = rproc->cached_table;
 
 	/* reset max_notifyid */
 	rproc->max_notifyid = -1;
@@ -892,6 +895,10 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 	return 0;
 
 clean_up:
+	kfree(rproc->cached_table);
+	rproc->cached_table = NULL;
+	rproc->table_ptr = NULL;
+
 	rproc_resource_cleanup(rproc);
 	rproc_disable_iommu(rproc);
 	return ret;
@@ -908,36 +915,11 @@ clean_up:
 static void rproc_fw_config_virtio(const struct firmware *fw, void *context)
 {
 	struct rproc *rproc = context;
-	struct resource_table *table;
-	int tablesz;
-
-	if (rproc_fw_sanity_check(rproc, fw) < 0)
-		goto out;
-
-	/* look for the resource table */
-	table = rproc_find_rsc_table(rproc, fw,  &tablesz);
-	if (!table)
-		goto out;
-
-	rproc->table_csum = crc32(0, table, tablesz);
-
-	/*
-	 * Create a copy of the resource table. When a virtio device starts
-	 * and calls vring_new_virtqueue() the address of the allocated vring
-	 * will be stored in the cached_table. Before the device is started,
-	 * cached_table will be copied into device memory.
-	 */
-	rproc->cached_table = kmemdup(table, tablesz, GFP_KERNEL);
-	if (!rproc->cached_table)
-		goto out;
-
-	rproc->table_ptr = rproc->cached_table;
 
 	/* if rproc is marked always-on, request it to boot */
 	if (rproc->auto_boot)
 		rproc_boot_nowait(rproc);
 
-out:
 	release_firmware(fw);
 	/* allow rproc_del() contexts, if any, to proceed */
 	complete_all(&rproc->firmware_loading_complete);
@@ -1177,8 +1159,10 @@ void rproc_shutdown(struct rproc *rproc)
 
 	rproc_disable_iommu(rproc);
 
-	/* Give the next start a clean resource table */
-	rproc->table_ptr = rproc->cached_table;
+	/* Free the copy of the resource table */
+	kfree(rproc->cached_table);
+	rproc->cached_table = NULL;
+	rproc->table_ptr = NULL;
 
 	/* if in crash state, unlock crash handler */
 	if (rproc->state == RPROC_CRASHED)
@@ -1465,9 +1449,6 @@ int rproc_del(struct rproc *rproc)
 	/* clean up remote vdev entries */
 	list_for_each_entry_safe(rvdev, tmp, &rproc->rvdevs, node)
 		rproc_remove_virtio_dev(rvdev);
-
-	/* Free the copy of the resource table */
-	kfree(rproc->cached_table);
 
 	/* the rproc is downref'ed as soon as it's removed from the klist */
 	mutex_lock(&rproc_list_mutex);
