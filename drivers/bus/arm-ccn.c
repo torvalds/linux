@@ -946,19 +946,10 @@ static void arm_ccn_pmu_event_start(struct perf_event *event, int flags)
 
 static void arm_ccn_pmu_event_stop(struct perf_event *event, int flags)
 {
-	struct arm_ccn *ccn = pmu_to_arm_ccn(event->pmu);
 	struct hw_perf_event *hw = &event->hw;
-	u64 timeout;
 
 	/* Disable counting, setting the DT bus to pass-through mode */
 	arm_ccn_pmu_xp_dt_config(event, 0);
-
-	/* Let the DT bus drain */
-	timeout = arm_ccn_pmu_read_counter(ccn, CCN_IDX_PMU_CYCLE_COUNTER) +
-			ccn->num_xps;
-	while (arm_ccn_pmu_read_counter(ccn, CCN_IDX_PMU_CYCLE_COUNTER) <
-			timeout)
-		cpu_relax();
 
 	if (flags & PERF_EF_UPDATE)
 		arm_ccn_pmu_event_update(event);
@@ -1162,6 +1153,24 @@ static void arm_ccn_pmu_event_read(struct perf_event *event)
 	arm_ccn_pmu_event_update(event);
 }
 
+static void arm_ccn_pmu_enable(struct pmu *pmu)
+{
+	struct arm_ccn *ccn = pmu_to_arm_ccn(pmu);
+
+	u32 val = readl(ccn->dt.base + CCN_DT_PMCR);
+	val |= CCN_DT_PMCR__PMU_EN;
+	writel(val, ccn->dt.base + CCN_DT_PMCR);
+}
+
+static void arm_ccn_pmu_disable(struct pmu *pmu)
+{
+	struct arm_ccn *ccn = pmu_to_arm_ccn(pmu);
+
+	u32 val = readl(ccn->dt.base + CCN_DT_PMCR);
+	val &= ~CCN_DT_PMCR__PMU_EN;
+	writel(val, ccn->dt.base + CCN_DT_PMCR);
+}
+
 static irqreturn_t arm_ccn_pmu_overflow_handler(struct arm_ccn_dt *dt)
 {
 	u32 pmovsr = readl(dt->base + CCN_DT_PMOVSR);
@@ -1284,6 +1293,8 @@ static int arm_ccn_pmu_init(struct arm_ccn *ccn)
 		.start = arm_ccn_pmu_event_start,
 		.stop = arm_ccn_pmu_event_stop,
 		.read = arm_ccn_pmu_event_read,
+		.pmu_enable = arm_ccn_pmu_enable,
+		.pmu_disable = arm_ccn_pmu_disable,
 	};
 
 	/* No overflow interrupt? Have to use a timer instead. */
