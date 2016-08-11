@@ -43,20 +43,6 @@ NM		:= $(NM) --synthetic
 endif
 endif
 
-ifeq ($(CONFIG_PPC64),y)
-ifeq ($(CONFIG_CPU_LITTLE_ENDIAN),y)
-OLDARCH	:= ppc64le
-else
-OLDARCH	:= ppc64
-endif
-else
-ifeq ($(CONFIG_CPU_LITTLE_ENDIAN),y)
-OLDARCH	:= ppcle
-else
-OLDARCH	:= ppc
-endif
-endif
-
 # BITS is used as extension for files which are available in a 32 bit
 # and a 64 bit version to simplify shared Makefiles.
 # e.g.: obj-y += foo_$(BITS).o
@@ -68,7 +54,10 @@ else
         BITS := 32
 endif
 
-UTS_MACHINE := $(OLDARCH)
+machine-y = ppc
+machine-$(CONFIG_PPC64) += 64
+machine-$(CONFIG_CPU_LITTLE_ENDIAN) += le
+UTS_MACHINE := $(subst $(space),,$(machine-y))
 
 ifeq ($(CONFIG_CPU_LITTLE_ENDIAN),y)
 override LD	+= -EL
