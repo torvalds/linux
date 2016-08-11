@@ -25,6 +25,36 @@
 #define CREATE_TRACE_POINTS
 #include "sync_trace.h"
 
+/*
+ * SW SYNC validation framework
+ *
+ * A sync object driver that uses a 32bit counter to coordinate
+ * synchronization.  Useful when there is no hardware primitive backing
+ * the synchronization.
+ *
+ * To start the framework just open:
+ *
+ * <debugfs>/sync/sw_sync
+ *
+ * That will create a sync timeline, all fences created under this timeline
+ * file descriptor will belong to the this timeline.
+ *
+ * The 'sw_sync' file can be opened many times as to create different
+ * timelines.
+ *
+ * Fences can be created with SW_SYNC_IOC_CREATE_FENCE ioctl with struct
+ * sw_sync_ioctl_create_fence as parameter.
+ *
+ * To increment the timeline counter, SW_SYNC_IOC_INC ioctl should be used
+ * with the increment as u32. This will update the last signaled value
+ * from the timeline and signal any fence that has a seqno smaller or equal
+ * to it.
+ *
+ * struct sw_sync_ioctl_create_fence
+ * @value:	the seqno to initialise the fence with
+ * @name:	the name of the new sync point
+ * @fence:	return the fd of the new sync_file with the created fence
+ */
 struct sw_sync_create_fence_data {
 	__u32	value;
 	char	name[32];
@@ -35,6 +65,7 @@ struct sw_sync_create_fence_data {
 
 #define SW_SYNC_IOC_CREATE_FENCE	_IOWR(SW_SYNC_IOC_MAGIC, 0,\
 		struct sw_sync_create_fence_data)
+
 #define SW_SYNC_IOC_INC			_IOW(SW_SYNC_IOC_MAGIC, 1, __u32)
 
 static const struct fence_ops timeline_fence_ops;
