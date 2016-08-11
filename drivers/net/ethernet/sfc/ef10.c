@@ -177,7 +177,7 @@ static int efx_ef10_get_vf_index(struct efx_nic *efx)
 
 static int efx_ef10_init_datapath_caps(struct efx_nic *efx)
 {
-	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_CAPABILITIES_OUT_LEN);
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_CAPABILITIES_V2_OUT_LEN);
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	size_t outlen;
 	int rc;
@@ -188,7 +188,7 @@ static int efx_ef10_init_datapath_caps(struct efx_nic *efx)
 			  outbuf, sizeof(outbuf), &outlen);
 	if (rc)
 		return rc;
-	if (outlen < sizeof(outbuf)) {
+	if (outlen < MC_CMD_GET_CAPABILITIES_OUT_LEN) {
 		netif_err(efx, drv, efx->net_dev,
 			  "unable to read datapath firmware capabilities\n");
 		return -EIO;
@@ -196,6 +196,12 @@ static int efx_ef10_init_datapath_caps(struct efx_nic *efx)
 
 	nic_data->datapath_caps =
 		MCDI_DWORD(outbuf, GET_CAPABILITIES_OUT_FLAGS1);
+
+	if (outlen >= MC_CMD_GET_CAPABILITIES_V2_OUT_LEN)
+		nic_data->datapath_caps2 = MCDI_DWORD(outbuf,
+				GET_CAPABILITIES_V2_OUT_FLAGS2);
+	else
+		nic_data->datapath_caps2 = 0;
 
 	/* record the DPCPU firmware IDs to determine VEB vswitching support.
 	 */
