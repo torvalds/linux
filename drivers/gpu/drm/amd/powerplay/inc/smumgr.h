@@ -121,6 +121,12 @@ extern int smu_allocate_memory(void *device, uint32_t size,
 
 extern int smu_free_memory(void *device, void *handle);
 
+extern int cz_smum_init(struct pp_smumgr *smumgr);
+extern int iceland_smum_init(struct pp_smumgr *smumgr);
+extern int tonga_smum_init(struct pp_smumgr *smumgr);
+extern int fiji_smum_init(struct pp_smumgr *smumgr);
+extern int polaris10_smum_init(struct pp_smumgr *smumgr);
+
 #define SMUM_FIELD_SHIFT(reg, field) reg##__##field##__SHIFT
 
 #define SMUM_FIELD_MASK(reg, field) reg##__##field##_MASK
