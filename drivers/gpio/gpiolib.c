@@ -1363,19 +1363,15 @@ struct gpio_chip *gpiochip_find(void *data,
 					     void *data))
 {
 	struct gpio_device *gdev;
-	struct gpio_chip *chip;
+	struct gpio_chip *chip = NULL;
 	unsigned long flags;
 
 	spin_lock_irqsave(&gpio_lock, flags);
 	list_for_each_entry(gdev, &gpio_devices, list)
-		if (gdev->chip && match(gdev->chip, data))
+		if (gdev->chip && match(gdev->chip, data)) {
+			chip = gdev->chip;
 			break;
-
-	/* No match? */
-	if (&gdev->list == &gpio_devices)
-		chip = NULL;
-	else
-		chip = gdev->chip;
+		}
 
 	spin_unlock_irqrestore(&gpio_lock, flags);
 
