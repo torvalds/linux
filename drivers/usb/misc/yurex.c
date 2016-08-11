@@ -231,10 +231,8 @@ static int yurex_probe(struct usb_interface *interface, const struct usb_device_
 
 	/* allocate control URB */
 	dev->cntl_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!dev->cntl_urb) {
-		dev_err(&interface->dev, "Could not allocate control URB\n");
+	if (!dev->cntl_urb)
 		goto error;
-	}
 
 	/* allocate buffer for control req */
 	dev->cntl_req = kmalloc(YUREX_BUF_SIZE, GFP_KERNEL);
@@ -269,10 +267,8 @@ static int yurex_probe(struct usb_interface *interface, const struct usb_device_
 
 	/* allocate interrupt URB */
 	dev->urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!dev->urb) {
-		dev_err(&interface->dev, "Could not allocate URB\n");
+	if (!dev->urb)
 		goto error;
-	}
 
 	/* allocate buffer for interrupt in */
 	dev->int_buffer = usb_alloc_coherent(dev->udev, YUREX_BUF_SIZE,
