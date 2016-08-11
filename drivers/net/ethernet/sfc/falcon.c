@@ -2376,6 +2376,8 @@ static int falcon_probe_nic(struct efx_nic *efx)
 			     EFX_MAX_CHANNELS);
 	efx->max_tx_channels = efx->max_channels;
 	efx->timer_quantum_ns = 4968; /* 621 cycles */
+	efx->timer_max_ns = efx->type->timer_period_max *
+			    efx->timer_quantum_ns;
 
 	/* Initialise I2C adapter */
 	board = falcon_board(efx);

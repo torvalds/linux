@@ -233,6 +233,116 @@ static int efx_ef10_get_sysclk_freq(struct efx_nic *efx)
 	return rc > 0 ? rc : -ERANGE;
 }
 
+static int efx_ef10_get_timer_workarounds(struct efx_nic *efx)
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	unsigned int implemented;
+	unsigned int enabled;
+	int rc;
+
+	nic_data->workaround_35388 = false;
+	nic_data->workaround_61265 = false;
+
+	rc = efx_mcdi_get_workarounds(efx, &implemented, &enabled);
+
+	if (rc == -ENOSYS) {
+		/* Firmware without GET_WORKAROUNDS - not a problem. */
+		rc = 0;
+	} else if (rc == 0) {
+		/* Bug61265 workaround is always enabled if implemented. */
+		if (enabled & MC_CMD_GET_WORKAROUNDS_OUT_BUG61265)
+			nic_data->workaround_61265 = true;
+
+		if (enabled & MC_CMD_GET_WORKAROUNDS_OUT_BUG35388) {
+			nic_data->workaround_35388 = true;
+		} else if (implemented & MC_CMD_GET_WORKAROUNDS_OUT_BUG35388) {
+			/* Workaround is implemented but not enabled.
+			 * Try to enable it.
+			 */
+			rc = efx_mcdi_set_workaround(efx,
+						     MC_CMD_WORKAROUND_BUG35388,
+						     true, NULL);
+			if (rc == 0)
+				nic_data->workaround_35388 = true;
+			/* If we failed to set the workaround just carry on. */
+			rc = 0;
+		}
+	}
+
+	netif_dbg(efx, probe, efx->net_dev,
+		  "workaround for bug 35388 is %sabled\n",
+		  nic_data->workaround_35388 ? "en" : "dis");
+	netif_dbg(efx, probe, efx->net_dev,
+		  "workaround for bug 61265 is %sabled\n",
+		  nic_data->workaround_61265 ? "en" : "dis");
+
+	return rc;
+}
+
+static void efx_ef10_process_timer_config(struct efx_nic *efx,
+					  const efx_dword_t *data)
+{
+	unsigned int max_count;
+
+	if (EFX_EF10_WORKAROUND_61265(efx)) {
+		efx->timer_quantum_ns = MCDI_DWORD(data,
+			GET_EVQ_TMR_PROPERTIES_OUT_MCDI_TMR_STEP_NS);
+		efx->timer_max_ns = MCDI_DWORD(data,
+			GET_EVQ_TMR_PROPERTIES_OUT_MCDI_TMR_MAX_NS);
+	} else if (EFX_EF10_WORKAROUND_35388(efx)) {
+		efx->timer_quantum_ns = MCDI_DWORD(data,
+			GET_EVQ_TMR_PROPERTIES_OUT_BUG35388_TMR_NS_PER_COUNT);
+		max_count = MCDI_DWORD(data,
+			GET_EVQ_TMR_PROPERTIES_OUT_BUG35388_TMR_MAX_COUNT);
+		efx->timer_max_ns = max_count * efx->timer_quantum_ns;
+	} else {
+		efx->timer_quantum_ns = MCDI_DWORD(data,
+			GET_EVQ_TMR_PROPERTIES_OUT_TMR_REG_NS_PER_COUNT);
+		max_count = MCDI_DWORD(data,
+			GET_EVQ_TMR_PROPERTIES_OUT_TMR_REG_MAX_COUNT);
+		efx->timer_max_ns = max_count * efx->timer_quantum_ns;
+	}
+
+	netif_dbg(efx, probe, efx->net_dev,
+		  "got timer properties from MC: quantum %u ns; max %u ns\n",
+		  efx->timer_quantum_ns, efx->timer_max_ns);
+}
+
+static int efx_ef10_get_timer_config(struct efx_nic *efx)
+{
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_LEN);
+	int rc;
+
+	rc = efx_ef10_get_timer_workarounds(efx);
+	if (rc)
+		return rc;
+
+	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_GET_EVQ_TMR_PROPERTIES, NULL, 0,
+				outbuf, sizeof(outbuf), NULL);
+
+	if (rc == 0) {
+		efx_ef10_process_timer_config(efx, outbuf);
+	} else if (rc == -ENOSYS || rc == -EPERM) {
+		/* Not available - fall back to Huntington defaults. */
+		unsigned int quantum;
+
+		rc = efx_ef10_get_sysclk_freq(efx);
+		if (rc < 0)
+			return rc;
+
+		quantum = 1536000 / rc; /* 1536 cycles */
+		efx->timer_quantum_ns = quantum;
+		efx->timer_max_ns = efx->type->timer_period_max * quantum;
+		rc = 0;
+	} else {
+		efx_mcdi_display_error(efx, MC_CMD_GET_EVQ_TMR_PROPERTIES,
+				       MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_LEN,
+				       NULL, 0, rc);
+	}
+
+	return rc;
+}
+
 static int efx_ef10_get_mac_address_pf(struct efx_nic *efx, u8 *mac_address)
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_MAC_ADDRESSES_OUT_LEN);
@@ -533,32 +643,10 @@ static int efx_ef10_probe(struct efx_nic *efx)
 	if (rc)
 		goto fail5;
 
-	rc = efx_ef10_get_sysclk_freq(efx);
+	rc = efx_ef10_get_timer_config(efx);
 	if (rc < 0)
 		goto fail5;
 	efx->timer_quantum_ns = 1536000 / rc; /* 1536 cycles */
-
-	/* Check whether firmware supports bug 35388 workaround.
-	 * First try to enable it, then if we get EPERM, just
-	 * ask if it's already enabled
-	 */
-	rc = efx_mcdi_set_workaround(efx, MC_CMD_WORKAROUND_BUG35388, true, NULL);
-	if (rc == 0) {
-		nic_data->workaround_35388 = true;
-	} else if (rc == -EPERM) {
-		unsigned int enabled;
-
-		rc = efx_mcdi_get_workarounds(efx, NULL, &enabled);
-		if (rc)
-			goto fail3;
-		nic_data->workaround_35388 = enabled &
-			MC_CMD_GET_WORKAROUNDS_OUT_BUG35388;
-	} else if (rc != -ENOSYS && rc != -ENOENT) {
-		goto fail5;
-	}
-	netif_dbg(efx, probe, efx->net_dev,
-		  "workaround for bug 35388 is %sabled\n",
-		  nic_data->workaround_35388 ? "en" : "dis");
 
 	rc = efx_mcdi_mon_probe(efx);
 	if (rc && rc != -EPERM)
@@ -2631,11 +2719,10 @@ static int efx_ef10_ev_init(struct efx_channel *channel)
 	/* Successfully created event queue on channel 0 */
 	rc = efx_mcdi_get_workarounds(efx, &implemented, &enabled);
 	if (rc == -ENOSYS) {
-		/* GET_WORKAROUNDS was implemented before these workarounds,
-		 * thus they must be unavailable in this firmware.
+		/* GET_WORKAROUNDS was implemented before this workaround,
+		 * thus it must be unavailable in this firmware.
 		 */
 		nic_data->workaround_26807 = false;
-		nic_data->workaround_61265 = false;
 		rc = 0;
 	} else if (rc) {
 		goto fail;
@@ -2675,9 +2762,6 @@ static int efx_ef10_ev_init(struct efx_channel *channel)
 				rc = 0;
 			}
 		}
-
-		nic_data->workaround_61265 =
-			!!(implemented & MC_CMD_GET_WORKAROUNDS_OUT_BUG61265);
 	}
 
 	if (!rc)
