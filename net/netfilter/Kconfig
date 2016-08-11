@@ -563,6 +563,12 @@ config NFT_COMPAT
 	  x_tables match/target extensions over the nf_tables
 	  framework.
 
+config NFT_HASH
+	tristate "Netfilter nf_tables hash module"
+	help
+	  This option adds the "hash" expression that you can use to perform
+	  a hash operation on registers.
+
 if NF_TABLES_NETDEV
 
 config NF_DUP_NETDEV
