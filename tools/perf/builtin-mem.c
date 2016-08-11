@@ -88,6 +88,9 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 	if (mem->operation & MEM_OPERATION_LOAD)
 		perf_mem_events[PERF_MEM_EVENTS__LOAD].record = true;
 
+	if (mem->operation & MEM_OPERATION_STORE)
+		perf_mem_events[PERF_MEM_EVENTS__STORE].record = true;
+
 	if (perf_mem_events[PERF_MEM_EVENTS__LOAD].record)
 		rec_argv[i++] = "-W";
 
