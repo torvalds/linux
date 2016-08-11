@@ -23,7 +23,7 @@
 #include "sync_debug.h"
 
 #define CREATE_TRACE_POINTS
-#include "trace/sync.h"
+#include "sync_trace.h"
 
 struct sw_sync_create_fence_data {
 	__u32	value;
