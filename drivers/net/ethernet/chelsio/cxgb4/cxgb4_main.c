@@ -3078,6 +3078,26 @@ static int cxgb_change_mtu(struct net_device *dev, int new_mtu)
 	return ret;
 }
 
+#ifdef CONFIG_PCI_IOV
+static int cxgb_set_vf_mac(struct net_device *dev, int vf, u8 *mac)
+{
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = pi->adapter;
+
+	/* verify MAC addr is valid */
+	if (!is_valid_ether_addr(mac)) {
+		dev_err(pi->adapter->pdev_dev,
+			"Invalid Ethernet address %pM for VF %d\n",
+			mac, vf);
+		return -EINVAL;
+	}
+
+	dev_info(pi->adapter->pdev_dev,
+		 "Setting MAC %pM on VF %d\n", mac, vf);
+	return t4_set_vf_mac_acl(adap, vf + 1, 1, mac);
+}
+#endif
+
 static int cxgb_set_mac_addr(struct net_device *dev, void *p)
 {
 	int ret;
@@ -3136,10 +3156,12 @@ static const struct net_device_ops cxgb4_netdev_ops = {
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	.ndo_busy_poll        = cxgb_busy_poll,
 #endif
-
 };
 
 static const struct net_device_ops cxgb4_mgmt_netdev_ops = {
+#ifdef CONFIG_PCI_IOV
+	.ndo_set_vf_mac       = cxgb_set_vf_mac,
+#endif
 };
 
 static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
