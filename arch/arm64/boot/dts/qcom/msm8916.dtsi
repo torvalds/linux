@@ -494,7 +494,7 @@
 			compatible = "qcom,ci-hdrc";
 			reg = <0x78d9000 0x400>;
 			dr_mode = "peripheral";
-			interrupts = <GIC_SPI 134 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
 			usb-phy = <&usb_otg>;
 			status = "disabled";
 		};
@@ -502,7 +502,7 @@
 		usb_host: ehci@78d9000 {
 			compatible = "qcom,ehci-host";
 			reg = <0x78d9000 0x400>;
-			interrupts = <GIC_SPI 134 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
 			usb-phy = <&usb_otg>;
 			status = "disabled";
 		};
@@ -510,8 +510,8 @@
 		usb_otg: phy@78d9000 {
 			compatible = "qcom,usb-otg-snps";
 			reg = <0x78d9000 0x400>;
-			interrupts = <GIC_SPI 134 IRQ_TYPE_EDGE_BOTH>,
-				     <GIC_SPI 140 IRQ_TYPE_EDGE_RISING>;
+			interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
 
 			qcom,vdd-levels = <500000 1000000 1320000>;
 			qcom,phy-init-sequence = <0x44 0x6B 0x24 0x13>;
@@ -605,7 +605,7 @@
 			      <0x200a000 0x002100>;
 			reg-names = "core", "chnls", "obsrvr", "intr", "cnfg";
 			interrupt-names = "periph_irq";
-			interrupts = <GIC_SPI 190 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>;
 			qcom,ee = <0>;
 			qcom,channel = <0>;
 			#address-cells = <2>;
