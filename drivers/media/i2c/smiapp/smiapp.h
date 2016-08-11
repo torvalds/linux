@@ -197,7 +197,7 @@ struct smiapp_sensor {
 	struct smiapp_subdev *binner;
 	struct smiapp_subdev *scaler;
 	struct smiapp_subdev *pixel_array;
-	struct smiapp_platform_data *platform_data;
+	struct smiapp_hwconfig *hwcfg;
 	struct regulator *vana;
 	struct clk *ext_clk;
 	u32 limits[SMIAPP_LIMIT_LAST];

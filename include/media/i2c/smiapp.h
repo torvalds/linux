@@ -57,7 +57,7 @@ struct smiapp_flash_strobe_parms {
 	u8 trigger;
 };
 
-struct smiapp_platform_data {
+struct smiapp_hwconfig {
 	/*
 	 * Change the cci address if i2c_addr_alt is set.
 	 * Both default and alternate cci addr need to be present
