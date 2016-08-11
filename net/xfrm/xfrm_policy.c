@@ -60,6 +60,11 @@ static void __xfrm_policy_link(struct xfrm_policy *pol, int dir);
 static struct xfrm_policy *__xfrm_policy_unlink(struct xfrm_policy *pol,
 						int dir);
 
+static inline bool xfrm_pol_hold_rcu(struct xfrm_policy *policy)
+{
+	return atomic_inc_not_zero(&policy->refcnt);
+}
+
 static inline bool
 __xfrm4_selector_match(const struct xfrm_selector *sel, const struct flowi *fl)
 {
@@ -1164,7 +1169,8 @@ static struct xfrm_policy *xfrm_policy_lookup_bytype(struct net *net, u8 type,
 	if (read_seqcount_retry(&xfrm_policy_hash_generation, sequence))
 		goto retry;
 
-	xfrm_pol_hold(ret);
+	if (ret && !xfrm_pol_hold_rcu(ret))
+		goto retry;
 fail:
 	read_unlock_bh(&net->xfrm.xfrm_policy_lock);
 
