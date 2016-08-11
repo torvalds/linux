@@ -60,7 +60,7 @@ struct fence_cb;
  * implementer of the fence for its own purposes. Can be used in different
  * ways by different fence implementers, so do not rely on this.
  *
- * *) Since atomic bitops are used, this is not guaranteed to be the case.
+ * Since atomic bitops are used, this is not guaranteed to be the case.
  * Particularly, if the bit was set, but fence_signal was called right
  * before this bit was set, it would have been able to set the
  * FENCE_FLAG_SIGNALED_BIT, before enable_signaling was called.
