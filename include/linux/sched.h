@@ -1923,6 +1923,9 @@ struct task_struct {
 #ifdef CONFIG_MMU
 	struct task_struct *oom_reaper_list;
 #endif
+#ifdef CONFIG_VMAP_STACK
+	struct vm_struct *stack_vm_area;
+#endif
 /* CPU-specific state of this task */
 	struct thread_struct thread;
 /*
@@ -1937,6 +1940,18 @@ struct task_struct {
 extern int arch_task_struct_size __read_mostly;
 #else
 # define arch_task_struct_size (sizeof(struct task_struct))
+#endif
+
+#ifdef CONFIG_VMAP_STACK
+static inline struct vm_struct *task_stack_vm_area(const struct task_struct *t)
+{
+	return t->stack_vm_area;
+}
+#else
+static inline struct vm_struct *task_stack_vm_area(const struct task_struct *t)
+{
+	return NULL;
+}
 #endif
 
 /* Future-safe accessor for struct task_struct's cpus_allowed. */

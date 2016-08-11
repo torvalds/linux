@@ -707,4 +707,38 @@ config ARCH_NO_COHERENT_DMA_MMAP
 config CPU_NO_EFFICIENT_FFS
 	def_bool n
 
+config HAVE_ARCH_VMAP_STACK
+	def_bool n
+	help
+	  An arch should select this symbol if it can support kernel stacks
+	  in vmalloc space.  This means:
+
+	  - vmalloc space must be large enough to hold many kernel stacks.
+	    This may rule out many 32-bit architectures.
+
+	  - Stacks in vmalloc space need to work reliably.  For example, if
+	    vmap page tables are created on demand, either this mechanism
+	    needs to work while the stack points to a virtual address with
+	    unpopulated page tables or arch code (switch_to() and switch_mm(),
+	    most likely) needs to ensure that the stack's page table entries
+	    are populated before running on a possibly unpopulated stack.
+
+	  - If the stack overflows into a guard page, something reasonable
+	    should happen.  The definition of "reasonable" is flexible, but
+	    instantly rebooting without logging anything would be unfriendly.
+
+config VMAP_STACK
+	default y
+	bool "Use a virtually-mapped stack"
+	depends on HAVE_ARCH_VMAP_STACK && !KASAN
+	---help---
+	  Enable this if you want the use virtually-mapped kernel stacks
+	  with guard pages.  This causes kernel stack overflows to be
+	  caught immediately rather than causing difficult-to-diagnose
+	  corruption.
+
+	  This is presently incompatible with KASAN because KASAN expects
+	  the stack to map directly to the KASAN shadow map using a formula
+	  that is incorrect if the stack is in vmalloc space.
+
 source "kernel/gcov/Kconfig"

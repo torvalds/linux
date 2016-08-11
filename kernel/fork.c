@@ -158,19 +158,39 @@ void __weak arch_release_thread_stack(unsigned long *stack)
  * Allocate pages if THREAD_SIZE is >= PAGE_SIZE, otherwise use a
  * kmemcache based allocator.
  */
-# if THREAD_SIZE >= PAGE_SIZE
-static unsigned long *alloc_thread_stack_node(struct task_struct *tsk,
-						  int node)
+# if THREAD_SIZE >= PAGE_SIZE || defined(CONFIG_VMAP_STACK)
+static unsigned long *alloc_thread_stack_node(struct task_struct *tsk, int node)
 {
+#ifdef CONFIG_VMAP_STACK
+	void *stack = __vmalloc_node_range(THREAD_SIZE, THREAD_SIZE,
+					   VMALLOC_START, VMALLOC_END,
+					   THREADINFO_GFP | __GFP_HIGHMEM,
+					   PAGE_KERNEL,
+					   0, node,
+					   __builtin_return_address(0));
+
+	/*
+	 * We can't call find_vm_area() in interrupt context, and
+	 * free_thread_stack() can be called in interrupt context,
+	 * so cache the vm_struct.
+	 */
+	if (stack)
+		tsk->stack_vm_area = find_vm_area(stack);
+	return stack;
+#else
 	struct page *page = alloc_pages_node(node, THREADINFO_GFP,
 					     THREAD_SIZE_ORDER);
 
 	return page ? page_address(page) : NULL;
+#endif
 }
 
-static inline void free_thread_stack(unsigned long *stack)
+static inline void free_thread_stack(struct task_struct *tsk)
 {
-	__free_pages(virt_to_page(stack), THREAD_SIZE_ORDER);
+	if (task_stack_vm_area(tsk))
+		vfree(tsk->stack);
+	else
+		__free_pages(virt_to_page(tsk->stack), THREAD_SIZE_ORDER);
 }
 # else
 static struct kmem_cache *thread_stack_cache;
@@ -181,9 +201,9 @@ static unsigned long *alloc_thread_stack_node(struct task_struct *tsk,
 	return kmem_cache_alloc_node(thread_stack_cache, THREADINFO_GFP, node);
 }
 
-static void free_thread_stack(unsigned long *stack)
+static void free_thread_stack(struct task_struct *tsk)
 {
-	kmem_cache_free(thread_stack_cache, stack);
+	kmem_cache_free(thread_stack_cache, tsk->stack);
 }
 
 void thread_stack_cache_init(void)
@@ -213,24 +233,47 @@ struct kmem_cache *vm_area_cachep;
 /* SLAB cache for mm_struct structures (tsk->mm) */
 static struct kmem_cache *mm_cachep;
 
-static void account_kernel_stack(unsigned long *stack, int account)
+static void account_kernel_stack(struct task_struct *tsk, int account)
 {
-	/* All stack pages are in the same zone and belong to the same memcg. */
-	struct page *first_page = virt_to_page(stack);
+	void *stack = task_stack_page(tsk);
+	struct vm_struct *vm = task_stack_vm_area(tsk);
 
-	mod_zone_page_state(page_zone(first_page), NR_KERNEL_STACK_KB,
-			    THREAD_SIZE / 1024 * account);
+	BUILD_BUG_ON(IS_ENABLED(CONFIG_VMAP_STACK) && PAGE_SIZE % 1024 != 0);
 
-	memcg_kmem_update_page_stat(
-		first_page, MEMCG_KERNEL_STACK_KB,
-		account * (THREAD_SIZE / 1024));
+	if (vm) {
+		int i;
+
+		BUG_ON(vm->nr_pages != THREAD_SIZE / PAGE_SIZE);
+
+		for (i = 0; i < THREAD_SIZE / PAGE_SIZE; i++) {
+			mod_zone_page_state(page_zone(vm->pages[i]),
+					    NR_KERNEL_STACK_KB,
+					    PAGE_SIZE / 1024 * account);
+		}
+
+		/* All stack pages belong to the same memcg. */
+		memcg_kmem_update_page_stat(vm->pages[0], MEMCG_KERNEL_STACK_KB,
+					    account * (THREAD_SIZE / 1024));
+	} else {
+		/*
+		 * All stack pages are in the same zone and belong to the
+		 * same memcg.
+		 */
+		struct page *first_page = virt_to_page(stack);
+
+		mod_zone_page_state(page_zone(first_page), NR_KERNEL_STACK_KB,
+				    THREAD_SIZE / 1024 * account);
+
+		memcg_kmem_update_page_stat(first_page, MEMCG_KERNEL_STACK_KB,
+					    account * (THREAD_SIZE / 1024));
+	}
 }
 
 void free_task(struct task_struct *tsk)
 {
-	account_kernel_stack(tsk->stack, -1);
+	account_kernel_stack(tsk, -1);
 	arch_release_thread_stack(tsk->stack);
-	free_thread_stack(tsk->stack);
+	free_thread_stack(tsk);
 	rt_mutex_debug_task_free(tsk);
 	ftrace_graph_exit_task(tsk);
 	put_seccomp_filter(tsk);
@@ -342,6 +385,7 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
 {
 	struct task_struct *tsk;
 	unsigned long *stack;
+	struct vm_struct *stack_vm_area;
 	int err;
 
 	if (node == NUMA_NO_NODE)
@@ -354,11 +398,23 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
 	if (!stack)
 		goto free_tsk;
 
+	stack_vm_area = task_stack_vm_area(tsk);
+
 	err = arch_dup_task_struct(tsk, orig);
+
+	/*
+	 * arch_dup_task_struct() clobbers the stack-related fields.  Make
+	 * sure they're properly initialized before using any stack-related
+	 * functions again.
+	 */
+	tsk->stack = stack;
+#ifdef CONFIG_VMAP_STACK
+	tsk->stack_vm_area = stack_vm_area;
+#endif
+
 	if (err)
 		goto free_stack;
 
-	tsk->stack = stack;
 #ifdef CONFIG_SECCOMP
 	/*
 	 * We must handle setting up seccomp filters once we're under
@@ -390,14 +446,14 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
 	tsk->task_frag.page = NULL;
 	tsk->wake_q.next = NULL;
 
-	account_kernel_stack(stack, 1);
+	account_kernel_stack(tsk, 1);
 
 	kcov_task_init(tsk);
 
 	return tsk;
 
 free_stack:
-	free_thread_stack(stack);
+	free_thread_stack(tsk);
 free_tsk:
 	free_task_struct(tsk);
 	return NULL;
