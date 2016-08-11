@@ -532,11 +532,8 @@ static int skel_probe(struct usb_interface *interface,
 				goto error;
 			}
 			dev->bulk_in_urb = usb_alloc_urb(0, GFP_KERNEL);
-			if (!dev->bulk_in_urb) {
-				dev_err(&interface->dev,
-					"Could not allocate bulk_in_urb\n");
+			if (!dev->bulk_in_urb)
 				goto error;
-			}
 		}
 
 		if (!dev->bulk_out_endpointAddr &&
