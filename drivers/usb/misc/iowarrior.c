@@ -413,8 +413,6 @@ static ssize_t iowarrior_write(struct file *file,
 		int_out_urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!int_out_urb) {
 			retval = -ENOMEM;
-			dev_dbg(&dev->interface->dev,
-				"Unable to allocate urb\n");
 			goto error_no_urb;
 		}
 		buf = usb_alloc_coherent(dev->udev, dev->report_size,
@@ -812,10 +810,8 @@ static int iowarrior_probe(struct usb_interface *interface,
 
 	/* create the urb and buffer for reading */
 	dev->int_in_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!dev->int_in_urb) {
-		dev_err(&interface->dev, "Couldn't allocate interrupt_in_urb\n");
+	if (!dev->int_in_urb)
 		goto error;
-	}
 	dev->int_in_buffer = kmalloc(dev->report_size, GFP_KERNEL);
 	if (!dev->int_in_buffer) {
 		dev_err(&interface->dev, "Couldn't allocate int_in_buffer\n");
