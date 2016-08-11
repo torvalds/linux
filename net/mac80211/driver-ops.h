@@ -1088,13 +1088,13 @@ static inline void drv_leave_ibss(struct ieee80211_local *local,
 }
 
 static inline u32 drv_get_expected_throughput(struct ieee80211_local *local,
-					      struct ieee80211_sta *sta)
+					      struct sta_info *sta)
 {
 	u32 ret = 0;
 
-	trace_drv_get_expected_throughput(sta);
-	if (local->ops->get_expected_throughput)
-		ret = local->ops->get_expected_throughput(&local->hw, sta);
+	trace_drv_get_expected_throughput(&sta->sta);
+	if (local->ops->get_expected_throughput && sta->uploaded)
+		ret = local->ops->get_expected_throughput(&local->hw, &sta->sta);
 	trace_drv_return_u32(local, ret);
 
 	return ret;

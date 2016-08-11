@@ -2301,7 +2301,7 @@ u32 sta_get_expected_throughput(struct sta_info *sta)
 	if (ref && ref->ops->get_expected_throughput)
 		thr = ref->ops->get_expected_throughput(sta->rate_ctrl_priv);
 	else
-		thr = drv_get_expected_throughput(local, &sta->sta);
+		thr = drv_get_expected_throughput(local, sta);
 
 	return thr;
 }
