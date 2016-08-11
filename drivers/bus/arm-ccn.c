@@ -1496,8 +1496,9 @@ static int arm_ccn_probe(struct platform_device *pdev)
 		/* Can set 'disable' bits, so can acknowledge interrupts */
 		writel(CCN_MN_ERRINT_STATUS__PMU_EVENTS__ENABLE,
 				ccn->base + CCN_MN_ERRINT_STATUS);
-		err = devm_request_irq(ccn->dev, irq, arm_ccn_irq_handler, 0,
-				dev_name(ccn->dev), ccn);
+		err = devm_request_irq(ccn->dev, irq, arm_ccn_irq_handler,
+				       IRQF_NOBALANCING | IRQF_NO_THREAD,
+				       dev_name(ccn->dev), ccn);
 		if (err)
 			return err;
 
