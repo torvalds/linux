@@ -1636,7 +1636,7 @@ EXPORT_SYMBOL_GPL(genpd_dev_pm_attach);
 
 /***        debugfs support        ***/
 
-#ifdef CONFIG_PM_ADVANCED_DEBUG
+#ifdef CONFIG_DEBUG_FS
 #include <linux/pm.h>
 #include <linux/device.h>
 #include <linux/debugfs.h>
@@ -1784,4 +1784,4 @@ static void __exit pm_genpd_debug_exit(void)
 	debugfs_remove_recursive(pm_genpd_debugfs_dir);
 }
 __exitcall(pm_genpd_debug_exit);
-#endif /* CONFIG_PM_ADVANCED_DEBUG */
+#endif /* CONFIG_DEBUG_FS */
