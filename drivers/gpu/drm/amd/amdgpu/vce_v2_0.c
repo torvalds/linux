@@ -127,15 +127,10 @@ static int vce_v2_0_start(struct amdgpu_device *adev)
 	WREG32(mmVCE_RB_BASE_HI2, upper_32_bits(ring->gpu_addr));
 	WREG32(mmVCE_RB_SIZE2, ring->ring_size / 4);
 
-	WREG32_P(mmVCE_VCPU_CNTL, VCE_VCPU_CNTL__CLK_EN_MASK, ~VCE_VCPU_CNTL__CLK_EN_MASK);
-
-	WREG32_P(mmVCE_SOFT_RESET,
-		 VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK,
-		 ~VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK);
-
+	WREG32_FIELD(VCE_VCPU_CNTL, CLK_EN, 1);
+	WREG32_FIELD(VCE_SOFT_RESET, ECPU_SOFT_RESET, 1);
 	mdelay(100);
-
-	WREG32_P(mmVCE_SOFT_RESET, 0, ~VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK);
+	WREG32_FIELD(VCE_SOFT_RESET, ECPU_SOFT_RESET, 0);
 
 	for (i = 0; i < 10; ++i) {
 		uint32_t status;
@@ -150,10 +145,9 @@ static int vce_v2_0_start(struct amdgpu_device *adev)
 			break;
 
 		DRM_ERROR("VCE not responding, trying to reset the ECPU!!!\n");
-		WREG32_P(mmVCE_SOFT_RESET, VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK,
-				~VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK);
+		WREG32_FIELD(VCE_SOFT_RESET, ECPU_SOFT_RESET, 1);
 		mdelay(10);
-		WREG32_P(mmVCE_SOFT_RESET, 0, ~VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK);
+		WREG32_FIELD(VCE_SOFT_RESET, ECPU_SOFT_RESET, 0);
 		mdelay(10);
 		r = -1;
 	}
@@ -345,13 +339,13 @@ static void vce_v2_0_set_dyn_cg(struct amdgpu_device *adev, bool gated)
 			DRM_INFO("VCE is busy, Can't set clock gateing");
 			return;
 		}
-		WREG32_P(mmVCE_VCPU_CNTL, 0, ~VCE_VCPU_CNTL__CLK_EN_MASK);
-		WREG32_P(mmVCE_SOFT_RESET, VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK, ~VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK);
+		WREG32_FIELD(VCE_VCPU_CNTL, CLK_EN, 0);
+		WREG32_FIELD(VCE_SOFT_RESET, ECPU_SOFT_RESET, 1);
 		mdelay(100);
 		WREG32(mmVCE_STATUS, 0);
 	} else {
-		WREG32_P(mmVCE_VCPU_CNTL, VCE_VCPU_CNTL__CLK_EN_MASK, ~VCE_VCPU_CNTL__CLK_EN_MASK);
-		WREG32_P(mmVCE_SOFT_RESET, VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK, ~VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK);
+		WREG32_FIELD(VCE_VCPU_CNTL, CLK_EN, 1);
+		WREG32_FIELD(VCE_SOFT_RESET, ECPU_SOFT_RESET, 1);
 		mdelay(100);
 	}
 
@@ -458,9 +452,7 @@ static void vce_v2_0_mc_resume(struct amdgpu_device *adev)
 	WREG32(mmVCE_VCPU_CACHE_SIZE2, size);
 
 	WREG32_P(mmVCE_LMI_CTRL2, 0x0, ~0x100);
-
-	WREG32_P(mmVCE_SYS_INT_EN, VCE_SYS_INT_EN__VCE_SYS_INT_TRAP_INTERRUPT_EN_MASK,
-		 ~VCE_SYS_INT_EN__VCE_SYS_INT_TRAP_INTERRUPT_EN_MASK);
+	WREG32_FIELD(VCE_SYS_INT_EN, VCE_SYS_INT_TRAP_INTERRUPT_EN, 1);
 
 	vce_v2_0_init_cg(adev);
 }
@@ -474,11 +466,11 @@ static bool vce_v2_0_is_idle(void *handle)
 
 static int vce_v2_0_wait_for_idle(void *handle)
 {
-	unsigned i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	unsigned i;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		if (!(RREG32(mmSRBM_STATUS2) & SRBM_STATUS2__VCE_BUSY_MASK))
+		if (vce_v2_0_is_idle(handle))
 			return 0;
 	}
 	return -ETIMEDOUT;
@@ -488,8 +480,7 @@ static int vce_v2_0_soft_reset(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	WREG32_P(mmSRBM_SOFT_RESET, SRBM_SOFT_RESET__SOFT_RESET_VCE_MASK,
-			~SRBM_SOFT_RESET__SOFT_RESET_VCE_MASK);
+	WREG32_FIELD(SRBM_SOFT_RESET, SOFT_RESET_VCE, 1);
 	mdelay(5);
 
 	return vce_v2_0_start(adev);
@@ -516,10 +507,8 @@ static int vce_v2_0_process_interrupt(struct amdgpu_device *adev,
 	DRM_DEBUG("IH: VCE\n");
 	switch (entry->src_data) {
 	case 0:
-		amdgpu_fence_process(&adev->vce.ring[0]);
-		break;
 	case 1:
-		amdgpu_fence_process(&adev->vce.ring[1]);
+		amdgpu_fence_process(&adev->vce.ring[entry->src_data]);
 		break;
 	default:
 		DRM_ERROR("Unhandled interrupt: %d %d\n",
