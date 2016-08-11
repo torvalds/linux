@@ -1249,10 +1249,9 @@ static struct xfrm_policy *xfrm_sk_policy_lookup(const struct sock *sk, int dir,
 						 const struct flowi *fl)
 {
 	struct xfrm_policy *pol;
-	struct net *net = sock_net(sk);
 
 	rcu_read_lock();
-	read_lock_bh(&net->xfrm.xfrm_policy_lock);
+ again:
 	pol = rcu_dereference(sk->sk_policy[dir]);
 	if (pol != NULL) {
 		bool match = xfrm_selector_match(&pol->selector, fl,
@@ -1267,8 +1266,8 @@ static struct xfrm_policy *xfrm_sk_policy_lookup(const struct sock *sk, int dir,
 			err = security_xfrm_policy_lookup(pol->security,
 						      fl->flowi_secid,
 						      policy_to_flow_dir(dir));
-			if (!err)
-				xfrm_pol_hold(pol);
+			if (!err && !xfrm_pol_hold_rcu(pol))
+				goto again;
 			else if (err == -ESRCH)
 				pol = NULL;
 			else
@@ -1277,7 +1276,6 @@ static struct xfrm_policy *xfrm_sk_policy_lookup(const struct sock *sk, int dir,
 			pol = NULL;
 	}
 out:
-	read_unlock_bh(&net->xfrm.xfrm_policy_lock);
 	rcu_read_unlock();
 	return pol;
 }
