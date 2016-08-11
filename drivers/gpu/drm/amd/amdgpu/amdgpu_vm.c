@@ -911,15 +911,15 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	/* padding, etc. */
 	ndw = 64;
 
-	if (params.src) {
+	if (src) {
 		/* only copy commands needed */
 		ndw += ncmds * 7;
 
-	} else if (params.pages_addr) {
-		/* header for write data commands */
-		ndw += ncmds * 4;
+	} else if (pages_addr) {
+		/* copy commands needed */
+		ndw += ncmds * 7;
 
-		/* body of write data command */
+		/* and also PTEs */
 		ndw += nptes * 2;
 
 	} else {
@@ -935,6 +935,22 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 		return r;
 
 	params.ib = &job->ibs[0];
+
+	if (!src && pages_addr) {
+		uint64_t *pte;
+		unsigned i;
+
+		/* Put the PTEs at the end of the IB. */
+		i = ndw - nptes * 2;
+		pte= (uint64_t *)&(job->ibs->ptr[i]);
+		params.src = job->ibs->gpu_addr + i * 4;
+
+		for (i = 0; i < nptes; ++i) {
+			pte[i] = amdgpu_vm_map_gart(pages_addr, addr + i *
+						    AMDGPU_GPU_PAGE_SIZE);
+			pte[i] |= flags;
+		}
+	}
 
 	r = amdgpu_sync_fence(adev, &job->sync, exclusive);
 	if (r)
