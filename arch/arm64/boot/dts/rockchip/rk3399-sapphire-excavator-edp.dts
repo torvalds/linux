@@ -54,6 +54,10 @@
 	status = "okay";
 };
 
+&dw_hdmi_audio {
+	status = "okay";
+};
+
 &edp_rk_fb {
 	status = "okay";
 };
@@ -61,6 +65,10 @@
 &hdmi_rk_fb {
 	status = "okay";
 	rockchip,hdmi_video_source = <DISPLAY_SOURCE_LCDC1>;
+};
+
+&hdmi_sound {
+	status = "okay";
 };
 
 &i2c1 {

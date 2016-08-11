@@ -58,6 +58,10 @@
 	native-mode = <&timing1>; /* 1080p */
 };
 
+&dw_hdmi_audio {
+	status = "okay";
+};
+
 &fb {
 	rockchip,disp-mode = <NO_DUAL>;
 	rockchip,disp-policy = <DISPLAY_POLICY_BOX>;
@@ -66,6 +70,10 @@
 &hdmi_rk_fb {
 	status = "okay";
 	rockchip,hdmi_video_source = <DISPLAY_SOURCE_LCDC0>;
+};
+
+&hdmi_sound {
+	status = "okay";
 };
 
 &pwm3 {
