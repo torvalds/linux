@@ -1522,7 +1522,7 @@ retry:
 		if (entry_size + EXT4_XATTR_SIZE(size) >= isize_diff)
 			shift_bytes = isize_diff;
 		else
-			shift_bytes = entry_size + size;
+			shift_bytes = entry_size + EXT4_XATTR_SIZE(size);
 		/* Adjust the offsets and shift the remaining entries ahead */
 		ext4_xattr_shift_entries(entry, -shift_bytes,
 			(void *)raw_inode + EXT4_GOOD_OLD_INODE_SIZE +
