@@ -1251,10 +1251,12 @@ resource_size_t pcibios_iov_resource_alignment(struct pci_dev *dev, int resno);
 int pci_set_vga_state(struct pci_dev *pdev, bool decode,
 		      unsigned int command_bits, u32 flags);
 
-#define PCI_IRQ_NOLEGACY	(1 << 0) /* don't use legacy interrupts */
-#define PCI_IRQ_NOMSI		(1 << 1) /* don't use MSI interrupts */
-#define PCI_IRQ_NOMSIX		(1 << 2) /* don't use MSI-X interrupts */
-#define PCI_IRQ_NOAFFINITY	(1 << 3) /* don't auto-assign affinity */
+#define PCI_IRQ_LEGACY		(1 << 0) /* allow legacy interrupts */
+#define PCI_IRQ_MSI		(1 << 1) /* allow MSI interrupts */
+#define PCI_IRQ_MSIX		(1 << 2) /* allow MSI-X interrupts */
+#define PCI_IRQ_AFFINITY	(1 << 3) /* auto-assign affinity */
+#define PCI_IRQ_ALL_TYPES \
+	(PCI_IRQ_LEGACY | PCI_IRQ_MSI | PCI_IRQ_MSIX)
 
 /* kmem_cache style wrapper around pci_alloc_consistent() */
 
