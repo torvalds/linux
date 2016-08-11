@@ -1,5 +1,5 @@
 #undef TRACE_SYSTEM
-#define TRACE_INCLUDE_PATH ../../drivers/staging/android
+#define TRACE_INCLUDE_PATH ../../drivers/dma-buf
 #define TRACE_SYSTEM sync_trace
 
 #if !defined(_TRACE_SYNC_H) || defined(TRACE_HEADER_MULTI_READ)
