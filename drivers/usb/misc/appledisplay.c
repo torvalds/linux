@@ -261,7 +261,6 @@ static int appledisplay_probe(struct usb_interface *iface,
 	pdata->urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!pdata->urb) {
 		retval = -ENOMEM;
-		dev_err(&iface->dev, "Allocating URB failed\n");
 		goto error;
 	}
 
