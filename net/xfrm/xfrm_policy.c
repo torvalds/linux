@@ -560,7 +560,6 @@ static inline int xfrm_byidx_should_resize(struct net *net, int total)
 
 void xfrm_spd_getinfo(struct net *net, struct xfrmk_spdinfo *si)
 {
-	read_lock_bh(&net->xfrm.xfrm_policy_lock);
 	si->incnt = net->xfrm.policy_count[XFRM_POLICY_IN];
 	si->outcnt = net->xfrm.policy_count[XFRM_POLICY_OUT];
 	si->fwdcnt = net->xfrm.policy_count[XFRM_POLICY_FWD];
@@ -569,7 +568,6 @@ void xfrm_spd_getinfo(struct net *net, struct xfrmk_spdinfo *si)
 	si->fwdscnt = net->xfrm.policy_count[XFRM_POLICY_FWD+XFRM_POLICY_MAX];
 	si->spdhcnt = net->xfrm.policy_idx_hmask;
 	si->spdhmcnt = xfrm_policy_hashmax;
-	read_unlock_bh(&net->xfrm.xfrm_policy_lock);
 }
 EXPORT_SYMBOL(xfrm_spd_getinfo);
 
