@@ -787,10 +787,8 @@ static int kvaser_usb_simple_msg_async(struct kvaser_usb_net_priv *priv,
 	int err;
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (!urb) {
-		netdev_err(netdev, "No memory left for URBs\n");
+	if (!urb)
 		return -ENOMEM;
-	}
 
 	buf = kmalloc(sizeof(struct kvaser_msg), GFP_ATOMIC);
 	if (!buf) {
@@ -1393,8 +1391,6 @@ static int kvaser_usb_setup_rx_urbs(struct kvaser_usb *dev)
 
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
-			dev_warn(dev->udev->dev.parent,
-				 "No memory left for URBs\n");
 			err = -ENOMEM;
 			break;
 		}
@@ -1670,7 +1666,6 @@ static netdev_tx_t kvaser_usb_start_xmit(struct sk_buff *skb,
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb) {
-		netdev_err(netdev, "No memory left for URBs\n");
 		stats->tx_dropped++;
 		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;
