@@ -242,7 +242,6 @@ static void ipu_plane_destroy(struct drm_plane *plane)
 
 	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
 
-	ipu_disable_plane(plane);
 	drm_plane_cleanup(plane);
 	kfree(ipu_plane);
 }
