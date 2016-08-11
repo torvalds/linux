@@ -293,9 +293,6 @@ static void imx_pd_unbind(struct device *dev, struct device *master,
 {
 	struct imx_parallel_display *imxpd = dev_get_drvdata(dev);
 
-	imxpd->encoder.funcs->destroy(&imxpd->encoder);
-	imxpd->connector.funcs->destroy(&imxpd->connector);
-
 	kfree(imxpd->edid);
 }
 

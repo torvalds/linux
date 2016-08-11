@@ -1812,9 +1812,6 @@ void dw_hdmi_unbind(struct device *dev, struct device *master, void *data)
 	/* Disable all interrupts */
 	hdmi_writeb(hdmi, ~0, HDMI_IH_MUTE_PHY_STAT0);
 
-	hdmi->connector.funcs->destroy(&hdmi->connector);
-	hdmi->encoder->funcs->destroy(hdmi->encoder);
-
 	clk_disable_unprepare(hdmi->iahb_clk);
 	clk_disable_unprepare(hdmi->isfr_clk);
 	i2c_put_adapter(hdmi->ddc);

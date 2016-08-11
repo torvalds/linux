@@ -469,10 +469,10 @@ static void imx_drm_unbind(struct device *dev)
 	if (imxdrm->fbhelper)
 		drm_fbdev_cma_fini(imxdrm->fbhelper);
 
+	drm_mode_config_cleanup(drm);
+
 	component_unbind_all(drm->dev, drm);
 	dev_set_drvdata(dev, NULL);
-
-	drm_mode_config_cleanup(drm);
 
 	drm_dev_unref(drm);
 }

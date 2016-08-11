@@ -124,9 +124,14 @@ static void imx_drm_crtc_destroy_state(struct drm_crtc *crtc,
 	kfree(to_imx_crtc_state(state));
 }
 
+static void imx_drm_crtc_destroy(struct drm_crtc *crtc)
+{
+	imx_drm_remove_crtc(to_ipu_crtc(crtc)->imx_crtc);
+}
+
 static const struct drm_crtc_funcs ipu_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
-	.destroy = drm_crtc_cleanup,
+	.destroy = imx_drm_crtc_destroy,
 	.page_flip = drm_atomic_helper_page_flip,
 	.reset = imx_drm_crtc_reset,
 	.atomic_duplicate_state = imx_drm_crtc_duplicate_state,
@@ -412,8 +417,6 @@ static void ipu_drm_unbind(struct device *dev, struct device *master,
 	void *data)
 {
 	struct ipu_crtc *ipu_crtc = dev_get_drvdata(dev);
-
-	imx_drm_remove_crtc(ipu_crtc->imx_crtc);
 
 	ipu_put_resources(ipu_crtc);
 	if (ipu_crtc->plane[1])
