@@ -1064,8 +1064,11 @@ static irqreturn_t mx6s_csi_irq_handler(int irq, void *data)
 
 	if (status & BIT_RFF_OR_INT)
 		dev_warn(csi_dev->dev, "%s Rx fifo overflow\n", __func__);
+	if (status & BIT_HRESP_ERR_INT)
+		dev_warn(csi_dev->dev, "%s Hresponse error detected\n",
+			__func__);
 
-	if (status & BIT_HRESP_ERR_INT) {
+	if (status & (BIT_RFF_OR_INT|BIT_HRESP_ERR_INT)) {
 		/* software reset */
 
 		/* Disable csi  */
@@ -1090,8 +1093,6 @@ static irqreturn_t mx6s_csi_irq_handler(int irq, void *data)
 		/* Ensable csi  */
 		cr18 |= BIT_CSI_ENABLE;
 		csi_write(csi_dev, cr18, CSI_CSICR18);
-
-		pr_warning("Hresponse error is detected.\n");
 	}
 
 	if (status & BIT_ADDR_CH_ERR_INT) {
