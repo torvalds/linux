@@ -186,7 +186,6 @@ struct wacom_features {
 	int pktlen;
 	bool check_for_hid_type;
 	int hid_type;
-	int last_slot_field;
 };
 
 struct wacom_shared {
@@ -215,6 +214,7 @@ struct hid_data {
 	int cc_report;
 	int cc_index;
 	int cc_value_index;
+	int last_slot_field;
 	int num_expected;
 	int num_received;
 };
