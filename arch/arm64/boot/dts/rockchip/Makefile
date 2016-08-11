@@ -13,13 +13,13 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-evb-rev2-cros.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-evb-rev3-android.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-evb-rev3-android-edp.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-evb-rev3-cros.dtb
-dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-excavator-sapphire-box.dtb
-dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-excavator-sapphire-edp.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-fpga.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-gru-gru.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-gru-kevin-r0.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-gru-kevin-r1.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-mid-818-android.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-sapphire-excavator-box.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-sapphire-excavator-edp.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-vr-android.dtb
 
 always		:= $(dtb-y)
