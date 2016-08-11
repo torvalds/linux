@@ -83,6 +83,7 @@ int percpu_ref_init(struct percpu_ref *ref, percpu_ref_func_t *release,
 	atomic_long_set(&ref->count, start_count);
 
 	ref->release = release;
+	ref->confirm_switch = NULL;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(percpu_ref_init);
@@ -102,6 +103,8 @@ void percpu_ref_exit(struct percpu_ref *ref)
 	unsigned long __percpu *percpu_count = percpu_count_ptr(ref);
 
 	if (percpu_count) {
+		/* non-NULL confirm_switch indicates switching in progress */
+		WARN_ON_ONCE(ref->confirm_switch);
 		free_percpu(percpu_count);
 		ref->percpu_count_ptr = __PERCPU_REF_ATOMIC_DEAD;
 	}
