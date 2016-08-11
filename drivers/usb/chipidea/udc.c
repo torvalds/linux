@@ -59,7 +59,7 @@ ctrl_endpt_in_desc = {
  */
 static inline int hw_ep_bit(int num, int dir)
 {
-	return num + (dir ? 16 : 0);
+	return num + ((dir == TX) ? 16 : 0);
 }
 
 static inline int ep_to_bit(struct ci_hdrc *ci, int n)
@@ -122,7 +122,7 @@ static int hw_ep_flush(struct ci_hdrc *ci, int num, int dir)
 static int hw_ep_disable(struct ci_hdrc *ci, int num, int dir)
 {
 	hw_write(ci, OP_ENDPTCTRL + num,
-		 dir ? ENDPTCTRL_TXE : ENDPTCTRL_RXE, 0);
+		 (dir == TX) ? ENDPTCTRL_TXE : ENDPTCTRL_RXE, 0);
 	return 0;
 }
 
@@ -138,7 +138,7 @@ static int hw_ep_enable(struct ci_hdrc *ci, int num, int dir, int type)
 {
 	u32 mask, data;
 
-	if (dir) {
+	if (dir == TX) {
 		mask  = ENDPTCTRL_TXT;  /* type    */
 		data  = type << __ffs(mask);
 
@@ -170,7 +170,7 @@ static int hw_ep_enable(struct ci_hdrc *ci, int num, int dir, int type)
  */
 static int hw_ep_get_halt(struct ci_hdrc *ci, int num, int dir)
 {
-	u32 mask = dir ? ENDPTCTRL_TXS : ENDPTCTRL_RXS;
+	u32 mask = (dir == TX) ? ENDPTCTRL_TXS : ENDPTCTRL_RXS;
 
 	return hw_read(ci, OP_ENDPTCTRL + num, mask) ? 1 : 0;
 }
@@ -220,8 +220,8 @@ static int hw_ep_set_halt(struct ci_hdrc *ci, int num, int dir, int value)
 
 	do {
 		enum ci_hw_regs reg = OP_ENDPTCTRL + num;
-		u32 mask_xs = dir ? ENDPTCTRL_TXS : ENDPTCTRL_RXS;
-		u32 mask_xr = dir ? ENDPTCTRL_TXR : ENDPTCTRL_RXR;
+		u32 mask_xs = (dir == TX) ? ENDPTCTRL_TXS : ENDPTCTRL_RXS;
+		u32 mask_xr = (dir == TX) ? ENDPTCTRL_TXR : ENDPTCTRL_RXR;
 
 		/* data toggle - reserved for EP0 but it's in ESS */
 		hw_write(ci, reg, mask_xs|mask_xr,
@@ -587,7 +587,7 @@ static int _hardware_dequeue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 		}
 
 		if (remaining_length) {
-			if (hwep->dir) {
+			if (hwep->dir == TX) {
 				hwreq->req.status = -EPROTO;
 				break;
 			}
@@ -1048,9 +1048,9 @@ __acquires(ci->lock)
 			if (req.wLength != 0)
 				break;
 			num  = le16_to_cpu(req.wIndex);
-			dir = num & USB_ENDPOINT_DIR_MASK;
+			dir = (num & USB_ENDPOINT_DIR_MASK) ? TX : RX;
 			num &= USB_ENDPOINT_NUMBER_MASK;
-			if (dir) /* TX */
+			if (dir == TX)
 				num += ci->hw_ep_max / 2;
 			if (!ci->ci_hw_ep[num].wedge) {
 				spin_unlock(&ci->lock);
@@ -1100,9 +1100,9 @@ __acquires(ci->lock)
 			if (req.wLength != 0)
 				break;
 			num  = le16_to_cpu(req.wIndex);
-			dir = num & USB_ENDPOINT_DIR_MASK;
+			dir = (num & USB_ENDPOINT_DIR_MASK) ? TX : RX;
 			num &= USB_ENDPOINT_NUMBER_MASK;
-			if (dir) /* TX */
+			if (dir == TX)
 				num += ci->hw_ep_max / 2;
 
 			spin_unlock(&ci->lock);
