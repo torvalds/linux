@@ -1099,15 +1099,11 @@ struct brcmf_usbdev *brcmf_usb_attach(struct brcmf_usbdev_info *devinfo,
 	devinfo->tx_freecount = ntxq;
 
 	devinfo->ctl_urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (!devinfo->ctl_urb) {
-		brcmf_err("usb_alloc_urb (ctl) failed\n");
+	if (!devinfo->ctl_urb)
 		goto error;
-	}
 	devinfo->bulk_urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (!devinfo->bulk_urb) {
-		brcmf_err("usb_alloc_urb (bulk) failed\n");
+	if (!devinfo->bulk_urb)
 		goto error;
-	}
 
 	return &devinfo->bus_pub;
 
