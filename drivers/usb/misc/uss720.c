@@ -162,7 +162,6 @@ static struct uss720_async_request *submit_async_request(struct parport_uss720_p
 	rq->urb = usb_alloc_urb(0, mem_flags);
 	if (!rq->urb) {
 		kref_put(&rq->ref_count, destroy_async);
-		dev_err(&usbdev->dev, "submit_async_request out of memory\n");
 		return NULL;
 	}
 	rq->dr = kmalloc(sizeof(*rq->dr), mem_flags);
