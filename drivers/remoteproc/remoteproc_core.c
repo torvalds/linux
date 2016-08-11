@@ -696,15 +696,11 @@ static rproc_handle_resource_t rproc_loading_handlers[RSC_LAST] = {
 	[RSC_CARVEOUT] = (rproc_handle_resource_t)rproc_handle_carveout,
 	[RSC_DEVMEM] = (rproc_handle_resource_t)rproc_handle_devmem,
 	[RSC_TRACE] = (rproc_handle_resource_t)rproc_handle_trace,
-	[RSC_VDEV] = NULL, /* VDEVs were handled upon registration */
+	[RSC_VDEV] = (rproc_handle_resource_t)rproc_count_vrings,
 };
 
 static rproc_handle_resource_t rproc_vdev_handler[RSC_LAST] = {
 	[RSC_VDEV] = (rproc_handle_resource_t)rproc_handle_vdev,
-};
-
-static rproc_handle_resource_t rproc_count_vrings_handler[RSC_LAST] = {
-	[RSC_VDEV] = (rproc_handle_resource_t)rproc_count_vrings,
 };
 
 /* handle firmware resource entries before booting the remote processor */
@@ -835,6 +831,9 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 		goto clean_up;
 	}
 
+	/* reset max_notifyid */
+	rproc->max_notifyid = -1;
+
 	/* handle fw resources which are required to boot rproc */
 	ret = rproc_handle_resources(rproc, tablesz, rproc_loading_handlers);
 	if (ret) {
@@ -921,13 +920,6 @@ static void rproc_fw_config_virtio(const struct firmware *fw, void *context)
 		goto out;
 
 	rproc->table_ptr = rproc->cached_table;
-
-	/* count the number of notify-ids */
-	rproc->max_notifyid = -1;
-	ret = rproc_handle_resources(rproc, tablesz,
-				     rproc_count_vrings_handler);
-	if (ret)
-		goto out;
 
 	/* look for virtio devices and register them */
 	ret = rproc_handle_resources(rproc, tablesz, rproc_vdev_handler);
