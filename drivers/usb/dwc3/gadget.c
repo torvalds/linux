@@ -1926,31 +1926,37 @@ static int __dwc3_cleanup_done_trbs(struct dwc3 *dwc, struct dwc3_ep *dep,
 static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 		const struct dwc3_event_depevt *event, int status)
 {
-	struct dwc3_request	*req;
+	struct dwc3_request	*req, *n;
 	struct dwc3_trb		*trb;
-	unsigned int		i;
 	int			count = 0;
 	int			ret;
 
-	do {
+	list_for_each_entry_safe(req, n, &dep->started_list, list) {
+
 		int chain;
 
-		req = next_request(&dep->started_list);
-		if (!req)
-			return 1;
-
 		chain = req->request.num_mapped_sgs > 0;
-		i = 0;
-		do {
+		if (chain) {
+			struct scatterlist *sg = req->request.sg;
+			struct scatterlist *s;
+			unsigned int i;
+
+			for_each_sg(sg, s, req->request.num_mapped_sgs, i) {
+				trb = &dep->trb_pool[dep->trb_dequeue];
+				count += trb->size & DWC3_TRB_SIZE_MASK;
+				dwc3_ep_inc_deq(dep);
+
+				ret = __dwc3_cleanup_done_trbs(dwc, dep, req, trb,
+						event, status, chain);
+			}
+		} else {
 			trb = &dep->trb_pool[dep->trb_dequeue];
 			count += trb->size & DWC3_TRB_SIZE_MASK;
 			dwc3_ep_inc_deq(dep);
 
 			ret = __dwc3_cleanup_done_trbs(dwc, dep, req, trb,
 					event, status, chain);
-			if (ret)
-				break;
-		} while (++i < req->request.num_mapped_sgs);
+		}
 
 		/*
 		 * We assume here we will always receive the entire data block
@@ -1964,7 +1970,7 @@ static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 
 		if (ret)
 			break;
-	} while (1);
+	}
 
 	/*
 	 * Our endpoint might get disabled by another thread during
