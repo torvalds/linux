@@ -2378,7 +2378,7 @@ static int ahci_port_start(struct ata_port *ap)
 	/*
 	 * Switch to per-port locking in case each port has its own MSI vector.
 	 */
-	if (hpriv->flags & AHCI_HFLAG_MULTI_MSI) {
+	if (hpriv->flags & (AHCI_HFLAG_MULTI_MSI | AHCI_HFLAG_MULTI_MSIX)) {
 		spin_lock_init(&pp->lock);
 		ap->lock = &pp->lock;
 	}
