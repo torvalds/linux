@@ -782,11 +782,8 @@ static int ftdi_elan_command_engine(struct usb_ftdi *ftdi)
 		return 0;
 	total_size = ftdi_elan_total_command_size(ftdi, command_size);
 	urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!urb) {
-		dev_err(&ftdi->udev->dev, "could not get a urb to write %d commands totaling %d bytes to the Uxxx\n",
-			command_size, total_size);
+	if (!urb)
 		return -ENOMEM;
-	}
 	buf = usb_alloc_coherent(ftdi->udev, total_size, GFP_KERNEL,
 				 &urb->transfer_dma);
 	if (!buf) {
@@ -1945,10 +1942,8 @@ static int ftdi_elan_synchronize_flush(struct usb_ftdi *ftdi)
 	int I = 257;
 	int i = 0;
 	urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!urb) {
-		dev_err(&ftdi->udev->dev, "could not alloc a urb for flush sequence\n");
+	if (!urb)
 		return -ENOMEM;
-	}
 	buf = usb_alloc_coherent(ftdi->udev, I, GFP_KERNEL, &urb->transfer_dma);
 	if (!buf) {
 		dev_err(&ftdi->udev->dev, "could not get a buffer for flush sequence\n");
@@ -1985,10 +1980,8 @@ static int ftdi_elan_synchronize_reset(struct usb_ftdi *ftdi)
 	int I = 4;
 	int i = 0;
 	urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!urb) {
-		dev_err(&ftdi->udev->dev, "could not get a urb for the reset sequence\n");
+	if (!urb)
 		return -ENOMEM;
-	}
 	buf = usb_alloc_coherent(ftdi->udev, I, GFP_KERNEL, &urb->transfer_dma);
 	if (!buf) {
 		dev_err(&ftdi->udev->dev, "could not get a buffer for the reset sequence\n");
