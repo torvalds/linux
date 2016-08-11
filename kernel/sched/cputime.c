@@ -508,13 +508,20 @@ void account_process_tick(struct task_struct *p, int user_tick)
  */
 void account_idle_ticks(unsigned long ticks)
 {
-
+	cputime_t cputime, steal;
 	if (sched_clock_irqtime) {
 		irqtime_account_idle_ticks(ticks);
 		return;
 	}
 
-	account_idle_time(jiffies_to_cputime(ticks));
+	cputime = cputime_one_jiffy;
+	steal = steal_account_process_time(cputime);
+
+	if (steal >= cputime)
+		return;
+
+	cputime -= steal;
+	account_idle_time(cputime);
 }
 
 /*
