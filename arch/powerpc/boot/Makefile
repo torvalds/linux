@@ -150,14 +150,14 @@ $(addprefix $(obj)/,$(libfdt) $(libfdtheader)): $(obj)/%: $(srctree)/scripts/dtc
 	$(call cmd,copy_libfdt)
 
 $(obj)/empty.c:
-	@touch $@
+	$(Q)touch $@
 
 $(obj)/zImage.lds: $(obj)/%: $(srctree)/$(src)/%.S
 	$(CROSS32CC) $(cpp_flags) -E -Wp,-MD,$(depfile) -P -Upowerpc \
 		-D__ASSEMBLY__ -DLINKER_SCRIPT -o $@ $<
 
 $(obj)/zImage.coff.lds $(obj)/zImage.ps3.lds : $(obj)/%: $(srctree)/$(src)/%.S
-	@cp $< $@
+	$(Q)cp $< $@
 
 clean-files := $(zlib) $(zlibheader) $(zliblinuxheader) \
 		$(libfdt) $(libfdtheader) \
@@ -391,9 +391,9 @@ image-y := vmlinux.strip
 endif
 
 $(obj)/zImage:		$(addprefix $(obj)/, $(image-y))
-	@rm -f $@; ln $< $@
+	$(Q)rm -f $@; ln $< $@
 $(obj)/zImage.initrd:	$(addprefix $(obj)/, $(initrd-y))
-	@rm -f $@; ln $< $@
+	$(Q)rm -f $@; ln $< $@
 
 # Only install the vmlinux
 install: $(CONFIGURE) $(addprefix $(obj)/, $(image-y))
