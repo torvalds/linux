@@ -1351,6 +1351,106 @@ out:
 	return err;
 }
 
+/* Vport QoS management */
+static int esw_create_tsar(struct mlx5_eswitch *esw)
+{
+	u32 tsar_ctx[MLX5_ST_SZ_DW(scheduling_context)] = {0};
+	struct mlx5_core_dev *dev = esw->dev;
+	int err;
+
+	if (!MLX5_CAP_GEN(dev, qos) || !MLX5_CAP_QOS(dev, esw_scheduling))
+		return 0;
+
+	if (esw->qos.enabled)
+		return -EEXIST;
+
+	err = mlx5_create_scheduling_element_cmd(dev,
+						 SCHEDULING_HIERARCHY_E_SWITCH,
+						 &tsar_ctx,
+						 &esw->qos.root_tsar_id);
+	if (err) {
+		esw_warn(esw->dev, "E-Switch create TSAR failed (%d)\n", err);
+		return err;
+	}
+
+	esw->qos.enabled = true;
+	return 0;
+}
+
+static void esw_destroy_tsar(struct mlx5_eswitch *esw)
+{
+	int err;
+
+	if (!esw->qos.enabled)
+		return;
+
+	err = mlx5_destroy_scheduling_element_cmd(esw->dev,
+						  SCHEDULING_HIERARCHY_E_SWITCH,
+						  esw->qos.root_tsar_id);
+	if (err)
+		esw_warn(esw->dev, "E-Switch destroy TSAR failed (%d)\n", err);
+
+	esw->qos.enabled = false;
+}
+
+static int esw_vport_enable_qos(struct mlx5_eswitch *esw, int vport_num,
+				u32 initial_max_rate)
+{
+	u32 sched_ctx[MLX5_ST_SZ_DW(scheduling_context)] = {0};
+	struct mlx5_vport *vport = &esw->vports[vport_num];
+	struct mlx5_core_dev *dev = esw->dev;
+	void *vport_elem;
+	int err = 0;
+
+	if (!esw->qos.enabled || !MLX5_CAP_GEN(dev, qos) ||
+	    !MLX5_CAP_QOS(dev, esw_scheduling))
+		return 0;
+
+	if (vport->qos.enabled)
+		return -EEXIST;
+
+	MLX5_SET(scheduling_context, &sched_ctx, element_type,
+		 SCHEDULING_CONTEXT_ELEMENT_TYPE_VPORT);
+	vport_elem = MLX5_ADDR_OF(scheduling_context, &sched_ctx,
+				  element_attributes);
+	MLX5_SET(vport_element, vport_elem, vport_number, vport_num);
+	MLX5_SET(scheduling_context, &sched_ctx, parent_element_id,
+		 esw->qos.root_tsar_id);
+	MLX5_SET(scheduling_context, &sched_ctx, max_average_bw,
+		 initial_max_rate);
+
+	err = mlx5_create_scheduling_element_cmd(dev,
+						 SCHEDULING_HIERARCHY_E_SWITCH,
+						 &sched_ctx,
+						 &vport->qos.esw_tsar_ix);
+	if (err) {
+		esw_warn(esw->dev, "E-Switch create TSAR vport element failed (vport=%d,err=%d)\n",
+			 vport_num, err);
+		return err;
+	}
+
+	vport->qos.enabled = true;
+	return 0;
+}
+
+static void esw_vport_disable_qos(struct mlx5_eswitch *esw, int vport_num)
+{
+	struct mlx5_vport *vport = &esw->vports[vport_num];
+	int err = 0;
+
+	if (!vport->qos.enabled)
+		return;
+
+	err = mlx5_destroy_scheduling_element_cmd(esw->dev,
+						  SCHEDULING_HIERARCHY_E_SWITCH,
+						  vport->qos.esw_tsar_ix);
+	if (err)
+		esw_warn(esw->dev, "E-Switch destroy TSAR vport element failed (vport=%d,err=%d)\n",
+			 vport_num, err);
+
+	vport->qos.enabled = false;
+}
+
 static void node_guid_gen_from_mac(u64 *node_guid, u8 mac[ETH_ALEN])
 {
 	((u8 *)node_guid)[7] = mac[0];
@@ -1386,6 +1486,7 @@ static void esw_apply_vport_conf(struct mlx5_eswitch *esw,
 		esw_vport_egress_config(esw, vport);
 	}
 }
+
 static void esw_enable_vport(struct mlx5_eswitch *esw, int vport_num,
 			     int enable_events)
 {
@@ -1398,6 +1499,10 @@ static void esw_enable_vport(struct mlx5_eswitch *esw, int vport_num,
 
 	/* Restore old vport configuration */
 	esw_apply_vport_conf(esw, vport);
+
+	/* Attach vport to the eswitch rate limiter */
+	if (esw_vport_enable_qos(esw, vport_num, vport->info.max_rate))
+		esw_warn(esw->dev, "Failed to attach vport %d to eswitch rate limiter", vport_num);
 
 	/* Sync with current vport context */
 	vport->enabled_events = enable_events;
@@ -1437,7 +1542,7 @@ static void esw_disable_vport(struct mlx5_eswitch *esw, int vport_num)
 	 */
 	esw_vport_change_handle_locked(vport);
 	vport->enabled_events = 0;
-
+	esw_vport_disable_qos(esw, vport_num);
 	if (vport_num && esw->mode == SRIOV_LEGACY) {
 		mlx5_modify_vport_admin_state(esw->dev,
 					      MLX5_QUERY_VPORT_STATE_IN_OP_MOD_ESW_VPORT,
@@ -1483,6 +1588,10 @@ int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode)
 	if (err)
 		goto abort;
 
+	err = esw_create_tsar(esw);
+	if (err)
+		esw_warn(esw->dev, "Failed to create eswitch TSAR");
+
 	enabled_events = (mode == SRIOV_LEGACY) ? SRIOV_VPORT_EVENTS : UC_ADDR_CHANGE;
 	for (i = 0; i <= nvfs; i++)
 		esw_enable_vport(esw, i, enabled_events);
@@ -1518,6 +1627,8 @@ void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw)
 
 	if (mc_promisc && mc_promisc->uplink_rule)
 		mlx5_del_flow_rule(mc_promisc->uplink_rule);
+
+	esw_destroy_tsar(esw);
 
 	if (esw->mode == SRIOV_LEGACY)
 		esw_destroy_legacy_fdb_table(esw);

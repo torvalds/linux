@@ -115,6 +115,7 @@ struct mlx5_vport_info {
 	u8                      qos;
 	u64                     node_guid;
 	int                     link_state;
+	u32                     max_rate;
 	bool                    spoofchk;
 	bool                    trusted;
 };
@@ -132,6 +133,11 @@ struct mlx5_vport {
 	struct vport_egress     egress;
 
 	struct mlx5_vport_info  info;
+
+	struct {
+		bool            enabled;
+		u32             esw_tsar_ix;
+	} qos;
 
 	bool                    enabled;
 	u16                     enabled_events;
@@ -209,6 +215,12 @@ struct mlx5_eswitch {
 	 */
 	struct mutex            state_lock;
 	struct esw_mc_addr      *mc_promisc;
+
+	struct {
+		bool            enabled;
+		u32             root_tsar_id;
+	} qos;
+
 	struct mlx5_esw_offload offloads;
 	int                     mode;
 };
