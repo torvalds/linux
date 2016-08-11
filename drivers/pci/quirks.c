@@ -3241,6 +3241,18 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_4C
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_PORT_RIDGE,
 			quirk_thunderbolt_hotplug_msi);
 
+static void quirk_chelsio_extend_vpd(struct pci_dev *dev)
+{
+	if (!dev->vpd || !dev->vpd->ops || !dev->vpd->ops->set_size)
+		return;
+
+	dev->vpd->ops->set_size(dev, max_t(unsigned int, dev->vpd->len, 0xe00));
+}
+
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_CHELSIO,
+			PCI_ANY_ID,
+			quirk_chelsio_extend_vpd);
+
 #ifdef CONFIG_ACPI
 /*
  * Apple: Shutdown Cactus Ridge Thunderbolt controller.
