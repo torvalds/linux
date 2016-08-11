@@ -85,6 +85,18 @@ void rcu_sync_init(struct rcu_sync *rsp, enum rcu_sync_type type)
 }
 
 /**
+ * Must be called after rcu_sync_init() and before first use.
+ *
+ * Ensures rcu_sync_is_idle() returns false and rcu_sync_{enter,exit}()
+ * pairs turn into NO-OPs.
+ */
+void rcu_sync_enter_start(struct rcu_sync *rsp)
+{
+	rsp->gp_count++;
+	rsp->gp_state = GP_PASSED;
+}
+
+/**
  * rcu_sync_enter() - Force readers onto slowpath
  * @rsp: Pointer to rcu_sync structure to use for synchronization
  *
