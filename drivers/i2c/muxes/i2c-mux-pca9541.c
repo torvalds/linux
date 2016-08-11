@@ -349,7 +349,8 @@ static int pca9541_probe(struct i2c_client *client,
 	force = 0;
 	if (pdata)
 		force = pdata->modes[0].adap_id;
-	muxc = i2c_mux_alloc(adap, &client->dev, 1, sizeof(*data), 0,
+	muxc = i2c_mux_alloc(adap, &client->dev, 1, sizeof(*data),
+			     I2C_MUX_ARBITRATOR,
 			     pca9541_select_chan, pca9541_release_chan);
 	if (!muxc)
 		return -ENOMEM;
