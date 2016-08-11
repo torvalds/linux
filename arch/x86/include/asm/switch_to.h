@@ -8,6 +8,28 @@ struct tss_struct;
 void __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p,
 		      struct tss_struct *tss);
 
+/* This runs runs on the previous thread's stack. */
+static inline void prepare_switch_to(struct task_struct *prev,
+				     struct task_struct *next)
+{
+#ifdef CONFIG_VMAP_STACK
+	/*
+	 * If we switch to a stack that has a top-level paging entry
+	 * that is not present in the current mm, the resulting #PF will
+	 * will be promoted to a double-fault and we'll panic.  Probe
+	 * the new stack now so that vmalloc_fault can fix up the page
+	 * tables if needed.  This can only happen if we use a stack
+	 * in vmap space.
+	 *
+	 * We assume that the stack is aligned so that it never spans
+	 * more than one top-level paging entry.
+	 *
+	 * To minimize cache pollution, just follow the stack pointer.
+	 */
+	READ_ONCE(*(unsigned char *)next->thread.sp);
+#endif
+}
+
 #ifdef CONFIG_X86_32
 
 #ifdef CONFIG_CC_STACKPROTECTOR
@@ -38,6 +60,8 @@ do {									\
 	 * __switch_to())						\
 	 */								\
 	unsigned long ebx, ecx, edx, esi, edi;				\
+									\
+	prepare_switch_to(prev, next);					\
 									\
 	asm volatile("pushl %%ebp\n\t"		/* save    EBP   */	\
 		     "movl %%esp,%[prev_sp]\n\t"	/* save    ESP   */ \
@@ -103,7 +127,9 @@ do {									\
  * clean in kernel mode, with the possible exception of IOPL.  Kernel IOPL
  * has no effect.
  */
-#define switch_to(prev, next, last) \
+#define switch_to(prev, next, last)					  \
+	prepare_switch_to(prev, next);					  \
+									  \
 	asm volatile(SAVE_CONTEXT					  \
 	     "movq %%rsp,%P[threadrsp](%[prev])\n\t" /* save RSP */	  \
 	     "movq %P[threadrsp](%[next]),%%rsp\n\t" /* restore RSP */	  \
