@@ -33,6 +33,20 @@
 
 static LIST_HEAD(module_list);
 
+static const u32 tilcdc_rev1_formats[] = { DRM_FORMAT_RGB565 };
+
+static const u32 tilcdc_straight_formats[] = { DRM_FORMAT_RGB565,
+					       DRM_FORMAT_BGR888,
+					       DRM_FORMAT_XBGR8888 };
+
+static const u32 tilcdc_crossed_formats[] = { DRM_FORMAT_BGR565,
+					      DRM_FORMAT_RGB888,
+					      DRM_FORMAT_XRGB8888 };
+
+static const u32 tilcdc_legacy_formats[] = { DRM_FORMAT_RGB565,
+					     DRM_FORMAT_RGB888,
+					     DRM_FORMAT_XRGB8888 };
+
 void tilcdc_module_init(struct tilcdc_module *mod, const char *name,
 		const struct tilcdc_module_ops *funcs)
 {
@@ -317,6 +331,33 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 	}
 
 	pm_runtime_put_sync(dev->dev);
+
+	if (priv->rev == 1) {
+		DBG("Revision 1 LCDC supports only RGB565 format");
+		priv->pixelformats = tilcdc_rev1_formats;
+		priv->num_pixelformats = ARRAY_SIZE(tilcdc_rev1_formats);
+	} else {
+		const char *str = "\0";
+
+		of_property_read_string(node, "blue-and-red-wiring", &str);
+		if (0 == strcmp(str, "crossed")) {
+			DBG("Configured for crossed blue and red wires");
+			priv->pixelformats = tilcdc_crossed_formats;
+			priv->num_pixelformats =
+				ARRAY_SIZE(tilcdc_crossed_formats);
+		} else if (0 == strcmp(str, "straight")) {
+			DBG("Configured for straight blue and red wires");
+			priv->pixelformats = tilcdc_straight_formats;
+			priv->num_pixelformats =
+				ARRAY_SIZE(tilcdc_straight_formats);
+		} else {
+			DBG("Blue and red wiring '%s' unknown, use legacy mode",
+			    str);
+			priv->pixelformats = tilcdc_legacy_formats;
+			priv->num_pixelformats =
+				ARRAY_SIZE(tilcdc_legacy_formats);
+		}
+	}
 
 	ret = modeset_init(dev);
 	if (ret < 0) {
