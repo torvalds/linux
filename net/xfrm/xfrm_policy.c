@@ -1123,7 +1123,7 @@ static struct xfrm_policy *xfrm_policy_lookup_bytype(struct net *net, u8 type,
 	if (unlikely(!daddr || !saddr))
 		return NULL;
 
-	read_lock_bh(&net->xfrm.xfrm_policy_lock);
+	rcu_read_lock();
  retry:
 	do {
 		sequence = read_seqcount_begin(&xfrm_policy_hash_generation);
@@ -1172,7 +1172,7 @@ static struct xfrm_policy *xfrm_policy_lookup_bytype(struct net *net, u8 type,
 	if (ret && !xfrm_pol_hold_rcu(ret))
 		goto retry;
 fail:
-	read_unlock_bh(&net->xfrm.xfrm_policy_lock);
+	rcu_read_unlock();
 
 	return ret;
 }

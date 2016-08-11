@@ -11,7 +11,7 @@
 struct ctl_table_header;
 
 struct xfrm_policy_hash {
-	struct hlist_head	*table;
+	struct hlist_head	__rcu *table;
 	unsigned int		hmask;
 	u8			dbits4;
 	u8			sbits4;
