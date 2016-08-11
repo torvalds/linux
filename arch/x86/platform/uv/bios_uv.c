@@ -187,7 +187,8 @@ EXPORT_SYMBOL_GPL(uv_bios_set_legacy_vga_target);
 void uv_bios_init(void)
 {
 	uv_systab = NULL;
-	if ((efi.uv_systab == EFI_INVALID_TABLE_ADDR) || !efi.uv_systab) {
+	if ((efi.uv_systab == EFI_INVALID_TABLE_ADDR) ||
+	    !efi.uv_systab || efi_runtime_disabled()) {
 		pr_crit("UV: UVsystab: missing\n");
 		return;
 	}
