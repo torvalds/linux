@@ -66,19 +66,6 @@ struct polaris10_pt_config_reg {
 	enum polaris10_pt_config_reg_type       type;
 };
 
-struct polaris10_pt_defaults {
-	uint8_t   SviLoadLineEn;
-	uint8_t   SviLoadLineVddC;
-	uint8_t   TDC_VDDC_ThrottleReleaseLimitPerc;
-	uint8_t   TDC_MAWt;
-	uint8_t   TdcWaterfallCtl;
-	uint8_t   DTEAmbientTempBase;
-
-	uint32_t  DisplayCac;
-	uint32_t  BAPM_TEMP_GRADIENT;
-	uint16_t  BAPMTI_R[SMU74_DTE_ITERATIONS * SMU74_DTE_SOURCES * SMU74_DTE_SINKS];
-	uint16_t  BAPMTI_RC[SMU74_DTE_ITERATIONS * SMU74_DTE_SOURCES * SMU74_DTE_SINKS];
-};
 
 void polaris10_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr);
 int polaris10_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr);

@@ -26,10 +26,25 @@
 
 #include <polaris10_ppsmc.h>
 #include <pp_endian.h>
+#include "smu74.h"
 
 struct polaris10_avfs {
 	enum AVFS_BTC_STATUS avfs_btc_status;
 	uint32_t           avfs_btc_param;
+};
+
+struct polaris10_pt_defaults {
+	uint8_t   SviLoadLineEn;
+	uint8_t   SviLoadLineVddC;
+	uint8_t   TDC_VDDC_ThrottleReleaseLimitPerc;
+	uint8_t   TDC_MAWt;
+	uint8_t   TdcWaterfallCtl;
+	uint8_t   DTEAmbientTempBase;
+
+	uint32_t  DisplayCac;
+	uint32_t  BAPM_TEMP_GRADIENT;
+	uint16_t  BAPMTI_R[SMU74_DTE_ITERATIONS * SMU74_DTE_SOURCES * SMU74_DTE_SINKS];
+	uint16_t  BAPMTI_RC[SMU74_DTE_ITERATIONS * SMU74_DTE_SOURCES * SMU74_DTE_SINKS];
 };
 
 struct polaris10_buffer_entry {
@@ -38,6 +53,11 @@ struct polaris10_buffer_entry {
 	uint32_t mc_addr_high;
 	void *kaddr;
 	unsigned long  handle;
+};
+
+struct polaris10_range_table {
+	uint32_t trans_lower_frequency; /* in 10khz */
+	uint32_t trans_upper_frequency;
 };
 
 struct polaris10_smumgr {

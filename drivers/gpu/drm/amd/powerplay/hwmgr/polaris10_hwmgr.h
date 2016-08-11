@@ -30,6 +30,7 @@
 #include "ppatomctrl.h"
 #include "polaris10_ppsmc.h"
 #include "polaris10_powertune.h"
+#include "polaris10_smumgr.h"
 
 #define POLARIS10_MAX_HARDWARE_POWERLEVELS	2
 
@@ -164,10 +165,6 @@ struct polaris10_dpmlevel_enable_mask {
 struct polaris10_pcie_perf_range {
 	uint16_t  max;
 	uint16_t  min;
-};
-struct polaris10_range_table {
-	uint32_t trans_lower_frequency; /* in 10khz */
-	uint32_t trans_upper_frequency;
 };
 
 struct polaris10_hwmgr {
