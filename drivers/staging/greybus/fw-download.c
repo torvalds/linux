@@ -236,7 +236,7 @@ static int fw_download_find_firmware(struct gb_operation *op)
 	}
 
 	request = op->request->payload;
-	tag = (const char *)(request->firmware_tag);
+	tag = (const char *)request->firmware_tag;
 
 	/* firmware_tag should be null-terminated */
 	if (strnlen(tag, GB_FIRMWARE_TAG_MAX_LEN) == GB_FIRMWARE_TAG_MAX_LEN) {
