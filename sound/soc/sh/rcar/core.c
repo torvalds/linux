@@ -110,6 +110,7 @@ MODULE_DEVICE_TABLE(of, rsnd_of_match);
 /*
  *	rsnd_mod functions
  */
+#ifdef DEBUG
 void rsnd_mod_make_sure(struct rsnd_mod *mod, enum rsnd_mod_type type)
 {
 	if (mod->type != type) {
@@ -120,6 +121,7 @@ void rsnd_mod_make_sure(struct rsnd_mod *mod, enum rsnd_mod_type type)
 			 rsnd_mod_name(mod), rsnd_mod_id(mod));
 	}
 }
+#endif
 
 char *rsnd_mod_name(struct rsnd_mod *mod)
 {
