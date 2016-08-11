@@ -1,0 +1,314 @@
+/*
+ * Copyright (c) 2016 Fuzhou Rockchip Electronics Co., Ltd
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ * author: xubilv <xbl@rock-chips.com>
+ * create date: 2016-08-11
+ * resolution: 1080 X 1200
+ * mipi channel: single
+ */
+
+disp_mipi_init: mipi_dsi_init {
+	compatible = "rockchip,mipi_dsi_init";
+	rockchip,screen_init	= <1>;
+	rockchip,dsi_lane	= <4>;
+	rockchip,dsi_hs_clk	= <970>;
+	rockchip,mipi_dsi_num	= <1>;
+};
+
+disp_mipi_power_ctr: mipi_power_ctr {
+	compatible = "rockchip,mipi_power_ctr";
+
+	/*mipi_lcd_rst:mipi_lcd_rst {
+		compatible = "rockchip,lcd_rst";
+		rockchip,gpios = <&gpio7 GPIO_A1 GPIO_ACTIVE_LOW>;
+		rockchip,delay = <0>;
+	};
+
+	mipi_lcd_avdd:mipi_lcd_avdd {
+		compatible = "rockchip,lcd_avdd";
+		rockchip,gpios = <&gpio7 GPIO_A2 GPIO_ACTIVE_HIGH>;
+		rockchip,delay = <0>;
+	};
+
+	mipi_lcd_ovdd:mipi_lcd_ovdd {
+		compatible = "rockchip,lcd_ovdd";
+		rockchip,gpios = <&gpio7 GPIO_A3 GPIO_ACTIVE_HIGH>;
+		rockchip,delay = <0>;
+	};
+
+	mipi_lcd_ovss:mipi_lcd_ovss {
+		compatible = "rockchip,lcd_ovss";
+		rockchip,gpios = <&gpio7 GPIO_B0 GPIO_ACTIVE_HIGH>;
+		rockchip,delay = <0>;
+	};
+
+	mipi_lcd_rst:mipi_lcd_rst {
+		compatible = "rockchip,lcd_rst";
+		rockchip,gpios = <&gpio7 GPIO_A1 GPIO_ACTIVE_LOW>;
+		rockchip,delay = <100>;
+	};
+
+	mipi_lcd_en:mipi_lcd_en {
+		compatible = "rockchip,lcd_en";
+		rockchip,gpios = <&gpio0 GPIO_C1 GPIO_ACTIVE_HIGH>;
+		rockchip,delay = <100>;
+	};*/
+};
+
+disp_mipi_init_cmds: screen-on-cmds {
+	compatible = "rockchip,screen-on-cmds";
+	rockchip,cmd_debug = <0>;
+	rockchip,on-cmds1 {
+		compatible = "rockchip,on-cmds";
+		rockchip,cmd_type = <LPDT>;
+		rockchip,dsi_id = <0>;
+		rockchip,cmd = <0x15 0xFE 0x07>;
+		rockchip,cmd_delay = <0>;
+	};
+
+	rockchip,on-cmds2 {
+		compatible = "rockchip,on-cmds";
+		rockchip,cmd_type = <LPDT>;
+		rockchip,dsi_id = <0>;
+		rockchip,cmd = <0x15 0x00 0xEC>;
+		rockchip,cmd_delay = <0>;
+	};
+
+	rockchip,on-cmds3 {
+		compatible = "rockchip,on-cmds";
+		rockchip,cmd_type = <LPDT>;
+		rockchip,dsi_id = <0>;
+		rockchip,cmd = <0x15 0x0B 0xEC>;
+		rockchip,cmd_delay = <0>;
+	};
+
+	rockchip,on-cmds4 {
+		compatible = "rockchip,on-cmds";
+		rockchip,cmd_type = <LPDT>;
+		rockchip,dsi_id = <0>;
+		rockchip,cmd = <0x15 0x16 0xEC>;
+		rockchip,cmd_delay = <0>;
+	};
+
+	rockchip,on-cmds5 {
+		compatible = "rockchip,on-cmds";
+		rockchip,cmd_type = <LPDT>;
+		rockchip,dsi_id = <0>;
+		rockchip,cmd = <0x15 0x21 0xEC>;
+		rockchip,cmd_delay = <0>;
+	};
+
+	rockchip,on-cmds6 {
+		compatible = "rockchip,on-cmds";
+		rockchip,cmd_type = <LPDT>;
+		rockchip,dsi_id = <0>;
+		rockchip,cmd = <0x15 0x2D 0xEC>;
+		rockchip,cmd_delay = <0>;
+	};
+
+	rockchip,on-cmds7 {
+		compatible = "rockchip,on-cmds";
+		rockchip,cmd_type = <LPDT>;
+		rockchip,dsi_id = <0>;
+		rockchip,cmd = <0x15 0xA9 0xBA>;
+		rockchip,cmd_delay = <0>;
+	};
+
+	rockchip,on-cmds8 {
+		compatible = "rockchip,on-cmds";
+		rockchip,cmd_type = <LPDT>;
+		rockchip,dsi_id = <0>;
+		rockchip,cmd = <0x15 0xAB 0x06>;
+		rockchip,cmd_delay = <0>;
+	};
+
+	rockchip,on-cmds9 {
+		compatible = "rockchip,on-cmds";
+		rockchip,cmd_type = <LPDT>;
+		rockchip,dsi_id = <0>;
+		rockchip,cmd = <0x15 0xBB 0x84>;
+		rockchip,cmd_delay = <0>;
+	};
+
+	rockchip,on-cmds10 {
+		compatible = "rockchip,on-cmds";
+		rockchip,cmd_type = <LPDT>;
+		rockchip,dsi_id = <0>;
+		rockchip,cmd = <0x15 0xBC 0x1C>;
+		rockchip,cmd_delay = <0>;
+	};
+
+	rockchip,on-cmds11 {
+		compatible = "rockchip,on-cmds";
+		rockchip,cmd_type = <LPDT>;
+		rockchip,dsi_id = <0>;
+		rockchip,cmd = <0x15 0xFE 0x08>;
+		rockchip,cmd_delay = <0>;
+	};
+
+	rockchip,on-cmds12 {
+		compatible = "rockchip,on-cmds";
+		rockchip,cmd_type = <LPDT>;
+		rockchip,dsi_id = <0>;
+		rockchip,cmd = <0x15 0x07 0x1A>;
+		rockchip,cmd_delay = <0>;
+	};
+	rockchip,on-cmds13 {
+		compatible = "rockchip,on-cmds";
+		rockchip,cmd_type = <LPDT>;
+		rockchip,dsi_id = <0>;
+		rockchip,cmd = <0x15 0xFE 0x0A>;
+		rockchip,cmd_delay = <0>;
+	};
+
+	rockchip,on-cmds14 {
+		compatible = "rockchip,on-cmds";
+		rockchip,cmd_type = <LPDT>;
+		rockchip,dsi_id = <0>;
+		rockchip,cmd = <0x15 0x2A 0x1B>;
+		rockchip,cmd_delay = <0>;
+	};
+
+	rockchip,on-cmds15 {
+		compatible = "rockchip,on-cmds";
+		rockchip,cmd_type = <LPDT>;
+		rockchip,dsi_id = <0>;
+		rockchip,cmd = <0x15 0xFE 0x0D>;
+		rockchip,cmd_delay = <0>;
+	};
+
+	rockchip,on-cmds16 {
+		compatible = "rockchip,on-cmds";
+		rockchip,cmd_type = <LPDT>;
+		rockchip,dsi_id = <0>;
+		rockchip,cmd = <0x15 0x02 0x65>;
+		rockchip,cmd_delay = <0>;
+	};
+
+	rockchip,on-cmds17 {
+		compatible = "rockchip,on-cmds";
+		rockchip,cmd_type = <LPDT>;
+		rockchip,dsi_id = <0>;
+		rockchip,cmd = <0x15 0x4D 0x41>;
+		rockchip,cmd_delay = <0>;
+	};
+
+	rockchip,on-cmds18 {
+		compatible = "rockchip,on-cmds";
+		rockchip,cmd_type = <LPDT>;
+		rockchip,dsi_id = <0>;
+		rockchip,cmd = <0x15 0x4B 0x0F>;
+		rockchip,cmd_delay = <0>;
+	};
+
+	rockchip,on-cmds19 {
+		compatible = "rockchip,on-cmds";
+		rockchip,cmd_type = <LPDT>;
+		rockchip,dsi_id = <0>;
+		rockchip,cmd = <0x15 0x53 0xFE>;
+		rockchip,cmd_delay = <0>;
+	};
+
+	rockchip,on-cmds20 {
+		compatible = "rockchip,on-cmds";
+		rockchip,cmd_type = <LPDT>;
+		rockchip,dsi_id = <0>;
+		rockchip,cmd = <0x15 0xFE 0x00>;
+		rockchip,cmd_delay = <0>;
+	};
+
+	rockchip,on-cmds21 {
+		compatible = "rockchip,on-cmds";
+		rockchip,cmd_type = <LPDT>;
+		rockchip,dsi_id = <0>;
+		rockchip,cmd = <0x15 0xC2 0x03>;
+		rockchip,cmd_delay = <0>;
+	};
+
+	rockchip,on-cmds22 {
+		compatible = "rockchip,on-cmds";
+		rockchip,cmd_type = <LPDT>;
+		rockchip,dsi_id = <0>;
+		rockchip,cmd = <0x15 0x51 0xFF>;
+		rockchip,cmd_delay = <0>;
+	};
+
+	rockchip,on-cmds23 {
+		compatible = "rockchip,on-cmds";
+		rockchip,cmd_type = <LPDT>;
+		rockchip,dsi_id = <0>;
+		rockchip,cmd = <0x05 0x11>;
+		rockchip,cmd_delay = <0>;
+	};
+
+	rockchip,on-cmds24 {
+		compatible = "rockchip,on-cmds";
+		rockchip,cmd_type = <LPDT>;
+		rockchip,dsi_id = <0>;
+		rockchip,cmd = <0x05 0x29>;
+		rockchip,cmd_delay = <10>;
+	};
+};
+
+disp_timings: display-timings {
+	native-mode = <&timing0>;
+	compatible = "rockchip,display-timings";
+	timing0: timing0 {
+		screen-type = <SCREEN_MIPI>;
+		lvds-format = <LVDS_8BIT_2>;
+		out-face    = <OUT_P888>;
+		clock-frequency = <139000000>;//139
+		hactive = <1080>;
+		vactive = <1200>;
+		hback-porch = <90>;
+		hfront-porch = <100>;
+		vback-porch = <3>;
+		vfront-porch = <6>;
+		hsync-len = <5>;
+		vsync-len = <3>;
+		hsync-active = <0>;
+		vsync-active = <0>;
+		de-active = <0>;
+		pixelclk-active = <0>;
+		swap-rb = <0>;
+		swap-rg = <0>;
+		swap-gb = <0>;
+	};
+};
