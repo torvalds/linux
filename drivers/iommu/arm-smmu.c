@@ -217,6 +217,7 @@
 #define ARM_SMMU_CB_TTBR0		0x20
 #define ARM_SMMU_CB_TTBR1		0x28
 #define ARM_SMMU_CB_TTBCR		0x30
+#define ARM_SMMU_CB_CONTEXTIDR		0x34
 #define ARM_SMMU_CB_S1_MAIR0		0x38
 #define ARM_SMMU_CB_S1_MAIR1		0x3c
 #define ARM_SMMU_CB_PAR			0x50
@@ -239,7 +240,6 @@
 #define SCTLR_AFE			(1 << 2)
 #define SCTLR_TRE			(1 << 1)
 #define SCTLR_M				(1 << 0)
-#define SCTLR_EAE_SBOP			(SCTLR_AFE | SCTLR_TRE)
 
 #define ARM_MMU500_ACTLR_CPRE		(1 << 1)
 
@@ -738,7 +738,7 @@ static irqreturn_t arm_smmu_global_fault(int irq, void *dev)
 static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain,
 				       struct io_pgtable_cfg *pgtbl_cfg)
 {
-	u32 reg;
+	u32 reg, reg2;
 	u64 reg64;
 	bool stage1;
 	struct arm_smmu_cfg *cfg = &smmu_domain->cfg;
@@ -781,14 +781,22 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain,
 
 	/* TTBRs */
 	if (stage1) {
-		reg64 = pgtbl_cfg->arm_lpae_s1_cfg.ttbr[0];
+		u16 asid = ARM_SMMU_CB_ASID(smmu, cfg);
 
-		reg64 |= ((u64)ARM_SMMU_CB_ASID(smmu, cfg)) << TTBRn_ASID_SHIFT;
-		writeq_relaxed(reg64, cb_base + ARM_SMMU_CB_TTBR0);
-
-		reg64 = pgtbl_cfg->arm_lpae_s1_cfg.ttbr[1];
-		reg64 |= ((u64)ARM_SMMU_CB_ASID(smmu, cfg)) << TTBRn_ASID_SHIFT;
-		writeq_relaxed(reg64, cb_base + ARM_SMMU_CB_TTBR1);
+		if (cfg->fmt == ARM_SMMU_CTX_FMT_AARCH32_S) {
+			reg = pgtbl_cfg->arm_v7s_cfg.ttbr[0];
+			writel_relaxed(reg, cb_base + ARM_SMMU_CB_TTBR0);
+			reg = pgtbl_cfg->arm_v7s_cfg.ttbr[1];
+			writel_relaxed(reg, cb_base + ARM_SMMU_CB_TTBR1);
+			writel_relaxed(asid, cb_base + ARM_SMMU_CB_CONTEXTIDR);
+		} else {
+			reg64 = pgtbl_cfg->arm_lpae_s1_cfg.ttbr[0];
+			reg64 |= (u64)asid << TTBRn_ASID_SHIFT;
+			writeq_relaxed(reg64, cb_base + ARM_SMMU_CB_TTBR0);
+			reg64 = pgtbl_cfg->arm_lpae_s1_cfg.ttbr[1];
+			reg64 |= (u64)asid << TTBRn_ASID_SHIFT;
+			writeq_relaxed(reg64, cb_base + ARM_SMMU_CB_TTBR1);
+		}
 	} else {
 		reg64 = pgtbl_cfg->arm_lpae_s2_cfg.vttbr;
 		writeq_relaxed(reg64, cb_base + ARM_SMMU_CB_TTBR0);
@@ -796,28 +804,36 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain,
 
 	/* TTBCR */
 	if (stage1) {
-		reg = pgtbl_cfg->arm_lpae_s1_cfg.tcr;
-		writel_relaxed(reg, cb_base + ARM_SMMU_CB_TTBCR);
-		if (smmu->version > ARM_SMMU_V1) {
-			reg = pgtbl_cfg->arm_lpae_s1_cfg.tcr >> 32;
-			reg |= TTBCR2_SEP_UPSTREAM;
-			writel_relaxed(reg, cb_base + ARM_SMMU_CB_TTBCR2);
+		if (cfg->fmt == ARM_SMMU_CTX_FMT_AARCH32_S) {
+			reg = pgtbl_cfg->arm_v7s_cfg.tcr;
+			reg2 = 0;
+		} else {
+			reg = pgtbl_cfg->arm_lpae_s1_cfg.tcr;
+			reg2 = pgtbl_cfg->arm_lpae_s1_cfg.tcr >> 32;
+			reg2 |= TTBCR2_SEP_UPSTREAM;
 		}
+		if (smmu->version > ARM_SMMU_V1)
+			writel_relaxed(reg2, cb_base + ARM_SMMU_CB_TTBCR2);
 	} else {
 		reg = pgtbl_cfg->arm_lpae_s2_cfg.vtcr;
-		writel_relaxed(reg, cb_base + ARM_SMMU_CB_TTBCR);
 	}
+	writel_relaxed(reg, cb_base + ARM_SMMU_CB_TTBCR);
 
 	/* MAIRs (stage-1 only) */
 	if (stage1) {
-		reg = pgtbl_cfg->arm_lpae_s1_cfg.mair[0];
+		if (cfg->fmt == ARM_SMMU_CTX_FMT_AARCH32_S) {
+			reg = pgtbl_cfg->arm_v7s_cfg.prrr;
+			reg2 = pgtbl_cfg->arm_v7s_cfg.nmrr;
+		} else {
+			reg = pgtbl_cfg->arm_lpae_s1_cfg.mair[0];
+			reg2 = pgtbl_cfg->arm_lpae_s1_cfg.mair[1];
+		}
 		writel_relaxed(reg, cb_base + ARM_SMMU_CB_S1_MAIR0);
-		reg = pgtbl_cfg->arm_lpae_s1_cfg.mair[1];
-		writel_relaxed(reg, cb_base + ARM_SMMU_CB_S1_MAIR1);
+		writel_relaxed(reg2, cb_base + ARM_SMMU_CB_S1_MAIR1);
 	}
 
 	/* SCTLR */
-	reg = SCTLR_CFIE | SCTLR_CFRE | SCTLR_M | SCTLR_EAE_SBOP;
+	reg = SCTLR_CFIE | SCTLR_CFRE | SCTLR_AFE | SCTLR_TRE | SCTLR_M;
 	if (stage1)
 		reg |= SCTLR_S1_ASIDPNE;
 #ifdef __BIG_ENDIAN
@@ -880,6 +896,11 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 	 */
 	if (smmu->features & ARM_SMMU_FEAT_FMT_AARCH32_L)
 		cfg->fmt = ARM_SMMU_CTX_FMT_AARCH32_L;
+	if (IS_ENABLED(CONFIG_IOMMU_IO_PGTABLE_ARMV7S) &&
+	    !IS_ENABLED(CONFIG_64BIT) && !IS_ENABLED(CONFIG_ARM_LPAE) &&
+	    (smmu->features & ARM_SMMU_FEAT_FMT_AARCH32_S) &&
+	    (smmu_domain->stage == ARM_SMMU_DOMAIN_S1))
+		cfg->fmt = ARM_SMMU_CTX_FMT_AARCH32_S;
 	if ((IS_ENABLED(CONFIG_64BIT) || cfg->fmt == ARM_SMMU_CTX_FMT_NONE) &&
 	    (smmu->features & (ARM_SMMU_FEAT_FMT_AARCH64_64K |
 			       ARM_SMMU_FEAT_FMT_AARCH64_16K |
@@ -899,10 +920,14 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 		oas = smmu->ipa_size;
 		if (cfg->fmt == ARM_SMMU_CTX_FMT_AARCH64) {
 			fmt = ARM_64_LPAE_S1;
-		} else {
+		} else if (cfg->fmt == ARM_SMMU_CTX_FMT_AARCH32_L) {
 			fmt = ARM_32_LPAE_S1;
 			ias = min(ias, 32UL);
 			oas = min(oas, 40UL);
+		} else {
+			fmt = ARM_V7S;
+			ias = min(ias, 32UL);
+			oas = min(oas, 32UL);
 		}
 		break;
 	case ARM_SMMU_DOMAIN_NESTED:
