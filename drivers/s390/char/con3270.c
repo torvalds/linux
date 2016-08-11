@@ -465,7 +465,7 @@ con3270_cline_end(struct con3270 *cp)
 		s->string[s->len - 4] = TO_RA;
 		s->string[s->len - 1] = 0;
 	} else {
-		while (--size > cp->cline->len)
+		while (--size >= cp->cline->len)
 			s->string[size] = cp->view.ascebc[' '];
 	}
 	/* Replace cline with allocated line s and reset cline. */
