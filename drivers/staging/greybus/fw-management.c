@@ -122,16 +122,16 @@ static int fw_mgmt_interface_fw_version_operation(struct fw_mgmt *fw_mgmt,
 	fw_info->minor = le16_to_cpu(response.minor);
 
 	strncpy(fw_info->firmware_tag, response.firmware_tag,
-		GB_FIRMWARE_TAG_MAX_LEN);
+		GB_FIRMWARE_TAG_MAX_SIZE);
 
 	/*
 	 * The firmware-tag should be NULL terminated, otherwise throw error but
 	 * don't fail.
 	 */
-	if (fw_info->firmware_tag[GB_FIRMWARE_TAG_MAX_LEN - 1] != '\0') {
+	if (fw_info->firmware_tag[GB_FIRMWARE_TAG_MAX_SIZE - 1] != '\0') {
 		dev_err(fw_mgmt->parent,
 			"fw-version: firmware-tag is not NULL terminated\n");
-		fw_info->firmware_tag[GB_FIRMWARE_TAG_MAX_LEN - 1] = '\0';
+		fw_info->firmware_tag[GB_FIRMWARE_TAG_MAX_SIZE - 1] = '\0';
 	}
 
 	return 0;
@@ -151,13 +151,13 @@ static int fw_mgmt_load_and_validate_operation(struct fw_mgmt *fw_mgmt,
 	}
 
 	request.load_method = load_method;
-	strncpy(request.firmware_tag, tag, GB_FIRMWARE_TAG_MAX_LEN);
+	strncpy(request.firmware_tag, tag, GB_FIRMWARE_TAG_MAX_SIZE);
 
 	/*
 	 * The firmware-tag should be NULL terminated, otherwise throw error and
 	 * fail.
 	 */
-	if (request.firmware_tag[GB_FIRMWARE_TAG_MAX_LEN - 1] != '\0') {
+	if (request.firmware_tag[GB_FIRMWARE_TAG_MAX_SIZE - 1] != '\0') {
 		dev_err(fw_mgmt->parent, "load-and-validate: firmware-tag is not NULL terminated\n");
 		return -EINVAL;
 	}
@@ -249,13 +249,13 @@ static int fw_mgmt_backend_fw_version_operation(struct fw_mgmt *fw_mgmt,
 	int ret;
 
 	strncpy(request.firmware_tag, fw_info->firmware_tag,
-		GB_FIRMWARE_TAG_MAX_LEN);
+		GB_FIRMWARE_TAG_MAX_SIZE);
 
 	/*
 	 * The firmware-tag should be NULL terminated, otherwise throw error and
 	 * fail.
 	 */
-	if (request.firmware_tag[GB_FIRMWARE_TAG_MAX_LEN - 1] != '\0') {
+	if (request.firmware_tag[GB_FIRMWARE_TAG_MAX_SIZE - 1] != '\0') {
 		dev_err(fw_mgmt->parent, "backend-version: firmware-tag is not NULL terminated\n");
 		return -EINVAL;
 	}
@@ -302,13 +302,13 @@ static int fw_mgmt_backend_fw_update_operation(struct fw_mgmt *fw_mgmt,
 	struct gb_fw_mgmt_backend_fw_update_request request;
 	int ret;
 
-	strncpy(request.firmware_tag, tag, GB_FIRMWARE_TAG_MAX_LEN);
+	strncpy(request.firmware_tag, tag, GB_FIRMWARE_TAG_MAX_SIZE);
 
 	/*
 	 * The firmware-tag should be NULL terminated, otherwise throw error and
 	 * fail.
 	 */
-	if (request.firmware_tag[GB_FIRMWARE_TAG_MAX_LEN - 1] != '\0') {
+	if (request.firmware_tag[GB_FIRMWARE_TAG_MAX_SIZE - 1] != '\0') {
 		dev_err(fw_mgmt->parent, "backend-update: firmware-tag is not NULL terminated\n");
 		return -EINVAL;
 	}

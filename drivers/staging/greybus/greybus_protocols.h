@@ -276,11 +276,11 @@ struct gb_apb_request_cport_flags {
 #define GB_FW_DOWNLOAD_TYPE_FETCH_FIRMWARE	0x02
 #define GB_FW_DOWNLOAD_TYPE_RELEASE_FIRMWARE	0x03
 
-#define GB_FIRMWARE_TAG_MAX_LEN			10
+#define GB_FIRMWARE_TAG_MAX_SIZE		10
 
 /* firmware download find firmware request/response */
 struct gb_fw_download_find_firmware_request {
-	__u8			firmware_tag[GB_FIRMWARE_TAG_MAX_LEN];
+	__u8			firmware_tag[GB_FIRMWARE_TAG_MAX_SIZE];
 } __packed;
 
 struct gb_fw_download_find_firmware_response {
@@ -340,7 +340,7 @@ struct gb_fw_download_release_firmware_request {
 
 /* firmware management interface firmware version request has no payload */
 struct gb_fw_mgmt_interface_fw_version_response {
-	__u8			firmware_tag[GB_FIRMWARE_TAG_MAX_LEN];
+	__u8			firmware_tag[GB_FIRMWARE_TAG_MAX_SIZE];
 	__le16			major;
 	__le16			minor;
 } __packed;
@@ -349,7 +349,7 @@ struct gb_fw_mgmt_interface_fw_version_response {
 struct gb_fw_mgmt_load_and_validate_fw_request {
 	__u8			request_id;
 	__u8			load_method;
-	__u8			firmware_tag[GB_FIRMWARE_TAG_MAX_LEN];
+	__u8			firmware_tag[GB_FIRMWARE_TAG_MAX_SIZE];
 } __packed;
 /* firmware management load and validate firmware response has no payload*/
 
@@ -364,7 +364,7 @@ struct gb_fw_mgmt_loaded_fw_request {
 
 /* firmware management backend firmware version request/response */
 struct gb_fw_mgmt_backend_fw_version_request {
-	__u8			firmware_tag[GB_FIRMWARE_TAG_MAX_LEN];
+	__u8			firmware_tag[GB_FIRMWARE_TAG_MAX_SIZE];
 } __packed;
 
 struct gb_fw_mgmt_backend_fw_version_response {
@@ -376,7 +376,7 @@ struct gb_fw_mgmt_backend_fw_version_response {
 /* firmware management backend firmware update request */
 struct gb_fw_mgmt_backend_fw_update_request {
 	__u8			request_id;
-	__u8			firmware_tag[GB_FIRMWARE_TAG_MAX_LEN];
+	__u8			firmware_tag[GB_FIRMWARE_TAG_MAX_SIZE];
 } __packed;
 /* firmware management backend firmware update response has no payload */
 

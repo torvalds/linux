@@ -57,7 +57,7 @@
 #include <linux/ioctl.h>
 #include <linux/types.h>
 
-#define GB_FIRMWARE_U_TAG_MAX_LEN		10
+#define GB_FIRMWARE_U_TAG_MAX_SIZE		10
 
 #define GB_FW_U_LOAD_METHOD_UNIPRO		0x01
 #define GB_FW_U_LOAD_METHOD_INTERNAL		0x02
@@ -83,20 +83,20 @@
 
 /* IOCTL support */
 struct fw_mgmt_ioc_get_intf_version {
-	__u8 firmware_tag[GB_FIRMWARE_U_TAG_MAX_LEN];
+	__u8 firmware_tag[GB_FIRMWARE_U_TAG_MAX_SIZE];
 	__u16 major;
 	__u16 minor;
 } __attribute__ ((__packed__));
 
 struct fw_mgmt_ioc_get_backend_version {
-	__u8 firmware_tag[GB_FIRMWARE_U_TAG_MAX_LEN];
+	__u8 firmware_tag[GB_FIRMWARE_U_TAG_MAX_SIZE];
 	__u16 major;
 	__u16 minor;
 	__u8 status;
 } __attribute__ ((__packed__));
 
 struct fw_mgmt_ioc_intf_load_and_validate {
-	__u8 firmware_tag[GB_FIRMWARE_U_TAG_MAX_LEN];
+	__u8 firmware_tag[GB_FIRMWARE_U_TAG_MAX_SIZE];
 	__u8 load_method;
 	__u8 status;
 	__u16 major;
@@ -104,7 +104,7 @@ struct fw_mgmt_ioc_intf_load_and_validate {
 } __attribute__ ((__packed__));
 
 struct fw_mgmt_ioc_backend_fw_update {
-	__u8 firmware_tag[GB_FIRMWARE_U_TAG_MAX_LEN];
+	__u8 firmware_tag[GB_FIRMWARE_U_TAG_MAX_SIZE];
 	__u8 status;
 } __attribute__ ((__packed__));
 

@@ -23,7 +23,7 @@ struct fw_request {
 	u8			firmware_id;
 	bool			disabled;
 	bool			timedout;
-	char			name[FW_NAME_LEN];
+	char			name[FW_NAME_SIZE];
 	const struct firmware	*fw;
 	struct list_head	node;
 
@@ -239,7 +239,7 @@ static int fw_download_find_firmware(struct gb_operation *op)
 	tag = (const char *)request->firmware_tag;
 
 	/* firmware_tag should be null-terminated */
-	if (strnlen(tag, GB_FIRMWARE_TAG_MAX_LEN) == GB_FIRMWARE_TAG_MAX_LEN) {
+	if (strnlen(tag, GB_FIRMWARE_TAG_MAX_SIZE) == GB_FIRMWARE_TAG_MAX_SIZE) {
 		dev_err(fw_download->parent,
 			"firmware-tag is not null-terminated\n");
 		return -EINVAL;
