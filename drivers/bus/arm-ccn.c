@@ -745,9 +745,10 @@ static int arm_ccn_pmu_event_init(struct perf_event *event)
 
 	if (has_branch_stack(event) || event->attr.exclude_user ||
 			event->attr.exclude_kernel || event->attr.exclude_hv ||
-			event->attr.exclude_idle) {
+			event->attr.exclude_idle || event->attr.exclude_host ||
+			event->attr.exclude_guest) {
 		dev_warn(ccn->dev, "Can't exclude execution levels!\n");
-		return -EOPNOTSUPP;
+		return -EINVAL;
 	}
 
 	if (event->cpu < 0) {
