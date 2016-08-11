@@ -486,7 +486,7 @@ media_entity_enum_test_and_set(struct media_entity_enum *ent_enum,
  *
  * @ent_enum: Entity enumeration
  *
- * Returns true if the entity was marked.
+ * Returns true if the entity was empty.
  */
 static inline bool media_entity_enum_empty(struct media_entity_enum *ent_enum)
 {
