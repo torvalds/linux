@@ -33,6 +33,7 @@
 #include "smu/smu_7_1_2_d.h"
 #include "smu/smu_7_1_2_sh_mask.h"
 #include "cgs_common.h"
+#include "tonga_smc.h"
 
 #define TONGA_SMC_SIZE			0x20000
 #define BUFFER_SIZE			80000
@@ -749,6 +750,8 @@ static int tonga_smu_init(struct pp_smumgr *smumgr)
 	struct tonga_smumgr *tonga_smu;
 	uint8_t *internal_buf;
 	uint64_t mc_addr = 0;
+	int i;
+
 	/* Allocate memory for backend private data */
 	tonga_smu = (struct tonga_smumgr *)(smumgr->backend);
 	tonga_smu->header_buffer.data_size =
@@ -793,6 +796,9 @@ static int tonga_smu_init(struct pp_smumgr *smumgr)
 		(cgs_handle_t)tonga_smu->smu_buffer.handle);
 		return -1;);
 
+	for (i = 0; i < SMU72_MAX_LEVELS_GRAPHICS; i++)
+		tonga_smu->activity_target[i] = 30;
+
 	return 0;
 }
 
@@ -807,6 +813,17 @@ static const struct pp_smumgr_func tonga_smu_funcs = {
 	.send_msg_to_smc_with_parameter = &tonga_send_msg_to_smc_with_parameter,
 	.download_pptable_settings = NULL,
 	.upload_pptable_settings = NULL,
+	.update_smc_table = tonga_update_smc_table,
+	.get_offsetof = tonga_get_offsetof,
+	.process_firmware_header = tonga_process_firmware_header,
+	.init_smc_table = tonga_init_smc_table,
+	.update_sclk_threshold = tonga_update_sclk_threshold,
+	.thermal_setup_fan_table = tonga_thermal_setup_fan_table,
+	.populate_all_graphic_levels = tonga_populate_all_graphic_levels,
+	.populate_all_memory_levels = tonga_populate_all_memory_levels,
+	.get_mac_definition = tonga_get_mac_definition,
+	.initialize_mc_reg_table = tonga_initialize_mc_reg_table,
+	.is_dpm_running = tonga_is_dpm_running,
 };
 
 int tonga_smum_init(struct pp_smumgr *smumgr)

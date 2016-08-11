@@ -800,7 +800,7 @@ static int tonga_process_firmware_header(struct pp_hwmgr *hwmgr)
 
 	if (0 == result) {
 		data->soft_regs_start = tmp;
-		tonga_smu->ulSoftRegsStart = tmp;
+		tonga_smu->soft_regs_start = tmp;
 	}
 
 	error |= (0 != result);

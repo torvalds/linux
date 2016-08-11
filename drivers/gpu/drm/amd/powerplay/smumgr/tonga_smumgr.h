@@ -24,6 +24,10 @@
 #ifndef _TONGA_SMUMGR_H_
 #define _TONGA_SMUMGR_H_
 
+#include "smu72_discrete.h"
+
+#define SMC_RAM_END		0x40000
+
 struct tonga_buffer_entry {
 	uint32_t data_size;
 	uint32_t mc_addr_low;
@@ -32,13 +36,44 @@ struct tonga_buffer_entry {
 	unsigned long  handle;
 };
 
+
+struct tonga_mc_reg_entry {
+	uint32_t mclk_max;
+	uint32_t mc_data[SMU72_DISCRETE_MC_REGISTER_ARRAY_SIZE];
+};
+
+struct tonga_mc_reg_table {
+	uint8_t   last;               /* number of registers*/
+	uint8_t   num_entries;        /* number of entries in mc_reg_table_entry used*/
+	uint16_t  validflag;          /* indicate the corresponding register is valid or not. 1: valid, 0: invalid. bit0->address[0], bit1->address[1], etc.*/
+	struct tonga_mc_reg_entry    mc_reg_table_entry[MAX_AC_TIMING_ENTRIES];
+	SMU72_Discrete_MCRegisterAddress mc_reg_address[SMU72_DISCRETE_MC_REGISTER_ARRAY_SIZE];
+};
+
+
 struct tonga_smumgr {
 	uint8_t *pHeader;
 	uint8_t *pMecImage;
-	uint32_t ulSoftRegsStart;
+
+
+	uint32_t soft_regs_start;
+	uint32_t dpm_table_start;
+	uint32_t mc_reg_table_start;
+	uint32_t fan_table_start;
+	uint32_t arb_table_start;
 
 	struct tonga_buffer_entry header_buffer;
 	struct tonga_buffer_entry smu_buffer;
+
+	struct SMU72_Discrete_DpmTable       smc_state_table;
+	struct SMU72_Discrete_Ulv            ulv_setting;
+	struct SMU72_Discrete_PmFuses  power_tune_table;
+	struct tonga_pt_defaults  *power_tune_defaults;
+	SMU72_Discrete_MCRegisters      mc_regs;
+	struct tonga_mc_reg_table mc_reg_table;
+
+	uint32_t        activity_target[SMU72_MAX_LEVELS_GRAPHICS];
+
 };
 
 extern int tonga_smum_init(struct pp_smumgr *smumgr);
