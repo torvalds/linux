@@ -238,7 +238,7 @@ static int fw_download_find_firmware(struct gb_operation *op)
 	request = op->request->payload;
 	tag = (const char *)request->firmware_tag;
 
-	/* firmware_tag should be null-terminated */
+	/* firmware_tag must be null-terminated */
 	if (strnlen(tag, GB_FIRMWARE_TAG_MAX_SIZE) == GB_FIRMWARE_TAG_MAX_SIZE) {
 		dev_err(fw_download->parent,
 			"firmware-tag is not null-terminated\n");
