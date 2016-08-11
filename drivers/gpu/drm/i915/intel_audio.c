@@ -359,9 +359,7 @@ static void ilk_audio_codec_disable(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
-	struct intel_digital_port *intel_dig_port =
-		enc_to_dig_port(&encoder->base);
-	enum port port = intel_dig_port->port;
+	enum port port = enc_to_dig_port(&encoder->base)->port;
 	enum pipe pipe = intel_crtc->pipe;
 	uint32_t tmp, eldv;
 	i915_reg_t aud_config, aud_cntrl_st2;
@@ -407,13 +405,10 @@ static void ilk_audio_codec_enable(struct drm_connector *connector,
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
-	struct intel_digital_port *intel_dig_port =
-		enc_to_dig_port(&encoder->base);
-	enum port port = intel_dig_port->port;
+	enum port port = enc_to_dig_port(&encoder->base)->port;
 	enum pipe pipe = intel_crtc->pipe;
 	uint8_t *eld = connector->eld;
-	uint32_t eldv;
-	uint32_t tmp;
+	uint32_t tmp, eldv;
 	int len, i;
 	i915_reg_t hdmiw_hdmiedid, aud_config, aud_cntl_st, aud_cntrl_st2;
 
