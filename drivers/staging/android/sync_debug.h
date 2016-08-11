@@ -1,5 +1,5 @@
 /*
- * include/linux/sync.h
+ * Sync File validation framework and debug infomation
  *
  * Copyright (C) 2012 Google, Inc.
  *

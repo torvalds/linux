@@ -1,5 +1,5 @@
 /*
- * drivers/dma-buf/sw_sync.c
+ * Sync File validation framework
  *
  * Copyright (C) 2012 Google, Inc.
  *

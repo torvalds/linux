@@ -1,5 +1,5 @@
 /*
- * drivers/base/sync.c
+ * Sync File validation framework and debug information
  *
  * Copyright (C) 2012 Google, Inc.
  *
