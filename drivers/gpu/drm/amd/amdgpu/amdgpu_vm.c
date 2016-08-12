@@ -61,6 +61,10 @@ struct amdgpu_pte_update_params {
 	uint64_t src;
 	/* indirect buffer to fill with commands */
 	struct amdgpu_ib *ib;
+	/* Function which actually does the update */
+	void (*func)(struct amdgpu_pte_update_params *params, uint64_t pe,
+		     uint64_t addr, unsigned count, uint32_t incr,
+		     uint32_t flags);
 };
 
 /**
@@ -464,7 +468,7 @@ struct amdgpu_bo_va *amdgpu_vm_bo_find(struct amdgpu_vm *vm,
 }
 
 /**
- * amdgpu_vm_update_pages - helper to call the right asic function
+ * amdgpu_vm_do_set_ptes - helper to call the right asic function
  *
  * @params: see amdgpu_pte_update_params definition
  * @pe: addr of the page entry
@@ -476,18 +480,14 @@ struct amdgpu_bo_va *amdgpu_vm_bo_find(struct amdgpu_vm *vm,
  * Traces the parameters and calls the right asic functions
  * to setup the page table using the DMA.
  */
-static void amdgpu_vm_update_pages(struct amdgpu_pte_update_params *params,
-				   uint64_t pe, uint64_t addr,
-				   unsigned count, uint32_t incr,
-				   uint32_t flags)
+static void amdgpu_vm_do_set_ptes(struct amdgpu_pte_update_params *params,
+				  uint64_t pe, uint64_t addr,
+				  unsigned count, uint32_t incr,
+				  uint32_t flags)
 {
 	trace_amdgpu_vm_set_page(pe, addr, count, incr, flags);
 
-	if (params->src) {
-		amdgpu_vm_copy_pte(params->adev, params->ib,
-			pe, (params->src + (addr >> 12) * 8), count);
-
-	} else if (count < 3) {
+	if (count < 3) {
 		amdgpu_vm_write_pte(params->adev, params->ib, pe,
 				    addr | flags, count, incr);
 
@@ -495,6 +495,29 @@ static void amdgpu_vm_update_pages(struct amdgpu_pte_update_params *params,
 		amdgpu_vm_set_pte_pde(params->adev, params->ib, pe, addr,
 				      count, incr, flags);
 	}
+}
+
+/**
+ * amdgpu_vm_do_copy_ptes - copy the PTEs from the GART
+ *
+ * @params: see amdgpu_pte_update_params definition
+ * @pe: addr of the page entry
+ * @addr: dst addr to write into pe
+ * @count: number of page entries to update
+ * @incr: increase next addr by incr bytes
+ * @flags: hw access flags
+ *
+ * Traces the parameters and calls the DMA function to copy the PTEs.
+ */
+static void amdgpu_vm_do_copy_ptes(struct amdgpu_pte_update_params *params,
+				   uint64_t pe, uint64_t addr,
+				   unsigned count, uint32_t incr,
+				   uint32_t flags)
+{
+	trace_amdgpu_vm_set_page(pe, addr, count, incr, flags);
+
+	amdgpu_vm_copy_pte(params->adev, params->ib, pe,
+			   (params->src + (addr >> 12) * 8), count);
 }
 
 /**
@@ -537,7 +560,7 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	memset(&params, 0, sizeof(params));
 	params.adev = adev;
 	params.ib = &job->ibs[0];
-	amdgpu_vm_update_pages(&params, addr, 0, entries, 0, 0);
+	amdgpu_vm_do_set_ptes(&params, addr, 0, entries, 0, 0);
 	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
 
 	WARN_ON(job->ibs[0].length_dw > 64);
@@ -643,9 +666,9 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 		    (count == AMDGPU_VM_MAX_UPDATE_SIZE)) {
 
 			if (count) {
-				amdgpu_vm_update_pages(&params, last_pde,
-						       last_pt, count, incr,
-						       AMDGPU_PTE_VALID);
+				amdgpu_vm_do_set_ptes(&params, last_pde,
+						      last_pt, count, incr,
+						      AMDGPU_PTE_VALID);
 			}
 
 			count = 1;
@@ -657,8 +680,8 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 	}
 
 	if (count)
-		amdgpu_vm_update_pages(&params, last_pde, last_pt,
-					count, incr, AMDGPU_PTE_VALID);
+		amdgpu_vm_do_set_ptes(&params, last_pde, last_pt,
+				      count, incr, AMDGPU_PTE_VALID);
 
 	if (params.ib->length_dw != 0) {
 		amdgpu_ring_pad_ib(ring, params.ib);
@@ -747,14 +770,13 @@ static void amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 		if ((cur_pe_start + 8 * cur_nptes) == next_pe_start &&
 		    ((cur_nptes + nptes) <= AMDGPU_VM_MAX_UPDATE_SIZE)) {
 			/* The next ptb is consecutive to current ptb.
-			 * Don't call amdgpu_vm_update_pages now.
+			 * Don't call the update function now.
 			 * Will update two ptbs together in future.
 			*/
 			cur_nptes += nptes;
 		} else {
-			amdgpu_vm_update_pages(params, cur_pe_start, cur_dst,
-					       cur_nptes, AMDGPU_GPU_PAGE_SIZE,
-					       flags);
+			params->func(params, cur_pe_start, cur_dst, cur_nptes,
+				     AMDGPU_GPU_PAGE_SIZE, flags);
 
 			cur_pe_start = next_pe_start;
 			cur_nptes = nptes;
@@ -766,8 +788,8 @@ static void amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 		dst += nptes * AMDGPU_GPU_PAGE_SIZE;
 	}
 
-	amdgpu_vm_update_pages(params, cur_pe_start, cur_dst, cur_nptes,
-			       AMDGPU_GPU_PAGE_SIZE, flags);
+	params->func(params, cur_pe_start, cur_dst, cur_nptes,
+		     AMDGPU_GPU_PAGE_SIZE, flags);
 }
 
 /*
@@ -875,6 +897,10 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	struct fence *f = NULL;
 	int r;
 
+	memset(&params, 0, sizeof(params));
+	params.adev = adev;
+	params.src = src;
+
 	ring = container_of(vm->entity.sched, struct amdgpu_ring, sched);
 
 	memset(&params, 0, sizeof(params));
@@ -900,6 +926,8 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 		/* only copy commands needed */
 		ndw += ncmds * 7;
 
+		params.func = amdgpu_vm_do_copy_ptes;
+
 	} else if (pages_addr) {
 		/* copy commands needed */
 		ndw += ncmds * 7;
@@ -907,12 +935,16 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 		/* and also PTEs */
 		ndw += nptes * 2;
 
+		params.func = amdgpu_vm_do_copy_ptes;
+
 	} else {
 		/* set page commands needed */
 		ndw += ncmds * 10;
 
 		/* two extra commands for begin/end of fragment */
 		ndw += 2 * 10;
+
+		params.func = amdgpu_vm_do_set_ptes;
 	}
 
 	r = amdgpu_job_alloc_with_ib(adev, ndw * 4, &job);
