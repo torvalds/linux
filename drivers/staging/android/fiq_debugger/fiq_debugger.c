@@ -810,6 +810,13 @@ static void fiq_debugger_console_write(struct console *co,
 	if (!state->console_enable && !state->syslog_dumping)
 		return;
 
+#ifdef CONFIG_RK_CONSOLE_THREAD
+	if (state->pdata->console_write) {
+		state->pdata->console_write(state->pdev, s, count);
+		return;
+	}
+#endif
+
 	fiq_debugger_uart_enable(state);
 	spin_lock_irqsave(&state->console_lock, flags);
 	while (count--) {
