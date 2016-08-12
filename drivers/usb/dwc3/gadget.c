@@ -1860,6 +1860,7 @@ static int __dwc3_cleanup_done_trbs(struct dwc3 *dwc, struct dwc3_ep *dep,
 	unsigned int		trb_status;
 
 	dep->queued_requests--;
+	dwc3_ep_inc_deq(dep);
 	trace_dwc3_complete_trb(dep, trb);
 
 	/*
@@ -1879,6 +1880,7 @@ static int __dwc3_cleanup_done_trbs(struct dwc3 *dwc, struct dwc3_ep *dep,
 		return 1;
 
 	count = trb->size & DWC3_TRB_SIZE_MASK;
+	req->request.actual += count;
 
 	if (dep->direction) {
 		if (count) {
@@ -1931,7 +1933,6 @@ static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 {
 	struct dwc3_request	*req, *n;
 	struct dwc3_trb		*trb;
-	int			count = 0;
 	int			ret;
 
 	list_for_each_entry_safe(req, n, &dep->started_list, list) {
@@ -1949,8 +1950,6 @@ static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 
 			for_each_sg(sg, s, pending, i) {
 				trb = &dep->trb_pool[dep->trb_dequeue];
-				count += trb->size & DWC3_TRB_SIZE_MASK;
-				dwc3_ep_inc_deq(dep);
 
 				req->sg = sg_next(s);
 				req->num_pending_sgs--;
@@ -1962,9 +1961,6 @@ static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 			}
 		} else {
 			trb = &dep->trb_pool[dep->trb_dequeue];
-			count += trb->size & DWC3_TRB_SIZE_MASK;
-			dwc3_ep_inc_deq(dep);
-
 			ret = __dwc3_cleanup_done_trbs(dwc, dep, req, trb,
 					event, status, chain);
 		}
