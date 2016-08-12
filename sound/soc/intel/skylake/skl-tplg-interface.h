@@ -241,4 +241,14 @@ struct skl_dfw_manifest {
 	struct lib_info lib[HDA_MAX_LIB];
 } __packed;
 
+enum skl_tkn_dir {
+	SKL_DIR_IN,
+	SKL_DIR_OUT
+};
+
+enum skl_tuple_type {
+	SKL_TYPE_TUPLE,
+	SKL_TYPE_DATA
+};
+
 #endif
