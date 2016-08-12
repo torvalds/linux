@@ -89,6 +89,10 @@ static int report__config(const char *var, const char *value, void *cb)
 		rep->queue_size = perf_config_u64(var, value);
 		return 0;
 	}
+	if (!strcmp(var, "report.sort_order")) {
+		default_sort_order = strdup(value);
+		return 0;
+	}
 
 	return 0;
 }
