@@ -777,6 +777,13 @@ config GPIO_TPIC2810
 	  To compile this driver as a module, choose M here: the module will
 	  be called gpio-tpic2810.
 
+config GPIO_TS4900
+	tristate "Technologic Systems FPGA I2C GPIO"
+	select REGMAP_I2C
+	help
+	  Say yes here to enabled the GPIO driver for Technologic's FPGA core.
+	  Series supported include TS-4100, TS-4900, TS-7970 and TS-7990.
+
 endmenu
 
 menu "MFD GPIO expanders"
