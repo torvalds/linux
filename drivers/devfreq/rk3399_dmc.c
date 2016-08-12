@@ -24,6 +24,7 @@
 #include <linux/pm_opp.h>
 #include <linux/regulator/consumer.h>
 #include <linux/rwsem.h>
+#include <linux/slab.h>
 #include <linux/suspend.h>
 
 #include <soc/rockchip/rockchip_sip.h>
@@ -348,6 +349,45 @@ err:
 	return timing;
 }
 
+static int of_get_opp_table(struct device *dev,
+			    struct devfreq_dev_profile *devp)
+{
+	int count;
+	int i = 0;
+	unsigned long freq = 0;
+	struct dev_pm_opp *opp;
+
+	rcu_read_lock();
+	count = dev_pm_opp_get_opp_count(dev);
+	if (count < 0) {
+		rcu_read_unlock();
+		return count;
+	}
+	rcu_read_unlock();
+
+	devp->freq_table = kmalloc_array(count, sizeof(devp->freq_table[0]),
+				GFP_KERNEL);
+	if (!devp->freq_table)
+		return -ENOMEM;
+
+	rcu_read_lock();
+	for (i = 0; i < count; i++, freq++) {
+		opp = dev_pm_opp_find_freq_ceil(dev, &freq);
+		if (IS_ERR(opp))
+			break;
+
+		devp->freq_table[i] = freq;
+	}
+	rcu_read_unlock();
+
+	if (count != i)
+		dev_warn(dev, "Unable to enumerate all OPPs (%d!=%d)\n",
+			 count, i);
+
+	devp->max_state = i;
+	return 0;
+}
+
 static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 {
 	struct arm_smccc_res res;
@@ -357,6 +397,7 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 	int ret, irq, index, size;
 	uint32_t *timing;
 	struct dev_pm_opp *opp;
+	struct devfreq_dev_profile *devp = &rk3399_devfreq_dmc_profile;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -437,6 +478,9 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	if (of_get_opp_table(dev, devp))
+		return -EFAULT;
+
 	of_property_read_u32(np, "upthreshold",
 			     &data->ondemand_data.upthreshold);
 	of_property_read_u32(np, "downdifferential",
@@ -451,12 +495,10 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 		return PTR_ERR(opp);
 	}
 	rcu_read_unlock();
+
 	data->curr_opp = opp;
-
-	rk3399_devfreq_dmc_profile.initial_freq = data->rate;
-
-	data->devfreq = devfreq_add_device(dev,
-					   &rk3399_devfreq_dmc_profile,
+	devp->initial_freq = data->rate;
+	data->devfreq = devfreq_add_device(dev, devp,
 					   "simple_ondemand",
 					   &data->ondemand_data);
 	if (IS_ERR(data->devfreq))
