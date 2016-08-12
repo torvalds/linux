@@ -5851,6 +5851,9 @@ static int get_array_info(struct mddev *mddev, void __user *arg)
 			working++;
 			if (test_bit(In_sync, &rdev->flags))
 				insync++;
+			else if (test_bit(Journal, &rdev->flags))
+				/* TODO: add journal count to md_u.h */
+				;
 			else
 				spare++;
 		}
