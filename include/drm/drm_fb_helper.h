@@ -216,7 +216,6 @@ struct drm_fb_helper {
 };
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
-int drm_fb_helper_modinit(void);
 void drm_fb_helper_prepare(struct drm_device *dev, struct drm_fb_helper *helper,
 			   const struct drm_fb_helper_funcs *funcs);
 int drm_fb_helper_init(struct drm_device *dev,
