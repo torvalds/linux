@@ -780,7 +780,7 @@ static int intel_lr_context_pin(struct i915_gem_context *ctx,
 	if (ret)
 		goto err;
 
-	vaddr = i915_gem_object_pin_map(ce->state);
+	vaddr = i915_gem_object_pin_map(ce->state, I915_MAP_WB);
 	if (IS_ERR(vaddr)) {
 		ret = PTR_ERR(vaddr);
 		goto unpin_ctx_obj;
@@ -1755,7 +1755,7 @@ lrc_setup_hws(struct intel_engine_cs *engine,
 	/* The HWSP is part of the default context object in LRC mode. */
 	engine->status_page.gfx_addr = i915_gem_obj_ggtt_offset(dctx_obj) +
 				       LRC_PPHWSP_PN * PAGE_SIZE;
-	hws = i915_gem_object_pin_map(dctx_obj);
+	hws = i915_gem_object_pin_map(dctx_obj, I915_MAP_WB);
 	if (IS_ERR(hws))
 		return PTR_ERR(hws);
 	engine->status_page.page_addr = hws + LRC_PPHWSP_PN * PAGE_SIZE;
@@ -1968,7 +1968,7 @@ populate_lr_context(struct i915_gem_context *ctx,
 		return ret;
 	}
 
-	vaddr = i915_gem_object_pin_map(ctx_obj);
+	vaddr = i915_gem_object_pin_map(ctx_obj, I915_MAP_WB);
 	if (IS_ERR(vaddr)) {
 		ret = PTR_ERR(vaddr);
 		DRM_DEBUG_DRIVER("Could not map object pages! (%d)\n", ret);
@@ -2189,7 +2189,7 @@ void intel_lr_context_reset(struct drm_i915_private *dev_priv,
 		if (!ctx_obj)
 			continue;
 
-		vaddr = i915_gem_object_pin_map(ctx_obj);
+		vaddr = i915_gem_object_pin_map(ctx_obj, I915_MAP_WB);
 		if (WARN_ON(IS_ERR(vaddr)))
 			continue;
 

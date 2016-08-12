@@ -119,7 +119,7 @@ static void *i915_gem_dmabuf_vmap(struct dma_buf *dma_buf)
 	if (ret)
 		return ERR_PTR(ret);
 
-	addr = i915_gem_object_pin_map(obj);
+	addr = i915_gem_object_pin_map(obj, I915_MAP_WB);
 	mutex_unlock(&dev->struct_mutex);
 
 	return addr;

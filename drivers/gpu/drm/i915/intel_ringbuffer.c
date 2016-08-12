@@ -1951,7 +1951,7 @@ int intel_ring_pin(struct intel_ring *ring)
 		if (ret)
 			goto err_unpin;
 
-		addr = i915_gem_object_pin_map(obj);
+		addr = i915_gem_object_pin_map(obj, I915_MAP_WB);
 		if (IS_ERR(addr)) {
 			ret = PTR_ERR(addr);
 			goto err_unpin;

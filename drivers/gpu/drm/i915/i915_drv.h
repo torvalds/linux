@@ -3144,13 +3144,20 @@ static inline void i915_gem_object_unpin_pages(struct drm_i915_gem_object *obj)
 	obj->pages_pin_count--;
 }
 
+enum i915_map_type {
+	I915_MAP_WB = 0,
+	I915_MAP_WC,
+};
+
 /**
  * i915_gem_object_pin_map - return a contiguous mapping of the entire object
  * @obj - the object to map into kernel address space
+ * @type - the type of mapping, used to select pgprot_t
  *
  * Calls i915_gem_object_pin_pages() to prevent reaping of the object's
  * pages and then returns a contiguous mapping of the backing storage into
- * the kernel address space.
+ * the kernel address space. Based on the @type of mapping, the PTE will be
+ * set to either WriteBack or WriteCombine (via pgprot_t).
  *
  * The caller must hold the struct_mutex, and is responsible for calling
  * i915_gem_object_unpin_map() when the mapping is no longer required.
@@ -3158,7 +3165,8 @@ static inline void i915_gem_object_unpin_pages(struct drm_i915_gem_object *obj)
  * Returns the pointer through which to access the mapped object, or an
  * ERR_PTR() on error.
  */
-void *__must_check i915_gem_object_pin_map(struct drm_i915_gem_object *obj);
+void *__must_check i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
+					   enum i915_map_type type);
 
 /**
  * i915_gem_object_unpin_map - releases an earlier mapping
@@ -3898,5 +3906,14 @@ static inline bool __i915_request_irq_complete(struct drm_i915_gem_request *req)
 
 	return false;
 }
+
+#define ptr_unpack_bits(ptr, bits) ({					\
+	unsigned long __v = (unsigned long)(ptr);			\
+	(bits) = __v & ~PAGE_MASK;					\
+	(typeof(ptr))(__v & PAGE_MASK);					\
+})
+
+#define ptr_pack_bits(ptr, bits)					\
+	((typeof(ptr))((unsigned long)(ptr) | (bits)))
 
 #endif
