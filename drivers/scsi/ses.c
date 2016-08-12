@@ -778,6 +778,8 @@ static void ses_intf_remove_enclosure(struct scsi_device *sdev)
 	if (!edev)
 		return;
 
+	enclosure_unregister(edev);
+
 	ses_dev = edev->scratch;
 	edev->scratch = NULL;
 
@@ -789,7 +791,6 @@ static void ses_intf_remove_enclosure(struct scsi_device *sdev)
 	kfree(edev->component[0].scratch);
 
 	put_device(&edev->edev);
-	enclosure_unregister(edev);
 }
 
 static void ses_intf_remove(struct device *cdev,
