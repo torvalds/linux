@@ -1209,7 +1209,7 @@ int nicvf_open(struct net_device *netdev)
 	}
 
 	/* Check if we got MAC address from PF or else generate a radom MAC */
-	if (is_zero_ether_addr(netdev->dev_addr)) {
+	if (!nic->sqs_mode && is_zero_ether_addr(netdev->dev_addr)) {
 		eth_hw_addr_random(netdev);
 		nicvf_hw_set_mac_addr(nic, netdev);
 	}
