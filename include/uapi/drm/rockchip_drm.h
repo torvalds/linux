@@ -104,6 +104,10 @@ enum rockchip_plane_feture {
 	ROCKCHIP_DRM_PLANE_FEATURE_MAX,
 };
 
+enum rockchip_crtc_feture {
+	ROCKCHIP_DRM_CRTC_FEATURE_AFBDC,
+};
+
 #define DRM_ROCKCHIP_GEM_CREATE		0x00
 #define DRM_ROCKCHIP_GEM_MAP_OFFSET	0x01
 #define DRM_ROCKCHIP_GEM_CPU_ACQUIRE	0x02

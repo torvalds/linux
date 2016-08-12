@@ -47,10 +47,10 @@
 #define VOP_WIN_SUPPORT(vop, win, name) \
 		VOP_REG_SUPPORT(vop, win->phy->name)
 
-#define VOP_CTRL_SUPPORT(vop, win, name) \
+#define VOP_CTRL_SUPPORT(vop, name) \
 		VOP_REG_SUPPORT(vop, vop->data->ctrl->name)
 
-#define VOP_INTR_SUPPORT(vop, win, name) \
+#define VOP_INTR_SUPPORT(vop, name) \
 		VOP_REG_SUPPORT(vop, vop->data->intr->name)
 
 #define __REG_SET(x, off, mask, shift, v, write_mask, relaxed) \
@@ -162,6 +162,7 @@ struct vop {
 	struct drm_device *drm_dev;
 	struct drm_property *plane_zpos_prop;
 	struct drm_property *plane_feature_prop;
+	struct drm_property *feature_prop;
 	bool is_iommu_enabled;
 	bool is_iommu_needed;
 	bool is_enabled;
@@ -732,6 +733,7 @@ static void vop_crtc_disable(struct drm_crtc *crtc)
 		VOP_WIN_SET(vop, win, enable, 0);
 		spin_unlock(&vop->reg_lock);
 	}
+	VOP_CTRL_SET(vop, afbdc_en, 0);
 	vop_cfg_done(vop);
 
 	drm_crtc_vblank_off(crtc);
@@ -1328,6 +1330,78 @@ static int vop_zpos_cmp(const void *a, const void *b)
 	return pa->zpos - pb->zpos;
 }
 
+static int vop_afbdc_atomic_check(struct drm_crtc *crtc,
+				  struct drm_crtc_state *crtc_state)
+{
+	struct vop *vop = to_vop(crtc);
+	const struct vop_data *vop_data = vop->data;
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
+	struct drm_atomic_state *state = crtc_state->state;
+	struct drm_plane *plane;
+	struct drm_plane_state *pstate;
+	struct vop_plane_state *plane_state;
+	struct vop_win *win;
+	int afbdc_format;
+	int i;
+
+	s->afbdc_en = 0;
+
+	for_each_plane_in_state(state, plane, pstate, i) {
+		struct drm_framebuffer *fb = pstate->fb;
+		struct drm_rect *src;
+
+		win = to_vop_win(plane);
+		plane_state = to_vop_plane_state(pstate);
+
+		if (pstate->crtc != crtc || !fb)
+			continue;
+
+		if (fb->modifier[0] != DRM_FORMAT_MOD_ARM_AFBC)
+			continue;
+
+		if (!(vop_data->feature & VOP_FEATURE_AFBDC)) {
+			DRM_ERROR("not support afbdc\n");
+			return -EINVAL;
+		}
+
+		switch (plane_state->format) {
+		case VOP_FMT_ARGB8888:
+			afbdc_format = AFBDC_FMT_U8U8U8U8;
+			break;
+		case VOP_FMT_RGB888:
+			afbdc_format = AFBDC_FMT_U8U8U8;
+			break;
+		case VOP_FMT_RGB565:
+			afbdc_format = AFBDC_FMT_RGB565;
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		if (s->afbdc_en) {
+			DRM_ERROR("vop only support one afbc layer\n");
+			return -EINVAL;
+		}
+
+		src = &plane_state->src;
+		if (src->x1 || src->y1 || fb->offsets[0]) {
+			DRM_ERROR("win[%d] afbdc not support offset display\n",
+				  win->win_id);
+			DRM_ERROR("xpos=%d, ypos=%d, offset=%d\n",
+				  src->x1, src->y1, fb->offsets[0]);
+			return -EINVAL;
+		}
+		s->afbdc_win_format = afbdc_format;
+		s->afbdc_win_width = pstate->fb->width - 1;
+		s->afbdc_win_height = (drm_rect_height(src) >> 16) - 1;
+		s->afbdc_win_id = win->win_id;
+		s->afbdc_win_ptr = plane_state->yrgb_mst;
+		s->afbdc_en = 1;
+	}
+
+	return 0;
+}
+
 static int vop_crtc_atomic_check(struct drm_crtc *crtc,
 				 struct drm_crtc_state *crtc_state)
 {
@@ -1341,6 +1415,10 @@ static int vop_crtc_atomic_check(struct drm_crtc *crtc,
 	struct vop_zpos *pzpos;
 	int dsp_layer_sel = 0;
 	int i, j, cnt = 0, ret = 0;
+
+	ret = vop_afbdc_atomic_check(crtc, crtc_state);
+	if (ret)
+		return ret;
 
 	ret = vop_csc_atomic_check(crtc, crtc_state);
 	if (ret)
@@ -1412,6 +1490,19 @@ static void vop_cfg_update(struct drm_crtc *crtc,
 
 	spin_lock(&vop->reg_lock);
 
+	if (s->afbdc_en) {
+		uint32_t pic_size;
+
+		VOP_CTRL_SET(vop, afbdc_format, s->afbdc_win_format | 1 << 4);
+		VOP_CTRL_SET(vop, afbdc_hreg_block_split, 0);
+		VOP_CTRL_SET(vop, afbdc_sel, s->afbdc_win_id);
+		VOP_CTRL_SET(vop, afbdc_hdr_ptr, s->afbdc_win_ptr);
+		pic_size = (s->afbdc_win_width & 0xffff);
+		pic_size |= s->afbdc_win_height << 16;
+		VOP_CTRL_SET(vop, afbdc_pic_size, pic_size);
+	}
+
+	VOP_CTRL_SET(vop, afbdc_en, s->afbdc_en);
 	VOP_CTRL_SET(vop, dsp_layer_sel, s->dsp_layer_sel);
 	vop_cfg_done(vop);
 
@@ -1634,6 +1725,7 @@ static int vop_create_crtc(struct vop *vop)
 	struct drm_plane *primary = NULL, *cursor = NULL, *plane, *tmp;
 	struct drm_crtc *crtc = &vop->crtc;
 	struct device_node *port;
+	uint64_t feature = 0;
 	int ret;
 	int i;
 
@@ -1697,6 +1789,11 @@ static int vop_create_crtc(struct vop *vop)
 	crtc->port = port;
 	rockchip_register_crtc_funcs(crtc, &private_crtc_funcs);
 
+	if (VOP_CTRL_SUPPORT(vop, afbdc_en))
+		feature |= BIT(ROCKCHIP_DRM_CRTC_FEATURE_AFBDC);
+	drm_object_attach_property(&crtc->base, vop->feature_prop,
+				   feature);
+
 	return 0;
 
 err_cleanup_crtc:
@@ -1748,6 +1845,9 @@ static int vop_win_init(struct vop *vop)
 	static const struct drm_prop_enum_list props[] = {
 		{ ROCKCHIP_DRM_PLANE_FEATURE_SCALE, "scale" },
 		{ ROCKCHIP_DRM_PLANE_FEATURE_ALPHA, "alpha" },
+	};
+	static const struct drm_prop_enum_list crtc_props[] = {
+		{ ROCKCHIP_DRM_CRTC_FEATURE_AFBDC, "afbdc" },
 	};
 
 	for (i = 0; i < vop_data->win_size; i++) {
@@ -1802,6 +1902,15 @@ static int vop_win_init(struct vop *vop)
 				BIT(ROCKCHIP_DRM_PLANE_FEATURE_ALPHA));
 	if (!vop->plane_feature_prop) {
 		DRM_ERROR("failed to create feature property\n");
+		return -EINVAL;
+	}
+
+	vop->feature_prop = drm_property_create_bitmask(vop->drm_dev,
+				DRM_MODE_PROP_IMMUTABLE, "FEATURE",
+				props, ARRAY_SIZE(crtc_props),
+				BIT(ROCKCHIP_DRM_CRTC_FEATURE_AFBDC));
+	if (!vop->feature_prop) {
+		DRM_ERROR("failed to create vop feature property\n");
 		return -EINVAL;
 	}
 

@@ -787,6 +787,8 @@ static int rockchip_drm_load(struct drm_device *drm_dev, unsigned long flags)
 	if (ret)
 		goto err_vblank_cleanup;
 
+	drm_dev->mode_config.allow_fb_modifiers = true;
+
 	return 0;
 err_vblank_cleanup:
 	drm_vblank_cleanup(drm_dev);

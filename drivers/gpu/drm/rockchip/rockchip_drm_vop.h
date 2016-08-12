@@ -23,6 +23,10 @@
 #define VOP_MAJOR(version) 	((version) >> 8)
 #define VOP_MINOR(version) 	((version) & 0xff)
 
+#define AFBDC_FMT_RGB565	0x0
+#define AFBDC_FMT_U8U8U8U8	0x5
+#define AFBDC_FMT_U8U8U8	0x4
+
 enum vop_csc_format {
 	CSC_BT601,
 	CSC_BT709,
@@ -112,6 +116,15 @@ struct vop_ctrl {
 	struct vop_reg xmirror;
 	struct vop_reg ymirror;
 	struct vop_reg dsp_background;
+
+	/* AFBDC */
+	struct vop_reg afbdc_en;
+	struct vop_reg afbdc_sel;
+	struct vop_reg afbdc_format;
+	struct vop_reg afbdc_hreg_block_split;
+	struct vop_reg afbdc_pic_size;
+	struct vop_reg afbdc_hdr_ptr;
+	struct vop_reg afbdc_rstn;
 
 	struct vop_reg cfg_done;
 };
@@ -227,7 +240,8 @@ struct vop_win_data {
 	unsigned int area_size;
 };
 
-#define VOP_FEATURE_OUTPUT_10BIT BIT(0)
+#define VOP_FEATURE_OUTPUT_10BIT	BIT(0)
+#define VOP_FEATURE_AFBDC		BIT(1)
 
 struct vop_data {
 	const struct vop_reg_data *init_table;

@@ -201,6 +201,14 @@ static const struct vop_ctrl rk3288_ctrl_data = {
 	.dsp_lut_en = VOP_REG(RK3288_DSP_CTRL1, 0x1, 0),
 	.out_mode = VOP_REG(RK3288_DSP_CTRL0, 0xf, 0),
 
+	.afbdc_rstn = VOP_REG(RK3399_AFBCD0_CTRL, 0x1, 3),
+	.afbdc_en = VOP_REG(RK3399_AFBCD0_CTRL, 0x1, 0),
+	.afbdc_sel = VOP_REG(RK3399_AFBCD0_CTRL, 0x3, 1),
+	.afbdc_format = VOP_REG(RK3399_AFBCD0_CTRL, 0x1f, 16),
+	.afbdc_hreg_block_split = VOP_REG(RK3399_AFBCD0_CTRL, 0x1, 21),
+	.afbdc_hdr_ptr = VOP_REG(RK3399_AFBCD0_HDR_PTR, 0xffffffff, 0),
+	.afbdc_pic_size = VOP_REG(RK3399_AFBCD0_PIC_SIZE, 0xffffffff, 0),
+
 	.xmirror = VOP_REG(RK3288_DSP_CTRL0, 0x1, 22),
 	.ymirror = VOP_REG(RK3288_DSP_CTRL0, 0x1, 23),
 
@@ -473,7 +481,7 @@ static const struct vop_win_data rk3399_vop_win_data[] = {
 
 static const struct vop_data rk3399_vop_big = {
 	.version = VOP_VERSION(3, 5),
-	.feature = VOP_FEATURE_OUTPUT_10BIT,
+	.feature = VOP_FEATURE_OUTPUT_10BIT | VOP_FEATURE_AFBDC,
 	.intr = &rk3366_vop_intr,
 	.ctrl = &rk3288_ctrl_data,
 	.win = rk3399_vop_win_data,

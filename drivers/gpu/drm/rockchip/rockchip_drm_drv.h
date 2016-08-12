@@ -63,6 +63,12 @@ struct rockchip_atomic_commit {
 
 struct rockchip_crtc_state {
 	struct drm_crtc_state base;
+	int afbdc_win_format;
+	int afbdc_win_width;
+	int afbdc_win_height;
+	int afbdc_win_ptr;
+	int afbdc_win_id;
+	int afbdc_en;
 	int dsp_layer_sel;
 	int output_type;
 	int output_mode;
