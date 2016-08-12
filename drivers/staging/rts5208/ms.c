@@ -4317,7 +4317,8 @@ int mg_get_local_EKB(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		set_sense_type(chip, lun, SENSE_TYPE_MG_KEY_FAIL_NOT_AUTHEN);
 		rtsx_clear_ms_error(chip);
 		rtsx_trace(chip);
-		return STATUS_FAIL;
+		retval = STATUS_FAIL;
+		goto free_buffer;
 	}
 
 	bufflen = min_t(int, 1052, scsi_bufflen(srb));
@@ -4570,7 +4571,8 @@ int mg_get_ICV(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_UNRECOVER_READ_ERR);
 		rtsx_clear_ms_error(chip);
 		rtsx_trace(chip);
-		return STATUS_FAIL;
+		retval = STATUS_FAIL;
+		goto free_buffer;
 	}
 
 	bufflen = min_t(int, 1028, scsi_bufflen(srb));
