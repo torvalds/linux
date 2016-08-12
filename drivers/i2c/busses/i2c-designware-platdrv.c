@@ -196,10 +196,13 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 		dw_i2c_acpi_configure(pdev);
 
 	/*
-	 * Only standard mode at 100kHz and fast mode at 400kHz are supported.
+	 * Only standard mode at 100kHz, fast mode at 400kHz,
+	 * and fast mode plus at 1MHz are supported.
 	 */
-	if (dev->clk_freq != 100000 && dev->clk_freq != 400000) {
-		dev_err(&pdev->dev, "Only 100kHz and 400kHz supported");
+	if (dev->clk_freq != 100000 && dev->clk_freq != 400000
+	    && dev->clk_freq != 1000000) {
+		dev_err(&pdev->dev,
+			"Only 100kHz, 400kHz and 1MHz are supported");
 		return -EINVAL;
 	}
 
