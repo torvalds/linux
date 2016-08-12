@@ -547,16 +547,6 @@ struct drm_crtc_funcs {
 	 * counter and timestamp tracking though, e.g. if they have accurate
 	 * timestamp registers in hardware.
 	 *
-	 * FIXME:
-	 *
-	 * Up to that point drivers need to manage events themselves and can use
-	 * even->base.list freely for that. Specifically they need to ensure
-	 * that they don't send out page flip (or vblank) events for which the
-	 * corresponding drm file has been closed already. The drm core
-	 * unfortunately does not (yet) take care of that. Therefore drivers
-	 * currently must clean up and release pending events in their
-	 * ->preclose driver function.
-	 *
 	 * This callback is optional.
 	 *
 	 * NOTE:
