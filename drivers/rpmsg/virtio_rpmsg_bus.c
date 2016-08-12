@@ -220,10 +220,8 @@ static struct rpmsg_endpoint *__rpmsg_create_ept(struct virtproc_info *vrp,
 	struct device *dev = rpdev ? &rpdev->dev : &vrp->vdev->dev;
 
 	ept = kzalloc(sizeof(*ept), GFP_KERNEL);
-	if (!ept) {
-		dev_err(dev, "failed to kzalloc a new ept\n");
+	if (!ept)
 		return NULL;
-	}
 
 	kref_init(&ept->refcount);
 	mutex_init(&ept->cb_lock);
@@ -514,11 +512,9 @@ static struct rpmsg_channel *rpmsg_create_channel(struct virtproc_info *vrp,
 		return NULL;
 	}
 
-	rpdev = kzalloc(sizeof(struct rpmsg_channel), GFP_KERNEL);
-	if (!rpdev) {
-		pr_err("kzalloc failed\n");
+	rpdev = kzalloc(sizeof(*rpdev), GFP_KERNEL);
+	if (!rpdev)
 		return NULL;
-	}
 
 	rpdev->vrp = vrp;
 	rpdev->src = chinfo->src;
