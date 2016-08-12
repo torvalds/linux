@@ -1197,7 +1197,7 @@ struct drm_encoder_funcs {
  * @head: list management
  * @base: base KMS object
  * @name: human readable name, can be overwritten by the driver
- * @encoder_type: one of the %DRM_MODE_ENCODER_<foo> types in drm_mode.h
+ * @encoder_type: one of the DRM_MODE_ENCODER_<foo> types in drm_mode.h
  * @possible_crtcs: bitmask of potential CRTC bindings
  * @possible_clones: bitmask of potential sibling encoders for cloning
  * @crtc: currently bound CRTC
@@ -1250,7 +1250,7 @@ struct drm_encoder {
  * @head: list management
  * @base: base KMS object
  * @name: human readable name, can be overwritten by the driver
- * @connector_type: one of the %DRM_MODE_CONNECTOR_<foo> types from drm_mode.h
+ * @connector_type: one of the DRM_MODE_CONNECTOR_<foo> types from drm_mode.h
  * @connector_type_id: index into connector type enum
  * @interlace_allowed: can this connector handle interlaced modes?
  * @doublescan_allowed: can this connector handle doublescan?
@@ -1263,11 +1263,11 @@ struct drm_encoder {
  * @funcs: connector control functions
  * @edid_blob_ptr: DRM property containing EDID if present
  * @properties: property tracking for this connector
- * @polled: a %DRM_CONNECTOR_POLL_<foo> value for core driven polling
+ * @polled: a DRM_CONNECTOR_POLL_<foo> value for core driven polling
  * @dpms: current dpms state
  * @helper_private: mid-layer private data
  * @cmdline_mode: mode line parsed from the kernel cmdline for this connector
- * @force: a %DRM_FORCE_<foo> state for forced mode sets
+ * @force: a DRM_FORCE_<foo> state for forced mode sets
  * @override_edid: has the EDID been overwritten through debugfs for testing?
  * @encoder_ids: valid encoders for this connector
  * @encoder: encoder driving this connector, if any

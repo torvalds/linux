@@ -137,7 +137,7 @@ static const struct drm_plane_funcs drm_simple_kms_plane_funcs = {
  * @dev: DRM device
  * @pipe: simple display pipe object to initialize
  * @funcs: callbacks for the display pipe (optional)
- * @formats: array of supported formats (%DRM_FORMAT_*)
+ * @formats: array of supported formats (DRM_FORMAT\_\*)
  * @format_count: number of elements in @formats
  * @connector: connector to attach and register
  *

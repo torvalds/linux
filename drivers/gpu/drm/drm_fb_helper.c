@@ -2193,7 +2193,7 @@ EXPORT_SYMBOL(drm_fb_helper_initial_config);
  * @fb_helper: the drm_fb_helper
  *
  * Scan the connectors attached to the fb_helper and try to put together a
- * setup after *notification of a change in output configuration.
+ * setup after notification of a change in output configuration.
  *
  * Called at runtime, takes the mode config locks to be able to check/change the
  * modeset configuration. Must be run from process context (which usually means
