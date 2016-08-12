@@ -193,8 +193,7 @@ done:
 }
 
 /**
- * drm_atomic_helper_normalize_zpos - calculate normalized zpos values for all
- *				      crtcs
+ * drm_atomic_normalize_zpos - calculate normalized zpos values for all crtcs
  * @dev: DRM device
  * @state: atomic state of DRM device
  *
@@ -205,8 +204,8 @@ done:
  * RETURNS
  * Zero for success or -errno
  */
-int drm_atomic_helper_normalize_zpos(struct drm_device *dev,
-				     struct drm_atomic_state *state)
+int drm_atomic_normalize_zpos(struct drm_device *dev,
+			      struct drm_atomic_state *state)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
@@ -236,3 +235,4 @@ int drm_atomic_helper_normalize_zpos(struct drm_device *dev,
 	}
 	return 0;
 }
+EXPORT_SYMBOL(drm_atomic_normalize_zpos);

@@ -594,7 +594,7 @@ drm_atomic_helper_check_planes(struct drm_device *dev,
 	struct drm_plane_state *plane_state;
 	int i, ret = 0;
 
-	ret = drm_atomic_helper_normalize_zpos(dev, state);
+	ret = drm_atomic_normalize_zpos(dev, state);
 	if (ret)
 		return ret;
 

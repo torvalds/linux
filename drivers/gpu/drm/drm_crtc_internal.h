@@ -160,5 +160,5 @@ int drm_modeset_register_all(struct drm_device *dev);
 void drm_modeset_unregister_all(struct drm_device *dev);
 
 /* drm_blend.c */
-int drm_atomic_helper_normalize_zpos(struct drm_device *dev,
-				     struct drm_atomic_state *state);
+int drm_atomic_normalize_zpos(struct drm_device *dev,
+			      struct drm_atomic_state *state);

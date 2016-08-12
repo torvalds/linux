@@ -559,6 +559,12 @@ connector and plane objects by calling the
 pointer to the target object, a pointer to the previously created
 property and an initial instance value.
 
+Blending and Z-Position properties
+----------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_blend.c
+   :export:
+
 Existing KMS Properties
 -----------------------
 
