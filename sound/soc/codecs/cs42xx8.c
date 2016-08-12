@@ -1,7 +1,7 @@
 /*
  * Cirrus Logic CS42448/CS42888 Audio CODEC Digital Audio Interface (DAI) driver
  *
- * Copyright (C) 2014-2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2014-2016 Freescale Semiconductor, Inc.
  *
  * Author: Nicolin Chen <Guangyu.Chen@freescale.com>
  *
@@ -32,8 +32,7 @@ static const char *const cs42xx8_supply_names[CS42XX8_NUM_SUPPLIES] = {
 
 #define CS42XX8_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | \
 			 SNDRV_PCM_FMTBIT_S20_3LE | \
-			 SNDRV_PCM_FMTBIT_S24_LE | \
-			 SNDRV_PCM_FMTBIT_S32_LE)
+			 SNDRV_PCM_FMTBIT_S24_LE)
 
 /* codec private data */
 struct cs42xx8_priv {
