@@ -358,7 +358,7 @@ static int rproc_handle_vdev(struct rproc *rproc, struct fw_rsc_vdev *rsc,
 		return -EINVAL;
 	}
 
-	rvdev = kzalloc(sizeof(struct rproc_vdev), GFP_KERNEL);
+	rvdev = kzalloc(sizeof(*rvdev), GFP_KERNEL);
 	if (!rvdev)
 		return -ENOMEM;
 
@@ -1359,7 +1359,7 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 		 */
 		name_len = strlen(name) + strlen(template) - 2 + 1;
 
-	rproc = kzalloc(sizeof(struct rproc) + len + name_len, GFP_KERNEL);
+	rproc = kzalloc(sizeof(*rproc) + len + name_len, GFP_KERNEL);
 	if (!rproc)
 		return NULL;
 
