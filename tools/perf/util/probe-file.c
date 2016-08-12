@@ -133,7 +133,7 @@ int probe_file__open_both(int *kfd, int *ufd, int flag)
 /* Get raw string list of current kprobe_events  or uprobe_events */
 struct strlist *probe_file__get_rawlist(int fd)
 {
-	int ret, idx;
+	int ret, idx, fddup;
 	FILE *fp;
 	char buf[MAX_CMDLEN];
 	char *p;
@@ -144,7 +144,14 @@ struct strlist *probe_file__get_rawlist(int fd)
 
 	sl = strlist__new(NULL, NULL);
 
-	fp = fdopen(dup(fd), "r");
+	fddup = dup(fd);
+	if (fddup < 0)
+		goto out_free_sl;
+
+	fp = fdopen(fddup, "r");
+	if (!fp)
+		goto out_close_fddup;
+
 	while (!feof(fp)) {
 		p = fgets(buf, MAX_CMDLEN, fp);
 		if (!p)
@@ -163,6 +170,12 @@ struct strlist *probe_file__get_rawlist(int fd)
 	fclose(fp);
 
 	return sl;
+
+out_close_fddup:
+	close(fddup);
+out_free_sl:
+	strlist__delete(sl);
+	return NULL;
 }
 
 static struct strlist *__probe_file__get_namelist(int fd, bool include_group)
@@ -447,10 +460,13 @@ static int probe_cache__load(struct probe_cache *pcache)
 {
 	struct probe_cache_entry *entry = NULL;
 	char buf[MAX_CMDLEN], *p;
-	int ret = 0;
+	int ret = 0, fddup;
 	FILE *fp;
 
-	fp = fdopen(dup(pcache->fd), "r");
+	fddup = dup(pcache->fd);
+	if (fddup < 0)
+		return -errno;
+	fp = fdopen(fddup, "r");
 	if (!fp)
 		return -EINVAL;
 
