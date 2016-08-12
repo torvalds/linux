@@ -495,16 +495,5 @@ struct exception_table_entry
 	unsigned long insn, fixup;
 };
 
-/* Returns 0 if exception not found and fixup.unit otherwise.  */
-
-extern unsigned long search_exception_table(unsigned long addr);
-extern void sort_exception_table(void);
-
-/* Returns the new pc */
-#define fixup_exception(map_reg, fixup_unit, pc)                \
-({                                                              \
-	fixup_unit;                                             \
-})
-
 #endif	/* __ASSEMBLY__ */
 #endif	/* _XTENSA_UACCESS_H */
