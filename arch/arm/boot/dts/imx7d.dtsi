@@ -51,12 +51,14 @@
 				996000	1075000
 				792000	975000
 			>;
+			clock-frequency = <996000000>;
 		};
 
 		cpu1: cpu@1 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
 			reg = <1>;
+			clock-frequency = <996000000>;
 		};
 	};
 
