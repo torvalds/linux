@@ -1184,8 +1184,8 @@ struct sk_buff *nicvf_get_rcv_skb(struct nicvf *nic, struct cqe_rx_t *cqe_rx)
 	int frag;
 	int payload_len = 0;
 	struct sk_buff *skb = NULL;
-	struct sk_buff *skb_frag = NULL;
-	struct sk_buff *prev_frag = NULL;
+	struct page *page;
+	int offset;
 	u16 *rb_lens = NULL;
 	u64 *rb_ptrs = NULL;
 
@@ -1218,22 +1218,10 @@ struct sk_buff *nicvf_get_rcv_skb(struct nicvf *nic, struct cqe_rx_t *cqe_rx)
 			skb_put(skb, payload_len);
 		} else {
 			/* Add fragments */
-			skb_frag = nicvf_rb_ptr_to_skb(nic, *rb_ptrs,
-						       payload_len);
-			if (!skb_frag) {
-				dev_kfree_skb(skb);
-				return NULL;
-			}
-
-			if (!skb_shinfo(skb)->frag_list)
-				skb_shinfo(skb)->frag_list = skb_frag;
-			else
-				prev_frag->next = skb_frag;
-
-			prev_frag = skb_frag;
-			skb->len += payload_len;
-			skb->data_len += payload_len;
-			skb_frag->len = payload_len;
+			page = virt_to_page(phys_to_virt(*rb_ptrs));
+			offset = phys_to_virt(*rb_ptrs) - page_address(page);
+			skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
+					offset, payload_len, RCV_FRAG_LEN);
 		}
 		/* Next buffer pointer */
 		rb_ptrs++;
