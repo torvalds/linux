@@ -282,6 +282,8 @@ acpi_parse_lapic_addr_ovr(struct acpi_subtable_header * header,
 	if (BAD_MADT_ENTRY(lapic_addr_ovr, end))
 		return -EINVAL;
 
+	acpi_table_print_madt_entry(header);
+
 	acpi_lapic_addr = lapic_addr_ovr->address;
 
 	return 0;
@@ -997,21 +999,6 @@ static int __init acpi_parse_madt_lapic_entries(void)
 
 	if (!boot_cpu_has(X86_FEATURE_APIC))
 		return -ENODEV;
-
-	/*
-	 * Note that the LAPIC address is obtained from the MADT (32-bit value)
-	 * and (optionally) overridden by a LAPIC_ADDR_OVR entry (64-bit value).
-	 */
-
-	count = acpi_table_parse_madt(ACPI_MADT_TYPE_LOCAL_APIC_OVERRIDE,
-				      acpi_parse_lapic_addr_ovr, 0);
-	if (count < 0) {
-		printk(KERN_ERR PREFIX
-		       "Error parsing LAPIC address override entry\n");
-		return count;
-	}
-
-	register_lapic_address(acpi_lapic_addr);
 
 	count = acpi_table_parse_madt(ACPI_MADT_TYPE_LOCAL_SAPIC,
 				      acpi_parse_sapic, MAX_LOCAL_APIC);
