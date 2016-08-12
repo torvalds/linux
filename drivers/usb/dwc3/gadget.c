@@ -888,14 +888,13 @@ static u32 dwc3_calc_trbs_left(struct dwc3_ep *dep)
 static void dwc3_prepare_one_trb_sg(struct dwc3_ep *dep,
 		struct dwc3_request *req, unsigned int trbs_left)
 {
-	struct usb_request *request = &req->request;
-	struct scatterlist *sg = request->sg;
+	struct scatterlist *sg = req->sg;
 	struct scatterlist *s;
 	unsigned int	length;
 	dma_addr_t	dma;
 	int		i;
 
-	for_each_sg(sg, s, request->num_mapped_sgs, i) {
+	for_each_sg(sg, s, req->num_pending_sgs, i) {
 		unsigned chain = true;
 
 		length = sg_dma_len(s);
@@ -945,7 +944,7 @@ static void dwc3_prepare_trbs(struct dwc3_ep *dep)
 		return;
 
 	list_for_each_entry_safe(req, n, &dep->pending_list, list) {
-		if (req->request.num_mapped_sgs > 0)
+		if (req->num_pending_sgs > 0)
 			dwc3_prepare_one_trb_sg(dep, req, trbs_left--);
 		else
 			dwc3_prepare_one_trb_linear(dep, req, trbs_left--);
@@ -1070,6 +1069,9 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 			dep->direction);
 	if (ret)
 		return ret;
+
+	req->sg			= req->request.sg;
+	req->num_pending_sgs	= req->request.num_mapped_sgs;
 
 	list_add_tail(&req->list, &dep->pending_list);
 
@@ -1935,22 +1937,30 @@ static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 	int			ret;
 
 	list_for_each_entry_safe(req, n, &dep->started_list, list) {
-
+		unsigned length;
+		unsigned actual;
 		int chain;
 
-		chain = req->request.num_mapped_sgs > 0;
+		length = req->request.length;
+		chain = req->num_pending_sgs > 0;
 		if (chain) {
-			struct scatterlist *sg = req->request.sg;
+			struct scatterlist *sg = req->sg;
 			struct scatterlist *s;
+			unsigned int pending = req->num_pending_sgs;
 			unsigned int i;
 
-			for_each_sg(sg, s, req->request.num_mapped_sgs, i) {
+			for_each_sg(sg, s, pending, i) {
 				trb = &dep->trb_pool[dep->trb_dequeue];
 				count += trb->size & DWC3_TRB_SIZE_MASK;
 				dwc3_ep_inc_deq(dep);
 
+				req->sg = sg_next(s);
+				req->num_pending_sgs--;
+
 				ret = __dwc3_cleanup_done_trbs(dwc, dep, req, trb,
 						event, status, chain);
+				if (ret)
+					break;
 			}
 		} else {
 			trb = &dep->trb_pool[dep->trb_dequeue];
@@ -1968,7 +1978,12 @@ static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 		 * should receive and we simply bounce the request back to the
 		 * gadget driver for further processing.
 		 */
-		req->request.actual += req->request.length - count;
+		actual = length - req->request.actual;
+		req->request.actual = actual;
+
+		if (ret && chain && (actual < length) && req->num_pending_sgs)
+			return __dwc3_gadget_kick_transfer(dep, 0);
+
 		dwc3_gadget_giveback(dep, req, status);
 
 		if (ret)
