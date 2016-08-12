@@ -62,6 +62,10 @@
  * @ss_lcnt: standard speed LCNT value
  * @fs_hcnt: fast speed HCNT value
  * @fs_lcnt: fast speed LCNT value
+ * @fp_hcnt: fast plus HCNT value
+ * @fp_lcnt: fast plus LCNT value
+ * @hs_hcnt: high speed HCNT value
+ * @hs_lcnt: high speed LCNT value
  * @acquire_lock: function to acquire a hardware lock on the bus
  * @release_lock: function to release a hardware lock on the bus
  * @pm_runtime_disabled: true if pm runtime is disabled
@@ -105,6 +109,10 @@ struct dw_i2c_dev {
 	u16			ss_lcnt;
 	u16			fs_hcnt;
 	u16			fs_lcnt;
+	u16			fp_hcnt;
+	u16			fp_lcnt;
+	u16			hs_hcnt;
+	u16			hs_lcnt;
 	int			(*acquire_lock)(struct dw_i2c_dev *dev);
 	void			(*release_lock)(struct dw_i2c_dev *dev);
 	bool			pm_runtime_disabled;
