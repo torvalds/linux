@@ -84,7 +84,7 @@ static int vsc85xx_config_init(struct phy_device *phydev)
 
 static int vsc85xx_ack_interrupt(struct phy_device *phydev)
 {
-       int rc;
+       int rc = 0;
 
        if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
                rc = phy_read(phydev, MII_VSC85XX_INT_STATUS);
