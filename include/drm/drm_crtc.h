@@ -2808,6 +2808,12 @@ struct drm_property_blob *drm_property_create_blob(struct drm_device *dev,
                                                    const void *data);
 struct drm_property_blob *drm_property_lookup_blob(struct drm_device *dev,
                                                    uint32_t id);
+int drm_property_replace_global_blob(struct drm_device *dev,
+				     struct drm_property_blob **replace,
+				     size_t length,
+				     const void *data,
+				     struct drm_mode_object *obj_holds_id,
+				     struct drm_property *prop_holds_id);
 struct drm_property_blob *drm_property_reference_blob(struct drm_property_blob *blob);
 void drm_property_unreference_blob(struct drm_property_blob *blob);
 extern void drm_property_destroy(struct drm_device *dev, struct drm_property *property);

@@ -3761,12 +3761,12 @@ EXPORT_SYMBOL(drm_property_lookup_blob);
  * a completely atomic update. The access to path_blob_ptr is protected by the
  * caller holding a lock on the connector.
  */
-static int drm_property_replace_global_blob(struct drm_device *dev,
-                                            struct drm_property_blob **replace,
-                                            size_t length,
-                                            const void *data,
-                                            struct drm_mode_object *obj_holds_id,
-                                            struct drm_property *prop_holds_id)
+int drm_property_replace_global_blob(struct drm_device *dev,
+				     struct drm_property_blob **replace,
+				     size_t length,
+				     const void *data,
+				     struct drm_mode_object *obj_holds_id,
+				     struct drm_property *prop_holds_id)
 {
 	struct drm_property_blob *new_blob = NULL;
 	struct drm_property_blob *old_blob = NULL;
@@ -3805,6 +3805,7 @@ err_created:
 	drm_property_unreference_blob(new_blob);
 	return ret;
 }
+EXPORT_SYMBOL(drm_property_replace_global_blob);
 
 /**
  * drm_mode_getblob_ioctl - get the contents of a blob property value
