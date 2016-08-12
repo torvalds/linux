@@ -107,6 +107,9 @@ struct i2c_acpi_lookup {
 	struct i2c_board_info *info;
 	acpi_handle adapter_handle;
 	acpi_handle device_handle;
+	acpi_handle search_handle;
+	u32 speed;
+	u32 min_speed;
 };
 
 static int i2c_acpi_fill_info(struct acpi_resource *ares, void *data)
@@ -130,10 +133,37 @@ static int i2c_acpi_fill_info(struct acpi_resource *ares, void *data)
 		return 1;
 
 	info->addr = sb->slave_address;
+	lookup->speed = sb->connection_speed;
 	if (sb->access_mode == ACPI_I2C_10BIT_MODE)
 		info->flags |= I2C_CLIENT_TEN;
 
 	return 1;
+}
+
+static int i2c_acpi_do_lookup(struct acpi_device *adev,
+			      struct i2c_acpi_lookup *lookup)
+{
+	struct i2c_board_info *info = lookup->info;
+	struct list_head resource_list;
+	int ret;
+
+	if (acpi_bus_get_status(adev) || !adev->status.present ||
+	    acpi_device_enumerated(adev))
+		return -EINVAL;
+
+	memset(info, 0, sizeof(*info));
+	lookup->device_handle = acpi_device_handle(adev);
+
+	/* Look up for I2cSerialBus resource */
+	INIT_LIST_HEAD(&resource_list);
+	ret = acpi_dev_get_resources(adev, &resource_list,
+				     i2c_acpi_fill_info, lookup);
+	acpi_dev_free_resource_list(&resource_list);
+
+	if (ret < 0 || !info->addr)
+		return -EINVAL;
+
+	return 0;
 }
 
 static int i2c_acpi_get_info(struct acpi_device *adev,
@@ -145,29 +175,18 @@ static int i2c_acpi_get_info(struct acpi_device *adev,
 	struct i2c_acpi_lookup lookup;
 	int ret;
 
-	if (acpi_bus_get_status(adev) || !adev->status.present ||
-	    acpi_device_enumerated(adev))
-		return -EINVAL;
-
-	memset(info, 0, sizeof(*info));
-	info->fwnode = acpi_fwnode_handle(adev);
-
 	memset(&lookup, 0, sizeof(lookup));
-	lookup.device_handle = acpi_device_handle(adev);
 	lookup.info = info;
 
-	/* Look up for I2cSerialBus resource */
-	INIT_LIST_HEAD(&resource_list);
-	ret = acpi_dev_get_resources(adev, &resource_list,
-				     i2c_acpi_fill_info, &lookup);
-	acpi_dev_free_resource_list(&resource_list);
+	ret = i2c_acpi_do_lookup(adev, &lookup);
+	if (ret)
+		return ret;
 
-	if (ret < 0 || !info->addr)
-		return -EINVAL;
-
+	info->fwnode = acpi_fwnode_handle(adev);
 	*adapter_handle = lookup.adapter_handle;
 
 	/* Then fill IRQ number if any */
+	INIT_LIST_HEAD(&resource_list);
 	ret = acpi_dev_get_resources(adev, &resource_list, NULL, NULL);
 	if (ret < 0)
 		return -EINVAL;
@@ -247,6 +266,64 @@ static void i2c_acpi_register_devices(struct i2c_adapter *adap)
 	if (ACPI_FAILURE(status))
 		dev_warn(&adap->dev, "failed to enumerate I2C slaves\n");
 }
+
+static acpi_status i2c_acpi_lookup_speed(acpi_handle handle, u32 level,
+					   void *data, void **return_value)
+{
+	struct i2c_acpi_lookup *lookup = data;
+	struct acpi_device *adev;
+
+	if (acpi_bus_get_device(handle, &adev))
+		return AE_OK;
+
+	if (i2c_acpi_do_lookup(adev, lookup))
+		return AE_OK;
+
+	if (lookup->search_handle != lookup->adapter_handle)
+		return AE_OK;
+
+	if (lookup->speed <= lookup->min_speed)
+		lookup->min_speed = lookup->speed;
+
+	return AE_OK;
+}
+
+/**
+ * i2c_acpi_find_bus_speed - find I2C bus speed from ACPI
+ * @dev: The device owning the bus
+ *
+ * Find the I2C bus speed by walking the ACPI namespace for all I2C slaves
+ * devices connected to this bus and use the speed of slowest device.
+ *
+ * Returns the speed in Hz or zero
+ */
+u32 i2c_acpi_find_bus_speed(struct device *dev)
+{
+	struct i2c_acpi_lookup lookup;
+	struct i2c_board_info dummy;
+	acpi_status status;
+
+	if (!has_acpi_companion(dev))
+		return 0;
+
+	memset(&lookup, 0, sizeof(lookup));
+	lookup.search_handle = ACPI_HANDLE(dev);
+	lookup.min_speed = UINT_MAX;
+	lookup.info = &dummy;
+
+	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
+				     I2C_ACPI_MAX_SCAN_DEPTH,
+				     i2c_acpi_lookup_speed, NULL,
+				     &lookup, NULL);
+
+	if (ACPI_FAILURE(status)) {
+		dev_warn(dev, "unable to find I2C bus speed from ACPI\n");
+		return 0;
+	}
+
+	return lookup.min_speed != UINT_MAX ? lookup.min_speed : 0;
+}
+EXPORT_SYMBOL_GPL(i2c_acpi_find_bus_speed);
 
 static int i2c_acpi_match_adapter(struct device *dev, void *data)
 {
