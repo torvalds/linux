@@ -44,14 +44,13 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev);
 static u64 amdgpu_get_vis_part_size(struct amdgpu_device *adev,
 						struct ttm_mem_reg *mem)
 {
-	u64 ret = 0;
-	if (mem->start << PAGE_SHIFT < adev->mc.visible_vram_size) {
-		ret = (u64)((mem->start << PAGE_SHIFT) + mem->size) >
-			   adev->mc.visible_vram_size ?
-			   adev->mc.visible_vram_size - (mem->start << PAGE_SHIFT) :
-			   mem->size;
-	}
-	return ret;
+	if (mem->start << PAGE_SHIFT >= adev->mc.visible_vram_size)
+		return 0;
+
+	return ((mem->start << PAGE_SHIFT) + mem->size) >
+		adev->mc.visible_vram_size ?
+		adev->mc.visible_vram_size - (mem->start << PAGE_SHIFT) :
+		mem->size;
 }
 
 static void amdgpu_update_memory_usage(struct amdgpu_device *adev,
@@ -125,8 +124,9 @@ static void amdgpu_ttm_placement_init(struct amdgpu_device *adev,
 			adev->mc.visible_vram_size < adev->mc.real_vram_size) {
 			placements[c].fpfn =
 				adev->mc.visible_vram_size >> PAGE_SHIFT;
-			placements[c++].flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED |
-				TTM_PL_FLAG_VRAM | TTM_PL_FLAG_TOPDOWN;
+			placements[c++].flags = TTM_PL_FLAG_WC |
+				TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_VRAM |
+				TTM_PL_FLAG_TOPDOWN;
 		}
 		placements[c].fpfn = 0;
 		placements[c++].flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED |
@@ -138,22 +138,24 @@ static void amdgpu_ttm_placement_init(struct amdgpu_device *adev,
 	if (domain & AMDGPU_GEM_DOMAIN_GTT) {
 		if (flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC) {
 			placements[c].fpfn = 0;
-			placements[c++].flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_TT |
-				TTM_PL_FLAG_UNCACHED;
+			placements[c++].flags = TTM_PL_FLAG_WC |
+				TTM_PL_FLAG_TT | TTM_PL_FLAG_UNCACHED;
 		} else {
 			placements[c].fpfn = 0;
-			placements[c++].flags = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_TT;
+			placements[c++].flags = TTM_PL_FLAG_CACHED |
+				TTM_PL_FLAG_TT;
 		}
 	}
 
 	if (domain & AMDGPU_GEM_DOMAIN_CPU) {
 		if (flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC) {
 			placements[c].fpfn = 0;
-			placements[c++].flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_SYSTEM |
-				TTM_PL_FLAG_UNCACHED;
+			placements[c++].flags = TTM_PL_FLAG_WC |
+				TTM_PL_FLAG_SYSTEM | TTM_PL_FLAG_UNCACHED;
 		} else {
 			placements[c].fpfn = 0;
-			placements[c++].flags = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_SYSTEM;
+			placements[c++].flags = TTM_PL_FLAG_CACHED |
+				TTM_PL_FLAG_SYSTEM;
 		}
 	}
 
@@ -539,7 +541,8 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 		/* force to pin into visible video ram */
 		if ((bo->placements[i].flags & TTM_PL_FLAG_VRAM) &&
 		    !(bo->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS) &&
-		    (!max_offset || max_offset > bo->adev->mc.visible_vram_size)) {
+		    (!max_offset || max_offset >
+		     bo->adev->mc.visible_vram_size)) {
 			if (WARN_ON_ONCE(min_offset >
 					 bo->adev->mc.visible_vram_size))
 				return -EINVAL;
@@ -558,19 +561,23 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 	}
 
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
-	if (likely(r == 0)) {
-		bo->pin_count = 1;
-		if (gpu_addr != NULL)
-			*gpu_addr = amdgpu_bo_gpu_offset(bo);
-		if (domain == AMDGPU_GEM_DOMAIN_VRAM) {
-			bo->adev->vram_pin_size += amdgpu_bo_size(bo);
-			if (bo->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
-				bo->adev->invisible_pin_size += amdgpu_bo_size(bo);
-		} else
-			bo->adev->gart_pin_size += amdgpu_bo_size(bo);
-	} else {
+	if (unlikely(r)) {
 		dev_err(bo->adev->dev, "%p pin failed\n", bo);
+		goto error;
 	}
+
+	bo->pin_count = 1;
+	if (gpu_addr != NULL)
+		*gpu_addr = amdgpu_bo_gpu_offset(bo);
+	if (domain == AMDGPU_GEM_DOMAIN_VRAM) {
+		bo->adev->vram_pin_size += amdgpu_bo_size(bo);
+		if (bo->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
+			bo->adev->invisible_pin_size += amdgpu_bo_size(bo);
+	} else {
+		bo->adev->gart_pin_size += amdgpu_bo_size(bo);
+	}
+
+error:
 	return r;
 }
 
@@ -595,16 +602,20 @@ int amdgpu_bo_unpin(struct amdgpu_bo *bo)
 		bo->placements[i].flags &= ~TTM_PL_FLAG_NO_EVICT;
 	}
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
-	if (likely(r == 0)) {
-		if (bo->tbo.mem.mem_type == TTM_PL_VRAM) {
-			bo->adev->vram_pin_size -= amdgpu_bo_size(bo);
-			if (bo->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
-				bo->adev->invisible_pin_size -= amdgpu_bo_size(bo);
-		} else
-			bo->adev->gart_pin_size -= amdgpu_bo_size(bo);
-	} else {
+	if (unlikely(r)) {
 		dev_err(bo->adev->dev, "%p validate failed for unpin\n", bo);
+		goto error;
 	}
+
+	if (bo->tbo.mem.mem_type == TTM_PL_VRAM) {
+		bo->adev->vram_pin_size -= amdgpu_bo_size(bo);
+		if (bo->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
+			bo->adev->invisible_pin_size -= amdgpu_bo_size(bo);
+	} else {
+		bo->adev->gart_pin_size -= amdgpu_bo_size(bo);
+	}
+
+error:
 	return r;
 }
 
@@ -775,7 +786,8 @@ int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 	for (i = 0; i < abo->placement.num_placement; i++) {
 		/* Force into visible VRAM */
 		if ((abo->placements[i].flags & TTM_PL_FLAG_VRAM) &&
-		    (!abo->placements[i].lpfn || abo->placements[i].lpfn > lpfn))
+		    (!abo->placements[i].lpfn ||
+		     abo->placements[i].lpfn > lpfn))
 			abo->placements[i].lpfn = lpfn;
 	}
 	r = ttm_bo_validate(bo, &abo->placement, false, false);
