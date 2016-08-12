@@ -25,6 +25,7 @@
 
 #include <linux/kref.h>
 struct drm_object_properties;
+struct drm_property;
 
 struct drm_mode_object {
 	uint32_t id;
@@ -34,17 +35,36 @@ struct drm_mode_object {
 	void (*free_cb)(struct kref *kref);
 };
 
+#define DRM_OBJECT_MAX_PROPERTY 24
+struct drm_object_properties {
+	int count, atomic_count;
+	/* NOTE: if we ever start dynamically destroying properties (ie.
+	 * not at drm_mode_config_cleanup() time), then we'd have to do
+	 * a better job of detaching property from mode objects to avoid
+	 * dangling property pointers:
+	 */
+	struct drm_property *properties[DRM_OBJECT_MAX_PROPERTY];
+	/* do not read/write values directly, but use drm_object_property_get_value()
+	 * and drm_object_property_set_value():
+	 */
+	uint64_t values[DRM_OBJECT_MAX_PROPERTY];
+};
+
+/* Avoid boilerplate.  I'm tired of typing. */
+#define DRM_ENUM_NAME_FN(fnname, list)				\
+	const char *fnname(int val)				\
+	{							\
+		int i;						\
+		for (i = 0; i < ARRAY_SIZE(list); i++) {	\
+			if (list[i].type == val)		\
+				return list[i].name;		\
+		}						\
+		return "(unknown)";				\
+	}
+
 struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
 					     uint32_t id, uint32_t type);
 void drm_mode_object_reference(struct drm_mode_object *obj);
 void drm_mode_object_unreference(struct drm_mode_object *obj);
-
-/* FIXME: This is temporary until we have a drm_connector.h */
-enum drm_connector_force {
-	DRM_FORCE_UNSPECIFIED,
-	DRM_FORCE_OFF,
-	DRM_FORCE_ON,         /* force on analog part normally */
-	DRM_FORCE_ON_DIGITAL, /* for DVI-I use digital connector */
-};
 
 #endif

@@ -33,8 +33,6 @@
 
 
 /* drm_crtc.c */
-void drm_connector_ida_init(void);
-void drm_connector_ida_destroy(void);
 int drm_mode_object_get_reg(struct drm_device *dev,
 			    struct drm_mode_object *obj,
 			    uint32_t obj_type,
@@ -48,6 +46,10 @@ struct drm_mode_object *__drm_mode_object_find(struct drm_device *dev,
 					       uint32_t id, uint32_t type);
 void drm_mode_object_unregister(struct drm_device *dev,
 				struct drm_mode_object *object);
+int drm_mode_object_get_properties(struct drm_mode_object *obj, bool atomic,
+				   uint32_t __user *prop_ptr,
+				   uint64_t __user *prop_values,
+				   uint32_t *arg_count_props);
 bool drm_property_change_valid_get(struct drm_property *property,
 				   uint64_t value,
 				   struct drm_mode_object **ref);
@@ -85,8 +87,6 @@ int drm_mode_getplane_res(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv);
 int drm_mode_getcrtc(struct drm_device *dev,
 		     void *data, struct drm_file *file_priv);
-int drm_mode_getconnector(struct drm_device *dev,
-			  void *data, struct drm_file *file_priv);
 int drm_mode_setcrtc(struct drm_device *dev,
 		     void *data, struct drm_file *file_priv);
 int drm_mode_getplane(struct drm_device *dev,
@@ -105,8 +105,6 @@ int drm_mode_createblob_ioctl(struct drm_device *dev,
 			      void *data, struct drm_file *file_priv);
 int drm_mode_destroyblob_ioctl(struct drm_device *dev,
 			       void *data, struct drm_file *file_priv);
-int drm_mode_connector_property_set_ioctl(struct drm_device *dev,
-					  void *data, struct drm_file *file_priv);
 int drm_mode_getencoder(struct drm_device *dev,
 			void *data, struct drm_file *file_priv);
 int drm_mode_gamma_get_ioctl(struct drm_device *dev,
@@ -116,6 +114,22 @@ int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 
 int drm_mode_page_flip_ioctl(struct drm_device *dev,
 			     void *data, struct drm_file *file_priv);
+
+/* drm_connector.c */
+void drm_connector_ida_init(void);
+void drm_connector_ida_destroy(void);
+void drm_connector_unregister_all(struct drm_device *dev);
+int drm_connector_register_all(struct drm_device *dev);
+int drm_mode_connector_set_obj_prop(struct drm_mode_object *obj,
+				    struct drm_property *property,
+				    uint64_t value);
+int drm_connector_create_standard_properties(struct drm_device *dev);
+
+/* IOCTL */
+int drm_mode_connector_property_set_ioctl(struct drm_device *dev,
+					  void *data, struct drm_file *file_priv);
+int drm_mode_getconnector(struct drm_device *dev,
+			  void *data, struct drm_file *file_priv);
 
 /* drm_framebuffer.c */
 struct drm_framebuffer *

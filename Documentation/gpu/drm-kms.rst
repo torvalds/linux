@@ -110,6 +110,15 @@ Display Modes Function Reference
 .. kernel-doc:: drivers/gpu/drm/drm_modes.c
    :export:
 
+Connector Display Sink Abstraction
+==================================
+
+.. kernel-doc:: include/drm/drm_connector.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_connector.c
+   :export:
+
 KMS Initialization and Cleanup
 ==============================
 
