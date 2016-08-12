@@ -17,7 +17,7 @@
 
 /* this file implements the /dev/pvfs2-req device node */
 
-uint32_t userspace_version;
+uint32_t orangefs_userspace_version;
 
 static int open_access_count;
 
@@ -389,9 +389,9 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 		return -EPROTO;
 	}
 
-	if (!userspace_version) {
-		userspace_version = head.version;
-	} else if (userspace_version != head.version) {
+	if (!orangefs_userspace_version) {
+		orangefs_userspace_version = head.version;
+	} else if (orangefs_userspace_version != head.version) {
 		gossip_err("Error: userspace version changes\n");
 		return -EPROTO;
 	}
@@ -536,7 +536,7 @@ static int orangefs_devreq_release(struct inode *inode, struct file *file)
 	gossip_debug(GOSSIP_DEV_DEBUG,
 		     "pvfs2-client-core: device close complete\n");
 	open_access_count = 0;
-	userspace_version = 0;
+	orangefs_userspace_version = 0;
 	mutex_unlock(&devreq_mutex);
 	return 0;
 }

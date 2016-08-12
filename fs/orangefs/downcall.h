@@ -101,6 +101,11 @@ struct orangefs_fs_key_response {
 	char fs_key[FS_KEY_BUF_SIZE];
 };
 
+/* 2.9.6 */
+struct orangefs_features_response {
+	__u64 features;
+};
+
 struct orangefs_downcall_s {
 	__s32 type;
 	__s32 status;
@@ -122,6 +127,7 @@ struct orangefs_downcall_s {
 		struct orangefs_param_response param;
 		struct orangefs_perf_count_response perf_count;
 		struct orangefs_fs_key_response fs_key;
+		struct orangefs_features_response features;
 	} resp;
 };
 

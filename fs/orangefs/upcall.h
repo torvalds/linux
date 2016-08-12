@@ -210,6 +210,11 @@ struct orangefs_fs_key_request_s {
 	__s32 __pad1;
 };
 
+/* 2.9.6 */
+struct orangefs_features_request_s {
+	__u64 features;
+};
+
 struct orangefs_upcall_s {
 	__s32 type;
 	__u32 uid;
@@ -246,6 +251,7 @@ struct orangefs_upcall_s {
 		struct orangefs_param_request_s param;
 		struct orangefs_perf_count_request_s perf_count;
 		struct orangefs_fs_key_request_s fs_key;
+		struct orangefs_features_request_s features;
 	} req;
 };
 
