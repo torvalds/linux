@@ -1678,17 +1678,6 @@ struct gb_camera_stream_config_response {
 	__le32 max_size;
 } __packed;
 
-struct gb_camera_configure_streams_response_deprecated {
-	__u8 num_streams;
-	__u8 flags;
-	__u8 num_lanes;
-	__u8 padding;
-	__le32 bus_freq;
-	__le32 lines_per_second;
-	struct gb_camera_stream_config_response config[0];
-} __packed;
-#define GB_CAMERA_CONFIGURE_STREAMS_DEPRECATED_SIZE	12
-
 struct gb_camera_configure_streams_response {
 	__u8 num_streams;
 #define GB_CAMERA_CONFIGURE_STREAMS_ADJUSTED	0x01
@@ -1697,7 +1686,6 @@ struct gb_camera_configure_streams_response {
 	__le32 data_rate;
 	struct gb_camera_stream_config_response config[0];
 };
-#define GB_CAMERA_CONFIGURE_STREAMS_SIZE		8
 
 /* Greybus Camera Capture request payload - response has no payload */
 struct gb_camera_capture_request {
