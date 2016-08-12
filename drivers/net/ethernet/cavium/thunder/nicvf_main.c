@@ -938,16 +938,19 @@ static int nicvf_register_interrupts(struct nicvf *nic)
 	int vector;
 
 	for_each_cq_irq(irq)
-		sprintf(nic->irq_name[irq], "NICVF%d CQ%d",
-			nic->vf_id, irq);
+		sprintf(nic->irq_name[irq], "%s-rxtx-%d",
+			nic->pnicvf->netdev->name,
+			nicvf_netdev_qidx(nic, irq));
 
 	for_each_sq_irq(irq)
-		sprintf(nic->irq_name[irq], "NICVF%d SQ%d",
-			nic->vf_id, irq - NICVF_INTR_ID_SQ);
+		sprintf(nic->irq_name[irq], "%s-sq-%d",
+			nic->pnicvf->netdev->name,
+			nicvf_netdev_qidx(nic, irq - NICVF_INTR_ID_SQ));
 
 	for_each_rbdr_irq(irq)
-		sprintf(nic->irq_name[irq], "NICVF%d RBDR%d",
-			nic->vf_id, irq - NICVF_INTR_ID_RBDR);
+		sprintf(nic->irq_name[irq], "%s-rbdr-%d",
+			nic->pnicvf->netdev->name,
+			nic->sqs_mode ? (nic->sqs_id + 1) : 0);
 
 	/* Register CQ interrupts */
 	for (irq = 0; irq < nic->qs->cq_cnt; irq++) {
@@ -971,8 +974,9 @@ static int nicvf_register_interrupts(struct nicvf *nic)
 	}
 
 	/* Register QS error interrupt */
-	sprintf(nic->irq_name[NICVF_INTR_ID_QS_ERR],
-		"NICVF%d Qset error", nic->vf_id);
+	sprintf(nic->irq_name[NICVF_INTR_ID_QS_ERR], "%s-qset-err-%d",
+		nic->pnicvf->netdev->name,
+		nic->sqs_mode ? (nic->sqs_id + 1) : 0);
 	irq = NICVF_INTR_ID_QS_ERR;
 	ret = request_irq(nic->msix_entries[irq].vector,
 			  nicvf_qs_err_intr_handler,
