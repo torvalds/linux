@@ -39,30 +39,8 @@ Atomic Mode Setting Function Reference
 Frame Buffer Abstraction
 ========================
 
-Frame buffers are abstract memory objects that provide a source of
-pixels to scanout to a CRTC. Applications explicitly request the
-creation of frame buffers through the DRM_IOCTL_MODE_ADDFB(2) ioctls
-and receive an opaque handle that can be passed to the KMS CRTC control,
-plane configuration and page flip functions.
-
-Frame buffers rely on the underneath memory manager for low-level memory
-operations. When creating a frame buffer applications pass a memory
-handle (or a list of memory handles for multi-planar formats) through
-the ``drm_mode_fb_cmd2`` argument. For drivers using GEM as their
-userspace buffer management interface this would be a GEM handle.
-Drivers are however free to use their own backing storage object
-handles, e.g. vmwgfx directly exposes special TTM handles to userspace
-and so expects TTM handles in the create ioctl and not GEM handles.
-
-The lifetime of a drm framebuffer is controlled with a reference count,
-drivers can grab additional references with
-:c:func:`drm_framebuffer_reference()`and drop them again with
-:c:func:`drm_framebuffer_unreference()`. For driver-private
-framebuffers for which the last reference is never dropped (e.g. for the
-fbdev framebuffer when the struct :c:type:`struct drm_framebuffer
-<drm_framebuffer>` is embedded into the fbdev helper struct)
-drivers can manually clean up a framebuffer at module unload time with
-:c:func:`drm_framebuffer_unregister_private()`.
+.. kernel-doc:: drivers/gpu/drm/drm_framebuffer.c
+   :doc: overview
 
 Frame Buffer Functions Reference
 --------------------------------
