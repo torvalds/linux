@@ -4302,7 +4302,7 @@ int mg_get_local_EKB(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	if (retval != STATUS_SUCCESS) {
 		set_sense_type(chip, lun, SENSE_TYPE_MG_KEY_FAIL_NOT_AUTHEN);
 		rtsx_trace(chip);
-		goto GetEKBFinish;
+		goto free_buffer;
 	}
 
 	retval = ms_transfer_data(chip, MS_TM_AUTO_READ, PRO_READ_LONG_DATA,
@@ -4311,7 +4311,7 @@ int mg_get_local_EKB(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		set_sense_type(chip, lun, SENSE_TYPE_MG_KEY_FAIL_NOT_AUTHEN);
 		rtsx_clear_ms_error(chip);
 		rtsx_trace(chip);
-		goto GetEKBFinish;
+		goto free_buffer;
 	}
 	if (check_ms_err(chip)) {
 		set_sense_type(chip, lun, SENSE_TYPE_MG_KEY_FAIL_NOT_AUTHEN);
@@ -4323,7 +4323,7 @@ int mg_get_local_EKB(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	bufflen = min_t(int, 1052, scsi_bufflen(srb));
 	rtsx_stor_set_xfer_buf(buf, bufflen, srb);
 
-GetEKBFinish:
+free_buffer:
 	kfree(buf);
 	return retval;
 }
@@ -4555,7 +4555,7 @@ int mg_get_ICV(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	if (retval != STATUS_SUCCESS) {
 		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_UNRECOVER_READ_ERR);
 		rtsx_trace(chip);
-		goto GetICVFinish;
+		goto free_buffer;
 	}
 
 	retval = ms_transfer_data(chip, MS_TM_AUTO_READ, PRO_READ_LONG_DATA,
@@ -4564,7 +4564,7 @@ int mg_get_ICV(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_UNRECOVER_READ_ERR);
 		rtsx_clear_ms_error(chip);
 		rtsx_trace(chip);
-		goto GetICVFinish;
+		goto free_buffer;
 	}
 	if (check_ms_err(chip)) {
 		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_UNRECOVER_READ_ERR);
@@ -4576,7 +4576,7 @@ int mg_get_ICV(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	bufflen = min_t(int, 1028, scsi_bufflen(srb));
 	rtsx_stor_set_xfer_buf(buf, bufflen, srb);
 
-GetICVFinish:
+free_buffer:
 	kfree(buf);
 	return retval;
 }
