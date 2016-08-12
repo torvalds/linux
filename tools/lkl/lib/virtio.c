@@ -111,7 +111,7 @@ void virtio_req_complete(struct virtio_req *req, uint32_t len)
 	 * q->last_avail_idx is incremented after calling virtio_req_complete(),
 	 * so here we need to add avail_used to it.
 	 */
-	if (q->last_avail_idx + avail_used == q->avail->idx)
+	if (q->last_avail_idx + avail_used == le16toh(q->avail->idx))
 		send_irq = 1;
 
 	/* There are two rings: q->avail and q->used for each of the rx and tx
