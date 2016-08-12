@@ -181,6 +181,8 @@
 };
 
 &du {
+	pinctrl-0 = <&du_pins>;
+	pinctrl-names = "default";
 	status = "okay";
 
 	ports {
@@ -225,6 +227,11 @@
 	avb_pins: avb {
 		groups = "avb_mdc";
 		function = "avb";
+	};
+
+	du_pins: du {
+		groups = "du_rgb888", "du_sync", "du_oddf", "du_clk_out_0";
+		function = "du";
 	};
 
 	sdhi0_pins: sd0 {
