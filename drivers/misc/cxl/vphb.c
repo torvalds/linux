@@ -221,7 +221,7 @@ int cxl_pci_vphb_add(struct cxl_afu *afu)
 	/* Setup the PHB using arch provided callback */
 	phb->ops = &cxl_pcie_pci_ops;
 	phb->cfg_addr = NULL;
-	phb->cfg_data = 0;
+	phb->cfg_data = NULL;
 	phb->private_data = afu;
 	phb->controller_ops = cxl_pci_controller_ops;
 

@@ -187,6 +187,11 @@ static void pci_dma_dev_setup_pasemi(struct pci_dev *dev)
 	if (dev->vendor == 0x1959 && dev->device == 0xa007 &&
 	    !firmware_has_feature(FW_FEATURE_LPAR)) {
 		dev->dev.archdata.dma_ops = &dma_direct_ops;
+		/*
+		 * Set the coherent DMA mask to prevent the iommu
+		 * being used unnecessarily
+		 */
+		dev->dev.coherent_dma_mask = DMA_BIT_MASK(44);
 		return;
 	}
 #endif
