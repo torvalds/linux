@@ -13,6 +13,7 @@ endif
 ifeq ($(CONFIG_OF),y)
   videodev-objs += v4l2-of.o
 endif
+obj-$(CONFIG_V4L2_FWNODE) += v4l2-fwnode.o
 ifeq ($(CONFIG_TRACEPOINTS),y)
   videodev-objs += vb2-trace.o v4l2-trace.o
 endif
