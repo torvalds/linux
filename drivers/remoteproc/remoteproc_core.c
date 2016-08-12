@@ -78,7 +78,7 @@ static const char *rproc_crash_to_string(enum rproc_crash_type type)
  * will try to access an unmapped device address.
  */
 static int rproc_iommu_fault(struct iommu_domain *domain, struct device *dev,
-		unsigned long iova, int flags, void *token)
+			     unsigned long iova, int flags, void *token)
 {
 	struct rproc *rproc = token;
 
@@ -264,7 +264,7 @@ rproc_parse_vring(struct rproc_vdev *rvdev, struct fw_rsc_vdev *rsc, int i)
 	struct rproc_vring *rvring = &rvdev->vring[i];
 
 	dev_dbg(dev, "vdev rsc: vring%d: da %x, qsz %d, align %d\n",
-				i, vring->da, vring->num, vring->align);
+		i, vring->da, vring->num, vring->align);
 
 	/* make sure reserved bytes are zeroes */
 	if (vring->reserved) {
@@ -275,7 +275,7 @@ rproc_parse_vring(struct rproc_vdev *rvdev, struct fw_rsc_vdev *rsc, int i)
 	/* verify queue size and vring alignment are sane */
 	if (!vring->num || !vring->align) {
 		dev_err(dev, "invalid qsz (%d) or alignment (%d)\n",
-						vring->num, vring->align);
+			vring->num, vring->align);
 		return -EINVAL;
 	}
 
@@ -330,7 +330,7 @@ void rproc_free_vring(struct rproc_vring *rvring)
  * Returns 0 on success, or an appropriate error code otherwise
  */
 static int rproc_handle_vdev(struct rproc *rproc, struct fw_rsc_vdev *rsc,
-							int offset, int avail)
+			     int offset, int avail)
 {
 	struct device *dev = &rproc->dev;
 	struct rproc_vdev *rvdev;
@@ -407,7 +407,7 @@ free_rvdev:
  * Returns 0 on success, or an appropriate error code otherwise
  */
 static int rproc_handle_trace(struct rproc *rproc, struct fw_rsc_trace *rsc,
-							int offset, int avail)
+			      int offset, int avail)
 {
 	struct rproc_mem_entry *trace;
 	struct device *dev = &rproc->dev;
@@ -487,7 +487,7 @@ static int rproc_handle_trace(struct rproc *rproc, struct fw_rsc_trace *rsc,
  * are outside those ranges.
  */
 static int rproc_handle_devmem(struct rproc *rproc, struct fw_rsc_devmem *rsc,
-							int offset, int avail)
+			       int offset, int avail)
 {
 	struct rproc_mem_entry *mapping;
 	struct device *dev = &rproc->dev;
@@ -530,7 +530,7 @@ static int rproc_handle_devmem(struct rproc *rproc, struct fw_rsc_devmem *rsc,
 	list_add_tail(&mapping->node, &rproc->mappings);
 
 	dev_dbg(dev, "mapped devmem pa 0x%x, da 0x%x, len 0x%x\n",
-					rsc->pa, rsc->da, rsc->len);
+		rsc->pa, rsc->da, rsc->len);
 
 	return 0;
 
@@ -558,9 +558,8 @@ out:
  * pressure is important; it may have a substantial impact on performance.
  */
 static int rproc_handle_carveout(struct rproc *rproc,
-						struct fw_rsc_carveout *rsc,
-						int offset, int avail)
-
+				 struct fw_rsc_carveout *rsc,
+				 int offset, int avail)
 {
 	struct rproc_mem_entry *carveout, *mapping;
 	struct device *dev = &rproc->dev;
@@ -622,7 +621,7 @@ static int rproc_handle_carveout(struct rproc *rproc,
 		}
 
 		ret = iommu_map(rproc->domain, rsc->da, dma, rsc->len,
-								rsc->flags);
+				rsc->flags);
 		if (ret) {
 			dev_err(dev, "iommu_map failed: %d\n", ret);
 			goto free_mapping;
@@ -775,7 +774,7 @@ static void rproc_resource_cleanup(struct rproc *rproc)
 		if (unmapped != entry->len) {
 			/* nothing much to do besides complaining */
 			dev_err(dev, "failed to unmap %u/%zu\n", entry->len,
-								unmapped);
+				unmapped);
 		}
 
 		list_del(&entry->node);
@@ -1338,8 +1337,8 @@ static struct device_type rproc_type = {
  * yet. Instead, when you need to unroll rproc_alloc(), use rproc_put().
  */
 struct rproc *rproc_alloc(struct device *dev, const char *name,
-				const struct rproc_ops *ops,
-				const char *firmware, int len)
+			  const struct rproc_ops *ops,
+			  const char *firmware, int len)
 {
 	struct rproc *rproc;
 	char *p, *template = "rproc-%s-fw";
