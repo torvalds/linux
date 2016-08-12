@@ -201,9 +201,8 @@ struct mddev {
 #define MD_CHANGE_PENDING 2	/* switch from 'clean' to 'active' in progress */
 #define MD_UPDATE_SB_FLAGS (1 | 2 | 4)	/* If these are set, md_update_sb needed */
 #define MD_ARRAY_FIRST_USE 3    /* First use of array, needs initialization */
-#define MD_STILL_CLOSED	4	/* If set, then array has not been opened since
-				 * md_ioctl checked on it.
-				 */
+#define MD_CLOSING	4	/* If set, we are closing the array, do not open
+				 * it then */
 #define MD_JOURNAL_CLEAN 5	/* A raid with journal is already clean */
 #define MD_HAS_JOURNAL	6	/* The raid array has journal feature set */
 #define MD_RELOAD_SB	7	/* Reload the superblock because another node
