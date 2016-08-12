@@ -189,27 +189,32 @@ static int _ctx_stats_seq_show(struct seq_file *s, void *v)
 DEBUGFS_FILE(ctx_stats)
 
 static void *_qp_stats_seq_start(struct seq_file *s, loff_t *pos)
+	__acquires(RCU)
 {
 	struct qib_qp_iter *iter;
 	loff_t n = *pos;
 
-	rcu_read_lock();
 	iter = qib_qp_iter_init(s->private);
+
+	/* stop calls rcu_read_unlock */
+	rcu_read_lock();
+
 	if (!iter)
 		return NULL;
 
-	while (n--) {
+	do {
 		if (qib_qp_iter_next(iter)) {
 			kfree(iter);
 			return NULL;
 		}
-	}
+	} while (n--);
 
 	return iter;
 }
 
 static void *_qp_stats_seq_next(struct seq_file *s, void *iter_ptr,
 				   loff_t *pos)
+	__must_hold(RCU)
 {
 	struct qib_qp_iter *iter = iter_ptr;
 
@@ -224,6 +229,7 @@ static void *_qp_stats_seq_next(struct seq_file *s, void *iter_ptr,
 }
 
 static void _qp_stats_seq_stop(struct seq_file *s, void *iter_ptr)
+	__releases(RCU)
 {
 	rcu_read_unlock();
 }
