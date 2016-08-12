@@ -270,6 +270,7 @@ struct macsec_dev {
 	struct pcpu_secy_stats __percpu *stats;
 	struct list_head secys;
 	struct gro_cells gro_cells;
+	unsigned int nest_level;
 };
 
 /**
@@ -2699,6 +2700,8 @@ static netdev_tx_t macsec_start_xmit(struct sk_buff *skb,
 
 #define MACSEC_FEATURES \
 	(NETIF_F_SG | NETIF_F_HIGHDMA | NETIF_F_FRAGLIST)
+static struct lock_class_key macsec_netdev_addr_lock_key;
+
 static int macsec_dev_init(struct net_device *dev)
 {
 	struct macsec_dev *macsec = macsec_priv(dev);
@@ -2910,6 +2913,13 @@ static int macsec_get_iflink(const struct net_device *dev)
 	return macsec_priv(dev)->real_dev->ifindex;
 }
 
+
+static int macsec_get_nest_level(struct net_device *dev)
+{
+	return macsec_priv(dev)->nest_level;
+}
+
+
 static const struct net_device_ops macsec_netdev_ops = {
 	.ndo_init		= macsec_dev_init,
 	.ndo_uninit		= macsec_dev_uninit,
@@ -2923,6 +2933,7 @@ static const struct net_device_ops macsec_netdev_ops = {
 	.ndo_start_xmit		= macsec_start_xmit,
 	.ndo_get_stats64	= macsec_get_stats64,
 	.ndo_get_iflink		= macsec_get_iflink,
+	.ndo_get_lock_subclass  = macsec_get_nest_level,
 };
 
 static const struct device_type macsec_type = {
@@ -3050,10 +3061,12 @@ static void macsec_del_dev(struct macsec_dev *macsec)
 static void macsec_common_dellink(struct net_device *dev, struct list_head *head)
 {
 	struct macsec_dev *macsec = macsec_priv(dev);
+	struct net_device *real_dev = macsec->real_dev;
 
 	unregister_netdevice_queue(dev, head);
 	list_del_rcu(&macsec->secys);
 	macsec_del_dev(macsec);
+	netdev_upper_dev_unlink(real_dev, dev);
 
 	macsec_generation++;
 }
@@ -3188,6 +3201,16 @@ static int macsec_newlink(struct net *net, struct net_device *dev,
 
 	dev_hold(real_dev);
 
+	macsec->nest_level = dev_get_nest_level(real_dev, netif_is_macsec) + 1;
+	netdev_lockdep_set_classes(dev);
+	lockdep_set_class_and_subclass(&dev->addr_list_lock,
+				       &macsec_netdev_addr_lock_key,
+				       macsec_get_nest_level(dev));
+
+	err = netdev_upper_dev_link(real_dev, dev);
+	if (err < 0)
+		goto unregister;
+
 	/* need to be already registered so that ->init has run and
 	 * the MAC addr is set
 	 */
@@ -3200,12 +3223,12 @@ static int macsec_newlink(struct net *net, struct net_device *dev,
 
 	if (rx_handler && sci_exists(real_dev, sci)) {
 		err = -EBUSY;
-		goto unregister;
+		goto unlink;
 	}
 
 	err = macsec_add_dev(dev, sci, icv_len);
 	if (err)
-		goto unregister;
+		goto unlink;
 
 	if (data)
 		macsec_changelink_common(dev, data);
@@ -3220,6 +3243,8 @@ static int macsec_newlink(struct net *net, struct net_device *dev,
 
 del_dev:
 	macsec_del_dev(macsec);
+unlink:
+	netdev_upper_dev_unlink(real_dev, dev);
 unregister:
 	unregister_netdevice(dev);
 	return err;
