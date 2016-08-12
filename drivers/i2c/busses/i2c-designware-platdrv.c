@@ -197,12 +197,12 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 
 	/*
 	 * Only standard mode at 100kHz, fast mode at 400kHz,
-	 * and fast mode plus at 1MHz are supported.
+	 * fast mode plus at 1MHz and high speed mode at 3.4MHz are supported.
 	 */
 	if (dev->clk_freq != 100000 && dev->clk_freq != 400000
-	    && dev->clk_freq != 1000000) {
+	    && dev->clk_freq != 1000000 && dev->clk_freq != 3400000) {
 		dev_err(&pdev->dev,
-			"Only 100kHz, 400kHz and 1MHz are supported");
+			"Only 100kHz, 400kHz, 1MHz and 3.4MHz supported");
 		return -EINVAL;
 	}
 
@@ -221,10 +221,16 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	dev->master_cfg = DW_IC_CON_MASTER | DW_IC_CON_SLAVE_DISABLE |
 			  DW_IC_CON_RESTART_EN;
 
-	if (dev->clk_freq == 100000)
+	switch (dev->clk_freq) {
+	case 100000:
 		dev->master_cfg |= DW_IC_CON_SPEED_STD;
-	else
+		break;
+	case 3400000:
+		dev->master_cfg |= DW_IC_CON_SPEED_HIGH;
+		break;
+	default:
 		dev->master_cfg |= DW_IC_CON_SPEED_FAST;
+	}
 
 	dev->clk = devm_clk_get(&pdev->dev, NULL);
 	if (!i2c_dw_plat_prepare_clk(dev, true)) {
