@@ -969,7 +969,7 @@ static int rproc_add_virtio_devices(struct rproc *rproc)
  * rproc_trigger_recovery() - recover a remoteproc
  * @rproc: the remote processor
  *
- * The recovery is done by reseting all the virtio devices, that way all the
+ * The recovery is done by resetting all the virtio devices, that way all the
  * rpmsg drivers will be reseted along with the remote processor making the
  * remoteproc functional again.
  *

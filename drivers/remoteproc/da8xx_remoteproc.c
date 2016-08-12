@@ -147,7 +147,7 @@ static void da8xx_rproc_kick(struct rproc *rproc, int vqid)
 {
 	struct da8xx_rproc *drproc = (struct da8xx_rproc *)rproc->priv;
 
-	/* Interupt remote proc */
+	/* Interrupt remote proc */
 	writel(SYSCFG_CHIPSIG2, drproc->chipsig);
 }
 
