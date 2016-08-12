@@ -1573,6 +1573,44 @@ static struct usb_ep *net2280_match_ep(struct usb_gadget *_gadget,
 			return ep;
 	}
 
+	/* USB3380: Only first four endpoints have DMA channels. Allocate
+	 * slower interrupt endpoints from PIO hw endpoints, to allow bulk/isoc
+	 * endpoints use DMA hw endpoints.
+	 */
+	if (usb_endpoint_type(desc) == USB_ENDPOINT_XFER_INT &&
+	    usb_endpoint_dir_in(desc)) {
+		ep = gadget_find_ep_by_name(_gadget, "ep2in");
+		if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
+			return ep;
+		ep = gadget_find_ep_by_name(_gadget, "ep4in");
+		if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
+			return ep;
+	} else if (usb_endpoint_type(desc) == USB_ENDPOINT_XFER_INT &&
+		   !usb_endpoint_dir_in(desc)) {
+		ep = gadget_find_ep_by_name(_gadget, "ep1out");
+		if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
+			return ep;
+		ep = gadget_find_ep_by_name(_gadget, "ep3out");
+		if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
+			return ep;
+	} else if (usb_endpoint_type(desc) != USB_ENDPOINT_XFER_BULK &&
+		   usb_endpoint_dir_in(desc)) {
+		ep = gadget_find_ep_by_name(_gadget, "ep1in");
+		if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
+			return ep;
+		ep = gadget_find_ep_by_name(_gadget, "ep3in");
+		if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
+			return ep;
+	} else if (usb_endpoint_type(desc) != USB_ENDPOINT_XFER_BULK &&
+		   !usb_endpoint_dir_in(desc)) {
+		ep = gadget_find_ep_by_name(_gadget, "ep2out");
+		if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
+			return ep;
+		ep = gadget_find_ep_by_name(_gadget, "ep4out");
+		if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
+			return ep;
+	}
+
 	/* USB3380: use same address for usb and hardware endpoints */
 	snprintf(name, sizeof(name), "ep%d%s", usb_endpoint_num(desc),
 			usb_endpoint_dir_in(desc) ? "in" : "out");
