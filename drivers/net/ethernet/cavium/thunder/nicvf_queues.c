@@ -479,6 +479,16 @@ void nicvf_config_vlan_stripping(struct nicvf *nic, netdev_features_t features)
 					      NIC_QSET_RQ_GEN_CFG, 0, rq_cfg);
 }
 
+static void nicvf_reset_rcv_queue_stats(struct nicvf *nic)
+{
+	union nic_mbx mbx = {};
+
+	/* Reset all RXQ's stats */
+	mbx.reset_stat.msg = NIC_MBOX_MSG_RESET_STAT_COUNTER;
+	mbx.reset_stat.rq_stat_mask = 0xFFFF;
+	nicvf_send_msg_to_pf(nic, &mbx);
+}
+
 /* Configures receive queue */
 static void nicvf_rcv_queue_config(struct nicvf *nic, struct queue_set *qs,
 				   int qidx, bool enable)
@@ -811,6 +821,11 @@ int nicvf_config_data_transfer(struct nicvf *nic, bool enable)
 
 		nicvf_free_resources(nic);
 	}
+
+	/* Reset RXQ's stats.
+	 * SQ's stats will get reset automatically once SQ is reset.
+	 */
+	nicvf_reset_rcv_queue_stats(nic);
 
 	return 0;
 }

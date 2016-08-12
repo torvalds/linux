@@ -347,6 +347,7 @@ struct nicvf {
 #define	NIC_MBOX_MSG_PNICVF_PTR		0x14	/* Get primary qset nicvf ptr */
 #define	NIC_MBOX_MSG_SNICVF_PTR		0x15	/* Send sqet nicvf ptr to PVF */
 #define	NIC_MBOX_MSG_LOOPBACK		0x16	/* Set interface in loopback */
+#define	NIC_MBOX_MSG_RESET_STAT_COUNTER 0x17	/* Reset statistics counters */
 #define	NIC_MBOX_MSG_CFG_DONE		0xF0	/* VF configuration done */
 #define	NIC_MBOX_MSG_SHUTDOWN		0xF1	/* VF is being shutdown */
 
@@ -463,6 +464,31 @@ struct set_loopback {
 	bool  enable;
 };
 
+/* Reset statistics counters */
+struct reset_stat_cfg {
+	u8    msg;
+	/* Bitmap to select NIC_PF_VNIC(vf_id)_RX_STAT(0..13) */
+	u16   rx_stat_mask;
+	/* Bitmap to select NIC_PF_VNIC(vf_id)_TX_STAT(0..4) */
+	u8    tx_stat_mask;
+	/* Bitmap to select NIC_PF_QS(0..127)_RQ(0..7)_STAT(0..1)
+	 * bit14, bit15 NIC_PF_QS(vf_id)_RQ7_STAT(0..1)
+	 * bit12, bit13 NIC_PF_QS(vf_id)_RQ6_STAT(0..1)
+	 * ..
+	 * bit2, bit3 NIC_PF_QS(vf_id)_RQ1_STAT(0..1)
+	 * bit0, bit1 NIC_PF_QS(vf_id)_RQ0_STAT(0..1)
+	 */
+	u16   rq_stat_mask;
+	/* Bitmap to select NIC_PF_QS(0..127)_SQ(0..7)_STAT(0..1)
+	 * bit14, bit15 NIC_PF_QS(vf_id)_SQ7_STAT(0..1)
+	 * bit12, bit13 NIC_PF_QS(vf_id)_SQ6_STAT(0..1)
+	 * ..
+	 * bit2, bit3 NIC_PF_QS(vf_id)_SQ1_STAT(0..1)
+	 * bit0, bit1 NIC_PF_QS(vf_id)_SQ0_STAT(0..1)
+	 */
+	u16   sq_stat_mask;
+};
+
 /* 128 bit shared memory between PF and each VF */
 union nic_mbx {
 	struct { u8 msg; }	msg;
@@ -480,6 +506,7 @@ union nic_mbx {
 	struct sqs_alloc        sqs_alloc;
 	struct nicvf_ptr	nicvf;
 	struct set_loopback	lbk;
+	struct reset_stat_cfg	reset_stat;
 };
 
 #define NIC_NODE_ID_MASK	0x03

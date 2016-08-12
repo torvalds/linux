@@ -793,6 +793,48 @@ static int nic_config_loopback(struct nicpf *nic, struct set_loopback *lbk)
 	return 0;
 }
 
+/* Reset statistics counters */
+static int nic_reset_stat_counters(struct nicpf *nic,
+				   int vf, struct reset_stat_cfg *cfg)
+{
+	int i, stat, qnum;
+	u64 reg_addr;
+
+	for (i = 0; i < RX_STATS_ENUM_LAST; i++) {
+		if (cfg->rx_stat_mask & BIT(i)) {
+			reg_addr = NIC_PF_VNIC_0_127_RX_STAT_0_13 |
+				   (vf << NIC_QS_ID_SHIFT) |
+				   (i << 3);
+			nic_reg_write(nic, reg_addr, 0);
+		}
+	}
+
+	for (i = 0; i < TX_STATS_ENUM_LAST; i++) {
+		if (cfg->tx_stat_mask & BIT(i)) {
+			reg_addr = NIC_PF_VNIC_0_127_TX_STAT_0_4 |
+				   (vf << NIC_QS_ID_SHIFT) |
+				   (i << 3);
+			nic_reg_write(nic, reg_addr, 0);
+		}
+	}
+
+	for (i = 0; i <= 15; i++) {
+		qnum = i >> 1;
+		stat = i & 1 ? 1 : 0;
+		reg_addr = (vf << NIC_QS_ID_SHIFT) |
+			   (qnum << NIC_Q_NUM_SHIFT) | (stat << 3);
+		if (cfg->rq_stat_mask & BIT(i)) {
+			reg_addr |= NIC_PF_QSET_0_127_RQ_0_7_STAT_0_1;
+			nic_reg_write(nic, reg_addr, 0);
+		}
+		if (cfg->sq_stat_mask & BIT(i)) {
+			reg_addr |= NIC_PF_QSET_0_127_SQ_0_7_STAT_0_1;
+			nic_reg_write(nic, reg_addr, 0);
+		}
+	}
+	return 0;
+}
+
 static void nic_enable_vf(struct nicpf *nic, int vf, bool enable)
 {
 	int bgx, lmac;
@@ -941,6 +983,9 @@ static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 		goto unlock;
 	case NIC_MBOX_MSG_LOOPBACK:
 		ret = nic_config_loopback(nic, &mbx.lbk);
+		break;
+	case NIC_MBOX_MSG_RESET_STAT_COUNTER:
+		ret = nic_reset_stat_counters(nic, vf, &mbx.reset_stat);
 		break;
 	default:
 		dev_err(&nic->pdev->dev,
