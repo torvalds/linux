@@ -199,7 +199,7 @@ EXPORT_SYMBOL(drm_plane_helper_check_state);
  * @crtc: owning CRTC of owning plane
  * @fb: framebuffer to flip onto plane
  * @src: source coordinates in 16.16 fixed point
- * @dest: integer destination coordinates
+ * @dst: integer destination coordinates
  * @clip: integer clipping coordinates
  * @rotation: plane rotation
  * @min_scale: minimum @src:@dest scaling factor in 16.16 fixed point
