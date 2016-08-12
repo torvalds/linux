@@ -61,6 +61,35 @@ static unsigned long byt_rt5640_quirk = BYT_RT5640_DMIC1_MAP |
 					BYT_RT5640_DMIC_EN |
 					BYT_RT5640_MCLK_EN;
 
+static void log_quirks(struct device *dev)
+{
+	if (BYT_RT5640_MAP(byt_rt5640_quirk) == BYT_RT5640_DMIC1_MAP)
+		dev_info(dev, "quirk DMIC1_MAP enabled");
+	if (BYT_RT5640_MAP(byt_rt5640_quirk) == BYT_RT5640_DMIC2_MAP)
+		dev_info(dev, "quirk DMIC2_MAP enabled");
+	if (BYT_RT5640_MAP(byt_rt5640_quirk) == BYT_RT5640_IN1_MAP)
+		dev_info(dev, "quirk IN1_MAP enabled");
+	if (BYT_RT5640_MAP(byt_rt5640_quirk) == BYT_RT5640_IN3_MAP)
+		dev_info(dev, "quirk IN3_MAP enabled");
+	if (byt_rt5640_quirk & BYT_RT5640_DMIC_EN)
+		dev_info(dev, "quirk DMIC enabled");
+	if (byt_rt5640_quirk & BYT_RT5640_MONO_SPEAKER)
+		dev_info(dev, "quirk MONO_SPEAKER enabled");
+	if (byt_rt5640_quirk & BYT_RT5640_DIFF_MIC)
+		dev_info(dev, "quirk DIFF_MIC enabled");
+	if (byt_rt5640_quirk & BYT_RT5640_SSP2_AIF2)
+		dev_info(dev, "quirk SSP2_AIF2 enabled");
+	if (byt_rt5640_quirk & BYT_RT5640_SSP0_AIF1)
+		dev_info(dev, "quirk SSP0_AIF1 enabled");
+	if (byt_rt5640_quirk & BYT_RT5640_SSP0_AIF2)
+		dev_info(dev, "quirk SSP0_AIF2 enabled");
+	if (byt_rt5640_quirk & BYT_RT5640_MCLK_EN)
+		dev_info(dev, "quirk MCLK_EN enabled");
+	if (byt_rt5640_quirk & BYT_RT5640_MCLK_25MHZ)
+		dev_info(dev, "quirk MCLK_25MHZ enabled");
+}
+
+
 #define BYT_CODEC_DAI1	"rt5640-aif1"
 #define BYT_CODEC_DAI2	"rt5640-aif2"
 
@@ -702,6 +731,7 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 
 	/* check quirks before creating card */
 	dmi_check_system(byt_rt5640_quirk_table);
+	log_quirks(&pdev->dev);
 
 	if ((byt_rt5640_quirk & BYT_RT5640_SSP2_AIF2) ||
 	    (byt_rt5640_quirk & BYT_RT5640_SSP0_AIF2)) {
