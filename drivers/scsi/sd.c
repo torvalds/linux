@@ -967,7 +967,10 @@ static int sd_setup_write_same_cmnd(struct scsi_cmnd *cmd)
 	sector >>= ilog2(sdp->sector_size) - 9;
 	nr_sectors >>= ilog2(sdp->sector_size) - 9;
 
-	rq->timeout = SD_WRITE_SAME_TIMEOUT;
+	if (likely(!sdp->timeout_override))
+		rq->timeout = SD_WRITE_SAME_TIMEOUT;
+	else
+		rq->timeout = sdp->timeout_override;
 
 	if (sdkp->ws16 || sector > 0xffffffff || nr_sectors > 0xffff) {
 		cmd->cmd_len = 16;
