@@ -532,8 +532,6 @@ static int etnaviv_bind(struct device *dev)
 	if (!drm)
 		return -ENOMEM;
 
-	drm->platformdev = to_platform_device(dev);
-
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
 		dev_err(dev, "failed to allocate private data\n");
