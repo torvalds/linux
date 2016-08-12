@@ -3758,7 +3758,7 @@ static ssize_t rbd_client_id_show(struct device *dev,
 	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
 
 	return sprintf(buf, "client%lld\n",
-			ceph_client_id(rbd_dev->rbd_client->client));
+		       ceph_client_gid(rbd_dev->rbd_client->client));
 }
 
 static ssize_t rbd_pool_show(struct device *dev,
