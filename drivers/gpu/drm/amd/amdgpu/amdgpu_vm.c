@@ -51,9 +51,6 @@
  * SI supports 16.
  */
 
-/* Special value that no flush is necessary */
-#define AMDGPU_VM_NO_FLUSH (~0ll)
-
 /* Local structure. Encapsulate some VM table update parameters to reduce
  * the number of function parameters
  */
