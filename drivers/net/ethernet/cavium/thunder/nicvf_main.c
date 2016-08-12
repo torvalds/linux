@@ -144,15 +144,19 @@ int nicvf_send_msg_to_pf(struct nicvf *nic, union nic_mbx *mbx)
 
 	/* Wait for previous message to be acked, timeout 2sec */
 	while (!nic->pf_acked) {
-		if (nic->pf_nacked)
+		if (nic->pf_nacked) {
+			netdev_err(nic->netdev,
+				   "PF NACK to mbox msg 0x%02x from VF%d\n",
+				   (mbx->msg.msg & 0xFF), nic->vf_id);
 			return -EINVAL;
+		}
 		msleep(sleep);
 		if (nic->pf_acked)
 			break;
 		timeout -= sleep;
 		if (!timeout) {
 			netdev_err(nic->netdev,
-				   "PF didn't ack to mbox msg %d from VF%d\n",
+				   "PF didn't ACK to mbox msg 0x%02x from VF%d\n",
 				   (mbx->msg.msg & 0xFF), nic->vf_id);
 			return -EBUSY;
 		}

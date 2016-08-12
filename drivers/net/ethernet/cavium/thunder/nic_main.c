@@ -831,7 +831,7 @@ static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 		mbx_addr += sizeof(u64);
 	}
 
-	dev_dbg(&nic->pdev->dev, "%s: Mailbox msg %d from VF%d\n",
+	dev_dbg(&nic->pdev->dev, "%s: Mailbox msg 0x%02x from VF%d\n",
 		__func__, mbx.msg.msg, vf);
 	switch (mbx.msg.msg) {
 	case NIC_MBOX_MSG_READY:
@@ -841,8 +841,7 @@ static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 			nic->duplex[vf] = 0;
 			nic->speed[vf] = 0;
 		}
-		ret = 1;
-		break;
+		goto unlock;
 	case NIC_MBOX_MSG_QS_CFG:
 		reg_addr = NIC_PF_QSET_0_127_CFG |
 			   (mbx.qs.num << NIC_QS_ID_SHIFT);
@@ -891,8 +890,10 @@ static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 		nic_tx_channel_cfg(nic, mbx.qs.num, &mbx.sq);
 		break;
 	case NIC_MBOX_MSG_SET_MAC:
-		if (vf >= nic->num_vf_en)
+		if (vf >= nic->num_vf_en) {
+			ret = -1; /* NACK */
 			break;
+		}
 		lmac = mbx.mac.vf_id;
 		bgx = NIC_GET_BGX_FROM_VF_LMAC_MAP(nic->vf_lmac_map[lmac]);
 		lmac = NIC_GET_LMAC_FROM_VF_LMAC_MAP(nic->vf_lmac_map[lmac]);
@@ -947,10 +948,13 @@ static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 		break;
 	}
 
-	if (!ret)
+	if (!ret) {
 		nic_mbx_send_ack(nic, vf);
-	else if (mbx.msg.msg != NIC_MBOX_MSG_READY)
+	} else if (mbx.msg.msg != NIC_MBOX_MSG_READY) {
+		dev_err(&nic->pdev->dev, "NACK for MBOX 0x%02x from VF %d\n",
+			mbx.msg.msg, vf);
 		nic_mbx_send_nack(nic, vf);
+	}
 unlock:
 	nic->mbx_lock[vf] = false;
 }
