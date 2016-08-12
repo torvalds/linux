@@ -28,11 +28,6 @@
 /* FW Extended Manifest Header id = $AE1 */
 #define SKL_EXT_MANIFEST_HEADER_MAGIC   0x31454124
 
-struct skl_dfw_module_mod {
-	char name[100];
-	struct skl_dfw_module skl_dfw_mod;
-};
-
 struct UUID {
 	u8 id[16];
 };
