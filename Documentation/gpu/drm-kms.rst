@@ -2,9 +2,6 @@
 Kernel Mode Setting (KMS)
 =========================
 
-Mode Setting
-============
-
 Drivers must initialize the mode setting core by calling
 :c:func:`drm_mode_config_init()` on the DRM device. The function
 initializes the :c:type:`struct drm_device <drm_device>`
@@ -18,17 +15,20 @@ be setup by initializing the following fields.
 -  struct drm_mode_config_funcs \*funcs;
    Mode setting functions.
 
-Display Modes Function Reference
---------------------------------
+KMS Data Structures
+===================
 
-.. kernel-doc:: include/drm/drm_modes.h
+.. kernel-doc:: include/drm/drm_crtc.h
    :internal:
 
-.. kernel-doc:: drivers/gpu/drm/drm_modes.c
+KMS API Functions
+=================
+
+.. kernel-doc:: drivers/gpu/drm/drm_crtc.c
    :export:
 
 Atomic Mode Setting Function Reference
---------------------------------------
+======================================
 
 .. kernel-doc:: drivers/gpu/drm/drm_atomic.c
    :export:
@@ -37,7 +37,7 @@ Atomic Mode Setting Function Reference
    :internal:
 
 Frame Buffer Abstraction
-------------------------
+========================
 
 Frame buffers are abstract memory objects that provide a source of
 pixels to scanout to a CRTC. Applications explicitly request the
@@ -65,13 +65,13 @@ drivers can manually clean up a framebuffer at module unload time with
 :c:func:`drm_framebuffer_unregister_private()`.
 
 DRM Format Handling
--------------------
+===================
 
 .. kernel-doc:: drivers/gpu/drm/drm_fourcc.c
    :export:
 
 Dumb Buffer Objects
--------------------
+===================
 
 The KMS API doesn't standardize backing storage object creation and
 leaves it to driver-specific ioctls. Furthermore actually creating a
@@ -114,14 +114,14 @@ Note that dumb objects may not be used for gpu acceleration, as has been
 attempted on some ARM embedded platforms. Such drivers really must have
 a hardware-specific ioctl to allocate suitable buffer objects.
 
-Output Polling
---------------
+Display Modes Function Reference
+================================
 
-void (\*output_poll_changed)(struct drm_device \*dev);
-This operation notifies the driver that the status of one or more
-connectors has changed. Drivers that use the fb helper can just call the
-:c:func:`drm_fb_helper_hotplug_event()` function to handle this
-operation.
+.. kernel-doc:: include/drm/drm_modes.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_modes.c
+   :export:
 
 KMS Initialization and Cleanup
 ==============================
@@ -463,20 +463,8 @@ created for fetching EDID data and performing monitor detection. Once
 the process is complete, the new connector is registered with sysfs to
 make its properties available to applications.
 
-KMS API Functions
------------------
-
-.. kernel-doc:: drivers/gpu/drm/drm_crtc.c
-   :export:
-
-KMS Data Structures
--------------------
-
-.. kernel-doc:: include/drm/drm_crtc.h
-   :internal:
-
 KMS Locking
------------
+===========
 
 .. kernel-doc:: drivers/gpu/drm/drm_modeset_lock.c
    :doc: kms locking
