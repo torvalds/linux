@@ -173,7 +173,7 @@ int __register_rpmsg_driver(struct rpmsg_driver *drv, struct module *owner);
 void unregister_rpmsg_driver(struct rpmsg_driver *drv);
 void rpmsg_destroy_ept(struct rpmsg_endpoint *);
 struct rpmsg_endpoint *rpmsg_create_ept(struct rpmsg_channel *,
-				rpmsg_rx_cb_t cb, void *priv, u32 addr);
+					rpmsg_rx_cb_t cb, void *priv, u32 addr);
 int
 rpmsg_send_offchannel_raw(struct rpmsg_channel *, u32, u32, void *, int, bool);
 
@@ -265,7 +265,7 @@ int rpmsg_sendto(struct rpmsg_channel *rpdev, void *data, int len, u32 dst)
  */
 static inline
 int rpmsg_send_offchannel(struct rpmsg_channel *rpdev, u32 src, u32 dst,
-							void *data, int len)
+			  void *data, int len)
 {
 	return rpmsg_send_offchannel_raw(rpdev, src, dst, data, len, true);
 }
@@ -340,7 +340,7 @@ int rpmsg_trysendto(struct rpmsg_channel *rpdev, void *data, int len, u32 dst)
  */
 static inline
 int rpmsg_trysend_offchannel(struct rpmsg_channel *rpdev, u32 src, u32 dst,
-							void *data, int len)
+			     void *data, int len)
 {
 	return rpmsg_send_offchannel_raw(rpdev, src, dst, data, len, false);
 }
