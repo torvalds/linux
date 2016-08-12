@@ -2985,7 +2985,7 @@ static int macb_probe(struct platform_device *pdev)
 	dev->irq = platform_get_irq(pdev, 0);
 	if (dev->irq < 0) {
 		err = dev->irq;
-		goto err_disable_clocks;
+		goto err_out_free_netdev;
 	}
 
 	mac = of_get_mac_address(np);
