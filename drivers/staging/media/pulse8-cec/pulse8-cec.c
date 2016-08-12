@@ -388,7 +388,7 @@ static int pulse8_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 	int err;
 
 	cmd[0] = MSGCODE_TRANSMIT_IDLETIME;
-	cmd[1] = 3;
+	cmd[1] = signal_free_time;
 	err = pulse8_send_and_wait(pulse8, cmd, 2,
 				   MSGCODE_COMMAND_ACCEPTED, 1);
 	cmd[0] = MSGCODE_TRANSMIT_ACK_POLARITY;
