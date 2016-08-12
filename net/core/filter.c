@@ -2317,7 +2317,7 @@ bpf_get_skb_set_tunnel_proto(enum bpf_func_id which)
 }
 
 #ifdef CONFIG_SOCK_CGROUP_DATA
-static u64 bpf_skb_in_cgroup(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
+static u64 bpf_skb_under_cgroup(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 {
 	struct sk_buff *skb = (struct sk_buff *)(long)r1;
 	struct bpf_map *map = (struct bpf_map *)(long)r2;
@@ -2340,8 +2340,8 @@ static u64 bpf_skb_in_cgroup(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 	return cgroup_is_descendant(sock_cgroup_ptr(&sk->sk_cgrp_data), cgrp);
 }
 
-static const struct bpf_func_proto bpf_skb_in_cgroup_proto = {
-	.func		= bpf_skb_in_cgroup,
+static const struct bpf_func_proto bpf_skb_under_cgroup_proto = {
+	.func		= bpf_skb_under_cgroup,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_CTX,
@@ -2421,8 +2421,8 @@ tc_cls_act_func_proto(enum bpf_func_id func_id)
 	case BPF_FUNC_get_smp_processor_id:
 		return &bpf_get_smp_processor_id_proto;
 #ifdef CONFIG_SOCK_CGROUP_DATA
-	case BPF_FUNC_skb_in_cgroup:
-		return &bpf_skb_in_cgroup_proto;
+	case BPF_FUNC_skb_under_cgroup:
+		return &bpf_skb_under_cgroup_proto;
 #endif
 	default:
 		return sk_filter_func_proto(func_id);
