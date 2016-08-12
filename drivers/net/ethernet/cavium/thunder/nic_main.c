@@ -835,6 +835,25 @@ static int nic_reset_stat_counters(struct nicpf *nic,
 	return 0;
 }
 
+static void nic_enable_tunnel_parsing(struct nicpf *nic, int vf)
+{
+	u64 prot_def = (IPV6_PROT << 32) | (IPV4_PROT << 16) | ET_PROT;
+	u64 vxlan_prot_def = (IPV6_PROT_DEF << 32) |
+			      (IPV4_PROT_DEF) << 16 | ET_PROT_DEF;
+
+	/* Configure tunnel parsing parameters */
+	nic_reg_write(nic, NIC_PF_RX_GENEVE_DEF,
+		      (1ULL << 63 | UDP_GENEVE_PORT_NUM));
+	nic_reg_write(nic, NIC_PF_RX_GENEVE_PROT_DEF,
+		      ((7ULL << 61) | prot_def));
+	nic_reg_write(nic, NIC_PF_RX_NVGRE_PROT_DEF,
+		      ((7ULL << 61) | prot_def));
+	nic_reg_write(nic, NIC_PF_RX_VXLAN_DEF_0_1,
+		      ((1ULL << 63) | UDP_VXLAN_PORT_NUM));
+	nic_reg_write(nic, NIC_PF_RX_VXLAN_PROT_DEF,
+		      ((0xfULL << 60) | vxlan_prot_def));
+}
+
 static void nic_enable_vf(struct nicpf *nic, int vf, bool enable)
 {
 	int bgx, lmac;
@@ -908,6 +927,8 @@ static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 		 */
 		if (pass2_silicon(nic->pdev))
 			nic_reg_write(nic, NIC_PF_RX_CFG, 0x01);
+		if (!pass1_silicon(nic->pdev))
+			nic_enable_tunnel_parsing(nic, vf);
 		break;
 	case NIC_MBOX_MSG_RQ_BP_CFG:
 		reg_addr = NIC_PF_QSET_0_127_RQ_0_7_BP_CFG |
