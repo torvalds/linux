@@ -24,19 +24,24 @@
 #define MSG		"hello world!"
 #define MSG_LIMIT	100
 
+struct instance_data {
+	int rx_count;
+};
+
 static void rpmsg_sample_cb(struct rpmsg_channel *rpdev, void *data, int len,
 						void *priv, u32 src)
 {
 	int ret;
-	static int rx_count;
+	struct instance_data *idata = dev_get_drvdata(&rpdev->dev);
 
-	dev_info(&rpdev->dev, "incoming msg %d (src: 0x%x)\n", ++rx_count, src);
+	dev_info(&rpdev->dev, "incoming msg %d (src: 0x%x)\n",
+		 ++idata->rx_count, src);
 
 	print_hex_dump(KERN_DEBUG, __func__, DUMP_PREFIX_NONE, 16, 1,
 		       data, len,  true);
 
 	/* samples should not live forever */
-	if (rx_count >= MSG_LIMIT) {
+	if (idata->rx_count >= MSG_LIMIT) {
 		dev_info(&rpdev->dev, "goodbye!\n");
 		return;
 	}
@@ -50,9 +55,16 @@ static void rpmsg_sample_cb(struct rpmsg_channel *rpdev, void *data, int len,
 static int rpmsg_sample_probe(struct rpmsg_channel *rpdev)
 {
 	int ret;
+	struct instance_data *idata;
 
 	dev_info(&rpdev->dev, "new channel: 0x%x -> 0x%x!\n",
 					rpdev->src, rpdev->dst);
+
+	idata = devm_kzalloc(&rpdev->dev, sizeof(*idata), GFP_KERNEL);
+	if (!idata)
+		return -ENOMEM;
+
+	dev_set_drvdata(&rpdev->dev, idata);
 
 	/* send a message to our remote processor */
 	ret = rpmsg_send(rpdev, MSG, strlen(MSG));
