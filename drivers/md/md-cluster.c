@@ -25,7 +25,8 @@ struct dlm_lock_resource {
 	struct dlm_lksb lksb;
 	char *name; /* lock name. */
 	uint32_t flags; /* flags to pass to dlm_lock() */
-	struct completion completion; /* completion for synchronized locking */
+	wait_queue_head_t sync_locking; /* wait queue for synchronized locking */
+	bool sync_locking_done;
 	void (*bast)(void *arg, int mode); /* blocking AST function pointer*/
 	struct mddev *mddev; /* pointing back to mddev. */
 	int mode;
@@ -118,7 +119,8 @@ static void sync_ast(void *arg)
 	struct dlm_lock_resource *res;
 
 	res = arg;
-	complete(&res->completion);
+	res->sync_locking_done = true;
+	wake_up(&res->sync_locking);
 }
 
 static int dlm_lock_sync(struct dlm_lock_resource *res, int mode)
@@ -130,7 +132,8 @@ static int dlm_lock_sync(struct dlm_lock_resource *res, int mode)
 			0, sync_ast, res, res->bast);
 	if (ret)
 		return ret;
-	wait_for_completion(&res->completion);
+	wait_event(res->sync_locking, res->sync_locking_done);
+	res->sync_locking_done = false;
 	if (res->lksb.sb_status == 0)
 		res->mode = mode;
 	return res->lksb.sb_status;
@@ -151,7 +154,8 @@ static struct dlm_lock_resource *lockres_init(struct mddev *mddev,
 	res = kzalloc(sizeof(struct dlm_lock_resource), GFP_KERNEL);
 	if (!res)
 		return NULL;
-	init_completion(&res->completion);
+	init_waitqueue_head(&res->sync_locking);
+	res->sync_locking_done = false;
 	res->ls = cinfo->lockspace;
 	res->mddev = mddev;
 	res->mode = DLM_LOCK_IV;
@@ -208,7 +212,7 @@ static void lockres_free(struct dlm_lock_resource *res)
 	if (unlikely(ret != 0))
 		pr_err("failed to unlock %s return %d\n", res->name, ret);
 	else
-		wait_for_completion(&res->completion);
+		wait_event(res->sync_locking, res->sync_locking_done);
 
 	kfree(res->name);
 	kfree(res->lksb.sb_lvbptr);
