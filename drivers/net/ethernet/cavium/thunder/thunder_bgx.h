@@ -11,6 +11,8 @@
 
 #define    MAX_BGX_THUNDER			8 /* Max 4 nodes, 2 per node */
 #define    MAX_BGX_PER_CN88XX			2
+#define    MAX_BGX_PER_CN81XX			2
+#define    MAX_BGX_PER_CN83XX			4
 #define    MAX_LMAC_PER_BGX			4
 #define    MAX_BGX_CHANS_PER_LMAC		16
 #define    MAX_DMAC_PER_LMAC			8

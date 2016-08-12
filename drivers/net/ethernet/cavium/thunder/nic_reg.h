@@ -103,6 +103,7 @@
 #define   NIC_PF_SW_SYNC_RX_DONE		(0x490008)
 #define   NIC_PF_TL2_0_63_CFG			(0x500000)
 #define   NIC_PF_TL2_0_63_PRI			(0x520000)
+#define   NIC_PF_TL2_LMAC			(0x540000)
 #define   NIC_PF_TL2_0_63_SH_STATUS		(0x580000)
 #define   NIC_PF_TL3A_0_63_CFG			(0x5F0000)
 #define   NIC_PF_TL3_0_255_CFG			(0x600000)

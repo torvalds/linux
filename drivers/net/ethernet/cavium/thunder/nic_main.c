@@ -24,6 +24,8 @@ struct hw_info {
 	u8		bgx_cnt;
 	u8		chans_per_lmac;
 	u8		chans_per_bgx; /* Rx/Tx chans */
+	u8		chans_per_rgx;
+	u8		chans_per_lbk;
 	u16		cpi_cnt;
 	u16		rssi_cnt;
 	u16		rss_ind_tbl_size;
@@ -332,6 +334,33 @@ static void nic_get_hw_info(struct nicpf *nic)
 		hw->tl1_cnt = 2;
 		hw->tl1_per_bgx = true;
 		break;
+	case PCI_SUBSYS_DEVID_81XX_NIC_PF:
+		hw->bgx_cnt = MAX_BGX_PER_CN81XX;
+		hw->chans_per_lmac = 8;
+		hw->chans_per_bgx = 32;
+		hw->chans_per_rgx = 8;
+		hw->chans_per_lbk = 24;
+		hw->cpi_cnt = 512;
+		hw->rssi_cnt = 256;
+		hw->rss_ind_tbl_size = 32; /* Max RSSI / Max interfaces */
+		hw->tl3_cnt = 64;
+		hw->tl2_cnt = 16;
+		hw->tl1_cnt = 10;
+		hw->tl1_per_bgx = false;
+		break;
+	case PCI_SUBSYS_DEVID_83XX_NIC_PF:
+		hw->bgx_cnt = MAX_BGX_PER_CN83XX;
+		hw->chans_per_lmac = 8;
+		hw->chans_per_bgx = 32;
+		hw->chans_per_lbk = 64;
+		hw->cpi_cnt = 2048;
+		hw->rssi_cnt = 1024;
+		hw->rss_ind_tbl_size = 64; /* Max RSSI / Max interfaces */
+		hw->tl3_cnt = 256;
+		hw->tl2_cnt = 64;
+		hw->tl1_cnt = 18;
+		hw->tl1_per_bgx = false;
+		break;
 	}
 	hw->tl4_cnt = MAX_QUEUES_PER_QSET * pci_sriov_get_totalvfs(nic->pdev);
 }
@@ -353,11 +382,15 @@ static void nic_init_hw(struct nicpf *nic)
 	/* Enable backpressure */
 	nic_reg_write(nic, NIC_PF_BP_CFG, (1ULL << 6) | 0x03);
 
-	/* Disable TNS mode on both interfaces */
-	nic_reg_write(nic, NIC_PF_INTF_0_1_SEND_CFG,
-		      (NIC_TNS_BYPASS_MODE << 7) | BGX0_BLOCK);
-	nic_reg_write(nic, NIC_PF_INTF_0_1_SEND_CFG | (1 << 8),
-		      (NIC_TNS_BYPASS_MODE << 7) | BGX1_BLOCK);
+	/* TNS and TNS bypass modes are present only on 88xx */
+	if (nic->pdev->subsystem_device == PCI_SUBSYS_DEVID_88XX_NIC_PF) {
+		/* Disable TNS mode on both interfaces */
+		nic_reg_write(nic, NIC_PF_INTF_0_1_SEND_CFG,
+			      (NIC_TNS_BYPASS_MODE << 7) | BGX0_BLOCK);
+		nic_reg_write(nic, NIC_PF_INTF_0_1_SEND_CFG | (1 << 8),
+			      (NIC_TNS_BYPASS_MODE << 7) | BGX1_BLOCK);
+	}
+
 	nic_reg_write(nic, NIC_PF_INTF_0_1_BP_CFG,
 		      (1ULL << 63) | BGX0_BLOCK);
 	nic_reg_write(nic, NIC_PF_INTF_0_1_BP_CFG + (1 << 8),
@@ -525,7 +558,7 @@ static void nic_config_rss(struct nicpf *nic, struct rss_cfg_msg *cfg)
 /* 4 level transmit side scheduler configutation
  * for TNS bypass mode
  *
- * Sample configuration for SQ0
+ * Sample configuration for SQ0 on 88xx
  * VNIC0-SQ0 -> TL4(0)   -> TL3[0]   -> TL2[0]  -> TL1[0] -> BGX0
  * VNIC1-SQ0 -> TL4(8)   -> TL3[2]   -> TL2[0]  -> TL1[0] -> BGX0
  * VNIC2-SQ0 -> TL4(16)  -> TL3[4]   -> TL2[1]  -> TL1[0] -> BGX0
@@ -560,17 +593,21 @@ static void nic_tx_channel_cfg(struct nicpf *nic, u8 vnic,
 	/* For 88xx 0-511 TL4 transmits via BGX0 and
 	 * 512-1023 TL4s transmit via BGX1.
 	 */
-	tl4 = bgx * (hw->tl4_cnt / hw->bgx_cnt);
-	if (!sq->sqs_mode) {
-		tl4 += (lmac * MAX_QUEUES_PER_QSET);
-	} else {
-		for (svf = 0; svf < MAX_SQS_PER_VF; svf++) {
-			if (nic->vf_sqs[pqs_vnic][svf] == vnic)
-				break;
+	if (hw->tl1_per_bgx) {
+		tl4 = bgx * (hw->tl4_cnt / hw->bgx_cnt);
+		if (!sq->sqs_mode) {
+			tl4 += (lmac * MAX_QUEUES_PER_QSET);
+		} else {
+			for (svf = 0; svf < MAX_SQS_PER_VF; svf++) {
+				if (nic->vf_sqs[pqs_vnic][svf] == vnic)
+					break;
+			}
+			tl4 += (MAX_LMAC_PER_BGX * MAX_QUEUES_PER_QSET);
+			tl4 += (lmac * MAX_QUEUES_PER_QSET * MAX_SQS_PER_VF);
+			tl4 += (svf * MAX_QUEUES_PER_QSET);
 		}
-		tl4 += (MAX_LMAC_PER_BGX * MAX_QUEUES_PER_QSET);
-		tl4 += (lmac * MAX_QUEUES_PER_QSET * MAX_SQS_PER_VF);
-		tl4 += (svf * MAX_QUEUES_PER_QSET);
+	} else {
+		tl4 = (vnic * MAX_QUEUES_PER_QSET);
 	}
 	tl4 += sq_idx;
 
@@ -585,9 +622,15 @@ static void nic_tx_channel_cfg(struct nicpf *nic, u8 vnic,
 
 	/* On 88xx 0-127 channels are for BGX0 and
 	 * 127-255 channels for BGX1.
+	 *
+	 * On 81xx/83xx TL3_CHAN reg should be configured with channel
+	 * within LMAC i.e 0-7 and not the actual channel number like on 88xx
 	 */
 	chan = (lmac * hw->chans_per_lmac) + (bgx * hw->chans_per_bgx);
-	nic_reg_write(nic, NIC_PF_TL3_0_255_CHAN | (tl3 << 3), chan);
+	if (hw->tl1_per_bgx)
+		nic_reg_write(nic, NIC_PF_TL3_0_255_CHAN | (tl3 << 3), chan);
+	else
+		nic_reg_write(nic, NIC_PF_TL3_0_255_CHAN | (tl3 << 3), 0);
 
 	/* Enable backpressure on the channel */
 	nic_reg_write(nic, NIC_PF_CHAN_0_255_TX_CFG | (chan << 3), 1);
@@ -597,6 +640,16 @@ static void nic_tx_channel_cfg(struct nicpf *nic, u8 vnic,
 	nic_reg_write(nic, NIC_PF_TL2_0_63_CFG | (tl2 << 3), rr_quantum);
 	/* No priorities as of now */
 	nic_reg_write(nic, NIC_PF_TL2_0_63_PRI | (tl2 << 3), 0x00);
+
+	/* Unlike 88xx where TL2s 0-31 transmits to TL1 '0' and rest to TL1 '1'
+	 * on 81xx/83xx TL2 needs to be configured to transmit to one of the
+	 * possible LMACs.
+	 *
+	 * This register doesn't exist on 88xx.
+	 */
+	if (!hw->tl1_per_bgx)
+		nic_reg_write(nic, NIC_PF_TL2_LMAC | (tl2 << 3),
+			      lmac + (bgx * MAX_LMAC_PER_BGX));
 }
 
 /* Send primary nicvf pointer to secondary QS's VF */
