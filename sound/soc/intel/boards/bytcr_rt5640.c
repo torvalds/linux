@@ -24,6 +24,8 @@
 #include <linux/device.h>
 #include <linux/dmi.h>
 #include <linux/slab.h>
+#include <asm/cpu_device_id.h>
+#include <asm/platform_sst_audio.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -31,6 +33,7 @@
 #include "../../codecs/rt5640.h"
 #include "../atom/sst-atom-controls.h"
 #include "../common/sst-acpi.h"
+#include "../common/sst-dsp.h"
 
 enum {
 	BYT_RT5640_DMIC1_MAP,
@@ -189,7 +192,8 @@ static const struct dmi_system_id byt_rt5640_quirk_table[] = {
 		},
 		.driver_data = (unsigned long *)(BYT_RT5640_IN1_MAP |
 						 BYT_RT5640_MONO_SPEAKER |
-						 BYT_RT5640_DIFF_MIC
+						 BYT_RT5640_DIFF_MIC |
+						 BYT_RT5640_SSP0_AIF2
 						 ),
 	},
 	{
@@ -464,6 +468,18 @@ static char byt_rt5640_codec_name[16]; /* i2c-<HID>:00 with HID being 8 chars */
 static char byt_rt5640_codec_aif_name[12]; /*  = "rt5640-aif[1|2]" */
 static char byt_rt5640_cpu_dai_name[10]; /*  = "ssp[0|2]-port" */
 
+static bool is_valleyview(void)
+{
+	static const struct x86_cpu_id cpu_ids[] __initconst = {
+		{ X86_VENDOR_INTEL, 6, 55 }, /* Valleyview, Bay Trail */
+		{}
+	};
+
+	if (!x86_match_cpu(cpu_ids))
+		return false;
+	return true;
+}
+
 static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 {
 	int ret_val = 0;
@@ -492,6 +508,20 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 			"%s%s", "i2c-", i2c_name);
 
 		byt_rt5640_dais[dai_index].codec_name = byt_rt5640_codec_name;
+	}
+
+	/*
+	 * swap SSP0 if bytcr is detected
+	 * (will be overridden if DMI quirk is detected)
+	 */
+	if (is_valleyview()) {
+		struct sst_platform_info *p_info = mach->pdata;
+		const struct sst_res_info *res_info = p_info->res_info;
+
+		/* TODO: use CHAN package info from BIOS to detect AIF1/AIF2 */
+		if (res_info->acpi_ipc_irq_index == 0) {
+			byt_rt5640_quirk |= BYT_RT5640_SSP0_AIF2;
+		}
 	}
 
 	/* check quirks before creating card */
