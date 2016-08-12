@@ -29,8 +29,6 @@
 
 #define    MAX_DMAC_PER_LMAC_TNS_BYPASS_MODE	2
 
-#define    MAX_LMAC	(MAX_BGX_PER_CN88XX * MAX_LMAC_PER_BGX)
-
 /* Registers */
 #define BGX_CMRX_CFG			0x00
 #define  CMR_PKT_TX_EN				BIT_ULL(13)
