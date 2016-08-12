@@ -42,9 +42,36 @@ enum drm_connector_force {
 	DRM_FORCE_ON_DIGITAL, /* for DVI-I use digital connector */
 };
 
+/**
+ * enum drm_connector_status - status for a &drm_connector
+ *
+ * This enum is used to track the connector status. There are no separate
+ * #defines for the uapi!
+ */
 enum drm_connector_status {
+	/**
+	 * @connector_status_connected: The connector is definitely connected to
+	 * a sink device, and can be enabled.
+	 */
 	connector_status_connected = 1,
+	/**
+	 * @connector_status_disconnected: The connector isn't connected to a
+	 * sink device which can be autodetect. For digital outputs like DP or
+	 * HDMI (which can be realiable probed) this means there's really
+	 * nothing there. It is driver-dependent whether a connector with this
+	 * status can be lit up or not.
+	 */
 	connector_status_disconnected = 2,
+	/**
+	 * @connector_status_unknown: The connector's status could not be
+	 * reliably detected. This happens when probing would either cause
+	 * flicker (like load-detection when the connector is in use), or when a
+	 * hardware resource isn't available (like when load-detection needs a
+	 * free CRTC). It should be possible to light up the connector with one
+	 * of the listed fallback modes. For default configuration userspace
+	 * should only try to light up connectors with unknown status when
+	 * there's not connector with @connector_status_connected.
+	 */
 	connector_status_unknown = 3,
 };
 
@@ -416,11 +443,9 @@ struct drm_cmdline_mode {
  * @modes: modes available on this connector (from fill_modes() + user)
  * @status: one of the drm_connector_status enums (connected, not, or unknown)
  * @probed_modes: list of modes derived directly from the display
- * @display_info: information about attached display (e.g. from EDID)
  * @funcs: connector control functions
  * @edid_blob_ptr: DRM property containing EDID if present
  * @properties: property tracking for this connector
- * @polled: a DRM_CONNECTOR_POLL_<foo> value for core driven polling
  * @dpms: current dpms state
  * @helper_private: mid-layer private data
  * @cmdline_mode: mode line parsed from the kernel cmdline for this connector
@@ -485,6 +510,13 @@ struct drm_connector {
 	/* these are modes added by probing with DDC or the BIOS */
 	struct list_head probed_modes;
 
+	/**
+	 * @display_info: Display information is filled from EDID information
+	 * when a display is detected. For non hot-pluggable displays such as
+	 * flat panels in embedded systems, the driver should initialize the
+	 * display_info.width_mm and display_info.height_mm fields with the
+	 * physical size of the display.
+	 */
 	struct drm_display_info display_info;
 	const struct drm_connector_funcs *funcs;
 
@@ -519,7 +551,26 @@ struct drm_connector {
 /* DACs should rarely do this without a lot of testing */
 #define DRM_CONNECTOR_POLL_DISCONNECT (1 << 2)
 
-	uint8_t polled; /* DRM_CONNECTOR_POLL_* */
+	/**
+	 * @polled:
+	 *
+	 * Connector polling mode, a combination of
+	 *
+	 * DRM_CONNECTOR_POLL_HPD
+	 *     The connector generates hotplug events and doesn't need to be
+	 *     periodically polled. The CONNECT and DISCONNECT flags must not
+	 *     be set together with the HPD flag.
+	 *
+	 * DRM_CONNECTOR_POLL_CONNECT
+	 *     Periodically poll the connector for connection.
+	 *
+	 * DRM_CONNECTOR_POLL_DISCONNECT
+	 *     Periodically poll the connector for disconnection.
+	 *
+	 * Set to 0 for connectors that don't support connection status
+	 * discovery.
+	 */
+	uint8_t polled;
 
 	/* requested DPMS state */
 	int dpms;
