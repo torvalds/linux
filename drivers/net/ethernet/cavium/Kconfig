@@ -36,9 +36,19 @@ config	THUNDER_NIC_BGX
 	depends on 64BIT
 	select PHYLIB
 	select MDIO_THUNDER
+	select THUNDER_NIC_RGX
 	---help---
 	  This driver supports programming and controlling of MAC
 	  interface from NIC physical function driver.
+
+config	THUNDER_NIC_RGX
+	tristate "Thunder MAC interface driver (RGX)"
+	depends on 64BIT
+	select PHYLIB
+	select MDIO_THUNDER
+	---help---
+	  This driver supports configuring XCV block of RGX interface
+	  present on CN81XX chip.
 
 config LIQUIDIO
 	tristate "Cavium LiquidIO support"

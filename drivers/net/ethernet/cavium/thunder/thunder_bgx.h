@@ -11,6 +11,7 @@
 
 /* PCI device ID */
 #define	PCI_DEVICE_ID_THUNDER_BGX		0xA026
+#define	PCI_DEVICE_ID_THUNDER_RGX		0xA054
 
 /* Subsystem device IDs */
 #define PCI_SUBSYS_DEVID_88XX_BGX		0xA126
@@ -19,7 +20,7 @@
 
 #define    MAX_BGX_THUNDER			8 /* Max 4 nodes, 2 per node */
 #define    MAX_BGX_PER_CN88XX			2
-#define    MAX_BGX_PER_CN81XX			2
+#define    MAX_BGX_PER_CN81XX			3 /* 2 BGXs + 1 RGX */
 #define    MAX_BGX_PER_CN83XX			4
 #define    MAX_LMAC_PER_BGX			4
 #define    MAX_BGX_CHANS_PER_LMAC		16
@@ -205,6 +206,9 @@ void bgx_set_lmac_mac(int node, int bgx_idx, int lmacid, const u8 *mac);
 void bgx_get_lmac_link_state(int node, int bgx_idx, int lmacid, void *status);
 void bgx_lmac_internal_loopback(int node, int bgx_idx,
 				int lmac_idx, bool enable);
+void xcv_init_hw(void);
+void xcv_setup_link(bool link_up, int link_speed);
+
 u64 bgx_get_rx_stats(int node, int bgx_idx, int lmac, int idx);
 u64 bgx_get_tx_stats(int node, int bgx_idx, int lmac, int idx);
 #define BGX_RX_STATS_COUNT 11
