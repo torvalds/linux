@@ -29,6 +29,8 @@
 #define DRM_ATOMIC_HELPER_H_
 
 #include <drm/drm_crtc.h>
+#include <drm/drm_modeset_helper_vtables.h>
+#include <drm/drm_modeset_helper.h>
 
 struct drm_atomic_state;
 

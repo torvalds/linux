@@ -258,3 +258,12 @@ Tile group
 
 .. kernel-doc:: drivers/gpu/drm/drm_crtc.c
    :doc: Tile group
+
+Auxiliary Modeset Helpers
+=========================
+
+.. kernel-doc:: drivers/gpu/drm/drm_modeset_helper.c
+   :doc: aux kms helpers
+
+.. kernel-doc:: drivers/gpu/drm/drm_modeset_helper.c
+   :export:
