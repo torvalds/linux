@@ -799,6 +799,13 @@ static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 			   (mbx.rq.qs_num << NIC_QS_ID_SHIFT) |
 			   (mbx.rq.rq_num << NIC_Q_NUM_SHIFT);
 		nic_reg_write(nic, reg_addr, mbx.rq.cfg);
+		/* Enable CQE_RX2_S extension in CQE_RX descriptor.
+		 * This gets appended by default on 81xx/83xx chips,
+		 * for consistency enabling the same on 88xx pass2
+		 * where this is introduced.
+		 */
+		if (pass2_silicon(nic->pdev))
+			nic_reg_write(nic, NIC_PF_RX_CFG, 0x01);
 		break;
 	case NIC_MBOX_MSG_RQ_BP_CFG:
 		reg_addr = NIC_PF_QSET_0_127_RQ_0_7_BP_CFG |

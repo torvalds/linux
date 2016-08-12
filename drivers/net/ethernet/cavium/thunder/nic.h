@@ -493,7 +493,14 @@ static inline int nic_get_node_id(struct pci_dev *pdev)
 
 static inline bool pass1_silicon(struct pci_dev *pdev)
 {
-	return pdev->revision < 8;
+	return (pdev->revision < 8) &&
+		(pdev->subsystem_device == PCI_SUBSYS_DEVID_88XX_NIC_PF);
+}
+
+static inline bool pass2_silicon(struct pci_dev *pdev)
+{
+	return (pdev->revision >= 8) &&
+		(pdev->subsystem_device == PCI_SUBSYS_DEVID_88XX_NIC_PF);
 }
 
 int nicvf_set_real_num_queues(struct net_device *netdev,

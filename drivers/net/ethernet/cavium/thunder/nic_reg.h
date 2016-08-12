@@ -36,6 +36,7 @@
 #define   NIC_PF_MAILBOX_ENA_W1C		(0x0450)
 #define   NIC_PF_MAILBOX_ENA_W1S		(0x0470)
 #define   NIC_PF_RX_ETYPE_0_7			(0x0500)
+#define   NIC_PF_RX_CFG				(0x05D0)
 #define   NIC_PF_PKIND_0_15_CFG			(0x0600)
 #define   NIC_PF_ECC0_FLIP0			(0x1000)
 #define   NIC_PF_ECC1_FLIP0			(0x1008)

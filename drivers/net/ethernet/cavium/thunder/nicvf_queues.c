@@ -1190,7 +1190,17 @@ struct sk_buff *nicvf_get_rcv_skb(struct nicvf *nic, struct cqe_rx_t *cqe_rx)
 	u64 *rb_ptrs = NULL;
 
 	rb_lens = (void *)cqe_rx + (3 * sizeof(u64));
-	rb_ptrs = (void *)cqe_rx + (6 * sizeof(u64));
+	/* Except 88xx pass1 on all other chips CQE_RX2_S is added to
+	 * CQE_RX at word6, hence buffer pointers move by word
+	 *
+	 * Use existing 'hw_tso' flag which will be set for all chips
+	 * except 88xx pass1 instead of a additional cache line
+	 * access (or miss) by using pci dev's revision.
+	 */
+	if (!nic->hw_tso)
+		rb_ptrs = (void *)cqe_rx + (6 * sizeof(u64));
+	else
+		rb_ptrs = (void *)cqe_rx + (7 * sizeof(u64));
 
 	netdev_dbg(nic->netdev, "%s rb_cnt %d rb0_ptr %llx rb0_sz %d\n",
 		   __func__, cqe_rx->rb_cnt, cqe_rx->rb0_ptr, cqe_rx->rb0_sz);
