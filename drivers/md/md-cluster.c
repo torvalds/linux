@@ -489,9 +489,10 @@ static void process_metadata_update(struct mddev *mddev, struct cluster_msg *msg
 
 static void process_remove_disk(struct mddev *mddev, struct cluster_msg *msg)
 {
-	struct md_rdev *rdev = md_find_rdev_nr_rcu(mddev,
-						   le32_to_cpu(msg->raid_slot));
+	struct md_rdev *rdev;
 
+	rcu_read_lock();
+	rdev = md_find_rdev_nr_rcu(mddev, le32_to_cpu(msg->raid_slot));
 	if (rdev) {
 		set_bit(ClusterRemove, &rdev->flags);
 		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
@@ -500,18 +501,21 @@ static void process_remove_disk(struct mddev *mddev, struct cluster_msg *msg)
 	else
 		pr_warn("%s: %d Could not find disk(%d) to REMOVE\n",
 			__func__, __LINE__, le32_to_cpu(msg->raid_slot));
+	rcu_read_unlock();
 }
 
 static void process_readd_disk(struct mddev *mddev, struct cluster_msg *msg)
 {
-	struct md_rdev *rdev = md_find_rdev_nr_rcu(mddev,
-						   le32_to_cpu(msg->raid_slot));
+	struct md_rdev *rdev;
 
+	rcu_read_lock();
+	rdev = md_find_rdev_nr_rcu(mddev, le32_to_cpu(msg->raid_slot));
 	if (rdev && test_bit(Faulty, &rdev->flags))
 		clear_bit(Faulty, &rdev->flags);
 	else
 		pr_warn("%s: %d Could not find disk(%d) which is faulty",
 			__func__, __LINE__, le32_to_cpu(msg->raid_slot));
+	rcu_read_unlock();
 }
 
 static int process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
