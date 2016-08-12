@@ -136,12 +136,6 @@ static const struct drm_prop_enum_list drm_tv_subconnector_enum_list[] = {
 DRM_ENUM_NAME_FN(drm_get_tv_subconnector_name,
 		 drm_tv_subconnector_enum_list)
 
-static const struct drm_prop_enum_list drm_dirty_info_enum_list[] = {
-	{ DRM_MODE_DIRTY_OFF,      "Off"      },
-	{ DRM_MODE_DIRTY_ON,       "On"       },
-	{ DRM_MODE_DIRTY_ANNOTATE, "Annotate" },
-};
-
 struct drm_conn_prop_enum_list {
 	int type;
 	const char *name;
@@ -1886,31 +1880,6 @@ int drm_mode_create_aspect_ratio_property(struct drm_device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(drm_mode_create_aspect_ratio_property);
-
-/**
- * drm_mode_create_dirty_property - create dirty property
- * @dev: DRM device
- *
- * Called by a driver the first time it's needed, must be attached to desired
- * connectors.
- */
-int drm_mode_create_dirty_info_property(struct drm_device *dev)
-{
-	struct drm_property *dirty_info;
-
-	if (dev->mode_config.dirty_info_property)
-		return 0;
-
-	dirty_info =
-		drm_property_create_enum(dev, DRM_MODE_PROP_IMMUTABLE,
-				    "dirty",
-				    drm_dirty_info_enum_list,
-				    ARRAY_SIZE(drm_dirty_info_enum_list));
-	dev->mode_config.dirty_info_property = dirty_info;
-
-	return 0;
-}
-EXPORT_SYMBOL(drm_mode_create_dirty_info_property);
 
 /**
  * drm_mode_create_suggested_offset_properties - create suggests offset properties

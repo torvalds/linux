@@ -2640,12 +2640,6 @@ struct drm_mode_config {
 	 */
 	struct drm_property *aspect_ratio_property;
 	/**
-	 * @dirty_info_property: Optional connector property to give userspace a
-	 * hint that the DIRTY_FB ioctl should be used.
-	 */
-	struct drm_property *dirty_info_property;
-
-	/**
 	 * @degamma_lut_property: Optional CRTC property to set the LUT used to
 	 * convert the framebuffer's colors to linear gamma.
 	 */
@@ -2943,7 +2937,6 @@ extern int drm_mode_create_tv_properties(struct drm_device *dev,
 					 const char * const modes[]);
 extern int drm_mode_create_scaling_mode_property(struct drm_device *dev);
 extern int drm_mode_create_aspect_ratio_property(struct drm_device *dev);
-extern int drm_mode_create_dirty_info_property(struct drm_device *dev);
 extern int drm_mode_create_suggested_offset_properties(struct drm_device *dev);
 
 extern int drm_mode_connector_attach_encoder(struct drm_connector *connector,
