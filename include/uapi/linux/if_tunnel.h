@@ -28,8 +28,16 @@
 #define GRE_FLAGS	__cpu_to_be16(0x0078)
 #define GRE_VERSION	__cpu_to_be16(0x0007)
 
-#define GRE_VERSION_1	__cpu_to_be16(0x0001)
-#define GRE_PROTO_PPP	__cpu_to_be16(0x880b)
+#define GRE_IS_CSUM(f)		((f) & GRE_CSUM)
+#define GRE_IS_ROUTING(f)	((f) & GRE_ROUTING)
+#define GRE_IS_KEY(f)		((f) & GRE_KEY)
+#define GRE_IS_SEQ(f)		((f) & GRE_SEQ)
+#define GRE_IS_STRICT(f)	((f) & GRE_STRICT)
+#define GRE_IS_REC(f)		((f) & GRE_REC)
+#define GRE_IS_ACK(f)		((f) & GRE_ACK)
+
+#define GRE_VERSION_1		__cpu_to_be16(0x0001)
+#define GRE_PROTO_PPP		__cpu_to_be16(0x880b)
 #define GRE_PPTP_KEY_MASK	__cpu_to_be32(0xffff)
 
 struct ip_tunnel_parm {

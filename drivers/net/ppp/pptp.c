@@ -206,16 +206,14 @@ static int pptp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	skb_push(skb, header_len);
 	hdr = (struct pptp_gre_header *)(skb->data);
 
-	hdr->flags       = PPTP_GRE_FLAG_K;
-	hdr->ver         = PPTP_GRE_VER;
-	hdr->protocol    = htons(PPTP_GRE_PROTO);
-	hdr->call_id     = htons(opt->dst_addr.call_id);
+	hdr->gre_hd.flags = GRE_KEY | GRE_VERSION_1 | GRE_SEQ;
+	hdr->gre_hd.protocol = GRE_PROTO_PPP;
+	hdr->call_id = htons(opt->dst_addr.call_id);
 
-	hdr->flags      |= PPTP_GRE_FLAG_S;
-	hdr->seq         = htonl(++opt->seq_sent);
+	hdr->seq = htonl(++opt->seq_sent);
 	if (opt->ack_sent != seq_recv)	{
 		/* send ack with this message */
-		hdr->ver |= PPTP_GRE_FLAG_A;
+		hdr->gre_hd.flags |= GRE_ACK;
 		hdr->ack  = htonl(seq_recv);
 		opt->ack_sent = seq_recv;
 	}
@@ -278,7 +276,7 @@ static int pptp_rcv_core(struct sock *sk, struct sk_buff *skb)
 	headersize  = sizeof(*header);
 
 	/* test if acknowledgement present */
-	if (PPTP_GRE_IS_A(header->ver)) {
+	if (GRE_IS_ACK(header->gre_hd.flags)) {
 		__u32 ack;
 
 		if (!pskb_may_pull(skb, headersize))
@@ -286,7 +284,7 @@ static int pptp_rcv_core(struct sock *sk, struct sk_buff *skb)
 		header = (struct pptp_gre_header *)(skb->data);
 
 		/* ack in different place if S = 0 */
-		ack = PPTP_GRE_IS_S(header->flags) ? header->ack : header->seq;
+		ack = GRE_IS_SEQ(header->gre_hd.flags) ? header->ack : header->seq;
 
 		ack = ntohl(ack);
 
@@ -299,7 +297,7 @@ static int pptp_rcv_core(struct sock *sk, struct sk_buff *skb)
 		headersize -= sizeof(header->ack);
 	}
 	/* test if payload present */
-	if (!PPTP_GRE_IS_S(header->flags))
+	if (!GRE_IS_SEQ(header->gre_hd.flags))
 		goto drop;
 
 	payload_len = ntohs(header->payload_len);
@@ -360,11 +358,11 @@ static int pptp_rcv(struct sk_buff *skb)
 
 	header = (struct pptp_gre_header *)skb->data;
 
-	if (ntohs(header->protocol) != PPTP_GRE_PROTO || /* PPTP-GRE protocol for PPTP */
-		PPTP_GRE_IS_C(header->flags) ||                /* flag C should be clear */
-		PPTP_GRE_IS_R(header->flags) ||                /* flag R should be clear */
-		!PPTP_GRE_IS_K(header->flags) ||               /* flag K should be set */
-		(header->flags&0xF) != 0)                      /* routing and recursion ctrl = 0 */
+	if (header->gre_hd.protocol != GRE_PROTO_PPP || /* PPTP-GRE protocol for PPTP */
+		GRE_IS_CSUM(header->gre_hd.flags) ||    /* flag CSUM should be clear */
+		GRE_IS_ROUTING(header->gre_hd.flags) || /* flag ROUTING should be clear */
+		!GRE_IS_KEY(header->gre_hd.flags) ||    /* flag KEY should be set */
+		(header->gre_hd.flags & GRE_FLAGS))     /* flag Recursion Ctrl should be clear */
 		/* if invalid, discard this packet */
 		goto drop;
 
