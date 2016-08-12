@@ -506,6 +506,40 @@ static const struct drm_prop_enum_list drm_dpms_enum_list[] = {
 };
 DRM_ENUM_NAME_FN(drm_get_dpms_name, drm_dpms_enum_list)
 
+/**
+ * drm_display_info_set_bus_formats - set the supported bus formats
+ * @info: display info to store bus formats in
+ * @formats: array containing the supported bus formats
+ * @num_formats: the number of entries in the fmts array
+ *
+ * Store the supported bus formats in display info structure.
+ * See MEDIA_BUS_FMT_* definitions in include/uapi/linux/media-bus-format.h for
+ * a full list of available formats.
+ */
+int drm_display_info_set_bus_formats(struct drm_display_info *info,
+				     const u32 *formats,
+				     unsigned int num_formats)
+{
+	u32 *fmts = NULL;
+
+	if (!formats && num_formats)
+		return -EINVAL;
+
+	if (formats && num_formats) {
+		fmts = kmemdup(formats, sizeof(*formats) * num_formats,
+			       GFP_KERNEL);
+		if (!fmts)
+			return -ENOMEM;
+	}
+
+	kfree(info->bus_formats);
+	info->bus_formats = fmts;
+	info->num_bus_formats = num_formats;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_display_info_set_bus_formats);
+
 /* Optional connector properties. */
 static const struct drm_prop_enum_list drm_scaling_mode_enum_list[] = {
 	{ DRM_MODE_SCALE_NONE, "None" },

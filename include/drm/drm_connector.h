@@ -84,28 +84,69 @@ enum subpixel_order {
 	SubPixelNone,
 };
 
-/*
- * Describes a given display (e.g. CRT or flat panel) and its limitations.
+/**
+ * struct drm_display_info - runtime data about the connected sink
+ *
+ * Describes a given display (e.g. CRT or flat panel) and its limitations. For
+ * fixed display sinks like built-in panels there's not much difference between
+ * this and struct &drm_connector. But for sinks with a real cable this
+ * structure is meant to describe all the things at the other end of the cable.
+ *
+ * For sinks which provide an EDID this can be filled out by calling
+ * drm_add_edid_modes().
  */
 struct drm_display_info {
+	/**
+	 * @name: Name of the display.
+	 */
 	char name[DRM_DISPLAY_INFO_LEN];
 
-	/* Physical size */
+	/**
+	 * @width_mm: Physical width in mm.
+	 */
         unsigned int width_mm;
+	/**
+	 * @height_mm: Physical height in mm.
+	 */
 	unsigned int height_mm;
 
+	/**
+	 * @pixel_clock: Maximum pixel clock supported by the sink, in units of
+	 * 100Hz. This mismatches the clok in &drm_display_mode (which is in
+	 * kHZ), because that's what the EDID uses as base unit.
+	 */
 	unsigned int pixel_clock;
+	/**
+	 * @bpc: Maximum bits per color channel. Used by HDMI and DP outputs.
+	 */
 	unsigned int bpc;
 
+	/**
+	 * @subpixel_order: Subpixel order of LCD panels.
+	 */
 	enum subpixel_order subpixel_order;
 
 #define DRM_COLOR_FORMAT_RGB444		(1<<0)
 #define DRM_COLOR_FORMAT_YCRCB444	(1<<1)
 #define DRM_COLOR_FORMAT_YCRCB422	(1<<2)
 
+	/**
+	 * @color_formats: HDMI Color formats, selects between RGB and YCrCb
+	 * modes. Used DRM_COLOR_FORMAT\_ defines, which are _not_ the same ones
+	 * as used to describe the pixel format in framebuffers, and also don't
+	 * match the formats in @bus_formats which are shared with v4l.
+	 */
 	u32 color_formats;
 
+	/**
+	 * @bus_formats: Pixel data format on the wire, somewhat redundant with
+	 * @color_formats. Array of size @num_bus_formats encoded using
+	 * MEDIA_BUS_FMT\_ defines shared with v4l and media drivers.
+	 */
 	const u32 *bus_formats;
+	/**
+	 * @num_bus_formats: Size of @bus_formats array.
+	 */
 	unsigned int num_bus_formats;
 
 #define DRM_BUS_FLAG_DE_LOW		(1<<0)
@@ -115,13 +156,27 @@ struct drm_display_info {
 /* drive data on neg. edge */
 #define DRM_BUS_FLAG_PIXDATA_NEGEDGE	(1<<3)
 
+	/**
+	 * @bus_flags: Additional information (like pixel signal polarity) for
+	 * the pixel data on the bus, using DRM_BUS_FLAGS\_ defines.
+	 */
 	u32 bus_flags;
 
-	/* Mask of supported hdmi deep color modes */
+	/**
+	 * @edid_hdmi_dc_modes: Mask of supported hdmi deep color modes. Even
+	 * more stuff redundant with @bus_formats.
+	 */
 	u8 edid_hdmi_dc_modes;
 
+	/**
+	 * @cea_rev: CEA revision of the HDMI sink.
+	 */
 	u8 cea_rev;
 };
+
+int drm_display_info_set_bus_formats(struct drm_display_info *info,
+				     const u32 *formats,
+				     unsigned int num_formats);
 
 /**
  * struct drm_connector_state - mutable connector state
