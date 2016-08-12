@@ -134,14 +134,6 @@ void nf_ct_l4proto_pernet_unregister(struct net *net,
 int nf_ct_l4proto_register(struct nf_conntrack_l4proto *proto);
 void nf_ct_l4proto_unregister(struct nf_conntrack_l4proto *proto);
 
-static inline void nf_ct_kfree_compat_sysctl_table(struct nf_proto_net *pn)
-{
-#if defined(CONFIG_SYSCTL) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
-	kfree(pn->ctl_compat_table);
-	pn->ctl_compat_table = NULL;
-#endif
-}
-
 /* Generic netlink helpers */
 int nf_ct_port_tuple_to_nlattr(struct sk_buff *skb,
 			       const struct nf_conntrack_tuple *tuple);
