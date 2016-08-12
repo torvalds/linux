@@ -144,6 +144,15 @@ static int hdmi_480p_force_clk = 0; /* 200, 225, 250, 270 */
 
 static int debug_level = INF;     // 1: error  2: important  3: normal  4: detailed
 
+void control_hdmiphy(int on)
+{
+	pr_info("%s - onoff : %d\n", __func__, on);
+	if (on)
+		hdmitx_device.HWOp.CntlMisc(&hdmitx_device, MISC_TMDS_PHY_OP, TMDS_PHY_ENABLE);
+	else
+		hdmitx_device.HWOp.CntlMisc(&hdmitx_device, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
+}
+
 /*****************************
 *    hdmitx attr management :
 *    enable

@@ -57,6 +57,9 @@
 // This is not in osd_hw.h private or public header
 void osd_wait_vsync_hw(void);
 
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+static int monitor_onoff_flag;
+#endif
 
 static struct early_suspend early_suspend;
 static int early_suspend_flag = 0;
@@ -538,12 +541,31 @@ static int osd_open(struct fb_info *info, int arg)
 	
 }
 
+/* Blank Mode */
+extern void control_hdmiphy(int on);
 
 static int
 osd_blank(int blank_mode, struct fb_info *info)
 {
  	osddev_enable((blank_mode != 0) ? 0 : 1,info->node);
 
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+	if (!monitor_onoff_flag)
+		return 0;
+
+	switch (blank_mode) {
+	case FB_BLANK_UNBLANK: /* Display: On; HSync: On, VSync: On */
+		control_hdmiphy(1); /* HDMI PHY ON */
+		break;
+	case FB_BLANK_NORMAL: /* Display: Off; HSync: On, VSync: On */
+	case FB_BLANK_HSYNC_SUSPEND: /* Display: Off; HSync: Off, VSync: On */
+	case FB_BLANK_VSYNC_SUSPEND: /* Display: Off; HSync: On, VSync: Off */
+		break;
+	case FB_BLANK_POWERDOWN: /* Display: Off; HSync: Off, VSync: Off */
+		control_hdmiphy(0); /* HDMI PHY OFF*/
+		break;
+	}
+#endif
     	return 0;
 }
 
@@ -1486,6 +1508,19 @@ static inline int install_osd_reverse_info(osd_info_t *init_osd_info,char *para)
 
 	return 0;
 }
+
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+static int __init osd_setup_monitor_onoff(char *str)
+{
+	if (!strcmp(str, "true") || !strcmp(str, "1"))
+		monitor_onoff_flag = 1;
+	else
+		monitor_onoff_flag = 0;
+
+	return 0;
+}
+__setup("monitor_onoff=", osd_setup_monitor_onoff);
+#endif
 
 /* --------------------------------------------------------------------------*/
 /**
