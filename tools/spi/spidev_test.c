@@ -19,6 +19,7 @@
 #include <getopt.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#include <linux/ioctl.h>
 #include <sys/stat.h>
 #include <linux/types.h>
 #include <linux/spi/spidev.h>
