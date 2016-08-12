@@ -719,39 +719,27 @@ static void cik_sdma_vm_copy_pte(struct amdgpu_ib *ib,
  *
  * @ib: indirect buffer to fill with commands
  * @pe: addr of the page entry
- * @addr: dst addr to write into pe
+ * @value: dst addr to write into pe
  * @count: number of page entries to update
  * @incr: increase next addr by incr bytes
- * @flags: access flags
  *
  * Update PTEs by writing them manually using sDMA (CIK).
  */
-static void cik_sdma_vm_write_pte(struct amdgpu_ib *ib,
-				  const dma_addr_t *pages_addr, uint64_t pe,
-				  uint64_t addr, unsigned count,
-				  uint32_t incr, uint32_t flags)
+static void cik_sdma_vm_write_pte(struct amdgpu_ib *ib, uint64_t pe,
+				  uint64_t value, unsigned count,
+				  uint32_t incr)
 {
-	uint64_t value;
-	unsigned ndw;
+	unsigned ndw = count * 2;
 
-	while (count) {
-		ndw = count * 2;
-		if (ndw > 0xFFFFE)
-			ndw = 0xFFFFE;
-
-		/* for non-physically contiguous pages (system) */
-		ib->ptr[ib->length_dw++] = SDMA_PACKET(SDMA_OPCODE_WRITE,
-			SDMA_WRITE_SUB_OPCODE_LINEAR, 0);
-		ib->ptr[ib->length_dw++] = pe;
-		ib->ptr[ib->length_dw++] = upper_32_bits(pe);
-		ib->ptr[ib->length_dw++] = ndw;
-		for (; ndw > 0; ndw -= 2, --count, pe += 8) {
-			value = amdgpu_vm_map_gart(pages_addr, addr);
-			addr += incr;
-			value |= flags;
-			ib->ptr[ib->length_dw++] = value;
-			ib->ptr[ib->length_dw++] = upper_32_bits(value);
-		}
+	ib->ptr[ib->length_dw++] = SDMA_PACKET(SDMA_OPCODE_WRITE,
+		SDMA_WRITE_SUB_OPCODE_LINEAR, 0);
+	ib->ptr[ib->length_dw++] = lower_32_bits(pe);
+	ib->ptr[ib->length_dw++] = upper_32_bits(pe);
+	ib->ptr[ib->length_dw++] = ndw;
+	for (; ndw > 0; ndw -= 2) {
+		ib->ptr[ib->length_dw++] = lower_32_bits(value);
+		ib->ptr[ib->length_dw++] = upper_32_bits(value);
+		value += incr;
 	}
 }
 

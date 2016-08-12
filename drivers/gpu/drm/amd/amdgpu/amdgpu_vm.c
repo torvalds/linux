@@ -491,8 +491,8 @@ static void amdgpu_vm_update_pages(struct amdgpu_pte_update_params *params,
 			pe, (params->src + (addr >> 12) * 8), count);
 
 	} else if (count < 3) {
-		amdgpu_vm_write_pte(params->adev, params->ib, NULL, pe, addr,
-				    count, incr, flags);
+		amdgpu_vm_write_pte(params->adev, params->ib, pe,
+				    addr | flags, count, incr);
 
 	} else {
 		amdgpu_vm_set_pte_pde(params->adev, params->ib, pe, addr,
@@ -569,21 +569,15 @@ error:
  * Look up the physical address of the page that the pte resolves
  * to and return the pointer for the page table entry.
  */
-uint64_t amdgpu_vm_map_gart(const dma_addr_t *pages_addr, uint64_t addr)
+static uint64_t amdgpu_vm_map_gart(const dma_addr_t *pages_addr, uint64_t addr)
 {
 	uint64_t result;
 
-	if (pages_addr) {
-		/* page table offset */
-		result = pages_addr[addr >> PAGE_SHIFT];
+	/* page table offset */
+	result = pages_addr[addr >> PAGE_SHIFT];
 
-		/* in case cpu page size != gpu page size*/
-		result |= addr & (~PAGE_MASK);
-
-	} else {
-		/* No mapping required */
-		result = addr;
-	}
+	/* in case cpu page size != gpu page size*/
+	result |= addr & (~PAGE_MASK);
 
 	result &= 0xFFFFFFFFFFFFF000ULL;
 
