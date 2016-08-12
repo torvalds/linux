@@ -9523,6 +9523,7 @@ skip_sriov:
 
 	/* copy netdev features into list of user selectable features */
 	netdev->hw_features |= netdev->features |
+			       NETIF_F_HW_VLAN_CTAG_FILTER |
 			       NETIF_F_HW_VLAN_CTAG_RX |
 			       NETIF_F_HW_VLAN_CTAG_TX |
 			       NETIF_F_RXALL |
