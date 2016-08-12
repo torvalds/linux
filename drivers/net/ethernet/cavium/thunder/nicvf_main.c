@@ -366,13 +366,7 @@ static int nicvf_rss_init(struct nicvf *nic)
 
 	rss->enable = true;
 
-	/* Using the HW reset value for now */
-	rss->key[0] = 0xFEED0BADFEED0BADULL;
-	rss->key[1] = 0xFEED0BADFEED0BADULL;
-	rss->key[2] = 0xFEED0BADFEED0BADULL;
-	rss->key[3] = 0xFEED0BADFEED0BADULL;
-	rss->key[4] = 0xFEED0BADFEED0BADULL;
-
+	netdev_rss_key_fill(rss->key, RSS_HASH_KEY_SIZE * sizeof(u64));
 	nicvf_set_rss_key(nic);
 
 	rss->cfg = RSS_IP_HASH_ENA | RSS_TCP_HASH_ENA | RSS_UDP_HASH_ENA;
