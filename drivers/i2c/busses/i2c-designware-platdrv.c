@@ -157,7 +157,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	struct i2c_adapter *adap;
 	struct resource *mem;
 	int irq, r;
-	u32 ht = 0;
+	u32 acpi_speed, ht = 0;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -191,6 +191,10 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 		device_property_read_u32(&pdev->dev, "clock-frequency",
 					 &dev->clk_freq);
 	}
+
+	acpi_speed = i2c_acpi_find_bus_speed(&pdev->dev);
+	if (acpi_speed)
+		dev->clk_freq = acpi_speed;
 
 	if (has_acpi_companion(&pdev->dev))
 		dw_i2c_acpi_configure(pdev);
