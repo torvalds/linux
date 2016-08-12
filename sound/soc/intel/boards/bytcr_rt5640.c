@@ -39,6 +39,7 @@ enum {
 	BYT_RT5640_DMIC1_MAP,
 	BYT_RT5640_DMIC2_MAP,
 	BYT_RT5640_IN1_MAP,
+	BYT_RT5640_IN3_MAP,
 };
 
 #define BYT_RT5640_MAP(quirk)	((quirk) & 0xff)
@@ -77,6 +78,11 @@ static const struct snd_soc_dapm_route byt_rt5640_intmic_dmic2_map[] = {
 static const struct snd_soc_dapm_route byt_rt5640_intmic_in1_map[] = {
 	{"Internal Mic", NULL, "MICBIAS1"},
 	{"IN1P", NULL, "Internal Mic"},
+};
+
+static const struct snd_soc_dapm_route byt_rt5640_intmic_in3_map[] = {
+	{"Internal Mic", NULL, "MICBIAS1"},
+	{"IN3P", NULL, "Internal Mic"},
 };
 
 static const struct snd_soc_dapm_route byt_rt5640_ssp2_aif1_map[] = {
@@ -242,6 +248,10 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 	case BYT_RT5640_IN1_MAP:
 		custom_map = byt_rt5640_intmic_in1_map;
 		num_routes = ARRAY_SIZE(byt_rt5640_intmic_in1_map);
+		break;
+	case BYT_RT5640_IN3_MAP:
+		custom_map = byt_rt5640_intmic_in3_map;
+		num_routes = ARRAY_SIZE(byt_rt5640_intmic_in3_map);
 		break;
 	case BYT_RT5640_DMIC2_MAP:
 		custom_map = byt_rt5640_intmic_dmic2_map;
