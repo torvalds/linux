@@ -20,6 +20,9 @@
 #define	PCI_DEVICE_ID_THUNDER_NIC_VF		0xA034
 #define	PCI_DEVICE_ID_THUNDER_BGX		0xA026
 
+/* Subsystem device IDs */
+#define PCI_SUBSYS_DEVID_88XX_NIC_PF           0xA11E
+
 /* PCI BAR nos */
 #define	PCI_CFG_REG_BAR_NUM		0
 #define	PCI_MSIX_REG_BAR_NUM		4
@@ -41,40 +44,8 @@
 /* Max pkinds */
 #define	NIC_MAX_PKIND			16
 
-/* Rx Channels */
-/* Receive channel configuration in TNS bypass mode
- * Below is configuration in TNS bypass mode
- * BGX0-LMAC0-CHAN0 - VNIC CHAN0
- * BGX0-LMAC1-CHAN0 - VNIC CHAN16
- * ...
- * BGX1-LMAC0-CHAN0 - VNIC CHAN128
- * ...
- * BGX1-LMAC3-CHAN0 - VNIC CHAN174
- */
-#define	NIC_INTF_COUNT			2  /* Interfaces btw VNIC and TNS/BGX */
-#define	NIC_CHANS_PER_INF		128
-#define	NIC_MAX_CHANS			(NIC_INTF_COUNT * NIC_CHANS_PER_INF)
-#define	NIC_CPI_COUNT			2048 /* No of channel parse indices */
-
-/* TNS bypass mode: 1-1 mapping between VNIC and BGX:LMAC */
-#define NIC_MAX_BGX			MAX_BGX_PER_CN88XX
-#define	NIC_CPI_PER_BGX			(NIC_CPI_COUNT / NIC_MAX_BGX)
-#define	NIC_MAX_CPI_PER_LMAC		64 /* Max when CPI_ALG is IP diffserv */
-#define	NIC_RSSI_PER_BGX		(NIC_RSSI_COUNT / NIC_MAX_BGX)
-
-/* Tx scheduling */
-#define	NIC_MAX_TL4			1024
-#define	NIC_MAX_TL4_SHAPERS		256 /* 1 shaper for 4 TL4s */
-#define	NIC_MAX_TL3			256
-#define	NIC_MAX_TL3_SHAPERS		64  /* 1 shaper for 4 TL3s */
-#define	NIC_MAX_TL2			64
-#define	NIC_MAX_TL2_SHAPERS		2  /* 1 shaper for 32 TL2s */
-#define	NIC_MAX_TL1			2
-
-/* TNS bypass mode */
-#define	NIC_TL2_PER_BGX			32
-#define	NIC_TL4_PER_BGX			(NIC_MAX_TL4 / NIC_MAX_BGX)
-#define	NIC_TL4_PER_LMAC		(NIC_MAX_TL4 / NIC_CHANS_PER_INF)
+/* Max when CPI_ALG is IP diffserv */
+#define	NIC_MAX_CPI_PER_LMAC		64
 
 /* NIC VF Interrupts */
 #define	NICVF_INTR_CQ			0
@@ -148,7 +119,6 @@ struct nicvf_cq_poll {
 	struct	napi_struct napi;
 };
 
-#define	NIC_RSSI_COUNT			4096 /* Total no of RSS indices */
 #define NIC_MAX_RSS_HASH_BITS		8
 #define NIC_MAX_RSS_IDR_TBL_SIZE	(1 << NIC_MAX_RSS_HASH_BITS)
 #define RSS_HASH_KEY_SIZE		5 /* 320 bit key */
@@ -273,6 +243,7 @@ struct nicvf {
 	struct net_device	*netdev;
 	struct pci_dev		*pdev;
 	void __iomem		*reg_base;
+#define	MAX_QUEUES_PER_QSET			8
 	struct queue_set	*qs;
 	struct nicvf_cq_poll	*napi[8];
 	u8			vf_id;

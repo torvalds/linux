@@ -20,8 +20,23 @@
 #define DRV_NAME	"thunder-nic"
 #define DRV_VERSION	"1.0"
 
+struct hw_info {
+	u8		bgx_cnt;
+	u8		chans_per_lmac;
+	u8		chans_per_bgx; /* Rx/Tx chans */
+	u16		cpi_cnt;
+	u16		rssi_cnt;
+	u16		rss_ind_tbl_size;
+	u16		tl4_cnt;
+	u16		tl3_cnt;
+	u8		tl2_cnt;
+	u8		tl1_cnt;
+	bool		tl1_per_bgx; /* TL1 per BGX or per LMAC */
+};
+
 struct nicpf {
 	struct pci_dev		*pdev;
+	struct hw_info          *hw;
 	u8			node;
 	unsigned int		flags;
 	u8			num_vf_en;      /* No of VF enabled */
@@ -44,7 +59,6 @@ struct nicpf {
 	u32			speed[MAX_LMAC];
 	u16			cpi_base[MAX_NUM_VFS_SUPPORTED];
 	u16			rssi_base[MAX_NUM_VFS_SUPPORTED];
-	u16			rss_ind_tbl_size;
 	bool			mbx_lock[MAX_NUM_VFS_SUPPORTED];
 
 	/* MSI-X */
@@ -275,7 +289,7 @@ static void nic_set_lmac_vf_mapping(struct nicpf *nic)
 
 	nic->num_vf_en = 0;
 
-	for (bgx = 0; bgx < NIC_MAX_BGX; bgx++) {
+	for (bgx = 0; bgx < nic->hw->bgx_cnt; bgx++) {
 		if (!(bgx_map & (1 << bgx)))
 			continue;
 		lmac_cnt = bgx_get_lmac_count(nic->node, bgx);
@@ -298,6 +312,30 @@ static void nic_set_lmac_vf_mapping(struct nicpf *nic)
 	}
 }
 
+static void nic_get_hw_info(struct nicpf *nic)
+{
+	u16 sdevid;
+	struct hw_info *hw = nic->hw;
+
+	pci_read_config_word(nic->pdev, PCI_SUBSYSTEM_ID, &sdevid);
+
+	switch (sdevid) {
+	case PCI_SUBSYS_DEVID_88XX_NIC_PF:
+		hw->bgx_cnt = MAX_BGX_PER_CN88XX;
+		hw->chans_per_lmac = 16;
+		hw->chans_per_bgx = 128;
+		hw->cpi_cnt = 2048;
+		hw->rssi_cnt = 4096;
+		hw->rss_ind_tbl_size = NIC_MAX_RSS_IDR_TBL_SIZE;
+		hw->tl3_cnt = 256;
+		hw->tl2_cnt = 64;
+		hw->tl1_cnt = 2;
+		hw->tl1_per_bgx = true;
+		break;
+	}
+	hw->tl4_cnt = MAX_QUEUES_PER_QSET * pci_sriov_get_totalvfs(nic->pdev);
+}
+
 #define BGX0_BLOCK 8
 #define BGX1_BLOCK 9
 
@@ -305,6 +343,9 @@ static void nic_init_hw(struct nicpf *nic)
 {
 	int i;
 	u64 cqm_cfg;
+
+	/* Get HW capability info */
+	nic_get_hw_info(nic);
 
 	/* Enable NIC HW block */
 	nic_reg_write(nic, NIC_PF_CFG, 0x3);
@@ -351,6 +392,7 @@ static void nic_init_hw(struct nicpf *nic)
 /* Channel parse index configuration */
 static void nic_config_cpi(struct nicpf *nic, struct cpi_cfg_msg *cfg)
 {
+	struct hw_info *hw = nic->hw;
 	u32 vnic, bgx, lmac, chan;
 	u32 padd, cpi_count = 0;
 	u64 cpi_base, cpi, rssi_base, rssi;
@@ -360,9 +402,11 @@ static void nic_config_cpi(struct nicpf *nic, struct cpi_cfg_msg *cfg)
 	bgx = NIC_GET_BGX_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vnic]);
 	lmac = NIC_GET_LMAC_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vnic]);
 
-	chan = (lmac * MAX_BGX_CHANS_PER_LMAC) + (bgx * NIC_CHANS_PER_INF);
-	cpi_base = (lmac * NIC_MAX_CPI_PER_LMAC) + (bgx * NIC_CPI_PER_BGX);
-	rssi_base = (lmac * nic->rss_ind_tbl_size) + (bgx * NIC_RSSI_PER_BGX);
+	chan = (lmac * hw->chans_per_lmac) + (bgx * hw->chans_per_bgx);
+	cpi_base = (lmac * NIC_MAX_CPI_PER_LMAC) +
+		   (bgx * (hw->cpi_cnt / hw->bgx_cnt));
+	rssi_base = (lmac * hw->rss_ind_tbl_size) +
+		    (bgx * (hw->rssi_cnt / hw->bgx_cnt));
 
 	/* Rx channel configuration */
 	nic_reg_write(nic, NIC_PF_CHAN_0_255_RX_BP_CFG | (chan << 3),
@@ -434,7 +478,7 @@ static void nic_send_rss_size(struct nicpf *nic, int vf)
 	msg = (u64 *)&mbx;
 
 	mbx.rss_size.msg = NIC_MBOX_MSG_RSS_SIZE;
-	mbx.rss_size.ind_tbl_size = nic->rss_ind_tbl_size;
+	mbx.rss_size.ind_tbl_size = nic->hw->rss_ind_tbl_size;
 	nic_send_msg_to_vf(nic, vf, &mbx);
 }
 
@@ -494,6 +538,7 @@ static void nic_config_rss(struct nicpf *nic, struct rss_cfg_msg *cfg)
 static void nic_tx_channel_cfg(struct nicpf *nic, u8 vnic,
 			       struct sq_cfg_msg *sq)
 {
+	struct hw_info *hw = nic->hw;
 	u32 bgx, lmac, chan;
 	u32 tl2, tl3, tl4;
 	u32 rr_quantum;
@@ -512,21 +557,24 @@ static void nic_tx_channel_cfg(struct nicpf *nic, u8 vnic,
 	/* 24 bytes for FCS, IPG and preamble */
 	rr_quantum = ((NIC_HW_MAX_FRS + 24) / 4);
 
+	/* For 88xx 0-511 TL4 transmits via BGX0 and
+	 * 512-1023 TL4s transmit via BGX1.
+	 */
+	tl4 = bgx * (hw->tl4_cnt / hw->bgx_cnt);
 	if (!sq->sqs_mode) {
-		tl4 = (lmac * NIC_TL4_PER_LMAC) + (bgx * NIC_TL4_PER_BGX);
+		tl4 += (lmac * MAX_QUEUES_PER_QSET);
 	} else {
 		for (svf = 0; svf < MAX_SQS_PER_VF; svf++) {
 			if (nic->vf_sqs[pqs_vnic][svf] == vnic)
 				break;
 		}
-		tl4 = (MAX_LMAC_PER_BGX * NIC_TL4_PER_LMAC);
-		tl4 += (lmac * NIC_TL4_PER_LMAC * MAX_SQS_PER_VF);
-		tl4 += (svf * NIC_TL4_PER_LMAC);
-		tl4 += (bgx * NIC_TL4_PER_BGX);
+		tl4 += (MAX_LMAC_PER_BGX * MAX_QUEUES_PER_QSET);
+		tl4 += (lmac * MAX_QUEUES_PER_QSET * MAX_SQS_PER_VF);
+		tl4 += (svf * MAX_QUEUES_PER_QSET);
 	}
 	tl4 += sq_idx;
 
-	tl3 = tl4 / (NIC_MAX_TL4 / NIC_MAX_TL3);
+	tl3 = tl4 / (hw->tl4_cnt / hw->tl3_cnt);
 	nic_reg_write(nic, NIC_PF_QSET_0_127_SQ_0_7_CFG2 |
 		      ((u64)vnic << NIC_QS_ID_SHIFT) |
 		      ((u32)sq_idx << NIC_Q_NUM_SHIFT), tl4);
@@ -534,8 +582,13 @@ static void nic_tx_channel_cfg(struct nicpf *nic, u8 vnic,
 		      ((u64)vnic << 27) | ((u32)sq_idx << 24) | rr_quantum);
 
 	nic_reg_write(nic, NIC_PF_TL3_0_255_CFG | (tl3 << 3), rr_quantum);
-	chan = (lmac * MAX_BGX_CHANS_PER_LMAC) + (bgx * NIC_CHANS_PER_INF);
+
+	/* On 88xx 0-127 channels are for BGX0 and
+	 * 127-255 channels for BGX1.
+	 */
+	chan = (lmac * hw->chans_per_lmac) + (bgx * hw->chans_per_bgx);
 	nic_reg_write(nic, NIC_PF_TL3_0_255_CHAN | (tl3 << 3), chan);
+
 	/* Enable backpressure on the channel */
 	nic_reg_write(nic, NIC_PF_CHAN_0_255_TX_CFG | (chan << 3), 1);
 
@@ -1008,6 +1061,12 @@ static int nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!nic)
 		return -ENOMEM;
 
+	nic->hw = devm_kzalloc(dev, sizeof(struct hw_info), GFP_KERNEL);
+	if (!nic->hw) {
+		devm_kfree(dev, nic);
+		return -ENOMEM;
+	}
+
 	pci_set_drvdata(pdev, nic);
 
 	nic->pdev = pdev;
@@ -1047,13 +1106,10 @@ static int nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	nic->node = nic_get_node_id(pdev);
 
-	nic_set_lmac_vf_mapping(nic);
-
 	/* Initialize hardware */
 	nic_init_hw(nic);
 
-	/* Set RSS TBL size for each VF */
-	nic->rss_ind_tbl_size = NIC_MAX_RSS_IDR_TBL_SIZE;
+	nic_set_lmac_vf_mapping(nic);
 
 	/* Register interrupts */
 	err = nic_register_interrupts(nic);
@@ -1086,6 +1142,8 @@ err_unregister_interrupts:
 err_release_regions:
 	pci_release_regions(pdev);
 err_disable_device:
+	devm_kfree(dev, nic->hw);
+	devm_kfree(dev, nic);
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 	return err;
@@ -1106,6 +1164,10 @@ static void nic_remove(struct pci_dev *pdev)
 
 	nic_unregister_interrupts(nic);
 	pci_release_regions(pdev);
+
+	devm_kfree(&pdev->dev, nic->hw);
+	devm_kfree(&pdev->dev, nic);
+
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 }
