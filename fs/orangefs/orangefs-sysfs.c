@@ -842,6 +842,16 @@ static int sysfs_service_op_show(char *kobj_id, char *buf, void *attr)
 	if (!strcmp(kobj_id, ORANGEFS_KOBJ_ID)) {
 		orangefs_attr = (struct orangefs_attribute *)attr;
 
+		/* Drop unsupported requests first. */
+		if (!(orangefs_features & ORANGEFS_FEATURE_READAHEAD) &&
+		    (!strcmp(orangefs_attr->attr.name, "readahead_count") ||
+		    !strcmp(orangefs_attr->attr.name, "readahead_size") ||
+		    !strcmp(orangefs_attr->attr.name,
+		    "readahead_count_size"))) {
+			rc = -EINVAL;
+			goto out;
+		}
+
 		if (!strcmp(orangefs_attr->attr.name, "perf_history_size"))
 			new_op->upcall.req.param.op =
 				ORANGEFS_PARAM_REQUEST_OP_PERF_HISTORY_SIZE;
@@ -1133,6 +1143,15 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 
 	if (!strcmp(kobj_id, ORANGEFS_KOBJ_ID)) {
 		orangefs_attr = (struct orangefs_attribute *)attr;
+		/* Drop unsupported requests first. */
+		if (!(orangefs_features & ORANGEFS_FEATURE_READAHEAD) &&
+		    (!strcmp(orangefs_attr->attr.name, "readahead_count") ||
+		    !strcmp(orangefs_attr->attr.name, "readahead_size") ||
+		    !strcmp(orangefs_attr->attr.name,
+		    "readahead_count_size"))) {
+			rc = -EINVAL;
+			goto out;
+		}
 
 		if (!strcmp(orangefs_attr->attr.name, "perf_history_size")) {
 			if (val > 0) {
