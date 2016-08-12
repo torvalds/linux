@@ -145,11 +145,30 @@ static struct powernv_pstate_info {
 /* Use following macros for conversions between pstate_id and index */
 static inline int idx_to_pstate(unsigned int i)
 {
+	if (unlikely(i >= powernv_pstate_info.nr_pstates)) {
+		pr_warn_once("index %u is out of bound\n", i);
+		return powernv_freqs[powernv_pstate_info.nominal].driver_data;
+	}
+
 	return powernv_freqs[i].driver_data;
 }
 
 static inline unsigned int pstate_to_idx(int pstate)
 {
+	int min = powernv_freqs[powernv_pstate_info.min].driver_data;
+	int max = powernv_freqs[powernv_pstate_info.max].driver_data;
+
+	if (min > 0) {
+		if (unlikely((pstate < max) || (pstate > min))) {
+			pr_warn_once("pstate %d is out of bound\n", pstate);
+			return powernv_pstate_info.nominal;
+		}
+	} else {
+		if (unlikely((pstate > max) || (pstate < min))) {
+			pr_warn_once("pstate %d is out of bound\n", pstate);
+			return powernv_pstate_info.nominal;
+		}
+	}
 	/*
 	 * abs() is deliberately used so that is works with
 	 * both monotonically increasing and decreasing
@@ -593,7 +612,7 @@ void gpstate_timer_handler(unsigned long data)
 	} else {
 		gpstate_idx = calc_global_pstate(gpstates->elapsed_time,
 						 gpstates->highest_lpstate_idx,
-						 freq_data.pstate_id);
+						 gpstates->last_lpstate_idx);
 	}
 
 	/*
