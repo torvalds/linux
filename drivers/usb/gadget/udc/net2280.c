@@ -1137,8 +1137,10 @@ dma_done(struct net2280_ep *ep,	struct net2280_request *req, u32 dmacount,
 	done(ep, req, status);
 }
 
-static void scan_dma_completions(struct net2280_ep *ep)
+static int scan_dma_completions(struct net2280_ep *ep)
 {
+	int num_completed = 0;
+
 	/* only look at descriptors that were "naturally" retired,
 	 * so fifo and list head state won't matter
 	 */
@@ -1166,6 +1168,7 @@ static void scan_dma_completions(struct net2280_ep *ep)
 				break;
 			/* single transfer mode */
 			dma_done(ep, req, tmp, 0);
+			num_completed++;
 			break;
 		} else if (!ep->is_in &&
 			   (req->req.length % ep->ep.maxpacket) &&
@@ -1194,7 +1197,10 @@ static void scan_dma_completions(struct net2280_ep *ep)
 			}
 		}
 		dma_done(ep, req, tmp, 0);
+		num_completed++;
 	}
+
+	return num_completed;
 }
 
 static void restart_dma(struct net2280_ep *ep)
@@ -2547,8 +2553,11 @@ static void handle_ep_small(struct net2280_ep *ep)
 	/* manual DMA queue advance after short OUT */
 	if (likely(ep->dma)) {
 		if (t & BIT(SHORT_PACKET_TRANSFERRED_INTERRUPT)) {
-			u32	count;
+			struct net2280_request *stuck_req = NULL;
 			int	stopped = ep->stopped;
+			int	num_completed;
+			int	stuck = 0;
+			u32	count;
 
 			/* TRANSFERRED works around OUT_DONE erratum 0112.
 			 * we expect (N <= maxpacket) bytes; host wrote M.
@@ -2560,7 +2569,7 @@ static void handle_ep_small(struct net2280_ep *ep)
 				/* any preceding dma transfers must finish.
 				 * dma handles (M >= N), may empty the queue
 				 */
-				scan_dma_completions(ep);
+				num_completed = scan_dma_completions(ep);
 				if (unlikely(list_empty(&ep->queue) ||
 						ep->out_overflow)) {
 					req = NULL;
@@ -2580,6 +2589,31 @@ static void handle_ep_small(struct net2280_ep *ep)
 						req = NULL;
 					break;
 				}
+
+				/* Escape loop if no dma transfers completed
+				 * after few retries.
+				 */
+				if (num_completed == 0) {
+					if (stuck_req == req &&
+					    readl(&ep->dma->dmadesc) !=
+						  req->td_dma && stuck++ > 5) {
+						count = readl(
+							&ep->dma->dmacount);
+						count &= DMA_BYTE_COUNT_MASK;
+						req = NULL;
+						ep_dbg(ep->dev, "%s escape stuck %d, count %u\n",
+							ep->ep.name, stuck,
+							count);
+						break;
+					} else if (stuck_req != req) {
+						stuck_req = req;
+						stuck = 0;
+					}
+				} else {
+					stuck_req = NULL;
+					stuck = 0;
+				}
+
 				udelay(1);
 			}
 
