@@ -138,8 +138,6 @@ static int byt_rt5640_aif1_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	int ret;
 
-	snd_soc_dai_set_bclk_ratio(codec_dai, 50);
-
 	ret = snd_soc_dai_set_sysclk(codec_dai, RT5640_SCLK_S_PLL1,
 				     params_rate(params) * 512,
 				     SND_SOC_CLOCK_IN);
@@ -148,9 +146,18 @@ static int byt_rt5640_aif1_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	ret = snd_soc_dai_set_pll(codec_dai, 0, RT5640_PLL1_S_BCLK1,
-				  params_rate(params) * 50,
-				  params_rate(params) * 512);
+	if ((byt_rt5640_quirk & BYT_RT5640_SSP0_AIF1) ||
+		(byt_rt5640_quirk & BYT_RT5640_SSP0_AIF2)) {
+
+		ret = snd_soc_dai_set_pll(codec_dai, 0, RT5640_PLL1_S_BCLK1,
+					params_rate(params) * 32, /* FIXME */
+					params_rate(params) * 512);
+	} else {
+		ret = snd_soc_dai_set_pll(codec_dai, 0, RT5640_PLL1_S_BCLK1,
+					params_rate(params) * 50,
+					params_rate(params) * 512);
+	}
+
 	if (ret < 0) {
 		dev_err(rtd->dev, "can't set codec pll: %d\n", ret);
 		return ret;
@@ -311,34 +318,63 @@ static int byt_rt5640_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 						SNDRV_PCM_HW_PARAM_CHANNELS);
 	int ret;
 
-	/* The DSP will covert the FE rate to 48k, stereo, 24bits */
+	/* The DSP will covert the FE rate to 48k, stereo */
 	rate->min = rate->max = 48000;
 	channels->min = channels->max = 2;
 
-	/* set SSP2 to 24-bit */
-	params_set_format(params, SNDRV_PCM_FORMAT_S24_LE);
+	if ((byt_rt5640_quirk & BYT_RT5640_SSP0_AIF1) ||
+		(byt_rt5640_quirk & BYT_RT5640_SSP0_AIF2)) {
 
-	/*
-	 * Default mode for SSP configuration is TDM 4 slot, override config
-	 * with explicit setting to I2S 2ch 24-bit. The word length is set with
-	 * dai_set_tdm_slot() since there is no other API exposed
-	 */
-	ret = snd_soc_dai_set_fmt(rtd->cpu_dai,
-				  SND_SOC_DAIFMT_I2S     |
-				  SND_SOC_DAIFMT_NB_IF   |
-				  SND_SOC_DAIFMT_CBS_CFS
-				  );
-	if (ret < 0) {
-		dev_err(rtd->dev, "can't set format to I2S, err %d\n", ret);
-		return ret;
+		/* set SSP2 to 16-bit */
+		params_set_format(params, SNDRV_PCM_FORMAT_S16_LE);
+
+		/*
+		 * Default mode for SSP configuration is TDM 4 slot, override config
+		 * with explicit setting to I2S 2ch 16-bit. The word length is set with
+		 * dai_set_tdm_slot() since there is no other API exposed
+		 */
+		ret = snd_soc_dai_set_fmt(rtd->cpu_dai,
+					SND_SOC_DAIFMT_I2S     |
+					SND_SOC_DAIFMT_NB_IF   |
+					SND_SOC_DAIFMT_CBS_CFS
+			);
+		if (ret < 0) {
+			dev_err(rtd->dev, "can't set format to I2S, err %d\n", ret);
+			return ret;
+		}
+
+		ret = snd_soc_dai_set_tdm_slot(rtd->cpu_dai, 0x3, 0x3, 2, 16);
+		if (ret < 0) {
+			dev_err(rtd->dev, "can't set I2S config, err %d\n", ret);
+			return ret;
+		}
+
+	} else {
+
+		/* set SSP2 to 24-bit */
+		params_set_format(params, SNDRV_PCM_FORMAT_S24_LE);
+
+		/*
+		 * Default mode for SSP configuration is TDM 4 slot, override config
+		 * with explicit setting to I2S 2ch 24-bit. The word length is set with
+		 * dai_set_tdm_slot() since there is no other API exposed
+		 */
+		ret = snd_soc_dai_set_fmt(rtd->cpu_dai,
+					SND_SOC_DAIFMT_I2S     |
+					SND_SOC_DAIFMT_NB_IF   |
+					SND_SOC_DAIFMT_CBS_CFS
+			);
+		if (ret < 0) {
+			dev_err(rtd->dev, "can't set format to I2S, err %d\n", ret);
+			return ret;
+		}
+
+		ret = snd_soc_dai_set_tdm_slot(rtd->cpu_dai, 0x3, 0x3, 2, 24);
+		if (ret < 0) {
+			dev_err(rtd->dev, "can't set I2S config, err %d\n", ret);
+			return ret;
+		}
 	}
-
-	ret = snd_soc_dai_set_tdm_slot(rtd->cpu_dai, 0x3, 0x3, 2, 24);
-	if (ret < 0) {
-		dev_err(rtd->dev, "can't set I2S config, err %d\n", ret);
-		return ret;
-	}
-
 	return 0;
 }
 
