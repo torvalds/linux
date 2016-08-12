@@ -8278,16 +8278,13 @@ no_add:
 static void md_start_sync(struct work_struct *ws)
 {
 	struct mddev *mddev = container_of(ws, struct mddev, del_work);
-	int ret = 0;
 
 	mddev->sync_thread = md_register_thread(md_do_sync,
 						mddev,
 						"resync");
 	if (!mddev->sync_thread) {
-		if (!(mddev_is_clustered(mddev) && ret == -EAGAIN))
-			printk(KERN_ERR "%s: could not start resync"
-			       " thread...\n",
-			       mdname(mddev));
+		printk(KERN_ERR "%s: could not start resync thread...\n",
+		       mdname(mddev));
 		/* leave the spares where they are, it shouldn't hurt */
 		clear_bit(MD_RECOVERY_SYNC, &mddev->recovery);
 		clear_bit(MD_RECOVERY_RESHAPE, &mddev->recovery);
