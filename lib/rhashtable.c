@@ -324,12 +324,14 @@ static int rhashtable_expand(struct rhashtable *ht)
 static int rhashtable_shrink(struct rhashtable *ht)
 {
 	struct bucket_table *new_tbl, *old_tbl = rht_dereference(ht->tbl, ht);
-	unsigned int size;
+	unsigned int nelems = atomic_read(&ht->nelems);
+	unsigned int size = 0;
 	int err;
 
 	ASSERT_RHT_MUTEX(ht);
 
-	size = roundup_pow_of_two(atomic_read(&ht->nelems) * 3 / 2);
+	if (nelems)
+		size = roundup_pow_of_two(nelems * 3 / 2);
 	if (size < ht->p.min_size)
 		size = ht->p.min_size;
 
