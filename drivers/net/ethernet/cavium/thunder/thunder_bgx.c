@@ -51,7 +51,7 @@ struct bgx {
 	u8			max_lmac;
 	void __iomem		*reg_base;
 	struct pci_dev		*pdev;
-	bool                    is_81xx;
+	bool                    is_dlm;
 	bool                    is_rgx;
 };
 
@@ -127,8 +127,8 @@ unsigned bgx_get_map(int node)
 	int i;
 	unsigned map = 0;
 
-	for (i = 0; i < MAX_BGX_PER_CN81XX; i++) {
-		if (bgx_vnic[(node * MAX_BGX_PER_CN88XX) + i])
+	for (i = 0; i < MAX_BGX_PER_NODE; i++) {
+		if (bgx_vnic[(node * MAX_BGX_PER_NODE) + i])
 			map |= (1 << i);
 	}
 
@@ -141,7 +141,7 @@ int bgx_get_lmac_count(int node, int bgx_idx)
 {
 	struct bgx *bgx;
 
-	bgx = bgx_vnic[(node * MAX_BGX_PER_CN88XX) + bgx_idx];
+	bgx = bgx_vnic[(node * MAX_BGX_PER_NODE) + bgx_idx];
 	if (bgx)
 		return bgx->lmac_count;
 
@@ -156,7 +156,7 @@ void bgx_get_lmac_link_state(int node, int bgx_idx, int lmacid, void *status)
 	struct bgx *bgx;
 	struct lmac *lmac;
 
-	bgx = bgx_vnic[(node * MAX_BGX_PER_CN88XX) + bgx_idx];
+	bgx = bgx_vnic[(node * MAX_BGX_PER_NODE) + bgx_idx];
 	if (!bgx)
 		return;
 
@@ -169,7 +169,7 @@ EXPORT_SYMBOL(bgx_get_lmac_link_state);
 
 const u8 *bgx_get_lmac_mac(int node, int bgx_idx, int lmacid)
 {
-	struct bgx *bgx = bgx_vnic[(node * MAX_BGX_PER_CN88XX) + bgx_idx];
+	struct bgx *bgx = bgx_vnic[(node * MAX_BGX_PER_NODE) + bgx_idx];
 
 	if (bgx)
 		return bgx->lmac[lmacid].mac;
@@ -180,7 +180,7 @@ EXPORT_SYMBOL(bgx_get_lmac_mac);
 
 void bgx_set_lmac_mac(int node, int bgx_idx, int lmacid, const u8 *mac)
 {
-	struct bgx *bgx = bgx_vnic[(node * MAX_BGX_PER_CN88XX) + bgx_idx];
+	struct bgx *bgx = bgx_vnic[(node * MAX_BGX_PER_NODE) + bgx_idx];
 
 	if (!bgx)
 		return;
@@ -191,7 +191,7 @@ EXPORT_SYMBOL(bgx_set_lmac_mac);
 
 void bgx_lmac_rx_tx_enable(int node, int bgx_idx, int lmacid, bool enable)
 {
-	struct bgx *bgx = bgx_vnic[(node * MAX_BGX_PER_CN88XX) + bgx_idx];
+	struct bgx *bgx = bgx_vnic[(node * MAX_BGX_PER_NODE) + bgx_idx];
 	struct lmac *lmac;
 	u64 cfg;
 
@@ -325,7 +325,7 @@ u64 bgx_get_rx_stats(int node, int bgx_idx, int lmac, int idx)
 {
 	struct bgx *bgx;
 
-	bgx = bgx_vnic[(node * MAX_BGX_PER_CN88XX) + bgx_idx];
+	bgx = bgx_vnic[(node * MAX_BGX_PER_NODE) + bgx_idx];
 	if (!bgx)
 		return 0;
 
@@ -339,7 +339,7 @@ u64 bgx_get_tx_stats(int node, int bgx_idx, int lmac, int idx)
 {
 	struct bgx *bgx;
 
-	bgx = bgx_vnic[(node * MAX_BGX_PER_CN88XX) + bgx_idx];
+	bgx = bgx_vnic[(node * MAX_BGX_PER_NODE) + bgx_idx];
 	if (!bgx)
 		return 0;
 
@@ -367,7 +367,7 @@ void bgx_lmac_internal_loopback(int node, int bgx_idx,
 	struct lmac *lmac;
 	u64    cfg;
 
-	bgx = bgx_vnic[(node * MAX_BGX_PER_CN88XX) + bgx_idx];
+	bgx = bgx_vnic[(node * MAX_BGX_PER_NODE) + bgx_idx];
 	if (!bgx)
 		return;
 
@@ -850,7 +850,7 @@ static void bgx_print_qlm_mode(struct bgx *bgx, u8 lmacid)
 
 	lmac = &bgx->lmac[lmacid];
 	dlm = (lmacid / 2) + (bgx->bgx_id * 2);
-	if (!bgx->is_81xx)
+	if (!bgx->is_dlm)
 		sprintf(str, "BGX%d QLM mode", bgx->bgx_id);
 	else
 		sprintf(str, "BGX%d DLM%d mode", bgx->bgx_id, dlm);
@@ -946,7 +946,7 @@ static void bgx_set_lmac_config(struct bgx *bgx, u8 idx)
 
 	lmac = &bgx->lmac[idx];
 
-	if (!bgx->is_81xx || bgx->is_rgx) {
+	if (!bgx->is_dlm || bgx->is_rgx) {
 		/* Read LMAC0 type to figure out QLM mode
 		 * This is configured by low level firmware
 		 */
@@ -986,7 +986,7 @@ static bool is_dlm0_in_bgx_mode(struct bgx *bgx)
 {
 	struct lmac *lmac;
 
-	if (!bgx->is_81xx)
+	if (!bgx->is_dlm)
 		return true;
 
 	lmac = &bgx->lmac[0];
@@ -1019,7 +1019,7 @@ static void bgx_get_qlm_mode(struct bgx *bgx)
 	for (idx = 0; idx < bgx->max_lmac; idx++)
 		bgx_set_lmac_config(bgx, idx);
 
-	if (!bgx->is_81xx || bgx->is_rgx) {
+	if (!bgx->is_dlm || bgx->is_rgx) {
 		bgx_print_qlm_mode(bgx, 0);
 		return;
 	}
@@ -1236,10 +1236,6 @@ static int bgx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_disable_device;
 	}
 
-	pci_read_config_word(pdev, PCI_SUBSYSTEM_ID, &sdevid);
-	if (sdevid == PCI_SUBSYS_DEVID_81XX_BGX)
-		bgx->is_81xx = true;
-
 	/* MAP configuration registers */
 	bgx->reg_base = pcim_iomap(pdev, PCI_CFG_REG_BAR_NUM, 0);
 	if (!bgx->reg_base) {
@@ -1252,7 +1248,7 @@ static int bgx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (sdevid != PCI_DEVICE_ID_THUNDER_RGX) {
 		bgx->bgx_id =
 		    (pci_resource_start(pdev, PCI_CFG_REG_BAR_NUM) >> 24) & 1;
-		bgx->bgx_id += nic_get_node_id(pdev) * MAX_BGX_PER_CN88XX;
+		bgx->bgx_id += nic_get_node_id(pdev) * MAX_BGX_PER_NODE;
 		bgx->max_lmac = MAX_LMAC_PER_BGX;
 		bgx_vnic[bgx->bgx_id] = bgx;
 	} else {
@@ -1262,6 +1258,14 @@ static int bgx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		bgx_vnic[bgx->bgx_id] = bgx;
 		xcv_init_hw();
 	}
+
+	/* On 81xx all are DLMs and on 83xx there are 3 BGX QLMs and one
+	 * BGX i.e BGX2 can be split across 2 DLMs.
+	 */
+	pci_read_config_word(pdev, PCI_SUBSYSTEM_ID, &sdevid);
+	if ((sdevid == PCI_SUBSYS_DEVID_81XX_BGX) ||
+	    ((sdevid == PCI_SUBSYS_DEVID_83XX_BGX) && (bgx->bgx_id == 2)))
+		bgx->is_dlm = true;
 
 	bgx_get_qlm_mode(bgx);
 
