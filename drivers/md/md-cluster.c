@@ -284,7 +284,7 @@ static void recover_bitmaps(struct md_thread *thread)
 		ret = bitmap_copy_from_slot(mddev, slot, &lo, &hi, true);
 		if (ret) {
 			pr_err("md-cluster: Could not copy data from bitmap %d\n", slot);
-			goto dlm_unlock;
+			goto clear_bit;
 		}
 		if (hi > 0) {
 			if (lo < mddev->recovery_cp)
@@ -296,8 +296,6 @@ static void recover_bitmaps(struct md_thread *thread)
 			    md_wakeup_thread(mddev->thread);
 			}
 		}
-dlm_unlock:
-		dlm_unlock_sync(bm_lockres);
 clear_bit:
 		lockres_free(bm_lockres);
 		clear_bit(slot, &cinfo->recovery_map);
@@ -766,7 +764,6 @@ static int gather_all_resync_info(struct mddev *mddev, int total_slots)
 			md_check_recovery(mddev);
 		}
 
-		dlm_unlock_sync(bm_lockres);
 		lockres_free(bm_lockres);
 	}
 out:
@@ -1182,7 +1179,6 @@ static void unlock_all_bitmaps(struct mddev *mddev)
 	if (cinfo->other_bitmap_lockres) {
 		for (i = 0; i < mddev->bitmap_info.nodes - 1; i++) {
 			if (cinfo->other_bitmap_lockres[i]) {
-				dlm_unlock_sync(cinfo->other_bitmap_lockres[i]);
 				lockres_free(cinfo->other_bitmap_lockres[i]);
 			}
 		}
