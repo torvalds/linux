@@ -239,9 +239,9 @@ static void console_write(struct platform_device *pdev, const char *s, unsigned 
 	} else {
 		while (count--) {
 			if (*s == '\n') {
-				kfifo_put(&fifo, &r);
+				kfifo_put(&fifo, r);
 			}
-			kfifo_put(&fifo, s++);
+			kfifo_put(&fifo, *s++);
 		}
 		wake_up_process(t->console_task);
 	}

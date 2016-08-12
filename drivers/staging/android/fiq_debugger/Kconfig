@@ -56,3 +56,9 @@ config FIQ_WATCHDOG
 	select FIQ_DEBUGGER
 	select PSTORE_RAM
 	default n
+
+config RK_CONSOLE_THREAD
+	bool "Console write by thread"
+	default n
+	help
+	  Normal kernel printk will write out to UART by "kconsole" kthread
