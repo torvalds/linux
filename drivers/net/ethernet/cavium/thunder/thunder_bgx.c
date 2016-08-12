@@ -50,6 +50,7 @@ struct bgx {
 	int			lmac_count;
 	void __iomem		*reg_base;
 	struct pci_dev		*pdev;
+	bool                    is_81xx;
 };
 
 static struct bgx *bgx_vnic[MAX_BGX_THUNDER];
@@ -803,9 +804,17 @@ static void bgx_print_qlm_mode(struct bgx *bgx, u8 lmacid)
 	struct device *dev = &bgx->pdev->dev;
 	struct lmac *lmac;
 	char str[20];
+	u8 dlm;
+
+	if (lmacid > MAX_LMAC_PER_BGX)
+		return;
 
 	lmac = &bgx->lmac[lmacid];
-	sprintf(str, "BGX%d QLM mode", bgx->bgx_id);
+	dlm = (lmacid / 2) + (bgx->bgx_id * 2);
+	if (!bgx->is_81xx)
+		sprintf(str, "BGX%d QLM mode", bgx->bgx_id);
+	else
+		sprintf(str, "BGX%d DLM%d mode", bgx->bgx_id, dlm);
 
 	switch (lmac->lmac_type) {
 	case BGX_MODE_SGMII:
@@ -857,25 +866,80 @@ static void lmac_set_lane2sds(struct lmac *lmac)
 static void bgx_set_lmac_config(struct bgx *bgx, u8 idx)
 {
 	struct lmac *lmac;
+	struct lmac *olmac;
 	u64 cmr_cfg;
+	u8 lmac_type;
+	u8 lane_to_sds;
 
 	lmac = &bgx->lmac[idx];
-	lmac->lmacid = idx;
 
-	/* Read LMAC0 type to figure out QLM mode
-	 * This is configured by low level firmware
+	if (!bgx->is_81xx) {
+		/* Read LMAC0 type to figure out QLM mode
+		 * This is configured by low level firmware
+		 */
+		cmr_cfg = bgx_reg_read(bgx, 0, BGX_CMRX_CFG);
+		lmac->lmac_type = (cmr_cfg >> 8) & 0x07;
+		lmac->use_training =
+			bgx_reg_read(bgx, 0, BGX_SPUX_BR_PMD_CRTL) &
+				SPU_PMD_CRTL_TRAIN_EN;
+		lmac_set_lane2sds(lmac);
+		return;
+	}
+
+	/* On 81xx BGX can be split across 2 DLMs
+	 * firmware programs lmac_type of LMAC0 and LMAC2
 	 */
-	cmr_cfg = bgx_reg_read(bgx, 0, BGX_CMRX_CFG);
-	lmac->lmac_type = (cmr_cfg >> 8) & 0x07;
-	lmac->use_training =
-		bgx_reg_read(bgx, 0, BGX_SPUX_BR_PMD_CRTL) &
+	if ((idx == 0) || (idx == 2)) {
+		cmr_cfg = bgx_reg_read(bgx, idx, BGX_CMRX_CFG);
+		lmac_type = (u8)((cmr_cfg >> 8) & 0x07);
+		lane_to_sds = (u8)(cmr_cfg & 0xFF);
+		/* Check if config is not reset value */
+		if ((lmac_type == 0) && (lane_to_sds == 0xE4))
+			lmac->lmac_type = BGX_MODE_INVALID;
+		else
+			lmac->lmac_type = lmac_type;
+		lmac->use_training =
+			bgx_reg_read(bgx, idx, BGX_SPUX_BR_PMD_CRTL) &
+				SPU_PMD_CRTL_TRAIN_EN;
+		lmac_set_lane2sds(lmac);
+
+		/* Set LMAC type of other lmac on same DLM i.e LMAC 1/3 */
+		olmac = &bgx->lmac[idx + 1];
+		olmac->lmac_type = lmac->lmac_type;
+		olmac->use_training =
+		bgx_reg_read(bgx, idx + 1, BGX_SPUX_BR_PMD_CRTL) &
 			SPU_PMD_CRTL_TRAIN_EN;
-	lmac_set_lane2sds(lmac);
+		lmac_set_lane2sds(olmac);
+	}
+}
+
+static bool is_dlm0_in_bgx_mode(struct bgx *bgx)
+{
+	struct lmac *lmac;
+
+	if (!bgx->is_81xx)
+		return true;
+
+	lmac = &bgx->lmac[1];
+	if (lmac->lmac_type == BGX_MODE_INVALID)
+		return false;
+
+	return true;
 }
 
 static void bgx_get_qlm_mode(struct bgx *bgx)
 {
+	struct lmac *lmac;
+	struct lmac *lmac01;
+	struct lmac *lmac23;
 	u8  idx;
+
+	/* Init all LMAC's type to invalid */
+	for (idx = 0; idx < MAX_LMAC_PER_BGX; idx++) {
+		lmac = &bgx->lmac[idx];
+		lmac->lmac_type = BGX_MODE_INVALID;
+		lmac->lmacid = idx;
+	}
 
 	/* It is assumed that low level firmware sets this value */
 	bgx->lmac_count = bgx_reg_read(bgx, 0, BGX_CMR_RX_LMACS) & 0x7;
@@ -884,7 +948,28 @@ static void bgx_get_qlm_mode(struct bgx *bgx)
 
 	for (idx = 0; idx < bgx->lmac_count; idx++)
 		bgx_set_lmac_config(bgx, idx);
-	bgx_print_qlm_mode(bgx, 0);
+
+	if (!bgx->is_81xx) {
+		bgx_print_qlm_mode(bgx, 0);
+		return;
+	}
+
+	if (bgx->lmac_count) {
+		bgx_print_qlm_mode(bgx, 0);
+		bgx_print_qlm_mode(bgx, 2);
+	}
+
+	/* If DLM0 is not in BGX mode then LMAC0/1 have
+	 * to be configured with serdes lanes of DLM1
+	 */
+	if (is_dlm0_in_bgx_mode(bgx) || (bgx->lmac_count > 2))
+		return;
+	for (idx = 0; idx < bgx->lmac_count; idx++) {
+		lmac01 = &bgx->lmac[idx];
+		lmac23 = &bgx->lmac[idx + 2];
+		lmac01->lmac_type = lmac23->lmac_type;
+		lmac01->lane_to_sds = lmac23->lane_to_sds;
+	}
 }
 
 #ifdef CONFIG_ACPI
@@ -1059,6 +1144,7 @@ static int bgx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct device *dev = &pdev->dev;
 	struct bgx *bgx = NULL;
 	u8 lmac;
+	u16 sdevid;
 
 	bgx = devm_kzalloc(dev, sizeof(*bgx), GFP_KERNEL);
 	if (!bgx)
@@ -1079,6 +1165,10 @@ static int bgx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(dev, "PCI request regions failed 0x%x\n", err);
 		goto err_disable_device;
 	}
+
+	pci_read_config_word(pdev, PCI_SUBSYSTEM_ID, &sdevid);
+	if (sdevid == PCI_SUBSYS_DEVID_81XX_BGX)
+		bgx->is_81xx = true;
 
 	/* MAP configuration registers */
 	bgx->reg_base = pcim_iomap(pdev, PCI_CFG_REG_BAR_NUM, 0);
@@ -1105,6 +1195,8 @@ static int bgx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		if (err) {
 			dev_err(dev, "BGX%d failed to enable lmac%d\n",
 				bgx->bgx_id, lmac);
+			while (lmac)
+				bgx_lmac_disable(bgx, --lmac);
 			goto err_enable;
 		}
 	}

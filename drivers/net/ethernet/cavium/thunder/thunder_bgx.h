@@ -9,6 +9,14 @@
 #ifndef THUNDER_BGX_H
 #define THUNDER_BGX_H
 
+/* PCI device ID */
+#define	PCI_DEVICE_ID_THUNDER_BGX		0xA026
+
+/* Subsystem device IDs */
+#define PCI_SUBSYS_DEVID_88XX_BGX		0xA126
+#define PCI_SUBSYS_DEVID_81XX_BGX		0xA226
+#define PCI_SUBSYS_DEVID_83XX_BGX		0xA326
+
 #define    MAX_BGX_THUNDER			8 /* Max 4 nodes, 2 per node */
 #define    MAX_BGX_PER_CN88XX			2
 #define    MAX_BGX_PER_CN81XX			2
@@ -215,6 +223,9 @@ enum LMAC_TYPE {
 	BGX_MODE_XLAUI = 4, /* 4 lanes, 10.3125 Gbaud */
 	BGX_MODE_10G_KR = 3,/* 1 lane, 10.3125 Gbaud */
 	BGX_MODE_40G_KR = 4,/* 4 lanes, 10.3125 Gbaud */
+	BGX_MODE_RGMII = 5,
+	BGX_MODE_QSGMII = 6,
+	BGX_MODE_INVALID = 7,
 };
 
 #endif /* THUNDER_BGX_H */
