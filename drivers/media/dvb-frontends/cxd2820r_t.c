@@ -265,42 +265,32 @@ int cxd2820r_read_status_t(struct dvb_frontend *fe, enum fe_status *status)
 	struct i2c_client *client = priv->client[0];
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
-	unsigned int utmp;
-	u8 buf[4];
-	*status = 0;
+	unsigned int utmp, utmp1, utmp2;
+	u8 buf[3];
 
+	/* Lock detection */
 	ret = cxd2820r_rd_reg(priv, 0x00010, &buf[0]);
 	if (ret)
 		goto error;
+	ret = cxd2820r_rd_reg(priv, 0x00073, &buf[1]);
+	if (ret)
+		goto error;
 
-	if ((buf[0] & 0x07) == 6) {
-		ret = cxd2820r_rd_reg(priv, 0x00073, &buf[1]);
-		if (ret)
-			goto error;
+	utmp1 = (buf[0] >> 0) & 0x07;
+	utmp2 = (buf[1] >> 3) & 0x01;
 
-		if (((buf[1] >> 3) & 0x01) == 1) {
-			*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER |
-				FE_HAS_VITERBI | FE_HAS_SYNC | FE_HAS_LOCK;
-		} else {
-			*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER |
-				FE_HAS_VITERBI | FE_HAS_SYNC;
-		}
+	if (utmp1 == 6 && utmp2 == 1) {
+		*status = FE_HAS_SIGNAL | FE_HAS_CARRIER |
+			  FE_HAS_VITERBI | FE_HAS_SYNC | FE_HAS_LOCK;
+	} else if (utmp1 == 6 || utmp2 == 1) {
+		*status = FE_HAS_SIGNAL | FE_HAS_CARRIER |
+			  FE_HAS_VITERBI | FE_HAS_SYNC;
 	} else {
-		ret = cxd2820r_rd_reg(priv, 0x00014, &buf[2]);
-		if (ret)
-			goto error;
-
-		if ((buf[2] & 0x0f) >= 4) {
-			ret = cxd2820r_rd_reg(priv, 0x00a14, &buf[3]);
-			if (ret)
-				goto error;
-
-			if (((buf[3] >> 4) & 0x01) == 1)
-				*status |= FE_HAS_SIGNAL;
-		}
+		*status = 0;
 	}
 
-	dev_dbg(&client->dev, "lock=%*ph\n", 4, buf);
+	dev_dbg(&client->dev, "status=%02x raw=%*ph sync=%u ts=%u\n",
+		*status, 2, buf, utmp1, utmp2);
 
 	/* Signal strength */
 	if (*status & FE_HAS_SIGNAL) {

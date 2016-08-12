@@ -160,25 +160,32 @@ int cxd2820r_read_status_c(struct dvb_frontend *fe, enum fe_status *status)
 	struct i2c_client *client = priv->client[0];
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
-	unsigned int utmp;
+	unsigned int utmp, utmp1, utmp2;
 	u8 buf[3];
-	*status = 0;
 
-	ret = cxd2820r_rd_regs(priv, 0x10088, buf, 2);
+	/* Lock detection */
+	ret = cxd2820r_rd_reg(priv, 0x10088, &buf[0]);
+	if (ret)
+		goto error;
+	ret = cxd2820r_rd_reg(priv, 0x10073, &buf[1]);
 	if (ret)
 		goto error;
 
-	if (((buf[0] >> 0) & 0x01) == 1) {
-		*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER |
-			FE_HAS_VITERBI | FE_HAS_SYNC;
+	utmp1 = (buf[0] >> 0) & 0x01;
+	utmp2 = (buf[1] >> 3) & 0x01;
 
-		if (((buf[1] >> 3) & 0x01) == 1) {
-			*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER |
-				FE_HAS_VITERBI | FE_HAS_SYNC | FE_HAS_LOCK;
-		}
+	if (utmp1 == 1 && utmp2 == 1) {
+		*status = FE_HAS_SIGNAL | FE_HAS_CARRIER |
+			  FE_HAS_VITERBI | FE_HAS_SYNC | FE_HAS_LOCK;
+	} else if (utmp1 == 1 || utmp2 == 1) {
+		*status = FE_HAS_SIGNAL | FE_HAS_CARRIER |
+			  FE_HAS_VITERBI | FE_HAS_SYNC;
+	} else {
+		*status = 0;
 	}
 
-	dev_dbg(&client->dev, "lock=%*ph\n", 2, buf);
+	dev_dbg(&client->dev, "status=%02x raw=%*ph sync=%u ts=%u\n",
+		*status, 2, buf, utmp1, utmp2);
 
 	/* Signal strength */
 	if (*status & FE_HAS_SIGNAL) {
