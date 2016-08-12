@@ -161,7 +161,8 @@ static int dlm_lock_sync_interruptible(struct dlm_lock_resource *res, int mode,
 		return ret;
 
 	wait_event(res->sync_locking, res->sync_locking_done
-				      || kthread_should_stop());
+				      || kthread_should_stop()
+				      || test_bit(MD_CLOSING, &mddev->flags));
 	if (!res->sync_locking_done) {
 		/*
 		 * the convert queue contains the lock request when request is
@@ -1045,7 +1046,7 @@ static void metadata_update_cancel(struct mddev *mddev)
 static int resync_start(struct mddev *mddev)
 {
 	struct md_cluster_info *cinfo = mddev->cluster_info;
-	return dlm_lock_sync(cinfo->resync_lockres, DLM_LOCK_EX);
+	return dlm_lock_sync_interruptible(cinfo->resync_lockres, DLM_LOCK_EX, mddev);
 }
 
 static int resync_info_update(struct mddev *mddev, sector_t lo, sector_t hi)
