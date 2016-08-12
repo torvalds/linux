@@ -910,6 +910,9 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 	.get_config_memsize = &vi_get_config_memsize,
 };
 
+#define CZ_REV_BRISTOL(rev)	 \
+	((rev >= 0xC8 && rev <= 0xCE) || (rev >= 0xE1 && rev <= 0xE6))
+
 static int vi_common_early_init(void *handle)
 {
 	bool smc_enabled = false;
@@ -1057,7 +1060,7 @@ static int vi_common_early_init(void *handle)
 			AMD_CG_SUPPORT_VCE_MGCG;
 		/* rev0 hardware requires workarounds to support PG */
 		adev->pg_flags = 0;
-		if (adev->rev_id != 0x00) {
+		if (adev->rev_id != 0x00 || CZ_REV_BRISTOL(adev->pdev->revision)) {
 			adev->pg_flags |=
 				AMD_PG_SUPPORT_GFX_SMG |
 				AMD_PG_SUPPORT_GFX_PIPELINE |
