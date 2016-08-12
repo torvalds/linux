@@ -317,8 +317,6 @@ static int b53_spi_remove(struct spi_device *spi)
 static struct spi_driver b53_spi_driver = {
 	.driver = {
 		.name	= "b53-switch",
-		.bus	= &spi_bus_type,
-		.owner	= THIS_MODULE,
 	},
 	.probe	= b53_spi_probe,
 	.remove	= b53_spi_remove,
