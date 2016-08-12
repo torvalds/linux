@@ -379,8 +379,9 @@ void bgx_lmac_internal_loopback(int node, int bgx_idx,
 }
 EXPORT_SYMBOL(bgx_lmac_internal_loopback);
 
-static int bgx_lmac_sgmii_init(struct bgx *bgx, int lmacid)
+static int bgx_lmac_sgmii_init(struct bgx *bgx, struct lmac *lmac)
 {
+	int lmacid = lmac->lmacid;
 	u64 cfg;
 
 	bgx_reg_modify(bgx, lmacid, BGX_GMP_GMI_TXX_THRESH, 0x30);
@@ -408,6 +409,14 @@ static int bgx_lmac_sgmii_init(struct bgx *bgx, int lmacid)
 	cfg &= ~PCS_MRX_CTL_PWR_DN;
 	cfg |= (PCS_MRX_CTL_RST_AN | PCS_MRX_CTL_AN_EN);
 	bgx_reg_write(bgx, lmacid, BGX_GMP_PCS_MRX_CTL, cfg);
+
+	if (lmac->lmac_type == BGX_MODE_QSGMII) {
+		/* Disable disparity check for QSGMII */
+		cfg = bgx_reg_read(bgx, lmacid, BGX_GMP_PCS_MISCX_CTL);
+		cfg &= ~PCS_MISC_CTL_DISP_EN;
+		bgx_reg_write(bgx, lmacid, BGX_GMP_PCS_MISCX_CTL, cfg);
+		return 0;
+	}
 
 	if (bgx_poll_reg(bgx, lmacid, BGX_GMP_PCS_MRX_STATUS,
 			 PCS_MRX_STATUS_AN_CPT, false)) {
@@ -650,6 +659,14 @@ static void bgx_poll_for_link(struct work_struct *work)
 	queue_delayed_work(lmac->check_link, &lmac->dwork, HZ * 2);
 }
 
+static int phy_interface_mode(u8 lmac_type)
+{
+	if (lmac_type == BGX_MODE_QSGMII)
+		return PHY_INTERFACE_MODE_QSGMII;
+
+	return PHY_INTERFACE_MODE_SGMII;
+}
+
 static int bgx_lmac_enable(struct bgx *bgx, u8 lmacid)
 {
 	struct lmac *lmac;
@@ -658,9 +675,10 @@ static int bgx_lmac_enable(struct bgx *bgx, u8 lmacid)
 	lmac = &bgx->lmac[lmacid];
 	lmac->bgx = bgx;
 
-	if (lmac->lmac_type == BGX_MODE_SGMII) {
+	if ((lmac->lmac_type == BGX_MODE_SGMII) ||
+	    (lmac->lmac_type == BGX_MODE_QSGMII)) {
 		lmac->is_sgmii = 1;
-		if (bgx_lmac_sgmii_init(bgx, lmacid))
+		if (bgx_lmac_sgmii_init(bgx, lmac))
 			return -1;
 	} else {
 		lmac->is_sgmii = 0;
@@ -697,7 +715,7 @@ static int bgx_lmac_enable(struct bgx *bgx, u8 lmacid)
 
 		if (phy_connect_direct(&lmac->netdev, lmac->phydev,
 				       bgx_lmac_handler,
-				       PHY_INTERFACE_MODE_SGMII))
+				       phy_interface_mode(lmac->lmac_type)))
 			return -ENODEV;
 
 		phy_start_aneg(lmac->phydev);
@@ -799,6 +817,11 @@ static void bgx_init_hw(struct bgx *bgx)
 		bgx_reg_write(bgx, 0, BGX_CMR_RX_STREERING + (i * 8), 0x00);
 }
 
+static u8 bgx_get_lane2sds_cfg(struct bgx *bgx, struct lmac *lmac)
+{
+	return (u8)(bgx_reg_read(bgx, lmac->lmacid, BGX_CMRX_CFG) & 0xFF);
+}
+
 static void bgx_print_qlm_mode(struct bgx *bgx, u8 lmacid)
 {
 	struct device *dev = &bgx->pdev->dev;
@@ -838,12 +861,22 @@ static void bgx_print_qlm_mode(struct bgx *bgx, u8 lmacid)
 		else
 			dev_info(dev, "%s: 40G_KR4\n", (char *)str);
 		break;
-	default:
-		dev_info(dev, "%s: INVALID\n", (char *)str);
+	case BGX_MODE_QSGMII:
+		if ((lmacid == 0) &&
+		    (bgx_get_lane2sds_cfg(bgx, lmac) != lmacid))
+			return;
+		if ((lmacid == 2) &&
+		    (bgx_get_lane2sds_cfg(bgx, lmac) == lmacid))
+			return;
+		dev_info(dev, "%s: QSGMII\n", (char *)str);
+		break;
+	case BGX_MODE_INVALID:
+		/* Nothing to do */
+		break;
 	}
 }
 
-static void lmac_set_lane2sds(struct lmac *lmac)
+static void lmac_set_lane2sds(struct bgx *bgx, struct lmac *lmac)
 {
 	switch (lmac->lmac_type) {
 	case BGX_MODE_SGMII:
@@ -856,6 +889,14 @@ static void lmac_set_lane2sds(struct lmac *lmac)
 		break;
 	case BGX_MODE_RXAUI:
 		lmac->lane_to_sds = (lmac->lmacid) ? 0xE : 0x4;
+		break;
+	case BGX_MODE_QSGMII:
+		/* There is no way to determine if DLM0/2 is QSGMII or
+		 * DLM1/3 is configured to QSGMII as bootloader will
+		 * configure all LMACs, so take whatever is configured
+		 * by low level firmware.
+		 */
+		lmac->lane_to_sds = bgx_get_lane2sds_cfg(bgx, lmac);
 		break;
 	default:
 		lmac->lane_to_sds = 0;
@@ -882,7 +923,7 @@ static void bgx_set_lmac_config(struct bgx *bgx, u8 idx)
 		lmac->use_training =
 			bgx_reg_read(bgx, 0, BGX_SPUX_BR_PMD_CRTL) &
 				SPU_PMD_CRTL_TRAIN_EN;
-		lmac_set_lane2sds(lmac);
+		lmac_set_lane2sds(bgx, lmac);
 		return;
 	}
 
@@ -901,7 +942,7 @@ static void bgx_set_lmac_config(struct bgx *bgx, u8 idx)
 		lmac->use_training =
 			bgx_reg_read(bgx, idx, BGX_SPUX_BR_PMD_CRTL) &
 				SPU_PMD_CRTL_TRAIN_EN;
-		lmac_set_lane2sds(lmac);
+		lmac_set_lane2sds(bgx, lmac);
 
 		/* Set LMAC type of other lmac on same DLM i.e LMAC 1/3 */
 		olmac = &bgx->lmac[idx + 1];
@@ -909,7 +950,7 @@ static void bgx_set_lmac_config(struct bgx *bgx, u8 idx)
 		olmac->use_training =
 		bgx_reg_read(bgx, idx + 1, BGX_SPUX_BR_PMD_CRTL) &
 			SPU_PMD_CRTL_TRAIN_EN;
-		lmac_set_lane2sds(olmac);
+		lmac_set_lane2sds(bgx, olmac);
 	}
 }
 
@@ -920,7 +961,7 @@ static bool is_dlm0_in_bgx_mode(struct bgx *bgx)
 	if (!bgx->is_81xx)
 		return true;
 
-	lmac = &bgx->lmac[1];
+	lmac = &bgx->lmac[0];
 	if (lmac->lmac_type == BGX_MODE_INVALID)
 		return false;
 
@@ -946,7 +987,7 @@ static void bgx_get_qlm_mode(struct bgx *bgx)
 	if (bgx->lmac_count > MAX_LMAC_PER_BGX)
 		bgx->lmac_count = MAX_LMAC_PER_BGX;
 
-	for (idx = 0; idx < bgx->lmac_count; idx++)
+	for (idx = 0; idx < MAX_LMAC_PER_BGX; idx++)
 		bgx_set_lmac_config(bgx, idx);
 
 	if (!bgx->is_81xx) {
