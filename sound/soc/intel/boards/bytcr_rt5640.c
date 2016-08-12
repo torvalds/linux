@@ -339,6 +339,16 @@ static const struct dmi_system_id byt_rt5640_quirk_table[] = {
 		.driver_data = (unsigned long *)(BYT_RT5640_DMIC1_MAP |
 						 BYT_RT5640_DMIC_EN),
 	},
+	{
+		.callback = byt_rt5640_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "TECLAST"),
+			DMI_MATCH(DMI_BOARD_NAME, "tPAD"),
+		},
+		.driver_data = (unsigned long *)(BYT_RT5640_IN3_MAP |
+						BYT_RT5640_MCLK_EN |
+						BYT_RT5640_SSP0_AIF1),
+	},
 	{}
 };
 
