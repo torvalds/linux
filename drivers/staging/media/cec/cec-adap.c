@@ -851,6 +851,9 @@ void cec_received_msg(struct cec_adapter *adap, struct cec_msg *msg)
 	if (!valid_la || msg->len <= 1)
 		return;
 
+	if (adap->log_addrs.log_addr_mask == 0)
+		return;
+
 	/*
 	 * Process the message on the protocol level. If is_reply is true,
 	 * then cec_receive_notify() won't pass on the reply to the listener(s)
