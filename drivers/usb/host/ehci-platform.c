@@ -38,7 +38,7 @@
 #include "ehci.h"
 
 #define DRIVER_DESC "EHCI generic platform driver"
-#define EHCI_MAX_CLKS 3
+#define EHCI_MAX_CLKS 4
 #define EHCI_MAX_RSTS 3
 #define hcd_to_ehci_priv(h) ((struct ehci_platform_priv *)hcd_to_ehci(h)->priv)
 
