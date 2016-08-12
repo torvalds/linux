@@ -1009,6 +1009,12 @@ static int nic_num_sqs_en(struct nicpf *nic, int vf_en)
 	int pos, sqs_per_vf = MAX_SQS_PER_VF_SINGLE_NODE;
 	u16 total_vf;
 
+	/* Secondary Qsets are needed only if CPU count is
+	 * morethan MAX_QUEUES_PER_QSET.
+	 */
+	if (num_online_cpus() <= MAX_QUEUES_PER_QSET)
+		return 0;
+
 	/* Check if its a multi-node environment */
 	if (nr_node_ids > 1)
 		sqs_per_vf = MAX_SQS_PER_VF;

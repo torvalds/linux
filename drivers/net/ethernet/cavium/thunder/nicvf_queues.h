@@ -57,10 +57,7 @@
 #define CMP_QUEUE_SIZE6		6ULL /* 64K entries */
 
 /* Default queue count per QS, its lengths and threshold values */
-#define RBDR_CNT		1
-#define RCV_QUEUE_CNT		8
-#define SND_QUEUE_CNT		8
-#define CMP_QUEUE_CNT		8 /* Max of RCV and SND qcount */
+#define DEFAULT_RBDR_CNT	1
 
 #define SND_QSIZE		SND_QUEUE_SIZE2
 #define SND_QUEUE_LEN		(1ULL << (SND_QSIZE + 10))

@@ -762,10 +762,10 @@ int nicvf_set_qset_resources(struct nicvf *nic)
 	nic->qs = qs;
 
 	/* Set count of each queue */
-	qs->rbdr_cnt = RBDR_CNT;
-	qs->rq_cnt = RCV_QUEUE_CNT;
-	qs->sq_cnt = SND_QUEUE_CNT;
-	qs->cq_cnt = CMP_QUEUE_CNT;
+	qs->rbdr_cnt = DEFAULT_RBDR_CNT;
+	qs->rq_cnt = min_t(u8, MAX_RCV_QUEUES_PER_QS, num_online_cpus());
+	qs->sq_cnt = min_t(u8, MAX_SND_QUEUES_PER_QS, num_online_cpus());
+	qs->cq_cnt = max_t(u8, qs->rq_cnt, qs->sq_cnt);
 
 	/* Set queue lengths */
 	qs->rbdr_len = RCV_BUF_COUNT;
