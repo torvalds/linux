@@ -10,6 +10,7 @@
 
 
 #include <linux/module.h>
+#include <linux/kthread.h>
 #include <linux/dlm.h>
 #include <linux/sched.h>
 #include <linux/raid/md_p.h>
@@ -142,6 +143,43 @@ static int dlm_lock_sync(struct dlm_lock_resource *res, int mode)
 static int dlm_unlock_sync(struct dlm_lock_resource *res)
 {
 	return dlm_lock_sync(res, DLM_LOCK_NL);
+}
+
+/*
+ * An variation of dlm_lock_sync, which make lock request could
+ * be interrupted
+ */
+static int dlm_lock_sync_interruptible(struct dlm_lock_resource *res, int mode,
+				       struct mddev *mddev)
+{
+	int ret = 0;
+
+	ret = dlm_lock(res->ls, mode, &res->lksb,
+			res->flags, res->name, strlen(res->name),
+			0, sync_ast, res, res->bast);
+	if (ret)
+		return ret;
+
+	wait_event(res->sync_locking, res->sync_locking_done
+				      || kthread_should_stop());
+	if (!res->sync_locking_done) {
+		/*
+		 * the convert queue contains the lock request when request is
+		 * interrupted, and sync_ast could still be run, so need to
+		 * cancel the request and reset completion
+		 */
+		ret = dlm_unlock(res->ls, res->lksb.sb_lkid, DLM_LKF_CANCEL,
+			&res->lksb, res);
+		res->sync_locking_done = false;
+		if (unlikely(ret != 0))
+			pr_info("failed to cancel previous lock request "
+				 "%s return %d\n", res->name, ret);
+		return -EPERM;
+	} else
+		res->sync_locking_done = false;
+	if (res->lksb.sb_status == 0)
+		res->mode = mode;
+	return res->lksb.sb_status;
 }
 
 static struct dlm_lock_resource *lockres_init(struct mddev *mddev,
@@ -279,7 +317,7 @@ static void recover_bitmaps(struct md_thread *thread)
 			goto clear_bit;
 		}
 
-		ret = dlm_lock_sync(bm_lockres, DLM_LOCK_PW);
+		ret = dlm_lock_sync_interruptible(bm_lockres, DLM_LOCK_PW, mddev);
 		if (ret) {
 			pr_err("md-cluster: Could not DLM lock %s: %d\n",
 					str, ret);
