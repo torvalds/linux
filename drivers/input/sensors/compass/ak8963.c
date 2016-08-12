@@ -303,12 +303,12 @@ static void compass_set_YPR(int *rbuf)
 	DBG("%s:buf[0]=0x%x\n",__func__, rbuf[0]);
 	
 	/* Report magnetic sensor information */
-	if (atomic_read(&sensor->flags.m_flag) && (rbuf[0] & MAG_DATA_READY)) {
-		input_report_abs(sensor->input_dev, ABS_RX, rbuf[5]);
-		input_report_abs(sensor->input_dev, ABS_RY, rbuf[6]);
-		input_report_abs(sensor->input_dev, ABS_RZ, rbuf[7]);
-		input_report_abs(sensor->input_dev, ABS_RUDDER, rbuf[8]);
-		DBG("%s:m_flag:x=%d,y=%d,z=%d,RUDDER=%d\n", __func__, rbuf[5], rbuf[6], rbuf[7], rbuf[8]);
+	if (atomic_read(&sensor->flags.m_flag) && (rbuf[0] & ORI_DATA_READY)) {
+		input_report_abs(sensor->input_dev, ABS_RX, rbuf[9]);
+		input_report_abs(sensor->input_dev, ABS_RY, rbuf[10]);
+		input_report_abs(sensor->input_dev, ABS_RZ, rbuf[11]);
+		input_report_abs(sensor->input_dev, ABS_RUDDER, rbuf[4]);
+		DBG("%s:m_flag:x=%d,y=%d,z=%d,RUDDER=%d\n", __func__, rbuf[9], rbuf[10], rbuf[11], rbuf[4]);
 	}
 	
 	/* Report acceleration sensor information */
@@ -322,13 +322,13 @@ static void compass_set_YPR(int *rbuf)
 	}
 	
 	/* Report magnetic vector information */
-	if (atomic_read(&sensor->flags.mv_flag) && (rbuf[0] & ORI_DATA_READY)) {
-		input_report_abs(sensor->input_dev, ABS_HAT0X, rbuf[9]);
-		input_report_abs(sensor->input_dev, ABS_HAT0Y, rbuf[10]);
-		input_report_abs(sensor->input_dev, ABS_BRAKE, rbuf[11]);
-		input_report_abs(sensor->input_dev, ABS_HAT1X, rbuf[12]);
+	if (atomic_read(&sensor->flags.mv_flag) && (rbuf[0] & MAG_DATA_READY)) {
+		input_report_abs(sensor->input_dev, ABS_HAT0X, rbuf[5]);
+		input_report_abs(sensor->input_dev, ABS_HAT0Y, rbuf[6]);
+		input_report_abs(sensor->input_dev, ABS_BRAKE, rbuf[7]);
+		input_report_abs(sensor->input_dev, ABS_HAT1X, rbuf[8]);
 
-		DBG("%s:mv_flag:x=%d,y=%d,z=%d,status=%d\n", __func__, rbuf[9], rbuf[10], rbuf[11], rbuf[12]);
+		DBG("%s:mv_flag:x=%d,y=%d,z=%d,status=%d\n", __func__, rbuf[5], rbuf[6], rbuf[7], rbuf[8]);
 	}
 	
 	input_sync(sensor->input_dev);
