@@ -1211,8 +1211,8 @@ static int add_platform_device(int id)
 		dev_nr = id;
 
 	pdev = platform_device_register_simple(driver_name, dev_nr, NULL, 0);
-	if (pdev == NULL)
-		return -ENODEV;
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
 
 	*(vhci_pdevs + id) = pdev;
 	return 0;
