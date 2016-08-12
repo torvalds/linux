@@ -3201,7 +3201,7 @@ static int macsec_newlink(struct net *net, struct net_device *dev,
 
 	dev_hold(real_dev);
 
-	macsec->nest_level = dev_get_nest_level(real_dev, netif_is_macsec) + 1;
+	macsec->nest_level = dev_get_nest_level(real_dev) + 1;
 	netdev_lockdep_set_classes(dev);
 	lockdep_set_class_and_subclass(&dev->addr_list_lock,
 				       &macsec_netdev_addr_lock_key,
