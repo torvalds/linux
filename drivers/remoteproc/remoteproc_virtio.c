@@ -69,7 +69,7 @@ irqreturn_t rproc_vq_interrupt(struct rproc *rproc, int notifyid)
 EXPORT_SYMBOL(rproc_vq_interrupt);
 
 static struct virtqueue *rp_find_vq(struct virtio_device *vdev,
-				    unsigned id,
+				    unsigned int id,
 				    void (*callback)(struct virtqueue *vq),
 				    const char *name)
 {
@@ -144,7 +144,7 @@ static void rproc_virtio_del_vqs(struct virtio_device *vdev)
 	__rproc_virtio_del_vqs(vdev);
 }
 
-static int rproc_virtio_find_vqs(struct virtio_device *vdev, unsigned nvqs,
+static int rproc_virtio_find_vqs(struct virtio_device *vdev, unsigned int nvqs,
 		       struct virtqueue *vqs[],
 		       vq_callback_t *callbacks[],
 		       const char * const names[])
@@ -239,8 +239,8 @@ static int rproc_virtio_finalize_features(struct virtio_device *vdev)
 	return 0;
 }
 
-static void rproc_virtio_get(struct virtio_device *vdev, unsigned offset,
-							void *buf, unsigned len)
+static void rproc_virtio_get(struct virtio_device *vdev, unsigned int offset,
+			     void *buf, unsigned int len)
 {
 	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
 	struct fw_rsc_vdev *rsc;
@@ -257,8 +257,8 @@ static void rproc_virtio_get(struct virtio_device *vdev, unsigned offset,
 	memcpy(buf, cfg + offset, len);
 }
 
-static void rproc_virtio_set(struct virtio_device *vdev, unsigned offset,
-		      const void *buf, unsigned len)
+static void rproc_virtio_set(struct virtio_device *vdev, unsigned int offset,
+			     const void *buf, unsigned int len)
 {
 	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
 	struct fw_rsc_vdev *rsc;

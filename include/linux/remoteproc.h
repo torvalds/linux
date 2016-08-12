@@ -435,7 +435,7 @@ struct rproc {
 	struct idr notifyids;
 	int index;
 	struct work_struct crash_handler;
-	unsigned crash_cnt;
+	unsigned int crash_cnt;
 	struct completion crash_comp;
 	bool recovery_disabled;
 	int max_notifyid;
