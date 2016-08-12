@@ -59,7 +59,7 @@ static struct ccp_device *ccp_rr;
 
 /* Ever-increasing value to produce unique unit numbers */
 static atomic_t ccp_unit_ordinal;
-unsigned int ccp_increment_unit_ordinal(void)
+static unsigned int ccp_increment_unit_ordinal(void)
 {
 	return atomic_inc_return(&ccp_unit_ordinal);
 }
