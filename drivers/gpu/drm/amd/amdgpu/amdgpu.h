@@ -833,6 +833,9 @@ struct amdgpu_ring {
 /* maximum number of VMIDs */
 #define AMDGPU_NUM_VM	16
 
+/* Maximum number of PTEs the hardware can write with one command */
+#define AMDGPU_VM_MAX_UPDATE_SIZE	0x3FFFF
+
 /* number of entries in page table */
 #define AMDGPU_VM_PTE_COUNT (1 << amdgpu_vm_block_size)
 

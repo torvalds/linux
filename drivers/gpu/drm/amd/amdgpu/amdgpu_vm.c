@@ -639,7 +639,8 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 
 		pde = pd_addr + pt_idx * 8;
 		if (((last_pde + 8 * count) != pde) ||
-		    ((last_pt + incr * count) != pt)) {
+		    ((last_pt + incr * count) != pt) ||
+		    (count == AMDGPU_VM_MAX_UPDATE_SIZE)) {
 
 			if (count) {
 				amdgpu_vm_update_pages(&params, last_pde,
@@ -743,7 +744,8 @@ static void amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 		next_pe_start = amdgpu_bo_gpu_offset(pt);
 		next_pe_start += (addr & mask) * 8;
 
-		if ((cur_pe_start + 8 * cur_nptes) == next_pe_start) {
+		if ((cur_pe_start + 8 * cur_nptes) == next_pe_start &&
+		    ((cur_nptes + nptes) <= AMDGPU_VM_MAX_UPDATE_SIZE)) {
 			/* The next ptb is consecutive to current ptb.
 			 * Don't call amdgpu_vm_update_pages now.
 			 * Will update two ptbs together in future.
