@@ -1054,17 +1054,6 @@ void intel_lvds_init(struct drm_device *dev)
 	}
 	lvds_connector->base.edid = edid;
 
-	if (IS_ERR_OR_NULL(edid)) {
-		/* Didn't get an EDID, so
-		 * Set wide sync ranges so we get all modes
-		 * handed to valid_mode for checking
-		 */
-		connector->display_info.min_vfreq = 0;
-		connector->display_info.max_vfreq = 200;
-		connector->display_info.min_hfreq = 0;
-		connector->display_info.max_hfreq = 200;
-	}
-
 	list_for_each_entry(scan, &connector->probed_modes, head) {
 		if (scan->type & DRM_MODE_TYPE_PREFERRED) {
 			DRM_DEBUG_KMS("using preferred mode from EDID: ");

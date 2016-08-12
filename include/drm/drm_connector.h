@@ -94,9 +94,6 @@ struct drm_display_info {
         unsigned int width_mm;
 	unsigned int height_mm;
 
-	/* Clock limits FIXME: storage format */
-	unsigned int min_vfreq, max_vfreq;
-	unsigned int min_hfreq, max_hfreq;
 	unsigned int pixel_clock;
 	unsigned int bpc;
 
