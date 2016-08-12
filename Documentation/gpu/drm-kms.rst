@@ -33,7 +33,7 @@ Atomic Mode Setting Function Reference
 .. kernel-doc:: drivers/gpu/drm/drm_atomic.c
    :export:
 
-.. kernel-doc:: drivers/gpu/drm/drm_atomic.c
+.. kernel-doc:: include/drm/drm_atomic.h
    :internal:
 
 Frame Buffer Abstraction
