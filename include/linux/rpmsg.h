@@ -167,8 +167,6 @@ struct rpmsg_driver {
 	void (*callback)(struct rpmsg_channel *, void *, int, void *, u32);
 };
 
-int register_rpmsg_device(struct rpmsg_channel *dev);
-void unregister_rpmsg_device(struct rpmsg_channel *dev);
 int __register_rpmsg_driver(struct rpmsg_driver *drv, struct module *owner);
 void unregister_rpmsg_driver(struct rpmsg_driver *drv);
 void rpmsg_destroy_ept(struct rpmsg_endpoint *);
