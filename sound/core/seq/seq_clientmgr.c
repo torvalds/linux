@@ -87,21 +87,6 @@ static int snd_seq_deliver_single_event(struct snd_seq_client *client,
 
 /*
  */
- 
-static inline mm_segment_t snd_enter_user(void)
-{
-	mm_segment_t fs = get_fs();
-	set_fs(get_ds());
-	return fs;
-}
-
-static inline void snd_leave_user(mm_segment_t fs)
-{
-	set_fs(fs);
-}
-
-/*
- */
 static inline unsigned short snd_seq_file_flags(struct file *file)
 {
         switch (file->f_mode & (FMODE_READ | FMODE_WRITE)) {
@@ -2094,14 +2079,8 @@ static const struct ioctl_handler {
 	{ 0, NULL },
 };
 
-static struct seq_ioctl_table {
-	unsigned int cmd;
-	int (*func)(struct snd_seq_client *client, void __user * arg);
-} ioctl_tables[] = {
-	{ 0, NULL },
-};
-
-static long seq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static long snd_seq_ioctl(struct file *file, unsigned int cmd,
+			  unsigned long arg)
 {
 	struct snd_seq_client *client = file->private_data;
 	/* To use kernel stack for ioctl data. */
@@ -2156,45 +2135,6 @@ static long seq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 
 	return err;
-}
-
-static int snd_seq_do_ioctl(struct snd_seq_client *client, unsigned int cmd,
-			    void __user *arg)
-{
-	struct seq_ioctl_table *p;
-
-	switch (cmd) {
-	case SNDRV_SEQ_IOCTL_PVERSION:
-		/* return sequencer version number */
-		return put_user(SNDRV_SEQ_VERSION, (int __user *)arg) ? -EFAULT : 0;
-	case SNDRV_SEQ_IOCTL_CLIENT_ID:
-		/* return the id of this client */
-		return put_user(client->number, (int __user *)arg) ? -EFAULT : 0;
-	}
-
-	if (! arg)
-		return -EFAULT;
-	for (p = ioctl_tables; p->cmd; p++) {
-		if (p->cmd == cmd)
-			return p->func(client, arg);
-	}
-	pr_debug("ALSA: seq unknown ioctl() 0x%x (type='%c', number=0x%02x)\n",
-		   cmd, _IOC_TYPE(cmd), _IOC_NR(cmd));
-	return -ENOTTY;
-}
-
-
-static long snd_seq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
-{
-	struct snd_seq_client *client = file->private_data;
-
-	if (seq_ioctl(file, cmd, arg) >= 0)
-		return 0;
-
-	if (snd_BUG_ON(!client))
-		return -ENXIO;
-
-	return snd_seq_do_ioctl(client, cmd, (void __user *) arg);
 }
 
 #ifdef CONFIG_COMPAT
@@ -2396,8 +2336,6 @@ int snd_seq_kernel_client_ctl(int clientid, unsigned int cmd, void *arg)
 {
 	const struct ioctl_handler *handler;
 	struct snd_seq_client *client;
-	mm_segment_t fs;
-	int result;
 
 	client = clientptr(clientid);
 	if (client == NULL)
@@ -2408,10 +2346,9 @@ int snd_seq_kernel_client_ctl(int clientid, unsigned int cmd, void *arg)
 			return handler->func(client, arg);
 	}
 
-	fs = snd_enter_user();
-	result = snd_seq_do_ioctl(client, cmd, (void __force __user *)arg);
-	snd_leave_user(fs);
-	return result;
+	pr_debug("ALSA: seq unknown ioctl() 0x%x (type='%c', number=0x%02x)\n",
+		 cmd, _IOC_TYPE(cmd), _IOC_NR(cmd));
+	return -ENOTTY;
 }
 
 EXPORT_SYMBOL(snd_seq_kernel_client_ctl);
