@@ -98,6 +98,9 @@ void (*raid6_datap_recov)(int, size_t, int, void **);
 EXPORT_SYMBOL_GPL(raid6_datap_recov);
 
 const struct raid6_recov_calls *const raid6_recov_algos[] = {
+#ifdef CONFIG_AS_AVX512
+	&raid6_recov_avx512,
+#endif
 #ifdef CONFIG_AS_AVX2
 	&raid6_recov_avx2,
 #endif
