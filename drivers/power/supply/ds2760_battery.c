@@ -566,7 +566,8 @@ static int ds2760_battery_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&di->monitor_work, ds2760_battery_work);
 	INIT_DELAYED_WORK(&di->set_charged_work,
 			  ds2760_battery_set_charged_work);
-	di->monitor_wqueue = create_singlethread_workqueue(dev_name(&pdev->dev));
+	di->monitor_wqueue = alloc_ordered_workqueue(dev_name(&pdev->dev),
+						     WQ_MEM_RECLAIM);
 	if (!di->monitor_wqueue) {
 		retval = -ESRCH;
 		goto workqueue_failed;
