@@ -216,12 +216,12 @@ static void xgene_xgmac_init(struct xgene_enet_pdata *pdata)
 	data |= CFG_RSIF_FPBUFF_TIMEOUT_EN;
 	xgene_enet_wr_csr(pdata, XG_RSIF_CONFIG_REG_ADDR, data);
 
-	xgene_enet_wr_csr(pdata, XG_CFG_BYPASS_ADDR, RESUME_TX);
-	xgene_enet_wr_csr(pdata, XGENET_RX_DV_GATE_REG_0_ADDR, 0);
 	xgene_enet_rd_csr(pdata, XG_ENET_SPARE_CFG_REG_ADDR, &data);
 	data |= BIT(12);
 	xgene_enet_wr_csr(pdata, XG_ENET_SPARE_CFG_REG_ADDR, data);
 	xgene_enet_wr_csr(pdata, XG_ENET_SPARE_CFG_REG_1_ADDR, 0x82);
+	xgene_enet_wr_csr(pdata, XGENET_RX_DV_GATE_REG_0_ADDR, 0);
+	xgene_enet_wr_csr(pdata, XG_CFG_BYPASS_ADDR, RESUME_TX);
 }
 
 static void xgene_xgmac_rx_enable(struct xgene_enet_pdata *pdata)
@@ -366,7 +366,6 @@ static void xgene_enet_link_state(struct work_struct *work)
 	if (link_status) {
 		if (!netif_carrier_ok(ndev)) {
 			netif_carrier_on(ndev);
-			xgene_xgmac_init(pdata);
 			xgene_xgmac_rx_enable(pdata);
 			xgene_xgmac_tx_enable(pdata);
 			netdev_info(ndev, "Link is Up - 10Gbps\n");
