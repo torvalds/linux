@@ -1751,6 +1751,7 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 		goto free_netdev;
 	}
 	spin_lock_init(&mac->hw_stats->stats_lock);
+	u64_stats_init(&mac->hw_stats->syncp);
 	mac->hw_stats->reg_offset = id * MTK_STAT_OFFSET;
 
 	SET_NETDEV_DEV(eth->netdev[id], eth->dev);
