@@ -326,14 +326,14 @@ static int nfnl_acct_try_del(struct nf_acct *cur)
 {
 	int ret = 0;
 
-	/* we want to avoid races with nfnl_acct_find_get. */
-	if (atomic_dec_and_test(&cur->refcnt)) {
+	/* We want to avoid races with nfnl_acct_put. So only when the current
+	 * refcnt is 1, we decrease it to 0.
+	 */
+	if (atomic_cmpxchg(&cur->refcnt, 1, 0) == 1) {
 		/* We are protected by nfnl mutex. */
 		list_del_rcu(&cur->head);
 		kfree_rcu(cur, rcu_head);
 	} else {
-		/* still in use, restore reference counter. */
-		atomic_inc(&cur->refcnt);
 		ret = -EBUSY;
 	}
 	return ret;
