@@ -22,7 +22,6 @@
 #include <linux/regmap.h>
 #include <linux/jiffies.h>
 #include <linux/interrupt.h>
-#include <linux/device.h>
 #include <linux/workqueue.h>
 #include <linux/mfd/axp20x.h>
 #include <linux/platform_device.h>
