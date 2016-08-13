@@ -190,11 +190,10 @@ static struct clk *_of_fixed_clk_setup(struct device_node *node)
 /**
  * of_fixed_clk_setup() - Setup function for simple fixed rate clock
  */
-void of_fixed_clk_setup(struct device_node *node)
+void __init of_fixed_clk_setup(struct device_node *node)
 {
 	_of_fixed_clk_setup(node);
 }
-EXPORT_SYMBOL_GPL(of_fixed_clk_setup);
 CLK_OF_DECLARE(fixed_clk, "fixed-clock", of_fixed_clk_setup);
 
 static int of_fixed_clk_remove(struct platform_device *pdev)
