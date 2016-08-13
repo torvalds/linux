@@ -196,7 +196,6 @@ void __init of_fixed_factor_clk_setup(struct device_node *node)
 {
 	_of_fixed_factor_clk_setup(node);
 }
-EXPORT_SYMBOL_GPL(of_fixed_factor_clk_setup);
 CLK_OF_DECLARE(fixed_factor_clk, "fixed-factor-clock",
 		of_fixed_factor_clk_setup);
 
