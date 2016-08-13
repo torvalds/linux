@@ -3002,10 +3002,8 @@ static void lan78xx_tx_bh(struct lan78xx_net *dev)
 
 gso_skb:
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (!urb) {
-		netif_dbg(dev, tx_err, dev->net, "no urb\n");
+	if (!urb)
 		goto drop;
-	}
 
 	entry = (struct skb_data *)skb->cb;
 	entry->urb = urb;
