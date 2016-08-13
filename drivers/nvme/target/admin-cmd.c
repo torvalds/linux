@@ -13,7 +13,6 @@
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
-#include <linux/random.h>
 #include <generated/utsrelease.h>
 #include "nvmet.h"
 
@@ -83,7 +82,6 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 {
 	struct nvmet_ctrl *ctrl = req->sq->ctrl;
 	struct nvme_id_ctrl *id;
-	u64 serial;
 	u16 status = 0;
 
 	id = kzalloc(sizeof(*id), GFP_KERNEL);
@@ -96,10 +94,8 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 	id->vid = 0;
 	id->ssvid = 0;
 
-	/* generate a random serial number as our controllers are ephemeral: */
-	get_random_bytes(&serial, sizeof(serial));
 	memset(id->sn, ' ', sizeof(id->sn));
-	snprintf(id->sn, sizeof(id->sn), "%llx", serial);
+	snprintf(id->sn, sizeof(id->sn), "%llx", ctrl->serial);
 
 	memset(id->mn, ' ', sizeof(id->mn));
 	strncpy((char *)id->mn, "Linux", sizeof(id->mn));
