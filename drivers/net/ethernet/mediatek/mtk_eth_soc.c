@@ -269,6 +269,8 @@ static int mtk_phy_connect(struct mtk_mac *mac)
 				    ADVERTISED_Autoneg;
 	phy_start_aneg(mac->phy_dev);
 
+	of_node_put(np);
+
 	return 0;
 }
 
