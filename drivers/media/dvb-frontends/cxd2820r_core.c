@@ -21,168 +21,39 @@
 
 #include "cxd2820r_priv.h"
 
-/* Max transfer size done by I2C transfer functions */
-#define MAX_XFER_SIZE  64
-
-/* write multiple registers */
-static int cxd2820r_wr_regs_i2c(struct cxd2820r_priv *priv, u8 i2c, u8 reg,
-	u8 *val, int len)
+/* Write register table */
+int cxd2820r_wr_reg_val_mask_tab(struct cxd2820r_priv *priv,
+				 const struct reg_val_mask *tab, int tab_len)
 {
 	struct i2c_client *client = priv->client[0];
 	int ret;
-	u8 buf[MAX_XFER_SIZE];
-	struct i2c_msg msg[1] = {
-		{
-			.addr = i2c,
-			.flags = 0,
-			.len = len + 1,
-			.buf = buf,
-		}
-	};
+	unsigned int i, reg, mask, val;
+	struct regmap *regmap;
 
-	if (1 + len > sizeof(buf)) {
-		dev_warn(&client->dev, "i2c wr reg=%04x: len=%d is too big!\n",
-			 reg, len);
-		return -EINVAL;
+	dev_dbg(&client->dev, "tab_len=%d\n", tab_len);
+
+	for (i = 0; i < tab_len; i++) {
+		if ((tab[i].reg >> 16) & 0x1)
+			regmap = priv->regmap[1];
+		else
+			regmap = priv->regmap[0];
+
+		reg = (tab[i].reg >> 0) & 0xffff;
+		val = tab[i].val;
+		mask = tab[i].mask;
+
+		if (mask == 0xff)
+			ret = regmap_write(regmap, reg, val);
+		else
+			ret = regmap_write_bits(regmap, reg, mask, val);
+		if (ret)
+			goto error;
 	}
 
-	buf[0] = reg;
-	memcpy(&buf[1], val, len);
-
-	ret = i2c_transfer(priv->client[0]->adapter, msg, 1);
-	if (ret == 1) {
-		ret = 0;
-	} else {
-		dev_warn(&client->dev, "i2c wr failed=%d reg=%02x len=%d\n",
-			 ret, reg, len);
-		ret = -EREMOTEIO;
-	}
+	return 0;
+error:
+	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
-}
-
-/* read multiple registers */
-static int cxd2820r_rd_regs_i2c(struct cxd2820r_priv *priv, u8 i2c, u8 reg,
-	u8 *val, int len)
-{
-	struct i2c_client *client = priv->client[0];
-	int ret;
-	u8 buf[MAX_XFER_SIZE];
-	struct i2c_msg msg[2] = {
-		{
-			.addr = i2c,
-			.flags = 0,
-			.len = 1,
-			.buf = &reg,
-		}, {
-			.addr = i2c,
-			.flags = I2C_M_RD,
-			.len = len,
-			.buf = buf,
-		}
-	};
-
-	if (len > sizeof(buf)) {
-		dev_warn(&client->dev, "i2c wr reg=%04x: len=%d is too big!\n",
-			 reg, len);
-		return -EINVAL;
-	}
-
-	ret = i2c_transfer(priv->client[0]->adapter, msg, 2);
-	if (ret == 2) {
-		memcpy(val, buf, len);
-		ret = 0;
-	} else {
-		dev_warn(&client->dev, "i2c rd failed=%d reg=%02x len=%d\n",
-			 ret, reg, len);
-		ret = -EREMOTEIO;
-	}
-
-	return ret;
-}
-
-/* write multiple registers */
-int cxd2820r_wr_regs(struct cxd2820r_priv *priv, u32 reginfo, u8 *val,
-	int len)
-{
-	int ret;
-	u8 i2c_addr;
-	u8 reg = (reginfo >> 0) & 0xff;
-	u8 bank = (reginfo >> 8) & 0xff;
-	u8 i2c = (reginfo >> 16) & 0x01;
-
-	/* select I2C */
-	if (i2c)
-		i2c_addr = priv->client[1]->addr; /* DVB-C */
-	else
-		i2c_addr = priv->client[0]->addr; /* DVB-T/T2 */
-
-	/* switch bank if needed */
-	if (bank != priv->bank[i2c]) {
-		ret = cxd2820r_wr_regs_i2c(priv, i2c_addr, 0x00, &bank, 1);
-		if (ret)
-			return ret;
-		priv->bank[i2c] = bank;
-	}
-	return cxd2820r_wr_regs_i2c(priv, i2c_addr, reg, val, len);
-}
-
-/* read multiple registers */
-int cxd2820r_rd_regs(struct cxd2820r_priv *priv, u32 reginfo, u8 *val,
-	int len)
-{
-	int ret;
-	u8 i2c_addr;
-	u8 reg = (reginfo >> 0) & 0xff;
-	u8 bank = (reginfo >> 8) & 0xff;
-	u8 i2c = (reginfo >> 16) & 0x01;
-
-	/* select I2C */
-	if (i2c)
-		i2c_addr = priv->client[1]->addr; /* DVB-C */
-	else
-		i2c_addr = priv->client[0]->addr; /* DVB-T/T2 */
-
-	/* switch bank if needed */
-	if (bank != priv->bank[i2c]) {
-		ret = cxd2820r_wr_regs_i2c(priv, i2c_addr, 0x00, &bank, 1);
-		if (ret)
-			return ret;
-		priv->bank[i2c] = bank;
-	}
-	return cxd2820r_rd_regs_i2c(priv, i2c_addr, reg, val, len);
-}
-
-/* write single register */
-int cxd2820r_wr_reg(struct cxd2820r_priv *priv, u32 reg, u8 val)
-{
-	return cxd2820r_wr_regs(priv, reg, &val, 1);
-}
-
-/* read single register */
-int cxd2820r_rd_reg(struct cxd2820r_priv *priv, u32 reg, u8 *val)
-{
-	return cxd2820r_rd_regs(priv, reg, val, 1);
-}
-
-/* write single register with mask */
-int cxd2820r_wr_reg_mask(struct cxd2820r_priv *priv, u32 reg, u8 val,
-	u8 mask)
-{
-	int ret;
-	u8 tmp;
-
-	/* no need for read if whole reg is written */
-	if (mask != 0xff) {
-		ret = cxd2820r_rd_reg(priv, reg, &tmp);
-		if (ret)
-			return ret;
-
-		val &= mask;
-		tmp &= ~mask;
-		val |= tmp;
-	}
-
-	return cxd2820r_wr_reg(priv, reg, val);
 }
 
 int cxd2820r_gpio(struct dvb_frontend *fe, u8 *gpio)
@@ -226,12 +97,12 @@ int cxd2820r_gpio(struct dvb_frontend *fe, u8 *gpio)
 	dev_dbg(&client->dev, "wr gpio=%02x %02x\n", tmp0, tmp1);
 
 	/* write bits [7:2] */
-	ret = cxd2820r_wr_reg_mask(priv, 0x00089, tmp0, 0xfc);
+	ret = regmap_update_bits(priv->regmap[0], 0x0089, 0xfc, tmp0);
 	if (ret)
 		goto error;
 
 	/* write bits [5:0] */
-	ret = cxd2820r_wr_reg_mask(priv, 0x0008e, tmp1, 0x3f);
+	ret = regmap_update_bits(priv->regmap[0], 0x008e, 0x3f, tmp1);
 	if (ret)
 		goto error;
 
@@ -556,8 +427,7 @@ static int cxd2820r_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 
 	dev_dbg_ratelimited(&client->dev, "enable=%d\n", enable);
 
-	/* Bit 0 of reg 0xdb in bank 0x00 controls I2C repeater */
-	return cxd2820r_wr_reg_mask(priv, 0xdb, enable ? 1 : 0, 0x1);
+	return regmap_update_bits(priv->regmap[0], 0x00db, 0x01, enable ? 1 : 0);
 }
 
 #ifdef CONFIG_GPIOLIB
@@ -696,7 +566,45 @@ static int cxd2820r_probe(struct i2c_client *client,
 	struct cxd2820r_platform_data *pdata = client->dev.platform_data;
 	struct cxd2820r_priv *priv;
 	int ret, *gpio_chip_base;
-	u8 u8tmp;
+	unsigned int utmp;
+	static const struct regmap_range_cfg regmap_range_cfg0[] = {
+		{
+			.range_min        = 0x0000,
+			.range_max        = 0x3fff,
+			.selector_reg     = 0x00,
+			.selector_mask    = 0xff,
+			.selector_shift   = 0,
+			.window_start     = 0x00,
+			.window_len       = 0x100,
+		},
+	};
+	static const struct regmap_range_cfg regmap_range_cfg1[] = {
+		{
+			.range_min        = 0x0000,
+			.range_max        = 0x01ff,
+			.selector_reg     = 0x00,
+			.selector_mask    = 0xff,
+			.selector_shift   = 0,
+			.window_start     = 0x00,
+			.window_len       = 0x100,
+		},
+	};
+	static const struct regmap_config regmap_config0 = {
+		.reg_bits = 8,
+		.val_bits = 8,
+		.max_register = 0x3fff,
+		.ranges = regmap_range_cfg0,
+		.num_ranges = ARRAY_SIZE(regmap_range_cfg0),
+		.cache_type = REGCACHE_NONE,
+	};
+	static const struct regmap_config regmap_config1 = {
+		.reg_bits = 8,
+		.val_bits = 8,
+		.max_register = 0x01ff,
+		.ranges = regmap_range_cfg1,
+		.num_ranges = ARRAY_SIZE(regmap_range_cfg1),
+		.cache_type = REGCACHE_NONE,
+	};
 
 	dev_dbg(&client->dev, "\n");
 
@@ -712,20 +620,23 @@ static int cxd2820r_probe(struct i2c_client *client,
 	priv->ts_clk_inv = pdata->ts_clk_inv;
 	priv->if_agc_polarity = pdata->if_agc_polarity;
 	priv->spec_inv = pdata->spec_inv;
-	priv->bank[0] = 0xff;
-	priv->bank[1] = 0xff;
 	gpio_chip_base = *pdata->gpio_chip_base;
+	priv->regmap[0] = regmap_init_i2c(priv->client[0], &regmap_config0);
+	if (IS_ERR(priv->regmap[0])) {
+		ret = PTR_ERR(priv->regmap[0]);
+		goto err_kfree;
+	}
 
 	/* Check demod answers with correct chip id */
-	ret = cxd2820r_rd_reg(priv, 0x000fd, &u8tmp);
+	ret = regmap_read(priv->regmap[0], 0x00fd, &utmp);
 	if (ret)
-		goto err_kfree;
+		goto err_regmap_0_regmap_exit;
 
-	dev_dbg(&client->dev, "chip_id=%02x\n", u8tmp);
+	dev_dbg(&client->dev, "chip_id=%02x\n", utmp);
 
-	if (u8tmp != 0xe1) {
+	if (utmp != 0xe1) {
 		ret = -ENODEV;
-		goto err_kfree;
+		goto err_regmap_0_regmap_exit;
 	}
 
 	/*
@@ -738,7 +649,13 @@ static int cxd2820r_probe(struct i2c_client *client,
 		ret = -ENODEV;
 		dev_err(&client->dev, "I2C registration failed\n");
 		if (ret)
-			goto err_kfree;
+			goto err_regmap_0_regmap_exit;
+	}
+
+	priv->regmap[1] = regmap_init_i2c(priv->client[1], &regmap_config1);
+	if (IS_ERR(priv->regmap[1])) {
+		ret = PTR_ERR(priv->regmap[1]);
+		goto err_client_1_i2c_unregister_device;
 	}
 
 	if (gpio_chip_base) {
@@ -755,7 +672,7 @@ static int cxd2820r_probe(struct i2c_client *client,
 		priv->gpio_chip.can_sleep = 1;
 		ret = gpiochip_add_data(&priv->gpio_chip, priv);
 		if (ret)
-			goto err_client_1_i2c_unregister_device;
+			goto err_regmap_1_regmap_exit;
 
 		dev_dbg(&client->dev, "gpio_chip.base=%d\n",
 			priv->gpio_chip.base);
@@ -772,7 +689,7 @@ static int cxd2820r_probe(struct i2c_client *client,
 		gpio[2] = 0;
 		ret = cxd2820r_gpio(&priv->fe, gpio);
 		if (ret)
-			goto err_client_1_i2c_unregister_device;
+			goto err_regmap_1_regmap_exit;
 #endif
 	}
 
@@ -789,8 +706,12 @@ static int cxd2820r_probe(struct i2c_client *client,
 	dev_info(&client->dev, "Sony CXD2820R successfully identified\n");
 
 	return 0;
+err_regmap_1_regmap_exit:
+	regmap_exit(priv->regmap[1]);
 err_client_1_i2c_unregister_device:
 	i2c_unregister_device(priv->client[1]);
+err_regmap_0_regmap_exit:
+	regmap_exit(priv->regmap[0]);
 err_kfree:
 	kfree(priv);
 err:
@@ -808,7 +729,11 @@ static int cxd2820r_remove(struct i2c_client *client)
 	if (priv->gpio_chip.label)
 		gpiochip_remove(&priv->gpio_chip);
 #endif
+	regmap_exit(priv->regmap[1]);
 	i2c_unregister_device(priv->client[1]);
+
+	regmap_exit(priv->regmap[0]);
+
 	kfree(priv);
 
 	return 0;

@@ -28,6 +28,7 @@
 #include "cxd2820r.h"
 #include <linux/gpio.h>
 #include <linux/math64.h>
+#include <linux/regmap.h>
 
 struct reg_val_mask {
 	u32 reg;
@@ -39,6 +40,7 @@ struct reg_val_mask {
 
 struct cxd2820r_priv {
 	struct i2c_client *client[2];
+	struct regmap *regmap[2];
 	struct i2c_adapter *i2c;
 	struct dvb_frontend fe;
 	u8 ts_mode;
@@ -51,7 +53,6 @@ struct cxd2820r_priv {
 
 	bool ber_running;
 
-	u8 bank[2];
 #define GPIO_COUNT 3
 	u8 gpio[GPIO_COUNT];
 #ifdef CONFIG_GPIOLIB
@@ -67,6 +68,9 @@ struct cxd2820r_priv {
 extern int cxd2820r_debug;
 
 int cxd2820r_gpio(struct dvb_frontend *fe, u8 *gpio);
+
+int cxd2820r_wr_reg_val_mask_tab(struct cxd2820r_priv *priv,
+				 const struct reg_val_mask *tab, int tab_len);
 
 int cxd2820r_wr_reg_mask(struct cxd2820r_priv *priv, u32 reg, u8 val,
 	u8 mask);
