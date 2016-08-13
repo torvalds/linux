@@ -74,7 +74,6 @@ EXPORT_SYMBOL_GPL(nf_conntrack_hash);
 
 static __read_mostly struct kmem_cache *nf_conntrack_cachep;
 static __read_mostly spinlock_t nf_conntrack_locks_all_lock;
-static __read_mostly seqcount_t nf_conntrack_generation;
 static __read_mostly DEFINE_SPINLOCK(nf_conntrack_locks_all_lock);
 static __read_mostly bool nf_conntrack_locks_all;
 
@@ -162,6 +161,7 @@ static void nf_conntrack_all_unlock(void)
 
 unsigned int nf_conntrack_htable_size __read_mostly;
 unsigned int nf_conntrack_max __read_mostly;
+seqcount_t nf_conntrack_generation __read_mostly;
 
 DEFINE_PER_CPU(struct nf_conn, nf_conntrack_untracked);
 EXPORT_PER_CPU_SYMBOL(nf_conntrack_untracked);
@@ -478,23 +478,6 @@ nf_ct_key_equal(struct nf_conntrack_tuple_hash *h,
 	       net_eq(net, nf_ct_net(ct));
 }
 
-/* must be called with rcu read lock held */
-void nf_conntrack_get_ht(struct hlist_nulls_head **hash, unsigned int *hsize)
-{
-	struct hlist_nulls_head *hptr;
-	unsigned int sequence, hsz;
-
-	do {
-		sequence = read_seqcount_begin(&nf_conntrack_generation);
-		hsz = nf_conntrack_htable_size;
-		hptr = nf_conntrack_hash;
-	} while (read_seqcount_retry(&nf_conntrack_generation, sequence));
-
-	*hash = hptr;
-	*hsize = hsz;
-}
-EXPORT_SYMBOL_GPL(nf_conntrack_get_ht);
-
 /*
  * Warning :
  * - Caller must take a reference on returned object
@@ -507,14 +490,11 @@ ____nf_conntrack_find(struct net *net, const struct nf_conntrack_zone *zone,
 	struct nf_conntrack_tuple_hash *h;
 	struct hlist_nulls_head *ct_hash;
 	struct hlist_nulls_node *n;
-	unsigned int bucket, sequence;
+	unsigned int bucket, hsize;
 
 begin:
-	do {
-		sequence = read_seqcount_begin(&nf_conntrack_generation);
-		bucket = scale_hash(hash);
-		ct_hash = nf_conntrack_hash;
-	} while (read_seqcount_retry(&nf_conntrack_generation, sequence));
+	nf_conntrack_get_ht(&ct_hash, &hsize);
+	bucket = reciprocal_scale(hash, hsize);
 
 	hlist_nulls_for_each_entry_rcu(h, n, &ct_hash[bucket], hnnode) {
 		if (nf_ct_key_equal(h, tuple, zone, net)) {
@@ -820,18 +800,15 @@ nf_conntrack_tuple_taken(const struct nf_conntrack_tuple *tuple,
 	const struct nf_conntrack_zone *zone;
 	struct nf_conntrack_tuple_hash *h;
 	struct hlist_nulls_head *ct_hash;
-	unsigned int hash, sequence;
+	unsigned int hash, hsize;
 	struct hlist_nulls_node *n;
 	struct nf_conn *ct;
 
 	zone = nf_ct_zone(ignored_conntrack);
 
 	rcu_read_lock();
-	do {
-		sequence = read_seqcount_begin(&nf_conntrack_generation);
-		hash = hash_conntrack(net, tuple);
-		ct_hash = nf_conntrack_hash;
-	} while (read_seqcount_retry(&nf_conntrack_generation, sequence));
+	nf_conntrack_get_ht(&ct_hash, &hsize);
+	hash = __hash_conntrack(net, tuple, hsize);
 
 	hlist_nulls_for_each_entry_rcu(h, n, &ct_hash[hash], hnnode) {
 		ct = nf_ct_tuplehash_to_ctrack(h);
@@ -897,14 +874,11 @@ static noinline int early_drop(struct net *net, unsigned int _hash)
 
 	for (i = 0; i < NF_CT_EVICTION_RANGE; i++) {
 		struct hlist_nulls_head *ct_hash;
-		unsigned hash, sequence, drops;
+		unsigned int hash, hsize, drops;
 
 		rcu_read_lock();
-		do {
-			sequence = read_seqcount_begin(&nf_conntrack_generation);
-			hash = scale_hash(_hash++);
-			ct_hash = nf_conntrack_hash;
-		} while (read_seqcount_retry(&nf_conntrack_generation, sequence));
+		nf_conntrack_get_ht(&ct_hash, &hsize);
+		hash = reciprocal_scale(_hash++, hsize);
 
 		drops = early_drop_list(net, &ct_hash[hash]);
 		rcu_read_unlock();

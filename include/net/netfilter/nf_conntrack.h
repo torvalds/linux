@@ -303,8 +303,28 @@ struct kernel_param;
 
 int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp);
 int nf_conntrack_hash_resize(unsigned int hashsize);
+
+extern struct hlist_nulls_head *nf_conntrack_hash;
 extern unsigned int nf_conntrack_htable_size;
+extern seqcount_t nf_conntrack_generation;
 extern unsigned int nf_conntrack_max;
+
+/* must be called with rcu read lock held */
+static inline void
+nf_conntrack_get_ht(struct hlist_nulls_head **hash, unsigned int *hsize)
+{
+	struct hlist_nulls_head *hptr;
+	unsigned int sequence, hsz;
+
+	do {
+		sequence = read_seqcount_begin(&nf_conntrack_generation);
+		hsz = nf_conntrack_htable_size;
+		hptr = nf_conntrack_hash;
+	} while (read_seqcount_retry(&nf_conntrack_generation, sequence));
+
+	*hash = hptr;
+	*hsize = hsz;
+}
 
 struct nf_conn *nf_ct_tmpl_alloc(struct net *net,
 				 const struct nf_conntrack_zone *zone,
