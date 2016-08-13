@@ -407,37 +407,34 @@ END(__switch_to_asm)
  * A newly forked process directly context switches into this address.
  *
  * rax: prev task we switched from
+ * rbx: kernel thread func (NULL for user thread)
+ * r12: kernel thread arg
  */
 ENTRY(ret_from_fork)
 	movq	%rax, %rdi
 	call	schedule_tail			/* rdi: 'prev' task parameter */
 
-	testb	$3, CS(%rsp)			/* from kernel_thread? */
-	jnz	1f
+	testq	%rbx, %rbx			/* from kernel_thread? */
+	jnz	1f				/* kernel threads are uncommon */
 
-	/*
-	 * We came from kernel_thread.  This code path is quite twisted, and
-	 * someone should clean it up.
-	 *
-	 * copy_thread_tls stashes the function pointer in RBX and the
-	 * parameter to be passed in RBP.  The called function is permitted
-	 * to call do_execve and thereby jump to user mode.
-	 */
-	movq	RBP(%rsp), %rdi
-	call	*RBX(%rsp)
-	movl	$0, RAX(%rsp)
-
-	/*
-	 * Fall through as though we're exiting a syscall.  This makes a
-	 * twisted sort of sense if we just called do_execve.
-	 */
-
-1:
+2:
 	movq	%rsp, %rdi
 	call	syscall_return_slowpath	/* returns with IRQs disabled */
 	TRACE_IRQS_ON			/* user mode is traced as IRQS on */
 	SWAPGS
 	jmp	restore_regs_and_iret
+
+1:
+	/* kernel thread */
+	movq	%r12, %rdi
+	call	*%rbx
+	/*
+	 * A kernel thread is allowed to return here after successfully
+	 * calling do_execve().  Exit to userspace to complete the execve()
+	 * syscall.
+	 */
+	movq	$0, RAX(%rsp)
+	jmp	2b
 END(ret_from_fork)
 
 /*

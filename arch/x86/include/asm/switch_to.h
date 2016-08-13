@@ -34,6 +34,8 @@ static inline void prepare_switch_to(struct task_struct *prev,
 #endif
 }
 
+asmlinkage void ret_from_fork(void);
+
 /* data that is pointed to by thread.sp */
 struct inactive_task_frame {
 #ifdef CONFIG_X86_64
