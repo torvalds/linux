@@ -556,38 +556,28 @@ static struct meson_bank meson_gxbb_aobus_banks[] = {
 	BANK("AO",   PIN(GPIOAO_0, 0),  PIN(GPIOAO_13, 0), 0,  0,  0, 16,  0,  0,  0, 16,  1,  0),
 };
 
-static struct meson_domain_data meson_gxbb_periphs_domain_data = {
-	.name		= "periphs-banks",
-	.banks		= meson_gxbb_periphs_banks,
-	.num_banks	= ARRAY_SIZE(meson_gxbb_periphs_banks),
-	.pin_base	= 14,
-	.num_pins	= 120,
-};
-
-static struct meson_domain_data meson_gxbb_aobus_domain_data = {
-	.name		= "aobus-banks",
-	.banks		= meson_gxbb_aobus_banks,
-	.num_banks	= ARRAY_SIZE(meson_gxbb_aobus_banks),
-	.pin_base	= 0,
-	.num_pins	= 14,
-};
-
 struct meson_pinctrl_data meson_gxbb_periphs_pinctrl_data = {
+	.name		= "periphs-banks",
+	.pin_base	= 14,
 	.pins		= meson_gxbb_periphs_pins,
 	.groups		= meson_gxbb_periphs_groups,
 	.funcs		= meson_gxbb_periphs_functions,
-	.domain_data	= &meson_gxbb_periphs_domain_data,
+	.banks		= meson_gxbb_periphs_banks,
 	.num_pins	= ARRAY_SIZE(meson_gxbb_periphs_pins),
 	.num_groups	= ARRAY_SIZE(meson_gxbb_periphs_groups),
 	.num_funcs	= ARRAY_SIZE(meson_gxbb_periphs_functions),
+	.num_banks	= ARRAY_SIZE(meson_gxbb_periphs_banks),
 };
 
 struct meson_pinctrl_data meson_gxbb_aobus_pinctrl_data = {
+	.name		= "aobus-banks",
+	.pin_base	= 0,
 	.pins		= meson_gxbb_aobus_pins,
 	.groups		= meson_gxbb_aobus_groups,
 	.funcs		= meson_gxbb_aobus_functions,
-	.domain_data	= &meson_gxbb_aobus_domain_data,
+	.banks		= meson_gxbb_aobus_banks,
 	.num_pins	= ARRAY_SIZE(meson_gxbb_aobus_pins),
 	.num_groups	= ARRAY_SIZE(meson_gxbb_aobus_groups),
 	.num_funcs	= ARRAY_SIZE(meson_gxbb_aobus_functions),
+	.num_banks	= ARRAY_SIZE(meson_gxbb_aobus_banks),
 };
