@@ -2186,6 +2186,7 @@ static int of_get_pxafb_mode_info(struct device *dev,
 	ret = of_property_read_u32(np, "bus-width", &bus_width);
 	if (ret) {
 		dev_err(dev, "no bus-width specified: %d\n", ret);
+		of_node_put(np);
 		return ret;
 	}
 
