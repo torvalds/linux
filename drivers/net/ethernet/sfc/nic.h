@@ -507,10 +507,13 @@ enum {
  * @stats: Hardware statistics
  * @workaround_35388: Flag: firmware supports workaround for bug 35388
  * @workaround_26807: Flag: firmware supports workaround for bug 26807
+ * @workaround_61265: Flag: firmware supports workaround for bug 61265
  * @must_check_datapath_caps: Flag: @datapath_caps needs to be revalidated
  *	after MC reboot
  * @datapath_caps: Capabilities of datapath firmware (FLAGS1 field of
  *	%MC_CMD_GET_CAPABILITIES response)
+ * @datapath_caps2: Further Capabilities of datapath firmware (FLAGS2 field of
+ * %MC_CMD_GET_CAPABILITIES response)
  * @rx_dpcpu_fw_id: Firmware ID of the RxDPCPU
  * @tx_dpcpu_fw_id: Firmware ID of the TxDPCPU
  * @vport_id: The function's vport ID, only relevant for PFs
@@ -540,8 +543,10 @@ struct efx_ef10_nic_data {
 	u64 stats[EF10_STAT_COUNT];
 	bool workaround_35388;
 	bool workaround_26807;
+	bool workaround_61265;
 	bool must_check_datapath_caps;
 	u32 datapath_caps;
+	u32 datapath_caps2;
 	unsigned int rx_dpcpu_fw_id;
 	unsigned int tx_dpcpu_fw_id;
 	unsigned int vport_id;
