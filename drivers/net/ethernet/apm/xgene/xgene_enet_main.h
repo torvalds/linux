@@ -217,6 +217,7 @@ struct xgene_enet_pdata {
 	u8 tx_delay;
 	u8 rx_delay;
 	bool mdio_driver;
+	struct gpio_desc *sfp_rdy;
 };
 
 struct xgene_indirect_ctl {

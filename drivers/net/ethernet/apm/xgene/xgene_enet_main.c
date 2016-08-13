@@ -19,6 +19,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/gpio.h>
 #include "xgene_enet_main.h"
 #include "xgene_enet_hw.h"
 #include "xgene_enet_sgmac.h"
@@ -1320,6 +1321,18 @@ static int xgene_enet_check_phy_handle(struct xgene_enet_pdata *pdata)
 	return 0;
 }
 
+static void xgene_enet_gpiod_get(struct xgene_enet_pdata *pdata)
+{
+	struct device *dev = &pdata->pdev->dev;
+
+	if (pdata->phy_mode != PHY_INTERFACE_MODE_XGMII)
+		return;
+
+	pdata->sfp_rdy = gpiod_get(dev, "rxlos", GPIOD_IN);
+	if (IS_ERR(pdata->sfp_rdy))
+		pdata->sfp_rdy = gpiod_get(dev, "sfp", GPIOD_IN);
+}
+
 static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 {
 	struct platform_device *pdev;
@@ -1408,6 +1421,8 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 	ret = xgene_enet_check_phy_handle(pdata);
 	if (ret)
 		return ret;
+
+	xgene_enet_gpiod_get(pdata);
 
 	pdata->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pdata->clk)) {

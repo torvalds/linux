@@ -18,6 +18,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/of_gpio.h>
+#include <linux/gpio.h>
 #include "xgene_enet_main.h"
 #include "xgene_enet_hw.h"
 #include "xgene_enet_xgmac.h"
@@ -399,10 +401,14 @@ static void xgene_enet_link_state(struct work_struct *work)
 {
 	struct xgene_enet_pdata *pdata = container_of(to_delayed_work(work),
 					 struct xgene_enet_pdata, link_work);
+	struct gpio_desc *sfp_rdy = pdata->sfp_rdy;
 	struct net_device *ndev = pdata->ndev;
 	u32 link_status, poll_interval;
 
 	link_status = xgene_enet_link_status(pdata);
+	if (link_status && !IS_ERR(sfp_rdy) && !gpiod_get_value(sfp_rdy))
+		link_status = 0;
+
 	if (link_status) {
 		if (!netif_carrier_ok(ndev)) {
 			netif_carrier_on(ndev);
