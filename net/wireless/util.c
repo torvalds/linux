@@ -1559,7 +1559,7 @@ int cfg80211_validate_beacon_int(struct cfg80211_registered_device *rdev,
 	struct wireless_dev *wdev;
 	int res = 0;
 
-	if (!beacon_int)
+	if (beacon_int < 10 || beacon_int > 10000)
 		return -EINVAL;
 
 	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
