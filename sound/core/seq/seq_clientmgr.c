@@ -2423,9 +2423,17 @@ int snd_seq_kernel_client_dispatch(int client, struct snd_seq_event * ev,
 
 EXPORT_SYMBOL(snd_seq_kernel_client_dispatch);
 
-/*
- * exported, called by kernel clients to perform same functions as with
- * userland ioctl() 
+/**
+ * snd_seq_kernel_client_ctl - operate a command for a client with data in
+ *			       kernel space.
+ * @clientid:	A numerical ID for a client.
+ * @cmd:	An ioctl(2) command for ALSA sequencer operation.
+ * @arg:	A pointer to data in kernel space.
+ *
+ * Against its name, both kernel/application client can be handled by this
+ * kernel API. A pointer of 'arg' argument should be in kernel space.
+ *
+ * Return: 0 at success. Negative error code at failure.
  */
 int snd_seq_kernel_client_ctl(int clientid, unsigned int cmd, void *arg)
 {
