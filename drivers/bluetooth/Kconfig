@@ -331,4 +331,16 @@ config BT_WILINK
 	  Say Y here to compile support for Texas Instrument's WiLink7 driver
 	  into the kernel or say M to compile it as module (btwilink).
 
+config BT_QCOMSMD
+	tristate "Qualcomm SMD based HCI support"
+	depends on QCOM_SMD
+	select BT_QCA
+	help
+	  Qualcomm SMD based HCI driver.
+	  This driver is used to bridge HCI data onto the shared memory
+	  channels to the WCNSS core.
+
+	  Say Y here to compile support for HCI over Qualcomm SMD into the
+	  kernel or say M to compile as a module.
+
 endmenu
