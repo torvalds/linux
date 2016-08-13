@@ -2091,8 +2091,8 @@ static int abx500_chargalg_probe(struct platform_device *pdev)
 		abx500_chargalg_maintenance_timer_expired;
 
 	/* Create a work queue for the chargalg */
-	di->chargalg_wq =
-		create_singlethread_workqueue("abx500_chargalg_wq");
+	di->chargalg_wq = alloc_ordered_workqueue("abx500_chargalg_wq",
+						   WQ_MEM_RECLAIM);
 	if (di->chargalg_wq == NULL) {
 		dev_err(di->dev, "failed to create work queue\n");
 		return -ENOMEM;
