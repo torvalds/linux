@@ -3381,7 +3381,6 @@ static void __sched notrace __schedule(bool preempt)
 
 	balance_callback(rq);
 }
-STACK_FRAME_NON_STANDARD(__schedule); /* switch_to() */
 
 static inline void sched_submit_work(struct task_struct *tsk)
 {
