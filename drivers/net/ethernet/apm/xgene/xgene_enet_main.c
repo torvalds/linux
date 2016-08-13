@@ -452,7 +452,6 @@ static int xgene_enet_rx_frame(struct xgene_enet_desc_ring *rx_ring,
 			       struct xgene_enet_raw_desc *raw_desc)
 {
 	struct net_device *ndev;
-	struct xgene_enet_pdata *pdata;
 	struct device *dev;
 	struct xgene_enet_desc_ring *buf_pool;
 	u32 datalen, skb_index;
@@ -461,7 +460,6 @@ static int xgene_enet_rx_frame(struct xgene_enet_desc_ring *rx_ring,
 	int ret = 0;
 
 	ndev = rx_ring->ndev;
-	pdata = netdev_priv(ndev);
 	dev = ndev_to_dev(rx_ring->ndev);
 	buf_pool = rx_ring->buf_pool;
 
@@ -1688,11 +1686,9 @@ err:
 static int xgene_enet_remove(struct platform_device *pdev)
 {
 	struct xgene_enet_pdata *pdata;
-	const struct xgene_mac_ops *mac_ops;
 	struct net_device *ndev;
 
 	pdata = platform_get_drvdata(pdev);
-	mac_ops = pdata->mac_ops;
 	ndev = pdata->ndev;
 
 	rtnl_lock();
