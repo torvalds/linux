@@ -22,17 +22,17 @@ const befs_inode_addr BAD_IADDR = { 0, 0, 0 };
 
 static int befs_find_brun_direct(struct super_block *sb,
 				 const befs_data_stream *data,
-				 befs_blocknr_t blockno, befs_block_run * run);
+				 befs_blocknr_t blockno, befs_block_run *run);
 
 static int befs_find_brun_indirect(struct super_block *sb,
 				   const befs_data_stream *data,
 				   befs_blocknr_t blockno,
-				   befs_block_run * run);
+				   befs_block_run *run);
 
 static int befs_find_brun_dblindirect(struct super_block *sb,
 				      const befs_data_stream *data,
 				      befs_blocknr_t blockno,
-				      befs_block_run * run);
+				      befs_block_run *run);
 
 /**
  * befs_read_datastream - get buffer_head containing data, starting from pos.
@@ -46,7 +46,7 @@ static int befs_find_brun_dblindirect(struct super_block *sb,
  */
 struct buffer_head *
 befs_read_datastream(struct super_block *sb, const befs_data_stream *ds,
-		     befs_off_t pos, uint * off)
+		     befs_off_t pos, uint *off)
 {
 	struct buffer_head *bh;
 	befs_block_run run;
@@ -94,7 +94,7 @@ befs_read_datastream(struct super_block *sb, const befs_data_stream *ds,
  */
 int
 befs_fblock2brun(struct super_block *sb, const befs_data_stream *data,
-		 befs_blocknr_t fblock, befs_block_run * run)
+		 befs_blocknr_t fblock, befs_block_run *run)
 {
 	int err;
 	befs_off_t pos = fblock << BEFS_SB(sb)->block_shift;
@@ -134,6 +134,7 @@ befs_read_lsymlink(struct super_block *sb, const befs_data_stream *ds,
 	befs_off_t bytes_read = 0;	/* bytes readed */
 	u16 plen;
 	struct buffer_head *bh;
+
 	befs_debug(sb, "---> %s length: %llu", __func__, len);
 
 	while (bytes_read < len) {
@@ -189,13 +190,13 @@ befs_count_blocks(struct super_block *sb, const befs_data_stream *ds)
 		metablocks += ds->indirect.len;
 
 	/*
-	   Double indir block, plus all the indirect blocks it maps.
-	   In the double-indirect range, all block runs of data are
-	   BEFS_DBLINDIR_BRUN_LEN blocks long. Therefore, we know 
-	   how many data block runs are in the double-indirect region,
-	   and from that we know how many indirect blocks it takes to
-	   map them. We assume that the indirect blocks are also
-	   BEFS_DBLINDIR_BRUN_LEN blocks long.
+	 * Double indir block, plus all the indirect blocks it maps.
+	 * In the double-indirect range, all block runs of data are
+	 * BEFS_DBLINDIR_BRUN_LEN blocks long. Therefore, we know
+	 * how many data block runs are in the double-indirect region,
+	 * and from that we know how many indirect blocks it takes to
+	 * map them. We assume that the indirect blocks are also
+	 * BEFS_DBLINDIR_BRUN_LEN blocks long.
 	 */
 	if (ds->size > ds->max_indirect_range && ds->max_indirect_range != 0) {
 		uint dbl_bytes;
@@ -249,7 +250,7 @@ befs_count_blocks(struct super_block *sb, const befs_data_stream *ds)
  */
 static int
 befs_find_brun_direct(struct super_block *sb, const befs_data_stream *data,
-		      befs_blocknr_t blockno, befs_block_run * run)
+		      befs_blocknr_t blockno, befs_block_run *run)
 {
 	int i;
 	const befs_block_run *array = data->direct;
@@ -261,6 +262,7 @@ befs_find_brun_direct(struct super_block *sb, const befs_data_stream *data,
 	     sum += array[i].len, i++) {
 		if (blockno >= sum && blockno < sum + (array[i].len)) {
 			int offset = blockno - sum;
+
 			run->allocation_group = array[i].allocation_group;
 			run->start = array[i].start + offset;
 			run->len = array[i].len - offset;
@@ -304,7 +306,7 @@ static int
 befs_find_brun_indirect(struct super_block *sb,
 			const befs_data_stream *data,
 			befs_blocknr_t blockno,
-			befs_block_run * run)
+			befs_block_run *run)
 {
 	int i, j;
 	befs_blocknr_t sum = 0;
@@ -413,7 +415,7 @@ static int
 befs_find_brun_dblindirect(struct super_block *sb,
 			   const befs_data_stream *data,
 			   befs_blocknr_t blockno,
-			   befs_block_run * run)
+			   befs_block_run *run)
 {
 	int dblindir_indx;
 	int indir_indx;
