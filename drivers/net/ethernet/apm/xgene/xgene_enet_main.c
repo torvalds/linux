@@ -72,7 +72,6 @@ static int xgene_enet_refill_bufpool(struct xgene_enet_desc_ring *buf_pool,
 		skb = netdev_alloc_skb_ip_align(ndev, len);
 		if (unlikely(!skb))
 			return -ENOMEM;
-		buf_pool->rx_skb[tail] = skb;
 
 		dma_addr = dma_map_single(dev, skb->data, len, DMA_FROM_DEVICE);
 		if (dma_mapping_error(dev, dma_addr)) {
@@ -80,6 +79,8 @@ static int xgene_enet_refill_bufpool(struct xgene_enet_desc_ring *buf_pool,
 			dev_kfree_skb_any(skb);
 			return -EINVAL;
 		}
+
+		buf_pool->rx_skb[tail] = skb;
 
 		raw_desc->m1 = cpu_to_le64(SET_VAL(DATAADDR, dma_addr) |
 					   SET_VAL(BUFDATALEN, bufdatalen) |
@@ -102,12 +103,21 @@ static u8 xgene_enet_hdr_len(const void *data)
 
 static void xgene_enet_delete_bufpool(struct xgene_enet_desc_ring *buf_pool)
 {
+	struct device *dev = ndev_to_dev(buf_pool->ndev);
+	struct xgene_enet_raw_desc16 *raw_desc;
+	dma_addr_t dma_addr;
 	int i;
 
 	/* Free up the buffers held by hardware */
 	for (i = 0; i < buf_pool->slots; i++) {
-		if (buf_pool->rx_skb[i])
+		if (buf_pool->rx_skb[i]) {
 			dev_kfree_skb_any(buf_pool->rx_skb[i]);
+
+			raw_desc = &buf_pool->raw_desc16[i];
+			dma_addr = GET_VAL(DATAADDR, le64_to_cpu(raw_desc->m1));
+			dma_unmap_single(dev, dma_addr, XGENE_ENET_MAX_MTU,
+					 DMA_FROM_DEVICE);
+		}
 	}
 }
 
