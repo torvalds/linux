@@ -176,7 +176,7 @@ void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
 	gdb_regs[GDB_FS]	= 0xFFFF;
 	gdb_regs[GDB_GS]	= 0xFFFF;
 #else
-	gdb_regs32[GDB_PS]	= *(unsigned long *)(p->thread.sp + 8);
+	gdb_regs32[GDB_PS]	= 0;
 	gdb_regs32[GDB_CS]	= __KERNEL_CS;
 	gdb_regs32[GDB_SS]	= __KERNEL_DS;
 	gdb_regs[GDB_R8]	= 0;
