@@ -1151,8 +1151,7 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		while (!list_empty(&ci->i_cap_flush_list)) {
 			cf = list_first_entry(&ci->i_cap_flush_list,
 					      struct ceph_cap_flush, i_list);
-			list_del(&cf->i_list);
-			list_add(&cf->i_list, &to_remove);
+			list_move(&cf->i_list, &to_remove);
 		}
 
 		spin_lock(&mdsc->cap_dirty_lock);
