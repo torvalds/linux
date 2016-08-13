@@ -1126,7 +1126,7 @@ static int ipip6_tunnel_update_6rd(struct ip_tunnel *t,
 }
 #endif
 
-bool ipip6_valid_ip_proto(u8 ipproto)
+static bool ipip6_valid_ip_proto(u8 ipproto)
 {
 	return ipproto == IPPROTO_IPV6 ||
 		ipproto == IPPROTO_IPIP ||
