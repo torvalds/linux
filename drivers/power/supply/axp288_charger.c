@@ -23,7 +23,6 @@
 #include <linux/usb/otg.h>
 #include <linux/notifier.h>
 #include <linux/power_supply.h>
-#include <linux/notifier.h>
 #include <linux/property.h>
 #include <linux/mfd/axp20x.h>
 #include <linux/extcon.h>
