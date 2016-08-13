@@ -240,7 +240,6 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 	struct platform_device *pdev = dev->platformdev;
 	struct device_node *node = pdev->dev.of_node;
 	struct tilcdc_drm_private *priv;
-	struct tilcdc_module *mod;
 	struct resource *res;
 	u32 bpp = 0;
 	int ret;
@@ -336,6 +335,7 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 		DBG("Revision 1 LCDC supports only RGB565 format");
 		priv->pixelformats = tilcdc_rev1_formats;
 		priv->num_pixelformats = ARRAY_SIZE(tilcdc_rev1_formats);
+		bpp = 16;
 	} else {
 		const char *str = "\0";
 
@@ -345,17 +345,20 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 			priv->pixelformats = tilcdc_crossed_formats;
 			priv->num_pixelformats =
 				ARRAY_SIZE(tilcdc_crossed_formats);
+			bpp = 32; /* Choose bpp with RGB support for fbdef */
 		} else if (0 == strcmp(str, "straight")) {
 			DBG("Configured for straight blue and red wires");
 			priv->pixelformats = tilcdc_straight_formats;
 			priv->num_pixelformats =
 				ARRAY_SIZE(tilcdc_straight_formats);
+			bpp = 16; /* Choose bpp with RGB support for fbdef */
 		} else {
 			DBG("Blue and red wiring '%s' unknown, use legacy mode",
 			    str);
 			priv->pixelformats = tilcdc_legacy_formats;
 			priv->num_pixelformats =
 				ARRAY_SIZE(tilcdc_legacy_formats);
+			bpp = 16; /* This is just a guess */
 		}
 	}
 
@@ -372,7 +375,7 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 		if (ret < 0)
 			goto fail_mode_config_cleanup;
 
-		ret = tilcdc_add_external_encoders(dev, &bpp);
+		ret = tilcdc_add_external_encoders(dev);
 		if (ret < 0)
 			goto fail_component_cleanup;
 	}
@@ -393,13 +396,6 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 	if (ret < 0) {
 		dev_err(dev->dev, "failed to install IRQ handler\n");
 		goto fail_vblank_cleanup;
-	}
-
-	list_for_each_entry(mod, &module_list, list) {
-		DBG("%s: preferred_bpp: %d", mod->name, mod->preferred_bpp);
-		bpp = mod->preferred_bpp;
-		if (bpp > 0)
-			break;
 	}
 
 	drm_mode_config_reset(dev);

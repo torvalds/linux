@@ -116,7 +116,6 @@ struct tilcdc_module {
 	const char *name;
 	struct list_head list;
 	const struct tilcdc_module_ops *funcs;
-	unsigned int preferred_bpp;
 };
 
 void tilcdc_module_init(struct tilcdc_module *mod, const char *name,

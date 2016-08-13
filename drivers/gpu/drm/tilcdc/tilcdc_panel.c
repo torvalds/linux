@@ -397,8 +397,6 @@ static int panel_probe(struct platform_device *pdev)
 		goto fail_timings;
 	}
 
-	mod->preferred_bpp = panel_mod->info->bpp;
-
 	return 0;
 
 fail_timings:
