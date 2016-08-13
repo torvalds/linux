@@ -1054,7 +1054,8 @@ static int pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 	pm2->ac_chg.external = true;
 
 	/* Create a work queue for the charger */
-	pm2->charger_wq = create_singlethread_workqueue("pm2xxx_charger_wq");
+	pm2->charger_wq = alloc_ordered_workqueue("pm2xxx_charger_wq",
+						  WQ_MEM_RECLAIM);
 	if (pm2->charger_wq == NULL) {
 		ret = -ENOMEM;
 		dev_err(pm2->dev, "failed to create work queue\n");
