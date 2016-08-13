@@ -528,9 +528,9 @@ int versatile_clcd_init_panel(struct clcd_fb *fb,
 	versatile_clcd_type = (enum versatile_clcd)clcd_id->data;
 
 	map = syscon_node_to_regmap(np);
-	if (!map) {
+	if (IS_ERR(map)) {
 		dev_err(dev, "no Versatile syscon regmap\n");
-		return -ENODEV;
+		return PTR_ERR(map);
 	}
 
 	switch (versatile_clcd_type) {
