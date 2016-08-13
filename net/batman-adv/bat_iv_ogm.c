@@ -51,6 +51,7 @@
 
 #include "bat_algo.h"
 #include "bitarray.h"
+#include "gateway_client.h"
 #include "hard-interface.h"
 #include "hash.h"
 #include "log.h"
@@ -528,36 +529,25 @@ static void batadv_iv_ogm_send_to_if(struct batadv_forw_packet *forw_packet,
 static void batadv_iv_ogm_emit(struct batadv_forw_packet *forw_packet)
 {
 	struct net_device *soft_iface;
-	struct batadv_priv *bat_priv;
-	struct batadv_hard_iface *primary_if = NULL;
 
 	if (!forw_packet->if_incoming) {
 		pr_err("Error - can't forward packet: incoming iface not specified\n");
-		goto out;
+		return;
 	}
 
 	soft_iface = forw_packet->if_incoming->soft_iface;
-	bat_priv = netdev_priv(soft_iface);
 
 	if (WARN_ON(!forw_packet->if_outgoing))
-		goto out;
+		return;
 
 	if (WARN_ON(forw_packet->if_outgoing->soft_iface != soft_iface))
-		goto out;
+		return;
 
 	if (forw_packet->if_incoming->if_status != BATADV_IF_ACTIVE)
-		goto out;
-
-	primary_if = batadv_primary_if_get_selected(bat_priv);
-	if (!primary_if)
-		goto out;
+		return;
 
 	/* only for one specific outgoing interface */
 	batadv_iv_ogm_send_to_if(forw_packet, forw_packet->if_outgoing);
-
-out:
-	if (primary_if)
-		batadv_hardif_put(primary_if);
 }
 
 /**
@@ -685,19 +675,12 @@ static void batadv_iv_ogm_aggregate_new(const unsigned char *packet_buff,
 	struct batadv_forw_packet *forw_packet_aggr;
 	unsigned char *skb_buff;
 	unsigned int skb_size;
+	atomic_t *queue_left = own_packet ? NULL : &bat_priv->batman_queue_left;
 
-	/* own packet should always be scheduled */
-	if (!own_packet) {
-		if (!batadv_atomic_dec_not_zero(&bat_priv->batman_queue_left)) {
-			batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
-				   "batman packet queue full\n");
-			return;
-		}
-	}
-
-	forw_packet_aggr = kmalloc(sizeof(*forw_packet_aggr), GFP_ATOMIC);
+	forw_packet_aggr = batadv_forw_packet_alloc(if_incoming, if_outgoing,
+						    queue_left, bat_priv);
 	if (!forw_packet_aggr)
-		goto out_nomem;
+		return;
 
 	if (atomic_read(&bat_priv->aggregated_ogms) &&
 	    packet_len < BATADV_MAX_AGGREGATION_BYTES)
@@ -708,8 +691,11 @@ static void batadv_iv_ogm_aggregate_new(const unsigned char *packet_buff,
 	skb_size += ETH_HLEN;
 
 	forw_packet_aggr->skb = netdev_alloc_skb_ip_align(NULL, skb_size);
-	if (!forw_packet_aggr->skb)
-		goto out_free_forw_packet;
+	if (!forw_packet_aggr->skb) {
+		batadv_forw_packet_free(forw_packet_aggr);
+		return;
+	}
+
 	forw_packet_aggr->skb->priority = TC_PRIO_CONTROL;
 	skb_reserve(forw_packet_aggr->skb, ETH_HLEN);
 
@@ -717,12 +703,7 @@ static void batadv_iv_ogm_aggregate_new(const unsigned char *packet_buff,
 	forw_packet_aggr->packet_len = packet_len;
 	memcpy(skb_buff, packet_buff, packet_len);
 
-	kref_get(&if_incoming->refcount);
-	kref_get(&if_outgoing->refcount);
 	forw_packet_aggr->own = own_packet;
-	forw_packet_aggr->if_incoming = if_incoming;
-	forw_packet_aggr->if_outgoing = if_outgoing;
-	forw_packet_aggr->num_packets = 0;
 	forw_packet_aggr->direct_link_flags = BATADV_NO_FLAGS;
 	forw_packet_aggr->send_time = send_time;
 
@@ -741,13 +722,6 @@ static void batadv_iv_ogm_aggregate_new(const unsigned char *packet_buff,
 	queue_delayed_work(batadv_event_workqueue,
 			   &forw_packet_aggr->delayed_work,
 			   send_time - jiffies);
-
-	return;
-out_free_forw_packet:
-	kfree(forw_packet_aggr);
-out_nomem:
-	if (!own_packet)
-		atomic_inc(&bat_priv->batman_queue_left);
 }
 
 /* aggregate a new packet into the existing ogm packet */
@@ -1830,10 +1804,6 @@ static void batadv_iv_send_outstanding_bat_ogm_packet(struct work_struct *work)
 		batadv_iv_ogm_schedule(forw_packet->if_incoming);
 
 out:
-	/* don't count own packet */
-	if (!forw_packet->own)
-		atomic_inc(&bat_priv->batman_queue_left);
-
 	batadv_forw_packet_free(forw_packet);
 }
 
@@ -2029,6 +1999,51 @@ static void batadv_iv_neigh_print(struct batadv_priv *bat_priv,
 }
 
 /**
+ * batadv_iv_ogm_neigh_diff - calculate tq difference of two neighbors
+ * @neigh1: the first neighbor object of the comparison
+ * @if_outgoing1: outgoing interface for the first neighbor
+ * @neigh2: the second neighbor object of the comparison
+ * @if_outgoing2: outgoing interface for the second neighbor
+ * @diff: pointer to integer receiving the calculated difference
+ *
+ * The content of *@diff is only valid when this function returns true.
+ * It is less, equal to or greater than 0 if the metric via neigh1 is lower,
+ * the same as or higher than the metric via neigh2
+ *
+ * Return: true when the difference could be calculated, false otherwise
+ */
+static bool batadv_iv_ogm_neigh_diff(struct batadv_neigh_node *neigh1,
+				     struct batadv_hard_iface *if_outgoing1,
+				     struct batadv_neigh_node *neigh2,
+				     struct batadv_hard_iface *if_outgoing2,
+				     int *diff)
+{
+	struct batadv_neigh_ifinfo *neigh1_ifinfo, *neigh2_ifinfo;
+	u8 tq1, tq2;
+	bool ret = true;
+
+	neigh1_ifinfo = batadv_neigh_ifinfo_get(neigh1, if_outgoing1);
+	neigh2_ifinfo = batadv_neigh_ifinfo_get(neigh2, if_outgoing2);
+
+	if (!neigh1_ifinfo || !neigh2_ifinfo) {
+		ret = false;
+		goto out;
+	}
+
+	tq1 = neigh1_ifinfo->bat_iv.tq_avg;
+	tq2 = neigh2_ifinfo->bat_iv.tq_avg;
+	*diff = (int)tq1 - (int)tq2;
+
+out:
+	if (neigh1_ifinfo)
+		batadv_neigh_ifinfo_put(neigh1_ifinfo);
+	if (neigh2_ifinfo)
+		batadv_neigh_ifinfo_put(neigh2_ifinfo);
+
+	return ret;
+}
+
+/**
  * batadv_iv_ogm_neigh_cmp - compare the metrics of two neighbors
  * @neigh1: the first neighbor object of the comparison
  * @if_outgoing1: outgoing interface for the first neighbor
@@ -2043,27 +2058,13 @@ static int batadv_iv_ogm_neigh_cmp(struct batadv_neigh_node *neigh1,
 				   struct batadv_neigh_node *neigh2,
 				   struct batadv_hard_iface *if_outgoing2)
 {
-	struct batadv_neigh_ifinfo *neigh1_ifinfo, *neigh2_ifinfo;
-	u8 tq1, tq2;
+	bool ret;
 	int diff;
 
-	neigh1_ifinfo = batadv_neigh_ifinfo_get(neigh1, if_outgoing1);
-	neigh2_ifinfo = batadv_neigh_ifinfo_get(neigh2, if_outgoing2);
-
-	if (!neigh1_ifinfo || !neigh2_ifinfo) {
-		diff = 0;
-		goto out;
-	}
-
-	tq1 = neigh1_ifinfo->bat_iv.tq_avg;
-	tq2 = neigh2_ifinfo->bat_iv.tq_avg;
-	diff = tq1 - tq2;
-
-out:
-	if (neigh1_ifinfo)
-		batadv_neigh_ifinfo_put(neigh1_ifinfo);
-	if (neigh2_ifinfo)
-		batadv_neigh_ifinfo_put(neigh2_ifinfo);
+	ret = batadv_iv_ogm_neigh_diff(neigh1, if_outgoing1, neigh2,
+				       if_outgoing2, &diff);
+	if (!ret)
+		return 0;
 
 	return diff;
 }
@@ -2085,29 +2086,15 @@ batadv_iv_ogm_neigh_is_sob(struct batadv_neigh_node *neigh1,
 			   struct batadv_neigh_node *neigh2,
 			   struct batadv_hard_iface *if_outgoing2)
 {
-	struct batadv_neigh_ifinfo *neigh1_ifinfo, *neigh2_ifinfo;
-	u8 tq1, tq2;
 	bool ret;
+	int diff;
 
-	neigh1_ifinfo = batadv_neigh_ifinfo_get(neigh1, if_outgoing1);
-	neigh2_ifinfo = batadv_neigh_ifinfo_get(neigh2, if_outgoing2);
+	ret = batadv_iv_ogm_neigh_diff(neigh1, if_outgoing1, neigh2,
+				       if_outgoing2, &diff);
+	if (!ret)
+		return false;
 
-	/* we can't say that the metric is better */
-	if (!neigh1_ifinfo || !neigh2_ifinfo) {
-		ret = false;
-		goto out;
-	}
-
-	tq1 = neigh1_ifinfo->bat_iv.tq_avg;
-	tq2 = neigh2_ifinfo->bat_iv.tq_avg;
-	ret = (tq1 - tq2) > -BATADV_TQ_SIMILARITY_THRESHOLD;
-
-out:
-	if (neigh1_ifinfo)
-		batadv_neigh_ifinfo_put(neigh1_ifinfo);
-	if (neigh2_ifinfo)
-		batadv_neigh_ifinfo_put(neigh2_ifinfo);
-
+	ret = diff > -BATADV_TQ_SIMILARITY_THRESHOLD;
 	return ret;
 }
 
@@ -2115,6 +2102,219 @@ static void batadv_iv_iface_activate(struct batadv_hard_iface *hard_iface)
 {
 	/* begin scheduling originator messages on that interface */
 	batadv_iv_ogm_schedule(hard_iface);
+}
+
+static struct batadv_gw_node *
+batadv_iv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
+{
+	struct batadv_neigh_node *router;
+	struct batadv_neigh_ifinfo *router_ifinfo;
+	struct batadv_gw_node *gw_node, *curr_gw = NULL;
+	u64 max_gw_factor = 0;
+	u64 tmp_gw_factor = 0;
+	u8 max_tq = 0;
+	u8 tq_avg;
+	struct batadv_orig_node *orig_node;
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(gw_node, &bat_priv->gw.list, list) {
+		orig_node = gw_node->orig_node;
+		router = batadv_orig_router_get(orig_node, BATADV_IF_DEFAULT);
+		if (!router)
+			continue;
+
+		router_ifinfo = batadv_neigh_ifinfo_get(router,
+							BATADV_IF_DEFAULT);
+		if (!router_ifinfo)
+			goto next;
+
+		if (!kref_get_unless_zero(&gw_node->refcount))
+			goto next;
+
+		tq_avg = router_ifinfo->bat_iv.tq_avg;
+
+		switch (atomic_read(&bat_priv->gw.sel_class)) {
+		case 1: /* fast connection */
+			tmp_gw_factor = tq_avg * tq_avg;
+			tmp_gw_factor *= gw_node->bandwidth_down;
+			tmp_gw_factor *= 100 * 100;
+			tmp_gw_factor >>= 18;
+
+			if ((tmp_gw_factor > max_gw_factor) ||
+			    ((tmp_gw_factor == max_gw_factor) &&
+			     (tq_avg > max_tq))) {
+				if (curr_gw)
+					batadv_gw_node_put(curr_gw);
+				curr_gw = gw_node;
+				kref_get(&curr_gw->refcount);
+			}
+			break;
+
+		default: /* 2:  stable connection (use best statistic)
+			  * 3:  fast-switch (use best statistic but change as
+			  *     soon as a better gateway appears)
+			  * XX: late-switch (use best statistic but change as
+			  *     soon as a better gateway appears which has
+			  *     $routing_class more tq points)
+			  */
+			if (tq_avg > max_tq) {
+				if (curr_gw)
+					batadv_gw_node_put(curr_gw);
+				curr_gw = gw_node;
+				kref_get(&curr_gw->refcount);
+			}
+			break;
+		}
+
+		if (tq_avg > max_tq)
+			max_tq = tq_avg;
+
+		if (tmp_gw_factor > max_gw_factor)
+			max_gw_factor = tmp_gw_factor;
+
+		batadv_gw_node_put(gw_node);
+
+next:
+		batadv_neigh_node_put(router);
+		if (router_ifinfo)
+			batadv_neigh_ifinfo_put(router_ifinfo);
+	}
+	rcu_read_unlock();
+
+	return curr_gw;
+}
+
+static bool batadv_iv_gw_is_eligible(struct batadv_priv *bat_priv,
+				     struct batadv_orig_node *curr_gw_orig,
+				     struct batadv_orig_node *orig_node)
+{
+	struct batadv_neigh_ifinfo *router_orig_ifinfo = NULL;
+	struct batadv_neigh_ifinfo *router_gw_ifinfo = NULL;
+	struct batadv_neigh_node *router_gw = NULL;
+	struct batadv_neigh_node *router_orig = NULL;
+	u8 gw_tq_avg, orig_tq_avg;
+	bool ret = false;
+
+	/* dynamic re-election is performed only on fast or late switch */
+	if (atomic_read(&bat_priv->gw.sel_class) <= 2)
+		return false;
+
+	router_gw = batadv_orig_router_get(curr_gw_orig, BATADV_IF_DEFAULT);
+	if (!router_gw) {
+		ret = true;
+		goto out;
+	}
+
+	router_gw_ifinfo = batadv_neigh_ifinfo_get(router_gw,
+						   BATADV_IF_DEFAULT);
+	if (!router_gw_ifinfo) {
+		ret = true;
+		goto out;
+	}
+
+	router_orig = batadv_orig_router_get(orig_node, BATADV_IF_DEFAULT);
+	if (!router_orig)
+		goto out;
+
+	router_orig_ifinfo = batadv_neigh_ifinfo_get(router_orig,
+						     BATADV_IF_DEFAULT);
+	if (!router_orig_ifinfo)
+		goto out;
+
+	gw_tq_avg = router_gw_ifinfo->bat_iv.tq_avg;
+	orig_tq_avg = router_orig_ifinfo->bat_iv.tq_avg;
+
+	/* the TQ value has to be better */
+	if (orig_tq_avg < gw_tq_avg)
+		goto out;
+
+	/* if the routing class is greater than 3 the value tells us how much
+	 * greater the TQ value of the new gateway must be
+	 */
+	if ((atomic_read(&bat_priv->gw.sel_class) > 3) &&
+	    (orig_tq_avg - gw_tq_avg < atomic_read(&bat_priv->gw.sel_class)))
+		goto out;
+
+	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
+		   "Restarting gateway selection: better gateway found (tq curr: %i, tq new: %i)\n",
+		   gw_tq_avg, orig_tq_avg);
+
+	ret = true;
+out:
+	if (router_gw_ifinfo)
+		batadv_neigh_ifinfo_put(router_gw_ifinfo);
+	if (router_orig_ifinfo)
+		batadv_neigh_ifinfo_put(router_orig_ifinfo);
+	if (router_gw)
+		batadv_neigh_node_put(router_gw);
+	if (router_orig)
+		batadv_neigh_node_put(router_orig);
+
+	return ret;
+}
+
+/* fails if orig_node has no router */
+static int batadv_iv_gw_write_buffer_text(struct batadv_priv *bat_priv,
+					  struct seq_file *seq,
+					  const struct batadv_gw_node *gw_node)
+{
+	struct batadv_gw_node *curr_gw;
+	struct batadv_neigh_node *router;
+	struct batadv_neigh_ifinfo *router_ifinfo = NULL;
+	int ret = -1;
+
+	router = batadv_orig_router_get(gw_node->orig_node, BATADV_IF_DEFAULT);
+	if (!router)
+		goto out;
+
+	router_ifinfo = batadv_neigh_ifinfo_get(router, BATADV_IF_DEFAULT);
+	if (!router_ifinfo)
+		goto out;
+
+	curr_gw = batadv_gw_get_selected_gw_node(bat_priv);
+
+	seq_printf(seq, "%s %pM (%3i) %pM [%10s]: %u.%u/%u.%u MBit\n",
+		   (curr_gw == gw_node ? "=>" : "  "),
+		   gw_node->orig_node->orig,
+		   router_ifinfo->bat_iv.tq_avg, router->addr,
+		   router->if_incoming->net_dev->name,
+		   gw_node->bandwidth_down / 10,
+		   gw_node->bandwidth_down % 10,
+		   gw_node->bandwidth_up / 10,
+		   gw_node->bandwidth_up % 10);
+	ret = seq_has_overflowed(seq) ? -1 : 0;
+
+	if (curr_gw)
+		batadv_gw_node_put(curr_gw);
+out:
+	if (router_ifinfo)
+		batadv_neigh_ifinfo_put(router_ifinfo);
+	if (router)
+		batadv_neigh_node_put(router);
+	return ret;
+}
+
+static void batadv_iv_gw_print(struct batadv_priv *bat_priv,
+			       struct seq_file *seq)
+{
+	struct batadv_gw_node *gw_node;
+	int gw_count = 0;
+
+	seq_puts(seq,
+		 "      Gateway      (#/255)           Nexthop [outgoingIF]: advertised uplink bandwidth\n");
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(gw_node, &bat_priv->gw.list, list) {
+		/* fails if orig_node has no router */
+		if (batadv_iv_gw_write_buffer_text(bat_priv, seq, gw_node) < 0)
+			continue;
+
+		gw_count++;
+	}
+	rcu_read_unlock();
+
+	if (gw_count == 0)
+		seq_puts(seq, "No gateways in range ...\n");
 }
 
 static struct batadv_algo_ops batadv_batman_iv __read_mostly = {
@@ -2136,6 +2336,11 @@ static struct batadv_algo_ops batadv_batman_iv __read_mostly = {
 		.free = batadv_iv_ogm_orig_free,
 		.add_if = batadv_iv_ogm_orig_add_if,
 		.del_if = batadv_iv_ogm_orig_del_if,
+	},
+	.gw = {
+		.get_best_gw_node = batadv_iv_gw_get_best_gw_node,
+		.is_eligible = batadv_iv_gw_is_eligible,
+		.print = batadv_iv_gw_print,
 	},
 };
 

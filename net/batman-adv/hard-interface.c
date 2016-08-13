@@ -35,7 +35,6 @@
 #include <linux/rtnetlink.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/workqueue.h>
 
 #include "bat_v.h"
 #include "bridge_loop_avoidance.h"
@@ -625,25 +624,6 @@ out:
 		batadv_hardif_put(primary_if);
 }
 
-/**
- * batadv_hardif_remove_interface_finish - cleans up the remains of a hardif
- * @work: work queue item
- *
- * Free the parts of the hard interface which can not be removed under
- * rtnl lock (to prevent deadlock situations).
- */
-static void batadv_hardif_remove_interface_finish(struct work_struct *work)
-{
-	struct batadv_hard_iface *hard_iface;
-
-	hard_iface = container_of(work, struct batadv_hard_iface,
-				  cleanup_work);
-
-	batadv_debugfs_del_hardif(hard_iface);
-	batadv_sysfs_del_hardif(&hard_iface->hardif_obj);
-	batadv_hardif_put(hard_iface);
-}
-
 static struct batadv_hard_iface *
 batadv_hardif_add_interface(struct net_device *net_dev)
 {
@@ -676,8 +656,6 @@ batadv_hardif_add_interface(struct net_device *net_dev)
 
 	INIT_LIST_HEAD(&hard_iface->list);
 	INIT_HLIST_HEAD(&hard_iface->neigh_list);
-	INIT_WORK(&hard_iface->cleanup_work,
-		  batadv_hardif_remove_interface_finish);
 
 	spin_lock_init(&hard_iface->neigh_list_lock);
 
@@ -719,7 +697,9 @@ static void batadv_hardif_remove_interface(struct batadv_hard_iface *hard_iface)
 		return;
 
 	hard_iface->if_status = BATADV_IF_TO_BE_REMOVED;
-	queue_work(batadv_event_workqueue, &hard_iface->cleanup_work);
+	batadv_debugfs_del_hardif(hard_iface);
+	batadv_sysfs_del_hardif(&hard_iface->hardif_obj);
+	batadv_hardif_put(hard_iface);
 }
 
 void batadv_hardif_remove_interfaces(void)
