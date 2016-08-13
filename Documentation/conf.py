@@ -19,6 +19,7 @@ import os
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath('sphinx'))
+from load_config import loadConfig
 
 # -- General configuration ------------------------------------------------
 
@@ -421,3 +422,9 @@ pdf_documents = [
 # line arguments.
 kerneldoc_bin = '../scripts/kernel-doc'
 kerneldoc_srctree = '..'
+
+# ------------------------------------------------------------------------------
+# Since loadConfig overwrites settings from the global namespace, it has to be
+# the last statement in the conf.py file
+# ------------------------------------------------------------------------------
+loadConfig(globals())
