@@ -227,6 +227,14 @@ EBUSY
        -  Several flags giving more information about the format. See
 	  :ref:`dv-bt-flags` for a description of the flags.
 
+    -  .. row 17
+
+       -  __u32
+
+       -  ``reserved[14]``
+
+       -  Reserved for future extensions. Drivers and applications must set
+          the array to zero.
 
 
 .. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{7.0cm}|p{3.5cm}|
