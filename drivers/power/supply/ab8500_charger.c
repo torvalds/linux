@@ -3540,8 +3540,8 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	di->usb_state.usb_current = -1;
 
 	/* Create a work queue for the charger */
-	di->charger_wq =
-		create_singlethread_workqueue("ab8500_charger_wq");
+	di->charger_wq = alloc_ordered_workqueue("ab8500_charger_wq",
+						 WQ_MEM_RECLAIM);
 	if (di->charger_wq == NULL) {
 		dev_err(di->dev, "failed to create work queue\n");
 		return -ENOMEM;
