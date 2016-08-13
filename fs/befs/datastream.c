@@ -37,7 +37,7 @@ static int befs_find_brun_dblindirect(struct super_block *sb,
 /**
  * befs_read_datastream - get buffer_head containing data, starting from pos.
  * @sb: Filesystem superblock
- * @ds: datastrem to find data with
+ * @ds: datastream to find data with
  * @pos: start of data
  * @off: offset of data in buffer_head->b_data
  *
@@ -115,7 +115,7 @@ befs_fblock2brun(struct super_block *sb, const befs_data_stream *data,
 /**
  * befs_read_lsmylink - read long symlink from datastream.
  * @sb: Filesystem superblock 
- * @ds: Datastrem to read from
+ * @ds: Datastream to read from
  * @buff: Buffer in which to place long symlink data
  * @len: Length of the long symlink in bytes
  *
@@ -183,7 +183,7 @@ befs_count_blocks(struct super_block *sb, const befs_data_stream *ds)
 		metablocks += ds->indirect.len;
 
 	/*
-	   Double indir block, plus all the indirect blocks it mapps
+	   Double indir block, plus all the indirect blocks it maps.
 	   In the double-indirect range, all block runs of data are
 	   BEFS_DBLINDIR_BRUN_LEN blocks long. Therefore, we know 
 	   how many data block runs are in the double-indirect region,
@@ -397,7 +397,7 @@ befs_find_brun_indirect(struct super_block *sb,
 	though the double-indirect run may be several blocks long, 
 	we can calculate which of those blocks will contain the index
 	we are after and only read that one. We then follow it to 
-	the indirect block and perform a  similar process to find
+	the indirect block and perform a similar process to find
 	the actual block run that maps the data block we are interested
 	in.
 	
