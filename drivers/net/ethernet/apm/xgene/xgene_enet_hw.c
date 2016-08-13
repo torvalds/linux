@@ -761,18 +761,18 @@ int xgene_enet_phy_connect(struct net_device *ndev)
 	if (dev->of_node) {
 		for (i = 0 ; i < 2; i++) {
 			np = of_parse_phandle(dev->of_node, "phy-handle", i);
-			if (np)
+
+			if (!np)
+				continue;
+
+			phy_dev = of_phy_connect(ndev, np,
+						 &xgene_enet_adjust_link,
+						 0, pdata->phy_mode);
+			of_node_put(np);
+			if (phy_dev)
 				break;
 		}
 
-		if (!np) {
-			netdev_dbg(ndev, "No phy-handle found in DT\n");
-			return -ENODEV;
-		}
-
-		phy_dev = of_phy_connect(ndev, np, &xgene_enet_adjust_link,
-					 0, pdata->phy_mode);
-		of_node_put(np);
 		if (!phy_dev) {
 			netdev_err(ndev, "Could not connect to PHY\n");
 			return -ENODEV;

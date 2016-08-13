@@ -18,6 +18,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/of_gpio.h>
+#include <linux/gpio.h>
 #include "xgene_enet_main.h"
 #include "xgene_enet_hw.h"
 #include "xgene_enet_xgmac.h"
@@ -84,6 +86,21 @@ static void xgene_enet_wr_mac(struct xgene_enet_pdata *pdata,
 			   wr_addr);
 }
 
+static void xgene_enet_wr_pcs(struct xgene_enet_pdata *pdata,
+			      u32 wr_addr, u32 wr_data)
+{
+	void __iomem *addr, *wr, *cmd, *cmd_done;
+
+	addr = pdata->pcs_addr + PCS_ADDR_REG_OFFSET;
+	wr = pdata->pcs_addr + PCS_WRITE_REG_OFFSET;
+	cmd = pdata->pcs_addr + PCS_COMMAND_REG_OFFSET;
+	cmd_done = pdata->pcs_addr + PCS_COMMAND_DONE_REG_OFFSET;
+
+	if (!xgene_enet_wr_indirect(addr, wr, cmd, cmd_done, wr_addr, wr_data))
+		netdev_err(pdata->ndev, "PCS write failed, addr: %04x\n",
+			   wr_addr);
+}
+
 static void xgene_enet_rd_csr(struct xgene_enet_pdata *pdata,
 			      u32 offset, u32 *val)
 {
@@ -122,6 +139,7 @@ static bool xgene_enet_rd_indirect(void __iomem *addr, void __iomem *rd,
 
 	return true;
 }
+
 static void xgene_enet_rd_mac(struct xgene_enet_pdata *pdata,
 			      u32 rd_addr, u32 *rd_data)
 {
@@ -134,6 +152,21 @@ static void xgene_enet_rd_mac(struct xgene_enet_pdata *pdata,
 
 	if (!xgene_enet_rd_indirect(addr, rd, cmd, cmd_done, rd_addr, rd_data))
 		netdev_err(pdata->ndev, "MCX mac read failed, addr: %04x\n",
+			   rd_addr);
+}
+
+static void xgene_enet_rd_pcs(struct xgene_enet_pdata *pdata,
+			      u32 rd_addr, u32 *rd_data)
+{
+	void __iomem *addr, *rd, *cmd, *cmd_done;
+
+	addr = pdata->pcs_addr + PCS_ADDR_REG_OFFSET;
+	rd = pdata->pcs_addr + PCS_READ_REG_OFFSET;
+	cmd = pdata->pcs_addr + PCS_COMMAND_REG_OFFSET;
+	cmd_done = pdata->pcs_addr + PCS_COMMAND_DONE_REG_OFFSET;
+
+	if (!xgene_enet_rd_indirect(addr, rd, cmd, cmd_done, rd_addr, rd_data))
+		netdev_err(pdata->ndev, "PCS read failed, addr: %04x\n",
 			   rd_addr);
 }
 
@@ -169,6 +202,15 @@ static void xgene_xgmac_reset(struct xgene_enet_pdata *pdata)
 {
 	xgene_enet_wr_mac(pdata, AXGMAC_CONFIG_0, HSTMACRST);
 	xgene_enet_wr_mac(pdata, AXGMAC_CONFIG_0, 0);
+}
+
+static void xgene_pcs_reset(struct xgene_enet_pdata *pdata)
+{
+	u32 data;
+
+	xgene_enet_rd_pcs(pdata, PCS_CONTROL_1, &data);
+	xgene_enet_wr_pcs(pdata, PCS_CONTROL_1, data | PCS_CTRL_PCS_RST);
+	xgene_enet_wr_pcs(pdata, PCS_CONTROL_1, data & ~PCS_CTRL_PCS_RST);
 }
 
 static void xgene_xgmac_set_mac_addr(struct xgene_enet_pdata *pdata)
@@ -216,12 +258,12 @@ static void xgene_xgmac_init(struct xgene_enet_pdata *pdata)
 	data |= CFG_RSIF_FPBUFF_TIMEOUT_EN;
 	xgene_enet_wr_csr(pdata, XG_RSIF_CONFIG_REG_ADDR, data);
 
-	xgene_enet_wr_csr(pdata, XG_CFG_BYPASS_ADDR, RESUME_TX);
-	xgene_enet_wr_csr(pdata, XGENET_RX_DV_GATE_REG_0_ADDR, 0);
 	xgene_enet_rd_csr(pdata, XG_ENET_SPARE_CFG_REG_ADDR, &data);
 	data |= BIT(12);
 	xgene_enet_wr_csr(pdata, XG_ENET_SPARE_CFG_REG_ADDR, data);
 	xgene_enet_wr_csr(pdata, XG_ENET_SPARE_CFG_REG_1_ADDR, 0x82);
+	xgene_enet_wr_csr(pdata, XGENET_RX_DV_GATE_REG_0_ADDR, 0);
+	xgene_enet_wr_csr(pdata, XG_CFG_BYPASS_ADDR, RESUME_TX);
 }
 
 static void xgene_xgmac_rx_enable(struct xgene_enet_pdata *pdata)
@@ -359,14 +401,17 @@ static void xgene_enet_link_state(struct work_struct *work)
 {
 	struct xgene_enet_pdata *pdata = container_of(to_delayed_work(work),
 					 struct xgene_enet_pdata, link_work);
+	struct gpio_desc *sfp_rdy = pdata->sfp_rdy;
 	struct net_device *ndev = pdata->ndev;
 	u32 link_status, poll_interval;
 
 	link_status = xgene_enet_link_status(pdata);
+	if (link_status && !IS_ERR(sfp_rdy) && !gpiod_get_value(sfp_rdy))
+		link_status = 0;
+
 	if (link_status) {
 		if (!netif_carrier_ok(ndev)) {
 			netif_carrier_on(ndev);
-			xgene_xgmac_init(pdata);
 			xgene_xgmac_rx_enable(pdata);
 			xgene_xgmac_tx_enable(pdata);
 			netdev_info(ndev, "Link is Up - 10Gbps\n");
@@ -380,6 +425,8 @@ static void xgene_enet_link_state(struct work_struct *work)
 			netdev_info(ndev, "Link is Down\n");
 		}
 		poll_interval = PHY_POLL_LINK_OFF;
+
+		xgene_pcs_reset(pdata);
 	}
 
 	schedule_delayed_work(&pdata->link_work, poll_interval);

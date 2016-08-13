@@ -19,6 +19,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/gpio.h>
 #include "xgene_enet_main.h"
 #include "xgene_enet_hw.h"
 #include "xgene_enet_sgmac.h"
@@ -72,7 +73,6 @@ static int xgene_enet_refill_bufpool(struct xgene_enet_desc_ring *buf_pool,
 		skb = netdev_alloc_skb_ip_align(ndev, len);
 		if (unlikely(!skb))
 			return -ENOMEM;
-		buf_pool->rx_skb[tail] = skb;
 
 		dma_addr = dma_map_single(dev, skb->data, len, DMA_FROM_DEVICE);
 		if (dma_mapping_error(dev, dma_addr)) {
@@ -80,6 +80,8 @@ static int xgene_enet_refill_bufpool(struct xgene_enet_desc_ring *buf_pool,
 			dev_kfree_skb_any(skb);
 			return -EINVAL;
 		}
+
+		buf_pool->rx_skb[tail] = skb;
 
 		raw_desc->m1 = cpu_to_le64(SET_VAL(DATAADDR, dma_addr) |
 					   SET_VAL(BUFDATALEN, bufdatalen) |
@@ -102,12 +104,21 @@ static u8 xgene_enet_hdr_len(const void *data)
 
 static void xgene_enet_delete_bufpool(struct xgene_enet_desc_ring *buf_pool)
 {
+	struct device *dev = ndev_to_dev(buf_pool->ndev);
+	struct xgene_enet_raw_desc16 *raw_desc;
+	dma_addr_t dma_addr;
 	int i;
 
 	/* Free up the buffers held by hardware */
 	for (i = 0; i < buf_pool->slots; i++) {
-		if (buf_pool->rx_skb[i])
+		if (buf_pool->rx_skb[i]) {
 			dev_kfree_skb_any(buf_pool->rx_skb[i]);
+
+			raw_desc = &buf_pool->raw_desc16[i];
+			dma_addr = GET_VAL(DATAADDR, le64_to_cpu(raw_desc->m1));
+			dma_unmap_single(dev, dma_addr, XGENE_ENET_MAX_MTU,
+					 DMA_FROM_DEVICE);
+		}
 	}
 }
 
@@ -452,7 +463,6 @@ static int xgene_enet_rx_frame(struct xgene_enet_desc_ring *rx_ring,
 			       struct xgene_enet_raw_desc *raw_desc)
 {
 	struct net_device *ndev;
-	struct xgene_enet_pdata *pdata;
 	struct device *dev;
 	struct xgene_enet_desc_ring *buf_pool;
 	u32 datalen, skb_index;
@@ -461,7 +471,6 @@ static int xgene_enet_rx_frame(struct xgene_enet_desc_ring *rx_ring,
 	int ret = 0;
 
 	ndev = rx_ring->ndev;
-	pdata = netdev_priv(ndev);
 	dev = ndev_to_dev(rx_ring->ndev);
 	buf_pool = rx_ring->buf_pool;
 
@@ -1312,6 +1321,18 @@ static int xgene_enet_check_phy_handle(struct xgene_enet_pdata *pdata)
 	return 0;
 }
 
+static void xgene_enet_gpiod_get(struct xgene_enet_pdata *pdata)
+{
+	struct device *dev = &pdata->pdev->dev;
+
+	if (pdata->phy_mode != PHY_INTERFACE_MODE_XGMII)
+		return;
+
+	pdata->sfp_rdy = gpiod_get(dev, "rxlos", GPIOD_IN);
+	if (IS_ERR(pdata->sfp_rdy))
+		pdata->sfp_rdy = gpiod_get(dev, "sfp", GPIOD_IN);
+}
+
 static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 {
 	struct platform_device *pdev;
@@ -1401,6 +1422,8 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 	if (ret)
 		return ret;
 
+	xgene_enet_gpiod_get(pdata);
+
 	pdata->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pdata->clk)) {
 		/* Firmware may have set up the clock already. */
@@ -1425,6 +1448,7 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 	} else {
 		pdata->mcx_mac_addr = base_addr + BLOCK_AXG_MAC_OFFSET;
 		pdata->mcx_mac_csr_addr = base_addr + BLOCK_AXG_MAC_CSR_OFFSET;
+		pdata->pcs_addr = base_addr + BLOCK_PCS_OFFSET;
 	}
 	pdata->rx_buff_cnt = NUM_PKT_BUF;
 
@@ -1454,10 +1478,8 @@ static int xgene_enet_init_hw(struct xgene_enet_pdata *pdata)
 		buf_pool = pdata->rx_ring[i]->buf_pool;
 		xgene_enet_init_bufpool(buf_pool);
 		ret = xgene_enet_refill_bufpool(buf_pool, pdata->rx_buff_cnt);
-		if (ret) {
-			xgene_enet_delete_desc_rings(pdata);
-			return ret;
-		}
+		if (ret)
+			goto err;
 	}
 
 	dst_ring_num = xgene_enet_dst_ring_num(pdata->rx_ring[0]);
@@ -1474,7 +1496,7 @@ static int xgene_enet_init_hw(struct xgene_enet_pdata *pdata)
 		ret = pdata->cle_ops->cle_init(pdata);
 		if (ret) {
 			netdev_err(ndev, "Preclass Tree init error\n");
-			return ret;
+			goto err;
 		}
 	} else {
 		pdata->port_ops->cle_bypass(pdata, dst_ring_num, buf_pool->id);
@@ -1483,6 +1505,10 @@ static int xgene_enet_init_hw(struct xgene_enet_pdata *pdata)
 	pdata->phy_speed = SPEED_UNKNOWN;
 	pdata->mac_ops->init(pdata);
 
+	return ret;
+
+err:
+	xgene_enet_delete_desc_rings(pdata);
 	return ret;
 }
 
@@ -1631,8 +1657,8 @@ static int xgene_enet_probe(struct platform_device *pdev)
 	}
 #endif
 	if (!pdata->enet_id) {
-		free_netdev(ndev);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err;
 	}
 
 	ret = xgene_enet_get_resources(pdata);
@@ -1655,7 +1681,7 @@ static int xgene_enet_probe(struct platform_device *pdev)
 
 	ret = xgene_enet_init_hw(pdata);
 	if (ret)
-		goto err_netdev;
+		goto err;
 
 	link_state = pdata->mac_ops->link_state;
 	if (pdata->phy_mode == PHY_INTERFACE_MODE_XGMII) {
@@ -1665,21 +1691,32 @@ static int xgene_enet_probe(struct platform_device *pdev)
 			ret = xgene_enet_mdio_config(pdata);
 		else
 			INIT_DELAYED_WORK(&pdata->link_work, link_state);
+
+		if (ret)
+			goto err1;
 	}
-	if (ret)
-		goto err;
 
 	xgene_enet_napi_add(pdata);
 	ret = register_netdev(ndev);
 	if (ret) {
 		netdev_err(ndev, "Failed to register netdev\n");
-		goto err;
+		goto err2;
 	}
 
 	return 0;
 
-err_netdev:
-	unregister_netdev(ndev);
+err2:
+	/*
+	 * If necessary, free_netdev() will call netif_napi_del() and undo
+	 * the effects of xgene_enet_napi_add()'s calls to netif_napi_add().
+	 */
+
+	if (pdata->mdio_driver)
+		xgene_enet_phy_disconnect(pdata);
+	else if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII)
+		xgene_enet_mdio_remove(pdata);
+err1:
+	xgene_enet_delete_desc_rings(pdata);
 err:
 	free_netdev(ndev);
 	return ret;
@@ -1688,11 +1725,9 @@ err:
 static int xgene_enet_remove(struct platform_device *pdev)
 {
 	struct xgene_enet_pdata *pdata;
-	const struct xgene_mac_ops *mac_ops;
 	struct net_device *ndev;
 
 	pdata = platform_get_drvdata(pdev);
-	mac_ops = pdata->mac_ops;
 	ndev = pdata->ndev;
 
 	rtnl_lock();
