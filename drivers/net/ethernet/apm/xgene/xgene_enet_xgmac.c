@@ -84,6 +84,21 @@ static void xgene_enet_wr_mac(struct xgene_enet_pdata *pdata,
 			   wr_addr);
 }
 
+static void xgene_enet_wr_pcs(struct xgene_enet_pdata *pdata,
+			      u32 wr_addr, u32 wr_data)
+{
+	void __iomem *addr, *wr, *cmd, *cmd_done;
+
+	addr = pdata->pcs_addr + PCS_ADDR_REG_OFFSET;
+	wr = pdata->pcs_addr + PCS_WRITE_REG_OFFSET;
+	cmd = pdata->pcs_addr + PCS_COMMAND_REG_OFFSET;
+	cmd_done = pdata->pcs_addr + PCS_COMMAND_DONE_REG_OFFSET;
+
+	if (!xgene_enet_wr_indirect(addr, wr, cmd, cmd_done, wr_addr, wr_data))
+		netdev_err(pdata->ndev, "PCS write failed, addr: %04x\n",
+			   wr_addr);
+}
+
 static void xgene_enet_rd_csr(struct xgene_enet_pdata *pdata,
 			      u32 offset, u32 *val)
 {
@@ -122,6 +137,7 @@ static bool xgene_enet_rd_indirect(void __iomem *addr, void __iomem *rd,
 
 	return true;
 }
+
 static void xgene_enet_rd_mac(struct xgene_enet_pdata *pdata,
 			      u32 rd_addr, u32 *rd_data)
 {
@@ -134,6 +150,21 @@ static void xgene_enet_rd_mac(struct xgene_enet_pdata *pdata,
 
 	if (!xgene_enet_rd_indirect(addr, rd, cmd, cmd_done, rd_addr, rd_data))
 		netdev_err(pdata->ndev, "MCX mac read failed, addr: %04x\n",
+			   rd_addr);
+}
+
+static void xgene_enet_rd_pcs(struct xgene_enet_pdata *pdata,
+			      u32 rd_addr, u32 *rd_data)
+{
+	void __iomem *addr, *rd, *cmd, *cmd_done;
+
+	addr = pdata->pcs_addr + PCS_ADDR_REG_OFFSET;
+	rd = pdata->pcs_addr + PCS_READ_REG_OFFSET;
+	cmd = pdata->pcs_addr + PCS_COMMAND_REG_OFFSET;
+	cmd_done = pdata->pcs_addr + PCS_COMMAND_DONE_REG_OFFSET;
+
+	if (!xgene_enet_rd_indirect(addr, rd, cmd, cmd_done, rd_addr, rd_data))
+		netdev_err(pdata->ndev, "PCS read failed, addr: %04x\n",
 			   rd_addr);
 }
 
@@ -169,6 +200,15 @@ static void xgene_xgmac_reset(struct xgene_enet_pdata *pdata)
 {
 	xgene_enet_wr_mac(pdata, AXGMAC_CONFIG_0, HSTMACRST);
 	xgene_enet_wr_mac(pdata, AXGMAC_CONFIG_0, 0);
+}
+
+static void xgene_pcs_reset(struct xgene_enet_pdata *pdata)
+{
+	u32 data;
+
+	xgene_enet_rd_pcs(pdata, PCS_CONTROL_1, &data);
+	xgene_enet_wr_pcs(pdata, PCS_CONTROL_1, data | PCS_CTRL_PCS_RST);
+	xgene_enet_wr_pcs(pdata, PCS_CONTROL_1, data & ~PCS_CTRL_PCS_RST);
 }
 
 static void xgene_xgmac_set_mac_addr(struct xgene_enet_pdata *pdata)
@@ -379,6 +419,8 @@ static void xgene_enet_link_state(struct work_struct *work)
 			netdev_info(ndev, "Link is Down\n");
 		}
 		poll_interval = PHY_POLL_LINK_OFF;
+
+		xgene_pcs_reset(pdata);
 	}
 
 	schedule_delayed_work(&pdata->link_work, poll_interval);

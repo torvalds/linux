@@ -196,6 +196,7 @@ struct xgene_enet_pdata {
 	void __iomem *mcx_mac_addr;
 	void __iomem *mcx_mac_csr_addr;
 	void __iomem *base_addr;
+	void __iomem *pcs_addr;
 	void __iomem *ring_csr_addr;
 	void __iomem *ring_cmd_addr;
 	int phy_mode;

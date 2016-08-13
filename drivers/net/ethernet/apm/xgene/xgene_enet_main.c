@@ -1433,6 +1433,7 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 	} else {
 		pdata->mcx_mac_addr = base_addr + BLOCK_AXG_MAC_OFFSET;
 		pdata->mcx_mac_csr_addr = base_addr + BLOCK_AXG_MAC_CSR_OFFSET;
+		pdata->pcs_addr = base_addr + BLOCK_PCS_OFFSET;
 	}
 	pdata->rx_buff_cnt = NUM_PKT_BUF;
 

@@ -24,6 +24,7 @@
 #define X2_BLOCK_ETH_MAC_CSR_OFFSET	0x3000
 #define BLOCK_AXG_MAC_OFFSET		0x0800
 #define BLOCK_AXG_MAC_CSR_OFFSET	0x2000
+#define BLOCK_PCS_OFFSET		0x3800
 
 #define XGENET_CONFIG_REG_ADDR		0x20
 #define XGENET_SRST_ADDR		0x00
@@ -71,6 +72,9 @@
 #define XGENET_RX_DV_GATE_REG_0_ADDR	0x0804
 #define XG_MCX_ICM_CONFIG0_REG_0_ADDR	0x00e0
 #define XG_MCX_ICM_CONFIG2_REG_0_ADDR	0x00e8
+
+#define PCS_CONTROL_1			0x0000
+#define PCS_CTRL_PCS_RST		BIT(15)
 
 extern const struct xgene_mac_ops xgene_xgmac_ops;
 extern const struct xgene_port_ops xgene_xgport_ops;
