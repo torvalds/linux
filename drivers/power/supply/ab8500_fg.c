@@ -3096,7 +3096,7 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	ab8500_fg_discharge_state_to(di, AB8500_FG_DISCHARGE_INIT);
 
 	/* Create a work queue for running the FG algorithm */
-	di->fg_wq = create_singlethread_workqueue("ab8500_fg_wq");
+	di->fg_wq = alloc_ordered_workqueue("ab8500_fg_wq", WQ_MEM_RECLAIM);
 	if (di->fg_wq == NULL) {
 		dev_err(di->dev, "failed to create work queue\n");
 		return -ENOMEM;
