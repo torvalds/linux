@@ -443,7 +443,7 @@ void nfnl_acct_update(const struct sk_buff *skb, struct nf_acct *nfacct)
 }
 EXPORT_SYMBOL_GPL(nfnl_acct_update);
 
-static void nfnl_overquota_report(struct nf_acct *nfacct)
+static void nfnl_overquota_report(struct net *net, struct nf_acct *nfacct)
 {
 	int ret;
 	struct sk_buff *skb;
@@ -458,11 +458,12 @@ static void nfnl_overquota_report(struct nf_acct *nfacct)
 		kfree_skb(skb);
 		return;
 	}
-	netlink_broadcast(init_net.nfnl, skb, 0, NFNLGRP_ACCT_QUOTA,
+	netlink_broadcast(net->nfnl, skb, 0, NFNLGRP_ACCT_QUOTA,
 			  GFP_ATOMIC);
 }
 
-int nfnl_acct_overquota(const struct sk_buff *skb, struct nf_acct *nfacct)
+int nfnl_acct_overquota(struct net *net, const struct sk_buff *skb,
+			struct nf_acct *nfacct)
 {
 	u64 now;
 	u64 *quota;
@@ -480,7 +481,7 @@ int nfnl_acct_overquota(const struct sk_buff *skb, struct nf_acct *nfacct)
 
 	if (now >= *quota &&
 	    !test_and_set_bit(NFACCT_OVERQUOTA_BIT, &nfacct->flags)) {
-		nfnl_overquota_report(nfacct);
+		nfnl_overquota_report(net, nfacct);
 	}
 
 	return ret;
