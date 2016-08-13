@@ -172,7 +172,6 @@ void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
 	gdb_regs[GDB_ES]	= __KERNEL_DS;
 	gdb_regs[GDB_PS]	= 0;
 	gdb_regs[GDB_CS]	= __KERNEL_CS;
-	gdb_regs[GDB_PC]	= p->thread.ip;
 	gdb_regs[GDB_SS]	= __KERNEL_DS;
 	gdb_regs[GDB_FS]	= 0xFFFF;
 	gdb_regs[GDB_GS]	= 0xFFFF;
@@ -180,7 +179,6 @@ void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
 	gdb_regs32[GDB_PS]	= *(unsigned long *)(p->thread.sp + 8);
 	gdb_regs32[GDB_CS]	= __KERNEL_CS;
 	gdb_regs32[GDB_SS]	= __KERNEL_DS;
-	gdb_regs[GDB_PC]	= 0;
 	gdb_regs[GDB_R8]	= 0;
 	gdb_regs[GDB_R9]	= 0;
 	gdb_regs[GDB_R10]	= 0;
@@ -190,6 +188,7 @@ void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
 	gdb_regs[GDB_R14]	= 0;
 	gdb_regs[GDB_R15]	= 0;
 #endif
+	gdb_regs[GDB_PC]	= 0;
 	gdb_regs[GDB_SP]	= p->thread.sp;
 }
 
