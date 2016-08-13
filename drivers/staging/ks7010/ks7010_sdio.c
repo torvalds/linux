@@ -1134,7 +1134,6 @@ static void ks7010_sdio_remove(struct sdio_func *func)
 	int ret;
 	struct ks_sdio_card *card;
 	struct ks_wlan_private *priv;
-	struct net_device *netdev;
 	DPRINTK(1, "ks7010_sdio_remove()\n");
 
 	card = sdio_get_drvdata(func);
@@ -1144,8 +1143,9 @@ static void ks7010_sdio_remove(struct sdio_func *func)
 
 	DPRINTK(1, "priv = card->priv\n");
 	priv = card->priv;
-	netdev = priv->net_dev;
 	if (priv) {
+		struct net_device *netdev = priv->net_dev;
+
 		ks_wlan_net_stop(netdev);
 		DPRINTK(1, "ks_wlan_net_stop\n");
 
