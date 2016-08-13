@@ -6,18 +6,13 @@
 Welcome to The Linux Kernel's documentation!
 ============================================
 
-Nothing for you to see here *yet*. Please move along.
-
 Contents:
 
 .. toctree::
    :maxdepth: 2
 
    kernel-documentation
-   media/media_uapi
-   media/media_kapi
-   media/dvb-drivers/index
-   media/v4l-drivers/index
+   media/index
    gpu/index
 
 Indices and tables
