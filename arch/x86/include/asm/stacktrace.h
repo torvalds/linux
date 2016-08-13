@@ -8,6 +8,7 @@
 
 #include <linux/uaccess.h>
 #include <linux/ptrace.h>
+#include <asm/switch_to.h>
 
 extern int kstack_depth_to_print;
 
@@ -70,8 +71,7 @@ stack_frame(struct task_struct *task, struct pt_regs *regs)
 		return bp;
 	}
 
-	/* bp is the last reg pushed by switch_to */
-	return *(unsigned long *)task->thread.sp;
+	return ((struct inactive_task_frame *)task->thread.sp)->bp;
 }
 #else
 static inline unsigned long

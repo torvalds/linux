@@ -32,6 +32,7 @@
 #include <asm/tlbflush.h>
 #include <asm/mce.h>
 #include <asm/vm86.h>
+#include <asm/switch_to.h>
 
 /*
  * per-CPU TSS segments. Threads are completely 'soft' on Linux,
@@ -556,7 +557,7 @@ unsigned long get_wchan(struct task_struct *p)
 	if (sp < bottom || sp > top)
 		return 0;
 
-	fp = READ_ONCE_NOCHECK(*(unsigned long *)sp);
+	fp = READ_ONCE_NOCHECK(((struct inactive_task_frame *)sp)->bp);
 	do {
 		if (fp < bottom || fp > top)
 			return 0;

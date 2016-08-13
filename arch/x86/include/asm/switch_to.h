@@ -30,6 +30,11 @@ static inline void prepare_switch_to(struct task_struct *prev,
 #endif
 }
 
+/* data that is pointed to by thread.sp */
+struct inactive_task_frame {
+	unsigned long bp;
+};
+
 #ifdef CONFIG_X86_32
 
 #ifdef CONFIG_CC_STACKPROTECTOR

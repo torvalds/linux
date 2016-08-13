@@ -50,6 +50,7 @@
 #include <asm/apicdef.h>
 #include <asm/apic.h>
 #include <asm/nmi.h>
+#include <asm/switch_to.h>
 
 struct dbg_reg_def_t dbg_reg_def[DBG_MAX_REG_NUM] =
 {
@@ -166,7 +167,7 @@ void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
 	gdb_regs[GDB_DX]	= 0;
 	gdb_regs[GDB_SI]	= 0;
 	gdb_regs[GDB_DI]	= 0;
-	gdb_regs[GDB_BP]	= *(unsigned long *)p->thread.sp;
+	gdb_regs[GDB_BP]	= ((struct inactive_task_frame *)p->thread.sp)->bp;
 #ifdef CONFIG_X86_32
 	gdb_regs[GDB_DS]	= __KERNEL_DS;
 	gdb_regs[GDB_ES]	= __KERNEL_DS;
