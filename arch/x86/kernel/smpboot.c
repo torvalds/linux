@@ -942,7 +942,6 @@ void common_cpu_up(unsigned int cpu, struct task_struct *idle)
 	per_cpu(cpu_current_top_of_stack, cpu) =
 		(unsigned long)task_stack_page(idle) + THREAD_SIZE;
 #else
-	clear_tsk_thread_flag(idle, TIF_FORK);
 	initial_gs = per_cpu_offset(cpu);
 #endif
 }

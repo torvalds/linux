@@ -29,6 +29,12 @@
 
 void common(void) {
 	BLANK();
+	OFFSET(TASK_threadsp, task_struct, thread.sp);
+#ifdef CONFIG_CC_STACKPROTECTOR
+	OFFSET(TASK_stack_canary, task_struct, stack_canary);
+#endif
+
+	BLANK();
 	OFFSET(TI_flags, thread_info, flags);
 	OFFSET(TI_status, thread_info, status);
 
