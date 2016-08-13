@@ -200,6 +200,7 @@ struct smiapp_sensor {
 	struct smiapp_hwconfig *hwcfg;
 	struct regulator *vana;
 	struct clk *ext_clk;
+	struct gpio_desc *xshutdown;
 	u32 limits[SMIAPP_LIMIT_LAST];
 	u8 nbinning_subtypes;
 	struct smiapp_binning_subtype binning_subtypes[SMIAPP_BINNING_SUBTYPES];

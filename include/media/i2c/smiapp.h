@@ -36,8 +36,6 @@
 #define SMIAPP_CSI_SIGNALLING_MODE_CCP2_DATA_STROBE	1
 #define SMIAPP_CSI_SIGNALLING_MODE_CSI2			2
 
-#define SMIAPP_NO_XSHUTDOWN	-1
-
 /*
  * Sometimes due to board layout considerations the camera module can be
  * mounted rotated. The typical rotation used is 180 degrees which can be
@@ -77,7 +75,6 @@ struct smiapp_hwconfig {
 	struct smiapp_flash_strobe_parms *strobe_setup;
 
 	int (*set_xclk)(struct v4l2_subdev *sd, int hz);
-	int32_t xshutdown;		/* gpio or SMIAPP_NO_XSHUTDOWN */
 };
 
 #endif /* __SMIAPP_H_  */
