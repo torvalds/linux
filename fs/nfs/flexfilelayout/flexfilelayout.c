@@ -37,6 +37,7 @@ ff_layout_alloc_layout_hdr(struct inode *inode, gfp_t gfp_flags)
 	if (ffl) {
 		INIT_LIST_HEAD(&ffl->error_list);
 		INIT_LIST_HEAD(&ffl->mirrors);
+		ffl->last_report_time = ktime_get();
 		return &ffl->generic_hdr;
 	} else
 		return NULL;
@@ -640,19 +641,18 @@ nfs4_ff_layoutstat_start_io(struct nfs4_ff_layout_mirror *mirror,
 {
 	static const ktime_t notime = {0};
 	s64 report_interval = FF_LAYOUTSTATS_REPORT_INTERVAL;
+	struct nfs4_flexfile_layout *ffl = FF_LAYOUT_FROM_HDR(mirror->layout);
 
 	nfs4_ff_start_busy_timer(&layoutstat->busy_timer, now);
 	if (ktime_equal(mirror->start_time, notime))
 		mirror->start_time = now;
-	if (ktime_equal(mirror->last_report_time, notime))
-		mirror->last_report_time = now;
 	if (mirror->report_interval != 0)
 		report_interval = (s64)mirror->report_interval * 1000LL;
 	else if (layoutstats_timer != 0)
 		report_interval = (s64)layoutstats_timer * 1000LL;
-	if (ktime_to_ms(ktime_sub(now, mirror->last_report_time)) >=
+	if (ktime_to_ms(ktime_sub(now, ffl->last_report_time)) >=
 			report_interval) {
-		mirror->last_report_time = now;
+		ffl->last_report_time = now;
 		return true;
 	}
 
