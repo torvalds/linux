@@ -63,49 +63,8 @@ static int tcf_act_police_walker(struct net *net, struct sk_buff *skb,
 				 const struct tc_action_ops *ops)
 {
 	struct tc_action_net *tn = net_generic(net, police_net_id);
-	struct tcf_hashinfo *hinfo = tn->hinfo;
-	int err = 0, index = -1, i = 0, s_i = 0, n_i = 0;
-	struct nlattr *nest;
 
-	spin_lock_bh(&hinfo->lock);
-
-	s_i = cb->args[0];
-
-	for (i = 0; i < (POL_TAB_MASK + 1); i++) {
-		struct hlist_head *head;
-		struct tc_action *p;
-
-		head = &hinfo->htab[tcf_hash(i, POL_TAB_MASK)];
-
-		hlist_for_each_entry_rcu(p, head, tcfa_head) {
-			index++;
-			if (index < s_i)
-				continue;
-			nest = nla_nest_start(skb, index);
-			if (nest == NULL)
-				goto nla_put_failure;
-			if (type == RTM_DELACTION)
-				err = tcf_action_dump_1(skb, p, 0, 1);
-			else
-				err = tcf_action_dump_1(skb, p, 0, 0);
-			if (err < 0) {
-				index--;
-				nla_nest_cancel(skb, nest);
-				goto done;
-			}
-			nla_nest_end(skb, nest);
-			n_i++;
-		}
-	}
-done:
-	spin_unlock_bh(&hinfo->lock);
-	if (n_i)
-		cb->args[0] += n_i;
-	return n_i;
-
-nla_put_failure:
-	nla_nest_cancel(skb, nest);
-	goto done;
+	return tcf_generic_walker(tn, skb, cb, type, ops);
 }
 
 static const struct nla_policy police_policy[TCA_POLICE_MAX + 1] = {
