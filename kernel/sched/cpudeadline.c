@@ -145,6 +145,45 @@ out:
 }
 
 /*
+ * cpudl_clear - remove a cpu from the cpudl max-heap
+ * @cp: the cpudl max-heap context
+ * @cpu: the target cpu
+ *
+ * Notes: assumes cpu_rq(cpu)->lock is locked
+ *
+ * Returns: (void)
+ */
+void cpudl_clear(struct cpudl *cp, int cpu)
+{
+	int old_idx, new_cpu;
+	unsigned long flags;
+
+	WARN_ON(!cpu_present(cpu));
+
+	raw_spin_lock_irqsave(&cp->lock, flags);
+
+	old_idx = cp->elements[cpu].idx;
+	if (old_idx == IDX_INVALID) {
+		/*
+		 * Nothing to remove if old_idx was invalid.
+		 * This could happen if a rq_offline_dl is
+		 * called for a CPU without -dl tasks running.
+		 */
+	} else {
+		new_cpu = cp->elements[cp->size - 1].cpu;
+		cp->elements[old_idx].dl = cp->elements[cp->size - 1].dl;
+		cp->elements[old_idx].cpu = new_cpu;
+		cp->size--;
+		cp->elements[new_cpu].idx = old_idx;
+		cp->elements[cpu].idx = IDX_INVALID;
+		cpudl_heapify(cp, old_idx);
+
+		cpumask_set_cpu(cpu, cp->free_cpus);
+	}
+	raw_spin_unlock_irqrestore(&cp->lock, flags);
+}
+
+/*
  * cpudl_set - update the cpudl max-heap
  * @cp: the cpudl max-heap context
  * @cpu: the target cpu
@@ -154,37 +193,16 @@ out:
  *
  * Returns: (void)
  */
-void cpudl_set(struct cpudl *cp, int cpu, u64 dl, int is_valid)
+void cpudl_set(struct cpudl *cp, int cpu, u64 dl)
 {
-	int old_idx, new_cpu;
+	int old_idx;
 	unsigned long flags;
 
 	WARN_ON(!cpu_present(cpu));
 
 	raw_spin_lock_irqsave(&cp->lock, flags);
+
 	old_idx = cp->elements[cpu].idx;
-	if (!is_valid) {
-		/* remove item */
-		if (old_idx == IDX_INVALID) {
-			/*
-			 * Nothing to remove if old_idx was invalid.
-			 * This could happen if a rq_offline_dl is
-			 * called for a CPU without -dl tasks running.
-			 */
-			goto out;
-		}
-		new_cpu = cp->elements[cp->size - 1].cpu;
-		cp->elements[old_idx].dl = cp->elements[cp->size - 1].dl;
-		cp->elements[old_idx].cpu = new_cpu;
-		cp->size--;
-		cp->elements[new_cpu].idx = old_idx;
-		cp->elements[cpu].idx = IDX_INVALID;
-		cpudl_heapify(cp, old_idx);
-		cpumask_set_cpu(cpu, cp->free_cpus);
-
-		goto out;
-	}
-
 	if (old_idx == IDX_INVALID) {
 		int new_idx = cp->size++;
 		cp->elements[new_idx].dl = dl;
@@ -197,7 +215,6 @@ void cpudl_set(struct cpudl *cp, int cpu, u64 dl, int is_valid)
 		cpudl_heapify(cp, old_idx);
 	}
 
-out:
 	raw_spin_unlock_irqrestore(&cp->lock, flags);
 }
 
