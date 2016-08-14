@@ -110,8 +110,6 @@ befs_bmap(struct address_space *mapping, sector_t block)
  * Used by many higher level functions.
  *
  * Calls befs_fblock2brun() in datastream.c to do the real work.
- *
- * -WD 10-26-01
  */
 
 static int
@@ -782,7 +780,6 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 	 * Linux 2.4.10 and later refuse to read blocks smaller than
 	 * the logical block size for the device. But we also need to read at
 	 * least 1k to get the second 512 bytes of the volume.
-	 * -WD 10-26-01
 	 */ 
 	blocksize = sb_min_blocksize(sb, 1024);
 	if (!blocksize) {

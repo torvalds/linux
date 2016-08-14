@@ -19,8 +19,7 @@
 /*
  * Converts befs notion of disk addr to a disk offset and uses
  * linux kernel function sb_bread() to get the buffer containing
- * the offset. -Will Dyson
- *
+ * the offset.
  */
 
 struct buffer_head *
