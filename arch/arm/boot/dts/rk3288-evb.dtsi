@@ -527,6 +527,10 @@
 	status = "okay";
 };
 
+&usb_otg {
+	status = "okay";
+};
+
 &lvds {
 	rockchip,data-mapping = "jeida";
 	rockchip,data-width = <24>;
