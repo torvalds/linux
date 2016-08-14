@@ -143,27 +143,6 @@ int lkl_set_ipv4_gateway(unsigned int addr)
 	return err;
 }
 
-int lkl_if_set_ipv6(int ifindex, void* addr, unsigned int netprefix_len)
-{
-	struct lkl_in6_ifreq ifr6;
-	int err, sock;
-
-	if (netprefix_len >= 128)
-		return -LKL_EINVAL;
-
-	sock = lkl_sys_socket(LKL_AF_INET6, LKL_SOCK_DGRAM, 0);
-	if (sock < 0)
-		return sock;
-
-	memcpy(&ifr6.ifr6_addr.lkl_s6_addr, addr, sizeof(struct lkl_in6_addr));
-	ifr6.ifr6_ifindex = ifindex;
-	ifr6.ifr6_prefixlen = netprefix_len;
-
-	err = lkl_sys_ioctl(sock, LKL_SIOCSIFADDR, (long)&ifr6);
-	lkl_sys_close(sock);
-	return err;
-}
-
 int lkl_set_ipv6_gateway(void* addr)
 {
 	int err, sock;
@@ -197,30 +176,121 @@ int lkl_netdev_get_ifindex(int id)
 	return ret < 0 ? ret : ifr.lkl_ifr_ifindex;
 }
 
-// Copied from iproute2/lib/libnetlink.c
-static unsigned int seq = 0;
-static int rtnl_talk(int fd, struct lkl_nlmsghdr *n)
+static int netlink_sock(unsigned int groups)
+{
+	struct lkl_sockaddr_nl la;
+	int fd, err;
+
+	fd = lkl_sys_socket(LKL_AF_NETLINK, LKL_SOCK_DGRAM, LKL_NETLINK_ROUTE);
+	if (fd < 0)
+		return fd;
+
+	memset(&la, 0, sizeof(la));
+	la.nl_family = LKL_AF_NETLINK;
+	la.nl_groups = groups;
+	err = lkl_sys_bind(fd, (struct lkl_sockaddr *)&la, sizeof(la));
+	if (err < 0)
+		return err;
+
+	return fd;
+}
+
+static int parse_rtattr(struct lkl_rtattr *tb[], int max,
+			struct lkl_rtattr *rta, int len)
+{
+	unsigned short type;
+
+	memset(tb, 0, sizeof(struct lkl_rtattr *) * (max + 1));
+	while (LKL_RTA_OK(rta, len)) {
+		type = rta->rta_type;
+		if ((type <= max) && (!tb[type]))
+			tb[type] = rta;
+		rta = LKL_RTA_NEXT(rta, len);
+	}
+	if (len)
+		lkl_printf( "!!!Deficit %d, rta_len=%d\n", len,
+			rta->rta_len);
+	return 0;
+}
+
+struct addr_filter {
+	unsigned int ifindex;
+	void *addr;
+};
+
+static unsigned int get_ifa_flags(struct lkl_ifaddrmsg *ifa,
+				  struct lkl_rtattr *ifa_flags_attr)
+{
+	return ifa_flags_attr ? *(unsigned int *)LKL_RTA_DATA(ifa_flags_attr) :
+				ifa->ifa_flags;
+}
+
+/* returns:
+ * 0 - dad succeed.
+ * -1 - dad failed or other error.
+ * 1 - should wait for new msg.
+ */
+static int check_ipv6_dad(struct lkl_sockaddr_nl *nladdr,
+			  struct lkl_nlmsghdr *n, void *arg)
+{
+	struct addr_filter *filter = arg;
+	struct lkl_ifaddrmsg *ifa = LKL_NLMSG_DATA(n);
+	struct lkl_rtattr *rta_tb[LKL_IFA_MAX+1];
+	unsigned int ifa_flags;
+	int len = n->nlmsg_len;
+
+	if (n->nlmsg_type != LKL_RTM_NEWADDR)
+		return 1;
+
+	len -= LKL_NLMSG_LENGTH(sizeof(*ifa));
+	if (len < 0) {
+		lkl_printf( "BUG: wrong nlmsg len %d\n", len);
+		return -1;
+	}
+
+	parse_rtattr(rta_tb, LKL_IFA_MAX, LKL_IFA_RTA(ifa),
+		     n->nlmsg_len - LKL_NLMSG_LENGTH(sizeof(*ifa)));
+
+	ifa_flags = get_ifa_flags(ifa, rta_tb[LKL_IFA_FLAGS]);
+
+	if (ifa->ifa_index != filter->ifindex)
+		return 1;
+	if (ifa->ifa_family != LKL_AF_INET6)
+		return 1;
+
+	if (!rta_tb[LKL_IFA_LOCAL])
+		rta_tb[LKL_IFA_LOCAL] = rta_tb[LKL_IFA_ADDRESS];
+
+	if (!rta_tb[LKL_IFA_LOCAL] ||
+	    (filter->addr && memcmp(LKL_RTA_DATA(rta_tb[LKL_IFA_LOCAL]),
+				    filter->addr, 16))) {
+		return 1;
+	}
+	if (ifa_flags & LKL_IFA_F_DADFAILED) {
+		lkl_printf( "IPV6 DAD failed.\n");
+		return -1;
+	}
+	if (!(ifa_flags & LKL_IFA_F_TENTATIVE))
+		return 0;
+	return 1;
+}
+
+/* Copied from iproute2/lib/ */
+static int rtnl_listen(int fd, int (*handler)(struct lkl_sockaddr_nl *nladdr,
+					      struct lkl_nlmsghdr *, void *),
+		       void *arg)
 {
 	int status;
 	struct lkl_nlmsghdr *h;
-	struct lkl_sockaddr_nl nladdr = {.nl_family = LKL_AF_NETLINK};
-	struct lkl_iovec iov = {.iov_base = (void *)n, .iov_len = n->nlmsg_len};
+	struct lkl_sockaddr_nl nladdr = { .nl_family = LKL_AF_NETLINK };
+	struct lkl_iovec iov;
 	struct lkl_user_msghdr msg = {
-			.msg_name = &nladdr,
-			.msg_namelen = sizeof(nladdr),
-			.msg_iov = &iov,
-			.msg_iovlen = 1,
+		.msg_name = &nladdr,
+		.msg_namelen = sizeof(nladdr),
+		.msg_iov = &iov,
+		.msg_iovlen = 1,
 	};
-	char buf[32768] = {};
-
-	n->nlmsg_seq = seq;
-	n->nlmsg_flags |= LKL_NLM_F_ACK;
-
-	status = lkl_sys_sendmsg(fd, &msg, 0);
-	if (status < 0) {
-		lkl_perror("Cannot talk to rtnetlink", status);
-		return -1;
-	}
+	char   buf[16384];
 
 	iov.iov_base = buf;
 	while (1) {
@@ -230,99 +300,196 @@ static int rtnl_talk(int fd, struct lkl_nlmsghdr *n)
 		if (status < 0) {
 			if (status == -LKL_EINTR || status == -LKL_EAGAIN)
 				continue;
-			lkl_perror("netlink receive error \n", status);
+			lkl_printf( "netlink receive error %s (%d)\n",
+				lkl_strerror(status), status);
+			if (status == -LKL_ENOBUFS)
+				continue;
 			return status;
 		}
 		if (status == 0) {
-			fprintf(stderr, "EOF on netlink\n");
+			lkl_printf( "EOF on netlink\n");
 			return -1;
 		}
 		if (msg.msg_namelen != sizeof(nladdr)) {
-			fprintf(stderr, "sender address length == %d\n",
+			lkl_printf( "Sender address length == %d\n",
 				msg.msg_namelen);
 			return -1;
 		}
-		for (h = (struct lkl_nlmsghdr *)buf; status >= (int)sizeof(*h);) {
+
+		for (h = (struct lkl_nlmsghdr *)buf;
+		     (unsigned int)status >= sizeof(*h);) {
+			int err;
 			int len = h->nlmsg_len;
 			int l = len - sizeof(*h);
 
 			if (l < 0 || len > status) {
 				if (msg.msg_flags & LKL_MSG_TRUNC) {
-					fprintf(stderr, "Truncated message\n");
+					lkl_printf( "Truncated message\n");
 					return -1;
 				}
-				fprintf(stderr, "!!!malformed message: len=%d\n",
+				lkl_printf( "!!!malformed message: len=%d\n",
 					len);
 				return -1;
 			}
-			if (nladdr.nl_pid != 0 || h->nlmsg_seq != seq++) {
-				/* Don't forget to skip that message. */
-				status -= LKL_NLMSG_ALIGN(len);
-				h = (struct lkl_nlmsghdr *)((char *)h +
-					    LKL_NLMSG_ALIGN(len));
-				continue;
-			}
 
-			if (h->nlmsg_type == LKL_NLMSG_ERROR) {
-				struct lkl_nlmsgerr *err =
-					(struct lkl_nlmsgerr *)LKL_NLMSG_DATA(h);
-				if (l < (int)sizeof(struct lkl_nlmsgerr)) {
-					fprintf(stderr, "ERROR truncated\n");
-				} else if (!err->error) {
-					return 0;
-				}
-				fprintf(stderr, "RTNETLINK answers: %s\n",
-					strerror(-err->error));
-				return -1;
-			}
-
-			fprintf(stderr, "Unexpected reply!!!\n");
+			err = handler(&nladdr, h, arg);
+			if (err <= 0)
+				return err;
 
 			status -= LKL_NLMSG_ALIGN(len);
 			h = (struct lkl_nlmsghdr *)((char *)h +
-				    LKL_NLMSG_ALIGN(len));
+						    LKL_NLMSG_ALIGN(len));
 		}
-
 		if (msg.msg_flags & LKL_MSG_TRUNC) {
-			fprintf(stderr, "Message truncated\n");
+			lkl_printf( "Message truncated\n");
 			continue;
 		}
-
 		if (status) {
-			fprintf(stderr, "!!!Remnant of size %d\n", status);
+			lkl_printf( "!!!Remnant of size %d\n", status);
 			return -1;
 		}
 	}
 }
 
+static int wait_ipv6(int ifindex, void *addr)
+{
+	struct addr_filter filter = {.ifindex = ifindex, .addr = addr};
+	int fd, ret;
+	struct {
+		struct lkl_nlmsghdr		nlmsg_info;
+		struct lkl_ifaddrmsg	ifaddrmsg_info;
+	} req;
+
+	fd = netlink_sock(1 << (LKL_RTNLGRP_IPV6_IFADDR - 1));
+	if (fd < 0)
+		return fd;
+
+	memset(&req, 0, sizeof(req));
+	req.nlmsg_info.nlmsg_len =
+			LKL_NLMSG_LENGTH(sizeof(struct lkl_ifaddrmsg));
+	req.nlmsg_info.nlmsg_flags = LKL_NLM_F_REQUEST | LKL_NLM_F_DUMP;
+	req.nlmsg_info.nlmsg_type = LKL_RTM_GETADDR;
+	req.ifaddrmsg_info.ifa_family = LKL_AF_INET6;
+	req.ifaddrmsg_info.ifa_index = ifindex;
+	ret = lkl_sys_send(fd, &req, req.nlmsg_info.nlmsg_len, 0);
+	if (ret < 0) {
+		lkl_perror("lkl_sys_send", ret);
+		return ret;
+	}
+	ret = rtnl_listen(fd, check_ipv6_dad, (void *)&filter);
+	lkl_sys_close(fd);
+	return ret;
+}
+
+int lkl_if_set_ipv6(int ifindex, void *addr, unsigned int netprefix_len)
+{
+	struct lkl_in6_ifreq ifr6;
+	int err, sock;
+
+	if (netprefix_len >= 128)
+		return -LKL_EINVAL;
+
+	sock = lkl_sys_socket(LKL_AF_INET6, LKL_SOCK_DGRAM, 0);
+	if (sock < 0)
+		return sock;
+
+	memcpy(&ifr6.ifr6_addr.lkl_s6_addr, addr, sizeof(struct lkl_in6_addr));
+	ifr6.ifr6_ifindex = ifindex;
+	ifr6.ifr6_prefixlen = netprefix_len;
+
+	err = lkl_sys_ioctl(sock, LKL_SIOCSIFADDR, (long)&ifr6);
+	lkl_sys_close(sock);
+	if (err)
+		return err;
+
+	err = wait_ipv6(ifindex, addr);
+	return err;
+}
+
+/* returns:
+ * 0 - succeed.
+ * -1 - error.
+ * 1 - should wait for new msg.
+ */
+static int check_error(struct lkl_sockaddr_nl *nladdr, struct lkl_nlmsghdr *n,
+		       void *arg)
+{
+	unsigned int s = *(unsigned int *)arg;
+
+	if (nladdr->nl_pid != 0 || n->nlmsg_seq != s) {
+		/* Don't forget to skip that message. */
+		return 1;
+	}
+
+	if (n->nlmsg_type == LKL_NLMSG_ERROR) {
+		struct lkl_nlmsgerr *err =
+			(struct lkl_nlmsgerr *)LKL_NLMSG_DATA(n);
+		int l = n->nlmsg_len - sizeof(*n);
+
+		if (l < (int)sizeof(struct lkl_nlmsgerr))
+			lkl_printf( "ERROR truncated\n");
+		else if (!err->error)
+			return 0;
+
+		lkl_printf( "RTNETLINK answers: %s\n",
+			strerror(-err->error));
+		return -1;
+	}
+	lkl_printf( "Unexpected reply!!!\n");
+	return -1;
+}
+
+static unsigned int seq;
+static int rtnl_talk(int fd, struct lkl_nlmsghdr *n)
+{
+	int status;
+	struct lkl_sockaddr_nl nladdr = {.nl_family = LKL_AF_NETLINK};
+	struct lkl_iovec iov = {.iov_base = (void *)n, .iov_len = n->nlmsg_len};
+	struct lkl_user_msghdr msg = {
+			.msg_name = &nladdr,
+			.msg_namelen = sizeof(nladdr),
+			.msg_iov = &iov,
+			.msg_iovlen = 1,
+	};
+
+	n->nlmsg_seq = seq;
+	n->nlmsg_flags |= LKL_NLM_F_ACK;
+
+	status = lkl_sys_sendmsg(fd, &msg, 0);
+	if (status < 0) {
+		lkl_perror("Cannot talk to rtnetlink", status);
+		return status;
+	}
+
+	status = rtnl_listen(fd, check_error, (void *)&seq);
+	seq++;
+	return status;
+}
+
 int lkl_add_neighbor(int ifindex, int af, void* ip, void* mac)
 {
-	struct lkl_sockaddr_nl la;
 	struct {
 		struct lkl_nlmsghdr n;
 		struct lkl_ndmsg r;
 		char buf[1024];
 	} req2;
-	int err, addr_sz, fd;
+	int err, addr_sz;
 	int ndmsglen = LKL_NLMSG_LENGTH(sizeof(struct lkl_ndmsg));
 	struct lkl_rtattr *dstattr;
+	int fd;
 
 	if (af == LKL_AF_INET)
 		addr_sz = 4;
 	else if (af == LKL_AF_INET6)
 		addr_sz = 16;
 	else {
-		fprintf(stderr, "Bad address family: %d\n", af);
+		lkl_printf( "Bad address family: %d\n", af);
 		return -1;
 	}
-	fd = lkl_sys_socket(LKL_AF_NETLINK, LKL_SOCK_DGRAM, LKL_NETLINK_ROUTE);
+
+	fd = netlink_sock(0);
 	if (fd < 0)
 		return fd;
-
-	memset(&la, 0, sizeof(la));
-	la.nl_family = LKL_AF_NETLINK;
-	err = lkl_sys_bind(fd, (struct lkl_sockaddr *)&la, sizeof(la));
-	if (err < 0) goto exit;
 
 	memset(&req2, 0, sizeof(req2));
 
@@ -353,7 +520,6 @@ int lkl_add_neighbor(int ifindex, int af, void* ip, void* mac)
 
 	err = rtnl_talk(fd, &req2.n);
 
-exit:
 	lkl_sys_close(fd);
 	return err;
 }

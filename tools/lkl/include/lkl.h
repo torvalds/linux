@@ -224,6 +224,7 @@ int lkl_set_ipv4_gateway(unsigned int addr);
 
 /**
  * lkl_if_set_ipv6 - set IPv6 address on interface
+ * must be called after interface is up.
  *
  * @ifindex - the ifindex of the interface
  * @addr - 16-byte IPv6 address (i.e., struct in6_addr)
@@ -368,6 +369,13 @@ void lkl_register_dbg_handler();
  * @mac - mac address of the entry
  */
 int lkl_add_neighbor(int ifindex, int af, void* addr, void* mac);
+
+/**
+ * lkl_mount_fs - mount a file system type like proc, sys
+ * @fstype - file system type. e.g. proc, sys
+ * @returns - 0 on success. 1 if it's already mounted. negative on failure.
+ */
+int lkl_mount_fs(char *fstype);
 
 #ifdef __cplusplus
 }
