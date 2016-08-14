@@ -41,7 +41,7 @@ static void cpudl_exchange(struct cpudl *cp, int a, int b)
 	swap(cp->elements[cpu_a].idx, cp->elements[cpu_b].idx);
 }
 
-static void cpudl_heapify(struct cpudl *cp, int idx)
+static void cpudl_heapify_down(struct cpudl *cp, int idx)
 {
 	int l, r, largest;
 
@@ -66,21 +66,22 @@ static void cpudl_heapify(struct cpudl *cp, int idx)
 	}
 }
 
-static void cpudl_change_key(struct cpudl *cp, int idx, u64 new_dl)
+static void cpudl_heapify_up(struct cpudl *cp, int idx)
 {
-	WARN_ON(idx == IDX_INVALID || !cpu_present(idx));
-
-	if (dl_time_before(new_dl, cp->elements[idx].dl)) {
-		cp->elements[idx].dl = new_dl;
-		cpudl_heapify(cp, idx);
-	} else {
-		cp->elements[idx].dl = new_dl;
-		while (idx > 0 && dl_time_before(cp->elements[parent(idx)].dl,
-					cp->elements[idx].dl)) {
-			cpudl_exchange(cp, idx, parent(idx));
-			idx = parent(idx);
-		}
+	while (idx > 0 && dl_time_before(cp->elements[parent(idx)].dl,
+			cp->elements[idx].dl)) {
+		cpudl_exchange(cp, idx, parent(idx));
+		idx = parent(idx);
 	}
+}
+
+static void cpudl_heapify(struct cpudl *cp, int idx)
+{
+	if (idx > 0 && dl_time_before(cp->elements[parent(idx)].dl,
+				cp->elements[idx].dl))
+		cpudl_heapify_up(cp, idx);
+	else
+		cpudl_heapify_down(cp, idx);
 }
 
 static inline int cpudl_maximum(struct cpudl *cp)
@@ -154,27 +155,22 @@ void cpudl_set(struct cpudl *cp, int cpu, u64 dl, int is_valid)
 		cp->size--;
 		cp->elements[new_cpu].idx = old_idx;
 		cp->elements[cpu].idx = IDX_INVALID;
-		while (old_idx > 0 && dl_time_before(
-				cp->elements[parent(old_idx)].dl,
-				cp->elements[old_idx].dl)) {
-			cpudl_exchange(cp, old_idx, parent(old_idx));
-			old_idx = parent(old_idx);
-		}
+		cpudl_heapify(cp, old_idx);
 		cpumask_set_cpu(cpu, cp->free_cpus);
-                cpudl_heapify(cp, old_idx);
 
 		goto out;
 	}
 
 	if (old_idx == IDX_INVALID) {
-		cp->size++;
-		cp->elements[cp->size - 1].dl = dl;
-		cp->elements[cp->size - 1].cpu = cpu;
-		cp->elements[cpu].idx = cp->size - 1;
-		cpudl_change_key(cp, cp->size - 1, dl);
+		int new_idx = cp->size++;
+		cp->elements[new_idx].dl = dl;
+		cp->elements[new_idx].cpu = cpu;
+		cp->elements[cpu].idx = new_idx;
+		cpudl_heapify_up(cp, new_idx);
 		cpumask_clear_cpu(cpu, cp->free_cpus);
 	} else {
-		cpudl_change_key(cp, old_idx, dl);
+		cp->elements[old_idx].dl = dl;
+		cpudl_heapify(cp, old_idx);
 	}
 
 out:
