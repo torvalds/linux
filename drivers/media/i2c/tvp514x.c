@@ -1233,7 +1233,6 @@ MODULE_DEVICE_TABLE(of, tvp514x_of_match);
 static struct i2c_driver tvp514x_driver = {
 	.driver = {
 		.of_match_table = of_match_ptr(tvp514x_of_match),
-		.owner = THIS_MODULE,
 		.name = TVP514X_MODULE_NAME,
 	},
 	.probe = tvp514x_probe,
