@@ -491,13 +491,10 @@ fail:
 }
 
 /*
- * UTF-8 to NLS charset  convert routine
+ * UTF-8 to NLS charset convert routine
  * 
- *
- * Changed 8/10/01 by Will Dyson. Now use uni2char() / char2uni() rather than
- * the nls tables directly
+ * Uses uni2char() / char2uni() rather than the nls tables directly
  */
-
 static int
 befs_utf2nls(struct super_block *sb, const char *in,
 	     int in_len, char **out, int *out_len)
@@ -585,8 +582,9 @@ befs_nls2utf(struct super_block *sb, const char *in,
 	wchar_t uni;
 	int unilen, utflen;
 	char *result;
-	/* There're nls characters that will translate to 3-chars-wide UTF-8
-	 * characters, a additional byte is needed to save the final \0
+	/*
+	 * There are nls characters that will translate to 3-chars-wide UTF-8
+	 * characters, an additional byte is needed to save the final \0
 	 * in special cases */
 	int maxlen = (3 * in_len) + 1;
 
@@ -625,7 +623,7 @@ befs_nls2utf(struct super_block *sb, const char *in,
 	return i;
 
       conv_err:
-	befs_error(sb, "Name using charecter set %s contains a charecter that "
+	befs_error(sb, "Name using character set %s contains a character that "
 		   "cannot be converted to unicode.", nls->charset);
 	befs_debug(sb, "<--- %s", __func__);
 	kfree(result);
