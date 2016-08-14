@@ -283,11 +283,21 @@ int i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 {
 	struct i915_vma *vma;
 	LIST_HEAD(still_in_list);
-	int ret = 0;
+	int ret;
 
-	/* The vma will only be freed if it is marked as closed, and if we wait
-	 * upon rendering to the vma, we may unbind anything in the list.
+	lockdep_assert_held(&obj->base.dev->struct_mutex);
+
+	/* Closed vma are removed from the obj->vma_list - but they may
+	 * still have an active binding on the object. To remove those we
+	 * must wait for all rendering to complete to the object (as unbinding
+	 * must anyway), and retire the requests.
 	 */
+	ret = i915_gem_object_wait_rendering(obj, false);
+	if (ret)
+		return ret;
+
+	i915_gem_retire_requests(to_i915(obj->base.dev));
+
 	while ((vma = list_first_entry_or_null(&obj->vma_list,
 					       struct i915_vma,
 					       obj_link))) {
