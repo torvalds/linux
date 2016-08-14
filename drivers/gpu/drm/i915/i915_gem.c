@@ -279,12 +279,11 @@ static const struct drm_i915_gem_object_ops i915_gem_phys_ops = {
 	.release = i915_gem_object_release_phys,
 };
 
-int
-i915_gem_object_unbind(struct drm_i915_gem_object *obj)
+int i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 {
 	struct i915_vma *vma;
 	LIST_HEAD(still_in_list);
-	int ret;
+	int ret = 0;
 
 	/* The vma will only be freed if it is marked as closed, and if we wait
 	 * upon rendering to the vma, we may unbind anything in the list.
