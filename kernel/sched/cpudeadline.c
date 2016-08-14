@@ -31,48 +31,72 @@ static inline int right_child(int i)
 	return (i << 1) + 2;
 }
 
-static void cpudl_exchange(struct cpudl *cp, int a, int b)
-{
-	int cpu_a = cp->elements[a].cpu, cpu_b = cp->elements[b].cpu;
-
-	swap(cp->elements[a].cpu, cp->elements[b].cpu);
-	swap(cp->elements[a].dl , cp->elements[b].dl );
-
-	swap(cp->elements[cpu_a].idx, cp->elements[cpu_b].idx);
-}
-
 static void cpudl_heapify_down(struct cpudl *cp, int idx)
 {
 	int l, r, largest;
 
+	int orig_cpu = cp->elements[idx].cpu;
+	u64 orig_dl = cp->elements[idx].dl;
+
+	if (left_child(idx) >= cp->size)
+		return;
+
 	/* adapted from lib/prio_heap.c */
 	while(1) {
+		u64 largest_dl;
 		l = left_child(idx);
 		r = right_child(idx);
 		largest = idx;
+		largest_dl = orig_dl;
 
-		if ((l < cp->size) && dl_time_before(cp->elements[idx].dl,
-							cp->elements[l].dl))
+		if ((l < cp->size) && dl_time_before(orig_dl,
+						cp->elements[l].dl)) {
 			largest = l;
-		if ((r < cp->size) && dl_time_before(cp->elements[largest].dl,
-							cp->elements[r].dl))
+			largest_dl = cp->elements[l].dl;
+		}
+		if ((r < cp->size) && dl_time_before(largest_dl,
+						cp->elements[r].dl))
 			largest = r;
+
 		if (largest == idx)
 			break;
 
-		/* Push idx down the heap one level and bump one up */
-		cpudl_exchange(cp, largest, idx);
+		/* pull largest child onto idx */
+		cp->elements[idx].cpu = cp->elements[largest].cpu;
+		cp->elements[idx].dl = cp->elements[largest].dl;
+		cp->elements[cp->elements[idx].cpu].idx = idx;
 		idx = largest;
 	}
+	/* actual push down of saved original values orig_* */
+	cp->elements[idx].cpu = orig_cpu;
+	cp->elements[idx].dl = orig_dl;
+	cp->elements[cp->elements[idx].cpu].idx = idx;
 }
 
 static void cpudl_heapify_up(struct cpudl *cp, int idx)
 {
-	while (idx > 0 && dl_time_before(cp->elements[parent(idx)].dl,
-			cp->elements[idx].dl)) {
-		cpudl_exchange(cp, idx, parent(idx));
-		idx = parent(idx);
-	}
+	int p;
+
+	int orig_cpu = cp->elements[idx].cpu;
+	u64 orig_dl = cp->elements[idx].dl;
+
+	if (idx == 0)
+		return;
+
+	do {
+		p = parent(idx);
+		if (dl_time_before(orig_dl, cp->elements[p].dl))
+			break;
+		/* pull parent onto idx */
+		cp->elements[idx].cpu = cp->elements[p].cpu;
+		cp->elements[idx].dl = cp->elements[p].dl;
+		cp->elements[cp->elements[idx].cpu].idx = idx;
+		idx = p;
+	} while (idx != 0);
+	/* actual push up of saved original values orig_* */
+	cp->elements[idx].cpu = orig_cpu;
+	cp->elements[idx].dl = orig_dl;
+	cp->elements[cp->elements[idx].cpu].idx = idx;
 }
 
 static void cpudl_heapify(struct cpudl *cp, int idx)
