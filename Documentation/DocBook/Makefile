@@ -22,8 +22,14 @@ ifeq ($(DOCBOOKS),)
 # Skip DocBook build if the user explicitly requested no DOCBOOKS.
 .DEFAULT:
 	@echo "  SKIP    DocBook $@ target (DOCBOOKS=\"\" specified)."
-
 else
+ifneq ($(SPHINXDIRS),)
+
+# Skip DocBook build if the user explicitly requested a sphinx dir
+.DEFAULT:
+	@echo "  SKIP    DocBook $@ target (SPHINXDIRS specified)."
+else
+
 
 ###
 # The build process is as follows (targets):
@@ -221,6 +227,7 @@ silent_gen_xml = :
 	   echo "</programlisting>")  > $@
 
 endif # DOCBOOKS=""
+endif # SPHINDIR=...
 
 ###
 # Help targets as used by the top-level makefile

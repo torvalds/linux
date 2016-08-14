@@ -396,9 +396,13 @@ locations and some common work such as cleanup has to be done.  If there is no
 cleanup needed then just return directly.
 
 Choose label names which say what the goto does or why the goto exists.  An
-example of a good name could be "out_buffer:" if the goto frees "buffer".  Avoid
-using GW-BASIC names like "err1:" and "err2:".  Also don't name them after the
-goto location like "err_kmalloc_failed:"
+example of a good name could be "out_free_buffer:" if the goto frees "buffer".
+Avoid using GW-BASIC names like "err1:" and "err2:", as you would have to
+renumber them if you ever add or remove exit paths, and they make correctness
+difficult to verify anyway.
+
+It is advised to indent labels with a single space (not tab), so that
+"diff -p" does not confuse labels with functions.
 
 The rationale for using gotos is:
 
@@ -425,20 +429,29 @@ The rationale for using gotos is:
 			goto out_buffer;
 		}
 		...
-	out_buffer:
+	 out_free_buffer:
 		kfree(buffer);
 		return result;
 	}
 
 A common type of bug to be aware of is "one err bugs" which look like this:
 
-	err:
+	 err:
 		kfree(foo->bar);
 		kfree(foo);
 		return ret;
 
 The bug in this code is that on some exit paths "foo" is NULL.  Normally the
-fix for this is to split it up into two error labels "err_bar:" and "err_foo:".
+fix for this is to split it up into two error labels "err_free_bar:" and
+"err_free_foo:":
+
+	 err_free_bar:
+		kfree(foo->bar);
+	 err_free_foo:
+		kfree(foo);
+		return ret;
+
+Ideally you should simulate errors to test all exit paths.
 
 
 		Chapter 8: Commenting
@@ -460,9 +473,6 @@ it.
 When commenting the kernel API functions, please use the kernel-doc format.
 See the files Documentation/kernel-documentation.rst and scripts/kernel-doc
 for details.
-
-Linux style for comments is the C89 "/* ... */" style.
-Don't use C99-style "// ..." comments.
 
 The preferred style for long (multi-line) comments is:
 
