@@ -32,4 +32,5 @@ see also :ref:`VIDIOC_G_FBUF <VIDIOC_G_FBUF>`.)
     depth-formats
     pixfmt-013
     sdr-formats
+    tch-formats
     pixfmt-reserved

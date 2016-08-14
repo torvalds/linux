@@ -410,6 +410,14 @@ specification the ioctl returns an ``EINVAL`` error code.
 
     -  .. row 26
 
+       -  ``V4L2_CAP_TOUCH``
+
+       -  0x10000000
+
+       -  This is a touch device.
+
+    -  .. row 27
+
        -  ``V4L2_CAP_DEVICE_CAPS``
 
        -  0x80000000

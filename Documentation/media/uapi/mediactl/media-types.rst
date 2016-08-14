@@ -437,6 +437,16 @@ Types and flags used to represent the media graph elements
 
     -  .. row 11
 
+       ..  _MEDIA-INTF-T-V4L-TOUCH:
+
+       -  ``MEDIA_INTF_T_V4L_TOUCH``
+
+       -  Device node interface for Touch device (V4L)
+
+       -  typically, /dev/v4l-touch?
+
+    -  .. row 12
+
        ..  _MEDIA-INTF-T-ALSA-PCM-CAPTURE:
 
        -  ``MEDIA_INTF_T_ALSA_PCM_CAPTURE``
@@ -445,7 +455,7 @@ Types and flags used to represent the media graph elements
 
        -  typically, /dev/snd/pcmC?D?c
 
-    -  .. row 12
+    -  .. row 13
 
        ..  _MEDIA-INTF-T-ALSA-PCM-PLAYBACK:
 
@@ -455,7 +465,7 @@ Types and flags used to represent the media graph elements
 
        -  typically, /dev/snd/pcmC?D?p
 
-    -  .. row 13
+    -  .. row 14
 
        ..  _MEDIA-INTF-T-ALSA-CONTROL:
 
@@ -465,7 +475,7 @@ Types and flags used to represent the media graph elements
 
        -  typically, /dev/snd/controlC?
 
-    -  .. row 14
+    -  .. row 15
 
        ..  _MEDIA-INTF-T-ALSA-COMPRESS:
 
@@ -475,7 +485,7 @@ Types and flags used to represent the media graph elements
 
        -  typically, /dev/snd/compr?
 
-    -  .. row 15
+    -  .. row 16
 
        ..  _MEDIA-INTF-T-ALSA-RAWMIDI:
 
@@ -485,7 +495,7 @@ Types and flags used to represent the media graph elements
 
        -  typically, /dev/snd/midi?
 
-    -  .. row 16
+    -  .. row 17
 
        ..  _MEDIA-INTF-T-ALSA-HWDEP:
 
@@ -495,7 +505,7 @@ Types and flags used to represent the media graph elements
 
        -  typically, /dev/snd/hwC?D?
 
-    -  .. row 17
+    -  .. row 18
 
        ..  _MEDIA-INTF-T-ALSA-SEQUENCER:
 
@@ -505,7 +515,7 @@ Types and flags used to represent the media graph elements
 
        -  typically, /dev/snd/seq
 
-    -  .. row 18
+    -  .. row 19
 
        ..  _MEDIA-INTF-T-ALSA-TIMER:
 

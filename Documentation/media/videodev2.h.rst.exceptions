@@ -152,6 +152,7 @@ replace define V4L2_CAP_READWRITE device-capabilities
 replace define V4L2_CAP_ASYNCIO device-capabilities
 replace define V4L2_CAP_STREAMING device-capabilities
 replace define V4L2_CAP_DEVICE_CAPS device-capabilities
+replace define V4L2_CAP_TOUCH device-capabilities
 
 # V4L2 pix flags
 replace define V4L2_PIX_FMT_PRIV_MAGIC v4l2-pix-format
@@ -285,6 +286,7 @@ replace define V4L2_DV_BT_CAP_CUSTOM framebuffer-cap
 
 replace define V4L2_INPUT_TYPE_TUNER input-type
 replace define V4L2_INPUT_TYPE_CAMERA input-type
+replace define V4L2_INPUT_TYPE_TOUCH input-type
 
 replace define V4L2_IN_ST_NO_POWER input-status
 replace define V4L2_IN_ST_NO_SIGNAL input-status
