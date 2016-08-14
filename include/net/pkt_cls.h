@@ -130,6 +130,25 @@ tcf_exts_exec(struct sk_buff *skb, struct tcf_exts *exts,
 	return 0;
 }
 
+#ifdef CONFIG_NET_CLS_ACT
+
+#define tc_no_actions(_exts) \
+	(list_empty(&(_exts)->actions))
+
+#define tc_for_each_action(_a, _exts) \
+	list_for_each_entry(_a, &(_exts)->actions, list)
+
+#define tc_single_action(_exts) \
+	(list_is_singular(&(_exts)->actions))
+
+#else /* CONFIG_NET_CLS_ACT */
+
+#define tc_no_actions(_exts) true
+#define tc_for_each_action(_a, _exts) while ((void)(_a), 0)
+#define tc_single_action(_exts) false
+
+#endif /* CONFIG_NET_CLS_ACT */
+
 int tcf_exts_validate(struct net *net, struct tcf_proto *tp,
 		      struct nlattr **tb, struct nlattr *rate_tlv,
 		      struct tcf_exts *exts, bool ovr);
