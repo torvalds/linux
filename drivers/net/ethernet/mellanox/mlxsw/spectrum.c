@@ -1121,6 +1121,7 @@ static int mlxsw_sp_port_add_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 					  bool ingress)
 {
 	const struct tc_action *a;
+	LIST_HEAD(actions);
 	int err;
 
 	if (!tc_single_action(cls->exts)) {
@@ -1128,7 +1129,8 @@ static int mlxsw_sp_port_add_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 		return -ENOTSUPP;
 	}
 
-	tc_for_each_action(a, cls->exts) {
+	tcf_exts_to_list(cls->exts, &actions);
+	list_for_each_entry(a, &actions, list) {
 		if (!is_tcf_mirred_mirror(a) || protocol != htons(ETH_P_ALL))
 			return -ENOTSUPP;
 

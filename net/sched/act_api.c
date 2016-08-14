@@ -420,18 +420,19 @@ static struct tc_action_ops *tc_lookup_action(struct nlattr *kind)
 	return res;
 }
 
-int tcf_action_exec(struct sk_buff *skb, const struct list_head *actions,
-		    struct tcf_result *res)
+int tcf_action_exec(struct sk_buff *skb, struct tc_action **actions,
+		    int nr_actions, struct tcf_result *res)
 {
-	const struct tc_action *a;
-	int ret = -1;
+	int ret = -1, i;
 
 	if (skb->tc_verd & TC_NCLS) {
 		skb->tc_verd = CLR_TC_NCLS(skb->tc_verd);
 		ret = TC_ACT_OK;
 		goto exec_done;
 	}
-	list_for_each_entry(a, actions, list) {
+	for (i = 0; i < nr_actions; i++) {
+		const struct tc_action *a = actions[i];
+
 repeat:
 		ret = a->ops->act(skb, a, res);
 		if (ret == TC_ACT_REPEAT)
