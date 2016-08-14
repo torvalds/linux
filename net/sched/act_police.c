@@ -125,6 +125,7 @@ static int tcf_act_police_init(struct net *net, struct nlattr *nla,
 	struct tcf_police *police;
 	struct qdisc_rate_table *R_tab = NULL, *P_tab = NULL;
 	struct tc_action_net *tn = net_generic(net, police_net_id);
+	bool exists = false;
 	int size;
 
 	if (nla == NULL)
@@ -139,24 +140,24 @@ static int tcf_act_police_init(struct net *net, struct nlattr *nla,
 	size = nla_len(tb[TCA_POLICE_TBF]);
 	if (size != sizeof(*parm) && size != sizeof(struct tc_police_compat))
 		return -EINVAL;
-	parm = nla_data(tb[TCA_POLICE_TBF]);
 
-	if (parm->index) {
-		if (tcf_hash_check(tn, parm->index, a, bind)) {
-			if (ovr)
-				goto override;
-			/* not replacing */
-			return -EEXIST;
-		}
-	} else {
+	parm = nla_data(tb[TCA_POLICE_TBF]);
+	exists = tcf_hash_check(tn, parm->index, a, bind);
+	if (exists && bind)
+		return 0;
+
+	if (!exists) {
 		ret = tcf_hash_create(tn, parm->index, NULL, a,
 				      &act_police_ops, bind, false);
 		if (ret)
 			return ret;
 		ret = ACT_P_CREATED;
+	} else {
+		tcf_hash_release(*a, bind);
+		if (!ovr)
+			return -EEXIST;
 	}
 
-override:
 	police = to_police(*a);
 	if (parm->rate.rate) {
 		err = -ENOMEM;
