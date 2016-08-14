@@ -25,6 +25,7 @@
 #include <linux/suspend.h>
 #include <linux/syscore_ops.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 
 #include <asm/mach/map.h>
 #include <asm/suspend.h>
@@ -151,11 +152,15 @@ void __init pxa26x_init_irq(void)
 }
 #endif
 
-void __init pxa25x_dt_init_irq(void)
+static int __init __init
+pxa25x_dt_init_irq(struct device_node *node, struct device_node *parent)
 {
-	if (IS_ENABLED(CONFIG_OF))
-		pxa_dt_irq_init(pxa25x_set_wake);
+	pxa_dt_irq_init(pxa25x_set_wake);
+	set_handle_irq(ichp_handle_irq);
+
+	return 0;
 }
+IRQCHIP_DECLARE(pxa25x_intc, "marvell,pxa-intc", pxa25x_dt_init_irq);
 
 static struct map_desc pxa25x_io_desc[] __initdata = {
 	{	/* Mem Ctl */
