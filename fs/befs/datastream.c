@@ -89,8 +89,6 @@ befs_read_datastream(struct super_block *sb, const befs_data_stream *ds,
  * 
  * Calls specialized functions for each of the three possible
  * datastream regions.
- *
- * 2001-11-15 Will Dyson
  */
 int
 befs_fblock2brun(struct super_block *sb, const befs_data_stream *data,
