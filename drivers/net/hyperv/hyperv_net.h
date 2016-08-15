@@ -644,12 +644,6 @@ struct netvsc_reconfig {
 	u32 event;
 };
 
-struct garp_wrk {
-	struct work_struct dwrk;
-	struct net_device *netdev;
-	struct net_device_context *net_device_ctx;
-};
-
 /* The context of the netvsc device  */
 struct net_device_context {
 	/* point back to our device context */
@@ -667,7 +661,6 @@ struct net_device_context {
 
 	struct work_struct work;
 	u32 msg_enable; /* debug level */
-	struct garp_wrk gwrk;
 
 	struct netvsc_stats __percpu *tx_stats;
 	struct netvsc_stats __percpu *rx_stats;
