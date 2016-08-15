@@ -699,7 +699,7 @@ static void qed_iov_config_perm_table(struct qed_hwfn *p_hwfn,
 				&qzone_id);
 
 		reg_addr = PSWHST_REG_ZONE_PERMISSION_TABLE + qzone_id * 4;
-		val = enable ? (vf->abs_vf_id | (1 << 8)) : 0;
+		val = enable ? (vf->abs_vf_id | BIT(8)) : 0;
 		qed_wr(p_hwfn, p_ptt, reg_addr, val);
 	}
 }
@@ -1090,13 +1090,13 @@ static u16 qed_iov_prep_vp_update_resp_tlvs(struct qed_hwfn *p_hwfn,
 
 	/* Prepare response for all extended tlvs if they are found by PF */
 	for (i = 0; i < QED_IOV_VP_UPDATE_MAX; i++) {
-		if (!(tlvs_mask & (1 << i)))
+		if (!(tlvs_mask & BIT(i)))
 			continue;
 
 		resp = qed_add_tlv(p_hwfn, &p_mbx->offset,
 				   qed_iov_vport_to_tlv(p_hwfn, i), size);
 
-		if (tlvs_accepted & (1 << i))
+		if (tlvs_accepted & BIT(i))
 			resp->hdr.status = status;
 		else
 			resp->hdr.status = PFVF_STATUS_NOT_SUPPORTED;
@@ -1334,8 +1334,7 @@ static void qed_iov_vf_mbx_acquire(struct qed_hwfn *p_hwfn,
 	pfdev_info->fw_minor = FW_MINOR_VERSION;
 	pfdev_info->fw_rev = FW_REVISION_VERSION;
 	pfdev_info->fw_eng = FW_ENGINEERING_VERSION;
-	pfdev_info->minor_fp_hsi = min_t(u8,
-					 ETH_HSI_VER_MINOR,
+	pfdev_info->minor_fp_hsi = min_t(u8, ETH_HSI_VER_MINOR,
 					 req->vfdev_info.eth_fp_hsi_minor);
 	pfdev_info->os_type = VFPF_ACQUIRE_OS_LINUX;
 	qed_mcp_get_mfw_ver(p_hwfn, p_ptt, &pfdev_info->mfw_ver, NULL);
@@ -1438,14 +1437,11 @@ static int qed_iov_reconfigure_unicast_vlan(struct qed_hwfn *p_hwfn,
 
 		filter.type = QED_FILTER_VLAN;
 		filter.vlan = p_vf->shadow_config.vlans[i].vid;
-		DP_VERBOSE(p_hwfn,
-			   QED_MSG_IOV,
+		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
 			   "Reconfiguring VLAN [0x%04x] for VF [%04x]\n",
 			   filter.vlan, p_vf->relative_vf_id);
-		rc = qed_sp_eth_filter_ucast(p_hwfn,
-					     p_vf->opaque_fid,
-					     &filter,
-					     QED_SPQ_MODE_CB, NULL);
+		rc = qed_sp_eth_filter_ucast(p_hwfn, p_vf->opaque_fid,
+					     &filter, QED_SPQ_MODE_CB, NULL);
 		if (rc) {
 			DP_NOTICE(p_hwfn,
 				  "Failed to configure VLAN [%04x] to VF [%04x]\n",
@@ -1463,7 +1459,7 @@ qed_iov_reconfigure_unicast_shadow(struct qed_hwfn *p_hwfn,
 {
 	int rc = 0;
 
-	if ((events & (1 << VLAN_ADDR_FORCED)) &&
+	if ((events & BIT(VLAN_ADDR_FORCED)) &&
 	    !(p_vf->configured_features & (1 << VLAN_ADDR_FORCED)))
 		rc = qed_iov_reconfigure_unicast_vlan(p_hwfn, p_vf);
 
@@ -1479,7 +1475,7 @@ static int qed_iov_configure_vport_forced(struct qed_hwfn *p_hwfn,
 	if (!p_vf->vport_instance)
 		return -EINVAL;
 
-	if (events & (1 << MAC_ADDR_FORCED)) {
+	if (events & BIT(MAC_ADDR_FORCED)) {
 		/* Since there's no way [currently] of removing the MAC,
 		 * we can always assume this means we need to force it.
 		 */
@@ -1502,7 +1498,7 @@ static int qed_iov_configure_vport_forced(struct qed_hwfn *p_hwfn,
 		p_vf->configured_features |= 1 << MAC_ADDR_FORCED;
 	}
 
-	if (events & (1 << VLAN_ADDR_FORCED)) {
+	if (events & BIT(VLAN_ADDR_FORCED)) {
 		struct qed_sp_vport_update_params vport_update;
 		u8 removal;
 		int i;
@@ -1572,7 +1568,7 @@ static int qed_iov_configure_vport_forced(struct qed_hwfn *p_hwfn,
 		if (filter.vlan)
 			p_vf->configured_features |= 1 << VLAN_ADDR_FORCED;
 		else
-			p_vf->configured_features &= ~(1 << VLAN_ADDR_FORCED);
+			p_vf->configured_features &= ~BIT(VLAN_ADDR_FORCED);
 	}
 
 	/* If forced features are terminated, we need to configure the shadow
@@ -1619,8 +1615,7 @@ static void qed_iov_vf_mbx_start_vport(struct qed_hwfn *p_hwfn,
 
 		qed_int_cau_conf_sb(p_hwfn, p_ptt,
 				    start->sb_addr[sb_id],
-				    vf->igu_sbs[sb_id],
-				    vf->abs_vf_id, 1);
+				    vf->igu_sbs[sb_id], vf->abs_vf_id, 1);
 	}
 	qed_iov_enable_vf_traffic(p_hwfn, p_ptt, vf);
 
@@ -1632,7 +1627,7 @@ static void qed_iov_vf_mbx_start_vport(struct qed_hwfn *p_hwfn,
 	 * vfs that would still be fine, since they passed '0' as padding].
 	 */
 	p_bitmap = &vf_info->bulletin.p_virt->valid_bitmap;
-	if (!(*p_bitmap & (1 << VFPF_BULLETIN_UNTAGGED_DEFAULT_FORCED))) {
+	if (!(*p_bitmap & BIT(VFPF_BULLETIN_UNTAGGED_DEFAULT_FORCED))) {
 		u8 vf_req = start->only_untagged;
 
 		vf_info->bulletin.p_virt->default_only_untagged = vf_req;
@@ -1652,7 +1647,7 @@ static void qed_iov_vf_mbx_start_vport(struct qed_hwfn *p_hwfn,
 	params.mtu = vf->mtu;
 
 	rc = qed_sp_eth_vport_start(p_hwfn, &params);
-	if (rc != 0) {
+	if (rc) {
 		DP_ERR(p_hwfn,
 		       "qed_iov_vf_mbx_start_vport returned error %d\n", rc);
 		status = PFVF_STATUS_FAILURE;
@@ -1679,7 +1674,7 @@ static void qed_iov_vf_mbx_stop_vport(struct qed_hwfn *p_hwfn,
 	vf->spoof_chk = false;
 
 	rc = qed_sp_vport_stop(p_hwfn, vf->opaque_fid, vf->vport_id);
-	if (rc != 0) {
+	if (rc) {
 		DP_ERR(p_hwfn, "qed_iov_vf_mbx_stop_vport returned error %d\n",
 		       rc);
 		status = PFVF_STATUS_FAILURE;
@@ -2045,7 +2040,7 @@ qed_iov_vp_update_vlan_param(struct qed_hwfn *p_hwfn,
 	p_vf->shadow_config.inner_vlan_removal = p_vlan_tlv->remove_vlan;
 
 	/* Ignore the VF request if we're forcing a vlan */
-	if (!(p_vf->configured_features & (1 << VLAN_ADDR_FORCED))) {
+	if (!(p_vf->configured_features & BIT(VLAN_ADDR_FORCED))) {
 		p_data->update_inner_vlan_removal_flg = 1;
 		p_data->inner_vlan_removal_flg = p_vlan_tlv->remove_vlan;
 	}
@@ -2340,7 +2335,7 @@ static int qed_iov_vf_update_vlan_shadow(struct qed_hwfn *p_hwfn,
 	/* In forced mode, we're willing to remove entries - but we don't add
 	 * new ones.
 	 */
-	if (p_vf->bulletin.p_virt->valid_bitmap & (1 << VLAN_ADDR_FORCED))
+	if (p_vf->bulletin.p_virt->valid_bitmap & BIT(VLAN_ADDR_FORCED))
 		return 0;
 
 	if (p_params->opcode == QED_FILTER_ADD ||
@@ -2374,7 +2369,7 @@ static int qed_iov_vf_update_mac_shadow(struct qed_hwfn *p_hwfn,
 	int i;
 
 	/* If we're in forced-mode, we don't allow any change */
-	if (p_vf->bulletin.p_virt->valid_bitmap & (1 << MAC_ADDR_FORCED))
+	if (p_vf->bulletin.p_virt->valid_bitmap & BIT(MAC_ADDR_FORCED))
 		return 0;
 
 	/* First remove entries and then add new ones */
@@ -2509,7 +2504,7 @@ static void qed_iov_vf_mbx_ucast_filter(struct qed_hwfn *p_hwfn,
 	}
 
 	/* Determine if the unicast filtering is acceptible by PF */
-	if ((p_bulletin->valid_bitmap & (1 << VLAN_ADDR_FORCED)) &&
+	if ((p_bulletin->valid_bitmap & BIT(VLAN_ADDR_FORCED)) &&
 	    (params.type == QED_FILTER_VLAN ||
 	     params.type == QED_FILTER_MAC_VLAN)) {
 		/* Once VLAN is forced or PVID is set, do not allow
@@ -2521,7 +2516,7 @@ static void qed_iov_vf_mbx_ucast_filter(struct qed_hwfn *p_hwfn,
 		goto out;
 	}
 
-	if ((p_bulletin->valid_bitmap & (1 << MAC_ADDR_FORCED)) &&
+	if ((p_bulletin->valid_bitmap & BIT(MAC_ADDR_FORCED)) &&
 	    (params.type == QED_FILTER_MAC ||
 	     params.type == QED_FILTER_MAC_VLAN)) {
 		if (!ether_addr_equal(p_bulletin->mac, params.mac) ||
@@ -2749,7 +2744,7 @@ cleanup:
 		/* Mark VF for ack and clean pending state */
 		if (p_vf->state == VF_RESET)
 			p_vf->state = VF_STOPPED;
-		ack_vfs[vfid / 32] |= (1 << (vfid % 32));
+		ack_vfs[vfid / 32] |= BIT((vfid % 32));
 		p_hwfn->pf_iov_info->pending_flr[rel_vf_id / 64] &=
 		    ~(1ULL << (rel_vf_id % 64));
 		p_hwfn->pf_iov_info->pending_events[rel_vf_id / 64] &=
@@ -2805,7 +2800,7 @@ int qed_iov_mark_vf_flr(struct qed_hwfn *p_hwfn, u32 *p_disabled_vfs)
 			continue;
 
 		vfid = p_vf->abs_vf_id;
-		if ((1 << (vfid % 32)) & p_disabled_vfs[vfid / 32]) {
+		if (BIT((vfid % 32)) & p_disabled_vfs[vfid / 32]) {
 			u64 *p_flr = p_hwfn->pf_iov_info->pending_flr;
 			u16 rel_vf_id = p_vf->relative_vf_id;
 
@@ -3064,8 +3059,7 @@ static void qed_iov_bulletin_set_forced_mac(struct qed_hwfn *p_hwfn,
 
 	vf_info->bulletin.p_virt->valid_bitmap |= feature;
 	/* Forced MAC will disable MAC_ADDR */
-	vf_info->bulletin.p_virt->valid_bitmap &=
-				~(1 << VFPF_BULLETIN_MAC_ADDR);
+	vf_info->bulletin.p_virt->valid_bitmap &= ~BIT(VFPF_BULLETIN_MAC_ADDR);
 
 	qed_iov_configure_vport_forced(p_hwfn, vf_info, feature);
 }
@@ -3163,7 +3157,7 @@ static u8 *qed_iov_bulletin_get_forced_mac(struct qed_hwfn *p_hwfn,
 	if (!p_vf || !p_vf->bulletin.p_virt)
 		return NULL;
 
-	if (!(p_vf->bulletin.p_virt->valid_bitmap & (1 << MAC_ADDR_FORCED)))
+	if (!(p_vf->bulletin.p_virt->valid_bitmap & BIT(MAC_ADDR_FORCED)))
 		return NULL;
 
 	return p_vf->bulletin.p_virt->mac;
@@ -3177,7 +3171,7 @@ u16 qed_iov_bulletin_get_forced_vlan(struct qed_hwfn *p_hwfn, u16 rel_vf_id)
 	if (!p_vf || !p_vf->bulletin.p_virt)
 		return 0;
 
-	if (!(p_vf->bulletin.p_virt->valid_bitmap & (1 << VLAN_ADDR_FORCED)))
+	if (!(p_vf->bulletin.p_virt->valid_bitmap & BIT(VLAN_ADDR_FORCED)))
 		return 0;
 
 	return p_vf->bulletin.p_virt->pvid;

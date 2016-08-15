@@ -377,9 +377,8 @@ static void qed_cxt_set_proto_cid_count(struct qed_hwfn *p_hwfn,
 	}
 }
 
-u32 qed_cxt_get_proto_cid_count(struct qed_hwfn		*p_hwfn,
-				enum protocol_type	type,
-				u32			*vf_cid)
+u32 qed_cxt_get_proto_cid_count(struct qed_hwfn *p_hwfn,
+				enum protocol_type type, u32 *vf_cid)
 {
 	if (vf_cid)
 		*vf_cid = p_hwfn->p_cxt_mngr->conn_cfg[type].cids_per_vf;
@@ -405,10 +404,10 @@ u32 qed_cxt_get_proto_tid_count(struct qed_hwfn *p_hwfn,
 	return cnt;
 }
 
-static void
-qed_cxt_set_proto_tid_count(struct qed_hwfn *p_hwfn,
-			    enum protocol_type proto,
-			    u8 seg, u8 seg_type, u32 count, bool has_fl)
+static void qed_cxt_set_proto_tid_count(struct qed_hwfn *p_hwfn,
+					enum protocol_type proto,
+					u8 seg,
+					u8 seg_type, u32 count, bool has_fl)
 {
 	struct qed_cxt_mngr *p_mngr = p_hwfn->p_cxt_mngr;
 	struct qed_tid_seg *p_seg = &p_mngr->conn_cfg[proto].tid_seg[seg];
@@ -420,8 +419,7 @@ qed_cxt_set_proto_tid_count(struct qed_hwfn *p_hwfn,
 
 static void qed_ilt_cli_blk_fill(struct qed_ilt_client_cfg *p_cli,
 				 struct qed_ilt_cli_blk *p_blk,
-				 u32 start_line, u32 total_size,
-				 u32 elem_size)
+				 u32 start_line, u32 total_size, u32 elem_size)
 {
 	u32 ilt_size = ILT_PAGE_IN_BYTES(p_cli->p_size.val);
 
@@ -448,8 +446,7 @@ static void qed_ilt_cli_adv_line(struct qed_hwfn *p_hwfn,
 		p_cli->first.val = *p_line;
 
 	p_cli->active = true;
-	*p_line += DIV_ROUND_UP(p_blk->total_size,
-				p_blk->real_size_in_page);
+	*p_line += DIV_ROUND_UP(p_blk->total_size, p_blk->real_size_in_page);
 	p_cli->last.val = *p_line - 1;
 
 	DP_VERBOSE(p_hwfn, QED_MSG_ILT,
@@ -926,12 +923,9 @@ static int qed_ilt_blk_alloc(struct qed_hwfn *p_hwfn,
 		void *p_virt;
 		u32 size;
 
-		size = min_t(u32, sz_left,
-			     p_blk->real_size_in_page);
+		size = min_t(u32, sz_left, p_blk->real_size_in_page);
 		p_virt = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
-					    size,
-					    &p_phys,
-					    GFP_KERNEL);
+					    size, &p_phys, GFP_KERNEL);
 		if (!p_virt)
 			return -ENOMEM;
 		memset(p_virt, 0, size);
@@ -976,7 +970,7 @@ static int qed_ilt_shadow_alloc(struct qed_hwfn *p_hwfn)
 		for (j = 0; j < ILT_CLI_PF_BLOCKS; j++) {
 			p_blk = &clients[i].pf_blks[j];
 			rc = qed_ilt_blk_alloc(p_hwfn, p_blk, i, 0);
-			if (rc != 0)
+			if (rc)
 				goto ilt_shadow_fail;
 		}
 		for (k = 0; k < p_mngr->vf_count; k++) {
@@ -985,7 +979,7 @@ static int qed_ilt_shadow_alloc(struct qed_hwfn *p_hwfn)
 
 				p_blk = &clients[i].vf_blks[j];
 				rc = qed_ilt_blk_alloc(p_hwfn, p_blk, i, lines);
-				if (rc != 0)
+				if (rc)
 					goto ilt_shadow_fail;
 			}
 		}
@@ -1672,7 +1666,7 @@ static void qed_tm_init_pf(struct qed_hwfn *p_hwfn)
 		     p_hwfn->rel_pf_id * NUM_TASK_PF_SEGMENTS + i);
 
 		STORE_RT_REG_AGG(p_hwfn, rt_reg, cfg_word);
-		active_seg_mask |= (tm_iids.pf_tids[i] ? (1 << i) : 0);
+		active_seg_mask |= (tm_iids.pf_tids[i] ? BIT(i) : 0);
 
 		tm_offset += tm_iids.pf_tids[i];
 	}
@@ -1702,8 +1696,7 @@ void qed_cxt_hw_init_pf(struct qed_hwfn *p_hwfn)
 }
 
 int qed_cxt_acquire_cid(struct qed_hwfn *p_hwfn,
-			enum protocol_type type,
-			u32 *p_cid)
+			enum protocol_type type, u32 *p_cid)
 {
 	struct qed_cxt_mngr *p_mngr = p_hwfn->p_cxt_mngr;
 	u32 rel_cid;
@@ -1717,8 +1710,7 @@ int qed_cxt_acquire_cid(struct qed_hwfn *p_hwfn,
 				      p_mngr->acquired[type].max_count);
 
 	if (rel_cid >= p_mngr->acquired[type].max_count) {
-		DP_NOTICE(p_hwfn, "no CID available for protocol %d\n",
-			  type);
+		DP_NOTICE(p_hwfn, "no CID available for protocol %d\n", type);
 		return -EINVAL;
 	}
 
@@ -1730,8 +1722,7 @@ int qed_cxt_acquire_cid(struct qed_hwfn *p_hwfn,
 }
 
 static bool qed_cxt_test_cid_acquired(struct qed_hwfn *p_hwfn,
-				      u32 cid,
-				      enum protocol_type *p_type)
+				      u32 cid, enum protocol_type *p_type)
 {
 	struct qed_cxt_mngr *p_mngr = p_hwfn->p_cxt_mngr;
 	struct qed_cid_acquired_map *p_map;
@@ -1763,8 +1754,7 @@ static bool qed_cxt_test_cid_acquired(struct qed_hwfn *p_hwfn,
 	return true;
 }
 
-void qed_cxt_release_cid(struct qed_hwfn *p_hwfn,
-			 u32 cid)
+void qed_cxt_release_cid(struct qed_hwfn *p_hwfn, u32 cid)
 {
 	struct qed_cxt_mngr *p_mngr = p_hwfn->p_cxt_mngr;
 	enum protocol_type type;
@@ -1781,8 +1771,7 @@ void qed_cxt_release_cid(struct qed_hwfn *p_hwfn,
 	__clear_bit(rel_cid, p_mngr->acquired[type].cid_map);
 }
 
-int qed_cxt_get_cid_info(struct qed_hwfn *p_hwfn,
-			 struct qed_cxt_info *p_info)
+int qed_cxt_get_cid_info(struct qed_hwfn *p_hwfn, struct qed_cxt_info *p_info)
 {
 	struct qed_cxt_mngr *p_mngr = p_hwfn->p_cxt_mngr;
 	u32 conn_cxt_size, hw_p_size, cxts_per_p, line;

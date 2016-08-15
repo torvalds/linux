@@ -106,8 +106,7 @@ static void qed_free_pci(struct qed_dev *cdev)
 /* Performs PCI initializations as well as initializing PCI-related parameters
  * in the device structrue. Returns 0 in case of success.
  */
-static int qed_init_pci(struct qed_dev *cdev,
-			struct pci_dev *pdev)
+static int qed_init_pci(struct qed_dev *cdev, struct pci_dev *pdev)
 {
 	u8 rev_id;
 	int rc;
@@ -263,8 +262,7 @@ static struct qed_dev *qed_alloc_cdev(struct pci_dev *pdev)
 }
 
 /* Sets the requested power state */
-static int qed_set_power_state(struct qed_dev *cdev,
-			       pci_power_t state)
+static int qed_set_power_state(struct qed_dev *cdev, pci_power_t state)
 {
 	if (!cdev)
 		return -ENODEV;
@@ -366,8 +364,8 @@ static int qed_enable_msix(struct qed_dev *cdev,
 		DP_NOTICE(cdev,
 			  "Trying to enable MSI-X with less vectors (%d out of %d)\n",
 			  cnt, int_params->in.num_vectors);
-		rc = pci_enable_msix_exact(cdev->pdev,
-					   int_params->msix_table, cnt);
+		rc = pci_enable_msix_exact(cdev->pdev, int_params->msix_table,
+					   cnt);
 		if (!rc)
 			rc = cnt;
 	}
@@ -974,8 +972,7 @@ static u32 qed_sb_init(struct qed_dev *cdev,
 }
 
 static u32 qed_sb_release(struct qed_dev *cdev,
-			  struct qed_sb_info *sb_info,
-			  u16 sb_id)
+			  struct qed_sb_info *sb_info, u16 sb_id)
 {
 	struct qed_hwfn *p_hwfn;
 	int hwfn_index;

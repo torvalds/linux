@@ -43,8 +43,7 @@ enum BAR_ID {
 	BAR_ID_1        /* Used for doorbells */
 };
 
-static u32 qed_hw_bar_size(struct qed_hwfn	*p_hwfn,
-			   enum BAR_ID		bar_id)
+static u32 qed_hw_bar_size(struct qed_hwfn *p_hwfn, enum BAR_ID bar_id)
 {
 	u32 bar_reg = (bar_id == BAR_ID_0 ?
 		       PGLUE_B_REG_PF_BAR0_SIZE : PGLUE_B_REG_PF_BAR1_SIZE);
@@ -69,8 +68,7 @@ static u32 qed_hw_bar_size(struct qed_hwfn	*p_hwfn,
 	}
 }
 
-void qed_init_dp(struct qed_dev *cdev,
-		 u32 dp_module, u8 dp_level)
+void qed_init_dp(struct qed_dev *cdev, u32 dp_module, u8 dp_level)
 {
 	u32 i;
 
@@ -604,9 +602,8 @@ int qed_final_cleanup(struct qed_hwfn *p_hwfn,
 
 	/* Make sure notification is not set before initiating final cleanup */
 	if (REG_RD(p_hwfn, addr)) {
-		DP_NOTICE(
-			p_hwfn,
-			"Unexpected; Found final cleanup notification before initiating final cleanup\n");
+		DP_NOTICE(p_hwfn,
+			  "Unexpected; Found final cleanup notification before initiating final cleanup\n");
 		REG_WR(p_hwfn, addr, 0);
 	}
 
@@ -700,17 +697,14 @@ static void qed_init_cau_rt_data(struct qed_dev *cdev)
 				continue;
 
 			qed_init_cau_sb_entry(p_hwfn, &sb_entry,
-					      p_block->function_id,
-					      0, 0);
-			STORE_RT_REG_AGG(p_hwfn, offset + sb_id * 2,
-					 sb_entry);
+					      p_block->function_id, 0, 0);
+			STORE_RT_REG_AGG(p_hwfn, offset + sb_id * 2, sb_entry);
 		}
 	}
 }
 
 static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
-			      struct qed_ptt *p_ptt,
-			      int hw_mode)
+			      struct qed_ptt *p_ptt, int hw_mode)
 {
 	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
 	struct qed_qm_common_rt_init_params params;
@@ -758,7 +752,7 @@ static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
 	qed_port_unpretend(p_hwfn, p_ptt);
 
 	rc = qed_init_run(p_hwfn, p_ptt, PHASE_ENGINE, ANY_PHASE_ID, hw_mode);
-	if (rc != 0)
+	if (rc)
 		return rc;
 
 	qed_wr(p_hwfn, p_ptt, PSWRQ2_REG_L2P_VALIDATE_VFID, 0);
@@ -787,13 +781,12 @@ static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
 }
 
 static int qed_hw_init_port(struct qed_hwfn *p_hwfn,
-			    struct qed_ptt *p_ptt,
-			    int hw_mode)
+			    struct qed_ptt *p_ptt, int hw_mode)
 {
 	int rc = 0;
 
 	rc = qed_init_run(p_hwfn, p_ptt, PHASE_PORT, p_hwfn->port_id, hw_mode);
-	if (rc != 0)
+	if (rc)
 		return rc;
 
 	if (hw_mode & (1 << MODE_MF_SI)) {
@@ -847,7 +840,7 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 	qed_int_igu_init_rt(p_hwfn);
 
 	/* Set VLAN in NIG if needed */
-	if (hw_mode & (1 << MODE_MF_SD)) {
+	if (hw_mode & BIT(MODE_MF_SD)) {
 		DP_VERBOSE(p_hwfn, NETIF_MSG_HW, "Configuring LLH_FUNC_TAG\n");
 		STORE_RT_REG(p_hwfn, NIG_REG_LLH_FUNC_TAG_EN_RT_OFFSET, 1);
 		STORE_RT_REG(p_hwfn, NIG_REG_LLH_FUNC_TAG_VALUE_RT_OFFSET,
@@ -855,7 +848,7 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 	}
 
 	/* Enable classification by MAC if needed */
-	if (hw_mode & (1 << MODE_MF_SI)) {
+	if (hw_mode & BIT(MODE_MF_SI)) {
 		DP_VERBOSE(p_hwfn, NETIF_MSG_HW,
 			   "Configuring TAGMAC_CLS_TYPE\n");
 		STORE_RT_REG(p_hwfn,
@@ -870,7 +863,7 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 
 	/* Cleanup chip from previous driver if such remains exist */
 	rc = qed_final_cleanup(p_hwfn, p_ptt, rel_pf_id, false);
-	if (rc != 0)
+	if (rc)
 		return rc;
 
 	/* PF Init sequence */
@@ -949,8 +942,7 @@ static void qed_reset_mb_shadow(struct qed_hwfn *p_hwfn,
 	/* Read shadow of current MFW mailbox */
 	qed_mcp_read_mb(p_hwfn, p_main_ptt);
 	memcpy(p_hwfn->mcp_info->mfw_mb_shadow,
-	       p_hwfn->mcp_info->mfw_mb_cur,
-	       p_hwfn->mcp_info->mfw_mb_length);
+	       p_hwfn->mcp_info->mfw_mb_cur, p_hwfn->mcp_info->mfw_mb_length);
 }
 
 int qed_hw_init(struct qed_dev *cdev,
@@ -970,7 +962,7 @@ int qed_hw_init(struct qed_dev *cdev,
 
 	if (IS_PF(cdev)) {
 		rc = qed_init_fw_data(cdev, bin_fw_data);
-		if (rc != 0)
+		if (rc)
 			return rc;
 	}
 
@@ -987,8 +979,7 @@ int qed_hw_init(struct qed_dev *cdev,
 
 		qed_calc_hw_mode(p_hwfn);
 
-		rc = qed_mcp_load_req(p_hwfn, p_hwfn->p_main_ptt,
-				      &load_code);
+		rc = qed_mcp_load_req(p_hwfn, p_hwfn->p_main_ptt, &load_code);
 		if (rc) {
 			DP_NOTICE(p_hwfn, "Failed sending LOAD_REQ command\n");
 			return rc;
@@ -1065,9 +1056,8 @@ int qed_hw_init(struct qed_dev *cdev,
 }
 
 #define QED_HW_STOP_RETRY_LIMIT (10)
-static inline void qed_hw_timers_stop(struct qed_dev *cdev,
-				      struct qed_hwfn *p_hwfn,
-				      struct qed_ptt *p_ptt)
+static void qed_hw_timers_stop(struct qed_dev *cdev,
+			       struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	int i;
 
@@ -1078,8 +1068,7 @@ static inline void qed_hw_timers_stop(struct qed_dev *cdev,
 	for (i = 0; i < QED_HW_STOP_RETRY_LIMIT; i++) {
 		if ((!qed_rd(p_hwfn, p_ptt,
 			     TM_REG_PF_SCAN_ACTIVE_CONN)) &&
-		    (!qed_rd(p_hwfn, p_ptt,
-			     TM_REG_PF_SCAN_ACTIVE_TASK)))
+		    (!qed_rd(p_hwfn, p_ptt, TM_REG_PF_SCAN_ACTIVE_TASK)))
 			break;
 
 		/* Dependent on number of connection/tasks, possibly
@@ -1184,8 +1173,7 @@ void qed_hw_stop_fastpath(struct qed_dev *cdev)
 		}
 
 		DP_VERBOSE(p_hwfn,
-			   NETIF_MSG_IFDOWN,
-			   "Shutting down the fastpath\n");
+			   NETIF_MSG_IFDOWN, "Shutting down the fastpath\n");
 
 		qed_wr(p_hwfn, p_ptt,
 		       NIG_REG_RX_LLH_BRB_GATE_DNTFWD_PERPF, 0x1);
@@ -1213,14 +1201,13 @@ void qed_hw_start_fastpath(struct qed_hwfn *p_hwfn)
 	       NIG_REG_RX_LLH_BRB_GATE_DNTFWD_PERPF, 0x0);
 }
 
-static int qed_reg_assert(struct qed_hwfn *hwfn,
-			  struct qed_ptt *ptt, u32 reg,
-			  bool expected)
+static int qed_reg_assert(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, u32 reg, bool expected)
 {
-	u32 assert_val = qed_rd(hwfn, ptt, reg);
+	u32 assert_val = qed_rd(p_hwfn, p_ptt, reg);
 
 	if (assert_val != expected) {
-		DP_NOTICE(hwfn, "Value at address 0x%x != 0x%08x\n",
+		DP_NOTICE(p_hwfn, "Value at address 0x%x != 0x%08x\n",
 			  reg, expected);
 		return -EINVAL;
 	}
@@ -1300,8 +1287,7 @@ static void qed_hw_hwfn_prepare(struct qed_hwfn *p_hwfn)
 
 	/* Clean Previous errors if such exist */
 	qed_wr(p_hwfn, p_hwfn->p_main_ptt,
-	       PGLUE_B_REG_WAS_ERROR_PF_31_0_CLR,
-	       1 << p_hwfn->abs_pf_id);
+	       PGLUE_B_REG_WAS_ERROR_PF_31_0_CLR, 1 << p_hwfn->abs_pf_id);
 
 	/* enable internal target-read */
 	qed_wr(p_hwfn, p_hwfn->p_main_ptt,
@@ -1311,7 +1297,8 @@ static void qed_hw_hwfn_prepare(struct qed_hwfn *p_hwfn)
 static void get_function_id(struct qed_hwfn *p_hwfn)
 {
 	/* ME Register */
-	p_hwfn->hw_info.opaque_fid = (u16)REG_RD(p_hwfn, PXP_PF_ME_OPAQUE_ADDR);
+	p_hwfn->hw_info.opaque_fid = (u16) REG_RD(p_hwfn,
+						  PXP_PF_ME_OPAQUE_ADDR);
 
 	p_hwfn->hw_info.concrete_fid = REG_RD(p_hwfn, PXP_PF_ME_CONCRETE_ADDR);
 
@@ -1411,8 +1398,7 @@ static int qed_hw_get_resc(struct qed_hwfn *p_hwfn)
 	return 0;
 }
 
-static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn,
-			       struct qed_ptt *p_ptt)
+static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	u32 nvm_cfg1_offset, mf_mode, addr, generic_cont0, core_cfg;
 	u32 port_cfg_addr, link_temp, nvm_cfg_addr, device_capabilities;
@@ -1466,8 +1452,7 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn,
 		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_1X25G;
 		break;
 	default:
-		DP_NOTICE(p_hwfn, "Unknown port mode in 0x%08x\n",
-			  core_cfg);
+		DP_NOTICE(p_hwfn, "Unknown port mode in 0x%08x\n", core_cfg);
 		break;
 	}
 
@@ -1511,8 +1496,7 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn,
 		link->speed.forced_speed = 100000;
 		break;
 	default:
-		DP_NOTICE(p_hwfn, "Unknown Speed in 0x%08x\n",
-			  link_temp);
+		DP_NOTICE(p_hwfn, "Unknown Speed in 0x%08x\n", link_temp);
 	}
 
 	link_temp &= NVM_CFG1_PORT_DRV_FLOW_CONTROL_MASK;
@@ -1697,10 +1681,9 @@ static int qed_get_dev_info(struct qed_dev *cdev)
 	u32 tmp;
 
 	/* Read Vendor Id / Device Id */
-	pci_read_config_word(cdev->pdev, PCI_VENDOR_ID,
-			     &cdev->vendor_id);
-	pci_read_config_word(cdev->pdev, PCI_DEVICE_ID,
-			     &cdev->device_id);
+	pci_read_config_word(cdev->pdev, PCI_VENDOR_ID, &cdev->vendor_id);
+	pci_read_config_word(cdev->pdev, PCI_DEVICE_ID, &cdev->device_id);
+
 	cdev->chip_num = (u16)qed_rd(p_hwfn, p_hwfn->p_main_ptt,
 				     MISCS_REG_CHIP_NUM);
 	cdev->chip_rev = (u16)qed_rd(p_hwfn, p_hwfn->p_main_ptt,
@@ -1776,7 +1759,7 @@ static int qed_hw_prepare_single(struct qed_hwfn *p_hwfn,
 	/* First hwfn learns basic information, e.g., number of hwfns */
 	if (!p_hwfn->my_id) {
 		rc = qed_get_dev_info(p_hwfn->cdev);
-		if (rc != 0)
+		if (rc)
 			goto err1;
 	}
 
@@ -2177,8 +2160,7 @@ int qed_fw_l2_queue(struct qed_hwfn *p_hwfn, u16 src_id, u16 *dst_id)
 	return 0;
 }
 
-int qed_fw_vport(struct qed_hwfn *p_hwfn,
-		 u8 src_id, u8 *dst_id)
+int qed_fw_vport(struct qed_hwfn *p_hwfn, u8 src_id, u8 *dst_id)
 {
 	if (src_id >= RESC_NUM(p_hwfn, QED_VPORT)) {
 		u8 min, max;
@@ -2197,8 +2179,7 @@ int qed_fw_vport(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
-int qed_fw_rss_eng(struct qed_hwfn *p_hwfn,
-		   u8 src_id, u8 *dst_id)
+int qed_fw_rss_eng(struct qed_hwfn *p_hwfn, u8 src_id, u8 *dst_id)
 {
 	if (src_id >= RESC_NUM(p_hwfn, QED_RSS_ENG)) {
 		u8 min, max;
@@ -2380,8 +2361,7 @@ static void qed_disable_wfq_for_all_vports(struct qed_hwfn *p_hwfn,
  * 3. total_req_min_rate [all vports min rate sum] shouldn't exceed min_pf_rate.
  */
 static int qed_init_wfq_param(struct qed_hwfn *p_hwfn,
-			      u16 vport_id, u32 req_rate,
-			      u32 min_pf_rate)
+			      u16 vport_id, u32 req_rate, u32 min_pf_rate)
 {
 	u32 total_req_min_rate = 0, total_left_rate = 0, left_rate_per_vp = 0;
 	int non_requested_count = 0, req_count = 0, i, num_vports;
@@ -2465,7 +2445,7 @@ static int __qed_configure_vport_wfq(struct qed_hwfn *p_hwfn,
 
 	rc = qed_init_wfq_param(p_hwfn, vp_id, rate, p_link->min_pf_rate);
 
-	if (rc == 0)
+	if (!rc)
 		qed_configure_wfq_for_all_vports(p_hwfn, p_ptt,
 						 p_link->min_pf_rate);
 	else
