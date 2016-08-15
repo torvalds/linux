@@ -314,8 +314,7 @@ static void wdm_int_callback(struct urb *urb)
 		&& !test_bit(WDM_DISCONNECTING, &desc->flags)
 		&& !test_bit(WDM_SUSPENDING, &desc->flags)) {
 		rv = usb_submit_urb(desc->response, GFP_ATOMIC);
-		dev_dbg(&desc->intf->dev, "%s: usb_submit_urb %d",
-			__func__, rv);
+		dev_dbg(&desc->intf->dev, "submit response URB %d", rv);
 	}
 	spin_unlock(&desc->iuspin);
 	if (rv < 0) {
@@ -574,7 +573,7 @@ retry:
 		}
 
 		if (!desc->reslength) { /* zero length read */
-			dev_dbg(&desc->intf->dev, "%s: zero length - clearing WDM_READ\n", __func__);
+			dev_dbg(&desc->intf->dev, "zero length - clearing WDM_READ");
 			clear_bit(WDM_READ, &desc->flags);
 			rv = service_outstanding_interrupt(desc);
 			spin_unlock_irq(&desc->iuspin);
@@ -1081,7 +1080,7 @@ static void wdm_disconnect(struct usb_interface *intf)
 	if (!desc->count)
 		cleanup(desc);
 	else
-		dev_dbg(&intf->dev, "%s: %d open files - postponing cleanup\n", __func__, desc->count);
+		dev_dbg(&intf->dev, "%d open files - postponing cleanup\n", desc->count);
 	mutex_unlock(&wdm_mutex);
 }
 
