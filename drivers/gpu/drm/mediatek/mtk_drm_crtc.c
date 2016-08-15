@@ -222,7 +222,9 @@ static void mtk_crtc_ddp_clk_disable(struct mtk_drm_crtc *mtk_crtc)
 static int mtk_crtc_ddp_hw_init(struct mtk_drm_crtc *mtk_crtc)
 {
 	struct drm_crtc *crtc = &mtk_crtc->base;
-	unsigned int width, height, vrefresh;
+	struct drm_connector *connector;
+	struct drm_encoder *encoder;
+	unsigned int width, height, vrefresh, bpc = MTK_MAX_BPC;
 	int ret;
 	int i;
 
@@ -233,6 +235,19 @@ static int mtk_crtc_ddp_hw_init(struct mtk_drm_crtc *mtk_crtc)
 	width = crtc->state->adjusted_mode.hdisplay;
 	height = crtc->state->adjusted_mode.vdisplay;
 	vrefresh = crtc->state->adjusted_mode.vrefresh;
+
+	drm_for_each_encoder(encoder, crtc->dev) {
+		if (encoder->crtc != crtc)
+			continue;
+
+		drm_for_each_connector(connector, crtc->dev) {
+			if (connector->encoder != encoder)
+				continue;
+			if (connector->display_info.bpc != 0 &&
+			    bpc > connector->display_info.bpc)
+				bpc = connector->display_info.bpc;
+		}
+	}
 
 	ret = pm_runtime_get_sync(crtc->dev->dev);
 	if (ret < 0) {
@@ -266,7 +281,7 @@ static int mtk_crtc_ddp_hw_init(struct mtk_drm_crtc *mtk_crtc)
 	for (i = 0; i < mtk_crtc->ddp_comp_nr; i++) {
 		struct mtk_ddp_comp *comp = mtk_crtc->ddp_comp[i];
 
-		mtk_ddp_comp_config(comp, width, height, vrefresh);
+		mtk_ddp_comp_config(comp, width, height, vrefresh, bpc);
 		mtk_ddp_comp_start(comp);
 	}
 
@@ -409,6 +424,9 @@ static void mtk_drm_crtc_atomic_flush(struct drm_crtc *crtc,
 	}
 	if (pending_planes)
 		mtk_crtc->pending_planes = true;
+	if (crtc->state->color_mgmt_changed)
+		for (i = 0; i < mtk_crtc->ddp_comp_nr; i++)
+			mtk_ddp_gamma_set(mtk_crtc->ddp_comp[i], crtc->state);
 }
 
 static const struct drm_crtc_funcs mtk_crtc_funcs = {
@@ -418,6 +436,7 @@ static const struct drm_crtc_funcs mtk_crtc_funcs = {
 	.reset			= mtk_drm_crtc_reset,
 	.atomic_duplicate_state	= mtk_drm_crtc_duplicate_state,
 	.atomic_destroy_state	= mtk_drm_crtc_destroy_state,
+	.gamma_set		= drm_atomic_helper_legacy_gamma_set,
 };
 
 static const struct drm_crtc_helper_funcs mtk_crtc_helper_funcs = {
@@ -464,7 +483,7 @@ void mtk_crtc_ddp_irq(struct drm_crtc *crtc, struct mtk_ddp_comp *ovl)
 	if (state->pending_config) {
 		mtk_ddp_comp_config(ovl, state->pending_width,
 				    state->pending_height,
-				    state->pending_vrefresh);
+				    state->pending_vrefresh, 0);
 
 		state->pending_config = false;
 	}
@@ -568,7 +587,8 @@ int mtk_drm_crtc_create(struct drm_device *drm_dev,
 				&mtk_crtc->planes[1].base, pipe);
 	if (ret < 0)
 		goto unprepare;
-
+	drm_mode_crtc_set_gamma_size(&mtk_crtc->base, MTK_LUT_SIZE);
+	drm_crtc_enable_color_mgmt(&mtk_crtc->base, 0, false, MTK_LUT_SIZE);
 	priv->crtc[pipe] = &mtk_crtc->base;
 	priv->num_pipes++;
 

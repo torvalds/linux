@@ -19,6 +19,9 @@
 #include "mtk_drm_plane.h"
 
 #define OVL_LAYER_NR	4
+#define MTK_LUT_SIZE	512
+#define MTK_MAX_BPC	10
+#define MTK_MIN_BPC	3
 
 int mtk_drm_crtc_enable_vblank(struct drm_device *drm, unsigned int pipe);
 void mtk_drm_crtc_disable_vblank(struct drm_device *drm, unsigned int pipe);
