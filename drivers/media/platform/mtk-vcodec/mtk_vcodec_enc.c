@@ -1288,5 +1288,10 @@ int mtk_venc_lock(struct mtk_vcodec_ctx *ctx)
 
 void mtk_vcodec_enc_release(struct mtk_vcodec_ctx *ctx)
 {
-	venc_if_deinit(ctx);
+	int ret = venc_if_deinit(ctx);
+
+	if (ret)
+		mtk_v4l2_err("venc_if_deinit failed=%d", ret);
+
+	ctx->state = MTK_STATE_FREE;
 }
