@@ -1118,8 +1118,10 @@
 			};
 
 			rngb: rngb@02284000 {
+				compatible = "fsl,imx6sl-rng", "fsl,imx-rng", "imx-rng";
 				reg = <0x02284000 0x4000>;
 				interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
+				clocks =  <&clks IMX6UL_CLK_DUMMY>;
 			};
 
 			uart8: serial@02288000 {
