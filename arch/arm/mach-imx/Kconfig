@@ -81,7 +81,6 @@ config SOC_IMX31
 	bool
 	select CPU_V6
 	select MXC_AVIC
-	select SMP_ON_UP if SMP
 
 config SOC_IMX35
 	bool
@@ -89,7 +88,6 @@ config SOC_IMX35
 	select HAVE_EPIT
 	select MXC_AVIC
 	select PINCTRL_IMX35
-	select SMP_ON_UP if SMP
 
 if ARCH_MULTI_V5
 
@@ -562,7 +560,6 @@ config SOC_VF610
 	select ARM_GIC if ARCH_MULTI_V7
 	select PINCTRL_VF610
 	select PL310_ERRATA_769419 if CACHE_L2X0
-	select SMP_ON_UP if SMP
 
 	help
 	  This enables support for Freescale Vybrid VF610 processor.
