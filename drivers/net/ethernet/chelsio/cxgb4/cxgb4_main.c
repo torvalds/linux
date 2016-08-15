@@ -3078,6 +3078,26 @@ static int cxgb_change_mtu(struct net_device *dev, int new_mtu)
 	return ret;
 }
 
+#ifdef CONFIG_PCI_IOV
+static int cxgb_set_vf_mac(struct net_device *dev, int vf, u8 *mac)
+{
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = pi->adapter;
+
+	/* verify MAC addr is valid */
+	if (!is_valid_ether_addr(mac)) {
+		dev_err(pi->adapter->pdev_dev,
+			"Invalid Ethernet address %pM for VF %d\n",
+			mac, vf);
+		return -EINVAL;
+	}
+
+	dev_info(pi->adapter->pdev_dev,
+		 "Setting MAC %pM on VF %d\n", mac, vf);
+	return t4_set_vf_mac_acl(adap, vf + 1, 1, mac);
+}
+#endif
+
 static int cxgb_set_mac_addr(struct net_device *dev, void *p)
 {
 	int ret;
@@ -3136,7 +3156,27 @@ static const struct net_device_ops cxgb4_netdev_ops = {
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	.ndo_busy_poll        = cxgb_busy_poll,
 #endif
+};
 
+static const struct net_device_ops cxgb4_mgmt_netdev_ops = {
+#ifdef CONFIG_PCI_IOV
+	.ndo_set_vf_mac       = cxgb_set_vf_mac,
+#endif
+};
+
+static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
+{
+	struct adapter *adapter = netdev2adap(dev);
+
+	strlcpy(info->driver, cxgb4_driver_name, sizeof(info->driver));
+	strlcpy(info->version, cxgb4_driver_version,
+		sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(adapter->pdev),
+		sizeof(info->bus_info));
+}
+
+static const struct ethtool_ops cxgb4_mgmt_ethtool_ops = {
+	.get_drvinfo       = get_drvinfo,
 };
 
 void t4_fatal_err(struct adapter *adap)
@@ -4836,19 +4876,12 @@ static int get_chip_type(struct pci_dev *pdev, u32 pl_rev)
 #ifdef CONFIG_PCI_IOV
 static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
 {
+	struct adapter *adap = pci_get_drvdata(pdev);
 	int err = 0;
 	int current_vfs = pci_num_vf(pdev);
 	u32 pcie_fw;
-	void __iomem *regs;
 
-	regs = pci_ioremap_bar(pdev, 0);
-	if (!regs) {
-		dev_err(&pdev->dev, "cannot map device registers\n");
-		return -ENOMEM;
-	}
-
-	pcie_fw = readl(regs + PCIE_FW_A);
-	iounmap(regs);
+	pcie_fw = readl(adap->regs + PCIE_FW_A);
 	/* Check if cxgb4 is the MASTER and fw is initialized */
 	if (!(pcie_fw & PCIE_FW_INIT_F) ||
 	    !(pcie_fw & PCIE_FW_MASTER_VLD_F) ||
@@ -4875,6 +4908,8 @@ static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
 	 */
 	if (!num_vfs) {
 		pci_disable_sriov(pdev);
+		if (adap->port[0]->reg_state == NETREG_REGISTERED)
+			unregister_netdev(adap->port[0]);
 		return num_vfs;
 	}
 
@@ -4882,6 +4917,12 @@ static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
 		err = pci_enable_sriov(pdev, num_vfs);
 		if (err)
 			return err;
+
+		if (adap->port[0]->reg_state == NETREG_UNINITIALIZED) {
+			err = register_netdev(adap->port[0]);
+			if (err < 0)
+				pr_info("Unable to register VF mgmt netdev\n");
+		}
 	}
 	return num_vfs;
 }
@@ -4893,9 +4934,14 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct port_info *pi;
 	bool highdma = false;
 	struct adapter *adapter = NULL;
+	struct net_device *netdev;
+#ifdef CONFIG_PCI_IOV
+	char name[IFNAMSIZ];
+#endif
 	void __iomem *regs;
 	u32 whoami, pl_rev;
 	enum chip_type chip;
+	static int adap_idx = 1;
 
 	printk_once(KERN_INFO "%s - version %s\n", DRV_DESC, DRV_VERSION);
 
@@ -4930,7 +4976,9 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	func = CHELSIO_CHIP_VERSION(chip) <= CHELSIO_T5 ?
 		SOURCEPF_G(whoami) : T6_SOURCEPF_G(whoami);
 	if (func != ent->driver_data) {
+#ifndef CONFIG_PCI_IOV
 		iounmap(regs);
+#endif
 		pci_disable_device(pdev);
 		pci_save_state(pdev);        /* to restore SR-IOV later */
 		goto sriov;
@@ -4962,6 +5010,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		err = -ENOMEM;
 		goto out_unmap_bar0;
 	}
+	adap_idx++;
 
 	adapter->workq = create_singlethread_workqueue("cxgb4");
 	if (!adapter->workq) {
@@ -5048,8 +5097,6 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			      T6_STATMODE_V(0)));
 
 	for_each_port(adapter, i) {
-		struct net_device *netdev;
-
 		netdev = alloc_etherdev_mq(sizeof(struct port_info),
 					   MAX_ETH_QSETS);
 		if (!netdev) {
@@ -5217,6 +5264,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		attach_ulds(adapter);
 
 	print_adapter_info(adapter);
+	return 0;
 
 sriov:
 #ifdef CONFIG_PCI_IOV
@@ -5230,8 +5278,57 @@ sriov:
 				 "instantiated %u virtual functions\n",
 				 num_vf[func]);
 	}
-#endif
+
+	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
+	if (!adapter) {
+		err = -ENOMEM;
+		goto free_pci_region;
+	}
+
+	snprintf(name, IFNAMSIZ, "mgmtpf%d%d", adap_idx, func);
+	netdev = alloc_netdev(0, name, NET_NAME_UNKNOWN, ether_setup);
+	if (!netdev) {
+		err = -ENOMEM;
+		goto free_adapter;
+	}
+
+	adapter->pdev = pdev;
+	adapter->pdev_dev = &pdev->dev;
+	adapter->name = pci_name(pdev);
+	adapter->mbox = func;
+	adapter->pf = func;
+	adapter->regs = regs;
+	adapter->mbox_log = kzalloc(sizeof(*adapter->mbox_log) +
+				    (sizeof(struct mbox_cmd) *
+				     T4_OS_LOG_MBOX_CMDS),
+				    GFP_KERNEL);
+	if (!adapter->mbox_log) {
+		err = -ENOMEM;
+		goto free_netdevice;
+	}
+	pi = netdev_priv(netdev);
+	pi->adapter = adapter;
+	SET_NETDEV_DEV(netdev, &pdev->dev);
+	pci_set_drvdata(pdev, adapter);
+
+	adapter->port[0] = netdev;
+	netdev->netdev_ops = &cxgb4_mgmt_netdev_ops;
+	netdev->ethtool_ops = &cxgb4_mgmt_ethtool_ops;
+
 	return 0;
+
+ free_netdevice:
+	free_netdev(adapter->port[0]);
+ free_adapter:
+	kfree(adapter);
+ free_pci_region:
+	iounmap(regs);
+	pci_disable_sriov(pdev);
+	pci_release_regions(pdev);
+	return err;
+#else
+	return 0;
+#endif
 
  out_free_dev:
 	free_some_resources(adapter);
@@ -5258,12 +5355,12 @@ static void remove_one(struct pci_dev *pdev)
 {
 	struct adapter *adapter = pci_get_drvdata(pdev);
 
-#ifdef CONFIG_PCI_IOV
-	pci_disable_sriov(pdev);
+	if (!adapter) {
+		pci_release_regions(pdev);
+		return;
+	}
 
-#endif
-
-	if (adapter) {
+	if (adapter->pf == 4) {
 		int i;
 
 		/* Tear down per-adapter Work Queue first since it can contain
@@ -5312,8 +5409,18 @@ static void remove_one(struct pci_dev *pdev)
 		kfree(adapter->mbox_log);
 		synchronize_rcu();
 		kfree(adapter);
-	} else
+	}
+#ifdef CONFIG_PCI_IOV
+	else {
+		if (adapter->port[0]->reg_state == NETREG_REGISTERED)
+			unregister_netdev(adapter->port[0]);
+		free_netdev(adapter->port[0]);
+		iounmap(adapter->regs);
+		kfree(adapter);
+		pci_disable_sriov(pdev);
 		pci_release_regions(pdev);
+	}
+#endif
 }
 
 static struct pci_driver cxgb4_driver = {
