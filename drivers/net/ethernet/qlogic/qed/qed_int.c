@@ -2576,8 +2576,12 @@ static u16 qed_get_igu_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id)
 	else
 		igu_sb_id = qed_vf_get_igu_sb_id(p_hwfn, sb_id);
 
-	DP_VERBOSE(p_hwfn, NETIF_MSG_INTR, "SB [%s] index is 0x%04x\n",
-		   (sb_id == QED_SP_SB_ID) ? "DSB" : "non-DSB", igu_sb_id);
+	if (sb_id == QED_SP_SB_ID)
+		DP_VERBOSE(p_hwfn, NETIF_MSG_INTR,
+			   "Slowpath SB index in IGU is 0x%04x\n", igu_sb_id);
+	else
+		DP_VERBOSE(p_hwfn, NETIF_MSG_INTR,
+			   "SB [%04x] <--> IGU SB [%04x]\n", sb_id, igu_sb_id);
 
 	return igu_sb_id;
 }

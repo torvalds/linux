@@ -222,7 +222,7 @@ int __init qede_init(void)
 {
 	int ret;
 
-	pr_notice("qede_init: %s\n", version);
+	pr_info("qede_init: %s\n", version);
 
 	qed_ops = qed_get_eth_ops();
 	if (!qed_ops) {
@@ -253,7 +253,8 @@ int __init qede_init(void)
 
 static void __exit qede_cleanup(void)
 {
-	pr_notice("qede_cleanup called\n");
+	if (debug & QED_LOG_INFO_MASK)
+		pr_info("qede_cleanup called\n");
 
 	unregister_netdevice_notifier(&qede_netdev_notifier);
 	pci_unregister_driver(&qede_pci_driver);
@@ -1453,7 +1454,7 @@ alloc_skb:
 		skb = netdev_alloc_skb(edev->ndev, QEDE_RX_HDR_SIZE);
 		if (unlikely(!skb)) {
 			DP_NOTICE(edev,
-				  "Build_skb failed, dropping incoming packet\n");
+				  "skb allocation failed, dropping incoming packet\n");
 			qede_recycle_rx_bd_ring(rxq, edev, fp_cqe->bd_num);
 			rxq->rx_alloc_errors++;
 			goto next_cqe;
@@ -2130,7 +2131,7 @@ static void qede_udp_tunnel_add(struct net_device *dev,
 
 		edev->vxlan_dst_port = t_port;
 
-		DP_VERBOSE(edev, QED_MSG_DEBUG, "Added vxlan port=%d",
+		DP_VERBOSE(edev, QED_MSG_DEBUG, "Added vxlan port=%d\n",
 			   t_port);
 
 		set_bit(QEDE_SP_VXLAN_PORT_CONFIG, &edev->sp_flags);
@@ -2141,7 +2142,7 @@ static void qede_udp_tunnel_add(struct net_device *dev,
 
 		edev->geneve_dst_port = t_port;
 
-		DP_VERBOSE(edev, QED_MSG_DEBUG, "Added geneve port=%d",
+		DP_VERBOSE(edev, QED_MSG_DEBUG, "Added geneve port=%d\n",
 			   t_port);
 		set_bit(QEDE_SP_GENEVE_PORT_CONFIG, &edev->sp_flags);
 		break;
@@ -2165,7 +2166,7 @@ static void qede_udp_tunnel_del(struct net_device *dev,
 
 		edev->vxlan_dst_port = 0;
 
-		DP_VERBOSE(edev, QED_MSG_DEBUG, "Deleted vxlan port=%d",
+		DP_VERBOSE(edev, QED_MSG_DEBUG, "Deleted vxlan port=%d\n",
 			   t_port);
 
 		set_bit(QEDE_SP_VXLAN_PORT_CONFIG, &edev->sp_flags);
@@ -2176,7 +2177,7 @@ static void qede_udp_tunnel_del(struct net_device *dev,
 
 		edev->geneve_dst_port = 0;
 
-		DP_VERBOSE(edev, QED_MSG_DEBUG, "Deleted geneve port=%d",
+		DP_VERBOSE(edev, QED_MSG_DEBUG, "Deleted geneve port=%d\n",
 			   t_port);
 		set_bit(QEDE_SP_GENEVE_PORT_CONFIG, &edev->sp_flags);
 		break;
@@ -2242,6 +2243,9 @@ static struct qede_dev *qede_alloc_etherdev(struct qed_dev *cdev,
 	edev->ops = qed_ops;
 	edev->q_num_rx_buffers = NUM_RX_BDS_DEF;
 	edev->q_num_tx_buffers = NUM_TX_BDS_DEF;
+
+	DP_INFO(edev, "Allocated netdev with %d tx queues and %d rx queues\n",
+		info->num_queues, info->num_queues);
 
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
@@ -2568,7 +2572,7 @@ static void __qede_remove(struct pci_dev *pdev, enum qede_remove_mode mode)
 	qed_ops->common->slowpath_stop(cdev);
 	qed_ops->common->remove(cdev);
 
-	pr_notice("Ending successfully qede_remove\n");
+	dev_info(&pdev->dev, "Ending qede_remove successfully\n");
 }
 
 static void qede_remove(struct pci_dev *pdev)

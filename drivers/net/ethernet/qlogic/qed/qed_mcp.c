@@ -317,7 +317,8 @@ static int qed_do_mcp_cmd(struct qed_hwfn *p_hwfn,
 		*o_mcp_param = DRV_MB_RD(p_hwfn, p_ptt, fw_mb_param);
 	} else {
 		/* FW BUG! */
-		DP_ERR(p_hwfn, "MFW failed to respond!\n");
+		DP_ERR(p_hwfn, "MFW failed to respond [cmd 0x%x param 0x%x]\n",
+		       cmd, param);
 		*o_mcp_resp = 0;
 		rc = -EAGAIN;
 	}
@@ -333,7 +334,7 @@ static int qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 
 	/* MCP not initialized */
 	if (!qed_mcp_is_init(p_hwfn)) {
-		DP_NOTICE(p_hwfn, "MFW is not initialized !\n");
+		DP_NOTICE(p_hwfn, "MFW is not initialized!\n");
 		return -EBUSY;
 	}
 
@@ -935,7 +936,7 @@ int qed_mcp_get_media_type(struct qed_dev *cdev, u32 *p_media_type)
 		return -EINVAL;
 
 	if (!qed_mcp_is_init(p_hwfn)) {
-		DP_NOTICE(p_hwfn, "MFW is not initialized !\n");
+		DP_NOTICE(p_hwfn, "MFW is not initialized!\n");
 		return -EBUSY;
 	}
 

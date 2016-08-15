@@ -1206,7 +1206,7 @@ static int qed_reg_assert(struct qed_hwfn *p_hwfn,
 	u32 assert_val = qed_rd(p_hwfn, p_ptt, reg);
 
 	if (assert_val != expected) {
-		DP_NOTICE(p_hwfn, "Value at address 0x%x != 0x%08x\n",
+		DP_NOTICE(p_hwfn, "Value at address 0x%08x != 0x%08x\n",
 			  reg, expected);
 		return -EINVAL;
 	}
@@ -1306,6 +1306,10 @@ static void get_function_id(struct qed_hwfn *p_hwfn)
 				      PXP_CONCRETE_FID_PFID);
 	p_hwfn->port_id = GET_FIELD(p_hwfn->hw_info.concrete_fid,
 				    PXP_CONCRETE_FID_PORT);
+
+	DP_VERBOSE(p_hwfn, NETIF_MSG_PROBE,
+		   "Read ME register: Concrete 0x%08x Opaque 0x%04x\n",
+		   p_hwfn->hw_info.concrete_fid, p_hwfn->hw_info.opaque_fid);
 }
 
 static void qed_hw_set_feat(struct qed_hwfn *p_hwfn)
@@ -1605,10 +1609,10 @@ static void qed_get_num_funcs(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 
 	DP_VERBOSE(p_hwfn,
 		   NETIF_MSG_PROBE,
-		   "PF [rel_id %d, abs_id %d] within the %d enabled functions on the engine\n",
+		   "PF [rel_id %d, abs_id %d] occupies index %d within the %d enabled functions on the engine\n",
 		   p_hwfn->rel_pf_id,
 		   p_hwfn->abs_pf_id,
-		   p_hwfn->num_funcs_on_engine);
+		   p_hwfn->enabled_func_idx, p_hwfn->num_funcs_on_engine);
 }
 
 static int

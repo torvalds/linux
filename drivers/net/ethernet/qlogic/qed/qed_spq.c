@@ -824,15 +824,22 @@ int qed_spq_completion(struct qed_hwfn *p_hwfn,
 
 	if (!found) {
 		DP_NOTICE(p_hwfn,
-			  "Failed to find an entry this EQE completes\n");
+			  "Failed to find an entry this EQE [echo %04x] completes\n",
+			  le16_to_cpu(echo));
 		return -EEXIST;
 	}
 
-	DP_VERBOSE(p_hwfn, QED_MSG_SPQ, "Complete: func %p cookie %p)\n",
+	DP_VERBOSE(p_hwfn, QED_MSG_SPQ,
+		   "Complete EQE [echo %04x]: func %p cookie %p)\n",
+		   le16_to_cpu(echo),
 		   p_ent->comp_cb.function, p_ent->comp_cb.cookie);
 	if (found->comp_cb.function)
 		found->comp_cb.function(p_hwfn, found->comp_cb.cookie, p_data,
 					fw_return_code);
+	else
+		DP_VERBOSE(p_hwfn,
+			   QED_MSG_SPQ,
+			   "Got a completion without a callback function\n");
 
 	if ((found->comp_mode != QED_SPQ_MODE_EBLOCK) ||
 	    (found->queue == &p_spq->unlimited_pending))
