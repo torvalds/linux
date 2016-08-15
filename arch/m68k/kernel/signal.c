@@ -213,7 +213,6 @@ static inline int frame_extra_sizes(int f)
 
 static inline void adjustformat(struct pt_regs *regs)
 {
-	((struct switch_stack *)regs - 1)->a5 = current->mm->start_data;
 	/*
 	 * set format byte to make stack appear modulo 4, which it will
 	 * be when doing the rte
