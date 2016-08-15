@@ -41,9 +41,8 @@ static char keylen_flag;
 
 struct s390_aes_ctx {
 	u8 key[AES_MAX_KEY_SIZE];
-	long enc;
-	long dec;
 	int key_len;
+	unsigned long fc;
 	union {
 		struct crypto_skcipher *blk;
 		struct crypto_cipher *cip;
@@ -61,9 +60,8 @@ struct pcc_param {
 struct s390_xts_ctx {
 	u8 key[32];
 	u8 pcc_key[32];
-	long enc;
-	long dec;
 	int key_len;
+	unsigned long fc;
 	struct crypto_skcipher *fallback;
 };
 
@@ -146,16 +144,16 @@ static void aes_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 
 	switch (sctx->key_len) {
 	case 16:
-		cpacf_km(CPACF_KM_AES_128_ENC, &sctx->key, out, in,
-			 AES_BLOCK_SIZE);
+		cpacf_km(CPACF_KM_AES_128,
+			 &sctx->key, out, in, AES_BLOCK_SIZE);
 		break;
 	case 24:
-		cpacf_km(CPACF_KM_AES_192_ENC, &sctx->key, out, in,
-			 AES_BLOCK_SIZE);
+		cpacf_km(CPACF_KM_AES_192,
+			 &sctx->key, out, in, AES_BLOCK_SIZE);
 		break;
 	case 32:
-		cpacf_km(CPACF_KM_AES_256_ENC, &sctx->key, out, in,
-			 AES_BLOCK_SIZE);
+		cpacf_km(CPACF_KM_AES_256,
+			 &sctx->key, out, in, AES_BLOCK_SIZE);
 		break;
 	}
 }
@@ -171,16 +169,16 @@ static void aes_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 
 	switch (sctx->key_len) {
 	case 16:
-		cpacf_km(CPACF_KM_AES_128_DEC, &sctx->key, out, in,
-			 AES_BLOCK_SIZE);
+		cpacf_km(CPACF_KM_AES_128 | CPACF_DECRYPT,
+			 &sctx->key, out, in, AES_BLOCK_SIZE);
 		break;
 	case 24:
-		cpacf_km(CPACF_KM_AES_192_DEC, &sctx->key, out, in,
-			 AES_BLOCK_SIZE);
+		cpacf_km(CPACF_KM_AES_192 | CPACF_DECRYPT,
+			 &sctx->key, out, in, AES_BLOCK_SIZE);
 		break;
 	case 32:
-		cpacf_km(CPACF_KM_AES_256_DEC, &sctx->key, out, in,
-			 AES_BLOCK_SIZE);
+		cpacf_km(CPACF_KM_AES_256 | CPACF_DECRYPT,
+			 &sctx->key, out, in, AES_BLOCK_SIZE);
 		break;
 	}
 }
@@ -301,16 +299,13 @@ static int ecb_aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 
 	switch (key_len) {
 	case 16:
-		sctx->enc = CPACF_KM_AES_128_ENC;
-		sctx->dec = CPACF_KM_AES_128_DEC;
+		sctx->fc = CPACF_KM_AES_128;
 		break;
 	case 24:
-		sctx->enc = CPACF_KM_AES_192_ENC;
-		sctx->dec = CPACF_KM_AES_192_DEC;
+		sctx->fc = CPACF_KM_AES_192;
 		break;
 	case 32:
-		sctx->enc = CPACF_KM_AES_256_ENC;
-		sctx->dec = CPACF_KM_AES_256_DEC;
+		sctx->fc = CPACF_KM_AES_256;
 		break;
 	}
 
@@ -351,7 +346,7 @@ static int ecb_aes_encrypt(struct blkcipher_desc *desc,
 		return fallback_blk_enc(desc, dst, src, nbytes);
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
-	return ecb_aes_crypt(desc, sctx->enc, sctx->key, &walk);
+	return ecb_aes_crypt(desc, sctx->fc, sctx->key, &walk);
 }
 
 static int ecb_aes_decrypt(struct blkcipher_desc *desc,
@@ -365,7 +360,7 @@ static int ecb_aes_decrypt(struct blkcipher_desc *desc,
 		return fallback_blk_dec(desc, dst, src, nbytes);
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
-	return ecb_aes_crypt(desc, sctx->dec, sctx->key, &walk);
+	return ecb_aes_crypt(desc, sctx->fc | CPACF_DECRYPT, sctx->key, &walk);
 }
 
 static int fallback_init_blk(struct crypto_tfm *tfm)
@@ -430,16 +425,13 @@ static int cbc_aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 
 	switch (key_len) {
 	case 16:
-		sctx->enc = CPACF_KMC_AES_128_ENC;
-		sctx->dec = CPACF_KMC_AES_128_DEC;
+		sctx->fc = CPACF_KMC_AES_128;
 		break;
 	case 24:
-		sctx->enc = CPACF_KMC_AES_192_ENC;
-		sctx->dec = CPACF_KMC_AES_192_DEC;
+		sctx->fc = CPACF_KMC_AES_192;
 		break;
 	case 32:
-		sctx->enc = CPACF_KMC_AES_256_ENC;
-		sctx->dec = CPACF_KMC_AES_256_DEC;
+		sctx->fc = CPACF_KMC_AES_256;
 		break;
 	}
 
@@ -492,7 +484,7 @@ static int cbc_aes_encrypt(struct blkcipher_desc *desc,
 		return fallback_blk_enc(desc, dst, src, nbytes);
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
-	return cbc_aes_crypt(desc, sctx->enc, &walk);
+	return cbc_aes_crypt(desc, sctx->fc, &walk);
 }
 
 static int cbc_aes_decrypt(struct blkcipher_desc *desc,
@@ -506,7 +498,7 @@ static int cbc_aes_decrypt(struct blkcipher_desc *desc,
 		return fallback_blk_dec(desc, dst, src, nbytes);
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
-	return cbc_aes_crypt(desc, sctx->dec, &walk);
+	return cbc_aes_crypt(desc, sctx->fc | CPACF_DECRYPT, &walk);
 }
 
 static struct crypto_alg cbc_aes_alg = {
@@ -603,19 +595,16 @@ static int xts_aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 
 	switch (key_len) {
 	case 32:
-		xts_ctx->enc = CPACF_KM_XTS_128_ENC;
-		xts_ctx->dec = CPACF_KM_XTS_128_DEC;
+		xts_ctx->fc = CPACF_KM_XTS_128;
 		memcpy(xts_ctx->key + 16, in_key, 16);
 		memcpy(xts_ctx->pcc_key + 16, in_key + 16, 16);
 		break;
 	case 48:
-		xts_ctx->enc = 0;
-		xts_ctx->dec = 0;
+		xts_ctx->fc = 0;
 		xts_fallback_setkey(tfm, in_key, key_len);
 		break;
 	case 64:
-		xts_ctx->enc = CPACF_KM_XTS_256_ENC;
-		xts_ctx->dec = CPACF_KM_XTS_256_DEC;
+		xts_ctx->fc = CPACF_KM_XTS_256;
 		memcpy(xts_ctx->key, in_key, 32);
 		memcpy(xts_ctx->pcc_key, in_key + 32, 32);
 		break;
@@ -685,7 +674,7 @@ static int xts_aes_encrypt(struct blkcipher_desc *desc,
 		return xts_fallback_encrypt(desc, dst, src, nbytes);
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
-	return xts_aes_crypt(desc, xts_ctx->enc, xts_ctx, &walk);
+	return xts_aes_crypt(desc, xts_ctx->fc, xts_ctx, &walk);
 }
 
 static int xts_aes_decrypt(struct blkcipher_desc *desc,
@@ -699,7 +688,7 @@ static int xts_aes_decrypt(struct blkcipher_desc *desc,
 		return xts_fallback_decrypt(desc, dst, src, nbytes);
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
-	return xts_aes_crypt(desc, xts_ctx->dec, xts_ctx, &walk);
+	return xts_aes_crypt(desc, xts_ctx->fc | CPACF_DECRYPT, xts_ctx, &walk);
 }
 
 static int xts_fallback_init(struct crypto_tfm *tfm)
@@ -759,16 +748,13 @@ static int ctr_aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 
 	switch (key_len) {
 	case 16:
-		sctx->enc = CPACF_KMCTR_AES_128_ENC;
-		sctx->dec = CPACF_KMCTR_AES_128_DEC;
+		sctx->fc = CPACF_KMCTR_AES_128;
 		break;
 	case 24:
-		sctx->enc = CPACF_KMCTR_AES_192_ENC;
-		sctx->dec = CPACF_KMCTR_AES_192_DEC;
+		sctx->fc = CPACF_KMCTR_AES_192;
 		break;
 	case 32:
-		sctx->enc = CPACF_KMCTR_AES_256_ENC;
-		sctx->dec = CPACF_KMCTR_AES_256_DEC;
+		sctx->fc = CPACF_KMCTR_AES_256;
 		break;
 	}
 
@@ -865,7 +851,7 @@ static int ctr_aes_encrypt(struct blkcipher_desc *desc,
 	struct blkcipher_walk walk;
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
-	return ctr_aes_crypt(desc, sctx->enc, sctx, &walk);
+	return ctr_aes_crypt(desc, sctx->fc, sctx, &walk);
 }
 
 static int ctr_aes_decrypt(struct blkcipher_desc *desc,
@@ -876,7 +862,7 @@ static int ctr_aes_decrypt(struct blkcipher_desc *desc,
 	struct blkcipher_walk walk;
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
-	return ctr_aes_crypt(desc, sctx->dec, sctx, &walk);
+	return ctr_aes_crypt(desc, sctx->fc | CPACF_DECRYPT, sctx, &walk);
 }
 
 static struct crypto_alg ctr_aes_alg = {
@@ -906,11 +892,11 @@ static int __init aes_s390_init(void)
 {
 	int ret;
 
-	if (cpacf_query(CPACF_KM, CPACF_KM_AES_128_ENC))
+	if (cpacf_query(CPACF_KM, CPACF_KM_AES_128))
 		keylen_flag |= AES_KEYLEN_128;
-	if (cpacf_query(CPACF_KM, CPACF_KM_AES_192_ENC))
+	if (cpacf_query(CPACF_KM, CPACF_KM_AES_192))
 		keylen_flag |= AES_KEYLEN_192;
-	if (cpacf_query(CPACF_KM, CPACF_KM_AES_256_ENC))
+	if (cpacf_query(CPACF_KM, CPACF_KM_AES_256))
 		keylen_flag |= AES_KEYLEN_256;
 
 	if (!keylen_flag)
@@ -933,17 +919,17 @@ static int __init aes_s390_init(void)
 	if (ret)
 		goto cbc_aes_err;
 
-	if (cpacf_query(CPACF_KM, CPACF_KM_XTS_128_ENC) &&
-	    cpacf_query(CPACF_KM, CPACF_KM_XTS_256_ENC)) {
+	if (cpacf_query(CPACF_KM, CPACF_KM_XTS_128) &&
+	    cpacf_query(CPACF_KM, CPACF_KM_XTS_256)) {
 		ret = crypto_register_alg(&xts_aes_alg);
 		if (ret)
 			goto xts_aes_err;
 		xts_aes_alg_reg = 1;
 	}
 
-	if (cpacf_query(CPACF_KMCTR, CPACF_KMCTR_AES_128_ENC) &&
-	    cpacf_query(CPACF_KMCTR, CPACF_KMCTR_AES_192_ENC) &&
-	    cpacf_query(CPACF_KMCTR, CPACF_KMCTR_AES_256_ENC)) {
+	if (cpacf_query(CPACF_KMCTR, CPACF_KMCTR_AES_128) &&
+	    cpacf_query(CPACF_KMCTR, CPACF_KMCTR_AES_192) &&
+	    cpacf_query(CPACF_KMCTR, CPACF_KMCTR_AES_256)) {
 		ctrblk = (u8 *) __get_free_page(GFP_KERNEL);
 		if (!ctrblk) {
 			ret = -ENOMEM;

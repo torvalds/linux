@@ -28,67 +28,51 @@
 #define CPACF_PPNO		0xb93c		/* MSA5 */
 
 /*
- * Function codes for the KM (CIPHER MESSAGE)
- * instruction (0x80 is the decipher modifier bit)
+ * Decryption modifier bit
+ */
+#define CPACF_DECRYPT		0x80
+
+/*
+ * Function codes for the KM (CIPHER MESSAGE) instruction
  */
 #define CPACF_KM_QUERY		0x00
-#define CPACF_KM_DEA_ENC	0x01
-#define CPACF_KM_DEA_DEC	0x81
-#define CPACF_KM_TDEA_128_ENC	0x02
-#define CPACF_KM_TDEA_128_DEC	0x82
-#define CPACF_KM_TDEA_192_ENC	0x03
-#define CPACF_KM_TDEA_192_DEC	0x83
-#define CPACF_KM_AES_128_ENC	0x12
-#define CPACF_KM_AES_128_DEC	0x92
-#define CPACF_KM_AES_192_ENC	0x13
-#define CPACF_KM_AES_192_DEC	0x93
-#define CPACF_KM_AES_256_ENC	0x14
-#define CPACF_KM_AES_256_DEC	0x94
-#define CPACF_KM_XTS_128_ENC	0x32
-#define CPACF_KM_XTS_128_DEC	0xb2
-#define CPACF_KM_XTS_256_ENC	0x34
-#define CPACF_KM_XTS_256_DEC	0xb4
+#define CPACF_KM_DEA		0x01
+#define CPACF_KM_TDEA_128	0x02
+#define CPACF_KM_TDEA_192	0x03
+#define CPACF_KM_AES_128	0x12
+#define CPACF_KM_AES_192	0x13
+#define CPACF_KM_AES_256	0x14
+#define CPACF_KM_XTS_128	0x32
+#define CPACF_KM_XTS_256	0x34
 
 /*
  * Function codes for the KMC (CIPHER MESSAGE WITH CHAINING)
- * instruction (0x80 is the decipher modifier bit)
+ * instruction
  */
 #define CPACF_KMC_QUERY		0x00
-#define CPACF_KMC_DEA_ENC	0x01
-#define CPACF_KMC_DEA_DEC	0x81
-#define CPACF_KMC_TDEA_128_ENC	0x02
-#define CPACF_KMC_TDEA_128_DEC	0x82
-#define CPACF_KMC_TDEA_192_ENC	0x03
-#define CPACF_KMC_TDEA_192_DEC	0x83
-#define CPACF_KMC_AES_128_ENC	0x12
-#define CPACF_KMC_AES_128_DEC	0x92
-#define CPACF_KMC_AES_192_ENC	0x13
-#define CPACF_KMC_AES_192_DEC	0x93
-#define CPACF_KMC_AES_256_ENC	0x14
-#define CPACF_KMC_AES_256_DEC	0x94
+#define CPACF_KMC_DEA		0x01
+#define CPACF_KMC_TDEA_128	0x02
+#define CPACF_KMC_TDEA_192	0x03
+#define CPACF_KMC_AES_128	0x12
+#define CPACF_KMC_AES_192	0x13
+#define CPACF_KMC_AES_256	0x14
 #define CPACF_KMC_PRNG		0x43
 
 /*
  * Function codes for the KMCTR (CIPHER MESSAGE WITH COUNTER)
- * instruction (0x80 is the decipher modifier bit)
+ * instruction
  */
-#define CPACF_KMCTR_QUERY	 0x00
-#define CPACF_KMCTR_DEA_ENC	 0x01
-#define CPACF_KMCTR_DEA_DEC	 0x81
-#define CPACF_KMCTR_TDEA_128_ENC 0x02
-#define CPACF_KMCTR_TDEA_128_DEC 0x82
-#define CPACF_KMCTR_TDEA_192_ENC 0x03
-#define CPACF_KMCTR_TDEA_192_DEC 0x83
-#define CPACF_KMCTR_AES_128_ENC	 0x12
-#define CPACF_KMCTR_AES_128_DEC	 0x92
-#define CPACF_KMCTR_AES_192_ENC	 0x13
-#define CPACF_KMCTR_AES_192_DEC	 0x93
-#define CPACF_KMCTR_AES_256_ENC	 0x14
-#define CPACF_KMCTR_AES_256_DEC	 0x94
+#define CPACF_KMCTR_QUERY	0x00
+#define CPACF_KMCTR_DEA		0x01
+#define CPACF_KMCTR_TDEA_128	0x02
+#define CPACF_KMCTR_TDEA_192	0x03
+#define CPACF_KMCTR_AES_128	0x12
+#define CPACF_KMCTR_AES_192	0x13
+#define CPACF_KMCTR_AES_256	0x14
 
 /*
  * Function codes for the KIMD (COMPUTE INTERMEDIATE MESSAGE DIGEST)
- * instruction (0x80 is the decipher modifier bit)
+ * instruction
  */
 #define CPACF_KIMD_QUERY	0x00
 #define CPACF_KIMD_SHA_1	0x01
@@ -98,7 +82,7 @@
 
 /*
  * Function codes for the KLMD (COMPUTE LAST MESSAGE DIGEST)
- * instruction (0x80 is the decipher modifier bit)
+ * instruction
  */
 #define CPACF_KLMD_QUERY	0x00
 #define CPACF_KLMD_SHA_1	0x01
@@ -107,7 +91,7 @@
 
 /*
  * function codes for the KMAC (COMPUTE MESSAGE AUTHENTICATION CODE)
- * instruction (0x80 is the decipher modifier bit)
+ * instruction
  */
 #define CPACF_KMAC_QUERY	0x00
 #define CPACF_KMAC_DEA		0x01
@@ -116,7 +100,7 @@
 
 /*
  * Function codes for the PPNO (PERFORM PSEUDORANDOM NUMBER OPERATION)
- * instruction (0x80 is the decipher modifier bit)
+ * instruction
  */
 #define CPACF_PPNO_QUERY		0x00
 #define CPACF_PPNO_SHA512_DRNG_GEN	0x03
@@ -194,7 +178,7 @@ static inline int cpacf_query(unsigned int opcode, unsigned int func)
  * Returns 0 for the query func, number of processed bytes for
  * encryption/decryption funcs
  */
-static inline int cpacf_km(long func, void *param,
+static inline int cpacf_km(unsigned long func, void *param,
 			   u8 *dest, const u8 *src, long src_len)
 {
 	register unsigned long r0 asm("0") = (unsigned long) func;
@@ -224,7 +208,7 @@ static inline int cpacf_km(long func, void *param,
  * Returns 0 for the query func, number of processed bytes for
  * encryption/decryption funcs
  */
-static inline int cpacf_kmc(long func, void *param,
+static inline int cpacf_kmc(unsigned long func, void *param,
 			    u8 *dest, const u8 *src, long src_len)
 {
 	register unsigned long r0 asm("0") = (unsigned long) func;
@@ -253,7 +237,7 @@ static inline int cpacf_kmc(long func, void *param,
  *
  * Returns 0 for the query func, number of processed bytes for digest funcs
  */
-static inline int cpacf_kimd(long func, void *param,
+static inline int cpacf_kimd(unsigned long func, void *param,
 			     const u8 *src, long src_len)
 {
 	register unsigned long r0 asm("0") = (unsigned long) func;
@@ -280,7 +264,7 @@ static inline int cpacf_kimd(long func, void *param,
  *
  * Returns 0 for the query func, number of processed bytes for digest funcs
  */
-static inline int cpacf_klmd(long func, void *param,
+static inline int cpacf_klmd(unsigned long func, void *param,
 			     const u8 *src, long src_len)
 {
 	register unsigned long r0 asm("0") = (unsigned long) func;
@@ -308,7 +292,7 @@ static inline int cpacf_klmd(long func, void *param,
  *
  * Returns 0 for the query func, number of processed bytes for digest funcs
  */
-static inline int cpacf_kmac(long func, void *param,
+static inline int cpacf_kmac(unsigned long func, void *param,
 			     const u8 *src, long src_len)
 {
 	register unsigned long r0 asm("0") = (unsigned long) func;
@@ -338,7 +322,7 @@ static inline int cpacf_kmac(long func, void *param,
  * Returns 0 for the query func, number of processed bytes for
  * encryption/decryption funcs
  */
-static inline int cpacf_kmctr(long func, void *param, u8 *dest,
+static inline int cpacf_kmctr(unsigned long func, void *param, u8 *dest,
 			      const u8 *src, long src_len, u8 *counter)
 {
 	register unsigned long r0 asm("0") = (unsigned long) func;
@@ -372,7 +356,7 @@ static inline int cpacf_kmctr(long func, void *param, u8 *dest,
  * Returns 0 for the query func, number of random bytes stored in
  * dest buffer for generate function
  */
-static inline int cpacf_ppno(long func, void *param,
+static inline int cpacf_ppno(unsigned long func, void *param,
 			     u8 *dest, long dest_len,
 			     const u8 *seed, long seed_len)
 {
@@ -402,7 +386,7 @@ static inline int cpacf_ppno(long func, void *param,
  *
  * Returns 0.
  */
-static inline int cpacf_pcc(long func, void *param)
+static inline int cpacf_pcc(unsigned long func, void *param)
 {
 	register unsigned long r0 asm("0") = (unsigned long) func;
 	register unsigned long r1 asm("1") = (unsigned long) param;
