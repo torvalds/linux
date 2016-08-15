@@ -3920,4 +3920,10 @@ bool i915_memcpy_from_wc(void *dst, const void *src, unsigned long len);
 #define ptr_pack_bits(ptr, bits)					\
 	((typeof(ptr))((unsigned long)(ptr) | (bits)))
 
+#define fetch_and_zero(ptr) ({						\
+	typeof(*ptr) __T = *(ptr);					\
+	*(ptr) = (typeof(*ptr))0;					\
+	__T;								\
+})
+
 #endif
