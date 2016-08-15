@@ -3883,7 +3883,7 @@ static int mv88e6xxx_smi_init(struct mv88e6xxx_chip *chip,
 
 	if (sw_addr == 0)
 		chip->smi_ops = &mv88e6xxx_smi_single_chip_ops;
-	else if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_MULTI_CHIP))
+	else if (mv88e6xxx_has(chip, MV88E6XXX_FLAGS_MULTI_CHIP))
 		chip->smi_ops = &mv88e6xxx_smi_multi_chip_ops;
 	else
 		return -EINVAL;
