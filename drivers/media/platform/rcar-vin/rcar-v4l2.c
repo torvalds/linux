@@ -114,10 +114,9 @@ static int __rvin_try_format_source(struct rvin_dev *vin,
 
 	format.pad = vin->src_pad_idx;
 
-	ret = v4l2_device_call_until_err(sd->v4l2_dev, 0, pad, set_fmt,
-					 pad_cfg, &format);
-	if (ret < 0)
-		goto cleanup;
+	ret = v4l2_subdev_call(sd, pad, set_fmt, pad_cfg, &format);
+	if (ret < 0 && ret != -ENOIOCTLCMD)
+		goto done;
 
 	v4l2_fill_pix_format(pix, &format.format);
 
@@ -127,9 +126,9 @@ static int __rvin_try_format_source(struct rvin_dev *vin,
 	vin_dbg(vin, "Source resolution: %ux%u\n", source->width,
 		source->height);
 
-cleanup:
+done:
 	v4l2_subdev_free_pad_config(pad_cfg);
-	return 0;
+	return ret;
 }
 
 static int __rvin_try_format(struct rvin_dev *vin,
