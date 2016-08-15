@@ -20,6 +20,7 @@
 #include <linux/gfp.h>
 #include <linux/acpi.h>
 #include <linux/bootmem.h>
+#include <linux/cache.h>
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/genalloc.h>
@@ -30,7 +31,7 @@
 
 #include <asm/cacheflush.h>
 
-static int swiotlb __read_mostly;
+static int swiotlb __ro_after_init;
 
 static pgprot_t __get_dma_pgprot(unsigned long attrs, pgprot_t prot,
 				 bool coherent)

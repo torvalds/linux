@@ -6,6 +6,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/cache.h>
 #include <linux/crc32.h>
 #include <linux/init.h>
 #include <linux/libfdt.h>
@@ -20,7 +21,7 @@
 #include <asm/pgtable.h>
 #include <asm/sections.h>
 
-u64 __read_mostly module_alloc_base;
+u64 __ro_after_init module_alloc_base;
 u16 __initdata memstart_offset_seed;
 
 static __init u64 get_kaslr_seed(void *fdt)
