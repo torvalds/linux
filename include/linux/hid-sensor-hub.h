@@ -236,6 +236,7 @@ struct hid_sensor_common {
 	struct hid_sensor_hub_attribute_info report_state;
 	struct hid_sensor_hub_attribute_info power_state;
 	struct hid_sensor_hub_attribute_info sensitivity;
+	struct work_struct work;
 };
 
 /* Convert from hid unit expo to regular exponent */
