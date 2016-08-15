@@ -2373,6 +2373,18 @@ i915_gem_object_get_stride(struct drm_i915_gem_object *obj)
 	return obj->tiling_and_stride & STRIDE_MASK;
 }
 
+static inline struct i915_vma *i915_vma_get(struct i915_vma *vma)
+{
+	i915_gem_object_get(vma->obj);
+	return vma;
+}
+
+static inline void i915_vma_put(struct i915_vma *vma)
+{
+	lockdep_assert_held(&vma->vm->dev->struct_mutex);
+	i915_gem_object_put(vma->obj);
+}
+
 /*
  * Optimised SGL iterator for GEM objects
  */

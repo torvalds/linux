@@ -271,7 +271,7 @@ static void eb_destroy(struct eb_vmas *eb)
 				       exec_list);
 		list_del_init(&vma->exec_list);
 		i915_gem_execbuffer_unreserve_vma(vma);
-		i915_gem_object_put(vma->obj);
+		i915_vma_put(vma);
 	}
 	kfree(eb);
 }
@@ -900,7 +900,7 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 		vma = list_first_entry(&eb->vmas, struct i915_vma, exec_list);
 		list_del_init(&vma->exec_list);
 		i915_gem_execbuffer_unreserve_vma(vma);
-		i915_gem_object_put(vma->obj);
+		i915_vma_put(vma);
 	}
 
 	mutex_unlock(&dev->struct_mutex);
