@@ -21,7 +21,6 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
-#include <linux/fb.h>
 #include <linux/clk.h>
 #include <linux/errno.h>
 #include <drm/drm_gem_cma_helper.h>

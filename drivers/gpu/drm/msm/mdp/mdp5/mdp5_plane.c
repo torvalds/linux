@@ -78,7 +78,7 @@ static void mdp5_plane_install_rotation_property(struct drm_device *dev,
 	if (!dev->mode_config.rotation_property)
 		dev->mode_config.rotation_property =
 			drm_mode_create_rotation_property(dev,
-			BIT(DRM_REFLECT_X) | BIT(DRM_REFLECT_Y));
+			DRM_REFLECT_X | DRM_REFLECT_Y);
 
 	if (dev->mode_config.rotation_property)
 		drm_object_attach_property(&plane->base,
@@ -309,8 +309,8 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 			return -EINVAL;
 		}
 
-		hflip = !!(state->rotation & BIT(DRM_REFLECT_X));
-		vflip = !!(state->rotation & BIT(DRM_REFLECT_Y));
+		hflip = !!(state->rotation & DRM_REFLECT_X);
+		vflip = !!(state->rotation & DRM_REFLECT_Y);
 		if ((vflip && !(mdp5_plane->caps & MDP_PIPE_CAP_VFLIP)) ||
 			(hflip && !(mdp5_plane->caps & MDP_PIPE_CAP_HFLIP))) {
 			dev_err(plane->dev->dev,
@@ -743,8 +743,8 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	config |= get_scale_config(format, src_h, crtc_h, false);
 	DBG("scale config = %x", config);
 
-	hflip = !!(pstate->rotation & BIT(DRM_REFLECT_X));
-	vflip = !!(pstate->rotation & BIT(DRM_REFLECT_Y));
+	hflip = !!(pstate->rotation & DRM_REFLECT_X);
+	vflip = !!(pstate->rotation & DRM_REFLECT_Y);
 
 	spin_lock_irqsave(&mdp5_plane->pipe_lock, flags);
 

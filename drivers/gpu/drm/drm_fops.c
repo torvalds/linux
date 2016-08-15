@@ -92,7 +92,7 @@ static int drm_setup(struct drm_device * dev)
 	int ret;
 
 	if (dev->driver->firstopen &&
-	    !drm_core_check_feature(dev, DRIVER_MODESET)) {
+	    drm_core_check_feature(dev, DRIVER_LEGACY)) {
 		ret = dev->driver->firstopen(dev);
 		if (ret != 0)
 			return ret;
@@ -346,7 +346,7 @@ void drm_lastclose(struct drm_device * dev)
 		dev->driver->lastclose(dev);
 	DRM_DEBUG("driver lastclose completed\n");
 
-	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+	if (drm_core_check_feature(dev, DRIVER_LEGACY))
 		drm_legacy_dev_reinit(dev);
 }
 
@@ -389,7 +389,7 @@ int drm_release(struct inode *inode, struct file *filp)
 		  (long)old_encode_dev(file_priv->minor->kdev->devt),
 		  dev->open_count);
 
-	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+	if (drm_core_check_feature(dev, DRIVER_LEGACY))
 		drm_legacy_lock_release(dev, filp);
 
 	if (drm_core_check_feature(dev, DRIVER_HAVE_DMA))

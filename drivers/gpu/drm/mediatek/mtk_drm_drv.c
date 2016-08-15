@@ -61,10 +61,25 @@ static void mtk_atomic_complete(struct mtk_drm_private *private,
 
 	mtk_atomic_wait_for_fences(state);
 
+	/*
+	 * Mediatek drm supports runtime PM, so plane registers cannot be
+	 * written when their crtc is disabled.
+	 *
+	 * The comment for drm_atomic_helper_commit states:
+	 *     For drivers supporting runtime PM the recommended sequence is
+	 *
+	 *     drm_atomic_helper_commit_modeset_disables(dev, state);
+	 *     drm_atomic_helper_commit_modeset_enables(dev, state);
+	 *     drm_atomic_helper_commit_planes(dev, state, true);
+	 *
+	 * See the kerneldoc entries for these three functions for more details.
+	 */
 	drm_atomic_helper_commit_modeset_disables(drm, state);
-	drm_atomic_helper_commit_planes(drm, state, false);
 	drm_atomic_helper_commit_modeset_enables(drm, state);
+	drm_atomic_helper_commit_planes(drm, state, true);
+
 	drm_atomic_helper_wait_for_vblanks(drm, state);
+
 	drm_atomic_helper_cleanup_planes(drm, state);
 	drm_atomic_state_free(state);
 }

@@ -35,6 +35,7 @@
 #include <uapi/drm/drm_mode.h>
 #include <uapi/drm/drm_fourcc.h>
 #include <drm/drm_modeset_lock.h>
+#include <drm/drm_rect.h>
 
 struct drm_device;
 struct drm_mode_set;
@@ -83,14 +84,15 @@ static inline uint64_t I642U64(int64_t val)
  * specified amount in degrees in counter clockwise direction. DRM_REFLECT_X and
  * DRM_REFLECT_Y reflects the image along the specified axis prior to rotation
  */
-#define DRM_ROTATE_MASK 0x0f
-#define DRM_ROTATE_0	0
-#define DRM_ROTATE_90	1
-#define DRM_ROTATE_180	2
-#define DRM_ROTATE_270	3
-#define DRM_REFLECT_MASK (~DRM_ROTATE_MASK)
-#define DRM_REFLECT_X	4
-#define DRM_REFLECT_Y	5
+#define DRM_ROTATE_0	BIT(0)
+#define DRM_ROTATE_90	BIT(1)
+#define DRM_ROTATE_180	BIT(2)
+#define DRM_ROTATE_270	BIT(3)
+#define DRM_ROTATE_MASK (DRM_ROTATE_0   | DRM_ROTATE_90 | \
+			 DRM_ROTATE_180 | DRM_ROTATE_270)
+#define DRM_REFLECT_X	BIT(4)
+#define DRM_REFLECT_Y	BIT(5)
+#define DRM_REFLECT_MASK (DRM_REFLECT_X | DRM_REFLECT_Y)
 
 enum drm_connector_force {
 	DRM_FORCE_UNSPECIFIED,
@@ -1414,6 +1416,9 @@ struct drm_connector {
  * @zpos: priority of the given plane on crtc (optional)
  * @normalized_zpos: normalized value of zpos: unique, range from 0 to N-1
  *	where N is the number of active planes for given crtc
+ * @src: clipped source coordinates of the plane (in 16.16)
+ * @dst: clipped destination coordinates of the plane
+ * @visible: visibility of the plane
  * @state: backpointer to global drm_atomic_state
  */
 struct drm_plane_state {
@@ -1437,6 +1442,15 @@ struct drm_plane_state {
 	/* Plane zpos */
 	unsigned int zpos;
 	unsigned int normalized_zpos;
+
+	/* Clipped coordinates */
+	struct drm_rect src, dst;
+
+	/*
+	 * Is the plane actually visible? Can be false even
+	 * if fb!=NULL and crtc!=NULL, due to clipping.
+	 */
+	bool visible;
 
 	struct drm_atomic_state *state;
 };

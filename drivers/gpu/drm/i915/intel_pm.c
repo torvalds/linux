@@ -960,7 +960,7 @@ static uint16_t vlv_compute_wm_level(struct intel_plane *plane,
 	if (dev_priv->wm.pri_latency[level] == 0)
 		return USHRT_MAX;
 
-	if (!state->visible)
+	if (!state->base.visible)
 		return 0;
 
 	cpp = drm_format_plane_cpp(state->base.fb->pixel_format, 0);
@@ -1002,7 +1002,7 @@ static void vlv_compute_fifo(struct intel_crtc *crtc)
 		if (plane->base.type == DRM_PLANE_TYPE_CURSOR)
 			continue;
 
-		if (state->visible) {
+		if (state->base.visible) {
 			wm_state->num_active_planes++;
 			total_rate += drm_format_plane_cpp(state->base.fb->pixel_format, 0);
 		}
@@ -1018,7 +1018,7 @@ static void vlv_compute_fifo(struct intel_crtc *crtc)
 			continue;
 		}
 
-		if (!state->visible) {
+		if (!state->base.visible) {
 			plane->wm.fifo_size = 0;
 			continue;
 		}
@@ -1118,7 +1118,7 @@ static void vlv_compute_wm(struct intel_crtc *crtc)
 		struct intel_plane_state *state =
 			to_intel_plane_state(plane->base.state);
 
-		if (!state->visible)
+		if (!state->base.visible)
 			continue;
 
 		/* normal watermarks */
@@ -1767,7 +1767,7 @@ static uint32_t ilk_compute_pri_wm(const struct intel_crtc_state *cstate,
 		drm_format_plane_cpp(pstate->base.fb->pixel_format, 0) : 0;
 	uint32_t method1, method2;
 
-	if (!cstate->base.active || !pstate->visible)
+	if (!cstate->base.active || !pstate->base.visible)
 		return 0;
 
 	method1 = ilk_wm_method1(ilk_pipe_pixel_rate(cstate), cpp, mem_value);
@@ -1777,7 +1777,7 @@ static uint32_t ilk_compute_pri_wm(const struct intel_crtc_state *cstate,
 
 	method2 = ilk_wm_method2(ilk_pipe_pixel_rate(cstate),
 				 cstate->base.adjusted_mode.crtc_htotal,
-				 drm_rect_width(&pstate->dst),
+				 drm_rect_width(&pstate->base.dst),
 				 cpp, mem_value);
 
 	return min(method1, method2);
@@ -1795,13 +1795,13 @@ static uint32_t ilk_compute_spr_wm(const struct intel_crtc_state *cstate,
 		drm_format_plane_cpp(pstate->base.fb->pixel_format, 0) : 0;
 	uint32_t method1, method2;
 
-	if (!cstate->base.active || !pstate->visible)
+	if (!cstate->base.active || !pstate->base.visible)
 		return 0;
 
 	method1 = ilk_wm_method1(ilk_pipe_pixel_rate(cstate), cpp, mem_value);
 	method2 = ilk_wm_method2(ilk_pipe_pixel_rate(cstate),
 				 cstate->base.adjusted_mode.crtc_htotal,
-				 drm_rect_width(&pstate->dst),
+				 drm_rect_width(&pstate->base.dst),
 				 cpp, mem_value);
 	return min(method1, method2);
 }
@@ -1820,7 +1820,7 @@ static uint32_t ilk_compute_cur_wm(const struct intel_crtc_state *cstate,
 	 * this is necessary to avoid flickering.
 	 */
 	int cpp = 4;
-	int width = pstate->visible ? pstate->base.crtc_w : 64;
+	int width = pstate->base.visible ? pstate->base.crtc_w : 64;
 
 	if (!cstate->base.active)
 		return 0;
@@ -1838,10 +1838,10 @@ static uint32_t ilk_compute_fbc_wm(const struct intel_crtc_state *cstate,
 	int cpp = pstate->base.fb ?
 		drm_format_plane_cpp(pstate->base.fb->pixel_format, 0) : 0;
 
-	if (!cstate->base.active || !pstate->visible)
+	if (!cstate->base.active || !pstate->base.visible)
 		return 0;
 
-	return ilk_wm_fbc(pri_val, drm_rect_width(&pstate->dst), cpp);
+	return ilk_wm_fbc(pri_val, drm_rect_width(&pstate->base.dst), cpp);
 }
 
 static unsigned int ilk_display_fifo_size(const struct drm_device *dev)
@@ -2358,10 +2358,10 @@ static int ilk_compute_pipe_wm(struct intel_crtc_state *cstate)
 
 	pipe_wm->pipe_enabled = cstate->base.active;
 	if (sprstate) {
-		pipe_wm->sprites_enabled = sprstate->visible;
-		pipe_wm->sprites_scaled = sprstate->visible &&
-			(drm_rect_width(&sprstate->dst) != drm_rect_width(&sprstate->src) >> 16 ||
-			 drm_rect_height(&sprstate->dst) != drm_rect_height(&sprstate->src) >> 16);
+		pipe_wm->sprites_enabled = sprstate->base.visible;
+		pipe_wm->sprites_scaled = sprstate->base.visible &&
+			(drm_rect_width(&sprstate->base.dst) != drm_rect_width(&sprstate->base.src) >> 16 ||
+			 drm_rect_height(&sprstate->base.dst) != drm_rect_height(&sprstate->base.src) >> 16);
 	}
 
 	usable_level = max_level;
@@ -2996,14 +2996,14 @@ skl_plane_downscale_amount(const struct intel_plane_state *pstate)
 	uint32_t downscale_h, downscale_w;
 	uint32_t src_w, src_h, dst_w, dst_h;
 
-	if (WARN_ON(!pstate->visible))
+	if (WARN_ON(!pstate->base.visible))
 		return DRM_PLANE_HELPER_NO_SCALING;
 
 	/* n.b., src is 16.16 fixed point, dst is whole integer */
-	src_w = drm_rect_width(&pstate->src);
-	src_h = drm_rect_height(&pstate->src);
-	dst_w = drm_rect_width(&pstate->dst);
-	dst_h = drm_rect_height(&pstate->dst);
+	src_w = drm_rect_width(&pstate->base.src);
+	src_h = drm_rect_height(&pstate->base.src);
+	dst_w = drm_rect_width(&pstate->base.dst);
+	dst_h = drm_rect_height(&pstate->base.dst);
 	if (intel_rotation_90_or_270(pstate->base.rotation))
 		swap(dst_w, dst_h);
 
@@ -3025,15 +3025,15 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *cstate,
 	uint32_t width = 0, height = 0;
 	unsigned format = fb ? fb->pixel_format : DRM_FORMAT_XRGB8888;
 
-	if (!intel_pstate->visible)
+	if (!intel_pstate->base.visible)
 		return 0;
 	if (pstate->plane->type == DRM_PLANE_TYPE_CURSOR)
 		return 0;
 	if (y && format != DRM_FORMAT_NV12)
 		return 0;
 
-	width = drm_rect_width(&intel_pstate->src) >> 16;
-	height = drm_rect_height(&intel_pstate->src) >> 16;
+	width = drm_rect_width(&intel_pstate->base.src) >> 16;
+	height = drm_rect_height(&intel_pstate->base.src) >> 16;
 
 	if (intel_rotation_90_or_270(pstate->rotation))
 		swap(width, height);
@@ -3134,8 +3134,8 @@ skl_ddb_min_alloc(const struct drm_plane_state *pstate,
 	    fb->modifier[0] != I915_FORMAT_MOD_Yf_TILED)
 		return 8;
 
-	src_w = drm_rect_width(&intel_pstate->src) >> 16;
-	src_h = drm_rect_height(&intel_pstate->src) >> 16;
+	src_w = drm_rect_width(&intel_pstate->base.src) >> 16;
+	src_h = drm_rect_height(&intel_pstate->base.src) >> 16;
 
 	if (intel_rotation_90_or_270(pstate->rotation))
 		swap(src_w, src_h);
@@ -3226,7 +3226,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 		if (intel_plane->pipe != pipe)
 			continue;
 
-		if (!to_intel_plane_state(pstate)->visible) {
+		if (!to_intel_plane_state(pstate)->base.visible) {
 			minimum[id] = 0;
 			y_minimum[id] = 0;
 			continue;
@@ -3363,7 +3363,7 @@ static uint32_t skl_adjusted_plane_pixel_rate(const struct intel_crtc_state *cst
 	uint64_t pixel_rate;
 
 	/* Shouldn't reach here on disabled planes... */
-	if (WARN_ON(!pstate->visible))
+	if (WARN_ON(!pstate->base.visible))
 		return 0;
 
 	/*
@@ -3399,13 +3399,13 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	uint32_t width = 0, height = 0;
 	uint32_t plane_pixel_rate;
 
-	if (latency == 0 || !cstate->base.active || !intel_pstate->visible) {
+	if (latency == 0 || !cstate->base.active || !intel_pstate->base.visible) {
 		*enabled = false;
 		return 0;
 	}
 
-	width = drm_rect_width(&intel_pstate->src) >> 16;
-	height = drm_rect_height(&intel_pstate->src) >> 16;
+	width = drm_rect_width(&intel_pstate->base.src) >> 16;
+	height = drm_rect_height(&intel_pstate->base.src) >> 16;
 
 	if (intel_rotation_90_or_270(pstate->rotation))
 		swap(width, height);

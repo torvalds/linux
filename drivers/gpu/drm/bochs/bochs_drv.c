@@ -8,6 +8,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <drm/drm_fb_helper.h>
 
 #include "bochs.h"
 
@@ -153,7 +154,7 @@ static int bochs_kick_out_firmware_fb(struct pci_dev *pdev)
 
 	ap->ranges[0].base = pci_resource_start(pdev, 0);
 	ap->ranges[0].size = pci_resource_len(pdev, 0);
-	remove_conflicting_framebuffers(ap, "bochsdrmfb", false);
+	drm_fb_helper_remove_conflicting_framebuffers(ap, "bochsdrmfb", false);
 	kfree(ap);
 
 	return 0;

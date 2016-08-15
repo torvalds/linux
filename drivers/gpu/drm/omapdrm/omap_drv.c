@@ -295,9 +295,9 @@ static int omap_modeset_init_properties(struct drm_device *dev)
 	if (priv->has_dmm) {
 		dev->mode_config.rotation_property =
 			drm_mode_create_rotation_property(dev,
-				BIT(DRM_ROTATE_0) | BIT(DRM_ROTATE_90) |
-				BIT(DRM_ROTATE_180) | BIT(DRM_ROTATE_270) |
-				BIT(DRM_REFLECT_X) | BIT(DRM_REFLECT_Y));
+				DRM_ROTATE_0 | DRM_ROTATE_90 |
+				DRM_ROTATE_180 | DRM_ROTATE_270 |
+				DRM_REFLECT_X | DRM_REFLECT_Y);
 		if (!dev->mode_config.rotation_property)
 			return -ENOMEM;
 	}

@@ -25,7 +25,6 @@
  */
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/fb.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
@@ -383,7 +382,7 @@ void radeon_fbdev_fini(struct radeon_device *rdev)
 void radeon_fbdev_set_suspend(struct radeon_device *rdev, int state)
 {
 	if (rdev->mode_info.rfbdev)
-		fb_set_suspend(rdev->mode_info.rfbdev->helper.fbdev, state);
+		drm_fb_helper_set_suspend(&rdev->mode_info.rfbdev->helper, state);
 }
 
 bool radeon_fbdev_robj_is_fb(struct radeon_device *rdev, struct radeon_bo *robj)

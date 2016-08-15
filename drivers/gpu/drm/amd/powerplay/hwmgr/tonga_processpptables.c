@@ -22,7 +22,6 @@
  */
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/fb.h>
 
 #include "tonga_processpptables.h"
 #include "ppatomctrl.h"
