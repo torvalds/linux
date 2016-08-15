@@ -70,10 +70,12 @@ struct rvin_video_format {
 	u8 bpp;
 };
 
+/**
+ * struct rvin_graph_entity - Video endpoint from async framework
+ * @asd:	sub-device descriptor for async framework
+ * @subdev:	subdevice matched using async framework
+ */
 struct rvin_graph_entity {
-	struct device_node *node;
-	struct media_entity *entity;
-
 	struct v4l2_async_subdev asd;
 	struct v4l2_subdev *subdev;
 };
