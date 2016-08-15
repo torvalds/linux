@@ -210,53 +210,6 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		seq_printf(m, " (frontbuffer: 0x%03x)", frontbuffer_bits);
 }
 
-static int i915_gem_object_list_info(struct seq_file *m, void *data)
-{
-	struct drm_info_node *node = m->private;
-	uintptr_t list = (uintptr_t) node->info_ent->data;
-	struct list_head *head;
-	struct drm_device *dev = node->minor->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	struct i915_vma *vma;
-	u64 total_obj_size, total_gtt_size;
-	int count, ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-
-	/* FIXME: the user of this interface might want more than just GGTT */
-	switch (list) {
-	case ACTIVE_LIST:
-		seq_puts(m, "Active:\n");
-		head = &ggtt->base.active_list;
-		break;
-	case INACTIVE_LIST:
-		seq_puts(m, "Inactive:\n");
-		head = &ggtt->base.inactive_list;
-		break;
-	default:
-		mutex_unlock(&dev->struct_mutex);
-		return -EINVAL;
-	}
-
-	total_obj_size = total_gtt_size = count = 0;
-	list_for_each_entry(vma, head, vm_link) {
-		seq_printf(m, "   ");
-		describe_obj(m, vma->obj);
-		seq_printf(m, "\n");
-		total_obj_size += vma->obj->base.size;
-		total_gtt_size += vma->node.size;
-		count++;
-	}
-	mutex_unlock(&dev->struct_mutex);
-
-	seq_printf(m, "Total %d objects, %llu bytes, %llu GTT size\n",
-		   count, total_obj_size, total_gtt_size);
-	return 0;
-}
-
 static int obj_rank_by_stolen(void *priv,
 			      struct list_head *A, struct list_head *B)
 {
@@ -5420,8 +5373,6 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gem_objects", i915_gem_object_info, 0},
 	{"i915_gem_gtt", i915_gem_gtt_info, 0},
 	{"i915_gem_pinned", i915_gem_gtt_info, 0, (void *) PINNED_LIST},
-	{"i915_gem_active", i915_gem_object_list_info, 0, (void *) ACTIVE_LIST},
-	{"i915_gem_inactive", i915_gem_object_list_info, 0, (void *) INACTIVE_LIST},
 	{"i915_gem_stolen", i915_gem_stolen_list_info },
 	{"i915_gem_pageflip", i915_gem_pageflip_info, 0},
 	{"i915_gem_request", i915_gem_request_info, 0},
