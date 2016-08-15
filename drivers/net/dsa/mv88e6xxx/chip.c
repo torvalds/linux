@@ -238,6 +238,74 @@ static int mv88e6xxx_phy_write(struct mv88e6xxx_chip *chip, int phy,
 	return chip->phy_ops->write(chip, addr, reg, val);
 }
 
+static int mv88e6xxx_phy_page_get(struct mv88e6xxx_chip *chip, int phy, u8 page)
+{
+	if (!mv88e6xxx_has(chip, MV88E6XXX_FLAG_PHY_PAGE))
+		return -EOPNOTSUPP;
+
+	return mv88e6xxx_phy_write(chip, phy, PHY_PAGE, page);
+}
+
+static void mv88e6xxx_phy_page_put(struct mv88e6xxx_chip *chip, int phy)
+{
+	int err;
+
+	/* Restore PHY page Copper 0x0 for access via the registered MDIO bus */
+	err = mv88e6xxx_phy_write(chip, phy, PHY_PAGE, PHY_PAGE_COPPER);
+	if (unlikely(err)) {
+		dev_err(chip->dev, "failed to restore PHY %d page Copper (%d)\n",
+			phy, err);
+	}
+}
+
+static int mv88e6xxx_phy_page_read(struct mv88e6xxx_chip *chip, int phy,
+				   u8 page, int reg, u16 *val)
+{
+	int err;
+
+	/* There is no paging for registers 22 */
+	if (reg == PHY_PAGE)
+		return -EINVAL;
+
+	err = mv88e6xxx_phy_page_get(chip, phy, page);
+	if (!err) {
+		err = mv88e6xxx_phy_read(chip, phy, reg, val);
+		mv88e6xxx_phy_page_put(chip, phy);
+	}
+
+	return err;
+}
+
+static int mv88e6xxx_phy_page_write(struct mv88e6xxx_chip *chip, int phy,
+				    u8 page, int reg, u16 val)
+{
+	int err;
+
+	/* There is no paging for registers 22 */
+	if (reg == PHY_PAGE)
+		return -EINVAL;
+
+	err = mv88e6xxx_phy_page_get(chip, phy, page);
+	if (!err) {
+		err = mv88e6xxx_phy_write(chip, phy, PHY_PAGE, page);
+		mv88e6xxx_phy_page_put(chip, phy);
+	}
+
+	return err;
+}
+
+static int mv88e6xxx_serdes_read(struct mv88e6xxx_chip *chip, int reg, u16 *val)
+{
+	return mv88e6xxx_phy_page_read(chip, ADDR_SERDES, SERDES_PAGE_FIBER,
+				       reg, val);
+}
+
+static int mv88e6xxx_serdes_write(struct mv88e6xxx_chip *chip, int reg, u16 val)
+{
+	return mv88e6xxx_phy_page_write(chip, ADDR_SERDES, SERDES_PAGE_FIBER,
+					reg, val);
+}
+
 static int mv88e6xxx_wait(struct mv88e6xxx_chip *chip, int addr, int reg,
 			  u16 mask)
 {
@@ -2408,23 +2476,22 @@ static int mv88e6xxx_switch_reset(struct mv88e6xxx_chip *chip)
 	return ret;
 }
 
-static int mv88e6xxx_power_on_serdes(struct mv88e6xxx_chip *chip)
+static int mv88e6xxx_serdes_power_on(struct mv88e6xxx_chip *chip)
 {
-	int ret;
+	u16 val;
+	int err;
 
-	ret = _mv88e6xxx_mdio_page_read(chip, REG_FIBER_SERDES,
-					PAGE_FIBER_SERDES, MII_BMCR);
-	if (ret < 0)
-		return ret;
+	/* Clear Power Down bit */
+	err = mv88e6xxx_serdes_read(chip, MII_BMCR, &val);
+	if (err)
+		return err;
 
-	if (ret & BMCR_PDOWN) {
-		ret &= ~BMCR_PDOWN;
-		ret = _mv88e6xxx_mdio_page_write(chip, REG_FIBER_SERDES,
-						 PAGE_FIBER_SERDES, MII_BMCR,
-						 ret);
+	if (val & BMCR_PDOWN) {
+		val &= ~BMCR_PDOWN;
+		err = mv88e6xxx_serdes_write(chip, MII_BMCR, val);
 	}
 
-	return ret;
+	return err;
 }
 
 static int mv88e6xxx_port_read(struct mv88e6xxx_chip *chip, int port,
@@ -2547,7 +2614,7 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	/* If this port is connected to a SerDes, make sure the SerDes is not
 	 * powered down.
 	 */
-	if (mv88e6xxx_6352_family(chip)) {
+	if (mv88e6xxx_has(chip, MV88E6XXX_FLAGS_SERDES)) {
 		ret = _mv88e6xxx_reg_read(chip, REG_PORT(port), PORT_STATUS);
 		if (ret < 0)
 			return ret;
@@ -2555,7 +2622,7 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 		if ((ret == PORT_STATUS_CMODE_100BASE_X) ||
 		    (ret == PORT_STATUS_CMODE_1000BASE_X) ||
 		    (ret == PORT_STATUS_CMODE_SGMII)) {
-			ret = mv88e6xxx_power_on_serdes(chip);
+			ret = mv88e6xxx_serdes_power_on(chip);
 			if (ret < 0)
 				return ret;
 		}

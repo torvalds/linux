@@ -30,9 +30,12 @@
 #define SMI_CMD_OP_45_READ_DATA_INC	((3 << 10) | SMI_CMD_BUSY)
 #define SMI_DATA		0x01
 
-/* Fiber/SERDES Registers are located at SMI address F, page 1 */
-#define REG_FIBER_SERDES	0x0f
-#define PAGE_FIBER_SERDES	0x01
+/* PHY Registers */
+#define PHY_PAGE		0x16
+#define PHY_PAGE_COPPER		0x00
+
+#define ADDR_SERDES		0x0f
+#define SERDES_PAGE_FIBER	0x01
 
 #define REG_PORT(p)		(0x10 + (p))
 #define PORT_STATUS		0x00
@@ -394,6 +397,14 @@ enum mv88e6xxx_cap {
 	MV88E6XXX_CAP_SMI_CMD,		/* (0x00) SMI Command */
 	MV88E6XXX_CAP_SMI_DATA,		/* (0x01) SMI Data */
 
+	/* PHY Registers.
+	 */
+	MV88E6XXX_CAP_PHY_PAGE,		/* (0x16) Page Register */
+
+	/* Fiber/SERDES Registers (SMI address F).
+	 */
+	MV88E6XXX_CAP_SERDES,
+
 	/* Switch Global 2 Registers.
 	 * The device contains a second set of global 16-bit registers.
 	 */
@@ -441,6 +452,10 @@ enum mv88e6xxx_cap {
 #define MV88E6XXX_FLAG_SMI_CMD		BIT(MV88E6XXX_CAP_SMI_CMD)
 #define MV88E6XXX_FLAG_SMI_DATA		BIT(MV88E6XXX_CAP_SMI_DATA)
 
+#define MV88E6XXX_FLAG_PHY_PAGE		BIT(MV88E6XXX_CAP_PHY_PAGE)
+
+#define MV88E6XXX_FLAG_SERDES		BIT(MV88E6XXX_CAP_SERDES)
+
 #define MV88E6XXX_FLAG_GLOBAL2		BIT(MV88E6XXX_CAP_GLOBAL2)
 #define MV88E6XXX_FLAG_G2_MGMT_EN_2X	BIT(MV88E6XXX_CAP_G2_MGMT_EN_2X)
 #define MV88E6XXX_FLAG_G2_MGMT_EN_0X	BIT(MV88E6XXX_CAP_G2_MGMT_EN_0X)
@@ -481,6 +496,11 @@ enum mv88e6xxx_cap {
 #define MV88E6XXX_FLAGS_PVT		\
 	(MV88E6XXX_FLAG_G2_PVT_ADDR |	\
 	 MV88E6XXX_FLAG_G2_PVT_DATA)
+
+/* Fiber/SERDES Registers at SMI address F, page 1 */
+#define MV88E6XXX_FLAGS_SERDES		\
+	(MV88E6XXX_FLAG_PHY_PAGE |	\
+	 MV88E6XXX_FLAG_SERDES)
 
 /* Indirect PHY access via Global2 SMI PHY registers */
 #define MV88E6XXX_FLAGS_SMI_PHY		\
@@ -574,6 +594,7 @@ enum mv88e6xxx_cap {
 	 MV88E6XXX_FLAGS_IRL |		\
 	 MV88E6XXX_FLAGS_MULTI_CHIP |	\
 	 MV88E6XXX_FLAGS_PVT |		\
+	 MV88E6XXX_FLAGS_SERDES |	\
 	 MV88E6XXX_FLAGS_SMI_PHY)
 
 struct mv88e6xxx_info {
