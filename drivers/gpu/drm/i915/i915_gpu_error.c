@@ -1060,12 +1060,68 @@ static void error_record_engine_registers(struct drm_i915_error_state *error,
 	}
 }
 
+static void engine_record_requests(struct intel_engine_cs *engine,
+				   struct drm_i915_gem_request *first,
+				   struct drm_i915_error_engine *ee)
+{
+	struct drm_i915_gem_request *request;
+	int count;
+
+	count = 0;
+	request = first;
+	list_for_each_entry_from(request, &engine->request_list, link)
+		count++;
+	if (!count)
+		return;
+
+	ee->requests = kcalloc(count, sizeof(*ee->requests), GFP_ATOMIC);
+	if (!ee->requests)
+		return;
+
+	ee->num_requests = count;
+
+	count = 0;
+	request = first;
+	list_for_each_entry_from(request, &engine->request_list, link) {
+		struct drm_i915_error_request *erq;
+
+		if (count >= ee->num_requests) {
+			/*
+			 * If the ring request list was changed in
+			 * between the point where the error request
+			 * list was created and dimensioned and this
+			 * point then just exit early to avoid crashes.
+			 *
+			 * We don't need to communicate that the
+			 * request list changed state during error
+			 * state capture and that the error state is
+			 * slightly incorrect as a consequence since we
+			 * are typically only interested in the request
+			 * list state at the point of error state
+			 * capture, not in any changes happening during
+			 * the capture.
+			 */
+			break;
+		}
+
+		erq = &ee->requests[count++];
+		erq->seqno = request->fence.seqno;
+		erq->jiffies = request->emitted_jiffies;
+		erq->head = request->head;
+		erq->tail = request->tail;
+
+		rcu_read_lock();
+		erq->pid = request->ctx->pid ? pid_nr(request->ctx->pid) : 0;
+		rcu_read_unlock();
+	}
+	ee->num_requests = count;
+}
+
 static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 				  struct drm_i915_error_state *error)
 {
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	struct drm_i915_gem_request *request;
-	int i, count;
+	int i;
 
 	error->semaphore =
 		i915_error_object_create(dev_priv, dev_priv->semaphore);
@@ -1073,6 +1129,7 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 	for (i = 0; i < I915_NUM_ENGINES; i++) {
 		struct intel_engine_cs *engine = &dev_priv->engine[i];
 		struct drm_i915_error_engine *ee = &error->engine[i];
+		struct drm_i915_gem_request *request;
 
 		ee->pid = -1;
 		ee->engine_id = -1;
@@ -1131,6 +1188,8 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 			ee->cpu_ring_tail = ring->tail;
 			ee->ringbuffer =
 				i915_error_object_create(dev_priv, ring->vma);
+
+			engine_record_requests(engine, request, ee);
 		}
 
 		ee->hws_page =
@@ -1139,52 +1198,6 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 
 		ee->wa_ctx =
 			i915_error_object_create(dev_priv, engine->wa_ctx.vma);
-
-		count = 0;
-		list_for_each_entry(request, &engine->request_list, link)
-			count++;
-
-		ee->num_requests = count;
-		ee->requests =
-			kcalloc(count, sizeof(*ee->requests), GFP_ATOMIC);
-		if (!ee->requests) {
-			ee->num_requests = 0;
-			continue;
-		}
-
-		count = 0;
-		list_for_each_entry(request, &engine->request_list, link) {
-			struct drm_i915_error_request *erq;
-
-			if (count >= ee->num_requests) {
-				/*
-				 * If the ring request list was changed in
-				 * between the point where the error request
-				 * list was created and dimensioned and this
-				 * point then just exit early to avoid crashes.
-				 *
-				 * We don't need to communicate that the
-				 * request list changed state during error
-				 * state capture and that the error state is
-				 * slightly incorrect as a consequence since we
-				 * are typically only interested in the request
-				 * list state at the point of error state
-				 * capture, not in any changes happening during
-				 * the capture.
-				 */
-				break;
-			}
-
-			erq = &ee->requests[count++];
-			erq->seqno = request->fence.seqno;
-			erq->jiffies = request->emitted_jiffies;
-			erq->head = request->head;
-			erq->tail = request->tail;
-
-			rcu_read_lock();
-			erq->pid = request->ctx->pid ? pid_nr(request->ctx->pid) : 0;
-			rcu_read_unlock();
-		}
 	}
 }
 
