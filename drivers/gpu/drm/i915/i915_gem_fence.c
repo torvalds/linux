@@ -85,22 +85,19 @@ static void i965_write_fence_reg(struct drm_device *dev, int reg,
 	POSTING_READ(fence_reg_lo);
 
 	if (obj) {
-		u32 size = i915_gem_obj_ggtt_size(obj);
+		struct i915_vma *vma = i915_gem_obj_to_ggtt(obj);
 		unsigned int tiling = i915_gem_object_get_tiling(obj);
 		unsigned int stride = i915_gem_object_get_stride(obj);
-		uint64_t val;
+		u32 size = vma->node.size;
+		u32 row_size = stride * (tiling == I915_TILING_Y ? 32 : 8);
+		u64 val;
 
 		/* Adjust fence size to match tiled area */
-		if (tiling != I915_TILING_NONE) {
-			uint32_t row_size = stride *
-				(tiling == I915_TILING_Y ? 32 : 8);
-			size = (size / row_size) * row_size;
-		}
+		size = rounddown(size, row_size);
 
-		val = (uint64_t)((i915_gem_obj_ggtt_offset(obj) + size - 4096) &
-				 0xfffff000) << 32;
-		val |= i915_gem_obj_ggtt_offset(obj) & 0xfffff000;
-		val |= (uint64_t)((stride / 128) - 1) << fence_pitch_shift;
+		val = ((vma->node.start + size - 4096) & 0xfffff000) << 32;
+		val |= vma->node.start & 0xfffff000;
+		val |= (u64)((stride / 128) - 1) << fence_pitch_shift;
 		if (tiling == I915_TILING_Y)
 			val |= 1 << I965_FENCE_TILING_Y_SHIFT;
 		val |= I965_FENCE_REG_VALID;
@@ -123,17 +120,17 @@ static void i915_write_fence_reg(struct drm_device *dev, int reg,
 	u32 val;
 
 	if (obj) {
-		u32 size = i915_gem_obj_ggtt_size(obj);
+		struct i915_vma *vma = i915_gem_obj_to_ggtt(obj);
 		unsigned int tiling = i915_gem_object_get_tiling(obj);
 		unsigned int stride = i915_gem_object_get_stride(obj);
 		int pitch_val;
 		int tile_width;
 
-		WARN((i915_gem_obj_ggtt_offset(obj) & ~I915_FENCE_START_MASK) ||
-		     (size & -size) != size ||
-		     (i915_gem_obj_ggtt_offset(obj) & (size - 1)),
-		     "object 0x%08llx [fenceable? %d] not 1M or pot-size (0x%08x) aligned\n",
-		     i915_gem_obj_ggtt_offset(obj), obj->map_and_fenceable, size);
+		WARN((vma->node.start & ~I915_FENCE_START_MASK) ||
+		     !is_power_of_2(vma->node.size) ||
+		     (vma->node.start & (vma->node.size - 1)),
+		     "object 0x%08llx [fenceable? %d] not 1M or pot-size (0x%08llx) aligned\n",
+		     vma->node.start, obj->map_and_fenceable, vma->node.size);
 
 		if (tiling == I915_TILING_Y && HAS_128_BYTE_Y_TILING(dev))
 			tile_width = 128;
@@ -144,10 +141,10 @@ static void i915_write_fence_reg(struct drm_device *dev, int reg,
 		pitch_val = stride / tile_width;
 		pitch_val = ffs(pitch_val) - 1;
 
-		val = i915_gem_obj_ggtt_offset(obj);
+		val = vma->node.start;
 		if (tiling == I915_TILING_Y)
 			val |= 1 << I830_FENCE_TILING_Y_SHIFT;
-		val |= I915_FENCE_SIZE_BITS(size);
+		val |= I915_FENCE_SIZE_BITS(vma->node.size);
 		val |= pitch_val << I830_FENCE_PITCH_SHIFT;
 		val |= I830_FENCE_REG_VALID;
 	} else
@@ -161,27 +158,27 @@ static void i830_write_fence_reg(struct drm_device *dev, int reg,
 				struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	uint32_t val;
+	u32 val;
 
 	if (obj) {
-		u32 size = i915_gem_obj_ggtt_size(obj);
+		struct i915_vma *vma = i915_gem_obj_to_ggtt(obj);
 		unsigned int tiling = i915_gem_object_get_tiling(obj);
 		unsigned int stride = i915_gem_object_get_stride(obj);
-		uint32_t pitch_val;
+		u32 pitch_val;
 
-		WARN((i915_gem_obj_ggtt_offset(obj) & ~I830_FENCE_START_MASK) ||
-		     (size & -size) != size ||
-		     (i915_gem_obj_ggtt_offset(obj) & (size - 1)),
-		     "object 0x%08llx not 512K or pot-size 0x%08x aligned\n",
-		     i915_gem_obj_ggtt_offset(obj), size);
+		WARN((vma->node.start & ~I830_FENCE_START_MASK) ||
+		     !is_power_of_2(vma->node.size) ||
+		     (vma->node.start & (vma->node.size - 1)),
+		     "object 0x%08llx not 512K or pot-size 0x%08llx aligned\n",
+		     vma->node.start, vma->node.size);
 
 		pitch_val = stride / 128;
 		pitch_val = ffs(pitch_val) - 1;
 
-		val = i915_gem_obj_ggtt_offset(obj);
+		val = vma->node.start;
 		if (tiling == I915_TILING_Y)
 			val |= 1 << I830_FENCE_TILING_Y_SHIFT;
-		val |= I830_FENCE_SIZE_BITS(size);
+		val |= I830_FENCE_SIZE_BITS(vma->node.size);
 		val |= pitch_val << I830_FENCE_PITCH_SHIFT;
 		val |= I830_FENCE_REG_VALID;
 	} else
