@@ -1844,7 +1844,6 @@ int logical_render_ring_init(struct intel_engine_cs *engine)
 	else
 		engine->init_hw = gen8_init_render_ring;
 	engine->init_context = gen8_init_rcs_context;
-	engine->cleanup = intel_engine_cleanup_scratch;
 	engine->emit_flush = gen8_emit_flush_render;
 	engine->emit_request = gen8_emit_request_render;
 

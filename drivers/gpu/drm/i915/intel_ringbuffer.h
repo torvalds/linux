@@ -472,11 +472,9 @@ void intel_ring_update_space(struct intel_ring *ring);
 
 void intel_engine_init_seqno(struct intel_engine_cs *engine, u32 seqno);
 
-int intel_engine_create_scratch(struct intel_engine_cs *engine, int size);
-void intel_engine_cleanup_scratch(struct intel_engine_cs *engine);
-
 void intel_engine_setup_common(struct intel_engine_cs *engine);
 int intel_engine_init_common(struct intel_engine_cs *engine);
+int intel_engine_create_scratch(struct intel_engine_cs *engine, int size);
 void intel_engine_cleanup_common(struct intel_engine_cs *engine);
 
 static inline int intel_engine_idle(struct intel_engine_cs *engine,

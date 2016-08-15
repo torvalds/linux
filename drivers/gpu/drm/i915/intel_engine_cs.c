@@ -195,6 +195,54 @@ void intel_engine_setup_common(struct intel_engine_cs *engine)
 	i915_gem_batch_pool_init(engine, &engine->batch_pool);
 }
 
+int intel_engine_create_scratch(struct intel_engine_cs *engine, int size)
+{
+	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
+	int ret;
+
+	WARN_ON(engine->scratch);
+
+	obj = i915_gem_object_create_stolen(&engine->i915->drm, size);
+	if (!obj)
+		obj = i915_gem_object_create(&engine->i915->drm, size);
+	if (IS_ERR(obj)) {
+		DRM_ERROR("Failed to allocate scratch page\n");
+		return PTR_ERR(obj);
+	}
+
+	vma = i915_vma_create(obj, &engine->i915->ggtt.base, NULL);
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
+		goto err_unref;
+	}
+
+	ret = i915_vma_pin(vma, 0, 4096, PIN_GLOBAL | PIN_HIGH);
+	if (ret)
+		goto err_unref;
+
+	engine->scratch = vma;
+	DRM_DEBUG_DRIVER("%s pipe control offset: 0x%08llx\n",
+			 engine->name, vma->node.start);
+	return 0;
+
+err_unref:
+	i915_gem_object_put(obj);
+	return ret;
+}
+
+static void intel_engine_cleanup_scratch(struct intel_engine_cs *engine)
+{
+	struct i915_vma *vma;
+
+	vma = fetch_and_zero(&engine->scratch);
+	if (!vma)
+		return;
+
+	i915_vma_unpin(vma);
+	i915_vma_put(vma);
+}
+
 /**
  * intel_engines_init_common - initialize cengine state which might require hw access
  * @engine: Engine to initialize.
@@ -226,6 +274,8 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
  */
 void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 {
+	intel_engine_cleanup_scratch(engine);
+
 	intel_engine_cleanup_cmd_parser(engine);
 	intel_engine_fini_breadcrumbs(engine);
 	i915_gem_batch_pool_fini(&engine->batch_pool);
