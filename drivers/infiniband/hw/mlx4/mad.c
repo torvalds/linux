@@ -2070,7 +2070,7 @@ static int mlx4_ib_alloc_demux_ctx(struct mlx4_ib_dev *dev,
 	}
 
 	snprintf(name, sizeof name, "mlx4_ibt%d", port);
-	ctx->wq = create_singlethread_workqueue(name);
+	ctx->wq = alloc_ordered_workqueue(name, WQ_MEM_RECLAIM);
 	if (!ctx->wq) {
 		pr_err("Failed to create tunnelling WQ for port %d\n", port);
 		ret = -ENOMEM;
@@ -2078,7 +2078,7 @@ static int mlx4_ib_alloc_demux_ctx(struct mlx4_ib_dev *dev,
 	}
 
 	snprintf(name, sizeof name, "mlx4_ibud%d", port);
-	ctx->ud_wq = create_singlethread_workqueue(name);
+	ctx->ud_wq = alloc_ordered_workqueue(name, WQ_MEM_RECLAIM);
 	if (!ctx->ud_wq) {
 		pr_err("Failed to create up/down WQ for port %d\n", port);
 		ret = -ENOMEM;
