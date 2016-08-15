@@ -70,39 +70,19 @@ static int linux_fdnet_net_rx(struct lkl_netdev *nd,
 	return ret;
 }
 
-static int linux_fdnet_net_poll(struct lkl_netdev *nd, int events)
+static int linux_fdnet_net_poll(struct lkl_netdev *nd)
 {
 	struct lkl_netdev_linux_fdnet *nd_fdnet =
 		container_of(nd, struct lkl_netdev_linux_fdnet, dev);
-	int epoll_fd = -1;
 	struct epoll_event ev[2];
 	int ret;
-	const int is_rx = events & LKL_DEV_NET_POLL_RX;
-	const int is_tx = events & LKL_DEV_NET_POLL_TX;
 	int i;
 	int ret_ev = 0;
 	unsigned int event;
 
-	if (is_rx && is_tx) {
-		fprintf(stderr, "both LKL_DEV_NET_POLL_RX and "
-			"LKL_DEV_NET_POLL_TX are set\n");
-		lkl_host_ops.panic();
-		return -1;
-	}
-	if (!is_rx && !is_tx) {
-		fprintf(stderr, "Neither LKL_DEV_NET_POLL_RX nor"
-			" LKL_DEV_NET_POLL_TX are set.\n");
-		lkl_host_ops.panic();
-		return -1;
-	}
-
-	if (is_rx)
-		epoll_fd = nd_fdnet->epoll_rx_fd;
-	else if (is_tx)
-		epoll_fd = nd_fdnet->epoll_tx_fd;
 
 	do {
-		ret = epoll_wait(epoll_fd, ev, 2, -1);
+		ret = epoll_wait(nd_fdnet->epoll_fd, ev, 2, -1);
 	} while (ret == -1 && errno == EINTR);
 	if (ret < 0) {
 		perror("epoll_wait");
@@ -143,13 +123,12 @@ static int linux_fdnet_net_close(struct lkl_netdev *nd)
 	}
 
 	/* The order that we join in doesn't matter. */
-	if (lkl_host_ops.thread_join(nd->rx_tid) ||
-		lkl_host_ops.thread_join(nd->tx_tid))
+	if (lkl_host_ops.thread_join(nd->poll_tid))
 		return -1;
 
 	/* nor does the order that we close */
 	if (close(nd_fdnet->fd) || close(nd_fdnet->eventfd) ||
-		close(nd_fdnet->epoll_rx_fd) || close(nd_fdnet->epoll_tx_fd)) {
+		close(nd_fdnet->epoll_fd)) {
 		perror("linux-fdnet net_close fd");
 		return -1;
 	}
@@ -195,7 +174,6 @@ static int create_epoll_fd(int fd, unsigned int events)
 	return ret;
 }
 
-
 struct lkl_netdev_linux_fdnet *lkl_register_netdev_linux_fdnet(int fd)
 {
 	struct lkl_netdev_linux_fdnet *nd;
@@ -212,13 +190,9 @@ struct lkl_netdev_linux_fdnet *lkl_register_netdev_linux_fdnet(int fd)
 
 	nd->fd = fd;
 	/* Making them edge-triggered to save CPU. */
-	nd->epoll_rx_fd = create_epoll_fd(nd->fd, EPOLLIN | EPOLLPRI | EPOLLET);
-	nd->epoll_tx_fd = create_epoll_fd(nd->fd, EPOLLOUT | EPOLLET);
-	if (nd->epoll_rx_fd < 0 || nd->epoll_tx_fd < 0) {
-		if (nd->epoll_rx_fd >= 0)
-			close(nd->epoll_rx_fd);
-		if (nd->epoll_tx_fd >= 0)
-			close(nd->epoll_tx_fd);
+	nd->epoll_fd = create_epoll_fd(nd->fd, EPOLLIN | EPOLLPRI | EPOLLOUT |
+				       EPOLLET);
+	if (nd->epoll_fd < 0) {
 		lkl_unregister_netdev_linux_fdnet(nd);
 		return NULL;
 	}
@@ -233,8 +207,7 @@ struct lkl_netdev_linux_fdnet *lkl_register_netdev_linux_fdnet(int fd)
 			lkl_unregister_netdev_linux_fdnet(nd);
 			return NULL;
 		}
-		if (add_to_epoll(nd->epoll_rx_fd, nd->eventfd, EPOLLIN) ||
-			add_to_epoll(nd->epoll_tx_fd, nd->eventfd, EPOLLIN)) {
+		if (add_to_epoll(nd->epoll_fd, nd->eventfd, EPOLLIN)) {
 			lkl_unregister_netdev_linux_fdnet(nd);
 			return NULL;
 		}
@@ -250,7 +223,6 @@ struct lkl_netdev_linux_fdnet *lkl_register_netdev_linux_fdnet(int fd)
 void lkl_unregister_netdev_linux_fdnet(struct lkl_netdev_linux_fdnet *nd)
 {
 	close(nd->eventfd);
-	close(nd->epoll_rx_fd);
-	close(nd->epoll_tx_fd);
+	close(nd->epoll_fd);
 	free(nd);
 }

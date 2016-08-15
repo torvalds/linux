@@ -154,11 +154,10 @@ end:
 	return read;
 }
 
-static int net_poll(struct lkl_netdev *nd, int events)
+static int net_poll(struct lkl_netdev *nd)
 {
 	struct lkl_netdev_dpdk *nd_dpdk =
 		container_of(nd, struct lkl_netdev_dpdk, dev);
-	int ret = 0;
 
 	if (nd_dpdk->close)
 		return -1;
@@ -168,12 +167,7 @@ static int net_poll(struct lkl_netdev *nd, int events)
 	 * on limited NIC drivers like ixgbe/igb/e1000 (with dpdk v2.2.0),
 	 * while vmxnet3 is not supported e.g..
 	 */
-	if (events & LKL_DEV_NET_POLL_RX)
-		ret |= LKL_DEV_NET_POLL_RX;
-	if (events & LKL_DEV_NET_POLL_TX)
-		ret |= LKL_DEV_NET_POLL_TX;
-
-	return ret;
+	return LKL_DEV_NET_POLL_RX | LKL_DEV_NET_POLL_TX;
 }
 
 static int net_close(struct lkl_netdev *nd)

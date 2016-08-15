@@ -49,12 +49,13 @@ struct lkl_dev_blk_ops {
 
 struct lkl_netdev {
 	struct lkl_dev_net_ops *ops;
-	lkl_thread_t rx_tid, tx_tid;
+	lkl_thread_t poll_tid;
 	uint8_t has_vnet_hdr: 1;
 };
 
 struct lkl_dev_net_ops {
-	/* Writes a L2 packet into the net device.
+	/*
+	 * Writes a L2 packet into the net device.
 	 *
 	 * The data buffer can only hold 0 or 1 complete packets.
 	 *
@@ -62,9 +63,11 @@ struct lkl_dev_net_ops {
 	 * @iov - pointer to the buffer vector
 	 * @cnt - # of vectors in iov.
 	 * @returns number of bytes transmitted
-	 */ 
+	 */
 	int (*tx)(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt);
-	/* Reads a packet from the net device.
+
+	/*
+	 * Reads a packet from the net device.
 	 *
 	 * It must only read one complete packet if present.
 	 *
@@ -75,31 +78,24 @@ struct lkl_dev_net_ops {
 	 * @iov - pointer to the buffer vector to store the packet
 	 * @cnt - # of vectors in iov.
 	 * @returns number of bytes read for success or < 0 if error
-	 */ 
+	 */
 	int (*rx)(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt);
+
 #define LKL_DEV_NET_POLL_RX		1
 #define LKL_DEV_NET_POLL_TX		2
-	/* Polls a net device.
+
+	/*
+	 * Polls a net device.
 	 *
-	 * Supports only one of two events: LKL_DEV_NET_POLL_RX (readable) and
+	 * Supports two events: LKL_DEV_NET_POLL_RX (readable) and
 	 * LKL_DEV_NET_POLL_TX (writable). Blocks until one event is available.
 	 *
-	 * Implementation can assume only one of LKL_DEV_NET_POLL_RX or
-	 * LKL_DEV_NET_POLL_TX is set in @events.
-	 *
-	 * Both LKL_DEV_NET_POLL_RX and LKL_DEV_NET_POLL_TX can be
-	 * level-triggered or edge-triggered. When it's level-triggered,
-	 * rx/tx thread can become a busy waiting loop which burns out CPU.
-	 * This is more of a problem for tx, because LKL_DEV_NET_POLL_TX event
-	 * is present most of the time.
-	 *
 	 * @nd - pointer to the network device
-	 * @events - a bit mask specifying the events to poll on. Only one of
-	 * LKL_DEV_NET_POLL_RX or LKL_DEV_NET_POLL_TX is set.
-	 * @returns the events triggered for success. -1 for failure.
 	 */
-	int (*poll)(struct lkl_netdev *nd, int events);
-	/* Closes a net device.
+	int (*poll)(struct lkl_netdev *nd);
+
+	/*
+	 * Closes a net device.
 	 *
 	 * Implementation can choose to release any resources releated to it. In
 	 * particular, the polling threads are to be killed in this function.

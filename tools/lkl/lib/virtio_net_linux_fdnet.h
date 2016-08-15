@@ -10,8 +10,7 @@ struct lkl_netdev_linux_fdnet {
 	/* Needed to initiate shutdown */
 	int eventfd;
 	/* epoll fds for rx and tx */
-	int epoll_rx_fd;
-	int epoll_tx_fd;
+	int epoll_fd;
 };
 
 extern struct lkl_netdev_linux_fdnet_ops {

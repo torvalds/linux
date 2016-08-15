@@ -20,9 +20,8 @@ struct lkl_netdev_vde {
 struct lkl_netdev *nuse_vif_vde_create(char *switch_path);
 static int net_vde_tx(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt);
 static int net_vde_rx(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt);
-static int net_vde_poll_with_timeout(struct lkl_netdev *nd, int events,
-				     int timeout);
-static int net_vde_poll(struct lkl_netdev *nd, int events);
+static int net_vde_poll_with_timeout(struct lkl_netdev *nd, int timeout);
+static int net_vde_poll(struct lkl_netdev *nd);
 static int net_vde_close(struct lkl_netdev *nd);
 
 struct lkl_dev_net_ops vde_net_ops = {
@@ -62,15 +61,14 @@ int net_vde_rx(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt)
 	 * This should be changed once libvdeplug is fixed.
 	 */
 	ret = 0;
-	if (net_vde_poll_with_timeout(nd, LKL_DEV_NET_POLL_RX, 0) &
-							    LKL_DEV_NET_POLL_RX)
+	if (net_vde_poll_with_timeout(nd, 0) & LKL_DEV_NET_POLL_RX)
 		ret = vde_recv(nd_vde->conn, data, len, 0);
 	if (ret <= 0)
 		return -1;
 	return ret;
 }
 
-int net_vde_poll_with_timeout(struct lkl_netdev *nd, int events, int timeout)
+int net_vde_poll_with_timeout(struct lkl_netdev *nd, int timeout)
 {
 	int ret;
 	struct lkl_netdev_vde *nd_vde =
@@ -78,17 +76,13 @@ int net_vde_poll_with_timeout(struct lkl_netdev *nd, int events, int timeout)
 	struct pollfd pollfds[] = {
 			{
 					.fd = vde_datafd(nd_vde->conn),
+					.events = POLLIN | POLLOUT,
 			},
 			{
 					.fd = vde_ctlfd(nd_vde->conn),
 					.events = POLLHUP | POLLIN
 			}
 	};
-
-	if (events & LKL_DEV_NET_POLL_RX)
-		pollfds[0].events |= POLLIN;
-	if (events & LKL_DEV_NET_POLL_TX)
-		pollfds[0].events |= POLLOUT;
 
 	while (poll(pollfds, 2, timeout) < 0 && errno == EINTR)
 		;
@@ -108,9 +102,9 @@ int net_vde_poll_with_timeout(struct lkl_netdev *nd, int events, int timeout)
 	return ret;
 }
 
-int net_vde_poll(struct lkl_netdev *nd, int events)
+int net_vde_poll(struct lkl_netdev *nd)
 {
-	return net_vde_poll_with_timeout(nd, events, -1);
+	return net_vde_poll_with_timeout(nd, -1);
 }
 
 int net_vde_close(struct lkl_netdev *nd)

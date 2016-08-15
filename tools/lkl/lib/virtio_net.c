@@ -24,17 +24,11 @@
 #define bad_request(s) lkl_printf("virtio_net: %s\n", s);
 #endif /* DEBUG */
 
-struct virtio_net_poll {
-	struct virtio_net_dev *dev;
-	int event;
-};
-
 struct virtio_net_dev {
 	struct virtio_dev dev;
 	struct lkl_virtio_net_config config;
 	struct lkl_dev_net_ops *ops;
 	struct lkl_netdev *nd;
-	struct virtio_net_poll rx_poll, tx_poll;
 	struct lkl_mutex **queue_locks;
 };
 
@@ -143,15 +137,15 @@ static struct virtio_dev_ops net_ops = {
 
 void poll_thread(void *arg)
 {
-	struct virtio_net_poll *np = (struct virtio_net_poll *)arg;
+	struct virtio_net_dev *dev = arg;
 	int ret;
 
 	/* Synchronization is handled in virtio_process_queue */
-	while ((ret = np->dev->ops->poll(np->dev->nd, np->event)) >= 0) {
+	while ((ret = dev->nd->ops->poll(dev->nd)) >= 0) {
 		if (ret & LKL_DEV_NET_POLL_RX)
-			virtio_process_queue(&np->dev->dev, 0);
+			virtio_process_queue(&dev->dev, 0);
 		if (ret & LKL_DEV_NET_POLL_TX)
-			virtio_process_queue(&np->dev->dev, 1);
+			virtio_process_queue(&dev->dev, 1);
 	}
 }
 
@@ -232,12 +226,6 @@ int lkl_netdev_add(struct lkl_netdev *nd, struct lkl_netdev_args* args)
 	if (!dev->queue_locks)
 		goto out_free;
 
-	dev->rx_poll.event = LKL_DEV_NET_POLL_RX;
-	dev->rx_poll.dev = dev;
-
-	dev->tx_poll.event = LKL_DEV_NET_POLL_TX;
-	dev->tx_poll.dev = dev;
-
 	/* MUST match the number of queue locks we initialized. We
 	 * could init the queues in virtio_dev_setup to help enforce
 	 * this, but netdevs are the only flavor that need these
@@ -247,12 +235,8 @@ int lkl_netdev_add(struct lkl_netdev *nd, struct lkl_netdev_args* args)
 	if (ret)
 		goto out_free;
 
-	nd->rx_tid = lkl_host_ops.thread_create(poll_thread, &dev->rx_poll);
-	if (nd->rx_tid == 0)
-		goto out_cleanup_dev;
-
-	nd->tx_tid = lkl_host_ops.thread_create(poll_thread, &dev->tx_poll);
-	if (nd->tx_tid == 0)
+	nd->poll_tid = lkl_host_ops.thread_create(poll_thread, dev);
+	if (nd->poll_tid == 0)
 		goto out_cleanup_dev;
 
 	ret = dev_register(dev);
