@@ -183,7 +183,7 @@ static int guc_update_doorbell_id(struct intel_guc *guc,
 				  struct i915_guc_client *client,
 				  u16 new_id)
 {
-	struct sg_table *sg = guc->ctx_pool_obj->pages;
+	struct sg_table *sg = guc->ctx_pool_vma->pages;
 	void *doorbell_bitmap = guc->doorbell_bitmap;
 	struct guc_doorbell_info *doorbell;
 	struct guc_context_desc desc;
@@ -325,7 +325,6 @@ static void guc_init_proc_desc(struct intel_guc *guc,
 static void guc_init_ctx_desc(struct intel_guc *guc,
 			      struct i915_guc_client *client)
 {
-	struct drm_i915_gem_object *client_obj = client->client_obj;
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	struct intel_engine_cs *engine;
 	struct i915_gem_context *ctx = client->owner;
@@ -383,8 +382,8 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 	 * The doorbell, process descriptor, and workqueue are all parts
 	 * of the client object, which the GuC will reference via the GGTT
 	 */
-	gfx_addr = i915_gem_obj_ggtt_offset(client_obj);
-	desc.db_trigger_phy = sg_dma_address(client_obj->pages->sgl) +
+	gfx_addr = client->vma->node.start;
+	desc.db_trigger_phy = sg_dma_address(client->vma->pages->sgl) +
 				client->doorbell_offset;
 	desc.db_trigger_cpu = (uintptr_t)client->client_base +
 				client->doorbell_offset;
@@ -400,7 +399,7 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 	desc.desc_private = (uintptr_t)client;
 
 	/* Pool context is pinned already */
-	sg = guc->ctx_pool_obj->pages;
+	sg = guc->ctx_pool_vma->pages;
 	sg_pcopy_from_buffer(sg->sgl, sg->nents, &desc, sizeof(desc),
 			     sizeof(desc) * client->ctx_index);
 }
@@ -413,7 +412,7 @@ static void guc_fini_ctx_desc(struct intel_guc *guc,
 
 	memset(&desc, 0, sizeof(desc));
 
-	sg = guc->ctx_pool_obj->pages;
+	sg = guc->ctx_pool_vma->pages;
 	sg_pcopy_from_buffer(sg->sgl, sg->nents, &desc, sizeof(desc),
 			     sizeof(desc) * client->ctx_index);
 }
@@ -496,7 +495,7 @@ static void guc_add_workqueue_item(struct i915_guc_client *gc,
 	/* WQ starts from the page after doorbell / process_desc */
 	wq_page = (wq_off + GUC_DB_SIZE) >> PAGE_SHIFT;
 	wq_off &= PAGE_SIZE - 1;
-	base = kmap_atomic(i915_gem_object_get_page(gc->client_obj, wq_page));
+	base = kmap_atomic(i915_gem_object_get_page(gc->vma->obj, wq_page));
 	wqi = (struct guc_wq_item *)((char *)base + wq_off);
 
 	/* Now fill in the 4-word work queue item */
@@ -614,55 +613,61 @@ static void i915_guc_submit(struct drm_i915_gem_request *rq)
  */
 
 /**
- * gem_allocate_guc_obj() - Allocate gem object for GuC usage
- * @dev_priv:	driver private data structure
- * @size:	size of object
+ * guc_allocate_vma() - Allocate a GGTT VMA for GuC usage
+ * @guc:	the guc
+ * @size:	size of area to allocate (both virtual space and memory)
  *
- * This is a wrapper to create a gem obj. In order to use it inside GuC, the
- * object needs to be pinned lifetime. Also we must pin it to gtt space other
- * than [0, GUC_WOPCM_TOP) because this range is reserved inside GuC.
+ * This is a wrapper to create an object for use with the GuC. In order to
+ * use it inside the GuC, an object needs to be pinned lifetime, so we allocate
+ * both some backing storage and a range inside the Global GTT. We must pin
+ * it in the GGTT somewhere other than than [0, GUC_WOPCM_TOP) because that
+ * range is reserved inside GuC.
  *
- * Return:	A drm_i915_gem_object if successful, otherwise NULL.
+ * Return:	A i915_vma if successful, otherwise an ERR_PTR.
  */
-static struct drm_i915_gem_object *
-gem_allocate_guc_obj(struct drm_i915_private *dev_priv, u32 size)
+static struct i915_vma *guc_allocate_vma(struct intel_guc *guc, u32 size)
 {
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
+	int ret;
 
 	obj = i915_gem_object_create(&dev_priv->drm, size);
 	if (IS_ERR(obj))
-		return NULL;
+		return ERR_CAST(obj);
 
-	if (i915_gem_object_get_pages(obj)) {
-		i915_gem_object_put(obj);
-		return NULL;
-	}
+	vma = i915_vma_create(obj, &dev_priv->ggtt.base, NULL);
+	if (IS_ERR(vma))
+		goto err;
 
-	if (i915_gem_object_ggtt_pin(obj, NULL, 0, PAGE_SIZE,
-				     PIN_OFFSET_BIAS | GUC_WOPCM_TOP)) {
-		i915_gem_object_put(obj);
-		return NULL;
+	ret = i915_vma_pin(vma, 0, PAGE_SIZE,
+			   PIN_GLOBAL | PIN_OFFSET_BIAS | GUC_WOPCM_TOP);
+	if (ret) {
+		vma = ERR_PTR(ret);
+		goto err;
 	}
 
 	/* Invalidate GuC TLB to let GuC take the latest updates to GTT. */
 	I915_WRITE(GEN8_GTCR, GEN8_GTCR_INVALIDATE);
 
-	return obj;
+	return vma;
+
+err:
+	i915_gem_object_put(obj);
+	return vma;
 }
 
 /**
- * gem_release_guc_obj() - Release gem object allocated for GuC usage
- * @obj:	gem obj to be released
+ * guc_release_vma() - Release gem object allocated for GuC usage
+ * @vma:	gem obj to be released
  */
-static void gem_release_guc_obj(struct drm_i915_gem_object *obj)
+static void guc_release_vma(struct i915_vma *vma)
 {
-	if (!obj)
+	if (!vma)
 		return;
 
-	if (i915_gem_obj_is_pinned(obj))
-		i915_gem_object_ggtt_unpin(obj);
-
-	i915_gem_object_put(obj);
+	i915_vma_unpin(vma);
+	i915_vma_put(vma);
 }
 
 static void
@@ -689,7 +694,7 @@ guc_client_free(struct drm_i915_private *dev_priv,
 		kunmap(kmap_to_page(client->client_base));
 	}
 
-	gem_release_guc_obj(client->client_obj);
+	guc_release_vma(client->vma);
 
 	if (client->ctx_index != GUC_INVALID_CTX_ID) {
 		guc_fini_ctx_desc(guc, client);
@@ -773,7 +778,7 @@ guc_client_alloc(struct drm_i915_private *dev_priv,
 {
 	struct i915_guc_client *client;
 	struct intel_guc *guc = &dev_priv->guc;
-	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
 	uint16_t db_id;
 
 	client = kzalloc(sizeof(*client), GFP_KERNEL);
@@ -794,13 +799,13 @@ guc_client_alloc(struct drm_i915_private *dev_priv,
 	}
 
 	/* The first page is doorbell/proc_desc. Two followed pages are wq. */
-	obj = gem_allocate_guc_obj(dev_priv, GUC_DB_SIZE + GUC_WQ_SIZE);
-	if (!obj)
+	vma = guc_allocate_vma(guc, GUC_DB_SIZE + GUC_WQ_SIZE);
+	if (IS_ERR(vma))
 		goto err;
 
 	/* We'll keep just the first (doorbell/proc) page permanently kmap'd. */
-	client->client_obj = obj;
-	client->client_base = kmap(i915_gem_object_get_page(obj, 0));
+	client->vma = vma;
+	client->client_base = kmap(i915_vma_first_page(vma));
 	client->wq_offset = GUC_DB_SIZE;
 	client->wq_size = GUC_WQ_SIZE;
 
@@ -842,8 +847,7 @@ err:
 
 static void guc_create_log(struct intel_guc *guc)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
 	unsigned long offset;
 	uint32_t size, flags;
 
@@ -859,16 +863,16 @@ static void guc_create_log(struct intel_guc *guc)
 		GUC_LOG_ISR_PAGES + 1 +
 		GUC_LOG_CRASH_PAGES + 1) << PAGE_SHIFT;
 
-	obj = guc->log_obj;
-	if (!obj) {
-		obj = gem_allocate_guc_obj(dev_priv, size);
-		if (!obj) {
+	vma = guc->log_vma;
+	if (!vma) {
+		vma = guc_allocate_vma(guc, size);
+		if (IS_ERR(vma)) {
 			/* logging will be off */
 			i915.guc_log_level = -1;
 			return;
 		}
 
-		guc->log_obj = obj;
+		guc->log_vma = vma;
 	}
 
 	/* each allocated unit is a page */
@@ -877,7 +881,7 @@ static void guc_create_log(struct intel_guc *guc)
 		(GUC_LOG_ISR_PAGES << GUC_LOG_ISR_SHIFT) |
 		(GUC_LOG_CRASH_PAGES << GUC_LOG_CRASH_SHIFT);
 
-	offset = i915_gem_obj_ggtt_offset(obj) >> PAGE_SHIFT; /* in pages */
+	offset = vma->node.start >> PAGE_SHIFT; /* in pages */
 	guc->log_flags = (offset << GUC_LOG_BUF_ADDR_SHIFT) | flags;
 }
 
@@ -906,7 +910,7 @@ static void init_guc_policies(struct guc_policies *policies)
 static void guc_create_ads(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
 	struct guc_ads *ads;
 	struct guc_policies *policies;
 	struct guc_mmio_reg_state *reg_state;
@@ -919,16 +923,16 @@ static void guc_create_ads(struct intel_guc *guc)
 			sizeof(struct guc_mmio_reg_state) +
 			GUC_S3_SAVE_SPACE_PAGES * PAGE_SIZE;
 
-	obj = guc->ads_obj;
-	if (!obj) {
-		obj = gem_allocate_guc_obj(dev_priv, PAGE_ALIGN(size));
-		if (!obj)
+	vma = guc->ads_vma;
+	if (!vma) {
+		vma = guc_allocate_vma(guc, PAGE_ALIGN(size));
+		if (IS_ERR(vma))
 			return;
 
-		guc->ads_obj = obj;
+		guc->ads_vma = vma;
 	}
 
-	page = i915_gem_object_get_page(obj, 0);
+	page = i915_vma_first_page(vma);
 	ads = kmap(page);
 
 	/*
@@ -948,8 +952,7 @@ static void guc_create_ads(struct intel_guc *guc)
 	policies = (void *)ads + sizeof(struct guc_ads);
 	init_guc_policies(policies);
 
-	ads->scheduler_policies = i915_gem_obj_ggtt_offset(obj) +
-			sizeof(struct guc_ads);
+	ads->scheduler_policies = vma->node.start + sizeof(struct guc_ads);
 
 	/* MMIO reg state */
 	reg_state = (void *)policies + sizeof(struct guc_policies);
@@ -977,10 +980,9 @@ static void guc_create_ads(struct intel_guc *guc)
  */
 int i915_guc_submission_init(struct drm_i915_private *dev_priv)
 {
-	const size_t ctxsize = sizeof(struct guc_context_desc);
-	const size_t poolsize = GUC_MAX_GPU_CONTEXTS * ctxsize;
-	const size_t gemsize = round_up(poolsize, PAGE_SIZE);
 	struct intel_guc *guc = &dev_priv->guc;
+	struct i915_vma *vma;
+	u32 size;
 
 	/* Wipe bitmap & delete client in case of reinitialisation */
 	bitmap_clear(guc->doorbell_bitmap, 0, GUC_MAX_DOORBELLS);
@@ -989,13 +991,15 @@ int i915_guc_submission_init(struct drm_i915_private *dev_priv)
 	if (!i915.enable_guc_submission)
 		return 0; /* not enabled  */
 
-	if (guc->ctx_pool_obj)
+	if (guc->ctx_pool_vma)
 		return 0; /* already allocated */
 
-	guc->ctx_pool_obj = gem_allocate_guc_obj(dev_priv, gemsize);
-	if (!guc->ctx_pool_obj)
-		return -ENOMEM;
+	size = PAGE_ALIGN(GUC_MAX_GPU_CONTEXTS*sizeof(struct guc_context_desc));
+	vma = guc_allocate_vma(guc, size);
+	if (IS_ERR(vma))
+		return PTR_ERR(vma);
 
+	guc->ctx_pool_vma = vma;
 	ida_init(&guc->ctx_ids);
 	guc_create_log(guc);
 	guc_create_ads(guc);
@@ -1048,16 +1052,12 @@ void i915_guc_submission_fini(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
 
-	gem_release_guc_obj(dev_priv->guc.ads_obj);
-	guc->ads_obj = NULL;
+	guc_release_vma(fetch_and_zero(&guc->ads_vma));
+	guc_release_vma(fetch_and_zero(&guc->log_vma));
 
-	gem_release_guc_obj(dev_priv->guc.log_obj);
-	guc->log_obj = NULL;
-
-	if (guc->ctx_pool_obj)
+	if (guc->ctx_pool_vma)
 		ida_destroy(&guc->ctx_ids);
-	gem_release_guc_obj(guc->ctx_pool_obj);
-	guc->ctx_pool_obj = NULL;
+	guc_release_vma(fetch_and_zero(&guc->ctx_pool_vma));
 }
 
 /**

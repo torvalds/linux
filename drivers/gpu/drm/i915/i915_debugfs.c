@@ -2570,15 +2570,15 @@ static int i915_guc_log_dump(struct seq_file *m, void *data)
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct drm_i915_gem_object *log_obj = dev_priv->guc.log_obj;
-	u32 *log;
+	struct drm_i915_gem_object *obj;
 	int i = 0, pg;
 
-	if (!log_obj)
+	if (!dev_priv->guc.log_vma)
 		return 0;
 
-	for (pg = 0; pg < log_obj->base.size / PAGE_SIZE; pg++) {
-		log = kmap_atomic(i915_gem_object_get_page(log_obj, pg));
+	obj = dev_priv->guc.log_vma->obj;
+	for (pg = 0; pg < obj->base.size / PAGE_SIZE; pg++) {
+		u32 *log = kmap_atomic(i915_gem_object_get_page(obj, pg));
 
 		for (i = 0; i < PAGE_SIZE / sizeof(u32); i += 4)
 			seq_printf(m, "0x%08x 0x%08x 0x%08x 0x%08x\n",

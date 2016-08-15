@@ -63,7 +63,7 @@ struct drm_i915_gem_request;
  *   retcode: errno from last guc_submit()
  */
 struct i915_guc_client {
-	struct drm_i915_gem_object *client_obj;
+	struct i915_vma *vma;
 	void *client_base;		/* first page (only) of above	*/
 	struct i915_gem_context *owner;
 	struct intel_guc *guc;
@@ -124,11 +124,10 @@ struct intel_guc_fw {
 struct intel_guc {
 	struct intel_guc_fw guc_fw;
 	uint32_t log_flags;
-	struct drm_i915_gem_object *log_obj;
+	struct i915_vma *log_vma;
 
-	struct drm_i915_gem_object *ads_obj;
-
-	struct drm_i915_gem_object *ctx_pool_obj;
+	struct i915_vma *ads_vma;
+	struct i915_vma *ctx_pool_vma;
 	struct ida ctx_ids;
 
 	struct i915_guc_client *execbuf_client;

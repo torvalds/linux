@@ -716,4 +716,10 @@ static inline void i915_vma_unpin_iomap(struct i915_vma *vma)
 	i915_vma_unpin(vma);
 }
 
+static inline struct page *i915_vma_first_page(struct i915_vma *vma)
+{
+	GEM_BUG_ON(!vma->pages);
+	return sg_page(vma->pages->sgl);
+}
+
 #endif
