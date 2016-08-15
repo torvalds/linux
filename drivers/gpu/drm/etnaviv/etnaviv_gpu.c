@@ -327,6 +327,18 @@ static void etnaviv_hw_identify(struct etnaviv_gpu *gpu)
 				gpu->identity.revision = 0x1051;
 			}
 		}
+
+		/*
+		 * NXP likes to call the GPU on the i.MX6QP GC2000+, but in
+		 * reality it's just a re-branded GC3000. We can identify this
+		 * core by the upper half of the revision register being all 1.
+		 * Fix model/rev here, so all other places can refer to this
+		 * core by its real identity.
+		 */
+		if (etnaviv_is_model_rev(gpu, GC2000, 0xffff5450)) {
+			gpu->identity.model = chipModel_GC3000;
+			gpu->identity.revision &= 0xffff;
+		}
 	}
 
 	dev_info(gpu->dev, "model: GC%x, revision: %x\n",
