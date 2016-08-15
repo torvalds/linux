@@ -21,30 +21,13 @@
  * global variables declared here
  */
 
-/* array of client debug keyword/mask values */
-struct client_debug_mask *cdm_array;
-int cdm_element_count;
-
-char kernel_debug_string[ORANGEFS_MAX_DEBUG_STRING_LEN] = "none";
-char client_debug_string[ORANGEFS_MAX_DEBUG_STRING_LEN];
-char client_debug_array_string[ORANGEFS_MAX_DEBUG_STRING_LEN];
-
-char *debug_help_string;
-int help_string_initialized;
-struct dentry *help_file_dentry;
-struct dentry *client_debug_dentry;
-struct dentry *debug_dir;
-int client_verbose_index;
-int client_all_index;
 struct orangefs_stats g_orangefs_stats;
 
 /* the size of the hash tables for ops in progress */
 int hash_table_size = 509;
 
 static ulong module_parm_debug_mask;
-__u64 gossip_debug_mask;
-struct client_debug_mask client_debug_mask = { NULL, 0, 0 };
-unsigned int kernel_mask_set_mod_init; /* implicitly false */
+__u64 orangefs_gossip_debug_mask;
 int op_timeout_secs = ORANGEFS_DEFAULT_OP_TIMEOUT_SECS;
 int slot_timeout_secs = ORANGEFS_DEFAULT_SLOT_TIMEOUT_SECS;
 int dcache_timeout_msecs = 50;
@@ -100,32 +83,6 @@ static int __init orangefs_init(void)
 	int ret = -1;
 	__u32 i = 0;
 
-	/* convert input debug mask to a 64-bit unsigned integer */
-	gossip_debug_mask = (unsigned long long) module_parm_debug_mask;
-
-	/*
-	 * set the kernel's gossip debug string; invalid mask values will
-	 * be ignored.
-	 */
-	debug_mask_to_string(&gossip_debug_mask, 0);
-
-	/* remove any invalid values from the mask */
-	debug_string_to_mask(kernel_debug_string, &gossip_debug_mask, 0);
-
-	/*
-	 * if the mask has a non-zero value, then indicate that the mask
-	 * was set when the kernel module was loaded.  The orangefs dev ioctl
-	 * command will look at this boolean to determine if the kernel's
-	 * debug mask should be overwritten when the client-core is started.
-	 */
-	if (gossip_debug_mask != 0)
-		kernel_mask_set_mod_init = true;
-
-	pr_info("%s: called with debug mask: :%s: :%llx:\n",
-		__func__,
-		kernel_debug_string,
-		(unsigned long long)gossip_debug_mask);
-
 	ret = bdi_init(&orangefs_backing_dev_info);
 
 	if (ret)
@@ -179,13 +136,9 @@ static int __init orangefs_init(void)
 	if (ret)
 		goto cleanup_key_table;
 
-	ret = orangefs_debugfs_init();
+	ret = orangefs_debugfs_init(module_parm_debug_mask);
 	if (ret)
 		goto debugfs_init_failed;
-
-	ret = orangefs_kernel_debug_init();
-	if (ret)
-		goto kernel_debug_init_failed;
 
 	ret = orangefs_sysfs_init();
 	if (ret)
@@ -213,8 +166,6 @@ cleanup_device:
 	orangefs_dev_cleanup();
 
 sysfs_init_failed:
-
-kernel_debug_init_failed:
 
 debugfs_init_failed:
 	orangefs_debugfs_cleanup();

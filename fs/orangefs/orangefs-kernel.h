@@ -100,16 +100,6 @@ enum orangefs_vfs_op_states {
 };
 
 /*
- * An array of client_debug_mask will be built to hold debug keyword/mask
- * values fetched from userspace.
- */
-struct client_debug_mask {
-	char *keyword;
-	__u64 mask1;
-	__u64 mask2;
-};
-
-/*
  * orangefs kernel memory related flags
  */
 
@@ -118,29 +108,6 @@ struct client_debug_mask {
 #else
 #define ORANGEFS_CACHE_CREATE_FLAGS 0
 #endif /* ((defined ORANGEFS_KERNEL_DEBUG) && (defined CONFIG_DEBUG_SLAB)) */
-
-/* these functions are defined in orangefs-utils.c */
-int orangefs_prepare_cdm_array(char *debug_array_string);
-int orangefs_prepare_debugfs_help_string(int);
-
-/* defined in orangefs-debugfs.c */
-int orangefs_client_debug_init(void);
-
-void debug_string_to_mask(char *, void *, int);
-void do_c_mask(int, char *, struct client_debug_mask **);
-void do_k_mask(int, char *, __u64 **);
-
-void debug_mask_to_string(void *, int);
-void do_k_string(void *, int);
-void do_c_string(void *, int);
-int check_amalgam_keyword(void *, int);
-int keyword_is_amalgam(char *);
-
-/*these variables are defined in orangefs-mod.c */
-extern char kernel_debug_string[ORANGEFS_MAX_DEBUG_STRING_LEN];
-extern char client_debug_string[ORANGEFS_MAX_DEBUG_STRING_LEN];
-extern char client_debug_array_string[ORANGEFS_MAX_DEBUG_STRING_LEN];
-extern unsigned int kernel_mask_set_mod_init;
 
 extern int orangefs_init_acl(struct inode *inode, struct inode *dir);
 extern const struct xattr_handler *orangefs_xattr_handlers[];
