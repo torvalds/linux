@@ -1306,6 +1306,7 @@ bool switchdev_port_same_parent_id(struct net_device *a,
 
 	return netdev_phys_item_id_same(&a_attr.u.ppid, &b_attr.u.ppid);
 }
+EXPORT_SYMBOL_GPL(switchdev_port_same_parent_id);
 
 static u32 switchdev_port_fwd_mark_get(struct net_device *dev,
 				       struct net_device *group_dev)
@@ -1323,7 +1324,6 @@ static u32 switchdev_port_fwd_mark_get(struct net_device *dev,
 
 	return dev->ifindex;
 }
-EXPORT_SYMBOL_GPL(switchdev_port_same_parent_id);
 
 static void switchdev_port_fwd_mark_reset(struct net_device *group_dev,
 					  u32 old_mark, u32 *reset_mark)
