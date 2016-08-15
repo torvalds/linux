@@ -65,6 +65,8 @@ struct amdgpu_pte_update_params {
 	void (*func)(struct amdgpu_pte_update_params *params, uint64_t pe,
 		     uint64_t addr, unsigned count, uint32_t incr,
 		     uint32_t flags);
+	/* indicate update pt or its shadow */
+	bool shadow;
 };
 
 /**
@@ -761,7 +763,11 @@ static void amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 	addr = start;
 	pt_idx = addr >> amdgpu_vm_block_size;
 	pt = vm->page_tables[pt_idx].entry.robj;
-
+	if (params->shadow) {
+		if (!pt->shadow)
+			return;
+		pt = vm->page_tables[pt_idx].entry.robj->shadow;
+	}
 	if ((addr & ~mask) == (end & ~mask))
 		nptes = end - addr;
 	else
@@ -780,6 +786,11 @@ static void amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 	while (addr < end) {
 		pt_idx = addr >> amdgpu_vm_block_size;
 		pt = vm->page_tables[pt_idx].entry.robj;
+		if (params->shadow) {
+			if (!pt->shadow)
+				return;
+			pt = vm->page_tables[pt_idx].entry.robj->shadow;
+		}
 
 		if ((addr & ~mask) == (end & ~mask))
 			nptes = end - addr;
@@ -1004,6 +1015,9 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	if (r)
 		goto error_free;
 
+	params.shadow = true;
+	amdgpu_vm_frag_ptes(&params, vm, start, last + 1, addr, flags);
+	params.shadow = false;
 	amdgpu_vm_frag_ptes(&params, vm, start, last + 1, addr, flags);
 
 	amdgpu_ring_pad_ib(ring, params.ib);
