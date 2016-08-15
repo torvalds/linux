@@ -40,7 +40,9 @@ fill the rest of the structure or return an ``EINVAL`` error code. All
 formats are enumerable by beginning at index zero and incrementing by
 one until ``EINVAL`` is returned.
 
-.. note:: After switching input or output the list of enumerated image
+.. note::
+
+   After switching input or output the list of enumerated image
    formats may be different.
 
 
@@ -50,7 +52,6 @@ one until ``EINVAL`` is returned.
     :header-rows:  0
     :stub-columns: 0
     :widths:       1 1 2
-
 
     -  .. row 1
 
@@ -113,7 +114,9 @@ one until ``EINVAL`` is returned.
 	  Several image formats are already defined by this specification in
 	  :ref:`pixfmt`.
 
-	  .. attention:: These codes are not the same as those used
+	  .. attention::
+
+	     These codes are not the same as those used
 	     in the Windows world.
 
     -  .. row 7

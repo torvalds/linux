@@ -538,7 +538,9 @@ projectors that use the DCI-P3 colorspace. The default transfer function
 is ``V4L2_XFER_FUNC_DCI_P3``. The default Y'CbCr encoding is
 ``V4L2_YCBCR_ENC_709``.
 
-.. note:: Note that this colorspace does not specify a
+.. note::
+
+   Note that this colorspace does not specify a
    Y'CbCr encoding since it is not meant to be encoded to Y'CbCr. So this
    default Y'CbCr encoding was picked because it is the HDTV encoding. The
    default Y'CbCr quantization is limited range. The chromaticities of the
@@ -754,7 +756,9 @@ reference are:
        -  0.316
 
 
-.. note:: This colorspace uses Illuminant C instead of D65 as the white
+.. note::
+
+   This colorspace uses Illuminant C instead of D65 as the white
    reference. To correctly convert an image in this colorspace to another
    that uses D65 you need to apply a chromatic adaptation algorithm such as
    the Bradford method.
@@ -888,7 +892,9 @@ reference are identical to sRGB. The transfer function use is
 with full range quantization where Y' is scaled to [0…255] and Cb/Cr are
 scaled to [-128…128] and then clipped to [-128…127].
 
-.. note:: The JPEG standard does not actually store colorspace
+.. note::
+
+   The JPEG standard does not actually store colorspace
    information. So if something other than sRGB is used, then the driver
    will have to set that information explicitly. Effectively
    ``V4L2_COLORSPACE_JPEG`` can be considered to be an abbreviation for

@@ -49,7 +49,9 @@ error code when the index is out of bounds. To enumerate all supported
 DV timings, applications shall begin at index zero, incrementing by one
 until the driver returns ``EINVAL``.
 
-.. note:: Drivers may enumerate a different set of DV timings after
+.. note::
+
+   Drivers may enumerate a different set of DV timings after
    switching the video input or output.
 
 When implemented by the driver DV timings of subdevices can be queried

@@ -15,7 +15,9 @@ offset into a video signal.
 Applications can use the following API to select an area in the video
 signal, query the default area and the hardware limits.
 
-.. note:: Despite their name, the :ref:`VIDIOC_CROPCAP <VIDIOC_CROPCAP>`,
+.. note::
+
+   Despite their name, the :ref:`VIDIOC_CROPCAP <VIDIOC_CROPCAP>`,
    :ref:`VIDIOC_G_CROP <VIDIOC_G_CROP>` and :ref:`VIDIOC_S_CROP
    <VIDIOC_G_CROP>` ioctls apply to input as well as output devices.
 
@@ -38,7 +40,9 @@ support scaling or the :ref:`VIDIOC_G_CROP <VIDIOC_G_CROP>` and
 :ref:`VIDIOC_S_CROP <VIDIOC_G_CROP>` ioctls. Their size (and position
 where applicable) will be fixed in this case.
 
-.. note:: All capture and output devices must support the
+.. note::
+
+   All capture and output devices must support the
    :ref:`VIDIOC_CROPCAP <VIDIOC_CROPCAP>` ioctl such that applications
    can determine if scaling takes place.
 
@@ -144,7 +148,9 @@ reopening a device, such that piping data into or out of a device will
 work without special preparations. More advanced applications should
 ensure the parameters are suitable before starting I/O.
 
-.. note:: On the next two examples, a video capture device is assumed;
+.. note::
+
+   On the next two examples, a video capture device is assumed;
    change ``V4L2_BUF_TYPE_VIDEO_CAPTURE`` for other types of device.
 
 Example: Resetting the cropping parameters

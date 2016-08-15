@@ -129,7 +129,9 @@ of the corresponding tuner/modulator is set.
        -  :cspan:`2` The supported modulation systems of this frequency
 	  band. See :ref:`band-modulation`.
 
-	  .. note:: Currently only one modulation system per frequency band
+	  .. note::
+
+	     Currently only one modulation system per frequency band
 	     is supported. More work will need to be done if multiple
 	     modulation systems are possible. Contact the linux-media
 	     mailing list

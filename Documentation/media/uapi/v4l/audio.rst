@@ -37,7 +37,9 @@ The :ref:`VIDIOC_G_AUDIO <VIDIOC_G_AUDIO>` and
 :ref:`VIDIOC_G_AUDOUT <VIDIOC_G_AUDOUT>` ioctls report the current
 audio input and output, respectively.
 
-.. note:: Note that, unlike :ref:`VIDIOC_G_INPUT <VIDIOC_G_INPUT>` and
+.. note::
+
+   Note that, unlike :ref:`VIDIOC_G_INPUT <VIDIOC_G_INPUT>` and
    :ref:`VIDIOC_G_OUTPUT <VIDIOC_G_OUTPUT>` these ioctls return a
    structure as :ref:`VIDIOC_ENUMAUDIO` and
    :ref:`VIDIOC_ENUMAUDOUT <VIDIOC_ENUMAUDOUT>` do, not just an index.

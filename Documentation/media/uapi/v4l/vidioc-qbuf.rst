@@ -137,7 +137,9 @@ EIO
     ``VIDIOC_DQBUF`` failed due to an internal error. Can also indicate
     temporary problems like signal loss.
 
-    .. note:: The driver might dequeue an (empty) buffer despite returning
+    .. note::
+
+       The driver might dequeue an (empty) buffer despite returning
        an error, or even stop capturing. Reusing such buffer may be unsafe
        though and its details (e.g. ``index``) may not be returned either.
        It is recommended that drivers indicate recoverable errors by setting

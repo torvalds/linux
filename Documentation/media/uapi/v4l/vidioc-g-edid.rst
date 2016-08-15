@@ -67,7 +67,9 @@ total number of available EDID blocks and it will return 0 without
 copying any data. This is an easy way to discover how many EDID blocks
 there are.
 
-.. note:: If there are no EDID blocks available at all, then
+.. note::
+
+   If there are no EDID blocks available at all, then
    the driver will set ``blocks`` to 0 and it returns 0.
 
 To set the EDID blocks of a receiver the application has to fill in the

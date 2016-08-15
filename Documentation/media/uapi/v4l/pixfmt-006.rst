@@ -19,7 +19,9 @@ colorspace field of struct :ref:`v4l2_pix_format <v4l2-pix-format>`
 or struct :ref:`v4l2_pix_format_mplane <v4l2-pix-format-mplane>`
 needs to be filled in.
 
-.. note:: The default R'G'B' quantization is full range for all
+.. note::
+
+   The default R'G'B' quantization is full range for all
    colorspaces except for BT.2020 which uses limited range R'G'B'
    quantization.
 

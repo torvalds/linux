@@ -39,7 +39,9 @@ similar to sensing the video standard. To do so, applications call
 :ref:`v4l2_dv_timings <v4l2-dv-timings>`. Once the hardware detects
 the timings, it will fill in the timings structure.
 
-.. note:: Drivers shall *not* switch timings automatically if new
+.. note::
+
+   Drivers shall *not* switch timings automatically if new
    timings are detected. Instead, drivers should send the
    ``V4L2_EVENT_SOURCE_CHANGE`` event (if they support this) and expect
    that userspace will take action by calling :ref:`VIDIOC_QUERY_DV_TIMINGS`.

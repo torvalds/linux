@@ -19,7 +19,9 @@ This format is similar to
 has a depth of 16 bits. The least significant byte is stored at lower
 memory addresses (little-endian).
 
-..note:: The actual sampling precision may be lower than 16 bits,
+..note::
+
+    The actual sampling precision may be lower than 16 bits,
     for example 10 bits per pixel with values in tange 0 to 1023.
 
 **Byte Order.**

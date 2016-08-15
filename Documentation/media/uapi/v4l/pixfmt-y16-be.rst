@@ -17,7 +17,9 @@ Description
 This is a grey-scale image with a depth of 16 bits per pixel. The most
 significant byte is stored at lower memory addresses (big-endian).
 
-.. note:: Tthe actual sampling precision may be lower than 16 bits, for
+.. note::
+
+   The actual sampling precision may be lower than 16 bits, for
    example 10 bits per pixel with values in range 0 to 1023.
 
 **Byte Order.**

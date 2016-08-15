@@ -28,7 +28,9 @@ struct :ref:`v4l2_tuner <v4l2-tuner>` returned by :ref:`VIDIOC_G_TUNER <VIDIOC_G
 also contains signal status information applicable when the tuner of the
 current video or radio input is queried.
 
-.. note:: :ref:`VIDIOC_S_TUNER <VIDIOC_G_TUNER>` does not switch the
+.. note::
+
+   :ref:`VIDIOC_S_TUNER <VIDIOC_G_TUNER>` does not switch the
    current tuner, when there is more than one at all. The tuner is solely
    determined by the current video input. Drivers must support both ioctls
    and set the ``V4L2_CAP_TUNER`` flag in the struct :ref:`v4l2_capability

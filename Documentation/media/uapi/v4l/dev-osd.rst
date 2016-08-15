@@ -16,7 +16,9 @@ this interface, which borrows structures and ioctls of the
 The OSD function is accessible through the same character special file
 as the :ref:`Video Output <capture>` function.
 
-.. note:: The default function of such a ``/dev/video`` device is video
+.. note::
+
+   The default function of such a ``/dev/video`` device is video
    capturing or output. The OSD function is only available after calling
    the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl.
 

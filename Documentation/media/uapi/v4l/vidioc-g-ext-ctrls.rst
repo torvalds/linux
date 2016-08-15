@@ -127,7 +127,9 @@ still cause this situation.
 	  to a value large enough to store the payload result and ``ENOSPC`` is
 	  returned.
 
-	  .. note:: For string controls, this ``size`` field should
+	  .. note::
+
+	     For string controls, this ``size`` field should
 	     not be confused with the length of the string. This field refers
 	     to the size of the memory that contains the string. The actual
 	     *length* of the string may well be much smaller.
@@ -265,7 +267,9 @@ still cause this situation.
 	  control and ``V4L2_CTRL_WHICH_DEF_VAL`` will return the default
 	  value of the control.
 
-	  .. note:: You can only get the default value of the control,
+	  .. note::
+
+	     You can only get the default value of the control,
 	     you cannot set or try it.
 
 	  For backwards compatibility you can also use a control class here

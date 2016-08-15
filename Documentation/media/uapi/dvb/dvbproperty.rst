@@ -20,7 +20,9 @@ Also, the union didn't have any space left to be expanded without
 breaking userspace. So, the decision was to deprecate the legacy
 union/struct based approach, in favor of a properties set approach.
 
-.. note:: On Linux DVB API version 3, setting a frontend were done via
+.. note::
+
+   On Linux DVB API version 3, setting a frontend were done via
    :ref:`struct dvb_frontend_parameters <dvb-frontend-parameters>`.
    This got replaced on version 5 (also called "S2API", as this API were
    added originally_enabled to provide support for DVB-S2), because the

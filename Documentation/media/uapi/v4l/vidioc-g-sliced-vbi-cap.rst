@@ -40,7 +40,9 @@ output device, applications initialize the ``type`` field of a struct
 driver fills in the remaining fields or returns an ``EINVAL`` error code if
 the sliced VBI API is unsupported or ``type`` is invalid.
 
-.. note:: The ``type`` field was added, and the ioctl changed from read-only
+.. note::
+
+   The ``type`` field was added, and the ioctl changed from read-only
    to write-read, in Linux 2.6.19.
 
 

@@ -30,7 +30,9 @@ Arguments
 Description
 ===========
 
-.. note:: This documents the proposed CEC API. This API is not yet finalized
+.. note::
+
+   This documents the proposed CEC API. This API is not yet finalized
    and is currently only available as a staging kernel module.
 
 By default any filehandle can use :ref:`CEC_TRANSMIT`, but in order to prevent

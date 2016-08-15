@@ -40,7 +40,9 @@ used to check about the locking status of the frontend after being
 tuned. The ioctl takes a pointer to an integer where the status will be
 written.
 
-.. note:: The size of status is actually sizeof(enum fe_status), with
+.. note::
+
+   The size of status is actually sizeof(enum fe_status), with
    varies according with the architecture. This needs to be fixed in the
    future.
 

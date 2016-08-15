@@ -73,7 +73,9 @@ the device supports. Only for the ``V4L2_FRMIVAL_TYPE_DISCRETE`` type
 does it make sense to increase the index value to receive more frame
 intervals.
 
-.. note:: The order in which the frame intervals are returned has no
+.. note::
+
+   The order in which the frame intervals are returned has no
    special meaning. In particular does it not say anything about potential
    default frame intervals.
 

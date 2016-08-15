@@ -130,7 +130,9 @@ To change the radio frequency the
 	  shall be modulated. It contains a set of flags as defined in
 	  :ref:`modulator-txsubchans`.
 
-	  .. note:: The tuner ``rxsubchans`` flags  are reused, but the
+	  .. note::
+
+	     The tuner ``rxsubchans`` flags  are reused, but the
 	     semantics are different. Video output devices
 	     are assumed to have an analog or PCM audio input with 1-3
 	     channels. The ``txsubchans`` flags select one or more channels

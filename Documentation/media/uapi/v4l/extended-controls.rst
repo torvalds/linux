@@ -184,7 +184,9 @@ Codec Control Reference
 Below all controls within the Codec control class are described. First
 the generic controls, then controls specific for certain hardware.
 
-.. note:: These controls are applicable to all codecs and not just MPEG. The
+.. note::
+
+   These controls are applicable to all codecs and not just MPEG. The
    defines are prefixed with V4L2_CID_MPEG/V4L2_MPEG as the controls
    were originally made for MPEG codecs and later extended to cover all
    encoding formats.

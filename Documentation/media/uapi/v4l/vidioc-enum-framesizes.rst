@@ -72,7 +72,9 @@ the ``type`` field to determine the type of frame size enumeration the
 device supports. Only for the ``V4L2_FRMSIZE_TYPE_DISCRETE`` type does
 it make sense to increase the index value to receive more frame sizes.
 
-.. note:: The order in which the frame sizes are returned has no special
+.. note::
+
+   The order in which the frame sizes are returned has no special
    meaning. In particular does it not say anything about potential default
    format sizes.
 

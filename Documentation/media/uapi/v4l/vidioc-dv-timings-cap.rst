@@ -39,7 +39,9 @@ initialize the ``pad`` field to 0, zero the reserved array of struct
 ``VIDIOC_DV_TIMINGS_CAP`` ioctl on a video node and the driver will fill
 in the structure.
 
-.. note:: Drivers may return different values after
+.. note::
+
+   Drivers may return different values after
    switching the video input or output.
 
 When implemented by the driver DV capabilities of subdevices can be

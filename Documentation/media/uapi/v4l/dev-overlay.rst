@@ -19,7 +19,9 @@ video into a window.
 Video overlay devices are accessed through the same character special
 files as :ref:`video capture <capture>` devices.
 
-.. note:: The default function of a ``/dev/video`` device is video
+.. note::
+
+   The default function of a ``/dev/video`` device is video
    capturing. The overlay function is only available after calling
    the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl.
 
@@ -236,7 +238,9 @@ exceeded are undefined. [#f3]_
     :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>`,
     :ref:`framebuffer-flags`).
 
-    .. note:: This field was added in Linux 2.6.23, extending the
+    .. note::
+
+       This field was added in Linux 2.6.23, extending the
        structure. However the :ref:`VIDIOC_[G|S|TRY]_FMT <VIDIOC_G_FMT>`
        ioctls, which take a pointer to a :ref:`v4l2_format <v4l2-format>`
        parent structure with padding bytes at the end, are not affected.

@@ -391,7 +391,9 @@ To change the radio frequency the
 	  carrier for a monaural secondary language. Only
 	  ``V4L2_TUNER_ANALOG_TV`` tuners can have this capability.
 
-	  .. note:: The ``V4L2_TUNER_CAP_LANG2`` and ``V4L2_TUNER_CAP_SAP``
+	  .. note::
+
+	     The ``V4L2_TUNER_CAP_LANG2`` and ``V4L2_TUNER_CAP_SAP``
 	     flags are synonyms. ``V4L2_TUNER_CAP_SAP`` applies when the tuner
 	     supports the ``V4L2_STD_NTSC_M`` video standard.
 
@@ -502,7 +504,9 @@ To change the radio frequency the
 
        -  The tuner receives a Second Audio Program.
 
-	  .. note:: The ``V4L2_TUNER_SUB_LANG2`` and ``V4L2_TUNER_SUB_SAP``
+	  .. note::
+
+	     The ``V4L2_TUNER_SUB_LANG2`` and ``V4L2_TUNER_SUB_SAP``
 	     flags are synonyms. The ``V4L2_TUNER_SUB_SAP`` flag applies
 	     when the current video standard is ``V4L2_STD_NTSC_M``.
 

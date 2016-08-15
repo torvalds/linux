@@ -42,7 +42,9 @@ that prevents them to be used with some remotes. Wide band receiver might
 also be more precise. On the other hand its disadvantage it usually
 reduced range of reception.
 
-.. note:: Wide band receiver might be implictly enabled if you enable
+.. note::
+
+    Wide band receiver might be implictly enabled if you enable
     carrier reports. In that case it will be disabled as soon as you disable
     carrier reports. Trying to disable wide band receiver while carrier
     reports are active will do nothing.
