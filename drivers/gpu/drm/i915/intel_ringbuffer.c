@@ -176,7 +176,7 @@ intel_emit_post_sync_nonzero_flush(struct drm_i915_gem_request *req)
 {
 	struct intel_ring *ring = req->ring;
 	u32 scratch_addr =
-		req->engine->scratch.gtt_offset + 2 * CACHELINE_BYTES;
+		req->engine->scratch->node.start + 2 * CACHELINE_BYTES;
 	int ret;
 
 	ret = intel_ring_begin(req, 6);
@@ -212,7 +212,7 @@ gen6_render_ring_flush(struct drm_i915_gem_request *req, u32 mode)
 {
 	struct intel_ring *ring = req->ring;
 	u32 scratch_addr =
-		req->engine->scratch.gtt_offset + 2 * CACHELINE_BYTES;
+		req->engine->scratch->node.start + 2 * CACHELINE_BYTES;
 	u32 flags = 0;
 	int ret;
 
@@ -286,7 +286,7 @@ gen7_render_ring_flush(struct drm_i915_gem_request *req, u32 mode)
 {
 	struct intel_ring *ring = req->ring;
 	u32 scratch_addr =
-		req->engine->scratch.gtt_offset + 2 * CACHELINE_BYTES;
+		req->engine->scratch->node.start + 2 * CACHELINE_BYTES;
 	u32 flags = 0;
 	int ret;
 
@@ -370,7 +370,8 @@ gen8_emit_pipe_control(struct drm_i915_gem_request *req,
 static int
 gen8_render_ring_flush(struct drm_i915_gem_request *req, u32 mode)
 {
-	u32 scratch_addr = req->engine->scratch.gtt_offset + 2 * CACHELINE_BYTES;
+	u32 scratch_addr =
+		req->engine->scratch->node.start + 2 * CACHELINE_BYTES;
 	u32 flags = 0;
 	int ret;
 
@@ -612,45 +613,51 @@ out:
 	return ret;
 }
 
-void intel_fini_pipe_control(struct intel_engine_cs *engine)
+void intel_engine_cleanup_scratch(struct intel_engine_cs *engine)
 {
-	if (engine->scratch.obj == NULL)
+	struct i915_vma *vma;
+
+	vma = fetch_and_zero(&engine->scratch);
+	if (!vma)
 		return;
 
-	i915_gem_object_ggtt_unpin(engine->scratch.obj);
-	i915_gem_object_put(engine->scratch.obj);
-	engine->scratch.obj = NULL;
+	i915_vma_unpin(vma);
+	i915_vma_put(vma);
 }
 
-int intel_init_pipe_control(struct intel_engine_cs *engine, int size)
+int intel_engine_create_scratch(struct intel_engine_cs *engine, int size)
 {
 	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
 	int ret;
 
-	WARN_ON(engine->scratch.obj);
+	WARN_ON(engine->scratch);
 
 	obj = i915_gem_object_create_stolen(&engine->i915->drm, size);
 	if (!obj)
 		obj = i915_gem_object_create(&engine->i915->drm, size);
 	if (IS_ERR(obj)) {
 		DRM_ERROR("Failed to allocate scratch page\n");
-		ret = PTR_ERR(obj);
-		goto err;
+		return PTR_ERR(obj);
 	}
 
-	ret = i915_gem_object_ggtt_pin(obj, NULL, 0, 4096, PIN_HIGH);
+	vma = i915_vma_create(obj, &engine->i915->ggtt.base, NULL);
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
+		goto err_unref;
+	}
+
+	ret = i915_vma_pin(vma, 0, 4096, PIN_GLOBAL | PIN_HIGH);
 	if (ret)
 		goto err_unref;
 
-	engine->scratch.obj = obj;
-	engine->scratch.gtt_offset = i915_gem_obj_ggtt_offset(obj);
-	DRM_DEBUG_DRIVER("%s pipe control offset: 0x%08x\n",
-			 engine->name, engine->scratch.gtt_offset);
+	engine->scratch = vma;
+	DRM_DEBUG_DRIVER("%s pipe control offset: 0x%08llx\n",
+			 engine->name, vma->node.start);
 	return 0;
 
 err_unref:
-	i915_gem_object_put(engine->scratch.obj);
-err:
+	i915_gem_object_put(obj);
 	return ret;
 }
 
@@ -1305,7 +1312,7 @@ static void render_ring_cleanup(struct intel_engine_cs *engine)
 		dev_priv->semaphore_obj = NULL;
 	}
 
-	intel_fini_pipe_control(engine);
+	intel_engine_cleanup_scratch(engine);
 }
 
 static int gen8_rcs_signal(struct drm_i915_gem_request *req)
@@ -1763,7 +1770,7 @@ i830_emit_bb_start(struct drm_i915_gem_request *req,
 		   unsigned int dispatch_flags)
 {
 	struct intel_ring *ring = req->ring;
-	u32 cs_offset = req->engine->scratch.gtt_offset;
+	u32 cs_offset = req->engine->scratch->node.start;
 	int ret;
 
 	ret = intel_ring_begin(req, 6);
@@ -2793,11 +2800,11 @@ int intel_init_render_ring_buffer(struct intel_engine_cs *engine)
 		return ret;
 
 	if (INTEL_GEN(dev_priv) >= 6) {
-		ret = intel_init_pipe_control(engine, 4096);
+		ret = intel_engine_create_scratch(engine, 4096);
 		if (ret)
 			return ret;
 	} else if (HAS_BROKEN_CS_TLB(dev_priv)) {
-		ret = intel_init_pipe_control(engine, I830_WA_SIZE);
+		ret = intel_engine_create_scratch(engine, I830_WA_SIZE);
 		if (ret)
 			return ret;
 	}

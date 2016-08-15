@@ -198,6 +198,7 @@ struct intel_engine_cs {
 
 	struct intel_hw_status_page status_page;
 	struct i915_ctx_workarounds wa_ctx;
+	struct i915_vma *scratch;
 
 	u32             irq_keep_mask; /* always keep these interrupts */
 	u32		irq_enable_mask; /* bitmask to enable ring interrupt */
@@ -319,11 +320,6 @@ struct intel_engine_cs {
 	struct i915_gem_context *last_context;
 
 	struct intel_engine_hangcheck hangcheck;
-
-	struct {
-		struct drm_i915_gem_object *obj;
-		u32 gtt_offset;
-	} scratch;
 
 	bool needs_cmd_parser;
 
@@ -476,8 +472,8 @@ void intel_ring_update_space(struct intel_ring *ring);
 
 void intel_engine_init_seqno(struct intel_engine_cs *engine, u32 seqno);
 
-int intel_init_pipe_control(struct intel_engine_cs *engine, int size);
-void intel_fini_pipe_control(struct intel_engine_cs *engine);
+int intel_engine_create_scratch(struct intel_engine_cs *engine, int size);
+void intel_engine_cleanup_scratch(struct intel_engine_cs *engine);
 
 void intel_engine_setup_common(struct intel_engine_cs *engine);
 int intel_engine_init_common(struct intel_engine_cs *engine);

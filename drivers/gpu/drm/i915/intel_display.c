@@ -11795,7 +11795,7 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 			intel_ring_emit(ring, MI_STORE_REGISTER_MEM |
 					      MI_SRM_LRM_GLOBAL_GTT);
 		intel_ring_emit_reg(ring, DERRMR);
-		intel_ring_emit(ring, req->engine->scratch.gtt_offset + 256);
+		intel_ring_emit(ring, req->engine->scratch->node.start + 256);
 		if (IS_GEN8(dev)) {
 			intel_ring_emit(ring, 0);
 			intel_ring_emit(ring, MI_NOOP);

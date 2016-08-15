@@ -1101,7 +1101,7 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 			if (HAS_BROKEN_CS_TLB(dev_priv))
 				ee->wa_batchbuffer =
 					i915_error_ggtt_object_create(dev_priv,
-								      engine->scratch.obj);
+								      engine->scratch->obj);
 
 			if (request->ctx->engine[i].state) {
 				ee->ctx = i915_error_ggtt_object_create(dev_priv,

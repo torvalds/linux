@@ -660,7 +660,7 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 					MI_STORE_REGISTER_MEM |
 					MI_SRM_LRM_GLOBAL_GTT);
 			intel_ring_emit_reg(ring, last_reg);
-			intel_ring_emit(ring, engine->scratch.gtt_offset);
+			intel_ring_emit(ring, engine->scratch->node.start);
 			intel_ring_emit(ring, MI_NOOP);
 		}
 		intel_ring_emit(ring, MI_ARB_ON_OFF | MI_ARB_ENABLE);

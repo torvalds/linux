@@ -914,7 +914,7 @@ static inline int gen8_emit_flush_coherentl3_wa(struct intel_engine_cs *engine,
 	wa_ctx_emit(batch, index, (MI_STORE_REGISTER_MEM_GEN8 |
 				   MI_SRM_LRM_GLOBAL_GTT));
 	wa_ctx_emit_reg(batch, index, GEN8_L3SQCREG4);
-	wa_ctx_emit(batch, index, engine->scratch.gtt_offset + 256);
+	wa_ctx_emit(batch, index, engine->scratch->node.start + 256);
 	wa_ctx_emit(batch, index, 0);
 
 	wa_ctx_emit(batch, index, MI_LOAD_REGISTER_IMM(1));
@@ -932,7 +932,7 @@ static inline int gen8_emit_flush_coherentl3_wa(struct intel_engine_cs *engine,
 	wa_ctx_emit(batch, index, (MI_LOAD_REGISTER_MEM_GEN8 |
 				   MI_SRM_LRM_GLOBAL_GTT));
 	wa_ctx_emit_reg(batch, index, GEN8_L3SQCREG4);
-	wa_ctx_emit(batch, index, engine->scratch.gtt_offset + 256);
+	wa_ctx_emit(batch, index, engine->scratch->node.start + 256);
 	wa_ctx_emit(batch, index, 0);
 
 	return index;
@@ -993,7 +993,7 @@ static int gen8_init_indirectctx_bb(struct intel_engine_cs *engine,
 
 	/* WaClearSlmSpaceAtContextSwitch:bdw,chv */
 	/* Actual scratch location is at 128 bytes offset */
-	scratch_addr = engine->scratch.gtt_offset + 2*CACHELINE_BYTES;
+	scratch_addr = engine->scratch->node.start + 2 * CACHELINE_BYTES;
 
 	wa_ctx_emit(batch, index, GFX_OP_PIPE_CONTROL(6));
 	wa_ctx_emit(batch, index, (PIPE_CONTROL_FLUSH_L3 |
@@ -1072,8 +1072,8 @@ static int gen9_init_indirectctx_bb(struct intel_engine_cs *engine,
 	/* WaClearSlmSpaceAtContextSwitch:kbl */
 	/* Actual scratch location is at 128 bytes offset */
 	if (IS_KBL_REVID(dev_priv, 0, KBL_REVID_A0)) {
-		uint32_t scratch_addr
-			= engine->scratch.gtt_offset + 2*CACHELINE_BYTES;
+		u32 scratch_addr =
+			engine->scratch->node.start + 2 * CACHELINE_BYTES;
 
 		wa_ctx_emit(batch, index, GFX_OP_PIPE_CONTROL(6));
 		wa_ctx_emit(batch, index, (PIPE_CONTROL_FLUSH_L3 |
@@ -1215,7 +1215,7 @@ static int intel_init_workaround_bb(struct intel_engine_cs *engine)
 	}
 
 	/* some WA perform writes to scratch page, ensure it is valid */
-	if (engine->scratch.obj == NULL) {
+	if (!engine->scratch) {
 		DRM_ERROR("scratch page not allocated for %s\n", engine->name);
 		return -EINVAL;
 	}
@@ -1483,7 +1483,7 @@ static int gen8_emit_flush_render(struct drm_i915_gem_request *request,
 {
 	struct intel_ring *ring = request->ring;
 	struct intel_engine_cs *engine = request->engine;
-	u32 scratch_addr = engine->scratch.gtt_offset + 2 * CACHELINE_BYTES;
+	u32 scratch_addr = engine->scratch->node.start + 2 * CACHELINE_BYTES;
 	bool vf_flush_wa = false, dc_flush_wa = false;
 	u32 flags = 0;
 	int ret;
@@ -1844,11 +1844,11 @@ int logical_render_ring_init(struct intel_engine_cs *engine)
 	else
 		engine->init_hw = gen8_init_render_ring;
 	engine->init_context = gen8_init_rcs_context;
-	engine->cleanup = intel_fini_pipe_control;
+	engine->cleanup = intel_engine_cleanup_scratch;
 	engine->emit_flush = gen8_emit_flush_render;
 	engine->emit_request = gen8_emit_request_render;
 
-	ret = intel_init_pipe_control(engine, 4096);
+	ret = intel_engine_create_scratch(engine, 4096);
 	if (ret)
 		return ret;
 
