@@ -269,7 +269,7 @@ support digital TV. See also the Linux DVB API at
 
 .. _video-standards:
 
-.. flat-table:: Video Standards (based on [])
+.. flat-table:: Video Standards (based on :ref:`itu470`)
     :header-rows:  1
     :stub-columns: 0
 
