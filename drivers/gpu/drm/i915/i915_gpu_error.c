@@ -242,8 +242,16 @@ static void error_print_engine(struct drm_i915_error_state_buf *m,
 	err_printf(m, "  IPEIR: 0x%08x\n", ee->ipeir);
 	err_printf(m, "  IPEHR: 0x%08x\n", ee->ipehr);
 	err_printf(m, "  INSTDONE: 0x%08x\n", ee->instdone);
+	if (ee->batchbuffer) {
+		u64 start = ee->batchbuffer->gtt_offset;
+		u64 end = start + ee->batchbuffer->gtt_size;
+
+		err_printf(m, "  batch: [0x%08x_%08x, 0x%08x_%08x]\n",
+			   upper_32_bits(start), lower_32_bits(start),
+			   upper_32_bits(end), lower_32_bits(end));
+	}
 	if (INTEL_GEN(m->i915) >= 4) {
-		err_printf(m, "  BBADDR: 0x%08x %08x\n",
+		err_printf(m, "  BBADDR: 0x%08x_%08x\n",
 			   (u32)(ee->bbaddr>>32), (u32)ee->bbaddr);
 		err_printf(m, "  BB_STATE: 0x%08x\n", ee->bbstate);
 		err_printf(m, "  INSTPS: 0x%08x\n", ee->instps);
@@ -677,7 +685,10 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 	if (!dst)
 		return NULL;
 
-	reloc_offset = dst->gtt_offset = vma->node.start;
+	dst->gtt_offset = vma->node.start;
+	dst->gtt_size = vma->node.size;
+
+	reloc_offset = dst->gtt_offset;
 	use_ggtt = (src->cache_level == I915_CACHE_NONE &&
 		   (vma->flags & I915_VMA_GLOBAL_BIND) &&
 		   reloc_offset + num_pages * PAGE_SIZE <= ggtt->mappable_end);
