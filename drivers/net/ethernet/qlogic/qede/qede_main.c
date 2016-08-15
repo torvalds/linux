@@ -2704,9 +2704,6 @@ static int qede_alloc_rx_buffer(struct qede_dev *edev,
 	struct eth_rx_bd *rx_bd;
 	dma_addr_t mapping;
 	struct page *data;
-	u16 rx_buf_size;
-
-	rx_buf_size = rxq->rx_buf_size;
 
 	data = alloc_pages(GFP_ATOMIC, 0);
 	if (unlikely(!data)) {

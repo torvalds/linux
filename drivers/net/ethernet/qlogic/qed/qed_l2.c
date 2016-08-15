@@ -305,14 +305,14 @@ qed_sp_update_mcast_bin(struct qed_hwfn *p_hwfn,
 	memset(&p_ramrod->approx_mcast.bins, 0,
 	       sizeof(p_ramrod->approx_mcast.bins));
 
-	if (p_params->update_approx_mcast_flg) {
-		p_ramrod->common.update_approx_mcast_flg = 1;
-		for (i = 0; i < ETH_MULTICAST_MAC_BINS_IN_REGS; i++) {
-			u32 *p_bins = (u32 *)p_params->bins;
-			__le32 val = cpu_to_le32(p_bins[i]);
+	if (!p_params->update_approx_mcast_flg)
+		return;
 
-			p_ramrod->approx_mcast.bins[i] = val;
-		}
+	p_ramrod->common.update_approx_mcast_flg = 1;
+	for (i = 0; i < ETH_MULTICAST_MAC_BINS_IN_REGS; i++) {
+		u32 *p_bins = (u32 *)p_params->bins;
+
+		p_ramrod->approx_mcast.bins[i] = cpu_to_le32(p_bins[i]);
 	}
 }
 
@@ -360,8 +360,8 @@ int qed_sp_vport_update(struct qed_hwfn *p_hwfn,
 	p_cmn->tx_active_flg = p_params->vport_active_tx_flg;
 	p_cmn->update_tx_active_flg = p_params->update_vport_active_tx_flg;
 	p_cmn->accept_any_vlan = p_params->accept_any_vlan;
-	p_cmn->update_accept_any_vlan_flg =
-			p_params->update_accept_any_vlan_flg;
+	val = p_params->update_accept_any_vlan_flg;
+	p_cmn->update_accept_any_vlan_flg = val;
 
 	p_cmn->inner_vlan_removal_en = p_params->inner_vlan_removal_flg;
 	val = p_params->update_inner_vlan_removal_flg;
@@ -1183,17 +1183,14 @@ qed_sp_eth_filter_mcast(struct qed_hwfn *p_hwfn,
 	u8 abs_vport_id = 0;
 	int rc, i;
 
-	if (p_filter_cmd->opcode == QED_FILTER_ADD) {
+	if (p_filter_cmd->opcode == QED_FILTER_ADD)
 		rc = qed_fw_vport(p_hwfn, p_filter_cmd->vport_to_add_to,
 				  &abs_vport_id);
-		if (rc)
-			return rc;
-	} else {
+	else
 		rc = qed_fw_vport(p_hwfn, p_filter_cmd->vport_to_remove_from,
 				  &abs_vport_id);
-		if (rc)
-			return rc;
-	}
+	if (rc)
+		return rc;
 
 	/* Get SPQ entry */
 	memset(&init_data, 0, sizeof(init_data));
@@ -1840,8 +1837,8 @@ static int qed_update_vport(struct qed_dev *cdev,
 		       QED_RSS_IND_TABLE_SIZE * sizeof(u16));
 		memcpy(sp_rss_params.rss_key, params->rss_params.rss_key,
 		       QED_RSS_KEY_SIZE * sizeof(u32));
+		sp_params.rss_params = &sp_rss_params;
 	}
-	sp_params.rss_params = &sp_rss_params;
 
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];

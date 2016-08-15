@@ -540,8 +540,7 @@ int qed_resc_alloc(struct qed_dev *cdev)
 	cdev->reset_stats = kzalloc(sizeof(*cdev->reset_stats), GFP_KERNEL);
 	if (!cdev->reset_stats) {
 		DP_NOTICE(cdev, "Failed to allocate reset statistics\n");
-		rc = -ENOMEM;
-		goto alloc_err;
+		goto alloc_no_mem;
 	}
 
 	return 0;
@@ -1463,11 +1462,11 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	link_temp = qed_rd(p_hwfn, p_ptt,
 			   port_cfg_addr +
 			   offsetof(struct nvm_cfg1_port, speed_cap_mask));
-	link->speed.advertised_speeds =
-		link_temp & NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_MASK;
+	link_temp &= NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_MASK;
+	link->speed.advertised_speeds = link_temp;
 
-	p_hwfn->mcp_info->link_capabilities.speed_capabilities =
-						link->speed.advertised_speeds;
+	link_temp = link->speed.advertised_speeds;
+	p_hwfn->mcp_info->link_capabilities.speed_capabilities = link_temp;
 
 	link_temp = qed_rd(p_hwfn, p_ptt,
 			   port_cfg_addr +

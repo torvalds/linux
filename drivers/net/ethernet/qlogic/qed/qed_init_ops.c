@@ -295,17 +295,15 @@ static int qed_init_cmd_wr(struct qed_hwfn *p_hwfn,
 
 	switch (GET_FIELD(data, INIT_WRITE_OP_SOURCE)) {
 	case INIT_SRC_INLINE:
-		qed_wr(p_hwfn, p_ptt, addr,
-		       le32_to_cpu(arg->inline_val));
+		data = le32_to_cpu(p_cmd->args.inline_val);
+		qed_wr(p_hwfn, p_ptt, addr, data);
 		break;
 	case INIT_SRC_ZEROS:
-		if (b_must_dmae ||
-		    (b_can_dmae && (le32_to_cpu(arg->zeros_count) >= 64)))
-			rc = qed_init_fill_dmae(p_hwfn, p_ptt, addr, 0,
-						le32_to_cpu(arg->zeros_count));
+		data = le32_to_cpu(p_cmd->args.zeros_count);
+		if (b_must_dmae || (b_can_dmae && (data >= 64)))
+			rc = qed_init_fill_dmae(p_hwfn, p_ptt, addr, 0, data);
 		else
-			qed_init_fill(p_hwfn, p_ptt, addr, 0,
-				      le32_to_cpu(arg->zeros_count));
+			qed_init_fill(p_hwfn, p_ptt, addr, 0, data);
 		break;
 	case INIT_SRC_ARRAY:
 		rc = qed_init_cmd_array(p_hwfn, p_ptt, p_cmd,

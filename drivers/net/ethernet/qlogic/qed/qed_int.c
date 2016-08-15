@@ -2413,12 +2413,6 @@ void qed_init_cau_sb_entry(struct qed_hwfn *p_hwfn,
 	SET_FIELD(p_sb_entry->params, CAU_SB_ENTRY_SB_TIMESET0, 0x7F);
 	SET_FIELD(p_sb_entry->params, CAU_SB_ENTRY_SB_TIMESET1, 0x7F);
 
-	/* setting the time resultion to a fixed value ( = 1) */
-	SET_FIELD(p_sb_entry->params, CAU_SB_ENTRY_TIMER_RES0,
-		  QED_CAU_DEF_RX_TIMER_RES);
-	SET_FIELD(p_sb_entry->params, CAU_SB_ENTRY_TIMER_RES1,
-		  QED_CAU_DEF_TX_TIMER_RES);
-
 	cau_state = CAU_HC_DISABLE_STATE;
 
 	if (cdev->int_coalescing_mode == QED_COAL_MODE_ENABLE) {
@@ -3133,10 +3127,9 @@ int qed_int_alloc(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		return rc;
 	}
 	rc = qed_int_sb_attn_alloc(p_hwfn, p_ptt);
-	if (rc) {
+	if (rc)
 		DP_ERR(p_hwfn->cdev, "Failed to allocate sb attn mem\n");
-		return rc;
-	}
+
 	return rc;
 }
 
