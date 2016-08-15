@@ -653,19 +653,6 @@ err:
 	return vma;
 }
 
-/**
- * guc_release_vma() - Release gem object allocated for GuC usage
- * @vma:	gem obj to be released
- */
-static void guc_release_vma(struct i915_vma *vma)
-{
-	if (!vma)
-		return;
-
-	i915_vma_unpin(vma);
-	i915_vma_put(vma);
-}
-
 static void
 guc_client_free(struct drm_i915_private *dev_priv,
 		struct i915_guc_client *client)
@@ -690,7 +677,7 @@ guc_client_free(struct drm_i915_private *dev_priv,
 		kunmap(kmap_to_page(client->client_base));
 	}
 
-	guc_release_vma(client->vma);
+	i915_vma_unpin_and_release(&client->vma);
 
 	if (client->ctx_index != GUC_INVALID_CTX_ID) {
 		guc_fini_ctx_desc(guc, client);
@@ -1048,12 +1035,12 @@ void i915_guc_submission_fini(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
 
-	guc_release_vma(fetch_and_zero(&guc->ads_vma));
-	guc_release_vma(fetch_and_zero(&guc->log_vma));
+	i915_vma_unpin_and_release(&guc->ads_vma);
+	i915_vma_unpin_and_release(&guc->log_vma);
 
 	if (guc->ctx_pool_vma)
 		ida_destroy(&guc->ctx_ids);
-	guc_release_vma(fetch_and_zero(&guc->ctx_pool_vma));
+	i915_vma_unpin_and_release(&guc->ctx_pool_vma);
 }
 
 /**

@@ -1193,14 +1193,7 @@ err:
 
 static void lrc_destroy_wa_ctx_obj(struct intel_engine_cs *engine)
 {
-	struct i915_vma *vma;
-
-	vma = fetch_and_zero(&engine->wa_ctx.vma);
-	if (!vma)
-		return;
-
-	i915_vma_unpin(vma);
-	i915_vma_put(vma);
+	i915_vma_unpin_and_release(&engine->wa_ctx.vma);
 }
 
 static int intel_init_workaround_bb(struct intel_engine_cs *engine)

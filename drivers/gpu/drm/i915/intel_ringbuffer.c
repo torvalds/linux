@@ -1257,14 +1257,8 @@ static int init_render_ring(struct intel_engine_cs *engine)
 static void render_ring_cleanup(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
-	struct i915_vma *vma;
 
-	vma = fetch_and_zero(&dev_priv->semaphore);
-	if (!vma)
-		return;
-
-	i915_vma_unpin(vma);
-	i915_vma_put(vma);
+	i915_vma_unpin_and_release(&dev_priv->semaphore);
 }
 
 static int gen8_rcs_signal(struct drm_i915_gem_request *req)

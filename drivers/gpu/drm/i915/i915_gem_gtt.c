@@ -3674,3 +3674,15 @@ void __iomem *i915_vma_pin_iomap(struct i915_vma *vma)
 	__i915_vma_pin(vma);
 	return ptr;
 }
+
+void i915_vma_unpin_and_release(struct i915_vma **p_vma)
+{
+	struct i915_vma *vma;
+
+	vma = fetch_and_zero(p_vma);
+	if (!vma)
+		return;
+
+	i915_vma_unpin(vma);
+	i915_vma_put(vma);
+}
