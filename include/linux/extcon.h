@@ -109,12 +109,18 @@
  * @type:	integer (intval)
  * @value:	0 (normal) or 1 (flip)
  * @default:	0 (normal)
+ * - EXTCON_PROP_USB_SS (SuperSpeed)
+ * @type:       integer (intval)
+ * @value:      0 (USB/USB2) or 1 (USB3)
+ * @default:    0 (USB/USB2)
+ *
  */
 #define EXTCON_PROP_USB_VBUS		0
 #define EXTCON_PROP_USB_TYPEC_POLARITY	1
+#define EXTCON_PROP_USB_SS		2
 
 #define EXTCON_PROP_USB_MIN		0
-#define EXTCON_PROP_USB_MAX		1
+#define EXTCON_PROP_USB_MAX		2
 #define EXTCON_PROP_USB_CNT	(EXTCON_PROP_USB_MAX - EXTCON_PROP_USB_MIN + 1)
 
 /* Properties of EXTCON_TYPE_CHG. */
