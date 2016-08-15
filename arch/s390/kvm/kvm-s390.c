@@ -1938,8 +1938,6 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 		vcpu->arch.sie_block->eca |= 1;
 	if (sclp.has_sigpif)
 		vcpu->arch.sie_block->eca |= 0x10000000U;
-	if (test_kvm_facility(vcpu->kvm, 64))
-		vcpu->arch.sie_block->ecb3 |= 0x01;
 	if (test_kvm_facility(vcpu->kvm, 129)) {
 		vcpu->arch.sie_block->eca |= 0x00020000;
 		vcpu->arch.sie_block->ecd |= 0x20000000;
@@ -2694,6 +2692,19 @@ static void sync_regs(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		if (vcpu->arch.pfault_token == KVM_S390_PFAULT_TOKEN_INVALID)
 			kvm_clear_async_pf_completion_queue(vcpu);
 	}
+	/*
+	 * If userspace sets the riccb (e.g. after migration) to a valid state,
+	 * we should enable RI here instead of doing the lazy enablement.
+	 */
+	if ((kvm_run->kvm_dirty_regs & KVM_SYNC_RICCB) &&
+	    test_kvm_facility(vcpu->kvm, 64)) {
+		struct runtime_instr_cb *riccb =
+			(struct runtime_instr_cb *) &kvm_run->s.regs.riccb;
+
+		if (riccb->valid)
+			vcpu->arch.sie_block->ecb3 |= 0x01;
+	}
+
 	kvm_run->kvm_dirty_regs = 0;
 }
 
