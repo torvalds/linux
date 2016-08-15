@@ -49,7 +49,7 @@ static noinline void do_usercopy_stack(bool to_user, bool bad_frame)
 
 	/* This is a pointer to outside our current stack frame. */
 	if (bad_frame) {
-		bad_stack = do_usercopy_stack_callee((uintptr_t)bad_stack);
+		bad_stack = do_usercopy_stack_callee((uintptr_t)&bad_stack);
 	} else {
 		/* Put start address just inside stack. */
 		bad_stack = task_stack_page(current) + THREAD_SIZE;

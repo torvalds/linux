@@ -223,6 +223,11 @@ static int __init uv_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	if (strncmp(oem_id, "SGI", 3) != 0)
 		return 0;
 
+	if (numa_off) {
+		pr_err("UV: NUMA is off, disabling UV support\n");
+		return 0;
+	}
+
 	/* Setup early hub type field in uv_hub_info for Node 0 */
 	uv_cpu_info->p_uv_hub_info = &uv_hub_info_node0;
 
@@ -325,7 +330,7 @@ static __init void build_uv_gr_table(void)
 	struct uv_gam_range_entry *gre = uv_gre_table;
 	struct uv_gam_range_s *grt;
 	unsigned long last_limit = 0, ram_limit = 0;
-	int bytes, i, sid, lsid = -1;
+	int bytes, i, sid, lsid = -1, indx = 0, lindx = -1;
 
 	if (!gre)
 		return;
@@ -356,11 +361,12 @@ static __init void build_uv_gr_table(void)
 		}
 		sid = gre->sockid - _min_socket;
 		if (lsid < sid) {		/* new range */
-			grt = &_gr_table[sid];
-			grt->base = lsid;
+			grt = &_gr_table[indx];
+			grt->base = lindx;
 			grt->nasid = gre->nasid;
 			grt->limit = last_limit = gre->limit;
 			lsid = sid;
+			lindx = indx++;
 			continue;
 		}
 		if (lsid == sid && !ram_limit) {	/* update range */
@@ -371,7 +377,7 @@ static __init void build_uv_gr_table(void)
 		}
 		if (!ram_limit) {		/* non-contiguous ram range */
 			grt++;
-			grt->base = sid - 1;
+			grt->base = lindx;
 			grt->nasid = gre->nasid;
 			grt->limit = last_limit = gre->limit;
 			continue;
@@ -1155,19 +1161,18 @@ static void __init decode_gam_rng_tbl(unsigned long ptr)
 	for (; gre->type != UV_GAM_RANGE_TYPE_UNUSED; gre++) {
 		if (!index) {
 			pr_info("UV: GAM Range Table...\n");
-			pr_info("UV:  # %20s %14s %5s %4s %5s %3s %2s %3s\n",
+			pr_info("UV:  # %20s %14s %5s %4s %5s %3s %2s\n",
 				"Range", "", "Size", "Type", "NASID",
-				"SID", "PN", "PXM");
+				"SID", "PN");
 		}
 		pr_info(
-		"UV: %2d: 0x%014lx-0x%014lx %5luG %3d   %04x  %02x %02x %3d\n",
+		"UV: %2d: 0x%014lx-0x%014lx %5luG %3d   %04x  %02x %02x\n",
 			index++,
 			(unsigned long)lgre << UV_GAM_RANGE_SHFT,
 			(unsigned long)gre->limit << UV_GAM_RANGE_SHFT,
 			((unsigned long)(gre->limit - lgre)) >>
 				(30 - UV_GAM_RANGE_SHFT), /* 64M -> 1G */
-			gre->type, gre->nasid, gre->sockid,
-			gre->pnode, gre->pxm);
+			gre->type, gre->nasid, gre->sockid, gre->pnode);
 
 		lgre = gre->limit;
 		if (sock_min > gre->sockid)
@@ -1286,7 +1291,7 @@ static void __init build_socket_tables(void)
 		_pnode_to_socket[i] = SOCK_EMPTY;
 
 	/* fill in pnode/node/addr conversion list values */
-	pr_info("UV: GAM Building socket/pnode/pxm conversion tables\n");
+	pr_info("UV: GAM Building socket/pnode conversion tables\n");
 	for (; gre->type != UV_GAM_RANGE_TYPE_UNUSED; gre++) {
 		if (gre->type == UV_GAM_RANGE_TYPE_HOLE)
 			continue;
@@ -1294,20 +1299,18 @@ static void __init build_socket_tables(void)
 		if (_socket_to_pnode[i] != SOCK_EMPTY)
 			continue;	/* duplicate */
 		_socket_to_pnode[i] = gre->pnode;
-		_socket_to_node[i] = gre->pxm;
 
 		i = gre->pnode - minpnode;
 		_pnode_to_socket[i] = gre->sockid;
 
 		pr_info(
-		"UV: sid:%02x type:%d nasid:%04x pn:%02x pxm:%2d pn2s:%2x\n",
+		"UV: sid:%02x type:%d nasid:%04x pn:%02x pn2s:%2x\n",
 			gre->sockid, gre->type, gre->nasid,
 			_socket_to_pnode[gre->sockid - minsock],
-			_socket_to_node[gre->sockid - minsock],
 			_pnode_to_socket[gre->pnode - minpnode]);
 	}
 
-	/* check socket -> node values */
+	/* Set socket -> node values */
 	lnid = -1;
 	for_each_present_cpu(cpu) {
 		int nid = cpu_to_node(cpu);
@@ -1318,14 +1321,9 @@ static void __init build_socket_tables(void)
 		lnid = nid;
 		apicid = per_cpu(x86_cpu_to_apicid, cpu);
 		sockid = apicid >> uv_cpuid.socketid_shift;
-		i = sockid - minsock;
-
-		if (nid != _socket_to_node[i]) {
-			pr_warn(
-			"UV: %02x: type:%d socket:%02x PXM:%02x != node:%2d\n",
-				i, sockid, gre->type, _socket_to_node[i], nid);
-			_socket_to_node[i] = nid;
-		}
+		_socket_to_node[sockid - minsock] = nid;
+		pr_info("UV: sid:%02x: apicid:%04x node:%2d\n",
+			sockid, apicid, nid);
 	}
 
 	/* Setup physical blade to pnode translation from GAM Range Table */

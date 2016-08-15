@@ -331,7 +331,7 @@ static int read_counter(struct perf_evsel *counter)
 	return 0;
 }
 
-static void read_counters(bool close_counters)
+static void read_counters(void)
 {
 	struct perf_evsel *counter;
 
@@ -341,11 +341,6 @@ static void read_counters(bool close_counters)
 
 		if (perf_stat_process_counter(&stat_config, counter))
 			pr_warning("failed to process counter %s\n", counter->name);
-
-		if (close_counters) {
-			perf_evsel__close_fd(counter, perf_evsel__nr_cpus(counter),
-					     thread_map__nr(evsel_list->threads));
-		}
 	}
 }
 
@@ -353,7 +348,7 @@ static void process_interval(void)
 {
 	struct timespec ts, rs;
 
-	read_counters(false);
+	read_counters();
 
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 	diff_timespec(&rs, &ts, &ref_time);
@@ -378,6 +373,17 @@ static void enable_counters(void)
 	 */
 	if (!target__none(&target) || initial_delay)
 		perf_evlist__enable(evsel_list);
+}
+
+static void disable_counters(void)
+{
+	/*
+	 * If we don't have tracee (attaching to task or cpu), counters may
+	 * still be running. To get accurate group ratios, we must stop groups
+	 * from counting before reading their constituent counters.
+	 */
+	if (!target__none(&target))
+		perf_evlist__disable(evsel_list);
 }
 
 static volatile int workload_exec_errno;
@@ -657,11 +663,20 @@ try_again:
 		}
 	}
 
+	disable_counters();
+
 	t1 = rdclock();
 
 	update_stats(&walltime_nsecs_stats, t1 - t0);
 
-	read_counters(true);
+	/*
+	 * Closing a group leader splits the group, and as we only disable
+	 * group leaders, results in remaining events becoming enabled. To
+	 * avoid arbitrary skew, we must read all counters before closing any
+	 * group leaders.
+	 */
+	read_counters();
+	perf_evlist__close(evsel_list);
 
 	return WEXITSTATUS(status);
 }

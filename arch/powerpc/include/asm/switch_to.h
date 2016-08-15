@@ -75,14 +75,6 @@ static inline void disable_kernel_spe(void)
 static inline void __giveup_spe(struct task_struct *t) { }
 #endif
 
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-extern void flush_tmregs_to_thread(struct task_struct *);
-#else
-static inline void flush_tmregs_to_thread(struct task_struct *t)
-{
-}
-#endif
-
 static inline void clear_task_ebb(struct task_struct *t)
 {
 #ifdef CONFIG_PPC_BOOK3S_64

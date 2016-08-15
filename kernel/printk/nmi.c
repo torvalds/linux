@@ -58,7 +58,7 @@ static DEFINE_PER_CPU(struct nmi_seq_buf, nmi_print_seq);
  * one writer running. But the buffer might get flushed from another
  * CPU, so we need to be careful.
  */
-static int vprintk_nmi(int level, const char *fmt, va_list args)
+static int vprintk_nmi(const char *fmt, va_list args)
 {
 	struct nmi_seq_buf *s = this_cpu_ptr(&nmi_print_seq);
 	int add = 0;
@@ -79,16 +79,7 @@ again:
 	if (!len)
 		smp_rmb();
 
-	if (level != LOGLEVEL_DEFAULT) {
-		add = snprintf(s->buffer + len, sizeof(s->buffer) - len,
-				KERN_SOH "%c", '0' + level);
-		add += vsnprintf(s->buffer + len + add,
-				 sizeof(s->buffer) - len - add,
-				 fmt, args);
-	} else {
-		add = vsnprintf(s->buffer + len, sizeof(s->buffer) - len,
-				fmt, args);
-	}
+	add = vsnprintf(s->buffer + len, sizeof(s->buffer) - len, fmt, args);
 
 	/*
 	 * Do it once again if the buffer has been flushed in the meantime.

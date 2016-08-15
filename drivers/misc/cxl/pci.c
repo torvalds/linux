@@ -379,7 +379,7 @@ static int calc_capp_routing(struct pci_dev *dev, u64 *chipid, u64 *capp_unit_id
 
 static int init_implementation_adapter_psl_regs(struct cxl *adapter, struct pci_dev *dev)
 {
-	u64 psl_dsnctl;
+	u64 psl_dsnctl, psl_fircntl;
 	u64 chipid;
 	u64 capp_unit_id;
 	int rc;
@@ -398,8 +398,11 @@ static int init_implementation_adapter_psl_regs(struct cxl *adapter, struct pci_
 	cxl_p1_write(adapter, CXL_PSL_RESLCKTO, 0x20000000200ULL);
 	/* snoop write mask */
 	cxl_p1_write(adapter, CXL_PSL_SNWRALLOC, 0x00000000FFFFFFFFULL);
-	/* set fir_accum */
-	cxl_p1_write(adapter, CXL_PSL_FIR_CNTL, 0x0800000000000000ULL);
+	/* set fir_cntl to recommended value for production env */
+	psl_fircntl = (0x2ULL << (63-3)); /* ce_report */
+	psl_fircntl |= (0x1ULL << (63-6)); /* FIR_report */
+	psl_fircntl |= 0x1ULL; /* ce_thresh */
+	cxl_p1_write(adapter, CXL_PSL_FIR_CNTL, psl_fircntl);
 	/* for debugging with trace arrays */
 	cxl_p1_write(adapter, CXL_PSL_TRACE, 0x0000FF7C00000000ULL);
 
@@ -1521,14 +1524,15 @@ static const struct cxl_service_layer_ops xsl_ops = {
 	.write_timebase_ctrl = write_timebase_ctrl_xsl,
 	.timebase_read = timebase_read_xsl,
 	.capi_mode = OPAL_PHB_CAPI_MODE_DMA,
-	.min_pe = 1, /* Workaround for Mellanox CX4 HW bug */
 };
 
 static void set_sl_ops(struct cxl *adapter, struct pci_dev *dev)
 {
 	if (dev->vendor == PCI_VENDOR_ID_MELLANOX && dev->device == 0x1013) {
+		/* Mellanox CX-4 */
 		dev_info(&adapter->dev, "Device uses an XSL\n");
 		adapter->native->sl_ops = &xsl_ops;
+		adapter->min_pe = 1; /* Workaround for CX-4 hardware bug */
 	} else {
 		dev_info(&adapter->dev, "Device uses a PSL\n");
 		adapter->native->sl_ops = &psl_ops;
