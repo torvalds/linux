@@ -7,7 +7,7 @@
 98:	x;			\
 	.section __ex_table,"a";\
 	.align 4;		\
-	.word 98b, __ret_one_asi;\
+	.word 98b, __ret_mone_asi;\
 	.text;			\
 	.align 4;
 

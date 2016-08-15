@@ -7,7 +7,7 @@
 98:	x;			\
 	.section __ex_table,"a";\
 	.align 4;		\
-	.word 98b, __retl_one_asi;\
+	.word 98b, __retl_mone_asi;\
 	.text;			\
 	.align 4;
 
@@ -15,7 +15,7 @@
 98:	x;			\
 	.section __ex_table,"a";\
 	.align 4;		\
-	.word 98b, __retl_one_asi_fp;\
+	.word 98b, __retl_mone_asi_fp;\
 	.text;			\
 	.align 4;
 
