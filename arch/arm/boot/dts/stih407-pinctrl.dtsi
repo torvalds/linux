@@ -916,6 +916,15 @@
 			interrupt-names = "irqmux";
 			ranges = <0 0x09210000 0x10000>;
 
+			pio20: pio@09210000 {
+				gpio-controller;
+				#gpio-cells = <1>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg = <0x0 0x100>;
+				st,bank-name = "PIO20";
+			};
+
 			tsin4 {
 				pinctrl_tsin4_serial_alt1: tsin4_serial_alt1 {
 					st,pins {
@@ -926,15 +935,6 @@
 						PKCLK = <&pio20 2 ALT1 IN SE_NICLK_IO 0 CLK_A>;
 					};
 				};
-			};
-
-			pio20: pio@09210000 {
-				gpio-controller;
-				#gpio-cells = <1>;
-				interrupt-controller;
-				#interrupt-cells = <2>;
-				reg = <0x0 0x100>;
-				st,bank-name = "PIO20";
 			};
 		};
 
