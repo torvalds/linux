@@ -668,6 +668,37 @@ static int get_bbt_block(struct nand_chip *this, struct nand_bbt_descr *td,
 }
 
 /**
+ * mark_bbt_block_bad - Mark one of the block reserved for BBT bad
+ * @this: the NAND device
+ * @td: the BBT description
+ * @chip: the CHIP selector
+ * @block: the BBT block to mark
+ *
+ * Blocks reserved for BBT can become bad. This functions is an helper to mark
+ * such blocks as bad. It takes care of updating the in-memory BBT, marking the
+ * block as bad using a bad block marker and invalidating the associated
+ * td->pages[] entry.
+ */
+static void mark_bbt_block_bad(struct nand_chip *this,
+			       struct nand_bbt_descr *td,
+			       int chip, int block)
+{
+	struct mtd_info *mtd = nand_to_mtd(this);
+	loff_t to;
+	int res;
+
+	bbt_mark_entry(this, block, BBT_BLOCK_WORN);
+
+	to = (loff_t)block << this->bbt_erase_shift;
+	res = this->block_markbad(mtd, to);
+	if (res)
+		pr_warn("nand_bbt: error %d while marking block %d bad\n",
+			res, block);
+
+	td->pages[chip] = -1;
+}
+
+/**
  * write_bbt - [GENERIC] (Re)write the bad block table
  * @mtd: MTD device structure
  * @buf: temporary buffer
@@ -715,7 +746,7 @@ static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
 	}
 
 	/* Loop through the chips */
-	for (; chip < nrchips; chip++) {
+	while (chip < nrchips) {
 		int block;
 
 		block = get_bbt_block(this, td, md, chip);
@@ -825,20 +856,28 @@ static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
 		einfo.addr = to;
 		einfo.len = 1 << this->bbt_erase_shift;
 		res = nand_erase_nand(mtd, &einfo, 1);
-		if (res < 0)
-			goto outerr;
+		if (res < 0) {
+			pr_warn("nand_bbt: error while erasing BBT block %d\n",
+				res);
+			mark_bbt_block_bad(this, td, chip, block);
+			continue;
+		}
 
 		res = scan_write_bbt(mtd, to, len, buf,
 				td->options & NAND_BBT_NO_OOB ? NULL :
 				&buf[len]);
-		if (res < 0)
-			goto outerr;
+		if (res < 0) {
+			pr_warn("nand_bbt: error while writing BBT block %d\n",
+				res);
+			mark_bbt_block_bad(this, td, chip, block);
+			continue;
+		}
 
 		pr_info("Bad block table written to 0x%012llx, version 0x%02X\n",
 			 (unsigned long long)to, td->version[chip]);
 
 		/* Mark it as used */
-		td->pages[chip] = page;
+		td->pages[chip++] = page;
 	}
 	return 0;
 
