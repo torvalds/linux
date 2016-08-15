@@ -148,60 +148,6 @@ struct orangefs_attribute {
 			 size_t count);
 };
 
-struct acache_orangefs_attribute {
-	struct attribute attr;
-	ssize_t (*show)(struct acache_orangefs_attribute *attr,
-			char *buf);
-	ssize_t (*store)(struct acache_orangefs_attribute *attr,
-			 const char *buf,
-			 size_t count);
-};
-
-struct capcache_orangefs_attribute {
-	struct attribute attr;
-	ssize_t (*show)(struct capcache_orangefs_attribute *attr,
-			char *buf);
-	ssize_t (*store)(struct capcache_orangefs_attribute *attr,
-			 const char *buf,
-			 size_t count);
-};
-
-struct ccache_orangefs_attribute {
-	struct attribute attr;
-	ssize_t (*show)(struct ccache_orangefs_attribute *attr,
-			char *buf);
-	ssize_t (*store)(struct ccache_orangefs_attribute *attr,
-			 const char *buf,
-			 size_t count);
-};
-
-struct ncache_orangefs_attribute {
-	struct attribute attr;
-	ssize_t (*show)(struct ncache_orangefs_attribute *attr,
-			char *buf);
-	ssize_t (*store)(struct ncache_orangefs_attribute *attr,
-			 const char *buf,
-			 size_t count);
-};
-
-struct pc_orangefs_attribute {
-	struct attribute attr;
-	ssize_t (*show)(struct pc_orangefs_attribute *attr,
-			char *buf);
-	ssize_t (*store)(struct pc_orangefs_attribute *attr,
-			 const char *buf,
-			 size_t count);
-};
-
-struct stats_orangefs_attribute {
-	struct attribute attr;
-	ssize_t (*show)(struct stats_orangefs_attribute *attr,
-			char *buf);
-	ssize_t (*store)(struct stats_orangefs_attribute *attr,
-			 const char *buf,
-			 size_t count);
-};
-
 static ssize_t orangefs_attr_show(struct kobject *kobj,
 				  struct attribute *attr,
 				  char *buf)
@@ -251,265 +197,42 @@ static const struct sysfs_ops orangefs_sysfs_ops = {
 	.store = orangefs_attr_store,
 };
 
-static ssize_t acache_orangefs_attr_show(struct kobject *kobj,
-					 struct attribute *attr,
-					 char *buf)
-{
-	struct acache_orangefs_attribute *attribute;
-	int rc;
-
-	attribute = container_of(attr, struct acache_orangefs_attribute, attr);
-
-	if (!attribute->show) {
-		rc = -EIO;
-		goto out;
-	}
-
-	rc = attribute->show(attribute, buf);
-
-out:
-	return rc;
-}
-
-static ssize_t acache_orangefs_attr_store(struct kobject *kobj,
-					  struct attribute *attr,
-					  const char *buf,
-					  size_t len)
-{
-	struct acache_orangefs_attribute *attribute;
-	int rc;
-
-	gossip_debug(GOSSIP_SYSFS_DEBUG,
-		     "acache_orangefs_attr_store: start\n");
-
-	attribute = container_of(attr, struct acache_orangefs_attribute, attr);
-
-	if (!attribute->store) {
-		rc = -EIO;
-		goto out;
-	}
-
-	rc = attribute->store(attribute, buf, len);
-
-out:
-	return rc;
-}
-
 static const struct sysfs_ops acache_orangefs_sysfs_ops = {
-	.show = acache_orangefs_attr_show,
-	.store = acache_orangefs_attr_store,
+	.show = orangefs_attr_show,
+	.store = orangefs_attr_store,
 };
-
-static ssize_t capcache_orangefs_attr_show(struct kobject *kobj,
-					   struct attribute *attr,
-					   char *buf)
-{
-	struct capcache_orangefs_attribute *attribute;
-	int rc;
-
-	attribute =
-		container_of(attr, struct capcache_orangefs_attribute, attr);
-
-	if (!attribute->show) {
-		rc = -EIO;
-		goto out;
-	}
-
-	rc = attribute->show(attribute, buf);
-
-out:
-	return rc;
-}
-
-static ssize_t capcache_orangefs_attr_store(struct kobject *kobj,
-					    struct attribute *attr,
-					    const char *buf,
-					    size_t len)
-{
-	struct capcache_orangefs_attribute *attribute;
-	int rc;
-
-	gossip_debug(GOSSIP_SYSFS_DEBUG,
-		     "capcache_orangefs_attr_store: start\n");
-
-	attribute =
-		container_of(attr, struct capcache_orangefs_attribute, attr);
-
-	if (!attribute->store) {
-		rc = -EIO;
-		goto out;
-	}
-
-	rc = attribute->store(attribute, buf, len);
-
-out:
-	return rc;
-}
 
 static const struct sysfs_ops capcache_orangefs_sysfs_ops = {
-	.show = capcache_orangefs_attr_show,
-	.store = capcache_orangefs_attr_store,
+	.show = orangefs_attr_show,
+	.store = orangefs_attr_store,
 };
-
-static ssize_t ccache_orangefs_attr_show(struct kobject *kobj,
-					 struct attribute *attr,
-					 char *buf)
-{
-	struct ccache_orangefs_attribute *attribute;
-	int rc;
-
-	attribute =
-		container_of(attr, struct ccache_orangefs_attribute, attr);
-
-	if (!attribute->show) {
-		rc = -EIO;
-		goto out;
-	}
-
-	rc = attribute->show(attribute, buf);
-
-out:
-	return rc;
-}
-
-static ssize_t ccache_orangefs_attr_store(struct kobject *kobj,
-					  struct attribute *attr,
-					  const char *buf,
-					  size_t len)
-{
-	struct ccache_orangefs_attribute *attribute;
-	int rc;
-
-	gossip_debug(GOSSIP_SYSFS_DEBUG,
-		     "ccache_orangefs_attr_store: start\n");
-
-	attribute =
-		container_of(attr, struct ccache_orangefs_attribute, attr);
-
-	if (!attribute->store) {
-		rc = -EIO;
-		goto out;
-	}
-
-	rc = attribute->store(attribute, buf, len);
-
-out:
-	return rc;
-}
 
 static const struct sysfs_ops ccache_orangefs_sysfs_ops = {
-	.show = ccache_orangefs_attr_show,
-	.store = ccache_orangefs_attr_store,
+	.show = orangefs_attr_show,
+	.store = orangefs_attr_store,
 };
-
-static ssize_t ncache_orangefs_attr_show(struct kobject *kobj,
-					 struct attribute *attr,
-					 char *buf)
-{
-	struct ncache_orangefs_attribute *attribute;
-	int rc;
-
-	attribute = container_of(attr, struct ncache_orangefs_attribute, attr);
-
-	if (!attribute->show) {
-		rc = -EIO;
-		goto out;
-	}
-
-	rc = attribute->show(attribute, buf);
-
-out:
-	return rc;
-}
-
-static ssize_t ncache_orangefs_attr_store(struct kobject *kobj,
-					  struct attribute *attr,
-					  const char *buf,
-					  size_t len)
-{
-	struct ncache_orangefs_attribute *attribute;
-	int rc;
-
-	gossip_debug(GOSSIP_SYSFS_DEBUG,
-		     "ncache_orangefs_attr_store: start\n");
-
-	attribute = container_of(attr, struct ncache_orangefs_attribute, attr);
-
-	if (!attribute->store) {
-		rc = -EIO;
-		goto out;
-	}
-
-	rc = attribute->store(attribute, buf, len);
-
-out:
-	return rc;
-}
 
 static const struct sysfs_ops ncache_orangefs_sysfs_ops = {
-	.show = ncache_orangefs_attr_show,
-	.store = ncache_orangefs_attr_store,
+	.show = orangefs_attr_show,
+	.store = orangefs_attr_store,
 };
-
-static ssize_t pc_orangefs_attr_show(struct kobject *kobj,
-				     struct attribute *attr,
-				     char *buf)
-{
-	struct pc_orangefs_attribute *attribute;
-	int rc;
-
-	attribute = container_of(attr, struct pc_orangefs_attribute, attr);
-
-	if (!attribute->show) {
-		rc = -EIO;
-		goto out;
-	}
-
-	rc = attribute->show(attribute, buf);
-
-out:
-	return rc;
-}
 
 static const struct sysfs_ops pc_orangefs_sysfs_ops = {
-	.show = pc_orangefs_attr_show,
+	.show = orangefs_attr_show,
 };
 
-static ssize_t stats_orangefs_attr_show(struct kobject *kobj,
-					struct attribute *attr,
-					char *buf)
-{
-	struct stats_orangefs_attribute *attribute;
-	int rc;
-
-	attribute = container_of(attr, struct stats_orangefs_attribute, attr);
-
-	if (!attribute->show) {
-		rc = -EIO;
-		goto out;
-	}
-
-	rc = attribute->show(attribute, buf);
-
-out:
-	return rc;
-}
-
 static const struct sysfs_ops stats_orangefs_sysfs_ops = {
-	.show = stats_orangefs_attr_show,
+	.show = orangefs_attr_show,
 };
 
 static ssize_t sysfs_int_show(char *kobj_id, char *buf, void *attr)
 {
 	int rc = -EIO;
-	struct orangefs_attribute *orangefs_attr;
-	struct stats_orangefs_attribute *stats_orangefs_attr;
+	struct orangefs_attribute *orangefs_attr = attr;
 
 	gossip_debug(GOSSIP_SYSFS_DEBUG, "sysfs_int_show: id:%s:\n", kobj_id);
 
 	if (!strcmp(kobj_id, ORANGEFS_KOBJ_ID)) {
-		orangefs_attr = (struct orangefs_attribute *)attr;
-
 		if (!strcmp(orangefs_attr->attr.name, "op_timeout_secs")) {
 			rc = scnprintf(buf,
 				       PAGE_SIZE,
@@ -542,15 +265,13 @@ static ssize_t sysfs_int_show(char *kobj_id, char *buf, void *attr)
 		}
 
 	} else if (!strcmp(kobj_id, STATS_KOBJ_ID)) {
-		stats_orangefs_attr = (struct stats_orangefs_attribute *)attr;
-
-		if (!strcmp(stats_orangefs_attr->attr.name, "reads")) {
+		if (!strcmp(orangefs_attr->attr.name, "reads")) {
 			rc = scnprintf(buf,
 				       PAGE_SIZE,
 				       "%lu\n",
 				       g_orangefs_stats.reads);
 			goto out;
-		} else if (!strcmp(stats_orangefs_attr->attr.name, "writes")) {
+		} else if (!strcmp(orangefs_attr->attr.name, "writes")) {
 			rc = scnprintf(buf,
 				       PAGE_SIZE,
 				       "%lu\n",
@@ -580,7 +301,7 @@ static ssize_t int_orangefs_show(struct orangefs_attribute *attr,
 	return rc;
 }
 
-static ssize_t int_stats_show(struct stats_orangefs_attribute *attr,
+static ssize_t int_stats_show(struct orangefs_attribute *attr,
 			char *buf)
 {
 	int rc;
@@ -637,12 +358,7 @@ static int sysfs_service_op_show(char *kobj_id, char *buf, void *attr)
 	struct orangefs_kernel_op_s *new_op = NULL;
 	int rc = 0;
 	char *ser_op_type = NULL;
-	struct orangefs_attribute *orangefs_attr;
-	struct acache_orangefs_attribute *acache_attr;
-	struct capcache_orangefs_attribute *capcache_attr;
-	struct ccache_orangefs_attribute *ccache_attr;
-	struct ncache_orangefs_attribute *ncache_attr;
-	struct pc_orangefs_attribute *pc_attr;
+	struct orangefs_attribute *orangefs_attr = attr;
 	__u32 op_alloc_type;
 
 	gossip_debug(GOSSIP_SYSFS_DEBUG,
@@ -671,8 +387,6 @@ static int sysfs_service_op_show(char *kobj_id, char *buf, void *attr)
 		new_op->upcall.req.param.type = ORANGEFS_PARAM_REQUEST_GET;
 
 	if (!strcmp(kobj_id, ORANGEFS_KOBJ_ID)) {
-		orangefs_attr = (struct orangefs_attribute *)attr;
-
 		if (!strcmp(orangefs_attr->attr.name, "perf_history_size"))
 			new_op->upcall.req.param.op =
 				ORANGEFS_PARAM_REQUEST_OP_PERF_HISTORY_SIZE;
@@ -700,93 +414,83 @@ static int sysfs_service_op_show(char *kobj_id, char *buf, void *attr)
 			new_op->upcall.req.param.op =
 				ORANGEFS_PARAM_REQUEST_OP_READAHEAD_COUNT_SIZE;
 	} else if (!strcmp(kobj_id, ACACHE_KOBJ_ID)) {
-		acache_attr = (struct acache_orangefs_attribute *)attr;
-
-		if (!strcmp(acache_attr->attr.name, "timeout_msecs"))
+		if (!strcmp(orangefs_attr->attr.name, "timeout_msecs"))
 			new_op->upcall.req.param.op =
 				ORANGEFS_PARAM_REQUEST_OP_ACACHE_TIMEOUT_MSECS;
 
-		if (!strcmp(acache_attr->attr.name, "hard_limit"))
+		if (!strcmp(orangefs_attr->attr.name, "hard_limit"))
 			new_op->upcall.req.param.op =
 				ORANGEFS_PARAM_REQUEST_OP_ACACHE_HARD_LIMIT;
 
-		if (!strcmp(acache_attr->attr.name, "soft_limit"))
+		if (!strcmp(orangefs_attr->attr.name, "soft_limit"))
 			new_op->upcall.req.param.op =
 				ORANGEFS_PARAM_REQUEST_OP_ACACHE_SOFT_LIMIT;
 
-		if (!strcmp(acache_attr->attr.name, "reclaim_percentage"))
+		if (!strcmp(orangefs_attr->attr.name, "reclaim_percentage"))
 			new_op->upcall.req.param.op =
 			  ORANGEFS_PARAM_REQUEST_OP_ACACHE_RECLAIM_PERCENTAGE;
 
 	} else if (!strcmp(kobj_id, CAPCACHE_KOBJ_ID)) {
-		capcache_attr = (struct capcache_orangefs_attribute *)attr;
-
-		if (!strcmp(capcache_attr->attr.name, "timeout_secs"))
+		if (!strcmp(orangefs_attr->attr.name, "timeout_secs"))
 			new_op->upcall.req.param.op =
 				ORANGEFS_PARAM_REQUEST_OP_CAPCACHE_TIMEOUT_SECS;
 
-		if (!strcmp(capcache_attr->attr.name, "hard_limit"))
+		if (!strcmp(orangefs_attr->attr.name, "hard_limit"))
 			new_op->upcall.req.param.op =
 				ORANGEFS_PARAM_REQUEST_OP_CAPCACHE_HARD_LIMIT;
 
-		if (!strcmp(capcache_attr->attr.name, "soft_limit"))
+		if (!strcmp(orangefs_attr->attr.name, "soft_limit"))
 			new_op->upcall.req.param.op =
 				ORANGEFS_PARAM_REQUEST_OP_CAPCACHE_SOFT_LIMIT;
 
-		if (!strcmp(capcache_attr->attr.name, "reclaim_percentage"))
+		if (!strcmp(orangefs_attr->attr.name, "reclaim_percentage"))
 			new_op->upcall.req.param.op =
 			  ORANGEFS_PARAM_REQUEST_OP_CAPCACHE_RECLAIM_PERCENTAGE;
 
 	} else if (!strcmp(kobj_id, CCACHE_KOBJ_ID)) {
-		ccache_attr = (struct ccache_orangefs_attribute *)attr;
-
-		if (!strcmp(ccache_attr->attr.name, "timeout_secs"))
+		if (!strcmp(orangefs_attr->attr.name, "timeout_secs"))
 			new_op->upcall.req.param.op =
 				ORANGEFS_PARAM_REQUEST_OP_CCACHE_TIMEOUT_SECS;
 
-		if (!strcmp(ccache_attr->attr.name, "hard_limit"))
+		if (!strcmp(orangefs_attr->attr.name, "hard_limit"))
 			new_op->upcall.req.param.op =
 				ORANGEFS_PARAM_REQUEST_OP_CCACHE_HARD_LIMIT;
 
-		if (!strcmp(ccache_attr->attr.name, "soft_limit"))
+		if (!strcmp(orangefs_attr->attr.name, "soft_limit"))
 			new_op->upcall.req.param.op =
 				ORANGEFS_PARAM_REQUEST_OP_CCACHE_SOFT_LIMIT;
 
-		if (!strcmp(ccache_attr->attr.name, "reclaim_percentage"))
+		if (!strcmp(orangefs_attr->attr.name, "reclaim_percentage"))
 			new_op->upcall.req.param.op =
 			  ORANGEFS_PARAM_REQUEST_OP_CCACHE_RECLAIM_PERCENTAGE;
 
 	} else if (!strcmp(kobj_id, NCACHE_KOBJ_ID)) {
-		ncache_attr = (struct ncache_orangefs_attribute *)attr;
-
-		if (!strcmp(ncache_attr->attr.name, "timeout_msecs"))
+		if (!strcmp(orangefs_attr->attr.name, "timeout_msecs"))
 			new_op->upcall.req.param.op =
 				ORANGEFS_PARAM_REQUEST_OP_NCACHE_TIMEOUT_MSECS;
 
-		if (!strcmp(ncache_attr->attr.name, "hard_limit"))
+		if (!strcmp(orangefs_attr->attr.name, "hard_limit"))
 			new_op->upcall.req.param.op =
 				ORANGEFS_PARAM_REQUEST_OP_NCACHE_HARD_LIMIT;
 
-		if (!strcmp(ncache_attr->attr.name, "soft_limit"))
+		if (!strcmp(orangefs_attr->attr.name, "soft_limit"))
 			new_op->upcall.req.param.op =
 				ORANGEFS_PARAM_REQUEST_OP_NCACHE_SOFT_LIMIT;
 
-		if (!strcmp(ncache_attr->attr.name, "reclaim_percentage"))
+		if (!strcmp(orangefs_attr->attr.name, "reclaim_percentage"))
 			new_op->upcall.req.param.op =
 			  ORANGEFS_PARAM_REQUEST_OP_NCACHE_RECLAIM_PERCENTAGE;
 
 	} else if (!strcmp(kobj_id, PC_KOBJ_ID)) {
-		pc_attr = (struct pc_orangefs_attribute *)attr;
-
-		if (!strcmp(pc_attr->attr.name, ACACHE_KOBJ_ID))
+		if (!strcmp(orangefs_attr->attr.name, ACACHE_KOBJ_ID))
 			new_op->upcall.req.perf_count.type =
 				ORANGEFS_PERF_COUNT_REQUEST_ACACHE;
 
-		if (!strcmp(pc_attr->attr.name, CAPCACHE_KOBJ_ID))
+		if (!strcmp(orangefs_attr->attr.name, CAPCACHE_KOBJ_ID))
 			new_op->upcall.req.perf_count.type =
 				ORANGEFS_PERF_COUNT_REQUEST_CAPCACHE;
 
-		if (!strcmp(pc_attr->attr.name, NCACHE_KOBJ_ID))
+		if (!strcmp(orangefs_attr->attr.name, NCACHE_KOBJ_ID))
 			new_op->upcall.req.perf_count.type =
 				ORANGEFS_PERF_COUNT_REQUEST_NCACHE;
 
@@ -849,7 +553,7 @@ static ssize_t service_orangefs_show(struct orangefs_attribute *attr,
 }
 
 static ssize_t
-	service_acache_show(struct acache_orangefs_attribute *attr,
+	service_acache_show(struct orangefs_attribute *attr,
 			    char *buf)
 {
 	int rc = 0;
@@ -859,7 +563,7 @@ static ssize_t
 	return rc;
 }
 
-static ssize_t service_capcache_show(struct capcache_orangefs_attribute *attr,
+static ssize_t service_capcache_show(struct orangefs_attribute *attr,
 				     char *buf)
 {
 	int rc = 0;
@@ -869,7 +573,7 @@ static ssize_t service_capcache_show(struct capcache_orangefs_attribute *attr,
 	return rc;
 }
 
-static ssize_t service_ccache_show(struct ccache_orangefs_attribute *attr,
+static ssize_t service_ccache_show(struct orangefs_attribute *attr,
 				   char *buf)
 {
 	int rc = 0;
@@ -880,7 +584,7 @@ static ssize_t service_ccache_show(struct ccache_orangefs_attribute *attr,
 }
 
 static ssize_t
-	service_ncache_show(struct ncache_orangefs_attribute *attr,
+	service_ncache_show(struct orangefs_attribute *attr,
 			    char *buf)
 {
 	int rc = 0;
@@ -891,7 +595,7 @@ static ssize_t
 }
 
 static ssize_t
-	service_pc_show(struct pc_orangefs_attribute *attr,
+	service_pc_show(struct orangefs_attribute *attr,
 			    char *buf)
 {
 	int rc = 0;
@@ -917,11 +621,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 	struct orangefs_kernel_op_s *new_op = NULL;
 	int val = 0;
 	int rc = 0;
-	struct orangefs_attribute *orangefs_attr;
-	struct acache_orangefs_attribute *acache_attr;
-	struct capcache_orangefs_attribute *capcache_attr;
-	struct ccache_orangefs_attribute *ccache_attr;
-	struct ncache_orangefs_attribute *ncache_attr;
+	struct orangefs_attribute *orangefs_attr = attr;
 
 	gossip_debug(GOSSIP_SYSFS_DEBUG,
 		     "sysfs_service_op_store: id:%s:\n",
@@ -955,8 +655,6 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 	new_op->upcall.req.param.type = ORANGEFS_PARAM_REQUEST_SET;
 
 	if (!strcmp(kobj_id, ORANGEFS_KOBJ_ID)) {
-		orangefs_attr = (struct orangefs_attribute *)attr;
-
 		if (!strcmp(orangefs_attr->attr.name, "perf_history_size")) {
 			if (val > 0) {
 				new_op->upcall.req.param.op =
@@ -1031,9 +729,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 		}
 
 	} else if (!strcmp(kobj_id, ACACHE_KOBJ_ID)) {
-		acache_attr = (struct acache_orangefs_attribute *)attr;
-
-		if (!strcmp(acache_attr->attr.name, "hard_limit")) {
+		if (!strcmp(orangefs_attr->attr.name, "hard_limit")) {
 			if (val > -1) {
 				new_op->upcall.req.param.op =
 				  ORANGEFS_PARAM_REQUEST_OP_ACACHE_HARD_LIMIT;
@@ -1041,7 +737,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 				rc = 0;
 				goto out;
 			}
-		} else if (!strcmp(acache_attr->attr.name, "soft_limit")) {
+		} else if (!strcmp(orangefs_attr->attr.name, "soft_limit")) {
 			if (val > -1) {
 				new_op->upcall.req.param.op =
 				  ORANGEFS_PARAM_REQUEST_OP_ACACHE_SOFT_LIMIT;
@@ -1049,7 +745,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 				rc = 0;
 				goto out;
 			}
-		} else if (!strcmp(acache_attr->attr.name,
+		} else if (!strcmp(orangefs_attr->attr.name,
 				   "reclaim_percentage")) {
 			if ((val > -1) && (val < 101)) {
 				new_op->upcall.req.param.op =
@@ -1058,7 +754,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 				rc = 0;
 				goto out;
 			}
-		} else if (!strcmp(acache_attr->attr.name, "timeout_msecs")) {
+		} else if (!strcmp(orangefs_attr->attr.name, "timeout_msecs")) {
 			if (val > -1) {
 				new_op->upcall.req.param.op =
 				  ORANGEFS_PARAM_REQUEST_OP_ACACHE_TIMEOUT_MSECS;
@@ -1069,9 +765,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 		}
 
 	} else if (!strcmp(kobj_id, CAPCACHE_KOBJ_ID)) {
-		capcache_attr = (struct capcache_orangefs_attribute *)attr;
-
-		if (!strcmp(capcache_attr->attr.name, "hard_limit")) {
+		if (!strcmp(orangefs_attr->attr.name, "hard_limit")) {
 			if (val > -1) {
 				new_op->upcall.req.param.op =
 				  ORANGEFS_PARAM_REQUEST_OP_CAPCACHE_HARD_LIMIT;
@@ -1079,7 +773,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 				rc = 0;
 				goto out;
 			}
-		} else if (!strcmp(capcache_attr->attr.name, "soft_limit")) {
+		} else if (!strcmp(orangefs_attr->attr.name, "soft_limit")) {
 			if (val > -1) {
 				new_op->upcall.req.param.op =
 				  ORANGEFS_PARAM_REQUEST_OP_CAPCACHE_SOFT_LIMIT;
@@ -1087,7 +781,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 				rc = 0;
 				goto out;
 			}
-		} else if (!strcmp(capcache_attr->attr.name,
+		} else if (!strcmp(orangefs_attr->attr.name,
 				   "reclaim_percentage")) {
 			if ((val > -1) && (val < 101)) {
 				new_op->upcall.req.param.op =
@@ -1096,7 +790,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 				rc = 0;
 				goto out;
 			}
-		} else if (!strcmp(capcache_attr->attr.name, "timeout_secs")) {
+		} else if (!strcmp(orangefs_attr->attr.name, "timeout_secs")) {
 			if (val > -1) {
 				new_op->upcall.req.param.op =
 				  ORANGEFS_PARAM_REQUEST_OP_CAPCACHE_TIMEOUT_SECS;
@@ -1107,9 +801,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 		}
 
 	} else if (!strcmp(kobj_id, CCACHE_KOBJ_ID)) {
-		ccache_attr = (struct ccache_orangefs_attribute *)attr;
-
-		if (!strcmp(ccache_attr->attr.name, "hard_limit")) {
+		if (!strcmp(orangefs_attr->attr.name, "hard_limit")) {
 			if (val > -1) {
 				new_op->upcall.req.param.op =
 				  ORANGEFS_PARAM_REQUEST_OP_CCACHE_HARD_LIMIT;
@@ -1117,7 +809,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 				rc = 0;
 				goto out;
 			}
-		} else if (!strcmp(ccache_attr->attr.name, "soft_limit")) {
+		} else if (!strcmp(orangefs_attr->attr.name, "soft_limit")) {
 			if (val > -1) {
 				new_op->upcall.req.param.op =
 				  ORANGEFS_PARAM_REQUEST_OP_CCACHE_SOFT_LIMIT;
@@ -1125,7 +817,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 				rc = 0;
 				goto out;
 			}
-		} else if (!strcmp(ccache_attr->attr.name,
+		} else if (!strcmp(orangefs_attr->attr.name,
 				   "reclaim_percentage")) {
 			if ((val > -1) && (val < 101)) {
 				new_op->upcall.req.param.op =
@@ -1134,7 +826,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 				rc = 0;
 				goto out;
 			}
-		} else if (!strcmp(ccache_attr->attr.name, "timeout_secs")) {
+		} else if (!strcmp(orangefs_attr->attr.name, "timeout_secs")) {
 			if (val > -1) {
 				new_op->upcall.req.param.op =
 				  ORANGEFS_PARAM_REQUEST_OP_CCACHE_TIMEOUT_SECS;
@@ -1145,9 +837,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 		}
 
 	} else if (!strcmp(kobj_id, NCACHE_KOBJ_ID)) {
-		ncache_attr = (struct ncache_orangefs_attribute *)attr;
-
-		if (!strcmp(ncache_attr->attr.name, "hard_limit")) {
+		if (!strcmp(orangefs_attr->attr.name, "hard_limit")) {
 			if (val > -1) {
 				new_op->upcall.req.param.op =
 				  ORANGEFS_PARAM_REQUEST_OP_NCACHE_HARD_LIMIT;
@@ -1155,7 +845,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 				rc = 0;
 				goto out;
 			}
-		} else if (!strcmp(ncache_attr->attr.name, "soft_limit")) {
+		} else if (!strcmp(orangefs_attr->attr.name, "soft_limit")) {
 			if (val > -1) {
 				new_op->upcall.req.param.op =
 				  ORANGEFS_PARAM_REQUEST_OP_NCACHE_SOFT_LIMIT;
@@ -1163,7 +853,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 				rc = 0;
 				goto out;
 			}
-		} else if (!strcmp(ncache_attr->attr.name,
+		} else if (!strcmp(orangefs_attr->attr.name,
 				   "reclaim_percentage")) {
 			if ((val > -1) && (val < 101)) {
 				new_op->upcall.req.param.op =
@@ -1172,7 +862,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 				rc = 0;
 				goto out;
 			}
-		} else if (!strcmp(ncache_attr->attr.name, "timeout_msecs")) {
+		} else if (!strcmp(orangefs_attr->attr.name, "timeout_msecs")) {
 			if (val > -1) {
 				new_op->upcall.req.param.op =
 				  ORANGEFS_PARAM_REQUEST_OP_NCACHE_TIMEOUT_MSECS;
@@ -1232,7 +922,7 @@ static ssize_t
 }
 
 static ssize_t
-	service_acache_store(struct acache_orangefs_attribute *attr,
+	service_acache_store(struct orangefs_attribute *attr,
 			     const char *buf,
 			     size_t count)
 {
@@ -1248,7 +938,7 @@ static ssize_t
 }
 
 static ssize_t
-	service_capcache_store(struct capcache_orangefs_attribute *attr,
+	service_capcache_store(struct orangefs_attribute *attr,
 			       const char *buf,
 			       size_t count)
 {
@@ -1263,7 +953,7 @@ static ssize_t
 	return rc;
 }
 
-static ssize_t service_ccache_store(struct ccache_orangefs_attribute *attr,
+static ssize_t service_ccache_store(struct orangefs_attribute *attr,
 				    const char *buf,
 				    size_t count)
 {
@@ -1279,7 +969,7 @@ static ssize_t service_ccache_store(struct ccache_orangefs_attribute *attr,
 }
 
 static ssize_t
-	service_ncache_store(struct ncache_orangefs_attribute *attr,
+	service_ncache_store(struct orangefs_attribute *attr,
 			     const char *buf,
 			     size_t count)
 {
@@ -1355,25 +1045,25 @@ static struct kobj_type orangefs_ktype = {
 	.default_attrs = orangefs_default_attrs,
 };
 
-static struct acache_orangefs_attribute acache_hard_limit_attribute =
+static struct orangefs_attribute acache_hard_limit_attribute =
 	__ATTR(hard_limit,
 	       0664,
 	       service_acache_show,
 	       service_acache_store);
 
-static struct acache_orangefs_attribute acache_reclaim_percent_attribute =
+static struct orangefs_attribute acache_reclaim_percent_attribute =
 	__ATTR(reclaim_percentage,
 	       0664,
 	       service_acache_show,
 	       service_acache_store);
 
-static struct acache_orangefs_attribute acache_soft_limit_attribute =
+static struct orangefs_attribute acache_soft_limit_attribute =
 	__ATTR(soft_limit,
 	       0664,
 	       service_acache_show,
 	       service_acache_store);
 
-static struct acache_orangefs_attribute acache_timeout_msecs_attribute =
+static struct orangefs_attribute acache_timeout_msecs_attribute =
 	__ATTR(timeout_msecs,
 	       0664,
 	       service_acache_show,
@@ -1392,25 +1082,25 @@ static struct kobj_type acache_orangefs_ktype = {
 	.default_attrs = acache_orangefs_default_attrs,
 };
 
-static struct capcache_orangefs_attribute capcache_hard_limit_attribute =
+static struct orangefs_attribute capcache_hard_limit_attribute =
 	__ATTR(hard_limit,
 	       0664,
 	       service_capcache_show,
 	       service_capcache_store);
 
-static struct capcache_orangefs_attribute capcache_reclaim_percent_attribute =
+static struct orangefs_attribute capcache_reclaim_percent_attribute =
 	__ATTR(reclaim_percentage,
 	       0664,
 	       service_capcache_show,
 	       service_capcache_store);
 
-static struct capcache_orangefs_attribute capcache_soft_limit_attribute =
+static struct orangefs_attribute capcache_soft_limit_attribute =
 	__ATTR(soft_limit,
 	       0664,
 	       service_capcache_show,
 	       service_capcache_store);
 
-static struct capcache_orangefs_attribute capcache_timeout_secs_attribute =
+static struct orangefs_attribute capcache_timeout_secs_attribute =
 	__ATTR(timeout_secs,
 	       0664,
 	       service_capcache_show,
@@ -1429,25 +1119,25 @@ static struct kobj_type capcache_orangefs_ktype = {
 	.default_attrs = capcache_orangefs_default_attrs,
 };
 
-static struct ccache_orangefs_attribute ccache_hard_limit_attribute =
+static struct orangefs_attribute ccache_hard_limit_attribute =
 	__ATTR(hard_limit,
 	       0664,
 	       service_ccache_show,
 	       service_ccache_store);
 
-static struct ccache_orangefs_attribute ccache_reclaim_percent_attribute =
+static struct orangefs_attribute ccache_reclaim_percent_attribute =
 	__ATTR(reclaim_percentage,
 	       0664,
 	       service_ccache_show,
 	       service_ccache_store);
 
-static struct ccache_orangefs_attribute ccache_soft_limit_attribute =
+static struct orangefs_attribute ccache_soft_limit_attribute =
 	__ATTR(soft_limit,
 	       0664,
 	       service_ccache_show,
 	       service_ccache_store);
 
-static struct ccache_orangefs_attribute ccache_timeout_secs_attribute =
+static struct orangefs_attribute ccache_timeout_secs_attribute =
 	__ATTR(timeout_secs,
 	       0664,
 	       service_ccache_show,
@@ -1466,25 +1156,25 @@ static struct kobj_type ccache_orangefs_ktype = {
 	.default_attrs = ccache_orangefs_default_attrs,
 };
 
-static struct ncache_orangefs_attribute ncache_hard_limit_attribute =
+static struct orangefs_attribute ncache_hard_limit_attribute =
 	__ATTR(hard_limit,
 	       0664,
 	       service_ncache_show,
 	       service_ncache_store);
 
-static struct ncache_orangefs_attribute ncache_reclaim_percent_attribute =
+static struct orangefs_attribute ncache_reclaim_percent_attribute =
 	__ATTR(reclaim_percentage,
 	       0664,
 	       service_ncache_show,
 	       service_ncache_store);
 
-static struct ncache_orangefs_attribute ncache_soft_limit_attribute =
+static struct orangefs_attribute ncache_soft_limit_attribute =
 	__ATTR(soft_limit,
 	       0664,
 	       service_ncache_show,
 	       service_ncache_store);
 
-static struct ncache_orangefs_attribute ncache_timeout_msecs_attribute =
+static struct orangefs_attribute ncache_timeout_msecs_attribute =
 	__ATTR(timeout_msecs,
 	       0664,
 	       service_ncache_show,
@@ -1503,19 +1193,19 @@ static struct kobj_type ncache_orangefs_ktype = {
 	.default_attrs = ncache_orangefs_default_attrs,
 };
 
-static struct pc_orangefs_attribute pc_acache_attribute =
+static struct orangefs_attribute pc_acache_attribute =
 	__ATTR(acache,
 	       0664,
 	       service_pc_show,
 	       NULL);
 
-static struct pc_orangefs_attribute pc_capcache_attribute =
+static struct orangefs_attribute pc_capcache_attribute =
 	__ATTR(capcache,
 	       0664,
 	       service_pc_show,
 	       NULL);
 
-static struct pc_orangefs_attribute pc_ncache_attribute =
+static struct orangefs_attribute pc_ncache_attribute =
 	__ATTR(ncache,
 	       0664,
 	       service_pc_show,
@@ -1533,13 +1223,13 @@ static struct kobj_type pc_orangefs_ktype = {
 	.default_attrs = pc_orangefs_default_attrs,
 };
 
-static struct stats_orangefs_attribute stats_reads_attribute =
+static struct orangefs_attribute stats_reads_attribute =
 	__ATTR(reads,
 	       0664,
 	       int_stats_show,
 	       NULL);
 
-static struct stats_orangefs_attribute stats_writes_attribute =
+static struct orangefs_attribute stats_writes_attribute =
 	__ATTR(writes,
 	       0664,
 	       int_stats_show,
