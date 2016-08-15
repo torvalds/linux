@@ -67,7 +67,7 @@ int xgmiitorgmii_probe(struct mdio_device *mdiodev)
 		return -ENOMEM;
 
 	phy_node = of_parse_phandle(np, "phy-handle", 0);
-	if (IS_ERR(phy_node)) {
+	if (!phy_node) {
 		dev_err(dev, "Couldn't parse phy-handle\n");
 		return -ENODEV;
 	}
