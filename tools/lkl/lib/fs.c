@@ -112,7 +112,7 @@ long lkl_mount_dev(unsigned int disk_id, const char *fs_type, int flags,
 		_data[0] = 0;
 	}
 
-	err = lkl_sys_mount(dev_str, mnt_str, (char*)fs_type, flags, _data);
+	err = lkl_sys_mount(dev_str, mnt_str, (char *)fs_type, flags, _data);
 	if (err < 0) {
 		lkl_sys_unlink(dev_str);
 		lkl_sys_rmdir(mnt_str);
