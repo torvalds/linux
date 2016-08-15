@@ -3189,7 +3189,7 @@ static int i915_semaphore_status(struct seq_file *m, void *unused)
 		struct page *page;
 		uint64_t *seqno;
 
-		page = i915_gem_object_get_page(dev_priv->semaphore_obj, 0);
+		page = i915_gem_object_get_page(dev_priv->semaphore->obj, 0);
 
 		seqno = (uint64_t *)kmap_atomic(page);
 		for_each_engine_id(engine, dev_priv, id) {

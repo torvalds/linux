@@ -57,10 +57,10 @@ struct intel_hw_status_page {
 #define GEN8_SEMAPHORE_OFFSET(__from, __to)			     \
 	(((__from) * I915_NUM_ENGINES  + (__to)) * gen8_semaphore_seqno_size)
 #define GEN8_SIGNAL_OFFSET(__ring, to)			     \
-	(i915_gem_obj_ggtt_offset(dev_priv->semaphore_obj) + \
+	(dev_priv->semaphore->node.start + \
 	 GEN8_SEMAPHORE_OFFSET((__ring)->id, (to)))
 #define GEN8_WAIT_OFFSET(__ring, from)			     \
-	(i915_gem_obj_ggtt_offset(dev_priv->semaphore_obj) + \
+	(dev_priv->semaphore->node.start + \
 	 GEN8_SEMAPHORE_OFFSET(from, (__ring)->id))
 
 enum intel_engine_hangcheck_action {

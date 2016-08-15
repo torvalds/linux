@@ -733,7 +733,7 @@ struct drm_i915_error_state {
 	u64 fence[I915_MAX_NUM_FENCES];
 	struct intel_overlay_error_state *overlay;
 	struct intel_display_error_state *display;
-	struct drm_i915_error_object *semaphore_obj;
+	struct drm_i915_error_object *semaphore;
 
 	struct drm_i915_error_engine {
 		int engine_id;
@@ -1750,7 +1750,7 @@ struct drm_i915_private {
 	struct pci_dev *bridge_dev;
 	struct i915_gem_context *kernel_context;
 	struct intel_engine_cs engine[I915_NUM_ENGINES];
-	struct drm_i915_gem_object *semaphore_obj;
+	struct i915_vma *semaphore;
 	u32 next_seqno;
 
 	struct drm_dma_handle *status_page_dmah;

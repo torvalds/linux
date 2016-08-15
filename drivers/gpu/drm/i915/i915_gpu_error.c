@@ -549,7 +549,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 		}
 	}
 
-	if ((obj = error->semaphore_obj)) {
+	if ((obj = error->semaphore)) {
 		err_printf(m, "Semaphore page = 0x%08x\n",
 			   lower_32_bits(obj->gtt_offset));
 		for (elt = 0; elt < PAGE_SIZE/16; elt += 4) {
@@ -640,7 +640,7 @@ static void i915_error_state_free(struct kref *error_ref)
 		kfree(ee->waiters);
 	}
 
-	i915_error_object_free(error->semaphore_obj);
+	i915_error_object_free(error->semaphore);
 
 	for (i = 0; i < ARRAY_SIZE(error->active_bo); i++)
 		kfree(error->active_bo[i]);
@@ -876,7 +876,7 @@ static void gen8_record_semaphore_state(struct drm_i915_error_state *error,
 	struct intel_engine_cs *to;
 	enum intel_engine_id id;
 
-	if (!error->semaphore_obj)
+	if (!error->semaphore)
 		return;
 
 	for_each_engine_id(to, dev_priv, id) {
@@ -889,7 +889,7 @@ static void gen8_record_semaphore_state(struct drm_i915_error_state *error,
 
 		signal_offset =
 			(GEN8_SIGNAL_OFFSET(engine, id) & (PAGE_SIZE - 1)) / 4;
-		tmp = error->semaphore_obj->pages[0];
+		tmp = error->semaphore->pages[0];
 		idx = intel_engine_sync_index(engine, to);
 
 		ee->semaphore_mboxes[idx] = tmp[signal_offset];
@@ -1061,11 +1061,9 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 	struct drm_i915_gem_request *request;
 	int i, count;
 
-	if (dev_priv->semaphore_obj) {
-		error->semaphore_obj =
-			i915_error_ggtt_object_create(dev_priv,
-						      dev_priv->semaphore_obj);
-	}
+	error->semaphore =
+		i915_error_ggtt_object_create(dev_priv,
+					      dev_priv->semaphore->obj);
 
 	for (i = 0; i < I915_NUM_ENGINES; i++) {
 		struct intel_engine_cs *engine = &dev_priv->engine[i];

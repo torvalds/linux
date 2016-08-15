@@ -1257,12 +1257,14 @@ static int init_render_ring(struct intel_engine_cs *engine)
 static void render_ring_cleanup(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
+	struct i915_vma *vma;
 
-	if (dev_priv->semaphore_obj) {
-		i915_gem_object_ggtt_unpin(dev_priv->semaphore_obj);
-		i915_gem_object_put(dev_priv->semaphore_obj);
-		dev_priv->semaphore_obj = NULL;
-	}
+	vma = fetch_and_zero(&dev_priv->semaphore);
+	if (!vma)
+		return;
+
+	i915_vma_unpin(vma);
+	i915_vma_put(vma);
 }
 
 static int gen8_rcs_signal(struct drm_i915_gem_request *req)
@@ -2523,30 +2525,30 @@ static void intel_ring_init_semaphores(struct drm_i915_private *dev_priv,
 	if (!i915.semaphores)
 		return;
 
-	if (INTEL_GEN(dev_priv) >= 8 && !dev_priv->semaphore_obj) {
+	if (INTEL_GEN(dev_priv) >= 8 && !dev_priv->semaphore) {
+		struct i915_vma *vma;
+
 		obj = i915_gem_object_create(&dev_priv->drm, 4096);
-		if (IS_ERR(obj)) {
-			DRM_ERROR("Failed to allocate semaphore bo. Disabling semaphores\n");
-			i915.semaphores = 0;
-		} else {
-			i915_gem_object_set_cache_level(obj, I915_CACHE_LLC);
-			ret = i915_gem_object_ggtt_pin(obj, NULL,
-						       0, 0, PIN_HIGH);
-			if (ret != 0) {
-				i915_gem_object_put(obj);
-				DRM_ERROR("Failed to pin semaphore bo. Disabling semaphores\n");
-				i915.semaphores = 0;
-			} else {
-				dev_priv->semaphore_obj = obj;
-			}
-		}
+		if (IS_ERR(obj))
+			goto err;
+
+		vma = i915_vma_create(obj, &dev_priv->ggtt.base, NULL);
+		if (IS_ERR(vma))
+			goto err_obj;
+
+		ret = i915_gem_object_set_to_gtt_domain(obj, false);
+		if (ret)
+			goto err_obj;
+
+		ret = i915_vma_pin(vma, 0, 0, PIN_GLOBAL | PIN_HIGH);
+		if (ret)
+			goto err_obj;
+
+		dev_priv->semaphore = vma;
 	}
 
-	if (!i915.semaphores)
-		return;
-
 	if (INTEL_GEN(dev_priv) >= 8) {
-		u64 offset = i915_gem_obj_ggtt_offset(dev_priv->semaphore_obj);
+		u64 offset = dev_priv->semaphore->node.start;
 
 		engine->semaphore.sync_to = gen8_ring_sync_to;
 		engine->semaphore.signal = gen8_xcs_signal;
@@ -2613,6 +2615,14 @@ static void intel_ring_init_semaphores(struct drm_i915_private *dev_priv,
 			engine->semaphore.mbox.signal[i] = mbox_reg;
 		}
 	}
+
+	return;
+
+err_obj:
+	i915_gem_object_put(obj);
+err:
+	DRM_DEBUG_DRIVER("Failed to allocate space for semaphores, disabling\n");
+	i915.semaphores = 0;
 }
 
 static void intel_ring_init_irq(struct drm_i915_private *dev_priv,
