@@ -74,22 +74,28 @@ SMPTE C set, so this colorspace is sometimes called SMPTE C as well.
 The transfer function defined for SMPTE 170M is the same as the one
 defined in Rec. 709.
 
-    L' = -1.099(-L) :sup:`0.45` + 0.099 for L ≤ -0.018
+.. math::
 
-    L' = 4.5L for -0.018 < L < 0.018
+    L' = -1.099(-L)^{0.45} + 0.099 \text{, for } L \le-0.018
 
-    L' = 1.099L :sup:`0.45` - 0.099 for L ≥ 0.018
+    L' = 4.5L \text{, for } -0.018 < L < 0.018
+
+    L' = 1.099L^{0.45} - 0.099 \text{, for } L \ge 0.018
 
 Inverse Transfer function:
 
-    L = -((L' - 0.099) / -1.099) :sup:`1/0.45` for L' ≤ -0.081
+.. math::
 
-    L = L' / 4.5 for -0.081 < L' < 0.081
+    L = -\left( \frac{L' - 0.099}{-1.099} \right) ^{\frac{1}{0.45}} \text{, for } L' \le -0.081
 
-    L = ((L' + 0.099) / 1.099) :sup:`1/0.45` for L' ≥ 0.081
+    L = \frac{L'}{4.5} \text{, for } -0.081 < L' < 0.081
+
+    L = \left(\frac{L' + 0.099}{1.099}\right)^{\frac{1}{0.45} } \text{, for } L' \ge 0.081
 
 The luminance (Y') and color difference (Cb and Cr) are obtained with
 the following ``V4L2_YCBCR_ENC_601`` encoding:
+
+.. math::
 
     Y' = 0.299R' + 0.587G' + 0.114B'
 
@@ -173,22 +179,28 @@ The full name of this standard is Rec. ITU-R BT.709-5.
 Transfer function. Normally L is in the range [0…1], but for the
 extended gamut xvYCC encoding values outside that range are allowed.
 
-    L' = -1.099(-L) :sup:`0.45` + 0.099 for L ≤ -0.018
+.. math::
 
-    L' = 4.5L for -0.018 < L < 0.018
+    L' = -1.099(-L)^{0.45} + 0.099 \text{, for } L \le -0.018
 
-    L' = 1.099L :sup:`0.45` - 0.099 for L ≥ 0.018
+    L' = 4.5L \text{, for } -0.018 < L < 0.018
+
+    L' = 1.099L^{0.45} - 0.099 \text{, for } L \ge 0.018
 
 Inverse Transfer function:
 
-    L = -((L' - 0.099) / -1.099) :sup:`1/0.45` for L' ≤ -0.081
+.. math::
 
-    L = L' / 4.5 for -0.081 < L' < 0.081
+    L = -\left( \frac{L' - 0.099}{-1.099} \right)^\frac{1}{0.45} \text{, for } L' \le -0.081
 
-    L = ((L' + 0.099) / 1.099) :sup:`1/0.45` for L' ≥ 0.081
+    L = \frac{L'}{4.5}\text{, for } -0.081 < L' < 0.081
+
+    L = \left(\frac{L' + 0.099}{1.099}\right)^{\frac{1}{0.45} } \text{, for } L' \ge 0.081
 
 The luminance (Y') and color difference (Cb and Cr) are obtained with
 the following ``V4L2_YCBCR_ENC_709`` encoding:
+
+.. math::
 
     Y' = 0.2126R' + 0.7152G' + 0.0722B'
 
@@ -214,22 +226,26 @@ similar to the Rec. 709 encoding, but it allows for R', G' and B' values
 that are outside the range [0…1]. The resulting Y', Cb and Cr values are
 scaled and offset:
 
-    Y' = (219 / 256) * (0.2126R' + 0.7152G' + 0.0722B') + (16 / 256)
+.. math::
 
-    Cb = (224 / 256) * (-0.1146R' - 0.3854G' + 0.5B')
+    Y' = \frac{219}{256} * (0.2126R' + 0.7152G' + 0.0722B') + \frac{16}{256}
 
-    Cr = (224 / 256) * (0.5R' - 0.4542G' - 0.0458B')
+    Cb = \frac{224}{256} * (-0.1146R' - 0.3854G' + 0.5B')
+
+    Cr = \frac{224}{256} * (0.5R' - 0.4542G' - 0.0458B')
 
 The xvYCC 601 encoding (``V4L2_YCBCR_ENC_XV601``, :ref:`xvycc`) is
 similar to the BT.601 encoding, but it allows for R', G' and B' values
 that are outside the range [0…1]. The resulting Y', Cb and Cr values are
 scaled and offset:
 
-    Y' = (219 / 256) * (0.299R' + 0.587G' + 0.114B') + (16 / 256)
+.. math::
 
-    Cb = (224 / 256) * (-0.169R' - 0.331G' + 0.5B')
+    Y' = \frac{219}{256} * (0.299R' + 0.587G' + 0.114B') + \frac{16}{256}
 
-    Cr = (224 / 256) * (0.5R' - 0.419G' - 0.081B')
+    Cb = \frac{224}{256} * (-0.169R' - 0.331G' + 0.5B')
+
+    Cr = \frac{224}{256} * (0.5R' - 0.419G' - 0.081B')
 
 Y' is clamped to the range [0…1] and Cb and Cr are clamped to the range
 [-0.5…0.5]. The non-standard xvYCC 709 or xvYCC 601 encodings can be
@@ -304,23 +320,29 @@ These chromaticities are identical to the Rec. 709 colorspace.
 Transfer function. Note that negative values for L are only used by the
 Y'CbCr conversion.
 
-    L' = -1.055(-L) :sup:`1/2.4` + 0.055 for L < -0.0031308
+.. math::
 
-    L' = 12.92L for -0.0031308 ≤ L ≤ 0.0031308
+    L' = -1.055(-L)^{\frac{1}{2.4} } + 0.055\text{, for }L < -0.0031308
 
-    L' = 1.055L :sup:`1/2.4` - 0.055 for 0.0031308 < L ≤ 1
+    L' = 12.92L\text{, for }-0.0031308 \le L \le 0.0031308
+
+    L' = 1.055L ^{\frac{1}{2.4} } - 0.055\text{, for }0.0031308 < L \le 1
 
 Inverse Transfer function:
 
-    L = -((-L' + 0.055) / 1.055) :sup:`2.4` for L' < -0.04045
+.. math::
 
-    L = L' / 12.92 for -0.04045 ≤ L' ≤ 0.04045
+    L = -((-L' + 0.055) / 1.055) ^{2.4}\text{, for }L' < -0.04045
 
-    L = ((L' + 0.055) / 1.055) :sup:`2.4` for L' > 0.04045
+    L = L' / 12.92\text{, for }-0.04045 \le L' \le 0.04045
+
+    L = ((L' + 0.055) / 1.055) ^{2.4}\text{, for }L' > 0.04045
 
 The luminance (Y') and color difference (Cb and Cr) are obtained with
 the following ``V4L2_YCBCR_ENC_SYCC`` encoding as defined by
 :ref:`sycc`:
+
+.. math::
 
     Y' = 0.2990R' + 0.5870G' + 0.1140B'
 
@@ -403,14 +425,20 @@ are:
 
 Transfer function:
 
-    L' = L :sup:`1/2.19921875`
+.. math::
+
+    L' = L ^{\frac{1}{2.19921875}}
 
 Inverse Transfer function:
 
-    L = L' :sup:`2.19921875`
+.. math::
+
+    L = L'^{(2.19921875)}
 
 The luminance (Y') and color difference (Cb and Cr) are obtained with
 the following ``V4L2_YCBCR_ENC_601`` encoding:
+
+.. math::
 
     Y' = 0.299R' + 0.587G' + 0.114B'
 
@@ -489,18 +517,24 @@ of the primary colors and the white reference are:
 
 Transfer function (same as Rec. 709):
 
-    L' = 4.5L for 0 ≤ L < 0.018
+.. math::
 
-    L' = 1.099L :sup:`0.45` - 0.099 for 0.018 ≤ L ≤ 1
+    L' = 4.5L\text{, for }0 \le L < 0.018
+
+    L' = 1.099L ^{0.45} - 0.099\text{, for } 0.018 \le L \le 1
 
 Inverse Transfer function:
 
-    L = L' / 4.5 for L' < 0.081
+.. math::
 
-    L = ((L' + 0.099) / 1.099) :sup:`1/0.45` for L' ≥ 0.081
+    L = L' / 4.5\text{, for } L' < 0.081
+
+    L = \left( \frac{L' + 0.099}{1.099}\right) ^{\frac{1}{0.45} }\text{, for } L' \ge 0.081
 
 The luminance (Y') and color difference (Cb and Cr) are obtained with
 the following ``V4L2_YCBCR_ENC_BT2020`` encoding:
+
+.. math::
 
     Y' = 0.2627R' + 0.6780G' + 0.0593B'
 
@@ -516,23 +550,20 @@ There is also an alternate constant luminance R'G'B' to Yc'CbcCrc
 
 Luma:
 
-    Yc' = (0.2627R + 0.6780G + 0.0593B)'
+.. math::
+    :nowrap:
 
-B' - Yc' ≤ 0:
-
-    Cbc = (B' - Yc') / 1.9404
-
-B' - Yc' > 0:
-
-    Cbc = (B' - Yc') / 1.5816
-
-R' - Yc' ≤ 0:
-
-    Crc = (R' - Y') / 1.7184
-
-R' - Yc' > 0:
-
-    Crc = (R' - Y') / 0.9936
+    \begin{align*}
+    Yc' = (0.2627R + 0.6780G + 0.0593B)'& \\
+    B' - Yc' \le 0:& \\
+        &Cbc = (B' - Yc') / 1.9404 \\
+    B' - Yc' > 0: & \\
+        &Cbc = (B' - Yc') / 1.5816 \\
+    R' - Yc' \le 0:& \\
+        &Crc = (R' - Y') / 1.7184 \\
+    R' - Yc' > 0:& \\
+        &Crc = (R' - Y') / 0.9936
+    \end{align*}
 
 Yc' is clamped to the range [0…1] and Cbc and Crc are clamped to the
 range [-0.5…0.5]. The Yc'CbcCrc quantization is limited range.
@@ -610,11 +641,15 @@ is ``V4L2_XFER_FUNC_DCI_P3``. The default Y'CbCr encoding is
 
 Transfer function:
 
-    L' = L :sup:`1/2.6`
+.. math::
+
+    L' = L^{\frac{1}{2.6}}
 
 Inverse Transfer function:
 
-    L = L' :sup:`2.6`
+.. math::
+
+    L = L'^{(2.6)}
 
 Y'CbCr encoding is not specified. V4L2 defaults to Rec. 709.
 
@@ -686,18 +721,24 @@ These chromaticities are identical to the SMPTE 170M colorspace.
 
 Transfer function:
 
-    L' = 4L for 0 ≤ L < 0.0228
+.. math::
 
-    L' = 1.1115L :sup:`0.45` - 0.1115 for 0.0228 ≤ L ≤ 1
+    L' = 4L\text{, for } 0 \le L < 0.0228
+
+    L' = 1.1115L ^{0.45} - 0.1115\text{, for } 0.0228 \le L \le 1
 
 Inverse Transfer function:
 
-    L = L' / 4 for 0 ≤ L' < 0.0913
+.. math::
 
-    L = ((L' + 0.1115) / 1.1115) :sup:`1/0.45` for L' ≥ 0.0913
+    L = \frac{L'}{4}\text{, for } 0 \le L' < 0.0913
+
+    L = \left( \frac{L' + 0.1115}{1.1115}\right) ^{\frac{1}{0.45} }\text{, for } L' \ge 0.0913
 
 The luminance (Y') and color difference (Cb and Cr) are obtained with
 the following ``V4L2_YCBCR_ENC_SMPTE240M`` encoding:
+
+.. math::
 
     Y' = 0.2122R' + 0.7013G' + 0.0865B'
 
@@ -782,18 +823,24 @@ reference are:
 The transfer function was never properly defined for NTSC 1953. The Rec.
 709 transfer function is recommended in the literature:
 
-    L' = 4.5L for 0 ≤ L < 0.018
+.. math::
 
-    L' = 1.099L :sup:`0.45` - 0.099 for 0.018 ≤ L ≤ 1
+    L' = 4.5L\text{, for } 0 \le L < 0.018
+
+    L' = 1.099L ^{0.45} - 0.099\text{, for } 0.018 \le L \le 1
 
 Inverse Transfer function:
 
-    L = L' / 4.5 for L' < 0.081
+.. math::
 
-    L = ((L' + 0.099) / 1.099) :sup:`1/0.45` for L' ≥ 0.081
+    L = \frac{L'}{4.5} \text{, for } L' < 0.081
+
+    L = \left( \frac{L' + 0.099}{1.099}\right) ^{\frac{1}{0.45} }\text{, for } L' \ge 0.081
 
 The luminance (Y') and color difference (Cb and Cr) are obtained with
 the following ``V4L2_YCBCR_ENC_601`` encoding:
+
+.. math::
 
     Y' = 0.299R' + 0.587G' + 0.114B'
 
@@ -874,18 +921,24 @@ are:
 The transfer function was never properly defined for this colorspace.
 The Rec. 709 transfer function is recommended in the literature:
 
-    L' = 4.5L for 0 ≤ L < 0.018
+.. math::
 
-    L' = 1.099L :sup:`0.45` - 0.099 for 0.018 ≤ L ≤ 1
+    L' = 4.5L\text{, for } 0 \le L < 0.018
+
+    L' = 1.099L ^{0.45} - 0.099\text{, for } 0.018 \le L \le 1
 
 Inverse Transfer function:
 
-    L = L' / 4.5 for L' < 0.081
+.. math::
 
-    L = ((L' + 0.099) / 1.099) :sup:`1/0.45` for L' ≥ 0.081
+    L = \frac{L'}{4.5} \text{, for } L' < 0.081
+
+    L = \left(\frac{L' + 0.099}{1.099} \right) ^{\frac{1}{0.45} }\text{, for } L' \ge 0.081
 
 The luminance (Y') and color difference (Cb and Cr) are obtained with
 the following ``V4L2_YCBCR_ENC_601`` encoding:
+
+.. math::
 
     Y' = 0.299R' + 0.587G' + 0.114B'
 
