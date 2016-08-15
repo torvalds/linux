@@ -440,8 +440,7 @@ static u32 qede_get_msglevel(struct net_device *ndev)
 {
 	struct qede_dev *edev = netdev_priv(ndev);
 
-	return ((u32)edev->dp_level << QED_LOG_LEVEL_SHIFT) |
-	       edev->dp_module;
+	return ((u32)edev->dp_level << QED_LOG_LEVEL_SHIFT) | edev->dp_module;
 }
 
 static void qede_set_msglevel(struct net_device *ndev, u32 level)
@@ -465,8 +464,7 @@ static int qede_nway_reset(struct net_device *dev)
 	struct qed_link_params link_params;
 
 	if (!edev->ops || !edev->ops->common->can_link_change(edev->cdev)) {
-		DP_INFO(edev,
-			"Link settings are not allowed to be changed\n");
+		DP_INFO(edev, "Link settings are not allowed to be changed\n");
 		return -EOPNOTSUPP;
 	}
 

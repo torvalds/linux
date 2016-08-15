@@ -51,8 +51,6 @@ MODULE_FIRMWARE(QED_FW_FILE_NAME);
 
 static int __init qed_init(void)
 {
-	pr_notice("qed_init called\n");
-
 	pr_info("%s", version);
 
 	return 0;
@@ -106,8 +104,7 @@ static void qed_free_pci(struct qed_dev *cdev)
 /* Performs PCI initializations as well as initializing PCI-related parameters
  * in the device structrue. Returns 0 in case of success.
  */
-static int qed_init_pci(struct qed_dev *cdev,
-			struct pci_dev *pdev)
+static int qed_init_pci(struct qed_dev *cdev, struct pci_dev *pdev)
 {
 	u8 rev_id;
 	int rc;
@@ -263,8 +260,7 @@ static struct qed_dev *qed_alloc_cdev(struct pci_dev *pdev)
 }
 
 /* Sets the requested power state */
-static int qed_set_power_state(struct qed_dev *cdev,
-			       pci_power_t state)
+static int qed_set_power_state(struct qed_dev *cdev, pci_power_t state)
 {
 	if (!cdev)
 		return -ENODEV;
@@ -366,8 +362,8 @@ static int qed_enable_msix(struct qed_dev *cdev,
 		DP_NOTICE(cdev,
 			  "Trying to enable MSI-X with less vectors (%d out of %d)\n",
 			  cnt, int_params->in.num_vectors);
-		rc = pci_enable_msix_exact(cdev->pdev,
-					   int_params->msix_table, cnt);
+		rc = pci_enable_msix_exact(cdev->pdev, int_params->msix_table,
+					   cnt);
 		if (!rc)
 			rc = cnt;
 	}
@@ -439,6 +435,11 @@ static int qed_set_int_mode(struct qed_dev *cdev, bool force_mode)
 	}
 
 out:
+	if (!rc)
+		DP_INFO(cdev, "Using %s interrupts\n",
+			int_params->out.int_mode == QED_INT_MODE_INTA ?
+			"INTa" : int_params->out.int_mode == QED_INT_MODE_MSI ?
+			"MSI" : "MSIX");
 	cdev->int_coalescing_mode = QED_COAL_MODE_ENABLE;
 
 	return rc;
@@ -514,19 +515,18 @@ static irqreturn_t qed_single_int(int irq, void *dev_instance)
 int qed_slowpath_irq_req(struct qed_hwfn *hwfn)
 {
 	struct qed_dev *cdev = hwfn->cdev;
+	u32 int_mode;
 	int rc = 0;
 	u8 id;
 
-	if (cdev->int_params.out.int_mode == QED_INT_MODE_MSIX) {
+	int_mode = cdev->int_params.out.int_mode;
+	if (int_mode == QED_INT_MODE_MSIX) {
 		id = hwfn->my_id;
 		snprintf(hwfn->name, NAME_SIZE, "sp-%d-%02x:%02x.%02x",
 			 id, cdev->pdev->bus->number,
 			 PCI_SLOT(cdev->pdev->devfn), hwfn->abs_pf_id);
 		rc = request_irq(cdev->int_params.msix_table[id].vector,
 				 qed_msix_sp_int, 0, hwfn->name, hwfn->sp_dpc);
-		if (!rc)
-			DP_VERBOSE(hwfn, (NETIF_MSG_INTR | QED_MSG_SP),
-				   "Requested slowpath MSI-X\n");
 	} else {
 		unsigned long flags = 0;
 
@@ -540,6 +540,13 @@ int qed_slowpath_irq_req(struct qed_hwfn *hwfn)
 		rc = request_irq(cdev->pdev->irq, qed_single_int,
 				 flags, cdev->name, cdev);
 	}
+
+	if (rc)
+		DP_NOTICE(cdev, "request_irq failed, rc = %d\n", rc);
+	else
+		DP_VERBOSE(hwfn, (NETIF_MSG_INTR | QED_MSG_SP),
+			   "Requested slowpath %s\n",
+			   (int_mode == QED_INT_MODE_MSIX) ? "MSI-X" : "IRQ");
 
 	return rc;
 }
@@ -974,8 +981,7 @@ static u32 qed_sb_init(struct qed_dev *cdev,
 }
 
 static u32 qed_sb_release(struct qed_dev *cdev,
-			  struct qed_sb_info *sb_info,
-			  u16 sb_id)
+			  struct qed_sb_info *sb_info, u16 sb_id)
 {
 	struct qed_hwfn *p_hwfn;
 	int hwfn_index;
