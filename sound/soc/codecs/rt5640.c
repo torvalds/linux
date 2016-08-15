@@ -1870,6 +1870,9 @@ static int rt5640_set_dai_sysclk(struct snd_soc_dai *dai,
 	case RT5640_SCLK_S_PLL1:
 		reg_val |= RT5640_SCLK_SRC_PLL1;
 		break;
+	case RT5640_SCLK_S_RCCLK:
+		reg_val |= RT5640_SCLK_SRC_RCCLK;
+		break;
 	default:
 		dev_err(codec->dev, "Invalid clock id (%d)\n", clk_id);
 		return -EINVAL;
