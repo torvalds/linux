@@ -428,7 +428,7 @@ static void vop_dsp_hold_valid_irq_disable(struct vop *vop)
 	spin_unlock_irqrestore(&vop->irq_lock, flags);
 }
 
-static void vop_enable(struct drm_crtc *crtc)
+static int vop_enable(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
 	int ret;
@@ -436,26 +436,20 @@ static void vop_enable(struct drm_crtc *crtc)
 	ret = pm_runtime_get_sync(vop->dev);
 	if (ret < 0) {
 		dev_err(vop->dev, "failed to get pm runtime: %d\n", ret);
-		return;
+		goto err_put_pm_runtime;
 	}
 
 	ret = clk_enable(vop->hclk);
-	if (ret < 0) {
-		dev_err(vop->dev, "failed to enable hclk - %d\n", ret);
-		return;
-	}
+	if (WARN_ON(ret < 0))
+		goto err_put_pm_runtime;
 
 	ret = clk_enable(vop->dclk);
-	if (ret < 0) {
-		dev_err(vop->dev, "failed to enable dclk - %d\n", ret);
+	if (WARN_ON(ret < 0))
 		goto err_disable_hclk;
-	}
 
 	ret = clk_enable(vop->aclk);
-	if (ret < 0) {
-		dev_err(vop->dev, "failed to enable aclk - %d\n", ret);
+	if (WARN_ON(ret < 0))
 		goto err_disable_dclk;
-	}
 
 	/*
 	 * Slave iommu shares power, irq and clock with vop.  It was associated
@@ -485,7 +479,7 @@ static void vop_enable(struct drm_crtc *crtc)
 
 	drm_crtc_vblank_on(crtc);
 
-	return;
+	return 0;
 
 err_disable_aclk:
 	clk_disable(vop->aclk);
@@ -493,6 +487,9 @@ err_disable_dclk:
 	clk_disable(vop->dclk);
 err_disable_hclk:
 	clk_disable(vop->hclk);
+err_put_pm_runtime:
+	pm_runtime_put_sync(vop->dev);
+	return ret;
 }
 
 static void vop_crtc_disable(struct drm_crtc *crtc)
@@ -912,10 +909,16 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	u16 vact_st = adjusted_mode->vtotal - adjusted_mode->vsync_start;
 	u16 vact_end = vact_st + vdisplay;
 	uint32_t val;
+	int ret;
 
 	WARN_ON(vop->event);
 
-	vop_enable(crtc);
+	ret = vop_enable(crtc);
+	if (ret) {
+		DRM_DEV_ERROR(vop->dev, "Failed to enable vop (%d)\n", ret);
+		return;
+	}
+
 	/*
 	 * If dclk rate is zero, mean that scanout is stop,
 	 * we don't need wait any more.
