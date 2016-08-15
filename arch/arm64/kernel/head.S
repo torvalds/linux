@@ -717,40 +717,25 @@ __primary_switch:
 	 * Iterate over each entry in the relocation table, and apply the
 	 * relocations in place.
 	 */
-	ldr	w8, =__dynsym_offset		// offset to symbol table
 	ldr	w9, =__rela_offset		// offset to reloc table
 	ldr	w10, =__rela_size		// size of reloc table
 
 	mov_q	x11, KIMAGE_VADDR		// default virtual offset
 	add	x11, x11, x23			// actual virtual offset
-	add	x8, x8, x11			// __va(.dynsym)
 	add	x9, x9, x11			// __va(.rela)
 	add	x10, x9, x10			// __va(.rela) + sizeof(.rela)
 
 0:	cmp	x9, x10
-	b.hs	2f
+	b.hs	1f
 	ldp	x11, x12, [x9], #24
 	ldr	x13, [x9, #-8]
 	cmp	w12, #R_AARCH64_RELATIVE
-	b.ne	1f
+	b.ne	0b
 	add	x13, x13, x23			// relocate
 	str	x13, [x11, x23]
 	b	0b
 
-1:	cmp	w12, #R_AARCH64_ABS64
-	b.ne	0b
-	add	x12, x12, x12, lsl #1		// symtab offset: 24x top word
-	add	x12, x8, x12, lsr #(32 - 3)	// ... shifted into bottom word
-	ldrsh	w14, [x12, #6]			// Elf64_Sym::st_shndx
-	ldr	x15, [x12, #8]			// Elf64_Sym::st_value
-	cmp	w14, #-0xf			// SHN_ABS (0xfff1) ?
-	add	x14, x15, x23			// relocate
-	csel	x15, x14, x15, ne
-	add	x15, x13, x15
-	str	x15, [x11, x23]
-	b	0b
-
-2:
+1:
 #endif
 	ldr	x8, =__primary_switched
 	br	x8
