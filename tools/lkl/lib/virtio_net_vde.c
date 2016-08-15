@@ -8,10 +8,12 @@
 #include <lkl.h>
 #include <lkl_host.h>
 
+#include "virtio.h"
+
 #include <libvdeplug.h>
 
 struct lkl_netdev_vde {
-	struct lkl_dev_net_ops *ops;
+	struct lkl_netdev dev;
 	VDECONN *conn;
 };
 
@@ -31,11 +33,10 @@ struct lkl_dev_net_ops vde_net_ops = {
 int net_vde_tx(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt)
 {
 	int ret;
-	struct lkl_netdev_vde *nd_vde;
+	struct lkl_netdev_vde *nd_vde =
+		container_of(nd, struct lkl_netdev_vde, dev);
 	void *data = iov[0].addr;
 	int len = (int)iov[0].len;
-
-	nd_vde = (struct lkl_netdev_vde *) nd;
 
 	ret = vde_send(nd_vde->conn, data, len, 0);
 	if (ret <= 0 && errno == EAGAIN)
@@ -46,11 +47,10 @@ int net_vde_tx(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt)
 int net_vde_rx(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt)
 {
 	int ret;
-	struct lkl_netdev_vde *nd_vde;
+	struct lkl_netdev_vde *nd_vde =
+		container_of(nd, struct lkl_netdev_vde, dev);
 	void *data = iov[0].addr;
 	int len = (int)iov[0].len;
-
-	nd_vde = (struct lkl_netdev_vde *) nd;
 
 	/*
 	 * Due to a bug in libvdeplug we have to first poll to make sure
@@ -71,10 +71,8 @@ int net_vde_rx(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt)
 int net_vde_poll_with_timeout(struct lkl_netdev *nd, int events, int timeout)
 {
 	int ret;
-	struct lkl_netdev_vde *nd_vde;
-
-	nd_vde = (struct lkl_netdev_vde *) nd;
-
+	struct lkl_netdev_vde *nd_vde =
+		container_of(nd, struct lkl_netdev_vde, dev);
 	struct pollfd pollfds[] = {
 			{
 					.fd = vde_datafd(nd_vde->conn),
@@ -119,13 +117,13 @@ struct lkl_netdev *lkl_netdev_vde_create(char const *switch_path)
 	struct vde_open_args open_args = {.port = 0, .group = 0, .mode = 0700 };
 	char *switch_path_copy = 0;
 
-	nd = (struct lkl_netdev_vde *)malloc(sizeof(*nd));
+	nd = malloc(sizeof(*nd));
 	if (!nd) {
 		fprintf(stderr, "Failed to allocate memory.\n");
 		/* TODO: propagate the error state, maybe use errno? */
 		return 0;
 	}
-	nd->ops = &vde_net_ops;
+	nd->dev.ops = &vde_net_ops;
 
 	/* vde_open() allows the null pointer as path which means
 	 * "VDE default path"
@@ -153,7 +151,7 @@ struct lkl_netdev *lkl_netdev_vde_create(char const *switch_path)
 		return 0;
 	}
 
-	return (struct lkl_netdev *)nd;
+	return &nd->dev;
 }
 
 #else /* CONFIG_AUTO_LKL_VIRTIO_NET_VDE */
