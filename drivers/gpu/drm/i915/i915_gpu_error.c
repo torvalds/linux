@@ -1043,28 +1043,6 @@ static void error_record_engine_registers(struct drm_i915_error_state *error,
 	}
 }
 
-static void i915_gem_record_active_context(struct intel_engine_cs *engine,
-					   struct drm_i915_error_state *error,
-					   struct drm_i915_error_engine *ee)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-	struct drm_i915_gem_object *obj;
-
-	/* Currently render ring is the only HW context user */
-	if (engine->id != RCS || !error->ccid)
-		return;
-
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
-		if (!i915_gem_obj_ggtt_bound(obj))
-			continue;
-
-		if ((error->ccid & PAGE_MASK) == i915_gem_obj_ggtt_offset(obj)) {
-			ee->ctx = i915_error_ggtt_object_create(dev_priv, obj);
-			break;
-		}
-	}
-}
-
 static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 				  struct drm_i915_error_state *error)
 {
@@ -1114,6 +1092,10 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 					i915_error_ggtt_object_create(dev_priv,
 								      engine->scratch.obj);
 
+			ee->ctx =
+				i915_error_ggtt_object_create(dev_priv,
+							      request->ctx->engine[i].state);
+
 			if (request->pid) {
 				struct task_struct *task;
 
@@ -1143,8 +1125,6 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 
 		ee->wa_ctx = i915_error_ggtt_object_create(dev_priv,
 							   engine->wa_ctx.obj);
-
-		i915_gem_record_active_context(engine, error, ee);
 
 		count = 0;
 		list_for_each_entry(request, &engine->request_list, link)
