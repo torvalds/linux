@@ -158,6 +158,7 @@ void i915_gem_context_free(struct kref *ctx_ref)
 		i915_vma_put(ce->state);
 	}
 
+	put_pid(ctx->pid);
 	list_del(&ctx->link);
 
 	ida_simple_remove(&ctx->i915->context_hw_ida, ctx->hw_id);
@@ -311,6 +312,9 @@ __create_hw_context(struct drm_device *dev,
 		ret = DEFAULT_CONTEXT_HANDLE;
 
 	ctx->file_priv = file_priv;
+	if (file_priv)
+		ctx->pid = get_task_pid(current, PIDTYPE_PID);
+
 	ctx->user_handle = ret;
 	/* NB: Mark all slices as needing a remap so that when the context first
 	 * loads it will restore whatever remap state already exists. If there

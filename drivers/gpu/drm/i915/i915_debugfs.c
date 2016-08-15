@@ -460,6 +460,8 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 	print_context_stats(m, dev_priv);
 	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
 		struct file_stats stats;
+		struct drm_i915_file_private *file_priv = file->driver_priv;
+		struct drm_i915_gem_request *request;
 		struct task_struct *task;
 
 		memset(&stats, 0, sizeof(stats));
@@ -473,10 +475,17 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 		 * still alive (e.g. get_pid(current) => fork() => exit()).
 		 * Therefore, we need to protect this ->comm access using RCU.
 		 */
+		mutex_lock(&dev->struct_mutex);
+		request = list_first_entry_or_null(&file_priv->mm.request_list,
+						   struct drm_i915_gem_request,
+						   client_list);
 		rcu_read_lock();
-		task = pid_task(file->pid, PIDTYPE_PID);
+		task = pid_task(request && request->ctx->pid ?
+				request->ctx->pid : file->pid,
+				PIDTYPE_PID);
 		print_file_stats(m, task ? task->comm : "<unknown>", stats);
 		rcu_read_unlock();
+		mutex_unlock(&dev->struct_mutex);
 	}
 	mutex_unlock(&dev->filelist_mutex);
 
@@ -658,12 +667,11 @@ static int i915_gem_request_info(struct seq_file *m, void *data)
 
 		seq_printf(m, "%s requests: %d\n", engine->name, count);
 		list_for_each_entry(req, &engine->request_list, link) {
+			struct pid *pid = req->ctx->pid;
 			struct task_struct *task;
 
 			rcu_read_lock();
-			task = NULL;
-			if (req->pid)
-				task = pid_task(req->pid, PIDTYPE_PID);
+			task = pid ? pid_task(pid, PIDTYPE_PID) : NULL;
 			seq_printf(m, "    %x @ %d: %s [%d]\n",
 				   req->fence.seqno,
 				   (int) (jiffies - req->emitted_jiffies),
@@ -1952,18 +1960,17 @@ static int i915_context_status(struct seq_file *m, void *unused)
 
 	list_for_each_entry(ctx, &dev_priv->context_list, link) {
 		seq_printf(m, "HW context %u ", ctx->hw_id);
-		if (IS_ERR(ctx->file_priv)) {
-			seq_puts(m, "(deleted) ");
-		} else if (ctx->file_priv) {
-			struct pid *pid = ctx->file_priv->file->pid;
+		if (ctx->pid) {
 			struct task_struct *task;
 
-			task = get_pid_task(pid, PIDTYPE_PID);
+			task = get_pid_task(ctx->pid, PIDTYPE_PID);
 			if (task) {
 				seq_printf(m, "(%s [%d]) ",
 					   task->comm, task->pid);
 				put_task_struct(task);
 			}
+		} else if (IS_ERR(ctx->file_priv)) {
+			seq_puts(m, "(deleted) ");
 		} else {
 			seq_puts(m, "(kernel) ");
 		}

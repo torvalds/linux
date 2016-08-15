@@ -137,8 +137,6 @@ int i915_gem_request_add_to_client(struct drm_i915_gem_request *req,
 	list_add_tail(&req->client_list, &file_priv->mm.request_list);
 	spin_unlock(&file_priv->mm.lock);
 
-	req->pid = get_pid(task_pid(current));
-
 	return 0;
 }
 
@@ -154,9 +152,6 @@ i915_gem_request_remove_from_client(struct drm_i915_gem_request *request)
 	list_del(&request->client_list);
 	request->file_priv = NULL;
 	spin_unlock(&file_priv->mm.lock);
-
-	put_pid(request->pid);
-	request->pid = NULL;
 }
 
 void i915_gem_retire_noop(struct i915_gem_active *active,
@@ -407,7 +402,6 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	req->previous_context = NULL;
 	req->file_priv = NULL;
 	req->batch = NULL;
-	req->pid = NULL;
 	req->elsp_submitted = 0;
 
 	/*
