@@ -20,6 +20,8 @@
 
 static int open_access_count;
 
+static DEFINE_MUTEX(devreq_mutex);
+
 #define DUMP_DEVICE_ERROR()                                                   \
 do {                                                                          \
 	gossip_err("*****************************************************\n");\

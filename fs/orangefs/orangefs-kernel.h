@@ -510,7 +510,6 @@ bool orangefs_cancel_op_in_progress(struct orangefs_kernel_op_s *op);
 
 int orangefs_normalize_to_errno(__s32 error_code);
 
-extern struct mutex devreq_mutex;
 extern struct mutex request_mutex;
 extern int debug;
 extern int op_timeout_secs;

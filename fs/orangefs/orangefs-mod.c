@@ -54,9 +54,6 @@ module_param(module_parm_debug_mask, ulong, 0644);
 module_param(op_timeout_secs, int, 0);
 module_param(slot_timeout_secs, int, 0);
 
-/* synchronizes the request device file */
-DEFINE_MUTEX(devreq_mutex);
-
 /*
  * Blocks non-priority requests from being queued for servicing.  This
  * could be used for protecting the request list data structure, but
