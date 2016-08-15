@@ -154,7 +154,7 @@ int tilcdc_get_external_components(struct device *dev,
 
 	while ((ep = of_graph_get_next_endpoint(dev->of_node, ep))) {
 		node = of_graph_get_remote_port_parent(ep);
-		if (!node && !of_device_is_available(node)) {
+		if (!node || !of_device_is_available(node)) {
 			of_node_put(node);
 			continue;
 		}
