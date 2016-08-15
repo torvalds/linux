@@ -1892,7 +1892,6 @@ static int mtk_remove(struct platform_device *pdev)
 	netif_napi_del(&eth->tx_napi);
 	netif_napi_del(&eth->rx_napi);
 	mtk_cleanup(eth);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
