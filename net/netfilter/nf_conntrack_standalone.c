@@ -205,6 +205,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	struct nf_conn *ct = nf_ct_tuplehash_to_ctrack(hash);
 	const struct nf_conntrack_l3proto *l3proto;
 	const struct nf_conntrack_l4proto *l4proto;
+	struct net *net = seq_file_net(s);
 	int ret = 0;
 
 	NF_CT_ASSERT(ct);
@@ -213,6 +214,9 @@ static int ct_seq_show(struct seq_file *s, void *v)
 
 	/* we only want to print DIR_ORIGINAL */
 	if (NF_CT_DIRECTION(hash))
+		goto release;
+
+	if (!net_eq(nf_ct_net(ct), net))
 		goto release;
 
 	l3proto = __nf_ct_l3proto_find(nf_ct_l3num(ct));
