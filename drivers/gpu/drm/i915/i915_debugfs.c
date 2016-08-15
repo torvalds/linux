@@ -40,12 +40,6 @@
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
-enum {
-	ACTIVE_LIST,
-	INACTIVE_LIST,
-	PINNED_LIST,
-};
-
 /* As the drm_debugfs_init() routines are called before dev->dev_private is
  * allocated we need to hook into the minor for release. */
 static int
@@ -537,8 +531,8 @@ static int i915_gem_gtt_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
-	uintptr_t list = (uintptr_t) node->info_ent->data;
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	bool show_pin_display_only = !!data;
 	struct drm_i915_gem_object *obj;
 	u64 total_obj_size, total_gtt_size;
 	int count, ret;
@@ -549,7 +543,7 @@ static int i915_gem_gtt_info(struct seq_file *m, void *data)
 
 	total_obj_size = total_gtt_size = count = 0;
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
-		if (list == PINNED_LIST && !i915_gem_obj_is_pinned(obj))
+		if (show_pin_display_only && !obj->pin_display)
 			continue;
 
 		seq_puts(m, "   ");
@@ -5372,7 +5366,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_capabilities", i915_capabilities, 0},
 	{"i915_gem_objects", i915_gem_object_info, 0},
 	{"i915_gem_gtt", i915_gem_gtt_info, 0},
-	{"i915_gem_pinned", i915_gem_gtt_info, 0, (void *) PINNED_LIST},
+	{"i915_gem_pin_display", i915_gem_gtt_info, 0, (void *)1},
 	{"i915_gem_stolen", i915_gem_stolen_list_info },
 	{"i915_gem_pageflip", i915_gem_pageflip_info, 0},
 	{"i915_gem_request", i915_gem_request_info, 0},
