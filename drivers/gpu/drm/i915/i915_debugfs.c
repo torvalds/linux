@@ -2441,6 +2441,20 @@ static int count_irq_waiters(struct drm_i915_private *i915)
 	return count;
 }
 
+static const char *rps_power_to_str(unsigned int power)
+{
+	static const char * const strings[] = {
+		[LOW_POWER] = "low power",
+		[BETWEEN] = "mixed",
+		[HIGH_POWER] = "high power",
+	};
+
+	if (power >= ARRAY_SIZE(strings) || !strings[power])
+		return "unknown";
+
+	return strings[power];
+}
+
 static int i915_rps_boost_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = m->private;
@@ -2452,12 +2466,17 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 	seq_printf(m, "GPU busy? %s [%x]\n",
 		   yesno(dev_priv->gt.awake), dev_priv->gt.active_engines);
 	seq_printf(m, "CPU waiting? %d\n", count_irq_waiters(dev_priv));
-	seq_printf(m, "Frequency requested %d; min hard:%d, soft:%d; max soft:%d, hard:%d\n",
-		   intel_gpu_freq(dev_priv, dev_priv->rps.cur_freq),
+	seq_printf(m, "Frequency requested %d\n",
+		   intel_gpu_freq(dev_priv, dev_priv->rps.cur_freq));
+	seq_printf(m, "  min hard:%d, soft:%d; max soft:%d, hard:%d\n",
 		   intel_gpu_freq(dev_priv, dev_priv->rps.min_freq),
 		   intel_gpu_freq(dev_priv, dev_priv->rps.min_freq_softlimit),
 		   intel_gpu_freq(dev_priv, dev_priv->rps.max_freq_softlimit),
 		   intel_gpu_freq(dev_priv, dev_priv->rps.max_freq));
+	seq_printf(m, "  idle:%d, efficient:%d, boost:%d\n",
+		   intel_gpu_freq(dev_priv, dev_priv->rps.idle_freq),
+		   intel_gpu_freq(dev_priv, dev_priv->rps.efficient_freq),
+		   intel_gpu_freq(dev_priv, dev_priv->rps.boost_freq));
 
 	mutex_lock(&dev->filelist_mutex);
 	spin_lock(&dev_priv->rps.client_lock);
@@ -2477,6 +2496,31 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 	seq_printf(m, "Kernel (anonymous) boosts: %d\n", dev_priv->rps.boosts);
 	spin_unlock(&dev_priv->rps.client_lock);
 	mutex_unlock(&dev->filelist_mutex);
+
+	if (INTEL_GEN(dev_priv) >= 6 &&
+	    dev_priv->rps.enabled &&
+	    dev_priv->gt.active_engines) {
+		u32 rpup, rpupei;
+		u32 rpdown, rpdownei;
+
+		intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+		rpup = I915_READ_FW(GEN6_RP_CUR_UP) & GEN6_RP_EI_MASK;
+		rpupei = I915_READ_FW(GEN6_RP_CUR_UP_EI) & GEN6_RP_EI_MASK;
+		rpdown = I915_READ_FW(GEN6_RP_CUR_DOWN) & GEN6_RP_EI_MASK;
+		rpdownei = I915_READ_FW(GEN6_RP_CUR_DOWN_EI) & GEN6_RP_EI_MASK;
+		intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+
+		seq_printf(m, "\nRPS Autotuning (current \"%s\" window):\n",
+			   rps_power_to_str(dev_priv->rps.power));
+		seq_printf(m, "  Avg. up: %d%% [above threshold? %d%%]\n",
+			   100 * rpup / rpupei,
+			   dev_priv->rps.up_threshold);
+		seq_printf(m, "  Avg. down: %d%% [below threshold? %d%%]\n",
+			   100 * rpdown / rpdownei,
+			   dev_priv->rps.down_threshold);
+	} else {
+		seq_puts(m, "\nRPS Autotuning inactive\n");
+	}
 
 	return 0;
 }
