@@ -405,7 +405,7 @@ static void dwc3_cache_hwparams(struct dwc3 *dwc)
  * initialized. The PHY interfaces and the PHYs get initialized together with
  * the core in dwc3_core_init.
  */
-static int dwc3_phy_setup(struct dwc3 *dwc)
+int dwc3_phy_setup(struct dwc3 *dwc)
 {
 	u32 reg;
 	int ret;
