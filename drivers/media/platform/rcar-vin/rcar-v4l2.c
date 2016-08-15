@@ -192,6 +192,11 @@ static int __rvin_try_format(struct rvin_dev *vin,
 	pix->sizeimage = max_t(u32, pix->sizeimage,
 			       rvin_format_sizeimage(pix));
 
+	if (vin->chip == RCAR_M1 && pix->pixelformat == V4L2_PIX_FMT_XBGR32) {
+		vin_err(vin, "pixel format XBGR32 not supported on M1\n");
+		return -EINVAL;
+	}
+
 	vin_dbg(vin, "Requested %ux%u Got %ux%u bpl: %d size: %d\n",
 		rwidth, rheight, pix->width, pix->height,
 		pix->bytesperline, pix->sizeimage);

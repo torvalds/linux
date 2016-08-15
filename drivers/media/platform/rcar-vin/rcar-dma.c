@@ -225,11 +225,9 @@ static int rvin_setup(struct rvin_dev *vin)
 		dmr = 0;
 		break;
 	case V4L2_PIX_FMT_XBGR32:
-		if (vin->chip == RCAR_GEN2 || vin->chip == RCAR_H1) {
-			dmr = VNDMR_EXRGB;
-			break;
-		}
-		/* fall through */
+		/* Note: not supported on M1 */
+		dmr = VNDMR_EXRGB;
+		break;
 	default:
 		vin_err(vin, "Invalid pixelformat (0x%x)\n",
 			vin->format.pixelformat);
