@@ -139,6 +139,13 @@
 #define PC_KOBJ_ID "pc"
 #define STATS_KOBJ_ID "stats"
 
+/*
+ * Every item calls orangefs_attr_show and orangefs_attr_store through
+ * orangefs_sysfs_ops. They look at the orangefs_attributes further below to
+ * call one of sysfs_int_show, sysfs_int_store, sysfs_service_op_show, or
+ * sysfs_service_op_store.
+ */
+
 struct orangefs_attribute {
 	struct attribute attr;
 	ssize_t (*show)(struct kobject *kobj,
