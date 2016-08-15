@@ -161,6 +161,48 @@ cleanup:
 	return ret;
 }
 
+void intel_engine_init_seqno(struct intel_engine_cs *engine, u32 seqno)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+
+	/* Our semaphore implementation is strictly monotonic (i.e. we proceed
+	 * so long as the semaphore value in the register/page is greater
+	 * than the sync value), so whenever we reset the seqno,
+	 * so long as we reset the tracking semaphore value to 0, it will
+	 * always be before the next request's seqno. If we don't reset
+	 * the semaphore value, then when the seqno moves backwards all
+	 * future waits will complete instantly (causing rendering corruption).
+	 */
+	if (IS_GEN6(dev_priv) || IS_GEN7(dev_priv)) {
+		I915_WRITE(RING_SYNC_0(engine->mmio_base), 0);
+		I915_WRITE(RING_SYNC_1(engine->mmio_base), 0);
+		if (HAS_VEBOX(dev_priv))
+			I915_WRITE(RING_SYNC_2(engine->mmio_base), 0);
+	}
+	if (dev_priv->semaphore_obj) {
+		struct drm_i915_gem_object *obj = dev_priv->semaphore_obj;
+		struct page *page = i915_gem_object_get_dirty_page(obj, 0);
+		void *semaphores = kmap(page);
+		memset(semaphores + GEN8_SEMAPHORE_OFFSET(engine->id, 0),
+		       0, I915_NUM_ENGINES * gen8_semaphore_seqno_size);
+		kunmap(page);
+	}
+	memset(engine->semaphore.sync_seqno, 0,
+	       sizeof(engine->semaphore.sync_seqno));
+
+	intel_write_status_page(engine, I915_GEM_HWS_INDEX, seqno);
+	if (engine->irq_seqno_barrier)
+		engine->irq_seqno_barrier(engine);
+	engine->last_submitted_seqno = seqno;
+
+	engine->hangcheck.seqno = seqno;
+
+	/* After manually advancing the seqno, fake the interrupt in case
+	 * there are any waiters for that seqno.
+	 */
+	intel_engine_wakeup(engine);
+}
+
 void intel_engine_init_hangcheck(struct intel_engine_cs *engine)
 {
 	memset(&engine->hangcheck, 0, sizeof(engine->hangcheck));
