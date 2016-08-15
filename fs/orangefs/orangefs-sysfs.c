@@ -155,19 +155,11 @@ static ssize_t orangefs_attr_show(struct kobject *kobj,
 				  char *buf)
 {
 	struct orangefs_attribute *attribute;
-	int rc;
 
 	attribute = container_of(attr, struct orangefs_attribute, attr);
-
-	if (!attribute->show) {
-		rc = -EIO;
-		goto out;
-	}
-
-	rc = attribute->show(kobj, attribute, buf);
-
-out:
-	return rc;
+	if (!attribute->show)
+		return -EIO;
+	return attribute->show(kobj, attribute, buf);
 }
 
 static ssize_t orangefs_attr_store(struct kobject *kobj,
@@ -176,55 +168,20 @@ static ssize_t orangefs_attr_store(struct kobject *kobj,
 				   size_t len)
 {
 	struct orangefs_attribute *attribute;
-	int rc;
 
-	gossip_debug(GOSSIP_SYSFS_DEBUG,
-		     "orangefs_attr_store: start\n");
+	if (!strcmp(kobj->name, PC_KOBJ_ID) ||
+	    !strcmp(kobj->name, STATS_KOBJ_ID))
+		return -EPERM;
 
 	attribute = container_of(attr, struct orangefs_attribute, attr);
-
-	if (!attribute->store) {
-		rc = -EIO;
-		goto out;
-	}
-
-	rc = attribute->store(kobj, attribute, buf, len);
-
-out:
-	return rc;
+	if (!attribute->store)
+		return -EIO;
+	return attribute->store(kobj, attribute, buf, len);
 }
 
 static const struct sysfs_ops orangefs_sysfs_ops = {
 	.show = orangefs_attr_show,
 	.store = orangefs_attr_store,
-};
-
-static const struct sysfs_ops acache_orangefs_sysfs_ops = {
-	.show = orangefs_attr_show,
-	.store = orangefs_attr_store,
-};
-
-static const struct sysfs_ops capcache_orangefs_sysfs_ops = {
-	.show = orangefs_attr_show,
-	.store = orangefs_attr_store,
-};
-
-static const struct sysfs_ops ccache_orangefs_sysfs_ops = {
-	.show = orangefs_attr_show,
-	.store = orangefs_attr_store,
-};
-
-static const struct sysfs_ops ncache_orangefs_sysfs_ops = {
-	.show = orangefs_attr_show,
-	.store = orangefs_attr_store,
-};
-
-static const struct sysfs_ops pc_orangefs_sysfs_ops = {
-	.show = orangefs_attr_show,
-};
-
-static const struct sysfs_ops stats_orangefs_sysfs_ops = {
-	.show = orangefs_attr_show,
 };
 
 static ssize_t sysfs_int_show(struct kobject *kobj,
@@ -909,7 +866,7 @@ static struct attribute *acache_orangefs_default_attrs[] = {
 };
 
 static struct kobj_type acache_orangefs_ktype = {
-	.sysfs_ops = &acache_orangefs_sysfs_ops,
+	.sysfs_ops = &orangefs_sysfs_ops,
 	.default_attrs = acache_orangefs_default_attrs,
 };
 
@@ -946,7 +903,7 @@ static struct attribute *capcache_orangefs_default_attrs[] = {
 };
 
 static struct kobj_type capcache_orangefs_ktype = {
-	.sysfs_ops = &capcache_orangefs_sysfs_ops,
+	.sysfs_ops = &orangefs_sysfs_ops,
 	.default_attrs = capcache_orangefs_default_attrs,
 };
 
@@ -983,7 +940,7 @@ static struct attribute *ccache_orangefs_default_attrs[] = {
 };
 
 static struct kobj_type ccache_orangefs_ktype = {
-	.sysfs_ops = &ccache_orangefs_sysfs_ops,
+	.sysfs_ops = &orangefs_sysfs_ops,
 	.default_attrs = ccache_orangefs_default_attrs,
 };
 
@@ -1020,7 +977,7 @@ static struct attribute *ncache_orangefs_default_attrs[] = {
 };
 
 static struct kobj_type ncache_orangefs_ktype = {
-	.sysfs_ops = &ncache_orangefs_sysfs_ops,
+	.sysfs_ops = &orangefs_sysfs_ops,
 	.default_attrs = ncache_orangefs_default_attrs,
 };
 
@@ -1050,7 +1007,7 @@ static struct attribute *pc_orangefs_default_attrs[] = {
 };
 
 static struct kobj_type pc_orangefs_ktype = {
-	.sysfs_ops = &pc_orangefs_sysfs_ops,
+	.sysfs_ops = &orangefs_sysfs_ops,
 	.default_attrs = pc_orangefs_default_attrs,
 };
 
@@ -1073,7 +1030,7 @@ static struct attribute *stats_orangefs_default_attrs[] = {
 };
 
 static struct kobj_type stats_orangefs_ktype = {
-	.sysfs_ops = &stats_orangefs_sysfs_ops,
+	.sysfs_ops = &orangefs_sysfs_ops,
 	.default_attrs = stats_orangefs_default_attrs,
 };
 
