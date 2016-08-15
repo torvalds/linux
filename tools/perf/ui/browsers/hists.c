@@ -2440,8 +2440,6 @@ do_zoom_dso(struct hist_browser *browser, struct popup_action *act)
 		browser->hists->dso_filter = NULL;
 		ui_helpline__pop();
 	} else {
-		if (map == NULL)
-			return 0;
 		ui_helpline__fpush("To zoom out press ESC or ENTER + \"Zoom out of %s DSO\"",
 				   __map__is_kernel(map) ? "the Kernel" : map->dso->short_name);
 		browser->hists->dso_filter = map->dso;
