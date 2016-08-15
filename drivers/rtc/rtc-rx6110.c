@@ -388,7 +388,6 @@ MODULE_DEVICE_TABLE(spi, rx6110_id);
 static struct spi_driver rx6110_driver = {
 	.driver = {
 		.name = RX6110_DRIVER_NAME,
-		.owner = THIS_MODULE,
 	},
 	.probe		= rx6110_probe,
 	.remove		= rx6110_remove,
