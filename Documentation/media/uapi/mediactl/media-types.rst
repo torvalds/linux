@@ -413,7 +413,7 @@ Types and flags used to represent the media graph elements
 
        -  Device node interface for radio (V4L)
 
-       -  typically, /dev/vbi?
+       -  typically, /dev/radio?
 
     -  .. row 9
 
