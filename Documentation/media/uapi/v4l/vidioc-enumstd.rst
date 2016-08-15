@@ -330,8 +330,7 @@ support digital TV. See also the Linux DVB API at
 
        -  4433618.75 ± 1
 
-       -  :cspan:`3` f\ :sub:`OR` = 4406250 ± 2000, f\ :sub:`OB` = 4250000
-	  ± 2000
+       -  :cspan:`3` f\ :sub:`OR` = 4406250 ± 2000, f\ :sub:`OB` = 4250000 ± 2000
 
     -  .. row 5
 
@@ -363,27 +362,27 @@ support digital TV. See also the Linux DVB API at
 
        -  Sound carrier relative to vision carrier (MHz)
 
-       -  + 4.5
+       -  4.5
 
-       -  + 4.5
+       -  4.5
 
-       -  + 4.5
+       -  4.5
 
-       -  + 5.5 ± 0.001  [#f4]_  [#f5]_  [#f6]_  [#f7]_
+       -  5.5 ± 0.001  [#f4]_  [#f5]_  [#f6]_  [#f7]_
 
-       -  + 6.5 ± 0.001
+       -  6.5 ± 0.001
 
-       -  + 5.5
+       -  5.5
 
-       -  + 5.9996 ± 0.0005
+       -  5.9996 ± 0.0005
 
-       -  + 5.5 ± 0.001
+       -  5.5 ± 0.001
 
-       -  + 6.5 ± 0.001
+       -  6.5 ± 0.001
 
-       -  + 6.5
+       -  6.5
 
-       -  + 6.5  [#f8]_
+       -  6.5 [#f8]_
 
 
 Return Value
