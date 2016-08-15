@@ -1896,7 +1896,8 @@ mwifiex_active_scan_req_for_passive_chan(struct mwifiex_private *priv)
 	u8 id = 0;
 	struct mwifiex_user_scan_cfg  *user_scan_cfg;
 
-	if (adapter->active_scan_triggered || !priv->scan_request) {
+	if (adapter->active_scan_triggered || !priv->scan_request ||
+	    priv->scan_aborting) {
 		adapter->active_scan_triggered = false;
 		return 0;
 	}
@@ -1956,10 +1957,15 @@ static void mwifiex_check_next_scan_command(struct mwifiex_private *priv)
 			mwifiex_complete_scan(priv);
 
 		if (priv->scan_request) {
+			struct cfg80211_scan_info info = {
+				.aborted = false,
+			};
+
 			mwifiex_dbg(adapter, INFO,
 				    "info: notifying scan done\n");
-			cfg80211_scan_done(priv->scan_request, 0);
+			cfg80211_scan_done(priv->scan_request, &info);
 			priv->scan_request = NULL;
+			priv->scan_aborting = false;
 		} else {
 			priv->scan_aborting = false;
 			mwifiex_dbg(adapter, INFO,
@@ -1977,10 +1983,15 @@ static void mwifiex_check_next_scan_command(struct mwifiex_private *priv)
 
 		if (!adapter->active_scan_triggered) {
 			if (priv->scan_request) {
+				struct cfg80211_scan_info info = {
+					.aborted = true,
+				};
+
 				mwifiex_dbg(adapter, INFO,
 					    "info: aborting scan\n");
-				cfg80211_scan_done(priv->scan_request, 1);
+				cfg80211_scan_done(priv->scan_request, &info);
 				priv->scan_request = NULL;
+				priv->scan_aborting = false;
 			} else {
 				priv->scan_aborting = false;
 				mwifiex_dbg(adapter, INFO,
@@ -1999,6 +2010,37 @@ static void mwifiex_check_next_scan_command(struct mwifiex_private *priv)
 	}
 
 	return;
+}
+
+void mwifiex_cancel_scan(struct mwifiex_adapter *adapter)
+{
+	struct mwifiex_private *priv;
+	unsigned long cmd_flags;
+	int i;
+
+	mwifiex_cancel_pending_scan_cmd(adapter);
+
+	if (adapter->scan_processing) {
+		spin_lock_irqsave(&adapter->mwifiex_cmd_lock, cmd_flags);
+		adapter->scan_processing = false;
+		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, cmd_flags);
+		for (i = 0; i < adapter->priv_num; i++) {
+			priv = adapter->priv[i];
+			if (!priv)
+				continue;
+			if (priv->scan_request) {
+				struct cfg80211_scan_info info = {
+					.aborted = true,
+				};
+
+				mwifiex_dbg(adapter, INFO,
+					    "info: aborting scan\n");
+				cfg80211_scan_done(priv->scan_request, &info);
+				priv->scan_request = NULL;
+				priv->scan_aborting = false;
+			}
+		}
+	}
 }
 
 /*

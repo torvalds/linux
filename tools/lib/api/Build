@@ -2,3 +2,8 @@ libapi-y += fd/
 libapi-y += fs/
 libapi-y += cpu.o
 libapi-y += debug.o
+libapi-y += str_error_r.o
+
+$(OUTPUT)str_error_r.o: ../str_error_r.c FORCE
+	$(call rule_mkdir)
+	$(call if_changed_dep,cc_o_c)

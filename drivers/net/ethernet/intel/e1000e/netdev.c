@@ -4352,7 +4352,8 @@ static cycle_t e1000e_cyclecounter_read(const struct cyclecounter *cc)
 
 			time_delta = systim_next - systim;
 			temp = time_delta;
-			rem = do_div(temp, incvalue);
+			/* VMWare users have seen incvalue of zero, don't div / 0 */
+			rem = incvalue ? do_div(temp, incvalue) : (time_delta != 0);
 
 			systim = systim_next;
 
@@ -7329,8 +7330,7 @@ err_flashmap:
 err_ioremap:
 	free_netdev(netdev);
 err_alloc_etherdev:
-	pci_release_selected_regions(pdev,
-				     pci_select_bars(pdev, IORESOURCE_MEM));
+	pci_release_mem_regions(pdev);
 err_pci_reg:
 err_dma:
 	pci_disable_device(pdev);
@@ -7397,8 +7397,7 @@ static void e1000_remove(struct pci_dev *pdev)
 	if ((adapter->hw.flash_address) &&
 	    (adapter->hw.mac.type < e1000_pch_spt))
 		iounmap(adapter->hw.flash_address);
-	pci_release_selected_regions(pdev,
-				     pci_select_bars(pdev, IORESOURCE_MEM));
+	pci_release_mem_regions(pdev);
 
 	free_netdev(netdev);
 

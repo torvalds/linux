@@ -497,16 +497,13 @@ static struct dma_async_tx_descriptor *cppi41_dma_prep_slave_sg(
 	struct cppi41_desc *d;
 	struct scatterlist *sg;
 	unsigned int i;
-	unsigned int num;
 
-	num = 0;
 	d = c->desc;
 	for_each_sg(sgl, sg, sg_len, i) {
 		u32 addr;
 		u32 len;
 
 		/* We need to use more than one desc once musb supports sg */
-		BUG_ON(num > 0);
 		addr = lower_32_bits(sg_dma_address(sg));
 		len = sg_dma_len(sg);
 

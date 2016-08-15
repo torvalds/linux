@@ -440,6 +440,14 @@ static int pcf857x_remove(struct i2c_client *client)
 	return status;
 }
 
+static void pcf857x_shutdown(struct i2c_client *client)
+{
+	struct pcf857x *gpio = i2c_get_clientdata(client);
+
+	/* Drive all the I/O lines high */
+	gpio->write(gpio->client, BIT(gpio->chip.ngpio) - 1);
+}
+
 static struct i2c_driver pcf857x_driver = {
 	.driver = {
 		.name	= "pcf857x",
@@ -447,6 +455,7 @@ static struct i2c_driver pcf857x_driver = {
 	},
 	.probe	= pcf857x_probe,
 	.remove	= pcf857x_remove,
+	.shutdown = pcf857x_shutdown,
 	.id_table = pcf857x_id,
 };
 

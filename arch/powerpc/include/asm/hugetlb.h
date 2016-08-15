@@ -147,7 +147,7 @@ static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
 {
 	pte_t pte;
 	pte = huge_ptep_get_and_clear(vma->vm_mm, addr, ptep);
-	flush_tlb_page(vma, addr);
+	flush_hugetlb_page(vma, addr);
 }
 
 static inline int huge_pte_none(pte_t pte)

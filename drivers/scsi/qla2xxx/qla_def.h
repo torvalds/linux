@@ -829,6 +829,7 @@ struct mbx_cmd_32 {
 #define MBA_FW_RESTART_CMPLT	0x8060	/* Firmware restart complete */
 #define MBA_INIT_REQUIRED	0x8061	/* Initialization required */
 #define MBA_SHUTDOWN_REQUESTED	0x8062	/* Shutdown Requested */
+#define MBA_TEMPERATURE_ALERT	0x8070	/* Temperature Alert */
 #define MBA_DPORT_DIAGNOSTICS	0x8080	/* D-port Diagnostics */
 #define MBA_FW_INIT_FAILURE	0x8401	/* Firmware initialization failure */
 #define MBA_MIRROR_LUN_CHANGE	0x8402	/* Mirror LUN State Change
@@ -3028,6 +3029,7 @@ struct qla_hw_data {
 		uint32_t        mr_reset_hdlr_active:1;
 		uint32_t        mr_intr_valid:1;
 
+		uint32_t        dport_enabled:1;
 		uint32_t	fawwpn_enabled:1;
 		uint32_t	exlogins_enabled:1;
 		uint32_t	exchoffld_enabled:1;
@@ -3128,7 +3130,7 @@ struct qla_hw_data {
 #define PCI_DEVICE_ID_QLOGIC_ISP2271	0x2271
 #define PCI_DEVICE_ID_QLOGIC_ISP2261	0x2261
 
-	uint32_t	device_type;
+	uint32_t	isp_type;
 #define DT_ISP2100                      BIT_0
 #define DT_ISP2200                      BIT_1
 #define DT_ISP2300                      BIT_2
@@ -3153,6 +3155,7 @@ struct qla_hw_data {
 #define DT_ISP2261			BIT_21
 #define DT_ISP_LAST			(DT_ISP2261 << 1)
 
+	uint32_t	device_type;
 #define DT_T10_PI                       BIT_25
 #define DT_IIDMA                        BIT_26
 #define DT_FWI2                         BIT_27
@@ -3160,7 +3163,8 @@ struct qla_hw_data {
 #define DT_OEM_001                      BIT_29
 #define DT_ISP2200A                     BIT_30
 #define DT_EXTENDED_IDS                 BIT_31
-#define DT_MASK(ha)     ((ha)->device_type & (DT_ISP_LAST - 1))
+
+#define DT_MASK(ha)     ((ha)->isp_type & (DT_ISP_LAST - 1))
 #define IS_QLA2100(ha)  (DT_MASK(ha) & DT_ISP2100)
 #define IS_QLA2200(ha)  (DT_MASK(ha) & DT_ISP2200)
 #define IS_QLA2300(ha)  (DT_MASK(ha) & DT_ISP2300)
@@ -3370,6 +3374,8 @@ struct qla_hw_data {
 
 	uint32_t	fw_shared_ram_start;
 	uint32_t	fw_shared_ram_end;
+	uint32_t	fw_ddr_ram_start;
+	uint32_t	fw_ddr_ram_end;
 
 	uint16_t	fw_options[16];         /* slots: 1,2,3,10,11 */
 	uint8_t		fw_seriallink_options[4];
@@ -3505,7 +3511,6 @@ struct qla_hw_data {
 	int             cur_vport_count;
 
 	struct qla_chip_state_84xx *cs84xx;
-	struct qla_statistics qla_stats;
 	struct isp_operations *isp_ops;
 	struct workqueue_struct *wq;
 	struct qlfc_fw fw_buf;
@@ -3656,6 +3661,7 @@ typedef struct scsi_qla_host {
 #define PFLG_DISCONNECTED	0	/* PCI device removed */
 #define PFLG_DRIVER_REMOVING	1	/* PCI driver .remove */
 #define PFLG_DRIVER_PROBING	2	/* PCI driver .probe */
+#define PCI_ERR			30
 
 	uint32_t	device_flags;
 #define SWITCH_FOUND		BIT_0

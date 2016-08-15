@@ -39,7 +39,7 @@ struct fsl_mc_bus;
  */
 struct fsl_mc_driver {
 	struct device_driver driver;
-	const struct fsl_mc_device_match_id *match_id_table;
+	const struct fsl_mc_device_id *match_id_table;
 	int (*probe)(struct fsl_mc_device *dev);
 	int (*remove)(struct fsl_mc_device *dev);
 	void (*shutdown)(struct fsl_mc_device *dev);
@@ -49,23 +49,6 @@ struct fsl_mc_driver {
 
 #define to_fsl_mc_driver(_drv) \
 	container_of(_drv, struct fsl_mc_driver, driver)
-
-/**
- * struct fsl_mc_device_match_id - MC object device Id entry for driver matching
- * @vendor: vendor ID
- * @obj_type: MC object type
- * @ver_major: MC object version major number
- * @ver_minor: MC object version minor number
- *
- * Type of entries in the "device Id" table for MC object devices supported by
- * a MC object device driver. The last entry of the table has vendor set to 0x0
- */
-struct fsl_mc_device_match_id {
-	u16 vendor;
-	const char obj_type[16];
-	u32 ver_major;
-	u32 ver_minor;
-};
 
 /**
  * enum fsl_mc_pool_type - Types of allocatable MC bus resources
@@ -223,6 +206,8 @@ void fsl_mc_object_free(struct fsl_mc_device *mc_adev);
 int __must_check fsl_mc_allocate_irqs(struct fsl_mc_device *mc_dev);
 
 void fsl_mc_free_irqs(struct fsl_mc_device *mc_dev);
+
+bool fsl_mc_is_root_dprc(struct device *dev);
 
 extern struct bus_type fsl_mc_bus_type;
 

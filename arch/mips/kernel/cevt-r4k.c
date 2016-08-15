@@ -276,12 +276,7 @@ int r4k_clockevent_init(void)
 				  CLOCK_EVT_FEAT_C3STOP |
 				  CLOCK_EVT_FEAT_PERCPU;
 
-	clockevent_set_clock(cd, mips_hpt_frequency);
-
-	/* Calculate the min / max delta */
-	cd->max_delta_ns	= clockevent_delta2ns(0x7fffffff, cd);
 	min_delta		= calculate_min_delta();
-	cd->min_delta_ns	= clockevent_delta2ns(min_delta, cd);
 
 	cd->rating		= 300;
 	cd->irq			= irq;
@@ -289,7 +284,7 @@ int r4k_clockevent_init(void)
 	cd->set_next_event	= mips_next_event;
 	cd->event_handler	= mips_event_handler;
 
-	clockevents_register_device(cd);
+	clockevents_config_and_register(cd, mips_hpt_frequency, min_delta, 0x7fffffff);
 
 	if (cp0_timer_irq_installed)
 		return 0;

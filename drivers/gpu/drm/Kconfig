@@ -129,12 +129,8 @@ config DRM_R128
 config DRM_RADEON
 	tristate "ATI Radeon"
 	depends on DRM && PCI
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
 	select FW_LOADER
         select DRM_KMS_HELPER
-	select DRM_KMS_FB_HELPER
         select DRM_TTM
 	select POWER_SUPPLY
 	select HWMON
@@ -153,12 +149,8 @@ source "drivers/gpu/drm/radeon/Kconfig"
 config DRM_AMDGPU
 	tristate "AMD GPU"
 	depends on DRM && PCI
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
 	select FW_LOADER
         select DRM_KMS_HELPER
-	select DRM_KMS_FB_HELPER
         select DRM_TTM
 	select POWER_SUPPLY
 	select HWMON

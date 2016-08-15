@@ -11,12 +11,11 @@
  * ----------------------------------------------------------------------
  * |             Level            |   Last Value Used  |     Holes	|
  * ----------------------------------------------------------------------
- * | Module Init and Probe        |       0x018f       | 0x0146         |
+ * | Module Init and Probe        |       0x0191       | 0x0146         |
  * |                              |                    | 0x015b-0x0160	|
- * |                              |                    | 0x016e-0x0170  |
- * | Mailbox commands             |       0x1192       |		|
- * |                              |                    |		|
- * | Device Discovery             |       0x2016       | 0x2020-0x2022, |
+ * |                              |                    | 0x016e		|
+ * | Mailbox commands             |       0x1199       | 0x1193		|
+ * | Device Discovery             |       0x2004       | 0x2016		|
  * |                              |                    | 0x2011-0x2012, |
  * |                              |                    | 0x2099-0x20a4  |
  * | Queue Command and IO tracing |       0x3074       | 0x300b         |
@@ -26,11 +25,11 @@
  * |                              |                    | 0x3036,0x3038  |
  * |                              |                    | 0x303a		|
  * | DPC Thread                   |       0x4023       | 0x4002,0x4013  |
- * | Async Events                 |       0x5089       | 0x502b-0x502f  |
- * |                              |                    | 0x505e         |
+ * | Async Events                 |       0x5090       | 0x502b-0x502f  |
+ * |				  | 		       | 0x5047         |
  * |                              |                    | 0x5084,0x5075	|
  * |                              |                    | 0x503d,0x5044  |
- * |                              |                    | 0x507b,0x505f	|
+ * |                              |                    | 0x505f		|
  * | Timer Routines               |       0x6012       |                |
  * | User Space Interactions      |       0x70e3       | 0x7018,0x702e  |
  * |				  |		       | 0x7020,0x7024  |
@@ -39,9 +38,9 @@
  * |                              |                    | 0x70a5-0x70a6  |
  * |                              |                    | 0x70a8,0x70ab  |
  * |                              |                    | 0x70ad-0x70ae  |
+ * |                              |                    | 0x70d0-0x70d6	|
  * |                              |                    | 0x70d7-0x70db  |
- * |                              |                    | 0x70de-0x70df  |
- * | Task Management              |       0x803d       | 0x8000,0x800b  |
+ * | Task Management              |       0x8042       | 0x8000,0x800b  |
  * |                              |                    | 0x8019         |
  * |                              |                    | 0x8025,0x8026  |
  * |                              |                    | 0x8031,0x8032  |
@@ -2697,29 +2696,24 @@ ql_dump_regs(uint32_t level, scsi_qla_host_t *vha, int32_t id)
 
 void
 ql_dump_buffer(uint32_t level, scsi_qla_host_t *vha, int32_t id,
-	uint8_t *b, uint32_t size)
+	uint8_t *buf, uint size)
 {
-	uint32_t cnt;
-	uint8_t c;
+	uint cnt;
 
 	if (!ql_mask_match(level))
 		return;
 
-	ql_dbg(level, vha, id, " 0   1   2   3   4   5   6   7   8   "
-	    "9  Ah  Bh  Ch  Dh  Eh  Fh\n");
-	ql_dbg(level, vha, id, "----------------------------------"
-	    "----------------------------\n");
-
-	ql_dbg(level, vha, id, " ");
-	for (cnt = 0; cnt < size;) {
-		c = *b++;
-		printk("%02x", (uint32_t) c);
-		cnt++;
-		if (!(cnt % 16))
+	ql_dbg(level, vha, id,
+	    "%-+5d  0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F\n", size);
+	ql_dbg(level, vha, id,
+	    "----- -----------------------------------------------\n");
+	for (cnt = 0; cnt < size; cnt++, buf++) {
+		if (cnt % 16 == 0)
+			ql_dbg(level, vha, id, "%04x:", cnt & ~0xFU);
+		printk(" %02x", *buf);
+		if (cnt % 16 == 15)
 			printk("\n");
-		else
-			printk("  ");
 	}
-	if (cnt % 16)
-		ql_dbg(level, vha, id, "\n");
+	if (cnt % 16 != 0)
+		printk("\n");
 }

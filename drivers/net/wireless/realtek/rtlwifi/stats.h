@@ -33,8 +33,8 @@
 /* Rx smooth factor */
 #define	RX_SMOOTH_FACTOR			20
 
-u8 rtl_query_rxpwrpercentage(char antpower);
-u8 rtl_evm_db_to_percentage(char value);
+u8 rtl_query_rxpwrpercentage(s8 antpower);
+u8 rtl_evm_db_to_percentage(s8 value);
 long rtl_signal_scale_mapping(struct ieee80211_hw *hw, long currsig);
 void rtl_process_phyinfo(struct ieee80211_hw *hw, u8 *buffer,
 			 struct rtl_stats *pstatus);

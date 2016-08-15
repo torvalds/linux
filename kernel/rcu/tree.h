@@ -254,6 +254,13 @@ struct rcu_node {
 } ____cacheline_internodealigned_in_smp;
 
 /*
+ * Bitmasks in an rcu_node cover the interval [grplo, grphi] of CPU IDs, and
+ * are indexed relative to this interval rather than the global CPU ID space.
+ * This generates the bit for a CPU in node-local masks.
+ */
+#define leaf_node_cpu_bit(rnp, cpu) (1UL << ((cpu) - (rnp)->grplo))
+
+/*
  * Do a full breadth-first scan of the rcu_node structures for the
  * specified rcu_state structure.
  */
@@ -279,6 +286,14 @@ struct rcu_node {
 #define rcu_for_each_leaf_node(rsp, rnp) \
 	for ((rnp) = (rsp)->level[rcu_num_lvls - 1]; \
 	     (rnp) < &(rsp)->node[rcu_num_nodes]; (rnp)++)
+
+/*
+ * Iterate over all possible CPUs in a leaf RCU node.
+ */
+#define for_each_leaf_node_possible_cpu(rnp, cpu) \
+	for ((cpu) = cpumask_next(rnp->grplo - 1, cpu_possible_mask); \
+	     cpu <= rnp->grphi; \
+	     cpu = cpumask_next((cpu), cpu_possible_mask))
 
 /*
  * Union to allow "aggregate OR" operation on the need for a quiescent

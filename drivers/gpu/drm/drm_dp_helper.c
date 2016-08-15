@@ -223,7 +223,7 @@ static int drm_dp_dpcd_access(struct drm_dp_aux *aux, u8 request,
 			err = ret;
 	}
 
-	DRM_DEBUG_KMS("too many retries, giving up\n");
+	DRM_DEBUG_KMS("Too many retries, giving up. First error: %d\n", err);
 	ret = err;
 
 unlock:
@@ -574,7 +574,17 @@ static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 			if (ret == -EBUSY)
 				continue;
 
-			DRM_DEBUG_KMS("transaction failed: %d\n", ret);
+			/*
+			 * While timeouts can be errors, they're usually normal
+			 * behavior (for instance, when a driver tries to
+			 * communicate with a non-existant DisplayPort device).
+			 * Avoid spamming the kernel log with timeout errors.
+			 */
+			if (ret == -ETIMEDOUT)
+				DRM_DEBUG_KMS_RATELIMITED("transaction timed out\n");
+			else
+				DRM_DEBUG_KMS("transaction failed: %d\n", ret);
+
 			return ret;
 		}
 
@@ -860,3 +870,35 @@ void drm_dp_aux_unregister(struct drm_dp_aux *aux)
 	i2c_del_adapter(&aux->ddc);
 }
 EXPORT_SYMBOL(drm_dp_aux_unregister);
+
+#define PSR_SETUP_TIME(x) [DP_PSR_SETUP_TIME_ ## x >> DP_PSR_SETUP_TIME_SHIFT] = (x)
+
+/**
+ * drm_dp_psr_setup_time() - PSR setup in time usec
+ * @psr_cap: PSR capabilities from DPCD
+ *
+ * Returns:
+ * PSR setup time for the panel in microseconds,  negative
+ * error code on failure.
+ */
+int drm_dp_psr_setup_time(const u8 psr_cap[EDP_PSR_RECEIVER_CAP_SIZE])
+{
+	static const u16 psr_setup_time_us[] = {
+		PSR_SETUP_TIME(330),
+		PSR_SETUP_TIME(275),
+		PSR_SETUP_TIME(165),
+		PSR_SETUP_TIME(110),
+		PSR_SETUP_TIME(55),
+		PSR_SETUP_TIME(0),
+	};
+	int i;
+
+	i = (psr_cap[1] & DP_PSR_SETUP_TIME_MASK) >> DP_PSR_SETUP_TIME_SHIFT;
+	if (i >= ARRAY_SIZE(psr_setup_time_us))
+		return -EINVAL;
+
+	return psr_setup_time_us[i];
+}
+EXPORT_SYMBOL(drm_dp_psr_setup_time);
+
+#undef PSR_SETUP_TIME

@@ -504,7 +504,7 @@ static int gntalloc_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct gntalloc_file_private_data *priv = filp->private_data;
 	struct gntalloc_vma_private_data *vm_priv;
 	struct gntalloc_gref *gref;
-	int count = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
+	int count = vma_pages(vma);
 	int rv, i;
 
 	if (!(vma->vm_flags & VM_SHARED)) {

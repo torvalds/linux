@@ -57,7 +57,7 @@
 				clock-frequency = <12288000>;
 			};
 			rtc@68 {
-				compatible = "stm,m41t62";
+				compatible = "st,m41t62";
 				reg = <0x68>;
 			};
 			adt7461@4c{

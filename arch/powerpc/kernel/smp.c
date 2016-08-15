@@ -31,6 +31,7 @@
 #include <linux/cpu.h>
 #include <linux/notifier.h>
 #include <linux/topology.h>
+#include <linux/profile.h>
 
 #include <asm/ptrace.h>
 #include <linux/atomic.h>
@@ -53,6 +54,8 @@
 #include <asm/vdso.h>
 #include <asm/debug.h>
 #include <asm/kexec.h>
+#include <asm/asm-prototypes.h>
+#include <asm/cpu_has_feature.h>
 
 #ifdef DEBUG
 #include <asm/udbg.h>
@@ -593,6 +596,7 @@ out:
 	of_node_put(np);
 	return id;
 }
+EXPORT_SYMBOL_GPL(cpu_to_core_id);
 
 /* Helper routines for cpu to core mapping */
 int cpu_core_index_of_thread(int cpu)

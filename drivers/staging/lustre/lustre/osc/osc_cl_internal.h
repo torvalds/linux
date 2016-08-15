@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -66,7 +62,7 @@ struct osc_io {
 	/** super class */
 	struct cl_io_slice oi_cl;
 	/** true if this io is lockless. */
-	int		oi_lockless;
+	unsigned int		oi_lockless;
 	/** how many LRU pages are reserved for this IO */
 	int oi_lru_reserved;
 
@@ -355,11 +351,6 @@ struct osc_page {
 	 * Boolean, true iff page is under transfer. Used for sanity checking.
 	 */
 	unsigned	      ops_transfer_pinned:1,
-	/**
-	 * True for a `temporary page' created by read-ahead code, probably
-	 * outside of any DLM lock.
-	 */
-			      ops_temp:1,
 	/**
 	 * in LRU?
 	 */

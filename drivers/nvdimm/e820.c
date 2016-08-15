@@ -47,6 +47,7 @@ static int e820_pmem_probe(struct platform_device *pdev)
 
 	nd_desc.attr_groups = e820_pmem_attribute_groups;
 	nd_desc.provider_name = "e820";
+	nd_desc.module = THIS_MODULE;
 	nvdimm_bus = nvdimm_bus_register(dev, &nd_desc);
 	if (!nvdimm_bus)
 		goto err;

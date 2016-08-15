@@ -624,11 +624,6 @@ static int atmel_pdmic_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "no memory resource\n");
-		return -ENXIO;
-	}
-
 	io_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(io_base)) {
 		ret = PTR_ERR(io_base);

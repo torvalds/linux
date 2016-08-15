@@ -17,7 +17,8 @@ struct fib_rule {
 	u32			flags;
 	u32			table;
 	u8			action;
-	/* 3 bytes hole, try to use */
+	u8			l3mdev;
+	/* 2 bytes hole, try to use */
 	u32			target;
 	__be64			tun_id;
 	struct fib_rule __rcu	*ctarget;
@@ -36,6 +37,7 @@ struct fib_lookup_arg {
 	void			*lookup_ptr;
 	void			*result;
 	struct fib_rule		*rule;
+	u32			table;
 	int			flags;
 #define FIB_LOOKUP_NOREF		1
 #define FIB_LOOKUP_IGNORE_LINKSTATE	2
@@ -89,7 +91,8 @@ struct fib_rules_ops {
 	[FRA_TABLE]     = { .type = NLA_U32 }, \
 	[FRA_SUPPRESS_PREFIXLEN] = { .type = NLA_U32 }, \
 	[FRA_SUPPRESS_IFGROUP] = { .type = NLA_U32 }, \
-	[FRA_GOTO]	= { .type = NLA_U32 }
+	[FRA_GOTO]	= { .type = NLA_U32 }, \
+	[FRA_L3MDEV]	= { .type = NLA_U8 }
 
 static inline void fib_rule_get(struct fib_rule *rule)
 {
@@ -101,6 +104,20 @@ static inline void fib_rule_put(struct fib_rule *rule)
 	if (atomic_dec_and_test(&rule->refcnt))
 		kfree_rcu(rule, rcu);
 }
+
+#ifdef CONFIG_NET_L3_MASTER_DEV
+static inline u32 fib_rule_get_table(struct fib_rule *rule,
+				     struct fib_lookup_arg *arg)
+{
+	return rule->l3mdev ? arg->table : rule->table;
+}
+#else
+static inline u32 fib_rule_get_table(struct fib_rule *rule,
+				     struct fib_lookup_arg *arg)
+{
+	return rule->table;
+}
+#endif
 
 static inline u32 frh_get_table(struct fib_rule_hdr *frh, struct nlattr **nla)
 {
@@ -117,4 +134,7 @@ int fib_rules_lookup(struct fib_rules_ops *, struct flowi *, int flags,
 		     struct fib_lookup_arg *);
 int fib_default_rule_add(struct fib_rules_ops *, u32 pref, u32 table,
 			 u32 flags);
+
+int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh);
+int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr *nlh);
 #endif

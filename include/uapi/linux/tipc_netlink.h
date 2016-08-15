@@ -56,6 +56,9 @@ enum {
 	TIPC_NL_NET_GET,
 	TIPC_NL_NET_SET,
 	TIPC_NL_NAME_TABLE_GET,
+	TIPC_NL_MON_SET,
+	TIPC_NL_MON_GET,
+	TIPC_NL_MON_PEER_GET,
 
 	__TIPC_NL_CMD_MAX,
 	TIPC_NL_CMD_MAX = __TIPC_NL_CMD_MAX - 1
@@ -72,6 +75,8 @@ enum {
 	TIPC_NLA_NODE,			/* nest */
 	TIPC_NLA_NET,			/* nest */
 	TIPC_NLA_NAME_TABLE,		/* nest */
+	TIPC_NLA_MON,			/* nest */
+	TIPC_NLA_MON_PEER,		/* nest */
 
 	__TIPC_NLA_MAX,
 	TIPC_NLA_MAX = __TIPC_NLA_MAX - 1
@@ -166,6 +171,20 @@ enum {
 	TIPC_NLA_NAME_TABLE_MAX = __TIPC_NLA_NAME_TABLE_MAX - 1
 };
 
+/* Monitor info */
+enum {
+	TIPC_NLA_MON_UNSPEC,
+	TIPC_NLA_MON_ACTIVATION_THRESHOLD,	/* u32 */
+	TIPC_NLA_MON_REF,			/* u32 */
+	TIPC_NLA_MON_ACTIVE,			/* flag */
+	TIPC_NLA_MON_BEARER_NAME,		/* string */
+	TIPC_NLA_MON_PEERCNT,			/* u32 */
+	TIPC_NLA_MON_LISTGEN,			/* u32 */
+
+	__TIPC_NLA_MON_MAX,
+	TIPC_NLA_MON_MAX = __TIPC_NLA_MON_MAX - 1
+};
+
 /* Publication info */
 enum {
 	TIPC_NLA_PUBL_UNSPEC,
@@ -180,6 +199,24 @@ enum {
 
 	__TIPC_NLA_PUBL_MAX,
 	TIPC_NLA_PUBL_MAX = __TIPC_NLA_PUBL_MAX - 1
+};
+
+/* Monitor peer info */
+enum {
+	TIPC_NLA_MON_PEER_UNSPEC,
+
+	TIPC_NLA_MON_PEER_ADDR,			/* u32 */
+	TIPC_NLA_MON_PEER_DOMGEN,		/* u32 */
+	TIPC_NLA_MON_PEER_APPLIED,		/* u32 */
+	TIPC_NLA_MON_PEER_UPMAP,		/* u64 */
+	TIPC_NLA_MON_PEER_MEMBERS,		/* tlv */
+	TIPC_NLA_MON_PEER_UP,			/* flag */
+	TIPC_NLA_MON_PEER_HEAD,			/* flag */
+	TIPC_NLA_MON_PEER_LOCAL,		/* flag */
+	TIPC_NLA_MON_PEER_PAD,			/* flag */
+
+	__TIPC_NLA_MON_PEER_MAX,
+	TIPC_NLA_MON_PEER_MAX = __TIPC_NLA_MON_PEER_MAX - 1
 };
 
 /* Nest, connection info */

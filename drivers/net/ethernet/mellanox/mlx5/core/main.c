@@ -51,6 +51,7 @@
 #ifdef CONFIG_RFS_ACCEL
 #include <linux/cpu_rmap.h>
 #endif
+#include <net/devlink.h>
 #include "mlx5_core.h"
 #include "fs_core.h"
 #ifdef CONFIG_MLX5_CORE_EN
@@ -1144,6 +1145,13 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 		dev_err(&pdev->dev, "Failed to init flow steering\n");
 		goto err_fs;
 	}
+
+	err = mlx5_init_rl_table(dev);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to init rate limiting\n");
+		goto err_rl;
+	}
+
 #ifdef CONFIG_MLX5_CORE_EN
 	err = mlx5_eswitch_init(dev);
 	if (err) {
@@ -1183,6 +1191,8 @@ err_sriov:
 	mlx5_eswitch_cleanup(dev->priv.eswitch);
 #endif
 err_reg_dev:
+	mlx5_cleanup_rl_table(dev);
+err_rl:
 	mlx5_cleanup_fs(dev);
 err_fs:
 	mlx5_cleanup_mkey_table(dev);
@@ -1253,6 +1263,7 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 	mlx5_eswitch_cleanup(dev->priv.eswitch);
 #endif
 
+	mlx5_cleanup_rl_table(dev);
 	mlx5_cleanup_fs(dev);
 	mlx5_cleanup_mkey_table(dev);
 	mlx5_cleanup_srq_table(dev);
@@ -1305,19 +1316,28 @@ struct mlx5_core_event_handler {
 		      void *data);
 };
 
+static const struct devlink_ops mlx5_devlink_ops = {
+#ifdef CONFIG_MLX5_CORE_EN
+	.eswitch_mode_set = mlx5_devlink_eswitch_mode_set,
+	.eswitch_mode_get = mlx5_devlink_eswitch_mode_get,
+#endif
+};
 
 static int init_one(struct pci_dev *pdev,
 		    const struct pci_device_id *id)
 {
 	struct mlx5_core_dev *dev;
+	struct devlink *devlink;
 	struct mlx5_priv *priv;
 	int err;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev) {
+	devlink = devlink_alloc(&mlx5_devlink_ops, sizeof(*dev));
+	if (!devlink) {
 		dev_err(&pdev->dev, "kzalloc failed\n");
 		return -ENOMEM;
 	}
+
+	dev = devlink_priv(devlink);
 	priv = &dev->priv;
 	priv->pci_dev_data = id->driver_data;
 
@@ -1354,15 +1374,21 @@ static int init_one(struct pci_dev *pdev,
 		goto clean_health;
 	}
 
+	err = devlink_register(devlink, &pdev->dev);
+	if (err)
+		goto clean_load;
+
 	return 0;
 
+clean_load:
+	mlx5_unload_one(dev, priv);
 clean_health:
 	mlx5_health_cleanup(dev);
 close_pci:
 	mlx5_pci_close(dev, priv);
 clean_dev:
 	pci_set_drvdata(pdev, NULL);
-	kfree(dev);
+	devlink_free(devlink);
 
 	return err;
 }
@@ -1370,8 +1396,10 @@ clean_dev:
 static void remove_one(struct pci_dev *pdev)
 {
 	struct mlx5_core_dev *dev  = pci_get_drvdata(pdev);
+	struct devlink *devlink = priv_to_devlink(dev);
 	struct mlx5_priv *priv = &dev->priv;
 
+	devlink_unregister(devlink);
 	if (mlx5_unload_one(dev, priv)) {
 		dev_err(&dev->pdev->dev, "mlx5_unload_one failed\n");
 		mlx5_health_cleanup(dev);
@@ -1380,7 +1408,7 @@ static void remove_one(struct pci_dev *pdev)
 	mlx5_health_cleanup(dev);
 	mlx5_pci_close(dev, priv);
 	pci_set_drvdata(pdev, NULL);
-	kfree(dev);
+	devlink_free(devlink);
 }
 
 static pci_ers_result_t mlx5_pci_err_detected(struct pci_dev *pdev,

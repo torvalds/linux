@@ -31,23 +31,17 @@ config CPU_FREQ_BOOST_SW
 	depends on THERMAL
 
 config CPU_FREQ_STAT
-	tristate "CPU frequency translation statistics"
-	default y
+	bool "CPU frequency transition statistics"
 	help
-	  This driver exports CPU frequency statistics information through sysfs
-	  file system.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called cpufreq_stats.
+	  Export CPU frequency statistics information through sysfs.
 
 	  If in doubt, say N.
 
 config CPU_FREQ_STAT_DETAILS
-	bool "CPU frequency translation statistics details"
+	bool "CPU frequency transition statistics details"
 	depends on CPU_FREQ_STAT
 	help
-	  This will show detail CPU frequency translation table in sysfs file
-	  system.
+	  Show detailed CPU frequency transition table in sysfs.
 
 	  If in doubt, say N.
 

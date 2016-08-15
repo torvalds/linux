@@ -1,6 +1,18 @@
 #ifndef _LINUX_COMPACTION_H
 #define _LINUX_COMPACTION_H
 
+/*
+ * Determines how hard direct compaction should try to succeed.
+ * Lower value means higher priority, analogically to reclaim priority.
+ */
+enum compact_priority {
+	COMPACT_PRIO_SYNC_LIGHT,
+	MIN_COMPACT_PRIORITY = COMPACT_PRIO_SYNC_LIGHT,
+	DEF_COMPACT_PRIORITY = COMPACT_PRIO_SYNC_LIGHT,
+	COMPACT_PRIO_ASYNC,
+	INIT_COMPACT_PRIORITY = COMPACT_PRIO_ASYNC
+};
+
 /* Return values for compact_zone() and try_to_compact_pages() */
 /* When adding new states, please adjust include/trace/events/compaction.h */
 enum compact_result {
@@ -43,14 +55,6 @@ enum compact_result {
 	COMPACT_PARTIAL,
 };
 
-/* Used to signal whether compaction detected need_sched() or lock contention */
-/* No contention detected */
-#define COMPACT_CONTENDED_NONE	0
-/* Either need_sched() was true or fatal signal pending */
-#define COMPACT_CONTENDED_SCHED	1
-/* Zone lock or lru_lock was contended in async compaction */
-#define COMPACT_CONTENDED_LOCK	2
-
 struct alloc_context; /* in mm/internal.h */
 
 #ifdef CONFIG_COMPACTION
@@ -64,9 +68,8 @@ extern int sysctl_compact_unevictable_allowed;
 
 extern int fragmentation_index(struct zone *zone, unsigned int order);
 extern enum compact_result try_to_compact_pages(gfp_t gfp_mask,
-			unsigned int order,
-		unsigned int alloc_flags, const struct alloc_context *ac,
-		enum migrate_mode mode, int *contended);
+		unsigned int order, unsigned int alloc_flags,
+		const struct alloc_context *ac, enum compact_priority prio);
 extern void compact_pgdat(pg_data_t *pgdat, int order);
 extern void reset_isolation_suitable(pg_data_t *pgdat);
 extern enum compact_result compaction_suitable(struct zone *zone, int order,
@@ -151,14 +154,6 @@ extern void kcompactd_stop(int nid);
 extern void wakeup_kcompactd(pg_data_t *pgdat, int order, int classzone_idx);
 
 #else
-static inline enum compact_result try_to_compact_pages(gfp_t gfp_mask,
-			unsigned int order, int alloc_flags,
-			const struct alloc_context *ac,
-			enum migrate_mode mode, int *contended)
-{
-	return COMPACT_CONTINUE;
-}
-
 static inline void compact_pgdat(pg_data_t *pgdat, int order)
 {
 }
@@ -212,6 +207,7 @@ static inline void wakeup_kcompactd(pg_data_t *pgdat, int order, int classzone_i
 #endif /* CONFIG_COMPACTION */
 
 #if defined(CONFIG_COMPACTION) && defined(CONFIG_SYSFS) && defined(CONFIG_NUMA)
+struct node;
 extern int compaction_register_node(struct node *node);
 extern void compaction_unregister_node(struct node *node);
 

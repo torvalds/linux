@@ -741,8 +741,6 @@ static int me_huge_page(struct page *p, unsigned long pfn)
 	 * page->lru because it can be used in other hugepage operations,
 	 * such as __unmap_hugepage_range() and gather_surplus_pages().
 	 * So instead we use page_mapping() and PageAnon().
-	 * We assume that this function is called with page lock held,
-	 * so there is no race between isolation and mapping/unmapping.
 	 */
 	if (!(page_mapping(hpage) || PageAnon(hpage))) {
 		res = dequeue_hwpoisoned_huge_page(hpage);
@@ -1663,7 +1661,7 @@ static int __soft_offline_page(struct page *page, int flags)
 	put_hwpoison_page(page);
 	if (!ret) {
 		LIST_HEAD(pagelist);
-		inc_zone_page_state(page, NR_ISOLATED_ANON +
+		inc_node_page_state(page, NR_ISOLATED_ANON +
 					page_is_file_cache(page));
 		list_add(&page->lru, &pagelist);
 		ret = migrate_pages(&pagelist, new_page, NULL, MPOL_MF_MOVE_ALL,
@@ -1671,7 +1669,7 @@ static int __soft_offline_page(struct page *page, int flags)
 		if (ret) {
 			if (!list_empty(&pagelist)) {
 				list_del(&page->lru);
-				dec_zone_page_state(page, NR_ISOLATED_ANON +
+				dec_node_page_state(page, NR_ISOLATED_ANON +
 						page_is_file_cache(page));
 				putback_lru_page(page);
 			}

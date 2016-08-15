@@ -54,6 +54,8 @@
 
 extern unsigned int hfi1_qp_table_size;
 
+extern const struct rvt_operation_params hfi1_post_parms[];
+
 /*
  * free_ahg - clear ahg from QP
  */
@@ -61,7 +63,7 @@ static inline void clear_ahg(struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 
-	priv->s_hdr->ahgcount = 0;
+	priv->s_ahg->ahgcount = 0;
 	qp->s_flags &= ~(RVT_S_AHG_VALID | RVT_S_AHG_CLEAR);
 	if (priv->s_sde && qp->s_ahgidx >= 0)
 		sdma_ahg_free(priv->s_sde, qp->s_ahgidx);

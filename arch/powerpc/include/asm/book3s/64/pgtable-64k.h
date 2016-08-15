@@ -15,7 +15,7 @@ static inline int pmd_huge(pmd_t pmd)
 	/*
 	 * leaf pte for huge page
 	 */
-	return !!(pmd_val(pmd) & _PAGE_PTE);
+	return !!(pmd_raw(pmd) & cpu_to_be64(_PAGE_PTE));
 }
 
 static inline int pud_huge(pud_t pud)
@@ -23,7 +23,7 @@ static inline int pud_huge(pud_t pud)
 	/*
 	 * leaf pte for huge page
 	 */
-	return !!(pud_val(pud) & _PAGE_PTE);
+	return !!(pud_raw(pud) & cpu_to_be64(_PAGE_PTE));
 }
 
 static inline int pgd_huge(pgd_t pgd)
@@ -31,7 +31,7 @@ static inline int pgd_huge(pgd_t pgd)
 	/*
 	 * leaf pte for huge page
 	 */
-	return !!(pgd_val(pgd) & _PAGE_PTE);
+	return !!(pgd_raw(pgd) & cpu_to_be64(_PAGE_PTE));
 }
 #define pgd_huge pgd_huge
 

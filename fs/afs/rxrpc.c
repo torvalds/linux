@@ -85,18 +85,14 @@ int afs_open_socket(void)
 
 	skb_queue_head_init(&afs_incoming_calls);
 
+	ret = -ENOMEM;
 	afs_async_calls = create_singlethread_workqueue("kafsd");
-	if (!afs_async_calls) {
-		_leave(" = -ENOMEM [wq]");
-		return -ENOMEM;
-	}
+	if (!afs_async_calls)
+		goto error_0;
 
 	ret = sock_create_kern(&init_net, AF_RXRPC, SOCK_DGRAM, PF_INET, &socket);
-	if (ret < 0) {
-		destroy_workqueue(afs_async_calls);
-		_leave(" = %d [socket]", ret);
-		return ret;
-	}
+	if (ret < 0)
+		goto error_1;
 
 	socket->sk->sk_allocation = GFP_NOFS;
 
@@ -111,18 +107,26 @@ int afs_open_socket(void)
 	       sizeof(srx.transport.sin.sin_addr));
 
 	ret = kernel_bind(socket, (struct sockaddr *) &srx, sizeof(srx));
-	if (ret < 0) {
-		sock_release(socket);
-		destroy_workqueue(afs_async_calls);
-		_leave(" = %d [bind]", ret);
-		return ret;
-	}
+	if (ret < 0)
+		goto error_2;
+
+	ret = kernel_listen(socket, INT_MAX);
+	if (ret < 0)
+		goto error_2;
 
 	rxrpc_kernel_intercept_rx_messages(socket, afs_rx_interceptor);
 
 	afs_socket = socket;
 	_leave(" = 0");
 	return 0;
+
+error_2:
+	sock_release(socket);
+error_1:
+	destroy_workqueue(afs_async_calls);
+error_0:
+	_leave(" = %d", ret);
+	return ret;
 }
 
 /*

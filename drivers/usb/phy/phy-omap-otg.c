@@ -148,7 +148,7 @@ static int omap_otg_remove(struct platform_device *pdev)
 	struct otg_device *otg_dev = platform_get_drvdata(pdev);
 	struct extcon_dev *edev = otg_dev->extcon;
 
-	extcon_unregister_notifier(edev, EXTCON_USB_HOST,&otg_dev->id_nb);
+	extcon_unregister_notifier(edev, EXTCON_USB_HOST, &otg_dev->id_nb);
 	extcon_unregister_notifier(edev, EXTCON_USB, &otg_dev->vbus_nb);
 
 	return 0;

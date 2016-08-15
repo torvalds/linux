@@ -96,17 +96,6 @@ config CHELSIO_T4_DCB
 
 	  If unsure, say N.
 
-config CHELSIO_T4_UWIRE
-	bool "Unified Wire Support for Chelsio T5 cards"
-	default n
-	depends on CHELSIO_T4
-	---help---
-	  Enable unified-wire offload features.
-	  Say Y here if you want to enable unified-wire over Ethernet
-	  in the driver.
-
-	  If unsure, say N.
-
 config CHELSIO_T4_FCOE
 	bool "Fibre Channel over Ethernet (FCoE) Support for Chelsio T5 cards"
 	default n
@@ -136,5 +125,10 @@ config CHELSIO_T4VF
 
 	  To compile this driver as a module choose M here; the module
 	  will be called cxgb4vf.
+
+config CHELSIO_LIB
+	tristate
+	---help---
+	Common library for Chelsio drivers.
 
 endif # NET_VENDOR_CHELSIO

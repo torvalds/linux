@@ -527,11 +527,6 @@ static int rcar_du_properties_init(struct rcar_du_device *rcdu)
 	if (rcdu->props.colorkey == NULL)
 		return -ENOMEM;
 
-	rcdu->props.zpos =
-		drm_property_create_range(rcdu->ddev, 0, "zpos", 1, 7);
-	if (rcdu->props.zpos == NULL)
-		return -ENOMEM;
-
 	return 0;
 }
 

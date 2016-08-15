@@ -78,8 +78,6 @@ struct cache_detail {
 	struct hlist_head *	hash_table;
 	rwlock_t		hash_lock;
 
-	atomic_t		inuse; /* active user-space update or lookup */
-
 	char			*name;
 	void			(*cache_put)(struct kref *);
 

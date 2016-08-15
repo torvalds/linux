@@ -20,7 +20,7 @@ common-objs-y += powerpc.o emulate.o emulate_loadstore.o
 obj-$(CONFIG_KVM_EXIT_TIMING) += timing.o
 obj-$(CONFIG_KVM_BOOK3S_HANDLER) += book3s_exports.o
 
-AFLAGS_booke_interrupts.o := -I$(obj)
+AFLAGS_booke_interrupts.o := -I$(objtree)/$(obj)
 
 kvm-e500-objs := \
 	$(common-objs-y) \

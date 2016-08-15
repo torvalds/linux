@@ -193,7 +193,7 @@ struct wcn36xx {
 	u8			fw_minor;
 	u8			fw_major;
 	u32			fw_feat_caps[WCN36XX_HAL_CAPS_SIZE];
-	u32			chip_version;
+	bool			is_pronto;
 
 	/* extra byte for the NULL termination */
 	u8			crm_version[WCN36XX_HAL_VERSION_LENGTH + 1];
@@ -202,7 +202,8 @@ struct wcn36xx {
 	/* IRQs */
 	int			tx_irq;
 	int			rx_irq;
-	void __iomem		*mmio;
+	void __iomem		*ccu_base;
+	void __iomem		*dxe_base;
 
 	struct wcn36xx_platform_ctrl_ops *ctrl_ops;
 	/*
@@ -215,7 +216,7 @@ struct wcn36xx {
 	struct completion	hal_rsp_compl;
 	struct workqueue_struct	*hal_ind_wq;
 	struct work_struct	hal_ind_work;
-	struct mutex		hal_ind_mutex;
+	spinlock_t		hal_ind_lock;
 	struct list_head	hal_ind_queue;
 
 	/* DXE channels */
@@ -240,9 +241,6 @@ struct wcn36xx {
 #endif /* CONFIG_WCN36XX_DEBUGFS */
 
 };
-
-#define WCN36XX_CHIP_3660	0
-#define WCN36XX_CHIP_3680	1
 
 static inline bool wcn36xx_is_fw_version(struct wcn36xx *wcn,
 					 u8 major,

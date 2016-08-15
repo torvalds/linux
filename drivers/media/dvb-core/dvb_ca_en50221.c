@@ -123,6 +123,7 @@ struct dvb_ca_slot {
 
 /* Private CA-interface information */
 struct dvb_ca_private {
+	struct kref refcount;
 
 	/* pointer back to the public data structure */
 	struct dvb_ca_en50221 *pub;
@@ -160,6 +161,34 @@ struct dvb_ca_private {
 	/* mutex serializing ioctls */
 	struct mutex ioctl_mutex;
 };
+
+static void dvb_ca_private_free(struct dvb_ca_private *ca)
+{
+	unsigned int i;
+
+	dvb_unregister_device(ca->dvbdev);
+	for (i = 0; i < ca->slot_count; i++)
+		vfree(ca->slot_info[i].rx_buffer.data);
+
+	kfree(ca->slot_info);
+	kfree(ca);
+}
+
+static void dvb_ca_private_release(struct kref *ref)
+{
+	struct dvb_ca_private *ca = container_of(ref, struct dvb_ca_private, refcount);
+	dvb_ca_private_free(ca);
+}
+
+static void dvb_ca_private_get(struct dvb_ca_private *ca)
+{
+	kref_get(&ca->refcount);
+}
+
+static void dvb_ca_private_put(struct dvb_ca_private *ca)
+{
+	kref_put(&ca->refcount, dvb_ca_private_release);
+}
 
 static void dvb_ca_en50221_thread_wakeup(struct dvb_ca_private *ca);
 static int dvb_ca_en50221_read_data(struct dvb_ca_private *ca, int slot, u8 * ebuf, int ecount);
@@ -1558,6 +1587,8 @@ static int dvb_ca_en50221_io_open(struct inode *inode, struct file *file)
 	dvb_ca_en50221_thread_update_delay(ca);
 	dvb_ca_en50221_thread_wakeup(ca);
 
+	dvb_ca_private_get(ca);
+
 	return 0;
 }
 
@@ -1585,6 +1616,8 @@ static int dvb_ca_en50221_io_release(struct inode *inode, struct file *file)
 	err = dvb_generic_release(inode, file);
 
 	module_put(ca->pub->owner);
+
+	dvb_ca_private_put(ca);
 
 	return err;
 }
@@ -1681,6 +1714,7 @@ int dvb_ca_en50221_init(struct dvb_adapter *dvb_adapter,
 		ret = -ENOMEM;
 		goto exit;
 	}
+	kref_init(&ca->refcount);
 	ca->pub = pubca;
 	ca->flags = flags;
 	ca->slot_count = slot_count;
@@ -1759,10 +1793,7 @@ void dvb_ca_en50221_release(struct dvb_ca_en50221 *pubca)
 
 	for (i = 0; i < ca->slot_count; i++) {
 		dvb_ca_en50221_slot_shutdown(ca, i);
-		vfree(ca->slot_info[i].rx_buffer.data);
 	}
-	kfree(ca->slot_info);
-	dvb_unregister_device(ca->dvbdev);
-	kfree(ca);
+	dvb_ca_private_put(ca);
 	pubca->private = NULL;
 }

@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -232,6 +228,12 @@ enum {
 #define MDC_MAX_RIF_DEFAULT       8
 #define MDC_MAX_RIF_MAX	 512
 
+enum obd_cl_sem_lock_class {
+	OBD_CLI_SEM_NORMAL,
+	OBD_CLI_SEM_MGC,
+	OBD_CLI_SEM_MDCOSC,
+};
+
 struct mdc_rpc_lock;
 struct obd_import;
 struct client_obd {
@@ -419,7 +421,7 @@ struct lov_obd {
 	enum lustre_sec_part    lov_sp_me;
 
 	/* Cached LRU and unstable data from upper layer */
-	void		       *lov_cache;
+	struct cl_client_cache *lov_cache;
 
 	struct rw_semaphore     lov_notify_lock;
 
@@ -1118,9 +1120,6 @@ struct md_ops {
 	int (*cancel_unused)(struct obd_export *, const struct lu_fid *,
 			     ldlm_policy_data_t *, enum ldlm_mode,
 			     enum ldlm_cancel_flags flags, void *opaque);
-
-	int (*get_remote_perm)(struct obd_export *, const struct lu_fid *,
-			       __u32, struct ptlrpc_request **);
 
 	int (*intent_getattr_async)(struct obd_export *,
 				    struct md_enqueue_info *,

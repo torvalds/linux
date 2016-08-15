@@ -698,7 +698,7 @@ int au0828_v4l2_device_register(struct usb_interface *interface,
 
 static int queue_setup(struct vb2_queue *vq,
 		       unsigned int *nbuffers, unsigned int *nplanes,
-		       unsigned int sizes[], void *alloc_ctxs[])
+		       unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct au0828_dev *dev = vb2_get_drv_priv(vq);
 	unsigned long size = dev->height * dev->bytesperline;

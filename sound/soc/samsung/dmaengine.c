@@ -28,10 +28,6 @@
 
 #include "dma.h"
 
-static struct snd_dmaengine_pcm_config samsung_dmaengine_pcm_config = {
-	.prepare_slave_config = snd_dmaengine_pcm_prepare_slave_config,
-};
-
 void samsung_asoc_init_dma_data(struct snd_soc_dai *dai,
 				struct s3c_dma_params *playback,
 				struct s3c_dma_params *capture)
@@ -58,15 +54,28 @@ void samsung_asoc_init_dma_data(struct snd_soc_dai *dai,
 }
 EXPORT_SYMBOL_GPL(samsung_asoc_init_dma_data);
 
-int samsung_asoc_dma_platform_register(struct device *dev,
-				       dma_filter_fn filter)
+int samsung_asoc_dma_platform_register(struct device *dev, dma_filter_fn filter,
+				       const char *tx, const char *rx)
 {
-	samsung_dmaengine_pcm_config.compat_filter_fn = filter;
+	unsigned int flags = SND_DMAENGINE_PCM_FLAG_COMPAT;
 
-	return devm_snd_dmaengine_pcm_register(dev,
-			&samsung_dmaengine_pcm_config,
-			SND_DMAENGINE_PCM_FLAG_CUSTOM_CHANNEL_NAME |
-			SND_DMAENGINE_PCM_FLAG_COMPAT);
+	struct snd_dmaengine_pcm_config *pcm_conf;
+
+	pcm_conf = devm_kzalloc(dev, sizeof(*pcm_conf), GFP_KERNEL);
+	if (!pcm_conf)
+		return -ENOMEM;
+
+	pcm_conf->prepare_slave_config = snd_dmaengine_pcm_prepare_slave_config;
+	pcm_conf->compat_filter_fn = filter;
+
+	if (dev->of_node) {
+		pcm_conf->chan_names[SNDRV_PCM_STREAM_PLAYBACK] = tx;
+		pcm_conf->chan_names[SNDRV_PCM_STREAM_CAPTURE] = rx;
+	} else {
+		flags |= SND_DMAENGINE_PCM_FLAG_CUSTOM_CHANNEL_NAME;
+	}
+
+	return devm_snd_dmaengine_pcm_register(dev, pcm_conf, flags);
 }
 EXPORT_SYMBOL_GPL(samsung_asoc_dma_platform_register);
 

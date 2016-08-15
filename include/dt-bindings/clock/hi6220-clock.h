@@ -55,8 +55,9 @@
 #define HI6220_TIMER7_PCLK	34
 #define HI6220_TIMER8_PCLK	35
 #define HI6220_UART0_PCLK	36
-
-#define HI6220_AO_NR_CLKS	37
+#define HI6220_RTC0_PCLK	37
+#define HI6220_RTC1_PCLK	38
+#define HI6220_AO_NR_CLKS	39
 
 /* clk in Hi6220 systrl */
 /* gate clock */

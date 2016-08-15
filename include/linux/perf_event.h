@@ -69,9 +69,22 @@ struct perf_callchain_entry_ctx {
 	bool			    contexts_maxed;
 };
 
-struct perf_raw_record {
-	u32				size;
+typedef unsigned long (*perf_copy_f)(void *dst, const void *src,
+				     unsigned long off, unsigned long len);
+
+struct perf_raw_frag {
+	union {
+		struct perf_raw_frag	*next;
+		unsigned long		pad;
+	};
+	perf_copy_f			copy;
 	void				*data;
+	u32				size;
+} __packed;
+
+struct perf_raw_record {
+	struct perf_raw_frag		frag;
+	u32				size;
 };
 
 /*
@@ -517,6 +530,11 @@ struct swevent_hlist {
 struct perf_cgroup;
 struct ring_buffer;
 
+struct pmu_event_list {
+	raw_spinlock_t		lock;
+	struct list_head	list;
+};
+
 /**
  * struct perf_event - performance event kernel representation:
  */
@@ -675,6 +693,7 @@ struct perf_event {
 	int				cgrp_defer_enabled;
 #endif
 
+	struct list_head		sb_list;
 #endif /* CONFIG_PERF_EVENTS */
 };
 
@@ -724,7 +743,9 @@ struct perf_event_context {
 	u64				parent_gen;
 	u64				generation;
 	int				pin_count;
+#ifdef CONFIG_CGROUP_PERF
 	int				nr_cgroups;	 /* cgroup evts */
+#endif
 	void				*task_ctx_data; /* pmu specific data */
 	struct rcu_head			rcu_head;
 };
@@ -750,7 +771,9 @@ struct perf_cpu_context {
 	unsigned int			hrtimer_active;
 
 	struct pmu			*unique_pmu;
+#ifdef CONFIG_CGROUP_PERF
 	struct perf_cgroup		*cgrp;
+#endif
 };
 
 struct perf_output_handle {
@@ -1074,7 +1097,7 @@ extern void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry, struct
 extern struct perf_callchain_entry *
 get_perf_callchain(struct pt_regs *regs, u32 init_nr, bool kernel, bool user,
 		   u32 max_stack, bool crosstask, bool add_mark);
-extern int get_callchain_buffers(void);
+extern int get_callchain_buffers(int max_stack);
 extern void put_callchain_buffers(void);
 
 extern int sysctl_perf_event_max_stack;
@@ -1283,47 +1306,24 @@ extern void perf_restore_debug_store(void);
 static inline void perf_restore_debug_store(void)			{ }
 #endif
 
+static __always_inline bool perf_raw_frag_last(const struct perf_raw_frag *frag)
+{
+	return frag->pad < sizeof(u64);
+}
+
 #define perf_output_put(handle, x) perf_output_copy((handle), &(x), sizeof(x))
-
-/*
- * This has to have a higher priority than migration_notifier in sched/core.c.
- */
-#define perf_cpu_notifier(fn)						\
-do {									\
-	static struct notifier_block fn##_nb =				\
-		{ .notifier_call = fn, .priority = CPU_PRI_PERF };	\
-	unsigned long cpu = smp_processor_id();				\
-	unsigned long flags;						\
-									\
-	cpu_notifier_register_begin();					\
-	fn(&fn##_nb, (unsigned long)CPU_UP_PREPARE,			\
-		(void *)(unsigned long)cpu);				\
-	local_irq_save(flags);						\
-	fn(&fn##_nb, (unsigned long)CPU_STARTING,			\
-		(void *)(unsigned long)cpu);				\
-	local_irq_restore(flags);					\
-	fn(&fn##_nb, (unsigned long)CPU_ONLINE,				\
-		(void *)(unsigned long)cpu);				\
-	__register_cpu_notifier(&fn##_nb);				\
-	cpu_notifier_register_done();					\
-} while (0)
-
-/*
- * Bare-bones version of perf_cpu_notifier(), which doesn't invoke the
- * callback for already online CPUs.
- */
-#define __perf_cpu_notifier(fn)						\
-do {									\
-	static struct notifier_block fn##_nb =				\
-		{ .notifier_call = fn, .priority = CPU_PRI_PERF };	\
-									\
-	__register_cpu_notifier(&fn##_nb);				\
-} while (0)
 
 struct perf_pmu_events_attr {
 	struct device_attribute attr;
 	u64 id;
 	const char *event_str;
+};
+
+struct perf_pmu_events_ht_attr {
+	struct device_attribute			attr;
+	u64					id;
+	const char				*event_str_ht;
+	const char				*event_str_noht;
 };
 
 ssize_t perf_event_sysfs_show(struct device *dev, struct device_attribute *attr,
@@ -1353,5 +1353,14 @@ _name##_show(struct device *dev,					\
 }									\
 									\
 static struct device_attribute format_attr_##_name = __ATTR_RO(_name)
+
+/* Performance counter hotplug functions */
+#ifdef CONFIG_PERF_EVENTS
+int perf_event_init_cpu(unsigned int cpu);
+int perf_event_exit_cpu(unsigned int cpu);
+#else
+#define perf_event_init_cpu	NULL
+#define perf_event_exit_cpu	NULL
+#endif
 
 #endif /* _LINUX_PERF_EVENT_H */

@@ -669,10 +669,12 @@ static void clocksource_enqueue(struct clocksource *cs)
 	struct list_head *entry = &clocksource_list;
 	struct clocksource *tmp;
 
-	list_for_each_entry(tmp, &clocksource_list, list)
+	list_for_each_entry(tmp, &clocksource_list, list) {
 		/* Keep track of the place, where to insert */
-		if (tmp->rating >= cs->rating)
-			entry = &tmp->list;
+		if (tmp->rating < cs->rating)
+			break;
+		entry = &tmp->list;
+	}
 	list_add(&cs->list, entry);
 }
 

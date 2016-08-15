@@ -542,6 +542,7 @@ config HIST_TRIGGERS
 	bool "Histogram triggers"
 	depends on ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select TRACING_MAP
+	select TRACING
 	default n
 	help
 	  Hist triggers allow one or more arbitrary trace event fields

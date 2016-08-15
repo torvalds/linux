@@ -71,9 +71,31 @@ void rtnl_lock(void)
 }
 EXPORT_SYMBOL(rtnl_lock);
 
+static struct sk_buff *defer_kfree_skb_list;
+void rtnl_kfree_skbs(struct sk_buff *head, struct sk_buff *tail)
+{
+	if (head && tail) {
+		tail->next = defer_kfree_skb_list;
+		defer_kfree_skb_list = head;
+	}
+}
+EXPORT_SYMBOL(rtnl_kfree_skbs);
+
 void __rtnl_unlock(void)
 {
+	struct sk_buff *head = defer_kfree_skb_list;
+
+	defer_kfree_skb_list = NULL;
+
 	mutex_unlock(&rtnl_mutex);
+
+	while (head) {
+		struct sk_buff *next = head->next;
+
+		kfree_skb(head);
+		cond_resched();
+		head = next;
+	}
 }
 
 void rtnl_unlock(void)
@@ -869,6 +891,16 @@ static size_t rtnl_port_size(const struct net_device *dev,
 		return port_self_size;
 }
 
+static size_t rtnl_xdp_size(const struct net_device *dev)
+{
+	size_t xdp_size = nla_total_size(1);	/* XDP_ATTACHED */
+
+	if (!dev->netdev_ops->ndo_xdp)
+		return 0;
+	else
+		return xdp_size;
+}
+
 static noinline size_t if_nlmsg_size(const struct net_device *dev,
 				     u32 ext_filter_mask)
 {
@@ -905,6 +937,7 @@ static noinline size_t if_nlmsg_size(const struct net_device *dev,
 	       + nla_total_size(MAX_PHYS_ITEM_ID_LEN) /* IFLA_PHYS_PORT_ID */
 	       + nla_total_size(MAX_PHYS_ITEM_ID_LEN) /* IFLA_PHYS_SWITCH_ID */
 	       + nla_total_size(IFNAMSIZ) /* IFLA_PHYS_PORT_NAME */
+	       + rtnl_xdp_size(dev) /* IFLA_XDP */
 	       + nla_total_size(1); /* IFLA_PROTO_DOWN */
 
 }
@@ -1189,6 +1222,33 @@ static int rtnl_fill_link_ifmap(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 }
 
+static int rtnl_xdp_fill(struct sk_buff *skb, struct net_device *dev)
+{
+	struct netdev_xdp xdp_op = {};
+	struct nlattr *xdp;
+	int err;
+
+	if (!dev->netdev_ops->ndo_xdp)
+		return 0;
+	xdp = nla_nest_start(skb, IFLA_XDP);
+	if (!xdp)
+		return -EMSGSIZE;
+	xdp_op.command = XDP_QUERY_PROG;
+	err = dev->netdev_ops->ndo_xdp(dev, &xdp_op);
+	if (err)
+		goto err_cancel;
+	err = nla_put_u8(skb, IFLA_XDP_ATTACHED, xdp_op.prog_attached);
+	if (err)
+		goto err_cancel;
+
+	nla_nest_end(skb, xdp);
+	return 0;
+
+err_cancel:
+	nla_nest_cancel(skb, xdp);
+	return err;
+}
+
 static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 			    int type, u32 pid, u32 seq, u32 change,
 			    unsigned int flags, u32 ext_filter_mask)
@@ -1285,6 +1345,9 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 	if (rtnl_port_fill(skb, dev, ext_filter_mask))
 		goto nla_put_failure;
 
+	if (rtnl_xdp_fill(skb, dev))
+		goto nla_put_failure;
+
 	if (dev->rtnl_link_ops || rtnl_have_link_slave_info(dev)) {
 		if (rtnl_link_fill(skb, dev) < 0)
 			goto nla_put_failure;
@@ -1370,6 +1433,7 @@ static const struct nla_policy ifla_policy[IFLA_MAX+1] = {
 	[IFLA_PHYS_SWITCH_ID]	= { .type = NLA_BINARY, .len = MAX_PHYS_ITEM_ID_LEN },
 	[IFLA_LINK_NETNSID]	= { .type = NLA_S32 },
 	[IFLA_PROTO_DOWN]	= { .type = NLA_U8 },
+	[IFLA_XDP]		= { .type = NLA_NESTED },
 };
 
 static const struct nla_policy ifla_info_policy[IFLA_INFO_MAX+1] = {
@@ -1405,6 +1469,11 @@ static const struct nla_policy ifla_port_policy[IFLA_PORT_MAX+1] = {
 				    .len = PORT_UUID_MAX },
 	[IFLA_PORT_REQUEST]	= { .type = NLA_U8, },
 	[IFLA_PORT_RESPONSE]	= { .type = NLA_U16, },
+};
+
+static const struct nla_policy ifla_xdp_policy[IFLA_XDP_MAX + 1] = {
+	[IFLA_XDP_FD]		= { .type = NLA_S32 },
+	[IFLA_XDP_ATTACHED]	= { .type = NLA_U8 },
 };
 
 static const struct rtnl_link_ops *linkinfo_to_kind_ops(const struct nlattr *nla)
@@ -1905,11 +1974,19 @@ static int do_setlink(const struct sk_buff *skb,
 
 	if (tb[IFLA_TXQLEN]) {
 		unsigned long value = nla_get_u32(tb[IFLA_TXQLEN]);
+		unsigned long orig_len = dev->tx_queue_len;
 
-		if (dev->tx_queue_len ^ value)
+		if (dev->tx_queue_len ^ value) {
+			dev->tx_queue_len = value;
+			err = call_netdevice_notifiers(
+			      NETDEV_CHANGE_TX_QUEUE_LEN, dev);
+			err = notifier_to_errno(err);
+			if (err) {
+				dev->tx_queue_len = orig_len;
+				goto errout;
+			}
 			status |= DO_SETLINK_NOTIFY;
-
-		dev->tx_queue_len = value;
+		}
 	}
 
 	if (tb[IFLA_OPERSTATE])
@@ -2022,6 +2099,27 @@ static int do_setlink(const struct sk_buff *skb,
 		if (err)
 			goto errout;
 		status |= DO_SETLINK_NOTIFY;
+	}
+
+	if (tb[IFLA_XDP]) {
+		struct nlattr *xdp[IFLA_XDP_MAX + 1];
+
+		err = nla_parse_nested(xdp, IFLA_XDP_MAX, tb[IFLA_XDP],
+				       ifla_xdp_policy);
+		if (err < 0)
+			goto errout;
+
+		if (xdp[IFLA_XDP_ATTACHED]) {
+			err = -EINVAL;
+			goto errout;
+		}
+		if (xdp[IFLA_XDP_FD]) {
+			err = dev_change_xdp_fd(dev,
+						nla_get_s32(xdp[IFLA_XDP_FD]));
+			if (err)
+				goto errout;
+			status |= DO_SETLINK_NOTIFY;
+		}
 	}
 
 errout:
@@ -3497,7 +3595,32 @@ static int rtnl_fill_statsinfo(struct sk_buff *skb, struct net_device *dev,
 			if (!attr)
 				goto nla_put_failure;
 
-			err = ops->fill_linkxstats(skb, dev, prividx);
+			err = ops->fill_linkxstats(skb, dev, prividx, *idxattr);
+			nla_nest_end(skb, attr);
+			if (err)
+				goto nla_put_failure;
+			*idxattr = 0;
+		}
+	}
+
+	if (stats_attr_valid(filter_mask, IFLA_STATS_LINK_XSTATS_SLAVE,
+			     *idxattr)) {
+		const struct rtnl_link_ops *ops = NULL;
+		const struct net_device *master;
+
+		master = netdev_master_upper_dev_get(dev);
+		if (master)
+			ops = master->rtnl_link_ops;
+		if (ops && ops->fill_linkxstats) {
+			int err;
+
+			*idxattr = IFLA_STATS_LINK_XSTATS_SLAVE;
+			attr = nla_nest_start(skb,
+					      IFLA_STATS_LINK_XSTATS_SLAVE);
+			if (!attr)
+				goto nla_put_failure;
+
+			err = ops->fill_linkxstats(skb, dev, prividx, *idxattr);
 			nla_nest_end(skb, attr);
 			if (err)
 				goto nla_put_failure;
@@ -3533,10 +3656,31 @@ static size_t if_nlmsg_stats_size(const struct net_device *dev,
 
 	if (stats_attr_valid(filter_mask, IFLA_STATS_LINK_XSTATS, 0)) {
 		const struct rtnl_link_ops *ops = dev->rtnl_link_ops;
+		int attr = IFLA_STATS_LINK_XSTATS;
 
 		if (ops && ops->get_linkxstats_size) {
-			size += nla_total_size(ops->get_linkxstats_size(dev));
+			size += nla_total_size(ops->get_linkxstats_size(dev,
+									attr));
 			/* for IFLA_STATS_LINK_XSTATS */
+			size += nla_total_size(0);
+		}
+	}
+
+	if (stats_attr_valid(filter_mask, IFLA_STATS_LINK_XSTATS_SLAVE, 0)) {
+		struct net_device *_dev = (struct net_device *)dev;
+		const struct rtnl_link_ops *ops = NULL;
+		const struct net_device *master;
+
+		/* netdev_master_upper_dev_get can't take const */
+		master = netdev_master_upper_dev_get(_dev);
+		if (master)
+			ops = master->rtnl_link_ops;
+		if (ops && ops->get_linkxstats_size) {
+			int attr = IFLA_STATS_LINK_XSTATS_SLAVE;
+
+			size += nla_total_size(ops->get_linkxstats_size(dev,
+									attr));
+			/* for IFLA_STATS_LINK_XSTATS_SLAVE */
 			size += nla_total_size(0);
 		}
 	}

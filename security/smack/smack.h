@@ -90,8 +90,14 @@ struct superblock_smack {
 	struct smack_known	*smk_floor;
 	struct smack_known	*smk_hat;
 	struct smack_known	*smk_default;
-	int			smk_initialized;
+	int			smk_flags;
 };
+
+/*
+ * Superblock flags
+ */
+#define SMK_SB_INITIALIZED	0x01
+#define SMK_SB_UNTRUSTED	0x02
 
 struct socket_smack {
 	struct smack_known	*smk_out;	/* outbound label */

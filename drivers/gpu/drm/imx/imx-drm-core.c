@@ -16,7 +16,6 @@
 #include <linux/component.h>
 #include <linux/device.h>
 #include <linux/dma-buf.h>
-#include <linux/fb.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/reservation.h>
@@ -58,12 +57,6 @@ static int legacyfb_depth = 16;
 module_param(legacyfb_depth, int, 0444);
 #endif
 
-unsigned int imx_drm_crtc_id(struct imx_drm_crtc *crtc)
-{
-	return drm_crtc_index(crtc->crtc);
-}
-EXPORT_SYMBOL_GPL(imx_drm_crtc_id);
-
 static void imx_drm_driver_lastclose(struct drm_device *drm)
 {
 	struct imx_drm_device *imxdrm = drm->dev_private;
@@ -89,24 +82,6 @@ static int imx_drm_driver_unload(struct drm_device *drm)
 
 	return 0;
 }
-
-int imx_drm_crtc_vblank_get(struct imx_drm_crtc *imx_drm_crtc)
-{
-	return drm_crtc_vblank_get(imx_drm_crtc->crtc);
-}
-EXPORT_SYMBOL_GPL(imx_drm_crtc_vblank_get);
-
-void imx_drm_crtc_vblank_put(struct imx_drm_crtc *imx_drm_crtc)
-{
-	drm_crtc_vblank_put(imx_drm_crtc->crtc);
-}
-EXPORT_SYMBOL_GPL(imx_drm_crtc_vblank_put);
-
-void imx_drm_handle_vblank(struct imx_drm_crtc *imx_drm_crtc)
-{
-	drm_crtc_handle_vblank(imx_drm_crtc->crtc);
-}
-EXPORT_SYMBOL_GPL(imx_drm_handle_vblank);
 
 static int imx_drm_enable_vblank(struct drm_device *drm, unsigned int pipe)
 {

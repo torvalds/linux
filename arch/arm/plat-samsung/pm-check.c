@@ -5,7 +5,7 @@
  *	http://armlinux.simtec.co.uk
  *	Ben Dooks <ben@simtec.co.uk>
  *
- * S3C Power Mangament - suspend/resume memory corruptiuon check.
+ * S3C Power Mangament - suspend/resume memory corruption check.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

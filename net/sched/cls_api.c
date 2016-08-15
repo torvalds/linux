@@ -103,6 +103,17 @@ static int tfilter_notify(struct net *net, struct sk_buff *oskb,
 			  struct nlmsghdr *n, struct tcf_proto *tp,
 			  unsigned long fh, int event);
 
+static void tfilter_notify_chain(struct net *net, struct sk_buff *oskb,
+				 struct nlmsghdr *n,
+				 struct tcf_proto __rcu **chain, int event)
+{
+	struct tcf_proto __rcu **it_chain;
+	struct tcf_proto *tp;
+
+	for (it_chain = chain; (tp = rtnl_dereference(*it_chain)) != NULL;
+	     it_chain = &tp->next)
+		tfilter_notify(net, oskb, n, tp, 0, event);
+}
 
 /* Select new prio value from the range, managed by kernel. */
 
@@ -156,11 +167,23 @@ replay:
 	cl = 0;
 
 	if (prio == 0) {
-		/* If no priority is given, user wants we allocated it. */
-		if (n->nlmsg_type != RTM_NEWTFILTER ||
-		    !(n->nlmsg_flags & NLM_F_CREATE))
+		switch (n->nlmsg_type) {
+		case RTM_DELTFILTER:
+			if (protocol || t->tcm_handle || tca[TCA_KIND])
+				return -ENOENT;
+			break;
+		case RTM_NEWTFILTER:
+			/* If no priority is provided by the user,
+			 * we allocate one.
+			 */
+			if (n->nlmsg_flags & NLM_F_CREATE) {
+				prio = TC_H_MAKE(0x80000000U, 0U);
+				break;
+			}
+			/* fall-through */
+		default:
 			return -ENOENT;
-		prio = TC_H_MAKE(0x80000000U, 0U);
+		}
 	}
 
 	/* Find head of filter chain. */
@@ -200,6 +223,12 @@ replay:
 	err = -EINVAL;
 	if (chain == NULL)
 		goto errout;
+	if (n->nlmsg_type == RTM_DELTFILTER && prio == 0) {
+		tfilter_notify_chain(net, skb, n, chain, RTM_DELTFILTER);
+		tcf_destroy_chain(chain);
+		err = 0;
+		goto errout;
+	}
 
 	/* Check the chain for existence of proto-tcf with this priority */
 	for (back = chain;
@@ -351,8 +380,9 @@ errout:
 	return err;
 }
 
-static int tcf_fill_node(struct net *net, struct sk_buff *skb, struct tcf_proto *tp,
-			 unsigned long fh, u32 portid, u32 seq, u16 flags, int event)
+static int tcf_fill_node(struct net *net, struct sk_buff *skb,
+			 struct tcf_proto *tp, unsigned long fh, u32 portid,
+			 u32 seq, u16 flags, int event)
 {
 	struct tcmsg *tcm;
 	struct nlmsghdr  *nlh;
@@ -474,9 +504,11 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 		    TC_H_MIN(tcm->tcm_info) != tp->protocol)
 			continue;
 		if (t > s_t)
-			memset(&cb->args[1], 0, sizeof(cb->args)-sizeof(cb->args[0]));
+			memset(&cb->args[1], 0,
+			       sizeof(cb->args)-sizeof(cb->args[0]));
 		if (cb->args[1] == 0) {
-			if (tcf_fill_node(net, skb, tp, 0, NETLINK_CB(cb->skb).portid,
+			if (tcf_fill_node(net, skb, tp, 0,
+					  NETLINK_CB(cb->skb).portid,
 					  cb->nlh->nlmsg_seq, NLM_F_MULTI,
 					  RTM_NEWTFILTER) <= 0)
 				break;

@@ -27,9 +27,12 @@
 #include "powernv.h"
 #include "subcore.h"
 
+/* Power ISA 3.0 allows for stop states 0x0 - 0xF */
+#define MAX_STOP_STATE	0xF
+
 static u32 supported_cpuidle_states;
 
-int pnv_save_sprs_for_winkle(void)
+static int pnv_save_sprs_for_deep_states(void)
 {
 	int cpu;
 	int rc;
@@ -50,15 +53,19 @@ int pnv_save_sprs_for_winkle(void)
 		uint64_t pir = get_hard_smp_processor_id(cpu);
 		uint64_t hsprg0_val = (uint64_t)&paca[cpu];
 
-		/*
-		 * HSPRG0 is used to store the cpu's pointer to paca. Hence last
-		 * 3 bits are guaranteed to be 0. Program slw to restore HSPRG0
-		 * with 63rd bit set, so that when a thread wakes up at 0x100 we
-		 * can use this bit to distinguish between fastsleep and
-		 * deep winkle.
-		 */
-		hsprg0_val |= 1;
-
+		if (!cpu_has_feature(CPU_FTR_ARCH_300)) {
+			/*
+			 * HSPRG0 is used to store the cpu's pointer to paca.
+			 * Hence last 3 bits are guaranteed to be 0. Program
+			 * slw to restore HSPRG0 with 63rd bit set, so that
+			 * when a thread wakes up at 0x100 we can use this bit
+			 * to distinguish between fastsleep and deep winkle.
+			 * This is not necessary with stop/psscr since PLS
+			 * field of psscr indicates which state we are waking
+			 * up from.
+			 */
+			hsprg0_val |= 1;
+		}
 		rc = opal_slw_set_reg(pir, SPRN_HSPRG0, hsprg0_val);
 		if (rc != 0)
 			return rc;
@@ -130,8 +137,8 @@ static void pnv_alloc_idle_core_states(void)
 
 	update_subcore_sibling_mask();
 
-	if (supported_cpuidle_states & OPAL_PM_WINKLE_ENABLED)
-		pnv_save_sprs_for_winkle();
+	if (supported_cpuidle_states & OPAL_PM_LOSE_FULL_CONTEXT)
+		pnv_save_sprs_for_deep_states();
 }
 
 u32 pnv_get_supported_cpuidle_states(void)
@@ -230,42 +237,161 @@ static DEVICE_ATTR(fastsleep_workaround_applyonce, 0600,
 			show_fastsleep_workaround_applyonce,
 			store_fastsleep_workaround_applyonce);
 
-static int __init pnv_init_idle_states(void)
+
+/*
+ * Used for ppc_md.power_save which needs a function with no parameters
+ */
+static void power9_idle(void)
 {
-	struct device_node *power_mgt;
+	/* Requesting stop state 0 */
+	power9_idle_stop(0);
+}
+/*
+ * First deep stop state. Used to figure out when to save/restore
+ * hypervisor context.
+ */
+u64 pnv_first_deep_stop_state = MAX_STOP_STATE;
+
+/*
+ * Deepest stop idle state. Used when a cpu is offlined
+ */
+u64 pnv_deepest_stop_state;
+
+/*
+ * Power ISA 3.0 idle initialization.
+ *
+ * POWER ISA 3.0 defines a new SPR Processor stop Status and Control
+ * Register (PSSCR) to control idle behavior.
+ *
+ * PSSCR layout:
+ * ----------------------------------------------------------
+ * | PLS | /// | SD | ESL | EC | PSLL | /// | TR | MTL | RL |
+ * ----------------------------------------------------------
+ * 0      4     41   42    43   44     48    54   56    60
+ *
+ * PSSCR key fields:
+ *	Bits 0:3  - Power-Saving Level Status (PLS). This field indicates the
+ *	lowest power-saving state the thread entered since stop instruction was
+ *	last executed.
+ *
+ *	Bit 41 - Status Disable(SD)
+ *	0 - Shows PLS entries
+ *	1 - PLS entries are all 0
+ *
+ *	Bit 42 - Enable State Loss
+ *	0 - No state is lost irrespective of other fields
+ *	1 - Allows state loss
+ *
+ *	Bit 43 - Exit Criterion
+ *	0 - Exit from power-save mode on any interrupt
+ *	1 - Exit from power-save mode controlled by LPCR's PECE bits
+ *
+ *	Bits 44:47 - Power-Saving Level Limit
+ *	This limits the power-saving level that can be entered into.
+ *
+ *	Bits 60:63 - Requested Level
+ *	Used to specify which power-saving level must be entered on executing
+ *	stop instruction
+ *
+ * @np: /ibm,opal/power-mgt device node
+ * @flags: cpu-idle-state-flags array
+ * @dt_idle_states: Number of idle state entries
+ * Returns 0 on success
+ */
+static int __init pnv_arch300_idle_init(struct device_node *np, u32 *flags,
+					int dt_idle_states)
+{
+	u64 *psscr_val = NULL;
+	int rc = 0, i;
+
+	psscr_val = kcalloc(dt_idle_states, sizeof(*psscr_val),
+				GFP_KERNEL);
+	if (!psscr_val) {
+		rc = -1;
+		goto out;
+	}
+	if (of_property_read_u64_array(np,
+		"ibm,cpu-idle-state-psscr",
+		psscr_val, dt_idle_states)) {
+		pr_warn("cpuidle-powernv: missing ibm,cpu-idle-states-psscr in DT\n");
+		rc = -1;
+		goto out;
+	}
+
+	/*
+	 * Set pnv_first_deep_stop_state and pnv_deepest_stop_state.
+	 * pnv_first_deep_stop_state should be set to the first stop
+	 * level to cause hypervisor state loss.
+	 * pnv_deepest_stop_state should be set to the deepest stop
+	 * stop state.
+	 */
+	pnv_first_deep_stop_state = MAX_STOP_STATE;
+	for (i = 0; i < dt_idle_states; i++) {
+		u64 psscr_rl = psscr_val[i] & PSSCR_RL_MASK;
+
+		if ((flags[i] & OPAL_PM_LOSE_FULL_CONTEXT) &&
+		     (pnv_first_deep_stop_state > psscr_rl))
+			pnv_first_deep_stop_state = psscr_rl;
+
+		if (pnv_deepest_stop_state < psscr_rl)
+			pnv_deepest_stop_state = psscr_rl;
+	}
+
+out:
+	kfree(psscr_val);
+	return rc;
+}
+
+/*
+ * Probe device tree for supported idle states
+ */
+static void __init pnv_probe_idle_states(void)
+{
+	struct device_node *np;
 	int dt_idle_states;
-	u32 *flags;
+	u32 *flags = NULL;
 	int i;
 
-	supported_cpuidle_states = 0;
-
-	if (cpuidle_disable != IDLE_NO_OVERRIDE)
-		goto out;
-
-	if (!firmware_has_feature(FW_FEATURE_OPAL))
-		goto out;
-
-	power_mgt = of_find_node_by_path("/ibm,opal/power-mgt");
-	if (!power_mgt) {
+	np = of_find_node_by_path("/ibm,opal/power-mgt");
+	if (!np) {
 		pr_warn("opal: PowerMgmt Node not found\n");
 		goto out;
 	}
-	dt_idle_states = of_property_count_u32_elems(power_mgt,
+	dt_idle_states = of_property_count_u32_elems(np,
 			"ibm,cpu-idle-state-flags");
 	if (dt_idle_states < 0) {
 		pr_warn("cpuidle-powernv: no idle states found in the DT\n");
 		goto out;
 	}
 
-	flags = kzalloc(sizeof(*flags) * dt_idle_states, GFP_KERNEL);
-	if (of_property_read_u32_array(power_mgt,
+	flags = kcalloc(dt_idle_states, sizeof(*flags),  GFP_KERNEL);
+
+	if (of_property_read_u32_array(np,
 			"ibm,cpu-idle-state-flags", flags, dt_idle_states)) {
 		pr_warn("cpuidle-powernv: missing ibm,cpu-idle-state-flags in DT\n");
-		goto out_free;
+		goto out;
+	}
+
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		if (pnv_arch300_idle_init(np, flags, dt_idle_states))
+			goto out;
 	}
 
 	for (i = 0; i < dt_idle_states; i++)
 		supported_cpuidle_states |= flags[i];
+
+out:
+	kfree(flags);
+}
+static int __init pnv_init_idle_states(void)
+{
+
+	supported_cpuidle_states = 0;
+
+	if (cpuidle_disable != IDLE_NO_OVERRIDE)
+		goto out;
+
+	pnv_probe_idle_states();
 
 	if (!(supported_cpuidle_states & OPAL_PM_SLEEP_ENABLED_ER1)) {
 		patch_instruction(
@@ -285,8 +411,12 @@ static int __init pnv_init_idle_states(void)
 	}
 
 	pnv_alloc_idle_core_states();
-out_free:
-	kfree(flags);
+
+	if (supported_cpuidle_states & OPAL_PM_NAP_ENABLED)
+		ppc_md.power_save = power7_idle;
+	else if (supported_cpuidle_states & OPAL_PM_STOP_INST_FAST)
+		ppc_md.power_save = power9_idle;
+
 out:
 	return 0;
 }

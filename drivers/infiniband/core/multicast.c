@@ -93,18 +93,6 @@ enum {
 
 struct mcast_member;
 
-/*
-* There are 4 types of join states:
-* FullMember, NonMember, SendOnlyNonMember, SendOnlyFullMember.
-*/
-enum {
-	FULLMEMBER_JOIN,
-	NONMEMBER_JOIN,
-	SENDONLY_NONMEBER_JOIN,
-	SENDONLY_FULLMEMBER_JOIN,
-	NUM_JOIN_MEMBERSHIP_TYPES,
-};
-
 struct mcast_group {
 	struct ib_sa_mcmember_rec rec;
 	struct rb_node		node;

@@ -43,6 +43,7 @@ config SPARC
 	select OLD_SIGSUSPEND
 	select ARCH_HAS_SG_CHAIN
 	select CPU_NO_EFFICIENT_FFS
+	select HAVE_ARCH_HARDENED_USERCOPY
 
 config SPARC32
 	def_bool !64BIT

@@ -24,6 +24,7 @@
  */
 
 #include <linux/pci.h>
+#include <drm/drm_fb_helper.h>
 
 #include "virtgpu_drv.h"
 
@@ -42,7 +43,7 @@ static void virtio_pci_kick_out_firmware_fb(struct pci_dev *pci_dev)
 	primary = pci_dev->resource[PCI_ROM_RESOURCE].flags
 		& IORESOURCE_ROM_SHADOW;
 
-	remove_conflicting_framebuffers(ap, "virtiodrmfb", primary);
+	drm_fb_helper_remove_conflicting_framebuffers(ap, "virtiodrmfb", primary);
 
 	kfree(ap);
 }

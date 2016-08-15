@@ -358,8 +358,8 @@ ext2_readdir(struct file *file, struct dir_context *ctx)
  * and the entry itself. Page is returned mapped and unlocked.
  * Entry is guaranteed to be valid.
  */
-struct ext2_dir_entry_2 *ext2_find_entry (struct inode * dir,
-			struct qstr *child, struct page ** res_page)
+struct ext2_dir_entry_2 *ext2_find_entry (struct inode *dir,
+			const struct qstr *child, struct page **res_page)
 {
 	const char *name = child->name;
 	int namelen = child->len;
@@ -435,7 +435,7 @@ struct ext2_dir_entry_2 * ext2_dotdot (struct inode *dir, struct page **p)
 	return de;
 }
 
-ino_t ext2_inode_by_name(struct inode *dir, struct qstr *child)
+ino_t ext2_inode_by_name(struct inode *dir, const struct qstr *child)
 {
 	ino_t res = 0;
 	struct ext2_dir_entry_2 *de;

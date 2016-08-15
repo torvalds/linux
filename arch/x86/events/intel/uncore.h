@@ -1,4 +1,3 @@
-#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <asm/apicdef.h>
@@ -15,7 +14,11 @@
 #define UNCORE_PMC_IDX_FIXED		UNCORE_PMC_IDX_MAX_GENERIC
 #define UNCORE_PMC_IDX_MAX		(UNCORE_PMC_IDX_FIXED + 1)
 
+#define UNCORE_PCI_DEV_FULL_DATA(dev, func, type, idx)	\
+		((dev << 24) | (func << 16) | (type << 8) | idx)
 #define UNCORE_PCI_DEV_DATA(type, idx)	((type << 8) | idx)
+#define UNCORE_PCI_DEV_DEV(data)	((data >> 24) & 0xff)
+#define UNCORE_PCI_DEV_FUNC(data)	((data >> 16) & 0xff)
 #define UNCORE_PCI_DEV_TYPE(data)	((data >> 8) & 0xff)
 #define UNCORE_PCI_DEV_IDX(data)	(data & 0xff)
 #define UNCORE_EXTRA_PCI_DEV		0xff
@@ -360,6 +363,7 @@ int bdw_uncore_pci_init(void);
 int skl_uncore_pci_init(void);
 void snb_uncore_cpu_init(void);
 void nhm_uncore_cpu_init(void);
+void skl_uncore_cpu_init(void);
 int snb_pci2phy_map_init(int devid);
 
 /* perf_event_intel_uncore_snbep.c */

@@ -122,7 +122,7 @@ static int cx23885_start_vbi_dma(struct cx23885_dev    *dev,
 
 static int queue_setup(struct vb2_queue *q,
 			   unsigned int *num_buffers, unsigned int *num_planes,
-			   unsigned int sizes[], void *alloc_ctxs[])
+			   unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct cx23885_dev *dev = q->drv_priv;
 	unsigned lines = VBI_PAL_LINE_COUNT;
@@ -131,7 +131,6 @@ static int queue_setup(struct vb2_queue *q,
 		lines = VBI_NTSC_LINE_COUNT;
 	*num_planes = 1;
 	sizes[0] = lines * VBI_LINE_LENGTH * 2;
-	alloc_ctxs[0] = dev->alloc_ctx;
 	return 0;
 }
 

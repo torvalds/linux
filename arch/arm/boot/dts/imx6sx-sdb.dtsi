@@ -273,7 +273,7 @@
 &uart5 { /* for bluetooth */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart5>;
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	status = "okay";
 };
 
@@ -320,6 +320,12 @@
 	cd-gpios = <&gpio6 21 GPIO_ACTIVE_LOW>;
 	wp-gpios = <&gpio6 20 GPIO_ACTIVE_HIGH>;
 	status = "okay";
+};
+
+&wdog1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_wdog>;
+	fsl,ext-reset-output;
 };
 
 &iomuxc {
@@ -586,6 +592,12 @@
 				MX6SX_PAD_SD4_DATA3__USDHC4_DATA3	0x17059
 				MX6SX_PAD_SD4_DATA7__GPIO6_IO_21	0x17059 /* CD */
 				MX6SX_PAD_SD4_DATA6__GPIO6_IO_20	0x17059 /* WP */
+			>;
+		};
+
+		pinctrl_wdog: wdoggrp {
+			fsl,pins = <
+				MX6SX_PAD_GPIO1_IO13__WDOG1_WDOG_ANY 0x30b0
 			>;
 		};
 	};

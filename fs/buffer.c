@@ -21,6 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/syscalls.h>
 #include <linux/fs.h>
+#include <linux/iomap.h>
 #include <linux/mm.h>
 #include <linux/percpu.h>
 #include <linux/slab.h>
@@ -45,7 +46,7 @@
 #include <trace/events/block.h>
 
 static int fsync_buffers_list(spinlock_t *lock, struct list_head *list);
-static int submit_bh_wbc(int rw, struct buffer_head *bh,
+static int submit_bh_wbc(int op, int op_flags, struct buffer_head *bh,
 			 unsigned long bio_flags,
 			 struct writeback_control *wbc);
 
@@ -153,7 +154,7 @@ static void __end_buffer_read_notouch(struct buffer_head *bh, int uptodate)
 	if (uptodate) {
 		set_buffer_uptodate(bh);
 	} else {
-		/* This happens, due to failed READA attempts. */
+		/* This happens, due to failed read-ahead attempts. */
 		clear_buffer_uptodate(bh);
 	}
 	unlock_buffer(bh);
@@ -588,7 +589,7 @@ void write_boundary_block(struct block_device *bdev,
 	struct buffer_head *bh = __find_get_block(bdev, bblock + 1, blocksize);
 	if (bh) {
 		if (buffer_dirty(bh))
-			ll_rw_block(WRITE, 1, &bh);
+			ll_rw_block(REQ_OP_WRITE, 0, 1, &bh);
 		put_bh(bh);
 	}
 }
@@ -1225,7 +1226,7 @@ static struct buffer_head *__bread_slow(struct buffer_head *bh)
 	} else {
 		get_bh(bh);
 		bh->b_end_io = end_buffer_read_sync;
-		submit_bh(READ, bh);
+		submit_bh(REQ_OP_READ, 0, bh);
 		wait_on_buffer(bh);
 		if (buffer_uptodate(bh))
 			return bh;
@@ -1395,7 +1396,7 @@ void __breadahead(struct block_device *bdev, sector_t block, unsigned size)
 {
 	struct buffer_head *bh = __getblk(bdev, block, size);
 	if (likely(bh)) {
-		ll_rw_block(READA, 1, &bh);
+		ll_rw_block(REQ_OP_READ, REQ_RAHEAD, 1, &bh);
 		brelse(bh);
 	}
 }
@@ -1687,7 +1688,7 @@ static struct buffer_head *create_page_buffers(struct page *page, struct inode *
  * WB_SYNC_ALL, the writes are posted using WRITE_SYNC; this
  * causes the writes to be flagged as synchronous writes.
  */
-static int __block_write_full_page(struct inode *inode, struct page *page,
+int __block_write_full_page(struct inode *inode, struct page *page,
 			get_block_t *get_block, struct writeback_control *wbc,
 			bh_end_io_t *handler)
 {
@@ -1697,7 +1698,7 @@ static int __block_write_full_page(struct inode *inode, struct page *page,
 	struct buffer_head *bh, *head;
 	unsigned int blocksize, bbits;
 	int nr_underway = 0;
-	int write_op = (wbc->sync_mode == WB_SYNC_ALL ? WRITE_SYNC : WRITE);
+	int write_flags = (wbc->sync_mode == WB_SYNC_ALL ? WRITE_SYNC : 0);
 
 	head = create_page_buffers(page, inode,
 					(1 << BH_Dirty)|(1 << BH_Uptodate));
@@ -1786,7 +1787,7 @@ static int __block_write_full_page(struct inode *inode, struct page *page,
 	do {
 		struct buffer_head *next = bh->b_this_page;
 		if (buffer_async_write(bh)) {
-			submit_bh_wbc(write_op, bh, 0, wbc);
+			submit_bh_wbc(REQ_OP_WRITE, write_flags, bh, 0, wbc);
 			nr_underway++;
 		}
 		bh = next;
@@ -1840,7 +1841,7 @@ recover:
 		struct buffer_head *next = bh->b_this_page;
 		if (buffer_async_write(bh)) {
 			clear_buffer_dirty(bh);
-			submit_bh_wbc(write_op, bh, 0, wbc);
+			submit_bh_wbc(REQ_OP_WRITE, write_flags, bh, 0, wbc);
 			nr_underway++;
 		}
 		bh = next;
@@ -1848,6 +1849,7 @@ recover:
 	unlock_page(page);
 	goto done;
 }
+EXPORT_SYMBOL(__block_write_full_page);
 
 /*
  * If a page has any new buffers, zero them out here, and mark them uptodate
@@ -1891,8 +1893,62 @@ void page_zero_new_buffers(struct page *page, unsigned from, unsigned to)
 }
 EXPORT_SYMBOL(page_zero_new_buffers);
 
-int __block_write_begin(struct page *page, loff_t pos, unsigned len,
-		get_block_t *get_block)
+static void
+iomap_to_bh(struct inode *inode, sector_t block, struct buffer_head *bh,
+		struct iomap *iomap)
+{
+	loff_t offset = block << inode->i_blkbits;
+
+	bh->b_bdev = iomap->bdev;
+
+	/*
+	 * Block points to offset in file we need to map, iomap contains
+	 * the offset at which the map starts. If the map ends before the
+	 * current block, then do not map the buffer and let the caller
+	 * handle it.
+	 */
+	BUG_ON(offset >= iomap->offset + iomap->length);
+
+	switch (iomap->type) {
+	case IOMAP_HOLE:
+		/*
+		 * If the buffer is not up to date or beyond the current EOF,
+		 * we need to mark it as new to ensure sub-block zeroing is
+		 * executed if necessary.
+		 */
+		if (!buffer_uptodate(bh) ||
+		    (offset >= i_size_read(inode)))
+			set_buffer_new(bh);
+		break;
+	case IOMAP_DELALLOC:
+		if (!buffer_uptodate(bh) ||
+		    (offset >= i_size_read(inode)))
+			set_buffer_new(bh);
+		set_buffer_uptodate(bh);
+		set_buffer_mapped(bh);
+		set_buffer_delay(bh);
+		break;
+	case IOMAP_UNWRITTEN:
+		/*
+		 * For unwritten regions, we always need to ensure that
+		 * sub-block writes cause the regions in the block we are not
+		 * writing to are zeroed. Set the buffer as new to ensure this.
+		 */
+		set_buffer_new(bh);
+		set_buffer_unwritten(bh);
+		/* FALLTHRU */
+	case IOMAP_MAPPED:
+		if (offset >= i_size_read(inode))
+			set_buffer_new(bh);
+		bh->b_blocknr = (iomap->blkno >> (inode->i_blkbits - 9)) +
+				((offset - iomap->offset) >> inode->i_blkbits);
+		set_buffer_mapped(bh);
+		break;
+	}
+}
+
+int __block_write_begin_int(struct page *page, loff_t pos, unsigned len,
+		get_block_t *get_block, struct iomap *iomap)
 {
 	unsigned from = pos & (PAGE_SIZE - 1);
 	unsigned to = from + len;
@@ -1928,9 +1984,14 @@ int __block_write_begin(struct page *page, loff_t pos, unsigned len,
 			clear_buffer_new(bh);
 		if (!buffer_mapped(bh)) {
 			WARN_ON(bh->b_size != blocksize);
-			err = get_block(inode, block, bh, 1);
-			if (err)
-				break;
+			if (get_block) {
+				err = get_block(inode, block, bh, 1);
+				if (err)
+					break;
+			} else {
+				iomap_to_bh(inode, block, bh, iomap);
+			}
+
 			if (buffer_new(bh)) {
 				unmap_underlying_metadata(bh->b_bdev,
 							bh->b_blocknr);
@@ -1955,7 +2016,7 @@ int __block_write_begin(struct page *page, loff_t pos, unsigned len,
 		if (!buffer_uptodate(bh) && !buffer_delay(bh) &&
 		    !buffer_unwritten(bh) &&
 		     (block_start < from || block_end > to)) {
-			ll_rw_block(READ, 1, &bh);
+			ll_rw_block(REQ_OP_READ, 0, 1, &bh);
 			*wait_bh++=bh;
 		}
 	}
@@ -1970,6 +2031,12 @@ int __block_write_begin(struct page *page, loff_t pos, unsigned len,
 	if (unlikely(err))
 		page_zero_new_buffers(page, from, to);
 	return err;
+}
+
+int __block_write_begin(struct page *page, loff_t pos, unsigned len,
+		get_block_t *get_block)
+{
+	return __block_write_begin_int(page, pos, len, get_block, NULL);
 }
 EXPORT_SYMBOL(__block_write_begin);
 
@@ -2248,7 +2315,7 @@ int block_read_full_page(struct page *page, get_block_t *get_block)
 		if (buffer_uptodate(bh))
 			end_buffer_async_read(bh, 1);
 		else
-			submit_bh(READ, bh);
+			submit_bh(REQ_OP_READ, 0, bh);
 	}
 	return 0;
 }
@@ -2582,7 +2649,7 @@ int nobh_write_begin(struct address_space *mapping,
 		if (block_start < from || block_end > to) {
 			lock_buffer(bh);
 			bh->b_end_io = end_buffer_read_nobh;
-			submit_bh(READ, bh);
+			submit_bh(REQ_OP_READ, 0, bh);
 			nr_reads++;
 		}
 	}
@@ -2852,7 +2919,7 @@ int block_truncate_page(struct address_space *mapping,
 
 	if (!buffer_uptodate(bh) && !buffer_delay(bh) && !buffer_unwritten(bh)) {
 		err = -EIO;
-		ll_rw_block(READ, 1, &bh);
+		ll_rw_block(REQ_OP_READ, 0, 1, &bh);
 		wait_on_buffer(bh);
 		/* Uhhuh. Read error. Complain and punt. */
 		if (!buffer_uptodate(bh))
@@ -2949,7 +3016,7 @@ static void end_bio_bh_io_sync(struct bio *bio)
  * errors, this only handles the "we need to be able to
  * do IO at the final sector" case.
  */
-void guard_bio_eod(int rw, struct bio *bio)
+void guard_bio_eod(int op, struct bio *bio)
 {
 	sector_t maxsector;
 	struct bio_vec *bvec = &bio->bi_io_vec[bio->bi_vcnt - 1];
@@ -2979,13 +3046,13 @@ void guard_bio_eod(int rw, struct bio *bio)
 	bvec->bv_len -= truncated_bytes;
 
 	/* ..and clear the end of the buffer for reads */
-	if ((rw & RW_MASK) == READ) {
+	if (op == REQ_OP_READ) {
 		zero_user(bvec->bv_page, bvec->bv_offset + bvec->bv_len,
 				truncated_bytes);
 	}
 }
 
-static int submit_bh_wbc(int rw, struct buffer_head *bh,
+static int submit_bh_wbc(int op, int op_flags, struct buffer_head *bh,
 			 unsigned long bio_flags, struct writeback_control *wbc)
 {
 	struct bio *bio;
@@ -2999,7 +3066,7 @@ static int submit_bh_wbc(int rw, struct buffer_head *bh,
 	/*
 	 * Only clear out a write error when rewriting
 	 */
-	if (test_set_buffer_req(bh) && (rw & WRITE))
+	if (test_set_buffer_req(bh) && (op == REQ_OP_WRITE))
 		clear_buffer_write_io_error(bh);
 
 	/*
@@ -3024,39 +3091,42 @@ static int submit_bh_wbc(int rw, struct buffer_head *bh,
 	bio->bi_flags |= bio_flags;
 
 	/* Take care of bh's that straddle the end of the device */
-	guard_bio_eod(rw, bio);
+	guard_bio_eod(op, bio);
 
 	if (buffer_meta(bh))
-		rw |= REQ_META;
+		op_flags |= REQ_META;
 	if (buffer_prio(bh))
-		rw |= REQ_PRIO;
+		op_flags |= REQ_PRIO;
+	bio_set_op_attrs(bio, op, op_flags);
 
-	submit_bio(rw, bio);
+	submit_bio(bio);
 	return 0;
 }
 
-int _submit_bh(int rw, struct buffer_head *bh, unsigned long bio_flags)
+int _submit_bh(int op, int op_flags, struct buffer_head *bh,
+	       unsigned long bio_flags)
 {
-	return submit_bh_wbc(rw, bh, bio_flags, NULL);
+	return submit_bh_wbc(op, op_flags, bh, bio_flags, NULL);
 }
 EXPORT_SYMBOL_GPL(_submit_bh);
 
-int submit_bh(int rw, struct buffer_head *bh)
+int submit_bh(int op, int op_flags,  struct buffer_head *bh)
 {
-	return submit_bh_wbc(rw, bh, 0, NULL);
+	return submit_bh_wbc(op, op_flags, bh, 0, NULL);
 }
 EXPORT_SYMBOL(submit_bh);
 
 /**
  * ll_rw_block: low-level access to block devices (DEPRECATED)
- * @rw: whether to %READ or %WRITE or maybe %READA (readahead)
+ * @op: whether to %READ or %WRITE
+ * @op_flags: rq_flag_bits
  * @nr: number of &struct buffer_heads in the array
  * @bhs: array of pointers to &struct buffer_head
  *
  * ll_rw_block() takes an array of pointers to &struct buffer_heads, and
- * requests an I/O operation on them, either a %READ or a %WRITE.  The third
- * %READA option is described in the documentation for generic_make_request()
- * which ll_rw_block() calls.
+ * requests an I/O operation on them, either a %REQ_OP_READ or a %REQ_OP_WRITE.
+ * @op_flags contains flags modifying the detailed I/O behavior, most notably
+ * %REQ_RAHEAD.
  *
  * This function drops any buffer that it cannot get a lock on (with the
  * BH_Lock state bit), any buffer that appears to be clean when doing a write
@@ -3072,7 +3142,7 @@ EXPORT_SYMBOL(submit_bh);
  * All of the buffers must be for the same device, and must also be a
  * multiple of the current approved size for the device.
  */
-void ll_rw_block(int rw, int nr, struct buffer_head *bhs[])
+void ll_rw_block(int op, int op_flags,  int nr, struct buffer_head *bhs[])
 {
 	int i;
 
@@ -3081,18 +3151,18 @@ void ll_rw_block(int rw, int nr, struct buffer_head *bhs[])
 
 		if (!trylock_buffer(bh))
 			continue;
-		if (rw == WRITE) {
+		if (op == WRITE) {
 			if (test_clear_buffer_dirty(bh)) {
 				bh->b_end_io = end_buffer_write_sync;
 				get_bh(bh);
-				submit_bh(WRITE, bh);
+				submit_bh(op, op_flags, bh);
 				continue;
 			}
 		} else {
 			if (!buffer_uptodate(bh)) {
 				bh->b_end_io = end_buffer_read_sync;
 				get_bh(bh);
-				submit_bh(rw, bh);
+				submit_bh(op, op_flags, bh);
 				continue;
 			}
 		}
@@ -3101,7 +3171,7 @@ void ll_rw_block(int rw, int nr, struct buffer_head *bhs[])
 }
 EXPORT_SYMBOL(ll_rw_block);
 
-void write_dirty_buffer(struct buffer_head *bh, int rw)
+void write_dirty_buffer(struct buffer_head *bh, int op_flags)
 {
 	lock_buffer(bh);
 	if (!test_clear_buffer_dirty(bh)) {
@@ -3110,7 +3180,7 @@ void write_dirty_buffer(struct buffer_head *bh, int rw)
 	}
 	bh->b_end_io = end_buffer_write_sync;
 	get_bh(bh);
-	submit_bh(rw, bh);
+	submit_bh(REQ_OP_WRITE, op_flags, bh);
 }
 EXPORT_SYMBOL(write_dirty_buffer);
 
@@ -3119,7 +3189,7 @@ EXPORT_SYMBOL(write_dirty_buffer);
  * and then start new I/O and then wait upon it.  The caller must have a ref on
  * the buffer_head.
  */
-int __sync_dirty_buffer(struct buffer_head *bh, int rw)
+int __sync_dirty_buffer(struct buffer_head *bh, int op_flags)
 {
 	int ret = 0;
 
@@ -3128,7 +3198,7 @@ int __sync_dirty_buffer(struct buffer_head *bh, int rw)
 	if (test_clear_buffer_dirty(bh)) {
 		get_bh(bh);
 		bh->b_end_io = end_buffer_write_sync;
-		ret = submit_bh(rw, bh);
+		ret = submit_bh(REQ_OP_WRITE, op_flags, bh);
 		wait_on_buffer(bh);
 		if (!ret && !buffer_uptodate(bh))
 			ret = -EIO;
@@ -3391,7 +3461,7 @@ int bh_submit_read(struct buffer_head *bh)
 
 	get_bh(bh);
 	bh->b_end_io = end_buffer_read_sync;
-	submit_bh(READ, bh);
+	submit_bh(REQ_OP_READ, 0, bh);
 	wait_on_buffer(bh);
 	if (buffer_uptodate(bh))
 		return 0;

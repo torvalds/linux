@@ -1799,8 +1799,8 @@ struct ieee80211_device {
 	short scanning;
 	short proto_started;
 
-	struct semaphore wx_sem;
-	struct semaphore scan_sem;
+	struct mutex wx_mutex;
+	struct mutex scan_mutex;
 
 	spinlock_t mgmt_tx_lock;
 	spinlock_t beacon_lock;

@@ -6,4 +6,49 @@
 / {
 	model = "NVIDIA Jetson TX1 Developer Kit";
 	compatible = "nvidia,p2371-2180", "nvidia,tegra210";
+
+	host1x@50000000 {
+		dsi@54300000 {
+			status = "okay";
+
+			avdd-dsi-csi-supply = <&vdd_dsi_csi>;
+
+			panel@0 {
+				compatible = "auo,b080uan01";
+				reg = <0>;
+
+				enable-gpios = <&gpio TEGRA_GPIO(V, 2)
+						GPIO_ACTIVE_HIGH>;
+				power-supply = <&vdd_5v0_io>;
+				backlight = <&backlight>;
+			};
+		};
+	};
+
+	i2c@7000c400 {
+		backlight: backlight@2c {
+			compatible = "ti,lp8557";
+			reg = <0x2c>;
+
+			dev-ctrl = /bits/ 8 <0x80>;
+			init-brt = /bits/ 8 <0xff>;
+
+			pwm-period = <29334>;
+
+			pwms = <&pwm 0 29334>;
+			pwm-names = "lp8557";
+
+			/* 3 LED string */
+			rom_14h {
+				rom-addr = /bits/ 8 <0x14>;
+				rom-val = /bits/ 8 <0x87>;
+			};
+
+			/* boost frequency 1 MHz */
+			rom_13h {
+				rom-addr = /bits/ 8 <0x13>;
+				rom-val = /bits/ 8 <0x01>;
+			};
+		};
+	};
 };

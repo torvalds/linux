@@ -51,9 +51,7 @@ static int param_set_hashtbl_sz(const char *val, const struct kernel_param *kp)
 	ret = kstrtoul(val, 0, &num);
 	if (ret == -EINVAL)
 		goto out_inval;
-	nbits = fls(num);
-	if (num > (1U << nbits))
-		nbits++;
+	nbits = fls(num - 1);
 	if (nbits > MAX_HASHTABLE_BITS || nbits < 2)
 		goto out_inval;
 	*(unsigned int *)kp->arg = nbits;
@@ -359,8 +357,10 @@ rpcauth_key_timeout_notify(struct rpc_auth *auth, struct rpc_cred *cred)
 EXPORT_SYMBOL_GPL(rpcauth_key_timeout_notify);
 
 bool
-rpcauth_cred_key_to_expire(struct rpc_cred *cred)
+rpcauth_cred_key_to_expire(struct rpc_auth *auth, struct rpc_cred *cred)
 {
+	if (auth->au_flags & RPCAUTH_AUTH_NO_CRKEY_TIMEOUT)
+		return false;
 	if (!cred->cr_ops->crkey_to_expire)
 		return false;
 	return cred->cr_ops->crkey_to_expire(cred);

@@ -65,10 +65,6 @@
 #define INIT_SSH_RETRY  32
 #define INIT_SLG_RETRY  32
 
-#define ATH9K_SLOT_TIME_6 6
-#define ATH9K_SLOT_TIME_9 9
-#define ATH9K_SLOT_TIME_20 20
-
 #define ATH9K_TXERR_XRETRY         0x01
 #define ATH9K_TXERR_FILT           0x02
 #define ATH9K_TXERR_FIFO           0x04

@@ -125,14 +125,36 @@ enum brcmu_chan_sb {
 	BRCMU_CHAN_SB_UU = BRCMU_CHAN_SB_LUU,
 };
 
+/**
+ * struct brcmu_chan - stores channel formats
+ *
+ * This structure can be used with functions translating chanspec into generic
+ * channel info and the other way.
+ *
+ * @chspec: firmware specific format
+ * @chnum: center channel number
+ * @control_ch_num: control channel number
+ * @band: frequency band
+ * @bw: channel width
+ * @sb: control sideband (location of control channel against the center one)
+ */
 struct brcmu_chan {
 	u16 chspec;
 	u8 chnum;
+	u8 control_ch_num;
 	u8 band;
 	enum brcmu_chan_bw bw;
 	enum brcmu_chan_sb sb;
 };
 
+/**
+ * struct brcmu_d11inf - provides functions translating channel format
+ *
+ * @io_type: determines version of channel format used by firmware
+ * @encchspec: encodes channel info into a chanspec, requires center channel
+ *	number, ignores control one
+ * @decchspec: decodes chanspec into generic info
+ */
 struct brcmu_d11inf {
 	u8 io_type;
 

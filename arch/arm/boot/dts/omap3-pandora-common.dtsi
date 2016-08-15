@@ -27,7 +27,7 @@
 		display0 = &lcd;
 	};
 
-	tv: connector@1 {
+	tv: connector {
 		compatible = "connector-analog-tv";
 		label = "tv";
 

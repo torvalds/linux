@@ -48,3 +48,28 @@ void rtl_dbgp_flag_init(struct ieee80211_hw *hw)
 	/*Init Debug flag enable condition */
 }
 EXPORT_SYMBOL_GPL(rtl_dbgp_flag_init);
+
+#ifdef CONFIG_RTLWIFI_DEBUG
+void _rtl_dbg_trace(struct rtl_priv *rtlpriv, int comp, int level,
+		    const char *modname, const char *fmt, ...)
+{
+	if (unlikely((comp & rtlpriv->dbg.global_debugcomponents) &&
+		     (level <= rtlpriv->dbg.global_debuglevel))) {
+		struct va_format vaf;
+		va_list args;
+
+		va_start(args, fmt);
+
+		vaf.fmt = fmt;
+		vaf.va = &args;
+
+		printk(KERN_DEBUG "%s:%ps:<%lx-%x> %pV",
+		       modname, __builtin_return_address(0),
+		       in_interrupt(), in_atomic(),
+		       &vaf);
+
+		va_end(args);
+	}
+}
+EXPORT_SYMBOL_GPL(_rtl_dbg_trace);
+#endif

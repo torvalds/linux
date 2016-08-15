@@ -35,6 +35,7 @@
 #include <uapi/drm/drm_mode.h>
 #include <uapi/drm/drm_fourcc.h>
 #include <drm/drm_modeset_lock.h>
+#include <drm/drm_rect.h>
 
 struct drm_device;
 struct drm_mode_set;
@@ -83,14 +84,15 @@ static inline uint64_t I642U64(int64_t val)
  * specified amount in degrees in counter clockwise direction. DRM_REFLECT_X and
  * DRM_REFLECT_Y reflects the image along the specified axis prior to rotation
  */
-#define DRM_ROTATE_MASK 0x0f
-#define DRM_ROTATE_0	0
-#define DRM_ROTATE_90	1
-#define DRM_ROTATE_180	2
-#define DRM_ROTATE_270	3
-#define DRM_REFLECT_MASK (~DRM_ROTATE_MASK)
-#define DRM_REFLECT_X	4
-#define DRM_REFLECT_Y	5
+#define DRM_ROTATE_0	BIT(0)
+#define DRM_ROTATE_90	BIT(1)
+#define DRM_ROTATE_180	BIT(2)
+#define DRM_ROTATE_270	BIT(3)
+#define DRM_ROTATE_MASK (DRM_ROTATE_0   | DRM_ROTATE_90 | \
+			 DRM_ROTATE_180 | DRM_ROTATE_270)
+#define DRM_REFLECT_X	BIT(4)
+#define DRM_REFLECT_Y	BIT(5)
+#define DRM_REFLECT_MASK (DRM_REFLECT_X | DRM_REFLECT_Y)
 
 enum drm_connector_force {
 	DRM_FORCE_UNSPECIFIED,
@@ -308,6 +310,7 @@ struct drm_plane_helper_funcs;
  * @mode_changed: crtc_state->mode or crtc_state->enable has been changed
  * @active_changed: crtc_state->active has been toggled.
  * @connectors_changed: connectors to this crtc have been updated
+ * @zpos_changed: zpos values of planes on this crtc have been updated
  * @color_mgmt_changed: color management properties have changed (degamma or
  *	gamma LUT or CSC matrix)
  * @plane_mask: bitmask of (1 << drm_plane_index(plane)) of attached planes
@@ -344,6 +347,7 @@ struct drm_crtc_state {
 	bool mode_changed : 1;
 	bool active_changed : 1;
 	bool connectors_changed : 1;
+	bool zpos_changed : 1;
 	bool color_mgmt_changed : 1;
 
 	/* attached planes bitmask:
@@ -1409,6 +1413,12 @@ struct drm_connector {
  * @src_w: width of visible portion of plane (in 16.16)
  * @src_h: height of visible portion of plane (in 16.16)
  * @rotation: rotation of the plane
+ * @zpos: priority of the given plane on crtc (optional)
+ * @normalized_zpos: normalized value of zpos: unique, range from 0 to N-1
+ *	where N is the number of active planes for given crtc
+ * @src: clipped source coordinates of the plane (in 16.16)
+ * @dst: clipped destination coordinates of the plane
+ * @visible: visibility of the plane
  * @state: backpointer to global drm_atomic_state
  */
 struct drm_plane_state {
@@ -1428,6 +1438,19 @@ struct drm_plane_state {
 
 	/* Plane rotation */
 	unsigned int rotation;
+
+	/* Plane zpos */
+	unsigned int zpos;
+	unsigned int normalized_zpos;
+
+	/* Clipped coordinates */
+	struct drm_rect src, dst;
+
+	/*
+	 * Is the plane actually visible? Can be false even
+	 * if fb!=NULL and crtc!=NULL, due to clipping.
+	 */
+	bool visible;
 
 	struct drm_atomic_state *state;
 };
@@ -1688,6 +1711,7 @@ enum drm_plane_type {
  * @properties: property tracking for this plane
  * @type: type of plane (overlay, primary, cursor)
  * @state: current atomic state for this plane
+ * @zpos_property: zpos property for this plane
  * @helper_private: mid-layer private data
  */
 struct drm_plane {
@@ -1732,6 +1756,8 @@ struct drm_plane {
 	const struct drm_plane_helper_funcs *helper_private;
 
 	struct drm_plane_state *state;
+
+	struct drm_property *zpos_property;
 };
 
 /**
@@ -2958,6 +2984,14 @@ extern void drm_crtc_enable_color_mgmt(struct drm_crtc *crtc,
 				       uint degamma_lut_size,
 				       bool has_ctm,
 				       uint gamma_lut_size);
+
+int drm_plane_create_zpos_property(struct drm_plane *plane,
+				   unsigned int zpos,
+				   unsigned int min, unsigned int max);
+
+int drm_plane_create_zpos_immutable_property(struct drm_plane *plane,
+					     unsigned int zpos);
+
 /* Helpers */
 struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
 					     uint32_t id, uint32_t type);

@@ -39,6 +39,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/vga_switcheroo.h>
 #include <drm/drm_gem.h>
+#include <drm/drm_fb_helper.h>
 
 #include "drm_crtc_helper.h"
 #include "radeon_kfd.h"
@@ -324,7 +325,7 @@ static int radeon_kick_out_firmware_fb(struct pci_dev *pdev)
 #ifdef CONFIG_X86
 	primary = pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW;
 #endif
-	remove_conflicting_framebuffers(ap, "radeondrmfb", primary);
+	drm_fb_helper_remove_conflicting_framebuffers(ap, "radeondrmfb", primary);
 	kfree(ap);
 
 	return 0;

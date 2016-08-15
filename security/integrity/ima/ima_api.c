@@ -87,7 +87,7 @@ out:
  */
 int ima_store_template(struct ima_template_entry *entry,
 		       int violation, struct inode *inode,
-		       const unsigned char *filename)
+		       const unsigned char *filename, int pcr)
 {
 	static const char op[] = "add_template_measure";
 	static const char audit_cause[] = "hashing_error";
@@ -114,6 +114,7 @@ int ima_store_template(struct ima_template_entry *entry,
 		}
 		memcpy(entry->digest, hash.hdr.digest, hash.hdr.length);
 	}
+	entry->pcr = pcr;
 	result = ima_add_template_entry(entry, violation, op, inode, filename);
 	return result;
 }
@@ -144,7 +145,8 @@ void ima_add_violation(struct file *file, const unsigned char *filename,
 		result = -ENOMEM;
 		goto err_out;
 	}
-	result = ima_store_template(entry, violation, inode, filename);
+	result = ima_store_template(entry, violation, inode,
+				    filename, CONFIG_IMA_MEASURE_PCR_IDX);
 	if (result < 0)
 		ima_free_template_entry(entry);
 err_out:
@@ -157,6 +159,7 @@ err_out:
  * @inode: pointer to inode to measure
  * @mask: contains the permission mask (MAY_READ, MAY_WRITE, MAY_EXECUTE)
  * @func: caller identifier
+ * @pcr: pointer filled in if matched measure policy sets pcr=
  *
  * The policy is defined in terms of keypairs:
  *		subj=, obj=, type=, func=, mask=, fsmagic=
@@ -168,13 +171,13 @@ err_out:
  * Returns IMA_MEASURE, IMA_APPRAISE mask.
  *
  */
-int ima_get_action(struct inode *inode, int mask, enum ima_hooks func)
+int ima_get_action(struct inode *inode, int mask, enum ima_hooks func, int *pcr)
 {
 	int flags = IMA_MEASURE | IMA_AUDIT | IMA_APPRAISE;
 
 	flags &= ima_policy_flag;
 
-	return ima_match_policy(inode, func, mask, flags);
+	return ima_match_policy(inode, func, mask, flags, pcr);
 }
 
 /*
@@ -252,7 +255,7 @@ out:
 void ima_store_measurement(struct integrity_iint_cache *iint,
 			   struct file *file, const unsigned char *filename,
 			   struct evm_ima_xattr_data *xattr_value,
-			   int xattr_len)
+			   int xattr_len, int pcr)
 {
 	static const char op[] = "add_template_measure";
 	static const char audit_cause[] = "ENOMEM";
@@ -263,7 +266,7 @@ void ima_store_measurement(struct integrity_iint_cache *iint,
 					    xattr_len, NULL};
 	int violation = 0;
 
-	if (iint->flags & IMA_MEASURED)
+	if (iint->measured_pcrs & (0x1 << pcr))
 		return;
 
 	result = ima_alloc_init_template(&event_data, &entry);
@@ -273,9 +276,11 @@ void ima_store_measurement(struct integrity_iint_cache *iint,
 		return;
 	}
 
-	result = ima_store_template(entry, violation, inode, filename);
-	if (!result || result == -EEXIST)
+	result = ima_store_template(entry, violation, inode, filename, pcr);
+	if (!result || result == -EEXIST) {
 		iint->flags |= IMA_MEASURED;
+		iint->measured_pcrs |= (0x1 << pcr);
+	}
 	if (result < 0)
 		ima_free_template_entry(entry);
 }

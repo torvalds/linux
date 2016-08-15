@@ -143,6 +143,9 @@ int bnxt_set_vf_vlan(struct net_device *dev, int vf_id, u16 vlan_id, u8 qos)
 	u16 vlan_tag;
 	int rc;
 
+	if (bp->hwrm_spec_code < 0x10201)
+		return -ENOTSUPP;
+
 	rc = bnxt_vf_ndo_prep(bp, vf_id);
 	if (rc)
 		return rc;

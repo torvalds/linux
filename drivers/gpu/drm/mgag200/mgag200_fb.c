@@ -15,8 +15,6 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
 
-#include <linux/fb.h>
-
 #include "mgag200_drv.h"
 
 static void mga_dirty_update(struct mga_fbdev *mfbdev,

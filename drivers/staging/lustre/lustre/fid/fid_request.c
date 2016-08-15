@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -98,8 +94,10 @@ static int seq_client_rpc(struct lu_client_seq *seq,
 		 * request here, otherwise if MDT0 is failed(umounted),
 		 * it can not release the export of MDT0
 		 */
-		if (seq->lcs_type == LUSTRE_SEQ_DATA)
-			req->rq_no_delay = req->rq_no_resend = 1;
+		if (seq->lcs_type == LUSTRE_SEQ_DATA) {
+			req->rq_no_delay = 1;
+			req->rq_no_resend = 1;
+		}
 		debug_mask = D_CONSOLE;
 	} else {
 		if (seq->lcs_type == LUSTRE_SEQ_METADATA) {

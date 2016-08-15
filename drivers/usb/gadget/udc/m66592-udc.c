@@ -1199,8 +1199,6 @@ static irqreturn_t m66592_irq(int irq, void *_m66592)
 	struct m66592 *m66592 = _m66592;
 	u16 intsts0;
 	u16 intenb0;
-	u16 brdysts, nrdysts, bempsts;
-	u16 brdyenb, nrdyenb, bempenb;
 	u16 savepipe;
 	u16 mask0;
 
@@ -1224,12 +1222,10 @@ static irqreturn_t m66592_irq(int irq, void *_m66592)
 
 	mask0 = intsts0 & intenb0;
 	if (mask0) {
-		brdysts = m66592_read(m66592, M66592_BRDYSTS);
-		nrdysts = m66592_read(m66592, M66592_NRDYSTS);
-		bempsts = m66592_read(m66592, M66592_BEMPSTS);
-		brdyenb = m66592_read(m66592, M66592_BRDYENB);
-		nrdyenb = m66592_read(m66592, M66592_NRDYENB);
-		bempenb = m66592_read(m66592, M66592_BEMPENB);
+		u16 brdysts = m66592_read(m66592, M66592_BRDYSTS);
+		u16 bempsts = m66592_read(m66592, M66592_BEMPSTS);
+		u16 brdyenb = m66592_read(m66592, M66592_BRDYENB);
+		u16 bempenb = m66592_read(m66592, M66592_BEMPENB);
 
 		if (mask0 & M66592_VBINT) {
 			m66592_write(m66592,  0xffff & ~M66592_VBINT,
@@ -1408,28 +1404,20 @@ static int m66592_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 
 static int m66592_set_halt(struct usb_ep *_ep, int value)
 {
-	struct m66592_ep *ep;
-	struct m66592_request *req;
+	struct m66592_ep *ep = container_of(_ep, struct m66592_ep, ep);
 	unsigned long flags;
 	int ret = 0;
-
-	ep = container_of(_ep, struct m66592_ep, ep);
-	req = list_entry(ep->queue.next, struct m66592_request, queue);
 
 	spin_lock_irqsave(&ep->m66592->lock, flags);
 	if (!list_empty(&ep->queue)) {
 		ret = -EAGAIN;
-		goto out;
-	}
-	if (value) {
+	} else if (value) {
 		ep->busy = 1;
 		pipe_stall(ep->m66592, ep->pipenum);
 	} else {
 		ep->busy = 0;
 		pipe_stop(ep->m66592, ep->pipenum);
 	}
-
-out:
 	spin_unlock_irqrestore(&ep->m66592->lock, flags);
 	return ret;
 }

@@ -150,7 +150,7 @@ struct me_private_data {
 	unsigned short dac_ctrl;	/* Mirror of the DAC_CONTROL register */
 };
 
-static inline void sleep(unsigned sec)
+static inline void sleep(unsigned int sec)
 {
 	schedule_timeout_interruptible(sec * HZ);
 }

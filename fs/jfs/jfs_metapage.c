@@ -411,7 +411,7 @@ static int metapage_writepage(struct page *page, struct writeback_control *wbc)
 			inc_io(page);
 			if (!bio->bi_iter.bi_size)
 				goto dump_bio;
-			submit_bio(WRITE, bio);
+			submit_bio(bio);
 			nr_underway++;
 			bio = NULL;
 		} else
@@ -434,6 +434,7 @@ static int metapage_writepage(struct page *page, struct writeback_control *wbc)
 		bio->bi_iter.bi_sector = pblock << (inode->i_blkbits - 9);
 		bio->bi_end_io = metapage_write_end_io;
 		bio->bi_private = page;
+		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 
 		/* Don't call bio_add_page yet, we may add to this vec */
 		bio_offset = offset;
@@ -448,7 +449,7 @@ static int metapage_writepage(struct page *page, struct writeback_control *wbc)
 		if (!bio->bi_iter.bi_size)
 			goto dump_bio;
 
-		submit_bio(WRITE, bio);
+		submit_bio(bio);
 		nr_underway++;
 	}
 	if (redirty)
@@ -506,7 +507,7 @@ static int metapage_readpage(struct file *fp, struct page *page)
 				insert_metapage(page, NULL);
 			inc_io(page);
 			if (bio)
-				submit_bio(READ, bio);
+				submit_bio(bio);
 
 			bio = bio_alloc(GFP_NOFS, 1);
 			bio->bi_bdev = inode->i_sb->s_bdev;
@@ -514,6 +515,7 @@ static int metapage_readpage(struct file *fp, struct page *page)
 				pblock << (inode->i_blkbits - 9);
 			bio->bi_end_io = metapage_read_end_io;
 			bio->bi_private = page;
+			bio_set_op_attrs(bio, REQ_OP_READ, 0);
 			len = xlen << inode->i_blkbits;
 			offset = block_offset << inode->i_blkbits;
 			if (bio_add_page(bio, page, len, offset) < len)
@@ -523,7 +525,7 @@ static int metapage_readpage(struct file *fp, struct page *page)
 			block_offset++;
 	}
 	if (bio)
-		submit_bio(READ, bio);
+		submit_bio(bio);
 	else
 		unlock_page(page);
 
@@ -828,7 +830,6 @@ static int jfs_mpstat_proc_open(struct inode *inode, struct file *file)
 }
 
 const struct file_operations jfs_mpstat_proc_fops = {
-	.owner		= THIS_MODULE,
 	.open		= jfs_mpstat_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

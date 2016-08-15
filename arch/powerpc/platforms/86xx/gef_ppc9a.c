@@ -189,9 +189,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NEC, PCI_DEVICE_ID_NEC_USB,
  */
 static int __init gef_ppc9a_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if (of_flat_dt_is_compatible(root, "gef,ppc9a"))
+	if (of_machine_is_compatible("gef,ppc9a"))
 		return 1;
 
 	return 0;

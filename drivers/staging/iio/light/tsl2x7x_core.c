@@ -1554,7 +1554,7 @@ static irqreturn_t tsl2x7x_event_handler(int irq, void *private)
 {
 	struct iio_dev *indio_dev = private;
 	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
-	s64 timestamp = iio_get_time_ns();
+	s64 timestamp = iio_get_time_ns(indio_dev);
 	int ret;
 	u8 value;
 

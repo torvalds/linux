@@ -164,7 +164,7 @@
 		clock-div = <1>;
 	};
 
-	func_96m_ck: func_96m_ck {
+	func_96m_ck: func_96m_ck@540 {
 		#clock-cells = <0>;
 	};
 

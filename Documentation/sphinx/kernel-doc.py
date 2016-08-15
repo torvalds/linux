@@ -31,11 +31,13 @@ import os
 import subprocess
 import sys
 import re
+import glob
 
 from docutils import nodes, statemachine
 from docutils.statemachine import ViewList
 from docutils.parsers.rst import directives
 from sphinx.util.compat import Directive
+from sphinx.ext.autodoc import AutodocReporter
 
 class KernelDocDirective(Directive):
     """Extract kernel-doc comments from the specified file"""
@@ -44,8 +46,8 @@ class KernelDocDirective(Directive):
     option_spec = {
         'doc': directives.unchanged_required,
         'functions': directives.unchanged_required,
-        'export': directives.flag,
-        'internal': directives.flag,
+        'export': directives.unchanged,
+        'internal': directives.unchanged,
     }
     has_content = False
 
@@ -54,23 +56,30 @@ class KernelDocDirective(Directive):
         cmd = [env.config.kerneldoc_bin, '-rst', '-enable-lineno']
 
         filename = env.config.kerneldoc_srctree + '/' + self.arguments[0]
+        export_file_patterns = []
 
         # Tell sphinx of the dependency
         env.note_dependency(os.path.abspath(filename))
 
         tab_width = self.options.get('tab-width', self.state.document.settings.tab_width)
-        source = filename
 
         # FIXME: make this nicer and more robust against errors
         if 'export' in self.options:
             cmd += ['-export']
+            export_file_patterns = str(self.options.get('export')).split()
         elif 'internal' in self.options:
             cmd += ['-internal']
+            export_file_patterns = str(self.options.get('internal')).split()
         elif 'doc' in self.options:
             cmd += ['-function', str(self.options.get('doc'))]
         elif 'functions' in self.options:
-            for f in str(self.options.get('functions')).split(' '):
+            for f in str(self.options.get('functions')).split():
                 cmd += ['-function', f]
+
+        for pattern in export_file_patterns:
+            for f in glob.glob(env.config.kerneldoc_srctree + '/' + pattern):
+                env.note_dependency(os.path.abspath(f))
+                cmd += ['-export-file', f]
 
         cmd += [filename]
 
@@ -105,16 +114,21 @@ class KernelDocDirective(Directive):
                     lineoffset = int(match.group(1)) - 1
                     # we must eat our comments since the upset the markup
                 else:
-                    result.append(line, source, lineoffset)
+                    result.append(line, filename, lineoffset)
                     lineoffset += 1
 
             node = nodes.section()
-            node.document = self.state.document
-            self.state.nested_parse(result, self.content_offset, node)
+            buf = self.state.memo.title_styles, self.state.memo.section_level, self.state.memo.reporter
+            self.state.memo.reporter = AutodocReporter(result, self.state.memo.reporter)
+            self.state.memo.title_styles, self.state.memo.section_level = [], 0
+            try:
+                self.state.nested_parse(result, 0, node, match_titles=1)
+            finally:
+                self.state.memo.title_styles, self.state.memo.section_level, self.state.memo.reporter = buf
 
             return node.children
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=W0703
             env.app.warn('kernel-doc \'%s\' processing failed with: %s' %
                          (" ".join(cmd), str(e)))
             return [nodes.error(None, nodes.paragraph(text = "kernel-doc missing"))]

@@ -1,6 +1,6 @@
 * ARM SMMUv3 Architecture Implementation
 
-The SMMUv3 architecture is a significant deparature from previous
+The SMMUv3 architecture is a significant departure from previous
 revisions, replacing the MMIO register interface with in-memory command
 and event queues and adding support for the ATS and PRI components of
 the PCIe specification.

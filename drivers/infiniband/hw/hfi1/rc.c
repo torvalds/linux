@@ -477,6 +477,37 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 				qp->s_flags |= RVT_S_WAIT_FENCE;
 				goto bail;
 			}
+			/*
+			 * Local operations are processed immediately
+			 * after all prior requests have completed
+			 */
+			if (wqe->wr.opcode == IB_WR_REG_MR ||
+			    wqe->wr.opcode == IB_WR_LOCAL_INV) {
+				int local_ops = 0;
+				int err = 0;
+
+				if (qp->s_last != qp->s_cur)
+					goto bail;
+				if (++qp->s_cur == qp->s_size)
+					qp->s_cur = 0;
+				if (++qp->s_tail == qp->s_size)
+					qp->s_tail = 0;
+				if (!(wqe->wr.send_flags &
+				      RVT_SEND_COMPLETION_ONLY)) {
+					err = rvt_invalidate_rkey(
+						qp,
+						wqe->wr.ex.invalidate_rkey);
+					local_ops = 1;
+				}
+				hfi1_send_complete(qp, wqe,
+						   err ? IB_WC_LOC_PROT_ERR
+						       : IB_WC_SUCCESS);
+				if (local_ops)
+					atomic_dec(&qp->local_ops_pending);
+				qp->s_hdrwords = 0;
+				goto done_free_tx;
+			}
+
 			newreq = 1;
 			qp->s_psn = wqe->psn;
 		}
@@ -491,6 +522,7 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		switch (wqe->wr.opcode) {
 		case IB_WR_SEND:
 		case IB_WR_SEND_WITH_IMM:
+		case IB_WR_SEND_WITH_INV:
 			/* If no credit, return. */
 			if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT) &&
 			    cmp_msn(wqe->ssn, qp->s_lsn + 1) > 0) {
@@ -504,10 +536,16 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 			}
 			if (wqe->wr.opcode == IB_WR_SEND) {
 				qp->s_state = OP(SEND_ONLY);
-			} else {
+			} else if (wqe->wr.opcode == IB_WR_SEND_WITH_IMM) {
 				qp->s_state = OP(SEND_ONLY_WITH_IMMEDIATE);
 				/* Immediate data comes after the BTH */
 				ohdr->u.imm_data = wqe->wr.ex.imm_data;
+				hwords += 1;
+			} else {
+				qp->s_state = OP(SEND_ONLY_WITH_INVALIDATE);
+				/* Invalidate rkey comes after the BTH */
+				ohdr->u.ieth = cpu_to_be32(
+						wqe->wr.ex.invalidate_rkey);
 				hwords += 1;
 			}
 			if (wqe->wr.send_flags & IB_SEND_SOLICITED)
@@ -671,10 +709,15 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		}
 		if (wqe->wr.opcode == IB_WR_SEND) {
 			qp->s_state = OP(SEND_LAST);
-		} else {
+		} else if (wqe->wr.opcode == IB_WR_SEND_WITH_IMM) {
 			qp->s_state = OP(SEND_LAST_WITH_IMMEDIATE);
 			/* Immediate data comes after the BTH */
 			ohdr->u.imm_data = wqe->wr.ex.imm_data;
+			hwords += 1;
+		} else {
+			qp->s_state = OP(SEND_LAST_WITH_INVALIDATE);
+			/* invalidate data comes after the BTH */
+			ohdr->u.ieth = cpu_to_be32(wqe->wr.ex.invalidate_rkey);
 			hwords += 1;
 		}
 		if (wqe->wr.send_flags & IB_SEND_SOLICITED)
@@ -1047,7 +1090,7 @@ void hfi1_rc_timeout(unsigned long arg)
 		ibp->rvp.n_rc_timeouts++;
 		qp->s_flags &= ~RVT_S_TIMER;
 		del_timer(&qp->s_timer);
-		trace_hfi1_rc_timeout(qp, qp->s_last_psn + 1);
+		trace_hfi1_timeout(qp, qp->s_last_psn + 1);
 		restart_rc(qp, qp->s_last_psn + 1, 1);
 		hfi1_schedule_send(qp);
 	}
@@ -1171,7 +1214,7 @@ void hfi1_rc_send_complete(struct rvt_qp *qp, struct hfi1_ib_header *hdr)
 	 * If we were waiting for sends to complete before re-sending,
 	 * and they are now complete, restart sending.
 	 */
-	trace_hfi1_rc_sendcomplete(qp, psn);
+	trace_hfi1_sendcomplete(qp, psn);
 	if (qp->s_flags & RVT_S_WAIT_PSN &&
 	    cmp_psn(qp->s_sending_psn, qp->s_sending_hpsn) > 0) {
 		qp->s_flags &= ~RVT_S_WAIT_PSN;
@@ -1567,7 +1610,7 @@ static void rc_rcv_resp(struct hfi1_ibport *ibp,
 
 	spin_lock_irqsave(&qp->s_lock, flags);
 
-	trace_hfi1_rc_ack(qp, psn);
+	trace_hfi1_ack(qp, psn);
 
 	/* Ignore invalid responses. */
 	smp_read_barrier_depends(); /* see post_one_send */
@@ -1782,7 +1825,7 @@ static noinline int rc_rcv_error(struct hfi1_other_headers *ohdr, void *data,
 	u8 i, prev;
 	int old_req;
 
-	trace_hfi1_rc_rcv_error(qp, psn);
+	trace_hfi1_rcv_error(qp, psn);
 	if (diff > 0) {
 		/*
 		 * Packet sequence error.
@@ -2086,7 +2129,6 @@ void hfi1_rc_rcv(struct hfi1_packet *packet)
 	u32 tlen = packet->tlen;
 	struct rvt_qp *qp = packet->qp;
 	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
-	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 	struct hfi1_other_headers *ohdr = packet->ohdr;
 	u32 bth0, opcode;
 	u32 hdrsize = packet->hlen;
@@ -2097,30 +2139,15 @@ void hfi1_rc_rcv(struct hfi1_packet *packet)
 	int diff;
 	struct ib_reth *reth;
 	unsigned long flags;
-	u32 bth1;
 	int ret, is_fecn = 0;
 	int copy_last = 0;
+	u32 rkey;
 
 	bth0 = be32_to_cpu(ohdr->bth[0]);
 	if (hfi1_ruc_check_hdr(ibp, hdr, rcv_flags & HFI1_HAS_GRH, qp, bth0))
 		return;
 
-	bth1 = be32_to_cpu(ohdr->bth[1]);
-	if (unlikely(bth1 & (HFI1_BECN_SMASK | HFI1_FECN_SMASK))) {
-		if (bth1 & HFI1_BECN_SMASK) {
-			u16 rlid = qp->remote_ah_attr.dlid;
-			u32 lqpn, rqpn;
-
-			lqpn = qp->ibqp.qp_num;
-			rqpn = qp->remote_qpn;
-			process_becn(
-				ppd,
-				qp->remote_ah_attr.sl,
-				rlid, lqpn, rqpn,
-				IB_CC_SVCTYPE_RC);
-		}
-		is_fecn = bth1 & HFI1_FECN_SMASK;
-	}
+	is_fecn = process_ecn(qp, packet, false);
 
 	psn = be32_to_cpu(ohdr->bth[2]);
 	opcode = (bth0 >> 24) & 0xff;
@@ -2154,7 +2181,8 @@ void hfi1_rc_rcv(struct hfi1_packet *packet)
 	case OP(SEND_MIDDLE):
 		if (opcode == OP(SEND_MIDDLE) ||
 		    opcode == OP(SEND_LAST) ||
-		    opcode == OP(SEND_LAST_WITH_IMMEDIATE))
+		    opcode == OP(SEND_LAST_WITH_IMMEDIATE) ||
+		    opcode == OP(SEND_LAST_WITH_INVALIDATE))
 			break;
 		goto nack_inv;
 
@@ -2170,6 +2198,7 @@ void hfi1_rc_rcv(struct hfi1_packet *packet)
 		if (opcode == OP(SEND_MIDDLE) ||
 		    opcode == OP(SEND_LAST) ||
 		    opcode == OP(SEND_LAST_WITH_IMMEDIATE) ||
+		    opcode == OP(SEND_LAST_WITH_INVALIDATE) ||
 		    opcode == OP(RDMA_WRITE_MIDDLE) ||
 		    opcode == OP(RDMA_WRITE_LAST) ||
 		    opcode == OP(RDMA_WRITE_LAST_WITH_IMMEDIATE))
@@ -2218,6 +2247,7 @@ send_middle:
 
 	case OP(SEND_ONLY):
 	case OP(SEND_ONLY_WITH_IMMEDIATE):
+	case OP(SEND_ONLY_WITH_INVALIDATE):
 		ret = hfi1_rvt_get_rwqe(qp, 0);
 		if (ret < 0)
 			goto nack_op_err;
@@ -2226,11 +2256,21 @@ send_middle:
 		qp->r_rcv_len = 0;
 		if (opcode == OP(SEND_ONLY))
 			goto no_immediate_data;
+		if (opcode == OP(SEND_ONLY_WITH_INVALIDATE))
+			goto send_last_inv;
 		/* FALLTHROUGH for SEND_ONLY_WITH_IMMEDIATE */
 	case OP(SEND_LAST_WITH_IMMEDIATE):
 send_last_imm:
 		wc.ex.imm_data = ohdr->u.imm_data;
 		wc.wc_flags = IB_WC_WITH_IMM;
+		goto send_last;
+	case OP(SEND_LAST_WITH_INVALIDATE):
+send_last_inv:
+		rkey = be32_to_cpu(ohdr->u.ieth);
+		if (rvt_invalidate_rkey(qp, rkey))
+			goto no_immediate_data;
+		wc.ex.invalidate_rkey = rkey;
+		wc.wc_flags = IB_WC_WITH_INVALIDATE;
 		goto send_last;
 	case OP(RDMA_WRITE_LAST):
 		copy_last = ibpd_to_rvtpd(qp->ibqp.pd)->user;

@@ -117,7 +117,10 @@ struct vring_virtqueue {
 #define to_vvq(_vq) container_of(_vq, struct vring_virtqueue, vq)
 
 /*
- * The interaction between virtio and a possible IOMMU is a mess.
+ * Modern virtio devices have feature bits to specify whether they need a
+ * quirk and bypass the IOMMU. If not there, just use the DMA API.
+ *
+ * If there, the interaction between virtio and DMA API is messy.
  *
  * On most systems with virtio, physical addresses match bus addresses,
  * and it doesn't particularly matter whether we use the DMA API.
@@ -133,10 +136,18 @@ struct vring_virtqueue {
  *
  * For the time being, we preserve historic behavior and bypass the DMA
  * API.
+ *
+ * TODO: install a per-device DMA ops structure that does the right thing
+ * taking into account all the above quirks, and use the DMA API
+ * unconditionally on data path.
  */
 
 static bool vring_use_dma_api(struct virtio_device *vdev)
 {
+	if (!virtio_has_iommu_quirk(vdev))
+		return true;
+
+	/* Otherwise, we are left to guess. */
 	/*
 	 * In theory, it's possible to have a buggy QEMU-supposed
 	 * emulated Q35 IOMMU and Xen enabled at the same time.  On
@@ -316,6 +327,8 @@ static inline int virtqueue_add(struct virtqueue *_vq,
 		 * host should service the ring ASAP. */
 		if (out_sgs)
 			vq->notify(&vq->vq);
+		if (indirect)
+			kfree(desc);
 		END_USE(vq);
 		return -ENOSPC;
 	}
@@ -415,6 +428,7 @@ unmap_release:
 	if (indirect)
 		kfree(desc);
 
+	END_USE(vq);
 	return -EIO;
 }
 
@@ -1098,6 +1112,8 @@ void vring_transport_features(struct virtio_device *vdev)
 		case VIRTIO_RING_F_EVENT_IDX:
 			break;
 		case VIRTIO_F_VERSION_1:
+			break;
+		case VIRTIO_F_IOMMU_PLATFORM:
 			break;
 		default:
 			/* We don't understand this bit. */

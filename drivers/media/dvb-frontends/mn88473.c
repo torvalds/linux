@@ -330,7 +330,7 @@ static int mn88473_init(struct dvb_frontend *fe)
 	/* Request the firmware, this will block and timeout */
 	ret = request_firmware(&fw, name, &client->dev);
 	if (ret) {
-		dev_err(&client->dev, "firmare file '%s' not found\n", name);
+		dev_err(&client->dev, "firmware file '%s' not found\n", name);
 		goto err;
 	}
 
@@ -536,7 +536,7 @@ static int mn88473_probe(struct i2c_client *client,
 	/* Sleep because chip is active by default */
 	ret = regmap_write(dev->regmap[2], 0x05, 0x3e);
 	if (ret)
-		goto err_client_2_i2c_unregister_device;
+		goto err_regmap_2_regmap_exit;
 
 	/* Create dvb frontend */
 	memcpy(&dev->frontend.ops, &mn88473_ops, sizeof(dev->frontend.ops));
@@ -547,7 +547,8 @@ static int mn88473_probe(struct i2c_client *client,
 	dev_info(&client->dev, "Panasonic MN88473 successfully identified\n");
 
 	return 0;
-
+err_regmap_2_regmap_exit:
+	regmap_exit(dev->regmap[2]);
 err_client_2_i2c_unregister_device:
 	i2c_unregister_device(dev->client[2]);
 err_regmap_1_regmap_exit:

@@ -222,6 +222,13 @@ int wlcore_rx(struct wl1271 *wl, struct wl_fw_status *status)
 	enum wl_rx_buf_align rx_align;
 	int ret = 0;
 
+	/* update rates per link */
+	hlid = status->counters.hlid;
+
+	if (hlid < WLCORE_MAX_LINKS)
+		wl->links[hlid].fw_rate_mbps =
+				status->counters.tx_last_rate_mbps;
+
 	while (drv_rx_counter != fw_rx_counter) {
 		buf_size = 0;
 		rx_counter = drv_rx_counter;

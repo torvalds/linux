@@ -685,7 +685,7 @@ static int i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
 	primary =
 		pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW;
 
-	ret = remove_conflicting_framebuffers(ap, "inteldrmfb", primary);
+	ret = drm_fb_helper_remove_conflicting_framebuffers(ap, "inteldrmfb", primary);
 
 	kfree(ap);
 

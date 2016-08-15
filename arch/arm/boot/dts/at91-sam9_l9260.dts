@@ -1,0 +1,121 @@
+/*
+ * at91-sam9_l9260.dts - Device Tree file for Olimex SAM9-L9260 board
+ *
+ *  Copyright (C) 2016 Raashid Muhammed <raashidmuhammed@zilogic.com>
+ *
+ * Licensed under GPLv2 or later.
+ */
+/dts-v1/;
+#include "at91sam9260.dtsi"
+
+/ {
+	model = "Olimex sam9-l9260";
+	compatible = "olimex,sam9-l9260", "atmel,at91sam9260", "atmel,at91sam9";
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory {
+		reg = <0x20000000 0x4000000>;
+	};
+
+	clocks {
+		slow_xtal {
+			clock-frequency = <32768>;
+		};
+
+		main_xtal {
+			clock-frequency = <18432000>;
+		};
+	};
+
+	ahb {
+		apb {
+			mmc0: mmc@fffa8000 {
+				pinctrl-0 = <
+					&pinctrl_board_mmc0
+					&pinctrl_mmc0_clk
+					&pinctrl_mmc0_slot1_cmd_dat0
+					&pinctrl_mmc0_slot1_dat1_3>;
+				status = "okay";
+
+				slot@1 {
+					reg = <1>;
+					bus-width = <4>;
+					cd-gpios = <&pioC 8 GPIO_ACTIVE_HIGH>;
+					wp-gpios = <&pioC 4 GPIO_ACTIVE_HIGH>;
+				};
+			};
+
+			macb0: ethernet@fffc4000 {
+				pinctrl-0 = <&pinctrl_macb_rmii &pinctrl_macb_rmii_mii_alt>;
+				phy-mode = "mii";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "okay";
+
+				ethernet-phy@1 {
+					reg = <0x1>;
+				};
+			};
+
+			spi0: spi@fffc8000 {
+				cs-gpios = <&pioC 11 0>, <0>, <0>, <0>;
+				status = "okay";
+
+				flash@0 {
+					compatible = "atmel,at45", "atmel,dataflash";
+					spi-max-frequency = <15000000>;
+					reg = <0>;
+				};
+			};
+
+			dbgu: serial@fffff200 {
+				status = "okay";
+			};
+
+			pinctrl@fffff400 {
+				mmc0 {
+					pinctrl_board_mmc0: mmc0-board {
+						atmel,pins =
+							<AT91_PIOC 8 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH	/* CD pin */
+							 AT91_PIOC 4 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP>;	/* WP pin */
+					};
+				};
+			};
+		};
+
+		nand0: nand@40000000 {
+			nand-bus-width = <8>;
+			nand-ecc-mode = "soft";
+			nand-on-flash-bbt = <1>;
+			status = "okay";
+		};
+
+		usb0: ohci@500000 {
+			status = "okay";
+		};
+
+	};
+
+	i2c-gpio-0 {
+		status = "okay";
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		pwr_led {
+			label = "sam9-l9260:yellow:pwr";
+			gpios = <&pioA 9 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "cpu0";
+		};
+
+		status_led {
+			label = "sam9-l9260:green:status";
+			gpios = <&pioA 6 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "timer";
+		};
+	};
+};

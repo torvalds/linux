@@ -97,20 +97,34 @@ enum ipu_channel_irq {
 #define IPUV3_CHANNEL_CSI2			 2
 #define IPUV3_CHANNEL_CSI3			 3
 #define IPUV3_CHANNEL_VDI_MEM_IC_VF		 5
+#define IPUV3_CHANNEL_MEM_VDI_PREV		 8
+#define IPUV3_CHANNEL_MEM_VDI_CUR		 9
+#define IPUV3_CHANNEL_MEM_VDI_NEXT		10
 #define IPUV3_CHANNEL_MEM_IC_PP			11
 #define IPUV3_CHANNEL_MEM_IC_PRP_VF		12
+#define IPUV3_CHANNEL_VDI_MEM_RECENT		13
 #define IPUV3_CHANNEL_G_MEM_IC_PRP_VF		14
 #define IPUV3_CHANNEL_G_MEM_IC_PP		15
+#define IPUV3_CHANNEL_G_MEM_IC_PRP_VF_ALPHA	17
+#define IPUV3_CHANNEL_G_MEM_IC_PP_ALPHA		18
+#define IPUV3_CHANNEL_MEM_VDI_PLANE1_COMB_ALPHA	19
 #define IPUV3_CHANNEL_IC_PRP_ENC_MEM		20
 #define IPUV3_CHANNEL_IC_PRP_VF_MEM		21
 #define IPUV3_CHANNEL_IC_PP_MEM			22
 #define IPUV3_CHANNEL_MEM_BG_SYNC		23
 #define IPUV3_CHANNEL_MEM_BG_ASYNC		24
+#define IPUV3_CHANNEL_MEM_VDI_PLANE1_COMB	25
+#define IPUV3_CHANNEL_MEM_VDI_PLANE3_COMB	26
 #define IPUV3_CHANNEL_MEM_FG_SYNC		27
 #define IPUV3_CHANNEL_MEM_DC_SYNC		28
 #define IPUV3_CHANNEL_MEM_FG_ASYNC		29
 #define IPUV3_CHANNEL_MEM_FG_SYNC_ALPHA		31
+#define IPUV3_CHANNEL_MEM_FG_ASYNC_ALPHA	33
+#define IPUV3_CHANNEL_DC_MEM_READ		40
 #define IPUV3_CHANNEL_MEM_DC_ASYNC		41
+#define IPUV3_CHANNEL_MEM_DC_COMMAND		42
+#define IPUV3_CHANNEL_MEM_DC_COMMAND2		43
+#define IPUV3_CHANNEL_MEM_DC_OUTPUT_MASK	44
 #define IPUV3_CHANNEL_MEM_ROT_ENC		45
 #define IPUV3_CHANNEL_MEM_ROT_VF		46
 #define IPUV3_CHANNEL_MEM_ROT_PP		47
@@ -118,6 +132,7 @@ enum ipu_channel_irq {
 #define IPUV3_CHANNEL_ROT_VF_MEM		49
 #define IPUV3_CHANNEL_ROT_PP_MEM		50
 #define IPUV3_CHANNEL_MEM_BG_SYNC_ALPHA		51
+#define IPUV3_CHANNEL_MEM_BG_ASYNC_ALPHA	52
 
 int ipu_map_irq(struct ipu_soc *ipu, int irq);
 int ipu_idmac_channel_irq(struct ipu_soc *ipu, struct ipuv3_channel *channel,
@@ -138,6 +153,7 @@ int ipu_idmac_channel_irq(struct ipu_soc *ipu, struct ipuv3_channel *channel,
 /*
  * IPU Common functions
  */
+int ipu_get_num(struct ipu_soc *ipu);
 void ipu_set_csi_src_mux(struct ipu_soc *ipu, int csi_id, bool mipi_csi2);
 void ipu_set_ic_src_mux(struct ipu_soc *ipu, int csi_id, bool vdi);
 void ipu_dump(struct ipu_soc *ipu);
@@ -184,8 +200,10 @@ void ipu_cpmem_set_resolution(struct ipuv3_channel *ch, int xres, int yres);
 void ipu_cpmem_set_stride(struct ipuv3_channel *ch, int stride);
 void ipu_cpmem_set_high_priority(struct ipuv3_channel *ch);
 void ipu_cpmem_set_buffer(struct ipuv3_channel *ch, int bufnum, dma_addr_t buf);
+void ipu_cpmem_set_uv_offset(struct ipuv3_channel *ch, u32 u_off, u32 v_off);
 void ipu_cpmem_interlaced_scan(struct ipuv3_channel *ch, int stride);
 void ipu_cpmem_set_axi_id(struct ipuv3_channel *ch, u32 id);
+int ipu_cpmem_get_burstsize(struct ipuv3_channel *ch);
 void ipu_cpmem_set_burstsize(struct ipuv3_channel *ch, int burstsize);
 void ipu_cpmem_set_block_mode(struct ipuv3_channel *ch);
 void ipu_cpmem_set_rotation(struct ipuv3_channel *ch,

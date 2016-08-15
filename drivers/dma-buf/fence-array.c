@@ -99,6 +99,7 @@ const struct fence_ops fence_array_ops = {
 	.wait = fence_default_wait,
 	.release = fence_array_release,
 };
+EXPORT_SYMBOL(fence_array_ops);
 
 /**
  * fence_array_create - Create a custom fence array

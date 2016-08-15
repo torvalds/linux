@@ -6,6 +6,7 @@
 config SERIAL_8250
 	tristate "8250/16550 and compatible serial support"
 	select SERIAL_CORE
+	select SERIAL_MCTRL_GPIO if GPIOLIB
 	---help---
 	  This selects whether you want to include the driver for the standard
 	  serial ports.  The standard answer is Y.  People who might say N
@@ -387,7 +388,8 @@ config SERIAL_8250_MT6577
 
 config SERIAL_8250_UNIPHIER
 	tristate "Support for UniPhier on-chip UART"
-	depends on SERIAL_8250 && ARCH_UNIPHIER
+	depends on SERIAL_8250
+	depends on ARCH_UNIPHIER || COMPILE_TEST
 	help
 	  If you have a UniPhier based board and want to use the on-chip
 	  serial ports, say Y to this option. If unsure, say N.
@@ -395,7 +397,7 @@ config SERIAL_8250_UNIPHIER
 config SERIAL_8250_INGENIC
 	tristate "Support for Ingenic SoC serial ports"
 	depends on SERIAL_8250
-	depends on (OF_FLATTREE && SERIAL_8250_CONSOLE) || !SERIAL_EARLYCON
+	depends on OF_FLATTREE
 	depends on MIPS || COMPILE_TEST
 	help
 	  If you have a system using an Ingenic SoC and wish to make use of

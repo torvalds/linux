@@ -395,12 +395,6 @@ static int act8865_pdata_from_dt(struct device *dev,
 	struct act8865_regulator_data *regulator;
 	struct of_regulator_match *matches;
 
-	np = of_get_child_by_name(dev->of_node, "regulators");
-	if (!np) {
-		dev_err(dev, "missing 'regulators' subnode in DT\n");
-		return -EINVAL;
-	}
-
 	switch (type) {
 	case ACT8600:
 		matches = act8600_matches;
@@ -416,6 +410,12 @@ static int act8865_pdata_from_dt(struct device *dev,
 		break;
 	default:
 		dev_err(dev, "invalid device id %lu\n", type);
+		return -EINVAL;
+	}
+
+	np = of_get_child_by_name(dev->of_node, "regulators");
+	if (!np) {
+		dev_err(dev, "missing 'regulators' subnode in DT\n");
 		return -EINVAL;
 	}
 

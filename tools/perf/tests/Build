@@ -39,6 +39,9 @@ perf-y += stat.o
 perf-y += event_update.o
 perf-y += event-times.o
 perf-y += backward-ring-buffer.o
+perf-y += sdt.o
+perf-y += is_printable_array.o
+perf-y += bitmap.o
 
 $(OUTPUT)tests/llvm-src-base.c: tests/bpf-script-example.c tests/Build
 	$(call rule_mkdir)

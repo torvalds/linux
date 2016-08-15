@@ -1,6 +1,6 @@
 /*
  * STMicroelectronics TPM Linux driver for TPM 1.2 ST33ZP24
- * Copyright (C) 2009 - 2015  STMicroelectronics
+ * Copyright (C) 2009 - 2016  STMicroelectronics
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

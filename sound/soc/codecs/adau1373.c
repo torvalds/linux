@@ -23,6 +23,7 @@
 #include <sound/adau1373.h>
 
 #include "adau1373.h"
+#include "adau-utils.h"
 
 struct adau1373_dai {
 	unsigned int clk_src;
@@ -1254,7 +1255,8 @@ static int adau1373_set_pll(struct snd_soc_codec *codec, int pll_id,
 {
 	struct adau1373 *adau1373 = snd_soc_codec_get_drvdata(codec);
 	unsigned int dpll_div = 0;
-	unsigned int x, r, n, m, i, j, mode;
+	uint8_t pll_regs[5];
+	int ret;
 
 	switch (pll_id) {
 	case ADAU1373_PLL1:
@@ -1295,27 +1297,8 @@ static int adau1373_set_pll(struct snd_soc_codec *codec, int pll_id,
 		dpll_div++;
 	}
 
-	if (freq_out % freq_in != 0) {
-		/* fout = fin * (r + (n/m)) / x */
-		x = DIV_ROUND_UP(freq_in, 13500000);
-		freq_in /= x;
-		r = freq_out / freq_in;
-		i = freq_out % freq_in;
-		j = gcd(i, freq_in);
-		n = i / j;
-		m = freq_in / j;
-		x--;
-		mode = 1;
-	} else {
-		/* fout = fin / r */
-		r = freq_out / freq_in;
-		n = 0;
-		m = 0;
-		x = 0;
-		mode = 0;
-	}
-
-	if (r < 2 || r > 8 || x > 3 || m > 0xffff || n > 0xffff)
+	ret = adau_calc_pll_cfg(freq_in, freq_out, pll_regs);
+	if (ret)
 		return -EINVAL;
 
 	if (dpll_div) {
@@ -1330,12 +1313,11 @@ static int adau1373_set_pll(struct snd_soc_codec *codec, int pll_id,
 
 	regmap_write(adau1373->regmap, ADAU1373_DPLL_CTRL(pll_id),
 		(source << 4) | dpll_div);
-	regmap_write(adau1373->regmap, ADAU1373_PLL_CTRL1(pll_id), (m >> 8) & 0xff);
-	regmap_write(adau1373->regmap, ADAU1373_PLL_CTRL2(pll_id), m & 0xff);
-	regmap_write(adau1373->regmap, ADAU1373_PLL_CTRL3(pll_id), (n >> 8) & 0xff);
-	regmap_write(adau1373->regmap, ADAU1373_PLL_CTRL4(pll_id), n & 0xff);
-	regmap_write(adau1373->regmap, ADAU1373_PLL_CTRL5(pll_id),
-		(r << 3) | (x << 1) | mode);
+	regmap_write(adau1373->regmap, ADAU1373_PLL_CTRL1(pll_id), pll_regs[0]);
+	regmap_write(adau1373->regmap, ADAU1373_PLL_CTRL2(pll_id), pll_regs[1]);
+	regmap_write(adau1373->regmap, ADAU1373_PLL_CTRL3(pll_id), pll_regs[2]);
+	regmap_write(adau1373->regmap, ADAU1373_PLL_CTRL4(pll_id), pll_regs[3]);
+	regmap_write(adau1373->regmap, ADAU1373_PLL_CTRL5(pll_id), pll_regs[4]);
 
 	/* Set sysclk to pll_rate / 4 */
 	regmap_update_bits(adau1373->regmap, ADAU1373_CLK_SRC_DIV(pll_id), 0x3f, 0x09);

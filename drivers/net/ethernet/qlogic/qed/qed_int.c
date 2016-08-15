@@ -2418,6 +2418,7 @@ void qed_init_cau_sb_entry(struct qed_hwfn *p_hwfn,
 {
 	struct qed_dev *cdev = p_hwfn->cdev;
 	u32 cau_state;
+	u8 timer_res;
 
 	memset(p_sb_entry, 0, sizeof(*p_sb_entry));
 
@@ -2442,6 +2443,23 @@ void qed_init_cau_sb_entry(struct qed_hwfn *p_hwfn,
 		if (!cdev->tx_coalesce_usecs)
 			cdev->tx_coalesce_usecs = QED_CAU_DEF_TX_USECS;
 	}
+
+	/* Coalesce = (timeset << timer-res), timeset is 7bit wide */
+	if (cdev->rx_coalesce_usecs <= 0x7F)
+		timer_res = 0;
+	else if (cdev->rx_coalesce_usecs <= 0xFF)
+		timer_res = 1;
+	else
+		timer_res = 2;
+	SET_FIELD(p_sb_entry->params, CAU_SB_ENTRY_TIMER_RES0, timer_res);
+
+	if (cdev->tx_coalesce_usecs <= 0x7F)
+		timer_res = 0;
+	else if (cdev->tx_coalesce_usecs <= 0xFF)
+		timer_res = 1;
+	else
+		timer_res = 2;
+	SET_FIELD(p_sb_entry->params, CAU_SB_ENTRY_TIMER_RES1, timer_res);
 
 	SET_FIELD(p_sb_entry->data, CAU_SB_ENTRY_STATE0, cau_state);
 	SET_FIELD(p_sb_entry->data, CAU_SB_ENTRY_STATE1, cau_state);
@@ -2484,17 +2502,28 @@ void qed_int_cau_conf_sb(struct qed_hwfn *p_hwfn,
 
 	/* Configure pi coalescing if set */
 	if (p_hwfn->cdev->int_coalescing_mode == QED_COAL_MODE_ENABLE) {
-		u8 timeset = p_hwfn->cdev->rx_coalesce_usecs >>
-			     (QED_CAU_DEF_RX_TIMER_RES + 1);
+		u8 timeset, timer_res;
 		u8 num_tc = 1, i;
 
+		/* timeset = (coalesce >> timer-res), timeset is 7bit wide */
+		if (p_hwfn->cdev->rx_coalesce_usecs <= 0x7F)
+			timer_res = 0;
+		else if (p_hwfn->cdev->rx_coalesce_usecs <= 0xFF)
+			timer_res = 1;
+		else
+			timer_res = 2;
+		timeset = (u8)(p_hwfn->cdev->rx_coalesce_usecs >> timer_res);
 		qed_int_cau_conf_pi(p_hwfn, p_ptt, igu_sb_id, RX_PI,
 				    QED_COAL_RX_STATE_MACHINE,
 				    timeset);
 
-		timeset = p_hwfn->cdev->tx_coalesce_usecs >>
-			  (QED_CAU_DEF_TX_TIMER_RES + 1);
-
+		if (p_hwfn->cdev->tx_coalesce_usecs <= 0x7F)
+			timer_res = 0;
+		else if (p_hwfn->cdev->tx_coalesce_usecs <= 0xFF)
+			timer_res = 1;
+		else
+			timer_res = 2;
+		timeset = (u8)(p_hwfn->cdev->tx_coalesce_usecs >> timer_res);
 		for (i = 0; i < num_tc; i++) {
 			qed_int_cau_conf_pi(p_hwfn, p_ptt,
 					    igu_sb_id, TX_PI(i),
@@ -3198,4 +3227,40 @@ void qed_int_disable_post_isr_release(struct qed_dev *cdev)
 
 	for_each_hwfn(cdev, i)
 		cdev->hwfns[i].b_int_requested = false;
+}
+
+int qed_int_set_timer_res(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			  u8 timer_res, u16 sb_id, bool tx)
+{
+	struct cau_sb_entry sb_entry;
+	int rc;
+
+	if (!p_hwfn->hw_init_done) {
+		DP_ERR(p_hwfn, "hardware not initialized yet\n");
+		return -EINVAL;
+	}
+
+	rc = qed_dmae_grc2host(p_hwfn, p_ptt, CAU_REG_SB_VAR_MEMORY +
+			       sb_id * sizeof(u64),
+			       (u64)(uintptr_t)&sb_entry, 2, 0);
+	if (rc) {
+		DP_ERR(p_hwfn, "dmae_grc2host failed %d\n", rc);
+		return rc;
+	}
+
+	if (tx)
+		SET_FIELD(sb_entry.params, CAU_SB_ENTRY_TIMER_RES1, timer_res);
+	else
+		SET_FIELD(sb_entry.params, CAU_SB_ENTRY_TIMER_RES0, timer_res);
+
+	rc = qed_dmae_host2grc(p_hwfn, p_ptt,
+			       (u64)(uintptr_t)&sb_entry,
+			       CAU_REG_SB_VAR_MEMORY +
+			       sb_id * sizeof(u64), 2, 0);
+	if (rc) {
+		DP_ERR(p_hwfn, "dmae_host2grc failed %d\n", rc);
+		return rc;
+	}
+
+	return rc;
 }

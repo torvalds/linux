@@ -113,8 +113,10 @@ static struct stmmac_axi *stmmac_axi_setup(struct platform_device *pdev)
 		return NULL;
 
 	axi = kzalloc(sizeof(*axi), GFP_KERNEL);
-	if (!axi)
+	if (!axi) {
+		of_node_put(np);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	axi->axi_lpi_en = of_property_read_bool(np, "snps,lpi_en");
 	axi->axi_xit_frm = of_property_read_bool(np, "snps,xit_frm");
@@ -127,6 +129,7 @@ static struct stmmac_axi *stmmac_axi_setup(struct platform_device *pdev)
 	of_property_read_u32(np, "snps,wr_osr_lmt", &axi->axi_wr_osr_lmt);
 	of_property_read_u32(np, "snps,rd_osr_lmt", &axi->axi_rd_osr_lmt);
 	of_property_read_u32_array(np, "snps,blen", axi->axi_blen, AXI_BLEN);
+	of_node_put(np);
 
 	return axi;
 }
@@ -302,7 +305,7 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 		dma_cfg = devm_kzalloc(&pdev->dev, sizeof(*dma_cfg),
 				       GFP_KERNEL);
 		if (!dma_cfg) {
-			of_node_put(np);
+			of_node_put(plat->phy_node);
 			return ERR_PTR(-ENOMEM);
 		}
 		plat->dma_cfg = dma_cfg;
@@ -318,6 +321,8 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 		plat->force_sf_dma_mode = 0;
 		pr_warn("force_sf_dma_mode is ignored if force_thresh_dma_mode is set.");
 	}
+
+	of_property_read_u32(np, "snps,ps-speed", &plat->mac_port_sel_speed);
 
 	plat->axi = stmmac_axi_setup(pdev);
 
@@ -411,7 +416,9 @@ static int stmmac_pltfr_suspend(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 
 	ret = stmmac_suspend(dev);
-	if (priv->plat->exit)
+	if (priv->plat->suspend)
+		priv->plat->suspend(pdev, priv->plat->bsp_priv);
+	else if (priv->plat->exit)
 		priv->plat->exit(pdev, priv->plat->bsp_priv);
 
 	return ret;
@@ -430,7 +437,9 @@ static int stmmac_pltfr_resume(struct device *dev)
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	struct platform_device *pdev = to_platform_device(dev);
 
-	if (priv->plat->init)
+	if (priv->plat->resume)
+		priv->plat->resume(pdev, priv->plat->bsp_priv);
+	else if (priv->plat->init)
 		priv->plat->init(pdev, priv->plat->bsp_priv);
 
 	return stmmac_resume(dev);

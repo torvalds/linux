@@ -1,0 +1,96 @@
+Renesas R-Car CAN FD controller Device Tree Bindings
+----------------------------------------------------
+
+Required properties:
+- compatible: Must contain one or more of the following:
+  - "renesas,rcar-gen3-canfd" for R-Car Gen3 compatible controller.
+  - "renesas,r8a7795-canfd" for R8A7795 (R-Car H3) compatible controller.
+
+  When compatible with the generic version, nodes must list the
+  SoC-specific version corresponding to the platform first, followed by the
+  family-specific and/or generic versions.
+
+- reg: physical base address and size of the R-Car CAN FD register map.
+- interrupts: interrupt specifier for the Global & Channel interrupts
+- clocks: phandles and clock specifiers for 3 clock inputs.
+- clock-names: 3 clock input name strings: "fck", "canfd", "can_clk".
+- pinctrl-0: pin control group to be used for this controller.
+- pinctrl-names: must be "default".
+
+Required child nodes:
+The controller supports two channels and each is represented as a child node.
+The name of the child nodes are "channel0" and "channel1" respectively. Each
+child node supports the "status" property only, which is used to
+enable/disable the respective channel.
+
+Required properties for "renesas,r8a7795-canfd" compatible:
+In R8A7795 SoC, canfd clock is a div6 clock and can be used by both CAN
+and CAN FD controller at the same time. It needs to be scaled to maximum
+frequency if any of these controllers use it. This is done using the
+below properties.
+
+- assigned-clocks: phandle of canfd clock.
+- assigned-clock-rates: maximum frequency of this clock.
+
+Optional property:
+The controller can operate in either CAN FD only mode (default) or
+Classical CAN only mode. The mode is global to both the channels. In order to
+enable the later, define the following optional property.
+ - renesas,no-can-fd: puts the controller in Classical CAN only mode.
+
+Example
+-------
+
+SoC common .dtsi file:
+
+		canfd: can@e66c0000 {
+			compatible = "renesas,r8a7795-canfd",
+				     "renesas,rcar-gen3-canfd";
+			reg = <0 0xe66c0000 0 0x8000>;
+			interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>,
+				   <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD 914>,
+			       <&cpg CPG_CORE R8A7795_CLK_CANFD>,
+			       <&can_clk>;
+			clock-names = "fck", "canfd", "can_clk";
+			assigned-clocks = <&cpg CPG_CORE R8A7795_CLK_CANFD>;
+			assigned-clock-rates = <40000000>;
+			power-domains = <&cpg>;
+			status = "disabled";
+
+			channel0 {
+				status = "disabled";
+			};
+
+			channel1 {
+				status = "disabled";
+			};
+		};
+
+Board specific .dts file:
+
+E.g. below enables Channel 1 alone in the board in Classical CAN only mode.
+
+&canfd {
+	pinctrl-0 = <&canfd1_pins>;
+	pinctrl-names = "default";
+	renesas,no-can-fd;
+	status = "okay";
+
+	channel1 {
+		status = "okay";
+	};
+};
+
+E.g. below enables Channel 0 alone in the board using External clock
+as fCAN clock.
+
+&canfd {
+	pinctrl-0 = <&canfd0_pins &can_clk_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	channel0 {
+		status = "okay";
+	};
+};

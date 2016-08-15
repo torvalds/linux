@@ -38,6 +38,7 @@
 #include <linux/kthread.h>
 #include <linux/uio.h>
 #include <linux/types.h>
+#include <linux/completion.h>
 
 #include "types.h"
 #include "lnetctl.h"
@@ -610,7 +611,7 @@ typedef struct {
 	/* rcd ready for free */
 	struct list_head		  ln_rcd_zombie;
 	/* serialise startup/shutdown */
-	struct semaphore		  ln_rc_signal;
+	struct completion		  ln_rc_signal;
 
 	struct mutex			  ln_api_mutex;
 	struct mutex			  ln_lnd_mutex;

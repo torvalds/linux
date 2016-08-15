@@ -186,6 +186,7 @@ struct brcmf_sdio_dev {
 	struct brcmf_bus *bus_if;
 	struct brcmf_mp_device *settings;
 	bool oob_irq_requested;
+	bool sd_irq_requested;
 	bool irq_en;			/* irq enable flags */
 	spinlock_t irq_en_lock;
 	bool irq_wake;			/* irq wake enable flags */
@@ -293,7 +294,7 @@ struct sdpcmd_regs {
 
 /* Register/deregister interrupt handler. */
 int brcmf_sdiod_intr_register(struct brcmf_sdio_dev *sdiodev);
-int brcmf_sdiod_intr_unregister(struct brcmf_sdio_dev *sdiodev);
+void brcmf_sdiod_intr_unregister(struct brcmf_sdio_dev *sdiodev);
 
 /* sdio device register access interface */
 u8 brcmf_sdiod_regrb(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret);

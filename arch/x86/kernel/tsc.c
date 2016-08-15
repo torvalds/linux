@@ -3,7 +3,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/init.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/timer.h>
 #include <linux/acpi_pmtmr.h>
 #include <linux/cpufreq.h>
@@ -22,6 +22,7 @@
 #include <asm/nmi.h>
 #include <asm/x86_init.h>
 #include <asm/geode.h>
+#include <asm/apic.h>
 
 unsigned int __read_mostly cpu_khz;	/* TSC clocks / usec, not used here */
 EXPORT_SYMBOL(cpu_khz);
@@ -239,7 +240,7 @@ static inline unsigned long long cycles_2_ns(unsigned long long cyc)
 	return ns;
 }
 
-static void set_cyc2ns_scale(unsigned long cpu_khz, int cpu)
+static void set_cyc2ns_scale(unsigned long khz, int cpu)
 {
 	unsigned long long tsc_now, ns_now;
 	struct cyc2ns_data *data;
@@ -248,7 +249,7 @@ static void set_cyc2ns_scale(unsigned long cpu_khz, int cpu)
 	local_irq_save(flags);
 	sched_clock_idle_sleep_event();
 
-	if (!cpu_khz)
+	if (!khz)
 		goto done;
 
 	data = cyc2ns_write_begin(cpu);
@@ -261,7 +262,7 @@ static void set_cyc2ns_scale(unsigned long cpu_khz, int cpu)
 	 * time function is continuous; see the comment near struct
 	 * cyc2ns_data.
 	 */
-	clocks_calc_mult_shift(&data->cyc2ns_mul, &data->cyc2ns_shift, cpu_khz,
+	clocks_calc_mult_shift(&data->cyc2ns_mul, &data->cyc2ns_shift, khz,
 			       NSEC_PER_MSEC, 0);
 
 	/*
@@ -334,12 +335,6 @@ int check_tsc_unstable(void)
 	return tsc_unstable;
 }
 EXPORT_SYMBOL_GPL(check_tsc_unstable);
-
-int check_tsc_disabled(void)
-{
-	return tsc_disabled;
-}
-EXPORT_SYMBOL_GPL(check_tsc_disabled);
 
 #ifdef CONFIG_X86_TSC
 int __init notsc_setup(char *str)
@@ -665,19 +660,77 @@ success:
 }
 
 /**
- * native_calibrate_tsc - calibrate the tsc on boot
+ * native_calibrate_tsc
+ * Determine TSC frequency via CPUID, else return 0.
  */
 unsigned long native_calibrate_tsc(void)
+{
+	unsigned int eax_denominator, ebx_numerator, ecx_hz, edx;
+	unsigned int crystal_khz;
+
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
+		return 0;
+
+	if (boot_cpu_data.cpuid_level < 0x15)
+		return 0;
+
+	eax_denominator = ebx_numerator = ecx_hz = edx = 0;
+
+	/* CPUID 15H TSC/Crystal ratio, plus optionally Crystal Hz */
+	cpuid(0x15, &eax_denominator, &ebx_numerator, &ecx_hz, &edx);
+
+	if (ebx_numerator == 0 || eax_denominator == 0)
+		return 0;
+
+	crystal_khz = ecx_hz / 1000;
+
+	if (crystal_khz == 0) {
+		switch (boot_cpu_data.x86_model) {
+		case 0x4E:	/* SKL */
+		case 0x5E:	/* SKL */
+			crystal_khz = 24000;	/* 24.0 MHz */
+			break;
+		case 0x5C:	/* BXT */
+			crystal_khz = 19200;	/* 19.2 MHz */
+			break;
+		}
+	}
+
+	return crystal_khz * ebx_numerator / eax_denominator;
+}
+
+static unsigned long cpu_khz_from_cpuid(void)
+{
+	unsigned int eax_base_mhz, ebx_max_mhz, ecx_bus_mhz, edx;
+
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
+		return 0;
+
+	if (boot_cpu_data.cpuid_level < 0x16)
+		return 0;
+
+	eax_base_mhz = ebx_max_mhz = ecx_bus_mhz = edx = 0;
+
+	cpuid(0x16, &eax_base_mhz, &ebx_max_mhz, &ecx_bus_mhz, &edx);
+
+	return eax_base_mhz * 1000;
+}
+
+/**
+ * native_calibrate_cpu - calibrate the cpu on boot
+ */
+unsigned long native_calibrate_cpu(void)
 {
 	u64 tsc1, tsc2, delta, ref1, ref2;
 	unsigned long tsc_pit_min = ULONG_MAX, tsc_ref_min = ULONG_MAX;
 	unsigned long flags, latch, ms, fast_calibrate;
 	int hpet = is_hpet_enabled(), i, loopmin;
 
-	/* Calibrate TSC using MSR for Intel Atom SoCs */
-	local_irq_save(flags);
-	fast_calibrate = try_msr_calibrate_tsc();
-	local_irq_restore(flags);
+	fast_calibrate = cpu_khz_from_cpuid();
+	if (fast_calibrate)
+		return fast_calibrate;
+
+	fast_calibrate = cpu_khz_from_msr();
 	if (fast_calibrate)
 		return fast_calibrate;
 
@@ -837,8 +890,12 @@ int recalibrate_cpu_khz(void)
 	if (!boot_cpu_has(X86_FEATURE_TSC))
 		return -ENODEV;
 
+	cpu_khz = x86_platform.calibrate_cpu();
 	tsc_khz = x86_platform.calibrate_tsc();
-	cpu_khz = tsc_khz;
+	if (tsc_khz == 0)
+		tsc_khz = cpu_khz;
+	else if (abs(cpu_khz - tsc_khz) * 10 > tsc_khz)
+		cpu_khz = tsc_khz;
 	cpu_data(0).loops_per_jiffy = cpufreq_scale(cpu_data(0).loops_per_jiffy,
 						    cpu_khz_old, cpu_khz);
 
@@ -1193,6 +1250,9 @@ static void tsc_refine_calibration_work(struct work_struct *work)
 		(unsigned long)tsc_khz / 1000,
 		(unsigned long)tsc_khz % 1000);
 
+	/* Inform the TSC deadline clockevent devices about the recalibration */
+	lapic_update_tsc_freq();
+
 out:
 	if (boot_cpu_has(X86_FEATURE_ART))
 		art_related_clocksource = &clocksource_tsc;
@@ -1244,8 +1304,18 @@ void __init tsc_init(void)
 		return;
 	}
 
+	cpu_khz = x86_platform.calibrate_cpu();
 	tsc_khz = x86_platform.calibrate_tsc();
-	cpu_khz = tsc_khz;
+
+	/*
+	 * Trust non-zero tsc_khz as authorative,
+	 * and use it to sanity check cpu_khz,
+	 * which will be off if system timer is off.
+	 */
+	if (tsc_khz == 0)
+		tsc_khz = cpu_khz;
+	else if (abs(cpu_khz - tsc_khz) * 10 > tsc_khz)
+		cpu_khz = tsc_khz;
 
 	if (!tsc_khz) {
 		mark_tsc_unstable("could not calculate TSC khz");
@@ -1265,7 +1335,7 @@ void __init tsc_init(void)
 	 */
 	for_each_possible_cpu(cpu) {
 		cyc2ns_init(cpu);
-		set_cyc2ns_scale(cpu_khz, cpu);
+		set_cyc2ns_scale(tsc_khz, cpu);
 	}
 
 	if (tsc_disabled > 0)

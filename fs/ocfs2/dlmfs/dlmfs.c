@@ -469,7 +469,7 @@ static int dlmfs_mkdir(struct inode * dir,
 {
 	int status;
 	struct inode *inode = NULL;
-	struct qstr *domain = &dentry->d_name;
+	const struct qstr *domain = &dentry->d_name;
 	struct dlmfs_inode_private *ip;
 	struct ocfs2_cluster_connection *conn;
 
@@ -518,7 +518,7 @@ static int dlmfs_create(struct inode *dir,
 {
 	int status = 0;
 	struct inode *inode;
-	struct qstr *name = &dentry->d_name;
+	const struct qstr *name = &dentry->d_name;
 
 	mlog(0, "create %.*s\n", name->len, name->name);
 

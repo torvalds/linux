@@ -170,12 +170,12 @@ comedi_nonfree_firmware tarball available from http://www.comedi.org
 #define DMA_Line_Control_Group1		76
 #define DMA_Line_Control_Group2		108
 /* channel zero is none */
-static inline unsigned primary_DMAChannel_bits(unsigned channel)
+static inline unsigned int primary_DMAChannel_bits(unsigned int channel)
 {
 	return channel & 0x3;
 }
 
-static inline unsigned secondary_DMAChannel_bits(unsigned channel)
+static inline unsigned int secondary_DMAChannel_bits(unsigned int channel)
 {
 	return (channel << 2) & 0xc;
 }

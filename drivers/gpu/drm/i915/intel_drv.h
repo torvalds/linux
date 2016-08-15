@@ -348,10 +348,7 @@ struct intel_atomic_state {
 
 struct intel_plane_state {
 	struct drm_plane_state base;
-	struct drm_rect src;
-	struct drm_rect dst;
 	struct drm_rect clip;
-	bool visible;
 
 	struct {
 		u32 offset;
@@ -1273,7 +1270,7 @@ unsigned int intel_tile_height(const struct drm_i915_private *dev_priv,
 static inline bool
 intel_rotation_90_or_270(unsigned int rotation)
 {
-	return rotation & (BIT(DRM_ROTATE_90) | BIT(DRM_ROTATE_270));
+	return rotation & (DRM_ROTATE_90 | DRM_ROTATE_270);
 }
 
 void intel_create_rotation_property(struct drm_device *dev,
@@ -1738,6 +1735,8 @@ bool intel_sdvo_init(struct drm_device *dev,
 
 
 /* intel_sprite.c */
+int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
+			     int usecs);
 int intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane);
 int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);

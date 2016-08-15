@@ -87,8 +87,6 @@
 struct vop_plane_state {
 	struct drm_plane_state base;
 	int format;
-	struct drm_rect src;
-	struct drm_rect dest;
 	dma_addr_t yrgb_mst;
 	bool enable;
 };
@@ -593,10 +591,7 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	struct vop_win *vop_win = to_vop_win(plane);
 	struct vop_plane_state *vop_plane_state = to_vop_plane_state(state);
 	const struct vop_win_data *win = vop_win->data;
-	bool visible;
 	int ret;
-	struct drm_rect *dest = &vop_plane_state->dest;
-	struct drm_rect *src = &vop_plane_state->src;
 	struct drm_rect clip;
 	int min_scale = win->phy->scl ? FRAC_16_16(1, 8) :
 					DRM_PLANE_HELPER_NO_SCALING;
@@ -610,30 +605,18 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
 
-	src->x1 = state->src_x;
-	src->y1 = state->src_y;
-	src->x2 = state->src_x + state->src_w;
-	src->y2 = state->src_y + state->src_h;
-	dest->x1 = state->crtc_x;
-	dest->y1 = state->crtc_y;
-	dest->x2 = state->crtc_x + state->crtc_w;
-	dest->y2 = state->crtc_y + state->crtc_h;
-
 	clip.x1 = 0;
 	clip.y1 = 0;
 	clip.x2 = crtc_state->adjusted_mode.hdisplay;
 	clip.y2 = crtc_state->adjusted_mode.vdisplay;
 
-	ret = drm_plane_helper_check_update(plane, crtc, state->fb,
-					    src, dest, &clip,
-					    state->rotation,
-					    min_scale,
-					    max_scale,
-					    true, true, &visible);
+	ret = drm_plane_helper_check_state(state, &clip,
+					   min_scale, max_scale,
+					   true, true);
 	if (ret)
 		return ret;
 
-	if (!visible)
+	if (!state->visible)
 		goto out_disable;
 
 	vop_plane_state->format = vop_convert_format(fb->pixel_format);
@@ -644,7 +627,7 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	 * Src.x1 can be odd when do clip, but yuv plane start point
 	 * need align with 2 pixel.
 	 */
-	if (is_yuv_support(fb->pixel_format) && ((src->x1 >> 16) % 2))
+	if (is_yuv_support(fb->pixel_format) && ((state->src.x1 >> 16) % 2))
 		return -EINVAL;
 
 	vop_plane_state->enable = true;
@@ -694,8 +677,8 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	unsigned int actual_w, actual_h;
 	unsigned int dsp_stx, dsp_sty;
 	uint32_t act_info, dsp_info, dsp_st;
-	struct drm_rect *src = &vop_plane_state->src;
-	struct drm_rect *dest = &vop_plane_state->dest;
+	struct drm_rect *src = &state->src;
+	struct drm_rect *dest = &state->dst;
 	struct drm_gem_object *obj, *uv_obj;
 	struct rockchip_gem_object *rk_obj, *rk_uv_obj;
 	unsigned long offset;

@@ -25,12 +25,10 @@
 
 #include <linux/list.h>
 #include <linux/kvm_host.h>
-#include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/pci.h>
 #include <linux/stat.h>
-#include <linux/dmar.h>
 #include <linux/iommu.h>
-#include <linux/intel-iommu.h>
 #include "assigned-dev.h"
 
 static bool allow_unsafe_assigned_interrupts;

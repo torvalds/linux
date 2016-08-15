@@ -142,7 +142,7 @@ static void au0828_unregister_media_device(struct au0828_dev *dev)
 	struct media_device *mdev = dev->media_dev;
 	struct media_entity_notify *notify, *nextp;
 
-	if (!mdev || !media_devnode_is_registered(&mdev->devnode))
+	if (!mdev || !media_devnode_is_registered(mdev->devnode))
 		return;
 
 	/* Remove au0828 entity_notify callbacks */
@@ -482,7 +482,7 @@ static int au0828_media_device_register(struct au0828_dev *dev,
 	if (!dev->media_dev)
 		return 0;
 
-	if (!media_devnode_is_registered(&dev->media_dev->devnode)) {
+	if (!media_devnode_is_registered(dev->media_dev->devnode)) {
 
 		/* register media device */
 		ret = media_device_register(dev->media_dev);

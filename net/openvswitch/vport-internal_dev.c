@@ -195,7 +195,7 @@ static struct vport *internal_dev_create(const struct vport_parms *parms)
 	}
 
 	vport->dev = alloc_netdev(sizeof(struct internal_dev),
-				  parms->name, NET_NAME_UNKNOWN, do_setup);
+				  parms->name, NET_NAME_USER, do_setup);
 	if (!vport->dev) {
 		err = -ENOMEM;
 		goto error_free_vport;

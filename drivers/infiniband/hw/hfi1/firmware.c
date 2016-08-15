@@ -206,6 +206,9 @@ static const struct firmware *platform_config;
 /* the number of fabric SerDes on the SBus */
 #define NUM_FABRIC_SERDES 4
 
+/* ASIC_STS_SBUS_RESULT.RESULT_CODE value */
+#define SBUS_READ_COMPLETE 0x4
+
 /* SBus fabric SerDes addresses, one set per HFI */
 static const u8 fabric_serdes_addrs[2][NUM_FABRIC_SERDES] = {
 	{ 0x01, 0x02, 0x03, 0x04 },
@@ -240,6 +243,7 @@ static const u8 all_pcie_serdes_broadcast = 0xe0;
 static void dispose_one_firmware(struct firmware_details *fdet);
 static int load_fabric_serdes_firmware(struct hfi1_devdata *dd,
 				       struct firmware_details *fdet);
+static void dump_fw_version(struct hfi1_devdata *dd);
 
 /*
  * Read a single 64-bit value from 8051 data memory.
@@ -1079,6 +1083,44 @@ void sbus_request(struct hfi1_devdata *dd,
 }
 
 /*
+ * Read a value from the SBus.
+ *
+ * Requires the caller to be in fast mode
+ */
+static u32 sbus_read(struct hfi1_devdata *dd, u8 receiver_addr, u8 data_addr,
+		     u32 data_in)
+{
+	u64 reg;
+	int retries;
+	int success = 0;
+	u32 result = 0;
+	u32 result_code = 0;
+
+	sbus_request(dd, receiver_addr, data_addr, READ_SBUS_RECEIVER, data_in);
+
+	for (retries = 0; retries < 100; retries++) {
+		usleep_range(1000, 1200); /* arbitrary */
+		reg = read_csr(dd, ASIC_STS_SBUS_RESULT);
+		result_code = (reg >> ASIC_STS_SBUS_RESULT_RESULT_CODE_SHIFT)
+				& ASIC_STS_SBUS_RESULT_RESULT_CODE_MASK;
+		if (result_code != SBUS_READ_COMPLETE)
+			continue;
+
+		success = 1;
+		result = (reg >> ASIC_STS_SBUS_RESULT_DATA_OUT_SHIFT)
+			   & ASIC_STS_SBUS_RESULT_DATA_OUT_MASK;
+		break;
+	}
+
+	if (!success) {
+		dd_dev_err(dd, "%s: read failed, result code 0x%x\n", __func__,
+			   result_code);
+	}
+
+	return result;
+}
+
+/*
  * Turn off the SBus and fabric serdes spicos.
  *
  * + Must be called with Sbus fast mode turned on.
@@ -1636,6 +1678,7 @@ int load_firmware(struct hfi1_devdata *dd)
 			return ret;
 	}
 
+	dump_fw_version(dd);
 	return 0;
 }
 
@@ -2053,4 +2096,86 @@ void read_guid(struct hfi1_devdata *dd)
 	dd->base_guid = read_csr(dd, DC_DC8051_CFG_LOCAL_GUID);
 	dd_dev_info(dd, "GUID %llx",
 		    (unsigned long long)dd->base_guid);
+}
+
+/* read and display firmware version info */
+static void dump_fw_version(struct hfi1_devdata *dd)
+{
+	u32 pcie_vers[NUM_PCIE_SERDES];
+	u32 fabric_vers[NUM_FABRIC_SERDES];
+	u32 sbus_vers;
+	int i;
+	int all_same;
+	int ret;
+	u8 rcv_addr;
+
+	ret = acquire_chip_resource(dd, CR_SBUS, SBUS_TIMEOUT);
+	if (ret) {
+		dd_dev_err(dd, "Unable to acquire SBus to read firmware versions\n");
+		return;
+	}
+
+	/* set fast mode */
+	set_sbus_fast_mode(dd);
+
+	/* read version for SBus Master */
+	sbus_request(dd, SBUS_MASTER_BROADCAST, 0x02, WRITE_SBUS_RECEIVER, 0);
+	sbus_request(dd, SBUS_MASTER_BROADCAST, 0x07, WRITE_SBUS_RECEIVER, 0x1);
+	/* wait for interrupt to be processed */
+	usleep_range(10000, 11000);
+	sbus_vers = sbus_read(dd, SBUS_MASTER_BROADCAST, 0x08, 0x1);
+	dd_dev_info(dd, "SBus Master firmware version 0x%08x\n", sbus_vers);
+
+	/* read version for PCIe SerDes */
+	all_same = 1;
+	pcie_vers[0] = 0;
+	for (i = 0; i < NUM_PCIE_SERDES; i++) {
+		rcv_addr = pcie_serdes_addrs[dd->hfi1_id][i];
+		sbus_request(dd, rcv_addr, 0x03, WRITE_SBUS_RECEIVER, 0);
+		/* wait for interrupt to be processed */
+		usleep_range(10000, 11000);
+		pcie_vers[i] = sbus_read(dd, rcv_addr, 0x04, 0x0);
+		if (i > 0 && pcie_vers[0] != pcie_vers[i])
+			all_same = 0;
+	}
+
+	if (all_same) {
+		dd_dev_info(dd, "PCIe SerDes firmware version 0x%x\n",
+			    pcie_vers[0]);
+	} else {
+		dd_dev_warn(dd, "PCIe SerDes do not have the same firmware version\n");
+		for (i = 0; i < NUM_PCIE_SERDES; i++) {
+			dd_dev_info(dd,
+				    "PCIe SerDes lane %d firmware version 0x%x\n",
+				    i, pcie_vers[i]);
+		}
+	}
+
+	/* read version for fabric SerDes */
+	all_same = 1;
+	fabric_vers[0] = 0;
+	for (i = 0; i < NUM_FABRIC_SERDES; i++) {
+		rcv_addr = fabric_serdes_addrs[dd->hfi1_id][i];
+		sbus_request(dd, rcv_addr, 0x03, WRITE_SBUS_RECEIVER, 0);
+		/* wait for interrupt to be processed */
+		usleep_range(10000, 11000);
+		fabric_vers[i] = sbus_read(dd, rcv_addr, 0x04, 0x0);
+		if (i > 0 && fabric_vers[0] != fabric_vers[i])
+			all_same = 0;
+	}
+
+	if (all_same) {
+		dd_dev_info(dd, "Fabric SerDes firmware version 0x%x\n",
+			    fabric_vers[0]);
+	} else {
+		dd_dev_warn(dd, "Fabric SerDes do not have the same firmware version\n");
+		for (i = 0; i < NUM_FABRIC_SERDES; i++) {
+			dd_dev_info(dd,
+				    "Fabric SerDes lane %d firmware version 0x%x\n",
+				    i, fabric_vers[i]);
+		}
+	}
+
+	clear_sbus_fast_mode(dd);
+	release_chip_resource(dd, CR_SBUS);
 }

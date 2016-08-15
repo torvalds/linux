@@ -53,9 +53,12 @@ u32 driver_features;
 DRIVER_USE_AGP
     Driver uses AGP interface, the DRM core will manage AGP resources.
 
-DRIVER_REQUIRE_AGP
-    Driver needs AGP interface to function. AGP initialization failure
-    will become a fatal error.
+DRIVER_LEGACY
+    Denote a legacy driver using shadow attach. Don't use.
+
+DRIVER_KMS_LEGACY_CONTEXT
+    Used only by nouveau for backwards compatibility with existing userspace.
+    Don't use.
 
 DRIVER_PCI_DMA
     Driver is capable of PCI DMA, mapping of PCI DMA buffers to

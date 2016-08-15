@@ -19,7 +19,6 @@
 #include "hw.h"
 
 const struct ath10k_hw_regs qca988x_regs = {
-	.rtc_state_cold_reset_mask	= 0x00000400,
 	.rtc_soc_base_address		= 0x00004000,
 	.rtc_wmac_base_address		= 0x00005000,
 	.soc_core_base_address		= 0x00009000,
@@ -46,7 +45,6 @@ const struct ath10k_hw_regs qca988x_regs = {
 };
 
 const struct ath10k_hw_regs qca6174_regs = {
-	.rtc_state_cold_reset_mask		= 0x00002000,
 	.rtc_soc_base_address			= 0x00000800,
 	.rtc_wmac_base_address			= 0x00001000,
 	.soc_core_base_address			= 0x0003a000,
@@ -73,7 +71,6 @@ const struct ath10k_hw_regs qca6174_regs = {
 };
 
 const struct ath10k_hw_regs qca99x0_regs = {
-	.rtc_state_cold_reset_mask		= 0x00000400,
 	.rtc_soc_base_address			= 0x00080000,
 	.rtc_wmac_base_address			= 0x00000000,
 	.soc_core_base_address			= 0x00082000,
@@ -168,6 +165,15 @@ const struct ath10k_hw_values qca99x0_values = {
 	.ce_desc_meta_data_lsb		= 4,
 };
 
+const struct ath10k_hw_values qca9888_values = {
+	.rtc_state_val_on		= 3,
+	.ce_count			= 12,
+	.msi_assign_ce_max		= 12,
+	.num_target_ce_config_wlan	= 10,
+	.ce_desc_meta_data_mask		= 0xFFF0,
+	.ce_desc_meta_data_lsb		= 4,
+};
+
 const struct ath10k_hw_values qca4019_values = {
 	.ce_count                       = 12,
 	.num_target_ce_config_wlan      = 10,
@@ -179,17 +185,36 @@ void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
 				u32 cc, u32 rcc, u32 cc_prev, u32 rcc_prev)
 {
 	u32 cc_fix = 0;
+	u32 rcc_fix = 0;
+	enum ath10k_hw_cc_wraparound_type wraparound_type;
 
 	survey->filled |= SURVEY_INFO_TIME |
 			  SURVEY_INFO_TIME_BUSY;
 
-	if (ar->hw_params.has_shifted_cc_wraparound && cc < cc_prev) {
-		cc_fix = 0x7fffffff;
-		survey->filled &= ~SURVEY_INFO_TIME_BUSY;
+	wraparound_type = ar->hw_params.cc_wraparound_type;
+
+	if (cc < cc_prev || rcc < rcc_prev) {
+		switch (wraparound_type) {
+		case ATH10K_HW_CC_WRAP_SHIFTED_ALL:
+			if (cc < cc_prev) {
+				cc_fix = 0x7fffffff;
+				survey->filled &= ~SURVEY_INFO_TIME_BUSY;
+			}
+			break;
+		case ATH10K_HW_CC_WRAP_SHIFTED_EACH:
+			if (cc < cc_prev)
+				cc_fix = 0x7fffffff;
+
+			if (rcc < rcc_prev)
+				rcc_fix = 0x7fffffff;
+			break;
+		case ATH10K_HW_CC_WRAP_DISABLED:
+			break;
+		}
 	}
 
 	cc -= cc_prev - cc_fix;
-	rcc -= rcc_prev;
+	rcc -= rcc_prev - rcc_fix;
 
 	survey->time = CCNT_TO_MSEC(ar, cc);
 	survey->time_busy = CCNT_TO_MSEC(ar, rcc);

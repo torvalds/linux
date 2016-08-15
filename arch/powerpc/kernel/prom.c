@@ -56,6 +56,8 @@
 #include <asm/opal.h>
 #include <asm/fadump.h>
 #include <asm/debug.h>
+#include <asm/epapr_hcalls.h>
+#include <asm/firmware.h>
 
 #include <mm/mmu_decl.h>
 
@@ -168,7 +170,7 @@ static struct ibm_pa_feature {
 	 */
 	{CPU_FTR_TM_COMP, 0, 0,
 	 PPC_FEATURE2_HTM_COMP|PPC_FEATURE2_HTM_NOSC_COMP, 22, 0, 0},
-	{0, MMU_FTR_RADIX, 0, 0,		40, 0, 0},
+	{0, MMU_FTR_TYPE_RADIX, 0, 0,		40, 0, 0},
 };
 
 static void __init scan_features(unsigned long node, const unsigned char *ftrs,
@@ -735,9 +737,21 @@ void __init early_init_devtree(void *params)
 	spinning_secondaries = boot_cpu_count - 1;
 #endif
 
+	mmu_early_init_devtree();
+
 #ifdef CONFIG_PPC_POWERNV
 	/* Scan and build the list of machine check recoverable ranges */
 	of_scan_flat_dt(early_init_dt_scan_recoverable_ranges, NULL);
+#endif
+	epapr_paravirt_early_init();
+
+	/* Now try to figure out if we are running on LPAR and so on */
+	pseries_probe_fw_features();
+
+#ifdef CONFIG_PPC_PS3
+	/* Identify PS3 firmware */
+	if (of_flat_dt_is_compatible(of_get_flat_dt_root(), "sony,ps3"))
+		powerpc_firmware_features |= FW_FEATURE_PS3_POSSIBLE;
 #endif
 
 	DBG(" <- early_init_devtree()\n");

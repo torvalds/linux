@@ -8,18 +8,21 @@
  * requeues without waking up any tasks -- thus mimicking a regular futex_wait.
  */
 
-#include "../perf.h"
-#include "../util/util.h"
+/* For the CLR_() macros */
+#include <pthread.h>
+
+#include <signal.h>
 #include "../util/stat.h"
 #include <subcmd/parse-options.h>
-#include "../util/header.h"
+#include <linux/compiler.h>
+#include <linux/kernel.h>
+#include <errno.h>
 #include "bench.h"
 #include "futex.h"
 
 #include <err.h>
 #include <stdlib.h>
 #include <sys/time.h>
-#include <pthread.h>
 
 static u_int32_t futex1 = 0, futex2 = 0;
 

@@ -32,6 +32,8 @@
 #include <drm/drm_atomic_helper.h>
 #include <linux/fence.h>
 
+#include "drm_crtc_internal.h"
+
 /**
  * DOC: overview
  *
@@ -592,6 +594,10 @@ drm_atomic_helper_check_planes(struct drm_device *dev,
 	struct drm_plane_state *plane_state;
 	int i, ret = 0;
 
+	ret = drm_atomic_helper_normalize_zpos(dev, state);
+	if (ret)
+		return ret;
+
 	for_each_plane_in_state(state, plane, plane_state, i) {
 		const struct drm_plane_helper_funcs *funcs;
 
@@ -880,8 +886,12 @@ crtc_set_mode(struct drm_device *dev, struct drm_atomic_state *old_state)
 		 * Each encoder has at most one connector (since we always steal
 		 * it away), so we won't call mode_set hooks twice.
 		 */
-		if (funcs && funcs->mode_set)
+		if (funcs && funcs->atomic_mode_set) {
+			funcs->atomic_mode_set(encoder, new_crtc_state,
+					       connector->state);
+		} else if (funcs && funcs->mode_set) {
 			funcs->mode_set(encoder, mode, adjusted_mode);
+		}
 
 		drm_bridge_mode_set(encoder->bridge, mode, adjusted_mode);
 	}
@@ -1625,6 +1635,9 @@ int drm_atomic_helper_prepare_planes(struct drm_device *dev,
 
 		funcs = plane->helper_private;
 
+		if (!drm_atomic_helper_framebuffer_changed(dev, state, plane_state->crtc))
+			continue;
+
 		if (funcs->prepare_fb) {
 			ret = funcs->prepare_fb(plane, plane_state);
 			if (ret)
@@ -1641,11 +1654,13 @@ fail:
 		if (j >= i)
 			continue;
 
+		if (!drm_atomic_helper_framebuffer_changed(dev, state, plane_state->crtc))
+			continue;
+
 		funcs = plane->helper_private;
 
 		if (funcs->cleanup_fb)
 			funcs->cleanup_fb(plane, plane_state);
-
 	}
 
 	return ret;
@@ -1887,6 +1902,9 @@ void drm_atomic_helper_cleanup_planes(struct drm_device *dev,
 
 	for_each_plane_in_state(old_state, plane, plane_state, i) {
 		const struct drm_plane_helper_funcs *funcs;
+
+		if (!drm_atomic_helper_framebuffer_changed(dev, old_state, plane_state->crtc))
+			continue;
 
 		funcs = plane->helper_private;
 
@@ -2348,7 +2366,7 @@ int __drm_atomic_helper_set_config(struct drm_mode_set *set,
 	primary_state->crtc_h = vdisplay;
 	primary_state->src_x = set->x << 16;
 	primary_state->src_y = set->y << 16;
-	if (primary_state->rotation & (BIT(DRM_ROTATE_90) | BIT(DRM_ROTATE_270))) {
+	if (primary_state->rotation & (DRM_ROTATE_90 | DRM_ROTATE_270)) {
 		primary_state->src_w = vdisplay << 16;
 		primary_state->src_h = hdisplay << 16;
 	} else {
@@ -2955,6 +2973,7 @@ void __drm_atomic_helper_crtc_duplicate_state(struct drm_crtc *crtc,
 	state->planes_changed = false;
 	state->connectors_changed = false;
 	state->color_mgmt_changed = false;
+	state->zpos_changed = false;
 	state->event = NULL;
 }
 EXPORT_SYMBOL(__drm_atomic_helper_crtc_duplicate_state);
@@ -3032,7 +3051,7 @@ void drm_atomic_helper_plane_reset(struct drm_plane *plane)
 
 	if (plane->state) {
 		plane->state->plane = plane;
-		plane->state->rotation = BIT(DRM_ROTATE_0);
+		plane->state->rotation = DRM_ROTATE_0;
 	}
 }
 EXPORT_SYMBOL(drm_atomic_helper_plane_reset);

@@ -714,9 +714,9 @@ long drm_ioctl(struct file *filp,
 	if (ksize > in_size)
 		memset(kdata + in_size, 0, ksize - in_size);
 
-	/* Enforce sane locking for kms driver ioctls. Core ioctls are
+	/* Enforce sane locking for modern driver ioctls. Core ioctls are
 	 * too messy still. */
-	if ((drm_core_check_feature(dev, DRIVER_MODESET) && is_driver_ioctl) ||
+	if ((!drm_core_check_feature(dev, DRIVER_LEGACY) && is_driver_ioctl) ||
 	    (ioctl->flags & DRM_UNLOCKED))
 		retcode = func(dev, kdata, file_priv);
 	else {

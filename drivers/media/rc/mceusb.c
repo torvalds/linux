@@ -887,6 +887,12 @@ static int mceusb_set_tx_mask(struct rc_dev *dev, u32 mask)
 {
 	struct mceusb_dev *ir = dev->priv;
 
+	/* return number of transmitters */
+	int emitters = ir->num_txports ? ir->num_txports : 2;
+
+	if (mask >= (1 << emitters))
+		return emitters;
+
 	if (ir->flags.tx_mask_normal)
 		ir->tx_mask = mask;
 	else
@@ -936,7 +942,7 @@ static int mceusb_set_tx_carrier(struct rc_dev *dev, u32 carrier)
 
 	}
 
-	return carrier;
+	return 0;
 }
 
 /*

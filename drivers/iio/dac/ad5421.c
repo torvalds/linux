@@ -242,7 +242,7 @@ static irqreturn_t ad5421_fault_handler(int irq, void *data)
 					0,
 					IIO_EV_TYPE_THRESH,
 					IIO_EV_DIR_RISING),
-			iio_get_time_ns());
+			iio_get_time_ns(indio_dev));
 		}
 
 		if (events & AD5421_FAULT_UNDER_CURRENT) {
@@ -251,7 +251,7 @@ static irqreturn_t ad5421_fault_handler(int irq, void *data)
 					0,
 					IIO_EV_TYPE_THRESH,
 					IIO_EV_DIR_FALLING),
-				iio_get_time_ns());
+				iio_get_time_ns(indio_dev));
 		}
 
 		if (events & AD5421_FAULT_TEMP_OVER_140) {
@@ -260,7 +260,7 @@ static irqreturn_t ad5421_fault_handler(int irq, void *data)
 					0,
 					IIO_EV_TYPE_MAG,
 					IIO_EV_DIR_RISING),
-				iio_get_time_ns());
+				iio_get_time_ns(indio_dev));
 		}
 
 		old_fault = fault;

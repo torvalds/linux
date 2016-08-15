@@ -91,8 +91,12 @@ __mutex_fastpath_unlock(atomic_t *count, void (*fail_fn)(atomic_t *))
 static inline int
 __mutex_fastpath_trylock(atomic_t *count, int (*fail_fn)(atomic_t *))
 {
-	int prev = atomic_xchg_acquire(count, 0);
+	int prev;
 
+	if (atomic_read(count) != 1)
+		return 0;
+
+	prev = atomic_xchg_acquire(count, 0);
 	if (unlikely(prev < 0)) {
 		/*
 		 * The lock was marked contended so we must restore that
