@@ -24,7 +24,7 @@
 #ifndef _I915_GEM_RENDER_STATE_H_
 #define _I915_GEM_RENDER_STATE_H_
 
-#include <linux/types.h>
+struct drm_i915_gem_request;
 
 int i915_gem_render_state_init(struct drm_i915_gem_request *req);
 
