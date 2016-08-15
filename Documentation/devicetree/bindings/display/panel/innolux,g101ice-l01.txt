@@ -1,0 +1,7 @@
+Innolux Corporation 10.1" G101ICE-L01 WXGA (1280x800) LVDS panel
+
+Required properties:
+- compatible: should be "innolux,g101ice-l01"
+
+This binding is compatible with the simple-panel binding, which is specified
+in simple-panel.txt in this directory.
