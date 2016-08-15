@@ -65,9 +65,8 @@ struct tilcdc_drm_private {
 	 */
 	uint32_t max_width;
 
-	/* register contents saved across suspend/resume: */
-	u32 *saved_register;
-	bool ctx_valid;
+	/* The context for pm susped/resume cycle is stored here */
+	struct drm_atomic_state *saved_state;
 
 #ifdef CONFIG_CPU_FREQ
 	struct notifier_block freq_transition;
@@ -171,6 +170,11 @@ void tilcdc_crtc_set_simulate_vesa_sync(struct drm_crtc *crtc,
 					bool simulate_vesa_sync);
 int tilcdc_crtc_mode_valid(struct drm_crtc *crtc, struct drm_display_mode *mode);
 int tilcdc_crtc_max_width(struct drm_crtc *crtc);
-void tilcdc_crtc_dpms(struct drm_crtc *crtc, int mode);
+void tilcdc_crtc_disable(struct drm_crtc *crtc);
+int tilcdc_crtc_update_fb(struct drm_crtc *crtc,
+		struct drm_framebuffer *fb,
+		struct drm_pending_vblank_event *event);
+
+int tilcdc_plane_init(struct drm_device *dev, struct drm_plane *plane);
 
 #endif /* __TILCDC_DRV_H__ */
