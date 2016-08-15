@@ -413,7 +413,6 @@ static struct platform_driver mt7620_pci_driver = {
 	.probe = mt7620_pci_probe,
 	.driver = {
 		.name = "mt7620-pci",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(mt7620_pci_ids),
 	},
 };
