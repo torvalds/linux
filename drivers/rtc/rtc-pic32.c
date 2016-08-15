@@ -400,7 +400,6 @@ static struct platform_driver pic32_rtc_driver = {
 	.remove		= pic32_rtc_remove,
 	.driver		= {
 		.name	= "pic32-rtc",
-		.owner	= THIS_MODULE,
 		.of_match_table	= of_match_ptr(pic32_rtc_dt_ids),
 	},
 };
