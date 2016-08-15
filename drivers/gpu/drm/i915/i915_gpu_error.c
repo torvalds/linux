@@ -236,6 +236,7 @@ static void error_print_engine(struct drm_i915_error_state_buf *m,
 	err_printf(m, "  HEAD:  0x%08x\n", ee->head);
 	err_printf(m, "  TAIL:  0x%08x\n", ee->tail);
 	err_printf(m, "  CTL:   0x%08x\n", ee->ctl);
+	err_printf(m, "  MODE:  0x%08x\n", ee->mode);
 	err_printf(m, "  HWS:   0x%08x\n", ee->hws);
 	err_printf(m, "  ACTHD: 0x%08x %08x\n",
 		   (u32)(ee->acthd>>32), (u32)ee->acthd);
@@ -1005,6 +1006,8 @@ static void error_record_engine_registers(struct drm_i915_error_state *error,
 	ee->head = I915_READ_HEAD(engine);
 	ee->tail = I915_READ_TAIL(engine);
 	ee->ctl = I915_READ_CTL(engine);
+	if (INTEL_GEN(dev_priv) > 2)
+		ee->mode = I915_READ_MODE(engine);
 
 	if (I915_NEED_GFX_HWS(dev_priv)) {
 		i915_reg_t mmio;

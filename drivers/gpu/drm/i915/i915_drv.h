@@ -757,6 +757,7 @@ struct drm_i915_error_state {
 		u32 tail;
 		u32 head;
 		u32 ctl;
+		u32 mode;
 		u32 hws;
 		u32 ipeir;
 		u32 ipehr;

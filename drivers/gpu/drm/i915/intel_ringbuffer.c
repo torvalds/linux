@@ -498,7 +498,7 @@ static bool stop_ring(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 
-	if (!IS_GEN2(dev_priv)) {
+	if (INTEL_GEN(dev_priv) > 2) {
 		I915_WRITE_MODE(engine, _MASKED_BIT_ENABLE(STOP_RING));
 		if (intel_wait_for_register(dev_priv,
 					    RING_MI_MODE(engine->mmio_base),
@@ -520,7 +520,7 @@ static bool stop_ring(struct intel_engine_cs *engine)
 	I915_WRITE_HEAD(engine, 0);
 	I915_WRITE_TAIL(engine, 0);
 
-	if (!IS_GEN2(dev_priv)) {
+	if (INTEL_GEN(dev_priv) > 2) {
 		(void)I915_READ_CTL(engine);
 		I915_WRITE_MODE(engine, _MASKED_BIT_DISABLE(STOP_RING));
 	}
@@ -2142,7 +2142,8 @@ void intel_engine_cleanup(struct intel_engine_cs *engine)
 	dev_priv = engine->i915;
 
 	if (engine->buffer) {
-		WARN_ON(!IS_GEN2(dev_priv) && (I915_READ_MODE(engine) & MODE_IDLE) == 0);
+		WARN_ON(INTEL_GEN(dev_priv) > 2 &&
+			(I915_READ_MODE(engine) & MODE_IDLE) == 0);
 
 		intel_ring_unpin(engine->buffer);
 		intel_ring_free(engine->buffer);
