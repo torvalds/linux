@@ -662,7 +662,7 @@ int i40e_lan_del_device(struct i40e_pf *pf)
 static int i40e_client_release(struct i40e_client *client)
 {
 	struct i40e_client_instance *cdev, *tmp;
-	struct i40e_pf *pf = NULL;
+	struct i40e_pf *pf;
 	int ret = 0;
 
 	LIST_HEAD(cdevs_tmp);
@@ -672,12 +672,12 @@ static int i40e_client_release(struct i40e_client *client)
 		if (strncmp(cdev->client->name, client->name,
 			    I40E_CLIENT_STR_LENGTH))
 			continue;
+		pf = (struct i40e_pf *)cdev->lan_info.pf;
 		if (test_bit(__I40E_CLIENT_INSTANCE_OPENED, &cdev->state)) {
 			if (atomic_read(&cdev->ref_cnt) > 0) {
 				ret = I40E_ERR_NOT_READY;
 				goto out;
 			}
-			pf = (struct i40e_pf *)cdev->lan_info.pf;
 			if (client->ops && client->ops->close)
 				client->ops->close(&cdev->lan_info, client,
 						   false);
