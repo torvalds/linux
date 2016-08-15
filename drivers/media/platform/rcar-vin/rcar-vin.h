@@ -50,12 +50,10 @@ enum rvin_dma_state {
 
 /**
  * struct rvin_source_fmt - Source information
- * @code:	Media bus format from source
  * @width:	Width from source
  * @height:	Height from source
  */
 struct rvin_source_fmt {
-	u32 code;
 	u32 width;
 	u32 height;
 };
@@ -74,10 +72,15 @@ struct rvin_video_format {
  * struct rvin_graph_entity - Video endpoint from async framework
  * @asd:	sub-device descriptor for async framework
  * @subdev:	subdevice matched using async framework
+ * @code:	Media bus format from source
+ * @mbus_cfg:	Media bus format from DT
  */
 struct rvin_graph_entity {
 	struct v4l2_async_subdev asd;
 	struct v4l2_subdev *subdev;
+
+	u32 code;
+	struct v4l2_mbus_config mbus_cfg;
 };
 
 /**
@@ -85,7 +88,6 @@ struct rvin_graph_entity {
  * @dev:		(OF) device
  * @base:		device I/O register space remapped to virtual memory
  * @chip:		type of VIN chip
- * @mbus_cfg		media bus configuration
  *
  * @vdev:		V4L2 video device associated with VIN
  * @v4l2_dev:		V4L2 device
@@ -115,7 +117,6 @@ struct rvin_dev {
 	struct device *dev;
 	void __iomem *base;
 	enum chip_id chip;
-	struct v4l2_mbus_config mbus_cfg;
 
 	struct video_device vdev;
 	struct v4l2_device v4l2_dev;

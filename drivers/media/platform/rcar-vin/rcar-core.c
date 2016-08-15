@@ -31,9 +31,9 @@
 
 #define notifier_to_vin(n) container_of(n, struct rvin_dev, notifier)
 
-static bool rvin_mbus_supported(struct rvin_dev *vin)
+static bool rvin_mbus_supported(struct rvin_graph_entity *entity)
 {
-	struct v4l2_subdev *sd = vin->digital.subdev;
+	struct v4l2_subdev *sd = entity->subdev;
 	struct v4l2_subdev_mbus_code_enum code = {
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 	};
@@ -46,7 +46,7 @@ static bool rvin_mbus_supported(struct rvin_dev *vin)
 		case MEDIA_BUS_FMT_YUYV8_2X8:
 		case MEDIA_BUS_FMT_YUYV10_2X10:
 		case MEDIA_BUS_FMT_RGB888_1X24:
-			vin->source.code = code.code;
+			entity->code = code.code;
 			return true;
 		default:
 			break;
@@ -62,14 +62,14 @@ static int rvin_digital_notify_complete(struct v4l2_async_notifier *notifier)
 	int ret;
 
 	/* Verify subdevices mbus format */
-	if (!rvin_mbus_supported(vin)) {
+	if (!rvin_mbus_supported(&vin->digital)) {
 		vin_err(vin, "Unsupported media bus format for %s\n",
 			vin->digital.subdev->name);
 		return -EINVAL;
 	}
 
 	vin_dbg(vin, "Found media bus format for %s: %d\n",
-		vin->digital.subdev->name, vin->source.code);
+		vin->digital.subdev->name, vin->digital.code);
 
 	ret = v4l2_device_register_subdev_nodes(&vin->v4l2_dev);
 	if (ret < 0) {
@@ -170,7 +170,7 @@ static int rvin_digital_graph_parse(struct rvin_dev *vin)
 	}
 	of_node_put(np);
 
-	ret = rvin_digitial_parse_v4l2(vin, ep, &vin->mbus_cfg);
+	ret = rvin_digitial_parse_v4l2(vin, ep, &vin->digital.mbus_cfg);
 	of_node_put(ep);
 	if (ret)
 		return ret;
