@@ -46,14 +46,6 @@ struct s390_aes_ctx {
 	} fallback;
 };
 
-struct pcc_param {
-	u8 key[32];
-	u8 tweak[16];
-	u8 block[16];
-	u8 bit[16];
-	u8 xts[16];
-};
-
 struct s390_xts_ctx {
 	u8 key[32];
 	u8 pcc_key[32];
@@ -248,22 +240,20 @@ static int ecb_aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 	return 0;
 }
 
-static int ecb_aes_crypt(struct blkcipher_desc *desc, long func, void *param,
+static int ecb_aes_crypt(struct blkcipher_desc *desc, unsigned long modifier,
 			 struct blkcipher_walk *walk)
 {
-	int ret = blkcipher_walk_virt(desc, walk);
-	unsigned int nbytes;
+	struct s390_aes_ctx *sctx = crypto_blkcipher_ctx(desc->tfm);
+	unsigned int nbytes, n;
+	int ret;
 
-	while ((nbytes = walk->nbytes)) {
+	ret = blkcipher_walk_virt(desc, walk);
+	while ((nbytes = walk->nbytes) >= AES_BLOCK_SIZE) {
 		/* only use complete blocks */
-		unsigned int n = nbytes & ~(AES_BLOCK_SIZE - 1);
-		u8 *out = walk->dst.virt.addr;
-		u8 *in = walk->src.virt.addr;
-
-		cpacf_km(func, param, out, in, n);
-
-		nbytes &= AES_BLOCK_SIZE - 1;
-		ret = blkcipher_walk_done(desc, walk, nbytes);
+		n = nbytes & ~(AES_BLOCK_SIZE - 1);
+		cpacf_km(sctx->fc | modifier, sctx->key,
+			 walk->dst.virt.addr, walk->src.virt.addr, n);
+		ret = blkcipher_walk_done(desc, walk, nbytes - n);
 	}
 
 	return ret;
@@ -280,7 +270,7 @@ static int ecb_aes_encrypt(struct blkcipher_desc *desc,
 		return fallback_blk_enc(desc, dst, src, nbytes);
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
-	return ecb_aes_crypt(desc, sctx->fc, sctx->key, &walk);
+	return ecb_aes_crypt(desc, 0, &walk);
 }
 
 static int ecb_aes_decrypt(struct blkcipher_desc *desc,
@@ -294,7 +284,7 @@ static int ecb_aes_decrypt(struct blkcipher_desc *desc,
 		return fallback_blk_dec(desc, dst, src, nbytes);
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
-	return ecb_aes_crypt(desc, sctx->fc | CPACF_DECRYPT, sctx->key, &walk);
+	return ecb_aes_crypt(desc, CPACF_DECRYPT, &walk);
 }
 
 static int fallback_init_blk(struct crypto_tfm *tfm)
@@ -366,36 +356,28 @@ static int cbc_aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 	return 0;
 }
 
-static int cbc_aes_crypt(struct blkcipher_desc *desc, long func,
+static int cbc_aes_crypt(struct blkcipher_desc *desc, unsigned long modifier,
 			 struct blkcipher_walk *walk)
 {
 	struct s390_aes_ctx *sctx = crypto_blkcipher_ctx(desc->tfm);
-	int ret = blkcipher_walk_virt(desc, walk);
-	unsigned int nbytes = walk->nbytes;
+	unsigned int nbytes, n;
+	int ret;
 	struct {
 		u8 iv[AES_BLOCK_SIZE];
 		u8 key[AES_MAX_KEY_SIZE];
 	} param;
 
-	if (!nbytes)
-		goto out;
-
+	ret = blkcipher_walk_virt(desc, walk);
 	memcpy(param.iv, walk->iv, AES_BLOCK_SIZE);
 	memcpy(param.key, sctx->key, sctx->key_len);
-	do {
+	while ((nbytes = walk->nbytes) >= AES_BLOCK_SIZE) {
 		/* only use complete blocks */
-		unsigned int n = nbytes & ~(AES_BLOCK_SIZE - 1);
-		u8 *out = walk->dst.virt.addr;
-		u8 *in = walk->src.virt.addr;
-
-		cpacf_kmc(func, &param, out, in, n);
-
-		nbytes &= AES_BLOCK_SIZE - 1;
-		ret = blkcipher_walk_done(desc, walk, nbytes);
-	} while ((nbytes = walk->nbytes));
+		n = nbytes & ~(AES_BLOCK_SIZE - 1);
+		cpacf_kmc(sctx->fc | modifier, &param,
+			  walk->dst.virt.addr, walk->src.virt.addr, n);
+		ret = blkcipher_walk_done(desc, walk, nbytes - n);
+	}
 	memcpy(walk->iv, param.iv, AES_BLOCK_SIZE);
-
-out:
 	return ret;
 }
 
@@ -410,7 +392,7 @@ static int cbc_aes_encrypt(struct blkcipher_desc *desc,
 		return fallback_blk_enc(desc, dst, src, nbytes);
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
-	return cbc_aes_crypt(desc, sctx->fc, &walk);
+	return cbc_aes_crypt(desc, 0, &walk);
 }
 
 static int cbc_aes_decrypt(struct blkcipher_desc *desc,
@@ -424,7 +406,7 @@ static int cbc_aes_decrypt(struct blkcipher_desc *desc,
 		return fallback_blk_dec(desc, dst, src, nbytes);
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
-	return cbc_aes_crypt(desc, sctx->fc | CPACF_DECRYPT, &walk);
+	return cbc_aes_crypt(desc, CPACF_DECRYPT, &walk);
 }
 
 static struct crypto_alg cbc_aes_alg = {
@@ -536,46 +518,43 @@ static int xts_aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 	return 0;
 }
 
-static int xts_aes_crypt(struct blkcipher_desc *desc, long func,
-			 struct s390_xts_ctx *xts_ctx,
+static int xts_aes_crypt(struct blkcipher_desc *desc, unsigned long modifier,
 			 struct blkcipher_walk *walk)
 {
-	unsigned int offset = xts_ctx->key_len & 0x10;
-	int ret = blkcipher_walk_virt(desc, walk);
-	unsigned int nbytes = walk->nbytes;
-	unsigned int n;
-	u8 *in, *out;
-	struct pcc_param pcc_param;
+	struct s390_xts_ctx *xts_ctx = crypto_blkcipher_ctx(desc->tfm);
+	unsigned int offset, nbytes, n;
+	int ret;
+	struct {
+		u8 key[32];
+		u8 tweak[16];
+		u8 block[16];
+		u8 bit[16];
+		u8 xts[16];
+	} pcc_param;
 	struct {
 		u8 key[32];
 		u8 init[16];
 	} xts_param;
 
-	if (!nbytes)
-		goto out;
-
+	ret = blkcipher_walk_virt(desc, walk);
+	offset = xts_ctx->key_len & 0x10;
 	memset(pcc_param.block, 0, sizeof(pcc_param.block));
 	memset(pcc_param.bit, 0, sizeof(pcc_param.bit));
 	memset(pcc_param.xts, 0, sizeof(pcc_param.xts));
 	memcpy(pcc_param.tweak, walk->iv, sizeof(pcc_param.tweak));
 	memcpy(pcc_param.key + offset, xts_ctx->pcc_key, xts_ctx->key_len);
-	/* remove decipher modifier bit from 'func' and call PCC */
-	cpacf_pcc(func & 0x7f, &pcc_param.key[offset]);
+	cpacf_pcc(xts_ctx->fc, pcc_param.key + offset);
 
 	memcpy(xts_param.key + offset, xts_ctx->key, xts_ctx->key_len);
 	memcpy(xts_param.init, pcc_param.xts, 16);
-	do {
+
+	while ((nbytes = walk->nbytes) >= AES_BLOCK_SIZE) {
 		/* only use complete blocks */
 		n = nbytes & ~(AES_BLOCK_SIZE - 1);
-		out = walk->dst.virt.addr;
-		in = walk->src.virt.addr;
-
-		cpacf_km(func, &xts_param.key[offset], out, in, n);
-
-		nbytes &= AES_BLOCK_SIZE - 1;
-		ret = blkcipher_walk_done(desc, walk, nbytes);
-	} while ((nbytes = walk->nbytes));
-out:
+		cpacf_km(xts_ctx->fc | modifier, xts_param.key + offset,
+			 walk->dst.virt.addr, walk->src.virt.addr, n);
+		ret = blkcipher_walk_done(desc, walk, nbytes - n);
+	}
 	return ret;
 }
 
@@ -590,7 +569,7 @@ static int xts_aes_encrypt(struct blkcipher_desc *desc,
 		return xts_fallback_encrypt(desc, dst, src, nbytes);
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
-	return xts_aes_crypt(desc, xts_ctx->fc, xts_ctx, &walk);
+	return xts_aes_crypt(desc, 0, &walk);
 }
 
 static int xts_aes_decrypt(struct blkcipher_desc *desc,
@@ -604,7 +583,7 @@ static int xts_aes_decrypt(struct blkcipher_desc *desc,
 		return xts_fallback_decrypt(desc, dst, src, nbytes);
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
-	return xts_aes_crypt(desc, xts_ctx->fc | CPACF_DECRYPT, xts_ctx, &walk);
+	return xts_aes_crypt(desc, CPACF_DECRYPT, &walk);
 }
 
 static int xts_fallback_init(struct crypto_tfm *tfm)
@@ -676,75 +655,58 @@ static int ctr_aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 	return 0;
 }
 
-static unsigned int __ctrblk_init(u8 *ctrptr, unsigned int nbytes)
+static unsigned int __ctrblk_init(u8 *ctrptr, u8 *iv, unsigned int nbytes)
 {
 	unsigned int i, n;
 
 	/* only use complete blocks, max. PAGE_SIZE */
+	memcpy(ctrptr, iv, AES_BLOCK_SIZE);
 	n = (nbytes > PAGE_SIZE) ? PAGE_SIZE : nbytes & ~(AES_BLOCK_SIZE - 1);
-	for (i = AES_BLOCK_SIZE; i < n; i += AES_BLOCK_SIZE) {
-		memcpy(ctrptr + i, ctrptr + i - AES_BLOCK_SIZE,
-		       AES_BLOCK_SIZE);
-		crypto_inc(ctrptr + i, AES_BLOCK_SIZE);
+	for (i = (n / AES_BLOCK_SIZE) - 1; i > 0; i--) {
+		memcpy(ctrptr + AES_BLOCK_SIZE, ctrptr, AES_BLOCK_SIZE);
+		crypto_inc(ctrptr + AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+		ctrptr += AES_BLOCK_SIZE;
 	}
 	return n;
 }
 
-static int ctr_aes_crypt(struct blkcipher_desc *desc, long func,
-			 struct s390_aes_ctx *sctx, struct blkcipher_walk *walk)
+static int ctr_aes_crypt(struct blkcipher_desc *desc, unsigned long modifier,
+			 struct blkcipher_walk *walk)
 {
-	int ret = blkcipher_walk_virt_block(desc, walk, AES_BLOCK_SIZE);
+	struct s390_aes_ctx *sctx = crypto_blkcipher_ctx(desc->tfm);
+	u8 buf[AES_BLOCK_SIZE], *ctrptr;
 	unsigned int n, nbytes;
-	u8 buf[AES_BLOCK_SIZE], ctrbuf[AES_BLOCK_SIZE];
-	u8 *out, *in, *ctrptr = ctrbuf;
+	int ret, locked;
 
-	if (!walk->nbytes)
-		return ret;
+	locked = spin_trylock(&ctrblk_lock);
 
-	if (spin_trylock(&ctrblk_lock))
-		ctrptr = ctrblk;
-
-	memcpy(ctrptr, walk->iv, AES_BLOCK_SIZE);
+	ret = blkcipher_walk_virt_block(desc, walk, AES_BLOCK_SIZE);
 	while ((nbytes = walk->nbytes) >= AES_BLOCK_SIZE) {
-		out = walk->dst.virt.addr;
-		in = walk->src.virt.addr;
-		while (nbytes >= AES_BLOCK_SIZE) {
-			if (ctrptr == ctrblk)
-				n = __ctrblk_init(ctrptr, nbytes);
-			else
-				n = AES_BLOCK_SIZE;
-			cpacf_kmctr(func, sctx->key, out, in, n, ctrptr);
-			if (n > AES_BLOCK_SIZE)
-				memcpy(ctrptr, ctrptr + n - AES_BLOCK_SIZE,
-				       AES_BLOCK_SIZE);
-			crypto_inc(ctrptr, AES_BLOCK_SIZE);
-			out += n;
-			in += n;
-			nbytes -= n;
-		}
-		ret = blkcipher_walk_done(desc, walk, nbytes);
+		n = AES_BLOCK_SIZE;
+		if (nbytes >= 2*AES_BLOCK_SIZE && locked)
+			n = __ctrblk_init(ctrblk, walk->iv, nbytes);
+		ctrptr = (n > AES_BLOCK_SIZE) ? ctrblk : walk->iv;
+		cpacf_kmctr(sctx->fc | modifier, sctx->key,
+			    walk->dst.virt.addr, walk->src.virt.addr,
+			    n, ctrptr);
+		if (ctrptr == ctrblk)
+			memcpy(walk->iv, ctrptr + n - AES_BLOCK_SIZE,
+			       AES_BLOCK_SIZE);
+		crypto_inc(walk->iv, AES_BLOCK_SIZE);
+		ret = blkcipher_walk_done(desc, walk, nbytes - n);
 	}
-	if (ctrptr == ctrblk) {
-		if (nbytes)
-			memcpy(ctrbuf, ctrptr, AES_BLOCK_SIZE);
-		else
-			memcpy(walk->iv, ctrptr, AES_BLOCK_SIZE);
+	if (locked)
 		spin_unlock(&ctrblk_lock);
-	} else {
-		if (!nbytes)
-			memcpy(walk->iv, ctrptr, AES_BLOCK_SIZE);
-	}
 	/*
 	 * final block may be < AES_BLOCK_SIZE, copy only nbytes
 	 */
 	if (nbytes) {
-		out = walk->dst.virt.addr;
-		in = walk->src.virt.addr;
-		cpacf_kmctr(func, sctx->key, buf, in, AES_BLOCK_SIZE, ctrbuf);
-		memcpy(out, buf, nbytes);
-		crypto_inc(ctrbuf, AES_BLOCK_SIZE);
+		cpacf_kmctr(sctx->fc | modifier, sctx->key,
+			    buf, walk->src.virt.addr,
+			    AES_BLOCK_SIZE, walk->iv);
+		memcpy(walk->dst.virt.addr, buf, nbytes);
+		crypto_inc(walk->iv, AES_BLOCK_SIZE);
 		ret = blkcipher_walk_done(desc, walk, 0);
-		memcpy(walk->iv, ctrbuf, AES_BLOCK_SIZE);
 	}
 
 	return ret;
@@ -761,7 +723,7 @@ static int ctr_aes_encrypt(struct blkcipher_desc *desc,
 		return fallback_blk_enc(desc, dst, src, nbytes);
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
-	return ctr_aes_crypt(desc, sctx->fc, sctx, &walk);
+	return ctr_aes_crypt(desc, 0, &walk);
 }
 
 static int ctr_aes_decrypt(struct blkcipher_desc *desc,
@@ -775,7 +737,7 @@ static int ctr_aes_decrypt(struct blkcipher_desc *desc,
 		return fallback_blk_dec(desc, dst, src, nbytes);
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
-	return ctr_aes_crypt(desc, sctx->fc | CPACF_DECRYPT, sctx, &walk);
+	return ctr_aes_crypt(desc, CPACF_DECRYPT, &walk);
 }
 
 static struct crypto_alg ctr_aes_alg = {

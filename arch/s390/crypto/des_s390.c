@@ -85,57 +85,46 @@ static struct crypto_alg des_alg = {
 	}
 };
 
-static int ecb_desall_crypt(struct blkcipher_desc *desc, long func,
-			    u8 *key, struct blkcipher_walk *walk)
-{
-	int ret = blkcipher_walk_virt(desc, walk);
-	unsigned int nbytes;
-
-	while ((nbytes = walk->nbytes)) {
-		/* only use complete blocks */
-		unsigned int n = nbytes & ~(DES_BLOCK_SIZE - 1);
-		u8 *out = walk->dst.virt.addr;
-		u8 *in = walk->src.virt.addr;
-
-		cpacf_km(func, key, out, in, n);
-
-		nbytes &= DES_BLOCK_SIZE - 1;
-		ret = blkcipher_walk_done(desc, walk, nbytes);
-	}
-
-	return ret;
-}
-
-static int cbc_desall_crypt(struct blkcipher_desc *desc, long func,
+static int ecb_desall_crypt(struct blkcipher_desc *desc, unsigned long fc,
 			    struct blkcipher_walk *walk)
 {
 	struct s390_des_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	int ret = blkcipher_walk_virt(desc, walk);
-	unsigned int nbytes = walk->nbytes;
+	unsigned int nbytes, n;
+	int ret;
+
+	ret = blkcipher_walk_virt(desc, walk);
+	while ((nbytes = walk->nbytes) >= DES_BLOCK_SIZE) {
+		/* only use complete blocks */
+		n = nbytes & ~(DES_BLOCK_SIZE - 1);
+		cpacf_km(fc, ctx->key, walk->dst.virt.addr,
+			 walk->src.virt.addr, n);
+		ret = blkcipher_walk_done(desc, walk, nbytes - n);
+	}
+	return ret;
+}
+
+static int cbc_desall_crypt(struct blkcipher_desc *desc, unsigned long fc,
+			    struct blkcipher_walk *walk)
+{
+	struct s390_des_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
+	unsigned int nbytes, n;
+	int ret;
 	struct {
 		u8 iv[DES_BLOCK_SIZE];
 		u8 key[DES3_KEY_SIZE];
 	} param;
 
-	if (!nbytes)
-		goto out;
-
+	ret = blkcipher_walk_virt(desc, walk);
 	memcpy(param.iv, walk->iv, DES_BLOCK_SIZE);
 	memcpy(param.key, ctx->key, DES3_KEY_SIZE);
-	do {
+	while ((nbytes = walk->nbytes) >= DES_BLOCK_SIZE) {
 		/* only use complete blocks */
-		unsigned int n = nbytes & ~(DES_BLOCK_SIZE - 1);
-		u8 *out = walk->dst.virt.addr;
-		u8 *in = walk->src.virt.addr;
-
-		cpacf_kmc(func, &param, out, in, n);
-
-		nbytes &= DES_BLOCK_SIZE - 1;
-		ret = blkcipher_walk_done(desc, walk, nbytes);
-	} while ((nbytes = walk->nbytes));
+		n = nbytes & ~(DES_BLOCK_SIZE - 1);
+		cpacf_kmc(fc, &param, walk->dst.virt.addr,
+			  walk->src.virt.addr, n);
+		ret = blkcipher_walk_done(desc, walk, nbytes - n);
+	}
 	memcpy(walk->iv, param.iv, DES_BLOCK_SIZE);
-
-out:
 	return ret;
 }
 
@@ -143,23 +132,20 @@ static int ecb_des_encrypt(struct blkcipher_desc *desc,
 			   struct scatterlist *dst, struct scatterlist *src,
 			   unsigned int nbytes)
 {
-	struct s390_des_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
 	struct blkcipher_walk walk;
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
-	return ecb_desall_crypt(desc, CPACF_KM_DEA, ctx->key, &walk);
+	return ecb_desall_crypt(desc, CPACF_KM_DEA, &walk);
 }
 
 static int ecb_des_decrypt(struct blkcipher_desc *desc,
 			   struct scatterlist *dst, struct scatterlist *src,
 			   unsigned int nbytes)
 {
-	struct s390_des_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
 	struct blkcipher_walk walk;
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
-	return ecb_desall_crypt(desc, CPACF_KM_DEA | CPACF_DECRYPT,
-				ctx->key, &walk);
+	return ecb_desall_crypt(desc, CPACF_KM_DEA | CPACF_DECRYPT, &walk);
 }
 
 static struct crypto_alg ecb_des_alg = {
@@ -290,23 +276,21 @@ static int ecb_des3_encrypt(struct blkcipher_desc *desc,
 			    struct scatterlist *dst, struct scatterlist *src,
 			    unsigned int nbytes)
 {
-	struct s390_des_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
 	struct blkcipher_walk walk;
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
-	return ecb_desall_crypt(desc, CPACF_KM_TDEA_192, ctx->key, &walk);
+	return ecb_desall_crypt(desc, CPACF_KM_TDEA_192, &walk);
 }
 
 static int ecb_des3_decrypt(struct blkcipher_desc *desc,
 			    struct scatterlist *dst, struct scatterlist *src,
 			    unsigned int nbytes)
 {
-	struct s390_des_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
 	struct blkcipher_walk walk;
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	return ecb_desall_crypt(desc, CPACF_KM_TDEA_192 | CPACF_DECRYPT,
-				ctx->key, &walk);
+				&walk);
 }
 
 static struct crypto_alg ecb_des3_alg = {
@@ -371,73 +355,54 @@ static struct crypto_alg cbc_des3_alg = {
 	}
 };
 
-static unsigned int __ctrblk_init(u8 *ctrptr, unsigned int nbytes)
+static unsigned int __ctrblk_init(u8 *ctrptr, u8 *iv, unsigned int nbytes)
 {
 	unsigned int i, n;
 
 	/* align to block size, max. PAGE_SIZE */
 	n = (nbytes > PAGE_SIZE) ? PAGE_SIZE : nbytes & ~(DES_BLOCK_SIZE - 1);
-	for (i = DES_BLOCK_SIZE; i < n; i += DES_BLOCK_SIZE) {
-		memcpy(ctrptr + i, ctrptr + i - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
-		crypto_inc(ctrptr + i, DES_BLOCK_SIZE);
+	memcpy(ctrptr, iv, DES_BLOCK_SIZE);
+	for (i = (n / DES_BLOCK_SIZE) - 1; i > 0; i--) {
+		memcpy(ctrptr + DES_BLOCK_SIZE, ctrptr, DES_BLOCK_SIZE);
+		crypto_inc(ctrptr + DES_BLOCK_SIZE, DES_BLOCK_SIZE);
+		ctrptr += DES_BLOCK_SIZE;
 	}
 	return n;
 }
 
-static int ctr_desall_crypt(struct blkcipher_desc *desc, long func,
-			    struct s390_des_ctx *ctx,
+static int ctr_desall_crypt(struct blkcipher_desc *desc, unsigned long fc,
 			    struct blkcipher_walk *walk)
 {
-	int ret = blkcipher_walk_virt_block(desc, walk, DES_BLOCK_SIZE);
+	struct s390_des_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
+	u8 buf[DES_BLOCK_SIZE], *ctrptr;
 	unsigned int n, nbytes;
-	u8 buf[DES_BLOCK_SIZE], ctrbuf[DES_BLOCK_SIZE];
-	u8 *out, *in, *ctrptr = ctrbuf;
+	int ret, locked;
 
-	if (!walk->nbytes)
-		return ret;
+	locked = spin_trylock(&ctrblk_lock);
 
-	if (spin_trylock(&ctrblk_lock))
-		ctrptr = ctrblk;
-
-	memcpy(ctrptr, walk->iv, DES_BLOCK_SIZE);
+	ret = blkcipher_walk_virt_block(desc, walk, DES_BLOCK_SIZE);
 	while ((nbytes = walk->nbytes) >= DES_BLOCK_SIZE) {
-		out = walk->dst.virt.addr;
-		in = walk->src.virt.addr;
-		while (nbytes >= DES_BLOCK_SIZE) {
-			if (ctrptr == ctrblk)
-				n = __ctrblk_init(ctrptr, nbytes);
-			else
-				n = DES_BLOCK_SIZE;
-			cpacf_kmctr(func, ctx->key, out, in, n, ctrptr);
-			if (n > DES_BLOCK_SIZE)
-				memcpy(ctrptr, ctrptr + n - DES_BLOCK_SIZE,
-				       DES_BLOCK_SIZE);
-			crypto_inc(ctrptr, DES_BLOCK_SIZE);
-			out += n;
-			in += n;
-			nbytes -= n;
-		}
-		ret = blkcipher_walk_done(desc, walk, nbytes);
+		n = DES_BLOCK_SIZE;
+		if (nbytes >= 2*DES_BLOCK_SIZE && locked)
+			n = __ctrblk_init(ctrblk, walk->iv, nbytes);
+		ctrptr = (n > DES_BLOCK_SIZE) ? ctrblk : walk->iv;
+		cpacf_kmctr(fc, ctx->key, walk->dst.virt.addr,
+			    walk->src.virt.addr, n, ctrptr);
+		if (ctrptr == ctrblk)
+			memcpy(walk->iv, ctrptr + n - DES_BLOCK_SIZE,
+				DES_BLOCK_SIZE);
+		crypto_inc(walk->iv, DES_BLOCK_SIZE);
+		ret = blkcipher_walk_done(desc, walk, nbytes - n);
 	}
-	if (ctrptr == ctrblk) {
-		if (nbytes)
-			memcpy(ctrbuf, ctrptr, DES_BLOCK_SIZE);
-		else
-			memcpy(walk->iv, ctrptr, DES_BLOCK_SIZE);
+	if (locked)
 		spin_unlock(&ctrblk_lock);
-	} else {
-		if (!nbytes)
-			memcpy(walk->iv, ctrptr, DES_BLOCK_SIZE);
-	}
 	/* final block may be < DES_BLOCK_SIZE, copy only nbytes */
 	if (nbytes) {
-		out = walk->dst.virt.addr;
-		in = walk->src.virt.addr;
-		cpacf_kmctr(func, ctx->key, buf, in, DES_BLOCK_SIZE, ctrbuf);
-		memcpy(out, buf, nbytes);
-		crypto_inc(ctrbuf, DES_BLOCK_SIZE);
+		cpacf_kmctr(fc, ctx->key, buf, walk->src.virt.addr,
+			    DES_BLOCK_SIZE, walk->iv);
+		memcpy(walk->dst.virt.addr, buf, nbytes);
+		crypto_inc(walk->iv, DES_BLOCK_SIZE);
 		ret = blkcipher_walk_done(desc, walk, 0);
-		memcpy(walk->iv, ctrbuf, DES_BLOCK_SIZE);
 	}
 	return ret;
 }
@@ -446,23 +411,20 @@ static int ctr_des_encrypt(struct blkcipher_desc *desc,
 			   struct scatterlist *dst, struct scatterlist *src,
 			   unsigned int nbytes)
 {
-	struct s390_des_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
 	struct blkcipher_walk walk;
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
-	return ctr_desall_crypt(desc, CPACF_KMCTR_DEA, ctx, &walk);
+	return ctr_desall_crypt(desc, CPACF_KMCTR_DEA, &walk);
 }
 
 static int ctr_des_decrypt(struct blkcipher_desc *desc,
 			   struct scatterlist *dst, struct scatterlist *src,
 			   unsigned int nbytes)
 {
-	struct s390_des_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
 	struct blkcipher_walk walk;
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
-	return ctr_desall_crypt(desc, CPACF_KMCTR_DEA | CPACF_DECRYPT,
-				ctx, &walk);
+	return ctr_desall_crypt(desc, CPACF_KMCTR_DEA | CPACF_DECRYPT, &walk);
 }
 
 static struct crypto_alg ctr_des_alg = {
@@ -490,23 +452,21 @@ static int ctr_des3_encrypt(struct blkcipher_desc *desc,
 			    struct scatterlist *dst, struct scatterlist *src,
 			    unsigned int nbytes)
 {
-	struct s390_des_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
 	struct blkcipher_walk walk;
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
-	return ctr_desall_crypt(desc, CPACF_KMCTR_TDEA_192, ctx, &walk);
+	return ctr_desall_crypt(desc, CPACF_KMCTR_TDEA_192, &walk);
 }
 
 static int ctr_des3_decrypt(struct blkcipher_desc *desc,
 			    struct scatterlist *dst, struct scatterlist *src,
 			    unsigned int nbytes)
 {
-	struct s390_des_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
 	struct blkcipher_walk walk;
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	return ctr_desall_crypt(desc, CPACF_KMCTR_TDEA_192 | CPACF_DECRYPT,
-				ctx, &walk);
+				&walk);
 }
 
 static struct crypto_alg ctr_des3_alg = {
