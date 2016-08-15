@@ -604,24 +604,14 @@ static uint64_t amdgpu_vm_map_gart(const dma_addr_t *pages_addr, uint64_t addr)
 	return result;
 }
 
-/**
- * amdgpu_vm_update_pdes - make sure that page directory is valid
- *
- * @adev: amdgpu_device pointer
- * @vm: requested vm
- * @start: start of GPU address range
- * @end: end of GPU address range
- *
- * Allocates new page tables if necessary
- * and updates the page directory.
- * Returns 0 for success, error for failure.
- */
-int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
-				    struct amdgpu_vm *vm)
+static int amdgpu_vm_update_pd_or_shadow(struct amdgpu_device *adev,
+					 struct amdgpu_vm *vm,
+					 bool shadow)
 {
 	struct amdgpu_ring *ring;
-	struct amdgpu_bo *pd = vm->page_directory;
-	uint64_t pd_addr = amdgpu_bo_gpu_offset(pd);
+	struct amdgpu_bo *pd = shadow ? vm->page_directory->shadow :
+		vm->page_directory;
+	uint64_t pd_addr;
 	uint32_t incr = AMDGPU_VM_PTE_COUNT * 8;
 	uint64_t last_pde = ~0, last_pt = ~0;
 	unsigned count = 0, pt_idx, ndw;
@@ -631,6 +621,9 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 
 	int r;
 
+	if (!pd)
+		return 0;
+	pd_addr = amdgpu_bo_gpu_offset(pd);
 	ring = container_of(vm->entity.sched, struct amdgpu_ring, sched);
 
 	/* padding, etc. */
@@ -656,9 +649,15 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 			continue;
 
 		pt = amdgpu_bo_gpu_offset(bo);
-		if (vm->page_tables[pt_idx].addr == pt)
-			continue;
-		vm->page_tables[pt_idx].addr = pt;
+		if (!shadow) {
+			if (vm->page_tables[pt_idx].addr == pt)
+				continue;
+			vm->page_tables[pt_idx].addr = pt;
+		} else {
+			if (vm->page_tables[pt_idx].shadow_addr == pt)
+				continue;
+			vm->page_tables[pt_idx].shadow_addr = pt;
+		}
 
 		pde = pd_addr + pt_idx * 8;
 		if (((last_pde + 8 * count) != pde) ||
@@ -707,6 +706,29 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 error_free:
 	amdgpu_job_free(job);
 	return r;
+}
+
+/*
+ * amdgpu_vm_update_pdes - make sure that page directory is valid
+ *
+ * @adev: amdgpu_device pointer
+ * @vm: requested vm
+ * @start: start of GPU address range
+ * @end: end of GPU address range
+ *
+ * Allocates new page tables if necessary
+ * and updates the page directory.
+ * Returns 0 for success, error for failure.
+ */
+int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
+                                   struct amdgpu_vm *vm)
+{
+	int r;
+
+	r = amdgpu_vm_update_pd_or_shadow(adev, vm, true);
+	if (r)
+		return r;
+	return amdgpu_vm_update_pd_or_shadow(adev, vm, false);
 }
 
 /**

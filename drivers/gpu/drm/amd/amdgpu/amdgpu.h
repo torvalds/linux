@@ -816,6 +816,7 @@ struct amdgpu_ring {
 struct amdgpu_vm_pt {
 	struct amdgpu_bo_list_entry	entry;
 	uint64_t			addr;
+	uint64_t			shadow_addr;
 };
 
 struct amdgpu_vm {
