@@ -60,7 +60,7 @@ static int rvin_mbus_supported(struct rvin_dev *vin)
 	return false;
 }
 
-static int rvin_graph_notify_complete(struct v4l2_async_notifier *notifier)
+static int rvin_digital_notify_complete(struct v4l2_async_notifier *notifier)
 {
 	struct rvin_dev *vin = notifier_to_vin(notifier);
 	int ret;
@@ -79,31 +79,31 @@ static int rvin_graph_notify_complete(struct v4l2_async_notifier *notifier)
 	return rvin_v4l2_probe(vin);
 }
 
-static void rvin_graph_notify_unbind(struct v4l2_async_notifier *notifier,
-				     struct v4l2_subdev *sd,
-				     struct v4l2_async_subdev *asd)
+static void rvin_digital_notify_unbind(struct v4l2_async_notifier *notifier,
+				       struct v4l2_subdev *subdev,
+				       struct v4l2_async_subdev *asd)
 {
 	struct rvin_dev *vin = notifier_to_vin(notifier);
 
 	rvin_v4l2_remove(vin);
 }
 
-static int rvin_graph_notify_bound(struct v4l2_async_notifier *notifier,
-				   struct v4l2_subdev *subdev,
-				   struct v4l2_async_subdev *asd)
+static int rvin_digital_notify_bound(struct v4l2_async_notifier *notifier,
+				     struct v4l2_subdev *subdev,
+				     struct v4l2_async_subdev *asd)
 {
 	struct rvin_dev *vin = notifier_to_vin(notifier);
 
 	vin_dbg(vin, "subdev %s bound\n", subdev->name);
 
-	vin->entity.entity = &subdev->entity;
-	vin->entity.subdev = subdev;
+	vin->digital.entity = &subdev->entity;
+	vin->digital.subdev = subdev;
 
 	return 0;
 }
 
-static int rvin_graph_parse(struct rvin_dev *vin,
-			    struct device_node *node)
+static int rvin_digital_parse(struct rvin_dev *vin,
+			      struct device_node *node)
 {
 	struct device_node *remote;
 	struct device_node *ep = NULL;
@@ -131,10 +131,10 @@ static int rvin_graph_parse(struct rvin_dev *vin,
 		}
 
 		/* Remote node to connect */
-		if (!vin->entity.node) {
-			vin->entity.node = remote;
-			vin->entity.asd.match_type = V4L2_ASYNC_MATCH_OF;
-			vin->entity.asd.match.of.node = remote;
+		if (!vin->digital.node) {
+			vin->digital.node = remote;
+			vin->digital.asd.match_type = V4L2_ASYNC_MATCH_OF;
+			vin->digital.asd.match.of.node = remote;
 			ret++;
 		}
 	}
@@ -144,13 +144,13 @@ static int rvin_graph_parse(struct rvin_dev *vin,
 	return ret;
 }
 
-static int rvin_graph_init(struct rvin_dev *vin)
+static int rvin_digital_init(struct rvin_dev *vin)
 {
 	struct v4l2_async_subdev **subdevs = NULL;
 	int ret;
 
 	/* Parse the graph to extract a list of subdevice DT nodes. */
-	ret = rvin_graph_parse(vin, vin->dev->of_node);
+	ret = rvin_digital_parse(vin, vin->dev->of_node);
 	if (ret < 0) {
 		vin_err(vin, "Graph parsing failed\n");
 		goto done;
@@ -173,13 +173,13 @@ static int rvin_graph_init(struct rvin_dev *vin)
 		goto done;
 	}
 
-	subdevs[0] = &vin->entity.asd;
+	subdevs[0] = &vin->digital.asd;
 
 	vin->notifier.subdevs = subdevs;
 	vin->notifier.num_subdevs = 1;
-	vin->notifier.bound = rvin_graph_notify_bound;
-	vin->notifier.unbind = rvin_graph_notify_unbind;
-	vin->notifier.complete = rvin_graph_notify_complete;
+	vin->notifier.bound = rvin_digital_notify_bound;
+	vin->notifier.unbind = rvin_digital_notify_unbind;
+	vin->notifier.complete = rvin_digital_notify_complete;
 
 	ret = v4l2_async_notifier_register(&vin->v4l2_dev, &vin->notifier);
 	if (ret < 0) {
@@ -192,7 +192,7 @@ static int rvin_graph_init(struct rvin_dev *vin)
 done:
 	if (ret < 0) {
 		v4l2_async_notifier_unregister(&vin->notifier);
-		of_node_put(vin->entity.node);
+		of_node_put(vin->digital.node);
 	}
 
 	return ret;
@@ -289,7 +289,7 @@ static int rcar_vin_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = rvin_graph_init(vin);
+	ret = rvin_digital_init(vin);
 	if (ret < 0)
 		goto error;
 
