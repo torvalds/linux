@@ -658,20 +658,19 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 	struct sk_buff *skb;
 	struct sk_buff *vf_skb;
 	struct netvsc_stats *rx_stats;
-	struct netvsc_device *netvsc_dev = net_device_ctx->nvdev;
 	u32 bytes_recvd = packet->total_data_buflen;
 	int ret = 0;
 
 	if (!net || net->reg_state != NETREG_REGISTERED)
 		return NVSP_STAT_FAIL;
 
-	if (READ_ONCE(netvsc_dev->vf_inject)) {
-		atomic_inc(&netvsc_dev->vf_use_cnt);
-		if (!READ_ONCE(netvsc_dev->vf_inject)) {
+	if (READ_ONCE(net_device_ctx->vf_inject)) {
+		atomic_inc(&net_device_ctx->vf_use_cnt);
+		if (!READ_ONCE(net_device_ctx->vf_inject)) {
 			/*
 			 * We raced; just move on.
 			 */
-			atomic_dec(&netvsc_dev->vf_use_cnt);
+			atomic_dec(&net_device_ctx->vf_use_cnt);
 			goto vf_injection_done;
 		}
 
@@ -683,17 +682,19 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 		 * the host). Deliver these via the VF interface
 		 * in the guest.
 		 */
-		vf_skb = netvsc_alloc_recv_skb(netvsc_dev->vf_netdev, packet,
-					       csum_info, *data, vlan_tci);
+		vf_skb = netvsc_alloc_recv_skb(net_device_ctx->vf_netdev,
+					       packet, csum_info, *data,
+					       vlan_tci);
 		if (vf_skb != NULL) {
-			++netvsc_dev->vf_netdev->stats.rx_packets;
-			netvsc_dev->vf_netdev->stats.rx_bytes += bytes_recvd;
+			++net_device_ctx->vf_netdev->stats.rx_packets;
+			net_device_ctx->vf_netdev->stats.rx_bytes +=
+				bytes_recvd;
 			netif_receive_skb(vf_skb);
 		} else {
 			++net->stats.rx_dropped;
 			ret = NVSP_STAT_FAIL;
 		}
-		atomic_dec(&netvsc_dev->vf_use_cnt);
+		atomic_dec(&net_device_ctx->vf_use_cnt);
 		return ret;
 	}
 
@@ -1158,7 +1159,7 @@ static void netvsc_notify_peers(struct work_struct *wrk)
 
 	netdev_notify_peers(gwrk->netdev);
 
-	atomic_dec(&gwrk->netvsc_dev->vf_use_cnt);
+	atomic_dec(&gwrk->net_device_ctx->vf_use_cnt);
 }
 
 static struct net_device *get_netvsc_net_device(char *mac)
@@ -1211,7 +1212,7 @@ static int netvsc_register_vf(struct net_device *vf_netdev)
 	 * Take a reference on the module.
 	 */
 	try_module_get(THIS_MODULE);
-	netvsc_dev->vf_netdev = vf_netdev;
+	net_device_ctx->vf_netdev = vf_netdev;
 	return NOTIFY_OK;
 }
 
@@ -1233,11 +1234,11 @@ static int netvsc_vf_up(struct net_device *vf_netdev)
 	net_device_ctx = netdev_priv(ndev);
 	netvsc_dev = net_device_ctx->nvdev;
 
-	if ((netvsc_dev == NULL) || (netvsc_dev->vf_netdev == NULL))
+	if (!netvsc_dev || !net_device_ctx->vf_netdev)
 		return NOTIFY_DONE;
 
 	netdev_info(ndev, "VF up: %s\n", vf_netdev->name);
-	netvsc_dev->vf_inject = true;
+	net_device_ctx->vf_inject = true;
 
 	/*
 	 * Open the device before switching data path.
@@ -1257,9 +1258,9 @@ static int netvsc_vf_up(struct net_device *vf_netdev)
 	 * notify peers; take a reference to prevent
 	 * the VF interface from vanishing.
 	 */
-	atomic_inc(&netvsc_dev->vf_use_cnt);
+	atomic_inc(&net_device_ctx->vf_use_cnt);
 	net_device_ctx->gwrk.netdev = vf_netdev;
-	net_device_ctx->gwrk.netvsc_dev = netvsc_dev;
+	net_device_ctx->gwrk.net_device_ctx = net_device_ctx;
 	schedule_work(&net_device_ctx->gwrk.dwrk);
 
 	return NOTIFY_OK;
@@ -1283,17 +1284,17 @@ static int netvsc_vf_down(struct net_device *vf_netdev)
 	net_device_ctx = netdev_priv(ndev);
 	netvsc_dev = net_device_ctx->nvdev;
 
-	if ((netvsc_dev == NULL) || (netvsc_dev->vf_netdev == NULL))
+	if (!netvsc_dev || !net_device_ctx->vf_netdev)
 		return NOTIFY_DONE;
 
 	netdev_info(ndev, "VF down: %s\n", vf_netdev->name);
-	netvsc_dev->vf_inject = false;
+	net_device_ctx->vf_inject = false;
 	/*
 	 * Wait for currently active users to
 	 * drain out.
 	 */
 
-	while (atomic_read(&netvsc_dev->vf_use_cnt) != 0)
+	while (atomic_read(&net_device_ctx->vf_use_cnt) != 0)
 		udelay(50);
 	netvsc_switch_datapath(ndev, false);
 	netdev_info(ndev, "Data path switched from VF: %s\n", vf_netdev->name);
@@ -1302,9 +1303,9 @@ static int netvsc_vf_down(struct net_device *vf_netdev)
 	/*
 	 * Notify peers.
 	 */
-	atomic_inc(&netvsc_dev->vf_use_cnt);
+	atomic_inc(&net_device_ctx->vf_use_cnt);
 	net_device_ctx->gwrk.netdev = ndev;
-	net_device_ctx->gwrk.netvsc_dev = netvsc_dev;
+	net_device_ctx->gwrk.net_device_ctx = net_device_ctx;
 	schedule_work(&net_device_ctx->gwrk.dwrk);
 
 	return NOTIFY_OK;
@@ -1331,7 +1332,7 @@ static int netvsc_unregister_vf(struct net_device *vf_netdev)
 		return NOTIFY_DONE;
 	netdev_info(ndev, "VF unregistering: %s\n", vf_netdev->name);
 
-	netvsc_dev->vf_netdev = NULL;
+	net_device_ctx->vf_netdev = NULL;
 	module_put(THIS_MODULE);
 	return NOTIFY_OK;
 }
@@ -1381,6 +1382,10 @@ static int netvsc_probe(struct hv_device *dev,
 
 	spin_lock_init(&net_device_ctx->lock);
 	INIT_LIST_HEAD(&net_device_ctx->reconfig_events);
+
+	atomic_set(&net_device_ctx->vf_use_cnt, 0);
+	net_device_ctx->vf_netdev = NULL;
+	net_device_ctx->vf_inject = false;
 
 	net->netdev_ops = &device_ops;
 
