@@ -353,6 +353,14 @@ config REGULATOR_LTC3589
 	  This enables support for the LTC3589, LTC3589-1, and LTC3589-2
 	  8-output regulators controlled via I2C.
 
+config REGULATOR_LTC3676
+	tristate "LTC3676 8-output voltage regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This enables support for the LTC3676
+	  8-output regulators controlled via I2C.
+
 config REGULATOR_MAX14577
 	tristate "Maxim 14577/77836 regulator"
 	depends on MFD_MAX14577
