@@ -171,8 +171,8 @@ struct overlay_registers {
 struct intel_overlay {
 	struct drm_i915_private *i915;
 	struct intel_crtc *crtc;
-	struct drm_i915_gem_object *vid_bo;
-	struct drm_i915_gem_object *old_vid_bo;
+	struct i915_vma *vma;
+	struct i915_vma *old_vma;
 	bool active;
 	bool pfit_active;
 	u32 pfit_vscale_ratio; /* shifted-point number, (1<<12) == 1.0 */
@@ -317,15 +317,17 @@ static void intel_overlay_release_old_vid_tail(struct i915_gem_active *active,
 {
 	struct intel_overlay *overlay =
 		container_of(active, typeof(*overlay), last_flip);
-	struct drm_i915_gem_object *obj = overlay->old_vid_bo;
+	struct i915_vma *vma;
 
-	i915_gem_track_fb(obj, NULL,
+	vma = fetch_and_zero(&overlay->old_vma);
+	if (WARN_ON(!vma))
+		return;
+
+	i915_gem_track_fb(vma->obj, NULL,
 			  INTEL_FRONTBUFFER_OVERLAY(overlay->crtc->pipe));
 
-	i915_gem_object_ggtt_unpin(obj);
-	i915_gem_object_put(obj);
-
-	overlay->old_vid_bo = NULL;
+	i915_gem_object_unpin_from_display_plane(vma->obj, &i915_ggtt_view_normal);
+	i915_vma_put(vma);
 }
 
 static void intel_overlay_off_tail(struct i915_gem_active *active,
@@ -333,15 +335,15 @@ static void intel_overlay_off_tail(struct i915_gem_active *active,
 {
 	struct intel_overlay *overlay =
 		container_of(active, typeof(*overlay), last_flip);
-	struct drm_i915_gem_object *obj = overlay->vid_bo;
+	struct i915_vma *vma;
 
 	/* never have the overlay hw on without showing a frame */
-	if (WARN_ON(!obj))
+	vma = fetch_and_zero(&overlay->vma);
+	if (WARN_ON(!vma))
 		return;
 
-	i915_gem_object_ggtt_unpin(obj);
-	i915_gem_object_put(obj);
-	overlay->vid_bo = NULL;
+	i915_gem_object_unpin_from_display_plane(vma->obj, &i915_ggtt_view_normal);
+	i915_vma_put(vma);
 
 	overlay->crtc->overlay = NULL;
 	overlay->crtc = NULL;
@@ -421,7 +423,7 @@ static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
 	/* Only wait if there is actually an old frame to release to
 	 * guarantee forward progress.
 	 */
-	if (!overlay->old_vid_bo)
+	if (!overlay->old_vma)
 		return 0;
 
 	if (I915_READ(ISR) & I915_OVERLAY_PLANE_FLIP_PENDING_INTERRUPT) {
@@ -744,6 +746,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	struct drm_i915_private *dev_priv = overlay->i915;
 	u32 swidth, swidthsw, sheight, ostride;
 	enum pipe pipe = overlay->crtc->pipe;
+	struct i915_vma *vma;
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 	WARN_ON(!drm_modeset_is_locked(&dev_priv->drm.mode_config.connection_mutex));
@@ -756,6 +759,8 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 						   &i915_ggtt_view_normal);
 	if (ret != 0)
 		return ret;
+
+	vma = i915_gem_obj_to_ggtt_view(new_bo, &i915_ggtt_view_normal);
 
 	ret = i915_gem_object_put_fence(new_bo);
 	if (ret)
@@ -834,11 +839,11 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	if (ret)
 		goto out_unpin;
 
-	i915_gem_track_fb(overlay->vid_bo, new_bo,
+	i915_gem_track_fb(overlay->vma->obj, new_bo,
 			  INTEL_FRONTBUFFER_OVERLAY(pipe));
 
-	overlay->old_vid_bo = overlay->vid_bo;
-	overlay->vid_bo = new_bo;
+	overlay->old_vma = overlay->vma;
+	overlay->vma = vma;
 
 	intel_frontbuffer_flip(dev_priv, INTEL_FRONTBUFFER_OVERLAY(pipe));
 
