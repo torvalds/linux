@@ -1134,7 +1134,7 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 						      engine->status_page.vma->obj);
 
 		ee->wa_ctx = i915_error_ggtt_object_create(dev_priv,
-							   engine->wa_ctx.obj);
+							   engine->wa_ctx.vma->obj);
 
 		count = 0;
 		list_for_each_entry(request, &engine->request_list, link)

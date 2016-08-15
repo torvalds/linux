@@ -1165,45 +1165,51 @@ static int gen9_init_perctx_bb(struct intel_engine_cs *engine,
 
 static int lrc_setup_wa_ctx_obj(struct intel_engine_cs *engine, u32 size)
 {
-	int ret;
+	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
+	int err;
 
-	engine->wa_ctx.obj = i915_gem_object_create(&engine->i915->drm,
-						    PAGE_ALIGN(size));
-	if (IS_ERR(engine->wa_ctx.obj)) {
-		DRM_DEBUG_DRIVER("alloc LRC WA ctx backing obj failed.\n");
-		ret = PTR_ERR(engine->wa_ctx.obj);
-		engine->wa_ctx.obj = NULL;
-		return ret;
+	obj = i915_gem_object_create(&engine->i915->drm, PAGE_ALIGN(size));
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	vma = i915_vma_create(obj, &engine->i915->ggtt.base, NULL);
+	if (IS_ERR(vma)) {
+		err = PTR_ERR(vma);
+		goto err;
 	}
 
-	ret = i915_gem_object_ggtt_pin(engine->wa_ctx.obj, NULL,
-				       0, PAGE_SIZE, PIN_HIGH);
-	if (ret) {
-		DRM_DEBUG_DRIVER("pin LRC WA ctx backing obj failed: %d\n",
-				 ret);
-		i915_gem_object_put(engine->wa_ctx.obj);
-		return ret;
-	}
+	err = i915_vma_pin(vma, 0, PAGE_SIZE, PIN_GLOBAL | PIN_HIGH);
+	if (err)
+		goto err;
 
+	engine->wa_ctx.vma = vma;
 	return 0;
+
+err:
+	i915_gem_object_put(obj);
+	return err;
 }
 
 static void lrc_destroy_wa_ctx_obj(struct intel_engine_cs *engine)
 {
-	if (engine->wa_ctx.obj) {
-		i915_gem_object_ggtt_unpin(engine->wa_ctx.obj);
-		i915_gem_object_put(engine->wa_ctx.obj);
-		engine->wa_ctx.obj = NULL;
-	}
+	struct i915_vma *vma;
+
+	vma = fetch_and_zero(&engine->wa_ctx.vma);
+	if (!vma)
+		return;
+
+	i915_vma_unpin(vma);
+	i915_vma_put(vma);
 }
 
 static int intel_init_workaround_bb(struct intel_engine_cs *engine)
 {
-	int ret;
+	struct i915_ctx_workarounds *wa_ctx = &engine->wa_ctx;
 	uint32_t *batch;
 	uint32_t offset;
 	struct page *page;
-	struct i915_ctx_workarounds *wa_ctx = &engine->wa_ctx;
+	int ret;
 
 	WARN_ON(engine->id != RCS);
 
@@ -1226,7 +1232,7 @@ static int intel_init_workaround_bb(struct intel_engine_cs *engine)
 		return ret;
 	}
 
-	page = i915_gem_object_get_dirty_page(wa_ctx->obj, 0);
+	page = i915_gem_object_get_dirty_page(wa_ctx->vma->obj, 0);
 	batch = kmap_atomic(page);
 	offset = 0;
 
@@ -2019,9 +2025,9 @@ populate_lr_context(struct i915_gem_context *ctx,
 			       RING_INDIRECT_CTX(engine->mmio_base), 0);
 		ASSIGN_CTX_REG(reg_state, CTX_RCS_INDIRECT_CTX_OFFSET,
 			       RING_INDIRECT_CTX_OFFSET(engine->mmio_base), 0);
-		if (engine->wa_ctx.obj) {
+		if (engine->wa_ctx.vma) {
 			struct i915_ctx_workarounds *wa_ctx = &engine->wa_ctx;
-			uint32_t ggtt_offset = i915_gem_obj_ggtt_offset(wa_ctx->obj);
+			u32 ggtt_offset = wa_ctx->vma->node.start;
 
 			reg_state[CTX_RCS_INDIRECT_CTX+1] =
 				(ggtt_offset + wa_ctx->indirect_ctx.offset * sizeof(uint32_t)) |

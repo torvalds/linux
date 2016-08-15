@@ -123,12 +123,12 @@ struct drm_i915_reg_table;
  *    an option for future use.
  *  size: size of the batch in DWORDS
  */
-struct  i915_ctx_workarounds {
+struct i915_ctx_workarounds {
 	struct i915_wa_ctx_bb {
 		u32 offset;
 		u32 size;
 	} indirect_ctx, per_ctx;
-	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
 };
 
 struct drm_i915_gem_request;
