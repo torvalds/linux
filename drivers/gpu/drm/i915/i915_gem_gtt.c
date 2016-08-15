@@ -3650,6 +3650,9 @@ void __iomem *i915_vma_pin_iomap(struct i915_vma *vma)
 {
 	void __iomem *ptr;
 
+	/* Access through the GTT requires the device to be awake. */
+	assert_rpm_wakelock_held(to_i915(vma->vm->dev));
+
 	lockdep_assert_held(&vma->vm->dev->struct_mutex);
 	if (WARN_ON(!vma->obj->map_and_fenceable))
 		return IO_ERR_PTR(-ENODEV);

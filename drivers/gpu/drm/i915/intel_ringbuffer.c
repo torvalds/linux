@@ -1966,9 +1966,6 @@ int intel_ring_pin(struct intel_ring *ring)
 		if (ret)
 			goto err_unpin;
 
-		/* Access through the GTT requires the device to be awake. */
-		assert_rpm_wakelock_held(dev_priv);
-
 		addr = (void __force *)
 			i915_vma_pin_iomap(i915_gem_obj_to_ggtt(obj));
 		if (IS_ERR(addr)) {
