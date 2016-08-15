@@ -61,7 +61,8 @@
 #define TLP_LOOP			500
 #define RP_DEVFN			0
 
-#define LINK_UP_TIMEOUT			5000
+#define LINK_UP_TIMEOUT			HZ
+#define LINK_RETRAIN_TIMEOUT		HZ
 
 #define INTX_NUM			4
 
@@ -99,11 +100,44 @@ static bool altera_pcie_link_is_up(struct altera_pcie *pcie)
 	return !!((cra_readl(pcie, RP_LTSSM) & RP_LTSSM_MASK) == LTSSM_L0);
 }
 
+static void altera_wait_link_retrain(struct pci_dev *dev)
+{
+	u16 reg16;
+	unsigned long start_jiffies;
+	struct altera_pcie *pcie = dev->bus->sysdata;
+
+	/* Wait for link training end. */
+	start_jiffies = jiffies;
+	for (;;) {
+		pcie_capability_read_word(dev, PCI_EXP_LNKSTA, &reg16);
+		if (!(reg16 & PCI_EXP_LNKSTA_LT))
+			break;
+
+		if (time_after(jiffies, start_jiffies + LINK_RETRAIN_TIMEOUT)) {
+			dev_err(&pcie->pdev->dev, "link retrain timeout\n");
+			break;
+		}
+		udelay(100);
+	}
+
+	/* Wait for link is up */
+	start_jiffies = jiffies;
+	for (;;) {
+		if (altera_pcie_link_is_up(pcie))
+			break;
+
+		if (time_after(jiffies, start_jiffies + LINK_UP_TIMEOUT)) {
+			dev_err(&pcie->pdev->dev, "link up timeout\n");
+			break;
+		}
+		udelay(100);
+	}
+}
+
 static void altera_pcie_retrain(struct pci_dev *dev)
 {
 	u16 linkcap, linkstat;
 	struct altera_pcie *pcie = dev->bus->sysdata;
-	int timeout =  0;
 
 	if (!altera_pcie_link_is_up(pcie))
 		return;
@@ -121,12 +155,7 @@ static void altera_pcie_retrain(struct pci_dev *dev)
 	if ((linkstat & PCI_EXP_LNKSTA_CLS) == PCI_EXP_LNKSTA_CLS_2_5GB) {
 		pcie_capability_set_word(dev, PCI_EXP_LNKCTL,
 					 PCI_EXP_LNKCTL_RL);
-		while (!altera_pcie_link_is_up(pcie)) {
-			timeout++;
-			if (timeout > LINK_UP_TIMEOUT)
-				break;
-			udelay(5);
-		}
+		altera_wait_link_retrain(dev);
 	}
 }
 DECLARE_PCI_FIXUP_EARLY(0x1172, PCI_ANY_ID, altera_pcie_retrain);
