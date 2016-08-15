@@ -95,9 +95,7 @@ static int ecb_desall_crypt(struct blkcipher_desc *desc, long func,
 		u8 *out = walk->dst.virt.addr;
 		u8 *in = walk->src.virt.addr;
 
-		ret = cpacf_km(func, key, out, in, n);
-		if (ret < 0 || ret != n)
-			return -EIO;
+		cpacf_km(func, key, out, in, n);
 
 		nbytes &= DES_BLOCK_SIZE - 1;
 		ret = blkcipher_walk_done(desc, walk, nbytes);
@@ -128,9 +126,7 @@ static int cbc_desall_crypt(struct blkcipher_desc *desc, long func,
 		u8 *out = walk->dst.virt.addr;
 		u8 *in = walk->src.virt.addr;
 
-		ret = cpacf_kmc(func, &param, out, in, n);
-		if (ret < 0 || ret != n)
-			return -EIO;
+		cpacf_kmc(func, &param, out, in, n);
 
 		nbytes &= DES_BLOCK_SIZE - 1;
 		ret = blkcipher_walk_done(desc, walk, nbytes);
@@ -411,12 +407,7 @@ static int ctr_desall_crypt(struct blkcipher_desc *desc, long func,
 				n = __ctrblk_init(ctrptr, nbytes);
 			else
 				n = DES_BLOCK_SIZE;
-			ret = cpacf_kmctr(func, ctx->key, out, in, n, ctrptr);
-			if (ret < 0 || ret != n) {
-				if (ctrptr == ctrblk)
-					spin_unlock(&ctrblk_lock);
-				return -EIO;
-			}
+			cpacf_kmctr(func, ctx->key, out, in, n, ctrptr);
 			if (n > DES_BLOCK_SIZE)
 				memcpy(ctrptr, ctrptr + n - DES_BLOCK_SIZE,
 				       DES_BLOCK_SIZE);
@@ -441,10 +432,7 @@ static int ctr_desall_crypt(struct blkcipher_desc *desc, long func,
 	if (nbytes) {
 		out = walk->dst.virt.addr;
 		in = walk->src.virt.addr;
-		ret = cpacf_kmctr(func, ctx->key, buf, in,
-				  DES_BLOCK_SIZE, ctrbuf);
-		if (ret < 0 || ret != DES_BLOCK_SIZE)
-			return -EIO;
+		cpacf_kmctr(func, ctx->key, buf, in, DES_BLOCK_SIZE, ctrbuf);
 		memcpy(out, buf, nbytes);
 		crypto_inc(ctrbuf, DES_BLOCK_SIZE);
 		ret = blkcipher_walk_done(desc, walk, 0);
