@@ -10,6 +10,10 @@ u"""
 
     List of customizations:
 
+    * Moved the *duplicate C object description* warnings for function
+      declarations in the nitpicky mode. See Sphinx documentation for
+      the config values for ``nitpick`` and ``nitpick_ignore``.
+
     * Add option 'name' to the "c:function:" directive.  With option 'name' the
       ref-name of a function can be modified. E.g.::
 
@@ -60,6 +64,29 @@ class CObject(Base_CObject):
                 pass
         return fullname
 
+    def add_target_and_index(self, name, sig, signode):
+        # for C API items we add a prefix since names are usually not qualified
+        # by a module name and so easily clash with e.g. section titles
+        targetname = 'c.' + name
+        if targetname not in self.state.document.ids:
+            signode['names'].append(targetname)
+            signode['ids'].append(targetname)
+            signode['first'] = (not self.names)
+            self.state.document.note_explicit_target(signode)
+            inv = self.env.domaindata['c']['objects']
+            if (name in inv and self.env.config.nitpicky):
+                if self.objtype == 'function':
+                    if ('c:func', name) not in self.env.config.nitpick_ignore:
+                        self.state_machine.reporter.warning(
+                            'duplicate C object description of %s, ' % name +
+                            'other instance in ' + self.env.doc2path(inv[name][0]),
+                            line=self.lineno)
+            inv[name] = (self.env.docname, self.objtype)
+
+        indextext = self.get_index_text(name)
+        if indextext:
+            self.indexnode['entries'].append(('single', indextext,
+                                              targetname, '', None))
 
 class CDomain(Base_CDomain):
 
