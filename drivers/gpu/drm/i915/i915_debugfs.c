@@ -2008,7 +2008,7 @@ static void i915_dump_lrc_obj(struct seq_file *m,
 
 	if (vma->flags & I915_VMA_GLOBAL_BIND)
 		seq_printf(m, "\tBound in GGTT at 0x%08x\n",
-			   lower_32_bits(vma->node.start));
+			   i915_ggtt_offset(vma));
 
 	if (i915_gem_object_get_pages(vma->obj)) {
 		seq_puts(m, "\tFailed to get pages for context object\n\n");

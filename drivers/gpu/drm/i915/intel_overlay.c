@@ -801,7 +801,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	swidth = params->src_w;
 	swidthsw = calc_swidthsw(dev_priv, params->offset_Y, tmp_width);
 	sheight = params->src_h;
-	iowrite32(vma->node.start + params->offset_Y, &regs->OBUF_0Y);
+	iowrite32(i915_ggtt_offset(vma) + params->offset_Y, &regs->OBUF_0Y);
 	ostride = params->stride_Y;
 
 	if (params->format & I915_OVERLAY_YUV_PLANAR) {
@@ -815,8 +815,10 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 				      params->src_w/uv_hscale);
 		swidthsw |= max_t(u32, tmp_U, tmp_V) << 16;
 		sheight |= (params->src_h/uv_vscale) << 16;
-		iowrite32(vma->node.start + params->offset_U, &regs->OBUF_0U);
-		iowrite32(vma->node.start + params->offset_V, &regs->OBUF_0V);
+		iowrite32(i915_ggtt_offset(vma) + params->offset_U,
+			  &regs->OBUF_0U);
+		iowrite32(i915_ggtt_offset(vma) + params->offset_V,
+			  &regs->OBUF_0V);
 		ostride |= params->stride_UV << 16;
 	}
 
@@ -1412,7 +1414,7 @@ void intel_setup_overlay(struct drm_i915_private *dev_priv)
 			ret = PTR_ERR(vma);
 			goto out_free_bo;
 		}
-		overlay->flip_addr = vma->node.start;
+		overlay->flip_addr = i915_ggtt_offset(vma);
 
 		ret = i915_gem_object_set_to_gtt_domain(reg_bo, true);
 		if (ret) {

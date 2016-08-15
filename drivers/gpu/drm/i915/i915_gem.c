@@ -767,7 +767,7 @@ i915_gem_gtt_pread(struct drm_device *dev,
 
 		i915_gem_object_pin_pages(obj);
 	} else {
-		node.start = vma->node.start;
+		node.start = i915_ggtt_offset(vma);
 		node.allocated = false;
 		ret = i915_gem_object_put_fence(obj);
 		if (ret)
@@ -1071,7 +1071,7 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_private *i915,
 
 		i915_gem_object_pin_pages(obj);
 	} else {
-		node.start = vma->node.start;
+		node.start = i915_ggtt_offset(vma);
 		node.allocated = false;
 		ret = i915_gem_object_put_fence(obj);
 		if (ret)
@@ -1712,7 +1712,7 @@ int i915_gem_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 		goto err_unpin;
 
 	/* Finally, remap it using the new GTT offset */
-	pfn = ggtt->mappable_base + vma->node.start;
+	pfn = ggtt->mappable_base + i915_ggtt_offset(vma);
 	pfn >>= PAGE_SHIFT;
 
 	if (unlikely(view.type == I915_GGTT_VIEW_PARTIAL)) {
@@ -3759,10 +3759,9 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 
 		WARN(i915_vma_is_pinned(vma),
 		     "bo is already pinned in ggtt with incorrect alignment:"
-		     " offset=%08x %08x, req.alignment=%llx, req.map_and_fenceable=%d,"
+		     " offset=%08x, req.alignment=%llx, req.map_and_fenceable=%d,"
 		     " obj->map_and_fenceable=%d\n",
-		     upper_32_bits(vma->node.start),
-		     lower_32_bits(vma->node.start),
+		     i915_ggtt_offset(vma),
 		     alignment,
 		     !!(flags & PIN_MAPPABLE),
 		     obj->map_and_fenceable);

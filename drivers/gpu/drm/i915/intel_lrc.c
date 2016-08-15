@@ -315,7 +315,7 @@ intel_lr_context_descriptor_update(struct i915_gem_context *ctx,
 
 	desc = ctx->desc_template;				/* bits  3-4  */
 	desc |= engine->ctx_desc_template;			/* bits  0-11 */
-	desc |= ce->state->node.start + LRC_PPHWSP_PN * PAGE_SIZE;
+	desc |= i915_ggtt_offset(ce->state) + LRC_PPHWSP_PN * PAGE_SIZE;
 								/* bits 12-31 */
 	desc |= (u64)ctx->hw_id << GEN8_CTX_ID_SHIFT;		/* bits 32-52 */
 
@@ -792,7 +792,8 @@ static int intel_lr_context_pin(struct i915_gem_context *ctx,
 
 	intel_lr_context_descriptor_update(ctx, engine);
 
-	lrc_reg_state[CTX_RING_BUFFER_START+1] = ce->ring->vma->node.start;
+	lrc_reg_state[CTX_RING_BUFFER_START+1] =
+		i915_ggtt_offset(ce->ring->vma);
 	ce->lrc_reg_state = lrc_reg_state;
 	ce->state->obj->dirty = true;
 
@@ -914,7 +915,7 @@ static inline int gen8_emit_flush_coherentl3_wa(struct intel_engine_cs *engine,
 	wa_ctx_emit(batch, index, (MI_STORE_REGISTER_MEM_GEN8 |
 				   MI_SRM_LRM_GLOBAL_GTT));
 	wa_ctx_emit_reg(batch, index, GEN8_L3SQCREG4);
-	wa_ctx_emit(batch, index, engine->scratch->node.start + 256);
+	wa_ctx_emit(batch, index, i915_ggtt_offset(engine->scratch) + 256);
 	wa_ctx_emit(batch, index, 0);
 
 	wa_ctx_emit(batch, index, MI_LOAD_REGISTER_IMM(1));
@@ -932,7 +933,7 @@ static inline int gen8_emit_flush_coherentl3_wa(struct intel_engine_cs *engine,
 	wa_ctx_emit(batch, index, (MI_LOAD_REGISTER_MEM_GEN8 |
 				   MI_SRM_LRM_GLOBAL_GTT));
 	wa_ctx_emit_reg(batch, index, GEN8_L3SQCREG4);
-	wa_ctx_emit(batch, index, engine->scratch->node.start + 256);
+	wa_ctx_emit(batch, index, i915_ggtt_offset(engine->scratch) + 256);
 	wa_ctx_emit(batch, index, 0);
 
 	return index;
@@ -993,7 +994,7 @@ static int gen8_init_indirectctx_bb(struct intel_engine_cs *engine,
 
 	/* WaClearSlmSpaceAtContextSwitch:bdw,chv */
 	/* Actual scratch location is at 128 bytes offset */
-	scratch_addr = engine->scratch->node.start + 2 * CACHELINE_BYTES;
+	scratch_addr = i915_ggtt_offset(engine->scratch) + 2 * CACHELINE_BYTES;
 
 	wa_ctx_emit(batch, index, GFX_OP_PIPE_CONTROL(6));
 	wa_ctx_emit(batch, index, (PIPE_CONTROL_FLUSH_L3 |
@@ -1073,7 +1074,7 @@ static int gen9_init_indirectctx_bb(struct intel_engine_cs *engine,
 	/* Actual scratch location is at 128 bytes offset */
 	if (IS_KBL_REVID(dev_priv, 0, KBL_REVID_A0)) {
 		u32 scratch_addr =
-			engine->scratch->node.start + 2 * CACHELINE_BYTES;
+			i915_ggtt_offset(engine->scratch) + 2 * CACHELINE_BYTES;
 
 		wa_ctx_emit(batch, index, GFX_OP_PIPE_CONTROL(6));
 		wa_ctx_emit(batch, index, (PIPE_CONTROL_FLUSH_L3 |
@@ -1482,7 +1483,8 @@ static int gen8_emit_flush_render(struct drm_i915_gem_request *request,
 {
 	struct intel_ring *ring = request->ring;
 	struct intel_engine_cs *engine = request->engine;
-	u32 scratch_addr = engine->scratch->node.start + 2 * CACHELINE_BYTES;
+	u32 scratch_addr =
+		i915_ggtt_offset(engine->scratch) + 2 * CACHELINE_BYTES;
 	bool vf_flush_wa = false, dc_flush_wa = false;
 	u32 flags = 0;
 	int ret;
@@ -1752,7 +1754,7 @@ lrc_setup_hws(struct intel_engine_cs *engine, struct i915_vma *vma)
 		return PTR_ERR(hws);
 
 	engine->status_page.page_addr = hws + hws_offset;
-	engine->status_page.ggtt_offset = vma->node.start + hws_offset;
+	engine->status_page.ggtt_offset = i915_ggtt_offset(vma) + hws_offset;
 	engine->status_page.vma = vma;
 
 	return 0;
@@ -2020,7 +2022,7 @@ populate_lr_context(struct i915_gem_context *ctx,
 			       RING_INDIRECT_CTX_OFFSET(engine->mmio_base), 0);
 		if (engine->wa_ctx.vma) {
 			struct i915_ctx_workarounds *wa_ctx = &engine->wa_ctx;
-			u32 ggtt_offset = wa_ctx->vma->node.start;
+			u32 ggtt_offset = i915_ggtt_offset(wa_ctx->vma);
 
 			reg_state[CTX_RCS_INDIRECT_CTX+1] =
 				(ggtt_offset + wa_ctx->indirect_ctx.offset * sizeof(uint32_t)) |

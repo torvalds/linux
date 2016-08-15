@@ -248,7 +248,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	info->apertures->ranges[0].base = dev->mode_config.fb_base;
 	info->apertures->ranges[0].size = ggtt->mappable_end;
 
-	info->fix.smem_start = dev->mode_config.fb_base + vma->node.start;
+	info->fix.smem_start = dev->mode_config.fb_base + i915_ggtt_offset(vma);
 	info->fix.smem_len = vma->node.size;
 
 	vaddr = i915_vma_pin_iomap(vma);
@@ -275,8 +275,8 @@ static int intelfb_create(struct drm_fb_helper *helper,
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
 
-	DRM_DEBUG_KMS("allocated %dx%d fb: 0x%08llx\n",
-		      fb->width, fb->height, vma->node.start);
+	DRM_DEBUG_KMS("allocated %dx%d fb: 0x%08x\n",
+		      fb->width, fb->height, i915_ggtt_offset(vma));
 	ifbdev->vma = vma;
 
 	mutex_unlock(&dev->struct_mutex);

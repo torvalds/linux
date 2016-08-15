@@ -3330,7 +3330,7 @@ static inline unsigned long
 i915_gem_object_ggtt_offset(struct drm_i915_gem_object *o,
 			    const struct i915_ggtt_view *view)
 {
-	return i915_gem_object_to_ggtt(o, view)->node.start;
+	return i915_ggtt_offset(i915_gem_object_to_ggtt(o, view));
 }
 
 /* i915_gem_fence.c */

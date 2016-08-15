@@ -272,6 +272,15 @@ static inline bool i915_vma_has_active_engine(const struct i915_vma *vma,
 	return vma->active & BIT(engine);
 }
 
+static inline u32 i915_ggtt_offset(const struct i915_vma *vma)
+{
+	GEM_BUG_ON(!i915_vma_is_ggtt(vma));
+	GEM_BUG_ON(!vma->node.allocated);
+	GEM_BUG_ON(upper_32_bits(vma->node.start));
+	GEM_BUG_ON(upper_32_bits(vma->node.start + vma->node.size - 1));
+	return lower_32_bits(vma->node.start);
+}
+
 struct i915_page_dma {
 	struct page *page;
 	union {

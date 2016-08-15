@@ -176,7 +176,7 @@ intel_emit_post_sync_nonzero_flush(struct drm_i915_gem_request *req)
 {
 	struct intel_ring *ring = req->ring;
 	u32 scratch_addr =
-		req->engine->scratch->node.start + 2 * CACHELINE_BYTES;
+		i915_ggtt_offset(req->engine->scratch) + 2 * CACHELINE_BYTES;
 	int ret;
 
 	ret = intel_ring_begin(req, 6);
@@ -212,7 +212,7 @@ gen6_render_ring_flush(struct drm_i915_gem_request *req, u32 mode)
 {
 	struct intel_ring *ring = req->ring;
 	u32 scratch_addr =
-		req->engine->scratch->node.start + 2 * CACHELINE_BYTES;
+		i915_ggtt_offset(req->engine->scratch) + 2 * CACHELINE_BYTES;
 	u32 flags = 0;
 	int ret;
 
@@ -286,7 +286,7 @@ gen7_render_ring_flush(struct drm_i915_gem_request *req, u32 mode)
 {
 	struct intel_ring *ring = req->ring;
 	u32 scratch_addr =
-		req->engine->scratch->node.start + 2 * CACHELINE_BYTES;
+		i915_ggtt_offset(req->engine->scratch) + 2 * CACHELINE_BYTES;
 	u32 flags = 0;
 	int ret;
 
@@ -371,7 +371,7 @@ static int
 gen8_render_ring_flush(struct drm_i915_gem_request *req, u32 mode)
 {
 	u32 scratch_addr =
-		req->engine->scratch->node.start + 2 * CACHELINE_BYTES;
+		i915_ggtt_offset(req->engine->scratch) + 2 * CACHELINE_BYTES;
 	u32 flags = 0;
 	int ret;
 
@@ -571,7 +571,7 @@ static int init_ring_common(struct intel_engine_cs *engine)
 	 * registers with the above sequence (the readback of the HEAD registers
 	 * also enforces ordering), otherwise the hw might lose the new ring
 	 * register values. */
-	I915_WRITE_START(engine, ring->vma->node.start);
+	I915_WRITE_START(engine, i915_ggtt_offset(ring->vma));
 
 	/* WaClearRingBufHeadRegAtInit:ctg,elk */
 	if (I915_READ_HEAD(engine))
@@ -586,16 +586,16 @@ static int init_ring_common(struct intel_engine_cs *engine)
 
 	/* If the head is still not zero, the ring is dead */
 	if (wait_for((I915_READ_CTL(engine) & RING_VALID) != 0 &&
-		     I915_READ_START(engine) == ring->vma->node.start &&
+		     I915_READ_START(engine) == i915_ggtt_offset(ring->vma) &&
 		     (I915_READ_HEAD(engine) & HEAD_ADDR) == 0, 50)) {
 		DRM_ERROR("%s initialization failed "
-			  "ctl %08x (valid? %d) head %08x tail %08x start %08x [expected %08llx]\n",
+			  "ctl %08x (valid? %d) head %08x tail %08x start %08x [expected %08x]\n",
 			  engine->name,
 			  I915_READ_CTL(engine),
 			  I915_READ_CTL(engine) & RING_VALID,
 			  I915_READ_HEAD(engine), I915_READ_TAIL(engine),
 			  I915_READ_START(engine),
-			  ring->vma->node.start);
+			  i915_ggtt_offset(ring->vma));
 		ret = -EIO;
 		goto out;
 	}
@@ -1716,7 +1716,7 @@ i830_emit_bb_start(struct drm_i915_gem_request *req,
 		   unsigned int dispatch_flags)
 {
 	struct intel_ring *ring = req->ring;
-	u32 cs_offset = req->engine->scratch->node.start;
+	u32 cs_offset = i915_ggtt_offset(req->engine->scratch);
 	int ret;
 
 	ret = intel_ring_begin(req, 6);
@@ -1857,12 +1857,12 @@ static int init_status_page(struct intel_engine_cs *engine)
 		goto err;
 
 	engine->status_page.vma = vma;
-	engine->status_page.ggtt_offset = vma->node.start;
+	engine->status_page.ggtt_offset = i915_ggtt_offset(vma);
 	engine->status_page.page_addr =
 		i915_gem_object_pin_map(obj, I915_MAP_WB);
 
-	DRM_DEBUG_DRIVER("%s hws offset: 0x%08llx\n",
-			 engine->name, vma->node.start);
+	DRM_DEBUG_DRIVER("%s hws offset: 0x%08x\n",
+			 engine->name, i915_ggtt_offset(vma));
 	return 0;
 
 err:
@@ -2542,13 +2542,13 @@ static void intel_ring_init_semaphores(struct drm_i915_private *dev_priv,
 	}
 
 	if (INTEL_GEN(dev_priv) >= 8) {
-		u64 offset = dev_priv->semaphore->node.start;
+		u32 offset = i915_ggtt_offset(dev_priv->semaphore);
 
 		engine->semaphore.sync_to = gen8_ring_sync_to;
 		engine->semaphore.signal = gen8_xcs_signal;
 
 		for (i = 0; i < I915_NUM_ENGINES; i++) {
-			u64 ring_offset;
+			u32 ring_offset;
 
 			if (i != engine->id)
 				ring_offset = offset + GEN8_SEMAPHORE_OFFSET(engine->id, i);

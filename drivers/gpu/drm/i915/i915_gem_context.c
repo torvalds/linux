@@ -631,7 +631,8 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 
 	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_emit(ring, MI_SET_CONTEXT);
-	intel_ring_emit(ring, req->ctx->engine[RCS].state->node.start | flags);
+	intel_ring_emit(ring,
+			i915_ggtt_offset(req->ctx->engine[RCS].state) | flags);
 	/*
 	 * w/a: MI_SET_CONTEXT must always be followed by MI_NOOP
 	 * WaMiSetContext_Hang:snb,ivb,vlv
@@ -660,7 +661,8 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 					MI_STORE_REGISTER_MEM |
 					MI_SRM_LRM_GLOBAL_GTT);
 			intel_ring_emit_reg(ring, last_reg);
-			intel_ring_emit(ring, engine->scratch->node.start);
+			intel_ring_emit(ring,
+					i915_ggtt_offset(engine->scratch));
 			intel_ring_emit(ring, MI_NOOP);
 		}
 		intel_ring_emit(ring, MI_ARB_ON_OFF | MI_ARB_ENABLE);

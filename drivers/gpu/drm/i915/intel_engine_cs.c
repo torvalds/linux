@@ -268,8 +268,8 @@ int intel_engine_create_scratch(struct intel_engine_cs *engine, int size)
 		goto err_unref;
 
 	engine->scratch = vma;
-	DRM_DEBUG_DRIVER("%s pipe control offset: 0x%08llx\n",
-			 engine->name, vma->node.start);
+	DRM_DEBUG_DRIVER("%s pipe control offset: 0x%08x\n",
+			 engine->name, i915_ggtt_offset(vma));
 	return 0;
 
 err_unref:

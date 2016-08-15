@@ -358,11 +358,11 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 
 		/* The state page is after PPHWSP */
 		lrc->ring_lcra =
-			ce->state->node.start + LRC_STATE_PN * PAGE_SIZE;
+			i915_ggtt_offset(ce->state) + LRC_STATE_PN * PAGE_SIZE;
 		lrc->context_id = (client->ctx_index << GUC_ELC_CTXID_OFFSET) |
 				(guc_engine_id << GUC_ELC_ENGINE_OFFSET);
 
-		lrc->ring_begin = ce->ring->vma->node.start;
+		lrc->ring_begin = i915_ggtt_offset(ce->ring->vma);
 		lrc->ring_end = lrc->ring_begin + ce->ring->size - 1;
 		lrc->ring_next_free_location = lrc->ring_begin;
 		lrc->ring_current_tail_pointer_value = 0;
@@ -378,7 +378,7 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 	 * The doorbell, process descriptor, and workqueue are all parts
 	 * of the client object, which the GuC will reference via the GGTT
 	 */
-	gfx_addr = client->vma->node.start;
+	gfx_addr = i915_ggtt_offset(client->vma);
 	desc.db_trigger_phy = sg_dma_address(client->vma->pages->sgl) +
 				client->doorbell_offset;
 	desc.db_trigger_cpu = (uintptr_t)client->client_base +
@@ -864,7 +864,7 @@ static void guc_create_log(struct intel_guc *guc)
 		(GUC_LOG_ISR_PAGES << GUC_LOG_ISR_SHIFT) |
 		(GUC_LOG_CRASH_PAGES << GUC_LOG_CRASH_SHIFT);
 
-	offset = vma->node.start >> PAGE_SHIFT; /* in pages */
+	offset = i915_ggtt_offset(vma) >> PAGE_SHIFT; /* in pages */
 	guc->log_flags = (offset << GUC_LOG_BUF_ADDR_SHIFT) | flags;
 }
 
@@ -935,7 +935,8 @@ static void guc_create_ads(struct intel_guc *guc)
 	policies = (void *)ads + sizeof(struct guc_ads);
 	init_guc_policies(policies);
 
-	ads->scheduler_policies = vma->node.start + sizeof(struct guc_ads);
+	ads->scheduler_policies =
+		i915_ggtt_offset(vma) + sizeof(struct guc_ads);
 
 	/* MMIO reg state */
 	reg_state = (void *)policies + sizeof(struct guc_policies);
@@ -1063,7 +1064,7 @@ int intel_guc_suspend(struct drm_device *dev)
 	/* any value greater than GUC_POWER_D0 */
 	data[1] = GUC_POWER_D1;
 	/* first page is shared data with GuC */
-	data[2] = ctx->engine[RCS].state->node.start;
+	data[2] = i915_ggtt_offset(ctx->engine[RCS].state);
 
 	return host2guc_action(guc, data, ARRAY_SIZE(data));
 }
@@ -1088,7 +1089,7 @@ int intel_guc_resume(struct drm_device *dev)
 	data[0] = HOST2GUC_ACTION_EXIT_S_STATE;
 	data[1] = GUC_POWER_D0;
 	/* first page is shared data with GuC */
-	data[2] = ctx->engine[RCS].state->node.start;
+	data[2] = i915_ggtt_offset(ctx->engine[RCS].state);
 
 	return host2guc_action(guc, data, ARRAY_SIZE(data));
 }

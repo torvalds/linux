@@ -3241,7 +3241,6 @@ u32 intel_fb_gtt_offset(struct drm_framebuffer *fb,
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct i915_ggtt_view view;
 	struct i915_vma *vma;
-	u64 offset;
 
 	intel_fill_fb_ggtt_view(&view, fb, rotation);
 
@@ -3250,11 +3249,7 @@ u32 intel_fb_gtt_offset(struct drm_framebuffer *fb,
 		 view.type))
 		return -1;
 
-	offset = vma->node.start;
-
-	WARN_ON(upper_32_bits(offset));
-
-	return lower_32_bits(offset);
+	return i915_ggtt_offset(vma);
 }
 
 static void skl_detach_scaler(struct intel_crtc *intel_crtc, int id)
@@ -11804,7 +11799,8 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 			intel_ring_emit(ring, MI_STORE_REGISTER_MEM |
 					      MI_SRM_LRM_GLOBAL_GTT);
 		intel_ring_emit_reg(ring, DERRMR);
-		intel_ring_emit(ring, req->engine->scratch->node.start + 256);
+		intel_ring_emit(ring,
+				i915_ggtt_offset(req->engine->scratch) + 256);
 		if (IS_GEN8(dev)) {
 			intel_ring_emit(ring, 0);
 			intel_ring_emit(ring, MI_NOOP);
