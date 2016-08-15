@@ -298,7 +298,7 @@ struct orangefs_stats {
 	unsigned long writes;
 };
 
-extern struct orangefs_stats g_orangefs_stats;
+extern struct orangefs_stats orangefs_stats;
 
 /*
  * NOTE: See Documentation/filesystems/porting for information
@@ -511,7 +511,6 @@ bool orangefs_cancel_op_in_progress(struct orangefs_kernel_op_s *op);
 int orangefs_normalize_to_errno(__s32 error_code);
 
 extern struct mutex request_mutex;
-extern int debug;
 extern int op_timeout_secs;
 extern int slot_timeout_secs;
 extern int dcache_timeout_msecs;

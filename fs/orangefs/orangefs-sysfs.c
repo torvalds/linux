@@ -236,13 +236,13 @@ static ssize_t sysfs_int_show(struct kobject *kobj,
 			rc = scnprintf(buf,
 				       PAGE_SIZE,
 				       "%lu\n",
-				       g_orangefs_stats.reads);
+				       orangefs_stats.reads);
 			goto out;
 		} else if (!strcmp(attr->attr.name, "writes")) {
 			rc = scnprintf(buf,
 				       PAGE_SIZE,
 				       "%lu\n",
-				       g_orangefs_stats.writes);
+				       orangefs_stats.writes);
 			goto out;
 		} else {
 			goto out;

@@ -21,7 +21,7 @@
  * global variables declared here
  */
 
-struct orangefs_stats g_orangefs_stats;
+struct orangefs_stats orangefs_stats;
 
 /* the size of the hash tables for ops in progress */
 int hash_table_size = 509;
