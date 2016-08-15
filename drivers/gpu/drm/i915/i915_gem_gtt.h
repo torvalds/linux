@@ -155,8 +155,6 @@ struct i915_ggtt_view {
 		} partial;
 		struct intel_rotation_info rotated;
 	} params;
-
-	struct sg_table *pages;
 };
 
 extern const struct i915_ggtt_view i915_ggtt_view_normal;
@@ -176,6 +174,7 @@ struct i915_vma {
 	struct drm_mm_node node;
 	struct drm_i915_gem_object *obj;
 	struct i915_address_space *vm;
+	struct sg_table *pages;
 	void __iomem *iomap;
 	u64 size;
 

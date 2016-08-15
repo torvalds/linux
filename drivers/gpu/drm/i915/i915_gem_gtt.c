@@ -170,11 +170,13 @@ static int ppgtt_bind_vma(struct i915_vma *vma,
 {
 	u32 pte_flags = 0;
 
+	vma->pages = vma->obj->pages;
+
 	/* Currently applicable only to VLV */
 	if (vma->obj->gt_ro)
 		pte_flags |= PTE_READ_ONLY;
 
-	vma->vm->insert_entries(vma->vm, vma->obj->pages, vma->node.start,
+	vma->vm->insert_entries(vma->vm, vma->pages, vma->node.start,
 				cache_level, pte_flags);
 
 	return 0;
@@ -2618,8 +2620,7 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 	if (obj->gt_ro)
 		pte_flags |= PTE_READ_ONLY;
 
-	vma->vm->insert_entries(vma->vm, vma->ggtt_view.pages,
-				vma->node.start,
+	vma->vm->insert_entries(vma->vm, vma->pages, vma->node.start,
 				cache_level, pte_flags);
 
 	/*
@@ -2651,8 +2652,7 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 
 	if (flags & I915_VMA_GLOBAL_BIND) {
 		vma->vm->insert_entries(vma->vm,
-					vma->ggtt_view.pages,
-					vma->node.start,
+					vma->pages, vma->node.start,
 					cache_level, pte_flags);
 	}
 
@@ -2660,8 +2660,7 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 		struct i915_hw_ppgtt *appgtt =
 			to_i915(vma->vm->dev)->mm.aliasing_ppgtt;
 		appgtt->base.insert_entries(&appgtt->base,
-					    vma->ggtt_view.pages,
-					    vma->node.start,
+					    vma->pages, vma->node.start,
 					    cache_level, pte_flags);
 	}
 
@@ -3557,28 +3556,27 @@ i915_get_ggtt_vma_pages(struct i915_vma *vma)
 {
 	int ret = 0;
 
-	if (vma->ggtt_view.pages)
+	if (vma->pages)
 		return 0;
 
 	if (vma->ggtt_view.type == I915_GGTT_VIEW_NORMAL)
-		vma->ggtt_view.pages = vma->obj->pages;
+		vma->pages = vma->obj->pages;
 	else if (vma->ggtt_view.type == I915_GGTT_VIEW_ROTATED)
-		vma->ggtt_view.pages =
+		vma->pages =
 			intel_rotate_fb_obj_pages(&vma->ggtt_view.params.rotated, vma->obj);
 	else if (vma->ggtt_view.type == I915_GGTT_VIEW_PARTIAL)
-		vma->ggtt_view.pages =
-			intel_partial_pages(&vma->ggtt_view, vma->obj);
+		vma->pages = intel_partial_pages(&vma->ggtt_view, vma->obj);
 	else
 		WARN_ONCE(1, "GGTT view %u not implemented!\n",
 			  vma->ggtt_view.type);
 
-	if (!vma->ggtt_view.pages) {
+	if (!vma->pages) {
 		DRM_ERROR("Failed to get pages for GGTT view type %u!\n",
 			  vma->ggtt_view.type);
 		ret = -EINVAL;
-	} else if (IS_ERR(vma->ggtt_view.pages)) {
-		ret = PTR_ERR(vma->ggtt_view.pages);
-		vma->ggtt_view.pages = NULL;
+	} else if (IS_ERR(vma->pages)) {
+		ret = PTR_ERR(vma->pages);
+		vma->pages = NULL;
 		DRM_ERROR("Failed to get pages for VMA view type %u (%d)!\n",
 			  vma->ggtt_view.type, ret);
 	}

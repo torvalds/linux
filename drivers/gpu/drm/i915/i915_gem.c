@@ -2868,12 +2868,12 @@ int i915_vma_unbind(struct i915_vma *vma)
 	if (i915_vma_is_ggtt(vma)) {
 		if (vma->ggtt_view.type == I915_GGTT_VIEW_NORMAL) {
 			obj->map_and_fenceable = false;
-		} else if (vma->ggtt_view.pages) {
-			sg_free_table(vma->ggtt_view.pages);
-			kfree(vma->ggtt_view.pages);
+		} else if (vma->pages) {
+			sg_free_table(vma->pages);
+			kfree(vma->pages);
 		}
-		vma->ggtt_view.pages = NULL;
 	}
+	vma->pages = NULL;
 
 	/* Since the unbound list is global, only move to that list if
 	 * no more VMAs exist. */
