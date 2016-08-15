@@ -35,6 +35,7 @@
 static void *videomemory;
 static u_long videomemorysize = VIDEOMEMSIZE;
 module_param(videomemorysize, ulong, 0);
+MODULE_PARM_DESC(videomemorysize, "RAM available to frame buffer (in bytes)");
 
 /**********************************************************************
  *
@@ -119,6 +120,7 @@ static struct fb_fix_screeninfo vfb_fix = {
 
 static bool vfb_enable __initdata = 0;	/* disabled by default */
 module_param(vfb_enable, bool, 0);
+MODULE_PARM_DESC(vfb_enable, "Enable Virtual FB driver");
 
 static int vfb_check_var(struct fb_var_screeninfo *var,
 			 struct fb_info *info);
