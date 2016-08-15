@@ -1154,7 +1154,7 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	u32 tmp, viewport_w, viewport_h;
 	int r;
 	bool bypass_lut = false;
-	const char *format_name;
+	char *format_name;
 
 	/* no fb bound */
 	if (!atomic && !crtc->primary->fb) {
@@ -1471,7 +1471,7 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	u32 viewport_w, viewport_h;
 	int r;
 	bool bypass_lut = false;
-	const char *format_name;
+	char *format_name;
 
 	/* no fb bound */
 	if (!atomic && !crtc->primary->fb) {

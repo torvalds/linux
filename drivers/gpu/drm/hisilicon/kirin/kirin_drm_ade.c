@@ -608,7 +608,7 @@ static void ade_rdma_set(void __iomem *base, struct drm_framebuffer *fb,
 			 u32 ch, u32 y, u32 in_h, u32 fmt)
 {
 	struct drm_gem_cma_object *obj = drm_fb_cma_get_gem_obj(fb, 0);
-	const char *format_name;
+	char *format_name;
 	u32 reg_ctrl, reg_addr, reg_size, reg_stride, reg_space, reg_en;
 	u32 stride = fb->pitches[0];
 	u32 addr = (u32)obj->paddr + y * stride;

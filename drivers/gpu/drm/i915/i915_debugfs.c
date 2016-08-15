@@ -3113,7 +3113,7 @@ static void intel_plane_info(struct seq_file *m, struct intel_crtc *intel_crtc)
 	for_each_intel_plane_on_crtc(dev, intel_crtc, intel_plane) {
 		struct drm_plane_state *state;
 		struct drm_plane *plane = &intel_plane->base;
-		const char *format_name;
+		char *format_name;
 
 		if (!plane->state) {
 			seq_puts(m, "plane->state is NULL!\n");

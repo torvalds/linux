@@ -2592,7 +2592,7 @@ static int __setplane_internal(struct drm_plane *plane,
 	/* Check whether this plane supports the fb pixel format. */
 	ret = drm_plane_check_pixel_format(plane, fb->pixel_format);
 	if (ret) {
-		const char *format_name = drm_get_format_name(fb->pixel_format);
+		char *format_name = drm_get_format_name(fb->pixel_format);
 		DRM_DEBUG_KMS("Invalid pixel format %s\n", format_name);
 		kfree(format_name);
 		goto out;
@@ -2903,7 +2903,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 			ret = drm_plane_check_pixel_format(crtc->primary,
 							   fb->pixel_format);
 			if (ret) {
-				const char *format_name = drm_get_format_name(fb->pixel_format);
+				char *format_name = drm_get_format_name(fb->pixel_format);
 				DRM_DEBUG_KMS("Invalid pixel format %s\n", format_name);
 				kfree(format_name);
 				goto out;
@@ -3281,7 +3281,7 @@ int drm_mode_addfb(struct drm_device *dev,
 static int format_check(const struct drm_mode_fb_cmd2 *r)
 {
 	uint32_t format = r->pixel_format & ~DRM_FORMAT_BIG_ENDIAN;
-	const char *format_name;
+	char *format_name;
 
 	switch (format) {
 	case DRM_FORMAT_C8:
@@ -3359,7 +3359,7 @@ static int framebuffer_check(const struct drm_mode_fb_cmd2 *r)
 
 	ret = format_check(r);
 	if (ret) {
-		const char *format_name = drm_get_format_name(r->pixel_format);
+		char *format_name = drm_get_format_name(r->pixel_format);
 		DRM_DEBUG_KMS("bad framebuffer format %s\n", format_name);
 		kfree(format_name);
 		return ret;

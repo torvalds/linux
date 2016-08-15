@@ -143,7 +143,7 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 		crtc_state->base.enable ? crtc_state->pipe_src_h : 0;
 
 	if (state->fb && intel_rotation_90_or_270(state->rotation)) {
-		const char *format_name;
+		char *format_name;
 		if (!(state->fb->modifier[0] == I915_FORMAT_MOD_Y_TILED ||
 			state->fb->modifier[0] == I915_FORMAT_MOD_Yf_TILED)) {
 			DRM_DEBUG_KMS("Y/Yf tiling required for 90/270!\n");

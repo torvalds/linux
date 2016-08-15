@@ -42,7 +42,7 @@ static char printable_char(int c)
  * Note that the buffer returned by this function is owned by the caller
  * and will need to be freed using kfree().
  */
-const char *drm_get_format_name(uint32_t format)
+char *drm_get_format_name(uint32_t format)
 {
 	char *buf = kmalloc(32, GFP_KERNEL);
 
@@ -71,7 +71,7 @@ EXPORT_SYMBOL(drm_get_format_name);
 void drm_fb_get_bpp_depth(uint32_t format, unsigned int *depth,
 			  int *bpp)
 {
-	const char *format_name;
+	char *format_name;
 
 	switch (format) {
 	case DRM_FORMAT_C8:
