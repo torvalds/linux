@@ -42,16 +42,6 @@ static const char *engine_str(int engine)
 	}
 }
 
-static const char *pin_flag(int pinned)
-{
-	if (pinned > 0)
-		return " P";
-	else if (pinned < 0)
-		return " p";
-	else
-		return "";
-}
-
 static const char *tiling_flag(int tiling)
 {
 	switch (tiling) {
@@ -189,7 +179,7 @@ static void print_error_buffers(struct drm_i915_error_state_buf *m,
 {
 	int i;
 
-	err_printf(m, "  %s [%d]:\n", name, count);
+	err_printf(m, "%s [%d]:\n", name, count);
 
 	while (count--) {
 		err_printf(m, "    %08x_%08x %8u %02x %02x [ ",
@@ -202,7 +192,6 @@ static void print_error_buffers(struct drm_i915_error_state_buf *m,
 			err_printf(m, "%02x ", err->rseqno[i]);
 
 		err_printf(m, "] %02x", err->wseqno);
-		err_puts(m, pin_flag(err->pinned));
 		err_puts(m, tiling_flag(err->tiling));
 		err_puts(m, dirty_flag(err->dirty));
 		err_puts(m, purgeable_flag(err->purgeable));
@@ -414,17 +403,32 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			error_print_engine(m, &error->engine[i]);
 	}
 
-	for (i = 0; i < error->vm_count; i++) {
-		err_printf(m, "vm[%d]\n", i);
+	for (i = 0; i < ARRAY_SIZE(error->active_vm); i++) {
+		char buf[128];
+		int len, first = 1;
 
-		print_error_buffers(m, "Active",
+		if (!error->active_vm[i])
+			break;
+
+		len = scnprintf(buf, sizeof(buf), "Active (");
+		for (j = 0; j < ARRAY_SIZE(error->engine); j++) {
+			if (error->engine[j].vm != error->active_vm[i])
+				continue;
+
+			len += scnprintf(buf + len, sizeof(buf), "%s%s",
+					 first ? "" : ", ",
+					 dev_priv->engine[j].name);
+			first = 0;
+		}
+		scnprintf(buf + len, sizeof(buf), ")");
+		print_error_buffers(m, buf,
 				    error->active_bo[i],
 				    error->active_bo_count[i]);
-
-		print_error_buffers(m, "Pinned",
-				    error->pinned_bo[i],
-				    error->pinned_bo_count[i]);
 	}
+
+	print_error_buffers(m, "Pinned (global)",
+			    error->pinned_bo,
+			    error->pinned_bo_count);
 
 	for (i = 0; i < ARRAY_SIZE(error->engine); i++) {
 		struct drm_i915_error_engine *ee = &error->engine[i];
@@ -627,13 +631,10 @@ static void i915_error_state_free(struct kref *error_ref)
 
 	i915_error_object_free(error->semaphore_obj);
 
-	for (i = 0; i < error->vm_count; i++)
+	for (i = 0; i < ARRAY_SIZE(error->active_bo); i++)
 		kfree(error->active_bo[i]);
-
-	kfree(error->active_bo);
-	kfree(error->active_bo_count);
 	kfree(error->pinned_bo);
-	kfree(error->pinned_bo_count);
+
 	kfree(error->overlay);
 	kfree(error->display);
 	kfree(error);
@@ -779,9 +780,6 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 	err->read_domains = obj->base.read_domains;
 	err->write_domain = obj->base.write_domain;
 	err->fence_reg = obj->fence_reg;
-	err->pinned = 0;
-	if (i915_gem_obj_is_pinned(obj))
-		err->pinned = 1;
 	err->tiling = i915_gem_object_get_tiling(obj);
 	err->dirty = obj->dirty;
 	err->purgeable = obj->madv != I915_MADV_WILLNEED;
@@ -789,41 +787,23 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 	err->cache_level = obj->cache_level;
 }
 
-static u32 capture_active_bo(struct drm_i915_error_buffer *err,
-			     int count, struct list_head *head)
+static u32 capture_error_bo(struct drm_i915_error_buffer *err,
+			    int count, struct list_head *head,
+			    bool pinned_only)
 {
 	struct i915_vma *vma;
 	int i = 0;
 
 	list_for_each_entry(vma, head, vm_link) {
+		if (pinned_only && !i915_vma_is_pinned(vma))
+			continue;
+
 		capture_bo(err++, vma);
 		if (++i == count)
 			break;
 	}
 
 	return i;
-}
-
-static u32 capture_pinned_bo(struct drm_i915_error_buffer *err,
-			     int count, struct list_head *head,
-			     struct i915_address_space *vm)
-{
-	struct drm_i915_gem_object *obj;
-	struct drm_i915_error_buffer * const first = err;
-	struct drm_i915_error_buffer * const last = err + count;
-
-	list_for_each_entry(obj, head, global_list) {
-		struct i915_vma *vma;
-
-		if (err == last)
-			break;
-
-		list_for_each_entry(vma, &obj->vma_list, obj_link)
-			if (vma->vm == vm && i915_vma_is_pinned(vma))
-				capture_bo(err++, vma);
-	}
-
-	return err - first;
 }
 
 /* Generate a semi-unique error code. The code is not meant to have meaning, The
@@ -1063,7 +1043,6 @@ static void error_record_engine_registers(struct drm_i915_error_state *error,
 	}
 }
 
-
 static void i915_gem_record_active_context(struct intel_engine_cs *engine,
 					   struct drm_i915_error_state *error,
 					   struct drm_i915_error_engine *ee)
@@ -1116,10 +1095,9 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 
 		request = i915_gem_find_active_request(engine);
 		if (request) {
-			struct i915_address_space *vm;
 			struct intel_ring *ring;
 
-			vm = request->ctx->ppgtt ?
+			ee->vm = request->ctx->ppgtt ?
 				&request->ctx->ppgtt->base : &ggtt->base;
 
 			/* We need to copy these to an anonymous buffer
@@ -1129,7 +1107,7 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 			ee->batchbuffer =
 				i915_error_object_create(dev_priv,
 							 request->batch_obj,
-							 vm);
+							 ee->vm);
 
 			if (HAS_BROKEN_CS_TLB(dev_priv))
 				ee->wa_batchbuffer =
@@ -1212,87 +1190,86 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 	}
 }
 
-/* FIXME: Since pin count/bound list is global, we duplicate what we capture per
- * VM.
- */
 static void i915_gem_capture_vm(struct drm_i915_private *dev_priv,
 				struct drm_i915_error_state *error,
 				struct i915_address_space *vm,
-				const int ndx)
+				int idx)
 {
-	struct drm_i915_error_buffer *active_bo = NULL, *pinned_bo = NULL;
-	struct drm_i915_gem_object *obj;
+	struct drm_i915_error_buffer *active_bo;
 	struct i915_vma *vma;
-	int i;
+	int count;
 
-	i = 0;
+	count = 0;
 	list_for_each_entry(vma, &vm->active_list, vm_link)
-		i++;
-	error->active_bo_count[ndx] = i;
+		count++;
 
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
-		list_for_each_entry(vma, &obj->vma_list, obj_link)
-			if (vma->vm == vm && i915_vma_is_pinned(vma))
-				i++;
-	}
-	error->pinned_bo_count[ndx] = i - error->active_bo_count[ndx];
-
-	if (i) {
-		active_bo = kcalloc(i, sizeof(*active_bo), GFP_ATOMIC);
-		if (active_bo)
-			pinned_bo = active_bo + error->active_bo_count[ndx];
-	}
-
+	active_bo = NULL;
+	if (count)
+		active_bo = kcalloc(count, sizeof(*active_bo), GFP_ATOMIC);
 	if (active_bo)
-		error->active_bo_count[ndx] =
-			capture_active_bo(active_bo,
-					  error->active_bo_count[ndx],
-					  &vm->active_list);
+		count = capture_error_bo(active_bo, count, &vm->active_list, false);
+	else
+		count = 0;
 
-	if (pinned_bo)
-		error->pinned_bo_count[ndx] =
-			capture_pinned_bo(pinned_bo,
-					  error->pinned_bo_count[ndx],
-					  &dev_priv->mm.bound_list, vm);
-	error->active_bo[ndx] = active_bo;
-	error->pinned_bo[ndx] = pinned_bo;
+	error->active_vm[idx] = vm;
+	error->active_bo[idx] = active_bo;
+	error->active_bo_count[idx] = count;
 }
 
-static void i915_gem_capture_buffers(struct drm_i915_private *dev_priv,
-				     struct drm_i915_error_state *error)
+static void i915_capture_active_buffers(struct drm_i915_private *dev_priv,
+					struct drm_i915_error_state *error)
 {
-	struct i915_address_space *vm;
-	int cnt = 0, i = 0;
+	int cnt = 0, i, j;
 
-	list_for_each_entry(vm, &dev_priv->vm_list, global_link)
-		cnt++;
+	BUILD_BUG_ON(ARRAY_SIZE(error->engine) > ARRAY_SIZE(error->active_bo));
+	BUILD_BUG_ON(ARRAY_SIZE(error->active_bo) != ARRAY_SIZE(error->active_vm));
+	BUILD_BUG_ON(ARRAY_SIZE(error->active_bo) != ARRAY_SIZE(error->active_bo_count));
 
-	error->active_bo = kcalloc(cnt, sizeof(*error->active_bo), GFP_ATOMIC);
-	error->pinned_bo = kcalloc(cnt, sizeof(*error->pinned_bo), GFP_ATOMIC);
-	error->active_bo_count = kcalloc(cnt, sizeof(*error->active_bo_count),
-					 GFP_ATOMIC);
-	error->pinned_bo_count = kcalloc(cnt, sizeof(*error->pinned_bo_count),
-					 GFP_ATOMIC);
+	/* Scan each engine looking for unique active contexts/vm */
+	for (i = 0; i < ARRAY_SIZE(error->engine); i++) {
+		struct drm_i915_error_engine *ee = &error->engine[i];
+		bool found;
 
-	if (error->active_bo == NULL ||
-	    error->pinned_bo == NULL ||
-	    error->active_bo_count == NULL ||
-	    error->pinned_bo_count == NULL) {
-		kfree(error->active_bo);
-		kfree(error->active_bo_count);
-		kfree(error->pinned_bo);
-		kfree(error->pinned_bo_count);
+		if (!ee->vm)
+			continue;
 
-		error->active_bo = NULL;
-		error->active_bo_count = NULL;
-		error->pinned_bo = NULL;
-		error->pinned_bo_count = NULL;
-	} else {
-		list_for_each_entry(vm, &dev_priv->vm_list, global_link)
-			i915_gem_capture_vm(dev_priv, error, vm, i++);
-
-		error->vm_count = cnt;
+		found = false;
+		for (j = 0; j < i && !found; j++)
+			found = error->engine[j].vm == ee->vm;
+		if (!found)
+			i915_gem_capture_vm(dev_priv, error, ee->vm, cnt++);
 	}
+}
+
+static void i915_capture_pinned_buffers(struct drm_i915_private *dev_priv,
+					struct drm_i915_error_state *error)
+{
+	struct i915_address_space *vm = &dev_priv->ggtt.base;
+	struct drm_i915_error_buffer *bo;
+	struct i915_vma *vma;
+	int count_inactive, count_active;
+
+	count_inactive = 0;
+	list_for_each_entry(vma, &vm->active_list, vm_link)
+		count_inactive++;
+
+	count_active = 0;
+	list_for_each_entry(vma, &vm->inactive_list, vm_link)
+		count_active++;
+
+	bo = NULL;
+	if (count_inactive + count_active)
+		bo = kcalloc(count_inactive + count_active,
+			     sizeof(*bo), GFP_ATOMIC);
+	if (!bo)
+		return;
+
+	count_inactive = capture_error_bo(bo, count_inactive,
+					  &vm->active_list, true);
+	count_active = capture_error_bo(bo + count_inactive, count_active,
+					&vm->inactive_list, true);
+	error->pinned_bo_count = count_inactive + count_active;
+	error->pinned_bo = bo;
 }
 
 /* Capture all registers which don't fit into another category. */
@@ -1438,9 +1415,10 @@ void i915_capture_error_state(struct drm_i915_private *dev_priv,
 
 	i915_capture_gen_state(dev_priv, error);
 	i915_capture_reg_state(dev_priv, error);
-	i915_gem_capture_buffers(dev_priv, error);
 	i915_gem_record_fences(dev_priv, error);
 	i915_gem_record_rings(dev_priv, error);
+	i915_capture_active_buffers(dev_priv, error);
+	i915_capture_pinned_buffers(dev_priv, error);
 
 	do_gettimeofday(&error->time);
 

@@ -517,6 +517,7 @@ struct drm_i915_error_state {
 		int num_waiters;
 		int hangcheck_score;
 		enum intel_engine_hangcheck_action hangcheck_action;
+		struct i915_address_space *vm;
 		int num_requests;
 
 		/* our own tracking of ring head and tail */
@@ -587,17 +588,15 @@ struct drm_i915_error_state {
 		u32 read_domains;
 		u32 write_domain;
 		s32 fence_reg:I915_MAX_NUM_FENCE_BITS;
-		s32 pinned:2;
 		u32 tiling:2;
 		u32 dirty:1;
 		u32 purgeable:1;
 		u32 userptr:1;
 		s32 engine:4;
 		u32 cache_level:3;
-	} **active_bo, **pinned_bo;
-
-	u32 *active_bo_count, *pinned_bo_count;
-	u32 vm_count;
+	} *active_bo[I915_NUM_ENGINES], *pinned_bo;
+	u32 active_bo_count[I915_NUM_ENGINES], pinned_bo_count;
+	struct i915_address_space *active_vm[I915_NUM_ENGINES];
 };
 
 struct intel_connector;
