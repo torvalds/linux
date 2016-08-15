@@ -2492,7 +2492,7 @@ static int __perf_event_stop(void *info)
 	 * while restarting.
 	 */
 	if (sd->restart)
-		event->pmu->start(event, PERF_EF_START);
+		event->pmu->start(event, 0);
 
 	return 0;
 }
