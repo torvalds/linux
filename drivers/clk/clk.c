@@ -3194,7 +3194,7 @@ struct clk *__of_clk_get_from_provider(struct of_phandle_args *clkspec,
 {
 	struct of_clk_provider *provider;
 	struct clk *clk = ERR_PTR(-EPROBE_DEFER);
-	struct clk_hw *hw = ERR_PTR(-EPROBE_DEFER);
+	struct clk_hw *hw;
 
 	if (!clkspec)
 		return ERR_PTR(-EINVAL);
@@ -3202,12 +3202,13 @@ struct clk *__of_clk_get_from_provider(struct of_phandle_args *clkspec,
 	/* Check if we have such a provider in our array */
 	mutex_lock(&of_clk_mutex);
 	list_for_each_entry(provider, &of_clk_providers, link) {
-		if (provider->node == clkspec->np)
+		if (provider->node == clkspec->np) {
 			hw = __of_clk_get_hw_from_provider(provider, clkspec);
-		if (!IS_ERR(hw)) {
 			clk = __clk_create_clk(hw, dev_id, con_id);
+		}
 
-			if (!IS_ERR(clk) && !__clk_get(clk)) {
+		if (!IS_ERR(clk)) {
+			if (!__clk_get(clk)) {
 				__clk_free_clk(clk);
 				clk = ERR_PTR(-ENOENT);
 			}
