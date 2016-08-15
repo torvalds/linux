@@ -36,24 +36,18 @@
 #include <uapi/drm/drm_fourcc.h>
 #include <drm/drm_modeset_lock.h>
 #include <drm/drm_rect.h>
+#include <drm/drm_modeset.h>
+#include <drm/drm_framebuffer.h>
+#include <drm/drm_modes.h>
 
 struct drm_device;
 struct drm_mode_set;
-struct drm_framebuffer;
 struct drm_object_properties;
 struct drm_file;
 struct drm_clip_rect;
 struct device_node;
 struct fence;
 struct edid;
-
-struct drm_mode_object {
-	uint32_t id;
-	uint32_t type;
-	struct drm_object_properties *properties;
-	struct kref refcount;
-	void (*free_cb)(struct kref *kref);
-};
 
 #define DRM_OBJECT_MAX_PROPERTY 24
 struct drm_object_properties {
@@ -93,15 +87,6 @@ static inline uint64_t I642U64(int64_t val)
 #define DRM_REFLECT_X	BIT(4)
 #define DRM_REFLECT_Y	BIT(5)
 #define DRM_REFLECT_MASK (DRM_REFLECT_X | DRM_REFLECT_Y)
-
-enum drm_connector_force {
-	DRM_FORCE_UNSPECIFIED,
-	DRM_FORCE_OFF,
-	DRM_FORCE_ON,         /* force on analog part normally */
-	DRM_FORCE_ON_DIGITAL, /* for DVI-I use digital connector */
-};
-
-#include <drm/drm_modes.h>
 
 enum drm_connector_status {
 	connector_status_connected = 1,
@@ -164,101 +149,6 @@ struct drm_tile_group {
 	struct drm_device *dev;
 	int id;
 	u8 group_data[8];
-};
-
-/**
- * struct drm_framebuffer_funcs - framebuffer hooks
- */
-struct drm_framebuffer_funcs {
-	/**
-	 * @destroy:
-	 *
-	 * Clean up framebuffer resources, specifically also unreference the
-	 * backing storage. The core guarantees to call this function for every
-	 * framebuffer successfully created by ->fb_create() in
-	 * &drm_mode_config_funcs. Drivers must also call
-	 * drm_framebuffer_cleanup() to release DRM core resources for this
-	 * framebuffer.
-	 */
-	void (*destroy)(struct drm_framebuffer *framebuffer);
-
-	/**
-	 * @create_handle:
-	 *
-	 * Create a buffer handle in the driver-specific buffer manager (either
-	 * GEM or TTM) valid for the passed-in struct &drm_file. This is used by
-	 * the core to implement the GETFB IOCTL, which returns (for
-	 * sufficiently priviledged user) also a native buffer handle. This can
-	 * be used for seamless transitions between modesetting clients by
-	 * copying the current screen contents to a private buffer and blending
-	 * between that and the new contents.
-	 *
-	 * GEM based drivers should call drm_gem_handle_create() to create the
-	 * handle.
-	 *
-	 * RETURNS:
-	 *
-	 * 0 on success or a negative error code on failure.
-	 */
-	int (*create_handle)(struct drm_framebuffer *fb,
-			     struct drm_file *file_priv,
-			     unsigned int *handle);
-	/**
-	 * @dirty:
-	 *
-	 * Optional callback for the dirty fb IOCTL.
-	 *
-	 * Userspace can notify the driver via this callback that an area of the
-	 * framebuffer has changed and should be flushed to the display
-	 * hardware. This can also be used internally, e.g. by the fbdev
-	 * emulation, though that's not the case currently.
-	 *
-	 * See documentation in drm_mode.h for the struct drm_mode_fb_dirty_cmd
-	 * for more information as all the semantics and arguments have a one to
-	 * one mapping on this function.
-	 *
-	 * RETURNS:
-	 *
-	 * 0 on success or a negative error code on failure.
-	 */
-	int (*dirty)(struct drm_framebuffer *framebuffer,
-		     struct drm_file *file_priv, unsigned flags,
-		     unsigned color, struct drm_clip_rect *clips,
-		     unsigned num_clips);
-};
-
-struct drm_framebuffer {
-	struct drm_device *dev;
-	/*
-	 * Note that the fb is refcounted for the benefit of driver internals,
-	 * for example some hw, disabling a CRTC/plane is asynchronous, and
-	 * scanout does not actually complete until the next vblank.  So some
-	 * cleanup (like releasing the reference(s) on the backing GEM bo(s))
-	 * should be deferred.  In cases like this, the driver would like to
-	 * hold a ref to the fb even though it has already been removed from
-	 * userspace perspective.
-	 * The refcount is stored inside the mode object.
-	 */
-	/*
-	 * Place on the dev->mode_config.fb_list, access protected by
-	 * dev->mode_config.fb_lock.
-	 */
-	struct list_head head;
-	struct drm_mode_object base;
-	const struct drm_framebuffer_funcs *funcs;
-	unsigned int pitches[4];
-	unsigned int offsets[4];
-	uint64_t modifier[4];
-	unsigned int width;
-	unsigned int height;
-	/* depth can be 15 or 16 */
-	unsigned int depth;
-	int bits_per_pixel;
-	int flags;
-	uint32_t pixel_format; /* fourcc format */
-	int hot_x;
-	int hot_y;
-	struct list_head filp_head;
 };
 
 struct drm_property_blob {
@@ -2888,14 +2778,6 @@ extern int drm_object_property_set_value(struct drm_mode_object *obj,
 extern int drm_object_property_get_value(struct drm_mode_object *obj,
 					 struct drm_property *property,
 					 uint64_t *value);
-extern int drm_framebuffer_init(struct drm_device *dev,
-				struct drm_framebuffer *fb,
-				const struct drm_framebuffer_funcs *funcs);
-extern struct drm_framebuffer *drm_framebuffer_lookup(struct drm_device *dev,
-						      uint32_t id);
-extern void drm_framebuffer_remove(struct drm_framebuffer *fb);
-extern void drm_framebuffer_cleanup(struct drm_framebuffer *fb);
-extern void drm_framebuffer_unregister_private(struct drm_framebuffer *fb);
 
 extern void drm_object_attach_property(struct drm_mode_object *obj,
 				       struct drm_property *property,
@@ -2976,11 +2858,6 @@ int drm_plane_create_zpos_immutable_property(struct drm_plane *plane,
 					     unsigned int zpos);
 
 /* Helpers */
-struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
-					     uint32_t id, uint32_t type);
-void drm_mode_object_reference(struct drm_mode_object *obj);
-void drm_mode_object_unreference(struct drm_mode_object *obj);
-
 static inline struct drm_plane *drm_plane_find(struct drm_device *dev,
 		uint32_t id)
 {
@@ -3046,39 +2923,6 @@ static inline uint32_t drm_color_lut_extract(uint32_t user_input,
 	}
 
 	return clamp_val(val, 0, max);
-}
-
-/**
- * drm_framebuffer_reference - incr the fb refcnt
- * @fb: framebuffer
- *
- * This functions increments the fb's refcount.
- */
-static inline void drm_framebuffer_reference(struct drm_framebuffer *fb)
-{
-	drm_mode_object_reference(&fb->base);
-}
-
-/**
- * drm_framebuffer_unreference - unref a framebuffer
- * @fb: framebuffer to unref
- *
- * This functions decrements the fb's refcount and frees it if it drops to zero.
- */
-static inline void drm_framebuffer_unreference(struct drm_framebuffer *fb)
-{
-	drm_mode_object_unreference(&fb->base);
-}
-
-/**
- * drm_framebuffer_read_refcount - read the framebuffer reference count.
- * @fb: framebuffer
- *
- * This functions returns the framebuffer's reference count.
- */
-static inline uint32_t drm_framebuffer_read_refcount(struct drm_framebuffer *fb)
-{
-	return atomic_read(&fb->base.refcount.refcount);
 }
 
 /**

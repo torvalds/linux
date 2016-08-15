@@ -27,6 +27,8 @@
 #ifndef __DRM_MODES_H__
 #define __DRM_MODES_H__
 
+#include <drm/drm_modeset.h>
+
 /*
  * Note on terminology:  here, for brevity and convenience, we refer to connector
  * control chips as 'CRTCs'.  They can control any type of connector, VGA, LVDS,
