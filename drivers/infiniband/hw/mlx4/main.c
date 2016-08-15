@@ -3244,7 +3244,7 @@ static int __init mlx4_ib_init(void)
 {
 	int err;
 
-	wq = create_singlethread_workqueue("mlx4_ib");
+	wq = alloc_ordered_workqueue("mlx4_ib", WQ_MEM_RECLAIM);
 	if (!wq)
 		return -ENOMEM;
 
