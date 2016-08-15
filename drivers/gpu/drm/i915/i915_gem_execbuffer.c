@@ -180,8 +180,8 @@ eb_lookup_vmas(struct eb_vmas *eb,
 		 * from the (obj, vm) we don't run the risk of creating
 		 * duplicated vmas for the same vm.
 		 */
-		vma = i915_gem_obj_lookup_or_create_vma(obj, vm);
-		if (IS_ERR(vma)) {
+		vma = i915_gem_obj_lookup_or_create_vma(obj, vm, NULL);
+		if (unlikely(IS_ERR(vma))) {
 			DRM_DEBUG("Failed to lookup VMA\n");
 			ret = PTR_ERR(vma);
 			goto err;
@@ -349,30 +349,33 @@ relocate_entry_gtt(struct drm_i915_gem_object *obj,
 		   struct drm_i915_gem_relocation_entry *reloc,
 		   uint64_t target_offset)
 {
-	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
+	struct i915_vma *vma;
 	uint64_t delta = relocation_target(reloc, target_offset);
 	uint64_t offset;
 	void __iomem *reloc_page;
 	int ret;
 
+	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, PIN_MAPPABLE);
+	if (IS_ERR(vma))
+		return PTR_ERR(vma);
+
 	ret = i915_gem_object_set_to_gtt_domain(obj, true);
 	if (ret)
-		return ret;
+		goto unpin;
 
 	ret = i915_gem_object_put_fence(obj);
 	if (ret)
-		return ret;
+		goto unpin;
 
 	/* Map the page containing the relocation we're going to perform.  */
-	offset = i915_gem_obj_ggtt_offset(obj);
-	offset += reloc->offset;
+	offset = vma->node.start + reloc->offset;
 	reloc_page = io_mapping_map_atomic_wc(ggtt->mappable,
 					      offset & PAGE_MASK);
 	iowrite32(lower_32_bits(delta), reloc_page + offset_in_page(offset));
 
-	if (INTEL_INFO(dev)->gen >= 8) {
+	if (INTEL_GEN(dev_priv) >= 8) {
 		offset += sizeof(uint32_t);
 
 		if (offset_in_page(offset) == 0) {
@@ -388,7 +391,9 @@ relocate_entry_gtt(struct drm_i915_gem_object *obj,
 
 	io_mapping_unmap_atomic(reloc_page);
 
-	return 0;
+unpin:
+	i915_vma_unpin(vma);
+	return ret;
 }
 
 static void
@@ -1281,7 +1286,7 @@ i915_reset_gen7_sol_offsets(struct drm_i915_gem_request *req)
 	return 0;
 }
 
-static struct i915_vma*
+static struct i915_vma *
 i915_gem_execbuffer_parse(struct intel_engine_cs *engine,
 			  struct drm_i915_gem_exec_object2 *shadow_exec_entry,
 			  struct drm_i915_gem_object *batch_obj,
@@ -1305,31 +1310,28 @@ i915_gem_execbuffer_parse(struct intel_engine_cs *engine,
 				      batch_start_offset,
 				      batch_len,
 				      is_master);
-	if (ret)
-		goto err;
+	if (ret) {
+		if (ret == -EACCES) /* unhandled chained batch */
+			vma = NULL;
+		else
+			vma = ERR_PTR(ret);
+		goto out;
+	}
 
-	ret = i915_gem_object_ggtt_pin(shadow_batch_obj, NULL, 0, 0, 0);
-	if (ret)
-		goto err;
-
-	i915_gem_object_unpin_pages(shadow_batch_obj);
+	vma = i915_gem_object_ggtt_pin(shadow_batch_obj, NULL, 0, 0, 0);
+	if (IS_ERR(vma))
+		goto out;
 
 	memset(shadow_exec_entry, 0, sizeof(*shadow_exec_entry));
 
-	vma = i915_gem_obj_to_ggtt(shadow_batch_obj);
 	vma->exec_entry = shadow_exec_entry;
 	vma->exec_entry->flags = __EXEC_OBJECT_HAS_PIN;
 	i915_gem_object_get(shadow_batch_obj);
 	list_add_tail(&vma->exec_list, &eb->vmas);
 
-	return vma;
-
-err:
+out:
 	i915_gem_object_unpin_pages(shadow_batch_obj);
-	if (ret == -EACCES) /* unhandled chained batch */
-		return NULL;
-	else
-		return ERR_PTR(ret);
+	return vma;
 }
 
 static int
@@ -1677,6 +1679,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	 * hsw should have this fixed, but bdw mucks it up again. */
 	if (dispatch_flags & I915_DISPATCH_SECURE) {
 		struct drm_i915_gem_object *obj = params->batch->obj;
+		struct i915_vma *vma;
 
 		/*
 		 * So on first glance it looks freaky that we pin the batch here
@@ -1688,11 +1691,13 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		 *   fitting due to fragmentation.
 		 * So this is actually safe.
 		 */
-		ret = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, 0);
-		if (ret)
+		vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, 0);
+		if (IS_ERR(vma)) {
+			ret = PTR_ERR(vma);
 			goto err;
+		}
 
-		params->batch = i915_gem_obj_to_ggtt(obj);
+		params->batch = vma;
 	}
 
 	/* Allocate a request for this batch buffer nice and early. */
@@ -1708,7 +1713,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	 * inactive_list and lose its active reference. Hence we do not need
 	 * to explicitly hold another reference here.
 	 */
-	params->request->batch_obj = params->batch->obj;
+	params->request->batch = params->batch;
 
 	ret = i915_gem_request_add_to_client(params->request, file);
 	if (ret)

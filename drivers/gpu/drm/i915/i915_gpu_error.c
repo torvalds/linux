@@ -653,46 +653,42 @@ static void i915_error_state_free(struct kref *error_ref)
 
 static struct drm_i915_error_object *
 i915_error_object_create(struct drm_i915_private *dev_priv,
-			 struct drm_i915_gem_object *src,
-			 struct i915_address_space *vm)
+			 struct i915_vma *vma)
 {
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
+	struct drm_i915_gem_object *src;
 	struct drm_i915_error_object *dst;
-	struct i915_vma *vma = NULL;
 	int num_pages;
 	bool use_ggtt;
 	int i = 0;
 	u64 reloc_offset;
 
-	if (src == NULL || src->pages == NULL)
+	if (!vma)
+		return NULL;
+
+	src = vma->obj;
+	if (!src->pages)
 		return NULL;
 
 	num_pages = src->base.size >> PAGE_SHIFT;
 
 	dst = kmalloc(sizeof(*dst) + num_pages * sizeof(u32 *), GFP_ATOMIC);
-	if (dst == NULL)
+	if (!dst)
 		return NULL;
 
-	if (i915_gem_obj_bound(src, vm))
-		dst->gtt_offset = i915_gem_obj_offset(src, vm);
-	else
-		dst->gtt_offset = -1;
-
-	reloc_offset = dst->gtt_offset;
-	if (i915_is_ggtt(vm))
-		vma = i915_gem_obj_to_ggtt(src);
+	reloc_offset = dst->gtt_offset = vma->node.start;
 	use_ggtt = (src->cache_level == I915_CACHE_NONE &&
-		   vma && (vma->flags & I915_VMA_GLOBAL_BIND) &&
+		   (vma->flags & I915_VMA_GLOBAL_BIND) &&
 		   reloc_offset + num_pages * PAGE_SIZE <= ggtt->mappable_end);
 
 	/* Cannot access stolen address directly, try to use the aperture */
 	if (src->stolen) {
 		use_ggtt = true;
 
-		if (!(vma && vma->flags & I915_VMA_GLOBAL_BIND))
+		if (!(vma->flags & I915_VMA_GLOBAL_BIND))
 			goto unwind;
 
-		reloc_offset = i915_gem_obj_ggtt_offset(src);
+		reloc_offset = vma->node.start;
 		if (reloc_offset + num_pages * PAGE_SIZE > ggtt->mappable_end)
 			goto unwind;
 	}
@@ -752,8 +748,6 @@ unwind:
 	kfree(dst);
 	return NULL;
 }
-#define i915_error_ggtt_object_create(dev_priv, src) \
-	i915_error_object_create((dev_priv), (src), &(dev_priv)->ggtt.base)
 
 /* The error capture is special as tries to run underneath the normal
  * locking rules - so we use the raw version of the i915_gem_active lookup.
@@ -1062,8 +1056,7 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 	int i, count;
 
 	error->semaphore =
-		i915_error_ggtt_object_create(dev_priv,
-					      dev_priv->semaphore->obj);
+		i915_error_object_create(dev_priv, dev_priv->semaphore);
 
 	for (i = 0; i < I915_NUM_ENGINES; i++) {
 		struct intel_engine_cs *engine = &dev_priv->engine[i];
@@ -1093,18 +1086,16 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 			 */
 			ee->batchbuffer =
 				i915_error_object_create(dev_priv,
-							 request->batch_obj,
-							 ee->vm);
+							 request->batch);
 
 			if (HAS_BROKEN_CS_TLB(dev_priv))
 				ee->wa_batchbuffer =
-					i915_error_ggtt_object_create(dev_priv,
-								      engine->scratch->obj);
+					i915_error_object_create(dev_priv,
+								 engine->scratch);
 
-			if (request->ctx->engine[i].state) {
-				ee->ctx = i915_error_ggtt_object_create(dev_priv,
-									request->ctx->engine[i].state->obj);
-			}
+			ee->ctx =
+				i915_error_object_create(dev_priv,
+							 request->ctx->engine[i].state);
 
 			if (request->pid) {
 				struct task_struct *task;
@@ -1125,16 +1116,15 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 			ee->cpu_ring_head = ring->head;
 			ee->cpu_ring_tail = ring->tail;
 			ee->ringbuffer =
-				i915_error_ggtt_object_create(dev_priv,
-							      ring->vma->obj);
+				i915_error_object_create(dev_priv, ring->vma);
 		}
 
 		ee->hws_page =
-			i915_error_ggtt_object_create(dev_priv,
-						      engine->status_page.vma->obj);
+			i915_error_object_create(dev_priv,
+						 engine->status_page.vma);
 
-		ee->wa_ctx = i915_error_ggtt_object_create(dev_priv,
-							   engine->wa_ctx.vma->obj);
+		ee->wa_ctx =
+			i915_error_object_create(dev_priv, engine->wa_ctx.vma);
 
 		count = 0;
 		list_for_each_entry(request, &engine->request_list, link)

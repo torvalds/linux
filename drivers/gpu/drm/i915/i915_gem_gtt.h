@@ -610,20 +610,6 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev);
 int __must_check i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj);
 void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj);
 
-static inline bool
-i915_ggtt_view_equal(const struct i915_ggtt_view *a,
-                     const struct i915_ggtt_view *b)
-{
-	if (WARN_ON(!a || !b))
-		return false;
-
-	if (a->type != b->type)
-		return false;
-	if (a->type != I915_GGTT_VIEW_NORMAL)
-		return !memcmp(&a->params, &b->params, sizeof(a->params));
-	return true;
-}
-
 /* Flags used by pin/bind&friends. */
 #define PIN_NONBLOCK		BIT(0)
 #define PIN_MAPPABLE		BIT(1)

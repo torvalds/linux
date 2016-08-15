@@ -118,7 +118,7 @@ struct drm_i915_gem_request {
 	/** Batch buffer related to this request if any (used for
 	 * error state dump only).
 	 */
-	struct drm_i915_gem_object *batch_obj;
+	struct i915_vma *batch;
 	struct list_head active_list;
 
 	/** Time at which this request was emitted, in jiffies. */

@@ -249,12 +249,12 @@ static inline bool guc_ucode_response(struct drm_i915_private *dev_priv,
  * Note that GuC needs the CSS header plus uKernel code to be copied by the
  * DMA engine in one operation, whereas the RSA signature is loaded via MMIO.
  */
-static int guc_ucode_xfer_dma(struct drm_i915_private *dev_priv)
+static int guc_ucode_xfer_dma(struct drm_i915_private *dev_priv,
+			      struct i915_vma *vma)
 {
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
-	struct drm_i915_gem_object *fw_obj = guc_fw->guc_fw_obj;
 	unsigned long offset;
-	struct sg_table *sg = fw_obj->pages;
+	struct sg_table *sg = vma->pages;
 	u32 status, rsa[UOS_RSA_SCRATCH_MAX_COUNT];
 	int i, ret = 0;
 
@@ -271,7 +271,7 @@ static int guc_ucode_xfer_dma(struct drm_i915_private *dev_priv)
 	I915_WRITE(DMA_COPY_SIZE, guc_fw->header_size + guc_fw->ucode_size);
 
 	/* Set the source address for the new blob */
-	offset = i915_gem_obj_ggtt_offset(fw_obj) + guc_fw->header_offset;
+	offset = vma->node.start + guc_fw->header_offset;
 	I915_WRITE(DMA_ADDR_0_LOW, lower_32_bits(offset));
 	I915_WRITE(DMA_ADDR_0_HIGH, upper_32_bits(offset) & 0xFFFF);
 
@@ -326,6 +326,7 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
 	struct drm_device *dev = &dev_priv->drm;
+	struct i915_vma *vma;
 	int ret;
 
 	ret = i915_gem_object_set_to_gtt_domain(guc_fw->guc_fw_obj, false);
@@ -334,10 +335,10 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 		return ret;
 	}
 
-	ret = i915_gem_object_ggtt_pin(guc_fw->guc_fw_obj, NULL, 0, 0, 0);
-	if (ret) {
-		DRM_DEBUG_DRIVER("pin failed %d\n", ret);
-		return ret;
+	vma = i915_gem_object_ggtt_pin(guc_fw->guc_fw_obj, NULL, 0, 0, 0);
+	if (IS_ERR(vma)) {
+		DRM_DEBUG_DRIVER("pin failed %d\n", (int)PTR_ERR(vma));
+		return PTR_ERR(vma);
 	}
 
 	/* Invalidate GuC TLB to let GuC take the latest updates to GTT. */
@@ -380,7 +381,7 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 
 	set_guc_init_params(dev_priv);
 
-	ret = guc_ucode_xfer_dma(dev_priv);
+	ret = guc_ucode_xfer_dma(dev_priv, vma);
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 
@@ -388,7 +389,7 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 	 * We keep the object pages for reuse during resume. But we can unpin it
 	 * now that DMA has completed, so it doesn't continue to take up space.
 	 */
-	i915_gem_object_ggtt_unpin(guc_fw->guc_fw_obj);
+	i915_vma_unpin(vma);
 
 	return ret;
 }

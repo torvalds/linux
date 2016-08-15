@@ -746,14 +746,15 @@ i915_gem_gtt_pread(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
+	struct i915_vma *vma;
 	struct drm_mm_node node;
 	char __user *user_data;
 	uint64_t remain;
 	uint64_t offset;
 	int ret;
 
-	ret = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, PIN_MAPPABLE);
-	if (ret) {
+	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, PIN_MAPPABLE);
+	if (IS_ERR(vma)) {
 		ret = insert_mappable_node(dev_priv, &node, PAGE_SIZE);
 		if (ret)
 			goto out;
@@ -766,7 +767,7 @@ i915_gem_gtt_pread(struct drm_device *dev,
 
 		i915_gem_object_pin_pages(obj);
 	} else {
-		node.start = i915_gem_obj_ggtt_offset(obj);
+		node.start = vma->node.start;
 		node.allocated = false;
 		ret = i915_gem_object_put_fence(obj);
 		if (ret)
@@ -847,7 +848,7 @@ out_unpin:
 		i915_gem_object_unpin_pages(obj);
 		remove_mappable_node(&node);
 	} else {
-		i915_gem_object_ggtt_unpin(obj);
+		i915_vma_unpin(vma);
 	}
 out:
 	return ret;
@@ -1045,6 +1046,7 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_private *i915,
 {
 	struct i915_ggtt *ggtt = &i915->ggtt;
 	struct drm_device *dev = obj->base.dev;
+	struct i915_vma *vma;
 	struct drm_mm_node node;
 	uint64_t remain, offset;
 	char __user *user_data;
@@ -1054,9 +1056,9 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_private *i915,
 	if (i915_gem_object_is_tiled(obj))
 		return -EFAULT;
 
-	ret = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
+	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
 				       PIN_MAPPABLE | PIN_NONBLOCK);
-	if (ret) {
+	if (IS_ERR(vma)) {
 		ret = insert_mappable_node(i915, &node, PAGE_SIZE);
 		if (ret)
 			goto out;
@@ -1069,7 +1071,7 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_private *i915,
 
 		i915_gem_object_pin_pages(obj);
 	} else {
-		node.start = i915_gem_obj_ggtt_offset(obj);
+		node.start = vma->node.start;
 		node.allocated = false;
 		ret = i915_gem_object_put_fence(obj);
 		if (ret)
@@ -1157,7 +1159,7 @@ out_unpin:
 		i915_gem_object_unpin_pages(obj);
 		remove_mappable_node(&node);
 	} else {
-		i915_gem_object_ggtt_unpin(obj);
+		i915_vma_unpin(vma);
 	}
 out:
 	return ret;
@@ -1625,7 +1627,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 
 /**
  * i915_gem_fault - fault a page into the GTT
- * @vma: VMA in question
+ * @area: CPU VMA in question
  * @vmf: fault info
  *
  * The fault handler is set up by drm_gem_mmap() when a object is GTT mapped
@@ -1639,20 +1641,21 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
  * suffer if the GTT working set is large or there are few fence registers
  * left.
  */
-int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+int i915_gem_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 {
-	struct drm_i915_gem_object *obj = to_intel_bo(vma->vm_private_data);
+	struct drm_i915_gem_object *obj = to_intel_bo(area->vm_private_data);
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct i915_ggtt_view view = i915_ggtt_view_normal;
 	bool write = !!(vmf->flags & FAULT_FLAG_WRITE);
+	struct i915_vma *vma;
 	pgoff_t page_offset;
 	unsigned long pfn;
 	int ret;
 
 	/* We don't use vmf->pgoff since that has the fake offset */
-	page_offset = ((unsigned long)vmf->virtual_address - vma->vm_start) >>
+	page_offset = ((unsigned long)vmf->virtual_address - area->vm_start) >>
 		PAGE_SHIFT;
 
 	trace_i915_gem_object_fault(obj, page_offset, true, write);
@@ -1689,14 +1692,16 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		view.params.partial.size =
 			min_t(unsigned int,
 			      chunk_size,
-			      (vma->vm_end - vma->vm_start)/PAGE_SIZE -
+			      (area->vm_end - area->vm_start) / PAGE_SIZE -
 			      view.params.partial.offset);
 	}
 
 	/* Now pin it into the GTT if needed */
-	ret = i915_gem_object_ggtt_pin(obj, &view, 0, 0, PIN_MAPPABLE);
-	if (ret)
+	vma = i915_gem_object_ggtt_pin(obj, &view, 0, 0, PIN_MAPPABLE);
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
 		goto err_unlock;
+	}
 
 	ret = i915_gem_object_set_to_gtt_domain(obj, write);
 	if (ret)
@@ -1707,8 +1712,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		goto err_unpin;
 
 	/* Finally, remap it using the new GTT offset */
-	pfn = ggtt->mappable_base +
-		i915_gem_obj_ggtt_offset_view(obj, &view);
+	pfn = ggtt->mappable_base + vma->node.start;
 	pfn >>= PAGE_SHIFT;
 
 	if (unlikely(view.type == I915_GGTT_VIEW_PARTIAL)) {
@@ -1717,12 +1721,14 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		 * is due to userspace losing part of the mapping or never
 		 * having accessed it before (at this partials' range).
 		 */
-		unsigned long base = vma->vm_start +
+		unsigned long base = area->vm_start +
 				     (view.params.partial.offset << PAGE_SHIFT);
 		unsigned int i;
 
 		for (i = 0; i < view.params.partial.size; i++) {
-			ret = vm_insert_pfn(vma, base + i * PAGE_SIZE, pfn + i);
+			ret = vm_insert_pfn(area,
+					    base + i * PAGE_SIZE,
+					    pfn + i);
 			if (ret)
 				break;
 		}
@@ -1730,14 +1736,16 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		obj->fault_mappable = true;
 	} else {
 		if (!obj->fault_mappable) {
-			unsigned long size = min_t(unsigned long,
-						   vma->vm_end - vma->vm_start,
-						   obj->base.size);
+			unsigned long size =
+				min_t(unsigned long,
+				      area->vm_end - area->vm_start,
+				      obj->base.size) >> PAGE_SHIFT;
+			unsigned long base = area->vm_start;
 			int i;
 
-			for (i = 0; i < size >> PAGE_SHIFT; i++) {
-				ret = vm_insert_pfn(vma,
-						    (unsigned long)vma->vm_start + i * PAGE_SIZE,
+			for (i = 0; i < size; i++) {
+				ret = vm_insert_pfn(area,
+						    base + i * PAGE_SIZE,
 						    pfn + i);
 				if (ret)
 					break;
@@ -1745,12 +1753,12 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 			obj->fault_mappable = true;
 		} else
-			ret = vm_insert_pfn(vma,
+			ret = vm_insert_pfn(area,
 					    (unsigned long)vmf->virtual_address,
 					    pfn + page_offset);
 	}
 err_unpin:
-	i915_gem_object_ggtt_unpin_view(obj, &view);
+	__i915_vma_unpin(vma);
 err_unlock:
 	mutex_unlock(&dev->struct_mutex);
 err_rpm:
@@ -3235,7 +3243,7 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 					    old_write_domain);
 
 	/* And bump the LRU for this access */
-	vma = i915_gem_obj_to_ggtt(obj);
+	vma = i915_gem_object_to_ggtt(obj, NULL);
 	if (vma &&
 	    drm_mm_node_allocated(&vma->node) &&
 	    !i915_vma_is_active(vma))
@@ -3459,11 +3467,12 @@ rpm_put:
  * Can be called from an uninterruptible phase (modesetting) and allows
  * any flushes to be pipelined (for pageflips).
  */
-int
+struct i915_vma *
 i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 				     u32 alignment,
 				     const struct i915_ggtt_view *view)
 {
+	struct i915_vma *vma;
 	u32 old_read_domains, old_write_domain;
 	int ret;
 
@@ -3483,18 +3492,22 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	 */
 	ret = i915_gem_object_set_cache_level(obj,
 					      HAS_WT(obj->base.dev) ? I915_CACHE_WT : I915_CACHE_NONE);
-	if (ret)
+	if (ret) {
+		vma = ERR_PTR(ret);
 		goto err_unpin_display;
+	}
 
 	/* As the user may map the buffer once pinned in the display plane
 	 * (e.g. libkms for the bootup splash), we have to ensure that we
 	 * always use map_and_fenceable for all scanout buffers.
 	 */
-	ret = i915_gem_object_ggtt_pin(obj, view, 0, alignment,
+	vma = i915_gem_object_ggtt_pin(obj, view, 0, alignment,
 				       view->type == I915_GGTT_VIEW_NORMAL ?
 				       PIN_MAPPABLE : 0);
-	if (ret)
+	if (IS_ERR(vma))
 		goto err_unpin_display;
+
+	WARN_ON(obj->pin_display > i915_vma_pin_count(vma));
 
 	i915_gem_object_flush_cpu_write_domain(obj);
 
@@ -3511,23 +3524,23 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 					    old_read_domains,
 					    old_write_domain);
 
-	return 0;
+	return vma;
 
 err_unpin_display:
 	obj->pin_display--;
-	return ret;
+	return vma;
 }
 
 void
-i915_gem_object_unpin_from_display_plane(struct drm_i915_gem_object *obj,
-					 const struct i915_ggtt_view *view)
+i915_gem_object_unpin_from_display_plane(struct i915_vma *vma)
 {
-	if (WARN_ON(obj->pin_display == 0))
+	if (WARN_ON(vma->obj->pin_display == 0))
 		return;
 
-	i915_gem_object_ggtt_unpin_view(obj, view);
+	vma->obj->pin_display--;
 
-	obj->pin_display--;
+	i915_vma_unpin(vma);
+	WARN_ON(vma->obj->pin_display > i915_vma_pin_count(vma));
 }
 
 /**
@@ -3724,27 +3737,25 @@ err:
 	return ret;
 }
 
-int
+struct i915_vma *
 i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 			 const struct i915_ggtt_view *view,
 			 u64 size,
 			 u64 alignment,
 			 u64 flags)
 {
+	struct i915_address_space *vm = &to_i915(obj->base.dev)->ggtt.base;
 	struct i915_vma *vma;
 	int ret;
 
-	if (!view)
-		view = &i915_ggtt_view_normal;
-
-	vma = i915_gem_obj_lookup_or_create_ggtt_vma(obj, view);
+	vma = i915_gem_obj_lookup_or_create_vma(obj, vm, view);
 	if (IS_ERR(vma))
-		return PTR_ERR(vma);
+		return vma;
 
 	if (i915_vma_misplaced(vma, size, alignment, flags)) {
 		if (flags & PIN_NONBLOCK &&
 		    (i915_vma_is_pinned(vma) || i915_vma_is_active(vma)))
-			return -ENOSPC;
+			return ERR_PTR(-ENOSPC);
 
 		WARN(i915_vma_is_pinned(vma),
 		     "bo is already pinned in ggtt with incorrect alignment:"
@@ -3757,17 +3768,14 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 		     obj->map_and_fenceable);
 		ret = i915_vma_unbind(vma);
 		if (ret)
-			return ret;
+			return ERR_PTR(ret);
 	}
 
-	return i915_vma_pin(vma, size, alignment, flags | PIN_GLOBAL);
-}
+	ret = i915_vma_pin(vma, size, alignment, flags | PIN_GLOBAL);
+	if (ret)
+		return ERR_PTR(ret);
 
-void
-i915_gem_object_ggtt_unpin_view(struct drm_i915_gem_object *obj,
-				const struct i915_ggtt_view *view)
-{
-	i915_vma_unpin(i915_gem_obj_to_ggtt_view(obj, view));
+	return vma;
 }
 
 static __always_inline unsigned int __busy_read_flag(unsigned int id)
@@ -4151,32 +4159,6 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 	i915_gem_object_free(obj);
 
 	intel_runtime_pm_put(dev_priv);
-}
-
-struct i915_vma *i915_gem_obj_to_vma(struct drm_i915_gem_object *obj,
-				     struct i915_address_space *vm)
-{
-	struct i915_vma *vma;
-	list_for_each_entry(vma, &obj->vma_list, obj_link) {
-		if (vma->ggtt_view.type == I915_GGTT_VIEW_NORMAL &&
-		    vma->vm == vm)
-			return vma;
-	}
-	return NULL;
-}
-
-struct i915_vma *i915_gem_obj_to_ggtt_view(struct drm_i915_gem_object *obj,
-					   const struct i915_ggtt_view *view)
-{
-	struct i915_vma *vma;
-
-	GEM_BUG_ON(!view);
-
-	list_for_each_entry(vma, &obj->vma_list, obj_link)
-		if (i915_vma_is_ggtt(vma) &&
-		    i915_ggtt_view_equal(&vma->ggtt_view, view))
-			return vma;
-	return NULL;
 }
 
 int i915_gem_suspend(struct drm_device *dev)
@@ -4644,97 +4626,6 @@ void i915_gem_track_fb(struct drm_i915_gem_object *old,
 		WARN_ON(atomic_read(&new->frontbuffer_bits) & frontbuffer_bits);
 		atomic_or(frontbuffer_bits, &new->frontbuffer_bits);
 	}
-}
-
-/* All the new VM stuff */
-u64 i915_gem_obj_offset(struct drm_i915_gem_object *o,
-			struct i915_address_space *vm)
-{
-	struct drm_i915_private *dev_priv = to_i915(o->base.dev);
-	struct i915_vma *vma;
-
-	WARN_ON(vm == &dev_priv->mm.aliasing_ppgtt->base);
-
-	list_for_each_entry(vma, &o->vma_list, obj_link) {
-		if (i915_vma_is_ggtt(vma) &&
-		    vma->ggtt_view.type != I915_GGTT_VIEW_NORMAL)
-			continue;
-		if (vma->vm == vm)
-			return vma->node.start;
-	}
-
-	WARN(1, "%s vma for this object not found.\n",
-	     i915_is_ggtt(vm) ? "global" : "ppgtt");
-	return -1;
-}
-
-u64 i915_gem_obj_ggtt_offset_view(struct drm_i915_gem_object *o,
-				  const struct i915_ggtt_view *view)
-{
-	struct i915_vma *vma;
-
-	list_for_each_entry(vma, &o->vma_list, obj_link)
-		if (i915_vma_is_ggtt(vma) &&
-		    i915_ggtt_view_equal(&vma->ggtt_view, view))
-			return vma->node.start;
-
-	WARN(1, "global vma for this object not found. (view=%u)\n", view->type);
-	return -1;
-}
-
-bool i915_gem_obj_bound(struct drm_i915_gem_object *o,
-			struct i915_address_space *vm)
-{
-	struct i915_vma *vma;
-
-	list_for_each_entry(vma, &o->vma_list, obj_link) {
-		if (i915_vma_is_ggtt(vma) &&
-		    vma->ggtt_view.type != I915_GGTT_VIEW_NORMAL)
-			continue;
-		if (vma->vm == vm && drm_mm_node_allocated(&vma->node))
-			return true;
-	}
-
-	return false;
-}
-
-bool i915_gem_obj_ggtt_bound_view(struct drm_i915_gem_object *o,
-				  const struct i915_ggtt_view *view)
-{
-	struct i915_vma *vma;
-
-	list_for_each_entry(vma, &o->vma_list, obj_link)
-		if (i915_vma_is_ggtt(vma) &&
-		    i915_ggtt_view_equal(&vma->ggtt_view, view) &&
-		    drm_mm_node_allocated(&vma->node))
-			return true;
-
-	return false;
-}
-
-unsigned long i915_gem_obj_ggtt_size(struct drm_i915_gem_object *o)
-{
-	struct i915_vma *vma;
-
-	GEM_BUG_ON(list_empty(&o->vma_list));
-
-	list_for_each_entry(vma, &o->vma_list, obj_link) {
-		if (i915_vma_is_ggtt(vma) &&
-		    vma->ggtt_view.type == I915_GGTT_VIEW_NORMAL)
-			return vma->node.size;
-	}
-
-	return 0;
-}
-
-bool i915_gem_obj_is_pinned(struct drm_i915_gem_object *obj)
-{
-	struct i915_vma *vma;
-	list_for_each_entry(vma, &obj->vma_list, obj_link)
-		if (i915_vma_is_pinned(vma))
-			return true;
-
-	return false;
 }
 
 /* Like i915_gem_object_get_page(), but mark the returned page dirty */

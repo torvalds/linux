@@ -85,7 +85,7 @@ static void i965_write_fence_reg(struct drm_device *dev, int reg,
 	POSTING_READ(fence_reg_lo);
 
 	if (obj) {
-		struct i915_vma *vma = i915_gem_obj_to_ggtt(obj);
+		struct i915_vma *vma = i915_gem_object_to_ggtt(obj, NULL);
 		unsigned int tiling = i915_gem_object_get_tiling(obj);
 		unsigned int stride = i915_gem_object_get_stride(obj);
 		u32 size = vma->node.size;
@@ -120,7 +120,7 @@ static void i915_write_fence_reg(struct drm_device *dev, int reg,
 	u32 val;
 
 	if (obj) {
-		struct i915_vma *vma = i915_gem_obj_to_ggtt(obj);
+		struct i915_vma *vma = i915_gem_object_to_ggtt(obj, NULL);
 		unsigned int tiling = i915_gem_object_get_tiling(obj);
 		unsigned int stride = i915_gem_object_get_stride(obj);
 		int pitch_val;
@@ -161,7 +161,7 @@ static void i830_write_fence_reg(struct drm_device *dev, int reg,
 	u32 val;
 
 	if (obj) {
-		struct i915_vma *vma = i915_gem_obj_to_ggtt(obj);
+		struct i915_vma *vma = i915_gem_object_to_ggtt(obj, NULL);
 		unsigned int tiling = i915_gem_object_get_tiling(obj);
 		unsigned int stride = i915_gem_object_get_stride(obj);
 		u32 pitch_val;
@@ -432,13 +432,7 @@ bool
 i915_gem_object_pin_fence(struct drm_i915_gem_object *obj)
 {
 	if (obj->fence_reg != I915_FENCE_REG_NONE) {
-		struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
-		struct i915_vma *ggtt_vma = i915_gem_obj_to_ggtt(obj);
-
-		WARN_ON(!ggtt_vma ||
-			dev_priv->fence_regs[obj->fence_reg].pin_count >
-			i915_vma_pin_count(ggtt_vma));
-		dev_priv->fence_regs[obj->fence_reg].pin_count++;
+		to_i915(obj->base.dev)->fence_regs[obj->fence_reg].pin_count++;
 		return true;
 	} else
 		return false;

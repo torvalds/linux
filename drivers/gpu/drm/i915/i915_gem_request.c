@@ -406,7 +406,7 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	/* No zalloc, must clear what we need by hand */
 	req->previous_context = NULL;
 	req->file_priv = NULL;
-	req->batch_obj = NULL;
+	req->batch = NULL;
 	req->pid = NULL;
 	req->elsp_submitted = 0;
 

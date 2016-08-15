@@ -2179,14 +2179,14 @@ static unsigned int intel_surf_alignment(const struct drm_i915_private *dev_priv
 	}
 }
 
-int
-intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
-			   unsigned int rotation)
+struct i915_vma *
+intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb, unsigned int rotation)
 {
 	struct drm_device *dev = fb->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct i915_ggtt_view view;
+	struct i915_vma *vma;
 	u32 alignment;
 	int ret;
 
@@ -2213,10 +2213,11 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
 	 */
 	intel_runtime_pm_get(dev_priv);
 
-	ret = i915_gem_object_pin_to_display_plane(obj, alignment,
-						   &view);
-	if (ret)
+	vma = i915_gem_object_pin_to_display_plane(obj, alignment, &view);
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
 		goto err_pm;
+	}
 
 	/* Install a fence for tiled scan-out. Pre-i965 always needs a
 	 * fence, whereas 965+ only requires a fence if using
@@ -2243,19 +2244,20 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
 	}
 
 	intel_runtime_pm_put(dev_priv);
-	return 0;
+	return vma;
 
 err_unpin:
-	i915_gem_object_unpin_from_display_plane(obj, &view);
+	i915_gem_object_unpin_from_display_plane(vma);
 err_pm:
 	intel_runtime_pm_put(dev_priv);
-	return ret;
+	return ERR_PTR(ret);
 }
 
 void intel_unpin_fb_obj(struct drm_framebuffer *fb, unsigned int rotation)
 {
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct i915_ggtt_view view;
+	struct i915_vma *vma;
 
 	WARN_ON(!mutex_is_locked(&obj->base.dev->struct_mutex));
 
@@ -2264,7 +2266,8 @@ void intel_unpin_fb_obj(struct drm_framebuffer *fb, unsigned int rotation)
 	if (view.type == I915_GGTT_VIEW_NORMAL)
 		i915_gem_object_unpin_fence(obj);
 
-	i915_gem_object_unpin_from_display_plane(obj, &view);
+	vma = i915_gem_object_to_ggtt(obj, &view);
+	i915_gem_object_unpin_from_display_plane(vma);
 }
 
 static int intel_fb_pitch(const struct drm_framebuffer *fb, int plane,
@@ -2796,7 +2799,7 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 			continue;
 
 		obj = intel_fb_obj(fb);
-		if (i915_gem_obj_ggtt_offset(obj) == plane_config->base) {
+		if (i915_gem_object_ggtt_offset(obj, NULL) == plane_config->base) {
 			drm_framebuffer_reference(fb);
 			goto valid_fb;
 		}
@@ -3115,7 +3118,7 @@ static void i9xx_update_primary_plane(struct drm_plane *primary,
 		I915_WRITE(DSPTILEOFF(plane), (y << 16) | x);
 		I915_WRITE(DSPLINOFF(plane), linear_offset);
 	} else
-		I915_WRITE(DSPADDR(plane), i915_gem_obj_ggtt_offset(obj) + linear_offset);
+		I915_WRITE(DSPADDR(plane), i915_gem_object_ggtt_offset(obj, NULL) + linear_offset);
 	POSTING_READ(reg);
 }
 
@@ -3237,11 +3240,17 @@ u32 intel_fb_gtt_offset(struct drm_framebuffer *fb,
 {
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct i915_ggtt_view view;
+	struct i915_vma *vma;
 	u64 offset;
 
 	intel_fill_fb_ggtt_view(&view, fb, rotation);
 
-	offset = i915_gem_obj_ggtt_offset_view(obj, &view);
+	vma = i915_gem_object_to_ggtt(obj, &view);
+	if (WARN(!vma, "ggtt vma for display object not found! (view=%u)\n",
+		 view.type))
+		return -1;
+
+	offset = vma->node.start;
 
 	WARN_ON(upper_32_bits(offset));
 
@@ -12032,6 +12041,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	struct intel_engine_cs *engine;
 	bool mmio_flip;
 	struct drm_i915_gem_request *request;
+	struct i915_vma *vma;
 	int ret;
 
 	/*
@@ -12139,9 +12149,11 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 	mmio_flip = use_mmio_flip(engine, obj);
 
-	ret = intel_pin_and_fence_fb_obj(fb, primary->state->rotation);
-	if (ret)
+	vma = intel_pin_and_fence_fb_obj(fb, primary->state->rotation);
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
 		goto cleanup_pending;
+	}
 
 	work->gtt_offset = intel_fb_gtt_offset(fb, primary->state->rotation);
 	work->gtt_offset += intel_crtc->dspaddr_offset;
@@ -14484,7 +14496,11 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 		if (ret)
 			DRM_DEBUG_KMS("failed to attach phys object\n");
 	} else {
-		ret = intel_pin_and_fence_fb_obj(fb, new_state->rotation);
+		struct i915_vma *vma;
+
+		vma = intel_pin_and_fence_fb_obj(fb, new_state->rotation);
+		if (IS_ERR(vma))
+			ret = PTR_ERR(vma);
 	}
 
 	if (ret == 0) {
@@ -14850,7 +14866,7 @@ intel_update_cursor_plane(struct drm_plane *plane,
 	if (!obj)
 		addr = 0;
 	else if (!INTEL_INFO(dev)->cursor_needs_physical)
-		addr = i915_gem_obj_ggtt_offset(obj);
+		addr = i915_gem_object_ggtt_offset(obj, NULL);
 	else
 		addr = obj->phys_handle->busaddr;
 
@@ -16723,7 +16739,6 @@ void intel_modeset_gem_init(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_crtc *c;
 	struct drm_i915_gem_object *obj;
-	int ret;
 
 	intel_init_gt_powersave(dev_priv);
 
@@ -16737,15 +16752,17 @@ void intel_modeset_gem_init(struct drm_device *dev)
 	 * for this.
 	 */
 	for_each_crtc(dev, c) {
+		struct i915_vma *vma;
+
 		obj = intel_fb_obj(c->primary->fb);
 		if (obj == NULL)
 			continue;
 
 		mutex_lock(&dev->struct_mutex);
-		ret = intel_pin_and_fence_fb_obj(c->primary->fb,
+		vma = intel_pin_and_fence_fb_obj(c->primary->fb,
 						 c->primary->state->rotation);
 		mutex_unlock(&dev->struct_mutex);
-		if (ret) {
+		if (IS_ERR(vma)) {
 			DRM_ERROR("failed to pin boot fb on pipe %d\n",
 				  to_intel_crtc(c)->pipe);
 			drm_framebuffer_unreference(c->primary->fb);

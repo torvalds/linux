@@ -130,7 +130,7 @@ i915_gem_object_fence_prepare(struct drm_i915_gem_object *obj, int tiling_mode)
 	if (INTEL_GEN(dev_priv) >= 4)
 		return 0;
 
-	vma = i915_gem_obj_to_ggtt(obj);
+	vma = i915_gem_object_to_ggtt(obj, NULL);
 	if (!vma)
 		return 0;
 

@@ -3341,23 +3341,19 @@ void i915_vma_close(struct i915_vma *vma)
 }
 
 static struct i915_vma *
-__i915_gem_vma_create(struct drm_i915_gem_object *obj,
-		      struct i915_address_space *vm,
-		      const struct i915_ggtt_view *view)
+__i915_vma_create(struct drm_i915_gem_object *obj,
+		  struct i915_address_space *vm,
+		  const struct i915_ggtt_view *view)
 {
 	struct i915_vma *vma;
 	int i;
 
 	GEM_BUG_ON(vm->closed);
 
-	if (WARN_ON(i915_is_ggtt(vm) != !!view))
-		return ERR_PTR(-EINVAL);
-
 	vma = kmem_cache_zalloc(to_i915(obj->base.dev)->vmas, GFP_KERNEL);
 	if (vma == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	INIT_LIST_HEAD(&vma->obj_link);
 	INIT_LIST_HEAD(&vma->exec_list);
 	for (i = 0; i < ARRAY_SIZE(vma->last_read); i++)
 		init_request_active(&vma->last_read[i], i915_vma_retire);
@@ -3366,8 +3362,7 @@ __i915_gem_vma_create(struct drm_i915_gem_object *obj,
 	vma->obj = obj;
 	vma->size = obj->base.size;
 
-	if (i915_is_ggtt(vm)) {
-		vma->flags |= I915_VMA_GGTT;
+	if (view) {
 		vma->ggtt_view = *view;
 		if (view->type == I915_GGTT_VIEW_PARTIAL) {
 			vma->size = view->params.partial.size;
@@ -3377,13 +3372,37 @@ __i915_gem_vma_create(struct drm_i915_gem_object *obj,
 				intel_rotation_info_size(&view->params.rotated);
 			vma->size <<= PAGE_SHIFT;
 		}
+	}
+
+	if (i915_is_ggtt(vm)) {
+		vma->flags |= I915_VMA_GGTT;
 	} else {
 		i915_ppgtt_get(i915_vm_to_ppgtt(vm));
 	}
 
 	list_add_tail(&vma->obj_link, &obj->vma_list);
-
 	return vma;
+}
+
+static inline bool vma_matches(struct i915_vma *vma,
+			       struct i915_address_space *vm,
+			       const struct i915_ggtt_view *view)
+{
+	if (vma->vm != vm)
+		return false;
+
+	if (!i915_vma_is_ggtt(vma))
+		return true;
+
+	if (!view)
+		return vma->ggtt_view.type == 0;
+
+	if (vma->ggtt_view.type != view->type)
+		return false;
+
+	return memcmp(&vma->ggtt_view.params,
+		      &view->params,
+		      sizeof(view->params)) == 0;
 }
 
 struct i915_vma *
@@ -3392,42 +3411,40 @@ i915_vma_create(struct drm_i915_gem_object *obj,
 		const struct i915_ggtt_view *view)
 {
 	GEM_BUG_ON(view && !i915_is_ggtt(vm));
-	GEM_BUG_ON(view ? i915_gem_obj_to_ggtt_view(obj, view) : i915_gem_obj_to_vma(obj, vm));
+	GEM_BUG_ON(i915_gem_obj_to_vma(obj, vm, view));
 
-	return __i915_gem_vma_create(obj, vm, view ?: &i915_ggtt_view_normal);
+	return __i915_vma_create(obj, vm, view);
+}
+
+struct i915_vma *
+i915_gem_obj_to_vma(struct drm_i915_gem_object *obj,
+		    struct i915_address_space *vm,
+		    const struct i915_ggtt_view *view)
+{
+	struct i915_vma *vma;
+
+	list_for_each_entry_reverse(vma, &obj->vma_list, obj_link)
+		if (vma_matches(vma, vm, view))
+			return vma;
+
+	return NULL;
 }
 
 struct i915_vma *
 i915_gem_obj_lookup_or_create_vma(struct drm_i915_gem_object *obj,
-				  struct i915_address_space *vm)
+				  struct i915_address_space *vm,
+				  const struct i915_ggtt_view *view)
 {
 	struct i915_vma *vma;
 
-	vma = i915_gem_obj_to_vma(obj, vm);
+	GEM_BUG_ON(view && !i915_is_ggtt(vm));
+
+	vma = i915_gem_obj_to_vma(obj, vm, view);
 	if (!vma)
-		vma = __i915_gem_vma_create(obj, vm,
-					    i915_is_ggtt(vm) ? &i915_ggtt_view_normal : NULL);
-
-	return vma;
-}
-
-struct i915_vma *
-i915_gem_obj_lookup_or_create_ggtt_vma(struct drm_i915_gem_object *obj,
-				       const struct i915_ggtt_view *view)
-{
-	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	struct i915_vma *vma = i915_gem_obj_to_ggtt_view(obj, view);
-
-	GEM_BUG_ON(!view);
-
-	if (!vma)
-		vma = __i915_gem_vma_create(obj, &ggtt->base, view);
+		vma = __i915_vma_create(obj, vm, view);
 
 	GEM_BUG_ON(i915_vma_is_closed(vma));
 	return vma;
-
 }
 
 static struct scatterlist *

@@ -737,7 +737,7 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	/* FIXME: We lack the proper locking here, so only run this on the
 	 * platforms that need. */
 	if (IS_GEN(dev_priv, 5, 6))
-		cache->fb.ilk_ggtt_offset = i915_gem_obj_ggtt_offset(obj);
+		cache->fb.ilk_ggtt_offset = i915_gem_object_ggtt_offset(obj, NULL);
 	cache->fb.pixel_format = fb->pixel_format;
 	cache->fb.stride = fb->pitches[0];
 	cache->fb.fence_reg = obj->fence_reg;
