@@ -187,14 +187,14 @@ static void mpc85xx_pci_check(struct edac_pci_ctl_info *pci)
 static void mpc85xx_pcie_check(struct edac_pci_ctl_info *pci)
 {
 	struct mpc85xx_pci_pdata *pdata = pci->pvt_info;
-	u32 err_detect;
+	u32 err_detect, err_cap_stat;
 
 	err_detect = in_be32(pdata->pci_vbase + MPC85XX_PCI_ERR_DR);
+	err_cap_stat = in_be32(pdata->pci_vbase + MPC85XX_PCI_GAS_TIMR);
 
 	pr_err("PCIe error(s) detected\n");
 	pr_err("PCIe ERR_DR register: 0x%08x\n", err_detect);
-	pr_err("PCIe ERR_CAP_STAT register: 0x%08x\n",
-			in_be32(pdata->pci_vbase + MPC85XX_PCI_GAS_TIMR));
+	pr_err("PCIe ERR_CAP_STAT register: 0x%08x\n", err_cap_stat);
 	pr_err("PCIe ERR_CAP_R0 register: 0x%08x\n",
 			in_be32(pdata->pci_vbase + MPC85XX_PCIE_ERR_CAP_R0));
 	pr_err("PCIe ERR_CAP_R1 register: 0x%08x\n",
@@ -206,6 +206,9 @@ static void mpc85xx_pcie_check(struct edac_pci_ctl_info *pci)
 
 	/* clear error bits */
 	out_be32(pdata->pci_vbase + MPC85XX_PCI_ERR_DR, err_detect);
+
+	/* reset error capture */
+	out_be32(pdata->pci_vbase + MPC85XX_PCI_GAS_TIMR, err_cap_stat | 0x1);
 }
 
 static int mpc85xx_pcie_find_capability(struct device_node *np)
@@ -343,6 +346,9 @@ static int mpc85xx_pci_err_probe(struct platform_device *op)
 
 	/* clear error bits */
 	out_be32(pdata->pci_vbase + MPC85XX_PCI_ERR_DR, ~0);
+
+	/* reset error capture */
+	out_be32(pdata->pci_vbase + MPC85XX_PCI_GAS_TIMR, 0x1);
 
 	if (edac_pci_add_device(pci, pdata->edac_idx) > 0) {
 		edac_dbg(3, "failed edac_pci_add_device()\n");
