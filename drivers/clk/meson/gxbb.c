@@ -583,6 +583,9 @@ static MESON_GATE(sdio, HHI_GCLK_MPEG0, 17);
 static MESON_GATE(abuf, HHI_GCLK_MPEG0, 18);
 static MESON_GATE(hiu_iface, HHI_GCLK_MPEG0, 19);
 static MESON_GATE(assist_misc, HHI_GCLK_MPEG0, 23);
+static MESON_GATE(emmc_a, HHI_GCLK_MPEG0, 24);
+static MESON_GATE(emmc_b, HHI_GCLK_MPEG0, 25);
+static MESON_GATE(emmc_c, HHI_GCLK_MPEG0, 26);
 static MESON_GATE(spi, HHI_GCLK_MPEG0, 30);
 
 static MESON_GATE(i2s_spdif, HHI_GCLK_MPEG1, 2);
@@ -748,6 +751,9 @@ static struct clk_hw_onecell_data gxbb_hw_onecell_data = {
 		[CLKID_AO_AHB_BUS]	    = &gxbb_ao_ahb_bus.hw,
 		[CLKID_AO_IFACE]	    = &gxbb_ao_iface.hw,
 		[CLKID_AO_I2C]		    = &gxbb_ao_i2c.hw,
+		[CLKID_SD_EMMC_A]	    = &gxbb_emmc_a.hw,
+		[CLKID_SD_EMMC_B]	    = &gxbb_emmc_b.hw,
+		[CLKID_SD_EMMC_C]	    = &gxbb_emmc_c.hw,
 	},
 	.num = NR_CLKS,
 };
@@ -847,6 +853,9 @@ static struct clk_gate *gxbb_clk_gates[] = {
 	&gxbb_ao_ahb_bus,
 	&gxbb_ao_iface,
 	&gxbb_ao_i2c,
+	&gxbb_emmc_a,
+	&gxbb_emmc_b,
+	&gxbb_emmc_c,
 };
 
 static int gxbb_clkc_probe(struct platform_device *pdev)
