@@ -470,17 +470,11 @@ static void i915_gem_mark_busy(const struct intel_engine_cs *engine)
  */
 void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 {
-	struct intel_engine_cs *engine;
-	struct intel_ring *ring;
+	struct intel_engine_cs *engine = request->engine;
+	struct intel_ring *ring = request->ring;
 	u32 request_start;
 	u32 reserved_tail;
 	int ret;
-
-	if (WARN_ON(!request))
-		return;
-
-	engine = request->engine;
-	ring = request->ring;
 
 	/*
 	 * To ensure that this call will not fail, space for its emissions
