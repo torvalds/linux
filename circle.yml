@@ -22,7 +22,7 @@ test:
   pre:
     - sudo cp tools/lkl/bin/i686-w64-mingw32-* /usr/bin:
         parallel: true
-    - git diff origin/master | scripts/checkpatch.pl -
+    - git diff origin/master | scripts/checkpatch.pl --ignore FILE_PATH_CHANGES -
 
   override:
     - cd tools/lkl && make clean:
