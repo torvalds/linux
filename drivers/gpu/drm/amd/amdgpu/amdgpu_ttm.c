@@ -282,7 +282,7 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 
 	r = amdgpu_copy_buffer(ring, old_start, new_start,
 			       new_mem->num_pages * PAGE_SIZE, /* bytes */
-			       bo->resv, &fence);
+			       bo->resv, &fence, false);
 	if (r)
 		return r;
 
@@ -1143,7 +1143,7 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring,
 		       uint64_t dst_offset,
 		       uint32_t byte_count,
 		       struct reservation_object *resv,
-		       struct fence **fence)
+		       struct fence **fence, bool direct_submit)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_job *job;
@@ -1187,12 +1187,21 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring,
 
 	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
 	WARN_ON(job->ibs[0].length_dw > num_dw);
-	r = amdgpu_job_submit(job, ring, &adev->mman.entity,
-			      AMDGPU_FENCE_OWNER_UNDEFINED, fence);
-	if (r)
-		goto error_free;
+	if (direct_submit) {
+		r = amdgpu_ib_schedule(ring, job->num_ibs, job->ibs,
+				       NULL, NULL, fence);
+		job->fence = fence_get(*fence);
+		if (r)
+			DRM_ERROR("Error scheduling IBs (%d)\n", r);
+		amdgpu_job_free(job);
+	} else {
+		r = amdgpu_job_submit(job, ring, &adev->mman.entity,
+				      AMDGPU_FENCE_OWNER_UNDEFINED, fence);
+		if (r)
+			goto error_free;
+	}
 
-	return 0;
+	return r;
 
 error_free:
 	amdgpu_job_free(job);
