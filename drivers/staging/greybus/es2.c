@@ -47,7 +47,7 @@ MODULE_DEVICE_TABLE(usb, id_table);
 #define APB1_LOG_SIZE		SZ_16K
 
 /* Number of bulk in and bulk out couple */
-#define NUM_BULKS		7
+#define NUM_BULKS		1
 
 /* Expected number of bulk out endpoints */
 #define NUM_BULKS_OUT		NUM_BULKS
