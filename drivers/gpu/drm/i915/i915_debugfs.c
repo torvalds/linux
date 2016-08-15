@@ -354,7 +354,7 @@ static int per_file_ctx_stats(int id, void *ptr, void *data)
 
 	for (n = 0; n < ARRAY_SIZE(ctx->engine); n++) {
 		if (ctx->engine[n].state)
-			per_file_stats(0, ctx->engine[n].state, data);
+			per_file_stats(0, ctx->engine[n].state->obj, data);
 		if (ctx->engine[n].ring)
 			per_file_stats(0, ctx->engine[n].ring->obj, data);
 	}
@@ -1977,7 +1977,7 @@ static int i915_context_status(struct seq_file *m, void *unused)
 			seq_printf(m, "%s: ", engine->name);
 			seq_putc(m, ce->initialised ? 'I' : 'i');
 			if (ce->state)
-				describe_obj(m, ce->state);
+				describe_obj(m, ce->state->obj);
 			if (ce->ring)
 				describe_ctx_ring(m, ce->ring);
 			seq_putc(m, '\n');
@@ -1995,36 +1995,34 @@ static void i915_dump_lrc_obj(struct seq_file *m,
 			      struct i915_gem_context *ctx,
 			      struct intel_engine_cs *engine)
 {
-	struct drm_i915_gem_object *ctx_obj = ctx->engine[engine->id].state;
+	struct i915_vma *vma = ctx->engine[engine->id].state;
 	struct page *page;
-	uint32_t *reg_state;
 	int j;
-	unsigned long ggtt_offset = 0;
 
 	seq_printf(m, "CONTEXT: %s %u\n", engine->name, ctx->hw_id);
 
-	if (ctx_obj == NULL) {
-		seq_puts(m, "\tNot allocated\n");
+	if (!vma) {
+		seq_puts(m, "\tFake context\n");
 		return;
 	}
 
-	if (!i915_gem_obj_ggtt_bound(ctx_obj))
-		seq_puts(m, "\tNot bound in GGTT\n");
-	else
-		ggtt_offset = i915_gem_obj_ggtt_offset(ctx_obj);
+	if (vma->flags & I915_VMA_GLOBAL_BIND)
+		seq_printf(m, "\tBound in GGTT at 0x%08x\n",
+			   lower_32_bits(vma->node.start));
 
-	if (i915_gem_object_get_pages(ctx_obj)) {
-		seq_puts(m, "\tFailed to get pages for context object\n");
+	if (i915_gem_object_get_pages(vma->obj)) {
+		seq_puts(m, "\tFailed to get pages for context object\n\n");
 		return;
 	}
 
-	page = i915_gem_object_get_page(ctx_obj, LRC_STATE_PN);
-	if (!WARN_ON(page == NULL)) {
-		reg_state = kmap_atomic(page);
+	page = i915_gem_object_get_page(vma->obj, LRC_STATE_PN);
+	if (page) {
+		u32 *reg_state = kmap_atomic(page);
 
 		for (j = 0; j < 0x600 / sizeof(u32) / 4; j += 4) {
-			seq_printf(m, "\t[0x%08lx] 0x%08x 0x%08x 0x%08x 0x%08x\n",
-				   ggtt_offset + 4096 + (j * 4),
+			seq_printf(m,
+				   "\t[0x%04x] 0x%08x 0x%08x 0x%08x 0x%08x\n",
+				   j * 4,
 				   reg_state[j], reg_state[j + 1],
 				   reg_state[j + 2], reg_state[j + 3]);
 		}

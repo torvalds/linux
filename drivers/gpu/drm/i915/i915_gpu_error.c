@@ -1103,9 +1103,10 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 					i915_error_ggtt_object_create(dev_priv,
 								      engine->scratch.obj);
 
-			ee->ctx =
-				i915_error_ggtt_object_create(dev_priv,
-							      request->ctx->engine[i].state);
+			if (request->ctx->engine[i].state) {
+				ee->ctx = i915_error_ggtt_object_create(dev_priv,
+									request->ctx->engine[i].state->obj);
+			}
 
 			if (request->pid) {
 				struct task_struct *task;

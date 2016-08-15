@@ -358,7 +358,7 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 		lrc->context_desc = lower_32_bits(ce->lrc_desc);
 
 		/* The state page is after PPHWSP */
-		gfx_addr = i915_gem_obj_ggtt_offset(ce->state);
+		gfx_addr = ce->state->node.start;
 		lrc->ring_lcra = gfx_addr + LRC_STATE_PN * PAGE_SIZE;
 		lrc->context_id = (client->ctx_index << GUC_ELC_CTXID_OFFSET) |
 				(guc_engine_id << GUC_ELC_ENGINE_OFFSET);
@@ -1080,7 +1080,7 @@ int intel_guc_suspend(struct drm_device *dev)
 	/* any value greater than GUC_POWER_D0 */
 	data[1] = GUC_POWER_D1;
 	/* first page is shared data with GuC */
-	data[2] = i915_gem_obj_ggtt_offset(ctx->engine[RCS].state);
+	data[2] = ctx->engine[RCS].state->node.start;
 
 	return host2guc_action(guc, data, ARRAY_SIZE(data));
 }
@@ -1105,7 +1105,7 @@ int intel_guc_resume(struct drm_device *dev)
 	data[0] = HOST2GUC_ACTION_EXIT_S_STATE;
 	data[1] = GUC_POWER_D0;
 	/* first page is shared data with GuC */
-	data[2] = i915_gem_obj_ggtt_offset(ctx->engine[RCS].state);
+	data[2] = ctx->engine[RCS].state->node.start;
 
 	return host2guc_action(guc, data, ARRAY_SIZE(data));
 }

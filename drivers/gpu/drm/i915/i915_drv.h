@@ -893,9 +893,8 @@ struct i915_gem_context {
 	u32 ggtt_alignment;
 
 	struct intel_context {
-		struct drm_i915_gem_object *state;
+		struct i915_vma *state;
 		struct intel_ring *ring;
-		struct i915_vma *lrc_vma;
 		uint32_t *lrc_reg_state;
 		u64 lrc_desc;
 		int pin_count;

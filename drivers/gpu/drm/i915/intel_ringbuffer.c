@@ -2092,8 +2092,8 @@ static int intel_ring_context_pin(struct i915_gem_context *ctx,
 		return 0;
 
 	if (ce->state) {
-		ret = i915_gem_object_ggtt_pin(ce->state, NULL, 0,
-					       ctx->ggtt_alignment, PIN_HIGH);
+		ret = i915_vma_pin(ce->state, 0, ctx->ggtt_alignment,
+				   PIN_GLOBAL | PIN_HIGH);
 		if (ret)
 			goto error;
 	}
@@ -2127,7 +2127,7 @@ static void intel_ring_context_unpin(struct i915_gem_context *ctx,
 		return;
 
 	if (ce->state)
-		i915_gem_object_ggtt_unpin(ce->state);
+		i915_vma_unpin(ce->state);
 
 	i915_gem_context_put(ctx);
 }
