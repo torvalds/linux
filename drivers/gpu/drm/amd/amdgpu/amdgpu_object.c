@@ -116,87 +116,95 @@ bool amdgpu_ttm_bo_is_amdgpu_bo(struct ttm_buffer_object *bo)
 
 static void amdgpu_ttm_placement_init(struct amdgpu_device *adev,
 				      struct ttm_placement *placement,
-				      struct ttm_place *placements,
+				      struct ttm_place *places,
 				      u32 domain, u64 flags)
 {
 	u32 c = 0, i;
 
-	placement->placement = placements;
-	placement->busy_placement = placements;
-
 	if (domain & AMDGPU_GEM_DOMAIN_VRAM) {
+		unsigned visible_pfn = adev->mc.visible_vram_size >> PAGE_SHIFT;
+
 		if (flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS &&
-			adev->mc.visible_vram_size < adev->mc.real_vram_size) {
-			placements[c].fpfn =
-				adev->mc.visible_vram_size >> PAGE_SHIFT;
-			placements[c++].flags = TTM_PL_FLAG_WC |
+		    adev->mc.visible_vram_size < adev->mc.real_vram_size) {
+			places[c].fpfn = visible_pfn;
+			if (flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED)
+				places[c].lpfn = visible_pfn;
+			else
+				places[c].lpfn = 0;
+			places[c].flags = TTM_PL_FLAG_WC |
 				TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_VRAM |
 				TTM_PL_FLAG_TOPDOWN;
+			c++;
 		}
-		placements[c].fpfn = 0;
-		placements[c++].flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED |
+
+		places[c].fpfn = 0;
+		places[c].lpfn = 0;
+		places[c].flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED |
 			TTM_PL_FLAG_VRAM;
-		if (!(flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED))
-			placements[c - 1].flags |= TTM_PL_FLAG_TOPDOWN;
+		if (flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED)
+			places[c].lpfn = visible_pfn;
+		else
+			places[c].flags |= TTM_PL_FLAG_TOPDOWN;
+		c++;
 	}
 
 	if (domain & AMDGPU_GEM_DOMAIN_GTT) {
-		if (flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC) {
-			placements[c].fpfn = 0;
-			placements[c++].flags = TTM_PL_FLAG_WC |
-				TTM_PL_FLAG_TT | TTM_PL_FLAG_UNCACHED;
-		} else {
-			placements[c].fpfn = 0;
-			placements[c++].flags = TTM_PL_FLAG_CACHED |
-				TTM_PL_FLAG_TT;
-		}
+		places[c].fpfn = 0;
+		places[c].lpfn = 0;
+		places[c].flags = TTM_PL_FLAG_TT;
+		if (flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC)
+			places[c].flags |= TTM_PL_FLAG_WC |
+				TTM_PL_FLAG_UNCACHED;
+		else
+			places[c].flags |= TTM_PL_FLAG_CACHED;
+		c++;
 	}
 
 	if (domain & AMDGPU_GEM_DOMAIN_CPU) {
-		if (flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC) {
-			placements[c].fpfn = 0;
-			placements[c++].flags = TTM_PL_FLAG_WC |
-				TTM_PL_FLAG_SYSTEM | TTM_PL_FLAG_UNCACHED;
-		} else {
-			placements[c].fpfn = 0;
-			placements[c++].flags = TTM_PL_FLAG_CACHED |
-				TTM_PL_FLAG_SYSTEM;
-		}
+		places[c].fpfn = 0;
+		places[c].lpfn = 0;
+		places[c].flags = TTM_PL_FLAG_SYSTEM;
+		if (flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC)
+			places[c].flags |= TTM_PL_FLAG_WC |
+				TTM_PL_FLAG_UNCACHED;
+		else
+			places[c].flags |= TTM_PL_FLAG_CACHED;
+		c++;
 	}
 
 	if (domain & AMDGPU_GEM_DOMAIN_GDS) {
-		placements[c].fpfn = 0;
-		placements[c++].flags = TTM_PL_FLAG_UNCACHED |
-			AMDGPU_PL_FLAG_GDS;
+		places[c].fpfn = 0;
+		places[c].lpfn = 0;
+		places[c].flags = TTM_PL_FLAG_UNCACHED | AMDGPU_PL_FLAG_GDS;
+		c++;
 	}
+
 	if (domain & AMDGPU_GEM_DOMAIN_GWS) {
-		placements[c].fpfn = 0;
-		placements[c++].flags = TTM_PL_FLAG_UNCACHED |
-			AMDGPU_PL_FLAG_GWS;
+		places[c].fpfn = 0;
+		places[c].lpfn = 0;
+		places[c].flags = TTM_PL_FLAG_UNCACHED | AMDGPU_PL_FLAG_GWS;
+		c++;
 	}
+
 	if (domain & AMDGPU_GEM_DOMAIN_OA) {
-		placements[c].fpfn = 0;
-		placements[c++].flags = TTM_PL_FLAG_UNCACHED |
-			AMDGPU_PL_FLAG_OA;
+		places[c].fpfn = 0;
+		places[c].lpfn = 0;
+		places[c].flags = TTM_PL_FLAG_UNCACHED | AMDGPU_PL_FLAG_OA;
+		c++;
 	}
 
 	if (!c) {
-		placements[c].fpfn = 0;
-		placements[c++].flags = TTM_PL_MASK_CACHING |
-			TTM_PL_FLAG_SYSTEM;
+		places[c].fpfn = 0;
+		places[c].lpfn = 0;
+		places[c].flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
+		c++;
 	}
-	placement->num_placement = c;
-	placement->num_busy_placement = c;
 
-	for (i = 0; i < c; i++) {
-		if ((flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED) &&
-			(placements[i].flags & TTM_PL_FLAG_VRAM) &&
-			!placements[i].fpfn)
-			placements[i].lpfn =
-				adev->mc.visible_vram_size >> PAGE_SHIFT;
-		else
-			placements[i].lpfn = 0;
-	}
+	placement->num_placement = c;
+	placement->placement = places;
+
+	placement->num_busy_placement = c;
+	placement->busy_placement = places;
 }
 
 void amdgpu_ttm_placement_from_domain(struct amdgpu_bo *rbo, u32 domain)
