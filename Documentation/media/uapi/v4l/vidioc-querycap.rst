@@ -117,17 +117,11 @@ specification the ioctl returns an ``EINVAL`` error code.
 
        -  :cspan:`2`
 
+	  ``#define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))``
 
-	  .. code-block:: c
+	  ``__u32 version = KERNEL_VERSION(0, 8, 1);``
 
-	      #define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
-
-	      __u32 version = KERNEL_VERSION(0, 8, 1);
-
-	      printf ("Version: %u.%u.%u\\n",
-		  (version >> 16) & 0xFF,
-		  (version >> 8) & 0xFF,
-		   version & 0xFF);
+	  ``printf ("Version: %u.%u.%u\\n", (version >> 16) & 0xFF, (version >> 8) & 0xFF, version & 0xFF);``
 
     -  .. row 6
 
