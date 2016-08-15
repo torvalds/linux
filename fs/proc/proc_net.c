@@ -21,6 +21,7 @@
 #include <linux/bitops.h>
 #include <linux/mount.h>
 #include <linux/nsproxy.h>
+#include <linux/uidgid.h>
 #include <net/net_namespace.h>
 #include <linux/seq_file.h>
 
@@ -185,6 +186,8 @@ const struct file_operations proc_net_operations = {
 static __net_init int proc_net_ns_init(struct net *net)
 {
 	struct proc_dir_entry *netd, *net_statd;
+	kuid_t uid;
+	kgid_t gid;
 	int err;
 
 	err = -ENOMEM;
@@ -198,6 +201,16 @@ static __net_init int proc_net_ns_init(struct net *net)
 	netd->namelen = 3;
 	netd->parent = &proc_root;
 	memcpy(netd->name, "net", 4);
+
+	uid = make_kuid(net->user_ns, 0);
+	if (!uid_valid(uid))
+		uid = netd->uid;
+
+	gid = make_kgid(net->user_ns, 0);
+	if (!gid_valid(gid))
+		gid = netd->gid;
+
+	proc_set_user(netd, uid, gid);
 
 	err = -EEXIST;
 	net_statd = proc_net_mkdir(net, "stat", netd);
