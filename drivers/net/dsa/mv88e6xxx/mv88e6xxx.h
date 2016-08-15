@@ -634,6 +634,7 @@ struct mv88e6xxx_chip {
 	/* Handles automatic disabling and re-enabling of the PHY
 	 * polling unit.
 	 */
+	const struct mv88e6xxx_ops *phy_ops;
 	struct mutex		ppu_mutex;
 	int			ppu_disabled;
 	struct work_struct	ppu_work;
