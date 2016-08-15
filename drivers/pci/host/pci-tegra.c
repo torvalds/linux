@@ -2201,21 +2201,16 @@ remove:
 
 static int tegra_pcie_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 	struct tegra_pcie *pcie;
 	int err;
-
-	match = of_match_device(tegra_pcie_of_match, &pdev->dev);
-	if (!match)
-		return -ENODEV;
 
 	pcie = devm_kzalloc(&pdev->dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
 		return -ENOMEM;
 
+	pcie->soc = of_device_get_match_data(&pdev->dev);
 	INIT_LIST_HEAD(&pcie->buses);
 	INIT_LIST_HEAD(&pcie->ports);
-	pcie->soc = match->data;
 	pcie->dev = &pdev->dev;
 
 	err = tegra_pcie_parse_dt(pcie);
