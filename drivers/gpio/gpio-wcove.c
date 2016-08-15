@@ -164,6 +164,19 @@ static int wcove_gpio_dir_out(struct gpio_chip *chip, unsigned int gpio,
 			    CTLO_OUTPUT_SET | value);
 }
 
+static int wcove_gpio_get_direction(struct gpio_chip *chip, unsigned int gpio)
+{
+	struct wcove_gpio *wg = gpiochip_get_data(chip);
+	unsigned int val;
+	int ret;
+
+	ret = regmap_read(wg->regmap, to_reg(gpio, CTRL_OUT), &val);
+	if (ret)
+		return ret;
+
+	return !(val & CTLO_DIR_OUT);
+}
+
 static int wcove_gpio_get(struct gpio_chip *chip, unsigned int gpio)
 {
 	struct wcove_gpio *wg = gpiochip_get_data(chip);
@@ -394,6 +407,7 @@ static int wcove_gpio_probe(struct platform_device *pdev)
 	wg->chip.label = KBUILD_MODNAME;
 	wg->chip.direction_input = wcove_gpio_dir_in;
 	wg->chip.direction_output = wcove_gpio_dir_out;
+	wg->chip.get_direction = wcove_gpio_get_direction;
 	wg->chip.get = wcove_gpio_get;
 	wg->chip.set = wcove_gpio_set;
 	wg->chip.set_single_ended = wcove_gpio_set_single_ended,
