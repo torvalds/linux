@@ -1755,7 +1755,6 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 	trans_pcie->rx_page_order =
 		iwl_trans_get_rb_size_order(trans_pcie->rx_buf_size);
 
-	trans_pcie->wide_cmd_header = trans_cfg->wide_cmd_header;
 	trans_pcie->bc_table_dword = trans_cfg->bc_table_dword;
 	trans_pcie->scd_set_active = trans_cfg->scd_set_active;
 	trans_pcie->sw_csum_tx = trans_cfg->sw_csum_tx;

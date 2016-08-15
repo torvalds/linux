@@ -332,7 +332,6 @@ enum iwl_shared_irq_flags {
  * @rx_buf_size: Rx buffer size
  * @bc_table_dword: true if the BC table expects DWORD (as opposed to bytes)
  * @scd_set_active: should the transport configure the SCD for HCMD queue
- * @wide_cmd_header: true when ucode supports wide command header format
  * @sw_csum_tx: if true, then the transport will compute the csum of the TXed
  *	frame.
  * @rx_page_order: page order for receive buffer size
@@ -405,7 +404,6 @@ struct iwl_trans_pcie {
 	enum iwl_amsdu_size rx_buf_size;
 	bool bc_table_dword;
 	bool scd_set_active;
-	bool wide_cmd_header;
 	bool sw_csum_tx;
 	u32 rx_page_order;
 
