@@ -257,6 +257,13 @@
 	status = "okay";
 };
 
+&wdog1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_wdog>;
+	fsl,ext-reset-output;
+	status = "okay";
+};
+
 &iomuxc {
 	pinctrl_brcm_reg: brcmreggrp {
 		fsl,pins = <
@@ -352,6 +359,12 @@
 			MX7D_PAD_SD3_DATA6__SD3_DATA6		0x5b
 			MX7D_PAD_SD3_DATA7__SD3_DATA7		0x5b
 			MX7D_PAD_SD3_RESET_B__SD3_RESET_B	0x1b
+		>;
+	};
+
+	pinctrl_wdog: wdoggrp {
+		fsl,pins = <
+			MX7D_PAD_GPIO1_IO00__WDOD1_WDOG_B	0x74
 		>;
 	};
 };
