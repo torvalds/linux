@@ -2329,6 +2329,7 @@ static int ena_device_init(struct ena_com_dev *ena_dev, struct pci_dev *pdev,
 	dma_width = ena_com_get_dma_width(ena_dev);
 	if (dma_width < 0) {
 		dev_err(dev, "Invalid dma width value %d", dma_width);
+		rc = dma_width;
 		goto err_mmio_read_less;
 	}
 
