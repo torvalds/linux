@@ -1277,9 +1277,6 @@ static void fusb_state_attach_wait_source(struct fusb30x_chip *chip, int evt)
 
 		if ((chip->cc1 == cc1) && (chip->cc2 == cc2)) {
 			chip->debounce_cnt++;
-			tcpm_set_polarity(chip, !(chip->cc_state & 0x01));
-			platform_set_vbus_lvl_enable(chip, 1, 0);
-			tcpm_set_vconn(chip, 1);
 		} else {
 			chip->cc1 = cc1;
 			chip->cc2 = cc2;
@@ -1306,6 +1303,11 @@ static void fusb_state_attach_wait_source(struct fusb30x_chip *chip, int evt)
 
 static void fusb_state_attached_source(struct fusb30x_chip *chip, int evt)
 {
+	tcpm_set_polarity(chip, !(chip->cc_state & 0x01));
+	extcon_set_state(chip->extcon, EXTCON_USB_HOST, 1);
+	platform_set_vbus_lvl_enable(chip, 1, 0);
+	tcpm_set_vconn(chip, 1);
+
 	chip->notify.is_cc_connected = 1;
 	if (chip->cc_state & 0x01)
 		chip->cc_polarity = 0;
