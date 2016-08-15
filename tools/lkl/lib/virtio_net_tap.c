@@ -23,10 +23,10 @@
 
 #define BIT(x) (1ULL << x)
 
-struct lkl_netdev_fd *lkl_netdev_tap_init(const char *path, int offload,
-					  struct ifreq *ifr)
+struct lkl_netdev *lkl_netdev_tap_init(const char *path, int offload,
+				       struct ifreq *ifr)
 {
-	struct lkl_netdev_fd *nd;
+	struct lkl_netdev *nd;
 	int fd, ret, tap_arg = 0, vnet_hdr_sz = 0;
 
 	if (offload & BIT(LKL_VIRTIO_NET_F_GUEST_CSUM))
@@ -74,7 +74,7 @@ struct lkl_netdev_fd *lkl_netdev_tap_init(const char *path, int offload,
 		return NULL;
 	}
 
-	nd->dev.has_vnet_hdr = (vnet_hdr_sz != 0);
+	nd->has_vnet_hdr = (vnet_hdr_sz != 0);
 	return nd;
 }
 
@@ -87,5 +87,5 @@ struct lkl_netdev *lkl_netdev_tap_create(const char *ifname, int offload)
 
 	strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
 
-	return (struct lkl_netdev *)lkl_netdev_tap_init(path, offload, &ifr);
+	return lkl_netdev_tap_init(path, offload, &ifr);
 }

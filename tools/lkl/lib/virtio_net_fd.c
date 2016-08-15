@@ -20,6 +20,26 @@
 #include "virtio.h"
 #include "virtio_net_fd.h"
 
+struct lkl_netdev_fd {
+	struct lkl_netdev dev;
+	/* file-descriptor based device */
+	int fd;
+	/*
+	 * Controlls the poll mask for fd. Can be acccessed concurrently from
+	 * poll, tx, or rx routines but there is no need for syncronization
+	 * because:
+	 *
+	 * (a) TX and RX routines set different variables so even if they update
+	 * at the same time there is no race condition
+	 *
+	 * (b) Even if poll and TX / RX update at the same time poll cannot
+	 * stall: when poll resets the poll variable we know that TX / RX will
+	 * run which means that eventually the poll variable will be set.
+	 */
+	int poll_tx, poll_rx;
+	/* controle pipe */
+	int pipe[2];
+};
 
 /* The following tx() and rx() code assume struct lkl_dev_buf matches
  * sruct iovec so we can safely cast iov to (struct iovec *). (If
@@ -150,7 +170,7 @@ struct lkl_dev_net_ops fd_net_ops =  {
 	.close = fd_net_close,
 };
 
-struct lkl_netdev_fd *lkl_register_netdev_fd(int fd)
+struct lkl_netdev *lkl_register_netdev_fd(int fd)
 {
 	struct lkl_netdev_fd *nd;
 
@@ -166,7 +186,7 @@ struct lkl_netdev_fd *lkl_register_netdev_fd(int fd)
 	nd->fd = fd;
 	if (pipe(nd->pipe) < 0) {
 		perror("pipe");
-		lkl_unregister_netdev_fd(nd);
+		lkl_unregister_netdev_fd(&nd->dev);
 		return NULL;
 	}
 
@@ -174,15 +194,18 @@ struct lkl_netdev_fd *lkl_register_netdev_fd(int fd)
 		perror("fnctl");
 		close(nd->pipe[0]);
 		close(nd->pipe[1]);
-		lkl_unregister_netdev_fd(nd);
+		lkl_unregister_netdev_fd(&nd->dev);
 	}
 
 	nd->dev.ops = &fd_net_ops;
-	return nd;
+	return &nd->dev;
 }
 
-void lkl_unregister_netdev_fd(struct lkl_netdev_fd *nd)
+void lkl_unregister_netdev_fd(struct lkl_netdev *nd)
 {
-	fd_net_close(&nd->dev);
-	free(nd);
+	struct lkl_netdev_fd *nd_fd =
+		container_of(nd, struct lkl_netdev_fd, dev);
+
+	fd_net_close(nd);
+	free(nd_fd);
 }
