@@ -2169,7 +2169,7 @@ scan_tail:
 	return 0;
 
 return_error:
-	if (info->dma)
+	if (!IS_ERR_OR_NULL(info->dma))
 		dma_release_channel(info->dma);
 	if (nand_chip->ecc.priv) {
 		nand_bch_free(nand_chip->ecc.priv);
