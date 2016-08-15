@@ -23,11 +23,13 @@ static int net_vde_rx(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt);
 static int net_vde_poll_with_timeout(struct lkl_netdev *nd, int events,
 				     int timeout);
 static int net_vde_poll(struct lkl_netdev *nd, int events);
+static int net_vde_close(struct lkl_netdev *nd);
 
 struct lkl_dev_net_ops vde_net_ops = {
 	.tx = net_vde_tx,
 	.rx = net_vde_rx,
 	.poll = net_vde_poll,
+	.close = net_vde_close,
 };
 
 int net_vde_tx(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt)
@@ -109,6 +111,14 @@ int net_vde_poll_with_timeout(struct lkl_netdev *nd, int events, int timeout)
 int net_vde_poll(struct lkl_netdev *nd, int events)
 {
 	return net_vde_poll_with_timeout(nd, events, -1);
+}
+
+int net_vde_close(struct lkl_netdev *nd)
+{
+	struct lkl_netdev_vde *nd_vde =
+		container_of(nd, struct lkl_netdev_vde, dev);
+
+	return vde_close(nd_vde->conn);
 }
 
 struct lkl_netdev *lkl_netdev_vde_create(char const *switch_path)
