@@ -11,7 +11,7 @@
  *
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
@@ -357,7 +357,3 @@ void led_trigger_unregister_simple(struct led_trigger *trig)
 	kfree(trig);
 }
 EXPORT_SYMBOL_GPL(led_trigger_unregister_simple);
-
-MODULE_AUTHOR("Richard Purdie");
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("LED Triggers Core");
