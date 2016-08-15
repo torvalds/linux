@@ -772,6 +772,13 @@ static int do_rcs_switch(struct drm_i915_gem_request *req)
 	if (skip_rcs_switch(ppgtt, engine, to))
 		return 0;
 
+	/* Clear this page out of any CPU caches for coherent swap-in/out. */
+	if (!(vma->flags & I915_VMA_GLOBAL_BIND)) {
+		ret = i915_gem_object_set_to_gtt_domain(vma->obj, false);
+		if (ret)
+			return ret;
+	}
+
 	/* Trying to pin first makes error handling easier. */
 	ret = i915_vma_pin(vma, 0, to->ggtt_alignment, PIN_GLOBAL);
 	if (ret)
@@ -785,18 +792,6 @@ static int do_rcs_switch(struct drm_i915_gem_request *req)
 	 * XXX: Doing so is painfully broken!
 	 */
 	from = engine->last_context;
-
-	/*
-	 * Clear this page out of any CPU caches for coherent swap-in/out. Note
-	 * that thanks to write = false in this call and us not setting any gpu
-	 * write domains when putting a context object onto the active list
-	 * (when switching away from it), this won't block.
-	 *
-	 * XXX: We need a real interface to do this instead of trickery.
-	 */
-	ret = i915_gem_object_set_to_gtt_domain(vma->obj, false);
-	if (ret)
-		goto err;
 
 	if (needs_pd_load_pre(ppgtt, engine, to)) {
 		/* Older GENs and non render rings still want the load first,
