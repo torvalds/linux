@@ -183,8 +183,10 @@ static int mgag200fb_create(struct drm_fb_helper *helper,
 	}
 
 	sysram = vmalloc(size);
-	if (!sysram)
+	if (!sysram) {
+		ret = -ENOMEM;
 		goto err_sysram;
+	}
 
 	info = drm_fb_helper_alloc_fbi(helper);
 	if (IS_ERR(info)) {
