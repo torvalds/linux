@@ -426,6 +426,13 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	if (ret)
 		goto err_ctx;
 
+	/* Record the position of the start of the request so that
+	 * should we detect the updated seqno part-way through the
+	 * GPU processing the request, we never over-estimate the
+	 * position of the head.
+	 */
+	req->head = req->ring->tail;
+
 	return req;
 
 err_ctx:
@@ -500,8 +507,6 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 
 	trace_i915_gem_request_add(request);
 
-	request->head = request_start;
-
 	/* Seal the request and mark it as pending execution. Note that
 	 * we may inspect this state, without holding any locks, during
 	 * hangcheck. Hence we apply the barrier to ensure that we do not
@@ -514,10 +519,10 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 	list_add_tail(&request->link, &engine->request_list);
 	list_add_tail(&request->ring_link, &ring->request_list);
 
-	/* Record the position of the start of the request so that
+	/* Record the position of the start of the breadcrumb so that
 	 * should we detect the updated seqno part-way through the
 	 * GPU processing the request, we never over-estimate the
-	 * position of the head.
+	 * position of the ring's HEAD.
 	 */
 	request->postfix = ring->tail;
 

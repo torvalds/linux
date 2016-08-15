@@ -557,6 +557,7 @@ struct drm_i915_error_state {
 		struct drm_i915_error_request {
 			long jiffies;
 			u32 seqno;
+			u32 head;
 			u32 tail;
 		} *requests;
 

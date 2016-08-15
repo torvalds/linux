@@ -455,9 +455,10 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 				   dev_priv->engine[i].name,
 				   ee->num_requests);
 			for (j = 0; j < ee->num_requests; j++) {
-				err_printf(m, "  seqno 0x%08x, emitted %ld, tail 0x%08x\n",
+				err_printf(m, "  seqno 0x%08x, emitted %ld, head 0x%08x, tail 0x%08x\n",
 					   ee->requests[j].seqno,
 					   ee->requests[j].jiffies,
+					   ee->requests[j].head,
 					   ee->requests[j].tail);
 			}
 		}
@@ -1205,7 +1206,8 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 			erq = &ee->requests[count++];
 			erq->seqno = request->fence.seqno;
 			erq->jiffies = request->emitted_jiffies;
-			erq->tail = request->postfix;
+			erq->head = request->head;
+			erq->tail = request->tail;
 		}
 	}
 }
