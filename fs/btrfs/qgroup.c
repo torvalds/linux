@@ -2303,6 +2303,10 @@ static void btrfs_qgroup_rescan_worker(struct btrfs_work *work)
 	int err = -ENOMEM;
 	int ret = 0;
 
+	mutex_lock(&fs_info->qgroup_rescan_lock);
+	fs_info->qgroup_rescan_running = true;
+	mutex_unlock(&fs_info->qgroup_rescan_lock);
+
 	path = btrfs_alloc_path();
 	if (!path)
 		goto out;
@@ -2369,6 +2373,9 @@ out:
 	}
 
 done:
+	mutex_lock(&fs_info->qgroup_rescan_lock);
+	fs_info->qgroup_rescan_running = false;
+	mutex_unlock(&fs_info->qgroup_rescan_lock);
 	complete_all(&fs_info->qgroup_rescan_completion);
 }
 
@@ -2494,7 +2501,7 @@ int btrfs_qgroup_wait_for_completion(struct btrfs_fs_info *fs_info)
 
 	mutex_lock(&fs_info->qgroup_rescan_lock);
 	spin_lock(&fs_info->qgroup_lock);
-	running = fs_info->qgroup_flags & BTRFS_QGROUP_STATUS_FLAG_RESCAN;
+	running = fs_info->qgroup_rescan_running;
 	spin_unlock(&fs_info->qgroup_lock);
 	mutex_unlock(&fs_info->qgroup_rescan_lock);
 
