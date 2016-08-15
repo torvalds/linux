@@ -152,7 +152,8 @@ static int amdgpufb_create_pinned_object(struct amdgpu_fbdev *rfbdev,
 	aligned_size = ALIGN(size, PAGE_SIZE);
 	ret = amdgpu_gem_object_create(adev, aligned_size, 0,
 				       AMDGPU_GEM_DOMAIN_VRAM,
-				       AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
+				       AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
+				       AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
 				       true, &gobj);
 	if (ret) {
 		printk(KERN_ERR "failed to allocate framebuffer (%d)\n",

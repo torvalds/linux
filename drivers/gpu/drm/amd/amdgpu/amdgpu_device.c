@@ -264,7 +264,8 @@ static int amdgpu_vram_scratch_init(struct amdgpu_device *adev)
 	if (adev->vram_scratch.robj == NULL) {
 		r = amdgpu_bo_create(adev, AMDGPU_GPU_PAGE_SIZE,
 				     PAGE_SIZE, true, AMDGPU_GEM_DOMAIN_VRAM,
-				     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
+				     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
+				     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
 				     NULL, NULL, &adev->vram_scratch.robj);
 		if (r) {
 			return r;

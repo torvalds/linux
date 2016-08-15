@@ -81,6 +81,8 @@ extern "C" {
 #define AMDGPU_GEM_CREATE_VRAM_CLEARED		(1 << 3)
 /* Flag that create shadow bo(GTT) while allocating vram bo */
 #define AMDGPU_GEM_CREATE_SHADOW		(1 << 4)
+/* Flag that allocating the BO should use linear VRAM */
+#define AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS	(1 << 5)
 
 struct drm_amdgpu_gem_create_in  {
 	/** the requested memory size */

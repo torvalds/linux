@@ -1416,7 +1416,8 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 				     AMDGPU_GPU_PAGE_SIZE, true,
 				     AMDGPU_GEM_DOMAIN_VRAM,
 				     AMDGPU_GEM_CREATE_NO_CPU_ACCESS |
-				     AMDGPU_GEM_CREATE_SHADOW,
+				     AMDGPU_GEM_CREATE_SHADOW |
+				     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
 				     NULL, resv, &pt);
 		if (r)
 			goto error_free;
@@ -1626,7 +1627,8 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	r = amdgpu_bo_create(adev, pd_size, align, true,
 			     AMDGPU_GEM_DOMAIN_VRAM,
 			     AMDGPU_GEM_CREATE_NO_CPU_ACCESS |
-			     AMDGPU_GEM_CREATE_SHADOW,
+			     AMDGPU_GEM_CREATE_SHADOW |
+			     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
 			     NULL, NULL, &vm->page_directory);
 	if (r)
 		goto error_free_sched_entity;

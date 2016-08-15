@@ -1195,6 +1195,15 @@ int amdgpu_cs_sysvm_access_required(struct amdgpu_cs_parser *parser)
 		r = amdgpu_ttm_bind(&bo->tbo, &bo->tbo.mem);
 		if (unlikely(r))
 			return r;
+
+		if (bo->flags & AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS)
+			continue;
+
+		bo->flags |= AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
+		amdgpu_ttm_placement_from_domain(bo, bo->allowed_domains);
+		r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
+		if (unlikely(r))
+			return r;
 	}
 
 	return 0;

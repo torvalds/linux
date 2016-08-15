@@ -245,7 +245,8 @@ int amdgpu_bo_create_kernel(struct amdgpu_device *adev,
 	int r;
 
 	r = amdgpu_bo_create(adev, size, align, true, domain,
-			     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
+			     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
+			     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
 			     NULL, NULL, bo_ptr);
 	if (r) {
 		dev_err(adev->dev, "(%d) failed to allocate kernel bo\n", r);
@@ -643,6 +644,8 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 
 		return 0;
 	}
+
+	bo->flags |= AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
 	amdgpu_ttm_placement_from_domain(bo, domain);
 	for (i = 0; i < bo->placement.num_placement; i++) {
 		/* force to pin into visible video ram */
@@ -885,7 +888,9 @@ int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 
 	size = bo->mem.num_pages << PAGE_SHIFT;
 	offset = bo->mem.start << PAGE_SHIFT;
-	if ((offset + size) <= adev->mc.visible_vram_size)
+	/* TODO: figure out how to map scattered VRAM to the CPU */
+	if ((offset + size) <= adev->mc.visible_vram_size &&
+	    (abo->flags & AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS))
 		return 0;
 
 	/* Can't move a pinned BO to visible VRAM */
@@ -893,6 +898,7 @@ int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 		return -EINVAL;
 
 	/* hurrah the memory is not visible ! */
+	abo->flags |= AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
 	amdgpu_ttm_placement_from_domain(abo, AMDGPU_GEM_DOMAIN_VRAM);
 	lpfn =	adev->mc.visible_vram_size >> PAGE_SHIFT;
 	for (i = 0; i < abo->placement.num_placement; i++) {
@@ -954,6 +960,8 @@ u64 amdgpu_bo_gpu_offset(struct amdgpu_bo *bo)
 	WARN_ON_ONCE(!ww_mutex_is_locked(&bo->tbo.resv->lock) &&
 		     !bo->pin_count);
 	WARN_ON_ONCE(bo->tbo.mem.start == AMDGPU_BO_INVALID_OFFSET);
+	WARN_ON_ONCE(bo->tbo.mem.mem_type == TTM_PL_VRAM &&
+		     !(bo->flags & AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS));
 
 	return bo->tbo.offset;
 }

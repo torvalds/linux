@@ -1273,7 +1273,8 @@ static int gfx_v8_0_rlc_init(struct amdgpu_device *adev)
 		if (adev->gfx.rlc.clear_state_obj == NULL) {
 			r = amdgpu_bo_create(adev, dws * 4, PAGE_SIZE, true,
 					     AMDGPU_GEM_DOMAIN_VRAM,
-					     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
+					     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
+					     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
 					     NULL, NULL,
 					     &adev->gfx.rlc.clear_state_obj);
 			if (r) {
@@ -1315,7 +1316,8 @@ static int gfx_v8_0_rlc_init(struct amdgpu_device *adev)
 		if (adev->gfx.rlc.cp_table_obj == NULL) {
 			r = amdgpu_bo_create(adev, adev->gfx.rlc.cp_table_size, PAGE_SIZE, true,
 					     AMDGPU_GEM_DOMAIN_VRAM,
-					     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
+					     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
+					     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
 					     NULL, NULL,
 					     &adev->gfx.rlc.cp_table_obj);
 			if (r) {

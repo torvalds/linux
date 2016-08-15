@@ -146,7 +146,8 @@ static int amdgpu_cgs_alloc_gpu_mem(struct cgs_device *cgs_device,
 	switch(type) {
 	case CGS_GPU_MEM_TYPE__VISIBLE_CONTIG_FB:
 	case CGS_GPU_MEM_TYPE__VISIBLE_FB:
-		flags = AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
+		flags = AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
+			AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
 		domain = AMDGPU_GEM_DOMAIN_VRAM;
 		if (max_offset > adev->mc.real_vram_size)
 			return -EINVAL;
@@ -157,7 +158,8 @@ static int amdgpu_cgs_alloc_gpu_mem(struct cgs_device *cgs_device,
 		break;
 	case CGS_GPU_MEM_TYPE__INVISIBLE_CONTIG_FB:
 	case CGS_GPU_MEM_TYPE__INVISIBLE_FB:
-		flags = AMDGPU_GEM_CREATE_NO_CPU_ACCESS;
+		flags = AMDGPU_GEM_CREATE_NO_CPU_ACCESS |
+			AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
 		domain = AMDGPU_GEM_DOMAIN_VRAM;
 		if (adev->mc.visible_vram_size < adev->mc.real_vram_size) {
 			place.fpfn =
