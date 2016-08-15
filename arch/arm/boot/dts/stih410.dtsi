@@ -227,5 +227,13 @@
 			clock-names = "bdisp";
 			clocks = <&clk_s_c0_flexgen CLK_IC_BDISP_0>;
 		};
+
+		thermal@91a0000 {
+			compatible = "st,stih407-thermal";
+			reg = <0x91a0000 0x28>;
+			clock-names = "thermal";
+			clocks = <&clk_sysin>;
+			interrupts = <GIC_SPI 205 IRQ_TYPE_EDGE_RISING>;
+		};
 	};
 };
