@@ -228,6 +228,11 @@ struct i915_vma {
 	struct drm_i915_gem_exec_object2 *exec_entry;
 };
 
+struct i915_vma *
+i915_vma_create(struct drm_i915_gem_object *obj,
+		struct i915_address_space *vm,
+		const struct i915_ggtt_view *view);
+
 static inline bool i915_vma_is_ggtt(const struct i915_vma *vma)
 {
 	return vma->flags & I915_VMA_GGTT;

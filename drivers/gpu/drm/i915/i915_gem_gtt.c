@@ -3387,6 +3387,17 @@ __i915_gem_vma_create(struct drm_i915_gem_object *obj,
 }
 
 struct i915_vma *
+i915_vma_create(struct drm_i915_gem_object *obj,
+		struct i915_address_space *vm,
+		const struct i915_ggtt_view *view)
+{
+	GEM_BUG_ON(view && !i915_is_ggtt(vm));
+	GEM_BUG_ON(view ? i915_gem_obj_to_ggtt_view(obj, view) : i915_gem_obj_to_vma(obj, vm));
+
+	return __i915_gem_vma_create(obj, vm, view ?: &i915_ggtt_view_normal);
+}
+
+struct i915_vma *
 i915_gem_obj_lookup_or_create_vma(struct drm_i915_gem_object *obj,
 				  struct i915_address_space *vm)
 {
