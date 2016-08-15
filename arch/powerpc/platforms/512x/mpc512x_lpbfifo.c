@@ -528,7 +528,6 @@ static struct platform_driver mpc512x_lpbfifo_driver = {
 	.remove = mpc512x_lpbfifo_remove,
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = mpc512x_lpbfifo_match,
 	},
 };
