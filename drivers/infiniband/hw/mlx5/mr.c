@@ -611,7 +611,7 @@ int mlx5_mr_cache_init(struct mlx5_ib_dev *dev)
 	int err;
 	int i;
 
-	cache->wq = create_singlethread_workqueue("mkey_cache");
+	cache->wq = alloc_ordered_workqueue("mkey_cache", WQ_MEM_RECLAIM);
 	if (!cache->wq) {
 		mlx5_ib_warn(dev, "failed to create work queue\n");
 		return -ENOMEM;
