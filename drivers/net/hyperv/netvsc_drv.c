@@ -1205,6 +1205,19 @@ static int netvsc_register_vf(struct net_device *vf_netdev)
 	return NOTIFY_OK;
 }
 
+static void netvsc_inject_enable(struct net_device_context *net_device_ctx)
+{
+	net_device_ctx->vf_inject = true;
+}
+
+static void netvsc_inject_disable(struct net_device_context *net_device_ctx)
+{
+	net_device_ctx->vf_inject = false;
+
+	/* Wait for currently active users to drain out. */
+	while (atomic_read(&net_device_ctx->vf_use_cnt) != 0)
+		udelay(50);
+}
 
 static int netvsc_vf_up(struct net_device *vf_netdev)
 {
@@ -1227,7 +1240,7 @@ static int netvsc_vf_up(struct net_device *vf_netdev)
 		return NOTIFY_DONE;
 
 	netdev_info(ndev, "VF up: %s\n", vf_netdev->name);
-	net_device_ctx->vf_inject = true;
+	netvsc_inject_enable(net_device_ctx);
 
 	/*
 	 * Open the device before switching data path.
@@ -1270,14 +1283,7 @@ static int netvsc_vf_down(struct net_device *vf_netdev)
 		return NOTIFY_DONE;
 
 	netdev_info(ndev, "VF down: %s\n", vf_netdev->name);
-	net_device_ctx->vf_inject = false;
-	/*
-	 * Wait for currently active users to
-	 * drain out.
-	 */
-
-	while (atomic_read(&net_device_ctx->vf_use_cnt) != 0)
-		udelay(50);
+	netvsc_inject_disable(net_device_ctx);
 	netvsc_switch_datapath(ndev, false);
 	netdev_info(ndev, "Data path switched from VF: %s\n", vf_netdev->name);
 	rndis_filter_close(netvsc_dev);
@@ -1309,7 +1315,7 @@ static int netvsc_unregister_vf(struct net_device *vf_netdev)
 	if (netvsc_dev == NULL)
 		return NOTIFY_DONE;
 	netdev_info(ndev, "VF unregistering: %s\n", vf_netdev->name);
-
+	netvsc_inject_disable(net_device_ctx);
 	net_device_ctx->vf_netdev = NULL;
 	module_put(THIS_MODULE);
 	return NOTIFY_OK;
