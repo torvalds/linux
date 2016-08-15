@@ -868,7 +868,8 @@ static int mtk_venc_encode_header(void *priv)
 {
 	struct mtk_vcodec_ctx *ctx = priv;
 	int ret;
-	struct vb2_buffer *dst_buf;
+	struct vb2_buffer *src_buf, *dst_buf;
+	struct vb2_v4l2_buffer *dst_vb2_v4l2, *src_vb2_v4l2;
 	struct mtk_vcodec_mem bs_buf;
 	struct venc_done_result enc_result;
 
@@ -900,6 +901,15 @@ static int mtk_venc_encode_header(void *priv)
 				  VB2_BUF_STATE_ERROR);
 		mtk_v4l2_err("venc_if_encode failed=%d", ret);
 		return -EINVAL;
+	}
+	src_buf = v4l2_m2m_next_src_buf(ctx->m2m_ctx);
+	if (src_buf) {
+		src_vb2_v4l2 = to_vb2_v4l2_buffer(src_buf);
+		dst_vb2_v4l2 = to_vb2_v4l2_buffer(dst_buf);
+		dst_buf->timestamp = src_buf->timestamp;
+		dst_vb2_v4l2->timecode = src_vb2_v4l2->timecode;
+	} else {
+		mtk_v4l2_err("No timestamp for the header buffer.");
 	}
 
 	ctx->state = MTK_STATE_HEADER;
@@ -993,7 +1003,7 @@ static void mtk_venc_worker(struct work_struct *work)
 	struct mtk_vcodec_mem bs_buf;
 	struct venc_done_result enc_result;
 	int ret, i;
-	struct vb2_v4l2_buffer *vb2_v4l2;
+	struct vb2_v4l2_buffer *dst_vb2_v4l2, *src_vb2_v4l2;
 
 	/* check dst_buf, dst_buf may be removed in device_run
 	 * to stored encdoe header so we need check dst_buf and
@@ -1033,9 +1043,14 @@ static void mtk_venc_worker(struct work_struct *work)
 	ret = venc_if_encode(ctx, VENC_START_OPT_ENCODE_FRAME,
 			     &frm_buf, &bs_buf, &enc_result);
 
-	vb2_v4l2 = container_of(dst_buf, struct vb2_v4l2_buffer, vb2_buf);
+	src_vb2_v4l2 = to_vb2_v4l2_buffer(src_buf);
+	dst_vb2_v4l2 = to_vb2_v4l2_buffer(dst_buf);
+
+	dst_buf->timestamp = src_buf->timestamp;
+	dst_vb2_v4l2->timecode = src_vb2_v4l2->timecode;
+
 	if (enc_result.is_key_frm)
-		vb2_v4l2->flags |= V4L2_BUF_FLAG_KEYFRAME;
+		dst_vb2_v4l2->flags |= V4L2_BUF_FLAG_KEYFRAME;
 
 	if (ret) {
 		v4l2_m2m_buf_done(to_vb2_v4l2_buffer(src_buf),
