@@ -403,7 +403,7 @@ endif
 
 config CRYPTO_DEV_MXS_DCP
 	tristate "Support for Freescale MXS DCP"
-	depends on ARCH_MXS
+	depends on ARCH_MXS || ARCH_MXC
 	select CRYPTO_SHA1
 	select CRYPTO_SHA256
 	select CRYPTO_CBC

@@ -99,6 +99,11 @@ struct dcp_sha_req_ctx {
 	unsigned int	fini:1;
 };
 
+struct dcp_export_state {
+	struct dcp_sha_req_ctx req_ctx;
+	struct dcp_async_ctx async_ctx;
+};
+
 /*
  * There can even be only one instance of the MXS DCP due to the
  * design of Linux Crypto API.
@@ -753,6 +758,35 @@ static int dcp_sha_finup(struct ahash_request *req)
 	return dcp_sha_update_fx(req, 1);
 }
 
+static int dcp_sha_export(struct ahash_request *req, void *out)
+{
+	struct dcp_sha_req_ctx *rctx_state = ahash_request_ctx(req);
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct dcp_async_ctx *actx_state = crypto_ahash_ctx(tfm);
+	struct dcp_export_state *export = out;
+
+	memcpy(&export->req_ctx, rctx_state, sizeof(struct dcp_sha_req_ctx));
+	memcpy(&export->async_ctx, actx_state, sizeof(struct dcp_async_ctx));
+	
+	return 0;
+}
+
+static int dcp_sha_import(struct ahash_request *req, const void *in)
+{
+	struct dcp_sha_req_ctx *rctx = ahash_request_ctx(req);
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct dcp_async_ctx *actx = crypto_ahash_ctx(tfm);
+	const struct dcp_export_state *export = in;
+
+	memset(rctx, 0, sizeof(struct dcp_sha_req_ctx));
+	memset(actx, 0, sizeof(struct dcp_async_ctx));
+	
+	memcpy(rctx, &export->req_ctx, sizeof(struct dcp_sha_req_ctx));
+	memcpy(actx, &export->async_ctx, sizeof(struct dcp_async_ctx));
+
+	return 0;
+}
+
 static int dcp_sha_digest(struct ahash_request *req)
 {
 	int ret;
@@ -834,8 +868,11 @@ static struct ahash_alg dcp_sha1_alg = {
 	.final	= dcp_sha_final,
 	.finup	= dcp_sha_finup,
 	.digest	= dcp_sha_digest,
+	.export = dcp_sha_export,
+	.import = dcp_sha_import,
 	.halg	= {
 		.digestsize	= SHA1_DIGEST_SIZE,
+		.statesize	= sizeof(struct dcp_export_state),
 		.base		= {
 			.cra_name		= "sha1",
 			.cra_driver_name	= "sha1-dcp",
@@ -858,8 +895,11 @@ static struct ahash_alg dcp_sha256_alg = {
 	.final	= dcp_sha_final,
 	.finup	= dcp_sha_finup,
 	.digest	= dcp_sha_digest,
+	.export = dcp_sha_export,
+	.import = dcp_sha_import,
 	.halg	= {
 		.digestsize	= SHA256_DIGEST_SIZE,
+		.statesize	= sizeof(struct dcp_export_state),
 		.base		= {
 			.cra_name		= "sha256",
 			.cra_driver_name	= "sha256-dcp",
@@ -1080,6 +1120,7 @@ static int mxs_dcp_remove(struct platform_device *pdev)
 static const struct of_device_id mxs_dcp_dt_ids[] = {
 	{ .compatible = "fsl,imx23-dcp", .data = NULL, },
 	{ .compatible = "fsl,imx28-dcp", .data = NULL, },
+	{ .compatible = "fsl,imx6sl-dcp", .data = NULL, },
 	{ /* sentinel */ }
 };
 
