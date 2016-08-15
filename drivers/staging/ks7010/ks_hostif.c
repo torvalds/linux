@@ -485,8 +485,7 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 			netif_rx(skb);
 		} else {
 			printk(KERN_WARNING
-			       "%s: Memory squeeze, dropping packet.\n",
-			       skb->dev->name);
+			       "ks_wlan: Memory squeeze, dropping packet.\n");
 			priv->nstats.rx_dropped++;
 		}
 		break;
@@ -521,8 +520,7 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 			netif_rx(skb);
 		} else {
 			printk(KERN_WARNING
-			       "%s: Memory squeeze, dropping packet.\n",
-			       skb->dev->name);
+			       "ks_wlan: Memory squeeze, dropping packet.\n");
 			priv->nstats.rx_dropped++;
 		}
 		break;
