@@ -143,6 +143,8 @@ struct strlist *probe_file__get_rawlist(int fd)
 		return NULL;
 
 	sl = strlist__new(NULL, NULL);
+	if (sl == NULL)
+		return NULL;
 
 	fddup = dup(fd);
 	if (fddup < 0)
@@ -163,14 +165,16 @@ struct strlist *probe_file__get_rawlist(int fd)
 		ret = strlist__add(sl, buf);
 		if (ret < 0) {
 			pr_debug("strlist__add failed (%d)\n", ret);
-			strlist__delete(sl);
-			return NULL;
+			goto out_close_fp;
 		}
 	}
 	fclose(fp);
 
 	return sl;
 
+out_close_fp:
+	fclose(fp);
+	goto out_free_sl;
 out_close_fddup:
 	close(fddup);
 out_free_sl:
@@ -467,8 +471,10 @@ static int probe_cache__load(struct probe_cache *pcache)
 	if (fddup < 0)
 		return -errno;
 	fp = fdopen(fddup, "r");
-	if (!fp)
+	if (!fp) {
+		close(fddup);
 		return -EINVAL;
+	}
 
 	while (!feof(fp)) {
 		if (!fgets(buf, MAX_CMDLEN, fp))
