@@ -230,6 +230,13 @@
 					};
 				};
 
+				pinctrl_rgmii1_mdio_1: rgmii1-mdio-1 {
+					st,pins {
+						mdio = <&pio1 0 ALT1 OUT BYPASS 0>;
+						mdc = <&pio1 1 ALT1 OUT NICLK 0 CLK_A>;
+					};
+				};
+
 				pinctrl_mii1: mii1 {
 					st,pins {
 						txd0 = <&pio0 0 ALT1 OUT SE_NICLK_IO 0 CLK_A>;
