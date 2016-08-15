@@ -134,7 +134,7 @@ static irqreturn_t ipu_irq_handler(int irq, void *dev_id)
 {
 	struct ipu_crtc *ipu_crtc = dev_id;
 
-	imx_drm_handle_vblank(ipu_crtc->imx_crtc);
+	drm_crtc_handle_vblank(&ipu_crtc->base);
 
 	return IRQ_HANDLED;
 }

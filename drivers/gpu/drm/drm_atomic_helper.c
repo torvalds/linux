@@ -886,8 +886,12 @@ crtc_set_mode(struct drm_device *dev, struct drm_atomic_state *old_state)
 		 * Each encoder has at most one connector (since we always steal
 		 * it away), so we won't call mode_set hooks twice.
 		 */
-		if (funcs && funcs->mode_set)
+		if (funcs && funcs->atomic_mode_set) {
+			funcs->atomic_mode_set(encoder, new_crtc_state,
+					       connector->state);
+		} else if (funcs && funcs->mode_set) {
 			funcs->mode_set(encoder, mode, adjusted_mode);
+		}
 
 		drm_bridge_mode_set(encoder->bridge, mode, adjusted_mode);
 	}

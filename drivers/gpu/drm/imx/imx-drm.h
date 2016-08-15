@@ -13,8 +13,6 @@ struct drm_plane;
 struct imx_drm_crtc;
 struct platform_device;
 
-unsigned int imx_drm_crtc_id(struct imx_drm_crtc *crtc);
-
 struct imx_crtc_state {
 	struct drm_crtc_state			base;
 	u32					bus_format;
@@ -43,10 +41,6 @@ int imx_drm_remove_crtc(struct imx_drm_crtc *);
 int imx_drm_init_drm(struct platform_device *pdev,
 		int preferred_bpp);
 int imx_drm_exit_drm(void);
-
-int imx_drm_crtc_vblank_get(struct imx_drm_crtc *imx_drm_crtc);
-void imx_drm_crtc_vblank_put(struct imx_drm_crtc *imx_drm_crtc);
-void imx_drm_handle_vblank(struct imx_drm_crtc *imx_drm_crtc);
 
 void imx_drm_mode_config_init(struct drm_device *drm);
 

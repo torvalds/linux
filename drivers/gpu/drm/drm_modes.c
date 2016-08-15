@@ -657,6 +657,21 @@ void drm_display_mode_to_videomode(const struct drm_display_mode *dmode,
 }
 EXPORT_SYMBOL_GPL(drm_display_mode_to_videomode);
 
+void drm_bus_flags_from_videomode(const struct videomode *vm, u32 *bus_flags)
+{
+	*bus_flags = 0;
+	if (vm->flags & DISPLAY_FLAGS_PIXDATA_POSEDGE)
+		*bus_flags |= DRM_BUS_FLAG_PIXDATA_POSEDGE;
+	if (vm->flags & DISPLAY_FLAGS_PIXDATA_NEGEDGE)
+		*bus_flags |= DRM_BUS_FLAG_PIXDATA_NEGEDGE;
+
+	if (vm->flags & DISPLAY_FLAGS_DE_LOW)
+		*bus_flags |= DRM_BUS_FLAG_DE_LOW;
+	if (vm->flags & DISPLAY_FLAGS_DE_HIGH)
+		*bus_flags |= DRM_BUS_FLAG_DE_HIGH;
+}
+EXPORT_SYMBOL_GPL(drm_bus_flags_from_videomode);
+
 #ifdef CONFIG_OF
 /**
  * of_get_drm_display_mode - get a drm_display_mode from devicetree
@@ -672,7 +687,8 @@ EXPORT_SYMBOL_GPL(drm_display_mode_to_videomode);
  * 0 on success, a negative errno code when no of videomode node was found.
  */
 int of_get_drm_display_mode(struct device_node *np,
-			    struct drm_display_mode *dmode, int index)
+			    struct drm_display_mode *dmode, u32 *bus_flags,
+			    int index)
 {
 	struct videomode vm;
 	int ret;
@@ -682,6 +698,8 @@ int of_get_drm_display_mode(struct device_node *np,
 		return ret;
 
 	drm_display_mode_from_videomode(&vm, dmode);
+	if (bus_flags)
+		drm_bus_flags_from_videomode(&vm, bus_flags);
 
 	pr_debug("%s: got %dx%d display mode from %s\n",
 		of_node_full_name(np), vm.hactive, vm.vactive, np->name);
