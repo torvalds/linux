@@ -841,52 +841,34 @@ static void mv88e6xxx_get_regs(struct dsa_switch *ds, int port,
 	mutex_unlock(&chip->reg_lock);
 }
 
-static int mv88e6xxx_mdio_wait(struct mv88e6xxx_chip *chip)
-{
-	return mv88e6xxx_wait(chip, REG_GLOBAL2, GLOBAL2_SMI_OP,
-			      GLOBAL2_SMI_OP_BUSY);
-}
-
 static int _mv88e6xxx_atu_wait(struct mv88e6xxx_chip *chip)
 {
 	return mv88e6xxx_wait(chip, REG_GLOBAL, GLOBAL_ATU_OP,
 			      GLOBAL_ATU_OP_BUSY);
 }
 
+static int mv88e6xxx_g2_smi_phy_read(struct mv88e6xxx_chip *chip, int addr,
+				     int reg, u16 *val);
+static int mv88e6xxx_g2_smi_phy_write(struct mv88e6xxx_chip *chip, int addr,
+				      int reg, u16 val);
+
 static int mv88e6xxx_mdio_read_indirect(struct mv88e6xxx_chip *chip,
 					int addr, int regnum)
 {
-	int ret;
+	u16 val;
+	int err;
 
-	ret = _mv88e6xxx_reg_write(chip, REG_GLOBAL2, GLOBAL2_SMI_OP,
-				   GLOBAL2_SMI_OP_22_READ | (addr << 5) |
-				   regnum);
-	if (ret < 0)
-		return ret;
+	err = mv88e6xxx_g2_smi_phy_read(chip, addr, regnum, &val);
+	if (err)
+		return err;
 
-	ret = mv88e6xxx_mdio_wait(chip);
-	if (ret < 0)
-		return ret;
-
-	ret = _mv88e6xxx_reg_read(chip, REG_GLOBAL2, GLOBAL2_SMI_DATA);
-
-	return ret;
+	return val;
 }
 
 static int mv88e6xxx_mdio_write_indirect(struct mv88e6xxx_chip *chip,
 					 int addr, int regnum, u16 val)
 {
-	int ret;
-
-	ret = _mv88e6xxx_reg_write(chip, REG_GLOBAL2, GLOBAL2_SMI_DATA, val);
-	if (ret < 0)
-		return ret;
-
-	ret = _mv88e6xxx_reg_write(chip, REG_GLOBAL2, GLOBAL2_SMI_OP,
-				   GLOBAL2_SMI_OP_22_WRITE | (addr << 5) |
-				   regnum);
-
-	return mv88e6xxx_mdio_wait(chip);
+	return mv88e6xxx_g2_smi_phy_write(chip, addr, regnum, val);
 }
 
 static int mv88e6xxx_get_eee(struct dsa_switch *ds, int port,
@@ -3057,6 +3039,57 @@ static int mv88e6xxx_g2_eeprom_write16(struct mv88e6xxx_chip *chip,
 	return mv88e6xxx_g2_eeprom_cmd(chip, cmd);
 }
 
+static int mv88e6xxx_g2_smi_phy_wait(struct mv88e6xxx_chip *chip)
+{
+	return mv88e6xxx_wait(chip, REG_GLOBAL2, GLOBAL2_SMI_PHY_CMD,
+			      GLOBAL2_SMI_PHY_CMD_BUSY);
+}
+
+static int mv88e6xxx_g2_smi_phy_cmd(struct mv88e6xxx_chip *chip, u16 cmd)
+{
+	int err;
+
+	err = mv88e6xxx_write(chip, REG_GLOBAL2, GLOBAL2_SMI_PHY_CMD, cmd);
+	if (err)
+		return err;
+
+	return mv88e6xxx_g2_smi_phy_wait(chip);
+}
+
+static int mv88e6xxx_g2_smi_phy_read(struct mv88e6xxx_chip *chip, int addr,
+				     int reg, u16 *val)
+{
+	u16 cmd = GLOBAL2_SMI_PHY_CMD_OP_22_READ_DATA | (addr << 5) | reg;
+	int err;
+
+	err = mv88e6xxx_g2_smi_phy_wait(chip);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_g2_smi_phy_cmd(chip, cmd);
+	if (err)
+		return err;
+
+	return mv88e6xxx_read(chip, REG_GLOBAL2, GLOBAL2_SMI_PHY_DATA, val);
+}
+
+static int mv88e6xxx_g2_smi_phy_write(struct mv88e6xxx_chip *chip, int addr,
+				      int reg, u16 val)
+{
+	u16 cmd = GLOBAL2_SMI_PHY_CMD_OP_22_WRITE_DATA | (addr << 5) | reg;
+	int err;
+
+	err = mv88e6xxx_g2_smi_phy_wait(chip);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_write(chip, REG_GLOBAL2, GLOBAL2_SMI_PHY_DATA, val);
+	if (err)
+		return err;
+
+	return mv88e6xxx_g2_smi_phy_cmd(chip, cmd);
+}
+
 static int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)
 {
 	u16 reg;
@@ -3236,7 +3269,7 @@ static int mv88e6xxx_mdio_read(struct mii_bus *bus, int port, int regnum)
 
 	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_PPU))
 		ret = mv88e6xxx_mdio_read_ppu(chip, addr, regnum);
-	else if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_SMI_PHY))
+	else if (mv88e6xxx_has(chip, MV88E6XXX_FLAGS_SMI_PHY))
 		ret = mv88e6xxx_mdio_read_indirect(chip, addr, regnum);
 	else
 		ret = mv88e6xxx_mdio_read_direct(chip, addr, regnum);
@@ -3259,7 +3292,7 @@ static int mv88e6xxx_mdio_write(struct mii_bus *bus, int port, int regnum,
 
 	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_PPU))
 		ret = mv88e6xxx_mdio_write_ppu(chip, addr, regnum, val);
-	else if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_SMI_PHY))
+	else if (mv88e6xxx_has(chip, MV88E6XXX_FLAGS_SMI_PHY))
 		ret = mv88e6xxx_mdio_write_indirect(chip, addr, regnum, val);
 	else
 		ret = mv88e6xxx_mdio_write_direct(chip, addr, regnum, val);
