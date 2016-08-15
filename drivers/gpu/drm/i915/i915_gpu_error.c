@@ -312,6 +312,16 @@ static void print_error_obj(struct drm_i915_error_state_buf *m,
 	}
 }
 
+static void err_print_capabilities(struct drm_i915_error_state_buf *m,
+				   const struct intel_device_info *info)
+{
+#define PRINT_FLAG(x)  err_printf(m, #x ": %s\n", yesno(info->x))
+#define SEP_SEMICOLON ;
+	DEV_INFO_FOR_EACH_FLAG(PRINT_FLAG, SEP_SEMICOLON);
+#undef PRINT_FLAG
+#undef SEP_SEMICOLON
+}
+
 int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			    const struct i915_error_state_file_priv *error_priv)
 {
@@ -331,6 +341,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	err_printf(m, "Time: %ld s %ld us\n", error->time.tv_sec,
 		   error->time.tv_usec);
 	err_printf(m, "Kernel: " UTS_RELEASE "\n");
+	err_print_capabilities(m, &error->device_info);
 	max_hangcheck_score = 0;
 	for (i = 0; i < ARRAY_SIZE(error->engine); i++) {
 		if (error->engine[i].hangcheck_score > max_hangcheck_score)
@@ -1362,6 +1373,10 @@ static void i915_capture_gen_state(struct drm_i915_private *dev_priv,
 #endif
 	error->reset_count = i915_reset_count(&dev_priv->gpu_error);
 	error->suspend_count = dev_priv->suspend_count;
+
+	memcpy(&error->device_info,
+	       INTEL_INFO(dev_priv),
+	       sizeof(error->device_info));
 }
 
 /**

@@ -475,130 +475,6 @@ struct sdvo_device_mapping {
 	u8 ddc_pin;
 };
 
-struct intel_display_error_state;
-
-struct drm_i915_error_state {
-	struct kref ref;
-	struct timeval time;
-
-	char error_msg[128];
-	bool simulated;
-	int iommu;
-	u32 reset_count;
-	u32 suspend_count;
-
-	/* Generic register state */
-	u32 eir;
-	u32 pgtbl_er;
-	u32 ier;
-	u32 gtier[4];
-	u32 ccid;
-	u32 derrmr;
-	u32 forcewake;
-	u32 error; /* gen6+ */
-	u32 err_int; /* gen7 */
-	u32 fault_data0; /* gen8, gen9 */
-	u32 fault_data1; /* gen8, gen9 */
-	u32 done_reg;
-	u32 gac_eco;
-	u32 gam_ecochk;
-	u32 gab_ctl;
-	u32 gfx_mode;
-	u32 extra_instdone[I915_NUM_INSTDONE_REG];
-	u64 fence[I915_MAX_NUM_FENCES];
-	struct intel_overlay_error_state *overlay;
-	struct intel_display_error_state *display;
-	struct drm_i915_error_object *semaphore_obj;
-
-	struct drm_i915_error_engine {
-		int engine_id;
-		/* Software tracked state */
-		bool waiting;
-		int num_waiters;
-		int hangcheck_score;
-		enum intel_engine_hangcheck_action hangcheck_action;
-		struct i915_address_space *vm;
-		int num_requests;
-
-		/* our own tracking of ring head and tail */
-		u32 cpu_ring_head;
-		u32 cpu_ring_tail;
-
-		u32 last_seqno;
-		u32 semaphore_seqno[I915_NUM_ENGINES - 1];
-
-		/* Register state */
-		u32 start;
-		u32 tail;
-		u32 head;
-		u32 ctl;
-		u32 hws;
-		u32 ipeir;
-		u32 ipehr;
-		u32 instdone;
-		u32 bbstate;
-		u32 instpm;
-		u32 instps;
-		u32 seqno;
-		u64 bbaddr;
-		u64 acthd;
-		u32 fault_reg;
-		u64 faddr;
-		u32 rc_psmi; /* sleep state */
-		u32 semaphore_mboxes[I915_NUM_ENGINES - 1];
-
-		struct drm_i915_error_object {
-			int page_count;
-			u64 gtt_offset;
-			u32 *pages[0];
-		} *ringbuffer, *batchbuffer, *wa_batchbuffer, *ctx, *hws_page;
-
-		struct drm_i915_error_object *wa_ctx;
-
-		struct drm_i915_error_request {
-			long jiffies;
-			u32 seqno;
-			u32 head;
-			u32 tail;
-		} *requests;
-
-		struct drm_i915_error_waiter {
-			char comm[TASK_COMM_LEN];
-			pid_t pid;
-			u32 seqno;
-		} *waiters;
-
-		struct {
-			u32 gfx_mode;
-			union {
-				u64 pdp[4];
-				u32 pp_dir_base;
-			};
-		} vm_info;
-
-		pid_t pid;
-		char comm[TASK_COMM_LEN];
-	} engine[I915_NUM_ENGINES];
-
-	struct drm_i915_error_buffer {
-		u32 size;
-		u32 name;
-		u32 rseqno[I915_NUM_ENGINES], wseqno;
-		u64 gtt_offset;
-		u32 read_domains;
-		u32 write_domain;
-		s32 fence_reg:I915_MAX_NUM_FENCE_BITS;
-		u32 tiling:2;
-		u32 dirty:1;
-		u32 purgeable:1;
-		u32 userptr:1;
-		s32 engine:4;
-		u32 cache_level:3;
-	} *active_bo[I915_NUM_ENGINES], *pinned_bo;
-	u32 active_bo_count[I915_NUM_ENGINES], pinned_bo_count;
-	struct i915_address_space *active_vm[I915_NUM_ENGINES];
-};
-
 struct intel_connector;
 struct intel_encoder;
 struct intel_crtc_state;
@@ -822,6 +698,131 @@ struct intel_device_info {
 
 #undef DEFINE_FLAG
 #undef SEP_SEMICOLON
+
+struct intel_display_error_state;
+
+struct drm_i915_error_state {
+	struct kref ref;
+	struct timeval time;
+
+	char error_msg[128];
+	bool simulated;
+	int iommu;
+	u32 reset_count;
+	u32 suspend_count;
+	struct intel_device_info device_info;
+
+	/* Generic register state */
+	u32 eir;
+	u32 pgtbl_er;
+	u32 ier;
+	u32 gtier[4];
+	u32 ccid;
+	u32 derrmr;
+	u32 forcewake;
+	u32 error; /* gen6+ */
+	u32 err_int; /* gen7 */
+	u32 fault_data0; /* gen8, gen9 */
+	u32 fault_data1; /* gen8, gen9 */
+	u32 done_reg;
+	u32 gac_eco;
+	u32 gam_ecochk;
+	u32 gab_ctl;
+	u32 gfx_mode;
+	u32 extra_instdone[I915_NUM_INSTDONE_REG];
+	u64 fence[I915_MAX_NUM_FENCES];
+	struct intel_overlay_error_state *overlay;
+	struct intel_display_error_state *display;
+	struct drm_i915_error_object *semaphore_obj;
+
+	struct drm_i915_error_engine {
+		int engine_id;
+		/* Software tracked state */
+		bool waiting;
+		int num_waiters;
+		int hangcheck_score;
+		enum intel_engine_hangcheck_action hangcheck_action;
+		struct i915_address_space *vm;
+		int num_requests;
+
+		/* our own tracking of ring head and tail */
+		u32 cpu_ring_head;
+		u32 cpu_ring_tail;
+
+		u32 last_seqno;
+		u32 semaphore_seqno[I915_NUM_ENGINES - 1];
+
+		/* Register state */
+		u32 start;
+		u32 tail;
+		u32 head;
+		u32 ctl;
+		u32 hws;
+		u32 ipeir;
+		u32 ipehr;
+		u32 instdone;
+		u32 bbstate;
+		u32 instpm;
+		u32 instps;
+		u32 seqno;
+		u64 bbaddr;
+		u64 acthd;
+		u32 fault_reg;
+		u64 faddr;
+		u32 rc_psmi; /* sleep state */
+		u32 semaphore_mboxes[I915_NUM_ENGINES - 1];
+
+		struct drm_i915_error_object {
+			int page_count;
+			u64 gtt_offset;
+			u32 *pages[0];
+		} *ringbuffer, *batchbuffer, *wa_batchbuffer, *ctx, *hws_page;
+
+		struct drm_i915_error_object *wa_ctx;
+
+		struct drm_i915_error_request {
+			long jiffies;
+			u32 seqno;
+			u32 head;
+			u32 tail;
+		} *requests;
+
+		struct drm_i915_error_waiter {
+			char comm[TASK_COMM_LEN];
+			pid_t pid;
+			u32 seqno;
+		} *waiters;
+
+		struct {
+			u32 gfx_mode;
+			union {
+				u64 pdp[4];
+				u32 pp_dir_base;
+			};
+		} vm_info;
+
+		pid_t pid;
+		char comm[TASK_COMM_LEN];
+	} engine[I915_NUM_ENGINES];
+
+	struct drm_i915_error_buffer {
+		u32 size;
+		u32 name;
+		u32 rseqno[I915_NUM_ENGINES], wseqno;
+		u64 gtt_offset;
+		u32 read_domains;
+		u32 write_domain;
+		s32 fence_reg:I915_MAX_NUM_FENCE_BITS;
+		u32 tiling:2;
+		u32 dirty:1;
+		u32 purgeable:1;
+		u32 userptr:1;
+		s32 engine:4;
+		u32 cache_level:3;
+	} *active_bo[I915_NUM_ENGINES], *pinned_bo;
+	u32 active_bo_count[I915_NUM_ENGINES], pinned_bo_count;
+	struct i915_address_space *active_vm[I915_NUM_ENGINES];
+};
 
 enum i915_cache_level {
 	I915_CACHE_NONE = 0,

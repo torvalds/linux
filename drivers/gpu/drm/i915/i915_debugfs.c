@@ -269,17 +269,6 @@ static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-#define count_objects(list, member) do { \
-	list_for_each_entry(obj, list, member) { \
-		size += i915_gem_obj_total_ggtt_size(obj); \
-		++count; \
-		if (obj->map_and_fenceable) { \
-			mappable_size += i915_gem_obj_ggtt_size(obj); \
-			++mappable_count; \
-		} \
-	} \
-} while (0)
-
 struct file_stats {
 	struct drm_i915_file_private *file_priv;
 	unsigned long count;
@@ -394,30 +383,16 @@ static void print_context_stats(struct seq_file *m,
 	print_file_stats(m, "[k]contexts", stats);
 }
 
-#define count_vmas(list, member) do { \
-	list_for_each_entry(vma, list, member) { \
-		size += i915_gem_obj_total_ggtt_size(vma->obj); \
-		++count; \
-		if (vma->obj->map_and_fenceable) { \
-			mappable_size += i915_gem_obj_ggtt_size(vma->obj); \
-			++mappable_count; \
-		} \
-	} \
-} while (0)
-
 static int i915_gem_object_info(struct seq_file *m, void* data)
 {
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	u32 count, mappable_count, purgeable_count;
-	u64 size, mappable_size, purgeable_size;
-	unsigned long pin_mapped_count = 0, pin_mapped_purgeable_count = 0;
-	u64 pin_mapped_size = 0, pin_mapped_purgeable_size = 0;
+	u32 count, mapped_count, purgeable_count, dpy_count;
+	u64 size, mapped_size, purgeable_size, dpy_size;
 	struct drm_i915_gem_object *obj;
 	struct drm_file *file;
-	struct i915_vma *vma;
 	int ret;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
@@ -428,70 +403,51 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 		   dev_priv->mm.object_count,
 		   dev_priv->mm.object_memory);
 
-	size = count = mappable_size = mappable_count = 0;
-	count_objects(&dev_priv->mm.bound_list, global_list);
-	seq_printf(m, "%u [%u] objects, %llu [%llu] bytes in gtt\n",
-		   count, mappable_count, size, mappable_size);
-
-	size = count = mappable_size = mappable_count = 0;
-	count_vmas(&ggtt->base.active_list, vm_link);
-	seq_printf(m, "  %u [%u] active objects, %llu [%llu] bytes\n",
-		   count, mappable_count, size, mappable_size);
-
-	size = count = mappable_size = mappable_count = 0;
-	count_vmas(&ggtt->base.inactive_list, vm_link);
-	seq_printf(m, "  %u [%u] inactive objects, %llu [%llu] bytes\n",
-		   count, mappable_count, size, mappable_size);
-
 	size = count = purgeable_size = purgeable_count = 0;
 	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_list) {
-		size += obj->base.size, ++count;
-		if (obj->madv == I915_MADV_DONTNEED)
-			purgeable_size += obj->base.size, ++purgeable_count;
-		if (obj->mapping) {
-			pin_mapped_count++;
-			pin_mapped_size += obj->base.size;
-			if (obj->pages_pin_count == 0) {
-				pin_mapped_purgeable_count++;
-				pin_mapped_purgeable_size += obj->base.size;
-			}
-		}
-	}
-	seq_printf(m, "%u unbound objects, %llu bytes\n", count, size);
+		size += obj->base.size;
+		++count;
 
-	size = count = mappable_size = mappable_count = 0;
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
-		if (obj->fault_mappable) {
-			size += i915_gem_obj_ggtt_size(obj);
-			++count;
-		}
-		if (obj->pin_display) {
-			mappable_size += i915_gem_obj_ggtt_size(obj);
-			++mappable_count;
-		}
 		if (obj->madv == I915_MADV_DONTNEED) {
 			purgeable_size += obj->base.size;
 			++purgeable_count;
 		}
+
 		if (obj->mapping) {
-			pin_mapped_count++;
-			pin_mapped_size += obj->base.size;
-			if (obj->pages_pin_count == 0) {
-				pin_mapped_purgeable_count++;
-				pin_mapped_purgeable_size += obj->base.size;
-			}
+			mapped_count++;
+			mapped_size += obj->base.size;
 		}
 	}
+	seq_printf(m, "%u unbound objects, %llu bytes\n", count, size);
+
+	size = count = dpy_size = dpy_count = 0;
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
+		size += obj->base.size;
+		++count;
+
+		if (obj->pin_display) {
+			dpy_size += obj->base.size;
+			++dpy_count;
+		}
+
+		if (obj->madv == I915_MADV_DONTNEED) {
+			purgeable_size += obj->base.size;
+			++purgeable_count;
+		}
+
+		if (obj->mapping) {
+			mapped_count++;
+			mapped_size += obj->base.size;
+		}
+	}
+	seq_printf(m, "%u bound objects, %llu bytes\n",
+		   count, size);
 	seq_printf(m, "%u purgeable objects, %llu bytes\n",
 		   purgeable_count, purgeable_size);
-	seq_printf(m, "%u pinned mappable objects, %llu bytes\n",
-		   mappable_count, mappable_size);
-	seq_printf(m, "%u fault mappable objects, %llu bytes\n",
-		   count, size);
-	seq_printf(m,
-		   "%lu [%lu] pin mapped objects, %llu [%llu] bytes [purgeable]\n",
-		   pin_mapped_count, pin_mapped_purgeable_count,
-		   pin_mapped_size, pin_mapped_purgeable_size);
+	seq_printf(m, "%u mapped objects, %llu bytes\n",
+		   mapped_count, mapped_size);
+	seq_printf(m, "%u display objects (pinned), %llu bytes\n",
+		   dpy_count, dpy_size);
 
 	seq_printf(m, "%llu [%llu] gtt total\n",
 		   ggtt->base.total, ggtt->mappable_end - ggtt->base.start);
