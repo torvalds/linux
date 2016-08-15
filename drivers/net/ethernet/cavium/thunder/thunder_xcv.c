@@ -194,7 +194,6 @@ err_release_regions:
 err_disable_device:
 	pci_disable_device(pdev);
 err_kfree:
-	pci_set_drvdata(pdev, NULL);
 	devm_kfree(dev, xcv);
 	xcv = NULL;
 	return err;
@@ -211,7 +210,6 @@ static void xcv_remove(struct pci_dev *pdev)
 
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 static struct pci_driver xcv_driver = {
