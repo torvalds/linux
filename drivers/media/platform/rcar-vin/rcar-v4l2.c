@@ -504,16 +504,18 @@ static int rvin_s_dv_timings(struct file *file, void *priv_fh,
 {
 	struct rvin_dev *vin = video_drvdata(file);
 	struct v4l2_subdev *sd = vin_to_source(vin);
-	int err;
+	int ret;
 
-	err = v4l2_subdev_call(sd, video, s_dv_timings, timings);
-	if (!err) {
-		vin->source.width = timings->bt.width;
-		vin->source.height = timings->bt.height;
-		vin->format.width = timings->bt.width;
-		vin->format.height = timings->bt.height;
-	}
-	return err;
+	ret = v4l2_subdev_call(sd, video, s_dv_timings, timings);
+	if (ret)
+		return ret;
+
+	vin->source.width = timings->bt.width;
+	vin->source.height = timings->bt.height;
+	vin->format.width = timings->bt.width;
+	vin->format.height = timings->bt.height;
+
+	return 0;
 }
 
 static int rvin_g_dv_timings(struct file *file, void *priv_fh,
