@@ -426,6 +426,7 @@ clock_cooling_register(struct device *dev, const char *clock_name)
 	if (!ccdev)
 		return ERR_PTR(-ENOMEM);
 
+	mutex_init(&ccdev->lock);
 	ccdev->dev = dev;
 	ccdev->clk = devm_clk_get(dev, clock_name);
 	if (IS_ERR(ccdev->clk))
