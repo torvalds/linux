@@ -771,10 +771,7 @@ int rvin_v4l2_probe(struct rvin_dev *vin)
 	struct v4l2_mbus_framefmt *mf = &fmt.format;
 	struct video_device *vdev = &vin->vdev;
 	struct v4l2_subdev *sd = vin_to_source(vin);
-#if defined(CONFIG_MEDIA_CONTROLLER)
-	int pad_idx;
-#endif
-	int ret;
+	int pad_idx, ret;
 
 	v4l2_set_subdev_hostdata(sd, vin);
 
@@ -821,7 +818,6 @@ int rvin_v4l2_probe(struct rvin_dev *vin)
 		V4L2_CAP_READWRITE;
 
 	vin->src_pad_idx = 0;
-#if defined(CONFIG_MEDIA_CONTROLLER)
 	for (pad_idx = 0; pad_idx < sd->entity.num_pads; pad_idx++)
 		if (sd->entity.pads[pad_idx].flags == MEDIA_PAD_FL_SOURCE)
 			break;
@@ -829,7 +825,6 @@ int rvin_v4l2_probe(struct rvin_dev *vin)
 		return -EINVAL;
 
 	vin->src_pad_idx = pad_idx;
-#endif
 	fmt.pad = vin->src_pad_idx;
 
 	/* Try to improve our guess of a reasonable window format */
