@@ -553,7 +553,6 @@
 			clock-names = "mmc";
 			clocks = <&clk_s_c0_flexgen CLK_MMC_0>;
 			bus-width = <8>;
-			non-removable;
 		};
 
 		mmc1: sdhci@09080000 {

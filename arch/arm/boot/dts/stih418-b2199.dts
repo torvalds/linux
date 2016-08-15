@@ -86,6 +86,7 @@
 			sd-uhs-sdr50;
 			sd-uhs-sdr104;
 			sd-uhs-ddr50;
+			non-removable;
 		};
 
 		miphy28lp_phy: miphy28lp@9b22000 {

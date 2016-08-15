@@ -65,6 +65,7 @@
 		};
 
 		mmc0: sdhci@09060000 {
+			non-removable;
 			status = "okay";
 		};
 
