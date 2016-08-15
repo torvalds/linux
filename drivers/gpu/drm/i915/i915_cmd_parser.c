@@ -62,23 +62,23 @@
  * The parser always rejects such commands.
  *
  * The majority of the problematic commands fall in the MI_* range, with only a
- * few specific commands on each ring (e.g. PIPE_CONTROL and MI_FLUSH_DW).
+ * few specific commands on each engine (e.g. PIPE_CONTROL and MI_FLUSH_DW).
  *
  * Implementation:
- * Each ring maintains tables of commands and registers which the parser uses in
- * scanning batch buffers submitted to that ring.
+ * Each engine maintains tables of commands and registers which the parser
+ * uses in scanning batch buffers submitted to that engine.
  *
  * Since the set of commands that the parser must check for is significantly
  * smaller than the number of commands supported, the parser tables contain only
  * those commands required by the parser. This generally works because command
  * opcode ranges have standard command length encodings. So for commands that
  * the parser does not need to check, it can easily skip them. This is
- * implemented via a per-ring length decoding vfunc.
+ * implemented via a per-engine length decoding vfunc.
  *
  * Unfortunately, there are a number of commands that do not follow the standard
  * length encoding for their opcode range, primarily amongst the MI_* commands.
  * To handle this, the parser provides a way to define explicit "skip" entries
- * in the per-ring command tables.
+ * in the per-engine command tables.
  *
  * Other command table entries map fairly directly to high level categories
  * mentioned above: rejected, master-only, register whitelist. The parser
@@ -603,7 +603,7 @@ static u32 gen7_blt_get_cmd_length_mask(u32 cmd_header)
 	return 0;
 }
 
-static bool validate_cmds_sorted(struct intel_engine_cs *engine,
+static bool validate_cmds_sorted(const struct intel_engine_cs *engine,
 				 const struct drm_i915_cmd_table *cmd_tables,
 				 int cmd_table_count)
 {
@@ -624,8 +624,10 @@ static bool validate_cmds_sorted(struct intel_engine_cs *engine,
 			u32 curr = desc->cmd.value & desc->cmd.mask;
 
 			if (curr < previous) {
-				DRM_ERROR("CMD: table not sorted ring=%d table=%d entry=%d cmd=0x%08X prev=0x%08X\n",
-					  engine->id, i, j, curr, previous);
+				DRM_ERROR("CMD: %s [%d] command table not sorted: "
+					  "table=%d entry=%d cmd=0x%08X prev=0x%08X\n",
+					  engine->name, engine->id,
+					  i, j, curr, previous);
 				ret = false;
 			}
 
@@ -636,7 +638,7 @@ static bool validate_cmds_sorted(struct intel_engine_cs *engine,
 	return ret;
 }
 
-static bool check_sorted(int ring_id,
+static bool check_sorted(const struct intel_engine_cs *engine,
 			 const struct drm_i915_reg_descriptor *reg_table,
 			 int reg_count)
 {
@@ -648,8 +650,10 @@ static bool check_sorted(int ring_id,
 		u32 curr = i915_mmio_reg_offset(reg_table[i].addr);
 
 		if (curr < previous) {
-			DRM_ERROR("CMD: table not sorted ring=%d entry=%d reg=0x%08X prev=0x%08X\n",
-				  ring_id, i, curr, previous);
+			DRM_ERROR("CMD: %s [%d] register table not sorted: "
+				  "entry=%d reg=0x%08X prev=0x%08X\n",
+				  engine->name, engine->id,
+				  i, curr, previous);
 			ret = false;
 		}
 
@@ -666,7 +670,7 @@ static bool validate_regs_sorted(struct intel_engine_cs *engine)
 
 	for (i = 0; i < engine->reg_table_count; i++) {
 		table = &engine->reg_tables[i];
-		if (!check_sorted(engine->id, table->regs, table->num_regs))
+		if (!check_sorted(engine, table->regs, table->num_regs))
 			return false;
 	}
 
@@ -736,7 +740,7 @@ static void fini_hash_table(struct intel_engine_cs *engine)
 }
 
 /**
- * i915_cmd_parser_init_ring() - set cmd parser related fields for a ringbuffer
+ * intel_engine_init_cmd_parser() - set cmd parser related fields for an engine
  * @engine: the engine to initialize
  *
  * Optionally initializes fields related to batch buffer command parsing in the
@@ -745,7 +749,7 @@ static void fini_hash_table(struct intel_engine_cs *engine)
  *
  * Return: non-zero if initialization fails
  */
-int i915_cmd_parser_init_ring(struct intel_engine_cs *engine)
+int intel_engine_init_cmd_parser(struct intel_engine_cs *engine)
 {
 	const struct drm_i915_cmd_table *cmd_tables;
 	int cmd_table_count;
@@ -806,8 +810,7 @@ int i915_cmd_parser_init_ring(struct intel_engine_cs *engine)
 		engine->get_cmd_length_mask = gen7_bsd_get_cmd_length_mask;
 		break;
 	default:
-		DRM_ERROR("CMD: cmd_parser_init with unknown ring: %d\n",
-			  engine->id);
+		MISSING_CASE(engine->id);
 		BUG();
 	}
 
@@ -829,13 +832,13 @@ int i915_cmd_parser_init_ring(struct intel_engine_cs *engine)
 }
 
 /**
- * i915_cmd_parser_fini_ring() - clean up cmd parser related fields
+ * intel_engine_cleanup_cmd_parser() - clean up cmd parser related fields
  * @engine: the engine to clean up
  *
  * Releases any resources related to command parsing that may have been
- * initialized for the specified ring.
+ * initialized for the specified engine.
  */
-void i915_cmd_parser_fini_ring(struct intel_engine_cs *engine)
+void intel_engine_cleanup_cmd_parser(struct intel_engine_cs *engine)
 {
 	if (!engine->needs_cmd_parser)
 		return;
@@ -866,9 +869,9 @@ find_cmd_in_table(struct intel_engine_cs *engine,
  * Returns a pointer to a descriptor for the command specified by cmd_header.
  *
  * The caller must supply space for a default descriptor via the default_desc
- * parameter. If no descriptor for the specified command exists in the ring's
+ * parameter. If no descriptor for the specified command exists in the engine's
  * command parser tables, this function fills in default_desc based on the
- * ring's default length encoding and returns default_desc.
+ * engine's default length encoding and returns default_desc.
  */
 static const struct drm_i915_cmd_descriptor*
 find_cmd(struct intel_engine_cs *engine,
@@ -1023,15 +1026,16 @@ unpin_src:
 }
 
 /**
- * i915_needs_cmd_parser() - should a given ring use software command parsing?
+ * intel_engine_needs_cmd_parser() - should a given engine use software
+ *                                   command parsing?
  * @engine: the engine in question
  *
  * Only certain platforms require software batch buffer command parsing, and
  * only when enabled via module parameter.
  *
- * Return: true if the ring requires software command parsing
+ * Return: true if the engine requires software command parsing
  */
-bool i915_needs_cmd_parser(struct intel_engine_cs *engine)
+bool intel_engine_needs_cmd_parser(struct intel_engine_cs *engine)
 {
 	if (!engine->needs_cmd_parser)
 		return false;
@@ -1078,8 +1082,8 @@ static bool check_cmd(const struct intel_engine_cs *engine,
 						   reg_addr);
 
 			if (!reg) {
-				DRM_DEBUG_DRIVER("CMD: Rejected register 0x%08X in command: 0x%08X (ring=%d)\n",
-						 reg_addr, *cmd, engine->id);
+				DRM_DEBUG_DRIVER("CMD: Rejected register 0x%08X in command: 0x%08X (exec_id=%d)\n",
+						 reg_addr, *cmd, engine->exec_id);
 				return false;
 			}
 
@@ -1159,11 +1163,11 @@ static bool check_cmd(const struct intel_engine_cs *engine,
 				desc->bits[i].mask;
 
 			if (dword != desc->bits[i].expected) {
-				DRM_DEBUG_DRIVER("CMD: Rejected command 0x%08X for bitmask 0x%08X (exp=0x%08X act=0x%08X) (ring=%d)\n",
+				DRM_DEBUG_DRIVER("CMD: Rejected command 0x%08X for bitmask 0x%08X (exp=0x%08X act=0x%08X) (exec_id=%d)\n",
 						 *cmd,
 						 desc->bits[i].mask,
 						 desc->bits[i].expected,
-						 dword, engine->id);
+						 dword, engine->exec_id);
 				return false;
 			}
 		}
@@ -1189,12 +1193,12 @@ static bool check_cmd(const struct intel_engine_cs *engine,
  * Return: non-zero if the parser finds violations or otherwise fails; -EACCES
  * if the batch appears legal but should use hardware parsing
  */
-int i915_parse_cmds(struct intel_engine_cs *engine,
-		    struct drm_i915_gem_object *batch_obj,
-		    struct drm_i915_gem_object *shadow_batch_obj,
-		    u32 batch_start_offset,
-		    u32 batch_len,
-		    bool is_master)
+int intel_engine_cmd_parser(struct intel_engine_cs *engine,
+			    struct drm_i915_gem_object *batch_obj,
+			    struct drm_i915_gem_object *shadow_batch_obj,
+			    u32 batch_start_offset,
+			    u32 batch_len,
+			    bool is_master)
 {
 	u32 *cmd, *batch_base, *batch_end;
 	struct drm_i915_cmd_descriptor default_desc = { 0 };
@@ -1295,7 +1299,7 @@ int i915_cmd_parser_get_version(struct drm_i915_private *dev_priv)
 
 	/* If the command parser is not enabled, report 0 - unsupported */
 	for_each_engine(engine, dev_priv) {
-		if (i915_needs_cmd_parser(engine)) {
+		if (intel_engine_needs_cmd_parser(engine)) {
 			active = true;
 			break;
 		}

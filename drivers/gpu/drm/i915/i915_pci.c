@@ -173,6 +173,7 @@ static const struct intel_device_info intel_pineview_info = {
 	.gen = 3, .is_g33 = 1, .is_pineview = 1, .is_mobile = 1, .num_pipes = 2,
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_overlay = 1,
+	.ring_mask = RENDER_RING,
 	GEN_DEFAULT_PIPEOFFSETS,
 	CURSOR_OFFSETS,
 };

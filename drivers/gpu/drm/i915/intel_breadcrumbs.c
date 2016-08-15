@@ -51,6 +51,13 @@ static void irq_enable(struct intel_engine_cs *engine)
 	 */
 	engine->breadcrumbs.irq_posted = true;
 
+	/* Make sure the current hangcheck doesn't falsely accuse a just
+	 * started irq handler from missing an interrupt (because the
+	 * interrupt count still matches the stale value from when
+	 * the irq handler was disabled, many hangchecks ago).
+	 */
+	engine->breadcrumbs.irq_wakeups++;
+
 	spin_lock_irq(&engine->i915->irq_lock);
 	engine->irq_enable(engine);
 	spin_unlock_irq(&engine->i915->irq_lock);
@@ -436,6 +443,7 @@ static int intel_breadcrumbs_signaler(void *arg)
 			 */
 			intel_engine_remove_wait(engine,
 						 &request->signaling.wait);
+			fence_signal(&request->fence);
 
 			/* Find the next oldest signal. Note that as we have
 			 * not been holding the lock, another client may
@@ -452,7 +460,7 @@ static int intel_breadcrumbs_signaler(void *arg)
 			rb_erase(&request->signaling.node, &b->signals);
 			spin_unlock(&b->lock);
 
-			i915_gem_request_unreference(request);
+			i915_gem_request_put(request);
 		} else {
 			if (kthread_should_stop())
 				break;
@@ -472,18 +480,14 @@ void intel_engine_enable_signaling(struct drm_i915_gem_request *request)
 	struct rb_node *parent, **p;
 	bool first, wakeup;
 
-	if (unlikely(READ_ONCE(request->signaling.wait.tsk)))
-		return;
-
-	spin_lock(&b->lock);
-	if (unlikely(request->signaling.wait.tsk)) {
-		wakeup = false;
-		goto unlock;
-	}
+	/* locked by fence_enable_sw_signaling() */
+	assert_spin_locked(&request->lock);
 
 	request->signaling.wait.tsk = b->signaler;
-	request->signaling.wait.seqno = request->seqno;
-	i915_gem_request_reference(request);
+	request->signaling.wait.seqno = request->fence.seqno;
+	i915_gem_request_get(request);
+
+	spin_lock(&b->lock);
 
 	/* First add ourselves into the list of waiters, but register our
 	 * bottom-half as the signaller thread. As per usual, only the oldest
@@ -504,8 +508,8 @@ void intel_engine_enable_signaling(struct drm_i915_gem_request *request)
 	p = &b->signals.rb_node;
 	while (*p) {
 		parent = *p;
-		if (i915_seqno_passed(request->seqno,
-				      to_signaler(parent)->seqno)) {
+		if (i915_seqno_passed(request->fence.seqno,
+				      to_signaler(parent)->fence.seqno)) {
 			p = &parent->rb_right;
 			first = false;
 		} else {
@@ -517,7 +521,6 @@ void intel_engine_enable_signaling(struct drm_i915_gem_request *request)
 	if (first)
 		smp_store_mb(b->first_signal, request);
 
-unlock:
 	spin_unlock(&b->lock);
 
 	if (wakeup)

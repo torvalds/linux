@@ -435,7 +435,7 @@ void intel_uncore_sanitize(struct drm_i915_private *dev_priv)
 	i915.enable_rc6 = sanitize_rc6_option(dev_priv, i915.enable_rc6);
 
 	/* BIOS often leaves RC6 enabled, but disable it for hw init */
-	intel_disable_gt_powersave(dev_priv);
+	intel_sanitize_gt_powersave(dev_priv);
 }
 
 static void __intel_uncore_forcewake_get(struct drm_i915_private *dev_priv,
@@ -1618,8 +1618,10 @@ static int gen6_reset_engines(struct drm_i915_private *dev_priv,
  * @timeout_ms: timeout in millisecond
  *
  * This routine waits until the target register @reg contains the expected
- * @value after applying the @mask, i.e. it waits until
- *   (I915_READ_FW(@reg) & @mask) == @value
+ * @value after applying the @mask, i.e. it waits until ::
+ *
+ *     (I915_READ_FW(reg) & mask) == value
+ *
  * Otherwise, the wait will timeout after @timeout_ms milliseconds.
  *
  * Note that this routine assumes the caller holds forcewake asserted, it is
@@ -1652,8 +1654,10 @@ int intel_wait_for_register_fw(struct drm_i915_private *dev_priv,
  * @timeout_ms: timeout in millisecond
  *
  * This routine waits until the target register @reg contains the expected
- * @value after applying the @mask, i.e. it waits until
- *   (I915_READ(@reg) & @mask) == @value
+ * @value after applying the @mask, i.e. it waits until ::
+ *
+ *     (I915_READ(reg) & mask) == value
+ *
  * Otherwise, the wait will timeout after @timeout_ms milliseconds.
  *
  * Returns 0 if the register matches the desired condition, or -ETIMEOUT.

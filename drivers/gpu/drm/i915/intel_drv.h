@@ -849,6 +849,7 @@ struct intel_dp {
 	int link_rate;
 	uint8_t lane_count;
 	uint8_t sink_count;
+	bool link_mst;
 	bool has_audio;
 	bool detect_done;
 	enum hdmi_force_audio force_audio;
@@ -1104,7 +1105,7 @@ void intel_crt_reset(struct drm_encoder *encoder);
 /* intel_ddi.c */
 void intel_ddi_clk_select(struct intel_encoder *encoder,
 			  const struct intel_crtc_state *pipe_config);
-void intel_prepare_ddi_buffer(struct intel_encoder *encoder);
+void intel_prepare_dp_ddi_buffers(struct intel_encoder *encoder);
 void hsw_fdi_link_train(struct drm_crtc *crtc);
 void intel_ddi_init(struct drm_device *dev, enum port port);
 enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder);
@@ -1131,21 +1132,10 @@ void intel_ddi_clock_get(struct intel_encoder *encoder,
 void intel_ddi_set_vc_payload_alloc(struct drm_crtc *crtc, bool state);
 uint32_t ddi_signal_levels(struct intel_dp *intel_dp);
 
-/* intel_frontbuffer.c */
-void intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,
-			     enum fb_op_origin origin);
-void intel_frontbuffer_flip_prepare(struct drm_device *dev,
-				    unsigned frontbuffer_bits);
-void intel_frontbuffer_flip_complete(struct drm_device *dev,
-				     unsigned frontbuffer_bits);
-void intel_frontbuffer_flip(struct drm_device *dev,
-			    unsigned frontbuffer_bits);
 unsigned int intel_fb_align_height(struct drm_device *dev,
 				   unsigned int height,
 				   uint32_t pixel_format,
 				   uint64_t fb_format_modifier);
-void intel_fb_obj_flush(struct drm_i915_gem_object *obj, bool retire,
-			enum fb_op_origin origin);
 u32 intel_fb_stride_alignment(const struct drm_i915_private *dev_priv,
 			      uint64_t fb_modifier, uint32_t pixel_format);
 
@@ -1381,11 +1371,12 @@ uint32_t intel_dp_pack_aux(const uint8_t *src, int src_bytes);
 void intel_plane_destroy(struct drm_plane *plane);
 void intel_edp_drrs_enable(struct intel_dp *intel_dp);
 void intel_edp_drrs_disable(struct intel_dp *intel_dp);
-void intel_edp_drrs_invalidate(struct drm_device *dev,
-		unsigned frontbuffer_bits);
-void intel_edp_drrs_flush(struct drm_device *dev, unsigned frontbuffer_bits);
+void intel_edp_drrs_invalidate(struct drm_i915_private *dev_priv,
+			       unsigned int frontbuffer_bits);
+void intel_edp_drrs_flush(struct drm_i915_private *dev_priv,
+			  unsigned int frontbuffer_bits);
 bool intel_digital_port_connected(struct drm_i915_private *dev_priv,
-					 struct intel_digital_port *port);
+				  struct intel_digital_port *port);
 
 void
 intel_dp_program_link_training_pattern(struct intel_dp *intel_dp,
@@ -1558,13 +1549,13 @@ static inline void intel_backlight_device_unregister(struct intel_connector *con
 /* intel_psr.c */
 void intel_psr_enable(struct intel_dp *intel_dp);
 void intel_psr_disable(struct intel_dp *intel_dp);
-void intel_psr_invalidate(struct drm_device *dev,
+void intel_psr_invalidate(struct drm_i915_private *dev_priv,
 			  unsigned frontbuffer_bits);
-void intel_psr_flush(struct drm_device *dev,
+void intel_psr_flush(struct drm_i915_private *dev_priv,
 		     unsigned frontbuffer_bits,
 		     enum fb_op_origin origin);
 void intel_psr_init(struct drm_device *dev);
-void intel_psr_single_frame_update(struct drm_device *dev,
+void intel_psr_single_frame_update(struct drm_i915_private *dev_priv,
 				   unsigned frontbuffer_bits);
 
 /* intel_runtime_pm.c */
@@ -1664,13 +1655,6 @@ enable_rpm_wakeref_asserts(struct drm_i915_private *dev_priv)
 	atomic_dec(&dev_priv->pm.wakeref_count);
 }
 
-/* TODO: convert users of these to rely instead on proper RPM refcounting */
-#define DISABLE_RPM_WAKEREF_ASSERTS(dev_priv)	\
-	disable_rpm_wakeref_asserts(dev_priv)
-
-#define ENABLE_RPM_WAKEREF_ASSERTS(dev_priv)	\
-	enable_rpm_wakeref_asserts(dev_priv)
-
 void intel_runtime_pm_get(struct drm_i915_private *dev_priv);
 bool intel_runtime_pm_get_if_in_use(struct drm_i915_private *dev_priv);
 void intel_runtime_pm_get_noresume(struct drm_i915_private *dev_priv);
@@ -1696,11 +1680,11 @@ void intel_gpu_ips_init(struct drm_i915_private *dev_priv);
 void intel_gpu_ips_teardown(void);
 void intel_init_gt_powersave(struct drm_i915_private *dev_priv);
 void intel_cleanup_gt_powersave(struct drm_i915_private *dev_priv);
+void intel_sanitize_gt_powersave(struct drm_i915_private *dev_priv);
 void intel_enable_gt_powersave(struct drm_i915_private *dev_priv);
+void intel_autoenable_gt_powersave(struct drm_i915_private *dev_priv);
 void intel_disable_gt_powersave(struct drm_i915_private *dev_priv);
 void intel_suspend_gt_powersave(struct drm_i915_private *dev_priv);
-void intel_reset_gt_powersave(struct drm_i915_private *dev_priv);
-void gen6_update_ring_freq(struct drm_i915_private *dev_priv);
 void gen6_rps_busy(struct drm_i915_private *dev_priv);
 void gen6_rps_reset_ei(struct drm_i915_private *dev_priv);
 void gen6_rps_idle(struct drm_i915_private *dev_priv);

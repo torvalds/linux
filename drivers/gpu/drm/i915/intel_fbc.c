@@ -741,7 +741,7 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	cache->fb.pixel_format = fb->pixel_format;
 	cache->fb.stride = fb->pitches[0];
 	cache->fb.fence_reg = obj->fence_reg;
-	cache->fb.tiling_mode = obj->tiling_mode;
+	cache->fb.tiling_mode = i915_gem_object_get_tiling(obj);
 }
 
 static bool intel_fbc_can_activate(struct intel_crtc *crtc)
@@ -1075,6 +1075,8 @@ out:
 /**
  * intel_fbc_enable: tries to enable FBC on the CRTC
  * @crtc: the CRTC
+ * @crtc_state: corresponding &drm_crtc_state for @crtc
+ * @plane_state: corresponding &drm_plane_state for the primary plane of @crtc
  *
  * This function checks if the given CRTC was chosen for FBC, then enables it if
  * possible. Notice that it doesn't activate FBC. It is valid to call
@@ -1163,11 +1165,8 @@ void intel_fbc_disable(struct intel_crtc *crtc)
 		return;
 
 	mutex_lock(&fbc->lock);
-	if (fbc->crtc == crtc) {
-		WARN_ON(!fbc->enabled);
-		WARN_ON(fbc->active);
+	if (fbc->crtc == crtc)
 		__intel_fbc_disable(dev_priv);
-	}
 	mutex_unlock(&fbc->lock);
 
 	cancel_work_sync(&fbc->work.work);
@@ -1230,10 +1229,27 @@ static int intel_sanitize_fbc_option(struct drm_i915_private *dev_priv)
 	if (i915.enable_fbc >= 0)
 		return !!i915.enable_fbc;
 
+	if (!HAS_FBC(dev_priv))
+		return 0;
+
 	if (IS_BROADWELL(dev_priv))
 		return 1;
 
 	return 0;
+}
+
+static bool need_fbc_vtd_wa(struct drm_i915_private *dev_priv)
+{
+#ifdef CONFIG_INTEL_IOMMU
+	/* WaFbcTurnOffFbcWhenHyperVisorIsUsed:skl,bxt */
+	if (intel_iommu_gfx_mapped &&
+	    (IS_SKYLAKE(dev_priv) || IS_BROXTON(dev_priv))) {
+		DRM_INFO("Disabling framebuffer compression (FBC) to prevent screen flicker with VT-d enabled\n");
+		return true;
+	}
+#endif
+
+	return false;
 }
 
 /**
@@ -1252,6 +1268,9 @@ void intel_fbc_init(struct drm_i915_private *dev_priv)
 	fbc->enabled = false;
 	fbc->active = false;
 	fbc->work.scheduled = false;
+
+	if (need_fbc_vtd_wa(dev_priv))
+		mkwrite_device_info(dev_priv)->has_fbc = false;
 
 	i915.enable_fbc = intel_sanitize_fbc_option(dev_priv);
 	DRM_DEBUG_KMS("Sanitized enable_fbc value: %d\n", i915.enable_fbc);

@@ -228,27 +228,6 @@ static void intel_detect_pch(struct drm_device *dev)
 	pci_dev_put(pch);
 }
 
-bool i915_semaphore_is_enabled(struct drm_i915_private *dev_priv)
-{
-	if (INTEL_GEN(dev_priv) < 6)
-		return false;
-
-	if (i915.semaphores >= 0)
-		return i915.semaphores;
-
-	/* TODO: make semaphores and Execlists play nicely together */
-	if (i915.enable_execlists)
-		return false;
-
-#ifdef CONFIG_INTEL_IOMMU
-	/* Enable semaphores on SNB when IO remapping is off */
-	if (IS_GEN6(dev_priv) && intel_iommu_gfx_mapped)
-		return false;
-#endif
-
-	return true;
-}
-
 static int i915_getparam(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv)
 {
@@ -324,7 +303,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = 1;
 		break;
 	case I915_PARAM_HAS_SEMAPHORES:
-		value = i915_semaphore_is_enabled(dev_priv);
+		value = i915.semaphores;
 		break;
 	case I915_PARAM_HAS_PRIME_VMAP_FLUSH:
 		value = 1;
@@ -999,6 +978,9 @@ static void intel_sanitize_options(struct drm_i915_private *dev_priv)
 	i915.enable_ppgtt =
 		intel_sanitize_enable_ppgtt(dev_priv, i915.enable_ppgtt);
 	DRM_DEBUG_DRIVER("ppgtt mode: %i\n", i915.enable_ppgtt);
+
+	i915.semaphores = intel_sanitize_semaphores(dev_priv, i915.semaphores);
+	DRM_DEBUG_DRIVER("use GPU sempahores? %s\n", yesno(i915.semaphores));
 }
 
 /**
@@ -1011,8 +993,6 @@ static void intel_sanitize_options(struct drm_i915_private *dev_priv)
 static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = &dev_priv->drm;
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	uint32_t aperture_size;
 	int ret;
 
 	if (i915_inject_load_failure())
@@ -1022,15 +1002,9 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 
 	intel_sanitize_options(dev_priv);
 
-	ret = i915_ggtt_init_hw(dev);
+	ret = i915_ggtt_probe_hw(dev_priv);
 	if (ret)
 		return ret;
-
-	ret = i915_ggtt_enable_hw(dev);
-	if (ret) {
-		DRM_ERROR("failed to enable GGTT\n");
-		goto out_ggtt;
-	}
 
 	/* WARNING: Apparently we must kick fbdev drivers before vgacon,
 	 * otherwise the vga fbdev driver falls over. */
@@ -1046,6 +1020,16 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 		goto out_ggtt;
 	}
 
+	ret = i915_ggtt_init_hw(dev_priv);
+	if (ret)
+		return ret;
+
+	ret = i915_ggtt_enable_hw(dev_priv);
+	if (ret) {
+		DRM_ERROR("failed to enable GGTT\n");
+		goto out_ggtt;
+	}
+
 	pci_set_master(dev->pdev);
 
 	/* overlay on gen2 is broken and can't address above 1G */
@@ -1057,7 +1041,6 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 			goto out_ggtt;
 		}
 	}
-
 
 	/* 965GM sometimes incorrectly writes to hardware status page (HWS)
 	 * using 32bit addressing, overwriting memory if HWS is located
@@ -1076,19 +1059,6 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 			goto out_ggtt;
 		}
 	}
-
-	aperture_size = ggtt->mappable_end;
-
-	ggtt->mappable =
-		io_mapping_create_wc(ggtt->mappable_base,
-				     aperture_size);
-	if (!ggtt->mappable) {
-		ret = -EIO;
-		goto out_ggtt;
-	}
-
-	ggtt->mtrr = arch_phys_wc_add(ggtt->mappable_base,
-					      aperture_size);
 
 	pm_qos_add_request(&dev_priv->pm_qos, PM_QOS_CPU_DMA_LATENCY,
 			   PM_QOS_DEFAULT_VALUE);
@@ -1118,7 +1088,7 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 	return 0;
 
 out_ggtt:
-	i915_ggtt_cleanup_hw(dev);
+	i915_ggtt_cleanup_hw(dev_priv);
 
 	return ret;
 }
@@ -1130,15 +1100,12 @@ out_ggtt:
 static void i915_driver_cleanup_hw(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = &dev_priv->drm;
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 
 	if (dev->pdev->msi_enabled)
 		pci_disable_msi(dev->pdev);
 
 	pm_qos_remove_request(&dev_priv->pm_qos);
-	arch_phys_wc_del(ggtt->mtrr);
-	io_mapping_free(ggtt->mappable);
-	i915_ggtt_cleanup_hw(dev);
+	i915_ggtt_cleanup_hw(dev_priv);
 }
 
 /**
@@ -1343,7 +1310,7 @@ void i915_driver_unload(struct drm_device *dev)
 	i915_destroy_error_state(dev);
 
 	/* Flush any outstanding unpin_work. */
-	flush_workqueue(dev_priv->wq);
+	drain_workqueue(dev_priv->wq);
 
 	intel_guc_fini(dev);
 	i915_gem_fini(dev);
@@ -1457,8 +1424,6 @@ static int i915_drm_suspend(struct drm_device *dev)
 	}
 
 	intel_guc_suspend(dev);
-
-	intel_suspend_gt_powersave(dev_priv);
 
 	intel_display_suspend(dev);
 
@@ -1586,15 +1551,13 @@ static int i915_drm_resume(struct drm_device *dev)
 
 	disable_rpm_wakeref_asserts(dev_priv);
 
-	ret = i915_ggtt_enable_hw(dev);
+	ret = i915_ggtt_enable_hw(dev_priv);
 	if (ret)
 		DRM_ERROR("failed to re-enable GGTT\n");
 
 	intel_csr_ucode_resume(dev_priv);
 
-	mutex_lock(&dev->struct_mutex);
-	i915_gem_restore_gtt_mappings(dev);
-	mutex_unlock(&dev->struct_mutex);
+	i915_gem_resume(dev);
 
 	i915_restore_state(dev);
 	intel_opregion_setup(dev_priv);
@@ -1652,6 +1615,7 @@ static int i915_drm_resume(struct drm_device *dev)
 
 	intel_opregion_notify_adapter(dev_priv, PCI_D0);
 
+	intel_autoenable_gt_powersave(dev_priv);
 	drm_kms_helper_poll_enable(dev);
 
 	enable_rpm_wakeref_asserts(dev_priv);
@@ -1778,8 +1742,6 @@ int i915_reset(struct drm_i915_private *dev_priv)
 	unsigned reset_counter;
 	int ret;
 
-	intel_reset_gt_powersave(dev_priv);
-
 	mutex_lock(&dev->struct_mutex);
 
 	/* Clear any previous failed attempts at recovery. Time to try again. */
@@ -1835,8 +1797,7 @@ int i915_reset(struct drm_i915_private *dev_priv)
 	 * previous concerns that it doesn't respond well to some forms
 	 * of re-init after reset.
 	 */
-	if (INTEL_INFO(dev)->gen > 5)
-		intel_enable_gt_powersave(dev_priv);
+	intel_autoenable_gt_powersave(dev_priv);
 
 	return 0;
 
@@ -2462,7 +2423,6 @@ static int intel_runtime_resume(struct device *device)
 	 * we can do is to hope that things will still work (and disable RPM).
 	 */
 	i915_gem_init_swizzling(dev);
-	gen6_update_ring_freq(dev_priv);
 
 	intel_runtime_pm_enable_interrupts(dev_priv);
 
@@ -2618,6 +2578,7 @@ static struct drm_driver driver = {
 	.postclose = i915_driver_postclose,
 	.set_busid = drm_pci_set_busid,
 
+	.gem_close_object = i915_gem_close_object,
 	.gem_free_object = i915_gem_free_object,
 	.gem_vm_ops = &i915_gem_vm_ops,
 

@@ -62,6 +62,30 @@ extern "C" {
 #define I915_ERROR_UEVENT		"ERROR"
 #define I915_RESET_UEVENT		"RESET"
 
+/*
+ * MOCS indexes used for GPU surfaces, defining the cacheability of the
+ * surface data and the coherency for this data wrt. CPU vs. GPU accesses.
+ */
+enum i915_mocs_table_index {
+	/*
+	 * Not cached anywhere, coherency between CPU and GPU accesses is
+	 * guaranteed.
+	 */
+	I915_MOCS_UNCACHED,
+	/*
+	 * Cacheability and coherency controlled by the kernel automatically
+	 * based on the DRM_I915_GEM_SET_CACHING IOCTL setting and the current
+	 * usage of the surface (used for display scanout or not).
+	 */
+	I915_MOCS_PTE,
+	/*
+	 * Cached in all GPU caches available on the platform.
+	 * Coherency between CPU and GPU accesses to the surface is not
+	 * guaranteed without extra synchronization.
+	 */
+	I915_MOCS_CACHED,
+};
+
 /* Each region is a minimum of 16k, and there are at most 255 of them.
  */
 #define I915_NR_TEX_REGIONS 255	/* table size 2k - maximum due to use
@@ -698,15 +722,20 @@ struct drm_i915_gem_exec_object2 {
 	 */
 	__u64 offset;
 
-#define EXEC_OBJECT_NEEDS_FENCE (1<<0)
-#define EXEC_OBJECT_NEEDS_GTT	(1<<1)
-#define EXEC_OBJECT_WRITE	(1<<2)
+#define EXEC_OBJECT_NEEDS_FENCE		 (1<<0)
+#define EXEC_OBJECT_NEEDS_GTT		 (1<<1)
+#define EXEC_OBJECT_WRITE		 (1<<2)
 #define EXEC_OBJECT_SUPPORTS_48B_ADDRESS (1<<3)
-#define EXEC_OBJECT_PINNED	(1<<4)
-#define __EXEC_OBJECT_UNKNOWN_FLAGS -(EXEC_OBJECT_PINNED<<1)
+#define EXEC_OBJECT_PINNED		 (1<<4)
+#define EXEC_OBJECT_PAD_TO_SIZE		 (1<<5)
+/* All remaining bits are MBZ and RESERVED FOR FUTURE USE */
+#define __EXEC_OBJECT_UNKNOWN_FLAGS -(EXEC_OBJECT_PAD_TO_SIZE<<1)
 	__u64 flags;
 
-	__u64 rsvd1;
+	union {
+		__u64 rsvd1;
+		__u64 pad_to_size;
+	};
 	__u64 rsvd2;
 };
 
@@ -897,6 +926,7 @@ struct drm_i915_gem_caching {
 #define I915_TILING_NONE	0
 #define I915_TILING_X		1
 #define I915_TILING_Y		2
+#define I915_TILING_LAST	I915_TILING_Y
 
 #define I915_BIT_6_SWIZZLE_NONE		0
 #define I915_BIT_6_SWIZZLE_9		1

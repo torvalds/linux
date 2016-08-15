@@ -323,7 +323,7 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 		return ret;
 	}
 
-	ret = i915_gem_obj_ggtt_pin(guc_fw->guc_fw_obj, 0, 0);
+	ret = i915_gem_object_ggtt_pin(guc_fw->guc_fw_obj, NULL, 0, 0, 0);
 	if (ret) {
 		DRM_DEBUG_DRIVER("pin failed %d\n", ret);
 		return ret;
@@ -349,7 +349,9 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 	}
 
 	/* WaC6DisallowByGfxPause*/
-	I915_WRITE(GEN6_GFXPAUSE, 0x30FFF);
+	if (IS_SKL_REVID(dev, 0, SKL_REVID_C0) ||
+	    IS_BXT_REVID(dev, 0, BXT_REVID_B0))
+		I915_WRITE(GEN6_GFXPAUSE, 0x30FFF);
 
 	if (IS_BROXTON(dev))
 		I915_WRITE(GEN9LP_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
@@ -662,7 +664,7 @@ fail:
 	mutex_lock(&dev->struct_mutex);
 	obj = guc_fw->guc_fw_obj;
 	if (obj)
-		drm_gem_object_unreference(&obj->base);
+		i915_gem_object_put(obj);
 	guc_fw->guc_fw_obj = NULL;
 	mutex_unlock(&dev->struct_mutex);
 
@@ -743,7 +745,7 @@ void intel_guc_fini(struct drm_device *dev)
 	i915_guc_submission_fini(dev_priv);
 
 	if (guc_fw->guc_fw_obj)
-		drm_gem_object_unreference(&guc_fw->guc_fw_obj->base);
+		i915_gem_object_put(guc_fw->guc_fw_obj);
 	guc_fw->guc_fw_obj = NULL;
 	mutex_unlock(&dev->struct_mutex);
 
