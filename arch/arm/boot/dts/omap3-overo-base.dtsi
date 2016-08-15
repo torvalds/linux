@@ -223,7 +223,7 @@
 };
 
 &gpmc {
-	ranges = <0 0 0x00000000 0x20000000>;
+	ranges = <0 0 0x30000000 0x1000000>;	/* CS0 */
 
 	nand@0,0 {
 		linux,mtd-name= "micron,mt29c4g96maz";
