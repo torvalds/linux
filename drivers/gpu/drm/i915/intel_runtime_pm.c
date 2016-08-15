@@ -856,7 +856,7 @@ static void bxt_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 					   struct i915_power_well *power_well)
 {
 	enum skl_disp_power_wells power_well_id = power_well->data;
-	struct i915_power_well *cmn_a_well;
+	struct i915_power_well *cmn_a_well = NULL;
 
 	if (power_well_id == BXT_DPIO_CMN_BC) {
 		/*
@@ -869,7 +869,7 @@ static void bxt_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 
 	bxt_ddi_phy_init(dev_priv, bxt_power_well_to_phy(power_well));
 
-	if (power_well_id == BXT_DPIO_CMN_BC)
+	if (cmn_a_well)
 		intel_power_well_put(dev_priv, cmn_a_well);
 }
 
