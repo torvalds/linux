@@ -1518,7 +1518,7 @@ static int write_host_reg(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 static int set_variable(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 {
-	unsigned lun = SCSI_LUN(srb);
+	unsigned int lun = SCSI_LUN(srb);
 
 	if (srb->cmnd[3] == 1) {
 		/* Variable Clock */
