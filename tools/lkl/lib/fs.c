@@ -63,11 +63,12 @@ out_close:
 }
 
 long lkl_mount_dev(unsigned int disk_id, const char *fs_type, int flags,
-		   void *data, char *mnt_str, unsigned int mnt_str_len)
+		   const char *data, char *mnt_str, unsigned int mnt_str_len)
 {
 	char dev_str[] = { "/dev/xxxxxxxx" };
 	unsigned int dev;
 	int err;
+	char _data[4096]; /* FIXME: PAGE_SIZE is not exported by LKL */
 
 	if (mnt_str_len < sizeof(dev_str))
 		return -LKL_ENOMEM;
@@ -103,7 +104,15 @@ long lkl_mount_dev(unsigned int disk_id, const char *fs_type, int flags,
 		return err;
 	}
 
-	err = lkl_sys_mount(dev_str, mnt_str, (char*)fs_type, flags, data);
+	/* kernel always copies a full page */
+	if (data) {
+		strncpy(_data, data, sizeof(_data));
+		_data[sizeof(_data) - 1] = 0;
+	} else {
+		_data[0] = 0;
+	}
+
+	err = lkl_sys_mount(dev_str, mnt_str, (char*)fs_type, flags, _data);
 	if (err < 0) {
 		lkl_sys_unlink(dev_str);
 		lkl_sys_rmdir(mnt_str);
