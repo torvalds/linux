@@ -26,10 +26,10 @@
  */
 #define I915_RING_FREE_SPACE 64
 
-struct  intel_hw_status_page {
-	u32		*page_addr;
-	unsigned int	gfx_addr;
-	struct		drm_i915_gem_object *obj;
+struct intel_hw_status_page {
+	struct i915_vma *vma;
+	u32 *page_addr;
+	u32 ggtt_offset;
 };
 
 #define I915_READ_TAIL(engine) I915_READ(RING_TAIL((engine)->mmio_base))
@@ -83,9 +83,8 @@ struct intel_engine_hangcheck {
 };
 
 struct intel_ring {
-	struct drm_i915_gem_object *obj;
-	void *vaddr;
 	struct i915_vma *vma;
+	void *vaddr;
 
 	struct intel_engine_cs *engine;
 	struct list_head link;
@@ -97,6 +96,7 @@ struct intel_ring {
 	int space;
 	int size;
 	int effective_size;
+	bool needs_iomap;
 
 	/** We track the position of the requests in the ring buffer, and
 	 * when each is retired we increment last_retired_head as the GPU
@@ -516,7 +516,7 @@ int init_workarounds_ring(struct intel_engine_cs *engine);
 
 static inline u32 intel_hws_seqno_address(struct intel_engine_cs *engine)
 {
-	return engine->status_page.gfx_addr + I915_GEM_HWS_INDEX_ADDR;
+	return engine->status_page.ggtt_offset + I915_GEM_HWS_INDEX_ADDR;
 }
 
 /* intel_breadcrumbs.c -- user interrupt bottom-half for waiters */

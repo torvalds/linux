@@ -1128,12 +1128,12 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 			ee->cpu_ring_tail = ring->tail;
 			ee->ringbuffer =
 				i915_error_ggtt_object_create(dev_priv,
-							      ring->obj);
+							      ring->vma->obj);
 		}
 
 		ee->hws_page =
 			i915_error_ggtt_object_create(dev_priv,
-						      engine->status_page.obj);
+						      engine->status_page.vma->obj);
 
 		ee->wa_ctx = i915_error_ggtt_object_create(dev_priv,
 							   engine->wa_ctx.obj);

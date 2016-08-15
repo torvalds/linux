@@ -356,7 +356,7 @@ static int per_file_ctx_stats(int id, void *ptr, void *data)
 		if (ctx->engine[n].state)
 			per_file_stats(0, ctx->engine[n].state->obj, data);
 		if (ctx->engine[n].ring)
-			per_file_stats(0, ctx->engine[n].ring->obj, data);
+			per_file_stats(0, ctx->engine[n].ring->vma->obj, data);
 	}
 
 	return 0;

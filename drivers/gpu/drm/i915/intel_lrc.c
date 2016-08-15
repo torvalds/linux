@@ -1273,7 +1273,7 @@ static void lrc_init_hws(struct intel_engine_cs *engine)
 	struct drm_i915_private *dev_priv = engine->i915;
 
 	I915_WRITE(RING_HWS_PGA(engine->mmio_base),
-		   (u32)engine->status_page.gfx_addr);
+		   engine->status_page.ggtt_offset);
 	POSTING_READ(RING_HWS_PGA(engine->mmio_base));
 }
 
@@ -1695,9 +1695,9 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *engine)
 
 	intel_engine_cleanup_common(engine);
 
-	if (engine->status_page.obj) {
-		i915_gem_object_unpin_map(engine->status_page.obj);
-		engine->status_page.obj = NULL;
+	if (engine->status_page.vma) {
+		i915_gem_object_unpin_map(engine->status_page.vma->obj);
+		engine->status_page.vma = NULL;
 	}
 	intel_lr_context_unpin(dev_priv->kernel_context, engine);
 
@@ -1744,16 +1744,17 @@ logical_ring_default_irqs(struct intel_engine_cs *engine)
 static int
 lrc_setup_hws(struct intel_engine_cs *engine, struct i915_vma *vma)
 {
+	const int hws_offset = LRC_PPHWSP_PN * PAGE_SIZE;
 	void *hws;
 
 	/* The HWSP is part of the default context object in LRC mode. */
-	engine->status_page.gfx_addr =
-		vma->node.start + LRC_PPHWSP_PN * PAGE_SIZE;
 	hws = i915_gem_object_pin_map(vma->obj, I915_MAP_WB);
 	if (IS_ERR(hws))
 		return PTR_ERR(hws);
-	engine->status_page.page_addr = hws + LRC_PPHWSP_PN * PAGE_SIZE;
-	engine->status_page.obj = vma->obj;
+
+	engine->status_page.page_addr = hws + hws_offset;
+	engine->status_page.ggtt_offset = vma->node.start + hws_offset;
+	engine->status_page.vma = vma;
 
 	return 0;
 }

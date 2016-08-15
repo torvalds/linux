@@ -343,7 +343,6 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 		struct intel_context *ce = &ctx->engine[engine->id];
 		uint32_t guc_engine_id = engine->guc_id;
 		struct guc_execlist_context *lrc = &desc.lrc[guc_engine_id];
-		struct drm_i915_gem_object *obj;
 
 		/* TODO: We have a design issue to be solved here. Only when we
 		 * receive the first batch, we know which engine is used by the
@@ -358,17 +357,14 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 		lrc->context_desc = lower_32_bits(ce->lrc_desc);
 
 		/* The state page is after PPHWSP */
-		gfx_addr = ce->state->node.start;
-		lrc->ring_lcra = gfx_addr + LRC_STATE_PN * PAGE_SIZE;
+		lrc->ring_lcra =
+			ce->state->node.start + LRC_STATE_PN * PAGE_SIZE;
 		lrc->context_id = (client->ctx_index << GUC_ELC_CTXID_OFFSET) |
 				(guc_engine_id << GUC_ELC_ENGINE_OFFSET);
 
-		obj = ce->ring->obj;
-		gfx_addr = i915_gem_obj_ggtt_offset(obj);
-
-		lrc->ring_begin = gfx_addr;
-		lrc->ring_end = gfx_addr + obj->base.size - 1;
-		lrc->ring_next_free_location = gfx_addr;
+		lrc->ring_begin = ce->ring->vma->node.start;
+		lrc->ring_end = lrc->ring_begin + ce->ring->size - 1;
+		lrc->ring_next_free_location = lrc->ring_begin;
 		lrc->ring_current_tail_pointer_value = 0;
 
 		desc.engines_used |= (1 << guc_engine_id);
@@ -943,7 +939,7 @@ static void guc_create_ads(struct intel_guc *guc)
 	 * to find it.
 	 */
 	engine = &dev_priv->engine[RCS];
-	ads->golden_context_lrca = engine->status_page.gfx_addr;
+	ads->golden_context_lrca = engine->status_page.ggtt_offset;
 
 	for_each_engine(engine, dev_priv)
 		ads->eng_state_size[engine->guc_id] = intel_lr_context_size(engine);

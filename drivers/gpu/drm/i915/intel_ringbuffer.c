@@ -466,7 +466,7 @@ static void intel_ring_setup_status_page(struct intel_engine_cs *engine)
 		mmio = RING_HWS_PGA(engine->mmio_base);
 	}
 
-	I915_WRITE(mmio, (u32)engine->status_page.gfx_addr);
+	I915_WRITE(mmio, engine->status_page.ggtt_offset);
 	POSTING_READ(mmio);
 
 	/*
@@ -531,7 +531,6 @@ static int init_ring_common(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 	struct intel_ring *ring = engine->buffer;
-	struct drm_i915_gem_object *obj = ring->obj;
 	int ret = 0;
 
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
@@ -571,7 +570,7 @@ static int init_ring_common(struct intel_engine_cs *engine)
 	 * registers with the above sequence (the readback of the HEAD registers
 	 * also enforces ordering), otherwise the hw might lose the new ring
 	 * register values. */
-	I915_WRITE_START(engine, i915_gem_obj_ggtt_offset(obj));
+	I915_WRITE_START(engine, ring->vma->node.start);
 
 	/* WaClearRingBufHeadRegAtInit:ctg,elk */
 	if (I915_READ_HEAD(engine))
@@ -586,16 +585,16 @@ static int init_ring_common(struct intel_engine_cs *engine)
 
 	/* If the head is still not zero, the ring is dead */
 	if (wait_for((I915_READ_CTL(engine) & RING_VALID) != 0 &&
-		     I915_READ_START(engine) == i915_gem_obj_ggtt_offset(obj) &&
+		     I915_READ_START(engine) == ring->vma->node.start &&
 		     (I915_READ_HEAD(engine) & HEAD_ADDR) == 0, 50)) {
 		DRM_ERROR("%s initialization failed "
-			  "ctl %08x (valid? %d) head %08x tail %08x start %08x [expected %08lx]\n",
+			  "ctl %08x (valid? %d) head %08x tail %08x start %08x [expected %08llx]\n",
 			  engine->name,
 			  I915_READ_CTL(engine),
 			  I915_READ_CTL(engine) & RING_VALID,
 			  I915_READ_HEAD(engine), I915_READ_TAIL(engine),
 			  I915_READ_START(engine),
-			  (unsigned long)i915_gem_obj_ggtt_offset(obj));
+			  ring->vma->node.start);
 		ret = -EIO;
 		goto out;
 	}
@@ -1853,79 +1852,79 @@ static void cleanup_phys_status_page(struct intel_engine_cs *engine)
 
 static void cleanup_status_page(struct intel_engine_cs *engine)
 {
-	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
 
-	obj = engine->status_page.obj;
-	if (obj == NULL)
+	vma = fetch_and_zero(&engine->status_page.vma);
+	if (!vma)
 		return;
 
-	kunmap(sg_page(obj->pages->sgl));
-	i915_gem_object_ggtt_unpin(obj);
-	i915_gem_object_put(obj);
-	engine->status_page.obj = NULL;
+	i915_vma_unpin(vma);
+	i915_gem_object_unpin_map(vma->obj);
+	i915_vma_put(vma);
 }
 
 static int init_status_page(struct intel_engine_cs *engine)
 {
-	struct drm_i915_gem_object *obj = engine->status_page.obj;
+	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
+	unsigned int flags;
+	int ret;
 
-	if (obj == NULL) {
-		unsigned flags;
-		int ret;
-
-		obj = i915_gem_object_create(&engine->i915->drm, 4096);
-		if (IS_ERR(obj)) {
-			DRM_ERROR("Failed to allocate status page\n");
-			return PTR_ERR(obj);
-		}
-
-		ret = i915_gem_object_set_cache_level(obj, I915_CACHE_LLC);
-		if (ret)
-			goto err_unref;
-
-		flags = 0;
-		if (!HAS_LLC(engine->i915))
-			/* On g33, we cannot place HWS above 256MiB, so
-			 * restrict its pinning to the low mappable arena.
-			 * Though this restriction is not documented for
-			 * gen4, gen5, or byt, they also behave similarly
-			 * and hang if the HWS is placed at the top of the
-			 * GTT. To generalise, it appears that all !llc
-			 * platforms have issues with us placing the HWS
-			 * above the mappable region (even though we never
-			 * actualy map it).
-			 */
-			flags |= PIN_MAPPABLE;
-		ret = i915_gem_object_ggtt_pin(obj, NULL, 0, 4096, flags);
-		if (ret) {
-err_unref:
-			i915_gem_object_put(obj);
-			return ret;
-		}
-
-		engine->status_page.obj = obj;
+	obj = i915_gem_object_create(&engine->i915->drm, 4096);
+	if (IS_ERR(obj)) {
+		DRM_ERROR("Failed to allocate status page\n");
+		return PTR_ERR(obj);
 	}
 
-	engine->status_page.gfx_addr = i915_gem_obj_ggtt_offset(obj);
-	engine->status_page.page_addr = kmap(sg_page(obj->pages->sgl));
-	memset(engine->status_page.page_addr, 0, PAGE_SIZE);
+	ret = i915_gem_object_set_cache_level(obj, I915_CACHE_LLC);
+	if (ret)
+		goto err;
 
-	DRM_DEBUG_DRIVER("%s hws offset: 0x%08x\n",
-			engine->name, engine->status_page.gfx_addr);
+	vma = i915_vma_create(obj, &engine->i915->ggtt.base, NULL);
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
+		goto err;
+	}
 
+	flags = PIN_GLOBAL;
+	if (!HAS_LLC(engine->i915))
+		/* On g33, we cannot place HWS above 256MiB, so
+		 * restrict its pinning to the low mappable arena.
+		 * Though this restriction is not documented for
+		 * gen4, gen5, or byt, they also behave similarly
+		 * and hang if the HWS is placed at the top of the
+		 * GTT. To generalise, it appears that all !llc
+		 * platforms have issues with us placing the HWS
+		 * above the mappable region (even though we never
+		 * actualy map it).
+		 */
+		flags |= PIN_MAPPABLE;
+	ret = i915_vma_pin(vma, 0, 4096, flags);
+	if (ret)
+		goto err;
+
+	engine->status_page.vma = vma;
+	engine->status_page.ggtt_offset = vma->node.start;
+	engine->status_page.page_addr =
+		i915_gem_object_pin_map(obj, I915_MAP_WB);
+
+	DRM_DEBUG_DRIVER("%s hws offset: 0x%08llx\n",
+			 engine->name, vma->node.start);
 	return 0;
+
+err:
+	i915_gem_object_put(obj);
+	return ret;
 }
 
 static int init_phys_status_page(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 
-	if (!dev_priv->status_page_dmah) {
-		dev_priv->status_page_dmah =
-			drm_pci_alloc(&dev_priv->drm, PAGE_SIZE, PAGE_SIZE);
-		if (!dev_priv->status_page_dmah)
-			return -ENOMEM;
-	}
+	dev_priv->status_page_dmah =
+		drm_pci_alloc(&dev_priv->drm, PAGE_SIZE, PAGE_SIZE);
+	if (!dev_priv->status_page_dmah)
+		return -ENOMEM;
 
 	engine->status_page.page_addr = dev_priv->status_page_dmah->vaddr;
 	memset(engine->status_page.page_addr, 0, PAGE_SIZE);
@@ -1935,52 +1934,43 @@ static int init_phys_status_page(struct intel_engine_cs *engine)
 
 int intel_ring_pin(struct intel_ring *ring)
 {
-	struct drm_i915_private *dev_priv = ring->engine->i915;
-	struct drm_i915_gem_object *obj = ring->obj;
 	/* Ring wraparound at offset 0 sometimes hangs. No idea why. */
-	unsigned flags = PIN_OFFSET_BIAS | 4096;
+	unsigned int flags = PIN_GLOBAL | PIN_OFFSET_BIAS | 4096;
+	struct i915_vma *vma = ring->vma;
 	void *addr;
 	int ret;
 
-	if (HAS_LLC(dev_priv) && !obj->stolen) {
-		ret = i915_gem_object_ggtt_pin(obj, NULL, 0, PAGE_SIZE, flags);
-		if (ret)
+	GEM_BUG_ON(ring->vaddr);
+
+	if (ring->needs_iomap)
+		flags |= PIN_MAPPABLE;
+
+	if (!(vma->flags & I915_VMA_GLOBAL_BIND)) {
+		if (flags & PIN_MAPPABLE)
+			ret = i915_gem_object_set_to_gtt_domain(vma->obj, true);
+		else
+			ret = i915_gem_object_set_to_cpu_domain(vma->obj, true);
+		if (unlikely(ret))
 			return ret;
-
-		ret = i915_gem_object_set_to_cpu_domain(obj, true);
-		if (ret)
-			goto err_unpin;
-
-		addr = i915_gem_object_pin_map(obj, I915_MAP_WB);
-		if (IS_ERR(addr)) {
-			ret = PTR_ERR(addr);
-			goto err_unpin;
-		}
-	} else {
-		ret = i915_gem_object_ggtt_pin(obj, NULL, 0, PAGE_SIZE,
-					       flags | PIN_MAPPABLE);
-		if (ret)
-			return ret;
-
-		ret = i915_gem_object_set_to_gtt_domain(obj, true);
-		if (ret)
-			goto err_unpin;
-
-		addr = (void __force *)
-			i915_vma_pin_iomap(i915_gem_obj_to_ggtt(obj));
-		if (IS_ERR(addr)) {
-			ret = PTR_ERR(addr);
-			goto err_unpin;
-		}
 	}
 
+	ret = i915_vma_pin(vma, 0, PAGE_SIZE, flags);
+	if (unlikely(ret))
+		return ret;
+
+	if (flags & PIN_MAPPABLE)
+		addr = (void __force *)i915_vma_pin_iomap(vma);
+	else
+		addr = i915_gem_object_pin_map(vma->obj, I915_MAP_WB);
+	if (IS_ERR(addr))
+		goto err;
+
 	ring->vaddr = addr;
-	ring->vma = i915_gem_obj_to_ggtt(obj);
 	return 0;
 
-err_unpin:
-	i915_gem_object_ggtt_unpin(obj);
-	return ret;
+err:
+	i915_vma_unpin(vma);
+	return PTR_ERR(addr);
 }
 
 void intel_ring_unpin(struct intel_ring *ring)
@@ -1988,60 +1978,56 @@ void intel_ring_unpin(struct intel_ring *ring)
 	GEM_BUG_ON(!ring->vma);
 	GEM_BUG_ON(!ring->vaddr);
 
-	if (HAS_LLC(ring->engine->i915) && !ring->obj->stolen)
-		i915_gem_object_unpin_map(ring->obj);
-	else
+	if (ring->needs_iomap)
 		i915_vma_unpin_iomap(ring->vma);
+	else
+		i915_gem_object_unpin_map(ring->vma->obj);
 	ring->vaddr = NULL;
 
-	i915_gem_object_ggtt_unpin(ring->obj);
-	ring->vma = NULL;
+	i915_vma_unpin(ring->vma);
 }
 
-static void intel_destroy_ringbuffer_obj(struct intel_ring *ring)
-{
-	i915_gem_object_put(ring->obj);
-	ring->obj = NULL;
-}
-
-static int intel_alloc_ringbuffer_obj(struct drm_device *dev,
-				      struct intel_ring *ring)
+static struct i915_vma *
+intel_ring_create_vma(struct drm_i915_private *dev_priv, int size)
 {
 	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
 
-	obj = NULL;
-	if (!HAS_LLC(dev))
-		obj = i915_gem_object_create_stolen(dev, ring->size);
-	if (obj == NULL)
-		obj = i915_gem_object_create(dev, ring->size);
+	obj = ERR_PTR(-ENODEV);
+	if (!HAS_LLC(dev_priv))
+		obj = i915_gem_object_create_stolen(&dev_priv->drm, size);
 	if (IS_ERR(obj))
-		return PTR_ERR(obj);
+		obj = i915_gem_object_create(&dev_priv->drm, size);
+	if (IS_ERR(obj))
+		return ERR_CAST(obj);
 
 	/* mark ring buffers as read-only from GPU side by default */
 	obj->gt_ro = 1;
 
-	ring->obj = obj;
+	vma = i915_vma_create(obj, &dev_priv->ggtt.base, NULL);
+	if (IS_ERR(vma))
+		goto err;
 
-	return 0;
+	return vma;
+
+err:
+	i915_gem_object_put(obj);
+	return vma;
 }
 
 struct intel_ring *
 intel_engine_create_ring(struct intel_engine_cs *engine, int size)
 {
 	struct intel_ring *ring;
-	int ret;
+	struct i915_vma *vma;
 
 	GEM_BUG_ON(!is_power_of_2(size));
 
 	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
-	if (ring == NULL) {
-		DRM_DEBUG_DRIVER("Failed to allocate ringbuffer %s\n",
-				 engine->name);
+	if (!ring)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	ring->engine = engine;
-	list_add(&ring->link, &engine->buffers);
 
 	INIT_LIST_HEAD(&ring->request_list);
 
@@ -2057,22 +2043,23 @@ intel_engine_create_ring(struct intel_engine_cs *engine, int size)
 	ring->last_retired_head = -1;
 	intel_ring_update_space(ring);
 
-	ret = intel_alloc_ringbuffer_obj(&engine->i915->drm, ring);
-	if (ret) {
-		DRM_DEBUG_DRIVER("Failed to allocate ringbuffer %s: %d\n",
-				 engine->name, ret);
-		list_del(&ring->link);
+	vma = intel_ring_create_vma(engine->i915, size);
+	if (IS_ERR(vma)) {
 		kfree(ring);
-		return ERR_PTR(ret);
+		return ERR_CAST(vma);
 	}
+	ring->vma = vma;
+	if (!HAS_LLC(engine->i915) || vma->obj->stolen)
+		ring->needs_iomap = true;
 
+	list_add(&ring->link, &engine->buffers);
 	return ring;
 }
 
 void
 intel_ring_free(struct intel_ring *ring)
 {
-	intel_destroy_ringbuffer_obj(ring);
+	i915_vma_put(ring->vma);
 	list_del(&ring->link);
 	kfree(ring);
 }
@@ -2166,7 +2153,6 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 		ret = PTR_ERR(ring);
 		goto error;
 	}
-	engine->buffer = ring;
 
 	if (I915_NEED_GFX_HWS(dev_priv)) {
 		ret = init_status_page(engine);
@@ -2181,11 +2167,10 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 
 	ret = intel_ring_pin(ring);
 	if (ret) {
-		DRM_ERROR("Failed to pin and map ringbuffer %s: %d\n",
-				engine->name, ret);
-		intel_destroy_ringbuffer_obj(ring);
+		intel_ring_free(ring);
 		goto error;
 	}
+	engine->buffer = ring;
 
 	return 0;
 
