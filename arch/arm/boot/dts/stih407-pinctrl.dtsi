@@ -523,6 +523,13 @@
 						scl = <&pio15 5 ALT2 BIDIR>;
 					};
 				};
+
+				pinctrl_i2c2_alt2_1: i2c2-alt2-1 {
+					st,pins {
+						sda = <&pio12 6 ALT2 BIDIR>;
+						scl = <&pio12 5 ALT2 BIDIR>;
+					};
+				};
 			};
 
 			i2c3 {
