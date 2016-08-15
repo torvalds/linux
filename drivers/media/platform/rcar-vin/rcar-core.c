@@ -282,8 +282,8 @@ static int rcar_vin_probe(struct platform_device *pdev)
 		return PTR_ERR(vin->base);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0)
-		return ret;
+	if (irq < 0)
+		return irq;
 
 	ret = rvin_dma_probe(vin, irq);
 	if (ret)
