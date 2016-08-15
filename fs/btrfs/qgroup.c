@@ -1453,10 +1453,9 @@ int btrfs_qgroup_prepare_account_extents(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-struct btrfs_qgroup_extent_record *
-btrfs_qgroup_insert_dirty_extent(struct btrfs_fs_info *fs_info,
-				 struct btrfs_delayed_ref_root *delayed_refs,
-				 struct btrfs_qgroup_extent_record *record)
+int btrfs_qgroup_insert_dirty_extent_nolock(struct btrfs_fs_info *fs_info,
+				struct btrfs_delayed_ref_root *delayed_refs,
+				struct btrfs_qgroup_extent_record *record)
 {
 	struct rb_node **p = &delayed_refs->dirty_extent_root.rb_node;
 	struct rb_node *parent_node = NULL;
@@ -1475,12 +1474,42 @@ btrfs_qgroup_insert_dirty_extent(struct btrfs_fs_info *fs_info,
 		else if (bytenr > entry->bytenr)
 			p = &(*p)->rb_right;
 		else
-			return entry;
+			return 1;
 	}
 
 	rb_link_node(&record->node, parent_node, p);
 	rb_insert_color(&record->node, &delayed_refs->dirty_extent_root);
-	return NULL;
+	return 0;
+}
+
+int btrfs_qgroup_insert_dirty_extent(struct btrfs_trans_handle *trans,
+		struct btrfs_fs_info *fs_info, u64 bytenr, u64 num_bytes,
+		gfp_t gfp_flag)
+{
+	struct btrfs_qgroup_extent_record *record;
+	struct btrfs_delayed_ref_root *delayed_refs;
+	int ret;
+
+	if (!fs_info->quota_enabled || bytenr == 0 || num_bytes == 0)
+		return 0;
+	if (WARN_ON(trans == NULL))
+		return -EINVAL;
+	record = kmalloc(sizeof(*record), gfp_flag);
+	if (!record)
+		return -ENOMEM;
+
+	delayed_refs = &trans->transaction->delayed_refs;
+	record->bytenr = bytenr;
+	record->num_bytes = num_bytes;
+	record->old_roots = NULL;
+
+	spin_lock(&delayed_refs->lock);
+	ret = btrfs_qgroup_insert_dirty_extent_nolock(fs_info, delayed_refs,
+						      record);
+	spin_unlock(&delayed_refs->lock);
+	if (ret > 0)
+		kfree(record);
+	return 0;
 }
 
 #define UPDATE_NEW	0

@@ -8521,35 +8521,6 @@ reada:
 	wc->reada_slot = slot;
 }
 
-/*
- * These may not be seen by the usual inc/dec ref code so we have to
- * add them here.
- */
-static int record_one_subtree_extent(struct btrfs_trans_handle *trans,
-				     struct btrfs_root *root, u64 bytenr,
-				     u64 num_bytes)
-{
-	struct btrfs_qgroup_extent_record *qrecord;
-	struct btrfs_delayed_ref_root *delayed_refs;
-
-	qrecord = kmalloc(sizeof(*qrecord), GFP_NOFS);
-	if (!qrecord)
-		return -ENOMEM;
-
-	qrecord->bytenr = bytenr;
-	qrecord->num_bytes = num_bytes;
-	qrecord->old_roots = NULL;
-
-	delayed_refs = &trans->transaction->delayed_refs;
-	spin_lock(&delayed_refs->lock);
-	if (btrfs_qgroup_insert_dirty_extent(trans->fs_info,
-					     delayed_refs, qrecord))
-		kfree(qrecord);
-	spin_unlock(&delayed_refs->lock);
-
-	return 0;
-}
-
 static int account_leaf_items(struct btrfs_trans_handle *trans,
 			      struct btrfs_root *root,
 			      struct extent_buffer *eb)
@@ -8583,7 +8554,8 @@ static int account_leaf_items(struct btrfs_trans_handle *trans,
 
 		num_bytes = btrfs_file_extent_disk_num_bytes(eb, fi);
 
-		ret = record_one_subtree_extent(trans, root, bytenr, num_bytes);
+		ret = btrfs_qgroup_insert_dirty_extent(trans, root->fs_info,
+				bytenr, num_bytes, GFP_NOFS);
 		if (ret)
 			return ret;
 	}
@@ -8732,8 +8704,9 @@ walk_down:
 			btrfs_set_lock_blocking_rw(eb, BTRFS_READ_LOCK);
 			path->locks[level] = BTRFS_READ_LOCK_BLOCKING;
 
-			ret = record_one_subtree_extent(trans, root, child_bytenr,
-							root->nodesize);
+			ret = btrfs_qgroup_insert_dirty_extent(trans,
+					root->fs_info, child_bytenr,
+					root->nodesize, GFP_NOFS);
 			if (ret)
 				goto out;
 		}
