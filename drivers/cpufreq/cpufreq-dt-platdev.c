@@ -40,6 +40,7 @@ static const struct of_device_id machines[] __initconst = {
 	{ .compatible = "samsung,exynos5250", },
 #ifndef CONFIG_BL_SWITCHER
 	{ .compatible = "samsung,exynos5420", },
+	{ .compatible = "samsung,exynos5433", },
 	{ .compatible = "samsung,exynos5800", },
 #endif
 
