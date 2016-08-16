@@ -2494,10 +2494,9 @@ struct lmv_mds_md_v1 {
 					 * for example migrating or dead.
 					 */
 	__u32 lmv_layout_version;	/* Used for directory restriping */
-	__u32 lmv_padding;
-	struct lu_fid lmv_master_fid;	/* The FID of the master object, which
-					 * is the namespace-visible dir FID
-					 */
+	__u32 lmv_padding1;
+	__u64 lmv_padding2;
+	__u64 lmv_padding3;
 	char lmv_pool_name[LOV_MAXPOOLNAME];	/* pool name */
 	struct lu_fid lmv_stripe_fids[0];	/* FIDs for each stripe */
 };

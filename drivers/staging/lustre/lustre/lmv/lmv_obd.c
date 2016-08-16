@@ -2773,12 +2773,8 @@ static int lmv_unpack_md_v1(struct obd_export *exp, struct lmv_stripe_md *lsm,
 	else
 		lsm->lsm_md_hash_type = le32_to_cpu(lmm1->lmv_hash_type);
 	lsm->lsm_md_layout_version = le32_to_cpu(lmm1->lmv_layout_version);
-	fid_le_to_cpu(&lsm->lsm_md_master_fid, &lmm1->lmv_master_fid);
 	cplen = strlcpy(lsm->lsm_md_pool_name, lmm1->lmv_pool_name,
 			sizeof(lsm->lsm_md_pool_name));
-
-	if (!fid_is_sane(&lsm->lsm_md_master_fid))
-		return -EPROTO;
 
 	if (cplen >= sizeof(lsm->lsm_md_pool_name))
 		return -E2BIG;

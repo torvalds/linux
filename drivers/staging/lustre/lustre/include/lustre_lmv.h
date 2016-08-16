@@ -48,7 +48,6 @@ struct lmv_stripe_md {
 	__u32	lsm_md_layout_version;
 	__u32	lsm_md_default_count;
 	__u32	lsm_md_default_index;
-	struct lu_fid lsm_md_master_fid;
 	char	lsm_md_pool_name[LOV_MAXPOOLNAME];
 	struct lmv_oinfo lsm_md_oinfo[0];
 };
@@ -90,23 +89,6 @@ static inline void lmv_free_memmd(struct lmv_stripe_md *lsm)
 	lmv_unpack_md(NULL, &lsm, NULL, 0);
 }
 
-static inline void lmv1_cpu_to_le(struct lmv_mds_md_v1 *lmv_dst,
-				  const struct lmv_mds_md_v1 *lmv_src)
-{
-	int i;
-
-	lmv_dst->lmv_magic = cpu_to_le32(lmv_src->lmv_magic);
-	lmv_dst->lmv_stripe_count = cpu_to_le32(lmv_src->lmv_stripe_count);
-	lmv_dst->lmv_master_mdt_index =
-		cpu_to_le32(lmv_src->lmv_master_mdt_index);
-	lmv_dst->lmv_hash_type = cpu_to_le32(lmv_src->lmv_hash_type);
-	lmv_dst->lmv_layout_version = cpu_to_le32(lmv_src->lmv_layout_version);
-
-	for (i = 0; i < lmv_src->lmv_stripe_count; i++)
-		fid_cpu_to_le(&lmv_dst->lmv_stripe_fids[i],
-			      &lmv_src->lmv_stripe_fids[i]);
-}
-
 static inline void lmv1_le_to_cpu(struct lmv_mds_md_v1 *lmv_dst,
 				  const struct lmv_mds_md_v1 *lmv_src)
 {
@@ -122,18 +104,6 @@ static inline void lmv1_le_to_cpu(struct lmv_mds_md_v1 *lmv_dst,
 	for (i = 0; i < lmv_src->lmv_stripe_count; i++)
 		fid_le_to_cpu(&lmv_dst->lmv_stripe_fids[i],
 			      &lmv_src->lmv_stripe_fids[i]);
-}
-
-static inline void lmv_cpu_to_le(union lmv_mds_md *lmv_dst,
-				 const union lmv_mds_md *lmv_src)
-{
-	switch (lmv_src->lmv_magic) {
-	case LMV_MAGIC_V1:
-		lmv1_cpu_to_le(&lmv_dst->lmv_md_v1, &lmv_src->lmv_md_v1);
-		break;
-	default:
-		break;
-	}
 }
 
 static inline void lmv_le_to_cpu(union lmv_mds_md *lmv_dst,
