@@ -85,7 +85,7 @@ static void __iomem *pcc_comm_addr;
 static int pcc_subspace_idx = -1;
 static bool pcc_channel_acquired;
 static ktime_t deadline;
-static unsigned int pcc_mpar, pcc_mrtt;
+static unsigned int pcc_mpar, pcc_mrtt, pcc_nominal;
 
 /* pcc mapped address + header size + offset within PCC subspace */
 #define GET_PCC_VADDR(offs) (pcc_comm_addr + 0x8 + (offs))
@@ -473,7 +473,6 @@ static int register_pcc_channel(int pcc_subspace_idx)
 			return -ENODEV;
 		}
 
-
 		/*
 		 * cppc_ss->latency is just a Nominal value. In reality
 		 * the remote processor could be much slower to reply.
@@ -483,6 +482,7 @@ static int register_pcc_channel(int pcc_subspace_idx)
 		deadline = ns_to_ktime(usecs_lat * NSEC_PER_USEC);
 		pcc_mrtt = cppc_ss->min_turnaround_time;
 		pcc_mpar = cppc_ss->max_access_rate;
+		pcc_nominal = cppc_ss->latency;
 
 		pcc_comm_addr = acpi_os_ioremap(cppc_ss->base_address, cppc_ss->length);
 		if (!pcc_comm_addr) {
@@ -1048,3 +1048,45 @@ int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(cppc_set_perf);
+
+/**
+ * cppc_get_transition_latency - returns frequency transition latency in ns
+ *
+ * ACPI CPPC does not explicitly specifiy how a platform can specify the
+ * transition latency for perfromance change requests. The closest we have
+ * is the timing information from the PCCT tables which provides the info
+ * on the number and frequency of PCC commands the platform can handle.
+ */
+unsigned int cppc_get_transition_latency(int cpu_num)
+{
+	/*
+	 * Expected transition latency is based on the PCCT timing values
+	 * Below are definition from ACPI spec:
+	 * pcc_nominal- Expected latency to process a command, in microseconds
+	 * pcc_mpar   - The maximum number of periodic requests that the subspace
+	 *              channel can support, reported in commands per minute. 0
+	 *              indicates no limitation.
+	 * pcc_mrtt   - The minimum amount of time that OSPM must wait after the
+	 *              completion of a command before issuing the next command,
+	 *              in microseconds.
+	 */
+	unsigned int latency_ns = 0;
+	struct cpc_desc *cpc_desc;
+	struct cpc_register_resource *desired_reg;
+
+	cpc_desc = per_cpu(cpc_desc_ptr, cpu_num);
+	if (!cpc_desc)
+		return CPUFREQ_ETERNAL;
+
+	desired_reg = &cpc_desc->cpc_regs[DESIRED_PERF];
+	if (!CPC_IN_PCC(desired_reg))
+		return CPUFREQ_ETERNAL;
+
+	if (pcc_mpar)
+		latency_ns = 60 * (1000 * 1000 * 1000 / pcc_mpar);
+
+	latency_ns = max(latency_ns, (pcc_nominal + pcc_mrtt) * 1000);
+
+	return latency_ns;
+}
+EXPORT_SYMBOL_GPL(cppc_get_transition_latency);
