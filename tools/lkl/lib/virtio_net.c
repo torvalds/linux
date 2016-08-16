@@ -27,7 +27,6 @@
 struct virtio_net_dev {
 	struct virtio_dev dev;
 	struct lkl_virtio_net_config config;
-	struct lkl_dev_net_ops *ops;
 	struct lkl_netdev *nd;
 	struct lkl_mutex **queue_locks;
 	lkl_thread_t poll_tid;
@@ -79,12 +78,12 @@ static int net_enqueue(struct virtio_dev *dev, struct virtio_req *req)
 
 	/* Pick which virtqueue to send the buffer(s) to */
 	if (is_tx_queue(dev, req->q)) {
-		ret = net_dev->ops->tx(net_dev->nd, iov, req->buf_count);
+		ret = net_dev->nd->ops->tx(net_dev->nd, iov, req->buf_count);
 		if (ret < 0)
 			return -1;
 		i = 1;
 	} else if (is_rx_queue(dev, req->q)) {
-		ret = net_dev->ops->rx(net_dev->nd, iov, req->buf_count);
+		ret = net_dev->nd->ops->rx(net_dev->nd, iov, req->buf_count);
 		if (ret < 0)
 			return -1;
 		if (net_dev->nd->has_vnet_hdr) {
@@ -227,7 +226,6 @@ int lkl_netdev_add(struct lkl_netdev *nd, struct lkl_netdev_args* args)
 	dev->dev.config_data = &dev->config;
 	dev->dev.config_len = sizeof(dev->config);
 	dev->dev.ops = &net_ops;
-	dev->ops = nd->ops;
 	dev->nd = nd;
 	dev->queue_locks = init_queue_locks(NUM_QUEUES);
 
