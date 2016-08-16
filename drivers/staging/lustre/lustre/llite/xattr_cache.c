@@ -380,25 +380,25 @@ static int ll_xattr_cache_refill(struct inode *inode, struct lookup_intent *oit)
 	}
 	/* do not need swab xattr data */
 	xdata = req_capsule_server_sized_get(&req->rq_pill, &RMF_EADATA,
-					     body->eadatasize);
+					     body->mbo_eadatasize);
 	xval = req_capsule_server_sized_get(&req->rq_pill, &RMF_EAVALS,
-					    body->aclsize);
+					    body->mbo_aclsize);
 	xsizes = req_capsule_server_sized_get(&req->rq_pill, &RMF_EAVALS_LENS,
-					      body->max_mdsize * sizeof(__u32));
+					      body->mbo_max_mdsize * sizeof(__u32));
 	if (!xdata || !xval || !xsizes) {
 		CERROR("wrong setxattr reply\n");
 		rc = -EPROTO;
 		goto out_destroy;
 	}
 
-	xtail = xdata + body->eadatasize;
-	xvtail = xval + body->aclsize;
+	xtail = xdata + body->mbo_eadatasize;
+	xvtail = xval + body->mbo_aclsize;
 
 	CDEBUG(D_CACHE, "caching: xdata=%p xtail=%p\n", xdata, xtail);
 
 	ll_xattr_cache_init(lli);
 
-	for (i = 0; i < body->max_mdsize; i++) {
+	for (i = 0; i < body->mbo_max_mdsize; i++) {
 		CDEBUG(D_CACHE, "caching [%s]=%.*s\n", xdata, *xsizes, xval);
 		/* Perform consistency checks: attr names and vals in pill */
 		if (!memchr(xdata, 0, xtail - xdata)) {

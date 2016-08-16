@@ -1674,35 +1674,35 @@ EXPORT_SYMBOL(lustre_swab_lquota_lvb);
 
 void lustre_swab_mdt_body(struct mdt_body *b)
 {
-	lustre_swab_lu_fid(&b->fid1);
-	lustre_swab_lu_fid(&b->fid2);
+	lustre_swab_lu_fid(&b->mbo_fid1);
+	lustre_swab_lu_fid(&b->mbo_fid2);
 	/* handle is opaque */
-	__swab64s(&b->valid);
-	__swab64s(&b->size);
-	__swab64s(&b->mtime);
-	__swab64s(&b->atime);
-	__swab64s(&b->ctime);
-	__swab64s(&b->blocks);
-	__swab64s(&b->ioepoch);
-	__swab64s(&b->t_state);
-	__swab32s(&b->fsuid);
-	__swab32s(&b->fsgid);
-	__swab32s(&b->capability);
-	__swab32s(&b->mode);
-	__swab32s(&b->uid);
-	__swab32s(&b->gid);
-	__swab32s(&b->flags);
-	__swab32s(&b->rdev);
-	__swab32s(&b->nlink);
-	CLASSERT(offsetof(typeof(*b), unused2) != 0);
-	__swab32s(&b->suppgid);
-	__swab32s(&b->eadatasize);
-	__swab32s(&b->aclsize);
-	__swab32s(&b->max_mdsize);
-	__swab32s(&b->max_cookiesize);
-	__swab32s(&b->uid_h);
-	__swab32s(&b->gid_h);
-	CLASSERT(offsetof(typeof(*b), padding_5) != 0);
+	__swab64s(&b->mbo_valid);
+	__swab64s(&b->mbo_size);
+	__swab64s(&b->mbo_mtime);
+	__swab64s(&b->mbo_atime);
+	__swab64s(&b->mbo_ctime);
+	__swab64s(&b->mbo_blocks);
+	__swab64s(&b->mbo_ioepoch);
+	__swab64s(&b->mbo_t_state);
+	__swab32s(&b->mbo_fsuid);
+	__swab32s(&b->mbo_fsgid);
+	__swab32s(&b->mbo_capability);
+	__swab32s(&b->mbo_mode);
+	__swab32s(&b->mbo_uid);
+	__swab32s(&b->mbo_gid);
+	__swab32s(&b->mbo_flags);
+	__swab32s(&b->mbo_rdev);
+	__swab32s(&b->mbo_nlink);
+	CLASSERT(offsetof(typeof(*b), mbo_unused2) != 0);
+	__swab32s(&b->mbo_suppgid);
+	__swab32s(&b->mbo_eadatasize);
+	__swab32s(&b->mbo_aclsize);
+	__swab32s(&b->mbo_max_mdsize);
+	__swab32s(&b->mbo_max_cookiesize);
+	__swab32s(&b->mbo_uid_h);
+	__swab32s(&b->mbo_gid_h);
+	CLASSERT(offsetof(typeof(*b), mbo_padding_5) != 0);
 }
 EXPORT_SYMBOL(lustre_swab_mdt_body);
 

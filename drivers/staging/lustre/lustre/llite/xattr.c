@@ -263,32 +263,32 @@ getxattr_nocache:
 
 		/* only detect the xattr size */
 		if (size == 0) {
-			rc = body->eadatasize;
+			rc = body->mbo_eadatasize;
 			goto out;
 		}
 
-		if (size < body->eadatasize) {
+		if (size < body->mbo_eadatasize) {
 			CERROR("server bug: replied size %u > %u\n",
-			       body->eadatasize, (int)size);
+			       body->mbo_eadatasize, (int)size);
 			rc = -ERANGE;
 			goto out;
 		}
 
-		if (body->eadatasize == 0) {
+		if (body->mbo_eadatasize == 0) {
 			rc = -ENODATA;
 			goto out;
 		}
 
 		/* do not need swab xattr data */
 		xdata = req_capsule_server_sized_get(&req->rq_pill, &RMF_EADATA,
-						     body->eadatasize);
+						     body->mbo_eadatasize);
 		if (!xdata) {
 			rc = -EFAULT;
 			goto out;
 		}
 
-		memcpy(buffer, xdata, body->eadatasize);
-		rc = body->eadatasize;
+		memcpy(buffer, xdata, body->mbo_eadatasize);
+		rc = body->mbo_eadatasize;
 	}
 
 out_xattr:

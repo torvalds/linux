@@ -56,12 +56,12 @@ static int ll_test_inode(struct inode *inode, void *opaque)
 	struct ll_inode_info *lli = ll_i2info(inode);
 	struct lustre_md     *md = opaque;
 
-	if (unlikely(!(md->body->valid & OBD_MD_FLID))) {
+	if (unlikely(!(md->body->mbo_valid & OBD_MD_FLID))) {
 		CERROR("MDS body missing FID\n");
 		return 0;
 	}
 
-	if (!lu_fid_eq(&lli->lli_fid, &md->body->fid1))
+	if (!lu_fid_eq(&lli->lli_fid, &md->body->mbo_fid1))
 		return 0;
 
 	return 1;
@@ -72,20 +72,20 @@ static int ll_set_inode(struct inode *inode, void *opaque)
 	struct ll_inode_info *lli = ll_i2info(inode);
 	struct mdt_body *body = ((struct lustre_md *)opaque)->body;
 
-	if (unlikely(!(body->valid & OBD_MD_FLID))) {
+	if (unlikely(!(body->mbo_valid & OBD_MD_FLID))) {
 		CERROR("MDS body missing FID\n");
 		return -EINVAL;
 	}
 
-	lli->lli_fid = body->fid1;
-	if (unlikely(!(body->valid & OBD_MD_FLTYPE))) {
+	lli->lli_fid = body->mbo_fid1;
+	if (unlikely(!(body->mbo_valid & OBD_MD_FLTYPE))) {
 		CERROR("Can not initialize inode " DFID
 		       " without object type: valid = %#llx\n",
-		       PFID(&lli->lli_fid), body->valid);
+		       PFID(&lli->lli_fid), body->mbo_valid);
 		return -EINVAL;
 	}
 
-	inode->i_mode = (inode->i_mode & ~S_IFMT) | (body->mode & S_IFMT);
+	inode->i_mode = (inode->i_mode & ~S_IFMT) | (body->mbo_mode & S_IFMT);
 	if (unlikely(inode->i_mode == 0)) {
 		CERROR("Invalid inode "DFID" type\n", PFID(&lli->lli_fid));
 		return -EINVAL;
@@ -131,7 +131,7 @@ struct inode *ll_iget(struct super_block *sb, ino_t hash,
 	} else if (!(inode->i_state & (I_FREEING | I_CLEAR))) {
 		rc = ll_update_inode(inode, md);
 		CDEBUG(D_VFSTRACE, "got inode: "DFID"(%p): rc = %d\n",
-		       PFID(&md->body->fid1), inode, rc);
+		       PFID(&md->body->mbo_fid1), inode, rc);
 		if (rc) {
 			make_bad_inode(inode);
 			iput(inode);
@@ -774,16 +774,16 @@ void ll_update_times(struct ptlrpc_request *request, struct inode *inode)
 						       &RMF_MDT_BODY);
 
 	LASSERT(body);
-	if (body->valid & OBD_MD_FLMTIME &&
-	    body->mtime > LTIME_S(inode->i_mtime)) {
+	if (body->mbo_valid & OBD_MD_FLMTIME &&
+	    body->mbo_mtime > LTIME_S(inode->i_mtime)) {
 		CDEBUG(D_INODE, "setting fid "DFID" mtime from %lu to %llu\n",
 		       PFID(ll_inode2fid(inode)), LTIME_S(inode->i_mtime),
-		       body->mtime);
-		LTIME_S(inode->i_mtime) = body->mtime;
+		       body->mbo_mtime);
+		LTIME_S(inode->i_mtime) = body->mbo_mtime;
 	}
-	if (body->valid & OBD_MD_FLCTIME &&
-	    body->ctime > LTIME_S(inode->i_ctime))
-		LTIME_S(inode->i_ctime) = body->ctime;
+	if (body->mbo_valid & OBD_MD_FLCTIME &&
+	    body->mbo_ctime > LTIME_S(inode->i_ctime))
+		LTIME_S(inode->i_ctime) = body->mbo_ctime;
 }
 
 static int ll_new_node(struct inode *dir, struct dentry *dentry,
@@ -899,10 +899,10 @@ int ll_objects_destroy(struct ptlrpc_request *request, struct inode *dir)
 
 	/* req is swabbed so this is safe */
 	body = req_capsule_server_get(&request->rq_pill, &RMF_MDT_BODY);
-	if (!(body->valid & OBD_MD_FLEASIZE))
+	if (!(body->mbo_valid & OBD_MD_FLEASIZE))
 		return 0;
 
-	if (body->eadatasize == 0) {
+	if (body->mbo_eadatasize == 0) {
 		CERROR("OBD_MD_FLEASIZE set but eadatasize zero\n");
 		rc = -EPROTO;
 		goto out;
@@ -914,10 +914,10 @@ int ll_objects_destroy(struct ptlrpc_request *request, struct inode *dir)
 	 * check it is complete and sensible.
 	 */
 	eadata = req_capsule_server_sized_get(&request->rq_pill, &RMF_MDT_MD,
-					      body->eadatasize);
+					      body->mbo_eadatasize);
 	LASSERT(eadata);
 
-	rc = obd_unpackmd(ll_i2dtexp(dir), &lsm, eadata, body->eadatasize);
+	rc = obd_unpackmd(ll_i2dtexp(dir), &lsm, eadata, body->mbo_eadatasize);
 	if (rc < 0) {
 		CERROR("obd_unpackmd: %d\n", rc);
 		goto out;
@@ -931,10 +931,10 @@ int ll_objects_destroy(struct ptlrpc_request *request, struct inode *dir)
 	}
 
 	oa->o_oi = lsm->lsm_oi;
-	oa->o_mode = body->mode & S_IFMT;
+	oa->o_mode = body->mbo_mode & S_IFMT;
 	oa->o_valid = OBD_MD_FLID | OBD_MD_FLTYPE | OBD_MD_FLGROUP;
 
-	if (body->valid & OBD_MD_FLCOOKIE) {
+	if (body->mbo_valid & OBD_MD_FLCOOKIE) {
 		oa->o_valid |= OBD_MD_FLCOOKIE;
 		oti.oti_logcookies =
 			req_capsule_server_sized_get(&request->rq_pill,
@@ -943,7 +943,7 @@ int ll_objects_destroy(struct ptlrpc_request *request, struct inode *dir)
 						     lsm->lsm_stripe_count);
 		if (!oti.oti_logcookies) {
 			oa->o_valid &= ~OBD_MD_FLCOOKIE;
-			body->valid &= ~OBD_MD_FLCOOKIE;
+			body->mbo_valid &= ~OBD_MD_FLCOOKIE;
 		}
 	}
 

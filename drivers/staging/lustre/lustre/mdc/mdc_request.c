@@ -100,7 +100,7 @@ static int mdc_getstatus(struct obd_export *exp, struct lu_fid *rootfid)
 		goto out;
 	}
 
-	*rootfid = body->fid1;
+	*rootfid = body->mbo_fid1;
 	CDEBUG(D_NET,
 	       "root fid="DFID", last_committed=%llu\n",
 	       PFID(rootfid),
@@ -138,12 +138,12 @@ static int mdc_getattr_common(struct obd_export *exp,
 	if (!body)
 		return -EPROTO;
 
-	CDEBUG(D_NET, "mode: %o\n", body->mode);
+	CDEBUG(D_NET, "mode: %o\n", body->mbo_mode);
 
 	mdc_update_max_ea_from_body(exp, body);
-	if (body->eadatasize != 0) {
+	if (body->mbo_eadatasize != 0) {
 		eadata = req_capsule_server_sized_get(pill, &RMF_MDT_MD,
-						      body->eadatasize);
+						      body->mbo_eadatasize);
 		if (!eadata)
 			return -EPROTO;
 	}
@@ -399,15 +399,15 @@ static int mdc_unpack_acl(struct ptlrpc_request *req, struct lustre_md *md)
 	void		   *buf;
 	int		     rc;
 
-	if (!body->aclsize)
+	if (!body->mbo_aclsize)
 		return 0;
 
-	buf = req_capsule_server_sized_get(pill, &RMF_ACL, body->aclsize);
+	buf = req_capsule_server_sized_get(pill, &RMF_ACL, body->mbo_aclsize);
 
 	if (!buf)
 		return -EPROTO;
 
-	acl = posix_acl_from_xattr(&init_user_ns, buf, body->aclsize);
+	acl = posix_acl_from_xattr(&init_user_ns, buf, body->mbo_aclsize);
 	if (!acl)
 		return 0;
 
@@ -445,24 +445,24 @@ static int mdc_get_lustre_md(struct obd_export *exp,
 
 	md->body = req_capsule_server_get(pill, &RMF_MDT_BODY);
 
-	if (md->body->valid & OBD_MD_FLEASIZE) {
+	if (md->body->mbo_valid & OBD_MD_FLEASIZE) {
 		int lmmsize;
 		struct lov_mds_md *lmm;
 
-		if (!S_ISREG(md->body->mode)) {
+		if (!S_ISREG(md->body->mbo_mode)) {
 			CDEBUG(D_INFO,
 			       "OBD_MD_FLEASIZE set, should be a regular file, but is not\n");
 			rc = -EPROTO;
 			goto out;
 		}
 
-		if (md->body->eadatasize == 0) {
+		if (md->body->mbo_eadatasize == 0) {
 			CDEBUG(D_INFO,
 			       "OBD_MD_FLEASIZE set, but eadatasize 0\n");
 			rc = -EPROTO;
 			goto out;
 		}
-		lmmsize = md->body->eadatasize;
+		lmmsize = md->body->mbo_eadatasize;
 		lmm = req_capsule_server_sized_get(pill, &RMF_MDT_MD, lmmsize);
 		if (!lmm) {
 			rc = -EPROTO;
@@ -481,24 +481,24 @@ static int mdc_get_lustre_md(struct obd_export *exp,
 			goto out;
 		}
 
-	} else if (md->body->valid & OBD_MD_FLDIREA) {
+	} else if (md->body->mbo_valid & OBD_MD_FLDIREA) {
 		int lmvsize;
 		struct lov_mds_md *lmv;
 
-		if (!S_ISDIR(md->body->mode)) {
+		if (!S_ISDIR(md->body->mbo_mode)) {
 			CDEBUG(D_INFO,
 			       "OBD_MD_FLDIREA set, should be a directory, but is not\n");
 			rc = -EPROTO;
 			goto out;
 		}
 
-		if (md->body->eadatasize == 0) {
+		if (md->body->mbo_eadatasize == 0) {
 			CDEBUG(D_INFO,
 			       "OBD_MD_FLDIREA is set, but eadatasize 0\n");
 			return -EPROTO;
 		}
-		if (md->body->valid & OBD_MD_MEA) {
-			lmvsize = md->body->eadatasize;
+		if (md->body->mbo_valid & OBD_MD_MEA) {
+			lmvsize = md->body->mbo_eadatasize;
 			lmv = req_capsule_server_sized_get(pill, &RMF_MDT_MD,
 							   lmvsize);
 			if (!lmv) {
@@ -522,12 +522,12 @@ static int mdc_get_lustre_md(struct obd_export *exp,
 	}
 	rc = 0;
 
-	if (md->body->valid & OBD_MD_FLACL) {
+	if (md->body->mbo_valid & OBD_MD_FLACL) {
 		/* for ACL, it's possible that FLACL is set but aclsize is zero.
 		 * only when aclsize != 0 there's an actual segment for ACL
 		 * in reply buffer.
 		 */
-		if (md->body->aclsize) {
+		if (md->body->mbo_aclsize) {
 			rc = mdc_unpack_acl(req, md);
 			if (rc)
 				goto out;
@@ -582,9 +582,9 @@ void mdc_replay_open(struct ptlrpc_request *req)
 
 		file_fh = &och->och_fh;
 		CDEBUG(D_HA, "updating handle from %#llx to %#llx\n",
-		       file_fh->cookie, body->handle.cookie);
+		       file_fh->cookie, body->mbo_handle.cookie);
 		old = *file_fh;
-		*file_fh = body->handle;
+		*file_fh = body->mbo_handle;
 	}
 	close_req = mod->mod_close_req;
 	if (close_req) {
@@ -599,7 +599,7 @@ void mdc_replay_open(struct ptlrpc_request *req)
 		if (och)
 			LASSERT(!memcmp(&old, &epoch->handle, sizeof(old)));
 		DEBUG_REQ(D_HA, close_req, "updating close body with new fh");
-		epoch->handle = body->handle;
+		epoch->handle = body->mbo_handle;
 	}
 }
 
@@ -681,11 +681,11 @@ int mdc_set_open_replay_data(struct obd_export *exp,
 		spin_unlock(&open_req->rq_lock);
 	}
 
-	rec->cr_fid2 = body->fid1;
-	rec->cr_ioepoch = body->ioepoch;
-	rec->cr_old_handle.cookie = body->handle.cookie;
+	rec->cr_fid2 = body->mbo_fid1;
+	rec->cr_ioepoch = body->mbo_ioepoch;
+	rec->cr_old_handle.cookie = body->mbo_handle.cookie;
 	open_req->rq_replay_cb = mdc_replay_open;
-	if (!fid_is_sane(&body->fid1)) {
+	if (!fid_is_sane(&body->mbo_fid1)) {
 		DEBUG_REQ(D_ERROR, open_req,
 			  "Saving replay request with insane fid");
 		LBUG();
@@ -746,7 +746,7 @@ static void mdc_close_handle_reply(struct ptlrpc_request *req,
 		epoch = req_capsule_client_get(&req->rq_pill, &RMF_MDT_EPOCH);
 
 		epoch->flags |= MF_SOM_AU;
-		if (repbody->valid & OBD_MD_FLGETATTRLOCK)
+		if (repbody->mbo_valid & OBD_MD_FLGETATTRLOCK)
 			op_data->op_flags |= MF_GETATTR_LOCK;
 	}
 }

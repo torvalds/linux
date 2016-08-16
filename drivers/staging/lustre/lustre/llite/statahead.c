@@ -632,7 +632,7 @@ static void ll_post_statahead(struct ll_statahead_info *sai)
 		/* XXX: No fid in reply, this is probably cross-ref case.
 		 * SA can't handle it yet.
 		 */
-		if (body->valid & OBD_MD_MDS) {
+		if (body->mbo_valid & OBD_MD_MDS) {
 			rc = -EAGAIN;
 			goto out;
 		}
@@ -641,7 +641,7 @@ static void ll_post_statahead(struct ll_statahead_info *sai)
 		 * revalidate.
 		 */
 		/* unlinked and re-created with the same name */
-		if (unlikely(!lu_fid_eq(&minfo->mi_data.op_fid2, &body->fid1))) {
+		if (unlikely(!lu_fid_eq(&minfo->mi_data.op_fid2, &body->mbo_fid1))) {
 			entry->se_inode = NULL;
 			iput(child);
 			child = NULL;

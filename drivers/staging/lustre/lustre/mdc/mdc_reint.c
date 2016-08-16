@@ -177,8 +177,8 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 
 		epoch = req_capsule_client_get(&req->rq_pill, &RMF_MDT_EPOCH);
 		body = req_capsule_server_get(&req->rq_pill, &RMF_MDT_BODY);
-		epoch->handle = body->handle;
-		epoch->ioepoch = body->ioepoch;
+		epoch->handle = body->mbo_handle;
+		epoch->ioepoch = body->mbo_ioepoch;
 		req->rq_replay_cb = mdc_replay_open;
 	/** bug 3633, open may be committed and estale answer is not error */
 	} else if (rc == -ESTALE && (op_data->op_flags & MF_SOM_CHANGE)) {

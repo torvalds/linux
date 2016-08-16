@@ -1350,7 +1350,7 @@ void lustre_assert_wire_constants(void)
 		 (long long)(int)offsetof(struct lov_mds_md_v1, lmm_objects[0]));
 	LASSERTF((int)sizeof(((struct lov_mds_md_v1 *)0)->lmm_objects[0]) == 24, "found %lld\n",
 		 (long long)(int)sizeof(((struct lov_mds_md_v1 *)0)->lmm_objects[0]));
-	CLASSERT(LOV_MAGIC_V1 == 0x0BD10BD0);
+	CLASSERT(LOV_MAGIC_V1 == (0x0BD10000 | 0x0BD0));
 
 	/* Checks for struct lov_mds_md_v3 */
 	LASSERTF((int)sizeof(struct lov_mds_md_v3) == 48, "found %lld\n",
@@ -1388,7 +1388,7 @@ void lustre_assert_wire_constants(void)
 		 (long long)(int)offsetof(struct lov_mds_md_v3, lmm_objects[0]));
 	LASSERTF((int)sizeof(((struct lov_mds_md_v3 *)0)->lmm_objects[0]) == 24, "found %lld\n",
 		 (long long)(int)sizeof(((struct lov_mds_md_v3 *)0)->lmm_objects[0]));
-	CLASSERT(LOV_MAGIC_V3 == 0x0BD30BD0);
+	CLASSERT(LOV_MAGIC_V3 == (0x0BD30000 | 0x0BD0));
 	LASSERTF(LOV_PATTERN_RAID0 == 0x00000001UL, "found 0x%.8xUL\n",
 		(unsigned)LOV_PATTERN_RAID0);
 	LASSERTF(LOV_PATTERN_RAID1 == 0x00000002UL, "found 0x%.8xUL\n",
@@ -1667,139 +1667,139 @@ void lustre_assert_wire_constants(void)
 	/* Checks for struct mdt_body */
 	LASSERTF((int)sizeof(struct mdt_body) == 216, "found %lld\n",
 		 (long long)(int)sizeof(struct mdt_body));
-	LASSERTF((int)offsetof(struct mdt_body, fid1) == 0, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, fid1));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->fid1) == 16, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->fid1));
-	LASSERTF((int)offsetof(struct mdt_body, fid2) == 16, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, fid2));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->fid2) == 16, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->fid2));
-	LASSERTF((int)offsetof(struct mdt_body, handle) == 32, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, handle));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->handle) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->handle));
-	LASSERTF((int)offsetof(struct mdt_body, valid) == 40, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, valid));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->valid) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->valid));
-	LASSERTF((int)offsetof(struct mdt_body, size) == 48, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, size));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->size) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->size));
-	LASSERTF((int)offsetof(struct mdt_body, mtime) == 56, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, mtime));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->mtime) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->mtime));
-	LASSERTF((int)offsetof(struct mdt_body, atime) == 64, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, atime));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->atime) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->atime));
-	LASSERTF((int)offsetof(struct mdt_body, ctime) == 72, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, ctime));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->ctime) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->ctime));
-	LASSERTF((int)offsetof(struct mdt_body, blocks) == 80, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, blocks));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->blocks) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->blocks));
-	LASSERTF((int)offsetof(struct mdt_body, t_state) == 96, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, t_state));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->t_state) == 8,
+	LASSERTF((int)offsetof(struct mdt_body, mbo_fid1) == 0, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_fid1));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_fid1) == 16, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_fid1));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_fid2) == 16, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_fid2));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_fid2) == 16, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_fid2));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_handle) == 32, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_handle));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_handle) == 8, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_handle));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_valid) == 40, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_valid));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_valid) == 8, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_valid));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_size) == 48, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_size));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_size) == 8, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_size));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_mtime) == 56, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_mtime));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_mtime) == 8, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_mtime));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_atime) == 64, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_atime));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_atime) == 8, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_atime));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_ctime) == 72, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_ctime));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_ctime) == 8, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_ctime));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_blocks) == 80, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_blocks));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_blocks) == 8, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_blocks));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_t_state) == 96, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_t_state));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_t_state) == 8,
 		 "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->t_state));
-	LASSERTF((int)offsetof(struct mdt_body, fsuid) == 104, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, fsuid));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->fsuid) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->fsuid));
-	LASSERTF((int)offsetof(struct mdt_body, fsgid) == 108, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, fsgid));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->fsgid) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->fsgid));
-	LASSERTF((int)offsetof(struct mdt_body, capability) == 112, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, capability));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->capability) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->capability));
-	LASSERTF((int)offsetof(struct mdt_body, mode) == 116, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, mode));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->mode) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->mode));
-	LASSERTF((int)offsetof(struct mdt_body, uid) == 120, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, uid));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->uid) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->uid));
-	LASSERTF((int)offsetof(struct mdt_body, gid) == 124, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, gid));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->gid) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->gid));
-	LASSERTF((int)offsetof(struct mdt_body, flags) == 128, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, flags));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->flags) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->flags));
-	LASSERTF((int)offsetof(struct mdt_body, rdev) == 132, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, rdev));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->rdev) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->rdev));
-	LASSERTF((int)offsetof(struct mdt_body, nlink) == 136, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, nlink));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->nlink) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->nlink));
-	LASSERTF((int)offsetof(struct mdt_body, unused2) == 140, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, unused2));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->unused2) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->unused2));
-	LASSERTF((int)offsetof(struct mdt_body, suppgid) == 144, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, suppgid));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->suppgid) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->suppgid));
-	LASSERTF((int)offsetof(struct mdt_body, eadatasize) == 148, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, eadatasize));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->eadatasize) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->eadatasize));
-	LASSERTF((int)offsetof(struct mdt_body, aclsize) == 152, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, aclsize));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->aclsize) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->aclsize));
-	LASSERTF((int)offsetof(struct mdt_body, max_mdsize) == 156, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, max_mdsize));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->max_mdsize) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->max_mdsize));
-	LASSERTF((int)offsetof(struct mdt_body, max_cookiesize) == 160, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, max_cookiesize));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->max_cookiesize) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->max_cookiesize));
-	LASSERTF((int)offsetof(struct mdt_body, uid_h) == 164, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, uid_h));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->uid_h) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->uid_h));
-	LASSERTF((int)offsetof(struct mdt_body, gid_h) == 168, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, gid_h));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->gid_h) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->gid_h));
-	LASSERTF((int)offsetof(struct mdt_body, padding_5) == 172, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, padding_5));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->padding_5) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->padding_5));
-	LASSERTF((int)offsetof(struct mdt_body, padding_6) == 176, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, padding_6));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->padding_6) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->padding_6));
-	LASSERTF((int)offsetof(struct mdt_body, padding_7) == 184, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, padding_7));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->padding_7) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->padding_7));
-	LASSERTF((int)offsetof(struct mdt_body, padding_8) == 192, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, padding_8));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->padding_8) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->padding_8));
-	LASSERTF((int)offsetof(struct mdt_body, padding_9) == 200, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, padding_9));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->padding_9) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->padding_9));
-	LASSERTF((int)offsetof(struct mdt_body, padding_10) == 208, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_body, padding_10));
-	LASSERTF((int)sizeof(((struct mdt_body *)0)->padding_10) == 8, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_body *)0)->padding_10));
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_t_state));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_fsuid) == 104, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_fsuid));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_fsuid) == 4, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_fsuid));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_fsgid) == 108, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_fsgid));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_fsgid) == 4, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_fsgid));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_capability) == 112, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_capability));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_capability) == 4, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_capability));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_mode) == 116, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_mode));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_mode) == 4, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_mode));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_uid) == 120, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_uid));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_uid) == 4, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_uid));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_gid) == 124, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_gid));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_gid) == 4, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_gid));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_flags) == 128, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_flags));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_flags) == 4, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_flags));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_rdev) == 132, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_rdev));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_rdev) == 4, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_rdev));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_nlink) == 136, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_nlink));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_nlink) == 4, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_nlink));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_unused2) == 140, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_unused2));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_unused2) == 4, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_unused2));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_suppgid) == 144, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_suppgid));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_suppgid) == 4, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_suppgid));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_eadatasize) == 148, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_eadatasize));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_eadatasize) == 4, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_eadatasize));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_aclsize) == 152, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_aclsize));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_aclsize) == 4, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_aclsize));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_max_mdsize) == 156, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_max_mdsize));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_max_mdsize) == 4, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_max_mdsize));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_max_cookiesize) == 160, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_max_cookiesize));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_max_cookiesize) == 4, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_max_cookiesize));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_uid_h) == 164, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_uid_h));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_uid_h) == 4, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_uid_h));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_gid_h) == 168, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_gid_h));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_gid_h) == 4, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_gid_h));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_padding_5) == 172, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_padding_5));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_padding_5) == 4, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_padding_5));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_padding_6) == 176, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_padding_6));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_padding_6) == 8, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_padding_6));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_padding_7) == 184, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_padding_7));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_padding_7) == 8, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_padding_7));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_padding_8) == 192, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_padding_8));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_padding_8) == 8, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_padding_8));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_padding_9) == 200, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_padding_9));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_padding_9) == 8, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_padding_9));
+	LASSERTF((int)offsetof(struct mdt_body, mbo_padding_10) == 208, "found %lld\n",
+		 (long long)(int)offsetof(struct mdt_body, mbo_padding_10));
+	LASSERTF((int)sizeof(((struct mdt_body *)0)->mbo_padding_10) == 8, "found %lld\n",
+		 (long long)(int)sizeof(((struct mdt_body *)0)->mbo_padding_10));
 	LASSERTF(MDS_FMODE_CLOSED == 000000000000UL, "found 0%.11oUL\n",
 		MDS_FMODE_CLOSED);
 	LASSERTF(MDS_FMODE_EXEC == 000000000004UL, "found 0%.11oUL\n",

@@ -240,12 +240,12 @@ static void mdc_realloc_openmsg(struct ptlrpc_request *req,
 
 	/* FIXME: remove this explicit offset. */
 	rc = sptlrpc_cli_enlarge_reqbuf(req, DLM_INTENT_REC_OFF + 4,
-					body->eadatasize);
+					body->mbo_eadatasize);
 	if (rc) {
 		CERROR("Can't enlarge segment %d size to %d\n",
-		       DLM_INTENT_REC_OFF + 4, body->eadatasize);
-		body->valid &= ~OBD_MD_FLEASIZE;
-		body->eadatasize = 0;
+		       DLM_INTENT_REC_OFF + 4, body->mbo_eadatasize);
+		body->mbo_valid &= ~OBD_MD_FLEASIZE;
+		body->mbo_eadatasize = 0;
 	}
 }
 
@@ -608,7 +608,7 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 			mdc_set_open_replay_data(NULL, NULL, it);
 		}
 
-		if ((body->valid & (OBD_MD_FLDIREA | OBD_MD_FLEASIZE)) != 0) {
+		if ((body->mbo_valid & (OBD_MD_FLDIREA | OBD_MD_FLEASIZE)) != 0) {
 			void *eadata;
 
 			mdc_update_max_ea_from_body(exp, body);
@@ -618,7 +618,7 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 			 * Eventually, obd_unpackmd() will check the contents.
 			 */
 			eadata = req_capsule_server_sized_get(pill, &RMF_MDT_MD,
-							      body->eadatasize);
+							      body->mbo_eadatasize);
 			if (!eadata)
 				return -EPROTO;
 
@@ -626,7 +626,7 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 			 * lock
 			 */
 			lvb_data = eadata;
-			lvb_len = body->eadatasize;
+			lvb_len = body->mbo_eadatasize;
 
 			/*
 			 * We save the reply LOV EA in case we have to replay a
@@ -642,20 +642,20 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 
 				if (req_capsule_get_size(pill, &RMF_EADATA,
 							 RCL_CLIENT) <
-				    body->eadatasize)
+				    body->mbo_eadatasize)
 					mdc_realloc_openmsg(req, body);
 				else
 					req_capsule_shrink(pill, &RMF_EADATA,
-							   body->eadatasize,
+							   body->mbo_eadatasize,
 							   RCL_CLIENT);
 
 				req_capsule_set_size(pill, &RMF_EADATA,
 						     RCL_CLIENT,
-						     body->eadatasize);
+						     body->mbo_eadatasize);
 
 				lmm = req_capsule_client_get(pill, &RMF_EADATA);
 				if (lmm)
-					memcpy(lmm, eadata, body->eadatasize);
+					memcpy(lmm, eadata, body->mbo_eadatasize);
 			}
 		}
 	} else if (it->it_op & IT_LAYOUT) {
@@ -935,11 +935,11 @@ static int mdc_finish_intent_lock(struct obd_export *exp,
 		 * op_fid3 - existent fid - if file only open.
 		 * op_fid3 is saved in lmv_intent_open
 		 */
-		if ((!lu_fid_eq(&op_data->op_fid2, &mdt_body->fid1)) &&
-		    (!lu_fid_eq(&op_data->op_fid3, &mdt_body->fid1))) {
+		if ((!lu_fid_eq(&op_data->op_fid2, &mdt_body->mbo_fid1)) &&
+		    (!lu_fid_eq(&op_data->op_fid3, &mdt_body->mbo_fid1))) {
 			CDEBUG(D_DENTRY, "Found stale data "DFID"("DFID")/"DFID
 			       "\n", PFID(&op_data->op_fid2),
-			       PFID(&op_data->op_fid2), PFID(&mdt_body->fid1));
+			       PFID(&op_data->op_fid2), PFID(&mdt_body->mbo_fid1));
 			return -ESTALE;
 		}
 	}
@@ -986,10 +986,10 @@ static int mdc_finish_intent_lock(struct obd_export *exp,
 
 		LDLM_DEBUG(lock, "matching against this");
 
-		LASSERTF(fid_res_name_eq(&mdt_body->fid1,
+		LASSERTF(fid_res_name_eq(&mdt_body->mbo_fid1,
 					 &lock->l_resource->lr_name),
 			 "Lock res_id: "DLDLMRES", fid: "DFID"\n",
-			 PLDLMRES(lock->l_resource), PFID(&mdt_body->fid1));
+			 PLDLMRES(lock->l_resource), PFID(&mdt_body->mbo_fid1));
 		LDLM_LOCK_PUT(lock);
 
 		memcpy(&old_lock, lockh, sizeof(*lockh));

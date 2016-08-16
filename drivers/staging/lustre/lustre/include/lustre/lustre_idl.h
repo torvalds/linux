@@ -2097,43 +2097,43 @@ enum md_transient_state {
 };
 
 struct mdt_body {
-	struct lu_fid  fid1;
-	struct lu_fid  fid2;
-	struct lustre_handle handle;
-	__u64	  valid;
-	__u64	  size;   /* Offset, in the case of MDS_READPAGE */
-	__s64	  mtime;
-	__s64	  atime;
-	__s64	  ctime;
-	__u64	  blocks; /* XID, in the case of MDS_READPAGE */
-	__u64	  ioepoch;
-	__u64	  t_state; /* transient file state defined in
-			    * enum md_transient_state
-			    * was "ino" until 2.4.0
-			    */
-	__u32	  fsuid;
-	__u32	  fsgid;
-	__u32	  capability;
-	__u32	  mode;
-	__u32	  uid;
-	__u32	  gid;
-	__u32	  flags; /* from vfs for pin/unpin, LUSTRE_BFLAG close */
-	__u32	  rdev;
-	__u32	  nlink; /* #bytes to read in the case of MDS_READPAGE */
-	__u32	  unused2; /* was "generation" until 2.4.0 */
-	__u32	  suppgid;
-	__u32	  eadatasize;
-	__u32	  aclsize;
-	__u32	  max_mdsize;
-	__u32	  max_cookiesize;
-	__u32	  uid_h; /* high 32-bits of uid, for FUID */
-	__u32	  gid_h; /* high 32-bits of gid, for FUID */
-	__u32	  padding_5; /* also fix lustre_swab_mdt_body */
-	__u64	  padding_6;
-	__u64	  padding_7;
-	__u64	  padding_8;
-	__u64	  padding_9;
-	__u64	  padding_10;
+	struct lu_fid mbo_fid1;
+	struct lu_fid mbo_fid2;
+	struct lustre_handle mbo_handle;
+	__u64	mbo_valid;
+	__u64	mbo_size;	/* Offset, in the case of MDS_READPAGE */
+	__s64	mbo_mtime;
+	__s64	mbo_atime;
+	__s64	mbo_ctime;
+	__u64	mbo_blocks;	/* XID, in the case of MDS_READPAGE */
+	__u64	mbo_ioepoch;
+	__u64	mbo_t_state;	/* transient file state defined in
+				 * enum md_transient_state
+				 * was "ino" until 2.4.0
+				 */
+	__u32	mbo_fsuid;
+	__u32	mbo_fsgid;
+	__u32	mbo_capability;
+	__u32	mbo_mode;
+	__u32	mbo_uid;
+	__u32	mbo_gid;
+	__u32	mbo_flags;
+	__u32	mbo_rdev;
+	__u32	mbo_nlink;	/* #bytes to read in the case of MDS_READPAGE */
+	__u32	mbo_unused2;	/* was "generation" until 2.4.0 */
+	__u32	mbo_suppgid;
+	__u32	mbo_eadatasize;
+	__u32	mbo_aclsize;
+	__u32	mbo_max_mdsize;
+	__u32	mbo_max_cookiesize;
+	__u32	mbo_uid_h;	/* high 32-bits of uid, for FUID */
+	__u32	mbo_gid_h;	/* high 32-bits of gid, for FUID */
+	__u32	mbo_padding_5;	/* also fix lustre_swab_mdt_body */
+	__u64	mbo_padding_6;
+	__u64	mbo_padding_7;
+	__u64	mbo_padding_8;
+	__u64	mbo_padding_9;
+	__u64	mbo_padding_10;
 }; /* 216 */
 
 void lustre_swab_mdt_body(struct mdt_body *b);

@@ -80,17 +80,17 @@ static int ll_readlink_internal(struct inode *inode,
 	}
 
 	body = req_capsule_server_get(&(*request)->rq_pill, &RMF_MDT_BODY);
-	if ((body->valid & OBD_MD_LINKNAME) == 0) {
+	if ((body->mbo_valid & OBD_MD_LINKNAME) == 0) {
 		CERROR("OBD_MD_LINKNAME not set on reply\n");
 		rc = -EPROTO;
 		goto failed;
 	}
 
 	LASSERT(symlen != 0);
-	if (body->eadatasize != symlen) {
+	if (body->mbo_eadatasize != symlen) {
 		CERROR("%s: inode "DFID": symlink length %d not expected %d\n",
 		       ll_get_fsname(inode->i_sb, NULL, 0),
-		       PFID(ll_inode2fid(inode)), body->eadatasize - 1,
+		       PFID(ll_inode2fid(inode)), body->mbo_eadatasize - 1,
 		       symlen - 1);
 		rc = -EPROTO;
 		goto failed;

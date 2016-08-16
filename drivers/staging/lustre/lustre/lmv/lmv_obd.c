@@ -1813,11 +1813,11 @@ lmv_enqueue_remote(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 
 	body = req_capsule_server_get(&req->rq_pill, &RMF_MDT_BODY);
 
-	if (!(body->valid & OBD_MD_MDS))
+	if (!(body->mbo_valid & OBD_MD_MDS))
 		return 0;
 
 	CDEBUG(D_INODE, "REMOTE_ENQUEUE '%s' on "DFID" -> "DFID"\n",
-	       LL_IT2STR(it), PFID(&op_data->op_fid1), PFID(&body->fid1));
+	       LL_IT2STR(it), PFID(&op_data->op_fid1), PFID(&body->mbo_fid1));
 
 	/*
 	 * We got LOOKUP lock, but we really need attrs.
@@ -1827,7 +1827,7 @@ lmv_enqueue_remote(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 	memcpy(&plock, lockh, sizeof(plock));
 	it->it_lock_mode = 0;
 	it->it_request = NULL;
-	fid1 = body->fid1;
+	fid1 = body->mbo_fid1;
 
 	ptlrpc_req_finished(req);
 
@@ -1917,8 +1917,8 @@ lmv_getattr_name(struct obd_export *exp, struct md_op_data *op_data,
 		return rc;
 
 	body = req_capsule_server_get(&(*preq)->rq_pill, &RMF_MDT_BODY);
-	if (body->valid & OBD_MD_MDS) {
-		struct lu_fid rid = body->fid1;
+	if (body->mbo_valid & OBD_MD_MDS) {
+		struct lu_fid rid = body->mbo_fid1;
 
 		CDEBUG(D_INODE, "Request attrs for "DFID"\n",
 		       PFID(&rid));
@@ -2433,11 +2433,11 @@ retry:
 		return -EPROTO;
 
 	/* Not cross-ref case, just get out of here. */
-	if (likely(!(body->valid & OBD_MD_MDS)))
+	if (likely(!(body->mbo_valid & OBD_MD_MDS)))
 		return 0;
 
 	CDEBUG(D_INODE, "%s: try unlink to another MDT for "DFID"\n",
-	       exp->exp_obd->obd_name, PFID(&body->fid1));
+	       exp->exp_obd->obd_name, PFID(&body->mbo_fid1));
 
 	/* This is a remote object, try remote MDT, Note: it may
 	 * try more than 1 time here, Considering following case
@@ -2459,7 +2459,7 @@ retry:
 	 * In theory, it might try unlimited time here, but it should
 	 * be very rare case.
 	 */
-	op_data->op_fid2 = body->fid1;
+	op_data->op_fid2 = body->mbo_fid1;
 	ptlrpc_req_finished(*request);
 	*request = NULL;
 

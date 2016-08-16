@@ -69,7 +69,7 @@ static int lmv_intent_remote(struct obd_export *exp, void *lmm,
 	if (!body)
 		return -EPROTO;
 
-	LASSERT((body->valid & OBD_MD_MDS));
+	LASSERT((body->mbo_valid & OBD_MD_MDS));
 
 	/*
 	 * Unfortunately, we have to lie to MDC/MDS to retrieve
@@ -88,9 +88,9 @@ static int lmv_intent_remote(struct obd_export *exp, void *lmm,
 		it->it_request = NULL;
 	}
 
-	LASSERT(fid_is_sane(&body->fid1));
+	LASSERT(fid_is_sane(&body->mbo_fid1));
 
-	tgt = lmv_find_target(lmv, &body->fid1);
+	tgt = lmv_find_target(lmv, &body->mbo_fid1);
 	if (IS_ERR(tgt)) {
 		rc = PTR_ERR(tgt);
 		goto out;
@@ -102,7 +102,7 @@ static int lmv_intent_remote(struct obd_export *exp, void *lmm,
 		goto out;
 	}
 
-	op_data->op_fid1 = body->fid1;
+	op_data->op_fid1 = body->mbo_fid1;
 	/* Sent the parent FID to the remote MDT */
 	if (parent_fid) {
 		/* The parent fid is only for remote open to
@@ -114,12 +114,12 @@ static int lmv_intent_remote(struct obd_export *exp, void *lmm,
 		/* Add object FID to op_fid3, in case it needs to check stale
 		 * (M_CHECK_STALE), see mdc_finish_intent_lock
 		 */
-		op_data->op_fid3 = body->fid1;
+		op_data->op_fid3 = body->mbo_fid1;
 	}
 
 	op_data->op_bias = MDS_CROSS_REF;
 	CDEBUG(D_INODE, "REMOTE_INTENT with fid="DFID" -> mds #%d\n",
-	       PFID(&body->fid1), tgt->ltd_idx);
+	       PFID(&body->mbo_fid1), tgt->ltd_idx);
 
 	rc = md_intent_lock(tgt->ltd_exp, op_data, lmm, lmmsize, it,
 			    flags, &req, cb_blocking, extra_lock_flags);
@@ -227,9 +227,9 @@ int lmv_revalidate_slaves(struct obd_export *exp, struct mdt_body *mbody,
 						      &RMF_MDT_BODY);
 			LASSERT(body);
 
-			if (unlikely(body->nlink < 2)) {
+			if (unlikely(body->mbo_nlink < 2)) {
 				CERROR("%s: nlink %d < 2 corrupt stripe %d "DFID":" DFID"\n",
-				       obd->obd_name, body->nlink, i,
+				       obd->obd_name, body->mbo_nlink, i,
 				       PFID(&lsm->lsm_md_oinfo[i].lmo_fid),
 				       PFID(&lsm->lsm_md_oinfo[0].lmo_fid));
 
@@ -245,11 +245,11 @@ int lmv_revalidate_slaves(struct obd_export *exp, struct mdt_body *mbody,
 				goto cleanup;
 			}
 
-			i_size_write(inode, body->size);
-			set_nlink(inode, body->nlink);
-			LTIME_S(inode->i_atime) = body->atime;
-			LTIME_S(inode->i_ctime) = body->ctime;
-			LTIME_S(inode->i_mtime) = body->mtime;
+			i_size_write(inode, body->mbo_size);
+			set_nlink(inode, body->mbo_nlink);
+			LTIME_S(inode->i_atime) = body->mbo_atime;
+			LTIME_S(inode->i_ctime) = body->mbo_ctime;
+			LTIME_S(inode->i_mtime) = body->mbo_mtime;
 
 			if (req)
 				ptlrpc_req_finished(req);
@@ -288,9 +288,9 @@ int lmv_revalidate_slaves(struct obd_export *exp, struct mdt_body *mbody,
 	       PFID(&lsm->lsm_md_oinfo[0].lmo_fid));
 
 	if (mbody) {
-		mbody->atime = atime;
-		mbody->ctime = ctime;
-		mbody->mtime = mtime;
+		mbody->mbo_atime = atime;
+		mbody->mbo_ctime = ctime;
+		mbody->mbo_mtime = mtime;
 	}
 cleanup:
 	kfree(op_data);
@@ -360,7 +360,7 @@ static int lmv_intent_open(struct obd_export *exp, struct md_op_data *op_data,
 	if (rc != 0)
 		return rc;
 	/*
-	 * Nothing is found, do not access body->fid1 as it is zero and thus
+	 * Nothing is found, do not access body->mbo_fid1 as it is zero and thus
 	 * pointless.
 	 */
 	if ((it->it_disposition & DISP_LOOKUP_NEG) &&
@@ -373,7 +373,7 @@ static int lmv_intent_open(struct obd_export *exp, struct md_op_data *op_data,
 		return -EPROTO;
 
 	/* Not cross-ref case, just get out of here. */
-	if (unlikely((body->valid & OBD_MD_MDS))) {
+	if (unlikely((body->mbo_valid & OBD_MD_MDS))) {
 		rc = lmv_intent_remote(exp, lmm, lmmsize, it, &op_data->op_fid1,
 				       flags, reqp, cb_blocking,
 				       extra_lock_flags);
@@ -470,7 +470,7 @@ static int lmv_intent_lookup(struct obd_export *exp,
 		return -EPROTO;
 
 	/* Not cross-ref case, just get out of here. */
-	if (unlikely((body->valid & OBD_MD_MDS))) {
+	if (unlikely((body->mbo_valid & OBD_MD_MDS))) {
 		rc = lmv_intent_remote(exp, lmm, lmmsize, it, NULL, flags,
 				       reqp, cb_blocking, extra_lock_flags);
 		if (rc != 0)

@@ -163,18 +163,18 @@ static inline void mdc_put_rpc_lock(struct mdc_rpc_lock *lck,
 static inline void mdc_update_max_ea_from_body(struct obd_export *exp,
 					       struct mdt_body *body)
 {
-	if (body->valid & OBD_MD_FLMODEASIZE) {
+	if (body->mbo_valid & OBD_MD_FLMODEASIZE) {
 		struct client_obd *cli = &exp->exp_obd->u.cli;
 
-		if (cli->cl_max_mds_easize < body->max_mdsize) {
-			cli->cl_max_mds_easize = body->max_mdsize;
+		if (cli->cl_max_mds_easize < body->mbo_max_mdsize) {
+			cli->cl_max_mds_easize = body->mbo_max_mdsize;
 			cli->cl_default_mds_easize =
-			    min_t(__u32, body->max_mdsize, PAGE_SIZE);
+			    min_t(__u32, body->mbo_max_mdsize, PAGE_SIZE);
 		}
-		if (cli->cl_max_mds_cookiesize < body->max_cookiesize) {
-			cli->cl_max_mds_cookiesize = body->max_cookiesize;
+		if (cli->cl_max_mds_cookiesize < body->mbo_max_cookiesize) {
+			cli->cl_max_mds_cookiesize = body->mbo_max_cookiesize;
 			cli->cl_default_mds_cookiesize =
-			    min_t(__u32, body->max_cookiesize, PAGE_SIZE);
+			    min_t(__u32, body->mbo_max_cookiesize, PAGE_SIZE);
 		}
 	}
 }

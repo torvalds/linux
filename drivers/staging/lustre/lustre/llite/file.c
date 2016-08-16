@@ -200,7 +200,7 @@ static int ll_close_inode_openhandle(struct obd_export *md_exp,
 		struct mdt_body *body;
 
 		body = req_capsule_server_get(&req->rq_pill, &RMF_MDT_BODY);
-		if (!(body->valid & OBD_MD_FLRELEASED))
+		if (!(body->mbo_valid & OBD_MD_FLRELEASED))
 			rc = -EBUSY;
 	}
 
@@ -482,8 +482,8 @@ static int ll_och_fill(struct obd_export *md_exp, struct lookup_intent *it,
 	struct mdt_body *body;
 
 	body = req_capsule_server_get(&it->it_request->rq_pill, &RMF_MDT_BODY);
-	och->och_fh = body->handle;
-	och->och_fid = body->fid1;
+	och->och_fh = body->mbo_handle;
+	och->och_fid = body->mbo_fid1;
 	och->och_lease_handle.cookie = it->it_lock_handle;
 	och->och_magic = OBD_CLIENT_HANDLE_MAGIC;
 	och->och_flags = it->it_flags;
@@ -511,7 +511,7 @@ static int ll_local_open(struct file *file, struct lookup_intent *it,
 
 		body = req_capsule_server_get(&it->it_request->rq_pill,
 					      &RMF_MDT_BODY);
-		ll_ioepoch_open(lli, body->ioepoch);
+		ll_ioepoch_open(lli, body->mbo_ioepoch);
 	}
 
 	LUSTRE_FPRIVATE(file) = fd;
@@ -1451,9 +1451,9 @@ int ll_lov_getstripe_ea_info(struct inode *inode, const char *filename,
 
 	body = req_capsule_server_get(&req->rq_pill, &RMF_MDT_BODY);
 
-	lmmsize = body->eadatasize;
+	lmmsize = body->mbo_eadatasize;
 
-	if (!(body->valid & (OBD_MD_FLEASIZE | OBD_MD_FLDIREA)) ||
+	if (!(body->mbo_valid & (OBD_MD_FLEASIZE | OBD_MD_FLDIREA)) ||
 	    lmmsize == 0) {
 		rc = -ENODATA;
 		goto out;
@@ -1484,13 +1484,13 @@ int ll_lov_getstripe_ea_info(struct inode *inode, const char *filename,
 		 */
 		if (lmm->lmm_magic == cpu_to_le32(LOV_MAGIC_V1)) {
 			lustre_swab_lov_user_md_v1((struct lov_user_md_v1 *)lmm);
-			if (S_ISREG(body->mode))
+			if (S_ISREG(body->mbo_mode))
 				lustre_swab_lov_user_md_objects(
 				 ((struct lov_user_md_v1 *)lmm)->lmm_objects,
 				 stripe_count);
 		} else if (lmm->lmm_magic == cpu_to_le32(LOV_MAGIC_V3)) {
 			lustre_swab_lov_user_md_v3((struct lov_user_md_v3 *)lmm);
-			if (S_ISREG(body->mode))
+			if (S_ISREG(body->mbo_mode))
 				lustre_swab_lov_user_md_objects(
 				 ((struct lov_user_md_v3 *)lmm)->lmm_objects,
 				 stripe_count);
@@ -2861,7 +2861,7 @@ int ll_get_fid_by_name(struct inode *parent, const char *name,
 		goto out_req;
 	}
 	if (fid)
-		*fid = body->fid1;
+		*fid = body->mbo_fid1;
 out_req:
 	ptlrpc_req_finished(req);
 	return rc;
@@ -3583,7 +3583,7 @@ static int ll_layout_fetch(struct inode *inode, struct ldlm_lock *lock)
 		goto out;
 	}
 
-	lmmsize = body->eadatasize;
+	lmmsize = body->mbo_eadatasize;
 	if (lmmsize == 0) /* empty layout */ {
 		rc = 0;
 		goto out;
