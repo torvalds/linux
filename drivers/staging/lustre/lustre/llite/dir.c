@@ -622,6 +622,33 @@ static int ll_readdir(struct file *filp, struct dir_context *ctx)
 		goto out;
 	}
 
+	if (unlikely(op_data->op_mea1)) {
+		/*
+		 * This is only needed for striped dir to fill ..,
+		 * see lmv_read_page
+		 */
+		if (file_dentry(filp)->d_parent &&
+		    file_dentry(filp)->d_parent->d_inode) {
+			__u64 ibits = MDS_INODELOCK_UPDATE;
+			struct inode *parent;
+
+			parent = file_dentry(filp)->d_parent->d_inode;
+			if (ll_have_md_lock(parent, &ibits, LCK_MINMODE))
+				op_data->op_fid3 = *ll_inode2fid(parent);
+		}
+
+		/*
+		 * If it can not find in cache, do lookup .. on the master
+		 * object
+		 */
+		if (fid_is_zero(&op_data->op_fid3)) {
+			rc = ll_dir_get_parent_fid(inode, &op_data->op_fid3);
+			if (rc) {
+				ll_finish_md_op_data(op_data);
+				return rc;
+			}
+		}
+	}
 	ctx->pos = pos;
 	rc = ll_dir_read(inode, &pos, op_data, ctx);
 	pos = ctx->pos;
