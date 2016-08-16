@@ -807,7 +807,7 @@ void link_prepare_wakeup(struct tipc_link *l)
 
 	skb_queue_walk_safe(&l->wakeupq, skb, tmp) {
 		imp = TIPC_SKB_CB(skb)->chain_imp;
-		lim = l->window + l->backlog[imp].limit;
+		lim = l->backlog[imp].limit;
 		pnd[imp] += TIPC_SKB_CB(skb)->chain_sz;
 		if ((pnd[imp] + l->backlog[imp].len) >= lim)
 			break;
@@ -873,9 +873,11 @@ int tipc_link_xmit(struct tipc_link *l, struct sk_buff_head *list,
 	struct sk_buff *skb, *_skb, *bskb;
 
 	/* Match msg importance against this and all higher backlog limits: */
-	for (i = imp; i <= TIPC_SYSTEM_IMPORTANCE; i++) {
-		if (unlikely(l->backlog[i].len >= l->backlog[i].limit))
-			return link_schedule_user(l, list);
+	if (!skb_queue_empty(backlogq)) {
+		for (i = imp; i <= TIPC_SYSTEM_IMPORTANCE; i++) {
+			if (unlikely(l->backlog[i].len >= l->backlog[i].limit))
+				return link_schedule_user(l, list);
+		}
 	}
 	if (unlikely(msg_size(hdr) > mtu)) {
 		skb_queue_purge(list);
@@ -1692,10 +1694,10 @@ void tipc_link_set_queue_limits(struct tipc_link *l, u32 win)
 	int max_bulk = TIPC_MAX_PUBLICATIONS / (l->mtu / ITEM_SIZE);
 
 	l->window = win;
-	l->backlog[TIPC_LOW_IMPORTANCE].limit      = win / 2;
-	l->backlog[TIPC_MEDIUM_IMPORTANCE].limit   = win;
-	l->backlog[TIPC_HIGH_IMPORTANCE].limit     = win / 2 * 3;
-	l->backlog[TIPC_CRITICAL_IMPORTANCE].limit = win * 2;
+	l->backlog[TIPC_LOW_IMPORTANCE].limit      = max_t(u16, 50, win);
+	l->backlog[TIPC_MEDIUM_IMPORTANCE].limit   = max_t(u16, 100, win * 2);
+	l->backlog[TIPC_HIGH_IMPORTANCE].limit     = max_t(u16, 150, win * 3);
+	l->backlog[TIPC_CRITICAL_IMPORTANCE].limit = max_t(u16, 200, win * 4);
 	l->backlog[TIPC_SYSTEM_IMPORTANCE].limit   = max_bulk;
 }
 
