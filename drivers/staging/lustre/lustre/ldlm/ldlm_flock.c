@@ -339,10 +339,10 @@ reprocess:
 						lock->l_granted_mode, &null_cbs,
 						NULL, 0, LVB_T_NONE);
 			lock_res_and_lock(req);
-			if (!new2) {
+			if (IS_ERR(new2)) {
 				ldlm_flock_destroy(req, lock->l_granted_mode,
 						   *flags);
-				*err = -ENOLCK;
+				*err = PTR_ERR(new2);
 				return LDLM_ITER_STOP;
 			}
 			goto reprocess;

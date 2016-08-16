@@ -481,8 +481,8 @@ int ldlm_lock_change_resource(struct ldlm_namespace *ns, struct ldlm_lock *lock,
 	unlock_res_and_lock(lock);
 
 	newres = ldlm_resource_get(ns, NULL, new_resid, type, 1);
-	if (!newres)
-		return -ENOMEM;
+	if (IS_ERR(newres))
+		return PTR_ERR(newres);
 
 	lu_ref_add(&newres->lr_reference, "lock", lock);
 	/*
@@ -1227,7 +1227,7 @@ enum ldlm_mode ldlm_lock_match(struct ldlm_namespace *ns, __u64 flags,
 	}
 
 	res = ldlm_resource_get(ns, NULL, res_id, type, 0);
-	if (!res) {
+	if (IS_ERR(res)) {
 		LASSERT(!old_lock);
 		return 0;
 	}
@@ -1475,15 +1475,15 @@ struct ldlm_lock *ldlm_lock_create(struct ldlm_namespace *ns,
 {
 	struct ldlm_lock *lock;
 	struct ldlm_resource *res;
+	int rc;
 
 	res = ldlm_resource_get(ns, NULL, res_id, type, 1);
-	if (!res)
-		return NULL;
+	if (IS_ERR(res))
+		return ERR_CAST(res);
 
 	lock = ldlm_lock_new(res);
-
 	if (!lock)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	lock->l_req_mode = mode;
 	lock->l_ast_data = data;
@@ -1497,27 +1497,33 @@ struct ldlm_lock *ldlm_lock_create(struct ldlm_namespace *ns,
 	lock->l_tree_node = NULL;
 	/* if this is the extent lock, allocate the interval tree node */
 	if (type == LDLM_EXTENT) {
-		if (!ldlm_interval_alloc(lock))
+		if (!ldlm_interval_alloc(lock)) {
+			rc = -ENOMEM;
 			goto out;
+		}
 	}
 
 	if (lvb_len) {
 		lock->l_lvb_len = lvb_len;
 		lock->l_lvb_data = kzalloc(lvb_len, GFP_NOFS);
-		if (!lock->l_lvb_data)
+		if (!lock->l_lvb_data) {
+			rc = -ENOMEM;
 			goto out;
+		}
 	}
 
 	lock->l_lvb_type = lvb_type;
-	if (OBD_FAIL_CHECK(OBD_FAIL_LDLM_NEW_LOCK))
+	if (OBD_FAIL_CHECK(OBD_FAIL_LDLM_NEW_LOCK)) {
+		rc = -ENOENT;
 		goto out;
+	}
 
 	return lock;
 
 out:
 	ldlm_lock_destroy(lock);
 	LDLM_LOCK_RELEASE(lock);
-	return NULL;
+	return ERR_PTR(rc);
 }
 
 /**

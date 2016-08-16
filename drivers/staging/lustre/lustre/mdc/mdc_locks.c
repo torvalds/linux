@@ -174,7 +174,7 @@ int mdc_null_inode(struct obd_export *exp,
 	fid_build_reg_res_name(fid, &res_id);
 
 	res = ldlm_resource_get(ns, NULL, &res_id, 0, 0);
-	if (!res)
+	if (IS_ERR(res))
 		return 0;
 
 	lock_res(res);
