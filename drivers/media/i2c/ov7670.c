@@ -10,6 +10,7 @@
  * This file may be distributed under the terms of the GNU General
  * Public License, version 2.
  */
+#include <linux/clk.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -227,6 +228,7 @@ struct ov7670_info {
 		struct v4l2_ctrl *hue;
 	};
 	struct ov7670_format_struct *fmt;  /* Current format */
+	struct clk *clk;
 	int min_width;			/* Filter out smaller sizes */
 	int min_height;			/* Filter out smaller sizes */
 	int clock_speed;		/* External clock speed (MHz) */
@@ -1587,13 +1589,24 @@ static int ov7670_probe(struct i2c_client *client,
 			info->pclk_hb_disable = true;
 	}
 
+	info->clk = devm_clk_get(&client->dev, "xclk");
+	if (IS_ERR(info->clk))
+		return -EPROBE_DEFER;
+	clk_prepare_enable(info->clk);
+
+	info->clock_speed = clk_get_rate(info->clk) / 1000000;
+	if (info->clock_speed < 10 || info->clock_speed > 48) {
+		ret = -EINVAL;
+		goto clk_disable;
+	}
+
 	/* Make sure it's an ov7670 */
 	ret = ov7670_detect(sd);
 	if (ret) {
 		v4l_dbg(1, debug, client,
 			"chip found @ 0x%x (%s) is not an ov7670 chip.\n",
 			client->addr << 1, client->adapter->name);
-		return ret;
+		goto clk_disable;
 	}
 	v4l_info(client, "chip found @ 0x%02x (%s)\n",
 			client->addr << 1, client->adapter->name);
@@ -1656,6 +1669,8 @@ static int ov7670_probe(struct i2c_client *client,
 
 hdl_free:
 	v4l2_ctrl_handler_free(&info->hdl);
+clk_disable:
+	clk_disable_unprepare(info->clk);
 	return ret;
 }
 
@@ -1667,6 +1682,7 @@ static int ov7670_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&info->hdl);
+	clk_disable_unprepare(info->clk);
 	return 0;
 }
 
