@@ -97,6 +97,8 @@ static const char * const obd_connect_names[] = {
 	"flock_deadlock",
 	"disp_stripe",
 	"unknown",
+	"lfsck",
+	"unknown",
 	NULL
 };
 
