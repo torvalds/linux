@@ -1106,3 +1106,48 @@ struct iomap_ops xfs_iomap_ops = {
 	.iomap_begin		= xfs_file_iomap_begin,
 	.iomap_end		= xfs_file_iomap_end,
 };
+
+static int
+xfs_xattr_iomap_begin(
+	struct inode		*inode,
+	loff_t			offset,
+	loff_t			length,
+	unsigned		flags,
+	struct iomap		*iomap)
+{
+	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_mount	*mp = ip->i_mount;
+	xfs_fileoff_t		offset_fsb = XFS_B_TO_FSBT(mp, offset);
+	xfs_fileoff_t		end_fsb = XFS_B_TO_FSB(mp, offset + length);
+	struct xfs_bmbt_irec	imap;
+	int			nimaps = 1, error = 0;
+	unsigned		lockmode;
+
+	if (XFS_FORCED_SHUTDOWN(mp))
+		return -EIO;
+
+	lockmode = xfs_ilock_data_map_shared(ip);
+
+	/* if there are no attribute fork or extents, return ENOENT */
+	if (XFS_IFORK_Q(ip) || !ip->i_d.di_anextents) {
+		error = -ENOENT;
+		goto out_unlock;
+	}
+
+	ASSERT(ip->i_d.di_aformat != XFS_DINODE_FMT_LOCAL);
+	error = xfs_bmapi_read(ip, offset_fsb, end_fsb - offset_fsb, &imap,
+			       &nimaps, XFS_BMAPI_ENTIRE | XFS_BMAPI_ATTRFORK);
+out_unlock:
+	xfs_iunlock(ip, lockmode);
+
+	if (!error) {
+		ASSERT(nimaps);
+		xfs_bmbt_to_iomap(ip, iomap, &imap);
+	}
+
+	return error;
+}
+
+struct iomap_ops xfs_xattr_iomap_ops = {
+	.iomap_begin		= xfs_xattr_iomap_begin,
+};
