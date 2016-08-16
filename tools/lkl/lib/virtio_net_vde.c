@@ -22,13 +22,15 @@ static int net_vde_tx(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt);
 static int net_vde_rx(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt);
 static int net_vde_poll_with_timeout(struct lkl_netdev *nd, int timeout);
 static int net_vde_poll(struct lkl_netdev *nd);
-static int net_vde_close(struct lkl_netdev *nd);
+static void net_vde_poll_hup(struct lkl_netdev *nd);
+static void net_vde_free(struct lkl_netdev *nd);
 
 struct lkl_dev_net_ops vde_net_ops = {
 	.tx = net_vde_tx,
 	.rx = net_vde_rx,
 	.poll = net_vde_poll,
-	.close = net_vde_close,
+	.poll_hup = net_vde_poll_hup,
+	.free = net_vde_free,
 };
 
 int net_vde_tx(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt)
@@ -107,12 +109,20 @@ int net_vde_poll(struct lkl_netdev *nd)
 	return net_vde_poll_with_timeout(nd, -1);
 }
 
-void net_vde_close(struct lkl_netdev *nd)
+void net_vde_poll_hup(struct lkl_netdev *nd)
 {
 	struct lkl_netdev_vde *nd_vde =
 		container_of(nd, struct lkl_netdev_vde, dev);
 
 	vde_close(nd_vde->conn);
+}
+
+void net_vde_free(struct lkl_netdev *nd)
+{
+	struct lkl_netdev_vde *nd_vde =
+		container_of(nd, struct lkl_netdev_vde, dev);
+
+	free(nd_vde);
 }
 
 struct lkl_netdev *lkl_netdev_vde_create(char const *switch_path)

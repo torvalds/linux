@@ -275,6 +275,9 @@ void lkl_netdev_remove(int id)
 
 	dev = registered_devs[id];
 
+	dev->nd->ops->poll_hup(dev->nd);
+	lkl_host_ops.thread_join(dev->poll_tid);
+
 	ret = lkl_netdev_get_ifindex(id);
 	if (ret < 0) {
 		lkl_printf("%s: failed to get ifindex for id %d: %s\n",
@@ -289,13 +292,13 @@ void lkl_netdev_remove(int id)
 		return;
 	}
 
-	dev->nd->ops->close(dev->nd);
-
-	lkl_host_ops.thread_join(dev->poll_tid);
-
 	virtio_dev_cleanup(&dev->dev);
 
-	lkl_host_ops.mem_free(dev->nd);
 	free_queue_locks(dev->queue_locks, NUM_QUEUES);
 	lkl_host_ops.mem_free(dev);
+}
+
+void lkl_netdev_free(struct lkl_netdev *nd)
+{
+	nd->ops->free(nd);
 }

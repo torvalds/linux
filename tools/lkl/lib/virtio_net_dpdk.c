@@ -170,7 +170,7 @@ static int net_poll(struct lkl_netdev *nd)
 	return LKL_DEV_NET_POLL_RX | LKL_DEV_NET_POLL_TX;
 }
 
-static void net_close(struct lkl_netdev *nd)
+static void net_poll_hup(struct lkl_netdev *nd)
 {
 	struct lkl_netdev_dpdk *nd_dpdk =
 		container_of(nd, struct lkl_netdev_dpdk, dev);
@@ -178,11 +178,20 @@ static void net_close(struct lkl_netdev *nd)
 	nd_dpdk->close = 1;
 }
 
+static void net_free(struct lkl_netdev *nd)
+{
+	struct lkl_netdev_dpdk *nd_dpdk =
+		container_of(nd, struct lkl_netdev_dpdk, dev);
+
+	free(nd_dpdk);
+}
+
 struct lkl_dev_net_ops dpdk_net_ops = {
 	.tx = net_tx,
 	.rx = net_rx,
 	.poll = net_poll,
-	.close = net_close,
+	.poll_hup = net_poll_hup,
+	.free = net_free,
 };
 
 

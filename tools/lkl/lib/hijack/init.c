@@ -179,6 +179,7 @@ static void PinToFirstCpu(const cpu_set_t* cpus)
 int lkl_debug, lkl_running;
 
 static int nd_id = -1;
+static struct lkl_netdev *nd;
 
 void __attribute__((constructor(102)))
 hijack_init(void)
@@ -199,7 +200,6 @@ hijack_init(void)
 	char *gateway6 = getenv("LKL_HIJACK_NET_GATEWAY6");
 	char *debug = getenv("LKL_HIJACK_DEBUG");
 	char *mount = getenv("LKL_HIJACK_MOUNT");
-	struct lkl_netdev *nd = NULL;
 	struct lkl_netdev_args nd_args;
 	char *neigh_entries = getenv("LKL_HIJACK_NET_NEIGHBOR");
 	/* single_cpu mode:
@@ -435,6 +435,9 @@ hijack_fini(void)
 
 	if (nd_id >= 0)
 		lkl_netdev_remove(nd_id);
+
+	if (nd)
+		lkl_netdev_free(nd);
 
 	lkl_sys_halt();
 }

@@ -280,6 +280,13 @@ int lkl_netdev_add(struct lkl_netdev *nd, struct lkl_netdev_args* args);
 void lkl_netdev_remove(int id);
 
 /**
+ * lkl_netdev_free - frees a network device
+ *
+ * @nd - the network device to free
+ */
+void lkl_netdev_free(struct lkl_netdev *nd);
+
+/**
  * lkl_netdev_get_ifindex - retrieve the interface index for a given network
  * device id
  *

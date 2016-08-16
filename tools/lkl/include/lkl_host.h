@@ -97,12 +97,17 @@ struct lkl_dev_net_ops {
 	int (*poll)(struct lkl_netdev *nd);
 
 	/*
-	 * Closes a net device.
-	 *
-	 * Implementation must release its resources and poll must wakeup and
-	 * return LKL_DEV_NET_POLL_HUP.
+	 * Make poll wakeup and return LKL_DEV_NET_POLL_HUP.
 	 */
-	void (*close)(struct lkl_netdev *nd);
+	void (*poll_hup)(struct lkl_netdev *nd);
+
+	/*
+	 * Frees a network device.
+	 *
+	 * Implementation must release its resources and free the network device
+	 * structure.
+	 */
+	void (*free)(struct lkl_netdev *nd);
 };
 
 #ifdef __cplusplus
