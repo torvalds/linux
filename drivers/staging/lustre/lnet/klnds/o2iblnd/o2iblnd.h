@@ -582,6 +582,8 @@ struct kib_peer {
 	unsigned short		ibp_connecting;
 	/* reconnect this peer later */
 	unsigned short		ibp_reconnecting:1;
+	/* counter of how many times we triggered a conn race */
+	unsigned char		ibp_races;
 	/* # consecutive reconnection attempts to this peer */
 	unsigned int		ibp_reconnected;
 	/* errno on closing this peer */

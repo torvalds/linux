@@ -36,6 +36,8 @@
 
 #include "o2iblnd.h"
 
+#define MAX_CONN_RACES_BEFORE_ABORT 20
+
 static void kiblnd_peer_alive(struct kib_peer *peer);
 static void kiblnd_peer_connect_failed(struct kib_peer *peer, int active, int error);
 static void kiblnd_init_tx_msg(lnet_ni_t *ni, struct kib_tx *tx,
@@ -2405,23 +2407,37 @@ kiblnd_passive_connect(struct rdma_cm_id *cmid, void *priv, int priv_nob)
 			goto failed;
 		}
 
-		/* tie-break connection race in favour of the higher NID */
+		/*
+		 * Tie-break connection race in favour of the higher NID.
+		 * If we keep running into a race condition multiple times,
+		 * we have to assume that the connection attempt with the
+		 * higher NID is stuck in a connecting state and will never
+		 * recover.  As such, we pass through this if-block and let
+		 * the lower NID connection win so we can move forward.
+		 */
 		if (peer2->ibp_connecting &&
-		    nid < ni->ni_nid) {
+		    nid < ni->ni_nid && peer2->ibp_races <
+		    MAX_CONN_RACES_BEFORE_ABORT) {
+			peer2->ibp_races++;
 			write_unlock_irqrestore(g_lock, flags);
 
-			CWARN("Conn race %s\n", libcfs_nid2str(peer2->ibp_nid));
+			CDEBUG(D_NET, "Conn race %s\n",
+			       libcfs_nid2str(peer2->ibp_nid));
 
 			kiblnd_peer_decref(peer);
 			rej.ibr_why = IBLND_REJECT_CONN_RACE;
 			goto failed;
 		}
-
+		if (peer2->ibp_races >= MAX_CONN_RACES_BEFORE_ABORT)
+			CNETERR("Conn race %s: unresolved after %d attempts, letting lower NID win\n",
+				libcfs_nid2str(peer2->ibp_nid),
+				MAX_CONN_RACES_BEFORE_ABORT);
 		/**
 		 * passive connection is allowed even this peer is waiting for
 		 * reconnection.
 		 */
 		peer2->ibp_reconnecting = 0;
+		peer2->ibp_races = 0;
 		peer2->ibp_accepting++;
 		kiblnd_peer_addref(peer2);
 
