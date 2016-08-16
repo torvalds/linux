@@ -10,6 +10,7 @@
 /include/ "skeleton_hs.dtsi"
 
 / {
+	model = "snps,nsimosci_hs";
 	compatible = "snps,nsimosci_hs";
 	#address-cells = <1>;
 	#size-cells = <1>;
