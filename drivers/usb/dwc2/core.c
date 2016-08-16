@@ -553,16 +553,20 @@ static int dwc2_fs_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 	 */
 	if (select_phy) {
 		dev_dbg(hsotg->dev, "FS PHY selected\n");
-		usbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
-		usbcfg |= GUSBCFG_PHYSEL;
-		dwc2_writel(usbcfg, hsotg->regs + GUSBCFG);
 
-		/* Reset after a PHY select */
-		retval = dwc2_core_reset(hsotg);
-		if (retval) {
-			dev_err(hsotg->dev, "%s() Reset failed, aborting",
-					__func__);
-			return retval;
+		usbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
+		if (!(usbcfg & GUSBCFG_PHYSEL)) {
+			usbcfg |= GUSBCFG_PHYSEL;
+			dwc2_writel(usbcfg, hsotg->regs + GUSBCFG);
+
+			/* Reset after a PHY select */
+			retval = dwc2_core_reset(hsotg);
+
+			if (retval) {
+				dev_err(hsotg->dev,
+					"%s: Reset failed, aborting", __func__);
+				return retval;
+			}
 		}
 	}
 
@@ -597,13 +601,13 @@ static int dwc2_fs_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 
 static int dwc2_hs_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 {
-	u32 usbcfg;
+	u32 usbcfg, usbcfg_old;
 	int retval = 0;
 
 	if (!select_phy)
 		return 0;
 
-	usbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
+	usbcfg = usbcfg_old = dwc2_readl(hsotg->regs + GUSBCFG);
 
 	/*
 	 * HS PHY parameters. These parameters are preserved during soft reset
@@ -631,14 +635,16 @@ static int dwc2_hs_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 		break;
 	}
 
-	dwc2_writel(usbcfg, hsotg->regs + GUSBCFG);
+	if (usbcfg != usbcfg_old) {
+		dwc2_writel(usbcfg, hsotg->regs + GUSBCFG);
 
-	/* Reset after setting the PHY parameters */
-	retval = dwc2_core_reset(hsotg);
-	if (retval) {
-		dev_err(hsotg->dev, "%s() Reset failed, aborting",
-				__func__);
-		return retval;
+		/* Reset after setting the PHY parameters */
+		retval = dwc2_core_reset(hsotg);
+		if (retval) {
+			dev_err(hsotg->dev,
+				"%s: Reset failed, aborting", __func__);
+			return retval;
+		}
 	}
 
 	return retval;
