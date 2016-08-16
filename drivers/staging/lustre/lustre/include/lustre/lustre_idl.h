@@ -1033,7 +1033,7 @@ static inline int lu_dirent_calc_size(int namelen, __u16 attr)
 	return (size + 7) & ~7;
 }
 
-static inline int lu_dirent_size(struct lu_dirent *ent)
+static inline int lu_dirent_size(const struct lu_dirent *ent)
 {
 	if (le16_to_cpu(ent->lde_reclen) == 0) {
 		return lu_dirent_calc_size(le16_to_cpu(ent->lde_namelen),
@@ -1067,7 +1067,7 @@ struct lustre_handle {
 
 #define DEAD_HANDLE_MAGIC 0xdeadbeefcafebabeULL
 
-static inline int lustre_handle_is_used(struct lustre_handle *lh)
+static inline int lustre_handle_is_used(const struct lustre_handle *lh)
 {
 	return lh->cookie != 0ull;
 }
@@ -1079,7 +1079,7 @@ static inline int lustre_handle_equal(const struct lustre_handle *lh1,
 }
 
 static inline void lustre_handle_copy(struct lustre_handle *tgt,
-				      struct lustre_handle *src)
+				      const struct lustre_handle *src)
 {
 	tgt->cookie = src->cookie;
 }
@@ -1570,25 +1570,25 @@ static inline void lmm_oi_set_id(struct ost_id *oi, __u64 oid)
 	oi->oi.oi_id = oid;
 }
 
-static inline __u64 lmm_oi_id(struct ost_id *oi)
+static inline __u64 lmm_oi_id(const struct ost_id *oi)
 {
 	return oi->oi.oi_id;
 }
 
-static inline __u64 lmm_oi_seq(struct ost_id *oi)
+static inline __u64 lmm_oi_seq(const struct ost_id *oi)
 {
 	return oi->oi.oi_seq;
 }
 
 static inline void lmm_oi_le_to_cpu(struct ost_id *dst_oi,
-				    struct ost_id *src_oi)
+				    const struct ost_id *src_oi)
 {
 	dst_oi->oi.oi_id = le64_to_cpu(src_oi->oi.oi_id);
 	dst_oi->oi.oi_seq = le64_to_cpu(src_oi->oi.oi_seq);
 }
 
 static inline void lmm_oi_cpu_to_le(struct ost_id *dst_oi,
-				    struct ost_id *src_oi)
+				    const struct ost_id *src_oi)
 {
 	dst_oi->oi.oi_id = cpu_to_le64(src_oi->oi.oi_id);
 	dst_oi->oi.oi_seq = cpu_to_le64(src_oi->oi.oi_seq);
@@ -2724,15 +2724,15 @@ struct ldlm_extent {
 
 #define LDLM_GID_ANY ((__u64)-1)
 
-static inline int ldlm_extent_overlap(struct ldlm_extent *ex1,
-				      struct ldlm_extent *ex2)
+static inline int ldlm_extent_overlap(const struct ldlm_extent *ex1,
+				      const struct ldlm_extent *ex2)
 {
 	return (ex1->start <= ex2->end) && (ex2->start <= ex1->end);
 }
 
 /* check if @ex1 contains @ex2 */
-static inline int ldlm_extent_contain(struct ldlm_extent *ex1,
-				      struct ldlm_extent *ex2)
+static inline int ldlm_extent_contain(const struct ldlm_extent *ex1,
+				      const struct ldlm_extent *ex2)
 {
 	return (ex1->start <= ex2->start) && (ex1->end >= ex2->end);
 }
@@ -3092,7 +3092,7 @@ enum agent_req_status {
 	ARS_SUCCEED,
 };
 
-static inline char *agent_req_status2name(enum agent_req_status ars)
+static inline const char *agent_req_status2name(const enum agent_req_status ars)
 {
 	switch (ars) {
 	case ARS_WAITING:
@@ -3268,7 +3268,7 @@ struct obdo {
 #define o_cksum   o_nlink
 #define o_grant_used o_data_version
 
-static inline void lustre_set_wire_obdo(struct obd_connect_data *ocd,
+static inline void lustre_set_wire_obdo(const struct obd_connect_data *ocd,
 					struct obdo *wobdo,
 					const struct obdo *lobdo)
 {
@@ -3287,7 +3287,7 @@ static inline void lustre_set_wire_obdo(struct obd_connect_data *ocd,
 	}
 }
 
-static inline void lustre_get_wire_obdo(struct obd_connect_data *ocd,
+static inline void lustre_get_wire_obdo(const struct obd_connect_data *ocd,
 					struct obdo *lobdo,
 					const struct obdo *wobdo)
 {

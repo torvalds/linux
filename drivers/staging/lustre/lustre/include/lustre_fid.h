@@ -483,7 +483,7 @@ fid_build_pdo_res_name(const struct lu_fid *fid, unsigned int hash,
  *    res will be built from normal FID directly, i.e. res[0] = f_seq,
  *    res[1] = f_oid + f_ver.
  */
-static inline void ostid_build_res_name(struct ost_id *oi,
+static inline void ostid_build_res_name(const struct ost_id *oi,
 					struct ldlm_res_id *name)
 {
 	memset(name, 0, sizeof(*name));
@@ -498,8 +498,8 @@ static inline void ostid_build_res_name(struct ost_id *oi,
 /**
  * Return true if the resource is for the object identified by this id & group.
  */
-static inline int ostid_res_name_eq(struct ost_id *oi,
-				    struct ldlm_res_id *name)
+static inline int ostid_res_name_eq(const struct ost_id *oi,
+				    const struct ldlm_res_id *name)
 {
 	/* Note: it is just a trick here to save some effort, probably the
 	 * correct way would be turn them into the FID and compare
@@ -610,7 +610,8 @@ static inline __u32 fid_flatten32(const struct lu_fid *fid)
 	return ino ? ino : fid_oid(fid);
 }
 
-static inline int lu_fid_diff(struct lu_fid *fid1, struct lu_fid *fid2)
+static inline int lu_fid_diff(const struct lu_fid *fid1,
+			      const struct lu_fid *fid2)
 {
 	LASSERTF(fid_seq(fid1) == fid_seq(fid2), "fid1:"DFID", fid2:"DFID"\n",
 		 PFID(fid1), PFID(fid2));
