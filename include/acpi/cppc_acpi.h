@@ -65,6 +65,7 @@ struct cpc_desc {
 	int write_cmd_id;
 	struct cpc_register_resource cpc_regs[MAX_CPC_REG_ENT];
 	struct acpi_psd_package domain_info;
+	struct kobject kobj;
 };
 
 /* These are indexes into the per-cpu cpc_regs[]. Order is important. */
@@ -99,7 +100,6 @@ enum cppc_regs {
 struct cppc_perf_caps {
 	u32 highest_perf;
 	u32 nominal_perf;
-	u32 reference_perf;
 	u32 lowest_perf;
 };
 
@@ -111,9 +111,9 @@ struct cppc_perf_ctrls {
 
 struct cppc_perf_fb_ctrs {
 	u64 reference;
-	u64 prev_reference;
 	u64 delivered;
-	u64 prev_delivered;
+	u64 reference_perf;
+	u64 ctr_wrap_time;
 };
 
 /* Per CPU container for runtime CPPC management. */
