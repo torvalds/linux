@@ -189,7 +189,7 @@ config GPIO_EP93XX
 config GPIO_ETRAXFS
 	bool "Axis ETRAX FS General I/O"
 	depends on CRIS || COMPILE_TEST
-	depends on OF
+	depends on OF_GPIO
 	select GPIO_GENERIC
 	select GPIOLIB_IRQCHIP
 	help
@@ -215,7 +215,7 @@ config GPIO_GENERIC_PLATFORM
 
 config GPIO_GRGPIO
 	tristate "Aeroflex Gaisler GRGPIO support"
-	depends on OF
+	depends on OF_GPIO
 	select GPIO_GENERIC
 	select IRQ_DOMAIN
 	help
@@ -313,7 +313,7 @@ config GPIO_MPC8XXX
 config GPIO_MVEBU
 	def_bool y
 	depends on PLAT_ORION
-	depends on OF
+	depends on OF_GPIO
 	select GENERIC_IRQ_CHIP
 
 config GPIO_MXC
@@ -406,7 +406,7 @@ config GPIO_TEGRA
 	bool "NVIDIA Tegra GPIO support"
 	default ARCH_TEGRA
 	depends on ARCH_TEGRA || COMPILE_TEST
-	depends on OF
+	depends on OF_GPIO
 	help
 	  Say yes here to support GPIO pins on NVIDIA Tegra SoCs.
 
@@ -1100,7 +1100,7 @@ menu "SPI GPIO expanders"
 
 config GPIO_74X164
 	tristate "74x164 serial-in/parallel-out 8-bits shift register"
-	depends on OF
+	depends on OF_GPIO
 	help
 	  Driver for 74x164 compatible serial-in/parallel-out 8-outputs
 	  shift registers. This driver can be used to provide access
