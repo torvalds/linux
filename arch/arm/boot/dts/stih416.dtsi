@@ -474,6 +474,7 @@
 			status		= "disabled";
 			#pwm-cells	= <2>;
 			reg		= <0xfed10000 0x68>;
+			interrupts      = <GIC_SPI 200 IRQ_TYPE_NONE>;
 
 			pinctrl-names	= "default";
 			pinctrl-0 = 	<&pinctrl_pwm0_chan0_default
@@ -492,6 +493,7 @@
 			status		= "disabled";
 			#pwm-cells	= <2>;
 			reg		= <0xfe510000 0x68>;
+			interrupts      = <GIC_SPI 202 IRQ_TYPE_NONE>;
 
 			pinctrl-names	= "default";
 			pinctrl-0	= <&pinctrl_pwm1_chan0_default
