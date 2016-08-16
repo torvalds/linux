@@ -558,15 +558,15 @@ static inline struct mtk_tx_buf *mtk_desc_to_tx_buf(struct mtk_tx_ring *ring,
 	return &ring->buf[idx];
 }
 
-static void mtk_tx_unmap(struct device *dev, struct mtk_tx_buf *tx_buf)
+static void mtk_tx_unmap(struct mtk_eth *eth, struct mtk_tx_buf *tx_buf)
 {
 	if (tx_buf->flags & MTK_TX_FLAGS_SINGLE0) {
-		dma_unmap_single(dev,
+		dma_unmap_single(eth->dev,
 				 dma_unmap_addr(tx_buf, dma_addr0),
 				 dma_unmap_len(tx_buf, dma_len0),
 				 DMA_TO_DEVICE);
 	} else if (tx_buf->flags & MTK_TX_FLAGS_PAGE0) {
-		dma_unmap_page(dev,
+		dma_unmap_page(eth->dev,
 			       dma_unmap_addr(tx_buf, dma_addr0),
 			       dma_unmap_len(tx_buf, dma_len0),
 			       DMA_TO_DEVICE);
@@ -611,9 +611,9 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 	if (skb_vlan_tag_present(skb))
 		txd4 |= TX_DMA_INS_VLAN | skb_vlan_tag_get(skb);
 
-	mapped_addr = dma_map_single(&dev->dev, skb->data,
+	mapped_addr = dma_map_single(eth->dev, skb->data,
 				     skb_headlen(skb), DMA_TO_DEVICE);
-	if (unlikely(dma_mapping_error(&dev->dev, mapped_addr)))
+	if (unlikely(dma_mapping_error(eth->dev, mapped_addr)))
 		return -ENOMEM;
 
 	WRITE_ONCE(itxd->txd1, mapped_addr);
@@ -639,10 +639,10 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 
 			n_desc++;
 			frag_map_size = min(frag_size, MTK_TX_DMA_BUF_LEN);
-			mapped_addr = skb_frag_dma_map(&dev->dev, frag, offset,
+			mapped_addr = skb_frag_dma_map(eth->dev, frag, offset,
 						       frag_map_size,
 						       DMA_TO_DEVICE);
-			if (unlikely(dma_mapping_error(&dev->dev, mapped_addr)))
+			if (unlikely(dma_mapping_error(eth->dev, mapped_addr)))
 				goto err_dma;
 
 			if (i == nr_frags - 1 &&
@@ -695,7 +695,7 @@ err_dma:
 		tx_buf = mtk_desc_to_tx_buf(ring, itxd);
 
 		/* unmap dma */
-		mtk_tx_unmap(&dev->dev, tx_buf);
+		mtk_tx_unmap(eth, tx_buf);
 
 		itxd->txd3 = TX_DMA_LS0 | TX_DMA_OWNER_CPU;
 		itxd = mtk_qdma_phys_to_virt(ring, itxd->txd2);
@@ -852,11 +852,11 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 			netdev->stats.rx_dropped++;
 			goto release_desc;
 		}
-		dma_addr = dma_map_single(&eth->netdev[mac]->dev,
+		dma_addr = dma_map_single(eth->dev,
 					  new_data + NET_SKB_PAD,
 					  ring->buf_size,
 					  DMA_FROM_DEVICE);
-		if (unlikely(dma_mapping_error(&netdev->dev, dma_addr))) {
+		if (unlikely(dma_mapping_error(eth->dev, dma_addr))) {
 			skb_free_frag(new_data);
 			netdev->stats.rx_dropped++;
 			goto release_desc;
@@ -871,7 +871,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 		}
 		skb_reserve(skb, NET_SKB_PAD + NET_IP_ALIGN);
 
-		dma_unmap_single(&netdev->dev, trxd.rxd1,
+		dma_unmap_single(eth->dev, trxd.rxd1,
 				 ring->buf_size, DMA_FROM_DEVICE);
 		pktlen = RX_DMA_GET_PLEN0(trxd.rxd2);
 		skb->dev = netdev;
@@ -953,7 +953,7 @@ static int mtk_poll_tx(struct mtk_eth *eth, int budget)
 			done[mac]++;
 			budget--;
 		}
-		mtk_tx_unmap(eth->dev, tx_buf);
+		mtk_tx_unmap(eth, tx_buf);
 
 		ring->last_free = desc;
 		atomic_inc(&ring->free_count);
@@ -1108,7 +1108,7 @@ static void mtk_tx_clean(struct mtk_eth *eth)
 
 	if (ring->buf) {
 		for (i = 0; i < MTK_DMA_SIZE; i++)
-			mtk_tx_unmap(eth->dev, &ring->buf[i]);
+			mtk_tx_unmap(eth, &ring->buf[i]);
 		kfree(ring->buf);
 		ring->buf = NULL;
 	}
