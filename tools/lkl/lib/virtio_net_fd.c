@@ -195,6 +195,7 @@ struct lkl_netdev *lkl_register_netdev_fd(int fd)
 		close(nd->pipe[0]);
 		close(nd->pipe[1]);
 		lkl_unregister_netdev_fd(&nd->dev);
+		return NULL;
 	}
 
 	nd->dev.ops = &fd_net_ops;
