@@ -102,8 +102,6 @@ ENTRY(cpu_resume)
 	/* enable the MMU early - so we can access sleep_save_stash by va */
 	adr_l	lr, __enable_mmu	/* __cpu_setup will return here */
 	adr_l	x27, _resume_switched	/* __enable_mmu will branch here */
-	adrp	x25, idmap_pg_dir
-	adrp	x26, swapper_pg_dir
 	b	__cpu_setup
 ENDPROC(cpu_resume)
 
