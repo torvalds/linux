@@ -244,6 +244,11 @@ update:
 				if (req)
 					ptlrpc_req_finished(req);
 
+				if (it.it_lock_mode && lockh) {
+					ldlm_lock_decref(lockh, it.it_lock_mode);
+					it.it_lock_mode = 0;
+				}
+
 				rc = -EIO;
 				goto cleanup;
 			}

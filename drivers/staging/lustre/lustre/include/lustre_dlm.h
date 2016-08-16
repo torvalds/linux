@@ -968,6 +968,7 @@ struct ldlm_enqueue_info {
 	void *ei_cb_cp;  /** lock completion callback */
 	void *ei_cb_gl;  /** lock glimpse callback */
 	void *ei_cbdata; /** Data to be passed into callbacks. */
+	unsigned int ei_enq_slave:1; /* whether enqueue slave stripes */
 };
 
 extern struct obd_ops ldlm_obd_ops;

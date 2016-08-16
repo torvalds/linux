@@ -679,16 +679,6 @@ static int ll_dir_setdirstripe(struct inode *dir, struct lmv_user_md *lump,
 	if (unlikely(lump->lum_magic != LMV_USER_MAGIC))
 		return -EINVAL;
 
-	if (lump->lum_stripe_offset == (__u32)-1) {
-		int mdtidx;
-
-		mdtidx = ll_get_mdt_idx(dir);
-		if (mdtidx < 0)
-			return mdtidx;
-
-		lump->lum_stripe_offset = mdtidx;
-	}
-
 	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p) name %s stripe_offset %d, stripe_count: %u\n",
 	       PFID(ll_inode2fid(dir)), dir, filename,
 	       (int)lump->lum_stripe_offset, lump->lum_stripe_count);
