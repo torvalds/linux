@@ -45,12 +45,18 @@ static struct psr_drv *find_psr_by_crtc(struct drm_crtc *crtc)
 {
 	struct rockchip_drm_private *drm_drv = crtc->dev->dev_private;
 	struct psr_drv *psr;
+	unsigned long flags;
 
-	list_for_each_entry(psr, &drm_drv->psr_list, list)
+	spin_lock_irqsave(&drm_drv->psr_list_lock, flags);
+	list_for_each_entry(psr, &drm_drv->psr_list, list) {
 		if (psr->encoder->crtc == crtc)
-			return psr;
+			goto out;
+	}
+	psr = ERR_PTR(-ENODEV);
 
-	return ERR_PTR(-ENODEV);
+out:
+	spin_unlock_irqrestore(&drm_drv->psr_list_lock, flags);
+	return psr;
 }
 
 static void psr_state_work(struct work_struct *work)
@@ -173,7 +179,9 @@ void rockchip_drm_psr_flush(struct drm_device *dev)
 {
 	struct rockchip_drm_private *drm_drv = dev->dev_private;
 	struct psr_drv *psr;
+	unsigned long flags;
 
+	spin_lock_irqsave(&drm_drv->psr_list_lock, flags);
 	list_for_each_entry(psr, &drm_drv->psr_list, list) {
 		if (psr->request_state == PSR_DISABLE)
 			continue;
@@ -183,6 +191,7 @@ void rockchip_drm_psr_flush(struct drm_device *dev)
 
 		psr_set_state(psr, PSR_FLUSH);
 	}
+	spin_unlock_irqrestore(&drm_drv->psr_list_lock, flags);
 }
 EXPORT_SYMBOL(rockchip_drm_psr_flush);
 
@@ -199,6 +208,7 @@ int rockchip_drm_psr_register(struct drm_encoder *encoder,
 {
 	struct rockchip_drm_private *drm_drv = encoder->dev->dev_private;
 	struct psr_drv *psr;
+	unsigned long flags;
 
 	if (!encoder || !psr_set)
 		return -EINVAL;
@@ -215,9 +225,9 @@ int rockchip_drm_psr_register(struct drm_encoder *encoder,
 	psr->encoder = encoder;
 	psr->set = psr_set;
 
-	mutex_lock(&drm_drv->psr_list_mutex);
+	spin_lock_irqsave(&drm_drv->psr_list_lock, flags);
 	list_add_tail(&psr->list, &drm_drv->psr_list);
-	mutex_unlock(&drm_drv->psr_list_mutex);
+	spin_unlock_irqrestore(&drm_drv->psr_list_lock, flags);
 
 	return 0;
 }
@@ -235,8 +245,9 @@ void rockchip_drm_psr_unregister(struct drm_encoder *encoder)
 {
 	struct rockchip_drm_private *drm_drv = encoder->dev->dev_private;
 	struct psr_drv *psr, *n;
+	unsigned long flags;
 
-	mutex_lock(&drm_drv->psr_list_mutex);
+	spin_lock_irqsave(&drm_drv->psr_list_lock, flags);
 	list_for_each_entry_safe(psr, n, &drm_drv->psr_list, list) {
 		if (psr->encoder == encoder) {
 			del_timer(&psr->flush_timer);
@@ -244,6 +255,6 @@ void rockchip_drm_psr_unregister(struct drm_encoder *encoder)
 			kfree(psr);
 		}
 	}
-	mutex_unlock(&drm_drv->psr_list_mutex);
+	spin_unlock_irqrestore(&drm_drv->psr_list_lock, flags);
 }
 EXPORT_SYMBOL(rockchip_drm_psr_unregister);
