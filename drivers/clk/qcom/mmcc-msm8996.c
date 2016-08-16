@@ -2888,6 +2888,14 @@ static struct clk_hw *mmcc_msm8996_hws[] = {
 	&gpll0_div.hw,
 };
 
+static struct gdsc mmagic_bimc_gdsc = {
+	.gdscr = 0x529c,
+	.pd = {
+		.name = "mmagic_bimc",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+};
+
 static struct gdsc mmagic_video_gdsc = {
 	.gdscr = 0x119c,
 	.gds_hw_ctrl = 0x120c,
@@ -3201,6 +3209,7 @@ static struct clk_regmap *mmcc_msm8996_clocks[] = {
 };
 
 static struct gdsc *mmcc_msm8996_gdscs[] = {
+	[MMAGIC_BIMC_GDSC] = &mmagic_bimc_gdsc,
 	[MMAGIC_VIDEO_GDSC] = &mmagic_video_gdsc,
 	[MMAGIC_MDSS_GDSC] = &mmagic_mdss_gdsc,
 	[MMAGIC_CAMSS_GDSC] = &mmagic_camss_gdsc,
