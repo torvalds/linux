@@ -143,6 +143,9 @@ static inline int cfs_fail_timeout_set(__u32 id, __u32 value, int ms, int set)
 #define CFS_FAIL_TIMEOUT_ORSET(id, value, secs) \
 	cfs_fail_timeout_set(id, value, secs * 1000, CFS_FAIL_LOC_ORSET)
 
+#define CFS_FAIL_TIMEOUT_RESET(id, value, secs) \
+	cfs_fail_timeout_set(id, value, secs * 1000, CFS_FAIL_LOC_RESET)
+
 #define CFS_FAIL_TIMEOUT_MS_ORSET(id, value, ms) \
 	cfs_fail_timeout_set(id, value, ms, CFS_FAIL_LOC_ORSET)
 

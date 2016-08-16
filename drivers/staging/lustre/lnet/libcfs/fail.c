@@ -90,8 +90,10 @@ int __cfs_fail_check_set(__u32 id, __u32 value, int set)
 		}
 	}
 
-	if ((set == CFS_FAIL_LOC_ORSET || set == CFS_FAIL_LOC_RESET) &&
-	    (value & CFS_FAIL_ONCE))
+	/* Take into account the current call for FAIL_ONCE for ORSET only,
+	 * as RESET is a new fail_loc, it does not change the current call
+	 */
+	if ((set == CFS_FAIL_LOC_ORSET) && (value & CFS_FAIL_ONCE))
 		set_bit(CFS_FAIL_ONCE_BIT, &cfs_fail_loc);
 	/* Lost race to set CFS_FAILED_BIT. */
 	if (test_and_set_bit(CFS_FAILED_BIT, &cfs_fail_loc)) {

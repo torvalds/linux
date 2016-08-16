@@ -2717,6 +2717,7 @@ ll_file_flock(struct file *file, int cmd, struct file_lock *file_lock)
 	struct md_op_data *op_data;
 	struct lustre_handle lockh = {0};
 	ldlm_policy_data_t flock = { {0} };
+	int fl_type = file_lock->fl_type;
 	__u64 flags = 0;
 	int rc;
 	int rc2 = 0;
@@ -2747,7 +2748,7 @@ ll_file_flock(struct file *file, int cmd, struct file_lock *file_lock)
 	if (file_lock->fl_lmops && file_lock->fl_lmops->lm_compare_owner)
 		flock.l_flock.owner = (unsigned long)file_lock->fl_pid;
 
-	switch (file_lock->fl_type) {
+	switch (fl_type) {
 	case F_RDLCK:
 		einfo.ei_mode = LCK_PR;
 		break;
@@ -2767,8 +2768,7 @@ ll_file_flock(struct file *file, int cmd, struct file_lock *file_lock)
 		einfo.ei_mode = LCK_PW;
 		break;
 	default:
-		CDEBUG(D_INFO, "Unknown fcntl lock type: %d\n",
-		       file_lock->fl_type);
+		CDEBUG(D_INFO, "Unknown fcntl lock type: %d\n", fl_type);
 		return -ENOTSUPP;
 	}
 
@@ -2790,15 +2790,17 @@ ll_file_flock(struct file *file, int cmd, struct file_lock *file_lock)
 	case F_GETLK64:
 #endif
 		flags = LDLM_FL_TEST_LOCK;
-		/* Save the old mode so that if the mode in the lock changes we
-		 * can decrement the appropriate reader or writer refcount.
-		 */
-		file_lock->fl_type = einfo.ei_mode;
 		break;
 	default:
 		CERROR("unknown fcntl lock command: %d\n", cmd);
 		return -EINVAL;
 	}
+
+	/*
+	 * Save the old mode so that if the mode in the lock changes we
+	 * can decrement the appropriate reader or writer refcount.
+	 */
+	file_lock->fl_type = einfo.ei_mode;
 
 	op_data = ll_prep_md_op_data(NULL, inode, NULL, NULL, 0, 0,
 				     LUSTRE_OPC_ANY, NULL);
@@ -2811,6 +2813,10 @@ ll_file_flock(struct file *file, int cmd, struct file_lock *file_lock)
 
 	rc = md_enqueue(sbi->ll_md_exp, &einfo, NULL,
 			op_data, &lockh, &flock, 0, NULL /* req */, flags);
+
+	/* Restore the file lock type if not TEST lock. */
+	if (!(flags & LDLM_FL_TEST_LOCK))
+		file_lock->fl_type = fl_type;
 
 	if ((rc == 0 || file_lock->fl_type == F_UNLCK) &&
 	    !(flags & LDLM_FL_TEST_LOCK))

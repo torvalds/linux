@@ -1028,15 +1028,28 @@ void ldlm_grant_lock(struct ldlm_lock *lock, struct list_head *work_list)
 	check_res_locked(res);
 
 	lock->l_granted_mode = lock->l_req_mode;
+
+	if (work_list && lock->l_completion_ast)
+		ldlm_add_ast_work_item(lock, NULL, work_list);
+
 	if (res->lr_type == LDLM_PLAIN || res->lr_type == LDLM_IBITS)
 		ldlm_grant_lock_with_skiplist(lock);
 	else if (res->lr_type == LDLM_EXTENT)
 		ldlm_extent_add_lock(res, lock);
-	else
+	else if (res->lr_type == LDLM_FLOCK) {
+		/*
+		 * We should not add locks to granted list in the following cases:
+		 * - this is an UNLOCK but not a real lock;
+		 * - this is a TEST lock;
+		 * - this is a F_CANCELLK lock (async flock has req_mode == 0)
+		 * - this is a deadlock (flock cannot be granted)
+		 */
+		if (!lock->l_req_mode || lock->l_req_mode == LCK_NL ||
+		    ldlm_is_test_lock(lock) || ldlm_is_flock_deadlock(lock))
+			return;
 		ldlm_resource_add_lock(res, &res->lr_granted, lock);
-
-	if (work_list && lock->l_completion_ast)
-		ldlm_add_ast_work_item(lock, NULL, work_list);
+	} else
+		LBUG();
 
 	ldlm_pool_add(&ldlm_res_to_ns(res)->ns_pool, lock);
 }
@@ -1546,6 +1559,8 @@ enum ldlm_error ldlm_lock_enqueue(struct ldlm_namespace *ns,
 	 */
 	if (*flags & LDLM_FL_AST_DISCARD_DATA)
 		ldlm_set_ast_discard_data(lock);
+	if (*flags & LDLM_FL_TEST_LOCK)
+		ldlm_set_test_lock(lock);
 
 	/*
 	 * This distinction between local lock trees is very important; a client

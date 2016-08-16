@@ -309,8 +309,6 @@ static void failed_lock_cleanup(struct ldlm_namespace *ns,
 	else
 		LDLM_DEBUG(lock, "lock was granted or failed in race");
 
-	ldlm_lock_decref_internal(lock, mode);
-
 	/* XXX - HACK because we shouldn't call ldlm_lock_destroy()
 	 *       from llite/file.c/ll_file_flock().
 	 */
@@ -321,9 +319,14 @@ static void failed_lock_cleanup(struct ldlm_namespace *ns,
 	 */
 	if (lock->l_resource->lr_type == LDLM_FLOCK) {
 		lock_res_and_lock(lock);
-		ldlm_resource_unlink_lock(lock);
-		ldlm_lock_destroy_nolock(lock);
+		if (!ldlm_is_destroyed(lock)) {
+			ldlm_resource_unlink_lock(lock);
+			ldlm_lock_decref_internal_nolock(lock, mode);
+			ldlm_lock_destroy_nolock(lock);
+		}
 		unlock_res_and_lock(lock);
+	} else {
+		ldlm_lock_decref_internal(lock, mode);
 	}
 }
 
@@ -418,11 +421,6 @@ int ldlm_cli_enqueue_fini(struct obd_export *exp, struct ptlrpc_request *req,
 	*flags = ldlm_flags_from_wire(reply->lock_flags);
 	lock->l_flags |= ldlm_flags_from_wire(reply->lock_flags &
 					      LDLM_FL_INHERIT_MASK);
-	/* move NO_TIMEOUT flag to the lock to force ldlm_lock_match()
-	 * to wait with no timeout as well
-	 */
-	lock->l_flags |= ldlm_flags_from_wire(reply->lock_flags &
-					      LDLM_FL_NO_TIMEOUT);
 	unlock_res_and_lock(lock);
 
 	CDEBUG(D_INFO, "local: %p, remote cookie: %#llx, flags: 0x%llx\n",
