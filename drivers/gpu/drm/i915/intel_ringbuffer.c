@@ -1337,8 +1337,7 @@ static int gen6_signal(struct drm_i915_gem_request *req)
 {
 	struct intel_ring *ring = req->ring;
 	struct drm_i915_private *dev_priv = req->i915;
-	struct intel_engine_cs *useless;
-	enum intel_engine_id id;
+	struct intel_engine_cs *engine;
 	int ret, num_rings;
 
 	num_rings = INTEL_INFO(dev_priv)->num_rings;
@@ -1346,9 +1345,13 @@ static int gen6_signal(struct drm_i915_gem_request *req)
 	if (ret)
 		return ret;
 
-	for_each_engine_id(useless, dev_priv, id) {
-		i915_reg_t mbox_reg = req->engine->semaphore.mbox.signal[id];
+	for_each_engine(engine, dev_priv) {
+		i915_reg_t mbox_reg;
 
+		if (!(BIT(engine->hw_id) & GEN6_SEMAPHORES_MASK))
+			continue;
+
+		mbox_reg = req->engine->semaphore.mbox.signal[engine->hw_id];
 		if (i915_mmio_reg_valid(mbox_reg)) {
 			intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
 			intel_ring_emit_reg(ring, mbox_reg);
@@ -1495,7 +1498,7 @@ gen6_ring_sync_to(struct drm_i915_gem_request *req,
 	u32 dw1 = MI_SEMAPHORE_MBOX |
 		  MI_SEMAPHORE_COMPARE |
 		  MI_SEMAPHORE_REGISTER;
-	u32 wait_mbox = signal->engine->semaphore.mbox.wait[req->engine->id];
+	u32 wait_mbox = signal->engine->semaphore.mbox.wait[req->engine->hw_id];
 	int ret;
 
 	WARN_ON(wait_mbox == MI_SEMAPHORE_SYNC_INVALID);
@@ -2569,41 +2572,41 @@ static void intel_ring_init_semaphores(struct drm_i915_private *dev_priv,
 		 * initialized as INVALID.  Gen8 will initialize the
 		 * sema between VCS2 and RCS later.
 		 */
-		for (i = 0; i < I915_NUM_ENGINES; i++) {
+		for (i = 0; i < GEN6_NUM_SEMAPHORES; i++) {
 			static const struct {
 				u32 wait_mbox;
 				i915_reg_t mbox_reg;
-			} sem_data[I915_NUM_ENGINES][I915_NUM_ENGINES] = {
-				[RCS] = {
-					[VCS] =  { .wait_mbox = MI_SEMAPHORE_SYNC_RV,  .mbox_reg = GEN6_VRSYNC },
-					[BCS] =  { .wait_mbox = MI_SEMAPHORE_SYNC_RB,  .mbox_reg = GEN6_BRSYNC },
-					[VECS] = { .wait_mbox = MI_SEMAPHORE_SYNC_RVE, .mbox_reg = GEN6_VERSYNC },
+			} sem_data[GEN6_NUM_SEMAPHORES][GEN6_NUM_SEMAPHORES] = {
+				[RCS_HW] = {
+					[VCS_HW] =  { .wait_mbox = MI_SEMAPHORE_SYNC_RV,  .mbox_reg = GEN6_VRSYNC },
+					[BCS_HW] =  { .wait_mbox = MI_SEMAPHORE_SYNC_RB,  .mbox_reg = GEN6_BRSYNC },
+					[VECS_HW] = { .wait_mbox = MI_SEMAPHORE_SYNC_RVE, .mbox_reg = GEN6_VERSYNC },
 				},
-				[VCS] = {
-					[RCS] =  { .wait_mbox = MI_SEMAPHORE_SYNC_VR,  .mbox_reg = GEN6_RVSYNC },
-					[BCS] =  { .wait_mbox = MI_SEMAPHORE_SYNC_VB,  .mbox_reg = GEN6_BVSYNC },
-					[VECS] = { .wait_mbox = MI_SEMAPHORE_SYNC_VVE, .mbox_reg = GEN6_VEVSYNC },
+				[VCS_HW] = {
+					[RCS_HW] =  { .wait_mbox = MI_SEMAPHORE_SYNC_VR,  .mbox_reg = GEN6_RVSYNC },
+					[BCS_HW] =  { .wait_mbox = MI_SEMAPHORE_SYNC_VB,  .mbox_reg = GEN6_BVSYNC },
+					[VECS_HW] = { .wait_mbox = MI_SEMAPHORE_SYNC_VVE, .mbox_reg = GEN6_VEVSYNC },
 				},
-				[BCS] = {
-					[RCS] =  { .wait_mbox = MI_SEMAPHORE_SYNC_BR,  .mbox_reg = GEN6_RBSYNC },
-					[VCS] =  { .wait_mbox = MI_SEMAPHORE_SYNC_BV,  .mbox_reg = GEN6_VBSYNC },
-					[VECS] = { .wait_mbox = MI_SEMAPHORE_SYNC_BVE, .mbox_reg = GEN6_VEBSYNC },
+				[BCS_HW] = {
+					[RCS_HW] =  { .wait_mbox = MI_SEMAPHORE_SYNC_BR,  .mbox_reg = GEN6_RBSYNC },
+					[VCS_HW] =  { .wait_mbox = MI_SEMAPHORE_SYNC_BV,  .mbox_reg = GEN6_VBSYNC },
+					[VECS_HW] = { .wait_mbox = MI_SEMAPHORE_SYNC_BVE, .mbox_reg = GEN6_VEBSYNC },
 				},
-				[VECS] = {
-					[RCS] =  { .wait_mbox = MI_SEMAPHORE_SYNC_VER, .mbox_reg = GEN6_RVESYNC },
-					[VCS] =  { .wait_mbox = MI_SEMAPHORE_SYNC_VEV, .mbox_reg = GEN6_VVESYNC },
-					[BCS] =  { .wait_mbox = MI_SEMAPHORE_SYNC_VEB, .mbox_reg = GEN6_BVESYNC },
+				[VECS_HW] = {
+					[RCS_HW] =  { .wait_mbox = MI_SEMAPHORE_SYNC_VER, .mbox_reg = GEN6_RVESYNC },
+					[VCS_HW] =  { .wait_mbox = MI_SEMAPHORE_SYNC_VEV, .mbox_reg = GEN6_VVESYNC },
+					[BCS_HW] =  { .wait_mbox = MI_SEMAPHORE_SYNC_VEB, .mbox_reg = GEN6_BVESYNC },
 				},
 			};
 			u32 wait_mbox;
 			i915_reg_t mbox_reg;
 
-			if (i == engine->id || i == VCS2) {
+			if (i == engine->hw_id) {
 				wait_mbox = MI_SEMAPHORE_SYNC_INVALID;
 				mbox_reg = GEN6_NOSYNC;
 			} else {
-				wait_mbox = sem_data[engine->id][i].wait_mbox;
-				mbox_reg = sem_data[engine->id][i].mbox_reg;
+				wait_mbox = sem_data[engine->hw_id][i].wait_mbox;
+				mbox_reg = sem_data[engine->hw_id][i].mbox_reg;
 			}
 
 			engine->semaphore.mbox.wait[i] = wait_mbox;

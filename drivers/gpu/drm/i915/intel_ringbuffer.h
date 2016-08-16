@@ -278,11 +278,14 @@ struct intel_engine_cs {
 		u32	sync_seqno[I915_NUM_ENGINES-1];
 
 		union {
+#define GEN6_SEMAPHORE_LAST	VECS_HW
+#define GEN6_NUM_SEMAPHORES	(GEN6_SEMAPHORE_LAST + 1)
+#define GEN6_SEMAPHORES_MASK	GENMASK(GEN6_SEMAPHORE_LAST, 0)
 			struct {
 				/* our mbox written by others */
-				u32		wait[I915_NUM_ENGINES];
+				u32		wait[GEN6_NUM_SEMAPHORES];
 				/* mboxes this ring signals to */
-				i915_reg_t	signal[I915_NUM_ENGINES];
+				i915_reg_t	signal[GEN6_NUM_SEMAPHORES];
 			} mbox;
 			u64		signal_ggtt[I915_NUM_ENGINES];
 		};
