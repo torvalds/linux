@@ -1478,11 +1478,21 @@ enum obdo_flags {
 	OBD_FL_LOCAL_MASK   = 0xF0000000,
 };
 
-#define LOV_MAGIC_V1      0x0BD10BD0
-#define LOV_MAGIC	 LOV_MAGIC_V1
-#define LOV_MAGIC_JOIN_V1 0x0BD20BD0
-#define LOV_MAGIC_V3      0x0BD30BD0
-#define LOV_MAGIC_MIGRATE 0x0BD40BD0
+/*
+ * All LOV EA magics should have the same postfix, if some new version
+ * Lustre instroduces new LOV EA magic, then when down-grade to an old
+ * Lustre, even though the old version system does not recognizes such
+ * new magic, it still can distinguish the corrupted cases by checking
+ * the magic's postfix.
+ */
+#define LOV_MAGIC_MAGIC 0x0BD0
+#define LOV_MAGIC_MASK  0xFFFF
+
+#define LOV_MAGIC_V1		(0x0BD10000 | LOV_MAGIC_MAGIC)
+#define LOV_MAGIC_JOIN_V1	(0x0BD20000 | LOV_MAGIC_MAGIC)
+#define LOV_MAGIC_V3		(0x0BD30000 | LOV_MAGIC_MAGIC)
+#define LOV_MAGIC_MIGRATE	(0x0BD40000 | LOV_MAGIC_MAGIC)
+#define LOV_MAGIC		LOV_MAGIC_V1
 
 /*
  * magic for fully defined striping
