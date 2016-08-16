@@ -48,10 +48,62 @@
 #include "../include/obd_class.h"
 #include "../include/lustre_lmv.h"
 #include "../include/lprocfs_status.h"
+#include "../include/cl_object.h"
 #include "../include/lustre_lite.h"
 #include "../include/lustre_fid.h"
 #include "../include/lustre_kernelcomm.h"
 #include "lmv_internal.h"
+
+/* This hash is only for testing purpose */
+static inline unsigned int
+lmv_hash_all_chars(unsigned int count, const char *name, int namelen)
+{
+	const unsigned char *p = (const unsigned char *)name;
+	unsigned int c = 0;
+
+	while (--namelen >= 0)
+		c += p[namelen];
+
+	c = c % count;
+
+	return c;
+}
+
+static inline unsigned int
+lmv_hash_fnv1a(unsigned int count, const char *name, int namelen)
+{
+	__u64 hash;
+
+	hash = lustre_hash_fnv_1a_64(name, namelen);
+
+	return do_div(hash, count);
+}
+
+int lmv_name_to_stripe_index(enum lmv_hash_type hashtype,
+			     unsigned int max_mdt_index,
+			     const char *name, int namelen)
+{
+	int idx;
+
+	LASSERT(namelen > 0);
+	if (max_mdt_index <= 1)
+		return 0;
+
+	switch (hashtype) {
+	case LMV_HASH_TYPE_ALL_CHARS:
+		idx = lmv_hash_all_chars(max_mdt_index, name, namelen);
+		break;
+	case LMV_HASH_TYPE_FNV_1A_64:
+		idx = lmv_hash_fnv1a(max_mdt_index, name, namelen);
+		break;
+	default:
+		CERROR("Unknown hash type 0x%x\n", hashtype);
+		return -EINVAL;
+	}
+
+	LASSERT(idx < max_mdt_index);
+	return idx;
+}
 
 static void lmv_activate_target(struct lmv_obd *lmv,
 				struct lmv_tgt_desc *tgt,
@@ -1174,28 +1226,19 @@ static int lmv_placement_policy(struct obd_device *obd,
 	 * If stripe_offset is provided during setdirstripe
 	 * (setdirstripe -i xx), xx MDS will be chosen.
 	 */
-	if (op_data->op_cli_flags & CLI_SET_MEA) {
+	if (op_data->op_cli_flags & CLI_SET_MEA && op_data->op_data) {
 		struct lmv_user_md *lum;
 
-		lum = (struct lmv_user_md *)op_data->op_data;
-		if (lum->lum_type == LMV_STRIPE_TYPE &&
-		    lum->lum_stripe_offset != -1) {
-			if (lum->lum_stripe_offset >= lmv->desc.ld_tgt_count) {
-				CERROR("%s: Stripe_offset %d > MDT count %d: rc = %d\n",
-				       obd->obd_name,
-				       lum->lum_stripe_offset,
-				       lmv->desc.ld_tgt_count, -ERANGE);
-				return -ERANGE;
-			}
-			*mds = lum->lum_stripe_offset;
-			return 0;
-		}
+		lum = op_data->op_data;
+		*mds = lum->lum_stripe_offset;
+	} else {
+		/*
+		 * Allocate new fid on target according to operation type and
+		 * parent home mds.
+		 */
+		*mds = op_data->op_mds;
 	}
 
-	/* Allocate new fid on target according to operation type and parent
-	 * home mds.
-	 */
-	*mds = op_data->op_mds;
 	return 0;
 }
 
@@ -1597,17 +1640,38 @@ static int lmv_close(struct obd_export *exp, struct md_op_data *op_data,
 	return rc;
 }
 
+/**
+ * Choosing the MDT by name or FID in @op_data.
+ * For non-striped directory, it will locate MDT by fid.
+ * For striped-directory, it will locate MDT by name. And also
+ * it will reset op_fid1 with the FID of the chosen stripe.
+ **/
 struct lmv_tgt_desc
 *lmv_locate_mds(struct lmv_obd *lmv, struct md_op_data *op_data,
 		struct lu_fid *fid)
 {
+	struct lmv_stripe_md *lsm = op_data->op_mea1;
+	const struct lmv_oinfo *oinfo;
 	struct lmv_tgt_desc *tgt;
 
-	tgt = lmv_find_target(lmv, fid);
-	if (IS_ERR(tgt))
-		return tgt;
+	if (!lsm || lsm->lsm_md_stripe_count <= 1 ||
+	    !op_data->op_namelen) {
+		tgt = lmv_find_target(lmv, fid);
+		if (IS_ERR(tgt))
+			return tgt;
 
-	op_data->op_mds = tgt->ltd_idx;
+		op_data->op_mds = tgt->ltd_idx;
+
+		return tgt;
+	}
+
+	oinfo = lsm_name_to_stripe_info(lsm, op_data->op_name,
+					op_data->op_namelen);
+	*fid = oinfo->lmo_fid;
+	op_data->op_mds = oinfo->lmo_mds;
+	tgt = lmv_get_target(lmv, op_data->op_mds);
+
+	CDEBUG(D_INFO, "locate on mds %u\n", op_data->op_mds);
 
 	return tgt;
 }
@@ -1633,13 +1697,26 @@ static int lmv_create(struct obd_export *exp, struct md_op_data *op_data,
 	if (IS_ERR(tgt))
 		return PTR_ERR(tgt);
 
+	CDEBUG(D_INODE, "CREATE name '%.*s' on "DFID" -> mds #%x\n",
+	       op_data->op_namelen, op_data->op_name, PFID(&op_data->op_fid1),
+	       op_data->op_mds);
+
 	rc = lmv_fid_alloc(exp, &op_data->op_fid2, op_data);
 	if (rc)
 		return rc;
 
-	CDEBUG(D_INODE, "CREATE '%*s' on "DFID" -> mds #%x\n",
-	       op_data->op_namelen, op_data->op_name, PFID(&op_data->op_fid1),
-	       op_data->op_mds);
+	/*
+	 * Send the create request to the MDT where the object
+	 * will be located
+	 */
+	tgt = lmv_find_target(lmv, &op_data->op_fid2);
+	if (IS_ERR(tgt))
+		return PTR_ERR(tgt);
+
+	op_data->op_mds = tgt->ltd_idx;
+
+	CDEBUG(D_INODE, "CREATE obj "DFID" -> mds #%x\n",
+	       PFID(&op_data->op_fid1), op_data->op_mds);
 
 	op_data->op_flags |= MF_MDC_CANCEL_FID1;
 	rc = md_create(tgt->ltd_exp, op_data, data, datalen, mode, uid, gid,
@@ -1889,6 +1966,15 @@ static int lmv_link(struct obd_export *exp, struct md_op_data *op_data,
 	op_data->op_fsuid = from_kuid(&init_user_ns, current_fsuid());
 	op_data->op_fsgid = from_kgid(&init_user_ns, current_fsgid());
 	op_data->op_cap = cfs_curproc_cap_pack();
+	if (op_data->op_mea2) {
+		struct lmv_stripe_md *lsm = op_data->op_mea2;
+		const struct lmv_oinfo *oinfo;
+
+		oinfo = lsm_name_to_stripe_info(lsm, op_data->op_name,
+						op_data->op_namelen);
+		op_data->op_fid2 = oinfo->lmo_fid;
+	}
+
 	tgt = lmv_locate_mds(lmv, op_data, &op_data->op_fid2);
 	if (IS_ERR(tgt))
 		return PTR_ERR(tgt);
@@ -1914,14 +2000,15 @@ static int lmv_rename(struct obd_export *exp, struct md_op_data *op_data,
 	struct obd_device       *obd = exp->exp_obd;
 	struct lmv_obd	  *lmv = &obd->u.lmv;
 	struct lmv_tgt_desc     *src_tgt;
-	struct lmv_tgt_desc     *tgt_tgt;
 	int			rc;
 
 	LASSERT(oldlen != 0);
 
-	CDEBUG(D_INODE, "RENAME %*s in "DFID" to %*s in "DFID"\n",
+	CDEBUG(D_INODE, "RENAME %.*s in "DFID":%d to %.*s in "DFID":%d\n",
 	       oldlen, old, PFID(&op_data->op_fid1),
-	       newlen, new, PFID(&op_data->op_fid2));
+	       op_data->op_mea1 ? op_data->op_mea1->lsm_md_stripe_count : 0,
+	       newlen, new, PFID(&op_data->op_fid2),
+	       op_data->op_mea2 ? op_data->op_mea2->lsm_md_stripe_count : 0);
 
 	rc = lmv_check_connect(obd);
 	if (rc)
@@ -1930,13 +2017,33 @@ static int lmv_rename(struct obd_export *exp, struct md_op_data *op_data,
 	op_data->op_fsuid = from_kuid(&init_user_ns, current_fsuid());
 	op_data->op_fsgid = from_kgid(&init_user_ns, current_fsgid());
 	op_data->op_cap = cfs_curproc_cap_pack();
-	src_tgt = lmv_locate_mds(lmv, op_data, &op_data->op_fid1);
-	if (IS_ERR(src_tgt))
-		return PTR_ERR(src_tgt);
 
-	tgt_tgt = lmv_locate_mds(lmv, op_data, &op_data->op_fid2);
-	if (IS_ERR(tgt_tgt))
-		return PTR_ERR(tgt_tgt);
+	if (op_data->op_mea1) {
+		struct lmv_stripe_md *lsm = op_data->op_mea1;
+		const struct lmv_oinfo *oinfo;
+
+		oinfo = lsm_name_to_stripe_info(lsm, old, oldlen);
+		op_data->op_fid1 = oinfo->lmo_fid;
+		op_data->op_mds = oinfo->lmo_mds;
+		src_tgt = lmv_get_target(lmv, op_data->op_mds);
+		if (IS_ERR(src_tgt))
+			return PTR_ERR(src_tgt);
+	} else {
+		src_tgt = lmv_find_target(lmv, &op_data->op_fid1);
+		if (IS_ERR(src_tgt))
+			return PTR_ERR(src_tgt);
+
+		op_data->op_mds = src_tgt->ltd_idx;
+	}
+
+	if (op_data->op_mea2) {
+		struct lmv_stripe_md *lsm = op_data->op_mea2;
+		const struct lmv_oinfo *oinfo;
+
+		oinfo = lsm_name_to_stripe_info(lsm, new, newlen);
+		op_data->op_fid2 = oinfo->lmo_fid;
+	}
+
 	/*
 	 * LOOKUP lock on src child (fid3) should also be cancelled for
 	 * src_tgt in mdc_rename.
@@ -2568,6 +2675,7 @@ int lmv_unpack_md(struct obd_export *exp, struct lmv_stripe_md **lsmp,
 	}
 	return lsm_size;
 }
+EXPORT_SYMBOL(lmv_unpack_md);
 
 int lmv_unpackmd(struct obd_export *exp, struct lov_stripe_md **lsmp,
 		 struct lov_mds_md *lmm, int disk_len)
@@ -2741,7 +2849,7 @@ static int lmv_intent_getattr_async(struct obd_export *exp,
 	if (rc)
 		return rc;
 
-	tgt = lmv_find_target(lmv, &op_data->op_fid1);
+	tgt = lmv_locate_mds(lmv, op_data, &op_data->op_fid1);
 	if (IS_ERR(tgt))
 		return PTR_ERR(tgt);
 
@@ -2843,6 +2951,49 @@ static int lmv_quotacheck(struct obd_device *unused, struct obd_export *exp,
 	return rc;
 }
 
+int lmv_update_lsm_md(struct obd_export *exp, struct lmv_stripe_md *lsm,
+		      struct mdt_body *body, ldlm_blocking_callback cb_blocking)
+{
+	if (lsm->lsm_md_stripe_count <= 1)
+		return 0;
+
+	return lmv_revalidate_slaves(exp, body, lsm, cb_blocking, 0);
+}
+
+int lmv_merge_attr(struct obd_export *exp, const struct lmv_stripe_md *lsm,
+		   struct cl_attr *attr)
+{
+	int i;
+
+	for (i = 0; i < lsm->lsm_md_stripe_count; i++) {
+		struct inode *inode = lsm->lsm_md_oinfo[i].lmo_root;
+
+		CDEBUG(D_INFO, ""DFID" size %llu, nlink %u, atime %lu ctime %lu, mtime %lu.\n",
+		       PFID(&lsm->lsm_md_oinfo[i].lmo_fid),
+		       i_size_read(inode), inode->i_nlink,
+		       LTIME_S(inode->i_atime), LTIME_S(inode->i_ctime),
+		       LTIME_S(inode->i_mtime));
+
+		/* for slave stripe, it needs to subtract nlink for . and .. */
+		if (i)
+			attr->cat_nlink += inode->i_nlink - 2;
+		else
+			attr->cat_nlink = inode->i_nlink;
+
+		attr->cat_size += i_size_read(inode);
+
+		if (attr->cat_atime < LTIME_S(inode->i_atime))
+			attr->cat_atime = LTIME_S(inode->i_atime);
+
+		if (attr->cat_ctime < LTIME_S(inode->i_ctime))
+			attr->cat_ctime = LTIME_S(inode->i_ctime);
+
+		if (attr->cat_mtime < LTIME_S(inode->i_mtime))
+			attr->cat_mtime = LTIME_S(inode->i_mtime);
+	}
+	return 0;
+}
+
 static struct obd_ops lmv_obd_ops = {
 	.owner		= THIS_MODULE,
 	.setup		= lmv_setup,
@@ -2888,6 +3039,8 @@ static struct md_ops lmv_md_ops = {
 	.lock_match		= lmv_lock_match,
 	.get_lustre_md		= lmv_get_lustre_md,
 	.free_lustre_md		= lmv_free_lustre_md,
+	.update_lsm_md		= lmv_update_lsm_md,
+	.merge_attr		= lmv_merge_attr,
 	.set_open_replay_data	= lmv_set_open_replay_data,
 	.clear_open_replay_data	= lmv_clear_open_replay_data,
 	.intent_getattr_async	= lmv_intent_getattr_async,

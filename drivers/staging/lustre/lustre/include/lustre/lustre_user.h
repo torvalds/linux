@@ -374,19 +374,17 @@ struct lov_user_mds_data_v3 {
 } __packed;
 #endif
 
-/* keep this to be the same size as lov_user_ost_data_v1 */
 struct lmv_user_mds_data {
 	struct lu_fid	lum_fid;
 	__u32		lum_padding;
 	__u32		lum_mds;
 };
 
-/* lum_type */
-enum {
-	LMV_STRIPE_TYPE = 0,
-	LMV_DEFAULT_TYPE = 1,
-};
-
+/*
+ * Got this according to how get LOV_MAX_STRIPE_COUNT, see above,
+ * (max buffer size - lmv+rpc header) / sizeof(struct lmv_user_mds_data)
+ */
+#define LMV_MAX_STRIPE_COUNT 2000  /* ((12 * 4096 - 256) / 24) */
 #define lmv_user_md lmv_user_md_v1
 struct lmv_user_md_v1 {
 	__u32	lum_magic;	 /* must be the first field */
@@ -399,13 +397,15 @@ struct lmv_user_md_v1 {
 	__u32	lum_padding3;
 	char	lum_pool_name[LOV_MAXPOOLNAME];
 	struct	lmv_user_mds_data  lum_objects[0];
-};
+} __packed;
 
 static inline int lmv_user_md_size(int stripes, int lmm_magic)
 {
 	return sizeof(struct lmv_user_md) +
 		      stripes * sizeof(struct lmv_user_mds_data);
 }
+
+void lustre_swab_lmv_user_md(struct lmv_user_md *lum);
 
 struct ll_recreate_obj {
 	__u64 lrc_id;

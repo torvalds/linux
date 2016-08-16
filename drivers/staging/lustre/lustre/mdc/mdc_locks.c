@@ -325,6 +325,9 @@ static struct ptlrpc_request *mdc_intent_open_pack(struct obd_export *exp,
 	mdc_open_pack(req, op_data, it->it_create_mode, 0, it->it_flags, lmm,
 		      lmmsize);
 
+	req_capsule_set_size(&req->rq_pill, &RMF_MDT_MD, RCL_SERVER,
+			     obddev->u.cli.cl_max_mds_easize);
+
 	ptlrpc_request_set_replen(req);
 	return req;
 }

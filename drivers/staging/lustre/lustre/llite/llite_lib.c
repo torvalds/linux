@@ -992,6 +992,188 @@ struct inode *ll_inode_from_resource_lock(struct ldlm_lock *lock)
 	return inode;
 }
 
+static void ll_dir_clear_lsm_md(struct inode *inode)
+{
+	struct ll_inode_info *lli = ll_i2info(inode);
+
+	LASSERT(S_ISDIR(inode->i_mode));
+
+	if (lli->lli_lsm_md) {
+		lmv_free_memmd(lli->lli_lsm_md);
+		lli->lli_lsm_md = NULL;
+	}
+}
+
+static struct inode *ll_iget_anon_dir(struct super_block *sb,
+				      const struct lu_fid *fid,
+				      struct lustre_md *md)
+{
+	struct ll_sb_info *sbi = ll_s2sbi(sb);
+	struct mdt_body *body = md->body;
+	struct inode *inode;
+	ino_t ino;
+
+	ino = cl_fid_build_ino(fid, sbi->ll_flags & LL_SBI_32BIT_API);
+	inode = iget_locked(sb, ino);
+	if (!inode) {
+		CERROR("%s: failed get simple inode "DFID": rc = -ENOENT\n",
+		       ll_get_fsname(sb, NULL, 0), PFID(fid));
+		return ERR_PTR(-ENOENT);
+	}
+
+	if (inode->i_state & I_NEW) {
+		struct ll_inode_info *lli = ll_i2info(inode);
+		struct lmv_stripe_md *lsm = md->lmv;
+
+		inode->i_mode = (inode->i_mode & ~S_IFMT) |
+				(body->mode & S_IFMT);
+		LASSERTF(S_ISDIR(inode->i_mode), "Not slave inode "DFID"\n",
+			 PFID(fid));
+
+		LTIME_S(inode->i_mtime) = 0;
+		LTIME_S(inode->i_atime) = 0;
+		LTIME_S(inode->i_ctime) = 0;
+		inode->i_rdev = 0;
+
+		inode->i_op = &ll_dir_inode_operations;
+		inode->i_fop = &ll_dir_operations;
+		lli->lli_fid = *fid;
+		ll_lli_init(lli);
+
+		LASSERT(lsm);
+		/* master stripe FID */
+		lli->lli_pfid = lsm->lsm_md_oinfo[0].lmo_fid;
+		CDEBUG(D_INODE, "lli %p master "DFID" slave "DFID"\n",
+		       lli, PFID(fid), PFID(&lli->lli_pfid));
+		unlock_new_inode(inode);
+	}
+
+	return inode;
+}
+
+static int ll_init_lsm_md(struct inode *inode, struct lustre_md *md)
+{
+	struct lmv_stripe_md *lsm = md->lmv;
+	struct lu_fid *fid;
+	int i;
+
+	LASSERT(lsm);
+	/*
+	 * XXX sigh, this lsm_root initialization should be in
+	 * LMV layer, but it needs ll_iget right now, so we
+	 * put this here right now.
+	 */
+	for (i = 0; i < lsm->lsm_md_stripe_count; i++) {
+		fid = &lsm->lsm_md_oinfo[i].lmo_fid;
+		LASSERT(!lsm->lsm_md_oinfo[i].lmo_root);
+		if (!i) {
+			lsm->lsm_md_oinfo[i].lmo_root = inode;
+		} else {
+			/*
+			 * Unfortunately ll_iget will call ll_update_inode,
+			 * where the initialization of slave inode is slightly
+			 * different, so it reset lsm_md to NULL to avoid
+			 * initializing lsm for slave inode.
+			 */
+			lsm->lsm_md_oinfo[i].lmo_root =
+				ll_iget_anon_dir(inode->i_sb, fid, md);
+			if (IS_ERR(lsm->lsm_md_oinfo[i].lmo_root)) {
+				int rc = PTR_ERR(lsm->lsm_md_oinfo[i].lmo_root);
+
+				lsm->lsm_md_oinfo[i].lmo_root = NULL;
+				return rc;
+			}
+		}
+	}
+
+	/*
+	 * Here is where the lsm is being initialized(fill lmo_info) after
+	 * client retrieve MD stripe information from MDT.
+	 */
+	return md_update_lsm_md(ll_i2mdexp(inode), lsm, md->body,
+				ll_md_blocking_ast);
+}
+
+static inline int lli_lsm_md_eq(const struct lmv_stripe_md *lsm_md1,
+				const struct lmv_stripe_md *lsm_md2)
+{
+	return lsm_md1->lsm_md_magic == lsm_md2->lsm_md_magic &&
+	       lsm_md1->lsm_md_stripe_count == lsm_md2->lsm_md_stripe_count &&
+	       lsm_md1->lsm_md_master_mdt_index ==
+			lsm_md2->lsm_md_master_mdt_index &&
+	       lsm_md1->lsm_md_hash_type == lsm_md2->lsm_md_hash_type &&
+	       lsm_md1->lsm_md_layout_version ==
+			lsm_md2->lsm_md_layout_version &&
+	       !strcmp(lsm_md1->lsm_md_pool_name,
+		       lsm_md2->lsm_md_pool_name);
+}
+
+static void ll_update_lsm_md(struct inode *inode, struct lustre_md *md)
+{
+	struct ll_inode_info *lli = ll_i2info(inode);
+	struct lmv_stripe_md *lsm = md->lmv;
+	int idx;
+
+	LASSERT(lsm);
+	LASSERT(S_ISDIR(inode->i_mode));
+	if (!lli->lli_lsm_md) {
+		int rc;
+
+		rc = ll_init_lsm_md(inode, md);
+		if (rc) {
+			CERROR("%s: init "DFID" failed: rc = %d\n",
+			       ll_get_fsname(inode->i_sb, NULL, 0),
+			       PFID(&lli->lli_fid), rc);
+			return;
+		}
+		lli->lli_lsm_md = lsm;
+		/*
+		 * set lsm_md to NULL, so the following free lustre_md
+		 * will not free this lsm
+		 */
+		md->lmv = NULL;
+		return;
+	}
+
+	/* Compare the old and new stripe information */
+	if (!lli_lsm_md_eq(lli->lli_lsm_md, lsm)) {
+		CERROR("inode %p %lu mismatch\n"
+		       "    new(%p)     vs     lli_lsm_md(%p):\n"
+		       "    magic:      %x                   %x\n"
+		       "    count:      %x                   %x\n"
+		       "    master:     %x                   %x\n"
+		       "    hash_type:  %x                   %x\n"
+		       "    layout:     %x                   %x\n"
+		       "    pool:       %s                   %s\n",
+		       inode, inode->i_ino, lsm, lli->lli_lsm_md,
+		       lsm->lsm_md_magic, lli->lli_lsm_md->lsm_md_magic,
+		       lsm->lsm_md_stripe_count,
+		       lli->lli_lsm_md->lsm_md_stripe_count,
+		       lsm->lsm_md_master_mdt_index,
+		       lli->lli_lsm_md->lsm_md_master_mdt_index,
+		       lsm->lsm_md_hash_type, lli->lli_lsm_md->lsm_md_hash_type,
+		       lsm->lsm_md_layout_version,
+		       lli->lli_lsm_md->lsm_md_layout_version,
+		       lsm->lsm_md_pool_name,
+		       lli->lli_lsm_md->lsm_md_pool_name);
+		return;
+	}
+
+	for (idx = 0; idx < lli->lli_lsm_md->lsm_md_stripe_count; idx++) {
+		if (!lu_fid_eq(&lli->lli_lsm_md->lsm_md_oinfo[idx].lmo_fid,
+			       &lsm->lsm_md_oinfo[idx].lmo_fid)) {
+			CERROR("%s: FID in lsm mismatch idx %d, old: "DFID" new:"DFID"\n",
+			       ll_get_fsname(inode->i_sb, NULL, 0), idx,
+			       PFID(&lli->lli_lsm_md->lsm_md_oinfo[idx].lmo_fid),
+			       PFID(&lsm->lsm_md_oinfo[idx].lmo_fid));
+			return;
+		}
+	}
+
+	md_update_lsm_md(ll_i2mdexp(inode), ll_i2info(inode)->lli_lsm_md,
+			 md->body, ll_md_blocking_ast);
+}
+
 void ll_clear_inode(struct inode *inode)
 {
 	struct ll_inode_info *lli = ll_i2info(inode);
@@ -1039,7 +1221,9 @@ void ll_clear_inode(struct inode *inode)
 #endif
 	lli->lli_inode_magic = LLI_INODE_DEAD;
 
-	if (!S_ISDIR(inode->i_mode))
+	if (S_ISDIR(inode->i_mode))
+		ll_dir_clear_lsm_md(inode);
+	else
 		LASSERT(list_empty(&lli->lli_agl_list));
 
 	/*
@@ -1483,6 +1667,9 @@ void ll_update_inode(struct inode *inode, struct lustre_md *md)
 		if (lli->lli_maxbytes > MAX_LFS_FILESIZE)
 			lli->lli_maxbytes = MAX_LFS_FILESIZE;
 	}
+
+	if (S_ISDIR(inode->i_mode) && md->lmv)
+		ll_update_lsm_md(inode, md);
 
 #ifdef CONFIG_FS_POSIX_ACL
 	if (body->valid & OBD_MD_FLACL) {
@@ -2091,12 +2278,12 @@ struct md_op_data *ll_prep_md_op_data(struct md_op_data *op_data,
 	ll_i2gids(op_data->op_suppgids, i1, i2);
 	op_data->op_fid1 = *ll_inode2fid(i1);
 	if (S_ISDIR(i1->i_mode))
-		op_data->op_mea1 = ll_i2info(i1)->lli_lmv_md;
+		op_data->op_mea1 = ll_i2info(i1)->lli_lsm_md;
 
 	if (i2) {
 		op_data->op_fid2 = *ll_inode2fid(i2);
 		if (S_ISDIR(i2->i_mode))
-			op_data->op_mea2 = ll_i2info(i2)->lli_lmv_md;
+			op_data->op_mea2 = ll_i2info(i2)->lli_lsm_md;
 	} else {
 		fid_zero(&op_data->op_fid2);
 	}

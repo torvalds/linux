@@ -391,6 +391,8 @@ static inline void obd_ioctl_freedata(char *buf, int len)
 #define LOVEA_DELETE_VALUES(size, count, offset) (size == 0 && count == 0 && \
 						 offset == (typeof(offset))(-1))
 
+#define LMVEA_DELETE_VALUES(count, offset) ((count) == 0 && \
+					    (offset) == (typeof(offset))(-1))
 /* #define POISON_BULK 0 */
 
 /*

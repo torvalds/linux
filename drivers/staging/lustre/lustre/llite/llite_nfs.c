@@ -73,11 +73,6 @@ void get_uuid2fsid(const char *name, int len, __kernel_fsid_t *fsid)
 	fsid->val[1] = key >> 32;
 }
 
-static int ll_nfs_test_inode(struct inode *inode, void *opaque)
-{
-	return lu_fid_eq(&ll_i2info(inode)->lli_fid, opaque);
-}
-
 struct inode *search_inode_for_lustre(struct super_block *sb,
 				      const struct lu_fid *fid)
 {
@@ -92,7 +87,7 @@ struct inode *search_inode_for_lustre(struct super_block *sb,
 
 	CDEBUG(D_INFO, "searching inode for:(%lu,"DFID")\n", hash, PFID(fid));
 
-	inode = ilookup5(sb, hash, ll_nfs_test_inode, (void *)fid);
+	inode = ilookup5(sb, hash, ll_test_inode_by_fid, (void *)fid);
 	if (inode)
 		return inode;
 

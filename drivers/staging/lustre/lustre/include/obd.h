@@ -1022,14 +1022,6 @@ enum {
 };
 
 /* lmv structures */
-#define MEA_MAGIC_LAST_CHAR      0xb2221ca1
-#define MEA_MAGIC_ALL_CHARS      0xb222a11c
-#define MEA_MAGIC_HASH_SEGMENT   0xb222a11b
-
-#define MAX_HASH_SIZE_32	 0x7fffffffUL
-#define MAX_HASH_SIZE	    0x7fffffffffffffffULL
-#define MAX_HASH_HIGHEST_BIT     0x1000000000000000ULL
-
 struct lustre_md {
 	struct mdt_body	 *body;
 	struct lov_stripe_md    *lsm;
@@ -1049,6 +1041,7 @@ struct md_open_data {
 };
 
 struct lookup_intent;
+struct cl_attr;
 
 struct md_ops {
 	int (*getstatus)(struct obd_export *, struct lu_fid *);
@@ -1108,6 +1101,13 @@ struct md_ops {
 			     struct lustre_md *);
 
 	int (*free_lustre_md)(struct obd_export *, struct lustre_md *);
+
+	int (*merge_attr)(struct obd_export *,
+			  const struct lmv_stripe_md *lsm,
+			  struct cl_attr *attr);
+
+	int (*update_lsm_md)(struct obd_export *, struct lmv_stripe_md *lsm,
+			     struct mdt_body *, ldlm_blocking_callback);
 
 	int (*set_open_replay_data)(struct obd_export *,
 				    struct obd_client_handle *,

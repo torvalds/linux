@@ -3015,6 +3015,27 @@ out:
 	return rc;
 }
 
+static int ll_merge_md_attr(struct inode *inode)
+{
+	struct cl_attr attr = { 0 };
+	int rc;
+
+	LASSERT(ll_i2info(inode)->lli_lsm_md);
+	rc = md_merge_attr(ll_i2mdexp(inode), ll_i2info(inode)->lli_lsm_md,
+			   &attr);
+	if (rc)
+		return rc;
+
+	ll_i2info(inode)->lli_stripe_dir_size = attr.cat_size;
+	ll_i2info(inode)->lli_stripe_dir_nlink = attr.cat_nlink;
+
+	ll_i2info(inode)->lli_atime = attr.cat_atime;
+	ll_i2info(inode)->lli_mtime = attr.cat_mtime;
+	ll_i2info(inode)->lli_ctime = attr.cat_ctime;
+
+	return 0;
+}
+
 static int ll_inode_revalidate(struct dentry *dentry, __u64 ibits)
 {
 	struct inode *inode = d_inode(dentry);
@@ -3026,6 +3047,13 @@ static int ll_inode_revalidate(struct dentry *dentry, __u64 ibits)
 
 	/* if object isn't regular file, don't validate size */
 	if (!S_ISREG(inode->i_mode)) {
+		if (S_ISDIR(inode->i_mode) &&
+		    ll_i2info(inode)->lli_lsm_md) {
+			rc = ll_merge_md_attr(inode);
+			if (rc)
+				return rc;
+		}
+
 		LTIME_S(inode->i_atime) = ll_i2info(inode)->lli_atime;
 		LTIME_S(inode->i_mtime) = ll_i2info(inode)->lli_mtime;
 		LTIME_S(inode->i_ctime) = ll_i2info(inode)->lli_ctime;
@@ -3063,7 +3091,6 @@ int ll_getattr(struct vfsmount *mnt, struct dentry *de, struct kstat *stat)
 	else
 		stat->ino = inode->i_ino;
 	stat->mode = inode->i_mode;
-	stat->nlink = inode->i_nlink;
 	stat->uid = inode->i_uid;
 	stat->gid = inode->i_gid;
 	stat->rdev = inode->i_rdev;
@@ -3071,9 +3098,16 @@ int ll_getattr(struct vfsmount *mnt, struct dentry *de, struct kstat *stat)
 	stat->mtime = inode->i_mtime;
 	stat->ctime = inode->i_ctime;
 	stat->blksize = 1 << inode->i_blkbits;
-
-	stat->size = i_size_read(inode);
 	stat->blocks = inode->i_blocks;
+
+	if (S_ISDIR(inode->i_mode) &&
+	    ll_i2info(inode)->lli_lsm_md) {
+		stat->nlink = lli->lli_stripe_dir_nlink;
+		stat->size = lli->lli_stripe_dir_size;
+	} else {
+		stat->nlink = inode->i_nlink;
+		stat->size = i_size_read(inode);
+	}
 
 	return 0;
 }
