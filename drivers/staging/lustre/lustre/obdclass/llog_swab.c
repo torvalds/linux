@@ -224,6 +224,7 @@ void lustre_swab_llog_rec(struct llog_rec_hdr *rec)
 		__swab32s(&lsr->lsr_uid_h);
 		__swab32s(&lsr->lsr_gid);
 		__swab32s(&lsr->lsr_gid_h);
+		__swab64s(&lsr->lsr_valid);
 		tail = &lsr->lsr_tail;
 		break;
 	}

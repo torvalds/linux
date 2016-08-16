@@ -3036,7 +3036,7 @@ struct llog_setattr64_rec {
 	__u32			lsr_uid_h;
 	__u32			lsr_gid;
 	__u32			lsr_gid_h;
-	__u64			lsr_padding;
+	__u64			lsr_valid;
 	struct llog_rec_tail    lsr_tail;
 } __packed;
 
