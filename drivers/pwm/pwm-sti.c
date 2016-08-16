@@ -11,6 +11,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/interrupt.h>
 #include <linux/math64.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
@@ -18,8 +19,10 @@
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
 #include <linux/regmap.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/time.h>
+#include <linux/wait.h>
 
 #define PWM_OUT_VAL(x)	(0x00 + (4 * (x))) /* Device's Duty Cycle register */
 #define PWM_CPT_VAL(x)	(0x10 + (4 * (x))) /* Capture value */
@@ -64,9 +67,17 @@ enum sti_cpt_edge {
 	CPT_EDGE_BOTH,
 };
 
+struct sti_cpt_ddata {
+	u32 snapshot[3];
+	unsigned int index;
+	struct mutex lock;
+	wait_queue_head_t wait;
+};
+
 struct sti_pwm_compat_data {
 	const struct reg_field *reg_fields;
-	unsigned int num_devs;
+	unsigned int pwm_num_devs;
+	unsigned int cpt_num_devs;
 	unsigned int max_pwm_cnt;
 	unsigned int max_prescale;
 };
@@ -307,10 +318,15 @@ static int sti_pwm_probe_dt(struct sti_pwm_chip *pc)
 	struct device_node *np = dev->of_node;
 	struct sti_pwm_compat_data *cdata = pc->cdata;
 	u32 num_devs;
+	int ret;
 
-	of_property_read_u32(np, "st,pwm-num-chan", &num_devs);
-	if (num_devs)
-		cdata->num_devs = num_devs;
+	ret = of_property_read_u32(np, "st,pwm-num-chan", &num_devs);
+	if (!ret)
+		cdata->pwm_num_devs = num_devs;
+
+	ret = of_property_read_u32(np, "st,capture-num-chan", &num_devs);
+	if (!ret)
+		cdata->cpt_num_devs = num_devs;
 
 	reg_fields = cdata->reg_fields;
 
@@ -350,6 +366,7 @@ static int sti_pwm_probe(struct platform_device *pdev)
 	struct sti_pwm_compat_data *cdata;
 	struct sti_pwm_chip *pc;
 	struct resource *res;
+	unsigned int i;
 	int ret;
 
 	pc = devm_kzalloc(dev, sizeof(*pc), GFP_KERNEL);
@@ -378,7 +395,8 @@ static int sti_pwm_probe(struct platform_device *pdev)
 	cdata->reg_fields   = &sti_pwm_regfields[0];
 	cdata->max_prescale = 0xff;
 	cdata->max_pwm_cnt  = 255;
-	cdata->num_devs     = 1;
+	cdata->pwm_num_devs = 1;
+	cdata->cpt_num_devs = 0;
 
 	pc->cdata = cdata;
 	pc->dev = dev;
@@ -416,7 +434,7 @@ static int sti_pwm_probe(struct platform_device *pdev)
 	pc->chip.dev = dev;
 	pc->chip.ops = &sti_pwm_ops;
 	pc->chip.base = -1;
-	pc->chip.npwm = pc->cdata->num_devs;
+	pc->chip.npwm = pc->cdata->pwm_num_devs;
 	pc->chip.can_sleep = true;
 
 	ret = pwmchip_add(&pc->chip);
@@ -424,6 +442,19 @@ static int sti_pwm_probe(struct platform_device *pdev)
 		clk_unprepare(pc->pwm_clk);
 		clk_unprepare(pc->cpt_clk);
 		return ret;
+	}
+
+	for (i = 0; i < cdata->cpt_num_devs; i++) {
+		struct sti_cpt_ddata *ddata;
+
+		ddata = devm_kzalloc(dev, sizeof(*ddata), GFP_KERNEL);
+		if (!ddata)
+			return -ENOMEM;
+
+		init_waitqueue_head(&ddata->wait);
+		mutex_init(&ddata->lock);
+
+		pwm_set_chip_data(&pc->chip.pwms[i], ddata);
 	}
 
 	platform_set_drvdata(pdev, pc);
@@ -436,7 +467,7 @@ static int sti_pwm_remove(struct platform_device *pdev)
 	struct sti_pwm_chip *pc = platform_get_drvdata(pdev);
 	unsigned int i;
 
-	for (i = 0; i < pc->cdata->num_devs; i++)
+	for (i = 0; i < pc->cdata->pwm_num_devs; i++)
 		pwm_disable(&pc->chip.pwms[i]);
 
 	clk_unprepare(pc->pwm_clk);
