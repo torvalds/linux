@@ -1535,6 +1535,21 @@ static inline int md_readpage(struct obd_export *exp, struct md_op_data *opdata,
 	return rc;
 }
 
+static inline int md_read_page(struct obd_export *exp,
+			       struct md_op_data *op_data,
+			       struct md_callback *cb_op,
+			       __u64  hash_offset,
+			       struct page **ppage)
+{
+	int rc;
+
+	EXP_CHECK_MD_OP(exp, read_page);
+	EXP_MD_COUNTER_INCREMENT(exp, read_page);
+	rc = MDP(exp->exp_obd, read_page)(exp, op_data, cb_op, hash_offset,
+					  ppage);
+	return rc;
+}
+
 static inline int md_unlink(struct obd_export *exp, struct md_op_data *op_data,
 			    struct ptlrpc_request **request)
 {

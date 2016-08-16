@@ -830,6 +830,15 @@ struct md_op_data {
 	struct lustre_handle	op_lease_handle;
 };
 
+#define op_stripe_offset       op_ioepoch
+#define op_max_pages           op_valid
+
+struct md_callback {
+	int (*md_blocking_ast)(struct ldlm_lock *lock,
+			       struct ldlm_lock_desc *desc,
+			       void *data, int flag);
+};
+
 enum op_cli_flags {
 	CLI_SET_MEA	= 1 << 0,
 	CLI_RM_ENTRY	= 1 << 1,
@@ -1039,7 +1048,9 @@ struct md_ops {
 		    struct ptlrpc_request **);
 	int (*readpage)(struct obd_export *, struct md_op_data *,
 			struct page **, struct ptlrpc_request **);
-
+	int (*read_page)(struct obd_export *, struct md_op_data *,
+			 struct md_callback *cb_op, __u64 hash_offset,
+			 struct page **ppage);
 	int (*unlink)(struct obd_export *, struct md_op_data *,
 		      struct ptlrpc_request **);
 
