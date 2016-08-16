@@ -471,7 +471,6 @@ static int lmv_intent_lookup(struct obd_export *exp,
 		it->it_disposition &= ~DISP_ENQ_COMPLETE;
 		rc = md_intent_lock(tgt->ltd_exp, op_data, lmm, lmmsize, it,
 				    flags, reqp, cb_blocking, extra_lock_flags);
-		return rc;
 	}
 
 	/*
