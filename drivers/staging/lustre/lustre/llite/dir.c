@@ -649,6 +649,7 @@ static int ll_readdir(struct file *filp, struct dir_context *ctx)
 			}
 		}
 	}
+	op_data->op_max_pages = sbi->ll_md_brw_pages;
 	ctx->pos = pos;
 	rc = ll_dir_read(inode, &pos, op_data, ctx);
 	pos = ctx->pos;

@@ -276,6 +276,7 @@ static int ll_get_name(struct dentry *dentry, char *name,
 		goto out;
 	}
 
+	op_data->op_max_pages = ll_i2sbi(dir)->ll_md_brw_pages;
 	inode_lock(dir);
 	rc = ll_dir_read(dir, &pos, op_data, &lgd.ctx);
 	inode_unlock(dir);
