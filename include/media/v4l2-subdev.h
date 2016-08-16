@@ -788,6 +788,8 @@ struct v4l2_subdev_platform_data {
  * @devnode: subdev device node
  * @dev: pointer to the physical device, if any
  * @of_node: The device_node of the subdev, usually the same as dev->of_node.
+ * @fwnode: The fwnode_handle of the subdev, usually the same as
+ *	    either dev->of_node->fwnode or dev->fwnode (whichever is non-NULL).
  * @async_list: Links this subdev to a global subdev_list or @notifier->done
  *	list.
  * @asd: Pointer to respective &struct v4l2_async_subdev.
@@ -819,6 +821,7 @@ struct v4l2_subdev {
 	struct video_device *devnode;
 	struct device *dev;
 	struct device_node *of_node;
+	struct fwnode_handle *fwnode;
 	struct list_head async_list;
 	struct v4l2_async_subdev *asd;
 	struct v4l2_async_notifier *notifier;
