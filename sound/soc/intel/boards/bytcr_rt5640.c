@@ -378,6 +378,17 @@ static const struct dmi_system_id byt_rt5640_quirk_table[] = {
 						BYT_RT5640_MCLK_EN |
 						BYT_RT5640_SSP0_AIF1),
 	},
+	{
+		.callback = byt_rt5640_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire SW5-012"),
+		},
+		.driver_data = (unsigned long *)(BYT_RT5640_IN1_MAP |
+						 BYT_RT5640_MCLK_EN |
+						 BYT_RT5640_SSP0_AIF1),
+
+	},
 	{}
 };
 
@@ -527,7 +538,7 @@ static int byt_rt5640_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 	if ((byt_rt5640_quirk & BYT_RT5640_SSP0_AIF1) ||
 		(byt_rt5640_quirk & BYT_RT5640_SSP0_AIF2)) {
 
-		/* set SSP2 to 16-bit */
+		/* set SSP0 to 16-bit */
 		params_set_format(params, SNDRV_PCM_FORMAT_S16_LE);
 
 		/*
