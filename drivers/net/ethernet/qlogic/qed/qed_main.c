@@ -1402,3 +1402,24 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.set_coalesce = &qed_set_coalesce,
 	.set_led = &qed_set_led,
 };
+
+void qed_get_protocol_stats(struct qed_dev *cdev,
+			    enum qed_mcp_protocol_type type,
+			    union qed_mcp_protocol_stats *stats)
+{
+	struct qed_eth_stats eth_stats;
+
+	memset(stats, 0, sizeof(*stats));
+
+	switch (type) {
+	case QED_MCP_LAN_STATS:
+		qed_get_vport_stats(cdev, &eth_stats);
+		stats->lan_stats.ucast_rx_pkts = eth_stats.rx_ucast_pkts;
+		stats->lan_stats.ucast_tx_pkts = eth_stats.tx_ucast_pkts;
+		stats->lan_stats.fcs_err = -1;
+		break;
+	default:
+		DP_ERR(cdev, "Invalid protocol type = %d\n", type);
+		return;
+	}
+}
