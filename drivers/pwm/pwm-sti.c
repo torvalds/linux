@@ -305,7 +305,90 @@ static void sti_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 	clear_bit(pwm->hwpwm, &pc->configured);
 }
 
+static int sti_pwm_capture(struct pwm_chip *chip, struct pwm_device *pwm,
+			   struct pwm_capture *result, unsigned long timeout)
+{
+	struct sti_pwm_chip *pc = to_sti_pwmchip(chip);
+	struct sti_pwm_compat_data *cdata = pc->cdata;
+	struct sti_cpt_ddata *ddata = pwm_get_chip_data(pwm);
+	struct device *dev = pc->dev;
+	unsigned int effective_ticks;
+	unsigned long long high, low;
+	int ret;
+
+	if (pwm->hwpwm >= cdata->cpt_num_devs) {
+		dev_err(dev, "device %u is not valid\n", pwm->hwpwm);
+		return -EINVAL;
+	}
+
+	mutex_lock(&ddata->lock);
+	ddata->index = 0;
+
+	/* Prepare capture measurement */
+	regmap_write(pc->regmap, PWM_CPT_EDGE(pwm->hwpwm), CPT_EDGE_RISING);
+	regmap_field_write(pc->pwm_cpt_int_en, BIT(pwm->hwpwm));
+
+	/* Enable capture */
+	ret = regmap_field_write(pc->pwm_cpt_en, 1);
+	if (ret) {
+		dev_err(dev, "failed to enable PWM capture %u: %d\n",
+			pwm->hwpwm, ret);
+		goto out;
+	}
+
+	ret = wait_event_interruptible_timeout(ddata->wait, ddata->index > 1,
+					       msecs_to_jiffies(timeout));
+
+	regmap_write(pc->regmap, PWM_CPT_EDGE(pwm->hwpwm), CPT_EDGE_DISABLED);
+
+	if (ret == -ERESTARTSYS)
+		goto out;
+
+	switch (ddata->index) {
+	case 0:
+	case 1:
+		/*
+		 * Getting here could mean:
+		 *  - input signal is constant of less than 1 Hz
+		 *  - there is no input signal at all
+		 *
+		 * In such case the frequency is rounded down to 0
+		 */
+		result->period = 0;
+		result->duty_cycle = 0;
+
+		break;
+
+	case 2:
+		/* We have everying we need */
+		high = ddata->snapshot[1] - ddata->snapshot[0];
+		low = ddata->snapshot[2] - ddata->snapshot[1];
+
+		effective_ticks = clk_get_rate(pc->cpt_clk);
+
+		result->period = (high + low) * NSEC_PER_SEC;
+		result->period /= effective_ticks;
+
+		result->duty_cycle = high * NSEC_PER_SEC;
+		result->duty_cycle /= effective_ticks;
+
+		break;
+
+	default:
+		dev_err(dev, "internal error\n");
+		break;
+	}
+
+out:
+	/* Disable capture */
+	regmap_field_write(pc->pwm_cpt_en, 0);
+
+	mutex_unlock(&ddata->lock);
+	return ret;
+}
+
 static const struct pwm_ops sti_pwm_ops = {
+	.capture = sti_pwm_capture,
 	.config = sti_pwm_config,
 	.enable = sti_pwm_enable,
 	.disable = sti_pwm_disable,
@@ -417,6 +500,11 @@ static int sti_pwm_probe_dt(struct sti_pwm_chip *pc)
 						 reg_fields[PWM_OUT_EN]);
 	if (IS_ERR(pc->pwm_out_en))
 		return PTR_ERR(pc->pwm_out_en);
+
+	pc->pwm_cpt_en = devm_regmap_field_alloc(dev, pc->regmap,
+						 reg_fields[PWM_CPT_EN]);
+	if (IS_ERR(pc->pwm_cpt_en))
+		return PTR_ERR(pc->pwm_cpt_en);
 
 	pc->pwm_cpt_int_en = devm_regmap_field_alloc(dev, pc->regmap,
 						 reg_fields[PWM_CPT_INT_EN]);
