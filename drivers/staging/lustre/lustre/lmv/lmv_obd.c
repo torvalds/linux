@@ -1920,6 +1920,7 @@ lmv_getattr_name(struct obd_export *exp, struct md_op_data *op_data,
 		tgt = lmv_find_target(lmv, &rid);
 		if (IS_ERR(tgt)) {
 			ptlrpc_req_finished(*request);
+			*request = NULL;
 			return PTR_ERR(tgt);
 		}
 
