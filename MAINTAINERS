@@ -7661,7 +7661,7 @@ L:	linux-rdma@vger.kernel.org
 S:	Supported
 W:	https://github.com/SoftRoCE/rxe-dev/wiki/rxe-dev:-Home
 Q:	http://patchwork.kernel.org/project/linux-rdma/list/
-F:	drivers/infiniband/hw/rxe/
+F:	drivers/infiniband/sw/rxe/
 F:	include/uapi/rdma/rdma_user_rxe.h
 
 MEMBARRIER SUPPORT
