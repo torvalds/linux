@@ -160,7 +160,7 @@ static int net_poll(struct lkl_netdev *nd)
 		container_of(nd, struct lkl_netdev_dpdk, dev);
 
 	if (nd_dpdk->close)
-		return -1;
+		return LKL_DEV_NET_POLL_HUP;
 	/*
 	 * dpdk's interrupt mode has equivalent of epoll_wait(2),
 	 * which we can apply here. but AFAIK the mode is only available

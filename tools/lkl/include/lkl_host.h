@@ -49,7 +49,6 @@ struct lkl_dev_blk_ops {
 
 struct lkl_netdev {
 	struct lkl_dev_net_ops *ops;
-	lkl_thread_t poll_tid;
 	uint8_t has_vnet_hdr: 1;
 };
 
@@ -83,12 +82,15 @@ struct lkl_dev_net_ops {
 
 #define LKL_DEV_NET_POLL_RX		1
 #define LKL_DEV_NET_POLL_TX		2
+#define LKL_DEV_NET_POLL_HUP		4
 
 	/*
 	 * Polls a net device.
 	 *
-	 * Supports two events: LKL_DEV_NET_POLL_RX (readable) and
-	 * LKL_DEV_NET_POLL_TX (writable). Blocks until one event is available.
+	 * Supports the following events: LKL_DEV_NET_POLL_RX (readable),
+	 * LKL_DEV_NET_POLL_TX (writable) or LKL_DEV_NET_POLL_HUP (the close
+	 * operations has been issued and we need to clean up). Blocks until one
+	 * event is available.
 	 *
 	 * @nd - pointer to the network device
 	 */
@@ -97,13 +99,8 @@ struct lkl_dev_net_ops {
 	/*
 	 * Closes a net device.
 	 *
-	 * Implementation can choose to release any resources releated to it. In
-	 * particular, the polling threads are to be killed in this function.
-	 *
-	 * Implemenation must guarantee it's safe to call free_mem() after this
-	 * function call.
-	 *
-	 * Not implemented by all netdev types.
+	 * Implementation must release its resources and poll must wakeup and
+	 * return LKL_DEV_NET_POLL_HUP.
 	 *
 	 * @returns 0 for success. -1 for failure.
 	 */

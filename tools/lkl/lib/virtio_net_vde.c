@@ -90,9 +90,9 @@ int net_vde_poll_with_timeout(struct lkl_netdev *nd, int timeout)
 	ret = 0;
 
 	if (pollfds[1].revents & (POLLHUP | POLLNVAL | POLLIN))
-		return -1;
+		return LKL_DEV_NET_POLL_HUP;
 	if (pollfds[0].revents & (POLLHUP | POLLNVAL))
-		return -1;
+		return LKL_DEV_NET_POLL_HUP;
 
 	if (pollfds[0].revents & POLLIN)
 		ret |= LKL_DEV_NET_POLL_RX;

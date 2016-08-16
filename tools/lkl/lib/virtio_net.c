@@ -30,6 +30,7 @@ struct virtio_net_dev {
 	struct lkl_dev_net_ops *ops;
 	struct lkl_netdev *nd;
 	struct lkl_mutex **queue_locks;
+	lkl_thread_t poll_tid;
 };
 
 static int net_check_features(struct virtio_dev *dev)
@@ -138,15 +139,22 @@ static struct virtio_dev_ops net_ops = {
 void poll_thread(void *arg)
 {
 	struct virtio_net_dev *dev = arg;
-	int ret;
 
 	/* Synchronization is handled in virtio_process_queue */
-	while ((ret = dev->nd->ops->poll(dev->nd)) >= 0) {
+	do {
+		int ret = dev->nd->ops->poll(dev->nd);
+
+		if (ret < 0) {
+			lkl_printf("virtio net poll error: %d\n", ret);
+			continue;
+		}
+		if (ret & LKL_DEV_NET_POLL_HUP)
+			break;
 		if (ret & LKL_DEV_NET_POLL_RX)
 			virtio_process_queue(&dev->dev, 0);
 		if (ret & LKL_DEV_NET_POLL_TX)
 			virtio_process_queue(&dev->dev, 1);
-	}
+	} while (1);
 }
 
 struct virtio_net_dev *registered_devs[MAX_NET_DEVS];
@@ -235,8 +243,8 @@ int lkl_netdev_add(struct lkl_netdev *nd, struct lkl_netdev_args* args)
 	if (ret)
 		goto out_free;
 
-	nd->poll_tid = lkl_host_ops.thread_create(poll_thread, dev);
-	if (nd->poll_tid == 0)
+	dev->poll_tid = lkl_host_ops.thread_create(poll_thread, dev);
+	if (dev->poll_tid == 0)
 		goto out_cleanup_dev;
 
 	ret = dev_register(dev);
@@ -267,6 +275,8 @@ static int lkl_netdev_remove(struct virtio_net_dev *dev)
 	if (dev->nd->ops->close(dev->nd) < 0)
 		/* Something went wrong */
 		return -1;
+
+	lkl_host_ops.thread_join(dev->poll_tid);
 
 	virtio_dev_cleanup(&dev->dev);
 

@@ -91,7 +91,7 @@ static int linux_fdnet_net_poll(struct lkl_netdev *nd)
 
 	for (i = 0; i < ret; ++i) {
 		if (ev[i].data.fd == nd_fdnet->eventfd)
-			return -1;
+			return LKL_DEV_NET_POLL_HUP;
 		if (ev[i].data.fd == nd_fdnet->fd) {
 			event = ev[i].events;
 			if (event & (EPOLLIN | EPOLLPRI))
@@ -121,10 +121,6 @@ static int linux_fdnet_net_close(struct lkl_netdev *nd)
 		/* This should never happen. */
 		return -1;
 	}
-
-	/* The order that we join in doesn't matter. */
-	if (lkl_host_ops.thread_join(nd->poll_tid))
-		return -1;
 
 	/* nor does the order that we close */
 	if (close(nd_fdnet->fd) || close(nd_fdnet->eventfd) ||
