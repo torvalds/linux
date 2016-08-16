@@ -150,6 +150,7 @@ struct tipc_bearer {
 	u32 identity;
 	struct tipc_link_req *link_req;
 	char net_plane;
+	unsigned long up;
 };
 
 struct tipc_bearer_names {
