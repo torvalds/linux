@@ -196,10 +196,10 @@ static struct etnaviv_iommu_ops etnaviv_iommu_ops = {
 	.dump = etnaviv_iommuv1_dump,
 };
 
-void etnaviv_iommu_domain_restore(struct etnaviv_gpu *gpu,
-	struct iommu_domain *domain)
+void etnaviv_iommuv1_restore(struct etnaviv_gpu *gpu)
 {
-	struct etnaviv_iommu_domain *etnaviv_domain = to_etnaviv_domain(domain);
+	struct etnaviv_iommu_domain *etnaviv_domain =
+			to_etnaviv_domain(gpu->mmu->domain);
 	u32 pgtable;
 
 	/* set page table address in MC */

@@ -576,7 +576,7 @@ static void etnaviv_gpu_hw_init(struct etnaviv_gpu *gpu)
 	gpu_write(gpu, VIVS_MC_MEMORY_BASE_ADDR_PE, gpu->memory_base);
 
 	/* setup the MMU page table pointers */
-	etnaviv_iommu_domain_restore(gpu, gpu->mmu->domain);
+	etnaviv_iommuv1_restore(gpu);
 
 	/* Start command processor */
 	prefetch = etnaviv_buffer_init(gpu);
