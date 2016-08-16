@@ -224,6 +224,7 @@ static int lov_init_raid0(const struct lu_env *env,
 
 	LASSERT(!lov->lo_lsm);
 	lov->lo_lsm = lsm_addref(lsm);
+	lov->lo_layout_invalid = true;
 	r0->lo_nr  = lsm->lsm_stripe_count;
 	LASSERT(r0->lo_nr <= lov_targets_nr(dev));
 

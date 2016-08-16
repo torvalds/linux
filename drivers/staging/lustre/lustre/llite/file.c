@@ -2828,8 +2828,8 @@ ll_file_flock(struct file *file, int cmd, struct file_lock *file_lock)
 	return rc;
 }
 
-static int ll_get_fid_by_name(struct inode *parent, const char *name,
-			      int namelen, struct lu_fid *fid)
+int ll_get_fid_by_name(struct inode *parent, const char *name,
+		       int namelen, struct lu_fid *fid)
 {
 	struct md_op_data *op_data = NULL;
 	struct ptlrpc_request *req;
@@ -2843,20 +2843,19 @@ static int ll_get_fid_by_name(struct inode *parent, const char *name,
 
 	op_data->op_valid = OBD_MD_FLID;
 	rc = md_getattr_name(ll_i2sbi(parent)->ll_md_exp, op_data, &req);
+	ll_finish_md_op_data(op_data);
 	if (rc < 0)
-		goto out_free;
+		return rc;
 
 	body = req_capsule_server_get(&req->rq_pill, &RMF_MDT_BODY);
 	if (!body) {
 		rc = -EFAULT;
 		goto out_req;
 	}
-	*fid = body->fid1;
+	if (fid)
+		*fid = body->fid1;
 out_req:
 	ptlrpc_req_finished(req);
-out_free:
-	if (op_data)
-		ll_finish_md_op_data(op_data);
 	return rc;
 }
 
@@ -2864,12 +2863,13 @@ int ll_migrate(struct inode *parent, struct file *file, int mdtidx,
 	       const char *name, int namelen)
 {
 	struct ptlrpc_request *request = NULL;
+	struct inode *child_inode = NULL;
 	struct dentry *dchild = NULL;
 	struct md_op_data *op_data;
 	struct qstr qstr;
 	int rc;
 
-	CDEBUG(D_VFSTRACE, "migrate %s under"DFID" to MDT%d\n",
+	CDEBUG(D_VFSTRACE, "migrate %s under "DFID" to MDT%d\n",
 	       name, PFID(ll_inode2fid(parent)), mdtidx);
 
 	op_data = ll_prep_md_op_data(NULL, parent, NULL, name, namelen,
@@ -2884,8 +2884,13 @@ int ll_migrate(struct inode *parent, struct file *file, int mdtidx,
 	dchild = d_lookup(file_dentry(file), &qstr);
 	if (dchild && dchild->d_inode) {
 		op_data->op_fid3 = *ll_inode2fid(dchild->d_inode);
+		if (dchild->d_inode) {
+			child_inode = igrab(dchild->d_inode);
+			ll_invalidate_aliases(child_inode);
+		}
+		dput(dchild);
 	} else {
-		rc = ll_get_fid_by_name(parent, name, strnlen(name, namelen),
+		rc = ll_get_fid_by_name(parent, name, namelen,
 					&op_data->op_fid3);
 		if (rc)
 			goto out_free;
@@ -2895,6 +2900,7 @@ int ll_migrate(struct inode *parent, struct file *file, int mdtidx,
 		CERROR("%s: migrate %s, but fid "DFID" is insane\n",
 		       ll_get_fsname(parent->i_sb, NULL, 0), name,
 		       PFID(&op_data->op_fid3));
+		rc = -EINVAL;
 		goto out_free;
 	}
 
@@ -2912,18 +2918,16 @@ int ll_migrate(struct inode *parent, struct file *file, int mdtidx,
 	op_data->op_mds = mdtidx;
 	op_data->op_cli_flags = CLI_MIGRATE;
 	rc = md_rename(ll_i2sbi(parent)->ll_md_exp, op_data, name,
-		       strnlen(name, namelen), name, strnlen(name, namelen),
-		       &request);
+		       namelen, name, namelen, &request);
 	if (!rc)
 		ll_update_times(request, parent);
 
 	ptlrpc_req_finished(request);
 
 out_free:
-	if (dchild) {
-		if (dchild->d_inode)
-			ll_delete_inode(dchild->d_inode);
-		dput(dchild);
+	if (child_inode) {
+		clear_nlink(child_inode);
+		iput(child_inode);
 	}
 
 	ll_finish_md_op_data(op_data);
