@@ -226,7 +226,7 @@ notify_otg:
 	}
 
 	if (notify_charger)
-		extcon_set_cable_state_(info->edev, cable, vbus_attach);
+		extcon_set_state_sync(info->edev, cable, vbus_attach);
 
 	/* Clear the flags on disconnect event */
 	if (!vbus_attach)

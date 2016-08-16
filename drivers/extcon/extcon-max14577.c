@@ -357,7 +357,7 @@ static int max14577_muic_jig_handler(struct max14577_muic_info *info,
 	if (ret < 0)
 		return ret;
 
-	extcon_set_cable_state_(info->edev, EXTCON_JIG, attached);
+	extcon_set_state_sync(info->edev, EXTCON_JIG, attached);
 
 	return 0;
 }
@@ -454,24 +454,24 @@ static int max14577_muic_chg_handler(struct max14577_muic_info *info)
 		if (ret < 0)
 			return ret;
 
-		extcon_set_cable_state_(info->edev, EXTCON_USB, attached);
-		extcon_set_cable_state_(info->edev, EXTCON_CHG_USB_SDP,
+		extcon_set_state_sync(info->edev, EXTCON_USB, attached);
+		extcon_set_state_sync(info->edev, EXTCON_CHG_USB_SDP,
 					attached);
 		break;
 	case MAX14577_CHARGER_TYPE_DEDICATED_CHG:
-		extcon_set_cable_state_(info->edev, EXTCON_CHG_USB_DCP,
+		extcon_set_state_sync(info->edev, EXTCON_CHG_USB_DCP,
 					attached);
 		break;
 	case MAX14577_CHARGER_TYPE_DOWNSTREAM_PORT:
-		extcon_set_cable_state_(info->edev, EXTCON_CHG_USB_CDP,
+		extcon_set_state_sync(info->edev, EXTCON_CHG_USB_CDP,
 					attached);
 		break;
 	case MAX14577_CHARGER_TYPE_SPECIAL_500MA:
-		extcon_set_cable_state_(info->edev, EXTCON_CHG_USB_SLOW,
+		extcon_set_state_sync(info->edev, EXTCON_CHG_USB_SLOW,
 					attached);
 		break;
 	case MAX14577_CHARGER_TYPE_SPECIAL_1A:
-		extcon_set_cable_state_(info->edev, EXTCON_CHG_USB_FAST,
+		extcon_set_state_sync(info->edev, EXTCON_CHG_USB_FAST,
 					attached);
 		break;
 	case MAX14577_CHARGER_TYPE_NONE:

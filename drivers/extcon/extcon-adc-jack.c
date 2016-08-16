@@ -75,7 +75,7 @@ static void adc_jack_handler(struct work_struct *work)
 	for (i = 0; i < data->num_conditions; i++) {
 		def = &data->adc_conditions[i];
 		if (def->min_adc <= adc_val && def->max_adc >= adc_val) {
-			extcon_set_cable_state_(data->edev, def->id, true);
+			extcon_set_state_sync(data->edev, def->id, true);
 			return;
 		}
 	}
@@ -83,7 +83,7 @@ static void adc_jack_handler(struct work_struct *work)
 	/* Set the detached state if adc value is not included in the range */
 	for (i = 0; i < data->num_conditions; i++) {
 		def = &data->adc_conditions[i];
-		extcon_set_cable_state_(data->edev, def->id, false);
+		extcon_set_state_sync(data->edev, def->id, false);
 	}
 }
 
