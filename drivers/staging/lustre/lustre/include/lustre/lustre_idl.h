@@ -2252,6 +2252,11 @@ void lustre_swab_mdt_rec_setattr(struct mdt_rec_setattr *sa);
 					      */
 #define MDS_OPEN_RELEASE   02000000000000ULL /* Open the file for HSM release */
 
+#define MDS_OPEN_FL_INTERNAL (MDS_OPEN_HAS_EA | MDS_OPEN_HAS_OBJS |	\
+			      MDS_OPEN_OWNEROVERRIDE | MDS_OPEN_LOCK |	\
+			      MDS_OPEN_BY_FID | MDS_OPEN_LEASE |	\
+			      MDS_OPEN_RELEASE)
+
 enum mds_op_bias {
 	MDS_CHECK_SPLIT		= 1 << 0,
 	MDS_CROSS_REF		= 1 << 1,

@@ -148,12 +148,18 @@ ll_iget_for_nfs(struct super_block *sb, struct lu_fid *fid, struct lu_fid *paren
 		return ERR_PTR(-ESTALE);
 	}
 
+	result = d_obtain_alias(inode);
+	if (IS_ERR(result)) {
+		iput(inode);
+		return result;
+	}
+
 	/**
-	 * It is an anonymous dentry without OST objects created yet.
-	 * We have to find the parent to tell MDS how to init lov objects.
+	 * In case d_obtain_alias() found a disconnected dentry, always update
+	 * lli_pfid to allow later operation (normally open) have parent fid,
+	 * which may be used by MDS to create data.
 	 */
-	if (S_ISREG(inode->i_mode) && !ll_i2info(inode)->lli_has_smd &&
-	    parent && !fid_is_zero(parent)) {
+	if (parent) {
 		struct ll_inode_info *lli = ll_i2info(inode);
 
 		spin_lock(&lli->lli_lock);

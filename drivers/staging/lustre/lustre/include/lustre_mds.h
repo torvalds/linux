@@ -58,9 +58,6 @@ struct mds_group_info {
 #define MDD_OBD_NAME     "mdd_obd"
 #define MDD_OBD_UUID     "mdd_obd_uuid"
 
-/* these are local flags, used only on the client, private */
-#define M_CHECK_STALE	   0200000000
-
 /** @} mds */
 
 #endif

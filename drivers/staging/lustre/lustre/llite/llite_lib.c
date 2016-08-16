@@ -189,7 +189,8 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 				  OBD_CONNECT_PINGLESS |
 				  OBD_CONNECT_MAX_EASIZE |
 				  OBD_CONNECT_FLOCK_DEAD |
-				  OBD_CONNECT_DISP_STRIPE | OBD_CONNECT_LFSCK;
+				  OBD_CONNECT_DISP_STRIPE | OBD_CONNECT_LFSCK |
+				  OBD_CONNECT_OPEN_BY_FID;
 
 	if (sbi->ll_flags & LL_SBI_SOM_PREVIEW)
 		data->ocd_connect_flags |= OBD_CONNECT_SOM;
@@ -2363,20 +2364,6 @@ struct md_op_data *ll_prep_md_op_data(struct md_op_data *op_data,
 		op_data->op_bias |= MDS_CREATE_VOLATILE;
 	op_data->op_mds = 0;
 	op_data->op_data = data;
-
-	/* If the file is being opened after mknod() (normally due to NFS)
-	 * try to use the default stripe data from parent directory for
-	 * allocating OST objects.  Try to pass the parent FID to MDS.
-	 */
-	if (opc == LUSTRE_OPC_CREATE && i1 == i2 && S_ISREG(i2->i_mode) &&
-	    !ll_i2info(i2)->lli_has_smd) {
-		struct ll_inode_info *lli = ll_i2info(i2);
-
-		spin_lock(&lli->lli_lock);
-		if (likely(!lli->lli_has_smd && !fid_is_zero(&lli->lli_pfid)))
-			op_data->op_fid1 = lli->lli_pfid;
-		spin_unlock(&lli->lli_lock);
-	}
 
 	/* When called by ll_setattr_raw, file is i1. */
 	if (ll_i2info(i1)->lli_flags & LLIF_DATA_MODIFIED)

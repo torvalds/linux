@@ -42,7 +42,6 @@
 
 #include "obd_class.h"
 #include "lustre_net.h"
-#include "lustre_mds.h"
 #include "lustre_ha.h"
 
 /* 4UL * 1024 * 1024 */

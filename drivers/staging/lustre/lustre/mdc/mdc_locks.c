@@ -922,27 +922,6 @@ static int mdc_finish_intent_lock(struct obd_export *exp,
 	mdt_body = req_capsule_server_get(&request->rq_pill, &RMF_MDT_BODY);
 	LASSERT(mdt_body);      /* mdc_enqueue checked */
 
-	/* If we were revalidating a fid/name pair, mark the intent in
-	 * case we fail and get called again from lookup
-	 */
-	if (fid_is_sane(&op_data->op_fid2) &&
-	    it->it_create_mode & M_CHECK_STALE &&
-	    it->it_op != IT_GETATTR) {
-		/* Also: did we find the same inode? */
-		/* sever can return one of two fids:
-		 * op_fid2 - new allocated fid - if file is created.
-		 * op_fid3 - existent fid - if file only open.
-		 * op_fid3 is saved in lmv_intent_open
-		 */
-		if ((!lu_fid_eq(&op_data->op_fid2, &mdt_body->mbo_fid1)) &&
-		    (!lu_fid_eq(&op_data->op_fid3, &mdt_body->mbo_fid1))) {
-			CDEBUG(D_DENTRY, "Found stale data "DFID"("DFID")/"DFID
-			       "\n", PFID(&op_data->op_fid2),
-			       PFID(&op_data->op_fid2), PFID(&mdt_body->mbo_fid1));
-			return -ESTALE;
-		}
-	}
-
 	rc = it_open_error(DISP_LOOKUP_EXECD, it);
 	if (rc)
 		return rc;

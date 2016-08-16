@@ -379,53 +379,35 @@ int ll_file_release(struct inode *inode, struct file *file)
 	return rc;
 }
 
-static int ll_intent_file_open(struct dentry *dentry, void *lmm,
-			       int lmmsize, struct lookup_intent *itp)
+static int ll_intent_file_open(struct dentry *de, void *lmm, int lmmsize,
+			       struct lookup_intent *itp)
 {
-	struct inode *inode = d_inode(dentry);
+	struct inode *inode = d_inode(de);
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
-	struct dentry *parent = dentry->d_parent;
-	const char *name = dentry->d_name.name;
-	const int len = dentry->d_name.len;
+	struct dentry *parent = de->d_parent;
+	const char *name = NULL;
 	struct md_op_data *op_data;
 	struct ptlrpc_request *req;
-	__u32 opc = LUSTRE_OPC_ANY;
-	int rc;
+	int len = 0, rc;
 
-	/* Usually we come here only for NFSD, and we want open lock. */
-	/* We can also get here if there was cached open handle in revalidate_it
-	 * but it disappeared while we were getting from there to ll_file_open.
-	 * But this means this file was closed and immediately opened which
-	 * makes a good candidate for using OPEN lock
+	LASSERT(parent);
+	LASSERT(itp->it_flags & MDS_OPEN_BY_FID);
+
+	/*
+	 * if server supports open-by-fid, or file name is invalid, don't pack
+	 * name in open request
 	 */
-	/* If lmmsize & lmm are not 0, we are just setting stripe info
-	 * parameters. No need for the open lock
-	 */
-	if (!lmm && lmmsize == 0) {
-		struct ll_dentry_data *ldd = ll_d2d(dentry);
-		/*
-		 * If we came via ll_iget_for_nfs, then we need to request
-		 * struct ll_dentry_data *ldd = ll_d2d(file->f_dentry);
-		 *
-		 * NB: when ldd is NULL, it must have come via normal
-		 * lookup path only, since ll_iget_for_nfs always calls
-		 * ll_d_init().
-		 */
-		if (ldd && ldd->lld_nfs_dentry) {
-			ldd->lld_nfs_dentry = 0;
-			itp->it_flags |= MDS_OPEN_LOCK;
-		}
-		if (itp->it_flags & FMODE_WRITE)
-			opc = LUSTRE_OPC_CREATE;
+	if (!(exp_connect_flags(sbi->ll_md_exp) & OBD_CONNECT_OPEN_BY_FID) &&
+	    lu_name_is_valid_2(de->d_name.name, de->d_name.len)) {
+		name = de->d_name.name;
+		len = de->d_name.len;
 	}
 
-	op_data  = ll_prep_md_op_data(NULL, d_inode(parent),
-				      inode, name, len,
-				      O_RDWR, opc, NULL);
+	op_data  = ll_prep_md_op_data(NULL, d_inode(parent), inode, name, len,
+				      O_RDWR, LUSTRE_OPC_ANY, NULL);
 	if (IS_ERR(op_data))
 		return PTR_ERR(op_data);
 
-	itp->it_flags |= MDS_OPEN_BY_FID;
 	rc = md_intent_lock(sbi->ll_md_exp, op_data, lmm, lmmsize, itp,
 			    0 /*unused */, &req, ll_md_blocking_ast, 0);
 	ll_finish_md_op_data(op_data);
@@ -655,9 +637,19 @@ restart:
 			 * result in a deadlock
 			 */
 			mutex_unlock(&lli->lli_och_mutex);
-			it->it_create_mode |= M_CHECK_STALE;
+			/*
+			 * Normally called under two situations:
+			 * 1. NFS export.
+			 * 2. revalidate with IT_OPEN (revalidate doesn't
+			 *    execute this intent any more).
+			 *
+			 * Always fetch MDS_OPEN_LOCK if this is not setstripe.
+			 *
+			 * Always specify MDS_OPEN_BY_FID because we don't want
+			 * to get file with different fid.
+			 */
+			it->it_flags |= MDS_OPEN_LOCK | MDS_OPEN_BY_FID;
 			rc = ll_intent_file_open(file->f_path.dentry, NULL, 0, it);
-			it->it_create_mode &= ~M_CHECK_STALE;
 			if (rc)
 				goto out_openerr;
 
@@ -1399,6 +1391,7 @@ int ll_lov_setstripe_ea_info(struct inode *inode, struct dentry *dentry,
 	}
 
 	ll_inode_size_lock(inode);
+	oit.it_flags |= MDS_OPEN_BY_FID;
 	rc = ll_intent_file_open(dentry, lum, lum_size, &oit);
 	if (rc)
 		goto out_unlock;
@@ -3066,7 +3059,6 @@ static int __ll_inode_revalidate(struct dentry *dentry, __u64 ibits)
 		if (IS_ERR(op_data))
 			return PTR_ERR(op_data);
 
-		oit.it_create_mode |= M_CHECK_STALE;
 		rc = md_intent_lock(exp, op_data, NULL, 0,
 				    /* we are not interested in name
 				     * based lookup
@@ -3074,7 +3066,6 @@ static int __ll_inode_revalidate(struct dentry *dentry, __u64 ibits)
 				    &oit, 0, &req,
 				    ll_md_blocking_ast, 0);
 		ll_finish_md_op_data(op_data);
-		oit.it_create_mode &= ~M_CHECK_STALE;
 		if (rc < 0) {
 			rc = ll_inode_revalidate_fini(inode, rc);
 			goto out;

@@ -171,10 +171,7 @@ void mdc_create_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 static __u64 mds_pack_open_flags(__u64 flags, __u32 mode)
 {
 	__u64 cr_flags = (flags & (FMODE_READ | FMODE_WRITE |
-				   MDS_OPEN_HAS_EA | MDS_OPEN_HAS_OBJS |
-				   MDS_OPEN_OWNEROVERRIDE | MDS_OPEN_LOCK |
-				   MDS_OPEN_BY_FID | MDS_OPEN_LEASE |
-				   MDS_OPEN_RELEASE));
+				   MDS_OPEN_FL_INTERNAL));
 	if (flags & O_CREAT)
 		cr_flags |= MDS_OPEN_CREAT;
 	if (flags & O_EXCL)
