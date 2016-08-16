@@ -45,6 +45,8 @@
 #include "ll_fiemap.h"
 #include "../linux/lustre_user.h"
 
+#define LUSTRE_EOF 0xffffffffffffffffULL
+
 /* for statfs() */
 #define LL_SUPER_MAGIC 0x0BD00BD0
 
@@ -116,6 +118,11 @@ struct lu_fid {
 	 **/
 	__u32 f_ver;
 };
+
+static inline bool fid_is_zero(const struct lu_fid *fid)
+{
+	return !fid->f_seq && !fid->f_oid;
+}
 
 struct filter_fid {
 	struct lu_fid	ff_parent;  /* ff_parent.f_ver == file stripe number */
@@ -271,9 +278,14 @@ struct ost_id {
 
 #define LMV_USER_MAGIC    0x0CD30CD0    /*default lmv magic*/
 
-#define LOV_PATTERN_RAID0 0x001
-#define LOV_PATTERN_RAID1 0x002
-#define LOV_PATTERN_FIRST 0x100
+#define LOV_PATTERN_RAID0	0x001
+#define LOV_PATTERN_RAID1	0x002
+#define LOV_PATTERN_FIRST	0x100
+#define LOV_PATTERN_CMOBD	0x200
+
+#define LOV_PATTERN_F_MASK	0xffff0000
+#define LOV_PATTERN_F_RELEASED	0x80000000 /* HSM released file */
+
 
 #define LOV_MAXPOOLNAME 16
 #define LOV_POOLNAMEF "%.16s"
@@ -369,6 +381,14 @@ struct lmv_user_mds_data {
 	__u32		lum_padding;
 	__u32		lum_mds;
 };
+
+enum lmv_hash_type {
+	LMV_HASH_TYPE_ALL_CHARS = 1,
+	LMV_HASH_TYPE_FNV_1A_64 = 2,
+};
+
+#define LMV_HASH_NAME_ALL_CHARS		"all_char"
+#define LMV_HASH_NAME_FNV_1A_64		"fnv_1a_64"
 
 /*
  * Got this according to how get LOV_MAX_STRIPE_COUNT, see above,
@@ -487,6 +507,12 @@ static inline void obd_uuid2fsname(char *buf, char *uuid, int buflen)
 	&((fid)->f_ver)
 
 /********* Quotas **********/
+
+#define Q_QUOTACHECK   0x800100 /* deprecated as of 2.4 */
+#define Q_INITQUOTA    0x800101 /* deprecated as of 2.4  */
+#define Q_GETOINFO     0x800102 /* get obd quota info */
+#define Q_GETOQUOTA    0x800103 /* get obd quotas */
+#define Q_FINVALIDATE  0x800104 /* deprecated as of 2.4 */
 
 /* these must be explicitly translated into linux Q_* in ll_dir_ioctl */
 #define LUSTRE_Q_QUOTAON    0x800002     /* turn quotas on */

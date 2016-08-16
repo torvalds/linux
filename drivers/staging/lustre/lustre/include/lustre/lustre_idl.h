@@ -93,6 +93,7 @@
 /* Defn's shared with user-space. */
 #include "lustre_user.h"
 #include "lustre_errno.h"
+#include "../lustre_ver.h"
 
 /*
  *  GENERAL STUFF
@@ -846,11 +847,6 @@ static inline bool fid_is_sane(const struct lu_fid *fid)
 		fid_seq_is_rsvd(fid_seq(fid)));
 }
 
-static inline bool fid_is_zero(const struct lu_fid *fid)
-{
-	return fid_seq(fid) == 0 && fid_oid(fid) == 0;
-}
-
 void lustre_swab_lu_fid(struct lu_fid *fid);
 void lustre_swab_lu_seq_range(struct lu_seq_range *range);
 
@@ -1318,14 +1314,6 @@ void lustre_swab_ptlrpc_body(struct ptlrpc_body *pb);
 #define CLIENT_CONNECT_MDT_REQD (OBD_CONNECT_IBITS | OBD_CONNECT_FID | \
 				 OBD_CONNECT_FULL20)
 
-#define OBD_OCD_VERSION(major, minor, patch, fix) (((major)<<24) + \
-						  ((minor)<<16) + \
-						  ((patch)<<8) + (fix))
-#define OBD_OCD_VERSION_MAJOR(version) ((int)((version)>>24)&255)
-#define OBD_OCD_VERSION_MINOR(version) ((int)((version)>>16)&255)
-#define OBD_OCD_VERSION_PATCH(version) ((int)((version)>>8)&255)
-#define OBD_OCD_VERSION_FIX(version)   ((int)(version)&255)
-
 /* This structure is used for both request and reply.
  *
  * If we eventually have separate connect data for different types, which we
@@ -1508,14 +1496,6 @@ enum obdo_flags {
  */
 #define LOV_MAGIC_V1_DEF  0x0CD10BD0
 #define LOV_MAGIC_V3_DEF  0x0CD30BD0
-
-#define LOV_PATTERN_RAID0	0x001   /* stripes are used round-robin */
-#define LOV_PATTERN_RAID1	0x002   /* stripes are mirrors of each other */
-#define LOV_PATTERN_FIRST	0x100   /* first stripe is not in round-robin */
-#define LOV_PATTERN_CMOBD	0x200
-
-#define LOV_PATTERN_F_MASK	0xffff0000
-#define LOV_PATTERN_F_RELEASED	0x80000000 /* HSM released file */
 
 #define lov_pattern(pattern)		(pattern & ~LOV_PATTERN_F_MASK)
 #define lov_pattern_flags(pattern)	(pattern & LOV_PATTERN_F_MASK)
@@ -1796,7 +1776,7 @@ void lustre_swab_obd_statfs(struct obd_statfs *os);
 				      * it to sync quickly
 				      */
 
-#define OBD_OBJECT_EOF 0xffffffffffffffffULL
+#define OBD_OBJECT_EOF	LUSTRE_EOF
 
 #define OST_MIN_PRECREATE 32
 #define OST_MAX_PRECREATE 20000
@@ -1891,12 +1871,6 @@ struct obd_quotactl {
 };
 
 void lustre_swab_obd_quotactl(struct obd_quotactl *q);
-
-#define Q_QUOTACHECK	0x800100 /* deprecated as of 2.4 */
-#define Q_INITQUOTA	0x800101 /* deprecated as of 2.4  */
-#define Q_GETOINFO	0x800102 /* get obd quota info */
-#define Q_GETOQUOTA	0x800103 /* get obd quotas */
-#define Q_FINVALIDATE	0x800104 /* deprecated as of 2.4 */
 
 #define Q_COPY(out, in, member) (out)->member = (in)->member
 
@@ -2533,18 +2507,10 @@ struct lmv_mds_md_v1 {
  * for example the object is being migrated. And the hash function
  * might be interpreted differently with different flags.
  */
-enum lmv_hash_type {
-	LMV_HASH_TYPE_ALL_CHARS = 1,
-	LMV_HASH_TYPE_FNV_1A_64 = 2,
-};
-
 #define LMV_HASH_TYPE_MASK		0x0000ffff
 
 #define LMV_HASH_FLAG_MIGRATION		0x80000000
 #define LMV_HASH_FLAG_DEAD		0x40000000
-
-#define LMV_HASH_NAME_ALL_CHARS		"all_char"
-#define LMV_HASH_NAME_FNV_1A_64		"fnv_1a_64"
 
 /**
  * The FNV-1a hash algorithm is as follows:
