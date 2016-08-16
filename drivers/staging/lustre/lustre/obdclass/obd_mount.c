@@ -730,7 +730,7 @@ int lustre_check_exclusion(struct super_block *sb, char *svname)
 static int lmd_make_exclusion(struct lustre_mount_data *lmd, const char *ptr)
 {
 	const char *s1 = ptr, *s2;
-	__u32 index, *exclude_list;
+	__u32 index = 0, *exclude_list;
 	int rc = 0, devmax;
 
 	/* The shortest an ost name can be is 8 chars: -OST0000.
