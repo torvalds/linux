@@ -1847,21 +1847,21 @@ static int brw_interpret(const struct lu_env *env,
 
 static void brw_commit(struct ptlrpc_request *req)
 {
-	spin_lock(&req->rq_lock);
 	/*
 	 * If osc_inc_unstable_pages (via osc_extent_finish) races with
 	 * this called via the rq_commit_cb, I need to ensure
 	 * osc_dec_unstable_pages is still called. Otherwise unstable
 	 * pages may be leaked.
 	 */
-	if (req->rq_unstable) {
+	spin_lock(&req->rq_lock);
+	if (unlikely(req->rq_unstable)) {
+		req->rq_unstable = 0;
 		spin_unlock(&req->rq_lock);
 		osc_dec_unstable_pages(req);
-		spin_lock(&req->rq_lock);
 	} else {
 		req->rq_committed = 1;
+		spin_unlock(&req->rq_lock);
 	}
-	spin_unlock(&req->rq_lock);
 }
 
 /**

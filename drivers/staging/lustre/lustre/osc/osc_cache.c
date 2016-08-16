@@ -1875,11 +1875,6 @@ void osc_dec_unstable_pages(struct ptlrpc_request *req)
 	atomic_sub(page_count, &obd_unstable_pages);
 	LASSERT(atomic_read(&obd_unstable_pages) >= 0);
 
-	spin_lock(&req->rq_lock);
-	req->rq_committed = 1;
-	req->rq_unstable  = 0;
-	spin_unlock(&req->rq_lock);
-
 	wake_up_all(&cli->cl_cache->ccc_unstable_waitq);
 }
 
@@ -1909,27 +1904,21 @@ void osc_inc_unstable_pages(struct ptlrpc_request *req)
 	LASSERT(atomic_read(&obd_unstable_pages) >= 0);
 	atomic_add(page_count, &obd_unstable_pages);
 
-	spin_lock(&req->rq_lock);
-
 	/*
 	 * If the request has already been committed (i.e. brw_commit
 	 * called via rq_commit_cb), we need to undo the unstable page
 	 * increments we just performed because rq_commit_cb wont be
-	 * called again. Otherwise, just set the commit callback so the
-	 * unstable page accounting is properly updated when the request
-	 * is committed
+	 * called again.
 	 */
-	if (req->rq_committed) {
+	spin_lock(&req->rq_lock);
+	if (unlikely(req->rq_committed)) {
 		/* Drop lock before calling osc_dec_unstable_pages */
 		spin_unlock(&req->rq_lock);
 		osc_dec_unstable_pages(req);
-		spin_lock(&req->rq_lock);
 	} else {
 		req->rq_unstable = 1;
-		req->rq_commit_cb = osc_dec_unstable_pages;
+		spin_unlock(&req->rq_lock);
 	}
-
-	spin_unlock(&req->rq_lock);
 }
 
 /* this must be called holding the loi list lock to give coverage to exit_cache,
