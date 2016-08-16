@@ -474,7 +474,7 @@ struct ll_sb_info {
 	unsigned int	      ll_namelen;
 	struct file_operations   *ll_fop;
 
-	unsigned int	      ll_md_brw_size; /* used by readdir */
+	unsigned int		  ll_md_brw_pages; /* readdir pages per RPC */
 
 	struct lu_site	   *ll_site;
 	struct cl_device	 *ll_cl;

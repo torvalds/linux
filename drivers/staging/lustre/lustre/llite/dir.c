@@ -148,7 +148,7 @@ static int ll_dir_filler(void *_hash, struct page *page0)
 	struct page **page_pool;
 	struct page *page;
 	struct lu_dirpage *dp;
-	int max_pages = ll_i2sbi(inode)->ll_md_brw_size >> PAGE_SHIFT;
+	int max_pages = ll_i2sbi(inode)->ll_md_brw_pages;
 	int nrdpgs = 0; /* number of pages read actually */
 	int npages;
 	int i;
