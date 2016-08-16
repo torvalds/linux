@@ -861,7 +861,6 @@ static int mdc_dma_probe(struct platform_device *pdev)
 {
 	struct mdc_dma *mdma;
 	struct resource *res;
-	const struct of_device_id *match;
 	unsigned int i;
 	u32 val;
 	int ret;
@@ -871,8 +870,7 @@ static int mdc_dma_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, mdma);
 
-	match = of_match_device(mdc_dma_of_match, &pdev->dev);
-	mdma->soc = match->data;
+	mdma->soc = of_device_get_match_data(&pdev->dev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	mdma->regs = devm_ioremap_resource(&pdev->dev, res);
