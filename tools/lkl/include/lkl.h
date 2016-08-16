@@ -113,14 +113,14 @@ void lkl_disk_remove(struct lkl_disk disk);
  * @disk_id - the disk id identifying the disk to be mounted
  * @fs_type - filesystem type
  * @flags - mount flags
- * @data - additional filesystem specific mount data
+ * @opts - additional filesystem specific mount options
  * @mnt_str - a string that will be filled by this function with the path where
  * the filesystem has been mounted
  * @mnt_str_len - size of mnt_str
  * @returns - 0 on success, a negative value on error
  */
 long lkl_mount_dev(unsigned int disk_id, const char *fs_type, int flags,
-		   void *data, char *mnt_str, unsigned int mnt_str_len);
+		   const char *opts, char *mnt_str, unsigned int mnt_str_len);
 
 /**
  * lkl_umount_dev - umount a disk

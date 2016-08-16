@@ -20,6 +20,7 @@ struct lklfuse {
 	const char *file;
 	const char *log;
 	const char *type;
+	const char *opts;
 	struct lkl_disk disk;
 	int disk_id;
 	int ro;
@@ -39,6 +40,7 @@ static struct fuse_opt lklfuse_opts[] = {
 	LKLFUSE_OPT("log=%s", log, 0),
 	LKLFUSE_OPT("type=%s", type, 0),
 	LKLFUSE_OPT("mb=%d", mb, 0),
+	LKLFUSE_OPT("opts=%s", opts, 0),
 	FUSE_OPT_KEY("-h", KEY_HELP),
 	FUSE_OPT_KEY("--help", KEY_HELP),
 	FUSE_OPT_KEY("-V",             KEY_VERSION),
@@ -60,6 +62,7 @@ static void usage(void)
 "    -o log=FILE            log file\n"
 "    -o type=fstype         filesystem type\n"
 "    -o mb=memory in mb     ammount of memory to allocate\n"
+"    -o opts=options        mount options (use \\ to escape , and =)\n"
 );
 }
 
@@ -510,7 +513,7 @@ static int start_lkl(void)
 	}
 
 	ret = lkl_mount_dev(lklfuse.disk_id, lklfuse.type,
-			    lklfuse.ro ? LKL_MS_RDONLY : 0, NULL,
+			    lklfuse.ro ? LKL_MS_RDONLY : 0, lklfuse.opts,
 			    mpoint, sizeof(mpoint));
 
 	if (ret) {
