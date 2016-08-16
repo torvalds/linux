@@ -720,6 +720,7 @@ static netdev_tx_t qede_start_xmit(struct sk_buff *skb,
 	if (unlikely(qed_chain_get_elem_left(&txq->tx_pbl)
 		      < (MAX_SKB_FRAGS + 1))) {
 		netif_tx_stop_queue(netdev_txq);
+		txq->stopped_cnt++;
 		DP_VERBOSE(edev, NETIF_MSG_TX_QUEUED,
 			   "Stop queue was called\n");
 		/* paired memory barrier is in qede_tx_int(), we have to keep
@@ -779,6 +780,7 @@ static int qede_tx_int(struct qede_dev *edev, struct qede_tx_queue *txq)
 		bytes_compl += len;
 		pkts_compl++;
 		txq->sw_tx_cons++;
+		txq->xmit_pkts++;
 	}
 
 	netdev_tx_completed_queue(netdev_txq, pkts_compl, bytes_compl);
@@ -1586,6 +1588,8 @@ next_cqe: /* don't consume bd rx buffer */
 
 	/* Update producers */
 	qede_update_rx_prod(edev, rxq);
+
+	rxq->rcv_pkts += rx_pkt;
 
 	return rx_pkt;
 }

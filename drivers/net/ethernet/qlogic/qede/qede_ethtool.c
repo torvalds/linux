@@ -35,6 +35,7 @@ static const struct {
 	u64 offset;
 	char string[ETH_GSTRING_LEN];
 } qede_rqstats_arr[] = {
+	QEDE_RQSTAT(rcv_pkts),
 	QEDE_RQSTAT(rx_hw_errors),
 	QEDE_RQSTAT(rx_alloc_errors),
 	QEDE_RQSTAT(rx_ip_frags),
@@ -44,6 +45,24 @@ static const struct {
 #define QEDE_RQSTATS_DATA(dev, sindex, rqindex) \
 	(*((u64 *)(((char *)(dev->fp_array[(rqindex)].rxq)) +\
 		    qede_rqstats_arr[(sindex)].offset)))
+#define QEDE_TQSTAT_OFFSET(stat_name) \
+	(offsetof(struct qede_tx_queue, stat_name))
+#define QEDE_TQSTAT_STRING(stat_name) (#stat_name)
+#define QEDE_TQSTAT(stat_name) \
+	{QEDE_TQSTAT_OFFSET(stat_name), QEDE_TQSTAT_STRING(stat_name)}
+#define QEDE_NUM_TQSTATS ARRAY_SIZE(qede_tqstats_arr)
+static const struct {
+	u64 offset;
+	char string[ETH_GSTRING_LEN];
+} qede_tqstats_arr[] = {
+	QEDE_TQSTAT(xmit_pkts),
+	QEDE_TQSTAT(stopped_cnt),
+};
+
+#define QEDE_TQSTATS_DATA(dev, sindex, tssid, tcid) \
+	(*((u64 *)(((u64)(&dev->fp_array[tssid].txqs[tcid])) +\
+		   qede_tqstats_arr[(sindex)].offset)))
+
 static const struct {
 	u64 offset;
 	char string[ETH_GSTRING_LEN];
@@ -153,17 +172,29 @@ static void qede_get_strings_stats(struct qede_dev *edev, u8 *buf)
 {
 	int i, j, k;
 
+	for (i = 0, k = 0; i < edev->num_rss; i++) {
+		int tc;
+
+		for (j = 0; j < QEDE_NUM_RQSTATS; j++)
+			sprintf(buf + (k + j) * ETH_GSTRING_LEN,
+				"%d:   %s", i, qede_rqstats_arr[j].string);
+		k += QEDE_NUM_RQSTATS;
+		for (tc = 0; tc < edev->num_tc; tc++) {
+			for (j = 0; j < QEDE_NUM_TQSTATS; j++)
+				sprintf(buf + (k + j) * ETH_GSTRING_LEN,
+					"%d.%d: %s", i, tc,
+					qede_tqstats_arr[j].string);
+			k += QEDE_NUM_TQSTATS;
+		}
+	}
+
 	for (i = 0, j = 0; i < QEDE_NUM_STATS; i++) {
 		if (IS_VF(edev) && qede_stats_arr[i].pf_only)
 			continue;
-		strcpy(buf + j * ETH_GSTRING_LEN,
+		strcpy(buf + (k + j) * ETH_GSTRING_LEN,
 		       qede_stats_arr[i].string);
 		j++;
 	}
-
-	for (k = 0; k < QEDE_NUM_RQSTATS; k++, j++)
-		strcpy(buf + j * ETH_GSTRING_LEN,
-		       qede_rqstats_arr[k].string);
 }
 
 static void qede_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
@@ -199,17 +230,22 @@ static void qede_get_ethtool_stats(struct net_device *dev,
 
 	mutex_lock(&edev->qede_lock);
 
+	for (qid = 0; qid < edev->num_rss; qid++) {
+		int tc;
+
+		for (sidx = 0; sidx < QEDE_NUM_RQSTATS; sidx++)
+			buf[cnt++] = QEDE_RQSTATS_DATA(edev, sidx, qid);
+		for (tc = 0; tc < edev->num_tc; tc++) {
+			for (sidx = 0; sidx < QEDE_NUM_TQSTATS; sidx++)
+				buf[cnt++] = QEDE_TQSTATS_DATA(edev, sidx, qid,
+							       tc);
+		}
+	}
+
 	for (sidx = 0; sidx < QEDE_NUM_STATS; sidx++) {
 		if (IS_VF(edev) && qede_stats_arr[sidx].pf_only)
 			continue;
 		buf[cnt++] = QEDE_STATS_DATA(edev, sidx);
-	}
-
-	for (sidx = 0; sidx < QEDE_NUM_RQSTATS; sidx++) {
-		buf[cnt] = 0;
-		for (qid = 0; qid < edev->num_rss; qid++)
-			buf[cnt] += QEDE_RQSTATS_DATA(edev, sidx, qid);
-		cnt++;
 	}
 
 	mutex_unlock(&edev->qede_lock);
@@ -229,7 +265,8 @@ static int qede_get_sset_count(struct net_device *dev, int stringset)
 				if (qede_stats_arr[i].pf_only)
 					num_stats--;
 		}
-		return num_stats + QEDE_NUM_RQSTATS;
+		return num_stats +  edev->num_rss *
+			(QEDE_NUM_RQSTATS + QEDE_NUM_TQSTATS * edev->num_tc);
 	case ETH_SS_PRIV_FLAGS:
 		return QEDE_PRI_FLAG_LEN;
 	case ETH_SS_TEST:

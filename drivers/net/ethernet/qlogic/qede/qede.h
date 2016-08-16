@@ -237,6 +237,7 @@ struct qede_rx_queue {
 	u16			num_rx_buffers;
 	u16			rxq_id;
 
+	u64			rcv_pkts;
 	u64			rx_hw_errors;
 	u64			rx_alloc_errors;
 	u64			rx_ip_frags;
@@ -265,6 +266,8 @@ struct qede_tx_queue {
 	union db_prod		tx_db;
 
 	u16			num_tx_buffers;
+	u64			xmit_pkts;
+	u64			stopped_cnt;
 };
 
 #define BD_UNMAP_ADDR(bd)		HILO_U64(le32_to_cpu((bd)->addr.hi), \
