@@ -263,16 +263,33 @@ out_free:
 }
 
 /* Return 0 for success, -1 for failure. */
-static int lkl_netdev_remove(struct virtio_net_dev *dev)
+void lkl_netdev_remove(int id)
 {
-	if (!dev->nd->ops->close)
-		/* Can't kill the poll threads, so we can't do
-		 * anything safely. */
-		return -1;
+	struct virtio_net_dev *dev;
+	int ret;
 
-	if (dev->nd->ops->close(dev->nd) < 0)
-		/* Something went wrong */
-		return -1;
+	if (id >= registered_dev_idx) {
+		lkl_printf("%s: invalid id: %d\n", __func__, id);
+		return;
+	}
+
+	dev = registered_devs[id];
+
+	ret = lkl_netdev_get_ifindex(id);
+	if (ret < 0) {
+		lkl_printf("%s: failed to get ifindex for id %d: %s\n",
+			   __func__, id, lkl_strerror(ret));
+		return;
+	}
+
+	ret = lkl_if_down(ret);
+	if (ret < 0) {
+		lkl_printf("%s: failed to put interface id %d down: %s\n",
+			   __func__, id, lkl_strerror(ret));
+		return;
+	}
+
+	dev->nd->ops->close(dev->nd);
 
 	lkl_host_ops.thread_join(dev->poll_tid);
 
@@ -281,22 +298,4 @@ static int lkl_netdev_remove(struct virtio_net_dev *dev)
 	lkl_host_ops.mem_free(dev->nd);
 	free_queue_locks(dev->queue_locks, NUM_QUEUES);
 	lkl_host_ops.mem_free(dev);
-
-	return 0;
-}
-
-int lkl_netdevs_remove(void)
-{
-	int i = 0, failure_count = 0;
-
-	for (; i < registered_dev_idx; i++)
-		failure_count -= lkl_netdev_remove(registered_devs[i]);
-
-	if (failure_count) {
-		lkl_printf("WARN: failed to free %d of %d netdevs.\n",
-			failure_count, registered_dev_idx);
-		return -1;
-	}
-
-	return 0;
 }

@@ -270,15 +270,14 @@ struct lkl_netdev_args {
 int lkl_netdev_add(struct lkl_netdev *nd, struct lkl_netdev_args* args);
 
 /**
-* lkl_netdevs_remove - destroy all network devices
+* lkl_netdev_remove - remove a previously added network device
 *
-* Attempts to release all resources held by network devices created
+* Attempts to release all resources held by a network device created
 * via lkl_netdev_add.
 *
-* @returns 0 if all devices are successfully removed, -1 if at least
-* one fails.
+* @id - the network device id, as return by @lkl_netdev_add
 */
-int lkl_netdevs_remove(void);
+void lkl_netdev_remove(int id);
 
 /**
  * lkl_netdev_get_ifindex - retrieve the interface index for a given network

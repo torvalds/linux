@@ -132,7 +132,7 @@ static int fd_net_poll(struct lkl_netdev *nd)
 	return ret;
 }
 
-static int fd_net_close(struct lkl_netdev *nd)
+static void fd_net_close(struct lkl_netdev *nd)
 {
 	struct lkl_netdev_fd *nd_fd =
 		container_of(nd, struct lkl_netdev_fd, dev);
@@ -141,8 +141,6 @@ static int fd_net_close(struct lkl_netdev *nd)
 	close(nd_fd->pipe[1]);
 	close(nd_fd->pipe[0]);
 	close(nd_fd->fd);
-
-	return 0;
 }
 
 struct lkl_dev_net_ops fd_net_ops =  {

@@ -101,10 +101,8 @@ struct lkl_dev_net_ops {
 	 *
 	 * Implementation must release its resources and poll must wakeup and
 	 * return LKL_DEV_NET_POLL_HUP.
-	 *
-	 * @returns 0 for success. -1 for failure.
 	 */
-	int (*close)(struct lkl_netdev *nd);
+	void (*close)(struct lkl_netdev *nd);
 };
 
 #ifdef __cplusplus

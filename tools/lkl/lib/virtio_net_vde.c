@@ -107,12 +107,12 @@ int net_vde_poll(struct lkl_netdev *nd)
 	return net_vde_poll_with_timeout(nd, -1);
 }
 
-int net_vde_close(struct lkl_netdev *nd)
+void net_vde_close(struct lkl_netdev *nd)
 {
 	struct lkl_netdev_vde *nd_vde =
 		container_of(nd, struct lkl_netdev_vde, dev);
 
-	return vde_close(nd_vde->conn);
+	vde_close(nd_vde->conn);
 }
 
 struct lkl_netdev *lkl_netdev_vde_create(char const *switch_path)

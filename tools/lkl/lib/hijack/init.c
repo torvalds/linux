@@ -178,10 +178,12 @@ static void PinToFirstCpu(const cpu_set_t* cpus)
 
 int lkl_debug, lkl_running;
 
+static int nd_id = -1;
+
 void __attribute__((constructor(102)))
 hijack_init(void)
 {
-	int ret, i, dev_null, nd_id = -1, nd_ifindex = -1;
+	int ret, i, dev_null, nd_ifindex = -1;
 	/* OBSOLETE: should use IFTYPE and IFPARAMS */
 	char *tap = getenv("LKL_HIJACK_NET_TAP");
 	char *iftype = getenv("LKL_HIJACK_NET_IFTYPE");
@@ -431,6 +433,8 @@ hijack_fini(void)
 	for (i = 0; i < LKL_FD_OFFSET; i++)
 		lkl_sys_close(i);
 
+	if (nd_id >= 0)
+		lkl_netdev_remove(nd_id);
 
 	lkl_sys_halt();
 }

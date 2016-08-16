@@ -117,8 +117,6 @@ void machine_restart(char *unused)
 	machine_halt();
 }
 
-extern int lkl_netdevs_remove(void);
-
 long lkl_sys_halt(void)
 {
 	long err;
@@ -141,10 +139,8 @@ long lkl_sys_halt(void)
 	lkl_ops->sem_free(init_sem);
 
 	free_initial_syscall_thread();
-	if (lkl_netdevs_remove() == 0)
-		/* We know that there is nothing else touching our
-		 * memory. */
-		free_mem();
+
+	free_mem();
 
 	return 0;
 }
