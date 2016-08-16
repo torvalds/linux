@@ -49,6 +49,7 @@ struct cpc_reg {
  */
 struct cpc_register_resource {
 	acpi_object_type type;
+	u64 __iomem *sys_mem_vaddr;
 	union {
 		struct cpc_reg reg;
 		u64 int_value;

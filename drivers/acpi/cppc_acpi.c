@@ -62,7 +62,6 @@ static DEFINE_PER_CPU(struct cpc_desc *, cpc_desc_ptr);
 /* This layer handles all the PCC specifics for CPPC. */
 static struct mbox_chan *pcc_channel;
 static void __iomem *pcc_comm_addr;
-static u64 comm_base_addr;
 static int pcc_subspace_idx = -1;
 static bool pcc_channel_acquired;
 static ktime_t deadline;
@@ -394,7 +393,6 @@ EXPORT_SYMBOL_GPL(acpi_get_psd_map);
 static int register_pcc_channel(int pcc_subspace_idx)
 {
 	struct acpi_pcct_hw_reduced *cppc_ss;
-	unsigned int len;
 	u64 usecs_lat;
 
 	if (pcc_subspace_idx >= 0) {
@@ -419,12 +417,6 @@ static int register_pcc_channel(int pcc_subspace_idx)
 			return -ENODEV;
 		}
 
-		/*
-		 * This is the shared communication region
-		 * for the OS and Platform to communicate over.
-		 */
-		comm_base_addr = cppc_ss->base_address;
-		len = cppc_ss->length;
 
 		/*
 		 * cppc_ss->latency is just a Nominal value. In reality
@@ -436,7 +428,7 @@ static int register_pcc_channel(int pcc_subspace_idx)
 		pcc_mrtt = cppc_ss->min_turnaround_time;
 		pcc_mpar = cppc_ss->max_access_rate;
 
-		pcc_comm_addr = acpi_os_ioremap(comm_base_addr, len);
+		pcc_comm_addr = acpi_os_ioremap(cppc_ss->base_address, cppc_ss->length);
 		if (!pcc_comm_addr) {
 			pr_err("Failed to ioremap PCC comm region mem\n");
 			return -ENOMEM;
@@ -545,6 +537,8 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 		goto out_free;
 	}
 
+	cpc_ptr->num_entries = num_ent;
+
 	/* Second entry should be revision. */
 	cpc_obj = &out_obj->package.elements[1];
 	if (cpc_obj->type == ACPI_TYPE_INTEGER)	{
@@ -585,7 +579,16 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 					pr_debug("Mismatched PCC ids.\n");
 					goto out_free;
 				}
-			} else if (gas_t->space_id != ACPI_ADR_SPACE_SYSTEM_MEMORY) {
+			} else if (gas_t->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY) {
+				if (gas_t->address) {
+					void __iomem *addr;
+
+					addr = ioremap(gas_t->address, gas_t->bit_width/8);
+					if (!addr)
+						goto out_free;
+					cpc_ptr->cpc_regs[i-2].sys_mem_vaddr = addr;
+				}
+			} else {
 				/* Support only PCC and SYS MEM type regs */
 				pr_debug("Unsupported register type: %d\n", gas_t->space_id);
 				goto out_free;
@@ -623,6 +626,13 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 	return 0;
 
 out_free:
+	/* Free all the mapped sys mem areas for this CPU */
+	for (i = 2; i < cpc_ptr->num_entries; i++) {
+		void __iomem *addr = cpc_ptr->cpc_regs[i-2].sys_mem_vaddr;
+
+		if (addr)
+			iounmap(addr);
+	}
 	kfree(cpc_ptr);
 
 out_buf_free:
@@ -640,7 +650,17 @@ EXPORT_SYMBOL_GPL(acpi_cppc_processor_probe);
 void acpi_cppc_processor_exit(struct acpi_processor *pr)
 {
 	struct cpc_desc *cpc_ptr;
+	unsigned int i;
+	void __iomem *addr;
 	cpc_ptr = per_cpu(cpc_desc_ptr, pr->id);
+
+	/* Free all the mapped sys mem areas for this CPU */
+	for (i = 2; i < cpc_ptr->num_entries; i++) {
+		addr = cpc_ptr->cpc_regs[i-2].sys_mem_vaddr;
+		if (addr)
+			iounmap(addr);
+	}
+
 	kfree(cpc_ptr);
 }
 EXPORT_SYMBOL_GPL(acpi_cppc_processor_exit);
@@ -651,15 +671,27 @@ EXPORT_SYMBOL_GPL(acpi_cppc_processor_exit);
  * we can directly write to it.
  */
 
-static int cpc_read(struct cpc_reg *reg, u64 *val)
+static int cpc_read(struct cpc_register_resource *reg_res, u64 *val)
 {
 	int ret_val = 0;
+	void __iomem *vaddr = 0;
+	struct cpc_reg *reg = &reg_res->cpc_entry.reg;
+
+	if (reg_res->type == ACPI_TYPE_INTEGER) {
+		*val = reg_res->cpc_entry.int_value;
+		return ret_val;
+	}
 
 	*val = 0;
-	if (reg->space_id == ACPI_ADR_SPACE_PLATFORM_COMM) {
-		void __iomem *vaddr = GET_PCC_VADDR(reg->address);
+	if (reg->space_id == ACPI_ADR_SPACE_PLATFORM_COMM)
+		vaddr = GET_PCC_VADDR(reg->address);
+	else if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY)
+		vaddr = reg_res->sys_mem_vaddr;
+	else
+		return acpi_os_read_memory((acpi_physical_address)reg->address,
+				val, reg->bit_width);
 
-		switch (reg->bit_width) {
+	switch (reg->bit_width) {
 		case 8:
 			*val = readb_relaxed(vaddr);
 			break;
@@ -674,23 +706,28 @@ static int cpc_read(struct cpc_reg *reg, u64 *val)
 			break;
 		default:
 			pr_debug("Error: Cannot read %u bit width from PCC\n",
-				reg->bit_width);
+					reg->bit_width);
 			ret_val = -EFAULT;
-		}
-	} else
-		ret_val = acpi_os_read_memory((acpi_physical_address)reg->address,
-					val, reg->bit_width);
+	}
+
 	return ret_val;
 }
 
-static int cpc_write(struct cpc_reg *reg, u64 val)
+static int cpc_write(struct cpc_register_resource *reg_res, u64 val)
 {
 	int ret_val = 0;
+	void __iomem *vaddr = 0;
+	struct cpc_reg *reg = &reg_res->cpc_entry.reg;
 
-	if (reg->space_id == ACPI_ADR_SPACE_PLATFORM_COMM) {
-		void __iomem *vaddr = GET_PCC_VADDR(reg->address);
+	if (reg->space_id == ACPI_ADR_SPACE_PLATFORM_COMM)
+		vaddr = GET_PCC_VADDR(reg->address);
+	else if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY)
+		vaddr = reg_res->sys_mem_vaddr;
+	else
+		return acpi_os_write_memory((acpi_physical_address)reg->address,
+				val, reg->bit_width);
 
-		switch (reg->bit_width) {
+	switch (reg->bit_width) {
 		case 8:
 			writeb_relaxed(val, vaddr);
 			break;
@@ -705,13 +742,11 @@ static int cpc_write(struct cpc_reg *reg, u64 val)
 			break;
 		default:
 			pr_debug("Error: Cannot write %u bit width to PCC\n",
-				reg->bit_width);
+					reg->bit_width);
 			ret_val = -EFAULT;
 			break;
-		}
-	} else
-		ret_val = acpi_os_write_memory((acpi_physical_address)reg->address,
-				val, reg->bit_width);
+	}
+
 	return ret_val;
 }
 
@@ -754,16 +789,16 @@ int cppc_get_perf_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 		}
 	}
 
-	cpc_read(&highest_reg->cpc_entry.reg, &high);
+	cpc_read(highest_reg, &high);
 	perf_caps->highest_perf = high;
 
-	cpc_read(&lowest_reg->cpc_entry.reg, &low);
+	cpc_read(lowest_reg, &low);
 	perf_caps->lowest_perf = low;
 
-	cpc_read(&ref_perf->cpc_entry.reg, &ref);
+	cpc_read(ref_perf, &ref);
 	perf_caps->reference_perf = ref;
 
-	cpc_read(&nom_perf->cpc_entry.reg, &nom);
+	cpc_read(nom_perf, &nom);
 	perf_caps->nominal_perf = nom;
 
 	if (!ref)
@@ -804,7 +839,7 @@ int cppc_get_perf_ctrs(int cpunum, struct cppc_perf_fb_ctrs *perf_fb_ctrs)
 
 	/* Are any of the regs PCC ?*/
 	if ((delivered_reg->cpc_entry.reg.space_id == ACPI_ADR_SPACE_PLATFORM_COMM) ||
-			(reference_reg->cpc_entry.reg.space_id == ACPI_ADR_SPACE_PLATFORM_COMM)) {
+		(reference_reg->cpc_entry.reg.space_id == ACPI_ADR_SPACE_PLATFORM_COMM)) {
 		/* Ring doorbell once to update PCC subspace */
 		if (send_pcc_cmd(CMD_READ) < 0) {
 			ret = -EIO;
@@ -812,8 +847,8 @@ int cppc_get_perf_ctrs(int cpunum, struct cppc_perf_fb_ctrs *perf_fb_ctrs)
 		}
 	}
 
-	cpc_read(&delivered_reg->cpc_entry.reg, &delivered);
-	cpc_read(&reference_reg->cpc_entry.reg, &reference);
+	cpc_read(delivered_reg, &delivered);
+	cpc_read(reference_reg, &reference);
 
 	if (!delivered || !reference) {
 		ret = -EFAULT;
@@ -868,7 +903,7 @@ int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls)
 	 * Skip writing MIN/MAX until Linux knows how to come up with
 	 * useful values.
 	 */
-	cpc_write(&desired_reg->cpc_entry.reg, perf_ctrls->desired_perf);
+	cpc_write(desired_reg, perf_ctrls->desired_perf);
 
 	/* Is this a PCC reg ?*/
 	if (desired_reg->cpc_entry.reg.space_id == ACPI_ADR_SPACE_PLATFORM_COMM) {
@@ -878,7 +913,6 @@ int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls)
 	}
 busy_channel:
 	spin_unlock(&pcc_lock);
-
 	return ret;
 }
 EXPORT_SYMBOL_GPL(cppc_set_perf);
