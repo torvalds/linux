@@ -221,11 +221,14 @@
 				pinctrl_pwm1_chan0_default: pwm1-0-default {
 					st,pins {
 						pwm-out    = <&pio3 0 ALT1 OUT>;
+						pwm-capturein = <&pio3 2 ALT1 IN>;
+
 					};
 				};
 				pinctrl_pwm1_chan1_default: pwm1-1-default {
 					st,pins {
 						pwm-out    = <&pio4 4 ALT1 OUT>;
+						pwm-capturein = <&pio4 3 ALT1 IN>;
 					};
 				};
 				pinctrl_pwm1_chan2_default: pwm1-2-default {
@@ -337,6 +340,7 @@
 				pinctrl_pwm0_chan0_default: pwm0-0-default {
 					st,pins {
 						pwm-out    = <&pio9 7 ALT2 OUT>;
+						pwm-capturein = <&pio9 6 ALT2 IN>;
 					};
 				};
 			};
@@ -576,6 +580,7 @@
 				pinctrl_pwm0_chan1_default: pwm0-1-default {
 					st,pins {
 						pwm-out    = <&pio13 2 ALT2 OUT>;
+						pwm-capturein = <&pio13 1 ALT2 IN>;
 					};
 				};
 				pinctrl_pwm0_chan2_default: pwm0-2-default {
