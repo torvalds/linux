@@ -88,32 +88,45 @@ static int duplicate_rel(Elf32_Addr base, const Elf32_Rel *rel, int num,
 }
 
 /* Count how many PLT entries we may need */
-static unsigned int count_plts(Elf32_Addr base, const Elf32_Rel *rel, int num)
+static unsigned int count_plts(const Elf32_Sym *syms, Elf32_Addr base,
+			       const Elf32_Rel *rel, int num)
 {
 	unsigned int ret = 0;
+	const Elf32_Sym *s;
+	u32 mask;
 	int i;
+
+	if (IS_ENABLED(CONFIG_THUMB2_KERNEL))
+		mask = __opcode_to_mem_thumb32(0x07ff2fff);
+	else
+		mask = __opcode_to_mem_arm(0x00ffffff);
 
 	/*
 	 * Sure, this is order(n^2), but it's usually short, and not
 	 * time critical
 	 */
-	for (i = 0; i < num; i++)
+	for (i = 0; i < num; i++) {
 		switch (ELF32_R_TYPE(rel[i].r_info)) {
 		case R_ARM_CALL:
 		case R_ARM_PC24:
 		case R_ARM_JUMP24:
-			if (!duplicate_rel(base, rel, i,
-					   __opcode_to_mem_arm(0x00ffffff)))
-				ret++;
-			break;
-#ifdef CONFIG_THUMB2_KERNEL
 		case R_ARM_THM_CALL:
 		case R_ARM_THM_JUMP24:
-			if (!duplicate_rel(base, rel, i,
-					   __opcode_to_mem_thumb32(0x07ff2fff)))
+			/*
+			 * We only have to consider branch targets that resolve
+			 * to undefined symbols. This is not simply a heuristic,
+			 * it is a fundamental limitation, since the PLT itself
+			 * is part of the module, and needs to be within range
+			 * as well, so modules can never grow beyond that limit.
+			 */
+			s = syms + ELF32_R_SYM(rel[i].r_info);
+			if (s->st_shndx != SHN_UNDEF)
+				break;
+
+			if (!duplicate_rel(base, rel, i, mask))
 				ret++;
-#endif
 		}
+	}
 	return ret;
 }
 
@@ -122,17 +135,25 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 {
 	unsigned long plts = 0;
 	Elf32_Shdr *s, *sechdrs_end = sechdrs + ehdr->e_shnum;
+	Elf32_Sym *syms = NULL;
 
 	/*
 	 * To store the PLTs, we expand the .text section for core module code
 	 * and for initialization code.
 	 */
-	for (s = sechdrs; s < sechdrs_end; ++s)
+	for (s = sechdrs; s < sechdrs_end; ++s) {
 		if (strcmp(".plt", secstrings + s->sh_name) == 0)
 			mod->arch.plt = s;
+		else if (s->sh_type == SHT_SYMTAB)
+			syms = (Elf32_Sym *)s->sh_addr;
+	}
 
 	if (!mod->arch.plt) {
 		pr_err("%s: module PLT section missing\n", mod->name);
+		return -ENOEXEC;
+	}
+	if (!syms) {
+		pr_err("%s: module symtab section missing\n", mod->name);
 		return -ENOEXEC;
 	}
 
@@ -144,7 +165,11 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 		if (s->sh_type != SHT_REL)
 			continue;
 
-		plts += count_plts(dstsec->sh_addr, rels, numrels);
+		/* ignore relocations that operate on non-exec sections */
+		if (!(dstsec->sh_flags & SHF_EXECINSTR))
+			continue;
+
+		plts += count_plts(syms, dstsec->sh_addr, rels, numrels);
 	}
 
 	mod->arch.plt->sh_type = SHT_NOBITS;
