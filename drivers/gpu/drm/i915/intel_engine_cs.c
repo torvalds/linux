@@ -29,7 +29,7 @@
 static const struct engine_info {
 	const char *name;
 	unsigned exec_id;
-	unsigned guc_id;
+	enum intel_engine_hw_id hw_id;
 	u32 mmio_base;
 	unsigned irq_shift;
 	int (*init_legacy)(struct intel_engine_cs *engine);
@@ -38,7 +38,7 @@ static const struct engine_info {
 	[RCS] = {
 		.name = "render ring",
 		.exec_id = I915_EXEC_RENDER,
-		.guc_id = GUC_RENDER_ENGINE,
+		.hw_id = RCS_HW,
 		.mmio_base = RENDER_RING_BASE,
 		.irq_shift = GEN8_RCS_IRQ_SHIFT,
 		.init_execlists = logical_render_ring_init,
@@ -47,7 +47,7 @@ static const struct engine_info {
 	[BCS] = {
 		.name = "blitter ring",
 		.exec_id = I915_EXEC_BLT,
-		.guc_id = GUC_BLITTER_ENGINE,
+		.hw_id = BCS_HW,
 		.mmio_base = BLT_RING_BASE,
 		.irq_shift = GEN8_BCS_IRQ_SHIFT,
 		.init_execlists = logical_xcs_ring_init,
@@ -56,7 +56,7 @@ static const struct engine_info {
 	[VCS] = {
 		.name = "bsd ring",
 		.exec_id = I915_EXEC_BSD,
-		.guc_id = GUC_VIDEO_ENGINE,
+		.hw_id = VCS_HW,
 		.mmio_base = GEN6_BSD_RING_BASE,
 		.irq_shift = GEN8_VCS1_IRQ_SHIFT,
 		.init_execlists = logical_xcs_ring_init,
@@ -65,7 +65,7 @@ static const struct engine_info {
 	[VCS2] = {
 		.name = "bsd2 ring",
 		.exec_id = I915_EXEC_BSD,
-		.guc_id = GUC_VIDEO_ENGINE2,
+		.hw_id = VCS2_HW,
 		.mmio_base = GEN8_BSD2_RING_BASE,
 		.irq_shift = GEN8_VCS2_IRQ_SHIFT,
 		.init_execlists = logical_xcs_ring_init,
@@ -74,7 +74,7 @@ static const struct engine_info {
 	[VECS] = {
 		.name = "video enhancement ring",
 		.exec_id = I915_EXEC_VEBOX,
-		.guc_id = GUC_VIDEOENHANCE_ENGINE,
+		.hw_id = VECS_HW,
 		.mmio_base = VEBOX_RING_BASE,
 		.irq_shift = GEN8_VECS_IRQ_SHIFT,
 		.init_execlists = logical_xcs_ring_init,
@@ -93,7 +93,7 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	engine->i915 = dev_priv;
 	engine->name = info->name;
 	engine->exec_id = info->exec_id;
-	engine->hw_id = engine->guc_id = info->guc_id;
+	engine->hw_id = engine->guc_id = info->hw_id;
 	engine->mmio_base = info->mmio_base;
 	engine->irq_shift = info->irq_shift;
 
