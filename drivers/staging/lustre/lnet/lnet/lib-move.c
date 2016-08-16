@@ -2002,6 +2002,9 @@ lnet_parse(lnet_ni_t *ni, lnet_hdr_t *hdr, lnet_nid_t from_nid,
 		       libcfs_nid2str(from_nid), libcfs_nid2str(src_nid),
 		       lnet_msgtyp2str(type), rc);
 		lnet_msg_free(msg);
+		if (rc == -ESHUTDOWN)
+			/* We are shutting down. Don't do anything more */
+			return 0;
 		goto drop;
 	}
 
