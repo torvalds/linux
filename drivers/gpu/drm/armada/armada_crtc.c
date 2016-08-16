@@ -527,6 +527,34 @@ static uint32_t armada_drm_crtc_calculate_csc(struct armada_crtc *dcrtc)
 	return val;
 }
 
+static void armada_drm_primary_set(struct drm_crtc *crtc,
+	struct drm_plane *plane, int x, int y)
+{
+	struct armada_plane_state *state = &drm_to_armada_plane(plane)->state;
+	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
+	struct armada_regs regs[7];
+	bool interlaced = dcrtc->interlaced;
+	unsigned i;
+	uint32_t ctrl0;
+
+	i = armada_drm_crtc_calc_fb(plane->fb, x, y, regs, interlaced);
+
+	armada_reg_queue_set(regs, i, state->src_hw, LCD_SPU_GRA_HPXL_VLN);
+	armada_reg_queue_set(regs, i, state->dst_hw, LCD_SPU_GZM_HPXL_VLN);
+
+	ctrl0 = state->ctrl0;
+	if (interlaced)
+		ctrl0 |= CFG_GRA_FTOGGLE;
+
+	armada_reg_queue_mod(regs, i, ctrl0, CFG_GRAFORMAT |
+			     CFG_GRA_MOD(CFG_SWAPRB | CFG_SWAPUV |
+					 CFG_SWAPYU | CFG_YUV2RGB) |
+			     CFG_PALETTE_ENA | CFG_GRA_FTOGGLE,
+			     LCD_SPU_DMA_CTRL0);
+	armada_reg_queue_end(regs, i);
+	armada_drm_crtc_update_regs(dcrtc, regs);
+}
+
 /* The mode_config.mutex will be held for this call */
 static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 	struct drm_display_mode *mode, struct drm_display_mode *adj,
@@ -553,12 +581,10 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 	drm_to_armada_plane(crtc->primary)->state.ctrl0 = val;
 	drm_to_armada_plane(crtc->primary)->state.src_hw =
 	drm_to_armada_plane(crtc->primary)->state.dst_hw =
-		adj->crtc_hdisplay << 16 | adj->crtc_vdisplay;
+		adj->crtc_vdisplay << 16 | adj->crtc_hdisplay;
 	drm_to_armada_plane(crtc->primary)->state.dst_yx = 0;
 
-	i = armada_drm_crtc_calc_fb(dcrtc->crtc.primary->fb,
-				    x, y, regs, interlaced);
-
+	i = 0;
 	rm = adj->crtc_hsync_start - adj->crtc_hdisplay;
 	lm = adj->crtc_htotal - adj->crtc_hsync_end;
 	bm = adj->crtc_vsync_start - adj->crtc_vdisplay;
@@ -634,12 +660,6 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 	val = adj->crtc_vdisplay << 16 | adj->crtc_hdisplay;
 
 	armada_reg_queue_set(regs, i, val, LCD_SPU_V_H_ACTIVE);
-	armada_reg_queue_set(regs, i,
-			     drm_to_armada_plane(crtc->primary)->state.src_hw,
-			     LCD_SPU_GRA_HPXL_VLN);
-	armada_reg_queue_set(regs, i,
-			     drm_to_armada_plane(crtc->primary)->state.dst_hw,
-			     LCD_SPU_GZM_HPXL_VLN);
 	armada_reg_queue_set(regs, i, (lm << 16) | rm, LCD_SPU_H_PORCH);
 	armada_reg_queue_set(regs, i, dcrtc->v[0].spu_v_porch, LCD_SPU_V_PORCH);
 	armada_reg_queue_set(regs, i, dcrtc->v[0].spu_v_h_total,
@@ -651,16 +671,6 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 				     ADV_VSYNCOFFEN, LCD_SPU_ADV_REG);
 	}
 
-	val = drm_to_armada_plane(crtc->primary)->state.ctrl0;
-	if (interlaced)
-		val |= CFG_GRA_FTOGGLE;
-
-	armada_reg_queue_mod(regs, i, val, CFG_GRAFORMAT |
-			     CFG_GRA_MOD(CFG_SWAPRB | CFG_SWAPUV |
-					 CFG_SWAPYU | CFG_YUV2RGB) |
-			     CFG_PALETTE_ENA | CFG_GRA_FTOGGLE,
-			     LCD_SPU_DMA_CTRL0);
-
 	val = adj->flags & DRM_MODE_FLAG_NVSYNC ? CFG_VSYNC_INV : 0;
 	armada_reg_queue_mod(regs, i, val, CFG_VSYNC_INV, LCD_SPU_DMA_CTRL1);
 
@@ -669,6 +679,8 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 	armada_reg_queue_end(regs, i);
 
 	armada_drm_crtc_update_regs(dcrtc, regs);
+
+	armada_drm_primary_set(crtc, crtc->primary, x, y);
 	spin_unlock_irqrestore(&dcrtc->irq_lock, flags);
 
 	armada_drm_crtc_update(dcrtc);
