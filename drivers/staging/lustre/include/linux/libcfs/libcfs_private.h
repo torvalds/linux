@@ -360,13 +360,4 @@ do {							    \
 	ptr += cfs_size_round(len);			     \
 } while (0)
 
-#define LOGL0(var, len, ptr)			      \
-do {						    \
-	if (!len)				       \
-		break;				  \
-	memcpy((char *)ptr, (const char *)var, len);    \
-	*((char *)(ptr) + len) = 0;		     \
-	ptr += cfs_size_round(len + 1);		 \
-} while (0)
-
 #endif

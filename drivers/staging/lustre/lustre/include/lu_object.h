@@ -1263,6 +1263,22 @@ struct lu_name {
 };
 
 /**
+ * Validate names (path components)
+ *
+ * To be valid \a name must be non-empty, '\0' terminated of length \a
+ * name_len, and not contain '/'. The maximum length of a name (before
+ * say -ENAMETOOLONG will be returned) is really controlled by llite
+ * and the server. We only check for something insane coming from bad
+ * integer handling here.
+ */
+static inline bool lu_name_is_valid_2(const char *name, size_t name_len)
+{
+	return name && name_len > 0 && name_len < INT_MAX &&
+	       name[name_len] == '\0' && strlen(name) == name_len &&
+	       !memchr(name, '/', name_len);
+}
+
+/**
  * Common buffer structure to be passed around for various xattr_{s,g}et()
  * methods.
  */
