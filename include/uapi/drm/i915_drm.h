@@ -855,7 +855,16 @@ struct drm_i915_gem_busy {
 	 * having flushed any pending activity), and a non-zero return that
 	 * the object is still in-flight on the GPU. (The GPU has not yet
 	 * signaled completion for all pending requests that reference the
-	 * object.)
+	 * object.) An object is guaranteed to become idle eventually (so
+	 * long as no new GPU commands are executed upon it). Due to the
+	 * asynchronous nature of the hardware, an object reported
+	 * as busy may become idle before the ioctl is completed.
+	 *
+	 * Furthermore, if the object is busy, which engine is busy is only
+	 * provided as a guide. There are race conditions which prevent the
+	 * report of which engines are busy from being always accurate.
+	 * However, the converse is not true. If the object is idle, the
+	 * result of the ioctl, that all engines are idle, is accurate.
 	 *
 	 * The returned dword is split into two fields to indicate both
 	 * the engines on which the object is being read, and the
@@ -878,6 +887,11 @@ struct drm_i915_gem_busy {
 	 * execution engines, e.g. multiple media engines, which are
 	 * mapped to the same identifier in the EXECBUFFER2 ioctl and
 	 * so are not separately reported for busyness.
+	 *
+	 * Caveat emptor:
+	 * Only the boolean result of this query is reliable; that is whether
+	 * the object is idle or busy. The report of which engines are busy
+	 * should be only used as a heuristic.
 	 */
 	__u32 busy;
 };

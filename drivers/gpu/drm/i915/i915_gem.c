@@ -3807,49 +3807,68 @@ static __always_inline unsigned int
 __busy_set_if_active(const struct i915_gem_active *active,
 		     unsigned int (*flag)(unsigned int id))
 {
-	/* For more discussion about the barriers and locking concerns,
-	 * see __i915_gem_active_get_rcu().
+	struct drm_i915_gem_request *request;
+
+	request = rcu_dereference(active->request);
+	if (!request || i915_gem_request_completed(request))
+		return 0;
+
+	/* This is racy. See __i915_gem_active_get_rcu() for an in detail
+	 * discussion of how to handle the race correctly, but for reporting
+	 * the busy state we err on the side of potentially reporting the
+	 * wrong engine as being busy (but we guarantee that the result
+	 * is at least self-consistent).
+	 *
+	 * As we use SLAB_DESTROY_BY_RCU, the request may be reallocated
+	 * whilst we are inspecting it, even under the RCU read lock as we are.
+	 * This means that there is a small window for the engine and/or the
+	 * seqno to have been overwritten. The seqno will always be in the
+	 * future compared to the intended, and so we know that if that
+	 * seqno is idle (on whatever engine) our request is idle and the
+	 * return 0 above is correct.
+	 *
+	 * The issue is that if the engine is switched, it is just as likely
+	 * to report that it is busy (but since the switch happened, we know
+	 * the request should be idle). So there is a small chance that a busy
+	 * result is actually the wrong engine.
+	 *
+	 * So why don't we care?
+	 *
+	 * For starters, the busy ioctl is a heuristic that is by definition
+	 * racy. Even with perfect serialisation in the driver, the hardware
+	 * state is constantly advancing - the state we report to the user
+	 * is stale.
+	 *
+	 * The critical information for the busy-ioctl is whether the object
+	 * is idle as userspace relies on that to detect whether its next
+	 * access will stall, or if it has missed submitting commands to
+	 * the hardware allowing the GPU to stall. We never generate a
+	 * false-positive for idleness, thus busy-ioctl is reliable at the
+	 * most fundamental level, and we maintain the guarantee that a
+	 * busy object left to itself will eventually become idle (and stay
+	 * idle!).
+	 *
+	 * We allow ourselves the leeway of potentially misreporting the busy
+	 * state because that is an optimisation heuristic that is constantly
+	 * in flux. Being quickly able to detect the busy/idle state is much
+	 * more important than accurate logging of exactly which engines were
+	 * busy.
+	 *
+	 * For accuracy in reporting the engine, we could use
+	 *
+	 *	result = 0;
+	 *	request = __i915_gem_active_get_rcu(active);
+	 *	if (request) {
+	 *		if (!i915_gem_request_completed(request))
+	 *			result = flag(request->engine->exec_id);
+	 *		i915_gem_request_put(request);
+	 *	}
+	 *
+	 * but that still remains susceptible to both hardware and userspace
+	 * races. So we accept making the result of that race slightly worse,
+	 * given the rarity of the race and its low impact on the result.
 	 */
-	do {
-		struct drm_i915_gem_request *request;
-		unsigned int id;
-
-		request = rcu_dereference(active->request);
-		if (!request || i915_gem_request_completed(request))
-			return 0;
-
-		id = request->engine->exec_id;
-
-		/* Check that the pointer wasn't reassigned and overwritten.
-		 *
-		 * In __i915_gem_active_get_rcu(), we enforce ordering between
-		 * the first rcu pointer dereference (imposing a
-		 * read-dependency only on access through the pointer) and
-		 * the second lockless access through the memory barrier
-		 * following a successful atomic_inc_not_zero(). Here there
-		 * is no such barrier, and so we must manually insert an
-		 * explicit read barrier to ensure that the following
-		 * access occurs after all the loads through the first
-		 * pointer.
-		 *
-		 * It is worth comparing this sequence with
-		 * raw_write_seqcount_latch() which operates very similarly.
-		 * The challenge here is the visibility of the other CPU
-		 * writes to the reallocated request vs the local CPU ordering.
-		 * Before the other CPU can overwrite the request, it will
-		 * have updated our active->request and gone through a wmb.
-		 * During the read here, we want to make sure that the values
-		 * we see have not been overwritten as we do so - and we do
-		 * that by serialising the second pointer check with the writes
-		 * on other other CPUs.
-		 *
-		 * The corresponding write barrier is part of
-		 * rcu_assign_pointer().
-		 */
-		smp_rmb();
-		if (request == rcu_access_pointer(active->request))
-			return flag(id);
-	} while (1);
+	return flag(READ_ONCE(request->engine->exec_id));
 }
 
 static __always_inline unsigned int
@@ -3897,11 +3916,12 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 		 * retired and freed. We take a local copy of the pointer,
 		 * but before we add its engine into the busy set, the other
 		 * thread reallocates it and assigns it to a task on another
-		 * engine with a fresh and incomplete seqno.
-		 *
-		 * So after we lookup the engine's id, we double check that
-		 * the active request is the same and only then do we add it
-		 * into the busy set.
+		 * engine with a fresh and incomplete seqno. Guarding against
+		 * that requires careful serialisation and reference counting,
+		 * i.e. using __i915_gem_active_get_request_rcu(). We don't,
+		 * instead we expect that if the result is busy, which engines
+		 * are busy is not completely reliable - we only guarantee
+		 * that the object was busy.
 		 */
 		rcu_read_lock();
 
