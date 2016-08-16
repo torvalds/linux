@@ -526,10 +526,6 @@ int ll_dir_read(struct inode *inode, __u64 *ppos, struct md_op_data *op_data,
 			__u64	  lhash;
 			__u64	  ino;
 
-			/*
-			 * XXX: implement correct swabbing here.
-			 */
-
 			hash = le64_to_cpu(ent->lde_hash);
 			if (hash < pos)
 				/*
