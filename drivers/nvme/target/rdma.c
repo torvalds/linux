@@ -978,10 +978,11 @@ static void nvmet_rdma_release_queue_work(struct work_struct *w)
 		container_of(w, struct nvmet_rdma_queue, release_work);
 	struct rdma_cm_id *cm_id = queue->cm_id;
 	struct nvmet_rdma_device *dev = queue->dev;
+	enum nvmet_rdma_queue_state state = queue->state;
 
 	nvmet_rdma_free_queue(queue);
 
-	if (queue->state != NVMET_RDMA_IN_DEVICE_REMOVAL)
+	if (state != NVMET_RDMA_IN_DEVICE_REMOVAL)
 		rdma_destroy_id(cm_id);
 
 	kref_put(&dev->ref, nvmet_rdma_free_dev);
