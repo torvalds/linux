@@ -184,7 +184,7 @@ static void PinToFirstCpu(const cpu_set_t* cpus)
 	}
 }
 
-int lkl_debug;
+int lkl_debug, lkl_running;
 
 void __attribute__((constructor(102)))
 hijack_init(void)
@@ -328,6 +328,8 @@ hijack_init(void)
 		fprintf(stderr, "can't start kernel: %s\n", lkl_strerror(ret));
 		return;
 	}
+
+	lkl_running = 1;
 
 	/* restore cpu affinity */
 	if (single_cpu_mode)
