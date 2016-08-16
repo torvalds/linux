@@ -260,6 +260,9 @@ static struct Qdisc *qdisc_match_from_root(struct Qdisc *root, u32 handle)
 {
 	struct Qdisc *q;
 
+	if (!qdisc_dev(root))
+		return (root->handle == handle ? root : NULL);
+
 	if (!(root->flags & TCQ_F_BUILTIN) &&
 	    root->handle == handle)
 		return root;
@@ -1451,6 +1454,10 @@ static int tc_dump_qdisc_root(struct Qdisc *root, struct sk_buff *skb,
 			goto done;
 		q_idx++;
 	}
+
+	if (!qdisc_dev(root))
+		goto out;
+
 	hash_for_each(qdisc_dev(root)->qdisc_hash, b, q, hash) {
 		if (q_idx < s_q_idx) {
 			q_idx++;
@@ -1774,6 +1781,9 @@ static int tc_dump_tclass_root(struct Qdisc *root, struct sk_buff *skb,
 
 	if (tc_dump_tclass_qdisc(root, skb, tcm, cb, t_p, s_t) < 0)
 		return -1;
+
+	if (!qdisc_dev(root))
+		return 0;
 
 	hash_for_each(qdisc_dev(root)->qdisc_hash, b, q, hash) {
 		if (tc_dump_tclass_qdisc(q, skb, tcm, cb, t_p, s_t) < 0)
