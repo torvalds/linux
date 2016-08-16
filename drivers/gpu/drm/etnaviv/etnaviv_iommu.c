@@ -219,7 +219,7 @@ void etnaviv_iommuv1_restore(struct etnaviv_gpu *gpu)
 	gpu_write(gpu, VIVS_MC_MMU_RA_PAGE_TABLE, pgtable);
 }
 
-struct iommu_domain *etnaviv_iommu_domain_alloc(struct etnaviv_gpu *gpu)
+struct iommu_domain *etnaviv_iommuv1_domain_alloc(struct etnaviv_gpu *gpu)
 {
 	struct etnaviv_iommu_domain *etnaviv_domain;
 	int ret;

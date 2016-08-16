@@ -22,8 +22,6 @@
 #include "etnaviv_gpu.h"
 #include "etnaviv_gem.h"
 #include "etnaviv_mmu.h"
-#include "etnaviv_iommu.h"
-#include "etnaviv_iommu_v2.h"
 #include "common.xml.h"
 #include "state.xml.h"
 #include "state_hi.xml.h"
@@ -585,9 +583,6 @@ static void etnaviv_gpu_hw_init(struct etnaviv_gpu *gpu)
 int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 {
 	int ret, i;
-	struct iommu_domain *iommu;
-	enum etnaviv_iommu_version version;
-	bool mmuv2;
 
 	ret = pm_runtime_get_sync(gpu->dev);
 	if (ret < 0) {
@@ -635,32 +630,10 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 		goto fail;
 	}
 
-	/* Setup IOMMU.. eventually we will (I think) do this once per context
-	 * and have separate page tables per context.  For now, to keep things
-	 * simple and to get something working, just use a single address space:
-	 */
-	mmuv2 = gpu->identity.minor_features1 & chipMinorFeatures1_MMU_VERSION;
-	dev_dbg(gpu->dev, "mmuv2: %d\n", mmuv2);
-
-	if (!mmuv2) {
-		iommu = etnaviv_iommu_domain_alloc(gpu);
-		version = ETNAVIV_IOMMU_V1;
-	} else {
-		iommu = etnaviv_iommu_v2_domain_alloc(gpu);
-		version = ETNAVIV_IOMMU_V2;
-	}
-
-	if (!iommu) {
-		dev_err(gpu->dev, "Failed to allocate GPU IOMMU domain\n");
-		ret = -ENOMEM;
-		goto fail;
-	}
-
-	gpu->mmu = etnaviv_iommu_new(gpu, iommu, version);
-	if (!gpu->mmu) {
+	gpu->mmu = etnaviv_iommu_new(gpu);
+	if (IS_ERR(gpu->mmu)) {
 		dev_err(gpu->dev, "Failed to instantiate GPU IOMMU\n");
-		iommu_domain_free(iommu);
-		ret = -ENOMEM;
+		ret = PTR_ERR(gpu->mmu);
 		goto fail;
 	}
 

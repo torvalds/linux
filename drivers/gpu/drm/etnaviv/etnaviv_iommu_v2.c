@@ -26,7 +26,7 @@
 #include "state_hi.xml.h"
 
 
-struct iommu_domain *etnaviv_iommu_v2_domain_alloc(struct etnaviv_gpu *gpu)
+struct iommu_domain *etnaviv_iommuv2_domain_alloc(struct etnaviv_gpu *gpu)
 {
 	/* TODO */
 	return NULL;

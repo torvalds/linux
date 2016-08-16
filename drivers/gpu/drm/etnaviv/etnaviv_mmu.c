@@ -14,6 +14,7 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "common.xml.h"
 #include "etnaviv_drv.h"
 #include "etnaviv_gem.h"
 #include "etnaviv_gpu.h"
@@ -258,26 +259,39 @@ void etnaviv_iommu_destroy(struct etnaviv_iommu *mmu)
 	kfree(mmu);
 }
 
-struct etnaviv_iommu *etnaviv_iommu_new(struct etnaviv_gpu *gpu,
-	struct iommu_domain *domain, enum etnaviv_iommu_version version)
+struct etnaviv_iommu *etnaviv_iommu_new(struct etnaviv_gpu *gpu)
 {
+	enum etnaviv_iommu_version version;
 	struct etnaviv_iommu *mmu;
 
 	mmu = kzalloc(sizeof(*mmu), GFP_KERNEL);
 	if (!mmu)
 		return ERR_PTR(-ENOMEM);
 
-	mmu->domain = domain;
+	if (!(gpu->identity.minor_features1 & chipMinorFeatures1_MMU_VERSION)) {
+		mmu->domain = etnaviv_iommuv1_domain_alloc(gpu);
+		version = ETNAVIV_IOMMU_V1;
+	} else {
+		mmu->domain = etnaviv_iommuv2_domain_alloc(gpu);
+		version = ETNAVIV_IOMMU_V2;
+	}
+
+	if (!mmu->domain) {
+		dev_err(gpu->dev, "Failed to allocate GPU IOMMU domain\n");
+		kfree(mmu);
+		return ERR_PTR(-ENOMEM);
+	}
+
 	mmu->gpu = gpu;
 	mmu->version = version;
 	mutex_init(&mmu->lock);
 	INIT_LIST_HEAD(&mmu->mappings);
 
-	drm_mm_init(&mmu->mm, domain->geometry.aperture_start,
-		    domain->geometry.aperture_end -
-		      domain->geometry.aperture_start + 1);
+	drm_mm_init(&mmu->mm, mmu->domain->geometry.aperture_start,
+		    mmu->domain->geometry.aperture_end -
+		    mmu->domain->geometry.aperture_start + 1);
 
-	iommu_set_fault_handler(domain, etnaviv_fault_handler, gpu->dev);
+	iommu_set_fault_handler(mmu->domain, etnaviv_fault_handler, gpu->dev);
 
 	return mmu;
 }
