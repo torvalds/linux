@@ -766,8 +766,8 @@ int ll_setattr(struct dentry *de, struct iattr *attr);
 int ll_statfs(struct dentry *de, struct kstatfs *sfs);
 int ll_statfs_internal(struct super_block *sb, struct obd_statfs *osfs,
 		       __u64 max_age, __u32 flags);
-void ll_update_inode(struct inode *inode, struct lustre_md *md);
-void ll_read_inode2(struct inode *inode, void *opaque);
+int ll_update_inode(struct inode *inode, struct lustre_md *md);
+int ll_read_inode2(struct inode *inode, void *opaque);
 void ll_delete_inode(struct inode *inode);
 int ll_iocontrol(struct inode *inode, struct file *file,
 		 unsigned int cmd, unsigned long arg);

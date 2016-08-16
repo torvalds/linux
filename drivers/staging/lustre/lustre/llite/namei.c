@@ -96,41 +96,46 @@ static int ll_set_inode(struct inode *inode, void *opaque)
 	return 0;
 }
 
-/*
- * Get an inode by inode number (already instantiated by the intent lookup).
- * Returns inode or NULL
+/**
+ * Get an inode by inode number(@hash), which is already instantiated by
+ * the intent lookup).
  */
 struct inode *ll_iget(struct super_block *sb, ino_t hash,
 		      struct lustre_md *md)
 {
 	struct inode	 *inode;
+	int rc = 0;
 
 	LASSERT(hash != 0);
 	inode = iget5_locked(sb, hash, ll_test_inode, ll_set_inode, md);
+	if (!inode)
+		return ERR_PTR(-ENOMEM);
 
-	if (inode) {
-		if (inode->i_state & I_NEW) {
-			int rc = 0;
-
-			ll_read_inode2(inode, md);
-			if (S_ISREG(inode->i_mode) &&
-			    !ll_i2info(inode)->lli_clob) {
-				CDEBUG(D_INODE,
-				       "%s: apply lsm %p to inode " DFID ".\n",
-				       ll_get_fsname(sb, NULL, 0), md->lsm,
-				       PFID(ll_inode2fid(inode)));
-				rc = cl_file_inode_init(inode, md);
-			}
-			if (rc != 0) {
-				iget_failed(inode);
-				inode = NULL;
-			} else {
-				unlock_new_inode(inode);
-			}
-		} else if (!(inode->i_state & (I_FREEING | I_CLEAR))) {
-			ll_update_inode(inode, md);
-			CDEBUG(D_VFSTRACE, "got inode: "DFID"(%p)\n",
-			       PFID(&md->body->fid1), inode);
+	if (inode->i_state & I_NEW) {
+		rc = ll_read_inode2(inode, md);
+		if (!rc && S_ISREG(inode->i_mode) &&
+		    !ll_i2info(inode)->lli_clob) {
+			CDEBUG(D_INODE, "%s: apply lsm %p to inode "DFID"\n",
+			       ll_get_fsname(sb, NULL, 0), md->lsm,
+			       PFID(ll_inode2fid(inode)));
+			rc = cl_file_inode_init(inode, md);
+		}
+		if (rc) {
+			make_bad_inode(inode);
+			unlock_new_inode(inode);
+			iput(inode);
+			inode = ERR_PTR(rc);
+		} else {
+			unlock_new_inode(inode);
+		}
+	} else if (!(inode->i_state & (I_FREEING | I_CLEAR))) {
+		rc = ll_update_inode(inode, md);
+		CDEBUG(D_VFSTRACE, "got inode: "DFID"(%p): rc = %d\n",
+		       PFID(&md->body->fid1), inode, rc);
+		if (rc) {
+			make_bad_inode(inode);
+			iput(inode);
+			inode = ERR_PTR(rc);
 		}
 	}
 	return inode;
