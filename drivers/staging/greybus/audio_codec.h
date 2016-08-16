@@ -132,6 +132,7 @@ struct gbaudio_control {
 	char *name;
 	char *wname;
 	const char * const *texts;
+	int items;
 	struct list_head list;
 };
 

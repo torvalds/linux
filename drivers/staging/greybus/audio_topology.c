@@ -64,6 +64,8 @@ static const char *gbaudio_map_controlid(struct gbaudio_module_info *module,
 		if (control->id == control_id) {
 			if (index == GBAUDIO_INVALID_ID)
 				return control->name;
+			if (index >= control->items)
+				return NULL;
 			return control->texts[index];
 		}
 	}
@@ -71,6 +73,8 @@ static const char *gbaudio_map_controlid(struct gbaudio_module_info *module,
 		if (control->id == control_id) {
 			if (index == GBAUDIO_INVALID_ID)
 				return control->name;
+			if (index >= control->items)
+				return NULL;
 			return control->texts[index];
 		}
 	}
@@ -1038,6 +1042,7 @@ static int gbaudio_tplg_create_widget(struct gbaudio_module_info *module,
 			csize += gbenum->names_length;
 			control->texts = (const char * const *)
 				gb_generate_enum_strings(module, gbenum);
+			control->items = gbenum->items;
 		} else
 			csize = sizeof(struct gb_audio_control);
 		*w_size += csize;
@@ -1184,6 +1189,7 @@ static int gbaudio_tplg_process_kcontrols(struct gbaudio_module_info *module,
 			csize += gbenum->names_length;
 			control->texts = (const char * const *)
 				gb_generate_enum_strings(module, gbenum);
+			control->items = gbenum->items;
 		} else
 			csize = sizeof(struct gb_audio_control);
 
