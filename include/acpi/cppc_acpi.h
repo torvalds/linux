@@ -61,6 +61,8 @@ struct cpc_desc {
 	int num_entries;
 	int version;
 	int cpu_id;
+	int write_cmd_status;
+	int write_cmd_id;
 	struct cpc_register_resource cpc_regs[MAX_CPC_REG_ENT];
 	struct acpi_psd_package domain_info;
 };
