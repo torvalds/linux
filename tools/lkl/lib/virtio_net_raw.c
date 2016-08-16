@@ -19,7 +19,7 @@
 #include <fcntl.h>
 
 #include "virtio.h"
-#include "virtio_net_linux_fdnet.h"
+#include "virtio_net_fd.h"
 
 /* since Linux 3.14 (man 7 packet) */
 #ifndef PACKET_QDISC_BYPASS
@@ -28,7 +28,7 @@
 
 struct lkl_netdev *lkl_netdev_raw_create(const char *ifname)
 {
-	struct lkl_netdev_linux_fdnet *nd;
+	struct lkl_netdev_fd *nd;
 	int ret;
 	struct sockaddr_ll ll;
 	int fd, fd_flags, val;
@@ -59,7 +59,7 @@ struct lkl_netdev *lkl_netdev_raw_create(const char *ifname)
 	fd_flags = fcntl(fd, F_GETFD, NULL);
 	fcntl(fd, F_SETFL, fd_flags | O_NONBLOCK);
 
-	nd = lkl_register_netdev_linux_fdnet(fd);
+	nd = lkl_register_netdev_fd(fd);
 	if (!nd) {
 		perror("failed to register to.");
 		return NULL;

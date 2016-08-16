@@ -19,7 +19,7 @@
 #include <linux/if_tun.h>
 
 #include "virtio.h"
-#include "virtio_net_linux_fdnet.h"
+#include "virtio_net_fd.h"
 
 struct lkl_netdev *lkl_netdev_macvtap_create(const char *path, int offload)
 {

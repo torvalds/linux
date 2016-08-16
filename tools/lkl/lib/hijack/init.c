@@ -25,7 +25,6 @@
 #include <lkl_host.h>
 
 #include "xlate.h"
-#include "../virtio_net_linux_fdnet.h"
 
 #define __USE_GNU
 #include <dlfcn.h>
@@ -155,13 +154,6 @@ static void mount_cmds_exec(char *_cmds, int (*callback)(char*))
 	free(cmds);
 }
 
-void fixup_netdev_linux_fdnet_ops(void)
-{
-	/* It's okay if this is NULL, because then netdev close will
-	 * fall back onto an uncloseable implementation. */
-	lkl_netdev_linux_fdnet_ops.eventfd = dlsym(RTLD_NEXT, "eventfd");
-}
-
 static void PinToCpus(const cpu_set_t* cpus)
 {
 	if (sched_setaffinity(0, sizeof(cpu_set_t), cpus)) {
@@ -260,9 +252,6 @@ hijack_init(void)
 	 */
 	if (single_cpu_mode == 2)
 		PinToFirstCpu(&ori_cpu);
-
-	/* Must be run before lkl_netdev_tap_create */
-	fixup_netdev_linux_fdnet_ops();
 
 	if (tap) {
 		fprintf(stderr,
