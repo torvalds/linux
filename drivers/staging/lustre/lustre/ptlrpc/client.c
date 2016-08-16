@@ -385,10 +385,12 @@ static int ptlrpc_at_recv_early_reply(struct ptlrpc_request *req)
 	spin_lock(&req->rq_lock);
 	olddl = req->rq_deadline;
 	/*
-	 * server assumes it now has rq_timeout from when it sent the
-	 * early reply, so client should give it at least that long.
+	 * server assumes it now has rq_timeout from when the request
+	 * arrived, so the client should give it at least that long.
+	 * since we don't know the arrival time we'll use the original
+	 * sent time
 	 */
-	req->rq_deadline = ktime_get_real_seconds() + req->rq_timeout +
+	req->rq_deadline = req->rq_sent + req->rq_timeout +
 			   ptlrpc_at_get_net_latency(req);
 
 	DEBUG_REQ(D_ADAPTTO, req,

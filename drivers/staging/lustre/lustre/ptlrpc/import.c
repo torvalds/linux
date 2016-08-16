@@ -1497,10 +1497,13 @@ EXPORT_SYMBOL(ptlrpc_disconnect_import);
 /* Adaptive Timeout utils */
 extern unsigned int at_min, at_max, at_history;
 
-/* Bin into timeslices using AT_BINS bins.
- * This gives us a max of the last binlimit*AT_BINS secs without the storage,
- * but still smoothing out a return to normalcy from a slow response.
- * (E.g. remember the maximum latency in each minute of the last 4 minutes.)
+/*
+ *Update at_current with the specified value (bounded by at_min and at_max),
+ * as well as the AT history "bins".
+ *  - Bin into timeslices using AT_BINS bins.
+ *  - This gives us a max of the last at_history seconds without the storage,
+ *    but still smoothing out a return to normalcy from a slow response.
+ *  - (E.g. remember the maximum latency in each minute of the last 4 minutes.)
  */
 int at_measured(struct adaptive_timeout *at, unsigned int val)
 {

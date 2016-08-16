@@ -1005,13 +1005,16 @@ ptlrpc_at_remove_timed(struct ptlrpc_request *req)
 	array->paa_count--;
 }
 
+/*
+ * Attempt to extend the request deadline by sending an early reply to the
+ * client.
+ */
 static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 {
 	struct ptlrpc_service_part *svcpt = req->rq_rqbd->rqbd_svcpt;
 	struct ptlrpc_request *reqcopy;
 	struct lustre_msg *reqmsg;
 	long olddl = req->rq_deadline - ktime_get_real_seconds();
-	time64_t newdl;
 	int rc;
 
 	/* deadline is when the client expects us to reply, margin is the
@@ -1039,8 +1042,13 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 		return -ENOSYS;
 	}
 
-	/* Fake our processing time into the future to ask the clients
-	 * for some extra amount of time
+	/*
+	 * We want to extend the request deadline by at_extra seconds,
+	 * so we set our service estimate to reflect how much time has
+	 * passed since this request arrived plus an additional
+	 * at_extra seconds. The client will calculate the new deadline
+	 * based on this service estimate (plus some additional time to
+	 * account for network latency). See ptlrpc_at_recv_early_reply
 	 */
 	at_measured(&svcpt->scp_at_estimate, at_extra +
 		    ktime_get_real_seconds() - req->rq_arrival_time.tv_sec);
@@ -1056,7 +1064,6 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 			  ktime_get_real_seconds());
 		return -ETIMEDOUT;
 	}
-	newdl = ktime_get_real_seconds() + at_get(&svcpt->scp_at_estimate);
 
 	reqcopy = ptlrpc_request_cache_alloc(GFP_NOFS);
 	if (!reqcopy)
@@ -1110,7 +1117,8 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 
 	if (!rc) {
 		/* Adjust our own deadline to what we told the client */
-		req->rq_deadline = newdl;
+		req->rq_deadline = req->rq_arrival_time.tv_sec +
+				   at_get(&svcpt->scp_at_estimate);
 		req->rq_early_count++; /* number sent, server side */
 	} else {
 		DEBUG_REQ(D_ERROR, req, "Early reply send failed %d", rc);
