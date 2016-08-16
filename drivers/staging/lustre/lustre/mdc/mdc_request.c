@@ -1670,9 +1670,11 @@ static int mdc_ioc_swap_layouts(struct obd_export *exp,
 	 * with the request RPC to avoid extra RPC round trips
 	 */
 	count = mdc_resource_get_unused(exp, &op_data->op_fid1, &cancels,
-					LCK_CR, MDS_INODELOCK_LAYOUT);
+					LCK_CR, MDS_INODELOCK_LAYOUT |
+					MDS_INODELOCK_XATTR);
 	count += mdc_resource_get_unused(exp, &op_data->op_fid2, &cancels,
-					 LCK_CR, MDS_INODELOCK_LAYOUT);
+					 LCK_CR, MDS_INODELOCK_LAYOUT |
+					 MDS_INODELOCK_XATTR);
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp),
 				   &RQF_MDS_SWAP_LAYOUTS);
