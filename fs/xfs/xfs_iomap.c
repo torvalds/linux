@@ -1037,20 +1037,14 @@ xfs_file_iomap_begin(
 			return error;
 
 		trace_xfs_iomap_alloc(ip, offset, length, 0, &imap);
-		xfs_bmbt_to_iomap(ip, iomap, &imap);
-	} else if (nimaps) {
+	} else {
+		ASSERT(nimaps);
+
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 		trace_xfs_iomap_found(ip, offset, length, 0, &imap);
-		xfs_bmbt_to_iomap(ip, iomap, &imap);
-	} else {
-		xfs_iunlock(ip, XFS_ILOCK_EXCL);
-		trace_xfs_iomap_not_found(ip, offset, length, 0, &imap);
-		iomap->blkno = IOMAP_NULL_BLOCK;
-		iomap->type = IOMAP_HOLE;
-		iomap->offset = offset;
-		iomap->length = length;
 	}
 
+	xfs_bmbt_to_iomap(ip, iomap, &imap);
 	return 0;
 }
 
