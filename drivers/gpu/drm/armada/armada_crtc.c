@@ -532,13 +532,14 @@ static void armada_drm_primary_set(struct drm_crtc *crtc,
 {
 	struct armada_plane_state *state = &drm_to_armada_plane(plane)->state;
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
-	struct armada_regs regs[7];
+	struct armada_regs regs[8];
 	bool interlaced = dcrtc->interlaced;
 	unsigned i;
-	uint32_t ctrl0;
+	u32 ctrl0;
 
 	i = armada_drm_crtc_calc_fb(plane->fb, x, y, regs, interlaced);
 
+	armada_reg_queue_set(regs, i, state->dst_yx, LCD_SPU_GRA_OVSA_HPXL_VLN);
 	armada_reg_queue_set(regs, i, state->src_hw, LCD_SPU_GRA_HPXL_VLN);
 	armada_reg_queue_set(regs, i, state->dst_hw, LCD_SPU_GZM_HPXL_VLN);
 
@@ -1191,7 +1192,6 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 		       CFG_PDWN32x32 | CFG_PDWN16x66 | CFG_PDWN32x66 |
 		       CFG_PDWN64x66, dcrtc->base + LCD_SPU_SRAM_PARA1);
 	writel_relaxed(0x2032ff81, dcrtc->base + LCD_SPU_DMA_CTRL1);
-	writel_relaxed(0x00000000, dcrtc->base + LCD_SPU_GRA_OVSA_HPXL_VLN);
 	writel_relaxed(dcrtc->irq_ena, dcrtc->base + LCD_SPU_IRQ_ENA);
 	writel_relaxed(0, dcrtc->base + LCD_SPU_IRQ_ISR);
 
