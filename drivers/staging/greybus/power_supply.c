@@ -70,17 +70,22 @@ static unsigned int update_interval_max = 30 * HZ;
 struct gb_power_supply_changes {
 	enum power_supply_property	prop;
 	u32				tolerance_change;
+	void (*prop_changed)(struct gb_power_supply *gbpsy,
+			     struct gb_power_supply_prop *prop);
 };
 
 static const struct gb_power_supply_changes psy_props_changes[] = {
-	{	.prop =			GB_POWER_SUPPLY_PROP_STATUS,
-		.tolerance_change =	0,
+	{	.prop			= GB_POWER_SUPPLY_PROP_STATUS,
+		.tolerance_change	= 0,
+		.prop_changed		= NULL,
 	},
-	{	.prop =			GB_POWER_SUPPLY_PROP_TEMP,
-		.tolerance_change =	500,
+	{	.prop			= GB_POWER_SUPPLY_PROP_TEMP,
+		.tolerance_change	= 500,
+		.prop_changed		= NULL,
 	},
-	{	.prop =			GB_POWER_SUPPLY_PROP_ONLINE,
-		.tolerance_change =	0,
+	{	.prop			= GB_POWER_SUPPLY_PROP_ONLINE,
+		.tolerance_change	= 0,
+		.prop_changed		= NULL,
 	},
 };
 
@@ -349,18 +354,25 @@ static void check_changed(struct gb_power_supply *gbpsy,
 	const struct gb_power_supply_changes *psyc;
 	int val = prop->val;
 	int prev_val = prop->previous_val;
+	bool changed = false;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(psy_props_changes); i++) {
 		psyc = &psy_props_changes[i];
 		if (prop->prop == psyc->prop) {
 			if (!psyc->tolerance_change)
-				gbpsy->changed = true;
+				changed = true;
 			else if (val < prev_val &&
 				 prev_val - val > psyc->tolerance_change)
-				gbpsy->changed = true;
+				changed = true;
 			else if (val > prev_val &&
 				 val - prev_val > psyc->tolerance_change)
+				changed = true;
+
+			if (changed && psyc->prop_changed)
+				psyc->prop_changed(gbpsy, prop);
+
+			if (changed)
 				gbpsy->changed = true;
 			break;
 		}
