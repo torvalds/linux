@@ -1,6 +1,10 @@
 /* SandyBridge-EP/IvyTown uncore support */
 #include "uncore.h"
 
+/* SNB-EP pci bus to socket mapping */
+#define SNBEP_CPUNODEID			0x40
+#define SNBEP_GIDNIDMAP			0x54
+
 /* SNB-EP Box level control */
 #define SNBEP_PMON_BOX_CTL_RST_CTRL	(1 << 0)
 #define SNBEP_PMON_BOX_CTL_RST_CTRS	(1 << 1)
@@ -1153,7 +1157,7 @@ static struct pci_driver snbep_uncore_pci_driver = {
 /*
  * build pci bus to socket mapping
  */
-static int snbep_pci2phy_map_init(int devid)
+static int snbep_pci2phy_map_init(int devid, int nodeid_loc, int idmap_loc, bool reverse)
 {
 	struct pci_dev *ubox_dev = NULL;
 	int i, bus, nodeid, segment;
@@ -1168,12 +1172,12 @@ static int snbep_pci2phy_map_init(int devid)
 			break;
 		bus = ubox_dev->bus->number;
 		/* get the Node ID of the local register */
-		err = pci_read_config_dword(ubox_dev, 0x40, &config);
+		err = pci_read_config_dword(ubox_dev, nodeid_loc, &config);
 		if (err)
 			break;
 		nodeid = config;
 		/* get the Node ID mapping */
-		err = pci_read_config_dword(ubox_dev, 0x54, &config);
+		err = pci_read_config_dword(ubox_dev, idmap_loc, &config);
 		if (err)
 			break;
 
@@ -1207,11 +1211,20 @@ static int snbep_pci2phy_map_init(int devid)
 		raw_spin_lock(&pci2phy_map_lock);
 		list_for_each_entry(map, &pci2phy_map_head, list) {
 			i = -1;
-			for (bus = 255; bus >= 0; bus--) {
-				if (map->pbus_to_physid[bus] >= 0)
-					i = map->pbus_to_physid[bus];
-				else
-					map->pbus_to_physid[bus] = i;
+			if (reverse) {
+				for (bus = 255; bus >= 0; bus--) {
+					if (map->pbus_to_physid[bus] >= 0)
+						i = map->pbus_to_physid[bus];
+					else
+						map->pbus_to_physid[bus] = i;
+				}
+			} else {
+				for (bus = 0; bus <= 255; bus++) {
+					if (map->pbus_to_physid[bus] >= 0)
+						i = map->pbus_to_physid[bus];
+					else
+						map->pbus_to_physid[bus] = i;
+				}
 			}
 		}
 		raw_spin_unlock(&pci2phy_map_lock);
@@ -1224,7 +1237,7 @@ static int snbep_pci2phy_map_init(int devid)
 
 int snbep_uncore_pci_init(void)
 {
-	int ret = snbep_pci2phy_map_init(0x3ce0);
+	int ret = snbep_pci2phy_map_init(0x3ce0, SNBEP_CPUNODEID, SNBEP_GIDNIDMAP, true);
 	if (ret)
 		return ret;
 	uncore_pci_uncores = snbep_pci_uncores;
@@ -1788,7 +1801,7 @@ static struct pci_driver ivbep_uncore_pci_driver = {
 
 int ivbep_uncore_pci_init(void)
 {
-	int ret = snbep_pci2phy_map_init(0x0e1e);
+	int ret = snbep_pci2phy_map_init(0x0e1e, SNBEP_CPUNODEID, SNBEP_GIDNIDMAP, true);
 	if (ret)
 		return ret;
 	uncore_pci_uncores = ivbep_pci_uncores;
@@ -2897,7 +2910,7 @@ static struct pci_driver hswep_uncore_pci_driver = {
 
 int hswep_uncore_pci_init(void)
 {
-	int ret = snbep_pci2phy_map_init(0x2f1e);
+	int ret = snbep_pci2phy_map_init(0x2f1e, SNBEP_CPUNODEID, SNBEP_GIDNIDMAP, true);
 	if (ret)
 		return ret;
 	uncore_pci_uncores = hswep_pci_uncores;
@@ -3186,7 +3199,7 @@ static struct pci_driver bdx_uncore_pci_driver = {
 
 int bdx_uncore_pci_init(void)
 {
-	int ret = snbep_pci2phy_map_init(0x6f1e);
+	int ret = snbep_pci2phy_map_init(0x6f1e, SNBEP_CPUNODEID, SNBEP_GIDNIDMAP, true);
 
 	if (ret)
 		return ret;
