@@ -828,10 +828,45 @@ static ssize_t unstable_stats_show(struct kobject *kobj,
 	pages = atomic_read(&cache->ccc_unstable_nr);
 	mb = (pages * PAGE_SIZE) >> 20;
 
-	return sprintf(buf, "unstable_pages: %8d\n"
-			    "unstable_mb:    %8d\n", pages, mb);
+	return sprintf(buf, "unstable_check: %8d\n"
+			    "unstable_pages: %8d\n"
+			    "unstable_mb:    %8d\n",
+			    cache->ccc_unstable_check, pages, mb);
 }
-LUSTRE_RO_ATTR(unstable_stats);
+
+static ssize_t unstable_stats_store(struct kobject *kobj,
+				    struct attribute *attr,
+				    const char *buffer,
+				    size_t count)
+{
+	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
+					      ll_kobj);
+	char kernbuf[128];
+	int val, rc;
+
+	if (!count)
+		return 0;
+	if (count < 0 || count >= sizeof(kernbuf))
+		return -EINVAL;
+
+	if (copy_from_user(kernbuf, buffer, count))
+		return -EFAULT;
+	kernbuf[count] = 0;
+
+	buffer += lprocfs_find_named_value(kernbuf, "unstable_check:", &count) -
+		  kernbuf;
+	rc = lprocfs_write_helper(buffer, count, &val);
+	if (rc < 0)
+		return rc;
+
+	/* borrow lru lock to set the value */
+	spin_lock(&sbi->ll_cache->ccc_lru_lock);
+	sbi->ll_cache->ccc_unstable_check = !!val;
+	spin_unlock(&sbi->ll_cache->ccc_lru_lock);
+
+	return count;
+}
+LUSTRE_RW_ATTR(unstable_stats);
 
 static ssize_t root_squash_show(struct kobject *kobj, struct attribute *attr,
 				char *buf)
