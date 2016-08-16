@@ -236,7 +236,7 @@ static int ll_dir_filler(void *_hash, struct page *page0)
 	return rc;
 }
 
-void ll_release_page(struct inode *inode, struct page *page, int remove)
+void ll_release_page(struct inode *inode, struct page *page, bool remove)
 {
 	kunmap(page);
 	if (remove) {
@@ -297,7 +297,7 @@ static struct page *ll_dir_page_locate(struct inode *dir, __u64 *hash,
 			CDEBUG(D_VFSTRACE, "page %lu [%llu %llu], hash %llu\n",
 			       offset, *start, *end, *hash);
 			if (*hash > *end) {
-				ll_release_page(dir, page, 0);
+				ll_release_page(dir, page, false);
 				page = NULL;
 			} else if (*end != *start && *hash == *end) {
 				/*
@@ -463,7 +463,7 @@ out_unlock:
 	return page;
 
 fail:
-	ll_release_page(dir, page, 1);
+	ll_release_page(dir, page, true);
 	page = ERR_PTR(-EIO);
 	goto out_unlock;
 }
@@ -561,7 +561,7 @@ int ll_dir_read(struct inode *inode, __u64 *ppos, struct md_op_data *op_data,
 
 		if (done) {
 			pos = hash;
-			ll_release_page(inode, page, 0);
+			ll_release_page(inode, page, false);
 			break;
 		}
 
@@ -572,7 +572,7 @@ int ll_dir_read(struct inode *inode, __u64 *ppos, struct md_op_data *op_data,
 			 * End of directory reached.
 			 */
 			done = 1;
-			ll_release_page(inode, page, 0);
+			ll_release_page(inode, page, false);
 		} else {
 			/*
 			 * Normal case: continue to the next
