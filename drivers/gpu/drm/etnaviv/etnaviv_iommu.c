@@ -202,6 +202,13 @@ void etnaviv_iommuv1_restore(struct etnaviv_gpu *gpu)
 			to_etnaviv_domain(gpu->mmu->domain);
 	u32 pgtable;
 
+	/* set base addresses */
+	gpu_write(gpu, VIVS_MC_MEMORY_BASE_ADDR_RA, gpu->memory_base);
+	gpu_write(gpu, VIVS_MC_MEMORY_BASE_ADDR_FE, gpu->memory_base);
+	gpu_write(gpu, VIVS_MC_MEMORY_BASE_ADDR_TX, gpu->memory_base);
+	gpu_write(gpu, VIVS_MC_MEMORY_BASE_ADDR_PEZ, gpu->memory_base);
+	gpu_write(gpu, VIVS_MC_MEMORY_BASE_ADDR_PE, gpu->memory_base);
+
 	/* set page table address in MC */
 	pgtable = (u32)etnaviv_domain->pgtable.paddr;
 
