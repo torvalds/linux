@@ -249,7 +249,7 @@ latex_elements = {
 'papersize': 'a4paper',
 
 # The font size ('10pt', '11pt' or '12pt').
-'pointsize': '10pt',
+'pointsize': '8pt',
 
 # Latex figure (float) alignment
 #'figure_align': 'htbp',
@@ -260,6 +260,9 @@ latex_elements = {
 
 # Additional stuff for the LaTeX preamble.
     'preamble': '''
+	% Adjust margins
+	\\usepackage[margin=0.5in, top=1in, bottom=1in]{geometry}
+
         % Allow generate some pages in landscape
         \\usepackage{lscape}
 
