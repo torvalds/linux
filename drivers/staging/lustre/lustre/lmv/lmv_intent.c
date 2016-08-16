@@ -464,6 +464,9 @@ static int lmv_intent_lookup(struct obd_export *exp,
 			return PTR_ERR(tgt);
 
 		ptlrpc_req_finished(*reqp);
+		it->it_request = NULL;
+		*reqp = NULL;
+
 		CDEBUG(D_INODE, "For migrating dir, try target dir "DFID"\n",
 		       PFID(&lsm->lsm_md_oinfo[1].lmo_fid));
 
