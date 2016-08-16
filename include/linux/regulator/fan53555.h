@@ -56,6 +56,7 @@ struct fan53555_platform_data {
 	unsigned int slew_rate;
 	/* Sleep VSEL ID */
 	unsigned int sleep_vsel_id;
+	struct gpio_desc *vsel_gpio;
 };
 
 #endif /* __FAN53555_H__ */

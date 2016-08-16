@@ -24,6 +24,8 @@
 #include <linux/slab.h>
 #include <linux/regmap.h>
 #include <linux/regulator/fan53555.h>
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
 
 /* Voltage setting */
 #define FAN53555_VSEL0		0x00
@@ -98,6 +100,8 @@ struct fan53555_device_info {
 	unsigned int slew_rate;
 	/* Sleep voltage cache */
 	unsigned int sleep_vol_cache;
+	struct gpio_desc *vsel_gpio;
+	unsigned int sleep_vsel_id;
 };
 
 static unsigned int fan53555_map_mode(unsigned int mode)
@@ -141,6 +145,54 @@ static int fan53555_set_suspend_disable(struct regulator_dev *rdev)
 
 	return regmap_update_bits(di->regmap, di->sleep_reg,
 				  VSEL_BUCK_EN, 0);
+}
+
+static int fan53555_set_enable(struct regulator_dev *rdev)
+{
+	struct fan53555_device_info *di = rdev_get_drvdata(rdev);
+
+	if (di->vsel_gpio) {
+		gpiod_set_raw_value(di->vsel_gpio, !di->sleep_vsel_id);
+		return 0;
+	}
+
+	return regmap_update_bits(di->regmap, di->vol_reg,
+				  VSEL_BUCK_EN, VSEL_BUCK_EN);
+}
+
+static int fan53555_set_disable(struct regulator_dev *rdev)
+{
+	struct fan53555_device_info *di = rdev_get_drvdata(rdev);
+
+	if (di->vsel_gpio) {
+		gpiod_set_raw_value(di->vsel_gpio, di->sleep_vsel_id);
+		return 0;
+	}
+
+	return regmap_update_bits(di->regmap, di->vol_reg,
+				  VSEL_BUCK_EN, 0);
+}
+
+static int fan53555_is_enabled(struct regulator_dev *rdev)
+{
+	struct fan53555_device_info *di = rdev_get_drvdata(rdev);
+	unsigned int val;
+	int ret = 0;
+
+	if (di->vsel_gpio) {
+		if (di->sleep_vsel_id)
+			return !gpiod_get_raw_value(di->vsel_gpio);
+		else
+			return gpiod_get_raw_value(di->vsel_gpio);
+	}
+
+	ret = regmap_read(di->regmap, di->vol_reg, &val);
+	if (ret < 0)
+		return ret;
+	if (val & VSEL_BUCK_EN)
+		return 1;
+	else
+		return 0;
 }
 
 static int fan53555_set_mode(struct regulator_dev *rdev, unsigned int mode)
@@ -215,9 +267,9 @@ static const struct regulator_ops fan53555_regulator_ops = {
 	.map_voltage = regulator_map_voltage_linear,
 	.list_voltage = regulator_list_voltage_linear,
 	.set_suspend_voltage = fan53555_set_suspend_voltage,
-	.enable = regulator_enable_regmap,
-	.disable = regulator_disable_regmap,
-	.is_enabled = regulator_is_enabled_regmap,
+	.enable = fan53555_set_enable,
+	.disable = fan53555_set_disable,
+	.is_enabled = fan53555_is_enabled,
 	.set_mode = fan53555_set_mode,
 	.get_mode = fan53555_get_mode,
 	.set_ramp_delay = fan53555_set_ramp,
@@ -340,6 +392,7 @@ static int fan53555_regulator_register(struct fan53555_device_info *di,
 	rdesc->vsel_reg = di->vol_reg;
 	rdesc->vsel_mask = VSEL_NSEL_MASK;
 	rdesc->owner = THIS_MODULE;
+	rdesc->enable_time = 400;
 
 	di->rdev = devm_regulator_register(di->dev, &di->desc, config);
 	return PTR_ERR_OR_ZERO(di->rdev);
@@ -355,7 +408,7 @@ static struct fan53555_platform_data *fan53555_parse_dt(struct device *dev,
 					      const struct regulator_desc *desc)
 {
 	struct fan53555_platform_data *pdata;
-	int ret;
+	int ret, flag;
 	u32 tmp;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
@@ -363,11 +416,25 @@ static struct fan53555_platform_data *fan53555_parse_dt(struct device *dev,
 		return NULL;
 
 	pdata->regulator = of_get_regulator_init_data(dev, np, desc);
+	pdata->regulator->constraints.initial_state = PM_SUSPEND_MEM;
 
 	ret = of_property_read_u32(np, "fcs,suspend-voltage-selector",
 				   &tmp);
 	if (!ret)
 		pdata->sleep_vsel_id = tmp;
+
+	if (pdata->sleep_vsel_id)
+		flag = GPIOD_OUT_LOW;
+	else
+		flag = GPIOD_OUT_HIGH;
+
+	pdata->vsel_gpio =
+		devm_gpiod_get_index_optional(dev, "vsel", 0,
+					      flag);
+	if (IS_ERR(pdata->vsel_gpio)) {
+		ret = PTR_ERR(pdata->vsel_gpio);
+		dev_err(dev, "failed to get vesl gpio (%d)\n", ret);
+	}
 
 	return pdata;
 }
@@ -412,6 +479,9 @@ static int fan53555_regulator_probe(struct i2c_client *client,
 		dev_err(&client->dev, "Platform data not found!\n");
 		return -ENODEV;
 	}
+
+	di->vsel_gpio = pdata->vsel_gpio;
+	di->sleep_vsel_id = pdata->sleep_vsel_id;
 
 	di->regulator = pdata->regulator;
 	if (client->dev.of_node) {
