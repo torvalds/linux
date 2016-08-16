@@ -94,6 +94,13 @@ lmv_find_target(struct lmv_obd *lmv, const struct lu_fid *fid)
 	return lmv_get_target(lmv, mds);
 }
 
+static inline int lmv_stripe_md_size(int stripe_count)
+{
+	struct lmv_stripe_md *lsm;
+
+	return sizeof(*lsm) + stripe_count * sizeof(lsm->lsm_md_oinfo[0]);
+}
+
 struct lmv_tgt_desc
 *lmv_locate_mds(struct lmv_obd *lmv, struct md_op_data *op_data,
 		struct lu_fid *fid);

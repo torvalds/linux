@@ -41,12 +41,15 @@ struct lmv_oinfo {
 };
 
 struct lmv_stripe_md {
-	__u32	mea_magic;
-	__u32	mea_count;
-	__u32	mea_master;
-	__u32	mea_padding;
-	char	mea_pool_name[LOV_MAXPOOLNAME];
-	struct lu_fid mea_ids[0];
+	__u32	lsm_md_magic;
+	__u32	lsm_md_stripe_count;
+	__u32	lsm_md_master_mdt_index;
+	__u32	lsm_md_hash_type;
+	__u32	lsm_md_layout_version;
+	__u32	lsm_md_default_count;
+	__u32	lsm_md_default_index;
+	char	lsm_md_pool_name[LOV_MAXPOOLNAME];
+	struct lmv_oinfo lsm_md_oinfo[0];
 };
 
 union lmv_mds_md;
