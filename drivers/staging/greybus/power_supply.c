@@ -982,7 +982,7 @@ static int gb_supplies_request_handler(struct gb_operation *op)
 	 * running. For that just check update_interval.
 	 */
 	gbpsy = &supplies->supply[psy_id];
-	if (gbpsy->update_interval) {
+	if (!gbpsy->update_interval) {
 		ret = -ESHUTDOWN;
 		goto out_unlock;
 	}
