@@ -370,6 +370,7 @@ config PHY_ROCKCHIP_USB
 config PHY_ROCKCHIP_INNO_USB2
 	tristate "Rockchip INNO USB2PHY Driver"
 	depends on (ARCH_ROCKCHIP || COMPILE_TEST) && OF
+	depends on COMMON_CLK
 	select GENERIC_PHY
 	help
 	  Support for Rockchip USB2.0 PHY with Innosilicon IP block.
