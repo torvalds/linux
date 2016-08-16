@@ -41,6 +41,7 @@
 #include <linux/types.h>
 #include <linux/mm.h>
 
+#include "../include/lustre/lustre_ioctl.h"
 #include "../include/lustre_lite.h"
 #include "../include/lustre_ha.h"
 #include "../include/lustre_dlm.h"

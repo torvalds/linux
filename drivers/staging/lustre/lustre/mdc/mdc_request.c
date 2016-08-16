@@ -39,6 +39,7 @@
 # include <linux/utsname.h>
 
 #include "../include/lustre_acl.h"
+#include "../include/lustre/lustre_ioctl.h"
 #include "../include/obd_class.h"
 #include "../include/lustre_lmv.h"
 #include "../include/lustre_fid.h"

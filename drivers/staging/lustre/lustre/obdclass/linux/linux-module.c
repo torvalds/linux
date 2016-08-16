@@ -65,6 +65,7 @@
 #include "../../include/obd_support.h"
 #include "../../include/obd_class.h"
 #include "../../include/lprocfs_status.h"
+#include "../../include/lustre/lustre_ioctl.h"
 #include "../../include/lustre_ver.h"
 
 /* buffer MUST be at least the size of obd_ioctl_hdr */

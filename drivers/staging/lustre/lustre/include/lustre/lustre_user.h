@@ -188,26 +188,20 @@ struct ost_id {
  * *STRIPE* - set/get lov_user_md
  * *INFO    - set/get lov_user_mds_data
  */
-/* see <lustre_lib.h> for ioctl numberss 101-150 */
+/*	lustre_ioctl.h			101-150 */
 #define LL_IOC_GETFLAGS		 _IOR('f', 151, long)
 #define LL_IOC_SETFLAGS		 _IOW('f', 152, long)
 #define LL_IOC_CLRFLAGS		 _IOW('f', 153, long)
-/* LL_IOC_LOV_SETSTRIPE: See also OBD_IOC_LOV_SETSTRIPE */
 #define LL_IOC_LOV_SETSTRIPE	    _IOW('f', 154, long)
-/* LL_IOC_LOV_GETSTRIPE: See also OBD_IOC_LOV_GETSTRIPE */
 #define LL_IOC_LOV_GETSTRIPE	    _IOW('f', 155, long)
-/* LL_IOC_LOV_SETEA: See also OBD_IOC_LOV_SETEA */
 #define LL_IOC_LOV_SETEA		_IOW('f', 156, long)
 #define LL_IOC_RECREATE_OBJ	     _IOW('f', 157, long)
 #define LL_IOC_RECREATE_FID	     _IOW('f', 157, struct lu_fid)
 #define LL_IOC_GROUP_LOCK	       _IOW('f', 158, long)
 #define LL_IOC_GROUP_UNLOCK	     _IOW('f', 159, long)
-/* LL_IOC_QUOTACHECK: See also OBD_IOC_QUOTACHECK */
-#define LL_IOC_QUOTACHECK	       _IOW('f', 160, int)
-/* LL_IOC_POLL_QUOTACHECK: See also OBD_IOC_POLL_QUOTACHECK */
-#define LL_IOC_POLL_QUOTACHECK	  _IOR('f', 161, struct if_quotacheck *)
-/* LL_IOC_QUOTACTL: See also OBD_IOC_QUOTACTL */
-#define LL_IOC_QUOTACTL		 _IOWR('f', 162, struct if_quotactl)
+/* #define LL_IOC_QUOTACHECK		160 OBD_IOC_QUOTACHECK */
+/* #define LL_IOC_POLL_QUOTACHECK	161 OBD_IOC_POLL_QUOTACHECK */
+/* #define LL_IOC_QUOTACTL		162 OBD_IOC_QUOTACTL */
 #define IOC_OBD_STATFS		  _IOWR('f', 164, struct obd_statfs *)
 #define IOC_LOV_GETINFO		 _IOWR('f', 165, struct lov_user_mds_data *)
 #define LL_IOC_FLUSHCTX		 _IOW('f', 166, long)
@@ -221,8 +215,7 @@ struct ost_id {
 #define LL_IOC_GET_CONNECT_FLAGS	_IOWR('f', 174, __u64 *)
 #define LL_IOC_GET_MDTIDX	       _IOR('f', 175, int)
 
-/* see <lustre_lib.h> for ioctl numbers 177-210 */
-
+/*	lustre_ioctl.h			177-210 */
 #define LL_IOC_HSM_STATE_GET		_IOR('f', 211, struct hsm_user_state)
 #define LL_IOC_HSM_STATE_SET		_IOW('f', 212, struct hsm_state_set)
 #define LL_IOC_HSM_CT_START		_IOW('f', 213, struct lustre_kernelcomm)
@@ -254,10 +247,6 @@ struct ost_id {
 #define IOC_MDC_GETFILESTRIPE   _IOWR(IOC_MDC_TYPE, 21, struct lov_user_md *)
 #define IOC_MDC_GETFILEINFO     _IOWR(IOC_MDC_TYPE, 22, struct lov_user_mds_data *)
 #define LL_IOC_MDC_GETINFO      _IOWR(IOC_MDC_TYPE, 23, struct lov_user_mds_data *)
-
-/* Keep these for backward compartability. */
-#define LL_IOC_OBD_STATFS       IOC_OBD_STATFS
-#define IOC_MDC_GETSTRIPE       IOC_MDC_GETFILESTRIPE
 
 #define MAX_OBD_NAME 128 /* If this changes, a NEW ioctl must be added */
 

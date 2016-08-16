@@ -41,6 +41,7 @@
 
 #include "../include/lustre_ha.h"
 #include "../include/lprocfs_status.h"
+#include "../include/lustre/lustre_ioctl.h"
 #include "../include/lustre_debug.h"
 #include "../include/lustre_param.h"
 #include "../include/lustre_fid.h"

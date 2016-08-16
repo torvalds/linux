@@ -40,6 +40,7 @@
 #include "../include/lprocfs_status.h"
 #include <linux/list.h>
 #include "../include/cl_object.h"
+#include "../include/lustre/lustre_ioctl.h"
 #include "llog_internal.h"
 
 struct obd_device *obd_devs[MAX_OBD_DEVICES];
@@ -284,13 +285,6 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
 					sizeof(*data));
 		if (err)
 			err = -EFAULT;
-		goto out;
-	}
-
-	case OBD_IOC_CLOSE_UUID: {
-		CDEBUG(D_IOCTL, "closing all connections to uuid %s (NOOP)\n",
-		       data->ioc_inlbuf1);
-		err = 0;
 		goto out;
 	}
 

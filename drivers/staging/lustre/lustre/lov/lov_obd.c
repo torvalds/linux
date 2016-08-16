@@ -41,6 +41,7 @@
 #include "../../include/linux/libcfs/libcfs.h"
 
 #include "../include/obd_support.h"
+#include "../include/lustre/lustre_ioctl.h"
 #include "../include/lustre_lib.h"
 #include "../include/lustre_net.h"
 #include "../include/lustre/lustre_idl.h"

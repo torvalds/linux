@@ -51,6 +51,7 @@
 #include "../include/cl_object.h"
 #include "../include/lustre_lite.h"
 #include "../include/lustre_fid.h"
+#include "../include/lustre/lustre_ioctl.h"
 #include "../include/lustre_kernelcomm.h"
 #include "lmv_internal.h"
 

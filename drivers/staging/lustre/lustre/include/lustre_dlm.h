@@ -1282,16 +1282,6 @@ int ldlm_cli_cancel_list(struct list_head *head, int count,
 int intent_disposition(struct ldlm_reply *rep, int flag);
 void intent_set_disposition(struct ldlm_reply *rep, int flag);
 
-/* ioctls for trying requests */
-#define IOC_LDLM_TYPE		   'f'
-#define IOC_LDLM_MIN_NR		 40
-
-#define IOC_LDLM_TEST		   _IOWR('f', 40, long)
-#define IOC_LDLM_DUMP		   _IOWR('f', 41, long)
-#define IOC_LDLM_REGRESS_START	  _IOWR('f', 42, long)
-#define IOC_LDLM_REGRESS_STOP	   _IOWR('f', 43, long)
-#define IOC_LDLM_MAX_NR		 43
-
 /**
  * "Modes" of acquiring lock_res, necessary to tell lockdep that taking more
  * than one lock_res is dead-lock safe.

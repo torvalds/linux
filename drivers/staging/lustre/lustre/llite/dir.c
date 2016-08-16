@@ -46,8 +46,8 @@
 
 #include "../include/obd_support.h"
 #include "../include/obd_class.h"
+#include "../include/lustre/lustre_ioctl.h"
 #include "../include/lustre_lib.h"
-#include "../include/lustre/lustre_idl.h"
 #include "../include/lustre_lite.h"
 #include "../include/lustre_dlm.h"
 #include "../include/lustre_fid.h"
@@ -1543,7 +1543,7 @@ finish_req:
 
 	case LL_IOC_LOV_SWAP_LAYOUTS:
 		return -EPERM;
-	case LL_IOC_OBD_STATFS:
+	case IOC_OBD_STATFS:
 		return ll_obd_statfs(inode, (void __user *)arg);
 	case LL_IOC_LOV_GETSTRIPE:
 	case LL_IOC_MDC_GETINFO:
@@ -1708,9 +1708,6 @@ free_lmm:
 		kvfree(lmm);
 		return rc;
 	}
-	case OBD_IOC_LLOG_CATINFO: {
-		return -EOPNOTSUPP;
-	}
 	case OBD_IOC_QUOTACHECK: {
 		struct obd_quotactl *oqctl;
 		int error = 0;
@@ -1768,7 +1765,7 @@ out_poll:
 		kfree(check);
 		return rc;
 	}
-	case LL_IOC_QUOTACTL: {
+	case OBD_IOC_QUOTACTL: {
 		struct if_quotactl *qctl;
 
 		qctl = kzalloc(sizeof(*qctl), GFP_NOFS);
