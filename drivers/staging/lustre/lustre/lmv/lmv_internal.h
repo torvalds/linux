@@ -52,8 +52,8 @@ int lmv_intent_lock(struct obd_export *exp, struct md_op_data *op_data,
 
 int lmv_fld_lookup(struct lmv_obd *lmv, const struct lu_fid *fid, u32 *mds);
 int __lmv_fid_alloc(struct lmv_obd *lmv, struct lu_fid *fid, u32 mds);
-int lmv_fid_alloc(struct obd_export *exp, struct lu_fid *fid,
-		  struct md_op_data *op_data);
+int lmv_fid_alloc(const struct lu_env *env, struct obd_export *exp,
+		  struct lu_fid *fid, struct md_op_data *op_data);
 
 int lmv_unpack_md(struct obd_export *exp, struct lmv_stripe_md **lsmp,
 		  const union lmv_mds_md *lmm, int stripe_count);

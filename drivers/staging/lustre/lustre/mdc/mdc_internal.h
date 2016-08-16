@@ -87,8 +87,8 @@ int mdc_resource_get_unused(struct obd_export *exp, const struct lu_fid *fid,
 			    struct list_head *cancels, enum ldlm_mode  mode,
 			    __u64 bits);
 /* mdc/mdc_request.c */
-int mdc_fid_alloc(struct obd_export *exp, struct lu_fid *fid,
-		  struct md_op_data *op_data);
+int mdc_fid_alloc(const struct lu_env *env, struct obd_export *exp,
+		  struct lu_fid *fid, struct md_op_data *op_data);
 struct obd_client_handle;
 
 int mdc_set_open_replay_data(struct obd_export *exp,

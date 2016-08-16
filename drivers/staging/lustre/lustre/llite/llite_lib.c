@@ -1042,9 +1042,9 @@ static struct inode *ll_iget_anon_dir(struct super_block *sb,
 		ll_lli_init(lli);
 
 		LASSERT(lsm);
-		/* master stripe FID */
-		lli->lli_pfid = lsm->lsm_md_oinfo[0].lmo_fid;
-		CDEBUG(D_INODE, "lli %p master "DFID" slave "DFID"\n",
+		/* master object FID */
+		lli->lli_pfid = body->fid1;
+		CDEBUG(D_INODE, "lli %p slave "DFID" master "DFID"\n",
 		       lli, PFID(fid), PFID(&lli->lli_pfid));
 		unlock_new_inode(inode);
 	}
@@ -1067,23 +1067,24 @@ static int ll_init_lsm_md(struct inode *inode, struct lustre_md *md)
 	for (i = 0; i < lsm->lsm_md_stripe_count; i++) {
 		fid = &lsm->lsm_md_oinfo[i].lmo_fid;
 		LASSERT(!lsm->lsm_md_oinfo[i].lmo_root);
-		if (!i) {
+		/* Unfortunately ll_iget will call ll_update_inode,
+		 * where the initialization of slave inode is slightly
+		 * different, so it reset lsm_md to NULL to avoid
+		 * initializing lsm for slave inode.
+		 */
+		/* For migrating inode, master stripe and master object will
+		 * be same, so we only need assign this inode
+		 */
+		if (lsm->lsm_md_hash_type & LMV_HASH_FLAG_MIGRATION && !i)
 			lsm->lsm_md_oinfo[i].lmo_root = inode;
-		} else {
-			/*
-			 * Unfortunately ll_iget will call ll_update_inode,
-			 * where the initialization of slave inode is slightly
-			 * different, so it reset lsm_md to NULL to avoid
-			 * initializing lsm for slave inode.
-			 */
+		else
 			lsm->lsm_md_oinfo[i].lmo_root =
 				ll_iget_anon_dir(inode->i_sb, fid, md);
-			if (IS_ERR(lsm->lsm_md_oinfo[i].lmo_root)) {
-				int rc = PTR_ERR(lsm->lsm_md_oinfo[i].lmo_root);
+		if (IS_ERR(lsm->lsm_md_oinfo[i].lmo_root)) {
+			int rc = PTR_ERR(lsm->lsm_md_oinfo[i].lmo_root);
 
-				lsm->lsm_md_oinfo[i].lmo_root = NULL;
-				return rc;
-			}
+			lsm->lsm_md_oinfo[i].lmo_root = NULL;
+			return rc;
 		}
 	}
 
@@ -1113,7 +1114,7 @@ static int ll_update_lsm_md(struct inode *inode, struct lustre_md *md)
 {
 	struct ll_inode_info *lli = ll_i2info(inode);
 	struct lmv_stripe_md *lsm = md->lmv;
-	int idx, rc;
+	int rc;
 
 	LASSERT(S_ISDIR(inode->i_mode));
 	CDEBUG(D_INODE, "update lsm %p of "DFID"\n", lli->lli_lsm_md,
@@ -1123,7 +1124,8 @@ static int ll_update_lsm_md(struct inode *inode, struct lustre_md *md)
 	if (!lsm) {
 		if (!lli->lli_lsm_md) {
 			return 0;
-		} else if (lli->lli_lsm_md->lsm_md_magic == LMV_MAGIC_MIGRATE) {
+		} else if (lli->lli_lsm_md->lsm_md_hash_type &
+			   LMV_HASH_FLAG_MIGRATION) {
 			/*
 			 * migration is done, the temporay MIGRATE layout has
 			 * been removed
@@ -1160,43 +1162,40 @@ static int ll_update_lsm_md(struct inode *inode, struct lustre_md *md)
 	}
 
 	/* Compare the old and new stripe information */
-	if (!lli_lsm_md_eq(lli->lli_lsm_md, lsm)) {
-		CERROR("inode %p %lu mismatch\n"
-		       "    new(%p)     vs     lli_lsm_md(%p):\n"
-		       "    magic:      %x                   %x\n"
-		       "    count:      %x                   %x\n"
-		       "    master:     %x                   %x\n"
-		       "    hash_type:  %x                   %x\n"
-		       "    layout:     %x                   %x\n"
-		       "    pool:       %s                   %s\n",
-		       inode, inode->i_ino, lsm, lli->lli_lsm_md,
-		       lsm->lsm_md_magic, lli->lli_lsm_md->lsm_md_magic,
+	if (!lsm_md_eq(lli->lli_lsm_md, lsm)) {
+		struct lmv_stripe_md *old_lsm = lli->lli_lsm_md;
+		int idx;
+
+		CERROR("%s: inode "DFID"(%p)'s lmv layout mismatch (%p)/(%p) magic:0x%x/0x%x stripe count: %d/%d master_mdt: %d/%d hash_type:0x%x/0x%x layout: 0x%x/0x%x pool:%s/%s\n",
+		       ll_get_fsname(inode->i_sb, NULL, 0), PFID(&lli->lli_fid),
+		       inode, lsm, old_lsm,
+		       lsm->lsm_md_magic, old_lsm->lsm_md_magic,
 		       lsm->lsm_md_stripe_count,
-		       lli->lli_lsm_md->lsm_md_stripe_count,
+		       old_lsm->lsm_md_stripe_count,
 		       lsm->lsm_md_master_mdt_index,
-		       lli->lli_lsm_md->lsm_md_master_mdt_index,
-		       lsm->lsm_md_hash_type, lli->lli_lsm_md->lsm_md_hash_type,
+		       old_lsm->lsm_md_master_mdt_index,
+		       lsm->lsm_md_hash_type, old_lsm->lsm_md_hash_type,
 		       lsm->lsm_md_layout_version,
-		       lli->lli_lsm_md->lsm_md_layout_version,
+		       old_lsm->lsm_md_layout_version,
 		       lsm->lsm_md_pool_name,
-		       lli->lli_lsm_md->lsm_md_pool_name);
+		       old_lsm->lsm_md_pool_name);
+
+		for (idx = 0; idx < old_lsm->lsm_md_stripe_count; idx++) {
+			CERROR("%s: sub FIDs in old lsm idx %d, old: "DFID"\n",
+			       ll_get_fsname(inode->i_sb, NULL, 0), idx,
+			       PFID(&old_lsm->lsm_md_oinfo[idx].lmo_fid));
+		}
+
+		for (idx = 0; idx < lsm->lsm_md_stripe_count; idx++) {
+			CERROR("%s: sub FIDs in new lsm idx %d, new: "DFID"\n",
+			       ll_get_fsname(inode->i_sb, NULL, 0), idx,
+			       PFID(&lsm->lsm_md_oinfo[idx].lmo_fid));
+		}
+
 		return -EIO;
 	}
 
-	for (idx = 0; idx < lli->lli_lsm_md->lsm_md_stripe_count; idx++) {
-		if (!lu_fid_eq(&lli->lli_lsm_md->lsm_md_oinfo[idx].lmo_fid,
-			       &lsm->lsm_md_oinfo[idx].lmo_fid)) {
-			CERROR("%s: FID in lsm mismatch idx %d, old: "DFID" new:"DFID"\n",
-			       ll_get_fsname(inode->i_sb, NULL, 0), idx,
-			       PFID(&lli->lli_lsm_md->lsm_md_oinfo[idx].lmo_fid),
-			       PFID(&lsm->lsm_md_oinfo[idx].lmo_fid));
-			return -EIO;
-		}
-	}
-
-	rc = md_update_lsm_md(ll_i2mdexp(inode), ll_i2info(inode)->lli_lsm_md,
-			      md->body, ll_md_blocking_ast);
-	return rc;
+	return 0;
 }
 
 void ll_clear_inode(struct inode *inode)

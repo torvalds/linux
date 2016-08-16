@@ -917,8 +917,8 @@ struct obd_ops {
 	int (*fid_fini)(struct obd_device *obd);
 
 	/* Allocate new fid according to passed @hint. */
-	int (*fid_alloc)(struct obd_export *exp, struct lu_fid *fid,
-			 struct md_op_data *op_data);
+	int (*fid_alloc)(const struct lu_env *env, struct obd_export *exp,
+			 struct lu_fid *fid, struct md_op_data *op_data);
 
 	/*
 	 * Object with @fid is getting deleted, we may want to do something

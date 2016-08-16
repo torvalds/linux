@@ -1144,7 +1144,7 @@ int mdc_intent_lock(struct obd_export *exp, struct md_op_data *op_data,
 
 	/* For case if upper layer did not alloc fid, do it now. */
 	if (!fid_is_sane(&op_data->op_fid2) && it->it_op & IT_CREAT) {
-		rc = mdc_fid_alloc(exp, &op_data->op_fid2, op_data);
+		rc = mdc_fid_alloc(NULL, exp, &op_data->op_fid2, op_data);
 		if (rc < 0) {
 			CERROR("Can't alloc new fid, rc %d\n", rc);
 			return rc;

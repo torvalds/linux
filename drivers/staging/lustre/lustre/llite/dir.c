@@ -883,7 +883,6 @@ int ll_dir_getstripe(struct inode *inode, void **plmm, int *plmm_size,
 			lustre_swab_lov_user_md_v3((struct lov_user_md_v3 *)lmm);
 		break;
 	case LMV_USER_MAGIC:
-	case LMV_MAGIC_MIGRATE:
 		if (cpu_to_le32(LMV_USER_MAGIC) != LMV_USER_MAGIC)
 			lustre_swab_lmv_user_md((struct lmv_user_md *)lmm);
 		break;
@@ -1471,7 +1470,7 @@ lmv_out_free:
 
 		rc = ll_dir_getstripe(inode, (void **)&lmm, &lmmsize, &request,
 				      valid);
-		if (rc && rc != -ENODATA)
+		if (rc)
 			goto finish_req;
 
 		/* Get default LMV EA */
@@ -1490,14 +1489,7 @@ lmv_out_free:
 			goto finish_req;
 		}
 
-		/* Get normal LMV EA */
-		if (rc == -ENODATA) {
-			stripe_count = 1;
-		} else {
-			LASSERT(lmm);
-			stripe_count = lmv_mds_md_stripe_count_get(lmm);
-		}
-
+		stripe_count = lmv_mds_md_stripe_count_get(lmm);
 		lum_size = lmv_user_md_size(stripe_count, LMV_MAGIC_V1);
 		tmp = kzalloc(lum_size, GFP_NOFS);
 		if (!tmp) {
@@ -1505,28 +1497,25 @@ lmv_out_free:
 			goto finish_req;
 		}
 
-		tmp->lum_magic = LMV_MAGIC_V1;
-		tmp->lum_stripe_count = 1;
 		mdt_index = ll_get_mdt_idx(inode);
 		if (mdt_index < 0) {
 			rc = -ENOMEM;
 			goto out_tmp;
 		}
+		tmp->lum_magic = LMV_MAGIC_V1;
+		tmp->lum_stripe_count = 0;
 		tmp->lum_stripe_offset = mdt_index;
-		tmp->lum_objects[0].lum_mds = mdt_index;
-		tmp->lum_objects[0].lum_fid = *ll_inode2fid(inode);
-		for (i = 1; i < stripe_count; i++) {
-			struct lmv_mds_md_v1 *lmm1;
+		for (i = 0; i < stripe_count; i++) {
+			struct lu_fid   *fid;
 
-			lmm1 = &lmm->lmv_md_v1;
-			mdt_index = ll_get_mdt_idx_by_fid(sbi,
-							  &lmm1->lmv_stripe_fids[i]);
+			fid = &lmm->lmv_md_v1.lmv_stripe_fids[i];
+			mdt_index = ll_get_mdt_idx_by_fid(sbi, fid);
 			if (mdt_index < 0) {
 				rc = mdt_index;
 				goto out_tmp;
 			}
 			tmp->lum_objects[i].lum_mds = mdt_index;
-			tmp->lum_objects[i].lum_fid = lmm1->lmv_stripe_fids[i];
+			tmp->lum_objects[i].lum_fid = *fid;
 			tmp->lum_stripe_count++;
 		}
 

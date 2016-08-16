@@ -80,41 +80,35 @@ lmv_hash_fnv1a(unsigned int count, const char *name, int namelen)
 	return do_div(hash, count);
 }
 
-int lmv_name_to_stripe_index(enum lmv_hash_type hashtype,
-			     unsigned int max_mdt_index,
+int lmv_name_to_stripe_index(__u32 lmv_hash_type, unsigned int stripe_count,
 			     const char *name, int namelen)
 {
+	__u32 hash_type = lmv_hash_type & LMV_HASH_TYPE_MASK;
 	int idx;
 
 	LASSERT(namelen > 0);
-	if (max_mdt_index <= 1)
+	if (stripe_count <= 1)
 		return 0;
 
-	switch (hashtype) {
+	/* for migrating object, always start from 0 stripe */
+	if (lmv_hash_type & LMV_HASH_FLAG_MIGRATION)
+		return 0;
+
+	switch (hash_type) {
 	case LMV_HASH_TYPE_ALL_CHARS:
-		idx = lmv_hash_all_chars(max_mdt_index, name, namelen);
+		idx = lmv_hash_all_chars(stripe_count, name, namelen);
 		break;
 	case LMV_HASH_TYPE_FNV_1A_64:
-		idx = lmv_hash_fnv1a(max_mdt_index, name, namelen);
+		idx = lmv_hash_fnv1a(stripe_count, name, namelen);
 		break;
-	/*
-	 * LMV_HASH_TYPE_MIGRATION means the file is being migrated,
-	 * and the file should be accessed by client, except for
-	 * lookup(see lmv_intent_lookup), return -EACCES here
-	 */
-	case LMV_HASH_TYPE_MIGRATION:
-		CERROR("%.*s is being migrated: rc = %d\n", namelen,
-		       name, -EACCES);
-		return -EACCES;
 	default:
-		CERROR("Unknown hash type 0x%x\n", hashtype);
+		CERROR("Unknown hash type 0x%x\n", hash_type);
 		return -EINVAL;
 	}
 
 	CDEBUG(D_INFO, "name %.*s hash_type %d idx %d\n", namelen, name,
-	       hashtype, idx);
+	       hash_type, idx);
 
-	LASSERT(idx < max_mdt_index);
 	return idx;
 }
 
@@ -1287,7 +1281,7 @@ int __lmv_fid_alloc(struct lmv_obd *lmv, struct lu_fid *fid, u32 mds)
 	/*
 	 * Asking underlaying tgt layer to allocate new fid.
 	 */
-	rc = obd_fid_alloc(tgt->ltd_exp, fid, NULL);
+	rc = obd_fid_alloc(NULL, tgt->ltd_exp, fid, NULL);
 	if (rc > 0) {
 		LASSERT(fid_is_sane(fid));
 		rc = 0;
@@ -1298,8 +1292,8 @@ out:
 	return rc;
 }
 
-int lmv_fid_alloc(struct obd_export *exp, struct lu_fid *fid,
-		  struct md_op_data *op_data)
+int lmv_fid_alloc(const struct lu_env *env, struct obd_export *exp,
+		  struct lu_fid *fid, struct md_op_data *op_data)
 {
 	struct obd_device     *obd = class_exp2obd(exp);
 	struct lmv_obd	*lmv = &obd->u.lmv;
@@ -1695,9 +1689,7 @@ struct lmv_tgt_desc
 	struct lmv_stripe_md *lsm = op_data->op_mea1;
 	struct lmv_tgt_desc *tgt;
 
-	if (!lsm || lsm->lsm_md_stripe_count <= 1 ||
-	    !op_data->op_namelen ||
-	    lsm->lsm_md_magic == LMV_MAGIC_MIGRATE) {
+	if (!lsm || !op_data->op_namelen) {
 		tgt = lmv_find_target(lmv, fid);
 		if (IS_ERR(tgt))
 			return tgt;
@@ -1737,7 +1729,7 @@ static int lmv_create(struct obd_export *exp, struct md_op_data *op_data,
 	       op_data->op_namelen, op_data->op_name, PFID(&op_data->op_fid1),
 	       op_data->op_mds);
 
-	rc = lmv_fid_alloc(exp, &op_data->op_fid2, op_data);
+	rc = lmv_fid_alloc(NULL, exp, &op_data->op_fid2, op_data);
 	if (rc)
 		return rc;
 
@@ -2060,7 +2052,7 @@ static int lmv_rename(struct obd_export *exp, struct md_op_data *op_data,
 	if (op_data->op_cli_flags & CLI_MIGRATE) {
 		LASSERTF(fid_is_sane(&op_data->op_fid3), "invalid FID "DFID"\n",
 			 PFID(&op_data->op_fid3));
-		rc = lmv_fid_alloc(exp, &op_data->op_fid2, op_data);
+		rc = lmv_fid_alloc(NULL, exp, &op_data->op_fid2, op_data);
 		if (rc)
 			return rc;
 		src_tgt = lmv_locate_mds(lmv, op_data, &op_data->op_fid3);
@@ -2365,8 +2357,7 @@ retry:
 			return PTR_ERR(tgt);
 
 		/* For striped dir, we need to locate the parent as well */
-		if (op_data->op_mea1 &&
-		    op_data->op_mea1->lsm_md_stripe_count > 1) {
+		if (op_data->op_mea1) {
 			struct lmv_tgt_desc *tmp;
 
 			LASSERT(op_data->op_name && op_data->op_namelen);
@@ -2679,8 +2670,12 @@ static int lmv_unpack_md_v1(struct obd_export *exp, struct lmv_stripe_md *lsm,
 	lsm->lsm_md_master_mdt_index = le32_to_cpu(lmm1->lmv_master_mdt_index);
 	lsm->lsm_md_hash_type = le32_to_cpu(lmm1->lmv_hash_type);
 	lsm->lsm_md_layout_version = le32_to_cpu(lmm1->lmv_layout_version);
+	fid_le_to_cpu(&lsm->lsm_md_master_fid, &lmm1->lmv_master_fid);
 	cplen = strlcpy(lsm->lsm_md_pool_name, lmm1->lmv_pool_name,
 			sizeof(lsm->lsm_md_pool_name));
+
+	if (!fid_is_sane(&lsm->lsm_md_master_fid))
+		return -EPROTO;
 
 	if (cplen >= sizeof(lsm->lsm_md_pool_name))
 		return -E2BIG;
@@ -2719,7 +2714,13 @@ int lmv_unpack_md(struct obd_export *exp, struct lmv_stripe_md **lsmp,
 		int i;
 
 		for (i = 1; i < lsm->lsm_md_stripe_count; i++) {
-			if (lsm->lsm_md_oinfo[i].lmo_root)
+			/*
+			 * For migrating inode, the master stripe and master
+			 * object will be the same, so do not need iput, see
+			 * ll_update_lsm_md
+			 */
+			if (!(lsm->lsm_md_hash_type & LMV_HASH_FLAG_MIGRATION &&
+			      !i) && lsm->lsm_md_oinfo[i].lmo_root)
 				iput(lsm->lsm_md_oinfo[i].lmo_root);
 		}
 
@@ -2739,9 +2740,11 @@ int lmv_unpack_md(struct obd_export *exp, struct lmv_stripe_md **lsmp,
 		return 0;
 	}
 
+	if (le32_to_cpu(lmm->lmv_magic) == LMV_MAGIC_STRIPE)
+		return -EPERM;
+
 	/* Unpack memmd */
 	if (le32_to_cpu(lmm->lmv_magic) != LMV_MAGIC_V1 &&
-	    le32_to_cpu(lmm->lmv_magic) != LMV_MAGIC_MIGRATE &&
 	    le32_to_cpu(lmm->lmv_magic) != LMV_USER_MAGIC) {
 		CERROR("%s: invalid lmv magic %x: rc = %d\n",
 		       exp->exp_obd->obd_name, le32_to_cpu(lmm->lmv_magic),
@@ -2749,8 +2752,7 @@ int lmv_unpack_md(struct obd_export *exp, struct lmv_stripe_md **lsmp,
 		return -EIO;
 	}
 
-	if (le32_to_cpu(lmm->lmv_magic) == LMV_MAGIC_V1 ||
-	    le32_to_cpu(lmm->lmv_magic) == LMV_MAGIC_MIGRATE)
+	if (le32_to_cpu(lmm->lmv_magic) == LMV_MAGIC_V1)
 		lsm_size = lmv_stripe_md_size(lmv_mds_md_stripe_count_get(lmm));
 	else
 		/**
@@ -2769,7 +2771,6 @@ int lmv_unpack_md(struct obd_export *exp, struct lmv_stripe_md **lsmp,
 
 	switch (le32_to_cpu(lmm->lmv_magic)) {
 	case LMV_MAGIC_V1:
-	case LMV_MAGIC_MIGRATE:
 		rc = lmv_unpack_md_v1(exp, lsm, &lmm->lmv_md_v1);
 		break;
 	default:
@@ -3067,9 +3068,6 @@ static int lmv_quotacheck(struct obd_device *unused, struct obd_export *exp,
 int lmv_update_lsm_md(struct obd_export *exp, struct lmv_stripe_md *lsm,
 		      struct mdt_body *body, ldlm_blocking_callback cb_blocking)
 {
-	if (lsm->lsm_md_stripe_count <= 1)
-		return 0;
-
 	return lmv_revalidate_slaves(exp, body, lsm, cb_blocking, 0);
 }
 

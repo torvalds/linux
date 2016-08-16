@@ -173,9 +173,6 @@ int lmv_revalidate_slaves(struct obd_export *exp, struct mdt_body *mbody,
 	 * revalidate slaves has some problems, temporarily return,
 	 * we may not need that
 	 */
-	if (lsm->lsm_md_stripe_count <= 1)
-		return 0;
-
 	op_data = kzalloc(sizeof(*op_data), GFP_NOFS);
 	if (!op_data)
 		return -ENOMEM;
@@ -194,14 +191,6 @@ int lmv_revalidate_slaves(struct obd_export *exp, struct mdt_body *mbody,
 
 		fid = lsm->lsm_md_oinfo[i].lmo_fid;
 		inode = lsm->lsm_md_oinfo[i].lmo_root;
-		if (!i) {
-			if (mbody) {
-				body = mbody;
-				goto update;
-			} else {
-				goto release_lock;
-			}
-		}
 
 		/*
 		 * Prepare op_data for revalidating. Note that @fid2 shluld be
@@ -237,7 +226,7 @@ int lmv_revalidate_slaves(struct obd_export *exp, struct mdt_body *mbody,
 			body = req_capsule_server_get(&req->rq_pill,
 						      &RMF_MDT_BODY);
 			LASSERT(body);
-update:
+
 			if (unlikely(body->nlink < 2)) {
 				CERROR("%s: nlink %d < 2 corrupt stripe %d "DFID":" DFID"\n",
 				       obd->obd_name, body->nlink, i,
@@ -256,10 +245,6 @@ update:
 				goto cleanup;
 			}
 
-			if (i)
-				md_set_lock_data(tgt->ltd_exp, &lockh->cookie,
-						 inode, NULL);
-
 			i_size_write(inode, body->size);
 			set_nlink(inode, body->nlink);
 			LTIME_S(inode->i_atime) = body->atime;
@@ -269,8 +254,8 @@ update:
 			if (req)
 				ptlrpc_req_finished(req);
 		}
-release_lock:
-		size += i_size_read(inode);
+
+		md_set_lock_data(tgt->ltd_exp, &lockh->cookie, inode, NULL);
 
 		if (i != 0)
 			nlink += inode->i_nlink - 2;
@@ -361,7 +346,7 @@ static int lmv_intent_open(struct obd_export *exp, struct md_op_data *op_data,
 		 * fid and setup FLD for it.
 		 */
 		op_data->op_fid3 = op_data->op_fid2;
-		rc = lmv_fid_alloc(exp, &op_data->op_fid2, op_data);
+		rc = lmv_fid_alloc(NULL, exp, &op_data->op_fid2, op_data);
 		if (rc != 0)
 			return rc;
 	}
@@ -453,7 +438,7 @@ static int lmv_intent_lookup(struct obd_export *exp,
 		}
 		return rc;
 	} else if (it_disposition(it, DISP_LOOKUP_NEG) && lsm &&
-		   lsm->lsm_md_magic == LMV_MAGIC_MIGRATE) {
+		   lsm->lsm_md_magic & LMV_HASH_FLAG_MIGRATION) {
 		/*
 		 * For migrating directory, if it can not find the child in
 		 * the source directory(master stripe), try the targeting

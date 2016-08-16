@@ -765,7 +765,7 @@ static int mdc_close(struct obd_export *exp, struct md_op_data *op_data,
 		req_fmt = &RQF_MDS_RELEASE_CLOSE;
 
 		/* allocate a FID for volatile file */
-		rc = mdc_fid_alloc(exp, &op_data->op_fid2, op_data);
+		rc = mdc_fid_alloc(NULL, exp, &op_data->op_fid2, op_data);
 		if (rc < 0) {
 			CERROR("%s: "DFID" failed to allocate FID: %d\n",
 			       obd->obd_name, PFID(&op_data->op_fid1), rc);
@@ -2203,13 +2203,13 @@ static int mdc_import_event(struct obd_device *obd, struct obd_import *imp,
 	return rc;
 }
 
-int mdc_fid_alloc(struct obd_export *exp, struct lu_fid *fid,
-		  struct md_op_data *op_data)
+int mdc_fid_alloc(const struct lu_env *env, struct obd_export *exp,
+		  struct lu_fid *fid, struct md_op_data *op_data)
 {
 	struct client_obd *cli = &exp->exp_obd->u.cli;
 	struct lu_client_seq *seq = cli->cl_seq;
 
-	return seq_client_alloc_fid(NULL, seq, fid);
+	return seq_client_alloc_fid(env, seq, fid);
 }
 
 static struct obd_uuid *mdc_get_uuid(struct obd_export *exp)
