@@ -476,12 +476,16 @@ extern dev_t tpm_devt;
 extern const struct file_operations tpm_fops;
 extern struct idr dev_nums_idr;
 
+enum tpm_transmit_flags {
+	TPM_TRANSMIT_UNLOCKED	= BIT(0),
+};
+
+ssize_t tpm_transmit(struct tpm_chip *chip, const u8 *buf, size_t bufsiz,
+		     unsigned int flags);
+ssize_t tpm_transmit_cmd(struct tpm_chip *chip, const void *cmd, int len,
+			 unsigned int flags, const char *desc);
 ssize_t tpm_getcap(struct tpm_chip *chip, __be32 subcap_id, cap_t *cap,
 		   const char *desc);
-ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
-		     size_t bufsiz);
-ssize_t tpm_transmit_cmd(struct tpm_chip *chip, void *cmd, int len,
-			 const char *desc);
 extern int tpm_get_timeouts(struct tpm_chip *);
 extern void tpm_gen_interrupt(struct tpm_chip *);
 int tpm1_auto_startup(struct tpm_chip *chip);
