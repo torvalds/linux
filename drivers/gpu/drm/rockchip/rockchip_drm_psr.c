@@ -30,6 +30,7 @@ struct psr_drv {
 	struct list_head	list;
 	struct drm_encoder	*encoder;
 
+	spinlock_t		lock;
 	enum psr_state		state;
 
 	struct timer_list	flush_timer;
@@ -55,7 +56,7 @@ out:
 	return psr;
 }
 
-static void psr_set_state(struct psr_drv *psr, enum psr_state state)
+static void psr_set_state_locked(struct psr_drv *psr, enum psr_state state)
 {
 	/*
 	 * Allowed finite state machine:
@@ -75,7 +76,6 @@ static void psr_set_state(struct psr_drv *psr, enum psr_state state)
 	if (state == PSR_FLUSH && psr->state == PSR_DISABLE)
 		return;
 
-	/* Only wrote in this work, no need lock protection */
 	psr->state = state;
 
 	/* Allow but no need hardware change, just need assign the state */
@@ -95,18 +95,28 @@ static void psr_set_state(struct psr_drv *psr, enum psr_state state)
 	}
 }
 
+static void psr_set_state(struct psr_drv *psr, enum psr_state state)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&psr->lock, flags);
+	psr_set_state_locked(psr, state);
+	spin_unlock_irqrestore(&psr->lock, flags);
+}
+
 static void psr_flush_handler(unsigned long data)
 {
 	struct psr_drv *psr = (struct psr_drv *)data;
+	unsigned long flags;
 
 	if (!psr)
 		return;
 
 	/* State changed between flush time, then keep it */
-	if (psr->state != PSR_FLUSH)
-		return;
-
-	psr_set_state(psr, PSR_ENABLE);
+	spin_lock_irqsave(&psr->lock, flags);
+	if (psr->state == PSR_FLUSH)
+		psr_set_state_locked(psr, PSR_ENABLE);
+	spin_unlock_irqrestore(&psr->lock, flags);
 }
 
 /**
@@ -167,9 +177,6 @@ void rockchip_drm_psr_flush(struct drm_device *dev)
 
 	spin_lock_irqsave(&drm_drv->psr_list_lock, flags);
 	list_for_each_entry(psr, &drm_drv->psr_list, list) {
-		if (psr->state == PSR_DISABLE)
-			continue;
-
 		mod_timer(&psr->flush_timer,
 			  round_jiffies_up(jiffies + PSR_FLUSH_TIMEOUT));
 
@@ -202,6 +209,7 @@ int rockchip_drm_psr_register(struct drm_encoder *encoder,
 		return -ENOMEM;
 
 	setup_timer(&psr->flush_timer, psr_flush_handler, (unsigned long)psr);
+	spin_lock_init(&psr->lock);
 
 	psr->state = PSR_DISABLE;
 	psr->encoder = encoder;
