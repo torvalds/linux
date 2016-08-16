@@ -36,6 +36,8 @@
 
 struct qede_stats {
 	u64 no_buff_discards;
+	u64 packet_too_big_discard;
+	u64 ttl0_discard;
 	u64 rx_ucast_bytes;
 	u64 rx_mcast_bytes;
 	u64 rx_bcast_bytes;

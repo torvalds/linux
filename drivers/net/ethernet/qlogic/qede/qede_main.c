@@ -1694,6 +1694,8 @@ void qede_fill_by_demand_stats(struct qede_dev *edev)
 
 	edev->ops->get_vport_stats(edev->cdev, &stats);
 	edev->stats.no_buff_discards = stats.no_buff_discards;
+	edev->stats.packet_too_big_discard = stats.packet_too_big_discard;
+	edev->stats.ttl0_discard = stats.ttl0_discard;
 	edev->stats.rx_ucast_bytes = stats.rx_ucast_bytes;
 	edev->stats.rx_mcast_bytes = stats.rx_mcast_bytes;
 	edev->stats.rx_bcast_bytes = stats.rx_bcast_bytes;

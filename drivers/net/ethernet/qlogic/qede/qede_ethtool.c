@@ -107,6 +107,8 @@ static const struct {
 	QEDE_PF_STAT(mftag_filter_discards),
 	QEDE_PF_STAT(mac_filter_discards),
 	QEDE_STAT(tx_err_drop_pkts),
+	QEDE_STAT(ttl0_discard),
+	QEDE_STAT(packet_too_big_discard),
 
 	QEDE_STAT(coalesced_pkts),
 	QEDE_STAT(coalesced_events),
