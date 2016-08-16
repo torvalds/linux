@@ -2692,7 +2692,7 @@ static int lmv_free_lustre_md(struct obd_export *exp, struct lustre_md *md)
 	struct lmv_tgt_desc *tgt = lmv->tgts[0];
 
 	if (md->lmv)
-		obd_free_memmd(exp, (void *)&md->lmv);
+		lmv_free_memmd(md->lmv);
 	if (!tgt || !tgt->ltd_exp)
 		return -EINVAL;
 	return md_free_lustre_md(tgt->ltd_exp, md);
