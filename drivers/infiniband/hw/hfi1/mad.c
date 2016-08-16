@@ -1819,6 +1819,11 @@ static int __subn_get_opa_cable_info(struct opa_smp *smp, u32 am, u8 *data,
 	u32 len = OPA_AM_CI_LEN(am) + 1;
 	int ret;
 
+	if (dd->pport->port_type != PORT_TYPE_QSFP) {
+		smp->status |= IB_SMP_INVALID_FIELD;
+		return reply((struct ib_mad_hdr *)smp);
+	}
+
 #define __CI_PAGE_SIZE BIT(7) /* 128 bytes */
 #define __CI_PAGE_MASK ~(__CI_PAGE_SIZE - 1)
 #define __CI_PAGE_NUM(a) ((a) & __CI_PAGE_MASK)
