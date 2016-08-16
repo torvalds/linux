@@ -199,7 +199,6 @@ again:
 		pagefault_enable();
 
 		flush_dcache_page(page);
-		mark_page_accessed(page);
 
 		status = iomap_write_end(inode, pos, bytes, copied, page);
 		if (unlikely(status < 0))
