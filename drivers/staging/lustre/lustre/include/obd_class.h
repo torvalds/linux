@@ -1699,6 +1699,19 @@ static inline int md_revalidate_lock(struct obd_export *exp,
 	return rc;
 }
 
+static inline int md_get_fid_from_lsm(struct obd_export *exp,
+				      const struct lmv_stripe_md *lsm,
+				      const char *name, int namelen,
+				      struct lu_fid *fid)
+{
+	int rc;
+
+	EXP_CHECK_MD_OP(exp, get_fid_from_lsm);
+	EXP_MD_COUNTER_INCREMENT(exp, get_fid_from_lsm);
+	rc = MDP(exp->exp_obd, get_fid_from_lsm)(exp, lsm, name, namelen, fid);
+	return rc;
+}
+
 /* OBD Metadata Support */
 
 int obd_init_caches(void);

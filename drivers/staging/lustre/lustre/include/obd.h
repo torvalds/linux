@@ -1103,6 +1103,11 @@ struct md_ops {
 			     ldlm_policy_data_t *, enum ldlm_mode,
 			     enum ldlm_cancel_flags flags, void *opaque);
 
+	int (*get_fid_from_lsm)(struct obd_export *,
+				const struct lmv_stripe_md *,
+				const char *name, int namelen,
+				struct lu_fid *fid);
+
 	int (*intent_getattr_async)(struct obd_export *,
 				    struct md_enqueue_info *,
 				    struct ldlm_enqueue_info *);
