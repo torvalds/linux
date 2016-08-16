@@ -368,12 +368,6 @@ int cl_sb_fini(struct super_block *sb)
 		CERROR("Cannot cleanup cl-stack due to memory shortage.\n");
 		result = PTR_ERR(env);
 	}
-	/*
-	 * If mount failed (sbi->ll_cl == NULL), and this there are no other
-	 * mounts, stop device types manually (this usually happens
-	 * automatically when last device is destroyed).
-	 */
-	lu_types_stop();
 	return result;
 }
 

@@ -670,7 +670,6 @@ int lustre_common_put_super(struct super_block *sb)
 	}
 	/* Drop a ref to the mounted disk */
 	lustre_put_lsi(sb);
-	lu_types_stop();
 	return rc;
 }
 EXPORT_SYMBOL(lustre_common_put_super);
