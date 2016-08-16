@@ -237,11 +237,10 @@ char * strrchr(const char * s, int c)
 EXPORT_SYMBOL(strrchr);
 
 static inline int clcle(const char *s1, unsigned long l1,
-			const char *s2, unsigned long l2,
-			int *diff)
+			const char *s2, unsigned long l2)
 {
 	register unsigned long r2 asm("2") = (unsigned long) s1;
-	register unsigned long r3 asm("3") = (unsigned long) l2;
+	register unsigned long r3 asm("3") = (unsigned long) l1;
 	register unsigned long r4 asm("4") = (unsigned long) s2;
 	register unsigned long r5 asm("5") = (unsigned long) l2;
 	int cc;
@@ -252,7 +251,6 @@ static inline int clcle(const char *s1, unsigned long l1,
 		      "   srl   %0,28"
 		      : "=&d" (cc), "+a" (r2), "+a" (r3),
 			"+a" (r4), "+a" (r5) : : "cc");
-	*diff = *(char *)r2 - *(char *)r4;
 	return cc;
 }
 
@@ -270,9 +268,9 @@ char * strstr(const char * s1,const char * s2)
 		return (char *) s1;
 	l1 = __strend(s1) - s1;
 	while (l1-- >= l2) {
-		int cc, dummy;
+		int cc;
 
-		cc = clcle(s1, l1, s2, l2, &dummy);
+		cc = clcle(s1, l2, s2, l2);
 		if (!cc)
 			return (char *) s1;
 		s1++;
@@ -313,11 +311,11 @@ EXPORT_SYMBOL(memchr);
  */
 int memcmp(const void *cs, const void *ct, size_t n)
 {
-	int ret, diff;
+	int ret;
 
-	ret = clcle(cs, n, ct, n, &diff);
+	ret = clcle(cs, n, ct, n);
 	if (ret)
-		ret = diff;
+		ret = ret == 1 ? -1 : 1;
 	return ret;
 }
 EXPORT_SYMBOL(memcmp);
