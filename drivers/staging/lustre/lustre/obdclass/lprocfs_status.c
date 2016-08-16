@@ -99,6 +99,8 @@ static const char * const obd_connect_names[] = {
 	"open_by_fid",
 	"lfsck",
 	"unknown",
+	"unlink_close",
+	"unknown",
 	NULL
 };
 
