@@ -1329,7 +1329,7 @@ static inline void intel_pstate_adjust_busy_pstate(struct cpudata *cpu)
 }
 
 static void intel_pstate_update_util(struct update_util_data *data, u64 time,
-				     unsigned long util, unsigned long max)
+				     unsigned int flags)
 {
 	struct cpudata *cpu = container_of(data, struct cpudata, update_util);
 	u64 delta_ns = time - cpu->sample.time;

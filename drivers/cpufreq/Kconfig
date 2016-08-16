@@ -194,7 +194,7 @@ config CPU_FREQ_GOV_CONSERVATIVE
 	  If in doubt, say N.
 
 config CPU_FREQ_GOV_SCHEDUTIL
-	tristate "'schedutil' cpufreq policy governor"
+	bool "'schedutil' cpufreq policy governor"
 	depends on CPU_FREQ && SMP
 	select CPU_FREQ_GOV_ATTR_SET
 	select IRQ_WORK
@@ -207,9 +207,6 @@ config CPU_FREQ_GOV_SCHEDUTIL
 	  case, it is proportional to the current frequency of the CPU.  The
 	  frequency tipping point is at utilization/capacity equal to 80% in
 	  both cases.
-
-	  To compile this driver as a module, choose M here: the module will
-	  be called cpufreq_schedutil.
 
 	  If in doubt, say N.
 

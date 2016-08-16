@@ -2875,11 +2875,8 @@ static inline void update_tg_load_avg(struct cfs_rq *cfs_rq, int force) {}
 
 static inline void cfs_rq_util_change(struct cfs_rq *cfs_rq)
 {
-	struct rq *rq = rq_of(cfs_rq);
-	int cpu = cpu_of(rq);
-
-	if (cpu == smp_processor_id() && &rq->cfs == cfs_rq) {
-		unsigned long max = rq->cpu_capacity_orig;
+	if (&this_rq()->cfs == cfs_rq) {
+		struct rq *rq = rq_of(cfs_rq);
 
 		/*
 		 * There are a few boundary cases this might miss but it should
@@ -2897,8 +2894,7 @@ static inline void cfs_rq_util_change(struct cfs_rq *cfs_rq)
 		 *
 		 * See cpu_util().
 		 */
-		cpufreq_update_util(rq_clock(rq),
-				    min(cfs_rq->avg.util_avg, max), max);
+		cpufreq_update_util(rq_clock(rq), 0);
 	}
 }
 
@@ -3162,7 +3158,7 @@ static inline void update_load_avg(struct sched_entity *se, int not_used)
 	struct cfs_rq *cfs_rq = cfs_rq_of(se);
 	struct rq *rq = rq_of(cfs_rq);
 
-	cpufreq_trigger_update(rq_clock(rq));
+	cpufreq_update_util(rq_clock(rq), 0);
 }
 
 static inline void
