@@ -106,6 +106,7 @@ static inline void lmv_cpu_to_le(union lmv_mds_md *lmv_dst,
 {
 	switch (lmv_src->lmv_magic) {
 	case LMV_MAGIC_V1:
+	case LMV_MAGIC_MIGRATE:
 		lmv1_cpu_to_le(&lmv_dst->lmv_md_v1, &lmv_src->lmv_md_v1);
 		break;
 	default:
@@ -118,6 +119,7 @@ static inline void lmv_le_to_cpu(union lmv_mds_md *lmv_dst,
 {
 	switch (le32_to_cpu(lmv_src->lmv_magic)) {
 	case LMV_MAGIC_V1:
+	case LMV_MAGIC_MIGRATE:
 		lmv1_le_to_cpu(&lmv_dst->lmv_md_v1, &lmv_src->lmv_md_v1);
 		break;
 	default:

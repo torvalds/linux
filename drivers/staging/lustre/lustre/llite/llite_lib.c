@@ -1114,8 +1114,34 @@ static void ll_update_lsm_md(struct inode *inode, struct lustre_md *md)
 	struct lmv_stripe_md *lsm = md->lmv;
 	int idx;
 
-	LASSERT(lsm);
 	LASSERT(S_ISDIR(inode->i_mode));
+	CDEBUG(D_INODE, "update lsm %p of "DFID"\n", lli->lli_lsm_md,
+	       PFID(ll_inode2fid(inode)));
+
+	/* no striped information from request. */
+	if (!lsm) {
+		if (!lli->lli_lsm_md) {
+			return;
+		} else if (lli->lli_lsm_md->lsm_md_magic == LMV_MAGIC_MIGRATE) {
+			/*
+			 * migration is done, the temporay MIGRATE layout has
+			 * been removed
+			 */
+			CDEBUG(D_INODE, DFID" finish migration.\n",
+			       PFID(ll_inode2fid(inode)));
+			lmv_free_memmd(lli->lli_lsm_md);
+			lli->lli_lsm_md = NULL;
+			return;
+		} else {
+			/*
+			 * The lustre_md from req does not include stripeEA,
+			 * see ll_md_setattr
+			 */
+			return;
+		}
+	}
+
+	/* set the directory layout */
 	if (!lli->lli_lsm_md) {
 		int rc;
 
@@ -1132,6 +1158,8 @@ static void ll_update_lsm_md(struct inode *inode, struct lustre_md *md)
 		 * will not free this lsm
 		 */
 		md->lmv = NULL;
+		CDEBUG(D_INODE, "Set lsm %p magic %x to "DFID"\n", lsm,
+		       lsm->lsm_md_magic, PFID(ll_inode2fid(inode)));
 		return;
 	}
 
@@ -1668,7 +1696,7 @@ void ll_update_inode(struct inode *inode, struct lustre_md *md)
 			lli->lli_maxbytes = MAX_LFS_FILESIZE;
 	}
 
-	if (S_ISDIR(inode->i_mode) && md->lmv)
+	if (S_ISDIR(inode->i_mode))
 		ll_update_lsm_md(inode, md);
 
 #ifdef CONFIG_FS_POSIX_ACL
@@ -2306,7 +2334,6 @@ struct md_op_data *ll_prep_md_op_data(struct md_op_data *op_data,
 	if ((opc == LUSTRE_OPC_CREATE) && name &&
 	    filename_is_volatile(name, namelen, NULL))
 		op_data->op_bias |= MDS_CREATE_VOLATILE;
-	op_data->op_opc = opc;
 	op_data->op_mds = 0;
 	op_data->op_data = data;
 

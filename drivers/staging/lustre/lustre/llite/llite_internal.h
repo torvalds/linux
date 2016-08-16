@@ -660,6 +660,7 @@ extern const struct inode_operations ll_dir_inode_operations;
 int ll_dir_read(struct inode *inode, __u64 *ppos, struct md_op_data *op_data,
 		struct dir_context *ctx);
 int ll_get_mdt_idx(struct inode *inode);
+int ll_get_mdt_idx_by_fid(struct ll_sb_info *sbi, const struct lu_fid *fid);
 struct page *ll_get_dir_page(struct inode *dir, struct md_op_data *op_data,
 			     __u64 hash, struct ll_dir_chain *chain);
 void ll_release_page(struct inode *inode, struct page *page, bool remove);
@@ -675,6 +676,7 @@ int ll_test_inode_by_fid(struct inode *inode, void *opaque);
 int ll_md_blocking_ast(struct ldlm_lock *, struct ldlm_lock_desc *,
 		       void *data, int flag);
 struct dentry *ll_splice_alias(struct inode *inode, struct dentry *de);
+void ll_update_times(struct ptlrpc_request *request, struct inode *inode);
 
 /* llite/rw.c */
 int ll_writepage(struct page *page, struct writeback_control *wbc);
@@ -717,7 +719,8 @@ void ll_pack_inode2opdata(struct inode *inode, struct md_op_data *op_data,
 			  struct lustre_handle *fh);
 int ll_getattr(struct vfsmount *mnt, struct dentry *de, struct kstat *stat);
 struct posix_acl *ll_get_acl(struct inode *inode, int type);
-
+int ll_migrate(struct inode *parent, struct file *file, int mdtidx,
+	       const char *name, int namelen);
 int ll_inode_permission(struct inode *inode, int mask);
 
 int ll_lov_setstripe_ea_info(struct inode *inode, struct dentry *dentry,
@@ -777,6 +780,15 @@ int ll_obd_statfs(struct inode *inode, void __user *arg);
 int ll_get_max_mdsize(struct ll_sb_info *sbi, int *max_mdsize);
 int ll_get_default_mdsize(struct ll_sb_info *sbi, int *default_mdsize);
 int ll_process_config(struct lustre_cfg *lcfg);
+
+enum {
+	LUSTRE_OPC_MKDIR	= 0,
+	LUSTRE_OPC_SYMLINK	= 1,
+	LUSTRE_OPC_MKNOD	= 2,
+	LUSTRE_OPC_CREATE	= 3,
+	LUSTRE_OPC_ANY		= 5,
+};
+
 struct md_op_data *ll_prep_md_op_data(struct md_op_data *op_data,
 				      struct inode *i1, struct inode *i2,
 				      const char *name, int namelen,

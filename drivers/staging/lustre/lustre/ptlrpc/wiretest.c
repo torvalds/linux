@@ -190,7 +190,9 @@ void lustre_assert_wire_constants(void)
 		 (long long)REINT_SETXATTR);
 	LASSERTF(REINT_RMENTRY == 8, "found %lld\n",
 		 (long long)REINT_RMENTRY);
-	LASSERTF(REINT_MAX == 9, "found %lld\n",
+	LASSERTF(REINT_MIGRATE == 9, "found %lld\n",
+		 (long long)REINT_MIGRATE);
+	LASSERTF(REINT_MAX == 10, "found %lld\n",
 		 (long long)REINT_MAX);
 	LASSERTF(DISP_IT_EXECD == 0x00000001UL, "found 0x%.8xUL\n",
 		(unsigned)DISP_IT_EXECD);

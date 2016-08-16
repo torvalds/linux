@@ -43,6 +43,7 @@
 #include "../include/lustre_lib.h"
 #include "../include/lustre_net.h"
 #include "../include/lustre_dlm.h"
+#include "../include/lustre_mdc.h"
 #include "../include/obd_class.h"
 #include "../include/lprocfs_status.h"
 #include "lmv_internal.h"
@@ -332,6 +333,8 @@ static int lmv_intent_open(struct obd_export *exp, struct md_op_data *op_data,
 
 			oinfo = lsm_name_to_stripe_info(lsm, op_data->op_name,
 							op_data->op_namelen);
+			if (IS_ERR(oinfo))
+				return PTR_ERR(oinfo);
 			op_data->op_fid1 = oinfo->lmo_fid;
 		}
 
@@ -408,6 +411,7 @@ static int lmv_intent_lookup(struct obd_export *exp,
 			     ldlm_blocking_callback cb_blocking,
 			     __u64 extra_lock_flags)
 {
+	struct lmv_stripe_md *lsm = op_data->op_mea1;
 	struct obd_device      *obd = exp->exp_obd;
 	struct lmv_obd	 *lmv = &obd->u.lmv;
 	struct lmv_tgt_desc    *tgt = NULL;
@@ -421,17 +425,15 @@ static int lmv_intent_lookup(struct obd_export *exp,
 	if (!fid_is_sane(&op_data->op_fid2))
 		fid_zero(&op_data->op_fid2);
 
-	CDEBUG(D_INODE, "LOOKUP_INTENT with fid1="DFID", fid2="DFID
-	       ", name='%s' -> mds #%d\n", PFID(&op_data->op_fid1),
-	       PFID(&op_data->op_fid2),
+	CDEBUG(D_INODE, "LOOKUP_INTENT with fid1="DFID", fid2="DFID", name='%s' -> mds #%d lsm=%p lsm_magic=%x\n",
+	       PFID(&op_data->op_fid1), PFID(&op_data->op_fid2),
 	       op_data->op_name ? op_data->op_name : "<NULL>",
-	       tgt->ltd_idx);
+	       tgt->ltd_idx, lsm, !lsm ? -1 : lsm->lsm_md_magic);
 
 	op_data->op_bias &= ~MDS_CROSS_REF;
 
 	rc = md_intent_lock(tgt->ltd_exp, op_data, lmm, lmmsize, it,
 			    flags, reqp, cb_blocking, extra_lock_flags);
-
 	if (rc < 0)
 		return rc;
 
@@ -447,6 +449,26 @@ static int lmv_intent_lookup(struct obd_export *exp,
 			if (rc != 0)
 				return rc;
 		}
+		return rc;
+	} else if (it_disposition(it, DISP_LOOKUP_NEG) && lsm &&
+		   lsm->lsm_md_magic == LMV_MAGIC_MIGRATE) {
+		/*
+		 * For migrating directory, if it can not find the child in
+		 * the source directory(master stripe), try the targeting
+		 * directory(stripe 1)
+		 */
+		tgt = lmv_find_target(lmv, &lsm->lsm_md_oinfo[1].lmo_fid);
+		if (IS_ERR(tgt))
+			return PTR_ERR(tgt);
+
+		ptlrpc_req_finished(*reqp);
+		CDEBUG(D_INODE, "For migrating dir, try target dir "DFID"\n",
+		       PFID(&lsm->lsm_md_oinfo[1].lmo_fid));
+
+		op_data->op_fid1 = lsm->lsm_md_oinfo[1].lmo_fid;
+		it->it_disposition &= ~DISP_ENQ_COMPLETE;
+		rc = md_intent_lock(tgt->ltd_exp, op_data, lmm, lmmsize, it,
+				    flags, reqp, cb_blocking, extra_lock_flags);
 		return rc;
 	}
 

@@ -1015,6 +1015,10 @@ int ll_writepages(struct address_space *mapping, struct writeback_control *wbc)
 		 * is called later on.
 		 */
 		ignore_layout = 1;
+
+	if (!ll_i2info(inode)->lli_clob)
+		return 0;
+
 	result = cl_sync_file_range(inode, start, end, mode, ignore_layout);
 	if (result > 0) {
 		wbc->nr_to_write -= result;

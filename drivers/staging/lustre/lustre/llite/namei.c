@@ -752,8 +752,7 @@ static int ll_create_it(struct inode *dir, struct dentry *dentry, int mode,
 	return 0;
 }
 
-static void ll_update_times(struct ptlrpc_request *request,
-			    struct inode *inode)
+void ll_update_times(struct ptlrpc_request *request, struct inode *inode)
 {
 	struct mdt_body *body = req_capsule_server_get(&request->rq_pill,
 						       &RMF_MDT_BODY);

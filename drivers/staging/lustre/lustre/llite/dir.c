@@ -883,6 +883,7 @@ int ll_dir_getstripe(struct inode *inode, void **plmm, int *plmm_size,
 			lustre_swab_lov_user_md_v3((struct lov_user_md_v3 *)lmm);
 		break;
 	case LMV_USER_MAGIC:
+	case LMV_MAGIC_MIGRATE:
 		if (cpu_to_le32(LMV_USER_MAGIC) != LMV_USER_MAGIC)
 			lustre_swab_lmv_user_md((struct lmv_user_md *)lmm);
 		break;
@@ -897,8 +898,7 @@ out:
 	return rc;
 }
 
-static int ll_get_mdt_idx_by_fid(struct ll_sb_info *sbi,
-				 const struct lu_fid *fid)
+int ll_get_mdt_idx_by_fid(struct ll_sb_info *sbi, const struct lu_fid *fid)
 {
 	struct md_op_data *op_data;
 	int mdt_index, rc;
@@ -1960,6 +1960,45 @@ out_quotactl:
 		kfree(copy);
 		return rc;
 	}
+	case LL_IOC_MIGRATE: {
+		char *buf = NULL;
+		const char *filename;
+		int namelen = 0;
+		int len;
+		int rc;
+		int mdtidx;
+
+		rc = obd_ioctl_getdata(&buf, &len, (void __user *)arg);
+		if (rc < 0)
+			return rc;
+
+		data = (struct obd_ioctl_data *)buf;
+		if (!data->ioc_inlbuf1 || !data->ioc_inlbuf2 ||
+		    !data->ioc_inllen1 || !data->ioc_inllen2) {
+			rc = -EINVAL;
+			goto migrate_free;
+		}
+
+		filename = data->ioc_inlbuf1;
+		namelen = data->ioc_inllen1;
+		if (namelen < 1) {
+			rc = -EINVAL;
+			goto migrate_free;
+		}
+
+		if (data->ioc_inllen2 != sizeof(mdtidx)) {
+			rc = -EINVAL;
+			goto migrate_free;
+		}
+		mdtidx = *(int *)data->ioc_inlbuf2;
+
+		rc = ll_migrate(inode, file, mdtidx, filename, namelen);
+migrate_free:
+		obd_ioctl_freedata(buf, len);
+
+		return rc;
+	}
+
 	default:
 		return obd_iocontrol(cmd, sbi->ll_dt_exp, 0, NULL,
 				     (void __user *)arg);
