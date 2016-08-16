@@ -379,14 +379,6 @@ static int ll_xattr_get(const struct xattr_handler *handler,
 		if (!S_ISREG(inode->i_mode) && !S_ISDIR(inode->i_mode))
 			return -ENODATA;
 
-		if (size == 0 && S_ISDIR(inode->i_mode)) {
-			/* XXX directory EA is fix for now, optimize to save
-			 * RPC transfer
-			 */
-			rc = sizeof(struct lov_user_md);
-			goto out;
-		}
-
 		lsm = ccc_inode_lsm_get(inode);
 		if (!lsm) {
 			if (S_ISDIR(inode->i_mode)) {
