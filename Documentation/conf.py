@@ -31,13 +31,6 @@ from load_config import loadConfig
 # ones.
 extensions = ['kernel-doc', 'rstFlatTable', 'kernel_include']
 
-# Gracefully handle missing rst2pdf.
-try:
-    import rst2pdf
-    extensions += ['rst2pdf.pdfbuilder']
-except ImportError:
-    pass
-
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
