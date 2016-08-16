@@ -476,6 +476,9 @@ int iomap_fiemap(struct inode *inode, struct fiemap_extent_info *fi,
 	while (len > 0) {
 		ret = iomap_apply(inode, start, len, 0, ops, &ctx,
 				iomap_fiemap_actor);
+		/* inode with no (attribute) mapping will give ENOENT */
+		if (ret == -ENOENT)
+			break;
 		if (ret < 0)
 			return ret;
 		if (ret == 0)
