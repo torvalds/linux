@@ -80,7 +80,7 @@ static struct atmel_pdmic_pdata *atmel_pdmic_dt_init(struct device *dev)
 
 	if (pdata->mic_max_freq < pdata->mic_min_freq) {
 		dev_err(dev,
-			"mic-max-freq should not less than mic-min-freq\n");
+			"mic-max-freq should not be less than mic-min-freq\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -598,7 +598,7 @@ static int atmel_pdmic_probe(struct platform_device *pdev)
 	dd->irq = platform_get_irq(pdev, 0);
 	if (dd->irq < 0) {
 		ret = dd->irq;
-		dev_err(dev, "failed to could not get irq: %d\n", ret);
+		dev_err(dev, "failed to get irq: %d\n", ret);
 		return ret;
 	}
 
@@ -616,7 +616,7 @@ static int atmel_pdmic_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* The gclk clock frequency must always be tree times
+	/* The gclk clock frequency must always be three times
 	 * lower than the pclk clock frequency
 	 */
 	ret = clk_set_rate(dd->gclk, clk_get_rate(dd->pclk)/3);
@@ -651,7 +651,7 @@ static int atmel_pdmic_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* Get the minimal and maximal sample rate that micphone supports */
+	/* Get the minimal and maximal sample rate that the microphone supports */
 	atmel_pdmic_get_sample_rate(dd, &rate_min, &rate_max);
 
 	/* register cpu dai */
