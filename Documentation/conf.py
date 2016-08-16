@@ -254,6 +254,10 @@ latex_elements = {
 # Latex figure (float) alignment
 #'figure_align': 'htbp',
 
+# Don't mangle with UTF-8 chars
+'inputenc': '',
+'utf8extra': '',
+
 # Additional stuff for the LaTeX preamble.
     'preamble': '''
         % Allow generate some pages in landscape
@@ -281,6 +285,13 @@ latex_elements = {
           \\end{graybox}
         }
 	\\makeatother
+
+	% Use some font with UTF-8 support with XeLaTeX
+        \\usepackage{fontspec}
+        \\setsansfont{DejaVu Serif}
+        \\setromanfont{DejaVu Sans}
+        \\setmonofont{DejaVu Sans Mono}
+
      '''
 }
 
