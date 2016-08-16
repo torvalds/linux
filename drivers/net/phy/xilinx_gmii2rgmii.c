@@ -1,7 +1,9 @@
 /* Xilinx GMII2RGMII Converter driver
  *
  * Copyright (C) 2016 Xilinx, Inc.
+ * Copyright (C) 2016 Andrew Lunn <andrew@lunn.ch>
  *
+ * Author: Andrew Lunn <andrew@lunn.ch>
  * Author: Kedareswara rao Appana <appanad@xilinx.com>
  *
  * Description:
