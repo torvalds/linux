@@ -4382,6 +4382,9 @@ static int vop_set_dsp_cabc(struct rk_lcdc_driver *dev_drv, int mode,
 	struct rk_screen *screen = dev_drv->cur_screen;
 	u32 total_pixel, calc_pixel, stage_up, stage_down;
 	u32 pixel_num, global_dn;
+	u64 val = 0;
+	ktime_t timestamp;
+	int ret = 0;
 
 	if (!vop_dev->cabc_lut_addr_base) {
 		pr_err("vop chip[%d] not supoort cabc\n", VOP_CHIP(vop_dev));
@@ -4400,6 +4403,9 @@ static int vop_set_dsp_cabc(struct rk_lcdc_driver *dev_drv, int mode,
 			vop_msk_reg(vop_dev, CABC_CTRL0,
 				    V_CABC_EN(0) | V_CABC_HANDLE_EN(0));
 			vop_cfg_done(vop_dev);
+			while (vop_read_bit(vop_dev, CABC_CTRL0, V_CABC_EN(0)))
+				;
+			vop_msk_reg(vop_dev, SYS_CTRL, V_AUTO_GATING_EN(1));
 		}
 		pr_info("mode = 0, close cabc\n");
 		spin_unlock(&vop_dev->reg_lock);
@@ -4417,10 +4423,11 @@ static int vop_set_dsp_cabc(struct rk_lcdc_driver *dev_drv, int mode,
 
 	spin_lock(&vop_dev->reg_lock);
 	if (vop_dev->clk_on) {
-		u64 val = 0;
-
-		val = V_CABC_EN(1) | V_CABC_HANDLE_EN(1) |
-			V_PWM_CONFIG_MODE(STAGE_BY_STAGE) |
+		vop_msk_reg(vop_dev, SYS_CTRL, V_AUTO_GATING_EN(0));
+		vop_cfg_done(vop_dev);
+		while (vop_read_bit(vop_dev, SYS_CTRL, V_AUTO_GATING_EN(0)))
+			;
+		val = V_PWM_CONFIG_MODE(STAGE_BY_STAGE) |
 			V_CABC_CALC_PIXEL_NUM(calc_pixel);
 		vop_msk_reg(vop_dev, CABC_CTRL0, val);
 
@@ -4438,6 +4445,21 @@ static int vop_set_dsp_cabc(struct rk_lcdc_driver *dev_drv, int mode,
 		vop_msk_reg(vop_dev, CABC_CTRL3, val);
 		vop_cfg_done(vop_dev);
 	}
+	spin_unlock(&vop_dev->reg_lock);
+
+	timestamp = dev_drv->vsync_info.timestamp;
+	ret = wait_event_interruptible_timeout(dev_drv->vsync_info.wait,
+			!ktime_equal(timestamp, dev_drv->vsync_info.timestamp),
+			msecs_to_jiffies(50));
+	if (ret < 0)
+		return ret;
+	else if (ret == 0)
+		pr_err("%s wait vsync time out\n", __func__);
+
+	spin_lock(&vop_dev->reg_lock);
+	val = V_CABC_EN(1) | V_CABC_HANDLE_EN(1);
+	vop_msk_reg(vop_dev, CABC_CTRL0, val);
+	vop_cfg_done(vop_dev);
 	spin_unlock(&vop_dev->reg_lock);
 
 	return 0;
