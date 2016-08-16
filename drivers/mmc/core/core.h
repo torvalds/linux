@@ -54,6 +54,8 @@ void mmc_power_off(struct mmc_host *host);
 void mmc_power_cycle(struct mmc_host *host, u32 ocr);
 void mmc_set_initial_state(struct mmc_host *host);
 
+static const unsigned int freqs[] = { 400000, 300000, 200000, 100000 };
+
 static inline void mmc_delay(unsigned int ms)
 {
 	if (ms < 1000 / HZ) {
