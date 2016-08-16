@@ -195,7 +195,7 @@ static void thread_exit(void)
 
 static int thread_join(lkl_thread_t tid)
 {
-	if (WARN_PTHREAD(pthread_join(tid, NULL)))
+	if (WARN_PTHREAD(pthread_join((pthread_t)tid, NULL)))
 		return -1;
 	else
 		return 0;
@@ -276,7 +276,11 @@ static void panic(void)
 
 static long _gettid(void)
 {
+#ifdef	__FreeBSD__
+	return (long)pthread_self();
+#else
 	return syscall(SYS_gettid);
+#endif
 }
 
 struct lkl_host_operations lkl_host_ops = {
