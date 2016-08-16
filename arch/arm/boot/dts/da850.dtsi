@@ -77,22 +77,6 @@
 					0x10 0x00220000 0x00ff0000
 				>;
 			};
-			nand_cs3_pins: pinmux_nand_pins {
-				pinctrl-single,bits = <
-					/* EMA_OE, EMA_WE */
-					0x1c 0x00110000  0x00ff0000
-					/* EMA_CS[4],EMA_CS[3]*/
-					0x1c 0x00000110  0x00000ff0
-					/*
-					 * EMA_D[0], EMA_D[1], EMA_D[2],
-					 * EMA_D[3], EMA_D[4], EMA_D[5],
-					 * EMA_D[6], EMA_D[7]
-					 */
-					0x24 0x11111111  0xffffffff
-					/* EMA_A[1], EMA_A[2] */
-					0x30 0x01100000  0x0ff00000
-				>;
-			};
 			i2c0_pins: pinmux_i2c0_pins {
 				pinctrl-single,bits = <
 					/* I2C0_SDA,I2C0_SCL */
@@ -416,17 +400,14 @@
 			dma-names = "tx", "rx";
 		};
 	};
-	nand_cs3@62000000 {
-		compatible = "ti,davinci-nand";
-		reg = <0x62000000 0x807ff
-		       0x68000000 0x8000>;
-		ti,davinci-chipselect = <1>;
-		ti,davinci-mask-ale = <0>;
-		ti,davinci-mask-cle = <0>;
-		ti,davinci-mask-chipsel = <0>;
-		ti,davinci-ecc-mode = "hw";
-		ti,davinci-ecc-bits = <4>;
-		ti,davinci-nand-use-bbt;
+	aemif: aemif@68000000 {
+		compatible = "ti,da850-aemif";
+		#address-cells = <2>;
+		#size-cells = <1>;
+
+		reg = <0x68000000 0x00008000>;
+		ranges = <0 0 0x60000000 0x08000000
+			  1 0 0x68000000 0x00008000>;
 		status = "disabled";
 	};
 };
