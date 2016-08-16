@@ -1317,7 +1317,7 @@ static int gbaudio_tplg_process_routes(struct gbaudio_module_info *module,
 	return 0;
 
 error:
-	devm_kfree(module->dev, dapm_routes);
+	devm_kfree(module->dev, module->dapm_routes);
 	return ret;
 }
 
