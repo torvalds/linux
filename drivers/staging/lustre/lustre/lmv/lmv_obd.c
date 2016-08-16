@@ -1242,15 +1242,15 @@ static int lmv_placement_policy(struct obd_device *obd,
 		struct lmv_user_md *lum;
 
 		lum = op_data->op_data;
-		if (lum->lum_stripe_offset != (__u32)-1) {
-			*mds = lum->lum_stripe_offset;
+		if (le32_to_cpu(lum->lum_stripe_offset) != (__u32)-1) {
+			*mds = le32_to_cpu(lum->lum_stripe_offset);
 		} else {
 			/*
 			 * -1 means default, which will be in the same MDT with
 			 * the stripe
 			 */
 			*mds = op_data->op_mds;
-			lum->lum_stripe_offset = op_data->op_mds;
+			lum->lum_stripe_offset = cpu_to_le32(op_data->op_mds);
 		}
 	} else {
 		/*
