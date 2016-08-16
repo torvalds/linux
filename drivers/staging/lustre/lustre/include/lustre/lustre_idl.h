@@ -442,7 +442,7 @@ static inline int fid_seq_is_mdt0(__u64 seq)
 	return (seq == FID_SEQ_OST_MDT0);
 }
 
-static inline int fid_seq_is_mdt(const __u64 seq)
+static inline int fid_seq_is_mdt(__u64 seq)
 {
 	return seq == FID_SEQ_OST_MDT0 || seq >= FID_SEQ_NORMAL;
 };
@@ -468,33 +468,33 @@ static inline int fid_is_llog(const struct lu_fid *fid)
 	return fid_seq_is_llog(fid_seq(fid)) && fid_oid(fid) > 0;
 }
 
-static inline int fid_seq_is_rsvd(const __u64 seq)
+static inline int fid_seq_is_rsvd(__u64 seq)
 {
 	return (seq > FID_SEQ_OST_MDT0 && seq <= FID_SEQ_RSVD);
 };
 
-static inline int fid_seq_is_special(const __u64 seq)
+static inline int fid_seq_is_special(__u64 seq)
 {
 	return seq == FID_SEQ_SPECIAL;
 };
 
-static inline int fid_seq_is_local_file(const __u64 seq)
+static inline int fid_seq_is_local_file(__u64 seq)
 {
 	return seq == FID_SEQ_LOCAL_FILE ||
 	       seq == FID_SEQ_LOCAL_NAME;
 };
 
-static inline int fid_seq_is_root(const __u64 seq)
+static inline int fid_seq_is_root(__u64 seq)
 {
 	return seq == FID_SEQ_ROOT;
 }
 
-static inline int fid_seq_is_dot(const __u64 seq)
+static inline int fid_seq_is_dot(__u64 seq)
 {
 	return seq == FID_SEQ_DOT_LUSTRE;
 }
 
-static inline int fid_seq_is_default(const __u64 seq)
+static inline int fid_seq_is_default(__u64 seq)
 {
 	return seq == FID_SEQ_LOV_DEFAULT;
 }
@@ -516,7 +516,7 @@ static inline void lu_root_fid(struct lu_fid *fid)
  * \param fid the fid to be tested.
  * \return true if the fid is a igif; otherwise false.
  */
-static inline int fid_seq_is_igif(const __u64 seq)
+static inline int fid_seq_is_igif(__u64 seq)
 {
 	return seq >= FID_SEQ_IGIF && seq <= FID_SEQ_IGIF_MAX;
 }
@@ -531,7 +531,7 @@ static inline int fid_is_igif(const struct lu_fid *fid)
  * \param fid the fid to be tested.
  * \return true if the fid is a idif; otherwise false.
  */
-static inline int fid_seq_is_idif(const __u64 seq)
+static inline int fid_seq_is_idif(__u64 seq)
 {
 	return seq >= FID_SEQ_IDIF && seq <= FID_SEQ_IDIF_MAX;
 }
@@ -546,7 +546,7 @@ static inline int fid_is_local_file(const struct lu_fid *fid)
 	return fid_seq_is_local_file(fid_seq(fid));
 }
 
-static inline int fid_seq_is_norm(const __u64 seq)
+static inline int fid_seq_is_norm(__u64 seq)
 {
 	return (seq >= FID_SEQ_NORMAL);
 }
