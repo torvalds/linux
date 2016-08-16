@@ -3244,7 +3244,8 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	send_addr = addr;
 
 	/* Queue the TRBs, even if they are zero-length */
-	for (enqd_len = 0; enqd_len < full_len; enqd_len += trb_buff_len) {
+	for (enqd_len = 0; first_trb || enqd_len < full_len;
+			enqd_len += trb_buff_len) {
 		field = TRB_TYPE(TRB_NORMAL);
 
 		/* TRB buffer should not cross 64KB boundaries */
