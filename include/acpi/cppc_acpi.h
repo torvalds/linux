@@ -24,7 +24,9 @@
 #define CPPC_NUM_ENT	21
 #define CPPC_REV	2
 
-#define PCC_CMD_COMPLETE 1
+#define PCC_CMD_COMPLETE_MASK	(1 << 0)
+#define PCC_ERROR_MASK		(1 << 2)
+
 #define MAX_CPC_REG_ENT 19
 
 /* CPPC specific PCC commands. */

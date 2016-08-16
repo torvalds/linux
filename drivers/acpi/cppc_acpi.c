@@ -54,6 +54,7 @@ struct cppc_pcc_data {
 	unsigned int pcc_mpar, pcc_mrtt, pcc_nominal;
 
 	bool pending_pcc_write_cmd;	/* Any pending/batched PCC write cmds? */
+	bool platform_owns_pcc;		/* Ownership of PCC subspace */
 	unsigned int pcc_write_cnt;	/* Running count of PCC write commands */
 
 	/*
@@ -79,6 +80,7 @@ struct cppc_pcc_data {
 /* Structure to represent the single PCC channel */
 static struct cppc_pcc_data pcc_data = {
 	.pcc_subspace_idx = -1,
+	.platform_owns_pcc = true,
 };
 
 /*
@@ -181,11 +183,14 @@ static struct kobj_type cppc_ktype = {
 	.default_attrs = cppc_attrs,
 };
 
-static int check_pcc_chan(void)
+static int check_pcc_chan(bool chk_err_bit)
 {
-	int ret = -EIO;
+	int ret = -EIO, status = 0;
 	struct acpi_pcct_shared_memory __iomem *generic_comm_base = pcc_data.pcc_comm_addr;
 	ktime_t next_deadline = ktime_add(ktime_get(), pcc_data.deadline);
+
+	if (!pcc_data.platform_owns_pcc)
+		return 0;
 
 	/* Retry in case the remote processor was too slow to catch up. */
 	while (!ktime_after(ktime_get(), next_deadline)) {
@@ -194,8 +199,11 @@ static int check_pcc_chan(void)
 		 * platform and should have set the command completion bit when
 		 * PCC can be used by OSPM
 		 */
-		if (readw_relaxed(&generic_comm_base->status) & PCC_CMD_COMPLETE) {
+		status = readw_relaxed(&generic_comm_base->status);
+		if (status & PCC_CMD_COMPLETE_MASK) {
 			ret = 0;
+			if (chk_err_bit && (status & PCC_ERROR_MASK))
+				ret = -EIO;
 			break;
 		}
 		/*
@@ -204,6 +212,11 @@ static int check_pcc_chan(void)
 		 */
 		udelay(3);
 	}
+
+	if (likely(!ret))
+		pcc_data.platform_owns_pcc = false;
+	else
+		pr_err("PCC check channel failed. Status=%x\n", status);
 
 	return ret;
 }
@@ -234,7 +247,7 @@ static int send_pcc_cmd(u16 cmd)
 		if (pcc_data.pending_pcc_write_cmd)
 			send_pcc_cmd(CMD_WRITE);
 
-		ret = check_pcc_chan();
+		ret = check_pcc_chan(false);
 		if (ret)
 			goto end;
 	} else /* CMD_WRITE */
@@ -282,6 +295,8 @@ static int send_pcc_cmd(u16 cmd)
 	/* Flip CMD COMPLETE bit */
 	writew_relaxed(0, &generic_comm_base->status);
 
+	pcc_data.platform_owns_pcc = true;
+
 	/* Ring doorbell */
 	ret = mbox_send_message(pcc_data.pcc_channel, &cmd);
 	if (ret < 0) {
@@ -290,23 +305,11 @@ static int send_pcc_cmd(u16 cmd)
 		goto end;
 	}
 
-	/*
-	 * For READs we need to ensure the cmd completed to ensure
-	 * the ensuing read()s can proceed. For WRITEs we dont care
-	 * because the actual write()s are done before coming here
-	 * and the next READ or WRITE will check if the channel
-	 * is busy/free at the entry of this call.
-	 *
-	 * If Minimum Request Turnaround Time is non-zero, we need
-	 * to record the completion time of both READ and WRITE
-	 * command for proper handling of MRTT, so we need to check
-	 * for pcc_mrtt in addition to CMD_READ
-	 */
-	if (cmd == CMD_READ || pcc_data.pcc_mrtt) {
-		ret = check_pcc_chan();
-		if (pcc_data.pcc_mrtt)
-			last_cmd_cmpl_time = ktime_get();
-	}
+	/* wait for completion and check for PCC errro bit */
+	ret = check_pcc_chan(true);
+
+	if (pcc_data.pcc_mrtt)
+		last_cmd_cmpl_time = ktime_get();
 
 	mbox_client_txdone(pcc_data.pcc_channel, ret);
 
@@ -1059,25 +1062,18 @@ int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls)
 	 */
 	if (CPC_IN_PCC(desired_reg)) {
 		down_read(&pcc_data.pcc_lock);	/* BEGIN Phase-I */
-		/*
-		 * If there are pending write commands i.e pending_pcc_write_cmd
-		 * is TRUE, then we know OSPM owns the channel as another CPU
-		 * has already checked for command completion bit and updated
-		 * the corresponding CPC registers
-		 */
-		if (!pcc_data.pending_pcc_write_cmd) {
-			ret = check_pcc_chan();
+		if (pcc_data.platform_owns_pcc) {
+			ret = check_pcc_chan(false);
 			if (ret) {
 				up_read(&pcc_data.pcc_lock);
 				return ret;
 			}
-			/*
-			 * Update the pending_write to make sure a PCC CMD_READ
-			 * will not arrive and steal the channel during the
-			 * transition to write lock
-			 */
-			pcc_data.pending_pcc_write_cmd = TRUE;
 		}
+		/*
+		 * Update the pending_write to make sure a PCC CMD_READ will not
+		 * arrive and steal the channel during the switch to write lock
+		 */
+		pcc_data.pending_pcc_write_cmd = true;
 		cpc_desc->write_cmd_id = pcc_data.pcc_write_cnt;
 		cpc_desc->write_cmd_status = 0;
 	}
