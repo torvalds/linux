@@ -3419,6 +3419,12 @@ kiblnd_qp_event(struct ib_event *event, void *arg)
 	case IB_EVENT_COMM_EST:
 		CDEBUG(D_NET, "%s established\n",
 		       libcfs_nid2str(conn->ibc_peer->ibp_nid));
+		/*
+		 * We received a packet but connection isn't established
+		 * probably handshake packet was lost, so free to
+		 * force make connection established
+		 */
+		rdma_notify(conn->ibc_cmid, IB_EVENT_COMM_EST);
 		return;
 
 	default:
