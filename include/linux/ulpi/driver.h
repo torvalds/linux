@@ -15,7 +15,7 @@ struct ulpi_ops;
  */
 struct ulpi {
 	struct ulpi_device_id id;
-	struct ulpi_ops *ops;
+	const struct ulpi_ops *ops;
 	struct device dev;
 };
 

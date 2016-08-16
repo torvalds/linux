@@ -202,7 +202,8 @@ static int ulpi_register(struct device *dev, struct ulpi *ulpi)
  * Allocates and registers a ULPI device and an interface for it. Called from
  * the USB controller that provides the ULPI interface.
  */
-struct ulpi *ulpi_register_interface(struct device *dev, struct ulpi_ops *ops)
+struct ulpi *ulpi_register_interface(struct device *dev,
+				     const struct ulpi_ops *ops)
 {
 	struct ulpi *ulpi;
 	int ret;
