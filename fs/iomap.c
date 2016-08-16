@@ -84,8 +84,11 @@ iomap_apply(struct inode *inode, loff_t pos, loff_t length, unsigned flags,
 	 * Now the data has been copied, commit the range we've copied.  This
 	 * should not fail unless the filesystem has had a fatal error.
 	 */
-	ret = ops->iomap_end(inode, pos, length, written > 0 ? written : 0,
-			flags, &iomap);
+	if (ops->iomap_end) {
+		ret = ops->iomap_end(inode, pos, length,
+				     written > 0 ? written : 0,
+				     flags, &iomap);
+	}
 
 	return written ? written : ret;
 }
