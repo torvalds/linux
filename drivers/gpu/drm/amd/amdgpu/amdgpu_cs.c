@@ -642,7 +642,7 @@ static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p,
 			if (bo_va == NULL)
 				continue;
 
-			r = amdgpu_vm_bo_update(adev, bo_va, &bo->tbo.mem);
+			r = amdgpu_vm_bo_update(adev, bo_va, false);
 			if (r)
 				return r;
 
