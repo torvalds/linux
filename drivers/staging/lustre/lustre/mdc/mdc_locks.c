@@ -841,9 +841,8 @@ resend:
 	mdc_put_rpc_lock(obddev->u.cli.cl_rpc_lock, it);
 
 	if (rc < 0) {
-		CDEBUG_LIMIT((rc == -EACCES || rc == -EIDRM) ? D_INFO : D_ERROR,
-			     "%s: ldlm_cli_enqueue failed: rc = %d\n",
-			     obddev->obd_name, rc);
+		CDEBUG(D_INFO, "%s: ldlm_cli_enqueue failed: rc = %d\n",
+		       obddev->obd_name, rc);
 
 		mdc_clear_replay_flag(req, rc);
 		ptlrpc_req_finished(req);
