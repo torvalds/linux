@@ -28,9 +28,8 @@ config VIDEO_SH_MOBILE_CEU
 
 config VIDEO_ATMEL_ISI
 	tristate "ATMEL Image Sensor Interface (ISI) support"
-	depends on VIDEO_DEV && SOC_CAMERA
+	depends on VIDEO_V4L2 && OF && HAS_DMA
 	depends on ARCH_AT91 || COMPILE_TEST
-	depends on HAS_DMA
 	select VIDEOBUF2_DMA_CONTIG
 	---help---
 	  This module makes the ATMEL Image Sensor Interface available
