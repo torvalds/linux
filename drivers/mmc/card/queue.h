@@ -4,7 +4,9 @@
 static inline bool mmc_req_is_special(struct request *req)
 {
 	return req &&
-		(req_op(req) == REQ_OP_FLUSH || req_op(req) == REQ_OP_DISCARD);
+		(req_op(req) == REQ_OP_FLUSH ||
+		 req_op(req) == REQ_OP_DISCARD ||
+		 req_op(req) == REQ_OP_SECURE_ERASE);
 }
 
 struct request;

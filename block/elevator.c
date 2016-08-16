@@ -366,7 +366,7 @@ void elv_dispatch_sort(struct request_queue *q, struct request *rq)
 	list_for_each_prev(entry, &q->queue_head) {
 		struct request *pos = list_entry_rq(entry);
 
-		if ((req_op(rq) == REQ_OP_DISCARD) != (req_op(pos) == REQ_OP_DISCARD))
+		if (req_op(rq) != req_op(pos))
 			break;
 		if (rq_data_dir(rq) != rq_data_dir(pos))
 			break;

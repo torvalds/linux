@@ -1726,6 +1726,7 @@ static u8 mmc_blk_prep_packed_list(struct mmc_queue *mq, struct request *req)
 			break;
 
 		if (req_op(next) == REQ_OP_DISCARD ||
+		    req_op(next) == REQ_OP_SECURE_ERASE ||
 		    req_op(next) == REQ_OP_FLUSH)
 			break;
 
