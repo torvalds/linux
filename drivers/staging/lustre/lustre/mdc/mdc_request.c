@@ -58,16 +58,16 @@ static inline int mdc_queue_wait(struct ptlrpc_request *req)
 	struct client_obd *cli = &req->rq_import->imp_obd->u.cli;
 	int rc;
 
-	/* mdc_enter_request() ensures that this client has no more
+	/* obd_get_request_slot() ensures that this client has no more
 	 * than cl_max_rpcs_in_flight RPCs simultaneously inf light
 	 * against an MDT.
 	 */
-	rc = mdc_enter_request(cli);
+	rc = obd_get_request_slot(cli);
 	if (rc != 0)
 		return rc;
 
 	rc = ptlrpc_queue_wait(req);
-	mdc_exit_request(cli);
+	obd_put_request_slot(cli);
 
 	return rc;
 }

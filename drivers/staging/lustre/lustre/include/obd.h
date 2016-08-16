@@ -211,11 +211,12 @@ struct timeout_item {
 	struct list_head	 ti_chain;
 };
 
-#define OSC_MAX_RIF_DEFAULT       8
-#define OSC_MAX_RIF_MAX	 256
-#define OSC_MAX_DIRTY_DEFAULT  (OSC_MAX_RIF_DEFAULT * 4)
-#define OSC_MAX_DIRTY_MB_MAX   2048     /* arbitrary, but < MAX_LONG bytes */
-#define OSC_DEFAULT_RESENDS      10
+#define OBD_MAX_RIF_DEFAULT	8
+#define OBD_MAX_RIF_MAX		512
+#define OSC_MAX_RIF_MAX		256
+#define OSC_MAX_DIRTY_DEFAULT	(OBD_MAX_RIF_DEFAULT * 4)
+#define OSC_MAX_DIRTY_MB_MAX	2048	/* arbitrary, but < MAX_LONG bytes */
+#define OSC_DEFAULT_RESENDS	10
 
 /* possible values for fo_sync_lock_cancel */
 enum {
@@ -224,9 +225,6 @@ enum {
 	ALWAYS_SYNC_ON_CANCEL = 2,
 	NUM_SYNC_ON_CANCEL_STATES
 };
-
-#define MDC_MAX_RIF_DEFAULT       8
-#define MDC_MAX_RIF_MAX	 512
 
 enum obd_cl_sem_lock_class {
 	OBD_CLI_SEM_NORMAL,
