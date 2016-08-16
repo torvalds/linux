@@ -37,12 +37,12 @@
 
 extern int cz_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int tonga_hwmgr_init(struct pp_hwmgr *hwmgr);
-extern int fiji_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int iceland_hwmgr_init(struct pp_hwmgr *hwmgr);
 
 static int polaris_set_asic_special_caps(struct pp_hwmgr *hwmgr);
 static void hwmgr_init_default_caps(struct pp_hwmgr *hwmgr);
 static int hwmgr_set_user_specify_caps(struct pp_hwmgr *hwmgr);
+static int fiji_set_asic_special_caps(struct pp_hwmgr *hwmgr);
 
 uint8_t convert_to_vid(uint16_t vddc)
 {
@@ -84,8 +84,13 @@ int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 		case CHIP_TONGA:
 			tonga_hwmgr_init(hwmgr);
 			break;
+
 		case CHIP_FIJI:
-			fiji_hwmgr_init(hwmgr);
+			smu7_hwmgr_init(hwmgr);
+			fiji_set_asic_special_caps(hwmgr);
+			hwmgr->feature_mask &= ~(PP_SMC_VOLTAGE_CONTROL_MASK |
+						PP_VBI_TIME_SUPPORT_MASK |
+						PP_ENABLE_GFX_CG_THRU_SMU);
 			break;
 		case CHIP_POLARIS11:
 		case CHIP_POLARIS10:
@@ -741,6 +746,25 @@ int polaris_set_asic_special_caps(struct pp_hwmgr *hwmgr)
 	if (hwmgr->chip_id == CHIP_POLARIS11)
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 					PHM_PlatformCaps_SPLLShutdownSupport);
+	return 0;
+}
+
+int fiji_set_asic_special_caps(struct pp_hwmgr *hwmgr)
+{
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_SQRamping);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_DBRamping);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_TDRamping);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_TCPRamping);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_TablelessHardwareInterface);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_CAC);
 	return 0;
 }
 
