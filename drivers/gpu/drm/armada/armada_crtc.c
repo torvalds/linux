@@ -165,19 +165,37 @@ static void armada_drm_crtc_update(struct armada_crtc *dcrtc)
 	}
 }
 
+void armada_drm_plane_calc_addrs(u32 *addrs, struct drm_framebuffer *fb,
+	int x, int y)
+{
+	u32 addr = drm_fb_obj(fb)->dev_addr;
+	u32 pixel_format = fb->pixel_format;
+	int num_planes = drm_format_num_planes(pixel_format);
+	int i;
+
+	if (num_planes > 3)
+		num_planes = 3;
+
+	for (i = 0; i < num_planes; i++)
+		addrs[i] = addr + fb->offsets[i] + y * fb->pitches[i] +
+			     x * drm_format_plane_cpp(pixel_format, i);
+	for (; i < 3; i++)
+		addrs[i] = 0;
+}
+
 static unsigned armada_drm_crtc_calc_fb(struct drm_framebuffer *fb,
 	int x, int y, struct armada_regs *regs, bool interlaced)
 {
-	struct armada_gem_object *obj = drm_fb_obj(fb);
 	unsigned pitch = fb->pitches[0];
-	unsigned offset = y * pitch + x * fb->bits_per_pixel / 8;
-	uint32_t addr_odd, addr_even;
+	u32 addrs[3], addr_odd, addr_even;
 	unsigned i = 0;
 
 	DRM_DEBUG_DRIVER("pitch %u x %d y %d bpp %d\n",
 		pitch, x, y, fb->bits_per_pixel);
 
-	addr_odd = addr_even = obj->dev_addr + offset;
+	armada_drm_plane_calc_addrs(addrs, fb, x, y);
+
+	addr_odd = addr_even = addrs[0];
 
 	if (interlaced) {
 		addr_even += pitch;

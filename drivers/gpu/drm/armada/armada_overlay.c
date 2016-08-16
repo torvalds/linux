@@ -169,9 +169,8 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 		armada_drm_plane_work_cancel(dcrtc, &dplane->base);
 
 	if (plane->fb != fb) {
-		struct armada_gem_object *obj = drm_fb_obj(fb);
-		uint32_t addr[3], pixel_format;
-		int i, num_planes, hsub;
+		u32 addrs[3], pixel_format;
+		int num_planes, hsub;
 
 		/*
 		 * Take a reference on the new framebuffer - we want to
@@ -185,6 +184,8 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 		src_y = src.y1 >> 16;
 		src_x = src.x1 >> 16;
 
+		armada_drm_plane_calc_addrs(addrs, fb, src_x, src_y);
+
 		pixel_format = fb->pixel_format;
 		hsub = drm_format_horz_chroma_subsampling(pixel_format);
 		num_planes = drm_format_num_planes(pixel_format);
@@ -197,24 +198,17 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 		if (src_x & (hsub - 1) && num_planes == 1)
 			ctrl0 ^= CFG_DMA_MOD(CFG_SWAPUV);
 
-		for (i = 0; i < num_planes; i++)
-			addr[i] = obj->dev_addr + fb->offsets[i] +
-				  src_y * fb->pitches[i] +
-				  src_x * drm_format_plane_cpp(pixel_format, i);
-		for (; i < ARRAY_SIZE(addr); i++)
-			addr[i] = 0;
-
-		armada_reg_queue_set(dplane->vbl.regs, idx, addr[0],
+		armada_reg_queue_set(dplane->vbl.regs, idx, addrs[0],
 				     LCD_SPU_DMA_START_ADDR_Y0);
-		armada_reg_queue_set(dplane->vbl.regs, idx, addr[1],
+		armada_reg_queue_set(dplane->vbl.regs, idx, addrs[1],
 				     LCD_SPU_DMA_START_ADDR_U0);
-		armada_reg_queue_set(dplane->vbl.regs, idx, addr[2],
+		armada_reg_queue_set(dplane->vbl.regs, idx, addrs[2],
 				     LCD_SPU_DMA_START_ADDR_V0);
-		armada_reg_queue_set(dplane->vbl.regs, idx, addr[0],
+		armada_reg_queue_set(dplane->vbl.regs, idx, addrs[0],
 				     LCD_SPU_DMA_START_ADDR_Y1);
-		armada_reg_queue_set(dplane->vbl.regs, idx, addr[1],
+		armada_reg_queue_set(dplane->vbl.regs, idx, addrs[1],
 				     LCD_SPU_DMA_START_ADDR_U1);
-		armada_reg_queue_set(dplane->vbl.regs, idx, addr[2],
+		armada_reg_queue_set(dplane->vbl.regs, idx, addrs[2],
 				     LCD_SPU_DMA_START_ADDR_V1);
 
 		val = fb->pitches[0] << 16 | fb->pitches[0];
