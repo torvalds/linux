@@ -659,7 +659,7 @@ static inline void ostid_set_id(struct ost_id *oi, __u64 oid)
 		oi->oi_fid.f_oid = oid;
 		oi->oi_fid.f_ver = oid >> 48;
 	} else {
-		if (oid > OBIF_MAX_OID) {
+		if (oid >= OBIF_MAX_OID) {
 			CERROR("Bad %llu to set " DOSTID "\n", oid, POSTID(oi));
 			return;
 		}
@@ -684,7 +684,7 @@ static inline int fid_set_id(struct lu_fid *fid, __u64 oid)
 		fid->f_oid = oid;
 		fid->f_ver = oid >> 48;
 	} else {
-		if (oid > OBIF_MAX_OID) {
+		if (oid >= OBIF_MAX_OID) {
 			CERROR("Too large OID %#llx to set REG "DFID"\n",
 			       (unsigned long long)oid, PFID(fid));
 			return -EBADF;
