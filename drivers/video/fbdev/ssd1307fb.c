@@ -64,7 +64,7 @@ struct ssd1307fb_par {
 	u32 contrast;
 	u32 dclk_div;
 	u32 dclk_frq;
-	struct ssd1307fb_deviceinfo *device_info;
+	const struct ssd1307fb_deviceinfo *device_info;
 	struct i2c_client *client;
 	u32 height;
 	struct fb_info *info;
@@ -559,8 +559,8 @@ static int ssd1307fb_probe(struct i2c_client *client,
 	par->info = info;
 	par->client = client;
 
-	par->device_info = (struct ssd1307fb_deviceinfo *)of_match_device(
-			ssd1307fb_of_match, &client->dev)->data;
+	par->device_info = of_match_device(ssd1307fb_of_match,
+					   &client->dev)->data;
 
 	par->reset = of_get_named_gpio(client->dev.of_node,
 					 "reset-gpios", 0);
