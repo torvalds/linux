@@ -67,5 +67,6 @@ void etnaviv_iommu_dump(struct etnaviv_iommu *iommu, void *buf);
 
 struct etnaviv_iommu *etnaviv_iommu_new(struct etnaviv_gpu *gpu,
 	struct iommu_domain *domain, enum etnaviv_iommu_version version);
+void etnaviv_iommu_restore(struct etnaviv_gpu *gpu);
 
 #endif /* __ETNAVIV_MMU_H__ */

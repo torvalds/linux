@@ -569,7 +569,7 @@ static void etnaviv_gpu_hw_init(struct etnaviv_gpu *gpu)
 	}
 
 	/* setup the MMU */
-	etnaviv_iommuv1_restore(gpu);
+	etnaviv_iommu_restore(gpu);
 
 	/* Start command processor */
 	prefetch = etnaviv_buffer_init(gpu);

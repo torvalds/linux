@@ -17,6 +17,7 @@
 #include "etnaviv_drv.h"
 #include "etnaviv_gem.h"
 #include "etnaviv_gpu.h"
+#include "etnaviv_iommu.h"
 #include "etnaviv_mmu.h"
 
 static int etnaviv_fault_handler(struct iommu_domain *iommu, struct device *dev,
@@ -279,6 +280,14 @@ struct etnaviv_iommu *etnaviv_iommu_new(struct etnaviv_gpu *gpu,
 	iommu_set_fault_handler(domain, etnaviv_fault_handler, gpu->dev);
 
 	return mmu;
+}
+
+void etnaviv_iommu_restore(struct etnaviv_gpu *gpu)
+{
+	if (gpu->mmu->version == ETNAVIV_IOMMU_V1)
+		etnaviv_iommuv1_restore(gpu);
+	else
+		dev_err(gpu->dev, "IOMMUv2 restore not implemented\n");
 }
 
 size_t etnaviv_iommu_dump_size(struct etnaviv_iommu *iommu)
