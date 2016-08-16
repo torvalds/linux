@@ -30,28 +30,16 @@ struct plt_entries {
 	u32	lit[PLT_ENT_COUNT];
 };
 
-static bool in_init(const struct module *mod, u32 addr)
-{
-	return addr - (u32)mod->init_layout.base < mod->init_layout.size;
-}
-
 u32 get_module_plt(struct module *mod, unsigned long loc, Elf32_Addr val)
 {
 	struct plt_entries *plt, *plt_end;
-	int c, *count;
+	int c;
 
-	if (in_init(mod, loc)) {
-		plt = (void *)mod->arch.init_plt->sh_addr;
-		plt_end = (void *)plt + mod->arch.init_plt->sh_size;
-		count = &mod->arch.init_plt_count;
-	} else {
-		plt = (void *)mod->arch.core_plt->sh_addr;
-		plt_end = (void *)plt + mod->arch.core_plt->sh_size;
-		count = &mod->arch.core_plt_count;
-	}
+	plt = (void *)mod->arch.plt->sh_addr;
+	plt_end = (void *)plt + mod->arch.plt->sh_size;
 
 	/* Look for an existing entry pointing to 'val' */
-	for (c = *count; plt < plt_end; c -= PLT_ENT_COUNT, plt++) {
+	for (c = mod->arch.plt_count; plt < plt_end; c -= PLT_ENT_COUNT, plt++) {
 		int i;
 
 		if (!c) {
@@ -60,13 +48,13 @@ u32 get_module_plt(struct module *mod, unsigned long loc, Elf32_Addr val)
 				{ [0 ... PLT_ENT_COUNT - 1] = PLT_ENT_LDR, },
 				{ val, }
 			};
-			++*count;
+			mod->arch.plt_count++;
 			return (u32)plt->ldr;
 		}
 		for (i = 0; i < PLT_ENT_COUNT; i++) {
 			if (!plt->lit[i]) {
 				plt->lit[i] = val;
-				++*count;
+				mod->arch.plt_count++;
 			}
 			if (plt->lit[i] == val)
 				return (u32)&plt->ldr[i];
@@ -132,21 +120,19 @@ static unsigned int count_plts(Elf32_Addr base, const Elf32_Rel *rel, int num)
 int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 			      char *secstrings, struct module *mod)
 {
-	unsigned long core_plts = 0, init_plts = 0;
+	unsigned long plts = 0;
 	Elf32_Shdr *s, *sechdrs_end = sechdrs + ehdr->e_shnum;
 
 	/*
 	 * To store the PLTs, we expand the .text section for core module code
-	 * and the .init.text section for initialization code.
+	 * and for initialization code.
 	 */
 	for (s = sechdrs; s < sechdrs_end; ++s)
-		if (strcmp(".core.plt", secstrings + s->sh_name) == 0)
-			mod->arch.core_plt = s;
-		else if (strcmp(".init.plt", secstrings + s->sh_name) == 0)
-			mod->arch.init_plt = s;
+		if (strcmp(".plt", secstrings + s->sh_name) == 0)
+			mod->arch.plt = s;
 
-	if (!mod->arch.core_plt || !mod->arch.init_plt) {
-		pr_err("%s: sections missing\n", mod->name);
+	if (!mod->arch.plt) {
+		pr_err("%s: module PLT section missing\n", mod->name);
 		return -ENOEXEC;
 	}
 
@@ -158,26 +144,16 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 		if (s->sh_type != SHT_REL)
 			continue;
 
-		if (strstr(secstrings + s->sh_name, ".init"))
-			init_plts += count_plts(dstsec->sh_addr, rels, numrels);
-		else
-			core_plts += count_plts(dstsec->sh_addr, rels, numrels);
+		plts += count_plts(dstsec->sh_addr, rels, numrels);
 	}
 
-	mod->arch.core_plt->sh_type = SHT_NOBITS;
-	mod->arch.core_plt->sh_flags = SHF_EXECINSTR | SHF_ALLOC;
-	mod->arch.core_plt->sh_addralign = L1_CACHE_BYTES;
-	mod->arch.core_plt->sh_size = round_up(core_plts * PLT_ENT_SIZE,
-					       sizeof(struct plt_entries));
-	mod->arch.core_plt_count = 0;
+	mod->arch.plt->sh_type = SHT_NOBITS;
+	mod->arch.plt->sh_flags = SHF_EXECINSTR | SHF_ALLOC;
+	mod->arch.plt->sh_addralign = L1_CACHE_BYTES;
+	mod->arch.plt->sh_size = round_up(plts * PLT_ENT_SIZE,
+					  sizeof(struct plt_entries));
+	mod->arch.plt_count = 0;
 
-	mod->arch.init_plt->sh_type = SHT_NOBITS;
-	mod->arch.init_plt->sh_flags = SHF_EXECINSTR | SHF_ALLOC;
-	mod->arch.init_plt->sh_addralign = L1_CACHE_BYTES;
-	mod->arch.init_plt->sh_size = round_up(init_plts * PLT_ENT_SIZE,
-					       sizeof(struct plt_entries));
-	mod->arch.init_plt_count = 0;
-	pr_debug("%s: core.plt=%x, init.plt=%x\n", __func__,
-		 mod->arch.core_plt->sh_size, mod->arch.init_plt->sh_size);
+	pr_debug("%s: plt=%x\n", __func__, mod->arch.plt->sh_size);
 	return 0;
 }
