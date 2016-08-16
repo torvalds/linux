@@ -43,11 +43,12 @@ specification the ioctl returns an ``EINVAL`` error code.
 
 .. _v4l2-capability:
 
+.. tabularcolumns:: |p{1.5cm}|p{2.5cm}|p{13cm}|
+
 .. flat-table:: struct v4l2_capability
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 2
-
+    :widths:       3 4 20
 
     -  .. row 1
 
@@ -121,7 +122,9 @@ specification the ioctl returns an ``EINVAL`` error code.
 
 	  ``__u32 version = KERNEL_VERSION(0, 8, 1);``
 
-	  ``printf ("Version: %u.%u.%u\\n", (version >> 16) & 0xFF, (version >> 8) & 0xFF, version & 0xFF);``
+	  ``printf ("Version: %u.%u.%u\\n",``
+
+	  ``(version >> 16) & 0xFF, (version >> 8) & 0xFF, version & 0xFF);``
 
     -  .. row 6
 
@@ -169,11 +172,14 @@ specification the ioctl returns an ``EINVAL`` error code.
 
 .. _device-capabilities:
 
+.. tabularcolumns:: |p{6cm}|p{2.2cm}|p{8.8cm}|
+
+.. cssclass:: longtable
+
 .. flat-table:: Device Capabilities Flags
     :header-rows:  0
     :stub-columns: 0
     :widths:       3 1 4
-
 
     -  .. row 1
 
