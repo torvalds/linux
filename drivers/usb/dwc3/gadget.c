@@ -2873,7 +2873,10 @@ static irqreturn_t dwc3_check_event_buf(struct dwc3_event_buffer *evt)
 	u32 count;
 	u32 reg;
 
-	if (pm_runtime_suspended(dwc->dev)) {
+	reg = dwc3_readl(dwc->regs, DWC3_GCTL);
+
+	if (pm_runtime_suspended(dwc->dev) &&
+	    DWC3_GCTL_PRTCAP(reg) != DWC3_GCTL_PRTCAP_HOST) {
 		pm_runtime_get(dwc->dev);
 		disable_irq_nosync(dwc->irq_gadget);
 		dwc->pending_events = true;
