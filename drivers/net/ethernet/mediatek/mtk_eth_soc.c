@@ -267,6 +267,11 @@ static int mtk_phy_connect(struct mtk_mac *mac)
 	mac->phy_dev->autoneg = AUTONEG_ENABLE;
 	mac->phy_dev->speed = 0;
 	mac->phy_dev->duplex = 0;
+
+	if (of_phy_is_fixed_link(mac->of_node))
+		mac->phy_dev->supported |=
+		SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+
 	mac->phy_dev->supported &= PHY_GBIT_FEATURES | SUPPORTED_Pause |
 				   SUPPORTED_Asym_Pause;
 	mac->phy_dev->advertising = mac->phy_dev->supported |
