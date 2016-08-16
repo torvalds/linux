@@ -1387,7 +1387,7 @@ static int osc_completion(const struct lu_env *env, struct osc_async_page *oap,
 	       "dropped: %ld avail: %ld, reserved: %ld, flight: %d }"	      \
 	       "lru {in list: %d, left: %d, waiters: %d }" fmt,		      \
 	       __tmp->cl_import->imp_obd->obd_name,			      \
-	       __tmp->cl_dirty, __tmp->cl_dirty_max,			      \
+	       __tmp->cl_dirty_pages, __tmp->cl_dirty_max_pages,	      \
 	       atomic_read(&obd_dirty_pages), obd_max_dirty_pages,	      \
 	       __tmp->cl_lost_grant, __tmp->cl_avail_grant,		      \
 	       __tmp->cl_reserved_grant, __tmp->cl_w_in_flight,		      \
@@ -1403,7 +1403,7 @@ static void osc_consume_write_grant(struct client_obd *cli,
 	assert_spin_locked(&cli->cl_loi_list_lock);
 	LASSERT(!(pga->flag & OBD_BRW_FROM_GRANT));
 	atomic_inc(&obd_dirty_pages);
-	cli->cl_dirty += PAGE_SIZE;
+	cli->cl_dirty_pages++;
 	pga->flag |= OBD_BRW_FROM_GRANT;
 	CDEBUG(D_CACHE, "using %lu grant credits for brw %p page %p\n",
 	       PAGE_SIZE, pga, pga->pg);
@@ -1423,11 +1423,11 @@ static void osc_release_write_grant(struct client_obd *cli,
 
 	pga->flag &= ~OBD_BRW_FROM_GRANT;
 	atomic_dec(&obd_dirty_pages);
-	cli->cl_dirty -= PAGE_SIZE;
+	cli->cl_dirty_pages--;
 	if (pga->flag & OBD_BRW_NOCACHE) {
 		pga->flag &= ~OBD_BRW_NOCACHE;
 		atomic_dec(&obd_dirty_transit_pages);
-		cli->cl_dirty_transit -= PAGE_SIZE;
+		cli->cl_dirty_transit--;
 	}
 }
 
@@ -1496,7 +1496,7 @@ static void osc_free_grant(struct client_obd *cli, unsigned int nr_pages,
 
 	spin_lock(&cli->cl_loi_list_lock);
 	atomic_sub(nr_pages, &obd_dirty_pages);
-	cli->cl_dirty -= nr_pages << PAGE_SHIFT;
+	cli->cl_dirty_pages -= nr_pages;
 	cli->cl_lost_grant += lost_grant;
 	if (cli->cl_avail_grant < grant && cli->cl_lost_grant >= grant) {
 		/* borrow some grant from truncate to avoid the case that
@@ -1509,7 +1509,7 @@ static void osc_free_grant(struct client_obd *cli, unsigned int nr_pages,
 	spin_unlock(&cli->cl_loi_list_lock);
 	CDEBUG(D_CACHE, "lost %u grant: %lu avail: %lu dirty: %lu\n",
 	       lost_grant, cli->cl_lost_grant,
-	       cli->cl_avail_grant, cli->cl_dirty);
+	       cli->cl_avail_grant, cli->cl_dirty_pages << PAGE_SHIFT);
 }
 
 /**
@@ -1539,11 +1539,11 @@ static int osc_enter_cache_try(struct client_obd *cli,
 	if (rc < 0)
 		return 0;
 
-	if (cli->cl_dirty + PAGE_SIZE <= cli->cl_dirty_max &&
+	if (cli->cl_dirty_pages <= cli->cl_dirty_max_pages &&
 	    atomic_read(&obd_dirty_pages) + 1 <= obd_max_dirty_pages) {
 		osc_consume_write_grant(cli, &oap->oap_brw_page);
 		if (transient) {
-			cli->cl_dirty_transit += PAGE_SIZE;
+			cli->cl_dirty_transit++;
 			atomic_inc(&obd_dirty_transit_pages);
 			oap->oap_brw_flags |= OBD_BRW_NOCACHE;
 		}
@@ -1590,8 +1590,8 @@ static int osc_enter_cache(const struct lu_env *env, struct client_obd *cli,
 	 * of queued writes and create a discontiguous rpc stream
 	 */
 	if (OBD_FAIL_CHECK(OBD_FAIL_OSC_NO_GRANT) ||
-	    cli->cl_dirty_max < PAGE_SIZE     ||
-	    cli->cl_ar.ar_force_sync || loi->loi_ar.ar_force_sync) {
+	    !cli->cl_dirty_max_pages || cli->cl_ar.ar_force_sync ||
+	    loi->loi_ar.ar_force_sync) {
 		rc = -EDQUOT;
 		goto out;
 	}
@@ -1612,7 +1612,7 @@ static int osc_enter_cache(const struct lu_env *env, struct client_obd *cli,
 	init_waitqueue_head(&ocw.ocw_waitq);
 	ocw.ocw_oap   = oap;
 	ocw.ocw_grant = bytes;
-	while (cli->cl_dirty > 0 || cli->cl_w_in_flight > 0) {
+	while (cli->cl_dirty_pages > 0 || cli->cl_w_in_flight > 0) {
 		list_add_tail(&ocw.ocw_entry, &cli->cl_cache_waiters);
 		ocw.ocw_rc = 0;
 		spin_unlock(&cli->cl_loi_list_lock);
@@ -1667,11 +1667,11 @@ void osc_wake_cache_waiters(struct client_obd *cli)
 
 		ocw->ocw_rc = -EDQUOT;
 		/* we can't dirty more */
-		if ((cli->cl_dirty + PAGE_SIZE > cli->cl_dirty_max) ||
+		if ((cli->cl_dirty_pages > cli->cl_dirty_max_pages) ||
 		    (atomic_read(&obd_dirty_pages) + 1 > obd_max_dirty_pages)) {
 			CDEBUG(D_CACHE, "no dirty room: dirty: %ld osc max %ld, sys max %d\n",
-			       cli->cl_dirty,
-			       cli->cl_dirty_max, obd_max_dirty_pages);
+			       cli->cl_dirty_pages, cli->cl_dirty_max_pages,
+			       obd_max_dirty_pages);
 			goto wakeup;
 		}
 

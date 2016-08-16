@@ -119,6 +119,7 @@ static ssize_t max_rpcs_in_flight_store(struct kobject *kobj,
 
 	spin_lock(&cli->cl_loi_list_lock);
 	cli->cl_max_rpcs_in_flight = val;
+	client_adjust_max_dirty(cli);
 	spin_unlock(&cli->cl_loi_list_lock);
 
 	return count;
@@ -136,10 +137,10 @@ static ssize_t max_dirty_mb_show(struct kobject *kobj,
 	int mult;
 
 	spin_lock(&cli->cl_loi_list_lock);
-	val = cli->cl_dirty_max;
+	val = cli->cl_dirty_max_pages;
 	spin_unlock(&cli->cl_loi_list_lock);
 
-	mult = 1 << 20;
+	mult = 1 << (20 - PAGE_SHIFT);
 	return lprocfs_read_frac_helper(buf, PAGE_SIZE, val, mult);
 }
 
@@ -166,7 +167,7 @@ static ssize_t max_dirty_mb_store(struct kobject *kobj,
 		return -ERANGE;
 
 	spin_lock(&cli->cl_loi_list_lock);
-	cli->cl_dirty_max = (u32)(pages_number << PAGE_SHIFT);
+	cli->cl_dirty_max_pages = pages_number;
 	osc_wake_cache_waiters(cli);
 	spin_unlock(&cli->cl_loi_list_lock);
 
@@ -244,7 +245,7 @@ static ssize_t cur_dirty_bytes_show(struct kobject *kobj,
 	int len;
 
 	spin_lock(&cli->cl_loi_list_lock);
-	len = sprintf(buf, "%lu\n", cli->cl_dirty);
+	len = sprintf(buf, "%lu\n", cli->cl_dirty_pages << PAGE_SHIFT);
 	spin_unlock(&cli->cl_loi_list_lock);
 
 	return len;
@@ -583,6 +584,7 @@ static ssize_t max_pages_per_rpc_store(struct kobject *kobj,
 	}
 	spin_lock(&cli->cl_loi_list_lock);
 	cli->cl_max_pages_per_rpc = val;
+	client_adjust_max_dirty(cli);
 	spin_unlock(&cli->cl_loi_list_lock);
 
 	return count;

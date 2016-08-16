@@ -222,8 +222,8 @@ struct client_obd {
 	struct sptlrpc_flavor    cl_flvr_mgc;   /* fixed flavor of mgc->mgs */
 
 	/* the grant values are protected by loi_list_lock below */
-	long		     cl_dirty;	 /* all _dirty_ in bytes */
-	long		     cl_dirty_max;     /* allowed w/o rpc */
+	long		     cl_dirty_pages;	/* all _dirty_ in pahges */
+	long		     cl_dirty_max_pages;/* allowed w/o rpc */
 	long		     cl_dirty_transit; /* dirty synchronous */
 	long		     cl_avail_grant;   /* bytes of credit for ost */
 	long		     cl_lost_grant;    /* lost credits (trunc) */
@@ -1223,6 +1223,30 @@ bad_format:
 static inline int cli_brw_size(struct obd_device *obd)
 {
 	return obd->u.cli.cl_max_pages_per_rpc << PAGE_SHIFT;
+}
+
+/*
+ * when RPC size or the max RPCs in flight is increased, the max dirty pages
+ * of the client should be increased accordingly to avoid sending fragmented
+ * RPCs over the network when the client runs out of the maximum dirty space
+ * when so many RPCs are being generated.
+ */
+static inline void client_adjust_max_dirty(struct client_obd *cli)
+{
+	/* initializing */
+	if (cli->cl_dirty_max_pages <= 0)
+		cli->cl_dirty_max_pages =
+			(OSC_MAX_DIRTY_DEFAULT * 1024 * 1024) >> PAGE_SHIFT;
+	else {
+		long dirty_max = cli->cl_max_rpcs_in_flight *
+				 cli->cl_max_pages_per_rpc;
+
+		if (dirty_max > cli->cl_dirty_max_pages)
+			cli->cl_dirty_max_pages = dirty_max;
+	}
+
+	if (cli->cl_dirty_max_pages > totalram_pages / 8)
+		cli->cl_dirty_max_pages = totalram_pages / 8;
 }
 
 #endif /* __OBD_H */

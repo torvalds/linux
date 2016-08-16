@@ -801,11 +801,12 @@ static void osc_announce_cached(struct client_obd *cli, struct obdo *oa,
 
 	oa->o_valid |= bits;
 	spin_lock(&cli->cl_loi_list_lock);
-	oa->o_dirty = cli->cl_dirty;
-	if (unlikely(cli->cl_dirty - cli->cl_dirty_transit >
-		     cli->cl_dirty_max)) {
+	oa->o_dirty = cli->cl_dirty_pages << PAGE_SHIFT;
+	if (unlikely(cli->cl_dirty_pages - cli->cl_dirty_transit >
+		     cli->cl_dirty_max_pages)) {
 		CERROR("dirty %lu - %lu > dirty_max %lu\n",
-		       cli->cl_dirty, cli->cl_dirty_transit, cli->cl_dirty_max);
+		       cli->cl_dirty_pages, cli->cl_dirty_transit,
+		       cli->cl_dirty_max_pages);
 		oa->o_undirty = 0;
 	} else if (unlikely(atomic_read(&obd_dirty_pages) -
 			    atomic_read(&obd_dirty_transit_pages) >
@@ -820,15 +821,17 @@ static void osc_announce_cached(struct client_obd *cli, struct obdo *oa,
 		       atomic_read(&obd_dirty_transit_pages),
 		       obd_max_dirty_pages);
 		oa->o_undirty = 0;
-	} else if (unlikely(cli->cl_dirty_max - cli->cl_dirty > 0x7fffffff)) {
+	} else if (unlikely(cli->cl_dirty_max_pages - cli->cl_dirty_pages >
+		   0x7fffffff)) {
 		CERROR("dirty %lu - dirty_max %lu too big???\n",
-		       cli->cl_dirty, cli->cl_dirty_max);
+		       cli->cl_dirty_pages, cli->cl_dirty_max_pages);
 		oa->o_undirty = 0;
 	} else {
 		long max_in_flight = (cli->cl_max_pages_per_rpc <<
 				      PAGE_SHIFT)*
 				     (cli->cl_max_rpcs_in_flight + 1);
-		oa->o_undirty = max(cli->cl_dirty_max, max_in_flight);
+		oa->o_undirty = max(cli->cl_dirty_max_pages << PAGE_SHIFT,
+				    max_in_flight);
 	}
 	oa->o_grant = cli->cl_avail_grant + cli->cl_reserved_grant;
 	oa->o_dropped = cli->cl_lost_grant;
@@ -1028,22 +1031,24 @@ static void osc_init_grant(struct client_obd *cli, struct obd_connect_data *ocd)
 {
 	/*
 	 * ocd_grant is the total grant amount we're expect to hold: if we've
-	 * been evicted, it's the new avail_grant amount, cl_dirty will drop
-	 * to 0 as inflight RPCs fail out; otherwise, it's avail_grant + dirty.
+	 * been evicted, it's the new avail_grant amount, cl_dirty_pages will
+	 * drop to 0 as inflight RPCs fail out; otherwise, it's avail_grant +
+	 * dirty.
 	 *
 	 * race is tolerable here: if we're evicted, but imp_state already
-	 * left EVICTED state, then cl_dirty must be 0 already.
+	 * left EVICTED state, then cl_dirty_pages must be 0 already.
 	 */
 	spin_lock(&cli->cl_loi_list_lock);
 	if (cli->cl_import->imp_state == LUSTRE_IMP_EVICTED)
 		cli->cl_avail_grant = ocd->ocd_grant;
 	else
-		cli->cl_avail_grant = ocd->ocd_grant - cli->cl_dirty;
+		cli->cl_avail_grant = ocd->ocd_grant -
+				      (cli->cl_dirty_pages << PAGE_SHIFT);
 
 	if (cli->cl_avail_grant < 0) {
 		CWARN("%s: available grant < 0: avail/ocd/dirty %ld/%u/%ld\n",
 		      cli->cl_import->imp_obd->obd_name, cli->cl_avail_grant,
-		      ocd->ocd_grant, cli->cl_dirty);
+		      ocd->ocd_grant, cli->cl_dirty_pages << PAGE_SHIFT);
 		/* workaround for servers which do not have the patch from
 		 * LU-2679
 		 */
@@ -3014,8 +3019,9 @@ static int osc_reconnect(const struct lu_env *env,
 		long lost_grant;
 
 		spin_lock(&cli->cl_loi_list_lock);
-		data->ocd_grant = (cli->cl_avail_grant + cli->cl_dirty) ?:
-				2 * cli_brw_size(obd);
+		data->ocd_grant = (cli->cl_avail_grant +
+				   (cli->cl_dirty_pages << PAGE_SHIFT)) ?:
+				   2 * cli_brw_size(obd);
 		lost_grant = cli->cl_lost_grant;
 		cli->cl_lost_grant = 0;
 		spin_unlock(&cli->cl_loi_list_lock);
