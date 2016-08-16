@@ -833,6 +833,71 @@ static ssize_t unstable_stats_show(struct kobject *kobj,
 }
 LUSTRE_RO_ATTR(unstable_stats);
 
+static ssize_t root_squash_show(struct kobject *kobj, struct attribute *attr,
+				char *buf)
+{
+	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
+					      ll_kobj);
+	struct root_squash_info *squash = &sbi->ll_squash;
+
+	return sprintf(buf, "%u:%u\n", squash->rsi_uid, squash->rsi_gid);
+}
+
+static ssize_t root_squash_store(struct kobject *kobj, struct attribute *attr,
+				 const char *buffer, size_t count)
+{
+	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
+					      ll_kobj);
+	struct root_squash_info *squash = &sbi->ll_squash;
+
+	return lprocfs_wr_root_squash(buffer, count, squash,
+				      ll_get_fsname(sbi->ll_sb, NULL, 0));
+}
+LUSTRE_RW_ATTR(root_squash);
+
+static int ll_nosquash_nids_seq_show(struct seq_file *m, void *v)
+{
+	struct super_block *sb = m->private;
+	struct ll_sb_info *sbi = ll_s2sbi(sb);
+	struct root_squash_info *squash = &sbi->ll_squash;
+	int len;
+
+	down_read(&squash->rsi_sem);
+	if (!list_empty(&squash->rsi_nosquash_nids)) {
+		len = cfs_print_nidlist(m->buf + m->count, m->size - m->count,
+					&squash->rsi_nosquash_nids);
+		m->count += len;
+		seq_puts(m, "\n");
+	} else {
+		seq_puts(m, "NONE\n");
+	}
+	up_read(&squash->rsi_sem);
+
+	return 0;
+}
+
+static ssize_t ll_nosquash_nids_seq_write(struct file *file,
+					  const char __user *buffer,
+					  size_t count, loff_t *off)
+{
+	struct seq_file *m = file->private_data;
+	struct super_block *sb = m->private;
+	struct ll_sb_info *sbi = ll_s2sbi(sb);
+	struct root_squash_info *squash = &sbi->ll_squash;
+	int rc;
+
+	rc = lprocfs_wr_nosquash_nids(buffer, count, squash,
+				      ll_get_fsname(sb, NULL, 0));
+	if (rc < 0)
+		return rc;
+
+	ll_compute_rootsquash_state(sbi);
+
+	return rc;
+}
+
+LPROC_SEQ_FOPS(ll_nosquash_nids);
+
 static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
 	/* { "mntpt_path",   ll_rd_path,	     0, 0 }, */
 	{ "site",	  &ll_site_stats_fops,    NULL, 0 },
@@ -840,6 +905,8 @@ static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
 	{ "max_cached_mb",    &ll_max_cached_mb_fops, NULL },
 	{ "statahead_stats",  &ll_statahead_stats_fops, NULL, 0 },
 	{ "sbi_flags",	      &ll_sbi_flags_fops, NULL, 0 },
+	{ .name =		"nosquash_nids",
+	  .fops =		&ll_nosquash_nids_fops		},
 	{ NULL }
 };
 
@@ -869,6 +936,7 @@ static struct attribute *llite_attrs[] = {
 	&lustre_attr_default_easize.attr,
 	&lustre_attr_xattr_cache.attr,
 	&lustre_attr_unstable_stats.attr,
+	&lustre_attr_root_squash.attr,
 	NULL,
 };
 

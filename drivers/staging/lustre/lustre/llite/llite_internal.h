@@ -412,6 +412,7 @@ enum stats_track_type {
 #define LL_SBI_LAYOUT_LOCK    0x20000 /* layout lock support */
 #define LL_SBI_USER_FID2PATH  0x40000 /* allow fid2path by unprivileged users */
 #define LL_SBI_XATTR_CACHE    0x80000 /* support for xattr cache */
+#define LL_SBI_NOROOTSQUASH	0x100000 /* do not apply root squash */
 
 #define LL_SBI_FLAGS {	\
 	"nolck",	\
@@ -434,6 +435,7 @@ enum stats_track_type {
 	"layout",	\
 	"user_fid2path",\
 	"xattr",	\
+	"norootsquash",	\
 }
 
 struct ll_sb_info {
@@ -500,6 +502,9 @@ struct ll_sb_info {
 	dev_t			  ll_sdev_orig; /* save s_dev before assign for
 						 * clustered nfs
 						 */
+	/* root squash */
+	struct root_squash_info	  ll_squash;
+
 	__kernel_fsid_t		  ll_fsid;
 	struct kobject		 ll_kobj; /* sysfs object */
 	struct super_block	*ll_sb; /* struct super_block (for sysfs code)*/
@@ -798,6 +803,7 @@ struct md_op_data *ll_prep_md_op_data(struct md_op_data *op_data,
 void ll_finish_md_op_data(struct md_op_data *op_data);
 int ll_get_obd_name(struct inode *inode, unsigned int cmd, unsigned long arg);
 char *ll_get_fsname(struct super_block *sb, char *buf, int buflen);
+void ll_compute_rootsquash_state(struct ll_sb_info *sbi);
 void ll_open_cleanup(struct super_block *sb, struct ptlrpc_request *open_req);
 
 /* llite/llite_nfs.c */

@@ -41,6 +41,7 @@
 #include "../include/lustre_lite.h"
 #include <linux/pagemap.h>
 #include <linux/file.h>
+#include <linux/sched.h>
 #include <linux/mount.h>
 #include "llite_internal.h"
 #include "../include/lustre/ll_fiemap.h"
@@ -3289,6 +3290,12 @@ struct posix_acl *ll_get_acl(struct inode *inode, int type)
 
 int ll_inode_permission(struct inode *inode, int mask)
 {
+	struct ll_sb_info *sbi;
+	struct root_squash_info *squash;
+	const struct cred *old_cred = NULL;
+	struct cred *cred = NULL;
+	bool squash_id = false;
+	cfs_cap_t cap;
 	int rc = 0;
 
 	if (mask & MAY_NOT_BLOCK)
@@ -3308,8 +3315,45 @@ int ll_inode_permission(struct inode *inode, int mask)
 	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p), inode mode %x mask %o\n",
 	       PFID(ll_inode2fid(inode)), inode, inode->i_mode, mask);
 
+	/* squash fsuid/fsgid if needed */
+	sbi = ll_i2sbi(inode);
+	squash = &sbi->ll_squash;
+	if (unlikely(squash->rsi_uid &&
+		     uid_eq(current_fsuid(), GLOBAL_ROOT_UID) &&
+		     !(sbi->ll_flags & LL_SBI_NOROOTSQUASH))) {
+		squash_id = true;
+	}
+
+	if (squash_id) {
+		CDEBUG(D_OTHER, "squash creds (%d:%d)=>(%d:%d)\n",
+		       __kuid_val(current_fsuid()), __kgid_val(current_fsgid()),
+		       squash->rsi_uid, squash->rsi_gid);
+
+		/*
+		 * update current process's credentials
+		 * and FS capability
+		 */
+		cred = prepare_creds();
+		if (!cred)
+			return -ENOMEM;
+
+		cred->fsuid = make_kuid(&init_user_ns, squash->rsi_uid);
+		cred->fsgid = make_kgid(&init_user_ns, squash->rsi_gid);
+		for (cap = 0; cap < sizeof(cfs_cap_t) * 8; cap++) {
+			if ((1 << cap) & CFS_CAP_FS_MASK)
+				cap_lower(cred->cap_effective, cap);
+		}
+		old_cred = override_creds(cred);
+	}
+
 	ll_stats_ops_tally(ll_i2sbi(inode), LPROC_LL_INODE_PERM, 1);
 	rc = generic_permission(inode, mask);
+
+	/* restore current process's credentials and FS capability */
+	if (squash_id) {
+		revert_creds(old_cred);
+		put_cred(cred);
+	}
 
 	return rc;
 }

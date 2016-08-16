@@ -119,6 +119,12 @@ static struct ll_sb_info *ll_init_sbi(struct super_block *sb)
 	atomic_set(&sbi->ll_agl_total, 0);
 	sbi->ll_flags |= LL_SBI_AGL_ENABLED;
 
+	/* root squash */
+	sbi->ll_squash.rsi_uid = 0;
+	sbi->ll_squash.rsi_gid = 0;
+	INIT_LIST_HEAD(&sbi->ll_squash.rsi_nosquash_nids);
+	init_rwsem(&sbi->ll_squash.rsi_sem);
+
 	sbi->ll_sb = sb;
 
 	return sbi;
@@ -129,6 +135,8 @@ static void ll_free_sbi(struct super_block *sb)
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
 
 	if (sbi->ll_cache) {
+		if (!list_empty(&sbi->ll_squash.rsi_nosquash_nids))
+			cfs_free_nidlist(&sbi->ll_squash.rsi_nosquash_nids);
 		cl_cache_decref(sbi->ll_cache);
 		sbi->ll_cache = NULL;
 	}
@@ -2495,4 +2503,43 @@ void ll_dirty_page_discard_warn(struct page *page, int ioret)
 
 	if (buf)
 		free_page((unsigned long)buf);
+}
+
+/*
+ * Compute llite root squash state after a change of root squash
+ * configuration setting or add/remove of a lnet nid
+ */
+void ll_compute_rootsquash_state(struct ll_sb_info *sbi)
+{
+	struct root_squash_info *squash = &sbi->ll_squash;
+	lnet_process_id_t id;
+	bool matched;
+	int i;
+
+	/* Update norootsquash flag */
+	down_write(&squash->rsi_sem);
+	if (list_empty(&squash->rsi_nosquash_nids)) {
+		sbi->ll_flags &= ~LL_SBI_NOROOTSQUASH;
+	} else {
+		/*
+		 * Do not apply root squash as soon as one of our NIDs is
+		 * in the nosquash_nids list
+		 */
+		matched = false;
+		i = 0;
+
+		while (LNetGetId(i++, &id) != -ENOENT) {
+			if (LNET_NETTYP(LNET_NIDNET(id.nid)) == LOLND)
+				continue;
+			if (cfs_match_nid(id.nid, &squash->rsi_nosquash_nids)) {
+				matched = true;
+				break;
+			}
+		}
+		if (matched)
+			sbi->ll_flags |= LL_SBI_NOROOTSQUASH;
+		else
+			sbi->ll_flags &= ~LL_SBI_NOROOTSQUASH;
+	}
+	up_write(&squash->rsi_sem);
 }

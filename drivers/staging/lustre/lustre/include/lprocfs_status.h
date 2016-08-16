@@ -681,6 +681,12 @@ static struct lustre_attr lustre_attr_##name = __ATTR(name, mode, show, store)
 
 extern const struct sysfs_ops lustre_sysfs_ops;
 
+struct root_squash_info;
+int lprocfs_wr_root_squash(const char *buffer, unsigned long count,
+			   struct root_squash_info *squash, char *name);
+int lprocfs_wr_nosquash_nids(const char *buffer, unsigned long count,
+			     struct root_squash_info *squash, char *name);
+
 /* all quota proc functions */
 int lprocfs_quota_rd_bunit(char *page, char **start,
 			   loff_t off, int count,

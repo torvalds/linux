@@ -1759,4 +1759,13 @@ extern spinlock_t obd_types_lock;
 /* prng.c */
 #define ll_generate_random_uuid(uuid_out) cfs_get_random_bytes(uuid_out, sizeof(class_uuid_t))
 
+/* root squash info */
+struct rw_semaphore;
+struct root_squash_info {
+	uid_t			rsi_uid;
+	gid_t			rsi_gid;
+	struct list_head	rsi_nosquash_nids;
+	struct rw_semaphore	rsi_sem;
+};
+
 #endif /* __LINUX_OBD_CLASS_H */
