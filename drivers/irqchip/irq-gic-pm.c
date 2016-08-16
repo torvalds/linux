@@ -64,7 +64,6 @@ static int gic_runtime_suspend(struct device *dev)
 
 static int gic_get_clocks(struct device *dev, const struct gic_clk_data *data)
 {
-	struct clk *clk;
 	unsigned int i;
 	int ret;
 
@@ -76,28 +75,16 @@ static int gic_get_clocks(struct device *dev, const struct gic_clk_data *data)
 		return ret;
 
 	for (i = 0; i < data->num_clocks; i++) {
-		clk = of_clk_get_by_name(dev->of_node, data->clocks[i]);
-		if (IS_ERR(clk)) {
-			dev_err(dev, "failed to get clock %s\n",
-				data->clocks[i]);
-			ret = PTR_ERR(clk);
-			goto error;
-		}
-
-		ret = pm_clk_add_clk(dev, clk);
+		ret = of_pm_clk_add_clk(dev, data->clocks[i]);
 		if (ret) {
-			dev_err(dev, "failed to add clock at index %d\n", i);
-			clk_put(clk);
-			goto error;
+			dev_err(dev, "failed to add clock %s\n",
+				data->clocks[i]);
+			pm_clk_destroy(dev);
+			return ret;
 		}
 	}
 
 	return 0;
-
-error:
-	pm_clk_destroy(dev);
-
-	return ret;
 }
 
 static int gic_probe(struct platform_device *pdev)
