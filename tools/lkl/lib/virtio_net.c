@@ -24,18 +24,12 @@
 #define bad_request(s) lkl_printf("virtio_net: %s\n", s);
 #endif /* DEBUG */
 
-struct virtio_net_poll {
-	struct virtio_net_dev *dev;
-	int event;
-};
-
 struct virtio_net_dev {
 	struct virtio_dev dev;
 	struct lkl_virtio_net_config config;
-	struct lkl_dev_net_ops *ops;
 	struct lkl_netdev *nd;
-	struct virtio_net_poll rx_poll, tx_poll;
 	struct lkl_mutex **queue_locks;
+	lkl_thread_t poll_tid;
 };
 
 static int net_check_features(struct virtio_dev *dev)
@@ -84,12 +78,12 @@ static int net_enqueue(struct virtio_dev *dev, struct virtio_req *req)
 
 	/* Pick which virtqueue to send the buffer(s) to */
 	if (is_tx_queue(dev, req->q)) {
-		ret = net_dev->ops->tx(net_dev->nd, iov, req->buf_count);
+		ret = net_dev->nd->ops->tx(net_dev->nd, iov, req->buf_count);
 		if (ret < 0)
 			return -1;
 		i = 1;
 	} else if (is_rx_queue(dev, req->q)) {
-		ret = net_dev->ops->rx(net_dev->nd, iov, req->buf_count);
+		ret = net_dev->nd->ops->rx(net_dev->nd, iov, req->buf_count);
 		if (ret < 0)
 			return -1;
 		if (net_dev->nd->has_vnet_hdr) {
@@ -143,16 +137,23 @@ static struct virtio_dev_ops net_ops = {
 
 void poll_thread(void *arg)
 {
-	struct virtio_net_poll *np = (struct virtio_net_poll *)arg;
-	int ret;
+	struct virtio_net_dev *dev = arg;
 
 	/* Synchronization is handled in virtio_process_queue */
-	while ((ret = np->dev->ops->poll(np->dev->nd, np->event)) >= 0) {
+	do {
+		int ret = dev->nd->ops->poll(dev->nd);
+
+		if (ret < 0) {
+			lkl_printf("virtio net poll error: %d\n", ret);
+			continue;
+		}
+		if (ret & LKL_DEV_NET_POLL_HUP)
+			break;
 		if (ret & LKL_DEV_NET_POLL_RX)
-			virtio_process_queue(&np->dev->dev, 0);
+			virtio_process_queue(&dev->dev, 0);
 		if (ret & LKL_DEV_NET_POLL_TX)
-			virtio_process_queue(&np->dev->dev, 1);
-	}
+			virtio_process_queue(&dev->dev, 1);
+	} while (1);
 }
 
 struct virtio_net_dev *registered_devs[MAX_NET_DEVS];
@@ -225,18 +226,11 @@ int lkl_netdev_add(struct lkl_netdev *nd, struct lkl_netdev_args* args)
 	dev->dev.config_data = &dev->config;
 	dev->dev.config_len = sizeof(dev->config);
 	dev->dev.ops = &net_ops;
-	dev->ops = nd->ops;
 	dev->nd = nd;
 	dev->queue_locks = init_queue_locks(NUM_QUEUES);
 
 	if (!dev->queue_locks)
 		goto out_free;
-
-	dev->rx_poll.event = LKL_DEV_NET_POLL_RX;
-	dev->rx_poll.dev = dev;
-
-	dev->tx_poll.event = LKL_DEV_NET_POLL_TX;
-	dev->tx_poll.dev = dev;
 
 	/* MUST match the number of queue locks we initialized. We
 	 * could init the queues in virtio_dev_setup to help enforce
@@ -247,12 +241,8 @@ int lkl_netdev_add(struct lkl_netdev *nd, struct lkl_netdev_args* args)
 	if (ret)
 		goto out_free;
 
-	nd->rx_tid = lkl_host_ops.thread_create(poll_thread, &dev->rx_poll);
-	if (nd->rx_tid == 0)
-		goto out_cleanup_dev;
-
-	nd->tx_tid = lkl_host_ops.thread_create(poll_thread, &dev->tx_poll);
-	if (nd->tx_tid == 0)
+	dev->poll_tid = lkl_host_ops.thread_create(poll_thread, dev);
+	if (dev->poll_tid == 0)
 		goto out_cleanup_dev;
 
 	ret = dev_register(dev);
@@ -273,38 +263,39 @@ out_free:
 }
 
 /* Return 0 for success, -1 for failure. */
-static int lkl_netdev_remove(struct virtio_net_dev *dev)
+void lkl_netdev_remove(int id)
 {
-	if (!dev->nd->ops->close)
-		/* Can't kill the poll threads, so we can't do
-		 * anything safely. */
-		return -1;
+	struct virtio_net_dev *dev;
+	int ret;
 
-	if (dev->nd->ops->close(dev->nd) < 0)
-		/* Something went wrong */
-		return -1;
+	if (id >= registered_dev_idx) {
+		lkl_printf("%s: invalid id: %d\n", __func__, id);
+		return;
+	}
+
+	dev = registered_devs[id];
+
+	ret = lkl_netdev_get_ifindex(id);
+	if (ret < 0) {
+		lkl_printf("%s: failed to get ifindex for id %d: %s\n",
+			   __func__, id, lkl_strerror(ret));
+		return;
+	}
+
+	ret = lkl_if_down(ret);
+	if (ret < 0) {
+		lkl_printf("%s: failed to put interface id %d down: %s\n",
+			   __func__, id, lkl_strerror(ret));
+		return;
+	}
+
+	dev->nd->ops->close(dev->nd);
+
+	lkl_host_ops.thread_join(dev->poll_tid);
 
 	virtio_dev_cleanup(&dev->dev);
 
 	lkl_host_ops.mem_free(dev->nd);
 	free_queue_locks(dev->queue_locks, NUM_QUEUES);
 	lkl_host_ops.mem_free(dev);
-
-	return 0;
-}
-
-int lkl_netdevs_remove(void)
-{
-	int i = 0, failure_count = 0;
-
-	for (; i < registered_dev_idx; i++)
-		failure_count -= lkl_netdev_remove(registered_devs[i]);
-
-	if (failure_count) {
-		lkl_printf("WARN: failed to free %d of %d netdevs.\n",
-			failure_count, registered_dev_idx);
-		return -1;
-	}
-
-	return 0;
 }

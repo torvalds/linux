@@ -27,6 +27,7 @@
 #include <lkl_host.h>
 
 #include "xlate.h"
+#include "init.h"
 
 static int is_lklfd(int fd)
 {
@@ -74,6 +75,29 @@ static host_call host_calls[__lkl__NR_syscalls];
 	}								\
 	asm(".global " #name);						\
 	asm(".set " #name "," #name "_hook");				\
+
+#define HOOK_CALL_USE_HOST_BEFORE_START(name)				\
+	static void __attribute__((constructor(101)))			\
+	init_host_##name(void)						\
+	{								\
+		host_calls[__lkl__NR_##name] = resolve_sym(#name);	\
+	}								\
+									\
+	long name##_hook(long p1, long p2, long p3, long p4, long p5,	\
+			 long p6)					\
+	{								\
+		long p[6] = {p1, p2, p3, p4, p5, p6 };			\
+									\
+		if (!host_calls[__lkl__NR_##name])			\
+			host_calls[__lkl__NR_##name] = resolve_sym(#name); \
+		if (!lkl_running)					\
+			return host_calls[__lkl__NR_##name](p1, p2, p3,	\
+							    p4, p5, p6); \
+									\
+		return lkl_set_errno(lkl_syscall(__lkl__NR_##name, p));	\
+	}								\
+	asm(".global " #name);						\
+	asm(".set " #name "," #name "_hook")
 
 #define HOST_CALL(name)							\
 	static long (*host_##name)();					\
@@ -131,7 +155,7 @@ HOOK_FD_CALL(read)
 HOOK_FD_CALL(recvfrom)
 HOOK_FD_CALL(recv)
 HOOK_FD_CALL(epoll_wait)
-HOOK_CALL(pipe);
+HOOK_CALL_USE_HOST_BEFORE_START(pipe);
 
 HOST_CALL(setsockopt);
 int setsockopt(int fd, int level, int optname, const void *optval,
@@ -264,7 +288,7 @@ int select(int nfds, fd_set *r, fd_set *w, fd_set *e, struct timeval *t)
 	return lkl_call(__lkl__NR_select, 5, nfds, r, w, e, t);
 }
 
-HOOK_CALL(epoll_create)
+HOOK_CALL_USE_HOST_BEFORE_START(epoll_create);
 
 HOST_CALL(epoll_ctl);
 int epoll_ctl(int epollfd, int op, int fd, struct epoll_event *event)
@@ -282,6 +306,12 @@ int epoll_ctl(int epollfd, int op, int fd, struct epoll_event *event)
 
 int eventfd(unsigned int count, int flags)
 {
+	if (!lkl_running) {
+		int (*f)(unsigned int, int) = resolve_sym("eventfd");
+
+		return f(count, flags);
+	}
+
 	return lkl_sys_eventfd2(count, flags);
 }
 

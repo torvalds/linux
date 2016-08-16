@@ -27,6 +27,8 @@
 #include <rte_ip.h>
 #include <rte_udp.h>
 
+#include "virtio.h"
+
 #include <lkl_host.h>
 
 static char * const ealargs[] = {
@@ -56,6 +58,7 @@ struct lkl_netdev_dpdk {
 	struct rte_mbuf *rms[MAX_PKT_BURST];
 	int npkts;
 	int bufidx;
+	int close;
 };
 
 static int net_tx(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt)
@@ -151,28 +154,35 @@ end:
 	return read;
 }
 
-static int net_poll(struct lkl_netdev *nd, int events)
+static int net_poll(struct lkl_netdev *nd)
 {
-	int ret = 0;
+	struct lkl_netdev_dpdk *nd_dpdk =
+		container_of(nd, struct lkl_netdev_dpdk, dev);
 
+	if (nd_dpdk->close)
+		return LKL_DEV_NET_POLL_HUP;
 	/*
 	 * dpdk's interrupt mode has equivalent of epoll_wait(2),
 	 * which we can apply here. but AFAIK the mode is only available
 	 * on limited NIC drivers like ixgbe/igb/e1000 (with dpdk v2.2.0),
 	 * while vmxnet3 is not supported e.g..
 	 */
-	if (events & LKL_DEV_NET_POLL_RX)
-		ret |= LKL_DEV_NET_POLL_RX;
-	if (events & LKL_DEV_NET_POLL_TX)
-		ret |= LKL_DEV_NET_POLL_TX;
+	return LKL_DEV_NET_POLL_RX | LKL_DEV_NET_POLL_TX;
+}
 
-	return ret;
+static void net_close(struct lkl_netdev *nd)
+{
+	struct lkl_netdev_dpdk *nd_dpdk =
+		container_of(nd, struct lkl_netdev_dpdk, dev);
+
+	nd_dpdk->close = 1;
 }
 
 struct lkl_dev_net_ops dpdk_net_ops = {
 	.tx = net_tx,
 	.rx = net_rx,
 	.poll = net_poll,
+	.close = net_close,
 };
 
 
