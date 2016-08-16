@@ -159,7 +159,6 @@ config ARCH_TEGRA
 	select CLKSRC_MMIO
 	select CLKSRC_OF
 	select GENERIC_CLOCKEVENTS
-	select HAVE_CLK
 	select PINCTRL
 	select RESET_CONTROLLER
 	help
