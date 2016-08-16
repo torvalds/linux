@@ -859,9 +859,6 @@ void cl_page_list_add(struct cl_page_list *plist, struct cl_page *page)
 	LASSERT(page->cp_owner);
 	LINVRNT(plist->pl_owner == current);
 
-	lockdep_off();
-	mutex_lock(&page->cp_mutex);
-	lockdep_on();
 	LASSERT(list_empty(&page->cp_batch));
 	list_add_tail(&page->cp_batch, &plist->pl_pages);
 	++plist->pl_nr;
@@ -877,12 +874,10 @@ void cl_page_list_del(const struct lu_env *env, struct cl_page_list *plist,
 		      struct cl_page *page)
 {
 	LASSERT(plist->pl_nr > 0);
+	LASSERT(cl_page_is_vmlocked(env, page));
 	LINVRNT(plist->pl_owner == current);
 
 	list_del_init(&page->cp_batch);
-	lockdep_off();
-	mutex_unlock(&page->cp_mutex);
-	lockdep_on();
 	--plist->pl_nr;
 	lu_ref_del_at(&page->cp_reference, &page->cp_queue_ref, "queue", plist);
 	cl_page_put(env, page);
@@ -959,9 +954,6 @@ void cl_page_list_disown(const struct lu_env *env,
 		LASSERT(plist->pl_nr > 0);
 
 		list_del_init(&page->cp_batch);
-		lockdep_off();
-		mutex_unlock(&page->cp_mutex);
-		lockdep_on();
 		--plist->pl_nr;
 		/*
 		 * cl_page_disown0 rather than usual cl_page_disown() is used,

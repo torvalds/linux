@@ -163,7 +163,6 @@ static int osc_io_submit(const struct lu_env *env,
 			continue;
 		}
 
-		cl_page_list_move(qout, qin, page);
 		spin_lock(&oap->oap_lock);
 		oap->oap_async_flags = ASYNC_URGENT|ASYNC_READY;
 		oap->oap_async_flags |= ASYNC_COUNT_STABLE;
@@ -171,6 +170,12 @@ static int osc_io_submit(const struct lu_env *env,
 
 		osc_page_submit(env, opg, crt, brw_flags);
 		list_add_tail(&oap->oap_pending_item, &list);
+
+		if (page->cp_sync_io)
+			cl_page_list_move(qout, qin, page);
+		else /* async IO */
+			cl_page_list_del(env, qin, page);
+
 		if (++queued == max_pages) {
 			queued = 0;
 			result = osc_queue_sync_pages(env, osc, &list, cmd,

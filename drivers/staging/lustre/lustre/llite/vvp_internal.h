@@ -247,9 +247,9 @@ struct vvp_object {
  */
 struct vvp_page {
 	struct cl_page_slice vpg_cl;
-	int		  vpg_defer_uptodate;
-	int		  vpg_ra_used;
-	int		  vpg_write_queued;
+	unsigned int	vpg_defer_uptodate:1,
+			vpg_ra_used:1,
+			vpg_write_queued:1;
 	/**
 	 * Non-empty iff this page is already counted in
 	 * vvp_object::vob_pending_list. This list is only used as a flag,

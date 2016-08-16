@@ -151,7 +151,6 @@ struct cl_page *cl_page_alloc(const struct lu_env *env,
 		INIT_LIST_HEAD(&page->cp_layers);
 		INIT_LIST_HEAD(&page->cp_batch);
 		INIT_LIST_HEAD(&page->cp_flight);
-		mutex_init(&page->cp_mutex);
 		lu_ref_init(&page->cp_reference);
 		head = o->co_lu.lo_header;
 		list_for_each_entry(o, &head->loh_layers, co_lu.lo_linkage) {
@@ -478,7 +477,6 @@ static void cl_page_owner_clear(struct cl_page *page)
 		LASSERT(page->cp_owner->ci_owned_nr > 0);
 		page->cp_owner->ci_owned_nr--;
 		page->cp_owner = NULL;
-		page->cp_task = NULL;
 	}
 }
 
@@ -562,7 +560,6 @@ static int cl_page_own0(const struct lu_env *env, struct cl_io *io,
 			PASSERT(env, pg, !pg->cp_owner);
 			PASSERT(env, pg, !pg->cp_req);
 			pg->cp_owner = cl_io_top(io);
-			pg->cp_task  = current;
 			cl_page_owner_set(pg);
 			if (pg->cp_state != CPS_FREEING) {
 				cl_page_state_set(env, pg, CPS_OWNED);
@@ -619,7 +616,6 @@ void cl_page_assume(const struct lu_env *env,
 	cl_page_invoid(env, io, pg, CL_PAGE_OP(cpo_assume));
 	PASSERT(env, pg, !pg->cp_owner);
 	pg->cp_owner = cl_io_top(io);
-	pg->cp_task = current;
 	cl_page_owner_set(pg);
 	cl_page_state_set(env, pg, CPS_OWNED);
 }
@@ -860,10 +856,6 @@ void cl_page_completion(const struct lu_env *env,
 	PASSERT(env, pg, pg->cp_state == cl_req_type_state(crt));
 
 	CL_PAGE_HEADER(D_TRACE, env, pg, "%d %d\n", crt, ioret);
-	if (crt == CRT_READ && ioret == 0) {
-		PASSERT(env, pg, !(pg->cp_flags & CPF_READ_COMPLETED));
-		pg->cp_flags |= CPF_READ_COMPLETED;
-	}
 
 	cl_page_state_set(env, pg, CPS_CACHED);
 	if (crt >= CRT_NR)
@@ -989,10 +981,10 @@ void cl_page_header_print(const struct lu_env *env, void *cookie,
 			  lu_printer_t printer, const struct cl_page *pg)
 {
 	(*printer)(env, cookie,
-		   "page@%p[%d %p %d %d %d %p %p %#x]\n",
+		   "page@%p[%d %p %d %d %d %p %p]\n",
 		   pg, atomic_read(&pg->cp_ref), pg->cp_obj,
 		   pg->cp_state, pg->cp_error, pg->cp_type,
-		   pg->cp_owner, pg->cp_req, pg->cp_flags);
+		   pg->cp_owner, pg->cp_req);
 }
 EXPORT_SYMBOL(cl_page_header_print);
 

@@ -129,6 +129,7 @@ int lov_page_init_raid0(const struct lu_env *env, struct cl_object *obj,
 	rc = lov_stripe_offset(loo->lo_lsm, offset, stripe, &suboff);
 	LASSERT(rc == 0);
 
+	lpg->lps_stripe = stripe;
 	cl_page_slice_add(page, &lpg->lps_cl, obj, index, &lov_raid0_page_ops);
 
 	sub = lov_sub_get(env, lio, stripe);
