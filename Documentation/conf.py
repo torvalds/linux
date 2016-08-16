@@ -14,6 +14,11 @@
 
 import sys
 import os
+import sphinx
+
+# Get Sphinx version
+major, minor, patch = map(int, sphinx.__version__.split("."))
+
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -30,6 +35,12 @@ from load_config import loadConfig
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = ['kernel-doc', 'rstFlatTable', 'kernel_include']
+
+# The name of the math extension changed on Sphinx 1.4
+if minor > 3:
+    extensions.append("sphinx.ext.imgmath")
+else:
+    extensions.append("sphinx.ext.pngmath")
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
