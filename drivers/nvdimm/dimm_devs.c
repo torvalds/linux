@@ -28,28 +28,30 @@ static DEFINE_IDA(dimm_ida);
  * Retrieve bus and dimm handle and return if this bus supports
  * get_config_data commands
  */
-static int __validate_dimm(struct nvdimm_drvdata *ndd)
+int nvdimm_check_config_data(struct device *dev)
 {
-	struct nvdimm *nvdimm;
+	struct nvdimm *nvdimm = to_nvdimm(dev);
 
-	if (!ndd)
-		return -EINVAL;
-
-	nvdimm = to_nvdimm(ndd->dev);
-
-	if (!nvdimm->cmd_mask)
-		return -ENXIO;
-	if (!test_bit(ND_CMD_GET_CONFIG_DATA, &nvdimm->cmd_mask))
-		return -ENXIO;
+	if (!nvdimm->cmd_mask ||
+	    !test_bit(ND_CMD_GET_CONFIG_DATA, &nvdimm->cmd_mask)) {
+		if (nvdimm->flags & NDD_ALIASING)
+			return -ENXIO;
+		else
+			return -ENOTTY;
+	}
 
 	return 0;
 }
 
 static int validate_dimm(struct nvdimm_drvdata *ndd)
 {
-	int rc = __validate_dimm(ndd);
+	int rc;
 
-	if (rc && ndd)
+	if (!ndd)
+		return -EINVAL;
+
+	rc = nvdimm_check_config_data(ndd->dev);
+	if (rc)
 		dev_dbg(ndd->dev, "%pf: %s error: %d\n",
 				__builtin_return_address(0), __func__, rc);
 	return rc;
