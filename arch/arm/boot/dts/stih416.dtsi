@@ -482,8 +482,9 @@
 					&pinctrl_pwm0_chan2_default
 					&pinctrl_pwm0_chan3_default>;
 
-			clock-names	= "pwm";
-			clocks		= <&clk_sysin>;
+			clock-names	= "pwm", "capture";
+			clocks		= <&clk_sysin>, <&clk_s_a0_ls CLK_ICN_REG>;
+
 			st,pwm-num-chan = <4>;
 		};
 
