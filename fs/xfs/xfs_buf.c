@@ -115,7 +115,6 @@ xfs_buf_ioacct_dec(
 	if (!(bp->b_flags & _XBF_IN_FLIGHT))
 		return;
 
-	ASSERT(bp->b_flags & XBF_ASYNC);
 	bp->b_flags &= ~_XBF_IN_FLIGHT;
 	percpu_counter_dec(&bp->b_target->bt_io_count);
 }
