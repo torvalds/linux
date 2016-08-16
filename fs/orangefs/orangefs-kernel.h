@@ -510,18 +510,18 @@ bool orangefs_cancel_op_in_progress(struct orangefs_kernel_op_s *op);
 
 int orangefs_normalize_to_errno(__s32 error_code);
 
-extern struct mutex request_mutex;
+extern struct mutex orangefs_request_mutex;
 extern int op_timeout_secs;
 extern int slot_timeout_secs;
-extern int dcache_timeout_msecs;
-extern int getattr_timeout_msecs;
+extern int orangefs_dcache_timeout_msecs;
+extern int orangefs_getattr_timeout_msecs;
 extern struct list_head orangefs_superblocks;
 extern spinlock_t orangefs_superblocks_lock;
 extern struct list_head orangefs_request_list;
 extern spinlock_t orangefs_request_list_lock;
 extern wait_queue_head_t orangefs_request_list_waitq;
-extern struct list_head *htable_ops_in_progress;
-extern spinlock_t htable_ops_in_progress_lock;
+extern struct list_head *orangefs_htable_ops_in_progress;
+extern spinlock_t orangefs_htable_ops_in_progress_lock;
 extern int hash_table_size;
 
 extern const struct address_space_operations orangefs_address_operations;

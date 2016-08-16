@@ -30,8 +30,8 @@ static ulong module_parm_debug_mask;
 __u64 orangefs_gossip_debug_mask;
 int op_timeout_secs = ORANGEFS_DEFAULT_OP_TIMEOUT_SECS;
 int slot_timeout_secs = ORANGEFS_DEFAULT_SLOT_TIMEOUT_SECS;
-int dcache_timeout_msecs = 50;
-int getattr_timeout_msecs = 50;
+int orangefs_dcache_timeout_msecs = 50;
+int orangefs_getattr_timeout_msecs = 50;
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("ORANGEFS Development Team");
@@ -60,11 +60,11 @@ module_param(slot_timeout_secs, int, 0);
  * for now it's only being used to stall the op addition to the request
  * list
  */
-DEFINE_MUTEX(request_mutex);
+DEFINE_MUTEX(orangefs_request_mutex);
 
 /* hash table for storing operations waiting for matching downcall */
-struct list_head *htable_ops_in_progress;
-DEFINE_SPINLOCK(htable_ops_in_progress_lock);
+struct list_head *orangefs_htable_ops_in_progress;
+DEFINE_SPINLOCK(orangefs_htable_ops_in_progress_lock);
 
 /* list for queueing upcall operations */
 LIST_HEAD(orangefs_request_list);
@@ -100,9 +100,9 @@ static int __init orangefs_init(void)
 	if (ret < 0)
 		goto cleanup_op;
 
-	htable_ops_in_progress =
+	orangefs_htable_ops_in_progress =
 	    kcalloc(hash_table_size, sizeof(struct list_head), GFP_KERNEL);
-	if (!htable_ops_in_progress) {
+	if (!orangefs_htable_ops_in_progress) {
 		gossip_err("Failed to initialize op hashtable");
 		ret = -ENOMEM;
 		goto cleanup_inode;
@@ -110,7 +110,7 @@ static int __init orangefs_init(void)
 
 	/* initialize a doubly linked at each hash table index */
 	for (i = 0; i < hash_table_size; i++)
-		INIT_LIST_HEAD(&htable_ops_in_progress[i]);
+		INIT_LIST_HEAD(&orangefs_htable_ops_in_progress[i]);
 
 	ret = fsid_key_table_initialize();
 	if (ret < 0)
@@ -171,7 +171,7 @@ cleanup_key_table:
 	fsid_key_table_finalize();
 
 cleanup_progress_table:
-	kfree(htable_ops_in_progress);
+	kfree(orangefs_htable_ops_in_progress);
 
 cleanup_inode:
 	orangefs_inode_cache_finalize();
@@ -198,12 +198,12 @@ static void __exit orangefs_exit(void)
 	orangefs_dev_cleanup();
 	BUG_ON(!list_empty(&orangefs_request_list));
 	for (i = 0; i < hash_table_size; i++)
-		BUG_ON(!list_empty(&htable_ops_in_progress[i]));
+		BUG_ON(!list_empty(&orangefs_htable_ops_in_progress[i]));
 
 	orangefs_inode_cache_finalize();
 	op_cache_finalize();
 
-	kfree(htable_ops_in_progress);
+	kfree(orangefs_htable_ops_in_progress);
 
 	bdi_destroy(&orangefs_backing_dev_info);
 
@@ -222,10 +222,10 @@ void purge_inprogress_ops(void)
 		struct orangefs_kernel_op_s *op;
 		struct orangefs_kernel_op_s *next;
 
-		spin_lock(&htable_ops_in_progress_lock);
+		spin_lock(&orangefs_htable_ops_in_progress_lock);
 		list_for_each_entry_safe(op,
 					 next,
-					 &htable_ops_in_progress[i],
+					 &orangefs_htable_ops_in_progress[i],
 					 list) {
 			set_op_state_purged(op);
 			gossip_debug(GOSSIP_DEV_DEBUG,
@@ -235,7 +235,7 @@ void purge_inprogress_ops(void)
 				     op->op_state,
 				     current->comm);
 		}
-		spin_unlock(&htable_ops_in_progress_lock);
+		spin_unlock(&orangefs_htable_ops_in_progress_lock);
 	}
 }
 

@@ -46,7 +46,7 @@ static void orangefs_devreq_add_op(struct orangefs_kernel_op_s *op)
 {
 	int index = hash_func(op->tag, hash_table_size);
 
-	list_add_tail(&op->list, &htable_ops_in_progress[index]);
+	list_add_tail(&op->list, &orangefs_htable_ops_in_progress[index]);
 }
 
 /*
@@ -60,20 +60,20 @@ static struct orangefs_kernel_op_s *orangefs_devreq_remove_op(__u64 tag)
 
 	index = hash_func(tag, hash_table_size);
 
-	spin_lock(&htable_ops_in_progress_lock);
+	spin_lock(&orangefs_htable_ops_in_progress_lock);
 	list_for_each_entry_safe(op,
 				 next,
-				 &htable_ops_in_progress[index],
+				 &orangefs_htable_ops_in_progress[index],
 				 list) {
 		if (op->tag == tag && !op_state_purged(op) &&
 		    !op_state_given_up(op)) {
 			list_del_init(&op->list);
-			spin_unlock(&htable_ops_in_progress_lock);
+			spin_unlock(&orangefs_htable_ops_in_progress_lock);
 			return op;
 		}
 	}
 
-	spin_unlock(&htable_ops_in_progress_lock);
+	spin_unlock(&orangefs_htable_ops_in_progress_lock);
 	return NULL;
 }
 
@@ -279,11 +279,11 @@ restart:
 	if (ret != 0)
 		goto error;
 
-	spin_lock(&htable_ops_in_progress_lock);
+	spin_lock(&orangefs_htable_ops_in_progress_lock);
 	spin_lock(&cur_op->lock);
 	if (unlikely(op_state_given_up(cur_op))) {
 		spin_unlock(&cur_op->lock);
-		spin_unlock(&htable_ops_in_progress_lock);
+		spin_unlock(&orangefs_htable_ops_in_progress_lock);
 		complete(&cur_op->waitq);
 		goto restart;
 	}
@@ -301,7 +301,7 @@ restart:
 		     current->comm);
 	orangefs_devreq_add_op(cur_op);
 	spin_unlock(&cur_op->lock);
-	spin_unlock(&htable_ops_in_progress_lock);
+	spin_unlock(&orangefs_htable_ops_in_progress_lock);
 
 	/* The client only asks to read one size buffer. */
 	return MAX_DEV_REQ_UPSIZE;
@@ -620,7 +620,7 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 		 * all of the remounts are serviced (to avoid ops between
 		 * mounts to fail)
 		 */
-		ret = mutex_lock_interruptible(&request_mutex);
+		ret = mutex_lock_interruptible(&orangefs_request_mutex);
 		if (ret < 0)
 			return ret;
 		gossip_debug(GOSSIP_DEV_DEBUG,
@@ -655,7 +655,7 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 		gossip_debug(GOSSIP_DEV_DEBUG,
 			     "%s: priority remount complete\n",
 			     __func__);
-		mutex_unlock(&request_mutex);
+		mutex_unlock(&orangefs_request_mutex);
 		return ret;
 
 	case ORANGEFS_DEV_UPSTREAM:

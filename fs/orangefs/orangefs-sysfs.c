@@ -218,14 +218,14 @@ static ssize_t sysfs_int_show(struct kobject *kobj,
 			rc = scnprintf(buf,
 				       PAGE_SIZE,
 				       "%d\n",
-				       dcache_timeout_msecs);
+				       orangefs_dcache_timeout_msecs);
 			goto out;
 		} else if (!strcmp(attr->attr.name,
 				   "getattr_timeout_msecs")) {
 			rc = scnprintf(buf,
 				       PAGE_SIZE,
 				       "%d\n",
-				       getattr_timeout_msecs);
+				       orangefs_getattr_timeout_msecs);
 			goto out;
 		} else {
 			goto out;
@@ -270,10 +270,10 @@ static ssize_t sysfs_int_store(struct kobject *kobj,
 		rc = kstrtoint(buf, 0, &slot_timeout_secs);
 		goto out;
 	} else if (!strcmp(attr->attr.name, "dcache_timeout_msecs")) {
-		rc = kstrtoint(buf, 0, &dcache_timeout_msecs);
+		rc = kstrtoint(buf, 0, &orangefs_dcache_timeout_msecs);
 		goto out;
 	} else if (!strcmp(attr->attr.name, "getattr_timeout_msecs")) {
-		rc = kstrtoint(buf, 0, &getattr_timeout_msecs);
+		rc = kstrtoint(buf, 0, &orangefs_getattr_timeout_msecs);
 		goto out;
 	} else {
 		goto out;
