@@ -236,7 +236,7 @@ static int ll_dir_filler(void *_hash, struct page *page0)
 	return rc;
 }
 
-void ll_release_page(struct page *page, int remove)
+void ll_release_page(struct inode *inode, struct page *page, int remove)
 {
 	kunmap(page);
 	if (remove) {
@@ -297,7 +297,7 @@ static struct page *ll_dir_page_locate(struct inode *dir, __u64 *hash,
 			CDEBUG(D_VFSTRACE, "page %lu [%llu %llu], hash %llu\n",
 			       offset, *start, *end, *hash);
 			if (*hash > *end) {
-				ll_release_page(page, 0);
+				ll_release_page(dir, page, 0);
 				page = NULL;
 			} else if (*end != *start && *hash == *end) {
 				/*
@@ -306,8 +306,9 @@ static struct page *ll_dir_page_locate(struct inode *dir, __u64 *hash,
 				 * ll_get_dir_page() will issue RPC to fetch
 				 * the page we want.
 				 */
-				ll_release_page(page,
-				    le32_to_cpu(dp->ldp_flags) & LDF_COLLIDE);
+				ll_release_page(dir, page,
+						le32_to_cpu(dp->ldp_flags) &
+						LDF_COLLIDE);
 				page = NULL;
 			}
 		} else {
@@ -462,7 +463,7 @@ out_unlock:
 	return page;
 
 fail:
-	ll_release_page(page, 1);
+	ll_release_page(dir, page, 1);
 	page = ERR_PTR(-EIO);
 	goto out_unlock;
 }
@@ -560,7 +561,7 @@ int ll_dir_read(struct inode *inode, __u64 *ppos, struct md_op_data *op_data,
 
 		if (done) {
 			pos = hash;
-			ll_release_page(page, 0);
+			ll_release_page(inode, page, 0);
 			break;
 		}
 
@@ -571,13 +572,13 @@ int ll_dir_read(struct inode *inode, __u64 *ppos, struct md_op_data *op_data,
 			 * End of directory reached.
 			 */
 			done = 1;
-			ll_release_page(page, 0);
+			ll_release_page(inode, page, 0);
 		} else {
 			/*
 			 * Normal case: continue to the next
 			 * page.
 			 */
-			ll_release_page(page,
+			ll_release_page(inode, page,
 					le32_to_cpu(dp->ldp_flags) &
 					LDF_COLLIDE);
 			next = pos;

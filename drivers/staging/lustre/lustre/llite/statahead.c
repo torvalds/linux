@@ -1142,7 +1142,7 @@ interpret_it:
 				ll_post_statahead(sai);
 
 			if (unlikely(!thread_is_running(thread))) {
-				ll_release_page(page, 0);
+				ll_release_page(dir, page, 0);
 				rc = 0;
 				goto out;
 			}
@@ -1166,7 +1166,7 @@ interpret_it:
 
 					if (unlikely(
 						!thread_is_running(thread))) {
-						ll_release_page(page, 0);
+						ll_release_page(dir, page, 0);
 						rc = 0;
 						goto out;
 					}
@@ -1189,7 +1189,7 @@ do_it:
 			/*
 			 * End of directory reached.
 			 */
-			ll_release_page(page, 0);
+			ll_release_page(dir, page, 0);
 			while (1) {
 				l_wait_event(thread->t_ctl_waitq,
 					     !list_empty(&sai->sai_entries_received) ||
@@ -1229,8 +1229,9 @@ do_it:
 			 * chain is exhausted.
 			 * Normal case: continue to the next page.
 			 */
-			ll_release_page(page, le32_to_cpu(dp->ldp_flags) &
-					      LDF_COLLIDE);
+			ll_release_page(dir, page,
+					le32_to_cpu(dp->ldp_flags) &
+					LDF_COLLIDE);
 			sai->sai_in_readpage = 1;
 			page = ll_get_dir_page(dir, op_data, pos, &chain);
 			sai->sai_in_readpage = 0;
@@ -1427,7 +1428,7 @@ static int is_first_dirent(struct inode *dir, struct dentry *dentry)
 			else
 				rc = LS_FIRST_DOT_DE;
 
-			ll_release_page(page, 0);
+			ll_release_page(dir, page, 0);
 			goto out;
 		}
 		pos = le64_to_cpu(dp->ldp_hash_end);
@@ -1435,15 +1436,16 @@ static int is_first_dirent(struct inode *dir, struct dentry *dentry)
 			/*
 			 * End of directory reached.
 			 */
-			ll_release_page(page, 0);
+			ll_release_page(dir, page, 0);
 			goto out;
 		} else {
 			/*
 			 * chain is exhausted
 			 * Normal case: continue to the next page.
 			 */
-			ll_release_page(page, le32_to_cpu(dp->ldp_flags) &
-					      LDF_COLLIDE);
+			ll_release_page(dir, page,
+					le32_to_cpu(dp->ldp_flags) &
+					LDF_COLLIDE);
 			page = ll_get_dir_page(dir, op_data, pos, &chain);
 		}
 	}
