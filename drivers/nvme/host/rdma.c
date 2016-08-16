@@ -1319,7 +1319,7 @@ out_destroy_queue_ib:
 static int nvme_rdma_device_unplug(struct nvme_rdma_queue *queue)
 {
 	struct nvme_rdma_ctrl *ctrl = queue->ctrl;
-	int ret;
+	int ret = 0;
 
 	/* Own the controller deletion */
 	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_DELETING))
