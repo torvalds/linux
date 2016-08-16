@@ -749,6 +749,13 @@ int ll_dir_setstripe(struct inode *inode, struct lov_user_md *lump,
 			lum_size = sizeof(struct lov_user_md_v3);
 			break;
 		}
+		case LMV_USER_MAGIC: {
+			if (lump->lmm_magic != cpu_to_le32(LMV_USER_MAGIC))
+				lustre_swab_lmv_user_md(
+					(struct lmv_user_md *)lump);
+			lum_size = sizeof(struct lmv_user_md);
+			break;
+		}
 		default: {
 			CDEBUG(D_IOCTL, "bad userland LOV MAGIC: %#08x != %#08x nor %#08x\n",
 			       lump->lmm_magic, LOV_USER_MAGIC_V1,
@@ -819,8 +826,16 @@ end:
 	return rc;
 }
 
-int ll_dir_getstripe(struct inode *inode, struct lov_mds_md **lmmp,
-		     int *lmm_size, struct ptlrpc_request **request)
+/**
+ * This function will be used to get default LOV/LMV/Default LMV
+ * @valid will be used to indicate which stripe it will retrieve
+ *	OBD_MD_MEA		LMV stripe EA
+ *	OBD_MD_DEFAULT_MEA	Default LMV stripe EA
+ *	otherwise		Default LOV EA.
+ * Each time, it can only retrieve 1 stripe EA
+ **/
+int ll_dir_getstripe(struct inode *inode, void **plmm, int *plmm_size,
+		     struct ptlrpc_request **request, u64 valid)
 {
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
 	struct mdt_body   *body;
@@ -829,7 +844,7 @@ int ll_dir_getstripe(struct inode *inode, struct lov_mds_md **lmmp,
 	int rc, lmmsize;
 	struct md_op_data *op_data;
 
-	rc = ll_get_default_mdsize(sbi, &lmmsize);
+	rc = ll_get_max_mdsize(sbi, &lmmsize);
 	if (rc)
 		return rc;
 
@@ -860,6 +875,7 @@ int ll_dir_getstripe(struct inode *inode, struct lov_mds_md **lmmp,
 
 	lmm = req_capsule_server_sized_get(&req->rq_pill,
 					   &RMF_MDT_MD, lmmsize);
+	LASSERT(lmm);
 
 	/*
 	 * This is coming from the MDS, so is probably in
@@ -876,15 +892,40 @@ int ll_dir_getstripe(struct inode *inode, struct lov_mds_md **lmmp,
 		if (cpu_to_le32(LOV_MAGIC) != LOV_MAGIC)
 			lustre_swab_lov_user_md_v3((struct lov_user_md_v3 *)lmm);
 		break;
+	case LMV_USER_MAGIC:
+		if (cpu_to_le32(LMV_USER_MAGIC) != LMV_USER_MAGIC)
+			lustre_swab_lmv_user_md((struct lmv_user_md *)lmm);
+		break;
 	default:
 		CERROR("unknown magic: %lX\n", (unsigned long)lmm->lmm_magic);
 		rc = -EPROTO;
 	}
 out:
-	*lmmp = lmm;
-	*lmm_size = lmmsize;
+	*plmm = lmm;
+	*plmm_size = lmmsize;
 	*request = req;
 	return rc;
+}
+
+static int ll_get_mdt_idx_by_fid(struct ll_sb_info *sbi,
+				 const struct lu_fid *fid)
+{
+	struct md_op_data *op_data;
+	int mdt_index, rc;
+
+	op_data = kzalloc(sizeof(*op_data), GFP_NOFS);
+	if (!op_data)
+		return -ENOMEM;
+
+	op_data->op_flags |= MF_GET_MDT_IDX;
+	op_data->op_fid1 = *fid;
+	rc = md_getattr(sbi->ll_md_exp, op_data, NULL);
+	mdt_index = op_data->op_mds;
+	kvfree(op_data);
+	if (rc < 0)
+		return rc;
+
+	return mdt_index;
 }
 
 /*
@@ -892,24 +933,7 @@ out:
  */
 int ll_get_mdt_idx(struct inode *inode)
 {
-	struct ll_sb_info *sbi = ll_i2sbi(inode);
-	struct md_op_data *op_data;
-	int rc, mdtidx;
-
-	op_data = ll_prep_md_op_data(NULL, inode, NULL, NULL, 0,
-				     0, LUSTRE_OPC_ANY, NULL);
-	if (IS_ERR(op_data))
-		return PTR_ERR(op_data);
-
-	op_data->op_flags |= MF_GET_MDT_IDX;
-	rc = md_getattr(sbi->ll_md_exp, op_data, NULL);
-	mdtidx = op_data->op_mds;
-	ll_finish_md_op_data(op_data);
-	if (rc < 0) {
-		CDEBUG(D_INFO, "md_getattr_name: %d\n", rc);
-		return rc;
-	}
-	return mdtidx;
+	return ll_get_mdt_idx_by_fid(ll_i2sbi(inode), ll_inode2fid(inode));
 }
 
 /**
@@ -1391,6 +1415,22 @@ lmv_out_free:
 		obd_ioctl_freedata(buf, len);
 		return rc;
 	}
+	case LL_IOC_LMV_SET_DEFAULT_STRIPE: {
+		struct lmv_user_md __user *ulump;
+		struct lmv_user_md lum;
+		int rc;
+
+		ulump = (struct lmv_user_md __user *)arg;
+		if (copy_from_user(&lum, ulump, sizeof(lum)))
+			return -EFAULT;
+
+		if (lum.lum_magic != LMV_USER_MAGIC)
+			return -EINVAL;
+
+		rc = ll_dir_setstripe(inode, (struct lov_user_md *)&lum, 0);
+
+		return rc;
+	}
 	case LL_IOC_LOV_SETSTRIPE: {
 		struct lov_user_md_v3 lumv3;
 		struct lov_user_md_v1 *lumv1 = (struct lov_user_md_v1 *)&lumv3;
@@ -1420,46 +1460,107 @@ lmv_out_free:
 		return rc;
 	}
 	case LL_IOC_LMV_GETSTRIPE: {
-		struct lmv_user_md __user *lump = (void __user *)arg;
+		struct lmv_user_md __user *ulmv;
 		struct lmv_user_md lum;
-		struct lmv_user_md *tmp;
+		struct ptlrpc_request *request = NULL;
+		struct lmv_user_md *tmp = NULL;
+		union lmv_mds_md *lmm = NULL;
+		u64 valid = 0;
+		int stripe_count;
+		int mdt_index;
 		int lum_size;
-		int rc = 0;
-		int mdtindex;
+		int lmmsize;
+		int rc;
+		int i;
 
-		if (copy_from_user(&lum, lump, sizeof(struct lmv_user_md)))
+		ulmv = (struct lmv_user_md __user *)arg;
+		if (copy_from_user(&lum, ulmv, sizeof(*ulmv)))
 			return -EFAULT;
 
-		if (lum.lum_magic != LMV_MAGIC_V1)
+		/*
+		 * lum_magic will indicate which stripe the ioctl will like
+		 * to get, LMV_MAGIC_V1 is for normal LMV stripe, LMV_USER_MAGIC
+		 * is for default LMV stripe
+		 */
+		if (lum.lum_magic == LMV_MAGIC_V1)
+			valid |= OBD_MD_MEA;
+		else if (lum.lum_magic == LMV_USER_MAGIC)
+			valid |= OBD_MD_DEFAULT_MEA;
+		else
 			return -EINVAL;
 
-		lum_size = lmv_user_md_size(1, LMV_MAGIC_V1);
+		rc = ll_dir_getstripe(inode, (void **)&lmm, &lmmsize, &request,
+				      valid);
+		if (rc && rc != -ENODATA)
+			goto finish_req;
+
+		/* Get default LMV EA */
+		if (lum.lum_magic == LMV_USER_MAGIC) {
+			if (rc)
+				goto finish_req;
+
+			if (lmmsize > sizeof(*ulmv)) {
+				rc = -EINVAL;
+				goto finish_req;
+			}
+
+			if (copy_to_user(ulmv, lmm, lmmsize))
+				rc = -EFAULT;
+
+			goto finish_req;
+		}
+
+		/* Get normal LMV EA */
+		if (rc == -ENODATA) {
+			stripe_count = 1;
+		} else {
+			LASSERT(lmm);
+			stripe_count = lmv_mds_md_stripe_count_get(lmm);
+		}
+
+		lum_size = lmv_user_md_size(stripe_count, LMV_MAGIC_V1);
 		tmp = kzalloc(lum_size, GFP_NOFS);
 		if (!tmp) {
 			rc = -ENOMEM;
-			goto free_lmv;
+			goto finish_req;
 		}
 
-		*tmp = lum;
+		tmp->lum_magic = LMV_MAGIC_V1;
 		tmp->lum_stripe_count = 1;
-		mdtindex = ll_get_mdt_idx(inode);
-		if (mdtindex < 0) {
+		mdt_index = ll_get_mdt_idx(inode);
+		if (mdt_index < 0) {
 			rc = -ENOMEM;
-			goto free_lmv;
+			goto out_tmp;
+		}
+		tmp->lum_stripe_offset = mdt_index;
+		tmp->lum_objects[0].lum_mds = mdt_index;
+		tmp->lum_objects[0].lum_fid = *ll_inode2fid(inode);
+		for (i = 1; i < stripe_count; i++) {
+			struct lmv_mds_md_v1 *lmm1;
+
+			lmm1 = &lmm->lmv_md_v1;
+			mdt_index = ll_get_mdt_idx_by_fid(sbi,
+							  &lmm1->lmv_stripe_fids[i]);
+			if (mdt_index < 0) {
+				rc = mdt_index;
+				goto out_tmp;
+			}
+			tmp->lum_objects[i].lum_mds = mdt_index;
+			tmp->lum_objects[i].lum_fid = lmm1->lmv_stripe_fids[i];
+			tmp->lum_stripe_count++;
 		}
 
-		tmp->lum_stripe_offset = mdtindex;
-		tmp->lum_objects[0].lum_mds = mdtindex;
-		memcpy(&tmp->lum_objects[0].lum_fid, ll_inode2fid(inode),
-		       sizeof(struct lu_fid));
-		if (copy_to_user((void __user *)arg, tmp, lum_size)) {
+		if (copy_to_user(ulmv, tmp, lum_size)) {
 			rc = -EFAULT;
-			goto free_lmv;
+			goto out_tmp;
 		}
-free_lmv:
+out_tmp:
 		kfree(tmp);
+finish_req:
+		ptlrpc_req_finished(request);
 		return rc;
 	}
+
 	case LL_IOC_LOV_SWAP_LAYOUTS:
 		return -EPERM;
 	case LL_IOC_OBD_STATFS:
@@ -1484,7 +1585,8 @@ free_lmv:
 			rc = ll_lov_getstripe_ea_info(inode, filename, &lmm,
 						      &lmmsize, &request);
 		} else {
-			rc = ll_dir_getstripe(inode, &lmm, &lmmsize, &request);
+			rc = ll_dir_getstripe(inode, (void **)&lmm, &lmmsize,
+					      &request, 0);
 		}
 
 		if (request) {

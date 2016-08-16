@@ -1728,6 +1728,8 @@ lov_mds_md_max_stripe_count(size_t buf_size, __u32 lmm_magic)
 #define OBD_MD_FLDATAVERSION (0x0010000000000000ULL) /* iversion sum */
 #define OBD_MD_FLRELEASED    (0x0020000000000000ULL) /* file released */
 
+#define OBD_MD_DEFAULT_MEA   (0x0040000000000000ULL) /* default MEA */
+
 #define OBD_MD_FLGETATTR (OBD_MD_FLID    | OBD_MD_FLATIME | OBD_MD_FLMTIME | \
 			  OBD_MD_FLCTIME | OBD_MD_FLSIZE  | OBD_MD_FLBLKSZ | \
 			  OBD_MD_FLMODE  | OBD_MD_FLTYPE  | OBD_MD_FLUID   | \
@@ -2542,6 +2544,8 @@ union lmv_mds_md {
 	struct lmv_mds_md_v1	lmv_md_v1;
 	struct lmv_user_md	lmv_user_md;
 };
+
+void lustre_swab_lmv_mds_md(union lmv_mds_md *lmm);
 
 static inline ssize_t lmv_mds_md_size(int stripe_count, unsigned int lmm_magic)
 {

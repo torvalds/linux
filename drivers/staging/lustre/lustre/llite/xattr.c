@@ -390,8 +390,8 @@ static int ll_xattr_get(const struct xattr_handler *handler,
 		lsm = ccc_inode_lsm_get(inode);
 		if (!lsm) {
 			if (S_ISDIR(inode->i_mode)) {
-				rc = ll_dir_getstripe(inode, &lmm,
-						      &lmmsize, &request);
+				rc = ll_dir_getstripe(inode, (void **)&lmm,
+						      &lmmsize, &request, 0);
 			} else {
 				rc = -ENODATA;
 			}
@@ -491,7 +491,8 @@ ssize_t ll_listxattr(struct dentry *dentry, char *buffer, size_t size)
 		if (!ll_i2info(inode)->lli_has_smd)
 			rc2 = -1;
 	} else if (S_ISDIR(inode->i_mode)) {
-		rc2 = ll_dir_getstripe(inode, &lmm, &lmmsize, &request);
+		rc2 = ll_dir_getstripe(inode, (void **)&lmm, &lmmsize,
+				       &request, 0);
 	}
 
 	if (rc2 < 0) {
