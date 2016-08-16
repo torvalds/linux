@@ -559,8 +559,7 @@ static int ssd1307fb_probe(struct i2c_client *client,
 	par->info = info;
 	par->client = client;
 
-	par->device_info = of_match_device(ssd1307fb_of_match,
-					   &client->dev)->data;
+	par->device_info = of_device_get_match_data(&client->dev);
 
 	par->reset = of_get_named_gpio(client->dev.of_node,
 					 "reset-gpios", 0);
