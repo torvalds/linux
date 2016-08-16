@@ -70,6 +70,19 @@ enum PP_Result {
 #define PCIE_PERF_REQ_GEN2         3
 #define PCIE_PERF_REQ_GEN3         4
 
+enum PP_FEATURE_MASK {
+	PP_SCLK_DPM_MASK = 0x1,
+	PP_MCLK_DPM_MASK = 0x2,
+	PP_PCIE_DPM_MASK = 0x4,
+	PP_SCLK_DEEP_SLEEP_MASK = 0x8,
+	PP_POWER_CONTAINMENT_MASK = 0x10,
+	PP_UVD_HANDSHAKE_MASK = 0x20,
+	PP_SMC_VOLTAGE_CONTROL_MASK = 0x40,
+	PP_VBI_TIME_SUPPORT_MASK = 0x80,
+	PP_ULV_MASK = 0x100,
+	PP_ENABLE_GFX_CG_THRU_SMU = 0x200
+};
+
 enum PHM_BackEnd_Magic {
 	PHM_Dummy_Magic       = 0xAA5555AA,
 	PHM_RV770_Magic       = 0xDCBAABCD,
@@ -635,6 +648,7 @@ struct pp_hwmgr {
 	struct pp_power_state    *boot_ps;
 	struct pp_power_state    *uvd_ps;
 	struct amd_pp_display_configuration display_config;
+	uint32_t feature_mask;
 };
 
 
