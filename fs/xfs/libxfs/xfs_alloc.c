@@ -2264,6 +2264,7 @@ xfs_alloc_log_agf(
 		offsetof(xfs_agf_t, agf_longest),
 		offsetof(xfs_agf_t, agf_btreeblks),
 		offsetof(xfs_agf_t, agf_uuid),
+		offsetof(xfs_agf_t, agf_rmap_blocks),
 		sizeof(xfs_agf_t)
 	};
 

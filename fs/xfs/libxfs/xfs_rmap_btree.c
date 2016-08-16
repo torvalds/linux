@@ -98,6 +98,8 @@ xfs_rmapbt_alloc_block(
 	union xfs_btree_ptr	*new,
 	int			*stat)
 {
+	struct xfs_buf		*agbp = cur->bc_private.a.agbp;
+	struct xfs_agf		*agf = XFS_BUF_TO_AGF(agbp);
 	int			error;
 	xfs_agblock_t		bno;
 
@@ -124,6 +126,8 @@ xfs_rmapbt_alloc_block(
 
 	xfs_trans_agbtree_delta(cur->bc_tp, 1);
 	new->s = cpu_to_be32(bno);
+	be32_add_cpu(&agf->agf_rmap_blocks, 1);
+	xfs_alloc_log_agf(cur->bc_tp, agbp, XFS_AGF_RMAP_BLOCKS);
 
 	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	*stat = 1;
@@ -143,6 +147,8 @@ xfs_rmapbt_free_block(
 	bno = xfs_daddr_to_agbno(cur->bc_mp, XFS_BUF_ADDR(bp));
 	trace_xfs_rmapbt_free_block(cur->bc_mp, cur->bc_private.a.agno,
 			bno, 1);
+	be32_add_cpu(&agf->agf_rmap_blocks, -1);
+	xfs_alloc_log_agf(cur->bc_tp, agbp, XFS_AGF_RMAP_BLOCKS);
 	error = xfs_alloc_put_freelist(cur->bc_tp, agbp, NULL, bno, 1);
 	if (error)
 		return error;
