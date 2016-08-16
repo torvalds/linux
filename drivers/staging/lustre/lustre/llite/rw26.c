@@ -506,8 +506,9 @@ static int ll_write_begin(struct file *file, struct address_space *mapping,
 	env = lcc->lcc_env;
 	io  = lcc->lcc_io;
 
-	/* To avoid deadlock, try to lock page first. */
-	vmpage = grab_cache_page_nowait(mapping, index);
+	if (likely(to == PAGE_SIZE)) /* LU-4873 */
+		/* To avoid deadlock, try to lock page first. */
+		vmpage = grab_cache_page_nowait(mapping, index);
 	if (unlikely(!vmpage || PageDirty(vmpage) || PageWriteback(vmpage))) {
 		struct vvp_io *vio = vvp_env_io(env);
 		struct cl_page_list *plist = &vio->u.write.vui_queue;
