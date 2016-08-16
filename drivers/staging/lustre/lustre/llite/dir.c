@@ -322,8 +322,8 @@ static struct page *ll_dir_page_locate(struct inode *dir, __u64 *hash,
 	return page;
 }
 
-struct page *ll_get_dir_page(struct inode *dir, __u64 hash,
-			     struct ll_dir_chain *chain)
+struct page *ll_get_dir_page(struct inode *dir, struct md_op_data *op_data,
+			     __u64 hash, struct ll_dir_chain *chain)
 {
 	ldlm_policy_data_t policy = {.l_inodebits = {MDS_INODELOCK_UPDATE} };
 	struct address_space *mapping = dir->i_mapping;
@@ -503,7 +503,7 @@ int ll_dir_read(struct inode *inode, __u64 *ppos, struct md_op_data *op_data,
 
 	ll_dir_chain_init(&chain);
 
-	page = ll_get_dir_page(inode, pos, &chain);
+	page = ll_get_dir_page(inode, op_data, pos, &chain);
 
 	while (rc == 0 && !done) {
 		struct lu_dirpage *dp;
@@ -585,7 +585,7 @@ int ll_dir_read(struct inode *inode, __u64 *ppos, struct md_op_data *op_data,
 					le32_to_cpu(dp->ldp_flags) &
 					LDF_COLLIDE);
 			next = pos;
-			page = ll_get_dir_page(inode, pos,
+			page = ll_get_dir_page(inode, op_data, pos,
 					       &chain);
 		}
 	}

@@ -1067,7 +1067,7 @@ static int ll_statahead_thread(void *arg)
 	wake_up(&thread->t_ctl_waitq);
 
 	ll_dir_chain_init(&chain);
-	page = ll_get_dir_page(dir, pos, &chain);
+	page = ll_get_dir_page(dir, op_data, pos, &chain);
 
 	while (1) {
 		struct lu_dirpage *dp;
@@ -1232,7 +1232,7 @@ do_it:
 			ll_release_page(page, le32_to_cpu(dp->ldp_flags) &
 					      LDF_COLLIDE);
 			sai->sai_in_readpage = 1;
-			page = ll_get_dir_page(dir, pos, &chain);
+			page = ll_get_dir_page(dir, op_data, pos, &chain);
 			sai->sai_in_readpage = 0;
 		}
 	}
@@ -1344,13 +1344,19 @@ static int is_first_dirent(struct inode *dir, struct dentry *dentry)
 {
 	struct ll_dir_chain   chain;
 	const struct qstr  *target = &dentry->d_name;
+	struct md_op_data *op_data;
 	struct page	  *page;
 	__u64		 pos    = 0;
 	int		   dot_de;
 	int		   rc     = LS_NONE_FIRST_DE;
 
+	op_data = ll_prep_md_op_data(NULL, dir, dir, NULL, 0, 0,
+				     LUSTRE_OPC_ANY, dir);
+	if (IS_ERR(op_data))
+		return PTR_ERR(op_data);
+
 	ll_dir_chain_init(&chain);
-	page = ll_get_dir_page(dir, pos, &chain);
+	page = ll_get_dir_page(dir, op_data, pos, &chain);
 
 	while (1) {
 		struct lu_dirpage *dp;
@@ -1438,12 +1444,13 @@ static int is_first_dirent(struct inode *dir, struct dentry *dentry)
 			 */
 			ll_release_page(page, le32_to_cpu(dp->ldp_flags) &
 					      LDF_COLLIDE);
-			page = ll_get_dir_page(dir, pos, &chain);
+			page = ll_get_dir_page(dir, op_data, pos, &chain);
 		}
 	}
 
 out:
 	ll_dir_chain_fini(&chain);
+	ll_finish_md_op_data(op_data);
 	return rc;
 }
 

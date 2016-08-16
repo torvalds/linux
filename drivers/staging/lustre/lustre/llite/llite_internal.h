@@ -651,8 +651,8 @@ void ll_rw_stats_tally(struct ll_sb_info *sbi, pid_t pid,
 void ll_release_page(struct page *page, int remove);
 extern const struct file_operations ll_dir_operations;
 extern const struct inode_operations ll_dir_inode_operations;
-struct page *ll_get_dir_page(struct inode *dir, __u64 hash,
-			     struct ll_dir_chain *chain);
+struct page *ll_get_dir_page(struct inode *dir, struct md_op_data *op_data,
+			     __u64 hash, struct ll_dir_chain *chain);
 int ll_dir_read(struct inode *inode, __u64 *ppos, struct md_op_data *op_data,
 		struct dir_context *ctx);
 
