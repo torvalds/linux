@@ -406,8 +406,8 @@ fid_build_reg_res_name(const struct lu_fid *fid, struct ldlm_res_id *res)
 /*
  * Return true if resource is for object identified by FID.
  */
-static inline int fid_res_name_eq(const struct lu_fid *fid,
-				  const struct ldlm_res_id *res)
+static inline bool fid_res_name_eq(const struct lu_fid *fid,
+				   const struct ldlm_res_id *res)
 {
 	return res->name[LUSTRE_RES_ID_SEQ_OFF] == fid_seq(fid) &&
 	       res->name[LUSTRE_RES_ID_VER_OID_OFF] == fid_ver_oid(fid);
