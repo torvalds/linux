@@ -731,7 +731,7 @@ static int vgic_its_cmd_handle_mapi(struct kvm *kvm, struct vgic_its *its,
 	u32 device_id = its_cmd_get_deviceid(its_cmd);
 	u32 event_id = its_cmd_get_id(its_cmd);
 	u32 coll_id = its_cmd_get_collection(its_cmd);
-	struct its_itte *itte, *new_itte = NULL;
+	struct its_itte *itte;
 	struct its_device *device;
 	struct its_collection *collection, *new_coll = NULL;
 	int lpi_nr;
@@ -749,6 +749,10 @@ static int vgic_its_cmd_handle_mapi(struct kvm *kvm, struct vgic_its *its,
 	    lpi_nr >= max_lpis_propbaser(kvm->arch.vgic.propbaser))
 		return E_ITS_MAPTI_PHYSICALID_OOR;
 
+	/* If there is an existing mapping, behavior is UNPREDICTABLE. */
+	if (find_itte(its, device_id, event_id))
+		return 0;
+
 	collection = find_collection(its, coll_id);
 	if (!collection) {
 		int ret = vgic_its_alloc_collection(its, &collection, coll_id);
@@ -757,19 +761,15 @@ static int vgic_its_cmd_handle_mapi(struct kvm *kvm, struct vgic_its *its,
 		new_coll = collection;
 	}
 
-	itte = find_itte(its, device_id, event_id);
+	itte = kzalloc(sizeof(struct its_itte), GFP_KERNEL);
 	if (!itte) {
-		itte = kzalloc(sizeof(struct its_itte), GFP_KERNEL);
-		if (!itte) {
-			if (new_coll)
-				vgic_its_free_collection(its, coll_id);
-			return -ENOMEM;
-		}
-
-		new_itte = itte;
-		itte->event_id	= event_id;
-		list_add_tail(&itte->itte_list, &device->itt_head);
+		if (new_coll)
+			vgic_its_free_collection(its, coll_id);
+		return -ENOMEM;
 	}
+
+	itte->event_id	= event_id;
+	list_add_tail(&itte->itte_list, &device->itt_head);
 
 	itte->collection = collection;
 	itte->lpi = lpi_nr;
@@ -778,8 +778,7 @@ static int vgic_its_cmd_handle_mapi(struct kvm *kvm, struct vgic_its *its,
 	if (IS_ERR(irq)) {
 		if (new_coll)
 			vgic_its_free_collection(its, coll_id);
-		if (new_itte)
-			its_free_itte(kvm, new_itte);
+		its_free_itte(kvm, itte);
 		return PTR_ERR(irq);
 	}
 	itte->irq = irq;
