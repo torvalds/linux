@@ -2351,7 +2351,7 @@ struct cl_client_cache {
 	 * Waitq for awaiting unstable pages to reach zero.
 	 * Used at umounting time and signaled on BRW commit
 	 */
-        wait_queue_head_t	ccc_unstable_waitq;
+	wait_queue_head_t	ccc_unstable_waitq;
 
 };
 
