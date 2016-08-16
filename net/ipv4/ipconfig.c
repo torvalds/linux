@@ -1530,12 +1530,14 @@ static int __init ip_auto_config(void)
 	 * Close all network devices except the device we've
 	 * autoconfigured and set up routes.
 	 */
-	ic_close_devs();
 	if (ic_setup_if() < 0 || ic_setup_routes() < 0)
-		return -1;
+		err = -1;
+	else
+		err = 0;
 
+	ic_close_devs();
 
-	return 0;
+	return err;
 }
 
 late_initcall(ip_auto_config);
