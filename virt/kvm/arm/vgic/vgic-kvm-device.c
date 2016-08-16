@@ -233,6 +233,67 @@ int kvm_register_vgic_device(unsigned long type)
 	return ret;
 }
 
+struct vgic_reg_attr {
+	struct kvm_vcpu *vcpu;
+	gpa_t addr;
+};
+
+static int parse_vgic_v2_attr(struct kvm_device *dev,
+			      struct kvm_device_attr *attr,
+			      struct vgic_reg_attr *reg_attr)
+{
+	int cpuid;
+
+	cpuid = (attr->attr & KVM_DEV_ARM_VGIC_CPUID_MASK) >>
+		 KVM_DEV_ARM_VGIC_CPUID_SHIFT;
+
+	if (cpuid >= atomic_read(&dev->kvm->online_vcpus))
+		return -EINVAL;
+
+	reg_attr->vcpu = kvm_get_vcpu(dev->kvm, cpuid);
+	reg_attr->addr = attr->attr & KVM_DEV_ARM_VGIC_OFFSET_MASK;
+
+	return 0;
+}
+
+/* unlocks vcpus from @vcpu_lock_idx and smaller */
+static void unlock_vcpus(struct kvm *kvm, int vcpu_lock_idx)
+{
+	struct kvm_vcpu *tmp_vcpu;
+
+	for (; vcpu_lock_idx >= 0; vcpu_lock_idx--) {
+		tmp_vcpu = kvm_get_vcpu(kvm, vcpu_lock_idx);
+		mutex_unlock(&tmp_vcpu->mutex);
+	}
+}
+
+static void unlock_all_vcpus(struct kvm *kvm)
+{
+	unlock_vcpus(kvm, atomic_read(&kvm->online_vcpus) - 1);
+}
+
+/* Returns true if all vcpus were locked, false otherwise */
+static bool lock_all_vcpus(struct kvm *kvm)
+{
+	struct kvm_vcpu *tmp_vcpu;
+	int c;
+
+	/*
+	 * Any time a vcpu is run, vcpu_load is called which tries to grab the
+	 * vcpu->mutex.  By grabbing the vcpu->mutex of all VCPUs we ensure
+	 * that no other VCPUs are run and fiddle with the vgic state while we
+	 * access it.
+	 */
+	kvm_for_each_vcpu(c, tmp_vcpu, kvm) {
+		if (!mutex_trylock(&tmp_vcpu->mutex)) {
+			unlock_vcpus(kvm, c - 1);
+			return false;
+		}
+	}
+
+	return true;
+}
+
 /** vgic_attr_regs_access: allows user space to read/write VGIC registers
  *
  * @dev: kvm device handle
@@ -245,15 +306,17 @@ static int vgic_attr_regs_access(struct kvm_device *dev,
 				 struct kvm_device_attr *attr,
 				 u32 *reg, bool is_write)
 {
+	struct vgic_reg_attr reg_attr;
 	gpa_t addr;
-	int cpuid, ret, c;
-	struct kvm_vcpu *vcpu, *tmp_vcpu;
-	int vcpu_lock_idx = -1;
+	struct kvm_vcpu *vcpu;
+	int ret;
 
-	cpuid = (attr->attr & KVM_DEV_ARM_VGIC_CPUID_MASK) >>
-		 KVM_DEV_ARM_VGIC_CPUID_SHIFT;
-	vcpu = kvm_get_vcpu(dev->kvm, cpuid);
-	addr = attr->attr & KVM_DEV_ARM_VGIC_OFFSET_MASK;
+	ret = parse_vgic_v2_attr(dev, attr, &reg_attr);
+	if (ret)
+		return ret;
+
+	vcpu = reg_attr.vcpu;
+	addr = reg_attr.addr;
 
 	mutex_lock(&dev->kvm->lock);
 
@@ -261,22 +324,9 @@ static int vgic_attr_regs_access(struct kvm_device *dev,
 	if (ret)
 		goto out;
 
-	if (cpuid >= atomic_read(&dev->kvm->online_vcpus)) {
-		ret = -EINVAL;
+	if (!lock_all_vcpus(dev->kvm)) {
+		ret = -EBUSY;
 		goto out;
-	}
-
-	/*
-	 * Any time a vcpu is run, vcpu_load is called which tries to grab the
-	 * vcpu->mutex.  By grabbing the vcpu->mutex of all VCPUs we ensure
-	 * that no other VCPUs are run and fiddle with the vgic state while we
-	 * access it.
-	 */
-	ret = -EBUSY;
-	kvm_for_each_vcpu(c, tmp_vcpu, dev->kvm) {
-		if (!mutex_trylock(&tmp_vcpu->mutex))
-			goto out;
-		vcpu_lock_idx = c;
 	}
 
 	switch (attr->group) {
@@ -291,12 +341,8 @@ static int vgic_attr_regs_access(struct kvm_device *dev,
 		break;
 	}
 
+	unlock_all_vcpus(dev->kvm);
 out:
-	for (; vcpu_lock_idx >= 0; vcpu_lock_idx--) {
-		tmp_vcpu = kvm_get_vcpu(dev->kvm, vcpu_lock_idx);
-		mutex_unlock(&tmp_vcpu->mutex);
-	}
-
 	mutex_unlock(&dev->kvm->lock);
 	return ret;
 }
