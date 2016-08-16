@@ -245,7 +245,7 @@ static int is_byt_cr(struct device *dev, bool *bytcr)
 	int status = 0;
 
 	if (IS_ENABLED(CONFIG_IOSF_MBI)) {
-		static const struct x86_cpu_id cpu_ids[] __initconst = {
+		static const struct x86_cpu_id cpu_ids[] = {
 			{ X86_VENDOR_INTEL, 6, 55 }, /* Valleyview, Bay Trail */
 			{}
 		};

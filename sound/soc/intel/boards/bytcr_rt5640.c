@@ -668,7 +668,7 @@ static char byt_rt5640_cpu_dai_name[10]; /*  = "ssp[0|2]-port" */
 
 static bool is_valleyview(void)
 {
-	static const struct x86_cpu_id cpu_ids[] __initconst = {
+	static const struct x86_cpu_id cpu_ids[] = {
 		{ X86_VENDOR_INTEL, 6, 55 }, /* Valleyview, Bay Trail */
 		{}
 	};
