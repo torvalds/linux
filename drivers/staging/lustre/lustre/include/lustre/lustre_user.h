@@ -167,7 +167,7 @@ struct lustre_mdt_attrs {
  */
 struct ost_id {
 	union {
-		struct ostid {
+		struct {
 			__u64	oi_id;
 			__u64	oi_seq;
 		} oi;
