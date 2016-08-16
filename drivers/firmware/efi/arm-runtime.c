@@ -39,6 +39,26 @@ static struct mm_struct efi_mm = {
 	.mmlist			= LIST_HEAD_INIT(efi_mm.mmlist),
 };
 
+#ifdef CONFIG_ARM64_PTDUMP
+#include <asm/ptdump.h>
+
+static struct ptdump_info efi_ptdump_info = {
+	.mm		= &efi_mm,
+	.markers	= (struct addr_marker[]){
+		{ 0,		"UEFI runtime start" },
+		{ TASK_SIZE_64,	"UEFI runtime end" }
+	},
+	.base_addr	= 0,
+};
+
+static int __init ptdump_init(void)
+{
+	return ptdump_register(&efi_ptdump_info, "efi_page_tables");
+}
+device_initcall(ptdump_init);
+
+#endif
+
 static bool __init efi_virtmap_init(void)
 {
 	efi_memory_desc_t *md;
