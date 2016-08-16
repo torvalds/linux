@@ -715,12 +715,16 @@ xfs_iomap_write_allocate(
 		 * is in the delayed allocation extent on which we sit
 		 * but before our buffer starts.
 		 */
-
 		nimaps = 0;
 		while (nimaps == 0) {
 			nres = XFS_EXTENTADD_SPACE_RES(mp, XFS_DATA_FORK);
-
-			error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, nres,
+			/*
+			 * We have already reserved space for the extent and any
+			 * indirect blocks when creating the delalloc extent,
+			 * there is no need to reserve space in this transaction
+			 * again.
+			 */
+			error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, 0,
 					0, XFS_TRANS_RESERVE, &tp);
 			if (error)
 				return error;
