@@ -543,6 +543,19 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 
 	interlaced = !!(adj->flags & DRM_MODE_FLAG_INTERLACE);
 
+	val = CFG_GRA_ENA | CFG_GRA_HSMOOTH;
+	val |= CFG_GRA_FMT(drm_fb_to_armada_fb(dcrtc->crtc.primary->fb)->fmt);
+	val |= CFG_GRA_MOD(drm_fb_to_armada_fb(dcrtc->crtc.primary->fb)->mod);
+
+	if (drm_fb_to_armada_fb(dcrtc->crtc.primary->fb)->fmt > CFG_420)
+		val |= CFG_PALETTE_ENA;
+
+	drm_to_armada_plane(crtc->primary)->state.ctrl0 = val;
+	drm_to_armada_plane(crtc->primary)->state.src_hw =
+	drm_to_armada_plane(crtc->primary)->state.dst_hw =
+		adj->crtc_hdisplay << 16 | adj->crtc_vdisplay;
+	drm_to_armada_plane(crtc->primary)->state.dst_yx = 0;
+
 	i = armada_drm_crtc_calc_fb(dcrtc->crtc.primary->fb,
 				    x, y, regs, interlaced);
 
@@ -621,8 +634,12 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 	val = adj->crtc_vdisplay << 16 | adj->crtc_hdisplay;
 
 	armada_reg_queue_set(regs, i, val, LCD_SPU_V_H_ACTIVE);
-	armada_reg_queue_set(regs, i, val, LCD_SPU_GRA_HPXL_VLN);
-	armada_reg_queue_set(regs, i, val, LCD_SPU_GZM_HPXL_VLN);
+	armada_reg_queue_set(regs, i,
+			     drm_to_armada_plane(crtc->primary)->state.src_hw,
+			     LCD_SPU_GRA_HPXL_VLN);
+	armada_reg_queue_set(regs, i,
+			     drm_to_armada_plane(crtc->primary)->state.dst_hw,
+			     LCD_SPU_GZM_HPXL_VLN);
 	armada_reg_queue_set(regs, i, (lm << 16) | rm, LCD_SPU_H_PORCH);
 	armada_reg_queue_set(regs, i, dcrtc->v[0].spu_v_porch, LCD_SPU_V_PORCH);
 	armada_reg_queue_set(regs, i, dcrtc->v[0].spu_v_h_total,
@@ -634,13 +651,7 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 				     ADV_VSYNCOFFEN, LCD_SPU_ADV_REG);
 	}
 
-	val = CFG_GRA_ENA | CFG_GRA_HSMOOTH;
-	val |= CFG_GRA_FMT(drm_fb_to_armada_fb(dcrtc->crtc.primary->fb)->fmt);
-	val |= CFG_GRA_MOD(drm_fb_to_armada_fb(dcrtc->crtc.primary->fb)->mod);
-
-	if (drm_fb_to_armada_fb(dcrtc->crtc.primary->fb)->fmt > CFG_420)
-		val |= CFG_PALETTE_ENA;
-
+	val = drm_to_armada_plane(crtc->primary)->state.ctrl0;
 	if (interlaced)
 		val |= CFG_GRA_FTOGGLE;
 
