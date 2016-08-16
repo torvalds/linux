@@ -697,3 +697,20 @@ int hwmgr_set_user_specify_caps(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+int phm_get_voltage_evv_on_sclk(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
+				uint32_t sclk, uint16_t id, uint16_t *voltage)
+{
+	uint32_t vol;
+	int ret = 0;
+
+	if (hwmgr->chip_id < CHIP_POLARIS10) {
+		atomctrl_get_voltage_evv_on_sclk(hwmgr, voltage_type, sclk, id, voltage);
+		if (*voltage >= 2000 || *voltage == 0)
+			*voltage = 1150;
+	} else {
+		ret = atomctrl_get_voltage_evv_on_sclk_ai(hwmgr, voltage_type, sclk, id, &vol);
+		*voltage = (uint16_t)vol/100;
+	}
+	return ret;
+}
+

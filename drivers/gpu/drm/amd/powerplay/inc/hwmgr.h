@@ -697,6 +697,9 @@ extern int phm_hwmgr_backend_fini(struct pp_hwmgr *hwmgr);
 extern uint32_t phm_get_lowest_enabled_level(struct pp_hwmgr *hwmgr, uint32_t mask);
 extern void phm_apply_dal_min_voltage_request(struct pp_hwmgr *hwmgr);
 
+extern int phm_get_voltage_evv_on_sclk(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
+				uint32_t sclk, uint16_t id, uint16_t *voltage);
+
 #define PHM_ENTIRE_REGISTER_MASK 0xFFFFFFFFU
 
 #define PHM_FIELD_SHIFT(reg, field) reg##__##field##__SHIFT
