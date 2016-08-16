@@ -66,8 +66,8 @@ static int dwc3_ulpi_write(struct device *dev, u8 addr, u8 val)
 }
 
 static struct ulpi_ops dwc3_ulpi_ops = {
-	.read_dev = dwc3_ulpi_read,
-	.write_dev = dwc3_ulpi_write,
+	.read = dwc3_ulpi_read,
+	.write = dwc3_ulpi_write,
 };
 
 int dwc3_ulpi_init(struct dwc3 *dwc)
