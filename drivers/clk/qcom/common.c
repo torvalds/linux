@@ -27,8 +27,8 @@
 
 struct qcom_cc {
 	struct qcom_reset_controller reset;
-	struct clk_onecell_data data;
-	struct clk *clks[];
+	struct clk_regmap **rclks;
+	size_t num_rclks;
 };
 
 const
@@ -102,8 +102,8 @@ static int _qcom_cc_register_board_clk(struct device *dev, const char *path,
 	struct device_node *clocks_node;
 	struct clk_fixed_factor *factor;
 	struct clk_fixed_rate *fixed;
-	struct clk *clk;
 	struct clk_init_data init_data = { };
+	int ret;
 
 	clocks_node = of_find_node_by_path("/clocks");
 	if (clocks_node)
@@ -121,9 +121,9 @@ static int _qcom_cc_register_board_clk(struct device *dev, const char *path,
 		init_data.name = path;
 		init_data.ops = &clk_fixed_rate_ops;
 
-		clk = devm_clk_register(dev, &fixed->hw);
-		if (IS_ERR(clk))
-			return PTR_ERR(clk);
+		ret = devm_clk_hw_register(dev, &fixed->hw);
+		if (ret)
+			return ret;
 	}
 	of_node_put(node);
 
@@ -141,9 +141,9 @@ static int _qcom_cc_register_board_clk(struct device *dev, const char *path,
 		init_data.flags = 0;
 		init_data.ops = &clk_fixed_factor_ops;
 
-		clk = devm_clk_register(dev, &factor->hw);
-		if (IS_ERR(clk))
-			return PTR_ERR(clk);
+		ret = devm_clk_hw_register(dev, &factor->hw);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -174,42 +174,48 @@ int qcom_cc_register_sleep_clk(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(qcom_cc_register_sleep_clk);
 
+static struct clk_hw *qcom_cc_clk_hw_get(struct of_phandle_args *clkspec,
+					 void *data)
+{
+	struct qcom_cc *cc = data;
+	unsigned int idx = clkspec->args[0];
+
+	if (idx >= cc->num_rclks) {
+		pr_err("%s: invalid index %u\n", __func__, idx);
+		return ERR_PTR(-EINVAL);
+	}
+
+	return cc->rclks[idx] ? &cc->rclks[idx]->hw : ERR_PTR(-ENOENT);
+}
+
 int qcom_cc_really_probe(struct platform_device *pdev,
 			 const struct qcom_cc_desc *desc, struct regmap *regmap)
 {
 	int i, ret;
 	struct device *dev = &pdev->dev;
-	struct clk *clk;
-	struct clk_onecell_data *data;
-	struct clk **clks;
 	struct qcom_reset_controller *reset;
 	struct qcom_cc *cc;
 	struct gdsc_desc *scd;
 	size_t num_clks = desc->num_clks;
 	struct clk_regmap **rclks = desc->clks;
 
-	cc = devm_kzalloc(dev, sizeof(*cc) + sizeof(*clks) * num_clks,
-			  GFP_KERNEL);
+	cc = devm_kzalloc(dev, sizeof(*cc), GFP_KERNEL);
 	if (!cc)
 		return -ENOMEM;
 
-	clks = cc->clks;
-	data = &cc->data;
-	data->clks = clks;
-	data->clk_num = num_clks;
+	cc->rclks = rclks;
+	cc->num_rclks = num_clks;
 
 	for (i = 0; i < num_clks; i++) {
-		if (!rclks[i]) {
-			clks[i] = ERR_PTR(-ENOENT);
+		if (!rclks[i])
 			continue;
-		}
-		clk = devm_clk_register_regmap(dev, rclks[i]);
-		if (IS_ERR(clk))
-			return PTR_ERR(clk);
-		clks[i] = clk;
+
+		ret = devm_clk_register_regmap(dev, rclks[i]);
+		if (ret)
+			return ret;
 	}
 
-	ret = of_clk_add_provider(dev->of_node, of_clk_src_onecell_get, data);
+	ret = of_clk_add_hw_provider(dev->of_node, qcom_cc_clk_hw_get, cc);
 	if (ret)
 		return ret;
 

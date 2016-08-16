@@ -1686,7 +1686,7 @@ static int gcc_mdm9615_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct regmap *regmap;
-	struct clk *clk;
+	int ret;
 	int i;
 
 	regmap = qcom_cc_map(pdev, &gcc_mdm9615_desc);
@@ -1694,9 +1694,9 @@ static int gcc_mdm9615_probe(struct platform_device *pdev)
 		return PTR_ERR(regmap);
 
 	for (i = 0; i < ARRAY_SIZE(gcc_mdm9615_hws); i++) {
-		clk = devm_clk_register(dev, gcc_mdm9615_hws[i]);
-		if (IS_ERR(clk))
-			return PTR_ERR(clk);
+		ret = devm_clk_hw_register(dev, gcc_mdm9615_hws[i]);
+		if (ret)
+			return ret;
 	}
 
 	return qcom_cc_really_probe(pdev, &gcc_mdm9615_desc, regmap);
