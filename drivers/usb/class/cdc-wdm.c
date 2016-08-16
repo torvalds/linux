@@ -171,15 +171,15 @@ static void wdm_in_callback(struct urb *urb)
 		switch (status) {
 		case -ENOENT:
 			dev_dbg(&desc->intf->dev,
-				"nonzero urb status received: -ENOENT");
+				"nonzero urb status received: -ENOENT\n");
 			goto skip_error;
 		case -ECONNRESET:
 			dev_dbg(&desc->intf->dev,
-				"nonzero urb status received: -ECONNRESET");
+				"nonzero urb status received: -ECONNRESET\n");
 			goto skip_error;
 		case -ESHUTDOWN:
 			dev_dbg(&desc->intf->dev,
-				"nonzero urb status received: -ESHUTDOWN");
+				"nonzero urb status received: -ESHUTDOWN\n");
 			goto skip_error;
 		case -EPIPE:
 			dev_dbg(&desc->intf->dev,
@@ -284,18 +284,18 @@ static void wdm_int_callback(struct urb *urb)
 	switch (dr->bNotificationType) {
 	case USB_CDC_NOTIFY_RESPONSE_AVAILABLE:
 		dev_dbg(&desc->intf->dev,
-			"NOTIFY_RESPONSE_AVAILABLE received: index %d len %d",
+			"NOTIFY_RESPONSE_AVAILABLE received: index %d len %d\n",
 			le16_to_cpu(dr->wIndex), le16_to_cpu(dr->wLength));
 		break;
 
 	case USB_CDC_NOTIFY_NETWORK_CONNECTION:
 
 		dev_dbg(&desc->intf->dev,
-			"NOTIFY_NETWORK_CONNECTION %s network",
+			"NOTIFY_NETWORK_CONNECTION %s network\n",
 			dr->wValue ? "connected to" : "disconnected from");
 		goto exit;
 	case USB_CDC_NOTIFY_SPEED_CHANGE:
-		dev_dbg(&desc->intf->dev, "SPEED_CHANGE received (len %u)",
+		dev_dbg(&desc->intf->dev, "SPEED_CHANGE received (len %u)\n",
 			urb->actual_length);
 		goto exit;
 	default:
@@ -314,7 +314,7 @@ static void wdm_int_callback(struct urb *urb)
 		&& !test_bit(WDM_DISCONNECTING, &desc->flags)
 		&& !test_bit(WDM_SUSPENDING, &desc->flags)) {
 		rv = usb_submit_urb(desc->response, GFP_ATOMIC);
-		dev_dbg(&desc->intf->dev, "submit response URB %d", rv);
+		dev_dbg(&desc->intf->dev, "submit response URB %d\n", rv);
 	}
 	spin_unlock(&desc->iuspin);
 	if (rv < 0) {
@@ -456,7 +456,7 @@ static ssize_t wdm_write
 		rv = usb_translate_errors(rv);
 		goto out_free_mem_pm;
 	} else {
-		dev_dbg(&desc->intf->dev, "Tx URB has been submitted index=%d",
+		dev_dbg(&desc->intf->dev, "Tx URB has been submitted index=%d\n",
 			le16_to_cpu(req->wIndex));
 	}
 
@@ -573,7 +573,7 @@ retry:
 		}
 
 		if (!desc->reslength) { /* zero length read */
-			dev_dbg(&desc->intf->dev, "zero length - clearing WDM_READ");
+			dev_dbg(&desc->intf->dev, "zero length - clearing WDM_READ\n");
 			clear_bit(WDM_READ, &desc->flags);
 			rv = service_outstanding_interrupt(desc);
 			spin_unlock_irq(&desc->iuspin);
@@ -723,7 +723,7 @@ static int wdm_release(struct inode *inode, struct file *file)
 
 	if (!desc->count) {
 		if (!test_bit(WDM_DISCONNECTING, &desc->flags)) {
-			dev_dbg(&desc->intf->dev, "wdm_release: cleanup");
+			dev_dbg(&desc->intf->dev, "wdm_release: cleanup\n");
 			kill_urbs(desc);
 			spin_lock_irq(&desc->iuspin);
 			desc->resp_count = 0;
