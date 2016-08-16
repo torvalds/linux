@@ -166,6 +166,8 @@
 #define PCLK_DDRUPCTL1		366
 #define PCLK_PUBL1		367
 #define PCLK_WDT		368
+#define PCLK_EFUSE256		369
+#define PCLK_EFUSE1024		370
 
 /* hclk gates */
 #define HCLK_GPS		448
