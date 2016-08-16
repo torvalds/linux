@@ -2936,7 +2936,29 @@ enum obd_cmd {
 };
 #define OBD_FIRST_OPC OBD_PING
 
-/* catalog of log objects */
+/**
+ * llog contexts indices.
+ *
+ * There is compatibility problem with indexes below, they are not
+ * continuous and must keep their numbers for compatibility needs.
+ * See LU-5218 for details.
+ */
+enum llog_ctxt_id {
+	LLOG_CONFIG_ORIG_CTXT  =  0,
+	LLOG_CONFIG_REPL_CTXT = 1,
+	LLOG_MDS_OST_ORIG_CTXT = 2,
+	LLOG_MDS_OST_REPL_CTXT = 3, /* kept just to avoid re-assignment */
+	LLOG_SIZE_ORIG_CTXT = 4,
+	LLOG_SIZE_REPL_CTXT = 5,
+	LLOG_TEST_ORIG_CTXT = 8,
+	LLOG_TEST_REPL_CTXT = 9, /* kept just to avoid re-assignment */
+	LLOG_CHANGELOG_ORIG_CTXT = 12, /**< changelog generation on mdd */
+	LLOG_CHANGELOG_REPL_CTXT = 13, /**< changelog access on clients */
+	/* for multiple changelog consumers */
+	LLOG_CHANGELOG_USER_ORIG_CTXT = 14,
+	LLOG_AGENT_ORIG_CTXT = 15, /**< agent requests generation on cdt */
+	LLOG_MAX_CTXTS
+};
 
 /** Identifier for a single log object */
 struct llog_logid {
