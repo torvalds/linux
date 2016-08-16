@@ -147,6 +147,18 @@ lsm_name_to_stripe_info(const struct lmv_stripe_md *lsm, const char *name,
 	return &lsm->lsm_md_oinfo[stripe_index];
 }
 
+static inline bool lmv_is_known_hash_type(const struct lmv_stripe_md *lsm)
+{
+	return lsm->lsm_md_hash_type == LMV_HASH_TYPE_FNV_1A_64 ||
+	       lsm->lsm_md_hash_type == LMV_HASH_TYPE_ALL_CHARS;
+}
+
+static inline bool lmv_need_try_all_stripes(const struct lmv_stripe_md *lsm)
+{
+	return !lmv_is_known_hash_type(lsm) ||
+	       lsm->lsm_md_hash_type & LMV_HASH_FLAG_MIGRATION;
+}
+
 struct lmv_tgt_desc
 *lmv_locate_mds(struct lmv_obd *lmv, struct md_op_data *op_data,
 		struct lu_fid *fid);
