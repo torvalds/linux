@@ -55,13 +55,6 @@ int __lmv_fid_alloc(struct lmv_obd *lmv, struct lu_fid *fid, u32 mds);
 int lmv_fid_alloc(struct obd_export *exp, struct lu_fid *fid,
 		  struct md_op_data *op_data);
 
-static inline int lmv_get_easize(struct lmv_obd *lmv)
-{
-	return sizeof(struct lmv_stripe_md) +
-		lmv->desc.ld_tgt_count *
-		sizeof(struct lu_fid);
-}
-
 static inline struct lmv_tgt_desc *
 lmv_get_target(struct lmv_obd *lmv, u32 mds)
 {

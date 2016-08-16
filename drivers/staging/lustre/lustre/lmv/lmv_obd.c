@@ -558,7 +558,7 @@ int lmv_check_connect(struct obd_device *obd)
 	lmv_set_timeouts(obd);
 	class_export_put(lmv->exp);
 	lmv->connected = 1;
-	easize = lmv_get_easize(lmv);
+	easize = lmv_mds_md_size(lmv->desc.ld_tgt_count, LMV_MAGIC);
 	lmv_init_ea_size(obd->obd_self_export, easize, 0, 0, 0);
 	mutex_unlock(&lmv->lmv_init_mutex);
 	return 0;
