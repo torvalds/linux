@@ -64,35 +64,56 @@ int lmv_revalidate_slaves(struct obd_export *exp, struct mdt_body *mbody,
 			  int extra_lock_flags);
 
 static inline struct lmv_tgt_desc *
-lmv_get_target(struct lmv_obd *lmv, u32 mds)
+lmv_get_target(struct lmv_obd *lmv, u32 mdt_idx, int *index)
 {
-	int count = lmv->desc.ld_tgt_count;
 	int i;
 
-	for (i = 0; i < count; i++) {
+	for (i = 0; i < lmv->desc.ld_tgt_count; i++) {
 		if (!lmv->tgts[i])
 			continue;
 
-		if (lmv->tgts[i]->ltd_idx == mds)
+		if (lmv->tgts[i]->ltd_idx == mdt_idx) {
+			if (index)
+				*index = i;
 			return lmv->tgts[i];
+		}
 	}
 
 	return ERR_PTR(-ENODEV);
 }
 
+static inline int
+lmv_find_target_index(struct lmv_obd *lmv, const struct lu_fid *fid)
+{
+	struct lmv_tgt_desc *ltd;
+	u32 mdt_idx = 0;
+	int index = 0;
+
+	if (lmv->desc.ld_tgt_count > 1) {
+		int rc;
+
+		rc = lmv_fld_lookup(lmv, fid, &mdt_idx);
+		if (rc < 0)
+			return rc;
+	}
+
+	ltd = lmv_get_target(lmv, mdt_idx, &index);
+	if (IS_ERR(ltd))
+		return PTR_ERR(ltd);
+
+	return index;
+}
+
 static inline struct lmv_tgt_desc *
 lmv_find_target(struct lmv_obd *lmv, const struct lu_fid *fid)
 {
-	u32 mds = 0;
-	int rc;
+	int index;
 
-	if (lmv->desc.ld_tgt_count > 1) {
-		rc = lmv_fld_lookup(lmv, fid, &mds);
-		if (rc)
-			return ERR_PTR(rc);
-	}
+	index = lmv_find_target_index(lmv, fid);
+	if (index < 0)
+		return ERR_PTR(index);
 
-	return lmv_get_target(lmv, mds);
+	return lmv->tgts[index];
 }
 
 static inline int lmv_stripe_md_size(int stripe_count)
