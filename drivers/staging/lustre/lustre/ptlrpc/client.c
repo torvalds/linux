@@ -1630,8 +1630,10 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 			    req->rq_waiting || req->rq_wait_ctx) {
 				int status;
 
-				if (!ptlrpc_unregister_reply(req, 1))
+				if (!ptlrpc_unregister_reply(req, 1)) {
+					ptlrpc_unregister_bulk(req, 1);
 					continue;
+				}
 
 				spin_lock(&imp->imp_lock);
 				if (ptlrpc_import_delay_req(imp, req,
