@@ -1419,7 +1419,7 @@ static int lmv_process_config(struct obd_device *obd, u32 len, void *buf)
 
 		obd_str2uuid(&obd_uuid,  lustre_cfg_buf(lcfg, 1));
 
-		if (sscanf(lustre_cfg_buf(lcfg, 2), "%d", &index) != 1) {
+		if (sscanf(lustre_cfg_buf(lcfg, 2), "%u", &index) != 1) {
 			rc = -EINVAL;
 			goto out;
 		}

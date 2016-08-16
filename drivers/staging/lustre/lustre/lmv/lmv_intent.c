@@ -137,8 +137,10 @@ static int lmv_intent_remote(struct obd_export *exp, void *lmm,
 		it->it_remote_lock_mode = it->it_lock_mode;
 	}
 
-	it->it_lock_handle = plock.cookie;
-	it->it_lock_mode = pmode;
+	if (pmode) {
+		it->it_lock_handle = plock.cookie;
+		it->it_lock_mode = pmode;
+	}
 
 out_free_op_data:
 	kfree(op_data);
