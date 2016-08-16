@@ -7865,6 +7865,7 @@ void md_do_sync(struct md_thread *thread)
 	 */
 
 	do {
+		int mddev2_minor = -1;
 		mddev->curr_resync = 2;
 
 	try_again:
@@ -7894,10 +7895,14 @@ void md_do_sync(struct md_thread *thread)
 				prepare_to_wait(&resync_wait, &wq, TASK_INTERRUPTIBLE);
 				if (!test_bit(MD_RECOVERY_INTR, &mddev->recovery) &&
 				    mddev2->curr_resync >= mddev->curr_resync) {
-					printk(KERN_INFO "md: delaying %s of %s"
-					       " until %s has finished (they"
-					       " share one or more physical units)\n",
-					       desc, mdname(mddev), mdname(mddev2));
+					if (mddev2_minor != mddev2->md_minor) {
+						mddev2_minor = mddev2->md_minor;
+						printk(KERN_INFO "md: delaying %s of %s"
+						       " until %s has finished (they"
+						       " share one or more physical units)\n",
+						       desc, mdname(mddev),
+						       mdname(mddev2));
+					}
 					mddev_put(mddev2);
 					if (signal_pending(current))
 						flush_signals(current);
