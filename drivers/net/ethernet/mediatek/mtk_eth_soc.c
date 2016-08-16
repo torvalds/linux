@@ -245,12 +245,16 @@ static int mtk_phy_connect(struct mtk_mac *mac)
 	case PHY_INTERFACE_MODE_MII:
 		ge_mode = 1;
 		break;
-	case PHY_INTERFACE_MODE_RMII:
+	case PHY_INTERFACE_MODE_REVMII:
 		ge_mode = 2;
 		break;
+	case PHY_INTERFACE_MODE_RMII:
+		if (!mac->id)
+			goto err_phy;
+		ge_mode = 3;
+		break;
 	default:
-		dev_err(eth->dev, "invalid phy_mode\n");
-		return -1;
+		goto err_phy;
 	}
 
 	/* put the gmac into the right mode */
@@ -272,6 +276,11 @@ static int mtk_phy_connect(struct mtk_mac *mac)
 	of_node_put(np);
 
 	return 0;
+
+err_phy:
+	of_node_put(np);
+	dev_err(eth->dev, "invalid phy_mode\n");
+	return -EINVAL;
 }
 
 static int mtk_mdio_init(struct mtk_eth *eth)
