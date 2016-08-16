@@ -916,12 +916,20 @@ void irq_remove_generic_chip(struct irq_chip_generic *gc, u32 msk,
 			     unsigned int clr, unsigned int set);
 
 struct irq_chip_generic *irq_get_domain_generic_chip(struct irq_domain *d, unsigned int hw_irq);
-int irq_alloc_domain_generic_chips(struct irq_domain *d, int irqs_per_chip,
-				   int num_ct, const char *name,
-				   irq_flow_handler_t handler,
-				   unsigned int clr, unsigned int set,
-				   enum irq_gc_flags flags);
 
+int __irq_alloc_domain_generic_chips(struct irq_domain *d, int irqs_per_chip,
+				     int num_ct, const char *name,
+				     irq_flow_handler_t handler,
+				     unsigned int clr, unsigned int set,
+				     enum irq_gc_flags flags);
+
+#define irq_alloc_domain_generic_chips(d, irqs_per_chip, num_ct, name,	\
+				       handler,	clr, set, flags)	\
+({									\
+	MAYBE_BUILD_BUG_ON(irqs_per_chip > 32);				\
+	__irq_alloc_domain_generic_chips(d, irqs_per_chip, num_ct, name,\
+					 handler, clr, set, flags);	\
+})
 
 static inline struct irq_chip_type *irq_data_get_chip_type(struct irq_data *d)
 {

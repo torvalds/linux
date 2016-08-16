@@ -260,9 +260,9 @@ irq_gc_init_mask_cache(struct irq_chip_generic *gc, enum irq_gc_flags flags)
 }
 
 /**
- * irq_alloc_domain_generic_chip - Allocate generic chips for an irq domain
+ * __irq_alloc_domain_generic_chip - Allocate generic chips for an irq domain
  * @d:			irq domain for which to allocate chips
- * @irqs_per_chip:	Number of interrupts each chip handles
+ * @irqs_per_chip:	Number of interrupts each chip handles (max 32)
  * @num_ct:		Number of irq_chip_type instances associated with this
  * @name:		Name of the irq chip
  * @handler:		Default flow handler associated with these chips
@@ -270,11 +270,11 @@ irq_gc_init_mask_cache(struct irq_chip_generic *gc, enum irq_gc_flags flags)
  * @set:		IRQ_* bits to set in the mapping function
  * @gcflags:		Generic chip specific setup flags
  */
-int irq_alloc_domain_generic_chips(struct irq_domain *d, int irqs_per_chip,
-				   int num_ct, const char *name,
-				   irq_flow_handler_t handler,
-				   unsigned int clr, unsigned int set,
-				   enum irq_gc_flags gcflags)
+int __irq_alloc_domain_generic_chips(struct irq_domain *d, int irqs_per_chip,
+				     int num_ct, const char *name,
+				     irq_flow_handler_t handler,
+				     unsigned int clr, unsigned int set,
+				     enum irq_gc_flags gcflags)
 {
 	struct irq_domain_chip_generic *dgc;
 	struct irq_chip_generic *gc;
@@ -326,7 +326,7 @@ int irq_alloc_domain_generic_chips(struct irq_domain *d, int irqs_per_chip,
 	d->name = name;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(irq_alloc_domain_generic_chips);
+EXPORT_SYMBOL_GPL(__irq_alloc_domain_generic_chips);
 
 static struct irq_chip_generic *
 __irq_get_domain_generic_chip(struct irq_domain *d, unsigned int hw_irq)
