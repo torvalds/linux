@@ -65,7 +65,7 @@ static int dwc3_ulpi_write(struct device *dev, u8 addr, u8 val)
 	return dwc3_ulpi_busyloop(dwc);
 }
 
-static struct ulpi_ops dwc3_ulpi_ops = {
+static const struct ulpi_ops dwc3_ulpi_ops = {
 	.read = dwc3_ulpi_read,
 	.write = dwc3_ulpi_write,
 };
