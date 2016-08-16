@@ -489,20 +489,8 @@ int dwc2_core_reset(struct dwc2_hsotg *hsotg)
 
 	dev_vdbg(hsotg->dev, "%s()\n", __func__);
 
-	/* Wait for AHB master IDLE state */
-	do {
-		udelay(1);
-		greset = dwc2_readl(hsotg->regs + GRSTCTL);
-		if (++count > 50) {
-			dev_warn(hsotg->dev,
-				 "%s() HANG! AHB Idle GRSTCTL=%0x\n",
-				 __func__, greset);
-			return -EBUSY;
-		}
-	} while (!(greset & GRSTCTL_AHBIDLE));
-
 	/* Core Soft Reset */
-	count = 0;
+	greset = dwc2_readl(hsotg->regs + GRSTCTL);
 	greset |= GRSTCTL_CSFTRST;
 	dwc2_writel(greset, hsotg->regs + GRSTCTL);
 	do {
@@ -515,6 +503,19 @@ int dwc2_core_reset(struct dwc2_hsotg *hsotg)
 			return -EBUSY;
 		}
 	} while (greset & GRSTCTL_CSFTRST);
+
+	/* Wait for AHB master IDLE state */
+	count = 0;
+	do {
+		udelay(1);
+		greset = dwc2_readl(hsotg->regs + GRSTCTL);
+		if (++count > 50) {
+			dev_warn(hsotg->dev,
+				 "%s() HANG! AHB Idle GRSTCTL=%0x\n",
+				 __func__, greset);
+			return -EBUSY;
+		}
+	} while (!(greset & GRSTCTL_AHBIDLE));
 
 	if (hsotg->dr_mode == USB_DR_MODE_HOST) {
 		gusbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
