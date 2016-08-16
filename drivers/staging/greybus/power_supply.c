@@ -45,6 +45,7 @@ struct gb_power_supply {
 	u8				properties_count;
 	u8				properties_count_str;
 	unsigned long			last_update;
+	u8				cache_invalid;
 	unsigned int			update_interval;
 	bool				changed;
 	struct gb_power_supply_prop	*props;
@@ -636,15 +637,28 @@ static int _gb_power_supply_property_get(struct gb_power_supply *gbpsy,
 	return 0;
 }
 
+static int is_cache_valid(struct gb_power_supply *gbpsy)
+{
+	/* check if cache is good enough or it has expired */
+	if (gbpsy->cache_invalid) {
+		gbpsy->cache_invalid = 0;
+		return 0;
+	}
+
+	if (gbpsy->last_update &&
+	    time_is_after_jiffies(gbpsy->last_update +
+				  msecs_to_jiffies(cache_time)))
+		return 1;
+
+	return 0;
+}
+
 static int gb_power_supply_status_get(struct gb_power_supply *gbpsy)
 {
 	int ret = 0;
 	int i;
 
-	/* check if cache is good enough */
-	if (gbpsy->last_update &&
-	    time_is_after_jiffies(gbpsy->last_update +
-				  msecs_to_jiffies(cache_time)))
+	if (is_cache_valid(gbpsy))
 		return 0;
 
 	for (i = 0; i < gbpsy->properties_count; i++) {
@@ -987,8 +1001,15 @@ static int gb_supplies_request_handler(struct gb_operation *op)
 		goto out_unlock;
 	}
 
-	if (event & GB_POWER_SUPPLY_UPDATE)
+	if (event & GB_POWER_SUPPLY_UPDATE) {
+		/*
+		 * we need to make sure we invalidate cache, if not no new
+		 * values for the properties will be fetch and the all propose
+		 * of this event is missed
+		 */
+		gbpsy->cache_invalid = 1;
 		gb_power_supply_status_update(gbpsy);
+	}
 
 out_unlock:
 	mutex_unlock(&supplies->supplies_lock);
