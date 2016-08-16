@@ -651,8 +651,6 @@ static int dspi_probe(struct platform_device *pdev)
 	struct resource *res;
 	void __iomem *base;
 	int ret = 0, cs_num, bus_num;
-	const struct of_device_id *of_id =
-			of_match_device(fsl_dspi_dt_ids, &pdev->dev);
 
 	master = spi_alloc_master(&pdev->dev, sizeof(struct fsl_dspi));
 	if (!master)
@@ -686,7 +684,7 @@ static int dspi_probe(struct platform_device *pdev)
 	}
 	master->bus_num = bus_num;
 
-	dspi->devtype_data = of_id->data;
+	dspi->devtype_data = of_device_get_match_data(&pdev->dev);
 	if (!dspi->devtype_data) {
 		dev_err(&pdev->dev, "can't get devtype_data\n");
 		ret = -EFAULT;
