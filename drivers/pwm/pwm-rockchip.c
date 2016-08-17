@@ -89,6 +89,7 @@ static void rockchip_pwm_set_enable_v2(struct pwm_chip *chip,
 		enable_conf |= PWM_DUTY_POSITIVE | PWM_INACTIVE_NEGATIVE;
 
 	val = readl_relaxed(pc->base + pc->data->regs.ctrl);
+	val &= ~(GENMASK(5, 0) | BIT(8));
 
 	if (enable)
 		val |= enable_conf;
