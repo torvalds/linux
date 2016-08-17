@@ -146,10 +146,12 @@ static acpi_status handle_ioapic_add(acpi_handle handle, u32 lvl,
 
 	crs_res = &ioapic->res;
 	acpi_walk_resources(handle, METHOD_NAME__CRS, setup_res, crs_res);
+	crs_res->name = type;
+	crs_res->flags |= IORESOURCE_BUSY;
 	if (crs_res->flags == 0) {
 		acpi_handle_warn(handle, "failed to get resource\n");
 		goto exit_release;
-	} else if (request_resource(&iomem_resource, crs_res)) {
+	} else if (insert_resource(&iomem_resource, crs_res)) {
 		acpi_handle_warn(handle, "failed to insert resource\n");
 		goto exit_release;
 	}
