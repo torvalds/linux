@@ -3075,19 +3075,25 @@ static int win_2_3_set_par(struct vop_device *vop_dev,
 				fmt_cfg = 2;
 				swap_rb = 0;
 				win->fmt_10 = 0;
-				win->area[0].fbdc_fmt_cfg = 0x05;
+				win->area[0].fbdc_fmt_cfg = AFBDC_FMT_RGB565;
 				break;
 			case FBDC_ARGB_888:
 				fmt_cfg = 0;
+				swap_rb = 1;
+				win->fmt_10 = 0;
+				win->area[0].fbdc_fmt_cfg = AFBDC_FMT_U8U8U8U8;
+				break;
+			case FBDC_ABGR_888:
+				fmt_cfg = 0;
 				swap_rb = 0;
 				win->fmt_10 = 0;
-				win->area[0].fbdc_fmt_cfg = 0x0c;
+				win->area[0].fbdc_fmt_cfg = AFBDC_FMT_U8U8U8U8;
 				break;
 			case FBDC_RGBX_888:
 				fmt_cfg = 0;
 				swap_rb = 0;
 				win->fmt_10 = 0;
-				win->area[0].fbdc_fmt_cfg = 0x3a;
+				win->area[0].fbdc_fmt_cfg = AFBDC_FMT_U8U8U8U8;
 				break;
 			case ARGB888:
 				fmt_cfg = 0;
