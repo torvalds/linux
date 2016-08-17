@@ -860,6 +860,9 @@ static int validate_region_size(struct raid_set *rs, unsigned long region_size)
 {
 	unsigned long min_region_size = rs->ti->len / (1 << 21);
 
+	if (rs_is_raid0(rs))
+		return 0;
+
 	if (!region_size) {
 		/*
 		 * Choose a reasonable default.	 All figures in sectors.
@@ -929,6 +932,8 @@ static int validate_raid_redundancy(struct raid_set *rs)
 			rebuild_cnt++;
 
 	switch (rs->raid_type->level) {
+	case 0:
+		break;
 	case 1:
 		if (rebuild_cnt >= rs->md.raid_disks)
 			goto too_many;
@@ -2334,6 +2339,13 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 		case 0:
 			break;
 		default:
+			/*
+			 * We have to keep any raid0 data/metadata device pairs or
+			 * the MD raid0 personality will fail to start the array.
+			 */
+			if (rs_is_raid0(rs))
+				continue;
+
 			dev = container_of(rdev, struct raid_dev, rdev);
 			if (dev->meta_dev)
 				dm_put_device(ti, dev->meta_dev);
