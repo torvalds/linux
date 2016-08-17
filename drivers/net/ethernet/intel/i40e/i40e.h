@@ -120,10 +120,6 @@
 #define I40E_CURRENT_NVM_VERSION_HI 0x2
 #define I40E_CURRENT_NVM_VERSION_LO 0x40
 
-/* magic for getting defines into strings */
-#define STRINGIFY(foo)  #foo
-#define XSTRINGIFY(bar) STRINGIFY(bar)
-
 #define I40E_RX_DESC(R, i)			\
 	(&(((union i40e_32byte_rx_desc *)((R)->desc))[i]))
 #define I40E_TX_DESC(R, i)			\
