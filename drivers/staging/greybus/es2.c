@@ -46,15 +46,6 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 #define APB1_LOG_SIZE		SZ_16K
 
-/* Number of bulk in and bulk out couple */
-#define NUM_BULKS		1
-
-/* Expected number of bulk out endpoints */
-#define NUM_BULKS_OUT		NUM_BULKS
-
-/* Expected number of bulk in endpoints (including ARPC endpoint) */
-#define NUM_BULKS_IN		(NUM_BULKS + 1)
-
 /*
  * Number of CPort IN urbs in flight at any point in time.
  * Adjust if we are having stalls in the USB buffer due to not enough urbs in
@@ -65,7 +56,7 @@ MODULE_DEVICE_TABLE(usb, id_table);
 /* Number of CPort OUT urbs in flight at any point in time.
  * Adjust if we get messages saying we are out of urbs in the system log.
  */
-#define NUM_CPORT_OUT_URB	(8 * NUM_BULKS)
+#define NUM_CPORT_OUT_URB	8
 
 /*
  * Number of ARPC in urbs in flight at any point in time.
