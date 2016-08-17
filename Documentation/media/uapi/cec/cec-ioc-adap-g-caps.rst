@@ -44,6 +44,8 @@ returns the information to the application. The ioctl never fails.
 
 .. _cec-caps:
 
+.. tabularcolumns:: |p{1.0cm}|p{1.0cm}|p{15.5cm}|
+
 .. flat-table:: struct cec_caps
     :header-rows:  0
     :stub-columns: 0
@@ -88,6 +90,8 @@ returns the information to the application. The ioctl never fails.
 
 
 .. _cec-capabilities:
+
+.. tabularcolumns:: |p{4.4cm}|p{1.5cm}|p{11.6cm}|
 
 .. flat-table:: CEC Capabilities Flags
     :header-rows:  0

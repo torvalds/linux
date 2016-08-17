@@ -51,6 +51,8 @@ information about the try formats.
 
 .. _v4l2-subdev-mbus-code-enum:
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: struct v4l2_subdev_mbus_code_enum
     :header-rows:  0
     :stub-columns: 0

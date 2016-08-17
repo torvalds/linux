@@ -75,6 +75,8 @@ than the number requested.
 
 .. _v4l2-create-buffers:
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: struct v4l2_create_buffers
     :header-rows:  0
     :stub-columns: 0

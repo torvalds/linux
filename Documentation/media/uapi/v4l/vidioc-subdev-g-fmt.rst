@@ -77,6 +77,8 @@ should be as close as possible to the original request.
 
 .. _v4l2-subdev-format:
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: struct v4l2_subdev_format
     :header-rows:  0
     :stub-columns: 0
@@ -121,6 +123,8 @@ should be as close as possible to the original request.
 
 
 .. _v4l2-subdev-format-whence:
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table:: enum v4l2_subdev_format_whence
     :header-rows:  0

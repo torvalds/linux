@@ -58,6 +58,8 @@ introduced in Linux 3.3.
 
 .. _v4l2-decoder-cmd:
 
+.. tabularcolumns:: |p{2.9cm}|p{2.9cm}|p{5.8cm}|p{2.9cm}|p{3.0cm}|
+
 .. flat-table:: struct v4l2_decoder_cmd
     :header-rows:  0
     :stub-columns: 0
@@ -186,6 +188,8 @@ introduced in Linux 3.3.
 
 
 .. _decoder-cmds:
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table:: Decoder Commands
     :header-rows:  0

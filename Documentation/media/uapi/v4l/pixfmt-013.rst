@@ -7,6 +7,8 @@ Compressed Formats
 
 .. _compressed-formats:
 
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
 .. flat-table:: Compressed Image Formats
     :header-rows:  1
     :stub-columns: 0

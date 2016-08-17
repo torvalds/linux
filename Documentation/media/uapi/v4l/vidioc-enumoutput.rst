@@ -44,6 +44,8 @@ EINVAL.
 
 .. _v4l2-output:
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: struct v4l2_output
     :header-rows:  0
     :stub-columns: 0
@@ -140,6 +142,8 @@ EINVAL.
 
 .. _output-type:
 
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
 .. flat-table:: Output Type
     :header-rows:  0
     :stub-columns: 0
@@ -174,6 +178,8 @@ EINVAL.
 
 
 .. _output-capabilities:
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table:: Output capabilities
     :header-rows:  0

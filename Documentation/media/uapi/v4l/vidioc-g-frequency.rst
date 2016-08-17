@@ -54,6 +54,8 @@ write-only ioctl, it does not return the actual new frequency.
 
 .. _v4l2-frequency:
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: struct v4l2_frequency
     :header-rows:  0
     :stub-columns: 0

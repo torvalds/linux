@@ -23,6 +23,8 @@ half the horizontal resolution of the Y component.
 **Byte Order.**
 Each cell is one byte.
 
+.. tabularcolumns:: |p{3.5cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|p{1.4cm}|
+
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0

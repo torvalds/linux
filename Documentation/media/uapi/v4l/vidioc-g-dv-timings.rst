@@ -70,6 +70,8 @@ EBUSY
 
 .. _v4l2-bt-timings:
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: struct v4l2_bt_timings
     :header-rows:  0
     :stub-columns: 0
@@ -223,6 +225,8 @@ EBUSY
 
 .. _v4l2-dv-timings:
 
+.. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{7.0cm}|p{3.5cm}|
+
 .. flat-table:: struct v4l2_dv_timings
     :header-rows:  0
     :stub-columns: 0
@@ -266,6 +270,8 @@ EBUSY
 
 
 .. _dv-timing-types:
+
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table:: DV Timing types
     :header-rows:  0

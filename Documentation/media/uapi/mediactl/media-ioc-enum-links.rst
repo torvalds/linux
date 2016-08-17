@@ -57,6 +57,8 @@ returned during the enumeration process.
 
 .. _media-links-enum:
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: struct media_links_enum
     :header-rows:  0
     :stub-columns: 0
@@ -93,6 +95,8 @@ returned during the enumeration process.
 
 .. _media-pad-desc:
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: struct media_pad_desc
     :header-rows:  0
     :stub-columns: 0
@@ -126,6 +130,8 @@ returned during the enumeration process.
 
 
 .. _media-link-desc:
+
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table:: struct media_link_desc
     :header-rows:  0

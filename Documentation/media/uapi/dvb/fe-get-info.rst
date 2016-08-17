@@ -47,6 +47,8 @@ returns an error.
 struct dvb_frontend_info
 ========================
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: struct dvb_frontend_info
     :header-rows:  0
     :stub-columns: 0

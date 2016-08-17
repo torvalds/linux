@@ -42,6 +42,8 @@ Sends a DiSEqC command to the antenna subsystem.
 struct dvb_diseqc_master_cmd
 ============================
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: struct dvb_diseqc_master_cmd
     :header-rows:  0
     :stub-columns: 0

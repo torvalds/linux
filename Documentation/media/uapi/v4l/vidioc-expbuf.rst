@@ -118,6 +118,8 @@ Examples
 
 .. _v4l2-exportbuffer:
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: struct v4l2_exportbuffer
     :header-rows:  0
     :stub-columns: 0

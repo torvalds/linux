@@ -42,6 +42,8 @@ ioctl never fails.
 
 .. _media-device-info:
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: struct media_device_info
     :header-rows:  0
     :stub-columns: 0

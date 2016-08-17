@@ -45,6 +45,8 @@ of the corresponding tuner/modulator is set.
 
 .. _v4l2-frequency-band:
 
+.. tabularcolumns:: |p{2.9cm}|p{2.9cm}|p{5.8cm}|p{2.9cm}|p{3.0cm}|
+
 .. flat-table:: struct v4l2_frequency_band
     :header-rows:  0
     :stub-columns: 0
@@ -150,6 +152,8 @@ of the corresponding tuner/modulator is set.
 
 
 .. _band-modulation:
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table:: Band Modulation Systems
     :header-rows:  0

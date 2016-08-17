@@ -29,6 +29,8 @@ these pixels can be deinterlaced using
 pixels cross the byte boundary and have a ratio of 3 bytes for each
 interleaved pixel.
 
+.. tabularcolumns:: |p{8.8cm}|p{4.4cm}|p{4.3cm}|
+
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0

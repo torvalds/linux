@@ -46,6 +46,8 @@ or output. [#f1]_
 
 .. _v4l2-standard:
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: struct v4l2_standard
     :header-rows:  0
     :stub-columns: 0
@@ -114,6 +116,8 @@ or output. [#f1]_
 
 .. _v4l2-fract:
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: struct v4l2_fract
     :header-rows:  0
     :stub-columns: 0
@@ -139,6 +143,8 @@ or output. [#f1]_
 
 
 .. _v4l2-std-id:
+
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table:: typedef v4l2_std_id
     :header-rows:  0

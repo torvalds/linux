@@ -57,6 +57,8 @@ encoding. You usually do want to add them.
 
 .. _v4l2-jpegcompression:
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: struct v4l2_jpegcompression
     :header-rows:  0
     :stub-columns: 0
@@ -128,6 +130,8 @@ encoding. You usually do want to add them.
 
 
 .. _jpeg-markers:
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table:: JPEG Markers Flags
     :header-rows:  0

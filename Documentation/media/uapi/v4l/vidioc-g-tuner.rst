@@ -255,6 +255,8 @@ To change the radio frequency the
 
 .. _v4l2-tuner-type:
 
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
 .. flat-table:: enum v4l2_tuner_type
     :header-rows:  0
     :stub-columns: 0
@@ -296,6 +298,8 @@ To change the radio frequency the
 
 
 .. _tuner-capability:
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table:: Tuner and Modulator Capability Flags
     :header-rows:  0
@@ -455,6 +459,8 @@ To change the radio frequency the
 
 .. _tuner-rxsubchans:
 
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
 .. flat-table:: Tuner Audio Reception Flags
     :header-rows:  0
     :stub-columns: 0
@@ -521,6 +527,8 @@ To change the radio frequency the
 
 
 .. _tuner-audmode:
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table:: Tuner Audio Modes
     :header-rows:  0

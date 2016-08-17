@@ -13,6 +13,8 @@ fe_type_t type, defined as:
 
 .. _fe-type:
 
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
 .. flat-table:: Frontend types
     :header-rows:  1
     :stub-columns: 0

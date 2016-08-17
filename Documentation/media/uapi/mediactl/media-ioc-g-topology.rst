@@ -51,6 +51,8 @@ desired arrays with the media graph elements.
 
 .. _media-v2-topology:
 
+.. tabularcolumns:: |p{1.6cm}|p{3.2cm}|p{12.7cm}|
+
 .. flat-table:: struct media_v2_topology
     :header-rows:  0
     :stub-columns: 0
@@ -145,6 +147,8 @@ desired arrays with the media graph elements.
 
 .. _media-v2-entity:
 
+.. tabularcolumns:: |p{1.6cm}|p{3.2cm}|p{12.7cm}|
+
 .. flat-table:: struct media_v2_entity
     :header-rows:  0
     :stub-columns: 0
@@ -187,6 +191,8 @@ desired arrays with the media graph elements.
 
 
 .. _media-v2-interface:
+
+.. tabularcolumns:: |p{1.6cm}|p{3.2cm}|p{12.7cm}|
 
 .. flat-table:: struct media_v2_interface
     :header-rows:  0
@@ -239,6 +245,8 @@ desired arrays with the media graph elements.
 
 .. _media-v2-intf-devnode:
 
+.. tabularcolumns:: |p{1.6cm}|p{3.2cm}|p{12.7cm}|
+
 .. flat-table:: struct media_v2_interface
     :header-rows:  0
     :stub-columns: 0
@@ -264,6 +272,8 @@ desired arrays with the media graph elements.
 
 
 .. _media-v2-pad:
+
+.. tabularcolumns:: |p{1.6cm}|p{3.2cm}|p{12.7cm}|
 
 .. flat-table:: struct media_v2_pad
     :header-rows:  0
@@ -307,6 +317,8 @@ desired arrays with the media graph elements.
 
 
 .. _media-v2-link:
+
+.. tabularcolumns:: |p{1.6cm}|p{3.2cm}|p{12.7cm}|
 
 .. flat-table:: struct media_v2_pad
     :header-rows:  0

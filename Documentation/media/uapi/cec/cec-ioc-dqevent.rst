@@ -54,6 +54,8 @@ it is guaranteed that the state did change in between the two events.
 
 .. _cec-event-state-change_s:
 
+.. tabularcolumns:: |p{1.8cm}|p{1.8cm}|p{13.9cm}|
+
 .. flat-table:: struct cec_event_state_change
     :header-rows:  0
     :stub-columns: 0
@@ -80,6 +82,8 @@ it is guaranteed that the state did change in between the two events.
 
 .. _cec-event-lost-msgs_s:
 
+.. tabularcolumns:: |p{1.0cm}|p{1.0cm}|p{15.5cm}|
+
 .. flat-table:: struct cec_event_lost_msgs
     :header-rows:  0
     :stub-columns: 0
@@ -105,6 +109,8 @@ it is guaranteed that the state did change in between the two events.
 
 
 .. _cec-event:
+
+.. tabularcolumns:: |p{1.6cm}|p{1.6cm}|p{1.6cm}|p{12.7cm}|
 
 .. flat-table:: struct cec_event
     :header-rows:  0
@@ -177,6 +183,8 @@ it is guaranteed that the state did change in between the two events.
 
 .. _cec-events:
 
+.. tabularcolumns:: |p{2.6cm}|p{0.9cm}|p{14.0cm}|
+
 .. flat-table:: CEC Events Types
     :header-rows:  0
     :stub-columns: 0
@@ -205,6 +213,8 @@ it is guaranteed that the state did change in between the two events.
 
 
 .. _cec-event-flags:
+
+.. tabularcolumns:: |p{4.4cm}|p{1.5cm}|p{11.6cm}|
 
 .. flat-table:: CEC Event Flags
     :header-rows:  0

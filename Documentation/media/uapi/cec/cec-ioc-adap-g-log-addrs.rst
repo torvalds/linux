@@ -69,6 +69,8 @@ logical address types are already defined will return with error ``EBUSY``.
 
 .. _cec-log-addrs:
 
+.. tabularcolumns:: |p{1.0cm}|p{1.0cm}|p{15.5cm}|
+
 .. flat-table:: struct cec_log_addrs
     :header-rows:  0
     :stub-columns: 0
@@ -205,6 +207,8 @@ logical address types are already defined will return with error ``EBUSY``.
 
 .. _cec-versions:
 
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
 .. flat-table:: CEC Versions
     :header-rows:  0
     :stub-columns: 0
@@ -238,6 +242,8 @@ logical address types are already defined will return with error ``EBUSY``.
 
 
 .. _cec-prim-dev-types:
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table:: CEC Primary Device Types
     :header-rows:  0
@@ -304,6 +310,8 @@ logical address types are already defined will return with error ``EBUSY``.
 
 
 .. _cec-log-addr-types:
+
+.. tabularcolumns:: |p{2.6cm}|p{0.9cm}|p{14.0cm}|
 
 .. flat-table:: CEC Logical Address Types
     :header-rows:  0
@@ -372,6 +380,8 @@ logical address types are already defined will return with error ``EBUSY``.
 
 
 .. _cec-all-dev-types-flags:
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table:: CEC All Device Types Flags
     :header-rows:  0

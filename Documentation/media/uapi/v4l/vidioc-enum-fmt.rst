@@ -48,6 +48,8 @@ one until ``EINVAL`` is returned.
 
 .. _v4l2-fmtdesc:
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: struct v4l2_fmtdesc
     :header-rows:  0
     :stub-columns: 0
@@ -128,6 +130,8 @@ one until ``EINVAL`` is returned.
 
 
 .. _fmtdesc-flags:
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table:: Image Format Description Flags
     :header-rows:  0

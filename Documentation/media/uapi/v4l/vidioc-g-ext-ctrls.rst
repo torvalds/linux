@@ -97,6 +97,8 @@ still cause this situation.
 
 .. _v4l2-ext-control:
 
+.. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{3.5cm}|p{7.0cm}|
+
 .. flat-table:: struct v4l2_ext_control
     :header-rows:  0
     :stub-columns: 0
@@ -227,6 +229,8 @@ still cause this situation.
 
 
 .. _v4l2-ext-controls:
+
+.. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{7.0cm}|p{3.5cm}|
 
 .. flat-table:: struct v4l2_ext_controls
     :header-rows:  0
@@ -359,6 +363,8 @@ still cause this situation.
 
 
 .. _ctrl-class:
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table:: Control classes
     :header-rows:  0

@@ -78,6 +78,8 @@ destructive video overlay.
 
 .. _v4l2-framebuffer:
 
+.. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{3.5cm}|p{7.0cm}|
+
 .. flat-table:: struct v4l2_framebuffer
     :header-rows:  0
     :stub-columns: 0
@@ -283,6 +285,8 @@ destructive video overlay.
 
 .. _framebuffer-cap:
 
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
 .. flat-table:: Frame Buffer Capability Flags
     :header-rows:  0
     :stub-columns: 0
@@ -370,6 +374,8 @@ destructive video overlay.
 
 
 .. _framebuffer-flags:
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table:: Frame Buffer Flags
     :header-rows:  0

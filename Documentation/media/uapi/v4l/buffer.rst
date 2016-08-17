@@ -39,6 +39,8 @@ buffer.
 struct v4l2_buffer
 ==================
 
+.. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{3.5cm}|p{7.0cm}|
+
 .. flat-table:: struct v4l2_buffer
     :header-rows:  0
     :stub-columns: 0
@@ -282,6 +284,8 @@ struct v4l2_buffer
 struct v4l2_plane
 =================
 
+.. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{3.5cm}|p{7.0cm}|
+
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
@@ -399,6 +403,8 @@ struct v4l2_plane
 enum v4l2_buf_type
 ==================
 
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
@@ -512,6 +518,8 @@ enum v4l2_buf_type
 
 Buffer Flags
 ============
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -762,6 +770,8 @@ Buffer Flags
 enum v4l2_memory
 ================
 
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
@@ -815,6 +825,8 @@ The :ref:`struct v4l2_timecode <v4l2-timecode>` structure is designed to hold a
 
 struct v4l2_timecode
 --------------------
+
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -886,6 +898,8 @@ struct v4l2_timecode
 Timecode Types
 --------------
 
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
@@ -938,6 +952,8 @@ Timecode Types
 
 Timecode Flags
 --------------
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table::
     :header-rows:  0

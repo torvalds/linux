@@ -66,6 +66,8 @@ introduced in Linux 2.6.21.
 
 .. _v4l2-encoder-cmd:
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: struct v4l2_encoder_cmd
     :header-rows:  0
     :stub-columns: 0
@@ -102,6 +104,8 @@ introduced in Linux 2.6.21.
 
 
 .. _encoder-cmds:
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table:: Encoder Commands
     :header-rows:  0
@@ -163,6 +167,8 @@ introduced in Linux 2.6.21.
 
 
 .. _encoder-flags:
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table:: Encoder Command Flags
     :header-rows:  0

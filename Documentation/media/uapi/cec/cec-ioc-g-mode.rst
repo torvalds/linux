@@ -76,6 +76,8 @@ Available initiator modes are:
 
 .. _cec-mode-initiator_e:
 
+.. tabularcolumns:: |p{2.6cm}|p{0.9cm}|p{14.0cm}|
+
 .. flat-table:: Initiator Modes
     :header-rows:  0
     :stub-columns: 0
@@ -118,6 +120,8 @@ Available follower modes are:
 
 
 .. _cec-mode-follower_e:
+
+.. tabularcolumns:: |p{2.6cm}|p{0.9cm}|p{14.0cm}|
 
 .. flat-table:: Follower Modes
     :header-rows:  0
@@ -210,6 +214,8 @@ Core message processing details:
 
 
 .. _cec-core-processing:
+
+.. tabularcolumns:: |p{1.9cm}|p{15.6cm}|
 
 .. flat-table:: Core Message Processing
     :header-rows:  0

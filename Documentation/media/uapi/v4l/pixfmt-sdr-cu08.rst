@@ -24,6 +24,8 @@ Each cell is one byte.
 
 
 
+.. tabularcolumns:: |p{11.7cm}|p{5.8cm}|
+
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0

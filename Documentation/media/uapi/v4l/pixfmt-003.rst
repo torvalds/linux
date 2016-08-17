@@ -14,6 +14,8 @@ describing all planes of that format.
 
 .. _v4l2-plane-pix-format:
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: struct v4l2_plane_pix_format
     :header-rows:  0
     :stub-columns: 0
@@ -49,6 +51,8 @@ describing all planes of that format.
 
 
 .. _v4l2-pix-format-mplane:
+
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table:: struct v4l2_pix_format_mplane
     :header-rows:  0

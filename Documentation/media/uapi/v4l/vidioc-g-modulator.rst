@@ -63,6 +63,8 @@ To change the radio frequency the
 
 .. _v4l2-modulator:
 
+.. tabularcolumns:: |p{2.9cm}|p{2.9cm}|p{5.8cm}|p{2.9cm}|p{3.0cm}|
+
 .. flat-table:: struct v4l2_modulator
     :header-rows:  0
     :stub-columns: 0
@@ -159,6 +161,8 @@ To change the radio frequency the
 
 
 .. _modulator-txsubchans:
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table:: Modulator Audio Transmission Flags
     :header-rows:  0

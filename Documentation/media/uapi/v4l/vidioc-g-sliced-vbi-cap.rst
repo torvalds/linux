@@ -48,6 +48,8 @@ the sliced VBI API is unsupported or ``type`` is invalid.
 
 .. _v4l2-sliced-vbi-cap:
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{2.9cm}|p{2.9cm}|p{2.9cm}|
+
 .. flat-table:: struct v4l2_sliced_vbi_cap
     :header-rows:  0
     :stub-columns: 0
@@ -174,6 +176,8 @@ the sliced VBI API is unsupported or ``type`` is invalid.
 
 
 .. _vbi-services:
+
+.. tabularcolumns:: |p{4.4cm}|p{2.2cm}|p{2.2cm}|p{4.4cm}|p{4.3cm}|
 
 .. flat-table:: Sliced VBI services
     :header-rows:  1

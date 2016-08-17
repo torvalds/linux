@@ -43,6 +43,8 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
 
 .. _v4l2-input:
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: struct v4l2_input
     :header-rows:  0
     :stub-columns: 0
@@ -149,6 +151,8 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
 
 
 .. _input-type:
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table:: Input Types
     :header-rows:  0
@@ -319,6 +323,8 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
 
 
 .. _input-capabilities:
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table:: Input capabilities
     :header-rows:  0

@@ -56,6 +56,8 @@ that doesn't support them will return an ``EINVAL`` error code.
 
 .. _v4l2-bt-timings-cap:
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: struct v4l2_bt_timings_cap
     :header-rows:  0
     :stub-columns: 0
@@ -140,6 +142,8 @@ that doesn't support them will return an ``EINVAL`` error code.
 
 
 .. _v4l2-dv-timings-cap:
+
+.. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{7.0cm}|p{3.5cm}|
 
 .. flat-table:: struct v4l2_dv_timings_cap
     :header-rows:  0

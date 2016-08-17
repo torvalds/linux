@@ -96,6 +96,8 @@ See also the examples in :ref:`control`.
 
 .. _v4l2-queryctrl:
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: struct v4l2_queryctrl
     :header-rows:  0
     :stub-columns: 0
@@ -215,6 +217,8 @@ See also the examples in :ref:`control`.
 
 
 .. _v4l2-query-ext-ctrl:
+
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table:: struct v4l2_query_ext_ctrl
     :header-rows:  0
@@ -378,6 +382,8 @@ See also the examples in :ref:`control`.
 
 .. _v4l2-querymenu:
 
+.. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{7.0cm}|p{3.5cm}|
+
 .. flat-table:: struct v4l2_querymenu
     :header-rows:  0
     :stub-columns: 0
@@ -445,6 +451,8 @@ See also the examples in :ref:`control`.
 
 
 .. _v4l2-ctrl-type:
+
+.. tabularcolumns:: |p{5.3cm}|p{0.9cm}|p{0.9cm}|p{0.9cm}|p{9.5cm}|
 
 .. flat-table:: enum v4l2_ctrl_type
     :header-rows:  1
@@ -642,6 +650,8 @@ See also the examples in :ref:`control`.
 
 
 .. _control-flags:
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table:: Control Flags
     :header-rows:  0

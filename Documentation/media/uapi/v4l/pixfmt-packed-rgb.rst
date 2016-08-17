@@ -974,6 +974,8 @@ Each cell is one byte.
 
 
 
+.. tabularcolumns:: |p{2.5cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{0.7cm}|
+
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0

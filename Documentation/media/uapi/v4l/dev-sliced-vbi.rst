@@ -105,6 +105,8 @@ which may return ``EBUSY`` can be the
 struct v4l2_sliced_vbi_format
 -----------------------------
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{2.9cm}|p{2.9cm}|p{2.9cm}|
+
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
@@ -250,6 +252,8 @@ struct v4l2_sliced_vbi_format
 Sliced VBI services
 -------------------
 
+.. tabularcolumns:: |p{4.4cm}|p{2.2cm}|p{2.2cm}|p{4.4cm}|p{4.3cm}|
+
 .. flat-table::
     :header-rows:  1
     :stub-columns: 0
@@ -370,6 +374,8 @@ of one video frame. The ``id`` of unused
 
 struct v4l2_sliced_vbi_data
 ---------------------------
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -556,6 +562,8 @@ number).
 struct v4l2_mpeg_vbi_fmt_ivtv
 -----------------------------
 
+.. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{3.5cm}|p{7.0cm}|
+
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
@@ -611,6 +619,8 @@ struct v4l2_mpeg_vbi_fmt_ivtv
 Magic Constants for struct v4l2_mpeg_vbi_fmt_ivtv magic field
 -------------------------------------------------------------
 
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
 .. flat-table::
     :header-rows:  1
     :stub-columns: 0
@@ -651,6 +661,8 @@ Magic Constants for struct v4l2_mpeg_vbi_fmt_ivtv magic field
 
 struct v4l2_mpeg_vbi_itv0
 -------------------------
+
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -709,6 +721,8 @@ struct v4l2_mpeg_vbi_itv0
 struct v4l2_mpeg_vbi_ITV0
 -------------------------
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
@@ -733,6 +747,8 @@ struct v4l2_mpeg_vbi_ITV0
 
 struct v4l2_mpeg_vbi_itv0_line
 ------------------------------
+
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -764,6 +780,8 @@ struct v4l2_mpeg_vbi_itv0_line
 
 Line Identifiers for struct v4l2_mpeg_vbi_itv0_line id field
 ------------------------------------------------------------
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table::
     :header-rows:  1

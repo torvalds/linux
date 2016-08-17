@@ -40,6 +40,8 @@ using the :ref:`VIDIOC_DQEVENT` ioctl.
 
 .. _v4l2-event-subscription:
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: struct v4l2_event_subscription
     :header-rows:  0
     :stub-columns: 0
@@ -90,6 +92,8 @@ using the :ref:`VIDIOC_DQEVENT` ioctl.
 
 
 .. _event-flags:
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table:: Event Flags
     :header-rows:  0

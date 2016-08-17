@@ -36,6 +36,8 @@ Each cell is one byte.
 
 
 
+.. tabularcolumns:: |p{5.0cm}|p{2.5cm}|p{2.5cm}|p{2.5cm}|p{2.5cm}|p{2.5cm}|
+
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0

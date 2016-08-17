@@ -42,6 +42,8 @@ call.
 
 .. _v4l2-event:
 
+.. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{7.0cm}|p{3.5cm}|
+
 .. flat-table:: struct v4l2_event
     :header-rows:  0
     :stub-columns: 0
@@ -177,6 +179,8 @@ call.
 
 .. _event-type:
 
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
 .. flat-table:: Event Types
     :header-rows:  0
     :stub-columns: 0
@@ -304,6 +308,8 @@ call.
 
 .. _v4l2-event-vsync:
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: struct v4l2_event_vsync
     :header-rows:  0
     :stub-columns: 0
@@ -321,6 +327,8 @@ call.
 
 
 .. _v4l2-event-ctrl:
+
+.. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{7.0cm}|p{3.5cm}|
 
 .. flat-table:: struct v4l2_event_ctrl
     :header-rows:  0
@@ -429,6 +437,8 @@ call.
 
 .. _v4l2-event-frame-sync:
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: struct v4l2_event_frame_sync
     :header-rows:  0
     :stub-columns: 0
@@ -446,6 +456,8 @@ call.
 
 
 .. _v4l2-event-src-change:
+
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table:: struct v4l2_event_src_change
     :header-rows:  0
@@ -465,6 +477,8 @@ call.
 
 
 .. _v4l2-event-motion-det:
+
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table:: struct v4l2_event_motion_det
     :header-rows:  0
@@ -509,6 +523,8 @@ call.
 
 .. _ctrl-changes-flags:
 
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
 .. flat-table:: Control Changes
     :header-rows:  0
     :stub-columns: 0
@@ -547,6 +563,8 @@ call.
 
 
 .. _src-changes-flags:
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table:: Source Changes
     :header-rows:  0

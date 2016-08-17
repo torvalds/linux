@@ -52,6 +52,8 @@ return the actual new audio mode.
 
 .. _v4l2-audio:
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: struct v4l2_audio
     :header-rows:  0
     :stub-columns: 0
@@ -106,6 +108,8 @@ return the actual new audio mode.
 
 .. _audio-capability:
 
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
 .. flat-table:: Audio Capability Flags
     :header-rows:  0
     :stub-columns: 0
@@ -134,6 +138,8 @@ return the actual new audio mode.
 
 
 .. _audio-mode:
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table:: Audio Mode Flags
     :header-rows:  0

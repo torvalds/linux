@@ -42,6 +42,8 @@ Receives reply from a DiSEqC 2.0 command.
 struct dvb_diseqc_slave_reply
 -----------------------------
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: struct dvb_diseqc_slave_reply
     :header-rows:  0
     :stub-columns: 0

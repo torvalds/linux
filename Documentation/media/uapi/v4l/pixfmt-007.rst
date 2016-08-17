@@ -19,6 +19,8 @@ are:
 
 
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: SMPTE 170M Chromaticities
     :header-rows:  1
     :stub-columns: 0
@@ -116,6 +118,8 @@ quantization is limited range. The chromaticities of the primary colors
 and the white reference are:
 
 
+
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table:: Rec. 709 Chromaticities
     :header-rows:  1
@@ -246,6 +250,8 @@ The chromaticities of the primary colors and the white reference are:
 
 
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: sRGB Chromaticities
     :header-rows:  1
     :stub-columns: 0
@@ -345,6 +351,8 @@ are:
 
 
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: Adobe RGB Chromaticities
     :header-rows:  1
     :stub-columns: 0
@@ -428,6 +436,8 @@ range (!), and so is the default Y'CbCr quantization. The chromaticities
 of the primary colors and the white reference are:
 
 
+
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table:: BT.2020 Chromaticities
     :header-rows:  1
@@ -548,6 +558,8 @@ is ``V4L2_XFER_FUNC_DCI_P3``. The default Y'CbCr encoding is
 
 
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: DCI-P3 Chromaticities
     :header-rows:  1
     :stub-columns: 0
@@ -620,6 +632,8 @@ quantization is limited range. The chromaticities of the primary colors
 and the white reference are:
 
 
+
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table:: SMPTE 240M Chromaticities
     :header-rows:  1
@@ -708,6 +722,8 @@ limited range. The chromaticities of the primary colors and the white
 reference are:
 
 
+
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table:: NTSC 1953 Chromaticities
     :header-rows:  1
@@ -804,6 +820,8 @@ range. The chromaticities of the primary colors and the white reference
 are:
 
 
+
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table:: EBU Tech. 3213 Chromaticities
     :header-rows:  1

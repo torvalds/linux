@@ -53,6 +53,8 @@ id's until they get an error.
 
 .. _media-entity-desc:
 
+.. tabularcolumns:: |p{1.5cm}|p{1.5cm}|p{1.5cm}|p{1.5cm}|p{11.5cm}|
+
 .. flat-table:: struct media_entity_desc
     :header-rows:  0
     :stub-columns: 0

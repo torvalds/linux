@@ -69,6 +69,8 @@ the same sub-device is not defined.
 
 .. _v4l2-subdev-frame-interval:
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
 .. flat-table:: struct v4l2_subdev_frame_interval
     :header-rows:  0
     :stub-columns: 0
