@@ -1278,8 +1278,17 @@ static int nvme_rdma_route_resolved(struct nvme_rdma_queue *queue)
 
 	priv.recfmt = cpu_to_le16(NVME_RDMA_CM_FMT_1_0);
 	priv.qid = cpu_to_le16(nvme_rdma_queue_idx(queue));
-	priv.hrqsize = cpu_to_le16(queue->queue_size);
-	priv.hsqsize = cpu_to_le16(queue->queue_size);
+	/*
+	 * set the admin queue depth to the minimum size
+	 * specified by the Fabrics standard.
+	 */
+	if (priv.qid == 0) {
+		priv.hrqsize = cpu_to_le16(NVMF_AQ_DEPTH);
+		priv.hsqsize = cpu_to_le16(NVMF_AQ_DEPTH - 1);
+	} else {
+		priv.hrqsize = cpu_to_le16(queue->queue_size);
+		priv.hsqsize = cpu_to_le16(queue->queue_size);
+	}
 
 	ret = rdma_connect(queue->cm_id, &param);
 	if (ret) {
