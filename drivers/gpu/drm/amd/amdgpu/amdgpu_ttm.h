@@ -61,6 +61,8 @@ struct amdgpu_mman {
 
 	/* custom LRU management */
 	struct amdgpu_mman_lru			log2_size[AMDGPU_TTM_LRU_SIZE];
+	/* guard for log2_size array, don't add anything in between */
+	struct amdgpu_mman_lru			guard;
 };
 
 int amdgpu_copy_buffer(struct amdgpu_ring *ring,
