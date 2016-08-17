@@ -4100,13 +4100,29 @@ static void ath10k_mac_op_wake_tx_queue(struct ieee80211_hw *hw,
 {
 	struct ath10k *ar = hw->priv;
 	struct ath10k_txq *artxq = (void *)txq->drv_priv;
+	struct ieee80211_txq *f_txq;
+	struct ath10k_txq *f_artxq;
+	int ret = 0;
+	int max = 16;
 
 	spin_lock_bh(&ar->txqs_lock);
 	if (list_empty(&artxq->list))
 		list_add_tail(&artxq->list, &ar->txqs);
+
+	f_artxq = list_first_entry(&ar->txqs, struct ath10k_txq, list);
+	f_txq = container_of((void *)f_artxq, struct ieee80211_txq, drv_priv);
+	list_del_init(&f_artxq->list);
+
+	while (ath10k_mac_tx_can_push(hw, f_txq) && max--) {
+		ret = ath10k_mac_tx_push_txq(hw, f_txq);
+		if (ret)
+			break;
+	}
+	if (ret != -ENOENT)
+		list_add_tail(&f_artxq->list, &ar->txqs);
 	spin_unlock_bh(&ar->txqs_lock);
 
-	ath10k_mac_tx_push_pending(ar);
+	ath10k_htt_tx_txq_update(hw, f_txq);
 	ath10k_htt_tx_txq_update(hw, txq);
 }
 
