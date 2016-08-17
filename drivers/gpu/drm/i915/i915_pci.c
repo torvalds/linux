@@ -54,38 +54,33 @@
 #define CHV_COLORS \
 	.color = { .degamma_lut_size = 65, .gamma_lut_size = 257 }
 
+#define GEN2_FEATURES \
+	.gen = 2, .num_pipes = 1, \
+	.has_overlay = 1, .overlay_needs_physical = 1, \
+	.ring_mask = RENDER_RING, \
+	GEN_DEFAULT_PIPEOFFSETS, \
+	CURSOR_OFFSETS
+
 static const struct intel_device_info intel_i830_info = {
-	.gen = 2, .is_mobile = 1, .cursor_needs_physical = 1, .num_pipes = 2,
-	.has_overlay = 1, .overlay_needs_physical = 1,
-	.ring_mask = RENDER_RING,
-	GEN_DEFAULT_PIPEOFFSETS,
-	CURSOR_OFFSETS,
+	GEN2_FEATURES,
+	.is_mobile = 1, .cursor_needs_physical = 1,
+	.num_pipes = 2, /* legal, last one wins */
 };
 
 static const struct intel_device_info intel_845g_info = {
-	.gen = 2, .num_pipes = 1,
-	.has_overlay = 1, .overlay_needs_physical = 1,
-	.ring_mask = RENDER_RING,
-	GEN_DEFAULT_PIPEOFFSETS,
-	CURSOR_OFFSETS,
+	GEN2_FEATURES,
 };
 
 static const struct intel_device_info intel_i85x_info = {
-	.gen = 2, .is_i85x = 1, .is_mobile = 1, .num_pipes = 2,
+	GEN2_FEATURES,
+	.is_i85x = 1, .is_mobile = 1,
+	.num_pipes = 2, /* legal, last one wins */
 	.cursor_needs_physical = 1,
-	.has_overlay = 1, .overlay_needs_physical = 1,
 	.has_fbc = 1,
-	.ring_mask = RENDER_RING,
-	GEN_DEFAULT_PIPEOFFSETS,
-	CURSOR_OFFSETS,
 };
 
 static const struct intel_device_info intel_i865g_info = {
-	.gen = 2, .num_pipes = 1,
-	.has_overlay = 1, .overlay_needs_physical = 1,
-	.ring_mask = RENDER_RING,
-	GEN_DEFAULT_PIPEOFFSETS,
-	CURSOR_OFFSETS,
+	GEN2_FEATURES,
 };
 
 #define GEN3_FEATURES \
