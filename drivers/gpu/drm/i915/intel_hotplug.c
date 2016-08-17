@@ -477,7 +477,8 @@ void intel_hpd_init(struct drm_i915_private *dev_priv)
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
-void i915_hpd_poll_init_work(struct work_struct *work) {
+static void i915_hpd_poll_init_work(struct work_struct *work)
+{
 	struct drm_i915_private *dev_priv =
 		container_of(work, struct drm_i915_private,
 			     hotplug.poll_init_work);
