@@ -1642,10 +1642,44 @@ static int c2c_hists__reinit(struct c2c_hists *c2c_hists,
 	return hpp_list__parse(&c2c_hists->list, output, sort);
 }
 
+#define DISPLAY_LINE_LIMIT  0.0005
+
+static bool he__display(struct hist_entry *he, struct c2c_stats *stats)
+{
+	struct c2c_hist_entry *c2c_he;
+	double ld_dist;
+
+	/* XXX Disabled for now, till we get a command line switch to control this */
+	return true;
+
+	c2c_he = container_of(he, struct c2c_hist_entry, he);
+
+	if (stats->rmt_hitm) {
+		ld_dist = ((double)c2c_he->stats.rmt_hitm / stats->rmt_hitm);
+		if (ld_dist < DISPLAY_LINE_LIMIT)
+			he->filtered = HIST_FILTER__C2C;
+	} else {
+		he->filtered = HIST_FILTER__C2C;
+	}
+
+	return he->filtered == 0;
+}
+
+static inline int valid_hitm_or_store(struct hist_entry *he)
+{
+	struct c2c_hist_entry *c2c_he;
+
+	c2c_he = container_of(he, struct c2c_hist_entry, he);
+	return c2c_he->stats.rmt_hitm || c2c_he->stats.store;
+}
+
 static int filter_cb(struct hist_entry *he)
 {
 	if (c2c.show_src && !he->srcline)
 		he->srcline = hist_entry__get_srcline(he);
+
+	if (!valid_hitm_or_store(he))
+		he->filtered = HIST_FILTER__C2C;
 
 	return 0;
 }
@@ -1654,11 +1688,12 @@ static int resort_cl_cb(struct hist_entry *he)
 {
 	struct c2c_hist_entry *c2c_he;
 	struct c2c_hists *c2c_hists;
+	bool display = he__display(he, &c2c.hitm_stats);
 
 	c2c_he = container_of(he, struct c2c_hist_entry, he);
 	c2c_hists = c2c_he->hists;
 
-	if (c2c_hists) {
+	if (display && c2c_hists) {
 		c2c_hists__reinit(c2c_hists,
 			"percent_rmt_hitm,"
 			"percent_lcl_hitm,"
