@@ -55,10 +55,7 @@ static void dce_virtual_vblank_wait(struct amdgpu_device *adev, int crtc)
 
 static u32 dce_virtual_vblank_get_counter(struct amdgpu_device *adev, int crtc)
 {
-	if (crtc >= adev->mode_info.num_crtc)
-		return 0;
-	else
-		return adev->ddev->vblank[crtc].count;
+	return 0;
 }
 
 static void dce_virtual_page_flip(struct amdgpu_device *adev,
@@ -70,13 +67,10 @@ static void dce_virtual_page_flip(struct amdgpu_device *adev,
 static int dce_virtual_crtc_get_scanoutpos(struct amdgpu_device *adev, int crtc,
 					u32 *vbl, u32 *position)
 {
-	if ((crtc < 0) || (crtc >= adev->mode_info.num_crtc))
-		return -EINVAL;
-
 	*vbl = 0;
 	*position = 0;
 
-	return 0;
+	return -EINVAL;
 }
 
 static bool dce_virtual_hpd_sense(struct amdgpu_device *adev,
@@ -407,6 +401,8 @@ static int dce_virtual_sw_init(void *handle)
 	if (r)
 		return r;
 
+	adev->ddev->max_vblank_count = 0;
+
 	adev->ddev->mode_config.funcs = &amdgpu_mode_funcs;
 
 	adev->ddev->mode_config.max_width = 16384;
@@ -655,7 +651,6 @@ static enum hrtimer_restart dce_virtual_vblank_timer_handle(struct hrtimer *vbla
 	struct amdgpu_mode_info *mode_info = container_of(vblank_timer, struct amdgpu_mode_info ,vblank_timer);
 	struct amdgpu_device *adev = container_of(mode_info, struct amdgpu_device ,mode_info);
 	unsigned crtc = 0;
-	adev->ddev->vblank[0].count++;
 	drm_handle_vblank(adev->ddev, crtc);
 	dce_virtual_pageflip_irq(adev, NULL, NULL);
 	hrtimer_start(vblank_timer, ktime_set(0, DCE_VIRTUAL_VBLANK_PERIOD), HRTIMER_MODE_REL);
@@ -682,8 +677,6 @@ static void dce_virtual_set_crtc_vblank_interrupt_state(struct amdgpu_device *ad
 		hrtimer_cancel(&adev->mode_info.vblank_timer);
 	}
 
-	if (!state || (state && !adev->mode_info.vsync_timer_enabled))
-		adev->ddev->vblank[0].count = 0;
 	adev->mode_info.vsync_timer_enabled = state;
 	DRM_DEBUG("[FM]set crtc %d vblank interrupt state %d\n", crtc, state);
 }
@@ -720,7 +713,6 @@ static int dce_virtual_crtc_irq(struct amdgpu_device *adev,
 	unsigned crtc = 0;
 	unsigned irq_type = AMDGPU_CRTC_IRQ_VBLANK1;
 
-	adev->ddev->vblank[crtc].count++;
 	dce_virtual_crtc_vblank_int_ack(adev, crtc);
 
 	if (amdgpu_irq_enabled(adev, source, irq_type)) {
