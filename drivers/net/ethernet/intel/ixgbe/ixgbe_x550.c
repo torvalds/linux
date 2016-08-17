@@ -2558,6 +2558,8 @@ static void ixgbe_set_mdio_speed(struct ixgbe_hw *hw)
 
 	switch (hw->device_id) {
 	case IXGBE_DEV_ID_X550EM_X_10G_T:
+	case IXGBE_DEV_ID_X550EM_A_SGMII:
+	case IXGBE_DEV_ID_X550EM_A_SGMII_L:
 	case IXGBE_DEV_ID_X550EM_A_SFP:
 		/* Config MDIO clock speed before the first MDIO PHY access */
 		hlreg0 = IXGBE_READ_REG(hw, IXGBE_HLREG0);
