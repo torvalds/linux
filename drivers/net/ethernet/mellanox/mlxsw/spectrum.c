@@ -2183,6 +2183,7 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 	}
 
 	mlxsw_sp_port_switchdev_init(mlxsw_sp_port);
+	mlxsw_sp->ports[local_port] = mlxsw_sp_port;
 	err = register_netdev(dev);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to register netdev\n",
@@ -2199,12 +2200,12 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		goto err_core_port_init;
 	}
 
-	mlxsw_sp->ports[local_port] = mlxsw_sp_port;
 	return 0;
 
 err_core_port_init:
 	unregister_netdev(dev);
 err_register_netdev:
+	mlxsw_sp->ports[local_port] = NULL;
 	mlxsw_sp_port_pvid_vport_destroy(mlxsw_sp_port);
 err_port_pvid_vport_create:
 	mlxsw_sp_port_dcb_fini(mlxsw_sp_port);
@@ -2233,9 +2234,9 @@ static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 
 	if (!mlxsw_sp_port)
 		return;
-	mlxsw_sp->ports[local_port] = NULL;
 	mlxsw_core_port_fini(&mlxsw_sp_port->core_port);
 	unregister_netdev(mlxsw_sp_port->dev); /* This calls ndo_stop */
+	mlxsw_sp->ports[local_port] = NULL;
 	mlxsw_sp_port_pvid_vport_destroy(mlxsw_sp_port);
 	mlxsw_sp_port_dcb_fini(mlxsw_sp_port);
 	mlxsw_sp_port_switchdev_fini(mlxsw_sp_port);
