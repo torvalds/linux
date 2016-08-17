@@ -21,43 +21,17 @@ struct gb_vibrator_device {
 	struct gb_connection	*connection;
 	struct device		*dev;
 	int			minor;		/* vibrator minor number */
+	struct delayed_work     delayed_work;
 };
 
 /* Greybus Vibrator operation types */
 #define	GB_VIBRATOR_TYPE_ON			0x02
 #define	GB_VIBRATOR_TYPE_OFF			0x03
 
-struct gb_vibrator_on_request {
-	__le16	timeout_ms;
-};
-
-static int turn_on(struct gb_vibrator_device *vib, u16 timeout_ms)
-{
-	struct gb_vibrator_on_request request;
-	struct gb_bundle *bundle = vib->connection->bundle;
-	int ret;
-
-	ret = gb_pm_runtime_get_sync(bundle);
-	if (ret)
-		return ret;
-
-	request.timeout_ms = cpu_to_le16(timeout_ms);
-	ret = gb_operation_sync(vib->connection, GB_VIBRATOR_TYPE_ON,
-			&request, sizeof(request), NULL, 0);
-
-	gb_pm_runtime_put_autosuspend(bundle);
-
-	return ret;
-}
-
 static int turn_off(struct gb_vibrator_device *vib)
 {
 	struct gb_bundle *bundle = vib->connection->bundle;
 	int ret;
-
-	ret = gb_pm_runtime_get_sync(bundle);
-	if (ret)
-		return ret;
 
 	ret = gb_operation_sync(vib->connection, GB_VIBRATOR_TYPE_OFF,
 			NULL, 0, NULL, 0);
@@ -65,6 +39,40 @@ static int turn_off(struct gb_vibrator_device *vib)
 	gb_pm_runtime_put_autosuspend(bundle);
 
 	return ret;
+}
+
+static int turn_on(struct gb_vibrator_device *vib, u16 timeout_ms)
+{
+	struct gb_bundle *bundle = vib->connection->bundle;
+	int ret;
+
+	ret = gb_pm_runtime_get_sync(bundle);
+	if (ret)
+		return ret;
+
+	/* Vibrator was switched ON earlier */
+	if (cancel_delayed_work_sync(&vib->delayed_work))
+		turn_off(vib);
+
+	ret = gb_operation_sync(vib->connection, GB_VIBRATOR_TYPE_ON,
+			NULL, 0, NULL, 0);
+	if (ret) {
+		gb_pm_runtime_put_autosuspend(bundle);
+		return ret;
+	}
+
+	schedule_delayed_work(&vib->delayed_work, msecs_to_jiffies(timeout_ms));
+
+	return 0;
+}
+
+static void gb_vibrator_worker(struct work_struct *work)
+{
+	struct delayed_work *delayed_work = to_delayed_work(work);
+	struct gb_vibrator_device *vib =
+		container_of(delayed_work, struct gb_vibrator_device, delayed_work);
+
+	turn_off(vib);
 }
 
 static ssize_t timeout_store(struct device *dev, struct device_attribute *attr,
@@ -174,6 +182,8 @@ static int gb_vibrator_probe(struct gb_bundle *bundle,
 	}
 #endif
 
+	INIT_DELAYED_WORK(&vib->delayed_work, gb_vibrator_worker);
+
 	gb_pm_runtime_put_autosuspend(bundle);
 
 	return 0;
@@ -198,6 +208,9 @@ static void gb_vibrator_disconnect(struct gb_bundle *bundle)
 	ret = gb_pm_runtime_get_sync(bundle);
 	if (ret)
 		gb_pm_runtime_get_noresume(bundle);
+
+	if (cancel_delayed_work_sync(&vib->delayed_work))
+		turn_off(vib);
 
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(3,11,0)
 	sysfs_remove_group(&vib->dev->kobj, vibrator_groups[0]);
