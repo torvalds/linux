@@ -614,7 +614,7 @@ static int acpi_pci_root_add(struct acpi_device *device,
 	if (hotadd) {
 		pcibios_resource_survey_bus(root->bus);
 		pci_assign_unassigned_root_bus_resources(root->bus);
-		acpi_ioapic_add(root);
+		acpi_ioapic_add(root->device->handle);
 	}
 
 	pci_lock_rescan_remove();
