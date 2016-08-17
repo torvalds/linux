@@ -2408,6 +2408,41 @@ static const struct bpf_func_proto bpf_skb_under_cgroup_proto = {
 };
 #endif
 
+static unsigned long bpf_xdp_copy(void *dst_buff, const void *src_buff,
+				  unsigned long off, unsigned long len)
+{
+	memcpy(dst_buff, src_buff + off, len);
+	return 0;
+}
+
+static u64 bpf_xdp_event_output(u64 r1, u64 r2, u64 flags, u64 r4,
+				u64 meta_size)
+{
+	struct xdp_buff *xdp = (struct xdp_buff *)(long) r1;
+	struct bpf_map *map = (struct bpf_map *)(long) r2;
+	u64 xdp_size = (flags & BPF_F_CTXLEN_MASK) >> 32;
+	void *meta = (void *)(long) r4;
+
+	if (unlikely(flags & ~(BPF_F_CTXLEN_MASK | BPF_F_INDEX_MASK)))
+		return -EINVAL;
+	if (unlikely(xdp_size > (unsigned long)(xdp->data_end - xdp->data)))
+		return -EFAULT;
+
+	return bpf_event_output(map, flags, meta, meta_size, xdp, xdp_size,
+				bpf_xdp_copy);
+}
+
+static const struct bpf_func_proto bpf_xdp_event_output_proto = {
+	.func		= bpf_xdp_event_output,
+	.gpl_only	= true,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_CONST_MAP_PTR,
+	.arg3_type	= ARG_ANYTHING,
+	.arg4_type	= ARG_PTR_TO_STACK,
+	.arg5_type	= ARG_CONST_STACK_SIZE,
+};
+
 static const struct bpf_func_proto *
 sk_filter_func_proto(enum bpf_func_id func_id)
 {
@@ -2492,7 +2527,12 @@ tc_cls_act_func_proto(enum bpf_func_id func_id)
 static const struct bpf_func_proto *
 xdp_func_proto(enum bpf_func_id func_id)
 {
-	return sk_filter_func_proto(func_id);
+	switch (func_id) {
+	case BPF_FUNC_perf_event_output:
+		return &bpf_xdp_event_output_proto;
+	default:
+		return sk_filter_func_proto(func_id);
+	}
 }
 
 static bool __is_valid_access(int off, int size, enum bpf_access_type type)
