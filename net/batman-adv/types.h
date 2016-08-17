@@ -28,6 +28,7 @@
 #include <linux/if_ether.h>
 #include <linux/kref.h>
 #include <linux/netdevice.h>
+#include <linux/netlink.h>
 #include <linux/sched.h> /* for linux/wait.h */
 #include <linux/spinlock.h>
 #include <linux/types.h>
@@ -1418,6 +1419,7 @@ struct batadv_algo_iface_ops {
  * @is_similar_or_better: check if neigh1 is equally similar or better than
  *  neigh2 for their respective outgoing interface from the metric prospective
  * @print: print the single hop neighbor list (optional)
+ * @dump: dump neighbors to a netlink socket (optional)
  */
 struct batadv_algo_neigh_ops {
 	void (*hardif_init)(struct batadv_hardif_neigh_node *neigh);
@@ -1430,6 +1432,9 @@ struct batadv_algo_neigh_ops {
 				     struct batadv_neigh_node *neigh2,
 				     struct batadv_hard_iface *if_outgoing2);
 	void (*print)(struct batadv_priv *priv, struct seq_file *seq);
+	void (*dump)(struct sk_buff *msg, struct netlink_callback *cb,
+		     struct batadv_priv *priv,
+		     struct batadv_hard_iface *hard_iface);
 };
 
 /**
@@ -1441,6 +1446,7 @@ struct batadv_algo_neigh_ops {
  * @del_if: ask the routing algorithm to apply the needed changes to the
  *  orig_node due to an hard-interface being removed from the mesh (optional)
  * @print: print the originator table (optional)
+ * @dump: dump originators to a netlink socket (optional)
  */
 struct batadv_algo_orig_ops {
 	void (*free)(struct batadv_orig_node *orig_node);
@@ -1449,6 +1455,9 @@ struct batadv_algo_orig_ops {
 		      int del_if_num);
 	void (*print)(struct batadv_priv *priv, struct seq_file *seq,
 		      struct batadv_hard_iface *hard_iface);
+	void (*dump)(struct sk_buff *msg, struct netlink_callback *cb,
+		     struct batadv_priv *priv,
+		     struct batadv_hard_iface *hard_iface);
 };
 
 /**
@@ -1460,6 +1469,7 @@ struct batadv_algo_orig_ops {
  * @is_eligible: check if a newly discovered GW is a potential candidate for
  *  the election as best GW (optional)
  * @print: print the gateway table (optional)
+ * @dump: dump gateways to a netlink socket (optional)
  */
 struct batadv_algo_gw_ops {
 	ssize_t (*store_sel_class)(struct batadv_priv *bat_priv, char *buff,
@@ -1471,6 +1481,8 @@ struct batadv_algo_gw_ops {
 			    struct batadv_orig_node *curr_gw_orig,
 			    struct batadv_orig_node *orig_node);
 	void (*print)(struct batadv_priv *bat_priv, struct seq_file *seq);
+	void (*dump)(struct sk_buff *msg, struct netlink_callback *cb,
+		     struct batadv_priv *priv);
 };
 
 /**
