@@ -191,10 +191,12 @@ Control IDs
 
 
 
+.. tabularcolumns:: |p{5.5cm}|p{12cm}|
+
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
+    :widths: 11 24
 
     -  .. row 1
 
