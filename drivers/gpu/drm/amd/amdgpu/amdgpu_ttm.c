@@ -260,62 +260,114 @@ static void amdgpu_move_null(struct ttm_buffer_object *bo,
 	new_mem->mm_node = NULL;
 }
 
-static int amdgpu_move_blit(struct ttm_buffer_object *bo,
-			bool evict, bool no_wait_gpu,
-			struct ttm_mem_reg *new_mem,
-			struct ttm_mem_reg *old_mem)
+static int amdgpu_mm_node_addr(struct ttm_buffer_object *bo,
+			       struct drm_mm_node *mm_node,
+			       struct ttm_mem_reg *mem,
+			       uint64_t *addr)
 {
-	struct amdgpu_device *adev;
-	struct amdgpu_ring *ring;
-	uint64_t old_start, new_start;
-	struct fence *fence;
 	int r;
 
-	adev = amdgpu_get_adev(bo->bdev);
-	ring = adev->mman.buffer_funcs_ring;
-
-	switch (old_mem->mem_type) {
+	switch (mem->mem_type) {
 	case TTM_PL_TT:
-		r = amdgpu_ttm_bind(bo, old_mem);
+		r = amdgpu_ttm_bind(bo, mem);
 		if (r)
 			return r;
 
 	case TTM_PL_VRAM:
-		old_start = (u64)old_mem->start << PAGE_SHIFT;
-		old_start += bo->bdev->man[old_mem->mem_type].gpu_offset;
+		*addr = mm_node->start << PAGE_SHIFT;
+		*addr += bo->bdev->man[mem->mem_type].gpu_offset;
 		break;
 	default:
-		DRM_ERROR("Unknown placement %d\n", old_mem->mem_type);
+		DRM_ERROR("Unknown placement %d\n", mem->mem_type);
 		return -EINVAL;
 	}
-	switch (new_mem->mem_type) {
-	case TTM_PL_TT:
-		r = amdgpu_ttm_bind(bo, new_mem);
-		if (r)
-			return r;
 
-	case TTM_PL_VRAM:
-		new_start = (u64)new_mem->start << PAGE_SHIFT;
-		new_start += bo->bdev->man[new_mem->mem_type].gpu_offset;
-		break;
-	default:
-		DRM_ERROR("Unknown placement %d\n", old_mem->mem_type);
-		return -EINVAL;
-	}
+	return 0;
+}
+
+static int amdgpu_move_blit(struct ttm_buffer_object *bo,
+			    bool evict, bool no_wait_gpu,
+			    struct ttm_mem_reg *new_mem,
+			    struct ttm_mem_reg *old_mem)
+{
+	struct amdgpu_device *adev = amdgpu_get_adev(bo->bdev);
+	struct amdgpu_ring *ring = adev->mman.buffer_funcs_ring;
+
+	struct drm_mm_node *old_mm, *new_mm;
+	uint64_t old_start, old_size, new_start, new_size;
+	unsigned long num_pages;
+	struct fence *fence = NULL;
+	int r;
+
+	BUILD_BUG_ON((PAGE_SIZE % AMDGPU_GPU_PAGE_SIZE) != 0);
+
 	if (!ring->ready) {
 		DRM_ERROR("Trying to move memory with ring turned off.\n");
 		return -EINVAL;
 	}
 
-	BUILD_BUG_ON((PAGE_SIZE % AMDGPU_GPU_PAGE_SIZE) != 0);
-
-	r = amdgpu_copy_buffer(ring, old_start, new_start,
-			       new_mem->num_pages * PAGE_SIZE, /* bytes */
-			       bo->resv, &fence, false);
+	old_mm = old_mem->mm_node;
+	r = amdgpu_mm_node_addr(bo, old_mm, old_mem, &old_start);
 	if (r)
 		return r;
+	old_size = old_mm->size;
+
+
+	new_mm = new_mem->mm_node;
+	r = amdgpu_mm_node_addr(bo, new_mm, new_mem, &new_start);
+	if (r)
+		return r;
+	new_size = new_mm->size;
+
+	num_pages = new_mem->num_pages;
+	while (num_pages) {
+		unsigned long cur_pages = min(old_size, new_size);
+		struct fence *next;
+
+		r = amdgpu_copy_buffer(ring, old_start, new_start,
+				       cur_pages * PAGE_SIZE,
+				       bo->resv, &next, false);
+		if (r)
+			goto error;
+
+		fence_put(fence);
+		fence = next;
+
+		num_pages -= cur_pages;
+		if (!num_pages)
+			break;
+
+		old_size -= cur_pages;
+		if (!old_size) {
+			r = amdgpu_mm_node_addr(bo, ++old_mm, old_mem,
+						&old_start);
+			if (r)
+				goto error;
+			old_size = old_mm->size;
+		} else {
+			old_start += cur_pages * PAGE_SIZE;
+		}
+
+		new_size -= cur_pages;
+		if (!new_size) {
+			r = amdgpu_mm_node_addr(bo, ++new_mm, new_mem,
+						&new_start);
+			if (r)
+				goto error;
+
+			new_size = new_mm->size;
+		} else {
+			new_start += cur_pages * PAGE_SIZE;
+		}
+	}
 
 	r = ttm_bo_pipeline_move(bo, fence, evict, new_mem);
+	fence_put(fence);
+	return r;
+
+error:
+	if (fence)
+		fence_wait(fence, false);
 	fence_put(fence);
 	return r;
 }
