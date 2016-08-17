@@ -4392,11 +4392,8 @@ static int tcp_try_rmem_schedule(struct sock *sk, struct sk_buff *skb,
 		if (tcp_prune_queue(sk) < 0)
 			return -1;
 
-		if (!sk_rmem_schedule(sk, skb, size)) {
+		while (!sk_rmem_schedule(sk, skb, size)) {
 			if (!tcp_prune_ofo_queue(sk))
-				return -1;
-
-			if (!sk_rmem_schedule(sk, skb, size))
 				return -1;
 		}
 	}
@@ -4874,29 +4871,41 @@ static void tcp_collapse_ofo_queue(struct sock *sk)
 }
 
 /*
- * Purge the out-of-order queue.
- * Return true if queue was pruned.
+ * Clean the out-of-order queue to make room.
+ * We drop high sequences packets to :
+ * 1) Let a chance for holes to be filled.
+ * 2) not add too big latencies if thousands of packets sit there.
+ *    (But if application shrinks SO_RCVBUF, we could still end up
+ *     freeing whole queue here)
+ *
+ * Return true if queue has shrunk.
  */
 static bool tcp_prune_ofo_queue(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	bool res = false;
+	struct sk_buff *skb;
 
-	if (!skb_queue_empty(&tp->out_of_order_queue)) {
-		NET_INC_STATS(sock_net(sk), LINUX_MIB_OFOPRUNED);
-		__skb_queue_purge(&tp->out_of_order_queue);
+	if (skb_queue_empty(&tp->out_of_order_queue))
+		return false;
 
-		/* Reset SACK state.  A conforming SACK implementation will
-		 * do the same at a timeout based retransmit.  When a connection
-		 * is in a sad state like this, we care only about integrity
-		 * of the connection not performance.
-		 */
-		if (tp->rx_opt.sack_ok)
-			tcp_sack_reset(&tp->rx_opt);
+	NET_INC_STATS(sock_net(sk), LINUX_MIB_OFOPRUNED);
+
+	while ((skb = __skb_dequeue_tail(&tp->out_of_order_queue)) != NULL) {
+		tcp_drop(sk, skb);
 		sk_mem_reclaim(sk);
-		res = true;
+		if (atomic_read(&sk->sk_rmem_alloc) <= sk->sk_rcvbuf &&
+		    !tcp_under_memory_pressure(sk))
+			break;
 	}
-	return res;
+
+	/* Reset SACK state.  A conforming SACK implementation will
+	 * do the same at a timeout based retransmit.  When a connection
+	 * is in a sad state like this, we care only about integrity
+	 * of the connection not performance.
+	 */
+	if (tp->rx_opt.sack_ok)
+		tcp_sack_reset(&tp->rx_opt);
+	return true;
 }
 
 /* Reduce allocated memory if we can, trying to get
