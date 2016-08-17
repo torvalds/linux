@@ -4010,6 +4010,7 @@ static inline void mlxsw_reg_ralue_pack(char *payload,
 {
 	MLXSW_REG_ZERO(ralue, payload);
 	mlxsw_reg_ralue_protocol_set(payload, protocol);
+	mlxsw_reg_ralue_op_set(payload, op);
 	mlxsw_reg_ralue_virtual_router_set(payload, virtual_router);
 	mlxsw_reg_ralue_prefix_len_set(payload, prefix_len);
 	mlxsw_reg_ralue_entry_type_set(payload,
