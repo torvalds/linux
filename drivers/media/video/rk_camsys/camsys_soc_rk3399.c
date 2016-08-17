@@ -305,11 +305,9 @@ static int camsys_rk3399_mipihpy_cfg
 			write_dsihost_reg(DSIHOST_PHY_TEST_CTRL0, 0x00000002);
 			/*TESTEN =0*/
 			write_dsihost_reg(DSIHOST_PHY_TEST_CTRL1, 0x00000000);
-			/*SHUTDOWNZ=1*/
-			write_dsihost_reg(DSIHOST_PHY_SHUTDOWNZ, 0x00000001);
+			/*SHUTDOWNZ=1*//*RSTZ=1*/
 			/*__raw_writel(0x60f00, (void*)(0x1c00+vir_base));*/
-			/*RSTZ=1*/
-			write_dsihost_reg(DSIHOST_DPHY_RSTZ, 0x00000001);
+			write_dsihost_reg(DSIHOST_DPHY_RSTZ, 0x00000002);
 		}
 
 	} else {

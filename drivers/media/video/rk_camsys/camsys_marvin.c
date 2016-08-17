@@ -198,7 +198,7 @@ static int camsys_mrv_flash_trigger_cb(void *ptr, int mode, unsigned int on)
 				}
 			}
 		}
-	} else{
+	} else {
 		strcpy(state_str, "isp_flash_as_trigger_out");
 		pinctrl = devm_pinctrl_get(dev);
 		if (IS_ERR(pinctrl)) {
@@ -281,7 +281,7 @@ static int camsys_mrv_iommu_cb(void *ptr, camsys_sysctrl_t *devctl)
 		iommu_dev =
 			rockchip_get_sysmmu_device_by_compatible
 				(ISP1_IOMMU_COMPATIBLE_NAME);
-	} else{
+	} else {
 		if (CHIP_TYPE == 3399) {
 			iommu_dev =
 				rockchip_get_sysmmu_device_by_compatible
@@ -331,7 +331,7 @@ static int camsys_mrv_iommu_cb(void *ptr, camsys_sysctrl_t *devctl)
 		ret = rockchip_iovmm_activate(dev);
 		ret = ion_map_iommu(dev, client, handle,
 			&(iommu->linear_addr), &(iommu->len));
-	} else{
+	} else {
 		ion_unmap_iommu(dev, client, handle);
 		platform_set_sysmmu(iommu_dev, dev);
 		rockchip_iovmm_deactivate(dev);
@@ -372,7 +372,7 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
 			if (on == 1)
 				isp_clk = 210000000;
 			else
-				isp_clk = 210000000;
+				isp_clk = 420000000;
 
 			if (strstr(camsys_dev->miscdev.name,
 				"camsys_marvin1")) {
@@ -389,7 +389,7 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
 
 				clk_prepare_enable(clk->pclkin_isp);
 				clk_prepare_enable(clk->cif_clk_out);
-			} else{
+			} else {
 				clk_set_rate(clk->clk_isp0, isp_clk);
 				clk_prepare_enable(clk->hclk_isp0_noc);
 				clk_prepare_enable(clk->hclk_isp0_wrapper);
@@ -400,9 +400,6 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
 				clk_prepare_enable(clk->pclk_dphyrx);
 				clk_prepare_enable(clk->pclk_dphy_ref);
 			}
-
-		clk_set_rate(clk->clk_isp0, isp_clk);
-		clk_set_rate(clk->clk_isp1, isp_clk);
 
 		clk->in_on = true;
 
@@ -425,7 +422,7 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
 				clk_disable_unprepare(clk->pclk_dphy_ref);
 
 				clk_disable_unprepare(clk->pclkin_isp);
-			} else{
+			} else {
 				clk_disable_unprepare(clk->hclk_isp0_noc);
 				clk_disable_unprepare(clk->hclk_isp0_wrapper);
 				clk_disable_unprepare(clk->aclk_isp0_noc);
@@ -465,7 +462,7 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
 			clk_prepare_enable(clk->pclk_dphyrx);
 			if (CHIP_TYPE == 3368)
 				clk_prepare_enable(clk->clk_vio0_noc);
-		} else{
+		} else {
 			clk_prepare_enable(clk->clk_mipi_24m);
 		}
 			clk->in_on = true;
@@ -486,7 +483,7 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
 			clk_disable_unprepare(clk->pclk_dphyrx);
 			if (CHIP_TYPE == 3368)
 				clk_disable_unprepare(clk->clk_vio0_noc);
-		} else{
+		} else {
 			clk_disable_unprepare(clk->clk_mipi_24m);
 		}
 		/* clk_disable_unprepare(clk->pd_isp); */
@@ -831,9 +828,7 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
 				devm_clk_get(&pdev->dev, "pclk_isp1");
 			mrv_clk->pclk_dphytxrx	   =
 				devm_clk_get(&pdev->dev, "pclk_dphytxrx");
-		}
-		else
-		{
+		} else{
 			mrv_clk->hclk_isp0_noc	   =
 				devm_clk_get(&pdev->dev, "hclk_isp0_noc");
 			mrv_clk->hclk_isp0_wrapper =
@@ -868,9 +863,7 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
 				err = -EINVAL;
 				goto clk_failed;
 			}
-		}
-		else
-		{
+		} else{
 			if (IS_ERR_OR_NULL(mrv_clk->hclk_isp0_noc)       ||
 				IS_ERR_OR_NULL(mrv_clk->hclk_isp0_wrapper)   ||
 				IS_ERR_OR_NULL(mrv_clk->aclk_isp0_noc)       ||
@@ -885,7 +878,6 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
 				goto clk_failed;
 			}
 		}
-	clk_set_rate(mrv_clk->clk_isp0, 210000000);
 	} else{
 		mrv_clk->pd_isp		  =
 			devm_clk_get(&pdev->dev, "pd_isp");

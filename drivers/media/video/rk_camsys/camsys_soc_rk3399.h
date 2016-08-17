@@ -19,6 +19,7 @@
 */
 
 #define GRF_SOC_STATUS21                  (0x2D4)
+#define GRF_SOC_STATUS1                   (0x0e2a4)
 
 #define CSIHOST_PHY_TEST_CTRL0            (0x30)
 #define CSIHOST_PHY_TEST_CTRL1            (0x34)
