@@ -646,7 +646,6 @@ static int efx_ef10_probe(struct efx_nic *efx)
 	rc = efx_ef10_get_timer_config(efx);
 	if (rc < 0)
 		goto fail5;
-	efx->timer_quantum_ns = 1536000 / rc; /* 1536 cycles */
 
 	rc = efx_mcdi_mon_probe(efx);
 	if (rc && rc != -EPERM)
