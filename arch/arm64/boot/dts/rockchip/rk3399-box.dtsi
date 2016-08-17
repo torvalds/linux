@@ -784,12 +784,12 @@
 };
 
 &usbdrd3_0 {
+	extcon = <&fusb0>;
 	status = "okay";
 };
 
 &usbdrd_dwc3_0 {
 	dr_mode = "peripheral";
-	extcon = <&fusb0>;
 	status = "okay";
 };
 

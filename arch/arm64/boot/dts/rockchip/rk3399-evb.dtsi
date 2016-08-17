@@ -397,6 +397,7 @@
 
 &u2phy0 {
 	status = "okay";
+	extcon = <&fusb0>;
 
 	u2phy0_otg: otg-port {
 		status = "okay";
@@ -410,6 +411,7 @@
 
 &u2phy1 {
 	status = "okay";
+	extcon = <&fusb1>;
 
 	u2phy1_otg: otg-port {
 		status = "okay";
@@ -448,6 +450,7 @@
 };
 
 &usbdrd3_0 {
+	extcon = <&fusb0>;
 	status = "okay";
 };
 
@@ -456,6 +459,7 @@
 };
 
 &usbdrd3_1 {
+	extcon = <&fusb1>;
 	status = "okay";
 };
 
