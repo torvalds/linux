@@ -1,0 +1,17 @@
+menu "Intel ISH HID support"
+	depends on X86_64 && PCI
+
+config INTEL_ISH_HID
+	tristate "Intel Integrated Sensor Hub"
+	default n
+	select HID
+	help
+	  The Integrated Sensor Hub (ISH) enables the ability to offload
+	  sensor polling and algorithm processing to a dedicated low power
+	  processor in the chipset. This allows the core processor to go into
+	  low power modes more often, resulting in the increased battery life.
+	  The current processors that support ISH are: Cherrytrail, Skylake,
+	  Broxton and Kaby Lake.
+
+	  Say Y here if you want to support Intel ISH. If unsure, say N.
+endmenu
