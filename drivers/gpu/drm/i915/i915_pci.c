@@ -195,24 +195,22 @@ static const struct intel_device_info intel_ironlake_m_info = {
 	CURSOR_OFFSETS,
 };
 
+#define GEN6_FEATURES \
+	.gen = 6, .num_pipes = 2, \
+	.need_gfx_hws = 1, .has_hotplug = 1, \
+	.has_fbc = 1, \
+	.ring_mask = RENDER_RING | BSD_RING | BLT_RING, \
+	.has_llc = 1, \
+	GEN_DEFAULT_PIPEOFFSETS, \
+	CURSOR_OFFSETS
+
 static const struct intel_device_info intel_sandybridge_d_info = {
-	.gen = 6, .num_pipes = 2,
-	.need_gfx_hws = 1, .has_hotplug = 1,
-	.has_fbc = 1,
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING,
-	.has_llc = 1,
-	GEN_DEFAULT_PIPEOFFSETS,
-	CURSOR_OFFSETS,
+	GEN6_FEATURES,
 };
 
 static const struct intel_device_info intel_sandybridge_m_info = {
-	.gen = 6, .is_mobile = 1, .num_pipes = 2,
-	.need_gfx_hws = 1, .has_hotplug = 1,
-	.has_fbc = 1,
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING,
-	.has_llc = 1,
-	GEN_DEFAULT_PIPEOFFSETS,
-	CURSOR_OFFSETS,
+	GEN6_FEATURES,
+	.is_mobile = 1,
 };
 
 #define GEN7_FEATURES  \
