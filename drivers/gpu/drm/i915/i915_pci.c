@@ -58,6 +58,7 @@
 	.gen = 2, .num_pipes = 1, \
 	.has_overlay = 1, .overlay_needs_physical = 1, \
 	.has_gmch_display = 1, \
+	.hws_needs_physical = 1, \
 	.ring_mask = RENDER_RING, \
 	GEN_DEFAULT_PIPEOFFSETS, \
 	CURSOR_OFFSETS
@@ -95,6 +96,7 @@ static const struct intel_device_info intel_i915g_info = {
 	GEN3_FEATURES,
 	.is_i915g = 1, .cursor_needs_physical = 1,
 	.has_overlay = 1, .overlay_needs_physical = 1,
+	.hws_needs_physical = 1,
 };
 static const struct intel_device_info intel_i915gm_info = {
 	GEN3_FEATURES,
@@ -103,11 +105,13 @@ static const struct intel_device_info intel_i915gm_info = {
 	.has_overlay = 1, .overlay_needs_physical = 1,
 	.supports_tv = 1,
 	.has_fbc = 1,
+	.hws_needs_physical = 1,
 };
 static const struct intel_device_info intel_i945g_info = {
 	GEN3_FEATURES,
 	.has_hotplug = 1, .cursor_needs_physical = 1,
 	.has_overlay = 1, .overlay_needs_physical = 1,
+	.hws_needs_physical = 1,
 };
 static const struct intel_device_info intel_i945gm_info = {
 	GEN3_FEATURES,
@@ -116,6 +120,7 @@ static const struct intel_device_info intel_i945gm_info = {
 	.has_overlay = 1, .overlay_needs_physical = 1,
 	.supports_tv = 1,
 	.has_fbc = 1,
+	.hws_needs_physical = 1,
 };
 
 #define GEN4_FEATURES \
@@ -130,6 +135,7 @@ static const struct intel_device_info intel_i965g_info = {
 	GEN4_FEATURES,
 	.is_broadwater = 1,
 	.has_overlay = 1,
+	.hws_needs_physical = 1,
 };
 
 static const struct intel_device_info intel_i965gm_info = {
@@ -138,18 +144,19 @@ static const struct intel_device_info intel_i965gm_info = {
 	.is_mobile = 1, .has_fbc = 1,
 	.has_overlay = 1,
 	.supports_tv = 1,
+	.hws_needs_physical = 1,
 };
 
 static const struct intel_device_info intel_g33_info = {
 	GEN3_FEATURES,
 	.is_g33 = 1,
-	.need_gfx_hws = 1, .has_hotplug = 1,
+	.has_hotplug = 1,
 	.has_overlay = 1,
 };
 
 static const struct intel_device_info intel_g45_info = {
 	GEN4_FEATURES,
-	.is_g4x = 1, .need_gfx_hws = 1,
+	.is_g4x = 1,
 	.has_pipe_cxsr = 1,
 	.ring_mask = RENDER_RING | BSD_RING,
 };
@@ -157,7 +164,7 @@ static const struct intel_device_info intel_g45_info = {
 static const struct intel_device_info intel_gm45_info = {
 	GEN4_FEATURES,
 	.is_g4x = 1,
-	.is_mobile = 1, .need_gfx_hws = 1, .has_fbc = 1,
+	.is_mobile = 1, .has_fbc = 1,
 	.has_pipe_cxsr = 1,
 	.supports_tv = 1,
 	.ring_mask = RENDER_RING | BSD_RING,
@@ -166,13 +173,13 @@ static const struct intel_device_info intel_gm45_info = {
 static const struct intel_device_info intel_pineview_info = {
 	GEN3_FEATURES,
 	.is_g33 = 1, .is_pineview = 1, .is_mobile = 1,
-	.need_gfx_hws = 1, .has_hotplug = 1,
+	.has_hotplug = 1,
 	.has_overlay = 1,
 };
 
 #define GEN5_FEATURES \
 	.gen = 5, .num_pipes = 2, \
-	.need_gfx_hws = 1, .has_hotplug = 1, \
+	.has_hotplug = 1, \
 	.has_gmbus_irq = 1, \
 	.ring_mask = RENDER_RING | BSD_RING, \
 	GEN_DEFAULT_PIPEOFFSETS, \
@@ -189,7 +196,7 @@ static const struct intel_device_info intel_ironlake_m_info = {
 
 #define GEN6_FEATURES \
 	.gen = 6, .num_pipes = 2, \
-	.need_gfx_hws = 1, .has_hotplug = 1, \
+	.has_hotplug = 1, \
 	.has_fbc = 1, \
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING, \
 	.has_llc = 1, \
@@ -211,7 +218,7 @@ static const struct intel_device_info intel_sandybridge_m_info = {
 
 #define GEN7_FEATURES  \
 	.gen = 7, .num_pipes = 3, \
-	.need_gfx_hws = 1, .has_hotplug = 1, \
+	.has_hotplug = 1, \
 	.has_fbc = 1, \
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING, \
 	.has_llc = 1, \
@@ -250,7 +257,7 @@ static const struct intel_device_info intel_ivybridge_q_info = {
 	.has_gmbus_irq = 1, \
 	.has_hw_contexts = 1, \
 	.has_gmch_display = 1, \
-	.need_gfx_hws = 1, .has_hotplug = 1, \
+	.has_hotplug = 1, \
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING, \
 	.display_mmio_offset = VLV_DISPLAY_BASE, \
 	GEN_DEFAULT_PIPEOFFSETS, \
@@ -298,7 +305,7 @@ static const struct intel_device_info intel_broadwell_gt3_info = {
 
 static const struct intel_device_info intel_cherryview_info = {
 	.gen = 8, .num_pipes = 3,
-	.need_gfx_hws = 1, .has_hotplug = 1,
+	.has_hotplug = 1,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
 	.is_cherryview = 1,
 	.has_psr = 1,
@@ -333,7 +340,7 @@ static const struct intel_device_info intel_skylake_gt3_info = {
 static const struct intel_device_info intel_broxton_info = {
 	.is_broxton = 1,
 	.gen = 9,
-	.need_gfx_hws = 1, .has_hotplug = 1,
+	.has_hotplug = 1,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
 	.num_pipes = 3,
 	.has_ddi = 1,

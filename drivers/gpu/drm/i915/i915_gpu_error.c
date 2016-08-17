@@ -1025,7 +1025,7 @@ static void error_record_engine_registers(struct drm_i915_error_state *error,
 	if (INTEL_GEN(dev_priv) > 2)
 		ee->mode = I915_READ_MODE(engine);
 
-	if (I915_NEED_GFX_HWS(dev_priv)) {
+	if (!HWS_NEEDS_PHYSICAL(dev_priv)) {
 		i915_reg_t mmio;
 
 		if (IS_GEN7(dev_priv)) {

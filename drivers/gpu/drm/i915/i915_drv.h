@@ -639,7 +639,7 @@ struct intel_csr {
 	func(is_i915g) sep \
 	func(is_i945gm) sep \
 	func(is_g33) sep \
-	func(need_gfx_hws) sep \
+	func(hws_needs_physical) sep \
 	func(is_g4x) sep \
 	func(is_pineview) sep \
 	func(is_broadwater) sep \
@@ -2748,7 +2748,7 @@ struct drm_i915_cmd_table {
 #define HAS_EDRAM(dev)		(!!(__I915__(dev)->edram_cap & EDRAM_ENABLED))
 #define HAS_WT(dev)		((IS_HASWELL(dev) || IS_BROADWELL(dev)) && \
 				 HAS_EDRAM(dev))
-#define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)
+#define HWS_NEEDS_PHYSICAL(dev)	(INTEL_INFO(dev)->hws_needs_physical)
 
 #define HAS_HW_CONTEXTS(dev)	(INTEL_INFO(dev)->has_hw_contexts)
 #define HAS_LOGICAL_RING_CONTEXTS(dev)	(INTEL_INFO(dev)->has_logical_ring_contexts)

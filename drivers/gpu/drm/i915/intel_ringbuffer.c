@@ -559,10 +559,10 @@ static int init_ring_common(struct intel_engine_cs *engine)
 		}
 	}
 
-	if (I915_NEED_GFX_HWS(dev_priv))
-		intel_ring_setup_status_page(engine);
-	else
+	if (HWS_NEEDS_PHYSICAL(dev_priv))
 		ring_setup_phys_status_page(engine);
+	else
+		intel_ring_setup_status_page(engine);
 
 	/* Enforce ordering by reading HEAD register back */
 	I915_READ_HEAD(engine);
@@ -2109,13 +2109,13 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 		goto error;
 	}
 
-	if (I915_NEED_GFX_HWS(dev_priv)) {
-		ret = init_status_page(engine);
+	if (HWS_NEEDS_PHYSICAL(dev_priv)) {
+		WARN_ON(engine->id != RCS);
+		ret = init_phys_status_page(engine);
 		if (ret)
 			goto error;
 	} else {
-		WARN_ON(engine->id != RCS);
-		ret = init_phys_status_page(engine);
+		ret = init_status_page(engine);
 		if (ret)
 			goto error;
 	}
@@ -2155,11 +2155,11 @@ void intel_engine_cleanup(struct intel_engine_cs *engine)
 	if (engine->cleanup)
 		engine->cleanup(engine);
 
-	if (I915_NEED_GFX_HWS(dev_priv)) {
-		cleanup_status_page(engine);
-	} else {
+	if (HWS_NEEDS_PHYSICAL(dev_priv)) {
 		WARN_ON(engine->id != RCS);
 		cleanup_phys_status_page(engine);
+	} else {
+		cleanup_status_page(engine);
 	}
 
 	intel_engine_cleanup_common(engine);
