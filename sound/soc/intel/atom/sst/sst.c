@@ -190,7 +190,8 @@ int sst_driver_ops(struct intel_sst_drv *sst)
 
 	default:
 		dev_err(sst->dev,
-			"SST Driver capablities missing for dev_id: %x", sst->dev_id);
+			"SST Driver capabilities missing for dev_id: %x",
+			sst->dev_id);
 		return -EINVAL;
 	};
 }
