@@ -1804,6 +1804,8 @@ continue_reset:
 	}
 	adapter->aq_required |= I40EVF_FLAG_AQ_ADD_MAC_FILTER;
 	adapter->aq_required |= I40EVF_FLAG_AQ_ADD_VLAN_FILTER;
+	/* Open RDMA Client again */
+	adapter->aq_required |= I40EVF_FLAG_SERVICE_CLIENT_REQUESTED;
 	clear_bit(__I40EVF_IN_CRITICAL_TASK, &adapter->crit_section);
 	i40evf_misc_irq_enable(adapter);
 
