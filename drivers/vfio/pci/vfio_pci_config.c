@@ -70,7 +70,7 @@ static const u8 pci_cap_length[PCI_CAP_ID_MAX + 1] = {
 
 /*
  * Lengths of PCIe/PCI-X Extended Config Capabilities
- *   0: Removed or masked from the user visible capabilty list
+ *   0: Removed or masked from the user visible capability list
  *   FF: Variable length
  */
 static const u16 pci_ext_cap_length[PCI_EXT_CAP_ID_MAX + 1] = {
@@ -355,7 +355,7 @@ static int alloc_perm_bits(struct perm_bits *perm, int size)
 	 * ignore whether a read/write exceeds the defined capability
 	 * structure.  We can do this because:
 	 *  - Standard config space is already dword aligned
-	 *  - Capabilities are all dword alinged (bits 0:1 of next reserved)
+	 *  - Capabilities are all dword aligned (bits 0:1 of next reserved)
 	 *  - Express capabilities defined as dword aligned
 	 */
 	size = round_up(size, 4);
@@ -1516,10 +1516,10 @@ static int vfio_ecap_init(struct vfio_pci_device *vdev)
  * space which tracks reads and writes to bits that we emulate for
  * the user.  Initial values filled from device.
  *
- * Using shared stuct perm_bits between all vfio-pci devices saves
+ * Using shared struct perm_bits between all vfio-pci devices saves
  * us from allocating cfg_size buffers for virt and write for every
  * device.  We could remove vconfig and allocate individual buffers
- * for each area requring emulated bits, but the array of pointers
+ * for each area requiring emulated bits, but the array of pointers
  * would be comparable in size (at least for standard config space).
  */
 int vfio_config_init(struct vfio_pci_device *vdev)
