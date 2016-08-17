@@ -526,6 +526,14 @@ static void etnaviv_gpu_enable_mlcg(struct etnaviv_gpu *gpu)
 	gpu_write(gpu, VIVS_PM_MODULE_CONTROLS, pmc);
 }
 
+void etnaviv_gpu_start_fe(struct etnaviv_gpu *gpu, u32 address, u16 prefetch)
+{
+	gpu_write(gpu, VIVS_FE_COMMAND_ADDRESS, address);
+	gpu_write(gpu, VIVS_FE_COMMAND_CONTROL,
+		  VIVS_FE_COMMAND_CONTROL_ENABLE |
+		  VIVS_FE_COMMAND_CONTROL_PREFETCH(prefetch));
+}
+
 static void etnaviv_gpu_hw_init(struct etnaviv_gpu *gpu)
 {
 	u16 prefetch;
@@ -573,11 +581,8 @@ static void etnaviv_gpu_hw_init(struct etnaviv_gpu *gpu)
 	prefetch = etnaviv_buffer_init(gpu);
 
 	gpu_write(gpu, VIVS_HI_INTR_ENBL, ~0U);
-	gpu_write(gpu, VIVS_FE_COMMAND_ADDRESS,
-		  etnaviv_iommu_get_cmdbuf_va(gpu, gpu->buffer));
-	gpu_write(gpu, VIVS_FE_COMMAND_CONTROL,
-		  VIVS_FE_COMMAND_CONTROL_ENABLE |
-		  VIVS_FE_COMMAND_CONTROL_PREFETCH(prefetch));
+	etnaviv_gpu_start_fe(gpu, etnaviv_iommu_get_cmdbuf_va(gpu, gpu->buffer),
+			     prefetch);
 }
 
 int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
