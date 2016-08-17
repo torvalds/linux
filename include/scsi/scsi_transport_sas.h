@@ -11,17 +11,11 @@ struct sas_rphy;
 struct request;
 
 #if !IS_ENABLED(CONFIG_SCSI_SAS_ATTRS)
-static inline int is_sas_attached(struct scsi_device *sdev)
-{
-	return 0;
-}
-
 static inline int scsi_is_sas_rphy(const struct device *sdev)
 {
 	return 0;
 }
 #else
-extern int is_sas_attached(struct scsi_device *sdev);
 extern int scsi_is_sas_rphy(const struct device *);
 #endif
 
