@@ -940,6 +940,27 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 		bgmac_cco_ctl_maskset(bgmac, 1, ~(BGMAC_CHIPCTL_1_IF_TYPE_MASK |
 						  BGMAC_CHIPCTL_1_SW_TYPE_MASK),
 				      sw_type);
+	} else if (bgmac->feature_flags & BGMAC_FEAT_CC4_IF_SW_TYPE) {
+		u32 sw_type = BGMAC_CHIPCTL_4_IF_TYPE_MII |
+			      BGMAC_CHIPCTL_4_SW_TYPE_EPHY;
+		u8 et_swtype = 0;
+		char buf[4];
+
+		if (bcm47xx_nvram_getenv("et_swtype", buf, sizeof(buf)) > 0) {
+			if (kstrtou8(buf, 0, &et_swtype))
+				dev_err(bgmac->dev, "Failed to parse et_swtype (%s)\n",
+					buf);
+			sw_type = (et_swtype & 0x0f) << 12;
+		} else if (bgmac->feature_flags & BGMAC_FEAT_CC4_IF_SW_TYPE_RGMII) {
+			sw_type = BGMAC_CHIPCTL_4_IF_TYPE_RGMII |
+				  BGMAC_CHIPCTL_4_SW_TYPE_RGMII;
+		}
+		bgmac_cco_ctl_maskset(bgmac, 4, ~(BGMAC_CHIPCTL_4_IF_TYPE_MASK |
+						  BGMAC_CHIPCTL_4_SW_TYPE_MASK),
+				      sw_type);
+	} else if (bgmac->feature_flags & BGMAC_FEAT_CC7_IF_TYPE_RGMII) {
+		bgmac_cco_ctl_maskset(bgmac, 7, ~BGMAC_CHIPCTL_7_IF_TYPE_MASK,
+				      BGMAC_CHIPCTL_7_IF_TYPE_RGMII);
 	}
 
 	if (iost & BGMAC_BCMA_IOST_ATTACHED && !bgmac->has_robosw)
@@ -1466,6 +1487,10 @@ int bgmac_enet_probe(struct bgmac *info)
 	 * Broadcom does it in arch PCI code when enabling fake PCI device.
 	 */
 	bgmac_clk_enable(bgmac, 0);
+
+	/* This seems to be fixing IRQ by assigning OOB #6 to the core */
+	if (bgmac->feature_flags & BGMAC_FEAT_IRQ_ID_OOB_6)
+		bgmac_idm_write(bgmac, BCMA_OOB_SEL_OUT_A30, 0x86);
 
 	bgmac_chip_reset(bgmac);
 
