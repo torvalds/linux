@@ -1976,8 +1976,8 @@ static u64 bpf_skb_change_type(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 	u32 pkt_type = r2;
 
 	/* We only allow a restricted subset to be changed for now. */
-	if (unlikely(skb->pkt_type > PACKET_OTHERHOST ||
-		     pkt_type > PACKET_OTHERHOST))
+	if (unlikely(!skb_pkt_type_ok(skb->pkt_type) ||
+		     !skb_pkt_type_ok(pkt_type)))
 		return -EINVAL;
 
 	skb->pkt_type = pkt_type;
