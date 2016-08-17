@@ -149,7 +149,7 @@ static void pnv_ioda_reserve_pe(struct pnv_phb *phb, int pe_no)
 
 static struct pnv_ioda_pe *pnv_ioda_alloc_pe(struct pnv_phb *phb)
 {
-	unsigned long pe = phb->ioda.total_pe_num - 1;
+	long pe;
 
 	for (pe = phb->ioda.total_pe_num - 1; pe >= 0; pe--) {
 		if (!test_and_set_bit(pe, phb->ioda.pe_alloc))
