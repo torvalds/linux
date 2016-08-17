@@ -123,23 +123,25 @@ static const struct intel_device_info intel_i945gm_info = {
 	CURSOR_OFFSETS,
 };
 
+#define GEN4_FEATURES \
+	.gen = 4, .num_pipes = 2, \
+	.has_hotplug = 1, \
+	.ring_mask = RENDER_RING, \
+	GEN_DEFAULT_PIPEOFFSETS, \
+	CURSOR_OFFSETS
+
 static const struct intel_device_info intel_i965g_info = {
-	.gen = 4, .is_broadwater = 1, .num_pipes = 2,
-	.has_hotplug = 1,
+	GEN4_FEATURES,
+	.is_broadwater = 1,
 	.has_overlay = 1,
-	.ring_mask = RENDER_RING,
-	GEN_DEFAULT_PIPEOFFSETS,
-	CURSOR_OFFSETS,
 };
 
 static const struct intel_device_info intel_i965gm_info = {
-	.gen = 4, .is_crestline = 1, .num_pipes = 2,
-	.is_mobile = 1, .has_fbc = 1, .has_hotplug = 1,
+	GEN4_FEATURES,
+	.is_crestline = 1,
+	.is_mobile = 1, .has_fbc = 1,
 	.has_overlay = 1,
 	.supports_tv = 1,
-	.ring_mask = RENDER_RING,
-	GEN_DEFAULT_PIPEOFFSETS,
-	CURSOR_OFFSETS,
 };
 
 static const struct intel_device_info intel_g33_info = {
@@ -152,21 +154,19 @@ static const struct intel_device_info intel_g33_info = {
 };
 
 static const struct intel_device_info intel_g45_info = {
-	.gen = 4, .is_g4x = 1, .need_gfx_hws = 1, .num_pipes = 2,
-	.has_pipe_cxsr = 1, .has_hotplug = 1,
+	GEN4_FEATURES,
+	.is_g4x = 1, .need_gfx_hws = 1,
+	.has_pipe_cxsr = 1,
 	.ring_mask = RENDER_RING | BSD_RING,
-	GEN_DEFAULT_PIPEOFFSETS,
-	CURSOR_OFFSETS,
 };
 
 static const struct intel_device_info intel_gm45_info = {
-	.gen = 4, .is_g4x = 1, .num_pipes = 2,
+	GEN4_FEATURES,
+	.is_g4x = 1,
 	.is_mobile = 1, .need_gfx_hws = 1, .has_fbc = 1,
-	.has_pipe_cxsr = 1, .has_hotplug = 1,
+	.has_pipe_cxsr = 1,
 	.supports_tv = 1,
 	.ring_mask = RENDER_RING | BSD_RING,
-	GEN_DEFAULT_PIPEOFFSETS,
-	CURSOR_OFFSETS,
 };
 
 static const struct intel_device_info intel_pineview_info = {
