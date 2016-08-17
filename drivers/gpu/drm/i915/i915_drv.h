@@ -658,6 +658,7 @@ struct intel_csr {
 	func(has_runtime_pm) sep \
 	func(has_csr) sep \
 	func(has_resource_streamer) sep \
+	func(has_rc6) sep \
 	func(has_pipe_cxsr) sep \
 	func(has_hotplug) sep \
 	func(cursor_needs_physical) sep \
@@ -2790,7 +2791,7 @@ struct drm_i915_cmd_table {
 #define HAS_FPGA_DBG_UNCLAIMED(dev)	(INTEL_INFO(dev)->has_fpga_dbg)
 #define HAS_PSR(dev)		(INTEL_INFO(dev)->has_psr)
 #define HAS_RUNTIME_PM(dev)	(INTEL_INFO(dev)->has_runtime_pm)
-#define HAS_RC6(dev)		(INTEL_INFO(dev)->gen >= 6)
+#define HAS_RC6(dev)		(INTEL_INFO(dev)->has_rc6)
 #define HAS_RC6p(dev)		(IS_GEN6(dev) || IS_IVYBRIDGE(dev))
 
 #define HAS_CSR(dev)	(INTEL_INFO(dev)->has_csr)
