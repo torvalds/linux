@@ -15,7 +15,7 @@
 #include <linux/rational.h>
 
 #include <linux/dmaengine.h>
-#include <linux/platform_data/dma-dw.h>
+#include <linux/dma/dw.h>
 
 #include "8250.h"
 
@@ -47,6 +47,7 @@ struct lpss8250_board {
 	unsigned long freq;
 	unsigned int base_baud;
 	int (*setup)(struct lpss8250 *, struct uart_port *p);
+	void (*exit)(struct lpss8250 *);
 };
 
 struct lpss8250 {
@@ -55,6 +56,7 @@ struct lpss8250 {
 
 	/* DMA parameters */
 	struct uart_8250_dma dma;
+	struct dw_dma_chip dma_chip;
 	struct dw_dma_slave dma_param;
 	u8 dma_maxburst;
 };
@@ -151,6 +153,61 @@ static int byt_serial_setup(struct lpss8250 *lpss, struct uart_port *port)
 	return 0;
 }
 
+#ifdef CONFIG_SERIAL_8250_DMA
+static const struct dw_dma_platform_data qrk_serial_dma_pdata = {
+	.nr_channels = 2,
+	.is_private = true,
+	.is_nollp = true,
+	.chan_allocation_order = CHAN_ALLOCATION_ASCENDING,
+	.chan_priority = CHAN_PRIORITY_ASCENDING,
+	.block_size = 4095,
+	.nr_masters = 1,
+	.data_width = {4},
+};
+
+static void qrk_serial_setup_dma(struct lpss8250 *lpss, struct uart_port *port)
+{
+	struct uart_8250_dma *dma = &lpss->dma;
+	struct dw_dma_chip *chip = &lpss->dma_chip;
+	struct dw_dma_slave *param = &lpss->dma_param;
+	struct pci_dev *pdev = to_pci_dev(port->dev);
+	int ret;
+
+	chip->dev = &pdev->dev;
+	chip->irq = pdev->irq;
+	chip->regs = pci_ioremap_bar(pdev, 1);
+	chip->pdata = &qrk_serial_dma_pdata;
+
+	/* Falling back to PIO mode if DMA probing fails */
+	ret = dw_dma_probe(chip);
+	if (ret)
+		return;
+
+	/* Special DMA address for UART */
+	dma->rx_dma_addr = 0xfffff000;
+	dma->tx_dma_addr = 0xfffff000;
+
+	param->dma_dev = &pdev->dev;
+	param->src_id = 0;
+	param->dst_id = 1;
+	param->hs_polarity = true;
+
+	lpss->dma_maxburst = 8;
+}
+
+static void qrk_serial_exit_dma(struct lpss8250 *lpss)
+{
+	struct dw_dma_slave *param = &lpss->dma_param;
+
+	if (!param->dma_dev)
+		return;
+	dw_dma_remove(&lpss->dma_chip);
+}
+#else	/* CONFIG_SERIAL_8250_DMA */
+static void qrk_serial_setup_dma(struct lpss8250 *lpss, struct uart_port *port) {}
+static void qrk_serial_exit_dma(struct lpss8250 *lpss) {}
+#endif	/* !CONFIG_SERIAL_8250_DMA */
+
 static int qrk_serial_setup(struct lpss8250 *lpss, struct uart_port *port)
 {
 	struct pci_dev *pdev = to_pci_dev(port->dev);
@@ -162,7 +219,13 @@ static int qrk_serial_setup(struct lpss8250 *lpss, struct uart_port *port)
 
 	port->irq = pci_irq_vector(pdev, 0);
 
+	qrk_serial_setup_dma(lpss, port);
 	return 0;
+}
+
+static void qrk_serial_exit(struct lpss8250 *lpss)
+{
+	qrk_serial_exit_dma(lpss);
 }
 
 static bool lpss8250_dma_filter(struct dma_chan *chan, void *param)
@@ -247,21 +310,29 @@ static int lpss8250_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ret = lpss8250_dma_setup(lpss, &uart);
 	if (ret)
-		return ret;
+		goto err_exit;
 
 	ret = serial8250_register_8250_port(&uart);
 	if (ret < 0)
-		return ret;
+		goto err_exit;
 
 	lpss->line = ret;
 
 	pci_set_drvdata(pdev, lpss);
 	return 0;
+
+err_exit:
+	if (lpss->board->exit)
+		lpss->board->exit(lpss);
+	return ret;
 }
 
 static void lpss8250_remove(struct pci_dev *pdev)
 {
 	struct lpss8250 *lpss = pci_get_drvdata(pdev);
+
+	if (lpss->board->exit)
+		lpss->board->exit(lpss);
 
 	serial8250_unregister_port(lpss->line);
 }
@@ -276,6 +347,7 @@ static const struct lpss8250_board qrk_board = {
 	.freq = 44236800,
 	.base_baud = 2764800,
 	.setup = qrk_serial_setup,
+	.exit = qrk_serial_exit,
 };
 
 #define LPSS_DEVICE(id, board) { PCI_VDEVICE(INTEL, id), (kernel_ulong_t)&board }
