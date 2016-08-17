@@ -36,10 +36,13 @@ next to each other in memory.
        -
        -  :cspan:`7` Byte 0 in memory
 
+       -
        -  :cspan:`7` Byte 1
 
+       -
        -  :cspan:`7` Byte 2
 
+       -
        -  :cspan:`7` Byte 3
 
     -  .. row 2
@@ -202,13 +205,13 @@ next to each other in memory.
        -  b\ :sub:`0`
 
        -
-       -  -
+       -
 
-       -  -
+       -
 
-       -  -
+       -
 
-       -  -
+       -
 
        -  r\ :sub:`3`
 
@@ -282,7 +285,7 @@ next to each other in memory.
        -  b\ :sub:`0`
 
        -
-       -  -
+       -
 
        -  r\ :sub:`4`
 
@@ -385,7 +388,7 @@ next to each other in memory.
        -  'XR15' | (1 << 31)
 
        -
-       -  -
+       -
 
        -  r\ :sub:`4`
 
@@ -617,34 +620,34 @@ next to each other in memory.
 
        -  r\ :sub:`0`
 
-       -  -
-
-       -  -
-
-       -  -
-
-       -  -
-
-       -  -
-
-       -  -
+       -
 
        -
-       -  -
 
-       -  -
+       -
 
-       -  -
+       -
 
-       -  -
+       -
 
-       -  -
+       -
 
-       -  -
+       -
+       -
 
-       -  -
+       -
 
-       -  -
+       -
+
+       -
+
+       -
+
+       -
+
+       -
+
+       -
 
     -  .. _V4L2-PIX-FMT-ABGR32:
 
@@ -778,21 +781,21 @@ next to each other in memory.
        -  r\ :sub:`0`
 
        -
-       -  -
+       -
 
-       -  -
+       -
 
-       -  -
+       -
 
-       -  -
+       -
 
-       -  -
+       -
 
-       -  -
+       -
 
-       -  -
+       -
 
-       -  -
+       -
 
     -  .. _V4L2-PIX-FMT-ARGB32:
 
@@ -875,21 +878,21 @@ next to each other in memory.
        -  'BX24'
 
        -
-       -  -
+       -
 
-       -  -
+       -
 
-       -  -
+       -
 
-       -  -
+       -
 
-       -  -
+       -
 
-       -  -
+       -
 
-       -  -
+       -
 
-       -  -
+       -
 
        -
        -  r\ :sub:`7`
@@ -1117,10 +1120,13 @@ either the corresponding ARGB or XRGB format, depending on the driver.
        -
        -  :cspan:`7` Byte 0 in memory
 
+       -
        -  :cspan:`7` Byte 1
 
+       -
        -  :cspan:`7` Byte 2
 
+       -
        -  :cspan:`7` Byte 3
 
     -  .. row 2
