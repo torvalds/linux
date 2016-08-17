@@ -6,8 +6,6 @@
 V4L2_SDR_FMT_CS8 ('CS08')
 *************************
 
-*man V4L2_SDR_FMT_CS8(2)*
-
 Complex signed 8-bit IQ sample
 
 
@@ -22,14 +20,9 @@ Q value after that.
 **Byte Order.**
 Each cell is one byte.
 
-
-
-.. tabularcolumns:: |p{11.7cm}|p{5.8cm}|
-
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-    :widths:       2 1
 
 
     -  .. row 1

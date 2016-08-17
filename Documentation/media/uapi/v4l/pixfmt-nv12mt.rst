@@ -6,8 +6,6 @@
 V4L2_PIX_FMT_NV12MT ('TM12')
 ****************************
 
-*man V4L2_PIX_FMT_NV12MT(2)*
-
 Formats with ½ horizontal and vertical chroma resolution. This format
 has two planes - one for luminance and one for chrominance. Chroma
 samples are interleaved. The difference to ``V4L2_PIX_FMT_NV12`` is the

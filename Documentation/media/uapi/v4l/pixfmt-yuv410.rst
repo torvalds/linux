@@ -7,7 +7,6 @@
 V4L2_PIX_FMT_YVU410 ('YVU9'), V4L2_PIX_FMT_YUV410 ('YUV9')
 **********************************************************
 
-*man V4L2_PIX_FMT_YVU410(2)*
 
 V4L2_PIX_FMT_YUV410
 Planar formats with ¼ horizontal and vertical chroma resolution, also
@@ -37,12 +36,10 @@ Each cell is one byte.
 
 
 
-.. tabularcolumns:: |p{5.8cm}|p{2.9cm}|p{2.9cm}|p{2.9cm}|p{3.0cm}|
 
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-    :widths:       2 1 1 1 1
 
 
     -  .. row 1

@@ -10,7 +10,6 @@
 V4L2_PIX_FMT_SRGGB12 ('RG12'), V4L2_PIX_FMT_SGRBG12 ('BA12'), V4L2_PIX_FMT_SGBRG12 ('GB12'), V4L2_PIX_FMT_SBGGR12 ('BG12'),
 ***************************************************************************************************************************
 
-*man V4L2_PIX_FMT_SRGGB12(2)*
 
 V4L2_PIX_FMT_SGRBG12
 V4L2_PIX_FMT_SGBRG12
@@ -34,12 +33,10 @@ Each cell is one byte, high 6 bits in high bytes are 0.
 
 
 
-.. tabularcolumns:: |p{3.5cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|p{1.4cm}|
 
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-    :widths:       2 1 1 1 1 1 1 1 1
 
 
     -  .. row 1

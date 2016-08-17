@@ -9,7 +9,6 @@
 V4L2_PIX_FMT_SRGGB10P ('pRAA'), V4L2_PIX_FMT_SGRBG10P ('pgAA'), V4L2_PIX_FMT_SGBRG10P ('pGAA'), V4L2_PIX_FMT_SBGGR10P ('pBAA'),
 *******************************************************************************************************************************
 
-*man V4L2_PIX_FMT_SRGGB10P(2)*
 
 V4L2_PIX_FMT_SGRBG10P
 V4L2_PIX_FMT_SGBRG10P
@@ -34,15 +33,16 @@ of one of these formats:
 **Byte Order.**
 Each cell is one byte.
 
+.. raw:: latex
 
+    \newline\newline\begin{adjustbox}{width=\columnwidth}
 
-.. tabularcolumns:: |p{5.0cm}|p{2.5cm}|p{2.5cm}|p{2.5cm}|p{2.5cm}|p{2.5cm}|
+.. tabularcolumns:: |p{2.0cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{10.9cm}|
 
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-    :widths:       2 1 1 1 1 1
-
+    :widths: 12 8 8 8 8 68
 
     -  .. row 1
 
@@ -103,3 +103,7 @@ Each cell is one byte.
 
        -  G\ :sub:`30low`\ (bits 7--6) R\ :sub:`31low`\ (bits 5--4)
 	  G\ :sub:`32low`\ (bits 3--2) R\ :sub:`33low`\ (bits 1--0)
+
+.. raw:: latex
+
+    \end{adjustbox}\newline\newline

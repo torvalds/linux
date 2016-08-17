@@ -7,8 +7,6 @@
 V4L2_PIX_FMT_NV24 ('NV24'), V4L2_PIX_FMT_NV42 ('NV42')
 ******************************************************
 
-*man V4L2_PIX_FMT_NV24(2)*
-
 V4L2_PIX_FMT_NV42
 Formats with full horizontal and vertical chroma resolutions, also known
 as YUV 4:4:4. One luminance and one chrominance plane with alternating
@@ -35,14 +33,9 @@ twice as many pad bytes after its rows.
 Each cell is one byte.
 
 
-
-.. tabularcolumns:: |p{3.5cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|p{1.4cm}|
-
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-    :widths:       2 1 1 1 1 1 1 1 1
-
 
     -  .. row 1
 

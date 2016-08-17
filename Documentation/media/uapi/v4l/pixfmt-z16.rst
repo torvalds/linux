@@ -6,7 +6,6 @@
 V4L2_PIX_FMT_Z16 ('Z16 ')
 *************************
 
-*man V4L2_PIX_FMT_Z16(2)*
 
 16-bit depth data with distance values at each pixel
 
@@ -24,12 +23,10 @@ Each cell is one byte.
 
 
 
-.. tabularcolumns:: |p{3.5cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|p{1.4cm}|
 
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-    :widths:       2 1 1 1 1 1 1 1 1
 
 
     -  .. row 1

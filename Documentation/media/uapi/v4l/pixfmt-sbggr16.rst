@@ -6,8 +6,6 @@
 V4L2_PIX_FMT_SBGGR16 ('BYR2')
 *****************************
 
-*man V4L2_PIX_FMT_SBGGR16(2)*
-
 Bayer RGB format
 
 
@@ -27,15 +25,9 @@ memory addresses (little-endian).
 **Byte Order.**
 Each cell is one byte.
 
-
-
-.. tabularcolumns:: |p{3.5cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|p{1.4cm}|
-
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-    :widths:       2 1 1 1 1 1 1 1 1
-
 
     -  .. row 1
 

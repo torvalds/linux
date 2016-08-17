@@ -6,7 +6,6 @@
 V4L2_PIX_FMT_YUYV ('YUYV')
 **************************
 
-*man V4L2_PIX_FMT_YUYV(2)*
 
 Packed format with ½ horizontal chroma resolution, also known as YUV
 4:2:2
@@ -26,12 +25,10 @@ Each cell is one byte.
 
 
 
-.. tabularcolumns:: |p{3.5cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|p{1.4cm}|
 
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-    :widths:       2 1 1 1 1 1 1 1 1
 
 
     -  .. row 1

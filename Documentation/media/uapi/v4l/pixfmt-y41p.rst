@@ -6,7 +6,6 @@
 V4L2_PIX_FMT_Y41P ('Y41P')
 **************************
 
-*man V4L2_PIX_FMT_Y41P(2)*
 
 Format with ¼ horizontal chroma resolution, also known as YUV 4:1:1
 
@@ -30,12 +29,10 @@ Each cell is one byte.
 
 
 
-.. tabularcolumns:: |p{2.5cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{0.7cm}|
 
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-    :widths:       2 1 1 1 1 1 1 1 1 1 1 1 1
 
 
     -  .. row 1

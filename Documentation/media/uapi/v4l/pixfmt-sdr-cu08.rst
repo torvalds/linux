@@ -6,8 +6,6 @@
 V4L2_SDR_FMT_CU8 ('CU08')
 *************************
 
-*man V4L2_SDR_FMT_CU8(2)*
-
 Complex unsigned 8-bit IQ sample
 
 
@@ -22,15 +20,9 @@ and Q value after that.
 **Byte Order.**
 Each cell is one byte.
 
-
-
-.. tabularcolumns:: |p{11.7cm}|p{5.8cm}|
-
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-    :widths:       2 1
-
 
     -  .. row 1
 
