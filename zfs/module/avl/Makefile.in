@@ -1,0 +1,10 @@
+src = @abs_top_srcdir@/module/avl
+obj = @abs_builddir@
+
+MODULE := zavl
+
+EXTRA_CFLAGS = $(ZFS_MODULE_CFLAGS) @KERNELCPPFLAGS@
+
+obj-$(CONFIG_ZFS) := $(MODULE).o
+
+$(MODULE)-objs += avl.o

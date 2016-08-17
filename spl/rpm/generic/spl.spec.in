@@ -1,0 +1,88 @@
+# Python permits the !/usr/bin/python shebang for scripts that are cross
+# compatible between python2 and python3, but Fedora 28 does not.  Fedora
+# wants us to choose python3 for cross-compatible scripts.  Since we want
+# to support python2 and python3 users, exclude our scripts from Fedora 28's
+# RPM build check, so that we don't get a bunch of build warnings.
+#
+# Details: https://github.com/zfsonlinux/zfs/issues/7360
+#
+%global __brp_mangle_shebangs_exclude_from	splslab.py
+
+Name:           @PACKAGE@
+Version:        @VERSION@
+Release:        @RELEASE@%{?dist}
+Summary:        Commands to control the kernel modules
+
+Group:          System Environment/Kernel
+License:        GPLv2+
+URL:            http://zfsonlinux.org/
+Source0:        %{name}-%{version}.tar.gz
+BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+Requires:       %{name}-kmod = %{version}
+Provides:       %{name}-kmod-common = %{version}
+%if 0%{?rhel}%{?fedora}%{?suse_version}
+BuildRequires:  gcc, make
+%endif
+
+%description
+This package contains the commands to verify the SPL
+kernel modules are functioning properly.
+
+%prep
+%setup -q
+
+%build
+%configure --with-config=user
+make %{?_smp_mflags}
+
+%install
+%{__rm} -rf $RPM_BUILD_ROOT
+make install DESTDIR=%{?buildroot}
+
+%files
+%doc AUTHORS COPYING DISCLAIMER
+%{_bindir}/*
+%{_sbindir}/*
+%{_mandir}/man1/*
+%{_mandir}/man5/*
+
+%changelog
+* Thu Nov 08 2018 Tony Hutter <hutter2@llnl.gov> - 0.7.12-1
+- Released 0.7.12-1, detailed release notes are available at:
+- https://github.com/zfsonlinux/zfs/releases/tag/zfs-0.7.12
+* Thu Sep 13 2018 Tony Hutter <hutter2@llnl.gov> - 0.7.11-1
+- Released 0.7.11-1, detailed release notes are available at:
+- https://github.com/zfsonlinux/zfs/releases/tag/zfs-0.7.11
+* Wed Sep 05 2018 Tony Hutter <hutter2@llnl.gov> - 0.7.10-1
+- Released 0.7.10-1, detailed release notes are available at:
+- https://github.com/zfsonlinux/zfs/releases/tag/zfs-0.7.10
+* Tue May 08 2018 Tony Hutter <hutter2@llnl.gov> - 0.7.9-1
+- Released 0.7.9-1, detailed release notes are available at:
+- https://github.com/zfsonlinux/zfs/releases/tag/zfs-0.7.9
+* Mon Apr 09 2018 Tony Hutter <hutter2@llnl.gov> - 0.7.8-1
+- Released 0.7.8-1, detailed release notes are available at:
+- https://github.com/zfsonlinux/zfs/releases/tag/zfs-0.7.8
+* Wed Mar 14 2018 Tony Hutter <hutter2@llnl.gov> - 0.7.7-1
+- Released 0.7.7-1, detailed release notes are available at:
+- https://github.com/zfsonlinux/zfs/releases/tag/zfs-0.7.7
+* Thu Feb 01 2018 Tony Hutter <hutter2@llnl.gov> - 0.7.6-1
+- Released 0.7.6-1, detailed release notes are available at:
+- https://github.com/zfsonlinux/zfs/releases/tag/zfs-0.7.6
+* Mon Dec 18 2017 Tony Hutter <hutter2@llnl.gov> - 0.7.5-1
+- Released 0.7.5-1, detailed release notes are available at:
+- https://github.com/zfsonlinux/zfs/releases/tag/zfs-0.7.5
+* Thu Dec 07 2017 Tony Hutter <hutter2@llnl.gov> - 0.7.4-1
+- Released 0.7.4-1, detailed release notes are available at:
+- https://github.com/zfsonlinux/zfs/releases/tag/zfs-0.7.4
+* Wed Oct 18 2017 Tony Hutter <hutter2@llnl.gov> - 0.7.3-1
+- Released 0.7.3-1, detailed release notes are available at:
+- https://github.com/zfsonlinux/zfs/releases/tag/zfs-0.7.3
+* Fri Sep 22 2017 Tony Hutter <hutter2@llnl.gov> - 0.7.2-1
+- Released 0.7.2-1, detailed release notes are available at:
+- https://github.com/zfsonlinux/zfs/releases/tag/zfs-0.7.2
+* Tue Aug 8 2017 Tony Hutter <hutter2@llnl.gov> - 0.7.1-1
+- Released 0.7.1-1, detailed release notes are available at:
+- https://github.com/zfsonlinux/zfs/releases/tag/zfs-0.7.1
+* Wed Jul 26 2017 Brian Behlendorf <behlendorf1@llnl.gov> - 0.7.0-1
+- Released 0.7.0-1, detailed release notes are available at:
+- https://github.com/zfsonlinux/zfs/releases/tag/zfs-0.7.0

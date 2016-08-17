@@ -1,0 +1,33 @@
+The majority of the code in the ZFS on Linux port comes from OpenSolaris
+which has been released under the terms of the CDDL open source license.
+This includes the core ZFS code, libavl, libnvpair, libefi, libunicode,
+and libutil.  The original OpenSolaris source can be downloaded from:
+
+http://dlc.sun.com/osol/on/downloads/b121/on-src.tar.bz2
+
+Files which do not originate from OpenSolaris are noted in the file header
+and attributed properly.  These exceptions include, but are not limited
+to, the vdev_disk.c and zvol.c implementation which are licensed under
+the CDDL.
+
+The zpios test code is originally derived from the Lustre pios test code
+which is licensed under the GPLv2.  As such the heavily modified zpios
+kernel test code also remains licensed under the GPLv2.
+
+The latest stable and development versions of this port can be downloaded
+from the official ZFS on Linux site located at:
+
+http://zfsonlinux.org/
+
+This ZFS on Linux port was produced at the Lawrence Livermore National
+Laboratory (LLNL) under Contract No. DE-AC52-07NA27344 (Contract 44)
+between the U.S. Department of Energy (DOE) and Lawrence Livermore
+National Security, LLC (LLNS) for the operation of LLNL.  It has been
+approved for release under LLNL-CODE-403049.
+
+Unless otherwise noted, all files in this distribution are released
+under the Common Development and Distribution License (CDDL).
+Exceptions are noted within the associated source files.  See the file
+OPENSOLARIS.LICENSE for more information.
+
+Refer to the git commit log for authoritative copyright attribution.

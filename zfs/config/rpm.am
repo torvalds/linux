@@ -1,0 +1,87 @@
+###############################################################################
+# Copyright (C) 2007-2013 Lawrence Livermore National Security, LLC.
+# Copyright (C) 2007 The Regents of the University of California.
+# Written by Brian Behlendorf <behlendorf1@llnl.gov>.
+###############################################################################
+# Build targets for RPM packages.
+###############################################################################
+
+srpm-kmod:
+	$(MAKE) $(AM_MAKEFLAGS) pkg="${PACKAGE}-kmod" \
+		def='${SRPM_DEFINE_COMMON} ${SRPM_DEFINE_KMOD}' srpm-common
+
+srpm-dkms:
+	$(MAKE) $(AM_MAKEFLAGS) pkg="${PACKAGE}-dkms" \
+		def='${SRPM_DEFINE_COMMON} ${SRPM_DEFINE_DKMS}' srpm-common
+
+srpm-utils:
+	$(MAKE) $(AM_MAKEFLAGS) pkg="${PACKAGE}" \
+		def='${SRPM_DEFINE_COMMON} ${SRPM_DEFINE_UTIL}' srpm-common
+
+srpm: srpm-kmod srpm-dkms srpm-utils
+srpms: srpm-kmod srpm-dkms srpm-utils
+
+rpm-kmod: srpm-kmod
+	$(MAKE) $(AM_MAKEFLAGS) pkg="${PACKAGE}-kmod" \
+		def='${RPM_DEFINE_COMMON} ${RPM_DEFINE_KMOD}' rpm-common
+
+rpm-dkms: srpm-dkms
+	$(MAKE) $(AM_MAKEFLAGS) pkg="${PACKAGE}-dkms" \
+		def='${RPM_DEFINE_COMMON} ${RPM_DEFINE_DKMS}' rpm-common
+
+rpm-utils: srpm-utils
+	$(MAKE) $(AM_MAKEFLAGS) pkg="${PACKAGE}" \
+		def='${RPM_DEFINE_COMMON} ${RPM_DEFINE_UTIL}' rpm-common
+
+rpm: rpm-kmod rpm-dkms rpm-utils
+rpms: rpm-kmod rpm-dkms rpm-utils
+
+rpm-local:
+	@(if test "${HAVE_RPMBUILD}" = "no"; then \
+		echo -e "\n" \
+	"*** Required util ${RPMBUILD} missing.  Please install the\n" \
+	"*** package for your distribution which provides ${RPMBUILD},\n" \
+	"*** re-run configure, and try again.\n"; \
+		exit 1; \
+	fi; \
+	mkdir -p $(rpmbuild)/TMP && \
+	mkdir -p $(rpmbuild)/BUILD && \
+	mkdir -p $(rpmbuild)/RPMS && \
+	mkdir -p $(rpmbuild)/SRPMS && \
+	mkdir -p $(rpmbuild)/SPECS && \
+	cp ${RPM_SPEC_DIR}/$(rpmspec) $(rpmbuild)/SPECS && \
+	mkdir -p $(rpmbuild)/SOURCES && \
+	cp $(top_srcdir)/scripts/kmodtool $(rpmbuild)/SOURCES && \
+	cp $(distdir).tar.gz $(rpmbuild)/SOURCES)
+
+srpm-common: dist
+	@(dist=`$(RPM) --eval %{?dist}`; \
+	rpmpkg=$(pkg)-$(VERSION)-$(RELEASE)$$dist*src.rpm; \
+	rpmspec=$(pkg).spec; \
+	rpmbuild=`mktemp -t -d $(PACKAGE)-build-$$USER-XXXXXXXX`; \
+	$(MAKE) $(AM_MAKEFLAGS) \
+		rpmbuild="$$rpmbuild" \
+		rpmspec="$$rpmspec" \
+		rpm-local || exit 1; \
+	LANG=C $(RPMBUILD) \
+		--define "_tmppath $$rpmbuild/TMP" \
+		--define "_topdir $$rpmbuild" \
+		$(def) -bs $$rpmbuild/SPECS/$$rpmspec || exit 1; \
+	cp $$rpmbuild/SRPMS/$$rpmpkg . || exit 1; \
+	rm -R $$rpmbuild)
+
+rpm-common: 
+	@(dist=`$(RPM) --eval %{?dist}`; \
+	rpmpkg=$(pkg)-$(VERSION)-$(RELEASE)$$dist*src.rpm; \
+	rpmspec=$(pkg).spec; \
+	rpmbuild=`mktemp -t -d $(PACKAGE)-build-$$USER-XXXXXXXX`; \
+	$(MAKE) $(AM_MAKEFLAGS) \
+		rpmbuild="$$rpmbuild" \
+		rpmspec="$$rpmspec" \
+		rpm-local || exit 1; \
+	LANG=C ${RPMBUILD} \
+		--define "_tmppath $$rpmbuild/TMP" \
+		--define "_topdir $$rpmbuild" \
+		$(def) --rebuild $$rpmpkg || exit 1; \
+	cp $$rpmbuild/RPMS/*/* . || exit 1; \
+	rm -R $$rpmbuild)

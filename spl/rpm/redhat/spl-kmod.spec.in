@@ -1,0 +1,110 @@
+%bcond_with     debug
+%bcond_with     debug_log
+%bcond_with     debug_kmem
+%bcond_with     debug_kmem_tracking
+%bcond_with     atomic_spinlocks
+
+Name:           @PACKAGE@-kmod
+Version:        @VERSION@
+Release:        @RELEASE@%{?dist}
+
+Summary:        Kernel module(s)
+Group:          System Environment/Kernel
+License:        GPLv2+
+URL:            http://zfsonlinux.org/
+BuildRequires:  %kernel_module_package_buildreqs
+Source0:        @PACKAGE@-%{version}.tar.gz
+BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+
+# Additional dependency information for the kmod sub-package must be specified
+# by generating a preamble text file which kmodtool can append to the spec file.
+%(/bin/echo -e "\
+Requires:       @PACKAGE@ = %{version}\n\
+Conflicts:      @PACKAGE@-dkms\n\n" > %{_sourcedir}/kmod-preamble)
+
+# LDFLAGS are not sanitized by arch/*/Makefile for these architectures.
+%ifarch ppc ppc64 ppc64le aarch64
+%global __global_ldflags %{nil}
+%endif
+
+%description
+This package contains the kernel modules required to emulate
+several interfaces provided by the Solaris kernel.
+
+%define kmod_name spl
+
+%kernel_module_package -n %{kmod_name} -p %{_sourcedir}/kmod-preamble
+
+%define ksrc %{_usrsrc}/kernels/%{kverrel}
+%define kobj %{ksrc}
+
+%package -n kmod-%{kmod_name}-devel
+Summary:        SPL kernel module(s) devel common
+Group:          System Environment/Kernel
+
+%description -n  kmod-%{kmod_name}-devel
+This package provides the header files and objects to build kernel modules
+which depend on the SPL kernel module.
+
+%prep
+if ! [ -d "%{ksrc}"  ]; then
+        echo "Kernel build directory isn't set properly, cannot continue"
+        exit 1
+fi
+
+%if %{with debug}
+%define debug --enable-debug
+%else
+%define debug --disable-debug
+%endif
+
+%if %{with debug_log}
+%define debug_log --enable-debug-log
+%else
+%define debug_log --disable-debug-log
+%endif
+
+%if %{with debug_kmem}
+%define debug_kmem --enable-debug-kmem
+%else
+%define debug_kmem --disable-debug-kmem
+%endif
+
+%if %{with debug_kmem_tracking}
+%define debug_kmem_tracking --enable-debug-kmem-tracking
+%else
+%define debug_kmem_tracking --disable-debug-kmem-tracking
+%endif
+
+%if %{with atomic_spinlocks}
+%define atomic_spinlocks --enable-atomic-spinlocks
+%else
+%define atomic_spinlocks --disable-atomic-spinlocks
+%endif
+
+%setup -n %{kmod_name}-%{version}
+%build
+%configure \
+        --with-config=kernel \
+        --with-linux=%{ksrc} \
+        --with-linux-obj=%{kobj} \
+        %{debug} \
+        %{debug_log} \
+        %{debug_kmem} \
+        %{debug_kmem_tracking} \
+        %{atomic_spinlocks}
+make %{?_smp_mflags}
+
+%install
+make install \
+        DESTDIR=${RPM_BUILD_ROOT} \
+        INSTALL_MOD_DIR=extra/%{kmod_name}
+%{__rm} -f %{buildroot}/lib/modules/%{kverrel}/modules.*
+# find-debuginfo.sh only considers executables
+%{__chmod} u+x  %{buildroot}/lib/modules/%{kverrel}/extra/*/*/*
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+%files -n kmod-%{kmod_name}-devel
+%{_usrsrc}/%{kmod_name}-%{version}

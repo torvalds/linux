@@ -1,0 +1,14 @@
+###############################################################################
+# Copyright (C) 2007-2010 Lawrence Livermore National Security, LLC.
+# Copyright (C) 2007 The Regents of the University of California.
+# Written by Brian Behlendorf <behlendorf1@llnl.gov>.
+###############################################################################
+# Common rules for user space components.
+###############################################################################
+
+DEFAULT_INCLUDES = -include ${top_builddir}/spl_config.h
+
+AM_LIBTOOLFLAGS = --silent
+AM_CPPFLAGS = -D__USE_LARGEFILE64
+AM_CFLAGS  = -Wall -Wshadow -Wstrict-prototypes -fno-strict-aliasing
+AM_CFLAGS += ${DEBUG_CFLAGS}

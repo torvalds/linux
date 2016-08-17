@@ -1,0 +1,10 @@
+src = @abs_top_srcdir@/module/zpios
+obj = @abs_builddir@
+
+MODULE := zpios
+
+EXTRA_CFLAGS = $(ZFS_MODULE_CFLAGS) @KERNELCPPFLAGS@
+
+obj-$(CONFIG_ZFS) := $(MODULE).o
+
+$(MODULE)-objs += pios.o

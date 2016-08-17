@@ -1,0 +1,30 @@
+# Makefile.in for spl kernel module
+
+src = @abs_top_srcdir@/module/spl
+obj = @abs_builddir@
+
+MODULE := spl
+EXTRA_CFLAGS = $(SPL_MODULE_CFLAGS) @KERNELCPPFLAGS@
+
+# Solaris porting layer module
+obj-$(CONFIG_SPL) := $(MODULE).o
+
+$(MODULE)-objs += spl-proc.o
+$(MODULE)-objs += spl-kmem.o
+$(MODULE)-objs += spl-kmem-cache.o
+$(MODULE)-objs += spl-vmem.o
+$(MODULE)-objs += spl-thread.o
+$(MODULE)-objs += spl-taskq.o
+$(MODULE)-objs += spl-rwlock.o
+$(MODULE)-objs += spl-vnode.o
+$(MODULE)-objs += spl-err.o
+$(MODULE)-objs += spl-kobj.o
+$(MODULE)-objs += spl-generic.o
+$(MODULE)-objs += spl-atomic.o
+$(MODULE)-objs += spl-mutex.o
+$(MODULE)-objs += spl-kstat.o
+$(MODULE)-objs += spl-condvar.o
+$(MODULE)-objs += spl-xdr.o
+$(MODULE)-objs += spl-cred.o
+$(MODULE)-objs += spl-tsd.o
+$(MODULE)-objs += spl-zlib.o
