@@ -654,6 +654,7 @@ struct intel_csr {
 	func(is_kabylake) sep \
 	func(is_preliminary) sep \
 	func(has_fbc) sep \
+	func(has_psr) sep \
 	func(has_pipe_cxsr) sep \
 	func(has_hotplug) sep \
 	func(cursor_needs_physical) sep \
@@ -2784,9 +2785,7 @@ struct drm_i915_cmd_table {
 
 #define HAS_DDI(dev)		(INTEL_INFO(dev)->has_ddi)
 #define HAS_FPGA_DBG_UNCLAIMED(dev)	(INTEL_INFO(dev)->has_fpga_dbg)
-#define HAS_PSR(dev)		(IS_HASWELL(dev) || IS_BROADWELL(dev) || \
-				 IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev) || \
-				 IS_SKYLAKE(dev) || IS_KABYLAKE(dev))
+#define HAS_PSR(dev)		(INTEL_INFO(dev)->has_psr)
 #define HAS_RUNTIME_PM(dev)	(IS_GEN6(dev) || IS_HASWELL(dev) || \
 				 IS_BROADWELL(dev) || IS_VALLEYVIEW(dev) || \
 				 IS_CHERRYVIEW(dev) || IS_SKYLAKE(dev) || \

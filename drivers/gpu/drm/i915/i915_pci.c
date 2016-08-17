@@ -243,6 +243,7 @@ static const struct intel_device_info intel_ivybridge_q_info = {
 
 #define VLV_FEATURES  \
 	.gen = 7, .num_pipes = 2, \
+	.has_psr = 1, \
 	.need_gfx_hws = 1, .has_hotplug = 1, \
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING, \
 	.display_mmio_offset = VLV_DISPLAY_BASE, \
@@ -264,7 +265,8 @@ static const struct intel_device_info intel_valleyview_d_info = {
 	GEN7_FEATURES, \
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING, \
 	.has_ddi = 1, \
-	.has_fpga_dbg = 1
+	.has_fpga_dbg = 1, \
+	.has_psr = 1
 
 static const struct intel_device_info intel_haswell_d_info = {
 	HSW_FEATURES,
@@ -312,6 +314,7 @@ static const struct intel_device_info intel_cherryview_info = {
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
 	.is_cherryview = 1,
+	.has_psr = 1,
 	.display_mmio_offset = VLV_DISPLAY_BASE,
 	GEN_CHV_PIPEOFFSETS,
 	CURSOR_OFFSETS,
