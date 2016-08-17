@@ -1010,6 +1010,48 @@ static void rockchip_thermal_reset_controller(struct reset_control *reset)
 	reset_control_deassert(reset);
 }
 
+static struct platform_device *thermal_device;
+
+void rockchip_dump_temperature(void)
+{
+	struct rockchip_thermal_data *thermal;
+	struct platform_device *pdev;
+	int i;
+
+	if (!thermal_device)
+		return;
+
+	pdev = thermal_device;
+	thermal = platform_get_drvdata(pdev);
+
+	for (i = 0; i < thermal->chip->chn_num; i++) {
+		struct rockchip_thermal_sensor *sensor = &thermal->sensors[i];
+		struct thermal_zone_device *tz = sensor->tzd;
+
+		if (tz->temperature != THERMAL_TEMP_INVALID)
+			dev_warn(&pdev->dev, "channal %d: temperature(%d C)\n",
+				 i, tz->temperature / 1000);
+	}
+
+	if (thermal->regs) {
+		pr_warn("THERMAL REGS:\n");
+		print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET,
+			       32, 4, thermal->regs, 0x88, false);
+	}
+}
+EXPORT_SYMBOL_GPL(rockchip_dump_temperature);
+
+static int rockchip_thermal_panic(struct notifier_block *this,
+				  unsigned long ev, void *ptr)
+{
+	rockchip_dump_temperature();
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block rockchip_thermal_panic_block = {
+	.notifier_call = rockchip_thermal_panic,
+};
+
 static int rockchip_thermal_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -1121,6 +1163,11 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 		rockchip_thermal_toggle_sensor(&thermal->sensors[i], true);
 
 	platform_set_drvdata(pdev, thermal);
+
+	thermal_device = pdev;
+
+	atomic_notifier_chain_register(&panic_notifier_list,
+				       &rockchip_thermal_panic_block);
 
 	return 0;
 
