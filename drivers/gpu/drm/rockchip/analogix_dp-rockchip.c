@@ -42,7 +42,6 @@
 
 #define HIWORD_UPDATE(val, mask)	(val | (mask) << 16)
 
-#define PSR_SET_DELAY_TIME		msecs_to_jiffies(10)
 #define PSR_WAIT_LINE_FLAG_TIMEOUT_MS	100
 
 #define to_dp(nm)	container_of(nm, struct rockchip_dp_device, nm)
@@ -72,7 +71,8 @@ struct rockchip_dp_device {
 	struct regmap            *grf;
 	struct reset_control     *rst;
 
-	struct delayed_work      psr_work;
+	struct work_struct	 psr_work;
+	spinlock_t		 psr_lock;
 	unsigned int             psr_state;
 
 	const struct rockchip_dp_chip_data *data;
@@ -83,25 +83,29 @@ struct rockchip_dp_device {
 static void analogix_dp_psr_set(struct drm_encoder *encoder, bool enabled)
 {
 	struct rockchip_dp_device *dp = to_dp(encoder);
+	unsigned long flags;
 
 	dev_dbg(dp->dev, "%s PSR...\n", enabled ? "Entry" : "Exit");
 
+	spin_lock_irqsave(&dp->psr_lock, flags);
 	if (enabled)
 		dp->psr_state = EDP_VSC_PSR_STATE_ACTIVE;
 	else
 		dp->psr_state = ~EDP_VSC_PSR_STATE_ACTIVE;
 
-	schedule_delayed_work(&dp->psr_work, PSR_SET_DELAY_TIME);
+	schedule_work(&dp->psr_work);
+	spin_unlock_irqrestore(&dp->psr_lock, flags);
 }
 
 static void analogix_dp_psr_work(struct work_struct *work)
 {
 	struct rockchip_dp_device *dp =
-				container_of(work, typeof(*dp), psr_work.work);
+				container_of(work, typeof(*dp), psr_work);
 	struct drm_crtc *crtc = dp->encoder.crtc;
 	int psr_state = dp->psr_state;
 	int vact_end;
 	int ret;
+	unsigned long flags;
 
 	if (!crtc)
 		return;
@@ -115,10 +119,12 @@ static void analogix_dp_psr_work(struct work_struct *work)
 		return;
 	}
 
+	spin_lock_irqsave(&dp->psr_lock, flags);
 	if (psr_state == EDP_VSC_PSR_STATE_ACTIVE)
 		analogix_dp_enable_psr(dp->dev);
 	else
 		analogix_dp_disable_psr(dp->dev);
+	spin_unlock_irqrestore(&dp->psr_lock, flags);
 }
 
 static int rockchip_dp_pre_init(struct rockchip_dp_device *dp)
@@ -134,6 +140,8 @@ static int rockchip_dp_poweron(struct analogix_dp_plat_data *plat_data)
 {
 	struct rockchip_dp_device *dp = to_dp(plat_data);
 	int ret;
+
+	cancel_work_sync(&dp->psr_work);
 
 	ret = clk_prepare_enable(dp->pclk);
 	if (ret < 0) {
@@ -390,8 +398,9 @@ static int rockchip_dp_bind(struct device *dev, struct device *master,
 	dp->plat_data.power_off = rockchip_dp_powerdown;
 	dp->plat_data.get_modes = rockchip_dp_get_modes;
 
+	spin_lock_init(&dp->psr_lock);
 	dp->psr_state = ~EDP_VSC_PSR_STATE_ACTIVE;
-	INIT_DELAYED_WORK(&dp->psr_work, analogix_dp_psr_work);
+	INIT_WORK(&dp->psr_work, analogix_dp_psr_work);
 
 	rockchip_drm_psr_register(&dp->encoder, analogix_dp_psr_set);
 
