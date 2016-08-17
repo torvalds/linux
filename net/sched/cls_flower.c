@@ -404,12 +404,10 @@ static int fl_init_hashtable(struct cls_fl_head *head,
 
 #define FL_KEY_MEMBER_OFFSET(member) offsetof(struct fl_flow_key, member)
 #define FL_KEY_MEMBER_SIZE(member) (sizeof(((struct fl_flow_key *) 0)->member))
-#define FL_KEY_MEMBER_END_OFFSET(member)					\
-	(FL_KEY_MEMBER_OFFSET(member) + FL_KEY_MEMBER_SIZE(member))
 
-#define FL_KEY_IN_RANGE(mask, member)						\
-        (FL_KEY_MEMBER_OFFSET(member) <= (mask)->range.end &&			\
-         FL_KEY_MEMBER_END_OFFSET(member) >= (mask)->range.start)
+#define FL_KEY_IS_MASKED(mask, member)						\
+	memchr_inv(((char *)mask) + FL_KEY_MEMBER_OFFSET(member),		\
+		   0, FL_KEY_MEMBER_SIZE(member))				\
 
 #define FL_KEY_SET(keys, cnt, id, member)					\
 	do {									\
@@ -418,9 +416,9 @@ static int fl_init_hashtable(struct cls_fl_head *head,
 		cnt++;								\
 	} while(0);
 
-#define FL_KEY_SET_IF_IN_RANGE(mask, keys, cnt, id, member)			\
+#define FL_KEY_SET_IF_MASKED(mask, keys, cnt, id, member)			\
 	do {									\
-		if (FL_KEY_IN_RANGE(mask, member))				\
+		if (FL_KEY_IS_MASKED(mask, member))				\
 			FL_KEY_SET(keys, cnt, id, member);			\
 	} while(0);
 
@@ -432,14 +430,14 @@ static void fl_init_dissector(struct cls_fl_head *head,
 
 	FL_KEY_SET(keys, cnt, FLOW_DISSECTOR_KEY_CONTROL, control);
 	FL_KEY_SET(keys, cnt, FLOW_DISSECTOR_KEY_BASIC, basic);
-	FL_KEY_SET_IF_IN_RANGE(mask, keys, cnt,
-			       FLOW_DISSECTOR_KEY_ETH_ADDRS, eth);
-	FL_KEY_SET_IF_IN_RANGE(mask, keys, cnt,
-			       FLOW_DISSECTOR_KEY_IPV4_ADDRS, ipv4);
-	FL_KEY_SET_IF_IN_RANGE(mask, keys, cnt,
-			       FLOW_DISSECTOR_KEY_IPV6_ADDRS, ipv6);
-	FL_KEY_SET_IF_IN_RANGE(mask, keys, cnt,
-			       FLOW_DISSECTOR_KEY_PORTS, tp);
+	FL_KEY_SET_IF_MASKED(&mask->key, keys, cnt,
+			     FLOW_DISSECTOR_KEY_ETH_ADDRS, eth);
+	FL_KEY_SET_IF_MASKED(&mask->key, keys, cnt,
+			     FLOW_DISSECTOR_KEY_IPV4_ADDRS, ipv4);
+	FL_KEY_SET_IF_MASKED(&mask->key, keys, cnt,
+			     FLOW_DISSECTOR_KEY_IPV6_ADDRS, ipv6);
+	FL_KEY_SET_IF_MASKED(&mask->key, keys, cnt,
+			     FLOW_DISSECTOR_KEY_PORTS, tp);
 
 	skb_flow_dissector_init(&head->dissector, keys, cnt);
 }
