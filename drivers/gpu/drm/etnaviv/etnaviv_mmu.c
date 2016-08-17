@@ -115,7 +115,8 @@ int etnaviv_iommu_map_gem(struct etnaviv_iommu *mmu,
 	mutex_lock(&mmu->lock);
 
 	/* v1 MMU can optimize single entry (contiguous) scatterlists */
-	if (sgt->nents == 1 && !(etnaviv_obj->flags & ETNA_BO_FORCE_MMU)) {
+	if (mmu->version == ETNAVIV_IOMMU_V1 &&
+	    sgt->nents == 1 && !(etnaviv_obj->flags & ETNA_BO_FORCE_MMU)) {
 		u32 iova;
 
 		iova = sg_dma_address(sgt->sgl) - memory_base;
