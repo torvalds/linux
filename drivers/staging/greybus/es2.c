@@ -1623,6 +1623,8 @@ static int ap_probe(struct usb_interface *interface,
 				retval = -ENOMEM;
 				goto error;
 			}
+			cport_in->urb[i] = urb;
+
 			buffer = kmalloc(ES2_GBUF_MSG_SIZE_MAX, GFP_KERNEL);
 			if (!buffer) {
 				retval = -ENOMEM;
@@ -1634,7 +1636,7 @@ static int ap_probe(struct usb_interface *interface,
 							  cport_in->endpoint),
 					  buffer, ES2_GBUF_MSG_SIZE_MAX,
 					  cport_in_callback, hd);
-			cport_in->urb[i] = urb;
+
 			cport_in->buffer[i] = buffer;
 		}
 	}
@@ -1649,6 +1651,8 @@ static int ap_probe(struct usb_interface *interface,
 			retval = -ENOMEM;
 			goto error;
 		}
+		es2->arpc_urb[i] = urb;
+
 		buffer = kmalloc(ARPC_IN_SIZE_MAX, GFP_KERNEL);
 		if (!buffer) {
 			retval = -ENOMEM;
@@ -1661,7 +1665,6 @@ static int ap_probe(struct usb_interface *interface,
 				  buffer, ARPC_IN_SIZE_MAX,
 				  arpc_in_callback, es2);
 
-		es2->arpc_urb[i] = urb;
 		es2->arpc_buffer[i] = buffer;
 	}
 
