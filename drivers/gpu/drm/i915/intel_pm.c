@@ -2860,6 +2860,7 @@ bool ilk_disable_lp_wm(struct drm_device *dev)
 
 #define SKL_DDB_SIZE		896	/* in blocks */
 #define BXT_DDB_SIZE		512
+#define SKL_SAGV_BLOCK_TIME	30 /* µs */
 
 /*
  * Return the index of a plane in the SKL DDB and wm result arrays.  Primary
@@ -2881,6 +2882,153 @@ skl_wm_plane_id(const struct intel_plane *plane)
 		MISSING_CASE(plane->base.type);
 		return plane->plane;
 	}
+}
+
+/*
+ * SAGV dynamically adjusts the system agent voltage and clock frequencies
+ * depending on power and performance requirements. The display engine access
+ * to system memory is blocked during the adjustment time. Because of the
+ * blocking time, having this enabled can cause full system hangs and/or pipe
+ * underruns if we don't meet all of the following requirements:
+ *
+ *  - <= 1 pipe enabled
+ *  - All planes can enable watermarks for latencies >= SAGV engine block time
+ *  - We're not using an interlaced display configuration
+ */
+int
+skl_enable_sagv(struct drm_i915_private *dev_priv)
+{
+	int ret;
+
+	if (dev_priv->skl_sagv_status == I915_SKL_SAGV_NOT_CONTROLLED ||
+	    dev_priv->skl_sagv_status == I915_SKL_SAGV_ENABLED)
+		return 0;
+
+	DRM_DEBUG_KMS("Enabling the SAGV\n");
+	mutex_lock(&dev_priv->rps.hw_lock);
+
+	ret = sandybridge_pcode_write(dev_priv, GEN9_PCODE_SAGV_CONTROL,
+				      GEN9_SAGV_ENABLE);
+
+	/* We don't need to wait for the SAGV when enabling */
+	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	/*
+	 * Some skl systems, pre-release machines in particular,
+	 * don't actually have an SAGV.
+	 */
+	if (ret == -ENXIO) {
+		DRM_DEBUG_DRIVER("No SAGV found on system, ignoring\n");
+		dev_priv->skl_sagv_status = I915_SKL_SAGV_NOT_CONTROLLED;
+		return 0;
+	} else if (ret < 0) {
+		DRM_ERROR("Failed to enable the SAGV\n");
+		return ret;
+	}
+
+	dev_priv->skl_sagv_status = I915_SKL_SAGV_ENABLED;
+	return 0;
+}
+
+static int
+skl_do_sagv_disable(struct drm_i915_private *dev_priv)
+{
+	int ret;
+	uint32_t temp = GEN9_SAGV_DISABLE;
+
+	ret = sandybridge_pcode_read(dev_priv, GEN9_PCODE_SAGV_CONTROL,
+				     &temp);
+	if (ret)
+		return ret;
+	else
+		return temp & GEN9_SAGV_IS_DISABLED;
+}
+
+int
+skl_disable_sagv(struct drm_i915_private *dev_priv)
+{
+	int ret, result;
+
+	if (dev_priv->skl_sagv_status == I915_SKL_SAGV_NOT_CONTROLLED ||
+	    dev_priv->skl_sagv_status == I915_SKL_SAGV_DISABLED)
+		return 0;
+
+	DRM_DEBUG_KMS("Disabling the SAGV\n");
+	mutex_lock(&dev_priv->rps.hw_lock);
+
+	/* bspec says to keep retrying for at least 1 ms */
+	ret = wait_for(result = skl_do_sagv_disable(dev_priv), 1);
+	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	if (ret == -ETIMEDOUT) {
+		DRM_ERROR("Request to disable SAGV timed out\n");
+		return -ETIMEDOUT;
+	}
+
+	/*
+	 * Some skl systems, pre-release machines in particular,
+	 * don't actually have an SAGV.
+	 */
+	if (result == -ENXIO) {
+		DRM_DEBUG_DRIVER("No SAGV found on system, ignoring\n");
+		dev_priv->skl_sagv_status = I915_SKL_SAGV_NOT_CONTROLLED;
+		return 0;
+	} else if (result < 0) {
+		DRM_ERROR("Failed to disable the SAGV\n");
+		return result;
+	}
+
+	dev_priv->skl_sagv_status = I915_SKL_SAGV_DISABLED;
+	return 0;
+}
+
+bool skl_can_enable_sagv(struct drm_atomic_state *state)
+{
+	struct drm_device *dev = state->dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
+	struct drm_crtc *crtc;
+	enum pipe pipe;
+	int level, plane;
+
+	/*
+	 * SKL workaround: bspec recommends we disable the SAGV when we have
+	 * more then one pipe enabled
+	 *
+	 * If there are no active CRTCs, no additional checks need be performed
+	 */
+	if (hweight32(intel_state->active_crtcs) == 0)
+		return true;
+	else if (hweight32(intel_state->active_crtcs) > 1)
+		return false;
+
+	/* Since we're now guaranteed to only have one active CRTC... */
+	pipe = ffs(intel_state->active_crtcs) - 1;
+	crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+
+	if (crtc->state->mode.flags & DRM_MODE_FLAG_INTERLACE)
+		return false;
+
+	for_each_plane(dev_priv, pipe, plane) {
+		/* Skip this plane if it's not enabled */
+		if (intel_state->wm_results.plane[pipe][plane][0] == 0)
+			continue;
+
+		/* Find the highest enabled wm level for this plane */
+		for (level = ilk_wm_max_level(dev);
+		     intel_state->wm_results.plane[pipe][plane][level] == 0; --level)
+		     { }
+
+		/*
+		 * If any of the planes on this pipe don't enable wm levels
+		 * that incur memory latencies higher then 30µs we can't enable
+		 * the SAGV
+		 */
+		if (dev_priv->wm.skl_latency[level] < SKL_SAGV_BLOCK_TIME)
+			return false;
+	}
+
+	return true;
 }
 
 static void
