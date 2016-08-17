@@ -151,6 +151,20 @@ static int byt_serial_setup(struct lpss8250 *lpss, struct uart_port *port)
 	return 0;
 }
 
+static int qrk_serial_setup(struct lpss8250 *lpss, struct uart_port *port)
+{
+	struct pci_dev *pdev = to_pci_dev(port->dev);
+	int ret;
+
+	ret = pci_alloc_irq_vectors(pdev, 1, 1, 0);
+	if (ret < 0)
+		return ret;
+
+	port->irq = pci_irq_vector(pdev, 0);
+
+	return 0;
+}
+
 static bool lpss8250_dma_filter(struct dma_chan *chan, void *param)
 {
 	struct dw_dma_slave *dws = param;
@@ -261,6 +275,7 @@ static const struct lpss8250_board byt_board = {
 static const struct lpss8250_board qrk_board = {
 	.freq = 44236800,
 	.base_baud = 2764800,
+	.setup = qrk_serial_setup,
 };
 
 #define LPSS_DEVICE(id, board) { PCI_VDEVICE(INTEL, id), (kernel_ulong_t)&board }
