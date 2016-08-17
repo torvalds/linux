@@ -46,7 +46,7 @@ static acpi_status setup_res(struct acpi_resource *acpi_res, void *data)
 	struct resource_win win;
 
 	res->flags = 0;
-	if (acpi_dev_filter_resource_type(acpi_res, IORESOURCE_MEM) == 0)
+	if (acpi_dev_filter_resource_type(acpi_res, IORESOURCE_MEM))
 		return AE_OK;
 
 	if (!acpi_dev_resource_memory(acpi_res, res)) {
