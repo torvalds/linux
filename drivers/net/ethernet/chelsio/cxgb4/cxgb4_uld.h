@@ -32,8 +32,8 @@
  * SOFTWARE.
  */
 
-#ifndef __CXGB4_OFLD_H
-#define __CXGB4_OFLD_H
+#ifndef __CXGB4_ULD_H
+#define __CXGB4_ULD_H
 
 #include <linux/cache.h>
 #include <linux/spinlock.h>
@@ -296,8 +296,36 @@ struct cxgb4_uld_info {
 	void (*lro_flush)(struct t4_lro_mgr *);
 };
 
+enum cxgb4_pci_uld {
+	CXGB4_PCI_ULD1,
+	CXGB4_PCI_ULD_MAX
+};
+
+struct cxgb4_pci_uld_info {
+	const char *name;
+	bool lro;
+	void *handle;
+	unsigned int nrxq;
+	unsigned int nciq;
+	unsigned int rxq_size;
+	unsigned int ciq_size;
+	void *(*add)(const struct cxgb4_lld_info *p);
+	int (*rx_handler)(void *handle, const __be64 *rsp,
+			  const struct pkt_gl *gl);
+	int (*state_change)(void *handle, enum cxgb4_state new_state);
+	int (*control)(void *handle, enum cxgb4_control control, ...);
+	int (*lro_rx_handler)(void *handle, const __be64 *rsp,
+			      const struct pkt_gl *gl,
+			      struct t4_lro_mgr *lro_mgr,
+			      struct napi_struct *napi);
+	void (*lro_flush)(struct t4_lro_mgr *);
+};
+
 int cxgb4_register_uld(enum cxgb4_uld type, const struct cxgb4_uld_info *p);
 int cxgb4_unregister_uld(enum cxgb4_uld type);
+int cxgb4_register_pci_uld(enum cxgb4_pci_uld type,
+			   struct cxgb4_pci_uld_info *p);
+int cxgb4_unregister_pci_uld(enum cxgb4_pci_uld type);
 int cxgb4_ofld_send(struct net_device *dev, struct sk_buff *skb);
 unsigned int cxgb4_dbfifo_count(const struct net_device *dev, int lpfifo);
 unsigned int cxgb4_port_chan(const struct net_device *dev);
@@ -330,4 +358,4 @@ int cxgb4_bar2_sge_qregs(struct net_device *dev,
 			 u64 *pbar2_qoffset,
 			 unsigned int *pbar2_qid);
 
-#endif  /* !__CXGB4_OFLD_H */
+#endif  /* !__CXGB4_ULD_H */

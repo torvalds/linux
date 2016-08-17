@@ -1060,7 +1060,7 @@ struct fw_caps_config_cmd {
 	__be16 niccaps;
 	__be16 ofldcaps;
 	__be16 rdmacaps;
-	__be16 r4;
+	__be16 cryptocaps;
 	__be16 iscsicaps;
 	__be16 fcoecaps;
 	__be32 cfcsum;
