@@ -60,6 +60,8 @@ typedef __s64			s64;
 #define __NR_newfstatat __NR3264_fstatat
 #endif
 
+#define __NR_mmap_pgoff __NR3264_mmap
+
 #include <linux/time.h>
 #include <linux/times.h>
 #include <linux/timex.h>
