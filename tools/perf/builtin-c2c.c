@@ -2181,6 +2181,11 @@ static int perf_c2c__browse_cacheline(struct hist_entry *he)
 	struct c2c_cacheline_browser *cl_browser;
 	struct hist_browser *browser;
 	int key = -1;
+	const char help[] =
+	" ENTER         Togle callchains (if present) \n"
+	" n             Togle Node details info \n"
+	" s             Togle full lenght of symbol and source line columns \n"
+	" q             Return back to cacheline list \n";
 
 	/* Display compact version first. */
 	c2c.symbol_full = false;
@@ -2201,7 +2206,7 @@ static int perf_c2c__browse_cacheline(struct hist_entry *he)
 	c2c_browser__update_nr_entries(browser);
 
 	while (1) {
-		key = hist_browser__run(browser, "help");
+		key = hist_browser__run(browser, "? - help");
 
 		switch (key) {
 		case 's':
@@ -2213,6 +2218,9 @@ static int perf_c2c__browse_cacheline(struct hist_entry *he)
 			break;
 		case 'q':
 			goto out;
+		case '?':
+			ui_browser__help_window(&browser->b, help);
+			break;
 		default:
 			break;
 		}
@@ -2251,6 +2259,10 @@ static int perf_c2c__hists_browse(struct hists *hists)
 {
 	struct hist_browser *browser;
 	int key = -1;
+	const char help[] =
+	" d             Display cacheline details \n"
+	" ENTER         Togle callchains (if present) \n"
+	" q             Quit \n";
 
 	browser = perf_c2c_browser__new(hists);
 	if (browser == NULL)
@@ -2263,13 +2275,16 @@ static int perf_c2c__hists_browse(struct hists *hists)
 	c2c_browser__update_nr_entries(browser);
 
 	while (1) {
-		key = hist_browser__run(browser, "help");
+		key = hist_browser__run(browser, "? - help");
 
 		switch (key) {
 		case 'q':
 			goto out;
 		case 'd':
 			perf_c2c__browse_cacheline(browser->he_selection);
+			break;
+		case '?':
+			ui_browser__help_window(&browser->b, help);
 			break;
 		default:
 			break;
