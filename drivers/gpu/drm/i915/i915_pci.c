@@ -178,21 +178,20 @@ static const struct intel_device_info intel_pineview_info = {
 	CURSOR_OFFSETS,
 };
 
+#define GEN5_FEATURES \
+	.gen = 5, .num_pipes = 2, \
+	.need_gfx_hws = 1, .has_hotplug = 1, \
+	.ring_mask = RENDER_RING | BSD_RING, \
+	GEN_DEFAULT_PIPEOFFSETS, \
+	CURSOR_OFFSETS
+
 static const struct intel_device_info intel_ironlake_d_info = {
-	.gen = 5, .num_pipes = 2,
-	.need_gfx_hws = 1, .has_hotplug = 1,
-	.ring_mask = RENDER_RING | BSD_RING,
-	GEN_DEFAULT_PIPEOFFSETS,
-	CURSOR_OFFSETS,
+	GEN5_FEATURES,
 };
 
 static const struct intel_device_info intel_ironlake_m_info = {
-	.gen = 5, .is_mobile = 1, .num_pipes = 2,
-	.need_gfx_hws = 1, .has_hotplug = 1,
-	.has_fbc = 1,
-	.ring_mask = RENDER_RING | BSD_RING,
-	GEN_DEFAULT_PIPEOFFSETS,
-	CURSOR_OFFSETS,
+	GEN5_FEATURES,
+	.is_mobile = 1,
 };
 
 #define GEN6_FEATURES \
