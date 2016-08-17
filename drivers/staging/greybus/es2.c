@@ -911,6 +911,7 @@ static int check_urb_status(struct urb *urb)
 static void es2_destroy(struct es2_ap_dev *es2)
 {
 	struct usb_device *udev;
+	struct urb *urb;
 	int i;
 
 	debugfs_remove(es2->apb_log_enable_dentry);
@@ -918,10 +919,7 @@ static void es2_destroy(struct es2_ap_dev *es2)
 
 	/* Tear down everything! */
 	for (i = 0; i < NUM_CPORT_OUT_URB; ++i) {
-		struct urb *urb = es2->cport_out_urb[i];
-
-		if (!urb)
-			break;
+		urb = es2->cport_out_urb[i];
 		usb_kill_urb(urb);
 		usb_free_urb(urb);
 		es2->cport_out_urb[i] = NULL;
@@ -929,11 +927,7 @@ static void es2_destroy(struct es2_ap_dev *es2)
 	}
 
 	for (i = 0; i < NUM_ARPC_IN_URB; ++i) {
-		struct urb *urb = es2->arpc_urb[i];
-
-		if (!urb)
-			break;
-		usb_free_urb(urb);
+		usb_free_urb(es2->arpc_urb[i]);
 		kfree(es2->arpc_buffer[i]);
 		es2->arpc_buffer[i] = NULL;
 	}
