@@ -664,6 +664,7 @@ struct intel_csr {
 	func(has_gmbus_irq) sep \
 	func(has_hw_contexts) sep \
 	func(has_logical_ring_contexts) sep \
+	func(has_l3_dpf) sep \
 	func(has_pipe_cxsr) sep \
 	func(has_hotplug) sep \
 	func(cursor_needs_physical) sep \
@@ -2841,7 +2842,7 @@ struct drm_i915_cmd_table {
 			       IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 
 /* DPF == dynamic parity feature */
-#define HAS_L3_DPF(dev) (IS_IVYBRIDGE(dev) || IS_HASWELL(dev))
+#define HAS_L3_DPF(dev) (INTEL_INFO(dev)->has_l3_dpf)
 #define NUM_L3_SLICES(dev) (IS_HSW_GT3(dev) ? 2 : HAS_L3_DPF(dev))
 
 #define GT_FREQUENCY_MULTIPLIER 50
