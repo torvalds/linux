@@ -1010,7 +1010,6 @@ static int mlxsw_sp_port_kill_vid(struct net_device *dev,
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	struct mlxsw_sp_port *mlxsw_sp_vport;
 	struct mlxsw_sp_fid *f;
-	int err;
 
 	/* VLAN 0 is removed from HW filter when device goes down, but
 	 * it is reserved in our case, so simply return.
@@ -1019,23 +1018,12 @@ static int mlxsw_sp_port_kill_vid(struct net_device *dev,
 		return 0;
 
 	mlxsw_sp_vport = mlxsw_sp_port_vport_find(mlxsw_sp_port, vid);
-	if (!mlxsw_sp_vport) {
-		netdev_warn(dev, "VID=%d does not exist\n", vid);
+	if (WARN_ON(!mlxsw_sp_vport))
 		return 0;
-	}
 
-	err = mlxsw_sp_port_vlan_set(mlxsw_sp_vport, vid, vid, false, false);
-	if (err) {
-		netdev_err(dev, "Failed to set VLAN membership for VID=%d\n",
-			   vid);
-		return err;
-	}
+	mlxsw_sp_port_vlan_set(mlxsw_sp_vport, vid, vid, false, false);
 
-	err = mlxsw_sp_port_vid_learning_set(mlxsw_sp_vport, vid, true);
-	if (err) {
-		netdev_err(dev, "Failed to enable learning for VID=%d\n", vid);
-		return err;
-	}
+	mlxsw_sp_port_vid_learning_set(mlxsw_sp_vport, vid, true);
 
 	/* Drop FID reference. If this was the last reference the
 	 * resources will be freed.
@@ -1048,13 +1036,8 @@ static int mlxsw_sp_port_kill_vid(struct net_device *dev,
 	 * transition all active 802.1Q bridge VLANs to use VID to FID
 	 * mappings and set port's mode to VLAN mode.
 	 */
-	if (list_is_singular(&mlxsw_sp_port->vports_list)) {
-		err = mlxsw_sp_port_vlan_mode_trans(mlxsw_sp_port);
-		if (err) {
-			netdev_err(dev, "Failed to set to VLAN mode\n");
-			return err;
-		}
-	}
+	if (list_is_singular(&mlxsw_sp_port->vports_list))
+		mlxsw_sp_port_vlan_mode_trans(mlxsw_sp_port);
 
 	mlxsw_sp_port_vport_destroy(mlxsw_sp_vport);
 
