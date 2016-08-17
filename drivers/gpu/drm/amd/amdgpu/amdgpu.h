@@ -64,6 +64,7 @@
 extern int amdgpu_modeset;
 extern int amdgpu_vram_limit;
 extern int amdgpu_gart_size;
+extern int amdgpu_moverate;
 extern int amdgpu_benchmarking;
 extern int amdgpu_testing;
 extern int amdgpu_audio;
@@ -2033,6 +2034,14 @@ struct amdgpu_device {
 	atomic64_t			num_bytes_moved;
 	atomic64_t			num_evictions;
 	atomic_t			gpu_reset_counter;
+
+	/* data for buffer migration throttling */
+	struct {
+		spinlock_t		lock;
+		s64			last_update_us;
+		s64			accum_us; /* accumulated microseconds */
+		u32			log2_max_MBps;
+	} mm_stats;
 
 	/* display */
 	bool				enable_virtual_display;

@@ -1490,6 +1490,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 {
 	int r, i;
 	bool runtime = false;
+	u32 max_MBps;
 
 	adev->shutdown = false;
 	adev->dev = &pdev->dev;
@@ -1549,6 +1550,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	spin_lock_init(&adev->didt_idx_lock);
 	spin_lock_init(&adev->gc_cac_idx_lock);
 	spin_lock_init(&adev->audio_endpt_idx_lock);
+	spin_lock_init(&adev->mm_stats.lock);
 
 	INIT_LIST_HEAD(&adev->shadow_list);
 	mutex_init(&adev->shadow_list_lock);
@@ -1659,6 +1661,14 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	}
 
 	adev->accel_working = true;
+
+	/* Initialize the buffer migration limit. */
+	if (amdgpu_moverate >= 0)
+		max_MBps = amdgpu_moverate;
+	else
+		max_MBps = 8; /* Allow 8 MB/s. */
+	/* Get a log2 for easy divisions. */
+	adev->mm_stats.log2_max_MBps = ilog2(max(1u, max_MBps));
 
 	amdgpu_fbdev_init(adev);
 

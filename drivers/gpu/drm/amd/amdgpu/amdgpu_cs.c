@@ -235,56 +235,115 @@ free_chunk:
 	return ret;
 }
 
-/* Returns how many bytes TTM can move per IB.
+/* Convert microseconds to bytes. */
+static u64 us_to_bytes(struct amdgpu_device *adev, s64 us)
+{
+	if (us <= 0 || !adev->mm_stats.log2_max_MBps)
+		return 0;
+
+	/* Since accum_us is incremented by a million per second, just
+	 * multiply it by the number of MB/s to get the number of bytes.
+	 */
+	return us << adev->mm_stats.log2_max_MBps;
+}
+
+static s64 bytes_to_us(struct amdgpu_device *adev, u64 bytes)
+{
+	if (!adev->mm_stats.log2_max_MBps)
+		return 0;
+
+	return bytes >> adev->mm_stats.log2_max_MBps;
+}
+
+/* Returns how many bytes TTM can move right now. If no bytes can be moved,
+ * it returns 0. If it returns non-zero, it's OK to move at least one buffer,
+ * which means it can go over the threshold once. If that happens, the driver
+ * will be in debt and no other buffer migrations can be done until that debt
+ * is repaid.
+ *
+ * This approach allows moving a buffer of any size (it's important to allow
+ * that).
+ *
+ * The currency is simply time in microseconds and it increases as the clock
+ * ticks. The accumulated microseconds (us) are converted to bytes and
+ * returned.
  */
 static u64 amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev)
 {
-	u64 real_vram_size = adev->mc.real_vram_size;
-	u64 vram_usage = atomic64_read(&adev->vram_usage);
+	s64 time_us, increment_us;
+	u64 max_bytes;
+	u64 free_vram, total_vram, used_vram;
 
-	/* This function is based on the current VRAM usage.
+	/* Allow a maximum of 200 accumulated ms. This is basically per-IB
+	 * throttling.
 	 *
-	 * - If all of VRAM is free, allow relocating the number of bytes that
-	 *   is equal to 1/4 of the size of VRAM for this IB.
-
-	 * - If more than one half of VRAM is occupied, only allow relocating
-	 *   1 MB of data for this IB.
-	 *
-	 * - From 0 to one half of used VRAM, the threshold decreases
-	 *   linearly.
-	 *         __________________
-	 * 1/4 of -|\               |
-	 * VRAM    | \              |
-	 *         |  \             |
-	 *         |   \            |
-	 *         |    \           |
-	 *         |     \          |
-	 *         |      \         |
-	 *         |       \________|1 MB
-	 *         |----------------|
-	 *    VRAM 0 %             100 %
-	 *         used            used
-	 *
-	 * Note: It's a threshold, not a limit. The threshold must be crossed
-	 * for buffer relocations to stop, so any buffer of an arbitrary size
-	 * can be moved as long as the threshold isn't crossed before
-	 * the relocation takes place. We don't want to disable buffer
-	 * relocations completely.
-	 *
-	 * The idea is that buffers should be placed in VRAM at creation time
-	 * and TTM should only do a minimum number of relocations during
-	 * command submission. In practice, you need to submit at least
-	 * a dozen IBs to move all buffers to VRAM if they are in GTT.
-	 *
-	 * Also, things can get pretty crazy under memory pressure and actual
-	 * VRAM usage can change a lot, so playing safe even at 50% does
-	 * consistently increase performance.
+	 * It means that in order to get full max MBps, at least 5 IBs per
+	 * second must be submitted and not more than 200ms apart from each
+	 * other.
 	 */
+	const s64 us_upper_bound = 200000;
 
-	u64 half_vram = real_vram_size >> 1;
-	u64 half_free_vram = vram_usage >= half_vram ? 0 : half_vram - vram_usage;
-	u64 bytes_moved_threshold = half_free_vram >> 1;
-	return max(bytes_moved_threshold, 1024*1024ull);
+	if (!adev->mm_stats.log2_max_MBps)
+		return 0;
+
+	total_vram = adev->mc.real_vram_size - adev->vram_pin_size;
+	used_vram = atomic64_read(&adev->vram_usage);
+	free_vram = used_vram >= total_vram ? 0 : total_vram - used_vram;
+
+	spin_lock(&adev->mm_stats.lock);
+
+	/* Increase the amount of accumulated us. */
+	time_us = ktime_to_us(ktime_get());
+	increment_us = time_us - adev->mm_stats.last_update_us;
+	adev->mm_stats.last_update_us = time_us;
+	adev->mm_stats.accum_us = min(adev->mm_stats.accum_us + increment_us,
+                                      us_upper_bound);
+
+	/* This prevents the short period of low performance when the VRAM
+	 * usage is low and the driver is in debt or doesn't have enough
+	 * accumulated us to fill VRAM quickly.
+	 *
+	 * The situation can occur in these cases:
+	 * - a lot of VRAM is freed by userspace
+	 * - the presence of a big buffer causes a lot of evictions
+	 *   (solution: split buffers into smaller ones)
+	 *
+	 * If 128 MB or 1/8th of VRAM is free, start filling it now by setting
+	 * accum_us to a positive number.
+	 */
+	if (free_vram >= 128 * 1024 * 1024 || free_vram >= total_vram / 8) {
+		s64 min_us;
+
+		/* Be more aggresive on dGPUs. Try to fill a portion of free
+		 * VRAM now.
+		 */
+		if (!(adev->flags & AMD_IS_APU))
+			min_us = bytes_to_us(adev, free_vram / 4);
+		else
+			min_us = 0; /* Reset accum_us on APUs. */
+
+		adev->mm_stats.accum_us = max(min_us, adev->mm_stats.accum_us);
+	}
+
+	/* This returns 0 if the driver is in debt to disallow (optional)
+	 * buffer moves.
+	 */
+	max_bytes = us_to_bytes(adev, adev->mm_stats.accum_us);
+
+	spin_unlock(&adev->mm_stats.lock);
+	return max_bytes;
+}
+
+/* Report how many bytes have really been moved for the last command
+ * submission. This can result in a debt that can stop buffer migrations
+ * temporarily.
+ */
+static void amdgpu_cs_report_moved_bytes(struct amdgpu_device *adev,
+					 u64 num_bytes)
+{
+	spin_lock(&adev->mm_stats.lock);
+	adev->mm_stats.accum_us -= bytes_to_us(adev, num_bytes);
+	spin_unlock(&adev->mm_stats.lock);
 }
 
 static int amdgpu_cs_bo_validate(struct amdgpu_cs_parser *p,
@@ -297,15 +356,10 @@ static int amdgpu_cs_bo_validate(struct amdgpu_cs_parser *p,
 	if (bo->pin_count)
 		return 0;
 
-	/* Avoid moving this one if we have moved too many buffers
-	 * for this IB already.
-	 *
-	 * Note that this allows moving at least one buffer of
-	 * any size, because it doesn't take the current "bo"
-	 * into account. We don't want to disallow buffer moves
-	 * completely.
+	/* Don't move this buffer if we have depleted our allowance
+	 * to move it. Don't move anything if the threshold is zero.
 	 */
-	if (p->bytes_moved <= p->bytes_moved_threshold)
+	if (p->bytes_moved < p->bytes_moved_threshold)
 		domain = bo->prefered_domains;
 	else
 		domain = bo->allowed_domains;
@@ -493,6 +547,8 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 		DRM_ERROR("amdgpu_cs_list_validate(validated) failed.\n");
 		goto error_validate;
 	}
+
+	amdgpu_cs_report_moved_bytes(p->adev, p->bytes_moved);
 
 	fpriv->vm.last_eviction_counter =
 		atomic64_read(&p->adev->num_evictions);
