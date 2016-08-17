@@ -208,65 +208,6 @@ static int cport_to_ep_pair(struct es2_ap_dev *es2, u16 cport_id)
 	return es2->cport_to_ep[cport_id];
 }
 
-/* Disable for now until we work all of this out to keep a warning-free build */
-#if 0
-/* Test if the endpoints pair is already mapped to a cport */
-static int ep_pair_in_use(struct es2_ap_dev *es2, int ep_pair)
-{
-	int i;
-
-	for (i = 0; i < es2->hd->num_cports; i++) {
-		if (es2->cport_to_ep[i] == ep_pair)
-			return 1;
-	}
-	return 0;
-}
-
-/* Configure the endpoint mapping and send the request to APBridge */
-static int map_cport_to_ep(struct es2_ap_dev *es2,
-				u16 cport_id, int ep_pair)
-{
-	int retval;
-	struct cport_to_ep *cport_to_ep;
-
-	if (ep_pair < 0 || ep_pair >= NUM_BULKS)
-		return -EINVAL;
-	if (cport_id >= es2->hd->num_cports)
-		return -EINVAL;
-	if (ep_pair && ep_pair_in_use(es2, ep_pair))
-		return -EINVAL;
-
-	cport_to_ep = kmalloc(sizeof(*cport_to_ep), GFP_KERNEL);
-	if (!cport_to_ep)
-		return -ENOMEM;
-
-	es2->cport_to_ep[cport_id] = ep_pair;
-	cport_to_ep->cport_id = cpu_to_le16(cport_id);
-	cport_to_ep->endpoint_in = es2->cport_in[ep_pair].endpoint;
-	cport_to_ep->endpoint_out = es2->cport_out[ep_pair].endpoint;
-
-	retval = usb_control_msg(es2->usb_dev,
-				 usb_sndctrlpipe(es2->usb_dev, 0),
-				 GB_APB_REQUEST_EP_MAPPING,
-				 USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
-				 0x00, 0x00,
-				 (char *)cport_to_ep,
-				 sizeof(*cport_to_ep),
-				 ES2_USB_CTRL_TIMEOUT);
-	if (retval == sizeof(*cport_to_ep))
-		retval = 0;
-	kfree(cport_to_ep);
-
-	return retval;
-}
-
-/* Unmap a cport: use the muxed endpoints pair */
-static int unmap_cport(struct es2_ap_dev *es2, u16 cport_id)
-{
-	return map_cport_to_ep(es2, cport_id, 0);
-}
-#endif
-
 static int output_sync(struct es2_ap_dev *es2, void *req, u16 size, u8 cmd)
 {
 	struct usb_device *udev = es2->usb_dev;
