@@ -12094,9 +12094,6 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	crtc->primary->fb = fb;
 	update_state_fb(crtc->primary);
 
-	intel_fbc_pre_update(intel_crtc, intel_crtc->config,
-			     to_intel_plane_state(primary->state));
-
 	work->pending_flip_obj = i915_gem_object_get(obj);
 
 	ret = i915_mutex_lock_interruptible(dev);
@@ -12141,6 +12138,17 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	work->gtt_offset = intel_fb_gtt_offset(fb, primary->state->rotation);
 	work->gtt_offset += intel_crtc->dspaddr_offset;
 	work->rotation = crtc->primary->state->rotation;
+
+	/*
+	 * There's the potential that the next frame will not be compatible with
+	 * FBC, so we want to call pre_update() before the actual page flip.
+	 * The problem is that pre_update() caches some information about the fb
+	 * object, so we want to do this only after the object is pinned. Let's
+	 * be on the safe side and do this immediately before scheduling the
+	 * flip.
+	 */
+	intel_fbc_pre_update(intel_crtc, intel_crtc->config,
+			     to_intel_plane_state(primary->state));
 
 	if (mmio_flip) {
 		INIT_WORK(&work->mmio_work, intel_mmio_flip_work_func);
