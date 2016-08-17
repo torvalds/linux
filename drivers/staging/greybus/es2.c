@@ -114,7 +114,7 @@ struct es2_ap_dev {
 	struct usb_interface *usb_intf;
 	struct gb_host_device *hd;
 
-	struct es2_cport_in cport_in[NUM_BULKS];
+	struct es2_cport_in cport_in;
 	__u8 cport_out_endpoint;
 	struct urb *cport_out_urb[NUM_CPORT_OUT_URB];
 	bool cport_out_urb_busy[NUM_CPORT_OUT_URB];
@@ -920,7 +920,6 @@ static int check_urb_status(struct urb *urb)
 static void es2_destroy(struct es2_ap_dev *es2)
 {
 	struct usb_device *udev;
-	int bulk_in;
 	int i;
 
 	debugfs_remove(es2->apb_log_enable_dentry);
@@ -948,18 +947,10 @@ static void es2_destroy(struct es2_ap_dev *es2)
 		es2->arpc_buffer[i] = NULL;
 	}
 
-	for (bulk_in = 0; bulk_in < NUM_BULKS; bulk_in++) {
-		struct es2_cport_in *cport_in = &es2->cport_in[bulk_in];
-
-		for (i = 0; i < NUM_CPORT_IN_URB; ++i) {
-			struct urb *urb = cport_in->urb[i];
-
-			if (!urb)
-				break;
-			usb_free_urb(urb);
-			kfree(cport_in->buffer[i]);
-			cport_in->buffer[i] = NULL;
-		}
+	for (i = 0; i < NUM_CPORT_IN_URB; ++i) {
+		usb_free_urb(es2->cport_in.urb[i]);
+		kfree(es2->cport_in.buffer[i]);
+		es2->cport_in.buffer[i] = NULL;
 	}
 
 	/* release reserved CDSI0 and CDSI1 cports */
@@ -1412,11 +1403,12 @@ static int ap_probe(struct usb_interface *interface,
 	struct usb_device *udev;
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
-	int bulk_in = 0;
 	int retval;
 	int i;
 	int num_cports;
 	bool bulk_out_found = false;
+	bool bulk_in_found = false;
+	bool arpc_in_found = false;
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
 
@@ -1460,13 +1452,15 @@ static int ap_probe(struct usb_interface *interface,
 		endpoint = &iface_desc->endpoint[i].desc;
 
 		if (usb_endpoint_is_bulk_in(endpoint)) {
-			if (bulk_in < NUM_BULKS)
-				es2->cport_in[bulk_in].endpoint =
+			if (!bulk_in_found) {
+				es2->cport_in.endpoint =
 					endpoint->bEndpointAddress;
-			else
+				bulk_in_found = true;
+			} else if (!arpc_in_found) {
 				es2->arpc_endpoint_in =
 					endpoint->bEndpointAddress;
-			bulk_in++;
+				arpc_in_found = true;
+			}
 		} else if (usb_endpoint_is_bulk_out(endpoint) &&
 			   (!bulk_out_found)) {
 			es2->cport_out_endpoint = endpoint->bEndpointAddress;
@@ -1477,41 +1471,36 @@ static int ap_probe(struct usb_interface *interface,
 				endpoint->bEndpointAddress);
 		}
 	}
-	if (bulk_in != NUM_BULKS_IN || !bulk_out_found) {
+	if (!bulk_in_found || !arpc_in_found || !bulk_out_found) {
 		dev_err(&udev->dev, "Not enough endpoints found in device, aborting!\n");
 		retval = -ENODEV;
 		goto error;
 	}
 
 	/* Allocate buffers for our cport in messages */
-	for (bulk_in = 0; bulk_in < NUM_BULKS; bulk_in++) {
-		struct es2_cport_in *cport_in = &es2->cport_in[bulk_in];
+	for (i = 0; i < NUM_CPORT_IN_URB; ++i) {
+		struct urb *urb;
+		u8 *buffer;
 
-		for (i = 0; i < NUM_CPORT_IN_URB; ++i) {
-			struct urb *urb;
-			u8 *buffer;
-
-			urb = usb_alloc_urb(0, GFP_KERNEL);
-			if (!urb) {
-				retval = -ENOMEM;
-				goto error;
-			}
-			cport_in->urb[i] = urb;
-
-			buffer = kmalloc(ES2_GBUF_MSG_SIZE_MAX, GFP_KERNEL);
-			if (!buffer) {
-				retval = -ENOMEM;
-				goto error;
-			}
-
-			usb_fill_bulk_urb(urb, udev,
-					  usb_rcvbulkpipe(udev,
-							  cport_in->endpoint),
-					  buffer, ES2_GBUF_MSG_SIZE_MAX,
-					  cport_in_callback, hd);
-
-			cport_in->buffer[i] = buffer;
+		urb = usb_alloc_urb(0, GFP_KERNEL);
+		if (!urb) {
+			retval = -ENOMEM;
+			goto error;
 		}
+		es2->cport_in.urb[i] = urb;
+
+		buffer = kmalloc(ES2_GBUF_MSG_SIZE_MAX, GFP_KERNEL);
+		if (!buffer) {
+			retval = -ENOMEM;
+			goto error;
+		}
+
+		usb_fill_bulk_urb(urb, udev,
+				  usb_rcvbulkpipe(udev, es2->cport_in.endpoint),
+				  buffer, ES2_GBUF_MSG_SIZE_MAX,
+				  cport_in_callback, hd);
+
+		es2->cport_in.buffer[i] = buffer;
 	}
 
 	/* Allocate buffers for ARPC in messages */
@@ -1571,17 +1560,13 @@ static int ap_probe(struct usb_interface *interface,
 	if (retval)
 		goto err_disable_arpc_in;
 
-	for (i = 0; i < NUM_BULKS; ++i) {
-		retval = es2_cport_in_enable(es2, &es2->cport_in[i]);
-		if (retval)
-			goto err_disable_cport_in;
-	}
+	retval = es2_cport_in_enable(es2, &es2->cport_in);
+	if (retval)
+		goto err_hd_del;
 
 	return 0;
 
-err_disable_cport_in:
-	for (--i; i >= 0; --i)
-		es2_cport_in_disable(es2, &es2->cport_in[i]);
+err_hd_del:
 	gb_hd_del(hd);
 err_disable_arpc_in:
 	es2_arpc_in_disable(es2);
@@ -1594,12 +1579,10 @@ error:
 static void ap_disconnect(struct usb_interface *interface)
 {
 	struct es2_ap_dev *es2 = usb_get_intfdata(interface);
-	int i;
 
 	gb_hd_del(es2->hd);
 
-	for (i = 0; i < NUM_BULKS; ++i)
-		es2_cport_in_disable(es2, &es2->cport_in[i]);
+	es2_cport_in_disable(es2, &es2->cport_in);
 	es2_arpc_in_disable(es2);
 
 	es2_destroy(es2);
