@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2013,2014 Samsung Electronics
  * Chanwoo Choi <cw00.choi@samsung.com>
- * Krzysztof Kozlowski <k.kozlowski@samsung.com>
+ * Krzysztof Kozlowski <krzk@kernel.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -791,6 +791,6 @@ static struct platform_driver max14577_muic_driver = {
 module_platform_driver(max14577_muic_driver);
 
 MODULE_DESCRIPTION("Maxim 14577/77836 Extcon driver");
-MODULE_AUTHOR("Chanwoo Choi <cw00.choi@samsung.com>, Krzysztof Kozlowski <k.kozlowski@samsung.com>");
+MODULE_AUTHOR("Chanwoo Choi <cw00.choi@samsung.com>, Krzysztof Kozlowski <krzk@kernel.org>");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:extcon-max14577");
