@@ -156,6 +156,8 @@ HOOK_FD_CALL(read)
 HOOK_FD_CALL(recvfrom)
 HOOK_FD_CALL(recv)
 HOOK_FD_CALL(epoll_wait)
+HOOK_FD_CALL(splice)
+HOOK_FD_CALL(vmsplice)
 HOOK_CALL_USE_HOST_BEFORE_START(pipe);
 
 HOST_CALL(setsockopt);
