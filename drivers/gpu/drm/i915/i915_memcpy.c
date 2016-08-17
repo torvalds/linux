@@ -27,7 +27,7 @@
 
 #include "i915_drv.h"
 
-DEFINE_STATIC_KEY_FALSE(has_movntdqa);
+static DEFINE_STATIC_KEY_FALSE(has_movntdqa);
 
 #ifdef CONFIG_AS_MOVNTDQA
 static void __memcpy_ntdqa(void *dst, const void *src, unsigned long len)
