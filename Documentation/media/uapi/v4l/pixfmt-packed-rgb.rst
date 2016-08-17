@@ -6,11 +6,6 @@
 Packed RGB formats
 ******************
 
-*man Packed RGB formats(2)*
-
-Packed RGB formats
-
-
 Description
 ===========
 
@@ -19,8 +14,13 @@ graphics frame buffers. They occupy 8, 16, 24 or 32 bits per pixel.
 These are all packed-pixel formats, meaning all the data for a pixel lie
 next to each other in memory.
 
+.. raw:: latex
+
+    \newline\newline\begin{adjustbox}{width=\columnwidth}
 
 .. _rgb-formats:
+
+.. tabularcolumns:: |p{4.5cm}|p{3.3cm}|p{0.7cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.2cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.2cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.2cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{1.7cm}|
 
 .. flat-table:: Packed RGB Image Formats
     :header-rows:  2
@@ -945,8 +945,11 @@ next to each other in memory.
 
        -  b\ :sub:`0`
 
+.. raw:: latex
 
-Bit 7 is the most significant bit.
+    \end{adjustbox}\newline\newline
+
+.. note:: Bit 7 is the most significant bit.
 
 The usage and value of the alpha bits (a) in the ARGB and ABGR formats
 (collectively referred to as alpha formats) depend on the device type
@@ -976,13 +979,16 @@ devices and drivers must ignore those bits, for both
 Each cell is one byte.
 
 
+.. raw:: latex
 
-.. tabularcolumns:: |p{2.5cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{0.7cm}|
+    \newline\newline\begin{adjustbox}{width=\columnwidth}
 
-.. flat-table::
+.. tabularcolumns:: |p{4.1cm}|p{1.1cm}|p{1.1cm}|p{1.1cm}|p{1.1cm}|p{1.1cm}|p{1.1cm}|p{1.1cm}|p{1.1cm}|p{1.1cm}|p{1.1cm}|p{1.1cm}|p{1.3cm}|
+
+.. flat-table:: RGB byte order
     :header-rows:  0
     :stub-columns: 0
-    :widths:       2 1 1 1 1 1 1 1 1 1 1 1 1
+    :widths:       11 3 3 3 3 3 3 3 3 3 3 3 3
 
 
     -  .. row 1
@@ -1097,6 +1103,9 @@ Each cell is one byte.
 
        -  R\ :sub:`33`
 
+.. raw:: latex
+
+    \end{adjustbox}\newline\newline
 
 Formats defined in :ref:`rgb-formats-deprecated` are deprecated and
 must not be used by new drivers. They are documented here for reference.
@@ -1105,6 +1114,13 @@ either the corresponding ARGB or XRGB format, depending on the driver.
 
 
 .. _rgb-formats-deprecated:
+
+.. raw:: latex
+
+    \newline\newline
+    \begin{adjustbox}{width=\columnwidth}
+
+.. tabularcolumns:: |p{4.2cm}|p{1.0cm}|p{0.7cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.2cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.2cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.2cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{1.7cm}|
 
 .. flat-table:: Deprecated Packed RGB Image Formats
     :header-rows:  2
@@ -1470,6 +1486,9 @@ either the corresponding ARGB or XRGB format, depending on the driver.
 
        -  b\ :sub:`0`
 
+.. raw:: latex
+
+    \end{adjustbox}\newline\newline
 
 A test utility to determine which RGB formats a driver actually supports
 is available from the LinuxTV v4l-dvb repository. See
