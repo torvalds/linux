@@ -88,39 +88,37 @@ static const struct intel_device_info intel_i865g_info = {
 	CURSOR_OFFSETS,
 };
 
+#define GEN3_FEATURES \
+	.gen = 3, .num_pipes = 2, \
+	.ring_mask = RENDER_RING, \
+	GEN_DEFAULT_PIPEOFFSETS, \
+	CURSOR_OFFSETS
+
 static const struct intel_device_info intel_i915g_info = {
-	.gen = 3, .is_i915g = 1, .cursor_needs_physical = 1, .num_pipes = 2,
+	GEN3_FEATURES,
+	.is_i915g = 1, .cursor_needs_physical = 1,
 	.has_overlay = 1, .overlay_needs_physical = 1,
-	.ring_mask = RENDER_RING,
-	GEN_DEFAULT_PIPEOFFSETS,
-	CURSOR_OFFSETS,
 };
 static const struct intel_device_info intel_i915gm_info = {
-	.gen = 3, .is_mobile = 1, .num_pipes = 2,
+	GEN3_FEATURES,
+	.is_mobile = 1,
 	.cursor_needs_physical = 1,
 	.has_overlay = 1, .overlay_needs_physical = 1,
 	.supports_tv = 1,
 	.has_fbc = 1,
-	.ring_mask = RENDER_RING,
-	GEN_DEFAULT_PIPEOFFSETS,
-	CURSOR_OFFSETS,
 };
 static const struct intel_device_info intel_i945g_info = {
-	.gen = 3, .has_hotplug = 1, .cursor_needs_physical = 1, .num_pipes = 2,
+	GEN3_FEATURES,
+	.has_hotplug = 1, .cursor_needs_physical = 1,
 	.has_overlay = 1, .overlay_needs_physical = 1,
-	.ring_mask = RENDER_RING,
-	GEN_DEFAULT_PIPEOFFSETS,
-	CURSOR_OFFSETS,
 };
 static const struct intel_device_info intel_i945gm_info = {
-	.gen = 3, .is_i945gm = 1, .is_mobile = 1, .num_pipes = 2,
+	GEN3_FEATURES,
+	.is_i945gm = 1, .is_mobile = 1,
 	.has_hotplug = 1, .cursor_needs_physical = 1,
 	.has_overlay = 1, .overlay_needs_physical = 1,
 	.supports_tv = 1,
 	.has_fbc = 1,
-	.ring_mask = RENDER_RING,
-	GEN_DEFAULT_PIPEOFFSETS,
-	CURSOR_OFFSETS,
 };
 
 #define GEN4_FEATURES \
@@ -145,12 +143,10 @@ static const struct intel_device_info intel_i965gm_info = {
 };
 
 static const struct intel_device_info intel_g33_info = {
-	.gen = 3, .is_g33 = 1, .num_pipes = 2,
+	GEN3_FEATURES,
+	.is_g33 = 1,
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_overlay = 1,
-	.ring_mask = RENDER_RING,
-	GEN_DEFAULT_PIPEOFFSETS,
-	CURSOR_OFFSETS,
 };
 
 static const struct intel_device_info intel_g45_info = {
@@ -170,12 +166,10 @@ static const struct intel_device_info intel_gm45_info = {
 };
 
 static const struct intel_device_info intel_pineview_info = {
-	.gen = 3, .is_g33 = 1, .is_pineview = 1, .is_mobile = 1, .num_pipes = 2,
+	GEN3_FEATURES,
+	.is_g33 = 1, .is_pineview = 1, .is_mobile = 1,
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_overlay = 1,
-	.ring_mask = RENDER_RING,
-	GEN_DEFAULT_PIPEOFFSETS,
-	CURSOR_OFFSETS,
 };
 
 #define GEN5_FEATURES \
