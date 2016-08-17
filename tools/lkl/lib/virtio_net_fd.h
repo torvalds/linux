@@ -14,14 +14,6 @@ struct lkl_netdev *lkl_register_netdev_fd(int fd);
 
 
 /**
- * lkl_unregister_netdev_linux_fdnet - unregister a file descriptor-based
- * network device as a NIC
- *
- * @nd - a struct lkl_netdev_linux_fdnet entry to be unregistered
- */
-void lkl_unregister_netdev_fd(struct lkl_netdev *nd);
-
-/**
  * lkl_netdev_tap_init - initialize tap related structure fot lkl_netdev.
  *
  * @path - the path to open the device.

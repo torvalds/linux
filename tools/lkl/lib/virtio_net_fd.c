@@ -152,22 +152,31 @@ static int fd_net_poll(struct lkl_netdev *nd)
 	return ret;
 }
 
-static void fd_net_close(struct lkl_netdev *nd)
+static void fd_net_poll_hup(struct lkl_netdev *nd)
 {
 	struct lkl_netdev_fd *nd_fd =
 		container_of(nd, struct lkl_netdev_fd, dev);
 
-	/* this will cause a POLLHUP in the poll function */
-	close(nd_fd->pipe[1]);
+	/* this will cause a POLLHUP / POLLNVAL in the poll function */
 	close(nd_fd->pipe[0]);
+	close(nd_fd->pipe[1]);
+}
+
+static void fd_net_free(struct lkl_netdev *nd)
+{
+	struct lkl_netdev_fd *nd_fd =
+		container_of(nd, struct lkl_netdev_fd, dev);
+
 	close(nd_fd->fd);
+	free(nd_fd);
 }
 
 struct lkl_dev_net_ops fd_net_ops =  {
 	.tx = fd_net_tx,
 	.rx = fd_net_rx,
 	.poll = fd_net_poll,
-	.close = fd_net_close,
+	.poll_hup = fd_net_poll_hup,
+	.free = fd_net_free,
 };
 
 struct lkl_netdev *lkl_register_netdev_fd(int fd)
@@ -186,7 +195,7 @@ struct lkl_netdev *lkl_register_netdev_fd(int fd)
 	nd->fd = fd;
 	if (pipe(nd->pipe) < 0) {
 		perror("pipe");
-		lkl_unregister_netdev_fd(&nd->dev);
+		free(nd);
 		return NULL;
 	}
 
@@ -194,18 +203,10 @@ struct lkl_netdev *lkl_register_netdev_fd(int fd)
 		perror("fnctl");
 		close(nd->pipe[0]);
 		close(nd->pipe[1]);
-		lkl_unregister_netdev_fd(&nd->dev);
+		free(nd);
+		return NULL;
 	}
 
 	nd->dev.ops = &fd_net_ops;
 	return &nd->dev;
-}
-
-void lkl_unregister_netdev_fd(struct lkl_netdev *nd)
-{
-	struct lkl_netdev_fd *nd_fd =
-		container_of(nd, struct lkl_netdev_fd, dev);
-
-	fd_net_close(nd);
-	free(nd_fd);
 }
