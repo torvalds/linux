@@ -665,6 +665,7 @@ struct intel_csr {
 	func(has_hw_contexts) sep \
 	func(has_logical_ring_contexts) sep \
 	func(has_l3_dpf) sep \
+	func(has_gmch_display) sep \
 	func(has_pipe_cxsr) sep \
 	func(has_hotplug) sep \
 	func(cursor_needs_physical) sep \
@@ -2838,8 +2839,7 @@ struct drm_i915_cmd_table {
 #define HAS_PCH_NOP(dev) (INTEL_PCH_TYPE(dev) == PCH_NOP)
 #define HAS_PCH_SPLIT(dev) (INTEL_PCH_TYPE(dev) != PCH_NONE)
 
-#define HAS_GMCH_DISPLAY(dev) (INTEL_INFO(dev)->gen < 5 || \
-			       IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
+#define HAS_GMCH_DISPLAY(dev) (INTEL_INFO(dev)->has_gmch_display)
 
 /* DPF == dynamic parity feature */
 #define HAS_L3_DPF(dev) (INTEL_INFO(dev)->has_l3_dpf)
