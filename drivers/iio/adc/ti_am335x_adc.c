@@ -381,7 +381,7 @@ static int tiadc_read_raw(struct iio_dev *indio_dev,
 
 	am335x_tsc_se_set_once(adc_dev->mfd_tscadc, step_en);
 
-	timeout = jiffies + usecs_to_jiffies
+	timeout = jiffies + msecs_to_jiffies
 				(IDLE_TIMEOUT * adc_dev->channels);
 	/* Wait for Fifo threshold interrupt */
 	while (1) {
