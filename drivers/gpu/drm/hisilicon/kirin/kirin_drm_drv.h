@@ -15,8 +15,8 @@
 
 /* display controller init/cleanup ops */
 struct kirin_dc_ops {
-	int (*init)(struct platform_device *pdev);
-	void (*cleanup)(struct platform_device *pdev);
+	int (*init)(struct drm_device *dev);
+	void (*cleanup)(struct drm_device *dev);
 };
 
 struct kirin_drm_private {

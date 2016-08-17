@@ -989,9 +989,9 @@ static int ade_dts_parse(struct platform_device *pdev, struct ade_hw_ctx *ctx)
 	return 0;
 }
 
-static int ade_drm_init(struct platform_device *pdev)
+static int ade_drm_init(struct drm_device *dev)
 {
-	struct drm_device *drm_dev = platform_get_drvdata(dev);
+	struct platform_device *pdev = dev->platformdev;
 	struct ade_data *ade;
 	struct ade_hw_ctx *ctx;
 	struct ade_crtc *acrtc;
@@ -1050,9 +1050,9 @@ static int ade_drm_init(struct platform_device *pdev)
 	return 0;
 }
 
-static void ade_drm_cleanup(struct platform_device *pdev)
+static void ade_drm_cleanup(struct drm_device *dev)
 {
-	struct drm_device *drm_dev = platform_get_drvdata(dev);
+	struct platform_device *pdev = dev->platformdev;
 	struct ade_data *ade = platform_get_drvdata(pdev);
 	struct drm_crtc *crtc = &ade->acrtc.base;
 
@@ -1062,4 +1062,4 @@ static void ade_drm_cleanup(struct platform_device *pdev)
 const struct kirin_dc_ops ade_dc_ops = {
 	.init = ade_drm_init,
 	.cleanup = ade_drm_cleanup
-;
+};
