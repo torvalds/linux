@@ -130,8 +130,6 @@ struct es2_ap_dev {
 
 	bool cdsi1_in_use;
 
-	int *cport_to_ep;
-
 	struct task_struct *apb_log_task;
 	struct dentry *apb_log_dentry;
 	struct dentry *apb_log_enable_dentry;
@@ -144,18 +142,6 @@ struct es2_ap_dev {
 	int arpc_id_cycle;
 	spinlock_t arpc_lock;
 	struct list_head arpcs;
-};
-
-/**
- * cport_to_ep - information about cport to endpoints mapping
- * @cport_id: the id of cport to map to endpoints
- * @endpoint_in: the endpoint number to use for in transfer
- * @endpoint_out: he endpoint number to use for out transfer
- */
-struct cport_to_ep {
-	__le16 cport_id;
-	__u8 endpoint_in;
-	__u8 endpoint_out;
 };
 
 /**
@@ -199,14 +185,6 @@ static void usb_log_enable(struct es2_ap_dev *es2);
 static void usb_log_disable(struct es2_ap_dev *es2);
 static int arpc_sync(struct es2_ap_dev *es2, u8 type, void *payload,
 		     size_t size, int *result, unsigned int timeout);
-
-/* Get the endpoints pair mapped to the cport */
-static int cport_to_ep_pair(struct es2_ap_dev *es2, u16 cport_id)
-{
-	if (cport_id >= es2->hd->num_cports)
-		return 0;
-	return es2->cport_to_ep[cport_id];
-}
 
 static int output_sync(struct es2_ap_dev *es2, void *req, u16 size, u8 cmd)
 {
@@ -460,7 +438,6 @@ static int message_send(struct gb_host_device *hd, u16 cport_id,
 	size_t buffer_size;
 	int retval;
 	struct urb *urb;
-	int ep_pair;
 	unsigned long flags;
 
 	/*
@@ -487,10 +464,9 @@ static int message_send(struct gb_host_device *hd, u16 cport_id,
 
 	buffer_size = sizeof(*message->header) + message->payload_size;
 
-	ep_pair = cport_to_ep_pair(es2, cport_id);
 	usb_fill_bulk_urb(urb, udev,
 			  usb_sndbulkpipe(udev,
-					  es2->cport_out[ep_pair].endpoint),
+					  es2->cport_out[0].endpoint),
 			  message->buffer, buffer_size,
 			  cport_out_callback, message);
 	urb->transfer_flags |= URB_ZERO_PACKET;
@@ -993,8 +969,6 @@ static void es2_destroy(struct es2_ap_dev *es2)
 		}
 	}
 
-	kfree(es2->cport_to_ep);
-
 	/* release reserved CDSI0 and CDSI1 cports */
 	gb_hd_cport_release_reserved(es2->hd, ES2_CPORT_CDSI1);
 	gb_hd_cport_release_reserved(es2->hd, ES2_CPORT_CDSI0);
@@ -1486,13 +1460,6 @@ static int ap_probe(struct usb_interface *interface,
 	retval = gb_hd_cport_reserve(hd, ES2_CPORT_CDSI1);
 	if (retval)
 		goto error;
-
-	es2->cport_to_ep = kcalloc(hd->num_cports, sizeof(*es2->cport_to_ep),
-				   GFP_KERNEL);
-	if (!es2->cport_to_ep) {
-		retval = -ENOMEM;
-		goto error;
-	}
 
 	/* find all bulk endpoints */
 	iface_desc = interface->cur_altsetting;
