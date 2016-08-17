@@ -22,6 +22,7 @@
 
 #include <linux/types.h>
 #include <linux/rfkill.h>
+#include <linux/clk.h>
 
 #define RFKILL_RK_GPIO_NAME_SIZE   64
 
@@ -63,6 +64,7 @@ struct rfkill_rk_platform_data {
     struct rfkill_rk_gpio   wake_gpio;      // Host wake or sleep BT
     struct rfkill_rk_irq    wake_host_irq;  // BT wakeup host
     struct rfkill_rk_gpio   rts_gpio;
+    struct clk              *ext_clk;
 };
 
 int rfkill_get_bt_power_state(int *power, bool *toggle);

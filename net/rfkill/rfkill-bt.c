@@ -522,7 +522,13 @@ static int bluetooth_platdata_parse_dt(struct device *dev,
         LOG("%s: get property: BT,wake_host_irq = %d.\n", __func__, gpio);
     } else data->wake_host_irq.gpio.io = -1;
 
-    return 0;
+	data->ext_clk = devm_clk_get(dev, "ext_clock");
+	if (IS_ERR(data->ext_clk)) {
+		LOG("%s: clk_get failed!!!.\n", __func__);
+	} else {
+		clk_prepare_enable(data->ext_clk);
+	}
+	return 0;
 }
 #endif //CONFIG_OF
 
@@ -696,7 +702,7 @@ static int rfkill_rk_remove(struct platform_device *pdev)
     
     if (gpio_is_valid(rfkill->pdata->poweron_gpio.io))
         gpio_free(rfkill->pdata->poweron_gpio.io);
-
+	clk_disable_unprepare(rfkill->pdata->ext_clk);
     g_rfkill = NULL;
 
 	return 0;
