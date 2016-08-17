@@ -151,8 +151,17 @@ static int panel_simple_of_get_native_mode(struct panel_simple *panel)
 	struct drm_connector *connector = panel->base.connector;
 	struct drm_device *drm = panel->base.drm;
 	struct drm_display_mode *mode;
+	struct device_node *timings_np;
 	int ret;
 
+	timings_np = of_get_child_by_name(panel->dev->of_node,
+					  "display-timings");
+	if (!timings_np) {
+		dev_dbg(panel->dev, "failed to find display-timings node\n");
+		return 0;
+	}
+
+	of_node_put(timings_np);
 	mode = drm_mode_create(drm);
 	if (!mode)
 		return 0;
