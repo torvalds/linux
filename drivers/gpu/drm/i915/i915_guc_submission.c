@@ -744,6 +744,7 @@ static void guc_init_doorbell_hw(struct intel_guc *guc)
 /**
  * guc_client_alloc() - Allocate an i915_guc_client
  * @dev_priv:	driver private data structure
+ * @engines:	The set of engines to enable for this client
  * @priority:	four levels priority _CRITICAL, _HIGH, _NORMAL and _LOW
  * 		The kernel client to replace ExecList submission is created with
  * 		NORMAL priority. Priority of a client for scheduler can be HIGH,
