@@ -460,10 +460,6 @@
 	};
 };
 
-&usbdrd_dwc3_0 {
-	dr_mode = "peripheral";
-};
-
 &pinctrl {
 	isp {
 		cif_clkout: cif-clkout {

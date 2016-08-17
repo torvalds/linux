@@ -480,7 +480,7 @@
 			compatible = "snps,dwc3";
 			reg = <0x0 0xfe900000 0x0 0x100000>;
 			interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH 0>;
-			dr_mode = "otg";
+			dr_mode = "host";
 			phys = <&u2phy1_otg>, <&tcphy1 1>;
 			phy-names = "usb2-phy", "usb3-phy";
 			phy_type = "utmi_wide";
