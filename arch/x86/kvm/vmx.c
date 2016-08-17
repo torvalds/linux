@@ -2200,6 +2200,12 @@ static void vmx_vcpu_pi_load(struct kvm_vcpu *vcpu, int cpu)
 			new.control) != old.control);
 }
 
+static void decache_tsc_multiplier(struct vcpu_vmx *vmx)
+{
+	vmx->current_tsc_ratio = vmx->vcpu.arch.tsc_scaling_ratio;
+	vmcs_write64(TSC_MULTIPLIER, vmx->current_tsc_ratio);
+}
+
 /*
  * Switches to specified vcpu, until a matching vcpu_put(), but assumes
  * vcpu mutex is already taken.
@@ -2258,10 +2264,8 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 	/* Setup TSC multiplier */
 	if (kvm_has_tsc_control &&
-	    vmx->current_tsc_ratio != vcpu->arch.tsc_scaling_ratio) {
-		vmx->current_tsc_ratio = vcpu->arch.tsc_scaling_ratio;
-		vmcs_write64(TSC_MULTIPLIER, vmx->current_tsc_ratio);
-	}
+	    vmx->current_tsc_ratio != vcpu->arch.tsc_scaling_ratio)
+		decache_tsc_multiplier(vmx);
 
 	vmx_vcpu_pi_load(vcpu, cpu);
 	vmx->host_pkru = read_pkru();
@@ -9999,6 +10003,8 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 			vmx->nested.vmcs01_tsc_offset + vmcs12->tsc_offset);
 	else
 		vmcs_write64(TSC_OFFSET, vmx->nested.vmcs01_tsc_offset);
+	if (kvm_has_tsc_control)
+		decache_tsc_multiplier(vmx);
 
 	if (enable_vpid) {
 		/*
@@ -10755,6 +10761,8 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 	else
 		vmcs_set_bits(PIN_BASED_VM_EXEC_CONTROL,
 			      PIN_BASED_VMX_PREEMPTION_TIMER);
+	if (kvm_has_tsc_control)
+		decache_tsc_multiplier(vmx);
 
 	if (vmx->nested.change_vmcs01_virtual_x2apic_mode) {
 		vmx->nested.change_vmcs01_virtual_x2apic_mode = false;
