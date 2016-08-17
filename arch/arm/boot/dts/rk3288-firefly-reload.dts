@@ -122,6 +122,15 @@
 		vin-supply = <&vcc_5v>;
 	};
 
+	vcc_5v: vcc_sys: vsys-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_5v";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
 	vcc_sd: sdmmc-regulator {
 		compatible = "regulator-fixed";
 		gpio = <&gpio7 11 GPIO_ACTIVE_LOW>;
@@ -147,10 +156,18 @@
 		vin-supply = <&vcc_5v>;
 	};
 
-	/*
-	 * A TT8142 creates both dovdd_1v8 and vcc28_dvp, controlled
-	 * by the dvp_pwr pin.
-	 */
+	dovdd_1v8: dovdd-1v8-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio0 11 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&dvp_pwr>;
+		regulator-name = "dovdd_1v8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vcc_io>;
+	};
+
 	vcc28_dvp: vcc28-dvp-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -160,7 +177,38 @@
 		regulator-name = "vcc28_dvp";
 		regulator-min-microvolt = <2800000>;
 		regulator-max-microvolt = <2800000>;
-		regulator-always-on;
+		vin-supply = <&vcc_io>;
+	};
+
+	af_28: af_28-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio0 11 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&dvp_pwr>;
+		regulator-name = "af_28";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		vin-supply = <&vcc_io>;
+	};
+
+	dvdd_1v2: af_28-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio7 12 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cif_pwr>;
+		regulator-name = "dvdd_1v2";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		vin-supply = <&vcc_io>;
+	};
+
+	vbat_wl: wifi-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vbat_wl";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 		vin-supply = <&vcc_io>;
 	};
 };
@@ -277,6 +325,10 @@
 	dvp {
 		dvp_pwr: dvp-pwr {
 			rockchip,pins = <0 11 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		cif_pwr: cif-pwr {
+			rockchip,pins = <7 12 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 

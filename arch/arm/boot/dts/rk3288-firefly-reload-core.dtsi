@@ -50,14 +50,6 @@
 		reg = <0 0x80000000>;
 	};
 
-	dovdd_1v8: dovdd-1v8-regulator {
-		compatible = "regulator-fixed";
-		regulator-name = "dovdd_1v8";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		vin-supply = <&vcc28_dvp>;
-	};
-
 	ext_gmac: external-gmac-clock {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -65,14 +57,6 @@
 		clock-output-names = "ext_gmac";
 	};
 
-	vbat_wl: vcc_sys: vsys-regulator {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc_sys";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		regulator-always-on;
-		regulator-boot-on;
-	};
 
 	vcc_flash: flash-regulator {
 		compatible = "regulator-fixed";
@@ -80,16 +64,6 @@
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 		vin-supply = <&vcc_io>;
-	};
-
-	vcc_5v: usb-regulator {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc_5v";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		regulator-always-on;
-		regulator-boot-on;
-		vin-supply = <&vcc_sys>;
 	};
 };
 
@@ -205,30 +179,30 @@
 				regulator-name = "vccio_sd";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-always-on;
 			};
 
 			vdd10_lcd: REG6 {
 				regulator-name = "vdd10_lcd";
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <1000000>;
+			};
+
+			vcca_18: REG7  {
+				regulator-name = "vcca_18";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
 			};
 
-			vcca_33: REG7  {
+			vcca_33: REG8 {
 				regulator-name = "vcca_33";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
 			};
 
-			vcc_lan: REG8 {
+			vcc_lan: REG9 {
 				regulator-name = "vcca_lan";
-				regulator-min-microvolt = <3300000>;
-				regulator-max-microvolt = <3300000>;
-			};
-
-			vccio_pmu: REG9 {
-				regulator-name = "vccio_pmu";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 			};
@@ -244,14 +218,12 @@
 				regulator-name = "vcc_18";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
-				regulator-always-on;
 			};
 
 			vcc18_lcd: REG12 {
 				regulator-name = "vcc18_lcd";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
-				regulator-always-on;
 			};
 		};
 	};
@@ -260,7 +232,7 @@
 &io_domains {
 	status = "okay";
 
-	audio-supply = <&vcca_33>;
+	audio-supply = <&vccio_wl>;
 	bb-supply = <&vcc_io>;
 	dvp-supply = <&dovdd_1v8>;
 	flash0-supply = <&vcc_flash>;
