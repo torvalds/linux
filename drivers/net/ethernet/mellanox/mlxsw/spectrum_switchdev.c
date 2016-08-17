@@ -450,6 +450,8 @@ void mlxsw_sp_fid_destroy(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_fid *f)
 
 	kfree(f);
 
+	mlxsw_sp_fid_map(mlxsw_sp, fid, false);
+
 	mlxsw_sp_fid_op(mlxsw_sp, fid, false);
 }
 
@@ -997,13 +999,13 @@ static int mlxsw_sp_port_obj_add(struct net_device *dev,
 }
 
 static int __mlxsw_sp_port_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port,
-				     u16 vid_begin, u16 vid_end, bool init)
+				     u16 vid_begin, u16 vid_end)
 {
 	struct net_device *dev = mlxsw_sp_port->dev;
 	u16 vid, pvid;
 	int err;
 
-	if (!init && !mlxsw_sp_port->bridged)
+	if (!mlxsw_sp_port->bridged)
 		return -EINVAL;
 
 	err = __mlxsw_sp_port_vlans_set(mlxsw_sp_port, vid_begin, vid_end,
@@ -1013,9 +1015,6 @@ static int __mlxsw_sp_port_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port,
 			   vid_end);
 		return err;
 	}
-
-	if (init)
-		goto out;
 
 	pvid = mlxsw_sp_port->pvid;
 	if (pvid >= vid_begin && pvid <= vid_end) {
@@ -1028,7 +1027,6 @@ static int __mlxsw_sp_port_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	mlxsw_sp_port_fid_leave(mlxsw_sp_port, vid_begin, vid_end);
 
-out:
 	/* Changing activity bits only if HW operation succeded */
 	for (vid = vid_begin; vid <= vid_end; vid++)
 		clear_bit(vid, mlxsw_sp_port->active_vlans);
@@ -1039,8 +1037,8 @@ out:
 static int mlxsw_sp_port_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port,
 				   const struct switchdev_obj_port_vlan *vlan)
 {
-	return __mlxsw_sp_port_vlans_del(mlxsw_sp_port,
-					 vlan->vid_begin, vlan->vid_end, false);
+	return __mlxsw_sp_port_vlans_del(mlxsw_sp_port, vlan->vid_begin,
+					 vlan->vid_end);
 }
 
 void mlxsw_sp_port_active_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port)
@@ -1048,7 +1046,7 @@ void mlxsw_sp_port_active_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port)
 	u16 vid;
 
 	for_each_set_bit(vid, mlxsw_sp_port->active_vlans, VLAN_N_VID)
-		__mlxsw_sp_port_vlans_del(mlxsw_sp_port, vid, vid, false);
+		__mlxsw_sp_port_vlans_del(mlxsw_sp_port, vid, vid);
 }
 
 static int
@@ -1544,32 +1542,6 @@ int mlxsw_sp_switchdev_init(struct mlxsw_sp *mlxsw_sp)
 void mlxsw_sp_switchdev_fini(struct mlxsw_sp *mlxsw_sp)
 {
 	mlxsw_sp_fdb_fini(mlxsw_sp);
-}
-
-int mlxsw_sp_port_vlan_init(struct mlxsw_sp_port *mlxsw_sp_port)
-{
-	struct net_device *dev = mlxsw_sp_port->dev;
-	int err;
-
-	/* Allow only untagged packets to ingress and tag them internally
-	 * with VID 1.
-	 */
-	mlxsw_sp_port->pvid = 1;
-	err = __mlxsw_sp_port_vlans_del(mlxsw_sp_port, 0, VLAN_N_VID - 1,
-					true);
-	if (err) {
-		netdev_err(dev, "Unable to init VLANs\n");
-		return err;
-	}
-
-	/* Add implicit VLAN interface in the device, so that untagged
-	 * packets will be classified to the default vFID.
-	 */
-	err = mlxsw_sp_port_add_vid(dev, 0, 1);
-	if (err)
-		netdev_err(dev, "Failed to configure default vFID\n");
-
-	return err;
 }
 
 void mlxsw_sp_port_switchdev_init(struct mlxsw_sp_port *mlxsw_sp_port)
