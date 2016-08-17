@@ -199,6 +199,7 @@ static const struct intel_device_info intel_ironlake_m_info = {
 	.gen = 6, .num_pipes = 2, \
 	.need_gfx_hws = 1, .has_hotplug = 1, \
 	.has_fbc = 1, \
+	.has_runtime_pm = 1, \
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING, \
 	.has_llc = 1, \
 	GEN_DEFAULT_PIPEOFFSETS, \
@@ -242,6 +243,7 @@ static const struct intel_device_info intel_ivybridge_q_info = {
 #define VLV_FEATURES  \
 	.gen = 7, .num_pipes = 2, \
 	.has_psr = 1, \
+	.has_runtime_pm = 1, \
 	.need_gfx_hws = 1, .has_hotplug = 1, \
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING, \
 	.display_mmio_offset = VLV_DISPLAY_BASE, \
@@ -258,7 +260,8 @@ static const struct intel_device_info intel_valleyview_info = {
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING, \
 	.has_ddi = 1, \
 	.has_fpga_dbg = 1, \
-	.has_psr = 1
+	.has_psr = 1, \
+	.has_runtime_pm = 1
 
 static const struct intel_device_info intel_haswell_info = {
 	HSW_FEATURES,
@@ -288,6 +291,7 @@ static const struct intel_device_info intel_cherryview_info = {
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
 	.is_cherryview = 1,
 	.has_psr = 1,
+	.has_runtime_pm = 1,
 	.display_mmio_offset = VLV_DISPLAY_BASE,
 	GEN_CHV_PIPEOFFSETS,
 	CURSOR_OFFSETS,
@@ -316,6 +320,7 @@ static const struct intel_device_info intel_broxton_info = {
 	.has_ddi = 1,
 	.has_fpga_dbg = 1,
 	.has_fbc = 1,
+	.has_runtime_pm = 1,
 	.has_pooled_eu = 0,
 	GEN_DEFAULT_PIPEOFFSETS,
 	IVB_CURSOR_OFFSETS,
