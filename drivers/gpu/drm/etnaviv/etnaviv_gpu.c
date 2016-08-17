@@ -678,7 +678,9 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 		dev_err(gpu->dev, "could not create command buffer\n");
 		goto destroy_iommu;
 	}
-	if (gpu->buffer->paddr - gpu->memory_base > 0x80000000) {
+
+	if (gpu->mmu->version == ETNAVIV_IOMMU_V1 &&
+	    gpu->buffer->paddr - gpu->memory_base > 0x80000000) {
 		ret = -EINVAL;
 		dev_err(gpu->dev,
 			"command buffer outside valid memory window\n");
