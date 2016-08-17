@@ -1350,14 +1350,18 @@ struct bpf_scratchpad {
 
 static DEFINE_PER_CPU(struct bpf_scratchpad, bpf_sp);
 
+static inline int __bpf_try_make_writable(struct sk_buff *skb,
+					  unsigned int write_len)
+{
+	return skb_ensure_writable(skb, write_len);
+}
+
 static inline int bpf_try_make_writable(struct sk_buff *skb,
 					unsigned int write_len)
 {
-	int err;
+	int err = __bpf_try_make_writable(skb, write_len);
 
-	err = skb_ensure_writable(skb, write_len);
 	bpf_compute_data_end(skb);
-
 	return err;
 }
 
@@ -1992,6 +1996,92 @@ static const struct bpf_func_proto bpf_skb_change_type_proto = {
 	.arg2_type	= ARG_ANYTHING,
 };
 
+static u32 __bpf_skb_min_len(const struct sk_buff *skb)
+{
+	u32 min_len = skb_network_offset(skb);
+
+	if (skb_transport_header_was_set(skb))
+		min_len = skb_transport_offset(skb);
+	if (skb->ip_summed == CHECKSUM_PARTIAL)
+		min_len = skb_checksum_start_offset(skb) +
+			  skb->csum_offset + sizeof(__sum16);
+	return min_len;
+}
+
+static u32 __bpf_skb_max_len(const struct sk_buff *skb)
+{
+	return skb->dev ? skb->dev->mtu + skb->dev->hard_header_len :
+	       65536;
+}
+
+static int bpf_skb_grow_rcsum(struct sk_buff *skb, unsigned int new_len)
+{
+	unsigned int old_len = skb->len;
+	int ret;
+
+	ret = __skb_grow_rcsum(skb, new_len);
+	if (!ret)
+		memset(skb->data + old_len, 0, new_len - old_len);
+	return ret;
+}
+
+static int bpf_skb_trim_rcsum(struct sk_buff *skb, unsigned int new_len)
+{
+	return __skb_trim_rcsum(skb, new_len);
+}
+
+static u64 bpf_skb_change_tail(u64 r1, u64 r2, u64 flags, u64 r4, u64 r5)
+{
+	struct sk_buff *skb = (struct sk_buff *)(long) r1;
+	u32 max_len = __bpf_skb_max_len(skb);
+	u32 min_len = __bpf_skb_min_len(skb);
+	u32 new_len = (u32) r2;
+	int ret;
+
+	if (unlikely(flags || new_len > max_len || new_len < min_len))
+		return -EINVAL;
+	if (skb->encapsulation)
+		return -ENOTSUPP;
+
+	/* The basic idea of this helper is that it's performing the
+	 * needed work to either grow or trim an skb, and eBPF program
+	 * rewrites the rest via helpers like bpf_skb_store_bytes(),
+	 * bpf_lX_csum_replace() and others rather than passing a raw
+	 * buffer here. This one is a slow path helper and intended
+	 * for replies with control messages.
+	 *
+	 * Like in bpf_skb_change_proto(), we want to keep this rather
+	 * minimal and without protocol specifics so that we are able
+	 * to separate concerns as in bpf_skb_store_bytes() should only
+	 * be the one responsible for writing buffers.
+	 *
+	 * It's really expected to be a slow path operation here for
+	 * control message replies, so we're implicitly linearizing,
+	 * uncloning and drop offloads from the skb by this.
+	 */
+	ret = __bpf_try_make_writable(skb, skb->len);
+	if (!ret) {
+		if (new_len > skb->len)
+			ret = bpf_skb_grow_rcsum(skb, new_len);
+		else if (new_len < skb->len)
+			ret = bpf_skb_trim_rcsum(skb, new_len);
+		if (!ret && skb_is_gso(skb))
+			skb_gso_reset(skb);
+	}
+
+	bpf_compute_data_end(skb);
+	return ret;
+}
+
+static const struct bpf_func_proto bpf_skb_change_tail_proto = {
+	.func		= bpf_skb_change_tail,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_ANYTHING,
+	.arg3_type	= ARG_ANYTHING,
+};
+
 bool bpf_helper_changes_skb_data(void *func)
 {
 	if (func == bpf_skb_vlan_push)
@@ -2001,6 +2091,8 @@ bool bpf_helper_changes_skb_data(void *func)
 	if (func == bpf_skb_store_bytes)
 		return true;
 	if (func == bpf_skb_change_proto)
+		return true;
+	if (func == bpf_skb_change_tail)
 		return true;
 	if (func == bpf_l3_csum_replace)
 		return true;
@@ -2368,6 +2460,8 @@ tc_cls_act_func_proto(enum bpf_func_id func_id)
 		return &bpf_skb_change_proto_proto;
 	case BPF_FUNC_skb_change_type:
 		return &bpf_skb_change_type_proto;
+	case BPF_FUNC_skb_change_tail:
+		return &bpf_skb_change_tail_proto;
 	case BPF_FUNC_skb_get_tunnel_key:
 		return &bpf_skb_get_tunnel_key_proto;
 	case BPF_FUNC_skb_set_tunnel_key:
