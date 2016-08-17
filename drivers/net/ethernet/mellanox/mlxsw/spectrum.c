@@ -2661,6 +2661,11 @@ static const struct mlxsw_rx_listener mlxsw_sp_rx_listener[] = {
 	{
 		.func = mlxsw_sp_rx_listener_func,
 		.local_port = MLXSW_PORT_DONT_CARE,
+		.trap_id = MLXSW_TRAP_ID_LBERROR,
+	},
+	{
+		.func = mlxsw_sp_rx_listener_func,
+		.local_port = MLXSW_PORT_DONT_CARE,
 		.trap_id = MLXSW_TRAP_ID_OSPF,
 	},
 	{
