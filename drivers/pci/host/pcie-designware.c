@@ -98,7 +98,8 @@
 /* PCIe Port Logic registers */
 #define PLR_OFFSET			0x700
 #define PCIE_PHY_DEBUG_R1		(PLR_OFFSET + 0x2c)
-#define PCIE_PHY_DEBUG_R1_LINK_UP	0x00000010
+#define PCIE_PHY_DEBUG_R1_LINK_UP	(0x1 << 4)
+#define PCIE_PHY_DEBUG_R1_LINK_IN_TRAINING	(0x1 << 29)
 
 static struct pci_ops dw_pcie_ops;
 
@@ -491,7 +492,8 @@ int dw_pcie_link_up(struct pcie_port *pp)
 		return pp->ops->link_up(pp);
 
 	val = readl(pp->dbi_base + PCIE_PHY_DEBUG_R1);
-	return val & PCIE_PHY_DEBUG_R1_LINK_UP;
+	return ((val & PCIE_PHY_DEBUG_R1_LINK_UP) &&
+		(!(val & PCIE_PHY_DEBUG_R1_LINK_IN_TRAINING)));
 }
 
 static int dw_pcie_msi_map(struct irq_domain *domain, unsigned int irq,
