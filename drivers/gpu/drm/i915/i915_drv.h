@@ -657,6 +657,7 @@ struct intel_csr {
 	func(has_psr) sep \
 	func(has_runtime_pm) sep \
 	func(has_csr) sep \
+	func(has_resource_streamer) sep \
 	func(has_pipe_cxsr) sep \
 	func(has_hotplug) sep \
 	func(cursor_needs_physical) sep \
@@ -2803,8 +2804,7 @@ struct drm_i915_cmd_table {
 #define HAS_GUC_UCODE(dev)	(HAS_GUC(dev))
 #define HAS_GUC_SCHED(dev)	(HAS_GUC(dev))
 
-#define HAS_RESOURCE_STREAMER(dev) (IS_HASWELL(dev) || \
-				    INTEL_INFO(dev)->gen >= 8)
+#define HAS_RESOURCE_STREAMER(dev) (INTEL_INFO(dev)->has_resource_streamer)
 
 #define HAS_POOLED_EU(dev)	(INTEL_INFO(dev)->has_pooled_eu)
 
