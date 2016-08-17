@@ -485,6 +485,8 @@ struct drm_amdgpu_cs_chunk_data {
 #define AMDGPU_INFO_DEV_INFO			0x16
 /* visible vram usage */
 #define AMDGPU_INFO_VIS_VRAM_USAGE		0x17
+/* number of TTM buffer evictions */
+#define AMDGPU_INFO_NUM_EVICTIONS		0x18
 
 #define AMDGPU_INFO_MMR_SE_INDEX_SHIFT	0
 #define AMDGPU_INFO_MMR_SE_INDEX_MASK	0xff

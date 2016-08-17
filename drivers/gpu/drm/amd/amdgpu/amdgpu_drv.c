@@ -53,9 +53,10 @@
  * - 3.2.0 - GFX8: Uses EOP_TC_WB_ACTION_EN, so UMDs don't have to do the same
  *           at the end of IBs.
  * - 3.3.0 - Add VM support for UVD on supported hardware.
+ * - 3.4.0 - Add AMDGPU_INFO_NUM_EVICTIONS.
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	3
+#define KMS_DRIVER_MINOR	4
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit = 0;
