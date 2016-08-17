@@ -1388,6 +1388,7 @@ static int ap_probe(struct usb_interface *interface,
 	struct usb_device *udev;
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
+	__u8 ep_addr;
 	int retval;
 	int i;
 	int num_cports;
@@ -1435,26 +1436,36 @@ static int ap_probe(struct usb_interface *interface,
 	iface_desc = interface->cur_altsetting;
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
 		endpoint = &iface_desc->endpoint[i].desc;
+		ep_addr = endpoint->bEndpointAddress;
 
 		if (usb_endpoint_is_bulk_in(endpoint)) {
 			if (!bulk_in_found) {
-				es2->cport_in.endpoint =
-					endpoint->bEndpointAddress;
+				es2->cport_in.endpoint = ep_addr;
 				bulk_in_found = true;
 			} else if (!arpc_in_found) {
-				es2->arpc_endpoint_in =
-					endpoint->bEndpointAddress;
+				es2->arpc_endpoint_in = ep_addr;
 				arpc_in_found = true;
+			} else {
+				dev_warn(&udev->dev,
+					 "Unused bulk IN endpoint found: 0x%02x\n",
+					 ep_addr);
 			}
-		} else if (usb_endpoint_is_bulk_out(endpoint) &&
-			   (!bulk_out_found)) {
-			es2->cport_out_endpoint = endpoint->bEndpointAddress;
-			bulk_out_found = true;
-		} else {
-			dev_err(&udev->dev,
-				"Unknown endpoint type found, address 0x%02x\n",
-				endpoint->bEndpointAddress);
+			continue;
 		}
+		if (usb_endpoint_is_bulk_out(endpoint)) {
+			if (!bulk_out_found) {
+				es2->cport_out_endpoint = ep_addr;
+				bulk_out_found = true;
+			} else {
+				dev_warn(&udev->dev,
+					 "Unused bulk OUT endpoint found: 0x%02x\n",
+					 ep_addr);
+			}
+			continue;
+		}
+		dev_warn(&udev->dev,
+			 "Unknown endpoint type found, address 0x%02x\n",
+			 ep_addr);
 	}
 	if (!bulk_in_found || !arpc_in_found || !bulk_out_found) {
 		dev_err(&udev->dev, "Not enough endpoints found in device, aborting!\n");
