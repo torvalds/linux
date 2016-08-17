@@ -26,7 +26,7 @@
 	};
 
 	chosen {
-		linux,stdout-path = &serial_2;
+		stdout-path = "serial2:115200n8";
 	};
 
 	firmware@02073000 {
