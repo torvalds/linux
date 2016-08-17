@@ -1763,7 +1763,7 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 	int gpu_freq, ia_freq;
 	unsigned int max_gpu_freq, min_gpu_freq;
 
-	if (!HAS_CORE_RING_FREQ(dev_priv)) {
+	if (!HAS_LLC(dev_priv)) {
 		seq_puts(m, "unsupported on this chipset\n");
 		return 0;
 	}
