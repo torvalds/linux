@@ -1090,6 +1090,10 @@ S: 6350 Stoneridge Mall Road
 S: Pleasanton, CA 94588
 S: USA
 
+N: Dmitry Eremin-Solenikov
+E: dbaryshkov@gmail.com
+D: Power Supply Maintainer from v3.14 - v3.15
+
 N: Doug Evans
 E: dje@cygnus.com
 D: Wrote Xenix FS (part of standard kernel since 0.99.15)
