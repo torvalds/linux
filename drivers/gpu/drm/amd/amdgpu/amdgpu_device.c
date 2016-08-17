@@ -2585,7 +2585,7 @@ static ssize_t amdgpu_debugfs_gca_config_read(struct file *f, char __user *buf,
 		return -ENOMEM;
 
 	/* version, increment each time something is added */
-	config[no_regs++] = 1;
+	config[no_regs++] = 2;
 	config[no_regs++] = adev->gfx.config.max_shader_engines;
 	config[no_regs++] = adev->gfx.config.max_tile_pipes;
 	config[no_regs++] = adev->gfx.config.max_cu_per_sh;
@@ -2614,6 +2614,10 @@ static ssize_t amdgpu_debugfs_gca_config_read(struct file *f, char __user *buf,
 	config[no_regs++] = adev->rev_id;
 	config[no_regs++] = adev->pg_flags;
 	config[no_regs++] = adev->cg_flags;
+
+	/* rev==2 */
+	config[no_regs++] = adev->family;
+	config[no_regs++] = adev->external_rev_id;
 
 	while (size && (*pos < no_regs * 4)) {
 		uint32_t value;
