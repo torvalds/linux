@@ -576,6 +576,7 @@ void i40e_client_subtask(struct i40e_pf *pf)
 			set_bit(__I40E_CLIENT_INSTANCE_OPENED, &cdev->state);
 		} else {
 			/* remove client instance */
+			mutex_unlock(&i40e_client_instance_mutex);
 			i40e_client_del_instance(pf, client);
 			atomic_dec(&client->ref_cnt);
 			continue;
