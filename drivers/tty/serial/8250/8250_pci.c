@@ -21,13 +21,9 @@
 #include <linux/serial_core.h>
 #include <linux/8250_pci.h>
 #include <linux/bitops.h>
-#include <linux/rational.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
-
-#include <linux/dmaengine.h>
-#include <linux/platform_data/dma-dw.h>
 
 #include "8250.h"
 
@@ -1349,160 +1345,6 @@ ce4100_serial_setup(struct serial_private *priv,
 	return ret;
 }
 
-#define PCI_DEVICE_ID_INTEL_BYT_UART1	0x0f0a
-#define PCI_DEVICE_ID_INTEL_BYT_UART2	0x0f0c
-
-#define PCI_DEVICE_ID_INTEL_BSW_UART1	0x228a
-#define PCI_DEVICE_ID_INTEL_BSW_UART2	0x228c
-
-#define PCI_DEVICE_ID_INTEL_BDW_UART1	0x9ce3
-#define PCI_DEVICE_ID_INTEL_BDW_UART2	0x9ce4
-
-#define BYT_PRV_CLK			0x800
-#define BYT_PRV_CLK_EN			(1 << 0)
-#define BYT_PRV_CLK_M_VAL_SHIFT		1
-#define BYT_PRV_CLK_N_VAL_SHIFT		16
-#define BYT_PRV_CLK_UPDATE		(1 << 31)
-
-#define BYT_TX_OVF_INT			0x820
-#define BYT_TX_OVF_INT_MASK		(1 << 1)
-
-static void
-byt_set_termios(struct uart_port *p, struct ktermios *termios,
-		struct ktermios *old)
-{
-	unsigned int baud = tty_termios_baud_rate(termios);
-	unsigned long fref = 100000000, fuart = baud * 16;
-	unsigned long w = BIT(15) - 1;
-	unsigned long m, n;
-	u32 reg;
-
-	/* Gracefully handle the B0 case: fall back to B9600 */
-	fuart = fuart ? fuart : 9600 * 16;
-
-	/* Get Fuart closer to Fref */
-	fuart *= rounddown_pow_of_two(fref / fuart);
-
-	/*
-	 * For baud rates 0.5M, 1M, 1.5M, 2M, 2.5M, 3M, 3.5M and 4M the
-	 * dividers must be adjusted.
-	 *
-	 * uartclk = (m / n) * 100 MHz, where m <= n
-	 */
-	rational_best_approximation(fuart, fref, w, w, &m, &n);
-	p->uartclk = fuart;
-
-	/* Reset the clock */
-	reg = (m << BYT_PRV_CLK_M_VAL_SHIFT) | (n << BYT_PRV_CLK_N_VAL_SHIFT);
-	writel(reg, p->membase + BYT_PRV_CLK);
-	reg |= BYT_PRV_CLK_EN | BYT_PRV_CLK_UPDATE;
-	writel(reg, p->membase + BYT_PRV_CLK);
-
-	p->status &= ~UPSTAT_AUTOCTS;
-	if (termios->c_cflag & CRTSCTS)
-		p->status |= UPSTAT_AUTOCTS;
-
-	serial8250_do_set_termios(p, termios, old);
-}
-
-static bool byt_dma_filter(struct dma_chan *chan, void *param)
-{
-	struct dw_dma_slave *dws = param;
-
-	if (dws->dma_dev != chan->device->dev)
-		return false;
-
-	chan->private = dws;
-	return true;
-}
-
-static unsigned int
-byt_get_mctrl(struct uart_port *port)
-{
-	unsigned int ret = serial8250_do_get_mctrl(port);
-
-	/* Force DCD and DSR signals to permanently be reported as active. */
-	ret |= TIOCM_CAR | TIOCM_DSR;
-
-	return ret;
-}
-
-static int
-byt_serial_setup(struct serial_private *priv,
-		 const struct pciserial_board *board,
-		 struct uart_8250_port *port, int idx)
-{
-	struct pci_dev *pdev = priv->dev;
-	struct device *dev = port->port.dev;
-	struct uart_8250_dma *dma;
-	struct dw_dma_slave *tx_param, *rx_param;
-	struct pci_dev *dma_dev;
-	int ret;
-
-	dma = devm_kzalloc(dev, sizeof(*dma), GFP_KERNEL);
-	if (!dma)
-		return -ENOMEM;
-
-	tx_param = devm_kzalloc(dev, sizeof(*tx_param), GFP_KERNEL);
-	if (!tx_param)
-		return -ENOMEM;
-
-	rx_param = devm_kzalloc(dev, sizeof(*rx_param), GFP_KERNEL);
-	if (!rx_param)
-		return -ENOMEM;
-
-	switch (pdev->device) {
-	case PCI_DEVICE_ID_INTEL_BYT_UART1:
-	case PCI_DEVICE_ID_INTEL_BSW_UART1:
-	case PCI_DEVICE_ID_INTEL_BDW_UART1:
-		rx_param->src_id = 3;
-		tx_param->dst_id = 2;
-		break;
-	case PCI_DEVICE_ID_INTEL_BYT_UART2:
-	case PCI_DEVICE_ID_INTEL_BSW_UART2:
-	case PCI_DEVICE_ID_INTEL_BDW_UART2:
-		rx_param->src_id = 5;
-		tx_param->dst_id = 4;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	rx_param->m_master = 0;
-	rx_param->p_master = 1;
-
-	dma->rxconf.src_maxburst = 16;
-
-	tx_param->m_master = 0;
-	tx_param->p_master = 1;
-
-	dma->txconf.dst_maxburst = 16;
-
-	dma_dev = pci_get_slot(pdev->bus, PCI_DEVFN(PCI_SLOT(pdev->devfn), 0));
-	rx_param->dma_dev = &dma_dev->dev;
-	tx_param->dma_dev = &dma_dev->dev;
-
-	dma->fn = byt_dma_filter;
-	dma->rx_param = rx_param;
-	dma->tx_param = tx_param;
-
-	ret = pci_default_setup(priv, board, port, idx);
-	port->port.iotype = UPIO_MEM;
-	port->port.type = PORT_16550A;
-	port->port.flags = (port->port.flags | UPF_FIXED_PORT | UPF_FIXED_TYPE);
-	port->port.set_termios = byt_set_termios;
-	port->port.get_mctrl = byt_get_mctrl;
-	port->port.fifosize = 64;
-	port->tx_loadsz = 64;
-	port->dma = dma;
-	port->capabilities = UART_CAP_FIFO | UART_CAP_AFE;
-
-	/* Disable Tx counter interrupts */
-	writel(BYT_TX_OVF_INT_MASK, port->port.membase + BYT_TX_OVF_INT);
-
-	return ret;
-}
-
 static int
 pci_omegapci_setup(struct serial_private *priv,
 		      const struct pciserial_board *board,
@@ -2040,48 +1882,6 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 		.setup		= kt_serial_setup,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_BYT_UART1,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.setup		= byt_serial_setup,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_BYT_UART2,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.setup		= byt_serial_setup,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_BSW_UART1,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.setup		= byt_serial_setup,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_BSW_UART2,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.setup		= byt_serial_setup,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_BDW_UART1,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.setup		= byt_serial_setup,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_BDW_UART2,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.setup		= byt_serial_setup,
 	},
 	/*
 	 * ITE
@@ -2955,7 +2755,6 @@ enum pci_board_num_t {
 	pbn_ADDIDATA_PCIe_4_3906250,
 	pbn_ADDIDATA_PCIe_8_3906250,
 	pbn_ce4100_1_115200,
-	pbn_byt,
 	pbn_qrk,
 	pbn_omegapci,
 	pbn_NETMOS9900_2s_115200,
@@ -3732,12 +3531,6 @@ static struct pciserial_board pci_boards[] = {
 		.base_baud	= 921600,
 		.reg_shift      = 2,
 	},
-	[pbn_byt] = {
-		.flags		= FL_BASE0,
-		.num_ports	= 1,
-		.base_baud	= 2764800,
-		.reg_shift      = 2,
-	},
 	[pbn_qrk] = {
 		.flags		= FL_BASE0,
 		.num_ports	= 1,
@@ -3855,6 +3648,14 @@ static const struct pci_device_id blacklist[] = {
 	{ PCI_VDEVICE(INTEL, 0x081d), },
 	{ PCI_VDEVICE(INTEL, 0x1191), },
 	{ PCI_VDEVICE(INTEL, 0x19d8), },
+
+	/* Intel platforms with DesignWare UART */
+	{ PCI_VDEVICE(INTEL, 0x0f0a), },
+	{ PCI_VDEVICE(INTEL, 0x0f0c), },
+	{ PCI_VDEVICE(INTEL, 0x228a), },
+	{ PCI_VDEVICE(INTEL, 0x228c), },
+	{ PCI_VDEVICE(INTEL, 0x9ce3), },
+	{ PCI_VDEVICE(INTEL, 0x9ce4), },
 };
 
 /*
@@ -5520,33 +5321,6 @@ static struct pci_device_id serial_pci_tbl[] = {
 	{	PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CE4100_UART,
 		PCI_ANY_ID,  PCI_ANY_ID, 0, 0,
 		pbn_ce4100_1_115200 },
-	/* Intel BayTrail */
-	{	PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BYT_UART1,
-		PCI_ANY_ID,  PCI_ANY_ID,
-		PCI_CLASS_COMMUNICATION_SERIAL << 8, 0xff0000,
-		pbn_byt },
-	{	PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BYT_UART2,
-		PCI_ANY_ID,  PCI_ANY_ID,
-		PCI_CLASS_COMMUNICATION_SERIAL << 8, 0xff0000,
-		pbn_byt },
-	{	PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BSW_UART1,
-		PCI_ANY_ID,  PCI_ANY_ID,
-		PCI_CLASS_COMMUNICATION_SERIAL << 8, 0xff0000,
-		pbn_byt },
-	{	PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BSW_UART2,
-		PCI_ANY_ID,  PCI_ANY_ID,
-		PCI_CLASS_COMMUNICATION_SERIAL << 8, 0xff0000,
-		pbn_byt },
-
-	/* Intel Broadwell */
-	{	PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BDW_UART1,
-		PCI_ANY_ID,  PCI_ANY_ID,
-		PCI_CLASS_COMMUNICATION_SERIAL << 8, 0xff0000,
-		pbn_byt },
-	{	PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BDW_UART2,
-		PCI_ANY_ID,  PCI_ANY_ID,
-		PCI_CLASS_COMMUNICATION_SERIAL << 8, 0xff0000,
-		pbn_byt },
 
 	/*
 	 * Intel Quark x1000
