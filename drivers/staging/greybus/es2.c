@@ -83,13 +83,6 @@ struct es2_cport_in {
 	u8 *buffer[NUM_CPORT_IN_URB];
 };
 
-/*
- * @endpoint: bulk out endpoint for CPort data
- */
-struct es2_cport_out {
-	__u8 endpoint;
-};
-
 /**
  * es2_ap_dev - ES2 USB Bridge to AP structure
  * @usb_dev: pointer to the USB device we are.
@@ -97,7 +90,7 @@ struct es2_cport_out {
  * @hd: pointer to our gb_host_device structure
 
  * @cport_in: endpoint, urbs and buffer for cport in messages
- * @cport_out: endpoint for for cport out messages
+ * @cport_out_endpoint: endpoint for for cport out messages
  * @cport_out_urb: array of urbs for the CPort out messages
  * @cport_out_urb_busy: array of flags to see if the @cport_out_urb is busy or
  *			not.
@@ -122,7 +115,7 @@ struct es2_ap_dev {
 	struct gb_host_device *hd;
 
 	struct es2_cport_in cport_in[NUM_BULKS];
-	struct es2_cport_out cport_out[NUM_BULKS];
+	__u8 cport_out_endpoint;
 	struct urb *cport_out_urb[NUM_CPORT_OUT_URB];
 	bool cport_out_urb_busy[NUM_CPORT_OUT_URB];
 	bool cport_out_urb_cancelled[NUM_CPORT_OUT_URB];
@@ -466,7 +459,7 @@ static int message_send(struct gb_host_device *hd, u16 cport_id,
 
 	usb_fill_bulk_urb(urb, udev,
 			  usb_sndbulkpipe(udev,
-					  es2->cport_out[0].endpoint),
+					  es2->cport_out_endpoint),
 			  message->buffer, buffer_size,
 			  cport_out_callback, message);
 	urb->transfer_flags |= URB_ZERO_PACKET;
@@ -1420,10 +1413,10 @@ static int ap_probe(struct usb_interface *interface,
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
 	int bulk_in = 0;
-	int bulk_out = 0;
 	int retval;
 	int i;
 	int num_cports;
+	bool bulk_out_found = false;
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
 
@@ -1474,16 +1467,17 @@ static int ap_probe(struct usb_interface *interface,
 				es2->arpc_endpoint_in =
 					endpoint->bEndpointAddress;
 			bulk_in++;
-		} else if (usb_endpoint_is_bulk_out(endpoint)) {
-			es2->cport_out[bulk_out++].endpoint =
-				endpoint->bEndpointAddress;
+		} else if (usb_endpoint_is_bulk_out(endpoint) &&
+			   (!bulk_out_found)) {
+			es2->cport_out_endpoint = endpoint->bEndpointAddress;
+			bulk_out_found = true;
 		} else {
 			dev_err(&udev->dev,
 				"Unknown endpoint type found, address 0x%02x\n",
 				endpoint->bEndpointAddress);
 		}
 	}
-	if (bulk_in != NUM_BULKS_IN || bulk_out != NUM_BULKS_OUT) {
+	if (bulk_in != NUM_BULKS_IN || !bulk_out_found) {
 		dev_err(&udev->dev, "Not enough endpoints found in device, aborting!\n");
 		retval = -ENODEV;
 		goto error;
