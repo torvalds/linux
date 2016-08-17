@@ -55,7 +55,7 @@ static struct syscall *dequeue_syscall(struct syscall_thread_data *data)
 
 static long run_syscall(struct syscall *s)
 {
-	int ret;
+	long ret;
 
 	if (s->no < 0 || s->no >= __NR_syscalls)
 		ret = -ENOSYS;
