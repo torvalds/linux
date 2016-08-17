@@ -1,0 +1,527 @@
+/* zfs_config.h.in.  Generated from configure.ac by autoheader.  */
+
+/* Define to 1 to enabled dmu tx validation */
+#undef DEBUG_DMU_TX
+
+/* bio_end_io_t wants 1 arg */
+#undef HAVE_1ARG_BIO_END_IO_T
+
+/* invalidate_bdev() wants 1 arg */
+#undef HAVE_1ARG_INVALIDATE_BDEV
+
+/* kmap_atomic wants 1 args */
+#undef HAVE_1ARG_KMAP_ATOMIC
+
+/* lookup_bdev() wants 1 arg */
+#undef HAVE_1ARG_LOOKUP_BDEV
+
+/* submit_bio() wants 1 arg */
+#undef HAVE_1ARG_SUBMIT_BIO
+
+/* bdi_setup_and_register() wants 2 args */
+#undef HAVE_2ARGS_BDI_SETUP_AND_REGISTER
+
+/* lookup_bdev() wants 2 args */
+#undef HAVE_2ARGS_LOOKUP_BDEV
+
+/* bdi_setup_and_register() wants 3 args */
+#undef HAVE_3ARGS_BDI_SETUP_AND_REGISTER
+
+/* blkdev_get() wants 3 args */
+#undef HAVE_3ARG_BLKDEV_GET
+
+/* sget() wants 5 args */
+#undef HAVE_5ARG_SGET
+
+/* security_inode_init_security wants 6 args */
+#undef HAVE_6ARGS_SECURITY_INODE_INIT_SECURITY
+
+/* dops->automount() exists */
+#undef HAVE_AUTOMOUNT
+
+/* struct block_device_operations use bdevs */
+#undef HAVE_BDEV_BLOCK_DEVICE_OPERATIONS
+
+/* bdev_logical_block_size() is available */
+#undef HAVE_BDEV_LOGICAL_BLOCK_SIZE
+
+/* bdev_physical_block_size() is available */
+#undef HAVE_BDEV_PHYSICAL_BLOCK_SIZE
+
+/* bio->bi_opf is defined */
+#undef HAVE_BIO_BI_OPF
+
+/* bio has bi_iter */
+#undef HAVE_BIO_BVEC_ITER
+
+/* BIO_RW_BARRIER is defined */
+#undef HAVE_BIO_RW_BARRIER
+
+/* BIO_RW_DISCARD is defined */
+#undef HAVE_BIO_RW_DISCARD
+
+/* BIO_RW_FAILFAST_* are defined */
+#undef HAVE_BIO_RW_FAILFAST_DTD
+
+/* bio_set_op_attrs is available */
+#undef HAVE_BIO_SET_OP_ATTRS
+
+/* blkdev_get_by_path() is available */
+#undef HAVE_BLKDEV_GET_BY_PATH
+
+/* blk_queue_flush() is available */
+#undef HAVE_BLK_QUEUE_FLUSH
+
+/* blk_queue_flush() is GPL-only */
+#undef HAVE_BLK_QUEUE_FLUSH_GPL_ONLY
+
+/* BIO_RW_UNPLUG is available */
+#undef HAVE_BLK_QUEUE_HAVE_BIO_RW_UNPLUG
+
+/* struct blk_plug is available */
+#undef HAVE_BLK_QUEUE_HAVE_BLK_PLUG
+
+/* blk_queue_max_hw_sectors() is available */
+#undef HAVE_BLK_QUEUE_MAX_HW_SECTORS
+
+/* blk_queue_max_segments() is available */
+#undef HAVE_BLK_QUEUE_MAX_SEGMENTS
+
+/* blk_queue_write_cache() exists */
+#undef HAVE_BLK_QUEUE_WRITE_CACHE
+
+/* blk_queue_write_cache() is GPL-only */
+#undef HAVE_BLK_QUEUE_WRITE_CACHE_GPL_ONLY
+
+/* struct block_device_operations.release returns void */
+#undef HAVE_BLOCK_DEVICE_OPERATIONS_RELEASE_VOID
+
+/* security_inode_init_security wants callback */
+#undef HAVE_CALLBACK_SECURITY_INODE_INIT_SECURITY
+
+/* iops->check_acl() exists */
+#undef HAVE_CHECK_ACL
+
+/* iops->check_acl() wants flags */
+#undef HAVE_CHECK_ACL_WITH_FLAGS
+
+/* check_disk_size_change() is available */
+#undef HAVE_CHECK_DISK_SIZE_CHANGE
+
+/* clear_inode() is available */
+#undef HAVE_CLEAR_INODE
+
+/* eops->commit_metadata() exists */
+#undef HAVE_COMMIT_METADATA
+
+/* dentry uses const struct dentry_operations */
+#undef HAVE_CONST_DENTRY_OPERATIONS
+
+/* super_block uses const struct xattr_handler */
+#undef HAVE_CONST_XATTR_HANDLER
+
+/* iops->create() passes nameidata */
+#undef HAVE_CREATE_NAMEIDATA
+
+/* current->bio_list exists */
+#undef HAVE_CURRENT_BIO_LIST
+
+/* current->bio_tail exists */
+#undef HAVE_CURRENT_BIO_TAIL
+
+/* DECLARE_EVENT_CLASS() is available */
+#undef HAVE_DECLARE_EVENT_CLASS
+
+/* sops->dirty_inode() wants flags */
+#undef HAVE_DIRTY_INODE_WITH_FLAGS
+
+/* ql->discard_granularity is available */
+#undef HAVE_DISCARD_GRANULARITY
+
+/* Define to 1 if you have the <dlfcn.h> header file. */
+#undef HAVE_DLFCN_H
+
+/* d_make_root() is available */
+#undef HAVE_D_MAKE_ROOT
+
+/* d_obtain_alias() is available */
+#undef HAVE_D_OBTAIN_ALIAS
+
+/* d_prune_aliases() is available */
+#undef HAVE_D_PRUNE_ALIASES
+
+/* dops->d_revalidate() operation takes nameidata */
+#undef HAVE_D_REVALIDATE_NAMEIDATA
+
+/* d_set_d_op() is available */
+#undef HAVE_D_SET_D_OP
+
+/* elevator_change() is available */
+#undef HAVE_ELEVATOR_CHANGE
+
+/* eops->encode_fh() wants child and parent inodes */
+#undef HAVE_ENCODE_FH_WITH_INODE
+
+/* sops->evict_inode() exists */
+#undef HAVE_EVICT_INODE
+
+/* fops->aio_fsync() exists */
+#undef HAVE_FILE_AIO_FSYNC
+
+/* fops->fallocate() exists */
+#undef HAVE_FILE_FALLOCATE
+
+/* file_inode() is available */
+#undef HAVE_FILE_INODE
+
+/* kernel defines fmode_t */
+#undef HAVE_FMODE_T
+
+/* follow_down_one() is available */
+#undef HAVE_FOLLOW_DOWN_ONE
+
+/* iops->follow_link() cookie */
+#undef HAVE_FOLLOW_LINK_COOKIE
+
+/* iops->follow_link() nameidata */
+#undef HAVE_FOLLOW_LINK_NAMEIDATA
+
+/* sops->free_cached_objects() exists */
+#undef HAVE_FREE_CACHED_OBJECTS
+
+/* fops->fsync() with range */
+#undef HAVE_FSYNC_RANGE
+
+/* fops->fsync() without dentry */
+#undef HAVE_FSYNC_WITHOUT_DENTRY
+
+/* fops->fsync() with dentry */
+#undef HAVE_FSYNC_WITH_DENTRY
+
+/* generic_start_io_acct()/generic_end_io_acct() avaliable */
+#undef HAVE_GENERIC_IO_ACCT
+
+/* generic_readlink is global */
+#undef HAVE_GENERIC_READLINK
+
+/* generic_setxattr() exists */
+#undef HAVE_GENERIC_SETXATTR
+
+/* generic_write_checks() takes kiocb */
+#undef HAVE_GENERIC_WRITE_CHECKS_KIOCB
+
+/* iops->get_acl() exists */
+#undef HAVE_GET_ACL
+
+/* blk_disk_ro() is available */
+#undef HAVE_GET_DISK_RO
+
+/* get_gendisk() is available */
+#undef HAVE_GET_GENDISK
+
+/* iops->get_link() cookie */
+#undef HAVE_GET_LINK_COOKIE
+
+/* iops->get_link() delayed */
+#undef HAVE_GET_LINK_DELAYED
+
+/* fops->fallocate() exists */
+#undef HAVE_INODE_FALLOCATE
+
+/* inode_owner_or_capable() exists */
+#undef HAVE_INODE_OWNER_OR_CAPABLE
+
+/* iops->truncate_range() exists */
+#undef HAVE_INODE_TRUNCATE_RANGE
+
+/* insert_inode_locked() is available */
+#undef HAVE_INSERT_INODE_LOCKED
+
+/* Define to 1 if you have the <inttypes.h> header file. */
+#undef HAVE_INTTYPES_H
+
+/* is_owner_or_cap() exists */
+#undef HAVE_IS_OWNER_OR_CAP
+
+/* uncached_acl_sentinel() exists */
+#undef HAVE_KERNEL_GET_ACL_HANDLE_CACHE
+
+/* kernel defines KOBJ_NAME_LEN */
+#undef HAVE_KOBJ_NAME_LEN
+
+/* kernel has large stacks */
+#undef HAVE_LARGE_STACKS
+
+/* Define if you have libblkid */
+#undef HAVE_LIBBLKID
+
+/* Define if you have libuuid */
+#undef HAVE_LIBUUID
+
+/* Define to 1 if you have the `z' library (-lz). */
+#undef HAVE_LIBZ
+
+/* iops->lookup() passes nameidata */
+#undef HAVE_LOOKUP_NAMEIDATA
+
+/* lseek_execute() is available */
+#undef HAVE_LSEEK_EXECUTE
+
+/* Noting that make_request_fn() returns int */
+#undef HAVE_MAKE_REQUEST_FN_RET_INT
+
+/* Noting that make_request_fn() returns blk_qc_t */
+#undef HAVE_MAKE_REQUEST_FN_RET_QC
+
+/* Define to 1 if you have the <memory.h> header file. */
+#undef HAVE_MEMORY_H
+
+/* iops->create()/mkdir()/mknod() take umode_t */
+#undef HAVE_MKDIR_UMODE_T
+
+/* Define to 1 if you have the `mlockall' function. */
+#undef HAVE_MLOCKALL
+
+/* mount_nodev() is available */
+#undef HAVE_MOUNT_NODEV
+
+/* sops->nr_cached_objects() exists */
+#undef HAVE_NR_CACHED_OBJECTS
+
+/* open_bdev_exclusive() is available */
+#undef HAVE_OPEN_BDEV_EXCLUSIVE
+
+/* iops->permission() exists */
+#undef HAVE_PERMISSION
+
+/* iops->permission() with nameidata exists */
+#undef HAVE_PERMISSION_WITH_NAMEIDATA
+
+/* posix_acl_chmod() exists */
+#undef HAVE_POSIX_ACL_CHMOD
+
+/* posix_acl_equiv_mode wants umode_t* */
+#undef HAVE_POSIX_ACL_EQUIV_MODE_UMODE_T
+
+/* posix_acl_from_xattr() needs user_ns */
+#undef HAVE_POSIX_ACL_FROM_XATTR_USERNS
+
+/* posix_acl_release() is available */
+#undef HAVE_POSIX_ACL_RELEASE
+
+/* posix_acl_release() is GPL-only */
+#undef HAVE_POSIX_ACL_RELEASE_GPL_ONLY
+
+/* posix_acl_valid() wants user namespace */
+#undef HAVE_POSIX_ACL_VALID_WITH_NS
+
+/* iops->put_link() cookie */
+#undef HAVE_PUT_LINK_COOKIE
+
+/* iops->put_link() delayed */
+#undef HAVE_PUT_LINK_DELAYED
+
+/* iops->put_link() nameidata */
+#undef HAVE_PUT_LINK_NAMEIDATA
+
+/* iops->rename() wants flags */
+#undef HAVE_RENAME_WANTS_FLAGS
+
+/* REQ_FAILFAST_MASK is defined */
+#undef HAVE_REQ_FAILFAST_MASK
+
+/* REQ_OP_DISCARD is defined */
+#undef HAVE_REQ_OP_DISCARD
+
+/* REQ_OP_FLUSH is defined */
+#undef HAVE_REQ_OP_FLUSH
+
+/* REQ_OP_SECURE_ERASE is defined */
+#undef HAVE_REQ_OP_SECURE_ERASE
+
+/* setattr_prepare() is available */
+#undef HAVE_SETATTR_PREPARE
+
+/* iops->set_acl() exists */
+#undef HAVE_SET_ACL
+
+/* posix_acl_release() is usable */
+#undef HAVE_SET_CACHED_ACL_USABLE
+
+/* set_nlink() is available */
+#undef HAVE_SET_NLINK
+
+/* sops->show_options() with dentry */
+#undef HAVE_SHOW_OPTIONS_WITH_DENTRY
+
+/* struct super_block has s_shrink */
+#undef HAVE_SHRINK
+
+/* Define to 1 if you have the <stdint.h> header file. */
+#undef HAVE_STDINT_H
+
+/* Define to 1 if you have the <stdlib.h> header file. */
+#undef HAVE_STDLIB_H
+
+/* Define to 1 if you have the <strings.h> header file. */
+#undef HAVE_STRINGS_H
+
+/* Define to 1 if you have the <string.h> header file. */
+#undef HAVE_STRING_H
+
+/* Define to 1 if you have the <sys/stat.h> header file. */
+#undef HAVE_SYS_STAT_H
+
+/* Define to 1 if you have the <sys/types.h> header file. */
+#undef HAVE_SYS_TYPES_H
+
+/* struct super_block has s_d_op */
+#undef HAVE_S_D_OP
+
+/* struct super_block has s_instances list_head */
+#undef HAVE_S_INSTANCES_LIST_HEAD
+
+/* truncate_setsize() is available */
+#undef HAVE_TRUNCATE_SETSIZE
+
+/* Define to 1 if you have the <unistd.h> header file. */
+#undef HAVE_UNISTD_H
+
+/* fops->iterate() is available */
+#undef HAVE_VFS_ITERATE
+
+/* fops->iterate_shared() is available */
+#undef HAVE_VFS_ITERATE_SHARED
+
+/* fops->readdir() is available */
+#undef HAVE_VFS_READDIR
+
+/* fops->read/write_iter() are available */
+#undef HAVE_VFS_RW_ITERATE
+
+/* xattr_handler->get() wants dentry */
+#undef HAVE_XATTR_GET_DENTRY
+
+/* xattr_handler->get() wants both dentry and inode */
+#undef HAVE_XATTR_GET_DENTRY_INODE
+
+/* xattr_handler->get() wants xattr_handler */
+#undef HAVE_XATTR_GET_HANDLER
+
+/* xattr_handler->get() wants inode */
+#undef HAVE_XATTR_GET_INODE
+
+/* xattr_handler has name */
+#undef HAVE_XATTR_HANDLER_NAME
+
+/* xattr_handler->list() wants dentry */
+#undef HAVE_XATTR_LIST_DENTRY
+
+/* xattr_handler->list() wants xattr_handler */
+#undef HAVE_XATTR_LIST_HANDLER
+
+/* xattr_handler->list() wants inode */
+#undef HAVE_XATTR_LIST_INODE
+
+/* xattr_handler->list() wants simple */
+#undef HAVE_XATTR_LIST_SIMPLE
+
+/* xattr_handler->set() wants dentry */
+#undef HAVE_XATTR_SET_DENTRY
+
+/* xattr_handler->set() wants both dentry and inode */
+#undef HAVE_XATTR_SET_DENTRY_INODE
+
+/* xattr_handler->set() wants xattr_handler */
+#undef HAVE_XATTR_SET_HANDLER
+
+/* xattr_handler->set() wants inode */
+#undef HAVE_XATTR_SET_INODE
+
+/* Define if you have zlib */
+#undef HAVE_ZLIB
+
+/* __posix_acl_chmod() exists */
+#undef HAVE___POSIX_ACL_CHMOD
+
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
+#undef LT_OBJDIR
+
+/* make_request_fn() returns blk_qc_t */
+#undef MAKE_REQUEST_FN_RET
+
+/* Name of package */
+#undef PACKAGE
+
+/* Define to the address where bug reports for this package should be sent. */
+#undef PACKAGE_BUGREPORT
+
+/* Define to the full name of this package. */
+#undef PACKAGE_NAME
+
+/* Define to the full name and version of this package. */
+#undef PACKAGE_STRING
+
+/* Define to the one symbol short name of this package. */
+#undef PACKAGE_TARNAME
+
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
+
+/* Define to the version of this package. */
+#undef PACKAGE_VERSION
+
+/* struct shrink_control has nid */
+#undef SHRINK_CONTROL_HAS_NID
+
+/* Define to 1 if you have the ANSI C header files. */
+#undef STDC_HEADERS
+
+/* Version number of package */
+#undef VERSION
+
+/* zfs debugging enabled */
+#undef ZFS_DEBUG
+
+/* Define to 1 if GPL-only symbols can be used */
+#undef ZFS_IS_GPL_COMPATIBLE
+
+/* Define the project alias string. */
+#undef ZFS_META_ALIAS
+
+/* Define the project author. */
+#undef ZFS_META_AUTHOR
+
+/* Define the project release date. */
+#undef ZFS_META_DATA
+
+/* Define the project license. */
+#undef ZFS_META_LICENSE
+
+/* Define the libtool library 'age' version information. */
+#undef ZFS_META_LT_AGE
+
+/* Define the libtool library 'current' version information. */
+#undef ZFS_META_LT_CURRENT
+
+/* Define the libtool library 'revision' version information. */
+#undef ZFS_META_LT_REVISION
+
+/* Define the project name. */
+#undef ZFS_META_NAME
+
+/* Define the project release. */
+#undef ZFS_META_RELEASE
+
+/* Define the project version. */
+#undef ZFS_META_VERSION
+
+
+#undef PACKAGE
+#undef PACKAGE_BUGREPORT
+#undef PACKAGE_NAME
+#undef PACKAGE_STRING
+#undef PACKAGE_TARNAME
+#undef PACKAGE_VERSION
+#undef STDC_HEADERS
+#undef VERSION

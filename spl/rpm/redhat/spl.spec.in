@@ -1,0 +1,94 @@
+Name:           @PACKAGE@
+Version:        @VERSION@
+Release:        @RELEASE@%{?dist}
+Summary:        Commands to control the kernel modules
+
+Group:          System Environment/Kernel
+License:        GPLv2+
+URL:            http://zfsonlinux.org/
+Source0:        %{name}-%{version}.tar.gz
+BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+Requires:       %{name}-kmod = %{version}
+Provides:       %{name}-kmod-common = %{version}
+
+%description
+This package contains the commands to verify the SPL
+kernel modules are functioning properly.
+
+%prep
+%setup -q
+
+%build
+%configure --with-config=user
+make %{?_smp_mflags}
+
+%install
+%{__rm} -rf $RPM_BUILD_ROOT
+make install DESTDIR=%{?buildroot}
+
+%files
+%doc AUTHORS COPYING DISCLAIMER
+%{_sbindir}/*
+%{_mandir}/man1/*
+%{_mandir}/man5/*
+
+%changelog
+* Fri Feb 3 2017 Brian Behlendorf <behlendorf1@llnl.gov> - 0.6.5.9-1
+- Use kernel slab for vn_cache and vn_file_cache zfsonlinux/spl#599
+- Fix splat-cred.c cred usage zfsonlinux/spl#556
+- Fix splat memleak zfsonlinux/spl#590
+- Fix p0 initializer zfsonlinux/spl#576
+- Fix aarch64 type warning zfsonlinux/spl#574
+- Linux 4.8 compat: Fix RW_READ_HELD zfsonlinux/zfs#5233
+- Linux 4.9 compat: group_info changes zfsonlinux/spl#581
+- Fix crgetgroups out-of-bound and misc cred fix zfsonlinux/spl#556
+* Fri Sep 9 2016 Ned Bass <bass6@llnl.gov> - 0.6.5.8-1
+- Fix HAVE_MUTEX_OWNER test for kernels prior to 4.6 zfsonlinux/spl#566
+- Add handling for kernel 4.7's CONFIG_TRIM_UNUSED_KSYMS zfsonlinux/spl#565
+- Linux 4.8 compat: rw_semaphore atomic_long_t count zfsonlinux/spl#563
+- Implement a proper rw_tryupgrade zfsonlinux/spl#554
+- Add rw_tryupgrade() zfsonlinux/spl#534 zfsonlinux/zfs#4388
+- Fix taskq_wait_outstanding re-evaluate tq_next_id zfsonlinux/spl#553
+- Fix race between taskq_destroy and dynamic spawning thread zfsonlinux/spl#553 zfsonlinux/spl#550
+- Use kernel provided mutex owner zfsonlinux/spl#553 zfsonlinux/spl#550
+- Add isa_defs for MIPS zfsonlinux/spl#558
+- Linux 4.7 compat: inode_lock() and friends zfsonlinux/spl#549
+- Fix: handle NULL case in spl_kmem_free_track() zfsonlinux/spl#567
+* Thu May 12 2016 Ned Bass <bass6@llnl.gov> - 0.6.5.7-1
+- Fix PPC build failure zfsonlinux/spl#516
+* Tue Mar 22 2016 Ned Bass <bass6@llnl.gov> - 0.6.5.6-1
+- Remove artificial architecture restrictions in packaging
+- Add support for s390[x] zfsonlinux/spl#537
+* Wed Mar 9 2016 Ned Bass <bass6@llnl.gov> - 0.6.5.5-1
+- Linux 4.5 compatibility zfsonlinux/spl#524
+- Create working debuginfo packages on Red Hat zfsonlinux/zfs#4224
+- Allow copy-builtin to run multiple times zfsonlinux/spl#526
+- Use safer flags for in-kernel memory allocations zfsonlinux/spl#523
+- Fix potential deadlock in cv_wait() zfsonlinux/zfs#4106
+- Fix livelock in shrinker zfsonlinux/zfs#3936
+* Fri Jan  8 2016 Ned Bass <bass6@llnl.gov> - 0.6.5.4-1
+- Build fixes on SPARC and some kernels
+- Fix taskq dynamic spawning deadlock
+- Fix builtin kernel builds
+- Fix crash due to overflow in P2ROUNDUP macro
+- Fix deadlock during direct memory reclaim
+* Tue Oct 13 2015 Ned Bass <bass6@llnl.gov> - 0.6.5.3-1
+- Fix CPU hotplug zfsonlinux/spl#482
+- Disable dynamic taskqs by default to avoid deadlock zfsonlinux/spl#484
+* Tue Sep 29 2015 Ned Bass <bass6@llnl.gov> - 0.6.5.2-1
+- Released 0.6.5.2-1
+- Fix PAX Patch/Grsec SLAB_USERCOPY panic zfsonlinux/zfs#3796
+- Always remove during dkms uninstall/update zfsonlinux/spl#476
+* Thu Sep 19 2015 Ned Bass <bass6@llnl.gov> - 0.6.5.1-1
+- Released 0.6.5.1-1, no changes from spl-0.6.5
+* Thu Sep 10 2015 Brian Behlendorf <behlendorf1@llnl.gov> - 0.6.5-1
+- Released 0.6.5-1, detailed release notes are available at:
+- https://github.com/zfsonlinux/zfs/releases/tag/zfs-0.6.5
+* Wed Apr  8 2015 Brian Behlendorf <behlendorf1@llnl.gov> - 0.6.4-1
+- Released 0.6.4-1
+* Thu Jun 12 2014 Brian Behlendorf <behlendorf1@llnl.gov> - 0.6.3-1
+- Released 0.6.3-1
+* Wed Aug 21 2013 Brian Behlendorf <behlendorf1@llnl.gov> - 0.6.2-1
+- Released 0.6.2-1
+* Fri Mar 22 2013 Brian Behlendorf <behlendorf1@llnl.gov> - 0.6.1-1
+- First official stable release.

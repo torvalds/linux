@@ -1,0 +1,300 @@
+'\" te
+.\"
+.\" Copyright 2013 Turbo Fredriksson <turbo@bayour.com>. All rights reserved.
+.\"
+.TH SPL-MODULE-PARAMETERS 5 "Nov 18, 2013"
+.SH NAME
+spl\-module\-parameters \- SPL module parameters
+.SH DESCRIPTION
+.sp
+.LP
+Description of the different parameters to the SPL module.
+
+.SS "Module parameters"
+.sp
+.LP
+
+.sp
+.ne 2
+.na
+\fBspl_kmem_cache_expire\fR (uint)
+.ad
+.RS 12n
+Cache expiration is part of default Illumos cache behavior.  The idea is
+that objects in magazines which have not been recently accessed should be
+returned to the slabs periodically.  This is known as cache aging and
+when enabled objects will be typically returned after 15 seconds.
+.sp
+On the other hand Linux slabs are designed to never move objects back to
+the slabs unless there is memory pressure.  This is possible because under
+Linux the cache will be notified when memory is low and objects can be
+released.
+.sp
+By default only the Linux method is enabled.  It has been shown to improve
+responsiveness on low memory systems and not negatively impact the performance
+of systems with more memory.  This policy may be changed by setting the
+\fBspl_kmem_cache_expire\fR bit mask as follows, both policies may be enabled
+concurrently.
+.sp
+0x01 - Aging (Illumos), 0x02 - Low memory (Linux)
+.sp
+Default value: \fB0x02\fR
+.RE
+
+.sp
+.ne 2
+.na
+\fBspl_kmem_cache_reclaim\fR (uint)
+.ad
+.RS 12n
+When this is set it prevents Linux from being able to rapidly reclaim all the
+memory held by the kmem caches.  This may be useful in circumstances where
+it's preferable that Linux reclaim memory from some other subsystem first.
+Setting this will increase the likelihood out of memory events on a memory
+constrained system.
+.sp
+Default value: \fB0\fR
+.RE
+
+.sp
+.ne 2
+.na
+\fBspl_kmem_cache_obj_per_slab\fR (uint)
+.ad
+.RS 12n
+The preferred number of objects per slab in the cache.   In general, a larger
+value will increase the caches memory footprint while decreasing the time
+required to perform an allocation.  Conversely, a smaller value will minimize
+the footprint and improve cache reclaim time but individual allocations may
+take longer.
+.sp
+Default value: \fB8\fR
+.RE
+
+.sp
+.ne 2
+.na
+\fBspl_kmem_cache_obj_per_slab_min\fR (uint)
+.ad
+.RS 12n
+The minimum number of objects allowed per slab.  Normally slabs will contain
+\fBspl_kmem_cache_obj_per_slab\fR objects but for caches that contain very
+large objects it's desirable to only have a few, or even just one, object per
+slab.
+.sp
+Default value: \fB1\fR
+.RE
+
+.sp
+.ne 2
+.na
+\fBspl_kmem_cache_max_size\fR (uint)
+.ad
+.RS 12n
+The maximum size of a kmem cache slab in MiB.  This effectively limits
+the maximum cache object size to \fBspl_kmem_cache_max_size\fR /
+\fBspl_kmem_cache_obj_per_slab\fR.  Caches may not be created with
+object sized larger than this limit.
+.sp
+Default value: \fB32 (64-bit) or 4 (32-bit)\fR
+.RE
+
+.sp
+.ne 2
+.na
+\fBspl_kmem_cache_slab_limit\fR (uint)
+.ad
+.RS 12n
+For small objects the Linux slab allocator should be used to make the most
+efficient use of the memory.  However, large objects are not supported by
+the Linux slab and therefore the SPL implementation is preferred.  This
+value is used to determine the cutoff between a small and large object.
+.sp
+Objects of \fBspl_kmem_cache_slab_limit\fR or smaller will be allocated
+using the Linux slab allocator, large objects use the SPL allocator.  A
+cutoff of 16K was determined to be optimal for architectures using 4K pages.
+.sp
+Default value: \fB16,384\fR
+.RE
+
+.sp
+.ne 2
+.na
+\fBspl_kmem_cache_kmem_limit\fR (uint)
+.ad
+.RS 12n
+Depending on the size of a cache object it may be backed by kmalloc()'d
+or vmalloc()'d memory.  This is because the size of the required allocation
+greatly impacts the best way to allocate the memory.
+.sp
+When objects are small and only a small number of memory pages need to be
+allocated, ideally just one, then kmalloc() is very efficient.  However,
+when allocating multiple pages with kmalloc() it gets increasingly expensive
+because the pages must be physically contiguous.
+.sp
+For this reason we shift to vmalloc() for slabs of large objects which
+which removes the need for contiguous pages.  We cannot use vmalloc() in
+all cases because there is significant locking overhead involved.  This
+function takes a single global lock over the entire virtual address range
+which serializes all allocations.  Using slightly different allocation
+functions for small and large objects allows us to handle a wide range of
+object sizes.
+.sh
+The \fBspl_kmem_cache_kmem_limit\fR value is used to determine this cutoff
+size.  One quarter the PAGE_SIZE is used as the default value because
+\fBspl_kmem_cache_obj_per_slab\fR defaults to 16.  This means that at
+most we will need to allocate four contiguous pages.
+.sp
+Default value: \fBPAGE_SIZE/4\fR
+.RE
+
+.sp
+.ne 2
+.na
+\fBspl_kmem_alloc_warn\fR (uint)
+.ad
+.RS 12n
+As a general rule kmem_alloc() allocations should be small, preferably
+just a few pages since they must by physically contiguous.  Therefore, a
+rate limited warning will be printed to the console for any kmem_alloc()
+which exceeds a reasonable threshold.
+.sp
+The default warning threshold is set to eight pages but capped at 32K to
+accommodate systems using large pages.  This value was selected to be small
+enough to ensure the largest allocations are quickly noticed and fixed.
+But large enough to avoid logging any warnings when a allocation size is
+larger than optimal but not a serious concern.  Since this value is tunable,
+developers are encouraged to set it lower when testing so any new largish
+allocations are quickly caught.  These warnings may be disabled by setting
+the threshold to zero.
+.sp
+Default value: \fB32,768\fR
+.RE
+
+.sp
+.ne 2
+.na
+\fBspl_kmem_alloc_max\fR (uint)
+.ad
+.RS 12n
+Large kmem_alloc() allocations will fail if they exceed KMALLOC_MAX_SIZE.
+Allocations which are marginally smaller than this limit may succeed but
+should still be avoided due to the expense of locating a contiguous range
+of free pages.  Therefore, a maximum kmem size with reasonable safely
+margin of 4x is set.  Kmem_alloc() allocations larger than this maximum
+will quickly fail.  Vmem_alloc() allocations less than or equal to this
+value will use kmalloc(), but shift to vmalloc() when exceeding this value.
+.sp
+Default value: \fBKMALLOC_MAX_SIZE/4\fR
+.RE
+
+.sp
+.ne 2
+.na
+\fBspl_kmem_cache_magazine_size\fR (uint)
+.ad
+.RS 12n
+Cache magazines are an optimization designed to minimize the cost of
+allocating memory.  They do this by keeping a per-cpu cache of recently
+freed objects, which can then be reallocated without taking a lock. This
+can improve performance on highly contended caches.  However, because
+objects in magazines will prevent otherwise empty slabs from being
+immediately released this may not be ideal for low memory machines.
+.sp
+For this reason \fBspl_kmem_cache_magazine_size\fR can be used to set a
+maximum magazine size.  When this value is set to 0 the magazine size will
+be automatically determined based on the object size.  Otherwise magazines
+will be limited to 2-256 objects per magazine (i.e per cpu).  Magazines
+may never be entirely disabled in this implementation.
+.sp
+Default value: \fB0\fR
+.RE
+
+.sp
+.ne 2
+.na
+\fBspl_hostid\fR (ulong)
+.ad
+.RS 12n
+The system hostid, when set this can be used to uniquely identify a system.
+By default this value is set to zero which indicates the hostid is disabled.
+It can be explicitly enabled by placing a unique non-zero value in
+\fB/etc/hostid/\fR.
+.sp
+Default value: \fB0\fR
+.RE
+
+.sp
+.ne 2
+.na
+\fBspl_hostid_path\fR (charp)
+.ad
+.RS 12n
+The expected path to locate the system hostid when specified.  This value
+may be overridden for non-standard configurations.
+.sp
+Default value: \fB/etc/hostid\fR
+.RE
+
+.sp
+.ne 2
+.na
+\fBspl_taskq_thread_bind\fR (int)
+.ad
+.RS 12n
+Bind taskq threads to specific CPUs.  When enabled all taskq threads will
+be distributed evenly  over the available CPUs.  By default, this behavior
+is disabled to allow the Linux scheduler the maximum flexibility to determine
+where a thread should run.
+.sp
+Default value: \fB0\fR
+.RE
+
+.sp
+.ne 2
+.na
+\fBspl_taskq_thread_dynamic\fR (int)
+.ad
+.RS 12n
+Allow dynamic taskqs.  When enabled taskqs which set the TASKQ_DYNAMIC flag
+will by default create only a single thread.  New threads will be created on
+demand up to a maximum allowed number to facilitate the completion of
+outstanding tasks.  Threads which are no longer needed will be promptly
+destroyed.  By default this behavior is enabled but it can be disabled to
+aid performance analysis or troubleshooting.
+.sp
+Default value: \fB1\fR
+.RE
+
+.sp
+.ne 2
+.na
+\fBspl_taskq_thread_priority\fR (int)
+.ad
+.RS 12n
+Allow newly created taskq threads to set a non-default scheduler priority.
+When enabled the priority specified when a taskq is created will be applied
+to all threads created by that taskq.  When disabled all threads will use
+the default Linux kernel thread priority.  By default, this behavior is
+enabled.
+.sp
+Default value: \fB1\fR
+.RE
+
+.sp
+.ne 2
+.na
+\fBspl_taskq_thread_sequential\fR (int)
+.ad
+.RS 12n
+The number of items a taskq worker thread must handle without interruption
+before requesting a new worker thread be spawned.  This is used to control
+how quickly taskqs ramp up the number of threads processing the queue.
+Because Linux thread creation and destruction are relatively inexpensive a
+small default value has been selected.  This means that normally threads will
+be created aggressively which is desirable.  Increasing this value will
+result in a slower thread creation rate which may be preferable for some
+configurations.
+.sp
+Default value: \fB4\fR
+.RE

@@ -1,0 +1,94 @@
+'\" t
+.\"
+.\" Copyright 2013 Darik Horn <dajhorn@vanadac.com>. All rights reserved.
+.\"
+.TH splat 1 "2013 MAR 16" "ZFS on Linux" "User Commands"
+
+.SH NAME
+splat \- Solaris Porting LAyer Tests
+.SH SYNOPSIS
+.LP
+.BI "splat [\-chvx] < \-\-all | \-\-list | \-\-test " "subsystem" ":" "test" " [...] >"
+
+.SH DESCRIPTION
+This utility uses the splat.ko kernel module to test the spl.ko kernel
+module. Run "modprobe splat" before invoking \fBsplat\fR.
+
+.SH OPTIONS
+.HP
+.BI "\-a" "" ", \-\-all" ""
+.IP
+Run all available tests on all subsystems.
+.HP
+.BI "\-c" "" ", \-\-nocolor" ""
+.IP
+Disable output highlighting. By default, "Fail" is printed in red text
+and "Pass" is printed in green text.
+.HP
+.BI "\-h" "" ", \-\-help" ""
+.IP
+Print the usage message.
+.HP
+.BI "\-l" "" ", \-\-list" ""
+.IP
+For each spl.ko subsystem, print all available test names and
+hexidecimal identifiers with a short description.
+.HP
+.BI "\-t" " subsystem" ":" "test" ", \-\-test" " subsystem" ":" "test"
+.HP
+.BI "\-t" " subsystem" ":all" "" ", \-\-test" " subsystem" ":all" ""
+.IP
+Run the \fItest\fR diagnostic routine for the spl.ko \fIsubsystem\fR.
+Specify this option more than once to run multiple tests.
+
+The \fItest\fR and \fIsubsystem\fR parameters are the names or
+hexidecimal identifiers returned by the \fBsplat --list\fR command.
+
+If \fIsubsystem\fR is a name and not a hexidecimal identifier, then the
+\fBall\fR keyword can be used to run all available \fIsubsystem\fR
+tests.
+
+.HP
+.BI "\-v" "" ", \-\-verbose" ""
+.HP
+.IP
+Increase verbosity.
+.HP
+.BI "\-x" "" ", \-\-exit" ""
+.IP
+Stop running tests after the first failure.
+
+.SH "EXAMPLES"
+.LP
+Test everything in the spl.ko kernel module:
+.IP
+# splat --all --verbose
+.LP
+Test the entire kernel memory subsystem:
+.IP
+# splat --test kmem:all
+.LP
+Test the kernel compression and queue waiting facilities:
+.IP
+# splat --test zlib:compress/uncompress --test taskq:wait
+.LP
+This is the same as the previous command, except that the subsystems
+and tests are referenced by hexidecimal identifier instead of by name:
+.IP
+# splat -t 0x0f00:0x0f01 -t 0x0200:0x0204
+
+.SH "NOTES"
+All tests always return a green "Pass" result on a healthy system. Any
+red "Fail" result should be investigated or reported.
+
+.SH "BUGS"
+Some tests can deadlock the kernel if an X11 desktop is running,
+especially if a proprietary blob driver is loaded for the video
+hardware.
+
+.SH "AUTHORS"
+This man page was written by Darik Horn <dajhorn@vanadac.com>.
+
+.SH "SEE ALSO"
+.BR zpios (1),
+.BR ztest (1)

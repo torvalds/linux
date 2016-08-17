@@ -1,0 +1,95 @@
+Brian Behlendorf is the principal developer of the ZFS on Linux port.
+He works full time as a computer scientist at Lawrence Livermore
+National Laboratory on the ZFS and Lustre filesystems.  However,
+this port would not have been possible without the help of many
+others who have contributed their time, effort, and insight.
+
+  Brian Behlendorf <behlendorf1@llnl.gov>
+
+First and foremost the hard working ZFS developers at Sun/Oracle.
+They are responsible for the bulk of the code in this project and
+without their efforts there never would have been a ZFS filesystem.
+
+  The ZFS Development Team at Sun/Oracle
+
+Next all the developers at KQ Infotech who implemented a prototype
+ZFS Posix Layer (ZPL).  Their implementation provided an excellent
+reference for adding the ZPL functionality.
+
+  Anand Mitra <mitra@kqinfotech.com>
+  Anurag Agarwal <anurag@kqinfotech.com>
+  Neependra Khare <neependra@kqinfotech.com>
+  Prasad Joshi <prasad@kqinfotech.com>
+  Rohan Puri <rohan@kqinfotech.com>
+  Sandip Divekar <sandipd@kqinfotech.com>
+  Shoaib <shoaib@kqinfotech.com>
+  Shrirang <shrirang@kqinfotech.com>
+
+Additionally the following individuals have all made contributions
+to the project and deserve to be acknowledged.
+
+  Albert Lee <trisk@nexenta.com>
+  Alejandro R. Sedeño <asedeno@mit.edu>
+  Alex Zhuravlev <bzzz@whamcloud.com>
+  Alexander Eremin <a.eremin@nexenta.com>
+  Alexander Stetsenko <ams@nexenta.com>
+  Alexey Shvetsov <alexxy@gentoo.org>
+  Andreas Dilger <adilger@whamcloud.com>
+  Andrew Reid <ColdCanuck@nailedtotheperch.com>
+  Andrew Stormont <andrew.stormont@nexenta.com>
+  Andrew Tselischev <andrewtselischev@gmail.com>
+  Andriy Gapon <avg@FreeBSD.org>
+  Aniruddha Shankar <k@191a.net>
+  Bill Pijewski <wdp@joyent.com>
+  Chris Dunlap <cdunlap@llnl.gov>
+  Chris Dunlop <chris@onthe.net.au>
+  Chris Siden <chris.siden@delphix.com>
+  Chris Wedgwood <cw@f00f.org>
+  Christian Kohlschütter <christian@kohlschutter.com>
+  Christopher Siden <chris.siden@delphix.com>
+  Craig Sanders <github@taz.net.au>
+  Cyril Plisko <cyril.plisko@mountall.com>
+  Dan McDonald <danmcd@nexenta.com>
+  Daniel Verite <daniel@verite.pro>
+  Darik Horn <dajhorn@vanadac.com>
+  Eric Schrock <Eric.Schrock@delphix.com>
+  Etienne Dechamps <etienne.dechamps@ovh.net>
+  Fajar A. Nugraha <github@fajar.net>
+  Frederik Wessels <wessels147@gmail.com>
+  Garrett D'Amore <garrett@nexenta.com>
+  George Wilson <george.wilson@delphix.com>
+  Gordon Ross <gwr@nexenta.com>
+  Gregor Kopka <mailfrom-github.com@kopka.net>
+  Gunnar Beutner <gunnar@beutner.name>
+  James H <james@kagisoft.co.uk>
+  Javen Wu <wu.javen@gmail.com>
+  Jeremy Gill <jgill@parallax-innovations.com>
+  Jorgen Lundman <lundman@lundman.net>
+  KORN Andras <korn@elan.rulez.org>
+  Kyle Fuller <inbox@kylefuller.co.uk>
+  Manuel Amador (Rudd-O) <rudd-o@rudd-o.com>
+  Martin Matuska <mm@FreeBSD.org>
+  Massimo Maggi <massimo@mmmm.it>
+  Matthew Ahrens <mahrens@delphix.com>
+  Michael Martin <mgmartin.mgm@gmail.com>
+  Mike Harsch <mike@harschsystems.com>
+  Ned Bass <bass6@llnl.gov>
+  Oleg Stepura <oleg@stepura.com>
+  P.SCH <p88@yahoo.com>
+  Pawel Jakub Dawidek <pawel@dawidek.net>
+  Prakash Surya <surya1@llnl.gov>
+  Prasad Joshi <pjoshi@stec-inc.com>
+  Ricardo M. Correia <Ricardo.M.Correia@Sun.COM>
+  Richard Laager <rlaager@wiktel.com>
+  Richard Lowe <richlowe@richlowe.net>
+  Richard Yao <ryao@cs.stonybrook.edu>
+  Rohan Puri <rohan.puri15@gmail.com>
+  Shampavman <sham.pavman@nexenta.com>
+  Simon Klinkert <klinkert@webgods.de>
+  Suman Chakravartula <suman@gogrid.com>
+  Tim Haley <Tim.Haley@Sun.COM>
+  Turbo Fredriksson <turbo@bayour.com>
+  Xin Li <delphij@FreeBSD.org>
+  Yuxuan Shui <yshuiv7@gmail.com>
+  Zachary Bedell <zac@thebedells.org>
+  nordaux <nordaux@gmail.com>

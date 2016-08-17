@@ -1,0 +1,126 @@
+#!/bin/bash
+
+set -e
+
+usage()
+{
+	echo "usage: $0 <kernel source tree>" >&2
+	exit 1
+}
+
+[ "$#" -eq 1 ] || usage
+KERNEL_DIR="$(readlink --canonicalize-existing "$1")"
+
+MODULES=()
+for MODULE_DIR in module/*
+do
+	[ -d "$MODULE_DIR" ] || continue
+	MODULES+=("${MODULE_DIR##*/}")
+done
+
+if ! [ -e 'spl_config.h' ]
+then
+	echo >&2
+	echo "    $0: you did not run configure, or you're not in the SPL source directory." >&2
+	echo "    $0: run configure with --with-linux=$KERNEL_DIR and --enable-linux-builtin." >&2
+	echo >&2
+	exit 1
+fi
+
+make clean || true
+
+rm -rf "$KERNEL_DIR/include/spl" "$KERNEL_DIR/spl"
+cp --recursive include "$KERNEL_DIR/include/spl"
+cp --recursive module "$KERNEL_DIR/spl"
+cp spl_config.h "$KERNEL_DIR/"
+cp spl.release.in "$KERNEL_DIR/"
+
+adjust_obj_paths()
+{
+	local FILE="$1"
+	local LINE OBJPATH
+
+	while IFS='' read -r LINE
+	do
+		OBJPATH="${LINE#\$(MODULE)-objs += }"
+		if [ "$OBJPATH" = "$LINE" ]
+		then
+			echo "$LINE"
+		else
+			echo "\$(MODULE)-objs += ${OBJPATH##*/}"
+		fi
+	done < "$FILE" > "$FILE.new"
+	mv "$FILE.new" "$FILE"
+}
+
+for MODULE in "${MODULES[@]}"
+do
+	adjust_obj_paths "$KERNEL_DIR/spl/$MODULE/Makefile"
+	sed -i.bak '/obj =/d' "$KERNEL_DIR/spl/$MODULE/Makefile"
+	sed -i.bak '/src =/d' "$KERNEL_DIR/spl/$MODULE/Makefile"
+done
+
+cat > "$KERNEL_DIR/spl/Kconfig" <<"EOF"
+config SPL
+	tristate "Solaris Porting Layer (SPL)"
+	help
+	  This is the SPL library from the ZFS On Linux project.
+
+	  See http://zfsonlinux.org/
+
+	  To compile this library as a module, choose M here.
+
+	  If unsure, say N.
+EOF
+
+{
+	cat <<-"EOF"
+	SPL_MODULE_CFLAGS  = -I$(srctree)/include/spl
+	SPL_MODULE_CFLAGS += -include $(srctree)/spl_config.h
+	export SPL_MODULE_CFLAGS
+
+	obj-$(CONFIG_SPL) :=
+	EOF
+
+	for MODULE in "${MODULES[@]}"
+	do
+		echo 'obj-$(CONFIG_SPL) += ' "$MODULE/"
+	done
+} > "$KERNEL_DIR/spl/Kbuild"
+
+add_after()
+{
+	local FILE="$1"
+	local MARKER="$2"
+	local NEW="$3"
+	local LINE
+
+	while IFS='' read -r LINE
+	do
+		echo "$LINE"
+
+		if [ -n "$MARKER" -a "$LINE" = "$MARKER" ]
+		then
+			echo "$NEW"
+			MARKER=''
+			if IFS='' read -r LINE
+			then
+				[ "$LINE" != "$NEW" ] && echo "$LINE"
+			fi
+		fi
+	done < "$FILE" > "$FILE.new"
+
+	mv "$FILE.new" "$FILE"
+}
+
+add_after "$KERNEL_DIR/Kconfig" 'source "arch/$SRCARCH/Kconfig"' 'source "spl/Kconfig"'
+# We must take care to build SPL before ZFS, otherwise the symbols required
+# to link ZFS will not be available.
+sed -i 's~mm/ fs/~mm/ spl/ fs/~' "$KERNEL_DIR/Makefile"
+
+echo >&2
+echo "    $0: done." >&2
+echo "    $0: now you can build the kernel with SPL support." >&2
+echo "    $0: make sure you enable SPL support (CONFIG_SPL) before building." >&2
+echo >&2
+

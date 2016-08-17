@@ -1,0 +1,24 @@
+#!/bin/sh
+
+PROG=$0
+
+while getopts "a:k:n:t:v:" opt; do
+	case $opt in
+		a) arch=$OPTARG    ;;
+		k) kver=$OPTARG    ;;
+		n) pkgname=$OPTARG ;;
+		t) tree=$OPTARG    ;;
+		v) pkgver=$OPTARG  ;;
+	esac
+done
+
+if [ -z "${arch}" -o -z "${kver}" -o -z "${pkgname}" -o \
+     -z "${tree}" -o -z "${pkgver}" ]; then
+	echo "Usage: $PROG -a <arch> -k <kver> -n <pkgname>" \
+	     "-t <tree> -v <pkgver>"
+	exit 1
+fi
+
+cp ${tree}/${pkgname}/${pkgver}/build/spl_config.h          \
+   ${tree}/${pkgname}/${pkgver}/build/module/Module.symvers \
+   ${tree}/${pkgname}/${pkgver}/${kver}/${arch}/

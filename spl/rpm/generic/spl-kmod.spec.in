@@ -1,0 +1,223 @@
+%define module  @PACKAGE@
+#define repo    rpmfusion
+#define repo    chaos
+
+# (un)define the next line to either build for the newest or all current kernels
+%define buildforkernels newest
+#define buildforkernels current
+#define buildforkernels akmod
+
+%bcond_with     debug
+%bcond_with     debug_log
+%bcond_with     debug_kmem
+%bcond_with     debug_kmem_tracking
+%bcond_with     atomic_spinlocks
+
+
+Name:           %{module}-kmod
+
+Version:        @VERSION@
+Release:        @RELEASE@%{?dist}
+Summary:        Kernel module(s)
+
+Group:          System Environment/Kernel
+License:        GPLv2+
+URL:            http://zfsonlinux.org/
+Source0:        %{module}-%{version}.tar.gz
+Source10:       kmodtool
+BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id} -u -n)
+
+# The developments headers will conflict with the dkms packages.
+Conflicts:      %{module}-dkms
+
+%if %{defined repo}
+
+# Building for a repository use the proper build-sysbuild package
+# to determine which kernel-devel packages should be installed.
+BuildRequires:  %{_bindir}/kmodtool
+%{!?kernels:BuildRequires: buildsys-build-%{repo}-kerneldevpkgs-%{?buildforkernels:%{buildforkernels}}%{!?buildforkernels:current}-%{_target_cpu}}
+
+%else
+
+# Building local packages attempt to to use the installed kernel.
+%{?rhel:BuildRequires: kernel-devel}
+%{?fedora:BuildRequires: kernel-devel}
+%{?suse_version:BuildRequires: kernel-source}
+
+%if !%{defined kernels} && !%{defined build_src_rpm}
+    %if 0%{?rhel}%{?fedora}%{?suse_version}
+        %define kernels %(ls -1 /usr/src/kernels)
+    %else
+        %define kernels %(ls -1 /lib/modules)
+    %endif
+%endif
+%endif
+
+%if 0%{?fedora} >= 17
+%define prefix  /usr
+%endif
+
+# Kmodtool does its magic here.  A patched version of kmodtool is shipped
+# because the latest versions may not be available for your distribution.
+# https://bugzilla.rpmfusion.org/show_bug.cgi?id=2714
+%{expand:%(bash %{SOURCE10} --target %{_target_cpu} %{?repo:--repo %{?repo}} --kmodname %{name} %{?buildforkernels:--%{buildforkernels}} --devel %{?prefix:--prefix "%{?prefix}"} %{?kernels:--for-kernels "%{?kernels}"} %{?kernelbuildroot:--buildroot "%{?kernelbuildroot}"} 2>/dev/null) }
+
+
+%description
+This package contains the kernel modules required to emulate
+several interfaces provided by the Solaris kernel.
+
+%prep
+# Error out if there was something wrong with kmodtool.
+%{?kmodtool_check}
+
+# Print kmodtool output for debugging purposes:
+bash %{SOURCE10} --target %{_target_cpu} %{?repo:--repo %{?repo}}  --kmodname %{name} %{?buildforkernels:--%{buildforkernels}} --devel  %{?prefix:--prefix "%{?prefix}"} %{?kernels:--for-kernels "%{?kernels}"} %{?kernelbuildroot:--buildroot "%{?kernelbuildroot}"} 2>/dev/null
+
+%if %{with debug}
+    %define debug --enable-debug
+%else
+    %define debug --disable-debug
+%endif
+
+%if %{with debug_log}
+    %define debug_log --enable-debug-log
+%else
+    %define debug_log --disable-debug-log
+%endif
+
+%if %{with debug_kmem}
+    %define debug_kmem --enable-debug-kmem
+%else
+    %define debug_kmem --disable-debug-kmem
+%endif
+
+%if %{with debug_kmem_tracking}
+    %define debug_kmem_tracking --enable-debug-kmem-tracking
+%else
+    %define debug_kmem_tracking --disable-debug-kmem-tracking
+%endif
+
+%if %{with atomic_spinlocks}
+    %define atomic_spinlocks --enable-atomic-spinlocks
+%else
+    %define atomic_spinlocks --disable-atomic-spinlocks
+%endif
+
+# Leverage VPATH from configure to avoid making multiple copies.
+%define _configure ../%{module}-%{version}/configure
+
+%setup -q -c -T -a 0
+
+for kernel_version in %{?kernel_versions}; do
+    %{__mkdir} _kmod_build_${kernel_version%%___*}
+done
+
+%build
+for kernel_version in %{?kernel_versions}; do
+    cd _kmod_build_${kernel_version%%___*}
+    %configure \
+        --with-config=kernel \
+%if 0%{?rhel}%{?fedora}
+        --with-linux="${kernel_version##*___}" \
+        --with-linux-obj="${kernel_version##*___}" \
+%else
+        --with-linux="$( \
+        if [ -e "/lib/modules/${kernel_version%%___*}/source" ]; then \
+            echo "/lib/modules/${kernel_version%%___*}/source"; \
+        else \
+            echo "/lib/modules/${kernel_version%%___*}/build"; \
+        fi)" \
+        --with-linux-obj="/lib/modules/${kernel_version%%___*}/build" \
+%endif
+        %{debug} \
+        %{debug_log} \
+        %{debug_kmem} \
+        %{debug_kmem_tracking} \
+        %{atomic_spinlocks}
+    make %{?_smp_mflags}
+    cd ..
+done
+
+
+%install
+rm -rf ${RPM_BUILD_ROOT}
+
+# Relies on the kernel 'modules_install' make target.
+for kernel_version in %{?kernel_versions}; do
+    cd _kmod_build_${kernel_version%%___*}
+    make install \
+        DESTDIR=${RPM_BUILD_ROOT} \
+        %{?prefix:INSTALL_MOD_PATH=%{?prefix}} \
+        INSTALL_MOD_DIR=%{kmodinstdir_postfix}
+    cd ..
+done
+
+# find-debuginfo.sh only considers executables
+chmod u+x ${RPM_BUILD_ROOT}%{kmodinstdir_prefix}/*/extra/*/*/*
+%{?akmod_install}
+
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+%changelog
+* Fri Feb 3 2017 Brian Behlendorf <behlendorf1@llnl.gov> - 0.6.5.9-1
+- Use kernel slab for vn_cache and vn_file_cache zfsonlinux/spl#599
+- Fix splat-cred.c cred usage zfsonlinux/spl#556
+- Fix splat memleak zfsonlinux/spl#590
+- Fix p0 initializer zfsonlinux/spl#576
+- Fix aarch64 type warning zfsonlinux/spl#574
+- Linux 4.8 compat: Fix RW_READ_HELD zfsonlinux/zfs#5233
+- Linux 4.9 compat: group_info changes zfsonlinux/spl#581
+- Fix crgetgroups out-of-bound and misc cred fix zfsonlinux/spl#556
+* Fri Sep 9 2016 Ned Bass <bass6@llnl.gov> - 0.6.5.8-1
+- Fix HAVE_MUTEX_OWNER test for kernels prior to 4.6 zfsonlinux/spl#566
+- Add handling for kernel 4.7's CONFIG_TRIM_UNUSED_KSYMS zfsonlinux/spl#565
+- Linux 4.8 compat: rw_semaphore atomic_long_t count zfsonlinux/spl#563
+- Implement a proper rw_tryupgrade zfsonlinux/spl#554
+- Add rw_tryupgrade() zfsonlinux/spl#534 zfsonlinux/zfs#4388
+- Fix taskq_wait_outstanding re-evaluate tq_next_id zfsonlinux/spl#553
+- Fix race between taskq_destroy and dynamic spawning thread zfsonlinux/spl#553 zfsonlinux/spl#550
+- Use kernel provided mutex owner zfsonlinux/spl#553 zfsonlinux/spl#550
+- Add isa_defs for MIPS zfsonlinux/spl#558
+- Linux 4.7 compat: inode_lock() and friends zfsonlinux/spl#549
+- Fix: handle NULL case in spl_kmem_free_track() zfsonlinux/spl#567
+* Thu May 12 2016 Ned Bass <bass6@llnl.gov> - 0.6.5.7-1
+- Fix PPC build failure zfsonlinux/spl#516
+* Tue Mar 22 2016 Ned Bass <bass6@llnl.gov> - 0.6.5.6-1
+- Remove artificial architecture restrictions in packaging
+- Add support for s390[x] zfsonlinux/spl#537
+* Wed Mar 9 2016 Ned Bass <bass6@llnl.gov> - 0.6.5.5-1
+- Linux 4.5 compatibility zfsonlinux/spl#524
+- Create working debuginfo packages on Red Hat zfsonlinux/zfs#4224
+- Allow copy-builtin to run multiple times zfsonlinux/spl#526
+- Use safer flags for in-kernel memory allocations zfsonlinux/spl#523
+- Fix potential deadlock in cv_wait() zfsonlinux/zfs#4106
+- Fix livelock in shrinker zfsonlinux/zfs#3936
+* Fri Jan  8 2016 Ned Bass <bass6@llnl.gov> - 0.6.5.4-1
+- Build fixes on SPARC and some kernels
+- Fix taskq dynamic spawning deadlock
+- Fix builtin kernel builds
+- Fix crash due to overflow in P2ROUNDUP macro
+- Fix deadlock during direct memory reclaim
+* Tue Oct 13 2015 Ned Bass <bass6@llnl.gov> - 0.6.5.3-1
+- Fix CPU hotplug zfsonlinux/spl#482
+- Disable dynamic taskqs by default to avoid deadlock zfsonlinux/spl#484
+* Tue Sep 29 2015 Ned Bass <bass6@llnl.gov> - 0.6.5.2-1
+- Released 0.6.5.2-1
+- Fix PAX Patch/Grsec SLAB_USERCOPY panic zfsonlinux/zfs#3796
+- Always remove during dkms uninstall/update zfsonlinux/spl#476
+* Thu Sep 19 2015 Ned Bass <bass6@llnl.gov> - 0.6.5.1-1
+- Released 0.6.5.1-1, no changes from spl-0.6.5
+* Thu Sep 10 2015 Brian Behlendorf <behlendorf1@llnl.gov> - 0.6.5-1
+- Released 0.6.5-1, detailed release notes are available at:
+- https://github.com/zfsonlinux/zfs/releases/tag/zfs-0.6.5
+* Wed Apr  8 2015 Brian Behlendorf <behlendorf1@llnl.gov> - 0.6.4-1
+- Released 0.6.4-1
+* Thu Jun 12 2014 Brian Behlendorf <behlendorf1@llnl.gov> - 0.6.3-1
+- Released 0.6.3-1
+* Wed Aug 21 2013 Brian Behlendorf <behlendorf1@llnl.gov> - 0.6.2-1
+- Released 0.6.2-1
+* Fri Mar 22 2013 Brian Behlendorf <behlendorf1@llnl.gov> - 0.6.1-1
+- First official stable release.

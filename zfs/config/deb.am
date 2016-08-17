@@ -1,0 +1,48 @@
+deb-local:
+	@(if test "${HAVE_DPKGBUILD}" = "no"; then \
+		echo -e "\n" \
+	"*** Required util ${DPKGBUILD} missing.  Please install the\n" \
+        "*** package for your distribution which provides ${DPKGBUILD},\n" \
+	"*** re-run configure, and try again.\n"; \
+                exit 1; \
+	fi; \
+	if test "${HAVE_ALIEN}" = "no"; then \
+		echo -e "\n" \
+	"*** Required util ${ALIEN} missing.  Please install the\n" \
+        "*** package for your distribution which provides ${ALIEN},\n" \
+	"*** re-run configure, and try again.\n"; \
+                exit 1; \
+	fi)
+
+deb-kmod: deb-local rpm-kmod
+if CONFIG_KERNEL
+	name=${PACKAGE}; \
+	version=${VERSION}-${RELEASE}; \
+	arch=`$(RPM) -qp $${name}-kmod-$${version}.src.rpm --qf %{arch} | tail -1`; \
+	pkg1=kmod-$${name}*$${version}.$${arch}.rpm; \
+	fakeroot $(ALIEN) --bump=0 --scripts --to-deb $$pkg1; \
+	$(RM) $$pkg1
+endif
+
+deb-utils: deb-local rpm-utils
+if CONFIG_USER
+	name=${PACKAGE}; \
+	version=${VERSION}-${RELEASE}; \
+	arch=`$(RPM) -qp $${name}-$${version}.src.rpm --qf %{arch} | tail -1`; \
+	pkg1=$${name}-$${version}.$${arch}.rpm; \
+	pkg2=libnvpair1-$${version}.$${arch}.rpm; \
+	pkg3=libuutil1-$${version}.$${arch}.rpm; \
+	pkg4=libzfs2-$${version}.$${arch}.rpm; \
+	pkg5=libzpool2-$${version}.$${arch}.rpm; \
+	pkg6=libzfs2-devel-$${version}.$${arch}.rpm; \
+	pkg7=$${name}-test-$${version}.$${arch}.rpm; \
+	pkg8=$${name}-dracut-$${version}.$${arch}.rpm; \
+	pkg9=$${name}-initramfs-$${version}.$${arch}.rpm; \
+	fakeroot $(ALIEN) --bump=0 --scripts --to-deb \
+	    $$pkg1 $$pkg2 $$pkg3 $$pkg4 $$pkg5 $$pkg6 $$pkg7 \
+	    $$pkg8 $$pkg9;
+	$(RM) $$pkg1 $$pkg2 $$pkg3 $$pkg4 $$pkg5 $$pkg6 $$pkg7 \
+	    $$pkg8 $$pkg9;
+endif
+
+deb: deb-kmod deb-utils

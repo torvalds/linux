@@ -1,0 +1,79 @@
+#!/bin/sh
+
+PROG=$0
+
+pkgcfg=/etc/sysconfig/spl
+
+while getopts "n:v:c:f:" opt; do
+        case $opt in
+                n) pkgname=$OPTARG ;;
+                v) pkgver=$OPTARG  ;;
+                c) pkgcfg=$OPTARG ;;
+                f) filename=$OPTARG ;;
+        esac
+done
+
+if [ -z "${pkgname}" -o -z "${pkgver}" -o -z "${filename}" ]; then
+        echo "Usage: $PROG -n <pkgname> -v <pkgver> -c <pkgcfg> -f <filename>"
+        exit 1
+fi
+
+cat >${filename} <<EOF
+PACKAGE_NAME="${pkgname}"
+PACKAGE_VERSION="${pkgver}"
+PACKAGE_CONFIG="${pkgcfg}"
+PRE_BUILD="configure
+  --prefix=/usr
+  --with-config=kernel
+  --with-linux=\${kernel_source_dir}
+  --with-linux-obj=\${kernel_source_dir}
+  \$(
+    [[ -r \${PACKAGE_CONFIG} ]] \\
+    && source \${PACKAGE_CONFIG} \\
+    && shopt -q -s extglob \\
+    && \\
+    {
+      if [[ \${SPL_DKMS_ENABLE_DEBUG,,} == @(y|yes) ]]
+      then
+        echo --enable-debug
+      fi
+      if [[ \${SPL_DKMS_ENABLE_DEBUG_KMEM,,} == @(y|yes) ]]
+      then
+        echo --enable-debug-kmem
+      fi
+      if [[ \${SPL_DKMS_ENABLE_DEBUG_KMEM_TRACKING,,} == @(y|yes) ]]
+      then
+        echo --enable-debug-kmem-tracking
+      fi
+      if [[ \${SPL_DKMS_ENABLE_ATOMIC_SPINLOCKS,,} == @(y|yes) ]]
+      then
+        echo --enable-atomic-spinlocks
+      fi
+    }
+  )
+"
+POST_BUILD="scripts/dkms.postbuild
+  -n \${PACKAGE_NAME}
+  -v \${PACKAGE_VERSION}
+  -a \${arch}
+  -k \${kernelver}
+  -t \${dkms_tree}
+"
+AUTOINSTALL="yes"
+REMAKE_INITRD="no"
+MAKE[0]="make"
+STRIP[0]="\$(
+  [[ -r \${PACKAGE_CONFIG} ]] \\
+  && source \${PACKAGE_CONFIG} \\
+  && shopt -q -s extglob \\
+  && [[ \${SPL_DKMS_DISABLE_STRIP,,} == @(y|yes) ]] \\
+  && echo -n no
+)"
+STRIP[1]="\${STRIP[0]}"
+BUILT_MODULE_NAME[0]="spl"
+BUILT_MODULE_LOCATION[0]="module/spl/"
+DEST_MODULE_LOCATION[0]="/extra/spl/spl"
+BUILT_MODULE_NAME[1]="splat"
+BUILT_MODULE_LOCATION[1]="module/splat/"
+DEST_MODULE_LOCATION[1]="/extra/splat/splat"
+EOF
