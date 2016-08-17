@@ -11,6 +11,8 @@
 
 /dts-v1/;
 #include "r8a7792.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "Blanche";
@@ -53,6 +55,53 @@
 
 		pinctrl-0 = <&lan89218_pins>;
 		pinctrl-names = "default";
+	};
+
+	keyboard {
+		compatible = "gpio-keys";
+
+		key-1 {
+			linux,code = <KEY_1>;
+			label = "SW2-1";
+			wakeup-source;
+			debounce-interval = <20>;
+			gpios = <&gpio3 10 GPIO_ACTIVE_LOW>;
+		};
+		key-2 {
+			linux,code = <KEY_2>;
+			label = "SW2-2";
+			wakeup-source;
+			debounce-interval = <20>;
+			gpios = <&gpio3 11 GPIO_ACTIVE_LOW>;
+		};
+		key-3 {
+			linux,code = <KEY_3>;
+			label = "SW2-3";
+			wakeup-source;
+			debounce-interval = <20>;
+			gpios = <&gpio3 12 GPIO_ACTIVE_LOW>;
+		};
+		key-4 {
+			linux,code = <KEY_4>;
+			label = "SW2-4";
+			wakeup-source;
+			debounce-interval = <20>;
+			gpios = <&gpio3 15 GPIO_ACTIVE_LOW>;
+		};
+		key-a {
+			linux,code = <KEY_A>;
+			label = "SW24";
+			wakeup-source;
+			debounce-interval = <20>;
+			gpios = <&gpio3 20 GPIO_ACTIVE_LOW>;
+		};
+		key-b {
+			linux,code = <KEY_B>;
+			label = "SW25";
+			wakeup-source;
+			debounce-interval = <20>;
+			gpios = <&gpio11 2 GPIO_ACTIVE_LOW>;
+		};
 	};
 };
 
