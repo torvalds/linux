@@ -39,41 +39,34 @@ bool __list_add_valid(struct list_head *new, struct list_head *prev,
 }
 EXPORT_SYMBOL(__list_add_valid);
 
-void __list_del_entry(struct list_head *entry)
+bool __list_del_entry_valid(struct list_head *entry)
 {
 	struct list_head *prev, *next;
 
 	prev = entry->prev;
 	next = entry->next;
 
-	if (WARN(next == LIST_POISON1,
-		"list_del corruption, %p->next is LIST_POISON1 (%p)\n",
-		entry, LIST_POISON1) ||
-	    WARN(prev == LIST_POISON2,
-		"list_del corruption, %p->prev is LIST_POISON2 (%p)\n",
-		entry, LIST_POISON2) ||
-	    WARN(prev->next != entry,
-		"list_del corruption. prev->next should be %p, "
-		"but was %p\n", entry, prev->next) ||
-	    WARN(next->prev != entry,
-		"list_del corruption. next->prev should be %p, "
-		"but was %p\n", entry, next->prev))
-		return;
+	if (unlikely(next == LIST_POISON1)) {
+		WARN(1, "list_del corruption, %p->next is LIST_POISON1 (%p)\n",
+			entry, LIST_POISON1);
+		return false;
+	}
+	if (unlikely(prev == LIST_POISON2)) {
+		WARN(1, "list_del corruption, %p->prev is LIST_POISON2 (%p)\n",
+			entry, LIST_POISON2);
+		return false;
+	}
+	if (unlikely(prev->next != entry)) {
+		WARN(1, "list_del corruption. prev->next should be %p, but was %p\n",
+			entry, prev->next);
+		return false;
+	}
+	if (unlikely(next->prev != entry)) {
+		WARN(1, "list_del corruption. next->prev should be %p, but was %p\n",
+			entry, next->prev);
+		return false;
+	}
+	return true;
 
-	__list_del(prev, next);
 }
-EXPORT_SYMBOL(__list_del_entry);
-
-/**
- * list_del - deletes entry from list.
- * @entry: the element to delete from the list.
- * Note: list_empty on entry does not return true after this, the entry is
- * in an undefined state.
- */
-void list_del(struct list_head *entry)
-{
-	__list_del_entry(entry);
-	entry->next = LIST_POISON1;
-	entry->prev = LIST_POISON2;
-}
-EXPORT_SYMBOL(list_del);
+EXPORT_SYMBOL(__list_del_entry_valid);
