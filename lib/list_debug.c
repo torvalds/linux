@@ -2,8 +2,7 @@
  * Copyright 2006, Red Hat, Inc., Dave Jones
  * Released under the General Public License (GPL).
  *
- * This file contains the linked list implementations for
- * DEBUG_LIST.
+ * This file contains the linked list validation for DEBUG_LIST.
  */
 
 #include <linux/export.h>
@@ -13,33 +12,32 @@
 #include <linux/rculist.h>
 
 /*
- * Insert a new entry between two known consecutive entries.
- *
- * This is only for internal list manipulation where we know
- * the prev/next entries already!
+ * Check that the data structures for the list manipulations are reasonably
+ * valid. Failures here indicate memory corruption (and possibly an exploit
+ * attempt).
  */
 
-void __list_add(struct list_head *new,
-			      struct list_head *prev,
-			      struct list_head *next)
+bool __list_add_valid(struct list_head *new, struct list_head *prev,
+		      struct list_head *next)
 {
-	WARN(next->prev != prev,
-		"list_add corruption. next->prev should be "
-		"prev (%p), but was %p. (next=%p).\n",
-		prev, next->prev, next);
-	WARN(prev->next != next,
-		"list_add corruption. prev->next should be "
-		"next (%p), but was %p. (prev=%p).\n",
-		next, prev->next, prev);
-	WARN(new == prev || new == next,
-	     "list_add double add: new=%p, prev=%p, next=%p.\n",
-	     new, prev, next);
-	next->prev = new;
-	new->next = next;
-	new->prev = prev;
-	prev->next = new;
+	if (unlikely(next->prev != prev)) {
+		WARN(1, "list_add corruption. next->prev should be prev (%p), but was %p. (next=%p).\n",
+			prev, next->prev, next);
+		return false;
+	}
+	if (unlikely(prev->next != next)) {
+		WARN(1, "list_add corruption. prev->next should be next (%p), but was %p. (prev=%p).\n",
+			next, prev->next, prev);
+		return false;
+	}
+	if (unlikely(new == prev || new == next)) {
+		WARN(1, "list_add double add: new=%p, prev=%p, next=%p.\n",
+			new, prev, next);
+		return false;
+	}
+	return true;
 }
-EXPORT_SYMBOL(__list_add);
+EXPORT_SYMBOL(__list_add_valid);
 
 void __list_del_entry(struct list_head *entry)
 {
