@@ -306,6 +306,26 @@ static inline cputime_t account_other_time(cputime_t max)
 	return accounted;
 }
 
+#ifdef CONFIG_64BIT
+static inline u64 read_sum_exec_runtime(struct task_struct *t)
+{
+	return t->se.sum_exec_runtime;
+}
+#else
+static u64 read_sum_exec_runtime(struct task_struct *t)
+{
+	u64 ns;
+	struct rq_flags rf;
+	struct rq *rq;
+
+	rq = task_rq_lock(t, &rf);
+	ns = t->se.sum_exec_runtime;
+	task_rq_unlock(rq, t, &rf);
+
+	return ns;
+}
+#endif
+
 /*
  * Accumulate raw cputime values of dead tasks (sig->[us]time) and live
  * tasks (sum on group iteration) belonging to @tsk's group.
@@ -317,6 +337,17 @@ void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times)
 	struct task_struct *t;
 	unsigned int seq, nextseq;
 	unsigned long flags;
+
+	/*
+	 * Update current task runtime to account pending time since last
+	 * scheduler action or thread_group_cputime() call. This thread group
+	 * might have other running tasks on different CPUs, but updating
+	 * their runtime can affect syscall performance, so we skip account
+	 * those pending times and rely only on values updated on tick or
+	 * other scheduler action.
+	 */
+	if (same_thread_group(current, tsk))
+		(void) task_sched_runtime(current);
 
 	rcu_read_lock();
 	/* Attempt a lockless read on the first round. */
@@ -332,7 +363,7 @@ void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times)
 			task_cputime(t, &utime, &stime);
 			times->utime += utime;
 			times->stime += stime;
-			times->sum_exec_runtime += task_sched_runtime(t);
+			times->sum_exec_runtime += read_sum_exec_runtime(t);
 		}
 		/* If lockless access failed, take the lock. */
 		nextseq = 1;
