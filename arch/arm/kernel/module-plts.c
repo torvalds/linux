@@ -9,6 +9,7 @@
 #include <linux/elf.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/sort.h>
 
 #include <asm/cache.h>
 #include <asm/opcodes.h>
@@ -63,28 +64,63 @@ u32 get_module_plt(struct module *mod, unsigned long loc, Elf32_Addr val)
 	BUG();
 }
 
-static int duplicate_rel(Elf32_Addr base, const Elf32_Rel *rel, int num,
-			   u32 mask)
+#define cmp_3way(a,b)	((a) < (b) ? -1 : (a) > (b))
+
+static int cmp_rel(const void *a, const void *b)
 {
-	u32 *loc1, *loc2;
+	const Elf32_Rel *x = a, *y = b;
 	int i;
 
-	for (i = 0; i < num; i++) {
-		if (rel[i].r_info != rel[num].r_info)
-			continue;
+	/* sort by type and symbol index */
+	i = cmp_3way(ELF32_R_TYPE(x->r_info), ELF32_R_TYPE(y->r_info));
+	if (i == 0)
+		i = cmp_3way(ELF32_R_SYM(x->r_info), ELF32_R_SYM(y->r_info));
+	return i;
+}
 
-		/*
-		 * Identical relocation types against identical symbols can
-		 * still result in different PLT entries if the addend in the
-		 * place is different. So resolve the target of the relocation
-		 * to compare the values.
-		 */
-		loc1 = (u32 *)(base + rel[i].r_offset);
-		loc2 = (u32 *)(base + rel[num].r_offset);
-		if (((*loc1 ^ *loc2) & mask) == 0)
-			return 1;
+static bool is_zero_addend_relocation(Elf32_Addr base, const Elf32_Rel *rel)
+{
+	u32 *tval = (u32 *)(base + rel->r_offset);
+
+	/*
+	 * Do a bitwise compare on the raw addend rather than fully decoding
+	 * the offset and doing an arithmetic comparison.
+	 * Note that a zero-addend jump/call relocation is encoded taking the
+	 * PC bias into account, i.e., -8 for ARM and -4 for Thumb2.
+	 */
+	switch (ELF32_R_TYPE(rel->r_info)) {
+		u16 upper, lower;
+
+	case R_ARM_THM_CALL:
+	case R_ARM_THM_JUMP24:
+		upper = __mem_to_opcode_thumb16(((u16 *)tval)[0]);
+		lower = __mem_to_opcode_thumb16(((u16 *)tval)[1]);
+
+		return (upper & 0x7ff) == 0x7ff && (lower & 0x2fff) == 0x2ffe;
+
+	case R_ARM_CALL:
+	case R_ARM_PC24:
+	case R_ARM_JUMP24:
+		return (__mem_to_opcode_arm(*tval) & 0xffffff) == 0xfffffe;
 	}
-	return 0;
+	BUG();
+}
+
+static bool duplicate_rel(Elf32_Addr base, const Elf32_Rel *rel, int num)
+{
+	const Elf32_Rel *prev;
+
+	/*
+	 * Entries are sorted by type and symbol index. That means that,
+	 * if a duplicate entry exists, it must be in the preceding
+	 * slot.
+	 */
+	if (!num)
+		return false;
+
+	prev = rel + num - 1;
+	return cmp_rel(rel + num, prev) == 0 &&
+	       is_zero_addend_relocation(base, prev);
 }
 
 /* Count how many PLT entries we may need */
@@ -93,18 +129,8 @@ static unsigned int count_plts(const Elf32_Sym *syms, Elf32_Addr base,
 {
 	unsigned int ret = 0;
 	const Elf32_Sym *s;
-	u32 mask;
 	int i;
 
-	if (IS_ENABLED(CONFIG_THUMB2_KERNEL))
-		mask = __opcode_to_mem_thumb32(0x07ff2fff);
-	else
-		mask = __opcode_to_mem_arm(0x00ffffff);
-
-	/*
-	 * Sure, this is order(n^2), but it's usually short, and not
-	 * time critical
-	 */
 	for (i = 0; i < num; i++) {
 		switch (ELF32_R_TYPE(rel[i].r_info)) {
 		case R_ARM_CALL:
@@ -123,7 +149,18 @@ static unsigned int count_plts(const Elf32_Sym *syms, Elf32_Addr base,
 			if (s->st_shndx != SHN_UNDEF)
 				break;
 
-			if (!duplicate_rel(base, rel, i, mask))
+			/*
+			 * Jump relocations with non-zero addends against
+			 * undefined symbols are supported by the ELF spec, but
+			 * do not occur in practice (e.g., 'jump n bytes past
+			 * the entry point of undefined function symbol f').
+			 * So we need to support them, but there is no need to
+			 * take them into consideration when trying to optimize
+			 * this code. So let's only check for duplicates when
+			 * the addend is zero.
+			 */
+			if (!is_zero_addend_relocation(base, rel + i) ||
+			    !duplicate_rel(base, rel, i))
 				ret++;
 		}
 	}
@@ -158,7 +195,7 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 	}
 
 	for (s = sechdrs + 1; s < sechdrs_end; ++s) {
-		const Elf32_Rel *rels = (void *)ehdr + s->sh_offset;
+		Elf32_Rel *rels = (void *)ehdr + s->sh_offset;
 		int numrels = s->sh_size / sizeof(Elf32_Rel);
 		Elf32_Shdr *dstsec = sechdrs + s->sh_info;
 
@@ -168,6 +205,9 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 		/* ignore relocations that operate on non-exec sections */
 		if (!(dstsec->sh_flags & SHF_EXECINSTR))
 			continue;
+
+		/* sort by type and symbol index */
+		sort(rels, numrels, sizeof(Elf32_Rel), cmp_rel, NULL);
 
 		plts += count_plts(syms, dstsec->sh_addr, rels, numrels);
 	}
