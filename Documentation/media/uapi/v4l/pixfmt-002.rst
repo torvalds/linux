@@ -7,7 +7,9 @@ Single-planar format structure
 
 .. _v4l2-pix-format:
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{4.0cm}|p{2.5cm}|p{11.0cm}|
+
+.. cssclass:: longtable
 
 .. flat-table:: struct v4l2_pix_format
     :header-rows:  0

@@ -25,6 +25,7 @@ needs to be filled in.
    colorspaces except for BT.2020 which uses limited range R'G'B'
    quantization.
 
+.. tabularcolumns:: |p{6.0cm}|p{11.5cm}|
 
 .. _v4l2-colorspace:
 
@@ -183,6 +184,8 @@ needs to be filled in.
 
 .. _v4l2-ycbcr-encoding:
 
+.. tabularcolumns:: |p{6.5cm}|p{11.0cm}|
+
 .. flat-table:: V4L2 Y'CbCr Encodings
     :header-rows:  1
     :stub-columns: 0
@@ -251,6 +254,8 @@ needs to be filled in.
 
 
 .. _v4l2-quantization:
+
+.. tabularcolumns:: |p{6.5cm}|p{11.0cm}|
 
 .. flat-table:: V4L2 Quantization Methods
     :header-rows:  1
