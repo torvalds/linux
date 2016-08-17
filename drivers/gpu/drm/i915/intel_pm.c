@@ -7671,8 +7671,53 @@ void intel_init_pm(struct drm_device *dev)
 	}
 }
 
+static inline int gen6_check_mailbox_status(struct drm_i915_private *dev_priv)
+{
+	uint32_t flags =
+		I915_READ_FW(GEN6_PCODE_MAILBOX) & GEN6_PCODE_ERROR_MASK;
+
+	switch (flags) {
+	case GEN6_PCODE_SUCCESS:
+		return 0;
+	case GEN6_PCODE_UNIMPLEMENTED_CMD:
+	case GEN6_PCODE_ILLEGAL_CMD:
+		return -ENXIO;
+	case GEN6_PCODE_MIN_FREQ_TABLE_GT_RATIO_OUT_OF_RANGE:
+		return -EOVERFLOW;
+	case GEN6_PCODE_TIMEOUT:
+		return -ETIMEDOUT;
+	default:
+		MISSING_CASE(flags)
+		return 0;
+	}
+}
+
+static inline int gen7_check_mailbox_status(struct drm_i915_private *dev_priv)
+{
+	uint32_t flags =
+		I915_READ_FW(GEN6_PCODE_MAILBOX) & GEN6_PCODE_ERROR_MASK;
+
+	switch (flags) {
+	case GEN6_PCODE_SUCCESS:
+		return 0;
+	case GEN6_PCODE_ILLEGAL_CMD:
+		return -ENXIO;
+	case GEN7_PCODE_TIMEOUT:
+		return -ETIMEDOUT;
+	case GEN7_PCODE_ILLEGAL_DATA:
+		return -EINVAL;
+	case GEN7_PCODE_MIN_FREQ_TABLE_GT_RATIO_OUT_OF_RANGE:
+		return -EOVERFLOW;
+	default:
+		MISSING_CASE(flags);
+		return 0;
+	}
+}
+
 int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox, u32 *val)
 {
+	int status;
+
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
 
 	/* GEN6_PCODE_* are outside of the forcewake domain, we can
@@ -7699,12 +7744,25 @@ int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox, u32 *val
 	*val = I915_READ_FW(GEN6_PCODE_DATA);
 	I915_WRITE_FW(GEN6_PCODE_DATA, 0);
 
+	if (INTEL_GEN(dev_priv) > 6)
+		status = gen7_check_mailbox_status(dev_priv);
+	else
+		status = gen6_check_mailbox_status(dev_priv);
+
+	if (status) {
+		DRM_DEBUG_DRIVER("warning: pcode (read) mailbox access failed: %d\n",
+				 status);
+		return status;
+	}
+
 	return 0;
 }
 
 int sandybridge_pcode_write(struct drm_i915_private *dev_priv,
-			       u32 mbox, u32 val)
+			    u32 mbox, u32 val)
 {
+	int status;
+
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
 
 	/* GEN6_PCODE_* are outside of the forcewake domain, we can
@@ -7728,6 +7786,17 @@ int sandybridge_pcode_write(struct drm_i915_private *dev_priv,
 	}
 
 	I915_WRITE_FW(GEN6_PCODE_DATA, 0);
+
+	if (INTEL_GEN(dev_priv) > 6)
+		status = gen7_check_mailbox_status(dev_priv);
+	else
+		status = gen6_check_mailbox_status(dev_priv);
+
+	if (status) {
+		DRM_DEBUG_DRIVER("warning: pcode (write) mailbox access failed: %d\n",
+				 status);
+		return status;
+	}
 
 	return 0;
 }
