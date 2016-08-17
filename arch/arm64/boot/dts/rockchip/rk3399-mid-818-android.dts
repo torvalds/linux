@@ -774,6 +774,15 @@
 		irq_enable = <1>;
 		poll_delay_ms = <30>;
 	};
+
+	fusb0: fusb30x@22 {
+		compatible = "fairchild,fusb302";
+		reg = <0x22>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&fusb0_int>;
+		int-n-gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
 };
 
 &i2c5 {
@@ -1010,6 +1019,13 @@
 		host_vbus_drv: host-vbus-drv {
 			rockchip,pins =
 				<4 25 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	fusb30x {
+		fusb0_int: fusb0-int {
+			rockchip,pins =
+				<1 1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };
