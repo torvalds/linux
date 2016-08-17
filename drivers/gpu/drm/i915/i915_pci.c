@@ -327,6 +327,7 @@ static const struct intel_device_info intel_skylake_info = {
 	.is_skylake = 1,
 	.gen = 9,
 	.has_csr = 1,
+	.has_guc = 1,
 };
 
 static const struct intel_device_info intel_skylake_gt3_info = {
@@ -334,6 +335,7 @@ static const struct intel_device_info intel_skylake_gt3_info = {
 	.is_skylake = 1,
 	.gen = 9,
 	.has_csr = 1,
+	.has_guc = 1,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
 };
 
@@ -355,6 +357,7 @@ static const struct intel_device_info intel_broxton_info = {
 	.has_gmbus_irq = 1,
 	.has_hw_contexts = 1,
 	.has_logical_ring_contexts = 1,
+	.has_guc = 1,
 	GEN_DEFAULT_PIPEOFFSETS,
 	IVB_CURSOR_OFFSETS,
 	BDW_COLORS,
@@ -365,6 +368,7 @@ static const struct intel_device_info intel_kabylake_info = {
 	.is_kabylake = 1,
 	.gen = 9,
 	.has_csr = 1,
+	.has_guc = 1,
 };
 
 static const struct intel_device_info intel_kabylake_gt3_info = {
@@ -372,6 +376,7 @@ static const struct intel_device_info intel_kabylake_gt3_info = {
 	.is_kabylake = 1,
 	.gen = 9,
 	.has_csr = 1,
+	.has_guc = 1,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
 };
 
