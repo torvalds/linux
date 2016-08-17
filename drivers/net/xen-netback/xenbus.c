@@ -165,7 +165,7 @@ xenvif_write_io_ring(struct file *filp, const char __user *buf, size_t count,
 	return count;
 }
 
-static int xenvif_dump_open(struct inode *inode, struct file *filp)
+static int xenvif_io_ring_open(struct inode *inode, struct file *filp)
 {
 	int ret;
 	void *queue = NULL;
@@ -179,11 +179,33 @@ static int xenvif_dump_open(struct inode *inode, struct file *filp)
 
 static const struct file_operations xenvif_dbg_io_ring_ops_fops = {
 	.owner = THIS_MODULE,
-	.open = xenvif_dump_open,
+	.open = xenvif_io_ring_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 	.write = xenvif_write_io_ring,
+};
+
+static int xenvif_read_ctrl(struct seq_file *m, void *v)
+{
+	struct xenvif *vif = m->private;
+
+	xenvif_dump_hash_info(vif, m);
+
+	return 0;
+}
+
+static int xenvif_ctrl_open(struct inode *inode, struct file *filp)
+{
+	return single_open(filp, xenvif_read_ctrl, inode->i_private);
+}
+
+static const struct file_operations xenvif_dbg_ctrl_ops_fops = {
+	.owner = THIS_MODULE,
+	.open = xenvif_ctrl_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
 };
 
 static void xenvif_debugfs_addif(struct xenvif *vif)
@@ -208,6 +230,17 @@ static void xenvif_debugfs_addif(struct xenvif *vif)
 						    &xenvif_dbg_io_ring_ops_fops);
 			if (IS_ERR_OR_NULL(pfile))
 				pr_warn("Creation of io_ring file returned %ld!\n",
+					PTR_ERR(pfile));
+		}
+
+		if (vif->ctrl_task) {
+			pfile = debugfs_create_file("ctrl",
+						    S_IRUSR,
+						    vif->xenvif_dbg_root,
+						    vif,
+						    &xenvif_dbg_ctrl_ops_fops);
+			if (IS_ERR_OR_NULL(pfile))
+				pr_warn("Creation of ctrl file returned %ld!\n",
 					PTR_ERR(pfile));
 		}
 	} else

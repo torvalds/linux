@@ -412,4 +412,8 @@ u32 xenvif_set_hash_mapping(struct xenvif *vif, u32 gref, u32 len,
 
 void xenvif_set_skb_hash(struct xenvif *vif, struct sk_buff *skb);
 
+#ifdef CONFIG_DEBUG_FS
+void xenvif_dump_hash_info(struct xenvif *vif, struct seq_file *m);
+#endif
+
 #endif /* __XEN_NETBACK__COMMON_H__ */
