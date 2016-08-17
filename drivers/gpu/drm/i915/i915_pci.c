@@ -250,13 +250,7 @@ static const struct intel_device_info intel_ivybridge_q_info = {
 	GEN_DEFAULT_PIPEOFFSETS, \
 	CURSOR_OFFSETS
 
-static const struct intel_device_info intel_valleyview_m_info = {
-	VLV_FEATURES,
-	.is_valleyview = 1,
-	.is_mobile = 1,
-};
-
-static const struct intel_device_info intel_valleyview_d_info = {
+static const struct intel_device_info intel_valleyview_info = {
 	VLV_FEATURES,
 	.is_valleyview = 1,
 };
@@ -268,43 +262,24 @@ static const struct intel_device_info intel_valleyview_d_info = {
 	.has_fpga_dbg = 1, \
 	.has_psr = 1
 
-static const struct intel_device_info intel_haswell_d_info = {
+static const struct intel_device_info intel_haswell_info = {
 	HSW_FEATURES,
 	.is_haswell = 1,
-};
-
-static const struct intel_device_info intel_haswell_m_info = {
-	HSW_FEATURES,
-	.is_haswell = 1,
-	.is_mobile = 1,
 };
 
 #define BDW_FEATURES \
 	HSW_FEATURES, \
 	BDW_COLORS
 
-static const struct intel_device_info intel_broadwell_d_info = {
+static const struct intel_device_info intel_broadwell_info = {
 	BDW_FEATURES,
 	.gen = 8,
 	.is_broadwell = 1,
 };
 
-static const struct intel_device_info intel_broadwell_m_info = {
-	BDW_FEATURES,
-	.gen = 8, .is_mobile = 1,
-	.is_broadwell = 1,
-};
-
-static const struct intel_device_info intel_broadwell_gt3d_info = {
+static const struct intel_device_info intel_broadwell_gt3_info = {
 	BDW_FEATURES,
 	.gen = 8,
-	.is_broadwell = 1,
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
-};
-
-static const struct intel_device_info intel_broadwell_gt3m_info = {
-	BDW_FEATURES,
-	.gen = 8, .is_mobile = 1,
 	.is_broadwell = 1,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
 };
@@ -390,14 +365,10 @@ static const struct pci_device_id pciidlist[] = {
 	INTEL_IVB_Q_IDS(&intel_ivybridge_q_info), /* must be first IVB */
 	INTEL_IVB_M_IDS(&intel_ivybridge_m_info),
 	INTEL_IVB_D_IDS(&intel_ivybridge_d_info),
-	INTEL_HSW_D_IDS(&intel_haswell_d_info),
-	INTEL_HSW_M_IDS(&intel_haswell_m_info),
-	INTEL_VLV_M_IDS(&intel_valleyview_m_info),
-	INTEL_VLV_D_IDS(&intel_valleyview_d_info),
-	INTEL_BDW_GT12M_IDS(&intel_broadwell_m_info),
-	INTEL_BDW_GT12D_IDS(&intel_broadwell_d_info),
-	INTEL_BDW_GT3M_IDS(&intel_broadwell_gt3m_info),
-	INTEL_BDW_GT3D_IDS(&intel_broadwell_gt3d_info),
+	INTEL_HSW_IDS(&intel_haswell_info),
+	INTEL_VLV_IDS(&intel_valleyview_info),
+	INTEL_BDW_GT12_IDS(&intel_broadwell_info),
+	INTEL_BDW_GT3_IDS(&intel_broadwell_gt3_info),
 	INTEL_CHV_IDS(&intel_cherryview_info),
 	INTEL_SKL_GT1_IDS(&intel_skylake_info),
 	INTEL_SKL_GT2_IDS(&intel_skylake_info),
