@@ -4109,6 +4109,24 @@ skl_compute_ddb(struct drm_atomic_state *state)
 	return 0;
 }
 
+static void
+skl_copy_wm_for_pipe(struct skl_wm_values *dst,
+		     struct skl_wm_values *src,
+		     enum pipe pipe)
+{
+	dst->wm_linetime[pipe] = src->wm_linetime[pipe];
+	memcpy(dst->plane[pipe], src->plane[pipe],
+	       sizeof(dst->plane[pipe]));
+	memcpy(dst->plane_trans[pipe], src->plane_trans[pipe],
+	       sizeof(dst->plane_trans[pipe]));
+
+	dst->ddb.pipe[pipe] = src->ddb.pipe[pipe];
+	memcpy(dst->ddb.y_plane[pipe], src->ddb.y_plane[pipe],
+	       sizeof(dst->ddb.y_plane[pipe]));
+	memcpy(dst->ddb.plane[pipe], src->ddb.plane[pipe],
+	       sizeof(dst->ddb.plane[pipe]));
+}
+
 static int
 skl_compute_wm(struct drm_atomic_state *state)
 {
@@ -4181,8 +4199,10 @@ static void skl_update_wm(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct skl_wm_values *results = &dev_priv->wm.skl_results;
+	struct skl_wm_values *hw_vals = &dev_priv->wm.skl_hw;
 	struct intel_crtc_state *cstate = to_intel_crtc_state(crtc->state);
 	struct skl_pipe_wm *pipe_wm = &cstate->wm.skl.optimal;
+	int pipe;
 
 	if ((results->dirty_pipes & drm_crtc_mask(crtc)) == 0)
 		return;
@@ -4194,8 +4214,12 @@ static void skl_update_wm(struct drm_crtc *crtc)
 	skl_write_wm_values(dev_priv, results);
 	skl_flush_wm_values(dev_priv, results);
 
-	/* store the new configuration */
-	dev_priv->wm.skl_hw = *results;
+	/*
+	 * Store the new configuration (but only for the pipes that have
+	 * changed; the other values weren't recomputed).
+	 */
+	for_each_pipe_masked(dev_priv, pipe, results->dirty_pipes)
+		skl_copy_wm_for_pipe(hw_vals, results, pipe);
 
 	mutex_unlock(&dev_priv->wm.wm_mutex);
 }
