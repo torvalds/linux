@@ -1321,6 +1321,7 @@ static int br_fill_linkxstats(struct sk_buff *skb,
 				continue;
 			memset(&vxi, 0, sizeof(vxi));
 			vxi.vid = v->vid;
+			vxi.flags = v->flags;
 			br_vlan_get_stats(v, &stats);
 			vxi.rx_bytes = stats.rx_bytes;
 			vxi.rx_packets = stats.rx_packets;
