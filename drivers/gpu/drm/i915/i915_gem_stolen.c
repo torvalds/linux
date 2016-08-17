@@ -716,6 +716,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 		goto err;
 	}
 
+	vma->pages = obj->pages;
 	vma->flags |= I915_VMA_GLOBAL_BIND;
 	__i915_vma_set_map_and_fenceable(vma);
 	list_move_tail(&vma->vm_link, &ggtt->base.inactive_list);
