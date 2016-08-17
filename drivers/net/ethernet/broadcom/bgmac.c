@@ -932,7 +932,8 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 			et_swtype <<= 4;
 			sw_type = et_swtype;
 		} else if (bgmac->feature_flags & BGMAC_FEAT_SW_TYPE_EPHYRMII) {
-			sw_type = BGMAC_CHIPCTL_1_SW_TYPE_EPHYRMII;
+			sw_type = BGMAC_CHIPCTL_1_IF_TYPE_RMII |
+				  BGMAC_CHIPCTL_1_SW_TYPE_EPHYRMII;
 		} else if (bgmac->feature_flags & BGMAC_FEAT_SW_TYPE_RGMII) {
 			sw_type = BGMAC_CHIPCTL_1_IF_TYPE_RGMII |
 				  BGMAC_CHIPCTL_1_SW_TYPE_RGMII;
