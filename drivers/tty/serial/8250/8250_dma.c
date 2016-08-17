@@ -142,7 +142,7 @@ void serial8250_rx_dma_flush(struct uart_8250_port *p)
 	if (dma->rx_running) {
 		dmaengine_pause(dma->rxchan);
 		__dma_rx_complete(p);
-		dmaengine_terminate_all(dma->rxchan);
+		dmaengine_terminate_async(dma->rxchan);
 	}
 }
 EXPORT_SYMBOL_GPL(serial8250_rx_dma_flush);
@@ -247,14 +247,14 @@ void serial8250_release_dma(struct uart_8250_port *p)
 		return;
 
 	/* Release RX resources */
-	dmaengine_terminate_all(dma->rxchan);
+	dmaengine_terminate_sync(dma->rxchan);
 	dma_free_coherent(dma->rxchan->device->dev, dma->rx_size, dma->rx_buf,
 			  dma->rx_addr);
 	dma_release_channel(dma->rxchan);
 	dma->rxchan = NULL;
 
 	/* Release TX resources */
-	dmaengine_terminate_all(dma->txchan);
+	dmaengine_terminate_sync(dma->txchan);
 	dma_unmap_single(dma->txchan->device->dev, dma->tx_addr,
 			 UART_XMIT_SIZE, DMA_TO_DEVICE);
 	dma_release_channel(dma->txchan);
