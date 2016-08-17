@@ -942,8 +942,8 @@ static void mlxsw_sp_port_vport_destroy(struct mlxsw_sp_port *mlxsw_sp_vport)
 	kfree(mlxsw_sp_vport);
 }
 
-int mlxsw_sp_port_add_vid(struct net_device *dev, __be16 __always_unused proto,
-			  u16 vid)
+static int mlxsw_sp_port_add_vid(struct net_device *dev,
+				 __be16 __always_unused proto, u16 vid)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	struct mlxsw_sp_port *mlxsw_sp_vport;
@@ -2048,6 +2048,18 @@ static int mlxsw_sp_port_ets_init(struct mlxsw_sp_port *mlxsw_sp_port)
 	return 0;
 }
 
+static int mlxsw_sp_port_pvid_vport_create(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	mlxsw_sp_port->pvid = 1;
+
+	return mlxsw_sp_port_add_vid(mlxsw_sp_port->dev, 0, 1);
+}
+
+static int mlxsw_sp_port_pvid_vport_destroy(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	return mlxsw_sp_port_kill_vid(mlxsw_sp_port->dev, 0, 1);
+}
+
 static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 				bool split, u8 module, u8 width, u8 lane)
 {
@@ -2163,6 +2175,13 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		goto err_port_dcb_init;
 	}
 
+	err = mlxsw_sp_port_pvid_vport_create(mlxsw_sp_port);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to create PVID vPort\n",
+			mlxsw_sp_port->local_port);
+		goto err_port_pvid_vport_create;
+	}
+
 	mlxsw_sp_port_switchdev_init(mlxsw_sp_port);
 	err = register_netdev(dev);
 	if (err) {
@@ -2180,18 +2199,14 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		goto err_core_port_init;
 	}
 
-	err = mlxsw_sp_port_vlan_init(mlxsw_sp_port);
-	if (err)
-		goto err_port_vlan_init;
-
 	mlxsw_sp->ports[local_port] = mlxsw_sp_port;
 	return 0;
 
-err_port_vlan_init:
-	mlxsw_core_port_fini(&mlxsw_sp_port->core_port);
 err_core_port_init:
 	unregister_netdev(dev);
 err_register_netdev:
+	mlxsw_sp_port_pvid_vport_destroy(mlxsw_sp_port);
+err_port_pvid_vport_create:
 	mlxsw_sp_port_dcb_fini(mlxsw_sp_port);
 err_port_dcb_init:
 err_port_ets_init:
@@ -2221,8 +2236,8 @@ static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	mlxsw_sp->ports[local_port] = NULL;
 	mlxsw_core_port_fini(&mlxsw_sp_port->core_port);
 	unregister_netdev(mlxsw_sp_port->dev); /* This calls ndo_stop */
+	mlxsw_sp_port_pvid_vport_destroy(mlxsw_sp_port);
 	mlxsw_sp_port_dcb_fini(mlxsw_sp_port);
-	mlxsw_sp_port_kill_vid(mlxsw_sp_port->dev, 0, 1);
 	mlxsw_sp_port_switchdev_fini(mlxsw_sp_port);
 	mlxsw_sp_port_swid_set(mlxsw_sp_port, MLXSW_PORT_SWID_DISABLED_PORT);
 	mlxsw_sp_port_module_unmap(mlxsw_sp, mlxsw_sp_port->local_port);
