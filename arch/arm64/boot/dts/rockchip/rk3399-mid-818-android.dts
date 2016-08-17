@@ -780,14 +780,14 @@
 		layout = <3>;
 	};
 
-	sensor@20 {
+	sensor@10 {
 		status = "okay";
 		compatible = "capella,light_cm3218";
 		pinctrl-names = "default";
 		pinctrl-0 = <&cm3218_irq_gpio>;
 		reg = <0x10>;
 		type = <SENSOR_TYPE_LIGHT>;
-		irq-gpio = <&gpio4 24 IRQ_TYPE_EDGE_RISING>;
+		irq-gpio = <&gpio4 24 IRQ_TYPE_EDGE_FALLING>;
 		irq_enable = <1>;
 		poll_delay_ms = <30>;
 	};
@@ -1013,7 +1013,7 @@
 
 	cm3218 {
 		cm3218_irq_gpio: cm3218-irq-gpio {
-			rockchip,pins = <4 24 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 24 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
