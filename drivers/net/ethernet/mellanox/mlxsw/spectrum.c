@@ -956,16 +956,12 @@ int mlxsw_sp_port_add_vid(struct net_device *dev, __be16 __always_unused proto,
 	if (!vid)
 		return 0;
 
-	if (mlxsw_sp_port_vport_find(mlxsw_sp_port, vid)) {
-		netdev_warn(dev, "VID=%d already configured\n", vid);
+	if (mlxsw_sp_port_vport_find(mlxsw_sp_port, vid))
 		return 0;
-	}
 
 	mlxsw_sp_vport = mlxsw_sp_port_vport_create(mlxsw_sp_port, vid);
-	if (!mlxsw_sp_vport) {
-		netdev_err(dev, "Failed to create vPort for VID=%d\n", vid);
+	if (!mlxsw_sp_vport)
 		return -ENOMEM;
-	}
 
 	/* When adding the first VLAN interface on a bridged port we need to
 	 * transition all the active 802.1Q bridge VLANs to use explicit
@@ -973,24 +969,17 @@ int mlxsw_sp_port_add_vid(struct net_device *dev, __be16 __always_unused proto,
 	 */
 	if (list_is_singular(&mlxsw_sp_port->vports_list)) {
 		err = mlxsw_sp_port_vp_mode_trans(mlxsw_sp_port);
-		if (err) {
-			netdev_err(dev, "Failed to set to Virtual mode\n");
+		if (err)
 			goto err_port_vp_mode_trans;
-		}
 	}
 
 	err = mlxsw_sp_port_vid_learning_set(mlxsw_sp_vport, vid, false);
-	if (err) {
-		netdev_err(dev, "Failed to disable learning for VID=%d\n", vid);
+	if (err)
 		goto err_port_vid_learning_set;
-	}
 
 	err = mlxsw_sp_port_vlan_set(mlxsw_sp_vport, vid, vid, true, untagged);
-	if (err) {
-		netdev_err(dev, "Failed to set VLAN membership for VID=%d\n",
-			   vid);
+	if (err)
 		goto err_port_add_vid;
-	}
 
 	return 0;
 
