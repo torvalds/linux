@@ -2574,9 +2574,20 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 	struct inode *inode = NULL;
 	unsigned int fl_pid;
 
-	if (fl->fl_nspid)
-		fl_pid = pid_vnr(fl->fl_nspid);
-	else
+	if (fl->fl_nspid) {
+		struct pid_namespace *proc_pidns = file_inode(f->file)->i_sb->s_fs_info;
+
+		/* Don't let fl_pid change based on who is reading the file */
+		fl_pid = pid_nr_ns(fl->fl_nspid, proc_pidns);
+
+		/*
+		 * If there isn't a fl_pid don't display who is waiting on
+		 * the lock if we are called from locks_show, or if we are
+		 * called from __show_fd_info - skip lock entirely
+		 */
+		if (fl_pid == 0)
+			return;
+	} else
 		fl_pid = fl->fl_pid;
 
 	if (fl->fl_file != NULL)
@@ -2648,8 +2659,12 @@ static int locks_show(struct seq_file *f, void *v)
 {
 	struct locks_iterator *iter = f->private;
 	struct file_lock *fl, *bfl;
+	struct pid_namespace *proc_pidns = file_inode(f->file)->i_sb->s_fs_info;
 
 	fl = hlist_entry(v, struct file_lock, fl_link);
+
+	if (fl->fl_nspid && !pid_nr_ns(fl->fl_nspid, proc_pidns))
+		return 0;
 
 	lock_get_status(f, fl, iter->li_pos, "");
 
