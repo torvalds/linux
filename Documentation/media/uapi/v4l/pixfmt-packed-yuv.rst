@@ -6,18 +6,19 @@
 Packed YUV formats
 ******************
 
-*man Packed YUV formats(2)*
-
-Packed YUV formats
-
-
 Description
 ===========
 
 Similar to the packed RGB formats these formats store the Y, Cb and Cr
 component of each pixel in one 16 or 32 bit word.
 
+.. raw:: latex
 
+    \newline\newline\begin{adjustbox}{width=\columnwidth}
+
+.. _rgb-formats:
+
+.. tabularcolumns:: |p{4.5cm}|p{3.3cm}|p{0.7cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.2cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.2cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.2cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{1.7cm}|
 
 .. flat-table:: Packed YUV Image Formats
     :header-rows:  2
@@ -309,8 +310,15 @@ component of each pixel in one 16 or 32 bit word.
 
        -  Cr\ :sub:`0`
 
+.. raw:: latex
 
-Bit 7 is the most significant bit. The value of a = alpha bits is
-undefined when reading from the driver, ignored when writing to the
-driver, except when alpha blending has been negotiated for a
-:ref:`Video Overlay <overlay>` or :ref:`Video Output Overlay <osd>`.
+    \end{adjustbox}\newline\newline
+
+.. note::
+
+    #) Bit 7 is the most significant bit;
+
+    #) The value of a = alpha bits is undefined when reading from the driver,
+       ignored when writing to the driver, except when alpha blending has
+       been negotiated for a :ref:`Video Overlay <overlay>` or
+       :ref:`Video Output Overlay <osd>`.
