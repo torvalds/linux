@@ -900,6 +900,25 @@ enum nft_queue_attributes {
 #define NFT_QUEUE_FLAG_CPU_FANOUT	0x02 /* use current CPU (no hashing) */
 #define NFT_QUEUE_FLAG_MASK		0x03
 
+enum nft_quota_flags {
+	NFT_QUOTA_F_INV		= (1 << 0),
+};
+
+/**
+ * enum nft_quota_attributes - nf_tables quota expression netlink attributes
+ *
+ * @NFTA_QUOTA_BYTES: quota in bytes (NLA_U16)
+ * @NFTA_QUOTA_FLAGS: flags (NLA_U32)
+ */
+enum nft_quota_attributes {
+	NFTA_QUOTA_UNSPEC,
+	NFTA_QUOTA_BYTES,
+	NFTA_QUOTA_FLAGS,
+	NFTA_QUOTA_PAD,
+	__NFTA_QUOTA_MAX
+};
+#define NFTA_QUOTA_MAX		(__NFTA_QUOTA_MAX - 1)
+
 /**
  * enum nft_reject_types - nf_tables reject expression reject types
  *

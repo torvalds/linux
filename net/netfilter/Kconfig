@@ -542,6 +542,12 @@ config NFT_QUEUE
 	  This is required if you intend to use the userspace queueing
 	  infrastructure (also known as NFQUEUE) from nftables.
 
+config NFT_QUOTA
+	tristate "Netfilter nf_tables quota module"
+	help
+	  This option adds the "quota" expression that you can use to match
+	  enforce bytes quotas.
+
 config NFT_REJECT
 	default m if NETFILTER_ADVANCED=n
 	tristate "Netfilter nf_tables reject support"
