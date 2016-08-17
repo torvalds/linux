@@ -26,13 +26,17 @@
 #include <linux/genalloc.h>
 #include <linux/dma-direct.h>
 #include <linux/dma-contiguous.h>
+#include <linux/mm.h>
+#include <linux/iommu.h>
 #include <linux/vmalloc.h>
 #include <linux/swiotlb.h>
 #include <linux/dma-removed.h>
 #include <linux/pci.h>
+#include <linux/io.h>
 
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
+#include <asm/dma-iommu.h>
 
 static int swiotlb __ro_after_init;
 
@@ -960,3 +964,146 @@ void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 #endif
 }
 EXPORT_SYMBOL_GPL(arch_setup_dma_ops);
+
+#ifdef CONFIG_ARM64_DMA_USE_IOMMU
+
+/* guards initialization of default_domain->iova_cookie */
+static DEFINE_MUTEX(iommu_dma_init_mutex);
+
+static int
+iommu_init_mapping(struct device *dev, struct dma_iommu_mapping *mapping)
+{
+	struct iommu_domain *domain = mapping->domain;
+	dma_addr_t dma_base = mapping->base;
+	u64 size = mapping->bits << PAGE_SHIFT;
+	int ret;
+	bool own_cookie;
+
+	/*
+	 * if own_cookie is false, then we are sharing the iova_cookie with
+	 * another driver, and should not free it on error. Cleanup will be
+	 * done when the iommu_domain is freed.
+	 */
+	own_cookie = !domain->iova_cookie;
+
+	if (own_cookie) {
+		ret = iommu_get_dma_cookie(domain);
+		if (ret) {
+			dev_err(dev, "iommu_get_dma_cookie failed: %d\n", ret);
+			return ret;
+		}
+	}
+
+	ret = iommu_dma_init_domain(domain, dma_base, size, dev);
+	if (ret) {
+		dev_err(dev, "iommu_dma_init_domain failed: %d\n", ret);
+		if (own_cookie)
+			iommu_put_dma_cookie(domain);
+		return ret;
+	}
+
+	mapping->ops = &iommu_dma_ops;
+	return 0;
+}
+
+static int arm_iommu_get_dma_cookie(struct device *dev,
+				    struct dma_iommu_mapping *mapping)
+{
+	int s1_bypass = 0;
+	int err = 0;
+
+	mutex_lock(&iommu_dma_init_mutex);
+
+	iommu_domain_get_attr(mapping->domain, DOMAIN_ATTR_S1_BYPASS,
+					&s1_bypass);
+
+	if (s1_bypass)
+		mapping->ops = &arm64_swiotlb_dma_ops;
+	else
+		err = iommu_init_mapping(dev, mapping);
+
+	mutex_unlock(&iommu_dma_init_mutex);
+	return err;
+}
+
+/*
+ * Checks for "qcom,iommu-dma-addr-pool" property.
+ * If not present, leaves dma_addr and dma_size unmodified.
+ */
+static void arm_iommu_get_dma_window(struct device *dev, u64 *dma_addr,
+					u64 *dma_size)
+{
+	struct device_node *np;
+	int naddr, nsize, len;
+	const __be32 *ranges;
+
+	if (!dev->of_node)
+		return;
+
+	np = of_parse_phandle(dev->of_node, "qcom,iommu-group", 0);
+	if (!np)
+		np = dev->of_node;
+
+	ranges = of_get_property(np, "qcom,iommu-dma-addr-pool", &len);
+	if (!ranges)
+		return;
+
+	len /= sizeof(u32);
+	naddr = of_n_addr_cells(np);
+	nsize = of_n_size_cells(np);
+	if (len < naddr + nsize) {
+		dev_err(dev, "Invalid length for qcom,iommu-dma-addr-pool, expected %d cells\n",
+			naddr + nsize);
+		return;
+	}
+	if (naddr == 0 || nsize == 0) {
+		dev_err(dev, "Invalid #address-cells %d or #size-cells %d\n",
+			naddr, nsize);
+		return;
+	}
+
+	*dma_addr = of_read_number(ranges, naddr);
+	*dma_size = of_read_number(ranges + naddr, nsize);
+}
+
+static void arm_iommu_setup_dma_ops(struct device *dev, u64 dma_base, u64 size)
+{
+	struct iommu_domain *domain;
+	struct iommu_group *group;
+	struct dma_iommu_mapping mapping = {0};
+
+	group = dev->iommu_group;
+	if (!group)
+		return;
+
+	arm_iommu_get_dma_window(dev, &dma_base, &size);
+
+	domain = iommu_get_domain_for_dev(dev);
+	if (!domain)
+		return;
+
+	/* Allow iommu-debug to call arch_setup_dma_ops to reconfigure itself */
+	if (domain->type != IOMMU_DOMAIN_DMA &&
+	    !of_device_is_compatible(dev->of_node, "iommu-debug-test")) {
+		dev_err(dev, "Invalid iommu domain type!\n");
+		return;
+	}
+
+	mapping.base = dma_base;
+	mapping.bits = size >> PAGE_SHIFT;
+	mapping.domain = domain;
+
+	if (arm_iommu_get_dma_cookie(dev, &mapping)) {
+		dev_err(dev, "Failed to get dma cookie\n");
+		return;
+	}
+
+	set_dma_ops(dev, mapping.ops);
+}
+
+#else /*!CONFIG_ARM64_DMA_USE_IOMMU */
+
+static void arm_iommu_setup_dma_ops(struct device *dev, u64 dma_base, u64 size)
+{
+}
+#endif
