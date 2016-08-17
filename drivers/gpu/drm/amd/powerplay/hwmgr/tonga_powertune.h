@@ -35,20 +35,23 @@ enum _phw_tonga_ptc_config_reg_type {
 typedef enum _phw_tonga_ptc_config_reg_type phw_tonga_ptc_config_reg_type;
 
 /* PowerContainment Features */
+#define POWERCONTAINMENT_FEATURE_DTE             0x00000001
+
+
+/* PowerContainment Features */
 #define POWERCONTAINMENT_FEATURE_BAPM            0x00000001
 #define POWERCONTAINMENT_FEATURE_TDCLimit        0x00000002
 #define POWERCONTAINMENT_FEATURE_PkgPwrLimit     0x00000004
 
-struct _phw_tonga_pt_config_reg {
+struct tonga_pt_config_reg {
 	uint32_t                           Offset;
 	uint32_t                           Mask;
 	uint32_t                           Shift;
 	uint32_t                           Value;
 	phw_tonga_ptc_config_reg_type     Type;
 };
-typedef struct _phw_tonga_pt_config_reg phw_tonga_pt_config_reg;
 
-struct _phw_tonga_pt_defaults {
+struct tonga_pt_defaults {
 	uint8_t   svi_load_line_en;
 	uint8_t   svi_load_line_vddC;
 	uint8_t   tdc_vddc_throttle_release_limit_perc;
@@ -60,7 +63,18 @@ struct _phw_tonga_pt_defaults {
 	uint16_t  bapmti_r[SMU72_DTE_ITERATIONS * SMU72_DTE_SOURCES * SMU72_DTE_SINKS];
 	uint16_t  bapmti_rc[SMU72_DTE_ITERATIONS * SMU72_DTE_SOURCES * SMU72_DTE_SINKS];
 };
-typedef struct _phw_tonga_pt_defaults phw_tonga_pt_defaults;
+
+
+
+void tonga_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr);
+int tonga_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr);
+int tonga_populate_pm_fuses(struct pp_hwmgr *hwmgr);
+int tonga_enable_smc_cac(struct pp_hwmgr *hwmgr);
+int tonga_disable_smc_cac(struct pp_hwmgr *hwmgr);
+int tonga_enable_power_containment(struct pp_hwmgr *hwmgr);
+int tonga_disable_power_containment(struct pp_hwmgr *hwmgr);
+int tonga_set_power_limit(struct pp_hwmgr *hwmgr, uint32_t n);
+int tonga_power_control_set_level(struct pp_hwmgr *hwmgr);
 
 #endif
 
