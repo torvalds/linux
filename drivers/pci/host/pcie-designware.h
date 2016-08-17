@@ -57,8 +57,7 @@ struct pcie_port {
 };
 
 struct pcie_host_ops {
-	void (*readl_rc)(struct pcie_port *pp,
-			void __iomem *dbi_base, u32 *val);
+	u32 (*readl_rc)(struct pcie_port *pp, void __iomem *dbi_base);
 	void (*writel_rc)(struct pcie_port *pp,
 			u32 val, void __iomem *dbi_base);
 	int (*rd_own_conf)(struct pcie_port *pp, int where, int size, u32 *val);
