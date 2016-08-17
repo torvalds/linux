@@ -1437,11 +1437,30 @@ static int etnaviv_gpu_clk_disable(struct etnaviv_gpu *gpu)
 	return 0;
 }
 
+int etnaviv_gpu_wait_idle(struct etnaviv_gpu *gpu, unsigned int timeout_ms)
+{
+	unsigned long timeout = jiffies + msecs_to_jiffies(timeout_ms);
+
+	do {
+		u32 idle = gpu_read(gpu, VIVS_HI_IDLE_STATE);
+
+		if ((idle & gpu->idle_mask) == gpu->idle_mask)
+			return 0;
+
+		if (time_is_before_jiffies(timeout)) {
+			dev_warn(gpu->dev,
+				 "timed out waiting for idle: idle=0x%x\n",
+				 idle);
+			return -ETIMEDOUT;
+		}
+
+		udelay(5);
+	} while (1);
+}
+
 static int etnaviv_gpu_hw_suspend(struct etnaviv_gpu *gpu)
 {
 	if (gpu->buffer) {
-		unsigned long timeout;
-
 		/* Replace the last WAIT with END */
 		etnaviv_buffer_end(gpu);
 
@@ -1450,22 +1469,7 @@ static int etnaviv_gpu_hw_suspend(struct etnaviv_gpu *gpu)
 		 * happen quickly (as the WAIT is only 200 cycles).  If
 		 * we fail, just warn and continue.
 		 */
-		timeout = jiffies + msecs_to_jiffies(100);
-		do {
-			u32 idle = gpu_read(gpu, VIVS_HI_IDLE_STATE);
-
-			if ((idle & gpu->idle_mask) == gpu->idle_mask)
-				break;
-
-			if (time_is_before_jiffies(timeout)) {
-				dev_warn(gpu->dev,
-					 "timed out waiting for idle: idle=0x%x\n",
-					 idle);
-				break;
-			}
-
-			udelay(5);
-		} while (1);
+		etnaviv_gpu_wait_idle(gpu, 100);
 	}
 
 	return etnaviv_gpu_clk_disable(gpu);
