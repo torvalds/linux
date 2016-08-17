@@ -415,6 +415,7 @@ config SERIAL_8250_LPSS
 	  present on the UART found on various Intel platforms such as:
 	    - Intel Baytrail SoC
 	    - Intel Braswell SoC
+	    - Intel Quark X1000 SoC
 
 config SERIAL_8250_MID
 	tristate "Support for serial ports on Intel MID platforms" if EXPERT
