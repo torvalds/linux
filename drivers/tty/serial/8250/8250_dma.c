@@ -150,6 +150,10 @@ EXPORT_SYMBOL_GPL(serial8250_rx_dma_flush);
 int serial8250_request_dma(struct uart_8250_port *p)
 {
 	struct uart_8250_dma	*dma = p->dma;
+	phys_addr_t rx_dma_addr = dma->rx_dma_addr ?
+				  dma->rx_dma_addr : p->port.mapbase;
+	phys_addr_t tx_dma_addr = dma->tx_dma_addr ?
+				  dma->tx_dma_addr : p->port.mapbase;
 	dma_cap_mask_t		mask;
 	struct dma_slave_caps	caps;
 	int			ret;
@@ -157,11 +161,11 @@ int serial8250_request_dma(struct uart_8250_port *p)
 	/* Default slave configuration parameters */
 	dma->rxconf.direction		= DMA_DEV_TO_MEM;
 	dma->rxconf.src_addr_width	= DMA_SLAVE_BUSWIDTH_1_BYTE;
-	dma->rxconf.src_addr		= p->port.mapbase + UART_RX;
+	dma->rxconf.src_addr		= rx_dma_addr + UART_RX;
 
 	dma->txconf.direction		= DMA_MEM_TO_DEV;
 	dma->txconf.dst_addr_width	= DMA_SLAVE_BUSWIDTH_1_BYTE;
-	dma->txconf.dst_addr		= p->port.mapbase + UART_TX;
+	dma->txconf.dst_addr		= tx_dma_addr + UART_TX;
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
