@@ -117,11 +117,6 @@ static void etnaviv_cmd_select_pipe(struct etnaviv_gpu *gpu,
 		       VIVS_GL_PIPE_SELECT_PIPE(pipe));
 }
 
-static u32 gpu_va(struct etnaviv_gpu *gpu, struct etnaviv_cmdbuf *buf)
-{
-	return buf->paddr - gpu->memory_base;
-}
-
 static void etnaviv_buffer_dump(struct etnaviv_gpu *gpu,
 	struct etnaviv_cmdbuf *buf, u32 off, u32 len)
 {
@@ -129,7 +124,7 @@ static void etnaviv_buffer_dump(struct etnaviv_gpu *gpu,
 	u32 *ptr = buf->vaddr + off;
 
 	dev_info(gpu->dev, "virt %p phys 0x%08x free 0x%08x\n",
-			ptr, gpu_va(gpu, buf) + off, size - len * 4 - off);
+			ptr, etnaviv_iommu_get_cmdbuf_va(gpu, buf) + off, size - len * 4 - off);
 
 	print_hex_dump(KERN_INFO, "cmd ", DUMP_PREFIX_OFFSET, 16, 4,
 			ptr, len * 4, 0);
@@ -162,7 +157,7 @@ static u32 etnaviv_buffer_reserve(struct etnaviv_gpu *gpu,
 	if (buffer->user_size + cmd_dwords * sizeof(u64) > buffer->size)
 		buffer->user_size = 0;
 
-	return gpu_va(gpu, buffer) + buffer->user_size;
+	return etnaviv_iommu_get_cmdbuf_va(gpu, buffer) + buffer->user_size;
 }
 
 u16 etnaviv_buffer_init(struct etnaviv_gpu *gpu)
@@ -173,7 +168,8 @@ u16 etnaviv_buffer_init(struct etnaviv_gpu *gpu)
 	buffer->user_size = 0;
 
 	CMD_WAIT(buffer);
-	CMD_LINK(buffer, 2, gpu_va(gpu, buffer) + buffer->user_size - 4);
+	CMD_LINK(buffer, 2, etnaviv_iommu_get_cmdbuf_va(gpu, buffer) +
+		 buffer->user_size - 4);
 
 	return buffer->user_size / 8;
 }
@@ -231,7 +227,7 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
 	if (drm_debug & DRM_UT_DRIVER)
 		etnaviv_buffer_dump(gpu, buffer, 0, 0x50);
 
-	link_target = gpu_va(gpu, cmdbuf);
+	link_target = etnaviv_iommu_get_cmdbuf_va(gpu, cmdbuf);
 	link_dwords = cmdbuf->size / 8;
 
 	/*
@@ -301,7 +297,7 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
 
 	if (drm_debug & DRM_UT_DRIVER)
 		pr_info("stream link to 0x%08x @ 0x%08x %p\n",
-			return_target, gpu_va(gpu, cmdbuf), cmdbuf->vaddr);
+			return_target, etnaviv_iommu_get_cmdbuf_va(gpu, cmdbuf), cmdbuf->vaddr);
 
 	if (drm_debug & DRM_UT_DRIVER) {
 		print_hex_dump(KERN_INFO, "cmd ", DUMP_PREFIX_OFFSET, 16, 4,

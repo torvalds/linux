@@ -304,6 +304,12 @@ void etnaviv_iommu_restore(struct etnaviv_gpu *gpu)
 		dev_err(gpu->dev, "IOMMUv2 restore not implemented\n");
 }
 
+u32 etnaviv_iommu_get_cmdbuf_va(struct etnaviv_gpu *gpu,
+				struct etnaviv_cmdbuf *buf)
+{
+	return buf->paddr - gpu->memory_base;
+}
+
 size_t etnaviv_iommu_dump_size(struct etnaviv_iommu *iommu)
 {
 	struct etnaviv_iommu_ops *ops;

@@ -574,7 +574,7 @@ static void etnaviv_gpu_hw_init(struct etnaviv_gpu *gpu)
 
 	gpu_write(gpu, VIVS_HI_INTR_ENBL, ~0U);
 	gpu_write(gpu, VIVS_FE_COMMAND_ADDRESS,
-		  gpu->buffer->paddr - gpu->memory_base);
+		  etnaviv_iommu_get_cmdbuf_va(gpu, gpu->buffer));
 	gpu_write(gpu, VIVS_FE_COMMAND_CONTROL,
 		  VIVS_FE_COMMAND_CONTROL_ENABLE |
 		  VIVS_FE_COMMAND_CONTROL_PREFETCH(prefetch));
