@@ -716,6 +716,11 @@
 	temperature = <105000>;
 };
 
+&tcphy0 {
+	extcon = <&fusb0>;
+	status = "okay";
+};
+
 &tsadc {
 	/* tshut mode 0:CRU 1:GPIO */
 	rockchip,hw-tshut-mode = <1>;
@@ -795,10 +800,6 @@
 &usbdrd_dwc3_1 {
 	dr_mode = "host";
 	status = "okay";
-};
-
-&tcphy0{
-	extcon = <&fusb0>;
 };
 
 &pwm2 {
