@@ -9329,7 +9329,7 @@ M:	Sebastian Reichel <sre@kernel.org>
 M:	Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
 M:	David Woodhouse <dwmw2@infradead.org>
 L:	linux-pm@vger.kernel.org
-T:	git git://git.infradead.org/battery-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sre/linux-power-supply.git
 S:	Maintained
 F:	Documentation/devicetree/bindings/power/supply/
 F:	include/linux/power_supply.h
@@ -11332,7 +11332,7 @@ M:	Sebastian Reichel <sre@kernel.org>
 M:	Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
 M:	David Woodhouse <dwmw2@infradead.org>
 L:	linux-pm@vger.kernel.org
-T:	git git://git.infradead.org/battery-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sre/linux-power-supply.git
 S:	Maintained
 F:	Documentation/devicetree/bindings/power/reset/
 F:	drivers/power/reset/
