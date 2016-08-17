@@ -98,6 +98,11 @@ static void amdgpu_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 
 	drm_gem_object_release(&bo->gem_base);
 	amdgpu_bo_unref(&bo->parent);
+	if (!list_empty(&bo->shadow_list)) {
+		mutex_lock(&bo->adev->shadow_list_lock);
+		list_del_init(&bo->shadow_list);
+		mutex_unlock(&bo->adev->shadow_list_lock);
+	}
 	kfree(bo->metadata);
 	kfree(bo);
 }
@@ -315,6 +320,7 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 	}
 	bo->adev = adev;
 	INIT_LIST_HEAD(&bo->list);
+	INIT_LIST_HEAD(&bo->shadow_list);
 	INIT_LIST_HEAD(&bo->va);
 	bo->prefered_domains = domain & (AMDGPU_GEM_DOMAIN_VRAM |
 					 AMDGPU_GEM_DOMAIN_GTT |
@@ -407,8 +413,12 @@ static int amdgpu_bo_create_shadow(struct amdgpu_device *adev,
 					NULL, &placement,
 					bo->tbo.resv,
 					&bo->shadow);
-	if (!r)
+	if (!r) {
 		bo->shadow->parent = amdgpu_bo_ref(bo);
+		mutex_lock(&adev->shadow_list_lock);
+		list_add_tail(&bo->shadow_list, &adev->shadow_list);
+		mutex_unlock(&adev->shadow_list_lock);
+	}
 
 	return r;
 }

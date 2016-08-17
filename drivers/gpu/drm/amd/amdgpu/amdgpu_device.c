@@ -1550,6 +1550,9 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	spin_lock_init(&adev->gc_cac_idx_lock);
 	spin_lock_init(&adev->audio_endpt_idx_lock);
 
+	INIT_LIST_HEAD(&adev->shadow_list);
+	mutex_init(&adev->shadow_list_lock);
+
 	adev->rmmio_base = pci_resource_start(adev->pdev, 5);
 	adev->rmmio_size = pci_resource_len(adev->pdev, 5);
 	adev->rmmio = ioremap(adev->rmmio_base, adev->rmmio_size);

@@ -468,6 +468,7 @@ struct amdgpu_bo {
 	struct ttm_bo_kmap_obj		dma_buf_vmap;
 	struct amdgpu_mn		*mn;
 	struct list_head		mn_list;
+	struct list_head		shadow_list;
 };
 #define gem_to_amdgpu_bo(gobj) container_of((gobj), struct amdgpu_bo, gem_base)
 
@@ -2096,6 +2097,10 @@ struct amdgpu_device {
 	struct kfd_dev          *kfd;
 
 	struct amdgpu_virtualization virtualization;
+
+	/* link all shadow bo */
+	struct list_head                shadow_list;
+	struct mutex                    shadow_list_lock;
 };
 
 bool amdgpu_device_is_px(struct drm_device *dev);
