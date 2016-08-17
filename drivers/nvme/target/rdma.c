@@ -1004,10 +1004,10 @@ nvmet_rdma_parse_cm_connect_req(struct rdma_conn_param *conn,
 	queue->host_qid = le16_to_cpu(req->qid);
 
 	/*
-	 * req->hsqsize corresponds to our recv queue size
+	 * req->hsqsize corresponds to our recv queue size plus 1
 	 * req->hrqsize corresponds to our send queue size
 	 */
-	queue->recv_queue_size = le16_to_cpu(req->hsqsize);
+	queue->recv_queue_size = le16_to_cpu(req->hsqsize) + 1;
 	queue->send_queue_size = le16_to_cpu(req->hrqsize);
 
 	if (!queue->host_qid && queue->recv_queue_size > NVMF_AQ_DEPTH)
