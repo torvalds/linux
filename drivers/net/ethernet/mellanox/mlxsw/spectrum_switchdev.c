@@ -450,6 +450,8 @@ void mlxsw_sp_fid_destroy(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_fid *f)
 
 	kfree(f);
 
+	mlxsw_sp_fid_map(mlxsw_sp, fid, false);
+
 	mlxsw_sp_fid_op(mlxsw_sp, fid, false);
 }
 
