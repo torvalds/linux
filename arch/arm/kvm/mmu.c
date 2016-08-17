@@ -1309,7 +1309,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	smp_rmb();
 
 	pfn = gfn_to_pfn_prot(kvm, gfn, write_fault, &writable);
-	if (is_error_pfn(pfn))
+	if (is_error_noslot_pfn(pfn))
 		return -EFAULT;
 
 	if (kvm_is_device_pfn(pfn)) {
