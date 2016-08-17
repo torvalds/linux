@@ -305,12 +305,7 @@ static dma_addr_t s390_dma_map_pages(struct device *dev, struct page *page,
 
 	/* Use rounded up size */
 	size = nr_pages * PAGE_SIZE;
-
 	dma_addr = zdev->start_dma + iommu_page_index * PAGE_SIZE;
-	if (dma_addr + size > zdev->end_dma) {
-		ret = -ERANGE;
-		goto out_free;
-	}
 
 	if (direction == DMA_NONE || direction == DMA_TO_DEVICE)
 		flags |= ZPCI_TABLE_PROTECTED;
