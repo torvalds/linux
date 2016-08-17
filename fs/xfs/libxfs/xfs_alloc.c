@@ -1582,6 +1582,7 @@ xfs_alloc_ag_vextent_small(
 	xfs_extlen_t	*flenp,	/* result length */
 	int		*stat)	/* status: 0-freelist, 1-normal/none */
 {
+	struct xfs_owner_info	oinfo;
 	int		error;
 	xfs_agblock_t	fbno;
 	xfs_extlen_t	flen;
@@ -1624,6 +1625,18 @@ xfs_alloc_ag_vextent_small(
 				error0);
 			args->wasfromfl = 1;
 			trace_xfs_alloc_small_freelist(args);
+
+			/*
+			 * If we're feeding an AGFL block to something that
+			 * doesn't live in the free space, we need to clear
+			 * out the OWN_AG rmap.
+			 */
+			xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_AG);
+			error = xfs_rmap_free(args->tp, args->agbp, args->agno,
+					fbno, 1, &oinfo);
+			if (error)
+				goto error0;
+
 			*stat = 0;
 			return 0;
 		}
