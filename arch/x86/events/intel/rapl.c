@@ -357,6 +357,8 @@ static int rapl_pmu_event_init(struct perf_event *event)
 	if (event->cpu < 0)
 		return -EINVAL;
 
+	event->event_caps |= PERF_EV_CAP_READ_ACTIVE_PKG;
+
 	/*
 	 * check event is known (determines counter)
 	 */
