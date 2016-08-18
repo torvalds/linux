@@ -15,8 +15,8 @@ config NVME_TARGET
 
 config NVME_TARGET_LOOP
 	tristate "NVMe loopback device support"
-	depends on BLK_DEV_NVME
 	depends on NVME_TARGET
+	select NVME_CORE
 	select NVME_FABRICS
 	select SG_POOL
 	help
