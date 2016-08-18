@@ -578,7 +578,7 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 		bo->adev->vram_pin_size += amdgpu_bo_size(bo);
 		if (bo->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
 			bo->adev->invisible_pin_size += amdgpu_bo_size(bo);
-	} else {
+	} else if (domain == AMDGPU_GEM_DOMAIN_GTT) {
 		bo->adev->gart_pin_size += amdgpu_bo_size(bo);
 	}
 
