@@ -12,3 +12,10 @@ Linux GPU Driver Developer's Guide
    drm-uapi
    i915
    vga-switcheroo
+
+.. only::  subproject
+
+   Indices
+   =======
+
+   * :ref:`genindex`

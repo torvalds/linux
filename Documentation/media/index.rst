@@ -10,3 +10,10 @@ Contents:
    media_kapi
    dvb-drivers/index
    v4l-drivers/index
+
+.. only::  subproject
+
+   Indices
+   =======
+
+   * :ref:`genindex`

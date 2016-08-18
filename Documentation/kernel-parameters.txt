@@ -1688,7 +1688,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	intel_idle.max_cstate=	[KNL,HW,ACPI,X86]
 			0	disables intel_idle and fall back on acpi_idle.
-			1 to 6	specify maximum depth of C-state.
+			1 to 9	specify maximum depth of C-state.
 
 	intel_pstate=  [X86]
 		       disable
