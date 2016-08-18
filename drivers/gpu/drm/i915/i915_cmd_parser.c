@@ -746,17 +746,15 @@ static void fini_hash_table(struct intel_engine_cs *engine)
  * Optionally initializes fields related to batch buffer command parsing in the
  * struct intel_engine_cs based on whether the platform requires software
  * command parsing.
- *
- * Return: non-zero if initialization fails
  */
-int intel_engine_init_cmd_parser(struct intel_engine_cs *engine)
+void intel_engine_init_cmd_parser(struct intel_engine_cs *engine)
 {
 	const struct drm_i915_cmd_table *cmd_tables;
 	int cmd_table_count;
 	int ret;
 
 	if (!IS_GEN7(engine->i915))
-		return 0;
+		return;
 
 	switch (engine->id) {
 	case RCS:
@@ -811,24 +809,27 @@ int intel_engine_init_cmd_parser(struct intel_engine_cs *engine)
 		break;
 	default:
 		MISSING_CASE(engine->id);
-		BUG();
+		return;
 	}
 
-	BUG_ON(!validate_cmds_sorted(engine, cmd_tables, cmd_table_count));
-	BUG_ON(!validate_regs_sorted(engine));
-
-	WARN_ON(!hash_empty(engine->cmd_hash));
+	if (!validate_cmds_sorted(engine, cmd_tables, cmd_table_count)) {
+		DRM_ERROR("%s: command descriptions are not sorted\n",
+			  engine->name);
+		return;
+	}
+	if (!validate_regs_sorted(engine)) {
+		DRM_ERROR("%s: registers are not sorted\n", engine->name);
+		return;
+	}
 
 	ret = init_hash_table(engine, cmd_tables, cmd_table_count);
 	if (ret) {
-		DRM_ERROR("CMD: cmd_parser_init failed!\n");
+		DRM_ERROR("%s: initialised failed!\n", engine->name);
 		fini_hash_table(engine);
-		return ret;
+		return;
 	}
 
 	engine->needs_cmd_parser = true;
-
-	return 0;
 }
 
 /**

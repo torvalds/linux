@@ -239,6 +239,8 @@ void intel_engine_setup_common(struct intel_engine_cs *engine)
 	intel_engine_init_requests(engine);
 	intel_engine_init_hangcheck(engine);
 	i915_gem_batch_pool_init(engine, &engine->batch_pool);
+
+	intel_engine_init_cmd_parser(engine);
 }
 
 int intel_engine_create_scratch(struct intel_engine_cs *engine, int size)
@@ -301,7 +303,7 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 	if (ret)
 		return ret;
 
-	return intel_engine_init_cmd_parser(engine);
+	return 0;
 }
 
 /**
@@ -315,7 +317,7 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 {
 	intel_engine_cleanup_scratch(engine);
 
-	intel_engine_cleanup_cmd_parser(engine);
 	intel_engine_fini_breadcrumbs(engine);
+	intel_engine_cleanup_cmd_parser(engine);
 	i915_gem_batch_pool_fini(&engine->batch_pool);
 }
