@@ -1450,7 +1450,7 @@ err:
 	return ret;
 }
 
-static enum fb_op_origin
+static inline enum fb_op_origin
 write_origin(struct drm_i915_gem_object *obj, unsigned domain)
 {
 	return domain == I915_GEM_DOMAIN_GTT && !obj->has_wc_mmap ?
@@ -3155,7 +3155,7 @@ i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj)
 	old_write_domain = obj->base.write_domain;
 	obj->base.write_domain = 0;
 
-	intel_fb_obj_flush(obj, false, ORIGIN_GTT);
+	intel_fb_obj_flush(obj, false, write_origin(obj, I915_GEM_DOMAIN_GTT));
 
 	trace_i915_gem_object_change_domain(obj,
 					    obj->base.read_domains,
