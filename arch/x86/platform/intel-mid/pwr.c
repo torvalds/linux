@@ -44,6 +44,10 @@
 /* Bits in PM_CMD */
 #define PM_CMD_CMD(x)		((x) << 0)
 #define PM_CMD_IOC		(1 << 8)
+#define PM_CMD_CM_NOP		(0 << 9)
+#define PM_CMD_CM_IMMEDIATE	(1 << 9)
+#define PM_CMD_CM_DELAY		(2 << 9)
+#define PM_CMD_CM_TRIGGER	(3 << 9)
 #define PM_CMD_D3cold		(1 << 21)
 
 /* List of commands */
@@ -137,7 +141,7 @@ static int mid_pwr_wait(struct mid_pwr *pwr)
 
 static int mid_pwr_wait_for_cmd(struct mid_pwr *pwr, u8 cmd)
 {
-	writel(PM_CMD_CMD(cmd), pwr->regs + PM_CMD);
+	writel(PM_CMD_CMD(cmd) | PM_CMD_CM_IMMEDIATE, pwr->regs + PM_CMD);
 	return mid_pwr_wait(pwr);
 }
 
