@@ -1147,6 +1147,16 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 	if (!page_has_buffers(page))
 		return 0;
 
+	/*
+	 * From xfs_vm_releasepage: mm accommodates an old ext3 case where
+	 * clean pages might not have had the dirty bit cleared.  Thus, it can
+	 * send actual dirty pages to ->releasepage() via shrink_active_list().
+	 *
+	 * As a workaround, we skip pages that contain dirty buffers below.
+	 * Once ->releasepage isn't called on dirty pages anymore, we can warn
+	 * on dirty buffers like we used to here again.
+	 */
+
 	gfs2_log_lock(sdp);
 	spin_lock(&sdp->sd_ail_lock);
 	head = bh = page_buffers(page);
@@ -1156,8 +1166,8 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 		bd = bh->b_private;
 		if (bd && bd->bd_tr)
 			goto cannot_release;
-		if (buffer_pinned(bh) || buffer_dirty(bh))
-			goto not_possible;
+		if (buffer_dirty(bh) || WARN_ON(buffer_pinned(bh)))
+			goto cannot_release;
 		bh = bh->b_this_page;
 	} while(bh != head);
 	spin_unlock(&sdp->sd_ail_lock);
@@ -1180,9 +1190,6 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 
 	return try_to_free_buffers(page);
 
-not_possible: /* Should never happen */
-	WARN_ON(buffer_dirty(bh));
-	WARN_ON(buffer_pinned(bh));
 cannot_release:
 	spin_unlock(&sdp->sd_ail_lock);
 	gfs2_log_unlock(sdp);
