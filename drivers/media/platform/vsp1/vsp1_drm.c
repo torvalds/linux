@@ -276,12 +276,12 @@ int vsp1_du_atomic_update(struct device *dev, unsigned int rpf_index,
 	}
 
 	dev_dbg(vsp1->dev,
-		"%s: RPF%u: (%u,%u)/%ux%u -> (%u,%u)/%ux%u (%08x), pitch %u dma { %pad, %pad } zpos %u\n",
+		"%s: RPF%u: (%u,%u)/%ux%u -> (%u,%u)/%ux%u (%08x), pitch %u dma { %pad, %pad, %pad } zpos %u\n",
 		__func__, rpf_index,
 		cfg->src.left, cfg->src.top, cfg->src.width, cfg->src.height,
 		cfg->dst.left, cfg->dst.top, cfg->dst.width, cfg->dst.height,
 		cfg->pixelformat, cfg->pitch, &cfg->mem[0], &cfg->mem[1],
-		cfg->zpos);
+		&cfg->mem[2], cfg->zpos);
 
 	/* Store the format, stride, memory buffer address, crop and compose
 	 * rectangles and Z-order position and for the input.
@@ -301,7 +301,7 @@ int vsp1_du_atomic_update(struct device *dev, unsigned int rpf_index,
 
 	rpf->mem.addr[0] = cfg->mem[0];
 	rpf->mem.addr[1] = cfg->mem[1];
-	rpf->mem.addr[2] = 0;
+	rpf->mem.addr[2] = cfg->mem[2];
 
 	vsp1->drm->inputs[rpf_index].crop = cfg->src;
 	vsp1->drm->inputs[rpf_index].compose = cfg->dst;
