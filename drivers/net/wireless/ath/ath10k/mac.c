@@ -3914,7 +3914,7 @@ void __ath10k_scan_finish(struct ath10k *ar)
 		ar->scan.roc_freq = 0;
 		ath10k_offchan_tx_purge(ar);
 		cancel_delayed_work(&ar->scan.timeout);
-		complete_all(&ar->scan.completed);
+		complete(&ar->scan.completed);
 		break;
 	}
 }

@@ -1501,14 +1501,14 @@ static void ath10k_core_restart(struct work_struct *work)
 
 	ieee80211_stop_queues(ar->hw);
 	ath10k_drain_tx(ar);
-	complete_all(&ar->scan.started);
-	complete_all(&ar->scan.completed);
-	complete_all(&ar->scan.on_channel);
-	complete_all(&ar->offchan_tx_completed);
-	complete_all(&ar->install_key_done);
-	complete_all(&ar->vdev_setup_done);
-	complete_all(&ar->thermal.wmi_sync);
-	complete_all(&ar->bss_survey_done);
+	complete(&ar->scan.started);
+	complete(&ar->scan.completed);
+	complete(&ar->scan.on_channel);
+	complete(&ar->offchan_tx_completed);
+	complete(&ar->install_key_done);
+	complete(&ar->vdev_setup_done);
+	complete(&ar->thermal.wmi_sync);
+	complete(&ar->bss_survey_done);
 	wake_up(&ar->htt.empty_tx_wq);
 	wake_up(&ar->wmi.tx_credits_wq);
 	wake_up(&ar->peer_mapping_wq);
