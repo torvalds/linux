@@ -102,7 +102,9 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
 
 .. _v4l2-vbi-format:
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{2.4cm}|p{4.4cm}|p{10.7cm}|
+
+.. cssclass:: longtable
 
 .. flat-table:: struct v4l2_vbi_format
     :header-rows:  0
@@ -228,7 +230,7 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
 
 .. _vbifmt-flags:
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{4.0cm}|p{1.5cm}|p{12.0cm}|
 
 .. flat-table:: Raw VBI Format Flags
     :header-rows:  0
