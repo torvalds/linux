@@ -187,7 +187,8 @@ EXPORT_SYMBOL_GPL(uv_bios_set_legacy_vga_target);
 void uv_bios_init(void)
 {
 	uv_systab = NULL;
-	if ((efi.uv_systab == EFI_INVALID_TABLE_ADDR) || !efi.uv_systab) {
+	if ((efi.uv_systab == EFI_INVALID_TABLE_ADDR) ||
+	    !efi.uv_systab || efi_runtime_disabled()) {
 		pr_crit("UV: UVsystab: missing\n");
 		return;
 	}
@@ -199,12 +200,14 @@ void uv_bios_init(void)
 		return;
 	}
 
+	/* Starting with UV4 the UV systab size is variable */
 	if (uv_systab->revision >= UV_SYSTAB_VERSION_UV4) {
+		int size = uv_systab->size;
+
 		iounmap(uv_systab);
-		uv_systab = ioremap(efi.uv_systab, uv_systab->size);
+		uv_systab = ioremap(efi.uv_systab, size);
 		if (!uv_systab) {
-			pr_err("UV: UVsystab: ioremap(%d) failed!\n",
-				uv_systab->size);
+			pr_err("UV: UVsystab: ioremap(%d) failed!\n", size);
 			return;
 		}
 	}
