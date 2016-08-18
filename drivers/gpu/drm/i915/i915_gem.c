@@ -1669,6 +1669,16 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
+static unsigned int tile_row_pages(struct drm_i915_gem_object *obj)
+{
+	u64 size;
+
+	size = i915_gem_object_get_stride(obj);
+	size *= i915_gem_object_get_tiling(obj) == I915_TILING_Y ? 32 : 8;
+
+	return size >> PAGE_SHIFT;
+}
+
 /**
  * i915_gem_fault - fault a page into the GTT
  * @area: CPU VMA in question
@@ -1687,6 +1697,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
  */
 int i915_gem_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 {
+#define MIN_CHUNK_PAGES ((1 << 20) >> PAGE_SHIFT) /* 1 MiB */
 	struct drm_i915_gem_object *obj = to_intel_bo(area->vm_private_data);
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -1728,7 +1739,11 @@ int i915_gem_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 	/* Use a partial view if the object is bigger than the aperture. */
 	if (obj->base.size >= ggtt->mappable_end &&
 	    !i915_gem_object_is_tiled(obj)) {
-		static const unsigned int chunk_size = 256; // 1 MiB
+		unsigned int chunk_size;
+
+		chunk_size = MIN_CHUNK_PAGES;
+		if (i915_gem_object_is_tiled(obj))
+			chunk_size = max(chunk_size, tile_row_pages(obj));
 
 		memset(&view, 0, sizeof(view));
 		view.type = I915_GGTT_VIEW_PARTIAL;
