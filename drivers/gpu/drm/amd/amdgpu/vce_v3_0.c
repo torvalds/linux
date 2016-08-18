@@ -696,7 +696,7 @@ static int vce_v3_0_process_interrupt(struct amdgpu_device *adev,
 	return 0;
 }
 
-static void vce_v3_set_bypass_mode(struct amdgpu_device *adev, bool enable)
+static void vce_v3_0_set_bypass_mode(struct amdgpu_device *adev, bool enable)
 {
 	u32 tmp = RREG32_SMC(ixGCK_DFS_BYPASS_CNTL);
 
@@ -716,7 +716,7 @@ static int vce_v3_0_set_clockgating_state(void *handle,
 	int i;
 
 	if (adev->asic_type == CHIP_POLARIS10)
-		vce_v3_set_bypass_mode(adev, enable);
+		vce_v3_0_set_bypass_mode(adev, enable);
 
 	if (!(adev->cg_flags & AMD_CG_SUPPORT_VCE_MGCG))
 		return 0;
