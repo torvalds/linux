@@ -135,6 +135,27 @@ static void free_dbr(int offs, int size)
 
 /* -------------------------------------------------------------------------- */
 
+static void dim2_clear_dbr(u16 addr, u16 size)
+{
+	enum { MADR_TB_BIT = 30, MADR_WNR_BIT = 31 };
+
+	u16 const end_addr = addr + size;
+	u32 const cmd = bit_mask(MADR_WNR_BIT) | bit_mask(MADR_TB_BIT);
+
+	dimcb_io_write(&g.dim2->MCTL, 0);   /* clear transfer complete */
+	dimcb_io_write(&g.dim2->MDAT0, 0);
+
+	for (; addr < end_addr; addr++) {
+		dimcb_io_write(&g.dim2->MADR, cmd | addr);
+
+		/* wait till transfer is completed */
+		while ((dimcb_io_read(&g.dim2->MCTL) & 1) != 1)
+			continue;
+
+		dimcb_io_write(&g.dim2->MCTL, 0);  /* clear transfer complete */
+	}
+}
+
 static u32 dim2_read_ctr(u32 ctr_addr, u16 mdat_idx)
 {
 	dimcb_io_write(&g.dim2->MADR, ctr_addr);
@@ -794,6 +815,7 @@ u8 dim_init_sync(struct dim_channel *ch, u8 is_tx, u16 ch_address,
 
 	sync_init(ch, ch_address / 2, bytes_per_frame);
 
+	dim2_clear_dbr(ch->dbr_addr, ch->dbr_size);
 	dim2_configure_channel(ch->addr, CAT_CT_VAL_SYNC, is_tx,
 			       ch->dbr_addr, ch->dbr_size, 0, true);
 
