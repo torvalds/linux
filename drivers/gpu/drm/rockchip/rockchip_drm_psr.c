@@ -18,7 +18,7 @@
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_psr.h"
 
-#define PSR_FLUSH_TIMEOUT	msecs_to_jiffies(3000) /* 3 seconds */
+#define PSR_FLUSH_TIMEOUT	msecs_to_jiffies(100)
 
 enum psr_state {
 	PSR_FLUSH,
