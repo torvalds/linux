@@ -242,7 +242,7 @@ static void note_page(struct pg_state *st, unsigned long addr, unsigned level,
 
 static void walk_pte(struct pg_state *st, pmd_t *pmd, unsigned long start)
 {
-	pte_t *pte = pte_offset_kernel(pmd, 0);
+	pte_t *pte = pte_offset_kernel(pmd, 0UL);
 	unsigned long addr;
 	unsigned i;
 
@@ -254,7 +254,7 @@ static void walk_pte(struct pg_state *st, pmd_t *pmd, unsigned long start)
 
 static void walk_pmd(struct pg_state *st, pud_t *pud, unsigned long start)
 {
-	pmd_t *pmd = pmd_offset(pud, 0);
+	pmd_t *pmd = pmd_offset(pud, 0UL);
 	unsigned long addr;
 	unsigned i;
 
@@ -271,7 +271,7 @@ static void walk_pmd(struct pg_state *st, pud_t *pud, unsigned long start)
 
 static void walk_pud(struct pg_state *st, pgd_t *pgd, unsigned long start)
 {
-	pud_t *pud = pud_offset(pgd, 0);
+	pud_t *pud = pud_offset(pgd, 0UL);
 	unsigned long addr;
 	unsigned i;
 
