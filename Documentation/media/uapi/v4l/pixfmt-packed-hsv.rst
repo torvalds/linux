@@ -9,7 +9,8 @@ Packed HSV formats
 Description
 ===========
 
-The *hue* (h) is measured in degrees, one LSB represents two degrees.
+The *hue* (h) is measured in degrees, the equivalence between degrees and LSBs
+depends on the hsv-encoding used, see :ref:`colorspaces`.
 The *saturation* (s) and the *value* (v) are measured in percentage of the
 cylinder: 0 being the smallest value and 255 the maximum.
 

@@ -87,6 +87,10 @@ replace symbol V4L2_YCBCR_ENC_XV601 :c:type:`v4l2_ycbcr_encoding`
 replace symbol V4L2_YCBCR_ENC_XV709 :c:type:`v4l2_ycbcr_encoding`
 replace symbol V4L2_YCBCR_ENC_SMPTE240M :c:type:`v4l2_ycbcr_encoding`
 
+# Documented enum v4l2_hsv_encoding
+replace symbol V4L2_HSV_ENC_180 :c:type:`v4l2_hsv_encoding`
+replace symbol V4L2_HSV_ENC_256 :c:type:`v4l2_hsv_encoding`
+
 # Documented enum v4l2_quantization
 replace symbol V4L2_QUANTIZATION_DEFAULT :c:type:`v4l2_quantization`
 replace symbol V4L2_QUANTIZATION_FULL_RANGE :c:type:`v4l2_quantization`
