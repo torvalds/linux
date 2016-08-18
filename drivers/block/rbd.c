@@ -6006,8 +6006,9 @@ static int rbd_dev_device_setup(struct rbd_device *rbd_dev)
 	spin_unlock(&rbd_dev_list_lock);
 
 	add_disk(rbd_dev->disk);
-	pr_info("%s: added with size 0x%llx\n", rbd_dev->disk->disk_name,
-		(unsigned long long) rbd_dev->mapping.size);
+	pr_info("%s: capacity %llu features 0x%llx\n", rbd_dev->disk->disk_name,
+		(unsigned long long)get_capacity(rbd_dev->disk) << SECTOR_SHIFT,
+		rbd_dev->header.features);
 
 	return ret;
 
