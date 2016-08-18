@@ -325,6 +325,7 @@ static int mv88e6xxx_wait(struct mv88e6xxx_chip *chip, int addr, int reg,
 		usleep_range(1000, 2000);
 	}
 
+	dev_err(chip->dev, "Timeout while waiting for switch\n");
 	return -ETIMEDOUT;
 }
 
