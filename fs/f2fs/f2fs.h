@@ -1200,6 +1200,10 @@ static inline void dec_valid_block_count(struct f2fs_sb_info *sbi,
 static inline void inc_page_count(struct f2fs_sb_info *sbi, int count_type)
 {
 	percpu_counter_inc(&sbi->nr_pages[count_type]);
+
+	if (count_type == F2FS_DIRTY_DATA || count_type == F2FS_INMEM_PAGES)
+		return;
+
 	set_sbi_flag(sbi, SBI_IS_DIRTY);
 }
 
