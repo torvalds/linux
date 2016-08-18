@@ -6,7 +6,7 @@ Description:
 
 Being used for adding and removing rbd block devices.
 
-Usage: <mon ip addr> <options> <pool name> <rbd image name> [snap name]
+Usage: <mon ip addr> <options> <pool name> <rbd image name> [<snap name>]
 
  $ echo "192.168.0.1 name=admin rbd foo" > /sys/bus/rbd/add
 
@@ -14,9 +14,13 @@ The snapshot name can be "-" or omitted to map the image read/write. A <dev-id>
 will be assigned for any registered block device. If snapshot is used, it will
 be mapped read-only.
 
-Removal of a device:
+Usage: <dev-id> [force]
 
-  $ echo <dev-id> > /sys/bus/rbd/remove
+ $ echo 2 > /sys/bus/rbd/remove
+
+Optional "force" argument which when passed will wait for running requests and
+then unmap the image. Requests sent to the driver after initiating the removal
+will be failed.  (August 2016, since 4.9.)
 
 What:		/sys/bus/rbd/add_single_major
 Date:		December 2013

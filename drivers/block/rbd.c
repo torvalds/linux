@@ -6347,18 +6347,26 @@ static ssize_t do_rbd_remove(struct bus_type *bus,
 	struct rbd_device *rbd_dev = NULL;
 	struct list_head *tmp;
 	int dev_id;
-	unsigned long ul;
+	char opt_buf[6];
 	bool already = false;
+	bool force = false;
 	int ret;
 
-	ret = kstrtoul(buf, 10, &ul);
-	if (ret)
-		return ret;
-
-	/* convert to int; abort if we lost anything in the conversion */
-	dev_id = (int)ul;
-	if (dev_id != ul)
+	dev_id = -1;
+	opt_buf[0] = '\0';
+	sscanf(buf, "%d %5s", &dev_id, opt_buf);
+	if (dev_id < 0) {
+		pr_err("dev_id out of range\n");
 		return -EINVAL;
+	}
+	if (opt_buf[0] != '\0') {
+		if (!strcmp(opt_buf, "force")) {
+			force = true;
+		} else {
+			pr_err("bad remove option at '%s'\n", opt_buf);
+			return -EINVAL;
+		}
+	}
 
 	ret = -ENOENT;
 	spin_lock(&rbd_dev_list_lock);
@@ -6371,7 +6379,7 @@ static ssize_t do_rbd_remove(struct bus_type *bus,
 	}
 	if (!ret) {
 		spin_lock_irq(&rbd_dev->lock);
-		if (rbd_dev->open_count)
+		if (rbd_dev->open_count && !force)
 			ret = -EBUSY;
 		else
 			already = test_and_set_bit(RBD_DEV_FLAG_REMOVING,
@@ -6381,6 +6389,15 @@ static ssize_t do_rbd_remove(struct bus_type *bus,
 	spin_unlock(&rbd_dev_list_lock);
 	if (ret < 0 || already)
 		return ret;
+
+	if (force) {
+		/*
+		 * Prevent new IO from being queued and wait for existing
+		 * IO to complete/fail.
+		 */
+		blk_mq_freeze_queue(rbd_dev->disk->queue);
+		blk_set_queue_dying(rbd_dev->disk->queue);
+	}
 
 	down_write(&rbd_dev->lock_rwsem);
 	if (__rbd_is_lock_owner(rbd_dev))
