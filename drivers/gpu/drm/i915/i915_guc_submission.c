@@ -114,10 +114,8 @@ static int host2guc_action(struct intel_guc *guc, u32 *data, u32 len)
 		if (ret != -ETIMEDOUT)
 			ret = -EIO;
 
-		DRM_ERROR("GUC: host2guc action 0x%X failed. ret=%d "
-				"status=0x%08X response=0x%08X\n",
-				data[0], ret, status,
-				I915_READ(SOFT_SCRATCH(15)));
+		DRM_WARN("Action 0x%X failed; ret=%d status=0x%08X response=0x%08X\n",
+			 data[0], ret, status, I915_READ(SOFT_SCRATCH(15)));
 
 		dev_priv->guc.action_fail += 1;
 		dev_priv->guc.action_err = ret;
@@ -552,8 +550,8 @@ static int guc_ring_doorbell(struct i915_guc_client *gc)
 		if (db_ret.db_status == GUC_DOORBELL_DISABLED)
 			break;
 
-		DRM_ERROR("Cookie mismatch. Expected %d, returned %d\n",
-			  db_cmp.cookie, db_ret.cookie);
+		DRM_WARN("Cookie mismatch. Expected %d, found %d\n",
+			 db_cmp.cookie, db_ret.cookie);
 
 		/* update the cookie to newly read cookie from GuC */
 		db_cmp.cookie = db_ret.cookie;
@@ -734,8 +732,8 @@ static void guc_init_doorbell_hw(struct intel_guc *guc)
 	/* Restore to original value */
 	err = guc_update_doorbell_id(guc, client, db_id);
 	if (err)
-		DRM_ERROR("Failed to restore doorbell to %d, err %d\n",
-			db_id, err);
+		DRM_WARN("Failed to restore doorbell to %d, err %d\n",
+			 db_id, err);
 
 	/* Read back & verify all doorbell registers */
 	for (i = 0; i < GUC_MAX_DOORBELLS; ++i)
@@ -824,8 +822,6 @@ guc_client_alloc(struct drm_i915_private *dev_priv,
 	return client;
 
 err:
-	DRM_ERROR("FAILED to create priority %u GuC client!\n", priority);
-
 	guc_client_free(dev_priv, client);
 	return NULL;
 }
@@ -1005,7 +1001,7 @@ int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 				  GUC_CTX_PRIORITY_KMD_NORMAL,
 				  dev_priv->kernel_context);
 	if (!client) {
-		DRM_ERROR("Failed to create execbuf guc_client\n");
+		DRM_ERROR("Failed to create normal GuC client!\n");
 		return -ENOMEM;
 	}
 
