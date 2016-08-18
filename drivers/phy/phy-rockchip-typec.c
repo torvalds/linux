@@ -602,6 +602,13 @@ static int tcphy_get_mode(struct rockchip_typec_phy *tcphy)
 	u8 mode;
 	int ret;
 
+	if (!edev) {
+		mode = MODE_DFP_USB;
+		id = EXTCON_USB_HOST;
+		tcphy->flip = 0;
+		return mode;
+	}
+
 	ufp = extcon_get_state(edev, EXTCON_USB);
 	dfp = extcon_get_state(edev, EXTCON_USB_HOST);
 	dp = extcon_get_state(edev, EXTCON_DISP_DP);
@@ -950,11 +957,13 @@ static int rockchip_typec_phy_probe(struct platform_device *pdev)
 
 	typec_phy_pre_init(tcphy);
 
-	tcphy->extcon = extcon_get_edev_by_phandle(dev, 0);
-	if (IS_ERR(tcphy->extcon)) {
-		if (PTR_ERR(tcphy->extcon) != -EPROBE_DEFER)
-			dev_err(dev, "Invalid or missing extcon\n");
-		return PTR_ERR(tcphy->extcon);
+	if (device_property_read_bool(dev, "extcon")) {
+		tcphy->extcon = extcon_get_edev_by_phandle(dev, 0);
+		if (IS_ERR(tcphy->extcon)) {
+			if (PTR_ERR(tcphy->extcon) != -EPROBE_DEFER)
+				dev_err(dev, "Invalid or missing extcon\n");
+			return PTR_ERR(tcphy->extcon);
+		}
 	}
 
 	tcphy->phy[0] = devm_phy_create(dev, NULL, &rockchip_dp_phy_ops);
