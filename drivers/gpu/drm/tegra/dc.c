@@ -481,13 +481,13 @@ static const struct drm_plane_funcs tegra_primary_plane_funcs = {
 };
 
 static int tegra_plane_prepare_fb(struct drm_plane *plane,
-				  const struct drm_plane_state *new_state)
+				  struct drm_plane_state *new_state)
 {
 	return 0;
 }
 
 static void tegra_plane_cleanup_fb(struct drm_plane *plane,
-				   const struct drm_plane_state *old_fb)
+				   struct drm_plane_state *old_fb)
 {
 }
 

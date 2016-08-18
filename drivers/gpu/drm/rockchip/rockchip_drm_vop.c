@@ -567,7 +567,7 @@ static void vop_plane_destroy(struct drm_plane *plane)
 }
 
 static int vop_plane_prepare_fb(struct drm_plane *plane,
-				const struct drm_plane_state *new_state)
+				struct drm_plane_state *new_state)
 {
 	if (plane->state->fb)
 		drm_framebuffer_reference(plane->state->fb);
@@ -576,7 +576,7 @@ static int vop_plane_prepare_fb(struct drm_plane *plane,
 }
 
 static void vop_plane_cleanup_fb(struct drm_plane *plane,
-				 const struct drm_plane_state *old_state)
+				 struct drm_plane_state *old_state)
 {
 	if (old_state->fb)
 		drm_framebuffer_unreference(old_state->fb);

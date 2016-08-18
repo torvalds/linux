@@ -818,14 +818,14 @@ static void ade_disable_channel(struct ade_plane *aplane)
 }
 
 static int ade_plane_prepare_fb(struct drm_plane *plane,
-				const struct drm_plane_state *new_state)
+				struct drm_plane_state *new_state)
 {
 	/* do nothing */
 	return 0;
 }
 
 static void ade_plane_cleanup_fb(struct drm_plane *plane,
-				 const struct drm_plane_state *old_state)
+				 struct drm_plane_state *old_state)
 {
 	/* do nothing */
 }
