@@ -272,6 +272,12 @@ support digital TV. See also the Linux DVB API at
     #define V4L2_STD_ALL            (V4L2_STD_525_60        |
 		     V4L2_STD_625_50)
 
+.. raw:: latex
+
+    \newline\newline\begin{adjustbox}{width=\columnwidth}
+
+..                            NTSC/M   PAL/M    /N       /B       /D       /H       /I        SECAM/B    /D       /K1     /L
+.. tabularcolumns:: |p{2.7cm}|p{2.6cm}|p{3.0cm}|p{3.2cm}|p{3.2cm}|p{2.2cm}|p{1.2cm}|p{3.2cm}|p{3.0cm}|p{2.0cm}|p{2.0cm}|p{2.0cm}|
 
 .. _video-standards:
 
@@ -312,7 +318,7 @@ support digital TV. See also the Linux DVB API at
 
        -  :cspan:`1` 525
 
-       -  :cspan:`9` 625
+       -  :cspan:`8` 625
 
     -  .. row 3
 
@@ -320,7 +326,7 @@ support digital TV. See also the Linux DVB API at
 
        -  :cspan:`1` 1001/30000
 
-       -  :cspan:`9` 1/25
+       -  :cspan:`8` 1/25
 
     -  .. row 4
 
@@ -330,13 +336,17 @@ support digital TV. See also the Linux DVB API at
 
        -  3579611.49 ± 10
 
-       -  4433618.75 ± 5 (3582056.25 ± 5)
+       -  4433618.75 ± 5
+
+          (3582056.25 ± 5)
 
        -  :cspan:`3` 4433618.75 ± 5
 
        -  4433618.75 ± 1
 
-       -  :cspan:`3` f\ :sub:`OR` = 4406250 ± 2000, f\ :sub:`OB` = 4250000 ± 2000
+       -  :cspan:`2` f\ :sub:`OR` = 4406250 ± 2000,
+
+	  f\ :sub:`OB` = 4250000 ± 2000
 
     -  .. row 5
 
@@ -389,6 +399,11 @@ support digital TV. See also the Linux DVB API at
        -  6.5
 
        -  6.5 [#f8]_
+
+.. raw:: latex
+
+    \end{adjustbox}\newline\newline
+
 
 
 Return Value
