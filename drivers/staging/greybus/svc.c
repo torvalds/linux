@@ -447,7 +447,6 @@ int gb_svc_dme_peer_get(struct gb_svc *svc, u8 intf_id, u16 attr, u16 selector,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(gb_svc_dme_peer_get);
 
 int gb_svc_dme_peer_set(struct gb_svc *svc, u8 intf_id, u16 attr, u16 selector,
 			u32 value)
@@ -480,7 +479,6 @@ int gb_svc_dme_peer_set(struct gb_svc *svc, u8 intf_id, u16 attr, u16 selector,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(gb_svc_dme_peer_set);
 
 int gb_svc_connection_create(struct gb_svc *svc,
 				u8 intf1_id, u16 cport1_id,
@@ -499,7 +497,6 @@ int gb_svc_connection_create(struct gb_svc *svc,
 	return gb_operation_sync(svc->connection, GB_SVC_TYPE_CONN_CREATE,
 				 &request, sizeof(request), NULL, 0);
 }
-EXPORT_SYMBOL_GPL(gb_svc_connection_create);
 
 void gb_svc_connection_destroy(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
 			       u8 intf2_id, u16 cport2_id)
@@ -520,7 +517,6 @@ void gb_svc_connection_destroy(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
 				intf1_id, cport1_id, intf2_id, cport2_id, ret);
 	}
 }
-EXPORT_SYMBOL_GPL(gb_svc_connection_destroy);
 
 int gb_svc_timesync_enable(struct gb_svc *svc, u8 count, u64 frame_time,
 			   u32 strobe_delay, u32 refclk)
@@ -536,7 +532,6 @@ int gb_svc_timesync_enable(struct gb_svc *svc, u8 count, u64 frame_time,
 				 GB_SVC_TYPE_TIMESYNC_ENABLE,
 				 &request, sizeof(request), NULL, 0);
 }
-EXPORT_SYMBOL_GPL(gb_svc_timesync_enable);
 
 int gb_svc_timesync_disable(struct gb_svc *svc)
 {
@@ -546,7 +541,6 @@ int gb_svc_timesync_disable(struct gb_svc *svc)
 				 GB_SVC_TYPE_TIMESYNC_DISABLE,
 				 NULL, 0, NULL, 0);
 }
-EXPORT_SYMBOL_GPL(gb_svc_timesync_disable);
 
 int gb_svc_timesync_authoritative(struct gb_svc *svc, u64 *frame_time)
 {
@@ -564,7 +558,6 @@ int gb_svc_timesync_authoritative(struct gb_svc *svc, u64 *frame_time)
 		frame_time[i] = le64_to_cpu(response.frame_time[i]);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(gb_svc_timesync_authoritative);
 
 int gb_svc_timesync_ping(struct gb_svc *svc, u64 *frame_time)
 {
@@ -582,7 +575,6 @@ int gb_svc_timesync_ping(struct gb_svc *svc, u64 *frame_time)
 	*frame_time = le64_to_cpu(response.frame_time);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(gb_svc_timesync_ping);
 
 int gb_svc_timesync_wake_pins_acquire(struct gb_svc *svc, u32 strobe_mask)
 {
@@ -595,7 +587,6 @@ int gb_svc_timesync_wake_pins_acquire(struct gb_svc *svc, u32 strobe_mask)
 				 &request, sizeof(request),
 				 NULL, 0);
 }
-EXPORT_SYMBOL_GPL(gb_svc_timesync_wake_pins_acquire);
 
 int gb_svc_timesync_wake_pins_release(struct gb_svc *svc)
 {
@@ -605,7 +596,6 @@ int gb_svc_timesync_wake_pins_release(struct gb_svc *svc)
 				 GB_SVC_TYPE_TIMESYNC_WAKE_PINS_RELEASE,
 				 NULL, 0, NULL, 0);
 }
-EXPORT_SYMBOL_GPL(gb_svc_timesync_wake_pins_release);
 
 /* Creates bi-directional routes between the devices */
 int gb_svc_route_create(struct gb_svc *svc, u8 intf1_id, u8 dev1_id,
@@ -685,7 +675,6 @@ int gb_svc_intf_set_power_mode(struct gb_svc *svc, u8 intf_id, u8 hs_series,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(gb_svc_intf_set_power_mode);
 
 int gb_svc_intf_set_power_mode_hibernate(struct gb_svc *svc, u8 intf_id)
 {
@@ -728,7 +717,6 @@ int gb_svc_ping(struct gb_svc *svc)
 					 NULL, 0, NULL, 0,
 					 GB_OPERATION_TIMEOUT_DEFAULT * 2);
 }
-EXPORT_SYMBOL_GPL(gb_svc_ping);
 
 static int gb_svc_version_request(struct gb_operation *op)
 {
