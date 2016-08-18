@@ -238,6 +238,11 @@ static const struct genl_ops tipc_genl_v2_ops[] = {
 		.dumpit	= tipc_nl_node_dump_monitor_peer,
 		.policy = tipc_nl_policy,
 	},
+	{
+		.cmd	= TIPC_NL_PEER_REMOVE,
+		.doit	= tipc_nl_peer_rm,
+		.policy = tipc_nl_policy,
+	}
 };
 
 int tipc_nlmsg_parse(const struct nlmsghdr *nlh, struct nlattr ***attr)
