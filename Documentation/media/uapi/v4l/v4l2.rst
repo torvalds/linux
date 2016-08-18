@@ -89,6 +89,11 @@ part can be used and distributed without restrictions.
 Revision History
 ****************
 
+:revision: 4.10 / 2016-07-15 (*rr*)
+
+Introduce HSV formats.
+
+
 :revision: 4.5 / 2015-10-29 (*rr*)
 
 Extend VIDIOC_G_EXT_CTRLS;. Replace ctrl_class with a new union with
