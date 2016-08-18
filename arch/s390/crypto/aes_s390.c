@@ -31,13 +31,10 @@
 #include <crypto/xts.h>
 #include <asm/cpacf.h>
 
-#define AES_KEYLEN_128		1
-#define AES_KEYLEN_192		2
-#define AES_KEYLEN_256		4
-
 static u8 *ctrblk;
 static DEFINE_SPINLOCK(ctrblk_lock);
-static char keylen_flag;
+
+static cpacf_mask_t km_functions, kmc_functions, kmctr_functions;
 
 struct s390_aes_ctx {
 	u8 key[AES_MAX_KEY_SIZE];
@@ -65,33 +62,6 @@ struct s390_xts_ctx {
 	struct crypto_skcipher *fallback;
 };
 
-/*
- * Check if the key_len is supported by the HW.
- * Returns 0 if it is, a positive number if it is not and software fallback is
- * required or a negative number in case the key size is not valid
- */
-static int need_fallback(unsigned int key_len)
-{
-	switch (key_len) {
-	case 16:
-		if (!(keylen_flag & AES_KEYLEN_128))
-			return 1;
-		break;
-	case 24:
-		if (!(keylen_flag & AES_KEYLEN_192))
-			return 1;
-		break;
-	case 32:
-		if (!(keylen_flag & AES_KEYLEN_256))
-			return 1;
-		break;
-	default:
-		return -1;
-		break;
-	}
-	return 0;
-}
-
 static int setkey_fallback_cip(struct crypto_tfm *tfm, const u8 *in_key,
 		unsigned int key_len)
 {
@@ -115,72 +85,44 @@ static int aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 		       unsigned int key_len)
 {
 	struct s390_aes_ctx *sctx = crypto_tfm_ctx(tfm);
-	u32 *flags = &tfm->crt_flags;
-	int ret;
+	unsigned long fc;
 
-	ret = need_fallback(key_len);
-	if (ret < 0) {
-		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
-		return -EINVAL;
-	}
+	/* Pick the correct function code based on the key length */
+	fc = (key_len == 16) ? CPACF_KM_AES_128 :
+	     (key_len == 24) ? CPACF_KM_AES_192 :
+	     (key_len == 32) ? CPACF_KM_AES_256 : 0;
+
+	/* Check if the function code is available */
+	sctx->fc = (fc && cpacf_test_func(&km_functions, fc)) ? fc : 0;
+	if (!sctx->fc)
+		return setkey_fallback_cip(tfm, in_key, key_len);
 
 	sctx->key_len = key_len;
-	if (!ret) {
-		memcpy(sctx->key, in_key, key_len);
-		return 0;
-	}
-
-	return setkey_fallback_cip(tfm, in_key, key_len);
+	memcpy(sctx->key, in_key, key_len);
+	return 0;
 }
 
 static void aes_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
 	struct s390_aes_ctx *sctx = crypto_tfm_ctx(tfm);
 
-	if (unlikely(need_fallback(sctx->key_len))) {
+	if (unlikely(!sctx->fc)) {
 		crypto_cipher_encrypt_one(sctx->fallback.cip, out, in);
 		return;
 	}
-
-	switch (sctx->key_len) {
-	case 16:
-		cpacf_km(CPACF_KM_AES_128,
-			 &sctx->key, out, in, AES_BLOCK_SIZE);
-		break;
-	case 24:
-		cpacf_km(CPACF_KM_AES_192,
-			 &sctx->key, out, in, AES_BLOCK_SIZE);
-		break;
-	case 32:
-		cpacf_km(CPACF_KM_AES_256,
-			 &sctx->key, out, in, AES_BLOCK_SIZE);
-		break;
-	}
+	cpacf_km(sctx->fc, &sctx->key, out, in, AES_BLOCK_SIZE);
 }
 
 static void aes_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
 	struct s390_aes_ctx *sctx = crypto_tfm_ctx(tfm);
 
-	if (unlikely(need_fallback(sctx->key_len))) {
+	if (unlikely(!sctx->fc)) {
 		crypto_cipher_decrypt_one(sctx->fallback.cip, out, in);
 		return;
 	}
-
-	switch (sctx->key_len) {
-	case 16:
-		cpacf_km(CPACF_KM_AES_128 | CPACF_DECRYPT,
-			 &sctx->key, out, in, AES_BLOCK_SIZE);
-		break;
-	case 24:
-		cpacf_km(CPACF_KM_AES_192 | CPACF_DECRYPT,
-			 &sctx->key, out, in, AES_BLOCK_SIZE);
-		break;
-	case 32:
-		cpacf_km(CPACF_KM_AES_256 | CPACF_DECRYPT,
-			 &sctx->key, out, in, AES_BLOCK_SIZE);
-		break;
-	}
+	cpacf_km(sctx->fc | CPACF_DECRYPT,
+		 &sctx->key, out, in, AES_BLOCK_SIZE);
 }
 
 static int fallback_init_cip(struct crypto_tfm *tfm)
@@ -289,27 +231,21 @@ static int ecb_aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 			   unsigned int key_len)
 {
 	struct s390_aes_ctx *sctx = crypto_tfm_ctx(tfm);
-	int ret;
+	unsigned long fc;
 
-	ret = need_fallback(key_len);
-	if (ret > 0) {
-		sctx->key_len = key_len;
+	/* Pick the correct function code based on the key length */
+	fc = (key_len == 16) ? CPACF_KM_AES_128 :
+	     (key_len == 24) ? CPACF_KM_AES_192 :
+	     (key_len == 32) ? CPACF_KM_AES_256 : 0;
+
+	/* Check if the function code is available */
+	sctx->fc = (fc && cpacf_test_func(&km_functions, fc)) ? fc : 0;
+	if (!sctx->fc)
 		return setkey_fallback_blk(tfm, in_key, key_len);
-	}
 
-	switch (key_len) {
-	case 16:
-		sctx->fc = CPACF_KM_AES_128;
-		break;
-	case 24:
-		sctx->fc = CPACF_KM_AES_192;
-		break;
-	case 32:
-		sctx->fc = CPACF_KM_AES_256;
-		break;
-	}
-
-	return aes_set_key(tfm, in_key, key_len);
+	sctx->key_len = key_len;
+	memcpy(sctx->key, in_key, key_len);
+	return 0;
 }
 
 static int ecb_aes_crypt(struct blkcipher_desc *desc, long func, void *param,
@@ -340,7 +276,7 @@ static int ecb_aes_encrypt(struct blkcipher_desc *desc,
 	struct s390_aes_ctx *sctx = crypto_blkcipher_ctx(desc->tfm);
 	struct blkcipher_walk walk;
 
-	if (unlikely(need_fallback(sctx->key_len)))
+	if (unlikely(!sctx->fc))
 		return fallback_blk_enc(desc, dst, src, nbytes);
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
@@ -354,7 +290,7 @@ static int ecb_aes_decrypt(struct blkcipher_desc *desc,
 	struct s390_aes_ctx *sctx = crypto_blkcipher_ctx(desc->tfm);
 	struct blkcipher_walk walk;
 
-	if (unlikely(need_fallback(sctx->key_len)))
+	if (unlikely(!sctx->fc))
 		return fallback_blk_dec(desc, dst, src, nbytes);
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
@@ -413,27 +349,21 @@ static int cbc_aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 			   unsigned int key_len)
 {
 	struct s390_aes_ctx *sctx = crypto_tfm_ctx(tfm);
-	int ret;
+	unsigned long fc;
 
-	ret = need_fallback(key_len);
-	if (ret > 0) {
-		sctx->key_len = key_len;
+	/* Pick the correct function code based on the key length */
+	fc = (key_len == 16) ? CPACF_KMC_AES_128 :
+	     (key_len == 24) ? CPACF_KMC_AES_192 :
+	     (key_len == 32) ? CPACF_KMC_AES_256 : 0;
+
+	/* Check if the function code is available */
+	sctx->fc = (fc && cpacf_test_func(&kmc_functions, fc)) ? fc : 0;
+	if (!sctx->fc)
 		return setkey_fallback_blk(tfm, in_key, key_len);
-	}
 
-	switch (key_len) {
-	case 16:
-		sctx->fc = CPACF_KMC_AES_128;
-		break;
-	case 24:
-		sctx->fc = CPACF_KMC_AES_192;
-		break;
-	case 32:
-		sctx->fc = CPACF_KMC_AES_256;
-		break;
-	}
-
-	return aes_set_key(tfm, in_key, key_len);
+	sctx->key_len = key_len;
+	memcpy(sctx->key, in_key, key_len);
+	return 0;
 }
 
 static int cbc_aes_crypt(struct blkcipher_desc *desc, long func,
@@ -476,7 +406,7 @@ static int cbc_aes_encrypt(struct blkcipher_desc *desc,
 	struct s390_aes_ctx *sctx = crypto_blkcipher_ctx(desc->tfm);
 	struct blkcipher_walk walk;
 
-	if (unlikely(need_fallback(sctx->key_len)))
+	if (unlikely(!sctx->fc))
 		return fallback_blk_enc(desc, dst, src, nbytes);
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
@@ -490,7 +420,7 @@ static int cbc_aes_decrypt(struct blkcipher_desc *desc,
 	struct s390_aes_ctx *sctx = crypto_blkcipher_ctx(desc->tfm);
 	struct blkcipher_walk walk;
 
-	if (unlikely(need_fallback(sctx->key_len)))
+	if (unlikely(!sctx->fc))
 		return fallback_blk_dec(desc, dst, src, nbytes);
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
@@ -582,33 +512,27 @@ static int xts_aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 			   unsigned int key_len)
 {
 	struct s390_xts_ctx *xts_ctx = crypto_tfm_ctx(tfm);
-	u32 *flags = &tfm->crt_flags;
+	unsigned long fc;
 	int err;
 
 	err = xts_check_key(tfm, in_key, key_len);
 	if (err)
 		return err;
 
-	switch (key_len) {
-	case 32:
-		xts_ctx->fc = CPACF_KM_XTS_128;
-		memcpy(xts_ctx->key + 16, in_key, 16);
-		memcpy(xts_ctx->pcc_key + 16, in_key + 16, 16);
-		break;
-	case 48:
-		xts_ctx->fc = 0;
-		xts_fallback_setkey(tfm, in_key, key_len);
-		break;
-	case 64:
-		xts_ctx->fc = CPACF_KM_XTS_256;
-		memcpy(xts_ctx->key, in_key, 32);
-		memcpy(xts_ctx->pcc_key, in_key + 32, 32);
-		break;
-	default:
-		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
-		return -EINVAL;
-	}
+	/* Pick the correct function code based on the key length */
+	fc = (key_len == 32) ? CPACF_KM_XTS_128 :
+	     (key_len == 64) ? CPACF_KM_XTS_256 : 0;
+
+	/* Check if the function code is available */
+	xts_ctx->fc = (fc && cpacf_test_func(&km_functions, fc)) ? fc : 0;
+	if (!xts_ctx->fc)
+		return xts_fallback_setkey(tfm, in_key, key_len);
+
+	/* Split the XTS key into the two subkeys */
+	key_len = key_len / 2;
 	xts_ctx->key_len = key_len;
+	memcpy(xts_ctx->key, in_key, key_len);
+	memcpy(xts_ctx->pcc_key, in_key + key_len, key_len);
 	return 0;
 }
 
@@ -616,7 +540,7 @@ static int xts_aes_crypt(struct blkcipher_desc *desc, long func,
 			 struct s390_xts_ctx *xts_ctx,
 			 struct blkcipher_walk *walk)
 {
-	unsigned int offset = (xts_ctx->key_len >> 1) & 0x10;
+	unsigned int offset = xts_ctx->key_len & 0x10;
 	int ret = blkcipher_walk_virt(desc, walk);
 	unsigned int nbytes = walk->nbytes;
 	unsigned int n;
@@ -634,11 +558,11 @@ static int xts_aes_crypt(struct blkcipher_desc *desc, long func,
 	memset(pcc_param.bit, 0, sizeof(pcc_param.bit));
 	memset(pcc_param.xts, 0, sizeof(pcc_param.xts));
 	memcpy(pcc_param.tweak, walk->iv, sizeof(pcc_param.tweak));
-	memcpy(pcc_param.key, xts_ctx->pcc_key, 32);
+	memcpy(pcc_param.key + offset, xts_ctx->pcc_key, xts_ctx->key_len);
 	/* remove decipher modifier bit from 'func' and call PCC */
 	cpacf_pcc(func & 0x7f, &pcc_param.key[offset]);
 
-	memcpy(xts_param.key, xts_ctx->key, 32);
+	memcpy(xts_param.key + offset, xts_ctx->key, xts_ctx->key_len);
 	memcpy(xts_param.init, pcc_param.xts, 16);
 	do {
 		/* only use complete blocks */
@@ -662,7 +586,7 @@ static int xts_aes_encrypt(struct blkcipher_desc *desc,
 	struct s390_xts_ctx *xts_ctx = crypto_blkcipher_ctx(desc->tfm);
 	struct blkcipher_walk walk;
 
-	if (unlikely(xts_ctx->key_len == 48))
+	if (unlikely(!xts_ctx->fc))
 		return xts_fallback_encrypt(desc, dst, src, nbytes);
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
@@ -676,7 +600,7 @@ static int xts_aes_decrypt(struct blkcipher_desc *desc,
 	struct s390_xts_ctx *xts_ctx = crypto_blkcipher_ctx(desc->tfm);
 	struct blkcipher_walk walk;
 
-	if (unlikely(xts_ctx->key_len == 48))
+	if (unlikely(!xts_ctx->fc))
 		return xts_fallback_decrypt(desc, dst, src, nbytes);
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
@@ -735,20 +659,21 @@ static int ctr_aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 			   unsigned int key_len)
 {
 	struct s390_aes_ctx *sctx = crypto_tfm_ctx(tfm);
+	unsigned long fc;
 
-	switch (key_len) {
-	case 16:
-		sctx->fc = CPACF_KMCTR_AES_128;
-		break;
-	case 24:
-		sctx->fc = CPACF_KMCTR_AES_192;
-		break;
-	case 32:
-		sctx->fc = CPACF_KMCTR_AES_256;
-		break;
-	}
+	/* Pick the correct function code based on the key length */
+	fc = (key_len == 16) ? CPACF_KMCTR_AES_128 :
+	     (key_len == 24) ? CPACF_KMCTR_AES_192 :
+	     (key_len == 32) ? CPACF_KMCTR_AES_256 : 0;
 
-	return aes_set_key(tfm, in_key, key_len);
+	/* Check if the function code is available */
+	sctx->fc = (fc && cpacf_test_func(&kmctr_functions, fc)) ? fc : 0;
+	if (!sctx->fc)
+		return setkey_fallback_blk(tfm, in_key, key_len);
+
+	sctx->key_len = key_len;
+	memcpy(sctx->key, in_key, key_len);
+	return 0;
 }
 
 static unsigned int __ctrblk_init(u8 *ctrptr, unsigned int nbytes)
@@ -832,6 +757,9 @@ static int ctr_aes_encrypt(struct blkcipher_desc *desc,
 	struct s390_aes_ctx *sctx = crypto_blkcipher_ctx(desc->tfm);
 	struct blkcipher_walk walk;
 
+	if (unlikely(!sctx->fc))
+		return fallback_blk_enc(desc, dst, src, nbytes);
+
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	return ctr_aes_crypt(desc, sctx->fc, sctx, &walk);
 }
@@ -843,6 +771,9 @@ static int ctr_aes_decrypt(struct blkcipher_desc *desc,
 	struct s390_aes_ctx *sctx = crypto_blkcipher_ctx(desc->tfm);
 	struct blkcipher_walk walk;
 
+	if (unlikely(!sctx->fc))
+		return fallback_blk_dec(desc, dst, src, nbytes);
+
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	return ctr_aes_crypt(desc, sctx->fc | CPACF_DECRYPT, sctx, &walk);
 }
@@ -851,11 +782,14 @@ static struct crypto_alg ctr_aes_alg = {
 	.cra_name		=	"ctr(aes)",
 	.cra_driver_name	=	"ctr-aes-s390",
 	.cra_priority		=	400,	/* combo: aes + ctr */
-	.cra_flags		=	CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_flags		=	CRYPTO_ALG_TYPE_BLKCIPHER |
+					CRYPTO_ALG_NEED_FALLBACK,
 	.cra_blocksize		=	1,
 	.cra_ctxsize		=	sizeof(struct s390_aes_ctx),
 	.cra_type		=	&crypto_blkcipher_type,
 	.cra_module		=	THIS_MODULE,
+	.cra_init		=	fallback_init_blk,
+	.cra_exit		=	fallback_exit_blk,
 	.cra_u			=	{
 		.blkcipher = {
 			.min_keysize		=	AES_MIN_KEY_SIZE,
@@ -893,43 +827,40 @@ static int __init aes_s390_init(void)
 {
 	int ret;
 
-	if (cpacf_query(CPACF_KM, CPACF_KM_AES_128))
-		keylen_flag |= AES_KEYLEN_128;
-	if (cpacf_query(CPACF_KM, CPACF_KM_AES_192))
-		keylen_flag |= AES_KEYLEN_192;
-	if (cpacf_query(CPACF_KM, CPACF_KM_AES_256))
-		keylen_flag |= AES_KEYLEN_256;
+	/* Query available functions for KM, KMC and KMCTR */
+	cpacf_query(CPACF_KM, &km_functions);
+	cpacf_query(CPACF_KMC, &kmc_functions);
+	cpacf_query(CPACF_KMCTR, &kmctr_functions);
 
-	if (!keylen_flag)
-		return -EOPNOTSUPP;
+	if (cpacf_test_func(&km_functions, CPACF_KM_AES_128) ||
+	    cpacf_test_func(&km_functions, CPACF_KM_AES_192) ||
+	    cpacf_test_func(&km_functions, CPACF_KM_AES_256)) {
+		ret = aes_s390_register_alg(&aes_alg);
+		if (ret)
+			goto out_err;
+		ret = aes_s390_register_alg(&ecb_aes_alg);
+		if (ret)
+			goto out_err;
+	}
 
-	/* z9 109 and z9 BC/EC only support 128 bit key length */
-	if (keylen_flag == AES_KEYLEN_128)
-		pr_info("AES hardware acceleration is only available for"
-			" 128-bit keys\n");
+	if (cpacf_test_func(&kmc_functions, CPACF_KMC_AES_128) ||
+	    cpacf_test_func(&kmc_functions, CPACF_KMC_AES_192) ||
+	    cpacf_test_func(&kmc_functions, CPACF_KMC_AES_256)) {
+		ret = aes_s390_register_alg(&cbc_aes_alg);
+		if (ret)
+			goto out_err;
+	}
 
-	ret = aes_s390_register_alg(&aes_alg);
-	if (ret)
-		goto out_err;
-
-	ret = aes_s390_register_alg(&ecb_aes_alg);
-	if (ret)
-		goto out_err;
-
-	ret = aes_s390_register_alg(&cbc_aes_alg);
-	if (ret)
-		goto out_err;
-
-	if (cpacf_query(CPACF_KM, CPACF_KM_XTS_128) &&
-	    cpacf_query(CPACF_KM, CPACF_KM_XTS_256)) {
+	if (cpacf_test_func(&km_functions, CPACF_KM_XTS_128) ||
+	    cpacf_test_func(&km_functions, CPACF_KM_XTS_256)) {
 		ret = aes_s390_register_alg(&xts_aes_alg);
 		if (ret)
 			goto out_err;
 	}
 
-	if (cpacf_query(CPACF_KMCTR, CPACF_KMCTR_AES_128) &&
-	    cpacf_query(CPACF_KMCTR, CPACF_KMCTR_AES_192) &&
-	    cpacf_query(CPACF_KMCTR, CPACF_KMCTR_AES_256)) {
+	if (cpacf_test_func(&kmctr_functions, CPACF_KMCTR_AES_128) ||
+	    cpacf_test_func(&kmctr_functions, CPACF_KMCTR_AES_192) ||
+	    cpacf_test_func(&kmctr_functions, CPACF_KMCTR_AES_256)) {
 		ctrblk = (u8 *) __get_free_page(GFP_KERNEL);
 		if (!ctrblk) {
 			ret = -ENOMEM;

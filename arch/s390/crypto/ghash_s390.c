@@ -136,7 +136,7 @@ static struct shash_alg ghash_alg = {
 
 static int __init ghash_mod_init(void)
 {
-	if (!cpacf_query(CPACF_KIMD, CPACF_KIMD_GHASH))
+	if (!cpacf_query_func(CPACF_KIMD, CPACF_KIMD_GHASH))
 		return -EOPNOTSUPP;
 
 	return crypto_register_shash(&ghash_alg);

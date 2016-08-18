@@ -133,7 +133,7 @@ static int __init init(void)
 {
 	int ret;
 
-	if (!cpacf_query(CPACF_KIMD, CPACF_KIMD_SHA_512))
+	if (!cpacf_query_func(CPACF_KIMD, CPACF_KIMD_SHA_512))
 		return -EOPNOTSUPP;
 	if ((ret = crypto_register_shash(&sha512_alg)) < 0)
 		goto out;

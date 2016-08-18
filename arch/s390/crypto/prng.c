@@ -757,13 +757,13 @@ static int __init prng_init(void)
 	int ret;
 
 	/* check if the CPU has a PRNG */
-	if (!cpacf_query(CPACF_KMC, CPACF_KMC_PRNG))
+	if (!cpacf_query_func(CPACF_KMC, CPACF_KMC_PRNG))
 		return -EOPNOTSUPP;
 
 	/* choose prng mode */
 	if (prng_mode != PRNG_MODE_TDES) {
 		/* check for MSA5 support for PPNO operations */
-		if (!cpacf_query(CPACF_PPNO, CPACF_PPNO_SHA512_DRNG_GEN)) {
+		if (!cpacf_query_func(CPACF_PPNO, CPACF_PPNO_SHA512_DRNG_GEN)) {
 			if (prng_mode == PRNG_MODE_SHA512) {
 				pr_err("The prng module cannot "
 				       "start in SHA-512 mode\n");

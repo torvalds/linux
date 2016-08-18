@@ -27,6 +27,8 @@
 static u8 *ctrblk;
 static DEFINE_SPINLOCK(ctrblk_lock);
 
+static cpacf_mask_t km_functions, kmc_functions, kmctr_functions;
+
 struct s390_des_ctx {
 	u8 iv[DES_BLOCK_SIZE];
 	u8 key[DES3_KEY_SIZE];
@@ -36,12 +38,12 @@ static int des_setkey(struct crypto_tfm *tfm, const u8 *key,
 		      unsigned int key_len)
 {
 	struct s390_des_ctx *ctx = crypto_tfm_ctx(tfm);
-	u32 *flags = &tfm->crt_flags;
 	u32 tmp[DES_EXPKEY_WORDS];
 
 	/* check for weak keys */
-	if (!des_ekey(tmp, key) && (*flags & CRYPTO_TFM_REQ_WEAK_KEY)) {
-		*flags |= CRYPTO_TFM_RES_WEAK_KEY;
+	if (!des_ekey(tmp, key) &&
+	    (tfm->crt_flags & CRYPTO_TFM_REQ_WEAK_KEY)) {
+		tfm->crt_flags |= CRYPTO_TFM_RES_WEAK_KEY;
 		return -EINVAL;
 	}
 
@@ -238,13 +240,12 @@ static int des3_setkey(struct crypto_tfm *tfm, const u8 *key,
 		       unsigned int key_len)
 {
 	struct s390_des_ctx *ctx = crypto_tfm_ctx(tfm);
-	u32 *flags = &tfm->crt_flags;
 
 	if (!(crypto_memneq(key, &key[DES_KEY_SIZE], DES_KEY_SIZE) &&
 	    crypto_memneq(&key[DES_KEY_SIZE], &key[DES_KEY_SIZE * 2],
 			  DES_KEY_SIZE)) &&
-	    (*flags & CRYPTO_TFM_REQ_WEAK_KEY)) {
-		*flags |= CRYPTO_TFM_RES_WEAK_KEY;
+	    (tfm->crt_flags & CRYPTO_TFM_REQ_WEAK_KEY)) {
+		tfm->crt_flags |= CRYPTO_TFM_RES_WEAK_KEY;
 		return -EINVAL;
 	}
 	memcpy(ctx->key, key, key_len);
@@ -554,39 +555,53 @@ static int __init des_s390_init(void)
 {
 	int ret;
 
-	if (!cpacf_query(CPACF_KM, CPACF_KM_DEA) ||
-	    !cpacf_query(CPACF_KM, CPACF_KM_TDEA_192))
-		return -EOPNOTSUPP;
+	/* Query available functions for KM, KMC and KMCTR */
+	cpacf_query(CPACF_KM, &km_functions);
+	cpacf_query(CPACF_KMC, &kmc_functions);
+	cpacf_query(CPACF_KMCTR, &kmctr_functions);
 
-	ret = des_s390_register_alg(&des_alg);
-	if (ret)
-		goto out_err;
-	ret = des_s390_register_alg(&ecb_des_alg);
-	if (ret)
-		goto out_err;
-	ret = des_s390_register_alg(&cbc_des_alg);
-	if (ret)
-		goto out_err;
-	ret = des_s390_register_alg(&des3_alg);
-	if (ret)
-		goto out_err;
-	ret = des_s390_register_alg(&ecb_des3_alg);
-	if (ret)
-		goto out_err;
-	ret = des_s390_register_alg(&cbc_des3_alg);
-	if (ret)
-		goto out_err;
+	if (cpacf_test_func(&km_functions, CPACF_KM_DEA)) {
+		ret = des_s390_register_alg(&des_alg);
+		if (ret)
+			goto out_err;
+		ret = des_s390_register_alg(&ecb_des_alg);
+		if (ret)
+			goto out_err;
+	}
+	if (cpacf_test_func(&kmc_functions, CPACF_KMC_DEA)) {
+		ret = des_s390_register_alg(&cbc_des_alg);
+		if (ret)
+			goto out_err;
+	}
+	if (cpacf_test_func(&km_functions, CPACF_KM_TDEA_192)) {
+		ret = des_s390_register_alg(&des3_alg);
+		if (ret)
+			goto out_err;
+		ret = des_s390_register_alg(&ecb_des3_alg);
+		if (ret)
+			goto out_err;
+	}
+	if (cpacf_test_func(&kmc_functions, CPACF_KMC_TDEA_192)) {
+		ret = des_s390_register_alg(&cbc_des3_alg);
+		if (ret)
+			goto out_err;
+	}
 
-	if (cpacf_query(CPACF_KMCTR, CPACF_KMCTR_DEA) &&
-	    cpacf_query(CPACF_KMCTR, CPACF_KMCTR_TDEA_192)) {
+	if (cpacf_test_func(&kmctr_functions, CPACF_KMCTR_DEA) ||
+	    cpacf_test_func(&kmctr_functions, CPACF_KMCTR_TDEA_192)) {
 		ctrblk = (u8 *) __get_free_page(GFP_KERNEL);
 		if (!ctrblk) {
 			ret = -ENOMEM;
 			goto out_err;
 		}
+	}
+
+	if (cpacf_test_func(&kmctr_functions, CPACF_KMCTR_DEA)) {
 		ret = des_s390_register_alg(&ctr_des_alg);
 		if (ret)
 			goto out_err;
+	}
+	if (cpacf_test_func(&kmctr_functions, CPACF_KMCTR_TDEA_192)) {
 		ret = des_s390_register_alg(&ctr_des3_alg);
 		if (ret)
 			goto out_err;

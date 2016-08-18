@@ -106,6 +106,8 @@
 #define CPACF_PPNO_SHA512_DRNG_GEN	0x03
 #define CPACF_PPNO_SHA512_DRNG_SEED	0x83
 
+typedef struct { unsigned char bytes[16]; } cpacf_mask_t;
+
 /**
  * cpacf_query() - check if a specific CPACF function is available
  * @opcode: the opcode of the crypto instruction
@@ -116,55 +118,66 @@
  *
  * Returns 1 if @func is available for @opcode, 0 otherwise
  */
-static inline void __cpacf_query(unsigned int opcode, unsigned char *status)
+static inline void __cpacf_query(unsigned int opcode, cpacf_mask_t *mask)
 {
-	typedef struct { unsigned char _[16]; } status_type;
 	register unsigned long r0 asm("0") = 0;	/* query function */
-	register unsigned long r1 asm("1") = (unsigned long) status;
+	register unsigned long r1 asm("1") = (unsigned long) mask;
 
 	asm volatile(
 		"	spm 0\n" /* pckmo doesn't change the cc */
 		/* Parameter registers are ignored, but may not be 0 */
 		"0:	.insn	rrf,%[opc] << 16,2,2,2,0\n"
 		"	brc	1,0b\n"	/* handle partial completion */
-		: "=m" (*(status_type *) status)
+		: "=m" (*mask)
 		: [fc] "d" (r0), [pba] "a" (r1), [opc] "i" (opcode)
 		: "cc");
 }
 
-static inline int cpacf_query(unsigned int opcode, unsigned int func)
+static inline int __cpacf_check_opcode(unsigned int opcode)
 {
-	unsigned char status[16];
-
 	switch (opcode) {
 	case CPACF_KMAC:
 	case CPACF_KM:
 	case CPACF_KMC:
 	case CPACF_KIMD:
 	case CPACF_KLMD:
-		if (!test_facility(17))	/* check for MSA */
-			return 0;
-		break;
+		return test_facility(17);	/* check for MSA */
 	case CPACF_PCKMO:
-		if (!test_facility(76))	/* check for MSA3 */
-			return 0;
-		break;
+		return test_facility(76);	/* check for MSA3 */
 	case CPACF_KMF:
 	case CPACF_KMO:
 	case CPACF_PCC:
 	case CPACF_KMCTR:
-		if (!test_facility(77))	/* check for MSA4 */
-			return 0;
-		break;
+		return test_facility(77);	/* check for MSA4 */
 	case CPACF_PPNO:
-		if (!test_facility(57))	/* check for MSA5 */
-			return 0;
-		break;
+		return test_facility(57);	/* check for MSA5 */
 	default:
 		BUG();
 	}
-	__cpacf_query(opcode, status);
-	return (status[func >> 3] & (0x80 >> (func & 7))) != 0;
+}
+
+static inline int cpacf_query(unsigned int opcode, cpacf_mask_t *mask)
+{
+	if (__cpacf_check_opcode(opcode)) {
+		__cpacf_query(opcode, mask);
+		return 1;
+	}
+	memset(mask, 0, sizeof(*mask));
+	return 0;
+}
+
+static inline int cpacf_test_func(cpacf_mask_t *mask, unsigned int func)
+{
+	return (mask->bytes[func >> 3] & (0x80 >> (func & 7))) != 0;
+}
+
+static inline int cpacf_query_func(unsigned int opcode, unsigned int func)
+{
+	cpacf_mask_t mask;
+
+	if (cpacf_query(opcode, &mask))
+		return cpacf_test_func(&mask, func);
+	return 0;
 }
 
 /**
