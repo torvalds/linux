@@ -1409,23 +1409,16 @@ static void wil_cfg80211_stop_p2p_device(struct wiphy *wiphy,
 					 struct wireless_dev *wdev)
 {
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
-	u8 started;
+	struct wil_p2p_info *p2p = &wil->p2p;
+
+	if (!p2p->p2p_dev_started)
+		return;
 
 	wil_dbg_misc(wil, "%s: entered\n", __func__);
 	mutex_lock(&wil->mutex);
-	started = wil_p2p_stop_discovery(wil);
-	if (started && wil->scan_request) {
-		struct cfg80211_scan_info info = {
-			.aborted = true,
-		};
-
-		cfg80211_scan_done(wil->scan_request, &info);
-		wil->scan_request = NULL;
-		wil->radio_wdev = wil->wdev;
-	}
+	wil_p2p_stop_radio_operations(wil);
+	p2p->p2p_dev_started = 0;
 	mutex_unlock(&wil->mutex);
-
-	wil->p2p.p2p_dev_started = 0;
 }
 
 static struct cfg80211_ops wil_cfg80211_ops = {
@@ -1544,11 +1537,11 @@ void wil_p2p_wdev_free(struct wil6210_priv *wil)
 
 	mutex_lock(&wil->p2p_wdev_mutex);
 	p2p_wdev = wil->p2p_wdev;
+	wil->p2p_wdev = NULL;
+	wil->radio_wdev = wil_to_wdev(wil);
+	mutex_unlock(&wil->p2p_wdev_mutex);
 	if (p2p_wdev) {
-		wil->p2p_wdev = NULL;
-		wil->radio_wdev = wil_to_wdev(wil);
 		cfg80211_unregister_wdev(p2p_wdev);
 		kfree(p2p_wdev);
 	}
-	mutex_unlock(&wil->p2p_wdev_mutex);
 }

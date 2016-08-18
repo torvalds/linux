@@ -20,6 +20,7 @@
 #include <linux/interrupt.h>
 #include <linux/suspend.h>
 #include "wil6210.h"
+#include <linux/rtnetlink.h>
 
 static bool use_msi = true;
 module_param(use_msi, bool, S_IRUGO);
@@ -293,6 +294,9 @@ static void wil_pcie_remove(struct pci_dev *pdev)
 #endif /* CONFIG_PM */
 
 	wil6210_debugfs_remove(wil);
+	rtnl_lock();
+	wil_p2p_wdev_free(wil);
+	rtnl_unlock();
 	wil_if_remove(wil);
 	wil_if_pcie_disable(wil);
 	pci_iounmap(pdev, csr);
@@ -300,7 +304,6 @@ static void wil_pcie_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 	if (wil->platform_ops.uninit)
 		wil->platform_ops.uninit(wil->platform_handle);
-	wil_p2p_wdev_free(wil);
 	wil_if_free(wil);
 }
 

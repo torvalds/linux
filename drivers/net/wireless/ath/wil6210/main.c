@@ -1050,7 +1050,7 @@ int __wil_down(struct wil6210_priv *wil)
 	}
 	wil_enable_irq(wil);
 
-	(void)wil_p2p_stop_discovery(wil);
+	wil_p2p_stop_radio_operations(wil);
 
 	if (wil->scan_request) {
 		struct cfg80211_scan_info info = {
