@@ -90,6 +90,7 @@
 #define STD_3D_OPCODE_SHIFT  (32 - 16)
 #define STD_2D_OPCODE_SHIFT  (32 - 10)
 #define STD_MFX_OPCODE_SHIFT (32 - 16)
+#define MIN_OPCODE_SHIFT 16
 
 #define CMD(op, opm, f, lm, fl, ...)				\
 	{							\
@@ -349,6 +350,9 @@ static const struct drm_i915_cmd_descriptor hsw_blt_cmds[] = {
 	CMD(  MI_LOAD_SCAN_LINES_INCL,          SMI,   !F,  0x3F,   M  ),
 	CMD(  MI_LOAD_SCAN_LINES_EXCL,          SMI,   !F,  0x3F,   R  ),
 };
+
+static const struct drm_i915_cmd_descriptor noop_desc =
+	CMD(MI_NOOP, SMI, F, 1, S);
 
 #undef CMD
 #undef SMI
@@ -893,10 +897,13 @@ find_cmd_in_table(struct intel_engine_cs *engine,
 static const struct drm_i915_cmd_descriptor*
 find_cmd(struct intel_engine_cs *engine,
 	 u32 cmd_header,
+	 const struct drm_i915_cmd_descriptor *desc,
 	 struct drm_i915_cmd_descriptor *default_desc)
 {
-	const struct drm_i915_cmd_descriptor *desc;
 	u32 mask;
+
+	if (((cmd_header ^ desc->cmd.value) & desc->cmd.mask) == 0)
+		return desc;
 
 	desc = find_cmd_in_table(engine, cmd_header);
 	if (desc)
@@ -906,10 +913,10 @@ find_cmd(struct intel_engine_cs *engine,
 	if (!mask)
 		return NULL;
 
-	BUG_ON(!default_desc);
-	default_desc->flags = CMD_DESC_SKIP;
+	default_desc->cmd.value = cmd_header;
+	default_desc->cmd.mask = ~0u << MIN_OPCODE_SHIFT;
 	default_desc->length.mask = mask;
-
+	default_desc->flags = CMD_DESC_SKIP;
 	return default_desc;
 }
 
@@ -1188,7 +1195,8 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 			    bool is_master)
 {
 	u32 *cmd, *batch_end;
-	struct drm_i915_cmd_descriptor default_desc = { 0 };
+	struct drm_i915_cmd_descriptor default_desc = noop_desc;
+	const struct drm_i915_cmd_descriptor *desc = &default_desc;
 	bool oacontrol_set = false; /* OACONTROL tracking. See check_cmd() */
 	bool needs_clflush_after = false;
 	int ret = 0;
@@ -1208,13 +1216,12 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 	 */
 	batch_end = cmd + (batch_len / sizeof(*batch_end));
 	while (cmd < batch_end) {
-		const struct drm_i915_cmd_descriptor *desc;
 		u32 length;
 
 		if (*cmd == MI_BATCH_BUFFER_END)
 			break;
 
-		desc = find_cmd(engine, *cmd, &default_desc);
+		desc = find_cmd(engine, *cmd, desc, &default_desc);
 		if (!desc) {
 			DRM_DEBUG_DRIVER("CMD: Unrecognized command: 0x%08X\n",
 					 *cmd);
