@@ -346,7 +346,7 @@ static int txx9spi_probe(struct platform_device *dev)
 		c->clk = NULL;
 		goto exit;
 	}
-	ret = clk_enable(c->clk);
+	ret = clk_prepare_enable(c->clk);
 	if (ret) {
 		c->clk = NULL;
 		goto exit;
@@ -395,7 +395,7 @@ static int txx9spi_probe(struct platform_device *dev)
 exit_busy:
 	ret = -EBUSY;
 exit:
-	clk_disable(c->clk);
+	clk_disable_unprepare(c->clk);
 	spi_master_put(master);
 	return ret;
 }
@@ -406,7 +406,7 @@ static int txx9spi_remove(struct platform_device *dev)
 	struct txx9spi *c = spi_master_get_devdata(master);
 
 	flush_work(&c->work);
-	clk_disable(c->clk);
+	clk_disable_unprepare(c->clk);
 	return 0;
 }
 
