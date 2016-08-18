@@ -93,13 +93,6 @@
 };
 
 &pio {
-	mma8452_int_e708_q1: mma8452_int_pin@0 {
-		allwinner,pins = "PA9";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
-	};
-
 	mmc0_cd_pin_e708_q1: mmc0_cd_pin@0 {
 		allwinner,pins = "PA8";
 		allwinner,function = "gpio_in";
