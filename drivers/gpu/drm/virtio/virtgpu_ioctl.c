@@ -152,15 +152,10 @@ static int virtio_gpu_execbuffer(struct drm_device *dev,
 	if (ret)
 		goto out_free;
 
-	buf = kmalloc(exbuf->size, GFP_KERNEL);
-	if (!buf) {
-		ret = -ENOMEM;
-		goto out_unresv;
-	}
-	if (copy_from_user(buf, (void __user *)(uintptr_t)exbuf->command,
-			   exbuf->size)) {
-		kfree(buf);
-		ret = -EFAULT;
+	buf = memdup_user((void __user *)(uintptr_t)exbuf->command,
+			  exbuf->size);
+	if (IS_ERR(buf)) {
+		ret = PTR_ERR(buf);
 		goto out_unresv;
 	}
 	virtio_gpu_cmd_submit(vgdev, buf, exbuf->size,
