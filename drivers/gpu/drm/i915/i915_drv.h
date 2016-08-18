@@ -3591,6 +3591,7 @@ int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle);
 /* belongs in i915_gem_gtt.h */
 static inline void i915_gem_chipset_flush(struct drm_i915_private *dev_priv)
 {
+	wmb();
 	if (INTEL_GEN(dev_priv) < 6)
 		intel_gtt_chipset_flush();
 }
