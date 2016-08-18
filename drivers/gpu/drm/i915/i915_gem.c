@@ -3253,6 +3253,24 @@ i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj)
 					    I915_GEM_DOMAIN_CPU);
 }
 
+static void i915_gem_object_bump_inactive_ggtt(struct drm_i915_gem_object *obj)
+{
+	struct i915_vma *vma;
+
+	list_for_each_entry(vma, &obj->vma_list, obj_link) {
+		if (!i915_vma_is_ggtt(vma))
+			continue;
+
+		if (i915_vma_is_active(vma))
+			continue;
+
+		if (!drm_mm_node_allocated(&vma->node))
+			continue;
+
+		list_move_tail(&vma->vm_link, &vma->vm->inactive_list);
+	}
+}
+
 /**
  * Moves a single object to the GTT read, and possibly write domain.
  * @obj: object to act on
@@ -3265,7 +3283,6 @@ int
 i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 {
 	uint32_t old_write_domain, old_read_domains;
-	struct i915_vma *vma;
 	int ret;
 
 	ret = i915_gem_object_wait_rendering(obj, !write);
@@ -3315,11 +3332,7 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 					    old_write_domain);
 
 	/* And bump the LRU for this access */
-	vma = i915_gem_object_to_ggtt(obj, NULL);
-	if (vma &&
-	    drm_mm_node_allocated(&vma->node) &&
-	    !i915_vma_is_active(vma))
-		list_move_tail(&vma->vm_link, &vma->vm->inactive_list);
+	i915_gem_object_bump_inactive_ggtt(obj);
 
 	return 0;
 }
@@ -3621,6 +3634,10 @@ i915_gem_object_unpin_from_display_plane(struct i915_vma *vma)
 
 	if (--vma->obj->pin_display == 0)
 		vma->display_alignment = 0;
+
+	/* Bump the LRU to try and avoid premature eviction whilst flipping  */
+	if (!i915_vma_is_active(vma))
+		list_move_tail(&vma->vm_link, &vma->vm->inactive_list);
 
 	i915_vma_unpin(vma);
 	WARN_ON(vma->obj->pin_display > i915_vma_pin_count(vma));
