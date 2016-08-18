@@ -679,14 +679,14 @@ static void pty_unix98_remove(struct tty_driver *driver, struct tty_struct *tty)
 /* this is called once with whichever end is closed last */
 static void pty_unix98_shutdown(struct tty_struct *tty)
 {
-	struct inode *ptmx_inode;
+	struct pts_fs_info *fsi;
 
 	if (tty->driver->subtype == PTY_TYPE_MASTER)
-		ptmx_inode = tty->driver_data;
+		fsi = tty->driver_data;
 	else
-		ptmx_inode = tty->link->driver_data;
-	devpts_kill_index(ptmx_inode, tty->index);
-	devpts_del_ref(ptmx_inode);
+		fsi = tty->link->driver_data;
+	devpts_kill_index(fsi, tty->index);
+	devpts_put_ref(fsi);
 }
 
 static const struct tty_operations ptm_unix98_ops = {
@@ -738,6 +738,7 @@ static const struct tty_operations pty_unix98_ops = {
 
 static int ptmx_open(struct inode *inode, struct file *filp)
 {
+	struct pts_fs_info *fsi;
 	struct tty_struct *tty;
 	struct inode *slave_inode;
 	int retval;
@@ -752,47 +753,41 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 	if (retval)
 		return retval;
 
+	fsi = devpts_get_ref(inode, filp);
+	retval = -ENODEV;
+	if (!fsi)
+		goto out_free_file;
+
 	/* find a device that is not in use. */
 	mutex_lock(&devpts_mutex);
-	index = devpts_new_index(inode);
-	if (index < 0) {
-		retval = index;
-		mutex_unlock(&devpts_mutex);
-		goto err_file;
-	}
-
+	index = devpts_new_index(fsi);
 	mutex_unlock(&devpts_mutex);
+
+	retval = index;
+	if (index < 0)
+		goto out_put_ref;
+
 
 	mutex_lock(&tty_mutex);
 	tty = tty_init_dev(ptm_driver, index);
-
-	if (IS_ERR(tty)) {
-		retval = PTR_ERR(tty);
-		goto out;
-	}
-
 	/* The tty returned here is locked so we can safely
 	   drop the mutex */
 	mutex_unlock(&tty_mutex);
 
-	set_bit(TTY_PTY_LOCK, &tty->flags); /* LOCK THE SLAVE */
-	tty->driver_data = inode;
+	retval = PTR_ERR(tty);
+	if (IS_ERR(tty))
+		goto out;
 
 	/*
-	 * In the case where all references to ptmx inode are dropped and we
-	 * still have /dev/tty opened pointing to the master/slave pair (ptmx
-	 * is closed/released before /dev/tty), we must make sure that the inode
-	 * is still valid when we call the final pty_unix98_shutdown, thus we
-	 * hold an additional reference to the ptmx inode. For the same /dev/tty
-	 * last close case, we also need to make sure the super_block isn't
-	 * destroyed (devpts instance unmounted), before /dev/tty is closed and
-	 * on its release devpts_kill_index is called.
+	 * From here on out, the tty is "live", and the index and
+	 * fsi will be killed/put by the tty_release()
 	 */
-	devpts_add_ref(inode);
+	set_bit(TTY_PTY_LOCK, &tty->flags); /* LOCK THE SLAVE */
+	tty->driver_data = fsi;
 
 	tty_add_file(tty, filp);
 
-	slave_inode = devpts_pty_new(inode,
+	slave_inode = devpts_pty_new(fsi,
 			MKDEV(UNIX98_PTY_SLAVE_MAJOR, index), index,
 			tty->link);
 	if (IS_ERR(slave_inode)) {
@@ -811,12 +806,14 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 	return 0;
 err_release:
 	tty_unlock(tty);
+	// This will also put-ref the fsi
 	tty_release(inode, filp);
 	return retval;
 out:
-	mutex_unlock(&tty_mutex);
-	devpts_kill_index(inode, index);
-err_file:
+	devpts_kill_index(fsi, index);
+out_put_ref:
+	devpts_put_ref(fsi);
+out_free_file:
 	tty_free_file(filp);
 	return retval;
 }

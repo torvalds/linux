@@ -331,6 +331,7 @@ static int aa_fs_seq_hash_show(struct seq_file *seq, void *v)
 			seq_printf(seq, "%.2x", profile->hash[i]);
 		seq_puts(seq, "\n");
 	}
+	aa_put_profile(profile);
 
 	return 0;
 }

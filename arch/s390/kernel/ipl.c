@@ -2070,13 +2070,6 @@ void s390_reset_system(void (*fn_pre)(void),
 	S390_lowcore.program_new_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) s390_base_pgm_handler;
 
-	/*
-	 * Clear subchannel ID and number to signal new kernel that no CCW or
-	 * SCSI IPL has been done (for kexec and kdump)
-	 */
-	S390_lowcore.subchannel_id = 0;
-	S390_lowcore.subchannel_nr = 0;
-
 	/* Store status at absolute zero */
 	store_status();
 
