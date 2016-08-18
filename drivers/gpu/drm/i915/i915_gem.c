@@ -622,6 +622,12 @@ int i915_gem_obj_prepare_shmem_read(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
+	ret = i915_gem_object_get_pages(obj);
+	if (ret)
+		return ret;
+
+	i915_gem_object_pin_pages(obj);
+
 	i915_gem_object_flush_gtt_write_domain(obj);
 
 	/* If we're not in the cpu read domain, set ourself into the gtt
@@ -633,22 +639,20 @@ int i915_gem_obj_prepare_shmem_read(struct drm_i915_gem_object *obj,
 		*needs_clflush = !cpu_cache_is_coherent(obj->base.dev,
 							obj->cache_level);
 
-	ret = i915_gem_object_get_pages(obj);
-	if (ret)
-		return ret;
-
-	i915_gem_object_pin_pages(obj);
-
 	if (*needs_clflush && !static_cpu_has(X86_FEATURE_CLFLUSH)) {
 		ret = i915_gem_object_set_to_cpu_domain(obj, false);
-		if (ret) {
-			i915_gem_object_unpin_pages(obj);
-			return ret;
-		}
+		if (ret)
+			goto err_unpin;
+
 		*needs_clflush = 0;
 	}
 
+	/* return with the pages pinned */
 	return 0;
+
+err_unpin:
+	i915_gem_object_unpin_pages(obj);
+	return ret;
 }
 
 int i915_gem_obj_prepare_shmem_write(struct drm_i915_gem_object *obj,
@@ -663,6 +667,12 @@ int i915_gem_obj_prepare_shmem_write(struct drm_i915_gem_object *obj,
 	ret = i915_gem_object_wait_rendering(obj, false);
 	if (ret)
 		return ret;
+
+	ret = i915_gem_object_get_pages(obj);
+	if (ret)
+		return ret;
+
+	i915_gem_object_pin_pages(obj);
 
 	i915_gem_object_flush_gtt_write_domain(obj);
 
@@ -681,18 +691,11 @@ int i915_gem_obj_prepare_shmem_write(struct drm_i915_gem_object *obj,
 		*needs_clflush |= !cpu_cache_is_coherent(obj->base.dev,
 							 obj->cache_level);
 
-	ret = i915_gem_object_get_pages(obj);
-	if (ret)
-		return ret;
-
-	i915_gem_object_pin_pages(obj);
-
 	if (*needs_clflush && !static_cpu_has(X86_FEATURE_CLFLUSH)) {
 		ret = i915_gem_object_set_to_cpu_domain(obj, true);
-		if (ret) {
-			i915_gem_object_unpin_pages(obj);
-			return ret;
-		}
+		if (ret)
+			goto err_unpin;
+
 		*needs_clflush = 0;
 	}
 
@@ -701,7 +704,12 @@ int i915_gem_obj_prepare_shmem_write(struct drm_i915_gem_object *obj,
 
 	intel_fb_obj_invalidate(obj, ORIGIN_CPU);
 	obj->dirty = 1;
+	/* return with the pages pinned */
 	return 0;
+
+err_unpin:
+	i915_gem_object_unpin_pages(obj);
+	return ret;
 }
 
 /* Per-page copy function for the shmem pread fastpath.
