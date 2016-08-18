@@ -56,7 +56,7 @@ that doesn't support them will return an ``EINVAL`` error code.
 
 .. _v4l2-bt-timings-cap:
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{1.2cm}|p{3.0cm}|p{13.3cm}|
 
 .. flat-table:: struct v4l2_bt_timings_cap
     :header-rows:  0
@@ -136,14 +136,14 @@ that doesn't support them will return an ``EINVAL`` error code.
 
        -  ``reserved``\ [16]
 
-       -  Reserved for future extensions. Drivers must set the array to
-	  zero.
+       -  Reserved for future extensions.
+	  Drivers must set the array to zero.
 
 
 
 .. _v4l2-dv-timings-cap:
 
-.. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{7.0cm}|p{3.5cm}|
+.. tabularcolumns:: |p{1.0cm}|p{3.5cm}|p{3.5cm}|p{9.5cm}|
 
 .. flat-table:: struct v4l2_dv_timings_cap
     :header-rows:  0
@@ -175,8 +175,9 @@ that doesn't support them will return an ``EINVAL`` error code.
 
        -  ``reserved``\ [2]
 
-       -  Reserved for future extensions. Drivers and applications must set
-	  the array to zero.
+       -  Reserved for future extensions.
+
+	  Drivers and applications must set the array to zero.
 
     -  .. row 4
 
@@ -203,6 +204,7 @@ that doesn't support them will return an ``EINVAL`` error code.
 
        -
 
+.. tabularcolumns:: |p{7.0cm}|p{10.5cm}|
 
 
 .. _dv-bt-cap-capabilities:
