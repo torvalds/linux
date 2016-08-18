@@ -102,6 +102,10 @@ current_snap
 
 	The current snapshot for which the device is mapped.
 
+snap_id
+
+	The current snapshot's id.  (August 2016, since 4.9.)
+
 parent
 
 	Information identifying the chain of parent images in a layered rbd
