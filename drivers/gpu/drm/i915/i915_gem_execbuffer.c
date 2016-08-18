@@ -283,6 +283,9 @@ static void eb_destroy(struct eb_vmas *eb)
 
 static inline int use_cpu_reloc(struct drm_i915_gem_object *obj)
 {
+	if (!i915_gem_object_has_struct_page(obj))
+		return false;
+
 	if (DBG_USE_CPU_RELOC)
 		return DBG_USE_CPU_RELOC > 0;
 
