@@ -776,6 +776,10 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 
 	/* The use of a CPU fence is mandatory in order to detect writes
 	 * by the CPU to the scanout and trigger updates to the FBC.
+	 *
+	 * Note that is possible for a tiled surface to be unmappable (and
+	 * so have no fence associated with it) due to aperture constaints
+	 * at the time of pinning.
 	 */
 	if (cache->fb.tiling_mode != I915_TILING_X ||
 	    cache->fb.fence_reg == I915_FENCE_REG_NONE) {

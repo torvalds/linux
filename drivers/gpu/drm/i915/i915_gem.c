@@ -3581,11 +3581,17 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 
 	/* As the user may map the buffer once pinned in the display plane
 	 * (e.g. libkms for the bootup splash), we have to ensure that we
-	 * always use map_and_fenceable for all scanout buffers.
+	 * always use map_and_fenceable for all scanout buffers. However,
+	 * it may simply be too big to fit into mappable, in which case
+	 * put it anyway and hope that userspace can cope (but always first
+	 * try to preserve the existing ABI).
 	 */
-	vma = i915_gem_object_ggtt_pin(obj, view, 0, alignment,
-				       view->type == I915_GGTT_VIEW_NORMAL ?
-				       PIN_MAPPABLE : 0);
+	vma = ERR_PTR(-ENOSPC);
+	if (view->type == I915_GGTT_VIEW_NORMAL)
+		vma = i915_gem_object_ggtt_pin(obj, view, 0, alignment,
+					       PIN_MAPPABLE | PIN_NONBLOCK);
+	if (IS_ERR(vma))
+		vma = i915_gem_object_ggtt_pin(obj, view, 0, alignment, 0);
 	if (IS_ERR(vma))
 		goto err_unpin_display;
 
