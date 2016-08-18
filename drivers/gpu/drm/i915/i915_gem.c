@@ -2094,11 +2094,14 @@ i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
 	list_del(&obj->global_list);
 
 	if (obj->mapping) {
-		/* low bits are ignored by is_vmalloc_addr and kmap_to_page */
-		if (is_vmalloc_addr(obj->mapping))
-			vunmap(obj->mapping);
+		void *ptr;
+
+		ptr = ptr_mask_bits(obj->mapping);
+		if (is_vmalloc_addr(ptr))
+			vunmap(ptr);
 		else
-			kunmap(kmap_to_page(obj->mapping));
+			kunmap(kmap_to_page(ptr));
+
 		obj->mapping = NULL;
 	}
 
