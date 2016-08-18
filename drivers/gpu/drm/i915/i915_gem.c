@@ -622,6 +622,8 @@ int i915_gem_obj_prepare_shmem_read(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
+	i915_gem_object_flush_gtt_write_domain(obj);
+
 	/* If we're not in the cpu read domain, set ourself into the gtt
 	 * read domain and manually flush cachelines (if required). This
 	 * optimizes for the case when the gpu will dirty the data
@@ -661,6 +663,8 @@ int i915_gem_obj_prepare_shmem_write(struct drm_i915_gem_object *obj,
 	ret = i915_gem_object_wait_rendering(obj, false);
 	if (ret)
 		return ret;
+
+	i915_gem_object_flush_gtt_write_domain(obj);
 
 	/* If we're not in the cpu write domain, set ourself into the
 	 * gtt write domain and manually flush cachelines (as required).
