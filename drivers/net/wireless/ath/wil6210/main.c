@@ -232,6 +232,9 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 	struct net_device *ndev = wil_to_ndev(wil);
 	struct wireless_dev *wdev = wil->wdev;
 
+	if (unlikely(!ndev))
+		return;
+
 	might_sleep();
 	wil_info(wil, "%s(bssid=%pM, reason=%d, ev%s)\n", __func__, bssid,
 		 reason_code, from_event ? "+" : "-");

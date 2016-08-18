@@ -1503,14 +1503,8 @@ struct wireless_dev *wil_cfg80211_init(struct device *dev)
 	set_wiphy_dev(wdev->wiphy, dev);
 	wil_wiphy_init(wdev->wiphy);
 
-	rc = wiphy_register(wdev->wiphy);
-	if (rc < 0)
-		goto out_failed_reg;
-
 	return wdev;
 
-out_failed_reg:
-	wiphy_free(wdev->wiphy);
 out:
 	kfree(wdev);
 
@@ -1526,7 +1520,6 @@ void wil_wdev_free(struct wil6210_priv *wil)
 	if (!wdev)
 		return;
 
-	wiphy_unregister(wdev->wiphy);
 	wiphy_free(wdev->wiphy);
 	kfree(wdev);
 }
