@@ -170,7 +170,7 @@ RDS datastructures
 
 .. _v4l2-rds-block-codes:
 
-.. tabularcolumns:: |p{2.2cm}|p{2.2cm}|p{2.2cm}|p{10.9cm}|
+.. tabularcolumns:: |p{5.6cm}|p{2.0cm}|p{1.5cm}|p{7.0cm}|
 
 .. flat-table:: Block defines
     :header-rows:  0
