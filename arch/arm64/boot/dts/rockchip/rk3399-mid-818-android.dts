@@ -217,6 +217,12 @@
 		BT,wake_host_irq = <&gpio0 4 GPIO_ACTIVE_HIGH>; /* GPIO0_A4 */
 		status = "okay";
 	};
+
+	uboot-charge {
+		compatible = "rockchip,uboot-charge";
+		rockchip,uboot-charge-on = <0>;
+		rockchip,android-charge-on = <1>;
+	};
 };
 
 &cluster0_opp {
@@ -490,6 +496,7 @@
 		rockchip,system-power-controller;
 		rk818,support_dc_chg = <1>;/*1: dc chg; 0:usb chg*/
 		wakeup-source;
+		extcon = <&fusb0>;
 		#clock-cells = <1>;
 
 		vcc1-supply = <&vcc_sys>;
@@ -661,26 +668,27 @@
 		};
 
 		battery {
+			compatible = "rk818-battery";
 			ocv_table = <3400 3675 3689 3716 3740 3756 3768 3780
 				3793 3807 3827 3853 3896 3937 3974 4007 4066
 				4110 4161 4217 4308>;
 			design_capacity = <7916>;
 			design_qmax = <8708>;
-			bat_res = <100>;
+			bat_res = <65>;
 			max_input_current = <3000>;
-			max_chrg_current = <4500>;
+			max_chrg_current = <3000>;
 			max_chrg_voltage = <4350>;
 			sleep_enter_current = <300>;
 			sleep_exit_current = <300>;
 			power_off_thresd = <3400>;
 			zero_algorithm_vol = <3950>;
-			fb_temperature = <115>;
+			fb_temperature = <105>;
+			sample_res = <20>;
 			max_soc_offset = <60>;
 			energy_mode = <0>;
 			monitor_sec = <5>;
 			virtual_power = <0>;
 			power_dc2otg = <0>;
-			dc_det_adc = <0>;
 		};
 	};
 };
