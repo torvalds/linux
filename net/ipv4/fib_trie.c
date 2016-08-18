@@ -249,7 +249,7 @@ static inline unsigned long get_index(t_key key, struct key_vector *kv)
  * index into the parent's child array. That is, they will be used to find
  * 'n' among tp's children.
  *
- * The bits from (n->pos + n->bits) to (tn->pos - 1) - "S" - are skipped bits
+ * The bits from (n->pos + n->bits) to (tp->pos - 1) - "S" - are skipped bits
  * for the node n.
  *
  * All the bits we have seen so far are significant to the node n. The rest
@@ -258,7 +258,7 @@ static inline unsigned long get_index(t_key key, struct key_vector *kv)
  * The bits from (n->pos) to (n->pos + n->bits - 1) - "C" - are the index into
  * n's child array, and will of course be different for each child.
  *
- * The rest of the bits, from 0 to (n->pos + n->bits), are completely unknown
+ * The rest of the bits, from 0 to (n->pos -1) - "u" - are completely unknown
  * at this point.
  */
 
