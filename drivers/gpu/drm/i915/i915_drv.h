@@ -3098,9 +3098,6 @@ int i915_gem_object_put_pages(struct drm_i915_gem_object *obj);
 void i915_gem_release_all_mmaps(struct drm_i915_private *dev_priv);
 void i915_gem_release_mmap(struct drm_i915_gem_object *obj);
 
-int i915_gem_obj_prepare_shmem_read(struct drm_i915_gem_object *obj,
-				    int *needs_clflush);
-
 int __must_check i915_gem_object_get_pages(struct drm_i915_gem_object *obj);
 
 static inline int __sg_page_count(struct scatterlist *sg)
@@ -3198,6 +3195,20 @@ void *__must_check i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 static inline void i915_gem_object_unpin_map(struct drm_i915_gem_object *obj)
 {
 	lockdep_assert_held(&obj->base.dev->struct_mutex);
+	i915_gem_object_unpin_pages(obj);
+}
+
+int i915_gem_obj_prepare_shmem_read(struct drm_i915_gem_object *obj,
+				    unsigned int *needs_clflush);
+int i915_gem_obj_prepare_shmem_write(struct drm_i915_gem_object *obj,
+				     unsigned int *needs_clflush);
+#define CLFLUSH_BEFORE 0x1
+#define CLFLUSH_AFTER 0x2
+#define CLFLUSH_FLAGS (CLFLUSH_BEFORE | CLFLUSH_AFTER)
+
+static inline void
+i915_gem_obj_finish_shmem_access(struct drm_i915_gem_object *obj)
+{
 	i915_gem_object_unpin_pages(obj);
 }
 

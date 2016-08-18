@@ -609,27 +609,27 @@ __copy_from_user_swizzled(char *gpu_vaddr, int gpu_offset,
  * flush the object from the CPU cache.
  */
 int i915_gem_obj_prepare_shmem_read(struct drm_i915_gem_object *obj,
-				    int *needs_clflush)
+				    unsigned int *needs_clflush)
 {
 	int ret;
 
 	*needs_clflush = 0;
 
-	if (WARN_ON(!i915_gem_object_has_struct_page(obj)))
-		return -EINVAL;
+	if (!i915_gem_object_has_struct_page(obj))
+		return -ENODEV;
 
 	ret = i915_gem_object_wait_rendering(obj, true);
 	if (ret)
 		return ret;
 
-	if (!(obj->base.read_domains & I915_GEM_DOMAIN_CPU)) {
-		/* If we're not in the cpu read domain, set ourself into the gtt
-		 * read domain and manually flush cachelines (if required). This
-		 * optimizes for the case when the gpu will dirty the data
-		 * anyway again before the next pread happens. */
+	/* If we're not in the cpu read domain, set ourself into the gtt
+	 * read domain and manually flush cachelines (if required). This
+	 * optimizes for the case when the gpu will dirty the data
+	 * anyway again before the next pread happens.
+	 */
+	if (!(obj->base.read_domains & I915_GEM_DOMAIN_CPU))
 		*needs_clflush = !cpu_cache_is_coherent(obj->base.dev,
 							obj->cache_level);
-	}
 
 	ret = i915_gem_object_get_pages(obj);
 	if (ret)
@@ -637,7 +637,67 @@ int i915_gem_obj_prepare_shmem_read(struct drm_i915_gem_object *obj,
 
 	i915_gem_object_pin_pages(obj);
 
-	return ret;
+	if (*needs_clflush && !static_cpu_has(X86_FEATURE_CLFLUSH)) {
+		ret = i915_gem_object_set_to_cpu_domain(obj, false);
+		if (ret) {
+			i915_gem_object_unpin_pages(obj);
+			return ret;
+		}
+		*needs_clflush = 0;
+	}
+
+	return 0;
+}
+
+int i915_gem_obj_prepare_shmem_write(struct drm_i915_gem_object *obj,
+				     unsigned int *needs_clflush)
+{
+	int ret;
+
+	*needs_clflush = 0;
+	if (!i915_gem_object_has_struct_page(obj))
+		return -ENODEV;
+
+	ret = i915_gem_object_wait_rendering(obj, false);
+	if (ret)
+		return ret;
+
+	/* If we're not in the cpu write domain, set ourself into the
+	 * gtt write domain and manually flush cachelines (as required).
+	 * This optimizes for the case when the gpu will use the data
+	 * right away and we therefore have to clflush anyway.
+	 */
+	if (obj->base.write_domain != I915_GEM_DOMAIN_CPU)
+		*needs_clflush |= cpu_write_needs_clflush(obj) << 1;
+
+	/* Same trick applies to invalidate partially written cachelines read
+	 * before writing.
+	 */
+	if (!(obj->base.read_domains & I915_GEM_DOMAIN_CPU))
+		*needs_clflush |= !cpu_cache_is_coherent(obj->base.dev,
+							 obj->cache_level);
+
+	ret = i915_gem_object_get_pages(obj);
+	if (ret)
+		return ret;
+
+	i915_gem_object_pin_pages(obj);
+
+	if (*needs_clflush && !static_cpu_has(X86_FEATURE_CLFLUSH)) {
+		ret = i915_gem_object_set_to_cpu_domain(obj, true);
+		if (ret) {
+			i915_gem_object_unpin_pages(obj);
+			return ret;
+		}
+		*needs_clflush = 0;
+	}
+
+	if ((*needs_clflush & CLFLUSH_AFTER) == 0)
+		obj->cache_dirty = true;
+
+	intel_fb_obj_invalidate(obj, ORIGIN_CPU);
+	obj->dirty = 1;
+	return 0;
 }
 
 /* Per-page copy function for the shmem pread fastpath.
@@ -872,19 +932,14 @@ i915_gem_shmem_pread(struct drm_device *dev,
 	int needs_clflush = 0;
 	struct sg_page_iter sg_iter;
 
-	if (!i915_gem_object_has_struct_page(obj))
-		return -ENODEV;
-
-	user_data = u64_to_user_ptr(args->data_ptr);
-	remain = args->size;
-
-	obj_do_bit17_swizzling = i915_gem_object_needs_bit17_swizzle(obj);
-
 	ret = i915_gem_obj_prepare_shmem_read(obj, &needs_clflush);
 	if (ret)
 		return ret;
 
+	obj_do_bit17_swizzling = i915_gem_object_needs_bit17_swizzle(obj);
+	user_data = u64_to_user_ptr(args->data_ptr);
 	offset = args->offset;
+	remain = args->size;
 
 	for_each_sg_page(obj->pages->sgl, &sg_iter, obj->pages->nents,
 			 offset >> PAGE_SHIFT) {
@@ -940,7 +995,7 @@ next_page:
 	}
 
 out:
-	i915_gem_object_unpin_pages(obj);
+	i915_gem_obj_finish_shmem_access(obj);
 
 	return ret;
 }
@@ -1248,42 +1303,17 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 	int shmem_page_offset, page_length, ret = 0;
 	int obj_do_bit17_swizzling, page_do_bit17_swizzling;
 	int hit_slowpath = 0;
-	int needs_clflush_after = 0;
-	int needs_clflush_before = 0;
+	unsigned int needs_clflush;
 	struct sg_page_iter sg_iter;
 
-	user_data = u64_to_user_ptr(args->data_ptr);
-	remain = args->size;
+	ret = i915_gem_obj_prepare_shmem_write(obj, &needs_clflush);
+	if (ret)
+		return ret;
 
 	obj_do_bit17_swizzling = i915_gem_object_needs_bit17_swizzle(obj);
-
-	ret = i915_gem_object_wait_rendering(obj, false);
-	if (ret)
-		return ret;
-
-	if (obj->base.write_domain != I915_GEM_DOMAIN_CPU) {
-		/* If we're not in the cpu write domain, set ourself into the gtt
-		 * write domain and manually flush cachelines (if required). This
-		 * optimizes for the case when the gpu will use the data
-		 * right away and we therefore have to clflush anyway. */
-		needs_clflush_after = cpu_write_needs_clflush(obj);
-	}
-	/* Same trick applies to invalidate partially written cachelines read
-	 * before writing. */
-	if ((obj->base.read_domains & I915_GEM_DOMAIN_CPU) == 0)
-		needs_clflush_before =
-			!cpu_cache_is_coherent(dev, obj->cache_level);
-
-	ret = i915_gem_object_get_pages(obj);
-	if (ret)
-		return ret;
-
-	intel_fb_obj_invalidate(obj, ORIGIN_CPU);
-
-	i915_gem_object_pin_pages(obj);
-
+	user_data = u64_to_user_ptr(args->data_ptr);
 	offset = args->offset;
-	obj->dirty = 1;
+	remain = args->size;
 
 	for_each_sg_page(obj->pages->sgl, &sg_iter, obj->pages->nents,
 			 offset >> PAGE_SHIFT) {
@@ -1307,7 +1337,7 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 		/* If we don't overwrite a cacheline completely we need to be
 		 * careful to have up-to-date data by first clflushing. Don't
 		 * overcomplicate things and flush the entire patch. */
-		partial_cacheline_write = needs_clflush_before &&
+		partial_cacheline_write = needs_clflush & CLFLUSH_BEFORE &&
 			((shmem_page_offset | page_length)
 				& (boot_cpu_data.x86_clflush_size - 1));
 
@@ -1317,7 +1347,7 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 		ret = shmem_pwrite_fast(page, shmem_page_offset, page_length,
 					user_data, page_do_bit17_swizzling,
 					partial_cacheline_write,
-					needs_clflush_after);
+					needs_clflush & CLFLUSH_AFTER);
 		if (ret == 0)
 			goto next_page;
 
@@ -1326,7 +1356,7 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 		ret = shmem_pwrite_slow(page, shmem_page_offset, page_length,
 					user_data, page_do_bit17_swizzling,
 					partial_cacheline_write,
-					needs_clflush_after);
+					needs_clflush & CLFLUSH_AFTER);
 
 		mutex_lock(&dev->struct_mutex);
 
@@ -1340,7 +1370,7 @@ next_page:
 	}
 
 out:
-	i915_gem_object_unpin_pages(obj);
+	i915_gem_obj_finish_shmem_access(obj);
 
 	if (hit_slowpath) {
 		/*
@@ -1348,17 +1378,15 @@ out:
 		 * cachelines in-line while writing and the object moved
 		 * out of the cpu write domain while we've dropped the lock.
 		 */
-		if (!needs_clflush_after &&
+		if (!(needs_clflush & CLFLUSH_AFTER) &&
 		    obj->base.write_domain != I915_GEM_DOMAIN_CPU) {
 			if (i915_gem_clflush_object(obj, obj->pin_display))
-				needs_clflush_after = true;
+				needs_clflush |= CLFLUSH_AFTER;
 		}
 	}
 
-	if (needs_clflush_after)
+	if (needs_clflush & CLFLUSH_AFTER)
 		i915_gem_chipset_flush(to_i915(dev));
-	else
-		obj->cache_dirty = true;
 
 	intel_fb_obj_flush(obj, false, ORIGIN_CPU);
 	return ret;
@@ -1437,10 +1465,8 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	if (ret == -EFAULT || ret == -ENOSPC) {
 		if (obj->phys_handle)
 			ret = i915_gem_phys_pwrite(obj, args, file);
-		else if (i915_gem_object_has_struct_page(obj))
-			ret = i915_gem_shmem_pwrite(dev, obj, args, file);
 		else
-			ret = -ENODEV;
+			ret = i915_gem_shmem_pwrite(dev, obj, args, file);
 	}
 
 	i915_gem_object_put(obj);

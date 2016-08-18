@@ -973,7 +973,7 @@ static u32 *copy_batch(struct drm_i915_gem_object *dest_obj,
 		       u32 batch_start_offset,
 		       u32 batch_len)
 {
-	int needs_clflush = 0;
+	unsigned int needs_clflush;
 	void *src_base, *src;
 	void *dst = NULL;
 	int ret;
@@ -1020,7 +1020,7 @@ static u32 *copy_batch(struct drm_i915_gem_object *dest_obj,
 unmap_src:
 	vunmap(src_base);
 unpin_src:
-	i915_gem_object_unpin_pages(src_obj);
+	i915_gem_obj_finish_shmem_access(src_obj);
 
 	return ret ? ERR_PTR(ret) : dst;
 }
