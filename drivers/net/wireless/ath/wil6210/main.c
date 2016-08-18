@@ -1035,9 +1035,9 @@ int wil_up(struct wil6210_priv *wil)
 
 int __wil_down(struct wil6210_priv *wil)
 {
-	int rc;
-
 	WARN_ON(!mutex_is_locked(&wil->mutex));
+
+	set_bit(wil_status_resetting, wil->status);
 
 	if (wil->platform_ops.bus_request)
 		wil->platform_ops.bus_request(wil->platform_handle, 0);
@@ -1062,18 +1062,6 @@ int __wil_down(struct wil6210_priv *wil)
 		del_timer_sync(&wil->scan_timer);
 		cfg80211_scan_done(wil->scan_request, &info);
 		wil->scan_request = NULL;
-	}
-
-	if (test_bit(wil_status_fwconnected, wil->status) ||
-	    test_bit(wil_status_fwconnecting, wil->status)) {
-
-		mutex_unlock(&wil->mutex);
-		rc = wmi_call(wil, WMI_DISCONNECT_CMDID, NULL, 0,
-			      WMI_DISCONNECT_EVENTID, NULL, 0,
-			      WIL6210_DISCONNECT_TO_MS);
-		mutex_lock(&wil->mutex);
-		if (rc)
-			wil_err(wil, "timeout waiting for disconnect\n");
 	}
 
 	wil_reset(wil, false);
