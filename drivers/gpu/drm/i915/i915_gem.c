@@ -2857,27 +2857,6 @@ i915_gem_object_sync(struct drm_i915_gem_object *obj,
 	return 0;
 }
 
-static void i915_gem_object_finish_gtt(struct drm_i915_gem_object *obj)
-{
-	u32 old_write_domain, old_read_domains;
-
-	/* Force a pagefault for domain tracking on next user access */
-	i915_gem_release_mmap(obj);
-
-	if ((obj->base.read_domains & I915_GEM_DOMAIN_GTT) == 0)
-		return;
-
-	old_read_domains = obj->base.read_domains;
-	old_write_domain = obj->base.write_domain;
-
-	obj->base.read_domains &= ~I915_GEM_DOMAIN_GTT;
-	obj->base.write_domain &= ~I915_GEM_DOMAIN_GTT;
-
-	trace_i915_gem_object_change_domain(obj,
-					    old_read_domains,
-					    old_write_domain);
-}
-
 static void __i915_vma_iounmap(struct i915_vma *vma)
 {
 	GEM_BUG_ON(i915_vma_is_pinned(vma));
@@ -2933,12 +2912,13 @@ int i915_vma_unbind(struct i915_vma *vma)
 	GEM_BUG_ON(!obj->pages);
 
 	if (i915_vma_is_map_and_fenceable(vma)) {
-		i915_gem_object_finish_gtt(obj);
-
 		/* release the fence reg _after_ flushing */
 		ret = i915_vma_put_fence(vma);
 		if (ret)
 			return ret;
+
+		/* Force a pagefault for domain tracking on next user access */
+		i915_gem_release_mmap(obj);
 
 		__i915_vma_iounmap(vma);
 		vma->flags &= ~I915_VMA_CAN_FENCE;
