@@ -834,14 +834,24 @@ static inline void pebs_update_threshold(struct cpu_hw_events *cpuc)
 static void
 pebs_update_state(bool needed_cb, struct cpu_hw_events *cpuc, struct pmu *pmu)
 {
+	/*
+	 * Make sure we get updated with the first PEBS
+	 * event. It will trigger also during removal, but
+	 * that does not hurt:
+	 */
+	bool update = cpuc->n_pebs == 1;
+
 	if (needed_cb != pebs_needs_sched_cb(cpuc)) {
 		if (!needed_cb)
 			perf_sched_cb_inc(pmu);
 		else
 			perf_sched_cb_dec(pmu);
 
-		pebs_update_threshold(cpuc);
+		update = true;
 	}
+
+	if (update)
+		pebs_update_threshold(cpuc);
 }
 
 void intel_pmu_pebs_add(struct perf_event *event)
