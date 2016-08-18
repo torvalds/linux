@@ -839,6 +839,14 @@ static int ipu_submodules_init(struct ipu_soc *ipu,
 		goto err_ic;
 	}
 
+	ret = ipu_vdi_init(ipu, dev, ipu_base + devtype->vdi_ofs,
+			   IPU_CONF_VDI_EN | IPU_CONF_ISP_EN |
+			   IPU_CONF_IC_INPUT);
+	if (ret) {
+		unit = "vdi";
+		goto err_vdi;
+	}
+
 	ret = ipu_di_init(ipu, dev, 0, ipu_base + devtype->disp0_ofs,
 			  IPU_CONF_DI0_EN, ipu_clk);
 	if (ret) {
@@ -893,6 +901,8 @@ err_dc:
 err_di_1:
 	ipu_di_exit(ipu, 0);
 err_di_0:
+	ipu_vdi_exit(ipu);
+err_vdi:
 	ipu_ic_exit(ipu);
 err_ic:
 	ipu_csi_exit(ipu, 1);
@@ -977,6 +987,7 @@ static void ipu_submodules_exit(struct ipu_soc *ipu)
 	ipu_dc_exit(ipu);
 	ipu_di_exit(ipu, 1);
 	ipu_di_exit(ipu, 0);
+	ipu_vdi_exit(ipu);
 	ipu_ic_exit(ipu);
 	ipu_csi_exit(ipu, 1);
 	ipu_csi_exit(ipu, 0);
