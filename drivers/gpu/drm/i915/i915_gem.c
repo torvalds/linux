@@ -1082,7 +1082,7 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_private *i915,
 	if (ret)
 		goto out_unpin;
 
-	intel_fb_obj_invalidate(obj, ORIGIN_GTT);
+	intel_fb_obj_invalidate(obj, ORIGIN_CPU);
 	obj->dirty = true;
 
 	user_data = u64_to_user_ptr(args->data_ptr);
@@ -1149,7 +1149,7 @@ out_flush:
 		}
 	}
 
-	intel_fb_obj_flush(obj, false, ORIGIN_GTT);
+	intel_fb_obj_flush(obj, false, ORIGIN_CPU);
 out_unpin:
 	if (node.allocated) {
 		wmb();
