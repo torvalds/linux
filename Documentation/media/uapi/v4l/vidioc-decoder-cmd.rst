@@ -58,12 +58,14 @@ introduced in Linux 3.3.
 
 .. _v4l2-decoder-cmd:
 
-.. tabularcolumns:: |p{2.9cm}|p{2.9cm}|p{5.8cm}|p{2.9cm}|p{3.0cm}|
+.. cssclass:: longtable
+
+.. tabularcolumns:: |p{1.1cm}|p{2.4cm}|p{1.2cm}|p{1.6cm}|p{10.6cm}|
 
 .. flat-table:: struct v4l2_decoder_cmd
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 2 1 1
+    :widths: 11 24 12 16 106
 
 
     -  .. row 1
@@ -189,12 +191,12 @@ introduced in Linux 3.3.
 
 .. _decoder-cmds:
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{5.6cm}|p{0.6cm}|p{11.3cm}|
 
 .. flat-table:: Decoder Commands
     :header-rows:  0
     :stub-columns: 0
-    :widths:       3 1 4
+    :widths: 56 6 113
 
 
     -  .. row 1
