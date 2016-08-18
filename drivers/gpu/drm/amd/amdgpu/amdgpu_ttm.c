@@ -257,10 +257,8 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 
 	switch (old_mem->mem_type) {
 	case TTM_PL_VRAM:
-		old_start += adev->mc.vram_start;
-		break;
 	case TTM_PL_TT:
-		old_start += adev->mc.gtt_start;
+		old_start += bo->bdev->man[old_mem->mem_type].gpu_offset;
 		break;
 	default:
 		DRM_ERROR("Unknown placement %d\n", old_mem->mem_type);
@@ -268,10 +266,8 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 	}
 	switch (new_mem->mem_type) {
 	case TTM_PL_VRAM:
-		new_start += adev->mc.vram_start;
-		break;
 	case TTM_PL_TT:
-		new_start += adev->mc.gtt_start;
+		new_start += bo->bdev->man[new_mem->mem_type].gpu_offset;
 		break;
 	default:
 		DRM_ERROR("Unknown placement %d\n", old_mem->mem_type);

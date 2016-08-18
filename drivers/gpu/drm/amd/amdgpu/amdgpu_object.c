@@ -530,11 +530,7 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 			*gpu_addr = amdgpu_bo_gpu_offset(bo);
 
 		if (max_offset != 0) {
-			u64 domain_start;
-			if (domain == AMDGPU_GEM_DOMAIN_VRAM)
-				domain_start = bo->adev->mc.vram_start;
-			else
-				domain_start = bo->adev->mc.gtt_start;
+			u64 domain_start = bo->tbo.bdev->man[mem_type].gpu_offset;
 			WARN_ON_ONCE(max_offset <
 				     (amdgpu_bo_gpu_offset(bo) - domain_start));
 		}
