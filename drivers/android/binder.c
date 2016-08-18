@@ -2962,7 +2962,6 @@ static int binder_open(struct inode *nodp, struct file *filp)
 		return -ENOMEM;
 	get_task_struct(current);
 	proc->tsk = current;
-	atomic_inc(&current->mm->mm_count);
 	proc->vma_vm_mm = current->mm;
 	INIT_LIST_HEAD(&proc->todo);
 	init_waitqueue_head(&proc->wait);
@@ -3168,7 +3167,6 @@ static void binder_deferred_release(struct binder_proc *proc)
 		vfree(proc->buffer);
 	}
 
-	mmdrop(proc->vma_vm_mm);
 	put_task_struct(proc->tsk);
 
 	binder_debug(BINDER_DEBUG_OPEN_CLOSE,
