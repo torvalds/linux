@@ -969,7 +969,7 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 
 	early_gdt_descr.address = (unsigned long)get_cpu_gdt_table(cpu);
 	initial_code = (unsigned long)start_secondary;
-	stack_start  = idle->thread.sp;
+	initial_stack  = idle->thread.sp;
 
 	/*
 	 * Enable the espfix hack for this CPU

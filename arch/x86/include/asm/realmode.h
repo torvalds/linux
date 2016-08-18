@@ -46,6 +46,7 @@ extern unsigned char real_mode_blob_end[];
 
 extern unsigned long initial_code;
 extern unsigned long initial_gs;
+extern unsigned long initial_stack;
 
 extern unsigned char real_mode_blob[];
 extern unsigned char real_mode_relocs[];

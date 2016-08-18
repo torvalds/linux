@@ -66,7 +66,7 @@ startup_64:
 	 */
 
 	/*
-	 * Setup stack for verify_cpu(). "-8" because stack_start is defined
+	 * Setup stack for verify_cpu(). "-8" because initial_stack is defined
 	 * this way, see below. Our best guess is a NULL ptr for stack
 	 * termination heuristics and we don't want to break anything which
 	 * might depend on it (kgdb, ...).
@@ -226,7 +226,7 @@ ENTRY(secondary_startup_64)
 	movq	%rax, %cr0
 
 	/* Setup a boot time stack */
-	movq stack_start(%rip), %rsp
+	movq initial_stack(%rip), %rsp
 
 	/* zero EFLAGS after setting rsp */
 	pushq $0
@@ -310,7 +310,7 @@ ENDPROC(secondary_startup_64)
  * start_secondary().
  */
 ENTRY(start_cpu0)
-	movq stack_start(%rip),%rsp
+	movq initial_stack(%rip),%rsp
 	movq	initial_code(%rip),%rax
 	pushq	$0		# fake return address to stop unwinder
 	pushq	$__KERNEL_CS	# set correct cs
@@ -319,15 +319,14 @@ ENTRY(start_cpu0)
 ENDPROC(start_cpu0)
 #endif
 
-	/* SMP bootup changes these two */
+	/* Both SMP bootup and ACPI suspend change these variables */
 	__REFDATA
 	.balign	8
 	GLOBAL(initial_code)
 	.quad	x86_64_start_kernel
 	GLOBAL(initial_gs)
 	.quad	INIT_PER_CPU_VAR(irq_stack_union)
-
-	GLOBAL(stack_start)
+	GLOBAL(initial_stack)
 	.quad  init_thread_union+THREAD_SIZE-8
 	.word  0
 	__FINITDATA
