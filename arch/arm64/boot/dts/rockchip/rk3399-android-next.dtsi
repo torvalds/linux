@@ -78,6 +78,11 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
+
+		drm_logo: drm-logo@00000000 {
+			compatible = "rockchip,drm-logo";
+			reg = <0x0 0x0 0x0 0x0>;
+		};
 	};
 
 	rk_key: rockchip-key {
@@ -195,6 +200,7 @@
 &display_subsystem {
 	status = "okay";
 
+	memory-region = <&drm_logo>;
 	route {
 		route0 {
 			logo,uboot = "logo.bmp";
