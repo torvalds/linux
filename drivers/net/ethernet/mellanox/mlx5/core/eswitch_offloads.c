@@ -113,7 +113,7 @@ mlx5_eswitch_add_send_to_vport_rule(struct mlx5_eswitch *esw, int vport, u32 sqn
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
 	dest.vport_num = vport;
 
-	flow_rule = mlx5_add_flow_rule(esw->fdb_table.fdb, spec,
+	flow_rule = mlx5_add_flow_rule(esw->fdb_table.offloads.fdb, spec,
 				       MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
 				       0, &dest);
 	if (IS_ERR(flow_rule))
