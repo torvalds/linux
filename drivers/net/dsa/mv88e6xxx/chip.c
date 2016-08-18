@@ -333,20 +333,12 @@ static int mv88e6xxx_update(struct mv88e6xxx_chip *chip, int addr, int reg,
 			    u16 update)
 {
 	u16 val;
-	int i, err;
+	int err;
 
 	/* Wait until the previous operation is completed */
-	for (i = 0; i < 16; ++i) {
-		err = mv88e6xxx_read(chip, addr, reg, &val);
-		if (err)
-			return err;
-
-		if (!(val & BIT(15)))
-			break;
-	}
-
-	if (i == 16)
-		return -ETIMEDOUT;
+	err = mv88e6xxx_wait(chip, addr, reg, BIT(15));
+	if (err)
+		return err;
 
 	/* Set the Update bit to trigger a write operation */
 	val = BIT(15) | update;
