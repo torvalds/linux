@@ -58,6 +58,7 @@ struct rockchip_drm_mode_set {
 	int vrefresh;
 
 	bool mode_changed;
+	bool ymirror;
 	int ratio;
 };
 
@@ -97,23 +98,76 @@ static struct drm_connector *find_connector_by_node(struct drm_device *drm_dev,
 	return NULL;
 }
 
+static int init_loader_memory(struct drm_device *drm_dev)
+{
+	struct rockchip_drm_private *private = drm_dev->dev_private;
+	struct rockchip_logo *logo;
+	struct device_node *np = drm_dev->dev->of_node;
+	struct device_node *node;
+	unsigned long nr_pages;
+	struct page **pages;
+	struct sg_table *sgt;
+	DEFINE_DMA_ATTRS(attrs);
+	phys_addr_t start, size;
+	struct resource res;
+	int i, ret;
+
+	logo = devm_kmalloc(drm_dev->dev, sizeof(*logo), GFP_KERNEL);
+	if (!logo)
+		return -ENOMEM;
+
+	node = of_parse_phandle(np, "memory-region", 0);
+	if (!node)
+		return -ENOMEM;
+
+	ret = of_address_to_resource(node, 0, &res);
+	if (ret)
+		return ret;
+	start = res.start;
+	size = resource_size(&res);
+	if (!size)
+		return -ENOMEM;
+
+	nr_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
+	pages = kmalloc_array(nr_pages, sizeof(*pages),	GFP_KERNEL);
+	if (!pages)
+		return -ENOMEM;
+	i = 0;
+	while (i < nr_pages) {
+		pages[i] = phys_to_page(start);
+		start += PAGE_SIZE;
+		i++;
+	}
+	sgt = drm_prime_pages_to_sg(pages, nr_pages);
+	if (IS_ERR(sgt)) {
+		kfree(pages);
+		return PTR_ERR(sgt);
+	}
+
+	dma_set_attr(DMA_ATTR_SKIP_CPU_SYNC, &attrs);
+	dma_set_attr(DMA_ATTR_NO_KERNEL_MAPPING, &attrs);
+	dma_map_sg_attrs(drm_dev->dev, sgt->sgl, sgt->nents,
+			 DMA_TO_DEVICE, &attrs);
+	logo->dma_addr = sg_dma_address(sgt->sgl);
+	logo->sgt = sgt;
+	logo->start = res.start;
+	logo->size = size;
+	logo->count = 0;
+	private->logo = logo;
+
+	return 0;
+}
+
 static struct drm_framebuffer *
 get_framebuffer_by_node(struct drm_device *drm_dev, struct device_node *node)
 {
+	struct rockchip_drm_private *private = drm_dev->dev_private;
 	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
-	struct device_node *memory;
-	struct resource res;
 	u32 val;
 	int bpp;
 
-	memory = of_parse_phandle(node, "logo,mem", 0);
-	if (!memory)
+	if (WARN_ON(!private->logo))
 		return NULL;
-
-	if (of_address_to_resource(memory, 0, &res)) {
-		pr_err("%s: could not get bootram phy addr\n", __func__);
-		return NULL;
-	}
 
 	if (of_property_read_u32(node, "logo,offset", &val)) {
 		pr_err("%s: failed to get logo,offset\n", __func__);
@@ -140,9 +194,23 @@ get_framebuffer_by_node(struct drm_device *drm_dev, struct device_node *node)
 	bpp = val;
 
 	mode_cmd.pitches[0] = mode_cmd.width * bpp / 8;
-	mode_cmd.pixel_format = DRM_FORMAT_BGR888;
 
-	return rockchip_fb_alloc(drm_dev, &mode_cmd, NULL, &res, 1);
+	switch (bpp) {
+	case 16:
+		mode_cmd.pixel_format = DRM_FORMAT_BGR565;
+		break;
+	case 24:
+		mode_cmd.pixel_format = DRM_FORMAT_BGR888;
+		break;
+	case 32:
+		mode_cmd.pixel_format = DRM_FORMAT_XBGR8888;
+		break;
+	default:
+		pr_err("%s: unsupport to logo bpp %d\n", __func__, bpp);
+		return NULL;
+	}
+
+	return rockchip_fb_alloc(drm_dev, &mode_cmd, NULL, private->logo, 1);
 }
 
 static struct rockchip_drm_mode_set *
@@ -184,6 +252,9 @@ of_parse_display_resource(struct drm_device *drm_dev, struct device_node *route)
 
 	if (!of_property_read_u32(route, "video,vrefresh", &val))
 		set->vrefresh = val;
+
+	if (!of_property_read_u32(route, "logo,ymirror", &val))
+		set->ymirror = val;
 
 	set->fb = fb;
 	set->crtc = crtc;
@@ -370,13 +441,14 @@ static int update_state(struct drm_device *drm_dev,
 	drm_framebuffer_unreference(set->fb);
 	ret = drm_atomic_set_crtc_for_plane(primary_state, crtc);
 
-	/*
-	 * TODO:
-	 * some vop maybe not support ymirror, but force use it now.
-	 */
-	drm_atomic_plane_set_property(crtc->primary, primary_state,
-				      mode_config->rotation_property,
-				      BIT(DRM_REFLECT_Y));
+	if (set->ymirror)
+		/*
+		 * TODO:
+		 * some vop maybe not support ymirror, but force use it now.
+		 */
+		drm_atomic_plane_set_property(crtc->primary, primary_state,
+					      mode_config->rotation_property,
+					      BIT(DRM_REFLECT_Y));
 
 	return ret;
 }
@@ -398,6 +470,11 @@ static void show_loader_logo(struct drm_device *drm_dev)
 		return;
 	}
 
+	if (init_loader_memory(drm_dev)) {
+		dev_warn(drm_dev->dev, "failed to parse loader memory\n");
+		return;
+	}
+
 	INIT_LIST_HEAD(&mode_set_list);
 	drm_modeset_lock_all(drm_dev);
 	state = drm_atomic_state_alloc(drm_dev);
@@ -408,6 +485,7 @@ static void show_loader_logo(struct drm_device *drm_dev)
 	}
 
 	state->acquire_ctx = mode_config->acquire_ctx;
+
 	for_each_child_of_node(root, route) {
 		set = of_parse_display_resource(drm_dev, route);
 		if (!set)

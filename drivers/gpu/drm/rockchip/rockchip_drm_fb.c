@@ -29,9 +29,7 @@ struct rockchip_drm_fb {
 	struct drm_framebuffer fb;
 	dma_addr_t dma_addr[ROCKCHIP_MAX_FB_BUFFER];
 	struct drm_gem_object *obj[ROCKCHIP_MAX_FB_BUFFER];
-	struct sg_table *sgt;
-	phys_addr_t start;
-	phys_addr_t size;
+	struct rockchip_logo *logo;
 };
 
 dma_addr_t rockchip_fb_get_dma_addr(struct drm_framebuffer *fb,
@@ -58,15 +56,19 @@ static void rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
 	}
 
 #ifndef MODULE
-	if (rockchip_fb->sgt) {
-		void *start = phys_to_virt(rockchip_fb->start);
-		void *end = phys_to_virt(rockchip_fb->size);
+	if (rockchip_fb->logo) {
+		struct rockchip_logo *logo = rockchip_fb->logo;
 
-		dma_unmap_sg(fb->dev->dev, rockchip_fb->sgt->sgl,
-			     rockchip_fb->sgt->nents, DMA_TO_DEVICE);
-		sg_free_table(rockchip_fb->sgt);
-		memblock_free(rockchip_fb->start, rockchip_fb->size);
-		free_reserved_area(start, end, -1, "drm_fb");
+		if (!--logo->count) {
+			void *start = phys_to_virt(logo->start);
+			void *end = phys_to_virt(logo->size);
+
+			dma_unmap_sg(fb->dev->dev, logo->sgt->sgl,
+				     logo->sgt->nents, DMA_TO_DEVICE);
+			sg_free_table(logo->sgt);
+			memblock_free(logo->start, logo->size);
+			free_reserved_area(start, end, -1, "drm_logo");
+		}
 	}
 #else
 	WARN_ON(rockchip_fb->sgt);
@@ -93,7 +95,7 @@ static const struct drm_framebuffer_funcs rockchip_drm_fb_funcs = {
 
 struct drm_framebuffer *
 rockchip_fb_alloc(struct drm_device *dev, struct drm_mode_fb_cmd2 *mode_cmd,
-		  struct drm_gem_object **obj, struct resource *res,
+		  struct drm_gem_object **obj, struct rockchip_logo *logo,
 		  unsigned int num_planes)
 {
 	struct rockchip_drm_fb *rockchip_fb;
@@ -124,41 +126,10 @@ rockchip_fb_alloc(struct drm_device *dev, struct drm_mode_fb_cmd2 *mode_cmd,
 			rockchip_fb->dma_addr[i] = rk_obj->dma_addr;
 		}
 #ifndef MODULE
-	} else if (res) {
-		unsigned long nr_pages;
-		struct page **pages;
-		struct sg_table *sgt;
-		DEFINE_DMA_ATTRS(attrs);
-		phys_addr_t start = res->start;
-		phys_addr_t size = res->end - res->start;
-
-		nr_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
-		pages = kmalloc_array(nr_pages, sizeof(*pages),	GFP_KERNEL);
-		if (!pages) {
-			ret = -ENOMEM;
-			goto err_deinit_drm_fb;
-		}
-		i = 0;
-		while (i < nr_pages) {
-			pages[i] = phys_to_page(start);
-			start += PAGE_SIZE;
-			i++;
-		}
-		sgt = drm_prime_pages_to_sg(pages, nr_pages);
-		if (IS_ERR(sgt)) {
-			kfree(pages);
-			ret = PTR_ERR(sgt);
-			goto err_deinit_drm_fb;
-		}
-
-		dma_set_attr(DMA_ATTR_SKIP_CPU_SYNC, &attrs);
-		dma_set_attr(DMA_ATTR_NO_KERNEL_MAPPING, &attrs);
-		dma_map_sg_attrs(dev->dev, sgt->sgl, sgt->nents,
-				 DMA_TO_DEVICE, &attrs);
-		rockchip_fb->dma_addr[0] = sg_dma_address(sgt->sgl);
-		rockchip_fb->sgt = sgt;
-		rockchip_fb->start = res->start;
-		rockchip_fb->size = size;
+	} else if (logo) {
+		rockchip_fb->dma_addr[0] = logo->dma_addr;
+		rockchip_fb->logo = logo;
+		logo->count++;
 #endif
 	} else {
 		ret = -EINVAL;
