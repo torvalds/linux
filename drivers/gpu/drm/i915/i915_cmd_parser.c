@@ -921,36 +921,37 @@ find_cmd(struct intel_engine_cs *engine,
 }
 
 static const struct drm_i915_reg_descriptor *
-find_reg(const struct drm_i915_reg_descriptor *table,
-	 int count, u32 addr)
+__find_reg(const struct drm_i915_reg_descriptor *table, int count, u32 addr)
 {
-	int i;
-
-	for (i = 0; i < count; i++) {
-		if (i915_mmio_reg_offset(table[i].addr) == addr)
-			return &table[i];
+	int start = 0, end = count;
+	while (start < end) {
+		int mid = start + (end - start) / 2;
+		int ret = addr - i915_mmio_reg_offset(table[mid].addr);
+		if (ret < 0)
+			end = mid;
+		else if (ret > 0)
+			start = mid + 1;
+		else
+			return &table[mid];
 	}
-
 	return NULL;
 }
 
 static const struct drm_i915_reg_descriptor *
-find_reg_in_tables(const struct drm_i915_reg_table *tables,
-		   int count, bool is_master, u32 addr)
+find_reg(const struct intel_engine_cs *engine, bool is_master, u32 addr)
 {
-	int i;
-	const struct drm_i915_reg_table *table;
-	const struct drm_i915_reg_descriptor *reg;
+	const struct drm_i915_reg_table *table = engine->reg_tables;
+	int count = engine->reg_table_count;
 
-	for (i = 0; i < count; i++) {
-		table = &tables[i];
+	do {
 		if (!table->master || is_master) {
-			reg = find_reg(table->regs, table->num_regs,
-				       addr);
+			const struct drm_i915_reg_descriptor *reg;
+
+			reg = __find_reg(table->regs, table->num_regs, addr);
 			if (reg != NULL)
 				return reg;
 		}
-	}
+	} while (table++, --count);
 
 	return NULL;
 }
@@ -1073,10 +1074,7 @@ static bool check_cmd(const struct intel_engine_cs *engine,
 		     offset += step) {
 			const u32 reg_addr = cmd[offset] & desc->reg.mask;
 			const struct drm_i915_reg_descriptor *reg =
-				find_reg_in_tables(engine->reg_tables,
-						   engine->reg_table_count,
-						   is_master,
-						   reg_addr);
+				find_reg(engine, is_master, reg_addr);
 
 			if (!reg) {
 				DRM_DEBUG_DRIVER("CMD: Rejected register 0x%08X in command: 0x%08X (exec_id=%d)\n",
