@@ -173,7 +173,7 @@ struct rhashtable_walker {
 struct rhashtable_iter {
 	struct rhashtable *ht;
 	struct rhash_head *p;
-	struct rhashtable_walker *walker;
+	struct rhashtable_walker walker;
 	unsigned int slot;
 	unsigned int skip;
 };
@@ -346,8 +346,8 @@ struct bucket_table *rhashtable_insert_slow(struct rhashtable *ht,
 					    struct bucket_table *old_tbl);
 int rhashtable_insert_rehash(struct rhashtable *ht, struct bucket_table *tbl);
 
-int rhashtable_walk_init(struct rhashtable *ht, struct rhashtable_iter *iter,
-			 gfp_t gfp);
+void rhashtable_walk_enter(struct rhashtable *ht,
+			   struct rhashtable_iter *iter);
 void rhashtable_walk_exit(struct rhashtable_iter *iter);
 int rhashtable_walk_start(struct rhashtable_iter *iter) __acquires(RCU);
 void *rhashtable_walk_next(struct rhashtable_iter *iter);
@@ -904,6 +904,14 @@ static inline int rhashtable_replace_fast(
 	rcu_read_unlock();
 
 	return err;
+}
+
+/* Obsolete function, do not use in new code. */
+static inline int rhashtable_walk_init(struct rhashtable *ht,
+				       struct rhashtable_iter *iter, gfp_t gfp)
+{
+	rhashtable_walk_enter(ht, iter);
+	return 0;
 }
 
 #endif /* _LINUX_RHASHTABLE_H */
