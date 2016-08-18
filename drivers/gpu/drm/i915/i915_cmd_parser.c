@@ -1046,6 +1046,9 @@ static bool check_cmd(const struct intel_engine_cs *engine,
 		      const bool is_master,
 		      bool *oacontrol_set)
 {
+	if (desc->flags & CMD_DESC_SKIP)
+		return true;
+
 	if (desc->flags & CMD_DESC_REJECT) {
 		DRM_DEBUG_DRIVER("CMD: Rejected command: 0x%08X\n", *cmd);
 		return false;
