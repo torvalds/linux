@@ -3173,20 +3173,30 @@ i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 static void
 i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj)
 {
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	uint32_t old_write_domain;
 
 	if (obj->base.write_domain != I915_GEM_DOMAIN_GTT)
 		return;
 
 	/* No actual flushing is required for the GTT write domain.  Writes
-	 * to it immediately go to main memory as far as we know, so there's
+	 * to it "immediately" go to main memory as far as we know, so there's
 	 * no chipset flush.  It also doesn't land in render cache.
 	 *
 	 * However, we do have to enforce the order so that all writes through
 	 * the GTT land before any writes to the device, such as updates to
 	 * the GATT itself.
+	 *
+	 * We also have to wait a bit for the writes to land from the GTT.
+	 * An uncached read (i.e. mmio) seems to be ideal for the round-trip
+	 * timing. This issue has only been observed when switching quickly
+	 * between GTT writes and CPU reads from inside the kernel on recent hw,
+	 * and it appears to only affect discrete GTT blocks (i.e. on LLC
+	 * system agents we cannot reproduce this behaviour).
 	 */
 	wmb();
+	if (INTEL_GEN(dev_priv) >= 6 && !HAS_LLC(dev_priv))
+		POSTING_READ(RING_ACTHD(dev_priv->engine[RCS].mmio_base));
 
 	old_write_domain = obj->base.write_domain;
 	obj->base.write_domain = 0;
