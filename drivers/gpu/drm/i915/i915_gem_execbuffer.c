@@ -1015,8 +1015,6 @@ i915_gem_execbuffer_move_to_gpu(struct drm_i915_gem_request *req,
 {
 	const unsigned int other_rings = eb_other_engines(req);
 	struct i915_vma *vma;
-	uint32_t flush_domains = 0;
-	bool flush_chipset = false;
 	int ret;
 
 	list_for_each_entry(vma, vmas, exec_list) {
@@ -1029,16 +1027,11 @@ i915_gem_execbuffer_move_to_gpu(struct drm_i915_gem_request *req,
 		}
 
 		if (obj->base.write_domain & I915_GEM_DOMAIN_CPU)
-			flush_chipset |= i915_gem_clflush_object(obj, false);
-
-		flush_domains |= obj->base.write_domain;
+			i915_gem_clflush_object(obj, false);
 	}
 
-	if (flush_chipset)
-		i915_gem_chipset_flush(req->engine->i915);
-
-	if (flush_domains & I915_GEM_DOMAIN_GTT)
-		wmb();
+	/* Unconditionally flush any chipset caches (for streaming writes). */
+	i915_gem_chipset_flush(req->engine->i915);
 
 	/* Unconditionally invalidate GPU caches and TLBs. */
 	return req->engine->emit_flush(req, EMIT_INVALIDATE);
