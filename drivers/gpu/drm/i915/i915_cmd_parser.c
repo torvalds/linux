@@ -458,6 +458,7 @@ static const struct drm_i915_reg_descriptor gen7_render_regs[] = {
 	REG32(GEN7_GPGPU_DISPATCHDIMX),
 	REG32(GEN7_GPGPU_DISPATCHDIMY),
 	REG32(GEN7_GPGPU_DISPATCHDIMZ),
+	REG64_IDX(RING_TIMESTAMP, BSD_RING_BASE),
 	REG64_IDX(GEN7_SO_NUM_PRIMS_WRITTEN, 0),
 	REG64_IDX(GEN7_SO_NUM_PRIMS_WRITTEN, 1),
 	REG64_IDX(GEN7_SO_NUM_PRIMS_WRITTEN, 2),
@@ -473,6 +474,7 @@ static const struct drm_i915_reg_descriptor gen7_render_regs[] = {
 	REG32(GEN7_L3SQCREG1),
 	REG32(GEN7_L3CNTLREG2),
 	REG32(GEN7_L3CNTLREG3),
+	REG64_IDX(RING_TIMESTAMP, BLT_RING_BASE),
 };
 
 static const struct drm_i915_reg_descriptor hsw_render_regs[] = {
@@ -502,7 +504,10 @@ static const struct drm_i915_reg_descriptor hsw_render_regs[] = {
 };
 
 static const struct drm_i915_reg_descriptor gen7_blt_regs[] = {
+	REG64_IDX(RING_TIMESTAMP, RENDER_RING_BASE),
+	REG64_IDX(RING_TIMESTAMP, BSD_RING_BASE),
 	REG32(BCS_SWCTRL),
+	REG64_IDX(RING_TIMESTAMP, BLT_RING_BASE),
 };
 
 static const struct drm_i915_reg_descriptor ivb_master_regs[] = {
