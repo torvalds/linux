@@ -116,6 +116,9 @@ int klp_unregister_patch(struct klp_patch *);
 int klp_enable_patch(struct klp_patch *);
 int klp_disable_patch(struct klp_patch *);
 
+void arch_klp_init_object_loaded(struct klp_patch *patch,
+				 struct klp_object *obj);
+
 /* Called from the module loader during module coming/going states */
 int klp_module_coming(struct module *mod);
 void klp_module_going(struct module *mod);
