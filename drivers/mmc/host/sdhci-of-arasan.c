@@ -35,6 +35,8 @@
 #define CLK_CTRL_TIMEOUT_MASK		(0xf << CLK_CTRL_TIMEOUT_SHIFT)
 #define CLK_CTRL_TIMEOUT_MIN_EXP	13
 
+#define PHY_CLK_TOO_SLOW_HZ		400000
+
 /*
  * On some SoCs the syscon area has a feature where the upper 16-bits of
  * each 32-bit register act as a write mask for the lower 16-bits.  This allows
@@ -77,6 +79,7 @@ struct sdhci_arasan_soc_ctl_map {
  * @host:		Pointer to the main SDHCI host structure.
  * @clk_ahb:		Pointer to the AHB clock
  * @phy:		Pointer to the generic phy
+ * @is_phy_on:		True if the PHY is on; false if not.
  * @sdcardclk_hw:	Struct for the clock we might provide to a PHY.
  * @sdcardclk:		Pointer to normal 'struct clock' for sdcardclk_hw.
  * @soc_ctl_base:	Pointer to regmap for syscon for soc_ctl registers.
@@ -86,6 +89,7 @@ struct sdhci_arasan_data {
 	struct sdhci_host *host;
 	struct clk	*clk_ahb;
 	struct phy	*phy;
+	bool		is_phy_on;
 
 	struct clk_hw	sdcardclk_hw;
 	struct clk      *sdcardclk;
@@ -170,13 +174,47 @@ static void sdhci_arasan_set_clock(struct sdhci_host *host, unsigned int clock)
 	struct sdhci_arasan_data *sdhci_arasan = sdhci_pltfm_priv(pltfm_host);
 	bool ctrl_phy = false;
 
-	if (clock > MMC_HIGH_52_MAX_DTR && (!IS_ERR(sdhci_arasan->phy)))
-		ctrl_phy = true;
+	if (!IS_ERR(sdhci_arasan->phy)) {
+		if (!sdhci_arasan->is_phy_on && clock <= PHY_CLK_TOO_SLOW_HZ) {
+			/*
+			 * If PHY off, set clock to max speed and power PHY on.
+			 *
+			 * Although PHY docs apparently suggest power cycling
+			 * when changing the clock the PHY doesn't like to be
+			 * powered on while at low speeds like those used in ID
+			 * mode.  Even worse is powering the PHY on while the
+			 * clock is off.
+			 *
+			 * To workaround the PHY limitations, the best we can
+			 * do is to power it on at a faster speed and then slam
+			 * through low speeds without power cycling.
+			 */
+			sdhci_set_clock(host, host->max_clk);
+			spin_unlock_irq(&host->lock);
+			phy_power_on(sdhci_arasan->phy);
+			spin_lock_irq(&host->lock);
+			sdhci_arasan->is_phy_on = true;
 
-	if (ctrl_phy) {
+			/*
+			 * We'll now fall through to the below case with
+			 * ctrl_phy = false (so we won't turn off/on).  The
+			 * sdhci_set_clock() will set the real clock.
+			 */
+		} else if (clock > PHY_CLK_TOO_SLOW_HZ) {
+			/*
+			 * At higher clock speeds the PHY is fine being power
+			 * cycled and docs say you _should_ power cycle when
+			 * changing clock speeds.
+			 */
+			ctrl_phy = true;
+		}
+	}
+
+	if (ctrl_phy && sdhci_arasan->is_phy_on) {
 		spin_unlock_irq(&host->lock);
 		phy_power_off(sdhci_arasan->phy);
 		spin_lock_irq(&host->lock);
+		sdhci_arasan->is_phy_on = false;
 	}
 
 	sdhci_set_clock(host, clock);
@@ -185,6 +223,7 @@ static void sdhci_arasan_set_clock(struct sdhci_host *host, unsigned int clock)
 		spin_unlock_irq(&host->lock);
 		phy_power_on(sdhci_arasan->phy);
 		spin_lock_irq(&host->lock);
+		sdhci_arasan->is_phy_on = true;
 	}
 }
 
@@ -239,13 +278,14 @@ static int sdhci_arasan_suspend(struct device *dev)
 	if (ret)
 		return ret;
 
-	if (!IS_ERR(sdhci_arasan->phy)) {
+	if (!IS_ERR(sdhci_arasan->phy) && sdhci_arasan->is_phy_on) {
 		ret = phy_power_off(sdhci_arasan->phy);
 		if (ret) {
 			dev_err(dev, "Cannot power off phy.\n");
 			sdhci_resume_host(host);
 			return ret;
 		}
+		sdhci_arasan->is_phy_on = false;
 	}
 
 	clk_disable(pltfm_host->clk);
@@ -281,12 +321,13 @@ static int sdhci_arasan_resume(struct device *dev)
 		return ret;
 	}
 
-	if (!IS_ERR(sdhci_arasan->phy)) {
+	if (!IS_ERR(sdhci_arasan->phy) && host->mmc->actual_clock) {
 		ret = phy_power_on(sdhci_arasan->phy);
 		if (ret) {
 			dev_err(dev, "Cannot power on phy.\n");
 			return ret;
 		}
+		sdhci_arasan->is_phy_on = true;
 	}
 
 	return sdhci_resume_host(host);
@@ -547,12 +588,6 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 			goto unreg_clk;
 		}
 
-		ret = phy_power_on(sdhci_arasan->phy);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "phy_power_on err.\n");
-			goto err_phy_power;
-		}
-
 		host->mmc_host_ops.hs400_enhanced_strobe =
 					sdhci_arasan_hs400_enhanced_strobe;
 	}
@@ -564,9 +599,6 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 	return 0;
 
 err_add_host:
-	if (!IS_ERR(sdhci_arasan->phy))
-		phy_power_off(sdhci_arasan->phy);
-err_phy_power:
 	if (!IS_ERR(sdhci_arasan->phy))
 		phy_exit(sdhci_arasan->phy);
 unreg_clk:
@@ -589,7 +621,8 @@ static int sdhci_arasan_remove(struct platform_device *pdev)
 	struct clk *clk_ahb = sdhci_arasan->clk_ahb;
 
 	if (!IS_ERR(sdhci_arasan->phy)) {
-		phy_power_off(sdhci_arasan->phy);
+		if (sdhci_arasan->is_phy_on)
+			phy_power_off(sdhci_arasan->phy);
 		phy_exit(sdhci_arasan->phy);
 	}
 
