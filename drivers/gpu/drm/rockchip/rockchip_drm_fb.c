@@ -70,7 +70,7 @@ static int rockchip_drm_fb_dirty(struct drm_framebuffer *fb,
 				 struct drm_clip_rect *clips,
 				 unsigned int num_clips)
 {
-	rockchip_drm_psr_flush(fb->dev);
+	rockchip_drm_psr_flush_all(fb->dev);
 	return 0;
 }
 
