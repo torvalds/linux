@@ -107,6 +107,14 @@ enum ipu_channel_irq {
 #define IPUV3_CHANNEL_CSI2			 2
 #define IPUV3_CHANNEL_CSI3			 3
 #define IPUV3_CHANNEL_VDI_MEM_IC_VF		 5
+/*
+ * NOTE: channels 6,7 are unused in the IPU and are not IDMAC channels,
+ * but the direct CSI->VDI linking is handled the same way as IDMAC
+ * channel linking in the FSU via the IPU_FS_PROC_FLOW registers, so
+ * these channel names are used to support the direct CSI->VDI link.
+ */
+#define IPUV3_CHANNEL_CSI_DIRECT		 6
+#define IPUV3_CHANNEL_CSI_VDI_PREV		 7
 #define IPUV3_CHANNEL_MEM_VDI_PREV		 8
 #define IPUV3_CHANNEL_MEM_VDI_CUR		 9
 #define IPUV3_CHANNEL_MEM_VDI_NEXT		10
@@ -143,6 +151,7 @@ enum ipu_channel_irq {
 #define IPUV3_CHANNEL_ROT_PP_MEM		50
 #define IPUV3_CHANNEL_MEM_BG_SYNC_ALPHA		51
 #define IPUV3_CHANNEL_MEM_BG_ASYNC_ALPHA	52
+#define IPUV3_NUM_CHANNELS			64
 
 int ipu_map_irq(struct ipu_soc *ipu, int irq);
 int ipu_idmac_channel_irq(struct ipu_soc *ipu, struct ipuv3_channel *channel,
@@ -186,6 +195,10 @@ int ipu_idmac_get_current_buffer(struct ipuv3_channel *channel);
 bool ipu_idmac_buffer_is_ready(struct ipuv3_channel *channel, u32 buf_num);
 void ipu_idmac_select_buffer(struct ipuv3_channel *channel, u32 buf_num);
 void ipu_idmac_clear_buffer(struct ipuv3_channel *channel, u32 buf_num);
+int ipu_fsu_link(struct ipu_soc *ipu, int src_ch, int sink_ch);
+int ipu_fsu_unlink(struct ipu_soc *ipu, int src_ch, int sink_ch);
+int ipu_idmac_link(struct ipuv3_channel *src, struct ipuv3_channel *sink);
+int ipu_idmac_unlink(struct ipuv3_channel *src, struct ipuv3_channel *sink);
 
 /*
  * IPU Channel Parameter Memory (cpmem) functions

@@ -730,6 +730,137 @@ void ipu_set_ic_src_mux(struct ipu_soc *ipu, int csi_id, bool vdi)
 }
 EXPORT_SYMBOL_GPL(ipu_set_ic_src_mux);
 
+
+/* Frame Synchronization Unit Channel Linking */
+
+struct fsu_link_reg_info {
+	int chno;
+	u32 reg;
+	u32 mask;
+	u32 val;
+};
+
+struct fsu_link_info {
+	struct fsu_link_reg_info src;
+	struct fsu_link_reg_info sink;
+};
+
+static const struct fsu_link_info fsu_link_info[] = {
+	{
+		.src  = { IPUV3_CHANNEL_IC_PRP_ENC_MEM, IPU_FS_PROC_FLOW2,
+			  FS_PRP_ENC_DEST_SEL_MASK, FS_PRP_ENC_DEST_SEL_IRT_ENC },
+		.sink = { IPUV3_CHANNEL_MEM_ROT_ENC, IPU_FS_PROC_FLOW1,
+			  FS_PRPENC_ROT_SRC_SEL_MASK, FS_PRPENC_ROT_SRC_SEL_ENC },
+	}, {
+		.src =  { IPUV3_CHANNEL_IC_PRP_VF_MEM, IPU_FS_PROC_FLOW2,
+			  FS_PRPVF_DEST_SEL_MASK, FS_PRPVF_DEST_SEL_IRT_VF },
+		.sink = { IPUV3_CHANNEL_MEM_ROT_VF, IPU_FS_PROC_FLOW1,
+			  FS_PRPVF_ROT_SRC_SEL_MASK, FS_PRPVF_ROT_SRC_SEL_VF },
+	}, {
+		.src =  { IPUV3_CHANNEL_IC_PP_MEM, IPU_FS_PROC_FLOW2,
+			  FS_PP_DEST_SEL_MASK, FS_PP_DEST_SEL_IRT_PP },
+		.sink = { IPUV3_CHANNEL_MEM_ROT_PP, IPU_FS_PROC_FLOW1,
+			  FS_PP_ROT_SRC_SEL_MASK, FS_PP_ROT_SRC_SEL_PP },
+	}, {
+		.src =  { IPUV3_CHANNEL_CSI_DIRECT, 0 },
+		.sink = { IPUV3_CHANNEL_CSI_VDI_PREV, IPU_FS_PROC_FLOW1,
+			  FS_VDI_SRC_SEL_MASK, FS_VDI_SRC_SEL_CSI_DIRECT },
+	},
+};
+
+static const struct fsu_link_info *find_fsu_link_info(int src, int sink)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(fsu_link_info); i++) {
+		if (src == fsu_link_info[i].src.chno &&
+		    sink == fsu_link_info[i].sink.chno)
+			return &fsu_link_info[i];
+	}
+
+	return NULL;
+}
+
+/*
+ * Links a source channel to a sink channel in the FSU.
+ */
+int ipu_fsu_link(struct ipu_soc *ipu, int src_ch, int sink_ch)
+{
+	const struct fsu_link_info *link;
+	u32 src_reg, sink_reg;
+	unsigned long flags;
+
+	link = find_fsu_link_info(src_ch, sink_ch);
+	if (!link)
+		return -EINVAL;
+
+	spin_lock_irqsave(&ipu->lock, flags);
+
+	if (link->src.mask) {
+		src_reg = ipu_cm_read(ipu, link->src.reg);
+		src_reg &= ~link->src.mask;
+		src_reg |= link->src.val;
+		ipu_cm_write(ipu, src_reg, link->src.reg);
+	}
+
+	if (link->sink.mask) {
+		sink_reg = ipu_cm_read(ipu, link->sink.reg);
+		sink_reg &= ~link->sink.mask;
+		sink_reg |= link->sink.val;
+		ipu_cm_write(ipu, sink_reg, link->sink.reg);
+	}
+
+	spin_unlock_irqrestore(&ipu->lock, flags);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ipu_fsu_link);
+
+/*
+ * Unlinks source and sink channels in the FSU.
+ */
+int ipu_fsu_unlink(struct ipu_soc *ipu, int src_ch, int sink_ch)
+{
+	const struct fsu_link_info *link;
+	u32 src_reg, sink_reg;
+	unsigned long flags;
+
+	link = find_fsu_link_info(src_ch, sink_ch);
+	if (!link)
+		return -EINVAL;
+
+	spin_lock_irqsave(&ipu->lock, flags);
+
+	if (link->src.mask) {
+		src_reg = ipu_cm_read(ipu, link->src.reg);
+		src_reg &= ~link->src.mask;
+		ipu_cm_write(ipu, src_reg, link->src.reg);
+	}
+
+	if (link->sink.mask) {
+		sink_reg = ipu_cm_read(ipu, link->sink.reg);
+		sink_reg &= ~link->sink.mask;
+		ipu_cm_write(ipu, sink_reg, link->sink.reg);
+	}
+
+	spin_unlock_irqrestore(&ipu->lock, flags);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ipu_fsu_unlink);
+
+/* Link IDMAC channels in the FSU */
+int ipu_idmac_link(struct ipuv3_channel *src, struct ipuv3_channel *sink)
+{
+	return ipu_fsu_link(src->ipu, src->num, sink->num);
+}
+EXPORT_SYMBOL_GPL(ipu_idmac_link);
+
+/* Unlink IDMAC channels in the FSU */
+int ipu_idmac_unlink(struct ipuv3_channel *src, struct ipuv3_channel *sink)
+{
+	return ipu_fsu_unlink(src->ipu, src->num, sink->num);
+}
+EXPORT_SYMBOL_GPL(ipu_idmac_unlink);
+
 struct ipu_devtype {
 	const char *name;
 	unsigned long cm_ofs;

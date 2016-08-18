@@ -75,6 +75,33 @@ struct ipu_soc;
 #define IPU_INT_CTRL(n)		IPU_CM_REG(0x003C + 4 * (n))
 #define IPU_INT_STAT(n)		IPU_CM_REG(0x0200 + 4 * (n))
 
+/* FS_PROC_FLOW1 */
+#define FS_PRPENC_ROT_SRC_SEL_MASK	(0xf << 0)
+#define FS_PRPENC_ROT_SRC_SEL_ENC		(0x7 << 0)
+#define FS_PRPVF_ROT_SRC_SEL_MASK	(0xf << 8)
+#define FS_PRPVF_ROT_SRC_SEL_VF			(0x8 << 8)
+#define FS_PP_SRC_SEL_MASK		(0xf << 12)
+#define FS_PP_ROT_SRC_SEL_MASK		(0xf << 16)
+#define FS_PP_ROT_SRC_SEL_PP			(0x5 << 16)
+#define FS_VDI1_SRC_SEL_MASK		(0x3 << 20)
+#define FS_VDI3_SRC_SEL_MASK		(0x3 << 20)
+#define FS_PRP_SRC_SEL_MASK		(0xf << 24)
+#define FS_VDI_SRC_SEL_MASK		(0x3 << 28)
+#define FS_VDI_SRC_SEL_CSI_DIRECT		(0x1 << 28)
+#define FS_VDI_SRC_SEL_VDOA			(0x2 << 28)
+
+/* FS_PROC_FLOW2 */
+#define FS_PRP_ENC_DEST_SEL_MASK	(0xf << 0)
+#define FS_PRP_ENC_DEST_SEL_IRT_ENC		(0x1 << 0)
+#define FS_PRPVF_DEST_SEL_MASK		(0xf << 4)
+#define FS_PRPVF_DEST_SEL_IRT_VF		(0x1 << 4)
+#define FS_PRPVF_ROT_DEST_SEL_MASK	(0xf << 8)
+#define FS_PP_DEST_SEL_MASK		(0xf << 12)
+#define FS_PP_DEST_SEL_IRT_PP			(0x3 << 12)
+#define FS_PP_ROT_DEST_SEL_MASK		(0xf << 16)
+#define FS_PRPENC_ROT_DEST_SEL_MASK	(0xf << 20)
+#define FS_PRP_DEST_SEL_MASK		(0xf << 24)
+
 #define IPU_DI0_COUNTER_RELEASE			(1 << 24)
 #define IPU_DI1_COUNTER_RELEASE			(1 << 25)
 
