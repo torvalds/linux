@@ -146,8 +146,9 @@ of the corresponding tuner/modulator is set.
 
        -  ``reserved``\ [9]
 
-       -  Reserved for future extensions. Applications and drivers must set
-	  the array to zero.
+       -  Reserved for future extensions.
+
+	  Applications and drivers must set the array to zero.
 
 
 

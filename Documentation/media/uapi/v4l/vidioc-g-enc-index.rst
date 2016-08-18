@@ -59,12 +59,12 @@ video elementary streams.
 
 .. _v4l2-enc-idx:
 
-.. tabularcolumns:: |p{2.9cm}|p{2.9cm}|p{5.8cm}|p{2.9cm}|p{3.0cm}|
+.. tabularcolumns:: |p{3.5cm}|p{5.6cm}|p{8.4cm}|
 
 .. flat-table:: struct v4l2_enc_idx
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 2 1 1
+    :widths:       1 3 8
 
 
     -  .. row 1
@@ -90,7 +90,7 @@ video elementary streams.
 
        -  ``reserved``\ [4]
 
-       -  :cspan:`2` Reserved for future extensions. Drivers must set the
+       -  Reserved for future extensions. Drivers must set the
 	  array to zero.
 
     -  .. row 4

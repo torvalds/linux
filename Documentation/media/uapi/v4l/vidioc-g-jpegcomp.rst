@@ -57,7 +57,7 @@ encoding. You usually do want to add them.
 
 .. _v4l2-jpegcompression:
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{1.2cm}|p{3.0cm}|p{13.3cm}|
 
 .. flat-table:: struct v4l2_jpegcompression
     :header-rows:  0

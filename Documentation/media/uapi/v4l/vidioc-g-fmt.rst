@@ -84,6 +84,8 @@ The format as returned by :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` must be identical
 
 .. _v4l2-format:
 
+.. tabularcolumns::  |p{1.2cm}|p{4.3cm}|p{3.0cm}|p{9.0cm}|
+
 .. flat-table:: struct v4l2_format
     :header-rows:  0
     :stub-columns: 0

@@ -97,7 +97,9 @@ still cause this situation.
 
 .. _v4l2-ext-control:
 
-.. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{3.5cm}|p{7.0cm}|
+.. tabularcolumns:: |p{1.2cm}|p{3.0cm}|p{1.5cm}|p{11.8cm}|
+
+.. cssclass: longtable
 
 .. flat-table:: struct v4l2_ext_control
     :header-rows:  0
@@ -230,7 +232,9 @@ still cause this situation.
 
 .. _v4l2-ext-controls:
 
-.. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{7.0cm}|p{3.5cm}|
+.. tabularcolumns:: |p{4.0cm}|p{3.0cm}|p{2.0cm}|p{8.5cm}|
+
+.. cssclass:: longtable
 
 .. flat-table:: struct v4l2_ext_controls
     :header-rows:  0
@@ -348,8 +352,9 @@ still cause this situation.
 
        -  ``reserved``\ [2]
 
-       -  Reserved for future extensions. Drivers and applications must set
-	  the array to zero.
+       -  Reserved for future extensions.
+
+	  Drivers and applications must set the array to zero.
 
     -  .. row 7
 
@@ -358,6 +363,7 @@ still cause this situation.
        -  ``controls``
 
        -  Pointer to an array of ``count`` v4l2_ext_control structures.
+
 	  Ignored if ``count`` equals zero.
 
 

@@ -316,11 +316,6 @@ EBUSY
 
        -  Description
 
-    -  .. row 2
-
-       -
-       -
-
     -  .. row 3
 
        -  ``V4L2_DV_BT_STD_CEA861``
@@ -346,6 +341,7 @@ EBUSY
        -  The timings follow the VESA Generalized Timings Formula standard
 
 
+.. tabularcolumns:: |p{6.0cm}|p{11.5cm}|
 
 .. _dv-bt-flags:
 
@@ -359,11 +355,6 @@ EBUSY
        -  Flag
 
        -  Description
-
-    -  .. row 2
-
-       -
-       -
 
     -  .. row 3
 

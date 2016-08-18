@@ -85,8 +85,9 @@ To change the radio frequency the
 
        -  ``name``\ [32]
 
-       -  Name of the modulator, a NUL-terminated ASCII string. This
-	  information is intended for the user.
+       -  Name of the modulator, a NUL-terminated ASCII string.
+
+	  This information is intended for the user.
 
     -  .. row 3
 
@@ -155,8 +156,9 @@ To change the radio frequency the
 
        -  ``reserved``\ [3]
 
-       -  Reserved for future extensions. Drivers and applications must set
-	  the array to zero.
+       -  Reserved for future extensions.
+
+	  Drivers and applications must set the array to zero.
 
 
 

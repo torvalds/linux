@@ -181,6 +181,8 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
 
 .. _input-status:
 
+.. tabularcolumns:: |p{4.8cm}|p{2.6cm}|p{10.1cm}|
+
 .. flat-table:: Input Status Flags
     :header-rows:  0
     :stub-columns: 0

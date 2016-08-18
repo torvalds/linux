@@ -108,7 +108,9 @@ one until ``EINVAL`` is returned.
        -  :cspan:`2`
 
 	  .. _v4l2-fourcc:
-	  ``#define v4l2_fourcc(a,b,c,d) (((__u32)(a)<<0)|((__u32)(b)<<8)|((__u32)(c)<<16)|((__u32)(d)<<24))``
+	  ``#define v4l2_fourcc(a,b,c,d)``
+
+	  ``(((__u32)(a)<<0)|((__u32)(b)<<8)|((__u32)(c)<<16)|((__u32)(d)<<24))``
 
 	  Several image formats are already defined by this specification in
 	  :ref:`pixfmt`.

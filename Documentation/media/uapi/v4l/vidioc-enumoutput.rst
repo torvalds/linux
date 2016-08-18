@@ -142,7 +142,7 @@ EINVAL.
 
 .. _output-type:
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{7.0cm}|p{1.8cm}|p{8.7cm}|
 
 .. flat-table:: Output Type
     :header-rows:  0

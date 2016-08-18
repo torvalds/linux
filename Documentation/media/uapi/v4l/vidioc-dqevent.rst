@@ -183,6 +183,8 @@ call.
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
+.. cssclass:: longtable
+
 .. flat-table:: Event Types
     :header-rows:  0
     :stub-columns: 0
