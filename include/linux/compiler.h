@@ -527,13 +527,13 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
  * object's lifetime is managed by something other than RCU.  That
  * "something other" might be reference counting or simple immortality.
  *
- * The seemingly unused void * variable is to validate @p is indeed a pointer
- * type. All pointer types silently cast to void *.
+ * The seemingly unused size_t variable is to validate @p is indeed a pointer
+ * type by making sure it can be dereferenced.
  */
 #define lockless_dereference(p) \
 ({ \
 	typeof(p) _________p1 = READ_ONCE(p); \
-	__maybe_unused const void * const _________p2 = _________p1; \
+	size_t __maybe_unused __size_of_ptr = sizeof(*(p)); \
 	smp_read_barrier_depends(); /* Dependency order vs. p above. */ \
 	(_________p1); \
 })
