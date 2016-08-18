@@ -13,7 +13,8 @@ Optional properties:
    in the array is expected to be a handle to the USB2/HS PHY and
    the second element is expected to be a handle to the USB3/SS PHY
  - phys: from the *Generic PHY* bindings
- - phy-names: from the *Generic PHY* bindings
+ - phy-names: from the *Generic PHY* bindings; supported names are "usb2-phy"
+	or "usb3-phy".
  - snps,usb3_lpm_capable: determines if platform is USB3 LPM capable
  - snps,disable_scramble_quirk: true when SW should disable data scrambling.
 	Only really useful for FPGA builds.
