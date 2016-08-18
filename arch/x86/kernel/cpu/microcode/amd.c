@@ -355,6 +355,7 @@ void load_ucode_amd_ap(void)
 	unsigned int cpu = smp_processor_id();
 	struct equiv_cpu_entry *eq;
 	struct microcode_amd *mc;
+	u8 *cont = container;
 	u32 rev, eax;
 	u16 eq_id;
 
@@ -371,8 +372,11 @@ void load_ucode_amd_ap(void)
 	if (check_current_patch_level(&rev, false))
 		return;
 
+	/* Add CONFIG_RANDOMIZE_MEMORY offset. */
+	cont += PAGE_OFFSET - __PAGE_OFFSET_BASE;
+
 	eax = cpuid_eax(0x00000001);
-	eq  = (struct equiv_cpu_entry *)(container + CONTAINER_HDR_SZ);
+	eq  = (struct equiv_cpu_entry *)(cont + CONTAINER_HDR_SZ);
 
 	eq_id = find_equiv_id(eq, eax);
 	if (!eq_id)
@@ -433,6 +437,9 @@ int __init save_microcode_in_initrd_amd(void)
 			     (cont - boot_params.hdr.ramdisk_image));
 	else
 		container = cont_va;
+
+	/* Add CONFIG_RANDOMIZE_MEMORY offset. */
+	container += PAGE_OFFSET - __PAGE_OFFSET_BASE;
 
 	eax   = cpuid_eax(0x00000001);
 	eax   = ((eax >> 8) & 0xf) + ((eax >> 20) & 0xff);
