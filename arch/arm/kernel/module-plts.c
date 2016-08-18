@@ -33,35 +33,39 @@ struct plt_entries {
 
 u32 get_module_plt(struct module *mod, unsigned long loc, Elf32_Addr val)
 {
-	struct plt_entries *plt, *plt_end;
-	int c;
+	struct plt_entries *plt = (struct plt_entries *)mod->arch.plt->sh_addr;
+	int idx = 0;
 
-	plt = (void *)mod->arch.plt->sh_addr;
-	plt_end = (void *)plt + mod->arch.plt->sh_size;
+	/*
+	 * Look for an existing entry pointing to 'val'. Given that the
+	 * relocations are sorted, this will be the last entry we allocated.
+	 * (if one exists).
+	 */
+	if (mod->arch.plt_count > 0) {
+		plt += (mod->arch.plt_count - 1) / PLT_ENT_COUNT;
+		idx = (mod->arch.plt_count - 1) % PLT_ENT_COUNT;
 
-	/* Look for an existing entry pointing to 'val' */
-	for (c = mod->arch.plt_count; plt < plt_end; c -= PLT_ENT_COUNT, plt++) {
-		int i;
+		if (plt->lit[idx] == val)
+			return (u32)&plt->ldr[idx];
 
-		if (!c) {
-			/* Populate a new set of entries */
-			*plt = (struct plt_entries){
-				{ [0 ... PLT_ENT_COUNT - 1] = PLT_ENT_LDR, },
-				{ val, }
-			};
-			mod->arch.plt_count++;
-			return (u32)plt->ldr;
-		}
-		for (i = 0; i < PLT_ENT_COUNT; i++) {
-			if (!plt->lit[i]) {
-				plt->lit[i] = val;
-				mod->arch.plt_count++;
-			}
-			if (plt->lit[i] == val)
-				return (u32)&plt->ldr[i];
-		}
+		idx = (idx + 1) % PLT_ENT_COUNT;
+		if (!idx)
+			plt++;
 	}
-	BUG();
+
+	mod->arch.plt_count++;
+	BUG_ON(mod->arch.plt_count * PLT_ENT_SIZE > mod->arch.plt->sh_size);
+
+	if (!idx)
+		/* Populate a new set of entries */
+		*plt = (struct plt_entries){
+			{ [0 ... PLT_ENT_COUNT - 1] = PLT_ENT_LDR, },
+			{ val, }
+		};
+	else
+		plt->lit[idx] = val;
+
+	return (u32)&plt->ldr[idx];
 }
 
 #define cmp_3way(a,b)	((a) < (b) ? -1 : (a) > (b))
