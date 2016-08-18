@@ -38,7 +38,7 @@ static struct usb_device_id whitelist_table[] = {
 { USB_DEVICE(0x0525, 0xa4a2), },
 #endif
 
-#if	defined(CONFIG_USB_TEST) || defined(CONFIG_USB_TEST_MODULE)
+#if	IS_ENABLED(CONFIG_USB_TEST)
 /* gadget zero, for testing */
 { USB_DEVICE(0x0525, 0xa4a0), },
 #endif
