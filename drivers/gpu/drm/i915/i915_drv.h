@@ -2198,6 +2198,7 @@ struct drm_i915_gem_object {
 	unsigned int cache_dirty:1;
 
 	atomic_t frontbuffer_bits;
+	unsigned int frontbuffer_ggtt_origin; /* write once */
 
 	/** Current tiling stride for the object, if it's tiled. */
 	unsigned int tiling_and_stride;
@@ -2205,7 +2206,6 @@ struct drm_i915_gem_object {
 #define TILING_MASK (FENCE_MINIMUM_STRIDE-1)
 #define STRIDE_MASK (~TILING_MASK)
 
-	unsigned int has_wc_mmap;
 	/** Count of VMA actually bound by this object */
 	unsigned int bind_count;
 	unsigned int pin_display;
