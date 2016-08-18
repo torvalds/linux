@@ -271,6 +271,12 @@
 		opp-microvolt = <900000>;
 		opp-suspend;
 	};
+
+	vibrator {
+		compatible = "rk-vibrator-gpio";
+		vibrator-gpio = <&gpio4 30 GPIO_ACTIVE_LOW>;
+		status = "okay";
+	};
 };
 
 &cluster0_opp {
