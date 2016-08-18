@@ -4612,6 +4612,14 @@ static ssize_t rbd_client_id_show(struct device *dev,
 		       ceph_client_gid(rbd_dev->rbd_client->client));
 }
 
+static ssize_t rbd_cluster_fsid_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
+
+	return sprintf(buf, "%pU\n", &rbd_dev->rbd_client->client->fsid);
+}
+
 static ssize_t rbd_pool_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
@@ -4715,6 +4723,7 @@ static DEVICE_ATTR(major, S_IRUGO, rbd_major_show, NULL);
 static DEVICE_ATTR(minor, S_IRUGO, rbd_minor_show, NULL);
 static DEVICE_ATTR(client_addr, S_IRUGO, rbd_client_addr_show, NULL);
 static DEVICE_ATTR(client_id, S_IRUGO, rbd_client_id_show, NULL);
+static DEVICE_ATTR(cluster_fsid, S_IRUGO, rbd_cluster_fsid_show, NULL);
 static DEVICE_ATTR(pool, S_IRUGO, rbd_pool_show, NULL);
 static DEVICE_ATTR(pool_id, S_IRUGO, rbd_pool_id_show, NULL);
 static DEVICE_ATTR(name, S_IRUGO, rbd_name_show, NULL);
@@ -4730,6 +4739,7 @@ static struct attribute *rbd_attrs[] = {
 	&dev_attr_minor.attr,
 	&dev_attr_client_addr.attr,
 	&dev_attr_client_id.attr,
+	&dev_attr_cluster_fsid.attr,
 	&dev_attr_pool.attr,
 	&dev_attr_pool_id.attr,
 	&dev_attr_name.attr,

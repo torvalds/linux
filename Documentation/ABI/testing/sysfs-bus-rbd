@@ -53,6 +53,10 @@ client_id
 
 	The ceph unique client id that was assigned for this specific session.
 
+cluster_fsid
+
+	The ceph cluster UUID.  (August 2016, since 4.9.)
+
 features
 
 	A hexadecimal encoding of the feature bits for this image.
