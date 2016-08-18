@@ -373,7 +373,8 @@ static int convert_variable_type(Dwarf_Die *vr_die,
 		 probe_type_is_available(PROBE_TYPE_X))
 		prefix = 'x';
 	else
-		prefix = die_is_signed_type(&type) ? 's' : 'u';
+		prefix = die_is_signed_type(&type) ? 's' :
+			 probe_type_is_available(PROBE_TYPE_X) ? 'x' : 'u';
 
 	ret = dwarf_bytesize(&type);
 	if (ret <= 0)
