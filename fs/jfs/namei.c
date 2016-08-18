@@ -1572,7 +1572,7 @@ static int jfs_ci_hash(const struct dentry *dir, struct qstr *this)
 	return 0;
 }
 
-static int jfs_ci_compare(const struct dentry *parent, const struct dentry *dentry,
+static int jfs_ci_compare(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	int i, result = 1;

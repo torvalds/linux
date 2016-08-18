@@ -31,7 +31,7 @@ static unsigned __init gen_fdt_mem_array(__be32 *mem_array, unsigned long size)
 
 	entries = 1;
 	mem_array[0] = cpu_to_be32(PHYS_OFFSET);
-	if (config_enabled(CONFIG_EVA)) {
+	if (IS_ENABLED(CONFIG_EVA)) {
 		/*
 		 * The current Malta EVA configuration is "special" in that it
 		 * always makes use of addresses in the upper half of the 32 bit
@@ -82,7 +82,7 @@ static void __init append_memory(void *fdt, int root_off)
 		physical_memsize = 32 << 20;
 	}
 
-	if (config_enabled(CONFIG_CPU_BIG_ENDIAN)) {
+	if (IS_ENABLED(CONFIG_CPU_BIG_ENDIAN)) {
 		/*
 		 * SOC-it swaps, or perhaps doesn't swap, when DMA'ing
 		 * the last word of physical memory.

@@ -69,5 +69,6 @@ OBJCOPYFLAGS :=
 OBJCOPYFLAGS_lkdtm_rodata_objcopy.o := \
 			--set-section-flags .text=alloc,readonly \
 			--rename-section .text=.rodata
-$(obj)/lkdtm_rodata_objcopy.o: $(obj)/lkdtm_rodata.o
+targets += lkdtm_rodata.o lkdtm_rodata_objcopy.o
+$(obj)/lkdtm_rodata_objcopy.o: $(obj)/lkdtm_rodata.o FORCE
 	$(call if_changed,objcopy)

@@ -44,18 +44,6 @@
 				PSSCR_PSLL_MASK | PSSCR_TR_MASK | \
 				PSSCR_MTL_MASK
 
-/* Idle state entry routines */
-
-#define	IDLE_STATE_ENTER_SEQ(IDLE_INST)				\
-	/* Magic NAP/SLEEP/WINKLE mode enter sequence */	\
-	std	r0,0(r1);					\
-	ptesync;						\
-	ld	r0,0(r1);					\
-1:	cmp	cr0,r0,r0;					\
-	bne	1b;						\
-	IDLE_INST;						\
-	b	.
-
 	.text
 
 /*
@@ -363,8 +351,8 @@ _GLOBAL(power9_idle_stop)
  * cr3 - set to gt if waking up with partial/complete hypervisor state loss
  */
 _GLOBAL(pnv_restore_hyp_resource)
-	ld	r2,PACATOC(r13);
 BEGIN_FTR_SECTION
+	ld	r2,PACATOC(r13);
 	/*
 	 * POWER ISA 3. Use PSSCR to determine if we
 	 * are waking up from deep idle state
@@ -395,6 +383,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	 */
 	clrldi	r5,r13,63
 	clrrdi	r13,r13,1
+
+	/* Now that we are sure r13 is corrected, load TOC */
+	ld	r2,PACATOC(r13);
 	cmpwi	cr4,r5,1
 	mtspr	SPRN_HSPRG0,r13
 
@@ -572,7 +563,7 @@ common_exit:
 
 BEGIN_MMU_FTR_SECTION
 	b	no_segments
-END_MMU_FTR_SECTION_IFSET(MMU_FTR_RADIX)
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_RADIX)
 	/* Restore SLB  from PACA */
 	ld	r8,PACA_SLBSHADOWPTR(r13)
 

@@ -235,12 +235,12 @@ static void backref_cache_cleanup(struct backref_cache *cache)
 	cache->last_trans = 0;
 
 	for (i = 0; i < BTRFS_MAX_LEVEL; i++)
-		BUG_ON(!list_empty(&cache->pending[i]));
-	BUG_ON(!list_empty(&cache->changed));
-	BUG_ON(!list_empty(&cache->detached));
-	BUG_ON(!RB_EMPTY_ROOT(&cache->rb_root));
-	BUG_ON(cache->nr_nodes);
-	BUG_ON(cache->nr_edges);
+		ASSERT(list_empty(&cache->pending[i]));
+	ASSERT(list_empty(&cache->changed));
+	ASSERT(list_empty(&cache->detached));
+	ASSERT(RB_EMPTY_ROOT(&cache->rb_root));
+	ASSERT(!cache->nr_nodes);
+	ASSERT(!cache->nr_edges);
 }
 
 static struct backref_node *alloc_backref_node(struct backref_cache *cache)
@@ -1171,8 +1171,12 @@ out:
 			lower = list_entry(useless.next,
 					   struct backref_node, list);
 			list_del_init(&lower->list);
+			if (lower == node)
+				node = NULL;
 			free_backref_node(cache, lower);
 		}
+
+		free_backref_node(cache, node);
 		return ERR_PTR(err);
 	}
 	ASSERT(!node || !node->detached);
@@ -1719,7 +1723,7 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 					   btrfs_header_owner(leaf),
 					   key.objectid, key.offset);
 		if (ret) {
-			btrfs_abort_transaction(trans, root, ret);
+			btrfs_abort_transaction(trans, ret);
 			break;
 		}
 
@@ -1727,7 +1731,7 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 					parent, btrfs_header_owner(leaf),
 					key.objectid, key.offset);
 		if (ret) {
-			btrfs_abort_transaction(trans, root, ret);
+			btrfs_abort_transaction(trans, ret);
 			break;
 		}
 	}

@@ -70,8 +70,16 @@ struct qed_dbcx_pfc_params {
 	u8 max_tc;
 };
 
+enum qed_dcbx_sf_ieee_type {
+	QED_DCBX_SF_IEEE_ETHTYPE,
+	QED_DCBX_SF_IEEE_TCP_PORT,
+	QED_DCBX_SF_IEEE_UDP_PORT,
+	QED_DCBX_SF_IEEE_TCP_UDP_PORT
+};
+
 struct qed_app_entry {
 	bool ethtype;
+	enum qed_dcbx_sf_ieee_type sf_ieee;
 	bool enabled;
 	u8 prio;
 	u16 proto_id;

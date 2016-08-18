@@ -136,8 +136,8 @@ struct cxl_event_afu_driver_reserved {
 	 *
 	 * Of course the contents will be ABI, but that's up the AFU driver.
 	 */
-	size_t data_size;
-	u8 data[];
+	__u32 data_size;
+	__u8 data[];
 };
 
 struct cxl_event {

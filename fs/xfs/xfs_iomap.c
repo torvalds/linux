@@ -23,6 +23,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
+#include "xfs_defer.h"
 #include "xfs_inode.h"
 #include "xfs_btree.h"
 #include "xfs_bmap_btree.h"
@@ -128,7 +129,7 @@ xfs_iomap_write_direct(
 	int		quota_flag;
 	int		rt;
 	xfs_trans_t	*tp;
-	xfs_bmap_free_t free_list;
+	struct xfs_defer_ops dfops;
 	uint		qblocks, resblks, resrtextents;
 	int		error;
 	int		lockmode;
@@ -231,18 +232,18 @@ xfs_iomap_write_direct(
 	 * From this point onwards we overwrite the imap pointer that the
 	 * caller gave to us.
 	 */
-	xfs_bmap_init(&free_list, &firstfsb);
+	xfs_defer_init(&dfops, &firstfsb);
 	nimaps = 1;
 	error = xfs_bmapi_write(tp, ip, offset_fsb, count_fsb,
 				bmapi_flags, &firstfsb, resblks, imap,
-				&nimaps, &free_list);
+				&nimaps, &dfops);
 	if (error)
 		goto out_bmap_cancel;
 
 	/*
 	 * Complete the transaction
 	 */
-	error = xfs_bmap_finish(&tp, &free_list, NULL);
+	error = xfs_defer_finish(&tp, &dfops, NULL);
 	if (error)
 		goto out_bmap_cancel;
 
@@ -266,7 +267,7 @@ out_unlock:
 	return error;
 
 out_bmap_cancel:
-	xfs_bmap_cancel(&free_list);
+	xfs_defer_cancel(&dfops);
 	xfs_trans_unreserve_quota_nblks(tp, ip, (long)qblocks, 0, quota_flag);
 out_trans_cancel:
 	xfs_trans_cancel(tp);
@@ -685,7 +686,7 @@ xfs_iomap_write_allocate(
 	xfs_fileoff_t	offset_fsb, last_block;
 	xfs_fileoff_t	end_fsb, map_start_fsb;
 	xfs_fsblock_t	first_block;
-	xfs_bmap_free_t	free_list;
+	struct xfs_defer_ops	dfops;
 	xfs_filblks_t	count_fsb;
 	xfs_trans_t	*tp;
 	int		nimaps;
@@ -727,7 +728,7 @@ xfs_iomap_write_allocate(
 			xfs_ilock(ip, XFS_ILOCK_EXCL);
 			xfs_trans_ijoin(tp, ip, 0);
 
-			xfs_bmap_init(&free_list, &first_block);
+			xfs_defer_init(&dfops, &first_block);
 
 			/*
 			 * it is possible that the extents have changed since
@@ -783,11 +784,11 @@ xfs_iomap_write_allocate(
 			error = xfs_bmapi_write(tp, ip, map_start_fsb,
 						count_fsb, 0, &first_block,
 						nres, imap, &nimaps,
-						&free_list);
+						&dfops);
 			if (error)
 				goto trans_cancel;
 
-			error = xfs_bmap_finish(&tp, &free_list, NULL);
+			error = xfs_defer_finish(&tp, &dfops, NULL);
 			if (error)
 				goto trans_cancel;
 
@@ -821,7 +822,7 @@ xfs_iomap_write_allocate(
 	}
 
 trans_cancel:
-	xfs_bmap_cancel(&free_list);
+	xfs_defer_cancel(&dfops);
 	xfs_trans_cancel(tp);
 error0:
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
@@ -842,7 +843,7 @@ xfs_iomap_write_unwritten(
 	int		nimaps;
 	xfs_trans_t	*tp;
 	xfs_bmbt_irec_t imap;
-	xfs_bmap_free_t free_list;
+	struct xfs_defer_ops dfops;
 	xfs_fsize_t	i_size;
 	uint		resblks;
 	int		error;
@@ -886,11 +887,11 @@ xfs_iomap_write_unwritten(
 		/*
 		 * Modify the unwritten extent state of the buffer.
 		 */
-		xfs_bmap_init(&free_list, &firstfsb);
+		xfs_defer_init(&dfops, &firstfsb);
 		nimaps = 1;
 		error = xfs_bmapi_write(tp, ip, offset_fsb, count_fsb,
 					XFS_BMAPI_CONVERT, &firstfsb, resblks,
-					&imap, &nimaps, &free_list);
+					&imap, &nimaps, &dfops);
 		if (error)
 			goto error_on_bmapi_transaction;
 
@@ -909,7 +910,7 @@ xfs_iomap_write_unwritten(
 			xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 		}
 
-		error = xfs_bmap_finish(&tp, &free_list, NULL);
+		error = xfs_defer_finish(&tp, &dfops, NULL);
 		if (error)
 			goto error_on_bmapi_transaction;
 
@@ -936,7 +937,7 @@ xfs_iomap_write_unwritten(
 	return 0;
 
 error_on_bmapi_transaction:
-	xfs_bmap_cancel(&free_list);
+	xfs_defer_cancel(&dfops);
 	xfs_trans_cancel(tp);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	return error;

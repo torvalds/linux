@@ -239,31 +239,13 @@ void perf_event_attr__set_max_precise_ip(struct perf_event_attr *attr)
 
 int perf_evlist__add_default(struct perf_evlist *evlist)
 {
-	struct perf_event_attr attr = {
-		.type = PERF_TYPE_HARDWARE,
-		.config = PERF_COUNT_HW_CPU_CYCLES,
-	};
-	struct perf_evsel *evsel;
+	struct perf_evsel *evsel = perf_evsel__new_cycles();
 
-	event_attr_init(&attr);
-
-	perf_event_attr__set_max_precise_ip(&attr);
-
-	evsel = perf_evsel__new(&attr);
 	if (evsel == NULL)
-		goto error;
-
-	/* use asprintf() because free(evsel) assumes name is allocated */
-	if (asprintf(&evsel->name, "cycles%.*s",
-		     attr.precise_ip ? attr.precise_ip + 1 : 0, ":ppp") < 0)
-		goto error_free;
+		return -ENOMEM;
 
 	perf_evlist__add(evlist, evsel);
 	return 0;
-error_free:
-	perf_evsel__delete(evsel);
-error:
-	return -ENOMEM;
 }
 
 int perf_evlist__add_dummy(struct perf_evlist *evlist)

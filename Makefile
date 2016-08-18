@@ -1,7 +1,7 @@
 VERSION = 4
-PATCHLEVEL = 7
+PATCHLEVEL = 8
 SUBLEVEL = 0
-EXTRAVERSION =
+EXTRAVERSION = -rc2
 NAME = Psychotic Stoned Sheep
 
 # *DOCUMENTATION*
@@ -634,13 +634,6 @@ endif
 
 # Tell gcc to never replace conditional load with a non-conditional one
 KBUILD_CFLAGS	+= $(call cc-option,--param=allow-store-data-races=0)
-
-PHONY += gcc-plugins
-gcc-plugins: scripts_basic
-ifdef CONFIG_GCC_PLUGINS
-	$(Q)$(MAKE) $(build)=scripts/gcc-plugins
-endif
-	@:
 
 include scripts/Makefile.gcc-plugins
 
@@ -1432,7 +1425,7 @@ $(help-board-dirs): help-%:
 
 # Documentation targets
 # ---------------------------------------------------------------------------
-DOC_TARGETS := xmldocs sgmldocs psdocs pdfdocs htmldocs mandocs installmandocs epubdocs cleandocs cleanmediadocs
+DOC_TARGETS := xmldocs sgmldocs psdocs pdfdocs htmldocs mandocs installmandocs epubdocs cleandocs
 PHONY += $(DOC_TARGETS)
 $(DOC_TARGETS): scripts_basic FORCE
 	$(Q)$(MAKE) $(build)=scripts build_docproc build_check-lc_ctype

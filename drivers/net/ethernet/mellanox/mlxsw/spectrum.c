@@ -942,8 +942,8 @@ static void mlxsw_sp_port_vport_destroy(struct mlxsw_sp_port *mlxsw_sp_vport)
 	kfree(mlxsw_sp_vport);
 }
 
-int mlxsw_sp_port_add_vid(struct net_device *dev, __be16 __always_unused proto,
-			  u16 vid)
+static int mlxsw_sp_port_add_vid(struct net_device *dev,
+				 __be16 __always_unused proto, u16 vid)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	struct mlxsw_sp_port *mlxsw_sp_vport;
@@ -956,16 +956,12 @@ int mlxsw_sp_port_add_vid(struct net_device *dev, __be16 __always_unused proto,
 	if (!vid)
 		return 0;
 
-	if (mlxsw_sp_port_vport_find(mlxsw_sp_port, vid)) {
-		netdev_warn(dev, "VID=%d already configured\n", vid);
+	if (mlxsw_sp_port_vport_find(mlxsw_sp_port, vid))
 		return 0;
-	}
 
 	mlxsw_sp_vport = mlxsw_sp_port_vport_create(mlxsw_sp_port, vid);
-	if (!mlxsw_sp_vport) {
-		netdev_err(dev, "Failed to create vPort for VID=%d\n", vid);
+	if (!mlxsw_sp_vport)
 		return -ENOMEM;
-	}
 
 	/* When adding the first VLAN interface on a bridged port we need to
 	 * transition all the active 802.1Q bridge VLANs to use explicit
@@ -973,24 +969,17 @@ int mlxsw_sp_port_add_vid(struct net_device *dev, __be16 __always_unused proto,
 	 */
 	if (list_is_singular(&mlxsw_sp_port->vports_list)) {
 		err = mlxsw_sp_port_vp_mode_trans(mlxsw_sp_port);
-		if (err) {
-			netdev_err(dev, "Failed to set to Virtual mode\n");
+		if (err)
 			goto err_port_vp_mode_trans;
-		}
 	}
 
 	err = mlxsw_sp_port_vid_learning_set(mlxsw_sp_vport, vid, false);
-	if (err) {
-		netdev_err(dev, "Failed to disable learning for VID=%d\n", vid);
+	if (err)
 		goto err_port_vid_learning_set;
-	}
 
 	err = mlxsw_sp_port_vlan_set(mlxsw_sp_vport, vid, vid, true, untagged);
-	if (err) {
-		netdev_err(dev, "Failed to set VLAN membership for VID=%d\n",
-			   vid);
+	if (err)
 		goto err_port_add_vid;
-	}
 
 	return 0;
 
@@ -1010,7 +999,6 @@ static int mlxsw_sp_port_kill_vid(struct net_device *dev,
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	struct mlxsw_sp_port *mlxsw_sp_vport;
 	struct mlxsw_sp_fid *f;
-	int err;
 
 	/* VLAN 0 is removed from HW filter when device goes down, but
 	 * it is reserved in our case, so simply return.
@@ -1019,23 +1007,12 @@ static int mlxsw_sp_port_kill_vid(struct net_device *dev,
 		return 0;
 
 	mlxsw_sp_vport = mlxsw_sp_port_vport_find(mlxsw_sp_port, vid);
-	if (!mlxsw_sp_vport) {
-		netdev_warn(dev, "VID=%d does not exist\n", vid);
+	if (WARN_ON(!mlxsw_sp_vport))
 		return 0;
-	}
 
-	err = mlxsw_sp_port_vlan_set(mlxsw_sp_vport, vid, vid, false, false);
-	if (err) {
-		netdev_err(dev, "Failed to set VLAN membership for VID=%d\n",
-			   vid);
-		return err;
-	}
+	mlxsw_sp_port_vlan_set(mlxsw_sp_vport, vid, vid, false, false);
 
-	err = mlxsw_sp_port_vid_learning_set(mlxsw_sp_vport, vid, true);
-	if (err) {
-		netdev_err(dev, "Failed to enable learning for VID=%d\n", vid);
-		return err;
-	}
+	mlxsw_sp_port_vid_learning_set(mlxsw_sp_vport, vid, true);
 
 	/* Drop FID reference. If this was the last reference the
 	 * resources will be freed.
@@ -1048,13 +1025,8 @@ static int mlxsw_sp_port_kill_vid(struct net_device *dev,
 	 * transition all active 802.1Q bridge VLANs to use VID to FID
 	 * mappings and set port's mode to VLAN mode.
 	 */
-	if (list_is_singular(&mlxsw_sp_port->vports_list)) {
-		err = mlxsw_sp_port_vlan_mode_trans(mlxsw_sp_port);
-		if (err) {
-			netdev_err(dev, "Failed to set to VLAN mode\n");
-			return err;
-		}
-	}
+	if (list_is_singular(&mlxsw_sp_port->vports_list))
+		mlxsw_sp_port_vlan_mode_trans(mlxsw_sp_port);
 
 	mlxsw_sp_port_vport_destroy(mlxsw_sp_vport);
 
@@ -1149,6 +1121,7 @@ static int mlxsw_sp_port_add_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 					  bool ingress)
 {
 	const struct tc_action *a;
+	LIST_HEAD(actions);
 	int err;
 
 	if (!tc_single_action(cls->exts)) {
@@ -1156,7 +1129,8 @@ static int mlxsw_sp_port_add_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 		return -ENOTSUPP;
 	}
 
-	tc_for_each_action(a, cls->exts) {
+	tcf_exts_to_list(cls->exts, &actions);
+	list_for_each_entry(a, &actions, list) {
 		if (!is_tcf_mirred_mirror(a) || protocol != htons(ETH_P_ALL))
 			return -ENOTSUPP;
 
@@ -2076,6 +2050,18 @@ static int mlxsw_sp_port_ets_init(struct mlxsw_sp_port *mlxsw_sp_port)
 	return 0;
 }
 
+static int mlxsw_sp_port_pvid_vport_create(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	mlxsw_sp_port->pvid = 1;
+
+	return mlxsw_sp_port_add_vid(mlxsw_sp_port->dev, 0, 1);
+}
+
+static int mlxsw_sp_port_pvid_vport_destroy(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	return mlxsw_sp_port_kill_vid(mlxsw_sp_port->dev, 0, 1);
+}
+
 static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 				bool split, u8 module, u8 width, u8 lane)
 {
@@ -2191,7 +2177,15 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		goto err_port_dcb_init;
 	}
 
+	err = mlxsw_sp_port_pvid_vport_create(mlxsw_sp_port);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to create PVID vPort\n",
+			mlxsw_sp_port->local_port);
+		goto err_port_pvid_vport_create;
+	}
+
 	mlxsw_sp_port_switchdev_init(mlxsw_sp_port);
+	mlxsw_sp->ports[local_port] = mlxsw_sp_port;
 	err = register_netdev(dev);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to register netdev\n",
@@ -2208,18 +2202,15 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		goto err_core_port_init;
 	}
 
-	err = mlxsw_sp_port_vlan_init(mlxsw_sp_port);
-	if (err)
-		goto err_port_vlan_init;
-
-	mlxsw_sp->ports[local_port] = mlxsw_sp_port;
 	return 0;
 
-err_port_vlan_init:
-	mlxsw_core_port_fini(&mlxsw_sp_port->core_port);
 err_core_port_init:
 	unregister_netdev(dev);
 err_register_netdev:
+	mlxsw_sp->ports[local_port] = NULL;
+	mlxsw_sp_port_switchdev_fini(mlxsw_sp_port);
+	mlxsw_sp_port_pvid_vport_destroy(mlxsw_sp_port);
+err_port_pvid_vport_create:
 	mlxsw_sp_port_dcb_fini(mlxsw_sp_port);
 err_port_dcb_init:
 err_port_ets_init:
@@ -2227,6 +2218,7 @@ err_port_buffers_init:
 err_port_admin_status_set:
 err_port_mtu_set:
 err_port_speed_by_width_set:
+	mlxsw_sp_port_swid_set(mlxsw_sp_port, MLXSW_PORT_SWID_DISABLED_PORT);
 err_port_swid_set:
 err_port_system_port_mapping_set:
 err_dev_addr_init:
@@ -2246,12 +2238,12 @@ static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 
 	if (!mlxsw_sp_port)
 		return;
-	mlxsw_sp->ports[local_port] = NULL;
 	mlxsw_core_port_fini(&mlxsw_sp_port->core_port);
 	unregister_netdev(mlxsw_sp_port->dev); /* This calls ndo_stop */
-	mlxsw_sp_port_dcb_fini(mlxsw_sp_port);
-	mlxsw_sp_port_kill_vid(mlxsw_sp_port->dev, 0, 1);
+	mlxsw_sp->ports[local_port] = NULL;
 	mlxsw_sp_port_switchdev_fini(mlxsw_sp_port);
+	mlxsw_sp_port_pvid_vport_destroy(mlxsw_sp_port);
+	mlxsw_sp_port_dcb_fini(mlxsw_sp_port);
 	mlxsw_sp_port_swid_set(mlxsw_sp_port, MLXSW_PORT_SWID_DISABLED_PORT);
 	mlxsw_sp_port_module_unmap(mlxsw_sp, mlxsw_sp_port->local_port);
 	free_percpu(mlxsw_sp_port->pcpu_stats);
@@ -2659,6 +2651,26 @@ static const struct mlxsw_rx_listener mlxsw_sp_rx_listener[] = {
 		.func = mlxsw_sp_rx_listener_func,
 		.local_port = MLXSW_PORT_DONT_CARE,
 		.trap_id = MLXSW_TRAP_ID_ARPUC,
+	},
+	{
+		.func = mlxsw_sp_rx_listener_func,
+		.local_port = MLXSW_PORT_DONT_CARE,
+		.trap_id = MLXSW_TRAP_ID_MTUERROR,
+	},
+	{
+		.func = mlxsw_sp_rx_listener_func,
+		.local_port = MLXSW_PORT_DONT_CARE,
+		.trap_id = MLXSW_TRAP_ID_TTLERROR,
+	},
+	{
+		.func = mlxsw_sp_rx_listener_func,
+		.local_port = MLXSW_PORT_DONT_CARE,
+		.trap_id = MLXSW_TRAP_ID_LBERROR,
+	},
+	{
+		.func = mlxsw_sp_rx_listener_func,
+		.local_port = MLXSW_PORT_DONT_CARE,
+		.trap_id = MLXSW_TRAP_ID_OSPF,
 	},
 	{
 		.func = mlxsw_sp_rx_listener_func,

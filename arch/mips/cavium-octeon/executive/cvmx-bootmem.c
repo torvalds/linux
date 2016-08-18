@@ -668,7 +668,7 @@ int64_t cvmx_bootmem_phy_named_block_alloc(uint64_t size, uint64_t min_addr,
 	/*
 	 * Round size up to mult of minimum alignment bytes We need
 	 * the actual size allocated to allow for blocks to be
-	 * coallesced when they are freed.  The alloc routine does the
+	 * coalesced when they are freed. The alloc routine does the
 	 * same rounding up on all allocations.
 	 */
 	size = ALIGN(size, CVMX_BOOTMEM_ALIGNMENT_SIZE);

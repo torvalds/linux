@@ -17,6 +17,7 @@ DRM,Generic,“rotation”,BITMASK,"{ 0, ""rotate-0"" }, { 1, ""rotate-90"" }, {
 ,,“CRTC_H”,RANGE,"Min=0, Max=UINT_MAX",Plane,Scanout CRTC (destination) height (atomic)
 ,,“FB_ID”,OBJECT,DRM_MODE_OBJECT_FB,Plane,Scanout framebuffer (atomic)
 ,,“CRTC_ID”,OBJECT,DRM_MODE_OBJECT_CRTC,Plane,CRTC that plane is attached to (atomic)
+,,“zpos”,RANGE,"Min=0, Max=UINT_MAX","Plane,Z-order of the plane.Planes with higher Z-order values are displayed on top, planes with identical Z-order values are display in an undefined order"
 ,DVI-I,“subconnector”,ENUM,"{ “Unknown”, “DVI-D”, “DVI-A” }",Connector,TBD
 ,,“select subconnector”,ENUM,"{ “Automatic”, “DVI-D”, “DVI-A” }",Connector,TBD
 ,TV,“subconnector”,ENUM,"{ ""Unknown"", ""Composite"", ""SVIDEO"", ""Component"", ""SCART"" }",Connector,TBD

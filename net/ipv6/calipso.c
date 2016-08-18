@@ -952,8 +952,10 @@ calipso_opt_insert(struct ipv6_opt_hdr *hop,
 		memcpy(new, hop, start);
 	ret_val = calipso_genopt((unsigned char *)new, start, buf_len, doi_def,
 				 secattr);
-	if (ret_val < 0)
+	if (ret_val < 0) {
+		kfree(new);
 		return ERR_PTR(ret_val);
+	}
 
 	buf_len = start + ret_val;
 	/* At this point buf_len aligns to 4n, so (buf_len & 4) pads to 8n */

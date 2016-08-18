@@ -378,11 +378,7 @@ UASM_EXPORT_SYMBOL(ISAFUNC(uasm_build_label));
 int ISAFUNC(uasm_in_compat_space_p)(long addr)
 {
 	/* Is this address in 32bit compat space? */
-#ifdef CONFIG_64BIT
-	return (((addr) & 0xffffffff00000000L) == 0xffffffff00000000L);
-#else
-	return 1;
-#endif
+	return addr == (int)addr;
 }
 UASM_EXPORT_SYMBOL(ISAFUNC(uasm_in_compat_space_p));
 

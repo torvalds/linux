@@ -57,7 +57,7 @@ static inline bool should_writeback(struct cached_dev *dc, struct bio *bio,
 	if (would_skip)
 		return false;
 
-	return bio->bi_rw & REQ_SYNC ||
+	return bio->bi_opf & REQ_SYNC ||
 		in_use <= CUTOFF_WRITEBACK;
 }
 

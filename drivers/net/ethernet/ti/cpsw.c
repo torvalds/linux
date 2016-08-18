@@ -730,6 +730,7 @@ static void cpsw_rx_handler(void *token, int len, int status)
 		netif_receive_skb(skb);
 		ndev->stats.rx_bytes += len;
 		ndev->stats.rx_packets++;
+		kmemleak_not_leak(new_skb);
 	} else {
 		ndev->stats.rx_dropped++;
 		new_skb = skb;
@@ -1307,6 +1308,7 @@ static int cpsw_ndo_open(struct net_device *ndev)
 				kfree_skb(skb);
 				goto err_cleanup;
 			}
+			kmemleak_not_leak(skb);
 		}
 		/* continue even if we didn't manage to submit all
 		 * receive descs

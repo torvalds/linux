@@ -683,17 +683,25 @@ static int build_inv_stag(union t4_wr *wqe, struct ib_send_wr *wr,
 	return 0;
 }
 
+void _free_qp(struct kref *kref)
+{
+	struct c4iw_qp *qhp;
+
+	qhp = container_of(kref, struct c4iw_qp, kref);
+	PDBG("%s qhp %p\n", __func__, qhp);
+	kfree(qhp);
+}
+
 void c4iw_qp_add_ref(struct ib_qp *qp)
 {
 	PDBG("%s ib_qp %p\n", __func__, qp);
-	atomic_inc(&(to_c4iw_qp(qp)->refcnt));
+	kref_get(&to_c4iw_qp(qp)->kref);
 }
 
 void c4iw_qp_rem_ref(struct ib_qp *qp)
 {
 	PDBG("%s ib_qp %p\n", __func__, qp);
-	if (atomic_dec_and_test(&(to_c4iw_qp(qp)->refcnt)))
-		wake_up(&(to_c4iw_qp(qp)->wait));
+	kref_put(&to_c4iw_qp(qp)->kref, _free_qp);
 }
 
 static void add_to_fc_list(struct list_head *head, struct list_head *entry)
@@ -1081,9 +1089,10 @@ static void post_terminate(struct c4iw_qp *qhp, struct t4_cqe *err_cqe,
 	PDBG("%s qhp %p qid 0x%x tid %u\n", __func__, qhp, qhp->wq.sq.qid,
 	     qhp->ep->hwtid);
 
-	skb = alloc_skb(sizeof *wqe, gfp);
-	if (!skb)
+	skb = skb_dequeue(&qhp->ep->com.ep_skb_list);
+	if (WARN_ON(!skb))
 		return;
+
 	set_wr_txq(skb, CPL_PRIORITY_DATA, qhp->ep->txq_idx);
 
 	wqe = (struct fw_ri_wr *)__skb_put(skb, sizeof(*wqe));
@@ -1202,9 +1211,10 @@ static int rdma_fini(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 	PDBG("%s qhp %p qid 0x%x tid %u\n", __func__, qhp, qhp->wq.sq.qid,
 	     ep->hwtid);
 
-	skb = alloc_skb(sizeof *wqe, GFP_KERNEL);
-	if (!skb)
+	skb = skb_dequeue(&ep->com.ep_skb_list);
+	if (WARN_ON(!skb))
 		return -ENOMEM;
+
 	set_wr_txq(skb, CPL_PRIORITY_DATA, ep->txq_idx);
 
 	wqe = (struct fw_ri_wr *)__skb_put(skb, sizeof(*wqe));
@@ -1592,8 +1602,6 @@ int c4iw_destroy_qp(struct ib_qp *ib_qp)
 	wait_event(qhp->wait, !qhp->ep);
 
 	remove_handle(rhp, &rhp->qpidr, qhp->wq.sq.qid);
-	atomic_dec(&qhp->refcnt);
-	wait_event(qhp->wait, !atomic_read(&qhp->refcnt));
 
 	spin_lock_irq(&rhp->lock);
 	if (!list_empty(&qhp->db_fc_entry))
@@ -1606,8 +1614,9 @@ int c4iw_destroy_qp(struct ib_qp *ib_qp)
 	destroy_qp(&rhp->rdev, &qhp->wq,
 		   ucontext ? &ucontext->uctx : &rhp->rdev.uctx);
 
+	c4iw_qp_rem_ref(ib_qp);
+
 	PDBG("%s ib_qp %p qpid 0x%0x\n", __func__, ib_qp, qhp->wq.sq.qid);
-	kfree(qhp);
 	return 0;
 }
 
@@ -1704,7 +1713,7 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	init_completion(&qhp->rq_drained);
 	mutex_init(&qhp->mutex);
 	init_waitqueue_head(&qhp->wait);
-	atomic_set(&qhp->refcnt, 1);
+	kref_init(&qhp->kref);
 
 	ret = insert_handle(rhp, &rhp->qpidr, qhp, qhp->wq.sq.qid);
 	if (ret)
@@ -1896,12 +1905,20 @@ int c4iw_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	return 0;
 }
 
+static void move_qp_to_err(struct c4iw_qp *qp)
+{
+	struct c4iw_qp_attributes attrs = { .next_state = C4IW_QP_STATE_ERROR };
+
+	(void)c4iw_modify_qp(qp->rhp, qp, C4IW_QP_ATTR_NEXT_STATE, &attrs, 1);
+}
+
 void c4iw_drain_sq(struct ib_qp *ibqp)
 {
 	struct c4iw_qp *qp = to_c4iw_qp(ibqp);
 	unsigned long flag;
 	bool need_to_wait;
 
+	move_qp_to_err(qp);
 	spin_lock_irqsave(&qp->lock, flag);
 	need_to_wait = !t4_sq_empty(&qp->wq);
 	spin_unlock_irqrestore(&qp->lock, flag);
@@ -1916,6 +1933,7 @@ void c4iw_drain_rq(struct ib_qp *ibqp)
 	unsigned long flag;
 	bool need_to_wait;
 
+	move_qp_to_err(qp);
 	spin_lock_irqsave(&qp->lock, flag);
 	need_to_wait = !t4_rq_empty(&qp->wq);
 	spin_unlock_irqrestore(&qp->lock, flag);

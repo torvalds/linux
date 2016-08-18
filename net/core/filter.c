@@ -1355,13 +1355,9 @@ static inline int bpf_try_make_writable(struct sk_buff *skb,
 {
 	int err;
 
-	if (!skb_cloned(skb))
-		return 0;
-	if (skb_clone_writable(skb, write_len))
-		return 0;
-	err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
-	if (!err)
-		bpf_compute_data_end(skb);
+	err = skb_ensure_writable(skb, write_len);
+	bpf_compute_data_end(skb);
+
 	return err;
 }
 
@@ -1379,41 +1375,24 @@ static inline void bpf_pull_mac_rcsum(struct sk_buff *skb)
 
 static u64 bpf_skb_store_bytes(u64 r1, u64 r2, u64 r3, u64 r4, u64 flags)
 {
-	struct bpf_scratchpad *sp = this_cpu_ptr(&bpf_sp);
 	struct sk_buff *skb = (struct sk_buff *) (long) r1;
-	int offset = (int) r2;
+	unsigned int offset = (unsigned int) r2;
 	void *from = (void *) (long) r3;
 	unsigned int len = (unsigned int) r4;
 	void *ptr;
 
 	if (unlikely(flags & ~(BPF_F_RECOMPUTE_CSUM | BPF_F_INVALIDATE_HASH)))
 		return -EINVAL;
-
-	/* bpf verifier guarantees that:
-	 * 'from' pointer points to bpf program stack
-	 * 'len' bytes of it were initialized
-	 * 'len' > 0
-	 * 'skb' is a valid pointer to 'struct sk_buff'
-	 *
-	 * so check for invalid 'offset' and too large 'len'
-	 */
-	if (unlikely((u32) offset > 0xffff || len > sizeof(sp->buff)))
+	if (unlikely(offset > 0xffff))
 		return -EFAULT;
 	if (unlikely(bpf_try_make_writable(skb, offset + len)))
 		return -EFAULT;
 
-	ptr = skb_header_pointer(skb, offset, len, sp->buff);
-	if (unlikely(!ptr))
-		return -EFAULT;
-
+	ptr = skb->data + offset;
 	if (flags & BPF_F_RECOMPUTE_CSUM)
 		__skb_postpull_rcsum(skb, ptr, len, offset);
 
 	memcpy(ptr, from, len);
-
-	if (ptr == sp->buff)
-		/* skb_store_bits cannot return -EFAULT here */
-		skb_store_bits(skb, offset, ptr, len);
 
 	if (flags & BPF_F_RECOMPUTE_CSUM)
 		__skb_postpush_rcsum(skb, ptr, len, offset);
@@ -1437,12 +1416,12 @@ static const struct bpf_func_proto bpf_skb_store_bytes_proto = {
 static u64 bpf_skb_load_bytes(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 {
 	const struct sk_buff *skb = (const struct sk_buff *)(unsigned long) r1;
-	int offset = (int) r2;
+	unsigned int offset = (unsigned int) r2;
 	void *to = (void *)(unsigned long) r3;
 	unsigned int len = (unsigned int) r4;
 	void *ptr;
 
-	if (unlikely((u32) offset > 0xffff))
+	if (unlikely(offset > 0xffff))
 		goto err_clear;
 
 	ptr = skb_header_pointer(skb, offset, len, to);
@@ -1470,20 +1449,17 @@ static const struct bpf_func_proto bpf_skb_load_bytes_proto = {
 static u64 bpf_l3_csum_replace(u64 r1, u64 r2, u64 from, u64 to, u64 flags)
 {
 	struct sk_buff *skb = (struct sk_buff *) (long) r1;
-	int offset = (int) r2;
-	__sum16 sum, *ptr;
+	unsigned int offset = (unsigned int) r2;
+	__sum16 *ptr;
 
 	if (unlikely(flags & ~(BPF_F_HDR_FIELD_MASK)))
 		return -EINVAL;
-	if (unlikely((u32) offset > 0xffff))
+	if (unlikely(offset > 0xffff || offset & 1))
 		return -EFAULT;
-	if (unlikely(bpf_try_make_writable(skb, offset + sizeof(sum))))
-		return -EFAULT;
-
-	ptr = skb_header_pointer(skb, offset, sizeof(sum), &sum);
-	if (unlikely(!ptr))
+	if (unlikely(bpf_try_make_writable(skb, offset + sizeof(*ptr))))
 		return -EFAULT;
 
+	ptr = (__sum16 *)(skb->data + offset);
 	switch (flags & BPF_F_HDR_FIELD_MASK) {
 	case 0:
 		if (unlikely(from != 0))
@@ -1500,10 +1476,6 @@ static u64 bpf_l3_csum_replace(u64 r1, u64 r2, u64 from, u64 to, u64 flags)
 	default:
 		return -EINVAL;
 	}
-
-	if (ptr == &sum)
-		/* skb_store_bits guaranteed to not return -EFAULT here */
-		skb_store_bits(skb, offset, ptr, sizeof(sum));
 
 	return 0;
 }
@@ -1524,20 +1496,18 @@ static u64 bpf_l4_csum_replace(u64 r1, u64 r2, u64 from, u64 to, u64 flags)
 	struct sk_buff *skb = (struct sk_buff *) (long) r1;
 	bool is_pseudo = flags & BPF_F_PSEUDO_HDR;
 	bool is_mmzero = flags & BPF_F_MARK_MANGLED_0;
-	int offset = (int) r2;
-	__sum16 sum, *ptr;
+	unsigned int offset = (unsigned int) r2;
+	__sum16 *ptr;
 
 	if (unlikely(flags & ~(BPF_F_MARK_MANGLED_0 | BPF_F_PSEUDO_HDR |
 			       BPF_F_HDR_FIELD_MASK)))
 		return -EINVAL;
-	if (unlikely((u32) offset > 0xffff))
+	if (unlikely(offset > 0xffff || offset & 1))
 		return -EFAULT;
-	if (unlikely(bpf_try_make_writable(skb, offset + sizeof(sum))))
+	if (unlikely(bpf_try_make_writable(skb, offset + sizeof(*ptr))))
 		return -EFAULT;
 
-	ptr = skb_header_pointer(skb, offset, sizeof(sum), &sum);
-	if (unlikely(!ptr))
-		return -EFAULT;
+	ptr = (__sum16 *)(skb->data + offset);
 	if (is_mmzero && !*ptr)
 		return 0;
 
@@ -1560,10 +1530,6 @@ static u64 bpf_l4_csum_replace(u64 r1, u64 r2, u64 from, u64 to, u64 flags)
 
 	if (is_mmzero && !*ptr)
 		*ptr = CSUM_MANGLED_0;
-	if (ptr == &sum)
-		/* skb_store_bits guaranteed to not return -EFAULT here */
-		skb_store_bits(skb, offset, ptr, sizeof(sum));
-
 	return 0;
 }
 
@@ -2317,7 +2283,7 @@ bpf_get_skb_set_tunnel_proto(enum bpf_func_id which)
 }
 
 #ifdef CONFIG_SOCK_CGROUP_DATA
-static u64 bpf_skb_in_cgroup(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
+static u64 bpf_skb_under_cgroup(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 {
 	struct sk_buff *skb = (struct sk_buff *)(long)r1;
 	struct bpf_map *map = (struct bpf_map *)(long)r2;
@@ -2340,8 +2306,8 @@ static u64 bpf_skb_in_cgroup(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 	return cgroup_is_descendant(sock_cgroup_ptr(&sk->sk_cgrp_data), cgrp);
 }
 
-static const struct bpf_func_proto bpf_skb_in_cgroup_proto = {
-	.func		= bpf_skb_in_cgroup,
+static const struct bpf_func_proto bpf_skb_under_cgroup_proto = {
+	.func		= bpf_skb_under_cgroup,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_CTX,
@@ -2421,8 +2387,8 @@ tc_cls_act_func_proto(enum bpf_func_id func_id)
 	case BPF_FUNC_get_smp_processor_id:
 		return &bpf_get_smp_processor_id_proto;
 #ifdef CONFIG_SOCK_CGROUP_DATA
-	case BPF_FUNC_skb_in_cgroup:
-		return &bpf_skb_in_cgroup_proto;
+	case BPF_FUNC_skb_under_cgroup:
+		return &bpf_skb_under_cgroup_proto;
 #endif
 	default:
 		return sk_filter_func_proto(func_id);

@@ -285,7 +285,7 @@ static blk_qc_t md_make_request(struct request_queue *q, struct bio *bio)
 	 */
 	sectors = bio_sectors(bio);
 	/* bio could be mergeable after passing to underlayer */
-	bio->bi_rw &= ~REQ_NOMERGE;
+	bio->bi_opf &= ~REQ_NOMERGE;
 	mddev->pers->make_request(mddev, bio);
 
 	cpu = part_stat_lock();
@@ -414,7 +414,7 @@ static void md_submit_flush_data(struct work_struct *ws)
 		/* an empty barrier - all done */
 		bio_endio(bio);
 	else {
-		bio->bi_rw &= ~REQ_PREFLUSH;
+		bio->bi_opf &= ~REQ_PREFLUSH;
 		mddev->pers->make_request(mddev, bio);
 	}
 

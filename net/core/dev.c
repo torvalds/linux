@@ -6045,8 +6045,7 @@ void *netdev_lower_dev_get_private(struct net_device *dev,
 EXPORT_SYMBOL(netdev_lower_dev_get_private);
 
 
-int dev_get_nest_level(struct net_device *dev,
-		       bool (*type_check)(const struct net_device *dev))
+int dev_get_nest_level(struct net_device *dev)
 {
 	struct net_device *lower = NULL;
 	struct list_head *iter;
@@ -6056,15 +6055,12 @@ int dev_get_nest_level(struct net_device *dev,
 	ASSERT_RTNL();
 
 	netdev_for_each_lower_dev(dev, lower, iter) {
-		nest = dev_get_nest_level(lower, type_check);
+		nest = dev_get_nest_level(lower);
 		if (max_nest < nest)
 			max_nest = nest;
 	}
 
-	if (type_check(dev))
-		max_nest++;
-
-	return max_nest;
+	return max_nest + 1;
 }
 EXPORT_SYMBOL(dev_get_nest_level);
 

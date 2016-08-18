@@ -37,11 +37,11 @@ unsigned long jump_address_phys;
  */
 unsigned long restore_cr3 __visible;
 
-pgd_t *temp_level4_pgt __visible;
+unsigned long temp_level4_pgt __visible;
 
 unsigned long relocated_restore_code __visible;
 
-static int set_up_temporary_text_mapping(void)
+static int set_up_temporary_text_mapping(pgd_t *pgd)
 {
 	pmd_t *pmd;
 	pud_t *pud;
@@ -71,7 +71,7 @@ static int set_up_temporary_text_mapping(void)
 		__pmd((jump_address_phys & PMD_MASK) | __PAGE_KERNEL_LARGE_EXEC));
 	set_pud(pud + pud_index(restore_jump_address),
 		__pud(__pa(pmd) | _KERNPG_TABLE));
-	set_pgd(temp_level4_pgt + pgd_index(restore_jump_address),
+	set_pgd(pgd + pgd_index(restore_jump_address),
 		__pgd(__pa(pud) | _KERNPG_TABLE));
 
 	return 0;
@@ -87,18 +87,19 @@ static int set_up_temporary_mappings(void)
 	struct x86_mapping_info info = {
 		.alloc_pgt_page	= alloc_pgt_page,
 		.pmd_flag	= __PAGE_KERNEL_LARGE_EXEC,
-		.kernel_mapping = true,
+		.offset		= __PAGE_OFFSET,
 	};
 	unsigned long mstart, mend;
+	pgd_t *pgd;
 	int result;
 	int i;
 
-	temp_level4_pgt = (pgd_t *)get_safe_page(GFP_ATOMIC);
-	if (!temp_level4_pgt)
+	pgd = (pgd_t *)get_safe_page(GFP_ATOMIC);
+	if (!pgd)
 		return -ENOMEM;
 
 	/* Prepare a temporary mapping for the kernel text */
-	result = set_up_temporary_text_mapping();
+	result = set_up_temporary_text_mapping(pgd);
 	if (result)
 		return result;
 
@@ -107,13 +108,12 @@ static int set_up_temporary_mappings(void)
 		mstart = pfn_mapped[i].start << PAGE_SHIFT;
 		mend   = pfn_mapped[i].end << PAGE_SHIFT;
 
-		result = kernel_ident_mapping_init(&info, temp_level4_pgt,
-						   mstart, mend);
-
+		result = kernel_ident_mapping_init(&info, pgd, mstart, mend);
 		if (result)
 			return result;
 	}
 
+	temp_level4_pgt = (unsigned long)pgd - __PAGE_OFFSET;
 	return 0;
 }
 

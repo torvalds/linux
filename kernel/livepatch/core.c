@@ -309,7 +309,7 @@ static int klp_write_object_relocations(struct module *pmod,
 			break;
 	}
 
-	module_enable_ro(pmod);
+	module_enable_ro(pmod, true);
 	return ret;
 }
 

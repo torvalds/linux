@@ -52,40 +52,94 @@ static bool qed_dcbx_app_ethtype(u32 app_info_bitmap)
 		  DCBX_APP_SF_ETHTYPE);
 }
 
+static bool qed_dcbx_ieee_app_ethtype(u32 app_info_bitmap)
+{
+	u8 mfw_val = QED_MFW_GET_FIELD(app_info_bitmap, DCBX_APP_SF_IEEE);
+
+	/* Old MFW */
+	if (mfw_val == DCBX_APP_SF_IEEE_RESERVED)
+		return qed_dcbx_app_ethtype(app_info_bitmap);
+
+	return !!(mfw_val == DCBX_APP_SF_IEEE_ETHTYPE);
+}
+
 static bool qed_dcbx_app_port(u32 app_info_bitmap)
 {
 	return !!(QED_MFW_GET_FIELD(app_info_bitmap, DCBX_APP_SF) ==
 		  DCBX_APP_SF_PORT);
 }
 
-static bool qed_dcbx_default_tlv(u32 app_info_bitmap, u16 proto_id)
+static bool qed_dcbx_ieee_app_port(u32 app_info_bitmap, u8 type)
 {
-	return !!(qed_dcbx_app_ethtype(app_info_bitmap) &&
-		  proto_id == QED_ETH_TYPE_DEFAULT);
+	u8 mfw_val = QED_MFW_GET_FIELD(app_info_bitmap, DCBX_APP_SF_IEEE);
+
+	/* Old MFW */
+	if (mfw_val == DCBX_APP_SF_IEEE_RESERVED)
+		return qed_dcbx_app_port(app_info_bitmap);
+
+	return !!(mfw_val == type || mfw_val == DCBX_APP_SF_IEEE_TCP_UDP_PORT);
 }
 
-static bool qed_dcbx_iscsi_tlv(u32 app_info_bitmap, u16 proto_id)
+static bool qed_dcbx_default_tlv(u32 app_info_bitmap, u16 proto_id, bool ieee)
 {
-	return !!(qed_dcbx_app_port(app_info_bitmap) &&
-		  proto_id == QED_TCP_PORT_ISCSI);
+	bool ethtype;
+
+	if (ieee)
+		ethtype = qed_dcbx_ieee_app_ethtype(app_info_bitmap);
+	else
+		ethtype = qed_dcbx_app_ethtype(app_info_bitmap);
+
+	return !!(ethtype && (proto_id == QED_ETH_TYPE_DEFAULT));
 }
 
-static bool qed_dcbx_fcoe_tlv(u32 app_info_bitmap, u16 proto_id)
+static bool qed_dcbx_iscsi_tlv(u32 app_info_bitmap, u16 proto_id, bool ieee)
 {
-	return !!(qed_dcbx_app_ethtype(app_info_bitmap) &&
-		  proto_id == QED_ETH_TYPE_FCOE);
+	bool port;
+
+	if (ieee)
+		port = qed_dcbx_ieee_app_port(app_info_bitmap,
+					      DCBX_APP_SF_IEEE_TCP_PORT);
+	else
+		port = qed_dcbx_app_port(app_info_bitmap);
+
+	return !!(port && (proto_id == QED_TCP_PORT_ISCSI));
 }
 
-static bool qed_dcbx_roce_tlv(u32 app_info_bitmap, u16 proto_id)
+static bool qed_dcbx_fcoe_tlv(u32 app_info_bitmap, u16 proto_id, bool ieee)
 {
-	return !!(qed_dcbx_app_ethtype(app_info_bitmap) &&
-		  proto_id == QED_ETH_TYPE_ROCE);
+	bool ethtype;
+
+	if (ieee)
+		ethtype = qed_dcbx_ieee_app_ethtype(app_info_bitmap);
+	else
+		ethtype = qed_dcbx_app_ethtype(app_info_bitmap);
+
+	return !!(ethtype && (proto_id == QED_ETH_TYPE_FCOE));
 }
 
-static bool qed_dcbx_roce_v2_tlv(u32 app_info_bitmap, u16 proto_id)
+static bool qed_dcbx_roce_tlv(u32 app_info_bitmap, u16 proto_id, bool ieee)
 {
-	return !!(qed_dcbx_app_port(app_info_bitmap) &&
-		  proto_id == QED_UDP_PORT_TYPE_ROCE_V2);
+	bool ethtype;
+
+	if (ieee)
+		ethtype = qed_dcbx_ieee_app_ethtype(app_info_bitmap);
+	else
+		ethtype = qed_dcbx_app_ethtype(app_info_bitmap);
+
+	return !!(ethtype && (proto_id == QED_ETH_TYPE_ROCE));
+}
+
+static bool qed_dcbx_roce_v2_tlv(u32 app_info_bitmap, u16 proto_id, bool ieee)
+{
+	bool port;
+
+	if (ieee)
+		port = qed_dcbx_ieee_app_port(app_info_bitmap,
+					      DCBX_APP_SF_IEEE_UDP_PORT);
+	else
+		port = qed_dcbx_app_port(app_info_bitmap);
+
+	return !!(port && (proto_id == QED_UDP_PORT_TYPE_ROCE_V2));
 }
 
 static void
@@ -164,17 +218,17 @@ qed_dcbx_update_app_info(struct qed_dcbx_results *p_data,
 static bool
 qed_dcbx_get_app_protocol_type(struct qed_hwfn *p_hwfn,
 			       u32 app_prio_bitmap,
-			       u16 id, enum dcbx_protocol_type *type)
+			       u16 id, enum dcbx_protocol_type *type, bool ieee)
 {
-	if (qed_dcbx_fcoe_tlv(app_prio_bitmap, id)) {
+	if (qed_dcbx_fcoe_tlv(app_prio_bitmap, id, ieee)) {
 		*type = DCBX_PROTOCOL_FCOE;
-	} else if (qed_dcbx_roce_tlv(app_prio_bitmap, id)) {
+	} else if (qed_dcbx_roce_tlv(app_prio_bitmap, id, ieee)) {
 		*type = DCBX_PROTOCOL_ROCE;
-	} else if (qed_dcbx_iscsi_tlv(app_prio_bitmap, id)) {
+	} else if (qed_dcbx_iscsi_tlv(app_prio_bitmap, id, ieee)) {
 		*type = DCBX_PROTOCOL_ISCSI;
-	} else if (qed_dcbx_default_tlv(app_prio_bitmap, id)) {
+	} else if (qed_dcbx_default_tlv(app_prio_bitmap, id, ieee)) {
 		*type = DCBX_PROTOCOL_ETH;
-	} else if (qed_dcbx_roce_v2_tlv(app_prio_bitmap, id)) {
+	} else if (qed_dcbx_roce_v2_tlv(app_prio_bitmap, id, ieee)) {
 		*type = DCBX_PROTOCOL_ROCE_V2;
 	} else {
 		*type = DCBX_MAX_PROTOCOL_TYPE;
@@ -194,17 +248,18 @@ static int
 qed_dcbx_process_tlv(struct qed_hwfn *p_hwfn,
 		     struct qed_dcbx_results *p_data,
 		     struct dcbx_app_priority_entry *p_tbl,
-		     u32 pri_tc_tbl, int count, bool dcbx_enabled)
+		     u32 pri_tc_tbl, int count, u8 dcbx_version)
 {
 	u8 tc, priority_map;
 	enum dcbx_protocol_type type;
+	bool enable, ieee;
 	u16 protocol_id;
 	int priority;
-	bool enable;
 	int i;
 
 	DP_VERBOSE(p_hwfn, QED_MSG_DCB, "Num APP entries = %d\n", count);
 
+	ieee = (dcbx_version == DCBX_CONFIG_VERSION_IEEE);
 	/* Parse APP TLV */
 	for (i = 0; i < count; i++) {
 		protocol_id = QED_MFW_GET_FIELD(p_tbl[i].entry,
@@ -219,7 +274,7 @@ qed_dcbx_process_tlv(struct qed_hwfn *p_hwfn,
 
 		tc = QED_DCBX_PRIO2TC(pri_tc_tbl, priority);
 		if (qed_dcbx_get_app_protocol_type(p_hwfn, p_tbl[i].entry,
-						   protocol_id, &type)) {
+						   protocol_id, &type, ieee)) {
 			/* ETH always have the enable bit reset, as it gets
 			 * vlan information per packet. For other protocols,
 			 * should be set according to the dcbx_enabled
@@ -275,15 +330,12 @@ static int qed_dcbx_process_mib_info(struct qed_hwfn *p_hwfn)
 	struct dcbx_ets_feature *p_ets;
 	struct qed_hw_info *p_info;
 	u32 pri_tc_tbl, flags;
-	bool dcbx_enabled;
+	u8 dcbx_version;
 	int num_entries;
 	int rc = 0;
 
-	/* If DCBx version is non zero, then negotiation was
-	 * successfuly performed
-	 */
 	flags = p_hwfn->p_dcbx_info->operational.flags;
-	dcbx_enabled = !!QED_MFW_GET_FIELD(flags, DCBX_CONFIG_VERSION);
+	dcbx_version = QED_MFW_GET_FIELD(flags, DCBX_CONFIG_VERSION);
 
 	p_app = &p_hwfn->p_dcbx_info->operational.features.app;
 	p_tbl = p_app->app_pri_tbl;
@@ -295,13 +347,13 @@ static int qed_dcbx_process_mib_info(struct qed_hwfn *p_hwfn)
 	num_entries = QED_MFW_GET_FIELD(p_app->flags, DCBX_APP_NUM_ENTRIES);
 
 	rc = qed_dcbx_process_tlv(p_hwfn, &data, p_tbl, pri_tc_tbl,
-				  num_entries, dcbx_enabled);
+				  num_entries, dcbx_version);
 	if (rc)
 		return rc;
 
 	p_info->num_tc = QED_MFW_GET_FIELD(p_ets->flags, DCBX_ETS_MAX_TCS);
 	data.pf_id = p_hwfn->rel_pf_id;
-	data.dcbx_enabled = dcbx_enabled;
+	data.dcbx_enabled = !!dcbx_version;
 
 	qed_dcbx_dp_protocol(p_hwfn, &data);
 
@@ -400,7 +452,7 @@ static void
 qed_dcbx_get_app_data(struct qed_hwfn *p_hwfn,
 		      struct dcbx_app_priority_feature *p_app,
 		      struct dcbx_app_priority_entry *p_tbl,
-		      struct qed_dcbx_params *p_params)
+		      struct qed_dcbx_params *p_params, bool ieee)
 {
 	struct qed_app_entry *entry;
 	u8 pri_map;
@@ -414,15 +466,46 @@ qed_dcbx_get_app_data(struct qed_hwfn *p_hwfn,
 						      DCBX_APP_NUM_ENTRIES);
 	for (i = 0; i < DCBX_MAX_APP_PROTOCOL; i++) {
 		entry = &p_params->app_entry[i];
-		entry->ethtype = !(QED_MFW_GET_FIELD(p_tbl[i].entry,
-						     DCBX_APP_SF));
+		if (ieee) {
+			u8 sf_ieee;
+			u32 val;
+
+			sf_ieee = QED_MFW_GET_FIELD(p_tbl[i].entry,
+						    DCBX_APP_SF_IEEE);
+			switch (sf_ieee) {
+			case DCBX_APP_SF_IEEE_RESERVED:
+				/* Old MFW */
+				val = QED_MFW_GET_FIELD(p_tbl[i].entry,
+							DCBX_APP_SF);
+				entry->sf_ieee = val ?
+				    QED_DCBX_SF_IEEE_TCP_UDP_PORT :
+				    QED_DCBX_SF_IEEE_ETHTYPE;
+				break;
+			case DCBX_APP_SF_IEEE_ETHTYPE:
+				entry->sf_ieee = QED_DCBX_SF_IEEE_ETHTYPE;
+				break;
+			case DCBX_APP_SF_IEEE_TCP_PORT:
+				entry->sf_ieee = QED_DCBX_SF_IEEE_TCP_PORT;
+				break;
+			case DCBX_APP_SF_IEEE_UDP_PORT:
+				entry->sf_ieee = QED_DCBX_SF_IEEE_UDP_PORT;
+				break;
+			case DCBX_APP_SF_IEEE_TCP_UDP_PORT:
+				entry->sf_ieee = QED_DCBX_SF_IEEE_TCP_UDP_PORT;
+				break;
+			}
+		} else {
+			entry->ethtype = !(QED_MFW_GET_FIELD(p_tbl[i].entry,
+							     DCBX_APP_SF));
+		}
+
 		pri_map = QED_MFW_GET_FIELD(p_tbl[i].entry, DCBX_APP_PRI_MAP);
 		entry->prio = ffs(pri_map) - 1;
 		entry->proto_id = QED_MFW_GET_FIELD(p_tbl[i].entry,
 						    DCBX_APP_PROTOCOL_ID);
 		qed_dcbx_get_app_protocol_type(p_hwfn, p_tbl[i].entry,
 					       entry->proto_id,
-					       &entry->proto_type);
+					       &entry->proto_type, ieee);
 	}
 
 	DP_VERBOSE(p_hwfn, QED_MSG_DCB,
@@ -483,7 +566,7 @@ qed_dcbx_get_ets_data(struct qed_hwfn *p_hwfn,
 	bw_map[1] = be32_to_cpu(p_ets->tc_bw_tbl[1]);
 	tsa_map[0] = be32_to_cpu(p_ets->tc_tsa_tbl[0]);
 	tsa_map[1] = be32_to_cpu(p_ets->tc_tsa_tbl[1]);
-	pri_map = be32_to_cpu(p_ets->pri_tc_tbl[0]);
+	pri_map = p_ets->pri_tc_tbl[0];
 	for (i = 0; i < QED_MAX_PFC_PRIORITIES; i++) {
 		p_params->ets_tc_bw_tbl[i] = ((u8 *)bw_map)[i];
 		p_params->ets_tc_tsa_tbl[i] = ((u8 *)tsa_map)[i];
@@ -500,9 +583,9 @@ qed_dcbx_get_common_params(struct qed_hwfn *p_hwfn,
 			   struct dcbx_app_priority_feature *p_app,
 			   struct dcbx_app_priority_entry *p_tbl,
 			   struct dcbx_ets_feature *p_ets,
-			   u32 pfc, struct qed_dcbx_params *p_params)
+			   u32 pfc, struct qed_dcbx_params *p_params, bool ieee)
 {
-	qed_dcbx_get_app_data(p_hwfn, p_app, p_tbl, p_params);
+	qed_dcbx_get_app_data(p_hwfn, p_app, p_tbl, p_params, ieee);
 	qed_dcbx_get_ets_data(p_hwfn, p_ets, p_params);
 	qed_dcbx_get_pfc_data(p_hwfn, pfc, p_params);
 }
@@ -516,7 +599,7 @@ qed_dcbx_get_local_params(struct qed_hwfn *p_hwfn,
 	p_feat = &p_hwfn->p_dcbx_info->local_admin.features;
 	qed_dcbx_get_common_params(p_hwfn, &p_feat->app,
 				   p_feat->app.app_pri_tbl, &p_feat->ets,
-				   p_feat->pfc, &params->local.params);
+				   p_feat->pfc, &params->local.params, false);
 	params->local.valid = true;
 }
 
@@ -529,7 +612,7 @@ qed_dcbx_get_remote_params(struct qed_hwfn *p_hwfn,
 	p_feat = &p_hwfn->p_dcbx_info->remote.features;
 	qed_dcbx_get_common_params(p_hwfn, &p_feat->app,
 				   p_feat->app.app_pri_tbl, &p_feat->ets,
-				   p_feat->pfc, &params->remote.params);
+				   p_feat->pfc, &params->remote.params, false);
 	params->remote.valid = true;
 }
 
@@ -574,7 +657,8 @@ qed_dcbx_get_operational_params(struct qed_hwfn *p_hwfn,
 
 	qed_dcbx_get_common_params(p_hwfn, &p_feat->app,
 				   p_feat->app.app_pri_tbl, &p_feat->ets,
-				   p_feat->pfc, &params->operational.params);
+				   p_feat->pfc, &params->operational.params,
+				   p_operational->ieee);
 	qed_dcbx_get_priority_info(p_hwfn, &p_operational->app_prio, p_results);
 	err = QED_MFW_GET_FIELD(p_feat->app.flags, DCBX_APP_ERROR);
 	p_operational->err = err;
@@ -944,7 +1028,6 @@ qed_dcbx_set_ets_data(struct qed_hwfn *p_hwfn,
 		val = (((u32)p_params->ets_pri_tc_tbl[i]) << ((7 - i) * 4));
 		p_ets->pri_tc_tbl[0] |= val;
 	}
-	p_ets->pri_tc_tbl[0] = cpu_to_be32(p_ets->pri_tc_tbl[0]);
 	for (i = 0; i < 2; i++) {
 		p_ets->tc_bw_tbl[i] = cpu_to_be32(p_ets->tc_bw_tbl[i]);
 		p_ets->tc_tsa_tbl[i] = cpu_to_be32(p_ets->tc_tsa_tbl[i]);
@@ -954,7 +1037,7 @@ qed_dcbx_set_ets_data(struct qed_hwfn *p_hwfn,
 static void
 qed_dcbx_set_app_data(struct qed_hwfn *p_hwfn,
 		      struct dcbx_app_priority_feature *p_app,
-		      struct qed_dcbx_params *p_params)
+		      struct qed_dcbx_params *p_params, bool ieee)
 {
 	u32 *entry;
 	int i;
@@ -975,12 +1058,36 @@ qed_dcbx_set_app_data(struct qed_hwfn *p_hwfn,
 
 	for (i = 0; i < DCBX_MAX_APP_PROTOCOL; i++) {
 		entry = &p_app->app_pri_tbl[i].entry;
-		*entry &= ~DCBX_APP_SF_MASK;
-		if (p_params->app_entry[i].ethtype)
-			*entry |= ((u32)DCBX_APP_SF_ETHTYPE <<
-				   DCBX_APP_SF_SHIFT);
-		else
-			*entry |= ((u32)DCBX_APP_SF_PORT << DCBX_APP_SF_SHIFT);
+		if (ieee) {
+			*entry &= ~DCBX_APP_SF_IEEE_MASK;
+			switch (p_params->app_entry[i].sf_ieee) {
+			case QED_DCBX_SF_IEEE_ETHTYPE:
+				*entry |= ((u32)DCBX_APP_SF_IEEE_ETHTYPE <<
+					   DCBX_APP_SF_IEEE_SHIFT);
+				break;
+			case QED_DCBX_SF_IEEE_TCP_PORT:
+				*entry |= ((u32)DCBX_APP_SF_IEEE_TCP_PORT <<
+					   DCBX_APP_SF_IEEE_SHIFT);
+				break;
+			case QED_DCBX_SF_IEEE_UDP_PORT:
+				*entry |= ((u32)DCBX_APP_SF_IEEE_UDP_PORT <<
+					   DCBX_APP_SF_IEEE_SHIFT);
+				break;
+			case QED_DCBX_SF_IEEE_TCP_UDP_PORT:
+				*entry |= ((u32)DCBX_APP_SF_IEEE_TCP_UDP_PORT <<
+					   DCBX_APP_SF_IEEE_SHIFT);
+				break;
+			}
+		} else {
+			*entry &= ~DCBX_APP_SF_MASK;
+			if (p_params->app_entry[i].ethtype)
+				*entry |= ((u32)DCBX_APP_SF_ETHTYPE <<
+					   DCBX_APP_SF_SHIFT);
+			else
+				*entry |= ((u32)DCBX_APP_SF_PORT <<
+					   DCBX_APP_SF_SHIFT);
+		}
+
 		*entry &= ~DCBX_APP_PROTOCOL_ID_MASK;
 		*entry |= ((u32)p_params->app_entry[i].proto_id <<
 			   DCBX_APP_PROTOCOL_ID_SHIFT);
@@ -995,15 +1102,19 @@ qed_dcbx_set_local_params(struct qed_hwfn *p_hwfn,
 			  struct dcbx_local_params *local_admin,
 			  struct qed_dcbx_set *params)
 {
+	bool ieee = false;
+
 	local_admin->flags = 0;
 	memcpy(&local_admin->features,
 	       &p_hwfn->p_dcbx_info->operational.features,
 	       sizeof(local_admin->features));
 
-	if (params->enabled)
+	if (params->enabled) {
 		local_admin->config = params->ver_num;
-	else
+		ieee = !!(params->ver_num & DCBX_CONFIG_VERSION_IEEE);
+	} else {
 		local_admin->config = DCBX_CONFIG_VERSION_DISABLED;
+	}
 
 	if (params->override_flags & QED_DCBX_OVERRIDE_PFC_CFG)
 		qed_dcbx_set_pfc_data(p_hwfn, &local_admin->features.pfc,
@@ -1015,7 +1126,7 @@ qed_dcbx_set_local_params(struct qed_hwfn *p_hwfn,
 
 	if (params->override_flags & QED_DCBX_OVERRIDE_APP_CFG)
 		qed_dcbx_set_app_data(p_hwfn, &local_admin->features.app,
-				      &params->config.params);
+				      &params->config.params, ieee);
 }
 
 int qed_dcbx_config_params(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
@@ -1596,8 +1707,10 @@ static int qed_dcbnl_setapp(struct qed_dev *cdev,
 		if ((entry->ethtype == ethtype) && (entry->proto_id == idval))
 			break;
 		/* First empty slot */
-		if (!entry->proto_id)
+		if (!entry->proto_id) {
+			dcbx_set.config.params.num_app_entries++;
 			break;
+		}
 	}
 
 	if (i == QED_DCBX_MAX_APP_PROTOCOL) {
@@ -2118,8 +2231,10 @@ int qed_dcbnl_ieee_setapp(struct qed_dev *cdev, struct dcb_app *app)
 		    (entry->proto_id == app->protocol))
 			break;
 		/* First empty slot */
-		if (!entry->proto_id)
+		if (!entry->proto_id) {
+			dcbx_set.config.params.num_app_entries++;
 			break;
+		}
 	}
 
 	if (i == QED_DCBX_MAX_APP_PROTOCOL) {

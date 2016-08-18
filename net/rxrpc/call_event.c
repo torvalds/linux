@@ -837,6 +837,9 @@ void rxrpc_process_call(struct work_struct *work)
 		return;
 	}
 
+	if (!call->conn)
+		goto skip_msg_init;
+
 	/* there's a good chance we're going to have to send a message, so set
 	 * one up in advance */
 	msg.msg_name	= &call->conn->params.peer->srx.transport;
@@ -859,6 +862,7 @@ void rxrpc_process_call(struct work_struct *work)
 	memset(iov, 0, sizeof(iov));
 	iov[0].iov_base	= &whdr;
 	iov[0].iov_len	= sizeof(whdr);
+skip_msg_init:
 
 	/* deal with events of a final nature */
 	if (test_bit(RXRPC_CALL_EV_RCVD_ERROR, &call->events)) {

@@ -186,7 +186,7 @@ static irqreturn_t cros_ec_keyb_irq(int irq, void *data)
 	if (ret >= 0)
 		cros_ec_keyb_process(ckdev, kb_state, ret);
 	else
-		dev_err(ec->dev, "failed to get keyboard state: %d\n", ret);
+		dev_err(ckdev->dev, "failed to get keyboard state: %d\n", ret);
 
 	return IRQ_HANDLED;
 }
@@ -236,7 +236,7 @@ static void cros_ec_keyb_compute_valid_keys(struct cros_ec_keyb *ckdev)
 static int cros_ec_keyb_probe(struct platform_device *pdev)
 {
 	struct cros_ec_device *ec = dev_get_drvdata(pdev->dev.parent);
-	struct device *dev = ec->dev;
+	struct device *dev = &pdev->dev;
 	struct cros_ec_keyb *ckdev;
 	struct input_dev *idev;
 	struct device_node *np;
@@ -246,23 +246,22 @@ static int cros_ec_keyb_probe(struct platform_device *pdev)
 	if (!np)
 		return -ENODEV;
 
-	ckdev = devm_kzalloc(&pdev->dev, sizeof(*ckdev), GFP_KERNEL);
+	ckdev = devm_kzalloc(dev, sizeof(*ckdev), GFP_KERNEL);
 	if (!ckdev)
 		return -ENOMEM;
-	err = matrix_keypad_parse_of_params(&pdev->dev, &ckdev->rows,
-					    &ckdev->cols);
+	err = matrix_keypad_parse_of_params(dev, &ckdev->rows, &ckdev->cols);
 	if (err)
 		return err;
 
-	ckdev->valid_keys = devm_kzalloc(&pdev->dev, ckdev->cols, GFP_KERNEL);
+	ckdev->valid_keys = devm_kzalloc(dev, ckdev->cols, GFP_KERNEL);
 	if (!ckdev->valid_keys)
 		return -ENOMEM;
 
-	ckdev->old_kb_state = devm_kzalloc(&pdev->dev, ckdev->cols, GFP_KERNEL);
+	ckdev->old_kb_state = devm_kzalloc(dev, ckdev->cols, GFP_KERNEL);
 	if (!ckdev->old_kb_state)
 		return -ENOMEM;
 
-	idev = devm_input_allocate_device(&pdev->dev);
+	idev = devm_input_allocate_device(dev);
 	if (!idev)
 		return -ENOMEM;
 
@@ -273,7 +272,7 @@ static int cros_ec_keyb_probe(struct platform_device *pdev)
 
 	ckdev->ec = ec;
 	ckdev->dev = dev;
-	dev_set_drvdata(&pdev->dev, ckdev);
+	dev_set_drvdata(dev, ckdev);
 
 	idev->name = CROS_EC_DEV_NAME;
 	idev->phys = ec->phys_name;
@@ -282,7 +281,7 @@ static int cros_ec_keyb_probe(struct platform_device *pdev)
 	idev->id.bustype = BUS_VIRTUAL;
 	idev->id.version = 1;
 	idev->id.product = 0;
-	idev->dev.parent = &pdev->dev;
+	idev->dev.parent = dev;
 	idev->open = cros_ec_keyb_open;
 	idev->close = cros_ec_keyb_close;
 

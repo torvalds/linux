@@ -58,6 +58,7 @@
 #include <asm/code-patching.h>
 #include <asm/exec.h>
 #include <asm/livepatch.h>
+#include <asm/cpu_has_feature.h>
 
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>

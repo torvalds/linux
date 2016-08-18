@@ -1133,11 +1133,11 @@ static int btt_write_pg(struct btt *btt, struct bio_integrity_payload *bip,
 
 static int btt_do_bvec(struct btt *btt, struct bio_integrity_payload *bip,
 			struct page *page, unsigned int len, unsigned int off,
-			int rw, sector_t sector)
+			bool is_write, sector_t sector)
 {
 	int ret;
 
-	if (rw == READ) {
+	if (!is_write) {
 		ret = btt_read_pg(btt, bip, page, off, sector, len);
 		flush_dcache_page(page);
 	} else {
@@ -1155,7 +1155,7 @@ static blk_qc_t btt_make_request(struct request_queue *q, struct bio *bio)
 	struct bvec_iter iter;
 	unsigned long start;
 	struct bio_vec bvec;
-	int err = 0, rw;
+	int err = 0;
 	bool do_acct;
 
 	/*
@@ -1170,7 +1170,6 @@ static blk_qc_t btt_make_request(struct request_queue *q, struct bio *bio)
 	}
 
 	do_acct = nd_iostat_start(bio, &start);
-	rw = bio_data_dir(bio);
 	bio_for_each_segment(bvec, bio, iter) {
 		unsigned int len = bvec.bv_len;
 
@@ -1181,11 +1180,12 @@ static blk_qc_t btt_make_request(struct request_queue *q, struct bio *bio)
 		BUG_ON(len % btt->sector_size);
 
 		err = btt_do_bvec(btt, bip, bvec.bv_page, len, bvec.bv_offset,
-				rw, iter.bi_sector);
+				  op_is_write(bio_op(bio)), iter.bi_sector);
 		if (err) {
 			dev_info(&btt->nd_btt->dev,
 					"io error in %s sector %lld, len %d,\n",
-					(rw == READ) ? "READ" : "WRITE",
+					(op_is_write(bio_op(bio))) ? "WRITE" :
+					"READ",
 					(unsigned long long) iter.bi_sector, len);
 			bio->bi_error = err;
 			break;
@@ -1200,12 +1200,12 @@ out:
 }
 
 static int btt_rw_page(struct block_device *bdev, sector_t sector,
-		struct page *page, int rw)
+		struct page *page, bool is_write)
 {
 	struct btt *btt = bdev->bd_disk->private_data;
 
-	btt_do_bvec(btt, NULL, page, PAGE_SIZE, 0, rw, sector);
-	page_endio(page, rw & WRITE, 0);
+	btt_do_bvec(btt, NULL, page, PAGE_SIZE, 0, is_write, sector);
+	page_endio(page, is_write, 0);
 	return 0;
 }
 
@@ -1269,6 +1269,7 @@ static int btt_blk_init(struct btt *btt)
 		}
 	}
 	set_capacity(btt->btt_disk, btt->nlba * btt->sector_size >> 9);
+	btt->nd_btt->size = btt->nlba * (u64)btt->sector_size;
 	revalidate_disk(btt->btt_disk);
 
 	return 0;

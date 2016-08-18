@@ -55,6 +55,7 @@
 #include <asm/debug.h>
 #include <asm/kexec.h>
 #include <asm/asm-prototypes.h>
+#include <asm/cpu_has_feature.h>
 
 #ifdef DEBUG
 #include <asm/udbg.h>

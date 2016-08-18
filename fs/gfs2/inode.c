@@ -1800,7 +1800,7 @@ int gfs2_permission(struct inode *inode, int mask)
 	}
 
 	if ((mask & MAY_WRITE) && IS_IMMUTABLE(inode))
-		error = -EACCES;
+		error = -EPERM;
 	else
 		error = generic_permission(inode, mask);
 	if (gfs2_holder_initialized(&i_gh))

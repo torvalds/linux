@@ -536,7 +536,7 @@ int r5l_handle_flush_request(struct r5l_log *log, struct bio *bio)
 		bio_endio(bio);
 		return 0;
 	}
-	bio->bi_rw &= ~REQ_PREFLUSH;
+	bio->bi_opf &= ~REQ_PREFLUSH;
 	return -EAGAIN;
 }
 

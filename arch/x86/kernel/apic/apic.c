@@ -147,7 +147,7 @@ static int force_enable_local_apic __initdata;
  */
 static int __init parse_lapic(char *arg)
 {
-	if (config_enabled(CONFIG_X86_32) && !arg)
+	if (IS_ENABLED(CONFIG_X86_32) && !arg)
 		force_enable_local_apic = 1;
 	else if (arg && !strncmp(arg, "notscdeadline", 13))
 		setup_clear_cpu_cap(X86_FEATURE_TSC_DEADLINE_TIMER);
@@ -313,7 +313,7 @@ int lapic_get_maxlvt(void)
 
 /* Clock divisor */
 #define APIC_DIVISOR 16
-#define TSC_DIVISOR  32
+#define TSC_DIVISOR  8
 
 /*
  * This function sets up the local APIC timer, with a timeout of
@@ -565,10 +565,34 @@ static void setup_APIC_timer(void)
 				    CLOCK_EVT_FEAT_DUMMY);
 		levt->set_next_event = lapic_next_deadline;
 		clockevents_config_and_register(levt,
-						(tsc_khz / TSC_DIVISOR) * 1000,
+						tsc_khz * (1000 / TSC_DIVISOR),
 						0xF, ~0UL);
 	} else
 		clockevents_register_device(levt);
+}
+
+/*
+ * Install the updated TSC frequency from recalibration at the TSC
+ * deadline clockevent devices.
+ */
+static void __lapic_update_tsc_freq(void *info)
+{
+	struct clock_event_device *levt = this_cpu_ptr(&lapic_events);
+
+	if (!this_cpu_has(X86_FEATURE_TSC_DEADLINE_TIMER))
+		return;
+
+	clockevents_update_freq(levt, tsc_khz * (1000 / TSC_DIVISOR));
+}
+
+void lapic_update_tsc_freq(void)
+{
+	/*
+	 * The clockevent device's ->mult and ->shift can both be
+	 * changed. In order to avoid races, schedule the frequency
+	 * update code on each CPU.
+	 */
+	on_each_cpu(__lapic_update_tsc_freq, NULL, 0);
 }
 
 /*

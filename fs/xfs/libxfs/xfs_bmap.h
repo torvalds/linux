@@ -32,7 +32,7 @@ extern kmem_zone_t	*xfs_bmap_free_item_zone;
  */
 struct xfs_bmalloca {
 	xfs_fsblock_t		*firstblock; /* i/o first block allocated */
-	struct xfs_bmap_free	*flist;	/* bmap freelist */
+	struct xfs_defer_ops	*dfops;	/* bmap freelist */
 	struct xfs_trans	*tp;	/* transaction pointer */
 	struct xfs_inode	*ip;	/* incore inode pointer */
 	struct xfs_bmbt_irec	prev;	/* extent before the new one */
@@ -62,33 +62,13 @@ struct xfs_bmalloca {
  * List of extents to be free "later".
  * The list is kept sorted on xbf_startblock.
  */
-struct xfs_bmap_free_item
+struct xfs_extent_free_item
 {
-	xfs_fsblock_t		xbfi_startblock;/* starting fs block number */
-	xfs_extlen_t		xbfi_blockcount;/* number of blocks in extent */
-	struct list_head	xbfi_list;
+	xfs_fsblock_t		xefi_startblock;/* starting fs block number */
+	xfs_extlen_t		xefi_blockcount;/* number of blocks in extent */
+	struct list_head	xefi_list;
+	struct xfs_owner_info	xefi_oinfo;	/* extent owner */
 };
-
-/*
- * Header for free extent list.
- *
- * xbf_low is used by the allocator to activate the lowspace algorithm -
- * when free space is running low the extent allocator may choose to
- * allocate an extent from an AG without leaving sufficient space for
- * a btree split when inserting the new extent.  In this case the allocator
- * will enable the lowspace algorithm which is supposed to allow further
- * allocations (such as btree splits and newroots) to allocate from
- * sequential AGs.  In order to avoid locking AGs out of order the lowspace
- * algorithm will start searching for free space from AG 0.  If the correct
- * transaction reservations have been made then this algorithm will eventually
- * find all the space it needs.
- */
-typedef	struct xfs_bmap_free
-{
-	struct list_head	xbf_flist;	/* list of to-be-free extents */
-	int			xbf_count;	/* count of items on list */
-	int			xbf_low;	/* alloc in low mode */
-} xfs_bmap_free_t;
 
 #define	XFS_BMAP_MAX_NMAP	4
 
@@ -139,14 +119,6 @@ static inline int xfs_bmapi_aflag(int w)
 #define	DELAYSTARTBLOCK		((xfs_fsblock_t)-1LL)
 #define	HOLESTARTBLOCK		((xfs_fsblock_t)-2LL)
 
-static inline void xfs_bmap_init(xfs_bmap_free_t *flp, xfs_fsblock_t *fbp)
-{
-	INIT_LIST_HEAD(&flp->xbf_flist);
-	flp->xbf_count = 0;
-	flp->xbf_low = 0;
-	*fbp = NULLFSBLOCK;
-}
-
 /*
  * Flags for xfs_bmap_add_extent*.
  */
@@ -193,11 +165,9 @@ void	xfs_bmap_trace_exlist(struct xfs_inode *ip, xfs_extnum_t cnt,
 
 int	xfs_bmap_add_attrfork(struct xfs_inode *ip, int size, int rsvd);
 void	xfs_bmap_local_to_extents_empty(struct xfs_inode *ip, int whichfork);
-void	xfs_bmap_add_free(struct xfs_mount *mp, struct xfs_bmap_free *flist,
-			  xfs_fsblock_t bno, xfs_filblks_t len);
-void	xfs_bmap_cancel(struct xfs_bmap_free *flist);
-int	xfs_bmap_finish(struct xfs_trans **tp, struct xfs_bmap_free *flist,
-			struct xfs_inode *ip);
+void	xfs_bmap_add_free(struct xfs_mount *mp, struct xfs_defer_ops *dfops,
+			  xfs_fsblock_t bno, xfs_filblks_t len,
+			  struct xfs_owner_info *oinfo);
 void	xfs_bmap_compute_maxlevels(struct xfs_mount *mp, int whichfork);
 int	xfs_bmap_first_unused(struct xfs_trans *tp, struct xfs_inode *ip,
 		xfs_extlen_t len, xfs_fileoff_t *unused, int whichfork);
@@ -218,18 +188,18 @@ int	xfs_bmapi_write(struct xfs_trans *tp, struct xfs_inode *ip,
 		xfs_fileoff_t bno, xfs_filblks_t len, int flags,
 		xfs_fsblock_t *firstblock, xfs_extlen_t total,
 		struct xfs_bmbt_irec *mval, int *nmap,
-		struct xfs_bmap_free *flist);
+		struct xfs_defer_ops *dfops);
 int	xfs_bunmapi(struct xfs_trans *tp, struct xfs_inode *ip,
 		xfs_fileoff_t bno, xfs_filblks_t len, int flags,
 		xfs_extnum_t nexts, xfs_fsblock_t *firstblock,
-		struct xfs_bmap_free *flist, int *done);
+		struct xfs_defer_ops *dfops, int *done);
 int	xfs_check_nostate_extents(struct xfs_ifork *ifp, xfs_extnum_t idx,
 		xfs_extnum_t num);
 uint	xfs_default_attroffset(struct xfs_inode *ip);
 int	xfs_bmap_shift_extents(struct xfs_trans *tp, struct xfs_inode *ip,
 		xfs_fileoff_t *next_fsb, xfs_fileoff_t offset_shift_fsb,
 		int *done, xfs_fileoff_t stop_fsb, xfs_fsblock_t *firstblock,
-		struct xfs_bmap_free *flist, enum shift_direction direction,
+		struct xfs_defer_ops *dfops, enum shift_direction direction,
 		int num_exts);
 int	xfs_bmap_split_extent(struct xfs_inode *ip, xfs_fileoff_t split_offset);
 

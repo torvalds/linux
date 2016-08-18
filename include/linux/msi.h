@@ -270,6 +270,8 @@ enum {
 	MSI_FLAG_MULTI_PCI_MSI		= (1 << 2),
 	/* Support PCI MSIX interrupts */
 	MSI_FLAG_PCI_MSIX		= (1 << 3),
+	/* Needs early activate, required for PCI */
+	MSI_FLAG_ACTIVATE_EARLY		= (1 << 4),
 };
 
 int msi_domain_set_affinity(struct irq_data *data, const struct cpumask *mask,

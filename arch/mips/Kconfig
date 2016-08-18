@@ -64,6 +64,7 @@ config MIPS
 	select GENERIC_TIME_VSYSCALL
 	select ARCH_CLOCKSOURCE_DATA
 	select HANDLE_DOMAIN_IRQ
+	select HAVE_EXIT_THREAD
 
 menu "Machine selection"
 
@@ -384,7 +385,7 @@ config MACH_PISTACHIO
 	select CLKSRC_MIPS_GIC
 	select COMMON_CLK
 	select CSRC_R4K
-	select DMA_MAYBE_COHERENT
+	select DMA_NONCOHERENT
 	select GPIOLIB
 	select IRQ_MIPS_CPU
 	select LIBFDT
@@ -880,7 +881,6 @@ config CAVIUM_OCTEON_SOC
 	select SYS_SUPPORTS_HOTPLUG_CPU if CPU_BIG_ENDIAN
 	select SYS_HAS_EARLY_PRINTK
 	select SYS_HAS_CPU_CAVIUM_OCTEON
-	select SWAP_IO_SPACE
 	select HW_HAS_PCI
 	select ZONE_DMA32
 	select HOLES_IN_ZONE
@@ -1110,16 +1110,6 @@ config NEED_DMA_MAP_STATE
 
 config SYS_HAS_EARLY_PRINTK
 	bool
-
-config HOTPLUG_CPU
-	bool "Support for hot-pluggable CPUs"
-	depends on SMP && SYS_SUPPORTS_HOTPLUG_CPU
-	help
-	  Say Y here to allow turning CPUs off and on. CPUs can be
-	  controlled through /sys/devices/system/cpu.
-	  (Note: power management support will enable this option
-	    automatically on SMP systems. )
-	  Say N if you want to disable CPU hotplug.
 
 config SYS_SUPPORTS_HOTPLUG_CPU
 	bool
@@ -1406,7 +1396,6 @@ config CPU_LOONGSON1B
 	bool "Loongson 1B"
 	depends on SYS_HAS_CPU_LOONGSON1B
 	select CPU_LOONGSON1
-	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select LEDS_GPIO_REGISTER
 	help
 	  The Loongson 1B is a 32-bit SoC, which implements the MIPS32
@@ -2636,6 +2625,16 @@ config SMP
 
 	  If you don't know what to do here, say N.
 
+config HOTPLUG_CPU
+	bool "Support for hot-pluggable CPUs"
+	depends on SMP && SYS_SUPPORTS_HOTPLUG_CPU
+	help
+	  Say Y here to allow turning CPUs off and on. CPUs can be
+	  controlled through /sys/devices/system/cpu.
+	  (Note: power management support will enable this option
+	    automatically on SMP systems. )
+	  Say N if you want to disable CPU hotplug.
+
 config SMP_UP
 	bool
 
@@ -2887,10 +2886,10 @@ choice
 		  the documented boot protocol using a device tree.
 
 	config MIPS_RAW_APPENDED_DTB
-		bool "vmlinux.bin"
+		bool "vmlinux.bin or vmlinuz.bin"
 		help
 		  With this option, the boot code will look for a device tree binary
-		  DTB) appended to raw vmlinux.bin (without decompressor).
+		  DTB) appended to raw vmlinux.bin or vmlinuz.bin.
 		  (e.g. cat vmlinux.bin <filename>.dtb > vmlinux_w_dtb).
 
 		  This is meant as a backward compatibility convenience for those
@@ -2901,24 +2900,6 @@ choice
 		  this option being confused by leftover garbage in memory that might
 		  look like a DTB header after a reboot if no actual DTB is appended
 		  to vmlinux.bin.  Do not leave this option active in a production kernel
-		  if you don't intend to always append a DTB.
-
-	config MIPS_ZBOOT_APPENDED_DTB
-		bool "vmlinuz.bin"
-		depends on SYS_SUPPORTS_ZBOOT
-		help
-		  With this option, the boot code will look for a device tree binary
-		  DTB) appended to raw vmlinuz.bin (with decompressor).
-		  (e.g. cat vmlinuz.bin <filename>.dtb > vmlinuz_w_dtb).
-
-		  This is meant as a backward compatibility convenience for those
-		  systems with a bootloader that can't be upgraded to accommodate
-		  the documented boot protocol using a device tree.
-
-		  Beware that there is very little in terms of protection against
-		  this option being confused by leftover garbage in memory that might
-		  look like a DTB header after a reboot if no actual DTB is appended
-		  to vmlinuz.bin.  Do not leave this option active in a production kernel
 		  if you don't intend to always append a DTB.
 endchoice
 

@@ -74,8 +74,8 @@ void __init plat_mem_setup(void)
 
 	set_io_port_base((unsigned long) KSEG1);
 
-	if (fw_arg0 == -2) /* UHI interface */
-		dtb = (void *)fw_arg1;
+	if (fw_passed_dtb) /* UHI interface */
+		dtb = (void *)fw_passed_dtb;
 	else if (__dtb_start != __dtb_end)
 		dtb = (void *)__dtb_start;
 	else

@@ -52,6 +52,7 @@ struct record_opts {
 	bool	     sample_weight;
 	bool	     sample_time;
 	bool	     sample_time_set;
+	bool	     sample_cpu;
 	bool	     period;
 	bool	     running_time;
 	bool	     full_auxtrace;

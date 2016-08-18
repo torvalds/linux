@@ -275,6 +275,7 @@ error:
 	list_del_init(&call->link);
 	write_unlock_bh(&rxrpc_call_lock);
 
+	set_bit(RXRPC_CALL_RELEASED, &call->flags);
 	call->state = RXRPC_CALL_DEAD;
 	rxrpc_put_call(call);
 	_leave(" = %d", ret);
@@ -287,6 +288,7 @@ error:
 	 */
 found_user_ID_now_present:
 	write_unlock(&rx->call_lock);
+	set_bit(RXRPC_CALL_RELEASED, &call->flags);
 	call->state = RXRPC_CALL_DEAD;
 	rxrpc_put_call(call);
 	_leave(" = -EEXIST [%p]", call);
@@ -493,6 +495,7 @@ void rxrpc_release_call(struct rxrpc_call *call)
 		       (skb = skb_dequeue(&call->rx_oos_queue))) {
 			spin_unlock_bh(&call->lock);
 
+			sp = rxrpc_skb(skb);
 			_debug("- zap %s %%%u #%u",
 			       rxrpc_pkts[sp->hdr.type],
 			       sp->hdr.serial, sp->hdr.seq);

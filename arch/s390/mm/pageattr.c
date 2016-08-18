@@ -252,6 +252,8 @@ static int change_page_attr(unsigned long addr, unsigned long end,
 	int rc = -EINVAL;
 	pgd_t *pgdp;
 
+	if (addr == end)
+		return 0;
 	if (end >= MODULES_END)
 		return -EINVAL;
 	mutex_lock(&cpa_mutex);

@@ -11,12 +11,14 @@
 #ifndef _ASM_PROCESSOR_H
 #define _ASM_PROCESSOR_H
 
+#include <linux/atomic.h>
 #include <linux/cpumask.h>
 #include <linux/threads.h>
 
 #include <asm/cachectl.h>
 #include <asm/cpu.h>
 #include <asm/cpu-info.h>
+#include <asm/dsemul.h>
 #include <asm/mipsregs.h>
 #include <asm/prefetch.h>
 
@@ -78,7 +80,11 @@ extern unsigned int vced_count, vcei_count;
 
 #endif
 
-#define STACK_TOP	(TASK_SIZE & PAGE_MASK)
+/*
+ * One page above the stack is used for branch delay slot "emulation".
+ * See dsemul.c for details.
+ */
+#define STACK_TOP	((TASK_SIZE & PAGE_MASK) - PAGE_SIZE)
 
 /*
  * This decides where the kernel will search for a free chunk of vm
@@ -256,6 +262,12 @@ struct thread_struct {
 
 	/* Saved fpu/fpu emulator stuff. */
 	struct mips_fpu_struct fpu FPU_ALIGN;
+	/* Assigned branch delay slot 'emulation' frame */
+	atomic_t bd_emu_frame;
+	/* PC of the branch from a branch delay slot 'emulation' */
+	unsigned long bd_emu_branch_pc;
+	/* PC to continue from following a branch delay slot 'emulation' */
+	unsigned long bd_emu_cont_pc;
 #ifdef CONFIG_MIPS_MT_FPAFF
 	/* Emulated instruction count */
 	unsigned long emulated_fp;
@@ -323,6 +335,10 @@ struct thread_struct {
 	 * FPU affinity state (null if not FPAFF)		\
 	 */							\
 	FPAFF_INIT						\
+	/* Delay slot emulation */				\
+	.bd_emu_frame = ATOMIC_INIT(BD_EMUFRAME_NONE),		\
+	.bd_emu_branch_pc = 0,					\
+	.bd_emu_cont_pc = 0,					\
 	/*							\
 	 * Saved DSP stuff					\
 	 */							\

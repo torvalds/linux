@@ -448,7 +448,7 @@ static u64 __report_allowed;
 
 static void perf_duration_warn(struct irq_work *w)
 {
-	printk_ratelimited(KERN_WARNING
+	printk_ratelimited(KERN_INFO
 		"perf: interrupt took too long (%lld > %lld), lowering "
 		"kernel.perf_event_max_sample_rate to %d\n",
 		__report_avg, __report_allowed,
@@ -843,6 +843,32 @@ perf_cgroup_mark_enabled(struct perf_event *event,
 		}
 	}
 }
+
+/*
+ * Update cpuctx->cgrp so that it is set when first cgroup event is added and
+ * cleared when last cgroup event is removed.
+ */
+static inline void
+list_update_cgroup_event(struct perf_event *event,
+			 struct perf_event_context *ctx, bool add)
+{
+	struct perf_cpu_context *cpuctx;
+
+	if (!is_cgroup_event(event))
+		return;
+
+	if (add && ctx->nr_cgroups++)
+		return;
+	else if (!add && --ctx->nr_cgroups)
+		return;
+	/*
+	 * Because cgroup events are always per-cpu events,
+	 * this will always be called from the right CPU.
+	 */
+	cpuctx = __get_cpu_context(ctx);
+	cpuctx->cgrp = add ? event->cgrp : NULL;
+}
+
 #else /* !CONFIG_CGROUP_PERF */
 
 static inline bool
@@ -920,6 +946,13 @@ perf_cgroup_mark_enabled(struct perf_event *event,
 			 struct perf_event_context *ctx)
 {
 }
+
+static inline void
+list_update_cgroup_event(struct perf_event *event,
+			 struct perf_event_context *ctx, bool add)
+{
+}
+
 #endif
 
 /*
@@ -1392,6 +1425,7 @@ ctx_group_list(struct perf_event *event, struct perf_event_context *ctx)
 static void
 list_add_event(struct perf_event *event, struct perf_event_context *ctx)
 {
+
 	lockdep_assert_held(&ctx->lock);
 
 	WARN_ON_ONCE(event->attach_state & PERF_ATTACH_CONTEXT);
@@ -1412,8 +1446,7 @@ list_add_event(struct perf_event *event, struct perf_event_context *ctx)
 		list_add_tail(&event->group_entry, list);
 	}
 
-	if (is_cgroup_event(event))
-		ctx->nr_cgroups++;
+	list_update_cgroup_event(event, ctx, true);
 
 	list_add_rcu(&event->event_entry, &ctx->event_list);
 	ctx->nr_events++;
@@ -1581,8 +1614,6 @@ static void perf_group_attach(struct perf_event *event)
 static void
 list_del_event(struct perf_event *event, struct perf_event_context *ctx)
 {
-	struct perf_cpu_context *cpuctx;
-
 	WARN_ON_ONCE(event->ctx != ctx);
 	lockdep_assert_held(&ctx->lock);
 
@@ -1594,20 +1625,7 @@ list_del_event(struct perf_event *event, struct perf_event_context *ctx)
 
 	event->attach_state &= ~PERF_ATTACH_CONTEXT;
 
-	if (is_cgroup_event(event)) {
-		ctx->nr_cgroups--;
-		/*
-		 * Because cgroup events are always per-cpu events, this will
-		 * always be called from the right CPU.
-		 */
-		cpuctx = __get_cpu_context(ctx);
-		/*
-		 * If there are no more cgroup events then clear cgrp to avoid
-		 * stale pointer in update_cgrp_time_from_cpuctx().
-		 */
-		if (!ctx->nr_cgroups)
-			cpuctx->cgrp = NULL;
-	}
+	list_update_cgroup_event(event, ctx, false);
 
 	ctx->nr_events--;
 	if (event->attr.inherit_stat)
@@ -1716,8 +1734,8 @@ static inline int pmu_filter_match(struct perf_event *event)
 static inline int
 event_filter_match(struct perf_event *event)
 {
-	return (event->cpu == -1 || event->cpu == smp_processor_id())
-	    && perf_cgroup_match(event) && pmu_filter_match(event);
+	return (event->cpu == -1 || event->cpu == smp_processor_id()) &&
+	       perf_cgroup_match(event) && pmu_filter_match(event);
 }
 
 static void
@@ -1737,8 +1755,8 @@ event_sched_out(struct perf_event *event,
 	 * maintained, otherwise bogus information is return
 	 * via read() for time_enabled, time_running:
 	 */
-	if (event->state == PERF_EVENT_STATE_INACTIVE
-	    && !event_filter_match(event)) {
+	if (event->state == PERF_EVENT_STATE_INACTIVE &&
+	    !event_filter_match(event)) {
 		delta = tstamp - event->tstamp_stopped;
 		event->tstamp_running += delta;
 		event->tstamp_stopped = tstamp;
@@ -2236,9 +2254,14 @@ perf_install_in_context(struct perf_event_context *ctx,
 
 	lockdep_assert_held(&ctx->mutex);
 
-	event->ctx = ctx;
 	if (event->cpu != -1)
 		event->cpu = cpu;
+
+	/*
+	 * Ensures that if we can observe event->ctx, both the event and ctx
+	 * will be 'complete'. See perf_iterate_sb_cpu().
+	 */
+	smp_store_release(&event->ctx, ctx);
 
 	if (!task) {
 		cpu_function_call(cpu, __perf_install_in_context, event);
@@ -5969,6 +5992,14 @@ static void perf_iterate_sb_cpu(perf_iterate_f output, void *data)
 	struct perf_event *event;
 
 	list_for_each_entry_rcu(event, &pel->list, sb_list) {
+		/*
+		 * Skip events that are not fully formed yet; ensure that
+		 * if we observe event->ctx, both event and ctx will be
+		 * complete enough. See perf_install_in_context().
+		 */
+		if (!smp_load_acquire(&event->ctx))
+			continue;
+
 		if (event->state < PERF_EVENT_STATE_INACTIVE)
 			continue;
 		if (!event_filter_match(event))
