@@ -130,6 +130,7 @@ static int rxrpc_accept_incoming_call(struct rxrpc_local *local,
 			call->state = RXRPC_CALL_SERVER_ACCEPTING;
 			list_add_tail(&call->accept_link, &rx->acceptq);
 			rxrpc_get_call(call);
+			atomic_inc(&call->skb_count);
 			nsp = rxrpc_skb(notification);
 			nsp->call = call;
 
