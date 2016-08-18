@@ -4220,7 +4220,7 @@ static struct ceph_msg *alloc_msg_with_page_vector(struct ceph_msg_header *hdr)
 
 		pages = ceph_alloc_page_vector(calc_pages_for(0, data_len),
 					       GFP_NOIO);
-		if (!pages) {
+		if (IS_ERR(pages)) {
 			ceph_msg_put(m);
 			return NULL;
 		}

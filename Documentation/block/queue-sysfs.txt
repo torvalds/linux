@@ -14,6 +14,12 @@ add_random (RW)
 This file allows to turn off the disk entropy contribution. Default
 value of this file is '1'(on).
 
+dax (RO)
+--------
+This file indicates whether the device supports Direct Access (DAX),
+used by CPU-addressable storage to bypass the pagecache.  It shows '1'
+if true, '0' if not.
+
 discard_granularity (RO)
 -----------------------
 This shows the size of internal allocation of the device in bytes, if
@@ -45,6 +51,12 @@ device or not. If its value is '1' the blocks are zeroed otherwise not.
 hw_sector_size (RO)
 -------------------
 This is the hardware sector size of the device, in bytes.
+
+io_poll (RW)
+------------
+When read, this file shows the total number of block IO polls and how
+many returned success.  Writing '0' to this file will disable polling
+for this device.  Writing any non-zero value will enable this feature.
 
 iostats (RW)
 -------------
@@ -150,6 +162,12 @@ change the kernels view of the device, but it doesn't alter the
 device state. This means that it might not be safe to toggle the
 setting from "write back" to "write through", since that will also
 eliminate cache flushes issued by the kernel.
+
+write_same_max_bytes (RO)
+-------------------------
+This is the number of bytes the device can write in a single write-same
+command.  A value of '0' means write-same is not supported by this
+device.
 
 
 Jens Axboe <jens.axboe@oracle.com>, February 2009

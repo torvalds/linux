@@ -1,13 +1,13 @@
 menuconfig ARCH_CLPS711X
 	bool "Cirrus Logic EP721x/EP731x-based"
 	depends on ARCH_MULTI_V4T
-	select ARCH_REQUIRE_GPIOLIB
 	select AUTO_ZRELADDR
 	select CLKSRC_OF
 	select CLPS711X_TIMER
 	select COMMON_CLK
 	select CPU_ARM720T
 	select GENERIC_CLOCKEVENTS
+	select GPIOLIB
 	select MFD_SYSCON
 	select OF_IRQ
 	select USE_OF

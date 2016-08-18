@@ -305,7 +305,7 @@ static ssize_t amdgpu_get_pp_table(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
 	char *table = NULL;
-	int size, i;
+	int size;
 
 	if (adev->pp_enabled)
 		size = amdgpu_dpm_get_pp_table(adev, &table);
@@ -315,10 +315,7 @@ static ssize_t amdgpu_get_pp_table(struct device *dev,
 	if (size >= PAGE_SIZE)
 		size = PAGE_SIZE - 1;
 
-	for (i = 0; i < size; i++) {
-		sprintf(buf + i, "%02x", table[i]);
-	}
-	sprintf(buf + i, "\n");
+	memcpy(buf, table, size);
 
 	return size;
 }
