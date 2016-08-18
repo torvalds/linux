@@ -155,8 +155,7 @@ struct v4l2_sliced_vbi_format
 	  service the driver chooses.
 
 	  Data services are defined in :ref:`vbi-services2`. Array indices
-	  map to ITU-R line numbers (see also :ref:`vbi-525` and
-	  :ref:`vbi-625`) as follows:
+	  map to ITU-R line numbers\ [#f2]_ as follows:
 
     -  .. row 3
 
@@ -838,3 +837,6 @@ Line Identifiers for struct v4l2_mpeg_vbi_itv0_line id field
 .. [#f1]
    According to :ref:`ETS 300 706 <ets300706>` lines 6-22 of the first
    field and lines 5-22 of the second field may carry Teletext data.
+
+.. [#f2]
+   See also :ref:`vbi-525` and :ref:`vbi-625`.
