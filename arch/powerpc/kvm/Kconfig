@@ -22,6 +22,7 @@ config KVM
 	select ANON_INODES
 	select HAVE_KVM_EVENTFD
 	select SRCU
+	select KVM_VFIO
 
 config KVM_BOOK3S_HANDLER
 	bool
