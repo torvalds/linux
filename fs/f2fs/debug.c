@@ -54,6 +54,7 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	si->rsvd_segs = reserved_segments(sbi);
 	si->overp_segs = overprovision_segments(sbi);
 	si->valid_count = valid_user_blocks(sbi);
+	si->discard_blks = discard_blocks(sbi);
 	si->valid_node_count = valid_node_count(sbi);
 	si->valid_inode_count = valid_inode_count(sbi);
 	si->inline_xattr = atomic_read(&sbi->inline_xattr);
@@ -230,8 +231,13 @@ static int stat_show(struct seq_file *s, void *v)
 			   si->ssa_area_segs, si->main_area_segs);
 		seq_printf(s, "(OverProv:%d Resv:%d)]\n\n",
 			   si->overp_segs, si->rsvd_segs);
-		seq_printf(s, "Utilization: %d%% (%d valid blocks)\n",
-			   si->utilization, si->valid_count);
+		if (test_opt(si->sbi, DISCARD))
+			seq_printf(s, "Utilization: %u%% (%u valid blocks, %u discard blocks)\n",
+				si->utilization, si->valid_count, si->discard_blks);
+		else
+			seq_printf(s, "Utilization: %u%% (%u valid blocks)\n",
+				si->utilization, si->valid_count);
+
 		seq_printf(s, "  - Node: %u (Inode: %u, ",
 			   si->valid_node_count, si->valid_inode_count);
 		seq_printf(s, "Other: %u)\n  - Data: %u\n",
