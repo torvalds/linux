@@ -3671,7 +3671,7 @@ void __iomem *i915_vma_pin_iomap(struct i915_vma *vma)
 	assert_rpm_wakelock_held(to_i915(vma->vm->dev));
 
 	lockdep_assert_held(&vma->vm->dev->struct_mutex);
-	if (WARN_ON(!vma->obj->map_and_fenceable))
+	if (WARN_ON(!i915_vma_is_map_and_fenceable(vma)))
 		return IO_ERR_PTR(-ENODEV);
 
 	GEM_BUG_ON(!i915_vma_is_ggtt(vma));

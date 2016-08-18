@@ -2899,8 +2899,7 @@ int i915_vma_unbind(struct i915_vma *vma)
 	GEM_BUG_ON(obj->bind_count == 0);
 	GEM_BUG_ON(!obj->pages);
 
-	if (i915_vma_is_ggtt(vma) &&
-	    vma->ggtt_view.type == I915_GGTT_VIEW_NORMAL) {
+	if (i915_vma_is_map_and_fenceable(vma)) {
 		i915_gem_object_finish_gtt(obj);
 
 		/* release the fence reg _after_ flushing */
@@ -2909,6 +2908,7 @@ int i915_vma_unbind(struct i915_vma *vma)
 			return ret;
 
 		__i915_vma_iounmap(vma);
+		vma->flags &= ~I915_VMA_CAN_FENCE;
 	}
 
 	if (likely(!vma->vm->closed)) {
@@ -2920,13 +2920,10 @@ int i915_vma_unbind(struct i915_vma *vma)
 	drm_mm_remove_node(&vma->node);
 	list_move_tail(&vma->vm_link, &vma->vm->unbound_list);
 
-	if (i915_vma_is_ggtt(vma)) {
-		if (vma->ggtt_view.type == I915_GGTT_VIEW_NORMAL) {
-			obj->map_and_fenceable = false;
-		} else if (vma->pages) {
-			sg_free_table(vma->pages);
-			kfree(vma->pages);
-		}
+	if (vma->pages != obj->pages) {
+		GEM_BUG_ON(!vma->pages);
+		sg_free_table(vma->pages);
+		kfree(vma->pages);
 	}
 	vma->pages = NULL;
 
@@ -3703,8 +3700,6 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 static bool
 i915_vma_misplaced(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 {
-	struct drm_i915_gem_object *obj = vma->obj;
-
 	if (!drm_mm_node_allocated(&vma->node))
 		return false;
 
@@ -3714,7 +3709,7 @@ i915_vma_misplaced(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 	if (alignment && vma->node.start & (alignment - 1))
 		return true;
 
-	if (flags & PIN_MAPPABLE && !obj->map_and_fenceable)
+	if (flags & PIN_MAPPABLE && !i915_vma_is_map_and_fenceable(vma))
 		return true;
 
 	if (flags & PIN_OFFSET_BIAS &&
@@ -3736,10 +3731,10 @@ void __i915_vma_set_map_and_fenceable(struct i915_vma *vma)
 	u32 fence_size, fence_alignment;
 
 	fence_size = i915_gem_get_ggtt_size(dev_priv,
-					    obj->base.size,
+					    vma->size,
 					    i915_gem_object_get_tiling(obj));
 	fence_alignment = i915_gem_get_ggtt_alignment(dev_priv,
-						      obj->base.size,
+						      vma->size,
 						      i915_gem_object_get_tiling(obj),
 						      true);
 
@@ -3749,7 +3744,10 @@ void __i915_vma_set_map_and_fenceable(struct i915_vma *vma)
 	mappable = (vma->node.start + fence_size <=
 		    dev_priv->ggtt.mappable_end);
 
-	obj->map_and_fenceable = mappable && fenceable;
+	if (mappable && fenceable)
+		vma->flags |= I915_VMA_CAN_FENCE;
+	else
+		vma->flags &= ~I915_VMA_CAN_FENCE;
 }
 
 int __i915_vma_do_pin(struct i915_vma *vma,
@@ -3809,12 +3807,11 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 
 		WARN(i915_vma_is_pinned(vma),
 		     "bo is already pinned in ggtt with incorrect alignment:"
-		     " offset=%08x, req.alignment=%llx, req.map_and_fenceable=%d,"
-		     " obj->map_and_fenceable=%d\n",
-		     i915_ggtt_offset(vma),
-		     alignment,
+		     " offset=%08x, req.alignment=%llx,"
+		     " req.map_and_fenceable=%d, vma->map_and_fenceable=%d\n",
+		     i915_ggtt_offset(vma), alignment,
 		     !!(flags & PIN_MAPPABLE),
-		     obj->map_and_fenceable);
+		     i915_vma_is_map_and_fenceable(vma));
 		ret = i915_vma_unbind(vma);
 		if (ret)
 			return ERR_PTR(ret);

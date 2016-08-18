@@ -197,8 +197,9 @@ struct i915_vma {
 #define I915_VMA_LOCAL_BIND	BIT(7)
 #define I915_VMA_BIND_MASK (I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND | I915_VMA_PIN_OVERFLOW)
 
-#define I915_VMA_GGTT	BIT(8)
-#define I915_VMA_CLOSED BIT(9)
+#define I915_VMA_GGTT		BIT(8)
+#define I915_VMA_CAN_FENCE	BIT(9)
+#define I915_VMA_CLOSED		BIT(10)
 
 	unsigned int active;
 	struct i915_gem_active last_read[I915_NUM_ENGINES];
@@ -237,6 +238,11 @@ void i915_vma_unpin_and_release(struct i915_vma **p_vma);
 static inline bool i915_vma_is_ggtt(const struct i915_vma *vma)
 {
 	return vma->flags & I915_VMA_GGTT;
+}
+
+static inline bool i915_vma_is_map_and_fenceable(const struct i915_vma *vma)
+{
+	return vma->flags & I915_VMA_CAN_FENCE;
 }
 
 static inline bool i915_vma_is_closed(const struct i915_vma *vma)

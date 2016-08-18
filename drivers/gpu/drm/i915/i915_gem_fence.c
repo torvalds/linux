@@ -130,7 +130,9 @@ static void i915_write_fence_reg(struct drm_device *dev, int reg,
 		     !is_power_of_2(vma->node.size) ||
 		     (vma->node.start & (vma->node.size - 1)),
 		     "object 0x%08llx [fenceable? %d] not 1M or pot-size (0x%08llx) aligned\n",
-		     vma->node.start, obj->map_and_fenceable, vma->node.size);
+		     vma->node.start,
+		     i915_vma_is_map_and_fenceable(vma),
+		     vma->node.size);
 
 		if (tiling == I915_TILING_Y && HAS_128_BYTE_Y_TILING(dev))
 			tile_width = 128;
@@ -389,9 +391,6 @@ i915_gem_object_get_fence(struct drm_i915_gem_object *obj)
 			return 0;
 		}
 	} else if (enable) {
-		if (WARN_ON(!obj->map_and_fenceable))
-			return -EINVAL;
-
 		reg = i915_find_fence_reg(dev);
 		if (IS_ERR(reg))
 			return PTR_ERR(reg);

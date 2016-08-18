@@ -2224,7 +2224,7 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb, unsigned int rotation)
 	 * framebuffer compression.  For simplicity, we always install
 	 * a fence as the cost is not that onerous.
 	 */
-	if (view.type == I915_GGTT_VIEW_NORMAL) {
+	if (i915_vma_is_map_and_fenceable(vma)) {
 		ret = i915_gem_object_get_fence(obj);
 		if (ret == -EDEADLK) {
 			/*
@@ -2262,11 +2262,11 @@ void intel_unpin_fb_obj(struct drm_framebuffer *fb, unsigned int rotation)
 	WARN_ON(!mutex_is_locked(&obj->base.dev->struct_mutex));
 
 	intel_fill_fb_ggtt_view(&view, fb, rotation);
+	vma = i915_gem_object_to_ggtt(obj, &view);
 
-	if (view.type == I915_GGTT_VIEW_NORMAL)
+	if (i915_vma_is_map_and_fenceable(vma))
 		i915_gem_object_unpin_fence(obj);
 
-	vma = i915_gem_object_to_ggtt(obj, &view);
 	i915_gem_object_unpin_from_display_plane(vma);
 }
 

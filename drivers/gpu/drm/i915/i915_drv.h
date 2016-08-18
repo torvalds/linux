@@ -2193,12 +2193,6 @@ struct drm_i915_gem_object {
 	unsigned int fence_dirty:1;
 
 	/**
-	 * Is the object at the current location in the gtt mappable and
-	 * fenceable? Used to avoid costly recalculations.
-	 */
-	unsigned int map_and_fenceable:1;
-
-	/**
 	 * Whether the current gtt mapping needs to be mappable (and isn't just
 	 * mappable by accident). Track pin and fault separate for a more
 	 * accurate mappable working set.

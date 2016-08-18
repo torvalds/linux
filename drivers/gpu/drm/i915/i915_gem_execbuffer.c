@@ -857,7 +857,6 @@ static bool
 eb_vma_misplaced(struct i915_vma *vma)
 {
 	struct drm_i915_gem_exec_object2 *entry = vma->exec_entry;
-	struct drm_i915_gem_object *obj = vma->obj;
 
 	WARN_ON(entry->flags & __EXEC_OBJECT_NEEDS_MAP &&
 		!i915_vma_is_ggtt(vma));
@@ -878,7 +877,8 @@ eb_vma_misplaced(struct i915_vma *vma)
 		return true;
 
 	/* avoid costly ping-pong once a batch bo ended up non-mappable */
-	if (entry->flags & __EXEC_OBJECT_NEEDS_MAP && !obj->map_and_fenceable)
+	if (entry->flags & __EXEC_OBJECT_NEEDS_MAP &&
+	    !i915_vma_is_map_and_fenceable(vma))
 		return !only_mappable_for_reloc(entry->flags);
 
 	if ((entry->flags & EXEC_OBJECT_SUPPORTS_48B_ADDRESS) == 0 &&

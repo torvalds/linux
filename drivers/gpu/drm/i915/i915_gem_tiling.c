@@ -134,7 +134,7 @@ i915_gem_object_fence_prepare(struct drm_i915_gem_object *obj, int tiling_mode)
 	if (!vma)
 		return 0;
 
-	if (!obj->map_and_fenceable)
+	if (!i915_vma_is_map_and_fenceable(vma))
 		return 0;
 
 	if (IS_GEN3(dev_priv)) {
@@ -145,7 +145,7 @@ i915_gem_object_fence_prepare(struct drm_i915_gem_object *obj, int tiling_mode)
 			goto bad;
 	}
 
-	size = i915_gem_get_ggtt_size(dev_priv, obj->base.size, tiling_mode);
+	size = i915_gem_get_ggtt_size(dev_priv, vma->size, tiling_mode);
 	if (vma->node.size < size)
 		goto bad;
 
