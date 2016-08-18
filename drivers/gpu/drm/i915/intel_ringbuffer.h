@@ -96,7 +96,6 @@ struct intel_ring {
 	int space;
 	int size;
 	int effective_size;
-	bool needs_iomap;
 
 	/** We track the position of the requests in the ring buffer, and
 	 * when each is retired we increment last_retired_head as the GPU

@@ -1892,17 +1892,20 @@ int intel_ring_pin(struct intel_ring *ring)
 {
 	/* Ring wraparound at offset 0 sometimes hangs. No idea why. */
 	unsigned int flags = PIN_GLOBAL | PIN_OFFSET_BIAS | 4096;
+	enum i915_map_type map;
 	struct i915_vma *vma = ring->vma;
 	void *addr;
 	int ret;
 
 	GEM_BUG_ON(ring->vaddr);
 
-	if (ring->needs_iomap)
+	map = HAS_LLC(ring->engine->i915) ? I915_MAP_WB : I915_MAP_WC;
+
+	if (vma->obj->stolen)
 		flags |= PIN_MAPPABLE;
 
 	if (!(vma->flags & I915_VMA_GLOBAL_BIND)) {
-		if (flags & PIN_MAPPABLE)
+		if (flags & PIN_MAPPABLE || map == I915_MAP_WC)
 			ret = i915_gem_object_set_to_gtt_domain(vma->obj, true);
 		else
 			ret = i915_gem_object_set_to_cpu_domain(vma->obj, true);
@@ -1914,10 +1917,10 @@ int intel_ring_pin(struct intel_ring *ring)
 	if (unlikely(ret))
 		return ret;
 
-	if (flags & PIN_MAPPABLE)
+	if (i915_vma_is_map_and_fenceable(vma))
 		addr = (void __force *)i915_vma_pin_iomap(vma);
 	else
-		addr = i915_gem_object_pin_map(vma->obj, I915_MAP_WB);
+		addr = i915_gem_object_pin_map(vma->obj, map);
 	if (IS_ERR(addr))
 		goto err;
 
@@ -1934,7 +1937,7 @@ void intel_ring_unpin(struct intel_ring *ring)
 	GEM_BUG_ON(!ring->vma);
 	GEM_BUG_ON(!ring->vaddr);
 
-	if (ring->needs_iomap)
+	if (i915_vma_is_map_and_fenceable(ring->vma))
 		i915_vma_unpin_iomap(ring->vma);
 	else
 		i915_gem_object_unpin_map(ring->vma->obj);
@@ -2005,8 +2008,6 @@ intel_engine_create_ring(struct intel_engine_cs *engine, int size)
 		return ERR_CAST(vma);
 	}
 	ring->vma = vma;
-	if (!HAS_LLC(engine->i915) || vma->obj->stolen)
-		ring->needs_iomap = true;
 
 	list_add(&ring->link, &engine->buffers);
 	return ring;
