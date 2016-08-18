@@ -754,6 +754,15 @@ i915_gem_gtt_pread(struct drm_device *dev,
 	int ret;
 
 	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, PIN_MAPPABLE);
+	if (!IS_ERR(vma)) {
+		node.start = i915_ggtt_offset(vma);
+		node.allocated = false;
+		ret = i915_gem_object_put_fence(obj);
+		if (ret) {
+			i915_vma_unpin(vma);
+			vma = ERR_PTR(ret);
+		}
+	}
 	if (IS_ERR(vma)) {
 		ret = insert_mappable_node(dev_priv, &node, PAGE_SIZE);
 		if (ret)
@@ -766,12 +775,6 @@ i915_gem_gtt_pread(struct drm_device *dev,
 		}
 
 		i915_gem_object_pin_pages(obj);
-	} else {
-		node.start = i915_ggtt_offset(vma);
-		node.allocated = false;
-		ret = i915_gem_object_put_fence(obj);
-		if (ret)
-			goto out_unpin;
 	}
 
 	ret = i915_gem_object_set_to_gtt_domain(obj, false);
@@ -1058,6 +1061,15 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_private *i915,
 
 	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
 				       PIN_MAPPABLE | PIN_NONBLOCK);
+	if (!IS_ERR(vma)) {
+		node.start = i915_ggtt_offset(vma);
+		node.allocated = false;
+		ret = i915_gem_object_put_fence(obj);
+		if (ret) {
+			i915_vma_unpin(vma);
+			vma = ERR_PTR(ret);
+		}
+	}
 	if (IS_ERR(vma)) {
 		ret = insert_mappable_node(i915, &node, PAGE_SIZE);
 		if (ret)
@@ -1070,12 +1082,6 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_private *i915,
 		}
 
 		i915_gem_object_pin_pages(obj);
-	} else {
-		node.start = i915_ggtt_offset(vma);
-		node.allocated = false;
-		ret = i915_gem_object_put_fence(obj);
-		if (ret)
-			goto out_unpin;
 	}
 
 	ret = i915_gem_object_set_to_gtt_domain(obj, true);

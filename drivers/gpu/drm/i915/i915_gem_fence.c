@@ -298,7 +298,7 @@ i915_gem_object_put_fence(struct drm_i915_gem_object *obj)
 
 	fence = &dev_priv->fence_regs[obj->fence_reg];
 
-	if (WARN_ON(fence->pin_count))
+	if (fence->pin_count)
 		return -EBUSY;
 
 	i915_gem_object_fence_lost(obj);
