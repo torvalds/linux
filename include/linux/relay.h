@@ -288,5 +288,11 @@ static inline void subbuf_start_reserve(struct rchan_buf *buf,
  */
 extern const struct file_operations relay_file_operations;
 
+#ifdef CONFIG_RELAY
+int relay_prepare_cpu(unsigned int cpu);
+#else
+#define relay_prepare_cpu     NULL
+#endif
+
 #endif /* _LINUX_RELAY_H */
 

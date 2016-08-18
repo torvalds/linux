@@ -513,48 +513,25 @@ static void setup_callbacks(struct rchan *chan,
 	chan->cb = cb;
 }
 
-/**
- * 	relay_hotcpu_callback - CPU hotplug callback
- * 	@nb: notifier block
- * 	@action: hotplug action to take
- * 	@hcpu: CPU number
- *
- * 	Returns the success/failure of the operation. (%NOTIFY_OK, %NOTIFY_BAD)
- */
-static int relay_hotcpu_callback(struct notifier_block *nb,
-				unsigned long action,
-				void *hcpu)
+int relay_prepare_cpu(unsigned int cpu)
 {
-	unsigned int hotcpu = (unsigned long)hcpu;
 	struct rchan *chan;
 	struct rchan_buf *buf;
 
-	switch(action) {
-	case CPU_UP_PREPARE:
-	case CPU_UP_PREPARE_FROZEN:
-		mutex_lock(&relay_channels_mutex);
-		list_for_each_entry(chan, &relay_channels, list) {
-			if ((buf = *per_cpu_ptr(chan->buf, hotcpu)))
-				continue;
-			buf = relay_open_buf(chan, hotcpu);
-			if (!buf) {
-				printk(KERN_ERR
-					"relay_hotcpu_callback: cpu %d buffer "
-					"creation failed\n", hotcpu);
-				mutex_unlock(&relay_channels_mutex);
-				return notifier_from_errno(-ENOMEM);
-			}
-			*per_cpu_ptr(chan->buf, hotcpu) = buf;
+	mutex_lock(&relay_channels_mutex);
+	list_for_each_entry(chan, &relay_channels, list) {
+		if ((buf = *per_cpu_ptr(chan->buf, cpu)))
+			continue;
+		buf = relay_open_buf(chan, cpu);
+		if (!buf) {
+			pr_err("relay: cpu %d buffer creation failed\n", cpu);
+			mutex_unlock(&relay_channels_mutex);
+			return -ENOMEM;
 		}
-		mutex_unlock(&relay_channels_mutex);
-		break;
-	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
-		/* No need to flush the cpu : will be flushed upon
-		 * final relay_flush() call. */
-		break;
+		*per_cpu_ptr(chan->buf, cpu) = buf;
 	}
-	return NOTIFY_OK;
+	mutex_unlock(&relay_channels_mutex);
+	return 0;
 }
 
 /**
@@ -1387,12 +1364,3 @@ const struct file_operations relay_file_operations = {
 	.splice_read	= relay_file_splice_read,
 };
 EXPORT_SYMBOL_GPL(relay_file_operations);
-
-static __init int relay_init(void)
-{
-
-	hotcpu_notifier(relay_hotcpu_callback, 0);
-	return 0;
-}
-
-early_initcall(relay_init);
