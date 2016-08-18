@@ -31,7 +31,6 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/irq.h>
-#include <linux/clk.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
 #include <linux/of_device.h>
@@ -55,7 +54,6 @@ struct omap_mcpdm {
 	unsigned long phys_base;
 	void __iomem *io_base;
 	int irq;
-	struct clk *pdmclk;
 
 	struct mutex mutex;
 
@@ -390,7 +388,6 @@ static int omap_mcpdm_probe(struct snd_soc_dai *dai)
 	struct omap_mcpdm *mcpdm = snd_soc_dai_get_drvdata(dai);
 	int ret;
 
-	clk_prepare_enable(mcpdm->pdmclk);
 	pm_runtime_enable(mcpdm->dev);
 
 	/* Disable lines while request is ongoing */
@@ -425,7 +422,6 @@ static int omap_mcpdm_remove(struct snd_soc_dai *dai)
 
 	pm_runtime_disable(mcpdm->dev);
 
-	clk_disable_unprepare(mcpdm->pdmclk);
 	return 0;
 }
 
@@ -445,16 +441,12 @@ static int omap_mcpdm_suspend(struct snd_soc_dai *dai)
 		mcpdm->pm_active_count++;
 	}
 
-	clk_disable_unprepare(mcpdm->pdmclk);
-
 	return 0;
 }
 
 static int omap_mcpdm_resume(struct snd_soc_dai *dai)
 {
 	struct omap_mcpdm *mcpdm = snd_soc_dai_get_drvdata(dai);
-
-	clk_prepare_enable(mcpdm->pdmclk);
 
 	if (mcpdm->pm_active_count) {
 		while (mcpdm->pm_active_count--)
@@ -548,15 +540,6 @@ static int asoc_mcpdm_probe(struct platform_device *pdev)
 		return mcpdm->irq;
 
 	mcpdm->dev = &pdev->dev;
-
-	mcpdm->pdmclk = devm_clk_get(&pdev->dev, "pdmclk");
-	if (IS_ERR(mcpdm->pdmclk)) {
-		if (PTR_ERR(mcpdm->pdmclk) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-		dev_warn(&pdev->dev, "Error getting pdmclk (%ld)!\n",
-			 PTR_ERR(mcpdm->pdmclk));
-		mcpdm->pdmclk = NULL;
-	}
 
 	ret =  devm_snd_soc_register_component(&pdev->dev,
 					       &omap_mcpdm_component,
