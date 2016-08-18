@@ -95,7 +95,9 @@ and radio devices supporting a set of related functions like video
 capturing, video overlay and VBI capturing. See :ref:`open` for an
 introduction.
 
+.. tabularcolumns:: |p{5.5cm}|p{6.5cm}|p{5.5cm}
 
+.. cssclass:: longtable
 
 .. flat-table::
     :header-rows:  1
@@ -104,7 +106,7 @@ introduction.
 
     -  .. row 1
 
-       -  struct :c:type:`struct video_capability` ``type``
+       -  ``struct video_capability`` ``type``
 
        -  struct :ref:`v4l2_capability <v4l2-capability>`
 	  ``capabilities`` flags
