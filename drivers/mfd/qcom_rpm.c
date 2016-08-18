@@ -21,6 +21,7 @@
 #include <linux/mfd/qcom_rpm.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
+#include <linux/clk.h>
 
 #include <dt-bindings/mfd/qcom-rpm.h>
 
@@ -48,6 +49,7 @@ struct qcom_rpm {
 	struct regmap *ipc_regmap;
 	unsigned ipc_offset;
 	unsigned ipc_bit;
+	struct clk *ramclk;
 
 	struct completion ack;
 	struct mutex lock;
@@ -552,6 +554,20 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 	mutex_init(&rpm->lock);
 	init_completion(&rpm->ack);
 
+	/* Enable message RAM clock */
+	rpm->ramclk = devm_clk_get(&pdev->dev, "ram");
+	if (IS_ERR(rpm->ramclk)) {
+		ret = PTR_ERR(rpm->ramclk);
+		if (ret == -EPROBE_DEFER)
+			return ret;
+		/*
+		 * Fall through in all other cases, as the clock is
+		 * optional. (Does not exist on all platforms.)
+		 */
+		rpm->ramclk = NULL;
+	}
+	clk_prepare_enable(rpm->ramclk); /* Accepts NULL */
+
 	irq_ack = platform_get_irq_byname(pdev, "ack");
 	if (irq_ack < 0) {
 		dev_err(&pdev->dev, "required ack interrupt missing\n");
@@ -672,7 +688,11 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 
 static int qcom_rpm_remove(struct platform_device *pdev)
 {
+	struct qcom_rpm *rpm = dev_get_drvdata(&pdev->dev);
+
 	of_platform_depopulate(&pdev->dev);
+	clk_disable_unprepare(rpm->ramclk);
+
 	return 0;
 }
 
