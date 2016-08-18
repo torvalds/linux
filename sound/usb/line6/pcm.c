@@ -55,7 +55,6 @@ static int snd_line6_impulse_volume_put(struct snd_kcontrol *kcontrol,
 		err = line6_pcm_acquire(line6pcm, LINE6_STREAM_IMPULSE);
 		if (err < 0) {
 			line6pcm->impulse_volume = 0;
-			line6_pcm_release(line6pcm, LINE6_STREAM_IMPULSE);
 			return err;
 		}
 	} else {
