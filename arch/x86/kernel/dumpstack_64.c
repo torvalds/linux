@@ -202,7 +202,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 
 			bp = ops->walk_stack(task, stack, bp, ops,
 					     data, stack_end, &graph);
-			ops->stack(data, "<EOE>");
+			ops->stack(data, "EOE");
 			/*
 			 * We link to the next stack via the
 			 * second-to-last pointer (index -2 to end) in the
