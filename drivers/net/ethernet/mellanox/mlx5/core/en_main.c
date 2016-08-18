@@ -3387,6 +3387,7 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 	queue_work(priv->wq, &priv->set_rx_mode_work);
 
 	if (MLX5_CAP_GEN(mdev, vport_group_manager)) {
+		mlx5_query_nic_vport_mac_address(mdev, 0, rep.hw_id);
 		rep.load = mlx5e_nic_rep_load;
 		rep.unload = mlx5e_nic_rep_unload;
 		rep.vport = 0;
@@ -3505,9 +3506,12 @@ static void mlx5e_register_vport_rep(struct mlx5_core_dev *mdev)
 	struct mlx5_eswitch *esw = mdev->priv.eswitch;
 	int total_vfs = MLX5_TOTAL_VPORTS(mdev);
 	int vport;
+	u8 mac[ETH_ALEN];
 
 	if (!MLX5_CAP_GEN(mdev, vport_group_manager))
 		return;
+
+	mlx5_query_nic_vport_mac_address(mdev, 0, mac);
 
 	for (vport = 1; vport < total_vfs; vport++) {
 		struct mlx5_eswitch_rep rep;
@@ -3515,6 +3519,7 @@ static void mlx5e_register_vport_rep(struct mlx5_core_dev *mdev)
 		rep.load = mlx5e_vport_rep_load;
 		rep.unload = mlx5e_vport_rep_unload;
 		rep.vport = vport;
+		ether_addr_copy(rep.hw_id, mac);
 		mlx5_eswitch_register_vport_rep(esw, &rep);
 	}
 }
