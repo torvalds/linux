@@ -452,6 +452,15 @@
 				#clock-cells = <1>;
 				reg = <0x0 0x0 0x0 0x3db>;
 			};
+
+			mailbox: mailbox@404 {
+				compatible = "amlogic,meson-gxbb-mhu";
+				reg = <0 0x404 0 0x4c>;
+				interrupts = <0 208 IRQ_TYPE_EDGE_RISING>,
+					     <0 209 IRQ_TYPE_EDGE_RISING>,
+					     <0 210 IRQ_TYPE_EDGE_RISING>;
+				#mbox-cells = <1>;
+			};
 		};
 
 		apb: apb@d0000000 {
