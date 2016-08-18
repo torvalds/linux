@@ -46,6 +46,8 @@
 #include <dt-bindings/gpio/meson-gxbb-gpio.h>
 #include <dt-bindings/reset/amlogic,meson-gxbb-reset.h>
 #include <dt-bindings/clock/gxbb-clkc.h>
+#include <dt-bindings/clock/gxbb-aoclkc.h>
+#include <dt-bindings/reset/gxbb-aoclkc.h>
 
 / {
 	compatible = "amlogic,meson-gxbb";
@@ -210,6 +212,13 @@
 						function = "uart_ao";
 					};
 				};
+			};
+
+			clkc_AO: clock-controller@040 {
+				compatible = "amlogic,gxbb-aoclkc";
+				reg = <0x0 0x00040 0x0 0x4>;
+				#clock-cells = <1>;
+				#reset-cells = <1>;
 			};
 
 			uart_AO: serial@4c0 {
