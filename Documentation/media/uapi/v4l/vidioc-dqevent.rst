@@ -42,7 +42,9 @@ call.
 
 .. _v4l2-event:
 
-.. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{7.0cm}|p{3.5cm}|
+.. tabularcolumns:: |p{3.0cm}|p{4.3cm}|p{2.5cm}|p{7.7cm}|
+
+.. cssclass: longtable
 
 .. flat-table:: struct v4l2_event
     :header-rows:  0
@@ -328,7 +330,7 @@ call.
 
 .. _v4l2-event-ctrl:
 
-.. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{7.0cm}|p{3.5cm}|
+.. tabularcolumns:: |p{3.5cm}|p{3.0cm}|p{1.8cm}|p{8.5cm}|
 
 .. flat-table:: struct v4l2_event_ctrl
     :header-rows:  0
