@@ -2569,6 +2569,7 @@ static int mlx5e_change_mtu(struct net_device *netdev, int new_mtu)
 	u16 max_mtu;
 	u16 min_mtu;
 	int err = 0;
+	bool reset;
 
 	mlx5_query_port_max_mtu(mdev, &max_mtu, 1);
 
@@ -2584,14 +2585,18 @@ static int mlx5e_change_mtu(struct net_device *netdev, int new_mtu)
 
 	mutex_lock(&priv->state_lock);
 
+	reset = !priv->params.lro_en &&
+		(priv->params.rq_wq_type !=
+		 MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ);
+
 	was_opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
-	if (was_opened)
+	if (was_opened && reset)
 		mlx5e_close_locked(netdev);
 
 	netdev->mtu = new_mtu;
 	mlx5e_set_dev_port_mtu(netdev);
 
-	if (was_opened)
+	if (was_opened && reset)
 		err = mlx5e_open_locked(netdev);
 
 	mutex_unlock(&priv->state_lock);
