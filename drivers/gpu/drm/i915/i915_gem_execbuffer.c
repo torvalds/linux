@@ -331,6 +331,7 @@ static void reloc_cache_init(struct reloc_cache *cache,
 	cache->vaddr = 0;
 	cache->i915 = i915;
 	cache->use_64bit_reloc = INTEL_GEN(cache->i915) >= 8;
+	cache->node.allocated = false;
 }
 
 static inline void *unmask_page(unsigned long p)
@@ -360,8 +361,19 @@ static void reloc_cache_fini(struct reloc_cache *cache)
 		kunmap_atomic(vaddr);
 		i915_gem_obj_finish_shmem_access((struct drm_i915_gem_object *)cache->node.mm);
 	} else {
+		wmb();
 		io_mapping_unmap_atomic((void __iomem *)vaddr);
-		i915_vma_unpin((struct i915_vma *)cache->node.mm);
+		if (cache->node.allocated) {
+			struct i915_ggtt *ggtt = &cache->i915->ggtt;
+
+			ggtt->base.clear_range(&ggtt->base,
+					       cache->node.start,
+					       cache->node.size,
+					       true);
+			drm_mm_remove_node(&cache->node);
+		} else {
+			i915_vma_unpin((struct i915_vma *)cache->node.mm);
+		}
 	}
 }
 
@@ -401,7 +413,18 @@ static void *reloc_iomap(struct drm_i915_gem_object *obj,
 			 struct reloc_cache *cache,
 			 int page)
 {
+	struct i915_ggtt *ggtt = &cache->i915->ggtt;
+	unsigned long offset;
 	void *vaddr;
+
+	if (cache->node.allocated) {
+		wmb();
+		ggtt->base.insert_page(&ggtt->base,
+				       i915_gem_object_get_dma_address(obj, page),
+				       cache->node.start, I915_CACHE_NONE, 0);
+		cache->page = page;
+		return unmask_page(cache->vaddr);
+	}
 
 	if (cache->vaddr) {
 		io_mapping_unmap_atomic(unmask_page(cache->vaddr));
@@ -418,21 +441,38 @@ static void *reloc_iomap(struct drm_i915_gem_object *obj,
 
 		vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
 					       PIN_MAPPABLE | PIN_NONBLOCK);
-		if (IS_ERR(vma))
-			return NULL;
+		if (IS_ERR(vma)) {
+			memset(&cache->node, 0, sizeof(cache->node));
+			ret = drm_mm_insert_node_in_range_generic
+				(&ggtt->base.mm, &cache->node,
+				 4096, 0, 0,
+				 0, ggtt->mappable_end,
+				 DRM_MM_SEARCH_DEFAULT,
+				 DRM_MM_CREATE_DEFAULT);
+			if (ret)
+				return ERR_PTR(ret);
+		} else {
+			ret = i915_gem_object_put_fence(obj);
+			if (ret) {
+				i915_vma_unpin(vma);
+				return ERR_PTR(ret);
+			}
 
-		ret = i915_gem_object_put_fence(obj);
-		if (ret) {
-			i915_vma_unpin(vma);
-			return ERR_PTR(ret);
+			cache->node.start = vma->node.start;
+			cache->node.mm = (void *)vma;
 		}
-
-		cache->node.start = vma->node.start;
-		cache->node.mm = (void *)vma;
 	}
 
-	vaddr = io_mapping_map_atomic_wc(cache->i915->ggtt.mappable,
-					 cache->node.start + (page << PAGE_SHIFT));
+	offset = cache->node.start;
+	if (cache->node.allocated) {
+		ggtt->base.insert_page(&ggtt->base,
+				       i915_gem_object_get_dma_address(obj, page),
+				       offset, I915_CACHE_NONE, 0);
+	} else {
+		offset += page << PAGE_SHIFT;
+	}
+
+	vaddr = io_mapping_map_atomic_wc(cache->i915->ggtt.mappable, offset);
 	cache->page = page;
 	cache->vaddr = (unsigned long)vaddr;
 
