@@ -3424,6 +3424,13 @@ static int vop_early_suspend(struct rk_lcdc_driver *dev_drv)
 		vop_mask_writel(vop_dev, INTR_CLEAR0, INTR_MASK, INTR_MASK);
 		vop_msk_reg(vop_dev, DSP_CTRL0, V_DSP_OUT_ZERO(1));
 		vop_msk_reg(vop_dev, SYS_CTRL, V_VOP_STANDBY_EN(1));
+		if (VOP_CHIP(vop_dev) == VOP_RK3399) {
+			vop_msk_reg(vop_dev, WIN0_CTRL0, V_WIN0_EN(0));
+			vop_msk_reg(vop_dev, WIN1_CTRL0, V_WIN1_EN(0));
+			vop_msk_reg(vop_dev, WIN2_CTRL0, V_WIN2_EN(0));
+			vop_msk_reg(vop_dev, WIN3_CTRL0, V_WIN3_EN(0));
+			vop_msk_reg(vop_dev, AFBCD0_CTRL, V_VOP_FBDC_EN(0));
+		}
 		vop_cfg_done(vop_dev);
 
 		if (dev_drv->iommu_enabled && dev_drv->mmu_dev) {
