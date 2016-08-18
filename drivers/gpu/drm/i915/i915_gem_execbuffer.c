@@ -39,6 +39,8 @@
 #include "intel_drv.h"
 #include "intel_frontbuffer.h"
 
+#define DBG_USE_CPU_RELOC 0 /* -1 force GTT relocs; 1 force CPU relocs */
+
 #define  __EXEC_OBJECT_HAS_PIN		(1<<31)
 #define  __EXEC_OBJECT_HAS_FENCE	(1<<30)
 #define  __EXEC_OBJECT_NEEDS_MAP	(1<<29)
@@ -59,6 +61,7 @@ struct i915_execbuffer_params {
 };
 
 struct eb_vmas {
+	struct drm_i915_private *i915;
 	struct list_head vmas;
 	int and;
 	union {
@@ -68,7 +71,8 @@ struct eb_vmas {
 };
 
 static struct eb_vmas *
-eb_create(struct drm_i915_gem_execbuffer2 *args)
+eb_create(struct drm_i915_private *i915,
+	  struct drm_i915_gem_execbuffer2 *args)
 {
 	struct eb_vmas *eb = NULL;
 
@@ -95,6 +99,7 @@ eb_create(struct drm_i915_gem_execbuffer2 *args)
 	} else
 		eb->and = -args->buffer_count;
 
+	eb->i915 = i915;
 	INIT_LIST_HEAD(&eb->vmas);
 	return eb;
 }
@@ -278,6 +283,9 @@ static void eb_destroy(struct eb_vmas *eb)
 
 static inline int use_cpu_reloc(struct drm_i915_gem_object *obj)
 {
+	if (DBG_USE_CPU_RELOC)
+		return DBG_USE_CPU_RELOC > 0;
+
 	return (HAS_LLC(obj->base.dev) ||
 		obj->base.write_domain == I915_GEM_DOMAIN_CPU ||
 		obj->cache_level != I915_CACHE_NONE);
@@ -302,37 +310,58 @@ static inline uint64_t gen8_noncanonical_addr(uint64_t address)
 }
 
 static inline uint64_t
-relocation_target(struct drm_i915_gem_relocation_entry *reloc,
+relocation_target(const struct drm_i915_gem_relocation_entry *reloc,
 		  uint64_t target_offset)
 {
 	return gen8_canonical_addr((int)reloc->delta + target_offset);
 }
 
 struct reloc_cache {
-	void *vaddr;
+	struct drm_i915_private *i915;
+	struct drm_mm_node node;
+	unsigned long vaddr;
 	unsigned int page;
-	enum { KMAP, IOMAP } type;
+	bool use_64bit_reloc;
 };
 
-static void reloc_cache_init(struct reloc_cache *cache)
+static void reloc_cache_init(struct reloc_cache *cache,
+			     struct drm_i915_private *i915)
 {
 	cache->page = -1;
-	cache->vaddr = NULL;
+	cache->vaddr = 0;
+	cache->i915 = i915;
+	cache->use_64bit_reloc = INTEL_GEN(cache->i915) >= 8;
 }
+
+static inline void *unmask_page(unsigned long p)
+{
+	return (void *)(uintptr_t)(p & PAGE_MASK);
+}
+
+static inline unsigned int unmask_flags(unsigned long p)
+{
+	return p & ~PAGE_MASK;
+}
+
+#define KMAP 0x4 /* after CLFLUSH_FLAGS */
 
 static void reloc_cache_fini(struct reloc_cache *cache)
 {
+	void *vaddr;
+
 	if (!cache->vaddr)
 		return;
 
-	switch (cache->type) {
-	case KMAP:
-		kunmap_atomic(cache->vaddr);
-		break;
+	vaddr = unmask_page(cache->vaddr);
+	if (cache->vaddr & KMAP) {
+		if (cache->vaddr & CLFLUSH_AFTER)
+			mb();
 
-	case IOMAP:
-		io_mapping_unmap_atomic(cache->vaddr);
-		break;
+		kunmap_atomic(vaddr);
+		i915_gem_obj_finish_shmem_access((struct drm_i915_gem_object *)cache->node.mm);
+	} else {
+		io_mapping_unmap_atomic((void __iomem *)vaddr);
+		i915_vma_unpin((struct i915_vma *)cache->node.mm);
 	}
 }
 
@@ -340,147 +369,142 @@ static void *reloc_kmap(struct drm_i915_gem_object *obj,
 			struct reloc_cache *cache,
 			int page)
 {
-	if (cache->page == page)
-		return cache->vaddr;
+	void *vaddr;
 
-	if (cache->vaddr)
-		kunmap_atomic(cache->vaddr);
+	if (cache->vaddr) {
+		kunmap_atomic(unmask_page(cache->vaddr));
+	} else {
+		unsigned int flushes;
+		int ret;
 
+		ret = i915_gem_obj_prepare_shmem_write(obj, &flushes);
+		if (ret)
+			return ERR_PTR(ret);
+
+		BUILD_BUG_ON(KMAP & CLFLUSH_FLAGS);
+		BUILD_BUG_ON((KMAP | CLFLUSH_FLAGS) & PAGE_MASK);
+
+		cache->vaddr = flushes | KMAP;
+		cache->node.mm = (void *)obj;
+		if (flushes)
+			mb();
+	}
+
+	vaddr = kmap_atomic(i915_gem_object_get_dirty_page(obj, page));
+	cache->vaddr = unmask_flags(cache->vaddr) | (unsigned long)vaddr;
 	cache->page = page;
-	cache->vaddr = kmap_atomic(i915_gem_object_get_dirty_page(obj, page));
-	cache->type = KMAP;
 
-	return cache->vaddr;
+	return vaddr;
 }
 
-static int
-relocate_entry_cpu(struct drm_i915_gem_object *obj,
-		   struct drm_i915_gem_relocation_entry *reloc,
-		   struct reloc_cache *cache,
-		   uint64_t target_offset)
-{
-	struct drm_device *dev = obj->base.dev;
-	uint32_t page_offset = offset_in_page(reloc->offset);
-	uint64_t delta = relocation_target(reloc, target_offset);
-	char *vaddr;
-	int ret;
-
-	ret = i915_gem_object_set_to_cpu_domain(obj, true);
-	if (ret)
-		return ret;
-
-	vaddr = reloc_kmap(obj, cache, reloc->offset >> PAGE_SHIFT);
-	*(uint32_t *)(vaddr + page_offset) = lower_32_bits(delta);
-
-	if (INTEL_GEN(dev) >= 8) {
-		page_offset += sizeof(uint32_t);
-		if (page_offset == PAGE_SIZE) {
-			vaddr = reloc_kmap(obj, cache, cache->page + 1);
-			page_offset = 0;
-		}
-		*(uint32_t *)(vaddr + page_offset) = upper_32_bits(delta);
-	}
-
-	return 0;
-}
-
-static void *reloc_iomap(struct drm_i915_private *i915,
+static void *reloc_iomap(struct drm_i915_gem_object *obj,
 			 struct reloc_cache *cache,
-			 uint64_t offset)
+			 int page)
 {
-	if (cache->page == offset >> PAGE_SHIFT)
-		return cache->vaddr;
+	void *vaddr;
 
-	if (cache->vaddr)
-		io_mapping_unmap_atomic(cache->vaddr);
+	if (cache->vaddr) {
+		io_mapping_unmap_atomic(unmask_page(cache->vaddr));
+	} else {
+		struct i915_vma *vma;
+		int ret;
 
-	cache->page = offset >> PAGE_SHIFT;
-	cache->vaddr =
-		io_mapping_map_atomic_wc(i915->ggtt.mappable,
-					 offset & PAGE_MASK);
-	cache->type = IOMAP;
+		if (use_cpu_reloc(obj))
+			return NULL;
 
-	return cache->vaddr;
-}
+		ret = i915_gem_object_set_to_gtt_domain(obj, true);
+		if (ret)
+			return ERR_PTR(ret);
 
-static int
-relocate_entry_gtt(struct drm_i915_gem_object *obj,
-		   struct drm_i915_gem_relocation_entry *reloc,
-		   struct reloc_cache *cache,
-		   uint64_t target_offset)
-{
-	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
-	struct i915_vma *vma;
-	uint64_t delta = relocation_target(reloc, target_offset);
-	uint64_t offset;
-	void __iomem *reloc_page;
-	int ret;
+		vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
+					       PIN_MAPPABLE | PIN_NONBLOCK);
+		if (IS_ERR(vma))
+			return NULL;
 
-	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, PIN_MAPPABLE);
-	if (IS_ERR(vma))
-		return PTR_ERR(vma);
+		ret = i915_gem_object_put_fence(obj);
+		if (ret) {
+			i915_vma_unpin(vma);
+			return ERR_PTR(ret);
+		}
 
-	ret = i915_gem_object_set_to_gtt_domain(obj, true);
-	if (ret)
-		goto unpin;
-
-	ret = i915_gem_object_put_fence(obj);
-	if (ret)
-		goto unpin;
-
-	/* Map the page containing the relocation we're going to perform.  */
-	offset = vma->node.start + reloc->offset;
-	reloc_page = reloc_iomap(dev_priv, cache, offset);
-	iowrite32(lower_32_bits(delta), reloc_page + offset_in_page(offset));
-
-	if (INTEL_GEN(dev_priv) >= 8) {
-		offset += sizeof(uint32_t);
-		if (offset_in_page(offset) == 0)
-			reloc_page = reloc_iomap(dev_priv, cache, offset);
-		iowrite32(upper_32_bits(delta),
-			  reloc_page + offset_in_page(offset));
+		cache->node.start = vma->node.start;
+		cache->node.mm = (void *)vma;
 	}
 
-unpin:
-	__i915_vma_unpin(vma);
-	return ret;
+	vaddr = io_mapping_map_atomic_wc(cache->i915->ggtt.mappable,
+					 cache->node.start + (page << PAGE_SHIFT));
+	cache->page = page;
+	cache->vaddr = (unsigned long)vaddr;
+
+	return vaddr;
 }
 
-static void
-clflush_write32(void *addr, uint32_t value)
+static void *reloc_vaddr(struct drm_i915_gem_object *obj,
+			 struct reloc_cache *cache,
+			 int page)
 {
-	/* This is not a fast path, so KISS. */
-	drm_clflush_virt_range(addr, sizeof(uint32_t));
-	*(uint32_t *)addr = value;
-	drm_clflush_virt_range(addr, sizeof(uint32_t));
+	void *vaddr;
+
+	if (cache->page == page) {
+		vaddr = unmask_page(cache->vaddr);
+	} else {
+		vaddr = NULL;
+		if ((cache->vaddr & KMAP) == 0)
+			vaddr = reloc_iomap(obj, cache, page);
+		if (!vaddr)
+			vaddr = reloc_kmap(obj, cache, page);
+	}
+
+	return vaddr;
+}
+
+static void clflush_write32(u32 *addr, u32 value, unsigned int flushes)
+{
+	if (unlikely(flushes & (CLFLUSH_BEFORE | CLFLUSH_AFTER))) {
+		if (flushes & CLFLUSH_BEFORE) {
+			clflushopt(addr);
+			mb();
+		}
+
+		*addr = value;
+
+		/* Writes to the same cacheline are serialised by the CPU
+		 * (including clflush). On the write path, we only require
+		 * that it hits memory in an orderly fashion and place
+		 * mb barriers at the start and end of the relocation phase
+		 * to ensure ordering of clflush wrt to the system.
+		 */
+		if (flushes & CLFLUSH_AFTER)
+			clflushopt(addr);
+	} else
+		*addr = value;
 }
 
 static int
-relocate_entry_clflush(struct drm_i915_gem_object *obj,
-		       struct drm_i915_gem_relocation_entry *reloc,
-		       struct reloc_cache *cache,
-		       uint64_t target_offset)
+relocate_entry(struct drm_i915_gem_object *obj,
+	       const struct drm_i915_gem_relocation_entry *reloc,
+	       struct reloc_cache *cache,
+	       u64 target_offset)
 {
-	struct drm_device *dev = obj->base.dev;
-	uint32_t page_offset = offset_in_page(reloc->offset);
-	uint64_t delta = relocation_target(reloc, target_offset);
-	char *vaddr;
-	int ret;
+	u64 offset = reloc->offset;
+	bool wide = cache->use_64bit_reloc;
+	void *vaddr;
 
-	ret = i915_gem_object_set_to_gtt_domain(obj, true);
-	if (ret)
-		return ret;
+	target_offset = relocation_target(reloc, target_offset);
+repeat:
+	vaddr = reloc_vaddr(obj, cache, offset >> PAGE_SHIFT);
+	if (IS_ERR(vaddr))
+		return PTR_ERR(vaddr);
 
-	vaddr = reloc_kmap(obj, cache, reloc->offset >> PAGE_SHIFT);
-	clflush_write32(vaddr + page_offset, lower_32_bits(delta));
+	clflush_write32(vaddr + offset_in_page(offset),
+			lower_32_bits(target_offset),
+			cache->vaddr);
 
-	if (INTEL_GEN(dev) >= 8) {
-		page_offset += sizeof(uint32_t);
-		if (page_offset == PAGE_SIZE) {
-			vaddr = reloc_kmap(obj, cache, cache->page + 1);
-			page_offset = 0;
-		}
-		clflush_write32(vaddr + page_offset, upper_32_bits(delta));
+	if (wide) {
+		offset += sizeof(u32);
+		target_offset >>= 32;
+		wide = false;
+		goto repeat;
 	}
 
 	return 0;
@@ -567,7 +591,7 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 
 	/* Check that the relocation address is valid... */
 	if (unlikely(reloc->offset >
-		obj->base.size - (INTEL_INFO(dev)->gen >= 8 ? 8 : 4))) {
+		     obj->base.size - (cache->use_64bit_reloc ? 8 : 4))) {
 		DRM_DEBUG("Relocation beyond object bounds: "
 			  "obj %p target %d offset %d size %d.\n",
 			  obj, reloc->target_handle,
@@ -587,23 +611,12 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 	if (pagefault_disabled() && !object_is_idle(obj))
 		return -EFAULT;
 
-	if (use_cpu_reloc(obj))
-		ret = relocate_entry_cpu(obj, reloc, cache, target_offset);
-	else if (obj->map_and_fenceable)
-		ret = relocate_entry_gtt(obj, reloc, cache, target_offset);
-	else if (static_cpu_has(X86_FEATURE_CLFLUSH))
-		ret = relocate_entry_clflush(obj, reloc, cache, target_offset);
-	else {
-		WARN_ONCE(1, "Impossible case in relocation handling\n");
-		ret = -ENODEV;
-	}
-
+	ret = relocate_entry(obj, reloc, cache, target_offset);
 	if (ret)
 		return ret;
 
 	/* and update the user's relocation entry */
 	reloc->presumed_offset = target_offset;
-
 	return 0;
 }
 
@@ -619,7 +632,7 @@ i915_gem_execbuffer_relocate_vma(struct i915_vma *vma,
 	int remain, ret = 0;
 
 	user_relocs = u64_to_user_ptr(entry->relocs_ptr);
-	reloc_cache_init(&cache);
+	reloc_cache_init(&cache, eb->i915);
 
 	remain = entry->relocation_count;
 	while (remain) {
@@ -668,7 +681,7 @@ i915_gem_execbuffer_relocate_vma_slow(struct i915_vma *vma,
 	struct reloc_cache cache;
 	int i, ret = 0;
 
-	reloc_cache_init(&cache);
+	reloc_cache_init(&cache, eb->i915);
 	for (i = 0; i < entry->relocation_count; i++) {
 		ret = i915_gem_execbuffer_relocate_entry(vma->obj, eb, &relocs[i], &cache);
 		if (ret)
@@ -1647,7 +1660,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	memset(&params_master, 0x00, sizeof(params_master));
 
-	eb = eb_create(args);
+	eb = eb_create(dev_priv, args);
 	if (eb == NULL) {
 		i915_gem_context_put(ctx);
 		mutex_unlock(&dev->struct_mutex);
