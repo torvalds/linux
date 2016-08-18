@@ -184,6 +184,7 @@ struct i915_vma {
 	struct sg_table *pages;
 	void __iomem *iomap;
 	u64 size;
+	u64 display_alignment;
 
 	unsigned int flags;
 	/**

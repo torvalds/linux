@@ -3050,7 +3050,6 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 	struct drm_i915_private *dev_priv = to_i915(vma->vm->dev);
 	struct drm_i915_gem_object *obj = vma->obj;
 	u64 start, end;
-	u64 min_alignment;
 	int ret;
 
 	GEM_BUG_ON(vma->flags & (I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND));
@@ -3061,17 +3060,10 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 		size = i915_gem_get_ggtt_size(dev_priv, size,
 					      i915_gem_object_get_tiling(obj));
 
-	min_alignment =
-		i915_gem_get_ggtt_alignment(dev_priv, size,
-					    i915_gem_object_get_tiling(obj),
-					    flags & PIN_MAPPABLE);
-	if (alignment == 0)
-		alignment = min_alignment;
-	if (alignment & (min_alignment - 1)) {
-		DRM_DEBUG("Invalid object alignment requested %llu, minimum %llu\n",
-			  alignment, min_alignment);
-		return -EINVAL;
-	}
+	alignment = max(max(alignment, vma->display_alignment),
+			i915_gem_get_ggtt_alignment(dev_priv, size,
+						    i915_gem_object_get_tiling(obj),
+						    flags & PIN_MAPPABLE));
 
 	start = flags & PIN_OFFSET_BIAS ? flags & PIN_OFFSET_MASK : 0;
 
@@ -3595,6 +3587,8 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	if (IS_ERR(vma))
 		goto err_unpin_display;
 
+	vma->display_alignment = max_t(u64, vma->display_alignment, alignment);
+
 	WARN_ON(obj->pin_display > i915_vma_pin_count(vma));
 
 	i915_gem_object_flush_cpu_write_domain(obj);
@@ -3625,7 +3619,8 @@ i915_gem_object_unpin_from_display_plane(struct i915_vma *vma)
 	if (WARN_ON(vma->obj->pin_display == 0))
 		return;
 
-	vma->obj->pin_display--;
+	if (--vma->obj->pin_display == 0)
+		vma->display_alignment = 0;
 
 	i915_vma_unpin(vma);
 	WARN_ON(vma->obj->pin_display > i915_vma_pin_count(vma));
