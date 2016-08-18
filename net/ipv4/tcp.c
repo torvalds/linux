@@ -3092,23 +3092,6 @@ struct tcp_md5sig_pool *tcp_get_md5sig_pool(void)
 }
 EXPORT_SYMBOL(tcp_get_md5sig_pool);
 
-int tcp_md5_hash_header(struct tcp_md5sig_pool *hp,
-			const struct tcphdr *th)
-{
-	struct scatterlist sg;
-	struct tcphdr hdr;
-
-	/* We are not allowed to change tcphdr, make a local copy */
-	memcpy(&hdr, th, sizeof(hdr));
-	hdr.check = 0;
-
-	/* options aren't included in the hash */
-	sg_init_one(&sg, &hdr, sizeof(hdr));
-	ahash_request_set_crypt(hp->md5_req, &sg, NULL, sizeof(hdr));
-	return crypto_ahash_update(hp->md5_req);
-}
-EXPORT_SYMBOL(tcp_md5_hash_header);
-
 int tcp_md5_hash_skb_data(struct tcp_md5sig_pool *hp,
 			  const struct sk_buff *skb, unsigned int header_len)
 {
