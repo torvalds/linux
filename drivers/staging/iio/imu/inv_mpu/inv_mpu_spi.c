@@ -62,7 +62,7 @@ static int inv_spi_read(struct inv_mpu_iio_s *st, u8 reg, int len, u8 *data)
 
 	d[0] = (reg | INV_SPI_READ);
 
-	if ((reg == REG_FIFO_R_W) || (reg == FIFO_COUNT_BYTE))
+	if ((reg == REG_FIFO_R_W) || (reg == REG_FIFO_COUNT_H))
 		spi->max_speed_hz = 20000000;
 	else
 		spi->max_speed_hz = 1000000;
