@@ -967,7 +967,7 @@ static void pxa_camera_wakeup(struct pxa_camera_dev *pcdev,
 	vbuf->sequence = pcdev->buf_sequence++;
 	vbuf->field = V4L2_FIELD_NONE;
 	vb2_buffer_done(vb, VB2_BUF_STATE_DONE);
-	dev_dbg(pcdev_to_dev(pcdev), "%s dequeud buffer (buf=0x%p)\n",
+	dev_dbg(pcdev_to_dev(pcdev), "%s dequeued buffer (buf=0x%p)\n",
 		__func__, buf);
 
 	if (list_empty(&pcdev->capture)) {
