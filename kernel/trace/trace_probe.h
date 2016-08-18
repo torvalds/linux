@@ -208,7 +208,7 @@ DEFINE_FETCH_##method(u32)		\
 DEFINE_FETCH_##method(u64)
 
 /* Default (unsigned long) fetch type */
-#define __DEFAULT_FETCH_TYPE(t) u##t
+#define __DEFAULT_FETCH_TYPE(t) x##t
 #define _DEFAULT_FETCH_TYPE(t) __DEFAULT_FETCH_TYPE(t)
 #define DEFAULT_FETCH_TYPE _DEFAULT_FETCH_TYPE(BITS_PER_LONG)
 #define DEFAULT_FETCH_TYPE_STR __stringify(DEFAULT_FETCH_TYPE)
