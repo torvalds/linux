@@ -542,8 +542,6 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 			}
 		}
 		obj->userptr.work = ERR_PTR(ret);
-		if (ret)
-			__i915_gem_userptr_set_active(obj, false);
 	}
 
 	obj->userptr.workers--;
@@ -628,15 +626,14 @@ i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 	 * to the vma (discard or cloning) which should prevent the more
 	 * egregious cases from causing harm.
 	 */
-	if (IS_ERR(obj->userptr.work)) {
-		/* active flag will have been dropped already by the worker */
-		ret = PTR_ERR(obj->userptr.work);
-		obj->userptr.work = NULL;
-		return ret;
-	}
-	if (obj->userptr.work)
+
+	if (obj->userptr.work) {
 		/* active flag should still be held for the pending work */
-		return -EAGAIN;
+		if (IS_ERR(obj->userptr.work))
+			return PTR_ERR(obj->userptr.work);
+		else
+			return -EAGAIN;
+	}
 
 	/* Let the mmu-notifier know that we have begun and need cancellation */
 	ret = __i915_gem_userptr_set_active(obj, true);
