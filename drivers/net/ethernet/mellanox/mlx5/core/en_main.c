@@ -1826,10 +1826,6 @@ int mlx5e_open_locked(struct net_device *netdev)
 	netif_set_real_num_tx_queues(netdev, num_txqs);
 	netif_set_real_num_rx_queues(netdev, priv->params.num_channels);
 
-	err = mlx5e_set_dev_port_mtu(netdev);
-	if (err)
-		goto err_clear_state_opened_flag;
-
 	err = mlx5e_open_channels(priv);
 	if (err) {
 		netdev_err(netdev, "%s: mlx5e_open_channels failed, %d\n",
@@ -2593,6 +2589,7 @@ static int mlx5e_change_mtu(struct net_device *netdev, int new_mtu)
 		mlx5e_close_locked(netdev);
 
 	netdev->mtu = new_mtu;
+	mlx5e_set_dev_port_mtu(netdev);
 
 	if (was_opened)
 		err = mlx5e_open_locked(netdev);
@@ -3462,6 +3459,8 @@ void *mlx5e_create_netdev(struct mlx5_core_dev *mdev,
 	mlx5e_create_q_counter(priv);
 
 	mlx5e_init_l2_addr(priv);
+
+	mlx5e_set_dev_port_mtu(netdev);
 
 	err = register_netdev(netdev);
 	if (err) {
