@@ -43,6 +43,12 @@ Description:	Available only if rbd module is inserted with single_major
 Entries under /sys/bus/rbd/devices/<dev-id>/
 --------------------------------------------
 
+client_addr
+
+	The ceph unique client entity_addr_t (address + nonce).
+	The format is <address>:<port>/<nonce>: '1.2.3.4:1234/5678' or
+	'[1:2:3:4:5:6:7:8]:1234/5678'.  (August 2016, since 4.9.)
+
 client_id
 
 	The ceph unique client id that was assigned for this specific session.
