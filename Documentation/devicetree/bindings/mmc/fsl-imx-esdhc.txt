@@ -28,6 +28,8 @@ Optional properties:
   transparent level shifters on the outputs of the controller. Two cells are
   required, first cell specifies minimum slot voltage (mV), second cell
   specifies maximum slot voltage (mV). Several ranges could be specified.
+- fsl,tuning-start-tap: Specify the start dealy cell point when send first CMD19
+  in tuning procedure.
 - fsl,tuning-step: Specify the increasing delay cell steps in tuning procedure.
   The uSDHC use one delay cell as default increasing step to do tuning process.
   This property allows user to change the tuning step to more than one delay

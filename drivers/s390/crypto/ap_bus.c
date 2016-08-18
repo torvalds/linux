@@ -468,6 +468,8 @@ int ap_recv(ap_qid_t qid, unsigned long long *psmid, void *msg, size_t length)
 {
 	struct ap_queue_status status;
 
+	if (msg == NULL)
+		return -EINVAL;
 	status = __ap_recv(qid, psmid, msg, length);
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
@@ -617,6 +619,8 @@ static enum ap_wait ap_sm_read(struct ap_device *ap_dev)
 {
 	struct ap_queue_status status;
 
+	if (!ap_dev->reply)
+		return AP_WAIT_NONE;
 	status = ap_sm_recv(ap_dev);
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
@@ -633,6 +637,31 @@ static enum ap_wait ap_sm_read(struct ap_device *ap_dev)
 		return AP_WAIT_NONE;
 	default:
 		ap_dev->state = AP_STATE_BORKED;
+		return AP_WAIT_NONE;
+	}
+}
+
+/**
+ * ap_sm_suspend_read(): Receive pending reply messages from an AP device
+ * without changing the device state in between. In suspend mode we don't
+ * allow sending new requests, therefore just fetch pending replies.
+ * @ap_dev: pointer to the AP device
+ *
+ * Returns AP_WAIT_NONE or AP_WAIT_AGAIN
+ */
+static enum ap_wait ap_sm_suspend_read(struct ap_device *ap_dev)
+{
+	struct ap_queue_status status;
+
+	if (!ap_dev->reply)
+		return AP_WAIT_NONE;
+	status = ap_sm_recv(ap_dev);
+	switch (status.response_code) {
+	case AP_RESPONSE_NORMAL:
+		if (ap_dev->queue_count > 0)
+			return AP_WAIT_AGAIN;
+		/* fall through */
+	default:
 		return AP_WAIT_NONE;
 	}
 }
@@ -738,7 +767,7 @@ static enum ap_wait ap_sm_reset_wait(struct ap_device *ap_dev)
 	struct ap_queue_status status;
 	unsigned long info;
 
-	if (ap_dev->queue_count > 0)
+	if (ap_dev->queue_count > 0 && ap_dev->reply)
 		/* Try to read a completed message and get the status */
 		status = ap_sm_recv(ap_dev);
 	else
@@ -778,7 +807,7 @@ static enum ap_wait ap_sm_setirq_wait(struct ap_device *ap_dev)
 	struct ap_queue_status status;
 	unsigned long info;
 
-	if (ap_dev->queue_count > 0)
+	if (ap_dev->queue_count > 0 && ap_dev->reply)
 		/* Try to read a completed message and get the status */
 		status = ap_sm_recv(ap_dev);
 	else
@@ -834,7 +863,7 @@ static ap_func_t *ap_jumptable[NR_AP_STATES][NR_AP_EVENTS] = {
 		[AP_EVENT_TIMEOUT] = ap_sm_reset,
 	},
 	[AP_STATE_SUSPEND_WAIT] = {
-		[AP_EVENT_POLL] = ap_sm_read,
+		[AP_EVENT_POLL] = ap_sm_suspend_read,
 		[AP_EVENT_TIMEOUT] = ap_sm_nop,
 	},
 	[AP_STATE_BORKED] = {
@@ -1335,6 +1364,17 @@ static struct bus_type ap_bus_type = {
 	.resume = ap_dev_resume,
 };
 
+void ap_device_init_reply(struct ap_device *ap_dev,
+			  struct ap_message *reply)
+{
+	ap_dev->reply = reply;
+
+	spin_lock_bh(&ap_dev->lock);
+	ap_sm_wait(ap_sm_event(ap_dev, AP_EVENT_POLL));
+	spin_unlock_bh(&ap_dev->lock);
+}
+EXPORT_SYMBOL(ap_device_init_reply);
+
 static int ap_device_probe(struct device *dev)
 {
 	struct ap_device *ap_dev = to_ap_dev(dev);
@@ -1779,7 +1819,8 @@ int __init ap_module_init(void)
 	if (ap_domain_index < -1 || ap_domain_index > max_domain_id) {
 		pr_warn("%d is not a valid cryptographic domain\n",
 			ap_domain_index);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto out_free;
 	}
 	/* In resume callback we need to know if the user had set the domain.
 	 * If so, we can not just reset it.
@@ -1852,6 +1893,7 @@ out:
 	unregister_reset_call(&ap_reset_call);
 	if (ap_using_interrupts())
 		unregister_adapter_interrupt(&ap_airq);
+out_free:
 	kfree(ap_configuration);
 	return rc;
 }

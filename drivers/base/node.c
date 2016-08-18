@@ -370,7 +370,7 @@ int unregister_cpu_under_node(unsigned int cpu, unsigned int nid)
 #ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
 #define page_initialized(page)  (page->lru.next)
 
-static int __init_refok get_nid_for_pfn(unsigned long pfn)
+static int __ref get_nid_for_pfn(unsigned long pfn)
 {
 	struct page *page;
 

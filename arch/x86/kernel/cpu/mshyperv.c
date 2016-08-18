@@ -13,7 +13,8 @@
 #include <linux/types.h>
 #include <linux/time.h>
 #include <linux/clocksource.h>
-#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/export.h>
 #include <linux/hardirq.h>
 #include <linux/efi.h>
 #include <linux/interrupt.h>

@@ -610,7 +610,8 @@ int sctp_packet_transmit(struct sctp_packet *packet, gfp_t gfp)
 				/* We will generate more packets, so re-queue
 				 * auth chunk.
 				 */
-				list_add(&chunk->list, &packet->chunk_list);
+				list_add(&packet->auth->list,
+					 &packet->chunk_list);
 			} else {
 				sctp_chunk_free(packet->auth);
 				packet->auth = NULL;

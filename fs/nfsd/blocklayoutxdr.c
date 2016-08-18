@@ -44,7 +44,7 @@ nfsd4_block_encode_volume(struct xdr_stream *xdr, struct pnfs_block_volume *b)
 
 	switch (b->type) {
 	case PNFS_BLOCK_VOLUME_SIMPLE:
-		len = 4 + 4 + 8 + 4 + b->simple.sig_len;
+		len = 4 + 4 + 8 + 4 + (XDR_QUADLEN(b->simple.sig_len) << 2);
 		p = xdr_reserve_space(xdr, len);
 		if (!p)
 			return -ETOOSMALL;
@@ -55,7 +55,7 @@ nfsd4_block_encode_volume(struct xdr_stream *xdr, struct pnfs_block_volume *b)
 		p = xdr_encode_opaque(p, b->simple.sig, b->simple.sig_len);
 		break;
 	case PNFS_BLOCK_VOLUME_SCSI:
-		len = 4 + 4 + 4 + 4 + b->scsi.designator_len + 8;
+		len = 4 + 4 + 4 + 4 + (XDR_QUADLEN(b->scsi.designator_len) << 2) + 8;
 		p = xdr_reserve_space(xdr, len);
 		if (!p)
 			return -ETOOSMALL;

@@ -1323,21 +1323,18 @@ lpfc_sli_ringtxcmpl_put(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 {
 	lockdep_assert_held(&phba->hbalock);
 
+	BUG_ON(!piocb || !piocb->vport);
+
 	list_add_tail(&piocb->list, &pring->txcmplq);
 	piocb->iocb_flag |= LPFC_IO_ON_TXCMPLQ;
 
 	if ((unlikely(pring->ringno == LPFC_ELS_RING)) &&
 	   (piocb->iocb.ulpCommand != CMD_ABORT_XRI_CN) &&
 	   (piocb->iocb.ulpCommand != CMD_CLOSE_XRI_CN) &&
-	 (!(piocb->vport->load_flag & FC_UNLOADING))) {
-		if (!piocb->vport)
-			BUG();
-		else
-			mod_timer(&piocb->vport->els_tmofunc,
-				jiffies +
-				msecs_to_jiffies(1000 * (phba->fc_ratov << 1)));
-	}
-
+	    (!(piocb->vport->load_flag & FC_UNLOADING)))
+		mod_timer(&piocb->vport->els_tmofunc,
+			  jiffies +
+			  msecs_to_jiffies(1000 * (phba->fc_ratov << 1)));
 
 	return 0;
 }

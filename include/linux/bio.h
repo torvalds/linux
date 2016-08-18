@@ -95,7 +95,7 @@ static inline bool bio_is_rw(struct bio *bio)
 
 static inline bool bio_mergeable(struct bio *bio)
 {
-	if (bio->bi_rw & REQ_NOMERGE_FLAGS)
+	if (bio->bi_opf & REQ_NOMERGE_FLAGS)
 		return false;
 
 	return true;
@@ -318,7 +318,7 @@ struct bio_integrity_payload {
 
 static inline struct bio_integrity_payload *bio_integrity(struct bio *bio)
 {
-	if (bio->bi_rw & REQ_INTEGRITY)
+	if (bio->bi_opf & REQ_INTEGRITY)
 		return bio->bi_integrity;
 
 	return NULL;
@@ -470,11 +470,14 @@ extern unsigned int bvec_nr_vecs(unsigned short idx);
 int bio_associate_blkcg(struct bio *bio, struct cgroup_subsys_state *blkcg_css);
 int bio_associate_current(struct bio *bio);
 void bio_disassociate_task(struct bio *bio);
+void bio_clone_blkcg_association(struct bio *dst, struct bio *src);
 #else	/* CONFIG_BLK_CGROUP */
 static inline int bio_associate_blkcg(struct bio *bio,
 			struct cgroup_subsys_state *blkcg_css) { return 0; }
 static inline int bio_associate_current(struct bio *bio) { return -ENOENT; }
 static inline void bio_disassociate_task(struct bio *bio) { }
+static inline void bio_clone_blkcg_association(struct bio *dst,
+			struct bio *src) { }
 #endif	/* CONFIG_BLK_CGROUP */
 
 #ifdef CONFIG_HIGHMEM

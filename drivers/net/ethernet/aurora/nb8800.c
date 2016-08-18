@@ -1504,6 +1504,7 @@ static int nb8800_probe(struct platform_device *pdev)
 err_free_dma:
 	nb8800_dma_free(dev);
 err_free_bus:
+	of_node_put(priv->phy_node);
 	mdiobus_unregister(bus);
 err_disable_clk:
 	clk_disable_unprepare(priv->clk);
@@ -1519,6 +1520,7 @@ static int nb8800_remove(struct platform_device *pdev)
 	struct nb8800_priv *priv = netdev_priv(ndev);
 
 	unregister_netdev(ndev);
+	of_node_put(priv->phy_node);
 
 	mdiobus_unregister(priv->mii_bus);
 

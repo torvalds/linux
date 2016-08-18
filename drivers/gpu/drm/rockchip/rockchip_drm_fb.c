@@ -20,6 +20,7 @@
 #include <drm/drm_crtc_helper.h>
 
 #include "rockchip_drm_drv.h"
+#include "rockchip_drm_fb.h"
 #include "rockchip_drm_gem.h"
 
 #define to_rockchip_fb(x) container_of(x, struct rockchip_drm_fb, fb)
@@ -43,14 +44,10 @@ struct drm_gem_object *rockchip_fb_get_gem_obj(struct drm_framebuffer *fb,
 static void rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
 {
 	struct rockchip_drm_fb *rockchip_fb = to_rockchip_fb(fb);
-	struct drm_gem_object *obj;
 	int i;
 
-	for (i = 0; i < ROCKCHIP_MAX_FB_BUFFER; i++) {
-		obj = rockchip_fb->obj[i];
-		if (obj)
-			drm_gem_object_unreference_unlocked(obj);
-	}
+	for (i = 0; i < ROCKCHIP_MAX_FB_BUFFER; i++)
+		drm_gem_object_unreference_unlocked(rockchip_fb->obj[i]);
 
 	drm_framebuffer_cleanup(fb);
 	kfree(rockchip_fb);
@@ -228,87 +225,32 @@ rockchip_atomic_wait_for_complete(struct drm_device *dev, struct drm_atomic_stat
 }
 
 static void
-rockchip_atomic_commit_complete(struct rockchip_atomic_commit *commit)
+rockchip_atomic_commit_tail(struct drm_atomic_state *state)
 {
-	struct drm_atomic_state *state = commit->state;
-	struct drm_device *dev = commit->dev;
+	struct drm_device *dev = state->dev;
 
-	/*
-	 * TODO: do fence wait here.
-	 */
-
-	/*
-	 * Rockchip crtc support runtime PM, can't update display planes
-	 * when crtc is disabled.
-	 *
-	 * drm_atomic_helper_commit comments detail that:
-	 *     For drivers supporting runtime PM the recommended sequence is
-	 *
-	 *     drm_atomic_helper_commit_modeset_disables(dev, state);
-	 *
-	 *     drm_atomic_helper_commit_modeset_enables(dev, state);
-	 *
-	 *     drm_atomic_helper_commit_planes(dev, state, true);
-	 *
-	 * See the kerneldoc entries for these three functions for more details.
-	 */
 	drm_atomic_helper_commit_modeset_disables(dev, state);
 
 	drm_atomic_helper_commit_modeset_enables(dev, state);
 
 	drm_atomic_helper_commit_planes(dev, state, true);
 
+	drm_atomic_helper_commit_hw_done(state);
+
 	rockchip_atomic_wait_for_complete(dev, state);
 
 	drm_atomic_helper_cleanup_planes(dev, state);
-
-	drm_atomic_state_free(state);
 }
 
-void rockchip_drm_atomic_work(struct work_struct *work)
-{
-	struct rockchip_atomic_commit *commit = container_of(work,
-					struct rockchip_atomic_commit, work);
-
-	rockchip_atomic_commit_complete(commit);
-}
-
-int rockchip_drm_atomic_commit(struct drm_device *dev,
-			       struct drm_atomic_state *state,
-			       bool nonblock)
-{
-	struct rockchip_drm_private *private = dev->dev_private;
-	struct rockchip_atomic_commit *commit = &private->commit;
-	int ret;
-
-	ret = drm_atomic_helper_prepare_planes(dev, state);
-	if (ret)
-		return ret;
-
-	/* serialize outstanding nonblocking commits */
-	mutex_lock(&commit->lock);
-	flush_work(&commit->work);
-
-	drm_atomic_helper_swap_state(dev, state);
-
-	commit->dev = dev;
-	commit->state = state;
-
-	if (nonblock)
-		schedule_work(&commit->work);
-	else
-		rockchip_atomic_commit_complete(commit);
-
-	mutex_unlock(&commit->lock);
-
-	return 0;
-}
+static struct drm_mode_config_helper_funcs rockchip_mode_config_helpers = {
+	.atomic_commit_tail = rockchip_atomic_commit_tail,
+};
 
 static const struct drm_mode_config_funcs rockchip_drm_mode_config_funcs = {
 	.fb_create = rockchip_user_fb_create,
 	.output_poll_changed = rockchip_drm_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
-	.atomic_commit = rockchip_drm_atomic_commit,
+	.atomic_commit = drm_atomic_helper_commit,
 };
 
 struct drm_framebuffer *
@@ -339,4 +281,5 @@ void rockchip_drm_mode_config_init(struct drm_device *dev)
 	dev->mode_config.max_height = 4096;
 
 	dev->mode_config.funcs = &rockchip_drm_mode_config_funcs;
+	dev->mode_config.helper_private = &rockchip_mode_config_helpers;
 }

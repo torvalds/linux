@@ -137,9 +137,9 @@ static inline int copy_fregs_to_user(struct fregs_state __user *fx)
 
 static inline int copy_fxregs_to_user(struct fxregs_state __user *fx)
 {
-	if (config_enabled(CONFIG_X86_32))
+	if (IS_ENABLED(CONFIG_X86_32))
 		return user_insn(fxsave %[fx], [fx] "=m" (*fx), "m" (*fx));
-	else if (config_enabled(CONFIG_AS_FXSAVEQ))
+	else if (IS_ENABLED(CONFIG_AS_FXSAVEQ))
 		return user_insn(fxsaveq %[fx], [fx] "=m" (*fx), "m" (*fx));
 
 	/* See comment in copy_fxregs_to_kernel() below. */
@@ -150,10 +150,10 @@ static inline void copy_kernel_to_fxregs(struct fxregs_state *fx)
 {
 	int err;
 
-	if (config_enabled(CONFIG_X86_32)) {
+	if (IS_ENABLED(CONFIG_X86_32)) {
 		err = check_insn(fxrstor %[fx], "=m" (*fx), [fx] "m" (*fx));
 	} else {
-		if (config_enabled(CONFIG_AS_FXSAVEQ)) {
+		if (IS_ENABLED(CONFIG_AS_FXSAVEQ)) {
 			err = check_insn(fxrstorq %[fx], "=m" (*fx), [fx] "m" (*fx));
 		} else {
 			/* See comment in copy_fxregs_to_kernel() below. */
@@ -166,9 +166,9 @@ static inline void copy_kernel_to_fxregs(struct fxregs_state *fx)
 
 static inline int copy_user_to_fxregs(struct fxregs_state __user *fx)
 {
-	if (config_enabled(CONFIG_X86_32))
+	if (IS_ENABLED(CONFIG_X86_32))
 		return user_insn(fxrstor %[fx], "=m" (*fx), [fx] "m" (*fx));
-	else if (config_enabled(CONFIG_AS_FXSAVEQ))
+	else if (IS_ENABLED(CONFIG_AS_FXSAVEQ))
 		return user_insn(fxrstorq %[fx], "=m" (*fx), [fx] "m" (*fx));
 
 	/* See comment in copy_fxregs_to_kernel() below. */
@@ -190,9 +190,9 @@ static inline int copy_user_to_fregs(struct fregs_state __user *fx)
 
 static inline void copy_fxregs_to_kernel(struct fpu *fpu)
 {
-	if (config_enabled(CONFIG_X86_32))
+	if (IS_ENABLED(CONFIG_X86_32))
 		asm volatile( "fxsave %[fx]" : [fx] "=m" (fpu->state.fxsave));
-	else if (config_enabled(CONFIG_AS_FXSAVEQ))
+	else if (IS_ENABLED(CONFIG_AS_FXSAVEQ))
 		asm volatile("fxsaveq %[fx]" : [fx] "=m" (fpu->state.fxsave));
 	else {
 		/* Using "rex64; fxsave %0" is broken because, if the memory

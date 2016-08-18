@@ -145,11 +145,6 @@ struct throtl_data
 	/* Total Number of queued bios on READ and WRITE lists */
 	unsigned int nr_queued[2];
 
-	/*
-	 * number of total undestroyed groups
-	 */
-	unsigned int nr_undestroyed_grps;
-
 	/* Work for dispatching throttled bios */
 	struct work_struct dispatch_work;
 };
@@ -826,8 +821,8 @@ static void throtl_charge_bio(struct throtl_grp *tg, struct bio *bio)
 	 * second time when it eventually gets issued.  Set it when a bio
 	 * is being charged to a tg.
 	 */
-	if (!(bio->bi_rw & REQ_THROTTLED))
-		bio->bi_rw |= REQ_THROTTLED;
+	if (!(bio->bi_opf & REQ_THROTTLED))
+		bio->bi_opf |= REQ_THROTTLED;
 }
 
 /**
@@ -1404,7 +1399,7 @@ bool blk_throtl_bio(struct request_queue *q, struct blkcg_gq *blkg,
 	WARN_ON_ONCE(!rcu_read_lock_held());
 
 	/* see throtl_charge_bio() */
-	if ((bio->bi_rw & REQ_THROTTLED) || !tg->has_rules[rw])
+	if ((bio->bi_opf & REQ_THROTTLED) || !tg->has_rules[rw])
 		goto out;
 
 	spin_lock_irq(q->queue_lock);
@@ -1483,7 +1478,7 @@ out:
 	 * being issued.
 	 */
 	if (!throttled)
-		bio->bi_rw &= ~REQ_THROTTLED;
+		bio->bi_opf &= ~REQ_THROTTLED;
 	return throttled;
 }
 

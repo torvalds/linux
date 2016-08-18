@@ -1059,6 +1059,31 @@ config TOUCHSCREEN_RM_TS
 	  To compile this driver as a module, choose M here: the
 	  module will be called raydium_i2c_ts.
 
+config TOUCHSCREEN_SILEAD
+	tristate "Silead I2C touchscreen"
+	depends on I2C
+	help
+	  Say Y here if you have the Silead touchscreen connected to
+	  your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called silead.
+
+config TOUCHSCREEN_SIS_I2C
+	tristate "SiS 9200 family I2C touchscreen"
+	depends on I2C
+	select CRC_ITU_T
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  This enables support for SiS 9200 family over I2C based touchscreens.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sis_i2c.
+
 config TOUCHSCREEN_ST1232
 	tristate "Sitronix ST1232 touchscreen controllers"
 	depends on I2C

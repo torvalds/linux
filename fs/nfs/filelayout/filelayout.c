@@ -255,13 +255,16 @@ static int filelayout_read_done_cb(struct rpc_task *task,
 static void
 filelayout_set_layoutcommit(struct nfs_pgio_header *hdr)
 {
+	loff_t end_offs = 0;
 
 	if (FILELAYOUT_LSEG(hdr->lseg)->commit_through_mds ||
-	    hdr->res.verf->committed != NFS_DATA_SYNC)
+	    hdr->res.verf->committed == NFS_FILE_SYNC)
 		return;
+	if (hdr->res.verf->committed == NFS_DATA_SYNC)
+		end_offs = hdr->mds_offset + (loff_t)hdr->res.count;
 
-	pnfs_set_layoutcommit(hdr->inode, hdr->lseg,
-			hdr->mds_offset + hdr->res.count);
+	/* Note: if the write is unstable, don't set end_offs until commit */
+	pnfs_set_layoutcommit(hdr->inode, hdr->lseg, end_offs);
 	dprintk("%s inode %lu pls_end_pos %lu\n", __func__, hdr->inode->i_ino,
 		(unsigned long) NFS_I(hdr->inode)->layout->plh_lwb);
 }
@@ -354,6 +357,12 @@ static int filelayout_write_done_cb(struct rpc_task *task,
 	}
 
 	filelayout_set_layoutcommit(hdr);
+
+	/* zero out the fattr */
+	hdr->fattr.valid = 0;
+	if (task->tk_status >= 0)
+		nfs_writeback_update_inode(hdr);
+
 	return 0;
 }
 
@@ -375,8 +384,7 @@ static int filelayout_commit_done_cb(struct rpc_task *task,
 		return -EAGAIN;
 	}
 
-	if (data->verf.committed == NFS_UNSTABLE)
-		pnfs_set_layoutcommit(data->inode, data->lseg, data->lwb);
+	pnfs_set_layoutcommit(data->inode, data->lseg, data->lwb);
 
 	return 0;
 }

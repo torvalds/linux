@@ -100,14 +100,16 @@ io_mapping_unmap_atomic(void __iomem *vaddr)
 }
 
 static inline void __iomem *
-io_mapping_map_wc(struct io_mapping *mapping, unsigned long offset)
+io_mapping_map_wc(struct io_mapping *mapping,
+		  unsigned long offset,
+		  unsigned long size)
 {
 	resource_size_t phys_addr;
 
 	BUG_ON(offset >= mapping->size);
 	phys_addr = mapping->base + offset;
 
-	return ioremap_wc(phys_addr, PAGE_SIZE);
+	return ioremap_wc(phys_addr, size);
 }
 
 static inline void
@@ -155,7 +157,9 @@ io_mapping_unmap_atomic(void __iomem *vaddr)
 
 /* Non-atomic map/unmap */
 static inline void __iomem *
-io_mapping_map_wc(struct io_mapping *mapping, unsigned long offset)
+io_mapping_map_wc(struct io_mapping *mapping,
+		  unsigned long offset,
+		  unsigned long size)
 {
 	return ((char __force __iomem *) mapping) + offset;
 }

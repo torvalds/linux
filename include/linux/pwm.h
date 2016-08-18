@@ -5,7 +5,9 @@
 #include <linux/mutex.h>
 #include <linux/of.h>
 
+struct pwm_capture;
 struct seq_file;
+
 struct pwm_chip;
 
 /**
@@ -148,11 +150,100 @@ static inline void pwm_get_args(const struct pwm_device *pwm,
 }
 
 /**
+ * pwm_init_state() - prepare a new state to be applied with pwm_apply_state()
+ * @pwm: PWM device
+ * @state: state to fill with the prepared PWM state
+ *
+ * This functions prepares a state that can later be tweaked and applied
+ * to the PWM device with pwm_apply_state(). This is a convenient function
+ * that first retrieves the current PWM state and the replaces the period
+ * and polarity fields with the reference values defined in pwm->args.
+ * Once the function returns, you can adjust the ->enabled and ->duty_cycle
+ * fields according to your needs before calling pwm_apply_state().
+ *
+ * ->duty_cycle is initially set to zero to avoid cases where the current
+ * ->duty_cycle value exceed the pwm_args->period one, which would trigger
+ * an error if the user calls pwm_apply_state() without adjusting ->duty_cycle
+ * first.
+ */
+static inline void pwm_init_state(const struct pwm_device *pwm,
+				  struct pwm_state *state)
+{
+	struct pwm_args args;
+
+	/* First get the current state. */
+	pwm_get_state(pwm, state);
+
+	/* Then fill it with the reference config */
+	pwm_get_args(pwm, &args);
+
+	state->period = args.period;
+	state->polarity = args.polarity;
+	state->duty_cycle = 0;
+}
+
+/**
+ * pwm_get_relative_duty_cycle() - Get a relative duty cycle value
+ * @state: PWM state to extract the duty cycle from
+ * @scale: target scale of the relative duty cycle
+ *
+ * This functions converts the absolute duty cycle stored in @state (expressed
+ * in nanosecond) into a value relative to the period.
+ *
+ * For example if you want to get the duty_cycle expressed in percent, call:
+ *
+ * pwm_get_state(pwm, &state);
+ * duty = pwm_get_relative_duty_cycle(&state, 100);
+ */
+static inline unsigned int
+pwm_get_relative_duty_cycle(const struct pwm_state *state, unsigned int scale)
+{
+	if (!state->period)
+		return 0;
+
+	return DIV_ROUND_CLOSEST_ULL((u64)state->duty_cycle * scale,
+				     state->period);
+}
+
+/**
+ * pwm_set_relative_duty_cycle() - Set a relative duty cycle value
+ * @state: PWM state to fill
+ * @duty_cycle: relative duty cycle value
+ * @scale: scale in which @duty_cycle is expressed
+ *
+ * This functions converts a relative into an absolute duty cycle (expressed
+ * in nanoseconds), and puts the result in state->duty_cycle.
+ *
+ * For example if you want to configure a 50% duty cycle, call:
+ *
+ * pwm_init_state(pwm, &state);
+ * pwm_set_relative_duty_cycle(&state, 50, 100);
+ * pwm_apply_state(pwm, &state);
+ *
+ * This functions returns -EINVAL if @duty_cycle and/or @scale are
+ * inconsistent (@scale == 0 or @duty_cycle > @scale).
+ */
+static inline int
+pwm_set_relative_duty_cycle(struct pwm_state *state, unsigned int duty_cycle,
+			    unsigned int scale)
+{
+	if (!scale || duty_cycle > scale)
+		return -EINVAL;
+
+	state->duty_cycle = DIV_ROUND_CLOSEST_ULL((u64)duty_cycle *
+						  state->period,
+						  scale);
+
+	return 0;
+}
+
+/**
  * struct pwm_ops - PWM controller operations
  * @request: optional hook for requesting a PWM
  * @free: optional hook for freeing a PWM
  * @config: configure duty cycles and period length for this PWM
  * @set_polarity: configure the polarity of this PWM
+ * @capture: capture and report PWM signal
  * @enable: enable PWM output toggling
  * @disable: disable PWM output toggling
  * @apply: atomically apply a new PWM config. The state argument
@@ -172,6 +263,8 @@ struct pwm_ops {
 		      int duty_ns, int period_ns);
 	int (*set_polarity)(struct pwm_chip *chip, struct pwm_device *pwm,
 			    enum pwm_polarity polarity);
+	int (*capture)(struct pwm_chip *chip, struct pwm_device *pwm,
+		       struct pwm_capture *result, unsigned long timeout);
 	int (*enable)(struct pwm_chip *chip, struct pwm_device *pwm);
 	void (*disable)(struct pwm_chip *chip, struct pwm_device *pwm);
 	int (*apply)(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -210,6 +303,16 @@ struct pwm_chip {
 					const struct of_phandle_args *args);
 	unsigned int of_pwm_n_cells;
 	bool can_sleep;
+};
+
+/**
+ * struct pwm_capture - PWM capture data
+ * @period: period of the PWM signal (in nanoseconds)
+ * @duty_cycle: duty cycle of the PWM signal (in nanoseconds)
+ */
+struct pwm_capture {
+	unsigned int period;
+	unsigned int duty_cycle;
 };
 
 #if IS_ENABLED(CONFIG_PWM)
@@ -323,8 +426,9 @@ static inline void pwm_disable(struct pwm_device *pwm)
 	pwm_apply_state(pwm, &state);
 }
 
-
 /* PWM provider APIs */
+int pwm_capture(struct pwm_device *pwm, struct pwm_capture *result,
+		unsigned long timeout);
 int pwm_set_chip_data(struct pwm_device *pwm, void *data);
 void *pwm_get_chip_data(struct pwm_device *pwm);
 
@@ -372,6 +476,13 @@ static inline int pwm_adjust_config(struct pwm_device *pwm)
 
 static inline int pwm_config(struct pwm_device *pwm, int duty_ns,
 			     int period_ns)
+{
+	return -EINVAL;
+}
+
+static inline int pwm_capture(struct pwm_device *pwm,
+			      struct pwm_capture *result,
+			      unsigned long timeout)
 {
 	return -EINVAL;
 }

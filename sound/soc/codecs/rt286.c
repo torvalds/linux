@@ -1100,6 +1100,13 @@ static const struct dmi_system_id force_combo_jack_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Skylake Client platform")
 		}
 	},
+	{
+		.ident = "Intel Kabylake RVP",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Kabylake Client platform")
+		}
+	},
+
 	{ }
 };
 

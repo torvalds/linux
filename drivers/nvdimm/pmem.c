@@ -67,7 +67,7 @@ static void pmem_clear_poison(struct pmem_device *pmem, phys_addr_t offset,
 }
 
 static int pmem_do_bvec(struct pmem_device *pmem, struct page *page,
-			unsigned int len, unsigned int off, int rw,
+			unsigned int len, unsigned int off, bool is_write,
 			sector_t sector)
 {
 	int rc = 0;
@@ -79,7 +79,7 @@ static int pmem_do_bvec(struct pmem_device *pmem, struct page *page,
 	if (unlikely(is_bad_pmem(&pmem->bb, sector, len)))
 		bad_pmem = true;
 
-	if (rw == READ) {
+	if (!is_write) {
 		if (unlikely(bad_pmem))
 			rc = -EIO;
 		else {
@@ -128,13 +128,13 @@ static blk_qc_t pmem_make_request(struct request_queue *q, struct bio *bio)
 	struct pmem_device *pmem = q->queuedata;
 	struct nd_region *nd_region = to_region(pmem);
 
-	if (bio->bi_rw & REQ_FLUSH)
+	if (bio->bi_opf & REQ_FLUSH)
 		nvdimm_flush(nd_region);
 
 	do_acct = nd_iostat_start(bio, &start);
 	bio_for_each_segment(bvec, bio, iter) {
 		rc = pmem_do_bvec(pmem, bvec.bv_page, bvec.bv_len,
-				bvec.bv_offset, bio_data_dir(bio),
+				bvec.bv_offset, op_is_write(bio_op(bio)),
 				iter.bi_sector);
 		if (rc) {
 			bio->bi_error = rc;
@@ -144,7 +144,7 @@ static blk_qc_t pmem_make_request(struct request_queue *q, struct bio *bio)
 	if (do_acct)
 		nd_iostat_end(bio, start);
 
-	if (bio->bi_rw & REQ_FUA)
+	if (bio->bi_opf & REQ_FUA)
 		nvdimm_flush(nd_region);
 
 	bio_endio(bio);
@@ -152,12 +152,12 @@ static blk_qc_t pmem_make_request(struct request_queue *q, struct bio *bio)
 }
 
 static int pmem_rw_page(struct block_device *bdev, sector_t sector,
-		       struct page *page, int rw)
+		       struct page *page, bool is_write)
 {
 	struct pmem_device *pmem = bdev->bd_queue->queuedata;
 	int rc;
 
-	rc = pmem_do_bvec(pmem, page, PAGE_SIZE, 0, rw, sector);
+	rc = pmem_do_bvec(pmem, page, PAGE_SIZE, 0, is_write, sector);
 
 	/*
 	 * The ->rw_page interface is subtle and tricky.  The core
@@ -166,7 +166,7 @@ static int pmem_rw_page(struct block_device *bdev, sector_t sector,
 	 * caused by double completion.
 	 */
 	if (rc == 0)
-		page_endio(page, rw & WRITE, 0);
+		page_endio(page, is_write, 0);
 
 	return rc;
 }

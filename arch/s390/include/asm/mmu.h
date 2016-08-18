@@ -8,8 +8,9 @@ typedef struct {
 	cpumask_t cpu_attach_mask;
 	atomic_t flush_count;
 	unsigned int flush_mm;
-	spinlock_t list_lock;
+	spinlock_t pgtable_lock;
 	struct list_head pgtable_list;
+	spinlock_t gmap_lock;
 	struct list_head gmap_list;
 	unsigned long asce;
 	unsigned long asce_limit;
@@ -22,9 +23,11 @@ typedef struct {
 	unsigned int use_skey:1;
 } mm_context_t;
 
-#define INIT_MM_CONTEXT(name)						      \
-	.context.list_lock    = __SPIN_LOCK_UNLOCKED(name.context.list_lock), \
-	.context.pgtable_list = LIST_HEAD_INIT(name.context.pgtable_list),    \
+#define INIT_MM_CONTEXT(name)						   \
+	.context.pgtable_lock =						   \
+			__SPIN_LOCK_UNLOCKED(name.context.pgtable_lock),   \
+	.context.pgtable_list = LIST_HEAD_INIT(name.context.pgtable_list), \
+	.context.gmap_lock = __SPIN_LOCK_UNLOCKED(name.context.gmap_lock), \
 	.context.gmap_list = LIST_HEAD_INIT(name.context.gmap_list),
 
 static inline int tprot(unsigned long addr)

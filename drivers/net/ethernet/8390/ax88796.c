@@ -910,7 +910,8 @@ static int ax_probe(struct platform_device *pdev)
 	iounmap(ax->map2);
 
  exit_mem2:
-	release_mem_region(mem2->start, mem2_size);
+	if (mem2)
+		release_mem_region(mem2->start, mem2_size);
 
  exit_mem1:
 	iounmap(ei_local->mem);

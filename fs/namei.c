@@ -410,7 +410,7 @@ int __inode_permission(struct inode *inode, int mask)
 		 * Nobody gets write access to an immutable file.
 		 */
 		if (IS_IMMUTABLE(inode))
-			return -EACCES;
+			return -EPERM;
 
 		/*
 		 * Updating mtime will likely cause i_uid and i_gid to be

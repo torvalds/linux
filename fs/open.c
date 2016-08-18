@@ -998,6 +998,26 @@ struct file *file_open_root(struct dentry *dentry, struct vfsmount *mnt,
 }
 EXPORT_SYMBOL(file_open_root);
 
+struct file *filp_clone_open(struct file *oldfile)
+{
+	struct file *file;
+	int retval;
+
+	file = get_empty_filp();
+	if (IS_ERR(file))
+		return file;
+
+	file->f_flags = oldfile->f_flags;
+	retval = vfs_open(&oldfile->f_path, file, oldfile->f_cred);
+	if (retval) {
+		put_filp(file);
+		return ERR_PTR(retval);
+	}
+
+	return file;
+}
+EXPORT_SYMBOL(filp_clone_open);
+
 long do_sys_open(int dfd, const char __user *filename, int flags, umode_t mode)
 {
 	struct open_flags op;

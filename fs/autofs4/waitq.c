@@ -225,7 +225,7 @@ rename_retry:
 }
 
 static struct autofs_wait_queue *
-autofs4_find_wait(struct autofs_sb_info *sbi, struct qstr *qstr)
+autofs4_find_wait(struct autofs_sb_info *sbi, const struct qstr *qstr)
 {
 	struct autofs_wait_queue *wq;
 
@@ -249,7 +249,7 @@ autofs4_find_wait(struct autofs_sb_info *sbi, struct qstr *qstr)
  */
 static int validate_request(struct autofs_wait_queue **wait,
 			    struct autofs_sb_info *sbi,
-			    struct qstr *qstr,
+			    const struct qstr *qstr,
 			    struct dentry *dentry, enum autofs_notify notify)
 {
 	struct autofs_wait_queue *wq;

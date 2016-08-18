@@ -807,6 +807,36 @@ static int snd_ctl_elem_list(struct snd_card *card,
 	return 0;
 }
 
+static bool validate_element_member_dimension(struct snd_ctl_elem_info *info)
+{
+	unsigned int members;
+	unsigned int i;
+
+	if (info->dimen.d[0] == 0)
+		return true;
+
+	members = 1;
+	for (i = 0; i < ARRAY_SIZE(info->dimen.d); ++i) {
+		if (info->dimen.d[i] == 0)
+			break;
+		members *= info->dimen.d[i];
+
+		/*
+		 * info->count should be validated in advance, to guarantee
+		 * calculation soundness.
+		 */
+		if (members > info->count)
+			return false;
+	}
+
+	for (++i; i < ARRAY_SIZE(info->dimen.d); ++i) {
+		if (info->dimen.d[i] > 0)
+			return false;
+	}
+
+	return members == info->count;
+}
+
 static int snd_ctl_elem_info(struct snd_ctl_file *ctl,
 			     struct snd_ctl_elem_info *info)
 {
@@ -1273,6 +1303,8 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 		return -EINVAL;
 	if (info->count < 1 ||
 	    info->count > max_value_counts[info->type])
+		return -EINVAL;
+	if (!validate_element_member_dimension(info))
 		return -EINVAL;
 	private_size = value_sizes[info->type] * info->count;
 

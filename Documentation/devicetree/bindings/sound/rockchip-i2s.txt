@@ -23,6 +23,11 @@ Required properties:
 - rockchip,playback-channels: max playback channels, if not set, 8 channels default.
 - rockchip,capture-channels: max capture channels, if not set, 2 channels default.
 
+Required properties for controller which support multi channels
+playback/capture:
+
+- rockchip,grf: the phandle of the syscon node for GRF register.
+
 Example for rk3288 I2S controller:
 
 i2s@ff890000 {

@@ -26,7 +26,7 @@
 
 #include <linux/list.h>
 #include <linux/types.h>
-#include "viosrp.h"
+#include <scsi/viosrp.h>
 
 #define IBMVFC_NAME	"ibmvfc"
 #define IBMVFC_DRIVER_VERSION		"1.0.11"

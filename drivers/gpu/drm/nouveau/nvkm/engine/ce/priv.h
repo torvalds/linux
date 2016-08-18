@@ -4,4 +4,5 @@
 
 void gt215_ce_intr(struct nvkm_falcon *, struct nvkm_fifo_chan *);
 void gk104_ce_intr(struct nvkm_engine *);
+void gp100_ce_intr(struct nvkm_engine *);
 #endif

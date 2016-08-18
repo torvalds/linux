@@ -139,11 +139,11 @@ void ath10k_debug_print_hwfw_info(struct ath10k *ar)
 		    ar->id.subsystem_vendor, ar->id.subsystem_device);
 
 	ath10k_info(ar, "kconfig debug %d debugfs %d tracing %d dfs %d testmode %d\n",
-		    config_enabled(CONFIG_ATH10K_DEBUG),
-		    config_enabled(CONFIG_ATH10K_DEBUGFS),
-		    config_enabled(CONFIG_ATH10K_TRACING),
-		    config_enabled(CONFIG_ATH10K_DFS_CERTIFIED),
-		    config_enabled(CONFIG_NL80211_TESTMODE));
+		    IS_ENABLED(CONFIG_ATH10K_DEBUG),
+		    IS_ENABLED(CONFIG_ATH10K_DEBUGFS),
+		    IS_ENABLED(CONFIG_ATH10K_TRACING),
+		    IS_ENABLED(CONFIG_ATH10K_DFS_CERTIFIED),
+		    IS_ENABLED(CONFIG_NL80211_TESTMODE));
 
 	firmware = ar->normal_mode_fw.fw_file.firmware;
 	if (firmware)
@@ -2424,7 +2424,7 @@ int ath10k_debug_register(struct ath10k *ar)
 	debugfs_create_file("nf_cal_period", S_IRUSR | S_IWUSR,
 			    ar->debug.debugfs_phy, ar, &fops_nf_cal_period);
 
-	if (config_enabled(CONFIG_ATH10K_DFS_CERTIFIED)) {
+	if (IS_ENABLED(CONFIG_ATH10K_DFS_CERTIFIED)) {
 		debugfs_create_file("dfs_simulate_radar", S_IWUSR,
 				    ar->debug.debugfs_phy, ar,
 				    &fops_simulate_radar);

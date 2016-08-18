@@ -3039,7 +3039,7 @@ static void ath10k_regd_update(struct ath10k *ar)
 
 	regpair = ar->ath_common.regulatory.regpair;
 
-	if (config_enabled(CONFIG_ATH10K_DFS_CERTIFIED) && ar->dfs_detector) {
+	if (IS_ENABLED(CONFIG_ATH10K_DFS_CERTIFIED) && ar->dfs_detector) {
 		nl_dfs_reg = ar->dfs_detector->region;
 		wmi_dfs_reg = ath10k_mac_get_dfs_region(nl_dfs_reg);
 	} else {
@@ -3068,7 +3068,7 @@ static void ath10k_reg_notifier(struct wiphy *wiphy,
 
 	ath_reg_notifier_apply(wiphy, request, &ar->ath_common.regulatory);
 
-	if (config_enabled(CONFIG_ATH10K_DFS_CERTIFIED) && ar->dfs_detector) {
+	if (IS_ENABLED(CONFIG_ATH10K_DFS_CERTIFIED) && ar->dfs_detector) {
 		ath10k_dbg(ar, ATH10K_DBG_REGULATORY, "dfs region 0x%x\n",
 			   request->dfs_region);
 		result = ar->dfs_detector->set_dfs_domain(ar->dfs_detector,
@@ -7955,7 +7955,7 @@ int ath10k_mac_register(struct ath10k *ar)
 	if (!test_bit(ATH10K_FLAG_RAW_MODE, &ar->dev_flags))
 		ar->hw->netdev_features = NETIF_F_HW_CSUM;
 
-	if (config_enabled(CONFIG_ATH10K_DFS_CERTIFIED)) {
+	if (IS_ENABLED(CONFIG_ATH10K_DFS_CERTIFIED)) {
 		/* Init ath dfs pattern detector */
 		ar->ath_common.debug_mask = ATH_DBG_DFS;
 		ar->dfs_detector = dfs_pattern_detector_init(&ar->ath_common,
@@ -8003,7 +8003,7 @@ err_unregister:
 	ieee80211_unregister_hw(ar->hw);
 
 err_dfs_detector_exit:
-	if (config_enabled(CONFIG_ATH10K_DFS_CERTIFIED) && ar->dfs_detector)
+	if (IS_ENABLED(CONFIG_ATH10K_DFS_CERTIFIED) && ar->dfs_detector)
 		ar->dfs_detector->exit(ar->dfs_detector);
 
 err_free:
@@ -8018,7 +8018,7 @@ void ath10k_mac_unregister(struct ath10k *ar)
 {
 	ieee80211_unregister_hw(ar->hw);
 
-	if (config_enabled(CONFIG_ATH10K_DFS_CERTIFIED) && ar->dfs_detector)
+	if (IS_ENABLED(CONFIG_ATH10K_DFS_CERTIFIED) && ar->dfs_detector)
 		ar->dfs_detector->exit(ar->dfs_detector);
 
 	kfree(ar->mac.sbands[NL80211_BAND_2GHZ].channels);

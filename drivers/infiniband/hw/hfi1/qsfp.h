@@ -238,3 +238,6 @@ int one_qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 		   int len);
 int one_qsfp_read(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 		  int len);
+struct hfi1_asic_data;
+int set_up_i2c(struct hfi1_devdata *dd, struct hfi1_asic_data *ad);
+void clean_up_i2c(struct hfi1_devdata *dd, struct hfi1_asic_data *ad);

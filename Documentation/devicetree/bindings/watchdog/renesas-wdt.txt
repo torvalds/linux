@@ -1,7 +1,11 @@
 Renesas Watchdog Timer (WDT) Controller
 
 Required properties:
-- compatible : Should be "renesas,r8a7795-wdt", or "renesas,rcar-gen3-wdt"
+- compatible : Should be "renesas,<soctype>-wdt", and
+	       "renesas,rcar-gen3-wdt" as fallback.
+	       Examples with soctypes are:
+	         - "renesas,r8a7795-wdt" (R-Car H3)
+	         - "renesas,r8a7796-wdt" (R-Car M3-W)
 
   When compatible with the generic version, nodes must list the SoC-specific
   version corresponding to the platform first, followed by the generic

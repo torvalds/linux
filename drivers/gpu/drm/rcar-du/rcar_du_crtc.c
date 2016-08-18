@@ -196,7 +196,7 @@ void rcar_du_crtc_route_output(struct drm_crtc *crtc,
 
 static unsigned int plane_zpos(struct rcar_du_plane *plane)
 {
-	return to_rcar_plane_state(plane->plane.state)->zpos;
+	return plane->plane.state->normalized_zpos;
 }
 
 static const struct rcar_du_format_info *
@@ -552,7 +552,7 @@ static irqreturn_t rcar_du_crtc_irq(int irq, void *arg)
 	rcar_du_crtc_write(rcrtc, DSRCR, status & DSRCR_MASK);
 
 	if (status & DSSR_FRM) {
-		drm_handle_vblank(rcrtc->crtc.dev, rcrtc->index);
+		drm_crtc_handle_vblank(&rcrtc->crtc);
 		rcar_du_crtc_finish_page_flip(rcrtc);
 		ret = IRQ_HANDLED;
 	}

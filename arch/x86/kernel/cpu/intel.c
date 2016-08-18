@@ -5,7 +5,7 @@
 #include <linux/smp.h>
 #include <linux/sched.h>
 #include <linux/thread_info.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/uaccess.h>
 
 #include <asm/cpufeature.h>

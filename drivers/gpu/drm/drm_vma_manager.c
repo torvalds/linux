@@ -127,6 +127,9 @@ EXPORT_SYMBOL(drm_vma_offset_manager_destroy);
  * used to implement weakly referenced lookups using kref_get_unless_zero().
  *
  * Example:
+ *
+ * ::
+ *
  *     drm_vma_offset_lock_lookup(mgr);
  *     node = drm_vma_offset_lookup_locked(mgr);
  *     if (node)

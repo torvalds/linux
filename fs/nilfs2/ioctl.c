@@ -25,7 +25,6 @@
 #include <linux/compat.h>	/* compat_ptr() */
 #include <linux/mount.h>	/* mnt_want_write_file(), mnt_drop_write_file() */
 #include <linux/buffer_head.h>
-#include <linux/nilfs2_fs.h>
 #include "nilfs.h"
 #include "segment.h"
 #include "bmap.h"
@@ -584,27 +583,25 @@ static int nilfs_ioctl_move_inode_block(struct inode *inode,
 
 	if (unlikely(ret < 0)) {
 		if (ret == -ENOENT)
-			printk(KERN_CRIT
-			       "%s: invalid virtual block address (%s): "
-			       "ino=%llu, cno=%llu, offset=%llu, "
-			       "blocknr=%llu, vblocknr=%llu\n",
-			       __func__, vdesc->vd_flags ? "node" : "data",
-			       (unsigned long long)vdesc->vd_ino,
-			       (unsigned long long)vdesc->vd_cno,
-			       (unsigned long long)vdesc->vd_offset,
-			       (unsigned long long)vdesc->vd_blocknr,
-			       (unsigned long long)vdesc->vd_vblocknr);
+			nilfs_msg(inode->i_sb, KERN_CRIT,
+				  "%s: invalid virtual block address (%s): ino=%llu, cno=%llu, offset=%llu, blocknr=%llu, vblocknr=%llu",
+				  __func__, vdesc->vd_flags ? "node" : "data",
+				  (unsigned long long)vdesc->vd_ino,
+				  (unsigned long long)vdesc->vd_cno,
+				  (unsigned long long)vdesc->vd_offset,
+				  (unsigned long long)vdesc->vd_blocknr,
+				  (unsigned long long)vdesc->vd_vblocknr);
 		return ret;
 	}
 	if (unlikely(!list_empty(&bh->b_assoc_buffers))) {
-		printk(KERN_CRIT "%s: conflicting %s buffer: ino=%llu, "
-		       "cno=%llu, offset=%llu, blocknr=%llu, vblocknr=%llu\n",
-		       __func__, vdesc->vd_flags ? "node" : "data",
-		       (unsigned long long)vdesc->vd_ino,
-		       (unsigned long long)vdesc->vd_cno,
-		       (unsigned long long)vdesc->vd_offset,
-		       (unsigned long long)vdesc->vd_blocknr,
-		       (unsigned long long)vdesc->vd_vblocknr);
+		nilfs_msg(inode->i_sb, KERN_CRIT,
+			  "%s: conflicting %s buffer: ino=%llu, cno=%llu, offset=%llu, blocknr=%llu, vblocknr=%llu",
+			  __func__, vdesc->vd_flags ? "node" : "data",
+			  (unsigned long long)vdesc->vd_ino,
+			  (unsigned long long)vdesc->vd_cno,
+			  (unsigned long long)vdesc->vd_offset,
+			  (unsigned long long)vdesc->vd_blocknr,
+			  (unsigned long long)vdesc->vd_vblocknr);
 		brelse(bh);
 		return -EEXIST;
 	}
@@ -854,8 +851,8 @@ int nilfs_ioctl_prepare_clean_segments(struct the_nilfs *nilfs,
 	return 0;
 
  failed:
-	printk(KERN_ERR "NILFS: GC failed during preparation: %s: err=%d\n",
-	       msg, ret);
+	nilfs_msg(nilfs->ns_sb, KERN_ERR, "error %d preparing GC: %s", ret,
+		  msg);
 	return ret;
 }
 
@@ -963,10 +960,11 @@ static int nilfs_ioctl_clean_segments(struct inode *inode, struct file *filp,
 	}
 
 	ret = nilfs_ioctl_move_blocks(inode->i_sb, &argv[0], kbufs[0]);
-	if (ret < 0)
-		printk(KERN_ERR "NILFS: GC failed during preparation: "
-			"cannot read source blocks: err=%d\n", ret);
-	else {
+	if (ret < 0) {
+		nilfs_msg(inode->i_sb, KERN_ERR,
+			  "error %d preparing GC: cannot read source blocks",
+			  ret);
+	} else {
 		if (nilfs_sb_need_update(nilfs))
 			set_nilfs_discontinued(nilfs);
 		ret = nilfs_clean_segments(inode->i_sb, argv, kbufs);

@@ -69,7 +69,7 @@ static DEFINE_SPINLOCK(spu_lock);
  * spu_full_list_lock and spu_full_list_mutex held, while iterating
  * through it requires either of these locks.
  *
- * In addition spu_full_list_lock protects all assignmens to
+ * In addition spu_full_list_lock protects all assignments to
  * spu->mm.
  */
 static LIST_HEAD(spu_full_list);
@@ -253,7 +253,7 @@ static inline int __slb_present(struct copro_slb *slbs, int nr_slbs,
  * Setup the SPU kernel SLBs, in preparation for a context save/restore. We
  * need to map both the context save area, and the save/restore code.
  *
- * Because the lscsa and code may cross segment boundaires, we check to see
+ * Because the lscsa and code may cross segment boundaries, we check to see
  * if mappings are required for the start and end of each range. We currently
  * assume that the mappings are smaller that one segment - if not, something
  * is seriously wrong.

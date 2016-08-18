@@ -113,15 +113,17 @@ int nfs42_proc_deallocate(struct file *filep, loff_t offset, loff_t len)
 	if (!nfs_server_capable(inode, NFS_CAP_DEALLOCATE))
 		return -EOPNOTSUPP;
 
-	nfs_wb_all(inode);
 	inode_lock(inode);
+	err = nfs_sync_inode(inode);
+	if (err)
+		goto out_unlock;
 
 	err = nfs42_proc_fallocate(&msg, filep, offset, len);
 	if (err == 0)
 		truncate_pagecache_range(inode, offset, (offset + len) -1);
 	if (err == -EOPNOTSUPP)
 		NFS_SERVER(inode)->caps &= ~NFS_CAP_DEALLOCATE;
-
+out_unlock:
 	inode_unlock(inode);
 	return err;
 }
@@ -154,8 +156,17 @@ static ssize_t _nfs42_proc_copy(struct file *src, loff_t pos_src,
 	if (status)
 		return status;
 
+	status = nfs_filemap_write_and_wait_range(file_inode(src)->i_mapping,
+			pos_src, pos_src + (loff_t)count - 1);
+	if (status)
+		return status;
+
 	status = nfs4_set_rw_stateid(&args.dst_stateid, dst_lock->open_context,
 				     dst_lock, FMODE_WRITE);
+	if (status)
+		return status;
+
+	status = nfs_sync_inode(dst_inode);
 	if (status)
 		return status;
 
@@ -258,7 +269,11 @@ static loff_t _nfs42_proc_llseek(struct file *filep,
 	if (status)
 		return status;
 
-	nfs_wb_all(inode);
+	status = nfs_filemap_write_and_wait_range(inode->i_mapping,
+			offset, LLONG_MAX);
+	if (status)
+		return status;
+
 	status = nfs4_call_sync(server->client, server, &msg,
 				&args.seq_args, &res.seq_res, 0);
 	if (status == -ENOTSUPP)
@@ -323,6 +338,8 @@ nfs42_layoutstat_done(struct rpc_task *task, void *calldata)
 	case 0:
 		break;
 	case -NFS4ERR_EXPIRED:
+	case -NFS4ERR_ADMIN_REVOKED:
+	case -NFS4ERR_DELEG_REVOKED:
 	case -NFS4ERR_STALE_STATEID:
 	case -NFS4ERR_OLD_STATEID:
 	case -NFS4ERR_BAD_STATEID:
@@ -336,8 +353,7 @@ nfs42_layoutstat_done(struct rpc_task *task, void *calldata)
 			 * Mark the bad layout state as invalid, then retry
 			 * with the current stateid.
 			 */
-			set_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags);
-			pnfs_mark_matching_lsegs_invalid(lo, &head, NULL, 0);
+			pnfs_mark_layout_stateid_invalid(lo, &head);
 			spin_unlock(&inode->i_lock);
 			pnfs_free_lseg_list(&head);
 		} else

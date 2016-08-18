@@ -227,9 +227,10 @@ static void __schedule_delayed(struct ceph_mon_client *monc)
 }
 
 const char *ceph_sub_str[] = {
-	[CEPH_SUB_MDSMAP] = "mdsmap",
 	[CEPH_SUB_MONMAP] = "monmap",
 	[CEPH_SUB_OSDMAP] = "osdmap",
+	[CEPH_SUB_FSMAP]  = "fsmap.user",
+	[CEPH_SUB_MDSMAP] = "mdsmap",
 };
 
 /*
@@ -573,7 +574,7 @@ static void complete_generic_request(struct ceph_mon_generic_request *req)
 	put_generic_request(req);
 }
 
-void cancel_generic_request(struct ceph_mon_generic_request *req)
+static void cancel_generic_request(struct ceph_mon_generic_request *req)
 {
 	struct ceph_mon_client *monc = req->monc;
 	struct ceph_mon_generic_request *lookup_req;
@@ -1193,6 +1194,7 @@ static struct ceph_msg *mon_alloc_msg(struct ceph_connection *con,
 	case CEPH_MSG_MON_MAP:
 	case CEPH_MSG_MDS_MAP:
 	case CEPH_MSG_OSD_MAP:
+	case CEPH_MSG_FS_MAP_USER:
 		m = ceph_msg_new(type, front_len, GFP_NOFS, false);
 		if (!m)
 			return NULL;	/* ENOMEM--return skip == 0 */

@@ -58,6 +58,7 @@ static struct ti_dt_clk am43xx_clks[] = {
 	DT_CLK(NULL, "smartreflex1_fck", "smartreflex1_fck"),
 	DT_CLK(NULL, "sha0_fck", "sha0_fck"),
 	DT_CLK(NULL, "aes0_fck", "aes0_fck"),
+	DT_CLK(NULL, "rng_fck", "rng_fck"),
 	DT_CLK(NULL, "timer1_fck", "timer1_fck"),
 	DT_CLK(NULL, "timer2_fck", "timer2_fck"),
 	DT_CLK(NULL, "timer3_fck", "timer3_fck"),
@@ -115,6 +116,12 @@ static struct ti_dt_clk am43xx_clks[] = {
 	DT_CLK("48306200.ehrpwm", "tbclk", "ehrpwm3_tbclk"),
 	DT_CLK("48308200.ehrpwm", "tbclk", "ehrpwm4_tbclk"),
 	DT_CLK("4830a200.ehrpwm", "tbclk", "ehrpwm5_tbclk"),
+	DT_CLK("48300200.pwm", "tbclk", "ehrpwm0_tbclk"),
+	DT_CLK("48302200.pwm", "tbclk", "ehrpwm1_tbclk"),
+	DT_CLK("48304200.pwm", "tbclk", "ehrpwm2_tbclk"),
+	DT_CLK("48306200.pwm", "tbclk", "ehrpwm3_tbclk"),
+	DT_CLK("48308200.pwm", "tbclk", "ehrpwm4_tbclk"),
+	DT_CLK("4830a200.pwm", "tbclk", "ehrpwm5_tbclk"),
 	{ .node_name = NULL },
 };
 

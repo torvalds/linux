@@ -762,6 +762,39 @@ out_unlock:
 }
 EXPORT_SYMBOL(setup_arg_pages);
 
+#else
+
+/*
+ * Transfer the program arguments and environment from the holding pages
+ * onto the stack. The provided stack pointer is adjusted accordingly.
+ */
+int transfer_args_to_stack(struct linux_binprm *bprm,
+			   unsigned long *sp_location)
+{
+	unsigned long index, stop, sp;
+	int ret = 0;
+
+	stop = bprm->p >> PAGE_SHIFT;
+	sp = *sp_location;
+
+	for (index = MAX_ARG_PAGES - 1; index >= stop; index--) {
+		unsigned int offset = index == stop ? bprm->p & ~PAGE_MASK : 0;
+		char *src = kmap(bprm->page[index]) + offset;
+		sp -= PAGE_SIZE - offset;
+		if (copy_to_user((void *) sp, src, PAGE_SIZE - offset) != 0)
+			ret = -EFAULT;
+		kunmap(bprm->page[index]);
+		if (ret)
+			goto out;
+	}
+
+	*sp_location = sp;
+
+out:
+	return ret;
+}
+EXPORT_SYMBOL(transfer_args_to_stack);
+
 #endif /* CONFIG_MMU */
 
 static struct file *do_open_execat(int fd, struct filename *name, int flags)
@@ -866,7 +899,8 @@ int kernel_read_file(struct file *file, void **buf, loff_t *size,
 		goto out;
 	}
 
-	*buf = vmalloc(i_size);
+	if (id != READING_FIRMWARE_PREALLOC_BUFFER)
+		*buf = vmalloc(i_size);
 	if (!*buf) {
 		ret = -ENOMEM;
 		goto out;
@@ -897,8 +931,10 @@ int kernel_read_file(struct file *file, void **buf, loff_t *size,
 
 out_free:
 	if (ret < 0) {
-		vfree(*buf);
-		*buf = NULL;
+		if (id != READING_FIRMWARE_PREALLOC_BUFFER) {
+			vfree(*buf);
+			*buf = NULL;
+		}
 	}
 
 out:

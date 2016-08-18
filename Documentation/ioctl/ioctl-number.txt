@@ -248,7 +248,7 @@ Code  Seq#(hex)	Include File		Comments
 'm'	00	drivers/scsi/megaraid/megaraid_ioctl.h	conflict!
 'm'	00-1F	net/irda/irmod.h	conflict!
 'n'	00-7F	linux/ncp_fs.h and fs/ncpfs/ioctl.c
-'n'	80-8F	linux/nilfs2_fs.h	NILFS2
+'n'	80-8F	uapi/linux/nilfs2_api.h	NILFS2
 'n'	E0-FF	linux/matroxfb.h	matroxfb
 'o'	00-1F	fs/ocfs2/ocfs2_fs.h	OCFS2
 'o'     00-03   mtd/ubi-user.h		conflict! (OCFS2 and UBI overlaps)

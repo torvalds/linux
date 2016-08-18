@@ -18,6 +18,7 @@ Contents:
    media/media_kapi
    media/dvb-drivers/index
    media/v4l-drivers/index
+   gpu/index
 
 Indices and tables
 ==================

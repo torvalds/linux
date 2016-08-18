@@ -5,7 +5,7 @@
  */
 #include <linux/init.h>
 #include <linux/ioport.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/pci.h>
 
 #include <asm/bios_ebda.h>

@@ -355,6 +355,9 @@ struct vc4_validated_shader_info {
 	uint32_t uniforms_src_size;
 	uint32_t num_texture_samples;
 	struct vc4_texture_sample_info *texture_samples;
+
+	uint32_t num_uniform_addr_offsets;
+	uint32_t *uniform_addr_offsets;
 };
 
 /**
@@ -415,6 +418,13 @@ extern struct platform_driver vc4_crtc_driver;
 int vc4_enable_vblank(struct drm_device *dev, unsigned int crtc_id);
 void vc4_disable_vblank(struct drm_device *dev, unsigned int crtc_id);
 int vc4_crtc_debugfs_regs(struct seq_file *m, void *arg);
+int vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
+			    unsigned int flags, int *vpos, int *hpos,
+			    ktime_t *stime, ktime_t *etime,
+			    const struct drm_display_mode *mode);
+int vc4_crtc_get_vblank_timestamp(struct drm_device *dev, unsigned int crtc_id,
+				  int *max_error, struct timeval *vblank_time,
+				  unsigned flags);
 
 /* vc4_debugfs.c */
 int vc4_debugfs_init(struct drm_minor *minor);
@@ -469,7 +479,7 @@ int vc4_kms_load(struct drm_device *dev);
 struct drm_plane *vc4_plane_init(struct drm_device *dev,
 				 enum drm_plane_type type);
 u32 vc4_plane_write_dlist(struct drm_plane *plane, u32 __iomem *dlist);
-u32 vc4_plane_dlist_size(struct drm_plane_state *state);
+u32 vc4_plane_dlist_size(const struct drm_plane_state *state);
 void vc4_plane_async_set_fb(struct drm_plane *plane,
 			    struct drm_framebuffer *fb);
 

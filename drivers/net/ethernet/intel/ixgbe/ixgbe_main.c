@@ -9353,8 +9353,7 @@ static int ixgbe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		pci_using_dac = 0;
 	}
 
-	err = pci_request_selected_regions(pdev, pci_select_bars(pdev,
-					   IORESOURCE_MEM), ixgbe_driver_name);
+	err = pci_request_mem_regions(pdev, ixgbe_driver_name);
 	if (err) {
 		dev_err(&pdev->dev,
 			"pci_request_selected_regions failed 0x%x\n", err);
@@ -9740,8 +9739,7 @@ err_ioremap:
 	disable_dev = !test_and_set_bit(__IXGBE_DISABLED, &adapter->state);
 	free_netdev(netdev);
 err_alloc_etherdev:
-	pci_release_selected_regions(pdev,
-				     pci_select_bars(pdev, IORESOURCE_MEM));
+	pci_release_mem_regions(pdev);
 err_pci_reg:
 err_dma:
 	if (!adapter || disable_dev)
@@ -9808,8 +9806,7 @@ static void ixgbe_remove(struct pci_dev *pdev)
 
 #endif
 	iounmap(adapter->io_addr);
-	pci_release_selected_regions(pdev, pci_select_bars(pdev,
-				     IORESOURCE_MEM));
+	pci_release_mem_regions(pdev);
 
 	e_dev_info("complete\n");
 

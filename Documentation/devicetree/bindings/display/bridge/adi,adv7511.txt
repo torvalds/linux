@@ -1,13 +1,19 @@
-Analog Device ADV7511(W)/13 HDMI Encoders
+Analog Device ADV7511(W)/13/33 HDMI Encoders
 -----------------------------------------
 
-The ADV7511, ADV7511W and ADV7513 are HDMI audio and video transmitters
+The ADV7511, ADV7511W, ADV7513 and ADV7533 are HDMI audio and video transmitters
 compatible with HDMI 1.4 and DVI 1.0. They support color space conversion,
-S/PDIF, CEC and HDCP.
+S/PDIF, CEC and HDCP. ADV7533 supports the DSI interface for input pixels, while
+the others support RGB interface.
 
 Required properties:
 
-- compatible: Should be one of "adi,adv7511", "adi,adv7511w" or "adi,adv7513"
+- compatible: Should be one of:
+		"adi,adv7511"
+		"adi,adv7511w"
+		"adi,adv7513"
+		"adi,adv7533"
+
 - reg: I2C slave address
 
 The ADV7511 supports a large number of input data formats that differ by their
@@ -32,6 +38,11 @@ The following input format properties are required except in "rgb 1x" and
 - adi,input-justification: The input bit justification ("left", "evenly",
   "right").
 
+The following properties are required for ADV7533:
+
+- adi,dsi-lanes: Number of DSI data lanes connected to the DSI host. It should
+  be one of 1, 2, 3 or 4.
+
 Optional properties:
 
 - interrupts: Specifier for the ADV7511 interrupt
@@ -42,13 +53,18 @@ Optional properties:
 - adi,embedded-sync: The input uses synchronization signals embedded in the
   data stream (similar to BT.656). Defaults to separate H/V synchronization
   signals.
+- adi,disable-timing-generator: Only for ADV7533. Disables the internal timing
+  generator. The chip will rely on the sync signals in the DSI data lanes,
+  rather than generate its own timings for HDMI output.
 
 Required nodes:
 
 The ADV7511 has two video ports. Their connections are modelled using the OF
 graph bindings specified in Documentation/devicetree/bindings/graph.txt.
 
-- Video port 0 for the RGB or YUV input
+- Video port 0 for the RGB, YUV or DSI input. In the case of ADV7533, the
+  remote endpoint phandle should be a reference to a valid mipi_dsi_host device
+  node.
 - Video port 1 for the HDMI output
 
 

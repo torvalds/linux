@@ -17,8 +17,8 @@
 static void cirrus_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct cirrus_framebuffer *cirrus_fb = to_cirrus_framebuffer(fb);
-	if (cirrus_fb->obj)
-		drm_gem_object_unreference_unlocked(cirrus_fb->obj);
+
+	drm_gem_object_unreference_unlocked(cirrus_fb->obj);
 	drm_framebuffer_cleanup(fb);
 	kfree(fb);
 }
@@ -185,13 +185,22 @@ int cirrus_driver_load(struct drm_device *dev, unsigned long flags)
 		goto out;
 	}
 
+	/*
+	 * cirrus_modeset_init() is initializing/registering the emulated fbdev
+	 * and DRM internals can access/test some of the fields in
+	 * mode_config->funcs as part of the fbdev registration process.
+	 * Make sure dev->mode_config.funcs is properly set to avoid
+	 * dereferencing a NULL pointer.
+	 * FIXME: mode_config.funcs assignment should probably be done in
+	 * cirrus_modeset_init() (that's a common pattern seen in other DRM
+	 * drivers).
+	 */
+	dev->mode_config.funcs = &cirrus_mode_funcs;
 	r = cirrus_modeset_init(cdev);
 	if (r) {
 		dev_err(&dev->pdev->dev, "Fatal error during modeset init: %d\n", r);
 		goto out;
 	}
-
-	dev->mode_config.funcs = (void *)&cirrus_mode_funcs;
 
 	return 0;
 out:

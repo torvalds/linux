@@ -44,9 +44,7 @@ machine_device_initcall(warp, warp_device_probe);
 
 static int __init warp_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if (!of_flat_dt_is_compatible(root, "pika,warp"))
+	if (!of_machine_is_compatible("pika,warp"))
 		return 0;
 
 	/* For __dma_alloc_coherent */

@@ -23,17 +23,6 @@ struct ipu_plane {
 
 	int			dma;
 	int			dp_flow;
-
-	int			x;
-	int			y;
-	int			w;
-	int			h;
-
-	unsigned int		u_offset;
-	unsigned int		v_offset;
-	unsigned int		stride[2];
-
-	bool			enabled;
 };
 
 struct ipu_plane *ipu_plane_init(struct drm_device *dev, struct ipu_soc *ipu,
@@ -47,11 +36,6 @@ int ipu_plane_mode_set(struct ipu_plane *plane, struct drm_crtc *crtc,
 		       unsigned int crtc_w, unsigned int crtc_h,
 		       uint32_t src_x, uint32_t src_y, uint32_t src_w,
 		       uint32_t src_h, bool interlaced);
-
-void ipu_plane_enable(struct ipu_plane *plane);
-void ipu_plane_disable(struct ipu_plane *plane);
-int ipu_plane_set_base(struct ipu_plane *plane, struct drm_framebuffer *fb,
-		       int x, int y);
 
 int ipu_plane_get_resources(struct ipu_plane *plane);
 void ipu_plane_put_resources(struct ipu_plane *plane);

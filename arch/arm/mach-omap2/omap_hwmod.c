@@ -178,6 +178,11 @@
  */
 #define OMAP4_RST_CTRL_ST_OFFSET	4
 
+/*
+ * Maximum length for module clock handle names
+ */
+#define MOD_CLK_MAX_NAME_LEN		32
+
 /**
  * struct omap_hwmod_soc_ops - fn ptrs for some SoC-specific operations
  * @enable_module: function to enable a module (via MODULEMODE)
@@ -200,6 +205,7 @@ struct omap_hwmod_soc_ops {
 	int (*init_clkdm)(struct omap_hwmod *oh);
 	void (*update_context_lost)(struct omap_hwmod *oh);
 	int (*get_context_lost)(struct omap_hwmod *oh);
+	int (*disable_direct_prcm)(struct omap_hwmod *oh);
 };
 
 /* soc_ops: adapts the omap_hwmod code to the currently-booted SoC */
@@ -776,17 +782,35 @@ static int _del_initiator_dep(struct omap_hwmod *oh, struct omap_hwmod *init_oh)
  * @oh: struct omap_hwmod *
  *
  * Called from _init_clocks().  Populates the @oh _clk (main
- * functional clock pointer) if a main_clk is present.  Returns 0 on
- * success or -EINVAL on error.
+ * functional clock pointer) if a clock matching the hwmod name is found,
+ * or a main_clk is present.  Returns 0 on success or -EINVAL on error.
  */
 static int _init_main_clk(struct omap_hwmod *oh)
 {
 	int ret = 0;
+	char name[MOD_CLK_MAX_NAME_LEN];
+	struct clk *clk;
 
-	if (!oh->main_clk)
-		return 0;
+	/* +7 magic comes from '_mod_ck' suffix */
+	if (strlen(oh->name) + 7 > MOD_CLK_MAX_NAME_LEN)
+		pr_warn("%s: warning: cropping name for %s\n", __func__,
+			oh->name);
 
-	oh->_clk = clk_get(NULL, oh->main_clk);
+	strncpy(name, oh->name, MOD_CLK_MAX_NAME_LEN - 7);
+	strcat(name, "_mod_ck");
+
+	clk = clk_get(NULL, name);
+	if (!IS_ERR(clk)) {
+		oh->_clk = clk;
+		soc_ops.disable_direct_prcm(oh);
+		oh->main_clk = kstrdup(name, GFP_KERNEL);
+	} else {
+		if (!oh->main_clk)
+			return 0;
+
+		oh->_clk = clk_get(NULL, oh->main_clk);
+	}
+
 	if (IS_ERR(oh->_clk)) {
 		pr_warn("omap_hwmod: %s: cannot clk_get main_clk %s\n",
 			oh->name, oh->main_clk);
@@ -1678,7 +1702,6 @@ static int _deassert_hardreset(struct omap_hwmod *oh, const char *name)
 {
 	struct omap_hwmod_rst_info ohri;
 	int ret = -EINVAL;
-	int hwsup = 0;
 
 	if (!oh)
 		return -EINVAL;
@@ -1696,7 +1719,7 @@ static int _deassert_hardreset(struct omap_hwmod *oh, const char *name)
 		 * might not be completed. The clockdomain can be set
 		 * in HW_AUTO only when the module become ready.
 		 */
-		hwsup = clkdm_in_hwsup(oh->clkdm);
+		clkdm_deny_idle(oh->clkdm);
 		ret = clkdm_hwmod_enable(oh->clkdm, oh);
 		if (ret) {
 			WARN(1, "omap_hwmod: %s: could not enable clockdomain %s: %d\n",
@@ -1723,8 +1746,7 @@ static int _deassert_hardreset(struct omap_hwmod *oh, const char *name)
 		 * Set the clockdomain to HW_AUTO, assuming that the
 		 * previous state was HW_AUTO.
 		 */
-		if (hwsup)
-			clkdm_allow_idle(oh->clkdm);
+		clkdm_allow_idle(oh->clkdm);
 
 		clkdm_hwmod_disable(oh->clkdm, oh);
 	}
@@ -2078,7 +2100,6 @@ static int _enable_preprogram(struct omap_hwmod *oh)
 static int _enable(struct omap_hwmod *oh)
 {
 	int r;
-	int hwsup = 0;
 
 	pr_debug("omap_hwmod: %s: enabling\n", oh->name);
 
@@ -2138,8 +2159,7 @@ static int _enable(struct omap_hwmod *oh)
 		 * completely the module. The clockdomain can be set
 		 * in HW_AUTO only when the module become ready.
 		 */
-		hwsup = clkdm_in_hwsup(oh->clkdm) &&
-			!clkdm_missing_idle_reporting(oh->clkdm);
+		clkdm_deny_idle(oh->clkdm);
 		r = clkdm_hwmod_enable(oh->clkdm, oh);
 		if (r) {
 			WARN(1, "omap_hwmod: %s: could not enable clockdomain %s: %d\n",
@@ -2159,14 +2179,10 @@ static int _enable(struct omap_hwmod *oh)
 
 	r = (soc_ops.wait_target_ready) ? soc_ops.wait_target_ready(oh) :
 		-EINVAL;
-	if (!r) {
-		/*
-		 * Set the clockdomain to HW_AUTO only if the target is ready,
-		 * assuming that the previous state was HW_AUTO
-		 */
-		if (oh->clkdm && hwsup)
-			clkdm_allow_idle(oh->clkdm);
+	if (oh->clkdm)
+		clkdm_allow_idle(oh->clkdm);
 
+	if (!r) {
 		oh->_state = _HWMOD_STATE_ENABLED;
 
 		/* Access the sysconfig only if the target is ready */
@@ -2220,6 +2236,9 @@ static int _idle(struct omap_hwmod *oh)
 		_idle_sysc(oh);
 	_del_initiator_dep(oh, mpu_oh);
 
+	if (oh->clkdm)
+		clkdm_deny_idle(oh->clkdm);
+
 	if (oh->flags & HWMOD_BLOCK_WFI)
 		cpu_idle_poll_ctrl(false);
 	if (soc_ops.disable_module)
@@ -2232,8 +2251,10 @@ static int _idle(struct omap_hwmod *oh)
 	 * transition to complete properly.
 	 */
 	_disable_clocks(oh);
-	if (oh->clkdm)
+	if (oh->clkdm) {
+		clkdm_allow_idle(oh->clkdm);
 		clkdm_hwmod_disable(oh->clkdm, oh);
+	}
 
 	/* Mux pins for device idle if populated */
 	if (oh->mux && oh->mux->pads_dynamic) {
@@ -3091,6 +3112,25 @@ static int _omap4_is_hardreset_asserted(struct omap_hwmod *oh,
 }
 
 /**
+ * _omap4_disable_direct_prcm - disable direct PRCM control for hwmod
+ * @oh: struct omap_hwmod * to disable control for
+ *
+ * Disables direct PRCM clkctrl done by hwmod core. Instead, the hwmod
+ * will be using its main_clk to enable/disable the module. Returns
+ * 0 if successful.
+ */
+static int _omap4_disable_direct_prcm(struct omap_hwmod *oh)
+{
+	if (!oh)
+		return -EINVAL;
+
+	oh->prcm.omap4.clkctrl_offs = 0;
+	oh->prcm.omap4.modulemode = 0;
+
+	return 0;
+}
+
+/**
  * _am33xx_deassert_hardreset - call AM33XX PRM hardreset fn with hwmod args
  * @oh: struct omap_hwmod * to deassert hardreset
  * @ohri: hardreset line data
@@ -3913,6 +3953,7 @@ void __init omap_hwmod_init(void)
 		soc_ops.init_clkdm = _init_clkdm;
 		soc_ops.update_context_lost = _omap4_update_context_lost;
 		soc_ops.get_context_lost = _omap4_get_context_lost;
+		soc_ops.disable_direct_prcm = _omap4_disable_direct_prcm;
 	} else if (cpu_is_ti814x() || cpu_is_ti816x() || soc_is_am33xx() ||
 		   soc_is_am43xx()) {
 		soc_ops.enable_module = _omap4_enable_module;
@@ -3922,6 +3963,7 @@ void __init omap_hwmod_init(void)
 		soc_ops.deassert_hardreset = _am33xx_deassert_hardreset;
 		soc_ops.is_hardreset_asserted = _omap4_is_hardreset_asserted;
 		soc_ops.init_clkdm = _init_clkdm;
+		soc_ops.disable_direct_prcm = _omap4_disable_direct_prcm;
 	} else {
 		WARN(1, "omap_hwmod: unknown SoC type\n");
 	}

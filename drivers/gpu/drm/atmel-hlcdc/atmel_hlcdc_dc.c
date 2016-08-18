@@ -519,7 +519,7 @@ static int atmel_hlcdc_dc_atomic_commit(struct drm_device *dev,
 	}
 
 	/* Swap the state, this is the point of no return. */
-	drm_atomic_helper_swap_state(dev, state);
+	drm_atomic_helper_swap_state(state, true);
 
 	if (async)
 		queue_work(dc->wq, &commit->work);
@@ -691,13 +691,6 @@ static void atmel_hlcdc_dc_unload(struct drm_device *dev)
 	destroy_workqueue(dc->wq);
 }
 
-static void atmel_hlcdc_dc_connector_unplug_all(struct drm_device *dev)
-{
-	mutex_lock(&dev->mode_config.mutex);
-	drm_connector_unregister_all(dev);
-	mutex_unlock(&dev->mode_config.mutex);
-}
-
 static void atmel_hlcdc_dc_lastclose(struct drm_device *dev)
 {
 	struct atmel_hlcdc_dc *dc = dev->dev_private;
@@ -776,7 +769,7 @@ static struct drm_driver atmel_hlcdc_dc_driver = {
 	.get_vblank_counter = drm_vblank_no_hw_counter,
 	.enable_vblank = atmel_hlcdc_dc_enable_vblank,
 	.disable_vblank = atmel_hlcdc_dc_disable_vblank,
-	.gem_free_object = drm_gem_cma_free_object,
+	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
@@ -815,14 +808,7 @@ static int atmel_hlcdc_dc_drm_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_unload;
 
-	ret = drm_connector_register_all(ddev);
-	if (ret)
-		goto err_unregister;
-
 	return 0;
-
-err_unregister:
-	drm_dev_unregister(ddev);
 
 err_unload:
 	atmel_hlcdc_dc_unload(ddev);
@@ -837,7 +823,6 @@ static int atmel_hlcdc_dc_drm_remove(struct platform_device *pdev)
 {
 	struct drm_device *ddev = platform_get_drvdata(pdev);
 
-	atmel_hlcdc_dc_connector_unplug_all(ddev);
 	drm_dev_unregister(ddev);
 	atmel_hlcdc_dc_unload(ddev);
 	drm_dev_unref(ddev);

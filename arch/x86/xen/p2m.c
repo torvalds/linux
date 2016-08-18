@@ -60,7 +60,7 @@
  */
 
 #include <linux/init.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/list.h>
 #include <linux/hash.h>
 #include <linux/sched.h>

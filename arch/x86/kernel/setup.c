@@ -36,7 +36,7 @@
 #include <linux/console.h>
 #include <linux/root_dev.h>
 #include <linux/highmem.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/efi.h>
 #include <linux/init.h>
 #include <linux/edd.h>
@@ -936,8 +936,6 @@ void __init setup_arch(char **cmdline_p)
 
 	x86_init.oem.arch_setup();
 
-	kernel_randomize_memory();
-
 	iomem_resource.end = (1ULL << boot_cpu_data.x86_phys_bits) - 1;
 	setup_memory_map();
 	parse_setup_data();
@@ -1055,6 +1053,12 @@ void __init setup_arch(char **cmdline_p)
 
 	max_possible_pfn = max_pfn;
 
+	/*
+	 * Define random base addresses for memory sections after max_pfn is
+	 * defined and before each memory section base is used.
+	 */
+	kernel_randomize_memory();
+
 #ifdef CONFIG_X86_32
 	/* max_low_pfn get updated here */
 	find_low_pfn_range();
@@ -1097,6 +1101,8 @@ void __init setup_arch(char **cmdline_p)
 		efi_find_mirror();
 	}
 
+	reserve_bios_regions();
+
 	/*
 	 * The EFI specification says that boot service code won't be called
 	 * after ExitBootServices(). This is, in fact, a lie.
@@ -1125,7 +1131,15 @@ void __init setup_arch(char **cmdline_p)
 
 	early_trap_pf_init();
 
-	setup_real_mode();
+	/*
+	 * Update mmu_cr4_features (and, indirectly, trampoline_cr4_features)
+	 * with the current CR4 value.  This may not be necessary, but
+	 * auditing all the early-boot CR4 manipulation would be needed to
+	 * rule it out.
+	 */
+	if (boot_cpu_data.cpuid_level >= 0)
+		/* A CPU has %cr4 if and only if it has CPUID. */
+		mmu_cr4_features = __read_cr4();
 
 	memblock_set_current_limit(get_max_mapped());
 
@@ -1173,13 +1187,6 @@ void __init setup_arch(char **cmdline_p)
 	x86_init.paging.pagetable_init();
 
 	kasan_init();
-
-	if (boot_cpu_data.cpuid_level >= 0) {
-		/* A CPU has %cr4 if and only if it has CPUID */
-		mmu_cr4_features = __read_cr4();
-		if (trampoline_cr4_features)
-			*trampoline_cr4_features = mmu_cr4_features;
-	}
 
 #ifdef CONFIG_X86_32
 	/* sync back kernel address range */

@@ -918,7 +918,7 @@ static inline struct cfq_data *cic_to_cfqd(struct cfq_io_cq *cic)
  */
 static inline bool cfq_bio_sync(struct bio *bio)
 {
-	return bio_data_dir(bio) == READ || (bio->bi_rw & REQ_SYNC);
+	return bio_data_dir(bio) == READ || (bio->bi_opf & REQ_SYNC);
 }
 
 /*
@@ -2565,7 +2565,7 @@ static void cfq_merged_request(struct request_queue *q, struct request *req,
 static void cfq_bio_merged(struct request_queue *q, struct request *req,
 				struct bio *bio)
 {
-	cfqg_stats_update_io_merged(RQ_CFQG(req), bio_op(bio), bio->bi_rw);
+	cfqg_stats_update_io_merged(RQ_CFQG(req), bio_op(bio), bio->bi_opf);
 }
 
 static void

@@ -3877,7 +3877,7 @@ int lpfc_sli4_scmd_to_wqidx_distr(struct lpfc_hba *phba,
 	uint32_t tag;
 	uint16_t hwq;
 
-	if (shost_use_blk_mq(cmnd->device->host)) {
+	if (cmnd && shost_use_blk_mq(cmnd->device->host)) {
 		tag = blk_mq_unique_tag(cmnd->request);
 		hwq = blk_mq_unique_tag_to_hwq(tag);
 

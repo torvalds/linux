@@ -1005,6 +1005,7 @@ static int ravb_phy_init(struct net_device *ndev)
 	}
 	phydev = of_phy_connect(ndev, pn, ravb_adjust_link, 0,
 				priv->phy_interface);
+	of_node_put(pn);
 	if (!phydev) {
 		netdev_err(ndev, "failed to connect PHY\n");
 		return -ENOENT;

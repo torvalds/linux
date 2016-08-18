@@ -106,6 +106,7 @@ static void __init imx7d_init_irq(void)
 
 static const char *const imx7d_dt_compat[] __initconst = {
 	"fsl,imx7d",
+	"fsl,imx7s",
 	NULL,
 };
 

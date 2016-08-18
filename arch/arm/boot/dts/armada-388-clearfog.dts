@@ -239,22 +239,6 @@
 				status = "okay";
 			};
 
-			mdio@72004 {
-				pinctrl-0 = <&mdio_pins>;
-				pinctrl-names = "default";
-
-				phy_dedicated: ethernet-phy@0 {
-					/*
-					 * Annoyingly, the marvell phy driver
-					 * configures the LED register, rather
-					 * than preserving reset-loaded setting.
-					 * We undo that rubbish here.
-					 */
-					marvell,reg-init = <3 16 0 0x101e>;
-					reg = <0>;
-				};
-			};
-
 			pinctrl@18000 {
 				clearfog_dsa0_clk_pins: clearfog-dsa0-clk-pins {
 					marvell,pins = "mpp46";

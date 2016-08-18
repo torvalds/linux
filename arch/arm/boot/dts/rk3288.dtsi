@@ -827,6 +827,11 @@
 			#phy-cells = <0>;
 			status = "disabled";
 		};
+
+		io_domains: io-domains {
+			compatible = "rockchip,rk3288-io-voltage-domain";
+			status = "disabled";
+		};
 	};
 
 	wdt: watchdog@ff800000 {

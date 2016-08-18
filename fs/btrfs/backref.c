@@ -139,7 +139,7 @@ int __init btrfs_prelim_ref_init(void)
 	btrfs_prelim_ref_cache = kmem_cache_create("btrfs_prelim_ref",
 					sizeof(struct __prelim_ref),
 					0,
-					SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD,
+					SLAB_MEM_SPREAD,
 					NULL);
 	if (!btrfs_prelim_ref_cache)
 		return -ENOMEM;
@@ -361,7 +361,7 @@ static int __resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 		goto out;
 	}
 
-	if (btrfs_test_is_dummy_root(root)) {
+	if (btrfs_is_testing(fs_info)) {
 		srcu_read_unlock(&fs_info->subvol_srcu, index);
 		ret = -ENOENT;
 		goto out;

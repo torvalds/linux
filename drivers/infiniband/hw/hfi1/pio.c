@@ -1952,13 +1952,17 @@ int init_pervl_scs(struct hfi1_devdata *dd)
 	dd->vld[15].sc = sc_alloc(dd, SC_VL15,
 				  dd->rcd[0]->rcvhdrqentsize, dd->node);
 	if (!dd->vld[15].sc)
-		goto nomem;
+		return -ENOMEM;
+
 	hfi1_init_ctxt(dd->vld[15].sc);
 	dd->vld[15].mtu = enum_to_mtu(OPA_MTU_2048);
 
-	dd->kernel_send_context = kmalloc_node(dd->num_send_contexts *
+	dd->kernel_send_context = kzalloc_node(dd->num_send_contexts *
 					sizeof(struct send_context *),
 					GFP_KERNEL, dd->node);
+	if (!dd->kernel_send_context)
+		goto freesc15;
+
 	dd->kernel_send_context[0] = dd->vld[15].sc;
 
 	for (i = 0; i < num_vls; i++) {
@@ -2010,12 +2014,21 @@ int init_pervl_scs(struct hfi1_devdata *dd)
 	if (pio_map_init(dd, ppd->port - 1, num_vls, NULL))
 		goto nomem;
 	return 0;
+
 nomem:
-	sc_free(dd->vld[15].sc);
-	for (i = 0; i < num_vls; i++)
+	for (i = 0; i < num_vls; i++) {
 		sc_free(dd->vld[i].sc);
+		dd->vld[i].sc = NULL;
+	}
+
 	for (i = num_vls; i < INIT_SC_PER_VL * num_vls; i++)
 		sc_free(dd->kernel_send_context[i + 1]);
+
+	kfree(dd->kernel_send_context);
+	dd->kernel_send_context = NULL;
+
+freesc15:
+	sc_free(dd->vld[15].sc);
 	return -ENOMEM;
 }
 

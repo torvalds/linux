@@ -1,8 +1,8 @@
 menuconfig ARCH_MV78XX0
 	bool "Marvell MV78xx0"
 	depends on ARCH_MULTI_V5
-	select ARCH_REQUIRE_GPIOLIB
 	select CPU_FEROCEON
+	select GPIOLIB
 	select MVEBU_MBUS
 	select PCI
 	select PLAT_ORION_LEGACY

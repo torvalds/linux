@@ -24,7 +24,6 @@
 #include <linux/platform_data/omap_drm.h>
 #include <linux/types.h>
 #include <linux/wait.h>
-#include <video/omapdss.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
@@ -183,7 +182,6 @@ struct drm_framebuffer *omap_framebuffer_create(struct drm_device *dev,
 		struct drm_file *file, const struct drm_mode_fb_cmd2 *mode_cmd);
 struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 		const struct drm_mode_fb_cmd2 *mode_cmd, struct drm_gem_object **bos);
-struct drm_gem_object *omap_framebuffer_bo(struct drm_framebuffer *fb, int p);
 int omap_framebuffer_pin(struct drm_framebuffer *fb);
 void omap_framebuffer_unpin(struct drm_framebuffer *fb);
 void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
@@ -231,24 +229,12 @@ int omap_gem_rotated_paddr(struct drm_gem_object *obj, uint32_t orient,
 		int x, int y, dma_addr_t *paddr);
 uint64_t omap_gem_mmap_offset(struct drm_gem_object *obj);
 size_t omap_gem_mmap_size(struct drm_gem_object *obj);
-int omap_gem_tiled_size(struct drm_gem_object *obj, uint16_t *w, uint16_t *h);
 int omap_gem_tiled_stride(struct drm_gem_object *obj, uint32_t orient);
 
 struct dma_buf *omap_gem_prime_export(struct drm_device *dev,
 		struct drm_gem_object *obj, int flags);
 struct drm_gem_object *omap_gem_prime_import(struct drm_device *dev,
 		struct dma_buf *buffer);
-
-static inline int align_pitch(int pitch, int width, int bpp)
-{
-	int bytespp = (bpp + 7) / 8;
-	/* in case someone tries to feed us a completely bogus stride: */
-	pitch = max(pitch, width * bytespp);
-	/* PVR needs alignment to 8 pixels.. right now that is the most
-	 * restrictive stride requirement..
-	 */
-	return roundup(pitch, 8 * bytespp);
-}
 
 /* map crtc to vblank mask */
 uint32_t pipe2vbl(struct drm_crtc *crtc);

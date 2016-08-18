@@ -295,9 +295,8 @@ static int ast_get_dram_info(struct drm_device *dev)
 static void ast_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct ast_framebuffer *ast_fb = to_ast_framebuffer(fb);
-	if (ast_fb->obj)
-		drm_gem_object_unreference_unlocked(ast_fb->obj);
 
+	drm_gem_object_unreference_unlocked(ast_fb->obj);
 	drm_framebuffer_cleanup(fb);
 	kfree(fb);
 }

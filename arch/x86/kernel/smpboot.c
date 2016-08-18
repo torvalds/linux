@@ -43,7 +43,7 @@
 
 #include <linux/init.h>
 #include <linux/smp.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/percpu.h>
 #include <linux/bootmem.h>
@@ -100,10 +100,11 @@ EXPORT_PER_CPU_SYMBOL(cpu_info);
 /* Logical package management. We might want to allocate that dynamically */
 static int *physical_to_logical_pkg __read_mostly;
 static unsigned long *physical_package_map __read_mostly;;
-static unsigned long *logical_package_map  __read_mostly;
 static unsigned int max_physical_pkg_id __read_mostly;
 unsigned int __max_logical_packages __read_mostly;
 EXPORT_SYMBOL(__max_logical_packages);
+static unsigned int logical_packages __read_mostly;
+static bool logical_packages_frozen __read_mostly;
 
 /* Maximum number of SMT threads on any online core */
 int __max_smt_threads __read_mostly;
@@ -277,14 +278,14 @@ int topology_update_package_map(unsigned int apicid, unsigned int cpu)
 	if (test_and_set_bit(pkg, physical_package_map))
 		goto found;
 
-	new = find_first_zero_bit(logical_package_map, __max_logical_packages);
-	if (new >= __max_logical_packages) {
+	if (logical_packages_frozen) {
 		physical_to_logical_pkg[pkg] = -1;
-		pr_warn("APIC(%x) Package %u exceeds logical package map\n",
+		pr_warn("APIC(%x) Package %u exceeds logical package max\n",
 			apicid, pkg);
 		return -ENOSPC;
 	}
-	set_bit(new, logical_package_map);
+
+	new = logical_packages++;
 	pr_info("APIC(%x) Converting physical %u to logical package %u\n",
 		apicid, pkg, new);
 	physical_to_logical_pkg[pkg] = new;
@@ -341,6 +342,7 @@ static void __init smp_init_package_map(void)
 	}
 
 	__max_logical_packages = DIV_ROUND_UP(total_cpus, ncpus);
+	logical_packages = 0;
 
 	/*
 	 * Possibly larger than what we need as the number of apic ids per
@@ -352,10 +354,6 @@ static void __init smp_init_package_map(void)
 	memset(physical_to_logical_pkg, 0xff, size);
 	size = BITS_TO_LONGS(max_physical_pkg_id) * sizeof(unsigned long);
 	physical_package_map = kzalloc(size, GFP_KERNEL);
-	size = BITS_TO_LONGS(__max_logical_packages) * sizeof(unsigned long);
-	logical_package_map = kzalloc(size, GFP_KERNEL);
-
-	pr_info("Max logical packages: %u\n", __max_logical_packages);
 
 	for_each_present_cpu(cpu) {
 		unsigned int apicid = apic->cpu_present_to_apicid(cpu);
@@ -369,6 +367,15 @@ static void __init smp_init_package_map(void)
 		set_cpu_possible(cpu, false);
 		set_cpu_present(cpu, false);
 	}
+
+	if (logical_packages > __max_logical_packages) {
+		pr_warn("Detected more packages (%u), then computed by BIOS data (%u).\n",
+			logical_packages, __max_logical_packages);
+		logical_packages_frozen = true;
+		__max_logical_packages  = logical_packages;
+	}
+
+	pr_info("Max logical packages: %u\n", __max_logical_packages);
 }
 
 void __init smp_store_boot_cpu_info(void)

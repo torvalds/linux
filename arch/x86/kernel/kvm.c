@@ -21,7 +21,7 @@
  */
 
 #include <linux/context_tracking.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/kvm_para.h>
 #include <linux/cpu.h>

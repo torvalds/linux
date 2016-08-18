@@ -25,9 +25,8 @@ to_fsl_dcu_connector(struct drm_connector *con)
 		     : NULL;
 }
 
-int fsl_dcu_drm_connector_create(struct fsl_dcu_drm_device *fsl_dev,
-				 struct drm_encoder *encoder);
 int fsl_dcu_drm_encoder_create(struct fsl_dcu_drm_device *fsl_dev,
 			       struct drm_crtc *crtc);
+int fsl_dcu_create_outputs(struct fsl_dcu_drm_device *fsl_dev);
 
 #endif /* __FSL_DCU_DRM_CONNECTOR_H__ */

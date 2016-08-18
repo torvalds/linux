@@ -286,9 +286,10 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 	r = amdgpu_copy_buffer(ring, old_start, new_start,
 			       new_mem->num_pages * PAGE_SIZE, /* bytes */
 			       bo->resv, &fence);
-	/* FIXME: handle copy error */
-	r = ttm_bo_move_accel_cleanup(bo, fence,
-				      evict, no_wait_gpu, new_mem);
+	if (r)
+		return r;
+
+	r = ttm_bo_pipeline_move(bo, fence, evict, new_mem);
 	fence_put(fence);
 	return r;
 }
@@ -334,7 +335,7 @@ static int amdgpu_move_vram_ram(struct ttm_buffer_object *bo,
 	if (unlikely(r)) {
 		goto out_cleanup;
 	}
-	r = ttm_bo_move_ttm(bo, true, no_wait_gpu, new_mem);
+	r = ttm_bo_move_ttm(bo, true, interruptible, no_wait_gpu, new_mem);
 out_cleanup:
 	ttm_bo_mem_put(bo, &tmp_mem);
 	return r;
@@ -367,7 +368,7 @@ static int amdgpu_move_ram_vram(struct ttm_buffer_object *bo,
 	if (unlikely(r)) {
 		return r;
 	}
-	r = ttm_bo_move_ttm(bo, true, no_wait_gpu, &tmp_mem);
+	r = ttm_bo_move_ttm(bo, true, interruptible, no_wait_gpu, &tmp_mem);
 	if (unlikely(r)) {
 		goto out_cleanup;
 	}
@@ -396,6 +397,11 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo,
 		return -EINVAL;
 
 	adev = amdgpu_get_adev(bo->bdev);
+
+	/* remember the eviction */
+	if (evict)
+		atomic64_inc(&adev->num_evictions);
+
 	if (old_mem->mem_type == TTM_PL_SYSTEM && bo->ttm == NULL) {
 		amdgpu_move_null(bo, new_mem);
 		return 0;
@@ -429,7 +435,8 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo,
 
 	if (r) {
 memcpy:
-		r = ttm_bo_move_memcpy(bo, evict, no_wait_gpu, new_mem);
+		r = ttm_bo_move_memcpy(bo, evict, interruptible,
+				       no_wait_gpu, new_mem);
 		if (r) {
 			return r;
 		}

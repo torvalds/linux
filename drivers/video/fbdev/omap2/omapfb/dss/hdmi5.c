@@ -38,7 +38,7 @@
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/component.h>
-#include <video/omapdss.h>
+#include <video/omapfb_dss.h>
 #include <sound/omap-hdmi-audio.h>
 
 #include "hdmi5_core.h"

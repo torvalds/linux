@@ -462,7 +462,7 @@ static inline unsigned int mips_cm_max_vp_width(void)
 	if (mips_cm_revision() >= CM_REV_CM3)
 		return read_gcr_sys_config2() & CM_GCR_SYS_CONFIG2_MAXVPW_MSK;
 
-	if (config_enabled(CONFIG_SMP))
+	if (IS_ENABLED(CONFIG_SMP))
 		return smp_num_siblings;
 
 	return 1;

@@ -625,7 +625,7 @@ static int nfs_writepage_locked(struct page *page,
 	int err;
 
 	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGE);
-	nfs_pageio_init_write(&pgio, inode, wb_priority(wbc),
+	nfs_pageio_init_write(&pgio, inode, 0,
 				false, &nfs_async_write_completion_ops);
 	err = nfs_do_writepage(page, wbc, &pgio, launder);
 	nfs_pageio_complete(&pgio);
@@ -657,15 +657,8 @@ static int nfs_writepages_callback(struct page *page, struct writeback_control *
 int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 {
 	struct inode *inode = mapping->host;
-	unsigned long *bitlock = &NFS_I(inode)->flags;
 	struct nfs_pageio_descriptor pgio;
 	int err;
-
-	/* Stop dirtying of new pages while we sync */
-	err = wait_on_bit_lock_action(bitlock, NFS_INO_FLUSHING,
-			nfs_wait_bit_killable, TASK_KILLABLE);
-	if (err)
-		goto out_err;
 
 	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGES);
 
@@ -673,10 +666,6 @@ int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 				&nfs_async_write_completion_ops);
 	err = write_cache_pages(mapping, wbc, nfs_writepages_callback, &pgio);
 	nfs_pageio_complete(&pgio);
-
-	clear_bit_unlock(NFS_INO_FLUSHING, bitlock);
-	smp_mb__after_atomic();
-	wake_up_bit(bitlock, NFS_INO_FLUSHING);
 
 	if (err < 0)
 		goto out_err;
@@ -1195,9 +1184,11 @@ nfs_key_timeout_notify(struct file *filp, struct inode *inode)
 /*
  * Test if the open context credential key is marked to expire soon.
  */
-bool nfs_ctx_key_to_expire(struct nfs_open_context *ctx)
+bool nfs_ctx_key_to_expire(struct nfs_open_context *ctx, struct inode *inode)
 {
-	return rpcauth_cred_key_to_expire(ctx->cred);
+	struct rpc_auth *auth = NFS_SERVER(inode)->client->cl_auth;
+
+	return rpcauth_cred_key_to_expire(auth, ctx->cred);
 }
 
 /*
@@ -1289,6 +1280,9 @@ int nfs_updatepage(struct file *file, struct page *page,
 	dprintk("NFS:       nfs_updatepage(%pD2 %d@%lld)\n",
 		file, count, (long long)(page_file_offset(page) + offset));
 
+	if (!count)
+		goto out;
+
 	if (nfs_can_extend_write(file, page, inode)) {
 		count = max(count + offset, nfs_page_length(page));
 		offset = 0;
@@ -1299,7 +1293,7 @@ int nfs_updatepage(struct file *file, struct page *page,
 		nfs_set_pageerror(page);
 	else
 		__set_page_dirty_nobuffers(page);
-
+out:
 	dprintk("NFS:       nfs_updatepage returns %d (isize %lld)\n",
 			status, (long long)i_size_read(inode));
 	return status;
@@ -1800,7 +1794,7 @@ static void nfs_commit_release_pages(struct nfs_commit_data *data)
 
 		/* Okay, COMMIT succeeded, apparently. Check the verifier
 		 * returned by the server against all stored verfs. */
-		if (!memcmp(&req->wb_verf, &data->verf.verifier, sizeof(req->wb_verf))) {
+		if (!nfs_write_verifier_cmp(&req->wb_verf, &data->verf.verifier)) {
 			/* We have a match */
 			nfs_inode_remove_request(req);
 			dprintk(" OK\n");
@@ -1922,6 +1916,24 @@ out_mark_dirty:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nfs_write_inode);
+
+/*
+ * Wrapper for filemap_write_and_wait_range()
+ *
+ * Needed for pNFS in order to ensure data becomes visible to the
+ * client.
+ */
+int nfs_filemap_write_and_wait_range(struct address_space *mapping,
+		loff_t lstart, loff_t lend)
+{
+	int ret;
+
+	ret = filemap_write_and_wait_range(mapping, lstart, lend);
+	if (ret == 0)
+		ret = pnfs_sync_inode(mapping->host, true);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(nfs_filemap_write_and_wait_range);
 
 /*
  * flush the inode to disk.

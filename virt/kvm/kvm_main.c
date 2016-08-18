@@ -696,6 +696,11 @@ static void kvm_destroy_devices(struct kvm *kvm)
 {
 	struct kvm_device *dev, *tmp;
 
+	/*
+	 * We do not need to take the kvm->lock here, because nobody else
+	 * has a reference to the struct kvm at this point and therefore
+	 * cannot access the devices list anyhow.
+	 */
 	list_for_each_entry_safe(dev, tmp, &kvm->devices, vm_node) {
 		list_del(&dev->vm_node);
 		dev->ops->destroy(dev);
@@ -1444,6 +1449,52 @@ static bool vma_is_valid(struct vm_area_struct *vma, bool write_fault)
 	return true;
 }
 
+static int hva_to_pfn_remapped(struct vm_area_struct *vma,
+			       unsigned long addr, bool *async,
+			       bool write_fault, kvm_pfn_t *p_pfn)
+{
+	unsigned long pfn;
+	int r;
+
+	r = follow_pfn(vma, addr, &pfn);
+	if (r) {
+		/*
+		 * get_user_pages fails for VM_IO and VM_PFNMAP vmas and does
+		 * not call the fault handler, so do it here.
+		 */
+		bool unlocked = false;
+		r = fixup_user_fault(current, current->mm, addr,
+				     (write_fault ? FAULT_FLAG_WRITE : 0),
+				     &unlocked);
+		if (unlocked)
+			return -EAGAIN;
+		if (r)
+			return r;
+
+		r = follow_pfn(vma, addr, &pfn);
+		if (r)
+			return r;
+
+	}
+
+
+	/*
+	 * Get a reference here because callers of *hva_to_pfn* and
+	 * *gfn_to_pfn* ultimately call kvm_release_pfn_clean on the
+	 * returned pfn.  This is only needed if the VMA has VM_MIXEDMAP
+	 * set, but the kvm_get_pfn/kvm_release_pfn_clean pair will
+	 * simply do nothing for reserved pfns.
+	 *
+	 * Whoever called remap_pfn_range is also going to call e.g.
+	 * unmap_mapping_range before the underlying pages are freed,
+	 * causing a call to our MMU notifier.
+	 */ 
+	kvm_get_pfn(pfn);
+
+	*p_pfn = pfn;
+	return 0;
+}
+
 /*
  * Pin guest page in memory and return its pfn.
  * @addr: host virtual address which maps memory to the guest
@@ -1463,7 +1514,7 @@ static kvm_pfn_t hva_to_pfn(unsigned long addr, bool atomic, bool *async,
 {
 	struct vm_area_struct *vma;
 	kvm_pfn_t pfn = 0;
-	int npages;
+	int npages, r;
 
 	/* we can do it either atomically or asynchronously, not both */
 	BUG_ON(atomic && async);
@@ -1485,14 +1536,17 @@ static kvm_pfn_t hva_to_pfn(unsigned long addr, bool atomic, bool *async,
 		goto exit;
 	}
 
+retry:
 	vma = find_vma_intersection(current->mm, addr, addr + 1);
 
 	if (vma == NULL)
 		pfn = KVM_PFN_ERR_FAULT;
-	else if ((vma->vm_flags & VM_PFNMAP)) {
-		pfn = ((addr - vma->vm_start) >> PAGE_SHIFT) +
-			vma->vm_pgoff;
-		BUG_ON(!kvm_is_reserved_pfn(pfn));
+	else if (vma->vm_flags & (VM_IO | VM_PFNMAP)) {
+		r = hva_to_pfn_remapped(vma, addr, async, write_fault, &pfn);
+		if (r == -EAGAIN)
+			goto retry;
+		if (r < 0)
+			pfn = KVM_PFN_ERR_FAULT;
 	} else {
 		if (async && vma_is_valid(vma, write_fault))
 			*async = true;
@@ -2348,9 +2402,20 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)
 	if (id >= KVM_MAX_VCPU_ID)
 		return -EINVAL;
 
+	mutex_lock(&kvm->lock);
+	if (kvm->created_vcpus == KVM_MAX_VCPUS) {
+		mutex_unlock(&kvm->lock);
+		return -EINVAL;
+	}
+
+	kvm->created_vcpus++;
+	mutex_unlock(&kvm->lock);
+
 	vcpu = kvm_arch_vcpu_create(kvm, id);
-	if (IS_ERR(vcpu))
-		return PTR_ERR(vcpu);
+	if (IS_ERR(vcpu)) {
+		r = PTR_ERR(vcpu);
+		goto vcpu_decrement;
+	}
 
 	preempt_notifier_init(&vcpu->preempt_notifier, &kvm_preempt_ops);
 
@@ -2359,14 +2424,6 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)
 		goto vcpu_destroy;
 
 	mutex_lock(&kvm->lock);
-	if (!kvm_vcpu_compatible(vcpu)) {
-		r = -EINVAL;
-		goto unlock_vcpu_destroy;
-	}
-	if (atomic_read(&kvm->online_vcpus) == KVM_MAX_VCPUS) {
-		r = -EINVAL;
-		goto unlock_vcpu_destroy;
-	}
 	if (kvm_get_vcpu_by_id(kvm, id)) {
 		r = -EEXIST;
 		goto unlock_vcpu_destroy;
@@ -2399,6 +2456,10 @@ unlock_vcpu_destroy:
 	mutex_unlock(&kvm->lock);
 vcpu_destroy:
 	kvm_arch_vcpu_destroy(vcpu);
+vcpu_decrement:
+	mutex_lock(&kvm->lock);
+	kvm->created_vcpus--;
+	mutex_unlock(&kvm->lock);
 	return r;
 }
 
@@ -2776,19 +2837,28 @@ static int kvm_ioctl_create_device(struct kvm *kvm,
 	dev->ops = ops;
 	dev->kvm = kvm;
 
+	mutex_lock(&kvm->lock);
 	ret = ops->create(dev, cd->type);
 	if (ret < 0) {
+		mutex_unlock(&kvm->lock);
 		kfree(dev);
 		return ret;
 	}
+	list_add(&dev->vm_node, &kvm->devices);
+	mutex_unlock(&kvm->lock);
+
+	if (ops->init)
+		ops->init(dev);
 
 	ret = anon_inode_getfd(ops->name, &kvm_device_fops, dev, O_RDWR | O_CLOEXEC);
 	if (ret < 0) {
 		ops->destroy(dev);
+		mutex_lock(&kvm->lock);
+		list_del(&dev->vm_node);
+		mutex_unlock(&kvm->lock);
 		return ret;
 	}
 
-	list_add(&dev->vm_node, &kvm->devices);
 	kvm_get_kvm(kvm);
 	cd->fd = ret;
 	return 0;
@@ -3486,6 +3556,30 @@ int kvm_io_bus_unregister_dev(struct kvm *kvm, enum kvm_bus bus_idx,
 	kfree(bus);
 	return r;
 }
+
+struct kvm_io_device *kvm_io_bus_get_dev(struct kvm *kvm, enum kvm_bus bus_idx,
+					 gpa_t addr)
+{
+	struct kvm_io_bus *bus;
+	int dev_idx, srcu_idx;
+	struct kvm_io_device *iodev = NULL;
+
+	srcu_idx = srcu_read_lock(&kvm->srcu);
+
+	bus = srcu_dereference(kvm->buses[bus_idx], &kvm->srcu);
+
+	dev_idx = kvm_io_bus_get_first_dev(bus, addr, 1);
+	if (dev_idx < 0)
+		goto out_unlock;
+
+	iodev = bus->range[dev_idx].dev;
+
+out_unlock:
+	srcu_read_unlock(&kvm->srcu, srcu_idx);
+
+	return iodev;
+}
+EXPORT_SYMBOL_GPL(kvm_io_bus_get_dev);
 
 static int kvm_debugfs_open(struct inode *inode, struct file *file,
 			   int (*get)(void *, u64 *), int (*set)(void *, u64),

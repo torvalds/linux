@@ -1,4 +1,5 @@
-#include <linux/module.h>
+#include <linux/types.h>
+#include <linux/export.h>
 
 unsigned int x86_family(unsigned int sig)
 {

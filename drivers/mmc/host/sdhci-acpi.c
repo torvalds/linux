@@ -532,11 +532,6 @@ static int sdhci_acpi_resume(struct device *dev)
 	return sdhci_resume_host(c->host);
 }
 
-#else
-
-#define sdhci_acpi_suspend	NULL
-#define sdhci_acpi_resume	NULL
-
 #endif
 
 #ifdef CONFIG_PM
@@ -560,8 +555,7 @@ static int sdhci_acpi_runtime_resume(struct device *dev)
 #endif
 
 static const struct dev_pm_ops sdhci_acpi_pm_ops = {
-	.suspend		= sdhci_acpi_suspend,
-	.resume			= sdhci_acpi_resume,
+	SET_SYSTEM_SLEEP_PM_OPS(sdhci_acpi_suspend, sdhci_acpi_resume)
 	SET_RUNTIME_PM_OPS(sdhci_acpi_runtime_suspend,
 			sdhci_acpi_runtime_resume, NULL)
 };

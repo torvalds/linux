@@ -166,12 +166,10 @@ EXPORT_SYMBOL(ttm_tt_set_placement_caching);
 
 void ttm_tt_destroy(struct ttm_tt *ttm)
 {
-	if (unlikely(ttm == NULL))
+	if (ttm == NULL)
 		return;
 
-	if (ttm->state == tt_bound) {
-		ttm_tt_unbind(ttm);
-	}
+	ttm_tt_unbind(ttm);
 
 	if (ttm->state == tt_unbound)
 		ttm_tt_unpopulate(ttm);

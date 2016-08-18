@@ -68,11 +68,16 @@ nvbios_imagen(struct nvkm_bios *bios, struct nvbios_image *image)
 bool
 nvbios_image(struct nvkm_bios *bios, int idx, struct nvbios_image *image)
 {
+	u32 imaged_addr = bios->imaged_addr;
 	memset(image, 0x00, sizeof(*image));
+	bios->imaged_addr = 0;
 	do {
 		image->base += image->size;
-		if (image->last || !nvbios_imagen(bios, image))
+		if (image->last || !nvbios_imagen(bios, image)) {
+			bios->imaged_addr = imaged_addr;
 			return false;
+		}
 	} while(idx--);
+	bios->imaged_addr = imaged_addr;
 	return true;
 }

@@ -2064,10 +2064,13 @@ static int qede_vlan_rx_kill_vid(struct net_device *dev, __be16 proto, u16 vid)
 	}
 
 	/* Remove vlan */
-	rc = qede_set_ucast_rx_vlan(edev, QED_FILTER_XCAST_TYPE_DEL, vid);
-	if (rc) {
-		DP_ERR(edev, "Failed to remove VLAN %d\n", vid);
-		return -EINVAL;
+	if (vlan->configured) {
+		rc = qede_set_ucast_rx_vlan(edev, QED_FILTER_XCAST_TYPE_DEL,
+					    vid);
+		if (rc) {
+			DP_ERR(edev, "Failed to remove VLAN %d\n", vid);
+			return -EINVAL;
+		}
 	}
 
 	qede_del_vlan_from_list(edev, vlan);
@@ -3268,6 +3271,7 @@ static int qede_start_queues(struct qede_dev *edev, bool clear_stats)
 	start.vport_id = 0;
 	start.drop_ttl0 = true;
 	start.remove_inner_vlan = vlan_removal_en;
+	start.clear_stats = clear_stats;
 
 	rc = edev->ops->vport_start(cdev, &start);
 

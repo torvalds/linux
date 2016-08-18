@@ -18,6 +18,17 @@ config MFD_CS5535
 	  This is the core driver for CS5535/CS5536 MFD functions.  This is
           necessary for using the board's GPIO and MFGPT functionality.
 
+config MFD_ALTERA_A10SR
+	bool "Altera Arria10 DevKit System Resource chip"
+	depends on ARCH_SOCFPGA && SPI_MASTER=y && OF
+	select REGMAP_SPI
+	select MFD_CORE
+	help
+	  Support for the Altera Arria10 DevKit MAX5 System Resource chip
+	  using the SPI interface. This driver provides common support for
+	  accessing the external gpio extender (LEDs & buttons) and
+	  power supply alarms (hwmon).
+
 config MFD_ACT8945A
 	tristate "Active-semi ACT8945A"
 	select MFD_CORE
@@ -480,6 +491,8 @@ config MFD_KEMPLD
 		* COMe-cDC2 (microETXexpress-DC)
 		* COMe-cHL6
 		* COMe-cPC2 (microETXexpress-PC)
+		* COMe-cSL6
+		* COMe-mAL10
 		* COMe-mBT10
 		* COMe-mCT10
 		* COMe-mTT10 (nanoETXexpress-TT)
@@ -524,8 +537,8 @@ config MFD_88PM860X
 	  battery-charger under the corresponding menus.
 
 config MFD_MAX14577
-	bool "Maxim Semiconductor MAX14577/77836 MUIC + Charger Support"
-	depends on I2C=y
+	tristate "Maxim Semiconductor MAX14577/77836 MUIC + Charger Support"
+	depends on I2C
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ

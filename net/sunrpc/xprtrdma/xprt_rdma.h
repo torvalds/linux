@@ -68,7 +68,6 @@ struct rpcrdma_ia {
 	struct ib_device	*ri_device;
 	struct rdma_cm_id 	*ri_id;
 	struct ib_pd		*ri_pd;
-	struct ib_mr		*ri_dma_mr;
 	struct completion	ri_done;
 	int			ri_async_rc;
 	unsigned int		ri_max_frmr_depth;
@@ -172,22 +171,13 @@ rdmab_to_msg(struct rpcrdma_regbuf *rb)
  *   o recv buffer (posted to provider)
  *   o ib_sge (also donated to provider)
  *   o status of reply (length, success or not)
- *   o bookkeeping state to get run by tasklet (list, etc)
+ *   o bookkeeping state to get run by reply handler (list, etc)
  *
- * These are allocated during initialization, per-transport instance;
- * however, the tasklet execution list itself is global, as it should
- * always be pretty short.
+ * These are allocated during initialization, per-transport instance.
  *
  * N of these are associated with a transport instance, and stored in
  * struct rpcrdma_buffer. N is the max number of outstanding requests.
  */
-
-#define RPCRDMA_MAX_DATA_SEGS	((1 * 1024 * 1024) / PAGE_SIZE)
-
-/* data segments + head/tail for Call + head/tail for Reply */
-#define RPCRDMA_MAX_SEGS 	(RPCRDMA_MAX_DATA_SEGS + 4)
-
-struct rpcrdma_buffer;
 
 struct rpcrdma_rep {
 	struct ib_cqe		rr_cqe;
@@ -221,9 +211,6 @@ enum rpcrdma_frmr_state {
 };
 
 struct rpcrdma_frmr {
-	struct scatterlist		*fr_sg;
-	int				fr_nents;
-	enum dma_data_direction		fr_dir;
 	struct ib_mr			*fr_mr;
 	struct ib_cqe			fr_cqe;
 	enum rpcrdma_frmr_state		fr_state;
@@ -235,18 +222,23 @@ struct rpcrdma_frmr {
 };
 
 struct rpcrdma_fmr {
-	struct ib_fmr		*fmr;
-	u64			*physaddrs;
+	struct ib_fmr		*fm_mr;
+	u64			*fm_physaddrs;
 };
 
 struct rpcrdma_mw {
+	struct list_head	mw_list;
+	struct scatterlist	*mw_sg;
+	int			mw_nents;
+	enum dma_data_direction	mw_dir;
 	union {
 		struct rpcrdma_fmr	fmr;
 		struct rpcrdma_frmr	frmr;
 	};
-	struct work_struct	mw_work;
 	struct rpcrdma_xprt	*mw_xprt;
-	struct list_head	mw_list;
+	u32			mw_handle;
+	u32			mw_length;
+	u64			mw_offset;
 	struct list_head	mw_all;
 };
 
@@ -266,33 +258,30 @@ struct rpcrdma_mw {
  * of iovs for send operations. The reason is that the iovs passed to
  * ib_post_{send,recv} must not be modified until the work request
  * completes.
- *
- * NOTES:
- *   o RPCRDMA_MAX_SEGS is the max number of addressible chunk elements we
- *     marshal. The number needed varies depending on the iov lists that
- *     are passed to us, the memory registration mode we are in, and if
- *     physical addressing is used, the layout.
  */
 
+/* Maximum number of page-sized "segments" per chunk list to be
+ * registered or invalidated. Must handle a Reply chunk:
+ */
+enum {
+	RPCRDMA_MAX_IOV_SEGS	= 3,
+	RPCRDMA_MAX_DATA_SEGS	= ((1 * 1024 * 1024) / PAGE_SIZE) + 1,
+	RPCRDMA_MAX_SEGS	= RPCRDMA_MAX_DATA_SEGS +
+				  RPCRDMA_MAX_IOV_SEGS,
+};
+
 struct rpcrdma_mr_seg {		/* chunk descriptors */
-	struct rpcrdma_mw *rl_mw;	/* registered MR */
-	u64		mr_base;	/* registration result */
-	u32		mr_rkey;	/* registration result */
 	u32		mr_len;		/* length of chunk or segment */
-	int		mr_nsegs;	/* number of segments in chunk or 0 */
-	enum dma_data_direction	mr_dir;	/* segment mapping direction */
-	dma_addr_t	mr_dma;		/* segment mapping address */
-	size_t		mr_dmalen;	/* segment mapping length */
 	struct page	*mr_page;	/* owning page, if any */
 	char		*mr_offset;	/* kva if no page, else offset */
 };
 
 #define RPCRDMA_MAX_IOVS	(2)
 
+struct rpcrdma_buffer;
 struct rpcrdma_req {
 	struct list_head	rl_free;
 	unsigned int		rl_niovs;
-	unsigned int		rl_nchunks;
 	unsigned int		rl_connect_cookie;
 	struct rpc_task		*rl_task;
 	struct rpcrdma_buffer	*rl_buffer;
@@ -300,12 +289,13 @@ struct rpcrdma_req {
 	struct ib_sge		rl_send_iov[RPCRDMA_MAX_IOVS];
 	struct rpcrdma_regbuf	*rl_rdmabuf;
 	struct rpcrdma_regbuf	*rl_sendbuf;
-	struct rpcrdma_mr_seg	rl_segments[RPCRDMA_MAX_SEGS];
-	struct rpcrdma_mr_seg	*rl_nextseg;
 
 	struct ib_cqe		rl_cqe;
 	struct list_head	rl_all;
 	bool			rl_backchannel;
+
+	struct list_head	rl_registered;	/* registered segments */
+	struct rpcrdma_mr_seg	rl_segments[RPCRDMA_MAX_SEGS];
 };
 
 static inline struct rpcrdma_req *
@@ -341,6 +331,11 @@ struct rpcrdma_buffer {
 	struct list_head	rb_allreqs;
 
 	u32			rb_bc_max_requests;
+
+	spinlock_t		rb_recovery_lock; /* protect rb_stale_mrs */
+	struct list_head	rb_stale_mrs;
+	struct delayed_work	rb_recovery_worker;
+	struct delayed_work	rb_refresh_worker;
 };
 #define rdmab_to_ia(b) (&container_of((b), struct rpcrdma_xprt, rx_buf)->rx_ia)
 
@@ -387,6 +382,9 @@ struct rpcrdma_stats {
 	unsigned long		bad_reply_count;
 	unsigned long		nomsg_call_count;
 	unsigned long		bcall_count;
+	unsigned long		mrs_recovered;
+	unsigned long		mrs_orphaned;
+	unsigned long		mrs_allocated;
 };
 
 /*
@@ -395,23 +393,25 @@ struct rpcrdma_stats {
 struct rpcrdma_xprt;
 struct rpcrdma_memreg_ops {
 	int		(*ro_map)(struct rpcrdma_xprt *,
-				  struct rpcrdma_mr_seg *, int, bool);
+				  struct rpcrdma_mr_seg *, int, bool,
+				  struct rpcrdma_mw **);
 	void		(*ro_unmap_sync)(struct rpcrdma_xprt *,
 					 struct rpcrdma_req *);
 	void		(*ro_unmap_safe)(struct rpcrdma_xprt *,
 					 struct rpcrdma_req *, bool);
+	void		(*ro_recover_mr)(struct rpcrdma_mw *);
 	int		(*ro_open)(struct rpcrdma_ia *,
 				   struct rpcrdma_ep *,
 				   struct rpcrdma_create_data_internal *);
 	size_t		(*ro_maxpages)(struct rpcrdma_xprt *);
-	int		(*ro_init)(struct rpcrdma_xprt *);
-	void		(*ro_destroy)(struct rpcrdma_buffer *);
+	int		(*ro_init_mr)(struct rpcrdma_ia *,
+				      struct rpcrdma_mw *);
+	void		(*ro_release_mr)(struct rpcrdma_mw *);
 	const char	*ro_displayname;
 };
 
 extern const struct rpcrdma_memreg_ops rpcrdma_fmr_memreg_ops;
 extern const struct rpcrdma_memreg_ops rpcrdma_frwr_memreg_ops;
-extern const struct rpcrdma_memreg_ops rpcrdma_physical_memreg_ops;
 
 /*
  * RPCRDMA transport -- encapsulates the structures above for
@@ -446,6 +446,8 @@ extern int xprt_rdma_pad_optimize;
  */
 int rpcrdma_ia_open(struct rpcrdma_xprt *, struct sockaddr *, int);
 void rpcrdma_ia_close(struct rpcrdma_ia *);
+bool frwr_is_supported(struct rpcrdma_ia *);
+bool fmr_is_supported(struct rpcrdma_ia *);
 
 /*
  * Endpoint calls - xprtrdma/verbs.c
@@ -477,15 +479,14 @@ void rpcrdma_buffer_put(struct rpcrdma_req *);
 void rpcrdma_recv_buffer_get(struct rpcrdma_req *);
 void rpcrdma_recv_buffer_put(struct rpcrdma_rep *);
 
+void rpcrdma_defer_mr_recovery(struct rpcrdma_mw *);
+
 struct rpcrdma_regbuf *rpcrdma_alloc_regbuf(struct rpcrdma_ia *,
 					    size_t, gfp_t);
 void rpcrdma_free_regbuf(struct rpcrdma_ia *,
 			 struct rpcrdma_regbuf *);
 
 int rpcrdma_ep_post_extra_recv(struct rpcrdma_xprt *, unsigned int);
-
-int frwr_alloc_recovery_wq(void);
-void frwr_destroy_recovery_wq(void);
 
 int rpcrdma_alloc_wq(void);
 void rpcrdma_destroy_wq(void);
@@ -494,43 +495,10 @@ void rpcrdma_destroy_wq(void);
  * Wrappers for chunk registration, shared by read/write chunk code.
  */
 
-void rpcrdma_mapping_error(struct rpcrdma_mr_seg *);
-
 static inline enum dma_data_direction
 rpcrdma_data_dir(bool writing)
 {
 	return writing ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
-}
-
-static inline void
-rpcrdma_map_one(struct ib_device *device, struct rpcrdma_mr_seg *seg,
-		enum dma_data_direction direction)
-{
-	seg->mr_dir = direction;
-	seg->mr_dmalen = seg->mr_len;
-
-	if (seg->mr_page)
-		seg->mr_dma = ib_dma_map_page(device,
-				seg->mr_page, offset_in_page(seg->mr_offset),
-				seg->mr_dmalen, seg->mr_dir);
-	else
-		seg->mr_dma = ib_dma_map_single(device,
-				seg->mr_offset,
-				seg->mr_dmalen, seg->mr_dir);
-
-	if (ib_dma_mapping_error(device, seg->mr_dma))
-		rpcrdma_mapping_error(seg);
-}
-
-static inline void
-rpcrdma_unmap_one(struct ib_device *device, struct rpcrdma_mr_seg *seg)
-{
-	if (seg->mr_page)
-		ib_dma_unmap_page(device,
-				  seg->mr_dma, seg->mr_dmalen, seg->mr_dir);
-	else
-		ib_dma_unmap_single(device,
-				    seg->mr_dma, seg->mr_dmalen, seg->mr_dir);
 }
 
 /*

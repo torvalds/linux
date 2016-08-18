@@ -11,7 +11,6 @@
 #include <linux/bootmem.h>
 #include <linux/debugfs.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/pfn_t.h>
 #include <linux/slab.h>
 #include <linux/mm.h>

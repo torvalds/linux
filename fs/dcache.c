@@ -316,20 +316,6 @@ static void dentry_free(struct dentry *dentry)
 		call_rcu(&dentry->d_u.d_rcu, __d_free);
 }
 
-/**
- * dentry_rcuwalk_invalidate - invalidate in-progress rcu-walk lookups
- * @dentry: the target dentry
- * After this call, in-progress rcu-walk path lookup will fail. This
- * should be called after unhashing, and after changing d_inode (if
- * the dentry has not already been unhashed).
- */
-static inline void dentry_rcuwalk_invalidate(struct dentry *dentry)
-{
-	lockdep_assert_held(&dentry->d_lock);
-	/* Go through am invalidation barrier */
-	write_seqcount_invalidate(&dentry->d_seq);
-}
-
 /*
  * Release the dentry's inode, using the filesystem
  * d_iput() operation if defined.
@@ -468,7 +454,8 @@ void __d_drop(struct dentry *dentry)
 		__hlist_bl_del(&dentry->d_hash);
 		dentry->d_hash.pprev = NULL;
 		hlist_bl_unlock(b);
-		dentry_rcuwalk_invalidate(dentry);
+		/* After this call, in-progress rcu-walk path lookup will fail. */
+		write_seqcount_invalidate(&dentry->d_seq);
 	}
 }
 EXPORT_SYMBOL(__d_drop);
@@ -2060,7 +2047,7 @@ static inline bool d_same_name(const struct dentry *dentry,
 			return false;
 		return dentry_cmp(dentry, name->name, name->len) == 0;
 	}
-	return parent->d_op->d_compare(parent, dentry,
+	return parent->d_op->d_compare(dentry,
 				       dentry->d_name.len, dentry->d_name.name,
 				       name) == 0;
 }
@@ -2163,7 +2150,7 @@ seqretry:
 				cpu_relax();
 				goto seqretry;
 			}
-			if (parent->d_op->d_compare(parent, dentry,
+			if (parent->d_op->d_compare(dentry,
 						    tlen, tname, name) != 0)
 				continue;
 		} else {
@@ -2352,17 +2339,13 @@ again:
 }
 EXPORT_SYMBOL(d_delete);
 
-static void __d_rehash(struct dentry * entry, struct hlist_bl_head *b)
+static void __d_rehash(struct dentry *entry)
 {
+	struct hlist_bl_head *b = d_hash(entry->d_name.hash);
 	BUG_ON(!d_unhashed(entry));
 	hlist_bl_lock(b);
 	hlist_bl_add_head_rcu(&entry->d_hash, b);
 	hlist_bl_unlock(b);
-}
-
-static void _d_rehash(struct dentry * entry)
-{
-	__d_rehash(entry, d_hash(entry->d_name.hash));
 }
 
 /**
@@ -2375,7 +2358,7 @@ static void _d_rehash(struct dentry * entry)
 void d_rehash(struct dentry * entry)
 {
 	spin_lock(&entry->d_lock);
-	_d_rehash(entry);
+	__d_rehash(entry);
 	spin_unlock(&entry->d_lock);
 }
 EXPORT_SYMBOL(d_rehash);
@@ -2549,7 +2532,7 @@ static inline void __d_add(struct dentry *dentry, struct inode *inode)
 		raw_write_seqcount_end(&dentry->d_seq);
 		fsnotify_update_flags(dentry);
 	}
-	_d_rehash(dentry);
+	__d_rehash(dentry);
 	if (dir)
 		end_dir_add(dir, n);
 	spin_unlock(&dentry->d_lock);
@@ -2611,7 +2594,7 @@ struct dentry *d_exact_alias(struct dentry *entry, struct inode *inode)
 			alias = NULL;
 		} else {
 			__dget_dlock(alias);
-			_d_rehash(alias);
+			__d_rehash(alias);
 			spin_unlock(&alias->d_lock);
 		}
 		spin_unlock(&inode->i_lock);
@@ -2636,7 +2619,7 @@ EXPORT_SYMBOL(d_exact_alias);
  * Parent inode i_mutex must be held over d_lookup and into this call (to
  * keep renames and concurrent inserts, and readdir(2) away).
  */
-void dentry_update_name_case(struct dentry *dentry, struct qstr *name)
+void dentry_update_name_case(struct dentry *dentry, const struct qstr *name)
 {
 	BUG_ON(!inode_is_locked(dentry->d_parent->d_inode));
 	BUG_ON(dentry->d_name.len != name->len); /* d_lookup gives this */
@@ -2795,29 +2778,21 @@ static void __d_move(struct dentry *dentry, struct dentry *target,
 	write_seqcount_begin(&dentry->d_seq);
 	write_seqcount_begin_nested(&target->d_seq, DENTRY_D_LOCK_NESTED);
 
+	/* unhash both */
 	/* __d_drop does write_seqcount_barrier, but they're OK to nest. */
-
-	/*
-	 * Move the dentry to the target hash queue. Don't bother checking
-	 * for the same hash queue because of how unlikely it is.
-	 */
 	__d_drop(dentry);
-	__d_rehash(dentry, d_hash(target->d_name.hash));
-
-	/*
-	 * Unhash the target (d_delete() is not usable here).  If exchanging
-	 * the two dentries, then rehash onto the other's hash queue.
-	 */
 	__d_drop(target);
-	if (exchange) {
-		__d_rehash(target, d_hash(dentry->d_name.hash));
-	}
 
 	/* Switch the names.. */
 	if (exchange)
 		swap_names(dentry, target);
 	else
 		copy_name(dentry, target);
+
+	/* rehash in new place(s) */
+	__d_rehash(dentry);
+	if (exchange)
+		__d_rehash(target);
 
 	/* ... and switch them in the tree */
 	if (IS_ROOT(dentry)) {
@@ -3038,7 +3013,7 @@ static int prepend(char **buffer, int *buflen, const char *str, int namelen)
  * Data dependency barrier is needed to make sure that we see that terminating
  * NUL.  Alpha strikes again, film at 11...
  */
-static int prepend_name(char **buffer, int *buflen, struct qstr *name)
+static int prepend_name(char **buffer, int *buflen, const struct qstr *name)
 {
 	const char *dname = ACCESS_ONCE(name->name);
 	u32 dlen = ACCESS_ONCE(name->len);

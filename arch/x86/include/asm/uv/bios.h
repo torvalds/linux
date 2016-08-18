@@ -79,7 +79,7 @@ struct uv_gam_range_entry {
 	u16	nasid;		/* HNasid */
 	u16	sockid;		/* Socket ID, high bits of APIC ID */
 	u16	pnode;		/* Index to MMR and GRU spaces */
-	u32	pxm;		/* ACPI proximity domain number */
+	u32	unused2;
 	u32	limit;		/* PA bits 56:26 (UV_GAM_RANGE_SHFT) */
 };
 
@@ -88,7 +88,8 @@ struct uv_gam_range_entry {
 #define	UV_SYSTAB_VERSION_UV4		0x400	/* UV4 BIOS base version */
 #define	UV_SYSTAB_VERSION_UV4_1		0x401	/* + gpa_shift */
 #define	UV_SYSTAB_VERSION_UV4_2		0x402	/* + TYPE_NVRAM/WINDOW/MBOX */
-#define	UV_SYSTAB_VERSION_UV4_LATEST	UV_SYSTAB_VERSION_UV4_2
+#define	UV_SYSTAB_VERSION_UV4_3		0x403	/* - GAM Range PXM Value */
+#define	UV_SYSTAB_VERSION_UV4_LATEST	UV_SYSTAB_VERSION_UV4_3
 
 #define	UV_SYSTAB_TYPE_UNUSED		0	/* End of table (offset == 0) */
 #define	UV_SYSTAB_TYPE_GAM_PARAMS	1	/* GAM PARAM conversions */

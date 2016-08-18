@@ -344,7 +344,6 @@ static void free_rxsa(struct rcu_head *head)
 
 	crypto_free_aead(sa->key.tfm);
 	free_percpu(sa->stats);
-	macsec_rxsc_put(sa->sc);
 	kfree(sa);
 }
 
@@ -863,6 +862,7 @@ static void macsec_decrypt_done(struct crypto_async_request *base, int err)
 	struct net_device *dev = skb->dev;
 	struct macsec_dev *macsec = macsec_priv(dev);
 	struct macsec_rx_sa *rx_sa = macsec_skb_cb(skb)->rx_sa;
+	struct macsec_rx_sc *rx_sc = rx_sa->sc;
 	int len, ret;
 	u32 pn;
 
@@ -891,6 +891,7 @@ static void macsec_decrypt_done(struct crypto_async_request *base, int err)
 
 out:
 	macsec_rxsa_put(rx_sa);
+	macsec_rxsc_put(rx_sc);
 	dev_put(dev);
 }
 
@@ -1106,6 +1107,7 @@ static rx_handler_result_t macsec_handle_frame(struct sk_buff **pskb)
 
 	list_for_each_entry_rcu(macsec, &rxd->secys, secys) {
 		struct macsec_rx_sc *sc = find_rx_sc(&macsec->secy, sci);
+		sc = sc ? macsec_rxsc_get(sc) : NULL;
 
 		if (sc) {
 			secy = &macsec->secy;
@@ -1180,8 +1182,10 @@ static rx_handler_result_t macsec_handle_frame(struct sk_buff **pskb)
 
 	if (IS_ERR(skb)) {
 		/* the decrypt callback needs the reference */
-		if (PTR_ERR(skb) != -EINPROGRESS)
+		if (PTR_ERR(skb) != -EINPROGRESS) {
 			macsec_rxsa_put(rx_sa);
+			macsec_rxsc_put(rx_sc);
+		}
 		rcu_read_unlock();
 		*pskb = NULL;
 		return RX_HANDLER_CONSUMED;
@@ -1197,6 +1201,7 @@ deliver:
 
 	if (rx_sa)
 		macsec_rxsa_put(rx_sa);
+	macsec_rxsc_put(rx_sc);
 
 	ret = gro_cells_receive(&macsec->gro_cells, skb);
 	if (ret == NET_RX_SUCCESS)
@@ -1212,6 +1217,7 @@ deliver:
 drop:
 	macsec_rxsa_put(rx_sa);
 drop_nosa:
+	macsec_rxsc_put(rx_sc);
 	rcu_read_unlock();
 drop_direct:
 	kfree_skb(skb);
@@ -1646,7 +1652,7 @@ static int macsec_add_rxsa(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 	rx_sc = get_rxsc_from_nl(genl_info_net(info), attrs, tb_rxsc, &dev, &secy);
-	if (IS_ERR(rx_sc) || !macsec_rxsc_get(rx_sc)) {
+	if (IS_ERR(rx_sc)) {
 		rtnl_unlock();
 		return PTR_ERR(rx_sc);
 	}
@@ -3173,6 +3179,8 @@ static int macsec_newlink(struct net *net, struct net_device *dev,
 	if (err < 0)
 		return err;
 
+	dev_hold(real_dev);
+
 	/* need to be already registered so that ->init has run and
 	 * the MAC addr is set
 	 */
@@ -3200,8 +3208,6 @@ static int macsec_newlink(struct net *net, struct net_device *dev,
 		goto del_dev;
 
 	macsec_generation++;
-
-	dev_hold(real_dev);
 
 	return 0;
 

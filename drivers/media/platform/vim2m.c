@@ -171,6 +171,9 @@ struct vim2m_ctx {
 	int			mode;
 
 	enum v4l2_colorspace	colorspace;
+	enum v4l2_ycbcr_encoding ycbcr_enc;
+	enum v4l2_xfer_func	xfer_func;
+	enum v4l2_quantization	quant;
 
 	/* Source and destination queue data */
 	struct vim2m_q_data   q_data[2];
@@ -493,6 +496,9 @@ static int vidioc_g_fmt(struct vim2m_ctx *ctx, struct v4l2_format *f)
 	f->fmt.pix.bytesperline	= (q_data->width * q_data->fmt->depth) >> 3;
 	f->fmt.pix.sizeimage	= q_data->sizeimage;
 	f->fmt.pix.colorspace	= ctx->colorspace;
+	f->fmt.pix.xfer_func	= ctx->xfer_func;
+	f->fmt.pix.ycbcr_enc	= ctx->ycbcr_enc;
+	f->fmt.pix.quantization	= ctx->quant;
 
 	return 0;
 }
@@ -549,6 +555,9 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		return -EINVAL;
 	}
 	f->fmt.pix.colorspace = ctx->colorspace;
+	f->fmt.pix.xfer_func = ctx->xfer_func;
+	f->fmt.pix.ycbcr_enc = ctx->ycbcr_enc;
+	f->fmt.pix.quantization = ctx->quant;
 
 	return vidioc_try_fmt(f, fmt);
 }
@@ -630,8 +639,12 @@ static int vidioc_s_fmt_vid_out(struct file *file, void *priv,
 		return ret;
 
 	ret = vidioc_s_fmt(file2ctx(file), f);
-	if (!ret)
+	if (!ret) {
 		ctx->colorspace = f->fmt.pix.colorspace;
+		ctx->xfer_func = f->fmt.pix.xfer_func;
+		ctx->ycbcr_enc = f->fmt.pix.ycbcr_enc;
+		ctx->quant = f->fmt.pix.quantization;
+	}
 	return ret;
 }
 

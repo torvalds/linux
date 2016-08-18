@@ -781,7 +781,7 @@ static int sa_args_init(struct inode *dir, struct inode *child,
 			struct ll_sa_entry *entry, struct md_enqueue_info **pmi,
 			struct ldlm_enqueue_info **pei)
 {
-	struct qstr	      *qstr = &entry->se_qstr;
+	const struct qstr      *qstr = &entry->se_qstr;
 	struct ll_inode_info     *lli  = ll_i2info(dir);
 	struct md_enqueue_info   *minfo;
 	struct ldlm_enqueue_info *einfo;
@@ -1340,7 +1340,7 @@ enum {
 static int is_first_dirent(struct inode *dir, struct dentry *dentry)
 {
 	struct ll_dir_chain   chain;
-	struct qstr	  *target = &dentry->d_name;
+	const struct qstr  *target = &dentry->d_name;
 	struct page	  *page;
 	__u64		 pos    = 0;
 	int		   dot_de;

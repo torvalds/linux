@@ -132,7 +132,7 @@ static int __btrfs_add_inode_defrag(struct inode *inode,
 
 static inline int __need_auto_defrag(struct btrfs_root *root)
 {
-	if (!btrfs_test_opt(root, AUTO_DEFRAG))
+	if (!btrfs_test_opt(root->fs_info, AUTO_DEFRAG))
 		return 0;
 
 	if (btrfs_fs_closing(root->fs_info))
@@ -950,7 +950,7 @@ delete_extent_item:
 			ret = btrfs_del_items(trans, root, path, del_slot,
 					      del_nr);
 			if (ret) {
-				btrfs_abort_transaction(trans, root, ret);
+				btrfs_abort_transaction(trans, ret);
 				break;
 			}
 
@@ -974,7 +974,7 @@ delete_extent_item:
 		path->slots[0] = del_slot;
 		ret = btrfs_del_items(trans, root, path, del_slot, del_nr);
 		if (ret)
-			btrfs_abort_transaction(trans, root, ret);
+			btrfs_abort_transaction(trans, ret);
 	}
 
 	leaf = path->nodes[0];
@@ -1190,7 +1190,7 @@ again:
 			goto again;
 		}
 		if (ret < 0) {
-			btrfs_abort_transaction(trans, root, ret);
+			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
 
@@ -1278,7 +1278,7 @@ again:
 
 		ret = btrfs_del_items(trans, root, path, del_slot, del_nr);
 		if (ret < 0) {
-			btrfs_abort_transaction(trans, root, ret);
+			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
 	}
@@ -1629,13 +1629,11 @@ again:
 		 * managed to copy.
 		 */
 		if (num_sectors > dirty_sectors) {
-			/*
-			 * we round down because we don't want to count
-			 * any partial blocks actually sent through the
-			 * IO machines
-			 */
-			release_bytes = round_down(release_bytes - copied,
-				      root->sectorsize);
+
+			/* release everything except the sectors we dirtied */
+			release_bytes -= dirty_sectors <<
+				root->fs_info->sb->s_blocksize_bits;
+
 			if (copied > 0) {
 				spin_lock(&BTRFS_I(inode)->lock);
 				BTRFS_I(inode)->outstanding_extents++;
@@ -2035,6 +2033,14 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 		 */
 		clear_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
 			  &BTRFS_I(inode)->runtime_flags);
+		/*
+		 * An ordered extent might have started before and completed
+		 * already with io errors, in which case the inode was not
+		 * updated and we end up here. So check the inode's mapping
+		 * flags for any errors that might have happened while doing
+		 * writeback of file data.
+		 */
+		ret = btrfs_inode_check_errors(inode);
 		inode_unlock(inode);
 		goto out;
 	}
@@ -2479,7 +2485,7 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 	}
 
 	ret = btrfs_block_rsv_migrate(&root->fs_info->trans_block_rsv, rsv,
-				      min_size);
+				      min_size, 0);
 	BUG_ON(ret);
 	trans->block_rsv = rsv;
 
@@ -2522,7 +2528,7 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 		}
 
 		ret = btrfs_block_rsv_migrate(&root->fs_info->trans_block_rsv,
-					      rsv, min_size);
+					      rsv, min_size, 0);
 		BUG_ON(ret);	/* shouldn't happen */
 		trans->block_rsv = rsv;
 
@@ -2977,7 +2983,7 @@ int btrfs_auto_defrag_init(void)
 {
 	btrfs_inode_defrag_cachep = kmem_cache_create("btrfs_inode_defrag",
 					sizeof(struct inode_defrag), 0,
-					SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD,
+					SLAB_MEM_SPREAD,
 					NULL);
 	if (!btrfs_inode_defrag_cachep)
 		return -ENOMEM;

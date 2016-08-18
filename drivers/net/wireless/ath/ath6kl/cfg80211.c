@@ -3881,7 +3881,7 @@ int ath6kl_cfg80211_init(struct ath6kl *ar)
 					  BIT(NL80211_IFTYPE_P2P_CLIENT);
 	}
 
-	if (config_enabled(CONFIG_ATH6KL_REGDOMAIN) &&
+	if (IS_ENABLED(CONFIG_ATH6KL_REGDOMAIN) &&
 	    test_bit(ATH6KL_FW_CAPABILITY_REGDOMAIN, ar->fw_capabilities)) {
 		wiphy->reg_notifier = ath6kl_cfg80211_reg_notify;
 		ar->wiphy->features |= NL80211_FEATURE_CELL_BASE_REG_HINTS;
