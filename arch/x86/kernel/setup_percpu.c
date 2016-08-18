@@ -246,7 +246,7 @@ void __init setup_per_cpu_areas(void)
 #ifdef CONFIG_X86_64
 		per_cpu(irq_stack_ptr, cpu) =
 			per_cpu(irq_stack_union.irq_stack, cpu) +
-			IRQ_STACK_SIZE - 64;
+			IRQ_STACK_SIZE;
 #endif
 #ifdef CONFIG_NUMA
 		per_cpu(x86_cpu_to_node_map, cpu) =

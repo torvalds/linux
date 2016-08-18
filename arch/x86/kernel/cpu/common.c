@@ -1281,7 +1281,7 @@ DEFINE_PER_CPU(struct task_struct *, current_task) ____cacheline_aligned =
 EXPORT_PER_CPU_SYMBOL(current_task);
 
 DEFINE_PER_CPU(char *, irq_stack_ptr) =
-	init_per_cpu_var(irq_stack_union.irq_stack) + IRQ_STACK_SIZE - 64;
+	init_per_cpu_var(irq_stack_union.irq_stack) + IRQ_STACK_SIZE;
 
 DEFINE_PER_CPU(unsigned int, irq_count) __visible = -1;
 
