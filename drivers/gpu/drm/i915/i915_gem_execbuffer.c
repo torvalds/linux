@@ -308,9 +308,55 @@ relocation_target(struct drm_i915_gem_relocation_entry *reloc,
 	return gen8_canonical_addr((int)reloc->delta + target_offset);
 }
 
+struct reloc_cache {
+	void *vaddr;
+	unsigned int page;
+	enum { KMAP, IOMAP } type;
+};
+
+static void reloc_cache_init(struct reloc_cache *cache)
+{
+	cache->page = -1;
+	cache->vaddr = NULL;
+}
+
+static void reloc_cache_fini(struct reloc_cache *cache)
+{
+	if (!cache->vaddr)
+		return;
+
+	switch (cache->type) {
+	case KMAP:
+		kunmap_atomic(cache->vaddr);
+		break;
+
+	case IOMAP:
+		io_mapping_unmap_atomic(cache->vaddr);
+		break;
+	}
+}
+
+static void *reloc_kmap(struct drm_i915_gem_object *obj,
+			struct reloc_cache *cache,
+			int page)
+{
+	if (cache->page == page)
+		return cache->vaddr;
+
+	if (cache->vaddr)
+		kunmap_atomic(cache->vaddr);
+
+	cache->page = page;
+	cache->vaddr = kmap_atomic(i915_gem_object_get_dirty_page(obj, page));
+	cache->type = KMAP;
+
+	return cache->vaddr;
+}
+
 static int
 relocate_entry_cpu(struct drm_i915_gem_object *obj,
 		   struct drm_i915_gem_relocation_entry *reloc,
+		   struct reloc_cache *cache,
 		   uint64_t target_offset)
 {
 	struct drm_device *dev = obj->base.dev;
@@ -323,34 +369,47 @@ relocate_entry_cpu(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
-	vaddr = kmap_atomic(i915_gem_object_get_dirty_page(obj,
-				reloc->offset >> PAGE_SHIFT));
+	vaddr = reloc_kmap(obj, cache, reloc->offset >> PAGE_SHIFT);
 	*(uint32_t *)(vaddr + page_offset) = lower_32_bits(delta);
 
-	if (INTEL_INFO(dev)->gen >= 8) {
-		page_offset = offset_in_page(page_offset + sizeof(uint32_t));
-
-		if (page_offset == 0) {
-			kunmap_atomic(vaddr);
-			vaddr = kmap_atomic(i915_gem_object_get_dirty_page(obj,
-			    (reloc->offset + sizeof(uint32_t)) >> PAGE_SHIFT));
+	if (INTEL_GEN(dev) >= 8) {
+		page_offset += sizeof(uint32_t);
+		if (page_offset == PAGE_SIZE) {
+			vaddr = reloc_kmap(obj, cache, cache->page + 1);
+			page_offset = 0;
 		}
-
 		*(uint32_t *)(vaddr + page_offset) = upper_32_bits(delta);
 	}
 
-	kunmap_atomic(vaddr);
-
 	return 0;
+}
+
+static void *reloc_iomap(struct drm_i915_private *i915,
+			 struct reloc_cache *cache,
+			 uint64_t offset)
+{
+	if (cache->page == offset >> PAGE_SHIFT)
+		return cache->vaddr;
+
+	if (cache->vaddr)
+		io_mapping_unmap_atomic(cache->vaddr);
+
+	cache->page = offset >> PAGE_SHIFT;
+	cache->vaddr =
+		io_mapping_map_atomic_wc(i915->ggtt.mappable,
+					 offset & PAGE_MASK);
+	cache->type = IOMAP;
+
+	return cache->vaddr;
 }
 
 static int
 relocate_entry_gtt(struct drm_i915_gem_object *obj,
 		   struct drm_i915_gem_relocation_entry *reloc,
+		   struct reloc_cache *cache,
 		   uint64_t target_offset)
 {
 	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct i915_vma *vma;
 	uint64_t delta = relocation_target(reloc, target_offset);
 	uint64_t offset;
@@ -371,28 +430,19 @@ relocate_entry_gtt(struct drm_i915_gem_object *obj,
 
 	/* Map the page containing the relocation we're going to perform.  */
 	offset = vma->node.start + reloc->offset;
-	reloc_page = io_mapping_map_atomic_wc(ggtt->mappable,
-					      offset & PAGE_MASK);
+	reloc_page = reloc_iomap(dev_priv, cache, offset);
 	iowrite32(lower_32_bits(delta), reloc_page + offset_in_page(offset));
 
 	if (INTEL_GEN(dev_priv) >= 8) {
 		offset += sizeof(uint32_t);
-
-		if (offset_in_page(offset) == 0) {
-			io_mapping_unmap_atomic(reloc_page);
-			reloc_page =
-				io_mapping_map_atomic_wc(ggtt->mappable,
-							 offset);
-		}
-
+		if (offset_in_page(offset) == 0)
+			reloc_page = reloc_iomap(dev_priv, cache, offset);
 		iowrite32(upper_32_bits(delta),
 			  reloc_page + offset_in_page(offset));
 	}
 
-	io_mapping_unmap_atomic(reloc_page);
-
 unpin:
-	i915_vma_unpin(vma);
+	__i915_vma_unpin(vma);
 	return ret;
 }
 
@@ -408,6 +458,7 @@ clflush_write32(void *addr, uint32_t value)
 static int
 relocate_entry_clflush(struct drm_i915_gem_object *obj,
 		       struct drm_i915_gem_relocation_entry *reloc,
+		       struct reloc_cache *cache,
 		       uint64_t target_offset)
 {
 	struct drm_device *dev = obj->base.dev;
@@ -420,23 +471,17 @@ relocate_entry_clflush(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
-	vaddr = kmap_atomic(i915_gem_object_get_dirty_page(obj,
-				reloc->offset >> PAGE_SHIFT));
+	vaddr = reloc_kmap(obj, cache, reloc->offset >> PAGE_SHIFT);
 	clflush_write32(vaddr + page_offset, lower_32_bits(delta));
 
-	if (INTEL_INFO(dev)->gen >= 8) {
-		page_offset = offset_in_page(page_offset + sizeof(uint32_t));
-
-		if (page_offset == 0) {
-			kunmap_atomic(vaddr);
-			vaddr = kmap_atomic(i915_gem_object_get_dirty_page(obj,
-			    (reloc->offset + sizeof(uint32_t)) >> PAGE_SHIFT));
+	if (INTEL_GEN(dev) >= 8) {
+		page_offset += sizeof(uint32_t);
+		if (page_offset == PAGE_SIZE) {
+			vaddr = reloc_kmap(obj, cache, cache->page + 1);
+			page_offset = 0;
 		}
-
 		clflush_write32(vaddr + page_offset, upper_32_bits(delta));
 	}
-
-	kunmap_atomic(vaddr);
 
 	return 0;
 }
@@ -458,7 +503,8 @@ static bool object_is_idle(struct drm_i915_gem_object *obj)
 static int
 i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 				   struct eb_vmas *eb,
-				   struct drm_i915_gem_relocation_entry *reloc)
+				   struct drm_i915_gem_relocation_entry *reloc,
+				   struct reloc_cache *cache)
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_gem_object *target_obj;
@@ -542,11 +588,11 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 		return -EFAULT;
 
 	if (use_cpu_reloc(obj))
-		ret = relocate_entry_cpu(obj, reloc, target_offset);
+		ret = relocate_entry_cpu(obj, reloc, cache, target_offset);
 	else if (obj->map_and_fenceable)
-		ret = relocate_entry_gtt(obj, reloc, target_offset);
+		ret = relocate_entry_gtt(obj, reloc, cache, target_offset);
 	else if (static_cpu_has(X86_FEATURE_CLFLUSH))
-		ret = relocate_entry_clflush(obj, reloc, target_offset);
+		ret = relocate_entry_clflush(obj, reloc, cache, target_offset);
 	else {
 		WARN_ONCE(1, "Impossible case in relocation handling\n");
 		ret = -ENODEV;
@@ -569,9 +615,11 @@ i915_gem_execbuffer_relocate_vma(struct i915_vma *vma,
 	struct drm_i915_gem_relocation_entry stack_reloc[N_RELOC(512)];
 	struct drm_i915_gem_relocation_entry __user *user_relocs;
 	struct drm_i915_gem_exec_object2 *entry = vma->exec_entry;
-	int remain, ret;
+	struct reloc_cache cache;
+	int remain, ret = 0;
 
 	user_relocs = u64_to_user_ptr(entry->relocs_ptr);
+	reloc_cache_init(&cache);
 
 	remain = entry->relocation_count;
 	while (remain) {
@@ -581,19 +629,23 @@ i915_gem_execbuffer_relocate_vma(struct i915_vma *vma,
 			count = ARRAY_SIZE(stack_reloc);
 		remain -= count;
 
-		if (__copy_from_user_inatomic(r, user_relocs, count*sizeof(r[0])))
-			return -EFAULT;
+		if (__copy_from_user_inatomic(r, user_relocs, count*sizeof(r[0]))) {
+			ret = -EFAULT;
+			goto out;
+		}
 
 		do {
 			u64 offset = r->presumed_offset;
 
-			ret = i915_gem_execbuffer_relocate_entry(vma->obj, eb, r);
+			ret = i915_gem_execbuffer_relocate_entry(vma->obj, eb, r, &cache);
 			if (ret)
-				return ret;
+				goto out;
 
 			if (r->presumed_offset != offset &&
-			    __put_user(r->presumed_offset, &user_relocs->presumed_offset)) {
-				return -EFAULT;
+			    __put_user(r->presumed_offset,
+				       &user_relocs->presumed_offset)) {
+				ret = -EFAULT;
+				goto out;
 			}
 
 			user_relocs++;
@@ -601,7 +653,9 @@ i915_gem_execbuffer_relocate_vma(struct i915_vma *vma,
 		} while (--count);
 	}
 
-	return 0;
+out:
+	reloc_cache_fini(&cache);
+	return ret;
 #undef N_RELOC
 }
 
@@ -611,15 +665,18 @@ i915_gem_execbuffer_relocate_vma_slow(struct i915_vma *vma,
 				      struct drm_i915_gem_relocation_entry *relocs)
 {
 	const struct drm_i915_gem_exec_object2 *entry = vma->exec_entry;
-	int i, ret;
+	struct reloc_cache cache;
+	int i, ret = 0;
 
+	reloc_cache_init(&cache);
 	for (i = 0; i < entry->relocation_count; i++) {
-		ret = i915_gem_execbuffer_relocate_entry(vma->obj, eb, &relocs[i]);
+		ret = i915_gem_execbuffer_relocate_entry(vma->obj, eb, &relocs[i], &cache);
 		if (ret)
-			return ret;
+			break;
 	}
+	reloc_cache_fini(&cache);
 
-	return 0;
+	return ret;
 }
 
 static int
