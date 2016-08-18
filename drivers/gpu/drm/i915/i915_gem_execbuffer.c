@@ -1310,7 +1310,7 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 		if (flags & __EXEC_OBJECT_HAS_FENCE) {
 			struct drm_i915_private *dev_priv = req->i915;
 
-			list_move_tail(&dev_priv->fence_regs[obj->fence_reg].lru_list,
+			list_move_tail(&dev_priv->fence_regs[obj->fence_reg].link,
 				       &dev_priv->mm.fence_list);
 		}
 	}

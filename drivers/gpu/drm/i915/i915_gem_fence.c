@@ -245,11 +245,11 @@ static void i915_gem_object_update_fence(struct drm_i915_gem_object *obj,
 	if (enable) {
 		obj->fence_reg = reg;
 		fence->obj = obj;
-		list_move_tail(&fence->lru_list, &dev_priv->mm.fence_list);
+		list_move_tail(&fence->link, &dev_priv->mm.fence_list);
 	} else {
 		obj->fence_reg = I915_FENCE_REG_NONE;
 		fence->obj = NULL;
-		list_del_init(&fence->lru_list);
+		list_del_init(&fence->link);
 	}
 	obj->fence_dirty = false;
 }
@@ -331,7 +331,7 @@ i915_find_fence_reg(struct drm_device *dev)
 		goto deadlock;
 
 	/* None available, try to steal one or wait for a user to finish */
-	list_for_each_entry(reg, &dev_priv->mm.fence_list, lru_list) {
+	list_for_each_entry(reg, &dev_priv->mm.fence_list, link) {
 		if (reg->pin_count)
 			continue;
 
@@ -386,8 +386,7 @@ i915_gem_object_get_fence(struct drm_i915_gem_object *obj)
 	if (obj->fence_reg != I915_FENCE_REG_NONE) {
 		reg = &dev_priv->fence_regs[obj->fence_reg];
 		if (!obj->fence_dirty) {
-			list_move_tail(&reg->lru_list,
-				       &dev_priv->mm.fence_list);
+			list_move_tail(&reg->link, &dev_priv->mm.fence_list);
 			return 0;
 		}
 	} else if (enable) {

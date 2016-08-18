@@ -461,7 +461,7 @@ struct intel_overlay_error_state;
 #define I915_MAX_NUM_FENCE_BITS 6
 
 struct drm_i915_fence_reg {
-	struct list_head lru_list;
+	struct list_head link;
 	struct drm_i915_gem_object *obj;
 	int pin_count;
 };

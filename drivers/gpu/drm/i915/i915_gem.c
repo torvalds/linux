@@ -4553,7 +4553,7 @@ i915_gem_load_init(struct drm_device *dev)
 	for (i = 0; i < I915_NUM_ENGINES; i++)
 		init_engine_lists(&dev_priv->engine[i]);
 	for (i = 0; i < I915_MAX_NUM_FENCES; i++)
-		INIT_LIST_HEAD(&dev_priv->fence_regs[i].lru_list);
+		INIT_LIST_HEAD(&dev_priv->fence_regs[i].link);
 	INIT_DELAYED_WORK(&dev_priv->gt.retire_work,
 			  i915_gem_retire_work_handler);
 	INIT_DELAYED_WORK(&dev_priv->gt.idle_work,
