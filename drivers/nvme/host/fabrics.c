@@ -47,8 +47,10 @@ static struct nvmf_host *nvmf_host_add(const char *hostnqn)
 
 	mutex_lock(&nvmf_hosts_mutex);
 	host = __nvmf_host_find(hostnqn);
-	if (host)
+	if (host) {
+		kref_get(&host->ref);
 		goto out_unlock;
+	}
 
 	host = kmalloc(sizeof(*host), GFP_KERNEL);
 	if (!host)
