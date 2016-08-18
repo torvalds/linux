@@ -116,13 +116,39 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 	return true;
 }
 
+static bool i915_vma_fence_prepare(struct i915_vma *vma, int tiling_mode)
+{
+	struct drm_i915_private *dev_priv = to_i915(vma->vm->dev);
+	u32 size;
+
+	if (!i915_vma_is_map_and_fenceable(vma))
+		return true;
+
+	if (INTEL_GEN(dev_priv) == 3) {
+		if (vma->node.start & ~I915_FENCE_START_MASK)
+			return false;
+	} else {
+		if (vma->node.start & ~I830_FENCE_START_MASK)
+			return false;
+	}
+
+	size = i915_gem_get_ggtt_size(dev_priv, vma->size, tiling_mode);
+	if (vma->node.size < size)
+		return false;
+
+	if (vma->node.start & (size - 1))
+		return false;
+
+	return true;
+}
+
 /* Make the current GTT allocation valid for the change in tiling. */
 static int
 i915_gem_object_fence_prepare(struct drm_i915_gem_object *obj, int tiling_mode)
 {
 	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	struct i915_vma *vma;
-	u32 size;
+	int ret;
 
 	if (tiling_mode == I915_TILING_NONE)
 		return 0;
@@ -130,32 +156,16 @@ i915_gem_object_fence_prepare(struct drm_i915_gem_object *obj, int tiling_mode)
 	if (INTEL_GEN(dev_priv) >= 4)
 		return 0;
 
-	vma = i915_gem_object_to_ggtt(obj, NULL);
-	if (!vma)
-		return 0;
+	list_for_each_entry(vma, &obj->vma_list, obj_link) {
+		if (i915_vma_fence_prepare(vma, tiling_mode))
+			continue;
 
-	if (!i915_vma_is_map_and_fenceable(vma))
-		return 0;
-
-	if (IS_GEN3(dev_priv)) {
-		if (vma->node.start & ~I915_FENCE_START_MASK)
-			goto bad;
-	} else {
-		if (vma->node.start & ~I830_FENCE_START_MASK)
-			goto bad;
+		ret = i915_vma_unbind(vma);
+		if (ret)
+			return ret;
 	}
 
-	size = i915_gem_get_ggtt_size(dev_priv, vma->size, tiling_mode);
-	if (vma->node.size < size)
-		goto bad;
-
-	if (vma->node.start & (size - 1))
-		goto bad;
-
 	return 0;
-
-bad:
-	return i915_vma_unbind(vma);
 }
 
 /**
@@ -248,6 +258,8 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 
 		err = i915_gem_object_fence_prepare(obj, args->tiling_mode);
 		if (!err) {
+			struct i915_vma *vma;
+
 			if (obj->pages &&
 			    obj->madv == I915_MADV_WILLNEED &&
 			    dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES) {
@@ -257,11 +269,12 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 					i915_gem_object_pin_pages(obj);
 			}
 
-			obj->fence_dirty =
-				!i915_gem_active_is_idle(&obj->last_fence,
-							 &dev->struct_mutex) ||
-				obj->fence_reg != I915_FENCE_REG_NONE;
+			list_for_each_entry(vma, &obj->vma_list, obj_link) {
+				if (!vma->fence)
+					continue;
 
+				vma->fence->dirty = true;
+			}
 			obj->tiling_and_stride =
 				args->stride | args->tiling_mode;
 

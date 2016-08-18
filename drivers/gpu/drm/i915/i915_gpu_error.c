@@ -797,7 +797,7 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 	err->gtt_offset = vma->node.start;
 	err->read_domains = obj->base.read_domains;
 	err->write_domain = obj->base.write_domain;
-	err->fence_reg = obj->fence_reg;
+	err->fence_reg = vma->fence ? vma->fence->id : -1;
 	err->tiling = i915_gem_object_get_tiling(obj);
 	err->dirty = obj->dirty;
 	err->purgeable = obj->madv != I915_MADV_WILLNEED;

@@ -760,7 +760,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
-	ret = i915_gem_object_put_fence(new_bo);
+	ret = i915_vma_put_fence(vma);
 	if (ret)
 		goto out_unpin;
 

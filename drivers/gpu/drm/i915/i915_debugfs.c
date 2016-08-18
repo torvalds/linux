@@ -152,10 +152,8 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		seq_printf(m, "%x ",
 			   i915_gem_active_get_seqno(&obj->last_read[id],
 						     &obj->base.dev->struct_mutex));
-	seq_printf(m, "] %x %x%s%s%s",
+	seq_printf(m, "] %x %s%s%s",
 		   i915_gem_active_get_seqno(&obj->last_write,
-					     &obj->base.dev->struct_mutex),
-		   i915_gem_active_get_seqno(&obj->last_fence,
 					     &obj->base.dev->struct_mutex),
 		   i915_cache_level_str(to_i915(obj->base.dev), obj->cache_level),
 		   obj->dirty ? " dirty" : "",
@@ -169,8 +167,6 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 	seq_printf(m, " (pinned x %d)", pin_count);
 	if (obj->pin_display)
 		seq_printf(m, " (display)");
-	if (obj->fence_reg != I915_FENCE_REG_NONE)
-		seq_printf(m, " (fence: %d)", obj->fence_reg);
 	list_for_each_entry(vma, &obj->vma_list, obj_link) {
 		if (!drm_mm_node_allocated(&vma->node))
 			continue;
@@ -180,6 +176,10 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 			   vma->node.start, vma->node.size);
 		if (i915_vma_is_ggtt(vma))
 			seq_printf(m, ", type: %u", vma->ggtt_view.type);
+		if (vma->fence)
+			seq_printf(m, " , fence: %d%s",
+				   vma->fence->id,
+				   i915_gem_active_isset(&vma->last_fence) ? "*" : "");
 		seq_puts(m, ")");
 	}
 	if (obj->stolen)
@@ -938,14 +938,14 @@ static int i915_gem_fence_regs_info(struct seq_file *m, void *data)
 
 	seq_printf(m, "Total fences = %d\n", dev_priv->num_fence_regs);
 	for (i = 0; i < dev_priv->num_fence_regs; i++) {
-		struct drm_i915_gem_object *obj = dev_priv->fence_regs[i].obj;
+		struct i915_vma *vma = dev_priv->fence_regs[i].vma;
 
 		seq_printf(m, "Fence %d, pin count = %d, object = ",
 			   i, dev_priv->fence_regs[i].pin_count);
-		if (obj == NULL)
+		if (!vma)
 			seq_puts(m, "unused");
 		else
-			describe_obj(m, obj);
+			describe_obj(m, vma->obj);
 		seq_putc(m, '\n');
 	}
 

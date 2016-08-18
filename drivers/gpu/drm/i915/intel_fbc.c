@@ -709,6 +709,14 @@ static bool intel_fbc_hw_tracking_covers_screen(struct intel_crtc *crtc)
 	return effective_w <= max_w && effective_h <= max_h;
 }
 
+/* XXX replace me when we have VMA tracking for intel_plane_state */
+static int get_fence_id(struct drm_framebuffer *fb)
+{
+	struct i915_vma *vma = i915_gem_object_to_ggtt(intel_fb_obj(fb), NULL);
+
+	return vma && vma->fence ? vma->fence->id : I915_FENCE_REG_NONE;
+}
+
 static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 					 struct intel_crtc_state *crtc_state,
 					 struct intel_plane_state *plane_state)
@@ -740,7 +748,7 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 		cache->fb.ilk_ggtt_offset = i915_gem_object_ggtt_offset(obj, NULL);
 	cache->fb.pixel_format = fb->pixel_format;
 	cache->fb.stride = fb->pitches[0];
-	cache->fb.fence_reg = obj->fence_reg;
+	cache->fb.fence_reg = get_fence_id(fb);
 	cache->fb.tiling_mode = i915_gem_object_get_tiling(obj);
 }
 

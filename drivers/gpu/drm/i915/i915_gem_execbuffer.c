@@ -250,7 +250,6 @@ static void
 i915_gem_execbuffer_unreserve_vma(struct i915_vma *vma)
 {
 	struct drm_i915_gem_exec_object2 *entry;
-	struct drm_i915_gem_object *obj = vma->obj;
 
 	if (!drm_mm_node_allocated(&vma->node))
 		return;
@@ -258,7 +257,7 @@ i915_gem_execbuffer_unreserve_vma(struct i915_vma *vma)
 	entry = vma->exec_entry;
 
 	if (entry->flags & __EXEC_OBJECT_HAS_FENCE)
-		i915_gem_object_unpin_fence(obj);
+		i915_vma_unpin_fence(vma);
 
 	if (entry->flags & __EXEC_OBJECT_HAS_PIN)
 		__i915_vma_unpin(vma);
@@ -455,7 +454,7 @@ static void *reloc_iomap(struct drm_i915_gem_object *obj,
 			if (ret)
 				return ERR_PTR(ret);
 		} else {
-			ret = i915_gem_object_put_fence(obj);
+			ret = i915_vma_put_fence(vma);
 			if (ret) {
 				i915_vma_unpin(vma);
 				return ERR_PTR(ret);
@@ -811,11 +810,11 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 	entry->flags |= __EXEC_OBJECT_HAS_PIN;
 
 	if (entry->flags & EXEC_OBJECT_NEEDS_FENCE) {
-		ret = i915_gem_object_get_fence(obj);
+		ret = i915_vma_get_fence(vma);
 		if (ret)
 			return ret;
 
-		if (i915_gem_object_pin_fence(obj))
+		if (i915_vma_pin_fence(vma))
 			entry->flags |= __EXEC_OBJECT_HAS_FENCE;
 	}
 
@@ -1305,15 +1304,8 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 		obj->base.write_domain &= ~I915_GEM_GPU_DOMAINS;
 	}
 
-	if (flags & EXEC_OBJECT_NEEDS_FENCE) {
-		i915_gem_active_set(&obj->last_fence, req);
-		if (flags & __EXEC_OBJECT_HAS_FENCE) {
-			struct drm_i915_private *dev_priv = req->i915;
-
-			list_move_tail(&dev_priv->fence_regs[obj->fence_reg].link,
-				       &dev_priv->mm.fence_list);
-		}
-	}
+	if (flags & EXEC_OBJECT_NEEDS_FENCE)
+		i915_gem_active_set(&vma->last_fence, req);
 
 	i915_vma_set_active(vma, idx);
 	i915_gem_active_set(&vma->last_read[idx], req);

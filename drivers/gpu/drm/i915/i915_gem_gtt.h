@@ -38,7 +38,13 @@
 
 #include "i915_gem_request.h"
 
+#define I915_FENCE_REG_NONE -1
+#define I915_MAX_NUM_FENCES 32
+/* 32 fences + sign bit for FENCE_REG_NONE */
+#define I915_MAX_NUM_FENCE_BITS 6
+
 struct drm_i915_file_private;
+struct drm_i915_fence_reg;
 
 typedef uint32_t gen6_pte_t;
 typedef uint64_t gen8_pte_t;
@@ -174,6 +180,7 @@ struct i915_vma {
 	struct drm_mm_node node;
 	struct drm_i915_gem_object *obj;
 	struct i915_address_space *vm;
+	struct drm_i915_fence_reg *fence;
 	struct sg_table *pages;
 	void __iomem *iomap;
 	u64 size;
@@ -203,6 +210,7 @@ struct i915_vma {
 
 	unsigned int active;
 	struct i915_gem_active last_read[I915_NUM_ENGINES];
+	struct i915_gem_active last_fence;
 
 	/**
 	 * Support different GGTT views into the same object.

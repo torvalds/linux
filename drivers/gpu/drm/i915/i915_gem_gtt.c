@@ -3322,6 +3322,7 @@ void i915_vma_destroy(struct i915_vma *vma)
 	GEM_BUG_ON(vma->node.allocated);
 	GEM_BUG_ON(i915_vma_is_active(vma));
 	GEM_BUG_ON(!i915_vma_is_closed(vma));
+	GEM_BUG_ON(vma->fence);
 
 	list_del(&vma->vm_link);
 	if (!i915_vma_is_ggtt(vma))
@@ -3357,6 +3358,7 @@ __i915_vma_create(struct drm_i915_gem_object *obj,
 	INIT_LIST_HEAD(&vma->exec_list);
 	for (i = 0; i < ARRAY_SIZE(vma->last_read); i++)
 		init_request_active(&vma->last_read[i], i915_vma_retire);
+	init_request_active(&vma->last_fence, NULL);
 	list_add(&vma->vm_link, &vm->unbound_list);
 	vma->vm = vm;
 	vma->obj = obj;

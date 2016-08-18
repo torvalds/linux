@@ -2188,7 +2188,6 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb, unsigned int rotation)
 	struct i915_ggtt_view view;
 	struct i915_vma *vma;
 	u32 alignment;
-	int ret;
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
@@ -2214,43 +2213,33 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb, unsigned int rotation)
 	intel_runtime_pm_get(dev_priv);
 
 	vma = i915_gem_object_pin_to_display_plane(obj, alignment, &view);
-	if (IS_ERR(vma)) {
-		ret = PTR_ERR(vma);
-		goto err_pm;
-	}
+	if (IS_ERR(vma))
+		goto err;
 
-	/* Install a fence for tiled scan-out. Pre-i965 always needs a
-	 * fence, whereas 965+ only requires a fence if using
-	 * framebuffer compression.  For simplicity, we always install
-	 * a fence as the cost is not that onerous.
-	 */
 	if (i915_vma_is_map_and_fenceable(vma)) {
-		ret = i915_gem_object_get_fence(obj);
-		if (ret == -EDEADLK) {
-			/*
-			 * -EDEADLK means there are no free fences
-			 * no pending flips.
-			 *
-			 * This is propagated to atomic, but it uses
-			 * -EDEADLK to force a locking recovery, so
-			 * change the returned error to -EBUSY.
-			 */
-			ret = -EBUSY;
-			goto err_unpin;
-		} else if (ret)
-			goto err_unpin;
-
-		i915_gem_object_pin_fence(obj);
+		/* Install a fence for tiled scan-out. Pre-i965 always needs a
+		 * fence, whereas 965+ only requires a fence if using
+		 * framebuffer compression.  For simplicity, we always, when
+		 * possible, install a fence as the cost is not that onerous.
+		 *
+		 * If we fail to fence the tiled scanout, then either the
+		 * modeset will reject the change (which is highly unlikely as
+		 * the affected systems, all but one, do not have unmappable
+		 * space) or we will not be able to enable full powersaving
+		 * techniques (also likely not to apply due to various limits
+		 * FBC and the like impose on the size of the buffer, which
+		 * presumably we violated anyway with this unmappable buffer).
+		 * Anyway, it is presumably better to stumble onwards with
+		 * something and try to run the system in a "less than optimal"
+		 * mode that matches the user configuration.
+		 */
+		if (i915_vma_get_fence(vma) == 0)
+			i915_vma_pin_fence(vma);
 	}
 
+err:
 	intel_runtime_pm_put(dev_priv);
 	return vma;
-
-err_unpin:
-	i915_gem_object_unpin_from_display_plane(vma);
-err_pm:
-	intel_runtime_pm_put(dev_priv);
-	return ERR_PTR(ret);
 }
 
 void intel_unpin_fb_obj(struct drm_framebuffer *fb, unsigned int rotation)
@@ -2264,9 +2253,7 @@ void intel_unpin_fb_obj(struct drm_framebuffer *fb, unsigned int rotation)
 	intel_fill_fb_ggtt_view(&view, fb, rotation);
 	vma = i915_gem_object_to_ggtt(obj, &view);
 
-	if (i915_vma_is_map_and_fenceable(vma))
-		i915_gem_object_unpin_fence(obj);
-
+	i915_vma_unpin_fence(vma);
 	i915_gem_object_unpin_from_display_plane(vma);
 }
 

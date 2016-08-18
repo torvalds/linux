@@ -455,15 +455,21 @@ struct intel_opregion {
 struct intel_overlay;
 struct intel_overlay_error_state;
 
-#define I915_FENCE_REG_NONE -1
-#define I915_MAX_NUM_FENCES 32
-/* 32 fences + sign bit for FENCE_REG_NONE */
-#define I915_MAX_NUM_FENCE_BITS 6
-
 struct drm_i915_fence_reg {
 	struct list_head link;
-	struct drm_i915_gem_object *obj;
+	struct drm_i915_private *i915;
+	struct i915_vma *vma;
 	int pin_count;
+	int id;
+	/**
+	 * Whether the tiling parameters for the currently
+	 * associated fence register have changed. Note that
+	 * for the purposes of tracking tiling changes we also
+	 * treat the unfenced register, the register slot that
+	 * the object occupies whilst it executes a fenced
+	 * command (such as BLT on gen2/3), as a "fence".
+	 */
+	bool dirty;
 };
 
 struct sdvo_device_mapping {
@@ -2172,25 +2178,9 @@ struct drm_i915_gem_object {
 	unsigned int dirty:1;
 
 	/**
-	 * Fence register bits (if any) for this object.  Will be set
-	 * as needed when mapped into the GTT.
-	 * Protected by dev->struct_mutex.
-	 */
-	signed int fence_reg:I915_MAX_NUM_FENCE_BITS;
-
-	/**
 	 * Advice: are the backing pages purgeable?
 	 */
 	unsigned int madv:2;
-
-	/**
-	 * Whether the tiling parameters for the currently associated fence
-	 * register have changed. Note that for the purposes of tracking
-	 * tiling changes we also treat the unfenced register, the register
-	 * slot that the object occupies whilst it executes a fenced
-	 * command (such as BLT on gen2/3), as a "fence".
-	 */
-	unsigned int fence_dirty:1;
 
 	/**
 	 * Whether the current gtt mapping needs to be mappable (and isn't just
@@ -2240,7 +2230,6 @@ struct drm_i915_gem_object {
 	 */
 	struct i915_gem_active last_read[I915_NUM_ENGINES];
 	struct i915_gem_active last_write;
-	struct i915_gem_active last_fence;
 
 	/** References from framebuffers, locks out tiling changes. */
 	unsigned long framebuffer_references;
@@ -3343,11 +3332,50 @@ i915_gem_object_ggtt_offset(struct drm_i915_gem_object *o,
 }
 
 /* i915_gem_fence.c */
-int __must_check i915_gem_object_get_fence(struct drm_i915_gem_object *obj);
-int __must_check i915_gem_object_put_fence(struct drm_i915_gem_object *obj);
+int __must_check i915_vma_get_fence(struct i915_vma *vma);
+int __must_check i915_vma_put_fence(struct i915_vma *vma);
 
-bool i915_gem_object_pin_fence(struct drm_i915_gem_object *obj);
-void i915_gem_object_unpin_fence(struct drm_i915_gem_object *obj);
+/**
+ * i915_vma_pin_fence - pin fencing state
+ * @vma: vma to pin fencing for
+ *
+ * This pins the fencing state (whether tiled or untiled) to make sure the
+ * vma (and its object) is ready to be used as a scanout target. Fencing
+ * status must be synchronize first by calling i915_vma_get_fence():
+ *
+ * The resulting fence pin reference must be released again with
+ * i915_vma_unpin_fence().
+ *
+ * Returns:
+ *
+ * True if the vma has a fence, false otherwise.
+ */
+static inline bool
+i915_vma_pin_fence(struct i915_vma *vma)
+{
+	if (vma->fence) {
+		vma->fence->pin_count++;
+		return true;
+	} else
+		return false;
+}
+
+/**
+ * i915_vma_unpin_fence - unpin fencing state
+ * @vma: vma to unpin fencing for
+ *
+ * This releases the fence pin reference acquired through
+ * i915_vma_pin_fence. It will handle both objects with and without an
+ * attached fence correctly, callers do not need to distinguish this.
+ */
+static inline void
+i915_vma_unpin_fence(struct i915_vma *vma)
+{
+	if (vma->fence) {
+		GEM_BUG_ON(vma->fence->pin_count <= 0);
+		vma->fence->pin_count--;
+	}
+}
 
 void i915_gem_restore_fences(struct drm_device *dev);
 
