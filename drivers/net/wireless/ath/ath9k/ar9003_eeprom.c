@@ -3252,7 +3252,8 @@ static int ar9300_eeprom_restore_flash(struct ath_hw *ah, u8 *mptr,
 	int i;
 
 	for (i = 0; i < mdata_size / 2; i++, data++)
-		ath9k_hw_nvram_read(ah, i, data);
+		if (!ath9k_hw_nvram_read(ah, i, data))
+			return -EIO;
 
 	return 0;
 }
@@ -3282,7 +3283,8 @@ static int ar9300_eeprom_restore_internal(struct ath_hw *ah,
 	if (ath9k_hw_use_flash(ah)) {
 		u8 txrx;
 
-		ar9300_eeprom_restore_flash(ah, mptr, mdata_size);
+		if (ar9300_eeprom_restore_flash(ah, mptr, mdata_size))
+			return -EIO;
 
 		/* check if eeprom contains valid data */
 		eep = (struct ar9300_eeprom *) mptr;
