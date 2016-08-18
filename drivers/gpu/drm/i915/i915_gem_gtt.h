@@ -637,6 +637,7 @@ void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj);
 #define PIN_NONBLOCK		BIT(0)
 #define PIN_MAPPABLE		BIT(1)
 #define PIN_ZONE_4G		BIT(2)
+#define PIN_NONFAULT		BIT(3)
 
 #define PIN_MBZ			BIT(5) /* I915_VMA_PIN_OVERFLOW */
 #define PIN_GLOBAL		BIT(6) /* I915_VMA_GLOBAL_BIND */

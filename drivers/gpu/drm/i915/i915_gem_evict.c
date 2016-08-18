@@ -47,12 +47,15 @@ gpu_is_idle(struct drm_i915_private *dev_priv)
 }
 
 static bool
-mark_free(struct i915_vma *vma, struct list_head *unwind)
+mark_free(struct i915_vma *vma, unsigned int flags, struct list_head *unwind)
 {
 	if (i915_vma_is_pinned(vma))
 		return false;
 
 	if (WARN_ON(!list_empty(&vma->exec_list)))
+		return false;
+
+	if (flags & PIN_NONFAULT && vma->obj->fault_mappable)
 		return false;
 
 	list_add(&vma->exec_list, unwind);
@@ -129,7 +132,7 @@ search_again:
 	phase = phases;
 	do {
 		list_for_each_entry(vma, *phase, vm_link)
-			if (mark_free(vma, &eviction_list))
+			if (mark_free(vma, flags, &eviction_list))
 				goto found;
 	} while (*++phase);
 

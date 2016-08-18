@@ -1706,6 +1706,7 @@ int i915_gem_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 	struct i915_vma *vma;
 	pgoff_t page_offset;
 	unsigned long pfn;
+	unsigned int flags;
 	int ret;
 
 	/* We don't use vmf->pgoff since that has the fake offset */
@@ -1735,9 +1736,16 @@ int i915_gem_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 		goto err_unlock;
 	}
 
+	/* If the object is smaller than a couple of partial vma, it is
+	 * not worth only creating a single partial vma - we may as well
+	 * clear enough space for the full object.
+	 */
+	flags = PIN_MAPPABLE;
+	if (obj->base.size > 2 * MIN_CHUNK_PAGES << PAGE_SHIFT)
+		flags |= PIN_NONBLOCK | PIN_NONFAULT;
+
 	/* Now pin it into the GTT as needed */
-	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
-				       PIN_MAPPABLE | PIN_NONBLOCK);
+	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, flags);
 	if (IS_ERR(vma)) {
 		struct i915_ggtt_view view;
 		unsigned int chunk_size;
