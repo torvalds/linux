@@ -117,7 +117,7 @@ static void check_hung_task(struct task_struct *t, unsigned long timeout)
 	pr_err("\"echo 0 > /proc/sys/kernel/hung_task_timeout_secs\""
 		" disables this message.\n");
 	sched_show_task(t);
-	debug_show_held_locks(t);
+	debug_show_all_locks();
 
 	touch_nmi_watchdog();
 
