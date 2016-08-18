@@ -890,22 +890,14 @@ static const struct clk_ops samsung_s3c2440_mpll_clk_ops = {
 #define PLL2550X_M_SHIFT      (4)
 #define PLL2550X_S_SHIFT      (0)
 
-struct samsung_clk_pll2550x {
-	struct clk_hw		hw;
-	const void __iomem	*reg_base;
-	unsigned long		offset;
-};
-
-#define to_clk_pll2550x(_hw) container_of(_hw, struct samsung_clk_pll2550x, hw)
-
 static unsigned long samsung_pll2550x_recalc_rate(struct clk_hw *hw,
 				unsigned long parent_rate)
 {
-	struct samsung_clk_pll2550x *pll = to_clk_pll2550x(hw);
+	struct samsung_clk_pll *pll = to_clk_pll(hw);
 	u32 r, p, m, s, pll_stat;
 	u64 fvco = parent_rate;
 
-	pll_stat = readl_relaxed(pll->reg_base + pll->offset * 3);
+	pll_stat = readl_relaxed(pll->con_reg);
 	r = (pll_stat >> PLL2550X_R_SHIFT) & PLL2550X_R_MASK;
 	if (!r)
 		return 0;
@@ -922,43 +914,6 @@ static unsigned long samsung_pll2550x_recalc_rate(struct clk_hw *hw,
 static const struct clk_ops samsung_pll2550x_clk_ops = {
 	.recalc_rate = samsung_pll2550x_recalc_rate,
 };
-
-struct clk * __init samsung_clk_register_pll2550x(const char *name,
-			const char *pname, const void __iomem *reg_base,
-			const unsigned long offset)
-{
-	struct samsung_clk_pll2550x *pll;
-	struct clk *clk;
-	struct clk_init_data init;
-
-	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
-	if (!pll) {
-		pr_err("%s: could not allocate pll clk %s\n", __func__, name);
-		return NULL;
-	}
-
-	init.name = name;
-	init.ops = &samsung_pll2550x_clk_ops;
-	init.flags = CLK_GET_RATE_NOCACHE;
-	init.parent_names = &pname;
-	init.num_parents = 1;
-
-	pll->hw.init = &init;
-	pll->reg_base = reg_base;
-	pll->offset = offset;
-
-	clk = clk_register(NULL, &pll->hw);
-	if (IS_ERR(clk)) {
-		pr_err("%s: failed to register pll clock %s\n", __func__,
-				name);
-		kfree(pll);
-	}
-
-	if (clk_register_clkdev(clk, name, NULL))
-		pr_err("%s: failed to register lookup for %s", __func__, name);
-
-	return clk;
-}
 
 /*
  * PLL2550xx Clock Type
@@ -1262,6 +1217,9 @@ static void __init _samsung_clk_register_pll(struct samsung_clk_provider *ctx,
 			init.ops = &samsung_s3c2440_mpll_clk_min_ops;
 		else
 			init.ops = &samsung_s3c2440_mpll_clk_ops;
+		break;
+	case pll_2550x:
+		init.ops = &samsung_pll2550x_clk_ops;
 		break;
 	case pll_2550xx:
 		if (!pll->rate_table)
