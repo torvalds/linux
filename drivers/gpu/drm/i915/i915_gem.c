@@ -1755,6 +1755,12 @@ int i915_gem_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 			      (area->vm_end - area->vm_start) / PAGE_SIZE -
 			      view.params.partial.offset);
 
+		/* If the partial covers the entire object, just create a
+		 * normal VMA.
+		 */
+		if (chunk_size >= obj->base.size >> PAGE_SHIFT)
+			view.type = I915_GGTT_VIEW_NORMAL;
+
 		vma = i915_gem_object_ggtt_pin(obj, &view, 0, 0, PIN_MAPPABLE);
 	}
 	if (IS_ERR(vma)) {
