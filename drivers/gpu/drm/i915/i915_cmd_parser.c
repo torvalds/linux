@@ -937,98 +937,63 @@ find_reg_in_tables(const struct drm_i915_reg_table *tables,
 	return NULL;
 }
 
-static u32 *vmap_batch(struct drm_i915_gem_object *obj,
-		       unsigned start, unsigned len)
-{
-	int i;
-	void *addr = NULL;
-	struct sg_page_iter sg_iter;
-	int first_page = start >> PAGE_SHIFT;
-	int last_page = (len + start + 4095) >> PAGE_SHIFT;
-	int npages = last_page - first_page;
-	struct page **pages;
-
-	pages = drm_malloc_ab(npages, sizeof(*pages));
-	if (pages == NULL) {
-		DRM_DEBUG_DRIVER("Failed to get space for pages\n");
-		goto finish;
-	}
-
-	i = 0;
-	for_each_sg_page(obj->pages->sgl, &sg_iter, obj->pages->nents, first_page) {
-		pages[i++] = sg_page_iter_page(&sg_iter);
-		if (i == npages)
-			break;
-	}
-
-	addr = vmap(pages, i, 0, PAGE_KERNEL);
-	if (addr == NULL) {
-		DRM_DEBUG_DRIVER("Failed to vmap pages\n");
-		goto finish;
-	}
-
-finish:
-	if (pages)
-		drm_free_large(pages);
-	return (u32*)addr;
-}
-
-/* Returns a vmap'd pointer to dest_obj, which the caller must unmap */
-static u32 *copy_batch(struct drm_i915_gem_object *dest_obj,
+/* Returns a vmap'd pointer to dst_obj, which the caller must unmap */
+static u32 *copy_batch(struct drm_i915_gem_object *dst_obj,
 		       struct drm_i915_gem_object *src_obj,
 		       u32 batch_start_offset,
-		       u32 batch_len)
+		       u32 batch_len,
+		       bool *needs_clflush_after)
 {
-	unsigned int needs_clflush;
-	void *src_base, *src;
-	void *dst = NULL;
+	unsigned int src_needs_clflush;
+	unsigned int dst_needs_clflush;
+	void *src, *dst;
 	int ret;
 
-	if (batch_len > dest_obj->base.size ||
-	    batch_len + batch_start_offset > src_obj->base.size)
-		return ERR_PTR(-E2BIG);
-
-	if (WARN_ON(dest_obj->pages_pin_count == 0))
-		return ERR_PTR(-ENODEV);
-
-	ret = i915_gem_obj_prepare_shmem_read(src_obj, &needs_clflush);
-	if (ret) {
-		DRM_DEBUG_DRIVER("CMD: failed to prepare shadow batch\n");
+	ret = i915_gem_obj_prepare_shmem_read(src_obj, &src_needs_clflush);
+	if (ret)
 		return ERR_PTR(ret);
-	}
 
-	src_base = vmap_batch(src_obj, batch_start_offset, batch_len);
-	if (!src_base) {
-		DRM_DEBUG_DRIVER("CMD: Failed to vmap batch\n");
-		ret = -ENOMEM;
+	ret = i915_gem_obj_prepare_shmem_write(dst_obj, &dst_needs_clflush);
+	if (ret) {
+		dst = ERR_PTR(ret);
 		goto unpin_src;
 	}
 
-	ret = i915_gem_object_set_to_cpu_domain(dest_obj, true);
-	if (ret) {
-		DRM_DEBUG_DRIVER("CMD: Failed to set shadow batch to CPU\n");
-		goto unmap_src;
+	src = i915_gem_object_pin_map(src_obj, I915_MAP_WB);
+	if (IS_ERR(src)) {
+		dst = src;
+		goto unpin_dst;
 	}
 
-	dst = vmap_batch(dest_obj, 0, batch_len);
-	if (!dst) {
-		DRM_DEBUG_DRIVER("CMD: Failed to vmap shadow batch\n");
-		ret = -ENOMEM;
+	dst = i915_gem_object_pin_map(dst_obj, I915_MAP_WB);
+	if (IS_ERR(dst))
 		goto unmap_src;
-	}
 
-	src = src_base + offset_in_page(batch_start_offset);
-	if (needs_clflush)
+	src += batch_start_offset;
+	if (src_needs_clflush)
 		drm_clflush_virt_range(src, batch_len);
+
+	/* We can avoid clflushing partial cachelines before the write if we
+	 * only every write full cache-lines. Since we know that both the
+	 * source and destination are in multiples of PAGE_SIZE, we can simply
+	 * round up to the next cacheline. We don't care about copying too much
+	 * here as we only validate up to the end of the batch.
+	 */
+	if (dst_needs_clflush & CLFLUSH_BEFORE)
+		batch_len = roundup(batch_len, boot_cpu_data.x86_clflush_size);
 
 	memcpy(dst, src, batch_len);
 
+	/* dst_obj is returned with vmap pinned */
+	*needs_clflush_after = dst_needs_clflush & CLFLUSH_AFTER;
+
 unmap_src:
-	vunmap(src_base);
+	i915_gem_object_unpin_map(src_obj);
+unpin_dst:
+	i915_gem_obj_finish_shmem_access(dst_obj);
 unpin_src:
 	i915_gem_obj_finish_shmem_access(src_obj);
-
-	return ret ? ERR_PTR(ret) : dst;
+	return dst;
 }
 
 /**
@@ -1206,16 +1171,18 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 			    u32 batch_len,
 			    bool is_master)
 {
-	u32 *cmd, *batch_base, *batch_end;
+	u32 *cmd, *batch_end;
 	struct drm_i915_cmd_descriptor default_desc = { 0 };
 	bool oacontrol_set = false; /* OACONTROL tracking. See check_cmd() */
+	bool needs_clflush_after = false;
 	int ret = 0;
 
-	batch_base = copy_batch(shadow_batch_obj, batch_obj,
-				batch_start_offset, batch_len);
-	if (IS_ERR(batch_base)) {
+	cmd = copy_batch(shadow_batch_obj, batch_obj,
+			 batch_start_offset, batch_len,
+			 &needs_clflush_after);
+	if (IS_ERR(cmd)) {
 		DRM_DEBUG_DRIVER("CMD: Failed to copy batch\n");
-		return PTR_ERR(batch_base);
+		return PTR_ERR(cmd);
 	}
 
 	/*
@@ -1223,9 +1190,7 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 	 * large or larger and copy_batch() will write MI_NOPs to the extra
 	 * space. Parsing should be faster in some cases this way.
 	 */
-	batch_end = batch_base + (batch_len / sizeof(*batch_end));
-
-	cmd = batch_base;
+	batch_end = cmd + (batch_len / sizeof(*batch_end));
 	while (cmd < batch_end) {
 		const struct drm_i915_cmd_descriptor *desc;
 		u32 length;
@@ -1284,7 +1249,9 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 		ret = -EINVAL;
 	}
 
-	vunmap(batch_base);
+	if (ret == 0 && needs_clflush_after)
+		drm_clflush_virt_range(shadow_batch_obj->mapping, batch_len);
+	i915_gem_object_unpin_map(shadow_batch_obj);
 
 	return ret;
 }

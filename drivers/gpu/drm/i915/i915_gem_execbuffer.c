@@ -1512,7 +1512,7 @@ execbuf_submit(struct i915_execbuffer_params *params,
 		     params->args_batch_start_offset;
 
 	if (exec_len == 0)
-		exec_len = params->batch->size;
+		exec_len = params->batch->size - params->args_batch_start_offset;
 
 	ret = params->engine->emit_bb_start(params->request,
 					    exec_start, exec_len,
@@ -1735,6 +1735,12 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	/* Set the pending read domains for the batch buffer to COMMAND */
 	if (params->batch->obj->base.pending_write_domain) {
 		DRM_DEBUG("Attempting to use self-modifying batch buffer\n");
+		ret = -EINVAL;
+		goto err;
+	}
+	if (args->batch_start_offset > params->batch->size ||
+	    args->batch_len > params->batch->size - args->batch_start_offset) {
+		DRM_DEBUG("Attempting to use out-of-bounds batch\n");
 		ret = -EINVAL;
 		goto err;
 	}
