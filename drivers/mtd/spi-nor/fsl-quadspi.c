@@ -373,8 +373,12 @@ static void fsl_qspi_init_lut(struct fsl_qspi *q)
 	void __iomem *base = q->iobase;
 	int rxfifo = q->devtype_data->rxfifo;
 	u32 lut_base;
-	u8 cmd, addrlen, dummy;
 	int i;
+
+	struct spi_nor *nor = &q->nor[0];
+	u8 addrlen = (nor->addr_width == 3) ? ADDR24BIT : ADDR32BIT;
+	u8 read_op = nor->read_opcode;
+	u8 read_dm = nor->read_dummy;
 
 	fsl_qspi_unlock_lut(q);
 
@@ -385,20 +389,10 @@ static void fsl_qspi_init_lut(struct fsl_qspi *q)
 	/* Quad Read */
 	lut_base = SEQID_QUAD_READ * 4;
 
-	if (q->nor_size <= SZ_16M) {
-		cmd = SPINOR_OP_READ_1_1_4;
-		addrlen = ADDR24BIT;
-		dummy = 8;
-	} else {
-		/* use the 4-byte address */
-		cmd = SPINOR_OP_READ_1_1_4;
-		addrlen = ADDR32BIT;
-		dummy = 8;
-	}
-
-	qspi_writel(q, LUT0(CMD, PAD1, cmd) | LUT1(ADDR, PAD1, addrlen),
+	qspi_writel(q, LUT0(CMD, PAD1, read_op) | LUT1(ADDR, PAD1, addrlen),
 			base + QUADSPI_LUT(lut_base));
-	qspi_writel(q, LUT0(DUMMY, PAD1, dummy) | LUT1(FSL_READ, PAD4, rxfifo),
+	qspi_writel(q, LUT0(DUMMY, PAD1, read_dm) |
+		    LUT1(FSL_READ, PAD4, rxfifo),
 			base + QUADSPI_LUT(lut_base + 1));
 
 	/* Write enable */
@@ -409,16 +403,8 @@ static void fsl_qspi_init_lut(struct fsl_qspi *q)
 	/* Page Program */
 	lut_base = SEQID_PP * 4;
 
-	if (q->nor_size <= SZ_16M) {
-		cmd = SPINOR_OP_PP;
-		addrlen = ADDR24BIT;
-	} else {
-		/* use the 4-byte address */
-		cmd = SPINOR_OP_PP;
-		addrlen = ADDR32BIT;
-	}
-
-	qspi_writel(q, LUT0(CMD, PAD1, cmd) | LUT1(ADDR, PAD1, addrlen),
+	qspi_writel(q, LUT0(CMD, PAD1, nor->program_opcode) |
+		    LUT1(ADDR, PAD1, addrlen),
 			base + QUADSPI_LUT(lut_base));
 	qspi_writel(q, LUT0(FSL_WRITE, PAD1, 0),
 			base + QUADSPI_LUT(lut_base + 1));
@@ -432,10 +418,8 @@ static void fsl_qspi_init_lut(struct fsl_qspi *q)
 	/* Erase a sector */
 	lut_base = SEQID_SE * 4;
 
-	cmd = q->nor[0].erase_opcode;
-	addrlen = q->nor_size <= SZ_16M ? ADDR24BIT : ADDR32BIT;
-
-	qspi_writel(q, LUT0(CMD, PAD1, cmd) | LUT1(ADDR, PAD1, addrlen),
+	qspi_writel(q, LUT0(CMD, PAD1, nor->erase_opcode) |
+		    LUT1(ADDR, PAD1, addrlen),
 			base + QUADSPI_LUT(lut_base));
 
 	/* Erase the whole chip */
