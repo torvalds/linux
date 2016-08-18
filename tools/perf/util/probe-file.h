@@ -19,6 +19,15 @@ struct probe_cache {
 	struct list_head entries;
 };
 
+enum probe_type {
+	PROBE_TYPE_U = 0,
+	PROBE_TYPE_S,
+	PROBE_TYPE_X,
+	PROBE_TYPE_STRING,
+	PROBE_TYPE_BITFIELD,
+	PROBE_TYPE_END,
+};
+
 #define PF_FL_UPROBE	1
 #define PF_FL_RW	2
 #define for_each_probe_cache_entry(entry, pcache) \
@@ -54,6 +63,7 @@ struct probe_cache_entry *probe_cache__find(struct probe_cache *pcache,
 struct probe_cache_entry *probe_cache__find_by_name(struct probe_cache *pcache,
 					const char *group, const char *event);
 int probe_cache__show_all_caches(struct strfilter *filter);
+bool probe_type_is_available(enum probe_type type);
 #else	/* ! HAVE_LIBELF_SUPPORT */
 static inline struct probe_cache *probe_cache__new(const char *tgt __maybe_unused)
 {

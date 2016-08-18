@@ -39,6 +39,7 @@
 #include "util.h"
 #include "symbol.h"
 #include "probe-finder.h"
+#include "probe-file.h"
 
 /* Kprobe tracer basic type is up to u64 */
 #define MAX_BASIC_TYPE_BITS	64
