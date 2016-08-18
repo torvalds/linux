@@ -8319,6 +8319,12 @@ T:	git git://linuxtv.org/mkrufky/tuners.git
 S:	Maintained
 F:	drivers/media/tuners/mxl5007t.*
 
+MXSFB DRM DRIVER
+M:	Marek Vasut <marex@denx.de>
+S:	Supported
+F:	drivers/gpu/drm/mxsfb/
+F:	Documentation/devicetree/bindings/display/mxsfb-drm.txt
+
 MYRICOM MYRI-10G 10GbE DRIVER (MYRI10GE)
 M:	Hyong-Youb Kim <hykim@myri.com>
 L:	netdev@vger.kernel.org

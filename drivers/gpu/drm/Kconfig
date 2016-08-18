@@ -240,6 +240,8 @@ source "drivers/gpu/drm/mediatek/Kconfig"
 
 source "drivers/gpu/drm/zte/Kconfig"
 
+source "drivers/gpu/drm/mxsfb/Kconfig"
+
 # Keep legacy drivers last
 
 menuconfig DRM_LEGACY
