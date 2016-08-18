@@ -1297,13 +1297,6 @@ err:
 	return ret;
 }
 
-int iwl_mvm_update_sta(struct iwl_mvm *mvm,
-		       struct ieee80211_vif *vif,
-		       struct ieee80211_sta *sta)
-{
-	return iwl_mvm_sta_send_to_fw(mvm, sta, true, 0);
-}
-
 int iwl_mvm_drain_sta(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 		      bool drain)
 {
