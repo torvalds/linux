@@ -220,7 +220,7 @@ $data =~ s/\n\s+\n/\n\n/g;
 #
 # Add escape codes for special characters
 #
-$data =~ s,([\_\`\*\<\>\&\\\\:\/\|]),\\$1,g;
+$data =~ s,([\_\`\*\<\>\&\\\\:\/\|\%\$\#\{\}\~\^]),\\$1,g;
 
 $data =~ s,DEPRECATED,**DEPRECATED**,g;
 

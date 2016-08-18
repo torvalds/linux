@@ -29,7 +29,7 @@ else ifneq ($(DOCBOOKS),)
 else # HAVE_SPHINX
 
 # User-friendly check for pdflatex
-HAVE_PDFLATEX := $(shell if which pdflatex >/dev/null 2>&1; then echo 1; else echo 0; fi)
+HAVE_PDFLATEX := $(shell if which xelatex >/dev/null 2>&1; then echo 1; else echo 0; fi)
 
 # Internal variables.
 PAPEROPT_a4     = -D latex_paper_size=a4
@@ -68,11 +68,11 @@ htmldocs:
 
 pdfdocs:
 ifeq ($(HAVE_PDFLATEX),0)
-	$(warning The 'pdflatex' command was not found. Make sure you have it installed and in PATH to produce PDF output.)
+	$(warning The 'xelatex' command was not found. Make sure you have it installed and in PATH to produce PDF output.)
 	@echo "  SKIP    Sphinx $@ target."
 else # HAVE_PDFLATEX
-	@$(call loop_cmd,sphinx,latex,.,latex,.))
-	$(Q)$(MAKE) -C $(BUILDDIR)/latex
+	@$(call loop_cmd,sphinx,latex,.,latex,.)
+	$(Q)$(MAKE) PDFLATEX=xelatex LATEXOPTS="-interaction=nonstopmode" -C $(BUILDDIR)/latex
 endif # HAVE_PDFLATEX
 
 epubdocs:
