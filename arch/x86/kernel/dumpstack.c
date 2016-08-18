@@ -182,12 +182,6 @@ show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 	dump_trace(task, regs, stack, bp, &print_trace_ops, log_lvl);
 }
 
-void show_trace(struct task_struct *task, struct pt_regs *regs,
-		unsigned long *stack, unsigned long bp)
-{
-	show_trace_log_lvl(task, regs, stack, bp, "");
-}
-
 void show_stack(struct task_struct *task, unsigned long *sp)
 {
 	unsigned long bp = 0;
