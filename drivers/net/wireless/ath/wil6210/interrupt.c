@@ -599,7 +599,7 @@ void wil6210_clear_irq(struct wil6210_priv *wil)
 
 void wil6210_set_halp(struct wil6210_priv *wil)
 {
-	wil_dbg_misc(wil, "%s()\n", __func__);
+	wil_dbg_irq(wil, "%s()\n", __func__);
 
 	wil_w(wil, RGF_DMA_EP_MISC_ICR + offsetof(struct RGF_ICR, ICS),
 	      BIT_DMA_EP_MISC_ICR_HALP);
@@ -607,7 +607,7 @@ void wil6210_set_halp(struct wil6210_priv *wil)
 
 void wil6210_clear_halp(struct wil6210_priv *wil)
 {
-	wil_dbg_misc(wil, "%s()\n", __func__);
+	wil_dbg_irq(wil, "%s()\n", __func__);
 
 	wil_w(wil, RGF_DMA_EP_MISC_ICR + offsetof(struct RGF_ICR, ICR),
 	      BIT_DMA_EP_MISC_ICR_HALP);

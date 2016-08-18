@@ -1118,8 +1118,8 @@ void wil_halp_vote(struct wil6210_priv *wil)
 
 	mutex_lock(&wil->halp.lock);
 
-	wil_dbg_misc(wil, "%s: start, HALP ref_cnt (%d)\n", __func__,
-		     wil->halp.ref_cnt);
+	wil_dbg_irq(wil, "%s: start, HALP ref_cnt (%d)\n", __func__,
+		    wil->halp.ref_cnt);
 
 	if (++wil->halp.ref_cnt == 1) {
 		wil6210_set_halp(wil);
@@ -1129,15 +1129,15 @@ void wil_halp_vote(struct wil6210_priv *wil)
 			/* Mask HALP as done in case the interrupt is raised */
 			wil6210_mask_halp(wil);
 		} else {
-			wil_dbg_misc(wil,
-				     "%s: HALP vote completed after %d ms\n",
-				     __func__,
-				     jiffies_to_msecs(to_jiffies - rc));
+			wil_dbg_irq(wil,
+				    "%s: HALP vote completed after %d ms\n",
+				    __func__,
+				    jiffies_to_msecs(to_jiffies - rc));
 		}
 	}
 
-	wil_dbg_misc(wil, "%s: end, HALP ref_cnt (%d)\n", __func__,
-		     wil->halp.ref_cnt);
+	wil_dbg_irq(wil, "%s: end, HALP ref_cnt (%d)\n", __func__,
+		    wil->halp.ref_cnt);
 
 	mutex_unlock(&wil->halp.lock);
 }
@@ -1148,16 +1148,16 @@ void wil_halp_unvote(struct wil6210_priv *wil)
 
 	mutex_lock(&wil->halp.lock);
 
-	wil_dbg_misc(wil, "%s: start, HALP ref_cnt (%d)\n", __func__,
-		     wil->halp.ref_cnt);
+	wil_dbg_irq(wil, "%s: start, HALP ref_cnt (%d)\n", __func__,
+		    wil->halp.ref_cnt);
 
 	if (--wil->halp.ref_cnt == 0) {
 		wil6210_clear_halp(wil);
-		wil_dbg_misc(wil, "%s: HALP unvote\n", __func__);
+		wil_dbg_irq(wil, "%s: HALP unvote\n", __func__);
 	}
 
-	wil_dbg_misc(wil, "%s: end, HALP ref_cnt (%d)\n", __func__,
-		     wil->halp.ref_cnt);
+	wil_dbg_irq(wil, "%s: end, HALP ref_cnt (%d)\n", __func__,
+		    wil->halp.ref_cnt);
 
 	mutex_unlock(&wil->halp.lock);
 }
