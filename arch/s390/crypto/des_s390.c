@@ -529,6 +529,27 @@ static struct crypto_alg ctr_des3_alg = {
 	}
 };
 
+static struct crypto_alg *des_s390_algs_ptr[8];
+static int des_s390_algs_num;
+
+static int des_s390_register_alg(struct crypto_alg *alg)
+{
+	int ret;
+
+	ret = crypto_register_alg(alg);
+	if (!ret)
+		des_s390_algs_ptr[des_s390_algs_num++] = alg;
+	return ret;
+}
+
+static void des_s390_exit(void)
+{
+	while (des_s390_algs_num--)
+		crypto_unregister_alg(des_s390_algs_ptr[des_s390_algs_num]);
+	if (ctrblk)
+		free_page((unsigned long) ctrblk);
+}
+
 static int __init des_s390_init(void)
 {
 	int ret;
@@ -537,75 +558,44 @@ static int __init des_s390_init(void)
 	    !cpacf_query(CPACF_KM, CPACF_KM_TDEA_192))
 		return -EOPNOTSUPP;
 
-	ret = crypto_register_alg(&des_alg);
+	ret = des_s390_register_alg(&des_alg);
 	if (ret)
-		goto des_err;
-	ret = crypto_register_alg(&ecb_des_alg);
+		goto out_err;
+	ret = des_s390_register_alg(&ecb_des_alg);
 	if (ret)
-		goto ecb_des_err;
-	ret = crypto_register_alg(&cbc_des_alg);
+		goto out_err;
+	ret = des_s390_register_alg(&cbc_des_alg);
 	if (ret)
-		goto cbc_des_err;
-	ret = crypto_register_alg(&des3_alg);
+		goto out_err;
+	ret = des_s390_register_alg(&des3_alg);
 	if (ret)
-		goto des3_err;
-	ret = crypto_register_alg(&ecb_des3_alg);
+		goto out_err;
+	ret = des_s390_register_alg(&ecb_des3_alg);
 	if (ret)
-		goto ecb_des3_err;
-	ret = crypto_register_alg(&cbc_des3_alg);
+		goto out_err;
+	ret = des_s390_register_alg(&cbc_des3_alg);
 	if (ret)
-		goto cbc_des3_err;
+		goto out_err;
 
 	if (cpacf_query(CPACF_KMCTR, CPACF_KMCTR_DEA) &&
 	    cpacf_query(CPACF_KMCTR, CPACF_KMCTR_TDEA_192)) {
-		ret = crypto_register_alg(&ctr_des_alg);
-		if (ret)
-			goto ctr_des_err;
-		ret = crypto_register_alg(&ctr_des3_alg);
-		if (ret)
-			goto ctr_des3_err;
 		ctrblk = (u8 *) __get_free_page(GFP_KERNEL);
 		if (!ctrblk) {
 			ret = -ENOMEM;
-			goto ctr_mem_err;
+			goto out_err;
 		}
+		ret = des_s390_register_alg(&ctr_des_alg);
+		if (ret)
+			goto out_err;
+		ret = des_s390_register_alg(&ctr_des3_alg);
+		if (ret)
+			goto out_err;
 	}
-out:
+
+	return 0;
+out_err:
+	des_s390_exit();
 	return ret;
-
-ctr_mem_err:
-	crypto_unregister_alg(&ctr_des3_alg);
-ctr_des3_err:
-	crypto_unregister_alg(&ctr_des_alg);
-ctr_des_err:
-	crypto_unregister_alg(&cbc_des3_alg);
-cbc_des3_err:
-	crypto_unregister_alg(&ecb_des3_alg);
-ecb_des3_err:
-	crypto_unregister_alg(&des3_alg);
-des3_err:
-	crypto_unregister_alg(&cbc_des_alg);
-cbc_des_err:
-	crypto_unregister_alg(&ecb_des_alg);
-ecb_des_err:
-	crypto_unregister_alg(&des_alg);
-des_err:
-	goto out;
-}
-
-static void __exit des_s390_exit(void)
-{
-	if (ctrblk) {
-		crypto_unregister_alg(&ctr_des_alg);
-		crypto_unregister_alg(&ctr_des3_alg);
-		free_page((unsigned long) ctrblk);
-	}
-	crypto_unregister_alg(&cbc_des3_alg);
-	crypto_unregister_alg(&ecb_des3_alg);
-	crypto_unregister_alg(&des3_alg);
-	crypto_unregister_alg(&cbc_des_alg);
-	crypto_unregister_alg(&ecb_des_alg);
-	crypto_unregister_alg(&des_alg);
 }
 
 module_cpu_feature_match(MSA, des_s390_init);

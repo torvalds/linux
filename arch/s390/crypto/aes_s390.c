@@ -731,8 +731,6 @@ static struct crypto_alg xts_aes_alg = {
 	}
 };
 
-static int xts_aes_alg_reg;
-
 static int ctr_aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 			   unsigned int key_len)
 {
@@ -870,7 +868,26 @@ static struct crypto_alg ctr_aes_alg = {
 	}
 };
 
-static int ctr_aes_alg_reg;
+static struct crypto_alg *aes_s390_algs_ptr[5];
+static int aes_s390_algs_num;
+
+static int aes_s390_register_alg(struct crypto_alg *alg)
+{
+	int ret;
+
+	ret = crypto_register_alg(alg);
+	if (!ret)
+		aes_s390_algs_ptr[aes_s390_algs_num++] = alg;
+	return ret;
+}
+
+static void aes_s390_fini(void)
+{
+	while (aes_s390_algs_num--)
+		crypto_unregister_alg(aes_s390_algs_ptr[aes_s390_algs_num]);
+	if (ctrblk)
+		free_page((unsigned long) ctrblk);
+}
 
 static int __init aes_s390_init(void)
 {
@@ -891,24 +908,23 @@ static int __init aes_s390_init(void)
 		pr_info("AES hardware acceleration is only available for"
 			" 128-bit keys\n");
 
-	ret = crypto_register_alg(&aes_alg);
+	ret = aes_s390_register_alg(&aes_alg);
 	if (ret)
-		goto aes_err;
+		goto out_err;
 
-	ret = crypto_register_alg(&ecb_aes_alg);
+	ret = aes_s390_register_alg(&ecb_aes_alg);
 	if (ret)
-		goto ecb_aes_err;
+		goto out_err;
 
-	ret = crypto_register_alg(&cbc_aes_alg);
+	ret = aes_s390_register_alg(&cbc_aes_alg);
 	if (ret)
-		goto cbc_aes_err;
+		goto out_err;
 
 	if (cpacf_query(CPACF_KM, CPACF_KM_XTS_128) &&
 	    cpacf_query(CPACF_KM, CPACF_KM_XTS_256)) {
-		ret = crypto_register_alg(&xts_aes_alg);
+		ret = aes_s390_register_alg(&xts_aes_alg);
 		if (ret)
-			goto xts_aes_err;
-		xts_aes_alg_reg = 1;
+			goto out_err;
 	}
 
 	if (cpacf_query(CPACF_KMCTR, CPACF_KMCTR_AES_128) &&
@@ -917,42 +933,17 @@ static int __init aes_s390_init(void)
 		ctrblk = (u8 *) __get_free_page(GFP_KERNEL);
 		if (!ctrblk) {
 			ret = -ENOMEM;
-			goto ctr_aes_err;
+			goto out_err;
 		}
-		ret = crypto_register_alg(&ctr_aes_alg);
-		if (ret) {
-			free_page((unsigned long) ctrblk);
-			goto ctr_aes_err;
-		}
-		ctr_aes_alg_reg = 1;
+		ret = aes_s390_register_alg(&ctr_aes_alg);
+		if (ret)
+			goto out_err;
 	}
 
-out:
+	return 0;
+out_err:
+	aes_s390_fini();
 	return ret;
-
-ctr_aes_err:
-	crypto_unregister_alg(&xts_aes_alg);
-xts_aes_err:
-	crypto_unregister_alg(&cbc_aes_alg);
-cbc_aes_err:
-	crypto_unregister_alg(&ecb_aes_alg);
-ecb_aes_err:
-	crypto_unregister_alg(&aes_alg);
-aes_err:
-	goto out;
-}
-
-static void __exit aes_s390_fini(void)
-{
-	if (ctr_aes_alg_reg) {
-		crypto_unregister_alg(&ctr_aes_alg);
-		free_page((unsigned long) ctrblk);
-	}
-	if (xts_aes_alg_reg)
-		crypto_unregister_alg(&xts_aes_alg);
-	crypto_unregister_alg(&cbc_aes_alg);
-	crypto_unregister_alg(&ecb_aes_alg);
-	crypto_unregister_alg(&aes_alg);
 }
 
 module_cpu_feature_match(MSA, aes_s390_init);
