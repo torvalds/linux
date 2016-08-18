@@ -946,7 +946,8 @@ static u32 *copy_batch(struct drm_i915_gem_object *dst_obj,
 {
 	unsigned int src_needs_clflush;
 	unsigned int dst_needs_clflush;
-	void *src, *dst;
+	void *dst, *ptr;
+	int offset, n;
 	int ret;
 
 	ret = i915_gem_obj_prepare_shmem_read(src_obj, &src_needs_clflush);
@@ -959,19 +960,12 @@ static u32 *copy_batch(struct drm_i915_gem_object *dst_obj,
 		goto unpin_src;
 	}
 
-	src = i915_gem_object_pin_map(src_obj, I915_MAP_WB);
-	if (IS_ERR(src)) {
-		dst = src;
-		goto unpin_dst;
-	}
-
 	dst = i915_gem_object_pin_map(dst_obj, I915_MAP_WB);
 	if (IS_ERR(dst))
-		goto unmap_src;
+		goto unpin_dst;
 
-	src += batch_start_offset;
-	if (src_needs_clflush)
-		drm_clflush_virt_range(src, batch_len);
+	ptr = dst;
+	offset = offset_in_page(batch_start_offset);
 
 	/* We can avoid clflushing partial cachelines before the write if we
 	 * only every write full cache-lines. Since we know that both the
@@ -982,13 +976,24 @@ static u32 *copy_batch(struct drm_i915_gem_object *dst_obj,
 	if (dst_needs_clflush & CLFLUSH_BEFORE)
 		batch_len = roundup(batch_len, boot_cpu_data.x86_clflush_size);
 
-	memcpy(dst, src, batch_len);
+	for (n = batch_start_offset >> PAGE_SHIFT; batch_len; n++) {
+		int len = min_t(int, batch_len, PAGE_SIZE - offset);
+		void *vaddr;
+
+		vaddr = kmap_atomic(i915_gem_object_get_page(src_obj, n));
+		if (src_needs_clflush)
+			drm_clflush_virt_range(vaddr + offset, len);
+		memcpy(ptr, vaddr + offset, len);
+		kunmap_atomic(vaddr);
+
+		ptr += len;
+		batch_len -= len;
+		offset = 0;
+	}
 
 	/* dst_obj is returned with vmap pinned */
 	*needs_clflush_after = dst_needs_clflush & CLFLUSH_AFTER;
 
-unmap_src:
-	i915_gem_object_unpin_map(src_obj);
 unpin_dst:
 	i915_gem_obj_finish_shmem_access(dst_obj);
 unpin_src:
