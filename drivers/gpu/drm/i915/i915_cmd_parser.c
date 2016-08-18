@@ -965,8 +965,7 @@ static u32 *copy_batch(struct drm_i915_gem_object *dst_obj,
 {
 	unsigned int src_needs_clflush;
 	unsigned int dst_needs_clflush;
-	void *dst, *ptr;
-	int offset, n;
+	void *dst, *src;
 	int ret;
 
 	ret = i915_gem_obj_prepare_shmem_read(src_obj, &src_needs_clflush);
@@ -983,31 +982,48 @@ static u32 *copy_batch(struct drm_i915_gem_object *dst_obj,
 	if (IS_ERR(dst))
 		goto unpin_dst;
 
-	ptr = dst;
-	offset = offset_in_page(batch_start_offset);
+	src = ERR_PTR(-ENODEV);
+	if (src_needs_clflush &&
+	    i915_memcpy_from_wc((void *)(uintptr_t)batch_start_offset, 0, 0)) {
+		src = i915_gem_object_pin_map(src_obj, I915_MAP_WC);
+		if (!IS_ERR(src)) {
+			i915_memcpy_from_wc(dst,
+					    src + batch_start_offset,
+					    ALIGN(batch_len, 16));
+			i915_gem_object_unpin_map(src_obj);
+		}
+	}
+	if (IS_ERR(src)) {
+		void *ptr;
+		int offset, n;
 
-	/* We can avoid clflushing partial cachelines before the write if we
-	 * only every write full cache-lines. Since we know that both the
-	 * source and destination are in multiples of PAGE_SIZE, we can simply
-	 * round up to the next cacheline. We don't care about copying too much
-	 * here as we only validate up to the end of the batch.
-	 */
-	if (dst_needs_clflush & CLFLUSH_BEFORE)
-		batch_len = roundup(batch_len, boot_cpu_data.x86_clflush_size);
+		offset = offset_in_page(batch_start_offset);
 
-	for (n = batch_start_offset >> PAGE_SHIFT; batch_len; n++) {
-		int len = min_t(int, batch_len, PAGE_SIZE - offset);
-		void *vaddr;
+		/* We can avoid clflushing partial cachelines before the write
+		 * if we only every write full cache-lines. Since we know that
+		 * both the source and destination are in multiples of
+		 * PAGE_SIZE, we can simply round up to the next cacheline.
+		 * We don't care about copying too much here as we only
+		 * validate up to the end of the batch.
+		 */
+		if (dst_needs_clflush & CLFLUSH_BEFORE)
+			batch_len = roundup(batch_len,
+					    boot_cpu_data.x86_clflush_size);
 
-		vaddr = kmap_atomic(i915_gem_object_get_page(src_obj, n));
-		if (src_needs_clflush)
-			drm_clflush_virt_range(vaddr + offset, len);
-		memcpy(ptr, vaddr + offset, len);
-		kunmap_atomic(vaddr);
+		ptr = dst;
+		for (n = batch_start_offset >> PAGE_SHIFT; batch_len; n++) {
+			int len = min_t(int, batch_len, PAGE_SIZE - offset);
 
-		ptr += len;
-		batch_len -= len;
-		offset = 0;
+			src = kmap_atomic(i915_gem_object_get_page(src_obj, n));
+			if (src_needs_clflush)
+				drm_clflush_virt_range(src + offset, len);
+			memcpy(ptr, src + offset, len);
+			kunmap_atomic(src);
+
+			ptr += len;
+			batch_len -= len;
+			offset = 0;
+		}
 	}
 
 	/* dst_obj is returned with vmap pinned */
