@@ -160,6 +160,8 @@ static void nf_conntrack_all_unlock(void)
 }
 
 unsigned int nf_conntrack_htable_size __read_mostly;
+EXPORT_SYMBOL_GPL(nf_conntrack_htable_size);
+
 unsigned int nf_conntrack_max __read_mostly;
 seqcount_t nf_conntrack_generation __read_mostly;
 
