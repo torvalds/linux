@@ -3182,7 +3182,6 @@ static void
 i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
-	uint32_t old_write_domain;
 
 	if (obj->base.write_domain != I915_GEM_DOMAIN_GTT)
 		return;
@@ -3206,36 +3205,30 @@ i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj)
 	if (INTEL_GEN(dev_priv) >= 6 && !HAS_LLC(dev_priv))
 		POSTING_READ(RING_ACTHD(dev_priv->engine[RCS].mmio_base));
 
-	old_write_domain = obj->base.write_domain;
-	obj->base.write_domain = 0;
-
 	intel_fb_obj_flush(obj, false, write_origin(obj, I915_GEM_DOMAIN_GTT));
 
+	obj->base.write_domain = 0;
 	trace_i915_gem_object_change_domain(obj,
 					    obj->base.read_domains,
-					    old_write_domain);
+					    I915_GEM_DOMAIN_GTT);
 }
 
 /** Flushes the CPU write domain for the object if it's dirty. */
 static void
 i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj)
 {
-	uint32_t old_write_domain;
-
 	if (obj->base.write_domain != I915_GEM_DOMAIN_CPU)
 		return;
 
 	if (i915_gem_clflush_object(obj, obj->pin_display))
 		i915_gem_chipset_flush(to_i915(obj->base.dev));
 
-	old_write_domain = obj->base.write_domain;
-	obj->base.write_domain = 0;
-
 	intel_fb_obj_flush(obj, false, ORIGIN_CPU);
 
+	obj->base.write_domain = 0;
 	trace_i915_gem_object_change_domain(obj,
 					    obj->base.read_domains,
-					    old_write_domain);
+					    I915_GEM_DOMAIN_CPU);
 }
 
 /**
