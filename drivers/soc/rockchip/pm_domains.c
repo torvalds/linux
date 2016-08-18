@@ -597,10 +597,12 @@ static int rockchip_pm_domain_probe(struct platform_device *pdev)
 	 * Configure power up and down transition delays for CORE
 	 * and GPU domains.
 	 */
-	rockchip_configure_pd_cnt(pmu, pmu_info->core_pwrcnt_offset,
-				  pmu_info->core_power_transition_time);
-	rockchip_configure_pd_cnt(pmu, pmu_info->gpu_pwrcnt_offset,
-				  pmu_info->gpu_power_transition_time);
+	if (pmu_info->core_power_transition_time)
+		rockchip_configure_pd_cnt(pmu, pmu_info->core_pwrcnt_offset,
+					pmu_info->core_power_transition_time);
+	if (pmu_info->gpu_pwrcnt_offset)
+		rockchip_configure_pd_cnt(pmu, pmu_info->gpu_pwrcnt_offset,
+					pmu_info->gpu_power_transition_time);
 
 	error = -ENODEV;
 
@@ -722,11 +724,7 @@ static const struct rockchip_pmu_info rk3399_pmu = {
 	.idle_offset = 0x64,
 	.ack_offset = 0x68,
 
-	.core_pwrcnt_offset = 0x9c,
-	.gpu_pwrcnt_offset = 0xa4,
-
-	.core_power_transition_time = 24,
-	.gpu_power_transition_time = 24,
+	/* ARM Trusted Firmware manages power transition times */
 
 	.num_domains = ARRAY_SIZE(rk3399_pm_domains),
 	.domain_info = rk3399_pm_domains,
