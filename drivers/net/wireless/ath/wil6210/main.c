@@ -1124,13 +1124,16 @@ void wil_halp_vote(struct wil6210_priv *wil)
 	if (++wil->halp.ref_cnt == 1) {
 		wil6210_set_halp(wil);
 		rc = wait_for_completion_timeout(&wil->halp.comp, to_jiffies);
-		if (!rc)
+		if (!rc) {
 			wil_err(wil, "%s: HALP vote timed out\n", __func__);
-		else
+			/* Mask HALP as done in case the interrupt is raised */
+			wil6210_mask_halp(wil);
+		} else {
 			wil_dbg_misc(wil,
 				     "%s: HALP vote completed after %d ms\n",
 				     __func__,
 				     jiffies_to_msecs(to_jiffies - rc));
+		}
 	}
 
 	wil_dbg_misc(wil, "%s: end, HALP ref_cnt (%d)\n", __func__,

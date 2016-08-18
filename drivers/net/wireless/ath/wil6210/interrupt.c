@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2016 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -101,7 +101,7 @@ static void wil6210_mask_irq_misc(struct wil6210_priv *wil, bool mask_halp)
 	      mask_halp ? WIL6210_IRQ_DISABLE : WIL6210_IRQ_DISABLE_NO_HALP);
 }
 
-static void wil6210_mask_halp(struct wil6210_priv *wil)
+void wil6210_mask_halp(struct wil6210_priv *wil)
 {
 	wil_dbg_irq(wil, "%s()\n", __func__);
 
@@ -503,6 +503,13 @@ static int wil6210_debug_irq_mask(struct wil6210_priv *wil, u32 pseudo_cause)
 				offsetof(struct RGF_ICR, ICR));
 		u32 imv_misc = wil_r(wil, RGF_DMA_EP_MISC_ICR +
 				     offsetof(struct RGF_ICR, IMV));
+
+		/* HALP interrupt can be unmasked when misc interrupts are
+		 * masked
+		 */
+		if (icr_misc & BIT_DMA_EP_MISC_ICR_HALP)
+			return 0;
+
 		wil_err(wil, "IRQ when it should be masked: pseudo 0x%08x\n"
 				"Rx   icm:icr:imv 0x%08x 0x%08x 0x%08x\n"
 				"Tx   icm:icr:imv 0x%08x 0x%08x 0x%08x\n"
