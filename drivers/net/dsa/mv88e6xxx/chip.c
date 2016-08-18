@@ -309,9 +309,9 @@ static int mv88e6xxx_serdes_write(struct mv88e6xxx_chip *chip, int reg, u16 val)
 static int mv88e6xxx_wait(struct mv88e6xxx_chip *chip, int addr, int reg,
 			  u16 mask)
 {
-	unsigned long timeout = jiffies + HZ / 10;
+	int i;
 
-	while (time_before(jiffies, timeout)) {
+	for (i = 0; i < 16; i++) {
 		u16 val;
 		int err;
 
@@ -375,7 +375,7 @@ static int _mv88e6xxx_reg_write(struct mv88e6xxx_chip *chip, int addr,
 static int mv88e6xxx_ppu_disable(struct mv88e6xxx_chip *chip)
 {
 	int ret;
-	unsigned long timeout;
+	int i;
 
 	ret = _mv88e6xxx_reg_read(chip, REG_GLOBAL, GLOBAL_CONTROL);
 	if (ret < 0)
@@ -386,8 +386,7 @@ static int mv88e6xxx_ppu_disable(struct mv88e6xxx_chip *chip)
 	if (ret)
 		return ret;
 
-	timeout = jiffies + 1 * HZ;
-	while (time_before(jiffies, timeout)) {
+	for (i = 0; i < 16; i++) {
 		ret = _mv88e6xxx_reg_read(chip, REG_GLOBAL, GLOBAL_STATUS);
 		if (ret < 0)
 			return ret;
@@ -403,8 +402,7 @@ static int mv88e6xxx_ppu_disable(struct mv88e6xxx_chip *chip)
 
 static int mv88e6xxx_ppu_enable(struct mv88e6xxx_chip *chip)
 {
-	int ret, err;
-	unsigned long timeout;
+	int ret, err, i;
 
 	ret = _mv88e6xxx_reg_read(chip, REG_GLOBAL, GLOBAL_CONTROL);
 	if (ret < 0)
@@ -415,8 +413,7 @@ static int mv88e6xxx_ppu_enable(struct mv88e6xxx_chip *chip)
 	if (err)
 		return err;
 
-	timeout = jiffies + 1 * HZ;
-	while (time_before(jiffies, timeout)) {
+	for (i = 0; i < 16; i++) {
 		ret = _mv88e6xxx_reg_read(chip, REG_GLOBAL, GLOBAL_STATUS);
 		if (ret < 0)
 			return ret;
