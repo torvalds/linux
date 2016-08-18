@@ -2452,9 +2452,7 @@ struct fib_route_iter {
 static struct key_vector *fib_route_get_idx(struct fib_route_iter *iter,
 					    loff_t pos)
 {
-	struct fib_table *tb = iter->main_tb;
 	struct key_vector *l, **tp = &iter->tnode;
-	struct trie *t;
 	t_key key;
 
 	/* use cache location of next-to-find key */
@@ -2462,8 +2460,6 @@ static struct key_vector *fib_route_get_idx(struct fib_route_iter *iter,
 		pos -= iter->pos;
 		key = iter->key;
 	} else {
-		t = (struct trie *)tb->tb_data;
-		iter->tnode = t->kv;
 		iter->pos = 0;
 		key = 0;
 	}
@@ -2504,12 +2500,12 @@ static void *fib_route_seq_start(struct seq_file *seq, loff_t *pos)
 		return NULL;
 
 	iter->main_tb = tb;
+	t = (struct trie *)tb->tb_data;
+	iter->tnode = t->kv;
 
 	if (*pos != 0)
 		return fib_route_get_idx(iter, *pos);
 
-	t = (struct trie *)tb->tb_data;
-	iter->tnode = t->kv;
 	iter->pos = 0;
 	iter->key = 0;
 
