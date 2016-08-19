@@ -3140,7 +3140,7 @@ int c4iw_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	if (ep->mpa_attr.version == 2 && ep->mpa_attr.enhanced_rdma_conn) {
 		if (conn_param->ord > ep->ird) {
 			if (RELAXED_IRD_NEGOTIATION) {
-				ep->ord = ep->ird;
+				conn_param->ord = ep->ird;
 			} else {
 				ep->ird = conn_param->ird;
 				ep->ord = conn_param->ord;
