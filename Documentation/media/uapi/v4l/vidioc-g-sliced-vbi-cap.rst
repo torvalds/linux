@@ -48,7 +48,7 @@ the sliced VBI API is unsupported or ``type`` is invalid.
 
 .. _v4l2-sliced-vbi-cap:
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{2.9cm}|p{2.9cm}|p{2.9cm}|
+.. tabularcolumns:: |p{1.2cm}|p{4.2cm}|p{4.1cm}|p{4.0cm}|p{4.0cm}|
 
 .. flat-table:: struct v4l2_sliced_vbi_cap
     :header-rows:  0
@@ -63,6 +63,7 @@ the sliced VBI API is unsupported or ``type`` is invalid.
        -  ``service_set``
 
        -  :cspan:`2` A set of all data services supported by the driver.
+
 	  Equal to the union of all elements of the ``service_lines`` array.
 
     -  .. row 2
@@ -74,8 +75,7 @@ the sliced VBI API is unsupported or ``type`` is invalid.
        -  :cspan:`2` Each element of this array contains a set of data
 	  services the hardware can look for or insert into a particular
 	  scan line. Data services are defined in :ref:`vbi-services`.
-	  Array indices map to ITU-R line numbers (see also :ref:`vbi-525`
-	  and :ref:`vbi-625`) as follows:
+	  Array indices map to ITU-R line numbers\ [#f1]_ as follows:
 
     -  .. row 3
 
@@ -171,13 +171,21 @@ the sliced VBI API is unsupported or ``type`` is invalid.
        -  ``reserved``\ [3]
 
        -  :cspan:`2` This array is reserved for future extensions.
+
 	  Applications and drivers must set it to zero.
 
+.. [#f1]
 
+   See also :ref:`vbi-525` and :ref:`vbi-625`.
+
+
+.. raw:: latex
+
+    \newline\newline\begin{adjustbox}{width=\columnwidth}
+
+.. tabularcolumns:: |p{5.0cm}|p{1.4cm}|p{3.0cm}|p{2.5cm}|p{9.0cm}|
 
 .. _vbi-services:
-
-.. tabularcolumns:: |p{4.4cm}|p{2.2cm}|p{2.2cm}|p{4.4cm}|p{4.3cm}|
 
 .. flat-table:: Sliced VBI services
     :header-rows:  1
@@ -203,7 +211,9 @@ the sliced VBI API is unsupported or ``type`` is invalid.
 
        -  0x0001
 
-       -  :ref:`ets300706`, :ref:`itu653`
+       -  :ref:`ets300706`,
+
+	  :ref:`itu653`
 
        -  PAL/SECAM line 7-22, 320-335 (second field 7-22)
 
@@ -242,7 +252,9 @@ the sliced VBI API is unsupported or ``type`` is invalid.
 
        -  0x4000
 
-       -  :ref:`en300294`, :ref:`itu1119`
+       -  :ref:`en300294`,
+
+	  :ref:`itu1119`
 
        -  PAL/SECAM line 23
 
@@ -269,6 +281,10 @@ the sliced VBI API is unsupported or ``type`` is invalid.
        -  0x4401
 
        -  :cspan:`2` Set of services applicable to 625 line systems.
+
+.. raw:: latex
+
+    \end{adjustbox}\newline\newline
 
 
 Return Value
