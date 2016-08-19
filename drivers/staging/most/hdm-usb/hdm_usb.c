@@ -285,6 +285,8 @@ static unsigned int get_stream_frame_size(struct most_channel_config *cfg)
 static int hdm_poison_channel(struct most_interface *iface, int channel)
 {
 	struct most_dev *mdev;
+	unsigned long flags;
+	spinlock_t *lock; /* temp. lock */
 
 	mdev = to_mdev(iface);
 	if (unlikely(!iface)) {
@@ -296,7 +298,10 @@ static int hdm_poison_channel(struct most_interface *iface, int channel)
 		return -ECHRNG;
 	}
 
+	lock = mdev->anchor_list_lock + channel;
+	spin_lock_irqsave(lock, flags);
 	mdev->is_channel_healthy[channel] = false;
+	spin_unlock_irqrestore(lock, flags);
 
 	cancel_work_sync(&mdev->clear_work[channel].ws);
 
@@ -407,8 +412,10 @@ static void hdm_write_completion(struct urb *urb)
 	dev = &mdev->usb_device->dev;
 	lock = mdev->anchor_list_lock + channel;
 
+	spin_lock_irqsave(lock, flags);
 	if ((urb->status == -ENOENT) || (urb->status == -ECONNRESET) ||
 	    (!mdev->is_channel_healthy[channel])) {
+		spin_unlock_irqrestore(lock, flags);
 		complete(&anchor->urb_compl);
 		return;
 	}
@@ -419,6 +426,7 @@ static void hdm_write_completion(struct urb *urb)
 		case -EPIPE:
 			dev_warn(dev, "Broken OUT pipe detected\n");
 			mdev->is_channel_healthy[channel] = false;
+			spin_unlock_irqrestore(lock, flags);
 			mbo->status = MBO_E_INVAL;
 			mdev->clear_work[channel].pipe = urb->pipe;
 			schedule_work(&mdev->clear_work[channel].ws);
@@ -436,7 +444,6 @@ static void hdm_write_completion(struct urb *urb)
 		mbo->processed_length = urb->actual_length;
 	}
 
-	spin_lock_irqsave(lock, flags);
 	list_del(&anchor->list);
 	spin_unlock_irqrestore(lock, flags);
 	kfree(anchor);
@@ -571,8 +578,10 @@ static void hdm_read_completion(struct urb *urb)
 	dev = &mdev->usb_device->dev;
 	lock = mdev->anchor_list_lock + channel;
 
+	spin_lock_irqsave(lock, flags);
 	if ((urb->status == -ENOENT) || (urb->status == -ECONNRESET) ||
 	    (!mdev->is_channel_healthy[channel])) {
+		spin_unlock_irqrestore(lock, flags);
 		complete(&anchor->urb_compl);
 		return;
 	}
@@ -583,6 +592,7 @@ static void hdm_read_completion(struct urb *urb)
 		case -EPIPE:
 			dev_warn(dev, "Broken IN pipe detected\n");
 			mdev->is_channel_healthy[channel] = false;
+			spin_unlock_irqrestore(lock, flags);
 			mbo->status = MBO_E_INVAL;
 			mdev->clear_work[channel].pipe = urb->pipe;
 			schedule_work(&mdev->clear_work[channel].ws);
@@ -606,7 +616,7 @@ static void hdm_read_completion(struct urb *urb)
 			mbo->status = MBO_E_INVAL;
 		}
 	}
-	spin_lock_irqsave(lock, flags);
+
 	list_del(&anchor->list);
 	spin_unlock_irqrestore(lock, flags);
 	kfree(anchor);
