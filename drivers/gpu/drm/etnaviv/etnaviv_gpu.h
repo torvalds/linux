@@ -160,6 +160,8 @@ struct etnaviv_cmdbuf {
 	dma_addr_t paddr;
 	u32 size;
 	u32 user_size;
+	/* vram node used if the cmdbuf is mapped through the MMUv2 */
+	struct drm_mm_node vram_node;
 	/* fence after which this buffer is to be disposed */
 	struct fence *fence;
 	/* target exec state */

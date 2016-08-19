@@ -1112,6 +1112,9 @@ struct etnaviv_cmdbuf *etnaviv_gpu_cmdbuf_new(struct etnaviv_gpu *gpu, u32 size,
 	if (!cmdbuf)
 		return NULL;
 
+	if (gpu->mmu->version == ETNAVIV_IOMMU_V2)
+		size = ALIGN(size, SZ_4K);
+
 	cmdbuf->vaddr = dma_alloc_wc(gpu->dev, size, &cmdbuf->paddr,
 				     GFP_KERNEL);
 	if (!cmdbuf->vaddr) {
@@ -1127,6 +1130,7 @@ struct etnaviv_cmdbuf *etnaviv_gpu_cmdbuf_new(struct etnaviv_gpu *gpu, u32 size,
 
 void etnaviv_gpu_cmdbuf_free(struct etnaviv_cmdbuf *cmdbuf)
 {
+	etnaviv_iommu_put_cmdbuf_va(cmdbuf->gpu, cmdbuf);
 	dma_free_wc(cmdbuf->gpu->dev, cmdbuf->size, cmdbuf->vaddr,
 		    cmdbuf->paddr);
 	kfree(cmdbuf);

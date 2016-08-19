@@ -64,6 +64,8 @@ void etnaviv_iommu_destroy(struct etnaviv_iommu *iommu);
 
 u32 etnaviv_iommu_get_cmdbuf_va(struct etnaviv_gpu *gpu,
 				struct etnaviv_cmdbuf *buf);
+void etnaviv_iommu_put_cmdbuf_va(struct etnaviv_gpu *gpu,
+				 struct etnaviv_cmdbuf *buf);
 
 size_t etnaviv_iommu_dump_size(struct etnaviv_iommu *iommu);
 void etnaviv_iommu_dump(struct etnaviv_iommu *iommu, void *buf);

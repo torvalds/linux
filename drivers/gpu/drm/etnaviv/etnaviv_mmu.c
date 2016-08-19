@@ -319,9 +319,49 @@ void etnaviv_iommu_restore(struct etnaviv_gpu *gpu)
 u32 etnaviv_iommu_get_cmdbuf_va(struct etnaviv_gpu *gpu,
 				struct etnaviv_cmdbuf *buf)
 {
-	return buf->paddr - gpu->memory_base;
+	struct etnaviv_iommu *mmu = gpu->mmu;
+
+	if (mmu->version == ETNAVIV_IOMMU_V1) {
+		return buf->paddr - gpu->memory_base;
+	} else {
+		int ret;
+
+		if (buf->vram_node.allocated)
+			return (u32)buf->vram_node.start;
+
+		mutex_lock(&mmu->lock);
+		ret = etnaviv_iommu_find_iova(mmu, &buf->vram_node, buf->size);
+		if (ret < 0) {
+			mutex_unlock(&mmu->lock);
+			return 0;
+		}
+		ret = iommu_map(mmu->domain, buf->vram_node.start, buf->paddr,
+				buf->size, IOMMU_READ);
+		if (ret < 0) {
+			drm_mm_remove_node(&buf->vram_node);
+			mutex_unlock(&mmu->lock);
+			return 0;
+		}
+		mmu->last_iova = buf->vram_node.start + buf->size;
+		gpu->mmu->need_flush = true;
+		mutex_unlock(&mmu->lock);
+
+		return (u32)buf->vram_node.start;
+	}
 }
 
+void etnaviv_iommu_put_cmdbuf_va(struct etnaviv_gpu *gpu,
+				 struct etnaviv_cmdbuf *buf)
+{
+	struct etnaviv_iommu *mmu = gpu->mmu;
+
+	if (mmu->version == ETNAVIV_IOMMU_V2 && buf->vram_node.allocated) {
+		mutex_lock(&mmu->lock);
+		iommu_unmap(mmu->domain, buf->vram_node.start, buf->size);
+		drm_mm_remove_node(&buf->vram_node);
+		mutex_unlock(&mmu->lock);
+	}
+}
 size_t etnaviv_iommu_dump_size(struct etnaviv_iommu *iommu)
 {
 	struct etnaviv_iommu_ops *ops;
