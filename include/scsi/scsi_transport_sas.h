@@ -11,12 +11,12 @@ struct sas_rphy;
 struct request;
 
 #if !IS_ENABLED(CONFIG_SCSI_SAS_ATTRS)
-static inline int is_sas_attached(struct scsi_device *sdev)
+static inline int scsi_is_sas_rphy(const struct device *sdev)
 {
 	return 0;
 }
 #else
-extern int is_sas_attached(struct scsi_device *sdev);
+extern int scsi_is_sas_rphy(const struct device *);
 #endif
 
 static inline int sas_protocol_ata(enum sas_protocol proto)
@@ -202,7 +202,6 @@ extern int sas_rphy_add(struct sas_rphy *);
 extern void sas_rphy_remove(struct sas_rphy *);
 extern void sas_rphy_delete(struct sas_rphy *);
 extern void sas_rphy_unlink(struct sas_rphy *);
-extern int scsi_is_sas_rphy(const struct device *);
 
 struct sas_port *sas_port_alloc(struct device *, int);
 struct sas_port *sas_port_alloc_num(struct device *);
