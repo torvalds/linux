@@ -402,15 +402,13 @@ static int atlas_read_raw(struct iio_dev *indio_dev,
 		case IIO_PH:
 		case IIO_CONCENTRATION:
 		case IIO_ELECTRICALCONDUCTIVITY:
-			mutex_lock(&indio_dev->mlock);
+			ret = iio_device_claim_direct_mode(indio_dev);
+			if (ret)
+				return ret;
 
-			if (iio_buffer_enabled(indio_dev))
-				ret = -EBUSY;
-			else
-				ret = atlas_read_measurement(data,
-							chan->address, &reg);
+			ret = atlas_read_measurement(data, chan->address, &reg);
 
-			mutex_unlock(&indio_dev->mlock);
+			iio_device_release_direct_mode(indio_dev);
 			break;
 		default:
 			ret = -EINVAL;
