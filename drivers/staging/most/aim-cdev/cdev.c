@@ -507,8 +507,9 @@ static int __init mod_init(void)
 	spin_lock_init(&ch_list_lock);
 	ida_init(&minor_id);
 
-	if (alloc_chrdev_region(&aim_devno, 0, 50, "cdev") < 0)
-		return -ENOMEM;
+	err = alloc_chrdev_region(&aim_devno, 0, 50, "cdev");
+	if (err < 0)
+		return err;
 	major = MAJOR(aim_devno);
 
 	aim_class = class_create(THIS_MODULE, "most_cdev_aim");
