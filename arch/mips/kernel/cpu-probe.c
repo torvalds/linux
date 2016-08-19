@@ -555,13 +555,8 @@ static int set_ftlb_enable(struct cpuinfo_mips *c, int enable)
 			write_c0_config6(config &  ~MIPS_CONF6_FTLBEN);
 		break;
 	case CPU_I6400:
-		/* I6400 & related cores use Config7 to configure FTLB */
-		config = read_c0_config7();
-		/* Clear the old probability value */
-		config &= ~(3 << MIPS_CONF7_FTLBP_SHIFT);
-		write_c0_config7(config | (calculate_ftlb_probability(c)
-					   << MIPS_CONF7_FTLBP_SHIFT));
-		break;
+		/* There's no way to disable the FTLB */
+		return !enable;
 	case CPU_LOONGSON3:
 		/* Flush ITLB, DTLB, VTLB and FTLB */
 		write_c0_diag(LOONGSON_DIAG_ITLB | LOONGSON_DIAG_DTLB |
