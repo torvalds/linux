@@ -3124,7 +3124,7 @@ L:	cocci@systeme.lip6.fr (moderated for non-subscribers)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mmarek/kbuild.git misc
 W:	http://coccinelle.lip6.fr/
 S:	Supported
-F:	Documentation/coccinelle.txt
+F:	Documentation/dev-tools/coccinelle.rst
 F:	scripts/coccinelle/
 F:	scripts/coccicheck
 
@@ -5118,7 +5118,7 @@ GCOV BASED KERNEL PROFILING
 M:	Peter Oberparleiter <oberpar@linux.vnet.ibm.com>
 S:	Maintained
 F:	kernel/gcov/
-F:	Documentation/gcov.txt
+F:	Documentation/dev-tools/gcov.rst
 
 GDT SCSI DISK ARRAY CONTROLLER DRIVER
 M:	Achim Leubner <achim_leubner@adaptec.com>
@@ -6587,7 +6587,7 @@ L:	kasan-dev@googlegroups.com
 S:	Maintained
 F:	arch/*/include/asm/kasan.h
 F:	arch/*/mm/kasan_init*
-F:	Documentation/kasan.txt
+F:	Documentation/dev-tools/kasan.rst
 F:	include/linux/kasan*.h
 F:	lib/test_kasan.c
 F:	mm/kasan/
@@ -6803,7 +6803,7 @@ KMEMCHECK
 M:	Vegard Nossum <vegardno@ifi.uio.no>
 M:	Pekka Enberg <penberg@kernel.org>
 S:	Maintained
-F:	Documentation/kmemcheck.txt
+F:	Documentation/dev-tools/kmemcheck.rst
 F:	arch/x86/include/asm/kmemcheck.h
 F:	arch/x86/mm/kmemcheck/
 F:	include/linux/kmemcheck.h
@@ -6812,7 +6812,7 @@ F:	mm/kmemcheck.c
 KMEMLEAK
 M:	Catalin Marinas <catalin.marinas@arm.com>
 S:	Maintained
-F:	Documentation/kmemleak.txt
+F:	Documentation/dev-tools/kmemleak.rst
 F:	include/linux/kmemleak.h
 F:	mm/kmemleak.c
 F:	mm/kmemleak-test.c

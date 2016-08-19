@@ -12,6 +12,7 @@ Contents:
    :maxdepth: 2
 
    kernel-documentation
+   dev-tools/tools
    media/index
    gpu/index
 
