@@ -1004,61 +1004,6 @@ static int mgmt_alloc_cmd_data(struct beiscsi_hba *phba, struct be_dma_mem *cmd,
 	return 0;
 }
 
-static int
-mgmt_static_ip_modify(struct beiscsi_hba *phba,
-		      struct be_cmd_get_if_info_resp *if_info,
-		      struct iscsi_iface_param_info *ip_param,
-		      struct iscsi_iface_param_info *subnet_param,
-		      uint32_t ip_action)
-{
-	struct be_cmd_set_ip_addr_req *req;
-	struct be_dma_mem nonemb_cmd;
-	uint32_t ip_type;
-	int rc;
-
-	rc = mgmt_alloc_cmd_data(phba, &nonemb_cmd,
-				 OPCODE_COMMON_ISCSI_NTWK_MODIFY_IP_ADDR,
-				 sizeof(*req));
-	if (rc)
-		return rc;
-
-	ip_type = (ip_param->param == ISCSI_NET_PARAM_IPV6_ADDR) ?
-		BE2_IPV6 : BE2_IPV4 ;
-
-	req = nonemb_cmd.va;
-	req->ip_params.record_entry_count = 1;
-	req->ip_params.ip_record.action = ip_action;
-	req->ip_params.ip_record.interface_hndl =
-		phba->interface_handle;
-	req->ip_params.ip_record.ip_addr.size_of_structure =
-		sizeof(struct be_ip_addr_subnet_format);
-	req->ip_params.ip_record.ip_addr.ip_type = ip_type;
-
-	if (ip_action == IP_ACTION_ADD) {
-		memcpy(req->ip_params.ip_record.ip_addr.addr, ip_param->value,
-		       sizeof(req->ip_params.ip_record.ip_addr.addr));
-
-		if (subnet_param)
-			memcpy(req->ip_params.ip_record.ip_addr.subnet_mask,
-			       subnet_param->value,
-			       sizeof(req->ip_params.ip_record.ip_addr.subnet_mask));
-	} else {
-		memcpy(req->ip_params.ip_record.ip_addr.addr,
-		       if_info->ip_addr.addr,
-		       sizeof(req->ip_params.ip_record.ip_addr.addr));
-
-		memcpy(req->ip_params.ip_record.ip_addr.subnet_mask,
-		       if_info->ip_addr.subnet_mask,
-		       sizeof(req->ip_params.ip_record.ip_addr.subnet_mask));
-	}
-
-	rc = mgmt_exec_nonemb_cmd(phba, &nonemb_cmd, NULL, 0);
-	if (rc < 0)
-		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
-			    "BG_%d : Failed to Modify existing IP Address\n");
-	return rc;
-}
-
 static int beiscsi_if_mod_gw(struct beiscsi_hba *phba,
 			     u32 action, u32 ip_type, u8 *gw)
 {
@@ -1129,120 +1074,185 @@ int beiscsi_if_get_gw(struct beiscsi_hba *phba, u32 ip_type,
 				    sizeof(*resp));
 }
 
-int mgmt_set_ip(struct beiscsi_hba *phba,
-		struct iscsi_iface_param_info *ip_param,
-		struct iscsi_iface_param_info *subnet_param,
-		uint32_t boot_proto)
+static int
+beiscsi_if_clr_ip(struct beiscsi_hba *phba,
+		  struct be_cmd_get_if_info_resp *if_info)
 {
-	struct be_cmd_get_def_gateway_resp gtway_addr_set;
-	struct be_cmd_get_if_info_resp *if_info;
-	struct be_cmd_set_dhcp_req *dhcpreq;
-	struct be_cmd_rel_dhcp_req *reldhcp;
+	struct be_cmd_set_ip_addr_req *req;
 	struct be_dma_mem nonemb_cmd;
-	uint8_t *gtway_addr;
-	uint32_t ip_type;
 	int rc;
 
-	rc = mgmt_get_all_if_id(phba);
+	rc = mgmt_alloc_cmd_data(phba, &nonemb_cmd,
+				 OPCODE_COMMON_ISCSI_NTWK_MODIFY_IP_ADDR,
+				 sizeof(*req));
 	if (rc)
 		return rc;
 
-	ip_type = (ip_param->param == ISCSI_NET_PARAM_IPV6_ADDR) ?
-		BE2_IPV6 : BE2_IPV4 ;
+	req = nonemb_cmd.va;
+	req->ip_params.record_entry_count = 1;
+	req->ip_params.ip_record.action = IP_ACTION_DEL;
+	req->ip_params.ip_record.interface_hndl =
+		phba->interface_handle;
+	req->ip_params.ip_record.ip_addr.size_of_structure =
+		sizeof(struct be_ip_addr_subnet_format);
+	req->ip_params.ip_record.ip_addr.ip_type = if_info->ip_addr.ip_type;
+	memcpy(req->ip_params.ip_record.ip_addr.addr,
+	       if_info->ip_addr.addr,
+	       sizeof(if_info->ip_addr.addr));
+	memcpy(req->ip_params.ip_record.ip_addr.subnet_mask,
+	       if_info->ip_addr.subnet_mask,
+	       sizeof(if_info->ip_addr.subnet_mask));
+	rc = mgmt_exec_nonemb_cmd(phba, &nonemb_cmd, NULL, 0);
+	if (rc < 0 || req->ip_params.ip_record.status) {
+		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
+			    "BG_%d : failed to clear IP: rc %d status %d\n",
+			    rc, req->ip_params.ip_record.status);
+	}
+	return rc;
+}
+
+static int
+beiscsi_if_set_ip(struct beiscsi_hba *phba, u8 *ip,
+		  u8 *subnet, u32 ip_type)
+{
+	struct be_cmd_set_ip_addr_req *req;
+	struct be_dma_mem nonemb_cmd;
+	uint32_t ip_len;
+	int rc;
+
+	rc = mgmt_alloc_cmd_data(phba, &nonemb_cmd,
+				 OPCODE_COMMON_ISCSI_NTWK_MODIFY_IP_ADDR,
+				 sizeof(*req));
+	if (rc)
+		return rc;
+
+	req = nonemb_cmd.va;
+	req->ip_params.record_entry_count = 1;
+	req->ip_params.ip_record.action = IP_ACTION_ADD;
+	req->ip_params.ip_record.interface_hndl =
+		phba->interface_handle;
+	req->ip_params.ip_record.ip_addr.size_of_structure =
+		sizeof(struct be_ip_addr_subnet_format);
+	req->ip_params.ip_record.ip_addr.ip_type = ip_type;
+	ip_len = ip_type == BE2_IPV4 ? IP_V4_LEN : IP_V6_LEN;
+	memcpy(req->ip_params.ip_record.ip_addr.addr, ip, ip_len);
+	if (subnet)
+		memcpy(req->ip_params.ip_record.ip_addr.subnet_mask,
+		       subnet, ip_len);
+
+	rc = mgmt_exec_nonemb_cmd(phba, &nonemb_cmd, NULL, 0);
+	/**
+	 * In some cases, host needs to look into individual record status
+	 * even though FW reported success for that IOCTL.
+	 */
+	if (rc < 0 || req->ip_params.ip_record.status) {
+		__beiscsi_log(phba, KERN_ERR,
+			    "BG_%d : failed to set IP: rc %d status %d\n",
+			    rc, req->ip_params.ip_record.status);
+		if (req->ip_params.ip_record.status)
+			rc = -EINVAL;
+	}
+	return rc;
+}
+
+int beiscsi_if_en_static(struct beiscsi_hba *phba, u32 ip_type,
+			 u8 *ip, u8 *subnet)
+{
+	struct be_cmd_get_if_info_resp *if_info;
+	struct be_cmd_rel_dhcp_req *reldhcp;
+	struct be_dma_mem nonemb_cmd;
+	int rc;
 
 	rc = mgmt_get_if_info(phba, ip_type, &if_info);
 	if (rc)
 		return rc;
 
-	if (boot_proto == ISCSI_BOOTPROTO_DHCP) {
-		if (if_info->dhcp_state) {
-			beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
-				    "BG_%d : DHCP Already Enabled\n");
-			goto exit;
-		}
-		/* The ip_param->len is 1 in DHCP case. Setting
-		   proper IP len as this it is used while
-		   freeing the Static IP.
-		 */
-		ip_param->len = (ip_param->param == ISCSI_NET_PARAM_IPV6_ADDR) ?
-				IP_V6_LEN : IP_V4_LEN;
-
-	} else {
-		if (if_info->dhcp_state) {
-
-			memset(if_info, 0, sizeof(*if_info));
-			rc = mgmt_alloc_cmd_data(phba, &nonemb_cmd,
+	if (if_info->dhcp_state) {
+		rc = mgmt_alloc_cmd_data(phba, &nonemb_cmd,
 				OPCODE_COMMON_ISCSI_NTWK_REL_STATELESS_IP_ADDR,
 				sizeof(*reldhcp));
-
-			if (rc)
-				goto exit;
-
-			reldhcp = nonemb_cmd.va;
-			reldhcp->interface_hndl = phba->interface_handle;
-			reldhcp->ip_type = ip_type;
-
-			rc = mgmt_exec_nonemb_cmd(phba, &nonemb_cmd, NULL, 0);
-			if (rc < 0) {
-				beiscsi_log(phba, KERN_WARNING,
-					    BEISCSI_LOG_CONFIG,
-					    "BG_%d : Failed to Delete existing dhcp\n");
-				goto exit;
-			}
-		}
-	}
-
-	/* Delete the Static IP Set */
-	if (if_info->ip_addr.addr[0]) {
-		rc = mgmt_static_ip_modify(phba, if_info, ip_param, NULL,
-					   IP_ACTION_DEL);
 		if (rc)
 			goto exit;
-	}
 
-	/* Delete the Gateway settings if mode change is to DHCP */
-	if (boot_proto == ISCSI_BOOTPROTO_DHCP) {
-		memset(&gtway_addr_set, 0, sizeof(gtway_addr_set));
-		rc = beiscsi_if_get_gw(phba, BE2_IPV4, &gtway_addr_set);
-		if (rc) {
+		reldhcp = nonemb_cmd.va;
+		reldhcp->interface_hndl = phba->interface_handle;
+		reldhcp->ip_type = ip_type;
+		rc = mgmt_exec_nonemb_cmd(phba, &nonemb_cmd, NULL, 0);
+		if (rc < 0) {
 			beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
-				    "BG_%d : Failed to Get Gateway Addr\n");
+				    "BG_%d : failed to release existing DHCP: %d\n",
+				    rc);
 			goto exit;
 		}
-
-		if (gtway_addr_set.ip_addr.addr[0]) {
-			gtway_addr = (uint8_t *)&gtway_addr_set.ip_addr.addr;
-			rc = beiscsi_if_mod_gw(phba, IP_ACTION_DEL,
-					       ip_type, gtway_addr);
-
-			if (rc) {
-				beiscsi_log(phba, KERN_WARNING,
-					    BEISCSI_LOG_CONFIG,
-					    "BG_%d : Failed to clear Gateway Addr Set\n");
-				goto exit;
-			}
-		}
 	}
 
-	/* Set Adapter to DHCP/Static Mode */
-	if (boot_proto == ISCSI_BOOTPROTO_DHCP) {
-		rc = mgmt_alloc_cmd_data(phba, &nonemb_cmd,
+	/* first delete any old IP set */
+	rc = beiscsi_if_clr_ip(phba, if_info);
+	if (rc)
+		goto exit;
+
+	/* if ip == NULL then this is called just to release DHCP IP */
+	if (ip)
+		rc = beiscsi_if_set_ip(phba, ip, subnet, ip_type);
+exit:
+	kfree(if_info);
+	return rc;
+}
+
+int beiscsi_if_en_dhcp(struct beiscsi_hba *phba, u32 ip_type)
+{
+	struct be_cmd_get_def_gateway_resp gw_resp;
+	struct be_cmd_get_if_info_resp *if_info;
+	struct be_cmd_set_dhcp_req *dhcpreq;
+	struct be_dma_mem nonemb_cmd;
+	u8 *gw;
+	int rc;
+
+	rc = mgmt_get_if_info(phba, ip_type, &if_info);
+	if (rc)
+		return rc;
+
+	if (if_info->dhcp_state) {
+		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
+				"BG_%d : DHCP Already Enabled\n");
+		goto exit;
+	}
+
+	/* first delete any old static IP set */
+	rc = beiscsi_if_clr_ip(phba, if_info);
+	if (rc)
+		goto exit;
+
+	/* delete gateway settings if mode change is to DHCP */
+	memset(&gw_resp, 0, sizeof(gw_resp));
+	/* use ip_type provided in if_info */
+	rc = beiscsi_if_get_gw(phba, if_info->ip_addr.ip_type, &gw_resp);
+	if (rc) {
+		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
+			    "BG_%d : Failed to Get Gateway Addr\n");
+		goto exit;
+	}
+	gw = (u8 *)&gw_resp.ip_addr.addr;
+	rc = beiscsi_if_mod_gw(phba, IP_ACTION_DEL,
+			       if_info->ip_addr.ip_type, gw);
+	if (rc) {
+		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
+				"BG_%d : Failed to clear Gateway Addr Set\n");
+		goto exit;
+	}
+
+	rc = mgmt_alloc_cmd_data(phba, &nonemb_cmd,
 			OPCODE_COMMON_ISCSI_NTWK_CONFIG_STATELESS_IP_ADDR,
 			sizeof(*dhcpreq));
-		if (rc)
-			goto exit;
+	if (rc)
+		goto exit;
 
-		dhcpreq = nonemb_cmd.va;
-		dhcpreq->flags = BLOCKING;
-		dhcpreq->retry_count = 1;
-		dhcpreq->interface_hndl = phba->interface_handle;
-		dhcpreq->ip_type = BE2_DHCP_V4;
-
-		rc = mgmt_exec_nonemb_cmd(phba, &nonemb_cmd, NULL, 0);
-	} else {
-		rc = mgmt_static_ip_modify(phba, if_info, ip_param,
-					     subnet_param, IP_ACTION_ADD);
-	}
+	dhcpreq = nonemb_cmd.va;
+	dhcpreq->flags = BLOCKING;
+	dhcpreq->retry_count = 1;
+	dhcpreq->interface_hndl = phba->interface_handle;
+	dhcpreq->ip_type = ip_type;
+	rc = mgmt_exec_nonemb_cmd(phba, &nonemb_cmd, NULL, 0);
 
 exit:
 	kfree(if_info);

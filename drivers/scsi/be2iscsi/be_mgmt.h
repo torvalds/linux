@@ -277,10 +277,10 @@ unsigned int mgmt_invalidate_connection(struct beiscsi_hba *phba,
 					 unsigned short issue_reset,
 					 unsigned short savecfg_flag);
 
-int mgmt_set_ip(struct beiscsi_hba *phba,
-		struct iscsi_iface_param_info *ip_param,
-		struct iscsi_iface_param_info *subnet_param,
-		uint32_t boot_proto);
+int beiscsi_if_en_dhcp(struct beiscsi_hba *phba, u32 ip_type);
+
+int beiscsi_if_en_static(struct beiscsi_hba *phba, u32 ip_type,
+			 u8 *ip, u8 *subnet);
 
 unsigned int mgmt_get_boot_target(struct beiscsi_hba *phba);
 

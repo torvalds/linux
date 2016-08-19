@@ -302,58 +302,6 @@ void beiscsi_destroy_def_ifaces(struct beiscsi_hba *phba)
 	}
 }
 
-static int
-beiscsi_set_static_ip(struct Scsi_Host *shost,
-		struct iscsi_iface_param_info *iface_param,
-		void *data, uint32_t dt_len)
-{
-	struct beiscsi_hba *phba = iscsi_host_priv(shost);
-	struct iscsi_iface_param_info *iface_ip = NULL;
-	struct iscsi_iface_param_info *iface_subnet = NULL;
-	struct nlattr *nla;
-	int ret;
-
-
-	switch (iface_param->param) {
-	case ISCSI_NET_PARAM_IPV4_BOOTPROTO:
-		nla = nla_find(data, dt_len, ISCSI_NET_PARAM_IPV4_ADDR);
-		if (nla)
-			iface_ip = nla_data(nla);
-
-		nla = nla_find(data, dt_len, ISCSI_NET_PARAM_IPV4_SUBNET);
-		if (nla)
-			iface_subnet = nla_data(nla);
-		break;
-	case ISCSI_NET_PARAM_IPV4_ADDR:
-		iface_ip = iface_param;
-		nla = nla_find(data, dt_len, ISCSI_NET_PARAM_IPV4_SUBNET);
-		if (nla)
-			iface_subnet = nla_data(nla);
-		break;
-	case ISCSI_NET_PARAM_IPV4_SUBNET:
-		iface_subnet = iface_param;
-		nla = nla_find(data, dt_len, ISCSI_NET_PARAM_IPV4_ADDR);
-		if (nla)
-			iface_ip = nla_data(nla);
-		break;
-	default:
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : Unsupported param %d\n",
-			    iface_param->param);
-	}
-
-	if (!iface_ip || !iface_subnet) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : IP and Subnet Mask required\n");
-		return -EINVAL;
-	}
-
-	ret = mgmt_set_ip(phba, iface_ip, iface_subnet,
-			ISCSI_BOOTPROTO_STATIC);
-
-	return ret;
-}
-
 /**
  * beiscsi_set_vlan_tag()- Set the VLAN TAG
  * @shost: Scsi Host for the driver instance
@@ -401,17 +349,19 @@ beiscsi_set_vlan_tag(struct Scsi_Host *shost,
 
 
 static int
-beiscsi_set_ipv4(struct Scsi_Host *shost,
-		struct iscsi_iface_param_info *iface_param,
-		void *data, uint32_t dt_len)
+beiscsi_iface_config_ipv4(struct Scsi_Host *shost,
+			  struct iscsi_iface_param_info *info,
+			  void *data, uint32_t dt_len)
 {
 	struct beiscsi_hba *phba = iscsi_host_priv(shost);
+	u8 *ip = NULL, *subnet = NULL, *gw;
+	struct nlattr *nla;
 	int ret = 0;
 
 	/* Check the param */
-	switch (iface_param->param) {
+	switch (info->param) {
 	case ISCSI_NET_PARAM_IFACE_ENABLE:
-		if (iface_param->value[0] == ISCSI_IFACE_ENABLE)
+		if (info->value[0] == ISCSI_IFACE_ENABLE)
 			ret = beiscsi_create_ipv4_iface(phba);
 		else {
 			iscsi_destroy_iface(phba->ipv4_iface);
@@ -419,42 +369,59 @@ beiscsi_set_ipv4(struct Scsi_Host *shost,
 		}
 		break;
 	case ISCSI_NET_PARAM_IPV4_GW:
-		ret = beiscsi_if_set_gw(phba, BE2_IPV4, iface_param->value);
+		gw = info->value;
+		ret = beiscsi_if_set_gw(phba, BE2_IPV4, gw);
 		break;
 	case ISCSI_NET_PARAM_IPV4_BOOTPROTO:
-		if (iface_param->value[0] == ISCSI_BOOTPROTO_DHCP)
-			ret = mgmt_set_ip(phba, iface_param,
-					NULL, ISCSI_BOOTPROTO_DHCP);
-		else if (iface_param->value[0] == ISCSI_BOOTPROTO_STATIC)
-			ret = beiscsi_set_static_ip(shost, iface_param,
-						    data, dt_len);
+		if (info->value[0] == ISCSI_BOOTPROTO_DHCP)
+			ret = beiscsi_if_en_dhcp(phba, BE2_IPV4);
+		else if (info->value[0] == ISCSI_BOOTPROTO_STATIC)
+			/* release DHCP IP address */
+			ret = beiscsi_if_en_static(phba, BE2_IPV4, NULL, NULL);
 		else
 			beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
 				    "BS_%d : Invalid BOOTPROTO: %d\n",
-				    iface_param->value[0]);
+				    info->value[0]);
+		break;
+	case ISCSI_NET_PARAM_IPV4_ADDR:
+		ip = info->value;
+		nla = nla_find(data, dt_len, ISCSI_NET_PARAM_IPV4_SUBNET);
+		if (nla) {
+			info = nla_data(nla);
+			subnet = info->value;
+		}
+		ret = beiscsi_if_en_static(phba, BE2_IPV4, ip, subnet);
 		break;
 	case ISCSI_NET_PARAM_IPV4_SUBNET:
-	case ISCSI_NET_PARAM_IPV4_ADDR:
-		ret = beiscsi_set_static_ip(shost, iface_param,
-					    data, dt_len);
+		/*
+		 * OPCODE_COMMON_ISCSI_NTWK_MODIFY_IP_ADDR ioctl needs IP
+		 * and subnet both. Find IP to be applied for this subnet.
+		 */
+		subnet = info->value;
+		nla = nla_find(data, dt_len, ISCSI_NET_PARAM_IPV4_ADDR);
+		if (nla) {
+			info = nla_data(nla);
+			ip = info->value;
+		}
+		ret = beiscsi_if_en_static(phba, BE2_IPV4, ip, subnet);
 		break;
 	case ISCSI_NET_PARAM_VLAN_ENABLED:
 	case ISCSI_NET_PARAM_VLAN_TAG:
-		ret = beiscsi_set_vlan_tag(shost, iface_param);
+		ret = beiscsi_set_vlan_tag(shost, info);
 		break;
 	default:
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
 			    "BS_%d : Param %d not supported\n",
-			    iface_param->param);
+			    info->param);
 	}
 
 	return ret;
 }
 
 static int
-beiscsi_set_ipv6(struct Scsi_Host *shost,
-		struct iscsi_iface_param_info *iface_param,
-		void *data, uint32_t dt_len)
+beiscsi_iface_config_ipv6(struct Scsi_Host *shost,
+			  struct iscsi_iface_param_info *iface_param,
+			  void *data, uint32_t dt_len)
 {
 	struct beiscsi_hba *phba = iscsi_host_priv(shost);
 	int ret = 0;
@@ -469,8 +436,8 @@ beiscsi_set_ipv6(struct Scsi_Host *shost,
 		}
 		break;
 	case ISCSI_NET_PARAM_IPV6_ADDR:
-		ret = mgmt_set_ip(phba, iface_param, NULL,
-				  ISCSI_BOOTPROTO_STATIC);
+		ret = beiscsi_if_en_static(phba, BE2_IPV6,
+					   iface_param->value, NULL);
 		break;
 	case ISCSI_NET_PARAM_VLAN_ENABLED:
 	case ISCSI_NET_PARAM_VLAN_TAG:
@@ -520,12 +487,12 @@ int be2iscsi_iface_set_param(struct Scsi_Host *shost,
 
 		switch (iface_param->iface_type) {
 		case ISCSI_IFACE_TYPE_IPV4:
-			ret = beiscsi_set_ipv4(shost, iface_param,
-					       data, dt_len);
+			ret = beiscsi_iface_config_ipv4(shost, iface_param,
+							data, dt_len);
 			break;
 		case ISCSI_IFACE_TYPE_IPV6:
-			ret = beiscsi_set_ipv6(shost, iface_param,
-					       data, dt_len);
+			ret = beiscsi_iface_config_ipv6(shost, iface_param,
+							data, dt_len);
 			break;
 		default:
 			beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
