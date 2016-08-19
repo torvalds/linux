@@ -41,9 +41,9 @@ index is out of bounds. To enumerate all inputs applications shall begin
 at index zero, incrementing by one until the driver returns ``EINVAL``.
 
 
-.. _v4l2-input:
-
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
+.. _v4l2-input:
 
 .. flat-table:: struct v4l2_input
     :header-rows:  0
@@ -150,9 +150,9 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
 
 
 
-.. _input-type:
-
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
+.. _input-type:
 
 .. flat-table:: Input Types
     :header-rows:  0
@@ -179,9 +179,9 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
 
 
 
-.. _input-status:
-
 .. tabularcolumns:: |p{4.8cm}|p{2.6cm}|p{10.1cm}|
+
+.. _input-status:
 
 .. flat-table:: Input Status Flags
     :header-rows:  0
@@ -324,9 +324,9 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
 
 
 
-.. _input-capabilities:
-
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
+.. _input-capabilities:
 
 .. flat-table:: Input capabilities
     :header-rows:  0

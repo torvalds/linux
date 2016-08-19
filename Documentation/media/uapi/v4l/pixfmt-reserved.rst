@@ -17,9 +17,9 @@ you think your format should be listed in a standard format section
 please make a proposal on the linux-media mailing list.
 
 
-.. _reserved-formats:
-
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
+.. _reserved-formats:
 
 .. flat-table:: Reserved Image Formats
     :header-rows:  1
@@ -341,9 +341,9 @@ please make a proposal on the linux-media mailing list.
 
 
 
-.. _format-flags:
-
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
+.. _format-flags:
 
 .. flat-table:: Format Flags
     :header-rows:  0

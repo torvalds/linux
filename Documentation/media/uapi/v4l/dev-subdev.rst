@@ -202,13 +202,13 @@ for the pipeline described in :ref:`pipeline-scaling` (table columns
 list entity names and pad numbers).
 
 
-.. _sample-pipeline-config:
-
 .. raw:: latex
 
     \newline\newline\begin{adjustbox}{width=\columnwidth}
 
 .. tabularcolumns:: |p{4.5cm}|p{4.5cm}|p{4.5cm}|p{4.5cm}|p{4.5cm}|p{4.5cm}|p{4.5cm}|
+
+.. _sample-pipeline-config:
 
 .. flat-table:: Sample Pipeline Configuration
     :header-rows:  1

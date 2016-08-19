@@ -86,9 +86,9 @@ It is available from the LinuxTV v4l-dvb repository; see
 instructions.
 
 
-.. _v4l2-dbg-match:
-
 .. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{3.5cm}|p{7.0cm}|
+
+.. _v4l2-dbg-match:
 
 .. flat-table:: struct v4l2_dbg_match
     :header-rows:  0
@@ -173,9 +173,9 @@ instructions.
 
 
 
-.. _chip-match-types:
-
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
+.. _chip-match-types:
 
 .. flat-table:: Chip Match Types
     :header-rows:  0

@@ -40,9 +40,9 @@ exceptions which the application may get by e.g. using the select system
 call.
 
 
-.. _v4l2-event:
-
 .. tabularcolumns:: |p{3.0cm}|p{4.3cm}|p{2.5cm}|p{7.7cm}|
+
+.. _v4l2-event:
 
 .. cssclass: longtable
 
@@ -179,11 +179,11 @@ call.
 
 
 
-.. _event-type:
-
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. cssclass:: longtable
+
+.. _event-type:
 
 .. flat-table:: Event Types
     :header-rows:  0
@@ -310,9 +310,9 @@ call.
 
 
 
-.. _v4l2-event-vsync:
-
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
+.. _v4l2-event-vsync:
 
 .. flat-table:: struct v4l2_event_vsync
     :header-rows:  0
@@ -330,9 +330,9 @@ call.
 
 
 
-.. _v4l2-event-ctrl:
-
 .. tabularcolumns:: |p{3.5cm}|p{3.0cm}|p{1.8cm}|p{8.5cm}|
+
+.. _v4l2-event-ctrl:
 
 .. flat-table:: struct v4l2_event_ctrl
     :header-rows:  0
@@ -439,9 +439,9 @@ call.
 
 
 
-.. _v4l2-event-frame-sync:
-
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
+.. _v4l2-event-frame-sync:
 
 .. flat-table:: struct v4l2_event_frame_sync
     :header-rows:  0
@@ -459,9 +459,9 @@ call.
 
 
 
-.. _v4l2-event-src-change:
-
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
+.. _v4l2-event-src-change:
 
 .. flat-table:: struct v4l2_event_src_change
     :header-rows:  0
@@ -480,9 +480,9 @@ call.
 
 
 
-.. _v4l2-event-motion-det:
-
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
+.. _v4l2-event-motion-det:
 
 .. flat-table:: struct v4l2_event_motion_det
     :header-rows:  0
@@ -525,9 +525,9 @@ call.
 
 
 
-.. _ctrl-changes-flags:
-
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
+.. _ctrl-changes-flags:
 
 .. flat-table:: Control Changes
     :header-rows:  0
@@ -566,9 +566,9 @@ call.
 
 
 
-.. _src-changes-flags:
-
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
+.. _src-changes-flags:
 
 .. flat-table:: Source Changes
     :header-rows:  0

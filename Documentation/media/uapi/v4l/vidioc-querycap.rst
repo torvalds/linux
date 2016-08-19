@@ -41,9 +41,9 @@ filled by the driver. When the driver is not compatible with this
 specification the ioctl returns an ``EINVAL`` error code.
 
 
-.. _v4l2-capability:
-
 .. tabularcolumns:: |p{1.5cm}|p{2.5cm}|p{13cm}|
+
+.. _v4l2-capability:
 
 .. flat-table:: struct v4l2_capability
     :header-rows:  0
@@ -170,9 +170,9 @@ specification the ioctl returns an ``EINVAL`` error code.
 
 
 
-.. _device-capabilities:
-
 .. tabularcolumns:: |p{6cm}|p{2.2cm}|p{8.8cm}|
+
+.. _device-capabilities:
 
 .. cssclass:: longtable
 

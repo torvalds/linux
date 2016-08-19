@@ -46,9 +46,9 @@ one until ``EINVAL`` is returned.
    formats may be different.
 
 
-.. _v4l2-fmtdesc:
-
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
+.. _v4l2-fmtdesc:
 
 .. flat-table:: struct v4l2_fmtdesc
     :header-rows:  0
@@ -108,6 +108,7 @@ one until ``EINVAL`` is returned.
        -  :cspan:`2`
 
 	  .. _v4l2-fourcc:
+
 	  ``#define v4l2_fourcc(a,b,c,d)``
 
 	  ``(((__u32)(a)<<0)|((__u32)(b)<<8)|((__u32)(c)<<16)|((__u32)(d)<<24))``
@@ -131,9 +132,9 @@ one until ``EINVAL`` is returned.
 
 
 
-.. _fmtdesc-flags:
-
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
+.. _fmtdesc-flags:
 
 .. flat-table:: Image Format Description Flags
     :header-rows:  0

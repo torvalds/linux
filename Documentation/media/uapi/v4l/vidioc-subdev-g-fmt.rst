@@ -75,9 +75,9 @@ format to match what the hardware can provide. The modified format
 should be as close as possible to the original request.
 
 
-.. _v4l2-subdev-format:
-
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
+.. _v4l2-subdev-format:
 
 .. flat-table:: struct v4l2_subdev_format
     :header-rows:  0
@@ -122,9 +122,9 @@ should be as close as possible to the original request.
 
 
 
-.. _v4l2-subdev-format-whence:
-
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
+.. _v4l2-subdev-format-whence:
 
 .. flat-table:: enum v4l2_subdev_format_whence
     :header-rows:  0

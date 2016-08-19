@@ -68,9 +68,9 @@ EBUSY
     The device is busy and therefore can not change the timings.
 
 
-.. _v4l2-bt-timings:
-
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
+.. _v4l2-bt-timings:
 
 .. flat-table:: struct v4l2_bt_timings
     :header-rows:  0
@@ -223,9 +223,9 @@ EBUSY
 
 
 
-.. _v4l2-dv-timings:
-
 .. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{7.0cm}|p{3.5cm}|
+
+.. _v4l2-dv-timings:
 
 .. flat-table:: struct v4l2_dv_timings
     :header-rows:  0
@@ -267,11 +267,9 @@ EBUSY
 
        -
 
-
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. _dv-timing-types:
-
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table:: DV Timing types
     :header-rows:  0

@@ -66,10 +66,9 @@ logical addresses are claimed or cleared.
 Attempting to call :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>` when
 logical address types are already defined will return with error ``EBUSY``.
 
+.. tabularcolumns:: |p{1.0cm}|p{7.5cm}|p{8.0cm}|
 
 .. _cec-log-addrs:
-
-.. tabularcolumns:: |p{1.0cm}|p{7.5cm}|p{8.0cm}|
 
 .. cssclass:: longtable
 
@@ -207,9 +206,9 @@ logical address types are already defined will return with error ``EBUSY``.
           give the CEC framework more information about the device type, even
           though the framework won't use it directly in the CEC message.
 
-.. _cec-versions:
-
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
+.. _cec-versions:
 
 .. flat-table:: CEC Versions
     :header-rows:  0
@@ -242,10 +241,9 @@ logical address types are already defined will return with error ``EBUSY``.
        -  CEC version according to the HDMI 2.0 standard.
 
 
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. _cec-prim-dev-types:
-
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table:: CEC Primary Device Types
     :header-rows:  0
@@ -310,10 +308,9 @@ logical address types are already defined will return with error ``EBUSY``.
        -  Use for a video processor device.
 
 
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. _cec-log-addr-types:
-
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table:: CEC Logical Address Types
     :header-rows:  0
@@ -381,9 +378,9 @@ logical address types are already defined will return with error ``EBUSY``.
 
 
 
-.. _cec-all-dev-types-flags:
-
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
+.. _cec-all-dev-types-flags:
 
 .. flat-table:: CEC All Device Types Flags
     :header-rows:  0

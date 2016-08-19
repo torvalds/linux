@@ -94,9 +94,9 @@ inclusive.
 See also the examples in :ref:`control`.
 
 
-.. _v4l2-queryctrl:
-
 .. tabularcolumns:: |p{1.2cm}|p{3.6cm}|p{12.7cm}|
+
+.. _v4l2-queryctrl:
 
 .. cssclass:: longtable
 
@@ -218,9 +218,9 @@ See also the examples in :ref:`control`.
 
 
 
-.. _v4l2-query-ext-ctrl:
-
 .. tabularcolumns:: |p{1.2cm}|p{5.0cm}|p{11.3cm}|
+
+.. _v4l2-query-ext-ctrl:
 
 .. cssclass:: longtable
 
@@ -384,9 +384,9 @@ See also the examples in :ref:`control`.
 
 
 
-.. _v4l2-querymenu:
-
 .. tabularcolumns:: |p{1.2cm}|p{0.6cm}|p{1.6cm}|p{13.5cm}|
+
+.. _v4l2-querymenu:
 
 .. flat-table:: struct v4l2_querymenu
     :header-rows:  0
@@ -454,9 +454,9 @@ See also the examples in :ref:`control`.
 
 
 
-.. _v4l2-ctrl-type:
-
 .. tabularcolumns:: |p{5.8cm}|p{1.4cm}|p{1.0cm}|p{1.4cm}|p{6.9cm}|
+
+.. _v4l2-ctrl-type:
 
 .. cssclass:: longtable
 
@@ -655,9 +655,9 @@ See also the examples in :ref:`control`.
 
 
 
-.. _control-flags:
-
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
+.. _control-flags:
 
 .. cssclass:: longtable
 

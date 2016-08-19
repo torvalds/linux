@@ -61,9 +61,9 @@ To change the radio frequency the
 :ref:`VIDIOC_S_FREQUENCY <VIDIOC_G_FREQUENCY>` ioctl is available.
 
 
-.. _v4l2-modulator:
-
 .. tabularcolumns:: |p{2.9cm}|p{2.9cm}|p{5.8cm}|p{2.9cm}|p{3.0cm}|
+
+.. _v4l2-modulator:
 
 .. flat-table:: struct v4l2_modulator
     :header-rows:  0
@@ -162,9 +162,9 @@ To change the radio frequency the
 
 
 
-.. _modulator-txsubchans:
-
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
+.. _modulator-txsubchans:
 
 .. flat-table:: Modulator Audio Transmission Flags
     :header-rows:  0

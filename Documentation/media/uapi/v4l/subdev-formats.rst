@@ -5,10 +5,9 @@
 Media Bus Formats
 =================
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. _v4l2-mbus-framefmt:
-
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table:: struct v4l2_mbus_framefmt
     :header-rows:  0
@@ -3758,7 +3757,7 @@ the following codes.
 
 .. _v4l2-mbus-pixelcode-yuv8:
 
-.. cssclass: longtable
+.. cssclass:: longtable
 
 .. flat-table:: YUV Formats
     :header-rows:  2

@@ -73,10 +73,9 @@ always call :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>`.
 
 Available initiator modes are:
 
+.. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{11.0cm}|
 
 .. _cec-mode-initiator_e:
-
-.. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{11.0cm}|
 
 .. flat-table:: Initiator Modes
     :header-rows:  0
@@ -118,10 +117,9 @@ Available initiator modes are:
 
 Available follower modes are:
 
+.. tabularcolumns:: |p{6.6cm}|p{0.9cm}|p{10.0cm}|
 
 .. _cec-mode-follower_e:
-
-.. tabularcolumns:: |p{6.6cm}|p{0.9cm}|p{10.0cm}|
 
 .. flat-table:: Follower Modes
     :header-rows:  0
@@ -212,10 +210,9 @@ Available follower modes are:
 
 Core message processing details:
 
+.. tabularcolumns:: |p{6.6cm}|p{10.9cm}|
 
 .. _cec-core-processing:
-
-.. tabularcolumns:: |p{6.6cm}|p{10.9cm}|
 
 .. flat-table:: Core Message Processing
     :header-rows:  0

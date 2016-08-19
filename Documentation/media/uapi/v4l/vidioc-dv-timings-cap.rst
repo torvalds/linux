@@ -54,9 +54,9 @@ zero the ``reserved`` array. Attempts to query capabilities on a pad
 that doesn't support them will return an ``EINVAL`` error code.
 
 
-.. _v4l2-bt-timings-cap:
-
 .. tabularcolumns:: |p{1.2cm}|p{3.0cm}|p{13.3cm}|
+
+.. _v4l2-bt-timings-cap:
 
 .. flat-table:: struct v4l2_bt_timings_cap
     :header-rows:  0
@@ -141,9 +141,9 @@ that doesn't support them will return an ``EINVAL`` error code.
 
 
 
-.. _v4l2-dv-timings-cap:
-
 .. tabularcolumns:: |p{1.0cm}|p{3.5cm}|p{3.5cm}|p{9.5cm}|
+
+.. _v4l2-dv-timings-cap:
 
 .. flat-table:: struct v4l2_dv_timings_cap
     :header-rows:  0
@@ -205,7 +205,6 @@ that doesn't support them will return an ``EINVAL`` error code.
        -
 
 .. tabularcolumns:: |p{7.0cm}|p{10.5cm}|
-
 
 .. _dv-bt-cap-capabilities:
 

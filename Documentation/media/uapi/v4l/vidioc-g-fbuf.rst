@@ -76,9 +76,9 @@ hardware, therefore only the superuser can set the parameters for a
 destructive video overlay.
 
 
-.. _v4l2-framebuffer:
-
 .. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{3.5cm}|p{7.0cm}|
+
+.. _v4l2-framebuffer:
 
 .. cssclass:: longtable
 
@@ -284,10 +284,9 @@ destructive video overlay.
        -  Reserved. Drivers and applications must set this field to zero.
 
 
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. _framebuffer-cap:
-
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table:: Frame Buffer Capability Flags
     :header-rows:  0
@@ -374,10 +373,9 @@ destructive video overlay.
 	  exactly opposite of ``V4L2_FBUF_CAP_CHROMAKEY``
 
 
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. _framebuffer-flags:
-
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. cssclass:: longtable
 

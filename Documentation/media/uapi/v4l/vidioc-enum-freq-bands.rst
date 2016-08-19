@@ -43,9 +43,9 @@ This ioctl is supported if the ``V4L2_TUNER_CAP_FREQ_BANDS`` capability
 of the corresponding tuner/modulator is set.
 
 
-.. _v4l2-frequency-band:
-
 .. tabularcolumns:: |p{2.9cm}|p{2.9cm}|p{5.8cm}|p{2.9cm}|p{3.0cm}|
+
+.. _v4l2-frequency-band:
 
 .. flat-table:: struct v4l2_frequency_band
     :header-rows:  0
@@ -152,9 +152,9 @@ of the corresponding tuner/modulator is set.
 
 
 
-.. _band-modulation:
-
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
+.. _band-modulation:
 
 .. flat-table:: Band Modulation Systems
     :header-rows:  0

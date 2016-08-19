@@ -56,11 +56,11 @@ These ioctls are optional, not all drivers may support them. They were
 introduced in Linux 3.3.
 
 
+.. tabularcolumns:: |p{1.1cm}|p{2.4cm}|p{1.2cm}|p{1.6cm}|p{10.6cm}|
+
 .. _v4l2-decoder-cmd:
 
 .. cssclass:: longtable
-
-.. tabularcolumns:: |p{1.1cm}|p{2.4cm}|p{1.2cm}|p{1.6cm}|p{10.6cm}|
 
 .. flat-table:: struct v4l2_decoder_cmd
     :header-rows:  0
@@ -189,9 +189,9 @@ introduced in Linux 3.3.
 
 
 
-.. _decoder-cmds:
-
 .. tabularcolumns:: |p{5.6cm}|p{0.6cm}|p{11.3cm}|
+
+.. _decoder-cmds:
 
 .. flat-table:: Decoder Commands
     :header-rows:  0

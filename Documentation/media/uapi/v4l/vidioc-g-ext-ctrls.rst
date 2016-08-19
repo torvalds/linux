@@ -95,9 +95,9 @@ were set/get. Only low-level errors (e. g. a failed i2c command) can
 still cause this situation.
 
 
-.. _v4l2-ext-control:
-
 .. tabularcolumns:: |p{1.2cm}|p{3.0cm}|p{1.5cm}|p{11.8cm}|
+
+.. _v4l2-ext-control:
 
 .. cssclass: longtable
 
@@ -229,10 +229,9 @@ still cause this situation.
 	  ``V4L2_CTRL_FLAG_HAS_PAYLOAD`` is set for this control.
 
 
+.. tabularcolumns:: |p{4.0cm}|p{3.0cm}|p{2.0cm}|p{8.5cm}|
 
 .. _v4l2-ext-controls:
-
-.. tabularcolumns:: |p{4.0cm}|p{3.0cm}|p{2.0cm}|p{8.5cm}|
 
 .. cssclass:: longtable
 
@@ -367,10 +366,9 @@ still cause this situation.
 	  Ignored if ``count`` equals zero.
 
 
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. _ctrl-class:
-
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table:: Control classes
     :header-rows:  0

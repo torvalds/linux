@@ -73,9 +73,9 @@ checked against the received messages to find the corresponding transmit
 result.
 
 
-.. _cec-msg:
-
 .. tabularcolumns:: |p{1.0cm}|p{3.5cm}|p{13.0cm}|
+
+.. _cec-msg:
 
 .. flat-table:: struct cec_msg
     :header-rows:  0
@@ -251,10 +251,9 @@ result.
 	  valid if the :ref:`CEC_TX_STATUS_ERROR <CEC-TX-STATUS-ERROR>` status bit is set.
 
 
+.. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{11.0cm}|
 
 .. _cec-tx-status:
-
-.. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{11.0cm}|
 
 .. flat-table:: CEC Transmit Status
     :header-rows:  0
@@ -321,10 +320,9 @@ result.
 	  be set to explain which failures were seen.
 
 
+.. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{11.0cm}|
 
 .. _cec-rx-status:
-
-.. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{11.0cm}|
 
 .. flat-table:: CEC Receive Status
     :header-rows:  0

@@ -51,10 +51,9 @@ two :ref:`CEC_EVENT_STATE_CHANGE <CEC-EVENT-STATE-CHANGE>` events with
 the same state). In that case the intermediate state changes were lost but
 it is guaranteed that the state did change in between the two events.
 
+.. tabularcolumns:: |p{1.2cm}|p{2.9cm}|p{13.4cm}|
 
 .. _cec-event-state-change_s:
-
-.. tabularcolumns:: |p{1.2cm}|p{2.9cm}|p{13.4cm}|
 
 .. flat-table:: struct cec_event_state_change
     :header-rows:  0
@@ -79,10 +78,9 @@ it is guaranteed that the state did change in between the two events.
        -  The current set of claimed logical addresses.
 
 
+.. tabularcolumns:: |p{1.0cm}|p{2.0cm}|p{14.5cm}|
 
 .. _cec-event-lost-msgs_s:
-
-.. tabularcolumns:: |p{1.0cm}|p{2.0cm}|p{14.5cm}|
 
 .. flat-table:: struct cec_event_lost_msgs
     :header-rows:  0
@@ -107,10 +105,9 @@ it is guaranteed that the state did change in between the two events.
 	  this is more than enough.
 
 
+.. tabularcolumns:: |p{1.0cm}|p{4.2cm}|p{2.5cm}|p{8.8cm}|
 
 .. _cec-event:
-
-.. tabularcolumns:: |p{1.0cm}|p{4.2cm}|p{2.5cm}|p{8.8cm}|
 
 .. flat-table:: struct cec_event
     :header-rows:  0
@@ -175,10 +172,9 @@ it is guaranteed that the state did change in between the two events.
 	  event.
 
 
+.. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{11.0cm}|
 
 .. _cec-events:
-
-.. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{11.0cm}|
 
 .. flat-table:: CEC Events Types
     :header-rows:  0
@@ -206,10 +202,9 @@ it is guaranteed that the state did change in between the two events.
 	  application didn't dequeue CEC messages fast enough.
 
 
+.. tabularcolumns:: |p{6.0cm}|p{0.6cm}|p{10.9cm}|
 
 .. _cec-event-flags:
-
-.. tabularcolumns:: |p{6.0cm}|p{0.6cm}|p{10.9cm}|
 
 .. flat-table:: CEC Event Flags
     :header-rows:  0

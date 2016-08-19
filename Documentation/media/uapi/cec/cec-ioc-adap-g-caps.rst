@@ -41,10 +41,9 @@ device information, applications call the ioctl with a pointer to a
 struct :ref:`cec_caps <cec-caps>`. The driver fills the structure and
 returns the information to the application. The ioctl never fails.
 
+.. tabularcolumns:: |p{1.2cm}|p{2.5cm}|p{13.8cm}|
 
 .. _cec-caps:
-
-.. tabularcolumns:: |p{1.2cm}|p{2.5cm}|p{13.8cm}|
 
 .. flat-table:: struct cec_caps
     :header-rows:  0
@@ -88,10 +87,9 @@ returns the information to the application. The ioctl never fails.
 	  macro.
 
 
+.. tabularcolumns:: |p{4.4cm}|p{2.5cm}|p{10.6cm}|
 
 .. _cec-capabilities:
-
-.. tabularcolumns:: |p{4.4cm}|p{2.5cm}|p{10.6cm}|
 
 .. flat-table:: CEC Capabilities Flags
     :header-rows:  0

@@ -262,9 +262,9 @@ To change the radio frequency the
 
 
 
-.. _v4l2-tuner-type:
-
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
+.. _v4l2-tuner-type:
 
 .. flat-table:: enum v4l2_tuner_type
     :header-rows:  0
@@ -306,9 +306,9 @@ To change the radio frequency the
        - Tuner controls the RF part of a Sofware Digital Radio (SDR)
 
 
-.. _tuner-capability:
-
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
+.. _tuner-capability:
 
 .. cssclass:: longtable
 
@@ -468,9 +468,9 @@ To change the radio frequency the
 
 
 
-.. _tuner-rxsubchans:
-
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
+.. _tuner-rxsubchans:
 
 .. flat-table:: Tuner Audio Reception Flags
     :header-rows:  0
@@ -537,9 +537,9 @@ To change the radio frequency the
 
 
 
-.. _tuner-audmode:
-
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
+.. _tuner-audmode:
 
 .. flat-table:: Tuner Audio Modes
     :header-rows:  0

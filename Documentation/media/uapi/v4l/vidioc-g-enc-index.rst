@@ -57,9 +57,9 @@ Currently this ioctl is only defined for MPEG-2 program streams and
 video elementary streams.
 
 
-.. _v4l2-enc-idx:
-
 .. tabularcolumns:: |p{3.5cm}|p{5.6cm}|p{8.4cm}|
+
+.. _v4l2-enc-idx:
 
 .. flat-table:: struct v4l2_enc_idx
     :header-rows:  0
@@ -105,9 +105,9 @@ video elementary streams.
 
 
 
-.. _v4l2-enc-idx-entry:
-
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
+.. _v4l2-enc-idx-entry:
 
 .. flat-table:: struct v4l2_enc_idx_entry
     :header-rows:  0
@@ -163,10 +163,9 @@ video elementary streams.
 	  zero.
 
 
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. _enc-idx-flags:
-
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table:: Index Entry Flags
     :header-rows:  0

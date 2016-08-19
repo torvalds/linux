@@ -12,9 +12,9 @@ array of :ref:`struct v4l2_plane_pix_format <v4l2-plane-pix-format>` structures,
 describing all planes of that format.
 
 
-.. _v4l2-plane-pix-format:
-
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
+.. _v4l2-plane-pix-format:
 
 .. flat-table:: struct v4l2_plane_pix_format
     :header-rows:  0
@@ -49,10 +49,9 @@ describing all planes of that format.
 	  applications.
 
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. _v4l2-pix-format-mplane:
-
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table:: struct v4l2_pix_format_mplane
     :header-rows:  0

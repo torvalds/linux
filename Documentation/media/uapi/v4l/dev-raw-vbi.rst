@@ -99,10 +99,9 @@ VBI devices must implement both the :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` and
 and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does.
 :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` is optional.
 
+.. tabularcolumns:: |p{2.4cm}|p{4.4cm}|p{10.7cm}|
 
 .. _v4l2-vbi-format:
-
-.. tabularcolumns:: |p{2.4cm}|p{4.4cm}|p{10.7cm}|
 
 .. cssclass:: longtable
 
@@ -227,10 +226,9 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
 	  applications must set it to zero.
 
 
+.. tabularcolumns:: |p{4.0cm}|p{1.5cm}|p{12.0cm}|
 
 .. _vbifmt-flags:
-
-.. tabularcolumns:: |p{4.0cm}|p{1.5cm}|p{12.0cm}|
 
 .. flat-table:: Raw VBI Format Flags
     :header-rows:  0
