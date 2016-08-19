@@ -480,17 +480,6 @@ static const struct drm_plane_funcs tegra_primary_plane_funcs = {
 	.atomic_destroy_state = tegra_plane_atomic_destroy_state,
 };
 
-static int tegra_plane_prepare_fb(struct drm_plane *plane,
-				  struct drm_plane_state *new_state)
-{
-	return 0;
-}
-
-static void tegra_plane_cleanup_fb(struct drm_plane *plane,
-				   struct drm_plane_state *old_fb)
-{
-}
-
 static int tegra_plane_state_add(struct tegra_plane *plane,
 				 struct drm_plane_state *state)
 {
@@ -624,8 +613,6 @@ static void tegra_plane_atomic_disable(struct drm_plane *plane,
 }
 
 static const struct drm_plane_helper_funcs tegra_primary_plane_helper_funcs = {
-	.prepare_fb = tegra_plane_prepare_fb,
-	.cleanup_fb = tegra_plane_cleanup_fb,
 	.atomic_check = tegra_plane_atomic_check,
 	.atomic_update = tegra_plane_atomic_update,
 	.atomic_disable = tegra_plane_atomic_disable,
@@ -796,8 +783,6 @@ static const struct drm_plane_funcs tegra_cursor_plane_funcs = {
 };
 
 static const struct drm_plane_helper_funcs tegra_cursor_plane_helper_funcs = {
-	.prepare_fb = tegra_plane_prepare_fb,
-	.cleanup_fb = tegra_plane_cleanup_fb,
 	.atomic_check = tegra_cursor_atomic_check,
 	.atomic_update = tegra_cursor_atomic_update,
 	.atomic_disable = tegra_cursor_atomic_disable,
@@ -866,8 +851,6 @@ static const uint32_t tegra_overlay_plane_formats[] = {
 };
 
 static const struct drm_plane_helper_funcs tegra_overlay_plane_helper_funcs = {
-	.prepare_fb = tegra_plane_prepare_fb,
-	.cleanup_fb = tegra_plane_cleanup_fb,
 	.atomic_check = tegra_plane_atomic_check,
 	.atomic_update = tegra_plane_atomic_update,
 	.atomic_disable = tegra_plane_atomic_disable,

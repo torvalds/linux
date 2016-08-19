@@ -817,19 +817,6 @@ static void ade_disable_channel(struct ade_plane *aplane)
 	ade_compositor_routing_disable(base, ch);
 }
 
-static int ade_plane_prepare_fb(struct drm_plane *plane,
-				struct drm_plane_state *new_state)
-{
-	/* do nothing */
-	return 0;
-}
-
-static void ade_plane_cleanup_fb(struct drm_plane *plane,
-				 struct drm_plane_state *old_state)
-{
-	/* do nothing */
-}
-
 static int ade_plane_atomic_check(struct drm_plane *plane,
 				  struct drm_plane_state *state)
 {
@@ -897,8 +884,6 @@ static void ade_plane_atomic_disable(struct drm_plane *plane,
 }
 
 static const struct drm_plane_helper_funcs ade_plane_helper_funcs = {
-	.prepare_fb = ade_plane_prepare_fb,
-	.cleanup_fb = ade_plane_cleanup_fb,
 	.atomic_check = ade_plane_atomic_check,
 	.atomic_update = ade_plane_atomic_update,
 	.atomic_disable = ade_plane_atomic_disable,
