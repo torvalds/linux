@@ -181,7 +181,7 @@ struct crypt_config {
 	u8 key[0];
 };
 
-#define MIN_IOS        16
+#define MIN_IOS        64
 
 static void clone_init(struct dm_crypt_io *, struct bio *);
 static void kcryptd_queue_crypt(struct dm_crypt_io *io);
