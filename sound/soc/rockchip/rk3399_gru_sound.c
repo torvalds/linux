@@ -230,7 +230,10 @@ enum {
 	DAILINK_MAX98357A,
 	DAILINK_RT5514,
 	DAILINK_DA7219,
+	DAILINK_RT5514_DSP,
 };
+
+#define DAILINK_ENTITIES	(DAILINK_DA7219 + 1)
 
 static struct snd_soc_dai_link rockchip_dailinks[] = {
 	[DAILINK_MAX98357A] = {
@@ -261,6 +264,13 @@ static struct snd_soc_dai_link rockchip_dailinks[] = {
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBS_CFS,
 	},
+	/* RT5514 DSP for voice wakeup via spi bus */
+	[DAILINK_RT5514_DSP] = {
+		.name = "RT5514 DSP",
+		.stream_name = "Wake on Voice",
+		.codec_name = "snd-soc-dummy",
+		.codec_dai_name = "snd-soc-dummy-dai",
+	},
 };
 
 static struct snd_soc_card rockchip_sound_card = {
@@ -276,10 +286,17 @@ static struct snd_soc_card rockchip_sound_card = {
 	.num_controls = ARRAY_SIZE(rockchip_controls),
 };
 
+static int rockchip_sound_match_stub(struct device *dev, void *data)
+{
+	return 1;
+}
+
 static int rockchip_sound_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &rockchip_sound_card;
 	struct device_node *cpu_node;
+	struct device *dev;
+	struct device_driver *drv;
 	int i, ret;
 
 	cpu_node = of_parse_phandle(pdev->dev.of_node, "rockchip,cpu", 0);
@@ -288,7 +305,7 @@ static int rockchip_sound_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	for (i = 0; i < card->num_links; i++) {
+	for (i = 0; i < DAILINK_ENTITIES; i++) {
 		rockchip_dailinks[i].platform_of_node = cpu_node;
 		rockchip_dailinks[i].cpu_of_node = cpu_node;
 
@@ -300,6 +317,26 @@ static int rockchip_sound_probe(struct platform_device *pdev)
 			return -EINVAL;
 		}
 	}
+
+	/**
+	 * To acquire the spi driver of the rt5514 and set the dai-links names
+	 * for soc_bind_dai_link
+	 */
+	drv = driver_find("rt5514", &spi_bus_type);
+	if (!drv) {
+		dev_err(&pdev->dev, "Can not find the rt5514 driver at the spi bus\n");
+		return -EINVAL;
+	}
+
+	dev = driver_find_device(drv, NULL, NULL, rockchip_sound_match_stub);
+	if (!dev) {
+		dev_err(&pdev->dev, "Can not find the rt5514 device\n");
+		return -ENODEV;
+	}
+
+	rockchip_dailinks[DAILINK_RT5514_DSP].cpu_name = kstrdup_const(dev_name(dev), GFP_KERNEL);
+	rockchip_dailinks[DAILINK_RT5514_DSP].cpu_dai_name = kstrdup_const(dev_name(dev), GFP_KERNEL);
+	rockchip_dailinks[DAILINK_RT5514_DSP].platform_name = kstrdup_const(dev_name(dev), GFP_KERNEL);
 
 	card->dev = &pdev->dev;
 	platform_set_drvdata(pdev, card);
