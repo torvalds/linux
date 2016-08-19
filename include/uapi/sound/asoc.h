@@ -257,6 +257,7 @@ struct snd_soc_tplg_stream_caps {
 	__le32 period_size_max;	/* max period size bytes */
 	__le32 buffer_size_min;	/* min buffer size bytes */
 	__le32 buffer_size_max;	/* max buffer size bytes */
+	__le32 sig_bits;        /* number of bits of content */
 } __attribute__((packed));
 
 /*

@@ -1556,6 +1556,7 @@ static void set_stream_info(struct snd_soc_pcm_stream *stream,
 	stream->rate_min = caps->rate_min;
 	stream->rate_max = caps->rate_max;
 	stream->formats = caps->formats;
+	stream->sig_bits = caps->sig_bits;
 }
 
 static void set_dai_flags(struct snd_soc_dai_driver *dai_drv,
