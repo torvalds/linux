@@ -243,7 +243,6 @@ struct client_obd {
 	 * the extent size. A chunk is max(PAGE_SIZE, OST block size)
 	 */
 	int		  cl_chunkbits;
-	int		  cl_chunk;
 	int		  cl_extent_tax; /* extent overhead, by bytes */
 
 	/* keep track of objects that have lois that contain pages which
@@ -442,7 +441,6 @@ struct niobuf_local {
 	__u32		flags;
 	struct page	*page;
 	struct dentry	*dentry;
-	int		lnb_grant_used;
 	int		rc;
 };
 
@@ -485,7 +483,6 @@ struct niobuf_local {
 #define N_LOCAL_TEMP_PAGE 0x10000000
 
 struct obd_trans_info {
-	__u64		    oti_transno;
 	__u64		    oti_xid;
 	/* Only used on the server side for tracking acks. */
 	struct oti_req_ack_lock {
@@ -495,49 +492,10 @@ struct obd_trans_info {
 	void		    *oti_handle;
 	struct llog_cookie       oti_onecookie;
 	struct llog_cookie      *oti_logcookies;
-	int		      oti_numcookies;
-	/** synchronous write is needed */
-	unsigned long		 oti_sync_write:1;
 
-	/* initial thread handling transaction */
-	struct ptlrpc_thread *oti_thread;
-	__u32		    oti_conn_cnt;
 	/** VBR: versions */
 	__u64		    oti_pre_version;
-	/** JobID */
-	char		    *oti_jobid;
-
-	struct obd_uuid	 *oti_ost_uuid;
 };
-
-static inline void oti_alloc_cookies(struct obd_trans_info *oti,
-				     int num_cookies)
-{
-	if (!oti)
-		return;
-
-	if (num_cookies == 1)
-		oti->oti_logcookies = &oti->oti_onecookie;
-	else
-		oti->oti_logcookies = libcfs_kvzalloc(num_cookies * sizeof(oti->oti_onecookie),
-						      GFP_NOFS);
-
-	oti->oti_numcookies = num_cookies;
-}
-
-static inline void oti_free_cookies(struct obd_trans_info *oti)
-{
-	if (!oti || !oti->oti_logcookies)
-		return;
-
-	if (oti->oti_logcookies == &oti->oti_onecookie)
-		LASSERT(oti->oti_numcookies == 1);
-	else
-		kvfree(oti->oti_logcookies);
-
-	oti->oti_logcookies = NULL;
-	oti->oti_numcookies = 0;
-}
 
 /*
  * Events signalled through obd_notify() upcall-chain.
@@ -584,7 +542,6 @@ struct target_recovery_data {
 };
 
 struct obd_llog_group {
-	int		olg_seq;
 	struct llog_ctxt  *olg_ctxts[LLOG_MAX_CTXTS];
 	wait_queue_head_t	olg_waitq;
 	spinlock_t	   olg_lock;
@@ -620,7 +577,6 @@ struct obd_device {
 		      obd_starting:1,      /* started setup */
 		      obd_force:1,	 /* cleanup with > 0 obd refcount */
 		      obd_fail:1,	 /* cleanup with failover */
-		      obd_async_recov:1, /* allow asynchronous orphan cleanup */
 		      obd_no_conn:1,       /* deny new connections */
 		      obd_inactive:1,      /* device active/inactive
 					    * (for sysfs status only!!)
@@ -695,9 +651,6 @@ struct obd_device {
 	struct completion	obd_kobj_unregister;
 };
 
-#define OBD_LLOG_FL_SENDNOW     0x0001
-#define OBD_LLOG_FL_EXIT	0x0002
-
 enum obd_cleanup_stage {
 /* Special case hack for MDS LOVs */
 	OBD_CLEANUP_EARLY,
@@ -707,8 +660,6 @@ enum obd_cleanup_stage {
 
 /* get/set_info keys */
 #define KEY_ASYNC	       "async"
-#define KEY_BLOCKSIZE_BITS      "blocksize_bits"
-#define KEY_BLOCKSIZE	   "blocksize"
 #define KEY_CHANGELOG_CLEAR     "changelog_clear"
 #define KEY_FID2PATH	    "fid2path"
 #define KEY_CHECKSUM	    "checksum"
@@ -720,13 +671,11 @@ enum obd_cleanup_stage {
 #define KEY_GRANT_SHRINK	"grant_shrink"
 #define KEY_HSM_COPYTOOL_SEND   "hsm_send"
 #define KEY_INIT_RECOV_BACKUP   "init_recov_bk"
-#define KEY_INIT_RECOV	  "initial_recov"
 #define KEY_INTERMDS	    "inter_mds"
 #define KEY_LAST_ID	     "last_id"
 #define KEY_LAST_FID		"last_fid"
 #define KEY_LOCK_TO_STRIPE      "lock_to_stripe"
 #define KEY_LOVDESC	     "lovdesc"
-#define KEY_LOV_IDX	     "lov_idx"
 #define KEY_MAX_EASIZE		"max_easize"
 #define KEY_DEFAULT_EASIZE	"default_easize"
 #define KEY_MDS_CONN	    "mds_conn"
@@ -739,11 +688,9 @@ enum obd_cleanup_stage {
 /*      KEY_SET_INFO in lustre_idl.h */
 #define KEY_SPTLRPC_CONF	"sptlrpc_conf"
 #define KEY_CONNECT_FLAG	"connect_flags"
-#define KEY_SYNC_LOCK_CANCEL    "sync_lock_cancel"
 
 #define KEY_CACHE_SET		"cache_set"
 #define KEY_CACHE_LRU_SHRINK	"cache_lru_shrink"
-#define KEY_CHANGELOG_INDEX	"changelog_index"
 
 struct lu_context;
 
@@ -872,8 +819,6 @@ struct obd_ops {
 			      __u32 keylen, void *key,
 			      __u32 vallen, void *val,
 			      struct ptlrpc_request_set *set);
-	int (*attach)(struct obd_device *dev, u32 len, void *data);
-	int (*detach)(struct obd_device *dev);
 	int (*setup)(struct obd_device *dev, struct lustre_cfg *cfg);
 	int (*precleanup)(struct obd_device *dev,
 			  enum obd_cleanup_stage cleanup_stage);
@@ -1038,16 +983,11 @@ struct md_ops {
 	int (*rename)(struct obd_export *, struct md_op_data *,
 		      const char *, int, const char *, int,
 		      struct ptlrpc_request **);
-	int (*is_subdir)(struct obd_export *, const struct lu_fid *,
-			 const struct lu_fid *,
-			   struct ptlrpc_request **);
 	int (*setattr)(struct obd_export *, struct md_op_data *, void *,
 		       int, void *, int, struct ptlrpc_request **,
 			 struct md_open_data **mod);
 	int (*sync)(struct obd_export *, const struct lu_fid *,
 		    struct ptlrpc_request **);
-	int (*readpage)(struct obd_export *, struct md_op_data *,
-			struct page **, struct ptlrpc_request **);
 	int (*read_page)(struct obd_export *, struct md_op_data *,
 			 struct md_callback *cb_op, __u64 hash_offset,
 			 struct page **ppage);
@@ -1140,10 +1080,6 @@ static inline const struct lsm_operations *lsm_op_find(int magic)
 	       return NULL;
 	}
 }
-
-/* Requests for obd_extent_calc() */
-#define OBD_CALC_STRIPE_START   1
-#define OBD_CALC_STRIPE_END     2
 
 static inline struct md_open_data *obd_mod_alloc(void)
 {

@@ -45,21 +45,6 @@ static void __mdc_pack_body(struct mdt_body *b, __u32 suppgid)
 	b->mbo_capability = cfs_curproc_cap_pack();
 }
 
-void mdc_is_subdir_pack(struct ptlrpc_request *req, const struct lu_fid *pfid,
-			const struct lu_fid *cfid, int flags)
-{
-	struct mdt_body *b = req_capsule_client_get(&req->rq_pill,
-						    &RMF_MDT_BODY);
-
-	if (pfid) {
-		b->mbo_fid1 = *pfid;
-		b->mbo_valid = OBD_MD_FLID;
-	}
-	if (cfid)
-		b->mbo_fid2 = *cfid;
-	b->mbo_flags = flags;
-}
-
 void mdc_swap_layouts_pack(struct ptlrpc_request *req,
 			   struct md_op_data *op_data)
 {

@@ -1937,8 +1937,8 @@ enum mds_cmd {
 	MDS_DISCONNECT		= 39,
 	MDS_GETSTATUS		= 40,
 	MDS_STATFS		= 41,
-	MDS_PIN			= 42,
-	MDS_UNPIN		= 43,
+	MDS_PIN			= 42, /* obsolete, never used in a release */
+	MDS_UNPIN		= 43, /* obsolete, never used in a release */
 	MDS_SYNC		= 44,
 	MDS_DONE_WRITING	= 45,
 	MDS_SET_INFO		= 46,
@@ -1947,7 +1947,7 @@ enum mds_cmd {
 	MDS_GETXATTR		= 49,
 	MDS_SETXATTR		= 50, /* obsolete, now it's MDS_REINT op */
 	MDS_WRITEPAGE		= 51,
-	MDS_IS_SUBDIR		= 52,
+	MDS_IS_SUBDIR		= 52, /* obsolete, never used in a release */
 	MDS_GET_INFO		= 53,
 	MDS_HSM_STATE_GET	= 54,
 	MDS_HSM_STATE_SET	= 55,

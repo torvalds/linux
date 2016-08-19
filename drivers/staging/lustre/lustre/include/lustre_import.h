@@ -305,28 +305,6 @@ struct obd_import {
 	time64_t	     imp_last_reply_time;    /* for health check */
 };
 
-typedef void (*obd_import_callback)(struct obd_import *imp, void *closure,
-				    int event, void *event_arg, void *cb_data);
-
-/**
- * Structure for import observer.
- * It is possible to register "observer" on an import and every time
- * something happens to an import (like connect/evict/disconnect)
- * obderver will get its callback called with event type
- */
-struct obd_import_observer {
-	struct list_head	   oio_chain;
-	obd_import_callback  oio_cb;
-	void		*oio_cb_data;
-};
-
-void class_observe_import(struct obd_import *imp, obd_import_callback cb,
-			  void *cb_data);
-void class_unobserve_import(struct obd_import *imp, obd_import_callback cb,
-			    void *cb_data);
-void class_notify_import_observers(struct obd_import *imp, int event,
-				   void *event_arg);
-
 /* import.c */
 static inline unsigned int at_est2timeout(unsigned int val)
 {

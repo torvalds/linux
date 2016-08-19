@@ -667,11 +667,8 @@ static struct req_format *req_formats[] = {
 	&RQF_MDS_SYNC,
 	&RQF_MDS_CLOSE,
 	&RQF_MDS_RELEASE_CLOSE,
-	&RQF_MDS_PIN,
-	&RQF_MDS_UNPIN,
 	&RQF_MDS_READPAGE,
 	&RQF_MDS_WRITEPAGE,
-	&RQF_MDS_IS_SUBDIR,
 	&RQF_MDS_DONE_WRITING,
 	&RQF_MDS_REINT,
 	&RQF_MDS_REINT_CREATE,
@@ -1389,15 +1386,6 @@ struct req_format RQF_MDS_RELEASE_CLOSE =
 			mdt_release_close_client, mds_last_unlink_server);
 EXPORT_SYMBOL(RQF_MDS_RELEASE_CLOSE);
 
-struct req_format RQF_MDS_PIN =
-	DEFINE_REQ_FMT0("MDS_PIN",
-			mdt_body_capa, mdt_body_only);
-EXPORT_SYMBOL(RQF_MDS_PIN);
-
-struct req_format RQF_MDS_UNPIN =
-	DEFINE_REQ_FMT0("MDS_UNPIN", mdt_body_only, empty);
-EXPORT_SYMBOL(RQF_MDS_UNPIN);
-
 struct req_format RQF_MDS_DONE_WRITING =
 	DEFINE_REQ_FMT0("MDS_DONE_WRITING",
 			mdt_close_client, mdt_body_only);
@@ -1447,11 +1435,6 @@ struct req_format RQF_MDS_WRITEPAGE =
 	DEFINE_REQ_FMT0("MDS_WRITEPAGE",
 			mdt_body_capa, mdt_body_only);
 EXPORT_SYMBOL(RQF_MDS_WRITEPAGE);
-
-struct req_format RQF_MDS_IS_SUBDIR =
-	DEFINE_REQ_FMT0("MDS_IS_SUBDIR",
-			mdt_body_only, mdt_body_only);
-EXPORT_SYMBOL(RQF_MDS_IS_SUBDIR);
 
 struct req_format RQF_LLOG_ORIGIN_HANDLE_CREATE =
 	DEFINE_REQ_FMT0("LLOG_ORIGIN_HANDLE_CREATE",

@@ -232,32 +232,6 @@ static int mdc_getattr_name(struct obd_export *exp, struct md_op_data *op_data,
 	return rc;
 }
 
-static int mdc_is_subdir(struct obd_export *exp,
-			 const struct lu_fid *pfid,
-			 const struct lu_fid *cfid,
-			 struct ptlrpc_request **request)
-{
-	struct ptlrpc_request  *req;
-	int		     rc;
-
-	*request = NULL;
-	req = ptlrpc_request_alloc_pack(class_exp2cliimp(exp),
-					&RQF_MDS_IS_SUBDIR, LUSTRE_MDS_VERSION,
-					MDS_IS_SUBDIR);
-	if (!req)
-		return -ENOMEM;
-
-	mdc_is_subdir_pack(req, pfid, cfid, 0);
-	ptlrpc_request_set_replen(req);
-
-	rc = ptlrpc_queue_wait(req);
-	if (rc && rc != -EREMOTE)
-		ptlrpc_req_finished(req);
-	else
-		*request = req;
-	return rc;
-}
-
 static int mdc_xattr_common(struct obd_export *exp,
 			    const struct req_format *fmt,
 			    const struct lu_fid *fid,
@@ -2892,7 +2866,6 @@ static struct md_ops mdc_md_ops = {
 	.getattr_name		= mdc_getattr_name,
 	.intent_lock		= mdc_intent_lock,
 	.link			= mdc_link,
-	.is_subdir		= mdc_is_subdir,
 	.rename			= mdc_rename,
 	.setattr		= mdc_setattr,
 	.setxattr		= mdc_setxattr,

@@ -56,7 +56,6 @@
 #define OBD_STATFS_FOR_MDT0	0x0008	/* The statfs is only for retrieving
 					 * information from MDT0.
 					 */
-#define OBD_FL_PUNCH	    0x00000001  /* To indicate it is punch operation */
 
 /* OBD Device Declarations */
 extern struct obd_device *obd_devs[MAX_OBD_DEVICES];
@@ -270,10 +269,10 @@ static inline int lprocfs_climp_check(struct obd_device *obd)
 struct inode;
 struct lu_attr;
 struct obdo;
-void obdo_refresh_inode(struct inode *dst, struct obdo *src, u32 valid);
+void obdo_refresh_inode(struct inode *dst, const struct obdo *src, u32 valid);
 
-void obdo_to_ioobj(struct obdo *oa, struct obd_ioobj *ioobj);
-void md_from_obdo(struct md_op_data *op_data, struct obdo *oa, u32 valid);
+void obdo_to_ioobj(const struct obdo *oa, struct obd_ioobj *ioobj);
+void md_from_obdo(struct md_op_data *op_data, const struct obdo *oa, u32 valid);
 
 #define OBT(dev)	(dev)->obd_type
 #define OBP(dev, op)    (dev)->obd_type->typ_dt_ops->op
@@ -1216,12 +1215,7 @@ static inline int obd_notify(struct obd_device *obd,
 	if (rc)
 		return rc;
 
-	/* the check for async_recov is a complete hack - I'm hereby
-	 * overloading the meaning to also mean "this was called from
-	 * mds_postsetup".  I know that my mds is able to handle notifies
-	 * by this point, and it needs to get them to execute mds_postrecov.
-	 */
-	if (!obd->obd_set_up && !obd->obd_async_recov) {
+	if (!obd->obd_set_up) {
 		CDEBUG(D_HA, "obd %s not set up\n", obd->obd_name);
 		return -EINVAL;
 	}
@@ -1485,19 +1479,6 @@ static inline int md_rename(struct obd_export *exp, struct md_op_data *op_data,
 	return rc;
 }
 
-static inline int md_is_subdir(struct obd_export *exp,
-			       const struct lu_fid *pfid,
-			       const struct lu_fid *cfid,
-			       struct ptlrpc_request **request)
-{
-	int rc;
-
-	EXP_CHECK_MD_OP(exp, is_subdir);
-	EXP_MD_COUNTER_INCREMENT(exp, is_subdir);
-	rc = MDP(exp->exp_obd, is_subdir)(exp, pfid, cfid, request);
-	return rc;
-}
-
 static inline int md_setattr(struct obd_export *exp, struct md_op_data *op_data,
 			     void *ea, int ealen, void *ea2, int ea2len,
 			     struct ptlrpc_request **request,
@@ -1520,18 +1501,6 @@ static inline int md_sync(struct obd_export *exp, const struct lu_fid *fid,
 	EXP_CHECK_MD_OP(exp, sync);
 	EXP_MD_COUNTER_INCREMENT(exp, sync);
 	rc = MDP(exp->exp_obd, sync)(exp, fid, request);
-	return rc;
-}
-
-static inline int md_readpage(struct obd_export *exp, struct md_op_data *opdata,
-			      struct page **pages,
-			      struct ptlrpc_request **request)
-{
-	int rc;
-
-	EXP_CHECK_MD_OP(exp, readpage);
-	EXP_MD_COUNTER_INCREMENT(exp, readpage);
-	rc = MDP(exp->exp_obd, readpage)(exp, opdata, pages, request);
 	return rc;
 }
 
@@ -1734,16 +1703,6 @@ void obd_cleanup_caches(void);
 
 /* support routines */
 extern struct kmem_cache *obdo_cachep;
-
-static inline void obdo2fid(struct obdo *oa, struct lu_fid *fid)
-{
-	/* something here */
-}
-
-static inline void fid2obdo(struct lu_fid *fid, struct obdo *oa)
-{
-	/* something here */
-}
 
 typedef int (*register_lwp_cb)(void *data);
 

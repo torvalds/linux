@@ -115,19 +115,6 @@ int lustre_get_jobid(char *jobid)
 }
 EXPORT_SYMBOL(lustre_get_jobid);
 
-static inline void obd_data2conn(struct lustre_handle *conn,
-				 struct obd_ioctl_data *data)
-{
-	memset(conn, 0, sizeof(*conn));
-	conn->cookie = data->ioc_cookie;
-}
-
-static inline void obd_conn2data(struct obd_ioctl_data *data,
-				 struct lustre_handle *conn)
-{
-	data->ioc_cookie = conn->cookie;
-}
-
 static int class_resolve_dev_name(__u32 len, const char *name)
 {
 	int rc;
@@ -534,23 +521,11 @@ static int __init obdclass_init(void)
 
 static void obdclass_exit(void)
 {
-	int i;
-
 	int lustre_unregister_fs(void);
 
 	lustre_unregister_fs();
 
 	misc_deregister(&obd_psdev);
-	for (i = 0; i < class_devno_max(); i++) {
-		struct obd_device *obd = class_num2obd(i);
-
-		if (obd && obd->obd_set_up &&
-		    OBT(obd) && OBP(obd, detach)) {
-			/* XXX should this call generic detach otherwise? */
-			LASSERT(obd->obd_magic == OBD_DEVICE_MAGIC);
-			OBP(obd, detach)(obd);
-		}
-	}
 	llog_info_fini();
 	cl_global_fini();
 	lu_global_fini();

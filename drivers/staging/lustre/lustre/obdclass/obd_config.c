@@ -238,7 +238,7 @@ static int class_attach(struct lustre_cfg *lcfg)
 	/* recovery data */
 	init_waitqueue_head(&obd->obd_evict_inprogress_waitq);
 
-	llog_group_init(&obd->obd_olg, FID_SEQ_LLOG);
+	llog_group_init(&obd->obd_olg);
 
 	obd->obd_conn_inprogress = 0;
 
@@ -250,15 +250,6 @@ static int class_attach(struct lustre_cfg *lcfg)
 		goto out;
 	}
 	memcpy(obd->obd_uuid.uuid, uuid, len);
-
-	/* do the attach */
-	if (OBP(obd, attach)) {
-		rc = OBP(obd, attach)(obd, sizeof(*lcfg), lcfg);
-		if (rc) {
-			rc = -EINVAL;
-			goto out;
-		}
-	}
 
 	/* Detach drops this */
 	spin_lock(&obd->obd_dev_lock);
@@ -526,11 +517,6 @@ void class_decref(struct obd_device *obd, const char *scope, const void *source)
 			if (err)
 				CERROR("Cleanup %s returned %d\n",
 				       obd->obd_name, err);
-		}
-		if (OBP(obd, detach)) {
-			err = OBP(obd, detach)(obd);
-			if (err)
-				CERROR("Detach returned %d\n", err);
 		}
 		class_release_dev(obd);
 	}

@@ -1443,7 +1443,6 @@ static int echo_client_prep_commit(const struct lu_env *env,
 		}
 
 		ioo.ioo_bufcnt = npages;
-		oti->oti_transno = 0;
 
 		lpages = npages;
 		ret = obd_preprw(env, rw, exp, oa, 1, &ioo, rnb, &lpages,
