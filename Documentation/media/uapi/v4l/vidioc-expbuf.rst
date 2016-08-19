@@ -15,7 +15,8 @@ VIDIOC_EXPBUF - Export a buffer as a DMABUF file descriptor.
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_exportbuffer *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_EXPBUF, struct v4l2_exportbuffer *argp )
+    :name: VIDIOC_EXPBUF
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_EXPBUF
 
 ``argp``
 

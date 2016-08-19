@@ -15,7 +15,8 @@ VIDIOC_QUERYBUF - Query the status of a buffer
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_buffer *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_QUERYBUF, struct v4l2_buffer *argp )
+    :name: VIDIOC_QUERYBUF
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_QUERYBUF
 
 ``argp``
 

@@ -15,9 +15,11 @@ VIDIOC_DBG_G_REGISTER - VIDIOC_DBG_S_REGISTER - Read or write hardware registers
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_dbg_register *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_DBG_G_REGISTER, struct v4l2_dbg_register *argp )
+    :name: VIDIOC_DBG_G_REGISTER
 
-.. c:function:: int ioctl( int fd, int request, const struct v4l2_dbg_register *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_DBG_S_REGISTER, const struct v4l2_dbg_register *argp )
+    :name: VIDIOC_DBG_S_REGISTER
 
 
 Arguments
@@ -25,9 +27,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_DBG_G_REGISTER, VIDIOC_DBG_S_REGISTER
 
 ``argp``
 

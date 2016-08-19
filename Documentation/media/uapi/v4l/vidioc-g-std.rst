@@ -15,9 +15,11 @@ VIDIOC_G_STD - VIDIOC_S_STD - Query or select the video standard of the current 
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, v4l2_std_id *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_G_STD, v4l2_std_id *argp )
+    :name: VIDIOC_G_STD
 
-.. c:function:: int ioctl( int fd, int request, const v4l2_std_id *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_S_STD, const v4l2_std_id *argp )
+    :name: VIDIOC_S_STD
 
 
 Arguments
@@ -25,9 +27,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_G_STD, VIDIOC_S_STD
 
 ``argp``
 

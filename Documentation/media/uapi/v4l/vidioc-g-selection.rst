@@ -15,7 +15,12 @@ VIDIOC_G_SELECTION - VIDIOC_S_SELECTION - Get or set one of the selection rectan
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_selection *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_G_SELECTION, struct v4l2_selection *argp )
+    :name: VIDIOC_G_SELECTION
+
+
+.. c:function:: int ioctl( int fd, VIDIOC_S_SELECTION, struct v4l2_selection *argp )
+    :name: VIDIOC_S_SELECTION
 
 
 Arguments

@@ -15,9 +15,11 @@ VIDIOC_G_AUDIO - VIDIOC_S_AUDIO - Query or select the current audio input and it
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_audio *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_G_AUDIO, struct v4l2_audio *argp )
+    :name: VIDIOC_G_AUDIO
 
-.. c:function:: int ioctl( int fd, int request, const struct v4l2_audio *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_S_AUDIO, const struct v4l2_audio *argp )
+    :name: VIDIOC_S_AUDIO
 
 
 Arguments
@@ -25,9 +27,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_G_AUDIO, VIDIOC_S_AUDIO
 
 ``argp``
 

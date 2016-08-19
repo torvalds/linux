@@ -15,7 +15,8 @@ VIDIOC_CROPCAP - Information about the video cropping and scaling abilities
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_cropcap *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_CROPCAP, struct v4l2_cropcap *argp )
+    :name: VIDIOC_CROPCAP
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_CROPCAP
 
 ``argp``
 

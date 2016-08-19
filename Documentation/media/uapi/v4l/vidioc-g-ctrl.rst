@@ -15,7 +15,11 @@ VIDIOC_G_CTRL - VIDIOC_S_CTRL - Get or set the value of a control
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_control *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_G_CTRL, struct v4l2_control *argp )
+    :name: VIDIOC_G_CTRL
+
+.. c:function:: int ioctl( int fd, VIDIOC_S_CTRL, struct v4l2_control *argp )
+    :name: VIDIOC_S_CTRL
 
 
 Arguments
@@ -23,9 +27,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_G_CTRL, VIDIOC_S_CTRL
 
 ``argp``
 

@@ -15,7 +15,8 @@ VIDIOC_CREATE_BUFS - Create buffers for Memory Mapped or User Pointer or DMA Buf
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_create_buffers *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_CREATE_BUFS, struct v4l2_create_buffers *argp )
+    :name: VIDIOC_CREATE_BUFS
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_CREATE_BUFS
 
 ``argp``
 

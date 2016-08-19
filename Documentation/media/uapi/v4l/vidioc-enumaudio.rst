@@ -15,7 +15,8 @@ VIDIOC_ENUMAUDIO - Enumerate audio inputs
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_audio *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_ENUMAUDIO, struct v4l2_audio *argp )
+    :name: VIDIOC_ENUMAUDIO
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_ENUMAUDIO
 
 ``argp``
 

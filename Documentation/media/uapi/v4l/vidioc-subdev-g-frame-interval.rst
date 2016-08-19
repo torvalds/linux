@@ -15,7 +15,11 @@ VIDIOC_SUBDEV_G_FRAME_INTERVAL - VIDIOC_SUBDEV_S_FRAME_INTERVAL - Get or set the
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_subdev_frame_interval *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_G_FRAME_INTERVAL, struct v4l2_subdev_frame_interval *argp )
+    :name: VIDIOC_SUBDEV_G_FRAME_INTERVAL
+
+.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_S_FRAME_INTERVAL, struct v4l2_subdev_frame_interval *argp )
+    :name: VIDIOC_SUBDEV_S_FRAME_INTERVAL
 
 
 Arguments
@@ -23,10 +27,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_SUBDEV_G_FRAME_INTERVAL,
-    VIDIOC_SUBDEV_S_FRAME_INTERVAL
 
 ``argp``
 

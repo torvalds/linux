@@ -15,7 +15,8 @@ VIDIOC_G_SLICED_VBI_CAP - Query sliced VBI capabilities
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_sliced_vbi_cap *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_G_SLICED_VBI_CAP, struct v4l2_sliced_vbi_cap *argp )
+    :name: VIDIOC_G_SLICED_VBI_CAP
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_G_SLICED_VBI_CAP
 
 ``argp``
 

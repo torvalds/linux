@@ -15,7 +15,8 @@ VIDIOC_DQEVENT - Dequeue event
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_event *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_DQEVENT, struct v4l2_event *argp )
+    :name: VIDIOC_DQEVENT
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_DQEVENT
 
 ``argp``
 

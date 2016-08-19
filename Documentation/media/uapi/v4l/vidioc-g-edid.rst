@@ -15,7 +15,18 @@ VIDIOC_G_EDID - VIDIOC_S_EDID - VIDIOC_SUBDEV_G_EDID - VIDIOC_SUBDEV_S_EDID - Ge
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_edid *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_G_EDID, struct v4l2_edid *argp )
+    :name: VIDIOC_G_EDID
+
+.. c:function:: int ioctl( int fd, VIDIOC_S_EDID, struct v4l2_edid *argp )
+    :name: VIDIOC_S_EDID
+
+
+.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_G_EDID, struct v4l2_edid *argp )
+    :name: VIDIOC_SUBDEV_G_EDID
+
+.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_S_EDID, struct v4l2_edid *argp )
+    :name: VIDIOC_SUBDEV_S_EDID
 
 
 Arguments
@@ -23,10 +34,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_G_EDID, VIDIOC_S_EDID, VIDIOC_SUBDEV_G_EDID,
-    VIDIOC_SUBDEV_S_EDID
 
 ``argp``
 

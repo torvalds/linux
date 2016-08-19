@@ -15,7 +15,8 @@ VIDIOC_ENUM_FMT - Enumerate image formats
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_fmtdesc *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_ENUM_FMT, struct v4l2_fmtdesc *argp )
+    :name: VIDIOC_ENUM_FMT
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_ENUM_FMT
 
 ``argp``
 

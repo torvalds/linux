@@ -15,7 +15,8 @@ VIDIOC_REQBUFS - Initiate Memory Mapping, User Pointer I/O or DMA buffer I/O
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_requestbuffers *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_REQBUFS, struct v4l2_requestbuffers *argp )
+    :name: VIDIOC_REQBUFS
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_REQBUFS
 
 ``argp``
 

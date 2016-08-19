@@ -15,11 +15,14 @@ VIDIOC_QUERYCTRL - VIDIOC_QUERY_EXT_CTRL - VIDIOC_QUERYMENU - Enumerate controls
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_queryctrl *argp )
+.. c:function:: int ioctl( int fd, int VIDIOC_QUERYCTRL, struct v4l2_queryctrl *argp )
+    :name: VIDIOC_QUERYCTRL
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_query_ext_ctrl *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_QUERY_EXT_CTRL, struct v4l2_query_ext_ctrl *argp )
+    :name: VIDIOC_QUERY_EXT_CTRL
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_querymenu *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_QUERYMENU, struct v4l2_querymenu *argp )
+    :name: VIDIOC_QUERYMENU
 
 
 Arguments
@@ -27,9 +30,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_QUERYCTRL, VIDIOC_QUERY_EXT_CTRL, VIDIOC_QUERYMENU
 
 ``argp``
 

@@ -15,7 +15,8 @@ VIDIOC_QUERYSTD - Sense the video standard received by the current input
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, v4l2_std_id *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_QUERYSTD, v4l2_std_id *argp )
+    :name: VIDIOC_QUERYSTD
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_QUERYSTD
 
 ``argp``
 

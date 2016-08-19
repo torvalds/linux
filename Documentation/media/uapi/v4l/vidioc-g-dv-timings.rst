@@ -15,7 +15,17 @@ VIDIOC_G_DV_TIMINGS - VIDIOC_S_DV_TIMINGS - VIDIOC_SUBDEV_G_DV_TIMINGS - VIDIOC_
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_dv_timings *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_G_DV_TIMINGS, struct v4l2_dv_timings *argp )
+    :name: VIDIOC_G_DV_TIMINGS
+
+.. c:function:: int ioctl( int fd, VIDIOC_S_DV_TIMINGS, struct v4l2_dv_timings *argp )
+    :name: VIDIOC_S_DV_TIMINGS
+
+.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_G_DV_TIMINGS, struct v4l2_dv_timings *argp )
+    :name: VIDIOC_SUBDEV_G_DV_TIMINGS
+
+.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_S_DV_TIMINGS, struct v4l2_dv_timings *argp )
+    :name: VIDIOC_SUBDEV_S_DV_TIMINGS
 
 
 Arguments
@@ -23,10 +33,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_G_DV_TIMINGS, VIDIOC_S_DV_TIMINGS,
-    VIDIOC_SUBDEV_G_DV_TIMINGS, VIDIOC_SUBDEV_S_DV_TIMINGS
 
 ``argp``
 

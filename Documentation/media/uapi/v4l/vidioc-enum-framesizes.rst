@@ -15,7 +15,8 @@ VIDIOC_ENUM_FRAMESIZES - Enumerate frame sizes
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_frmsizeenum *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_ENUM_FRAMESIZES, struct v4l2_frmsizeenum *argp )
+    :name: VIDIOC_ENUM_FRAMESIZES
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_ENUM_FRAMESIZES
 
 ``argp``
     Pointer to a struct :ref:`v4l2_frmsizeenum <v4l2-frmsizeenum>`

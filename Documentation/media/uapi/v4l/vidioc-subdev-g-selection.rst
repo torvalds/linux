@@ -15,7 +15,11 @@ VIDIOC_SUBDEV_G_SELECTION - VIDIOC_SUBDEV_S_SELECTION - Get or set selection rec
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_subdev_selection *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_G_SELECTION, struct v4l2_subdev_selection *argp )
+    :name: VIDIOC_SUBDEV_G_SELECTION
+
+.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_S_SELECTION, struct v4l2_subdev_selection *argp )
+    :name: VIDIOC_SUBDEV_S_SELECTION
 
 
 Arguments
@@ -23,9 +27,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_SUBDEV_G_SELECTION, VIDIOC_SUBDEV_S_SELECTION
 
 ``argp``
 

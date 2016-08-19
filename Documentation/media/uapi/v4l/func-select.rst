@@ -23,11 +23,25 @@ Synopsis
 
 
 .. c:function:: int select( int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout )
-
+    :name: v4l2-select
 
 Arguments
 =========
 
+``nfds``
+  The highest-numbered file descriptor in any of the three sets, plus 1.
+
+``readfds``
+  File descriptions to be watched if a read() call won't block.
+
+``writefds``
+  File descriptions to be watched if a write() won't block.
+
+``exceptfds``
+  File descriptions to be watched for V4L2 events.
+
+``timeout``
+  Maximum time to wait.
 
 
 Description

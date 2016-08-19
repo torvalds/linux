@@ -15,7 +15,8 @@ VIDIOC_ENUM_FREQ_BANDS - Enumerate supported frequency bands
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_frequency_band *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_ENUM_FREQ_BANDS, struct v4l2_frequency_band *argp )
+    :name: VIDIOC_ENUM_FREQ_BANDS
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_ENUM_FREQ_BANDS
 
 ``argp``
 

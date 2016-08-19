@@ -21,7 +21,7 @@ Synopsis
 
 
 .. c:function:: int close( int fd )
-
+    :name: v4l2-close
 
 Arguments
 =========

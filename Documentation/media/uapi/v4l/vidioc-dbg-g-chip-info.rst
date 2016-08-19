@@ -15,7 +15,8 @@ VIDIOC_DBG_G_CHIP_INFO - Identify the chips on a TV card
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_dbg_chip_info *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_DBG_G_CHIP_INFO, struct v4l2_dbg_chip_info *argp )
+    :name: VIDIOC_DBG_G_CHIP_INFO
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_DBG_G_CHIP_INFO
 
 ``argp``
 

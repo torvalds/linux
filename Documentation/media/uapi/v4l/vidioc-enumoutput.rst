@@ -15,7 +15,8 @@ VIDIOC_ENUMOUTPUT - Enumerate video outputs
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_output *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_ENUMOUTPUT, struct v4l2_output *argp )
+    :name: VIDIOC_ENUMOUTPUT
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_ENUMOUTPUT
 
 ``argp``
 

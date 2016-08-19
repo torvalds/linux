@@ -15,7 +15,11 @@ VIDIOC_ENUM_DV_TIMINGS - VIDIOC_SUBDEV_ENUM_DV_TIMINGS - Enumerate supported Dig
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_enum_dv_timings *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_ENUM_DV_TIMINGS, struct v4l2_enum_dv_timings *argp )
+    :name: VIDIOC_ENUM_DV_TIMINGS
+
+.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_ENUM_DV_TIMINGS, struct v4l2_enum_dv_timings *argp )
+    :name: VIDIOC_SUBDEV_ENUM_DV_TIMINGS
 
 
 Arguments
@@ -23,9 +27,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_ENUM_DV_TIMINGS, VIDIOC_SUBDEV_ENUM_DV_TIMINGS
 
 ``argp``
 

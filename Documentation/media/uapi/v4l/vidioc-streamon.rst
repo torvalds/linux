@@ -15,7 +15,11 @@ VIDIOC_STREAMON - VIDIOC_STREAMOFF - Start or stop streaming I/O
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, const int *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_STREAMON, const int *argp )
+    :name: VIDIOC_STREAMON
+
+.. c:function:: int ioctl( int fd, VIDIOC_STREAMOFF, const int *argp )
+    :name: VIDIOC_STREAMOFF
 
 
 Arguments
@@ -23,9 +27,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_STREAMON, VIDIOC_STREAMOFF
 
 ``argp``
 

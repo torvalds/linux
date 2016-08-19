@@ -15,7 +15,8 @@ VIDIOC_SUBDEV_ENUM_MBUS_CODE - Enumerate media bus formats
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_subdev_mbus_code_enum * argp )
+.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_ENUM_MBUS_CODE, struct v4l2_subdev_mbus_code_enum * argp )
+    :name: VIDIOC_SUBDEV_ENUM_MBUS_CODE
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_SUBDEV_ENUM_MBUS_CODE
 
 ``argp``
 

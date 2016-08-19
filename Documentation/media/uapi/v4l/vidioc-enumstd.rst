@@ -15,7 +15,8 @@ VIDIOC_ENUMSTD - Enumerate supported video standards
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_standard *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_ENUMSTD, struct v4l2_standard *argp )
+    :name: VIDIOC_ENUMSTD
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_ENUMSTD
 
 ``argp``
 

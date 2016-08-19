@@ -15,7 +15,11 @@ VIDIOC_DV_TIMINGS_CAP - VIDIOC_SUBDEV_DV_TIMINGS_CAP - The capabilities of the D
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_dv_timings_cap *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_DV_TIMINGS_CAP, struct v4l2_dv_timings_cap *argp )
+    :name: VIDIOC_DV_TIMINGS_CAP
+
+.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_DV_TIMINGS_CAP, struct v4l2_dv_timings_cap *argp )
+    :name: VIDIOC_SUBDEV_DV_TIMINGS_CAP
 
 
 Arguments
@@ -23,9 +27,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_DV_TIMINGS_CAP, VIDIOC_SUBDEV_DV_TIMINGS_CAP
 
 ``argp``
 

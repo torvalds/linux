@@ -15,17 +15,20 @@ VIDIOC_G_FMT - VIDIOC_S_FMT - VIDIOC_TRY_FMT - Get or set the data format, try a
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_format *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_G_FMT, struct v4l2_format *argp )
+    :name: VIDIOC_G_FMT
 
+.. c:function:: int ioctl( int fd, VIDIOC_S_FMT, struct v4l2_format *argp )
+    :name: VIDIOC_S_FMT
+
+.. c:function:: int ioctl( int fd, VIDIOC_TRY_FMT, struct v4l2_format *argp )
+    :name: VIDIOC_TRY_FMT
 
 Arguments
 =========
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_G_FMT, VIDIOC_S_FMT, VIDIOC_TRY_FMT
 
 ``argp``
 

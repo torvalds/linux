@@ -15,7 +15,8 @@ VIDIOC_G_ENC_INDEX - Get meta data about a compressed video stream
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_enc_idx *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_G_ENC_INDEX, struct v4l2_enc_idx *argp )
+    :name: VIDIOC_G_ENC_INDEX
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_G_ENC_INDEX
 
 ``argp``
 

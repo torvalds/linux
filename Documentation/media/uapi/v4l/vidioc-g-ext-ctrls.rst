@@ -15,7 +15,16 @@ VIDIOC_G_EXT_CTRLS - VIDIOC_S_EXT_CTRLS - VIDIOC_TRY_EXT_CTRLS - Get or set the 
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_ext_controls *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_G_EXT_CTRLS, struct v4l2_ext_controls *argp )
+    :name: VIDIOC_G_EXT_CTRLS
+
+
+.. c:function:: int ioctl( int fd, VIDIOC_S_EXT_CTRLS, struct v4l2_ext_controls *argp )
+    :name: VIDIOC_S_EXT_CTRLS
+
+
+.. c:function:: int ioctl( int fd, VIDIOC_TRY_EXT_CTRLS, struct v4l2_ext_controls *argp )
+    :name: VIDIOC_TRY_EXT_CTRLS
 
 
 Arguments
@@ -23,10 +32,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_G_EXT_CTRLS, VIDIOC_S_EXT_CTRLS,
-    VIDIOC_TRY_EXT_CTRLS
 
 ``argp``
 

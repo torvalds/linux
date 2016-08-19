@@ -16,7 +16,11 @@ VIDIOC_SUBSCRIBE_EVENT - VIDIOC_UNSUBSCRIBE_EVENT - Subscribe or unsubscribe eve
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_event_subscription *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_SUBSCRIBE_EVENT, struct v4l2_event_subscription *argp )
+    :name: VIDIOC_SUBSCRIBE_EVENT
+
+.. c:function:: int ioctl( int fd, VIDIOC_UNSUBSCRIBE_EVENT, struct v4l2_event_subscription *argp )
+    :name: VIDIOC_UNSUBSCRIBE_EVENT
 
 
 Arguments
@@ -24,9 +28,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_SUBSCRIBE_EVENT, VIDIOC_UNSUBSCRIBE_EVENT
 
 ``argp``
 

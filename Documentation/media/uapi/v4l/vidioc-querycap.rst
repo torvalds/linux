@@ -15,7 +15,8 @@ VIDIOC_QUERYCAP - Query device capabilities
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_capability *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_QUERYCAP, struct v4l2_capability *argp )
+    :name: VIDIOC_QUERYCAP
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_QUERYCAP
 
 ``argp``
 

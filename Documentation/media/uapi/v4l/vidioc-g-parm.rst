@@ -15,7 +15,11 @@ VIDIOC_G_PARM - VIDIOC_S_PARM - Get or set streaming parameters
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, v4l2_streamparm *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_G_PARM, v4l2_streamparm *argp )
+    :name: VIDIOC_G_PARM
+
+.. c:function:: int ioctl( int fd, VIDIOC_S_PARM, v4l2_streamparm *argp )
+    :name: VIDIOC_S_PARM
 
 
 Arguments
@@ -23,9 +27,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_G_PARM, VIDIOC_S_PARM
 
 ``argp``
 

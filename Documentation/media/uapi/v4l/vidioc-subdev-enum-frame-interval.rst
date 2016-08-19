@@ -15,7 +15,8 @@ VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL - Enumerate frame intervals
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_subdev_frame_interval_enum * argp )
+.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL, struct v4l2_subdev_frame_interval_enum * argp )
+    :name: VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL
 
 ``argp``
 

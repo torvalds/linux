@@ -15,9 +15,11 @@ VIDIOC_G_TUNER - VIDIOC_S_TUNER - Get or set tuner attributes
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_tuner *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_G_TUNER, struct v4l2_tuner *argp )
+    :name: VIDIOC_G_TUNER
 
-.. c:function:: int ioctl( int fd, int request, const struct v4l2_tuner *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_S_TUNER, const struct v4l2_tuner *argp )
+    :name: VIDIOC_S_TUNER
 
 
 Arguments
@@ -25,9 +27,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_G_TUNER, VIDIOC_S_TUNER
 
 ``argp``
 

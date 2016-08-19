@@ -15,7 +15,11 @@ VIDIOC_G_INPUT - VIDIOC_S_INPUT - Query or select the current video input
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, int *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_G_INPUT, int *argp )
+    :name: VIDIOC_G_INPUT
+
+.. c:function:: int ioctl( int fd, VIDIOC_S_INPUT, int *argp )
+    :name: VIDIOC_S_INPUT
 
 
 Arguments
@@ -23,9 +27,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_G_INPUT, VIDIOC_S_INPUT
 
 ``argp``
 

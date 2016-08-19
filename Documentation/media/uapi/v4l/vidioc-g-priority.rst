@@ -15,9 +15,11 @@ VIDIOC_G_PRIORITY - VIDIOC_S_PRIORITY - Query or request the access priority ass
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, enum v4l2_priority *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_G_PRIORITY, enum v4l2_priority *argp )
+    :name: VIDIOC_G_PRIORITY
 
-.. c:function:: int ioctl( int fd, int request, const enum v4l2_priority *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_S_PRIORITY, const enum v4l2_priority *argp )
+    :name: VIDIOC_S_PRIORITY
 
 
 Arguments
@@ -25,9 +27,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_G_PRIORITY, VIDIOC_S_PRIORITY
 
 ``argp``
     Pointer to an enum v4l2_priority type.

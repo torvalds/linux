@@ -21,7 +21,7 @@ Synopsis
 
 
 .. c:function:: int poll( struct pollfd *ufds, unsigned int nfds, int timeout )
-
+    name: v4l2-poll
 
 Arguments
 =========

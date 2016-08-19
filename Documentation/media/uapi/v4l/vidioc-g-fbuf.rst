@@ -15,9 +15,11 @@ VIDIOC_G_FBUF - VIDIOC_S_FBUF - Get or set frame buffer overlay parameters
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_framebuffer *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_G_FBUF, struct v4l2_framebuffer *argp )
+    :name: VIDIOC_G_FBUF
 
-.. c:function:: int ioctl( int fd, int request, const struct v4l2_framebuffer *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_S_FBUF, const struct v4l2_framebuffer *argp )
+    :name: VIDIOC_S_FBUF
 
 
 Arguments
@@ -25,9 +27,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_G_FBUF, VIDIOC_S_FBUF
 
 ``argp``
 

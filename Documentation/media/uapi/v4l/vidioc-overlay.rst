@@ -15,7 +15,8 @@ VIDIOC_OVERLAY - Start or stop video overlay
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, const int *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_OVERLAY, const int *argp )
+    :name: VIDIOC_OVERLAY
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_OVERLAY
 
 ``argp``
 

@@ -15,7 +15,8 @@ VIDIOC_S_HW_FREQ_SEEK - Perform a hardware frequency seek
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_hw_freq_seek *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_S_HW_FREQ_SEEK, struct v4l2_hw_freq_seek *argp )
+    :name: VIDIOC_S_HW_FREQ_SEEK
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_S_HW_FREQ_SEEK
 
 ``argp``
 

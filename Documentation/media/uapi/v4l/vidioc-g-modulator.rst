@@ -15,9 +15,11 @@ VIDIOC_G_MODULATOR - VIDIOC_S_MODULATOR - Get or set modulator attributes
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_modulator *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_G_MODULATOR, struct v4l2_modulator *argp )
+    :name: VIDIOC_G_MODULATOR
 
-.. c:function:: int ioctl( int fd, int request, const struct v4l2_modulator *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_S_MODULATOR, const struct v4l2_modulator *argp )
+    :name: VIDIOC_S_MODULATOR
 
 
 Arguments
@@ -25,9 +27,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_G_MODULATOR, VIDIOC_S_MODULATOR
 
 ``argp``
 

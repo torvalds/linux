@@ -15,7 +15,8 @@ VIDIOC_ENUMINPUT - Enumerate video inputs
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_input *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_ENUMINPUT, struct v4l2_input *argp )
+    :name: VIDIOC_ENUMINPUT
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_ENUMINPUT
 
 ``argp``
 

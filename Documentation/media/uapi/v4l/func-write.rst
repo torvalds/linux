@@ -21,7 +21,7 @@ Synopsis
 
 
 .. c:function:: ssize_t write( int fd, void *buf, size_t count )
-
+    :name: v4l2-write
 
 Arguments
 =========
@@ -30,8 +30,10 @@ Arguments
     File descriptor returned by :ref:`open() <func-open>`.
 
 ``buf``
-``count``
+     Buffer with data to be written
 
+``count``
+    Number of bytes at the buffer
 
 Description
 ===========

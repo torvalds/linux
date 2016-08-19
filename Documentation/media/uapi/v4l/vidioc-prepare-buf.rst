@@ -15,7 +15,8 @@ VIDIOC_PREPARE_BUF - Prepare a buffer for I/O
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_buffer *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_PREPARE_BUF, struct v4l2_buffer *argp )
+    :name: VIDIOC_PREPARE_BUF
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_PREPARE_BUF
 
 ``argp``
 

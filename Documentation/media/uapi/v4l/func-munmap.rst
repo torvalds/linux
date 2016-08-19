@@ -22,7 +22,7 @@ Synopsis
 
 
 .. c:function:: int munmap( void *start, size_t length )
-
+    :name: v4l2-munmap
 
 Arguments
 =========

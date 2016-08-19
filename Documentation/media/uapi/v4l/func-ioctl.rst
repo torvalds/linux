@@ -21,7 +21,7 @@ Synopsis
 
 
 .. c:function:: int ioctl( int fd, int request, void *argp )
-
+    :name: v4l2-ioctl
 
 Arguments
 =========

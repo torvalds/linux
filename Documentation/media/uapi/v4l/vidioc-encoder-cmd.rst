@@ -15,7 +15,11 @@ VIDIOC_ENCODER_CMD - VIDIOC_TRY_ENCODER_CMD - Execute an encoder command
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_encoder_cmd *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_ENCODER_CMD, struct v4l2_encoder_cmd *argp )
+    :name: VIDIOC_ENCODER_CMD
+
+.. c:function:: int ioctl( int fd, VIDIOC_TRY_ENCODER_CMD, struct v4l2_encoder_cmd *argp )
+    :name: VIDIOC_TRY_ENCODER_CMD
 
 
 Arguments
@@ -23,9 +27,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_ENCODER_CMD, VIDIOC_TRY_ENCODER_CMD
 
 ``argp``
 

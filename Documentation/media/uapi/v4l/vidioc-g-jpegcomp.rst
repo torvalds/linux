@@ -15,9 +15,11 @@ VIDIOC_G_JPEGCOMP - VIDIOC_S_JPEGCOMP
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, v4l2_jpegcompression *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_G_JPEGCOMP, v4l2_jpegcompression *argp )
+    :name: VIDIOC_G_JPEGCOMP
 
-.. c:function:: int ioctl( int fd, int request, const v4l2_jpegcompression *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_S_JPEGCOMP, const v4l2_jpegcompression *argp )
+    :name: VIDIOC_S_JPEGCOMP
 
 
 Arguments
@@ -25,9 +27,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_G_JPEGCOMP, VIDIOC_S_JPEGCOMP
 
 ``argp``
 

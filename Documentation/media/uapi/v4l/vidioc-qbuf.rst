@@ -15,7 +15,11 @@ VIDIOC_QBUF - VIDIOC_DQBUF - Exchange a buffer with the driver
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct v4l2_buffer *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_QBUF, struct v4l2_buffer *argp )
+    :name: VIDIOC_QBUF
+
+.. c:function:: int ioctl( int fd, VIDIOC_DQBUF, struct v4l2_buffer *argp )
+    :name: VIDIOC_DQBUF
 
 
 Arguments
@@ -23,9 +27,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_QBUF, VIDIOC_DQBUF
 
 ``argp``
 
