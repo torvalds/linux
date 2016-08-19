@@ -206,14 +206,15 @@ static void free_anchored_buffers(struct most_dev *mdev, unsigned int channel,
 {
 	struct mbo *mbo;
 	struct buf_anchor *anchor, *tmp;
+	spinlock_t *lock = mdev->anchor_list_lock + channel; /* temp. lock */
 	unsigned long flags;
 
-	spin_lock_irqsave(&mdev->anchor_list_lock[channel], flags);
+	spin_lock_irqsave(lock, flags);
 	list_for_each_entry_safe(anchor, tmp, &mdev->anchor_list[channel],
 				 list) {
 		struct urb *urb = anchor->urb;
 
-		spin_unlock_irqrestore(&mdev->anchor_list_lock[channel], flags);
+		spin_unlock_irqrestore(lock, flags);
 		if (likely(urb)) {
 			mbo = urb->context;
 			if (!irqs_disabled()) {
@@ -229,11 +230,11 @@ static void free_anchored_buffers(struct most_dev *mdev, unsigned int channel,
 			}
 			usb_free_urb(urb);
 		}
-		spin_lock_irqsave(&mdev->anchor_list_lock[channel], flags);
+		spin_lock_irqsave(lock, flags);
 		list_del(&anchor->list);
 		kfree(anchor);
 	}
-	spin_unlock_irqrestore(&mdev->anchor_list_lock[channel], flags);
+	spin_unlock_irqrestore(lock, flags);
 }
 
 /**
@@ -397,12 +398,14 @@ static void hdm_write_completion(struct urb *urb)
 	struct device *dev;
 	unsigned int channel;
 	unsigned long flags;
+	spinlock_t *lock; /* temp. lock */
 
 	mbo = urb->context;
 	anchor = mbo->priv;
 	mdev = to_mdev(mbo->ifp);
 	channel = mbo->hdm_channel_id;
 	dev = &mdev->usb_device->dev;
+	lock = mdev->anchor_list_lock + channel;
 
 	if ((urb->status == -ENOENT) || (urb->status == -ECONNRESET) ||
 	    (!mdev->is_channel_healthy[channel])) {
@@ -433,9 +436,9 @@ static void hdm_write_completion(struct urb *urb)
 		mbo->processed_length = urb->actual_length;
 	}
 
-	spin_lock_irqsave(&mdev->anchor_list_lock[channel], flags);
+	spin_lock_irqsave(lock, flags);
 	list_del(&anchor->list);
-	spin_unlock_irqrestore(&mdev->anchor_list_lock[channel], flags);
+	spin_unlock_irqrestore(lock, flags);
 	kfree(anchor);
 
 	if (likely(mbo->complete))
@@ -559,12 +562,14 @@ static void hdm_read_completion(struct urb *urb)
 	struct device *dev;
 	unsigned long flags;
 	unsigned int channel;
+	spinlock_t *lock; /* temp. lock */
 
 	mbo = urb->context;
 	anchor = mbo->priv;
 	mdev = to_mdev(mbo->ifp);
 	channel = mbo->hdm_channel_id;
 	dev = &mdev->usb_device->dev;
+	lock = mdev->anchor_list_lock + channel;
 
 	if ((urb->status == -ENOENT) || (urb->status == -ECONNRESET) ||
 	    (!mdev->is_channel_healthy[channel])) {
@@ -601,9 +606,9 @@ static void hdm_read_completion(struct urb *urb)
 			mbo->status = MBO_E_INVAL;
 		}
 	}
-	spin_lock_irqsave(&mdev->anchor_list_lock[channel], flags);
+	spin_lock_irqsave(lock, flags);
 	list_del(&anchor->list);
-	spin_unlock_irqrestore(&mdev->anchor_list_lock[channel], flags);
+	spin_unlock_irqrestore(lock, flags);
 	kfree(anchor);
 
 	if (likely(mbo->complete))
@@ -638,6 +643,7 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 	unsigned long flags;
 	unsigned long length;
 	void *virt_address;
+	spinlock_t *lock; /* temp. lock */
 
 	if (unlikely(!iface || !mbo))
 		return -EIO;
@@ -697,9 +703,10 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 	}
 	urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
-	spin_lock_irqsave(&mdev->anchor_list_lock[channel], flags);
+	lock = mdev->anchor_list_lock + channel;
+	spin_lock_irqsave(lock, flags);
 	list_add_tail(&anchor->list, &mdev->anchor_list[channel]);
-	spin_unlock_irqrestore(&mdev->anchor_list_lock[channel], flags);
+	spin_unlock_irqrestore(lock, flags);
 
 	retval = usb_submit_urb(urb, GFP_KERNEL);
 	if (retval) {
@@ -709,9 +716,9 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 	return 0;
 
 _error_1:
-	spin_lock_irqsave(&mdev->anchor_list_lock[channel], flags);
+	spin_lock_irqsave(lock, flags);
 	list_del(&anchor->list);
-	spin_unlock_irqrestore(&mdev->anchor_list_lock[channel], flags);
+	spin_unlock_irqrestore(lock, flags);
 	kfree(anchor);
 _error:
 	usb_free_urb(urb);
