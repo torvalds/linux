@@ -23,13 +23,6 @@
 #include "be_main.h"
 #include "be_mgmt.h"
 
-#define BE2_IPV4  0x1
-#define BE2_IPV6  0x10
-#define BE2_DHCP_V4 0x05
-
-#define NON_BLOCKING 0x0
-#define BLOCKING 0x1
-
 void beiscsi_iface_create_default(struct beiscsi_hba *phba);
 
 void beiscsi_iface_destroy_default(struct beiscsi_hba *phba);

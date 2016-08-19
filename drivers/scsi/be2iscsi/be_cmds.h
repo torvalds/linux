@@ -365,6 +365,14 @@ struct ip_addr_format {
 	u16 size_of_structure;
 	u8 reserved;
 	u8 ip_type;
+#define BEISCSI_IP_TYPE_V4		0x1
+#define BEISCSI_IP_TYPE_STATIC_V4	0x3
+#define BEISCSI_IP_TYPE_DHCP_V4		0x5
+/* type v4 values < type v6 values */
+#define BEISCSI_IP_TYPE_V6		0x10
+#define BEISCSI_IP_TYPE_ROUTABLE_V6	0x30
+#define BEISCSI_IP_TYPE_LINK_LOCAL_V6	0x50
+#define BEISCSI_IP_TYPE_AUTO_V6		0x90
 	u8 addr[16];
 	u32 rsvd0;
 } __packed;

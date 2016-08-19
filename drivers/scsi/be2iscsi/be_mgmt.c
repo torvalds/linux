@@ -844,7 +844,7 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 			   nonemb_cmd->size);
 	if (dst_addr->sa_family == PF_INET) {
 		__be32 s_addr = daddr_in->sin_addr.s_addr;
-		req->ip_address.ip_type = BE2_IPV4;
+		req->ip_address.ip_type = BEISCSI_IP_TYPE_V4;
 		req->ip_address.addr[0] = s_addr & 0x000000ff;
 		req->ip_address.addr[1] = (s_addr & 0x0000ff00) >> 8;
 		req->ip_address.addr[2] = (s_addr & 0x00ff0000) >> 16;
@@ -852,17 +852,17 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 		req->tcp_port = ntohs(daddr_in->sin_port);
 		beiscsi_ep->dst_addr = daddr_in->sin_addr.s_addr;
 		beiscsi_ep->dst_tcpport = ntohs(daddr_in->sin_port);
-		beiscsi_ep->ip_type = BE2_IPV4;
+		beiscsi_ep->ip_type = BEISCSI_IP_TYPE_V4;
 	} else {
 		/* else its PF_INET6 family */
-		req->ip_address.ip_type = BE2_IPV6;
+		req->ip_address.ip_type = BEISCSI_IP_TYPE_V6;
 		memcpy(&req->ip_address.addr,
 		       &daddr_in6->sin6_addr.in6_u.u6_addr8, 16);
 		req->tcp_port = ntohs(daddr_in6->sin6_port);
 		beiscsi_ep->dst_tcpport = ntohs(daddr_in6->sin6_port);
 		memcpy(&beiscsi_ep->dst6_addr,
 		       &daddr_in6->sin6_addr.in6_u.u6_addr8, 16);
-		beiscsi_ep->ip_type = BE2_IPV6;
+		beiscsi_ep->ip_type = BEISCSI_IP_TYPE_V6;
 	}
 	req->cid = cid;
 	i = phba->nxt_cqid++;
@@ -1008,6 +1008,16 @@ unsigned int beiscsi_if_get_handle(struct beiscsi_hba *phba)
 	return status;
 }
 
+static inline bool beiscsi_if_zero_ip(u8 *ip, u32 ip_type)
+{
+	u32 len;
+
+	len = (ip_type < BEISCSI_IP_TYPE_V6) ? IP_V4_LEN : IP_V6_LEN;
+	while (len && !ip[len - 1])
+		len--;
+	return (len == 0);
+}
+
 static int beiscsi_if_mod_gw(struct beiscsi_hba *phba,
 			     u32 action, u32 ip_type, u8 *gw)
 {
@@ -1025,7 +1035,7 @@ static int beiscsi_if_mod_gw(struct beiscsi_hba *phba,
 	req->action = action;
 	req->ip_addr.ip_type = ip_type;
 	memcpy(req->ip_addr.addr, gw,
-	       (ip_type == BE2_IPV4) ? IP_V4_LEN : IP_V6_LEN);
+	       (ip_type < BEISCSI_IP_TYPE_V6) ? IP_V4_LEN : IP_V6_LEN);
 	return mgmt_exec_nonemb_cmd(phba, &nonemb_cmd, NULL, 0);
 }
 
@@ -1042,12 +1052,14 @@ int beiscsi_if_set_gw(struct beiscsi_hba *phba, u32 ip_type, u8 *gw)
 		return rt_val;
 	}
 
-	rt_val = beiscsi_if_mod_gw(phba, IP_ACTION_DEL, ip_type,
-				   gw_resp.ip_addr.addr);
-	if (rt_val) {
-		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
-				"BG_%d : Failed to clear Gateway Addr Set\n");
-		return rt_val;
+	if (!beiscsi_if_zero_ip(gw_resp.ip_addr.addr, ip_type)) {
+		rt_val = beiscsi_if_mod_gw(phba, IP_ACTION_DEL, ip_type,
+					   gw_resp.ip_addr.addr);
+		if (rt_val) {
+			beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
+				    "BG_%d : Failed to clear Gateway Addr Set\n");
+			return rt_val;
+		}
 	}
 
 	rt_val = beiscsi_if_mod_gw(phba, IP_ACTION_ADD, ip_type, gw);
@@ -1138,7 +1150,7 @@ beiscsi_if_set_ip(struct beiscsi_hba *phba, u8 *ip,
 	req->ip_params.ip_record.ip_addr.size_of_structure =
 		sizeof(struct be_ip_addr_subnet_format);
 	req->ip_params.ip_record.ip_addr.ip_type = ip_type;
-	ip_len = ip_type == BE2_IPV4 ? IP_V4_LEN : IP_V6_LEN;
+	ip_len = (ip_type < BEISCSI_IP_TYPE_V6) ? IP_V4_LEN : IP_V6_LEN;
 	memcpy(req->ip_params.ip_record.ip_addr.addr, ip, ip_len);
 	if (subnet)
 		memcpy(req->ip_params.ip_record.ip_addr.subnet_mask,
@@ -1190,10 +1202,12 @@ int beiscsi_if_en_static(struct beiscsi_hba *phba, u32 ip_type,
 		}
 	}
 
-	/* first delete any old IP set */
-	rc = beiscsi_if_clr_ip(phba, if_info);
-	if (rc)
-		goto exit;
+	/* first delete any IP set */
+	if (!beiscsi_if_zero_ip(if_info->ip_addr.addr, ip_type)) {
+		rc = beiscsi_if_clr_ip(phba, if_info);
+		if (rc)
+			goto exit;
+	}
 
 	/* if ip == NULL then this is called just to release DHCP IP */
 	if (ip)
@@ -1222,10 +1236,12 @@ int beiscsi_if_en_dhcp(struct beiscsi_hba *phba, u32 ip_type)
 		goto exit;
 	}
 
-	/* first delete any old static IP set */
-	rc = beiscsi_if_clr_ip(phba, if_info);
-	if (rc)
-		goto exit;
+	/* first delete any IP set */
+	if (!beiscsi_if_zero_ip(if_info->ip_addr.addr, ip_type)) {
+		rc = beiscsi_if_clr_ip(phba, if_info);
+		if (rc)
+			goto exit;
+	}
 
 	/* delete gateway settings if mode change is to DHCP */
 	memset(&gw_resp, 0, sizeof(gw_resp));
@@ -1237,12 +1253,14 @@ int beiscsi_if_en_dhcp(struct beiscsi_hba *phba, u32 ip_type)
 		goto exit;
 	}
 	gw = (u8 *)&gw_resp.ip_addr.addr;
-	rc = beiscsi_if_mod_gw(phba, IP_ACTION_DEL,
-			       if_info->ip_addr.ip_type, gw);
-	if (rc) {
-		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
-				"BG_%d : Failed to clear Gateway Addr Set\n");
-		goto exit;
+	if (!beiscsi_if_zero_ip(gw, if_info->ip_addr.ip_type)) {
+		rc = beiscsi_if_mod_gw(phba, IP_ACTION_DEL,
+				       if_info->ip_addr.ip_type, gw);
+		if (rc) {
+			beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
+				    "BG_%d : Failed to clear Gateway Addr Set\n");
+			goto exit;
+		}
 	}
 
 	rc = mgmt_alloc_cmd_data(phba, &nonemb_cmd,
@@ -1252,7 +1270,7 @@ int beiscsi_if_en_dhcp(struct beiscsi_hba *phba, u32 ip_type)
 		goto exit;
 
 	dhcpreq = nonemb_cmd.va;
-	dhcpreq->flags = BLOCKING;
+	dhcpreq->flags = 1; /* 1 - blocking; 0 - non-blocking */
 	dhcpreq->retry_count = 1;
 	dhcpreq->interface_hndl = phba->interface_handle;
 	dhcpreq->ip_type = ip_type;

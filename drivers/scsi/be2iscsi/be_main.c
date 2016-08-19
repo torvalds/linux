@@ -389,7 +389,7 @@ static ssize_t beiscsi_show_boot_tgt_info(void *data, int type, char *buf)
 			    (char *)&boot_sess->target_name);
 		break;
 	case ISCSI_BOOT_TGT_IP_ADDR:
-		if (boot_conn->dest_ipaddr.ip_type == 0x1)
+		if (boot_conn->dest_ipaddr.ip_type == BEISCSI_IP_TYPE_V4)
 			rc = sprintf(buf, "%pI4\n",
 				(char *)&boot_conn->dest_ipaddr.addr);
 		else

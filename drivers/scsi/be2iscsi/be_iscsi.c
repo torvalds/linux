@@ -279,12 +279,12 @@ void beiscsi_iface_create_default(struct beiscsi_hba *phba)
 {
 	struct be_cmd_get_if_info_resp *if_info;
 
-	if (!beiscsi_if_get_info(phba, BE2_IPV4, &if_info)) {
+	if (!beiscsi_if_get_info(phba, BEISCSI_IP_TYPE_V4, &if_info)) {
 		beiscsi_iface_create_ipv4(phba);
 		kfree(if_info);
 	}
 
-	if (!beiscsi_if_get_info(phba, BE2_IPV6, &if_info)) {
+	if (!beiscsi_if_get_info(phba, BEISCSI_IP_TYPE_V6, &if_info)) {
 		beiscsi_iface_create_ipv6(phba);
 		kfree(if_info);
 	}
@@ -358,14 +358,15 @@ beiscsi_iface_config_ipv4(struct Scsi_Host *shost,
 		break;
 	case ISCSI_NET_PARAM_IPV4_GW:
 		gw = info->value;
-		ret = beiscsi_if_set_gw(phba, BE2_IPV4, gw);
+		ret = beiscsi_if_set_gw(phba, BEISCSI_IP_TYPE_V4, gw);
 		break;
 	case ISCSI_NET_PARAM_IPV4_BOOTPROTO:
 		if (info->value[0] == ISCSI_BOOTPROTO_DHCP)
-			ret = beiscsi_if_en_dhcp(phba, BE2_IPV4);
+			ret = beiscsi_if_en_dhcp(phba, BEISCSI_IP_TYPE_V4);
 		else if (info->value[0] == ISCSI_BOOTPROTO_STATIC)
 			/* release DHCP IP address */
-			ret = beiscsi_if_en_static(phba, BE2_IPV4, NULL, NULL);
+			ret = beiscsi_if_en_static(phba, BEISCSI_IP_TYPE_V4,
+						   NULL, NULL);
 		else
 			beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
 				    "BS_%d : Invalid BOOTPROTO: %d\n",
@@ -378,7 +379,8 @@ beiscsi_iface_config_ipv4(struct Scsi_Host *shost,
 			info = nla_data(nla);
 			subnet = info->value;
 		}
-		ret = beiscsi_if_en_static(phba, BE2_IPV4, ip, subnet);
+		ret = beiscsi_if_en_static(phba, BEISCSI_IP_TYPE_V4,
+					   ip, subnet);
 		break;
 	case ISCSI_NET_PARAM_IPV4_SUBNET:
 		/*
@@ -391,7 +393,8 @@ beiscsi_iface_config_ipv4(struct Scsi_Host *shost,
 			info = nla_data(nla);
 			ip = info->value;
 		}
-		ret = beiscsi_if_en_static(phba, BE2_IPV4, ip, subnet);
+		ret = beiscsi_if_en_static(phba, BEISCSI_IP_TYPE_V4,
+					   ip, subnet);
 		break;
 	}
 
@@ -416,7 +419,7 @@ beiscsi_iface_config_ipv6(struct Scsi_Host *shost,
 		}
 		break;
 	case ISCSI_NET_PARAM_IPV6_ADDR:
-		ret = beiscsi_if_en_static(phba, BE2_IPV6,
+		ret = beiscsi_if_en_static(phba, BEISCSI_IP_TYPE_V6,
 					   iface_param->value, NULL);
 		break;
 	}
@@ -511,10 +514,10 @@ static int __beiscsi_iface_get_param(struct beiscsi_hba *phba,
 				     int param, char *buf)
 {
 	struct be_cmd_get_if_info_resp *if_info;
-	int len, ip_type = BE2_IPV4;
+	int len, ip_type = BEISCSI_IP_TYPE_V4;
 
 	if (iface->iface_type == ISCSI_IFACE_TYPE_IPV6)
-		ip_type = BE2_IPV6;
+		ip_type = BEISCSI_IP_TYPE_V6;
 
 	len = beiscsi_if_get_info(phba, ip_type, &if_info);
 	if (len)
@@ -602,7 +605,7 @@ int beiscsi_iface_get_param(struct iscsi_iface *iface,
 		break;
 	case ISCSI_NET_PARAM_IPV4_GW:
 		memset(&gateway, 0, sizeof(gateway));
-		len = beiscsi_if_get_gw(phba, BE2_IPV4, &gateway);
+		len = beiscsi_if_get_gw(phba, BEISCSI_IP_TYPE_V4, &gateway);
 		if (!len)
 			len = sprintf(buf, "%pI4\n", &gateway.ip_addr.addr);
 		break;
@@ -635,7 +638,7 @@ int beiscsi_ep_get_param(struct iscsi_endpoint *ep,
 		len = sprintf(buf, "%hu\n", beiscsi_ep->dst_tcpport);
 		break;
 	case ISCSI_PARAM_CONN_ADDRESS:
-		if (beiscsi_ep->ip_type == BE2_IPV4)
+		if (beiscsi_ep->ip_type == BEISCSI_IP_TYPE_V4)
 			len = sprintf(buf, "%pI4\n", &beiscsi_ep->dst_addr);
 		else
 			len = sprintf(buf, "%pI6\n", &beiscsi_ep->dst6_addr);
