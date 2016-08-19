@@ -938,87 +938,6 @@ static int mdc_done_writing(struct obd_export *exp, struct md_op_data *op_data,
 	return rc;
 }
 
-static int mdc_readpage(struct obd_export *exp, struct md_op_data *op_data,
-			struct page **pages, struct ptlrpc_request **request)
-{
-	struct ptlrpc_request   *req;
-	struct ptlrpc_bulk_desc *desc;
-	int		      i;
-	wait_queue_head_t	      waitq;
-	int		      resends = 0;
-	struct l_wait_info       lwi;
-	int		      rc;
-
-	*request = NULL;
-	init_waitqueue_head(&waitq);
-
-restart_bulk:
-	req = ptlrpc_request_alloc(class_exp2cliimp(exp), &RQF_MDS_READPAGE);
-	if (!req)
-		return -ENOMEM;
-
-	rc = ptlrpc_request_pack(req, LUSTRE_MDS_VERSION, MDS_READPAGE);
-	if (rc) {
-		ptlrpc_request_free(req);
-		return rc;
-	}
-
-	req->rq_request_portal = MDS_READPAGE_PORTAL;
-	ptlrpc_at_set_req_timeout(req);
-
-	desc = ptlrpc_prep_bulk_imp(req, op_data->op_npages, 1, BULK_PUT_SINK,
-				    MDS_BULK_PORTAL);
-	if (!desc) {
-		ptlrpc_request_free(req);
-		return -ENOMEM;
-	}
-
-	/* NB req now owns desc and will free it when it gets freed */
-	for (i = 0; i < op_data->op_npages; i++)
-		ptlrpc_prep_bulk_page_pin(desc, pages[i], 0, PAGE_SIZE);
-
-	mdc_readdir_pack(req, op_data->op_offset,
-			 PAGE_SIZE * op_data->op_npages,
-			 &op_data->op_fid1);
-
-	ptlrpc_request_set_replen(req);
-	rc = ptlrpc_queue_wait(req);
-	if (rc) {
-		ptlrpc_req_finished(req);
-		if (rc != -ETIMEDOUT)
-			return rc;
-
-		resends++;
-		if (!client_should_resend(resends, &exp->exp_obd->u.cli)) {
-			CERROR("too many resend retries, returning error\n");
-			return -EIO;
-		}
-		lwi = LWI_TIMEOUT_INTR(cfs_time_seconds(resends),
-				       NULL, NULL, NULL);
-		l_wait_event(waitq, 0, &lwi);
-
-		goto restart_bulk;
-	}
-
-	rc = sptlrpc_cli_unwrap_bulk_read(req, req->rq_bulk,
-					  req->rq_bulk->bd_nob_transferred);
-	if (rc < 0) {
-		ptlrpc_req_finished(req);
-		return rc;
-	}
-
-	if (req->rq_bulk->bd_nob_transferred & ~LU_PAGE_MASK) {
-		CERROR("Unexpected # bytes transferred: %d (%ld expected)\n",
-		       req->rq_bulk->bd_nob_transferred,
-		       PAGE_SIZE * op_data->op_npages);
-		ptlrpc_req_finished(req);
-		return -EPROTO;
-	}
-
-	*request = req;
-	return 0;
-}
-
 static int mdc_getpage(struct obd_export *exp, const struct lu_fid *fid,
 		       u64 offset, struct page **pages, int npages,
 		       struct ptlrpc_request **request)
@@ -2979,7 +2898,6 @@ static struct md_ops mdc_md_ops = {
 	.setxattr		= mdc_setxattr,
 	.getxattr		= mdc_getxattr,
 	.sync			= mdc_sync,
-	.readpage		= mdc_readpage,
 	.read_page		= mdc_read_page,
 	.unlink			= mdc_unlink,
 	.cancel_unused		= mdc_cancel_unused,
