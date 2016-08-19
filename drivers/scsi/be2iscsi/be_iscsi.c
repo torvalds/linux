@@ -419,7 +419,7 @@ beiscsi_set_ipv4(struct Scsi_Host *shost,
 		}
 		break;
 	case ISCSI_NET_PARAM_IPV4_GW:
-		ret = mgmt_set_gateway(phba, iface_param);
+		ret = beiscsi_if_set_gw(phba, BE2_IPV4, iface_param->value);
 		break;
 	case ISCSI_NET_PARAM_IPV4_BOOTPROTO:
 		if (iface_param->value[0] == ISCSI_BOOTPROTO_DHCP)
@@ -635,7 +635,7 @@ int be2iscsi_iface_get_param(struct iscsi_iface *iface,
 		break;
 	case ISCSI_NET_PARAM_IPV4_GW:
 		memset(&gateway, 0, sizeof(gateway));
-		len = mgmt_get_gateway(phba, BE2_IPV4, &gateway);
+		len = beiscsi_if_get_gw(phba, BE2_IPV4, &gateway);
 		if (!len)
 			len = sprintf(buf, "%pI4\n", &gateway.ip_addr.addr);
 		break;

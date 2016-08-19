@@ -1059,13 +1059,12 @@ mgmt_static_ip_modify(struct beiscsi_hba *phba,
 	return rc;
 }
 
-static int mgmt_modify_gateway(struct beiscsi_hba *phba, uint8_t *gt_addr,
-			       uint32_t gtway_action, uint32_t param_len)
+static int beiscsi_if_mod_gw(struct beiscsi_hba *phba,
+			     u32 action, u32 ip_type, u8 *gw)
 {
 	struct be_cmd_set_def_gateway_req *req;
 	struct be_dma_mem nonemb_cmd;
 	int rt_val;
-
 
 	rt_val = mgmt_alloc_cmd_data(phba, &nonemb_cmd,
 				OPCODE_COMMON_ISCSI_NTWK_MODIFY_DEFAULT_GATEWAY,
@@ -1074,12 +1073,60 @@ static int mgmt_modify_gateway(struct beiscsi_hba *phba, uint8_t *gt_addr,
 		return rt_val;
 
 	req = nonemb_cmd.va;
-	req->action = gtway_action;
-	req->ip_addr.ip_type = BE2_IPV4;
-
-	memcpy(req->ip_addr.addr, gt_addr, sizeof(req->ip_addr.addr));
-
+	req->action = action;
+	req->ip_addr.ip_type = ip_type;
+	memcpy(req->ip_addr.addr, gw,
+	       (ip_type == BE2_IPV4) ? IP_V4_LEN : IP_V6_LEN);
 	return mgmt_exec_nonemb_cmd(phba, &nonemb_cmd, NULL, 0);
+}
+
+int beiscsi_if_set_gw(struct beiscsi_hba *phba, u32 ip_type, u8 *gw)
+{
+	struct be_cmd_get_def_gateway_resp gw_resp;
+	int rt_val;
+
+	memset(&gw_resp, 0, sizeof(gw_resp));
+	rt_val = beiscsi_if_get_gw(phba, ip_type, &gw_resp);
+	if (rt_val) {
+		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
+			    "BG_%d : Failed to Get Gateway Addr\n");
+		return rt_val;
+	}
+
+	rt_val = beiscsi_if_mod_gw(phba, IP_ACTION_DEL, ip_type,
+				   gw_resp.ip_addr.addr);
+	if (rt_val) {
+		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
+				"BG_%d : Failed to clear Gateway Addr Set\n");
+		return rt_val;
+	}
+
+	rt_val = beiscsi_if_mod_gw(phba, IP_ACTION_ADD, ip_type, gw);
+	if (rt_val)
+		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
+			    "BG_%d : Failed to Set Gateway Addr\n");
+
+	return rt_val;
+}
+
+int beiscsi_if_get_gw(struct beiscsi_hba *phba, u32 ip_type,
+		      struct be_cmd_get_def_gateway_resp *resp)
+{
+	struct be_cmd_get_def_gateway_req *req;
+	struct be_dma_mem nonemb_cmd;
+	int rc;
+
+	rc = mgmt_alloc_cmd_data(phba, &nonemb_cmd,
+				 OPCODE_COMMON_ISCSI_NTWK_GET_DEFAULT_GATEWAY,
+				 sizeof(*resp));
+	if (rc)
+		return rc;
+
+	req = nonemb_cmd.va;
+	req->ip_type = ip_type;
+
+	return mgmt_exec_nonemb_cmd(phba, &nonemb_cmd, resp,
+				    sizeof(*resp));
 }
 
 int mgmt_set_ip(struct beiscsi_hba *phba,
@@ -1156,7 +1203,7 @@ int mgmt_set_ip(struct beiscsi_hba *phba,
 	/* Delete the Gateway settings if mode change is to DHCP */
 	if (boot_proto == ISCSI_BOOTPROTO_DHCP) {
 		memset(&gtway_addr_set, 0, sizeof(gtway_addr_set));
-		rc = mgmt_get_gateway(phba, BE2_IPV4, &gtway_addr_set);
+		rc = beiscsi_if_get_gw(phba, BE2_IPV4, &gtway_addr_set);
 		if (rc) {
 			beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
 				    "BG_%d : Failed to Get Gateway Addr\n");
@@ -1165,8 +1212,8 @@ int mgmt_set_ip(struct beiscsi_hba *phba,
 
 		if (gtway_addr_set.ip_addr.addr[0]) {
 			gtway_addr = (uint8_t *)&gtway_addr_set.ip_addr.addr;
-			rc = mgmt_modify_gateway(phba, gtway_addr,
-						 IP_ACTION_DEL, IP_V4_LEN);
+			rc = beiscsi_if_mod_gw(phba, IP_ACTION_DEL,
+					       ip_type, gtway_addr);
 
 			if (rc) {
 				beiscsi_log(phba, KERN_WARNING,
@@ -1200,63 +1247,6 @@ int mgmt_set_ip(struct beiscsi_hba *phba,
 exit:
 	kfree(if_info);
 	return rc;
-}
-
-int mgmt_set_gateway(struct beiscsi_hba *phba,
-		     struct iscsi_iface_param_info *gateway_param)
-{
-	struct be_cmd_get_def_gateway_resp gtway_addr_set;
-	uint8_t *gtway_addr;
-	int rt_val;
-
-	memset(&gtway_addr_set, 0, sizeof(gtway_addr_set));
-	rt_val = mgmt_get_gateway(phba, BE2_IPV4, &gtway_addr_set);
-	if (rt_val) {
-		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
-			    "BG_%d : Failed to Get Gateway Addr\n");
-		return rt_val;
-	}
-
-	if (gtway_addr_set.ip_addr.addr[0]) {
-		gtway_addr = (uint8_t *)&gtway_addr_set.ip_addr.addr;
-		rt_val = mgmt_modify_gateway(phba, gtway_addr, IP_ACTION_DEL,
-					     gateway_param->len);
-		if (rt_val) {
-			beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
-				    "BG_%d : Failed to clear Gateway Addr Set\n");
-			return rt_val;
-		}
-	}
-
-	gtway_addr = (uint8_t *)&gateway_param->value;
-	rt_val = mgmt_modify_gateway(phba, gtway_addr, IP_ACTION_ADD,
-				     gateway_param->len);
-
-	if (rt_val)
-		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
-			    "BG_%d : Failed to Set Gateway Addr\n");
-
-	return rt_val;
-}
-
-int mgmt_get_gateway(struct beiscsi_hba *phba, int ip_type,
-		     struct be_cmd_get_def_gateway_resp *gateway)
-{
-	struct be_cmd_get_def_gateway_req *req;
-	struct be_dma_mem nonemb_cmd;
-	int rc;
-
-	rc = mgmt_alloc_cmd_data(phba, &nonemb_cmd,
-				 OPCODE_COMMON_ISCSI_NTWK_GET_DEFAULT_GATEWAY,
-				 sizeof(*gateway));
-	if (rc)
-		return rc;
-
-	req = nonemb_cmd.va;
-	req->ip_type = ip_type;
-
-	return mgmt_exec_nonemb_cmd(phba, &nonemb_cmd, gateway,
-				    sizeof(*gateway));
 }
 
 int mgmt_get_if_info(struct beiscsi_hba *phba, int ip_type,

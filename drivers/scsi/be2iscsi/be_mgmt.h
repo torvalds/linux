@@ -298,11 +298,10 @@ int mgmt_get_nic_conf(struct beiscsi_hba *phba,
 int mgmt_get_if_info(struct beiscsi_hba *phba, int ip_type,
 		     struct be_cmd_get_if_info_resp **if_info);
 
-int mgmt_get_gateway(struct beiscsi_hba *phba, int ip_type,
-		     struct be_cmd_get_def_gateway_resp *gateway);
+int beiscsi_if_get_gw(struct beiscsi_hba *phba, u32 ip_type,
+		      struct be_cmd_get_def_gateway_resp *resp);
 
-int mgmt_set_gateway(struct beiscsi_hba *phba,
-		     struct iscsi_iface_param_info *gateway_param);
+int beiscsi_if_set_gw(struct beiscsi_hba *phba, u32 ip_type, u8 *gw);
 
 int be_mgmt_get_boot_shandle(struct beiscsi_hba *phba,
 			      unsigned int *s_handle);
