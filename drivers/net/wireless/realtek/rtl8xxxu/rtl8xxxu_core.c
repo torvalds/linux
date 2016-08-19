@@ -3847,28 +3847,6 @@ void rtl8xxxu_gen2_disable_rf(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write32(priv, REG_RX_WAIT_CCA, val32);
 }
 
-static void rtl8xxxu_old_init_queue_reserved_page(struct rtl8xxxu_priv *priv)
-{
-	u8 val8;
-	u32 val32;
-
-	if (priv->ep_tx_normal_queue)
-		val8 = TX_PAGE_NUM_NORM_PQ;
-	else
-		val8 = 0;
-
-	rtl8xxxu_write8(priv, REG_RQPN_NPQ, val8);
-
-	val32 = (TX_PAGE_NUM_PUBQ << RQPN_PUB_PQ_SHIFT) | RQPN_LOAD;
-
-	if (priv->ep_tx_high_queue)
-		val32 |= (TX_PAGE_NUM_HI_PQ << RQPN_HI_PQ_SHIFT);
-	if (priv->ep_tx_low_queue)
-		val32 |= (TX_PAGE_NUM_LO_PQ << RQPN_LO_PQ_SHIFT);
-
-	rtl8xxxu_write32(priv, REG_RQPN, val32);
-}
-
 static void rtl8xxxu_init_queue_reserved_page(struct rtl8xxxu_priv *priv)
 {
 	struct rtl8xxxu_fileops *fops = priv->fops;
@@ -3929,12 +3907,8 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		goto exit;
 	}
 
-	if (!macpower) {
-		if (priv->fops->total_page_num)
-			rtl8xxxu_init_queue_reserved_page(priv);
-		else
-			rtl8xxxu_old_init_queue_reserved_page(priv);
-	}
+	if (!macpower)
+		rtl8xxxu_init_queue_reserved_page(priv);
 
 	ret = rtl8xxxu_init_queue_priority(priv);
 	dev_dbg(dev, "%s: init_queue_priority %i\n", __func__, ret);
