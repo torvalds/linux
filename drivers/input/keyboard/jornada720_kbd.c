@@ -65,10 +65,8 @@ static irqreturn_t jornada720_kbd_interrupt(int irq, void *dev_id)
 	jornada_ssp_start();
 
 	if (jornada_ssp_inout(GETSCANKEYCODE) != TXDUMMY) {
-		printk(KERN_DEBUG
-			"jornada720_kbd: "
-			"GetKeycode command failed with ETIMEDOUT, "
-			"flushed bus\n");
+		dev_dbg(&pdev->dev,
+			"GetKeycode command failed with ETIMEDOUT, flushed bus\n");
 	} else {
 		/* How many keycodes are waiting for us? */
 		count = jornada_ssp_byte(TXDUMMY);
