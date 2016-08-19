@@ -495,6 +495,14 @@ static void gic_cpu_sys_reg_init(void)
 	/* Set priority mask register */
 	gic_write_pmr(DEFAULT_PMR_VALUE);
 
+	/*
+	 * Some firmwares hand over to the kernel with the BPR changed from
+	 * its reset value (and with a value large enough to prevent
+	 * any pre-emptive interrupts from working at all). Writing a zero
+	 * to BPR restores is reset value.
+	 */
+	gic_write_bpr1(0);
+
 	if (static_key_true(&supports_deactivate)) {
 		/* EOI drops priority only (mode 1) */
 		gic_write_ctlr(ICC_CTLR_EL1_EOImode_drop);
