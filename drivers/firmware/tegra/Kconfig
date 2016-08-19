@@ -1,0 +1,13 @@
+menu "Tegra firmware driver"
+
+config TEGRA_IVC
+	bool "Tegra IVC protocol"
+	depends on ARCH_TEGRA
+	help
+	  IVC (Inter-VM Communication) protocol is part of the IPC
+	  (Inter Processor Communication) framework on Tegra. It maintains the
+	  data and the different commuication channels in SysRAM or RAM and
+	  keeps the content is synchronization between host CPU and remote
+	  processors.
+
+endmenu
