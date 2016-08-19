@@ -1705,7 +1705,6 @@ int i915_gem_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 	bool write = !!(vmf->flags & FAULT_FLAG_WRITE);
 	struct i915_vma *vma;
 	pgoff_t page_offset;
-	unsigned long pfn;
 	unsigned int flags;
 	int ret;
 
@@ -1790,48 +1789,13 @@ int i915_gem_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 		goto err_unpin;
 
 	/* Finally, remap it using the new GTT offset */
-	pfn = ggtt->mappable_base + i915_ggtt_offset(vma);
-	pfn >>= PAGE_SHIFT;
-
-	if (vma->ggtt_view.type == I915_GGTT_VIEW_NORMAL) {
-		if (!obj->fault_mappable) {
-			unsigned long size =
-				min_t(unsigned long,
-				      area->vm_end - area->vm_start,
-				      obj->base.size) >> PAGE_SHIFT;
-			unsigned long base = area->vm_start;
-			int i;
-
-			for (i = 0; i < size; i++) {
-				ret = vm_insert_pfn(area,
-						    base + i * PAGE_SIZE,
-						    pfn + i);
-				if (ret)
-					break;
-			}
-		} else
-			ret = vm_insert_pfn(area,
-					    (unsigned long)vmf->virtual_address,
-					    pfn + page_offset);
-	} else {
-		/* Overriding existing pages in partial view does not cause
-		 * us any trouble as TLBs are still valid because the fault
-		 * is due to userspace losing part of the mapping or never
-		 * having accessed it before (at this partials' range).
-		 */
-		const struct i915_ggtt_view *view = &vma->ggtt_view;
-		unsigned long base = area->vm_start +
-			(view->params.partial.offset << PAGE_SHIFT);
-		unsigned int i;
-
-		for (i = 0; i < view->params.partial.size; i++) {
-			ret = vm_insert_pfn(area,
-					    base + i * PAGE_SIZE,
-					    pfn + i);
-			if (ret)
-				break;
-		}
-	}
+	ret = remap_io_mapping(area,
+			       area->vm_start + (vma->ggtt_view.params.partial.offset << PAGE_SHIFT),
+			       (ggtt->mappable_base + vma->node.start) >> PAGE_SHIFT,
+			       min_t(u64, vma->size, area->vm_end - area->vm_start),
+			       &ggtt->mappable);
+	if (ret)
+		goto err_unpin;
 
 	obj->fault_mappable = true;
 err_unpin:
