@@ -1363,6 +1363,21 @@ static irqreturn_t irq_handler(int irq, void *data)
 			intr &= ~VIVS_HI_INTR_ACKNOWLEDGE_AXI_BUS_ERROR;
 		}
 
+		if (intr & VIVS_HI_INTR_ACKNOWLEDGE_MMU_EXCEPTION) {
+			int i;
+
+			dev_err_ratelimited(gpu->dev,
+				"MMU fault status 0x%08x\n",
+				gpu_read(gpu, VIVS_MMUv2_STATUS));
+			for (i = 0; i < 4; i++) {
+				dev_err_ratelimited(gpu->dev,
+					"MMU %d fault addr 0x%08x\n",
+					i, gpu_read(gpu,
+					VIVS_MMUv2_EXCEPTION_ADDR(i)));
+			}
+			intr &= ~VIVS_HI_INTR_ACKNOWLEDGE_MMU_EXCEPTION;
+		}
+
 		while ((event = ffs(intr)) != 0) {
 			struct fence *fence;
 
