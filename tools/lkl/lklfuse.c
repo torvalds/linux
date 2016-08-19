@@ -623,9 +623,9 @@ int main(int argc, char **argv)
 	}
 
 	if (mt)
-		ret = fuse_loop_mt(fuse);
-	else
-		ret = fuse_loop(fuse);
+		fprintf(stderr, "warning: multithreaded mode not supported\n");
+
+	ret = fuse_loop(fuse);
 
 	stop_lkl();
 
