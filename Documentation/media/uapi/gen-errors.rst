@@ -9,7 +9,7 @@ Generic Error Codes
 
 .. _gen-errors:
 
-.. tabularcolumns:: |p{1.0cm}|p{16.5cm}|
+.. tabularcolumns:: |p{2.5cm}|p{15.0cm}|
 
 .. flat-table:: Generic error codes
     :header-rows:  0
