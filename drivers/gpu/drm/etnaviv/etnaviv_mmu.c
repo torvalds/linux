@@ -103,41 +103,21 @@ static void etnaviv_iommu_remove_mapping(struct etnaviv_iommu *mmu,
 	drm_mm_remove_node(&mapping->vram_node);
 }
 
-int etnaviv_iommu_map_gem(struct etnaviv_iommu *mmu,
-	struct etnaviv_gem_object *etnaviv_obj, u32 memory_base,
-	struct etnaviv_vram_mapping *mapping)
+static int etnaviv_iommu_find_iova(struct etnaviv_iommu *mmu,
+				   struct drm_mm_node *node, size_t size)
 {
 	struct etnaviv_vram_mapping *free = NULL;
-	struct sg_table *sgt = etnaviv_obj->sgt;
-	struct drm_mm_node *node;
 	int ret;
 
-	lockdep_assert_held(&etnaviv_obj->lock);
+	lockdep_assert_held(&mmu->lock);
 
-	mutex_lock(&mmu->lock);
-
-	/* v1 MMU can optimize single entry (contiguous) scatterlists */
-	if (mmu->version == ETNAVIV_IOMMU_V1 &&
-	    sgt->nents == 1 && !(etnaviv_obj->flags & ETNA_BO_FORCE_MMU)) {
-		u32 iova;
-
-		iova = sg_dma_address(sgt->sgl) - memory_base;
-		if (iova < 0x80000000 - sg_dma_len(sgt->sgl)) {
-			mapping->iova = iova;
-			list_add_tail(&mapping->mmu_node, &mmu->mappings);
-			mutex_unlock(&mmu->lock);
-			return 0;
-		}
-	}
-
-	node = &mapping->vram_node;
 	while (1) {
 		struct etnaviv_vram_mapping *m, *n;
 		struct list_head list;
 		bool found;
 
 		ret = drm_mm_insert_node_in_range(&mmu->mm, node,
-			etnaviv_obj->base.size, 0, mmu->last_iova, ~0UL,
+			size, 0, mmu->last_iova, ~0UL,
 			DRM_MM_SEARCH_DEFAULT);
 
 		if (ret != -ENOSPC)
@@ -154,7 +134,7 @@ int etnaviv_iommu_map_gem(struct etnaviv_iommu *mmu,
 		}
 
 		/* Try to retire some entries */
-		drm_mm_init_scan(&mmu->mm, etnaviv_obj->base.size, 0, 0);
+		drm_mm_init_scan(&mmu->mm, size, 0, 0);
 
 		found = 0;
 		INIT_LIST_HEAD(&list);
@@ -215,6 +195,38 @@ int etnaviv_iommu_map_gem(struct etnaviv_iommu *mmu,
 		mmu->need_flush = true;
 	}
 
+	return ret;
+}
+
+int etnaviv_iommu_map_gem(struct etnaviv_iommu *mmu,
+	struct etnaviv_gem_object *etnaviv_obj, u32 memory_base,
+	struct etnaviv_vram_mapping *mapping)
+{
+	struct sg_table *sgt = etnaviv_obj->sgt;
+	struct drm_mm_node *node;
+	int ret;
+
+	lockdep_assert_held(&etnaviv_obj->lock);
+
+	mutex_lock(&mmu->lock);
+
+	/* v1 MMU can optimize single entry (contiguous) scatterlists */
+	if (mmu->version == ETNAVIV_IOMMU_V1 &&
+	    sgt->nents == 1 && !(etnaviv_obj->flags & ETNA_BO_FORCE_MMU)) {
+		u32 iova;
+
+		iova = sg_dma_address(sgt->sgl) - memory_base;
+		if (iova < 0x80000000 - sg_dma_len(sgt->sgl)) {
+			mapping->iova = iova;
+			list_add_tail(&mapping->mmu_node, &mmu->mappings);
+			mutex_unlock(&mmu->lock);
+			return 0;
+		}
+	}
+
+	node = &mapping->vram_node;
+
+	ret = etnaviv_iommu_find_iova(mmu, node, etnaviv_obj->base.size);
 	if (ret < 0) {
 		mutex_unlock(&mmu->lock);
 		return ret;
