@@ -713,9 +713,6 @@ static int gic_shared_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	unsigned long flags;
 	int i;
 
-	irq_set_chip_and_handler(virq, &gic_level_irq_controller,
-				 handle_level_irq);
-
 	spin_lock_irqsave(&gic_lock, flags);
 	gic_map_to_pin(intr, gic_cpu_pin);
 	gic_map_to_vpe(intr, mips_cm_vp_id(vpe));
@@ -732,6 +729,10 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int virq,
 {
 	if (GIC_HWIRQ_TO_LOCAL(hw) < GIC_NUM_LOCAL_INTRS)
 		return gic_local_irq_domain_map(d, virq, hw);
+
+	irq_set_chip_and_handler(virq, &gic_level_irq_controller,
+				 handle_level_irq);
+
 	return gic_shared_irq_domain_map(d, virq, hw, 0);
 }
 
@@ -771,10 +772,12 @@ static int gic_irq_domain_alloc(struct irq_domain *d, unsigned int virq,
 			hwirq = GIC_SHARED_TO_HWIRQ(base_hwirq + i);
 
 			ret = irq_domain_set_hwirq_and_chip(d, virq + i, hwirq,
-							    &gic_edge_irq_controller,
+							    &gic_level_irq_controller,
 							    NULL);
 			if (ret)
 				goto error;
+
+			irq_set_handler(virq + i, handle_level_irq);
 
 			ret = gic_shared_irq_domain_map(d, virq + i, hwirq, cpu);
 			if (ret)
