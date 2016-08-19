@@ -53,6 +53,8 @@
 #include "cxgb4_uld.h"
 
 #define CH_WARN(adap, fmt, ...) dev_warn(adap->pdev_dev, fmt, ## __VA_ARGS__)
+extern struct list_head adapter_list;
+extern struct mutex uld_mutex;
 
 enum {
 	MAX_NPORTS	= 4,     /* max # of ports */
@@ -338,6 +340,7 @@ struct adapter_params {
 	enum chip_type chip;               /* chip code */
 	struct arch_specific_params arch;  /* chip specific params */
 	unsigned char offload;
+	unsigned char crypto;		/* HW capability for crypto */
 
 	unsigned char bypass;
 
@@ -402,7 +405,6 @@ struct fw_info {
 	char *fw_mod_name;
 	struct fw_hdr fw_hdr;
 };
-
 
 struct trace_params {
 	u32 data[TRACE_LEN / 4];
@@ -508,6 +510,10 @@ enum {                                 /* adapter flags */
 	USING_SOFT_PARAMS  = (1 << 6),
 	MASTER_PF          = (1 << 7),
 	FW_OFLD_CONN       = (1 << 9),
+};
+
+enum {
+	ULP_CRYPTO_LOOKASIDE = 1 << 0,
 };
 
 struct rx_sw_desc;
@@ -680,6 +686,16 @@ struct sge_ctrl_txq {               /* state for an SGE control Tx queue */
 	u8 full;                    /* the Tx ring is full */
 } ____cacheline_aligned_in_smp;
 
+struct sge_uld_rxq_info {
+	char name[IFNAMSIZ];	/* name of ULD driver */
+	struct sge_ofld_rxq *uldrxq; /* Rxq's for ULD */
+	u16 *msix_tbl;		/* msix_tbl for uld */
+	u16 *rspq_id;		/* response queue id's of rxq */
+	u16 nrxq;		/* # of ingress uld queues */
+	u16 nciq;		/* # of completion queues */
+	u8 uld;			/* uld type */
+};
+
 struct sge {
 	struct sge_eth_txq ethtxq[MAX_ETH_QSETS];
 	struct sge_ofld_txq ofldtxq[MAX_OFLD_QSETS];
@@ -691,6 +707,7 @@ struct sge {
 	struct sge_ofld_rxq rdmarxq[MAX_RDMA_QUEUES];
 	struct sge_ofld_rxq rdmaciq[MAX_RDMA_CIQS];
 	struct sge_rspq fw_evtq ____cacheline_aligned_in_smp;
+	struct sge_uld_rxq_info **uld_rxq_info;
 
 	struct sge_rspq intrq ____cacheline_aligned_in_smp;
 	spinlock_t intrq_lock;
@@ -702,6 +719,7 @@ struct sge {
 	u16 niscsitq;               /* # of available iSCST Rx queues */
 	u16 rdmaqs;                 /* # of available RDMA Rx queues */
 	u16 rdmaciqs;               /* # of available RDMA concentrator IQs */
+	u16 nqs_per_uld;	    /* # of Rx queues per ULD */
 	u16 iscsi_rxq[MAX_OFLD_QSETS];
 	u16 iscsit_rxq[MAX_ISCSIT_QUEUES];
 	u16 rdma_rxq[MAX_RDMA_QUEUES];
@@ -757,6 +775,17 @@ struct hash_mac_addr {
 	u8 addr[ETH_ALEN];
 };
 
+struct uld_msix_bmap {
+	unsigned long *msix_bmap;
+	unsigned int mapsize;
+	spinlock_t lock; /* lock for acquiring bitmap */
+};
+
+struct uld_msix_info {
+	unsigned short vec;
+	char desc[IFNAMSIZ + 10];
+};
+
 struct adapter {
 	void __iomem *regs;
 	void __iomem *bar2;
@@ -779,6 +808,9 @@ struct adapter {
 		unsigned short vec;
 		char desc[IFNAMSIZ + 10];
 	} msix_info[MAX_INGQ + 1];
+	struct uld_msix_info *msix_info_ulds; /* msix info for uld's */
+	struct uld_msix_bmap msix_bmap_ulds; /* msix bitmap for all uld */
+	unsigned int msi_idx;
 
 	struct doorbell_stats db_stats;
 	struct sge sge;
@@ -793,7 +825,9 @@ struct adapter {
 	unsigned int clipt_start;
 	unsigned int clipt_end;
 	struct clip_tbl *clipt;
+	struct cxgb4_pci_uld_info *uld;
 	void *uld_handle[CXGB4_ULD_MAX];
+	unsigned int num_uld;
 	struct list_head list_node;
 	struct list_head rcu_node;
 	struct list_head mac_hlist; /* list of MAC addresses in MPS Hash */
@@ -950,6 +984,11 @@ enum {
 static inline int is_offload(const struct adapter *adap)
 {
 	return adap->params.offload;
+}
+
+static inline int is_pci_uld(const struct adapter *adap)
+{
+	return adap->params.crypto;
 }
 
 static inline u32 t4_read_reg(struct adapter *adap, u32 reg_addr)
@@ -1185,8 +1224,6 @@ int t4_sge_init(struct adapter *adap);
 void t4_sge_start(struct adapter *adap);
 void t4_sge_stop(struct adapter *adap);
 int cxgb_busy_poll(struct napi_struct *napi);
-int cxgb4_set_rspq_intr_params(struct sge_rspq *q, unsigned int us,
-			       unsigned int cnt);
 void cxgb4_set_ethtool_ops(struct net_device *netdev);
 int cxgb4_write_rss(const struct port_info *pi, const u16 *queues);
 extern int dbfifo_int_thresh;
@@ -1287,6 +1324,18 @@ static inline int hash_mac_addr(const u8 *addr)
 	a ^= (a >> 12);
 	a ^= (a >> 6);
 	return a & 0x3f;
+}
+
+int cxgb4_set_rspq_intr_params(struct sge_rspq *q, unsigned int us,
+			       unsigned int cnt);
+static inline void init_rspq(struct adapter *adap, struct sge_rspq *q,
+			     unsigned int us, unsigned int cnt,
+			     unsigned int size, unsigned int iqe_size)
+{
+	q->adap = adap;
+	cxgb4_set_rspq_intr_params(q, us, cnt);
+	q->iqe_len = iqe_size;
+	q->size = size;
 }
 
 void t4_write_indirect(struct adapter *adap, unsigned int addr_reg,
@@ -1523,5 +1572,7 @@ void t4_idma_monitor(struct adapter *adapter,
 		     int hz, int ticks);
 int t4_set_vf_mac_acl(struct adapter *adapter, unsigned int vf,
 		      unsigned int naddr, u8 *addr);
-
+void uld_mem_free(struct adapter *adap);
+int uld_mem_alloc(struct adapter *adap);
+void free_rspq_fl(struct adapter *adap, struct sge_rspq *rq, struct sge_fl *fl);
 #endif /* __CXGB4_H__ */
