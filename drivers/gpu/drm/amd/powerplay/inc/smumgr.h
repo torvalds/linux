@@ -72,6 +72,7 @@ enum SMU_MEMBER {
 	AverageGraphicsActivity,
 	PreVBlankGap,
 	VBlankTimeout,
+	UcodeLoadStatus,
 	UvdBootLevel,
 	VceBootLevel,
 	SamuBootLevel,
