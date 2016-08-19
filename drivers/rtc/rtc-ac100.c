@@ -327,6 +327,8 @@ static int ac100_rtc_register_clks(struct ac100_rtc_dev *chip)
 			.flags = 0,
 		};
 
+		of_property_read_string_index(np, "clock-output-names",
+					      i, &init.name);
 		clk->regmap = chip->regmap;
 		clk->offset = AC100_CLKOUT_CTRL1 + i;
 		clk->hw.init = &init;
