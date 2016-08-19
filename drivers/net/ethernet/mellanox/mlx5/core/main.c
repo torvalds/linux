@@ -1420,34 +1420,10 @@ static pci_ers_result_t mlx5_pci_err_detected(struct pci_dev *pdev,
 	dev_info(&pdev->dev, "%s was called\n", __func__);
 	mlx5_enter_error_state(dev);
 	mlx5_unload_one(dev, priv);
+	pci_save_state(pdev);
 	mlx5_pci_disable_device(dev);
 	return state == pci_channel_io_perm_failure ?
 		PCI_ERS_RESULT_DISCONNECT : PCI_ERS_RESULT_NEED_RESET;
-}
-
-static pci_ers_result_t mlx5_pci_slot_reset(struct pci_dev *pdev)
-{
-	struct mlx5_core_dev *dev = pci_get_drvdata(pdev);
-	int err = 0;
-
-	dev_info(&pdev->dev, "%s was called\n", __func__);
-
-	err = mlx5_pci_enable_device(dev);
-	if (err) {
-		dev_err(&pdev->dev, "%s: mlx5_pci_enable_device failed with error code: %d\n"
-			, __func__, err);
-		return PCI_ERS_RESULT_DISCONNECT;
-	}
-	pci_set_master(pdev);
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-
-	return err ? PCI_ERS_RESULT_DISCONNECT : PCI_ERS_RESULT_RECOVERED;
-}
-
-void mlx5_disable_device(struct mlx5_core_dev *dev)
-{
-	mlx5_pci_err_detected(dev->pdev, 0);
 }
 
 /* wait for the device to show vital signs by waiting
@@ -1477,6 +1453,36 @@ static int wait_vital(struct pci_dev *pdev)
 	return -ETIMEDOUT;
 }
 
+static pci_ers_result_t mlx5_pci_slot_reset(struct pci_dev *pdev)
+{
+	struct mlx5_core_dev *dev = pci_get_drvdata(pdev);
+	int err;
+
+	dev_info(&pdev->dev, "%s was called\n", __func__);
+
+	err = mlx5_pci_enable_device(dev);
+	if (err) {
+		dev_err(&pdev->dev, "%s: mlx5_pci_enable_device failed with error code: %d\n"
+			, __func__, err);
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	pci_set_master(pdev);
+	pci_restore_state(pdev);
+
+	if (wait_vital(pdev)) {
+		dev_err(&pdev->dev, "%s: wait_vital timed out\n", __func__);
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	return PCI_ERS_RESULT_RECOVERED;
+}
+
+void mlx5_disable_device(struct mlx5_core_dev *dev)
+{
+	mlx5_pci_err_detected(dev->pdev, 0);
+}
+
 static void mlx5_pci_resume(struct pci_dev *pdev)
 {
 	struct mlx5_core_dev *dev = pci_get_drvdata(pdev);
@@ -1484,13 +1490,6 @@ static void mlx5_pci_resume(struct pci_dev *pdev)
 	int err;
 
 	dev_info(&pdev->dev, "%s was called\n", __func__);
-
-	pci_save_state(pdev);
-	err = wait_vital(pdev);
-	if (err) {
-		dev_err(&pdev->dev, "%s: wait_vital timed out\n", __func__);
-		return;
-	}
 
 	err = mlx5_load_one(dev, priv);
 	if (err)

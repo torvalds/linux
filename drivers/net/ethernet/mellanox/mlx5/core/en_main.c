@@ -1826,10 +1826,6 @@ int mlx5e_open_locked(struct net_device *netdev)
 	netif_set_real_num_tx_queues(netdev, num_txqs);
 	netif_set_real_num_rx_queues(netdev, priv->params.num_channels);
 
-	err = mlx5e_set_dev_port_mtu(netdev);
-	if (err)
-		goto err_clear_state_opened_flag;
-
 	err = mlx5e_open_channels(priv);
 	if (err) {
 		netdev_err(netdev, "%s: mlx5e_open_channels failed, %d\n",
@@ -2573,6 +2569,7 @@ static int mlx5e_change_mtu(struct net_device *netdev, int new_mtu)
 	u16 max_mtu;
 	u16 min_mtu;
 	int err = 0;
+	bool reset;
 
 	mlx5_query_port_max_mtu(mdev, &max_mtu, 1);
 
@@ -2588,13 +2585,18 @@ static int mlx5e_change_mtu(struct net_device *netdev, int new_mtu)
 
 	mutex_lock(&priv->state_lock);
 
+	reset = !priv->params.lro_en &&
+		(priv->params.rq_wq_type !=
+		 MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ);
+
 	was_opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
-	if (was_opened)
+	if (was_opened && reset)
 		mlx5e_close_locked(netdev);
 
 	netdev->mtu = new_mtu;
+	mlx5e_set_dev_port_mtu(netdev);
 
-	if (was_opened)
+	if (was_opened && reset)
 		err = mlx5e_open_locked(netdev);
 
 	mutex_unlock(&priv->state_lock);
@@ -3385,6 +3387,7 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 	queue_work(priv->wq, &priv->set_rx_mode_work);
 
 	if (MLX5_CAP_GEN(mdev, vport_group_manager)) {
+		mlx5_query_nic_vport_mac_address(mdev, 0, rep.hw_id);
 		rep.load = mlx5e_nic_rep_load;
 		rep.unload = mlx5e_nic_rep_unload;
 		rep.vport = 0;
@@ -3463,6 +3466,8 @@ void *mlx5e_create_netdev(struct mlx5_core_dev *mdev,
 
 	mlx5e_init_l2_addr(priv);
 
+	mlx5e_set_dev_port_mtu(netdev);
+
 	err = register_netdev(netdev);
 	if (err) {
 		mlx5_core_err(mdev, "register_netdev failed, %d\n", err);
@@ -3501,9 +3506,12 @@ static void mlx5e_register_vport_rep(struct mlx5_core_dev *mdev)
 	struct mlx5_eswitch *esw = mdev->priv.eswitch;
 	int total_vfs = MLX5_TOTAL_VPORTS(mdev);
 	int vport;
+	u8 mac[ETH_ALEN];
 
 	if (!MLX5_CAP_GEN(mdev, vport_group_manager))
 		return;
+
+	mlx5_query_nic_vport_mac_address(mdev, 0, mac);
 
 	for (vport = 1; vport < total_vfs; vport++) {
 		struct mlx5_eswitch_rep rep;
@@ -3511,6 +3519,7 @@ static void mlx5e_register_vport_rep(struct mlx5_core_dev *mdev)
 		rep.load = mlx5e_vport_rep_load;
 		rep.unload = mlx5e_vport_rep_unload;
 		rep.vport = vport;
+		ether_addr_copy(rep.hw_id, mac);
 		mlx5_eswitch_register_vport_rep(esw, &rep);
 	}
 }
