@@ -26,16 +26,7 @@
 
 #include "smu72_discrete.h"
 
-#define SMC_RAM_END		0x40000
-
-struct tonga_buffer_entry {
-	uint32_t data_size;
-	uint32_t mc_addr_low;
-	uint32_t mc_addr_high;
-	void *kaddr;
-	unsigned long  handle;
-};
-
+#include "smu7_smumgr.h"
 
 struct tonga_mc_reg_entry {
 	uint32_t mclk_max;
@@ -52,19 +43,8 @@ struct tonga_mc_reg_table {
 
 
 struct tonga_smumgr {
-	uint8_t *pHeader;
-	uint8_t *pMecImage;
 
-
-	uint32_t soft_regs_start;
-	uint32_t dpm_table_start;
-	uint32_t mc_reg_table_start;
-	uint32_t fan_table_start;
-	uint32_t arb_table_start;
-
-	struct tonga_buffer_entry header_buffer;
-	struct tonga_buffer_entry smu_buffer;
-
+	struct smu7_smumgr                   smu7_data;
 	struct SMU72_Discrete_DpmTable       smc_state_table;
 	struct SMU72_Discrete_Ulv            ulv_setting;
 	struct SMU72_Discrete_PmFuses  power_tune_table;
@@ -75,14 +55,5 @@ struct tonga_smumgr {
 	uint32_t        activity_target[SMU72_MAX_LEVELS_GRAPHICS];
 
 };
-
-extern int tonga_smum_init(struct pp_smumgr *smumgr);
-extern int tonga_copy_bytes_to_smc(struct pp_smumgr *smumgr,
-		uint32_t smcStartAddress, const uint8_t *src,
-		uint32_t byteCount, uint32_t limit);
-extern int tonga_read_smc_sram_dword(struct pp_smumgr *smumgr, uint32_t smcAddress,
-		uint32_t *value, uint32_t limit);
-extern int tonga_write_smc_sram_dword(struct pp_smumgr *smumgr, uint32_t smcAddress,
-		uint32_t value, uint32_t limit);
 
 #endif
