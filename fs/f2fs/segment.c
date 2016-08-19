@@ -2262,22 +2262,11 @@ static void build_sit_entries(struct f2fs_sb_info *sbi)
 			struct f2fs_sit_entry sit;
 			struct page *page;
 
-			down_read(&curseg->journal_rwsem);
-			for (i = 0; i < sits_in_cursum(journal); i++) {
-				if (le32_to_cpu(segno_in_journal(journal, i))
-								== start) {
-					sit = sit_in_journal(journal, i);
-					up_read(&curseg->journal_rwsem);
-					goto got_it;
-				}
-			}
-			up_read(&curseg->journal_rwsem);
-
 			page = get_current_sit_page(sbi, start);
 			sit_blk = (struct f2fs_sit_block *)page_address(page);
 			sit = sit_blk->entries[SIT_ENTRY_OFFSET(sit_i, start)];
 			f2fs_put_page(page, 1);
-got_it:
+
 			check_block_count(sbi, start, &sit);
 			seg_info_from_raw_sit(se, &sit);
 
@@ -2289,13 +2278,40 @@ got_it:
 							se->valid_blocks;
 			}
 
-			if (sbi->segs_per_sec > 1) {
-				struct sec_entry *e = get_sec_entry(sbi, start);
-				e->valid_blocks += se->valid_blocks;
-			}
+			if (sbi->segs_per_sec > 1)
+				get_sec_entry(sbi, start)->valid_blocks +=
+							se->valid_blocks;
 		}
 		start_blk += readed;
 	} while (start_blk < sit_blk_cnt);
+
+	down_read(&curseg->journal_rwsem);
+	for (i = 0; i < sits_in_cursum(journal); i++) {
+		struct f2fs_sit_entry sit;
+		struct seg_entry *se;
+		unsigned int old_valid_blocks;
+
+		start = le32_to_cpu(segno_in_journal(journal, i));
+		se = &sit_i->sentries[start];
+		sit = sit_in_journal(journal, i);
+
+		old_valid_blocks = se->valid_blocks;
+
+		check_block_count(sbi, start, &sit);
+		seg_info_from_raw_sit(se, &sit);
+
+		if (f2fs_discard_en(sbi)) {
+			memcpy(se->discard_map, se->cur_valid_map,
+						SIT_VBLOCK_MAP_SIZE);
+			sbi->discard_blks += old_valid_blocks -
+						se->valid_blocks;
+		}
+
+		if (sbi->segs_per_sec > 1)
+			get_sec_entry(sbi, start)->valid_blocks +=
+				se->valid_blocks - old_valid_blocks;
+	}
+	up_read(&curseg->journal_rwsem);
 }
 
 static void init_free_segmap(struct f2fs_sb_info *sbi)
