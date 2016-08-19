@@ -66,12 +66,17 @@
 #define ATLAS_REG_TDS_DATA		0x1c
 #define ATLAS_REG_PSS_DATA		0x20
 
+#define ATLAS_REG_ORP_CALIB_STATUS	0x0d
+#define ATLAS_REG_ORP_DATA		0x0e
+
 #define ATLAS_PH_INT_TIME_IN_US		450000
 #define ATLAS_EC_INT_TIME_IN_US		650000
+#define ATLAS_ORP_INT_TIME_IN_US	450000
 
 enum {
 	ATLAS_PH_SM,
 	ATLAS_EC_SM,
+	ATLAS_ORP_SM,
 };
 
 struct atlas_data {
@@ -159,6 +164,23 @@ static const struct iio_chan_spec atlas_ec_channels[] = {
 	},
 };
 
+static const struct iio_chan_spec atlas_orp_channels[] = {
+	{
+		.type = IIO_VOLTAGE,
+		.address = ATLAS_REG_ORP_DATA,
+		.info_mask_separate =
+			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+		.scan_index = 0,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 32,
+			.storagebits = 32,
+			.endianness = IIO_BE,
+		},
+	},
+	IIO_CHAN_SOFT_TIMESTAMP(1),
+};
+
 static int atlas_check_ph_calibration(struct atlas_data *data)
 {
 	struct device *dev = &data->client->dev;
@@ -224,6 +246,22 @@ static int atlas_check_ec_calibration(struct atlas_data *data)
 	return 0;
 }
 
+static int atlas_check_orp_calibration(struct atlas_data *data)
+{
+	struct device *dev = &data->client->dev;
+	int ret;
+	unsigned int val;
+
+	ret = regmap_read(data->regmap, ATLAS_REG_ORP_CALIB_STATUS, &val);
+	if (ret)
+		return ret;
+
+	if (!val)
+		dev_warn(dev, "device has not been calibrated\n");
+
+	return 0;
+};
+
 struct atlas_device {
 	const struct iio_chan_spec *channels;
 	int num_channels;
@@ -248,7 +286,13 @@ static struct atlas_device atlas_devices[] = {
 				.calibration = &atlas_check_ec_calibration,
 				.delay = ATLAS_EC_INT_TIME_IN_US,
 	},
-
+	[ATLAS_ORP_SM] = {
+				.channels = atlas_orp_channels,
+				.num_channels = 2,
+				.data_reg = ATLAS_REG_ORP_DATA,
+				.calibration = &atlas_check_orp_calibration,
+				.delay = ATLAS_ORP_INT_TIME_IN_US,
+	},
 };
 
 static int atlas_set_powermode(struct atlas_data *data, int on)
@@ -386,6 +430,7 @@ static int atlas_read_raw(struct iio_dev *indio_dev,
 		case IIO_PH:
 		case IIO_CONCENTRATION:
 		case IIO_ELECTRICALCONDUCTIVITY:
+		case IIO_VOLTAGE:
 			ret = iio_device_claim_direct_mode(indio_dev);
 			if (ret)
 				return ret;
@@ -422,6 +467,10 @@ static int atlas_read_raw(struct iio_dev *indio_dev,
 			*val = 0; /* 0.000000001 */
 			*val2 = 1000;
 			return IIO_VAL_INT_PLUS_NANO;
+		case IIO_VOLTAGE:
+			*val = 1; /* 0.1 */
+			*val2 = 10;
+			break;
 		default:
 			return -EINVAL;
 		}
@@ -457,6 +506,7 @@ static const struct iio_info atlas_info = {
 static const struct i2c_device_id atlas_id[] = {
 	{ "atlas-ph-sm", ATLAS_PH_SM},
 	{ "atlas-ec-sm", ATLAS_EC_SM},
+	{ "atlas-orp-sm", ATLAS_ORP_SM},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, atlas_id);
@@ -464,6 +514,7 @@ MODULE_DEVICE_TABLE(i2c, atlas_id);
 static const struct of_device_id atlas_dt_ids[] = {
 	{ .compatible = "atlas,ph-sm", .data = (void *)ATLAS_PH_SM, },
 	{ .compatible = "atlas,ec-sm", .data = (void *)ATLAS_EC_SM, },
+	{ .compatible = "atlas,orp-sm", .data = (void *)ATLAS_ORP_SM, },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, atlas_dt_ids);
