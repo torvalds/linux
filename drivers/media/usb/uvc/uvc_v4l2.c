@@ -70,14 +70,9 @@ static int uvc_ioctl_ctrl_map(struct uvc_video_chain *chain,
 		}
 
 		size = xmap->menu_count * sizeof(*map->menu_info);
-		map->menu_info = kmalloc(size, GFP_KERNEL);
-		if (map->menu_info == NULL) {
-			ret = -ENOMEM;
-			goto done;
-		}
-
-		if (copy_from_user(map->menu_info, xmap->menu_info, size)) {
-			ret = -EFAULT;
+		map->menu_info = memdup_user(xmap->menu_info, size);
+		if (IS_ERR(map->menu_info)) {
+			ret = PTR_ERR(map->menu_info);
 			goto done;
 		}
 
