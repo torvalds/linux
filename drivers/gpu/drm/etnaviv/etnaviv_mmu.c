@@ -313,7 +313,7 @@ void etnaviv_iommu_restore(struct etnaviv_gpu *gpu)
 	if (gpu->mmu->version == ETNAVIV_IOMMU_V1)
 		etnaviv_iommuv1_restore(gpu);
 	else
-		dev_err(gpu->dev, "IOMMUv2 restore not implemented\n");
+		etnaviv_iommuv2_restore(gpu);
 }
 
 u32 etnaviv_iommu_get_cmdbuf_va(struct etnaviv_gpu *gpu,
