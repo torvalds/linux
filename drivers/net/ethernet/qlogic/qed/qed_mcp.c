@@ -713,6 +713,48 @@ int qed_mcp_set_link(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, bool b_up)
 	return 0;
 }
 
+static void qed_mcp_send_protocol_stats(struct qed_hwfn *p_hwfn,
+					struct qed_ptt *p_ptt,
+					enum MFW_DRV_MSG_TYPE type)
+{
+	enum qed_mcp_protocol_type stats_type;
+	union qed_mcp_protocol_stats stats;
+	struct qed_mcp_mb_params mb_params;
+	union drv_union_data union_data;
+	u32 hsi_param;
+
+	switch (type) {
+	case MFW_DRV_MSG_GET_LAN_STATS:
+		stats_type = QED_MCP_LAN_STATS;
+		hsi_param = DRV_MSG_CODE_STATS_TYPE_LAN;
+		break;
+	case MFW_DRV_MSG_GET_FCOE_STATS:
+		stats_type = QED_MCP_FCOE_STATS;
+		hsi_param = DRV_MSG_CODE_STATS_TYPE_FCOE;
+		break;
+	case MFW_DRV_MSG_GET_ISCSI_STATS:
+		stats_type = QED_MCP_ISCSI_STATS;
+		hsi_param = DRV_MSG_CODE_STATS_TYPE_ISCSI;
+		break;
+	case MFW_DRV_MSG_GET_RDMA_STATS:
+		stats_type = QED_MCP_RDMA_STATS;
+		hsi_param = DRV_MSG_CODE_STATS_TYPE_RDMA;
+		break;
+	default:
+		DP_NOTICE(p_hwfn, "Invalid protocol type %d\n", type);
+		return;
+	}
+
+	qed_get_protocol_stats(p_hwfn->cdev, stats_type, &stats);
+
+	memset(&mb_params, 0, sizeof(mb_params));
+	mb_params.cmd = DRV_MSG_CODE_GET_STATS;
+	mb_params.param = hsi_param;
+	memcpy(&union_data, &stats, sizeof(stats));
+	mb_params.p_data_src = &union_data;
+	qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
+}
+
 static void qed_read_pf_bandwidth(struct qed_hwfn *p_hwfn,
 				  struct public_func *p_shmem_info)
 {
@@ -853,6 +895,12 @@ int qed_mcp_handle_events(struct qed_hwfn *p_hwfn,
 			break;
 		case MFW_DRV_MSG_TRANSCEIVER_STATE_CHANGE:
 			qed_mcp_handle_transceiver_change(p_hwfn, p_ptt);
+			break;
+		case MFW_DRV_MSG_GET_LAN_STATS:
+		case MFW_DRV_MSG_GET_FCOE_STATS:
+		case MFW_DRV_MSG_GET_ISCSI_STATS:
+		case MFW_DRV_MSG_GET_RDMA_STATS:
+			qed_mcp_send_protocol_stats(p_hwfn, p_ptt, i);
 			break;
 		case MFW_DRV_MSG_BW_UPDATE:
 			qed_mcp_update_bw(p_hwfn, p_ptt);

@@ -213,6 +213,8 @@ qed_sp_eth_rx_queues_update(struct qed_hwfn *p_hwfn,
 			    enum spq_mode comp_mode,
 			    struct qed_spq_comp_cb *p_comp_data);
 
+void qed_get_vport_stats(struct qed_dev *cdev, struct qed_eth_stats *stats);
+
 int qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
 			   struct qed_sp_vport_start_params *p_params);
 

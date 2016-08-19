@@ -42,6 +42,8 @@ enum qed_coalescing_mode {
 
 struct qed_eth_cb_ops;
 struct qed_dev_info;
+union qed_mcp_protocol_stats;
+enum qed_mcp_protocol_type;
 
 /* helpers */
 static inline u32 qed_db_addr(u32 cid, u32 DEMS)
@@ -597,7 +599,9 @@ void qed_link_update(struct qed_hwfn *hwfn);
 u32 qed_unzip_data(struct qed_hwfn *p_hwfn,
 		   u32 input_len, u8 *input_buf,
 		   u32 max_size, u8 *unzip_buf);
-
+void qed_get_protocol_stats(struct qed_dev *cdev,
+			    enum qed_mcp_protocol_type type,
+			    union qed_mcp_protocol_stats *stats);
 int qed_slowpath_irq_req(struct qed_hwfn *hwfn);
 
 #endif /* _QED_H */

@@ -106,6 +106,47 @@ struct qed_mcp_drv_version {
 	u8	name[MCP_DRV_VER_STR_SIZE - 4];
 };
 
+struct qed_mcp_lan_stats {
+	u64 ucast_rx_pkts;
+	u64 ucast_tx_pkts;
+	u32 fcs_err;
+};
+
+struct qed_mcp_fcoe_stats {
+	u64 rx_pkts;
+	u64 tx_pkts;
+	u32 fcs_err;
+	u32 login_failure;
+};
+
+struct qed_mcp_iscsi_stats {
+	u64 rx_pdus;
+	u64 tx_pdus;
+	u64 rx_bytes;
+	u64 tx_bytes;
+};
+
+struct qed_mcp_rdma_stats {
+	u64 rx_pkts;
+	u64 tx_pkts;
+	u64 rx_bytes;
+	u64 tx_byts;
+};
+
+enum qed_mcp_protocol_type {
+	QED_MCP_LAN_STATS,
+	QED_MCP_FCOE_STATS,
+	QED_MCP_ISCSI_STATS,
+	QED_MCP_RDMA_STATS
+};
+
+union qed_mcp_protocol_stats {
+	struct qed_mcp_lan_stats lan_stats;
+	struct qed_mcp_fcoe_stats fcoe_stats;
+	struct qed_mcp_iscsi_stats iscsi_stats;
+	struct qed_mcp_rdma_stats rdma_stats;
+};
+
 /**
  * @brief - returns the link params of the hw function
  *
