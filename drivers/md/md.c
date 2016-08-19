@@ -1604,11 +1604,8 @@ static int super_1_validate(struct mddev *mddev, struct md_rdev *rdev)
 			mddev->new_chunk_sectors = mddev->chunk_sectors;
 		}
 
-		if (le32_to_cpu(sb->feature_map) & MD_FEATURE_JOURNAL) {
+		if (le32_to_cpu(sb->feature_map) & MD_FEATURE_JOURNAL)
 			set_bit(MD_HAS_JOURNAL, &mddev->flags);
-			if (mddev->recovery_cp == MaxSector)
-				set_bit(MD_JOURNAL_CLEAN, &mddev->flags);
-		}
 	} else if (mddev->pers == NULL) {
 		/* Insist of good event counter while assembling, except for
 		 * spares (which don't need an event count) */
