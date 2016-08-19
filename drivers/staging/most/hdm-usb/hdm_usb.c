@@ -418,6 +418,7 @@ static void hdm_write_completion(struct urb *urb)
 		case -EPIPE:
 			dev_warn(dev, "Broken OUT pipe detected\n");
 			most_stop_enqueue(&mdev->iface, channel);
+			mdev->is_channel_healthy[channel] = false;
 			mbo->status = MBO_E_INVAL;
 			mdev->clear_work[channel].pipe = urb->pipe;
 			schedule_work(&mdev->clear_work[channel].ws);
@@ -582,6 +583,7 @@ static void hdm_read_completion(struct urb *urb)
 		case -EPIPE:
 			dev_warn(dev, "Broken IN pipe detected\n");
 			most_stop_enqueue(&mdev->iface, channel);
+			mdev->is_channel_healthy[channel] = false;
 			mbo->status = MBO_E_INVAL;
 			mdev->clear_work[channel].pipe = urb->pipe;
 			schedule_work(&mdev->clear_work[channel].ws);
@@ -938,6 +940,7 @@ static void wq_clear_halt(struct work_struct *wq_obj)
 	if (usb_clear_halt(mdev->usb_device, pipe))
 		dev_warn(&mdev->usb_device->dev, "Failed to reset endpoint.\n");
 
+	mdev->is_channel_healthy[channel] = true;
 	most_resume_enqueue(&mdev->iface, channel);
 	mutex_unlock(&mdev->io_mutex);
 }
