@@ -2,20 +2,19 @@
 #define TEST_FAILURE 0
 #define MAX_MSG_LEN 60
 
-
 static int g_test_pass = 0;
-#define TEST(name) {				\
-	int ret = do_test(#name, test_##name);	\
-	if (!ret) g_test_pass = -1;		\
-	}
-
-static int do_test(char *name, int (*fn)(char *, int))
-{
-	char str[MAX_MSG_LEN];
-	int result;
-
-	result = fn(str, sizeof(str));
-	printf("%-20s %s [%s]\n", name,
-		result == TEST_SUCCESS ? "passed" : "failed", str);
-	return result;
+#define TEST(name, ...)						\
+{								\
+	char str[MAX_MSG_LEN];					\
+	int (*fn)(char *str, int len, ...);			\
+	int ret;						\
+								\
+	fn = (int (*)(char *str, int len, ...))test_##name;	\
+	ret = fn(str, sizeof(str), ##__VA_ARGS__);		\
+	if (!ret)						\
+		g_test_pass = -1;				\
+								\
+	printf("%-20s %s [%s]\n", #name,			\
+	       ret == TEST_SUCCESS ? "passed" : "failed", str);	\
 }
+

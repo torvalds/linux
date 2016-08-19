@@ -137,6 +137,17 @@ long lkl_mount_dev(unsigned int disk_id, const char *fs_type, int flags,
 long lkl_umount_dev(unsigned int disk_id, int flags, long timeout_ms);
 
 /**
+ * lkl_umount_timeout - umount filesystem with timeout
+ *
+ * @path - the path to unmount
+ * @flags - umount flags
+ * @timeout_ms - timeout to wait for the kernel to flush closed files so that
+ * umount can succeed
+ * @returns - 0 on success, a negative value on error
+ */
+long lkl_umount_timeout(char *path, int flags, long timeout_ms);
+
+/**
  * lkl_opendir - open a directory
  *
  * @path - directory path

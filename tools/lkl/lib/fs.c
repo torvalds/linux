@@ -130,15 +130,30 @@ long lkl_mount_dev(unsigned int disk_id, const char *fs_type, int flags,
 	return 0;
 }
 
-long lkl_umount_dev(unsigned int disk_id, int flags, long timeout_ms)
+long lkl_umount_timeout(char *path, int flags, long timeout_ms)
 {
-	char dev_str[] = { "/dev/xxxxxxxx" };
-	char mnt_str[] = { "/mnt/xxxxxxxx" };
 	long incr = 10000000; /* 10 ms */
 	struct lkl_timespec ts = {
 		.tv_sec = 0,
 		.tv_nsec = incr,
 	};
+	long err;
+
+	do {
+		err = lkl_sys_umount(path, flags);
+		if (err == -LKL_EBUSY) {
+			lkl_sys_nanosleep(&ts, NULL);
+			timeout_ms -= incr / 1000000;
+		}
+	} while (err == -LKL_EBUSY && timeout_ms > 0);
+
+	return err;
+}
+
+long lkl_umount_dev(unsigned int disk_id, int flags, long timeout_ms)
+{
+	char dev_str[] = { "/dev/xxxxxxxx" };
+	char mnt_str[] = { "/mnt/xxxxxxxx" };
 	unsigned int dev;
 	int err;
 
@@ -147,14 +162,7 @@ long lkl_umount_dev(unsigned int disk_id, int flags, long timeout_ms)
 	snprintf(dev_str, sizeof(dev_str), "/dev/%08x", dev);
 	snprintf(mnt_str, sizeof(mnt_str), "/mnt/%08x", dev);
 
-	do {
-		err = lkl_sys_umount(mnt_str, flags);
-		if (err == -LKL_EBUSY) {
-			lkl_sys_nanosleep(&ts, NULL);
-			timeout_ms -= incr / 1000000;
-		}
-	} while (err == -LKL_EBUSY && timeout_ms > 0);
-
+	err = lkl_umount_timeout(mnt_str, flags, timeout_ms);
 	if (err)
 		return err;
 

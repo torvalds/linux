@@ -485,7 +485,7 @@ static int test_epoll(char *str, int len)
 
 static char mnt_point[32];
 
-static int test_mount(char *str, int len)
+static int test_mount_dev(char *str, int len)
 {
 	long ret;
 
@@ -500,11 +500,11 @@ static int test_mount(char *str, int len)
 	return TEST_FAILURE;
 }
 
-static int test_chdir(char *str, int len)
+static int test_chdir(char *str, int len, const char *path)
 {
 	long ret;
 
-	ret = lkl_sys_chdir(mnt_point);
+	ret = lkl_sys_chdir(path);
 
 	snprintf(str, len, "%ld", ret);
 
@@ -556,7 +556,7 @@ static int test_getdents64(char *str, int len)
 	return TEST_SUCCESS;
 }
 
-static int test_umount(char *str, int len)
+static int test_umount_dev(char *str, int len)
 {
 	long ret, ret2, ret3;
 
@@ -567,6 +567,36 @@ static int test_umount(char *str, int len)
 	ret3 = lkl_umount_dev(disk_id, 0, 1000);
 
 	snprintf(str, len, "%ld %ld %ld", ret, ret2, ret3);
+
+	if (!ret && !ret2 && !ret3)
+		return TEST_SUCCESS;
+
+	return TEST_FAILURE;
+}
+
+static int test_mount_fs(char *str, int len, char *fs)
+{
+	long ret;
+
+	ret = lkl_mount_fs(fs);
+
+	snprintf(str, len, "%s: %ld", fs, ret);
+
+	if (ret == 0)
+		return TEST_SUCCESS;
+
+	return TEST_FAILURE;
+}
+
+static int test_umount_fs(char *str, int len, char *fs)
+{
+	long ret, ret2, ret3;
+
+	ret = lkl_sys_close(dir_fd);
+	ret2 = lkl_sys_chdir("/");
+	ret3 = lkl_umount_timeout(fs, 0, 1000);
+
+	snprintf(str, len, "%s: %ld %ld %ld", fs, ret, ret2, ret3);
 
 	if (!ret && !ret2 && !ret3)
 		return TEST_SUCCESS;
@@ -781,7 +811,8 @@ int main(int argc, char **argv)
 
 	lkl_host_ops.print = printk;
 
-	TEST(disk_add);
+	if (cla.disk_filename)
+		TEST(disk_add);
 #ifndef __MINGW32__
 	if (cla.tap_ifname)
 		TEST(netdev_add);
@@ -807,11 +838,18 @@ int main(int argc, char **argv)
 #endif  /* __MINGW32__ */
 	TEST(pipe2);
 	TEST(epoll);
-	TEST(mount);
-	TEST(chdir);
+	TEST(mount_fs, "proc");
+	TEST(chdir, "proc");
 	TEST(opendir);
 	TEST(getdents64);
-	TEST(umount);
+	TEST(umount_fs, "proc");
+	if (cla.disk_filename) {
+		TEST(mount_dev);
+		TEST(chdir, mnt_point);
+		TEST(opendir);
+		TEST(getdents64);
+		TEST(umount_dev);
+	}
 	TEST(lo_ifup);
 	TEST(mutex);
 	TEST(semaphore);

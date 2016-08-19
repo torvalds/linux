@@ -13,6 +13,10 @@ define gdb_test
 	TEST_CMD="gdb --args" ./boot.sh -t $1
 endef
 
+define lklfuse
+	for fs in $(FS_TYPES); do ./lklfuse.sh -t $$fs || exit 1; done
+endef
+
 define for_fs
 	for fs in $(FS_TYPES); do $(call $1,$$fs); done
 endef
@@ -41,6 +45,7 @@ endif
 
 test:
 	$(call run,)
+	$(call lklfuse)
 	$(HIJACK_TEST)
 	./net.sh
 
