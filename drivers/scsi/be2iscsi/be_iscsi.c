@@ -58,7 +58,7 @@ struct iscsi_cls_session *beiscsi_session_create(struct iscsi_endpoint *ep,
 	beiscsi_ep = ep->dd_data;
 	phba = beiscsi_ep->phba;
 
-	if (beiscsi_hba_in_error(phba)) {
+	if (!beiscsi_hba_is_online(phba)) {
 		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
 			    "BS_%d : HBA in error 0x%lx\n", phba->state);
 		return NULL;
@@ -444,7 +444,7 @@ int beiscsi_iface_set_param(struct Scsi_Host *shost,
 	uint32_t rm_len = dt_len;
 	int ret;
 
-	if (beiscsi_hba_in_error(phba)) {
+	if (!beiscsi_hba_is_online(phba)) {
 		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
 			    "BS_%d : HBA in error 0x%lx\n", phba->state);
 		return -EBUSY;
@@ -587,7 +587,7 @@ int beiscsi_iface_get_param(struct iscsi_iface *iface,
 
 	if (param_type != ISCSI_NET_PARAM)
 		return 0;
-	if (beiscsi_hba_in_error(phba)) {
+	if (!beiscsi_hba_is_online(phba)) {
 		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
 			    "BS_%d : HBA in error 0x%lx\n", phba->state);
 		return -EBUSY;
@@ -797,7 +797,7 @@ int beiscsi_get_host_param(struct Scsi_Host *shost,
 	struct beiscsi_hba *phba = iscsi_host_priv(shost);
 	int status = 0;
 
-	if (beiscsi_hba_in_error(phba)) {
+	if (!beiscsi_hba_is_online(phba)) {
 		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
 			    "BS_%d : HBA in error 0x%lx\n", phba->state);
 		return -EBUSY;
@@ -945,7 +945,7 @@ int beiscsi_conn_start(struct iscsi_cls_conn *cls_conn)
 
 	phba = ((struct beiscsi_conn *)conn->dd_data)->phba;
 
-	if (beiscsi_hba_in_error(phba)) {
+	if (!beiscsi_hba_is_online(phba)) {
 		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
 			    "BS_%d : HBA in error 0x%lx\n", phba->state);
 		return -EBUSY;
@@ -1175,7 +1175,7 @@ beiscsi_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 	}
 
 	phba = iscsi_host_priv(shost);
-	if (beiscsi_hba_in_error(phba)) {
+	if (!beiscsi_hba_is_online(phba)) {
 		ret = -EIO;
 		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
 			    "BS_%d : HBA in error 0x%lx\n", phba->state);
@@ -1335,7 +1335,7 @@ void beiscsi_ep_disconnect(struct iscsi_endpoint *ep)
 		tcp_upload_flag = CONNECTION_UPLOAD_ABORT;
 	}
 
-	if (beiscsi_hba_in_error(phba)) {
+	if (!beiscsi_hba_is_online(phba)) {
 		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
 			    "BS_%d : HBA in error 0x%lx\n", phba->state);
 		goto free_ep;

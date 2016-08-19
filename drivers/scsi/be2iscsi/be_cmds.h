@@ -770,6 +770,10 @@ int beiscsi_init_sliport(struct beiscsi_hba *phba);
 
 int beiscsi_cmd_iscsi_cleanup(struct beiscsi_hba *phba, unsigned short ulp_num);
 
+int beiscsi_detect_ue(struct beiscsi_hba *phba);
+
+int beiscsi_detect_tpe(struct beiscsi_hba *phba);
+
 int beiscsi_cmd_eq_create(struct be_ctrl_info *ctrl,
 			  struct be_queue_info *eq, int eq_delay);
 

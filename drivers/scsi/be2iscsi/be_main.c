@@ -3525,10 +3525,53 @@ static void free_wrb_handles(struct beiscsi_hba *phba)
 
 static void be_mcc_queues_destroy(struct beiscsi_hba *phba)
 {
-	struct be_queue_info *q;
 	struct be_ctrl_info *ctrl = &phba->ctrl;
+	struct be_dma_mem *ptag_mem;
+	struct be_queue_info *q;
+	int i, tag;
 
 	q = &phba->ctrl.mcc_obj.q;
+	for (i = 0; i < MAX_MCC_CMD; i++) {
+		tag = i + 1;
+		if (!test_bit(MCC_TAG_STATE_RUNNING,
+			      &ctrl->ptag_state[tag].tag_state))
+			continue;
+
+		if (test_bit(MCC_TAG_STATE_TIMEOUT,
+			     &ctrl->ptag_state[tag].tag_state)) {
+			ptag_mem = &ctrl->ptag_state[tag].tag_mem_state;
+			if (ptag_mem->size) {
+				pci_free_consistent(ctrl->pdev,
+						    ptag_mem->size,
+						    ptag_mem->va,
+						    ptag_mem->dma);
+				ptag_mem->size = 0;
+			}
+			continue;
+		}
+		/**
+		 * If MCC is still active and waiting then wake up the process.
+		 * We are here only because port is going offline. The process
+		 * sees that (BEISCSI_HBA_ONLINE is cleared) and EIO error is
+		 * returned for the operation and allocated memory cleaned up.
+		 */
+		if (waitqueue_active(&ctrl->mcc_wait[tag])) {
+			ctrl->mcc_tag_status[tag] = MCC_STATUS_FAILED;
+			ctrl->mcc_tag_status[tag] |= CQE_VALID_MASK;
+			wake_up_interruptible(&ctrl->mcc_wait[tag]);
+			/*
+			 * Control tag info gets reinitialized in enable
+			 * so wait for the process to clear running state.
+			 */
+			while (test_bit(MCC_TAG_STATE_RUNNING,
+					&ctrl->ptag_state[tag].tag_state))
+				schedule_timeout_uninterruptible(HZ);
+		}
+		/**
+		 * For MCC with tag_states MCC_TAG_STATE_ASYNC and
+		 * MCC_TAG_STATE_IGNORE nothing needs to done.
+		 */
+	}
 	if (q->created) {
 		beiscsi_cmd_q_destroy(ctrl, q, QTYPE_MCCQ);
 		be_queue_free(phba, q);
@@ -3539,69 +3582,6 @@ static void be_mcc_queues_destroy(struct beiscsi_hba *phba)
 		beiscsi_cmd_q_destroy(ctrl, q, QTYPE_CQ);
 		be_queue_free(phba, q);
 	}
-}
-
-static void hwi_cleanup_port(struct beiscsi_hba *phba)
-{
-	struct be_queue_info *q;
-	struct be_ctrl_info *ctrl = &phba->ctrl;
-	struct hwi_controller *phwi_ctrlr;
-	struct hwi_context_memory *phwi_context;
-	struct hwi_async_pdu_context *pasync_ctx;
-	int i, eq_for_mcc, ulp_num;
-
-	phwi_ctrlr = phba->phwi_ctrlr;
-	phwi_context = phwi_ctrlr->phwi_ctxt;
-
-	be_cmd_iscsi_remove_template_hdr(ctrl);
-
-	for (i = 0; i < phba->params.cxns_per_ctrl; i++) {
-		q = &phwi_context->be_wrbq[i];
-		if (q->created)
-			beiscsi_cmd_q_destroy(ctrl, q, QTYPE_WRBQ);
-	}
-	kfree(phwi_context->be_wrbq);
-	free_wrb_handles(phba);
-
-	for (ulp_num = 0; ulp_num < BEISCSI_ULP_COUNT; ulp_num++) {
-		if (test_bit(ulp_num, &phba->fw_config.ulp_supported)) {
-
-			q = &phwi_context->be_def_hdrq[ulp_num];
-			if (q->created)
-				beiscsi_cmd_q_destroy(ctrl, q, QTYPE_DPDUQ);
-
-			q = &phwi_context->be_def_dataq[ulp_num];
-			if (q->created)
-				beiscsi_cmd_q_destroy(ctrl, q, QTYPE_DPDUQ);
-
-			pasync_ctx = phwi_ctrlr->phwi_ctxt->pasync_ctx[ulp_num];
-		}
-	}
-
-	beiscsi_cmd_q_destroy(ctrl, NULL, QTYPE_SGL);
-
-	for (i = 0; i < (phba->num_cpus); i++) {
-		q = &phwi_context->be_cq[i];
-		if (q->created) {
-			be_queue_free(phba, q);
-			beiscsi_cmd_q_destroy(ctrl, q, QTYPE_CQ);
-		}
-	}
-
-	be_mcc_queues_destroy(phba);
-	if (phba->msix_enabled)
-		eq_for_mcc = 1;
-	else
-		eq_for_mcc = 0;
-	for (i = 0; i < (phba->num_cpus + eq_for_mcc); i++) {
-		q = &phwi_context->be_eq[i].q;
-		if (q->created) {
-			be_queue_free(phba, q);
-			beiscsi_cmd_q_destroy(ctrl, q, QTYPE_EQ);
-		}
-	}
-	/* last communication, indicate driver is unloading */
-	beiscsi_cmd_special_wrb(&phba->ctrl, 0);
 }
 
 static int be_mcc_queues_create(struct beiscsi_hba *phba,
@@ -3685,6 +3665,115 @@ static void find_num_cpus(struct beiscsi_hba *phba)
 	}
 }
 
+static void hwi_purge_eq(struct beiscsi_hba *phba)
+{
+	struct hwi_controller *phwi_ctrlr;
+	struct hwi_context_memory *phwi_context;
+	struct be_queue_info *eq;
+	struct be_eq_entry *eqe = NULL;
+	int i, eq_msix;
+	unsigned int num_processed;
+
+	if (beiscsi_hba_in_error(phba))
+		return;
+
+	phwi_ctrlr = phba->phwi_ctrlr;
+	phwi_context = phwi_ctrlr->phwi_ctxt;
+	if (phba->msix_enabled)
+		eq_msix = 1;
+	else
+		eq_msix = 0;
+
+	for (i = 0; i < (phba->num_cpus + eq_msix); i++) {
+		eq = &phwi_context->be_eq[i].q;
+		eqe = queue_tail_node(eq);
+		num_processed = 0;
+		while (eqe->dw[offsetof(struct amap_eq_entry, valid) / 32]
+					& EQE_VALID_MASK) {
+			AMAP_SET_BITS(struct amap_eq_entry, valid, eqe, 0);
+			queue_tail_inc(eq);
+			eqe = queue_tail_node(eq);
+			num_processed++;
+		}
+
+		if (num_processed)
+			hwi_ring_eq_db(phba, eq->id, 1,	num_processed, 1, 1);
+	}
+}
+
+static void hwi_cleanup_port(struct beiscsi_hba *phba)
+{
+	struct be_queue_info *q;
+	struct be_ctrl_info *ctrl = &phba->ctrl;
+	struct hwi_controller *phwi_ctrlr;
+	struct hwi_context_memory *phwi_context;
+	struct hwi_async_pdu_context *pasync_ctx;
+	int i, eq_for_mcc, ulp_num;
+
+	for (ulp_num = 0; ulp_num < BEISCSI_ULP_COUNT; ulp_num++)
+		if (test_bit(ulp_num, &phba->fw_config.ulp_supported))
+			beiscsi_cmd_iscsi_cleanup(phba, ulp_num);
+
+	/**
+	 * Purge all EQ entries that may have been left out. This is to
+	 * workaround a problem we've seen occasionally where driver gets an
+	 * interrupt with EQ entry bit set after stopping the controller.
+	 */
+	hwi_purge_eq(phba);
+
+	phwi_ctrlr = phba->phwi_ctrlr;
+	phwi_context = phwi_ctrlr->phwi_ctxt;
+
+	be_cmd_iscsi_remove_template_hdr(ctrl);
+
+	for (i = 0; i < phba->params.cxns_per_ctrl; i++) {
+		q = &phwi_context->be_wrbq[i];
+		if (q->created)
+			beiscsi_cmd_q_destroy(ctrl, q, QTYPE_WRBQ);
+	}
+	kfree(phwi_context->be_wrbq);
+	free_wrb_handles(phba);
+
+	for (ulp_num = 0; ulp_num < BEISCSI_ULP_COUNT; ulp_num++) {
+		if (test_bit(ulp_num, &phba->fw_config.ulp_supported)) {
+
+			q = &phwi_context->be_def_hdrq[ulp_num];
+			if (q->created)
+				beiscsi_cmd_q_destroy(ctrl, q, QTYPE_DPDUQ);
+
+			q = &phwi_context->be_def_dataq[ulp_num];
+			if (q->created)
+				beiscsi_cmd_q_destroy(ctrl, q, QTYPE_DPDUQ);
+
+			pasync_ctx = phwi_ctrlr->phwi_ctxt->pasync_ctx[ulp_num];
+		}
+	}
+
+	beiscsi_cmd_q_destroy(ctrl, NULL, QTYPE_SGL);
+
+	for (i = 0; i < (phba->num_cpus); i++) {
+		q = &phwi_context->be_cq[i];
+		if (q->created) {
+			be_queue_free(phba, q);
+			beiscsi_cmd_q_destroy(ctrl, q, QTYPE_CQ);
+		}
+	}
+
+	be_mcc_queues_destroy(phba);
+	if (phba->msix_enabled)
+		eq_for_mcc = 1;
+	else
+		eq_for_mcc = 0;
+	for (i = 0; i < (phba->num_cpus + eq_for_mcc); i++) {
+		q = &phwi_context->be_eq[i].q;
+		if (q->created) {
+			be_queue_free(phba, q);
+			beiscsi_cmd_q_destroy(ctrl, q, QTYPE_EQ);
+		}
+	}
+	/* last communication, indicate driver is unloading */
+	beiscsi_cmd_special_wrb(&phba->ctrl, 0);
+}
 static int hwi_init_port(struct beiscsi_hba *phba)
 {
 	struct hwi_controller *phwi_ctrlr;
@@ -4206,50 +4295,11 @@ do_cleanup_ctrlr:
 	return ret;
 }
 
-static void hwi_purge_eq(struct beiscsi_hba *phba)
-{
-	struct hwi_controller *phwi_ctrlr;
-	struct hwi_context_memory *phwi_context;
-	struct be_queue_info *eq;
-	struct be_eq_entry *eqe = NULL;
-	int i, eq_msix;
-	unsigned int num_processed;
-
-	phwi_ctrlr = phba->phwi_ctrlr;
-	phwi_context = phwi_ctrlr->phwi_ctxt;
-	if (phba->msix_enabled)
-		eq_msix = 1;
-	else
-		eq_msix = 0;
-
-	for (i = 0; i < (phba->num_cpus + eq_msix); i++) {
-		eq = &phwi_context->be_eq[i].q;
-		eqe = queue_tail_node(eq);
-		num_processed = 0;
-		while (eqe->dw[offsetof(struct amap_eq_entry, valid) / 32]
-					& EQE_VALID_MASK) {
-			AMAP_SET_BITS(struct amap_eq_entry, valid, eqe, 0);
-			queue_tail_inc(eq);
-			eqe = queue_tail_node(eq);
-			num_processed++;
-		}
-
-		if (num_processed)
-			hwi_ring_eq_db(phba, eq->id, 1,	num_processed, 1, 1);
-	}
-}
-
 static void beiscsi_cleanup_port(struct beiscsi_hba *phba)
 {
 	struct ulp_cid_info *ptr_cid_info = NULL;
 	int ulp_num;
 
-	for (ulp_num = 0; ulp_num < BEISCSI_ULP_COUNT; ulp_num++)
-		if (test_bit(ulp_num, (void *)&phba->fw_config.ulp_supported))
-			beiscsi_cmd_iscsi_cleanup(phba, ulp_num);
-
-	hwi_purge_eq(phba);
-	hwi_cleanup_port(phba);
 	kfree(phba->io_sgl_hndl_base);
 	kfree(phba->eh_sgl_hndl_base);
 	kfree(phba->ep_array);
@@ -4266,7 +4316,6 @@ static void beiscsi_cleanup_port(struct beiscsi_hba *phba)
 			}
 		}
 	}
-
 }
 
 /**
@@ -4840,7 +4889,7 @@ static int beiscsi_task_xmit(struct iscsi_task *task)
 	 * operational if FW still gets heartbeat from EP FW. Is management
 	 * path really needed to continue further?
 	 */
-	if (beiscsi_hba_in_error(phba))
+	if (!beiscsi_hba_is_online(phba))
 		return -EIO;
 
 	if (!io_task->conn->login_in_progress)
@@ -4896,7 +4945,7 @@ static int beiscsi_bsg_request(struct bsg_job *job)
 	shost = iscsi_job_to_shost(job);
 	phba = iscsi_host_priv(shost);
 
-	if (beiscsi_hba_in_error(phba)) {
+	if (!beiscsi_hba_is_online(phba)) {
 		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
 			    "BM_%d : HBA in error 0x%lx\n", phba->state);
 		return -ENXIO;
@@ -4929,6 +4978,14 @@ static int beiscsi_bsg_request(struct bsg_job *job)
 					phba->ctrl.mcc_tag_status[tag],
 					msecs_to_jiffies(
 					BEISCSI_HOST_MBX_TIMEOUT));
+
+		if (!test_bit(BEISCSI_HBA_ONLINE, &phba->state)) {
+			clear_bit(MCC_TAG_STATE_RUNNING,
+				  &phba->ctrl.ptag_state[tag].tag_state);
+			pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
+					    nonemb_cmd.va, nonemb_cmd.dma);
+			return -EIO;
+		}
 		extd_status = (phba->ctrl.mcc_tag_status[tag] &
 			       CQE_STATUS_ADDL_MASK) >> CQE_STATUS_ADDL_SHIFT;
 		status = phba->ctrl.mcc_tag_status[tag] & CQE_STATUS_MASK;
@@ -4970,98 +5027,6 @@ void beiscsi_hba_attrs_init(struct beiscsi_hba *phba)
 {
 	/* Set the logging parameter */
 	beiscsi_log_enable_init(phba, beiscsi_log_enable);
-}
-
-/*
- * beiscsi_quiesce()- Cleanup Driver resources
- * @phba: Instance Priv structure
- *
- * Free the OS and HW resources held by the driver
- **/
-static void beiscsi_quiesce(struct beiscsi_hba *phba)
-{
-	struct hwi_controller *phwi_ctrlr;
-	struct hwi_context_memory *phwi_context;
-	struct be_eq_obj *pbe_eq;
-	unsigned int i, msix_vec;
-
-	phwi_ctrlr = phba->phwi_ctrlr;
-	phwi_context = phwi_ctrlr->phwi_ctxt;
-	hwi_disable_intr(phba);
-	if (phba->msix_enabled) {
-		for (i = 0; i <= phba->num_cpus; i++) {
-			msix_vec = phba->msix_entries[i].vector;
-			free_irq(msix_vec, &phwi_context->be_eq[i]);
-			kfree(phba->msi_name[i]);
-		}
-	} else
-		if (phba->pcidev->irq)
-			free_irq(phba->pcidev->irq, phba);
-	pci_disable_msix(phba->pcidev);
-	cancel_delayed_work_sync(&phba->eqd_update);
-	cancel_work_sync(&phba->boot_work);
-	del_timer_sync(&phba->hw_check);
-
-	for (i = 0; i < phba->num_cpus; i++) {
-		pbe_eq = &phwi_context->be_eq[i];
-		irq_poll_disable(&pbe_eq->iopoll);
-	}
-
-	/* PCI_ERR is set then check if driver is not unloading */
-	if (test_bit(BEISCSI_HBA_RUNNING, &phba->state) &&
-	    test_bit(BEISCSI_HBA_PCI_ERR, &phba->state)) {
-		hwi_cleanup_port(phba);
-		return;
-	}
-
-	destroy_workqueue(phba->wq);
-	beiscsi_cleanup_port(phba);
-	beiscsi_free_mem(phba);
-
-	beiscsi_unmap_pci_function(phba);
-	pci_free_consistent(phba->pcidev,
-			    phba->ctrl.mbox_mem_alloced.size,
-			    phba->ctrl.mbox_mem_alloced.va,
-			    phba->ctrl.mbox_mem_alloced.dma);
-}
-
-static void beiscsi_remove(struct pci_dev *pcidev)
-{
-	struct beiscsi_hba *phba = NULL;
-
-	phba = pci_get_drvdata(pcidev);
-	if (!phba) {
-		dev_err(&pcidev->dev, "beiscsi_remove called with no phba\n");
-		return;
-	}
-
-	clear_bit(BEISCSI_HBA_RUNNING, &phba->state);
-	beiscsi_iface_destroy_default(phba);
-	iscsi_host_remove(phba->shost);
-	beiscsi_quiesce(phba);
-	/* after cancelling boot_work */
-	iscsi_boot_destroy_kset(phba->boot_struct.boot_kset);
-	pci_dev_put(phba->pcidev);
-	iscsi_host_free(phba->shost);
-	pci_disable_pcie_error_reporting(pcidev);
-	pci_set_drvdata(pcidev, NULL);
-	pci_release_regions(pcidev);
-	pci_disable_device(pcidev);
-}
-
-static void beiscsi_msix_enable(struct beiscsi_hba *phba)
-{
-	int i, status;
-
-	for (i = 0; i <= phba->num_cpus; i++)
-		phba->msix_entries[i].entry = i;
-
-	status = pci_enable_msix_range(phba->pcidev, phba->msix_entries,
-				       phba->num_cpus + 1, phba->num_cpus + 1);
-	if (status > 0)
-		phba->msix_enabled = true;
-
-	return;
 }
 
 void beiscsi_start_boot_work(struct beiscsi_hba *phba, unsigned int s_handle)
@@ -5179,7 +5144,6 @@ static ssize_t beiscsi_show_boot_eth_info(void *data, int type, char *buf)
 	return rc;
 }
 
-
 static umode_t beiscsi_tgt_get_attr_visibility(void *data, int type)
 {
 	umode_t rc = 0;
@@ -5211,7 +5175,6 @@ static umode_t beiscsi_ini_get_attr_visibility(void *data, int type)
 	}
 	return rc;
 }
-
 
 static umode_t beiscsi_eth_get_attr_visibility(void *data, int type)
 {
@@ -5300,7 +5263,7 @@ static void beiscsi_boot_work(struct work_struct *work)
 	struct boot_struct *bs = &phba->boot_struct;
 	unsigned int tag = 0;
 
-	if (beiscsi_hba_in_error(phba))
+	if (!beiscsi_hba_is_online(phba))
 		return;
 
 	beiscsi_log(phba, KERN_INFO,
@@ -5339,19 +5302,6 @@ static void beiscsi_boot_work(struct work_struct *work)
 	}
 }
 
-static void beiscsi_hw_health_check(unsigned long ptr)
-{
-	struct beiscsi_hba *phba;
-
-	phba = (struct beiscsi_hba *)ptr;
-	beiscsi_ue_detect(phba);
-	if (test_bit(BEISCSI_HBA_IN_UE, &phba->state))
-		return;
-
-	mod_timer(&phba->hw_check,
-		  jiffies + msecs_to_jiffies(BEISCSI_UE_DETECT_INTERVAL));
-}
-
 static void beiscsi_eqd_update_work(struct work_struct *work)
 {
 	struct hwi_context_memory *phwi_context;
@@ -5365,7 +5315,7 @@ static void beiscsi_eqd_update_work(struct work_struct *work)
 	unsigned long now;
 
 	phba = container_of(work, struct beiscsi_hba, eqd_update.work);
-	if (beiscsi_hba_in_error(phba))
+	if (!beiscsi_hba_is_online(phba))
 		return;
 
 	phwi_ctrlr = phba->phwi_ctrlr;
@@ -5408,6 +5358,219 @@ static void beiscsi_eqd_update_work(struct work_struct *work)
 			      msecs_to_jiffies(BEISCSI_EQD_UPDATE_INTERVAL));
 }
 
+static void beiscsi_msix_enable(struct beiscsi_hba *phba)
+{
+	int i, status;
+
+	for (i = 0; i <= phba->num_cpus; i++)
+		phba->msix_entries[i].entry = i;
+
+	status = pci_enable_msix_range(phba->pcidev, phba->msix_entries,
+				       phba->num_cpus + 1, phba->num_cpus + 1);
+	if (status > 0)
+		phba->msix_enabled = true;
+}
+
+static void beiscsi_hw_tpe_check(unsigned long ptr)
+{
+	struct beiscsi_hba *phba;
+	u32 wait;
+
+	phba = (struct beiscsi_hba *)ptr;
+	/* if not TPE, do nothing */
+	if (!beiscsi_detect_tpe(phba))
+		return;
+
+	/* wait default 4000ms before recovering */
+	wait = 4000;
+	if (phba->ue2rp > BEISCSI_UE_DETECT_INTERVAL)
+		wait = phba->ue2rp - BEISCSI_UE_DETECT_INTERVAL;
+	queue_delayed_work(phba->wq, &phba->recover_port,
+			   msecs_to_jiffies(wait));
+}
+
+static void beiscsi_hw_health_check(unsigned long ptr)
+{
+	struct beiscsi_hba *phba;
+
+	phba = (struct beiscsi_hba *)ptr;
+	beiscsi_detect_ue(phba);
+	if (beiscsi_detect_ue(phba)) {
+		__beiscsi_log(phba, KERN_ERR,
+			      "BM_%d : port in error: %lx\n", phba->state);
+		/* detect TPE if UER supported */
+		if (!test_bit(BEISCSI_HBA_UER_SUPP, &phba->state))
+			return;
+		/* modify this timer to check TPE */
+		phba->hw_check.function = beiscsi_hw_tpe_check;
+	}
+
+	mod_timer(&phba->hw_check,
+		  jiffies + msecs_to_jiffies(BEISCSI_UE_DETECT_INTERVAL));
+}
+
+/*
+ * beiscsi_enable_port()- Enables the disabled port.
+ * Only port resources freed in disable function are reallocated.
+ * This is called in HBA error handling path.
+ *
+ * @phba: Instance of driver private structure
+ *
+ **/
+static int beiscsi_enable_port(struct beiscsi_hba *phba)
+{
+	struct hwi_context_memory *phwi_context;
+	struct hwi_controller *phwi_ctrlr;
+	struct be_eq_obj *pbe_eq;
+	int ret, i;
+
+	if (test_bit(BEISCSI_HBA_ONLINE, &phba->state)) {
+		__beiscsi_log(phba, KERN_ERR,
+			      "BM_%d : %s : port is online %lx\n",
+			      __func__, phba->state);
+		return 0;
+	}
+
+	ret = beiscsi_init_sliport(phba);
+	if (ret)
+		return ret;
+
+	if (enable_msix)
+		find_num_cpus(phba);
+	else
+		phba->num_cpus = 1;
+	if (enable_msix) {
+		beiscsi_msix_enable(phba);
+		if (!phba->msix_enabled)
+			phba->num_cpus = 1;
+	}
+
+	beiscsi_get_params(phba);
+	/* Re-enable UER. If different TPE occurs then it is recoverable. */
+	beiscsi_set_uer_feature(phba);
+
+	phba->shost->max_id = phba->params.cxns_per_ctrl;
+	phba->shost->can_queue = phba->params.ios_per_ctrl;
+	ret = hwi_init_controller(phba);
+	if (ret) {
+		__beiscsi_log(phba, KERN_ERR,
+			      "BM_%d : init controller failed %d\n", ret);
+		goto disable_msix;
+	}
+
+	for (i = 0; i < MAX_MCC_CMD; i++) {
+		init_waitqueue_head(&phba->ctrl.mcc_wait[i + 1]);
+		phba->ctrl.mcc_tag[i] = i + 1;
+		phba->ctrl.mcc_tag_status[i + 1] = 0;
+		phba->ctrl.mcc_tag_available++;
+	}
+
+	phwi_ctrlr = phba->phwi_ctrlr;
+	phwi_context = phwi_ctrlr->phwi_ctxt;
+	for (i = 0; i < phba->num_cpus; i++) {
+		pbe_eq = &phwi_context->be_eq[i];
+		irq_poll_init(&pbe_eq->iopoll, be_iopoll_budget, be_iopoll);
+	}
+
+	i = (phba->msix_enabled) ? i : 0;
+	/* Work item for MCC handling */
+	pbe_eq = &phwi_context->be_eq[i];
+	INIT_WORK(&pbe_eq->mcc_work, beiscsi_mcc_work);
+
+	ret = beiscsi_init_irqs(phba);
+	if (ret < 0) {
+		__beiscsi_log(phba, KERN_ERR,
+			      "BM_%d : setup IRQs failed %d\n", ret);
+		goto cleanup_port;
+	}
+	hwi_enable_intr(phba);
+	/* port operational: clear all error bits */
+	set_bit(BEISCSI_HBA_ONLINE, &phba->state);
+	__beiscsi_log(phba, KERN_INFO,
+		      "BM_%d : port online: 0x%lx\n", phba->state);
+
+	/* start hw_check timer and eqd_update work */
+	schedule_delayed_work(&phba->eqd_update,
+			      msecs_to_jiffies(BEISCSI_EQD_UPDATE_INTERVAL));
+
+	/**
+	 * Timer function gets modified for TPE detection.
+	 * Always reinit to do health check first.
+	 */
+	phba->hw_check.function = beiscsi_hw_health_check;
+	mod_timer(&phba->hw_check,
+		  jiffies + msecs_to_jiffies(BEISCSI_UE_DETECT_INTERVAL));
+	return 0;
+
+cleanup_port:
+	for (i = 0; i < phba->num_cpus; i++) {
+		pbe_eq = &phwi_context->be_eq[i];
+		irq_poll_disable(&pbe_eq->iopoll);
+	}
+	hwi_cleanup_port(phba);
+
+disable_msix:
+	if (phba->msix_enabled)
+		pci_disable_msix(phba->pcidev);
+
+	return ret;
+}
+
+/*
+ * beiscsi_disable_port()- Disable port and cleanup driver resources.
+ * This is called in HBA error handling and driver removal.
+ * @phba: Instance Priv structure
+ * @unload: indicate driver is unloading
+ *
+ * Free the OS and HW resources held by the driver
+ **/
+static void beiscsi_disable_port(struct beiscsi_hba *phba, int unload)
+{
+	struct hwi_context_memory *phwi_context;
+	struct hwi_controller *phwi_ctrlr;
+	struct be_eq_obj *pbe_eq;
+	unsigned int i, msix_vec;
+
+	if (!test_and_clear_bit(BEISCSI_HBA_ONLINE, &phba->state))
+		return;
+
+	phwi_ctrlr = phba->phwi_ctrlr;
+	phwi_context = phwi_ctrlr->phwi_ctxt;
+	hwi_disable_intr(phba);
+	if (phba->msix_enabled) {
+		for (i = 0; i <= phba->num_cpus; i++) {
+			msix_vec = phba->msix_entries[i].vector;
+			free_irq(msix_vec, &phwi_context->be_eq[i]);
+			kfree(phba->msi_name[i]);
+		}
+	} else
+		if (phba->pcidev->irq)
+			free_irq(phba->pcidev->irq, phba);
+	pci_disable_msix(phba->pcidev);
+
+	for (i = 0; i < phba->num_cpus; i++) {
+		pbe_eq = &phwi_context->be_eq[i];
+		irq_poll_disable(&pbe_eq->iopoll);
+	}
+	cancel_delayed_work_sync(&phba->eqd_update);
+	cancel_work_sync(&phba->boot_work);
+	/* WQ might be running cancel queued mcc_work if we are not exiting */
+	if (!unload && beiscsi_hba_in_error(phba)) {
+		pbe_eq = &phwi_context->be_eq[i];
+		cancel_work_sync(&pbe_eq->mcc_work);
+	}
+	hwi_cleanup_port(phba);
+}
+
+static void beiscsi_recover_port(struct work_struct *work)
+{
+	struct beiscsi_hba *phba;
+
+	phba = container_of(work, struct beiscsi_hba, recover_port.work);
+	iscsi_host_for_each_session(phba->shost, beiscsi_session_fail);
+	beiscsi_disable_port(phba, 0);
+	beiscsi_enable_port(phba);
+}
 
 static pci_ers_result_t beiscsi_eeh_err_detected(struct pci_dev *pdev,
 		pci_channel_state_t state)
@@ -5420,7 +5583,11 @@ static pci_ers_result_t beiscsi_eeh_err_detected(struct pci_dev *pdev,
 	beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
 		    "BM_%d : EEH error detected\n");
 
-	beiscsi_quiesce(phba);
+	/* first stop UE detection when PCI error detected */
+	del_timer_sync(&phba->hw_check);
+	cancel_delayed_work_sync(&phba->recover_port);
+
+	beiscsi_disable_port(phba, 0);
 
 	if (state == pci_channel_io_perm_failure) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
@@ -5476,82 +5643,16 @@ static pci_ers_result_t beiscsi_eeh_reset(struct pci_dev *pdev)
 
 static void beiscsi_eeh_resume(struct pci_dev *pdev)
 {
-	int ret, i;
-	struct be_eq_obj *pbe_eq;
-	struct beiscsi_hba *phba = NULL;
-	struct hwi_controller *phwi_ctrlr;
-	struct hwi_context_memory *phwi_context;
+	struct beiscsi_hba *phba;
+	int ret;
 
 	phba = (struct beiscsi_hba *)pci_get_drvdata(pdev);
 	pci_save_state(pdev);
 
-	if (enable_msix)
-		find_num_cpus(phba);
-	else
-		phba->num_cpus = 1;
-
-	if (enable_msix) {
-		beiscsi_msix_enable(phba);
-		if (!phba->msix_enabled)
-			phba->num_cpus = 1;
-	}
-
-	ret = beiscsi_init_sliport(phba);
+	ret = beiscsi_enable_port(phba);
 	if (ret)
-		goto ret_err;
-
-	beiscsi_get_params(phba);
-	phba->shost->max_id = phba->params.cxns_per_ctrl;
-	phba->shost->can_queue = phba->params.ios_per_ctrl;
-	ret = hwi_init_controller(phba);
-	if (ret) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
-			    "BM_%d : beiscsi_eeh_resume -"
-			     "Failed to initialize beiscsi_hba.\n");
-		goto ret_err;
-	}
-
-	for (i = 0; i < MAX_MCC_CMD; i++) {
-		init_waitqueue_head(&phba->ctrl.mcc_wait[i + 1]);
-		phba->ctrl.mcc_tag[i] = i + 1;
-		phba->ctrl.mcc_tag_status[i + 1] = 0;
-		phba->ctrl.mcc_tag_available++;
-	}
-
-	phwi_ctrlr = phba->phwi_ctrlr;
-	phwi_context = phwi_ctrlr->phwi_ctxt;
-
-	for (i = 0; i < phba->num_cpus; i++) {
-		pbe_eq = &phwi_context->be_eq[i];
-		irq_poll_init(&pbe_eq->iopoll, be_iopoll_budget,
-				be_iopoll);
-	}
-
-	i = (phba->msix_enabled) ? i : 0;
-	/* Work item for MCC handling */
-	pbe_eq = &phwi_context->be_eq[i];
-	INIT_WORK(&pbe_eq->mcc_work, beiscsi_mcc_work);
-
-	ret = beiscsi_init_irqs(phba);
-	if (ret < 0) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
-			    "BM_%d : beiscsi_eeh_resume - "
-			    "Failed to beiscsi_init_irqs\n");
-		goto ret_err;
-	}
-
-	hwi_enable_intr(phba);
-	clear_bit(BEISCSI_HBA_PCI_ERR, &phba->state);
-
-	/* start hw_check timer and eqd_update work */
-	schedule_delayed_work(&phba->eqd_update,
-			      msecs_to_jiffies(BEISCSI_EQD_UPDATE_INTERVAL));
-	mod_timer(&phba->hw_check,
-		  jiffies + msecs_to_jiffies(BEISCSI_UE_DETECT_INTERVAL));
-	return;
-ret_err:
-	beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
-		    "BM_%d : AER EEH Resume Failed\n");
+		__beiscsi_log(phba, KERN_ERR,
+			      "BM_%d : AER EEH resume failed\n");
 }
 
 static int beiscsi_dev_probe(struct pci_dev *pcidev,
@@ -5623,7 +5724,6 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 	if (ret)
 		goto hba_free;
 
-	set_bit(BEISCSI_HBA_RUNNING, &phba->state);
 	spin_lock_init(&phba->io_sgl_lock);
 	spin_lock_init(&phba->mgmt_sgl_lock);
 	spin_lock_init(&phba->async_pdu_lock);
@@ -5690,8 +5790,7 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 
 	for (i = 0; i < phba->num_cpus; i++) {
 		pbe_eq = &phwi_context->be_eq[i];
-		irq_poll_init(&pbe_eq->iopoll, be_iopoll_budget,
-				be_iopoll);
+		irq_poll_init(&pbe_eq->iopoll, be_iopoll_budget, be_iopoll);
 	}
 
 	i = (phba->msix_enabled) ? i : 0;
@@ -5708,8 +5807,14 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 	}
 	hwi_enable_intr(phba);
 
-	if (iscsi_host_add(phba->shost, &phba->pcidev->dev))
+	ret = iscsi_host_add(phba->shost, &phba->pcidev->dev);
+	if (ret)
 		goto free_blkenbld;
+
+	/* set online bit after port is operational */
+	set_bit(BEISCSI_HBA_ONLINE, &phba->state);
+	__beiscsi_log(phba, KERN_INFO,
+		      "BM_%d : port online: 0x%lx\n", phba->state);
 
 	INIT_WORK(&phba->boot_work, beiscsi_boot_work);
 	ret = beiscsi_boot_get_shandle(phba, &s_handle);
@@ -5726,6 +5831,8 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 	beiscsi_iface_create_default(phba);
 	schedule_delayed_work(&phba->eqd_update,
 			      msecs_to_jiffies(BEISCSI_EQD_UPDATE_INTERVAL));
+
+	INIT_DELAYED_WORK(&phba->recover_port, beiscsi_recover_port);
 	/**
 	 * Start UE detection here. UE before this will cause stall in probe
 	 * and eventually fail the probe.
@@ -5747,6 +5854,7 @@ free_blkenbld:
 		irq_poll_disable(&pbe_eq->iopoll);
 	}
 free_twq:
+	hwi_cleanup_port(phba);
 	beiscsi_cleanup_port(phba);
 	beiscsi_free_mem(phba);
 free_port:
@@ -5766,6 +5874,48 @@ disable_pci:
 	pci_disable_device(pcidev);
 	return ret;
 }
+
+static void beiscsi_remove(struct pci_dev *pcidev)
+{
+	struct beiscsi_hba *phba = NULL;
+
+	phba = pci_get_drvdata(pcidev);
+	if (!phba) {
+		dev_err(&pcidev->dev, "beiscsi_remove called with no phba\n");
+		return;
+	}
+
+	/* first stop UE detection before unloading */
+	del_timer_sync(&phba->hw_check);
+	cancel_delayed_work_sync(&phba->recover_port);
+
+	beiscsi_iface_destroy_default(phba);
+	iscsi_host_remove(phba->shost);
+	beiscsi_disable_port(phba, 1);
+
+	/* after cancelling boot_work */
+	iscsi_boot_destroy_kset(phba->boot_struct.boot_kset);
+
+	/* free all resources */
+	destroy_workqueue(phba->wq);
+	beiscsi_cleanup_port(phba);
+	beiscsi_free_mem(phba);
+
+	/* ctrl uninit */
+	beiscsi_unmap_pci_function(phba);
+	pci_free_consistent(phba->pcidev,
+			    phba->ctrl.mbox_mem_alloced.size,
+			    phba->ctrl.mbox_mem_alloced.va,
+			    phba->ctrl.mbox_mem_alloced.dma);
+
+	pci_dev_put(phba->pcidev);
+	iscsi_host_free(phba->shost);
+	pci_disable_pcie_error_reporting(pcidev);
+	pci_set_drvdata(pcidev, NULL);
+	pci_release_regions(pcidev);
+	pci_disable_device(pcidev);
+}
+
 
 static struct pci_error_handlers beiscsi_eeh_handlers = {
 	.error_detected = beiscsi_eeh_err_detected,
@@ -5813,7 +5963,6 @@ static struct pci_driver beiscsi_pci_driver = {
 	.id_table = beiscsi_pci_id_table,
 	.err_handler = &beiscsi_eeh_handlers
 };
-
 
 static int __init beiscsi_module_init(void)
 {

@@ -21,6 +21,78 @@
 #include "be.h"
 #include "be_mgmt.h"
 
+/* UE Status Low CSR */
+static const char * const desc_ue_status_low[] = {
+	"CEV",
+	"CTX",
+	"DBUF",
+	"ERX",
+	"Host",
+	"MPU",
+	"NDMA",
+	"PTC ",
+	"RDMA ",
+	"RXF ",
+	"RXIPS ",
+	"RXULP0 ",
+	"RXULP1 ",
+	"RXULP2 ",
+	"TIM ",
+	"TPOST ",
+	"TPRE ",
+	"TXIPS ",
+	"TXULP0 ",
+	"TXULP1 ",
+	"UC ",
+	"WDMA ",
+	"TXULP2 ",
+	"HOST1 ",
+	"P0_OB_LINK ",
+	"P1_OB_LINK ",
+	"HOST_GPIO ",
+	"MBOX ",
+	"AXGMAC0",
+	"AXGMAC1",
+	"JTAG",
+	"MPU_INTPEND"
+};
+
+/* UE Status High CSR */
+static const char * const desc_ue_status_hi[] = {
+	"LPCMEMHOST",
+	"MGMT_MAC",
+	"PCS0ONLINE",
+	"MPU_IRAM",
+	"PCS1ONLINE",
+	"PCTL0",
+	"PCTL1",
+	"PMEM",
+	"RR",
+	"TXPB",
+	"RXPP",
+	"XAUI",
+	"TXP",
+	"ARM",
+	"IPC",
+	"HOST2",
+	"HOST3",
+	"HOST4",
+	"HOST5",
+	"HOST6",
+	"HOST7",
+	"HOST8",
+	"HOST9",
+	"NETC",
+	"Unknown",
+	"Unknown",
+	"Unknown",
+	"Unknown",
+	"Unknown",
+	"Unknown",
+	"Unknown",
+	"Unknown"
+};
+
 struct be_mcc_wrb *alloc_mcc_wrb(struct beiscsi_hba *phba,
 				 unsigned int *ref_tag)
 {
@@ -185,6 +257,16 @@ int beiscsi_mccq_compl_wait(struct beiscsi_hba *phba,
 					      phba->ctrl.mcc_tag_status[tag],
 					      msecs_to_jiffies(
 						BEISCSI_HOST_MBX_TIMEOUT));
+	/**
+	 * Return EIO if port is being disabled. Associated DMA memory, if any,
+	 * is freed by the caller. When port goes offline, MCCQ is cleaned up
+	 * so does WRB.
+	 */
+	if (!test_bit(BEISCSI_HBA_ONLINE, &phba->state)) {
+		clear_bit(MCC_TAG_STATE_RUNNING,
+			  &phba->ctrl.ptag_state[tag].tag_state);
+		return -EIO;
+	}
 
 	/**
 	 * If MBOX cmd timeout expired, tag and resource allocated
@@ -538,7 +620,6 @@ static int be_mbox_db_ready_poll(struct be_ctrl_info *ctrl)
 			BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
 			"BC_%d : FW Timed Out\n");
 	set_bit(BEISCSI_HBA_FW_TIMEOUT, &phba->state);
-	beiscsi_ue_detect(phba);
 	return -EBUSY;
 }
 
@@ -1584,6 +1665,12 @@ int beiscsi_init_sliport(struct beiscsi_hba *phba)
 	if (!status)
 		return -EIO;
 
+	/* clear all error states after checking FW rdy */
+	phba->state &= ~BEISCSI_HBA_IN_ERR;
+
+	/* check again UER support */
+	phba->state &= ~BEISCSI_HBA_UER_SUPP;
+
 	/*
 	 * SLI COMMON_FUNCTION_RESET completion is indicated by BMBX RDY bit.
 	 * It should clean up any stale info in FW for this fn.
@@ -1646,4 +1733,88 @@ int beiscsi_cmd_iscsi_cleanup(struct beiscsi_hba *phba, unsigned short ulp)
 			    "BG_%d : %s failed %d\n", __func__, ulp);
 	mutex_unlock(&ctrl->mbox_lock);
 	return status;
+}
+
+/*
+ * beiscsi_detect_ue()- Detect Unrecoverable Error on adapter
+ * @phba: Driver priv structure
+ *
+ * Read registers linked to UE and check for the UE status
+ **/
+int beiscsi_detect_ue(struct beiscsi_hba *phba)
+{
+	uint32_t ue_mask_hi = 0, ue_mask_lo = 0;
+	uint32_t ue_hi = 0, ue_lo = 0;
+	uint8_t i = 0;
+	int ret = 0;
+
+	pci_read_config_dword(phba->pcidev,
+			      PCICFG_UE_STATUS_LOW, &ue_lo);
+	pci_read_config_dword(phba->pcidev,
+			      PCICFG_UE_STATUS_MASK_LOW,
+			      &ue_mask_lo);
+	pci_read_config_dword(phba->pcidev,
+			      PCICFG_UE_STATUS_HIGH,
+			      &ue_hi);
+	pci_read_config_dword(phba->pcidev,
+			      PCICFG_UE_STATUS_MASK_HI,
+			      &ue_mask_hi);
+
+	ue_lo = (ue_lo & ~ue_mask_lo);
+	ue_hi = (ue_hi & ~ue_mask_hi);
+
+
+	if (ue_lo || ue_hi) {
+		set_bit(BEISCSI_HBA_IN_UE, &phba->state);
+		__beiscsi_log(phba, KERN_ERR,
+			      "BC_%d : HBA error detected\n");
+		ret = 1;
+	}
+
+	if (ue_lo) {
+		for (i = 0; ue_lo; ue_lo >>= 1, i++) {
+			if (ue_lo & 1)
+				__beiscsi_log(phba, KERN_ERR,
+					      "BC_%d : UE_LOW %s bit set\n",
+					      desc_ue_status_low[i]);
+		}
+	}
+
+	if (ue_hi) {
+		for (i = 0; ue_hi; ue_hi >>= 1, i++) {
+			if (ue_hi & 1)
+				__beiscsi_log(phba, KERN_ERR,
+					      "BC_%d : UE_HIGH %s bit set\n",
+					      desc_ue_status_hi[i]);
+		}
+	}
+	return ret;
+}
+
+/*
+ * beiscsi_detect_tpe()- Detect Transient Parity Error on adapter
+ * @phba: Driver priv structure
+ *
+ * Read SLIPORT SEMAPHORE register to check for UER
+ *
+ **/
+int beiscsi_detect_tpe(struct beiscsi_hba *phba)
+{
+	u32 post, status;
+	int ret = 0;
+
+	post = beiscsi_get_post_stage(phba);
+	status = post & POST_STAGE_MASK;
+	if ((status & POST_ERR_RECOVERY_CODE_MASK) ==
+	    POST_STAGE_RECOVERABLE_ERR) {
+		set_bit(BEISCSI_HBA_IN_TPE, &phba->state);
+		__beiscsi_log(phba, KERN_INFO,
+			      "BC_%d : HBA error recoverable: 0x%x\n", post);
+		ret = 1;
+	} else {
+		__beiscsi_log(phba, KERN_INFO,
+			      "BC_%d : HBA in UE: 0x%x\n", post);
+	}
+
+	return ret;
 }

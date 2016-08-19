@@ -393,7 +393,7 @@ struct beiscsi_hba {
 	} fw_config;
 
 	unsigned long state;
-#define BEISCSI_HBA_RUNNING	0
+#define BEISCSI_HBA_ONLINE	0
 #define BEISCSI_HBA_LINK_UP	1
 #define BEISCSI_HBA_BOOT_FOUND	2
 #define BEISCSI_HBA_BOOT_WORK	3
@@ -417,6 +417,7 @@ struct beiscsi_hba {
 	/* check for UE every 1000ms */
 #define BEISCSI_UE_DETECT_INTERVAL	1000
 	u32 ue2rp;
+	struct delayed_work recover_port;
 
 	bool mac_addr_set;
 	u8 mac_address[ETH_ALEN];
@@ -455,6 +456,9 @@ struct beiscsi_hba {
 };
 
 #define beiscsi_hba_in_error(phba) ((phba)->state & BEISCSI_HBA_IN_ERR)
+#define beiscsi_hba_is_online(phba) \
+	(!beiscsi_hba_in_error((phba)) && \
+	 test_bit(BEISCSI_HBA_ONLINE, &phba->state))
 
 struct beiscsi_session {
 	struct pci_pool *bhs_pool;
