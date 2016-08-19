@@ -45,6 +45,7 @@
 #define USB_DEV_ID_BRDG		0xC001  /* PID: USB Bridge */
 #define USB_DEV_ID_OS81118	0xCF18  /* PID: USB OS81118 */
 #define USB_DEV_ID_OS81119	0xCF19  /* PID: USB OS81119 */
+#define USB_DEV_ID_OS81210	0xCF30  /* PID: USB OS81210 */
 /* DRCI Addresses */
 #define DRCI_REG_NI_STATE	0x0100
 #define DRCI_REG_PACKET_BW	0x0101
@@ -935,6 +936,7 @@ static struct usb_device_id usbid[] = {
 	{ USB_DEVICE(USB_VENDOR_ID_SMSC, USB_DEV_ID_BRDG), },
 	{ USB_DEVICE(USB_VENDOR_ID_SMSC, USB_DEV_ID_OS81118), },
 	{ USB_DEVICE(USB_VENDOR_ID_SMSC, USB_DEV_ID_OS81119), },
+	{ USB_DEVICE(USB_VENDOR_ID_SMSC, USB_DEV_ID_OS81210), },
 	{ } /* Terminating entry */
 };
 
@@ -1304,7 +1306,8 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 
 	mutex_lock(&mdev->io_mutex);
 	if (le16_to_cpu(usb_dev->descriptor.idProduct) == USB_DEV_ID_OS81118 ||
-	    le16_to_cpu(usb_dev->descriptor.idProduct) == USB_DEV_ID_OS81119) {
+	    le16_to_cpu(usb_dev->descriptor.idProduct) == USB_DEV_ID_OS81119 ||
+	    le16_to_cpu(usb_dev->descriptor.idProduct) == USB_DEV_ID_OS81210) {
 		/* this increments the reference count of the instance
 		 * object of the core
 		 */
