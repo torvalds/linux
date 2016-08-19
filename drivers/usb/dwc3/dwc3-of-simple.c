@@ -61,6 +61,7 @@ static int dwc3_of_simple_probe(struct platform_device *pdev)
 	if (!simple->clks)
 		return -ENOMEM;
 
+	platform_set_drvdata(pdev, simple);
 	simple->dev = dev;
 
 	for (i = 0; i < simple->num_clocks; i++) {
