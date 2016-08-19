@@ -338,7 +338,7 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 
 	if (!is_chip_be2_be3r(phba)) {
 		req->hdr.version = MBX_CMD_VER1;
-		req->tcp_window_size = 0;
+		req->tcp_window_size = 0x8000;
 		req->tcp_window_scale_count = 2;
 	}
 

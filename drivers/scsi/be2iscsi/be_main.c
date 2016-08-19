@@ -3729,7 +3729,7 @@ static int hwi_init_port(struct beiscsi_hba *phba)
 	phwi_context = phwi_ctrlr->phwi_ctxt;
 	phwi_context->max_eqd = 128;
 	phwi_context->min_eqd = 0;
-	phwi_context->cur_eqd = 0;
+	phwi_context->cur_eqd = 32;
 	/* set port optic state to unknown */
 	phba->optic_state = 0xff;
 
