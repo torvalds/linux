@@ -2510,7 +2510,6 @@ pnfs_report_layoutstat(struct inode *inode, gfp_t gfp_flags)
 
 	data->args.fh = NFS_FH(inode);
 	data->args.inode = inode;
-	nfs4_stateid_copy(&data->args.stateid, &hdr->plh_stateid);
 	status = ld->prepare_layoutstats(&data->args);
 	if (status)
 		goto out_free;
