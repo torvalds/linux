@@ -44,3 +44,5 @@ int sa11x0_pm_init(void);
 #else
 static inline int sa11x0_pm_init(void) { return 0; }
 #endif
+
+int sa11xx_clk_init(void);
