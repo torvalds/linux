@@ -400,7 +400,6 @@ static int __maybe_unused pixcir_i2c_ts_resume(struct device *dev)
 	mutex_lock(&input->mutex);
 
 	if (device_may_wakeup(&client->dev)) {
-
 		if (!input->users) {
 			ret = pixcir_stop(ts);
 			if (ret) {
