@@ -1001,6 +1001,9 @@ static int mgmt_alloc_cmd_data(struct beiscsi_hba *phba, struct be_dma_mem *cmd,
 	}
 	cmd->size = size;
 	be_cmd_hdr_prepare(cmd->va, CMD_SUBSYSTEM_ISCSI, iscsi_cmd, size);
+	beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
+		    "BG_%d : subsystem iSCSI cmd %d size %d\n",
+		    iscsi_cmd, size);
 	return 0;
 }
 
@@ -1259,6 +1262,42 @@ exit:
 	return rc;
 }
 
+/**
+ * beiscsi_if_set_vlan()- Issue and wait for CMD completion
+ * @phba: device private structure instance
+ * @vlan_tag: VLAN tag
+ *
+ * Issue the MBX Cmd and wait for the completion of the
+ * command.
+ *
+ * returns
+ *	Success: 0
+ *	Failure: Non-Xero Value
+ **/
+int beiscsi_if_set_vlan(struct beiscsi_hba *phba, uint16_t vlan_tag)
+{
+	int rc;
+	unsigned int tag;
+
+	tag = be_cmd_set_vlan(phba, vlan_tag);
+	if (!tag) {
+		beiscsi_log(phba, KERN_ERR,
+			    (BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX),
+			    "BG_%d : VLAN Setting Failed\n");
+		return -EBUSY;
+	}
+
+	rc = beiscsi_mccq_compl_wait(phba, tag, NULL, NULL);
+	if (rc) {
+		beiscsi_log(phba, KERN_ERR,
+			    (BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX),
+			    "BS_%d : VLAN MBX Cmd Failed\n");
+		return rc;
+	}
+	return rc;
+}
+
+
 int mgmt_get_if_info(struct beiscsi_hba *phba, int ip_type,
 		     struct be_cmd_get_if_info_resp **if_info)
 {
@@ -1445,42 +1484,6 @@ int be_mgmt_get_boot_shandle(struct beiscsi_hba *phba,
 		    BEISCSI_LOG_INIT | BEISCSI_LOG_CONFIG,
 		    "BG_%d : Login to Boot Target Failed\n");
 	return -ENXIO;
-}
-
-/**
- * mgmt_set_vlan()- Issue and wait for CMD completion
- * @phba: device private structure instance
- * @vlan_tag: VLAN tag
- *
- * Issue the MBX Cmd and wait for the completion of the
- * command.
- *
- * returns
- *	Success: 0
- *	Failure: Non-Xero Value
- **/
-int mgmt_set_vlan(struct beiscsi_hba *phba,
-		   uint16_t vlan_tag)
-{
-	int rc;
-	unsigned int tag;
-
-	tag = be_cmd_set_vlan(phba, vlan_tag);
-	if (!tag) {
-		beiscsi_log(phba, KERN_ERR,
-			    (BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX),
-			    "BG_%d : VLAN Setting Failed\n");
-		return -EBUSY;
-	}
-
-	rc = beiscsi_mccq_compl_wait(phba, tag, NULL, NULL);
-	if (rc) {
-		beiscsi_log(phba, KERN_ERR,
-			    (BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX),
-			    "BS_%d : VLAN MBX Cmd Failed\n");
-		return rc;
-	}
-	return rc;
 }
 
 /**

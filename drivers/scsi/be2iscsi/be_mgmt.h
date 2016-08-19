@@ -308,7 +308,7 @@ int be_mgmt_get_boot_shandle(struct beiscsi_hba *phba,
 
 unsigned int mgmt_get_all_if_id(struct beiscsi_hba *phba);
 
-int mgmt_set_vlan(struct beiscsi_hba *phba, uint16_t vlan_tag);
+int beiscsi_if_set_vlan(struct beiscsi_hba *phba, uint16_t vlan_tag);
 
 ssize_t beiscsi_drvr_ver_disp(struct device *dev,
 			       struct device_attribute *attr, char *buf);
