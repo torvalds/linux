@@ -39,7 +39,7 @@ buffer.
 struct v4l2_buffer
 ==================
 
-.. tabularcolumns:: |p{1.3cm}|p{2.5cm}|p{1.3cm}|p{12.0cm}|
+.. tabularcolumns:: |p{2.8cm}|p{2.5cm}|p{1.3cm}|p{10.5cm}|
 
 .. cssclass:: longtable
 

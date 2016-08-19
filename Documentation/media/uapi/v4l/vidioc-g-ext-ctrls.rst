@@ -229,7 +229,7 @@ still cause this situation.
 	  ``V4L2_CTRL_FLAG_HAS_PAYLOAD`` is set for this control.
 
 
-.. tabularcolumns:: |p{4.0cm}|p{3.0cm}|p{2.0cm}|p{8.5cm}|
+.. tabularcolumns:: |p{4.0cm}|p{2.0cm}|p{2.0cm}|p{8.5cm}|
 
 .. _v4l2-ext-controls:
 

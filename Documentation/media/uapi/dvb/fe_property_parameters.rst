@@ -1005,10 +1005,9 @@ Possible values: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, -1 (AUTO)
 Note: Truth table for ``DTV_ISDBT_SOUND_BROADCASTING`` and
 ``DTV_ISDBT_PARTIAL_RECEPTION`` and ``LAYER[A-C]_SEGMENT_COUNT``
 
-
 .. _isdbt-layer_seg-cnt-table:
 
-.. flat-table::
+.. flat-table:: Truth table for ISDB-T Sound Broadcasting
     :header-rows:  0
     :stub-columns: 0
 
@@ -1101,7 +1100,7 @@ TMCC-structure, as shown in the table below.
 
 .. _isdbt-layer-interleaving-table:
 
-.. flat-table::
+.. flat-table:: ISDB-T time interleaving modes
     :header-rows:  0
     :stub-columns: 0
 

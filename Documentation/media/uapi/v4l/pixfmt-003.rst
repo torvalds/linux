@@ -49,7 +49,7 @@ describing all planes of that format.
 	  applications.
 
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{4.4cm}|p{5.6cm}|p{7.5cm}|
 
 .. _v4l2-pix-format-mplane:
 

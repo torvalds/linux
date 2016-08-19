@@ -160,7 +160,7 @@ frontend capabilities
 Capabilities describe what a frontend can do. Some capabilities are
 supported only on some specific frontend types.
 
-.. tabularcolumns:: |p{5.5cm}|p{12.0cm}|
+.. tabularcolumns:: |p{6.5cm}|p{11.0cm}|
 
 .. _fe-caps:
 
