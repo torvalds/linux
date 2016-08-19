@@ -276,8 +276,12 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
 		extra_dwords = 1;
 
 		/* flush command */
-		if (gpu->mmu->need_flush)
-			extra_dwords += 1;
+		if (gpu->mmu->need_flush) {
+			if (gpu->mmu->version == ETNAVIV_IOMMU_V1)
+				extra_dwords += 1;
+			else
+				extra_dwords += 3;
+		}
 
 		/* pipe switch commands */
 		if (gpu->switch_context)
@@ -287,12 +291,23 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
 
 		if (gpu->mmu->need_flush) {
 			/* Add the MMU flush */
-			CMD_LOAD_STATE(buffer, VIVS_GL_FLUSH_MMU,
-				       VIVS_GL_FLUSH_MMU_FLUSH_FEMMU |
-				       VIVS_GL_FLUSH_MMU_FLUSH_UNK1 |
-				       VIVS_GL_FLUSH_MMU_FLUSH_UNK2 |
-				       VIVS_GL_FLUSH_MMU_FLUSH_PEMMU |
-				       VIVS_GL_FLUSH_MMU_FLUSH_UNK4);
+			if (gpu->mmu->version == ETNAVIV_IOMMU_V1) {
+				CMD_LOAD_STATE(buffer, VIVS_GL_FLUSH_MMU,
+					       VIVS_GL_FLUSH_MMU_FLUSH_FEMMU |
+					       VIVS_GL_FLUSH_MMU_FLUSH_UNK1 |
+					       VIVS_GL_FLUSH_MMU_FLUSH_UNK2 |
+					       VIVS_GL_FLUSH_MMU_FLUSH_PEMMU |
+					       VIVS_GL_FLUSH_MMU_FLUSH_UNK4);
+			} else {
+				CMD_LOAD_STATE(buffer, VIVS_MMUv2_CONFIGURATION,
+					VIVS_MMUv2_CONFIGURATION_MODE_MASK |
+					VIVS_MMUv2_CONFIGURATION_ADDRESS_MASK |
+					VIVS_MMUv2_CONFIGURATION_FLUSH_FLUSH);
+				CMD_SEM(buffer, SYNC_RECIPIENT_FE,
+					SYNC_RECIPIENT_PE);
+				CMD_STALL(buffer, SYNC_RECIPIENT_FE,
+					SYNC_RECIPIENT_PE);
+			}
 
 			gpu->mmu->need_flush = false;
 		}
