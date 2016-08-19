@@ -3408,6 +3408,8 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 	dst_w--;
 	dst_h--;
 
+	intel_crtc->dspaddr_offset = surf_addr;
+
 	intel_crtc->adjusted_x = src_x;
 	intel_crtc->adjusted_y = src_y;
 
