@@ -893,11 +893,12 @@ struct i915_gem_context {
 
 	struct i915_ctx_hang_stats hang_stats;
 
-	/* Unique identifier for this context, used by the hw for tracking */
 	unsigned long flags;
 #define CONTEXT_NO_ZEROMAP		BIT(0)
 #define CONTEXT_NO_ERROR_CAPTURE	BIT(1)
-	unsigned hw_id;
+
+	/* Unique identifier for this context, used by the hw for tracking */
+	unsigned int hw_id;
 	u32 user_handle;
 
 	u32 ggtt_alignment;
