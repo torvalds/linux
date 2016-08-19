@@ -388,6 +388,7 @@ void __init sa1100_init_irq(void)
 	sa11x0_init_irq_nodt(IRQ_GPIO0_SC, irq_resource.start);
 
 	sa1100_init_gpio();
+	sa11xx_clk_init();
 }
 
 /*

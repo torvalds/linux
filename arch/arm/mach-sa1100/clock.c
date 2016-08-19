@@ -140,9 +140,8 @@ static struct clk_lookup sa11xx_clkregs[] = {
 	CLKDEV_INIT(NULL, "OSTIMER0", &clk_36864),
 };
 
-static int __init sa11xx_clk_init(void)
+int __init sa11xx_clk_init(void)
 {
 	clkdev_add_table(sa11xx_clkregs, ARRAY_SIZE(sa11xx_clkregs));
 	return 0;
 }
-core_initcall(sa11xx_clk_init);
