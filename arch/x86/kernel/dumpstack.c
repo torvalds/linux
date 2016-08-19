@@ -38,38 +38,6 @@ void printk_address(unsigned long address)
 	pr_cont(" [<%p>] %pS\n", (void *)address, (void *)address);
 }
 
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-static void
-print_ftrace_graph_addr(unsigned long addr, void *data,
-			const struct stacktrace_ops *ops,
-			struct task_struct *task, int *graph)
-{
-	unsigned long ret_addr;
-	int index;
-
-	if (addr != (unsigned long)return_to_handler)
-		return;
-
-	index = task->curr_ret_stack;
-
-	if (!task->ret_stack || index < *graph)
-		return;
-
-	index -= *graph;
-	ret_addr = task->ret_stack[index].ret;
-
-	ops->address(data, ret_addr, 1);
-
-	(*graph)++;
-}
-#else
-static inline void
-print_ftrace_graph_addr(unsigned long addr, void *data,
-			const struct stacktrace_ops *ops,
-			struct task_struct *task, int *graph)
-{ }
-#endif
-
 /*
  * x86-64 can have up to three kernel stacks:
  * process stack
@@ -107,18 +75,24 @@ print_context_stack(struct task_struct *task,
 		stack = (unsigned long *)task_stack_page(task);
 
 	while (valid_stack_ptr(task, stack, sizeof(*stack), end)) {
-		unsigned long addr;
+		unsigned long addr = *stack;
 
-		addr = *stack;
 		if (__kernel_text_address(addr)) {
+			unsigned long real_addr;
+			int reliable = 0;
+
 			if ((unsigned long) stack == bp + sizeof(long)) {
-				ops->address(data, addr, 1);
+				reliable = 1;
 				frame = frame->next_frame;
 				bp = (unsigned long) frame;
-			} else {
-				ops->address(data, addr, 0);
 			}
-			print_ftrace_graph_addr(addr, data, ops, task, graph);
+
+			ops->address(data, addr, reliable);
+
+			real_addr = ftrace_graph_ret_addr(task, graph, addr,
+							  stack);
+			if (real_addr != addr)
+				ops->address(data, real_addr, 1);
 		}
 		stack++;
 	}
@@ -133,19 +107,24 @@ print_context_stack_bp(struct task_struct *task,
 		       unsigned long *end, int *graph)
 {
 	struct stack_frame *frame = (struct stack_frame *)bp;
-	unsigned long *ret_addr = &frame->return_address;
+	unsigned long *retp = &frame->return_address;
 
-	while (valid_stack_ptr(task, ret_addr, sizeof(*ret_addr), end)) {
-		unsigned long addr = *ret_addr;
+	while (valid_stack_ptr(task, retp, sizeof(*retp), end)) {
+		unsigned long addr = *retp;
+		unsigned long real_addr;
 
 		if (!__kernel_text_address(addr))
 			break;
 
 		if (ops->address(data, addr, 1))
 			break;
+
+		real_addr = ftrace_graph_ret_addr(task, graph, addr, retp);
+		if (real_addr != addr)
+			ops->address(data, real_addr, 1);
+
 		frame = frame->next_frame;
-		ret_addr = &frame->return_address;
-		print_ftrace_graph_addr(addr, data, ops, task, graph);
+		retp = &frame->return_address;
 	}
 
 	return (unsigned long)frame;
