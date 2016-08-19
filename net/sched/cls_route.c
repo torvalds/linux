@@ -383,17 +383,19 @@ static int route4_set_parms(struct net *net, struct tcf_proto *tp,
 			    struct nlattr **tb, struct nlattr *est, int new,
 			    bool ovr)
 {
-	int err;
 	u32 id = 0, to = 0, nhandle = 0x8000;
 	struct route4_filter *fp;
 	unsigned int h1;
 	struct route4_bucket *b;
 	struct tcf_exts e;
+	int err;
 
-	tcf_exts_init(&e, TCA_ROUTE4_ACT, TCA_ROUTE4_POLICE);
-	err = tcf_exts_validate(net, tp, tb, est, &e, ovr);
+	err = tcf_exts_init(&e, TCA_ROUTE4_ACT, TCA_ROUTE4_POLICE);
 	if (err < 0)
 		return err;
+	err = tcf_exts_validate(net, tp, tb, est, &e, ovr);
+	if (err < 0)
+		goto errout;
 
 	err = -EINVAL;
 	if (tb[TCA_ROUTE4_TO]) {
@@ -503,7 +505,10 @@ static int route4_change(struct net *net, struct sk_buff *in_skb,
 	if (!f)
 		goto errout;
 
-	tcf_exts_init(&f->exts, TCA_ROUTE4_ACT, TCA_ROUTE4_POLICE);
+	err = tcf_exts_init(&f->exts, TCA_ROUTE4_ACT, TCA_ROUTE4_POLICE);
+	if (err < 0)
+		goto errout;
+
 	if (fold) {
 		f->id = fold->id;
 		f->iif = fold->iif;
@@ -557,6 +562,7 @@ static int route4_change(struct net *net, struct sk_buff *in_skb,
 	return 0;
 
 errout:
+	tcf_exts_destroy(&f->exts);
 	kfree(f);
 	return err;
 }

@@ -487,10 +487,12 @@ static int rsvp_change(struct net *net, struct sk_buff *in_skb,
 	if (err < 0)
 		return err;
 
-	tcf_exts_init(&e, TCA_RSVP_ACT, TCA_RSVP_POLICE);
-	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &e, ovr);
+	err = tcf_exts_init(&e, TCA_RSVP_ACT, TCA_RSVP_POLICE);
 	if (err < 0)
 		return err;
+	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &e, ovr);
+	if (err < 0)
+		goto errout2;
 
 	f = (struct rsvp_filter *)*arg;
 	if (f) {
@@ -506,7 +508,11 @@ static int rsvp_change(struct net *net, struct sk_buff *in_skb,
 			goto errout2;
 		}
 
-		tcf_exts_init(&n->exts, TCA_RSVP_ACT, TCA_RSVP_POLICE);
+		err = tcf_exts_init(&n->exts, TCA_RSVP_ACT, TCA_RSVP_POLICE);
+		if (err < 0) {
+			kfree(n);
+			goto errout2;
+		}
 
 		if (tb[TCA_RSVP_CLASSID]) {
 			n->res.classid = nla_get_u32(tb[TCA_RSVP_CLASSID]);
@@ -530,7 +536,9 @@ static int rsvp_change(struct net *net, struct sk_buff *in_skb,
 	if (f == NULL)
 		goto errout2;
 
-	tcf_exts_init(&f->exts, TCA_RSVP_ACT, TCA_RSVP_POLICE);
+	err = tcf_exts_init(&f->exts, TCA_RSVP_ACT, TCA_RSVP_POLICE);
+	if (err < 0)
+		goto errout;
 	h2 = 16;
 	if (tb[TCA_RSVP_SRC]) {
 		memcpy(f->src, nla_data(tb[TCA_RSVP_SRC]), sizeof(f->src));
@@ -627,6 +635,7 @@ insert:
 	goto insert;
 
 errout:
+	tcf_exts_destroy(&f->exts);
 	kfree(f);
 errout2:
 	tcf_exts_destroy(&e);

@@ -709,13 +709,15 @@ static int u32_set_parms(struct net *net, struct tcf_proto *tp,
 			 struct tc_u_knode *n, struct nlattr **tb,
 			 struct nlattr *est, bool ovr)
 {
-	int err;
 	struct tcf_exts e;
+	int err;
 
-	tcf_exts_init(&e, TCA_U32_ACT, TCA_U32_POLICE);
-	err = tcf_exts_validate(net, tp, tb, est, &e, ovr);
+	err = tcf_exts_init(&e, TCA_U32_ACT, TCA_U32_POLICE);
 	if (err < 0)
 		return err;
+	err = tcf_exts_validate(net, tp, tb, est, &e, ovr);
+	if (err < 0)
+		goto errout;
 
 	err = -EINVAL;
 	if (tb[TCA_U32_LINK]) {
@@ -833,7 +835,10 @@ static struct tc_u_knode *u32_init_knode(struct tcf_proto *tp,
 	new->tp = tp;
 	memcpy(&new->sel, s, sizeof(*s) + s->nkeys*sizeof(struct tc_u32_key));
 
-	tcf_exts_init(&new->exts, TCA_U32_ACT, TCA_U32_POLICE);
+	if (tcf_exts_init(&new->exts, TCA_U32_ACT, TCA_U32_POLICE)) {
+		kfree(new);
+		return NULL;
+	}
 
 	return new;
 }
@@ -985,8 +990,11 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 	n->handle = handle;
 	n->fshift = s->hmask ? ffs(ntohl(s->hmask)) - 1 : 0;
 	n->flags = flags;
-	tcf_exts_init(&n->exts, TCA_U32_ACT, TCA_U32_POLICE);
 	n->tp = tp;
+
+	err = tcf_exts_init(&n->exts, TCA_U32_ACT, TCA_U32_POLICE);
+	if (err < 0)
+		goto errout;
 
 #ifdef CONFIG_CLS_U32_MARK
 	n->pcpu_success = alloc_percpu(u32);
@@ -1028,9 +1036,10 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 errhw:
 #ifdef CONFIG_CLS_U32_MARK
 	free_percpu(n->pcpu_success);
-errout:
 #endif
 
+errout:
+	tcf_exts_destroy(&n->exts);
 #ifdef CONFIG_CLS_U32_PERF
 	free_percpu(n->pf);
 #endif
