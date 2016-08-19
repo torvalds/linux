@@ -194,6 +194,7 @@ struct wmi_ops {
 	struct sk_buff *(*gen_pdev_bss_chan_info_req)
 					(struct ath10k *ar,
 					 enum wmi_bss_survey_req_type type);
+	struct sk_buff *(*gen_echo)(struct ath10k *ar, u32 value);
 };
 
 int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id);
@@ -1380,6 +1381,22 @@ ath10k_wmi_pdev_bss_chan_info_request(struct ath10k *ar,
 
 	return ath10k_wmi_cmd_send(ar, skb,
 				   wmi->cmd->pdev_bss_chan_info_request_cmdid);
+}
+
+static inline int
+ath10k_wmi_echo(struct ath10k *ar, u32 value)
+{
+	struct ath10k_wmi *wmi = &ar->wmi;
+	struct sk_buff *skb;
+
+	if (!wmi->ops->gen_echo)
+		return -EOPNOTSUPP;
+
+	skb = wmi->ops->gen_echo(ar, value);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	return ath10k_wmi_cmd_send(ar, skb, wmi->cmd->echo_cmdid);
 }
 
 #endif

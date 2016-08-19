@@ -7675,6 +7675,24 @@ ath10k_wmi_10_4_ext_resource_config(struct ath10k *ar,
 	return skb;
 }
 
+static struct sk_buff *
+ath10k_wmi_op_gen_echo(struct ath10k *ar, u32 value)
+{
+	struct wmi_echo_cmd *cmd;
+	struct sk_buff *skb;
+
+	skb = ath10k_wmi_alloc_skb(ar, sizeof(*cmd));
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	cmd = (struct wmi_echo_cmd *)skb->data;
+	cmd->value = cpu_to_le32(value);
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI,
+		   "wmi echo value 0x%08x\n", value);
+	return skb;
+}
+
 static const struct wmi_ops wmi_ops = {
 	.rx = ath10k_wmi_op_rx,
 	.map_svc = wmi_main_svc_map,
@@ -7735,6 +7753,7 @@ static const struct wmi_ops wmi_ops = {
 	.gen_delba_send = ath10k_wmi_op_gen_delba_send,
 	.fw_stats_fill = ath10k_wmi_main_op_fw_stats_fill,
 	.get_vdev_subtype = ath10k_wmi_op_get_vdev_subtype,
+	.gen_echo = ath10k_wmi_op_gen_echo,
 	/* .gen_bcn_tmpl not implemented */
 	/* .gen_prb_tmpl not implemented */
 	/* .gen_p2p_go_bcn_ie not implemented */
@@ -7803,6 +7822,7 @@ static const struct wmi_ops wmi_10_1_ops = {
 	.gen_delba_send = ath10k_wmi_op_gen_delba_send,
 	.fw_stats_fill = ath10k_wmi_10x_op_fw_stats_fill,
 	.get_vdev_subtype = ath10k_wmi_op_get_vdev_subtype,
+	.gen_echo = ath10k_wmi_op_gen_echo,
 	/* .gen_bcn_tmpl not implemented */
 	/* .gen_prb_tmpl not implemented */
 	/* .gen_p2p_go_bcn_ie not implemented */
@@ -7822,6 +7842,7 @@ static const struct wmi_ops wmi_10_2_ops = {
 	.pull_svc_rdy = ath10k_wmi_10x_op_pull_svc_rdy_ev,
 	.gen_pdev_set_rd = ath10k_wmi_10x_op_gen_pdev_set_rd,
 	.gen_start_scan = ath10k_wmi_10x_op_gen_start_scan,
+	.gen_echo = ath10k_wmi_op_gen_echo,
 
 	.pull_scan = ath10k_wmi_op_pull_scan_ev,
 	.pull_mgmt_rx = ath10k_wmi_op_pull_mgmt_rx_ev,
@@ -7888,6 +7909,7 @@ static const struct wmi_ops wmi_10_2_4_ops = {
 	.pull_svc_rdy = ath10k_wmi_10x_op_pull_svc_rdy_ev,
 	.gen_pdev_set_rd = ath10k_wmi_10x_op_gen_pdev_set_rd,
 	.gen_start_scan = ath10k_wmi_10x_op_gen_start_scan,
+	.gen_echo = ath10k_wmi_op_gen_echo,
 
 	.pull_scan = ath10k_wmi_op_pull_scan_ev,
 	.pull_mgmt_rx = ath10k_wmi_op_pull_mgmt_rx_ev,
@@ -8010,6 +8032,7 @@ static const struct wmi_ops wmi_10_4_ops = {
 	.gen_pdev_get_temperature = ath10k_wmi_10_2_op_gen_pdev_get_temperature,
 	.get_vdev_subtype = ath10k_wmi_10_4_op_get_vdev_subtype,
 	.gen_pdev_bss_chan_info_req = ath10k_wmi_10_2_op_gen_pdev_bss_chan_info,
+	.gen_echo = ath10k_wmi_op_gen_echo,
 };
 
 int ath10k_wmi_attach(struct ath10k *ar)
