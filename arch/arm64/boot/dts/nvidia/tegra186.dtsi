@@ -160,6 +160,50 @@
 		status = "disabled";
 	};
 
+	sdmmc1: sdhci@3400000 {
+		compatible = "nvidia,tegra186-sdhci";
+		reg = <0x0 0x03400000 0x0 0x10000>;
+		interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&bpmp 52>;
+		clock-names = "sdhci";
+		resets = <&bpmp 33>;
+		reset-names = "sdhci";
+		status = "disabled";
+	};
+
+	sdmmc2: sdhci@3420000 {
+		compatible = "nvidia,tegra186-sdhci";
+		reg = <0x0 0x03420000 0x0 0x10000>;
+		interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&bpmp 53>;
+		clock-names = "sdhci";
+		resets = <&bpmp 34>;
+		reset-names = "sdhci";
+		status = "disabled";
+	};
+
+	sdmmc3: sdhci@3440000 {
+		compatible = "nvidia,tegra186-sdhci";
+		reg = <0x0 0x03440000 0x0 0x10000>;
+		interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&bpmp 76>;
+		clock-names = "sdhci";
+		resets = <&bpmp 35>;
+		reset-names = "sdhci";
+		status = "disabled";
+	};
+
+	sdmmc4: sdhci@3460000 {
+		compatible = "nvidia,tegra186-sdhci";
+		reg = <0x0 0x03460000 0x0 0x10000>;
+		interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&bpmp 54>;
+		clock-names = "sdhci";
+		resets = <&bpmp 36>;
+		reset-names = "sdhci";
+		status = "disabled";
+	};
+
 	gic: interrupt-controller@3881000 {
 		compatible = "arm,gic-400";
 		#interrupt-cells = <3>;
