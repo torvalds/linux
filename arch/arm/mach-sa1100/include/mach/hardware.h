@@ -13,7 +13,7 @@
 #define __ASM_ARCH_HARDWARE_H
 
 
-#define UNCACHEABLE_ADDR	0xfa050000
+#define UNCACHEABLE_ADDR	0xfa050000	/* ICIP */
 
 
 /*
