@@ -69,4 +69,11 @@ struct keyctl_dh_params {
 	__s32 base;
 };
 
+struct keyctl_kdf_params {
+	char *hashname;
+	char *otherinfo;
+	__u32 otherinfolen;
+	__u32 __spare[8];
+};
+
 #endif /*  _LINUX_KEYCTL_H */

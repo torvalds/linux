@@ -827,7 +827,7 @@ The keyctl syscall functions are:
 
        long keyctl(KEYCTL_DH_COMPUTE, struct keyctl_dh_params *params,
 		   char *buffer, size_t buflen,
-		   void *reserved);
+		   struct keyctl_kdf_params *kdf);
 
      The params struct contains serial numbers for three keys:
 
@@ -844,18 +844,36 @@ The keyctl syscall functions are:
      public key.  If the base is the remote public key, the result is
      the shared secret.
 
-     The reserved argument must be set to NULL.
+     If the parameter kdf is NULL, the following applies:
 
-     The buffer length must be at least the length of the prime, or zero.
+	 - The buffer length must be at least the length of the prime, or zero.
 
-     If the buffer length is nonzero, the length of the result is
-     returned when it is successfully calculated and copied in to the
-     buffer. When the buffer length is zero, the minimum required
-     buffer length is returned.
+	 - If the buffer length is nonzero, the length of the result is
+	   returned when it is successfully calculated and copied in to the
+	   buffer. When the buffer length is zero, the minimum required
+	   buffer length is returned.
+
+     The kdf parameter allows the caller to apply a key derivation function
+     (KDF) on the Diffie-Hellman computation where only the result
+     of the KDF is returned to the caller. The KDF is characterized with
+     struct keyctl_kdf_params as follows:
+
+	 - char *hashname specifies the NUL terminated string identifying
+	   the hash used from the kernel crypto API and applied for the KDF
+	   operation. The KDF implemenation complies with SP800-56A as well
+	   as with SP800-108 (the counter KDF).
+
+	 - char *otherinfo specifies the OtherInfo data as documented in
+	   SP800-56A section 5.8.1.2. The length of the buffer is given with
+	   otherinfolen. The format of OtherInfo is defined by the caller.
+	   The otherinfo pointer may be NULL if no OtherInfo shall be used.
 
      This function will return error EOPNOTSUPP if the key type is not
      supported, error ENOKEY if the key could not be found, or error
-     EACCES if the key is not readable by the caller.
+     EACCES if the key is not readable by the caller. In addition, the
+     function will return EMSGSIZE when the parameter kdf is non-NULL
+     and either the buffer length or the OtherInfo length exceeds the
+     allowed length.
 
  (*) Restrict keyring linkage
 
