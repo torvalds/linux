@@ -21,6 +21,7 @@
 
 #include "common.xml.h"
 #include "state.xml.h"
+#include "state_hi.xml.h"
 #include "state_3d.xml.h"
 #include "cmdstream.xml.h"
 
@@ -170,6 +171,39 @@ u16 etnaviv_buffer_init(struct etnaviv_gpu *gpu)
 	CMD_WAIT(buffer);
 	CMD_LINK(buffer, 2, etnaviv_iommu_get_cmdbuf_va(gpu, buffer) +
 		 buffer->user_size - 4);
+
+	return buffer->user_size / 8;
+}
+
+u16 etnaviv_buffer_config_mmuv2(struct etnaviv_gpu *gpu, u32 mtlb_addr, u32 safe_addr)
+{
+	struct etnaviv_cmdbuf *buffer = gpu->buffer;
+
+	buffer->user_size = 0;
+
+	if (gpu->identity.features & chipFeatures_PIPE_3D) {
+		CMD_LOAD_STATE(buffer, VIVS_GL_PIPE_SELECT,
+			       VIVS_GL_PIPE_SELECT_PIPE(ETNA_PIPE_3D));
+		CMD_LOAD_STATE(buffer, VIVS_MMUv2_CONFIGURATION,
+			mtlb_addr | VIVS_MMUv2_CONFIGURATION_MODE_MODE4_K);
+		CMD_LOAD_STATE(buffer, VIVS_MMUv2_SAFE_ADDRESS, safe_addr);
+		CMD_SEM(buffer, SYNC_RECIPIENT_FE, SYNC_RECIPIENT_PE);
+		CMD_STALL(buffer, SYNC_RECIPIENT_FE, SYNC_RECIPIENT_PE);
+	}
+
+	if (gpu->identity.features & chipFeatures_PIPE_2D) {
+		CMD_LOAD_STATE(buffer, VIVS_GL_PIPE_SELECT,
+			       VIVS_GL_PIPE_SELECT_PIPE(ETNA_PIPE_2D));
+		CMD_LOAD_STATE(buffer, VIVS_MMUv2_CONFIGURATION,
+			mtlb_addr | VIVS_MMUv2_CONFIGURATION_MODE_MODE4_K);
+		CMD_LOAD_STATE(buffer, VIVS_MMUv2_SAFE_ADDRESS, safe_addr);
+		CMD_SEM(buffer, SYNC_RECIPIENT_FE, SYNC_RECIPIENT_PE);
+		CMD_STALL(buffer, SYNC_RECIPIENT_FE, SYNC_RECIPIENT_PE);
+	}
+
+	CMD_END(buffer);
+
+	buffer->user_size = ALIGN(buffer->user_size, 8);
 
 	return buffer->user_size / 8;
 }
