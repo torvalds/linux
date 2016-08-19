@@ -574,6 +574,8 @@ int beiscsi_iface_get_param(struct iscsi_iface *iface,
 	struct be_cmd_get_def_gateway_resp gateway;
 	int len = -EPERM;
 
+	if (param_type != ISCSI_NET_PARAM)
+		return 0;
 	if (phba->state & BE_ADAPTER_PCI_ERR) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
 			    "BS_%d : In PCI_ERROR Recovery\n");
