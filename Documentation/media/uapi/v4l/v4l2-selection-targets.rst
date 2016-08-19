@@ -12,6 +12,8 @@ of the two interfaces they are used.
 
 .. _v4l2-selection-targets-table:
 
+.. tabularcolumns:: |p{5.8cm}|p{1.4cm}|p{6.5cm}|p{1.2cm}|p{1.6cm}|
+
 .. flat-table:: Selection target definitions
     :header-rows:  1
     :stub-columns: 0
