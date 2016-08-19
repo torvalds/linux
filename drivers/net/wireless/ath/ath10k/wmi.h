@@ -6628,5 +6628,6 @@ void ath10k_wmi_10_4_op_fw_stats_fill(struct ath10k *ar,
 				      char *buf);
 int ath10k_wmi_op_get_vdev_subtype(struct ath10k *ar,
 				   enum wmi_vdev_subtype subtype);
+int ath10k_wmi_barrier(struct ath10k *ar);
 
 #endif /* _WMI_H_ */
