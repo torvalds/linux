@@ -942,7 +942,7 @@ out:
 static void ravb_adjust_link(struct net_device *ndev)
 {
 	struct ravb_private *priv = netdev_priv(ndev);
-	struct phy_device *phydev = priv->phydev;
+	struct phy_device *phydev = ndev->phydev;
 	bool new_state = false;
 
 	if (phydev->link) {
@@ -1032,22 +1032,19 @@ static int ravb_phy_init(struct net_device *ndev)
 
 	phy_attached_info(phydev);
 
-	priv->phydev = phydev;
-
 	return 0;
 }
 
 /* PHY control start function */
 static int ravb_phy_start(struct net_device *ndev)
 {
-	struct ravb_private *priv = netdev_priv(ndev);
 	int error;
 
 	error = ravb_phy_init(ndev);
 	if (error)
 		return error;
 
-	phy_start(priv->phydev);
+	phy_start(ndev->phydev);
 
 	return 0;
 }
@@ -1058,9 +1055,9 @@ static int ravb_get_settings(struct net_device *ndev, struct ethtool_cmd *ecmd)
 	int error = -ENODEV;
 	unsigned long flags;
 
-	if (priv->phydev) {
+	if (ndev->phydev) {
 		spin_lock_irqsave(&priv->lock, flags);
-		error = phy_ethtool_gset(priv->phydev, ecmd);
+		error = phy_ethtool_gset(ndev->phydev, ecmd);
 		spin_unlock_irqrestore(&priv->lock, flags);
 	}
 
@@ -1073,7 +1070,7 @@ static int ravb_set_settings(struct net_device *ndev, struct ethtool_cmd *ecmd)
 	unsigned long flags;
 	int error;
 
-	if (!priv->phydev)
+	if (!ndev->phydev)
 		return -ENODEV;
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -1081,7 +1078,7 @@ static int ravb_set_settings(struct net_device *ndev, struct ethtool_cmd *ecmd)
 	/* Disable TX and RX */
 	ravb_rcv_snd_disable(ndev);
 
-	error = phy_ethtool_sset(priv->phydev, ecmd);
+	error = phy_ethtool_sset(ndev->phydev, ecmd);
 	if (error)
 		goto error_exit;
 
@@ -1110,9 +1107,9 @@ static int ravb_nway_reset(struct net_device *ndev)
 	int error = -ENODEV;
 	unsigned long flags;
 
-	if (priv->phydev) {
+	if (ndev->phydev) {
 		spin_lock_irqsave(&priv->lock, flags);
-		error = phy_start_aneg(priv->phydev);
+		error = phy_start_aneg(ndev->phydev);
 		spin_unlock_irqrestore(&priv->lock, flags);
 	}
 
@@ -1661,10 +1658,9 @@ static int ravb_close(struct net_device *ndev)
 	}
 
 	/* PHY disconnect */
-	if (priv->phydev) {
-		phy_stop(priv->phydev);
-		phy_disconnect(priv->phydev);
-		priv->phydev = NULL;
+	if (ndev->phydev) {
+		phy_stop(ndev->phydev);
+		phy_disconnect(ndev->phydev);
 	}
 
 	if (priv->chip_id != RCAR_GEN2) {
@@ -1753,8 +1749,7 @@ static int ravb_hwtstamp_set(struct net_device *ndev, struct ifreq *req)
 /* ioctl to device function */
 static int ravb_do_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 {
-	struct ravb_private *priv = netdev_priv(ndev);
-	struct phy_device *phydev = priv->phydev;
+	struct phy_device *phydev = ndev->phydev;
 
 	if (!netif_running(ndev))
 		return -EINVAL;
