@@ -303,7 +303,6 @@ struct edac_device_prv_data {
 	int ce_clear_mask;
 	int ue_clear_mask;
 	int irq_status_mask;
-	char dbgfs_name[20];
 	void * (*alloc_mem)(size_t size, void **other);
 	void (*free_mem)(void *p, size_t size, void *other);
 	int ecc_enable_mask;
