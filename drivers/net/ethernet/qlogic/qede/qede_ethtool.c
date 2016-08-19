@@ -414,7 +414,7 @@ static int qede_set_link_ksettings(struct net_device *dev,
 			}
 			params.adv_speeds = QED_LM_40000baseLR4_Full_BIT;
 			break;
-		case 0xdead:
+		case SPEED_50000:
 			if (!(current_link.supported_caps &
 			      QED_LM_50000baseKR2_Full_BIT)) {
 				DP_INFO(edev, "50G speed not supported\n");
@@ -422,7 +422,7 @@ static int qede_set_link_ksettings(struct net_device *dev,
 			}
 			params.adv_speeds = QED_LM_50000baseKR2_Full_BIT;
 			break;
-		case 0xbeef:
+		case SPEED_100000:
 			if (!(current_link.supported_caps &
 			      QED_LM_100000baseKR4_Full_BIT)) {
 				DP_INFO(edev, "100G speed not supported\n");
@@ -672,7 +672,7 @@ static int qede_set_pauseparam(struct net_device *dev,
 	memset(&params, 0, sizeof(params));
 	params.override_flags |= QED_LINK_OVERRIDE_PAUSE_CONFIG;
 	if (epause->autoneg) {
-		if (!(current_link.supported_caps & SUPPORTED_Autoneg)) {
+		if (!(current_link.supported_caps & QED_LM_Autoneg_BIT)) {
 			DP_INFO(edev, "autoneg not supported\n");
 			return -EINVAL;
 		}

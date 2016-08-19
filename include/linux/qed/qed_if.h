@@ -318,9 +318,11 @@ struct qed_link_params {
 struct qed_link_output {
 	bool	link_up;
 
-	u32	supported_caps;         /* In SUPPORTED defs */
-	u32	advertised_caps;        /* In ADVERTISED defs */
-	u32	lp_caps;                /* In ADVERTISED defs */
+	/* In QED_LM_* defs */
+	u32	supported_caps;
+	u32	advertised_caps;
+	u32	lp_caps;
+
 	u32	speed;                  /* In Mb/s */
 	u8	duplex;                 /* In DUPLEX defs */
 	u8	port;                   /* In PORT defs */
