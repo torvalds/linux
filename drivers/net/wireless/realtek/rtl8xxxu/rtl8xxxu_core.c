@@ -4848,7 +4848,8 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 		}
 	}
 
-	if (rate_flag & IEEE80211_TX_RC_MCS)
+	if (rate_flag & IEEE80211_TX_RC_MCS &&
+	    !ieee80211_is_mgmt(hdr->frame_control))
 		rate = tx_info->control.rates[0].idx + DESC_RATE_MCS0;
 	else
 		rate = tx_rate->hw_value;
@@ -4869,7 +4870,7 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 			tx_desc->txdw1 |= cpu_to_le32(TXDESC32_AGG_BREAK);
 
 		if (ieee80211_is_mgmt(hdr->frame_control)) {
-			tx_desc->txdw5 = cpu_to_le32(tx_rate->hw_value);
+			tx_desc->txdw5 = cpu_to_le32(rate);
 			tx_desc->txdw4 |=
 				cpu_to_le32(TXDESC32_USE_DRIVER_RATE);
 			tx_desc->txdw5 |=
@@ -4923,7 +4924,7 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 			tx_desc40->txdw2 |= cpu_to_le32(TXDESC40_AGG_BREAK);
 
 		if (ieee80211_is_mgmt(hdr->frame_control)) {
-			tx_desc40->txdw4 = cpu_to_le32(tx_rate->hw_value);
+			tx_desc40->txdw4 = cpu_to_le32(rate);
 			tx_desc40->txdw3 |=
 				cpu_to_le32(TXDESC40_USE_DRIVER_RATE);
 			tx_desc40->txdw4 |=
