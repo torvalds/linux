@@ -608,79 +608,80 @@ struct amap_beiscsi_offload_params {
 	u8 max_recv_data_segment_length[32];
 };
 
-/* void hwi_complete_drvr_msgs(struct beiscsi_conn *beiscsi_conn,
-		struct beiscsi_hba *phba, struct sol_cqe *psol);*/
-
-struct async_pdu_handle {
+struct hd_async_handle {
 	struct list_head link;
 	struct be_bus_address pa;
 	void *pbuffer;
-	unsigned int consumed;
-	unsigned char index;
-	unsigned char is_header;
-	unsigned short cri;
-	unsigned long buffer_len;
+	u32 buffer_len;
+	u16 index;
+	u16 cri;
+	u8 is_header;
+	u8 is_final;
 };
 
-struct hwi_async_entry {
-	struct {
-		unsigned char hdr_received;
-		unsigned char hdr_len;
-		unsigned short bytes_received;
+/**
+ * This has list of async PDUs that are waiting to be processed.
+ * Buffers live in this list for a brief duration before they get
+ * processed and posted back to hardware.
+ * Note that we don't really need one cri_wait_queue per async_entry.
+ * We need one cri_wait_queue per CRI. Its easier to manage if this
+ * is tagged along with the async_entry.
+ */
+struct hd_async_entry {
+	struct cri_wait_queue {
+		unsigned short hdr_len;
+		unsigned int bytes_received;
 		unsigned int bytes_needed;
 		struct list_head list;
-	} wait_queue;
-
-	struct list_head header_busy_list;
-	struct list_head data_busy_list;
+	} wq;
+	/* handles posted to FW resides here */
+	struct hd_async_handle *header;
+	struct hd_async_handle *data;
 };
 
-struct hwi_async_pdu_context {
-	struct {
-		struct be_bus_address pa_base;
-		void *va_base;
-		void *ring_base;
-		struct async_pdu_handle *handle_base;
+struct hd_async_buf_context {
+	struct be_bus_address pa_base;
+	void *va_base;
+	void *ring_base;
+	struct hd_async_handle *handle_base;
+	u16 free_entries;
+	u32 buffer_size;
+	/**
+	 * Once iSCSI layer finishes processing an async PDU, the
+	 * handles used for the PDU are added to this list.
+	 * They are posted back to FW in groups of 8.
+	 */
+	struct list_head free_list;
+};
 
-		unsigned int host_write_ptr;
-		unsigned int ep_read_ptr;
-		unsigned int writables;
-
-		unsigned int free_entries;
-		unsigned int busy_entries;
-
-		struct list_head free_list;
-	} async_header;
-
-	struct {
-		struct be_bus_address pa_base;
-		void *va_base;
-		void *ring_base;
-		struct async_pdu_handle *handle_base;
-
-		unsigned int host_write_ptr;
-		unsigned int ep_read_ptr;
-		unsigned int writables;
-
-		unsigned int free_entries;
-		unsigned int busy_entries;
-		struct list_head free_list;
-	} async_data;
-
-	unsigned int buffer_size;
-	unsigned int num_entries;
+/**
+ * hd_async_context is declared for each ULP supporting iSCSI function.
+ */
+struct hd_async_context {
+	struct hd_async_buf_context async_header;
+	struct hd_async_buf_context async_data;
+	u16 num_entries;
+	/**
+	 * When unsol PDU is in, it needs to be chained till all the bytes are
+	 * received and then processing is done. hd_async_entry is created
+	 * based on the cid_count for each ULP. When unsol PDU comes in based
+	 * on the conn_id it needs to be added to the correct async_entry wq.
+	 * Below defined cid_to_async_cri_map is used to reterive the
+	 * async_cri_map for a particular connection.
+	 *
+	 * This array is initialized after beiscsi_create_wrb_rings returns.
+	 *
+	 * - this method takes more memory space, fixed to 2K
+	 * - any support for connections greater than this the array size needs
+	 * to be incremented
+	 */
 #define BE_GET_ASYNC_CRI_FROM_CID(cid) (pasync_ctx->cid_to_async_cri_map[cid])
 	unsigned short cid_to_async_cri_map[BE_MAX_SESSION];
 	/**
-	 * This is a varying size list! Do not add anything
-	 * after this entry!!
+	 * This is a variable size array. Don`t add anything after this field!!
 	 */
-	struct hwi_async_entry *async_entry;
+	struct hd_async_entry *async_entry;
 };
-
-#define PDUCQE_CODE_MASK	0x0000003F
-#define PDUCQE_DPL_MASK		0xFFFF0000
-#define PDUCQE_INDEX_MASK	0x0000FFFF
 
 struct i_t_dpdu_cqe {
 	u32 dw[4];
@@ -1077,9 +1078,14 @@ struct hwi_context_memory {
 	struct be_queue_info be_cq[MAX_CPUS - 1];
 
 	struct be_queue_info *be_wrbq;
+	/**
+	 * Create array of ULP number for below entries as DEFQ
+	 * will be created for both ULP if iSCSI Protocol is
+	 * loaded on both ULP.
+	 */
 	struct be_queue_info be_def_hdrq[BEISCSI_ULP_COUNT];
 	struct be_queue_info be_def_dataq[BEISCSI_ULP_COUNT];
-	struct hwi_async_pdu_context *pasync_ctx[BEISCSI_ULP_COUNT];
+	struct hd_async_context *pasync_ctx[BEISCSI_ULP_COUNT];
 };
 
 void beiscsi_start_boot_work(struct beiscsi_hba *phba, unsigned int s_handle);

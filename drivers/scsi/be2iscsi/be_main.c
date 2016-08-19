@@ -897,57 +897,6 @@ void hwi_ring_cq_db(struct beiscsi_hba *phba,
 	iowrite32(val, phba->db_va + DB_CQ_OFFSET);
 }
 
-static unsigned int
-beiscsi_process_async_pdu(struct beiscsi_conn *beiscsi_conn,
-			  struct beiscsi_hba *phba,
-			  struct pdu_base *ppdu,
-			  unsigned long pdu_len,
-			  void *pbuffer, unsigned long buf_len)
-{
-	struct iscsi_conn *conn = beiscsi_conn->conn;
-	struct iscsi_session *session = conn->session;
-	struct iscsi_task *task;
-	struct beiscsi_io_task *io_task;
-	struct iscsi_hdr *login_hdr;
-
-	switch (ppdu->dw[offsetof(struct amap_pdu_base, opcode) / 32] &
-						PDUBASE_OPCODE_MASK) {
-	case ISCSI_OP_NOOP_IN:
-		pbuffer = NULL;
-		buf_len = 0;
-		break;
-	case ISCSI_OP_ASYNC_EVENT:
-		break;
-	case ISCSI_OP_REJECT:
-		WARN_ON(!pbuffer);
-		WARN_ON(!(buf_len == 48));
-		beiscsi_log(phba, KERN_ERR,
-			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_IO,
-			    "BM_%d : In ISCSI_OP_REJECT\n");
-		break;
-	case ISCSI_OP_LOGIN_RSP:
-	case ISCSI_OP_TEXT_RSP:
-		task = conn->login_task;
-		io_task = task->dd_data;
-		login_hdr = (struct iscsi_hdr *)ppdu;
-		login_hdr->itt = io_task->libiscsi_itt;
-		break;
-	default:
-		beiscsi_log(phba, KERN_WARNING,
-			    BEISCSI_LOG_IO | BEISCSI_LOG_CONFIG,
-			    "BM_%d : Unrecognized opcode 0x%x in async msg\n",
-			    (ppdu->
-			     dw[offsetof(struct amap_pdu_base, opcode) / 32]
-			     & PDUBASE_OPCODE_MASK));
-		return 1;
-	}
-
-	spin_lock_bh(&session->back_lock);
-	__iscsi_complete_pdu(conn, (struct iscsi_hdr *)ppdu, pbuffer, buf_len);
-	spin_unlock_bh(&session->back_lock);
-	return 0;
-}
-
 static struct sgl_handle *alloc_io_sgl_handle(struct beiscsi_hba *phba)
 {
 	struct sgl_handle *psgl_handle;
@@ -1434,431 +1383,428 @@ static void hwi_complete_cmd(struct beiscsi_conn *beiscsi_conn,
 	spin_unlock_bh(&session->back_lock);
 }
 
-static struct list_head *hwi_get_async_busy_list(struct hwi_async_pdu_context
-					  *pasync_ctx, unsigned int is_header,
-					  unsigned int host_write_ptr)
-{
-	if (is_header)
-		return &pasync_ctx->async_entry[host_write_ptr].
-		    header_busy_list;
-	else
-		return &pasync_ctx->async_entry[host_write_ptr].data_busy_list;
-}
-
-static struct async_pdu_handle *
-hwi_get_async_handle(struct beiscsi_hba *phba,
-		     struct beiscsi_conn *beiscsi_conn,
-		     struct hwi_async_pdu_context *pasync_ctx,
-		     struct i_t_dpdu_cqe *pdpdu_cqe, unsigned int *pcq_index)
-{
-	struct be_bus_address phys_addr;
-	struct list_head *pbusy_list;
-	struct async_pdu_handle *pasync_handle = NULL;
-	unsigned char is_header = 0;
-	unsigned int index, dpl;
-
-	if (is_chip_be2_be3r(phba)) {
-		dpl = AMAP_GET_BITS(struct amap_i_t_dpdu_cqe,
-				    dpl, pdpdu_cqe);
-		index = AMAP_GET_BITS(struct amap_i_t_dpdu_cqe,
-				      index, pdpdu_cqe);
-	} else {
-		dpl = AMAP_GET_BITS(struct amap_i_t_dpdu_cqe_v2,
-				    dpl, pdpdu_cqe);
-		index = AMAP_GET_BITS(struct amap_i_t_dpdu_cqe_v2,
-				      index, pdpdu_cqe);
-	}
-
-	phys_addr.u.a32.address_lo =
-		(pdpdu_cqe->dw[offsetof(struct amap_i_t_dpdu_cqe,
-					db_addr_lo) / 32] - dpl);
-	phys_addr.u.a32.address_hi =
-		pdpdu_cqe->dw[offsetof(struct amap_i_t_dpdu_cqe,
-				       db_addr_hi) / 32];
-
-	phys_addr.u.a64.address =
-			*((unsigned long long *)(&phys_addr.u.a64.address));
-
-	switch (pdpdu_cqe->dw[offsetof(struct amap_i_t_dpdu_cqe, code) / 32]
-			& PDUCQE_CODE_MASK) {
-	case UNSOL_HDR_NOTIFY:
-		is_header = 1;
-
-		 pbusy_list = hwi_get_async_busy_list(pasync_ctx,
-						      is_header, index);
-		break;
-	case UNSOL_DATA_NOTIFY:
-		 pbusy_list = hwi_get_async_busy_list(pasync_ctx,
-						      is_header, index);
-		break;
-	default:
-		pbusy_list = NULL;
-		beiscsi_log(phba, KERN_WARNING,
-			    BEISCSI_LOG_IO | BEISCSI_LOG_CONFIG,
-			    "BM_%d : Unexpected code=%d\n",
-			    pdpdu_cqe->dw[offsetof(struct amap_i_t_dpdu_cqe,
-			    code) / 32] & PDUCQE_CODE_MASK);
-		return NULL;
-	}
-
-	WARN_ON(list_empty(pbusy_list));
-	list_for_each_entry(pasync_handle, pbusy_list, link) {
-		if (pasync_handle->pa.u.a64.address == phys_addr.u.a64.address)
-			break;
-	}
-
-	WARN_ON(!pasync_handle);
-
-	pasync_handle->cri = BE_GET_ASYNC_CRI_FROM_CID(
-			     beiscsi_conn->beiscsi_conn_cid);
-	pasync_handle->is_header = is_header;
-	pasync_handle->buffer_len = dpl;
-	*pcq_index = index;
-
-	return pasync_handle;
-}
-
+/**
+ * ASYNC PDUs include
+ * a. Unsolicited NOP-In (target initiated NOP-In)
+ * b. ASYNC Messages
+ * c. Reject PDU
+ * d. Login response
+ * These headers arrive unprocessed by the EP firmware.
+ * iSCSI layer processes them.
+ */
 static unsigned int
-hwi_update_async_writables(struct beiscsi_hba *phba,
-			    struct hwi_async_pdu_context *pasync_ctx,
-			    unsigned int is_header, unsigned int cq_index)
+beiscsi_complete_pdu(struct beiscsi_conn *beiscsi_conn,
+		struct pdu_base *phdr, void *pdata, unsigned int dlen)
 {
-	struct list_head *pbusy_list;
-	struct async_pdu_handle *pasync_handle;
-	unsigned int num_entries, writables = 0;
-	unsigned int *pep_read_ptr, *pwritables;
+	struct beiscsi_hba *phba = beiscsi_conn->phba;
+	struct iscsi_conn *conn = beiscsi_conn->conn;
+	struct beiscsi_io_task *io_task;
+	struct iscsi_hdr *login_hdr;
+	struct iscsi_task *task;
+	u8 code;
 
-	num_entries = pasync_ctx->num_entries;
-	if (is_header) {
-		pep_read_ptr = &pasync_ctx->async_header.ep_read_ptr;
-		pwritables = &pasync_ctx->async_header.writables;
-	} else {
-		pep_read_ptr = &pasync_ctx->async_data.ep_read_ptr;
-		pwritables = &pasync_ctx->async_data.writables;
-	}
-
-	while ((*pep_read_ptr) != cq_index) {
-		(*pep_read_ptr)++;
-		*pep_read_ptr = (*pep_read_ptr) % num_entries;
-
-		pbusy_list = hwi_get_async_busy_list(pasync_ctx, is_header,
-						     *pep_read_ptr);
-		if (writables == 0)
-			WARN_ON(list_empty(pbusy_list));
-
-		if (!list_empty(pbusy_list)) {
-			pasync_handle = list_entry(pbusy_list->next,
-						   struct async_pdu_handle,
-						   link);
-			WARN_ON(!pasync_handle);
-			pasync_handle->consumed = 1;
-		}
-
-		writables++;
-	}
-
-	if (!writables) {
+	code = AMAP_GET_BITS(struct amap_pdu_base, opcode, phdr);
+	switch (code) {
+	case ISCSI_OP_NOOP_IN:
+		pdata = NULL;
+		dlen = 0;
+		break;
+	case ISCSI_OP_ASYNC_EVENT:
+		break;
+	case ISCSI_OP_REJECT:
+		WARN_ON(!pdata);
+		WARN_ON(!(dlen == 48));
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_IO,
-			    "BM_%d : Duplicate notification received - index 0x%x!!\n",
-			    cq_index);
-		WARN_ON(1);
+			    "BM_%d : In ISCSI_OP_REJECT\n");
+		break;
+	case ISCSI_OP_LOGIN_RSP:
+	case ISCSI_OP_TEXT_RSP:
+		task = conn->login_task;
+		io_task = task->dd_data;
+		login_hdr = (struct iscsi_hdr *)phdr;
+		login_hdr->itt = io_task->libiscsi_itt;
+		break;
+	default:
+		beiscsi_log(phba, KERN_WARNING,
+			    BEISCSI_LOG_IO | BEISCSI_LOG_CONFIG,
+			    "BM_%d : unrecognized async PDU opcode 0x%x\n",
+			    code);
+		return 1;
 	}
-
-	*pwritables = *pwritables + writables;
+	__iscsi_complete_pdu(conn, (struct iscsi_hdr *)phdr, pdata, dlen);
 	return 0;
 }
 
-static void hwi_free_async_msg(struct beiscsi_hba *phba,
-			       struct hwi_async_pdu_context *pasync_ctx,
-			       unsigned int cri)
+static inline void
+beiscsi_hdl_put_handle(struct hd_async_context *pasync_ctx,
+			 struct hd_async_handle *pasync_handle)
 {
-	struct async_pdu_handle *pasync_handle, *tmp_handle;
-	struct list_head *plist;
+	if (pasync_handle->is_header) {
+		list_add_tail(&pasync_handle->link,
+				&pasync_ctx->async_header.free_list);
+		pasync_ctx->async_header.free_entries++;
+	} else {
+		list_add_tail(&pasync_handle->link,
+				&pasync_ctx->async_data.free_list);
+		pasync_ctx->async_data.free_entries++;
+	}
+}
 
-	plist  = &pasync_ctx->async_entry[cri].wait_queue.list;
-	list_for_each_entry_safe(pasync_handle, tmp_handle, plist, link) {
-		list_del(&pasync_handle->link);
+static struct hd_async_handle *
+beiscsi_hdl_get_handle(struct beiscsi_conn *beiscsi_conn,
+		       struct hd_async_context *pasync_ctx,
+		       struct i_t_dpdu_cqe *pdpdu_cqe)
+{
+	struct beiscsi_hba *phba = beiscsi_conn->phba;
+	struct hd_async_handle *pasync_handle;
+	struct be_bus_address phys_addr;
+	u8 final, error = 0;
+	u16 cid, code, ci;
+	u32 dpl;
 
-		if (pasync_handle->is_header) {
-			list_add_tail(&pasync_handle->link,
-				      &pasync_ctx->async_header.free_list);
-			pasync_ctx->async_header.free_entries++;
-		} else {
-			list_add_tail(&pasync_handle->link,
-				      &pasync_ctx->async_data.free_list);
-			pasync_ctx->async_data.free_entries++;
-		}
+	cid = beiscsi_conn->beiscsi_conn_cid;
+	/**
+	 * This function is invoked to get the right async_handle structure
+	 * from a given DEF PDU CQ entry.
+	 *
+	 * - index in CQ entry gives the vertical index
+	 * - address in CQ entry is the offset where the DMA last ended
+	 * - final - no more notifications for this PDU
+	 */
+	if (is_chip_be2_be3r(phba)) {
+		dpl = AMAP_GET_BITS(struct amap_i_t_dpdu_cqe,
+				    dpl, pdpdu_cqe);
+		ci = AMAP_GET_BITS(struct amap_i_t_dpdu_cqe,
+				      index, pdpdu_cqe);
+		final = AMAP_GET_BITS(struct amap_i_t_dpdu_cqe,
+				      final, pdpdu_cqe);
+	} else {
+		dpl = AMAP_GET_BITS(struct amap_i_t_dpdu_cqe_v2,
+				    dpl, pdpdu_cqe);
+		ci = AMAP_GET_BITS(struct amap_i_t_dpdu_cqe_v2,
+				      index, pdpdu_cqe);
+		final = AMAP_GET_BITS(struct amap_i_t_dpdu_cqe_v2,
+				      final, pdpdu_cqe);
 	}
 
-	INIT_LIST_HEAD(&pasync_ctx->async_entry[cri].wait_queue.list);
-	pasync_ctx->async_entry[cri].wait_queue.hdr_received = 0;
-	pasync_ctx->async_entry[cri].wait_queue.bytes_received = 0;
-}
+	/**
+	 * DB addr Hi/Lo is same for BE and SKH.
+	 * Subtract the dataplacementlength to get to the base.
+	 */
+	phys_addr.u.a32.address_lo = AMAP_GET_BITS(struct amap_i_t_dpdu_cqe,
+						   db_addr_lo, pdpdu_cqe);
+	phys_addr.u.a32.address_lo -= dpl;
+	phys_addr.u.a32.address_hi = AMAP_GET_BITS(struct amap_i_t_dpdu_cqe,
+						   db_addr_hi, pdpdu_cqe);
 
-static struct phys_addr *
-hwi_get_ring_address(struct hwi_async_pdu_context *pasync_ctx,
-		     unsigned int is_header, unsigned int host_write_ptr)
-{
-	struct phys_addr *pasync_sge = NULL;
+	code = AMAP_GET_BITS(struct amap_i_t_dpdu_cqe, code, pdpdu_cqe);
+	switch (code) {
+	case UNSOL_HDR_NOTIFY:
+		pasync_handle = pasync_ctx->async_entry[ci].header;
+		break;
+	case UNSOL_DATA_DIGEST_ERROR_NOTIFY:
+		error = 1;
+	case UNSOL_DATA_NOTIFY:
+		pasync_handle = pasync_ctx->async_entry[ci].data;
+		break;
+	/* called only for above codes */
+	default:
+		pasync_handle = NULL;
+		break;
+	}
 
-	if (is_header)
-		pasync_sge = pasync_ctx->async_header.ring_base;
+	if (!pasync_handle) {
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_ISCSI,
+			    "BM_%d : cid %d async PDU handle not found - code %d ci %d addr %llx\n",
+			    cid, code, ci, phys_addr.u.a64.address);
+		return pasync_handle;
+	}
+
+	if (pasync_handle->pa.u.a64.address != phys_addr.u.a64.address ||
+	    pasync_handle->index != ci) {
+		/* driver bug - if ci does not match async handle index */
+		error = 1;
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_ISCSI,
+			    "BM_%d : cid %u async PDU handle mismatch - addr in %cQE %llx at %u:addr in CQE %llx ci %u\n",
+			    cid, pasync_handle->is_header ? 'H' : 'D',
+			    pasync_handle->pa.u.a64.address,
+			    pasync_handle->index,
+			    phys_addr.u.a64.address, ci);
+		/* FW has stale address - attempt continuing by dropping */
+	}
+
+	/**
+	 * Each CID is associated with unique CRI.
+	 * ASYNC_CRI_FROM_CID mapping and CRI_FROM_CID are totaly different.
+	 **/
+	pasync_handle->cri = BE_GET_ASYNC_CRI_FROM_CID(cid);
+	pasync_handle->is_final = final;
+	pasync_handle->buffer_len = dpl;
+	/* empty the slot */
+	if (pasync_handle->is_header)
+		pasync_ctx->async_entry[ci].header = NULL;
 	else
-		pasync_sge = pasync_ctx->async_data.ring_base;
+		pasync_ctx->async_entry[ci].data = NULL;
 
-	return pasync_sge + host_write_ptr;
+	/**
+	 * DEF PDU header and data buffers with errors should be simply
+	 * dropped as there are no consumers for it.
+	 */
+	if (error) {
+		beiscsi_hdl_put_handle(pasync_ctx, pasync_handle);
+		pasync_handle = NULL;
+	}
+	return pasync_handle;
 }
 
-static void hwi_post_async_buffers(struct beiscsi_hba *phba,
-				    unsigned int is_header, uint8_t ulp_num)
+static void
+beiscsi_hdl_purge_handles(struct beiscsi_hba *phba,
+			  struct hd_async_context *pasync_ctx,
+			  u16 cri)
 {
+	struct hd_async_handle *pasync_handle, *tmp_handle;
+	struct list_head *plist;
+
+	plist  = &pasync_ctx->async_entry[cri].wq.list;
+	list_for_each_entry_safe(pasync_handle, tmp_handle, plist, link) {
+		list_del(&pasync_handle->link);
+		beiscsi_hdl_put_handle(pasync_ctx, pasync_handle);
+	}
+
+	INIT_LIST_HEAD(&pasync_ctx->async_entry[cri].wq.list);
+	pasync_ctx->async_entry[cri].wq.hdr_len = 0;
+	pasync_ctx->async_entry[cri].wq.bytes_received = 0;
+	pasync_ctx->async_entry[cri].wq.bytes_needed = 0;
+}
+
+static unsigned int
+beiscsi_hdl_fwd_pdu(struct beiscsi_conn *beiscsi_conn,
+		    struct hd_async_context *pasync_ctx,
+		    u16 cri)
+{
+	struct iscsi_session *session = beiscsi_conn->conn->session;
+	struct hd_async_handle *pasync_handle, *plast_handle;
+	struct beiscsi_hba *phba = beiscsi_conn->phba;
+	void *phdr = NULL, *pdata = NULL;
+	u32 dlen = 0, status = 0;
+	struct list_head *plist;
+
+	plist = &pasync_ctx->async_entry[cri].wq.list;
+	plast_handle = NULL;
+	list_for_each_entry(pasync_handle, plist, link) {
+		plast_handle = pasync_handle;
+		/* get the header, the first entry */
+		if (!phdr) {
+			phdr = pasync_handle->pbuffer;
+			continue;
+		}
+		/* use first buffer to collect all the data */
+		if (!pdata) {
+			pdata = pasync_handle->pbuffer;
+			dlen = pasync_handle->buffer_len;
+			continue;
+		}
+		memcpy(pdata + dlen, pasync_handle->pbuffer,
+		       pasync_handle->buffer_len);
+		dlen += pasync_handle->buffer_len;
+	}
+
+	if (!plast_handle->is_final) {
+		/* last handle should have final PDU notification from FW */
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_ISCSI,
+			    "BM_%d : cid %u %p fwd async PDU with last handle missing - HL%u:DN%u:DR%u\n",
+			    beiscsi_conn->beiscsi_conn_cid, plast_handle,
+			    pasync_ctx->async_entry[cri].wq.hdr_len,
+			    pasync_ctx->async_entry[cri].wq.bytes_needed,
+			    pasync_ctx->async_entry[cri].wq.bytes_received);
+	}
+	spin_lock_bh(&session->back_lock);
+	status = beiscsi_complete_pdu(beiscsi_conn, phdr, pdata, dlen);
+	spin_unlock_bh(&session->back_lock);
+	beiscsi_hdl_purge_handles(phba, pasync_ctx, cri);
+	return status;
+}
+
+static unsigned int
+beiscsi_hdl_gather_pdu(struct beiscsi_conn *beiscsi_conn,
+		       struct hd_async_context *pasync_ctx,
+		       struct hd_async_handle *pasync_handle)
+{
+	unsigned int bytes_needed = 0, status = 0;
+	u16 cri = pasync_handle->cri;
+	struct cri_wait_queue *wq;
+	struct beiscsi_hba *phba;
+	struct pdu_base *ppdu;
+	char *err = "";
+
+	phba = beiscsi_conn->phba;
+	wq = &pasync_ctx->async_entry[cri].wq;
+	if (pasync_handle->is_header) {
+		/* check if PDU hdr is rcv'd when old hdr not completed */
+		if (wq->hdr_len) {
+			err = "incomplete";
+			goto drop_pdu;
+		}
+		ppdu = pasync_handle->pbuffer;
+		bytes_needed = AMAP_GET_BITS(struct amap_pdu_base,
+					     data_len_hi, ppdu);
+		bytes_needed <<= 16;
+		bytes_needed |= be16_to_cpu(AMAP_GET_BITS(struct amap_pdu_base,
+							  data_len_lo, ppdu));
+		wq->hdr_len = pasync_handle->buffer_len;
+		wq->bytes_received = 0;
+		wq->bytes_needed = bytes_needed;
+		list_add_tail(&pasync_handle->link, &wq->list);
+		if (!bytes_needed)
+			status = beiscsi_hdl_fwd_pdu(beiscsi_conn,
+						     pasync_ctx, cri);
+	} else {
+		/* check if data received has header and is needed */
+		if (!wq->hdr_len || !wq->bytes_needed) {
+			err = "header less";
+			goto drop_pdu;
+		}
+		wq->bytes_received += pasync_handle->buffer_len;
+		/* Something got overwritten? Better catch it here. */
+		if (wq->bytes_received > wq->bytes_needed) {
+			err = "overflow";
+			goto drop_pdu;
+		}
+		list_add_tail(&pasync_handle->link, &wq->list);
+		if (wq->bytes_received == wq->bytes_needed)
+			status = beiscsi_hdl_fwd_pdu(beiscsi_conn,
+						     pasync_ctx, cri);
+	}
+	return status;
+
+drop_pdu:
+	beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_ISCSI,
+		    "BM_%d : cid %u async PDU %s - def-%c:HL%u:DN%u:DR%u\n",
+		    beiscsi_conn->beiscsi_conn_cid, err,
+		    pasync_handle->is_header ? 'H' : 'D',
+		    wq->hdr_len, wq->bytes_needed,
+		    pasync_handle->buffer_len);
+	/* discard this handle */
+	beiscsi_hdl_put_handle(pasync_ctx, pasync_handle);
+	/* free all the other handles in cri_wait_queue */
+	beiscsi_hdl_purge_handles(phba, pasync_ctx, cri);
+	/* try continuing */
+	return status;
+}
+
+static void
+beiscsi_hdq_post_handles(struct beiscsi_hba *phba,
+			 u8 header, u8 ulp_num)
+{
+	struct hd_async_handle *pasync_handle, *tmp, **slot;
+	struct hd_async_context *pasync_ctx;
 	struct hwi_controller *phwi_ctrlr;
-	struct hwi_async_pdu_context *pasync_ctx;
-	struct async_pdu_handle *pasync_handle;
-	struct list_head *pfree_link, *pbusy_list;
+	struct list_head *hfree_list;
 	struct phys_addr *pasync_sge;
-	unsigned int ring_id, num_entries;
-	unsigned int host_write_num, doorbell_offset;
-	unsigned int writables;
-	unsigned int i = 0;
-	u32 doorbell = 0;
+	u32 ring_id, doorbell = 0;
+	u16 index, num_entries;
+	u32 doorbell_offset;
+	u16 prod = 0, cons;
 
 	phwi_ctrlr = phba->phwi_ctrlr;
 	pasync_ctx = HWI_GET_ASYNC_PDU_CTX(phwi_ctrlr, ulp_num);
 	num_entries = pasync_ctx->num_entries;
-
-	if (is_header) {
-		writables = min(pasync_ctx->async_header.writables,
-				pasync_ctx->async_header.free_entries);
-		pfree_link = pasync_ctx->async_header.free_list.next;
-		host_write_num = pasync_ctx->async_header.host_write_ptr;
+	if (header) {
+		cons = pasync_ctx->async_header.free_entries;
+		hfree_list = &pasync_ctx->async_header.free_list;
 		ring_id = phwi_ctrlr->default_pdu_hdr[ulp_num].id;
 		doorbell_offset = phwi_ctrlr->default_pdu_hdr[ulp_num].
-				  doorbell_offset;
+					doorbell_offset;
 	} else {
-		writables = min(pasync_ctx->async_data.writables,
-				pasync_ctx->async_data.free_entries);
-		pfree_link = pasync_ctx->async_data.free_list.next;
-		host_write_num = pasync_ctx->async_data.host_write_ptr;
+		cons = pasync_ctx->async_data.free_entries;
+		hfree_list = &pasync_ctx->async_data.free_list;
 		ring_id = phwi_ctrlr->default_pdu_data[ulp_num].id;
 		doorbell_offset = phwi_ctrlr->default_pdu_data[ulp_num].
-				  doorbell_offset;
+					doorbell_offset;
 	}
+	/* number of entries posted must be in multiples of 8 */
+	if (cons % 8)
+		return;
 
-	writables = (writables / 8) * 8;
-	if (writables) {
-		for (i = 0; i < writables; i++) {
-			pbusy_list =
-			    hwi_get_async_busy_list(pasync_ctx, is_header,
-						    host_write_num);
-			pasync_handle =
-			    list_entry(pfree_link, struct async_pdu_handle,
-								link);
-			WARN_ON(!pasync_handle);
-			pasync_handle->consumed = 0;
+	list_for_each_entry_safe(pasync_handle, tmp, hfree_list, link) {
+		list_del_init(&pasync_handle->link);
+		pasync_handle->is_final = 0;
+		pasync_handle->buffer_len = 0;
 
-			pfree_link = pfree_link->next;
-
-			pasync_sge = hwi_get_ring_address(pasync_ctx,
-						is_header, host_write_num);
-
-			pasync_sge->hi = pasync_handle->pa.u.a32.address_lo;
-			pasync_sge->lo = pasync_handle->pa.u.a32.address_hi;
-
-			list_move(&pasync_handle->link, pbusy_list);
-
-			host_write_num++;
-			host_write_num = host_write_num % num_entries;
+		/* handles can be consumed out of order, use index in handle */
+		index = pasync_handle->index;
+		WARN_ON(pasync_handle->is_header != header);
+		if (header)
+			slot = &pasync_ctx->async_entry[index].header;
+		else
+			slot = &pasync_ctx->async_entry[index].data;
+		/**
+		 * The slot just tracks handle's hold and release, so
+		 * overwriting at the same index won't do any harm but
+		 * needs to be caught.
+		 */
+		if (*slot != NULL) {
+			beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_ISCSI,
+				    "BM_%d : async PDU %s slot at %u not empty\n",
+				    header ? "header" : "data", index);
 		}
+		/**
+		 * We use same freed index as in completion to post so this
+		 * operation is not required for refills. Its required only
+		 * for ring creation.
+		 */
+		if (header)
+			pasync_sge = pasync_ctx->async_header.ring_base;
+		else
+			pasync_sge = pasync_ctx->async_data.ring_base;
+		pasync_sge += index;
+		/* if its a refill then address is same; hi is lo */
+		WARN_ON(pasync_sge->hi &&
+			pasync_sge->hi != pasync_handle->pa.u.a32.address_lo);
+		WARN_ON(pasync_sge->lo &&
+			pasync_sge->lo != pasync_handle->pa.u.a32.address_hi);
+		pasync_sge->hi = pasync_handle->pa.u.a32.address_lo;
+		pasync_sge->lo = pasync_handle->pa.u.a32.address_hi;
 
-		if (is_header) {
-			pasync_ctx->async_header.host_write_ptr =
-							host_write_num;
-			pasync_ctx->async_header.free_entries -= writables;
-			pasync_ctx->async_header.writables -= writables;
-			pasync_ctx->async_header.busy_entries += writables;
-		} else {
-			pasync_ctx->async_data.host_write_ptr = host_write_num;
-			pasync_ctx->async_data.free_entries -= writables;
-			pasync_ctx->async_data.writables -= writables;
-			pasync_ctx->async_data.busy_entries += writables;
-		}
-
-		doorbell |= ring_id & DB_DEF_PDU_RING_ID_MASK;
-		doorbell |= 1 << DB_DEF_PDU_REARM_SHIFT;
-		doorbell |= 0 << DB_DEF_PDU_EVENT_SHIFT;
-		doorbell |= (writables & DB_DEF_PDU_CQPROC_MASK)
-					<< DB_DEF_PDU_CQPROC_SHIFT;
-
-		iowrite32(doorbell, phba->db_va + doorbell_offset);
+		*slot = pasync_handle;
+		if (++prod == cons)
+			break;
 	}
+	if (header)
+		pasync_ctx->async_header.free_entries -= prod;
+	else
+		pasync_ctx->async_data.free_entries -= prod;
+
+	doorbell |= ring_id & DB_DEF_PDU_RING_ID_MASK;
+	doorbell |= 1 << DB_DEF_PDU_REARM_SHIFT;
+	doorbell |= 0 << DB_DEF_PDU_EVENT_SHIFT;
+	doorbell |= (prod & DB_DEF_PDU_CQPROC_MASK) << DB_DEF_PDU_CQPROC_SHIFT;
+	iowrite32(doorbell, phba->db_va + doorbell_offset);
 }
 
-static void hwi_flush_default_pdu_buffer(struct beiscsi_hba *phba,
-					 struct beiscsi_conn *beiscsi_conn,
-					 struct i_t_dpdu_cqe *pdpdu_cqe)
+static void
+beiscsi_hdq_process_compl(struct beiscsi_conn *beiscsi_conn,
+			  struct i_t_dpdu_cqe *pdpdu_cqe)
 {
+	struct beiscsi_hba *phba = beiscsi_conn->phba;
+	struct hd_async_handle *pasync_handle = NULL;
+	struct hd_async_context *pasync_ctx;
 	struct hwi_controller *phwi_ctrlr;
-	struct hwi_async_pdu_context *pasync_ctx;
-	struct async_pdu_handle *pasync_handle = NULL;
-	unsigned int cq_index = -1;
-	uint16_t cri_index = BE_GET_CRI_FROM_CID(
-			     beiscsi_conn->beiscsi_conn_cid);
+	u16 cid_cri;
+	u8 ulp_num;
 
 	phwi_ctrlr = phba->phwi_ctrlr;
-	pasync_ctx = HWI_GET_ASYNC_PDU_CTX(phwi_ctrlr,
-		     BEISCSI_GET_ULP_FROM_CRI(phwi_ctrlr,
-		     cri_index));
+	cid_cri = BE_GET_CRI_FROM_CID(beiscsi_conn->beiscsi_conn_cid);
+	ulp_num = BEISCSI_GET_ULP_FROM_CRI(phwi_ctrlr, cid_cri);
+	pasync_ctx = HWI_GET_ASYNC_PDU_CTX(phwi_ctrlr, ulp_num);
+	pasync_handle = beiscsi_hdl_get_handle(beiscsi_conn, pasync_ctx,
+					       pdpdu_cqe);
+	if (!pasync_handle)
+		return;
 
-	pasync_handle = hwi_get_async_handle(phba, beiscsi_conn, pasync_ctx,
-					     pdpdu_cqe, &cq_index);
-	BUG_ON(pasync_handle->is_header != 0);
-	if (pasync_handle->consumed == 0)
-		hwi_update_async_writables(phba, pasync_ctx,
-					   pasync_handle->is_header, cq_index);
-
-	hwi_free_async_msg(phba, pasync_ctx, pasync_handle->cri);
-	hwi_post_async_buffers(phba, pasync_handle->is_header,
-			       BEISCSI_GET_ULP_FROM_CRI(phwi_ctrlr,
-			       cri_index));
-}
-
-static unsigned int
-hwi_fwd_async_msg(struct beiscsi_conn *beiscsi_conn,
-		  struct beiscsi_hba *phba,
-		  struct hwi_async_pdu_context *pasync_ctx, unsigned short cri)
-{
-	struct list_head *plist;
-	struct async_pdu_handle *pasync_handle;
-	void *phdr = NULL;
-	unsigned int hdr_len = 0, buf_len = 0;
-	unsigned int status, index = 0, offset = 0;
-	void *pfirst_buffer = NULL;
-	unsigned int num_buf = 0;
-
-	plist = &pasync_ctx->async_entry[cri].wait_queue.list;
-
-	list_for_each_entry(pasync_handle, plist, link) {
-		if (index == 0) {
-			phdr = pasync_handle->pbuffer;
-			hdr_len = pasync_handle->buffer_len;
-		} else {
-			buf_len = pasync_handle->buffer_len;
-			if (!num_buf) {
-				pfirst_buffer = pasync_handle->pbuffer;
-				num_buf++;
-			}
-			memcpy(pfirst_buffer + offset,
-			       pasync_handle->pbuffer, buf_len);
-			offset += buf_len;
-		}
-		index++;
-	}
-
-	status = beiscsi_process_async_pdu(beiscsi_conn, phba,
-					    phdr, hdr_len, pfirst_buffer,
-					    offset);
-
-	hwi_free_async_msg(phba, pasync_ctx, cri);
-	return 0;
-}
-
-static unsigned int
-hwi_gather_async_pdu(struct beiscsi_conn *beiscsi_conn,
-		     struct beiscsi_hba *phba,
-		     struct async_pdu_handle *pasync_handle)
-{
-	struct hwi_async_pdu_context *pasync_ctx;
-	struct hwi_controller *phwi_ctrlr;
-	unsigned int bytes_needed = 0, status = 0;
-	unsigned short cri = pasync_handle->cri;
-	struct pdu_base *ppdu;
-
-	phwi_ctrlr = phba->phwi_ctrlr;
-	pasync_ctx = HWI_GET_ASYNC_PDU_CTX(phwi_ctrlr,
-		     BEISCSI_GET_ULP_FROM_CRI(phwi_ctrlr,
-		     BE_GET_CRI_FROM_CID(beiscsi_conn->
-				 beiscsi_conn_cid)));
-
-	list_del(&pasync_handle->link);
-	if (pasync_handle->is_header) {
-		pasync_ctx->async_header.busy_entries--;
-		if (pasync_ctx->async_entry[cri].wait_queue.hdr_received) {
-			hwi_free_async_msg(phba, pasync_ctx, cri);
-			BUG();
-		}
-
-		pasync_ctx->async_entry[cri].wait_queue.bytes_received = 0;
-		pasync_ctx->async_entry[cri].wait_queue.hdr_received = 1;
-		pasync_ctx->async_entry[cri].wait_queue.hdr_len =
-				(unsigned short)pasync_handle->buffer_len;
-		list_add_tail(&pasync_handle->link,
-			      &pasync_ctx->async_entry[cri].wait_queue.list);
-
-		ppdu = pasync_handle->pbuffer;
-		bytes_needed = ((((ppdu->dw[offsetof(struct amap_pdu_base,
-			data_len_hi) / 32] & PDUBASE_DATALENHI_MASK) << 8) &
-			0xFFFF0000) | ((be16_to_cpu((ppdu->
-			dw[offsetof(struct amap_pdu_base, data_len_lo) / 32]
-			& PDUBASE_DATALENLO_MASK) >> 16)) & 0x0000FFFF));
-
-		if (status == 0) {
-			pasync_ctx->async_entry[cri].wait_queue.bytes_needed =
-			    bytes_needed;
-
-			if (bytes_needed == 0)
-				status = hwi_fwd_async_msg(beiscsi_conn, phba,
-							   pasync_ctx, cri);
-		}
-	} else {
-		pasync_ctx->async_data.busy_entries--;
-		if (pasync_ctx->async_entry[cri].wait_queue.hdr_received) {
-			list_add_tail(&pasync_handle->link,
-				      &pasync_ctx->async_entry[cri].wait_queue.
-				      list);
-			pasync_ctx->async_entry[cri].wait_queue.
-				bytes_received +=
-				(unsigned short)pasync_handle->buffer_len;
-
-			if (pasync_ctx->async_entry[cri].wait_queue.
-			    bytes_received >=
-			    pasync_ctx->async_entry[cri].wait_queue.
-			    bytes_needed)
-				status = hwi_fwd_async_msg(beiscsi_conn, phba,
-							   pasync_ctx, cri);
-		}
-	}
-	return status;
-}
-
-static void hwi_process_default_pdu_ring(struct beiscsi_conn *beiscsi_conn,
-					 struct beiscsi_hba *phba,
-					 struct i_t_dpdu_cqe *pdpdu_cqe)
-{
-	struct hwi_controller *phwi_ctrlr;
-	struct hwi_async_pdu_context *pasync_ctx;
-	struct async_pdu_handle *pasync_handle = NULL;
-	unsigned int cq_index = -1;
-	uint16_t cri_index = BE_GET_CRI_FROM_CID(
-			     beiscsi_conn->beiscsi_conn_cid);
-
-	phwi_ctrlr = phba->phwi_ctrlr;
-	pasync_ctx = HWI_GET_ASYNC_PDU_CTX(phwi_ctrlr,
-		     BEISCSI_GET_ULP_FROM_CRI(phwi_ctrlr,
-		     cri_index));
-
-	pasync_handle = hwi_get_async_handle(phba, beiscsi_conn, pasync_ctx,
-					     pdpdu_cqe, &cq_index);
-
-	if (pasync_handle->consumed == 0)
-		hwi_update_async_writables(phba, pasync_ctx,
-					   pasync_handle->is_header, cq_index);
-
-	hwi_gather_async_pdu(beiscsi_conn, phba, pasync_handle);
-	hwi_post_async_buffers(phba, pasync_handle->is_header,
-			       BEISCSI_GET_ULP_FROM_CRI(
-			       phwi_ctrlr, cri_index));
+	beiscsi_hdl_gather_pdu(beiscsi_conn, pasync_ctx, pasync_handle);
+	beiscsi_hdq_post_handles(phba, pasync_handle->is_header, ulp_num);
 }
 
 void beiscsi_process_mcc_cq(struct beiscsi_hba *phba)
@@ -2004,8 +1950,8 @@ unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq, int budget)
 				    cqe_desc[code], code, cid);
 
 			spin_lock_bh(&phba->async_pdu_lock);
-			hwi_process_default_pdu_ring(beiscsi_conn, phba,
-					     (struct i_t_dpdu_cqe *)sol);
+			beiscsi_hdq_process_compl(beiscsi_conn,
+						  (struct i_t_dpdu_cqe *)sol);
 			spin_unlock_bh(&phba->async_pdu_lock);
 			break;
 		case UNSOL_DATA_NOTIFY:
@@ -2015,8 +1961,8 @@ unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq, int budget)
 				    cqe_desc[code], code, cid);
 
 			spin_lock_bh(&phba->async_pdu_lock);
-			hwi_process_default_pdu_ring(beiscsi_conn, phba,
-					     (struct i_t_dpdu_cqe *)sol);
+			beiscsi_hdq_process_compl(beiscsi_conn,
+						  (struct i_t_dpdu_cqe *)sol);
 			spin_unlock_bh(&phba->async_pdu_lock);
 			break;
 		case CXN_INVALIDATE_INDEX_NOTIFY:
@@ -2052,8 +1998,9 @@ unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq, int budget)
 				    "BM_%d :  Dropping %s[%d] on DPDU ring on CID : %d\n",
 				    cqe_desc[code], code, cid);
 			spin_lock_bh(&phba->async_pdu_lock);
-			hwi_flush_default_pdu_buffer(phba, beiscsi_conn,
-					     (struct i_t_dpdu_cqe *) sol);
+			/* driver consumes the entry and drops the contents */
+			beiscsi_hdq_process_compl(beiscsi_conn,
+						  (struct i_t_dpdu_cqe *)sol);
 			spin_unlock_bh(&phba->async_pdu_lock);
 			break;
 		case CXN_KILLED_PDU_SIZE_EXCEEDS_DSL:
@@ -2503,20 +2450,20 @@ static void beiscsi_find_mem_req(struct beiscsi_hba *phba)
 					  (ulp_num * MEM_DESCR_OFFSET));
 			phba->mem_req[mem_descr_index] =
 					  BEISCSI_GET_CID_COUNT(phba, ulp_num) *
-					  sizeof(struct async_pdu_handle);
+					  sizeof(struct hd_async_handle);
 
 			mem_descr_index = (HWI_MEM_ASYNC_DATA_HANDLE_ULP0 +
 					  (ulp_num * MEM_DESCR_OFFSET));
 			phba->mem_req[mem_descr_index] =
 					  BEISCSI_GET_CID_COUNT(phba, ulp_num) *
-					  sizeof(struct async_pdu_handle);
+					  sizeof(struct hd_async_handle);
 
 			mem_descr_index = (HWI_MEM_ASYNC_PDU_CONTEXT_ULP0 +
 					  (ulp_num * MEM_DESCR_OFFSET));
 			phba->mem_req[mem_descr_index] =
-					  sizeof(struct hwi_async_pdu_context) +
+					  sizeof(struct hd_async_context) +
 					 (BEISCSI_GET_CID_COUNT(phba, ulp_num) *
-					  sizeof(struct hwi_async_entry));
+					  sizeof(struct hd_async_entry));
 		}
 	}
 }
@@ -2775,35 +2722,34 @@ static int hwi_init_async_pdu_ctx(struct beiscsi_hba *phba)
 	uint8_t ulp_num;
 	struct hwi_controller *phwi_ctrlr;
 	struct hba_parameters *p = &phba->params;
-	struct hwi_async_pdu_context *pasync_ctx;
-	struct async_pdu_handle *pasync_header_h, *pasync_data_h;
+	struct hd_async_context *pasync_ctx;
+	struct hd_async_handle *pasync_header_h, *pasync_data_h;
 	unsigned int index, idx, num_per_mem, num_async_data;
 	struct be_mem_descriptor *mem_descr;
 
 	for (ulp_num = 0; ulp_num < BEISCSI_ULP_COUNT; ulp_num++) {
 		if (test_bit(ulp_num, &phba->fw_config.ulp_supported)) {
-
+			 /* get async_ctx for each ULP */
 			mem_descr = (struct be_mem_descriptor *)phba->init_mem;
 			mem_descr += (HWI_MEM_ASYNC_PDU_CONTEXT_ULP0 +
 				     (ulp_num * MEM_DESCR_OFFSET));
 
 			phwi_ctrlr = phba->phwi_ctrlr;
 			phwi_ctrlr->phwi_ctxt->pasync_ctx[ulp_num] =
-				(struct hwi_async_pdu_context *)
+				(struct hd_async_context *)
 				 mem_descr->mem_array[0].virtual_address;
 
 			pasync_ctx = phwi_ctrlr->phwi_ctxt->pasync_ctx[ulp_num];
 			memset(pasync_ctx, 0, sizeof(*pasync_ctx));
 
 			pasync_ctx->async_entry =
-					(struct hwi_async_entry *)
+					(struct hd_async_entry *)
 					((long unsigned int)pasync_ctx +
-					sizeof(struct hwi_async_pdu_context));
+					sizeof(struct hd_async_context));
 
 			pasync_ctx->num_entries = BEISCSI_GET_CID_COUNT(phba,
 						  ulp_num);
-			pasync_ctx->buffer_size = p->defpdu_hdr_sz;
-
+			/* setup header buffers */
 			mem_descr = (struct be_mem_descriptor *)phba->init_mem;
 			mem_descr += HWI_MEM_ASYNC_HEADER_BUF_ULP0 +
 				(ulp_num * MEM_DESCR_OFFSET);
@@ -2820,6 +2766,7 @@ static int hwi_init_async_pdu_ctx(struct beiscsi_hba *phba)
 					    "BM_%d : No Virtual address for ULP : %d\n",
 					    ulp_num);
 
+			pasync_ctx->async_header.buffer_size = p->defpdu_hdr_sz;
 			pasync_ctx->async_header.va_base =
 				mem_descr->mem_array[0].virtual_address;
 
@@ -2827,6 +2774,7 @@ static int hwi_init_async_pdu_ctx(struct beiscsi_hba *phba)
 				mem_descr->mem_array[0].
 				bus_address.u.a64.address;
 
+			/* setup header buffer sgls */
 			mem_descr = (struct be_mem_descriptor *)phba->init_mem;
 			mem_descr += HWI_MEM_ASYNC_HEADER_RING_ULP0 +
 				     (ulp_num * MEM_DESCR_OFFSET);
@@ -2846,6 +2794,7 @@ static int hwi_init_async_pdu_ctx(struct beiscsi_hba *phba)
 			pasync_ctx->async_header.ring_base =
 				mem_descr->mem_array[0].virtual_address;
 
+			/* setup header buffer handles */
 			mem_descr = (struct be_mem_descriptor *)phba->init_mem;
 			mem_descr += HWI_MEM_ASYNC_HEADER_HANDLE_ULP0 +
 				     (ulp_num * MEM_DESCR_OFFSET);
@@ -2864,9 +2813,9 @@ static int hwi_init_async_pdu_ctx(struct beiscsi_hba *phba)
 
 			pasync_ctx->async_header.handle_base =
 				mem_descr->mem_array[0].virtual_address;
-			pasync_ctx->async_header.writables = 0;
 			INIT_LIST_HEAD(&pasync_ctx->async_header.free_list);
 
+			/* setup data buffer sgls */
 			mem_descr = (struct be_mem_descriptor *)phba->init_mem;
 			mem_descr += HWI_MEM_ASYNC_DATA_RING_ULP0 +
 				     (ulp_num * MEM_DESCR_OFFSET);
@@ -2886,6 +2835,7 @@ static int hwi_init_async_pdu_ctx(struct beiscsi_hba *phba)
 			pasync_ctx->async_data.ring_base =
 				mem_descr->mem_array[0].virtual_address;
 
+			/* setup data buffer handles */
 			mem_descr = (struct be_mem_descriptor *)phba->init_mem;
 			mem_descr += HWI_MEM_ASYNC_DATA_HANDLE_ULP0 +
 				     (ulp_num * MEM_DESCR_OFFSET);
@@ -2897,16 +2847,16 @@ static int hwi_init_async_pdu_ctx(struct beiscsi_hba *phba)
 
 			pasync_ctx->async_data.handle_base =
 				mem_descr->mem_array[0].virtual_address;
-			pasync_ctx->async_data.writables = 0;
 			INIT_LIST_HEAD(&pasync_ctx->async_data.free_list);
 
 			pasync_header_h =
-				(struct async_pdu_handle *)
+				(struct hd_async_handle *)
 				pasync_ctx->async_header.handle_base;
 			pasync_data_h =
-				(struct async_pdu_handle *)
+				(struct hd_async_handle *)
 				pasync_ctx->async_data.handle_base;
 
+			/* setup data buffers */
 			mem_descr = (struct be_mem_descriptor *)phba->init_mem;
 			mem_descr += HWI_MEM_ASYNC_DATA_BUF_ULP0 +
 				     (ulp_num * MEM_DESCR_OFFSET);
@@ -2924,6 +2874,7 @@ static int hwi_init_async_pdu_ctx(struct beiscsi_hba *phba)
 					    ulp_num);
 
 			idx = 0;
+			pasync_ctx->async_data.buffer_size = p->defpdu_data_sz;
 			pasync_ctx->async_data.va_base =
 				mem_descr->mem_array[idx].virtual_address;
 			pasync_ctx->async_data.pa_base.u.a64.address =
@@ -2937,7 +2888,8 @@ static int hwi_init_async_pdu_ctx(struct beiscsi_hba *phba)
 			for (index = 0;	index < BEISCSI_GET_CID_COUNT
 					(phba, ulp_num); index++) {
 				pasync_header_h->cri = -1;
-				pasync_header_h->index = (char)index;
+				pasync_header_h->is_header = 1;
+				pasync_header_h->index = index;
 				INIT_LIST_HEAD(&pasync_header_h->link);
 				pasync_header_h->pbuffer =
 					(void *)((unsigned long)
@@ -2954,14 +2906,13 @@ static int hwi_init_async_pdu_ctx(struct beiscsi_hba *phba)
 					      free_list);
 				pasync_header_h++;
 				pasync_ctx->async_header.free_entries++;
-				pasync_ctx->async_header.writables++;
+				INIT_LIST_HEAD(&pasync_ctx->async_entry[index].
+						wq.list);
+				pasync_ctx->async_entry[index].header = NULL;
 
-				INIT_LIST_HEAD(&pasync_ctx->async_entry[index].
-					       wait_queue.list);
-				INIT_LIST_HEAD(&pasync_ctx->async_entry[index].
-					       header_busy_list);
 				pasync_data_h->cri = -1;
-				pasync_data_h->index = (char)index;
+				pasync_data_h->is_header = 0;
+				pasync_data_h->index = index;
 				INIT_LIST_HEAD(&pasync_data_h->link);
 
 				if (!num_async_data) {
@@ -2996,16 +2947,8 @@ static int hwi_init_async_pdu_ctx(struct beiscsi_hba *phba)
 					      free_list);
 				pasync_data_h++;
 				pasync_ctx->async_data.free_entries++;
-				pasync_ctx->async_data.writables++;
-
-				INIT_LIST_HEAD(&pasync_ctx->async_entry[index].
-					       data_busy_list);
+				pasync_ctx->async_entry[index].data = NULL;
 			}
-
-			pasync_ctx->async_header.host_write_ptr = 0;
-			pasync_ctx->async_header.ep_read_ptr = -1;
-			pasync_ctx->async_data.host_write_ptr = 0;
-			pasync_ctx->async_data.ep_read_ptr = -1;
 		}
 	}
 
@@ -3707,7 +3650,7 @@ static void hwi_cleanup_port(struct beiscsi_hba *phba)
 	struct be_ctrl_info *ctrl = &phba->ctrl;
 	struct hwi_controller *phwi_ctrlr;
 	struct hwi_context_memory *phwi_context;
-	struct hwi_async_pdu_context *pasync_ctx;
+	struct hd_async_context *pasync_ctx;
 	int i, eq_for_mcc, ulp_num;
 
 	for (ulp_num = 0; ulp_num < BEISCSI_ULP_COUNT; ulp_num++)
@@ -3820,7 +3763,6 @@ static int hwi_init_port(struct beiscsi_hba *phba)
 
 	for (ulp_num = 0; ulp_num < BEISCSI_ULP_COUNT; ulp_num++) {
 		if (test_bit(ulp_num, &phba->fw_config.ulp_supported)) {
-
 			def_pdu_ring_sz =
 				BEISCSI_GET_CID_COUNT(phba, ulp_num) *
 				sizeof(struct phys_addr);
@@ -3851,10 +3793,10 @@ static int hwi_init_port(struct beiscsi_hba *phba)
 			 * let EP know about it.
 			 * Call beiscsi_cmd_iscsi_cleanup before posting?
 			 */
-			hwi_post_async_buffers(phba, BEISCSI_DEFQ_HDR,
-					       ulp_num);
-			hwi_post_async_buffers(phba, BEISCSI_DEFQ_DATA,
-					       ulp_num);
+			beiscsi_hdq_post_handles(phba, BEISCSI_DEFQ_HDR,
+						 ulp_num);
+			beiscsi_hdq_post_handles(phba, BEISCSI_DEFQ_DATA,
+						 ulp_num);
 		}
 	}
 
@@ -3883,7 +3825,7 @@ static int hwi_init_port(struct beiscsi_hba *phba)
 
 		if (test_bit(ulp_num, &phba->fw_config.ulp_supported)) {
 			uint16_t cri = 0;
-			struct hwi_async_pdu_context *pasync_ctx;
+			struct hd_async_context *pasync_ctx;
 
 			pasync_ctx = HWI_GET_ASYNC_PDU_CTX(
 				     phwi_ctrlr, ulp_num);
@@ -3895,6 +3837,14 @@ static int hwi_init_port(struct beiscsi_hba *phba)
 					phwi_ctrlr->wrb_context[cri].cid] =
 					async_arr_idx++;
 			}
+			/**
+			 * Now that the default PDU rings have been created,
+			 * let EP know about it.
+			 */
+			beiscsi_hdq_post_handles(phba, BEISCSI_DEFQ_HDR,
+						 ulp_num);
+			beiscsi_hdq_post_handles(phba, BEISCSI_DEFQ_DATA,
+						 ulp_num);
 		}
 	}
 
