@@ -51,6 +51,7 @@ struct most_c_obj {
 	u16 channel_id;
 	bool is_poisoned;
 	struct mutex start_mutex;
+	struct mutex nq_mutex; /* nq thread synchronization */
 	int is_starving;
 	struct most_interface *iface;
 	struct most_inst_obj *inst;
@@ -1131,18 +1132,18 @@ static inline void trash_mbo(struct mbo *mbo)
 	spin_unlock_irqrestore(&c->fifo_lock, flags);
 }
 
-static struct mbo *get_hdm_mbo(struct most_c_obj *c)
+static bool hdm_mbo_ready(struct most_c_obj *c)
 {
-	unsigned long flags;
-	struct mbo *mbo;
+	bool empty;
 
-	spin_lock_irqsave(&c->fifo_lock, flags);
-	if (c->enqueue_halt || list_empty(&c->halt_fifo))
-		mbo = NULL;
-	else
-		mbo = list_pop_mbo(&c->halt_fifo);
-	spin_unlock_irqrestore(&c->fifo_lock, flags);
-	return mbo;
+	if (c->enqueue_halt)
+		return false;
+
+	spin_lock_irq(&c->fifo_lock);
+	empty = list_empty(&c->halt_fifo);
+	spin_unlock_irq(&c->fifo_lock);
+
+	return !empty;
 }
 
 static void nq_hdm_mbo(struct mbo *mbo)
@@ -1160,20 +1161,32 @@ static int hdm_enqueue_thread(void *data)
 {
 	struct most_c_obj *c = data;
 	struct mbo *mbo;
+	int ret;
 	typeof(c->iface->enqueue) enqueue = c->iface->enqueue;
 
 	while (likely(!kthread_should_stop())) {
 		wait_event_interruptible(c->hdm_fifo_wq,
-					 (mbo = get_hdm_mbo(c)) ||
+					 hdm_mbo_ready(c) ||
 					 kthread_should_stop());
 
-		if (unlikely(!mbo))
+		mutex_lock(&c->nq_mutex);
+		spin_lock_irq(&c->fifo_lock);
+		if (unlikely(c->enqueue_halt || list_empty(&c->halt_fifo))) {
+			spin_unlock_irq(&c->fifo_lock);
+			mutex_unlock(&c->nq_mutex);
 			continue;
+		}
+
+		mbo = list_pop_mbo(&c->halt_fifo);
+		spin_unlock_irq(&c->fifo_lock);
 
 		if (c->cfg.direction == MOST_CH_RX)
 			mbo->buffer_length = c->cfg.buffer_size;
 
-		if (unlikely(enqueue(mbo->ifp, mbo->hdm_channel_id, mbo))) {
+		ret = enqueue(mbo->ifp, mbo->hdm_channel_id, mbo);
+		mutex_unlock(&c->nq_mutex);
+
+		if (unlikely(ret)) {
 			pr_err("hdm enqueue failed\n");
 			nq_hdm_mbo(mbo);
 			c->hdm_enqueue_task = NULL;
@@ -1759,6 +1772,7 @@ struct kobject *most_register_interface(struct most_interface *iface)
 		init_completion(&c->cleanup);
 		atomic_set(&c->mbo_ref, 0);
 		mutex_init(&c->start_mutex);
+		mutex_init(&c->nq_mutex);
 		list_add_tail(&c->list, &inst->channel_list);
 	}
 	pr_info("registered new MOST device mdev%d (%s)\n",
@@ -1824,8 +1838,12 @@ void most_stop_enqueue(struct most_interface *iface, int id)
 {
 	struct most_c_obj *c = get_channel_by_iface(iface, id);
 
-	if (likely(c))
-		c->enqueue_halt = true;
+	if (!c)
+		return;
+
+	mutex_lock(&c->nq_mutex);
+	c->enqueue_halt = true;
+	mutex_unlock(&c->nq_mutex);
 }
 EXPORT_SYMBOL_GPL(most_stop_enqueue);
 
@@ -1841,9 +1859,12 @@ void most_resume_enqueue(struct most_interface *iface, int id)
 {
 	struct most_c_obj *c = get_channel_by_iface(iface, id);
 
-	if (unlikely(!c))
+	if (!c)
 		return;
+
+	mutex_lock(&c->nq_mutex);
 	c->enqueue_halt = false;
+	mutex_unlock(&c->nq_mutex);
 
 	wake_up_interruptible(&c->hdm_fifo_wq);
 }
