@@ -1,11 +1,20 @@
-Copyright 2004 Linus Torvalds
-Copyright 2004 Pavel Machek <pavel@ucw.cz>
-Copyright 2006 Bob Copeland <me@bobcopeland.com>
+.. Copyright 2004 Linus Torvalds
+.. Copyright 2004 Pavel Machek <pavel@ucw.cz>
+.. Copyright 2006 Bob Copeland <me@bobcopeland.com>
+
+Sparse
+======
+
+Sparse is a semantic checker for C programs; it can be used to find a
+number of potential problems with kernel code.  See
+https://lwn.net/Articles/689907/ for an overview of sparse; this document
+contains some kernel-specific sparse information.
+
 
 Using sparse for typechecking
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------
 
-"__bitwise" is a type attribute, so you have to do something like this:
+"__bitwise" is a type attribute, so you have to do something like this::
 
         typedef int __bitwise pm_request_t;
 
@@ -20,13 +29,13 @@ but in this case we really _do_ want to force the conversion). And because
 the enum values are all the same type, now "enum pm_request" will be that
 type too.
 
-And with gcc, all the __bitwise/__force stuff goes away, and it all ends
-up looking just like integers to gcc.
+And with gcc, all the "__bitwise"/"__force stuff" goes away, and it all
+ends up looking just like integers to gcc.
 
 Quite frankly, you don't need the enum there. The above all really just
 boils down to one special "int __bitwise" type.
 
-So the simpler way is to just do
+So the simpler way is to just do::
 
         typedef int __bitwise pm_request_t;
 
@@ -50,7 +59,7 @@ __bitwise - noisy stuff; in particular, __le*/__be* are that.  We really
 don't want to drown in noise unless we'd explicitly asked for it.
 
 Using sparse for lock checking
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------------
 
 The following macros are undefined for gcc and defined during a sparse
 run to use the "context" tracking feature of sparse, applied to
@@ -69,22 +78,22 @@ annotation is needed.  The tree annotations above are for cases where
 sparse would otherwise report a context imbalance.
 
 Getting sparse
-~~~~~~~~~~~~~~
+--------------
 
 You can get latest released versions from the Sparse homepage at
 https://sparse.wiki.kernel.org/index.php/Main_Page
 
 Alternatively, you can get snapshots of the latest development version
-of sparse using git to clone..
+of sparse using git to clone::
 
         git://git.kernel.org/pub/scm/devel/sparse/sparse.git
 
-DaveJ has hourly generated tarballs of the git tree available at..
+DaveJ has hourly generated tarballs of the git tree available at::
 
         http://www.codemonkey.org.uk/projects/git-snapshots/sparse/
 
 
-Once you have it, just do
+Once you have it, just do::
 
         make
         make install
@@ -92,7 +101,7 @@ Once you have it, just do
 as a regular user, and it will install sparse in your ~/bin directory.
 
 Using sparse
-~~~~~~~~~~~~
+------------
 
 Do a kernel make with "make C=1" to run sparse on all the C files that get
 recompiled, or use "make C=2" to run sparse on the files whether they need to
@@ -101,7 +110,7 @@ have already built it.
 
 The optional make variable CF can be used to pass arguments to sparse.  The
 build system passes -Wbitwise to sparse automatically.  To perform endianness
-checks, you may define __CHECK_ENDIAN__:
+checks, you may define __CHECK_ENDIAN__::
 
         make C=2 CF="-D__CHECK_ENDIAN__"
 

@@ -1,3 +1,5 @@
+.. highlight:: none
+
 Debugging kernel and modules via gdb
 ====================================
 
@@ -13,54 +15,58 @@ be transferred to the other gdb stubs as well.
 Requirements
 ------------
 
- o gdb 7.2+ (recommended: 7.4+) with python support enabled (typically true
-   for distributions)
+- gdb 7.2+ (recommended: 7.4+) with python support enabled (typically true
+  for distributions)
 
 
 Setup
 -----
 
- o Create a virtual Linux machine for QEMU/KVM (see www.linux-kvm.org and
-   www.qemu.org for more details). For cross-development,
-   http://landley.net/aboriginal/bin keeps a pool of machine images and
-   toolchains that can be helpful to start from.
+- Create a virtual Linux machine for QEMU/KVM (see www.linux-kvm.org and
+  www.qemu.org for more details). For cross-development,
+  http://landley.net/aboriginal/bin keeps a pool of machine images and
+  toolchains that can be helpful to start from.
 
- o Build the kernel with CONFIG_GDB_SCRIPTS enabled, but leave
-   CONFIG_DEBUG_INFO_REDUCED off. If your architecture supports
-   CONFIG_FRAME_POINTER, keep it enabled.
+- Build the kernel with CONFIG_GDB_SCRIPTS enabled, but leave
+  CONFIG_DEBUG_INFO_REDUCED off. If your architecture supports
+  CONFIG_FRAME_POINTER, keep it enabled.
 
- o Install that kernel on the guest.
+- Install that kernel on the guest.
+  Alternatively, QEMU allows to boot the kernel directly using -kernel,
+  -append, -initrd command line switches. This is generally only useful if
+  you do not depend on modules. See QEMU documentation for more details on
+  this mode.
 
-   Alternatively, QEMU allows to boot the kernel directly using -kernel,
-   -append, -initrd command line switches. This is generally only useful if
-   you do not depend on modules. See QEMU documentation for more details on
-   this mode.
+- Enable the gdb stub of QEMU/KVM, either
 
- o Enable the gdb stub of QEMU/KVM, either
     - at VM startup time by appending "-s" to the QEMU command line
-   or
+
+  or
+
     - during runtime by issuing "gdbserver" from the QEMU monitor
       console
 
- o cd /path/to/linux-build
+- cd /path/to/linux-build
 
- o Start gdb: gdb vmlinux
+- Start gdb: gdb vmlinux
 
-   Note: Some distros may restrict auto-loading of gdb scripts to known safe
-   directories. In case gdb reports to refuse loading vmlinux-gdb.py, add
+  Note: Some distros may restrict auto-loading of gdb scripts to known safe
+  directories. In case gdb reports to refuse loading vmlinux-gdb.py, add::
 
     add-auto-load-safe-path /path/to/linux-build
 
-   to ~/.gdbinit. See gdb help for more details.
+  to ~/.gdbinit. See gdb help for more details.
 
- o Attach to the booted guest:
+- Attach to the booted guest::
+
     (gdb) target remote :1234
 
 
 Examples of using the Linux-provided gdb helpers
 ------------------------------------------------
 
- o Load module (and main kernel) symbols:
+- Load module (and main kernel) symbols::
+
     (gdb) lx-symbols
     loading vmlinux
     scanning for modules in /home/user/linux/build
@@ -72,17 +78,20 @@ Examples of using the Linux-provided gdb helpers
     ...
     loading @0xffffffffa0000000: /home/user/linux/build/drivers/ata/ata_generic.ko
 
- o Set a breakpoint on some not yet loaded module function, e.g.:
+- Set a breakpoint on some not yet loaded module function, e.g.::
+
     (gdb) b btrfs_init_sysfs
     Function "btrfs_init_sysfs" not defined.
     Make breakpoint pending on future shared library load? (y or [n]) y
     Breakpoint 1 (btrfs_init_sysfs) pending.
 
- o Continue the target
+- Continue the target::
+
     (gdb) c
 
- o Load the module on the target and watch the symbols being loaded as well as
-   the breakpoint hit:
+- Load the module on the target and watch the symbols being loaded as well as
+  the breakpoint hit::
+
     loading @0xffffffffa0034000: /home/user/linux/build/lib/libcrc32c.ko
     loading @0xffffffffa0050000: /home/user/linux/build/lib/lzo/lzo_compress.ko
     loading @0xffffffffa006e000: /home/user/linux/build/lib/zlib_deflate/zlib_deflate.ko
@@ -91,7 +100,8 @@ Examples of using the Linux-provided gdb helpers
     Breakpoint 1, btrfs_init_sysfs () at /home/user/linux/fs/btrfs/sysfs.c:36
     36              btrfs_kset = kset_create_and_add("btrfs", NULL, fs_kobj);
 
- o Dump the log buffer of the target kernel:
+- Dump the log buffer of the target kernel::
+
     (gdb) lx-dmesg
     [     0.000000] Initializing cgroup subsys cpuset
     [     0.000000] Initializing cgroup subsys cpu
@@ -102,19 +112,22 @@ Examples of using the Linux-provided gdb helpers
     [     0.000000] BIOS-e820: [mem 0x000000000009fc00-0x000000000009ffff] reserved
     ....
 
- o Examine fields of the current task struct:
+- Examine fields of the current task struct::
+
     (gdb) p $lx_current().pid
     $1 = 4998
     (gdb) p $lx_current().comm
     $2 = "modprobe\000\000\000\000\000\000\000"
 
- o Make use of the per-cpu function for the current or a specified CPU:
+- Make use of the per-cpu function for the current or a specified CPU::
+
     (gdb) p $lx_per_cpu("runqueues").nr_running
     $3 = 1
     (gdb) p $lx_per_cpu("runqueues", 2).nr_running
     $4 = 0
 
- o Dig into hrtimers using the container_of helper:
+- Dig into hrtimers using the container_of helper::
+
     (gdb) set $next = $lx_per_cpu("hrtimer_bases").clock_base[0].active.next
     (gdb) p *$container_of($next, "struct hrtimer", "node")
     $5 = {
@@ -144,7 +157,7 @@ List of commands and functions
 ------------------------------
 
 The number of commands and convenience functions may evolve over the time,
-this is just a snapshot of the initial version:
+this is just a snapshot of the initial version::
 
  (gdb) apropos lx
  function lx_current -- Return current task
