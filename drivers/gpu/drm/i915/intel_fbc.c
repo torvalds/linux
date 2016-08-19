@@ -190,9 +190,13 @@ static void g4x_fbc_activate(struct drm_i915_private *dev_priv)
 		dpfc_ctl |= DPFC_CTL_LIMIT_2X;
 	else
 		dpfc_ctl |= DPFC_CTL_LIMIT_1X;
-	dpfc_ctl |= DPFC_CTL_FENCE_EN | params->fb.fence_reg;
 
-	I915_WRITE(DPFC_FENCE_YOFF, params->crtc.fence_y_offset);
+	if (params->fb.fence_reg != I915_FENCE_REG_NONE) {
+		dpfc_ctl |= DPFC_CTL_FENCE_EN | params->fb.fence_reg;
+		I915_WRITE(DPFC_FENCE_YOFF, params->crtc.fence_y_offset);
+	} else {
+		I915_WRITE(DPFC_FENCE_YOFF, 0);
+	}
 
 	/* enable it... */
 	I915_WRITE(DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
@@ -244,20 +248,28 @@ static void ilk_fbc_activate(struct drm_i915_private *dev_priv)
 		dpfc_ctl |= DPFC_CTL_LIMIT_1X;
 		break;
 	}
-	dpfc_ctl |= DPFC_CTL_FENCE_EN;
-	if (IS_GEN5(dev_priv))
-		dpfc_ctl |= params->fb.fence_reg;
+
+	if (params->fb.fence_reg != I915_FENCE_REG_NONE) {
+		dpfc_ctl |= DPFC_CTL_FENCE_EN;
+		if (IS_GEN5(dev_priv))
+			dpfc_ctl |= params->fb.fence_reg;
+		if (IS_GEN6(dev_priv)) {
+			I915_WRITE(SNB_DPFC_CTL_SA,
+				   SNB_CPU_FENCE_ENABLE | params->fb.fence_reg);
+			I915_WRITE(DPFC_CPU_FENCE_OFFSET,
+				   params->crtc.fence_y_offset);
+		}
+	} else {
+		if (IS_GEN6(dev_priv)) {
+			I915_WRITE(SNB_DPFC_CTL_SA, 0);
+			I915_WRITE(DPFC_CPU_FENCE_OFFSET, 0);
+		}
+	}
 
 	I915_WRITE(ILK_DPFC_FENCE_YOFF, params->crtc.fence_y_offset);
 	I915_WRITE(ILK_FBC_RT_BASE, params->fb.ggtt_offset | ILK_FBC_RT_VALID);
 	/* enable it... */
 	I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
-
-	if (IS_GEN6(dev_priv)) {
-		I915_WRITE(SNB_DPFC_CTL_SA,
-			   SNB_CPU_FENCE_ENABLE | params->fb.fence_reg);
-		I915_WRITE(DPFC_CPU_FENCE_OFFSET, params->crtc.fence_y_offset);
-	}
 
 	intel_fbc_recompress(dev_priv);
 }
@@ -305,7 +317,15 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 		break;
 	}
 
-	dpfc_ctl |= IVB_DPFC_CTL_FENCE_EN;
+	if (params->fb.fence_reg != I915_FENCE_REG_NONE) {
+		dpfc_ctl |= IVB_DPFC_CTL_FENCE_EN;
+		I915_WRITE(SNB_DPFC_CTL_SA,
+			   SNB_CPU_FENCE_ENABLE | params->fb.fence_reg);
+		I915_WRITE(DPFC_CPU_FENCE_OFFSET, params->crtc.fence_y_offset);
+	} else {
+		I915_WRITE(SNB_DPFC_CTL_SA,0);
+		I915_WRITE(DPFC_CPU_FENCE_OFFSET, 0);
+	}
 
 	if (dev_priv->fbc.false_color)
 		dpfc_ctl |= FBC_CTL_FALSE_COLOR;
@@ -323,10 +343,6 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 	}
 
 	I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
-
-	I915_WRITE(SNB_DPFC_CTL_SA,
-		   SNB_CPU_FENCE_ENABLE | params->fb.fence_reg);
-	I915_WRITE(DPFC_CPU_FENCE_OFFSET, params->crtc.fence_y_offset);
 
 	intel_fbc_recompress(dev_priv);
 }
