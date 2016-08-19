@@ -203,6 +203,8 @@ struct kvmppc_spapr_tce_table {
 struct kvmppc_xics;
 struct kvmppc_icp;
 
+struct kvmppc_passthru_irqmap;
+
 /*
  * The reverse mapping array has one entry for each HPTE,
  * which stores the guest's view of the second word of the HPTE
@@ -273,6 +275,7 @@ struct kvm_arch {
 #endif
 #ifdef CONFIG_KVM_XICS
 	struct kvmppc_xics *xics;
+	struct kvmppc_passthru_irqmap *pimap;
 #endif
 	struct kvmppc_ops *kvm_ops;
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
@@ -368,6 +371,20 @@ struct kvmhv_tb_accumulator {
 	u64	tb_min;		/* min time */
 	u64	tb_max;		/* max time */
 };
+
+#ifdef CONFIG_PPC_BOOK3S_64
+struct kvmppc_irq_map {
+	u32	r_hwirq;
+	u32	v_hwirq;
+	struct irq_desc *desc;
+};
+
+#define	KVMPPC_PIRQ_MAPPED	1024
+struct kvmppc_passthru_irqmap {
+	int n_mapped;
+	struct kvmppc_irq_map mapped[KVMPPC_PIRQ_MAPPED];
+};
+#endif
 
 # ifdef CONFIG_PPC_FSL_BOOK3E
 #define KVMPPC_BOOKE_IAC_NUM	2

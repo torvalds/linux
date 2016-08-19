@@ -3412,6 +3412,19 @@ static int kvmppc_core_check_processor_compat_hv(void)
 	return 0;
 }
 
+#ifdef CONFIG_KVM_XICS
+
+void kvmppc_free_pimap(struct kvm *kvm)
+{
+	kfree(kvm->arch.pimap);
+}
+
+struct kvmppc_passthru_irqmap *kvmppc_alloc_pimap(void)
+{
+	return kzalloc(sizeof(struct kvmppc_passthru_irqmap), GFP_KERNEL);
+}
+#endif
+
 static long kvm_arch_vm_ioctl_hv(struct file *filp,
 				 unsigned int ioctl, unsigned long arg)
 {
