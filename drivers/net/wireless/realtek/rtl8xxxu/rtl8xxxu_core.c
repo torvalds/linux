@@ -4770,7 +4770,7 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 	u16 rate_flag = tx_info->control.rates[0].flags;
 	int tx_desc_size = priv->fops->tx_desc_size;
 	int ret;
-	bool usedesc40, ampdu_enable, sgi = false;
+	bool usedesc40, ampdu_enable, sgi = false, short_preamble = false;
 
 	if (skb_headroom(skb) < tx_desc_size) {
 		dev_warn(dev,
@@ -4860,6 +4860,10 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 	     (IEEE80211_HT_CAP_SGI_40 | IEEE80211_HT_CAP_SGI_20)))
 		sgi = true;
 
+	if (rate_flag & IEEE80211_TX_RC_USE_SHORT_PREAMBLE ||
+	    (sta && vif && vif->bss_conf.use_short_preamble))
+		short_preamble = true;
+
 	seq_number = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
 	if (!usedesc40) {
 		tx_desc->txdw5 = cpu_to_le32(rate);
@@ -4888,8 +4892,7 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 		if (ieee80211_is_data_qos(hdr->frame_control))
 			tx_desc->txdw4 |= cpu_to_le32(TXDESC32_QOS);
 
-		if (rate_flag & IEEE80211_TX_RC_USE_SHORT_PREAMBLE ||
-		    (sta && vif && vif->bss_conf.use_short_preamble))
+		if (short_preamble)
 			tx_desc->txdw4 |= cpu_to_le32(TXDESC32_SHORT_PREAMBLE);
 
 		if (sgi)
@@ -4935,8 +4938,7 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 				cpu_to_le32(TXDESC40_RETRY_LIMIT_ENABLE);
 		}
 
-		if (rate_flag & IEEE80211_TX_RC_USE_SHORT_PREAMBLE ||
-		    (sta && vif && vif->bss_conf.use_short_preamble))
+		if (short_preamble)
 			tx_desc40->txdw5 |=
 				cpu_to_le32(TXDESC40_SHORT_PREAMBLE);
 
