@@ -97,7 +97,7 @@ static const char * const desc_ue_status_hi[] = {
 };
 
 /*
- * beiscsi_ue_detec()- Detect Unrecoverable Error on adapter
+ * beiscsi_ue_detect()- Detect Unrecoverable Error on adapter
  * @phba: Driver priv structure
  *
  * Read registers linked to UE and check for the UE status
@@ -152,8 +152,9 @@ void beiscsi_ue_detect(struct beiscsi_hba *phba)
 	}
 }
 
-int be_cmd_modify_eq_delay(struct beiscsi_hba *phba,
-		 struct be_set_eqd *set_eqd, int num)
+int beiscsi_modify_eq_delay(struct beiscsi_hba *phba,
+			    struct be_set_eqd *set_eqd,
+			    int num)
 {
 	struct be_ctrl_info *ctrl = &phba->ctrl;
 	struct be_mcc_wrb *wrb;
@@ -171,7 +172,7 @@ int be_cmd_modify_eq_delay(struct beiscsi_hba *phba,
 	req = embedded_payload(wrb);
 	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
-		OPCODE_COMMON_MODIFY_EQ_DELAY, sizeof(*req));
+			   OPCODE_COMMON_MODIFY_EQ_DELAY, sizeof(*req));
 
 	req->num_eq = cpu_to_le32(num);
 	for (i = 0; i < num; i++) {
@@ -181,6 +182,8 @@ int be_cmd_modify_eq_delay(struct beiscsi_hba *phba,
 				cpu_to_le32(set_eqd[i].delay_multiplier);
 	}
 
+	/* ignore the completion of this mbox command */
+	set_bit(MCC_TAG_STATE_IGNORE, &ctrl->ptag_state[tag].tag_state);
 	be_mcc_notify(phba, tag);
 	mutex_unlock(&ctrl->mbox_lock);
 	return tag;

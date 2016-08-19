@@ -743,7 +743,7 @@ unsigned int be_cmd_get_initname(struct beiscsi_hba *phba);
 
 void free_mcc_wrb(struct be_ctrl_info *ctrl, unsigned int tag);
 
-int be_cmd_modify_eq_delay(struct beiscsi_hba *phba, struct be_set_eqd *,
+int beiscsi_modify_eq_delay(struct beiscsi_hba *phba, struct be_set_eqd *,
 			    int num);
 int beiscsi_mccq_compl_wait(struct beiscsi_hba *phba,
 			    unsigned int tag,

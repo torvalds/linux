@@ -414,7 +414,12 @@ struct beiscsi_hba {
 				 (1 << BEISCSI_HBA_IN_UE))
 
 	u8 optic_state;
-	struct delayed_work beiscsi_hw_check_task;
+	struct delayed_work eqd_update;
+	/* update EQ delay timer every 1000ms */
+#define BEISCSI_EQD_UPDATE_INTERVAL	1000
+	struct timer_list hw_check;
+	/* check for UE every 1000ms */
+#define BEISCSI_UE_DETECT_INTERVAL	1000
 
 	bool mac_addr_set;
 	u8 mac_address[ETH_ALEN];

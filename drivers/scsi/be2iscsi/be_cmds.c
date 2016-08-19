@@ -515,6 +515,13 @@ int beiscsi_process_mcc_compl(struct be_ctrl_info *ctrl,
 		return 0;
 	}
 
+	if (test_bit(MCC_TAG_STATE_IGNORE, &ctrl->ptag_state[tag].tag_state)) {
+		/* just check completion status and free wrb */
+		__beiscsi_mcc_compl_status(phba, tag, NULL, NULL);
+		free_mcc_wrb(ctrl, tag);
+		return 0;
+	}
+
 	wake_up_interruptible(&ctrl->mcc_wait[tag]);
 	return 0;
 }

@@ -4999,8 +4999,9 @@ static void beiscsi_quiesce(struct beiscsi_hba *phba)
 		if (phba->pcidev->irq)
 			free_irq(phba->pcidev->irq, phba);
 	pci_disable_msix(phba->pcidev);
-	cancel_delayed_work_sync(&phba->beiscsi_hw_check_task);
+	cancel_delayed_work_sync(&phba->eqd_update);
 	cancel_work_sync(&phba->boot_work);
+	del_timer_sync(&phba->hw_check);
 
 	for (i = 0; i < phba->num_cpus; i++) {
 		pbe_eq = &phwi_context->be_eq[i];
@@ -5339,18 +5340,32 @@ static void beiscsi_boot_work(struct work_struct *work)
 	}
 }
 
-static void be_eqd_update(struct beiscsi_hba *phba)
+static void beiscsi_hw_health_check(unsigned long ptr)
 {
-	struct be_set_eqd set_eqd[MAX_CPUS];
-	struct be_aic_obj *aic;
-	struct be_eq_obj *pbe_eq;
-	struct hwi_controller *phwi_ctrlr;
-	struct hwi_context_memory *phwi_context;
-	int eqd, i, num = 0;
-	ulong now;
-	u32 pps, delta;
-	unsigned int tag;
+	struct beiscsi_hba *phba;
 
+	phba = (struct beiscsi_hba *)ptr;
+	beiscsi_ue_detect(phba);
+	if (test_bit(BEISCSI_HBA_IN_UE, &phba->state))
+		return;
+
+	mod_timer(&phba->hw_check,
+		  jiffies + msecs_to_jiffies(BEISCSI_UE_DETECT_INTERVAL));
+}
+
+static void beiscsi_eqd_update_work(struct work_struct *work)
+{
+	struct hwi_context_memory *phwi_context;
+	struct be_set_eqd set_eqd[MAX_CPUS];
+	struct hwi_controller *phwi_ctrlr;
+	struct be_eq_obj *pbe_eq;
+	struct beiscsi_hba *phba;
+	unsigned int pps, delta;
+	struct be_aic_obj *aic;
+	int eqd, i, num = 0;
+	unsigned long now;
+
+	phba = container_of(work, struct beiscsi_hba, eqd_update.work);
 	if (beiscsi_hba_in_error(phba))
 		return;
 
@@ -5361,13 +5376,13 @@ static void be_eqd_update(struct beiscsi_hba *phba)
 		aic = &phba->aic_obj[i];
 		pbe_eq = &phwi_context->be_eq[i];
 		now = jiffies;
-		if (!aic->jiffs || time_before(now, aic->jiffs) ||
+		if (!aic->jiffies || time_before(now, aic->jiffies) ||
 		    pbe_eq->cq_count < aic->eq_prev) {
-			aic->jiffs = now;
+			aic->jiffies = now;
 			aic->eq_prev = pbe_eq->cq_count;
 			continue;
 		}
-		delta = jiffies_to_msecs(now - aic->jiffs);
+		delta = jiffies_to_msecs(now - aic->jiffies);
 		pps = (((u32)(pbe_eq->cq_count - aic->eq_prev) * 1000) / delta);
 		eqd = (pps / 1500) << 2;
 
@@ -5376,7 +5391,7 @@ static void be_eqd_update(struct beiscsi_hba *phba)
 		eqd = min_t(u32, eqd, phwi_context->max_eqd);
 		eqd = max_t(u32, eqd, phwi_context->min_eqd);
 
-		aic->jiffs = now;
+		aic->jiffies = now;
 		aic->eq_prev = pbe_eq->cq_count;
 
 		if (eqd != aic->prev_eqd) {
@@ -5386,32 +5401,12 @@ static void be_eqd_update(struct beiscsi_hba *phba)
 			num++;
 		}
 	}
-	if (num) {
-		tag = be_cmd_modify_eq_delay(phba, set_eqd, num);
-		if (tag)
-			beiscsi_mccq_compl_wait(phba, tag, NULL, NULL);
-	}
-}
+	if (num)
+		/* completion of this is ignored */
+		beiscsi_modify_eq_delay(phba, set_eqd, num);
 
-/*
- * beiscsi_hw_health_check()- Check adapter health
- * @work: work item to check HW health
- *
- * Check if adapter in an unrecoverable state or not.
- **/
-static void
-beiscsi_hw_health_check(struct work_struct *work)
-{
-	struct beiscsi_hba *phba =
-		container_of(work, struct beiscsi_hba,
-			     beiscsi_hw_check_task.work);
-
-	be_eqd_update(phba);
-
-	beiscsi_ue_detect(phba);
-
-	schedule_delayed_work(&phba->beiscsi_hw_check_task,
-			      msecs_to_jiffies(1000));
+	schedule_delayed_work(&phba->eqd_update,
+			      msecs_to_jiffies(BEISCSI_EQD_UPDATE_INTERVAL));
 }
 
 
@@ -5560,6 +5555,11 @@ static void beiscsi_eeh_resume(struct pci_dev *pdev)
 	hwi_enable_intr(phba);
 	clear_bit(BEISCSI_HBA_PCI_ERR, &phba->state);
 
+	/* start hw_check timer and eqd_update work */
+	schedule_delayed_work(&phba->eqd_update,
+			      msecs_to_jiffies(BEISCSI_EQD_UPDATE_INTERVAL));
+	mod_timer(&phba->hw_check,
+		  jiffies + msecs_to_jiffies(BEISCSI_UE_DETECT_INTERVAL));
 	return;
 ret_err:
 	beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
@@ -5707,8 +5707,7 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 		goto free_twq;
 	}
 
-	INIT_DELAYED_WORK(&phba->beiscsi_hw_check_task,
-			  beiscsi_hw_health_check);
+	INIT_DELAYED_WORK(&phba->eqd_update, beiscsi_eqd_update_work);
 
 	phwi_ctrlr = phba->phwi_ctrlr;
 	phwi_context = phwi_ctrlr->phwi_ctxt;
@@ -5749,8 +5748,17 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 	}
 
 	beiscsi_iface_create_default(phba);
-	schedule_delayed_work(&phba->beiscsi_hw_check_task,
-			      msecs_to_jiffies(1000));
+	schedule_delayed_work(&phba->eqd_update,
+			      msecs_to_jiffies(BEISCSI_EQD_UPDATE_INTERVAL));
+	/**
+	 * Start UE detection here. UE before this will cause stall in probe
+	 * and eventually fail the probe.
+	 */
+	init_timer(&phba->hw_check);
+	phba->hw_check.function = beiscsi_hw_health_check;
+	phba->hw_check.data = (unsigned long)phba;
+	mod_timer(&phba->hw_check,
+		  jiffies + msecs_to_jiffies(BEISCSI_UE_DETECT_INTERVAL));
 
 	beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_INIT,
 		    "\n\n\n BM_%d : SUCCESS - DRIVER LOADED\n\n\n");
