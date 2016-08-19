@@ -3715,7 +3715,7 @@ static int hwi_init_port(struct beiscsi_hba *phba)
 	if (status != 0)
 		goto error;
 
-	status = mgmt_check_supported_fw(ctrl, phba);
+	status = beiscsi_check_supported_fw(ctrl, phba);
 	if (status != 0) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
 			    "BM_%d : Unsupported fw version\n");
@@ -5652,13 +5652,13 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 	spin_lock_init(&phba->io_sgl_lock);
 	spin_lock_init(&phba->mgmt_sgl_lock);
 	spin_lock_init(&phba->async_pdu_lock);
-	ret = mgmt_get_fw_config(&phba->ctrl, phba);
+	ret = beiscsi_get_fw_config(&phba->ctrl, phba);
 	if (ret != 0) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
 			    "BM_%d : Error getting fw config\n");
 		goto free_port;
 	}
-	mgmt_get_port_name(&phba->ctrl, phba);
+	beiscsi_get_port_name(&phba->ctrl, phba);
 	beiscsi_get_params(phba);
 	beiscsi_set_uer_feature(phba);
 

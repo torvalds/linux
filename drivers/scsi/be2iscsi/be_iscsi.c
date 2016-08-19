@@ -118,6 +118,16 @@ void beiscsi_session_destroy(struct iscsi_cls_session *cls_session)
 }
 
 /**
+ * beiscsi_session_fail(): Closing session with appropriate error
+ * @cls_session: ptr to session
+ **/
+void beiscsi_session_fail(struct iscsi_cls_session *cls_session)
+{
+	iscsi_session_failure(cls_session->dd_data, ISCSI_ERR_CONN_FAILED);
+}
+
+
+/**
  * beiscsi_conn_create - create an instance of iscsi connection
  * @cls_session: ptr to iscsi_cls_session
  * @cid: iscsi cid

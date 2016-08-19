@@ -716,14 +716,13 @@ struct be_cmd_get_nic_conf_resp {
 
 /******************** Get HBA NAME *******************/
 
-#define BEISCSI_ALIAS_LEN 32
-
 struct be_cmd_hba_name {
 	struct be_cmd_req_hdr hdr;
 	u16 flags;
 	u16 rsvd0;
 	u8 initiator_name[ISCSI_NAME_LEN];
-	u8 initiator_alias[BEISCSI_ALIAS_LEN];
+#define BE_INI_ALIAS_LEN 32
+	u8 initiator_alias[BE_INI_ALIAS_LEN];
 } __packed;
 
 /******************** COMMON SET Features *******************/
@@ -769,8 +768,7 @@ int beiscsi_cmd_mccq_create(struct beiscsi_hba *phba,
 			struct be_queue_info *cq);
 
 int be_poll_mcc(struct be_ctrl_info *ctrl);
-int mgmt_check_supported_fw(struct be_ctrl_info *ctrl,
-				      struct beiscsi_hba *phba);
+
 unsigned int be_cmd_get_initname(struct beiscsi_hba *phba);
 
 void free_mcc_wrb(struct be_ctrl_info *ctrl, unsigned int tag);
@@ -799,9 +797,6 @@ void beiscsi_process_async_event(struct beiscsi_hba *phba,
 int beiscsi_process_mcc_compl(struct be_ctrl_info *ctrl,
 			      struct be_mcc_compl *compl);
 
-
-int be_mbox_notify(struct be_ctrl_info *ctrl);
-
 int be_cmd_create_default_pdu_queue(struct be_ctrl_info *ctrl,
 				    struct be_queue_info *cq,
 				    struct be_queue_info *dq, int length,
@@ -826,6 +821,13 @@ int be_cmd_wrbq_create(struct be_ctrl_info *ctrl, struct be_dma_mem *q_mem,
 
 /* Configuration Functions */
 int be_cmd_set_vlan(struct beiscsi_hba *phba, uint16_t vlan_tag);
+
+int beiscsi_check_supported_fw(struct be_ctrl_info *ctrl,
+			       struct beiscsi_hba *phba);
+
+int beiscsi_get_fw_config(struct be_ctrl_info *ctrl, struct beiscsi_hba *phba);
+
+int beiscsi_get_port_name(struct be_ctrl_info *ctrl, struct beiscsi_hba *phba);
 
 int beiscsi_set_uer_feature(struct beiscsi_hba *phba);
 
@@ -1427,6 +1429,4 @@ void be_wrb_hdr_prepare(struct be_mcc_wrb *wrb, int payload_len,
 
 void be_cmd_hdr_prepare(struct be_cmd_req_hdr *req_hdr,
 			u8 subsystem, u8 opcode, int cmd_len);
-
-void beiscsi_fail_session(struct iscsi_cls_session *cls_session);
 #endif /* !BEISCSI_CMDS_H */

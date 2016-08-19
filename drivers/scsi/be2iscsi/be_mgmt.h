@@ -266,11 +266,6 @@ struct beiscsi_endpoint {
 	u16 cid_vld;
 };
 
-int mgmt_get_fw_config(struct be_ctrl_info *ctrl,
-				 struct beiscsi_hba *phba);
-int mgmt_get_port_name(struct be_ctrl_info *ctrl,
-		       struct beiscsi_hba *phba);
-
 unsigned int mgmt_invalidate_connection(struct beiscsi_hba *phba,
 					 struct beiscsi_endpoint *beiscsi_ep,
 					 unsigned short cid,
@@ -282,16 +277,16 @@ int beiscsi_if_en_dhcp(struct beiscsi_hba *phba, u32 ip_type);
 int beiscsi_if_en_static(struct beiscsi_hba *phba, u32 ip_type,
 			 u8 *ip, u8 *subnet);
 
+int beiscsi_if_set_gw(struct beiscsi_hba *phba, u32 ip_type, u8 *gw);
+
+int beiscsi_if_get_gw(struct beiscsi_hba *phba, u32 ip_type,
+		      struct be_cmd_get_def_gateway_resp *resp);
+
 int mgmt_get_nic_conf(struct beiscsi_hba *phba,
 		      struct be_cmd_get_nic_conf_resp *mac);
 
 int beiscsi_if_get_info(struct beiscsi_hba *phba, int ip_type,
 			struct be_cmd_get_if_info_resp **if_info);
-
-int beiscsi_if_get_gw(struct beiscsi_hba *phba, u32 ip_type,
-		      struct be_cmd_get_def_gateway_resp *resp);
-
-int beiscsi_if_set_gw(struct beiscsi_hba *phba, u32 ip_type, u8 *gw);
 
 unsigned int beiscsi_if_get_handle(struct beiscsi_hba *phba);
 

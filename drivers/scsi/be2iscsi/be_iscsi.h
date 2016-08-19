@@ -50,6 +50,8 @@ struct iscsi_cls_session *beiscsi_session_create(struct iscsi_endpoint *ep,
 
 void beiscsi_session_destroy(struct iscsi_cls_session *cls_session);
 
+void beiscsi_session_fail(struct iscsi_cls_session *cls_session);
+
 struct iscsi_cls_conn *beiscsi_conn_create(struct iscsi_cls_session
 					   *cls_session, uint32_t cid);
 
