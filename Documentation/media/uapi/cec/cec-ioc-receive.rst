@@ -75,7 +75,7 @@ result.
 
 .. _cec-msg:
 
-.. tabularcolumns:: |p{1.0cm}|p{1.0cm}|p{15.5cm}|
+.. tabularcolumns:: |p{1.0cm}|p{3.5cm}|p{13.0cm}|
 
 .. flat-table:: struct cec_msg
     :header-rows:  0
@@ -254,7 +254,7 @@ result.
 
 .. _cec-tx-status:
 
-.. tabularcolumns:: |p{2.6cm}|p{0.9cm}|p{14.0cm}|
+.. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{11.0cm}|
 
 .. flat-table:: CEC Transmit Status
     :header-rows:  0
@@ -324,7 +324,7 @@ result.
 
 .. _cec-rx-status:
 
-.. tabularcolumns:: |p{2.6cm}|p{0.9cm}|p{14.0cm}|
+.. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{11.0cm}|
 
 .. flat-table:: CEC Receive Status
     :header-rows:  0

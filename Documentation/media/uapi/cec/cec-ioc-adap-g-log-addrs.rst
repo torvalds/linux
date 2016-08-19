@@ -69,7 +69,9 @@ logical address types are already defined will return with error ``EBUSY``.
 
 .. _cec-log-addrs:
 
-.. tabularcolumns:: |p{1.0cm}|p{1.0cm}|p{15.5cm}|
+.. tabularcolumns:: |p{1.0cm}|p{7.5cm}|p{8.0cm}|
+
+.. cssclass:: longtable
 
 .. flat-table:: struct cec_log_addrs
     :header-rows:  0
@@ -311,7 +313,7 @@ logical address types are already defined will return with error ``EBUSY``.
 
 .. _cec-log-addr-types:
 
-.. tabularcolumns:: |p{2.6cm}|p{0.9cm}|p{14.0cm}|
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table:: CEC Logical Address Types
     :header-rows:  0

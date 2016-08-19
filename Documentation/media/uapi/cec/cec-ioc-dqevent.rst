@@ -54,7 +54,7 @@ it is guaranteed that the state did change in between the two events.
 
 .. _cec-event-state-change_s:
 
-.. tabularcolumns:: |p{1.8cm}|p{1.8cm}|p{13.9cm}|
+.. tabularcolumns:: |p{1.2cm}|p{2.9cm}|p{13.4cm}|
 
 .. flat-table:: struct cec_event_state_change
     :header-rows:  0
@@ -82,7 +82,7 @@ it is guaranteed that the state did change in between the two events.
 
 .. _cec-event-lost-msgs_s:
 
-.. tabularcolumns:: |p{1.0cm}|p{1.0cm}|p{15.5cm}|
+.. tabularcolumns:: |p{1.0cm}|p{2.0cm}|p{14.5cm}|
 
 .. flat-table:: struct cec_event_lost_msgs
     :header-rows:  0
@@ -110,7 +110,7 @@ it is guaranteed that the state did change in between the two events.
 
 .. _cec-event:
 
-.. tabularcolumns:: |p{1.6cm}|p{1.6cm}|p{1.6cm}|p{12.7cm}|
+.. tabularcolumns:: |p{1.0cm}|p{4.2cm}|p{2.5cm}|p{8.8cm}|
 
 .. flat-table:: struct cec_event
     :header-rows:  0
@@ -124,11 +124,10 @@ it is guaranteed that the state did change in between the two events.
 
        -  ``ts``
 
-       -  Timestamp of the event in ns.
+       -  :cspan:`1` Timestamp of the event in ns.
+
 	  The timestamp has been taken from the ``CLOCK_MONOTONIC`` clock. To access
 	  the same clock from userspace use :c:func:`clock_gettime(2)`.
-
-       -
 
     -  .. row 2
 
@@ -136,9 +135,7 @@ it is guaranteed that the state did change in between the two events.
 
        -  ``event``
 
-       -  The CEC event type, see :ref:`cec-events`.
-
-       -
+       -  :cspan:`1` The CEC event type, see :ref:`cec-events`.
 
     -  .. row 3
 
@@ -146,9 +143,7 @@ it is guaranteed that the state did change in between the two events.
 
        -  ``flags``
 
-       -  Event flags, see :ref:`cec-event-flags`.
-
-       -
+       -  :cspan:`1` Event flags, see :ref:`cec-event-flags`.
 
     -  .. row 4
 
@@ -183,7 +178,7 @@ it is guaranteed that the state did change in between the two events.
 
 .. _cec-events:
 
-.. tabularcolumns:: |p{2.6cm}|p{0.9cm}|p{14.0cm}|
+.. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{11.0cm}|
 
 .. flat-table:: CEC Events Types
     :header-rows:  0
@@ -214,7 +209,7 @@ it is guaranteed that the state did change in between the two events.
 
 .. _cec-event-flags:
 
-.. tabularcolumns:: |p{4.4cm}|p{1.5cm}|p{11.6cm}|
+.. tabularcolumns:: |p{6.0cm}|p{0.6cm}|p{10.9cm}|
 
 .. flat-table:: CEC Event Flags
     :header-rows:  0
