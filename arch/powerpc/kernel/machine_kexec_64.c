@@ -32,21 +32,6 @@
 #include <asm/hw_breakpoint.h>
 #include <asm/asm-prototypes.h>
 
-#ifdef CONFIG_PPC_BOOK3E
-int default_machine_kexec_prepare(struct kimage *image)
-{
-	int i;
-	/*
-	 * Since we use the kernel fault handlers and paging code to
-	 * handle the virtual mode, we must make sure no destination
-	 * overlaps kernel static data or bss.
-	 */
-	for (i = 0; i < image->nr_segments; i++)
-		if (image->segment[i].mem < __pa(_end))
-			return -ETXTBSY;
-	return 0;
-}
-#else
 int default_machine_kexec_prepare(struct kimage *image)
 {
 	int i;
@@ -86,7 +71,6 @@ int default_machine_kexec_prepare(struct kimage *image)
 
 	return 0;
 }
-#endif /* !CONFIG_PPC_BOOK3E */
 
 static void copy_segments(unsigned long ind)
 {
