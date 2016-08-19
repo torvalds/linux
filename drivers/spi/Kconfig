@@ -631,6 +631,13 @@ config SPI_TEGRA20_SLINK
 	help
 	  SPI driver for Nvidia Tegra20/Tegra30 SLINK Controller interface.
 
+config SPI_THUNDERX
+	tristate "Cavium ThunderX SPI controller"
+	depends on PCI && 64BIT && (ARM64 || COMPILE_TEST)
+	help
+	  SPI host driver for the hardware found on Cavium ThunderX
+	  SOCs.
+
 config SPI_TOPCLIFF_PCH
 	tristate "Intel EG20T PCH/LAPIS Semicon IOH(ML7213/ML7223/ML7831) SPI"
 	depends on PCI && (X86_32 || MIPS || COMPILE_TEST)
