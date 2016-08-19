@@ -82,6 +82,8 @@ return an error code.
 Return Value
 ------------
 
+.. tabularcolumns:: |p{2.5cm}|p{15.0cm}|
+
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0

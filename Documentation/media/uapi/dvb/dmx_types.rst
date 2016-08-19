@@ -12,6 +12,7 @@ Demux Data Types
 Output for the demux
 ====================
 
+.. tabularcolumns:: |p{5.0cm}|p{12.5cm}|
 
 .. _dmx-output:
 

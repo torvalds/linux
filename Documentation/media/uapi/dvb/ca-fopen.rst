@@ -79,6 +79,8 @@ the device in this mode will fail, and an error code will be returned.
 Return Value
 ------------
 
+.. tabularcolumns:: |p{2.5cm}|p{15.0cm}|
+
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0

@@ -56,6 +56,7 @@ The fe_status parameter is used to indicate the current state and/or
 state changes of the frontend hardware. It is produced using the enum
 :ref:`fe_status <fe-status>` values on a bitmask
 
+.. tabularcolumns:: |p{3.5cm}|p{14.0cm}|
 
 .. _fe-status:
 
