@@ -478,53 +478,6 @@ int beiscsi_process_mcc_compl(struct be_ctrl_info *ctrl,
 	return 0;
 }
 
-/*
- * be_mcc_compl_poll()- Wait for MBX completion
- * @phba: driver private structure
- *
- * Wait till no more pending mcc requests are present
- *
- * return
- * Success: 0
- * Failure: Non-Zero
- *
- **/
-int be_mcc_compl_poll(struct beiscsi_hba *phba, unsigned int tag)
-{
-	struct be_ctrl_info *ctrl = &phba->ctrl;
-	int i;
-
-	if (!test_bit(MCC_TAG_STATE_RUNNING,
-		      &ctrl->ptag_state[tag].tag_state)) {
-		beiscsi_log(phba, KERN_ERR,
-			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
-			    "BC_%d: tag %u state not running\n", tag);
-		return 0;
-	}
-	for (i = 0; i < mcc_timeout; i++) {
-		if (beiscsi_hba_in_error(phba))
-			return -EIO;
-
-		beiscsi_process_mcc_cq(phba);
-		/* after polling, wrb and tag need to be released */
-		if (!test_bit(MCC_TAG_STATE_RUNNING,
-			      &ctrl->ptag_state[tag].tag_state)) {
-			free_mcc_wrb(ctrl, tag);
-			break;
-		}
-		udelay(100);
-	}
-
-	if (i < mcc_timeout)
-		return 0;
-
-	beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
-		    "BC_%d : FW Timed Out\n");
-	set_bit(BEISCSI_HBA_FW_TIMEOUT, &phba->state);
-	beiscsi_ue_detect(phba);
-	return -EBUSY;
-}
-
 void be_mcc_notify(struct beiscsi_hba *phba, unsigned int tag)
 {
 	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
@@ -1644,4 +1597,53 @@ int beiscsi_init_sliport(struct beiscsi_hba *phba)
 
 	/* indicate driver is loading */
 	return beiscsi_cmd_special_wrb(&phba->ctrl, 1);
+}
+
+/**
+ * beiscsi_cmd_iscsi_cleanup()- Inform FW to cleanup EP data structures.
+ * @phba: pointer to dev priv structure
+ * @ulp: ULP number.
+ *
+ * return
+ *	Success: 0
+ *	Failure: Non-Zero Value
+ **/
+int beiscsi_cmd_iscsi_cleanup(struct beiscsi_hba *phba, unsigned short ulp)
+{
+	struct be_ctrl_info *ctrl = &phba->ctrl;
+	struct iscsi_cleanup_req_v1 *req_v1;
+	struct iscsi_cleanup_req *req;
+	struct be_mcc_wrb *wrb;
+	int status;
+
+	mutex_lock(&ctrl->mbox_lock);
+	wrb = wrb_from_mbox(&ctrl->mbox_mem);
+	req = embedded_payload(wrb);
+	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI,
+			   OPCODE_COMMON_ISCSI_CLEANUP, sizeof(*req));
+
+       /**
+	* TODO: Check with FW folks the chute value to be set.
+	* For now, use the ULP_MASK as the chute value.
+	*/
+	if (is_chip_be2_be3r(phba)) {
+		req->chute = (1 << ulp);
+		req->hdr_ring_id = HWI_GET_DEF_HDRQ_ID(phba, ulp);
+		req->data_ring_id = HWI_GET_DEF_BUFQ_ID(phba, ulp);
+	} else {
+		req_v1 = (struct iscsi_cleanup_req_v1 *)req;
+		req_v1->hdr.version = 1;
+		req_v1->hdr_ring_id = cpu_to_le16(HWI_GET_DEF_HDRQ_ID(phba,
+								      ulp));
+		req_v1->data_ring_id = cpu_to_le16(HWI_GET_DEF_BUFQ_ID(phba,
+								       ulp));
+	}
+
+	status = be_mbox_notify(ctrl);
+	if (status)
+		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_INIT,
+			    "BG_%d : %s failed %d\n", __func__, ulp);
+	mutex_unlock(&ctrl->mbox_lock);
+	return status;
 }

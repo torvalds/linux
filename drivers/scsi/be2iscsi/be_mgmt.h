@@ -96,7 +96,6 @@ struct mcc_wrb {
 	struct mcc_wrb_payload payload;
 };
 
-int mgmt_epfw_cleanup(struct beiscsi_hba *phba, unsigned short chute);
 int mgmt_open_connection(struct beiscsi_hba *phba,
 			 struct sockaddr *dst_addr,
 			 struct beiscsi_endpoint *beiscsi_ep,

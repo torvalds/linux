@@ -3249,7 +3249,6 @@ beiscsi_create_def_hdr(struct beiscsi_hba *phba,
 		    "BM_%d : iscsi hdr def pdu id for ULP : %d is %d\n",
 		    ulp_num,
 		    phwi_context->be_def_hdrq[ulp_num].id);
-	hwi_post_async_buffers(phba, BEISCSI_DEFQ_HDR, ulp_num);
 	return 0;
 }
 
@@ -3304,11 +3303,9 @@ beiscsi_create_def_data(struct beiscsi_hba *phba,
 		    ulp_num,
 		    phwi_context->be_def_dataq[ulp_num].id);
 
-	hwi_post_async_buffers(phba, BEISCSI_DEFQ_DATA, ulp_num);
 	beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_INIT,
 		    "BM_%d : DEFAULT PDU DATA RING CREATED"
 		    "on ULP : %d\n", ulp_num);
-
 	return 0;
 }
 
@@ -3757,6 +3754,15 @@ static int hwi_init_port(struct beiscsi_hba *phba)
 					    ulp_num);
 				goto error;
 			}
+			/**
+			 * Now that the default PDU rings have been created,
+			 * let EP know about it.
+			 * Call beiscsi_cmd_iscsi_cleanup before posting?
+			 */
+			hwi_post_async_buffers(phba, BEISCSI_DEFQ_HDR,
+					       ulp_num);
+			hwi_post_async_buffers(phba, BEISCSI_DEFQ_DATA,
+					       ulp_num);
 		}
 	}
 
@@ -4235,19 +4241,12 @@ static void hwi_purge_eq(struct beiscsi_hba *phba)
 
 static void beiscsi_cleanup_port(struct beiscsi_hba *phba)
 {
-	int mgmt_status, ulp_num;
 	struct ulp_cid_info *ptr_cid_info = NULL;
+	int ulp_num;
 
-	for (ulp_num = 0; ulp_num < BEISCSI_ULP_COUNT; ulp_num++) {
-		if (test_bit(ulp_num, (void *)&phba->fw_config.ulp_supported)) {
-			mgmt_status = mgmt_epfw_cleanup(phba, ulp_num);
-			if (mgmt_status)
-				beiscsi_log(phba, KERN_WARNING,
-					    BEISCSI_LOG_INIT,
-					    "BM_%d : mgmt_epfw_cleanup FAILED"
-					    " for ULP_%d\n", ulp_num);
-		}
-	}
+	for (ulp_num = 0; ulp_num < BEISCSI_ULP_COUNT; ulp_num++)
+		if (test_bit(ulp_num, (void *)&phba->fw_config.ulp_supported))
+			beiscsi_cmd_iscsi_cleanup(phba, ulp_num);
 
 	hwi_purge_eq(phba);
 	hwi_cleanup_port(phba);

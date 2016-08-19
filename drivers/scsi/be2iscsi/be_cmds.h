@@ -768,6 +768,8 @@ int beiscsi_check_fw_rdy(struct beiscsi_hba *phba);
 
 int beiscsi_init_sliport(struct beiscsi_hba *phba);
 
+int beiscsi_cmd_iscsi_cleanup(struct beiscsi_hba *phba, unsigned short ulp_num);
+
 int beiscsi_cmd_eq_create(struct be_ctrl_info *ctrl,
 			  struct be_queue_info *eq, int eq_delay);
 
@@ -781,8 +783,6 @@ int beiscsi_cmd_q_destroy(struct be_ctrl_info *ctrl, struct be_queue_info *q,
 int beiscsi_cmd_mccq_create(struct beiscsi_hba *phba,
 			struct be_queue_info *mccq,
 			struct be_queue_info *cq);
-
-int be_poll_mcc(struct be_ctrl_info *ctrl);
 
 unsigned int be_cmd_get_initname(struct beiscsi_hba *phba);
 
@@ -798,9 +798,7 @@ int __beiscsi_mcc_compl_status(struct beiscsi_hba *phba,
 			       unsigned int tag,
 			       struct be_mcc_wrb **wrb,
 			       struct be_dma_mem *mbx_cmd_mem);
-/*ISCSI Functuions */
 struct be_mcc_wrb *wrb_from_mbox(struct be_dma_mem *mbox_mem);
-int be_mcc_compl_poll(struct beiscsi_hba *phba, unsigned int tag);
 void be_mcc_notify(struct beiscsi_hba *phba, unsigned int tag);
 struct be_mcc_wrb *alloc_mcc_wrb(struct beiscsi_hba *phba,
 				 unsigned int *ref_tag);
@@ -1063,7 +1061,16 @@ struct iscsi_cleanup_req {
 	u16 chute;
 	u8 hdr_ring_id;
 	u8 data_ring_id;
+} __packed;
 
+struct iscsi_cleanup_req_v1 {
+	struct be_cmd_req_hdr hdr;
+	u16 chute;
+	u16 rsvd1;
+	u16 hdr_ring_id;
+	u16 rsvd2;
+	u16 data_ring_id;
+	u16 rsvd3;
 } __packed;
 
 struct eq_delay {

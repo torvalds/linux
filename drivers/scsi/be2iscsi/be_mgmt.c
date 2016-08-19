@@ -256,48 +256,6 @@ unsigned int mgmt_vendor_specific_fw_cmd(struct be_ctrl_info *ctrl,
 	return tag;
 }
 
-/**
- * mgmt_epfw_cleanup()- Inform FW to cleanup data structures.
- * @phba: pointer to dev priv structure
- * @ulp_num: ULP number.
- *
- * return
- *	Success: 0
- *	Failure: Non-Zero Value
- **/
-int mgmt_epfw_cleanup(struct beiscsi_hba *phba, unsigned short ulp_num)
-{
-	struct be_ctrl_info *ctrl = &phba->ctrl;
-	struct be_mcc_wrb *wrb;
-	struct iscsi_cleanup_req *req;
-	unsigned int tag;
-	int status;
-
-	mutex_lock(&ctrl->mbox_lock);
-	wrb = alloc_mcc_wrb(phba, &tag);
-	if (!wrb) {
-		mutex_unlock(&ctrl->mbox_lock);
-		return -EBUSY;
-	}
-
-	req = embedded_payload(wrb);
-	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
-	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI,
-			   OPCODE_COMMON_ISCSI_CLEANUP, sizeof(*req));
-
-	req->chute = (1 << ulp_num);
-	req->hdr_ring_id = cpu_to_le16(HWI_GET_DEF_HDRQ_ID(phba, ulp_num));
-	req->data_ring_id = cpu_to_le16(HWI_GET_DEF_BUFQ_ID(phba, ulp_num));
-
-	be_mcc_notify(phba, tag);
-	status = be_mcc_compl_poll(phba, tag);
-	if (status)
-		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_INIT,
-			    "BG_%d : mgmt_epfw_cleanup , FAILED\n");
-	mutex_unlock(&ctrl->mbox_lock);
-	return status;
-}
-
 unsigned int  mgmt_invalidate_icds(struct beiscsi_hba *phba,
 				struct invalidate_command_table *inv_tbl,
 				unsigned int num_invalidate, unsigned int cid,
