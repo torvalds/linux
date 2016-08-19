@@ -133,7 +133,7 @@ struct be_mcc_wrb *alloc_mcc_wrb(struct beiscsi_hba *phba,
 	struct be_mcc_wrb *wrb = NULL;
 	unsigned int tag;
 
-	spin_lock_bh(&phba->ctrl.mcc_lock);
+	spin_lock(&phba->ctrl.mcc_lock);
 	if (mccq->used == mccq->len) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT |
 			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
@@ -174,7 +174,7 @@ struct be_mcc_wrb *alloc_mcc_wrb(struct beiscsi_hba *phba,
 	mccq->used++;
 
 alloc_failed:
-	spin_unlock_bh(&phba->ctrl.mcc_lock);
+	spin_unlock(&phba->ctrl.mcc_lock);
 	return wrb;
 }
 
@@ -182,7 +182,7 @@ void free_mcc_wrb(struct be_ctrl_info *ctrl, unsigned int tag)
 {
 	struct be_queue_info *mccq = &ctrl->mcc_obj.q;
 
-	spin_lock_bh(&ctrl->mcc_lock);
+	spin_lock(&ctrl->mcc_lock);
 	tag = tag & MCC_Q_CMD_TAG_MASK;
 	ctrl->mcc_tag[ctrl->mcc_free_index] = tag;
 	if (ctrl->mcc_free_index == (MAX_MCC_CMD - 1))
@@ -191,7 +191,7 @@ void free_mcc_wrb(struct be_ctrl_info *ctrl, unsigned int tag)
 		ctrl->mcc_free_index++;
 	ctrl->mcc_tag_available++;
 	mccq->used--;
-	spin_unlock_bh(&ctrl->mcc_lock);
+	spin_unlock(&ctrl->mcc_lock);
 }
 
 /**
