@@ -263,19 +263,25 @@ do {							\
 extern long __memset_user(void *dst, unsigned long count);
 extern long __memcpy_user(void *dst, const void *src, unsigned long count);
 
-#define clear_user(dst,count)			__memset_user(____force(dst), (count))
+#define __clear_user(dst,count)			__memset_user(____force(dst), (count))
 #define __copy_from_user_inatomic(to, from, n)	__memcpy_user((to), ____force(from), (n))
 #define __copy_to_user_inatomic(to, from, n)	__memcpy_user(____force(to), (from), (n))
 
 #else
 
-#define clear_user(dst,count)			(memset(____force(dst), 0, (count)), 0)
+#define __clear_user(dst,count)			(memset(____force(dst), 0, (count)), 0)
 #define __copy_from_user_inatomic(to, from, n)	(memcpy((to), ____force(from), (n)), 0)
 #define __copy_to_user_inatomic(to, from, n)	(memcpy(____force(to), (from), (n)), 0)
 
 #endif
 
-#define __clear_user clear_user
+static inline unsigned long __must_check
+clear_user(void __user *to, unsigned long n)
+{
+	if (likely(__access_ok(to, n)))
+		n = __clear_user(to, n);
+	return n;
+}
 
 static inline unsigned long __must_check
 __copy_to_user(void __user *to, const void *from, unsigned long n)
