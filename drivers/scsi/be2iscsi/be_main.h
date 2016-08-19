@@ -418,6 +418,7 @@ struct beiscsi_hba {
 #define BEISCSI_UE_DETECT_INTERVAL	1000
 	u32 ue2rp;
 	struct delayed_work recover_port;
+	struct work_struct sess_work;
 
 	bool mac_addr_set;
 	u8 mac_address[ETH_ALEN];

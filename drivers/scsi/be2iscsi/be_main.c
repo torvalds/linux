@@ -5398,7 +5398,10 @@ static void beiscsi_hw_health_check(unsigned long ptr)
 	if (beiscsi_detect_ue(phba)) {
 		__beiscsi_log(phba, KERN_ERR,
 			      "BM_%d : port in error: %lx\n", phba->state);
-		/* detect TPE if UER supported */
+		/* sessions are no longer valid, so first fail the sessions */
+		queue_work(phba->wq, &phba->sess_work);
+
+		/* detect UER supported */
 		if (!test_bit(BEISCSI_HBA_UER_SUPP, &phba->state))
 			return;
 		/* modify this timer to check TPE */
@@ -5562,12 +5565,24 @@ static void beiscsi_disable_port(struct beiscsi_hba *phba, int unload)
 	hwi_cleanup_port(phba);
 }
 
+static void beiscsi_sess_work(struct work_struct *work)
+{
+	struct beiscsi_hba *phba;
+
+	phba = container_of(work, struct beiscsi_hba, sess_work);
+	/*
+	 * This work gets scheduled only in case of HBA error.
+	 * Old sessions are gone so need to be re-established.
+	 * iscsi_session_failure needs process context hence this work.
+	 */
+	iscsi_host_for_each_session(phba->shost, beiscsi_session_fail);
+}
+
 static void beiscsi_recover_port(struct work_struct *work)
 {
 	struct beiscsi_hba *phba;
 
 	phba = container_of(work, struct beiscsi_hba, recover_port.work);
-	iscsi_host_for_each_session(phba->shost, beiscsi_session_fail);
 	beiscsi_disable_port(phba, 0);
 	beiscsi_enable_port(phba);
 }
@@ -5587,6 +5602,8 @@ static pci_ers_result_t beiscsi_eeh_err_detected(struct pci_dev *pdev,
 	del_timer_sync(&phba->hw_check);
 	cancel_delayed_work_sync(&phba->recover_port);
 
+	/* sessions are no longer valid, so first fail the sessions */
+	iscsi_host_for_each_session(phba->shost, beiscsi_session_fail);
 	beiscsi_disable_port(phba, 0);
 
 	if (state == pci_channel_io_perm_failure) {
@@ -5832,6 +5849,7 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 	schedule_delayed_work(&phba->eqd_update,
 			      msecs_to_jiffies(BEISCSI_EQD_UPDATE_INTERVAL));
 
+	INIT_WORK(&phba->sess_work, beiscsi_sess_work);
 	INIT_DELAYED_WORK(&phba->recover_port, beiscsi_recover_port);
 	/**
 	 * Start UE detection here. UE before this will cause stall in probe
@@ -5842,7 +5860,6 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 	phba->hw_check.data = (unsigned long)phba;
 	mod_timer(&phba->hw_check,
 		  jiffies + msecs_to_jiffies(BEISCSI_UE_DETECT_INTERVAL));
-
 	beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_INIT,
 		    "\n\n\n BM_%d : SUCCESS - DRIVER LOADED\n\n\n");
 	return 0;
@@ -5888,6 +5905,7 @@ static void beiscsi_remove(struct pci_dev *pcidev)
 	/* first stop UE detection before unloading */
 	del_timer_sync(&phba->hw_check);
 	cancel_delayed_work_sync(&phba->recover_port);
+	cancel_work_sync(&phba->sess_work);
 
 	beiscsi_iface_destroy_default(phba);
 	iscsi_host_remove(phba->shost);
