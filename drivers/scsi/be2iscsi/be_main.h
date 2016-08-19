@@ -378,7 +378,6 @@ struct beiscsi_hba {
 	struct sgl_handle **eh_sgl_hndl_base;
 	spinlock_t io_sgl_lock;
 	spinlock_t mgmt_sgl_lock;
-	spinlock_t isr_lock;
 	spinlock_t async_pdu_lock;
 	unsigned int age;
 	struct list_head hba_queue;
@@ -845,7 +844,6 @@ struct wrb_handle *alloc_wrb_handle(struct beiscsi_hba *phba, unsigned int cid,
 void
 free_mgmt_sgl_handle(struct beiscsi_hba *phba, struct sgl_handle *psgl_handle);
 
-void beiscsi_process_all_cqs(struct work_struct *work);
 void beiscsi_free_mgmt_task_handles(struct beiscsi_conn *beiscsi_conn,
 				     struct iscsi_task *task);
 

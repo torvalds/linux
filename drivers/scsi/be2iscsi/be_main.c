@@ -832,12 +832,11 @@ static void hwi_ring_eq_db(struct beiscsi_hba *phba,
 static irqreturn_t be_isr_mcc(int irq, void *dev_id)
 {
 	struct beiscsi_hba *phba;
-	struct be_eq_entry *eqe = NULL;
+	struct be_eq_entry *eqe;
 	struct be_queue_info *eq;
 	struct be_queue_info *mcc;
-	unsigned int num_eq_processed;
+	unsigned int mcc_events;
 	struct be_eq_obj *pbe_eq;
-	unsigned long flags;
 
 	pbe_eq = dev_id;
 	eq = &pbe_eq->q;
@@ -845,27 +844,23 @@ static irqreturn_t be_isr_mcc(int irq, void *dev_id)
 	mcc = &phba->ctrl.mcc_obj.cq;
 	eqe = queue_tail_node(eq);
 
-	num_eq_processed = 0;
-
+	mcc_events = 0;
 	while (eqe->dw[offsetof(struct amap_eq_entry, valid) / 32]
 				& EQE_VALID_MASK) {
 		if (((eqe->dw[offsetof(struct amap_eq_entry,
 		     resource_id) / 32] &
 		     EQE_RESID_MASK) >> 16) == mcc->id) {
-			spin_lock_irqsave(&phba->isr_lock, flags);
-			pbe_eq->todo_mcc_cq = true;
-			spin_unlock_irqrestore(&phba->isr_lock, flags);
+			mcc_events++;
 		}
 		AMAP_SET_BITS(struct amap_eq_entry, valid, eqe, 0);
 		queue_tail_inc(eq);
 		eqe = queue_tail_node(eq);
-		num_eq_processed++;
 	}
-	if (pbe_eq->todo_mcc_cq)
-		queue_work(phba->wq, &pbe_eq->work_cqs);
-	if (num_eq_processed)
-		hwi_ring_eq_db(phba, eq->id, 1,	num_eq_processed, 1, 1);
 
+	if (mcc_events) {
+		queue_work(phba->wq, &pbe_eq->mcc_work);
+		hwi_ring_eq_db(phba, eq->id, 1,	mcc_events, 1, 1);
+	}
 	return IRQ_HANDLED;
 }
 
@@ -884,7 +879,6 @@ static irqreturn_t be_isr_msix(int irq, void *dev_id)
 	eq = &pbe_eq->q;
 
 	phba = pbe_eq->phba;
-
 	/* disable interrupt till iopoll completes */
 	hwi_ring_eq_db(phba, eq->id, 1,	0, 0, 1);
 	irq_poll_sched(&pbe_eq->iopoll);
@@ -902,14 +896,13 @@ static irqreturn_t be_isr(int irq, void *dev_id)
 	struct beiscsi_hba *phba;
 	struct hwi_controller *phwi_ctrlr;
 	struct hwi_context_memory *phwi_context;
-	struct be_eq_entry *eqe = NULL;
+	struct be_eq_entry *eqe;
 	struct be_queue_info *eq;
 	struct be_queue_info *mcc;
-	unsigned long flags, index;
-	unsigned int num_mcceq_processed, num_ioeq_processed;
+	unsigned int mcc_events, io_events;
 	struct be_ctrl_info *ctrl;
 	struct be_eq_obj *pbe_eq;
-	int isr;
+	int isr, rearm;
 
 	phba = dev_id;
 	ctrl = &phba->ctrl;
@@ -924,44 +917,35 @@ static irqreturn_t be_isr(int irq, void *dev_id)
 
 	eq = &phwi_context->be_eq[0].q;
 	mcc = &phba->ctrl.mcc_obj.cq;
-	index = 0;
 	eqe = queue_tail_node(eq);
 
-	num_ioeq_processed = 0;
-	num_mcceq_processed = 0;
+	io_events = 0;
+	mcc_events = 0;
 	while (eqe->dw[offsetof(struct amap_eq_entry, valid) / 32]
 				& EQE_VALID_MASK) {
 		if (((eqe->dw[offsetof(struct amap_eq_entry,
-		     resource_id) / 32] &
-		     EQE_RESID_MASK) >> 16) == mcc->id) {
-			spin_lock_irqsave(&phba->isr_lock, flags);
-			pbe_eq->todo_mcc_cq = true;
-			spin_unlock_irqrestore(&phba->isr_lock, flags);
-			num_mcceq_processed++;
-		} else {
-			irq_poll_sched(&pbe_eq->iopoll);
-			num_ioeq_processed++;
-		}
+		      resource_id) / 32] & EQE_RESID_MASK) >> 16) == mcc->id)
+			mcc_events++;
+		else
+			io_events++;
 		AMAP_SET_BITS(struct amap_eq_entry, valid, eqe, 0);
 		queue_tail_inc(eq);
 		eqe = queue_tail_node(eq);
 	}
-	if (num_ioeq_processed || num_mcceq_processed) {
-		if (pbe_eq->todo_mcc_cq)
-			queue_work(phba->wq, &pbe_eq->work_cqs);
-
-		if ((num_mcceq_processed) && (!num_ioeq_processed))
-			hwi_ring_eq_db(phba, eq->id, 0,
-				      (num_ioeq_processed +
-				       num_mcceq_processed) , 1, 1);
-		else
-			hwi_ring_eq_db(phba, eq->id, 0,
-				       (num_ioeq_processed +
-					num_mcceq_processed), 0, 1);
-
-		return IRQ_HANDLED;
-	} else
+	if (!io_events && !mcc_events)
 		return IRQ_NONE;
+
+	/* no need to rearm if interrupt is only for IOs */
+	rearm = 0;
+	if (mcc_events) {
+		queue_work(phba->wq, &pbe_eq->mcc_work);
+		/* rearm for MCCQ */
+		rearm = 1;
+	}
+	if (io_events)
+		irq_poll_sched(&pbe_eq->iopoll);
+	hwi_ring_eq_db(phba, eq->id, 0, (io_events + mcc_events), rearm, 1);
+	return IRQ_HANDLED;
 }
 
 
@@ -2055,6 +2039,18 @@ void beiscsi_process_mcc_cq(struct beiscsi_hba *phba)
 		hwi_ring_cq_db(phba, mcc_cq->id, num_processed, 1);
 }
 
+static void beiscsi_mcc_work(struct work_struct *work)
+{
+	struct be_eq_obj *pbe_eq;
+	struct beiscsi_hba *phba;
+
+	pbe_eq = container_of(work, struct be_eq_obj, mcc_work);
+	phba = pbe_eq->phba;
+	beiscsi_process_mcc_cq(phba);
+	/* rearm EQ for further interrupts */
+	hwi_ring_eq_db(phba, pbe_eq->q.id, 0, 0, 1, 1);
+}
+
 /**
  * beiscsi_process_cq()- Process the Completion Queue
  * @pbe_eq: Event Q on which the Completion has come
@@ -2244,46 +2240,15 @@ proc_next_cqe:
 	return total;
 }
 
-void beiscsi_process_all_cqs(struct work_struct *work)
-{
-	unsigned long flags;
-	struct hwi_controller *phwi_ctrlr;
-	struct hwi_context_memory *phwi_context;
-	struct beiscsi_hba *phba;
-	struct be_eq_obj *pbe_eq =
-	    container_of(work, struct be_eq_obj, work_cqs);
-
-	phba = pbe_eq->phba;
-	phwi_ctrlr = phba->phwi_ctrlr;
-	phwi_context = phwi_ctrlr->phwi_ctxt;
-
-	if (pbe_eq->todo_mcc_cq) {
-		spin_lock_irqsave(&phba->isr_lock, flags);
-		pbe_eq->todo_mcc_cq = false;
-		spin_unlock_irqrestore(&phba->isr_lock, flags);
-		beiscsi_process_mcc_cq(phba);
-	}
-
-	if (pbe_eq->todo_cq) {
-		spin_lock_irqsave(&phba->isr_lock, flags);
-		pbe_eq->todo_cq = false;
-		spin_unlock_irqrestore(&phba->isr_lock, flags);
-		beiscsi_process_cq(pbe_eq, BE2_MAX_NUM_CQ_PROC);
-	}
-
-	/* rearm EQ for further interrupts */
-	hwi_ring_eq_db(phba, pbe_eq->q.id, 0, 0, 1, 1);
-}
-
 static int be_iopoll(struct irq_poll *iop, int budget)
 {
-	unsigned int ret, num_eq_processed;
+	unsigned int ret, io_events;
 	struct beiscsi_hba *phba;
 	struct be_eq_obj *pbe_eq;
 	struct be_eq_entry *eqe = NULL;
 	struct be_queue_info *eq;
 
-	num_eq_processed = 0;
+	io_events = 0;
 	pbe_eq = container_of(iop, struct be_eq_obj, iopoll);
 	phba = pbe_eq->phba;
 	eq = &pbe_eq->q;
@@ -2294,10 +2259,10 @@ static int be_iopoll(struct irq_poll *iop, int budget)
 		AMAP_SET_BITS(struct amap_eq_entry, valid, eqe, 0);
 		queue_tail_inc(eq);
 		eqe = queue_tail_node(eq);
-		num_eq_processed++;
+		io_events++;
 	}
 
-	hwi_ring_eq_db(phba, eq->id, 1, num_eq_processed, 0, 1);
+	hwi_ring_eq_db(phba, eq->id, 1, io_events, 0, 1);
 
 	ret = beiscsi_process_cq(pbe_eq, budget);
 	pbe_eq->cq_count += ret;
@@ -5578,7 +5543,7 @@ static void beiscsi_eeh_resume(struct pci_dev *pdev)
 	i = (phba->msix_enabled) ? i : 0;
 	/* Work item for MCC handling */
 	pbe_eq = &phwi_context->be_eq[i];
-	INIT_WORK(&pbe_eq->work_cqs, beiscsi_process_all_cqs);
+	INIT_WORK(&pbe_eq->mcc_work, beiscsi_mcc_work);
 
 	ret = beiscsi_init_irqs(phba);
 	if (ret < 0) {
@@ -5682,7 +5647,6 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 
 	spin_lock_init(&phba->io_sgl_lock);
 	spin_lock_init(&phba->mgmt_sgl_lock);
-	spin_lock_init(&phba->isr_lock);
 	spin_lock_init(&phba->async_pdu_lock);
 	ret = mgmt_get_fw_config(&phba->ctrl, phba);
 	if (ret != 0) {
@@ -5754,7 +5718,7 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 	i = (phba->msix_enabled) ? i : 0;
 	/* Work item for MCC handling */
 	pbe_eq = &phwi_context->be_eq[i];
-	INIT_WORK(&pbe_eq->work_cqs, beiscsi_process_all_cqs);
+	INIT_WORK(&pbe_eq->mcc_work, beiscsi_mcc_work);
 
 	ret = beiscsi_init_irqs(phba);
 	if (ret < 0) {

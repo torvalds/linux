@@ -100,7 +100,7 @@ struct be_eq_obj {
 	struct be_queue_info q;
 	struct beiscsi_hba *phba;
 	struct be_queue_info *cq;
-	struct work_struct work_cqs; /* Work Item */
+	struct work_struct mcc_work; /* Work Item */
 	struct irq_poll	iopoll;
 };
 
