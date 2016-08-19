@@ -14,16 +14,14 @@ LIRC_GET_LENGTH - Retrieves the code length in bits.
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, __u32 *length )
+.. c:function:: int ioctl( int fd, LIRC_GET_LENGTH, __u32 *length )
+    :name: LIRC_GET_LENGTH
 
 Arguments
 =========
 
 ``fd``
     File descriptor returned by open().
-
-``request``
-    LIRC_GET_LENGTH
 
 ``length``
     length, in bits

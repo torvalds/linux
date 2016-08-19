@@ -14,16 +14,14 @@ LIRC_SET_WIDEBAND_RECEIVER - enable wide band receiver.
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, __u32 *enable )
+.. c:function:: int ioctl( int fd, LIRC_SET_WIDEBAND_RECEIVER, __u32 *enable )
+    :name: LIRC_SET_WIDEBAND_RECEIVER
 
 Arguments
 =========
 
 ``fd``
     File descriptor returned by open().
-
-``request``
-    LIRC_SET_WIDEBAND_RECEIVER
 
 ``enable``
     enable = 1 means enable wideband receiver, enable = 0 means disable

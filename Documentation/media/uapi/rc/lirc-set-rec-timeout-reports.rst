@@ -14,16 +14,14 @@ LIRC_SET_REC_TIMEOUT_REPORTS - enable or disable timeout reports for IR receive
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, __u32 *enable )
+.. c:function:: int ioctl( int fd, LIRC_SET_REC_TIMEOUT_REPORTS, __u32 *enable )
+    :name: LIRC_SET_REC_TIMEOUT_REPORTS
 
 Arguments
 =========
 
 ``fd``
     File descriptor returned by open().
-
-``request``
-    LIRC_SET_REC_TIMEOUT_REPORTS
 
 ``enable``
     enable = 1 means enable timeout report, enable = 0 means disable timeout

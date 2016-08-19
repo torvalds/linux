@@ -21,6 +21,7 @@ Synopsis
 
 
 .. c:function:: ssize_t read( int fd, void *buf, size_t count )
+    :name lirc-read
 
 
 Arguments
@@ -30,8 +31,10 @@ Arguments
     File descriptor returned by ``open()``.
 
 ``buf``
-``count``
+   Buffer to be filled
 
+``count``
+   Max number of bytes to read
 
 Description
 ===========

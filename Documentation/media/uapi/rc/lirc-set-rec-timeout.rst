@@ -14,16 +14,14 @@ LIRC_SET_REC_TIMEOUT - sets the integer value for IR inactivity timeout.
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, __u32 *timeout )
+.. c:function:: int ioctl( int fd, LIRC_SET_REC_TIMEOUT, __u32 *timeout )
+    :name: LIRC_SET_REC_TIMEOUT
 
 Arguments
 =========
 
 ``fd``
     File descriptor returned by open().
-
-``request``
-    LIRC_SET_REC_TIMEOUT
 
 ``timeout``
     Timeout, in microseconds.

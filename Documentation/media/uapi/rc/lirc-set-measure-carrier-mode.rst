@@ -14,16 +14,14 @@ LIRC_SET_MEASURE_CARRIER_MODE - enable or disable measure mode
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, __u32 *enable )
+.. c:function:: int ioctl( int fd, LIRC_SET_MEASURE_CARRIER_MODE, __u32 *enable )
+    :name: LIRC_SET_MEASURE_CARRIER_MODE
 
 Arguments
 =========
 
 ``fd``
     File descriptor returned by open().
-
-``request``
-    LIRC_SET_MEASURE_CARRIER_MODE
 
 ``enable``
     enable = 1 means enable measure mode, enable = 0 means disable measure

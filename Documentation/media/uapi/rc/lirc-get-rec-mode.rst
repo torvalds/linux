@@ -10,21 +10,22 @@ ioctls LIRC_GET_REC_MODE and LIRC_SET_REC_MODE
 Name
 ====
 
-LIRC_GET_REC_MODE/LIRC_GET_REC_MODE - Get/set supported receive modes.
+LIRC_GET_REC_MODE/LIRC_SET_REC_MODE - Get/set supported receive modes.
 
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, __u32 rx_modes)
+.. c:function:: int ioctl( int fd, LIRC_GET_REC_MODE, __u32 rx_modes)
+	:name: LIRC_GET_REC_MODE
+
+.. c:function:: int ioctl( int fd, LIRC_SET_REC_MODE, __u32 rx_modes)
+	:name: LIRC_SET_REC_MODE
 
 Arguments
 =========
 
 ``fd``
     File descriptor returned by open().
-
-``request``
-    LIRC_GET_REC_MODE or LIRC_GET_REC_MODE
 
 ``rx_modes``
     Bitmask with the supported transmit modes.

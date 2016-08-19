@@ -14,16 +14,14 @@ LIRC_GET_REC_RESOLUTION - Obtain the value of receive resolution, in microsecond
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, __u32 *microseconds)
+.. c:function:: int ioctl( int fd, LIRC_GET_REC_RESOLUTION, __u32 *microseconds)
+    :name: LIRC_GET_REC_RESOLUTION
 
 Arguments
 =========
 
 ``fd``
     File descriptor returned by open().
-
-``request``
-    LIRC_GET_REC_RESOLUTION
 
 ``microseconds``
     Resolution, in microseconds.
