@@ -278,11 +278,10 @@ static unsigned int get_stream_frame_size(struct most_channel_config *cfg)
  */
 static int hdm_poison_channel(struct most_interface *iface, int channel)
 {
-	struct most_dev *mdev;
+	struct most_dev *mdev = to_mdev(iface);
 	unsigned long flags;
 	spinlock_t *lock; /* temp. lock */
 
-	mdev = to_mdev(iface);
 	if (unlikely(!iface)) {
 		dev_warn(&mdev->usb_device->dev, "Poison: Bad interface.\n");
 		return -EIO;
@@ -391,20 +390,13 @@ static int hdm_remove_padding(struct most_dev *mdev, int channel,
  */
 static void hdm_write_completion(struct urb *urb)
 {
-	struct mbo *mbo;
-	struct buf_anchor *anchor;
-	struct most_dev *mdev;
-	struct device *dev;
-	unsigned int channel;
+	struct mbo *mbo = urb->context;
+	struct buf_anchor *anchor = mbo->priv;
+	struct most_dev *mdev = to_mdev(mbo->ifp);
+	unsigned int channel = mbo->hdm_channel_id;
+	struct device *dev = &mdev->usb_device->dev;
+	spinlock_t *lock = mdev->anchor_list_lock + channel; /* temp. lock */
 	unsigned long flags;
-	spinlock_t *lock; /* temp. lock */
-
-	mbo = urb->context;
-	anchor = mbo->priv;
-	mdev = to_mdev(mbo->ifp);
-	channel = mbo->hdm_channel_id;
-	dev = &mdev->usb_device->dev;
-	lock = mdev->anchor_list_lock + channel;
 
 	spin_lock_irqsave(lock, flags);
 	if (urb->status == -ENOENT || urb->status == -ECONNRESET ||
@@ -556,20 +548,13 @@ static void hdm_write_completion(struct urb *urb)
  */
 static void hdm_read_completion(struct urb *urb)
 {
-	struct mbo *mbo;
-	struct buf_anchor *anchor;
-	struct most_dev *mdev;
-	struct device *dev;
+	struct mbo *mbo = urb->context;
+	struct buf_anchor *anchor = mbo->priv;
+	struct most_dev *mdev = to_mdev(mbo->ifp);
+	unsigned int channel = mbo->hdm_channel_id;
+	struct device *dev = &mdev->usb_device->dev;
+	spinlock_t *lock = mdev->anchor_list_lock + channel; /* temp. lock */
 	unsigned long flags;
-	unsigned int channel;
-	spinlock_t *lock; /* temp. lock */
-
-	mbo = urb->context;
-	anchor = mbo->priv;
-	mdev = to_mdev(mbo->ifp);
-	channel = mbo->hdm_channel_id;
-	dev = &mdev->usb_device->dev;
-	lock = mdev->anchor_list_lock + channel;
 
 	spin_lock_irqsave(lock, flags);
 	if (urb->status == -ENOENT || urb->status == -ECONNRESET ||
@@ -738,15 +723,13 @@ static int hdm_configure_channel(struct most_interface *iface, int channel,
 	unsigned int frame_size;
 	unsigned int temp_size;
 	unsigned int tail_space;
-	struct most_dev *mdev;
-	struct device *dev;
+	struct most_dev *mdev = to_mdev(iface);
+	struct device *dev = &mdev->usb_device->dev;
 
-	mdev = to_mdev(iface);
 	mdev->is_channel_healthy[channel] = true;
 	mdev->clear_work[channel].channel = channel;
 	mdev->clear_work[channel].mdev = mdev;
 	INIT_WORK(&mdev->clear_work[channel].ws, wq_clear_halt);
-	dev = &mdev->usb_device->dev;
 
 	if (unlikely(!iface || !conf)) {
 		dev_err(dev, "Bad interface or config pointer.\n");
@@ -896,12 +879,9 @@ static void link_stat_timer_handler(unsigned long data)
  */
 static void wq_netinfo(struct work_struct *wq_obj)
 {
-	struct most_dev *mdev;
-	int i, prev_link_stat;
+	struct most_dev *mdev = to_mdev_from_work(wq_obj);
+	int i, prev_link_stat = mdev->link_stat;
 	u8 prev_hw_addr[6];
-
-	mdev = to_mdev_from_work(wq_obj);
-	prev_link_stat = mdev->link_stat;
 
 	for (i = 0; i < 6; i++)
 		prev_hw_addr[i] = mdev->hw_addr[i];
@@ -1174,10 +1154,9 @@ static struct kobj_type most_dci_ktype = {
 static struct
 most_dci_obj *create_most_dci_obj(struct kobject *parent)
 {
-	struct most_dci_obj *most_dci;
+	struct most_dci_obj *most_dci = kzalloc(sizeof(*most_dci), GFP_KERNEL);
 	int retval;
 
-	most_dci = kzalloc(sizeof(*most_dci), GFP_KERNEL);
 	if (!most_dci)
 		return NULL;
 
@@ -1214,21 +1193,17 @@ static void destroy_most_dci_obj(struct most_dci_obj *p)
 static int
 hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 {
+	struct usb_host_interface *usb_iface_desc = interface->cur_altsetting;
+	struct usb_device *usb_dev = interface_to_usbdev(interface);
+	struct device *dev = &usb_dev->dev;
+	struct most_dev *mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	unsigned int i;
 	unsigned int num_endpoints;
 	struct most_channel_capability *tmp_cap;
-	struct most_dev *mdev;
-	struct usb_device *usb_dev;
-	struct device *dev;
-	struct usb_host_interface *usb_iface_desc;
 	struct usb_endpoint_descriptor *ep_desc;
 	int ret = 0;
 	int err;
 
-	usb_iface_desc = interface->cur_altsetting;
-	usb_dev = interface_to_usbdev(interface);
-	dev = &usb_dev->dev;
-	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
 		goto exit_ENOMEM;
 
@@ -1378,9 +1353,8 @@ exit_ENOMEM:
  */
 static void hdm_disconnect(struct usb_interface *interface)
 {
-	struct most_dev *mdev;
+	struct most_dev *mdev = usb_get_intfdata(interface);
 
-	mdev = usb_get_intfdata(interface);
 	mutex_lock(&mdev->io_mutex);
 	usb_set_intfdata(interface, NULL);
 	mdev->usb_device = NULL;
