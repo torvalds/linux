@@ -6726,7 +6726,7 @@ static void nested_vmx_abort(struct kvm_vcpu *vcpu, u32 indicator)
 {
 	/* TODO: not to reset guest simply here. */
 	kvm_make_request(KVM_REQ_TRIPLE_FAULT, vcpu);
-	pr_warn("kvm: nested vmx abort, indicator %d\n", indicator);
+	pr_debug_ratelimited("kvm: nested vmx abort, indicator %d\n", indicator);
 }
 
 static enum hrtimer_restart vmx_preemption_timer_fn(struct hrtimer *timer)
@@ -9598,7 +9598,7 @@ static int nested_vmx_check_msr_switch(struct kvm_vcpu *vcpu,
 	maxphyaddr = cpuid_maxphyaddr(vcpu);
 	if (!IS_ALIGNED(addr, 16) || addr >> maxphyaddr ||
 	    (addr + count * sizeof(struct vmx_msr_entry) - 1) >> maxphyaddr) {
-		pr_warn_ratelimited(
+		pr_debug_ratelimited(
 			"nVMX: invalid MSR switch (0x%lx, %d, %llu, 0x%08llx)",
 			addr_field, maxphyaddr, count, addr);
 		return -EINVAL;
@@ -9671,13 +9671,13 @@ static u32 nested_vmx_load_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 	for (i = 0; i < count; i++) {
 		if (kvm_vcpu_read_guest(vcpu, gpa + i * sizeof(e),
 					&e, sizeof(e))) {
-			pr_warn_ratelimited(
+			pr_debug_ratelimited(
 				"%s cannot read MSR entry (%u, 0x%08llx)\n",
 				__func__, i, gpa + i * sizeof(e));
 			goto fail;
 		}
 		if (nested_vmx_load_msr_check(vcpu, &e)) {
-			pr_warn_ratelimited(
+			pr_debug_ratelimited(
 				"%s check failed (%u, 0x%x, 0x%x)\n",
 				__func__, i, e.index, e.reserved);
 			goto fail;
@@ -9685,7 +9685,7 @@ static u32 nested_vmx_load_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 		msr.index = e.index;
 		msr.data = e.value;
 		if (kvm_set_msr(vcpu, &msr)) {
-			pr_warn_ratelimited(
+			pr_debug_ratelimited(
 				"%s cannot write MSR (%u, 0x%x, 0x%llx)\n",
 				__func__, i, e.index, e.value);
 			goto fail;
@@ -9706,13 +9706,13 @@ static int nested_vmx_store_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 		if (kvm_vcpu_read_guest(vcpu,
 					gpa + i * sizeof(e),
 					&e, 2 * sizeof(u32))) {
-			pr_warn_ratelimited(
+			pr_debug_ratelimited(
 				"%s cannot read MSR entry (%u, 0x%08llx)\n",
 				__func__, i, gpa + i * sizeof(e));
 			return -EINVAL;
 		}
 		if (nested_vmx_store_msr_check(vcpu, &e)) {
-			pr_warn_ratelimited(
+			pr_debug_ratelimited(
 				"%s check failed (%u, 0x%x, 0x%x)\n",
 				__func__, i, e.index, e.reserved);
 			return -EINVAL;
@@ -9720,7 +9720,7 @@ static int nested_vmx_store_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 		msr_info.host_initiated = false;
 		msr_info.index = e.index;
 		if (kvm_get_msr(vcpu, &msr_info)) {
-			pr_warn_ratelimited(
+			pr_debug_ratelimited(
 				"%s cannot read MSR (%u, 0x%x)\n",
 				__func__, i, e.index);
 			return -EINVAL;
@@ -9729,7 +9729,7 @@ static int nested_vmx_store_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 					 gpa + i * sizeof(e) +
 					     offsetof(struct vmx_msr_entry, value),
 					 &msr_info.data, sizeof(msr_info.data))) {
-			pr_warn_ratelimited(
+			pr_debug_ratelimited(
 				"%s cannot write MSR (%u, 0x%x, 0x%llx)\n",
 				__func__, i, e.index, msr_info.data);
 			return -EINVAL;
