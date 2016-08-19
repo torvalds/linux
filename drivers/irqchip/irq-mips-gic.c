@@ -893,10 +893,17 @@ void gic_dev_domain_free(struct irq_domain *d, unsigned int virq,
 	return;
 }
 
+static void gic_dev_domain_activate(struct irq_domain *domain,
+				    struct irq_data *d)
+{
+	gic_shared_irq_domain_map(domain, d->irq, d->hwirq, 0);
+}
+
 static struct irq_domain_ops gic_dev_domain_ops = {
 	.xlate = gic_dev_domain_xlate,
 	.alloc = gic_dev_domain_alloc,
 	.free = gic_dev_domain_free,
+	.activate = gic_dev_domain_activate,
 };
 
 static int gic_ipi_domain_xlate(struct irq_domain *d, struct device_node *ctrlr,
