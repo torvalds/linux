@@ -2681,6 +2681,9 @@ static void acpi_nfit_notify(struct acpi_device *adev, u32 event)
 
 	dev_dbg(dev, "%s: event: %d\n", __func__, event);
 
+	if (event != NFIT_NOTIFY_UPDATE)
+		return;
+
 	device_lock(dev);
 	if (!dev->driver) {
 		/* dev->driver may be null if we're being removed */
