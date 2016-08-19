@@ -116,3 +116,12 @@ void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
 	return;
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+
+/* For use by kexec */
+void mmu_cleanup_all(void)
+{
+	if (radix_enabled())
+		radix__mmu_cleanup_all();
+	else if (mmu_hash_ops.hpte_clear_all)
+		mmu_hash_ops.hpte_clear_all();
+}

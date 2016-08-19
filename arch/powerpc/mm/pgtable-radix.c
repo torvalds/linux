@@ -396,6 +396,18 @@ void radix__early_init_mmu_secondary(void)
 	}
 }
 
+void radix__mmu_cleanup_all(void)
+{
+	unsigned long lpcr;
+
+	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
+		lpcr = mfspr(SPRN_LPCR);
+		mtspr(SPRN_LPCR, lpcr & ~LPCR_UPRT);
+		mtspr(SPRN_PTCR, 0);
+		radix__flush_tlb_all();
+	}
+}
+
 void radix__setup_initial_memory_limit(phys_addr_t first_memblock_base,
 				phys_addr_t first_memblock_size)
 {
