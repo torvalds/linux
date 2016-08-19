@@ -795,7 +795,9 @@ struct ftrace_ret_stack {
 	unsigned long func;
 	unsigned long long calltime;
 	unsigned long long subtime;
+#ifdef HAVE_FUNCTION_GRAPH_FP_TEST
 	unsigned long fp;
+#endif
 };
 
 /*
