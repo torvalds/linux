@@ -3544,7 +3544,7 @@ static void be_mcc_queues_destroy(struct beiscsi_hba *phba)
 	}
 }
 
-static void hwi_cleanup(struct beiscsi_hba *phba)
+static void hwi_cleanup_port(struct beiscsi_hba *phba)
 {
 	struct be_queue_info *q;
 	struct be_ctrl_info *ctrl = &phba->ctrl;
@@ -3603,7 +3603,8 @@ static void hwi_cleanup(struct beiscsi_hba *phba)
 			beiscsi_cmd_q_destroy(ctrl, q, QTYPE_EQ);
 		}
 	}
-	be_cmd_fw_uninit(ctrl);
+	/* last communication, indicate driver is unloading */
+	beiscsi_cmd_special_wrb(&phba->ctrl, 0);
 }
 
 static int be_mcc_queues_create(struct beiscsi_hba *phba,
@@ -3700,8 +3701,7 @@ static int hwi_init_port(struct beiscsi_hba *phba)
 	phwi_context->max_eqd = 128;
 	phwi_context->min_eqd = 0;
 	phwi_context->cur_eqd = 0;
-	be_cmd_fw_initialize(&phba->ctrl);
-	/* set optic state to unknown */
+	/* set port optic state to unknown */
 	phba->optic_state = 0xff;
 
 	status = beiscsi_create_eqs(phba, phwi_context);
@@ -3807,7 +3807,7 @@ static int hwi_init_port(struct beiscsi_hba *phba)
 error:
 	beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
 		    "BM_%d : hwi_init_port failed");
-	hwi_cleanup(phba);
+	hwi_cleanup_port(phba);
 	return status;
 }
 
@@ -4196,7 +4196,7 @@ static int beiscsi_init_port(struct beiscsi_hba *phba)
 	return ret;
 
 do_cleanup_ctrlr:
-	hwi_cleanup(phba);
+	hwi_cleanup_port(phba);
 	return ret;
 }
 
@@ -4233,7 +4233,7 @@ static void hwi_purge_eq(struct beiscsi_hba *phba)
 	}
 }
 
-static void beiscsi_clean_port(struct beiscsi_hba *phba)
+static void beiscsi_cleanup_port(struct beiscsi_hba *phba)
 {
 	int mgmt_status, ulp_num;
 	struct ulp_cid_info *ptr_cid_info = NULL;
@@ -4250,7 +4250,7 @@ static void beiscsi_clean_port(struct beiscsi_hba *phba)
 	}
 
 	hwi_purge_eq(phba);
-	hwi_cleanup(phba);
+	hwi_cleanup_port(phba);
 	kfree(phba->io_sgl_hndl_base);
 	kfree(phba->eh_sgl_hndl_base);
 	kfree(phba->ep_array);
@@ -5011,12 +5011,12 @@ static void beiscsi_quiesce(struct beiscsi_hba *phba)
 	/* PCI_ERR is set then check if driver is not unloading */
 	if (test_bit(BEISCSI_HBA_RUNNING, &phba->state) &&
 	    test_bit(BEISCSI_HBA_PCI_ERR, &phba->state)) {
-		hwi_cleanup(phba);
+		hwi_cleanup_port(phba);
 		return;
 	}
 
 	destroy_workqueue(phba->wq);
-	beiscsi_clean_port(phba);
+	beiscsi_cleanup_port(phba);
 	beiscsi_free_mem(phba);
 
 	beiscsi_unmap_pci_function(phba);
@@ -5461,9 +5461,8 @@ static pci_ers_result_t beiscsi_eeh_reset(struct pci_dev *pdev)
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 
-	/* Wait for the CHIP Reset to complete */
-	status = be_chk_reset_complete(phba);
-	if (!status) {
+	status = beiscsi_check_fw_rdy(phba);
+	if (status) {
 		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_INIT,
 			    "BM_%d : EEH Reset Completed\n");
 	} else {
@@ -5478,7 +5477,7 @@ static pci_ers_result_t beiscsi_eeh_reset(struct pci_dev *pdev)
 
 static void beiscsi_eeh_resume(struct pci_dev *pdev)
 {
-	int ret = 0, i;
+	int ret, i;
 	struct be_eq_obj *pbe_eq;
 	struct beiscsi_hba *phba = NULL;
 	struct hwi_controller *phwi_ctrlr;
@@ -5498,19 +5497,9 @@ static void beiscsi_eeh_resume(struct pci_dev *pdev)
 			phba->num_cpus = 1;
 	}
 
-	ret = beiscsi_cmd_reset_function(phba);
-	if (ret) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
-			    "BM_%d : Reset Failed\n");
+	ret = beiscsi_init_sliport(phba);
+	if (ret)
 		goto ret_err;
-	}
-
-	ret = be_chk_reset_complete(phba);
-	if (ret) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
-			    "BM_%d : Failed to get out of reset.\n");
-		goto ret_err;
-	}
 
 	beiscsi_get_params(phba);
 	phba->shost->max_id = phba->params.cxns_per_ctrl;
@@ -5627,28 +5616,15 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 	ret = be_ctrl_init(phba, pcidev);
 	if (ret) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
-			    "BM_%d : beiscsi_dev_probe-"
-			    "Failed in be_ctrl_init\n");
+			    "BM_%d : be_ctrl_init failed\n");
 		goto hba_free;
 	}
+
+	ret = beiscsi_init_sliport(phba);
+	if (ret)
+		goto hba_free;
 
 	set_bit(BEISCSI_HBA_RUNNING, &phba->state);
-	/*
-	 * FUNCTION_RESET should clean up any stale info in FW for this fn
-	 */
-	ret = beiscsi_cmd_reset_function(phba);
-	if (ret) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
-			    "BM_%d : Reset Failed\n");
-		goto hba_free;
-	}
-	ret = be_chk_reset_complete(phba);
-	if (ret) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
-			    "BM_%d : Failed to get out of reset.\n");
-		goto hba_free;
-	}
-
 	spin_lock_init(&phba->io_sgl_lock);
 	spin_lock_init(&phba->mgmt_sgl_lock);
 	spin_lock_init(&phba->async_pdu_lock);
@@ -5772,7 +5748,7 @@ free_blkenbld:
 		irq_poll_disable(&pbe_eq->iopoll);
 	}
 free_twq:
-	beiscsi_clean_port(phba);
+	beiscsi_cleanup_port(phba);
 	beiscsi_free_mem(phba);
 free_port:
 	pci_free_consistent(phba->pcidev,

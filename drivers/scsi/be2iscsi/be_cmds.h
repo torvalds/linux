@@ -98,20 +98,29 @@ struct be_mcc_compl {
 #define MPU_MAILBOX_DB_RDY_MASK	0x1	/* bit 0 */
 #define MPU_MAILBOX_DB_HI_MASK	0x2	/* bit 1 */
 
-/********** MPU semphore ******************/
-#define MPU_EP_SEMAPHORE_OFFSET 0xac
-#define EP_SEMAPHORE_POST_STAGE_MASK 0x0000FFFF
-#define EP_SEMAPHORE_POST_ERR_MASK 0x1
-#define EP_SEMAPHORE_POST_ERR_SHIFT 31
+/********** MPU semphore: used for SH & BE ******************/
+#define SLIPORT_SOFTRESET_OFFSET		0x5c	/* CSR BAR offset */
+#define SLIPORT_SEMAPHORE_OFFSET_BEx		0xac	/* CSR BAR offset */
+#define SLIPORT_SEMAPHORE_OFFSET_SH		0x94	/* PCI-CFG offset */
+#define POST_STAGE_MASK				0x0000FFFF
+#define POST_ERROR_BIT				0x80000000
+#define POST_ERR_RECOVERY_CODE_MASK		0xF000
+
+/* Soft Reset register masks */
+#define SLIPORT_SOFTRESET_SR_MASK		0x00000080	/* SR bit */
+
+/* MPU semphore POST stage values */
+#define POST_STAGE_AWAITING_HOST_RDY	0x1 /* FW awaiting goahead from host */
+#define POST_STAGE_HOST_RDY		0x2 /* Host has given go-ahed to FW */
+#define POST_STAGE_BE_RESET		0x3 /* Host wants to reset chip */
+#define POST_STAGE_ARMFW_RDY		0xC000 /* FW is done with POST */
+#define POST_STAGE_RECOVERABLE_ERR	0xE000 /* Recoverable err detected */
 
 /********** MCC door bell ************/
 #define DB_MCCQ_OFFSET 0x140
 #define DB_MCCQ_RING_ID_MASK 0xFFFF		/* bits 0 - 15 */
 /* Number of entries posted */
 #define DB_MCCQ_NUM_POSTED_SHIFT 16		/* bits 16 - 29 */
-
-/* MPU semphore POST stage values */
-#define POST_STAGE_ARMFW_RDY		0xc000	/* FW is done with POST */
 
 /**
  * When the async bit of mcc_compl is set, the last 4 bytes of
@@ -753,6 +762,12 @@ struct be_cmd_set_features {
 	} param;
 } __packed;
 
+int beiscsi_cmd_special_wrb(struct be_ctrl_info *ctrl, u32 load);
+
+int beiscsi_check_fw_rdy(struct beiscsi_hba *phba);
+
+int beiscsi_init_sliport(struct beiscsi_hba *phba);
+
 int beiscsi_cmd_eq_create(struct be_ctrl_info *ctrl,
 			  struct be_queue_info *eq, int eq_delay);
 
@@ -784,9 +799,6 @@ int __beiscsi_mcc_compl_status(struct beiscsi_hba *phba,
 			       struct be_mcc_wrb **wrb,
 			       struct be_dma_mem *mbx_cmd_mem);
 /*ISCSI Functuions */
-int be_cmd_fw_initialize(struct be_ctrl_info *ctrl);
-int be_cmd_fw_uninit(struct be_ctrl_info *ctrl);
-
 struct be_mcc_wrb *wrb_from_mbox(struct be_dma_mem *mbox_mem);
 int be_mcc_compl_poll(struct beiscsi_hba *phba, unsigned int tag);
 void be_mcc_notify(struct beiscsi_hba *phba, unsigned int tag);
@@ -811,8 +823,6 @@ int be_cmd_iscsi_remove_template_hdr(struct be_ctrl_info *ctrl);
 int be_cmd_iscsi_post_sgl_pages(struct be_ctrl_info *ctrl,
 				struct be_dma_mem *q_mem, u32 page_offset,
 				u32 num_pages);
-
-int beiscsi_cmd_reset_function(struct beiscsi_hba *phba);
 
 int be_cmd_wrbq_create(struct be_ctrl_info *ctrl, struct be_dma_mem *q_mem,
 		       struct be_queue_info *wrbq,
@@ -1421,8 +1431,6 @@ struct be_cmd_get_port_name {
 						 * that has immediate data on
 						 * the cxn
 						 */
-
-int be_chk_reset_complete(struct beiscsi_hba *phba);
 
 void be_wrb_hdr_prepare(struct be_mcc_wrb *wrb, int payload_len,
 			bool embedded, u8 sge_cnt);

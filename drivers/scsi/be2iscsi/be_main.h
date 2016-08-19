@@ -82,14 +82,6 @@
 #define BEISCSI_MAX_FRAGS_INIT	192
 #define BE_NUM_MSIX_ENTRIES	1
 
-#define MPU_EP_CONTROL          0
-#define MPU_EP_SEMAPHORE        0xac
-#define BE2_SOFT_RESET          0x5c
-#define BE2_PCI_ONLINE0         0xb0
-#define BE2_PCI_ONLINE1         0xb4
-#define BE2_SET_RESET           0x80
-#define BE2_MPU_IRAM_ONLINE     0x00000080
-
 #define BE_SENSE_INFO_SIZE		258
 #define BE_ISCSI_PDU_HEADER_SIZE	64
 #define BE_MIN_MEM_SIZE			16384
