@@ -319,17 +319,8 @@ beiscsi_iface_config_vlan(struct Scsi_Host *shost,
 			  struct iscsi_iface_param_info *iface_param)
 {
 	struct beiscsi_hba *phba = iscsi_host_priv(shost);
-	int ret;
+	int ret = -EPERM;
 
-	/* Get the Interface Handle */
-	ret = mgmt_get_all_if_id(phba);
-	if (ret) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : Getting Interface Handle Failed\n");
-		return ret;
-	}
-
-	ret = -EPERM;
 	switch (iface_param->param) {
 	case ISCSI_NET_PARAM_VLAN_ENABLED:
 		ret = 0;
@@ -440,12 +431,20 @@ int be2iscsi_iface_set_param(struct Scsi_Host *shost,
 	struct beiscsi_hba *phba = iscsi_host_priv(shost);
 	struct nlattr *attrib;
 	uint32_t rm_len = dt_len;
-	int ret = 0 ;
+	int ret;
 
 	if (phba->state & BE_ADAPTER_PCI_ERR) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
 			    "BS_%d : In PCI_ERROR Recovery\n");
 		return -EBUSY;
+	}
+
+	/* update interface_handle */
+	ret = beiscsi_if_get_handle(phba);
+	if (ret) {
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
+			    "BS_%d : Getting Interface Handle Failed\n");
+		return ret;
 	}
 
 	nla_for_each_attr(attrib, data, dt_len, rm_len) {
@@ -573,7 +572,7 @@ int be2iscsi_iface_get_param(struct iscsi_iface *iface,
 	struct Scsi_Host *shost = iscsi_iface_to_shost(iface);
 	struct beiscsi_hba *phba = iscsi_host_priv(shost);
 	struct be_cmd_get_def_gateway_resp gateway;
-	int len = -ENOSYS;
+	int len = -EPERM;
 
 	if (phba->state & BE_ADAPTER_PCI_ERR) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
@@ -605,8 +604,6 @@ int be2iscsi_iface_get_param(struct iscsi_iface *iface,
 		if (!len)
 			len = sprintf(buf, "%pI4\n", &gateway.ip_addr.addr);
 		break;
-	default:
-		len = -ENOSYS;
 	}
 
 	return len;
@@ -624,7 +621,7 @@ int beiscsi_ep_get_param(struct iscsi_endpoint *ep,
 			   enum iscsi_param param, char *buf)
 {
 	struct beiscsi_endpoint *beiscsi_ep = ep->dd_data;
-	int len = 0;
+	int len;
 
 	beiscsi_log(beiscsi_ep->phba, KERN_INFO,
 		    BEISCSI_LOG_CONFIG,
@@ -642,7 +639,7 @@ int beiscsi_ep_get_param(struct iscsi_endpoint *ep,
 			len = sprintf(buf, "%pI6\n", &beiscsi_ep->dst6_addr);
 		break;
 	default:
-		return -ENOSYS;
+		len = -EPERM;
 	}
 	return len;
 }

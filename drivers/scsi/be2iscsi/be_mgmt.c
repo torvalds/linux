@@ -609,7 +609,7 @@ unsigned int mgmt_vendor_specific_fw_cmd(struct be_ctrl_info *ctrl,
 			    bsg_req->rqst_data.h_vendor.vendor_cmd[0]);
 
 		mutex_unlock(&ctrl->mbox_lock);
-		return -ENOSYS;
+		return -EPERM;
 	}
 
 	wrb = alloc_mcc_wrb(phba, &tag);
@@ -892,44 +892,6 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 	return tag;
 }
 
-unsigned int mgmt_get_all_if_id(struct beiscsi_hba *phba)
-{
-	struct be_ctrl_info *ctrl = &phba->ctrl;
-	struct be_mcc_wrb *wrb;
-	struct be_cmd_get_all_if_id_req *req;
-	struct be_cmd_get_all_if_id_req *pbe_allid;
-	unsigned int tag;
-	int status = 0;
-
-	if (mutex_lock_interruptible(&ctrl->mbox_lock))
-		return -EINTR;
-	wrb = alloc_mcc_wrb(phba, &tag);
-	if (!wrb) {
-		mutex_unlock(&ctrl->mbox_lock);
-		return -ENOMEM;
-	}
-
-	req = embedded_payload(wrb);
-	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
-	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI,
-			   OPCODE_COMMON_ISCSI_NTWK_GET_ALL_IF_ID,
-			   sizeof(*req));
-	be_mcc_notify(phba, tag);
-	mutex_unlock(&ctrl->mbox_lock);
-
-	status = beiscsi_mccq_compl_wait(phba, tag, &wrb, NULL);
-	if (status) {
-		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
-			    "BG_%d : Failed in mgmt_get_all_if_id\n");
-		return -EBUSY;
-	}
-
-	pbe_allid = embedded_payload(wrb);
-	phba->interface_handle = pbe_allid->if_hndl_list[0];
-
-	return status;
-}
-
 /*
  * mgmt_exec_nonemb_cmd()- Execute Non Embedded MBX Cmd
  * @phba: Driver priv structure
@@ -1005,6 +967,45 @@ static int mgmt_alloc_cmd_data(struct beiscsi_hba *phba, struct be_dma_mem *cmd,
 		    "BG_%d : subsystem iSCSI cmd %d size %d\n",
 		    iscsi_cmd, size);
 	return 0;
+}
+
+unsigned int beiscsi_if_get_handle(struct beiscsi_hba *phba)
+{
+	struct be_ctrl_info *ctrl = &phba->ctrl;
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_get_all_if_id_req *req;
+	struct be_cmd_get_all_if_id_req *pbe_allid;
+	unsigned int tag;
+	int status = 0;
+
+	if (mutex_lock_interruptible(&ctrl->mbox_lock))
+		return -EINTR;
+	wrb = alloc_mcc_wrb(phba, &tag);
+	if (!wrb) {
+		mutex_unlock(&ctrl->mbox_lock);
+		return -ENOMEM;
+	}
+
+	req = embedded_payload(wrb);
+	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI,
+			   OPCODE_COMMON_ISCSI_NTWK_GET_ALL_IF_ID,
+			   sizeof(*req));
+	be_mcc_notify(phba, tag);
+	mutex_unlock(&ctrl->mbox_lock);
+
+	status = beiscsi_mccq_compl_wait(phba, tag, &wrb, NULL);
+	if (status) {
+		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
+			    "BG_%d : %s failed: %d\n", __func__, status);
+		return -EBUSY;
+	}
+
+	pbe_allid = embedded_payload(wrb);
+	/* we now support only one interface per function */
+	phba->interface_handle = pbe_allid->if_hndl_list[0];
+
+	return status;
 }
 
 static int beiscsi_if_mod_gw(struct beiscsi_hba *phba,
@@ -1306,7 +1307,7 @@ int mgmt_get_if_info(struct beiscsi_hba *phba, int ip_type,
 	uint32_t ioctl_size = sizeof(struct be_cmd_get_if_info_resp);
 	int rc;
 
-	rc = mgmt_get_all_if_id(phba);
+	rc = beiscsi_if_get_handle(phba);
 	if (rc)
 		return rc;
 

@@ -306,7 +306,7 @@ int beiscsi_if_set_gw(struct beiscsi_hba *phba, u32 ip_type, u8 *gw);
 int be_mgmt_get_boot_shandle(struct beiscsi_hba *phba,
 			      unsigned int *s_handle);
 
-unsigned int mgmt_get_all_if_id(struct beiscsi_hba *phba);
+unsigned int beiscsi_if_get_handle(struct beiscsi_hba *phba);
 
 int beiscsi_if_set_vlan(struct beiscsi_hba *phba, uint16_t vlan_tag);
 

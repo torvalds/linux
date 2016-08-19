@@ -380,7 +380,7 @@ static ssize_t beiscsi_show_boot_tgt_info(void *data, int type, char *buf)
 	struct mgmt_session_info *boot_sess = &phba->boot_sess;
 	struct mgmt_conn_info *boot_conn = &boot_sess->conn_list[0];
 	char *str = buf;
-	int rc;
+	int rc = -EPERM;
 
 	switch (type) {
 	case ISCSI_BOOT_TGT_NAME:
@@ -434,9 +434,6 @@ static ssize_t beiscsi_show_boot_tgt_info(void *data, int type, char *buf)
 	case ISCSI_BOOT_TGT_NIC_ASSOC:
 		rc = sprintf(str, "0\n");
 		break;
-	default:
-		rc = -ENOSYS;
-		break;
 	}
 	return rc;
 }
@@ -445,14 +442,11 @@ static ssize_t beiscsi_show_boot_ini_info(void *data, int type, char *buf)
 {
 	struct beiscsi_hba *phba = data;
 	char *str = buf;
-	int rc;
+	int rc = -EPERM;
 
 	switch (type) {
 	case ISCSI_BOOT_INI_INITIATOR_NAME:
 		rc = sprintf(str, "%s\n", phba->boot_sess.initiator_iscsiname);
-		break;
-	default:
-		rc = -ENOSYS;
 		break;
 	}
 	return rc;
@@ -462,7 +456,7 @@ static ssize_t beiscsi_show_boot_eth_info(void *data, int type, char *buf)
 {
 	struct beiscsi_hba *phba = data;
 	char *str = buf;
-	int rc;
+	int rc = -EPERM;
 
 	switch (type) {
 	case ISCSI_BOOT_ETH_FLAGS:
@@ -474,9 +468,6 @@ static ssize_t beiscsi_show_boot_eth_info(void *data, int type, char *buf)
 	case ISCSI_BOOT_ETH_MAC:
 		rc  = beiscsi_get_macaddr(str, phba);
 		break;
-	default:
-		rc = -ENOSYS;
-		break;
 	}
 	return rc;
 }
@@ -484,7 +475,7 @@ static ssize_t beiscsi_show_boot_eth_info(void *data, int type, char *buf)
 
 static umode_t beiscsi_tgt_get_attr_visibility(void *data, int type)
 {
-	umode_t rc;
+	umode_t rc = 0;
 
 	switch (type) {
 	case ISCSI_BOOT_TGT_NAME:
@@ -498,23 +489,17 @@ static umode_t beiscsi_tgt_get_attr_visibility(void *data, int type)
 	case ISCSI_BOOT_TGT_FLAGS:
 		rc = S_IRUGO;
 		break;
-	default:
-		rc = 0;
-		break;
 	}
 	return rc;
 }
 
 static umode_t beiscsi_ini_get_attr_visibility(void *data, int type)
 {
-	umode_t rc;
+	umode_t rc = 0;
 
 	switch (type) {
 	case ISCSI_BOOT_INI_INITIATOR_NAME:
 		rc = S_IRUGO;
-		break;
-	default:
-		rc = 0;
 		break;
 	}
 	return rc;
@@ -523,16 +508,13 @@ static umode_t beiscsi_ini_get_attr_visibility(void *data, int type)
 
 static umode_t beiscsi_eth_get_attr_visibility(void *data, int type)
 {
-	umode_t rc;
+	umode_t rc = 0;
 
 	switch (type) {
 	case ISCSI_BOOT_ETH_FLAGS:
 	case ISCSI_BOOT_ETH_MAC:
 	case ISCSI_BOOT_ETH_INDEX:
 		rc = S_IRUGO;
-		break;
-	default:
-		rc = 0;
 		break;
 	}
 	return rc;
