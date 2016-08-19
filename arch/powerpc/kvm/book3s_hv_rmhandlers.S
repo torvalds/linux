@@ -1189,6 +1189,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	 *   1 An interrupt is pending that needs to be handled by the host
 	 *     Exit guest and return to host by branching to guest_exit_cont
 	 *
+	 *   2 Passthrough that needs completion in the host
+	 *     Exit guest and return to host by branching to guest_exit_cont
+	 *     However, we also set r12 to BOOK3S_INTERRUPT_HV_RM_HARD
+	 *     to indicate to the host to complete handling the interrupt
+	 *
 	 * Before returning to guest, we check if any CPU is heading out
 	 * to the host and if so, we head out also. If no CPUs are heading
 	 * check return values <= 0.
@@ -1204,6 +1209,15 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	 *    Return to guest to deliver any pending guest interrupts.
 	 */
 
+	cmpdi	r3, 1
+	ble	1f
+
+	/* Return code = 2 */
+	li	r12, BOOK3S_INTERRUPT_HV_RM_HARD
+	stw	r12, VCPU_TRAP(r9)
+	b	guest_exit_cont
+
+1:	/* Return code <= 1 */
 	cmpdi	r3, 0
 	bgt	guest_exit_cont
 
@@ -2419,6 +2433,17 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	bl	kvmppc_read_intr
 	nop
 	li	r12, BOOK3S_INTERRUPT_EXTERNAL
+	cmpdi	r3, 1
+	ble	1f
+
+	/*
+	 * Return code of 2 means PCI passthrough interrupt, but
+	 * we need to return back to host to complete handling the
+	 * interrupt. Trap reason is expected in r12 by guest
+	 * exit code.
+	 */
+	li	r12, BOOK3S_INTERRUPT_HV_RM_HARD
+1:
 	ld	r0, PPC_MIN_STKFRM+PPC_LR_STKOFF(r1)
 	addi	r1, r1, PPC_MIN_STKFRM
 	mtlr	r0

@@ -363,6 +363,7 @@ static inline int kvmppc_check_passthru(u32 xisr, __be32 xirr)
  * Returns:
  *	0 if no interrupt is pending
  *	1 if an interrupt is pending that needs to be handled by the host
+ *	2 Passthrough that needs completion in the host
  *	-1 if there was a guest wakeup IPI (which has now been cleared)
  *	-2 if there is PCI passthrough external interrupt that was handled
  */
