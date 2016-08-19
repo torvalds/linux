@@ -2794,7 +2794,6 @@ void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv)
 
 	if (dev_priv->mm.aliasing_ppgtt) {
 		struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
-
 		ppgtt->base.cleanup(&ppgtt->base);
 		kfree(ppgtt);
 	}
@@ -2811,7 +2810,7 @@ void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv)
 	ggtt->base.cleanup(&ggtt->base);
 
 	arch_phys_wc_del(ggtt->mtrr);
-	io_mapping_free(ggtt->mappable);
+	io_mapping_fini(&ggtt->mappable);
 }
 
 static unsigned int gen6_get_total_gtt_size(u16 snb_gmch_ctl)
@@ -3209,9 +3208,9 @@ int i915_ggtt_init_hw(struct drm_i915_private *dev_priv)
 	if (!HAS_LLC(dev_priv))
 		ggtt->base.mm.color_adjust = i915_gtt_color_adjust;
 
-	ggtt->mappable =
-		io_mapping_create_wc(ggtt->mappable_base, ggtt->mappable_end);
-	if (!ggtt->mappable) {
+	if (!io_mapping_init_wc(&dev_priv->ggtt.mappable,
+				dev_priv->ggtt.mappable_base,
+				dev_priv->ggtt.mappable_end)) {
 		ret = -EIO;
 		goto out_gtt_cleanup;
 	}
@@ -3681,7 +3680,7 @@ void __iomem *i915_vma_pin_iomap(struct i915_vma *vma)
 
 	ptr = vma->iomap;
 	if (ptr == NULL) {
-		ptr = io_mapping_map_wc(i915_vm_to_ggtt(vma->vm)->mappable,
+		ptr = io_mapping_map_wc(&i915_vm_to_ggtt(vma->vm)->mappable,
 					vma->node.start,
 					vma->node.size);
 		if (ptr == NULL)

@@ -891,7 +891,7 @@ i915_gem_gtt_pread(struct drm_device *dev,
 		 * and write to user memory which may result into page
 		 * faults, and so we cannot perform this under struct_mutex.
 		 */
-		if (slow_user_access(ggtt->mappable, page_base,
+		if (slow_user_access(&ggtt->mappable, page_base,
 				     page_offset, user_data,
 				     page_length, false)) {
 			ret = -EFAULT;
@@ -1187,11 +1187,11 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_private *i915,
 		 * If the object is non-shmem backed, we retry again with the
 		 * path that handles page fault.
 		 */
-		if (fast_user_write(ggtt->mappable, page_base,
+		if (fast_user_write(&ggtt->mappable, page_base,
 				    page_offset, user_data, page_length)) {
 			hit_slow_path = true;
 			mutex_unlock(&dev->struct_mutex);
-			if (slow_user_access(ggtt->mappable,
+			if (slow_user_access(&ggtt->mappable,
 					     page_base,
 					     page_offset, user_data,
 					     page_length, true)) {
