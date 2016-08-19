@@ -19,6 +19,7 @@
 #include <asm/synch.h>
 #include <asm/cputhreads.h>
 #include <asm/ppc-opcode.h>
+#include <asm/pnv-pci.h>
 
 #include "book3s_xics.h"
 
@@ -710,6 +711,49 @@ int kvmppc_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 	}
  bail:
 	return check_too_hard(xics, icp);
+}
+
+unsigned long eoi_rc;
+
+static void icp_eoi(struct irq_chip *c, u32 hwirq, u32 xirr)
+{
+	unsigned long xics_phys;
+	int64_t rc;
+
+	rc = pnv_opal_pci_msi_eoi(c, hwirq);
+
+	if (rc)
+		eoi_rc = rc;
+
+	iosync();
+
+	/* EOI it */
+	xics_phys = local_paca->kvm_hstate.xics_phys;
+	_stwcix(xics_phys + XICS_XIRR, xirr);
+}
+
+long kvmppc_deliver_irq_passthru(struct kvm_vcpu *vcpu,
+				 u32 xirr,
+				 struct kvmppc_irq_map *irq_map,
+				 struct kvmppc_passthru_irqmap *pimap)
+{
+	struct kvmppc_xics *xics;
+	struct kvmppc_icp *icp;
+	u32 irq;
+
+	irq = irq_map->v_hwirq;
+	xics = vcpu->kvm->arch.xics;
+	icp = vcpu->arch.icp;
+
+	icp_rm_deliver_irq(xics, icp, irq);
+
+	/* EOI the interrupt */
+	icp_eoi(irq_desc_get_chip(irq_map->desc), irq_map->r_hwirq, xirr);
+
+	if (check_too_hard(xics, icp) == H_TOO_HARD)
+		return 1;
+	else
+		return -2;
 }
 
 /*  --- Non-real mode XICS-related built-in routines ---  */

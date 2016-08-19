@@ -288,12 +288,83 @@ void kvmhv_commence_exit(int trap)
 struct kvmppc_host_rm_ops *kvmppc_host_rm_ops_hv;
 EXPORT_SYMBOL_GPL(kvmppc_host_rm_ops_hv);
 
+#ifdef CONFIG_KVM_XICS
+static struct kvmppc_irq_map *get_irqmap(struct kvmppc_passthru_irqmap *pimap,
+					 u32 xisr)
+{
+	int i;
+
+	/*
+	 * We access the mapped array here without a lock.  That
+	 * is safe because we never reduce the number of entries
+	 * in the array and we never change the v_hwirq field of
+	 * an entry once it is set.
+	 *
+	 * We have also carefully ordered the stores in the writer
+	 * and the loads here in the reader, so that if we find a matching
+	 * hwirq here, the associated GSI and irq_desc fields are valid.
+	 */
+	for (i = 0; i < pimap->n_mapped; i++)  {
+		if (xisr == pimap->mapped[i].r_hwirq) {
+			/*
+			 * Order subsequent reads in the caller to serialize
+			 * with the writer.
+			 */
+			smp_rmb();
+			return &pimap->mapped[i];
+		}
+	}
+	return NULL;
+}
+
+/*
+ * If we have an interrupt that's not an IPI, check if we have a
+ * passthrough adapter and if so, check if this external interrupt
+ * is for the adapter.
+ * We will attempt to deliver the IRQ directly to the target VCPU's
+ * ICP, the virtual ICP (based on affinity - the xive value in ICS).
+ *
+ * If the delivery fails or if this is not for a passthrough adapter,
+ * return to the host to handle this interrupt. We earlier
+ * saved a copy of the XIRR in the PACA, it will be picked up by
+ * the host ICP driver.
+ */
+static int kvmppc_check_passthru(u32 xisr, __be32 xirr)
+{
+	struct kvmppc_passthru_irqmap *pimap;
+	struct kvmppc_irq_map *irq_map;
+	struct kvm_vcpu *vcpu;
+
+	vcpu = local_paca->kvm_hstate.kvm_vcpu;
+	if (!vcpu)
+		return 1;
+	pimap = kvmppc_get_passthru_irqmap(vcpu->kvm);
+	if (!pimap)
+		return 1;
+	irq_map = get_irqmap(pimap, xisr);
+	if (!irq_map)
+		return 1;
+
+	/* We're handling this interrupt, generic code doesn't need to */
+	local_paca->kvm_hstate.saved_xirr = 0;
+
+	return kvmppc_deliver_irq_passthru(vcpu, xirr, irq_map, pimap);
+}
+
+#else
+static inline int kvmppc_check_passthru(u32 xisr, __be32 xirr)
+{
+	return 1;
+}
+#endif
+
 /*
  * Determine what sort of external interrupt is pending (if any).
  * Returns:
  *	0 if no interrupt is pending
  *	1 if an interrupt is pending that needs to be handled by the host
  *	-1 if there was a guest wakeup IPI (which has now been cleared)
+ *	-2 if there is PCI passthrough external interrupt that was handled
  */
 
 long kvmppc_read_intr(void)
@@ -368,5 +439,5 @@ long kvmppc_read_intr(void)
 		return -1;
 	}
 
-	return 1;
+	return kvmppc_check_passthru(xisr, xirr);
 }

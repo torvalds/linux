@@ -3490,8 +3490,14 @@ static int kvmppc_set_passthru_irq(struct kvm *kvm, int host_irq, int guest_gsi)
 	irq_map = &pimap->mapped[i];
 
 	irq_map->v_hwirq = guest_gsi;
-	irq_map->r_hwirq = desc->irq_data.hwirq;
 	irq_map->desc = desc;
+
+	/*
+	 * Order the above two stores before the next to serialize with
+	 * the KVM real mode handler.
+	 */
+	smp_wmb();
+	irq_map->r_hwirq = desc->irq_data.hwirq;
 
 	if (i == pimap->n_mapped)
 		pimap->n_mapped++;
