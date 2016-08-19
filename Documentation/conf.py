@@ -282,7 +282,13 @@ latex_elements = {
         \\definecolor{MyGray}{rgb}{0.80,0.80,0.80}
 
         \\makeatletter\\newenvironment{graybox}{%
-           \\begin{lrbox}{\\@tempboxa}\\begin{minipage}{\\columnwidth}}{\\end{minipage}\\end{lrbox}%
+	   \\newlength{\\py@noticelength}
+	   \\setlength{\\fboxrule}{1pt}
+	   \\setlength{\\fboxsep}{7pt}
+	   \\setlength{\\py@noticelength}{\\linewidth}
+	   \\addtolength{\\py@noticelength}{-2\\fboxsep}
+	   \\addtolength{\\py@noticelength}{-2\\fboxrule}
+           \\begin{lrbox}{\\@tempboxa}\\begin{minipage}{\\py@noticelength}}{\\end{minipage}\\end{lrbox}%
            \\colorbox{MyGray}{\\usebox{\\@tempboxa}}
         }\\makeatother
 
