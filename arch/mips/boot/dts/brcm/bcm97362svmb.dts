@@ -1,6 +1,7 @@
 /dts-v1/;
 
 /include/ "bcm7362.dtsi"
+/include/ "bcm97xxx-nand-cs1-bch4.dtsi"
 
 / {
 	compatible = "brcm,bcm97362svmb", "brcm,bcm7362";
@@ -54,6 +55,10 @@
 };
 
 &ohci0 {
+	status = "okay";
+};
+
+&nand {
 	status = "okay";
 };
 
