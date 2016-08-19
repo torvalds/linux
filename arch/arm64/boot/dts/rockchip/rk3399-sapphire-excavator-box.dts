@@ -48,6 +48,10 @@
 
 / {
 	compatible = "rockchip,rk3399-excavator-box", "rockchip,rk3399";
+
+	test-power {
+		status = "okay";
+	};
 };
 
 &rk_screen {
