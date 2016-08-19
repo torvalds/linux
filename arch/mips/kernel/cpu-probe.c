@@ -352,7 +352,12 @@ __setup("nohtw", htw_disable);
 static int mips_ftlb_disabled;
 static int mips_has_ftlb_configured;
 
-static int set_ftlb_enable(struct cpuinfo_mips *c, int enable);
+enum ftlb_flags {
+	FTLB_EN		= 1 << 0,
+	FTLB_SET_PROB	= 1 << 1,
+};
+
+static int set_ftlb_enable(struct cpuinfo_mips *c, enum ftlb_flags flags);
 
 static int __init ftlb_disable(char *s)
 {
@@ -531,7 +536,7 @@ static unsigned int calculate_ftlb_probability(struct cpuinfo_mips *c)
 		return 3;
 }
 
-static int set_ftlb_enable(struct cpuinfo_mips *c, int enable)
+static int set_ftlb_enable(struct cpuinfo_mips *c, enum ftlb_flags flags)
 {
 	unsigned int config;
 
@@ -542,28 +547,32 @@ static int set_ftlb_enable(struct cpuinfo_mips *c, int enable)
 	case CPU_P6600:
 		/* proAptiv & related cores use Config6 to enable the FTLB */
 		config = read_c0_config6();
-		/* Clear the old probability value */
-		config &= ~(3 << MIPS_CONF6_FTLBP_SHIFT);
-		if (enable)
-			/* Enable FTLB */
-			write_c0_config6(config |
-					 (calculate_ftlb_probability(c)
-					  << MIPS_CONF6_FTLBP_SHIFT)
-					 | MIPS_CONF6_FTLBEN);
+
+		if (flags & FTLB_EN)
+			config |= MIPS_CONF6_FTLBEN;
 		else
-			/* Disable FTLB */
-			write_c0_config6(config &  ~MIPS_CONF6_FTLBEN);
+			config &= ~MIPS_CONF6_FTLBEN;
+
+		if (flags & FTLB_SET_PROB) {
+			config &= ~(3 << MIPS_CONF6_FTLBP_SHIFT);
+			config |= calculate_ftlb_probability(c)
+				  << MIPS_CONF6_FTLBP_SHIFT;
+		}
+
+		write_c0_config6(config);
 		break;
 	case CPU_I6400:
 		/* There's no way to disable the FTLB */
-		return !enable;
+		if (!(flags & FTLB_EN))
+			return 1;
+		return 0;
 	case CPU_LOONGSON3:
 		/* Flush ITLB, DTLB, VTLB and FTLB */
 		write_c0_diag(LOONGSON_DIAG_ITLB | LOONGSON_DIAG_DTLB |
 			      LOONGSON_DIAG_VTLB | LOONGSON_DIAG_FTLB);
 		/* Loongson-3 cores use Config6 to enable the FTLB */
 		config = read_c0_config6();
-		if (enable)
+		if (flags & FTLB_EN)
 			/* Enable FTLB */
 			write_c0_config6(config & ~MIPS_CONF6_FTLBDIS);
 		else
@@ -783,6 +792,7 @@ static inline unsigned int decode_config4(struct cpuinfo_mips *c)
 				       PAGE_SIZE, config4);
 				/* Switch FTLB off */
 				set_ftlb_enable(c, 0);
+				mips_ftlb_disabled = 1;
 				break;
 			}
 			c->tlbsizeftlbsets = 1 <<
@@ -847,7 +857,7 @@ static void decode_configs(struct cpuinfo_mips *c)
 	c->scache.flags = MIPS_CACHE_NOT_PRESENT;
 
 	/* Enable FTLB if present and not disabled */
-	set_ftlb_enable(c, !mips_ftlb_disabled);
+	set_ftlb_enable(c, mips_ftlb_disabled ? 0 : FTLB_EN);
 
 	ok = decode_config0(c);			/* Read Config registers.  */
 	BUG_ON(!ok);				/* Arch spec violation!	 */
@@ -896,6 +906,9 @@ static void decode_configs(struct cpuinfo_mips *c)
 			}
 		}
 	}
+
+	/* configure the FTLB write probability */
+	set_ftlb_enable(c, (mips_ftlb_disabled ? 0 : FTLB_EN) | FTLB_SET_PROB);
 
 	mips_probe_watch_registers(c);
 
