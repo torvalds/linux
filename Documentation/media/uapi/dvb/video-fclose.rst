@@ -11,6 +11,7 @@ Name
 
 dvb video close()
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------

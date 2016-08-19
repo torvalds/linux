@@ -15,34 +15,18 @@ DMX_GET_EVENT
 Synopsis
 --------
 
-.. c:function:: int ioctl( int fd, int request = DMX_GET_EVENT, struct dmx_event *ev)
+.. c:function:: int ioctl( int fd, DMX_GET_EVENT, struct dmx_event *ev)
+    :name: DMX_GET_EVENT
 
 
 Arguments
 ---------
 
-.. flat-table::
-    :header-rows:  0
-    :stub-columns: 0
+``fd``
+    File descriptor returned by :c:func:`open() <dvb-dmx-open>`.
 
-
-    -  .. row 1
-
-       -  int fd
-
-       -  File descriptor returned by a previous call to open().
-
-    -  .. row 2
-
-       -  int request
-
-       -  Equals DMX_GET_EVENT for this command.
-
-    -  .. row 3
-
-       -  struct dmx_event \*ev
-
-       -  Pointer to the location where the event is to be stored.
+``ev``
+    Pointer to the location where the event is to be stored.
 
 
 Description

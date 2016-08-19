@@ -11,12 +11,13 @@ Name
 
 AUDIO_SET_BYPASS_MODE
 
+.. attention:: This ioctl is deprecated
 
 Synopsis
 --------
 
-.. c:function:: int ioctl(int fd, int request = AUDIO_SET_BYPASS_MODE, boolean mode)
-
+.. c:function:: int ioctl(int fd, AUDIO_SET_BYPASS_MODE, boolean mode)
+    :name: AUDIO_SET_BYPASS_MODE
 
 Arguments
 ---------
@@ -26,34 +27,22 @@ Arguments
     :stub-columns: 0
 
 
-    -  .. row 1
+    -
 
        -  int fd
 
        -  File descriptor returned by a previous call to open().
 
-    -  .. row 2
-
-       -  int request
-
-       -  Equals AUDIO_SET_BYPASS_MODE for this command.
-
-    -  .. row 3
+    -
 
        -  boolean mode
 
        -  Enables or disables the decoding of the current Audio stream in
 	  the DVB subsystem.
 
-    -  .. row 4
+          TRUE: Bypass is disabled
 
-       -
-       -  TRUE Bypass is disabled
-
-    -  .. row 5
-
-       -
-       -  FALSE Bypass is enabled
+          FALSE: Bypass is enabled
 
 
 Description

@@ -15,7 +15,8 @@ FE_ENABLE_HIGH_LNB_VOLTAGE - Select output DC level between normal LNBf voltages
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, unsigned int high )
+.. c:function:: int ioctl( int fd, FE_ENABLE_HIGH_LNB_VOLTAGE, unsigned int high )
+    :name: FE_ENABLE_HIGH_LNB_VOLTAGE
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <frontend_f_open>`.
-
-``request``
-    FE_ENABLE_HIGH_LNB_VOLTAGE
 
 ``high``
     Valid flags:

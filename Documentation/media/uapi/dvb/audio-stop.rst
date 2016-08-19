@@ -11,12 +11,13 @@ Name
 
 AUDIO_STOP
 
+.. attention:: This ioctl is deprecated
 
 Synopsis
 --------
 
-.. c:function:: int ioctl(int fd, int request = AUDIO_STOP)
-
+.. c:function:: int ioctl(int fd, AUDIO_STOP)
+    :name: AUDIO_STOP
 
 Arguments
 ---------
@@ -31,12 +32,6 @@ Arguments
        -  int fd
 
        -  File descriptor returned by a previous call to open().
-
-    -  .. row 2
-
-       -  int request
-
-       -  Equals AUDIO_STOP for this command.
 
 
 Description

@@ -11,11 +11,13 @@ Name
 
 VIDEO_SET_FORMAT
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, int request = VIDEO_SET_FORMAT, video_format_t format)
+.. c:function:: int ioctl(fd, VIDEO_SET_FORMAT, video_format_t format)
+    :name: VIDEO_SET_FORMAT
 
 
 Arguments

@@ -11,11 +11,13 @@ Name
 
 VIDEO_GET_FRAME_COUNT
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. c:function:: int ioctl(int fd, int request = VIDEO_GET_FRAME_COUNT, __u64 *pts)
+.. c:function:: int ioctl(int fd, VIDEO_GET_FRAME_COUNT, __u64 *pts)
+    :name: VIDEO_GET_FRAME_COUNT
 
 
 Arguments

@@ -11,11 +11,13 @@ Name
 
 VIDEO_GET_EVENT
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, int request = VIDEO_GET_EVENT, struct video_event *ev)
+.. c:function:: int ioctl(fd, VIDEO_GET_EVENT, struct video_event *ev)
+    :name: VIDEO_GET_EVENT
 
 
 Arguments

@@ -15,34 +15,19 @@ DMX_SET_PES_FILTER
 Synopsis
 --------
 
-.. c:function:: int ioctl( int fd, int request = DMX_SET_PES_FILTER, struct dmx_pes_filter_params *params)
+.. c:function:: int ioctl( int fd, DMX_SET_PES_FILTER, struct dmx_pes_filter_params *params)
+    :name: DMX_SET_PES_FILTER
 
 
 Arguments
 ---------
 
-.. flat-table::
-    :header-rows:  0
-    :stub-columns: 0
 
+``fd``
+    File descriptor returned by :c:func:`open() <dvb-dmx-open>`.
 
-    -  .. row 1
-
-       -  int fd
-
-       -  File descriptor returned by a previous call to open().
-
-    -  .. row 2
-
-       -  int request
-
-       -  Equals DMX_SET_PES_FILTER for this command.
-
-    -  .. row 3
-
-       -  struct dmx_pes_filter_params \*params
-
-       -  Pointer to structure containing filter parameters.
+``params``
+    Pointer to structure containing filter parameters.
 
 
 Description

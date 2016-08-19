@@ -15,7 +15,8 @@ FE_SET_FRONTEND_TUNE_MODE - Allow setting tuner mode flags to the frontend.
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, unsigned int flags )
+.. c:function:: int ioctl( int fd, FE_SET_FRONTEND_TUNE_MODE, unsigned int flags )
+    :name: FE_SET_FRONTEND_TUNE_MODE
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <frontend_f_open>`.
-
-``request``
-    FE_SET_FRONTEND_TUNE_MODE
 
 ``flags``
     Valid flags:

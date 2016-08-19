@@ -11,11 +11,13 @@ Name
 
 VIDEO_SET_ATTRIBUTES
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, int request = VIDEO_SET_ATTRIBUTE ,video_attributes_t vattr)
+.. c:function:: int ioctl(fd, VIDEO_SET_ATTRIBUTE ,video_attributes_t vattr)
+    :name: VIDEO_SET_ATTRIBUTE
 
 
 Arguments

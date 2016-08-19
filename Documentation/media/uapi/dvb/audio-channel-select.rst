@@ -11,11 +11,13 @@ Name
 
 AUDIO_CHANNEL_SELECT
 
+.. attention:: This ioctl is deprecated
 
 Synopsis
 --------
 
-.. c:function:: int ioctl(int fd, int request = AUDIO_CHANNEL_SELECT, audio_channel_select_t)
+.. c:function:: int ioctl(int fd, AUDIO_CHANNEL_SELECT, audio_channel_select_t)
+    :name: AUDIO_CHANNEL_SELECT
 
 
 Arguments
@@ -26,19 +28,13 @@ Arguments
     :stub-columns: 0
 
 
-    -  .. row 1
+    -
 
        -  int fd
 
        -  File descriptor returned by a previous call to open().
 
-    -  .. row 2
-
-       -  int request
-
-       -  Equals AUDIO_CHANNEL_SELECT for this command.
-
-    -  .. row 3
+    -
 
        -  audio_channel_select_t ch
 

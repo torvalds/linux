@@ -11,6 +11,7 @@ Name
 
 dvb video write()
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------

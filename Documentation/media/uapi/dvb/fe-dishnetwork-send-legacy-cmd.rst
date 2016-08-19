@@ -15,22 +15,18 @@ FE_DISHNETWORK_SEND_LEGACY_CMD
 Synopsis
 ========
 
-.. c:function:: int  ioctl(int fd, int request = FE_DISHNETWORK_SEND_LEGACY_CMD, unsigned long cmd)
+.. c:function:: int  ioctl(int fd, FE_DISHNETWORK_SEND_LEGACY_CMD, unsigned long cmd)
+    :name: FE_DISHNETWORK_SEND_LEGACY_CMD
 
 
 Arguments
 =========
 
-.. flat-table::
-    :header-rows:  0
-    :stub-columns: 0
+``fd``
+    File descriptor returned by :c:func:`open() <dvb-fe-open>`.
 
-
-    -  .. row 1
-
-       -  unsigned long cmd
-
-       -  sends the specified raw cmd to the dish via DISEqC.
+``cmd``
+    Sends the specified raw cmd to the dish via DISEqC.
 
 
 Description

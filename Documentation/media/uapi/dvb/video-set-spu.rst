@@ -11,11 +11,13 @@ Name
 
 VIDEO_SET_SPU
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, int request = VIDEO_SET_SPU , video_spu_t *spu)
+.. c:function:: int ioctl(fd, VIDEO_SET_SPU , video_spu_t *spu)
+    :name: VIDEO_SET_SPU
 
 
 Arguments

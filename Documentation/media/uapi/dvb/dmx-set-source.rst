@@ -15,40 +15,25 @@ DMX_SET_SOURCE
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, int request = DMX_SET_SOURCE, dmx_source_t *)
+.. c:function:: int ioctl(fd, DMX_SET_SOURCE, dmx_source_t *src)
+    :name: DMX_SET_SOURCE
 
 
 Arguments
 ---------
 
-.. flat-table::
-    :header-rows:  0
-    :stub-columns: 0
 
+``fd``
+    File descriptor returned by :c:func:`open() <dvb-dmx-open>`.
 
-    -  .. row 1
-
-       -  int fd
-
-       -  File descriptor returned by a previous call to open().
-
-    -  .. row 2
-
-       -  int request
-
-       -  Equals DMX_SET_SOURCE for this command.
-
-    -  .. row 3
-
-       -  dmx_source_t *
-
-       -  Undocumented.
+``src``
+   Undocumented.
 
 
 Description
 -----------
 
-This ioctl is undocumented. Documentation is welcome.
+.. note:: This ioctl is undocumented. Documentation is welcome.
 
 
 Return Value

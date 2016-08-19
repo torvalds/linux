@@ -11,11 +11,13 @@ Name
 
 AUDIO_PLAY
 
+.. attention:: This ioctl is deprecated
 
 Synopsis
 --------
 
-.. c:function:: int  ioctl(int fd, int request = AUDIO_PLAY)
+.. c:function:: int  ioctl(int fd, AUDIO_PLAY)
+    :name: AUDIO_PLAY
 
 
 Arguments
@@ -31,13 +33,6 @@ Arguments
        -  int fd
 
        -  File descriptor returned by a previous call to open().
-
-    -  .. row 2
-
-       -  int request
-
-       -  Equals AUDIO_PLAY for this command.
-
 
 Description
 -----------

@@ -15,35 +15,18 @@ DMX_SET_BUFFER_SIZE
 Synopsis
 --------
 
-.. c:function:: int ioctl( int fd, int request = DMX_SET_BUFFER_SIZE, unsigned long size)
+.. c:function:: int ioctl( int fd, DMX_SET_BUFFER_SIZE, unsigned long size)
+    :name: DMX_SET_BUFFER_SIZE
 
 
 Arguments
 ---------
 
-.. flat-table::
-    :header-rows:  0
-    :stub-columns: 0
+``fd``
+    File descriptor returned by :c:func:`open() <dvb-dmx-open>`.
 
-
-    -  .. row 1
-
-       -  int fd
-
-       -  File descriptor returned by a previous call to open().
-
-    -  .. row 2
-
-       -  int request
-
-       -  Equals DMX_SET_BUFFER_SIZE for this command.
-
-    -  .. row 3
-
-       -  unsigned long size
-
-       -  Size of circular buffer.
-
+``size``
+    Unsigned long size
 
 Description
 -----------

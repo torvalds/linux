@@ -11,11 +11,13 @@ Name
 
 VIDEO_SET_HIGHLIGHT
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, int request = VIDEO_SET_HIGHLIGHT ,video_highlight_t *vhilite)
+.. c:function:: int ioctl(fd, VIDEO_SET_HIGHLIGHT ,video_highlight_t *vhilite)
+    :name: VIDEO_SET_HIGHLIGHT
 
 
 Arguments

@@ -11,11 +11,13 @@ Name
 
 VIDEO_GET_FRAME_RATE
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. c:function:: int ioctl(int fd, int request = VIDEO_GET_FRAME_RATE, unsigned int *rate)
+.. c:function:: int ioctl(int fd, VIDEO_GET_FRAME_RATE, unsigned int *rate)
+    :name: VIDEO_GET_FRAME_RATE
 
 
 Arguments

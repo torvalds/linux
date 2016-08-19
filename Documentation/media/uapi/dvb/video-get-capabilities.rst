@@ -11,11 +11,13 @@ Name
 
 VIDEO_GET_CAPABILITIES
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, int request = VIDEO_GET_CAPABILITIES, unsigned int *cap)
+.. c:function:: int ioctl(fd, VIDEO_GET_CAPABILITIES, unsigned int *cap)
+    :name: VIDEO_GET_CAPABILITIES
 
 
 Arguments

@@ -15,40 +15,24 @@ CA_SET_PID
 Synopsis
 --------
 
-.. c:function:: int  ioctl(fd, int request = CA_SET_PID, ca_pid_t *)
+.. c:function:: int ioctl(fd, CA_SET_PID, ca_pid_t *pid)
+    :name: CA_SET_PID
 
 
 Arguments
 ---------
 
-.. flat-table::
-    :header-rows:  0
-    :stub-columns: 0
+``fd``
+  File descriptor returned by a previous call to :c:func:`open() <dvb-ca-open>`.
 
-
-    -  .. row 1
-
-       -  int fd
-
-       -  File descriptor returned by a previous call to open().
-
-    -  .. row 2
-
-       -  int request
-
-       -  Equals CA_SET_PID for this command.
-
-    -  .. row 3
-
-       -  ca_pid_t \*
-
-       -  Undocumented.
+``pid``
+  Undocumented.
 
 
 Description
 -----------
 
-This ioctl is undocumented. Documentation is welcome.
+.. note:: This ioctl is undocumented. Documentation is welcome.
 
 
 Return Value

@@ -15,48 +15,35 @@ DVB CA open()
 Synopsis
 --------
 
-.. c:function:: int  open(const char *deviceName, int flags)
+.. c:function:: int open(const char *name, int flags)
+    :name: dvb-ca-open
 
 
 Arguments
 ---------
 
+``name``
+  Name of specific DVB CA device.
+
+``flags``
+  A bit-wise OR of the following flags:
+
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
 
+    -
+       - O_RDONLY
+       - read-only access
 
-    -  .. row 1
+    -
+       - O_RDWR
+       - read/write access
 
-       -  const char \*deviceName
-
-       -  Name of specific video device.
-
-    -  .. row 2
-
-       -  int flags
-
-       -  A bit-wise OR of the following flags:
-
-    -  .. row 3
-
-       -
-       -  O_RDONLY read-only access
-
-    -  .. row 4
-
-       -
-       -  O_RDWR read/write access
-
-    -  .. row 5
-
-       -
-       -  O_NONBLOCK open in non-blocking mode
-
-    -  .. row 6
-
-       -
-       -  (blocking mode is the default)
+    -
+       - O_NONBLOCK
+       - open in non-blocking mode
+         (blocking mode is the default)
 
 
 Description

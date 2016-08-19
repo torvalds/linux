@@ -15,7 +15,8 @@ FE_DISEQC_SEND_MASTER_CMD - Sends a DiSEqC command
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct dvb_diseqc_master_cmd *argp )
+.. c:function:: int ioctl( int fd, FE_DISEQC_SEND_MASTER_CMD, struct dvb_diseqc_master_cmd *argp )
+    :name: FE_DISEQC_SEND_MASTER_CMD
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <frontend_f_open>`.
-
-``request``
-    FE_DISEQC_SEND_MASTER_CMD
 
 ``argp``
     pointer to struct

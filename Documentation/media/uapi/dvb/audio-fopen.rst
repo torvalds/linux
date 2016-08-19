@@ -11,11 +11,13 @@ Name
 
 DVB audio open()
 
+.. attention:: This ioctl is deprecated
 
 Synopsis
 --------
 
-.. c:function:: int  open(const char *deviceName, int flags)
+.. c:function:: int open(const char *deviceName, int flags)
+    :name: dvb-audio-open
 
 
 Arguments

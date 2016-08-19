@@ -16,34 +16,19 @@ Synopsis
 --------
 
 .. c:function:: ssize_t write(int fd, const void *buf, size_t count)
-
+    :name: dvb-dmx-write
 
 Arguments
 ---------
 
-.. flat-table::
-    :header-rows:  0
-    :stub-columns: 0
+``fd``
+  File descriptor returned by a previous call to :c:func:`open() <dvb-ca-open>`.
 
+``buf``
+     Buffer with data to be written
 
-    -  .. row 1
-
-       -  int fd
-
-       -  File descriptor returned by a previous call to open().
-
-    -  .. row 2
-
-       -  void \*buf
-
-       -  Pointer to the buffer containing the Transport Stream.
-
-    -  .. row 3
-
-       -  size_t count
-
-       -  Size of buf.
-
+``count``
+    Number of bytes at the buffer
 
 Description
 -----------
@@ -64,7 +49,6 @@ Return Value
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 

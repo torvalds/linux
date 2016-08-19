@@ -11,11 +11,13 @@ Name
 
 AUDIO_CONTINUE
 
+.. attention:: This ioctl is deprecated
 
 Synopsis
 --------
 
-.. c:function:: int  ioctl(int fd, int request = AUDIO_CONTINUE)
+.. c:function:: int  ioctl(int fd, AUDIO_CONTINUE)
+    :name: AUDIO_CONTINUE
 
 
 Arguments
@@ -31,13 +33,6 @@ Arguments
        -  int fd
 
        -  File descriptor returned by a previous call to open().
-
-    -  .. row 2
-
-       -  int request
-
-       -  Equals AUDIO_CONTINUE for this command.
-
 
 Description
 -----------

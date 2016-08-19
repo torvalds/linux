@@ -15,40 +15,23 @@ DMX_GET_CAPS
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, int request = DMX_GET_CAPS, dmx_caps_t *)
-
+.. c:function:: int ioctl(fd, DMX_GET_CAPS, dmx_caps_t *caps)
+    :name: DMX_GET_CAPS
 
 Arguments
 ---------
 
-.. flat-table::
-    :header-rows:  0
-    :stub-columns: 0
+``fd``
+    File descriptor returned by :c:func:`open() <dvb-dmx-open>`.
 
-
-    -  .. row 1
-
-       -  int fd
-
-       -  File descriptor returned by a previous call to open().
-
-    -  .. row 2
-
-       -  int request
-
-       -  Equals DMX_GET_CAPS for this command.
-
-    -  .. row 3
-
-       -  dmx_caps_t *
-
-       -  Undocumented.
+``caps``
+    Undocumented.
 
 
 Description
 -----------
 
-This ioctl is undocumented. Documentation is welcome.
+.. note:: This ioctl is undocumented. Documentation is welcome.
 
 
 Return Value

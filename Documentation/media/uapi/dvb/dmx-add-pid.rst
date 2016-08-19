@@ -15,34 +15,18 @@ DMX_ADD_PID
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, int request = DMX_ADD_PID, __u16 *)
+.. c:function:: int ioctl(fd, DMX_ADD_PID, __u16 *pid)
+    :name: DMX_ADD_PID
 
 
 Arguments
 ---------
 
-.. flat-table::
-    :header-rows:  0
-    :stub-columns: 0
+``fd``
+    File descriptor returned by :c:func:`open() <dvb-dmx-open>`.
 
-
-    -  .. row 1
-
-       -  int fd
-
-       -  File descriptor returned by a previous call to open().
-
-    -  .. row 2
-
-       -  int request
-
-       -  Equals DMX_ADD_PID for this command.
-
-    -  .. row 3
-
-       -  __u16 *
-
-       -  PID number to be filtered.
+``pid``
+   PID number to be filtered.
 
 
 Description

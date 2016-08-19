@@ -11,11 +11,13 @@ Name
 
 VIDEO_GET_NAVI
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, int request = VIDEO_GET_NAVI , video_navi_pack_t *navipack)
+.. c:function:: int ioctl(fd, VIDEO_GET_NAVI , video_navi_pack_t *navipack)
+    :name: VIDEO_GET_NAVI
 
 
 Arguments

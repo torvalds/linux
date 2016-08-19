@@ -15,7 +15,8 @@ FE_GET_INFO - Query DVB frontend capabilities and returns information about the 
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct dvb_frontend_info *argp )
+.. c:function:: int ioctl( int fd, FE_GET_INFO, struct dvb_frontend_info *argp )
+    :name: FE_GET_INFO
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <frontend_f_open>`.
-
-``request``
-    FE_GET_INFO
 
 ``argp``
     pointer to struct struct

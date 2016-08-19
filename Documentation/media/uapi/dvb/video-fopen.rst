@@ -11,6 +11,7 @@ Name
 
 dvb video open()
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------

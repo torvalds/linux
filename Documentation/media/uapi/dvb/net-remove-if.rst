@@ -15,7 +15,8 @@ NET_REMOVE_IF - Removes a network interface.
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, int ifnum )
+.. c:function:: int ioctl( int fd, NET_REMOVE_IF, int ifnum )
+    :name: NET_REMOVE_IF
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <frontend_f_open>`.
-
-``request``
-    FE_SET_TONE
 
 ``net_if``
     number of the interface to be removed

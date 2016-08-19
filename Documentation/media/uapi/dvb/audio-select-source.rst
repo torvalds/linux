@@ -11,11 +11,13 @@ Name
 
 AUDIO_SELECT_SOURCE
 
+.. attention:: This ioctl is deprecated
 
 Synopsis
 --------
 
-.. c:function:: int ioctl(int fd, int request = AUDIO_SELECT_SOURCE, audio_stream_source_t source)
+.. c:function:: int ioctl(int fd, AUDIO_SELECT_SOURCE, audio_stream_source_t source)
+    :name: AUDIO_SELECT_SOURCE
 
 
 Arguments
@@ -26,19 +28,13 @@ Arguments
     :stub-columns: 0
 
 
-    -  .. row 1
+    -
 
        -  int fd
 
        -  File descriptor returned by a previous call to open().
 
-    -  .. row 2
-
-       -  int request
-
-       -  Equals AUDIO_SELECT_SOURCE for this command.
-
-    -  .. row 3
+    -
 
        -  audio_stream_source_t source
 

@@ -11,11 +11,13 @@ Name
 
 DVB audio write()
 
+.. attention:: This ioctl is deprecated
 
 Synopsis
 --------
 
 .. c:function:: size_t write(int fd, const void *buf, size_t count)
+    :name: dvb-audio-write
 
 
 Arguments

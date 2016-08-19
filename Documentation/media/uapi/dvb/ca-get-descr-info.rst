@@ -15,40 +15,23 @@ CA_GET_DESCR_INFO
 Synopsis
 --------
 
-.. c:function:: int  ioctl(fd, int request = CA_GET_DESCR_INFO, ca_descr_info_t *)
-
+.. c:function:: int  ioctl(fd, CA_GET_DESCR_INFO, ca_descr_info_t *desc)
+    :name: CA_GET_DESCR_INFO
 
 Arguments
 ---------
 
-.. flat-table::
-    :header-rows:  0
-    :stub-columns: 0
+``fd``
+  File descriptor returned by a previous call to :c:func:`open() <dvb-ca-open>`.
 
-
-    -  .. row 1
-
-       -  int fd
-
-       -  File descriptor returned by a previous call to open().
-
-    -  .. row 2
-
-       -  int request
-
-       -  Equals CA_GET_DESCR_INFO for this command.
-
-    -  .. row 3
-
-       -  ca_descr_info_t \*
-
-       -  Undocumented.
+``desc``
+  Undocumented.
 
 
 Description
 -----------
 
-This ioctl is undocumented. Documentation is welcome.
+.. note:: This ioctl is undocumented. Documentation is welcome.
 
 
 Return Value

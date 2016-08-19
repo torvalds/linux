@@ -15,40 +15,24 @@ CA_GET_CAP
 Synopsis
 --------
 
-.. c:function:: int  ioctl(fd, int request = CA_GET_CAP, ca_caps_t *)
+.. c:function:: int ioctl(fd, CA_GET_CAP, ca_caps_t *caps)
+    :name: CA_GET_CAP
 
 
 Arguments
 ---------
 
-.. flat-table::
-    :header-rows:  0
-    :stub-columns: 0
+``fd``
+  File descriptor returned by a previous call to :c:func:`open() <dvb-ca-open>`.
 
-
-    -  .. row 1
-
-       -  int fd
-
-       -  File descriptor returned by a previous call to open().
-
-    -  .. row 2
-
-       -  int request
-
-       -  Equals CA_GET_CAP for this command.
-
-    -  .. row 3
-
-       -  ca_caps_t *
-
-       -  Undocumented.
+``caps``
+  Undocumented.
 
 
 Description
 -----------
 
-This ioctl is undocumented. Documentation is welcome.
+.. note:: This ioctl is undocumented. Documentation is welcome.
 
 
 Return Value

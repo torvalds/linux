@@ -11,11 +11,13 @@ Name
 
 AUDIO_SET_STREAMTYPE
 
+.. attention:: This ioctl is deprecated
 
 Synopsis
 --------
 
-.. c:function:: int  ioctl(fd, int request = AUDIO_SET_STREAMTYPE, int type)
+.. c:function:: int  ioctl(fd, AUDIO_SET_STREAMTYPE, int type)
+    :name: AUDIO_SET_STREAMTYPE
 
 
 Arguments
@@ -26,19 +28,13 @@ Arguments
     :stub-columns: 0
 
 
-    -  .. row 1
+    -
 
        -  int fd
 
        -  File descriptor returned by a previous call to open().
 
-    -  .. row 2
-
-       -  int request
-
-       -  Equals AUDIO_SET_STREAMTYPE for this command.
-
-    -  .. row 3
+    -
 
        -  int type
 

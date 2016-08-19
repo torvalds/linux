@@ -11,11 +11,13 @@ Name
 
 VIDEO_GET_SIZE
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. c:function:: int ioctl(int fd, int request = VIDEO_GET_SIZE, video_size_t *size)
+.. c:function:: int ioctl(int fd, VIDEO_GET_SIZE, video_size_t *size)
+    :name: VIDEO_GET_SIZE
 
 
 Arguments

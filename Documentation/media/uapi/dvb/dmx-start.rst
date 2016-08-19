@@ -15,29 +15,15 @@ DMX_START
 Synopsis
 --------
 
-.. c:function:: int ioctl( int fd, int request = DMX_START)
+.. c:function:: int ioctl( int fd, DMX_START)
+    :name: DMX_START
 
 
 Arguments
 ---------
 
-.. flat-table::
-    :header-rows:  0
-    :stub-columns: 0
-
-
-    -  .. row 1
-
-       -  int fd
-
-       -  File descriptor returned by a previous call to open().
-
-    -  .. row 2
-
-       -  int request
-
-       -  Equals DMX_START for this command.
-
+``fd``
+    File descriptor returned by :c:func:`open() <dvb-dmx-open>`.
 
 Description
 -----------

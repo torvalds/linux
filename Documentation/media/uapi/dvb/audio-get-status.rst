@@ -11,11 +11,13 @@ Name
 
 AUDIO_GET_STATUS
 
+.. attention:: This ioctl is deprecated
 
 Synopsis
 --------
 
-.. c:function:: int ioctl(int fd, int request = AUDIO_GET_STATUS, struct audio_status *status)
+.. c:function:: int ioctl(int fd, AUDIO_GET_STATUS, struct audio_status *status)
+    :name: AUDIO_GET_STATUS
 
 
 Arguments
@@ -26,19 +28,13 @@ Arguments
     :stub-columns: 0
 
 
-    -  .. row 1
+    -
 
        -  int fd
 
        -  File descriptor returned by a previous call to open().
 
-    -  .. row 2
-
-       -  int request
-
-       -  Equals AUDIO_GET_STATUS for this command.
-
-    -  .. row 3
+    -
 
        -  struct audio_status \*status
 

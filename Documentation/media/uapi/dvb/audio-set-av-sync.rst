@@ -11,11 +11,13 @@ Name
 
 AUDIO_SET_AV_SYNC
 
+.. attention:: This ioctl is deprecated
 
 Synopsis
 --------
 
-.. c:function:: int  ioctl(int fd, int request = AUDIO_SET_AV_SYNC, boolean state)
+.. c:function:: int  ioctl(int fd, AUDIO_SET_AV_SYNC, boolean state)
+    :name: AUDIO_SET_AV_SYNC
 
 
 Arguments
@@ -26,33 +28,21 @@ Arguments
     :stub-columns: 0
 
 
-    -  .. row 1
+    -
 
        -  int fd
 
        -  File descriptor returned by a previous call to open().
 
-    -  .. row 2
-
-       -  int request
-
-       -  Equals AUDIO_AV_SYNC for this command.
-
-    -  .. row 3
+    -
 
        -  boolean state
 
        -  Tells the DVB subsystem if A/V synchronization shall be ON or OFF.
 
-    -  .. row 4
+          TRUE: AV-sync ON
 
-       -
-       -  TRUE AV-sync ON
-
-    -  .. row 5
-
-       -
-       -  FALSE AV-sync OFF
+          FALSE: AV-sync OFF
 
 
 Description

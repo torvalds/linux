@@ -11,11 +11,13 @@ Name
 
 VIDEO_FAST_FORWARD
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, int request = VIDEO_FAST_FORWARD, int nFrames)
+.. c:function:: int ioctl(fd, VIDEO_FAST_FORWARD, int nFrames)
+    :name: VIDEO_FAST_FORWARD
 
 
 Arguments

@@ -15,7 +15,8 @@ NET_GET_IF - Read the configuration data of an interface created via - :ref:`NET
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct dvb_net_if *net_if )
+.. c:function:: int ioctl( int fd, NET_GET_IF, struct dvb_net_if *net_if )
+    :name: NET_GET_IF
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <frontend_f_open>`.
-
-``request``
-    FE_SET_TONE
 
 ``net_if``
     pointer to struct :ref:`dvb_net_if <dvb-net-if>`

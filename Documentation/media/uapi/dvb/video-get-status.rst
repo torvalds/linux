@@ -11,11 +11,13 @@ Name
 
 VIDEO_GET_STATUS
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, int request = VIDEO_GET_STATUS, struct video_status *status)
+.. c:function:: int ioctl(fd, VIDEO_GET_STATUS, struct video_status *status)
+    :name: VIDEO_GET_STATUS
 
 
 Arguments

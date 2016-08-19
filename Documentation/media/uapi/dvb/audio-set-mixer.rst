@@ -11,12 +11,13 @@ Name
 
 AUDIO_SET_MIXER
 
+.. attention:: This ioctl is deprecated
 
 Synopsis
 --------
 
-.. c:function:: int ioctl(int fd, int request = AUDIO_SET_MIXER, audio_mixer_t *mix)
-
+.. c:function:: int ioctl(int fd, AUDIO_SET_MIXER, audio_mixer_t *mix)
+    :name: AUDIO_SET_MIXER
 
 Arguments
 ---------
@@ -26,19 +27,13 @@ Arguments
     :stub-columns: 0
 
 
-    -  .. row 1
+    -
 
        -  int fd
 
        -  File descriptor returned by a previous call to open().
 
-    -  .. row 2
-
-       -  int request
-
-       -  Equals AUDIO_SET_ID for this command.
-
-    -  .. row 3
+    -
 
        -  audio_mixer_t \*mix
 

@@ -11,37 +11,23 @@ Name
 
 FE_READ_BER
 
+.. attention:: This ioctl is deprecated.
+
 Synopsis
 ========
 
-.. c:function:: int  ioctl(int fd, int request = FE_READ_BER, uint32_t *ber)
+.. c:function:: int  ioctl(int fd, FE_READ_BER, uint32_t *ber)
+    :name: FE_READ_BER
 
 
 Arguments
 =========
 
-.. flat-table::
-    :header-rows:  0
-    :stub-columns: 0
+``fd``
+    File descriptor returned by :c:func:`open() <dvb-fe-open>`.
 
-
-    -  .. row 1
-
-       -  int fd
-
-       -  File descriptor returned by a previous call to open().
-
-    -  .. row 2
-
-       -  int request
-
-       -  Equals :ref:`FE_READ_BER` for this command.
-
-    -  .. row 3
-
-       -  uint32_t \*ber
-
-       -  The bit error rate is stored into \*ber.
+``ber``
+    The bit error rate is stored into \*ber.
 
 
 Description

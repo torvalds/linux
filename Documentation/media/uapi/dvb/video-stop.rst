@@ -11,11 +11,13 @@ Name
 
 VIDEO_STOP
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, int request = VIDEO_STOP, boolean mode)
+.. c:function:: int ioctl(fd, VIDEO_STOP, boolean mode)
+    :name: VIDEO_STOP
 
 
 Arguments

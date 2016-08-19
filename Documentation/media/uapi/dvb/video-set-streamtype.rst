@@ -11,11 +11,13 @@ Name
 
 VIDEO_SET_STREAMTYPE
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, int request = VIDEO_SET_STREAMTYPE, int type)
+.. c:function:: int ioctl(fd, VIDEO_SET_STREAMTYPE, int type)
+    :name: VIDEO_SET_STREAMTYPE
 
 
 Arguments

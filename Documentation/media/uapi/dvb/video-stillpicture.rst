@@ -11,11 +11,13 @@ Name
 
 VIDEO_STILLPICTURE
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, int request = VIDEO_STILLPICTURE, struct video_still_picture *sp)
+.. c:function:: int ioctl(fd, VIDEO_STILLPICTURE, struct video_still_picture *sp)
+    :name: VIDEO_STILLPICTURE
 
 
 Arguments

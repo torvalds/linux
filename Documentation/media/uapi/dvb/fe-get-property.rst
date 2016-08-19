@@ -15,7 +15,11 @@ FE_SET_PROPERTY - FE_GET_PROPERTY - FE_SET_PROPERTY sets one or more frontend pr
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct dtv_properties *argp )
+.. c:function:: int ioctl( int fd, FE_GET_PROPERTY, struct dtv_properties *argp )
+    :name: FE_GET_PROPERTY
+
+.. c:function:: int ioctl( int fd, FE_SET_PROPERTY, struct dtv_properties *argp )
+    :name: FE_SET_PROPERTY
 
 
 Arguments
@@ -23,9 +27,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <frontend_f_open>`.
-
-``request``
-    FE_SET_PROPERTY, FE_GET_PROPERTY
 
 ``argp``
     pointer to struct :ref:`dtv_properties <dtv-properties>`

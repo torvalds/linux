@@ -11,11 +11,13 @@ Name
 
 VIDEO_SET_ID
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. c:function:: int ioctl(int fd, int request = VIDEO_SET_ID, int id)
+.. c:function:: int ioctl(int fd, VIDEO_SET_ID, int id)
+    :name: VIDEO_SET_ID
 
 
 Arguments

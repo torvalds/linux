@@ -11,11 +11,13 @@ Name
 
 VIDEO_COMMAND
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. c:function:: int ioctl(int fd, int request = VIDEO_COMMAND, struct video_command *cmd)
+.. c:function:: int ioctl(int fd, VIDEO_COMMAND, struct video_command *cmd)
+    :name: VIDEO_COMMAND
 
 
 Arguments

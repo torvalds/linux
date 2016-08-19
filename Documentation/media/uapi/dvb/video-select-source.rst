@@ -11,11 +11,13 @@ Name
 
 VIDEO_SELECT_SOURCE
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, int request = VIDEO_SELECT_SOURCE, video_stream_source_t source)
+.. c:function:: int ioctl(fd, VIDEO_SELECT_SOURCE, video_stream_source_t source)
+    :name: VIDEO_SELECT_SOURCE
 
 
 Arguments
