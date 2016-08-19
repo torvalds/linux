@@ -596,15 +596,11 @@ static void hdm_read_completion(struct urb *urb)
 		}
 	} else {
 		mbo->processed_length = urb->actual_length;
-		if (!mdev->padding_active[channel]) {
-			mbo->status = MBO_SUCCESS;
-		} else {
-			if (hdm_remove_padding(mdev, channel, mbo)) {
-				mbo->processed_length = 0;
-				mbo->status = MBO_E_INVAL;
-			} else {
-				mbo->status = MBO_SUCCESS;
-			}
+		mbo->status = MBO_SUCCESS;
+		if (mdev->padding_active[channel] &&
+		    hdm_remove_padding(mdev, channel, mbo)) {
+			mbo->processed_length = 0;
+			mbo->status = MBO_E_INVAL;
 		}
 	}
 	spin_lock_irqsave(&mdev->anchor_list_lock[channel], flags);
