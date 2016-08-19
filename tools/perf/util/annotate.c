@@ -82,15 +82,11 @@ static int call__parse(struct ins_operands *ops)
 	return ops->target.name == NULL ? -1 : 0;
 
 indirect_call:
-	tok = strchr(endptr, '(');
-	if (tok != NULL) {
+	tok = strchr(endptr, '*');
+	if (tok == NULL) {
 		ops->target.addr = 0;
 		return 0;
 	}
-
-	tok = strchr(endptr, '*');
-	if (tok == NULL)
-		return -1;
 
 	ops->target.addr = strtoull(tok + 1, NULL, 16);
 	return 0;
