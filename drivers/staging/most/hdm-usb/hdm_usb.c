@@ -217,7 +217,7 @@ static void free_anchored_buffers(struct most_dev *mdev, unsigned int channel,
 		if (likely(urb)) {
 			mbo = urb->context;
 			usb_kill_urb(urb);
-			if ((mbo) && (mbo->complete)) {
+			if (mbo && mbo->complete) {
 				mbo->status = status;
 				mbo->processed_length = 0;
 				mbo->complete(mbo);
@@ -287,7 +287,7 @@ static int hdm_poison_channel(struct most_interface *iface, int channel)
 		dev_warn(&mdev->usb_device->dev, "Poison: Bad interface.\n");
 		return -EIO;
 	}
-	if (unlikely((channel < 0) || (channel >= iface->num_channels))) {
+	if (unlikely(channel < 0 || channel >= iface->num_channels)) {
 		dev_warn(&mdev->usb_device->dev, "Channel ID out of range.\n");
 		return -ECHRNG;
 	}
@@ -407,8 +407,8 @@ static void hdm_write_completion(struct urb *urb)
 	lock = mdev->anchor_list_lock + channel;
 
 	spin_lock_irqsave(lock, flags);
-	if ((urb->status == -ENOENT) || (urb->status == -ECONNRESET) ||
-	    (!mdev->is_channel_healthy[channel])) {
+	if (urb->status == -ENOENT || urb->status == -ECONNRESET ||
+	    !mdev->is_channel_healthy[channel]) {
 		spin_unlock_irqrestore(lock, flags);
 		return;
 	}
@@ -572,8 +572,8 @@ static void hdm_read_completion(struct urb *urb)
 	lock = mdev->anchor_list_lock + channel;
 
 	spin_lock_irqsave(lock, flags);
-	if ((urb->status == -ENOENT) || (urb->status == -ECONNRESET) ||
-	    (!mdev->is_channel_healthy[channel])) {
+	if (urb->status == -ENOENT || urb->status == -ECONNRESET ||
+	    !mdev->is_channel_healthy[channel]) {
 		spin_unlock_irqrestore(lock, flags);
 		return;
 	}
@@ -649,7 +649,7 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 
 	if (unlikely(!iface || !mbo))
 		return -EIO;
-	if (unlikely(iface->num_channels <= channel) || (channel < 0))
+	if (unlikely(iface->num_channels <= channel || channel < 0))
 		return -ECHRNG;
 
 	mdev = to_mdev(iface);
@@ -672,12 +672,11 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 	anchor->urb = urb;
 	mbo->priv = anchor;
 
-	if ((mdev->padding_active[channel]) &&
-	    (conf->direction & MOST_CH_TX))
-		if (hdm_add_padding(mdev, channel, mbo)) {
-			retval = -EIO;
-			goto _error;
-		}
+	if ((conf->direction & MOST_CH_TX) && mdev->padding_active[channel] &&
+	    hdm_add_padding(mdev, channel, mbo)) {
+		retval = -EIO;
+		goto _error;
+	}
 
 	urb->transfer_dma = mbo->bus_address;
 	virt_address = mbo->virt_address;
@@ -753,18 +752,18 @@ static int hdm_configure_channel(struct most_interface *iface, int channel,
 		dev_err(dev, "Bad interface or config pointer.\n");
 		return -EINVAL;
 	}
-	if (unlikely((channel < 0) || (channel >= iface->num_channels))) {
+	if (unlikely(channel < 0 || channel >= iface->num_channels)) {
 		dev_err(dev, "Channel ID out of range.\n");
 		return -EINVAL;
 	}
-	if ((!conf->num_buffers) || (!conf->buffer_size)) {
+	if (!conf->num_buffers || !conf->buffer_size) {
 		dev_err(dev, "Misconfig: buffer size or #buffers zero.\n");
 		return -EINVAL;
 	}
 
-	if (!(conf->data_type == MOST_CH_SYNC) &&
-	    !((conf->data_type == MOST_CH_ISOC_AVP) &&
-	      (conf->packets_per_xact != 0xFF))) {
+	if (conf->data_type != MOST_CH_SYNC &&
+	    !(conf->data_type == MOST_CH_ISOC_AVP &&
+	      conf->packets_per_xact != 0xFF)) {
 		mdev->padding_active[channel] = false;
 		goto exit;
 	}
@@ -773,7 +772,7 @@ static int hdm_configure_channel(struct most_interface *iface, int channel,
 	temp_size = conf->buffer_size;
 
 	frame_size = get_stream_frame_size(conf);
-	if ((frame_size == 0) || (frame_size > USB_MTU)) {
+	if (frame_size == 0 || frame_size > USB_MTU) {
 		dev_warn(dev, "Misconfig: frame size wrong\n");
 		return -EINVAL;
 	}
@@ -909,13 +908,13 @@ static void wq_netinfo(struct work_struct *wq_obj)
 
 	if (hdm_update_netinfo(mdev) < 0)
 		return;
-	if ((prev_link_stat != mdev->link_stat) ||
-	    (prev_hw_addr[0] != mdev->hw_addr[0]) ||
-	    (prev_hw_addr[1] != mdev->hw_addr[1]) ||
-	    (prev_hw_addr[2] != mdev->hw_addr[2]) ||
-	    (prev_hw_addr[3] != mdev->hw_addr[3]) ||
-	    (prev_hw_addr[4] != mdev->hw_addr[4]) ||
-	    (prev_hw_addr[5] != mdev->hw_addr[5]))
+	if (prev_link_stat != mdev->link_stat ||
+	    prev_hw_addr[0] != mdev->hw_addr[0] ||
+	    prev_hw_addr[1] != mdev->hw_addr[1] ||
+	    prev_hw_addr[2] != mdev->hw_addr[2] ||
+	    prev_hw_addr[3] != mdev->hw_addr[3] ||
+	    prev_hw_addr[4] != mdev->hw_addr[4] ||
+	    prev_hw_addr[5] != mdev->hw_addr[5])
 		most_deliver_netinfo(&mdev->iface, mdev->link_stat,
 				     &mdev->hw_addr[0]);
 }
