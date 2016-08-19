@@ -84,26 +84,10 @@ struct atlas_data {
 	__be32 buffer[6]; /* 96-bit data + 32-bit pad + 64-bit timestamp */
 };
 
-static const struct regmap_range atlas_volatile_ranges[] = {
-	regmap_reg_range(ATLAS_REG_INT_CONTROL, ATLAS_REG_INT_CONTROL),
-	regmap_reg_range(ATLAS_REG_PH_DATA, ATLAS_REG_PH_DATA + 4),
-	regmap_reg_range(ATLAS_REG_EC_DATA, ATLAS_REG_PSS_DATA + 4),
-};
-
-static const struct regmap_access_table atlas_volatile_table = {
-	.yes_ranges	= atlas_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(atlas_volatile_ranges),
-};
-
 static const struct regmap_config atlas_regmap_config = {
 	.name = ATLAS_REGMAP_NAME,
-
 	.reg_bits = 8,
 	.val_bits = 8,
-
-	.volatile_table = &atlas_volatile_table,
-	.max_register = ATLAS_REG_PSS_DATA + 4,
-	.cache_type = REGCACHE_RBTREE,
 };
 
 static const struct iio_chan_spec atlas_ph_channels[] = {
