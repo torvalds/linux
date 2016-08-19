@@ -802,34 +802,6 @@ static u32 qed_mcp_get_shmem_func(struct qed_hwfn *p_hwfn,
 	return size;
 }
 
-int qed_hw_init_first_eth(struct qed_hwfn *p_hwfn,
-			  struct qed_ptt *p_ptt, u8 *p_pf)
-{
-	struct public_func shmem_info;
-	int i;
-
-	/* Find first Ethernet interface in port */
-	for (i = 0; i < NUM_OF_ENG_PFS(p_hwfn->cdev);
-	     i += p_hwfn->cdev->num_ports_in_engines) {
-		qed_mcp_get_shmem_func(p_hwfn, p_ptt, &shmem_info,
-				       MCP_PF_ID_BY_REL(p_hwfn, i));
-
-		if (shmem_info.config & FUNC_MF_CFG_FUNC_HIDE)
-			continue;
-
-		if ((shmem_info.config & FUNC_MF_CFG_PROTOCOL_MASK) ==
-		    FUNC_MF_CFG_PROTOCOL_ETHERNET) {
-			*p_pf = (u8)i;
-			return 0;
-		}
-	}
-
-	DP_NOTICE(p_hwfn,
-		  "Failed to find on port an ethernet interface in MF_SI mode\n");
-
-	return -EINVAL;
-}
-
 static void qed_mcp_update_bw(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	struct qed_mcp_function_info *p_info;

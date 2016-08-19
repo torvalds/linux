@@ -772,6 +772,9 @@ static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
 		concrete_fid = qed_vfid_to_concrete(p_hwfn, vf_id);
 		qed_fid_pretend(p_hwfn, p_ptt, (u16) concrete_fid);
 		qed_wr(p_hwfn, p_ptt, CCFC_REG_STRONG_ENABLE_VF, 0x1);
+		qed_wr(p_hwfn, p_ptt, CCFC_REG_WEAK_ENABLE_VF, 0x0);
+		qed_wr(p_hwfn, p_ptt, TCFC_REG_STRONG_ENABLE_VF, 0x1);
+		qed_wr(p_hwfn, p_ptt, TCFC_REG_WEAK_ENABLE_VF, 0x0);
 	}
 	/* pretend to original PF */
 	qed_fid_pretend(p_hwfn, p_ptt, p_hwfn->rel_pf_id);
@@ -782,34 +785,8 @@ static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
 static int qed_hw_init_port(struct qed_hwfn *p_hwfn,
 			    struct qed_ptt *p_ptt, int hw_mode)
 {
-	int rc = 0;
-
-	rc = qed_init_run(p_hwfn, p_ptt, PHASE_PORT, p_hwfn->port_id, hw_mode);
-	if (rc)
-		return rc;
-
-	if (hw_mode & (1 << MODE_MF_SI)) {
-		u8 pf_id = 0;
-
-		if (!qed_hw_init_first_eth(p_hwfn, p_ptt, &pf_id)) {
-			DP_VERBOSE(p_hwfn, NETIF_MSG_IFUP,
-				   "PF[%08x] is first eth on engine\n", pf_id);
-
-			/* We should have configured BIT for ppfid, i.e., the
-			 * relative function number in the port. But there's a
-			 * bug in LLH in BB where the ppfid is actually engine
-			 * based, so we need to take this into account.
-			 */
-			qed_wr(p_hwfn, p_ptt,
-			       NIG_REG_LLH_TAGMAC_DEF_PF_VECTOR, 1 << pf_id);
-		}
-
-		/* Take the protocol-based hit vector if there is a hit,
-		 * otherwise take the other vector.
-		 */
-		qed_wr(p_hwfn, p_ptt, NIG_REG_LLH_CLS_TYPE_DUALMODE, 0x2);
-	}
-	return rc;
+	return qed_init_run(p_hwfn, p_ptt, PHASE_PORT,
+			    p_hwfn->port_id, hw_mode);
 }
 
 static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
@@ -877,21 +854,6 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 
 	/* Pure runtime initializations - directly to the HW  */
 	qed_int_igu_init_pure_rt(p_hwfn, p_ptt, true, true);
-
-	if (hw_mode & (1 << MODE_MF_SI)) {
-		u8 pf_id = 0;
-		u32 val = 0;
-
-		if (!qed_hw_init_first_eth(p_hwfn, p_ptt, &pf_id)) {
-			if (p_hwfn->rel_pf_id == pf_id) {
-				DP_VERBOSE(p_hwfn, NETIF_MSG_IFUP,
-					   "PF[%d] is first ETH on engine\n",
-					   pf_id);
-				val = 1;
-			}
-			qed_wr(p_hwfn, p_ptt, PRS_REG_MSG_INFO, val);
-		}
-	}
 
 	if (b_hw_start) {
 		/* enable interrupts */

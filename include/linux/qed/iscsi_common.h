@@ -311,7 +311,7 @@ struct iscsi_login_req_hdr {
 #define ISCSI_LOGIN_REQ_HDR_DATA_SEG_LEN_SHIFT  0
 #define ISCSI_LOGIN_REQ_HDR_TOTAL_AHS_LEN_MASK  0xFF
 #define ISCSI_LOGIN_REQ_HDR_TOTAL_AHS_LEN_SHIFT 24
-	__le32 isid_TABC;
+	__le32 isid_tabc;
 	__le16 tsih;
 	__le16 isid_d;
 	__le32 itt;
@@ -464,7 +464,7 @@ struct iscsi_login_response_hdr {
 #define ISCSI_LOGIN_RESPONSE_HDR_DATA_SEG_LEN_SHIFT  0
 #define ISCSI_LOGIN_RESPONSE_HDR_TOTAL_AHS_LEN_MASK  0xFF
 #define ISCSI_LOGIN_RESPONSE_HDR_TOTAL_AHS_LEN_SHIFT 24
-	__le32 isid_TABC;
+	__le32 isid_tabc;
 	__le16 tsih;
 	__le16 isid_d;
 	__le32 itt;
@@ -688,8 +688,7 @@ union iscsi_cqe {
 enum iscsi_cqes_type {
 	ISCSI_CQE_TYPE_SOLICITED = 1,
 	ISCSI_CQE_TYPE_UNSOLICITED,
-	ISCSI_CQE_TYPE_SOLICITED_WITH_SENSE
-	   ,
+	ISCSI_CQE_TYPE_SOLICITED_WITH_SENSE,
 	ISCSI_CQE_TYPE_TASK_CLEANUP,
 	ISCSI_CQE_TYPE_DUMMY,
 	MAX_ISCSI_CQES_TYPE
@@ -769,9 +768,9 @@ enum iscsi_eqe_opcode {
 	ISCSI_EVENT_TYPE_UPDATE_CONN,
 	ISCSI_EVENT_TYPE_CLEAR_SQ,
 	ISCSI_EVENT_TYPE_TERMINATE_CONN,
+	ISCSI_EVENT_TYPE_MAC_UPDATE_CONN,
 	ISCSI_EVENT_TYPE_ASYN_CONNECT_COMPLETE,
 	ISCSI_EVENT_TYPE_ASYN_TERMINATE_DONE,
-	RESERVED8,
 	RESERVED9,
 	ISCSI_EVENT_TYPE_START_OF_ERROR_TYPES = 10,
 	ISCSI_EVENT_TYPE_ASYN_ABORT_RCVD,
@@ -867,6 +866,7 @@ enum iscsi_ramrod_cmd_id {
 	ISCSI_RAMROD_CMD_ID_UPDATE_CONN = 4,
 	ISCSI_RAMROD_CMD_ID_TERMINATION_CONN = 5,
 	ISCSI_RAMROD_CMD_ID_CLEAR_SQ = 6,
+	ISCSI_RAMROD_CMD_ID_MAC_UPDATE = 7,
 	MAX_ISCSI_RAMROD_CMD_ID
 };
 
@@ -881,6 +881,16 @@ struct iscsi_reg1 {
 union iscsi_seq_num {
 	__le16 data_sn;
 	__le16 r2t_sn;
+};
+
+struct iscsi_spe_conn_mac_update {
+	struct iscsi_slow_path_hdr hdr;
+	__le16 conn_id;
+	__le32 fw_cid;
+	__le16 remote_mac_addr_lo;
+	__le16 remote_mac_addr_mid;
+	__le16 remote_mac_addr_hi;
+	u8 reserved0[2];
 };
 
 struct iscsi_spe_conn_offload {
@@ -1300,14 +1310,6 @@ struct iscsi_xhqe {
 
 struct mstorm_iscsi_stats_drv {
 	struct regpair iscsi_rx_dropped_pdus_task_not_valid;
-};
-
-struct ooo_opaque {
-	__le32 cid;
-	u8 drop_isle;
-	u8 drop_size;
-	u8 ooo_opcode;
-	u8 ooo_isle;
 };
 
 struct pstorm_iscsi_stats_drv {

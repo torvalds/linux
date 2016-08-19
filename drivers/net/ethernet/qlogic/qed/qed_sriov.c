@@ -1280,6 +1280,13 @@ static void qed_iov_vf_mbx_acquire(struct qed_hwfn *p_hwfn,
 
 	memset(resp, 0, sizeof(*resp));
 
+	/* Write the PF version so that VF would know which version
+	 * is supported - might be later overriden. This guarantees that
+	 * VF could recognize legacy PF based on lack of versions in reply.
+	 */
+	pfdev_info->major_fp_hsi = ETH_HSI_VER_MAJOR;
+	pfdev_info->minor_fp_hsi = ETH_HSI_VER_MINOR;
+
 	/* Validate FW compatibility */
 	if (req->vfdev_info.eth_fp_hsi_major != ETH_HSI_VER_MAJOR) {
 		DP_INFO(p_hwfn,
@@ -1288,12 +1295,6 @@ static void qed_iov_vf_mbx_acquire(struct qed_hwfn *p_hwfn,
 			req->vfdev_info.eth_fp_hsi_major,
 			req->vfdev_info.eth_fp_hsi_minor,
 			ETH_HSI_VER_MAJOR, ETH_HSI_VER_MINOR);
-
-		/* Write the PF version so that VF would know which version
-		 * is supported.
-		 */
-		pfdev_info->major_fp_hsi = ETH_HSI_VER_MAJOR;
-		pfdev_info->minor_fp_hsi = ETH_HSI_VER_MINOR;
 
 		goto out;
 	}
