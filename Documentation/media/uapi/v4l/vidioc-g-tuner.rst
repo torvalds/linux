@@ -60,7 +60,11 @@ To change the radio frequency the
 :ref:`VIDIOC_S_FREQUENCY <VIDIOC_G_FREQUENCY>` ioctl is available.
 
 
+ .. tabularcolumns:: |p{1.3cm}|p{3.0cm}|p{6.6cm}|p{6.6cm}|
+
 .. _v4l2-tuner:
+
+.. cssclass:: longtable
 
 .. flat-table:: struct v4l2_tuner
     :header-rows:  0
@@ -83,8 +87,9 @@ To change the radio frequency the
 
        -  :cspan:`1`
 
-	  Name of the tuner, a NUL-terminated ASCII string. This information
-	  is intended for the user.
+	  Name of the tuner, a NUL-terminated ASCII string.
+
+	  This information is intended for the user.
 
     -  .. row 3
 
@@ -230,8 +235,9 @@ To change the radio frequency the
 
        -  ``signal``
 
-       -  :cspan:`1` The signal strength if known, ranging from 0 to
-	  65535. Higher values indicate a better signal.
+       -  :cspan:`1` The signal strength if known.
+
+	  Ranging from 0 to 65535. Higher values indicate a better signal.
 
     -  .. row 16
 
@@ -239,8 +245,10 @@ To change the radio frequency the
 
        -  ``afc``
 
-       -  :cspan:`1` Automatic frequency control: When the ``afc`` value
-	  is negative, the frequency is too low, when positive too high.
+       -  :cspan:`1` Automatic frequency control.
+
+	  When the ``afc`` value is negative, the frequency is too
+	  low, when positive too high.
 
     -  .. row 17
 
@@ -248,8 +256,9 @@ To change the radio frequency the
 
        -  ``reserved``\ [4]
 
-       -  :cspan:`1` Reserved for future extensions. Drivers and
-	  applications must set the array to zero.
+       -  :cspan:`1` Reserved for future extensions.
+
+	   Drivers and applications must set the array to zero.
 
 
 
@@ -300,6 +309,8 @@ To change the radio frequency the
 .. _tuner-capability:
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
+.. cssclass:: longtable
 
 .. flat-table:: Tuner and Modulator Capability Flags
     :header-rows:  0
@@ -608,7 +619,9 @@ To change the radio frequency the
 	  ``MODE_MONO``. Only ``V4L2_TUNER_ANALOG_TV`` tuners support this
 	  mode.
 
+.. raw:: latex
 
+    \newline\newline\begin{adjustbox}{width=\columnwidth}
 
 .. _tuner-matrix:
 
@@ -706,6 +719,9 @@ To change the radio frequency the
 
        -  Lang1/Lang2 (preferred) or Lang1/Lang1
 
+.. raw:: latex
+
+    \end{adjustbox}\newline\newline
 
 Return Value
 ============
