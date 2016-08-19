@@ -388,37 +388,94 @@ static void s390_dma_free(struct device *dev, size_t size,
 	free_pages((unsigned long) pa, get_order(size));
 }
 
+/* Map a segment into a contiguous dma address area */
+static int __s390_dma_map_sg(struct device *dev, struct scatterlist *sg,
+			     size_t size, dma_addr_t *handle,
+			     enum dma_data_direction dir)
+{
+	struct zpci_dev *zdev = to_zpci(to_pci_dev(dev));
+	dma_addr_t dma_addr_base, dma_addr;
+	int flags = ZPCI_PTE_VALID;
+	struct scatterlist *s;
+	unsigned long pa;
+	int ret;
+
+	size = PAGE_ALIGN(size);
+	dma_addr_base = dma_alloc_address(dev, size >> PAGE_SHIFT);
+	if (dma_addr_base == DMA_ERROR_CODE)
+		return -ENOMEM;
+
+	dma_addr = dma_addr_base;
+	if (dir == DMA_NONE || dir == DMA_TO_DEVICE)
+		flags |= ZPCI_TABLE_PROTECTED;
+
+	for (s = sg; dma_addr < dma_addr_base + size; s = sg_next(s)) {
+		pa = page_to_phys(sg_page(s)) + s->offset;
+		ret = dma_update_trans(zdev, pa, dma_addr, s->length, flags);
+		if (ret)
+			goto unmap;
+
+		dma_addr += s->length;
+	}
+	*handle = dma_addr_base;
+	atomic64_add(size >> PAGE_SHIFT, &zdev->mapped_pages);
+
+	return ret;
+
+unmap:
+	dma_update_trans(zdev, 0, dma_addr_base, dma_addr - dma_addr_base,
+			 ZPCI_PTE_INVALID);
+	dma_free_address(dev, dma_addr_base, size >> PAGE_SHIFT);
+	zpci_err("map error:\n");
+	zpci_err_dma(ret, pa);
+	return ret;
+}
+
 static int s390_dma_map_sg(struct device *dev, struct scatterlist *sg,
 			   int nr_elements, enum dma_data_direction dir,
 			   unsigned long attrs)
 {
-	int mapped_elements = 0;
-	struct scatterlist *s;
-	int i;
+	struct scatterlist *s = sg, *start = sg, *dma = sg;
+	unsigned int max = dma_get_max_seg_size(dev);
+	unsigned int size = s->offset + s->length;
+	unsigned int offset = s->offset;
+	int count = 0, i;
 
-	for_each_sg(sg, s, nr_elements, i) {
-		struct page *page = sg_page(s);
-		s->dma_address = s390_dma_map_pages(dev, page, s->offset,
-						    s->length, dir, 0);
-		if (!dma_mapping_error(dev, s->dma_address)) {
-			s->dma_length = s->length;
-			mapped_elements++;
-		} else
-			goto unmap;
-	}
-out:
-	return mapped_elements;
+	for (i = 1; i < nr_elements; i++) {
+		s = sg_next(s);
 
-unmap:
-	for_each_sg(sg, s, mapped_elements, i) {
-		if (s->dma_address)
-			s390_dma_unmap_pages(dev, s->dma_address, s->dma_length,
-					     dir, 0);
-		s->dma_address = 0;
+		s->dma_address = DMA_ERROR_CODE;
 		s->dma_length = 0;
+
+		if (s->offset || (size & ~PAGE_MASK) ||
+		    size + s->length > max) {
+			if (__s390_dma_map_sg(dev, start, size,
+					      &dma->dma_address, dir))
+				goto unmap;
+
+			dma->dma_address += offset;
+			dma->dma_length = size - offset;
+
+			size = offset = s->offset;
+			start = s;
+			dma = sg_next(dma);
+			count++;
+		}
+		size += s->length;
 	}
-	mapped_elements = 0;
-	goto out;
+	if (__s390_dma_map_sg(dev, start, size, &dma->dma_address, dir))
+		goto unmap;
+
+	dma->dma_address += offset;
+	dma->dma_length = size - offset;
+
+	return count + 1;
+unmap:
+	for_each_sg(sg, s, count, i)
+		s390_dma_unmap_pages(dev, sg_dma_address(s), sg_dma_len(s),
+				     dir, attrs);
+
+	return 0;
 }
 
 static void s390_dma_unmap_sg(struct device *dev, struct scatterlist *sg,
@@ -429,8 +486,9 @@ static void s390_dma_unmap_sg(struct device *dev, struct scatterlist *sg,
 	int i;
 
 	for_each_sg(sg, s, nr_elements, i) {
-		s390_dma_unmap_pages(dev, s->dma_address, s->dma_length, dir,
-				     0);
+		if (s->dma_length)
+			s390_dma_unmap_pages(dev, s->dma_address, s->dma_length,
+					     dir, attrs);
 		s->dma_address = 0;
 		s->dma_length = 0;
 	}
