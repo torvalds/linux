@@ -2495,7 +2495,18 @@ exit:
 
 void ath10k_wmi_event_echo(struct ath10k *ar, struct sk_buff *skb)
 {
-	ath10k_dbg(ar, ATH10K_DBG_WMI, "WMI_ECHO_EVENTID\n");
+	struct wmi_echo_ev_arg arg = {};
+	int ret;
+
+	ret = ath10k_wmi_pull_echo_ev(ar, skb, &arg);
+	if (ret) {
+		ath10k_warn(ar, "failed to parse echo: %d\n", ret);
+		return;
+	}
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI,
+		   "wmi event echo value 0x%08x\n",
+		   le32_to_cpu(arg.value));
 }
 
 int ath10k_wmi_event_debug_mesg(struct ath10k *ar, struct sk_buff *skb)
@@ -4788,6 +4799,17 @@ static int ath10k_wmi_op_pull_roam_ev(struct ath10k *ar, struct sk_buff *skb,
 	skb_pull(skb, sizeof(*ev));
 	arg->vdev_id = ev->vdev_id;
 	arg->reason = ev->reason;
+
+	return 0;
+}
+
+static int ath10k_wmi_op_pull_echo_ev(struct ath10k *ar,
+				      struct sk_buff *skb,
+				      struct wmi_echo_ev_arg *arg)
+{
+	struct wmi_echo_event *ev = (void *)skb->data;
+
+	arg->value = ev->value;
 
 	return 0;
 }
@@ -7709,6 +7731,7 @@ static const struct wmi_ops wmi_ops = {
 	.pull_rdy = ath10k_wmi_op_pull_rdy_ev,
 	.pull_fw_stats = ath10k_wmi_main_op_pull_fw_stats,
 	.pull_roam_ev = ath10k_wmi_op_pull_roam_ev,
+	.pull_echo_ev = ath10k_wmi_op_pull_echo_ev,
 
 	.gen_pdev_suspend = ath10k_wmi_op_gen_pdev_suspend,
 	.gen_pdev_resume = ath10k_wmi_op_gen_pdev_resume,
@@ -7783,6 +7806,7 @@ static const struct wmi_ops wmi_10_1_ops = {
 	.pull_phyerr = ath10k_wmi_op_pull_phyerr_ev,
 	.pull_rdy = ath10k_wmi_op_pull_rdy_ev,
 	.pull_roam_ev = ath10k_wmi_op_pull_roam_ev,
+	.pull_echo_ev = ath10k_wmi_op_pull_echo_ev,
 
 	.gen_pdev_suspend = ath10k_wmi_op_gen_pdev_suspend,
 	.gen_pdev_resume = ath10k_wmi_op_gen_pdev_resume,
@@ -7854,6 +7878,7 @@ static const struct wmi_ops wmi_10_2_ops = {
 	.pull_phyerr = ath10k_wmi_op_pull_phyerr_ev,
 	.pull_rdy = ath10k_wmi_op_pull_rdy_ev,
 	.pull_roam_ev = ath10k_wmi_op_pull_roam_ev,
+	.pull_echo_ev = ath10k_wmi_op_pull_echo_ev,
 
 	.gen_pdev_suspend = ath10k_wmi_op_gen_pdev_suspend,
 	.gen_pdev_resume = ath10k_wmi_op_gen_pdev_resume,
@@ -7921,6 +7946,7 @@ static const struct wmi_ops wmi_10_2_4_ops = {
 	.pull_phyerr = ath10k_wmi_op_pull_phyerr_ev,
 	.pull_rdy = ath10k_wmi_op_pull_rdy_ev,
 	.pull_roam_ev = ath10k_wmi_op_pull_roam_ev,
+	.pull_echo_ev = ath10k_wmi_op_pull_echo_ev,
 
 	.gen_pdev_suspend = ath10k_wmi_op_gen_pdev_suspend,
 	.gen_pdev_resume = ath10k_wmi_op_gen_pdev_resume,
@@ -8028,6 +8054,7 @@ static const struct wmi_ops wmi_10_4_ops = {
 	.ext_resource_config = ath10k_wmi_10_4_ext_resource_config,
 
 	/* shared with 10.2 */
+	.pull_echo_ev = ath10k_wmi_op_pull_echo_ev,
 	.gen_request_stats = ath10k_wmi_op_gen_request_stats,
 	.gen_pdev_get_temperature = ath10k_wmi_10_2_op_gen_pdev_get_temperature,
 	.get_vdev_subtype = ath10k_wmi_10_4_op_get_vdev_subtype,

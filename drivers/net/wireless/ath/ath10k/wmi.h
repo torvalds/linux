@@ -6296,6 +6296,10 @@ struct wmi_roam_ev_arg {
 	__le32 rssi;
 };
 
+struct wmi_echo_ev_arg {
+	__le32 value;
+};
+
 struct wmi_pdev_temperature_event {
 	/* temperature value in Celcius degree */
 	__le32 temperature;

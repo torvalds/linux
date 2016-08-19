@@ -51,6 +51,8 @@ struct wmi_ops {
 			    struct wmi_roam_ev_arg *arg);
 	int (*pull_wow_event)(struct ath10k *ar, struct sk_buff *skb,
 			      struct wmi_wow_ev_arg *arg);
+	int (*pull_echo_ev)(struct ath10k *ar, struct sk_buff *skb,
+			    struct wmi_echo_ev_arg *arg);
 	enum wmi_txbf_conf (*get_txbf_conf_scheme)(struct ath10k *ar);
 
 	struct sk_buff *(*gen_pdev_suspend)(struct ath10k *ar, u32 suspend_opt);
@@ -348,6 +350,16 @@ ath10k_wmi_pull_wow_event(struct ath10k *ar, struct sk_buff *skb,
 		return -EOPNOTSUPP;
 
 	return ar->wmi.ops->pull_wow_event(ar, skb, arg);
+}
+
+static inline int
+ath10k_wmi_pull_echo_ev(struct ath10k *ar, struct sk_buff *skb,
+			struct wmi_echo_ev_arg *arg)
+{
+	if (!ar->wmi.ops->pull_echo_ev)
+		return -EOPNOTSUPP;
+
+	return ar->wmi.ops->pull_echo_ev(ar, skb, arg);
 }
 
 static inline enum wmi_txbf_conf
