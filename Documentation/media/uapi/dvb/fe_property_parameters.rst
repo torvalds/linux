@@ -1234,6 +1234,7 @@ Reed Solomon (RS) frame mode.
 
 Possible values are:
 
+.. tabularcolumns:: |p{5.0cm}|p{12.5cm}|
 
 .. _atscmh-rs-frame-mode:
 
@@ -1395,6 +1396,7 @@ Series Concatenated Convolutional Code Block Mode.
 
 Possible values are:
 
+.. tabularcolumns:: |p{4.5cm}|p{13.0cm}|
 
 .. _atscmh-sccc-block-mode:
 
@@ -1687,6 +1689,7 @@ on OFTM-based standards, e. g. DVB-T/T2, ISDB-T, DTMB
 enum fe_transmit_mode: Number of carriers per channel
 -----------------------------------------------------
 
+.. tabularcolumns:: |p{5.0cm}|p{12.5cm}|
 
 .. _fe-transmit-mode:
 
