@@ -203,7 +203,7 @@ static void altr_sdr_mc_create_debugfs_nodes(struct mem_ctl_info *mci)
 	if (!mci->debugfs)
 		return;
 
-	edac_debugfs_create_file("inject_ctrl", S_IWUSR, mci->debugfs, mci,
+	edac_debugfs_create_file("altr_trigger", S_IWUSR, mci->debugfs, mci,
 				 &altr_sdr_mc_debug_inject_fops);
 }
 
