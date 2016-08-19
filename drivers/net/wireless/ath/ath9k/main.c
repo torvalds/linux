@@ -1154,6 +1154,7 @@ void ath9k_calculate_summary_state(struct ath_softc *sc,
 		bool changed = (iter_data.primary_sta != ctx->primary_sta);
 
 		if (iter_data.primary_sta) {
+			iter_data.primary_beacon_vif = iter_data.primary_sta;
 			iter_data.beacons = true;
 			ath9k_set_assoc_state(sc, iter_data.primary_sta,
 					      changed);
