@@ -4195,7 +4195,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	/*
 	 * This should enable thermal meter
 	 */
-	if (priv->fops->tx_desc_size == sizeof(struct rtl8xxxu_txdesc40))
+	if (priv->fops->gen2_thermal_meter)
 		rtl8xxxu_write_rfreg(priv,
 				     RF_A, RF6052_REG_T_METER_8723B, 0x37cf8);
 	else

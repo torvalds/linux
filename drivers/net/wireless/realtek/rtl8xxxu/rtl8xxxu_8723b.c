@@ -1667,6 +1667,7 @@ struct rtl8xxxu_fileops rtl8723bu_fops = {
 	.rx_desc_size = sizeof(struct rtl8xxxu_rxdesc24),
 	.has_s0s1 = 1,
 	.has_tx_report = 1,
+	.gen2_thermal_meter = 1,
 	.adda_1t_init = 0x01c00014,
 	.adda_1t_path_on = 0x01c00014,
 	.adda_2t_path_on_a = 0x01c00014,
