@@ -672,7 +672,7 @@ static int qede_set_pauseparam(struct net_device *dev,
 	memset(&params, 0, sizeof(params));
 	params.override_flags |= QED_LINK_OVERRIDE_PAUSE_CONFIG;
 	if (epause->autoneg) {
-		if (!(current_link.supported_caps & SUPPORTED_Autoneg)) {
+		if (!(current_link.supported_caps & QED_LM_Autoneg_BIT)) {
 			DP_INFO(edev, "autoneg not supported\n");
 			return -EINVAL;
 		}
