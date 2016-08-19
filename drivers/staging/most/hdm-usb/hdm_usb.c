@@ -44,7 +44,6 @@
 #define USB_VENDOR_ID_SMSC	0x0424  /* VID: SMSC */
 #define USB_DEV_ID_BRDG		0xC001  /* PID: USB Bridge */
 #define USB_DEV_ID_INIC		0xCF18  /* PID: USB INIC */
-#define HW_RESYNC		0x0000
 /* DRCI Addresses */
 #define DRCI_REG_NI_STATE	0x0100
 #define DRCI_REG_PACKET_BW	0x0101
