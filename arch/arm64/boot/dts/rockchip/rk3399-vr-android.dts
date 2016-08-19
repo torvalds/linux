@@ -225,6 +225,12 @@
 		BT,wake_host_irq = <&gpio0 4 GPIO_ACTIVE_HIGH>; /* GPIO0_A4 */
 		status = "okay";
 	};
+
+	uboot-charge {
+		compatible = "rockchip,uboot-charge";
+		rockchip,uboot-charge-on = <0>;
+		rockchip,android-charge-on = <1>;
+	};
 };
 
 &cluster0_opp {
@@ -523,6 +529,7 @@
 		pinctrl-0 = <&pmic_int_l>;
 		rockchip,system-power-controller;
 		wakeup-source;
+		extcon = <&fusb0>;
 		#clock-cells = <1>;
 
 		vcc1-supply = <&vcc_sys>;
