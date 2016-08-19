@@ -1010,6 +1010,16 @@
 			#phy-cells = <0>;
 			status = "disabled";
 		};
+
+		pcie_phy: pcie-phy {
+			compatible = "rockchip,rk3399-pcie-phy";
+			clocks = <&cru SCLK_PCIEPHY_REF>;
+			clock-names = "refclk";
+			#phy-cells = <0>;
+			resets = <&cru SRST_PCIEPHY>;
+			reset-names = "phy";
+			status = "disabled";
+		};
 	};
 
 	watchdog@ff848000 {
