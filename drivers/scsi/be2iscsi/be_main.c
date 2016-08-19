@@ -5327,7 +5327,7 @@ static void beiscsi_remove(struct pci_dev *pcidev)
 		return;
 	}
 
-	beiscsi_destroy_def_ifaces(phba);
+	beiscsi_iface_destroy_default(phba);
 	iscsi_boot_destroy_kset(phba->boot_kset);
 	iscsi_host_remove(phba->shost);
 	beiscsi_quiesce(phba, BEISCSI_CLEAN_UNLOAD);
@@ -5777,7 +5777,7 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 			    "BM_%d : Could not set up "
 			    "iSCSI boot info.\n");
 
-	beiscsi_create_def_ifaces(phba);
+	beiscsi_iface_create_default(phba);
 	schedule_delayed_work(&phba->beiscsi_hw_check_task,
 			      msecs_to_jiffies(1000));
 
@@ -5828,9 +5828,9 @@ struct iscsi_transport beiscsi_iscsi_transport = {
 	.create_conn = beiscsi_conn_create,
 	.bind_conn = beiscsi_conn_bind,
 	.destroy_conn = iscsi_conn_teardown,
-	.attr_is_visible = be2iscsi_attr_is_visible,
-	.set_iface_param = be2iscsi_iface_set_param,
-	.get_iface_param = be2iscsi_iface_get_param,
+	.attr_is_visible = beiscsi_attr_is_visible,
+	.set_iface_param = beiscsi_iface_set_param,
+	.get_iface_param = beiscsi_iface_get_param,
 	.set_param = beiscsi_set_param,
 	.get_conn_param = iscsi_conn_get_param,
 	.get_session_param = iscsi_session_get_param,

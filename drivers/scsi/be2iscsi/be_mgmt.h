@@ -295,8 +295,8 @@ unsigned int mgmt_get_session_info(struct beiscsi_hba *phba,
 int mgmt_get_nic_conf(struct beiscsi_hba *phba,
 		      struct be_cmd_get_nic_conf_resp *mac);
 
-int mgmt_get_if_info(struct beiscsi_hba *phba, int ip_type,
-		     struct be_cmd_get_if_info_resp **if_info);
+int beiscsi_if_get_info(struct beiscsi_hba *phba, int ip_type,
+			struct be_cmd_get_if_info_resp **if_info);
 
 int beiscsi_if_get_gw(struct beiscsi_hba *phba, u32 ip_type,
 		      struct be_cmd_get_def_gateway_resp *resp);

@@ -1167,7 +1167,7 @@ int beiscsi_if_en_static(struct beiscsi_hba *phba, u32 ip_type,
 	struct be_dma_mem nonemb_cmd;
 	int rc;
 
-	rc = mgmt_get_if_info(phba, ip_type, &if_info);
+	rc = beiscsi_if_get_info(phba, ip_type, &if_info);
 	if (rc)
 		return rc;
 
@@ -1212,7 +1212,7 @@ int beiscsi_if_en_dhcp(struct beiscsi_hba *phba, u32 ip_type)
 	u8 *gw;
 	int rc;
 
-	rc = mgmt_get_if_info(phba, ip_type, &if_info);
+	rc = beiscsi_if_get_info(phba, ip_type, &if_info);
 	if (rc)
 		return rc;
 
@@ -1299,8 +1299,8 @@ int beiscsi_if_set_vlan(struct beiscsi_hba *phba, uint16_t vlan_tag)
 }
 
 
-int mgmt_get_if_info(struct beiscsi_hba *phba, int ip_type,
-		     struct be_cmd_get_if_info_resp **if_info)
+int beiscsi_if_get_info(struct beiscsi_hba *phba, int ip_type,
+			struct be_cmd_get_if_info_resp **if_info)
 {
 	struct be_cmd_get_if_info_req *req;
 	struct be_dma_mem nonemb_cmd;

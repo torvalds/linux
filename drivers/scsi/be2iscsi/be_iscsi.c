@@ -237,7 +237,7 @@ int beiscsi_conn_bind(struct iscsi_cls_session *cls_session,
 	return beiscsi_bindconn_cid(phba, beiscsi_conn, beiscsi_ep->ep_cid);
 }
 
-static int beiscsi_create_ipv4_iface(struct beiscsi_hba *phba)
+static int beiscsi_iface_create_ipv4(struct beiscsi_hba *phba)
 {
 	if (phba->ipv4_iface)
 		return 0;
@@ -256,7 +256,7 @@ static int beiscsi_create_ipv4_iface(struct beiscsi_hba *phba)
 	return 0;
 }
 
-static int beiscsi_create_ipv6_iface(struct beiscsi_hba *phba)
+static int beiscsi_iface_create_ipv6(struct beiscsi_hba *phba)
 {
 	if (phba->ipv6_iface)
 		return 0;
@@ -275,22 +275,22 @@ static int beiscsi_create_ipv6_iface(struct beiscsi_hba *phba)
 	return 0;
 }
 
-void beiscsi_create_def_ifaces(struct beiscsi_hba *phba)
+void beiscsi_iface_create_default(struct beiscsi_hba *phba)
 {
 	struct be_cmd_get_if_info_resp *if_info;
 
-	if (!mgmt_get_if_info(phba, BE2_IPV4, &if_info)) {
-		beiscsi_create_ipv4_iface(phba);
+	if (!beiscsi_if_get_info(phba, BE2_IPV4, &if_info)) {
+		beiscsi_iface_create_ipv4(phba);
 		kfree(if_info);
 	}
 
-	if (!mgmt_get_if_info(phba, BE2_IPV6, &if_info)) {
-		beiscsi_create_ipv6_iface(phba);
+	if (!beiscsi_if_get_info(phba, BE2_IPV6, &if_info)) {
+		beiscsi_iface_create_ipv6(phba);
 		kfree(if_info);
 	}
 }
 
-void beiscsi_destroy_def_ifaces(struct beiscsi_hba *phba)
+void beiscsi_iface_destroy_default(struct beiscsi_hba *phba)
 {
 	if (phba->ipv6_iface) {
 		iscsi_destroy_iface(phba->ipv6_iface);
@@ -350,7 +350,7 @@ beiscsi_iface_config_ipv4(struct Scsi_Host *shost,
 	switch (info->param) {
 	case ISCSI_NET_PARAM_IFACE_ENABLE:
 		if (info->value[0] == ISCSI_IFACE_ENABLE)
-			ret = beiscsi_create_ipv4_iface(phba);
+			ret = beiscsi_iface_create_ipv4(phba);
 		else {
 			iscsi_destroy_iface(phba->ipv4_iface);
 			phba->ipv4_iface = NULL;
@@ -409,7 +409,7 @@ beiscsi_iface_config_ipv6(struct Scsi_Host *shost,
 	switch (iface_param->param) {
 	case ISCSI_NET_PARAM_IFACE_ENABLE:
 		if (iface_param->value[0] == ISCSI_IFACE_ENABLE)
-			ret = beiscsi_create_ipv6_iface(phba);
+			ret = beiscsi_iface_create_ipv6(phba);
 		else {
 			iscsi_destroy_iface(phba->ipv6_iface);
 			phba->ipv6_iface = NULL;
@@ -424,8 +424,8 @@ beiscsi_iface_config_ipv6(struct Scsi_Host *shost,
 	return ret;
 }
 
-int be2iscsi_iface_set_param(struct Scsi_Host *shost,
-		void *data, uint32_t dt_len)
+int beiscsi_iface_set_param(struct Scsi_Host *shost,
+			    void *data, uint32_t dt_len)
 {
 	struct iscsi_iface_param_info *iface_param = NULL;
 	struct beiscsi_hba *phba = iscsi_host_priv(shost);
@@ -506,9 +506,9 @@ int be2iscsi_iface_set_param(struct Scsi_Host *shost,
 	return ret;
 }
 
-static int be2iscsi_get_if_param(struct beiscsi_hba *phba,
-		struct iscsi_iface *iface, int param,
-		char *buf)
+static int __beiscsi_iface_get_param(struct beiscsi_hba *phba,
+				     struct iscsi_iface *iface,
+				     int param, char *buf)
 {
 	struct be_cmd_get_if_info_resp *if_info;
 	int len, ip_type = BE2_IPV4;
@@ -516,7 +516,7 @@ static int be2iscsi_get_if_param(struct beiscsi_hba *phba,
 	if (iface->iface_type == ISCSI_IFACE_TYPE_IPV6)
 		ip_type = BE2_IPV6;
 
-	len = mgmt_get_if_info(phba, ip_type, &if_info);
+	len = beiscsi_if_get_info(phba, ip_type, &if_info);
 	if (len)
 		return len;
 
@@ -565,9 +565,9 @@ static int be2iscsi_get_if_param(struct beiscsi_hba *phba,
 	return len;
 }
 
-int be2iscsi_iface_get_param(struct iscsi_iface *iface,
-		enum iscsi_param_type param_type,
-		int param, char *buf)
+int beiscsi_iface_get_param(struct iscsi_iface *iface,
+			    enum iscsi_param_type param_type,
+			    int param, char *buf)
 {
 	struct Scsi_Host *shost = iscsi_iface_to_shost(iface);
 	struct beiscsi_hba *phba = iscsi_host_priv(shost);
@@ -588,7 +588,7 @@ int be2iscsi_iface_get_param(struct iscsi_iface *iface,
 	case ISCSI_NET_PARAM_VLAN_ENABLED:
 	case ISCSI_NET_PARAM_VLAN_ID:
 	case ISCSI_NET_PARAM_VLAN_PRIORITY:
-		len = be2iscsi_get_if_param(phba, iface, param, buf);
+		len = __beiscsi_iface_get_param(phba, iface, param, buf);
 		break;
 	case ISCSI_NET_PARAM_IFACE_ENABLE:
 		if (iface->iface_type == ISCSI_IFACE_TYPE_IPV4)
@@ -1360,7 +1360,7 @@ free_ep:
 	iscsi_destroy_endpoint(beiscsi_ep->openiscsi_ep);
 }
 
-umode_t be2iscsi_attr_is_visible(int param_type, int param)
+umode_t beiscsi_attr_is_visible(int param_type, int param)
 {
 	switch (param_type) {
 	case ISCSI_NET_PARAM:
