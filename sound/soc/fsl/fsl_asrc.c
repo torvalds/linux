@@ -933,8 +933,6 @@ static int fsl_asrc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	dev_info(&pdev->dev, "driver registered\n");
-
 	return 0;
 }
 
