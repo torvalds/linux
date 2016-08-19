@@ -130,7 +130,7 @@ static int aim_open(struct inode *inode, struct file *filp)
 	if (!c->dev) {
 		pr_info("WARN: Device is destroyed\n");
 		mutex_unlock(&c->io_mutex);
-		return -EBUSY;
+		return -ENODEV;
 	}
 
 	if (c->access_ref) {
@@ -201,7 +201,7 @@ static ssize_t aim_write(struct file *filp, const char __user *buf,
 	}
 
 	if (unlikely(!c->dev)) {
-		ret = -EPIPE;
+		ret = -ENODEV;
 		goto unlock;
 	}
 
@@ -256,7 +256,7 @@ aim_read(struct file *filp, char __user *buf, size_t count, loff_t *offset)
 	/* make sure we don't submit to gone devices */
 	if (unlikely(!c->dev)) {
 		mutex_unlock(&c->io_mutex);
-		return -EIO;
+		return -ENODEV;
 	}
 
 	to_copy = min_t(size_t,
@@ -366,7 +366,7 @@ static int aim_rx_completion(struct mbo *mbo)
 	spin_lock(&c->unlink);
 	if (!c->access_ref || !c->dev) {
 		spin_unlock(&c->unlink);
-		return -EFAULT;
+		return -ENODEV;
 	}
 	kfifo_in(&c->fifo, &mbo, 1);
 	spin_unlock(&c->unlink);
@@ -499,6 +499,8 @@ static struct most_aim cdev_aim = {
 
 static int __init mod_init(void)
 {
+	int err;
+
 	pr_info("init()\n");
 
 	INIT_LIST_HEAD(&channel_list);
@@ -506,16 +508,17 @@ static int __init mod_init(void)
 	ida_init(&minor_id);
 
 	if (alloc_chrdev_region(&aim_devno, 0, 50, "cdev") < 0)
-		return -EIO;
+		return -ENOMEM;
 	major = MAJOR(aim_devno);
 
 	aim_class = class_create(THIS_MODULE, "most_cdev_aim");
 	if (IS_ERR(aim_class)) {
 		pr_err("no udev support\n");
+		err = PTR_ERR(aim_class);
 		goto free_cdev;
 	}
-
-	if (most_register_aim(&cdev_aim))
+	err = most_register_aim(&cdev_aim);
+	if (err)
 		goto dest_class;
 	return 0;
 
@@ -523,7 +526,7 @@ dest_class:
 	class_destroy(aim_class);
 free_cdev:
 	unregister_chrdev_region(aim_devno, 1);
-	return -EIO;
+	return err;
 }
 
 static void __exit mod_exit(void)
