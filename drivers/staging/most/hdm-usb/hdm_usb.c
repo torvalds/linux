@@ -190,8 +190,10 @@ static inline int drci_wr_reg(struct usb_device *dev, u16 reg, u16 data)
  * free_anchored_buffers - free device's anchored items
  * @mdev: the device
  * @channel: channel ID
+ * @status: status of MBO termination
  */
-static void free_anchored_buffers(struct most_dev *mdev, unsigned int channel)
+static void free_anchored_buffers(struct most_dev *mdev, unsigned int channel,
+				  enum mbo_status_flags status)
 {
 	struct mbo *mbo;
 	struct buf_anchor *anchor, *tmp;
@@ -212,7 +214,7 @@ static void free_anchored_buffers(struct most_dev *mdev, unsigned int channel)
 				wait_for_completion(&anchor->urb_compl);
 			}
 			if ((mbo) && (mbo->complete)) {
-				mbo->status = MBO_E_CLOSE;
+				mbo->status = status;
 				mbo->processed_length = 0;
 				mbo->complete(mbo);
 			}
@@ -288,7 +290,7 @@ static int hdm_poison_channel(struct most_interface *iface, int channel)
 	mdev->is_channel_healthy[channel] = false;
 
 	mutex_lock(&mdev->io_mutex);
-	free_anchored_buffers(mdev, channel);
+	free_anchored_buffers(mdev, channel, MBO_E_CLOSE);
 	if (mdev->padding_active[channel])
 		mdev->padding_active[channel] = false;
 
