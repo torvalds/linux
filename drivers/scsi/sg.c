@@ -884,8 +884,9 @@ sg_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 			return result;
 		if (val < 0)
 			return -EIO;
-		if (val >= MULDIV (INT_MAX, USER_HZ, HZ))
-		    val = MULDIV (INT_MAX, USER_HZ, HZ);
+		if (val >= MULDIV((s64)INT_MAX, USER_HZ, HZ))
+			val = min_t(s64, MULDIV((s64)INT_MAX, USER_HZ, HZ),
+				    INT_MAX);
 		sfp->timeout_user = val;
 		sfp->timeout = MULDIV (val, HZ, USER_HZ);
 
