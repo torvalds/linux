@@ -5947,7 +5947,7 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 	struct ieee80211_hw *hw;
 	struct usb_device *udev;
 	struct ieee80211_supported_band *sband;
-	int ret = 0;
+	int ret;
 	int untested = 1;
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
@@ -5995,6 +5995,7 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 	hw = ieee80211_alloc_hw(sizeof(struct rtl8xxxu_priv), &rtl8xxxu_ops);
 	if (!hw) {
 		ret = -ENOMEM;
+		priv = NULL;
 		goto exit;
 	}
 
@@ -6043,6 +6044,8 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 	}
 
 	ret = rtl8xxxu_init_device(hw);
+	if (ret)
+		goto exit;
 
 	hw->wiphy->max_scan_ssids = 1;
 	hw->wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
@@ -6093,9 +6096,20 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 		goto exit;
 	}
 
+	return 0;
+
 exit:
-	if (ret < 0)
-		usb_put_dev(udev);
+	usb_set_intfdata(interface, NULL);
+
+	if (priv) {
+		kfree(priv->fw_data);
+		mutex_destroy(&priv->usb_buf_mutex);
+		mutex_destroy(&priv->h2c_mutex);
+	}
+	usb_put_dev(udev);
+
+	ieee80211_free_hw(hw);
+
 	return ret;
 }
 
