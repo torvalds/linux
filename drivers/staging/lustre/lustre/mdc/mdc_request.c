@@ -1330,7 +1330,7 @@ static int mdc_read_page(struct obd_export *exp, struct md_op_data *op_data,
 	LASSERT(dir);
 	mapping = dir->i_mapping;
 
-	rc = mdc_intent_lock(exp, op_data, NULL, 0, &it, 0, &enq_req,
+	rc = mdc_intent_lock(exp, op_data, &it, &enq_req,
 			     cb_op->md_blocking_ast, 0);
 	if (enq_req)
 		ptlrpc_req_finished(enq_req);

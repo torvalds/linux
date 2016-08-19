@@ -387,7 +387,7 @@ static int ll_intent_file_open(struct dentry *de, void *lmm, int lmmsize,
 	struct dentry *parent = de->d_parent;
 	const char *name = NULL;
 	struct md_op_data *op_data;
-	struct ptlrpc_request *req;
+	struct ptlrpc_request *req = NULL;
 	int len = 0, rc;
 
 	LASSERT(parent);
@@ -407,9 +407,11 @@ static int ll_intent_file_open(struct dentry *de, void *lmm, int lmmsize,
 				      O_RDWR, LUSTRE_OPC_ANY, NULL);
 	if (IS_ERR(op_data))
 		return PTR_ERR(op_data);
+	op_data->op_data = lmm;
+	op_data->op_data_size = lmmsize;
 
-	rc = md_intent_lock(sbi->ll_md_exp, op_data, lmm, lmmsize, itp,
-			    0 /*unused */, &req, ll_md_blocking_ast, 0);
+	rc = md_intent_lock(sbi->ll_md_exp, op_data, itp, &req,
+			    &ll_md_blocking_ast, 0);
 	ll_finish_md_op_data(op_data);
 	if (rc == -ESTALE) {
 		/* reason for keep own exit path - don`t flood log
@@ -759,7 +761,7 @@ ll_lease_open(struct inode *inode, struct file *file, fmode_t fmode,
 	struct lookup_intent it = { .it_op = IT_OPEN };
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
 	struct md_op_data *op_data;
-	struct ptlrpc_request *req;
+	struct ptlrpc_request *req = NULL;
 	struct lustre_handle old_handle = { 0 };
 	struct obd_client_handle *och = NULL;
 	int rc;
@@ -826,8 +828,8 @@ ll_lease_open(struct inode *inode, struct file *file, fmode_t fmode,
 
 	it.it_flags = fmode | open_flags;
 	it.it_flags |= MDS_OPEN_LOCK | MDS_OPEN_BY_FID | MDS_OPEN_LEASE;
-	rc = md_intent_lock(sbi->ll_md_exp, op_data, NULL, 0, &it, 0, &req,
-			    ll_md_blocking_lease_ast,
+	rc = md_intent_lock(sbi->ll_md_exp, op_data, &it, &req,
+			    &ll_md_blocking_lease_ast,
 	/* LDLM_FL_NO_LRU: To not put the lease lock into LRU list, otherwise
 	 * it can be cancelled which may mislead applications that the lease is
 	 * broken;
@@ -835,7 +837,7 @@ ll_lease_open(struct inode *inode, struct file *file, fmode_t fmode,
 	 * open in ll_md_blocking_ast(). Otherwise as ll_md_blocking_lease_ast
 	 * doesn't deal with openhandle, so normal openhandle will be leaked.
 	 */
-				LDLM_FL_NO_LRU | LDLM_FL_EXCL);
+			    LDLM_FL_NO_LRU | LDLM_FL_EXCL);
 	ll_finish_md_op_data(op_data);
 	ptlrpc_req_finished(req);
 	if (rc < 0)
@@ -2806,8 +2808,8 @@ ll_file_flock(struct file *file, int cmd, struct file_lock *file_lock)
 	       PFID(ll_inode2fid(inode)), flock.l_flock.pid, flags,
 	       einfo.ei_mode, flock.l_flock.start, flock.l_flock.end);
 
-	rc = md_enqueue(sbi->ll_md_exp, &einfo, NULL,
-			op_data, &lockh, &flock, 0, NULL /* req */, flags);
+	rc = md_enqueue(sbi->ll_md_exp, &einfo, &flock, NULL, op_data, &lockh,
+			flags);
 
 	/* Restore the file lock type if not TEST lock. */
 	if (!(flags & LDLM_FL_TEST_LOCK))
@@ -2819,8 +2821,8 @@ ll_file_flock(struct file *file, int cmd, struct file_lock *file_lock)
 
 	if (rc2 && file_lock->fl_type != F_UNLCK) {
 		einfo.ei_mode = LCK_NL;
-		md_enqueue(sbi->ll_md_exp, &einfo, NULL,
-			   op_data, &lockh, &flock, 0, NULL /* req */, flags);
+		md_enqueue(sbi->ll_md_exp, &einfo, &flock, NULL, op_data,
+			   &lockh, flags);
 		rc = rc2;
 	}
 
@@ -3059,12 +3061,8 @@ static int __ll_inode_revalidate(struct dentry *dentry, __u64 ibits)
 		if (IS_ERR(op_data))
 			return PTR_ERR(op_data);
 
-		rc = md_intent_lock(exp, op_data, NULL, 0,
-				    /* we are not interested in name
-				     * based lookup
-				     */
-				    &oit, 0, &req,
-				    ll_md_blocking_ast, 0);
+		rc = md_intent_lock(exp, op_data, &oit, &req,
+				    &ll_md_blocking_ast, 0);
 		ll_finish_md_op_data(op_data);
 		if (rc < 0) {
 			rc = ll_inode_revalidate_fini(inode, rc);
@@ -3742,8 +3740,8 @@ int ll_layout_refresh(struct inode *inode, __u32 *gen)
 	struct ldlm_enqueue_info einfo = {
 		.ei_type = LDLM_IBITS,
 		.ei_mode = LCK_CR,
-		.ei_cb_bl = ll_md_blocking_ast,
-		.ei_cb_cp = ldlm_completion_ast,
+		.ei_cb_bl = &ll_md_blocking_ast,
+		.ei_cb_cp = &ldlm_completion_ast,
 	};
 	int rc;
 
@@ -3789,8 +3787,7 @@ again:
 			  ll_get_fsname(inode->i_sb, NULL, 0),
 			  PFID(&lli->lli_fid), inode);
 
-	rc = md_enqueue(sbi->ll_md_exp, &einfo, &it, op_data, &lockh,
-			NULL, 0, NULL, 0);
+	rc = md_enqueue(sbi->ll_md_exp, &einfo, NULL, &it, op_data, &lockh, 0);
 	ptlrpc_req_finished(it.it_request);
 	it.it_request = NULL;
 

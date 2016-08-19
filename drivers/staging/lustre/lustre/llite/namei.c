@@ -562,8 +562,8 @@ static struct dentry *ll_lookup_it(struct inode *parent, struct dentry *dentry,
 	if (!IS_POSIXACL(parent) || !exp_connect_umask(ll_i2mdexp(parent)))
 		it->it_create_mode &= ~current_umask();
 
-	rc = md_intent_lock(ll_i2mdexp(parent), op_data, NULL, 0, it,
-			    lookup_flags, &req, ll_md_blocking_ast, 0);
+	rc = md_intent_lock(ll_i2mdexp(parent), op_data, it, &req,
+			    &ll_md_blocking_ast, 0);
 	ll_finish_md_op_data(op_data);
 	if (rc < 0) {
 		retval = ERR_PTR(rc);
