@@ -660,7 +660,9 @@ _GLOBAL(kexec_sequence)
 	li	r6,1
 	stw	r6,kexec_flag-1b(5)
 
-#ifndef CONFIG_PPC_BOOK3E
+	cmpdi	r27,0
+	beq	1f
+
 	/* clear out hardware hash page table and tlb */
 #ifdef PPC64_ELF_ABI_v1
 	ld	r12,0(r27)		/* deref function descriptor */
@@ -669,7 +671,6 @@ _GLOBAL(kexec_sequence)
 #endif
 	mtctr	r12
 	bctrl				/* mmu_hash_ops.hpte_clear_all(void); */
-#endif /* !CONFIG_PPC_BOOK3E */
 
 /*
  *   kexec image calling is:
@@ -696,7 +697,7 @@ _GLOBAL(kexec_sequence)
  *    are the boot cpu ?????
  *    other device tree differences (prop sizes, va vs pa, etc)...
  */
-	mr	r3,r25	# my phys cpu
+1:	mr	r3,r25	# my phys cpu
 	mr	r4,r30	# start, aka phys mem offset
 	mtlr	4
 	li	r5,0
