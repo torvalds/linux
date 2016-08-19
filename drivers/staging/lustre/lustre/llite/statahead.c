@@ -1035,7 +1035,7 @@ static int ll_statahead_thread(void *arg)
 	struct ll_statahead_info *sai    = ll_sai_get(plli->lli_sai);
 	struct ptlrpc_thread     *thread = &sai->sai_thread;
 	struct ptlrpc_thread *agl_thread = &sai->sai_agl_thread;
-	struct page	      *page;
+	struct page	      *page = NULL;
 	__u64		     pos    = 0;
 	int		       first  = 0;
 	int		       rc     = 0;
@@ -1166,8 +1166,7 @@ interpret_it:
 					if (!list_empty(&sai->sai_entries_received))
 						goto interpret_it;
 
-					if (unlikely(
-						!thread_is_running(thread))) {
+					if (unlikely(!thread_is_running(thread))) {
 						ll_release_page(dir, page, false);
 						rc = 0;
 						goto out;
@@ -1182,10 +1181,10 @@ interpret_it:
 
 				goto keep_it;
 			}
-
 do_it:
 			ll_statahead_one(parent, name, namelen);
 		}
+
 		pos = le64_to_cpu(dp->ldp_hash_end);
 		if (pos == MDS_DIR_END_OFF) {
 			/*
@@ -1232,14 +1231,12 @@ do_it:
 			 * Normal case: continue to the next page.
 			 */
 			ll_release_page(dir, page,
-					le32_to_cpu(dp->ldp_flags) &
-					LDF_COLLIDE);
+					le32_to_cpu(dp->ldp_flags) & LDF_COLLIDE);
 			sai->sai_in_readpage = 1;
 			page = ll_get_dir_page(dir, op_data, pos, &chain);
 			sai->sai_in_readpage = 0;
 		}
 	}
-
 out:
 	ll_finish_md_op_data(op_data);
 	if (sai->sai_agl_valid) {
@@ -1455,7 +1452,6 @@ static int is_first_dirent(struct inode *dir, struct dentry *dentry)
 			page = ll_get_dir_page(dir, op_data, pos, &chain);
 		}
 	}
-
 out:
 	ll_dir_chain_fini(&chain);
 	ll_finish_md_op_data(op_data);
