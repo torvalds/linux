@@ -1336,6 +1336,10 @@ struct rtl8xxxu_fileops {
 				  u32 ramask, int sgi);
 	void (*report_connect) (struct rtl8xxxu_priv *priv,
 				u8 macid, bool connect);
+	void (*fill_txdesc) (struct ieee80211_hdr *hdr,
+			     struct rtl8xxxu_txdesc32 *tx_desc, u32 rate,
+			     u16 rate_flag, bool sgi, bool short_preamble,
+			     bool ampdu_enable);
 	int writeN_block_size;
 	int rx_agg_buf_size;
 	char tx_desc_size;
@@ -1429,6 +1433,14 @@ int rtl8xxxu_parse_rxdesc24(struct rtl8xxxu_priv *priv, struct sk_buff *skb);
 int rtl8xxxu_gen2_channel_to_group(int channel);
 bool rtl8xxxu_gen2_simularity_compare(struct rtl8xxxu_priv *priv,
 				      int result[][8], int c1, int c2);
+void rtl8xxxu_fill_txdesc_v1(struct ieee80211_hdr *hdr,
+			     struct rtl8xxxu_txdesc32 *tx_desc, u32 rate,
+			     u16 rate_flag, bool sgi, bool short_preamble,
+			     bool ampdu_enable);
+void rtl8xxxu_fill_txdesc_v2(struct ieee80211_hdr *hdr,
+			     struct rtl8xxxu_txdesc32 *tx_desc32, u32 rate,
+			     u16 rate_flag, bool sgi, bool short_preamble,
+			     bool ampdu_enable);
 
 extern struct rtl8xxxu_fileops rtl8192cu_fops;
 extern struct rtl8xxxu_fileops rtl8192eu_fops;

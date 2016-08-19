@@ -4750,6 +4750,113 @@ static void rtl8xxxu_dump_action(struct device *dev,
 	}
 }
 
+/*
+ * Fill in v1 (gen1) specific TX descriptor bits.
+ * This format is used on 8188cu/8192cu/8723au
+ */
+void
+rtl8xxxu_fill_txdesc_v1(struct ieee80211_hdr *hdr,
+			struct rtl8xxxu_txdesc32 *tx_desc, u32 rate,
+			u16 rate_flag, bool sgi, bool short_preamble,
+			bool ampdu_enable)
+{
+	u16 seq_number;
+
+	seq_number = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
+
+	tx_desc->txdw5 = cpu_to_le32(rate);
+
+	if (ieee80211_is_data(hdr->frame_control))
+		tx_desc->txdw5 |= cpu_to_le32(0x0001ff00);
+
+	tx_desc->txdw3 = cpu_to_le32((u32)seq_number << TXDESC32_SEQ_SHIFT);
+
+	if (ampdu_enable)
+		tx_desc->txdw1 |= cpu_to_le32(TXDESC32_AGG_ENABLE);
+	else
+		tx_desc->txdw1 |= cpu_to_le32(TXDESC32_AGG_BREAK);
+
+	if (ieee80211_is_mgmt(hdr->frame_control)) {
+		tx_desc->txdw5 = cpu_to_le32(rate);
+		tx_desc->txdw4 |= cpu_to_le32(TXDESC32_USE_DRIVER_RATE);
+		tx_desc->txdw5 |= cpu_to_le32(6 << TXDESC32_RETRY_LIMIT_SHIFT);
+		tx_desc->txdw5 |= cpu_to_le32(TXDESC32_RETRY_LIMIT_ENABLE);
+	}
+
+	if (ieee80211_is_data_qos(hdr->frame_control))
+		tx_desc->txdw4 |= cpu_to_le32(TXDESC32_QOS);
+
+	if (short_preamble)
+		tx_desc->txdw4 |= cpu_to_le32(TXDESC32_SHORT_PREAMBLE);
+
+	if (sgi)
+		tx_desc->txdw5 |= cpu_to_le32(TXDESC32_SHORT_GI);
+
+	if (rate_flag & IEEE80211_TX_RC_USE_RTS_CTS) {
+		/*
+		 * Use RTS rate 24M - does the mac80211 tell
+		 * us which to use?
+		 */
+		tx_desc->txdw4 |= cpu_to_le32(DESC_RATE_24M <<
+					      TXDESC32_RTS_RATE_SHIFT);
+		tx_desc->txdw4 |= cpu_to_le32(TXDESC32_RTS_CTS_ENABLE);
+		tx_desc->txdw4 |= cpu_to_le32(TXDESC32_HW_RTS_ENABLE);
+	}
+}
+
+/*
+ * Fill in v2 (gen2) specific TX descriptor bits.
+ * This format is used on 8192eu/8723bu
+ */
+void
+rtl8xxxu_fill_txdesc_v2(struct ieee80211_hdr *hdr,
+			struct rtl8xxxu_txdesc32 *tx_desc32, u32 rate,
+			u16 rate_flag, bool sgi, bool short_preamble,
+			bool ampdu_enable)
+{
+	struct rtl8xxxu_txdesc40 *tx_desc40;
+	u16 seq_number;
+
+	tx_desc40 = (struct rtl8xxxu_txdesc40 *)tx_desc32;
+
+	seq_number = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
+
+	tx_desc40->txdw4 = cpu_to_le32(rate);
+	if (ieee80211_is_data(hdr->frame_control)) {
+		tx_desc40->txdw4 |= cpu_to_le32(0x1f <<
+						TXDESC40_DATA_RATE_FB_SHIFT);
+	}
+
+	tx_desc40->txdw9 = cpu_to_le32((u32)seq_number << TXDESC40_SEQ_SHIFT);
+
+	if (ampdu_enable)
+		tx_desc40->txdw2 |= cpu_to_le32(TXDESC40_AGG_ENABLE);
+	else
+		tx_desc40->txdw2 |= cpu_to_le32(TXDESC40_AGG_BREAK);
+
+	if (ieee80211_is_mgmt(hdr->frame_control)) {
+		tx_desc40->txdw4 = cpu_to_le32(rate);
+		tx_desc40->txdw3 |= cpu_to_le32(TXDESC40_USE_DRIVER_RATE);
+		tx_desc40->txdw4 |=
+			cpu_to_le32(6 << TXDESC40_RETRY_LIMIT_SHIFT);
+		tx_desc40->txdw4 |= cpu_to_le32(TXDESC40_RETRY_LIMIT_ENABLE);
+	}
+
+	if (short_preamble)
+		tx_desc40->txdw5 |= cpu_to_le32(TXDESC40_SHORT_PREAMBLE);
+
+	if (rate_flag & IEEE80211_TX_RC_USE_RTS_CTS) {
+		/*
+		 * Use RTS rate 24M - does the mac80211 tell
+		 * us which to use?
+		 */
+		tx_desc40->txdw4 |= cpu_to_le32(DESC_RATE_24M <<
+						TXDESC40_RTS_RATE_SHIFT);
+		tx_desc40->txdw3 |= cpu_to_le32(TXDESC40_RTS_CTS_ENABLE);
+		tx_desc40->txdw3 |= cpu_to_le32(TXDESC40_HW_RTS_ENABLE);
+	}
+}
+
 static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 			struct ieee80211_tx_control *control,
 			struct sk_buff *skb)
@@ -4759,7 +4866,6 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 	struct ieee80211_rate *tx_rate = ieee80211_get_tx_rate(hw, tx_info);
 	struct rtl8xxxu_priv *priv = hw->priv;
 	struct rtl8xxxu_txdesc32 *tx_desc;
-	struct rtl8xxxu_txdesc40 *tx_desc40;
 	struct rtl8xxxu_tx_urb *tx_urb;
 	struct ieee80211_sta *sta = NULL;
 	struct ieee80211_vif *vif = tx_info->control.vif;
@@ -4865,95 +4971,9 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 		short_preamble = true;
 
 	seq_number = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
-	if (!usedesc40) {
-		tx_desc->txdw5 = cpu_to_le32(rate);
 
-		if (ieee80211_is_data(hdr->frame_control))
-			tx_desc->txdw5 |= cpu_to_le32(0x0001ff00);
-
-		tx_desc->txdw3 =
-			cpu_to_le32((u32)seq_number << TXDESC32_SEQ_SHIFT);
-
-		if (ampdu_enable)
-			tx_desc->txdw1 |= cpu_to_le32(TXDESC32_AGG_ENABLE);
-		else
-			tx_desc->txdw1 |= cpu_to_le32(TXDESC32_AGG_BREAK);
-
-		if (ieee80211_is_mgmt(hdr->frame_control)) {
-			tx_desc->txdw5 = cpu_to_le32(rate);
-			tx_desc->txdw4 |=
-				cpu_to_le32(TXDESC32_USE_DRIVER_RATE);
-			tx_desc->txdw5 |=
-				cpu_to_le32(6 << TXDESC32_RETRY_LIMIT_SHIFT);
-			tx_desc->txdw5 |=
-				cpu_to_le32(TXDESC32_RETRY_LIMIT_ENABLE);
-		}
-
-		if (ieee80211_is_data_qos(hdr->frame_control))
-			tx_desc->txdw4 |= cpu_to_le32(TXDESC32_QOS);
-
-		if (short_preamble)
-			tx_desc->txdw4 |= cpu_to_le32(TXDESC32_SHORT_PREAMBLE);
-
-		if (sgi)
-			tx_desc->txdw5 |= cpu_to_le32(TXDESC32_SHORT_GI);
-
-		if (rate_flag & IEEE80211_TX_RC_USE_RTS_CTS) {
-			/*
-			 * Use RTS rate 24M - does the mac80211 tell
-			 * us which to use?
-			 */
-			tx_desc->txdw4 |=
-				cpu_to_le32(DESC_RATE_24M <<
-					    TXDESC32_RTS_RATE_SHIFT);
-			tx_desc->txdw4 |=
-				cpu_to_le32(TXDESC32_RTS_CTS_ENABLE);
-			tx_desc->txdw4 |= cpu_to_le32(TXDESC32_HW_RTS_ENABLE);
-		}
-	} else {
-		tx_desc40 = (struct rtl8xxxu_txdesc40 *)tx_desc;
-
-		tx_desc40->txdw4 = cpu_to_le32(rate);
-		if (ieee80211_is_data(hdr->frame_control)) {
-			tx_desc->txdw4 |=
-				cpu_to_le32(0x1f <<
-					    TXDESC40_DATA_RATE_FB_SHIFT);
-		}
-
-		tx_desc40->txdw9 =
-			cpu_to_le32((u32)seq_number << TXDESC40_SEQ_SHIFT);
-
-		if (ampdu_enable)
-			tx_desc40->txdw2 |= cpu_to_le32(TXDESC40_AGG_ENABLE);
-		else
-			tx_desc40->txdw2 |= cpu_to_le32(TXDESC40_AGG_BREAK);
-
-		if (ieee80211_is_mgmt(hdr->frame_control)) {
-			tx_desc40->txdw4 = cpu_to_le32(rate);
-			tx_desc40->txdw3 |=
-				cpu_to_le32(TXDESC40_USE_DRIVER_RATE);
-			tx_desc40->txdw4 |=
-				cpu_to_le32(6 << TXDESC40_RETRY_LIMIT_SHIFT);
-			tx_desc40->txdw4 |=
-				cpu_to_le32(TXDESC40_RETRY_LIMIT_ENABLE);
-		}
-
-		if (short_preamble)
-			tx_desc40->txdw5 |=
-				cpu_to_le32(TXDESC40_SHORT_PREAMBLE);
-
-		if (rate_flag & IEEE80211_TX_RC_USE_RTS_CTS) {
-			/*
-			 * Use RTS rate 24M - does the mac80211 tell
-			 * us which to use?
-			 */
-			tx_desc->txdw4 |=
-				cpu_to_le32(DESC_RATE_24M <<
-					    TXDESC40_RTS_RATE_SHIFT);
-			tx_desc->txdw3 |= cpu_to_le32(TXDESC40_RTS_CTS_ENABLE);
-			tx_desc->txdw3 |= cpu_to_le32(TXDESC40_HW_RTS_ENABLE);
-		}
-	}
+	priv->fops->fill_txdesc(hdr, tx_desc, rate, rate_flag,
+				sgi, short_preamble, ampdu_enable);
 
 	rtl8xxxu_calc_tx_desc_csum(tx_desc);
 
