@@ -126,8 +126,6 @@ print_context_stack_bp(struct task_struct *task,
 			break;
 
 		real_addr = ftrace_graph_ret_addr(task, graph, addr, retp);
-		if (real_addr != addr && ops->address(data, addr, 0))
-			break;
 		if (ops->address(data, real_addr, 1))
 			break;
 
