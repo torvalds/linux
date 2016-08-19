@@ -125,6 +125,8 @@ static unsigned long clk_36864_get_rate(struct clk *clk)
 }
 
 static struct clkops clk_36864_ops = {
+	.enable		= clk_cpu_enable,
+	.disable	= clk_cpu_disable,
 	.get_rate	= clk_36864_get_rate,
 };
 
