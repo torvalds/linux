@@ -26,7 +26,6 @@
 
 #include <mach/jornada720.h>
 #include <mach/hardware.h>
-#include <mach/irqs.h>
 
 MODULE_AUTHOR("Kristoffer Ericson <Kristoffer.Ericson@gmail.com>");
 MODULE_DESCRIPTION("HP Jornada 710/720/728 keyboard driver");
@@ -97,7 +96,11 @@ static int jornada720_kbd_probe(struct platform_device *pdev)
 {
 	struct jornadakbd *jornadakbd;
 	struct input_dev *input_dev;
-	int i, err;
+	int i, err, irq;
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq <= 0)
+		return irq < 0 ? irq : -EINVAL;
 
 	jornadakbd = devm_kzalloc(&pdev->dev, sizeof(*jornadakbd), GFP_KERNEL);
 	input_dev = devm_input_allocate_device(&pdev->dev);
@@ -125,10 +128,10 @@ static int jornada720_kbd_probe(struct platform_device *pdev)
 
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
 
-	err = devm_request_irq(&pdev->dev, IRQ_GPIO0, jornada720_kbd_interrupt,
+	err = devm_request_irq(&pdev->dev, irq, jornada720_kbd_interrupt,
 			       IRQF_TRIGGER_FALLING, "jornadakbd", pdev);
 	if (err) {
-		printk(KERN_INFO "jornadakbd720_kbd: Unable to grab IRQ\n");
+		dev_err(&pdev->dev, "unable to grab IRQ%d: %d\n", irq, err);
 		return err;
 	}
 

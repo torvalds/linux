@@ -217,9 +217,15 @@ static struct platform_device jornada_ssp_device = {
 	.id             = -1,
 };
 
+static struct resource jornada_kbd_resources[] = {
+	DEFINE_RES_IRQ(IRQ_GPIO0),
+};
+
 static struct platform_device jornada_kbd_device = {
 	.name		= "jornada720_kbd",
 	.id		= -1,
+	.num_resources	= ARRAY_SIZE(jornada_kbd_resources),
+	.resource	= jornada_kbd_resources,
 };
 
 static struct platform_device jornada_ts_device = {
