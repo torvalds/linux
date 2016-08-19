@@ -798,6 +798,9 @@ struct ftrace_ret_stack {
 #ifdef HAVE_FUNCTION_GRAPH_FP_TEST
 	unsigned long fp;
 #endif
+#ifdef HAVE_FUNCTION_GRAPH_RET_ADDR_PTR
+	unsigned long *retp;
+#endif
 };
 
 /*
@@ -809,7 +812,7 @@ extern void return_to_handler(void);
 
 extern int
 ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth,
-			 unsigned long frame_pointer);
+			 unsigned long frame_pointer, unsigned long *retp);
 
 /*
  * Sometimes we don't want to trace a function with the function
