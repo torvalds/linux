@@ -412,7 +412,6 @@ static void hdm_write_completion(struct urb *urb)
 			dev_warn(dev, "Broken OUT pipe detected\n");
 			mdev->is_channel_healthy[channel] = false;
 			spin_unlock_irqrestore(lock, flags);
-			mbo->status = MBO_E_INVAL;
 			mdev->clear_work[channel].pipe = urb->pipe;
 			schedule_work(&mdev->clear_work[channel].ws);
 			return;
@@ -570,7 +569,6 @@ static void hdm_read_completion(struct urb *urb)
 			dev_warn(dev, "Broken IN pipe detected\n");
 			mdev->is_channel_healthy[channel] = false;
 			spin_unlock_irqrestore(lock, flags);
-			mbo->status = MBO_E_INVAL;
 			mdev->clear_work[channel].pipe = urb->pipe;
 			schedule_work(&mdev->clear_work[channel].ws);
 			return;
