@@ -47,6 +47,7 @@
 #include "dce/dce_10_0_sh_mask.h"
 #include "polaris10_pwrvirus.h"
 #include "smu7_ppsmc.h"
+#include "smu7_smumgr.h"
 
 #define POLARIS10_SMC_SIZE 0x20000
 #define VOLTAGE_VID_OFFSET_SCALE1   625
@@ -230,7 +231,7 @@ static int polaris10_populate_dw8(struct pp_hwmgr *hwmgr, uint32_t fuse_table_of
 	const struct polaris10_pt_defaults *defaults = smu_data->power_tune_defaults;
 	uint32_t temp;
 
-	if (polaris10_read_smc_sram_dword(hwmgr->smumgr,
+	if (smu7_read_smc_sram_dword(hwmgr->smumgr,
 			fuse_table_offset +
 			offsetof(SMU74_Discrete_PmFuses, TdcWaterfallCtl),
 			(uint32_t *)&temp, SMC_RAM_END))
@@ -319,7 +320,7 @@ static int polaris10_populate_pm_fuses(struct pp_hwmgr *hwmgr)
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_PowerContainment)) {
-		if (polaris10_read_smc_sram_dword(hwmgr->smumgr,
+		if (smu7_read_smc_sram_dword(hwmgr->smumgr,
 				SMU7_FIRMWARE_HEADER_LOCATION +
 				offsetof(SMU74_Firmware_Header, PmFuseTable),
 				&pm_fuse_table_offset, SMC_RAM_END))
@@ -367,7 +368,7 @@ static int polaris10_populate_pm_fuses(struct pp_hwmgr *hwmgr)
 					"Attempt to populate BapmVddCBaseLeakage Hi and Lo "
 					"Sidd Failed!", return -EINVAL);
 
-		if (polaris10_copy_bytes_to_smc(hwmgr->smumgr, pm_fuse_table_offset,
+		if (smu7_copy_bytes_to_smc(hwmgr->smumgr, pm_fuse_table_offset,
 				(uint8_t *)&smu_data->power_tune_table,
 				(sizeof(struct SMU74_Discrete_PmFuses) - 92), SMC_RAM_END))
 			PP_ASSERT_WITH_CODE(false,
@@ -755,7 +756,7 @@ int polaris10_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 	struct phm_ppt_v1_pcie_table *pcie_table = table_info->pcie_table;
 	uint8_t pcie_entry_cnt = (uint8_t) hw_data->dpm_table.pcie_speed_table.count;
 	int result = 0;
-	uint32_t array = smu_data->dpm_table_start +
+	uint32_t array = smu_data->smu7_data.dpm_table_start +
 			offsetof(SMU74_Discrete_DpmTable, GraphicsLevel);
 	uint32_t array_size = sizeof(struct SMU74_Discrete_GraphicsLevel) *
 			SMU74_MAX_LEVELS_GRAPHICS;
@@ -833,7 +834,7 @@ int polaris10_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 		levels[1].pcieDpmLevel = mid_pcie_level_enabled;
 	}
 	/* level count will send to smc once at init smc table and never change */
-	result = polaris10_copy_bytes_to_smc(smumgr, array, (uint8_t *)levels,
+	result = smu7_copy_bytes_to_smc(smumgr, array, (uint8_t *)levels,
 			(uint32_t)array_size, SMC_RAM_END);
 
 	return result;
@@ -901,7 +902,7 @@ int polaris10_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 	struct smu7_dpm_table *dpm_table = &hw_data->dpm_table;
 	int result;
 	/* populate MCLK dpm table to SMU7 */
-	uint32_t array = smu_data->dpm_table_start +
+	uint32_t array = smu_data->smu7_data.dpm_table_start +
 			offsetof(SMU74_Discrete_DpmTable, MemoryLevel);
 	uint32_t array_size = sizeof(SMU74_Discrete_MemoryLevel) *
 			SMU74_MAX_LEVELS_MEMORY;
@@ -938,7 +939,7 @@ int polaris10_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 			phm_get_dpm_level_enable_mask_value(&dpm_table->mclk_table);
 
 	/* level count will send to smc once at init smc table and never change */
-	result = polaris10_copy_bytes_to_smc(hwmgr->smumgr, array, (uint8_t *)levels,
+	result = smu7_copy_bytes_to_smc(hwmgr->smumgr, array, (uint8_t *)levels,
 			(uint32_t)array_size, SMC_RAM_END);
 
 	return result;
@@ -1216,9 +1217,9 @@ static int polaris10_program_memory_timing_parameters(struct pp_hwmgr *hwmgr)
 		}
 	}
 
-	result = polaris10_copy_bytes_to_smc(
+	result = smu7_copy_bytes_to_smc(
 			hwmgr->smumgr,
-			smu_data->arb_table_start,
+			smu_data->smu7_data.arb_table_start,
 			(uint8_t *)&arb_regs,
 			sizeof(SMU74_Discrete_MCArbDramTimingTable),
 			SMC_RAM_END);
@@ -1463,7 +1464,7 @@ static int polaris10_populate_vr_config(struct pp_hwmgr *hwmgr,
 	if (SMU7_VOLTAGE_CONTROL_BY_SVID2 == data->mvdd_control) {
 		config = VR_SVI2_PLANE_2;
 		table->VRConfig |= (config << VRCONF_MVDD_SHIFT);
-		cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, smu_data->soft_regs_start +
+		cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, smu_data->smu7_data.soft_regs_start +
 			offsetof(SMU74_SoftRegisters, AllowMvddSwitch), 0x1);
 	} else {
 		config = VR_STATIC_VOLTAGE;
@@ -1529,20 +1530,20 @@ static int polaris10_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 			AVFS_SclkOffset.Sclk_Offset[i] = PP_HOST_TO_SMC_US((uint16_t)(sclk_table->entries[i].sclk_offset) / 100);
 		}
 
-		result = polaris10_read_smc_sram_dword(smumgr,
+		result = smu7_read_smc_sram_dword(smumgr,
 				SMU7_FIRMWARE_HEADER_LOCATION + offsetof(SMU74_Firmware_Header, AvfsMeanNSigma),
 				&tmp, SMC_RAM_END);
 
-		polaris10_copy_bytes_to_smc(smumgr,
+		smu7_copy_bytes_to_smc(smumgr,
 					tmp,
 					(uint8_t *)&AVFS_meanNsigma,
 					sizeof(AVFS_meanNsigma_t),
 					SMC_RAM_END);
 
-		result = polaris10_read_smc_sram_dword(smumgr,
+		result = smu7_read_smc_sram_dword(smumgr,
 				SMU7_FIRMWARE_HEADER_LOCATION + offsetof(SMU74_Firmware_Header, AvfsSclkOffsetTable),
 				&tmp, SMC_RAM_END);
-		polaris10_copy_bytes_to_smc(smumgr,
+		smu7_copy_bytes_to_smc(smumgr,
 					tmp,
 					(uint8_t *)&AVFS_SclkOffset,
 					sizeof(AVFS_Sclk_Offset_t),
@@ -1578,8 +1579,8 @@ static int polaris10_init_arb_table_index(struct pp_smumgr *smumgr)
 	 * In reality this field should not be in that structure
 	 * but in a soft register.
 	 */
-	result = polaris10_read_smc_sram_dword(smumgr,
-			smu_data->arb_table_start, &tmp, SMC_RAM_END);
+	result = smu7_read_smc_sram_dword(smumgr,
+			smu_data->smu7_data.arb_table_start, &tmp, SMC_RAM_END);
 
 	if (result)
 		return result;
@@ -1587,8 +1588,8 @@ static int polaris10_init_arb_table_index(struct pp_smumgr *smumgr)
 	tmp &= 0x00FFFFFF;
 	tmp |= ((uint32_t)MC_CG_ARB_FREQ_F1) << 24;
 
-	return polaris10_write_smc_sram_dword(smumgr,
-			smu_data->arb_table_start, tmp, SMC_RAM_END);
+	return smu7_write_smc_sram_dword(smumgr,
+			smu_data->smu7_data.arb_table_start, tmp, SMC_RAM_END);
 }
 
 static void polaris10_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
@@ -1811,8 +1812,8 @@ int polaris10_init_smc_table(struct pp_hwmgr *hwmgr)
 	CONVERT_FROM_HOST_TO_SMC_US(table->PhaseResponseTime);
 
 	/* Upload all dpm data to SMC memory.(dpm level, dpm level count etc) */
-	result = polaris10_copy_bytes_to_smc(hwmgr->smumgr,
-			smu_data->dpm_table_start +
+	result = smu7_copy_bytes_to_smc(hwmgr->smumgr,
+			smu_data->smu7_data.dpm_table_start +
 			offsetof(SMU74_Discrete_DpmTable, SystemFlags),
 			(uint8_t *)&(table->SystemFlags),
 			sizeof(SMU74_Discrete_DpmTable) - 3 * sizeof(SMU74_PIDController),
@@ -1884,7 +1885,7 @@ int polaris10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 	int res;
 	uint64_t tmp64;
 
-	if (smu_data->fan_table_start == 0) {
+	if (smu_data->smu7_data.fan_table_start == 0) {
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_MicrocodeFanControl);
 		return 0;
@@ -1950,7 +1951,7 @@ int polaris10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 			hwmgr->device, CGS_IND_REG__SMC,
 			CG_MULT_THERMAL_CTRL, TEMP_SEL);
 
-	res = polaris10_copy_bytes_to_smc(hwmgr->smumgr, smu_data->fan_table_start,
+	res = smu7_copy_bytes_to_smc(hwmgr->smumgr, smu_data->smu7_data.fan_table_start,
 			(uint8_t *)&fan_table, (uint32_t)sizeof(fan_table),
 			SMC_RAM_END);
 
@@ -1986,7 +1987,7 @@ static int polaris10_update_uvd_smc_table(struct pp_hwmgr *hwmgr)
 	if (table_info->mm_dep_table->count > 0)
 		smu_data->smc_state_table.UvdBootLevel =
 				(uint8_t) (table_info->mm_dep_table->count - 1);
-	mm_boot_level_offset = smu_data->dpm_table_start + offsetof(SMU74_Discrete_DpmTable,
+	mm_boot_level_offset = smu_data->smu7_data.dpm_table_start + offsetof(SMU74_Discrete_DpmTable,
 						UvdBootLevel);
 	mm_boot_level_offset /= 4;
 	mm_boot_level_offset *= 4;
@@ -2021,7 +2022,7 @@ static int polaris10_update_vce_smc_table(struct pp_hwmgr *hwmgr)
 	else
 		smu_data->smc_state_table.VceBootLevel = 0;
 
-	mm_boot_level_offset = smu_data->dpm_table_start +
+	mm_boot_level_offset = smu_data->smu7_data.dpm_table_start +
 					offsetof(SMU74_Discrete_DpmTable, VceBootLevel);
 	mm_boot_level_offset /= 4;
 	mm_boot_level_offset *= 4;
@@ -2046,7 +2047,7 @@ static int polaris10_update_samu_smc_table(struct pp_hwmgr *hwmgr)
 
 
 	smu_data->smc_state_table.SamuBootLevel = 0;
-	mm_boot_level_offset = smu_data->dpm_table_start +
+	mm_boot_level_offset = smu_data->smu7_data.dpm_table_start +
 				offsetof(SMU74_Discrete_DpmTable, SamuBootLevel);
 
 	mm_boot_level_offset /= 4;
@@ -2123,9 +2124,9 @@ int polaris10_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 
 		CONVERT_FROM_HOST_TO_SMC_UL(low_sclk_interrupt_threshold);
 
-		result = polaris10_copy_bytes_to_smc(
+		result = smu7_copy_bytes_to_smc(
 				hwmgr->smumgr,
-				smu_data->dpm_table_start +
+				smu_data->smu7_data.dpm_table_start +
 				offsetof(SMU74_Discrete_DpmTable,
 					LowSclkInterruptThreshold),
 				(uint8_t *)&low_sclk_interrupt_threshold,
@@ -2158,6 +2159,8 @@ uint32_t polaris10_get_offsetof(uint32_t type, uint32_t member)
 			return offsetof(SMU74_SoftRegisters, PreVBlankGap);
 		case VBlankTimeout:
 			return offsetof(SMU74_SoftRegisters, VBlankTimeout);
+		case UcodeLoadStatus:
+			return offsetof(SMU74_SoftRegisters, UcodeLoadStatus);
 		}
 	case SMU_Discrete_DpmTable:
 		switch (member) {
@@ -2215,55 +2218,55 @@ int polaris10_process_firmware_header(struct pp_hwmgr *hwmgr)
 	int result;
 	bool error = false;
 
-	result = polaris10_read_smc_sram_dword(hwmgr->smumgr,
+	result = smu7_read_smc_sram_dword(hwmgr->smumgr,
 			SMU7_FIRMWARE_HEADER_LOCATION +
 			offsetof(SMU74_Firmware_Header, DpmTable),
 			&tmp, SMC_RAM_END);
 
 	if (0 == result)
-		smu_data->dpm_table_start = tmp;
+		smu_data->smu7_data.dpm_table_start = tmp;
 
 	error |= (0 != result);
 
-	result = polaris10_read_smc_sram_dword(hwmgr->smumgr,
+	result = smu7_read_smc_sram_dword(hwmgr->smumgr,
 			SMU7_FIRMWARE_HEADER_LOCATION +
 			offsetof(SMU74_Firmware_Header, SoftRegisters),
 			&tmp, SMC_RAM_END);
 
 	if (!result)
-		smu_data->soft_regs_start = tmp;
+		smu_data->smu7_data.soft_regs_start = tmp;
 
 	error |= (0 != result);
 
-	result = polaris10_read_smc_sram_dword(hwmgr->smumgr,
+	result = smu7_read_smc_sram_dword(hwmgr->smumgr,
 			SMU7_FIRMWARE_HEADER_LOCATION +
 			offsetof(SMU74_Firmware_Header, mcRegisterTable),
 			&tmp, SMC_RAM_END);
 
 	if (!result)
-		smu_data->mc_reg_table_start = tmp;
+		smu_data->smu7_data.mc_reg_table_start = tmp;
 
-	result = polaris10_read_smc_sram_dword(hwmgr->smumgr,
+	result = smu7_read_smc_sram_dword(hwmgr->smumgr,
 			SMU7_FIRMWARE_HEADER_LOCATION +
 			offsetof(SMU74_Firmware_Header, FanTable),
 			&tmp, SMC_RAM_END);
 
 	if (!result)
-		smu_data->fan_table_start = tmp;
+		smu_data->smu7_data.fan_table_start = tmp;
 
 	error |= (0 != result);
 
-	result = polaris10_read_smc_sram_dword(hwmgr->smumgr,
+	result = smu7_read_smc_sram_dword(hwmgr->smumgr,
 			SMU7_FIRMWARE_HEADER_LOCATION +
 			offsetof(SMU74_Firmware_Header, mcArbDramTimingTable),
 			&tmp, SMC_RAM_END);
 
 	if (!result)
-		smu_data->arb_table_start = tmp;
+		smu_data->smu7_data.arb_table_start = tmp;
 
 	error |= (0 != result);
 
-	result = polaris10_read_smc_sram_dword(hwmgr->smumgr,
+	result = smu7_read_smc_sram_dword(hwmgr->smumgr,
 			SMU7_FIRMWARE_HEADER_LOCATION +
 			offsetof(SMU74_Firmware_Header, Version),
 			&tmp, SMC_RAM_END);
