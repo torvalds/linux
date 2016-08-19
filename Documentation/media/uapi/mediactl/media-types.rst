@@ -5,8 +5,11 @@
 Types and flags used to represent the media graph elements
 ==========================================================
 
+..  tabularcolumns:: |p{8.0cm}|p{10.5cm}|
 
 .. _media-entity-type:
+
+.. cssclass:: longtable
 
 .. flat-table:: Media entity types
     :header-rows:  0
@@ -15,10 +18,12 @@ Types and flags used to represent the media graph elements
 
     -  .. row 1
 
-       ..  _MEDIA-ENT-F-UNKNOWN:
+       .. _MEDIA-ENT-F-UNKNOWN:
        .. _MEDIA-ENT-F-V4L2-SUBDEV-UNKNOWN:
 
-       -  ``MEDIA_ENT_F_UNKNOWN`` and ``MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN``
+       -  ``MEDIA_ENT_F_UNKNOWN`` and
+
+	  ``MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN``
 
        -  Unknown entity. That generally indicates that a driver didn't
 	  initialize properly the entity, with is a Kernel bug
@@ -294,6 +299,8 @@ Types and flags used to represent the media graph elements
 	  its source pad.
 
 
+..  tabularcolumns:: |p{5.5cm}|p{12.0cm}|
+
 .. _media-entity-flag:
 
 .. flat-table:: Media entity flags
@@ -319,6 +326,7 @@ Types and flags used to represent the media graph elements
        -  The entity represents a data conector
 
 
+..  tabularcolumns:: |p{6.5cm}|p{6.0cm}|p{5.0cm}|
 
 .. _media-intf-type:
 
@@ -508,6 +516,7 @@ Types and flags used to represent the media graph elements
        -  typically, /dev/snd/timer
 
 
+.. tabularcolumns:: |p{5.5cm}|p{12.0cm}|
 
 .. _media-pad-flag:
 
@@ -551,6 +560,7 @@ Types and flags used to represent the media graph elements
 One and only one of ``MEDIA_PAD_FL_SINK`` and ``MEDIA_PAD_FL_SOURCE``
 must be set for every pad.
 
+.. tabularcolumns:: |p{5.5cm}|p{12.0cm}|
 
 .. _media-link-flag:
 
