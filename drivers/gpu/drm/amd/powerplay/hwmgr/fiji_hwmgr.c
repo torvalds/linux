@@ -45,8 +45,8 @@
 #include "dce/dce_10_0_sh_mask.h"
 #include "pppcielanes.h"
 #include "fiji_hwmgr.h"
-#include "tonga_processpptables.h"
-#include "tonga_pptable.h"
+#include "process_pptables_v1_0.h"
+#include "pptable_v1_0.h"
 #include "pp_debug.h"
 #include "pp_acpi.h"
 #include "amd_pcie_helpers.h"
@@ -4007,7 +4007,7 @@ static int fiji_get_pp_table_entry(struct pp_hwmgr *hwmgr,
 
 	ps = (struct fiji_power_state *)(&state->hardware);
 
-	result = tonga_get_powerplay_table_entry(hwmgr, entry_index, state,
+	result = get_powerplay_table_entry_v1_0(hwmgr, entry_index, state,
 			fiji_get_pp_table_entry_callback_func);
 
 	/* This is the earliest time we have all the dependency table and the VBIOS boot state
@@ -5553,7 +5553,7 @@ static const struct pp_hwmgr_func fiji_hwmgr_funcs = {
 	.dynamic_state_management_enable = &fiji_enable_dpm_tasks,
 	.dynamic_state_management_disable = &fiji_disable_dpm_tasks,
 	.force_dpm_level = &fiji_dpm_force_dpm_level,
-	.get_num_of_pp_table_entries = &tonga_get_number_of_powerplay_table_entries,
+	.get_num_of_pp_table_entries = &get_number_of_powerplay_table_entries_v1_0,
 	.get_power_state_size = &fiji_get_power_state_size,
 	.get_pp_table_entry = &fiji_get_pp_table_entry,
 	.patch_boot_state = &fiji_patch_boot_state,
@@ -5595,7 +5595,7 @@ static const struct pp_hwmgr_func fiji_hwmgr_funcs = {
 int fiji_hwmgr_init(struct pp_hwmgr *hwmgr)
 {
 	hwmgr->hwmgr_func = &fiji_hwmgr_funcs;
-	hwmgr->pptable_func = &tonga_pptable_funcs;
+	hwmgr->pptable_func = &pptable_v1_0_funcs;
 	pp_fiji_thermal_initialize(hwmgr);
 	return 0;
 }

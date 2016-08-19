@@ -30,8 +30,8 @@
 #include "tonga_hwmgr.h"
 #include "pptable.h"
 #include "processpptables.h"
-#include "tonga_processpptables.h"
-#include "tonga_pptable.h"
+#include "process_pptables_v1_0.h"
+#include "pptable_v1_0.h"
 #include "pp_debug.h"
 #include "tonga_ppsmc.h"
 #include "cgs_common.h"
@@ -5164,7 +5164,7 @@ static int tonga_get_pp_table_entry(struct pp_hwmgr *hwmgr,
 
 	tonga_ps = cast_phw_tonga_power_state(&(ps->hardware));
 
-	result = tonga_get_powerplay_table_entry(hwmgr, entry_index, ps,
+	result = get_powerplay_table_entry_v1_0(hwmgr, entry_index, ps,
 			tonga_get_pp_table_entry_callback_func);
 
 	/* This is the earliest time we have all the dependency table and the VBIOS boot state
@@ -6328,7 +6328,7 @@ static const struct pp_hwmgr_func tonga_hwmgr_funcs = {
 	.get_sclk = tonga_dpm_get_sclk,
 	.patch_boot_state = tonga_dpm_patch_boot_state,
 	.get_pp_table_entry = tonga_get_pp_table_entry,
-	.get_num_of_pp_table_entries = tonga_get_number_of_powerplay_table_entries,
+	.get_num_of_pp_table_entries = get_number_of_powerplay_table_entries_v1_0,
 	.print_current_perforce_level = tonga_print_current_perforce_level,
 	.powerdown_uvd = tonga_phm_powerdown_uvd,
 	.powergate_uvd = tonga_phm_powergate_uvd,
@@ -6364,7 +6364,7 @@ static const struct pp_hwmgr_func tonga_hwmgr_funcs = {
 int tonga_hwmgr_init(struct pp_hwmgr *hwmgr)
 {
 	hwmgr->hwmgr_func = &tonga_hwmgr_funcs;
-	hwmgr->pptable_func = &tonga_pptable_funcs;
+	hwmgr->pptable_func = &pptable_v1_0_funcs;
 	pp_tonga_thermal_initialize(hwmgr);
 	return 0;
 }

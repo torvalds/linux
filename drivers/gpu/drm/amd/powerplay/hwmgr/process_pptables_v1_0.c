@@ -24,13 +24,13 @@
 #include <linux/slab.h>
 #include <linux/fb.h>
 
-#include "tonga_processpptables.h"
+#include "process_pptables_v1_0.h"
 #include "ppatomctrl.h"
 #include "atombios.h"
 #include "pp_debug.h"
 #include "hwmgr.h"
 #include "cgs_common.h"
-#include "tonga_pptable.h"
+#include "pptable_v1_0.h"
 
 /**
  * Private Function used during initialization.
@@ -417,7 +417,7 @@ static int get_mclk_voltage_dependency_table(
 static int get_sclk_voltage_dependency_table(
 		struct pp_hwmgr *hwmgr,
 		phm_ppt_v1_clock_voltage_dependency_table **pp_tonga_sclk_dep_table,
-		const PPTable_Generic_SubTable_Header *sclk_dep_table
+		PPTable_Generic_SubTable_Header const  *sclk_dep_table
 		)
 {
 	uint32_t table_size, i;
@@ -1050,7 +1050,7 @@ static int check_powerplay_tables(
 	return 0;
 }
 
-int tonga_pp_tables_initialize(struct pp_hwmgr *hwmgr)
+int pp_tables_v1_0_initialize(struct pp_hwmgr *hwmgr)
 {
 	int result = 0;
 	const ATOM_Tonga_POWERPLAYTABLE *powerplay_table;
@@ -1101,7 +1101,7 @@ int tonga_pp_tables_initialize(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
-int tonga_pp_tables_uninitialize(struct pp_hwmgr *hwmgr)
+int pp_tables_v1_0_uninitialize(struct pp_hwmgr *hwmgr)
 {
 	struct phm_ppt_v1_information *pp_table_information =
 		(struct phm_ppt_v1_information *)(hwmgr->pptable);
@@ -1145,14 +1145,14 @@ int tonga_pp_tables_uninitialize(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-const struct pp_table_func tonga_pptable_funcs = {
-	.pptable_init = tonga_pp_tables_initialize,
-	.pptable_fini = tonga_pp_tables_uninitialize,
+const struct pp_table_func pptable_v1_0_funcs = {
+	.pptable_init = pp_tables_v1_0_initialize,
+	.pptable_fini = pp_tables_v1_0_uninitialize,
 };
 
-int tonga_get_number_of_powerplay_table_entries(struct pp_hwmgr *hwmgr)
+int get_number_of_powerplay_table_entries_v1_0(struct pp_hwmgr *hwmgr)
 {
-	const ATOM_Tonga_State_Array * state_arrays;
+	ATOM_Tonga_State_Array const *state_arrays;
 	const ATOM_Tonga_POWERPLAYTABLE *pp_table = get_powerplay_table(hwmgr);
 
 	PP_ASSERT_WITH_CODE((NULL != pp_table),
@@ -1272,7 +1272,7 @@ static int ppt_get_vce_state_table_entry_v1_0(struct pp_hwmgr *hwmgr, uint32_t i
 * @param power_state The address of the PowerState instance being created.
 * @return -1 if the entry cannot be retrieved.
 */
-int tonga_get_powerplay_table_entry(struct pp_hwmgr *hwmgr,
+int get_powerplay_table_entry_v1_0(struct pp_hwmgr *hwmgr,
 		uint32_t entry_index, struct pp_power_state *power_state,
 		int (*call_back_func)(struct pp_hwmgr *, void *,
 				struct pp_power_state *, void *, uint32_t))

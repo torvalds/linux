@@ -5,7 +5,7 @@
 HARDWARE_MGR = hwmgr.o processpptables.o functiontables.o \
 	       hardwaremanager.o pp_acpi.o cz_hwmgr.o \
                cz_clockpowergating.o tonga_powertune.o\
-	       tonga_processpptables.o ppatomctrl.o \
+	       process_pptables_v1_0.o ppatomctrl.o \
                tonga_hwmgr.o pppcielanes.o  tonga_thermal.o\
                fiji_powertune.o fiji_hwmgr.o tonga_clockpowergating.o \
                fiji_clockpowergating.o fiji_thermal.o \

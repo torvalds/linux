@@ -34,11 +34,11 @@
 #include "pp_debug.h"
 #include "ppatomctrl.h"
 #include "atombios.h"
-#include "tonga_pptable.h"
+#include "pptable_v1_0.h"
 #include "pppcielanes.h"
 #include "amd_pcie_helpers.h"
 #include "hardwaremanager.h"
-#include "tonga_processpptables.h"
+#include "process_pptables_v1_0.h"
 #include "cgs_common.h"
 #include "smu74.h"
 #include "smu_ucode_xfer_vi.h"
@@ -3893,7 +3893,7 @@ static int polaris10_get_pp_table_entry(struct pp_hwmgr *hwmgr,
 
 	ps = (struct polaris10_power_state *)(&state->hardware);
 
-	result = tonga_get_powerplay_table_entry(hwmgr, entry_index, state,
+	result = get_powerplay_table_entry_v1_0(hwmgr, entry_index, state,
 			polaris10_get_pp_table_entry_callback_func);
 
 	/* This is the earliest time we have all the dependency table and the VBIOS boot state
@@ -5246,7 +5246,7 @@ static const struct pp_hwmgr_func polaris10_hwmgr_funcs = {
 	.get_sclk = polaris10_dpm_get_sclk,
 	.patch_boot_state = polaris10_dpm_patch_boot_state,
 	.get_pp_table_entry = polaris10_get_pp_table_entry,
-	.get_num_of_pp_table_entries = tonga_get_number_of_powerplay_table_entries,
+	.get_num_of_pp_table_entries = get_number_of_powerplay_table_entries_v1_0,
 	.print_current_perforce_level = polaris10_print_current_perforce_level,
 	.powerdown_uvd = polaris10_phm_powerdown_uvd,
 	.powergate_uvd = polaris10_phm_powergate_uvd,
@@ -5283,7 +5283,7 @@ static const struct pp_hwmgr_func polaris10_hwmgr_funcs = {
 int polaris10_hwmgr_init(struct pp_hwmgr *hwmgr)
 {
 	hwmgr->hwmgr_func = &polaris10_hwmgr_funcs;
-	hwmgr->pptable_func = &tonga_pptable_funcs;
+	hwmgr->pptable_func = &pptable_v1_0_funcs;
 	pp_polaris10_thermal_initialize(hwmgr);
 
 	return 0;
