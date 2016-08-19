@@ -4000,10 +4000,9 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		priv->fops->usb_quirks(priv);
 
 		/*
-		 * Presumably this is for 8188EU as well
-		 * Enable TX report and TX report timer
+		 * Enable TX report and TX report timer for 8723bu/8188eu/...
 		 */
-		if (priv->rtl_chip == RTL8723B) {
+		if (priv->fops->has_tx_report) {
 			val8 = rtl8xxxu_read8(priv, REG_TX_REPORT_CTRL);
 			val8 |= TX_REPORT_CTRL_TIMER_ENABLE;
 			rtl8xxxu_write8(priv, REG_TX_REPORT_CTRL, val8);

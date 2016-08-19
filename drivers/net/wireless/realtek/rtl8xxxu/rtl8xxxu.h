@@ -1341,6 +1341,7 @@ struct rtl8xxxu_fileops {
 	char tx_desc_size;
 	char rx_desc_size;
 	char has_s0s1;
+	char has_tx_report;
 	u32 adda_1t_init;
 	u32 adda_1t_path_on;
 	u32 adda_2t_path_on_a;
