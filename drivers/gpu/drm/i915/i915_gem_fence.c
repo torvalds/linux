@@ -373,12 +373,16 @@ void i915_gem_restore_fences(struct drm_device *dev)
 
 	for (i = 0; i < dev_priv->num_fence_regs; i++) {
 		struct drm_i915_fence_reg *reg = &dev_priv->fence_regs[i];
+		struct i915_vma *vma = reg->vma;
 
 		/*
 		 * Commit delayed tiling changes if we have an object still
 		 * attached to the fence, otherwise just clear the fence.
 		 */
-		fence_write(reg, reg->vma);
+		if (vma && !i915_gem_object_is_tiled(vma->obj))
+			vma = NULL;
+
+		fence_update(reg, vma);
 	}
 }
 
