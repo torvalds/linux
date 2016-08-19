@@ -23,6 +23,7 @@
 #include "wmi.h"
 #include "hif.h"
 #include "hw.h"
+#include "core.h"
 
 #include "testmode_i.h"
 
@@ -240,6 +241,18 @@ static int ath10k_tm_cmd_utf_start(struct ath10k *ar, struct nlattr *tb[])
 		goto err;
 	}
 
+	if (ar->testmode.utf_mode_fw.fw_file.codeswap_data &&
+	    ar->testmode.utf_mode_fw.fw_file.codeswap_len) {
+		ret = ath10k_swap_code_seg_init(ar,
+						&ar->testmode.utf_mode_fw.fw_file);
+		if (ret) {
+			ath10k_warn(ar,
+				    "failed to init utf code swap segment: %d\n",
+				    ret);
+			goto err_release_utf_mode_fw;
+		}
+	}
+
 	spin_lock_bh(&ar->data_lock);
 	ar->testmode.utf_monitor = true;
 	spin_unlock_bh(&ar->data_lock);
@@ -279,6 +292,11 @@ err_power_down:
 	ath10k_hif_power_down(ar);
 
 err_release_utf_mode_fw:
+	if (ar->testmode.utf_mode_fw.fw_file.codeswap_data &&
+	    ar->testmode.utf_mode_fw.fw_file.codeswap_len)
+		ath10k_swap_code_seg_release(ar,
+					     &ar->testmode.utf_mode_fw.fw_file);
+
 	release_firmware(ar->testmode.utf_mode_fw.fw_file.firmware);
 	ar->testmode.utf_mode_fw.fw_file.firmware = NULL;
 
@@ -300,6 +318,11 @@ static void __ath10k_tm_cmd_utf_stop(struct ath10k *ar)
 	ar->testmode.utf_monitor = false;
 
 	spin_unlock_bh(&ar->data_lock);
+
+	if (ar->testmode.utf_mode_fw.fw_file.codeswap_data &&
+	    ar->testmode.utf_mode_fw.fw_file.codeswap_len)
+		ath10k_swap_code_seg_release(ar,
+					     &ar->testmode.utf_mode_fw.fw_file);
 
 	release_firmware(ar->testmode.utf_mode_fw.fw_file.firmware);
 	ar->testmode.utf_mode_fw.fw_file.firmware = NULL;
