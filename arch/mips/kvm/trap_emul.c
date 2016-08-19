@@ -12,6 +12,7 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/kvm_host.h>
+#include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 #include <asm/mmu_context.h>
 #include <asm/pgalloc.h>
@@ -798,6 +799,12 @@ static int kvm_trap_emul_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
 
 	kvm_trap_emul_vcpu_reenter(run, vcpu);
 
+	/*
+	 * We use user accessors to access guest memory, but we don't want to
+	 * invoke Linux page faulting.
+	 */
+	pagefault_disable();
+
 	/* Disable hardware page table walking while in guest */
 	htw_stop();
 
@@ -822,6 +829,8 @@ static int kvm_trap_emul_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	kvm_mips_resume_mm(cpu);
 
 	htw_start();
+
+	pagefault_enable();
 
 	return r;
 }

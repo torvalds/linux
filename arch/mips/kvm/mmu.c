@@ -11,6 +11,7 @@
 
 #include <linux/highmem.h>
 #include <linux/kvm_host.h>
+#include <linux/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/pgalloc.h>
 
@@ -132,34 +133,6 @@ static int kvm_mips_map_page(struct kvm *kvm, gfn_t gfn)
 out:
 	srcu_read_unlock(&kvm->srcu, srcu_idx);
 	return err;
-}
-
-/* Translate guest KSEG0 addresses to Host PA */
-unsigned long kvm_mips_translate_guest_kseg0_to_hpa(struct kvm_vcpu *vcpu,
-						    unsigned long gva)
-{
-	gfn_t gfn;
-	unsigned long offset = gva & ~PAGE_MASK;
-	struct kvm *kvm = vcpu->kvm;
-
-	if (KVM_GUEST_KSEGX(gva) != KVM_GUEST_KSEG0) {
-		kvm_err("%s/%p: Invalid gva: %#lx\n", __func__,
-			__builtin_return_address(0), gva);
-		return KVM_INVALID_PAGE;
-	}
-
-	gfn = (KVM_GUEST_CPHYSADDR(gva) >> PAGE_SHIFT);
-
-	if (gfn >= kvm->arch.guest_pmap_npages) {
-		kvm_err("%s: Invalid gfn: %#llx, GVA: %#lx\n", __func__, gfn,
-			gva);
-		return KVM_INVALID_PAGE;
-	}
-
-	if (kvm_mips_map_page(vcpu->kvm, gfn) < 0)
-		return KVM_INVALID_ADDR;
-
-	return (kvm->arch.guest_pmap[gfn] << PAGE_SHIFT) + offset;
 }
 
 static pte_t *kvm_trap_emul_pte_for_gva(struct kvm_vcpu *vcpu,
@@ -551,51 +524,11 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 
 u32 kvm_get_inst(u32 *opc, struct kvm_vcpu *vcpu)
 {
-	struct mips_coproc *cop0 = vcpu->arch.cop0;
-	unsigned long paddr, flags, vpn2, asid;
-	unsigned long va = (unsigned long)opc;
-	void *vaddr;
 	u32 inst;
-	int index;
+	int err;
 
-	if (KVM_GUEST_KSEGX(va) < KVM_GUEST_KSEG0 ||
-	    KVM_GUEST_KSEGX(va) == KVM_GUEST_KSEG23) {
-		local_irq_save(flags);
-		index = kvm_mips_host_tlb_lookup(vcpu, va);
-		if (index >= 0) {
-			inst = *(opc);
-		} else {
-			vpn2 = va & VPN2_MASK;
-			asid = kvm_read_c0_guest_entryhi(cop0) &
-						KVM_ENTRYHI_ASID;
-			index = kvm_mips_guest_tlb_lookup(vcpu, vpn2 | asid);
-			if (index < 0) {
-				kvm_err("%s: get_user_failed for %p, vcpu: %p, ASID: %#lx\n",
-					__func__, opc, vcpu, read_c0_entryhi());
-				kvm_mips_dump_host_tlbs();
-				kvm_mips_dump_guest_tlbs(vcpu);
-				local_irq_restore(flags);
-				return KVM_INVALID_INST;
-			}
-			if (kvm_mips_handle_mapped_seg_tlb_fault(vcpu,
-					&vcpu->arch.guest_tlb[index], va)) {
-				kvm_err("%s: handling mapped seg tlb fault failed for %p, index: %u, vcpu: %p, ASID: %#lx\n",
-					__func__, opc, index, vcpu,
-					read_c0_entryhi());
-				kvm_mips_dump_guest_tlbs(vcpu);
-				local_irq_restore(flags);
-				return KVM_INVALID_INST;
-			}
-			inst = *(opc);
-		}
-		local_irq_restore(flags);
-	} else if (KVM_GUEST_KSEGX(va) == KVM_GUEST_KSEG0) {
-		paddr = kvm_mips_translate_guest_kseg0_to_hpa(vcpu, va);
-		vaddr = kmap_atomic(pfn_to_page(PHYS_PFN(paddr)));
-		vaddr += paddr & ~PAGE_MASK;
-		inst = *(u32 *)vaddr;
-		kunmap_atomic(vaddr);
-	} else {
+	err = get_user(inst, opc);
+	if (unlikely(err)) {
 		kvm_err("%s: illegal address: %p\n", __func__, opc);
 		return KVM_INVALID_INST;
 	}
