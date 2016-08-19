@@ -41,7 +41,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 1
 #define DRV_VERSION_MINOR 6
-#define DRV_VERSION_BUILD 11
+#define DRV_VERSION_BUILD 12
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -527,6 +527,7 @@ void i40e_pf_reset_stats(struct i40e_pf *pf)
 			pf->veb[i]->stat_offsets_loaded = false;
 		}
 	}
+	pf->hw_csum_rx_error = 0;
 }
 
 /**
@@ -4616,7 +4617,7 @@ static u8 i40e_dcb_get_enabled_tc(struct i40e_dcbx_config *dcbcfg)
 static u8 i40e_pf_get_num_tc(struct i40e_pf *pf)
 {
 	struct i40e_hw *hw = &pf->hw;
-	u8 i, enabled_tc;
+	u8 i, enabled_tc = 1;
 	u8 num_tc = 0;
 	struct i40e_dcbx_config *dcbcfg = &hw->local_dcbx_config;
 
@@ -4634,8 +4635,6 @@ static u8 i40e_pf_get_num_tc(struct i40e_pf *pf)
 	else
 		return 1; /* Only TC0 */
 
-	/* At least have TC0 */
-	enabled_tc = (enabled_tc ? enabled_tc : 0x1);
 	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
 		if (enabled_tc & BIT(i))
 			num_tc++;
@@ -8692,6 +8691,28 @@ bool i40e_set_ntuple(struct i40e_pf *pf, netdev_features_t features)
 }
 
 /**
+ * i40e_clear_rss_lut - clear the rx hash lookup table
+ * @vsi: the VSI being configured
+ **/
+static void i40e_clear_rss_lut(struct i40e_vsi *vsi)
+{
+	struct i40e_pf *pf = vsi->back;
+	struct i40e_hw *hw = &pf->hw;
+	u16 vf_id = vsi->vf_id;
+	u8 i;
+
+	if (vsi->type == I40E_VSI_MAIN) {
+		for (i = 0; i <= I40E_PFQF_HLUT_MAX_INDEX; i++)
+			wr32(hw, I40E_PFQF_HLUT(i), 0);
+	} else if (vsi->type == I40E_VSI_SRIOV) {
+		for (i = 0; i <= I40E_VFQF_HLUT_MAX_INDEX; i++)
+			i40e_write_rx_ctl(hw, I40E_VFQF_HLUT1(i, vf_id), 0);
+	} else {
+		dev_err(&pf->pdev->dev, "Cannot set RSS LUT - invalid VSI type\n");
+	}
+}
+
+/**
  * i40e_set_features - set the netdev feature flags
  * @netdev: ptr to the netdev being adjusted
  * @features: the feature set that the stack is suggesting
@@ -8703,6 +8724,12 @@ static int i40e_set_features(struct net_device *netdev,
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
 	bool need_reset;
+
+	if (features & NETIF_F_RXHASH && !(netdev->features & NETIF_F_RXHASH))
+		i40e_pf_config_rss(pf);
+	else if (!(features & NETIF_F_RXHASH) &&
+		 netdev->features & NETIF_F_RXHASH)
+		i40e_clear_rss_lut(vsi);
 
 	if (features & NETIF_F_HW_VLAN_CTAG_RX)
 		i40e_vlan_stripping_enable(vsi);

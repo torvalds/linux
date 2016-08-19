@@ -541,6 +541,7 @@ void i40e_client_subtask(struct i40e_pf *pf)
 			 client->name, pf->hw.pf_id,
 			 pf->hw.bus.device, pf->hw.bus.func);
 
+		mutex_lock(&i40e_client_instance_mutex);
 		/* Send an Open request to the client */
 		atomic_inc(&cdev->ref_cnt);
 		if (client->ops && client->ops->open)
@@ -554,6 +555,7 @@ void i40e_client_subtask(struct i40e_pf *pf)
 			atomic_dec(&client->ref_cnt);
 			continue;
 		}
+		mutex_unlock(&i40e_client_instance_mutex);
 	}
 	mutex_unlock(&i40e_client_mutex);
 }
@@ -662,8 +664,7 @@ static int i40e_client_release(struct i40e_client *client)
 				 client->name, pf->hw.pf_id);
 		}
 		/* delete the client instance from the list */
-		list_del(&cdev->list);
-		list_add(&cdev->list, &cdevs_tmp);
+		list_move(&cdev->list, &cdevs_tmp);
 		atomic_dec(&client->ref_cnt);
 		dev_info(&pf->pdev->dev, "Deleted client instance of Client %s\n",
 			 client->name);
@@ -792,7 +793,8 @@ static int i40e_client_setup_qvlist(struct i40e_info *ldev,
 			wr32(hw, I40E_PFINT_AEQCTL, reg);
 		}
 	}
-
+	/* Mitigate sync problems with iwarp VF driver */
+	i40e_flush(hw);
 	return 0;
 err:
 	kfree(ldev->qvlist_info);
@@ -990,7 +992,6 @@ int i40e_unregister_client(struct i40e_client *client)
 	if (!i40e_client_is_registered(client)) {
 		pr_info("i40e: Client %s has not been registered\n",
 			client->name);
-		mutex_unlock(&i40e_client_mutex);
 		ret = -ENODEV;
 		goto out;
 	}
