@@ -87,12 +87,21 @@ print_context_stack(struct task_struct *task,
 				bp = (unsigned long) frame;
 			}
 
-			ops->address(data, addr, reliable);
-
+			/*
+			 * When function graph tracing is enabled for a
+			 * function, its return address on the stack is
+			 * replaced with the address of an ftrace handler
+			 * (return_to_handler).  In that case, before printing
+			 * the "real" address, we want to print the handler
+			 * address as an "unreliable" hint that function graph
+			 * tracing was involved.
+			 */
 			real_addr = ftrace_graph_ret_addr(task, graph, addr,
 							  stack);
 			if (real_addr != addr)
-				ops->address(data, real_addr, 1);
+				ops->address(data, addr, 0);
+
+			ops->address(data, real_addr, reliable);
 		}
 		stack++;
 	}
@@ -116,12 +125,11 @@ print_context_stack_bp(struct task_struct *task,
 		if (!__kernel_text_address(addr))
 			break;
 
-		if (ops->address(data, addr, 1))
-			break;
-
 		real_addr = ftrace_graph_ret_addr(task, graph, addr, retp);
-		if (real_addr != addr)
-			ops->address(data, real_addr, 1);
+		if (real_addr != addr && ops->address(data, addr, 0))
+			break;
+		if (ops->address(data, real_addr, 1))
+			break;
 
 		frame = frame->next_frame;
 		retp = &frame->return_address;
