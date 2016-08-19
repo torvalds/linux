@@ -3968,13 +3968,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		/*
 		 * Set TX buffer boundary
 		 */
-		if (priv->rtl_chip == RTL8192E)
-			val8 = TX_TOTAL_PAGE_NUM_8192E + 1;
-		else
-			val8 = TX_TOTAL_PAGE_NUM + 1;
-
-		if (priv->rtl_chip == RTL8723B)
-			val8 -= 1;
+		val8 = priv->fops->total_page_num + 1;
 
 		rtl8xxxu_write8(priv, REG_TXPKTBUF_BCNQ_BDNY, val8);
 		rtl8xxxu_write8(priv, REG_TXPKTBUF_MGQ_BDNY, val8);
