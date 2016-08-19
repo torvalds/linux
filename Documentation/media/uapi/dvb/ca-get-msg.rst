@@ -15,7 +15,7 @@ CA_GET_MSG
 Synopsis
 --------
 
-.. cpp:function:: int  ioctl(fd, int request = CA_GET_MSG, ca_msg_t *)
+.. c:function:: int  ioctl(fd, int request = CA_GET_MSG, ca_msg_t *)
 
 
 Arguments

@@ -15,7 +15,7 @@ AUDIO_SET_MIXER
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(int fd, int request = AUDIO_SET_MIXER, audio_mixer_t *mix)
+.. c:function:: int ioctl(int fd, int request = AUDIO_SET_MIXER, audio_mixer_t *mix)
 
 
 Arguments

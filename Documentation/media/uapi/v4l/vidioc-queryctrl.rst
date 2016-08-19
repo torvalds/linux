@@ -15,11 +15,11 @@ VIDIOC_QUERYCTRL - VIDIOC_QUERY_EXT_CTRL - VIDIOC_QUERYMENU - Enumerate controls
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_queryctrl *argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_queryctrl *argp )
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_query_ext_ctrl *argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_query_ext_ctrl *argp )
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_querymenu *argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_querymenu *argp )
 
 
 Arguments

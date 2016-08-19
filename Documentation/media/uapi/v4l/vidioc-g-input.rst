@@ -15,7 +15,7 @@ VIDIOC_G_INPUT - VIDIOC_S_INPUT - Query or select the current video input
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, int *argp )
+.. c:function:: int ioctl( int fd, int request, int *argp )
 
 
 Arguments

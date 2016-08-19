@@ -14,7 +14,7 @@ LIRC_GET_REC_RESOLUTION - Obtain the value of receive resolution, in microsecond
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, __u32 *microseconds)
+.. c:function:: int ioctl( int fd, int request, __u32 *microseconds)
 
 Arguments
 =========

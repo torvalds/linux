@@ -15,7 +15,7 @@ VIDIOC_SUBDEV_ENUM_MBUS_CODE - Enumerate media bus formats
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_subdev_mbus_code_enum * argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_subdev_mbus_code_enum * argp )
 
 
 Arguments

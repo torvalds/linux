@@ -15,7 +15,7 @@ AUDIO_SELECT_SOURCE
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(int fd, int request = AUDIO_SELECT_SOURCE, audio_stream_source_t source)
+.. c:function:: int ioctl(int fd, int request = AUDIO_SELECT_SOURCE, audio_stream_source_t source)
 
 
 Arguments

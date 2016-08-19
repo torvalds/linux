@@ -15,7 +15,7 @@ AUDIO_SET_MUTE
 Synopsis
 --------
 
-.. cpp:function:: int  ioctl(int fd, int request = AUDIO_SET_MUTE, boolean state)
+.. c:function:: int  ioctl(int fd, int request = AUDIO_SET_MUTE, boolean state)
 
 
 Arguments

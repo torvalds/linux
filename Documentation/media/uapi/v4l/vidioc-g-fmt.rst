@@ -15,7 +15,7 @@ VIDIOC_G_FMT - VIDIOC_S_FMT - VIDIOC_TRY_FMT - Get or set the data format, try a
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_format *argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_format *argp )
 
 
 Arguments

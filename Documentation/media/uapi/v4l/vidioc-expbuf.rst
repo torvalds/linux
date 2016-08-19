@@ -15,7 +15,7 @@ VIDIOC_EXPBUF - Export a buffer as a DMABUF file descriptor.
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_exportbuffer *argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_exportbuffer *argp )
 
 
 Arguments

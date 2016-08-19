@@ -121,7 +121,7 @@ triggered by a hardware interrupt, it is recommended to use the Linux
 bottom half mechanism or start a tasklet instead of making the callback
 function call directly from a hardware interrupt.
 
-This mechanism is implemented by :c:func:`dmx_ts_cb()` and :cpp:func:`dmx_section_cb()`
+This mechanism is implemented by :c:func:`dmx_ts_cb()` and :c:func:`dmx_section_cb()`
 callbacks.
 
 .. kernel-doc:: drivers/media/dvb-core/demux.h

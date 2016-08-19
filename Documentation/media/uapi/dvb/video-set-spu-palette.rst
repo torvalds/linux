@@ -15,7 +15,7 @@ VIDEO_SET_SPU_PALETTE
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(fd, int request = VIDEO_SET_SPU_PALETTE, video_spu_palette_t *palette )
+.. c:function:: int ioctl(fd, int request = VIDEO_SET_SPU_PALETTE, video_spu_palette_t *palette )
 
 
 Arguments

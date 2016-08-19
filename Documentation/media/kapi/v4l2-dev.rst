@@ -166,7 +166,7 @@ something.
 In the case of :ref:`videobuf2 <vb2_framework>` you will need to implement the
 ``wait_prepare()`` and ``wait_finish()`` callbacks to unlock/lock if applicable.
 If you use the ``queue->lock`` pointer, then you can use the helper functions
-:c:func:`vb2_ops_wait_prepare` and :cpp:func:`vb2_ops_wait_finish`.
+:c:func:`vb2_ops_wait_prepare` and :c:func:`vb2_ops_wait_finish`.
 
 The implementation of a hotplug disconnect should also take the lock from
 :c:type:`video_device` before calling v4l2_device_disconnect. If you are also
@@ -335,7 +335,7 @@ And this function:
 
 returns the video_device belonging to the file struct.
 
-The :c:func:`video_devdata` function combines :cpp:func:`video_get_drvdata`
+The :c:func:`video_devdata` function combines :c:func:`video_get_drvdata`
 with :c:func:`video_devdata`:
 
 	:c:func:`video_drvdata <video_drvdata>`

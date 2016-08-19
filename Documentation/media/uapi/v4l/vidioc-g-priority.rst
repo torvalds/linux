@@ -15,9 +15,9 @@ VIDIOC_G_PRIORITY - VIDIOC_S_PRIORITY - Query or request the access priority ass
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, enum v4l2_priority *argp )
+.. c:function:: int ioctl( int fd, int request, enum v4l2_priority *argp )
 
-.. cpp:function:: int ioctl( int fd, int request, const enum v4l2_priority *argp )
+.. c:function:: int ioctl( int fd, int request, const enum v4l2_priority *argp )
 
 
 Arguments

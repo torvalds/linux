@@ -15,9 +15,9 @@ VIDIOC_G_AUDOUT - VIDIOC_S_AUDOUT - Query or select the current audio output
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_audioout *argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_audioout *argp )
 
-.. cpp:function:: int ioctl( int fd, int request, const struct v4l2_audioout *argp )
+.. c:function:: int ioctl( int fd, int request, const struct v4l2_audioout *argp )
 
 
 Arguments

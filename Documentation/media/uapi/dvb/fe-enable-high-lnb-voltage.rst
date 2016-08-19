@@ -15,7 +15,7 @@ FE_ENABLE_HIGH_LNB_VOLTAGE - Select output DC level between normal LNBf voltages
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, unsigned int high )
+.. c:function:: int ioctl( int fd, int request, unsigned int high )
 
 
 Arguments

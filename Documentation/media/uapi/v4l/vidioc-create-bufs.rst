@@ -15,7 +15,7 @@ VIDIOC_CREATE_BUFS - Create buffers for Memory Mapped or User Pointer or DMA Buf
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_create_buffers *argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_create_buffers *argp )
 
 
 Arguments

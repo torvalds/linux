@@ -14,7 +14,7 @@ LIRC_GET_FEATURES - Get the underlying hardware device's features
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, __u32 *features)
+.. c:function:: int ioctl( int fd, int request, __u32 *features)
 
 Arguments
 =========

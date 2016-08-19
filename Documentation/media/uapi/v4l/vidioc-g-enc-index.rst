@@ -15,7 +15,7 @@ VIDIOC_G_ENC_INDEX - Get meta data about a compressed video stream
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_enc_idx *argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_enc_idx *argp )
 
 
 Arguments

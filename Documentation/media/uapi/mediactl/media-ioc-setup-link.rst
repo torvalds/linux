@@ -15,7 +15,7 @@ MEDIA_IOC_SETUP_LINK - Modify the properties of a link
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct media_link_desc *argp )
+.. c:function:: int ioctl( int fd, int request, struct media_link_desc *argp )
 
 
 Arguments

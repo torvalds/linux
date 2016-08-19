@@ -15,7 +15,7 @@ VIDIOC_SUBDEV_G_SELECTION - VIDIOC_SUBDEV_S_SELECTION - Get or set selection rec
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_subdev_selection *argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_subdev_selection *argp )
 
 
 Arguments

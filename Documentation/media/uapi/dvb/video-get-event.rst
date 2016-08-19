@@ -15,7 +15,7 @@ VIDEO_GET_EVENT
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(fd, int request = VIDEO_GET_EVENT, struct video_event *ev)
+.. c:function:: int ioctl(fd, int request = VIDEO_GET_EVENT, struct video_event *ev)
 
 
 Arguments

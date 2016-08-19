@@ -15,7 +15,7 @@ FE_SET_FRONTEND_TUNE_MODE - Allow setting tuner mode flags to the frontend.
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, unsigned int flags )
+.. c:function:: int ioctl( int fd, int request, unsigned int flags )
 
 
 Arguments

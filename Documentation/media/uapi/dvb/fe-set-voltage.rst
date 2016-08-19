@@ -15,7 +15,7 @@ FE_SET_VOLTAGE - Allow setting the DC level sent to the antenna subsystem.
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, enum fe_sec_voltage *voltage )
+.. c:function:: int ioctl( int fd, int request, enum fe_sec_voltage *voltage )
 
 
 Arguments

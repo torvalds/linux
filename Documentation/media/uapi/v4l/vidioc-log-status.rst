@@ -15,7 +15,7 @@ VIDIOC_LOG_STATUS - Log driver status information
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request )
+.. c:function:: int ioctl( int fd, int request )
 
 
 Arguments

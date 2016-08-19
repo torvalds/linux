@@ -15,7 +15,7 @@ VIDIOC_G_CTRL - VIDIOC_S_CTRL - Get or set the value of a control
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_control *argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_control *argp )
 
 
 Arguments

@@ -15,7 +15,7 @@ VIDIOC_ENUM_FREQ_BANDS - Enumerate supported frequency bands
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_frequency_band *argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_frequency_band *argp )
 
 
 Arguments

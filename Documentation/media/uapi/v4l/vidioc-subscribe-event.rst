@@ -16,7 +16,7 @@ VIDIOC_SUBSCRIBE_EVENT - VIDIOC_UNSUBSCRIBE_EVENT - Subscribe or unsubscribe eve
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_event_subscription *argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_event_subscription *argp )
 
 
 Arguments

@@ -15,7 +15,7 @@ VIDEO_FREEZE
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(fd, int request = VIDEO_FREEZE)
+.. c:function:: int ioctl(fd, int request = VIDEO_FREEZE)
 
 
 Arguments

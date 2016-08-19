@@ -15,7 +15,7 @@ NET_REMOVE_IF - Removes a network interface.
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, int ifnum )
+.. c:function:: int ioctl( int fd, int request, int ifnum )
 
 
 Arguments

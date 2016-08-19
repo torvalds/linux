@@ -15,7 +15,7 @@ DMX_SET_SOURCE
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(fd, int request = DMX_SET_SOURCE, dmx_source_t *)
+.. c:function:: int ioctl(fd, int request = DMX_SET_SOURCE, dmx_source_t *)
 
 
 Arguments

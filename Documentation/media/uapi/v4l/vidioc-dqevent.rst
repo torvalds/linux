@@ -15,7 +15,7 @@ VIDIOC_DQEVENT - Dequeue event
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_event *argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_event *argp )
 
 
 Arguments

@@ -15,7 +15,7 @@ DVB demux read()
 Synopsis
 --------
 
-.. cpp:function:: size_t read(int fd, void *buf, size_t count)
+.. c:function:: size_t read(int fd, void *buf, size_t count)
 
 
 Arguments

@@ -15,7 +15,7 @@ MEDIA_IOC_ENUM_ENTITIES - Enumerate entities and their properties
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct media_entity_desc *argp )
+.. c:function:: int ioctl( int fd, int request, struct media_entity_desc *argp )
 
 
 Arguments

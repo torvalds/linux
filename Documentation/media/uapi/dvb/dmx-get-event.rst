@@ -15,7 +15,7 @@ DMX_GET_EVENT
 Synopsis
 --------
 
-.. cpp:function:: int ioctl( int fd, int request = DMX_GET_EVENT, struct dmx_event *ev)
+.. c:function:: int ioctl( int fd, int request = DMX_GET_EVENT, struct dmx_event *ev)
 
 
 Arguments

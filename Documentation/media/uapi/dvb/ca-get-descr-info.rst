@@ -15,7 +15,7 @@ CA_GET_DESCR_INFO
 Synopsis
 --------
 
-.. cpp:function:: int  ioctl(fd, int request = CA_GET_DESCR_INFO, ca_descr_info_t *)
+.. c:function:: int  ioctl(fd, int request = CA_GET_DESCR_INFO, ca_descr_info_t *)
 
 
 Arguments

@@ -15,7 +15,7 @@ FE_SET_TONE - Sets/resets the generation of the continuous 22kHz tone.
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, enum fe_sec_tone_mode *tone )
+.. c:function:: int ioctl( int fd, int request, enum fe_sec_tone_mode *tone )
 
 
 Arguments

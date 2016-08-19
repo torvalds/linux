@@ -15,7 +15,7 @@ MEDIA_IOC_DEVICE_INFO - Query device information
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct media_device_info *argp )
+.. c:function:: int ioctl( int fd, int request, struct media_device_info *argp )
 
 
 Arguments

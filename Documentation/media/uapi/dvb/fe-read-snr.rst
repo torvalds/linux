@@ -15,7 +15,7 @@ FE_READ_SNR
 Synopsis
 ========
 
-.. cpp:function:: int  ioctl(int fd, int request = FE_READ_SNR, int16_t *snr)
+.. c:function:: int  ioctl(int fd, int request = FE_READ_SNR, int16_t *snr)
 
 
 Arguments

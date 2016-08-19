@@ -14,7 +14,7 @@ LIRC_SET_TRANSMITTER_MASK - Enables send codes on a given set of transmitters
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, __u32 *mask )
+.. c:function:: int ioctl( int fd, int request, __u32 *mask )
 
 Arguments
 =========

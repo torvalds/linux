@@ -15,7 +15,7 @@ VIDEO_SET_SPU
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(fd, int request = VIDEO_SET_SPU , video_spu_t *spu)
+.. c:function:: int ioctl(fd, int request = VIDEO_SET_SPU , video_spu_t *spu)
 
 
 Arguments

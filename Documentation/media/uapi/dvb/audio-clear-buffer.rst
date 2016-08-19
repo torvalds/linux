@@ -15,7 +15,7 @@ AUDIO_CLEAR_BUFFER
 Synopsis
 --------
 
-.. cpp:function:: int  ioctl(int fd, int request = AUDIO_CLEAR_BUFFER)
+.. c:function:: int  ioctl(int fd, int request = AUDIO_CLEAR_BUFFER)
 
 
 Arguments

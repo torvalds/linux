@@ -15,7 +15,7 @@ CA_SET_DESCR
 Synopsis
 --------
 
-.. cpp:function:: int  ioctl(fd, int request = CA_SET_DESCR, ca_descr_t *)
+.. c:function:: int  ioctl(fd, int request = CA_SET_DESCR, ca_descr_t *)
 
 
 Arguments

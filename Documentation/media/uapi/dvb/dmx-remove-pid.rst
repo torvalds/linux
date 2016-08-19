@@ -15,7 +15,7 @@ DMX_REMOVE_PID
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(fd, int request = DMX_REMOVE_PID, __u16 *)
+.. c:function:: int ioctl(fd, int request = DMX_REMOVE_PID, __u16 *)
 
 
 Arguments

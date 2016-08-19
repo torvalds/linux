@@ -15,7 +15,7 @@ FE_GET_EVENT
 Synopsis
 ========
 
-.. cpp:function:: int  ioctl(int fd, int request = QPSK_GET_EVENT, struct dvb_frontend_event *ev)
+.. c:function:: int  ioctl(int fd, int request = QPSK_GET_EVENT, struct dvb_frontend_event *ev)
 
 
 Arguments

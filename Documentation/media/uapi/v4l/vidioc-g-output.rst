@@ -15,7 +15,7 @@ VIDIOC_G_OUTPUT - VIDIOC_S_OUTPUT - Query or select the current video output
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, int *argp )
+.. c:function:: int ioctl( int fd, int request, int *argp )
 
 
 Arguments

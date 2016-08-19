@@ -15,7 +15,7 @@ VIDIOC_G_EXT_CTRLS - VIDIOC_S_EXT_CTRLS - VIDIOC_TRY_EXT_CTRLS - Get or set the 
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_ext_controls *argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_ext_controls *argp )
 
 
 Arguments

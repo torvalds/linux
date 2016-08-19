@@ -15,7 +15,7 @@ LIRC_SET_SEND_CARRIER - Set send carrier used to modulate IR TX.
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, __u32 *frequency )
+.. c:function:: int ioctl( int fd, int request, __u32 *frequency )
 
 Arguments
 =========

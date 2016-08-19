@@ -20,7 +20,7 @@ Synopsis
     #include <sys/poll.h>
 
 
-.. cpp:function:: int poll( struct pollfd *ufds, unsigned int nfds, int timeout )
+.. c:function:: int poll( struct pollfd *ufds, unsigned int nfds, int timeout )
 
 Arguments
 =========

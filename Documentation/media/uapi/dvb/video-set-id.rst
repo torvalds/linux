@@ -15,7 +15,7 @@ VIDEO_SET_ID
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(int fd, int request = VIDEO_SET_ID, int id)
+.. c:function:: int ioctl(int fd, int request = VIDEO_SET_ID, int id)
 
 
 Arguments

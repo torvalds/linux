@@ -15,7 +15,7 @@ VIDIOC_ENUM_FRAMESIZES - Enumerate frame sizes
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_frmsizeenum *argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_frmsizeenum *argp )
 
 
 Arguments

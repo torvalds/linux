@@ -15,7 +15,7 @@ VIDEO_SLOWMOTION
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(fd, int request = VIDEO_SLOWMOTION, int nFrames)
+.. c:function:: int ioctl(fd, int request = VIDEO_SLOWMOTION, int nFrames)
 
 
 Arguments

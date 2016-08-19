@@ -15,7 +15,7 @@ FE_DISEQC_SEND_MASTER_CMD - Sends a DiSEqC command
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct dvb_diseqc_master_cmd *argp )
+.. c:function:: int ioctl( int fd, int request, struct dvb_diseqc_master_cmd *argp )
 
 
 Arguments

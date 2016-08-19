@@ -27,7 +27,7 @@ methods.
 Bridges might also need to store per-subdev private data, such as a pointer to
 bridge-specific per-subdev private data. The :c:type:`v4l2_subdev` structure
 provides host private data for that purpose that can be accessed with
-:c:func:`v4l2_get_subdev_hostdata` and :cpp:func:`v4l2_set_subdev_hostdata`.
+:c:func:`v4l2_get_subdev_hostdata` and :c:func:`v4l2_set_subdev_hostdata`.
 
 From the bridge driver perspective, you load the sub-device module and somehow
 obtain the :c:type:`v4l2_subdev` pointer. For i2c devices this is easy: you call

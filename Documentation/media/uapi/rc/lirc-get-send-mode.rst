@@ -15,7 +15,7 @@ LIRC_GET_SEND_MODE/LIRC_SET_SEND_MODE - Get/set supported transmit mode.
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, __u32 *tx_modes )
+.. c:function:: int ioctl( int fd, int request, __u32 *tx_modes )
 
 Arguments
 =========

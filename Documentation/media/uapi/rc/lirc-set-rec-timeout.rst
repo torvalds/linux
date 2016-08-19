@@ -14,7 +14,7 @@ LIRC_SET_REC_TIMEOUT - sets the integer value for IR inactivity timeout.
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, __u32 *timeout )
+.. c:function:: int ioctl( int fd, int request, __u32 *timeout )
 
 Arguments
 =========

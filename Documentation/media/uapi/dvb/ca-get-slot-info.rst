@@ -15,7 +15,7 @@ CA_GET_SLOT_INFO
 Synopsis
 --------
 
-.. cpp:function:: int  ioctl(fd, int request = CA_GET_SLOT_INFO, ca_slot_info_t *)
+.. c:function:: int  ioctl(fd, int request = CA_GET_SLOT_INFO, ca_slot_info_t *)
 
 
 Arguments

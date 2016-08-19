@@ -15,7 +15,7 @@ VIDIOC_G_SLICED_VBI_CAP - Query sliced VBI capabilities
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_sliced_vbi_cap *argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_sliced_vbi_cap *argp )
 
 
 Arguments

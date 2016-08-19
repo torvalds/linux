@@ -15,7 +15,7 @@ VIDIOC_G_PARM - VIDIOC_S_PARM - Get or set streaming parameters
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, v4l2_streamparm *argp )
+.. c:function:: int ioctl( int fd, int request, v4l2_streamparm *argp )
 
 
 Arguments

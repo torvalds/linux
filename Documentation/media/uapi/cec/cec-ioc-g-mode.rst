@@ -13,7 +13,7 @@ CEC_G_MODE, CEC_S_MODE - Get or set exclusive use of the CEC adapter
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, __u32 *argp )
+.. c:function:: int ioctl( int fd, int request, __u32 *argp )
 
 Arguments
 =========

@@ -15,7 +15,7 @@ VIDEO_TRY_COMMAND
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(int fd, int request = VIDEO_TRY_COMMAND, struct video_command *cmd)
+.. c:function:: int ioctl(int fd, int request = VIDEO_TRY_COMMAND, struct video_command *cmd)
 
 
 Arguments

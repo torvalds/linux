@@ -14,7 +14,7 @@ LIRC_SET_REC_TIMEOUT_REPORTS - enable or disable timeout reports for IR receive
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, __u32 *enable )
+.. c:function:: int ioctl( int fd, int request, __u32 *enable )
 
 Arguments
 =========

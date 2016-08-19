@@ -15,7 +15,7 @@ NET_ADD_IF - Creates a new network interface for a given Packet ID.
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct dvb_net_if *net_if )
+.. c:function:: int ioctl( int fd, int request, struct dvb_net_if *net_if )
 
 
 Arguments

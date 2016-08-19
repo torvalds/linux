@@ -15,7 +15,7 @@ DMX_SET_PES_FILTER
 Synopsis
 --------
 
-.. cpp:function:: int ioctl( int fd, int request = DMX_SET_PES_FILTER, struct dmx_pes_filter_params *params)
+.. c:function:: int ioctl( int fd, int request = DMX_SET_PES_FILTER, struct dmx_pes_filter_params *params)
 
 
 Arguments

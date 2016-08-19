@@ -15,7 +15,7 @@ AUDIO_PLAY
 Synopsis
 --------
 
-.. cpp:function:: int  ioctl(int fd, int request = AUDIO_PLAY)
+.. c:function:: int  ioctl(int fd, int request = AUDIO_PLAY)
 
 
 Arguments

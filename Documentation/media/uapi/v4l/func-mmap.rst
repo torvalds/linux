@@ -21,7 +21,7 @@ Synopsis
     #include <sys/mman.h>
 
 
-.. cpp:function:: void *mmap( void *start, size_t length, int prot, int flags, int fd, off_t offset )
+.. c:function:: void *mmap( void *start, size_t length, int prot, int flags, int fd, off_t offset )
 
 
 Arguments

@@ -15,7 +15,7 @@ AUDIO_SET_STREAMTYPE
 Synopsis
 --------
 
-.. cpp:function:: int  ioctl(fd, int request = AUDIO_SET_STREAMTYPE, int type)
+.. c:function:: int  ioctl(fd, int request = AUDIO_SET_STREAMTYPE, int type)
 
 
 Arguments

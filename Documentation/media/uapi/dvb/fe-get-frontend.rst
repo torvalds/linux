@@ -15,7 +15,7 @@ FE_GET_FRONTEND
 Synopsis
 ========
 
-.. cpp:function:: int ioctl(int fd, int request = FE_GET_FRONTEND, struct dvb_frontend_parameters *p)
+.. c:function:: int ioctl(int fd, int request = FE_GET_FRONTEND, struct dvb_frontend_parameters *p)
 
 
 Arguments

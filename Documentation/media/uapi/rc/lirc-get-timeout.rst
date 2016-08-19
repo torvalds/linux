@@ -16,7 +16,7 @@ range for IR receive.
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, __u32 *timeout)
+.. c:function:: int ioctl( int fd, int request, __u32 *timeout)
 
 Arguments
 =========

@@ -15,7 +15,7 @@ VIDIOC_ENCODER_CMD - VIDIOC_TRY_ENCODER_CMD - Execute an encoder command
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_encoder_cmd *argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_encoder_cmd *argp )
 
 
 Arguments

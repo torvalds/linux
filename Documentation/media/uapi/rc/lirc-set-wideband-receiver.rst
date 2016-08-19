@@ -14,7 +14,7 @@ LIRC_SET_WIDEBAND_RECEIVER - enable wide band receiver.
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, __u32 *enable )
+.. c:function:: int ioctl( int fd, int request, __u32 *enable )
 
 Arguments
 =========

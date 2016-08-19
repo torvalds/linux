@@ -15,7 +15,7 @@ LIRC_GET_REC_MODE/LIRC_GET_REC_MODE - Get/set supported receive modes.
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, __u32 rx_modes)
+.. c:function:: int ioctl( int fd, int request, __u32 rx_modes)
 
 Arguments
 =========

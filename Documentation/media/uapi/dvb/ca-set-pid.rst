@@ -15,7 +15,7 @@ CA_SET_PID
 Synopsis
 --------
 
-.. cpp:function:: int  ioctl(fd, int request = CA_SET_PID, ca_pid_t *)
+.. c:function:: int  ioctl(fd, int request = CA_SET_PID, ca_pid_t *)
 
 
 Arguments

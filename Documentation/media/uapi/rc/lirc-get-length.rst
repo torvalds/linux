@@ -14,7 +14,7 @@ LIRC_GET_LENGTH - Retrieves the code length in bits.
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, __u32 *length )
+.. c:function:: int ioctl( int fd, int request, __u32 *length )
 
 Arguments
 =========

@@ -15,7 +15,7 @@ VIDEO_GET_SIZE
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(int fd, int request = VIDEO_GET_SIZE, video_size_t *size)
+.. c:function:: int ioctl(int fd, int request = VIDEO_GET_SIZE, video_size_t *size)
 
 
 Arguments

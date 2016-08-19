@@ -14,7 +14,7 @@ LIRC_SET_MEASURE_CARRIER_MODE - enable or disable measure mode
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, __u32 *enable )
+.. c:function:: int ioctl( int fd, int request, __u32 *enable )
 
 Arguments
 =========

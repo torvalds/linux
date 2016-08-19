@@ -15,7 +15,7 @@ CA_RESET
 Synopsis
 --------
 
-.. cpp:function:: int  ioctl(fd, int request = CA_RESET)
+.. c:function:: int  ioctl(fd, int request = CA_RESET)
 
 
 Arguments

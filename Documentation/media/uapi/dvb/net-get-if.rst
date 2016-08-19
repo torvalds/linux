@@ -15,7 +15,7 @@ NET_GET_IF - Read the configuration data of an interface created via - :ref:`NET
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct dvb_net_if *net_if )
+.. c:function:: int ioctl( int fd, int request, struct dvb_net_if *net_if )
 
 
 Arguments

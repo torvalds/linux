@@ -15,7 +15,7 @@ VIDIOC_S_HW_FREQ_SEEK - Perform a hardware frequency seek
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_hw_freq_seek *argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_hw_freq_seek *argp )
 
 
 Arguments

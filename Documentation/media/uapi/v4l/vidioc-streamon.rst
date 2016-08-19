@@ -15,7 +15,7 @@ VIDIOC_STREAMON - VIDIOC_STREAMOFF - Start or stop streaming I/O
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, const int *argp )
+.. c:function:: int ioctl( int fd, int request, const int *argp )
 
 
 Arguments

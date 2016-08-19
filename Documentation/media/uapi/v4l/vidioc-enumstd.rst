@@ -15,7 +15,7 @@ VIDIOC_ENUMSTD - Enumerate supported video standards
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_standard *argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_standard *argp )
 
 
 Arguments

@@ -15,7 +15,7 @@ VIDIOC_DV_TIMINGS_CAP - VIDIOC_SUBDEV_DV_TIMINGS_CAP - The capabilities of the D
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_dv_timings_cap *argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_dv_timings_cap *argp )
 
 
 Arguments

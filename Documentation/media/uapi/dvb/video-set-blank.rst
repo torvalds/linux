@@ -15,7 +15,7 @@ VIDEO_SET_BLANK
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(fd, int request = VIDEO_SET_BLANK, boolean mode)
+.. c:function:: int ioctl(fd, int request = VIDEO_SET_BLANK, boolean mode)
 
 
 Arguments

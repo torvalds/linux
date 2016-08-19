@@ -15,7 +15,7 @@ DVB audio close()
 Synopsis
 --------
 
-.. cpp:function:: int  close(int fd)
+.. c:function:: int  close(int fd)
 
 
 Arguments

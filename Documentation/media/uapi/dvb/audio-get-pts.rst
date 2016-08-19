@@ -15,7 +15,7 @@ AUDIO_GET_PTS
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(int fd, int request = AUDIO_GET_PTS, __u64 *pts)
+.. c:function:: int ioctl(int fd, int request = AUDIO_GET_PTS, __u64 *pts)
 
 
 Arguments

@@ -15,9 +15,9 @@ VIDIOC_G_JPEGCOMP - VIDIOC_S_JPEGCOMP
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, v4l2_jpegcompression *argp )
+.. c:function:: int ioctl( int fd, int request, v4l2_jpegcompression *argp )
 
-.. cpp:function:: int ioctl( int fd, int request, const v4l2_jpegcompression *argp )
+.. c:function:: int ioctl( int fd, int request, const v4l2_jpegcompression *argp )
 
 
 Arguments

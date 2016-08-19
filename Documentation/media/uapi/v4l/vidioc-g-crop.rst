@@ -15,9 +15,9 @@ VIDIOC_G_CROP - VIDIOC_S_CROP - Get or set the current cropping rectangle
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_crop *argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_crop *argp )
 
-.. cpp:function:: int ioctl( int fd, int request, const struct v4l2_crop *argp )
+.. c:function:: int ioctl( int fd, int request, const struct v4l2_crop *argp )
 
 
 Arguments

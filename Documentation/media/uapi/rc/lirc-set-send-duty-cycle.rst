@@ -15,7 +15,7 @@ IR transmit.
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, __u32 *duty_cycle)
+.. c:function:: int ioctl( int fd, int request, __u32 *duty_cycle)
 
 Arguments
 =========

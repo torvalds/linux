@@ -15,7 +15,7 @@ VIDIOC_SUBDEV_G_FRAME_INTERVAL - VIDIOC_SUBDEV_S_FRAME_INTERVAL - Get or set the
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_subdev_frame_interval *argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_subdev_frame_interval *argp )
 
 
 Arguments

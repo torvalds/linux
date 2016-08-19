@@ -15,7 +15,7 @@ VIDIOC_ENUMAUDOUT - Enumerate audio outputs
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_audioout *argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_audioout *argp )
 
 
 Arguments

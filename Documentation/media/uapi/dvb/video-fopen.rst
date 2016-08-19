@@ -15,7 +15,7 @@ dvb video open()
 Synopsis
 --------
 
-.. cpp:function:: int open(const char *deviceName, int flags)
+.. c:function:: int open(const char *deviceName, int flags)
 
 
 Arguments

@@ -15,7 +15,7 @@ AUDIO_PAUSE
 Synopsis
 --------
 
-.. cpp:function:: int  ioctl(int fd, int request = AUDIO_PAUSE)
+.. c:function:: int  ioctl(int fd, int request = AUDIO_PAUSE)
 
 
 Arguments

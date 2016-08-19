@@ -15,7 +15,7 @@ FE_GET_INFO - Query DVB frontend capabilities and returns information about the 
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct dvb_frontend_info *argp )
+.. c:function:: int ioctl( int fd, int request, struct dvb_frontend_info *argp )
 
 
 Arguments

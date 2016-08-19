@@ -15,7 +15,7 @@ VIDEO_SELECT_SOURCE
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(fd, int request = VIDEO_SELECT_SOURCE, video_stream_source_t source)
+.. c:function:: int ioctl(fd, int request = VIDEO_SELECT_SOURCE, video_stream_source_t source)
 
 
 Arguments

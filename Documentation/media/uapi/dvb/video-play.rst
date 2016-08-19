@@ -15,7 +15,7 @@ VIDEO_PLAY
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(fd, int request = VIDEO_PLAY)
+.. c:function:: int ioctl(fd, int request = VIDEO_PLAY)
 
 
 Arguments

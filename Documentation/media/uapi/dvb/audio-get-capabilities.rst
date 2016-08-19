@@ -15,7 +15,7 @@ AUDIO_GET_CAPABILITIES
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(int fd, int request = AUDIO_GET_CAPABILITIES, unsigned int *cap)
+.. c:function:: int ioctl(int fd, int request = AUDIO_GET_CAPABILITIES, unsigned int *cap)
 
 
 Arguments

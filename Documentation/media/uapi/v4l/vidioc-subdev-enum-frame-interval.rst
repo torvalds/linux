@@ -15,7 +15,7 @@ VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL - Enumerate frame intervals
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_subdev_frame_interval_enum * argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_subdev_frame_interval_enum * argp )
 
 
 Arguments

@@ -15,7 +15,7 @@ VIDEO_GET_FRAME_COUNT
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(int fd, int request = VIDEO_GET_FRAME_COUNT, __u64 *pts)
+.. c:function:: int ioctl(int fd, int request = VIDEO_GET_FRAME_COUNT, __u64 *pts)
 
 
 Arguments

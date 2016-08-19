@@ -15,7 +15,7 @@ VIDIOC_ENUM_FMT - Enumerate image formats
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_fmtdesc *argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_fmtdesc *argp )
 
 
 Arguments

@@ -15,7 +15,7 @@ dvb video write()
 Synopsis
 --------
 
-.. cpp:function:: size_t write(int fd, const void *buf, size_t count)
+.. c:function:: size_t write(int fd, const void *buf, size_t count)
 
 
 Arguments

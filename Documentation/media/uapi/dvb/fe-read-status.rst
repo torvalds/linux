@@ -15,7 +15,7 @@ FE_READ_STATUS - Returns status information about the front-end. This call only 
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, unsigned int *status )
+.. c:function:: int ioctl( int fd, int request, unsigned int *status )
 
 
 Arguments

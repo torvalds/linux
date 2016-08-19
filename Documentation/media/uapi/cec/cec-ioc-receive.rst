@@ -16,7 +16,7 @@ CEC_RECEIVE, CEC_TRANSMIT - Receive or transmit a CEC message
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct cec_msg *argp )
+.. c:function:: int ioctl( int fd, int request, struct cec_msg *argp )
 
 Arguments
 =========

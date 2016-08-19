@@ -15,7 +15,7 @@ DVB demux write()
 Synopsis
 --------
 
-.. cpp:function:: ssize_t write(int fd, const void *buf, size_t count)
+.. c:function:: ssize_t write(int fd, const void *buf, size_t count)
 
 
 Arguments

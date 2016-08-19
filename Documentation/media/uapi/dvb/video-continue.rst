@@ -15,7 +15,7 @@ VIDEO_CONTINUE
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(fd, int request = VIDEO_CONTINUE)
+.. c:function:: int ioctl(fd, int request = VIDEO_CONTINUE)
 
 
 Arguments

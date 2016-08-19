@@ -15,7 +15,7 @@ LIRC_SET_REC_CARRIER - Set carrier used to modulate IR receive.
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, __u32 *frequency )
+.. c:function:: int ioctl( int fd, int request, __u32 *frequency )
 
 Arguments
 =========

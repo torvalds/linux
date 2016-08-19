@@ -15,7 +15,7 @@ VIDIOC_ENUMAUDIO - Enumerate audio inputs
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_audio *argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_audio *argp )
 
 
 Arguments

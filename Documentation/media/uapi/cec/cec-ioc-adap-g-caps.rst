@@ -14,7 +14,7 @@ CEC_ADAP_G_CAPS - Query device capabilities
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct cec_caps *argp )
+.. c:function:: int ioctl( int fd, int request, struct cec_caps *argp )
 
 Arguments
 =========

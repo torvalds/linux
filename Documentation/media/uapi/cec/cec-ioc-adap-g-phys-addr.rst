@@ -17,7 +17,7 @@ CEC_ADAP_G_PHYS_ADDR, CEC_ADAP_S_PHYS_ADDR - Get or set the physical address
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, __u16 *argp )
+.. c:function:: int ioctl( int fd, int request, __u16 *argp )
 
 Arguments
 =========

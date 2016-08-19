@@ -15,7 +15,7 @@ VIDIOC_SUBDEV_ENUM_FRAME_SIZE - Enumerate media bus frame sizes
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_subdev_frame_size_enum * argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_subdev_frame_size_enum * argp )
 
 
 Arguments

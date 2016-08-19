@@ -15,7 +15,7 @@ CA_GET_CAP
 Synopsis
 --------
 
-.. cpp:function:: int  ioctl(fd, int request = CA_GET_CAP, ca_caps_t *)
+.. c:function:: int  ioctl(fd, int request = CA_GET_CAP, ca_caps_t *)
 
 
 Arguments

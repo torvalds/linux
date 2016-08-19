@@ -15,7 +15,7 @@ VIDIOC_QBUF - VIDIOC_DQBUF - Exchange a buffer with the driver
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_buffer *argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_buffer *argp )
 
 
 Arguments

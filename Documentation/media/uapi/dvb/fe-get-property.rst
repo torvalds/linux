@@ -15,7 +15,7 @@ FE_SET_PROPERTY - FE_GET_PROPERTY - FE_SET_PROPERTY sets one or more frontend pr
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct dtv_properties *argp )
+.. c:function:: int ioctl( int fd, int request, struct dtv_properties *argp )
 
 
 Arguments

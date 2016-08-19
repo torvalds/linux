@@ -15,7 +15,7 @@ VIDIOC_ENUM_FRAMEINTERVALS - Enumerate frame intervals
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_frmivalenum *argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_frmivalenum *argp )
 
 
 Arguments

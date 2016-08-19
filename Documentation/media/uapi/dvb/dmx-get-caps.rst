@@ -15,7 +15,7 @@ DMX_GET_CAPS
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(fd, int request = DMX_GET_CAPS, dmx_caps_t *)
+.. c:function:: int ioctl(fd, int request = DMX_GET_CAPS, dmx_caps_t *)
 
 
 Arguments

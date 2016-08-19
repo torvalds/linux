@@ -15,7 +15,7 @@ VIDEO_CLEAR_BUFFER
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(fd, int request = VIDEO_CLEAR_BUFFER)
+.. c:function:: int ioctl(fd, int request = VIDEO_CLEAR_BUFFER)
 
 
 Arguments

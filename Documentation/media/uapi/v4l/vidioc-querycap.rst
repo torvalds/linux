@@ -15,7 +15,7 @@ VIDIOC_QUERYCAP - Query device capabilities
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_capability *argp )
+.. c:function:: int ioctl( int fd, int request, struct v4l2_capability *argp )
 
 
 Arguments

@@ -15,7 +15,7 @@ VIDIOC_OVERLAY - Start or stop video overlay
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, const int *argp )
+.. c:function:: int ioctl( int fd, int request, const int *argp )
 
 
 Arguments

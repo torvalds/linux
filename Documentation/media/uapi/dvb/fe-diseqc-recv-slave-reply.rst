@@ -15,7 +15,7 @@ FE_DISEQC_RECV_SLAVE_REPLY - Receives reply from a DiSEqC 2.0 command
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct dvb_diseqc_slave_reply *argp )
+.. c:function:: int ioctl( int fd, int request, struct dvb_diseqc_slave_reply *argp )
 
 
 Arguments
