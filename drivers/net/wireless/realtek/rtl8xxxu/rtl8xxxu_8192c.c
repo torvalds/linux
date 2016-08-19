@@ -579,5 +579,9 @@ struct rtl8xxxu_fileops rtl8192cu_fops = {
 	.pbp_rx = PBP_PAGE_SIZE_128,
 	.pbp_tx = PBP_PAGE_SIZE_128,
 	.mactable = rtl8xxxu_gen1_mac_init_table,
+	.total_page_num = TX_TOTAL_PAGE_NUM,
+	.page_num_hi = TX_PAGE_NUM_HI_PQ,
+	.page_num_lo = TX_PAGE_NUM_LO_PQ,
+	.page_num_norm = TX_PAGE_NUM_NORM_PQ,
 };
 #endif
