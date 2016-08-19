@@ -72,7 +72,6 @@
 struct buf_anchor {
 	struct urb *urb;
 	struct list_head list;
-	struct completion urb_compl;
 };
 
 /**
@@ -217,12 +216,7 @@ static void free_anchored_buffers(struct most_dev *mdev, unsigned int channel,
 		spin_unlock_irqrestore(lock, flags);
 		if (likely(urb)) {
 			mbo = urb->context;
-			if (!irqs_disabled()) {
-				usb_kill_urb(urb);
-			} else {
-				usb_unlink_urb(urb);
-				wait_for_completion(&anchor->urb_compl);
-			}
+			usb_kill_urb(urb);
 			if ((mbo) && (mbo->complete)) {
 				mbo->status = status;
 				mbo->processed_length = 0;
@@ -416,7 +410,6 @@ static void hdm_write_completion(struct urb *urb)
 	if ((urb->status == -ENOENT) || (urb->status == -ECONNRESET) ||
 	    (!mdev->is_channel_healthy[channel])) {
 		spin_unlock_irqrestore(lock, flags);
-		complete(&anchor->urb_compl);
 		return;
 	}
 
@@ -582,7 +575,6 @@ static void hdm_read_completion(struct urb *urb)
 	if ((urb->status == -ENOENT) || (urb->status == -ECONNRESET) ||
 	    (!mdev->is_channel_healthy[channel])) {
 		spin_unlock_irqrestore(lock, flags);
-		complete(&anchor->urb_compl);
 		return;
 	}
 
@@ -678,7 +670,6 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 	}
 
 	anchor->urb = urb;
-	init_completion(&anchor->urb_compl);
 	mbo->priv = anchor;
 
 	if ((mdev->padding_active[channel]) &&
