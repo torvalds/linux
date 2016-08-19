@@ -13,19 +13,20 @@ CEC_G_MODE, CEC_S_MODE - Get or set exclusive use of the CEC adapter
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, __u32 *argp )
+.. c:function:: int ioctl( int fd, CEC_G_MODE, __u32 *argp )
+   :name: CEC_G_MODE
+
+.. c:function:: int ioctl( int fd, CEC_S_MODE, __u32 *argp )
+   :name: CEC_S_MODE
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <cec-func-open>`.
-
-``request``
-    CEC_G_MODE, CEC_S_MODE
+    File descriptor returned by :c:func:`open() <cec-open>`.
 
 ``argp``
-
+    Pointer to CEC mode.
 
 Description
 ===========

@@ -21,9 +21,19 @@ Synopsis
 
 
 .. c:function:: int poll( struct pollfd *ufds, unsigned int nfds, int timeout )
+   :name: cec-poll
 
 Arguments
 =========
+
+``ufds``
+   List of FD events to be watched
+
+``nfds``
+   Number of FD efents at the \*ufds array
+
+``timeout``
+   Timeout to wait for events
 
 
 Description

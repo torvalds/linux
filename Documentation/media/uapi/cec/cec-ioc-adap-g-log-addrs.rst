@@ -17,20 +17,20 @@ CEC_ADAP_G_LOG_ADDRS, CEC_ADAP_S_LOG_ADDRS - Get or set the logical addresses
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct cec_log_addrs *argp )
+.. c:function:: int ioctl( int fd, CEC_ADAP_G_LOG_ADDRS, struct cec_log_addrs *argp )
+   :name: CEC_ADAP_G_LOG_ADDRS
 
+.. c:function:: int ioctl( int fd, CEC_ADAP_S_LOG_ADDRS, struct cec_log_addrs *argp )
+   :name: CEC_ADAP_S_LOG_ADDRS
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <cec-func-open>`.
-
-``request``
-    CEC_ADAP_G_LOG_ADDRS, CEC_ADAP_S_LOG_ADDRS
+    File descriptor returned by :c:func:`open() <cec-open>`.
 
 ``argp``
-
+    Pointer to struct cec_log_addrs
 
 Description
 ===========

@@ -14,16 +14,14 @@ CEC_ADAP_G_CAPS - Query device capabilities
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct cec_caps *argp )
+.. c:function:: int ioctl( int fd, CEC_ADAP_G_CAPS, struct cec_caps *argp )
+    :name: CEC_ADAP_G_CAPS
 
 Arguments
 =========
 
 ``fd``
     File descriptor returned by :ref:`open() <cec-func-open>`.
-
-``request``
-    CEC_ADAP_G_CAPS
 
 ``argp``
 

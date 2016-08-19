@@ -20,6 +20,7 @@ Synopsis
 
 
 .. c:function:: int open( const char *device_name, int flags )
+   :name: cec-open
 
 
 Arguments
