@@ -260,6 +260,9 @@ static struct Qdisc *qdisc_match_from_root(struct Qdisc *root, u32 handle)
 {
 	struct Qdisc *q;
 
+	if (!qdisc_dev(root))
+		return (root->handle == handle ? root : NULL);
+
 	if (!(root->flags & TCQ_F_BUILTIN) &&
 	    root->handle == handle)
 		return root;
@@ -1432,7 +1435,7 @@ err_out:
 
 static int tc_dump_qdisc_root(struct Qdisc *root, struct sk_buff *skb,
 			      struct netlink_callback *cb,
-			      int *q_idx_p, int s_q_idx)
+			      int *q_idx_p, int s_q_idx, bool recur)
 {
 	int ret = 0, q_idx = *q_idx_p;
 	struct Qdisc *q;
@@ -1451,6 +1454,16 @@ static int tc_dump_qdisc_root(struct Qdisc *root, struct sk_buff *skb,
 			goto done;
 		q_idx++;
 	}
+
+	/* If dumping singletons, there is no qdisc_dev(root) and the singleton
+	 * itself has already been dumped.
+	 *
+	 * If we've already dumped the top-level (ingress) qdisc above and the global
+	 * qdisc hashtable, we don't want to hit it again
+	 */
+	if (!qdisc_dev(root) || !recur)
+		goto out;
+
 	hash_for_each(qdisc_dev(root)->qdisc_hash, b, q, hash) {
 		if (q_idx < s_q_idx) {
 			q_idx++;
@@ -1492,13 +1505,13 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 			s_q_idx = 0;
 		q_idx = 0;
 
-		if (tc_dump_qdisc_root(dev->qdisc, skb, cb, &q_idx, s_q_idx) < 0)
+		if (tc_dump_qdisc_root(dev->qdisc, skb, cb, &q_idx, s_q_idx, true) < 0)
 			goto done;
 
 		dev_queue = dev_ingress_queue(dev);
 		if (dev_queue &&
 		    tc_dump_qdisc_root(dev_queue->qdisc_sleeping, skb, cb,
-				       &q_idx, s_q_idx) < 0)
+				       &q_idx, s_q_idx, false) < 0)
 			goto done;
 
 cont:
@@ -1774,6 +1787,9 @@ static int tc_dump_tclass_root(struct Qdisc *root, struct sk_buff *skb,
 
 	if (tc_dump_tclass_qdisc(root, skb, tcm, cb, t_p, s_t) < 0)
 		return -1;
+
+	if (!qdisc_dev(root))
+		return 0;
 
 	hash_for_each(qdisc_dev(root)->qdisc_hash, b, q, hash) {
 		if (tc_dump_tclass_qdisc(q, skb, tcm, cb, t_p, s_t) < 0)
