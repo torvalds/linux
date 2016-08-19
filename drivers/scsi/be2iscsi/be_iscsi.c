@@ -52,22 +52,20 @@ struct iscsi_cls_session *beiscsi_session_create(struct iscsi_endpoint *ep,
 
 
 	if (!ep) {
-		printk(KERN_ERR
-		       "beiscsi_session_create: invalid ep\n");
+		pr_err("beiscsi_session_create: invalid ep\n");
 		return NULL;
 	}
 	beiscsi_ep = ep->dd_data;
 	phba = beiscsi_ep->phba;
 
-	if (phba->state & BE_ADAPTER_PCI_ERR) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : PCI_ERROR Recovery\n");
-		return NULL;
-	} else {
+	if (beiscsi_hba_in_error(phba)) {
 		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
-			    "BS_%d : In beiscsi_session_create\n");
+			    "BS_%d : HBA in error 0x%lx\n", phba->state);
+		return NULL;
 	}
 
+	beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
+		    "BS_%d : In beiscsi_session_create\n");
 	if (cmds_max > beiscsi_ep->phba->params.wrbs_per_cxn) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
 			    "BS_%d : Cannot handle %d cmds."
@@ -436,9 +434,9 @@ int beiscsi_iface_set_param(struct Scsi_Host *shost,
 	uint32_t rm_len = dt_len;
 	int ret;
 
-	if (phba->state & BE_ADAPTER_PCI_ERR) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : In PCI_ERROR Recovery\n");
+	if (beiscsi_hba_in_error(phba)) {
+		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
+			    "BS_%d : HBA in error 0x%lx\n", phba->state);
 		return -EBUSY;
 	}
 
@@ -579,9 +577,9 @@ int beiscsi_iface_get_param(struct iscsi_iface *iface,
 
 	if (param_type != ISCSI_NET_PARAM)
 		return 0;
-	if (phba->state & BE_ADAPTER_PCI_ERR) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : In PCI_ERROR Recovery\n");
+	if (beiscsi_hba_in_error(phba)) {
+		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
+			    "BS_%d : HBA in error 0x%lx\n", phba->state);
 		return -EBUSY;
 	}
 
@@ -737,7 +735,7 @@ static void beiscsi_get_port_state(struct Scsi_Host *shost)
 	struct beiscsi_hba *phba = iscsi_host_priv(shost);
 	struct iscsi_cls_host *ihost = shost->shost_data;
 
-	ihost->port_state = (phba->state & BE_ADAPTER_LINK_UP) ?
+	ihost->port_state = test_bit(BEISCSI_HBA_LINK_UP, &phba->state) ?
 		ISCSI_PORT_STATE_UP : ISCSI_PORT_STATE_DOWN;
 }
 
@@ -789,16 +787,13 @@ int beiscsi_get_host_param(struct Scsi_Host *shost,
 	struct beiscsi_hba *phba = iscsi_host_priv(shost);
 	int status = 0;
 
-
-	if (phba->state & BE_ADAPTER_PCI_ERR) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : In PCI_ERROR Recovery\n");
-		return -EBUSY;
-	} else {
+	if (beiscsi_hba_in_error(phba)) {
 		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
-			    "BS_%d : In beiscsi_get_host_param,"
-			    " param = %d\n", param);
+			    "BS_%d : HBA in error 0x%lx\n", phba->state);
+		return -EBUSY;
 	}
+	beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
+		    "BS_%d : In beiscsi_get_host_param, param = %d\n", param);
 
 	switch (param) {
 	case ISCSI_HOST_PARAM_HWADDRESS:
@@ -940,15 +935,13 @@ int beiscsi_conn_start(struct iscsi_cls_conn *cls_conn)
 
 	phba = ((struct beiscsi_conn *)conn->dd_data)->phba;
 
-	if (phba->state & BE_ADAPTER_PCI_ERR) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : In PCI_ERROR Recovery\n");
+	if (beiscsi_hba_in_error(phba)) {
+		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
+			    "BS_%d : HBA in error 0x%lx\n", phba->state);
 		return -EBUSY;
-	} else {
-		beiscsi_log(beiscsi_conn->phba, KERN_INFO,
-			    BEISCSI_LOG_CONFIG,
-			    "BS_%d : In beiscsi_conn_start\n");
 	}
+	beiscsi_log(beiscsi_conn->phba, KERN_INFO, BEISCSI_LOG_CONFIG,
+		    "BS_%d : In beiscsi_conn_start\n");
 
 	memset(&params, 0, sizeof(struct beiscsi_offload_params));
 	beiscsi_ep = beiscsi_conn->ep;
@@ -1165,28 +1158,20 @@ beiscsi_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 	struct iscsi_endpoint *ep;
 	int ret;
 
-	if (shost)
-		phba = iscsi_host_priv(shost);
-	else {
+	if (!shost) {
 		ret = -ENXIO;
-		printk(KERN_ERR
-		       "beiscsi_ep_connect shost is NULL\n");
+		pr_err("beiscsi_ep_connect shost is NULL\n");
 		return ERR_PTR(ret);
 	}
 
-	if (beiscsi_error(phba)) {
+	phba = iscsi_host_priv(shost);
+	if (beiscsi_hba_in_error(phba)) {
 		ret = -EIO;
-		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
-			    "BS_%d : The FW state Not Stable!!!\n");
+		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
+			    "BS_%d : HBA in error 0x%lx\n", phba->state);
 		return ERR_PTR(ret);
 	}
-
-	if (phba->state & BE_ADAPTER_PCI_ERR) {
-		ret = -EBUSY;
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : In PCI_ERROR Recovery\n");
-		return ERR_PTR(ret);
-	} else if (phba->state & BE_ADAPTER_LINK_DOWN) {
+	if (!test_bit(BEISCSI_HBA_LINK_UP, &phba->state)) {
 		ret = -EBUSY;
 		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
 			    "BS_%d : The Adapter Port state is Down!!!\n");
@@ -1340,9 +1325,9 @@ void beiscsi_ep_disconnect(struct iscsi_endpoint *ep)
 		tcp_upload_flag = CONNECTION_UPLOAD_ABORT;
 	}
 
-	if (phba->state & BE_ADAPTER_PCI_ERR) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : PCI_ERROR Recovery\n");
+	if (beiscsi_hba_in_error(phba)) {
+		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
+			    "BS_%d : HBA in error 0x%lx\n", phba->state);
 		goto free_ep;
 	}
 

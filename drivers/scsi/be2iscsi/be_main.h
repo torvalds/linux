@@ -98,20 +98,9 @@
 
 #define INVALID_SESS_HANDLE	0xFFFFFFFF
 
-/**
- * Adapter States
- **/
-#define BE_ADAPTER_LINK_UP	0x001
-#define BE_ADAPTER_LINK_DOWN	0x002
-#define BE_ADAPTER_PCI_ERR	0x004
-#define BE_ADAPTER_CHECK_BOOT	0x008
-
-
-#define BEISCSI_CLEAN_UNLOAD	0x01
-#define BEISCSI_EEH_UNLOAD	0x02
-
 #define BE_GET_BOOT_RETRIES	45
 #define BE_GET_BOOT_TO		20
+
 /**
  * hardware needs the async PDU buffers to be posted in multiples of 8
  * So have atleast 8 of them by default
@@ -417,11 +406,20 @@ struct beiscsi_hba {
 		unsigned long ulp_supported;
 	} fw_config;
 
-	unsigned int state;
+	unsigned long state;
+#define BEISCSI_HBA_RUNNING	0
+#define BEISCSI_HBA_LINK_UP	1
+#define BEISCSI_HBA_BOOT_FOUND	2
+#define BEISCSI_HBA_PCI_ERR	3
+#define BEISCSI_HBA_FW_TIMEOUT	4
+#define BEISCSI_HBA_IN_UE	5
+/* error bits */
+#define BEISCSI_HBA_IN_ERR	((1 << BEISCSI_HBA_PCI_ERR) | \
+				 (1 << BEISCSI_HBA_FW_TIMEOUT) | \
+				 (1 << BEISCSI_HBA_IN_UE))
+
 	u8 optic_state;
 	int get_boot;
-	bool fw_timeout;
-	bool ue_detected;
 	struct delayed_work beiscsi_hw_check_task;
 
 	bool mac_addr_set;
@@ -444,6 +442,8 @@ struct beiscsi_hba {
 			uint32_t num_sg, uint32_t xferlen,
 			uint32_t writedir);
 };
+
+#define beiscsi_hba_in_error(phba) ((phba)->state & BEISCSI_HBA_IN_ERR)
 
 struct beiscsi_session {
 	struct pci_pool *bhs_pool;
@@ -507,6 +507,7 @@ struct beiscsi_io_task {
 	struct sgl_handle *psgl_handle;
 	struct beiscsi_conn *conn;
 	struct scsi_cmnd *scsi_cmnd;
+	int num_sg;
 	struct hwi_wrb_context *pwrb_context;
 	unsigned int cmd_sn;
 	unsigned int flags;
@@ -853,11 +854,6 @@ void hwi_ring_cq_db(struct beiscsi_hba *phba,
 
 unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq, int budget);
 void beiscsi_process_mcc_cq(struct beiscsi_hba *phba);
-
-static inline bool beiscsi_error(struct beiscsi_hba *phba)
-{
-	return phba->ue_detected || phba->fw_timeout;
-}
 
 struct pdu_nop_out {
 	u32 dw[12];

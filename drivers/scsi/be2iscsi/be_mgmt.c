@@ -108,9 +108,6 @@ void beiscsi_ue_detect(struct beiscsi_hba *phba)
 	uint32_t ue_mask_hi = 0, ue_mask_lo = 0;
 	uint8_t i = 0;
 
-	if (phba->ue_detected)
-		return;
-
 	pci_read_config_dword(phba->pcidev,
 			      PCICFG_UE_STATUS_LOW, &ue_lo);
 	pci_read_config_dword(phba->pcidev,
@@ -128,7 +125,7 @@ void beiscsi_ue_detect(struct beiscsi_hba *phba)
 
 
 	if (ue_lo || ue_hi) {
-		phba->ue_detected = true;
+		set_bit(BEISCSI_HBA_IN_UE, &phba->state);
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
 			    "BG_%d : Error detected on the adapter\n");

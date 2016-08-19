@@ -2017,6 +2017,9 @@ void beiscsi_process_mcc_cq(struct beiscsi_hba *phba)
 	mcc_compl = queue_tail_node(mcc_cq);
 	mcc_compl->flags = le32_to_cpu(mcc_compl->flags);
 	while (mcc_compl->flags & CQE_FLAGS_VALID_MASK) {
+		if (beiscsi_hba_in_error(phba))
+			return;
+
 		if (num_processed >= 32) {
 			hwi_ring_cq_db(phba, mcc_cq->id,
 					num_processed, 0);
@@ -2048,7 +2051,8 @@ static void beiscsi_mcc_work(struct work_struct *work)
 	phba = pbe_eq->phba;
 	beiscsi_process_mcc_cq(phba);
 	/* rearm EQ for further interrupts */
-	hwi_ring_eq_db(phba, pbe_eq->q.id, 0, 0, 1, 1);
+	if (!beiscsi_hba_in_error(phba))
+		hwi_ring_eq_db(phba, pbe_eq->q.id, 0, 0, 1, 1);
 }
 
 /**
@@ -2079,6 +2083,9 @@ unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq, int budget)
 
 	while (sol->dw[offsetof(struct amap_sol_cqe, valid) / 32] &
 	       CQE_VALID_MASK) {
+		if (beiscsi_hba_in_error(phba))
+			return 0;
+
 		be_dws_le_to_cpu(sol, sizeof(struct sol_cqe));
 
 		 code = (sol->dw[offsetof(struct amap_sol_cqe, code) /
@@ -2248,12 +2255,16 @@ static int be_iopoll(struct irq_poll *iop, int budget)
 	struct be_eq_entry *eqe = NULL;
 	struct be_queue_info *eq;
 
-	io_events = 0;
 	pbe_eq = container_of(iop, struct be_eq_obj, iopoll);
 	phba = pbe_eq->phba;
+	if (beiscsi_hba_in_error(phba)) {
+		irq_poll_complete(iop);
+		return 0;
+	}
+
+	io_events = 0;
 	eq = &pbe_eq->q;
 	eqe = queue_tail_node(eq);
-
 	while (eqe->dw[offsetof(struct amap_eq_entry, valid) / 32] &
 			EQE_VALID_MASK) {
 		AMAP_SET_BITS(struct amap_eq_entry, valid, eqe, 0);
@@ -2261,7 +2272,6 @@ static int be_iopoll(struct irq_poll *iop, int budget)
 		eqe = queue_tail_node(eq);
 		io_events++;
 	}
-
 	hwi_ring_eq_db(phba, eq->id, 1, io_events, 0, 1);
 
 	ret = beiscsi_process_cq(pbe_eq, budget);
@@ -2272,7 +2282,8 @@ static int be_iopoll(struct irq_poll *iop, int budget)
 			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_IO,
 			    "BM_%d : rearm pbe_eq->q.id =%d ret %d\n",
 			    pbe_eq->q.id, ret);
-		hwi_ring_eq_db(phba, pbe_eq->q.id, 0, 0, 1, 1);
+		if (!beiscsi_hba_in_error(phba))
+			hwi_ring_eq_db(phba, pbe_eq->q.id, 0, 0, 1, 1);
 	}
 	return ret;
 }
@@ -4633,7 +4644,8 @@ static void beiscsi_cleanup_task(struct iscsi_task *task)
 		}
 
 		if (io_task->scsi_cmnd) {
-			scsi_dma_unmap(io_task->scsi_cmnd);
+			if (io_task->num_sg)
+				scsi_dma_unmap(io_task->scsi_cmnd);
 			io_task->scsi_cmnd = NULL;
 		}
 	} else {
@@ -5112,6 +5124,15 @@ static int beiscsi_task_xmit(struct iscsi_task *task)
 	int num_sg;
 	unsigned int  writedir = 0, xferlen = 0;
 
+	phba = io_task->conn->phba;
+	/**
+	 * HBA in error includes BEISCSI_HBA_FW_TIMEOUT. IO path might be
+	 * operational if FW still gets heartbeat from EP FW. Is management
+	 * path really needed to continue further?
+	 */
+	if (beiscsi_hba_in_error(phba))
+		return -EIO;
+
 	if (!io_task->conn->login_in_progress)
 		task->hdr->exp_statsn = 0;
 
@@ -5119,8 +5140,8 @@ static int beiscsi_task_xmit(struct iscsi_task *task)
 		return beiscsi_mtask(task);
 
 	io_task->scsi_cmnd = sc;
+	io_task->num_sg = 0;
 	num_sg = scsi_dma_map(sc);
-	phba = io_task->conn->phba;
 	if (num_sg < 0) {
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_IO | BEISCSI_LOG_ISCSI,
@@ -5131,6 +5152,11 @@ static int beiscsi_task_xmit(struct iscsi_task *task)
 
 		return num_sg;
 	}
+	/**
+	 * For scsi cmd task, check num_sg before unmapping in cleanup_task.
+	 * For management task, cleanup_task checks mtask_addr before unmapping.
+	 */
+	io_task->num_sg = num_sg;
 	xferlen = scsi_bufflen(sc);
 	sg = scsi_sglist(sc);
 	if (sc->sc_data_direction == DMA_TO_DEVICE)
@@ -5159,6 +5185,12 @@ static int beiscsi_bsg_request(struct bsg_job *job)
 
 	shost = iscsi_job_to_shost(job);
 	phba = iscsi_host_priv(shost);
+
+	if (beiscsi_hba_in_error(phba)) {
+		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
+			    "BM_%d : HBA in error 0x%lx\n", phba->state);
+		return -ENXIO;
+	}
 
 	switch (bsg_req->msgcode) {
 	case ISCSI_BSG_HST_VENDOR:
@@ -5233,12 +5265,10 @@ void beiscsi_hba_attrs_init(struct beiscsi_hba *phba)
 /*
  * beiscsi_quiesce()- Cleanup Driver resources
  * @phba: Instance Priv structure
- * @unload_state:i Clean or EEH unload state
  *
  * Free the OS and HW resources held by the driver
  **/
-static void beiscsi_quiesce(struct beiscsi_hba *phba,
-		uint32_t unload_state)
+static void beiscsi_quiesce(struct beiscsi_hba *phba)
 {
 	struct hwi_controller *phwi_ctrlr;
 	struct hwi_context_memory *phwi_context;
@@ -5265,21 +5295,22 @@ static void beiscsi_quiesce(struct beiscsi_hba *phba,
 		irq_poll_disable(&pbe_eq->iopoll);
 	}
 
-	if (unload_state == BEISCSI_CLEAN_UNLOAD) {
-		destroy_workqueue(phba->wq);
-		beiscsi_clean_port(phba);
-		beiscsi_free_mem(phba);
-
-		beiscsi_unmap_pci_function(phba);
-		pci_free_consistent(phba->pcidev,
-				    phba->ctrl.mbox_mem_alloced.size,
-				    phba->ctrl.mbox_mem_alloced.va,
-				    phba->ctrl.mbox_mem_alloced.dma);
-	} else {
-		hwi_purge_eq(phba);
+	/* PCI_ERR is set then check if driver is not unloading */
+	if (test_bit(BEISCSI_HBA_RUNNING, &phba->state) &&
+	    test_bit(BEISCSI_HBA_PCI_ERR, &phba->state)) {
 		hwi_cleanup(phba);
+		return;
 	}
 
+	destroy_workqueue(phba->wq);
+	beiscsi_clean_port(phba);
+	beiscsi_free_mem(phba);
+
+	beiscsi_unmap_pci_function(phba);
+	pci_free_consistent(phba->pcidev,
+			    phba->ctrl.mbox_mem_alloced.size,
+			    phba->ctrl.mbox_mem_alloced.va,
+			    phba->ctrl.mbox_mem_alloced.dma);
 }
 
 static void beiscsi_remove(struct pci_dev *pcidev)
@@ -5292,10 +5323,11 @@ static void beiscsi_remove(struct pci_dev *pcidev)
 		return;
 	}
 
+	clear_bit(BEISCSI_HBA_RUNNING, &phba->state);
 	beiscsi_iface_destroy_default(phba);
 	iscsi_boot_destroy_kset(phba->boot_kset);
 	iscsi_host_remove(phba->shost);
-	beiscsi_quiesce(phba, BEISCSI_CLEAN_UNLOAD);
+	beiscsi_quiesce(phba);
 	pci_dev_put(phba->pcidev);
 	iscsi_host_free(phba->shost);
 	pci_disable_pcie_error_reporting(pcidev);
@@ -5330,6 +5362,9 @@ static void be_eqd_update(struct beiscsi_hba *phba)
 	ulong now;
 	u32 pps, delta;
 	unsigned int tag;
+
+	if (beiscsi_hba_in_error(phba))
+		return;
 
 	phwi_ctrlr = phba->phwi_ctrlr;
 	phwi_context = phwi_ctrlr->phwi_ctxt;
@@ -5372,6 +5407,9 @@ static void be_eqd_update(struct beiscsi_hba *phba)
 
 static void be_check_boot_session(struct beiscsi_hba *phba)
 {
+	if (beiscsi_hba_in_error(phba))
+		return;
+
 	if (beiscsi_setup_boot_info(phba))
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
 			    "BM_%d : Could not set up "
@@ -5393,13 +5431,13 @@ beiscsi_hw_health_check(struct work_struct *work)
 
 	be_eqd_update(phba);
 
-	if (phba->state & BE_ADAPTER_CHECK_BOOT) {
+	if (test_bit(BEISCSI_HBA_BOOT_FOUND, &phba->state)) {
 		if ((phba->get_boot > 0) && (!phba->boot_kset)) {
 			phba->get_boot--;
 			if (!(phba->get_boot % BE_GET_BOOT_TO))
 				be_check_boot_session(phba);
 		} else {
-			phba->state &= ~BE_ADAPTER_CHECK_BOOT;
+			clear_bit(BEISCSI_HBA_BOOT_FOUND, &phba->state);
 			phba->get_boot = 0;
 		}
 	}
@@ -5417,12 +5455,12 @@ static pci_ers_result_t beiscsi_eeh_err_detected(struct pci_dev *pdev,
 	struct beiscsi_hba *phba = NULL;
 
 	phba = (struct beiscsi_hba *)pci_get_drvdata(pdev);
-	phba->state |= BE_ADAPTER_PCI_ERR;
+	set_bit(BEISCSI_HBA_PCI_ERR, &phba->state);
 
 	beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
 		    "BM_%d : EEH error detected\n");
 
-	beiscsi_quiesce(phba, BEISCSI_EEH_UNLOAD);
+	beiscsi_quiesce(phba);
 
 	if (state == pci_channel_io_perm_failure) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
@@ -5554,7 +5592,7 @@ static void beiscsi_eeh_resume(struct pci_dev *pdev)
 	}
 
 	hwi_enable_intr(phba);
-	phba->state &= ~BE_ADAPTER_PCI_ERR;
+	clear_bit(BEISCSI_HBA_PCI_ERR, &phba->state);
 
 	return;
 ret_err:
@@ -5597,9 +5635,7 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 	/* Initialize Driver configuration Paramters */
 	beiscsi_hba_attrs_init(phba);
 
-	phba->fw_timeout = false;
 	phba->mac_addr_set = false;
-
 
 	switch (pcidev->device) {
 	case BE_DEVICE_ID1:
@@ -5629,6 +5665,7 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 		goto hba_free;
 	}
 
+	set_bit(BEISCSI_HBA_RUNNING, &phba->state);
 	/*
 	 * FUNCTION_RESET should clean up any stale info in FW for this fn
 	 */

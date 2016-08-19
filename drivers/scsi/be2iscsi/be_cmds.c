@@ -152,8 +152,11 @@ int beiscsi_mccq_compl_wait(struct beiscsi_hba *phba,
 	struct be_cmd_resp_hdr *mbx_resp_hdr;
 	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
 
-	if (beiscsi_error(phba))
-		return -EPERM;
+	if (beiscsi_hba_in_error(phba)) {
+		clear_bit(MCC_TAG_STATE_RUNNING,
+			  &phba->ctrl.ptag_state[tag].tag_state);
+		return -EIO;
+	}
 
 	/* wait for the mccq completion */
 	rc = wait_event_interruptible_timeout(
@@ -315,13 +318,16 @@ static void beiscsi_process_async_link(struct beiscsi_hba *phba,
 	 * This has been newly introduced in SKH-R Firmware 10.0.338.45.
 	 **/
 	if (evt->port_link_status & BE_ASYNC_LINK_UP_MASK) {
-		phba->state = BE_ADAPTER_LINK_UP | BE_ADAPTER_CHECK_BOOT;
 		phba->get_boot = BE_GET_BOOT_RETRIES;
+		/* first this needs to be visible to worker thread */
+		wmb();
+		set_bit(BEISCSI_HBA_LINK_UP | BEISCSI_HBA_BOOT_FOUND,
+			&phba->state);
 		__beiscsi_log(phba, KERN_ERR,
 			      "BC_%d : Link Up on Port %d tag 0x%x\n",
 			      evt->physical_port, evt->event_tag);
 	} else {
-		phba->state = BE_ADAPTER_LINK_DOWN;
+		clear_bit(BEISCSI_HBA_LINK_UP, &phba->state);
 		__beiscsi_log(phba, KERN_ERR,
 			      "BC_%d : Link Down on Port %d tag 0x%x\n",
 			      evt->physical_port, evt->event_tag);
@@ -406,8 +412,10 @@ void beiscsi_process_async_event(struct beiscsi_hba *phba,
 		beiscsi_process_async_link(phba, compl);
 		break;
 	case ASYNC_EVENT_CODE_ISCSI:
-		phba->state |= BE_ADAPTER_CHECK_BOOT;
 		phba->get_boot = BE_GET_BOOT_RETRIES;
+		/* first this needs to be visible to worker thread */
+		wmb();
+		set_bit(BEISCSI_HBA_BOOT_FOUND, &phba->state);
 		sev = KERN_ERR;
 		break;
 	case ASYNC_EVENT_CODE_SLI:
@@ -504,7 +512,7 @@ int be_mcc_compl_poll(struct beiscsi_hba *phba, unsigned int tag)
 		return 0;
 	}
 	for (i = 0; i < mcc_timeout; i++) {
-		if (beiscsi_error(phba))
+		if (beiscsi_hba_in_error(phba))
 			return -EIO;
 
 		beiscsi_process_mcc_cq(phba);
@@ -522,7 +530,7 @@ int be_mcc_compl_poll(struct beiscsi_hba *phba, unsigned int tag)
 
 	beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
 		    "BC_%d : FW Timed Out\n");
-	phba->fw_timeout = true;
+	set_bit(BEISCSI_HBA_FW_TIMEOUT, &phba->state);
 	beiscsi_ue_detect(phba);
 	return -EBUSY;
 }
@@ -566,7 +574,7 @@ static int be_mbox_db_ready_poll(struct be_ctrl_info *ctrl)
 	 */
 	timeout = jiffies + msecs_to_jiffies(BEISCSI_MBX_RDY_BIT_TIMEOUT);
 	do {
-		if (beiscsi_error(phba))
+		if (beiscsi_hba_in_error(phba))
 			return -EIO;
 
 		ready = ioread32(db);
@@ -586,10 +594,8 @@ static int be_mbox_db_ready_poll(struct be_ctrl_info *ctrl)
 	beiscsi_log(phba, KERN_ERR,
 			BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
 			"BC_%d : FW Timed Out\n");
-
-	phba->fw_timeout = true;
+	set_bit(BEISCSI_HBA_FW_TIMEOUT, &phba->state);
 	beiscsi_ue_detect(phba);
-
 	return -EBUSY;
 }
 
