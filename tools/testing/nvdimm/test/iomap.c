@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/pfn_t.h>
+#include <linux/acpi.h>
 #include <linux/io.h>
 #include <linux/mm.h>
 #include "nfit_test.h"
@@ -275,5 +276,21 @@ void __wrap___devm_release_region(struct device *dev, struct resource *parent,
 		__devm_release_region(dev, parent, start, n);
 }
 EXPORT_SYMBOL(__wrap___devm_release_region);
+
+acpi_status __wrap_acpi_evaluate_object(acpi_handle handle, acpi_string path,
+		struct acpi_object_list *p, struct acpi_buffer *buf)
+{
+	struct nfit_test_resource *nfit_res = get_nfit_res((long) handle);
+	union acpi_object **obj;
+
+	if (!nfit_res || strcmp(path, "_FIT") || !buf)
+		return acpi_evaluate_object(handle, path, p, buf);
+
+	obj = nfit_res->buf;
+	buf->length = sizeof(union acpi_object);
+	buf->pointer = *obj;
+	return AE_OK;
+}
+EXPORT_SYMBOL(__wrap_acpi_evaluate_object);
 
 MODULE_LICENSE("GPL v2");

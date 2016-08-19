@@ -2670,11 +2670,10 @@ static int acpi_nfit_remove(struct acpi_device *adev)
 	return 0;
 }
 
-static void acpi_nfit_notify(struct acpi_device *adev, u32 event)
+void __acpi_nfit_notify(struct device *dev, acpi_handle handle, u32 event)
 {
-	struct acpi_nfit_desc *acpi_desc = dev_get_drvdata(&adev->dev);
+	struct acpi_nfit_desc *acpi_desc = dev_get_drvdata(dev);
 	struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER, NULL };
-	struct device *dev = &adev->dev;
 	union acpi_object *obj;
 	acpi_status status;
 	int ret;
@@ -2684,18 +2683,17 @@ static void acpi_nfit_notify(struct acpi_device *adev, u32 event)
 	if (event != NFIT_NOTIFY_UPDATE)
 		return;
 
-	device_lock(dev);
 	if (!dev->driver) {
 		/* dev->driver may be null if we're being removed */
 		dev_dbg(dev, "%s: no driver found for dev\n", __func__);
-		goto out_unlock;
+		return;
 	}
 
 	if (!acpi_desc) {
 		acpi_desc = devm_kzalloc(dev, sizeof(*acpi_desc), GFP_KERNEL);
 		if (!acpi_desc)
-			goto out_unlock;
-		acpi_nfit_desc_init(acpi_desc, &adev->dev);
+			return;
+		acpi_nfit_desc_init(acpi_desc, dev);
 	} else {
 		/*
 		 * Finish previous registration before considering new
@@ -2705,10 +2703,10 @@ static void acpi_nfit_notify(struct acpi_device *adev, u32 event)
 	}
 
 	/* Evaluate _FIT */
-	status = acpi_evaluate_object(adev->handle, "_FIT", NULL, &buf);
+	status = acpi_evaluate_object(handle, "_FIT", NULL, &buf);
 	if (ACPI_FAILURE(status)) {
 		dev_err(dev, "failed to evaluate _FIT\n");
-		goto out_unlock;
+		return;
 	}
 
 	obj = buf.pointer;
@@ -2720,9 +2718,14 @@ static void acpi_nfit_notify(struct acpi_device *adev, u32 event)
 	} else
 		dev_err(dev, "Invalid _FIT\n");
 	kfree(buf.pointer);
+}
+EXPORT_SYMBOL_GPL(__acpi_nfit_notify);
 
- out_unlock:
-	device_unlock(dev);
+static void acpi_nfit_notify(struct acpi_device *adev, u32 event)
+{
+	device_lock(&adev->dev);
+	__acpi_nfit_notify(&adev->dev, adev->handle, event);
+	device_unlock(&adev->dev);
 }
 
 static const struct acpi_device_id acpi_nfit_ids[] = {

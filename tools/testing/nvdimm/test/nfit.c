@@ -154,6 +154,8 @@ struct nfit_test {
 	int (*alloc)(struct nfit_test *t);
 	void (*setup)(struct nfit_test *t);
 	int setup_hotplug;
+	union acpi_object **_fit;
+	dma_addr_t _fit_dma;
 	struct ars_state {
 		struct nd_cmd_ars_status *ars_status;
 		unsigned long deadline;
@@ -614,6 +616,10 @@ static int nfit_test0_alloc(struct nfit_test *t)
 		if (!t->dcr[i])
 			return -ENOMEM;
 	}
+
+	t->_fit = test_alloc(t, sizeof(union acpi_object **), &t->_fit_dma);
+	if (!t->_fit)
+		return -ENOMEM;
 
 	return ars_state_init(&t->pdev.dev, &t->ars_state);
 }
@@ -1408,6 +1414,7 @@ static int nfit_test_probe(struct platform_device *pdev)
 	struct acpi_nfit_desc *acpi_desc;
 	struct device *dev = &pdev->dev;
 	struct nfit_test *nfit_test;
+	union acpi_object *obj;
 	int rc;
 
 	nfit_test = to_nfit_test(&pdev->dev);
@@ -1475,15 +1482,17 @@ static int nfit_test_probe(struct platform_device *pdev)
 	if (nfit_test->setup != nfit_test0_setup)
 		return 0;
 
-	flush_work(&acpi_desc->work);
 	nfit_test->setup_hotplug = 1;
 	nfit_test->setup(nfit_test);
 
-	rc = acpi_nfit_init(acpi_desc, nfit_test->nfit_buf,
-			nfit_test->nfit_size);
-	if (rc)
-		return rc;
-
+	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
+	if (!obj)
+		return -ENOMEM;
+	obj->type = ACPI_TYPE_BUFFER;
+	obj->buffer.length = nfit_test->nfit_size;
+	obj->buffer.pointer = nfit_test->nfit_buf;
+	*(nfit_test->_fit) = obj;
+	__acpi_nfit_notify(&pdev->dev, nfit_test, 0x80);
 	return 0;
 }
 
