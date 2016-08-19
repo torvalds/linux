@@ -21,60 +21,6 @@
 #include "be.h"
 #include "be_mgmt.h"
 
-int beiscsi_pci_soft_reset(struct beiscsi_hba *phba)
-{
-	u32 sreset;
-	u8 *pci_reset_offset = 0;
-	u8 *pci_online0_offset = 0;
-	u8 *pci_online1_offset = 0;
-	u32 pconline0 = 0;
-	u32 pconline1 = 0;
-	u32 i;
-
-	pci_reset_offset = (u8 *)phba->pci_va + BE2_SOFT_RESET;
-	pci_online0_offset = (u8 *)phba->pci_va + BE2_PCI_ONLINE0;
-	pci_online1_offset = (u8 *)phba->pci_va + BE2_PCI_ONLINE1;
-	sreset = readl((void *)pci_reset_offset);
-	sreset |= BE2_SET_RESET;
-	writel(sreset, (void *)pci_reset_offset);
-
-	i = 0;
-	while (sreset & BE2_SET_RESET) {
-		if (i > 64)
-			break;
-		msleep(100);
-		sreset = readl((void *)pci_reset_offset);
-		i++;
-	}
-
-	if (sreset & BE2_SET_RESET) {
-		printk(KERN_ERR DRV_NAME
-		       " Soft Reset  did not deassert\n");
-		return -EIO;
-	}
-	pconline1 = BE2_MPU_IRAM_ONLINE;
-	writel(pconline0, (void *)pci_online0_offset);
-	writel(pconline1, (void *)pci_online1_offset);
-
-	sreset |= BE2_SET_RESET;
-	writel(sreset, (void *)pci_reset_offset);
-
-	i = 0;
-	while (sreset & BE2_SET_RESET) {
-		if (i > 64)
-			break;
-		msleep(1);
-		sreset = readl((void *)pci_reset_offset);
-		i++;
-	}
-	if (sreset & BE2_SET_RESET) {
-		printk(KERN_ERR DRV_NAME
-		       " MPU Online Soft Reset did not deassert\n");
-		return -EIO;
-	}
-	return 0;
-}
-
 int be_chk_reset_complete(struct beiscsi_hba *phba)
 {
 	unsigned int num_loop;
@@ -102,28 +48,6 @@ int be_chk_reset_complete(struct beiscsi_hba *phba)
 	}
 
 	return 0;
-}
-
-unsigned int alloc_mcc_tag(struct beiscsi_hba *phba)
-{
-	unsigned int tag = 0;
-
-	spin_lock(&phba->ctrl.mcc_lock);
-	if (phba->ctrl.mcc_tag_available) {
-		tag = phba->ctrl.mcc_tag[phba->ctrl.mcc_alloc_index];
-		phba->ctrl.mcc_tag[phba->ctrl.mcc_alloc_index] = 0;
-		phba->ctrl.mcc_tag_status[tag] = 0;
-		phba->ctrl.ptag_state[tag].tag_state = 0;
-	}
-	if (tag) {
-		phba->ctrl.mcc_tag_available--;
-		if (phba->ctrl.mcc_alloc_index == (MAX_MCC_CMD - 1))
-			phba->ctrl.mcc_alloc_index = 0;
-		else
-			phba->ctrl.mcc_alloc_index++;
-	}
-	spin_unlock(&phba->ctrl.mcc_lock);
-	return tag;
 }
 
 struct be_mcc_wrb *alloc_mcc_wrb(struct beiscsi_hba *phba,
