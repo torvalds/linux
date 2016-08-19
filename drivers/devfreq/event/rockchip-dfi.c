@@ -151,8 +151,11 @@ static int rockchip_dfi_get_event(struct devfreq_event_dev *edev,
 {
 	struct rockchip_dfi *info = devfreq_event_get_drvdata(edev);
 	int busier_ch;
+	unsigned long flags;
 
+	local_irq_save(flags);
 	busier_ch = rockchip_dfi_get_busier_ch(edev);
+	local_irq_restore(flags);
 
 	edata->load_count = info->ch_usage[busier_ch].access;
 	edata->total_count = info->ch_usage[busier_ch].total;
