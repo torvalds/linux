@@ -386,21 +386,6 @@ static void push_desc_queue(struct cppi41_channel *c)
 	u32 desc_phys;
 	u32 reg;
 
-	desc_phys = lower_32_bits(c->desc_phys);
-	desc_num = (desc_phys - cdd->descs_phys) / sizeof(struct cppi41_desc);
-	WARN_ON(cdd->chan_busy[desc_num]);
-	cdd->chan_busy[desc_num] = c;
-
-	reg = (sizeof(struct cppi41_desc) - 24) / 4;
-	reg |= desc_phys;
-	cppi_writel(reg, cdd->qmgr_mem + QMGR_QUEUE_D(c->q_num));
-}
-
-static void cppi41_dma_issue_pending(struct dma_chan *chan)
-{
-	struct cppi41_channel *c = to_cpp41_chan(chan);
-	u32 reg;
-
 	c->residue = 0;
 
 	reg = GCR_CHAN_ENABLE;
@@ -418,6 +403,21 @@ static void cppi41_dma_issue_pending(struct dma_chan *chan)
 	 * before starting the dma engine.
 	 */
 	__iowmb();
+
+	desc_phys = lower_32_bits(c->desc_phys);
+	desc_num = (desc_phys - cdd->descs_phys) / sizeof(struct cppi41_desc);
+	WARN_ON(cdd->chan_busy[desc_num]);
+	cdd->chan_busy[desc_num] = c;
+
+	reg = (sizeof(struct cppi41_desc) - 24) / 4;
+	reg |= desc_phys;
+	cppi_writel(reg, cdd->qmgr_mem + QMGR_QUEUE_D(c->q_num));
+}
+
+static void cppi41_dma_issue_pending(struct dma_chan *chan)
+{
+	struct cppi41_channel *c = to_cpp41_chan(chan);
+
 	push_desc_queue(c);
 }
 
