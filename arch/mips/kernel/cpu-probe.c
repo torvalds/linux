@@ -376,8 +376,6 @@ static int __init ftlb_disable(char *s)
 		return 1;
 	}
 
-	back_to_back_c0_hazard();
-
 	config4 = read_c0_config4();
 
 	/* Check that FTLB has been disabled */
@@ -560,6 +558,7 @@ static int set_ftlb_enable(struct cpuinfo_mips *c, enum ftlb_flags flags)
 		}
 
 		write_c0_config6(config);
+		back_to_back_c0_hazard();
 		break;
 	case CPU_I6400:
 		/* There's no way to disable the FTLB */
