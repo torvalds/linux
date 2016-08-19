@@ -580,6 +580,7 @@ static void hdm_read_completion(struct urb *urb)
 		switch (urb->status) {
 		case -EPIPE:
 			dev_warn(dev, "Broken IN pipe detected\n");
+			most_stop_enqueue(&mdev->iface, channel);
 			mbo->status = MBO_E_INVAL;
 			mdev->clear_work[channel].pipe = urb->pipe;
 			schedule_work(&mdev->clear_work[channel].ws);
@@ -936,8 +937,7 @@ static void wq_clear_halt(struct work_struct *wq_obj)
 	if (usb_clear_halt(mdev->usb_device, pipe))
 		dev_warn(&mdev->usb_device->dev, "Failed to reset endpoint.\n");
 
-	if (mdev->conf[channel].direction & MOST_CH_TX)
-		most_resume_enqueue(&mdev->iface, channel);
+	most_resume_enqueue(&mdev->iface, channel);
 	mutex_unlock(&mdev->io_mutex);
 }
 
