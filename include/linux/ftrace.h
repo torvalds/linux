@@ -814,6 +814,9 @@ extern int
 ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth,
 			 unsigned long frame_pointer, unsigned long *retp);
 
+unsigned long ftrace_graph_ret_addr(struct task_struct *task, int *idx,
+				    unsigned long ret, unsigned long *retp);
+
 /*
  * Sometimes we don't want to trace a function with the function
  * graph tracer but we want them to keep traced by the usual function
@@ -873,6 +876,13 @@ static inline void unregister_ftrace_graph(void) { }
 static inline int task_curr_ret_stack(struct task_struct *tsk)
 {
 	return -1;
+}
+
+static inline unsigned long
+ftrace_graph_ret_addr(struct task_struct *task, int *idx, unsigned long ret,
+		      unsigned long *retp)
+{
+	return ret;
 }
 
 static inline void pause_graph_tracing(void) { }
