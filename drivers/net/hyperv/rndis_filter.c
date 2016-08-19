@@ -897,7 +897,8 @@ cleanup:
 
 	/* Wait for all send completions */
 	wait_event(nvdev->wait_drain,
-		atomic_read(&nvdev->num_outstanding_sends) == 0);
+		   atomic_read(&nvdev->num_outstanding_sends) == 0 &&
+		   atomic_read(&nvdev->num_outstanding_recvs) == 0);
 
 	if (request)
 		put_rndis_request(dev, request);
@@ -952,6 +953,9 @@ static void netvsc_sc_open(struct vmbus_channel *new_sc)
 
 	set_per_channel_state(new_sc, nvscdev->sub_cb_buf + (chn_index - 1) *
 			      NETVSC_PACKET_SIZE);
+
+	nvscdev->mrc[chn_index].buf = vzalloc(NETVSC_RECVSLOT_MAX *
+					      sizeof(struct recv_comp_data));
 
 	ret = vmbus_open(new_sc, nvscdev->ring_size * PAGE_SIZE,
 			 nvscdev->ring_size * PAGE_SIZE, NULL, 0,

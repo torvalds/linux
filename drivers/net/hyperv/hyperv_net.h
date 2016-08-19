@@ -634,6 +634,20 @@ struct multi_send_data {
 	u32 count; /* counter of batched packets */
 };
 
+struct recv_comp_data {
+	u64 tid; /* transaction id */
+	u32 status;
+};
+
+/* Netvsc Receive Slots Max */
+#define NETVSC_RECVSLOT_MAX (NETVSC_RECEIVE_BUFFER_SIZE / ETH_DATA_LEN + 1)
+
+struct multi_recv_comp {
+	void *buf; /* queued receive completions */
+	u32 first; /* first data entry */
+	u32 next; /* next entry for writing */
+};
+
 struct netvsc_stats {
 	u64 packets;
 	u64 bytes;
@@ -735,6 +749,9 @@ struct netvsc_device {
 	struct multi_send_data msd[VRSS_CHANNEL_MAX];
 	u32 max_pkt; /* max number of pkt in one send, e.g. 8 */
 	u32 pkt_align; /* alignment bytes, e.g. 8 */
+
+	struct multi_recv_comp mrc[VRSS_CHANNEL_MAX];
+	atomic_t num_outstanding_recvs;
 
 	atomic_t open_cnt;
 };
