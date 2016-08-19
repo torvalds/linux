@@ -22,6 +22,7 @@
 #include <asm/pgtable.h>
 #include <asm/ppc-opcode.h>
 #include <asm/pnv-pci.h>
+#include <asm/opal.h>
 
 #include "book3s_xics.h"
 
@@ -34,6 +35,7 @@ EXPORT_SYMBOL(kvm_irq_bypass);
 
 static void icp_rm_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 			    u32 new_irq);
+static int xics_opal_rm_set_server(unsigned int hw_irq, int server_cpu);
 
 /* -- ICS routines -- */
 static void ics_rm_check_resend(struct kvmppc_xics *xics,
@@ -713,6 +715,13 @@ int kvmppc_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 		icp->rm_action |= XICS_RM_NOTIFY_EOI;
 		icp->rm_eoied_irq = irq;
 	}
+
+	if (state->host_irq && state->intr_cpu != -1) {
+		int pcpu = cpu_first_thread_sibling(raw_smp_processor_id());
+		if (state->intr_cpu != pcpu)
+			xics_opal_rm_set_server(state->host_irq, pcpu);
+		state->intr_cpu = -1;
+	}
  bail:
 	return check_too_hard(xics, icp);
 }
@@ -734,6 +743,13 @@ static void icp_eoi(struct irq_chip *c, u32 hwirq, u32 xirr)
 	/* EOI it */
 	xics_phys = local_paca->kvm_hstate.xics_phys;
 	_stwcix(xics_phys + XICS_XIRR, xirr);
+}
+
+static int xics_opal_rm_set_server(unsigned int hw_irq, int server_cpu)
+{
+	unsigned int mangle_cpu = get_hard_smp_processor_id(server_cpu) << 2;
+
+	return opal_rm_set_xive(hw_irq, mangle_cpu, DEFAULT_PRIORITY);
 }
 
 /*
