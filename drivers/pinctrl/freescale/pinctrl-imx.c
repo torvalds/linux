@@ -501,7 +501,7 @@ static void imx_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 		ret = imx_pinconf_get(pctldev, pin->pin, &config);
 		if (ret)
 			return;
-		seq_printf(s, "%s: 0x%lx", name, config);
+		seq_printf(s, "  %s: 0x%lx\n", name, config);
 	}
 }
 
