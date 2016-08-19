@@ -345,8 +345,8 @@ struct be_cmd_req_logout_fw_sess {
 
 struct be_cmd_resp_logout_fw_sess {
 	struct be_cmd_resp_hdr hdr;	/* dw[4] */
-#define BEISCSI_MGMT_SESSION_CLOSE 0x20
 	uint32_t session_status;
+#define BE_SESS_STATUS_CLOSE		0x20
 } __packed;
 
 struct mgmt_conn_login_options {
@@ -438,8 +438,13 @@ struct be_cmd_get_boot_target_req {
 
 struct be_cmd_get_boot_target_resp {
 	struct be_cmd_resp_hdr hdr;
-	u32  boot_session_count;
-	int  boot_session_handle;
+	u32 boot_session_count;
+	u32 boot_session_handle;
+/**
+ * FW returns 0xffffffff if it couldn't establish connection with
+ * configured boot target.
+ */
+#define BE_BOOT_INVALID_SHANDLE	0xffffffff
 };
 
 struct be_cmd_reopen_session_req {
@@ -741,8 +746,13 @@ void free_mcc_wrb(struct be_ctrl_info *ctrl, unsigned int tag);
 int be_cmd_modify_eq_delay(struct beiscsi_hba *phba, struct be_set_eqd *,
 			    int num);
 int beiscsi_mccq_compl_wait(struct beiscsi_hba *phba,
-			    uint32_t tag, struct be_mcc_wrb **wrb,
+			    unsigned int tag,
+			    struct be_mcc_wrb **wrb,
 			    struct be_dma_mem *mbx_cmd_mem);
+int __beiscsi_mcc_compl_status(struct beiscsi_hba *phba,
+			       unsigned int tag,
+			       struct be_mcc_wrb **wrb,
+			       struct be_dma_mem *mbx_cmd_mem);
 /*ISCSI Functuions */
 int be_cmd_fw_initialize(struct be_ctrl_info *ctrl);
 int be_cmd_fw_uninit(struct be_ctrl_info *ctrl);

@@ -374,152 +374,6 @@ static int beiscsi_eh_device_reset(struct scsi_cmnd *sc)
 	return iscsi_eh_device_reset(sc);
 }
 
-static ssize_t beiscsi_show_boot_tgt_info(void *data, int type, char *buf)
-{
-	struct beiscsi_hba *phba = data;
-	struct mgmt_session_info *boot_sess = &phba->boot_sess;
-	struct mgmt_conn_info *boot_conn = &boot_sess->conn_list[0];
-	char *str = buf;
-	int rc = -EPERM;
-
-	switch (type) {
-	case ISCSI_BOOT_TGT_NAME:
-		rc = sprintf(buf, "%.*s\n",
-			    (int)strlen(boot_sess->target_name),
-			    (char *)&boot_sess->target_name);
-		break;
-	case ISCSI_BOOT_TGT_IP_ADDR:
-		if (boot_conn->dest_ipaddr.ip_type == BEISCSI_IP_TYPE_V4)
-			rc = sprintf(buf, "%pI4\n",
-				(char *)&boot_conn->dest_ipaddr.addr);
-		else
-			rc = sprintf(str, "%pI6\n",
-				(char *)&boot_conn->dest_ipaddr.addr);
-		break;
-	case ISCSI_BOOT_TGT_PORT:
-		rc = sprintf(str, "%d\n", boot_conn->dest_port);
-		break;
-
-	case ISCSI_BOOT_TGT_CHAP_NAME:
-		rc = sprintf(str,  "%.*s\n",
-			     boot_conn->negotiated_login_options.auth_data.chap.
-			     target_chap_name_length,
-			     (char *)&boot_conn->negotiated_login_options.
-			     auth_data.chap.target_chap_name);
-		break;
-	case ISCSI_BOOT_TGT_CHAP_SECRET:
-		rc = sprintf(str,  "%.*s\n",
-			     boot_conn->negotiated_login_options.auth_data.chap.
-			     target_secret_length,
-			     (char *)&boot_conn->negotiated_login_options.
-			     auth_data.chap.target_secret);
-		break;
-	case ISCSI_BOOT_TGT_REV_CHAP_NAME:
-		rc = sprintf(str,  "%.*s\n",
-			     boot_conn->negotiated_login_options.auth_data.chap.
-			     intr_chap_name_length,
-			     (char *)&boot_conn->negotiated_login_options.
-			     auth_data.chap.intr_chap_name);
-		break;
-	case ISCSI_BOOT_TGT_REV_CHAP_SECRET:
-		rc = sprintf(str,  "%.*s\n",
-			     boot_conn->negotiated_login_options.auth_data.chap.
-			     intr_secret_length,
-			     (char *)&boot_conn->negotiated_login_options.
-			     auth_data.chap.intr_secret);
-		break;
-	case ISCSI_BOOT_TGT_FLAGS:
-		rc = sprintf(str, "2\n");
-		break;
-	case ISCSI_BOOT_TGT_NIC_ASSOC:
-		rc = sprintf(str, "0\n");
-		break;
-	}
-	return rc;
-}
-
-static ssize_t beiscsi_show_boot_ini_info(void *data, int type, char *buf)
-{
-	struct beiscsi_hba *phba = data;
-	char *str = buf;
-	int rc = -EPERM;
-
-	switch (type) {
-	case ISCSI_BOOT_INI_INITIATOR_NAME:
-		rc = sprintf(str, "%s\n", phba->boot_sess.initiator_iscsiname);
-		break;
-	}
-	return rc;
-}
-
-static ssize_t beiscsi_show_boot_eth_info(void *data, int type, char *buf)
-{
-	struct beiscsi_hba *phba = data;
-	char *str = buf;
-	int rc = -EPERM;
-
-	switch (type) {
-	case ISCSI_BOOT_ETH_FLAGS:
-		rc = sprintf(str, "2\n");
-		break;
-	case ISCSI_BOOT_ETH_INDEX:
-		rc = sprintf(str, "0\n");
-		break;
-	case ISCSI_BOOT_ETH_MAC:
-		rc  = beiscsi_get_macaddr(str, phba);
-		break;
-	}
-	return rc;
-}
-
-
-static umode_t beiscsi_tgt_get_attr_visibility(void *data, int type)
-{
-	umode_t rc = 0;
-
-	switch (type) {
-	case ISCSI_BOOT_TGT_NAME:
-	case ISCSI_BOOT_TGT_IP_ADDR:
-	case ISCSI_BOOT_TGT_PORT:
-	case ISCSI_BOOT_TGT_CHAP_NAME:
-	case ISCSI_BOOT_TGT_CHAP_SECRET:
-	case ISCSI_BOOT_TGT_REV_CHAP_NAME:
-	case ISCSI_BOOT_TGT_REV_CHAP_SECRET:
-	case ISCSI_BOOT_TGT_NIC_ASSOC:
-	case ISCSI_BOOT_TGT_FLAGS:
-		rc = S_IRUGO;
-		break;
-	}
-	return rc;
-}
-
-static umode_t beiscsi_ini_get_attr_visibility(void *data, int type)
-{
-	umode_t rc = 0;
-
-	switch (type) {
-	case ISCSI_BOOT_INI_INITIATOR_NAME:
-		rc = S_IRUGO;
-		break;
-	}
-	return rc;
-}
-
-
-static umode_t beiscsi_eth_get_attr_visibility(void *data, int type)
-{
-	umode_t rc = 0;
-
-	switch (type) {
-	case ISCSI_BOOT_ETH_FLAGS:
-	case ISCSI_BOOT_ETH_MAC:
-	case ISCSI_BOOT_ETH_INDEX:
-		rc = S_IRUGO;
-		break;
-	}
-	return rc;
-}
-
 /*------------------- PCI Driver operations and data ----------------- */
 static const struct pci_device_id beiscsi_pci_id_table[] = {
 	{ PCI_DEVICE(BE_VENDOR_ID, BE_DEVICE_ID1) },
@@ -4312,149 +4166,6 @@ static void hwi_disable_intr(struct beiscsi_hba *phba)
 			    "BM_%d : In hwi_disable_intr, Already Disabled\n");
 }
 
-/**
- * beiscsi_get_boot_info()- Get the boot session info
- * @phba: The device priv structure instance
- *
- * Get the boot target info and store in driver priv structure
- *
- * return values
- *	Success: 0
- *	Failure: Non-Zero Value
- **/
-static int beiscsi_get_boot_info(struct beiscsi_hba *phba)
-{
-	struct be_cmd_get_session_resp *session_resp;
-	struct be_dma_mem nonemb_cmd;
-	unsigned int tag;
-	unsigned int s_handle;
-	int ret = -ENOMEM;
-
-	/* Get the session handle of the boot target */
-	ret = be_mgmt_get_boot_shandle(phba, &s_handle);
-	if (ret) {
-		beiscsi_log(phba, KERN_ERR,
-			    BEISCSI_LOG_INIT | BEISCSI_LOG_CONFIG,
-			    "BM_%d : No boot session\n");
-
-		if (ret == -ENXIO)
-			phba->get_boot = 0;
-
-
-		return ret;
-	}
-	phba->get_boot = 0;
-	nonemb_cmd.va = pci_zalloc_consistent(phba->ctrl.pdev,
-					      sizeof(*session_resp),
-					      &nonemb_cmd.dma);
-	if (nonemb_cmd.va == NULL) {
-		beiscsi_log(phba, KERN_ERR,
-			    BEISCSI_LOG_INIT | BEISCSI_LOG_CONFIG,
-			    "BM_%d : Failed to allocate memory for"
-			    "beiscsi_get_session_info\n");
-
-		return -ENOMEM;
-	}
-
-	tag = mgmt_get_session_info(phba, s_handle,
-				    &nonemb_cmd);
-	if (!tag) {
-		beiscsi_log(phba, KERN_ERR,
-			    BEISCSI_LOG_INIT | BEISCSI_LOG_CONFIG,
-			    "BM_%d : beiscsi_get_session_info"
-			    " Failed\n");
-
-		goto boot_freemem;
-	}
-
-	ret = beiscsi_mccq_compl_wait(phba, tag, NULL, &nonemb_cmd);
-	if (ret) {
-		beiscsi_log(phba, KERN_ERR,
-			    BEISCSI_LOG_INIT | BEISCSI_LOG_CONFIG,
-			    "BM_%d : beiscsi_get_session_info Failed");
-
-		if (ret != -EBUSY)
-			goto boot_freemem;
-		else
-			return ret;
-	}
-
-	session_resp = nonemb_cmd.va ;
-
-	memcpy(&phba->boot_sess, &session_resp->session_info,
-	       sizeof(struct mgmt_session_info));
-
-	 beiscsi_logout_fw_sess(phba,
-				phba->boot_sess.session_handle);
-	ret = 0;
-
-boot_freemem:
-	pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
-		    nonemb_cmd.va, nonemb_cmd.dma);
-	return ret;
-}
-
-static void beiscsi_boot_release(void *data)
-{
-	struct beiscsi_hba *phba = data;
-
-	scsi_host_put(phba->shost);
-}
-
-static int beiscsi_setup_boot_info(struct beiscsi_hba *phba)
-{
-	struct iscsi_boot_kobj *boot_kobj;
-
-	/* it has been created previously */
-	if (phba->boot_kset)
-		return 0;
-
-	/* get boot info using mgmt cmd */
-	if (beiscsi_get_boot_info(phba))
-		/* Try to see if we can carry on without this */
-		return 0;
-
-	phba->boot_kset = iscsi_boot_create_host_kset(phba->shost->host_no);
-	if (!phba->boot_kset)
-		return -ENOMEM;
-
-	/* get a ref because the show function will ref the phba */
-	if (!scsi_host_get(phba->shost))
-		goto free_kset;
-	boot_kobj = iscsi_boot_create_target(phba->boot_kset, 0, phba,
-					     beiscsi_show_boot_tgt_info,
-					     beiscsi_tgt_get_attr_visibility,
-					     beiscsi_boot_release);
-	if (!boot_kobj)
-		goto put_shost;
-
-	if (!scsi_host_get(phba->shost))
-		goto free_kset;
-	boot_kobj = iscsi_boot_create_initiator(phba->boot_kset, 0, phba,
-						beiscsi_show_boot_ini_info,
-						beiscsi_ini_get_attr_visibility,
-						beiscsi_boot_release);
-	if (!boot_kobj)
-		goto put_shost;
-
-	if (!scsi_host_get(phba->shost))
-		goto free_kset;
-	boot_kobj = iscsi_boot_create_ethernet(phba->boot_kset, 0, phba,
-					       beiscsi_show_boot_eth_info,
-					       beiscsi_eth_get_attr_visibility,
-					       beiscsi_boot_release);
-	if (!boot_kobj)
-		goto put_shost;
-	return 0;
-
-put_shost:
-	scsi_host_put(phba->shost);
-free_kset:
-	iscsi_boot_destroy_kset(phba->boot_kset);
-	phba->boot_kset = NULL;
-	return -ENOMEM;
-}
-
 static int beiscsi_init_port(struct beiscsi_hba *phba)
 {
 	int ret;
@@ -5289,6 +5000,7 @@ static void beiscsi_quiesce(struct beiscsi_hba *phba)
 			free_irq(phba->pcidev->irq, phba);
 	pci_disable_msix(phba->pcidev);
 	cancel_delayed_work_sync(&phba->beiscsi_hw_check_task);
+	cancel_work_sync(&phba->boot_work);
 
 	for (i = 0; i < phba->num_cpus; i++) {
 		pbe_eq = &phwi_context->be_eq[i];
@@ -5325,9 +5037,10 @@ static void beiscsi_remove(struct pci_dev *pcidev)
 
 	clear_bit(BEISCSI_HBA_RUNNING, &phba->state);
 	beiscsi_iface_destroy_default(phba);
-	iscsi_boot_destroy_kset(phba->boot_kset);
 	iscsi_host_remove(phba->shost);
 	beiscsi_quiesce(phba);
+	/* after cancelling boot_work */
+	iscsi_boot_destroy_kset(phba->boot_struct.boot_kset);
 	pci_dev_put(phba->pcidev);
 	iscsi_host_free(phba->shost);
 	pci_disable_pcie_error_reporting(pcidev);
@@ -5349,6 +5062,281 @@ static void beiscsi_msix_enable(struct beiscsi_hba *phba)
 		phba->msix_enabled = true;
 
 	return;
+}
+
+void beiscsi_start_boot_work(struct beiscsi_hba *phba, unsigned int s_handle)
+{
+	if (phba->boot_struct.boot_kset)
+		return;
+
+	/* skip if boot work is already in progress */
+	if (test_and_set_bit(BEISCSI_HBA_BOOT_WORK, &phba->state))
+		return;
+
+	phba->boot_struct.retry = 3;
+	phba->boot_struct.tag = 0;
+	phba->boot_struct.s_handle = s_handle;
+	phba->boot_struct.action = BEISCSI_BOOT_GET_SHANDLE;
+	schedule_work(&phba->boot_work);
+}
+
+static ssize_t beiscsi_show_boot_tgt_info(void *data, int type, char *buf)
+{
+	struct beiscsi_hba *phba = data;
+	struct mgmt_session_info *boot_sess = &phba->boot_struct.boot_sess;
+	struct mgmt_conn_info *boot_conn = &boot_sess->conn_list[0];
+	char *str = buf;
+	int rc = -EPERM;
+
+	switch (type) {
+	case ISCSI_BOOT_TGT_NAME:
+		rc = sprintf(buf, "%.*s\n",
+			    (int)strlen(boot_sess->target_name),
+			    (char *)&boot_sess->target_name);
+		break;
+	case ISCSI_BOOT_TGT_IP_ADDR:
+		if (boot_conn->dest_ipaddr.ip_type == BEISCSI_IP_TYPE_V4)
+			rc = sprintf(buf, "%pI4\n",
+				(char *)&boot_conn->dest_ipaddr.addr);
+		else
+			rc = sprintf(str, "%pI6\n",
+				(char *)&boot_conn->dest_ipaddr.addr);
+		break;
+	case ISCSI_BOOT_TGT_PORT:
+		rc = sprintf(str, "%d\n", boot_conn->dest_port);
+		break;
+
+	case ISCSI_BOOT_TGT_CHAP_NAME:
+		rc = sprintf(str,  "%.*s\n",
+			     boot_conn->negotiated_login_options.auth_data.chap.
+			     target_chap_name_length,
+			     (char *)&boot_conn->negotiated_login_options.
+			     auth_data.chap.target_chap_name);
+		break;
+	case ISCSI_BOOT_TGT_CHAP_SECRET:
+		rc = sprintf(str,  "%.*s\n",
+			     boot_conn->negotiated_login_options.auth_data.chap.
+			     target_secret_length,
+			     (char *)&boot_conn->negotiated_login_options.
+			     auth_data.chap.target_secret);
+		break;
+	case ISCSI_BOOT_TGT_REV_CHAP_NAME:
+		rc = sprintf(str,  "%.*s\n",
+			     boot_conn->negotiated_login_options.auth_data.chap.
+			     intr_chap_name_length,
+			     (char *)&boot_conn->negotiated_login_options.
+			     auth_data.chap.intr_chap_name);
+		break;
+	case ISCSI_BOOT_TGT_REV_CHAP_SECRET:
+		rc = sprintf(str,  "%.*s\n",
+			     boot_conn->negotiated_login_options.auth_data.chap.
+			     intr_secret_length,
+			     (char *)&boot_conn->negotiated_login_options.
+			     auth_data.chap.intr_secret);
+		break;
+	case ISCSI_BOOT_TGT_FLAGS:
+		rc = sprintf(str, "2\n");
+		break;
+	case ISCSI_BOOT_TGT_NIC_ASSOC:
+		rc = sprintf(str, "0\n");
+		break;
+	}
+	return rc;
+}
+
+static ssize_t beiscsi_show_boot_ini_info(void *data, int type, char *buf)
+{
+	struct beiscsi_hba *phba = data;
+	char *str = buf;
+	int rc = -EPERM;
+
+	switch (type) {
+	case ISCSI_BOOT_INI_INITIATOR_NAME:
+		rc = sprintf(str, "%s\n",
+			     phba->boot_struct.boot_sess.initiator_iscsiname);
+		break;
+	}
+	return rc;
+}
+
+static ssize_t beiscsi_show_boot_eth_info(void *data, int type, char *buf)
+{
+	struct beiscsi_hba *phba = data;
+	char *str = buf;
+	int rc = -EPERM;
+
+	switch (type) {
+	case ISCSI_BOOT_ETH_FLAGS:
+		rc = sprintf(str, "2\n");
+		break;
+	case ISCSI_BOOT_ETH_INDEX:
+		rc = sprintf(str, "0\n");
+		break;
+	case ISCSI_BOOT_ETH_MAC:
+		rc  = beiscsi_get_macaddr(str, phba);
+		break;
+	}
+	return rc;
+}
+
+
+static umode_t beiscsi_tgt_get_attr_visibility(void *data, int type)
+{
+	umode_t rc = 0;
+
+	switch (type) {
+	case ISCSI_BOOT_TGT_NAME:
+	case ISCSI_BOOT_TGT_IP_ADDR:
+	case ISCSI_BOOT_TGT_PORT:
+	case ISCSI_BOOT_TGT_CHAP_NAME:
+	case ISCSI_BOOT_TGT_CHAP_SECRET:
+	case ISCSI_BOOT_TGT_REV_CHAP_NAME:
+	case ISCSI_BOOT_TGT_REV_CHAP_SECRET:
+	case ISCSI_BOOT_TGT_NIC_ASSOC:
+	case ISCSI_BOOT_TGT_FLAGS:
+		rc = S_IRUGO;
+		break;
+	}
+	return rc;
+}
+
+static umode_t beiscsi_ini_get_attr_visibility(void *data, int type)
+{
+	umode_t rc = 0;
+
+	switch (type) {
+	case ISCSI_BOOT_INI_INITIATOR_NAME:
+		rc = S_IRUGO;
+		break;
+	}
+	return rc;
+}
+
+
+static umode_t beiscsi_eth_get_attr_visibility(void *data, int type)
+{
+	umode_t rc = 0;
+
+	switch (type) {
+	case ISCSI_BOOT_ETH_FLAGS:
+	case ISCSI_BOOT_ETH_MAC:
+	case ISCSI_BOOT_ETH_INDEX:
+		rc = S_IRUGO;
+		break;
+	}
+	return rc;
+}
+
+static void beiscsi_boot_kobj_release(void *data)
+{
+	struct beiscsi_hba *phba = data;
+
+	scsi_host_put(phba->shost);
+}
+
+static int beiscsi_boot_create_kset(struct beiscsi_hba *phba)
+{
+	struct boot_struct *bs = &phba->boot_struct;
+	struct iscsi_boot_kobj *boot_kobj;
+
+	if (bs->boot_kset) {
+		__beiscsi_log(phba, KERN_ERR,
+			      "BM_%d: boot_kset already created\n");
+		return 0;
+	}
+
+	bs->boot_kset = iscsi_boot_create_host_kset(phba->shost->host_no);
+	if (!bs->boot_kset) {
+		__beiscsi_log(phba, KERN_ERR,
+			      "BM_%d: boot_kset alloc failed\n");
+		return -ENOMEM;
+	}
+
+	/* get shost ref because the show function will refer phba */
+	if (!scsi_host_get(phba->shost))
+		goto free_kset;
+
+	boot_kobj = iscsi_boot_create_target(bs->boot_kset, 0, phba,
+					     beiscsi_show_boot_tgt_info,
+					     beiscsi_tgt_get_attr_visibility,
+					     beiscsi_boot_kobj_release);
+	if (!boot_kobj)
+		goto put_shost;
+
+	if (!scsi_host_get(phba->shost))
+		goto free_kset;
+
+	boot_kobj = iscsi_boot_create_initiator(bs->boot_kset, 0, phba,
+						beiscsi_show_boot_ini_info,
+						beiscsi_ini_get_attr_visibility,
+						beiscsi_boot_kobj_release);
+	if (!boot_kobj)
+		goto put_shost;
+
+	if (!scsi_host_get(phba->shost))
+		goto free_kset;
+
+	boot_kobj = iscsi_boot_create_ethernet(bs->boot_kset, 0, phba,
+					       beiscsi_show_boot_eth_info,
+					       beiscsi_eth_get_attr_visibility,
+					       beiscsi_boot_kobj_release);
+	if (!boot_kobj)
+		goto put_shost;
+
+	return 0;
+
+put_shost:
+	scsi_host_put(phba->shost);
+free_kset:
+	iscsi_boot_destroy_kset(bs->boot_kset);
+	bs->boot_kset = NULL;
+	return -ENOMEM;
+}
+
+static void beiscsi_boot_work(struct work_struct *work)
+{
+	struct beiscsi_hba *phba =
+		container_of(work, struct beiscsi_hba, boot_work);
+	struct boot_struct *bs = &phba->boot_struct;
+	unsigned int tag = 0;
+
+	if (beiscsi_hba_in_error(phba))
+		return;
+
+	beiscsi_log(phba, KERN_INFO,
+		    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
+		    "BM_%d : %s action %d\n",
+		    __func__, phba->boot_struct.action);
+
+	switch (phba->boot_struct.action) {
+	case BEISCSI_BOOT_REOPEN_SESS:
+		tag = beiscsi_boot_reopen_sess(phba);
+		break;
+	case BEISCSI_BOOT_GET_SHANDLE:
+		tag = __beiscsi_boot_get_shandle(phba, 1);
+		break;
+	case BEISCSI_BOOT_GET_SINFO:
+		tag = beiscsi_boot_get_sinfo(phba);
+		break;
+	case BEISCSI_BOOT_LOGOUT_SESS:
+		tag = beiscsi_boot_logout_sess(phba);
+		break;
+	case BEISCSI_BOOT_CREATE_KSET:
+		beiscsi_boot_create_kset(phba);
+		/**
+		 * updated boot_kset is made visible to all before
+		 * ending the boot work.
+		 */
+		mb();
+		clear_bit(BEISCSI_HBA_BOOT_WORK, &phba->state);
+		return;
+	}
+	if (!tag) {
+		if (bs->retry--)
+			schedule_work(&phba->boot_work);
+		else
+			clear_bit(BEISCSI_HBA_BOOT_WORK, &phba->state);
+	}
 }
 
 static void be_eqd_update(struct beiscsi_hba *phba)
@@ -5405,17 +5393,6 @@ static void be_eqd_update(struct beiscsi_hba *phba)
 	}
 }
 
-static void be_check_boot_session(struct beiscsi_hba *phba)
-{
-	if (beiscsi_hba_in_error(phba))
-		return;
-
-	if (beiscsi_setup_boot_info(phba))
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
-			    "BM_%d : Could not set up "
-			    "iSCSI boot info on async event.\n");
-}
-
 /*
  * beiscsi_hw_health_check()- Check adapter health
  * @work: work item to check HW health
@@ -5430,17 +5407,6 @@ beiscsi_hw_health_check(struct work_struct *work)
 			     beiscsi_hw_check_task.work);
 
 	be_eqd_update(phba);
-
-	if (test_bit(BEISCSI_HBA_BOOT_FOUND, &phba->state)) {
-		if ((phba->get_boot > 0) && (!phba->boot_kset)) {
-			phba->get_boot--;
-			if (!(phba->get_boot % BE_GET_BOOT_TO))
-				be_check_boot_session(phba);
-		} else {
-			clear_bit(BEISCSI_HBA_BOOT_FOUND, &phba->state);
-			phba->get_boot = 0;
-		}
-	}
 
 	beiscsi_ue_detect(phba);
 
@@ -5607,6 +5573,7 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 	struct hwi_controller *phwi_ctrlr;
 	struct hwi_context_memory *phwi_context;
 	struct be_eq_obj *pbe_eq;
+	unsigned int s_handle;
 	int ret = 0, i;
 
 	ret = beiscsi_enable_pci(pcidev);
@@ -5769,14 +5736,17 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 	if (iscsi_host_add(phba->shost, &phba->pcidev->dev))
 		goto free_blkenbld;
 
-	if (beiscsi_setup_boot_info(phba))
-		/*
-		 * log error but continue, because we may not be using
-		 * iscsi boot.
+	INIT_WORK(&phba->boot_work, beiscsi_boot_work);
+	ret = beiscsi_boot_get_shandle(phba, &s_handle);
+	if (ret > 0) {
+		beiscsi_start_boot_work(phba, s_handle);
+		/**
+		 * Set this bit after starting the work to let
+		 * probe handle it first.
+		 * ASYNC event can too schedule this work.
 		 */
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
-			    "BM_%d : Could not set up "
-			    "iSCSI boot info.\n");
+		set_bit(BEISCSI_HBA_BOOT_FOUND, &phba->state);
+	}
 
 	beiscsi_iface_create_default(phba);
 	schedule_delayed_work(&phba->beiscsi_hw_check_task,

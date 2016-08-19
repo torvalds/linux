@@ -96,11 +96,6 @@
 #define MAX_CMD_SZ			65536
 #define IIOC_SCSI_DATA                  0x05	/* Write Operation */
 
-#define INVALID_SESS_HANDLE	0xFFFFFFFF
-
-#define BE_GET_BOOT_RETRIES	45
-#define BE_GET_BOOT_TO		20
-
 /**
  * hardware needs the async PDU buffers to be posted in multiples of 8
  * So have atleast 8 of them by default
@@ -378,7 +373,6 @@ struct beiscsi_hba {
 	struct ulp_cid_info *cid_array_info[BEISCSI_ULP_COUNT];
 	struct iscsi_endpoint **ep_array;
 	struct beiscsi_conn **conn_table;
-	struct iscsi_boot_kset *boot_kset;
 	struct Scsi_Host *shost;
 	struct iscsi_iface *ipv4_iface;
 	struct iscsi_iface *ipv6_iface;
@@ -410,16 +404,16 @@ struct beiscsi_hba {
 #define BEISCSI_HBA_RUNNING	0
 #define BEISCSI_HBA_LINK_UP	1
 #define BEISCSI_HBA_BOOT_FOUND	2
-#define BEISCSI_HBA_PCI_ERR	3
-#define BEISCSI_HBA_FW_TIMEOUT	4
-#define BEISCSI_HBA_IN_UE	5
+#define BEISCSI_HBA_BOOT_WORK	3
+#define BEISCSI_HBA_PCI_ERR	4
+#define BEISCSI_HBA_FW_TIMEOUT	5
+#define BEISCSI_HBA_IN_UE	6
 /* error bits */
 #define BEISCSI_HBA_IN_ERR	((1 << BEISCSI_HBA_PCI_ERR) | \
 				 (1 << BEISCSI_HBA_FW_TIMEOUT) | \
 				 (1 << BEISCSI_HBA_IN_UE))
 
 	u8 optic_state;
-	int get_boot;
 	struct delayed_work beiscsi_hw_check_task;
 
 	bool mac_addr_set;
@@ -432,7 +426,6 @@ struct beiscsi_hba {
 	struct be_ctrl_info ctrl;
 	unsigned int generation;
 	unsigned int interface_handle;
-	struct mgmt_session_info boot_sess;
 	struct invalidate_command_table inv_tbl[128];
 
 	struct be_aic_obj aic_obj[MAX_CPUS];
@@ -441,6 +434,22 @@ struct beiscsi_hba {
 			struct scatterlist *sg,
 			uint32_t num_sg, uint32_t xferlen,
 			uint32_t writedir);
+	struct boot_struct {
+		int retry;
+		unsigned int tag;
+		unsigned int s_handle;
+		struct be_dma_mem nonemb_cmd;
+		enum {
+			BEISCSI_BOOT_REOPEN_SESS = 1,
+			BEISCSI_BOOT_GET_SHANDLE,
+			BEISCSI_BOOT_GET_SINFO,
+			BEISCSI_BOOT_LOGOUT_SESS,
+			BEISCSI_BOOT_CREATE_KSET,
+		} action;
+		struct mgmt_session_info boot_sess;
+		struct iscsi_boot_kset *boot_kset;
+	} boot_struct;
+	struct work_struct boot_work;
 };
 
 #define beiscsi_hba_in_error(phba) ((phba)->state & BEISCSI_HBA_IN_ERR)
@@ -1065,6 +1074,8 @@ struct hwi_context_memory {
 	struct be_queue_info be_def_dataq[BEISCSI_ULP_COUNT];
 	struct hwi_async_pdu_context *pasync_ctx[BEISCSI_ULP_COUNT];
 };
+
+void beiscsi_start_boot_work(struct beiscsi_hba *phba, unsigned int s_handle);
 
 /* Logging related definitions */
 #define BEISCSI_LOG_INIT	0x0001	/* Initialization events */

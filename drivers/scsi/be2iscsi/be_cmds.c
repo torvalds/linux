@@ -84,6 +84,7 @@ struct be_mcc_wrb *alloc_mcc_wrb(struct beiscsi_hba *phba,
 	phba->ctrl.mcc_tag[phba->ctrl.mcc_alloc_index] = 0;
 	phba->ctrl.mcc_tag_status[tag] = 0;
 	phba->ctrl.ptag_state[tag].tag_state = 0;
+	phba->ctrl.ptag_state[tag].cbfn = NULL;
 	phba->ctrl.mcc_tag_available--;
 	if (phba->ctrl.mcc_alloc_index == (MAX_MCC_CMD - 1))
 		phba->ctrl.mcc_alloc_index = 0;
@@ -128,6 +129,70 @@ void beiscsi_fail_session(struct iscsi_cls_session *cls_session)
 }
 
 /*
+ * beiscsi_mcc_compl_status - Return the status of MCC completion
+ * @phba: Driver private structure
+ * @tag: Tag for the MBX Command
+ * @wrb: the WRB used for the MBX Command
+ * @mbx_cmd_mem: ptr to memory allocated for MBX Cmd
+ *
+ * return
+ * Success: 0
+ * Failure: Non-Zero
+ */
+int __beiscsi_mcc_compl_status(struct beiscsi_hba *phba,
+			       unsigned int tag,
+			       struct be_mcc_wrb **wrb,
+			       struct be_dma_mem *mbx_cmd_mem)
+{
+	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
+	uint16_t status = 0, addl_status = 0, wrb_num = 0;
+	struct be_cmd_resp_hdr *mbx_resp_hdr;
+	struct be_cmd_req_hdr *mbx_hdr;
+	struct be_mcc_wrb *temp_wrb;
+	uint32_t mcc_tag_status;
+	int rc = 0;
+
+	mcc_tag_status = phba->ctrl.mcc_tag_status[tag];
+	status = (mcc_tag_status & CQE_STATUS_MASK);
+	addl_status = ((mcc_tag_status & CQE_STATUS_ADDL_MASK) >>
+			CQE_STATUS_ADDL_SHIFT);
+
+	if (mbx_cmd_mem) {
+		mbx_hdr = (struct be_cmd_req_hdr *)mbx_cmd_mem->va;
+	} else {
+		wrb_num = (mcc_tag_status & CQE_STATUS_WRB_MASK) >>
+			  CQE_STATUS_WRB_SHIFT;
+		temp_wrb = (struct be_mcc_wrb *)queue_get_wrb(mccq, wrb_num);
+		mbx_hdr = embedded_payload(temp_wrb);
+
+		if (wrb)
+			*wrb = temp_wrb;
+	}
+
+	if (status || addl_status) {
+		beiscsi_log(phba, KERN_WARNING,
+			    BEISCSI_LOG_INIT | BEISCSI_LOG_EH |
+			    BEISCSI_LOG_CONFIG,
+			    "BC_%d : MBX Cmd Failed for Subsys : %d Opcode : %d with Status : %d and Extd_Status : %d\n",
+			    mbx_hdr->subsystem, mbx_hdr->opcode,
+			    status, addl_status);
+		rc = -EIO;
+		if (status == MCC_STATUS_INSUFFICIENT_BUFFER) {
+			mbx_resp_hdr = (struct be_cmd_resp_hdr *)mbx_hdr;
+			beiscsi_log(phba, KERN_WARNING,
+				    BEISCSI_LOG_INIT | BEISCSI_LOG_EH |
+				    BEISCSI_LOG_CONFIG,
+				    "BC_%d : Insufficient Buffer Error Resp_Len : %d Actual_Resp_Len : %d\n",
+				    mbx_resp_hdr->response_length,
+				    mbx_resp_hdr->actual_resp_len);
+			rc = -EAGAIN;
+		}
+	}
+
+	return rc;
+}
+
+/*
  * beiscsi_mccq_compl_wait()- Process completion in MCC CQ
  * @phba: Driver private structure
  * @tag: Tag for the MBX Command
@@ -141,16 +206,11 @@ void beiscsi_fail_session(struct iscsi_cls_session *cls_session)
  * Failure: Non-Zero
  **/
 int beiscsi_mccq_compl_wait(struct beiscsi_hba *phba,
-			    uint32_t tag, struct be_mcc_wrb **wrb,
+			    unsigned int tag,
+			    struct be_mcc_wrb **wrb,
 			    struct be_dma_mem *mbx_cmd_mem)
 {
 	int rc = 0;
-	uint32_t mcc_tag_status;
-	uint16_t status = 0, addl_status = 0, wrb_num = 0;
-	struct be_mcc_wrb *temp_wrb;
-	struct be_cmd_req_hdr *mbx_hdr;
-	struct be_cmd_resp_hdr *mbx_resp_hdr;
-	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
 
 	if (beiscsi_hba_in_error(phba)) {
 		clear_bit(MCC_TAG_STATE_RUNNING,
@@ -159,11 +219,11 @@ int beiscsi_mccq_compl_wait(struct beiscsi_hba *phba,
 	}
 
 	/* wait for the mccq completion */
-	rc = wait_event_interruptible_timeout(
-				phba->ctrl.mcc_wait[tag],
-				phba->ctrl.mcc_tag_status[tag],
-				msecs_to_jiffies(
-				BEISCSI_HOST_MBX_TIMEOUT));
+	rc = wait_event_interruptible_timeout(phba->ctrl.mcc_wait[tag],
+					      phba->ctrl.mcc_tag_status[tag],
+					      msecs_to_jiffies(
+						BEISCSI_HOST_MBX_TIMEOUT));
+
 	/**
 	 * If MBOX cmd timeout expired, tag and resource allocated
 	 * for cmd is not freed until FW returns completion.
@@ -197,47 +257,7 @@ int beiscsi_mccq_compl_wait(struct beiscsi_hba *phba,
 		return -EBUSY;
 	}
 
-	rc = 0;
-	mcc_tag_status = phba->ctrl.mcc_tag_status[tag];
-	status = (mcc_tag_status & CQE_STATUS_MASK);
-	addl_status = ((mcc_tag_status & CQE_STATUS_ADDL_MASK) >>
-			CQE_STATUS_ADDL_SHIFT);
-
-	if (mbx_cmd_mem) {
-		mbx_hdr = (struct be_cmd_req_hdr *)mbx_cmd_mem->va;
-	} else {
-		wrb_num = (mcc_tag_status & CQE_STATUS_WRB_MASK) >>
-			   CQE_STATUS_WRB_SHIFT;
-		temp_wrb = (struct be_mcc_wrb *)queue_get_wrb(mccq, wrb_num);
-		mbx_hdr = embedded_payload(temp_wrb);
-
-		if (wrb)
-			*wrb = temp_wrb;
-	}
-
-	if (status || addl_status) {
-		beiscsi_log(phba, KERN_WARNING,
-			    BEISCSI_LOG_INIT | BEISCSI_LOG_EH |
-			    BEISCSI_LOG_CONFIG,
-			    "BC_%d : MBX Cmd Failed for "
-			    "Subsys : %d Opcode : %d with "
-			    "Status : %d and Extd_Status : %d\n",
-			    mbx_hdr->subsystem,
-			    mbx_hdr->opcode,
-			    status, addl_status);
-		rc = -EIO;
-		if (status == MCC_STATUS_INSUFFICIENT_BUFFER) {
-			mbx_resp_hdr = (struct be_cmd_resp_hdr *) mbx_hdr;
-			beiscsi_log(phba, KERN_WARNING,
-				    BEISCSI_LOG_INIT | BEISCSI_LOG_EH |
-				    BEISCSI_LOG_CONFIG,
-				    "BC_%d : Insufficient Buffer Error "
-				    "Resp_Len : %d Actual_Resp_Len : %d\n",
-				    mbx_resp_hdr->response_length,
-				    mbx_resp_hdr->actual_resp_len);
-			rc = -EAGAIN;
-		}
-	}
+	rc = __beiscsi_mcc_compl_status(phba, tag, wrb, mbx_cmd_mem);
 
 	free_mcc_wrb(&phba->ctrl, tag);
 	return rc;
@@ -318,11 +338,9 @@ static void beiscsi_process_async_link(struct beiscsi_hba *phba,
 	 * This has been newly introduced in SKH-R Firmware 10.0.338.45.
 	 **/
 	if (evt->port_link_status & BE_ASYNC_LINK_UP_MASK) {
-		phba->get_boot = BE_GET_BOOT_RETRIES;
-		/* first this needs to be visible to worker thread */
-		wmb();
-		set_bit(BEISCSI_HBA_LINK_UP | BEISCSI_HBA_BOOT_FOUND,
-			&phba->state);
+		set_bit(BEISCSI_HBA_LINK_UP, &phba->state);
+		if (test_bit(BEISCSI_HBA_BOOT_FOUND, &phba->state))
+			beiscsi_start_boot_work(phba, BE_BOOT_INVALID_SHANDLE);
 		__beiscsi_log(phba, KERN_ERR,
 			      "BC_%d : Link Up on Port %d tag 0x%x\n",
 			      evt->physical_port, evt->event_tag);
@@ -412,10 +430,8 @@ void beiscsi_process_async_event(struct beiscsi_hba *phba,
 		beiscsi_process_async_link(phba, compl);
 		break;
 	case ASYNC_EVENT_CODE_ISCSI:
-		phba->get_boot = BE_GET_BOOT_RETRIES;
-		/* first this needs to be visible to worker thread */
-		wmb();
-		set_bit(BEISCSI_HBA_BOOT_FOUND, &phba->state);
+		if (test_bit(BEISCSI_HBA_BOOT_FOUND, &phba->state))
+			beiscsi_start_boot_work(phba, BE_BOOT_INVALID_SHANDLE);
 		sev = KERN_ERR;
 		break;
 	case ASYNC_EVENT_CODE_SLI:
@@ -451,6 +467,9 @@ int beiscsi_process_mcc_compl(struct be_ctrl_info *ctrl,
 		return 0;
 	}
 
+	/* end MCC with this tag */
+	clear_bit(MCC_TAG_STATE_RUNNING, &ctrl->ptag_state[tag].tag_state);
+
 	if (test_bit(MCC_TAG_STATE_TIMEOUT, &ctrl->ptag_state[tag].tag_state)) {
 		beiscsi_log(phba, KERN_WARNING,
 			    BEISCSI_LOG_MBOX | BEISCSI_LOG_INIT |
@@ -461,9 +480,11 @@ int beiscsi_process_mcc_compl(struct be_ctrl_info *ctrl,
 		 * Only for non-embedded cmd, PCI resource is allocated.
 		 **/
 		tag_mem = &ctrl->ptag_state[tag].tag_mem_state;
-		if (tag_mem->size)
+		if (tag_mem->size) {
 			pci_free_consistent(ctrl->pdev, tag_mem->size,
 					tag_mem->va, tag_mem->dma);
+			tag_mem->size = 0;
+		}
 		free_mcc_wrb(ctrl, tag);
 		return 0;
 	}
@@ -482,8 +503,18 @@ int beiscsi_process_mcc_compl(struct be_ctrl_info *ctrl,
 				     CQE_STATUS_ADDL_MASK;
 	ctrl->mcc_tag_status[tag] |= (compl_status & CQE_STATUS_MASK);
 
-	/* write ordering forced in wake_up_interruptible */
-	clear_bit(MCC_TAG_STATE_RUNNING, &ctrl->ptag_state[tag].tag_state);
+	if (test_bit(MCC_TAG_STATE_ASYNC, &ctrl->ptag_state[tag].tag_state)) {
+		if (ctrl->ptag_state[tag].cbfn)
+			ctrl->ptag_state[tag].cbfn(phba, tag);
+		else
+			beiscsi_log(phba, KERN_ERR,
+				    BEISCSI_LOG_MBOX | BEISCSI_LOG_INIT |
+				    BEISCSI_LOG_CONFIG,
+				    "BC_%d : MBX ASYNC command with no callback\n");
+		free_mcc_wrb(ctrl, tag);
+		return 0;
+	}
+
 	wake_up_interruptible(&ctrl->mcc_wait[tag]);
 	return 0;
 }

@@ -282,16 +282,6 @@ int beiscsi_if_en_dhcp(struct beiscsi_hba *phba, u32 ip_type);
 int beiscsi_if_en_static(struct beiscsi_hba *phba, u32 ip_type,
 			 u8 *ip, u8 *subnet);
 
-unsigned int mgmt_get_boot_target(struct beiscsi_hba *phba);
-
-unsigned int mgmt_reopen_session(struct beiscsi_hba *phba,
-				  unsigned int reopen_type,
-				  unsigned sess_handle);
-
-unsigned int mgmt_get_session_info(struct beiscsi_hba *phba,
-				   u32 boot_session_handle,
-				   struct be_dma_mem *nonemb_cmd);
-
 int mgmt_get_nic_conf(struct beiscsi_hba *phba,
 		      struct be_cmd_get_nic_conf_resp *mac);
 
@@ -303,12 +293,19 @@ int beiscsi_if_get_gw(struct beiscsi_hba *phba, u32 ip_type,
 
 int beiscsi_if_set_gw(struct beiscsi_hba *phba, u32 ip_type, u8 *gw);
 
-int be_mgmt_get_boot_shandle(struct beiscsi_hba *phba,
-			      unsigned int *s_handle);
-
 unsigned int beiscsi_if_get_handle(struct beiscsi_hba *phba);
 
 int beiscsi_if_set_vlan(struct beiscsi_hba *phba, uint16_t vlan_tag);
+
+unsigned int beiscsi_boot_logout_sess(struct beiscsi_hba *phba);
+
+unsigned int beiscsi_boot_reopen_sess(struct beiscsi_hba *phba);
+
+unsigned int beiscsi_boot_get_sinfo(struct beiscsi_hba *phba);
+
+unsigned int __beiscsi_boot_get_shandle(struct beiscsi_hba *phba, int async);
+
+int beiscsi_boot_get_shandle(struct beiscsi_hba *phba, unsigned int *s_handle);
 
 ssize_t beiscsi_drvr_ver_disp(struct device *dev,
 			       struct device_attribute *attr, char *buf);
