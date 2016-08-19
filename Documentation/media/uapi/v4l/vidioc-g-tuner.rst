@@ -260,7 +260,7 @@ To change the radio frequency the
 .. flat-table:: enum v4l2_tuner_type
     :header-rows:  0
     :stub-columns: 0
-    :widths:       3 1 4
+    :widths:       3 1 6
 
 
     -  .. row 1
@@ -269,7 +269,7 @@ To change the radio frequency the
 
        -  1
 
-       -
+       - Tuner supports radio
 
     -  .. row 2
 
@@ -277,7 +277,7 @@ To change the radio frequency the
 
        -  2
 
-       -
+       - Tuner supports analog TV
 
     -  .. row 3
 
@@ -285,7 +285,8 @@ To change the radio frequency the
 
        -  4
 
-       -
+       - Tuner controls the A/D and/or D/A block of a
+	 Sofware Digital Radio (SDR)
 
     -  .. row 4
 
@@ -293,8 +294,7 @@ To change the radio frequency the
 
        -  5
 
-       -
-
+       - Tuner controls the RF part of a Sofware Digital Radio (SDR)
 
 
 .. _tuner-capability:
