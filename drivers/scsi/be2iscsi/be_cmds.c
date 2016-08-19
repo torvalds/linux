@@ -1595,7 +1595,7 @@ int beiscsi_check_fw_rdy(struct beiscsi_hba *phba)
 	return rdy;
 }
 
-static int beiscsi_cmd_function_reset(struct beiscsi_hba  *phba)
+int beiscsi_cmd_function_reset(struct beiscsi_hba *phba)
 {
 	struct be_ctrl_info *ctrl = &phba->ctrl;
 	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);

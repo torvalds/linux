@@ -762,6 +762,8 @@ struct be_cmd_set_features {
 	} param;
 } __packed;
 
+int beiscsi_cmd_function_reset(struct beiscsi_hba *phba);
+
 int beiscsi_cmd_special_wrb(struct be_ctrl_info *ctrl, u32 load);
 
 int beiscsi_check_fw_rdy(struct beiscsi_hba *phba);

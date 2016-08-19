@@ -3771,9 +3771,12 @@ static void hwi_cleanup_port(struct beiscsi_hba *phba)
 			beiscsi_cmd_q_destroy(ctrl, q, QTYPE_EQ);
 		}
 	}
+	/* this ensures complete FW cleanup */
+	beiscsi_cmd_function_reset(phba);
 	/* last communication, indicate driver is unloading */
 	beiscsi_cmd_special_wrb(&phba->ctrl, 0);
 }
+
 static int hwi_init_port(struct beiscsi_hba *phba)
 {
 	struct hwi_controller *phwi_ctrlr;
