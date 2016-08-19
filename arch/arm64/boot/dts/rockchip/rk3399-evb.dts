@@ -120,6 +120,18 @@
 	status = "okay";
 };
 
+&pcie_phy {
+	status = "disabled";
+};
+
+&pcie0 {
+	ep-gpios = <&gpio3 13 GPIO_ACTIVE_HIGH>;
+	num-lanes = <4>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie_clkreqn>;
+	status = "disabled";
+};
+
 &u2phy0 {
 	status = "okay";
 };
