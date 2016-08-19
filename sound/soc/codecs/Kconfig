@@ -92,6 +92,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_MAX9877 if I2C
 	select SND_SOC_MC13783 if MFD_MC13XXX
 	select SND_SOC_ML26124 if I2C
+	select SND_SOC_NAU8810 if I2C
 	select SND_SOC_NAU8825 if I2C
 	select SND_SOC_HDMI_CODEC
 	select SND_SOC_PCM1681 if I2C
@@ -1063,6 +1064,10 @@ config SND_SOC_MC13783
 
 config SND_SOC_ML26124
 	tristate
+
+config SND_SOC_NAU8810
+	tristate "Nuvoton Technology Corporation NAU88C10 CODEC"
+	depends on I2C
 
 config SND_SOC_NAU8825
 	tristate
