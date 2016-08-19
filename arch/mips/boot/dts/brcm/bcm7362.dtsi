@@ -40,6 +40,12 @@
 			#clock-cells = <0>;
 			clock-frequency = <81000000>;
 		};
+
+		upg_clk: upg_clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <27000000>;
+		};
 	};
 
 	rdb {
@@ -188,6 +194,14 @@
 		      interrupts = <27>;
 		      interrupt-names = "upg_bscd";
 		      status = "disabled";
+		};
+
+		pwma: pwm@406400 {
+			compatible = "brcm,bcm7038-pwm";
+			reg = <0x406400 0x28>;
+			#pwm-cells = <2>;
+			clocks = <&upg_clk>;
+			status = "disabled";
 		};
 
 		enet0: ethernet@430000 {
