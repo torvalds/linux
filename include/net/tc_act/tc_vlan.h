@@ -20,6 +20,7 @@ struct tcf_vlan {
 	int			tcfv_action;
 	u16			tcfv_push_vid;
 	__be16			tcfv_push_proto;
+	u8			tcfv_push_prio;
 };
 #define to_vlan(a) ((struct tcf_vlan *)a)
 

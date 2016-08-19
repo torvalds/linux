@@ -28,6 +28,7 @@ struct fl_flow_key {
 	struct flow_dissector_key_control control;
 	struct flow_dissector_key_basic basic;
 	struct flow_dissector_key_eth_addrs eth;
+	struct flow_dissector_key_vlan vlan;
 	struct flow_dissector_key_addrs ipaddrs;
 	union {
 		struct flow_dissector_key_ipv4_addrs ipv4;
@@ -293,6 +294,10 @@ static const struct nla_policy fl_policy[TCA_FLOWER_MAX + 1] = {
 	[TCA_FLOWER_KEY_TCP_DST]	= { .type = NLA_U16 },
 	[TCA_FLOWER_KEY_UDP_SRC]	= { .type = NLA_U16 },
 	[TCA_FLOWER_KEY_UDP_DST]	= { .type = NLA_U16 },
+	[TCA_FLOWER_KEY_VLAN_ID]	= { .type = NLA_U16 },
+	[TCA_FLOWER_KEY_VLAN_PRIO]	= { .type = NLA_U8 },
+	[TCA_FLOWER_KEY_VLAN_ETH_TYPE]	= { .type = NLA_U16 },
+
 };
 
 static void fl_set_key_val(struct nlattr **tb,
@@ -308,9 +313,29 @@ static void fl_set_key_val(struct nlattr **tb,
 		memcpy(mask, nla_data(tb[mask_type]), len);
 }
 
+static void fl_set_key_vlan(struct nlattr **tb,
+			    struct flow_dissector_key_vlan *key_val,
+			    struct flow_dissector_key_vlan *key_mask)
+{
+#define VLAN_PRIORITY_MASK	0x7
+
+	if (tb[TCA_FLOWER_KEY_VLAN_ID]) {
+		key_val->vlan_id =
+			nla_get_u16(tb[TCA_FLOWER_KEY_VLAN_ID]) & VLAN_VID_MASK;
+		key_mask->vlan_id = VLAN_VID_MASK;
+	}
+	if (tb[TCA_FLOWER_KEY_VLAN_PRIO]) {
+		key_val->vlan_priority =
+			nla_get_u8(tb[TCA_FLOWER_KEY_VLAN_PRIO]) &
+			VLAN_PRIORITY_MASK;
+		key_mask->vlan_priority = VLAN_PRIORITY_MASK;
+	}
+}
+
 static int fl_set_key(struct net *net, struct nlattr **tb,
 		      struct fl_flow_key *key, struct fl_flow_key *mask)
 {
+	__be16 ethertype;
 #ifdef CONFIG_NET_CLS_IND
 	if (tb[TCA_FLOWER_INDEV]) {
 		int err = tcf_change_indev(net, tb[TCA_FLOWER_INDEV]);
@@ -328,9 +353,19 @@ static int fl_set_key(struct net *net, struct nlattr **tb,
 		       mask->eth.src, TCA_FLOWER_KEY_ETH_SRC_MASK,
 		       sizeof(key->eth.src));
 
-	fl_set_key_val(tb, &key->basic.n_proto, TCA_FLOWER_KEY_ETH_TYPE,
-		       &mask->basic.n_proto, TCA_FLOWER_UNSPEC,
-		       sizeof(key->basic.n_proto));
+	if (tb[TCA_FLOWER_KEY_ETH_TYPE])
+		ethertype = nla_get_be16(tb[TCA_FLOWER_KEY_ETH_TYPE]);
+
+	if (ethertype == htons(ETH_P_8021Q)) {
+		fl_set_key_vlan(tb, &key->vlan, &mask->vlan);
+		fl_set_key_val(tb, &key->basic.n_proto,
+			       TCA_FLOWER_KEY_VLAN_ETH_TYPE,
+			       &mask->basic.n_proto, TCA_FLOWER_UNSPEC,
+			       sizeof(key->basic.n_proto));
+	} else {
+		key->basic.n_proto = ethertype;
+		mask->basic.n_proto = cpu_to_be16(~0);
+	}
 
 	if (key->basic.n_proto == htons(ETH_P_IP) ||
 	    key->basic.n_proto == htons(ETH_P_IPV6)) {
@@ -404,12 +439,10 @@ static int fl_init_hashtable(struct cls_fl_head *head,
 
 #define FL_KEY_MEMBER_OFFSET(member) offsetof(struct fl_flow_key, member)
 #define FL_KEY_MEMBER_SIZE(member) (sizeof(((struct fl_flow_key *) 0)->member))
-#define FL_KEY_MEMBER_END_OFFSET(member)					\
-	(FL_KEY_MEMBER_OFFSET(member) + FL_KEY_MEMBER_SIZE(member))
 
-#define FL_KEY_IN_RANGE(mask, member)						\
-        (FL_KEY_MEMBER_OFFSET(member) <= (mask)->range.end &&			\
-         FL_KEY_MEMBER_END_OFFSET(member) >= (mask)->range.start)
+#define FL_KEY_IS_MASKED(mask, member)						\
+	memchr_inv(((char *)mask) + FL_KEY_MEMBER_OFFSET(member),		\
+		   0, FL_KEY_MEMBER_SIZE(member))				\
 
 #define FL_KEY_SET(keys, cnt, id, member)					\
 	do {									\
@@ -418,9 +451,9 @@ static int fl_init_hashtable(struct cls_fl_head *head,
 		cnt++;								\
 	} while(0);
 
-#define FL_KEY_SET_IF_IN_RANGE(mask, keys, cnt, id, member)			\
+#define FL_KEY_SET_IF_MASKED(mask, keys, cnt, id, member)			\
 	do {									\
-		if (FL_KEY_IN_RANGE(mask, member))				\
+		if (FL_KEY_IS_MASKED(mask, member))				\
 			FL_KEY_SET(keys, cnt, id, member);			\
 	} while(0);
 
@@ -432,14 +465,16 @@ static void fl_init_dissector(struct cls_fl_head *head,
 
 	FL_KEY_SET(keys, cnt, FLOW_DISSECTOR_KEY_CONTROL, control);
 	FL_KEY_SET(keys, cnt, FLOW_DISSECTOR_KEY_BASIC, basic);
-	FL_KEY_SET_IF_IN_RANGE(mask, keys, cnt,
-			       FLOW_DISSECTOR_KEY_ETH_ADDRS, eth);
-	FL_KEY_SET_IF_IN_RANGE(mask, keys, cnt,
-			       FLOW_DISSECTOR_KEY_IPV4_ADDRS, ipv4);
-	FL_KEY_SET_IF_IN_RANGE(mask, keys, cnt,
-			       FLOW_DISSECTOR_KEY_IPV6_ADDRS, ipv6);
-	FL_KEY_SET_IF_IN_RANGE(mask, keys, cnt,
-			       FLOW_DISSECTOR_KEY_PORTS, tp);
+	FL_KEY_SET_IF_MASKED(&mask->key, keys, cnt,
+			     FLOW_DISSECTOR_KEY_ETH_ADDRS, eth);
+	FL_KEY_SET_IF_MASKED(&mask->key, keys, cnt,
+			     FLOW_DISSECTOR_KEY_IPV4_ADDRS, ipv4);
+	FL_KEY_SET_IF_MASKED(&mask->key, keys, cnt,
+			     FLOW_DISSECTOR_KEY_IPV6_ADDRS, ipv6);
+	FL_KEY_SET_IF_MASKED(&mask->key, keys, cnt,
+			     FLOW_DISSECTOR_KEY_PORTS, tp);
+	FL_KEY_SET_IF_MASKED(&mask->key, keys, cnt,
+			     FLOW_DISSECTOR_KEY_VLAN, vlan);
 
 	skb_flow_dissector_init(&head->dissector, keys, cnt);
 }
@@ -668,6 +703,29 @@ static int fl_dump_key_val(struct sk_buff *skb,
 	return 0;
 }
 
+static int fl_dump_key_vlan(struct sk_buff *skb,
+			    struct flow_dissector_key_vlan *vlan_key,
+			    struct flow_dissector_key_vlan *vlan_mask)
+{
+	int err;
+
+	if (!memchr_inv(vlan_mask, 0, sizeof(*vlan_mask)))
+		return 0;
+	if (vlan_mask->vlan_id) {
+		err = nla_put_u16(skb, TCA_FLOWER_KEY_VLAN_ID,
+				  vlan_key->vlan_id);
+		if (err)
+			return err;
+	}
+	if (vlan_mask->vlan_priority) {
+		err = nla_put_u8(skb, TCA_FLOWER_KEY_VLAN_PRIO,
+				 vlan_key->vlan_priority);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
 static int fl_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 		   struct sk_buff *skb, struct tcmsg *t)
 {
@@ -712,6 +770,10 @@ static int fl_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 			    &mask->basic.n_proto, TCA_FLOWER_UNSPEC,
 			    sizeof(key->basic.n_proto)))
 		goto nla_put_failure;
+
+	if (fl_dump_key_vlan(skb, &key->vlan, &mask->vlan))
+		goto nla_put_failure;
+
 	if ((key->basic.n_proto == htons(ETH_P_IP) ||
 	     key->basic.n_proto == htons(ETH_P_IPV6)) &&
 	    fl_dump_key_val(skb, &key->basic.ip_proto, TCA_FLOWER_KEY_IP_PROTO,

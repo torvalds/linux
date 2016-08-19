@@ -118,13 +118,16 @@ bool __skb_flow_dissect(const struct sk_buff *skb,
 	struct flow_dissector_key_addrs *key_addrs;
 	struct flow_dissector_key_ports *key_ports;
 	struct flow_dissector_key_tags *key_tags;
+	struct flow_dissector_key_vlan *key_vlan;
 	struct flow_dissector_key_keyid *key_keyid;
+	bool skip_vlan = false;
 	u8 ip_proto = 0;
 	bool ret = false;
 
 	if (!data) {
 		data = skb->data;
-		proto = skb->protocol;
+		proto = skb_vlan_tag_present(skb) ?
+			 skb->vlan_proto : skb->protocol;
 		nhoff = skb_network_offset(skb);
 		hlen = skb_headlen(skb);
 	}
@@ -243,23 +246,45 @@ ipv6:
 	case htons(ETH_P_8021AD):
 	case htons(ETH_P_8021Q): {
 		const struct vlan_hdr *vlan;
-		struct vlan_hdr _vlan;
 
-		vlan = __skb_header_pointer(skb, nhoff, sizeof(_vlan), data, hlen, &_vlan);
-		if (!vlan)
-			goto out_bad;
+		if (skb_vlan_tag_present(skb))
+			proto = skb->protocol;
 
-		if (dissector_uses_key(flow_dissector,
-				       FLOW_DISSECTOR_KEY_VLANID)) {
-			key_tags = skb_flow_dissector_target(flow_dissector,
-							     FLOW_DISSECTOR_KEY_VLANID,
-							     target_container);
+		if (!skb_vlan_tag_present(skb) ||
+		    proto == cpu_to_be16(ETH_P_8021Q) ||
+		    proto == cpu_to_be16(ETH_P_8021AD)) {
+			struct vlan_hdr _vlan;
 
-			key_tags->vlan_id = skb_vlan_tag_get_id(skb);
+			vlan = __skb_header_pointer(skb, nhoff, sizeof(_vlan),
+						    data, hlen, &_vlan);
+			if (!vlan)
+				goto out_bad;
+			proto = vlan->h_vlan_encapsulated_proto;
+			nhoff += sizeof(*vlan);
+			if (skip_vlan)
+				goto again;
 		}
 
-		proto = vlan->h_vlan_encapsulated_proto;
-		nhoff += sizeof(*vlan);
+		skip_vlan = true;
+		if (dissector_uses_key(flow_dissector,
+				       FLOW_DISSECTOR_KEY_VLAN)) {
+			key_vlan = skb_flow_dissector_target(flow_dissector,
+							     FLOW_DISSECTOR_KEY_VLAN,
+							     target_container);
+
+			if (skb_vlan_tag_present(skb)) {
+				key_vlan->vlan_id = skb_vlan_tag_get_id(skb);
+				key_vlan->vlan_priority =
+					(skb_vlan_tag_get_prio(skb) >> VLAN_PRIO_SHIFT);
+			} else {
+				key_vlan->vlan_id = ntohs(vlan->h_vlan_TCI) &
+					VLAN_VID_MASK;
+				key_vlan->vlan_priority =
+					(ntohs(vlan->h_vlan_TCI) &
+					 VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
+			}
+		}
+
 		goto again;
 	}
 	case htons(ETH_P_PPP_SES): {
@@ -917,8 +942,8 @@ static const struct flow_dissector_key flow_keys_dissector_keys[] = {
 		.offset = offsetof(struct flow_keys, ports),
 	},
 	{
-		.key_id = FLOW_DISSECTOR_KEY_VLANID,
-		.offset = offsetof(struct flow_keys, tags),
+		.key_id = FLOW_DISSECTOR_KEY_VLAN,
+		.offset = offsetof(struct flow_keys, vlan),
 	},
 	{
 		.key_id = FLOW_DISSECTOR_KEY_FLOW_LABEL,
