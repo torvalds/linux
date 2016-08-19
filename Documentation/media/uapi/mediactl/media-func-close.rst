@@ -21,13 +21,13 @@ Synopsis
 
 
 .. c:function:: int close( int fd )
-
+    :name: mc-close
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open() <mc-open>`.
 
 
 Description

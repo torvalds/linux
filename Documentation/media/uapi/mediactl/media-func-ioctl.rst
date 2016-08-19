@@ -21,13 +21,13 @@ Synopsis
 
 
 .. c:function:: int ioctl( int fd, int request, void *argp )
-
+    :name: mc-ioctl
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open() <mc-open>`.
 
 ``request``
     Media ioctl request code as defined in the media.h header file, for

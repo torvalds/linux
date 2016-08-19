@@ -15,7 +15,8 @@ MEDIA_IOC_SETUP_LINK - Modify the properties of a link
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct media_link_desc *argp )
+.. c:function:: int ioctl( int fd, MEDIA_IOC_SETUP_LINK, struct media_link_desc *argp )
+    :name: MEDIA_IOC_SETUP_LINK
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <media-func-open>`.
-
-``request``
-    MEDIA_IOC_SETUP_LINK
 
 ``argp``
 

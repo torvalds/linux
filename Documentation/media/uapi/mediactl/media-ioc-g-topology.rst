@@ -15,7 +15,8 @@ MEDIA_IOC_G_TOPOLOGY - Enumerate the graph topology and graph element properties
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct media_v2_topology *argp )
+.. c:function:: int ioctl( int fd, MEDIA_IOC_G_TOPOLOGY, struct media_v2_topology *argp )
+    :name: MEDIA_IOC_G_TOPOLOGY
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <media-func-open>`.
-
-``request``
-    MEDIA_IOC_G_TOPOLOGY
 
 ``argp``
 

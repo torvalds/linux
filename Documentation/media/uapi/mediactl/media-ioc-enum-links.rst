@@ -15,7 +15,8 @@ MEDIA_IOC_ENUM_LINKS - Enumerate all pads and links for a given entity
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct media_links_enum *argp )
+.. c:function:: int ioctl( int fd, MEDIA_IOC_ENUM_LINKS, struct media_links_enum *argp )
+    :name: MEDIA_IOC_ENUM_LINKS
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <media-func-open>`.
-
-``request``
-    MEDIA_IOC_ENUM_LINKS
 
 ``argp``
 
