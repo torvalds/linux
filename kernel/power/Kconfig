@@ -186,7 +186,7 @@ config PM_SLEEP_DEBUG
 
 config DPM_WATCHDOG
 	bool "Device suspend/resume watchdog"
-	depends on PM_DEBUG && PSTORE
+	depends on PM_DEBUG && PSTORE && EXPERT
 	---help---
 	  Sets up a watchdog timer to capture drivers that are
 	  locked up attempting to suspend/resume a device.
@@ -197,7 +197,7 @@ config DPM_WATCHDOG
 config DPM_WATCHDOG_TIMEOUT
 	int "Watchdog timeout in seconds"
 	range 1 120
-	default 60
+	default 120
 	depends on DPM_WATCHDOG
 
 config PM_TRACE
