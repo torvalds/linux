@@ -231,6 +231,10 @@
 		BT,wake_host_irq = <&gpio0 4 GPIO_ACTIVE_HIGH>; /* GPIO0_A4 */
 		status = "okay";
 	};
+
+	test-power {
+		status = "okay";
+	};
 };
 
 &cpu_l0 {
