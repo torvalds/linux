@@ -95,6 +95,10 @@ static struct kernel_param_ops module_param_ops = {
 	.get = param_get_int,
 };
 
+module_param_cb(kvm_irq_bypass, &module_param_ops, &kvm_irq_bypass,
+							S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(kvm_irq_bypass, "Bypass passthrough interrupt optimization");
+
 module_param_cb(h_ipi_redirect, &module_param_ops, &h_ipi_redirect,
 							S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(h_ipi_redirect, "Redirect H_IPI wakeup to a free host core");
@@ -3443,6 +3447,9 @@ static int kvmppc_set_passthru_irq(struct kvm *kvm, int host_irq, int guest_gsi)
 	struct irq_chip *chip;
 	int i;
 
+	if (!kvm_irq_bypass)
+		return 1;
+
 	desc = irq_to_desc(host_irq);
 	if (!desc)
 		return -EIO;
@@ -3518,6 +3525,9 @@ static int kvmppc_clr_passthru_irq(struct kvm *kvm, int host_irq, int guest_gsi)
 	struct irq_desc *desc;
 	struct kvmppc_passthru_irqmap *pimap;
 	int i;
+
+	if (!kvm_irq_bypass)
+		return 0;
 
 	desc = irq_to_desc(host_irq);
 	if (!desc)
