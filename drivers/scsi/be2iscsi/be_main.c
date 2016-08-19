@@ -5660,6 +5660,7 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 	}
 	mgmt_get_port_name(&phba->ctrl, phba);
 	beiscsi_get_params(phba);
+	beiscsi_set_uer_feature(phba);
 
 	if (enable_msix)
 		find_num_cpus(phba);

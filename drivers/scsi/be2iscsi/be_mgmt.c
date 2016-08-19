@@ -128,7 +128,7 @@ void beiscsi_ue_detect(struct beiscsi_hba *phba)
 		set_bit(BEISCSI_HBA_IN_UE, &phba->state);
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
-			    "BG_%d : Error detected on the adapter\n");
+			    "BG_%d : HBA error detected\n");
 	}
 
 	if (ue_lo) {

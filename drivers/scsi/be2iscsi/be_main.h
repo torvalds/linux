@@ -405,13 +405,17 @@ struct beiscsi_hba {
 #define BEISCSI_HBA_LINK_UP	1
 #define BEISCSI_HBA_BOOT_FOUND	2
 #define BEISCSI_HBA_BOOT_WORK	3
-#define BEISCSI_HBA_PCI_ERR	4
-#define BEISCSI_HBA_FW_TIMEOUT	5
-#define BEISCSI_HBA_IN_UE	6
+#define BEISCSI_HBA_UER_SUPP	4
+#define BEISCSI_HBA_PCI_ERR	5
+#define BEISCSI_HBA_FW_TIMEOUT	6
+#define BEISCSI_HBA_IN_UE	7
+#define BEISCSI_HBA_IN_TPE	8
+
 /* error bits */
 #define BEISCSI_HBA_IN_ERR	((1 << BEISCSI_HBA_PCI_ERR) | \
 				 (1 << BEISCSI_HBA_FW_TIMEOUT) | \
-				 (1 << BEISCSI_HBA_IN_UE))
+				 (1 << BEISCSI_HBA_IN_UE) | \
+				 (1 << BEISCSI_HBA_IN_TPE))
 
 	u8 optic_state;
 	struct delayed_work eqd_update;
@@ -420,6 +424,7 @@ struct beiscsi_hba {
 	struct timer_list hw_check;
 	/* check for UE every 1000ms */
 #define BEISCSI_UE_DETECT_INTERVAL	1000
+	u32 ue2rp;
 
 	bool mac_addr_set;
 	u8 mac_address[ETH_ALEN];

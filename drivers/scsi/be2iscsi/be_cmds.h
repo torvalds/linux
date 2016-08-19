@@ -57,6 +57,7 @@ struct be_mcc_wrb {
 #define MCC_STATUS_ILLEGAL_REQUEST 0x2
 #define MCC_STATUS_ILLEGAL_FIELD 0x3
 #define MCC_STATUS_INSUFFICIENT_BUFFER 0x4
+#define MCC_STATUS_INVALID_LENGTH 0x74
 
 #define CQE_STATUS_COMPL_MASK	0xFFFF
 #define CQE_STATUS_COMPL_SHIFT	0		/* bits 0 - 15 */
@@ -217,6 +218,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_QUERY_FIRMWARE_CONFIG		58
 #define OPCODE_COMMON_FUNCTION_RESET			61
 #define OPCODE_COMMON_GET_PORT_NAME			77
+#define OPCODE_COMMON_SET_FEATURES			191
 
 /**
  * LIST of opcodes that are common between Initiator and Target
@@ -712,6 +714,8 @@ struct be_cmd_get_nic_conf_resp {
 	u8 mac_address[ETH_ALEN];
 } __packed;
 
+/******************** Get HBA NAME *******************/
+
 #define BEISCSI_ALIAS_LEN 32
 
 struct be_cmd_hba_name {
@@ -720,6 +724,34 @@ struct be_cmd_hba_name {
 	u16 rsvd0;
 	u8 initiator_name[ISCSI_NAME_LEN];
 	u8 initiator_alias[BEISCSI_ALIAS_LEN];
+} __packed;
+
+/******************** COMMON SET Features *******************/
+#define BE_CMD_SET_FEATURE_UER	0x10
+#define BE_CMD_UER_SUPP_BIT	0x1
+struct be_uer_req {
+	u32 uer;
+	u32 rsvd;
+};
+
+struct be_uer_resp {
+	u32 uer;
+	u16 ue2rp;
+	u16 ue2sr;
+};
+
+struct be_cmd_set_features {
+	union {
+		struct be_cmd_req_hdr req_hdr;
+		struct be_cmd_resp_hdr resp_hdr;
+	} h;
+	u32 feature;
+	u32 param_len;
+	union {
+		struct be_uer_req req;
+		struct be_uer_resp resp;
+		u32 rsvd[2];
+	} param;
 } __packed;
 
 int beiscsi_cmd_eq_create(struct be_ctrl_info *ctrl,
@@ -794,6 +826,8 @@ int be_cmd_wrbq_create(struct be_ctrl_info *ctrl, struct be_dma_mem *q_mem,
 
 /* Configuration Functions */
 int be_cmd_set_vlan(struct beiscsi_hba *phba, uint16_t vlan_tag);
+
+int beiscsi_set_uer_feature(struct beiscsi_hba *phba);
 
 struct be_default_pdu_context {
 	u32 dw[4];

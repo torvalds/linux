@@ -277,11 +277,10 @@ int beiscsi_mccq_compl_wait(struct beiscsi_hba *phba,
 static int beiscsi_process_mbox_compl(struct be_ctrl_info *ctrl,
 				      struct be_mcc_compl *compl)
 {
-	u16 compl_status, extd_status;
 	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);
 	struct beiscsi_hba *phba = pci_get_drvdata(ctrl->pdev);
 	struct be_cmd_req_hdr *hdr = embedded_payload(wrb);
-	struct be_cmd_resp_hdr *resp_hdr;
+	u16 compl_status, extd_status;
 
 	/**
 	 * To check if valid bit is set, check the entire word as we don't know
@@ -315,14 +314,7 @@ static int beiscsi_process_mbox_compl(struct be_ctrl_info *ctrl,
 	beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
 		    "BC_%d : error in cmd completion: Subsystem : %d Opcode : %d status(compl/extd)=%d/%d\n",
 		    hdr->subsystem, hdr->opcode, compl_status, extd_status);
-
-	if (compl_status == MCC_STATUS_INSUFFICIENT_BUFFER) {
-		/* if status is insufficient buffer, check the length */
-		resp_hdr = (struct be_cmd_resp_hdr *) hdr;
-		if (resp_hdr->response_length)
-			return 0;
-	}
-	return -EINVAL;
+	return compl_status;
 }
 
 static void beiscsi_process_async_link(struct beiscsi_hba *phba,
@@ -507,10 +499,8 @@ int beiscsi_process_mcc_compl(struct be_ctrl_info *ctrl,
 		if (ctrl->ptag_state[tag].cbfn)
 			ctrl->ptag_state[tag].cbfn(phba, tag);
 		else
-			beiscsi_log(phba, KERN_ERR,
-				    BEISCSI_LOG_MBOX | BEISCSI_LOG_INIT |
-				    BEISCSI_LOG_CONFIG,
-				    "BC_%d : MBX ASYNC command with no callback\n");
+			__beiscsi_log(phba, KERN_ERR,
+				      "BC_%d : MBX ASYNC command with no callback\n");
 		free_mcc_wrb(ctrl, tag);
 		return 0;
 	}
@@ -1370,4 +1360,44 @@ int be_cmd_set_vlan(struct beiscsi_hba *phba,
 	mutex_unlock(&ctrl->mbox_lock);
 
 	return tag;
+}
+
+int beiscsi_set_uer_feature(struct beiscsi_hba *phba)
+{
+	struct be_ctrl_info *ctrl = &phba->ctrl;
+	struct be_cmd_set_features *ioctl;
+	struct be_mcc_wrb *wrb;
+	int ret = 0;
+
+	mutex_lock(&ctrl->mbox_lock);
+	wrb = wrb_from_mbox(&ctrl->mbox_mem);
+	memset(wrb, 0, sizeof(*wrb));
+	ioctl = embedded_payload(wrb);
+
+	be_wrb_hdr_prepare(wrb, sizeof(*ioctl), true, 0);
+	be_cmd_hdr_prepare(&ioctl->h.req_hdr, CMD_SUBSYSTEM_COMMON,
+			   OPCODE_COMMON_SET_FEATURES,
+			   EMBED_MBX_MAX_PAYLOAD_SIZE);
+	ioctl->feature = BE_CMD_SET_FEATURE_UER;
+	ioctl->param_len = sizeof(ioctl->param.req);
+	ioctl->param.req.uer = BE_CMD_UER_SUPP_BIT;
+	ret = be_mbox_notify(ctrl);
+	if (!ret) {
+		phba->ue2rp = ioctl->param.resp.ue2rp;
+		set_bit(BEISCSI_HBA_UER_SUPP, &phba->state);
+		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_INIT,
+			    "BG_%d : HBA error recovery supported\n");
+	} else {
+		/**
+		 * Check "MCC_STATUS_INVALID_LENGTH" for SKH.
+		 * Older FW versions return this error.
+		 */
+		if (ret == MCC_STATUS_ILLEGAL_REQUEST ||
+		    ret == MCC_STATUS_INVALID_LENGTH)
+			__beiscsi_log(phba, KERN_INFO,
+				      "BG_%d : HBA error recovery not supported\n");
+	}
+
+	mutex_unlock(&ctrl->mbox_lock);
+	return ret;
 }
