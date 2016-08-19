@@ -219,7 +219,7 @@ ENDPROC(ftrace_graph_caller)
  *
  * Run ftrace_return_to_handler() before going back to parent.
  * @fp is checked against the value passed by ftrace_graph_caller()
- * only when CONFIG_HAVE_FUNCTION_GRAPH_FP_TEST is enabled.
+ * only when HAVE_FUNCTION_GRAPH_FP_TEST is enabled.
  */
 ENTRY(return_to_handler)
 	save_return_regs
