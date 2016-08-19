@@ -592,7 +592,8 @@ real_mode:	/* assume normal blr return */
 #endif
 
 /*
- * kexec_sequence(newstack, start, image, control, clear_all())
+ * kexec_sequence(newstack, start, image, control, clear_all(),
+	          copy_with_mmu_off)
  *
  * does the grungy work with stack switching and real mode switches
  * also does simple calls to other code
@@ -628,7 +629,7 @@ _GLOBAL(kexec_sequence)
 	mr	r29,r5			/* image (virt) */
 	mr	r28,r6			/* control, unused */
 	mr	r27,r7			/* clear_all() fn desc */
-	mr	r26,r8			/* spare */
+	mr	r26,r8			/* copy_with_mmu_off */
 	lhz	r25,PACAHWCPUID(r13)	/* get our phys cpu from paca */
 
 	/* disable interrupts, we are overwriting kernel data next */
@@ -640,15 +641,24 @@ _GLOBAL(kexec_sequence)
 	mtmsrd	r3,1
 #endif
 
+	/* We need to turn the MMU off unless we are in hash mode
+	 * under a hypervisor
+	 */
+	cmpdi	r26,0
+	beq	1f
+	bl	real_mode
+1:
 	/* copy dest pages, flush whole dest image */
 	mr	r3,r29
 	bl	kexec_copy_flush	/* (image) */
 
-	/* turn off mmu */
+	/* turn off mmu now if not done earlier */
+	cmpdi	r26,0
+	bne	1f
 	bl	real_mode
 
 	/* copy  0x100 bytes starting at start to 0 */
-	li	r3,0
+1:	li	r3,0
 	mr	r4,r30		/* start, aka phys mem offset */
 	li	r5,0x100
 	li	r6,0
