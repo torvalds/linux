@@ -225,6 +225,8 @@ static const unsigned int i2c_sda_ao_pins[] = {PIN(GPIOAO_5, 0) };
 static const unsigned int i2c_slave_sck_ao_pins[] = {PIN(GPIOAO_4, 0) };
 static const unsigned int i2c_slave_sda_ao_pins[] = {PIN(GPIOAO_5, 0) };
 
+static const unsigned int remote_input_ao_pins[] = {PIN(GPIOAO_7, 0) };
+
 static struct meson_pmx_group meson_gxbb_periphs_groups[] = {
 	GPIO_GROUP(GPIOZ_0, EE_OFF),
 	GPIO_GROUP(GPIOZ_1, EE_OFF),
@@ -432,6 +434,7 @@ static struct meson_pmx_group meson_gxbb_aobus_groups[] = {
 	GROUP(i2c_sda_ao,	0,	5),
 	GROUP(i2c_slave_sck_ao, 0,	2),
 	GROUP(i2c_slave_sda_ao, 0,	1),
+	GROUP(remote_input_ao,	0,	0),
 };
 
 static const char * const gpio_periphs_groups[] = {
@@ -521,6 +524,10 @@ static const char * const i2c_slave_ao_groups[] = {
 	"i2c_slave_sdk_ao", "i2c_slave_sda_ao",
 };
 
+static const char * const remote_input_ao_groups[] = {
+	"remote_input_ao",
+};
+
 static struct meson_pmx_func meson_gxbb_periphs_functions[] = {
 	FUNCTION(gpio_periphs),
 	FUNCTION(emmc),
@@ -537,6 +544,7 @@ static struct meson_pmx_func meson_gxbb_aobus_functions[] = {
 	FUNCTION(uart_ao_b),
 	FUNCTION(i2c_ao),
 	FUNCTION(i2c_slave_ao),
+	FUNCTION(remote_input_ao),
 };
 
 static struct meson_bank meson_gxbb_periphs_banks[] = {
