@@ -166,8 +166,8 @@ lnet_iov_nob(unsigned int niov, struct kvec *iov)
 EXPORT_SYMBOL(lnet_iov_nob);
 
 void
-lnet_copy_iov2iov(unsigned int ndiov, struct kvec *diov, unsigned int doffset,
-		  unsigned int nsiov, struct kvec *siov, unsigned int soffset,
+lnet_copy_iov2iov(unsigned int ndiov, const struct kvec *diov, unsigned int doffset,
+		  unsigned int nsiov, const struct kvec *siov, unsigned int soffset,
 		  unsigned int nob)
 {
 	/* NB diov, siov are READ-ONLY */
@@ -226,7 +226,7 @@ EXPORT_SYMBOL(lnet_copy_iov2iov);
 
 int
 lnet_extract_iov(int dst_niov, struct kvec *dst,
-		 int src_niov, struct kvec *src,
+		 int src_niov, const struct kvec *src,
 		 unsigned int offset, unsigned int len)
 {
 	/*
@@ -287,8 +287,8 @@ lnet_kiov_nob(unsigned int niov, lnet_kiov_t *kiov)
 EXPORT_SYMBOL(lnet_kiov_nob);
 
 void
-lnet_copy_kiov2kiov(unsigned int ndiov, lnet_kiov_t *diov, unsigned int doffset,
-		    unsigned int nsiov, lnet_kiov_t *siov, unsigned int soffset,
+lnet_copy_kiov2kiov(unsigned int ndiov, const lnet_kiov_t *diov, unsigned int doffset,
+		    unsigned int nsiov, const lnet_kiov_t *siov, unsigned int soffset,
 		    unsigned int nob)
 {
 	/* NB diov, siov are READ-ONLY */
@@ -370,8 +370,8 @@ lnet_copy_kiov2kiov(unsigned int ndiov, lnet_kiov_t *diov, unsigned int doffset,
 EXPORT_SYMBOL(lnet_copy_kiov2kiov);
 
 void
-lnet_copy_kiov2iov(unsigned int niov, struct kvec *iov, unsigned int iovoffset,
-		   unsigned int nkiov, lnet_kiov_t *kiov,
+lnet_copy_kiov2iov(unsigned int niov, const struct kvec *iov, unsigned int iovoffset,
+		   unsigned int nkiov, const lnet_kiov_t *kiov,
 		   unsigned int kiovoffset, unsigned int nob)
 {
 	/* NB iov, kiov are READ-ONLY */
@@ -440,9 +440,9 @@ lnet_copy_kiov2iov(unsigned int niov, struct kvec *iov, unsigned int iovoffset,
 EXPORT_SYMBOL(lnet_copy_kiov2iov);
 
 void
-lnet_copy_iov2kiov(unsigned int nkiov, lnet_kiov_t *kiov,
+lnet_copy_iov2kiov(unsigned int nkiov, const lnet_kiov_t *kiov,
 		   unsigned int kiovoffset, unsigned int niov,
-		   struct kvec *iov, unsigned int iovoffset,
+		   const struct kvec *iov, unsigned int iovoffset,
 		   unsigned int nob)
 {
 	/* NB kiov, iov are READ-ONLY */
@@ -511,7 +511,7 @@ EXPORT_SYMBOL(lnet_copy_iov2kiov);
 
 int
 lnet_extract_kiov(int dst_niov, lnet_kiov_t *dst,
-		  int src_niov, lnet_kiov_t *src,
+		  int src_niov, const lnet_kiov_t *src,
 		  unsigned int offset, unsigned int len)
 {
 	/*
