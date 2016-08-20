@@ -65,72 +65,72 @@
 #include "i40e_dcb.h"
 
 /* Useful i40e defaults */
-#define I40E_MAX_VEB          16
+#define I40E_MAX_VEB			16
 
-#define I40E_MAX_NUM_DESCRIPTORS      4096
-#define I40E_MAX_CSR_SPACE (4 * 1024 * 1024 - 64 * 1024)
-#define I40E_DEFAULT_NUM_DESCRIPTORS  512
-#define I40E_REQ_DESCRIPTOR_MULTIPLE  32
-#define I40E_MIN_NUM_DESCRIPTORS      64
-#define I40E_MIN_MSIX                 2
-#define I40E_DEFAULT_NUM_VMDQ_VSI     8 /* max 256 VSIs */
-#define I40E_MIN_VSI_ALLOC            51 /* LAN, ATR, FCOE, 32 VF, 16 VMDQ */
+#define I40E_MAX_NUM_DESCRIPTORS	4096
+#define I40E_MAX_CSR_SPACE		(4 * 1024 * 1024 - 64 * 1024)
+#define I40E_DEFAULT_NUM_DESCRIPTORS	512
+#define I40E_REQ_DESCRIPTOR_MULTIPLE	32
+#define I40E_MIN_NUM_DESCRIPTORS	64
+#define I40E_MIN_MSIX			2
+#define I40E_DEFAULT_NUM_VMDQ_VSI	8 /* max 256 VSIs */
+#define I40E_MIN_VSI_ALLOC		51 /* LAN, ATR, FCOE, 32 VF, 16 VMDQ */
 /* max 16 qps */
 #define i40e_default_queues_per_vmdq(pf) \
 		(((pf)->flags & I40E_FLAG_RSS_AQ_CAPABLE) ? 4 : 1)
-#define I40E_DEFAULT_QUEUES_PER_VF    4
-#define I40E_DEFAULT_QUEUES_PER_TC    1 /* should be a power of 2 */
+#define I40E_DEFAULT_QUEUES_PER_VF	4
+#define I40E_DEFAULT_QUEUES_PER_TC	1 /* should be a power of 2 */
 #define i40e_pf_get_max_q_per_tc(pf) \
 		(((pf)->flags & I40E_FLAG_128_QP_RSS_CAPABLE) ? 128 : 64)
-#define I40E_FDIR_RING                0
-#define I40E_FDIR_RING_COUNT          32
+#define I40E_FDIR_RING			0
+#define I40E_FDIR_RING_COUNT		32
 #ifdef I40E_FCOE
-#define I40E_DEFAULT_FCOE             8 /* default number of QPs for FCoE */
-#define I40E_MINIMUM_FCOE             1 /* minimum number of QPs for FCoE */
+#define I40E_DEFAULT_FCOE		8 /* default number of QPs for FCoE */
+#define I40E_MINIMUM_FCOE		1 /* minimum number of QPs for FCoE */
 #endif /* I40E_FCOE */
-#define I40E_MAX_AQ_BUF_SIZE          4096
-#define I40E_AQ_LEN                   256
-#define I40E_AQ_WORK_LIMIT            66 /* max number of VFs + a little */
-#define I40E_MAX_USER_PRIORITY        8
-#define I40E_DEFAULT_MSG_ENABLE       4
-#define I40E_QUEUE_WAIT_RETRY_LIMIT   10
-#define I40E_INT_NAME_STR_LEN        (IFNAMSIZ + 16)
+#define I40E_MAX_AQ_BUF_SIZE		4096
+#define I40E_AQ_LEN			256
+#define I40E_AQ_WORK_LIMIT		66 /* max number of VFs + a little */
+#define I40E_MAX_USER_PRIORITY		8
+#define I40E_DEFAULT_MSG_ENABLE		4
+#define I40E_QUEUE_WAIT_RETRY_LIMIT	10
+#define I40E_INT_NAME_STR_LEN		(IFNAMSIZ + 16)
 
 /* Ethtool Private Flags */
-#define	I40E_PRIV_FLAGS_MFP_FLAG		BIT(0)
-#define	I40E_PRIV_FLAGS_LINKPOLL_FLAG		BIT(1)
+#define I40E_PRIV_FLAGS_MFP_FLAG		BIT(0)
+#define I40E_PRIV_FLAGS_LINKPOLL_FLAG		BIT(1)
 #define I40E_PRIV_FLAGS_FD_ATR			BIT(2)
 #define I40E_PRIV_FLAGS_VEB_STATS		BIT(3)
 #define I40E_PRIV_FLAGS_HW_ATR_EVICT		BIT(4)
 #define I40E_PRIV_FLAGS_TRUE_PROMISC_SUPPORT	BIT(5)
 
-#define I40E_NVM_VERSION_LO_SHIFT  0
-#define I40E_NVM_VERSION_LO_MASK   (0xff << I40E_NVM_VERSION_LO_SHIFT)
-#define I40E_NVM_VERSION_HI_SHIFT  12
-#define I40E_NVM_VERSION_HI_MASK   (0xf << I40E_NVM_VERSION_HI_SHIFT)
-#define I40E_OEM_VER_BUILD_MASK    0xffff
-#define I40E_OEM_VER_PATCH_MASK    0xff
-#define I40E_OEM_VER_BUILD_SHIFT   8
-#define I40E_OEM_VER_SHIFT         24
+#define I40E_NVM_VERSION_LO_SHIFT	0
+#define I40E_NVM_VERSION_LO_MASK	(0xff << I40E_NVM_VERSION_LO_SHIFT)
+#define I40E_NVM_VERSION_HI_SHIFT	12
+#define I40E_NVM_VERSION_HI_MASK	(0xf << I40E_NVM_VERSION_HI_SHIFT)
+#define I40E_OEM_VER_BUILD_MASK		0xffff
+#define I40E_OEM_VER_PATCH_MASK		0xff
+#define I40E_OEM_VER_BUILD_SHIFT	8
+#define I40E_OEM_VER_SHIFT		24
 #define I40E_PHY_DEBUG_ALL \
 	(I40E_AQ_PHY_DEBUG_DISABLE_LINK_FW | \
 	I40E_AQ_PHY_DEBUG_DISABLE_ALL_LINK_FW)
 
 /* The values in here are decimal coded as hex as is the case in the NVM map*/
-#define I40E_CURRENT_NVM_VERSION_HI 0x2
-#define I40E_CURRENT_NVM_VERSION_LO 0x40
+#define I40E_CURRENT_NVM_VERSION_HI	0x2
+#define I40E_CURRENT_NVM_VERSION_LO	0x40
 
-#define I40E_RX_DESC(R, i)			\
+#define I40E_RX_DESC(R, i)	\
 	(&(((union i40e_32byte_rx_desc *)((R)->desc))[i]))
-#define I40E_TX_DESC(R, i)			\
+#define I40E_TX_DESC(R, i)	\
 	(&(((struct i40e_tx_desc *)((R)->desc))[i]))
-#define I40E_TX_CTXTDESC(R, i)			\
+#define I40E_TX_CTXTDESC(R, i)	\
 	(&(((struct i40e_tx_context_desc *)((R)->desc))[i]))
-#define I40E_TX_FDIRDESC(R, i)			\
+#define I40E_TX_FDIRDESC(R, i)	\
 	(&(((struct i40e_filter_program_desc *)((R)->desc))[i]))
 
 /* default to trying for four seconds */
-#define I40E_TRY_LINK_TIMEOUT (4 * HZ)
+#define I40E_TRY_LINK_TIMEOUT	(4 * HZ)
 
 /**
  * i40e_is_mac_710 - Return true if MAC is X710/XL710
@@ -195,9 +195,9 @@ struct i40e_lump_tracking {
 #define I40E_FDIR_BUFFER_HEAD_ROOM	32
 #define I40E_FDIR_BUFFER_HEAD_ROOM_FOR_ATR (I40E_FDIR_BUFFER_HEAD_ROOM * 4)
 
-#define I40E_HKEY_ARRAY_SIZE ((I40E_PFQF_HKEY_MAX_INDEX + 1) * 4)
-#define I40E_HLUT_ARRAY_SIZE ((I40E_PFQF_HLUT_MAX_INDEX + 1) * 4)
-#define I40E_VF_HLUT_ARRAY_SIZE ((I40E_VFQF_HLUT1_MAX_INDEX + 1) * 4)
+#define I40E_HKEY_ARRAY_SIZE	((I40E_PFQF_HKEY_MAX_INDEX + 1) * 4)
+#define I40E_HLUT_ARRAY_SIZE	((I40E_PFQF_HLUT_MAX_INDEX + 1) * 4)
+#define I40E_VF_HLUT_ARRAY_SIZE	((I40E_VFQF_HLUT1_MAX_INDEX + 1) * 4)
 
 enum i40e_fd_stat_idx {
 	I40E_FD_STAT_ATR,
@@ -383,8 +383,8 @@ struct i40e_pf {
 	struct mutex switch_mutex;
 	u16 lan_vsi;       /* our default LAN VSI */
 	u16 lan_veb;       /* initial relay, if exists */
-#define I40E_NO_VEB   0xffff
-#define I40E_NO_VSI   0xffff
+#define I40E_NO_VEB	0xffff
+#define I40E_NO_VSI	0xffff
 	u16 next_vsi;      /* Next unallocated VSI - 0-based! */
 	struct i40e_vsi **vsi;
 	struct i40e_veb *veb[I40E_MAX_VEB];
@@ -419,8 +419,8 @@ struct i40e_pf {
 	 */
 	u16 dcbx_cap;
 
-	u32	fcoe_hmc_filt_num;
-	u32	fcoe_hmc_cntx_num;
+	u32 fcoe_hmc_filt_num;
+	u32 fcoe_hmc_cntx_num;
 	struct i40e_filter_control_settings filter_settings;
 
 	struct ptp_clock *ptp_clock;
@@ -466,10 +466,10 @@ struct i40e_mac_filter {
 struct i40e_veb {
 	struct i40e_pf *pf;
 	u16 idx;
-	u16 veb_idx;           /* index of VEB parent */
+	u16 veb_idx;		/* index of VEB parent */
 	u16 seid;
 	u16 uplink_seid;
-	u16 stats_idx;           /* index of VEB parent */
+	u16 stats_idx;		/* index of VEB parent */
 	u8  enabled_tc;
 	u16 bridge_mode;	/* Bridge Mode (VEB/VEPA) */
 	u16 flags;
@@ -530,12 +530,13 @@ struct i40e_vsi {
 	u32  promisc_threshold;
 
 	u16 work_limit;
-	u16 int_rate_limit;  /* value in usecs */
+	u16 int_rate_limit;	/* value in usecs */
 
-	u16 rss_table_size; /* HW RSS table size */
-	u16 rss_size;       /* Allocated RSS queues */
-	u8  *rss_hkey_user; /* User configured hash keys */
-	u8  *rss_lut_user;  /* User configured lookup table entries */
+	u16 rss_table_size;	/* HW RSS table size */
+	u16 rss_size;		/* Allocated RSS queues */
+	u8  *rss_hkey_user;	/* User configured hash keys */
+	u8  *rss_lut_user;	/* User configured lookup table entries */
+
 
 	u16 max_frame;
 	u16 rx_buf_len;
@@ -546,14 +547,14 @@ struct i40e_vsi {
 	int base_vector;
 	bool irqs_ready;
 
-	u16 seid;            /* HW index of this VSI (absolute index) */
-	u16 id;              /* VSI number */
+	u16 seid;		/* HW index of this VSI (absolute index) */
+	u16 id;			/* VSI number */
 	u16 uplink_seid;
 
-	u16 base_queue;      /* vsi's first queue in hw array */
-	u16 alloc_queue_pairs; /* Allocated Tx/Rx queues */
-	u16 req_queue_pairs; /* User requested queue pairs */
-	u16 num_queue_pairs; /* Used tx and rx pairs */
+	u16 base_queue;		/* vsi's first queue in hw array */
+	u16 alloc_queue_pairs;	/* Allocated Tx/Rx queues */
+	u16 req_queue_pairs;	/* User requested queue pairs */
+	u16 num_queue_pairs;	/* Used tx and rx pairs */
 	u16 num_desc;
 	enum i40e_vsi_type type;  /* VSI type, e.g., LAN, FCoE, etc */
 	s16 vf_id;		/* Virtual function ID for SRIOV VSIs */
@@ -572,11 +573,11 @@ struct i40e_vsi {
 	/* TC BW limit max quanta within VSI */
 	u8  bw_ets_max_quanta[I40E_MAX_TRAFFIC_CLASS];
 
-	struct i40e_pf *back;  /* Backreference to associated PF */
-	u16 idx;               /* index in pf->vsi[] */
-	u16 veb_idx;           /* index of VEB parent */
-	struct kobject *kobj;  /* sysfs object */
-	bool current_isup;     /* Sync 'link up' logging */
+	struct i40e_pf *back;	/* Backreference to associated PF */
+	u16 idx;		/* index in pf->vsi[] */
+	u16 veb_idx;		/* index of VEB parent */
+	struct kobject *kobj;	/* sysfs object */
+	bool current_isup;	/* Sync 'link up' logging */
 
 	void *priv;	/* client driver data reference. */
 
