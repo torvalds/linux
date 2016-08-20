@@ -77,6 +77,8 @@ result.
 
 .. _cec-msg:
 
+.. cssclass:: longtable
+
 .. flat-table:: struct cec_msg
     :header-rows:  0
     :stub-columns: 0
