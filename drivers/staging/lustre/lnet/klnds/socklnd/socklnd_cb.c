@@ -1325,38 +1325,35 @@ ksocknal_process_receive(struct ksock_conn *conn)
 
 int
 ksocknal_recv(lnet_ni_t *ni, void *private, lnet_msg_t *msg, int delayed,
-	      unsigned int niov, struct kvec *iov, lnet_kiov_t *kiov,
-	      unsigned int offset, unsigned int mlen, unsigned int rlen)
+	      struct iov_iter *to, unsigned int rlen)
 {
 	struct ksock_conn *conn = private;
 	struct ksock_sched *sched = conn->ksnc_scheduler;
 
-	LASSERT(mlen <= rlen);
-	LASSERT(niov <= LNET_MAX_IOV);
+	LASSERT(iov_iter_count(to) <= rlen);
+	LASSERT(to->nr_segs <= LNET_MAX_IOV);
 
 	conn->ksnc_cookie = msg;
-	conn->ksnc_rx_nob_wanted = mlen;
+	conn->ksnc_rx_nob_wanted = iov_iter_count(to);
 	conn->ksnc_rx_nob_left = rlen;
 
-	if (!mlen || iov) {
+	if (to->type & ITER_KVEC) {
 		conn->ksnc_rx_nkiov = 0;
 		conn->ksnc_rx_kiov = NULL;
 		conn->ksnc_rx_iov = conn->ksnc_rx_iov_space.iov;
 		conn->ksnc_rx_niov =
 			lnet_extract_iov(LNET_MAX_IOV, conn->ksnc_rx_iov,
-					 niov, iov, offset, mlen);
+					 to->nr_segs, to->kvec,
+					 to->iov_offset, iov_iter_count(to));
 	} else {
 		conn->ksnc_rx_niov = 0;
 		conn->ksnc_rx_iov = NULL;
 		conn->ksnc_rx_kiov = conn->ksnc_rx_iov_space.kiov;
 		conn->ksnc_rx_nkiov =
 			lnet_extract_kiov(LNET_MAX_IOV, conn->ksnc_rx_kiov,
-					  niov, kiov, offset, mlen);
+					 to->nr_segs, to->bvec,
+					 to->iov_offset, iov_iter_count(to));
 	}
-
-	LASSERT(mlen ==
-		lnet_iov_nob(conn->ksnc_rx_niov, conn->ksnc_rx_iov) +
-		lnet_kiov_nob(conn->ksnc_rx_nkiov, conn->ksnc_rx_kiov));
 
 	LASSERT(conn->ksnc_rx_scheduled);
 

@@ -220,10 +220,7 @@ typedef struct lnet_lnd {
 	 * credit if the LND does flow control.
 	 */
 	int (*lnd_recv)(struct lnet_ni *ni, void *private, lnet_msg_t *msg,
-			int delayed, unsigned int niov,
-			struct kvec *iov, lnet_kiov_t *kiov,
-			unsigned int offset, unsigned int mlen,
-			unsigned int rlen);
+			int delayed, struct iov_iter *to, unsigned int rlen);
 
 	/*
 	 * lnet_parse() has had to delay processing of this message

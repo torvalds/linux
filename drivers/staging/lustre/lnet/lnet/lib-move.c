@@ -569,6 +569,7 @@ lnet_ni_recv(lnet_ni_t *ni, void *private, lnet_msg_t *msg, int delayed,
 	unsigned int niov = 0;
 	struct kvec *iov = NULL;
 	lnet_kiov_t *kiov = NULL;
+	struct iov_iter to;
 	int rc;
 
 	LASSERT(!in_interrupt());
@@ -594,8 +595,14 @@ lnet_ni_recv(lnet_ni_t *ni, void *private, lnet_msg_t *msg, int delayed,
 		}
 	}
 
-	rc = ni->ni_lnd->lnd_recv(ni, private, msg, delayed,
-				  niov, iov, kiov, offset, mlen, rlen);
+	if (iov) {
+		iov_iter_kvec(&to, ITER_KVEC | READ, iov, niov, mlen + offset);
+		iov_iter_advance(&to, offset);
+	} else {
+		iov_iter_bvec(&to, ITER_BVEC | READ, kiov, niov, mlen + offset);
+		iov_iter_advance(&to, offset);
+	}
+	rc = ni->ni_lnd->lnd_recv(ni, private, msg, delayed, &to, rlen);
 	if (rc < 0)
 		lnet_finalize(ni, msg, rc);
 }

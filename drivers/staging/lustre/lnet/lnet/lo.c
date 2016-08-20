@@ -42,35 +42,33 @@ lolnd_send(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg)
 
 static int
 lolnd_recv(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg,
-	   int delayed, unsigned int niov,
-	   struct kvec *iov, lnet_kiov_t *kiov,
-	   unsigned int offset, unsigned int mlen, unsigned int rlen)
+	   int delayed, struct iov_iter *to, unsigned int rlen)
 {
 	lnet_msg_t *sendmsg = private;
 
 	if (lntmsg) {		   /* not discarding */
 		if (sendmsg->msg_iov) {
-			if (iov)
-				lnet_copy_iov2iov(niov, iov, offset,
+			if (to->type & ITER_KVEC)
+				lnet_copy_iov2iov(to->nr_segs, to->kvec, to->iov_offset,
 						  sendmsg->msg_niov,
 						  sendmsg->msg_iov,
-						  sendmsg->msg_offset, mlen);
+						  sendmsg->msg_offset, iov_iter_count(to));
 			else
-				lnet_copy_iov2kiov(niov, kiov, offset,
+				lnet_copy_iov2kiov(to->nr_segs, to->bvec, to->iov_offset,
 						   sendmsg->msg_niov,
 						   sendmsg->msg_iov,
-						   sendmsg->msg_offset, mlen);
+						   sendmsg->msg_offset, iov_iter_count(to));
 		} else {
-			if (iov)
-				lnet_copy_kiov2iov(niov, iov, offset,
+			if (to->type & ITER_KVEC)
+				lnet_copy_kiov2iov(to->nr_segs, to->kvec, to->iov_offset,
 						   sendmsg->msg_niov,
 						   sendmsg->msg_kiov,
-						   sendmsg->msg_offset, mlen);
+						   sendmsg->msg_offset, iov_iter_count(to));
 			else
-				lnet_copy_kiov2kiov(niov, kiov, offset,
+				lnet_copy_kiov2kiov(to->nr_segs, to->bvec, to->iov_offset,
 						    sendmsg->msg_niov,
 						    sendmsg->msg_kiov,
-						    sendmsg->msg_offset, mlen);
+						    sendmsg->msg_offset, iov_iter_count(to));
 		}
 
 		lnet_finalize(ni, lntmsg, 0);

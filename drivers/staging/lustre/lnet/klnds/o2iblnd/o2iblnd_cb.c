@@ -650,7 +650,7 @@ static int kiblnd_map_tx(lnet_ni_t *ni, struct kib_tx *tx, struct kib_rdma_desc 
 
 static int
 kiblnd_setup_rd_iov(lnet_ni_t *ni, struct kib_tx *tx, struct kib_rdma_desc *rd,
-		    unsigned int niov, struct kvec *iov, int offset, int nob)
+		    unsigned int niov, const struct kvec *iov, int offset, int nob)
 {
 	struct kib_net *net = ni->ni_data;
 	struct page *page;
@@ -707,7 +707,7 @@ kiblnd_setup_rd_iov(lnet_ni_t *ni, struct kib_tx *tx, struct kib_rdma_desc *rd,
 
 static int
 kiblnd_setup_rd_kiov(lnet_ni_t *ni, struct kib_tx *tx, struct kib_rdma_desc *rd,
-		     int nkiov, lnet_kiov_t *kiov, int offset, int nob)
+		     int nkiov, const lnet_kiov_t *kiov, int offset, int nob)
 {
 	struct kib_net *net = ni->ni_data;
 	struct scatterlist *sg;
@@ -1711,8 +1711,7 @@ kiblnd_reply(lnet_ni_t *ni, struct kib_rx *rx, lnet_msg_t *lntmsg)
 
 int
 kiblnd_recv(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg, int delayed,
-	    unsigned int niov, struct kvec *iov, lnet_kiov_t *kiov,
-	    unsigned int offset, unsigned int mlen, unsigned int rlen)
+	    struct iov_iter *to, unsigned int rlen)
 {
 	struct kib_rx *rx = private;
 	struct kib_msg *rxmsg = rx->rx_msg;
@@ -1722,10 +1721,9 @@ kiblnd_recv(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg, int delayed,
 	int post_credit = IBLND_POSTRX_PEER_CREDIT;
 	int rc = 0;
 
-	LASSERT(mlen <= rlen);
+	LASSERT(iov_iter_count(to) <= rlen);
 	LASSERT(!in_interrupt());
 	/* Either all pages or all vaddrs */
-	LASSERT(!(kiov && iov));
 
 	switch (rxmsg->ibm_type) {
 	default:
@@ -1741,16 +1739,16 @@ kiblnd_recv(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg, int delayed,
 			break;
 		}
 
-		if (kiov)
-			lnet_copy_flat2kiov(niov, kiov, offset,
+		if (to->type & ITER_BVEC)
+			lnet_copy_flat2kiov(to->nr_segs, to->bvec, to->iov_offset,
 					    IBLND_MSG_SIZE, rxmsg,
 					    offsetof(struct kib_msg, ibm_u.immediate.ibim_payload),
-					    mlen);
+					    iov_iter_count(to));
 		else
-			lnet_copy_flat2iov(niov, iov, offset,
+			lnet_copy_flat2iov(to->nr_segs, to->kvec, to->iov_offset,
 					   IBLND_MSG_SIZE, rxmsg,
 					   offsetof(struct kib_msg, ibm_u.immediate.ibim_payload),
-					   mlen);
+					   iov_iter_count(to));
 		lnet_finalize(ni, lntmsg, 0);
 		break;
 
@@ -1758,7 +1756,7 @@ kiblnd_recv(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg, int delayed,
 		struct kib_msg	*txmsg;
 		struct kib_rdma_desc *rd;
 
-		if (!mlen) {
+		if (!iov_iter_count(to)) {
 			lnet_finalize(ni, lntmsg, 0);
 			kiblnd_send_completion(rx->rx_conn, IBLND_MSG_PUT_NAK, 0,
 					       rxmsg->ibm_u.putreq.ibprm_cookie);
@@ -1776,12 +1774,16 @@ kiblnd_recv(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg, int delayed,
 
 		txmsg = tx->tx_msg;
 		rd = &txmsg->ibm_u.putack.ibpam_rd;
-		if (!kiov)
+		if (!(to->type & ITER_BVEC))
 			rc = kiblnd_setup_rd_iov(ni, tx, rd,
-						 niov, iov, offset, mlen);
+						 to->nr_segs, to->kvec,
+						 to->iov_offset,
+						 iov_iter_count(to));
 		else
 			rc = kiblnd_setup_rd_kiov(ni, tx, rd,
-						  niov, kiov, offset, mlen);
+						  to->nr_segs, to->bvec,
+						  to->iov_offset,
+						  iov_iter_count(to));
 		if (rc) {
 			CERROR("Can't setup PUT sink for %s: %d\n",
 			       libcfs_nid2str(conn->ibc_peer->ibp_nid), rc);

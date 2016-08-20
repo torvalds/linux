@@ -614,9 +614,7 @@ void ksocknal_shutdown(lnet_ni_t *ni);
 int ksocknal_ctl(lnet_ni_t *ni, unsigned int cmd, void *arg);
 int ksocknal_send(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg);
 int ksocknal_recv(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg,
-		  int delayed, unsigned int niov,
-		  struct kvec *iov, lnet_kiov_t *kiov,
-		  unsigned int offset, unsigned int mlen, unsigned int rlen);
+		  int delayed, struct iov_iter *to, unsigned int rlen);
 int ksocknal_accept(lnet_ni_t *ni, struct socket *sock);
 
 int ksocknal_add_peer(lnet_ni_t *ni, lnet_process_id_t id, __u32 ip, int port);
