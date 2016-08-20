@@ -207,7 +207,7 @@ static int gbaudio_module_enable_rx(struct gbaudio_codec_info *codec,
 		cportid = data->connection->hd_cport_id;
 		ret = gb_audio_apbridgea_register_cport(data->connection,
 						i2s_port, cportid,
-						AUDIO_APBRIDGEA_DIRECTION_TX);
+						AUDIO_APBRIDGEA_DIRECTION_RX);
 		if (ret) {
 			dev_err_ratelimited(module->dev,
 					    "reg_cport failed:%d\n", ret);
