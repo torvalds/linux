@@ -245,7 +245,8 @@ int sun4i_hash(struct ahash_request *areq)
 		if (end > areq->nbytes || areq->nbytes - end > 63) {
 			dev_err(ss->dev, "ERROR: Bound error %u %u\n",
 				end, areq->nbytes);
-			return -EINVAL;
+			err = -EINVAL;
+			goto release_ss;
 		}
 	} else {
 		/* Since we have the flag final, we can go up to modulo 4 */
