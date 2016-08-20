@@ -44,7 +44,8 @@ static void noop(struct irq_data *data)
 {
 }
 
-int __init aic_irq_of_init(struct device_node *node, struct device_node *parent)
+static int __init aic_irq_of_init(struct device_node *node,
+				  struct device_node *parent)
 {
 	unsigned min_irq = JCORE_AIC2_MIN_HWIRQ;
 	unsigned dom_sz = JCORE_AIC_MAX_HWIRQ+1;
