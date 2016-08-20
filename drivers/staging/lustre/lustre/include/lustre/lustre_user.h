@@ -995,7 +995,7 @@ struct hsm_user_request {
 /** Return pointer to data field in a hsm user request */
 static inline void *hur_data(struct hsm_user_request *hur)
 {
-	return &(hur->hur_user_item[hur->hur_request.hr_itemcount]);
+	return &hur->hur_user_item[hur->hur_request.hr_itemcount];
 }
 
 /**

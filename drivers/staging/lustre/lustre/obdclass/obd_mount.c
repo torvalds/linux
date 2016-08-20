@@ -394,7 +394,7 @@ int lustre_start_mgc(struct super_block *sb)
 	    lsi->lsi_lmd->lmd_flags & LMD_FLG_NOIR)
 		data->ocd_connect_flags &= ~OBD_CONNECT_IMP_RECOV;
 	data->ocd_version = LUSTRE_VERSION_CODE;
-	rc = obd_connect(NULL, &exp, obd, &(obd->obd_uuid), data, NULL);
+	rc = obd_connect(NULL, &exp, obd, &obd->obd_uuid, data, NULL);
 	if (rc) {
 		CERROR("connect failed %d\n", rc);
 		goto out;

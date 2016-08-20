@@ -80,7 +80,7 @@ static void llog_free_handle(struct llog_handle *loghandle)
 		LASSERT(list_empty(&loghandle->u.phd.phd_entry));
 	else if (loghandle->lgh_hdr->llh_flags & LLOG_F_IS_CAT)
 		LASSERT(list_empty(&loghandle->u.chd.chd_head));
-	LASSERT(sizeof(*(loghandle->lgh_hdr)) == LLOG_CHUNK_SIZE);
+	LASSERT(sizeof(*loghandle->lgh_hdr) == LLOG_CHUNK_SIZE);
 	kfree(loghandle->lgh_hdr);
 out:
 	kfree(loghandle);

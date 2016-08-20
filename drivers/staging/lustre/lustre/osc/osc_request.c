@@ -2633,7 +2633,7 @@ static int osc_getstripe(struct lov_stripe_md *lsm,
 			lmm_objects =
 			    &(((struct lov_user_md_v1 *)lumk)->lmm_objects[0]);
 		else
-			lmm_objects = &(lumk->lmm_objects[0]);
+			lmm_objects = &lumk->lmm_objects[0];
 		lmm_objects->l_ost_oi = lsm->lsm_oi;
 	} else {
 		lum_size = lov_mds_md_size(0, lum.lmm_magic);

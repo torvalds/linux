@@ -941,7 +941,7 @@ int lov_process_config_base(struct obd_device *obd, struct lustre_cfg *lcfg,
 	}
 	case LCFG_PARAM: {
 		struct lprocfs_static_vars lvars = { NULL };
-		struct lov_desc *desc = &(obd->u.lov.desc);
+		struct lov_desc *desc = &obd->u.lov.desc;
 
 		if (!desc) {
 			rc = -EINVAL;
@@ -1461,7 +1461,7 @@ static int lov_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		}
 
 		desc = (struct lov_desc *)data->ioc_inlbuf1;
-		memcpy(desc, &(lov->desc), sizeof(*desc));
+		memcpy(desc, &lov->desc, sizeof(*desc));
 
 		uuidp = (struct obd_uuid *)data->ioc_inlbuf2;
 		genp = (__u32 *)data->ioc_inlbuf3;

@@ -1978,9 +1978,9 @@ void lustre_swab_lov_user_md_objects(struct lov_user_ost_data *lod,
 	int i;
 
 	for (i = 0; i < stripe_count; i++) {
-		lustre_swab_ost_id(&(lod[i].l_ost_oi));
-		__swab32s(&(lod[i].l_ost_gen));
-		__swab32s(&(lod[i].l_ost_idx));
+		lustre_swab_ost_id(&lod[i].l_ost_oi);
+		__swab32s(&lod[i].l_ost_gen);
+		__swab32s(&lod[i].l_ost_idx);
 	}
 }
 EXPORT_SYMBOL(lustre_swab_lov_user_md_objects);
