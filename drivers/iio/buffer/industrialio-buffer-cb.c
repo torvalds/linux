@@ -18,6 +18,7 @@ struct iio_cb_buffer {
 	int (*cb)(const void *data, void *private);
 	void *private;
 	struct iio_channel *channels;
+	struct iio_dev *indio_dev;
 };
 
 static struct iio_cb_buffer *buffer_to_cb_buffer(struct iio_buffer *buffer)
@@ -52,7 +53,6 @@ struct iio_cb_buffer *iio_channel_get_all_cb(struct device *dev,
 {
 	int ret;
 	struct iio_cb_buffer *cb_buff;
-	struct iio_dev *indio_dev;
 	struct iio_channel *chan;
 
 	cb_buff = kzalloc(sizeof(*cb_buff), GFP_KERNEL);
@@ -72,17 +72,17 @@ struct iio_cb_buffer *iio_channel_get_all_cb(struct device *dev,
 		goto error_free_cb_buff;
 	}
 
-	indio_dev = cb_buff->channels[0].indio_dev;
+	cb_buff->indio_dev = cb_buff->channels[0].indio_dev;
 	cb_buff->buffer.scan_mask
-		= kcalloc(BITS_TO_LONGS(indio_dev->masklength), sizeof(long),
-			  GFP_KERNEL);
+		= kcalloc(BITS_TO_LONGS(cb_buff->indio_dev->masklength),
+			  sizeof(long), GFP_KERNEL);
 	if (cb_buff->buffer.scan_mask == NULL) {
 		ret = -ENOMEM;
 		goto error_release_channels;
 	}
 	chan = &cb_buff->channels[0];
 	while (chan->indio_dev) {
-		if (chan->indio_dev != indio_dev) {
+		if (chan->indio_dev != cb_buff->indio_dev) {
 			ret = -EINVAL;
 			goto error_free_scan_mask;
 		}
@@ -105,17 +105,14 @@ EXPORT_SYMBOL_GPL(iio_channel_get_all_cb);
 
 int iio_channel_start_all_cb(struct iio_cb_buffer *cb_buff)
 {
-	return iio_update_buffers(cb_buff->channels[0].indio_dev,
-				  &cb_buff->buffer,
+	return iio_update_buffers(cb_buff->indio_dev, &cb_buff->buffer,
 				  NULL);
 }
 EXPORT_SYMBOL_GPL(iio_channel_start_all_cb);
 
 void iio_channel_stop_all_cb(struct iio_cb_buffer *cb_buff)
 {
-	iio_update_buffers(cb_buff->channels[0].indio_dev,
-			   NULL,
-			   &cb_buff->buffer);
+	iio_update_buffers(cb_buff->indio_dev, NULL, &cb_buff->buffer);
 }
 EXPORT_SYMBOL_GPL(iio_channel_stop_all_cb);
 
@@ -132,6 +129,13 @@ struct iio_channel
 	return cb_buffer->channels;
 }
 EXPORT_SYMBOL_GPL(iio_channel_cb_get_channels);
+
+struct iio_dev
+*iio_channel_cb_get_iio_dev(const struct iio_cb_buffer *cb_buffer)
+{
+	return cb_buffer->indio_dev;
+}
+EXPORT_SYMBOL_GPL(iio_channel_cb_get_iio_dev);
 
 MODULE_AUTHOR("Jonathan Cameron <jic23@kernel.org>");
 MODULE_DESCRIPTION("Industrial I/O callback buffer");
