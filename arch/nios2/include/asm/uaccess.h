@@ -139,7 +139,7 @@ extern long strnlen_user(const char __user *s, long n);
 
 #define __get_user_unknown(val, size, ptr, err) do {			\
 	err = 0;							\
-	if (copy_from_user(&(val), ptr, size)) {			\
+	if (__copy_from_user(&(val), ptr, size)) {			\
 		err = -EFAULT;						\
 	}								\
 	} while (0)
@@ -166,7 +166,7 @@ do {									\
 	({								\
 	long __gu_err = -EFAULT;					\
 	const __typeof__(*(ptr)) __user *__gu_ptr = (ptr);		\
-	unsigned long __gu_val;						\
+	unsigned long __gu_val = 0;					\
 	__get_user_common(__gu_val, sizeof(*(ptr)), __gu_ptr, __gu_err);\
 	(x) = (__force __typeof__(x))__gu_val;				\
 	__gu_err;							\
