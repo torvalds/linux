@@ -1015,7 +1015,6 @@ static ssize_t data_write(struct file *filp, const char __user *buf,
 	struct mlx5_core_dev *dev = filp->private_data;
 	struct mlx5_cmd_debug *dbg = &dev->cmd.dbg;
 	void *ptr;
-	int err;
 
 	if (*pos != 0)
 		return -EINVAL;
@@ -1023,25 +1022,15 @@ static ssize_t data_write(struct file *filp, const char __user *buf,
 	kfree(dbg->in_msg);
 	dbg->in_msg = NULL;
 	dbg->inlen = 0;
-
-	ptr = kzalloc(count, GFP_KERNEL);
-	if (!ptr)
-		return -ENOMEM;
-
-	if (copy_from_user(ptr, buf, count)) {
-		err = -EFAULT;
-		goto out;
-	}
+	ptr = memdup_user(buf, count);
+	if (IS_ERR(ptr))
+		return PTR_ERR(ptr);
 	dbg->in_msg = ptr;
 	dbg->inlen = count;
 
 	*pos = count;
 
 	return count;
-
-out:
-	kfree(ptr);
-	return err;
 }
 
 static ssize_t data_read(struct file *filp, char __user *buf, size_t count,
