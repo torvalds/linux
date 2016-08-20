@@ -426,6 +426,18 @@ config TI_ADC128S052
 	  This driver can also be built as a module. If so, the module will be
 	  called ti-adc128s052.
 
+config TI_ADC161S626
+	tristate "Texas Instruments ADC161S626 1-channel differential ADC"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  If you say yes here you get support for Texas Instruments ADC141S626,
+	  and ADC161S626 chips.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ti-adc161s626.
+
 config TI_ADS1015
 	tristate "Texas Instruments ADS1015 ADC"
 	depends on I2C && !SENSORS_ADS1015
