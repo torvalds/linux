@@ -246,6 +246,7 @@ acpi_parse_entries_array(char *id, unsigned long table_size,
 	struct acpi_subtable_header *entry;
 	unsigned long table_end;
 	int count = 0;
+	int errs = 0;
 	int i;
 
 	if (acpi_disabled)
@@ -278,8 +279,10 @@ acpi_parse_entries_array(char *id, unsigned long table_size,
 			if (entry->type != proc[i].id)
 				continue;
 			if (!proc[i].handler ||
-			     proc[i].handler(entry, table_end))
-				return -EINVAL;
+			     (!errs && proc[i].handler(entry, table_end))) {
+				errs++;
+				continue;
+			}
 
 			proc[i].count++;
 			break;
@@ -305,7 +308,7 @@ acpi_parse_entries_array(char *id, unsigned long table_size,
 			id, proc->id, count - max_entries, count);
 	}
 
-	return count;
+	return errs ? -EINVAL : count;
 }
 
 int __init
