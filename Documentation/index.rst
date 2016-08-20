@@ -13,6 +13,7 @@ Contents:
 
    kernel-documentation
    dev-tools/tools
+   driver-api/drivers
    media/index
    gpu/index
 
