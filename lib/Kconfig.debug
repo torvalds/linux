@@ -1962,7 +1962,7 @@ config TEST_STATIC_KEYS
 
 config BUG_ON_DATA_CORRUPTION
 	bool "Trigger a BUG when data corruption is detected"
-	select CONFIG_DEBUG_LIST
+	select DEBUG_LIST
 	help
 	  Select this option if the kernel should BUG when it encounters
 	  data corruption in kernel memory structures when they get checked
