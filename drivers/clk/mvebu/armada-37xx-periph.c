@@ -383,10 +383,8 @@ static int armada_3700_periph_clock_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	reg = devm_ioremap_resource(dev, res);
-	if (IS_ERR(reg)) {
-		dev_err(dev, "Could not map the periph clock registers\n");
+	if (IS_ERR(reg))
 		return PTR_ERR(reg);
-	}
 
 	driver_data = devm_kzalloc(dev, sizeof(*driver_data), GFP_KERNEL);
 	if (!driver_data)
