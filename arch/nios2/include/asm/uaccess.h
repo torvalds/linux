@@ -102,9 +102,12 @@ extern long __copy_to_user(void __user *to, const void *from, unsigned long n);
 static inline long copy_from_user(void *to, const void __user *from,
 				unsigned long n)
 {
-	if (!access_ok(VERIFY_READ, from, n))
-		return n;
-	return __copy_from_user(to, from, n);
+	unsigned long res = n;
+	if (access_ok(VERIFY_READ, from, n))
+		res = __copy_from_user(to, from, n);
+	if (unlikely(res))
+		memset(to + (n - res), 0, res);
+	return res;
 }
 
 static inline long copy_to_user(void __user *to, const void *from,
