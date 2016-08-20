@@ -3079,6 +3079,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 		bool busy = intel_engine_has_waiter(engine);
 		u64 acthd;
 		u32 seqno;
+		u32 submit;
 
 		semaphore_clear_deadlocks(dev_priv);
 
@@ -3094,9 +3095,10 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 
 		acthd = intel_engine_get_active_head(engine);
 		seqno = intel_engine_get_seqno(engine);
+		submit = READ_ONCE(engine->last_submitted_seqno);
 
 		if (engine->hangcheck.seqno == seqno) {
-			if (!intel_engine_is_active(engine)) {
+			if (i915_seqno_passed(seqno, submit)) {
 				engine->hangcheck.action = HANGCHECK_IDLE;
 				if (busy) {
 					/* Safeguard against driver failure */
