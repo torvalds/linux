@@ -281,7 +281,7 @@ acpi_parse_entries_array(char *id, unsigned long table_size,
 			     proc[i].handler(entry, table_end))
 				return -EINVAL;
 
-			proc->count++;
+			proc[i].count++;
 			break;
 		}
 		if (i != proc_num)
