@@ -166,24 +166,16 @@ lnet_iov_nob(unsigned int niov, struct kvec *iov)
 EXPORT_SYMBOL(lnet_iov_nob);
 
 void
-lnet_copy_iov2iov(unsigned int ndiov, const struct kvec *diov, unsigned int doffset,
-		  unsigned int nsiov, const struct kvec *siov, unsigned int soffset,
-		  unsigned int nob)
+lnet_copy_iov2iter(struct iov_iter *to,
+		   unsigned int nsiov, const struct kvec *siov,
+		   unsigned int soffset, unsigned int nob)
 {
 	/* NB diov, siov are READ-ONLY */
-	unsigned int this_nob;
+	const char *s;
+	size_t left;
 
 	if (!nob)
 		return;
-
-	/* skip complete frags before 'doffset' */
-	LASSERT(ndiov > 0);
-	while (doffset >= diov->iov_len) {
-		doffset -= diov->iov_len;
-		diov++;
-		ndiov--;
-		LASSERT(ndiov > 0);
-	}
 
 	/* skip complete frags before 'soffset' */
 	LASSERT(nsiov > 0);
@@ -194,35 +186,64 @@ lnet_copy_iov2iov(unsigned int ndiov, const struct kvec *diov, unsigned int doff
 		LASSERT(nsiov > 0);
 	}
 
+	s = (char *)siov->iov_base + soffset;
+	left = siov->iov_len - soffset;
 	do {
-		LASSERT(ndiov > 0);
+		size_t n, copy = left;
 		LASSERT(nsiov > 0);
-		this_nob = min(diov->iov_len - doffset,
-			       siov->iov_len - soffset);
-		this_nob = min(this_nob, nob);
 
-		memcpy((char *)diov->iov_base + doffset,
-		       (char *)siov->iov_base + soffset, this_nob);
-		nob -= this_nob;
+		if (copy > nob)
+			copy = nob;
+		n = copy_to_iter(s, copy, to);
+		if (n != copy)
+			return;
+		nob -= n;
 
-		if (diov->iov_len > doffset + this_nob) {
-			doffset += this_nob;
-		} else {
-			diov++;
-			ndiov--;
-			doffset = 0;
-		}
-
-		if (siov->iov_len > soffset + this_nob) {
-			soffset += this_nob;
-		} else {
-			siov++;
-			nsiov--;
-			soffset = 0;
-		}
+		siov++;
+		s = (char *)siov->iov_base;
+		left = siov->iov_len;
+		nsiov--;
 	} while (nob > 0);
 }
-EXPORT_SYMBOL(lnet_copy_iov2iov);
+EXPORT_SYMBOL(lnet_copy_iov2iter);
+
+void
+lnet_copy_kiov2iter(struct iov_iter *to,
+		    unsigned int nsiov, const lnet_kiov_t *siov,
+		    unsigned int soffset, unsigned int nob)
+{
+	if (!nob)
+		return;
+
+	LASSERT(!in_interrupt());
+
+	LASSERT(nsiov > 0);
+	while (soffset >= siov->bv_len) {
+		soffset -= siov->bv_len;
+		siov++;
+		nsiov--;
+		LASSERT(nsiov > 0);
+	}
+
+	do {
+		size_t copy = siov->bv_len - soffset, n;
+
+		LASSERT(nsiov > 0);
+
+		if (copy > nob)
+			copy = nob;
+		n = copy_page_to_iter(siov->bv_page,
+				      siov->bv_offset + soffset,
+				      copy, to);
+		if (n != copy)
+			return;
+		nob -= n;
+		siov++;
+		nsiov--;
+		soffset = 0;
+	} while (nob > 0);
+}
+EXPORT_SYMBOL(lnet_copy_kiov2iter);
 
 int
 lnet_extract_iov(int dst_niov, struct kvec *dst,
@@ -285,229 +306,6 @@ lnet_kiov_nob(unsigned int niov, lnet_kiov_t *kiov)
 	return nob;
 }
 EXPORT_SYMBOL(lnet_kiov_nob);
-
-void
-lnet_copy_kiov2kiov(unsigned int ndiov, const lnet_kiov_t *diov, unsigned int doffset,
-		    unsigned int nsiov, const lnet_kiov_t *siov, unsigned int soffset,
-		    unsigned int nob)
-{
-	/* NB diov, siov are READ-ONLY */
-	unsigned int this_nob;
-	char *daddr = NULL;
-	char *saddr = NULL;
-
-	if (!nob)
-		return;
-
-	LASSERT(!in_interrupt());
-
-	LASSERT(ndiov > 0);
-	while (doffset >= diov->bv_len) {
-		doffset -= diov->bv_len;
-		diov++;
-		ndiov--;
-		LASSERT(ndiov > 0);
-	}
-
-	LASSERT(nsiov > 0);
-	while (soffset >= siov->bv_len) {
-		soffset -= siov->bv_len;
-		siov++;
-		nsiov--;
-		LASSERT(nsiov > 0);
-	}
-
-	do {
-		LASSERT(ndiov > 0);
-		LASSERT(nsiov > 0);
-		this_nob = min(diov->bv_len - doffset,
-			       siov->bv_len - soffset);
-		this_nob = min(this_nob, nob);
-
-		if (!daddr)
-			daddr = ((char *)kmap(diov->bv_page)) +
-				diov->bv_offset + doffset;
-		if (!saddr)
-			saddr = ((char *)kmap(siov->bv_page)) +
-				siov->bv_offset + soffset;
-
-		/*
-		 * Vanishing risk of kmap deadlock when mapping 2 pages.
-		 * However in practice at least one of the kiovs will be mapped
-		 * kernel pages and the map/unmap will be NOOPs
-		 */
-		memcpy(daddr, saddr, this_nob);
-		nob -= this_nob;
-
-		if (diov->bv_len > doffset + this_nob) {
-			daddr += this_nob;
-			doffset += this_nob;
-		} else {
-			kunmap(diov->bv_page);
-			daddr = NULL;
-			diov++;
-			ndiov--;
-			doffset = 0;
-		}
-
-		if (siov->bv_len > soffset + this_nob) {
-			saddr += this_nob;
-			soffset += this_nob;
-		} else {
-			kunmap(siov->bv_page);
-			saddr = NULL;
-			siov++;
-			nsiov--;
-			soffset = 0;
-		}
-	} while (nob > 0);
-
-	if (daddr)
-		kunmap(diov->bv_page);
-	if (saddr)
-		kunmap(siov->bv_page);
-}
-EXPORT_SYMBOL(lnet_copy_kiov2kiov);
-
-void
-lnet_copy_kiov2iov(unsigned int niov, const struct kvec *iov, unsigned int iovoffset,
-		   unsigned int nkiov, const lnet_kiov_t *kiov,
-		   unsigned int kiovoffset, unsigned int nob)
-{
-	/* NB iov, kiov are READ-ONLY */
-	unsigned int this_nob;
-	char *addr = NULL;
-
-	if (!nob)
-		return;
-
-	LASSERT(!in_interrupt());
-
-	LASSERT(niov > 0);
-	while (iovoffset >= iov->iov_len) {
-		iovoffset -= iov->iov_len;
-		iov++;
-		niov--;
-		LASSERT(niov > 0);
-	}
-
-	LASSERT(nkiov > 0);
-	while (kiovoffset >= kiov->bv_len) {
-		kiovoffset -= kiov->bv_len;
-		kiov++;
-		nkiov--;
-		LASSERT(nkiov > 0);
-	}
-
-	do {
-		LASSERT(niov > 0);
-		LASSERT(nkiov > 0);
-		this_nob = min(iov->iov_len - iovoffset,
-			       (__kernel_size_t)kiov->bv_len - kiovoffset);
-		this_nob = min(this_nob, nob);
-
-		if (!addr)
-			addr = ((char *)kmap(kiov->bv_page)) +
-				kiov->bv_offset + kiovoffset;
-
-		memcpy((char *)iov->iov_base + iovoffset, addr, this_nob);
-		nob -= this_nob;
-
-		if (iov->iov_len > iovoffset + this_nob) {
-			iovoffset += this_nob;
-		} else {
-			iov++;
-			niov--;
-			iovoffset = 0;
-		}
-
-		if (kiov->bv_len > kiovoffset + this_nob) {
-			addr += this_nob;
-			kiovoffset += this_nob;
-		} else {
-			kunmap(kiov->bv_page);
-			addr = NULL;
-			kiov++;
-			nkiov--;
-			kiovoffset = 0;
-		}
-
-	} while (nob > 0);
-
-	if (addr)
-		kunmap(kiov->bv_page);
-}
-EXPORT_SYMBOL(lnet_copy_kiov2iov);
-
-void
-lnet_copy_iov2kiov(unsigned int nkiov, const lnet_kiov_t *kiov,
-		   unsigned int kiovoffset, unsigned int niov,
-		   const struct kvec *iov, unsigned int iovoffset,
-		   unsigned int nob)
-{
-	/* NB kiov, iov are READ-ONLY */
-	unsigned int this_nob;
-	char *addr = NULL;
-
-	if (!nob)
-		return;
-
-	LASSERT(!in_interrupt());
-
-	LASSERT(nkiov > 0);
-	while (kiovoffset >= kiov->bv_len) {
-		kiovoffset -= kiov->bv_len;
-		kiov++;
-		nkiov--;
-		LASSERT(nkiov > 0);
-	}
-
-	LASSERT(niov > 0);
-	while (iovoffset >= iov->iov_len) {
-		iovoffset -= iov->iov_len;
-		iov++;
-		niov--;
-		LASSERT(niov > 0);
-	}
-
-	do {
-		LASSERT(nkiov > 0);
-		LASSERT(niov > 0);
-		this_nob = min((__kernel_size_t)kiov->bv_len - kiovoffset,
-			       iov->iov_len - iovoffset);
-		this_nob = min(this_nob, nob);
-
-		if (!addr)
-			addr = ((char *)kmap(kiov->bv_page)) +
-				kiov->bv_offset + kiovoffset;
-
-		memcpy(addr, (char *)iov->iov_base + iovoffset, this_nob);
-		nob -= this_nob;
-
-		if (kiov->bv_len > kiovoffset + this_nob) {
-			addr += this_nob;
-			kiovoffset += this_nob;
-		} else {
-			kunmap(kiov->bv_page);
-			addr = NULL;
-			kiov++;
-			nkiov--;
-			kiovoffset = 0;
-		}
-
-		if (iov->iov_len > iovoffset + this_nob) {
-			iovoffset += this_nob;
-		} else {
-			iov++;
-			niov--;
-			iovoffset = 0;
-		}
-	} while (nob > 0);
-
-	if (addr)
-		kunmap(kiov->bv_page);
-}
-EXPORT_SYMBOL(lnet_copy_iov2kiov);
 
 int
 lnet_extract_kiov(int dst_niov, lnet_kiov_t *dst,
