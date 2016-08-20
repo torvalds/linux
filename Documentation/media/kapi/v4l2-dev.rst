@@ -262,6 +262,7 @@ file operations.
 
 It is a bitmask and the following bits can be set:
 
+.. tabularcolumns:: |p{5ex}|L|
 
 ===== ================================================================
 Mask  Description
