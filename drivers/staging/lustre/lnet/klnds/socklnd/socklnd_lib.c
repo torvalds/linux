@@ -73,9 +73,9 @@ ksocknal_lib_zc_capable(struct ksock_conn *conn)
 int
 ksocknal_lib_send_iov(struct ksock_conn *conn, struct ksock_tx *tx)
 {
+	struct msghdr msg = {.msg_flags = MSG_DONTWAIT};
 	struct socket *sock = conn->ksnc_sock;
-	int nob;
-	int rc;
+	int nob, i;
 
 	if (*ksocknal_tunables.ksnd_enable_csum	&& /* checksum enabled */
 	    conn->ksnc_proto == &ksocknal_protocol_v2x && /* V2.x connection  */
@@ -83,34 +83,16 @@ ksocknal_lib_send_iov(struct ksock_conn *conn, struct ksock_tx *tx)
 	    !tx->tx_msg.ksm_csum)		     /* not checksummed  */
 		ksocknal_lib_csum_tx(tx);
 
-	/*
-	 * NB we can't trust socket ops to either consume our iovs
-	 * or leave them alone.
-	 */
-	{
-#if SOCKNAL_SINGLE_FRAG_TX
-		struct kvec scratch;
-		struct kvec *scratchiov = &scratch;
-		unsigned int niov = 1;
-#else
-		struct kvec *scratchiov = conn->ksnc_scheduler->kss_scratch_iov;
-		unsigned int niov = tx->tx_niov;
-#endif
-		struct msghdr msg = {.msg_flags = MSG_DONTWAIT};
-		int i;
+	for (nob = i = 0; i < tx->tx_niov; i++)
+		nob += tx->tx_iov[i].iov_len;
 
-		for (nob = i = 0; i < niov; i++) {
-			scratchiov[i] = tx->tx_iov[i];
-			nob += scratchiov[i].iov_len;
-		}
+	if (!list_empty(&conn->ksnc_tx_queue) ||
+	    nob < tx->tx_resid)
+		msg.msg_flags |= MSG_MORE;
 
-		if (!list_empty(&conn->ksnc_tx_queue) ||
-		    nob < tx->tx_resid)
-			msg.msg_flags |= MSG_MORE;
-
-		rc = kernel_sendmsg(sock, &msg, scratchiov, niov, nob);
-	}
-	return rc;
+	iov_iter_kvec(&msg.msg_iter, WRITE | ITER_KVEC,
+		      tx->tx_iov, tx->tx_niov, nob);
+	return sock_sendmsg(sock, &msg);
 }
 
 int
