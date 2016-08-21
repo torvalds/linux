@@ -277,11 +277,12 @@ latex_elements = {
         % Allow generate some pages in landscape
         \\usepackage{lscape}
 
-        % Put notes in gray color and let them be inside a table
-
-        \\definecolor{MyGray}{rgb}{0.80,0.80,0.80}
-
-        \\makeatletter\\newenvironment{graybox}{%
+        % Put notes in color and let them be inside a table
+	\\definecolor{NoteColor}{RGB}{204,255,255}
+	\\definecolor{WarningColor}{RGB}{255,204,204}
+	\\definecolor{AttentionColor}{RGB}{255,255,204}
+	\\definecolor{OtherColor}{RGB}{204,204,204}
+        \\makeatletter\\newenvironment{coloredbox}[1]{%
 	   \\newlength{\\py@noticelength}
 	   \\setlength{\\fboxrule}{1pt}
 	   \\setlength{\\fboxsep}{7pt}
@@ -289,20 +290,33 @@ latex_elements = {
 	   \\addtolength{\\py@noticelength}{-2\\fboxsep}
 	   \\addtolength{\\py@noticelength}{-2\\fboxrule}
            \\begin{lrbox}{\\@tempboxa}\\begin{minipage}{\\py@noticelength}}{\\end{minipage}\\end{lrbox}%
-           \\colorbox{MyGray}{\\usebox{\\@tempboxa}}
+	   \\ifthenelse%
+	      {\\equal{\\py@noticetype}{note}}%
+	      {\\colorbox{NoteColor}{\\usebox{\\@tempboxa}}}%
+	      {%
+	         \\ifthenelse%
+	         {\\equal{\\py@noticetype}{warning}}%
+	         {\\colorbox{WarningColor}{\\usebox{\\@tempboxa}}}%
+		 {%
+	            \\ifthenelse%
+	            {\\equal{\\py@noticetype}{attention}}%
+	            {\\colorbox{AttentionColor}{\\usebox{\\@tempboxa}}}%
+	            {\\colorbox{OtherColor}{\\usebox{\\@tempboxa}}}%
+		 }%
+	      }%
         }\\makeatother
 
         \\makeatletter
-        \\renewenvironment{notice}[2]{
-          \\begin{graybox}
-          \\bf\\it
+        \\renewenvironment{notice}[2]{%
           \\def\\py@noticetype{#1}
+          \\begin{coloredbox}{#1}
+          \\bf\\it
           \\par\\strong{#2}
           \\csname py@noticestart@#1\\endcsname
         }
 	{
           \\csname py@noticeend@\\py@noticetype\\endcsname
-          \\end{graybox}
+          \\end{coloredbox}
         }
 	\\makeatother
 
