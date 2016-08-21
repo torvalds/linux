@@ -258,7 +258,7 @@ To change the radio frequency the
 
        -  :cspan:`1` Reserved for future extensions.
 
-	   Drivers and applications must set the array to zero.
+	  Drivers and applications must set the array to zero.
 
 
 
@@ -621,7 +621,7 @@ To change the radio frequency the
 
 .. raw:: latex
 
-    \newline\newline\begin{adjustbox}{width=\columnwidth}
+    \begin{adjustbox}{width=\columnwidth}
 
 .. _tuner-matrix:
 

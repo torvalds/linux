@@ -204,7 +204,7 @@ list entity names and pad numbers).
 
 .. raw:: latex
 
-    \newline\newline\begin{adjustbox}{width=\columnwidth}
+    \begin{adjustbox}{width=\columnwidth}
 
 .. tabularcolumns:: |p{4.5cm}|p{4.5cm}|p{4.5cm}|p{4.5cm}|p{4.5cm}|p{4.5cm}|p{4.5cm}|
 

@@ -255,7 +255,7 @@ Sliced VBI services
 
 .. raw:: latex
 
-    \newline\newline\begin{adjustbox}{width=\columnwidth}
+    \begin{adjustbox}{width=\columnwidth}
 
 .. tabularcolumns:: |p{5.0cm}|p{1.4cm}|p{3.0cm}|p{2.5cm}|p{9.0cm}|
 
