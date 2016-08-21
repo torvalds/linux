@@ -1218,7 +1218,7 @@ static int cz_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 static int cz_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
 {
-	if (hwmgr != NULL || hwmgr->backend != NULL) {
+	if (hwmgr != NULL && hwmgr->backend != NULL) {
 		kfree(hwmgr->backend);
 		kfree(hwmgr);
 	}
