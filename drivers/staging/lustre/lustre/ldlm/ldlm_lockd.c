@@ -706,12 +706,12 @@ static struct ldlm_bl_work_item *ldlm_bl_get_work(struct ldlm_bl_pool *blp)
 	if (!list_empty(&blp->blp_list) &&
 	    (list_empty(&blp->blp_prio_list) || num_bl == 0))
 		blwi = list_entry(blp->blp_list.next,
-				      struct ldlm_bl_work_item, blwi_entry);
+				  struct ldlm_bl_work_item, blwi_entry);
 	else
 		if (!list_empty(&blp->blp_prio_list))
 			blwi = list_entry(blp->blp_prio_list.next,
-					      struct ldlm_bl_work_item,
-					      blwi_entry);
+					  struct ldlm_bl_work_item,
+					  blwi_entry);
 
 	if (blwi) {
 		if (++num_bl >= atomic_read(&blp->blp_num_threads))
@@ -741,7 +741,7 @@ static int ldlm_bl_thread_start(struct ldlm_bl_pool *blp)
 	init_completion(&bltd.bltd_comp);
 	bltd.bltd_num = atomic_read(&blp->blp_num_threads);
 	snprintf(bltd.bltd_name, sizeof(bltd.bltd_name),
-		"ldlm_bl_%02d", bltd.bltd_num);
+		 "ldlm_bl_%02d", bltd.bltd_num);
 	task = kthread_run(ldlm_bl_thread_main, &bltd, "%s", bltd.bltd_name);
 	if (IS_ERR(task)) {
 		CERROR("cannot start LDLM thread ldlm_bl_%02d: rc %ld\n",
@@ -786,8 +786,8 @@ static int ldlm_bl_thread_main(void *arg)
 		if (!blwi) {
 			atomic_dec(&blp->blp_busy_threads);
 			l_wait_event_exclusive(blp->blp_waitq,
-					 (blwi = ldlm_bl_get_work(blp)),
-					 &lwi);
+					       (blwi = ldlm_bl_get_work(blp)),
+					       &lwi);
 			busy = atomic_inc_return(&blp->blp_busy_threads);
 		} else {
 			busy = atomic_read(&blp->blp_busy_threads);
@@ -1094,16 +1094,17 @@ int ldlm_init(void)
 		return -ENOMEM;
 
 	ldlm_lock_slab = kmem_cache_create("ldlm_locks",
-			      sizeof(struct ldlm_lock), 0,
-			      SLAB_HWCACHE_ALIGN | SLAB_DESTROY_BY_RCU, NULL);
+					   sizeof(struct ldlm_lock), 0,
+					   SLAB_HWCACHE_ALIGN |
+					   SLAB_DESTROY_BY_RCU, NULL);
 	if (!ldlm_lock_slab) {
 		kmem_cache_destroy(ldlm_resource_slab);
 		return -ENOMEM;
 	}
 
 	ldlm_interval_slab = kmem_cache_create("interval_node",
-					sizeof(struct ldlm_interval),
-					0, SLAB_HWCACHE_ALIGN, NULL);
+					       sizeof(struct ldlm_interval),
+					       0, SLAB_HWCACHE_ALIGN, NULL);
 	if (!ldlm_interval_slab) {
 		kmem_cache_destroy(ldlm_resource_slab);
 		kmem_cache_destroy(ldlm_lock_slab);

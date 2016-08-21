@@ -1203,8 +1203,9 @@ __u32 lustre_msg_calc_cksum(struct lustre_msg *msg)
 		unsigned int hsize = 4;
 
 		cfs_crypto_hash_digest(CFS_HASH_ALG_CRC32, (unsigned char *)pb,
-				   lustre_msg_buflen(msg, MSG_PTLRPC_BODY_OFF),
-				   NULL, 0, (unsigned char *)&crc, &hsize);
+				       lustre_msg_buflen(msg,
+							 MSG_PTLRPC_BODY_OFF),
+				       NULL, 0, (unsigned char *)&crc, &hsize);
 		return crc;
 	}
 	default:

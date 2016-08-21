@@ -398,7 +398,8 @@ int ptlrpc_send_reply(struct ptlrpc_request *req, int flags)
 	lustre_msg_set_status(req->rq_repmsg,
 			      ptlrpc_status_hton(req->rq_status));
 	lustre_msg_set_opc(req->rq_repmsg,
-		req->rq_reqmsg ? lustre_msg_get_opc(req->rq_reqmsg) : 0);
+			   req->rq_reqmsg ?
+			   lustre_msg_get_opc(req->rq_reqmsg) : 0);
 
 	target_pack_pool_reply(req);
 

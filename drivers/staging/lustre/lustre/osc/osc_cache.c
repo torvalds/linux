@@ -958,8 +958,8 @@ static int osc_extent_wait(const struct lu_env *env, struct osc_extent *ext,
 	rc = l_wait_event(ext->oe_waitq, extent_wait_cb(ext, state), &lwi);
 	if (rc == -ETIMEDOUT) {
 		OSC_EXTENT_DUMP(D_ERROR, ext,
-			"%s: wait ext to %d timedout, recovery in progress?\n",
-			osc_export(obj)->exp_obd->obd_name, state);
+				"%s: wait ext to %d timedout, recovery in progress?\n",
+				osc_export(obj)->exp_obd->obd_name, state);
 
 		lwi = LWI_INTR(NULL, NULL);
 		rc = l_wait_event(ext->oe_waitq, extent_wait_cb(ext, state),

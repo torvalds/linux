@@ -82,7 +82,7 @@ static int import_set_conn(struct obd_import *imp, struct obd_uuid *uuid,
 			if (priority) {
 				list_del(&item->oic_item);
 				list_add(&item->oic_item,
-					     &imp->imp_conn_list);
+					 &imp->imp_conn_list);
 				item->oic_last_attempt = 0;
 			}
 			CDEBUG(D_HA, "imp %p@%s: found existing conn %s%s\n",
@@ -102,7 +102,7 @@ static int import_set_conn(struct obd_import *imp, struct obd_uuid *uuid,
 			list_add(&imp_conn->oic_item, &imp->imp_conn_list);
 		else
 			list_add_tail(&imp_conn->oic_item,
-					  &imp->imp_conn_list);
+				      &imp->imp_conn_list);
 		CDEBUG(D_HA, "imp %p@%s: add connection %s at %s\n",
 		       imp, imp->imp_obd->obd_name, uuid->uuid,
 		       (priority ? "head" : "tail"));
@@ -692,7 +692,7 @@ void target_send_reply(struct ptlrpc_request *req, int rc, int fail_id)
 	if (rs->rs_transno > exp->exp_last_committed) {
 		/* not committed already */
 		list_add_tail(&rs->rs_obd_list,
-				  &exp->exp_uncommitted_replies);
+			      &exp->exp_uncommitted_replies);
 	}
 	spin_unlock(&exp->exp_uncommitted_replies_lock);
 
@@ -797,7 +797,7 @@ void ldlm_dump_export_locks(struct obd_export *exp)
 		CERROR("dumping locks for export %p,ignore if the unmount doesn't hang\n",
 		       exp);
 		list_for_each_entry(lock, &exp->exp_locks_list,
-					l_exp_refs_link)
+				    l_exp_refs_link)
 			LDLM_ERROR(lock, "lock:");
 	}
 	spin_unlock(&exp->exp_locks_list_guard);

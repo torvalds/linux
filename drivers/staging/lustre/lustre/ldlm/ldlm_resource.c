@@ -758,8 +758,7 @@ static void cleanup_resource(struct ldlm_resource *res, struct list_head *q,
 		 */
 		lock_res(res);
 		list_for_each(tmp, q) {
-			lock = list_entry(tmp, struct ldlm_lock,
-					      l_res_link);
+			lock = list_entry(tmp, struct ldlm_lock, l_res_link);
 			if (ldlm_is_cleaned(lock)) {
 				lock = NULL;
 				continue;
@@ -1381,7 +1380,7 @@ void ldlm_resource_dump(int level, struct ldlm_resource *res)
 	if (!list_empty(&res->lr_granted)) {
 		CDEBUG(level, "Granted locks (in reverse order):\n");
 		list_for_each_entry_reverse(lock, &res->lr_granted,
-						l_res_link) {
+					    l_res_link) {
 			LDLM_DEBUG_LIMIT(level, lock, "###");
 			if (!(level & D_CANTMASK) &&
 			    ++granted > ldlm_dump_granted_max) {

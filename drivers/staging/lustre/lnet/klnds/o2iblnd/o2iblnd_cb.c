@@ -41,9 +41,10 @@
 static void kiblnd_peer_alive(struct kib_peer *peer);
 static void kiblnd_peer_connect_failed(struct kib_peer *peer, int active, int error);
 static void kiblnd_init_tx_msg(lnet_ni_t *ni, struct kib_tx *tx,
-				int type, int body_nob);
+			       int type, int body_nob);
 static int kiblnd_init_rdma(struct kib_conn *conn, struct kib_tx *tx, int type,
-			     int resid, struct kib_rdma_desc *dstrd, __u64 dstcookie);
+			    int resid, struct kib_rdma_desc *dstrd,
+			    __u64 dstcookie);
 static void kiblnd_queue_tx_locked(struct kib_tx *tx, struct kib_conn *conn);
 static void kiblnd_queue_tx(struct kib_tx *tx, struct kib_conn *conn);
 static void kiblnd_unmap_tx(lnet_ni_t *ni, struct kib_tx *tx);

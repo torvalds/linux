@@ -665,7 +665,8 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 		lvb_len = req_capsule_get_size(pill, &RMF_DLM_LVB, RCL_SERVER);
 		if (lvb_len > 0) {
 			lvb_data = req_capsule_server_sized_get(pill,
-							&RMF_DLM_LVB, lvb_len);
+								&RMF_DLM_LVB,
+								lvb_len);
 			if (!lvb_data)
 				return -EPROTO;
 		}

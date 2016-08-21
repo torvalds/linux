@@ -618,7 +618,7 @@ static int kiblnd_get_completion_vector(struct kib_conn *conn, int cpt)
 }
 
 struct kib_conn *kiblnd_create_conn(struct kib_peer *peer, struct rdma_cm_id *cmid,
-			       int state, int version)
+				    int state, int version)
 {
 	/*
 	 * CAVEAT EMPTOR:

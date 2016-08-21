@@ -648,8 +648,8 @@ static void ras_update_stride_detector(struct ll_readahead_state *ras,
 {
 	unsigned long stride_gap = index - ras->ras_last_readpage - 1;
 
-	if (!stride_io_mode(ras) && (stride_gap != 0 ||
-	    ras->ras_consecutive_stride_requests == 0)) {
+	if ((stride_gap != 0 || ras->ras_consecutive_stride_requests == 0) &&
+	    !stride_io_mode(ras)) {
 		ras->ras_stride_pages = ras->ras_consecutive_pages;
 		ras->ras_stride_length = ras->ras_consecutive_pages +
 					 stride_gap;

@@ -631,7 +631,7 @@ int  ksocknal_close_peer_conns_locked(struct ksock_peer *peer,
 int ksocknal_close_conn_and_siblings(struct ksock_conn *conn, int why);
 int ksocknal_close_matching_conns(lnet_process_id_t id, __u32 ipaddr);
 struct ksock_conn *ksocknal_find_conn_locked(struct ksock_peer *peer,
-					struct ksock_tx *tx, int nonblk);
+					     struct ksock_tx *tx, int nonblk);
 
 int  ksocknal_launch_packet(lnet_ni_t *ni, struct ksock_tx *tx,
 			    lnet_process_id_t id);

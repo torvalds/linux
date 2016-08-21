@@ -249,7 +249,7 @@ static void vvp_vmpage_error(struct inode *inode, struct page *vmpage, int ioret
 			set_bit(AS_EIO, &inode->i_mapping->flags);
 
 		if ((ioret == -ESHUTDOWN || ioret == -EINTR) &&
-		     obj->vob_discard_page_warned == 0) {
+		    obj->vob_discard_page_warned == 0) {
 			obj->vob_discard_page_warned = 1;
 			ll_dirty_page_discard_warn(vmpage, ioret);
 		}
@@ -549,7 +549,7 @@ static const struct cl_page_operations vvp_transient_page_ops = {
 };
 
 int vvp_page_init(const struct lu_env *env, struct cl_object *obj,
-		struct cl_page *page, pgoff_t index)
+		  struct cl_page *page, pgoff_t index)
 {
 	struct vvp_page *vpg = cl_object_page_slice(obj, page);
 	struct page     *vmpage = page->cp_vmpage;

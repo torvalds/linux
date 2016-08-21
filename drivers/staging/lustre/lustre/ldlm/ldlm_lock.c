@@ -937,7 +937,7 @@ static void search_granted_lock(struct list_head *queue,
 				/* go to next policy group within mode group */
 				tmp = policy_end->l_res_link.next;
 				lock = list_entry(tmp, struct ldlm_lock,
-						      l_res_link);
+						  l_res_link);
 			}  /* loop over policy groups within the mode group */
 
 			/* insert point is last lock of the mode group,
@@ -1116,7 +1116,7 @@ static struct ldlm_lock *search_queue(struct list_head *queue,
 		 * of bits.
 		 */
 		if (lock->l_resource->lr_type == LDLM_IBITS &&
-		     ((lock->l_policy_data.l_inodebits.bits &
+		    ((lock->l_policy_data.l_inodebits.bits &
 		      policy->l_inodebits.bits) !=
 		      policy->l_inodebits.bits))
 			continue;
@@ -1376,12 +1376,12 @@ int ldlm_fill_lvb(struct ldlm_lock *lock, struct req_capsule *pill,
 		if (size == sizeof(struct ost_lvb)) {
 			if (loc == RCL_CLIENT)
 				lvb = req_capsule_client_swab_get(pill,
-						&RMF_DLM_LVB,
-						lustre_swab_ost_lvb);
+								  &RMF_DLM_LVB,
+							lustre_swab_ost_lvb);
 			else
 				lvb = req_capsule_server_swab_get(pill,
-						&RMF_DLM_LVB,
-						lustre_swab_ost_lvb);
+								  &RMF_DLM_LVB,
+							lustre_swab_ost_lvb);
 			if (unlikely(!lvb)) {
 				LDLM_ERROR(lock, "no LVB");
 				return -EPROTO;
@@ -1393,8 +1393,8 @@ int ldlm_fill_lvb(struct ldlm_lock *lock, struct req_capsule *pill,
 
 			if (loc == RCL_CLIENT)
 				lvb = req_capsule_client_swab_get(pill,
-						&RMF_DLM_LVB,
-						lustre_swab_ost_lvb_v1);
+								  &RMF_DLM_LVB,
+							lustre_swab_ost_lvb_v1);
 			else
 				lvb = req_capsule_server_sized_swab_get(pill,
 						&RMF_DLM_LVB, size,
@@ -1418,12 +1418,12 @@ int ldlm_fill_lvb(struct ldlm_lock *lock, struct req_capsule *pill,
 		if (size == sizeof(struct lquota_lvb)) {
 			if (loc == RCL_CLIENT)
 				lvb = req_capsule_client_swab_get(pill,
-						&RMF_DLM_LVB,
-						lustre_swab_lquota_lvb);
+								  &RMF_DLM_LVB,
+							lustre_swab_lquota_lvb);
 			else
 				lvb = req_capsule_server_swab_get(pill,
-						&RMF_DLM_LVB,
-						lustre_swab_lquota_lvb);
+								  &RMF_DLM_LVB,
+							lustre_swab_lquota_lvb);
 			if (unlikely(!lvb)) {
 				LDLM_ERROR(lock, "no LVB");
 				return -EPROTO;
@@ -1709,7 +1709,7 @@ static int ldlm_work_gl_ast_lock(struct ptlrpc_request_set *rqset, void *opaq)
 		return -ENOENT;
 
 	gl_work = list_entry(arg->list->next, struct ldlm_glimpse_work,
-				 gl_list);
+			     gl_list);
 	list_del_init(&gl_work->gl_list);
 
 	lock = gl_work->gl_lock;

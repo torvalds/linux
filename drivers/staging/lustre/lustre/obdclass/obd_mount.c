@@ -68,7 +68,7 @@ static void (*kill_super_cb)(struct super_block *sb);
  *   this log, and is added to the mgc's list of logs to follow.
  */
 int lustre_process_log(struct super_block *sb, char *logname,
-		      struct config_llog_instance *cfg)
+		       struct config_llog_instance *cfg)
 {
 	struct lustre_cfg *lcfg;
 	struct lustre_cfg_bufs *bufs;

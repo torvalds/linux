@@ -918,7 +918,8 @@ static void ll_statahead_one(struct dentry *parent, const char *entry_name,
 
 	if (rc) {
 		rc1 = ll_sa_entry_to_stated(sai, entry,
-					rc < 0 ? SA_ENTRY_INVA : SA_ENTRY_SUCC);
+					    rc < 0 ? SA_ENTRY_INVA :
+					    SA_ENTRY_SUCC);
 		if (rc1 == 0 && entry->se_index == sai->sai_index_wait)
 			wake_up(&sai->sai_waitq);
 	} else {

@@ -1178,8 +1178,7 @@ static enum ldlm_policy_res ldlm_cancel_lrur_policy(struct ldlm_namespace *ns,
 
 	slv = ldlm_pool_get_slv(pl);
 	lvf = ldlm_pool_get_lvf(pl);
-	la = cfs_duration_sec(cfs_time_sub(cur,
-			      lock->l_last_used));
+	la = cfs_duration_sec(cfs_time_sub(cur, lock->l_last_used));
 	lv = lvf * la * unused;
 
 	/* Inform pool about current CLV to see it via debugfs. */
@@ -1372,7 +1371,7 @@ static int ldlm_prepare_lru_list(struct ldlm_namespace *ns,
 			break;
 
 		list_for_each_entry_safe(lock, next, &ns->ns_unused_list,
-					     l_lru) {
+					 l_lru) {
 			/* No locks which got blocking requests. */
 			LASSERT(!ldlm_is_bl_ast(lock));
 
@@ -1608,8 +1607,7 @@ int ldlm_cli_cancel_list(struct list_head *cancels, int count,
 	 */
 	while (count > 0) {
 		LASSERT(!list_empty(cancels));
-		lock = list_entry(cancels->next, struct ldlm_lock,
-				      l_bl_ast);
+		lock = list_entry(cancels->next, struct ldlm_lock, l_bl_ast);
 		LASSERT(lock->l_conn_export);
 
 		if (exp_connect_cancelset(lock->l_conn_export)) {
@@ -2008,7 +2006,7 @@ static void ldlm_cancel_unused_locks_for_replay(struct ldlm_namespace *ns)
 					 LCF_LOCAL, LDLM_CANCEL_NO_WAIT);
 
 	CDEBUG(D_DLMTRACE, "Canceled %d unused locks from namespace %s\n",
-			   canceled, ldlm_ns_name(ns));
+	       canceled, ldlm_ns_name(ns));
 }
 
 int ldlm_replay_locks(struct obd_import *imp)

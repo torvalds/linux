@@ -1357,8 +1357,8 @@ static int ll_setattr_done_writing(struct inode *inode,
 		rc = ll_som_update(inode, op_data);
 	else if (rc) {
 		CERROR("%s: inode "DFID" mdc truncate failed: rc = %d\n",
-		      ll_i2sbi(inode)->ll_md_exp->exp_obd->obd_name,
-		      PFID(ll_inode2fid(inode)), rc);
+		       ll_i2sbi(inode)->ll_md_exp->exp_obd->obd_name,
+		       PFID(ll_inode2fid(inode)), rc);
 	}
 	return rc;
 }

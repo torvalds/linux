@@ -2162,8 +2162,8 @@ static int lov_set_info_async(const struct lu_env *env, struct obd_export *exp,
 						 &mgi->group, set);
 		} else if (next_id) {
 			err = obd_set_info_async(env, tgt->ltd_exp,
-					 keylen, key, vallen,
-					 ((struct obd_id_info *)val)->data, set);
+						 keylen, key, vallen,
+					((struct obd_id_info *)val)->data, set);
 		} else {
 			/* Only want a specific OSC */
 			if (check_uuid &&

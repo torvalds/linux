@@ -166,7 +166,7 @@ reprocess:
 		 */
 		list_for_each(tmp, &res->lr_granted) {
 			lock = list_entry(tmp, struct ldlm_lock,
-					      l_res_link);
+					  l_res_link);
 			if (ldlm_same_flock_owner(lock, req)) {
 				ownlocks = tmp;
 				break;
@@ -182,7 +182,7 @@ reprocess:
 		 */
 		list_for_each(tmp, &res->lr_granted) {
 			lock = list_entry(tmp, struct ldlm_lock,
-					      l_res_link);
+					  l_res_link);
 
 			if (ldlm_same_flock_owner(lock, req)) {
 				if (!ownlocks)

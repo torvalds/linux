@@ -523,8 +523,9 @@ int sptlrpc_get_bulk_checksum(struct ptlrpc_bulk_desc *desc, __u8 alg,
 
 	for (i = 0; i < desc->bd_iov_count; i++) {
 		cfs_crypto_hash_update_page(hdesc, desc->bd_iov[i].bv_page,
-				  desc->bd_iov[i].bv_offset & ~PAGE_MASK,
-				  desc->bd_iov[i].bv_len);
+					    desc->bd_iov[i].bv_offset &
+					    ~PAGE_MASK,
+					    desc->bd_iov[i].bv_len);
 	}
 
 	if (hashsize > buflen) {
