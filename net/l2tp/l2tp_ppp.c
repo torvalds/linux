@@ -177,7 +177,7 @@ static int pppol2tp_recv_payload_hook(struct sk_buff *skb)
 	if (!pskb_may_pull(skb, 2))
 		return 1;
 
-	if ((skb->data[0] == PPP_ALLSTATIONS) && (skb->data[1] == PPP_UI))
+	if ((skb->data[0] == 0xff) && (skb->data[1] == 0x03))
 		skb_pull(skb, 2);
 
 	return 0;
@@ -282,7 +282,7 @@ static void pppol2tp_session_sock_put(struct l2tp_session *session)
 static int pppol2tp_sendmsg(struct socket *sock, struct msghdr *m,
 			    size_t total_len)
 {
-	static const unsigned char ppph[2] = {PPP_ALLSTATIONS, PPP_UI};
+	static const unsigned char ppph[2] = { 0xff, 0x03 };
 	struct sock *sk = sock->sk;
 	struct sk_buff *skb;
 	int error;
@@ -369,7 +369,7 @@ error:
  */
 static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 {
-	static const u8 ppph[2] = {PPP_ALLSTATIONS, PPP_UI};
+	static const u8 ppph[2] = { 0xff, 0x03 };
 	struct sock *sk = (struct sock *) chan->private;
 	struct sock *sk_tun;
 	struct l2tp_session *session;
@@ -440,7 +440,7 @@ static void pppol2tp_session_close(struct l2tp_session *session)
 	BUG_ON(session->magic != L2TP_SESSION_MAGIC);
 
 	if (sock) {
-		inet_shutdown(sock, SEND_SHUTDOWN);
+		inet_shutdown(sock, 2);
 		/* Don't let the session go away before our socket does */
 		l2tp_session_inc_refcount(session);
 	}
