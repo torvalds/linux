@@ -163,12 +163,12 @@ static int pp_hw_fini(void *handle)
 	pp_handle = (struct pp_instance *)handle;
 	eventmgr = pp_handle->eventmgr;
 
-	if (eventmgr != NULL || eventmgr->pp_eventmgr_fini != NULL)
+	if (eventmgr != NULL && eventmgr->pp_eventmgr_fini != NULL)
 		eventmgr->pp_eventmgr_fini(eventmgr);
 
 	smumgr = pp_handle->smu_mgr;
 
-	if (smumgr != NULL || smumgr->smumgr_funcs != NULL ||
+	if (smumgr != NULL && smumgr->smumgr_funcs != NULL &&
 		smumgr->smumgr_funcs->smu_fini != NULL)
 		smumgr->smumgr_funcs->smu_fini(smumgr);
 
