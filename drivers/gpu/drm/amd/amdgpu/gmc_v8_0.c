@@ -253,7 +253,7 @@ static int gmc_v8_0_mc_load_microcode(struct amdgpu_device *adev)
 	const struct mc_firmware_header_v1_0 *hdr;
 	const __le32 *fw_data = NULL;
 	const __le32 *io_mc_regs = NULL;
-	u32 running, blackout = 0;
+	u32 running;
 	int i, ucode_size, regs_size;
 
 	if (!adev->mc.fw)
@@ -279,11 +279,6 @@ static int gmc_v8_0_mc_load_microcode(struct amdgpu_device *adev)
 	running = REG_GET_FIELD(RREG32(mmMC_SEQ_SUP_CNTL), MC_SEQ_SUP_CNTL, RUN);
 
 	if (running == 0) {
-		if (running) {
-			blackout = RREG32(mmMC_SHARED_BLACKOUT_CNTL);
-			WREG32(mmMC_SHARED_BLACKOUT_CNTL, blackout | 1);
-		}
-
 		/* reset the engine and set to writable */
 		WREG32(mmMC_SEQ_SUP_CNTL, 0x00000008);
 		WREG32(mmMC_SEQ_SUP_CNTL, 0x00000010);
@@ -315,9 +310,6 @@ static int gmc_v8_0_mc_load_microcode(struct amdgpu_device *adev)
 				break;
 			udelay(1);
 		}
-
-		if (running)
-			WREG32(mmMC_SHARED_BLACKOUT_CNTL, blackout);
 	}
 
 	return 0;
