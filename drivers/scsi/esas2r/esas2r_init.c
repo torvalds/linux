@@ -963,10 +963,6 @@ bool esas2r_init_adapter_struct(struct esas2r_adapter *a,
 
 	/* initialize the allocated memory */
 	if (test_bit(AF_FIRST_INIT, &a->flags)) {
-		memset(a->req_table, 0,
-		       (num_requests + num_ae_requests +
-			1) * sizeof(struct esas2r_request *));
-
 		esas2r_targ_db_initialize(a);
 
 		/* prime parts of the inbound list */
