@@ -872,12 +872,25 @@ int etnaviv_gpu_debugfs(struct etnaviv_gpu *gpu, struct seq_file *m)
  */
 static int enable_clk(struct etnaviv_gpu *gpu)
 {
-	if (gpu->clk_core)
-		clk_prepare_enable(gpu->clk_core);
-	if (gpu->clk_shader)
-		clk_prepare_enable(gpu->clk_shader);
+	int ret;
+
+	if (gpu->clk_core) {
+		ret = clk_prepare_enable(gpu->clk_core);
+		if (ret)
+			return ret;
+	}
+
+	if (gpu->clk_shader) {
+		ret = clk_prepare_enable(gpu->clk_shader);
+		if (ret)
+			goto disable_clk_core;
+	}
 
 	return 0;
+
+disable_clk_core:
+	clk_disable_unprepare(gpu->clk_core);
+	return ret;
 }
 
 static int disable_clk(struct etnaviv_gpu *gpu)
@@ -892,8 +905,13 @@ static int disable_clk(struct etnaviv_gpu *gpu)
 
 static int enable_axi(struct etnaviv_gpu *gpu)
 {
-	if (gpu->clk_bus)
-		clk_prepare_enable(gpu->clk_bus);
+	int ret;
+
+	if (gpu->clk_bus) {
+		ret = clk_prepare_enable(gpu->clk_bus);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
