@@ -1669,16 +1669,15 @@ static int etnaviv_gpu_platform_probe(struct platform_device *pdev)
 	/* Get Interrupt: */
 	gpu->irq = platform_get_irq(pdev, 0);
 	if (gpu->irq < 0) {
-		err = gpu->irq;
-		dev_err(dev, "failed to get irq: %d\n", err);
-		goto fail;
+		dev_err(dev, "failed to get irq: %d\n", gpu->irq);
+		return gpu->irq;
 	}
 
 	err = devm_request_irq(&pdev->dev, gpu->irq, irq_handler, 0,
 			       dev_name(gpu->dev), gpu);
 	if (err) {
 		dev_err(dev, "failed to request IRQ%u: %d\n", gpu->irq, err);
-		goto fail;
+		return err;
 	}
 
 	/* Get Clocks: */
@@ -1712,13 +1711,10 @@ static int etnaviv_gpu_platform_probe(struct platform_device *pdev)
 	err = component_add(&pdev->dev, &gpu_ops);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to register component: %d\n", err);
-		goto fail;
+		return err;
 	}
 
 	return 0;
-
-fail:
-	return err;
 }
 
 static int etnaviv_gpu_platform_remove(struct platform_device *pdev)
