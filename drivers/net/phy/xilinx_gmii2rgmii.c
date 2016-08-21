@@ -75,6 +75,7 @@ int xgmiitorgmii_probe(struct mdio_device *mdiodev)
 	}
 
 	priv->phy_dev = of_phy_find_device(phy_node);
+	of_node_put(phy_node);
 	if (!priv->phy_dev) {
 		dev_info(dev, "Couldn't find phydev\n");
 		return -EPROBE_DEFER;
