@@ -37,7 +37,7 @@ static void nft_hash_eval(const struct nft_expr *expr,
 				 priv->modulus);
 }
 
-const struct nla_policy nft_hash_policy[NFTA_HASH_MAX + 1] = {
+static const struct nla_policy nft_hash_policy[NFTA_HASH_MAX + 1] = {
 	[NFTA_HASH_SREG]	= { .type = NLA_U32 },
 	[NFTA_HASH_DREG]	= { .type = NLA_U32 },
 	[NFTA_HASH_LEN]		= { .type = NLA_U32 },
