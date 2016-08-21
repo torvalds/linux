@@ -1305,6 +1305,8 @@ int f2fs_trim_fs(struct f2fs_sb_info *sbi, struct fstrim_range *range)
 		mutex_unlock(&sbi->gc_mutex);
 		if (err)
 			break;
+
+		schedule();
 	}
 out:
 	range->len = F2FS_BLK_TO_BYTES(cpc.trimmed);
