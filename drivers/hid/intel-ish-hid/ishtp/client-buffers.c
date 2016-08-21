@@ -73,11 +73,10 @@ int ishtp_cl_alloc_tx_ring(struct ishtp_cl *cl)
 	for (j = 0; j < cl->tx_ring_size; ++j) {
 		struct ishtp_cl_tx_ring	*tx_buf;
 
-		tx_buf = kmalloc(sizeof(struct ishtp_cl_tx_ring), GFP_KERNEL);
+		tx_buf = kzalloc(sizeof(struct ishtp_cl_tx_ring), GFP_KERNEL);
 		if (!tx_buf)
 			goto	out;
 
-		memset(tx_buf, 0, sizeof(struct ishtp_cl_tx_ring));
 		tx_buf->send_buf.data = kmalloc(len, GFP_KERNEL);
 		if (!tx_buf->send_buf.data) {
 			kfree(tx_buf);
