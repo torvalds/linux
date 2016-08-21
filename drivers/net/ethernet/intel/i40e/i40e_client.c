@@ -148,6 +148,11 @@ i40e_notify_client_of_vf_msg(struct i40e_vsi *vsi, u32 vf_id, u8 *msg, u16 len)
 					"Cannot locate client instance virtual channel receive routine\n");
 				continue;
 			}
+			if (!test_bit(__I40E_CLIENT_INSTANCE_OPENED,
+				      &cdev->state)) {
+				dev_dbg(&vsi->back->pdev->dev, "Client is not open, abort virtchnl_receive\n");
+				continue;
+			}
 			cdev->client->ops->virtchnl_receive(&cdev->lan_info,
 							    cdev->client,
 							    vf_id, msg, len);
@@ -179,6 +184,11 @@ void i40e_notify_client_of_l2_param_changes(struct i40e_vsi *vsi)
 			    !cdev->client->ops->l2_param_change) {
 				dev_dbg(&vsi->back->pdev->dev,
 					"Cannot locate client instance l2_param_change routine\n");
+				continue;
+			}
+			if (!test_bit(__I40E_CLIENT_INSTANCE_OPENED,
+				      &cdev->state)) {
+				dev_dbg(&vsi->back->pdev->dev, "Client is not open, abort l2 param change\n");
 				continue;
 			}
 			cdev->lan_info.params = params;
@@ -298,6 +308,11 @@ void i40e_notify_client_of_vf_reset(struct i40e_pf *pf, u32 vf_id)
 					"Cannot locate client instance VF reset routine\n");
 				continue;
 			}
+			if (!test_bit(__I40E_CLIENT_INSTANCE_OPENED,
+				      &cdev->state)) {
+				dev_dbg(&pf->pdev->dev, "Client is not open, abort vf-reset\n");
+				continue;
+			}
 			cdev->client->ops->vf_reset(&cdev->lan_info,
 						    cdev->client, vf_id);
 		}
@@ -326,6 +341,11 @@ void i40e_notify_client_of_vf_enable(struct i40e_pf *pf, u32 num_vfs)
 			    !cdev->client->ops->vf_enable) {
 				dev_dbg(&pf->pdev->dev,
 					"Cannot locate client instance VF enable routine\n");
+				continue;
+			}
+			if (!test_bit(__I40E_CLIENT_INSTANCE_OPENED,
+				      &cdev->state)) {
+				dev_dbg(&pf->pdev->dev, "Client is not open, abort vf-enable\n");
 				continue;
 			}
 			cdev->client->ops->vf_enable(&cdev->lan_info,
@@ -360,6 +380,11 @@ int i40e_vf_client_capable(struct i40e_pf *pf, u32 vf_id,
 			    !(cdev->client->type == type)) {
 				dev_dbg(&pf->pdev->dev,
 					"Cannot locate client instance VF capability routine\n");
+				continue;
+			}
+			if (!test_bit(__I40E_CLIENT_INSTANCE_OPENED,
+				      &cdev->state)) {
+				dev_dbg(&pf->pdev->dev, "Client is not open, abort vf-capable\n");
 				continue;
 			}
 			capable = cdev->client->ops->vf_capable(&cdev->lan_info,
@@ -551,6 +576,7 @@ void i40e_client_subtask(struct i40e_pf *pf)
 			set_bit(__I40E_CLIENT_INSTANCE_OPENED, &cdev->state);
 		} else {
 			/* remove client instance */
+			mutex_unlock(&i40e_client_instance_mutex);
 			i40e_client_del_instance(pf, client);
 			atomic_dec(&client->ref_cnt);
 			continue;
@@ -637,7 +663,7 @@ int i40e_lan_del_device(struct i40e_pf *pf)
 static int i40e_client_release(struct i40e_client *client)
 {
 	struct i40e_client_instance *cdev, *tmp;
-	struct i40e_pf *pf = NULL;
+	struct i40e_pf *pf;
 	int ret = 0;
 
 	LIST_HEAD(cdevs_tmp);
@@ -647,12 +673,12 @@ static int i40e_client_release(struct i40e_client *client)
 		if (strncmp(cdev->client->name, client->name,
 			    I40E_CLIENT_STR_LENGTH))
 			continue;
+		pf = (struct i40e_pf *)cdev->lan_info.pf;
 		if (test_bit(__I40E_CLIENT_INSTANCE_OPENED, &cdev->state)) {
 			if (atomic_read(&cdev->ref_cnt) > 0) {
 				ret = I40E_ERR_NOT_READY;
 				goto out;
 			}
-			pf = (struct i40e_pf *)cdev->lan_info.pf;
 			if (client->ops && client->ops->close)
 				client->ops->close(&cdev->lan_info, client,
 						   false);

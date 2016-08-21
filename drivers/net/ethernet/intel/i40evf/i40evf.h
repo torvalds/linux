@@ -71,20 +71,20 @@ struct i40e_vsi {
 
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
 #define I40EVF_RX_BUFFER_WRITE	16	/* Must be power of 2 */
-#define I40EVF_DEFAULT_TXD   512
-#define I40EVF_DEFAULT_RXD   512
-#define I40EVF_MAX_TXD       4096
-#define I40EVF_MIN_TXD       64
-#define I40EVF_MAX_RXD       4096
-#define I40EVF_MIN_RXD       64
-#define I40EVF_REQ_DESCRIPTOR_MULTIPLE  32
+#define I40EVF_DEFAULT_TXD	512
+#define I40EVF_DEFAULT_RXD	512
+#define I40EVF_MAX_TXD		4096
+#define I40EVF_MIN_TXD		64
+#define I40EVF_MAX_RXD		4096
+#define I40EVF_MIN_RXD		64
+#define I40EVF_REQ_DESCRIPTOR_MULTIPLE	32
 
 /* Supported Rx Buffer Sizes */
-#define I40EVF_RXBUFFER_2048  2048
-#define I40EVF_MAX_RXBUFFER   16384  /* largest size for single descriptor */
-#define I40EVF_MAX_AQ_BUF_SIZE    4096
-#define I40EVF_AQ_LEN             32
-#define I40EVF_AQ_MAX_ERR         20 /* times to try before resetting AQ */
+#define I40EVF_RXBUFFER_2048	2048
+#define I40EVF_MAX_RXBUFFER	16384  /* largest size for single descriptor */
+#define I40EVF_MAX_AQ_BUF_SIZE	4096
+#define I40EVF_AQ_LEN		32
+#define I40EVF_AQ_MAX_ERR	20 /* times to try before resetting AQ */
 
 #define MAXIMUM_ETHERNET_VLAN_SIZE (VLAN_ETH_FRAME_LEN + ETH_FCS_LEN)
 
@@ -111,7 +111,7 @@ struct i40e_q_vector {
 	u8 num_ringpairs;	/* total number of ring pairs in vector */
 #define ITR_COUNTDOWN_START 100
 	u8 itr_countdown;	/* when 0 or 1 update ITR */
-	int v_idx;	  /* vector index in list */
+	int v_idx;	/* vector index in list */
 	char name[IFNAMSIZ + 9];
 	bool arm_wb_state;
 	cpumask_var_t affinity_mask;
@@ -129,11 +129,11 @@ struct i40e_q_vector {
 	((((R)->next_to_clean > (R)->next_to_use) ? 0 : (R)->count) + \
 	(R)->next_to_clean - (R)->next_to_use - 1)
 
-#define I40EVF_RX_DESC_ADV(R, i)	    \
+#define I40EVF_RX_DESC_ADV(R, i)	\
 	(&(((union i40e_adv_rx_desc *)((R).desc))[i]))
-#define I40EVF_TX_DESC_ADV(R, i)	    \
+#define I40EVF_TX_DESC_ADV(R, i)	\
 	(&(((union i40e_adv_tx_desc *)((R).desc))[i]))
-#define I40EVF_TX_CTXTDESC_ADV(R, i)	    \
+#define I40EVF_TX_CTXTDESC_ADV(R, i)	\
 	(&(((struct i40e_adv_tx_context_desc *)((R).desc))[i]))
 
 #define OTHER_VECTOR 1
@@ -204,22 +204,25 @@ struct i40evf_adapter {
 	struct msix_entry *msix_entries;
 
 	u32 flags;
-#define I40EVF_FLAG_RX_CSUM_ENABLED              BIT(0)
-#define I40EVF_FLAG_IMIR_ENABLED                 BIT(5)
-#define I40EVF_FLAG_MQ_CAPABLE                   BIT(6)
-#define I40EVF_FLAG_NEED_LINK_UPDATE             BIT(7)
-#define I40EVF_FLAG_PF_COMMS_FAILED              BIT(8)
-#define I40EVF_FLAG_RESET_PENDING                BIT(9)
-#define I40EVF_FLAG_RESET_NEEDED                 BIT(10)
+#define I40EVF_FLAG_RX_CSUM_ENABLED		BIT(0)
+#define I40EVF_FLAG_IN_NETPOLL			BIT(4)
+#define I40EVF_FLAG_IMIR_ENABLED		BIT(5)
+#define I40EVF_FLAG_MQ_CAPABLE			BIT(6)
+#define I40EVF_FLAG_NEED_LINK_UPDATE		BIT(7)
+#define I40EVF_FLAG_PF_COMMS_FAILED		BIT(8)
+#define I40EVF_FLAG_RESET_PENDING		BIT(9)
+#define I40EVF_FLAG_RESET_NEEDED		BIT(10)
 #define I40EVF_FLAG_WB_ON_ITR_CAPABLE		BIT(11)
 #define I40EVF_FLAG_OUTER_UDP_CSUM_CAPABLE	BIT(12)
 #define I40EVF_FLAG_ADDR_SET_BY_PF		BIT(13)
+#define I40EVF_FLAG_SERVICE_CLIENT_REQUESTED	BIT(14)
 #define I40EVF_FLAG_PROMISC_ON			BIT(15)
 #define I40EVF_FLAG_ALLMULTI_ON			BIT(16)
 /* duplicates for common code */
-#define I40E_FLAG_FDIR_ATR_ENABLED		 0
-#define I40E_FLAG_DCB_ENABLED			 0
-#define I40E_FLAG_RX_CSUM_ENABLED                I40EVF_FLAG_RX_CSUM_ENABLED
+#define I40E_FLAG_FDIR_ATR_ENABLED		0
+#define I40E_FLAG_DCB_ENABLED			0
+#define I40E_FLAG_IN_NETPOLL			I40EVF_FLAG_IN_NETPOLL
+#define I40E_FLAG_RX_CSUM_ENABLED		I40EVF_FLAG_RX_CSUM_ENABLED
 #define I40E_FLAG_WB_ON_ITR_CAPABLE		I40EVF_FLAG_WB_ON_ITR_CAPABLE
 #define I40E_FLAG_OUTER_UDP_CSUM_CAPABLE	I40EVF_FLAG_OUTER_UDP_CSUM_CAPABLE
 	/* flags for admin queue service task */
@@ -233,7 +236,7 @@ struct i40evf_adapter {
 #define I40EVF_FLAG_AQ_CONFIGURE_QUEUES		BIT(6)
 #define I40EVF_FLAG_AQ_MAP_VECTORS		BIT(7)
 #define I40EVF_FLAG_AQ_HANDLE_RESET		BIT(8)
-#define I40EVF_FLAG_AQ_CONFIGURE_RSS		BIT(9)	/* direct AQ config */
+#define I40EVF_FLAG_AQ_CONFIGURE_RSS		BIT(9) /* direct AQ config */
 #define I40EVF_FLAG_AQ_GET_CONFIG		BIT(10)
 /* Newer style, RSS done by the PF so we can ignore hardware vagaries. */
 #define I40EVF_FLAG_AQ_GET_HENA			BIT(11)
@@ -258,6 +261,7 @@ struct i40evf_adapter {
 	struct work_struct watchdog_task;
 	bool netdev_registered;
 	bool link_up;
+	enum i40e_aq_link_speed link_speed;
 	enum i40e_virtchnl_ops current_op;
 #define CLIENT_ENABLED(_a) ((_a)->vf_res ? \
 			    (_a)->vf_res->vf_offload_flags & \

@@ -74,13 +74,33 @@ static const struct i40evf_stats i40evf_gstrings_stats[] = {
 static int i40evf_get_settings(struct net_device *netdev,
 			       struct ethtool_cmd *ecmd)
 {
-	/* In the future the VF will be able to query the PF for
-	 * some information - for now use a dummy value
-	 */
+	struct i40evf_adapter *adapter = netdev_priv(netdev);
+
 	ecmd->supported = 0;
 	ecmd->autoneg = AUTONEG_DISABLE;
 	ecmd->transceiver = XCVR_DUMMY1;
 	ecmd->port = PORT_NONE;
+	/* Set speed and duplex */
+	switch (adapter->link_speed) {
+	case I40E_LINK_SPEED_40GB:
+		ethtool_cmd_speed_set(ecmd, SPEED_40000);
+		break;
+	case I40E_LINK_SPEED_20GB:
+		ethtool_cmd_speed_set(ecmd, SPEED_20000);
+		break;
+	case I40E_LINK_SPEED_10GB:
+		ethtool_cmd_speed_set(ecmd, SPEED_10000);
+		break;
+	case I40E_LINK_SPEED_1GB:
+		ethtool_cmd_speed_set(ecmd, SPEED_1000);
+		break;
+	case I40E_LINK_SPEED_100MB:
+		ethtool_cmd_speed_set(ecmd, SPEED_100);
+		break;
+	default:
+		break;
+	}
+	ecmd->duplex = DUPLEX_FULL;
 
 	return 0;
 }
