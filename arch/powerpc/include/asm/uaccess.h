@@ -323,30 +323,17 @@ extern unsigned long __copy_tofrom_user(void __user *to,
 static inline unsigned long copy_from_user(void *to,
 		const void __user *from, unsigned long n)
 {
-	unsigned long over;
-
-	if (access_ok(VERIFY_READ, from, n))
+	if (likely(access_ok(VERIFY_READ, from, n)))
 		return __copy_tofrom_user((__force void __user *)to, from, n);
-	if ((unsigned long)from < TASK_SIZE) {
-		over = (unsigned long)from + n - TASK_SIZE;
-		return __copy_tofrom_user((__force void __user *)to, from,
-				n - over) + over;
-	}
+	memset(to, 0, n);
 	return n;
 }
 
 static inline unsigned long copy_to_user(void __user *to,
 		const void *from, unsigned long n)
 {
-	unsigned long over;
-
 	if (access_ok(VERIFY_WRITE, to, n))
 		return __copy_tofrom_user(to, (__force void __user *)from, n);
-	if ((unsigned long)to < TASK_SIZE) {
-		over = (unsigned long)to + n - TASK_SIZE;
-		return __copy_tofrom_user(to, (__force void __user *)from,
-				n - over) + over;
-	}
 	return n;
 }
 
@@ -437,10 +424,6 @@ static inline unsigned long clear_user(void __user *addr, unsigned long size)
 	might_fault();
 	if (likely(access_ok(VERIFY_WRITE, addr, size)))
 		return __clear_user(addr, size);
-	if ((unsigned long)addr < TASK_SIZE) {
-		unsigned long over = (unsigned long)addr + size - TASK_SIZE;
-		return __clear_user(addr, size - over) + over;
-	}
 	return size;
 }
 
