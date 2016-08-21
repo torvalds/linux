@@ -7,7 +7,7 @@
  *     written by Ralf Baechle <ralf@linux-mips.org>
  */
 #include <linux/pci.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <asm/io.h>
 
 void __iomem *__pci_ioport_map(struct pci_dev *dev,
