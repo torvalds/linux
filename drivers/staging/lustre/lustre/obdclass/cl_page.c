@@ -981,9 +981,9 @@ void cl_page_header_print(const struct lu_env *env, void *cookie,
 			  lu_printer_t printer, const struct cl_page *pg)
 {
 	(*printer)(env, cookie,
-		   "page@%p[%d %p %d %d %d %p %p]\n",
+		   "page@%p[%d %p %d %d %p %p]\n",
 		   pg, atomic_read(&pg->cp_ref), pg->cp_obj,
-		   pg->cp_state, pg->cp_error, pg->cp_type,
+		   pg->cp_state, pg->cp_type,
 		   pg->cp_owner, pg->cp_req);
 }
 EXPORT_SYMBOL(cl_page_header_print);

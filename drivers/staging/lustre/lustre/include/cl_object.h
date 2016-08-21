@@ -701,8 +701,6 @@ enum cl_page_type {
 struct cl_page {
 	/** Reference counter. */
 	atomic_t	     cp_ref;
-	/** Transfer error. */
-	int			 cp_error;
 	/** An object this page is a part of. Immutable after creation. */
 	struct cl_object	*cp_obj;
 	/** vmpage */
