@@ -92,7 +92,7 @@ static __u32 pool_hashfn(struct cfs_hash *hash_body, const void *key, unsigned m
 	for (i = 0; i < LOV_MAXPOOLNAME; i++) {
 		if (poolname[i] == '\0')
 			break;
-		result = (result << 4)^(result >> 28) ^  poolname[i];
+		result = (result << 4) ^ (result >> 28) ^  poolname[i];
 	}
 	return (result % mask);
 }

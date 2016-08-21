@@ -110,7 +110,7 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 	__u64 bits;
 
 	bits = MDS_INODELOCK_UPDATE;
-	if (op_data->op_attr.ia_valid & (ATTR_MODE|ATTR_UID|ATTR_GID))
+	if (op_data->op_attr.ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID))
 		bits |= MDS_INODELOCK_LOOKUP;
 	if ((op_data->op_flags & MF_MDC_CANCEL_FID1) &&
 	    (fid_is_sane(&op_data->op_fid1)) &&
@@ -429,7 +429,8 @@ int mdc_rename(struct obd_export *exp, struct md_op_data *op_data,
 	}
 
 	req_capsule_set_size(&req->rq_pill, &RMF_NAME, RCL_CLIENT, oldlen + 1);
-	req_capsule_set_size(&req->rq_pill, &RMF_SYMTGT, RCL_CLIENT, newlen+1);
+	req_capsule_set_size(&req->rq_pill, &RMF_SYMTGT, RCL_CLIENT,
+			     newlen + 1);
 
 	rc = mdc_prep_elc_req(exp, req, MDS_REINT, &cancels, count);
 	if (rc) {

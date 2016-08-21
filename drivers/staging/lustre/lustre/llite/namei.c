@@ -614,7 +614,7 @@ static struct dentry *ll_lookup_nd(struct inode *parent, struct dentry *dentry,
 	    (inode_permission(parent, MAY_WRITE | MAY_EXEC) == 0))
 		return NULL;
 
-	if (flags & (LOOKUP_PARENT|LOOKUP_OPEN|LOOKUP_CREATE))
+	if (flags & (LOOKUP_PARENT | LOOKUP_OPEN | LOOKUP_CREATE))
 		itp = NULL;
 	else
 		itp = &it;
@@ -1012,7 +1012,7 @@ static int ll_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 
 	if (!IS_POSIXACL(dir) || !exp_connect_umask(ll_i2mdexp(dir)))
 		mode &= ~current_umask();
-	mode = (mode & (S_IRWXUGO|S_ISVTX)) | S_IFDIR;
+	mode = (mode & (S_IRWXUGO | S_ISVTX)) | S_IFDIR;
 	err = ll_new_node(dir, dentry, NULL, mode, 0, LUSTRE_OPC_MKDIR);
 
 	if (!err)

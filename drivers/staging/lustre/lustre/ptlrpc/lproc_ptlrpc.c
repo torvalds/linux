@@ -191,7 +191,7 @@ ptlrpc_ldebugfs_register(struct dentry *root, char *dir,
 	LASSERT(!*debugfs_root_ret);
 	LASSERT(!*stats_ret);
 
-	svc_stats = lprocfs_alloc_stats(EXTRA_MAX_OPCODES+LUSTRE_MAX_OPCODES,
+	svc_stats = lprocfs_alloc_stats(EXTRA_MAX_OPCODES + LUSTRE_MAX_OPCODES,
 					0);
 	if (!svc_stats)
 		return;

@@ -2544,7 +2544,7 @@ int osc_flush_async_page(const struct lu_env *env, struct cl_io *io,
 		goto out;
 
 	spin_lock(&oap->oap_lock);
-	oap->oap_async_flags |= ASYNC_READY|ASYNC_URGENT;
+	oap->oap_async_flags |= ASYNC_READY | ASYNC_URGENT;
 	spin_unlock(&oap->oap_lock);
 
 	if (memory_pressure_get())

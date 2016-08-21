@@ -596,7 +596,7 @@ static inline __u32 fid_flatten32(const struct lu_fid *fid)
 	 * (from OID), or up to 128M inodes without collisions for new files.
 	 */
 	ino = ((seq & 0x000fffffULL) << 12) + ((seq >> 8) & 0xfffff000) +
-	       (seq >> (64 - (40-8)) & 0xffffff00) +
+	       (seq >> (64 - (40 - 8)) & 0xffffff00) +
 	       (fid_oid(fid) & 0xff000fff) + ((fid_oid(fid) & 0x00fff000) << 8);
 
 	return ino ? ino : fid_oid(fid);

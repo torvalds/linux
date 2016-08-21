@@ -509,7 +509,7 @@ struct obd_device *class_devices_in_group(struct obd_uuid *grp_uuid, int *next)
 			continue;
 		if (obd_uuid_equals(grp_uuid, &obd->obd_uuid)) {
 			if (next)
-				*next = i+1;
+				*next = i + 1;
 			read_unlock(&obd_dev_lock);
 			return obd;
 		}

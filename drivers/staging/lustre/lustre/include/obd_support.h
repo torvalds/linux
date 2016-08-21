@@ -115,17 +115,17 @@ extern char obd_jobid_var[];
  * running on a backup server. (If it's too low, import_select_connection
  * will increase the timeout anyhow.)
  */
-#define INITIAL_CONNECT_TIMEOUT max(CONNECTION_SWITCH_MIN, obd_timeout/20)
+#define INITIAL_CONNECT_TIMEOUT max(CONNECTION_SWITCH_MIN, obd_timeout / 20)
 /* The max delay between connects is SWITCH_MAX + SWITCH_INC + INITIAL */
 #define RECONNECT_DELAY_MAX (CONNECTION_SWITCH_MAX + CONNECTION_SWITCH_INC + \
 			     INITIAL_CONNECT_TIMEOUT)
 /* The min time a target should wait for clients to reconnect in recovery */
-#define OBD_RECOVERY_TIME_MIN    (2*RECONNECT_DELAY_MAX)
+#define OBD_RECOVERY_TIME_MIN    (2 * RECONNECT_DELAY_MAX)
 #define OBD_IR_FACTOR_MIN	 1
 #define OBD_IR_FACTOR_MAX	 10
-#define OBD_IR_FACTOR_DEFAULT    (OBD_IR_FACTOR_MAX/2)
+#define OBD_IR_FACTOR_DEFAULT    (OBD_IR_FACTOR_MAX / 2)
 /* default timeout for the MGS to become IR_FULL */
-#define OBD_IR_MGS_TIMEOUT       (4*obd_timeout)
+#define OBD_IR_MGS_TIMEOUT       (4 * obd_timeout)
 #define LONG_UNLINK 300	  /* Unlink should happen before now */
 
 /**
@@ -526,7 +526,8 @@ do {									      \
 	POISON_PTR(ptr);						      \
 } while (0)
 
-#define KEY_IS(str) \
-	(keylen >= (sizeof(str)-1) && memcmp(key, str, (sizeof(str)-1)) == 0)
+#define KEY_IS(str)					\
+	(keylen >= (sizeof(str) - 1) &&			\
+	memcmp(key, str, (sizeof(str) - 1)) == 0)
 
 #endif

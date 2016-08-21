@@ -2472,7 +2472,7 @@ ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 			if (och) {
 				mode = och->och_flags &
-				       (FMODE_READ|FMODE_WRITE);
+				       (FMODE_READ | FMODE_WRITE);
 				rc = ll_lease_close(och, inode, &lease_broken);
 				if (rc == 0 && lease_broken)
 					mode = 0;
@@ -2959,7 +2959,7 @@ int ll_have_md_lock(struct inode *inode, __u64 *bits,
 	struct lustre_handle lockh;
 	ldlm_policy_data_t policy;
 	enum ldlm_mode mode = (l_req_mode == LCK_MINMODE) ?
-				(LCK_CR|LCK_CW|LCK_PR|LCK_PW) : l_req_mode;
+			      (LCK_CR | LCK_CW | LCK_PR | LCK_PW) : l_req_mode;
 	struct lu_fid *fid;
 	__u64 flags;
 	int i;

@@ -164,7 +164,7 @@ static int osc_io_submit(const struct lu_env *env,
 		}
 
 		spin_lock(&oap->oap_lock);
-		oap->oap_async_flags = ASYNC_URGENT|ASYNC_READY;
+		oap->oap_async_flags = ASYNC_URGENT | ASYNC_READY;
 		oap->oap_async_flags |= ASYNC_COUNT_STABLE;
 		spin_unlock(&oap->oap_lock);
 

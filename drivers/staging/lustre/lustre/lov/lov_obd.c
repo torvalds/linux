@@ -1917,8 +1917,9 @@ inactive_tgt:
 				break;
 			}
 
-			len_mapped_single_call = lcl_fm_ext[ext_count-1].fe_logical -
-				  lun_start + lcl_fm_ext[ext_count - 1].fe_length;
+			len_mapped_single_call =
+				lcl_fm_ext[ext_count - 1].fe_logical -
+				lun_start + lcl_fm_ext[ext_count - 1].fe_length;
 
 			/* Have we finished mapping on this device? */
 			if (req_fm_len <= len_mapped_single_call)
@@ -1927,14 +1928,15 @@ inactive_tgt:
 			/* Clear the EXTENT_LAST flag which can be present on
 			 * last extent
 			 */
-			if (lcl_fm_ext[ext_count-1].fe_flags & FIEMAP_EXTENT_LAST)
+			if (lcl_fm_ext[ext_count - 1].fe_flags &
+			    FIEMAP_EXTENT_LAST)
 				lcl_fm_ext[ext_count - 1].fe_flags &=
 							    ~FIEMAP_EXTENT_LAST;
 
 			curr_loc = lov_stripe_size(lsm,
-					   lcl_fm_ext[ext_count - 1].fe_logical+
-					   lcl_fm_ext[ext_count - 1].fe_length,
-					   cur_stripe);
+					lcl_fm_ext[ext_count - 1].fe_logical +
+					lcl_fm_ext[ext_count - 1].fe_length,
+					cur_stripe);
 			if (curr_loc >= fm_key->oa.o_size)
 				ost_eof = 1;
 

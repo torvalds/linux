@@ -37,7 +37,7 @@
  */
 
 #define DEBUG_SUBSYSTEM S_CLASS
-#define D_MOUNT (D_SUPER|D_CONFIG/*|D_WARNING */)
+#define D_MOUNT (D_SUPER | D_CONFIG/*|D_WARNING */)
 #define PRINT_CMD CDEBUG
 
 #include "../include/obd.h"
@@ -757,7 +757,7 @@ static int lmd_make_exclusion(struct lustre_mount_data *lmd, const char *ptr)
 			exclude_list[lmd->lmd_exclude_count++] = index;
 		else
 			CDEBUG(D_MOUNT, "ignoring exclude %.*s: type = %#x\n",
-			       (uint)(s2-s1), s1, rc);
+			       (uint)(s2 - s1), s1, rc);
 		s1 = s2;
 		/* now we are pointing at ':' (next exclude)
 		 * or ',' (end of excludes)
@@ -1108,7 +1108,7 @@ static int lustre_fill_super(struct super_block *sb, void *data, int silent)
 	struct lustre_sb_info *lsi;
 	int rc;
 
-	CDEBUG(D_MOUNT|D_VFSTRACE, "VFS Op: sb %p\n", sb);
+	CDEBUG(D_MOUNT | D_VFSTRACE, "VFS Op: sb %p\n", sb);
 
 	lsi = lustre_init_lsi(sb);
 	if (!lsi)

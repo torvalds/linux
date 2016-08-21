@@ -161,7 +161,7 @@ static int ll_releasepage(struct page *vmpage, gfp_t gfp_mask)
 	return result;
 }
 
-#define MAX_DIRECTIO_SIZE (2*1024*1024*1024UL)
+#define MAX_DIRECTIO_SIZE (2 * 1024 * 1024 * 1024UL)
 
 static inline int ll_get_user_pages(int rw, unsigned long user_addr,
 				    size_t size, struct page ***pages,

@@ -2019,7 +2019,7 @@ void lustre_swab_generic_32s(__u32 *val);
 
 #define MDS_INODELOCK_MAXSHIFT 5
 /* This FULL lock is useful to take on unlink sort of operations */
-#define MDS_INODELOCK_FULL ((1<<(MDS_INODELOCK_MAXSHIFT+1))-1)
+#define MDS_INODELOCK_FULL ((1 << (MDS_INODELOCK_MAXSHIFT + 1)) - 1)
 
 /* NOTE: until Lustre 1.8.7/2.1.1 the fid_ver() was packed into name[2],
  * but was moved into name[1] along with the OID to avoid consuming the
@@ -3193,8 +3193,8 @@ struct llog_log_hdr {
 	__u32		   llh_cat_idx;
 	/* for a catalog the first plain slot is next to it */
 	struct obd_uuid	 llh_tgtuuid;
-	__u32		   llh_reserved[LLOG_HEADER_SIZE/sizeof(__u32) - 23];
-	__u32		   llh_bitmap[LLOG_BITMAP_BYTES/sizeof(__u32)];
+	__u32		   llh_reserved[LLOG_HEADER_SIZE / sizeof(__u32) - 23];
+	__u32		   llh_bitmap[LLOG_BITMAP_BYTES / sizeof(__u32)];
 	struct llog_rec_tail    llh_tail;
 } __packed;
 
@@ -3409,17 +3409,17 @@ void lustre_swab_lustre_capa(struct lustre_capa *c);
 
 /** lustre_capa::lc_opc */
 enum {
-	CAPA_OPC_BODY_WRITE   = 1<<0,  /**< write object data */
-	CAPA_OPC_BODY_READ    = 1<<1,  /**< read object data */
-	CAPA_OPC_INDEX_LOOKUP = 1<<2,  /**< lookup object fid */
-	CAPA_OPC_INDEX_INSERT = 1<<3,  /**< insert object fid */
-	CAPA_OPC_INDEX_DELETE = 1<<4,  /**< delete object fid */
-	CAPA_OPC_OSS_WRITE    = 1<<5,  /**< write oss object data */
-	CAPA_OPC_OSS_READ     = 1<<6,  /**< read oss object data */
-	CAPA_OPC_OSS_TRUNC    = 1<<7,  /**< truncate oss object */
-	CAPA_OPC_OSS_DESTROY  = 1<<8,  /**< destroy oss object */
-	CAPA_OPC_META_WRITE   = 1<<9,  /**< write object meta data */
-	CAPA_OPC_META_READ    = 1<<10, /**< read object meta data */
+	CAPA_OPC_BODY_WRITE   = 1 << 0,  /**< write object data */
+	CAPA_OPC_BODY_READ    = 1 << 1,  /**< read object data */
+	CAPA_OPC_INDEX_LOOKUP = 1 << 2,  /**< lookup object fid */
+	CAPA_OPC_INDEX_INSERT = 1 << 3,  /**< insert object fid */
+	CAPA_OPC_INDEX_DELETE = 1 << 4,  /**< delete object fid */
+	CAPA_OPC_OSS_WRITE    = 1 << 5,  /**< write oss object data */
+	CAPA_OPC_OSS_READ     = 1 << 6,  /**< read oss object data */
+	CAPA_OPC_OSS_TRUNC    = 1 << 7,  /**< truncate oss object */
+	CAPA_OPC_OSS_DESTROY  = 1 << 8,  /**< destroy oss object */
+	CAPA_OPC_META_WRITE   = 1 << 9,  /**< write object meta data */
+	CAPA_OPC_META_READ    = 1 << 10, /**< read object meta data */
 };
 
 #define CAPA_OPC_OSS_RW (CAPA_OPC_OSS_READ | CAPA_OPC_OSS_WRITE)

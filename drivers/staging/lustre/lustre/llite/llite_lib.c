@@ -659,7 +659,8 @@ static int ll_options(char *options, int *flags)
 			*flags |= tmp;
 			goto next;
 		}
-		tmp = ll_set_opt("noflock", s1, LL_SBI_FLOCK|LL_SBI_LOCALFLOCK);
+		tmp = ll_set_opt("noflock", s1,
+				 LL_SBI_FLOCK | LL_SBI_LOCALFLOCK);
 		if (tmp) {
 			*flags &= ~tmp;
 			goto next;
@@ -1549,14 +1550,14 @@ int ll_setattr(struct dentry *de, struct iattr *attr)
 {
 	int mode = d_inode(de)->i_mode;
 
-	if ((attr->ia_valid & (ATTR_CTIME|ATTR_SIZE|ATTR_MODE)) ==
-			      (ATTR_CTIME|ATTR_SIZE|ATTR_MODE))
+	if ((attr->ia_valid & (ATTR_CTIME | ATTR_SIZE | ATTR_MODE)) ==
+			      (ATTR_CTIME | ATTR_SIZE | ATTR_MODE))
 		attr->ia_valid |= MDS_OPEN_OWNEROVERRIDE;
 
-	if (((attr->ia_valid & (ATTR_MODE|ATTR_FORCE|ATTR_SIZE)) ==
-			       (ATTR_SIZE|ATTR_MODE)) &&
+	if (((attr->ia_valid & (ATTR_MODE | ATTR_FORCE | ATTR_SIZE)) ==
+			       (ATTR_SIZE | ATTR_MODE)) &&
 	    (((mode & S_ISUID) && !(attr->ia_mode & S_ISUID)) ||
-	     (((mode & (S_ISGID|S_IXGRP)) == (S_ISGID|S_IXGRP)) &&
+	     (((mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP)) &&
 	      !(attr->ia_mode & S_ISGID))))
 		attr->ia_valid |= ATTR_FORCE;
 
@@ -1567,7 +1568,7 @@ int ll_setattr(struct dentry *de, struct iattr *attr)
 		attr->ia_valid |= ATTR_KILL_SUID;
 
 	if ((attr->ia_valid & ATTR_MODE) &&
-	    ((mode & (S_ISGID|S_IXGRP)) == (S_ISGID|S_IXGRP)) &&
+	    ((mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP)) &&
 	    !(attr->ia_mode & S_ISGID) &&
 	    !(attr->ia_valid & ATTR_KILL_SGID))
 		attr->ia_valid |= ATTR_KILL_SGID;
@@ -1742,9 +1743,11 @@ int ll_update_inode(struct inode *inode, struct lustre_md *md)
 		lli->lli_ctime = body->mbo_ctime;
 	}
 	if (body->mbo_valid & OBD_MD_FLMODE)
-		inode->i_mode = (inode->i_mode & S_IFMT)|(body->mbo_mode & ~S_IFMT);
+		inode->i_mode = (inode->i_mode & S_IFMT) |
+				(body->mbo_mode & ~S_IFMT);
 	if (body->mbo_valid & OBD_MD_FLTYPE)
-		inode->i_mode = (inode->i_mode & ~S_IFMT)|(body->mbo_mode & S_IFMT);
+		inode->i_mode = (inode->i_mode & ~S_IFMT) |
+				(body->mbo_mode & S_IFMT);
 	LASSERT(inode->i_mode != 0);
 	if (S_ISREG(inode->i_mode))
 		inode->i_blkbits = min(PTLRPC_MAX_BRW_BITS + 1,

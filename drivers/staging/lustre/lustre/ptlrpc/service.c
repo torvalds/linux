@@ -2057,7 +2057,7 @@ static int ptlrpc_main(void *arg)
 	}
 
 	rc = lu_context_init(&env->le_ctx,
-			     svc->srv_ctx_tags|LCT_REMEMBER|LCT_NOREF);
+			     svc->srv_ctx_tags | LCT_REMEMBER | LCT_NOREF);
 	if (rc)
 		goto out_srv_fini;
 

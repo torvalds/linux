@@ -389,7 +389,7 @@ extern struct lu_device_type osc_device_type;
 extern struct lu_context_key osc_key;
 extern struct lu_context_key osc_session_key;
 
-#define OSC_FLAGS (ASYNC_URGENT|ASYNC_READY)
+#define OSC_FLAGS (ASYNC_URGENT | ASYNC_READY)
 
 int osc_lock_init(const struct lu_env *env,
 		  struct cl_object *obj, struct cl_lock *lock,

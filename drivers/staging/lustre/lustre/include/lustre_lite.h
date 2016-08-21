@@ -46,7 +46,7 @@
 
 /* 4UL * 1024 * 1024 */
 #define LL_MAX_BLKSIZE_BITS     (22)
-#define LL_MAX_BLKSIZE	  (1UL<<LL_MAX_BLKSIZE_BITS)
+#define LL_MAX_BLKSIZE	  (1UL << LL_MAX_BLKSIZE_BITS)
 
 /*
  * This is embedded into llite super-blocks to keep track of

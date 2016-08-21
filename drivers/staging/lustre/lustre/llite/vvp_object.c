@@ -120,7 +120,7 @@ static int vvp_attr_set(const struct lu_env *env, struct cl_object *obj,
 	if (0 && valid & CAT_SIZE)
 		i_size_write(inode, attr->cat_size);
 	/* not currently necessary */
-	if (0 && valid & (CAT_UID|CAT_GID|CAT_SIZE))
+	if (0 && valid & (CAT_UID | CAT_GID | CAT_SIZE))
 		mark_inode_dirty(inode);
 	return 0;
 }

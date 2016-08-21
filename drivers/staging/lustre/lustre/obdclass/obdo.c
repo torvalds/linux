@@ -153,12 +153,14 @@ static void iattr_from_obdo(struct iattr *attr, const struct obdo *oa,
 	}
 #if 0   /* you shouldn't be able to change a file's type with setattr */
 	if (valid & OBD_MD_FLTYPE) {
-		attr->ia_mode = (attr->ia_mode & ~S_IFMT)|(oa->o_mode & S_IFMT);
+		attr->ia_mode = (attr->ia_mode & ~S_IFMT) |
+				(oa->o_mode & S_IFMT);
 		attr->ia_valid |= ATTR_MODE;
 	}
 #endif
 	if (valid & OBD_MD_FLMODE) {
-		attr->ia_mode = (attr->ia_mode & S_IFMT)|(oa->o_mode & ~S_IFMT);
+		attr->ia_mode = (attr->ia_mode & S_IFMT) |
+				(oa->o_mode & ~S_IFMT);
 		attr->ia_valid |= ATTR_MODE;
 		if (!in_group_p(make_kgid(&init_user_ns, oa->o_gid)) &&
 		    !capable(CFS_CAP_FSETID))

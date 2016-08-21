@@ -274,7 +274,7 @@ mdc_intent_open_pack(struct obd_export *exp, struct lookup_intent *it,
 			else
 				mode = LCK_PR;
 		} else {
-			if (it->it_flags & (FMODE_WRITE|MDS_OPEN_TRUNC))
+			if (it->it_flags & (FMODE_WRITE | MDS_OPEN_TRUNC))
 				mode = LCK_CW;
 			else if (it->it_flags & __FMODE_EXEC)
 				mode = LCK_PR;
