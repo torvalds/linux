@@ -289,6 +289,8 @@
 			interrupts = <1 9>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			clocks = <&clk_usb>;
+			clock-names = "otg";
 		};
 
 		v3d: v3d@7ec00000 {
@@ -316,5 +318,12 @@
 			clock-frequency = <19200000>;
 		};
 
+		clk_usb: clock@4 {
+			compatible = "fixed-clock";
+			reg = <4>;
+			#clock-cells = <0>;
+			clock-output-names = "otg";
+			clock-frequency = <480000000>;
+		};
 	};
 };
