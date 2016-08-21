@@ -346,6 +346,7 @@ static int compat_drm_getstats(struct file *file, unsigned int cmd,
 	struct drm_stats __user *stats;
 	int i, err;
 
+	memset(&s32, 0, sizeof(drm_stats32_t));
 	stats = compat_alloc_user_space(sizeof(*stats));
 	if (!stats)
 		return -EFAULT;
