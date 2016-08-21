@@ -282,14 +282,14 @@ latex_elements = {
 	\\definecolor{WarningColor}{RGB}{255,204,204}
 	\\definecolor{AttentionColor}{RGB}{255,255,204}
 	\\definecolor{OtherColor}{RGB}{204,204,204}
+        \\newlength{\\mynoticelength}
         \\makeatletter\\newenvironment{coloredbox}[1]{%
-	   \\newlength{\\py@noticelength}
 	   \\setlength{\\fboxrule}{1pt}
 	   \\setlength{\\fboxsep}{7pt}
-	   \\setlength{\\py@noticelength}{\\linewidth}
-	   \\addtolength{\\py@noticelength}{-2\\fboxsep}
-	   \\addtolength{\\py@noticelength}{-2\\fboxrule}
-           \\begin{lrbox}{\\@tempboxa}\\begin{minipage}{\\py@noticelength}}{\\end{minipage}\\end{lrbox}%
+	   \\setlength{\\mynoticelength}{\\linewidth}
+	   \\addtolength{\\mynoticelength}{-2\\fboxsep}
+	   \\addtolength{\\mynoticelength}{-2\\fboxrule}
+           \\begin{lrbox}{\\@tempboxa}\\begin{minipage}{\\mynoticelength}}{\\end{minipage}\\end{lrbox}%
 	   \\ifthenelse%
 	      {\\equal{\\py@noticetype}{note}}%
 	      {\\colorbox{NoteColor}{\\usebox{\\@tempboxa}}}%
