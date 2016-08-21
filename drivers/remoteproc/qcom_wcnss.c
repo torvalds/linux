@@ -528,8 +528,8 @@ static int wcnss_probe(struct platform_device *pdev)
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pmu");
 	mmio = devm_ioremap_resource(&pdev->dev, res);
-	if (!mmio) {
-		ret = -ENOMEM;
+	if (IS_ERR(mmio)) {
+		ret = PTR_ERR(mmio);
 		goto free_rproc;
 	};
 
