@@ -591,7 +591,14 @@ static void tegra_plane_atomic_update(struct drm_plane *plane,
 		struct tegra_bo *bo = tegra_fb_get_plane(fb, i);
 
 		window.base[i] = bo->paddr + fb->offsets[i];
-		window.stride[i] = fb->pitches[i];
+
+		/*
+		 * Tegra uses a shared stride for UV planes. Framebuffers are
+		 * already checked for this in the tegra_plane_atomic_check()
+		 * function, so it's safe to ignore the V-plane pitch here.
+		 */
+		if (i < 2)
+			window.stride[i] = fb->pitches[i];
 	}
 
 	tegra_dc_setup_window(dc, p->index, &window);
