@@ -13,7 +13,6 @@
 #include <linux/err.h>
 #include <linux/highmem.h>
 #include <linux/kvm_host.h>
-#include <linux/module.h>
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
 #include <linux/bootmem.h>
