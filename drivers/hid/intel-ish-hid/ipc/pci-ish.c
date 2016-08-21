@@ -311,18 +311,7 @@ static struct pci_driver ish_driver = {
 	.driver.pm = ISHTP_ISH_PM_OPS,
 };
 
-static int __init ish_driver_init(void)
-{
-	return pci_register_driver(&ish_driver);
-}
-
-static void __exit ish_driver_exit(void)
-{
-	pci_unregister_driver(&ish_driver);
-}
-
-module_init(ish_driver_init);
-module_exit(ish_driver_exit);
+module_pci_driver(ish_driver);
 
 /* Original author */
 MODULE_AUTHOR("Daniel Drubin <daniel.drubin@intel.com>");
