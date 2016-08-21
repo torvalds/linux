@@ -1987,7 +1987,7 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if ((readl(nic->regs + FPGA_VER) & 0xFFF) >= 378) {
 		err = pci_enable_msi(pdev);
 		if (err)
-			pr_err("Can't eneble msi. error is %d\n", err);
+			pr_err("Can't enable msi. error is %d\n", err);
 		else
 			nic->irq_type = IRQ_MSI;
 	} else
