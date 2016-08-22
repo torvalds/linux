@@ -632,8 +632,8 @@ enum ovs_hash_alg {
  * @hash_basis: basis used for computing hash.
  */
 struct ovs_action_hash {
-	uint32_t  hash_alg;     /* One of ovs_hash_alg. */
-	uint32_t  hash_basis;
+	__u32  hash_alg;     /* One of ovs_hash_alg. */
+	__u32  hash_basis;
 };
 
 /**
