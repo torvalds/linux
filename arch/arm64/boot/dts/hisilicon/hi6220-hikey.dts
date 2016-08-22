@@ -32,6 +32,7 @@
 	 *  0x05f0,1000 - 0x05f0,1fff: Reboot reason
 	 *  0x06df,f000 - 0x06df,ffff: Mailbox message data
 	 *  0x0740,f000 - 0x0740,ffff: MCU firmware section
+	 *  0x21f0,0000 - 0x21ff,ffff: pstore/ramoops buffer
 	 *  0x3e00,0000 - 0x3fff,ffff: OP-TEE
 	 */
 	memory@0 {
@@ -40,8 +41,24 @@
 		      <0x00000000 0x05f00000 0x00000000 0x00001000>,
 		      <0x00000000 0x05f02000 0x00000000 0x00efd000>,
 		      <0x00000000 0x06e00000 0x00000000 0x0060f000>,
-		      <0x00000000 0x07410000 0x00000000 0x36bf0000>;
+		      <0x00000000 0x07410000 0x00000000 0x1aaf0000>,
+		      <0x00000000 0x22000000 0x00000000 0x1c000000>;
 	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		ramoops@0x21f00000 {
+			compatible = "ramoops";
+			reg = <0x0 0x21f00000 0x0 0x00100000>;
+			record-size	= <0x00020000>;
+			console-size	= <0x00020000>;
+			ftrace-size	= <0x00020000>;
+		};
+	};
+
 
 	reboot-mode-syscon@5f01000 {
 		compatible = "syscon", "simple-mfd";
