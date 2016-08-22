@@ -535,8 +535,8 @@ static struct i40iw_puda_buf *i40iw_form_cm_frame(struct i40iw_cm_node *cm_node,
 		buf += hdr_len;
 	}
 
-	if (pd_len)
-		memcpy(buf, pdata->addr, pd_len);
+	if (pdata && pdata->addr)
+		memcpy(buf, pdata->addr, pdata->size);
 
 	atomic_set(&sqbuf->refcount, 1);
 
