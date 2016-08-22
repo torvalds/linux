@@ -2115,22 +2115,17 @@ static inline bool ib_is_udata_cleared(struct ib_udata *udata,
 				       size_t len)
 {
 	const void __user *p = udata->inbuf + offset;
-	bool ret = false;
+	bool ret;
 	u8 *buf;
 
 	if (len > USHRT_MAX)
 		return false;
 
-	buf = kmalloc(len, GFP_KERNEL);
-	if (!buf)
+	buf = memdup_user(p, len);
+	if (IS_ERR(buf))
 		return false;
 
-	if (copy_from_user(buf, p, len))
-		goto free;
-
 	ret = !memchr_inv(buf, 0, len);
-
-free:
 	kfree(buf);
 	return ret;
 }
