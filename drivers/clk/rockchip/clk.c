@@ -484,6 +484,15 @@ void __init rockchip_clk_register_branches(
 				list->gate_offset, list->gate_shift,
 				list->gate_flags, flags, &ctx->lock);
 			break;
+		case branch_ddrclk:
+			clk = rockchip_clk_register_ddrclk(
+				list->name, list->flags,
+				list->parent_names, list->num_parents,
+				list->muxdiv_offset, list->mux_shift,
+				list->mux_width, list->div_shift,
+				list->div_width, list->div_flags,
+				ctx->reg_base, &ctx->lock);
+			break;
 		}
 
 		/* none of the cases above matched */
