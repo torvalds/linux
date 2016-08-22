@@ -48,6 +48,10 @@
 
 / {
 	compatible = "rockchip,rk3399-excavator-edp", "rockchip,rk3399";
+
+	test-power {
+		status = "okay";
+	};
 };
 
 &backlight {
