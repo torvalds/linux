@@ -127,13 +127,6 @@ typedef struct actcapi_ncpd {
  * Bit 5-7  = Controller
  * Bit 8-15 = reserved (must be 0)
  */
-#define MAKE_PLCI(plci, contr)			\
-	((plci & 0x1f) | ((contr & 0x7) << 5))
-
-#define EVAL_PLCI(fakeplci, plci, contr) {	\
-		plci  = fakeplci & 0x1f;	\
-		contr = (fakeplci >> 5) & 0x7;	\
-	}
 
 typedef struct actcapi_msg {
 	actcapi_msghdr hdr;
