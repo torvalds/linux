@@ -34,7 +34,7 @@ from load_config import loadConfig
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['kernel-doc', 'rstFlatTable', 'kernel_include']
+extensions = ['kernel-doc', 'rstFlatTable', 'kernel_include', 'cdomain']
 
 # The name of the math extension changed on Sphinx 1.4
 if minor > 3:
