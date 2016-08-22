@@ -2270,10 +2270,13 @@ static int i915_ppgtt_info(struct seq_file *m, void *data)
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct drm_device *dev = &dev_priv->drm;
 	struct drm_file *file;
+	int ret;
 
-	int ret = mutex_lock_interruptible(&dev->struct_mutex);
+	mutex_lock(&dev->filelist_mutex);
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
-		return ret;
+		goto out_unlock;
+
 	intel_runtime_pm_get(dev_priv);
 
 	if (INTEL_GEN(dev_priv) >= 8)
@@ -2281,7 +2284,6 @@ static int i915_ppgtt_info(struct seq_file *m, void *data)
 	else if (INTEL_GEN(dev_priv) >= 6)
 		gen6_ppgtt_info(m, dev_priv);
 
-	mutex_lock(&dev->filelist_mutex);
 	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
 		struct drm_i915_file_private *file_priv = file->driver_priv;
 		struct task_struct *task;
@@ -2289,19 +2291,19 @@ static int i915_ppgtt_info(struct seq_file *m, void *data)
 		task = get_pid_task(file->pid, PIDTYPE_PID);
 		if (!task) {
 			ret = -ESRCH;
-			goto out_unlock;
+			goto out_rpm;
 		}
 		seq_printf(m, "\nproc: %s\n", task->comm);
 		put_task_struct(task);
 		idr_for_each(&file_priv->context_idr, per_file_ctx,
 			     (void *)(unsigned long)m);
 	}
-out_unlock:
-	mutex_unlock(&dev->filelist_mutex);
 
+out_rpm:
 	intel_runtime_pm_put(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
-
+out_unlock:
+	mutex_unlock(&dev->filelist_mutex);
 	return ret;
 }
 
