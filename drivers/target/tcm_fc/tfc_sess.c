@@ -223,7 +223,7 @@ static struct ft_sess *ft_sess_create(struct ft_tport *tport, u32 port_id,
 
 	sess = kzalloc(sizeof(*sess), GFP_KERNEL);
 	if (!sess)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	kref_init(&sess->kref); /* ref for table entry */
 	sess->tport = tport;
@@ -234,8 +234,9 @@ static struct ft_sess *ft_sess_create(struct ft_tport *tport, u32 port_id,
 					     TARGET_PROT_NORMAL, &initiatorname[0],
 					     sess, ft_sess_alloc_cb);
 	if (IS_ERR(sess->se_sess)) {
+		int rc = PTR_ERR(sess->se_sess);
 		kfree(sess);
-		return NULL;
+		sess = ERR_PTR(rc);
 	}
 	return sess;
 }
