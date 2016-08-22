@@ -1133,9 +1133,9 @@ static void mdc_adjust_dirpages(struct page **pages, int cfs_pgs, int lu_pgs)
 	int i;
 
 	for (i = 0; i < cfs_pgs; i++) {
+		struct lu_dirpage *dp = kmap(pages[i]);
 		__u64 hash_end = le64_to_cpu(dp->ldp_hash_end);
 		__u32 flags = le32_to_cpu(dp->ldp_flags);
-		struct lu_dirpage *dp = kmap(pages[i]);
 		struct lu_dirpage *first = dp;
 		struct lu_dirent *end_dirent = NULL;
 		struct lu_dirent *ent;
