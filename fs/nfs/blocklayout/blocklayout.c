@@ -346,7 +346,7 @@ static void bl_write_cleanup(struct work_struct *work)
 			PAGE_SIZE - 1) & (loff_t)PAGE_MASK;
 
 		ext_tree_mark_written(bl, start >> SECTOR_SHIFT,
-					(end - start) >> SECTOR_SHIFT);
+					(end - start) >> SECTOR_SHIFT, end);
 	}
 
 	pnfs_ld_write_done(hdr);
