@@ -775,6 +775,10 @@ static int rcar_pcie_get_resources(struct platform_device *pdev,
 	if (err)
 		return err;
 
+	pcie->base = devm_ioremap_resource(&pdev->dev, &res);
+	if (IS_ERR(pcie->base))
+		return PTR_ERR(pcie->base);
+
 	pcie->clk = devm_clk_get(&pdev->dev, "pcie");
 	if (IS_ERR(pcie->clk)) {
 		dev_err(pcie->dev, "cannot get platform clock\n");
@@ -809,12 +813,6 @@ static int rcar_pcie_get_resources(struct platform_device *pdev,
 		goto err_map_reg;
 	}
 	pcie->msi.irq2 = i;
-
-	pcie->base = devm_ioremap_resource(&pdev->dev, &res);
-	if (IS_ERR(pcie->base)) {
-		err = PTR_ERR(pcie->base);
-		goto err_map_reg;
-	}
 
 	return 0;
 
