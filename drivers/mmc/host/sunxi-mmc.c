@@ -223,10 +223,10 @@ struct sunxi_mmc_clk_delay {
 };
 
 struct sunxi_idma_des {
-	u32	config;
-	u32	buf_size;
-	u32	buf_addr_ptr1;
-	u32	buf_addr_ptr2;
+	__le32 config;
+	__le32 buf_size;
+	__le32 buf_addr_ptr1;
+	__le32 buf_addr_ptr2;
 };
 
 struct sunxi_mmc_cfg {
@@ -329,22 +329,25 @@ static void sunxi_mmc_init_idma_des(struct sunxi_mmc_host *host,
 	int i, max_len = (1 << host->cfg->idma_des_size_bits);
 
 	for (i = 0; i < data->sg_len; i++) {
-		pdes[i].config = SDXC_IDMAC_DES0_CH | SDXC_IDMAC_DES0_OWN |
-				 SDXC_IDMAC_DES0_DIC;
+		pdes[i].config = cpu_to_le32(SDXC_IDMAC_DES0_CH |
+					     SDXC_IDMAC_DES0_OWN |
+					     SDXC_IDMAC_DES0_DIC);
 
 		if (data->sg[i].length == max_len)
 			pdes[i].buf_size = 0; /* 0 == max_len */
 		else
-			pdes[i].buf_size = data->sg[i].length;
+			pdes[i].buf_size = cpu_to_le32(data->sg[i].length);
 
 		next_desc += sizeof(struct sunxi_idma_des);
-		pdes[i].buf_addr_ptr1 = sg_dma_address(&data->sg[i]);
-		pdes[i].buf_addr_ptr2 = (u32)next_desc;
+		pdes[i].buf_addr_ptr1 =
+			cpu_to_le32(sg_dma_address(&data->sg[i]));
+		pdes[i].buf_addr_ptr2 = cpu_to_le32((u32)next_desc);
 	}
 
-	pdes[0].config |= SDXC_IDMAC_DES0_FD;
-	pdes[i - 1].config |= SDXC_IDMAC_DES0_LD | SDXC_IDMAC_DES0_ER;
-	pdes[i - 1].config &= ~SDXC_IDMAC_DES0_DIC;
+	pdes[0].config |= cpu_to_le32(SDXC_IDMAC_DES0_FD);
+	pdes[i - 1].config |= cpu_to_le32(SDXC_IDMAC_DES0_LD |
+					  SDXC_IDMAC_DES0_ER);
+	pdes[i - 1].config &= cpu_to_le32(~SDXC_IDMAC_DES0_DIC);
 	pdes[i - 1].buf_addr_ptr2 = 0;
 
 	/*
