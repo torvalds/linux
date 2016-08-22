@@ -310,6 +310,8 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 
 static struct drm_driver kms_driver;
 
+bool radeon_device_is_virtual(void);
+
 static int radeon_kick_out_firmware_fb(struct pci_dev *pdev)
 {
 	struct apertures_struct *ap;
@@ -361,6 +363,16 @@ radeon_pci_remove(struct pci_dev *pdev)
 	struct drm_device *dev = pci_get_drvdata(pdev);
 
 	drm_put_dev(dev);
+}
+
+static void
+radeon_pci_shutdown(struct pci_dev *pdev)
+{
+	/* if we are running in a VM, make sure the device
+	 * torn down properly on reboot/shutdown
+	 */
+	if (radeon_device_is_virtual())
+		radeon_pci_remove(pdev);
 }
 
 static int radeon_pmops_suspend(struct device *dev)
@@ -583,6 +595,7 @@ static struct pci_driver radeon_kms_pci_driver = {
 	.id_table = pciidlist,
 	.probe = radeon_pci_probe,
 	.remove = radeon_pci_remove,
+	.shutdown = radeon_pci_shutdown,
 	.driver.pm = &radeon_pm_ops,
 };
 

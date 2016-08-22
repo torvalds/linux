@@ -639,7 +639,7 @@ void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
  * Used at driver startup.
  * Returns true if virtual or false if not.
  */
-static bool radeon_device_is_virtual(void)
+bool radeon_device_is_virtual(void)
 {
 #ifdef CONFIG_X86
 	return boot_cpu_has(X86_FEATURE_HYPERVISOR);
