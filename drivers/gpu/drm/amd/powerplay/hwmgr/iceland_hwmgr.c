@@ -2445,8 +2445,6 @@ static int iceland_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 	/* set pcieDpmLevel to mid_pcie_level_enabled*/
 	data->smc_state_table.GraphicsLevel[1].pcieDpmLevel = mid_pcie_level_enabled;
 
-	for (i = 0; i < dpm_table->sclk_table.count; i++)
-
 	/* level count will send to smc once at init smc table and never change*/
 	result = iceland_copy_bytes_to_smc(hwmgr->smumgr, level_array_adress, (uint8_t *)levels, (uint32_t)level_array_size, data->sram_end);
 
