@@ -172,6 +172,7 @@ struct twl4030_usb {
 	int			irq;
 	enum musb_vbus_id_status linkstat;
 	bool			vbus_supplied;
+	bool			musb_mailbox_pending;
 
 	struct delayed_work	id_workaround_work;
 };
@@ -569,9 +570,12 @@ static irqreturn_t twl4030_usb_irq(int irq, void *_twl)
 			pm_runtime_mark_last_busy(twl->dev);
 			pm_runtime_put_autosuspend(twl->dev);
 		}
+		twl->musb_mailbox_pending = true;
+	}
+	if (twl->musb_mailbox_pending) {
 		err = musb_mailbox(status);
-		if (err)
-			twl->linkstat = MUSB_UNKNOWN;
+		if (!err)
+			twl->musb_mailbox_pending = false;
 	}
 
 	/* don't schedule during sleep - irq works right then */
@@ -676,6 +680,7 @@ static int twl4030_usb_probe(struct platform_device *pdev)
 	twl->irq		= platform_get_irq(pdev, 0);
 	twl->vbus_supplied	= false;
 	twl->linkstat		= MUSB_UNKNOWN;
+	twl->musb_mailbox_pending = false;
 
 	twl->phy.dev		= twl->dev;
 	twl->phy.label		= "twl4030";
