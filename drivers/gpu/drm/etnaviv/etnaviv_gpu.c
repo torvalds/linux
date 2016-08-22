@@ -868,63 +868,6 @@ int etnaviv_gpu_debugfs(struct etnaviv_gpu *gpu, struct seq_file *m)
 #endif
 
 /*
- * Power Management:
- */
-static int enable_clk(struct etnaviv_gpu *gpu)
-{
-	int ret;
-
-	if (gpu->clk_core) {
-		ret = clk_prepare_enable(gpu->clk_core);
-		if (ret)
-			return ret;
-	}
-
-	if (gpu->clk_shader) {
-		ret = clk_prepare_enable(gpu->clk_shader);
-		if (ret)
-			goto disable_clk_core;
-	}
-
-	return 0;
-
-disable_clk_core:
-	clk_disable_unprepare(gpu->clk_core);
-	return ret;
-}
-
-static int disable_clk(struct etnaviv_gpu *gpu)
-{
-	if (gpu->clk_core)
-		clk_disable_unprepare(gpu->clk_core);
-	if (gpu->clk_shader)
-		clk_disable_unprepare(gpu->clk_shader);
-
-	return 0;
-}
-
-static int enable_axi(struct etnaviv_gpu *gpu)
-{
-	int ret;
-
-	if (gpu->clk_bus) {
-		ret = clk_prepare_enable(gpu->clk_bus);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
-static int disable_axi(struct etnaviv_gpu *gpu)
-{
-	if (gpu->clk_bus)
-		clk_disable_unprepare(gpu->clk_bus);
-
-	return 0;
-}
-
-/*
  * Hangcheck detection for locked gpu:
  */
 static void recover_worker(struct work_struct *work)
@@ -1484,30 +1427,44 @@ static int etnaviv_gpu_clk_enable(struct etnaviv_gpu *gpu)
 {
 	int ret;
 
-	ret = enable_clk(gpu);
-	if (ret)
-		return ret;
+	if (gpu->clk_bus) {
+		ret = clk_prepare_enable(gpu->clk_bus);
+		if (ret)
+			return ret;
+	}
 
-	ret = enable_axi(gpu);
-	if (ret) {
-		disable_clk(gpu);
-		return ret;
+	if (gpu->clk_core) {
+		ret = clk_prepare_enable(gpu->clk_core);
+		if (ret)
+			goto disable_clk_bus;
+	}
+
+	if (gpu->clk_shader) {
+		ret = clk_prepare_enable(gpu->clk_shader);
+		if (ret)
+			goto disable_clk_core;
 	}
 
 	return 0;
+
+disable_clk_core:
+	if (gpu->clk_core)
+		clk_disable_unprepare(gpu->clk_core);
+disable_clk_bus:
+	if (gpu->clk_bus)
+		clk_disable_unprepare(gpu->clk_bus);
+
+	return ret;
 }
 
 static int etnaviv_gpu_clk_disable(struct etnaviv_gpu *gpu)
 {
-	int ret;
-
-	ret = disable_axi(gpu);
-	if (ret)
-		return ret;
-
-	ret = disable_clk(gpu);
-	if (ret)
-		return ret;
+	if (gpu->clk_shader)
+		clk_disable_unprepare(gpu->clk_shader);
+	if (gpu->clk_core)
+		clk_disable_unprepare(gpu->clk_core);
+	if (gpu->clk_bus)
+		clk_disable_unprepare(gpu->clk_bus);
 
 	return 0;
 }
