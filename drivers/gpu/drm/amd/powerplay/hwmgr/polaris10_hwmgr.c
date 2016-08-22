@@ -3119,11 +3119,27 @@ int polaris10_patch_voltage_workaround(struct pp_hwmgr *hwmgr)
 	struct phm_ppt_v1_voltage_lookup_table *lookup_table =
 			table_info->vddc_lookup_table;
 	uint32_t i;
+	uint32_t hw_revision, sub_vendor_id, sub_sys_id;
+	struct cgs_system_info sys_info = {0};
 
-	if (hwmgr->chip_id == CHIP_POLARIS10 && hwmgr->hw_revision == 0xC7 &&
-			((hwmgr->sub_sys_id == 0xb37 && hwmgr->sub_vendor_id == 0x1002) ||
-		    (hwmgr->sub_sys_id == 0x4a8 && hwmgr->sub_vendor_id == 0x1043) ||
-		    (hwmgr->sub_sys_id == 0x9480 && hwmgr->sub_vendor_id == 0x1682))) {
+	sys_info.size = sizeof(struct cgs_system_info);
+
+	sys_info.info_id = CGS_SYSTEM_INFO_PCIE_REV;
+	cgs_query_system_info(hwmgr->device, &sys_info);
+	hw_revision = (uint32_t)sys_info.value;
+
+	sys_info.info_id = CGS_SYSTEM_INFO_PCIE_SUB_SYS_ID;
+	cgs_query_system_info(hwmgr->device, &sys_info);
+	sub_sys_id = (uint32_t)sys_info.value;
+
+	sys_info.info_id = CGS_SYSTEM_INFO_PCIE_SUB_SYS_VENDOR_ID;
+	cgs_query_system_info(hwmgr->device, &sys_info);
+	sub_vendor_id = (uint32_t)sys_info.value;
+
+	if (hwmgr->chip_id == CHIP_POLARIS10 && hw_revision == 0xC7 &&
+			((sub_sys_id == 0xb37 && sub_vendor_id == 0x1002) ||
+		    (sub_sys_id == 0x4a8 && sub_vendor_id == 0x1043) ||
+		    (sub_sys_id == 0x9480 && sub_vendor_id == 0x1682))) {
 		if (lookup_table->entries[dep_mclk_table->entries[dep_mclk_table->count-1].vddInd].us_vdd >= 1000)
 			return 0;
 
