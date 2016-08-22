@@ -115,6 +115,10 @@
 	status = "okay";
 };
 
+&gt9xx {
+	status = "disabled";
+};
+
 &i2c4 {
 	gsl3673: gsl3673@40 {
 		compatible = "GSL,GSL3673";
