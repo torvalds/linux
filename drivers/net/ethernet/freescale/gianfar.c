@@ -2922,17 +2922,25 @@ static bool gfar_add_rx_frag(struct gfar_rx_buff *rxb, u32 lstatus,
 {
 	unsigned int size = lstatus & BD_LENGTH_MASK;
 	struct page *page = rxb->page;
+	bool last = !!(lstatus & BD_LFLAG(RXBD_LAST));
 
 	/* Remove the FCS from the packet length */
-	if (likely(lstatus & BD_LFLAG(RXBD_LAST)))
+	if (last)
 		size -= ETH_FCS_LEN;
 
-	if (likely(first))
+	if (likely(first)) {
 		skb_put(skb, size);
-	else
-		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
-				rxb->page_offset + RXBUF_ALIGNMENT,
-				size, GFAR_RXB_TRUESIZE);
+	} else {
+		/* the last fragments' length contains the full frame length */
+		if (last)
+			size -= skb->len;
+
+		/* in case the last fragment consisted only of the FCS */
+		if (size > 0)
+			skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
+					rxb->page_offset + RXBUF_ALIGNMENT,
+					size, GFAR_RXB_TRUESIZE);
+	}
 
 	/* try reuse page */
 	if (unlikely(page_count(page) != 1))
