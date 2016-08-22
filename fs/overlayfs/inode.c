@@ -238,15 +238,12 @@ out:
 	return err;
 }
 
-ssize_t ovl_getxattr(struct dentry *dentry, struct inode *inode,
-		     const char *name, void *value, size_t size)
+int ovl_xattr_get(struct dentry *dentry, const char *name,
+		  void *value, size_t size)
 {
 	struct dentry *realdentry = ovl_dentry_real(dentry);
 	ssize_t res;
 	const struct cred *old_cred;
-
-	if (ovl_is_private_xattr(name))
-		return -ENODATA;
 
 	old_cred = ovl_override_creds(dentry->d_sb);
 	res = vfs_getxattr(realdentry, name, value, size);
@@ -368,7 +365,7 @@ static const struct inode_operations ovl_file_inode_operations = {
 	.permission	= ovl_permission,
 	.getattr	= ovl_getattr,
 	.setxattr	= generic_setxattr,
-	.getxattr	= ovl_getxattr,
+	.getxattr	= generic_getxattr,
 	.listxattr	= ovl_listxattr,
 	.removexattr	= generic_removexattr,
 	.get_acl	= ovl_get_acl,
@@ -381,7 +378,7 @@ static const struct inode_operations ovl_symlink_inode_operations = {
 	.readlink	= ovl_readlink,
 	.getattr	= ovl_getattr,
 	.setxattr	= generic_setxattr,
-	.getxattr	= ovl_getxattr,
+	.getxattr	= generic_getxattr,
 	.listxattr	= ovl_listxattr,
 	.removexattr	= generic_removexattr,
 	.update_time	= ovl_update_time,
