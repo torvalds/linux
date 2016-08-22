@@ -270,7 +270,7 @@ static int fsl_dcu_drm_pm_resume(struct device *dev)
 	ret = clk_prepare_enable(fsl_dev->pix_clk);
 	if (ret < 0) {
 		dev_err(dev, "failed to enable pix clk\n");
-		return ret;
+		goto disable_dcu_clk;
 	}
 
 	fsl_dcu_drm_init_planes(fsl_dev->drm);
@@ -284,6 +284,10 @@ static int fsl_dcu_drm_pm_resume(struct device *dev)
 	enable_irq(fsl_dev->irq);
 
 	return 0;
+
+disable_dcu_clk:
+	clk_disable_unprepare(fsl_dev->clk);
+	return ret;
 }
 #endif
 
