@@ -9,7 +9,7 @@ Examples
 In this section we would like to present some examples for using the DVB
 API.
 
-..note::
+.. note::
 
    This section is out of date, and the code below won't even
    compile. Please refer to the

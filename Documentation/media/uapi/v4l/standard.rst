@@ -41,7 +41,7 @@ output applications call the :ref:`VIDIOC_G_STD <VIDIOC_G_STD>` and
 *received* standard can be sensed with the
 :ref:`VIDIOC_QUERYSTD` ioctl.
 
-..note::
+.. note::
 
    The parameter of all these ioctls is a pointer to a
    :ref:`v4l2_std_id <v4l2-std-id>` type (a standard set), *not* an

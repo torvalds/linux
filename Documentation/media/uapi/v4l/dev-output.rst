@@ -16,7 +16,7 @@ device special files named ``/dev/video`` and ``/dev/video0`` to
 ``/dev/video`` is typically a symbolic link to the preferred video
 device.
 
-..note:: The same device file names are used also for video capture devices.
+.. note:: The same device file names are used also for video capture devices.
 
 
 Querying Capabilities
