@@ -1558,6 +1558,10 @@ static int i40iw_open(struct i40e_info *ldev, struct i40e_client *client)
 	enum i40iw_status_code status;
 	struct i40iw_handler *hdl;
 
+	hdl = i40iw_find_netdev(ldev->netdev);
+	if (hdl)
+		return 0;
+
 	hdl = kzalloc(sizeof(*hdl), GFP_KERNEL);
 	if (!hdl)
 		return -ENOMEM;
