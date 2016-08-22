@@ -1153,8 +1153,6 @@ void cec_s_phys_addr(struct cec_adapter *adap, u16 phys_addr, bool block)
 	if (IS_ERR_OR_NULL(adap))
 		return;
 
-	if (WARN_ON(adap->capabilities & CEC_CAP_PHYS_ADDR))
-		return;
 	mutex_lock(&adap->lock);
 	__cec_s_phys_addr(adap, phys_addr, block);
 	mutex_unlock(&adap->lock);
@@ -1295,8 +1293,6 @@ int cec_s_log_addrs(struct cec_adapter *adap,
 {
 	int err;
 
-	if (WARN_ON(adap->capabilities & CEC_CAP_LOG_ADDRS))
-		return -EINVAL;
 	mutex_lock(&adap->lock);
 	err = __cec_s_log_addrs(adap, log_addrs, block);
 	mutex_unlock(&adap->lock);
