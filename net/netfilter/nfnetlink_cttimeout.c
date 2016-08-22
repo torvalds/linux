@@ -98,31 +98,28 @@ static int cttimeout_new_timeout(struct net *net, struct sock *ctnl,
 		break;
 	}
 
-	l4proto = nf_ct_l4proto_find_get(l3num, l4num);
-
-	/* This protocol is not supportted, skip. */
-	if (l4proto->l4proto != l4num) {
-		ret = -EOPNOTSUPP;
-		goto err_proto_put;
-	}
-
 	if (matching) {
 		if (nlh->nlmsg_flags & NLM_F_REPLACE) {
 			/* You cannot replace one timeout policy by another of
 			 * different kind, sorry.
 			 */
 			if (matching->l3num != l3num ||
-			    matching->l4proto->l4proto != l4num) {
-				ret = -EINVAL;
-				goto err_proto_put;
-			}
+			    matching->l4proto->l4proto != l4num)
+				return -EINVAL;
 
-			ret = ctnl_timeout_parse_policy(&matching->data,
-							l4proto, net,
-							cda[CTA_TIMEOUT_DATA]);
-			return ret;
+			return ctnl_timeout_parse_policy(&matching->data,
+							 matching->l4proto, net,
+							 cda[CTA_TIMEOUT_DATA]);
 		}
-		ret = -EBUSY;
+
+		return -EBUSY;
+	}
+
+	l4proto = nf_ct_l4proto_find_get(l3num, l4num);
+
+	/* This protocol is not supportted, skip. */
+	if (l4proto->l4proto != l4num) {
+		ret = -EOPNOTSUPP;
 		goto err_proto_put;
 	}
 
