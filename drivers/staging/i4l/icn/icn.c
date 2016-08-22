@@ -82,7 +82,6 @@ icn_shiftout(unsigned short port,
 	     int firstbit,
 	     int bitcount)
 {
-
 	register u_char s;
 	register u_char c;
 
@@ -475,7 +474,6 @@ icn_parse_status(u_char *status, int channel, icn_card *card)
 
 		if (card->flags &
 		    ((channel) ? ICN_FLAGS_B2ACTIVE : ICN_FLAGS_B1ACTIVE)) {
-
 			isdn_ctrl ncmd;
 
 			card->flags &= ~((channel) ?
@@ -661,7 +659,6 @@ icn_polldchan(unsigned long data)
 						vstr[3] = '\0';
 						card->fw_rev = (int)simple_strtoul(vstr, NULL, 10);
 						continue;
-
 					}
 				}
 			} else {
