@@ -409,29 +409,16 @@ static void fill_page_dma_32(struct drm_device *dev, struct i915_page_dma *p,
 	fill_page_dma(dev, p, v);
 }
 
-static struct i915_page_scratch *alloc_scratch_page(struct drm_device *dev)
+static int
+setup_scratch_page(struct drm_device *dev, struct i915_page_dma *scratch)
 {
-	struct i915_page_scratch *sp;
-	int ret;
-
-	sp = kzalloc(sizeof(*sp), GFP_KERNEL);
-	if (sp == NULL)
-		return ERR_PTR(-ENOMEM);
-
-	ret = __setup_page_dma(dev, px_base(sp), GFP_DMA32 | __GFP_ZERO);
-	if (ret) {
-		kfree(sp);
-		return ERR_PTR(ret);
-	}
-
-	return sp;
+	return __setup_page_dma(dev, scratch, GFP_DMA32 | __GFP_ZERO);
 }
 
-static void free_scratch_page(struct drm_device *dev,
-			      struct i915_page_scratch *sp)
+static void cleanup_scratch_page(struct drm_device *dev,
+				 struct i915_page_dma *scratch)
 {
-	cleanup_px(dev, sp);
-	kfree(sp);
+	cleanup_page_dma(dev, scratch);
 }
 
 static struct i915_page_table *alloc_pt(struct drm_device *dev)
@@ -477,7 +464,7 @@ static void gen8_initialize_pt(struct i915_address_space *vm,
 {
 	gen8_pte_t scratch_pte;
 
-	scratch_pte = gen8_pte_encode(px_dma(vm->scratch_page),
+	scratch_pte = gen8_pte_encode(vm->scratch_page.daddr,
 				      I915_CACHE_LLC, true);
 
 	fill_px(vm->dev, pt, scratch_pte);
@@ -488,9 +475,9 @@ static void gen6_initialize_pt(struct i915_address_space *vm,
 {
 	gen6_pte_t scratch_pte;
 
-	WARN_ON(px_dma(vm->scratch_page) == 0);
+	WARN_ON(vm->scratch_page.daddr == 0);
 
-	scratch_pte = vm->pte_encode(px_dma(vm->scratch_page),
+	scratch_pte = vm->pte_encode(vm->scratch_page.daddr,
 				     I915_CACHE_LLC, true, 0);
 
 	fill32_px(vm->dev, pt, scratch_pte);
@@ -774,7 +761,7 @@ static void gen8_ppgtt_clear_range(struct i915_address_space *vm,
 				   bool use_scratch)
 {
 	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
-	gen8_pte_t scratch_pte = gen8_pte_encode(px_dma(vm->scratch_page),
+	gen8_pte_t scratch_pte = gen8_pte_encode(vm->scratch_page.daddr,
 						 I915_CACHE_LLC, use_scratch);
 
 	if (!USES_FULL_48BIT_PPGTT(vm->dev)) {
@@ -880,9 +867,9 @@ static int gen8_init_scratch(struct i915_address_space *vm)
 	struct drm_device *dev = vm->dev;
 	int ret;
 
-	vm->scratch_page = alloc_scratch_page(dev);
-	if (IS_ERR(vm->scratch_page))
-		return PTR_ERR(vm->scratch_page);
+	ret = setup_scratch_page(dev, &vm->scratch_page);
+	if (ret)
+		return ret;
 
 	vm->scratch_pt = alloc_pt(dev);
 	if (IS_ERR(vm->scratch_pt)) {
@@ -916,7 +903,7 @@ free_pd:
 free_pt:
 	free_pt(dev, vm->scratch_pt);
 free_scratch_page:
-	free_scratch_page(dev, vm->scratch_page);
+	cleanup_scratch_page(dev, &vm->scratch_page);
 
 	return ret;
 }
@@ -960,7 +947,7 @@ static void gen8_free_scratch(struct i915_address_space *vm)
 		free_pdp(dev, vm->scratch_pdp);
 	free_pd(dev, vm->scratch_pd);
 	free_pt(dev, vm->scratch_pt);
-	free_scratch_page(dev, vm->scratch_page);
+	cleanup_scratch_page(dev, &vm->scratch_page);
 }
 
 static void gen8_ppgtt_cleanup_3lvl(struct drm_device *dev,
@@ -1457,7 +1444,7 @@ static void gen8_dump_ppgtt(struct i915_hw_ppgtt *ppgtt, struct seq_file *m)
 	struct i915_address_space *vm = &ppgtt->base;
 	uint64_t start = ppgtt->base.start;
 	uint64_t length = ppgtt->base.total;
-	gen8_pte_t scratch_pte = gen8_pte_encode(px_dma(vm->scratch_page),
+	gen8_pte_t scratch_pte = gen8_pte_encode(vm->scratch_page.daddr,
 						 I915_CACHE_LLC, true);
 
 	if (!USES_FULL_48BIT_PPGTT(vm->dev)) {
@@ -1574,7 +1561,7 @@ static void gen6_dump_ppgtt(struct i915_hw_ppgtt *ppgtt, struct seq_file *m)
 	uint32_t  pte, pde;
 	uint32_t start = ppgtt->base.start, length = ppgtt->base.total;
 
-	scratch_pte = vm->pte_encode(px_dma(vm->scratch_page),
+	scratch_pte = vm->pte_encode(vm->scratch_page.daddr,
 				     I915_CACHE_LLC, true, 0);
 
 	gen6_for_each_pde(unused, &ppgtt->pd, start, length, pde) {
@@ -1799,7 +1786,7 @@ static void gen6_ppgtt_clear_range(struct i915_address_space *vm,
 	unsigned first_pte = first_entry % GEN6_PTES;
 	unsigned last_pte, i;
 
-	scratch_pte = vm->pte_encode(px_dma(vm->scratch_page),
+	scratch_pte = vm->pte_encode(vm->scratch_page.daddr,
 				     I915_CACHE_LLC, true, 0);
 
 	while (num_entries) {
@@ -1945,14 +1932,15 @@ unwind_out:
 static int gen6_init_scratch(struct i915_address_space *vm)
 {
 	struct drm_device *dev = vm->dev;
+	int ret;
 
-	vm->scratch_page = alloc_scratch_page(dev);
-	if (IS_ERR(vm->scratch_page))
-		return PTR_ERR(vm->scratch_page);
+	ret = setup_scratch_page(dev, &vm->scratch_page);
+	if (ret)
+		return ret;
 
 	vm->scratch_pt = alloc_pt(dev);
 	if (IS_ERR(vm->scratch_pt)) {
-		free_scratch_page(dev, vm->scratch_page);
+		cleanup_scratch_page(dev, &vm->scratch_page);
 		return PTR_ERR(vm->scratch_pt);
 	}
 
@@ -1966,7 +1954,7 @@ static void gen6_free_scratch(struct i915_address_space *vm)
 	struct drm_device *dev = vm->dev;
 
 	free_pt(dev, vm->scratch_pt);
-	free_scratch_page(dev, vm->scratch_page);
+	cleanup_scratch_page(dev, &vm->scratch_page);
 }
 
 static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
@@ -2507,7 +2495,7 @@ static void gen8_ggtt_clear_range(struct i915_address_space *vm,
 		 first_entry, num_entries, max_entries))
 		num_entries = max_entries;
 
-	scratch_pte = gen8_pte_encode(px_dma(vm->scratch_page),
+	scratch_pte = gen8_pte_encode(vm->scratch_page.daddr,
 				      I915_CACHE_LLC,
 				      use_scratch);
 	for (i = 0; i < num_entries; i++)
@@ -2539,7 +2527,7 @@ static void gen6_ggtt_clear_range(struct i915_address_space *vm,
 		 first_entry, num_entries, max_entries))
 		num_entries = max_entries;
 
-	scratch_pte = vm->pte_encode(px_dma(vm->scratch_page),
+	scratch_pte = vm->pte_encode(vm->scratch_page.daddr,
 				     I915_CACHE_LLC, use_scratch, 0);
 
 	for (i = 0; i < num_entries; i++)
@@ -2892,8 +2880,8 @@ static size_t gen9_get_stolen_size(u16 gen9_gmch_ctl)
 static int ggtt_probe_common(struct i915_ggtt *ggtt, u64 size)
 {
 	struct pci_dev *pdev = ggtt->base.dev->pdev;
-	struct i915_page_scratch *scratch_page;
 	phys_addr_t phys_addr;
+	int ret;
 
 	/* For Modern GENs the PTEs and register space are split in the BAR */
 	phys_addr = pci_resource_start(pdev, 0) + pci_resource_len(pdev, 0) / 2;
@@ -2914,15 +2902,13 @@ static int ggtt_probe_common(struct i915_ggtt *ggtt, u64 size)
 		return -ENOMEM;
 	}
 
-	scratch_page = alloc_scratch_page(ggtt->base.dev);
-	if (IS_ERR(scratch_page)) {
+	ret = setup_scratch_page(ggtt->base.dev, &ggtt->base.scratch_page);
+	if (ret) {
 		DRM_ERROR("Scratch setup failed\n");
 		/* iounmap will also get called at remove, but meh */
 		iounmap(ggtt->gsm);
-		return PTR_ERR(scratch_page);
+		return ret;
 	}
-
-	ggtt->base.scratch_page = scratch_page;
 
 	return 0;
 }
@@ -3005,7 +2991,7 @@ static void gen6_gmch_remove(struct i915_address_space *vm)
 	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
 
 	iounmap(ggtt->gsm);
-	free_scratch_page(vm->dev, vm->scratch_page);
+	cleanup_scratch_page(vm->dev, &vm->scratch_page);
 }
 
 static int gen8_gmch_probe(struct i915_ggtt *ggtt)
