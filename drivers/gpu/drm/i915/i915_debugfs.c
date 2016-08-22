@@ -2739,6 +2739,7 @@ static int i915_runtime_pm_status(struct seq_file *m, void *unused)
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 
 	if (!HAS_RUNTIME_PM(dev_priv))
 		seq_puts(m, "Runtime power management not supported\n");
@@ -2753,8 +2754,8 @@ static int i915_runtime_pm_status(struct seq_file *m, void *unused)
 	seq_printf(m, "Device Power Management (CONFIG_PM) disabled\n");
 #endif
 	seq_printf(m, "PCI device power state: %s [%d]\n",
-		   pci_power_name(dev_priv->drm.pdev->current_state),
-		   dev_priv->drm.pdev->current_state);
+		   pci_power_name(pdev->current_state),
+		   pdev->current_state);
 
 	return 0;
 }

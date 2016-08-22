@@ -633,6 +633,7 @@ static const struct i2c_algorithm gmbus_algorithm = {
 int intel_setup_gmbus(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 	struct intel_gmbus *bus;
 	unsigned int pin;
 	int ret;
@@ -663,7 +664,7 @@ int intel_setup_gmbus(struct drm_device *dev)
 			 "i915 gmbus %s",
 			 get_gmbus_pin(dev_priv, pin)->name);
 
-		bus->adapter.dev.parent = &dev->pdev->dev;
+		bus->adapter.dev.parent = &pdev->dev;
 		bus->dev_priv = dev_priv;
 
 		bus->adapter.algo = &gmbus_algorithm;

@@ -92,6 +92,7 @@ void i915_gem_stolen_remove_node(struct drm_i915_private *dev_priv,
 static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct resource *r;
 	u32 base;
@@ -111,7 +112,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen >= 3) {
 		u32 bsm;
 
-		pci_read_config_dword(dev->pdev, INTEL_BSM, &bsm);
+		pci_read_config_dword(pdev, INTEL_BSM, &bsm);
 
 		base = bsm & INTEL_BSM_MASK;
 	} else if (IS_I865G(dev)) {
@@ -119,7 +120,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 		u16 toud = 0;
 		u8 tmp;
 
-		pci_bus_read_config_byte(dev->pdev->bus, PCI_DEVFN(0, 0),
+		pci_bus_read_config_byte(pdev->bus, PCI_DEVFN(0, 0),
 					 I845_ESMRAMC, &tmp);
 
 		if (tmp & TSEG_ENABLE) {
@@ -133,7 +134,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 			}
 		}
 
-		pci_bus_read_config_word(dev->pdev->bus, PCI_DEVFN(0, 0),
+		pci_bus_read_config_word(pdev->bus, PCI_DEVFN(0, 0),
 					 I865_TOUD, &toud);
 
 		base = (toud << 16) + tseg_size;
@@ -142,13 +143,13 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 		u32 tom;
 		u8 tmp;
 
-		pci_bus_read_config_byte(dev->pdev->bus, PCI_DEVFN(0, 0),
+		pci_bus_read_config_byte(pdev->bus, PCI_DEVFN(0, 0),
 					 I85X_ESMRAMC, &tmp);
 
 		if (tmp & TSEG_ENABLE)
 			tseg_size = MB(1);
 
-		pci_bus_read_config_byte(dev->pdev->bus, PCI_DEVFN(0, 1),
+		pci_bus_read_config_byte(pdev->bus, PCI_DEVFN(0, 1),
 					 I85X_DRB3, &tmp);
 		tom = tmp * MB(32);
 
@@ -158,7 +159,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 		u32 tom;
 		u8 tmp;
 
-		pci_bus_read_config_byte(dev->pdev->bus, PCI_DEVFN(0, 0),
+		pci_bus_read_config_byte(pdev->bus, PCI_DEVFN(0, 0),
 					 I845_ESMRAMC, &tmp);
 
 		if (tmp & TSEG_ENABLE) {
@@ -172,7 +173,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 			}
 		}
 
-		pci_bus_read_config_byte(dev->pdev->bus, PCI_DEVFN(0, 0),
+		pci_bus_read_config_byte(pdev->bus, PCI_DEVFN(0, 0),
 					 I830_DRB3, &tmp);
 		tom = tmp * MB(32);
 
@@ -182,7 +183,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 		u32 tom;
 		u8 tmp;
 
-		pci_bus_read_config_byte(dev->pdev->bus, PCI_DEVFN(0, 0),
+		pci_bus_read_config_byte(pdev->bus, PCI_DEVFN(0, 0),
 					 I830_ESMRAMC, &tmp);
 
 		if (tmp & TSEG_ENABLE) {
@@ -192,7 +193,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 				tseg_size = KB(512);
 		}
 
-		pci_bus_read_config_byte(dev->pdev->bus, PCI_DEVFN(0, 0),
+		pci_bus_read_config_byte(pdev->bus, PCI_DEVFN(0, 0),
 					 I830_DRB3, &tmp);
 		tom = tmp * MB(32);
 

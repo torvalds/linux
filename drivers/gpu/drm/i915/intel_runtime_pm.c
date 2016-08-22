@@ -287,6 +287,7 @@ void intel_display_set_init_power(struct drm_i915_private *dev_priv,
  */
 static void hsw_power_well_post_enable(struct drm_i915_private *dev_priv)
 {
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 	struct drm_device *dev = &dev_priv->drm;
 
 	/*
@@ -299,9 +300,9 @@ static void hsw_power_well_post_enable(struct drm_i915_private *dev_priv)
 	 * sure vgacon can keep working normally without triggering interrupts
 	 * and error messages.
 	 */
-	vga_get_uninterruptible(dev->pdev, VGA_RSRC_LEGACY_IO);
+	vga_get_uninterruptible(pdev, VGA_RSRC_LEGACY_IO);
 	outb(inb(VGA_MSR_READ), VGA_MSR_WRITE);
-	vga_put(dev->pdev, VGA_RSRC_LEGACY_IO);
+	vga_put(pdev, VGA_RSRC_LEGACY_IO);
 
 	if (IS_BROADWELL(dev))
 		gen8_irq_power_well_post_enable(dev_priv,
@@ -318,7 +319,7 @@ static void hsw_power_well_pre_disable(struct drm_i915_private *dev_priv)
 static void skl_power_well_post_enable(struct drm_i915_private *dev_priv,
 				       struct i915_power_well *power_well)
 {
-	struct drm_device *dev = &dev_priv->drm;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 
 	/*
 	 * After we re-enable the power well, if we touch VGA register 0x3d5
@@ -331,9 +332,9 @@ static void skl_power_well_post_enable(struct drm_i915_private *dev_priv,
 	 * and error messages.
 	 */
 	if (power_well->data == SKL_DISP_PW_2) {
-		vga_get_uninterruptible(dev->pdev, VGA_RSRC_LEGACY_IO);
+		vga_get_uninterruptible(pdev, VGA_RSRC_LEGACY_IO);
 		outb(inb(VGA_MSR_READ), VGA_MSR_WRITE);
-		vga_put(dev->pdev, VGA_RSRC_LEGACY_IO);
+		vga_put(pdev, VGA_RSRC_LEGACY_IO);
 
 		gen8_irq_power_well_post_enable(dev_priv,
 						1 << PIPE_C | 1 << PIPE_B);
@@ -2651,8 +2652,8 @@ void intel_power_domains_suspend(struct drm_i915_private *dev_priv)
  */
 void intel_runtime_pm_get(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
-	struct device *kdev = &dev->pdev->dev;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
+	struct device *kdev = &pdev->dev;
 
 	pm_runtime_get_sync(kdev);
 
@@ -2672,8 +2673,8 @@ void intel_runtime_pm_get(struct drm_i915_private *dev_priv)
  */
 bool intel_runtime_pm_get_if_in_use(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
-	struct device *kdev = &dev->pdev->dev;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
+	struct device *kdev = &pdev->dev;
 
 	if (IS_ENABLED(CONFIG_PM)) {
 		int ret = pm_runtime_get_if_in_use(kdev);
@@ -2714,8 +2715,8 @@ bool intel_runtime_pm_get_if_in_use(struct drm_i915_private *dev_priv)
  */
 void intel_runtime_pm_get_noresume(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
-	struct device *kdev = &dev->pdev->dev;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
+	struct device *kdev = &pdev->dev;
 
 	assert_rpm_wakelock_held(dev_priv);
 	pm_runtime_get_noresume(kdev);
@@ -2733,8 +2734,8 @@ void intel_runtime_pm_get_noresume(struct drm_i915_private *dev_priv)
  */
 void intel_runtime_pm_put(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
-	struct device *kdev = &dev->pdev->dev;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
+	struct device *kdev = &pdev->dev;
 
 	assert_rpm_wakelock_held(dev_priv);
 	if (atomic_dec_and_test(&dev_priv->pm.wakeref_count))
@@ -2756,8 +2757,9 @@ void intel_runtime_pm_put(struct drm_i915_private *dev_priv)
  */
 void intel_runtime_pm_enable(struct drm_i915_private *dev_priv)
 {
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 	struct drm_device *dev = &dev_priv->drm;
-	struct device *kdev = &dev->pdev->dev;
+	struct device *kdev = &pdev->dev;
 
 	pm_runtime_set_autosuspend_delay(kdev, 10000); /* 10s */
 	pm_runtime_mark_last_busy(kdev);

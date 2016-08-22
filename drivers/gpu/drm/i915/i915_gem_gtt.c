@@ -350,10 +350,12 @@ static int setup_page_dma(struct drm_device *dev, struct i915_page_dma *p)
 
 static void cleanup_page_dma(struct drm_device *dev, struct i915_page_dma *p)
 {
+	struct pci_dev *pdev = dev->pdev;
+
 	if (WARN_ON(!p->page))
 		return;
 
-	dma_unmap_page(&dev->pdev->dev, p->daddr, 4096, PCI_DMA_BIDIRECTIONAL);
+	dma_unmap_page(&pdev->dev, p->daddr, 4096, PCI_DMA_BIDIRECTIONAL);
 	__free_page(p->page);
 	memset(p, 0, sizeof(*p));
 }
@@ -2681,8 +2683,8 @@ static void ggtt_unbind_vma(struct i915_vma *vma)
 
 void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj)
 {
-	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
+	struct device *kdev = &dev_priv->drm.pdev->dev;
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 
 	if (unlikely(ggtt->do_idle_maps)) {
@@ -2693,7 +2695,7 @@ void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj)
 		}
 	}
 
-	dma_unmap_sg(&dev->pdev->dev, obj->pages->sgl, obj->pages->nents,
+	dma_unmap_sg(kdev, obj->pages->sgl, obj->pages->nents,
 		     PCI_DMA_BIDIRECTIONAL);
 }
 

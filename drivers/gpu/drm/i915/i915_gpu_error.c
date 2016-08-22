@@ -336,6 +336,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 {
 	struct drm_device *dev = error_priv->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 	struct drm_i915_error_state *error = error_priv->error;
 	struct drm_i915_error_object *obj;
 	int i, j, offset, elt;
@@ -367,11 +368,11 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	}
 	err_printf(m, "Reset count: %u\n", error->reset_count);
 	err_printf(m, "Suspend count: %u\n", error->suspend_count);
-	err_printf(m, "PCI ID: 0x%04x\n", dev->pdev->device);
-	err_printf(m, "PCI Revision: 0x%02x\n", dev->pdev->revision);
+	err_printf(m, "PCI ID: 0x%04x\n", pdev->device);
+	err_printf(m, "PCI Revision: 0x%02x\n", pdev->revision);
 	err_printf(m, "PCI Subsystem: %04x:%04x\n",
-		   dev->pdev->subsystem_vendor,
-		   dev->pdev->subsystem_device);
+		   pdev->subsystem_vendor,
+		   pdev->subsystem_device);
 	err_printf(m, "IOMMU enabled?: %d\n", error->iommu);
 
 	if (HAS_CSR(dev)) {

@@ -7273,9 +7273,10 @@ static int i9xx_misc_get_display_clock_speed(struct drm_device *dev)
 
 static int pnv_get_display_clock_speed(struct drm_device *dev)
 {
+	struct pci_dev *pdev = dev->pdev;
 	u16 gcfgc = 0;
 
-	pci_read_config_word(dev->pdev, GCFGC, &gcfgc);
+	pci_read_config_word(pdev, GCFGC, &gcfgc);
 
 	switch (gcfgc & GC_DISPLAY_CLOCK_MASK) {
 	case GC_DISPLAY_CLOCK_267_MHZ_PNV:
@@ -7297,9 +7298,10 @@ static int pnv_get_display_clock_speed(struct drm_device *dev)
 
 static int i915gm_get_display_clock_speed(struct drm_device *dev)
 {
+	struct pci_dev *pdev = dev->pdev;
 	u16 gcfgc = 0;
 
-	pci_read_config_word(dev->pdev, GCFGC, &gcfgc);
+	pci_read_config_word(pdev, GCFGC, &gcfgc);
 
 	if (gcfgc & GC_LOW_FREQUENCY_ENABLE)
 		return 133333;
@@ -7321,6 +7323,7 @@ static int i865_get_display_clock_speed(struct drm_device *dev)
 
 static int i85x_get_display_clock_speed(struct drm_device *dev)
 {
+	struct pci_dev *pdev = dev->pdev;
 	u16 hpllcc = 0;
 
 	/*
@@ -7328,10 +7331,10 @@ static int i85x_get_display_clock_speed(struct drm_device *dev)
 	 * encoding is different :(
 	 * FIXME is this the right way to detect 852GM/852GMV?
 	 */
-	if (dev->pdev->revision == 0x1)
+	if (pdev->revision == 0x1)
 		return 133333;
 
-	pci_bus_read_config_word(dev->pdev->bus,
+	pci_bus_read_config_word(pdev->bus,
 				 PCI_DEVFN(0, 3), HPLLCC, &hpllcc);
 
 	/* Assume that the hardware is in the high speed state.  This
@@ -7432,10 +7435,11 @@ static unsigned int intel_hpll_vco(struct drm_device *dev)
 
 static int gm45_get_display_clock_speed(struct drm_device *dev)
 {
+	struct pci_dev *pdev = dev->pdev;
 	unsigned int cdclk_sel, vco = intel_hpll_vco(dev);
 	uint16_t tmp = 0;
 
-	pci_read_config_word(dev->pdev, GCFGC, &tmp);
+	pci_read_config_word(pdev, GCFGC, &tmp);
 
 	cdclk_sel = (tmp >> 12) & 0x1;
 
@@ -7454,6 +7458,7 @@ static int gm45_get_display_clock_speed(struct drm_device *dev)
 
 static int i965gm_get_display_clock_speed(struct drm_device *dev)
 {
+	struct pci_dev *pdev = dev->pdev;
 	static const uint8_t div_3200[] = { 16, 10,  8 };
 	static const uint8_t div_4000[] = { 20, 12, 10 };
 	static const uint8_t div_5333[] = { 24, 16, 14 };
@@ -7461,7 +7466,7 @@ static int i965gm_get_display_clock_speed(struct drm_device *dev)
 	unsigned int cdclk_sel, vco = intel_hpll_vco(dev);
 	uint16_t tmp = 0;
 
-	pci_read_config_word(dev->pdev, GCFGC, &tmp);
+	pci_read_config_word(pdev, GCFGC, &tmp);
 
 	cdclk_sel = ((tmp >> 8) & 0x1f) - 1;
 
@@ -7491,6 +7496,7 @@ fail:
 
 static int g33_get_display_clock_speed(struct drm_device *dev)
 {
+	struct pci_dev *pdev = dev->pdev;
 	static const uint8_t div_3200[] = { 12, 10,  8,  7, 5, 16 };
 	static const uint8_t div_4000[] = { 14, 12, 10,  8, 6, 20 };
 	static const uint8_t div_4800[] = { 20, 14, 12, 10, 8, 24 };
@@ -7499,7 +7505,7 @@ static int g33_get_display_clock_speed(struct drm_device *dev)
 	unsigned int cdclk_sel, vco = intel_hpll_vco(dev);
 	uint16_t tmp = 0;
 
-	pci_read_config_word(dev->pdev, GCFGC, &tmp);
+	pci_read_config_word(pdev, GCFGC, &tmp);
 
 	cdclk_sel = (tmp >> 4) & 0x7;
 
@@ -15991,15 +15997,16 @@ static void intel_init_quirks(struct drm_device *dev)
 static void i915_disable_vga(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 	u8 sr1;
 	i915_reg_t vga_reg = i915_vgacntrl_reg(dev);
 
 	/* WaEnableVGAAccessThroughIOPort:ctg,elk,ilk,snb,ivb,vlv,hsw */
-	vga_get_uninterruptible(dev->pdev, VGA_RSRC_LEGACY_IO);
+	vga_get_uninterruptible(pdev, VGA_RSRC_LEGACY_IO);
 	outb(SR01, VGA_SR_INDEX);
 	sr1 = inb(VGA_SR_DATA);
 	outb(sr1 | 1<<5, VGA_SR_DATA);
-	vga_put(dev->pdev, VGA_RSRC_LEGACY_IO);
+	vga_put(pdev, VGA_RSRC_LEGACY_IO);
 	udelay(300);
 
 	I915_WRITE(vga_reg, VGA_DISP_DISABLE);
