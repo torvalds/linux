@@ -704,6 +704,17 @@ static int dwc3_core_init(struct dwc3 *dwc)
 		break;
 	}
 
+	/*
+	 * ENDXFER polling is available on version 3.10a and later of
+	 * the DWC_usb3 controller. It is NOT available in the
+	 * DWC_usb31 controller.
+	 */
+	if (!dwc3_is_usb31(dwc) && dwc->revision >= DWC3_REVISION_310A) {
+		reg = dwc3_readl(dwc->regs, DWC3_GUCTL2);
+		reg |= DWC3_GUCTL2_RST_ACTBITLATER;
+		dwc3_writel(dwc->regs, DWC3_GUCTL2, reg);
+	}
+
 	return 0;
 
 err4:

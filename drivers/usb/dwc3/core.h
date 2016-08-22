@@ -109,6 +109,7 @@
 #define DWC3_GPRTBIMAP_HS1	0xc184
 #define DWC3_GPRTBIMAP_FS0	0xc188
 #define DWC3_GPRTBIMAP_FS1	0xc18c
+#define DWC3_GUCTL2		0xc19c
 
 #define DWC3_VER_NUMBER		0xc1a0
 #define DWC3_VER_TYPE		0xc1a4
@@ -287,6 +288,9 @@
 /* Global Frame Length Adjustment Register */
 #define DWC3_GFLADJ_30MHZ_SDBND_SEL		(1 << 7)
 #define DWC3_GFLADJ_30MHZ_MASK			0x3f
+
+/* Global User Control Register 2 */
+#define DWC3_GUCTL2_RST_ACTBITLATER		(1 << 14)
 
 /* Device Configuration Register */
 #define DWC3_DCFG_DEVADDR(addr)	((addr) << 3)

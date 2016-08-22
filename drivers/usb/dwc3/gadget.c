@@ -2228,6 +2228,18 @@ static void dwc3_stop_active_transfer(struct dwc3 *dwc, u32 epnum, bool force)
 	 *
 	 * - Issue EndTransfer WITH CMDIOC bit set
 	 * - Wait 100us
+	 *
+	 * As of IP version 3.10a of the DWC_usb3 IP, the controller
+	 * supports a mode to work around the above limitation. The
+	 * software can poll the CMDACT bit in the DEPCMD register
+	 * after issuing a EndTransfer command. This mode is enabled
+	 * by writing GUCTL2[14]. This polling is already done in the
+	 * dwc3_send_gadget_ep_cmd() function so if the mode is
+	 * enabled, the EndTransfer command will have completed upon
+	 * returning from this function and we don't need to delay for
+	 * 100us.
+	 *
+	 * This mode is NOT available on the DWC_usb31 IP.
 	 */
 
 	cmd = DWC3_DEPCMD_ENDTRANSFER;
@@ -2239,7 +2251,9 @@ static void dwc3_stop_active_transfer(struct dwc3 *dwc, u32 epnum, bool force)
 	WARN_ON_ONCE(ret);
 	dep->resource_index = 0;
 	dep->flags &= ~DWC3_EP_BUSY;
-	udelay(100);
+
+	if (dwc3_is_usb31(dwc) || dwc->revision < DWC3_REVISION_310A)
+		udelay(100);
 }
 
 static void dwc3_stop_active_transfers(struct dwc3 *dwc)
