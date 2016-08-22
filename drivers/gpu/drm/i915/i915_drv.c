@@ -77,7 +77,7 @@ __i915_printk(struct drm_i915_private *dev_priv, const char *level,
 	      const char *fmt, ...)
 {
 	static bool shown_bug_once;
-	struct device *dev = dev_priv->drm.dev;
+	struct device *kdev = dev_priv->drm.dev;
 	bool is_error = level[1] <= KERN_ERR[1];
 	bool is_debug = level[1] == KERN_DEBUG[1];
 	struct va_format vaf;
@@ -91,11 +91,11 @@ __i915_printk(struct drm_i915_private *dev_priv, const char *level,
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	dev_printk(level, dev, "[" DRM_NAME ":%ps] %pV",
+	dev_printk(level, kdev, "[" DRM_NAME ":%ps] %pV",
 		   __builtin_return_address(0), &vaf);
 
 	if (is_error && !shown_bug_once) {
-		dev_notice(dev, "%s", FDO_BUG_MSG);
+		dev_notice(kdev, "%s", FDO_BUG_MSG);
 		shown_bug_once = true;
 	}
 
@@ -1462,9 +1462,9 @@ out:
 	return error;
 }
 
-static int i915_drm_suspend_late(struct drm_device *drm_dev, bool hibernation)
+static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 {
-	struct drm_i915_private *dev_priv = to_i915(drm_dev);
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	bool fw_csr;
 	int ret;
 
@@ -1498,7 +1498,7 @@ static int i915_drm_suspend_late(struct drm_device *drm_dev, bool hibernation)
 		goto out;
 	}
 
-	pci_disable_device(drm_dev->pdev);
+	pci_disable_device(dev->pdev);
 	/*
 	 * During hibernation on some platforms the BIOS may try to access
 	 * the device even though it's already in D3 and hang the machine. So
@@ -1512,7 +1512,7 @@ static int i915_drm_suspend_late(struct drm_device *drm_dev, bool hibernation)
 	 * Acer Aspire 1830T
 	 */
 	if (!(hibernation && INTEL_INFO(dev_priv)->gen < 6))
-		pci_set_power_state(drm_dev->pdev, PCI_D3hot);
+		pci_set_power_state(dev->pdev, PCI_D3hot);
 
 	dev_priv->suspended_to_idle = suspend_to_idle(dev_priv);
 
@@ -1810,25 +1810,25 @@ error:
 	return ret;
 }
 
-static int i915_pm_suspend(struct device *dev)
+static int i915_pm_suspend(struct device *kdev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct pci_dev *pdev = to_pci_dev(kdev);
+	struct drm_device *dev = pci_get_drvdata(pdev);
 
-	if (!drm_dev) {
-		dev_err(dev, "DRM not initialized, aborting suspend.\n");
+	if (!dev) {
+		dev_err(kdev, "DRM not initialized, aborting suspend.\n");
 		return -ENODEV;
 	}
 
-	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
-	return i915_drm_suspend(drm_dev);
+	return i915_drm_suspend(dev);
 }
 
-static int i915_pm_suspend_late(struct device *dev)
+static int i915_pm_suspend_late(struct device *kdev)
 {
-	struct drm_device *drm_dev = &dev_to_i915(dev)->drm;
+	struct drm_device *dev = &kdev_to_i915(kdev)->drm;
 
 	/*
 	 * We have a suspend ordering issue with the snd-hda driver also
@@ -1839,57 +1839,57 @@ static int i915_pm_suspend_late(struct device *dev)
 	 * FIXME: This should be solved with a special hdmi sink device or
 	 * similar so that power domains can be employed.
 	 */
-	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
-	return i915_drm_suspend_late(drm_dev, false);
+	return i915_drm_suspend_late(dev, false);
 }
 
-static int i915_pm_poweroff_late(struct device *dev)
+static int i915_pm_poweroff_late(struct device *kdev)
 {
-	struct drm_device *drm_dev = &dev_to_i915(dev)->drm;
+	struct drm_device *dev = &kdev_to_i915(kdev)->drm;
 
-	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
-	return i915_drm_suspend_late(drm_dev, true);
+	return i915_drm_suspend_late(dev, true);
 }
 
-static int i915_pm_resume_early(struct device *dev)
+static int i915_pm_resume_early(struct device *kdev)
 {
-	struct drm_device *drm_dev = &dev_to_i915(dev)->drm;
+	struct drm_device *dev = &kdev_to_i915(kdev)->drm;
 
-	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
-	return i915_drm_resume_early(drm_dev);
+	return i915_drm_resume_early(dev);
 }
 
-static int i915_pm_resume(struct device *dev)
+static int i915_pm_resume(struct device *kdev)
 {
-	struct drm_device *drm_dev = &dev_to_i915(dev)->drm;
+	struct drm_device *dev = &kdev_to_i915(kdev)->drm;
 
-	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
-	return i915_drm_resume(drm_dev);
+	return i915_drm_resume(dev);
 }
 
 /* freeze: before creating the hibernation_image */
-static int i915_pm_freeze(struct device *dev)
+static int i915_pm_freeze(struct device *kdev)
 {
-	return i915_pm_suspend(dev);
+	return i915_pm_suspend(kdev);
 }
 
-static int i915_pm_freeze_late(struct device *dev)
+static int i915_pm_freeze_late(struct device *kdev)
 {
 	int ret;
 
-	ret = i915_pm_suspend_late(dev);
+	ret = i915_pm_suspend_late(kdev);
 	if (ret)
 		return ret;
 
-	ret = i915_gem_freeze_late(dev_to_i915(dev));
+	ret = i915_gem_freeze_late(kdev_to_i915(kdev));
 	if (ret)
 		return ret;
 
@@ -1897,25 +1897,25 @@ static int i915_pm_freeze_late(struct device *dev)
 }
 
 /* thaw: called after creating the hibernation image, but before turning off. */
-static int i915_pm_thaw_early(struct device *dev)
+static int i915_pm_thaw_early(struct device *kdev)
 {
-	return i915_pm_resume_early(dev);
+	return i915_pm_resume_early(kdev);
 }
 
-static int i915_pm_thaw(struct device *dev)
+static int i915_pm_thaw(struct device *kdev)
 {
-	return i915_pm_resume(dev);
+	return i915_pm_resume(kdev);
 }
 
 /* restore: called after loading the hibernation image. */
-static int i915_pm_restore_early(struct device *dev)
+static int i915_pm_restore_early(struct device *kdev)
 {
-	return i915_pm_resume_early(dev);
+	return i915_pm_resume_early(kdev);
 }
 
-static int i915_pm_restore(struct device *dev)
+static int i915_pm_restore(struct device *kdev)
 {
-	return i915_pm_resume(dev);
+	return i915_pm_resume(kdev);
 }
 
 /*
@@ -2277,9 +2277,9 @@ static int vlv_resume_prepare(struct drm_i915_private *dev_priv,
 	return ret;
 }
 
-static int intel_runtime_suspend(struct device *device)
+static int intel_runtime_suspend(struct device *kdev)
 {
-	struct pci_dev *pdev = to_pci_dev(device);
+	struct pci_dev *pdev = to_pci_dev(kdev);
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret;
@@ -2305,7 +2305,7 @@ static int intel_runtime_suspend(struct device *device)
 		 * Bump the expiration timestamp, otherwise the suspend won't
 		 * be rescheduled.
 		 */
-		pm_runtime_mark_last_busy(device);
+		pm_runtime_mark_last_busy(kdev);
 
 		return -EAGAIN;
 	}
@@ -2384,9 +2384,9 @@ static int intel_runtime_suspend(struct device *device)
 	return 0;
 }
 
-static int intel_runtime_resume(struct device *device)
+static int intel_runtime_resume(struct device *kdev)
 {
-	struct pci_dev *pdev = to_pci_dev(device);
+	struct pci_dev *pdev = to_pci_dev(kdev);
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret = 0;

@@ -581,26 +581,26 @@ void intel_init_audio_hooks(struct drm_i915_private *dev_priv)
 	}
 }
 
-static void i915_audio_component_get_power(struct device *dev)
+static void i915_audio_component_get_power(struct device *kdev)
 {
-	intel_display_power_get(dev_to_i915(dev), POWER_DOMAIN_AUDIO);
+	intel_display_power_get(kdev_to_i915(kdev), POWER_DOMAIN_AUDIO);
 }
 
-static void i915_audio_component_put_power(struct device *dev)
+static void i915_audio_component_put_power(struct device *kdev)
 {
-	intel_display_power_put(dev_to_i915(dev), POWER_DOMAIN_AUDIO);
+	intel_display_power_put(kdev_to_i915(kdev), POWER_DOMAIN_AUDIO);
 }
 
-static void i915_audio_component_codec_wake_override(struct device *dev,
+static void i915_audio_component_codec_wake_override(struct device *kdev,
 						     bool enable)
 {
-	struct drm_i915_private *dev_priv = dev_to_i915(dev);
+	struct drm_i915_private *dev_priv = kdev_to_i915(kdev);
 	u32 tmp;
 
 	if (!IS_SKYLAKE(dev_priv) && !IS_KABYLAKE(dev_priv))
 		return;
 
-	i915_audio_component_get_power(dev);
+	i915_audio_component_get_power(kdev);
 
 	/*
 	 * Enable/disable generating the codec wake signal, overriding the
@@ -618,13 +618,13 @@ static void i915_audio_component_codec_wake_override(struct device *dev,
 		usleep_range(1000, 1500);
 	}
 
-	i915_audio_component_put_power(dev);
+	i915_audio_component_put_power(kdev);
 }
 
 /* Get CDCLK in kHz  */
-static int i915_audio_component_get_cdclk_freq(struct device *dev)
+static int i915_audio_component_get_cdclk_freq(struct device *kdev)
 {
-	struct drm_i915_private *dev_priv = dev_to_i915(dev);
+	struct drm_i915_private *dev_priv = kdev_to_i915(kdev);
 
 	if (WARN_ON_ONCE(!HAS_DDI(dev_priv)))
 		return -ENODEV;
@@ -632,10 +632,10 @@ static int i915_audio_component_get_cdclk_freq(struct device *dev)
 	return dev_priv->cdclk_freq;
 }
 
-static int i915_audio_component_sync_audio_rate(struct device *dev,
+static int i915_audio_component_sync_audio_rate(struct device *kdev,
 						int port, int rate)
 {
-	struct drm_i915_private *dev_priv = dev_to_i915(dev);
+	struct drm_i915_private *dev_priv = kdev_to_i915(kdev);
 	struct intel_encoder *intel_encoder;
 	struct intel_crtc *crtc;
 	struct drm_display_mode *mode;
@@ -652,7 +652,7 @@ static int i915_audio_component_sync_audio_rate(struct device *dev,
 	    !IS_HASWELL(dev_priv))
 		return 0;
 
-	i915_audio_component_get_power(dev);
+	i915_audio_component_get_power(kdev);
 	mutex_lock(&dev_priv->av_mutex);
 	/* 1. get the pipe */
 	intel_encoder = dev_priv->dig_port_map[port];
@@ -703,15 +703,15 @@ static int i915_audio_component_sync_audio_rate(struct device *dev,
 
  unlock:
 	mutex_unlock(&dev_priv->av_mutex);
-	i915_audio_component_put_power(dev);
+	i915_audio_component_put_power(kdev);
 	return err;
 }
 
-static int i915_audio_component_get_eld(struct device *dev, int port,
+static int i915_audio_component_get_eld(struct device *kdev, int port,
 					bool *enabled,
 					unsigned char *buf, int max_bytes)
 {
-	struct drm_i915_private *dev_priv = dev_to_i915(dev);
+	struct drm_i915_private *dev_priv = kdev_to_i915(kdev);
 	struct intel_encoder *intel_encoder;
 	struct intel_digital_port *intel_dig_port;
 	const u8 *eld;
@@ -745,11 +745,11 @@ static const struct i915_audio_component_ops i915_audio_component_ops = {
 	.get_eld	= i915_audio_component_get_eld,
 };
 
-static int i915_audio_component_bind(struct device *i915_dev,
-				     struct device *hda_dev, void *data)
+static int i915_audio_component_bind(struct device *i915_kdev,
+				     struct device *hda_kdev, void *data)
 {
 	struct i915_audio_component *acomp = data;
-	struct drm_i915_private *dev_priv = dev_to_i915(i915_dev);
+	struct drm_i915_private *dev_priv = kdev_to_i915(i915_kdev);
 	int i;
 
 	if (WARN_ON(acomp->ops || acomp->dev))
@@ -757,7 +757,7 @@ static int i915_audio_component_bind(struct device *i915_dev,
 
 	drm_modeset_lock_all(&dev_priv->drm);
 	acomp->ops = &i915_audio_component_ops;
-	acomp->dev = i915_dev;
+	acomp->dev = i915_kdev;
 	BUILD_BUG_ON(MAX_PORTS != I915_MAX_PORTS);
 	for (i = 0; i < ARRAY_SIZE(acomp->aud_sample_rate); i++)
 		acomp->aud_sample_rate[i] = 0;
@@ -767,11 +767,11 @@ static int i915_audio_component_bind(struct device *i915_dev,
 	return 0;
 }
 
-static void i915_audio_component_unbind(struct device *i915_dev,
-					struct device *hda_dev, void *data)
+static void i915_audio_component_unbind(struct device *i915_kdev,
+					struct device *hda_kdev, void *data)
 {
 	struct i915_audio_component *acomp = data;
-	struct drm_i915_private *dev_priv = dev_to_i915(i915_dev);
+	struct drm_i915_private *dev_priv = kdev_to_i915(i915_kdev);
 
 	drm_modeset_lock_all(&dev_priv->drm);
 	acomp->ops = NULL;

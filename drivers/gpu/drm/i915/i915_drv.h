@@ -2064,9 +2064,9 @@ static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
 	return container_of(dev, struct drm_i915_private, drm);
 }
 
-static inline struct drm_i915_private *dev_to_i915(struct device *dev)
+static inline struct drm_i915_private *kdev_to_i915(struct device *kdev)
 {
-	return to_i915(dev_get_drvdata(dev));
+	return to_i915(dev_get_drvdata(kdev));
 }
 
 static inline struct drm_i915_private *guc_to_i915(struct intel_guc *guc)

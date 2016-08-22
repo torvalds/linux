@@ -326,16 +326,16 @@ static gen6_pte_t iris_pte_encode(dma_addr_t addr,
 static int __setup_page_dma(struct drm_device *dev,
 			    struct i915_page_dma *p, gfp_t flags)
 {
-	struct device *device = &dev->pdev->dev;
+	struct device *kdev = &dev->pdev->dev;
 
 	p->page = alloc_page(flags);
 	if (!p->page)
 		return -ENOMEM;
 
-	p->daddr = dma_map_page(device,
+	p->daddr = dma_map_page(kdev,
 				p->page, 0, 4096, PCI_DMA_BIDIRECTIONAL);
 
-	if (dma_mapping_error(device, p->daddr)) {
+	if (dma_mapping_error(kdev, p->daddr)) {
 		__free_page(p->page);
 		return -EINVAL;
 	}

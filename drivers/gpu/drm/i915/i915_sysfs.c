@@ -32,7 +32,10 @@
 #include "intel_drv.h"
 #include "i915_drv.h"
 
-#define dev_to_drm_minor(d) dev_get_drvdata((d))
+static inline struct drm_minor *kdev_to_drm_minor(struct device *kdev)
+{
+	return dev_get_drvdata(kdev);
+}
 
 #ifdef CONFIG_PM
 static u32 calc_residency(struct drm_device *dev,
@@ -84,7 +87,7 @@ show_rc6_ms(struct device *kdev, struct device_attribute *attr, char *buf)
 static ssize_t
 show_rc6p_ms(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_minor *dminor = dev_to_drm_minor(kdev);
+	struct drm_minor *dminor = kdev_to_drm_minor(kdev);
 	u32 rc6p_residency = calc_residency(dminor->dev, GEN6_GT_GFX_RC6p);
 	return snprintf(buf, PAGE_SIZE, "%u\n", rc6p_residency);
 }
@@ -92,7 +95,7 @@ show_rc6p_ms(struct device *kdev, struct device_attribute *attr, char *buf)
 static ssize_t
 show_rc6pp_ms(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_minor *dminor = dev_to_drm_minor(kdev);
+	struct drm_minor *dminor = kdev_to_drm_minor(kdev);
 	u32 rc6pp_residency = calc_residency(dminor->dev, GEN6_GT_GFX_RC6pp);
 	return snprintf(buf, PAGE_SIZE, "%u\n", rc6pp_residency);
 }
@@ -163,22 +166,22 @@ i915_l3_read(struct file *filp, struct kobject *kobj,
 	     struct bin_attribute *attr, char *buf,
 	     loff_t offset, size_t count)
 {
-	struct device *dev = kobj_to_dev(kobj);
-	struct drm_minor *dminor = dev_to_drm_minor(dev);
-	struct drm_device *drm_dev = dminor->dev;
-	struct drm_i915_private *dev_priv = to_i915(drm_dev);
+	struct device *kdev = kobj_to_dev(kobj);
+	struct drm_minor *dminor = kdev_to_drm_minor(kdev);
+	struct drm_device *dev = dminor->dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	int slice = (int)(uintptr_t)attr->private;
 	int ret;
 
 	count = round_down(count, 4);
 
-	ret = l3_access_valid(drm_dev, offset);
+	ret = l3_access_valid(dev, offset);
 	if (ret)
 		return ret;
 
 	count = min_t(size_t, GEN7_L3LOG_SIZE - offset, count);
 
-	ret = i915_mutex_lock_interruptible(drm_dev);
+	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
 		return ret;
 
@@ -189,7 +192,7 @@ i915_l3_read(struct file *filp, struct kobject *kobj,
 	else
 		memset(buf, 0, count);
 
-	mutex_unlock(&drm_dev->struct_mutex);
+	mutex_unlock(&dev->struct_mutex);
 
 	return count;
 }
@@ -199,30 +202,30 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	      struct bin_attribute *attr, char *buf,
 	      loff_t offset, size_t count)
 {
-	struct device *dev = kobj_to_dev(kobj);
-	struct drm_minor *dminor = dev_to_drm_minor(dev);
-	struct drm_device *drm_dev = dminor->dev;
-	struct drm_i915_private *dev_priv = to_i915(drm_dev);
+	struct device *kdev = kobj_to_dev(kobj);
+	struct drm_minor *dminor = kdev_to_drm_minor(kdev);
+	struct drm_device *dev = dminor->dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_gem_context *ctx;
 	u32 *temp = NULL; /* Just here to make handling failures easy */
 	int slice = (int)(uintptr_t)attr->private;
 	int ret;
 
-	if (!HAS_HW_CONTEXTS(drm_dev))
+	if (!HAS_HW_CONTEXTS(dev))
 		return -ENXIO;
 
-	ret = l3_access_valid(drm_dev, offset);
+	ret = l3_access_valid(dev, offset);
 	if (ret)
 		return ret;
 
-	ret = i915_mutex_lock_interruptible(drm_dev);
+	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
 		return ret;
 
 	if (!dev_priv->l3_parity.remap_info[slice]) {
 		temp = kzalloc(GEN7_L3LOG_SIZE, GFP_KERNEL);
 		if (!temp) {
-			mutex_unlock(&drm_dev->struct_mutex);
+			mutex_unlock(&dev->struct_mutex);
 			return -ENOMEM;
 		}
 	}
@@ -240,7 +243,7 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	list_for_each_entry(ctx, &dev_priv->context_list, link)
 		ctx->remap_slice |= (1<<slice);
 
-	mutex_unlock(&drm_dev->struct_mutex);
+	mutex_unlock(&dev->struct_mutex);
 
 	return count;
 }
@@ -266,7 +269,7 @@ static struct bin_attribute dpf_attrs_1 = {
 static ssize_t gt_act_freq_mhz_show(struct device *kdev,
 				    struct device_attribute *attr, char *buf)
 {
-	struct drm_minor *minor = dev_to_drm_minor(kdev);
+	struct drm_minor *minor = kdev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret;
@@ -298,7 +301,7 @@ static ssize_t gt_act_freq_mhz_show(struct device *kdev,
 static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
 				    struct device_attribute *attr, char *buf)
 {
-	struct drm_minor *minor = dev_to_drm_minor(kdev);
+	struct drm_minor *minor = kdev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
@@ -309,7 +312,7 @@ static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
 
 static ssize_t gt_boost_freq_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_minor *minor = dev_to_drm_minor(kdev);
+	struct drm_minor *minor = kdev_to_drm_minor(kdev);
 	struct drm_i915_private *dev_priv = to_i915(minor->dev);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
@@ -321,7 +324,7 @@ static ssize_t gt_boost_freq_mhz_store(struct device *kdev,
 				       struct device_attribute *attr,
 				       const char *buf, size_t count)
 {
-	struct drm_minor *minor = dev_to_drm_minor(kdev);
+	struct drm_minor *minor = kdev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 val;
@@ -346,7 +349,7 @@ static ssize_t gt_boost_freq_mhz_store(struct device *kdev,
 static ssize_t vlv_rpe_freq_mhz_show(struct device *kdev,
 				     struct device_attribute *attr, char *buf)
 {
-	struct drm_minor *minor = dev_to_drm_minor(kdev);
+	struct drm_minor *minor = kdev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
@@ -357,7 +360,7 @@ static ssize_t vlv_rpe_freq_mhz_show(struct device *kdev,
 
 static ssize_t gt_max_freq_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_minor *minor = dev_to_drm_minor(kdev);
+	struct drm_minor *minor = kdev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
@@ -370,7 +373,7 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 				     struct device_attribute *attr,
 				     const char *buf, size_t count)
 {
-	struct drm_minor *minor = dev_to_drm_minor(kdev);
+	struct drm_minor *minor = kdev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 val;
@@ -418,7 +421,7 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 
 static ssize_t gt_min_freq_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_minor *minor = dev_to_drm_minor(kdev);
+	struct drm_minor *minor = kdev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
@@ -431,7 +434,7 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 				     struct device_attribute *attr,
 				     const char *buf, size_t count)
 {
-	struct drm_minor *minor = dev_to_drm_minor(kdev);
+	struct drm_minor *minor = kdev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 val;
@@ -490,7 +493,7 @@ static DEVICE_ATTR(gt_RPn_freq_mhz, S_IRUGO, gt_rp_mhz_show, NULL);
 /* For now we have a static number of RP states */
 static ssize_t gt_rp_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_minor *minor = dev_to_drm_minor(kdev);
+	struct drm_minor *minor = kdev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 val;
@@ -538,7 +541,7 @@ static ssize_t error_state_read(struct file *filp, struct kobject *kobj,
 {
 
 	struct device *kdev = kobj_to_dev(kobj);
-	struct drm_minor *minor = dev_to_drm_minor(kdev);
+	struct drm_minor *minor = kdev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	struct i915_error_state_file_priv error_priv;
 	struct drm_i915_error_state_buf error_str;
@@ -573,7 +576,7 @@ static ssize_t error_state_write(struct file *file, struct kobject *kobj,
 				 loff_t off, size_t count)
 {
 	struct device *kdev = kobj_to_dev(kobj);
-	struct drm_minor *minor = dev_to_drm_minor(kdev);
+	struct drm_minor *minor = kdev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	int ret;
 
