@@ -419,9 +419,10 @@ static int rcar_thermal_remove(struct platform_device *pdev)
 
 	rcar_thermal_for_each_priv(priv, common) {
 		rcar_thermal_irq_disable(priv);
-		thermal_zone_device_unregister(priv->zone);
 		if (rcar_use_of_thermal(dev))
 			thermal_remove_hwmon_sysfs(priv->zone);
+		else
+			thermal_zone_device_unregister(priv->zone);
 	}
 
 	pm_runtime_put(dev);
