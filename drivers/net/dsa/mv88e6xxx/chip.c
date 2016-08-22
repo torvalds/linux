@@ -486,6 +486,11 @@ static void mv88e6xxx_ppu_state_init(struct mv88e6xxx_chip *chip)
 	chip->ppu_timer.function = mv88e6xxx_ppu_reenable_timer;
 }
 
+static void mv88e6xxx_ppu_state_destroy(struct mv88e6xxx_chip *chip)
+{
+	del_timer_sync(&chip->ppu_timer);
+}
+
 static int mv88e6xxx_phy_ppu_read(struct mv88e6xxx_chip *chip, int addr,
 				  int reg, u16 *val)
 {
@@ -3892,6 +3897,13 @@ static void mv88e6xxx_phy_init(struct mv88e6xxx_chip *chip)
 	}
 }
 
+static void mv88e6xxx_phy_destroy(struct mv88e6xxx_chip *chip)
+{
+	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_PPU)) {
+		mv88e6xxx_ppu_state_destroy(chip);
+	}
+}
+
 static int mv88e6xxx_smi_init(struct mv88e6xxx_chip *chip,
 			      struct mii_bus *bus, int sw_addr)
 {
@@ -4080,6 +4092,7 @@ static void mv88e6xxx_remove(struct mdio_device *mdiodev)
 	struct dsa_switch *ds = dev_get_drvdata(&mdiodev->dev);
 	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
 
+	mv88e6xxx_phy_destroy(chip);
 	mv88e6xxx_unregister_switch(chip);
 	mv88e6xxx_mdio_unregister(chip);
 }
