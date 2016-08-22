@@ -1492,18 +1492,8 @@ static int dgnc_tty_chars_in_buffer(struct tty_struct *tty)
  * returns the new bytes_available.  This only affects printer
  * output.
  */
-static int dgnc_maxcps_room(struct tty_struct *tty, int bytes_available)
+static int dgnc_maxcps_room(struct channel_t *ch, int bytes_available)
 {
-	struct un_t *un = tty->driver_data;
-	struct channel_t *ch = un->un_ch;
-
-	/*
-	 * If its not the Transparent print device, return
-	 * the full data amount.
-	 */
-	if (un->un_type != DGNC_PRINT)
-		return bytes_available;
-
 	if (ch->ch_digi.digi_maxcps > 0 && ch->ch_digi.digi_bufsize > 0) {
 		int cps_limit = 0;
 		unsigned long current_time = jiffies;
@@ -1567,7 +1557,8 @@ static int dgnc_tty_write_room(struct tty_struct *tty)
 		ret += WQUEUESIZE;
 
 	/* Limit printer to maxcps */
-	ret = dgnc_maxcps_room(tty, ret);
+	if (un->un_type != DGNC_PRINT)
+		ret = dgnc_maxcps_room(ch, ret);
 
 	/*
 	 * If we are printer device, leave space for
@@ -1659,7 +1650,8 @@ static int dgnc_tty_write(struct tty_struct *tty,
 	 * Limit printer output to maxcps overall, with bursts allowed
 	 * up to bufsize characters.
 	 */
-	bufcount = dgnc_maxcps_room(tty, bufcount);
+	if (un->un_type != DGNC_PRINT)
+		bufcount = dgnc_maxcps_room(ch, bufcount);
 
 	/*
 	 * Take minimum of what the user wants to send, and the
