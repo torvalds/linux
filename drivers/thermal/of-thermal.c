@@ -600,7 +600,7 @@ static int devm_thermal_zone_of_sensor_match(struct device *dev, void *res,
  * Return: On success returns a valid struct thermal_zone_device,
  * otherwise, it returns a corresponding ERR_PTR(). Caller must
  * check the return value with help of IS_ERR() helper.
- * Registered hermal_zone_device device will automatically be
+ * Registered thermal_zone_device device will automatically be
  * released when device is unbounded.
  */
 struct thermal_zone_device *devm_thermal_zone_of_sensor_register(
