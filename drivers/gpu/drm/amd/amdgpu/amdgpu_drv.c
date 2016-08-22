@@ -471,6 +471,19 @@ amdgpu_pci_remove(struct pci_dev *pdev)
 	drm_put_dev(dev);
 }
 
+static void
+amdgpu_pci_shutdown(struct pci_dev *pdev)
+{
+	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct amdgpu_device *adev = dev->dev_private;
+
+	/* if we are running in a VM, make sure the device
+	 * torn down properly on reboot/shutdown
+	 */
+	if (adev->virtualization.is_virtual)
+		amdgpu_pci_remove(pdev);
+}
+
 static int amdgpu_pmops_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -692,6 +705,7 @@ static struct pci_driver amdgpu_kms_pci_driver = {
 	.id_table = pciidlist,
 	.probe = amdgpu_pci_probe,
 	.remove = amdgpu_pci_remove,
+	.shutdown = amdgpu_pci_shutdown,
 	.driver.pm = &amdgpu_pm_ops,
 };
 
