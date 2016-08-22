@@ -12,7 +12,7 @@
 #ifndef _ASM_ACPI_H
 #define _ASM_ACPI_H
 
-#include <linux/mm.h>
+#include <linux/memblock.h>
 #include <linux/psci.h>
 
 #include <asm/cputype.h>
@@ -32,7 +32,11 @@
 static inline void __iomem *acpi_os_ioremap(acpi_physical_address phys,
 					    acpi_size size)
 {
-	if (!page_is_ram(phys >> PAGE_SHIFT))
+	/*
+	 * EFI's reserve_regions() call adds memory with the WB attribute
+	 * to memblock via early_init_dt_add_memory_arch().
+	 */
+	if (!memblock_is_memory(phys))
 		return ioremap(phys, size);
 
 	return ioremap_cache(phys, size);
