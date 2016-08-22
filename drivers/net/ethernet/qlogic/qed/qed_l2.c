@@ -1685,6 +1685,8 @@ static int qed_fill_eth_dev_info(struct qed_dev *cdev,
 		qed_vf_get_num_vlan_filters(&cdev->hwfns[0],
 					    &info->num_vlan_filters);
 		qed_vf_get_port_mac(&cdev->hwfns[0], info->port_mac);
+
+		info->is_legacy = !!cdev->hwfns[0].vf_iov_info->b_pre_fp_hsi;
 	}
 
 	qed_fill_dev_info(cdev, &info->common);

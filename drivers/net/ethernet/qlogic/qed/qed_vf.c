@@ -191,6 +191,9 @@ static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
 		DP_VERBOSE(p_hwfn,
 			   QED_MSG_IOV, "attempting to acquire resources\n");
 
+		/* Clear response buffer, as this might be a re-send */
+		memset(p_iov->pf2vf_reply, 0, sizeof(union pfvf_tlvs));
+
 		/* send acquire request */
 		rc = qed_send_msg2pf(p_hwfn, &resp->hdr.status, sizeof(*resp));
 		if (rc)
@@ -205,9 +208,12 @@ static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
 			/* PF agrees to allocate our resources */
 			if (!(resp->pfdev_info.capabilities &
 			      PFVF_ACQUIRE_CAP_POST_FW_OVERRIDE)) {
-				DP_INFO(p_hwfn,
-					"PF is using old incompatible driver; Either downgrade driver or request provider to update hypervisor version\n");
-				return -EINVAL;
+				/* It's possible legacy PF mistakenly accepted;
+				 * but we don't care - simply mark it as
+				 * legacy and continue.
+				 */
+				req->vfdev_info.capabilities |=
+				    VFPF_ACQUIRE_CAP_PRE_FP_HSI;
 			}
 			DP_VERBOSE(p_hwfn, QED_MSG_IOV, "resources acquired\n");
 			resources_acquired = true;
@@ -215,26 +221,54 @@ static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
 			   attempts < VF_ACQUIRE_THRESH) {
 			qed_vf_pf_acquire_reduce_resc(p_hwfn, p_resc,
 						      &resp->resc);
+		} else if (resp->hdr.status == PFVF_STATUS_NOT_SUPPORTED) {
+			if (pfdev_info->major_fp_hsi &&
+			    (pfdev_info->major_fp_hsi != ETH_HSI_VER_MAJOR)) {
+				DP_NOTICE(p_hwfn,
+					  "PF uses an incompatible fastpath HSI %02x.%02x [VF requires %02x.%02x]. Please change to a VF driver using %02x.xx.\n",
+					  pfdev_info->major_fp_hsi,
+					  pfdev_info->minor_fp_hsi,
+					  ETH_HSI_VER_MAJOR,
+					  ETH_HSI_VER_MINOR,
+					  pfdev_info->major_fp_hsi);
+				rc = -EINVAL;
+				goto exit;
+			}
 
-			/* Clear response buffer */
-			memset(p_iov->pf2vf_reply, 0, sizeof(union pfvf_tlvs));
-		} else if ((resp->hdr.status == PFVF_STATUS_NOT_SUPPORTED) &&
-			   pfdev_info->major_fp_hsi &&
-			   (pfdev_info->major_fp_hsi != ETH_HSI_VER_MAJOR)) {
-			DP_NOTICE(p_hwfn,
-				  "PF uses an incompatible fastpath HSI %02x.%02x [VF requires %02x.%02x]. Please change to a VF driver using %02x.xx.\n",
-				  pfdev_info->major_fp_hsi,
-				  pfdev_info->minor_fp_hsi,
-				  ETH_HSI_VER_MAJOR,
-				  ETH_HSI_VER_MINOR, pfdev_info->major_fp_hsi);
-			return -EINVAL;
+			if (!pfdev_info->major_fp_hsi) {
+				if (req->vfdev_info.capabilities &
+				    VFPF_ACQUIRE_CAP_PRE_FP_HSI) {
+					DP_NOTICE(p_hwfn,
+						  "PF uses very old drivers. Please change to a VF driver using no later than 8.8.x.x.\n");
+					rc = -EINVAL;
+					goto exit;
+				} else {
+					DP_INFO(p_hwfn,
+						"PF is old - try re-acquire to see if it supports FW-version override\n");
+					req->vfdev_info.capabilities |=
+					    VFPF_ACQUIRE_CAP_PRE_FP_HSI;
+					continue;
+				}
+			}
+
+			/* If PF/VF are using same Major, PF must have had
+			 * it's reasons. Simply fail.
+			 */
+			DP_NOTICE(p_hwfn, "PF rejected acquisition by VF\n");
+			rc = -EINVAL;
+			goto exit;
 		} else {
 			DP_ERR(p_hwfn,
 			       "PF returned error %d to VF acquisition request\n",
 			       resp->hdr.status);
-			return -EAGAIN;
+			rc = -EAGAIN;
+			goto exit;
 		}
 	}
+
+	/* Mark the PF as legacy, if needed */
+	if (req->vfdev_info.capabilities & VFPF_ACQUIRE_CAP_PRE_FP_HSI)
+		p_iov->b_pre_fp_hsi = true;
 
 	/* Update bulletin board size with response from PF */
 	p_iov->bulletin.size = resp->bulletin_size;
@@ -253,14 +287,16 @@ static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
 		}
 	}
 
-	if (ETH_HSI_VER_MINOR &&
+	if (!p_iov->b_pre_fp_hsi &&
+	    ETH_HSI_VER_MINOR &&
 	    (resp->pfdev_info.minor_fp_hsi < ETH_HSI_VER_MINOR)) {
 		DP_INFO(p_hwfn,
 			"PF is using older fastpath HSI; %02x.%02x is configured\n",
 			ETH_HSI_VER_MAJOR, resp->pfdev_info.minor_fp_hsi);
 	}
 
-	return 0;
+exit:
+	return rc;
 }
 
 int qed_vf_hw_prepare(struct qed_hwfn *p_hwfn)
@@ -347,6 +383,9 @@ free_p_iov:
 
 	return -ENOMEM;
 }
+#define TSTORM_QZONE_START   PXP_VF_BAR0_START_SDM_ZONE_A
+#define MSTORM_QZONE_START(dev)   (TSTORM_QZONE_START +	\
+				   (TSTORM_QZONE_SIZE * NUM_OF_L2_QUEUES(dev)))
 
 int qed_vf_pf_rxq_start(struct qed_hwfn *p_hwfn,
 			u8 rx_qid,
@@ -374,6 +413,21 @@ int qed_vf_pf_rxq_start(struct qed_hwfn *p_hwfn,
 	req->bd_max_bytes = bd_max_bytes;
 	req->stat_id = -1;
 
+	/* If PF is legacy, we'll need to calculate producers ourselves
+	 * as well as clean them.
+	 */
+	if (pp_prod && p_iov->b_pre_fp_hsi) {
+		u8 hw_qid = p_iov->acquire_resp.resc.hw_qid[rx_qid];
+		u32 init_prod_val = 0;
+
+		*pp_prod = (u8 __iomem *)p_hwfn->regview +
+					 MSTORM_QZONE_START(p_hwfn->cdev) +
+					 hw_qid * MSTORM_QZONE_SIZE;
+
+		/* Init the rcq, rx bd and rx sge (if valid) producers to 0 */
+		__internal_ram_wr(p_hwfn, *pp_prod, sizeof(u32),
+				  (u32 *)(&init_prod_val));
+	}
 	/* add list termination tlv */
 	qed_add_tlv(p_hwfn, &p_iov->offset,
 		    CHANNEL_TLV_LIST_END, sizeof(struct channel_list_end_tlv));
@@ -387,7 +441,7 @@ int qed_vf_pf_rxq_start(struct qed_hwfn *p_hwfn,
 		return -EINVAL;
 
 	/* Learn the address of the producer from the response */
-	if (pp_prod) {
+	if (pp_prod && !p_iov->b_pre_fp_hsi) {
 		u32 init_prod_val = 0;
 
 		*pp_prod = (u8 __iomem *)p_hwfn->regview + resp->offset;
@@ -470,7 +524,20 @@ int qed_vf_pf_txq_start(struct qed_hwfn *p_hwfn,
 	}
 
 	if (pp_doorbell) {
-		*pp_doorbell = (u8 __iomem *)p_hwfn->doorbells + resp->offset;
+		/* Modern PFs provide the actual offsets, while legacy
+		 * provided only the queue id.
+		 */
+		if (!p_iov->b_pre_fp_hsi) {
+			*pp_doorbell = (u8 __iomem *)p_hwfn->doorbells +
+						     resp->offset;
+		} else {
+			u8 cid = p_iov->acquire_resp.resc.cid[tx_queue_id];
+			u32 db_addr;
+
+			db_addr = qed_db_addr(cid, DQ_DEMS_LEGACY);
+			*pp_doorbell = (u8 __iomem *)p_hwfn->doorbells +
+						     db_addr;
+		}
 
 		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
 			   "Txq[0x%02x]: doorbell at %p [offset 0x%08x]\n",

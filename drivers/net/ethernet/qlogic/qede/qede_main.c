@@ -598,6 +598,14 @@ static netdev_tx_t qede_start_xmit(struct sk_buff *skb,
 			    1 << ETH_TX_DATA_1ST_BD_TUNN_FLAG_SHIFT;
 		}
 
+		/* Legacy FW had flipped behavior in regard to this bit -
+		 * I.e., needed to set to prevent FW from touching encapsulated
+		 * packets when it didn't need to.
+		 */
+		if (unlikely(txq->is_legacy))
+			first_bd->data.bitfields ^=
+			    1 << ETH_TX_DATA_1ST_BD_TUNN_FLAG_SHIFT;
+
 		/* If the packet is IPv6 with extension header, indicate that
 		 * to FW and pass few params, since the device cracker doesn't
 		 * support parsing IPv6 with extension header/s.
@@ -2991,6 +2999,8 @@ static void qede_init_fp(struct qede_dev *edev)
 		for (tc = 0; tc < edev->num_tc; tc++) {
 			txq_index = tc * QEDE_RSS_CNT(edev) + rss_id;
 			fp->txqs[tc].index = txq_index;
+			if (edev->dev_info.is_legacy)
+				fp->txqs[tc].is_legacy = true;
 		}
 
 		snprintf(fp->name, sizeof(fp->name), "%s-fp-%d",

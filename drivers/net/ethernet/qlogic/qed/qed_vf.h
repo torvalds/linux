@@ -551,6 +551,11 @@ struct qed_vf_iov {
 
 	/* we set aside a copy of the acquire response */
 	struct pfvf_acquire_resp_tlv acquire_resp;
+
+	/* In case PF originates prior to the fp-hsi version comparison,
+	 * this has to be propagated as it affects the fastpath.
+	 */
+	bool b_pre_fp_hsi;
 };
 
 #ifdef CONFIG_QED_SRIOV
