@@ -40,6 +40,8 @@
 
 #define SCHED_CLS_NONE 0xff
 
+#define FW_SCHED_CLS_NONE 0xffffffff
+
 enum {
 	SCHED_STATE_ACTIVE,
 	SCHED_STATE_UNUSED,
@@ -49,10 +51,21 @@ enum sched_fw_ops {
 	SCHED_FW_OP_ADD,
 };
 
+enum sched_bind_type {
+	SCHED_QUEUE,
+};
+
+struct sched_queue_entry {
+	struct list_head list;
+	unsigned int cntxt_id;
+	struct ch_sched_queue param;
+};
+
 struct sched_class {
 	u8 state;
 	u8 idx;
 	struct ch_sched_params info;
+	struct list_head queue_list;
 	spinlock_t lock; /* Per class lock */
 	atomic_t refcnt;
 };
@@ -80,6 +93,11 @@ static inline bool valid_class_id(struct net_device *dev, u8 class_id)
 
 	return true;
 }
+
+int cxgb4_sched_class_bind(struct net_device *dev, void *arg,
+			   enum sched_bind_type type);
+int cxgb4_sched_class_unbind(struct net_device *dev, void *arg,
+			     enum sched_bind_type type);
 
 struct sched_class *cxgb4_sched_class_alloc(struct net_device *dev,
 					    struct ch_sched_params *p);

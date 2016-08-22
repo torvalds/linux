@@ -881,6 +881,14 @@ struct ch_sched_params {
 	} u;
 };
 
+/* Support for "sched_queue" command to allow one or more NIC TX Queues
+ * to be bound to a TX Scheduling Class.
+ */
+struct ch_sched_queue {
+	s8   queue;    /* queue index */
+	s8   class;    /* class index */
+};
+
 /* Defined bit width of user definable filter tuples
  */
 #define ETHTYPE_BITWIDTH 16
