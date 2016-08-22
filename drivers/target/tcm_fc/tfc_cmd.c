@@ -575,7 +575,7 @@ static void ft_send_work(struct work_struct *work)
 			      TARGET_SCF_ACK_KREF))
 		goto err;
 
-	pr_debug("r_ctl %x alloc target_submit_cmd\n", fh->fh_r_ctl);
+	pr_debug("r_ctl %x target_submit_cmd %p\n", fh->fh_r_ctl, cmd);
 	return;
 
 err:
