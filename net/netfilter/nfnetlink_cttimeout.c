@@ -302,7 +302,16 @@ static void ctnl_untimeout(struct net *net, struct ctnl_timeout *timeout)
 	const struct hlist_nulls_node *nn;
 	unsigned int last_hsize;
 	spinlock_t *lock;
-	int i;
+	int i, cpu;
+
+	for_each_possible_cpu(cpu) {
+		struct ct_pcpu *pcpu = per_cpu_ptr(net->ct.pcpu_lists, cpu);
+
+		spin_lock_bh(&pcpu->lock);
+		hlist_nulls_for_each_entry(h, nn, &pcpu->unconfirmed, hnnode)
+			untimeout(h, timeout);
+		spin_unlock_bh(&pcpu->lock);
+	}
 
 	local_bh_disable();
 restart:
