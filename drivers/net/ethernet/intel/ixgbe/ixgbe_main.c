@@ -4105,22 +4105,19 @@ static void ixgbe_vlan_promisc_enable(struct ixgbe_adapter *adapter)
 
 	vlnctrl = IXGBE_READ_REG(hw, IXGBE_VLNCTRL);
 
-	switch (hw->mac.type) {
-	case ixgbe_mac_82599EB:
-	case ixgbe_mac_X540:
-	case ixgbe_mac_X550:
-	case ixgbe_mac_X550EM_x:
-	case ixgbe_mac_x550em_a:
-	default:
-		if (adapter->flags & IXGBE_FLAG_VMDQ_ENABLED)
-			break;
-		/* fall through */
-	case ixgbe_mac_82598EB:
-		/* legacy case, we can just disable VLAN filtering */
+	if (adapter->flags & IXGBE_FLAG_VMDQ_ENABLED) {
+	/* For VMDq and SR-IOV we must leave VLAN filtering enabled */
+		vlnctrl |= IXGBE_VLNCTRL_VFE;
+		IXGBE_WRITE_REG(hw, IXGBE_VLNCTRL, vlnctrl);
+	} else {
 		vlnctrl &= ~IXGBE_VLNCTRL_VFE;
 		IXGBE_WRITE_REG(hw, IXGBE_VLNCTRL, vlnctrl);
 		return;
 	}
+
+	/* Nothing to do for 82598 */
+	if (hw->mac.type == ixgbe_mac_82598EB)
+		return;
 
 	/* We are already in VLAN promisc, nothing to do */
 	if (adapter->flags2 & IXGBE_FLAG2_VLAN_PROMISC)
@@ -4128,10 +4125,6 @@ static void ixgbe_vlan_promisc_enable(struct ixgbe_adapter *adapter)
 
 	/* Set flag so we don't redo unnecessary work */
 	adapter->flags2 |= IXGBE_FLAG2_VLAN_PROMISC;
-
-	/* For VMDq and SR-IOV we must leave VLAN filtering enabled */
-	vlnctrl |= IXGBE_VLNCTRL_VFE;
-	IXGBE_WRITE_REG(hw, IXGBE_VLNCTRL, vlnctrl);
 
 	/* Add PF to all active pools */
 	for (i = IXGBE_VLVF_ENTRIES; --i;) {
@@ -4204,19 +4197,9 @@ static void ixgbe_vlan_promisc_disable(struct ixgbe_adapter *adapter)
 	vlnctrl |= IXGBE_VLNCTRL_VFE;
 	IXGBE_WRITE_REG(hw, IXGBE_VLNCTRL, vlnctrl);
 
-	switch (hw->mac.type) {
-	case ixgbe_mac_82599EB:
-	case ixgbe_mac_X540:
-	case ixgbe_mac_X550:
-	case ixgbe_mac_X550EM_x:
-	case ixgbe_mac_x550em_a:
-	default:
-		if (adapter->flags & IXGBE_FLAG_VMDQ_ENABLED)
-			break;
-		/* fall through */
-	case ixgbe_mac_82598EB:
+	if (!(adapter->flags & IXGBE_FLAG_VMDQ_ENABLED) ||
+	    hw->mac.type == ixgbe_mac_82598EB)
 		return;
-	}
 
 	/* We are not in VLAN promisc, nothing to do */
 	if (!(adapter->flags2 & IXGBE_FLAG2_VLAN_PROMISC))
