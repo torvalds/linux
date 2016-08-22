@@ -669,6 +669,7 @@ static int radeon_uvd_cs_reg(struct radeon_cs_parser *p,
 				return r;
 			break;
 		case UVD_ENGINE_CNTL:
+		case UVD_NO_OP:
 			break;
 		default:
 			DRM_ERROR("Invalid reg 0x%X!\n",
