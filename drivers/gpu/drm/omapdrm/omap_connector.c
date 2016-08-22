@@ -229,13 +229,11 @@ struct drm_connector *omap_connector_init(struct drm_device *dev,
 				connector_type);
 	drm_connector_helper_add(connector, &omap_connector_helper_funcs);
 
-#if 0 /* enable when dss2 supports hotplug */
-	if (dssdev->caps & OMAP_DSS_DISPLAY_CAP_HPD)
-		connector->polled = 0;
-	else
-#endif
+	if (dssdev->driver->detect)
 		connector->polled = DRM_CONNECTOR_POLL_CONNECT |
-				DRM_CONNECTOR_POLL_DISCONNECT;
+				    DRM_CONNECTOR_POLL_DISCONNECT;
+	else
+		connector->polled = 0;
 
 	connector->interlace_allowed = 1;
 	connector->doublescan_allowed = 0;
