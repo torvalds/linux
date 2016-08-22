@@ -72,7 +72,7 @@
 #define MAX_THREADS		32
 #define MAX_TEST_SIZE		SZ_1M
 #define MAX_SRCS		32
-#define DMA_OUT_RESOURCE_TO	50
+#define DMA_OUT_RESOURCE_TO	msecs_to_jiffies(50)
 #define DMA_RETRIES		20
 #define SZ_4G			(1ULL << 32)
 #define MAX_SEG_ORDER		20 /* no larger than 1M for kmalloc buffer */
