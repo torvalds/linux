@@ -1071,32 +1071,6 @@ static inline void ata_id_to_hd_driveid(u16 *id)
 #endif
 }
 
-/*
- * Write LBA Range Entries to the buffer that will cover the extent from
- * sector to sector + count.  This is used for TRIM and for ADD LBA(S)
- * TO NV CACHE PINNED SET.
- */
-static inline unsigned ata_set_lba_range_entries(void *_buffer,
-		unsigned num, u64 sector, unsigned long count)
-{
-	__le64 *buffer = _buffer;
-	unsigned i = 0, used_bytes;
-
-	while (i < num) {
-		u64 entry = sector |
-			((u64)(count > 0xffff ? 0xffff : count) << 48);
-		buffer[i++] = __cpu_to_le64(entry);
-		if (count <= 0xffff)
-			break;
-		count -= 0xffff;
-		sector += 0xffff;
-	}
-
-	used_bytes = ALIGN(i * 8, 512);
-	memset(buffer + i, 0, used_bytes - i * 8);
-	return used_bytes;
-}
-
 static inline bool ata_ok(u8 status)
 {
 	return ((status & (ATA_BUSY | ATA_DRDY | ATA_DF | ATA_DRQ | ATA_ERR))
