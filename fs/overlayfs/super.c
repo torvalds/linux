@@ -986,10 +986,11 @@ static unsigned int ovl_split_lowerdirs(char *str)
 	return ctr;
 }
 
-static int ovl_posix_acl_xattr_set(const struct xattr_handler *handler,
-				   struct dentry *dentry, struct inode *inode,
-				   const char *name, const void *value,
-				   size_t size, int flags)
+static int __maybe_unused
+ovl_posix_acl_xattr_set(const struct xattr_handler *handler,
+			struct dentry *dentry, struct inode *inode,
+			const char *name, const void *value,
+			size_t size, int flags)
 {
 	struct dentry *workdir = ovl_workdir(dentry);
 	struct inode *realinode = ovl_inode_real(inode, NULL);
@@ -1040,13 +1041,15 @@ static int ovl_own_xattr_set(const struct xattr_handler *handler,
 	return -EPERM;
 }
 
-static const struct xattr_handler ovl_posix_acl_access_xattr_handler = {
+static const struct xattr_handler __maybe_unused
+ovl_posix_acl_access_xattr_handler = {
 	.name = XATTR_NAME_POSIX_ACL_ACCESS,
 	.flags = ACL_TYPE_ACCESS,
 	.set = ovl_posix_acl_xattr_set,
 };
 
-static const struct xattr_handler ovl_posix_acl_default_xattr_handler = {
+static const struct xattr_handler __maybe_unused
+ovl_posix_acl_default_xattr_handler = {
 	.name = XATTR_NAME_POSIX_ACL_DEFAULT,
 	.flags = ACL_TYPE_DEFAULT,
 	.set = ovl_posix_acl_xattr_set,
@@ -1063,17 +1066,13 @@ static const struct xattr_handler ovl_other_xattr_handler = {
 };
 
 static const struct xattr_handler *ovl_xattr_handlers[] = {
+#ifdef CONFIG_FS_POSIX_ACL
 	&ovl_posix_acl_access_xattr_handler,
 	&ovl_posix_acl_default_xattr_handler,
+#endif
 	&ovl_own_xattr_handler,
 	&ovl_other_xattr_handler,
 	NULL
-};
-
-static const struct xattr_handler *ovl_xattr_noacl_handlers[] = {
-	&ovl_own_xattr_handler,
-	&ovl_other_xattr_handler,
-	NULL,
 };
 
 static int ovl_fill_super(struct super_block *sb, void *data, int silent)
@@ -1288,10 +1287,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 	sb->s_magic = OVERLAYFS_SUPER_MAGIC;
 	sb->s_op = &ovl_super_operations;
-	if (IS_ENABLED(CONFIG_FS_POSIX_ACL))
-		sb->s_xattr = ovl_xattr_handlers;
-	else
-		sb->s_xattr = ovl_xattr_noacl_handlers;
+	sb->s_xattr = ovl_xattr_handlers;
 	sb->s_root = root_dentry;
 	sb->s_fs_info = ufs;
 	sb->s_flags |= MS_POSIXACL;
