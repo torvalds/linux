@@ -374,3 +374,11 @@
 &uart3 {
 	label = "LS-UART1";
 };
+
+&ade {
+	status = "ok";
+};
+
+&dsi {
+	status = "ok";
+};
