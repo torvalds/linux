@@ -2490,11 +2490,11 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	if (dsa_is_cpu_port(ds, port)) {
 		if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_EDSA))
 			reg |= PORT_CONTROL_FRAME_ETHER_TYPE_DSA |
-				PORT_CONTROL_FORWARD_UNKNOWN |
 				PORT_CONTROL_FORWARD_UNKNOWN_MC;
 		else
 			reg |= PORT_CONTROL_DSA_TAG;
-		reg |= PORT_CONTROL_EGRESS_ADD_TAG;
+		reg |= PORT_CONTROL_EGRESS_ADD_TAG |
+			PORT_CONTROL_FORWARD_UNKNOWN;
 	}
 	if (dsa_is_dsa_port(ds, port)) {
 		if (mv88e6xxx_6095_family(chip) ||
