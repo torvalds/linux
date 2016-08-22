@@ -1553,6 +1553,30 @@ static const struct file_operations fops_led_blink_time = {
 	.open  = simple_open,
 };
 
+/*---------FW capabilities------------*/
+static int wil_fw_capabilities_debugfs_show(struct seq_file *s, void *data)
+{
+	struct wil6210_priv *wil = s->private;
+
+	seq_printf(s, "fw_capabilities : %*pb\n", WMI_FW_CAPABILITY_MAX,
+		   wil->fw_capabilities);
+
+	return 0;
+}
+
+static int wil_fw_capabilities_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, wil_fw_capabilities_debugfs_show,
+			   inode->i_private);
+}
+
+static const struct file_operations fops_fw_capabilities = {
+	.open		= wil_fw_capabilities_seq_open,
+	.release	= single_release,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+};
+
 /*----------------*/
 static void wil6210_debugfs_init_blobs(struct wil6210_priv *wil,
 				       struct dentry *dbg)
@@ -1603,6 +1627,7 @@ static const struct {
 	{"recovery",	S_IRUGO | S_IWUSR,	&fops_recovery},
 	{"led_cfg",	S_IRUGO | S_IWUSR,	&fops_led_cfg},
 	{"led_blink_time",	S_IRUGO | S_IWUSR,	&fops_led_blink_time},
+	{"fw_capabilities",	S_IRUGO,	&fops_fw_capabilities},
 };
 
 static void wil6210_debugfs_init_files(struct wil6210_priv *wil,

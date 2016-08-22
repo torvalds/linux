@@ -580,6 +580,7 @@ struct wil6210_priv {
 	u32 hw_version;
 	const char *hw_name;
 	DECLARE_BITMAP(hw_capabilities, hw_capability_last);
+	DECLARE_BITMAP(fw_capabilities, WMI_FW_CAPABILITY_MAX);
 	u8 n_mids; /* number of additional MIDs as reported by FW */
 	u32 recovery_count; /* num of FW recovery attempts in a short time */
 	u32 recovery_state; /* FW recovery state machine */
@@ -895,7 +896,8 @@ void wil6210_unmask_irq_rx(struct wil6210_priv *wil);
 int wil_iftype_nl2wmi(enum nl80211_iftype type);
 
 int wil_ioctl(struct wil6210_priv *wil, void __user *data, int cmd);
-int wil_request_firmware(struct wil6210_priv *wil, const char *name);
+int wil_request_firmware(struct wil6210_priv *wil, const char *name,
+			 bool load);
 
 int wil_can_suspend(struct wil6210_priv *wil, bool is_runtime);
 int wil_suspend(struct wil6210_priv *wil, bool is_runtime);

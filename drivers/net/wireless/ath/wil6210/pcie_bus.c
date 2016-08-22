@@ -39,6 +39,7 @@ void wil_set_capabilities(struct wil6210_priv *wil)
 	u32 rev_id = wil_r(wil, RGF_USER_JTAG_DEV_ID);
 
 	bitmap_zero(wil->hw_capabilities, hw_capability_last);
+	bitmap_zero(wil->fw_capabilities, WMI_FW_CAPABILITY_MAX);
 
 	switch (rev_id) {
 	case JTAG_DEV_ID_SPARROW_B0:
@@ -52,6 +53,9 @@ void wil_set_capabilities(struct wil6210_priv *wil)
 	}
 
 	wil_info(wil, "Board hardware is %s\n", wil->hw_name);
+
+	/* extract FW capabilities from file without loading the FW */
+	wil_request_firmware(wil, WIL_FW_NAME, false);
 }
 
 void wil_disable_irq(struct wil6210_priv *wil)

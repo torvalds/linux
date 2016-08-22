@@ -894,10 +894,10 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 
 		wil_halt_cpu(wil);
 		/* Loading f/w from the file */
-		rc = wil_request_firmware(wil, WIL_FW_NAME);
+		rc = wil_request_firmware(wil, WIL_FW_NAME, true);
 		if (rc)
 			return rc;
-		rc = wil_request_firmware(wil, WIL_FW2_NAME);
+		rc = wil_request_firmware(wil, WIL_FW2_NAME, true);
 		if (rc)
 			return rc;
 
