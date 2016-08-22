@@ -739,7 +739,7 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 	ret = comedi_load_firmware(dev, &comedi_to_pci_dev(dev)->dev,
 				   "comedi/jr3pci.idm",
 				   jr3_download_firmware, 0);
-	dev_dbg(dev->class_dev, "Firmare load %d\n", ret);
+	dev_dbg(dev->class_dev, "Firmware load %d\n", ret);
 	if (ret < 0)
 		return ret;
 	/*
