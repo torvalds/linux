@@ -435,8 +435,8 @@ static inline int i40iw_alloc_resource(struct i40iw_device *iwdev,
 	*next = resource_num + 1;
 	if (*next == max_resources)
 		*next = 0;
-	spin_unlock_irqrestore(&iwdev->resource_lock, flags);
 	*req_resource_num = resource_num;
+	spin_unlock_irqrestore(&iwdev->resource_lock, flags);
 
 	return 0;
 }
