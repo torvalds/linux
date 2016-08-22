@@ -561,9 +561,18 @@ struct qed_dev {
 static inline u8 qed_concrete_to_sw_fid(struct qed_dev *cdev,
 					u32 concrete_fid)
 {
+	u8 vfid = GET_FIELD(concrete_fid, PXP_CONCRETE_FID_VFID);
 	u8 pfid = GET_FIELD(concrete_fid, PXP_CONCRETE_FID_PFID);
+	u8 vf_valid = GET_FIELD(concrete_fid,
+				PXP_CONCRETE_FID_VFVALID);
+	u8 sw_fid;
 
-	return pfid;
+	if (vf_valid)
+		sw_fid = vfid + MAX_NUM_PFS;
+	else
+		sw_fid = pfid;
+
+	return sw_fid;
 }
 
 #define PURE_LB_TC 8
