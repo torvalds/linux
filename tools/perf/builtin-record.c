@@ -96,7 +96,7 @@ backward_rb_find_range(void *buf, int mask, u64 head, u64 *start, u64 *end)
 	*start = head;
 	while (true) {
 		if (evt_head - head >= (unsigned int)size) {
-			pr_debug("Finshed reading backward ring buffer: rewind\n");
+			pr_debug("Finished reading backward ring buffer: rewind\n");
 			if (evt_head - head > (unsigned int)size)
 				evt_head -= pheader->size;
 			*end = evt_head;
@@ -106,7 +106,7 @@ backward_rb_find_range(void *buf, int mask, u64 head, u64 *start, u64 *end)
 		pheader = (struct perf_event_header *)(buf + (evt_head & mask));
 
 		if (pheader->size == 0) {
-			pr_debug("Finshed reading backward ring buffer: get start\n");
+			pr_debug("Finished reading backward ring buffer: get start\n");
 			*end = evt_head;
 			return 0;
 		}
