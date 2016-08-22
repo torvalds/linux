@@ -906,6 +906,42 @@ static int tw686x_g_std(struct file *file, void *priv, v4l2_std_id *id)
 	return 0;
 }
 
+static int tw686x_enum_framesizes(struct file *file, void *priv,
+				  struct v4l2_frmsizeenum *fsize)
+{
+	struct tw686x_video_channel *vc = video_drvdata(file);
+
+	if (fsize->index)
+		return -EINVAL;
+	fsize->type = V4L2_FRMSIZE_TYPE_STEPWISE;
+	fsize->stepwise.max_width = TW686X_VIDEO_WIDTH;
+	fsize->stepwise.min_width = fsize->stepwise.max_width / 2;
+	fsize->stepwise.step_width = fsize->stepwise.min_width;
+	fsize->stepwise.max_height = TW686X_VIDEO_HEIGHT(vc->video_standard);
+	fsize->stepwise.min_height = fsize->stepwise.max_height / 2;
+	fsize->stepwise.step_height = fsize->stepwise.min_height;
+	return 0;
+}
+
+static int tw686x_enum_frameintervals(struct file *file, void *priv,
+				      struct v4l2_frmivalenum *ival)
+{
+	struct tw686x_video_channel *vc = video_drvdata(file);
+	int max_fps = TW686X_MAX_FPS(vc->video_standard);
+	int max_rates = DIV_ROUND_UP(max_fps, 2);
+
+	if (ival->index >= max_rates)
+		return -EINVAL;
+
+	ival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
+	ival->discrete.numerator = 1;
+	if (ival->index < (max_rates - 1))
+		ival->discrete.denominator = (ival->index + 1) * 2;
+	else
+		ival->discrete.denominator = max_fps;
+	return 0;
+}
+
 static int tw686x_g_parm(struct file *file, void *priv,
 			 struct v4l2_streamparm *sp)
 {
@@ -1034,6 +1070,8 @@ static const struct v4l2_ioctl_ops tw686x_video_ioctl_ops = {
 
 	.vidioc_g_parm			= tw686x_g_parm,
 	.vidioc_s_parm			= tw686x_s_parm,
+	.vidioc_enum_framesizes		= tw686x_enum_framesizes,
+	.vidioc_enum_frameintervals	= tw686x_enum_frameintervals,
 
 	.vidioc_enum_input		= tw686x_enum_input,
 	.vidioc_g_input			= tw686x_g_input,
