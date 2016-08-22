@@ -46,6 +46,16 @@ enum wmi_mid {
 	MID_BROADCAST		= 0xFF,
 };
 
+/* FW capability IDs
+ * Each ID maps to a bit in a 32-bit bitmask value provided by the FW to
+ * the host
+ */
+enum wmi_fw_capability {
+	WMI_FW_CAPABILITY_FTM		= 0,
+	WMI_FW_CAPABILITY_PS_CONFIG	= 1,
+	WMI_FW_CAPABILITY_MAX,
+};
+
 /* WMI_CMD_HDR */
 struct wmi_cmd_hdr {
 	u8 mid;
@@ -170,6 +180,13 @@ enum wmi_command_id {
 	/* Not supported yet */
 	WMI_PS_MID_CFG_READ_CMDID		= 0x920,
 	WMI_RS_CFG_CMDID			= 0x921,
+	WMI_GET_DETAILED_RS_RES_CMDID		= 0x922,
+	WMI_AOA_MEAS_CMDID			= 0x923,
+	WMI_TOF_SESSION_START_CMDID		= 0x991,
+	WMI_TOF_GET_CAPABILITIES_CMDID		= 0x992,
+	WMI_TOF_SET_LCR_CMDID			= 0x993,
+	WMI_TOF_SET_LCI_CMDID			= 0x994,
+	WMI_TOF_CHANNEL_INFO_CMDID		= 0x995,
 	WMI_SET_MAC_ADDRESS_CMDID		= 0xF003,
 	WMI_ABORT_SCAN_CMDID			= 0xF007,
 	WMI_SET_PROMISCUOUS_MODE_CMDID		= 0xF041,
@@ -843,6 +860,88 @@ struct wmi_pmc_cmd {
 	__le64 mem_base;
 } __packed;
 
+enum wmi_aoa_meas_type {
+	WMI_AOA_PHASE_MEAS	= 0x00,
+	WMI_AOA_PHASE_AMP_MEAS	= 0x01,
+};
+
+/* WMI_AOA_MEAS_CMDID */
+struct wmi_aoa_meas_cmd {
+	u8 mac_addr[WMI_MAC_LEN];
+	/* channels IDs:
+	 * 0 - 58320 MHz
+	 * 1 - 60480 MHz
+	 * 2 - 62640 MHz
+	 */
+	u8 channel;
+	/* enum wmi_aoa_meas_type */
+	u8 aoa_meas_type;
+	__le32 meas_rf_mask;
+} __packed;
+
+enum wmi_tof_burst_duration {
+	WMI_TOF_BURST_DURATION_250_USEC		= 2,
+	WMI_TOF_BURST_DURATION_500_USEC		= 3,
+	WMI_TOF_BURST_DURATION_1_MSEC		= 4,
+	WMI_TOF_BURST_DURATION_2_MSEC		= 5,
+	WMI_TOF_BURST_DURATION_4_MSEC		= 6,
+	WMI_TOF_BURST_DURATION_8_MSEC		= 7,
+	WMI_TOF_BURST_DURATION_16_MSEC		= 8,
+	WMI_TOF_BURST_DURATION_32_MSEC		= 9,
+	WMI_TOF_BURST_DURATION_64_MSEC		= 10,
+	WMI_TOF_BURST_DURATION_128_MSEC		= 11,
+	WMI_TOF_BURST_DURATION_NO_PREFERENCES	= 15,
+};
+
+enum wmi_tof_session_start_flags {
+	WMI_TOF_SESSION_START_FLAG_SECURED	= 0x1,
+	WMI_TOF_SESSION_START_FLAG_ASAP		= 0x2,
+	WMI_TOF_SESSION_START_FLAG_LCI_REQ	= 0x4,
+	WMI_TOF_SESSION_START_FLAG_LCR_REQ	= 0x8,
+};
+
+/* WMI_TOF_SESSION_START_CMDID */
+struct wmi_ftm_dest_info {
+	u8 channel;
+	/* wmi_tof_session_start_flags_e */
+	u8 flags;
+	u8 initial_token;
+	u8 num_of_ftm_per_burst;
+	u8 num_of_bursts_exp;
+	/* wmi_tof_burst_duration_e */
+	u8 burst_duration;
+	/* Burst Period indicate interval between two consecutive burst
+	 * instances, in units of 100 ms
+	 */
+	__le16 burst_period;
+	u8 dst_mac[WMI_MAC_LEN];
+	__le16 reserved;
+} __packed;
+
+/* WMI_TOF_SESSION_START_CMDID */
+struct wmi_tof_session_start_cmd {
+	__le32 session_id;
+	u8 num_of_aoa_measures;
+	u8 aoa_type;
+	__le16 num_of_dest;
+	u8 reserved[4];
+	struct wmi_ftm_dest_info ftm_dest_info[0];
+} __packed;
+
+enum wmi_tof_channel_info_report_type {
+	WMI_TOF_CHANNEL_INFO_TYPE_CIR			= 0x1,
+	WMI_TOF_CHANNEL_INFO_TYPE_RSSI			= 0x2,
+	WMI_TOF_CHANNEL_INFO_TYPE_SNR			= 0x4,
+	WMI_TOF_CHANNEL_INFO_TYPE_DEBUG_DATA		= 0x8,
+	WMI_TOF_CHANNEL_INFO_TYPE_VENDOR_SPECIFIC	= 0x10,
+};
+
+/* WMI_TOF_CHANNEL_INFO_CMDID */
+struct wmi_tof_channel_info_cmd {
+	/* wmi_tof_channel_info_report_type_e */
+	__le32 channel_info_report_request;
+} __packed;
+
 /* WMI Events
  * List of Events (target to host)
  */
@@ -934,6 +1033,14 @@ enum wmi_event_id {
 	/* Not supported yet */
 	WMI_PS_MID_CFG_READ_EVENTID			= 0x1920,
 	WMI_RS_CFG_DONE_EVENTID				= 0x1921,
+	WMI_GET_DETAILED_RS_RES_EVENTID			= 0x1922,
+	WMI_AOA_MEAS_EVENTID				= 0x1923,
+	WMI_TOF_SESSION_END_EVENTID			= 0x1991,
+	WMI_TOF_GET_CAPABILITIES_EVENTID		= 0x1992,
+	WMI_TOF_SET_LCR_EVENTID				= 0x1993,
+	WMI_TOF_SET_LCI_EVENTID				= 0x1994,
+	WMI_TOF_FTM_PER_DEST_RES_EVENTID		= 0x1995,
+	WMI_TOF_CHANNEL_INFO_EVENTID			= 0x1996,
 	WMI_SET_CHANNEL_EVENTID				= 0x9000,
 	WMI_ASSOC_REQ_EVENTID				= 0x9001,
 	WMI_EAPOL_RX_EVENTID				= 0x9002,
@@ -1003,6 +1110,13 @@ struct wmi_fw_ver_event {
 	__le32 bl_minor;
 	__le32 bl_subminor;
 	__le32 bl_build;
+	/* The number of entries in the FW capabilies array */
+	u8 fw_capabilities_len;
+	u8 reserved[3];
+	/* FW capabilities info
+	 * Must be the last member of the struct
+	 */
+	__le32 fw_capabilities[0];
 } __packed;
 
 /* WMI_GET_RF_STATUS_EVENTID */
@@ -1565,6 +1679,41 @@ struct wmi_rs_cfg_done_event {
 	u8 reserved[2];
 } __packed;
 
+/* WMI_GET_DETAILED_RS_RES_CMDID */
+struct wmi_get_detailed_rs_res_cmd {
+	/* connection id */
+	u8 cid;
+	u8 reserved[3];
+} __packed;
+
+/* RS results status */
+enum wmi_rs_results_status {
+	WMI_RS_RES_VALID	= 0x00,
+	WMI_RS_RES_INVALID	= 0x01,
+};
+
+/* Rate search results */
+struct wmi_rs_results {
+	/* number of sent MPDUs */
+	u8 num_of_tx_pkt[WMI_NUM_MCS];
+	/* number of non-acked MPDUs */
+	u8 num_of_non_acked_pkt[WMI_NUM_MCS];
+	/* RS timestamp */
+	__le32 tsf;
+	/* RS selected MCS */
+	u8 mcs;
+} __packed;
+
+/* WMI_GET_DETAILED_RS_RES_EVENTID */
+struct wmi_get_detailed_rs_res_event {
+	u8 cid;
+	/* enum wmi_rs_results_status */
+	u8 status;
+	/* detailed rs results */
+	struct wmi_rs_results rs_results;
+	u8 reserved[3];
+} __packed;
+
 /* broadcast connection ID */
 #define WMI_LINK_MAINTAIN_CFG_CID_BROADCAST	(0xFFFFFFFF)
 
@@ -1890,6 +2039,149 @@ struct wmi_ps_mid_cfg_read_event {
 	struct wmi_ps_mid_cfg mid_ps_cfg;
 	/* wmi_ps_cfg_cmd_status_e */
 	__le32 status;
+} __packed;
+
+#define WMI_AOA_MAX_DATA_SIZE	(128)
+
+enum wmi_aoa_meas_status {
+	WMI_AOA_MEAS_SUCCESS		= 0x00,
+	WMI_AOA_MEAS_PEER_INCAPABLE	= 0x01,
+	WMI_AOA_MEAS_FAILURE		= 0x02,
+};
+
+/* WMI_AOA_MEAS_EVENTID */
+struct wmi_aoa_meas_event {
+	u8 mac_addr[WMI_MAC_LEN];
+	/* channels IDs:
+	 * 0 - 58320 MHz
+	 * 1 - 60480 MHz
+	 * 2 - 62640 MHz
+	 */
+	u8 channel;
+	/* enum wmi_aoa_meas_type */
+	u8 aoa_meas_type;
+	/* Measurments are from RFs, defined by the mask */
+	__le32 meas_rf_mask;
+	/* enum wmi_aoa_meas_status */
+	u8 meas_status;
+	u8 reserved;
+	/* Length of meas_data in bytes */
+	__le16 length;
+	u8 meas_data[WMI_AOA_MAX_DATA_SIZE];
+} __packed;
+
+/* WMI_TOF_GET_CAPABILITIES_EVENTID */
+struct wmi_tof_get_capabilities_event {
+	u8 ftm_capability;
+	/* maximum supported number of destination to start TOF */
+	u8 max_num_of_dest;
+	/* maximum supported number of measurements per burst */
+	u8 max_num_of_meas_per_burst;
+	u8 reserved;
+	/* maximum supported multi bursts */
+	__le16 max_multi_bursts_sessions;
+	/* maximum supported FTM burst duration , wmi_tof_burst_duration_e */
+	__le16 max_ftm_burst_duration;
+	/* AOA supported types */
+	__le32 aoa_supported_types;
+} __packed;
+
+enum wmi_tof_session_end_status {
+	WMI_TOF_SESSION_END_NO_ERROR		= 0x00,
+	WMI_TOF_SESSION_END_FAIL		= 0x01,
+	WMI_TOF_SESSION_END_PARAMS_ERROR	= 0x02,
+	WMI_TOF_SESSION_END_ABORTED		= 0x03,
+};
+
+/* WMI_TOF_SESSION_END_EVENTID */
+struct wmi_tof_session_end_event {
+	/* FTM session ID */
+	__le32 session_id;
+	/* wmi_tof_session_end_status_e */
+	u8 status;
+	u8 reserved[3];
+} __packed;
+
+/* Responder FTM Results */
+struct wmi_responder_ftm_res {
+	u8 t1[6];
+	u8 t2[6];
+	u8 t3[6];
+	u8 t4[6];
+	__le16 tod_err;
+	__le16 toa_err;
+	__le16 tod_err_initiator;
+	__le16 toa_err_initiator;
+} __packed;
+
+enum wmi_tof_ftm_per_dest_res_status {
+	WMI_PER_DEST_RES_NO_ERROR		= 0x00,
+	WMI_PER_DEST_RES_TX_RX_FAIL		= 0x01,
+	WMI_PER_DEST_RES_PARAM_DONT_MATCH	= 0x02,
+};
+
+enum wmi_tof_ftm_per_dest_res_flags {
+	WMI_PER_DEST_RES_REQ_START		= 0x01,
+	WMI_PER_DEST_RES_BURST_REPORT_END	= 0x02,
+	WMI_PER_DEST_RES_REQ_END		= 0x04,
+	WMI_PER_DEST_RES_PARAM_UPDATE		= 0x08,
+};
+
+/* WMI_TOF_FTM_PER_DEST_RES_EVENTID */
+struct wmi_tof_ftm_per_dest_res_event {
+	/* FTM session ID */
+	__le32 session_id;
+	/* destination MAC address */
+	u8 dst_mac[WMI_MAC_LEN];
+	/* wmi_tof_ftm_per_dest_res_flags_e */
+	u8 flags;
+	/* wmi_tof_ftm_per_dest_res_status_e */
+	u8 status;
+	/* responder ASAP */
+	u8 responder_asap;
+	/* responder number of FTM per burst */
+	u8 responder_num_ftm_per_burst;
+	/* responder number of FTM burst exponent */
+	u8 responder_num_ftm_bursts_exp;
+	/* responder burst duration ,wmi_tof_burst_duration_e */
+	u8 responder_burst_duration;
+	/* responder burst period, indicate interval between two consecutive
+	 * burst instances, in units of 100 ms
+	 */
+	__le16 responder_burst_period;
+	/* receive burst counter */
+	__le16 bursts_cnt;
+	/* tsf of responder start burst */
+	__le32 tsf_sync;
+	/* actual received ftm per burst */
+	u8 actual_ftm_per_burst;
+	u8 reserved0[7];
+	struct wmi_responder_ftm_res responder_ftm_res[0];
+} __packed;
+
+enum wmi_tof_channel_info_type {
+	WMI_TOF_CHANNEL_INFO_AOA		= 0x00,
+	WMI_TOF_CHANNEL_INFO_LCI		= 0x01,
+	WMI_TOF_CHANNEL_INFO_LCR		= 0x02,
+	WMI_TOF_CHANNEL_INFO_VENDOR_SPECIFIC	= 0x03,
+	WMI_TOF_CHANNEL_INFO_CIR		= 0x04,
+	WMI_TOF_CHANNEL_INFO_RSSI		= 0x05,
+	WMI_TOF_CHANNEL_INFO_SNR		= 0x06,
+	WMI_TOF_CHANNEL_INFO_DEBUG		= 0x07,
+};
+
+/* WMI_TOF_CHANNEL_INFO_EVENTID */
+struct wmi_tof_channel_info_event {
+	/* FTM session ID */
+	__le32 session_id;
+	/* destination MAC address */
+	u8 dst_mac[WMI_MAC_LEN];
+	/* wmi_tof_channel_info_type_e */
+	u8 type;
+	/* data report length */
+	u8 len;
+	/* data report payload */
+	u8 report[0];
 } __packed;
 
 #endif /* __WILOCITY_WMI_H__ */
