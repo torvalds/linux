@@ -3485,6 +3485,8 @@ static unsigned int ata_scsi_write_same_xlat(struct ata_queued_cmd *qc)
 		tf->device = ATA_CMD_STANDBYNOW1;
 		tf->protocol = ATA_PROT_DMA;
 		tf->command = ATA_CMD_WRITE_LOG_DMA_EXT;
+		if (unlikely(dev->flags & ATA_DFLAG_PIO))
+			tf->command = ATA_CMD_WRITE_LOG_EXT;
 	}
 
 	tf->flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE | ATA_TFLAG_LBA48 |
