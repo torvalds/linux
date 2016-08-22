@@ -345,9 +345,9 @@ static const struct ieee80211_regdomain *_rtl_regdomain_select(
 		return &rtl_regdom_no_midband;
 	case COUNTRY_CODE_IC:
 		return &rtl_regdom_11;
-	case COUNTRY_CODE_ETSI:
 	case COUNTRY_CODE_TELEC_NETGEAR:
 		return &rtl_regdom_60_64;
+	case COUNTRY_CODE_ETSI:
 	case COUNTRY_CODE_SPAIN:
 	case COUNTRY_CODE_FRANCE:
 	case COUNTRY_CODE_ISRAEL:
@@ -406,6 +406,8 @@ static u8 channel_plan_to_country_code(u8 channelplan)
 		return COUNTRY_CODE_WORLD_WIDE_13;
 	case 0x22:
 		return COUNTRY_CODE_IC;
+	case 0x25:
+		return COUNTRY_CODE_ETSI;
 	case 0x32:
 		return COUNTRY_CODE_TELEC_NETGEAR;
 	case 0x41:
