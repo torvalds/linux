@@ -2483,28 +2483,13 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 		PORT_CONTROL_USE_TAG | PORT_CONTROL_USE_IP |
 		PORT_CONTROL_STATE_FORWARDING;
 	if (dsa_is_cpu_port(ds, port)) {
-		if (mv88e6xxx_6095_family(chip) || mv88e6xxx_6185_family(chip))
-			reg |= PORT_CONTROL_DSA_TAG;
-		if (mv88e6xxx_6352_family(chip) ||
-		    mv88e6xxx_6351_family(chip) ||
-		    mv88e6xxx_6165_family(chip) ||
-		    mv88e6xxx_6097_family(chip) ||
-		    mv88e6xxx_6320_family(chip)) {
+		if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_EDSA))
 			reg |= PORT_CONTROL_FRAME_ETHER_TYPE_DSA |
 				PORT_CONTROL_FORWARD_UNKNOWN |
 				PORT_CONTROL_FORWARD_UNKNOWN_MC;
-		}
-
-		if (mv88e6xxx_6352_family(chip) ||
-		    mv88e6xxx_6351_family(chip) ||
-		    mv88e6xxx_6165_family(chip) ||
-		    mv88e6xxx_6097_family(chip) ||
-		    mv88e6xxx_6095_family(chip) ||
-		    mv88e6xxx_6065_family(chip) ||
-		    mv88e6xxx_6185_family(chip) ||
-		    mv88e6xxx_6320_family(chip)) {
-			reg |= PORT_CONTROL_EGRESS_ADD_TAG;
-		}
+		else
+			reg |= PORT_CONTROL_DSA_TAG;
+		reg |= PORT_CONTROL_EGRESS_ADD_TAG;
 	}
 	if (dsa_is_dsa_port(ds, port)) {
 		if (mv88e6xxx_6095_family(chip) ||
@@ -2632,10 +2617,13 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 		/* Port Ethertype: use the Ethertype DSA Ethertype
 		 * value.
 		 */
-		ret = _mv88e6xxx_reg_write(chip, REG_PORT(port),
-					   PORT_ETH_TYPE, ETH_P_EDSA);
-		if (ret)
-			return ret;
+		if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_EDSA)) {
+			ret = _mv88e6xxx_reg_write(chip, REG_PORT(port),
+						   PORT_ETH_TYPE, ETH_P_EDSA);
+			if (ret)
+				return ret;
+		}
+
 		/* Tag Remap: use an identity 802.1p prio -> switch
 		 * prio mapping.
 		 */
@@ -3926,7 +3914,12 @@ static int mv88e6xxx_smi_init(struct mv88e6xxx_chip *chip,
 
 static enum dsa_tag_protocol mv88e6xxx_get_tag_protocol(struct dsa_switch *ds)
 {
-	return DSA_TAG_PROTO_EDSA;
+	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+
+	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_EDSA))
+		return DSA_TAG_PROTO_EDSA;
+
+	return DSA_TAG_PROTO_DSA;
 }
 
 static const char *mv88e6xxx_drv_probe(struct device *dsa_dev,
