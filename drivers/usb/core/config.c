@@ -158,7 +158,7 @@ static const unsigned short high_speed_maxpacket_maxes[4] = {
 	[USB_ENDPOINT_XFER_CONTROL] = 64,
 	[USB_ENDPOINT_XFER_ISOC] = 1024,
 	[USB_ENDPOINT_XFER_BULK] = 512,
-	[USB_ENDPOINT_XFER_INT] = 1023,
+	[USB_ENDPOINT_XFER_INT] = 1024,
 };
 static const unsigned short super_speed_maxpacket_maxes[4] = {
 	[USB_ENDPOINT_XFER_CONTROL] = 512,
