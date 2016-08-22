@@ -102,6 +102,9 @@ struct wil_fw_record_verify { /* type == wil_fw_verify */
 /* file header
  * First record of every file
  */
+/* the FW version prefix in the comment */
+#define WIL_FW_VERSION_PREFIX "FW version: "
+#define WIL_FW_VERSION_PREFIX_LEN (sizeof(WIL_FW_VERSION_PREFIX) - 1)
 struct wil_fw_record_file_header {
 	__le32 signature ; /* Wilocity signature */
 	__le32 reserved;

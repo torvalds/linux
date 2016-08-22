@@ -17,6 +17,7 @@
 #ifndef __WIL6210_H__
 #define __WIL6210_H__
 
+#include <linux/etherdevice.h>
 #include <linux/netdevice.h>
 #include <linux/wireless.h>
 #include <net/cfg80211.h>
@@ -576,7 +577,7 @@ struct wil6210_priv {
 	struct wireless_dev *wdev;
 	void __iomem *csr;
 	DECLARE_BITMAP(status, wil_status_last);
-	u32 fw_version;
+	u8 fw_version[ETHTOOL_FWVERS_LEN];
 	u32 hw_version;
 	const char *hw_name;
 	DECLARE_BITMAP(hw_capabilities, hw_capability_last);

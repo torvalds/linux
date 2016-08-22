@@ -893,6 +893,7 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 			 WIL_FW2_NAME);
 
 		wil_halt_cpu(wil);
+		memset(wil->fw_version, 0, sizeof(wil->fw_version));
 		/* Loading f/w from the file */
 		rc = wil_request_firmware(wil, WIL_FW_NAME, true);
 		if (rc)

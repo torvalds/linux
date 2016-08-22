@@ -216,6 +216,8 @@ int wil_if_add(struct wil6210_priv *wil)
 
 	wil_dbg_misc(wil, "entered");
 
+	strlcpy(wiphy->fw_version, wil->fw_version, sizeof(wiphy->fw_version));
+
 	rc = wiphy_register(wiphy);
 	if (rc < 0) {
 		wil_err(wil, "failed to register wiphy, err %d\n", rc);

@@ -223,6 +223,13 @@ static int fw_handle_file_header(struct wil6210_priv *wil, const void *data,
 	wil_hex_dump_fw("", DUMP_PREFIX_OFFSET, 16, 1, d->comment,
 			sizeof(d->comment), true);
 
+	if (!memcmp(d->comment, WIL_FW_VERSION_PREFIX,
+		    WIL_FW_VERSION_PREFIX_LEN))
+		memcpy(wil->fw_version,
+		       d->comment + WIL_FW_VERSION_PREFIX_LEN,
+		       min(sizeof(d->comment) - WIL_FW_VERSION_PREFIX_LEN,
+			   sizeof(wil->fw_version) - 1));
+
 	return 0;
 }
 
