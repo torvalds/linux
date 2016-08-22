@@ -142,7 +142,7 @@ static int gxbb_aoclkc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct gxbb_aoclk_reset_controller *rstc;
 
-	rstc = devm_kzalloc(dev, sizeof(rstc), GFP_KERNEL);
+	rstc = devm_kzalloc(dev, sizeof(*rstc), GFP_KERNEL);
 	if (!rstc)
 		return -ENOMEM;
 
