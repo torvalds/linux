@@ -1174,9 +1174,9 @@ void snd_usb_handle_sync_urb(struct snd_usb_endpoint *ep,
 		 * by +/- 0x1.0000.
 		 */
 		if (f < ep->freqn - 0x8000)
-			f += 0x10000;
+			f += 0xf000;
 		else if (f > ep->freqn + 0x8000)
-			f -= 0x10000;
+			f -= 0xf000;
 	} else if (unlikely(ep->freqshift == INT_MIN)) {
 		/*
 		 * The first time we see a feedback value, determine its format
