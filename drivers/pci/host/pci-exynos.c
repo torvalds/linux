@@ -16,7 +16,7 @@
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of_gpio.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
@@ -624,7 +624,6 @@ static const struct of_device_id exynos_pcie_of_match[] = {
 	{ .compatible = "samsung,exynos5440-pcie", },
 	{},
 };
-MODULE_DEVICE_TABLE(of, exynos_pcie_of_match);
 
 static struct platform_driver exynos_pcie_driver = {
 	.remove		= __exit_p(exynos_pcie_remove),
@@ -641,7 +640,3 @@ static int __init exynos_pcie_init(void)
 	return platform_driver_probe(&exynos_pcie_driver, exynos_pcie_probe);
 }
 subsys_initcall(exynos_pcie_init);
-
-MODULE_AUTHOR("Jingoo Han <jg1.han@samsung.com>");
-MODULE_DESCRIPTION("Samsung PCIe host controller driver");
-MODULE_LICENSE("GPL v2");
