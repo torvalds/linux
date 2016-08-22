@@ -169,7 +169,8 @@ static unsigned long dwAL2230PowerTable[AL2230_PWR_IDX_LEN] = {
 };
 
 /* 40MHz reference frequency
- * Need to Pull PLLON(PE3) low when writing channel registers through 3-wire.*/
+ * Need to Pull PLLON(PE3) low when writing channel registers through 3-wire.
+ */
 static const unsigned long dwAL7230InitTable[CB_AL7230_INIT_SEQ] = {
 	0x00379000+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, /* Channel1 // Need modify for 11a */
 	0x13333100+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, /* Channel1 // Need modify for 11a */
@@ -463,7 +464,8 @@ static bool s_bAL7230Init(struct vnt_private *priv)
 }
 
 /* Need to Pull PLLON low when writing channel registers through
- * 3-wire interface */
+ * 3-wire interface
+ */
 static bool s_bAL7230SelectChannel(struct vnt_private *priv, unsigned char byChannel)
 {
 	void __iomem *dwIoBase = priv->PortOffset;
@@ -873,7 +875,8 @@ bool RFbRawSetPower(
 
 	case RF_AIROHA7230:
 		/* 0x080F1B00 for 3 wire control TxGain(D10)
-		 * and 0x31 as TX Gain value */
+		 * and 0x31 as TX Gain value
+		 */
 		dwMax7230Pwr = 0x080C0B00 | ((byPwr) << 12) |
 			(BY_AL7230_REG_LEN << 3)  | IFREGCTL_REGW;
 
@@ -886,7 +889,7 @@ bool RFbRawSetPower(
 	return ret;
 }
 
-/*+
+/*
  *
  * Routine Description:
  *     Translate RSSI to dBm
@@ -900,7 +903,7 @@ bool RFbRawSetPower(
  *
  * Return Value: none
  *
- -*/
+ */
 void
 RFvRSSITodBm(
 	struct vnt_private *priv,
@@ -927,7 +930,8 @@ RFvRSSITodBm(
 }
 
 /* Post processing for the 11b/g and 11a.
- * for save time on changing Reg2,3,5,7,10,12,15 */
+ * for save time on changing Reg2,3,5,7,10,12,15
+ */
 bool RFbAL7230SelectChannelPostProcess(struct vnt_private *priv,
 				       u16 byOldChannel,
 				       u16 byNewChannel)
@@ -938,7 +942,8 @@ bool RFbAL7230SelectChannelPostProcess(struct vnt_private *priv,
 
 	/* if change between 11 b/g and 11a need to update the following
 	 * register
-	 * Channel Index 1~14 */
+	 * Channel Index 1~14
+	 */
 	if ((byOldChannel <= CB_MAX_CHANNEL_24G) && (byNewChannel > CB_MAX_CHANNEL_24G)) {
 		/* Change from 2.4G to 5G [Reg] */
 		ret &= IFRFbWriteEmbedded(priv, dwAL7230InitTableAMode[2]);
