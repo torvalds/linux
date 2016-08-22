@@ -29,6 +29,7 @@
 	 * Reserve below regions from memory node:
 	 *
 	 *  0x05e0,0000 - 0x05ef,ffff: MCU firmware runtime using
+	 *  0x05f0,1000 - 0x05f0,1fff: Reboot reason
 	 *  0x06df,f000 - 0x06df,ffff: Mailbox message data
 	 *  0x0740,f000 - 0x0740,ffff: MCU firmware section
 	 *  0x3e00,0000 - 0x3fff,ffff: OP-TEE
@@ -36,9 +37,24 @@
 	memory@0 {
 		device_type = "memory";
 		reg = <0x00000000 0x00000000 0x00000000 0x05e00000>,
-		      <0x00000000 0x05f00000 0x00000000 0x00eff000>,
+		      <0x00000000 0x05f00000 0x00000000 0x00001000>,
+		      <0x00000000 0x05f02000 0x00000000 0x00efd000>,
 		      <0x00000000 0x06e00000 0x00000000 0x0060f000>,
 		      <0x00000000 0x07410000 0x00000000 0x36bf0000>;
+	};
+
+	reboot-mode-syscon@5f01000 {
+		compatible = "syscon", "simple-mfd";
+		reg = <0x0 0x05f01000 0x0 0x00001000>;
+
+		reboot-mode {
+			compatible = "syscon-reboot-mode";
+			offset = <0x0>;
+
+			mode-normal	= <0x77665501>;
+			mode-bootloader	= <0x77665500>;
+			mode-recovery	= <0x77665502>;
+		};
 	};
 
 	soc {
