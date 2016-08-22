@@ -32,6 +32,8 @@
 #include "i915_trace.h"
 #include "intel_drv.h"
 
+#define I915_GFP_DMA (GFP_KERNEL | __GFP_HIGHMEM)
+
 /**
  * DOC: Global GTT views
  *
@@ -345,7 +347,7 @@ static int __setup_page_dma(struct drm_device *dev,
 
 static int setup_page_dma(struct drm_device *dev, struct i915_page_dma *p)
 {
-	return __setup_page_dma(dev, p, GFP_KERNEL);
+	return __setup_page_dma(dev, p, I915_GFP_DMA);
 }
 
 static void cleanup_page_dma(struct drm_device *dev, struct i915_page_dma *p)
@@ -410,9 +412,11 @@ static void fill_page_dma_32(struct drm_device *dev, struct i915_page_dma *p,
 }
 
 static int
-setup_scratch_page(struct drm_device *dev, struct i915_page_dma *scratch)
+setup_scratch_page(struct drm_device *dev,
+		   struct i915_page_dma *scratch,
+		   gfp_t gfp)
 {
-	return __setup_page_dma(dev, scratch, GFP_DMA32 | __GFP_ZERO);
+	return __setup_page_dma(dev, scratch, gfp | __GFP_ZERO);
 }
 
 static void cleanup_scratch_page(struct drm_device *dev,
@@ -867,7 +871,7 @@ static int gen8_init_scratch(struct i915_address_space *vm)
 	struct drm_device *dev = vm->dev;
 	int ret;
 
-	ret = setup_scratch_page(dev, &vm->scratch_page);
+	ret = setup_scratch_page(dev, &vm->scratch_page, I915_GFP_DMA);
 	if (ret)
 		return ret;
 
@@ -1934,7 +1938,7 @@ static int gen6_init_scratch(struct i915_address_space *vm)
 	struct drm_device *dev = vm->dev;
 	int ret;
 
-	ret = setup_scratch_page(dev, &vm->scratch_page);
+	ret = setup_scratch_page(dev, &vm->scratch_page, I915_GFP_DMA);
 	if (ret)
 		return ret;
 
@@ -2902,7 +2906,9 @@ static int ggtt_probe_common(struct i915_ggtt *ggtt, u64 size)
 		return -ENOMEM;
 	}
 
-	ret = setup_scratch_page(ggtt->base.dev, &ggtt->base.scratch_page);
+	ret = setup_scratch_page(ggtt->base.dev,
+				 &ggtt->base.scratch_page,
+				 GFP_DMA32);
 	if (ret) {
 		DRM_ERROR("Scratch setup failed\n");
 		/* iounmap will also get called at remove, but meh */
