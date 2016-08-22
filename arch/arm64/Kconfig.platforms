@@ -67,6 +67,7 @@ config ARCH_HISI
 	bool "Hisilicon SoC Family"
 	select ARM_TIMER_SP804
 	select HISILICON_IRQ_MBIGEN
+	select PINCTRL
 	help
 	  This enables support for Hisilicon ARMv8 SoC family
 
