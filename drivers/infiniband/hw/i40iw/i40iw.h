@@ -232,7 +232,7 @@ struct i40iw_device {
 	struct i40e_client *client;
 	struct i40iw_hw hw;
 	struct i40iw_cm_core cm_core;
-	unsigned long *mem_resources;
+	u8 *mem_resources;
 	unsigned long *allocated_qps;
 	unsigned long *allocated_cqs;
 	unsigned long *allocated_mrs;
