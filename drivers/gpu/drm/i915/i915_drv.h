@@ -3564,8 +3564,8 @@ extern int i915_save_state(struct drm_device *dev);
 extern int i915_restore_state(struct drm_device *dev);
 
 /* i915_sysfs.c */
-void i915_setup_sysfs(struct drm_device *dev_priv);
-void i915_teardown_sysfs(struct drm_device *dev_priv);
+void i915_setup_sysfs(struct drm_i915_private *dev_priv);
+void i915_teardown_sysfs(struct drm_i915_private *dev_priv);
 
 /* intel_i2c.c */
 extern int intel_setup_gmbus(struct drm_device *dev);
