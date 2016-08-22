@@ -350,12 +350,13 @@ static int cttimeout_del_timeout(struct net *net, struct sock *ctnl,
 				 const struct nlmsghdr *nlh,
 				 const struct nlattr * const cda[])
 {
-	struct ctnl_timeout *cur;
+	struct ctnl_timeout *cur, *tmp;
 	int ret = -ENOENT;
 	char *name;
 
 	if (!cda[CTA_TIMEOUT_NAME]) {
-		list_for_each_entry(cur, &net->nfct_timeout_list, head)
+		list_for_each_entry_safe(cur, tmp, &net->nfct_timeout_list,
+					 head)
 			ctnl_timeout_try_del(net, cur);
 
 		return 0;
