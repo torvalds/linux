@@ -203,6 +203,9 @@ skl_update_plane(struct drm_plane *drm_plane,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_plane *intel_plane = to_intel_plane(drm_plane);
 	struct drm_framebuffer *fb = plane_state->base.fb;
+	const struct skl_wm_values *wm = &dev_priv->wm.skl_results;
+	struct drm_crtc *crtc = crtc_state->base.crtc;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	const int pipe = intel_plane->pipe;
 	const int plane = intel_plane->plane + 1;
 	u32 plane_ctl;
@@ -227,6 +230,9 @@ skl_update_plane(struct drm_plane *drm_plane,
 	plane_ctl |= skl_plane_ctl_tiling(fb->modifier[0]);
 
 	plane_ctl |= skl_plane_ctl_rotation(rotation);
+
+	if (wm->dirty_pipes & drm_crtc_mask(crtc))
+		skl_write_plane_wm(intel_crtc, wm, plane);
 
 	if (key->flags) {
 		I915_WRITE(PLANE_KEYVAL(pipe, plane), key->min_value);
@@ -285,6 +291,9 @@ skl_disable_plane(struct drm_plane *dplane, struct drm_crtc *crtc)
 	struct intel_plane *intel_plane = to_intel_plane(dplane);
 	const int pipe = intel_plane->pipe;
 	const int plane = intel_plane->plane + 1;
+
+	skl_write_plane_wm(to_intel_crtc(crtc), &dev_priv->wm.skl_results,
+			   plane);
 
 	I915_WRITE(PLANE_CTL(pipe, plane), 0);
 

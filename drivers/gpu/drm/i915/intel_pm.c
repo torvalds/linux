@@ -3836,6 +3836,39 @@ static void skl_ddb_entry_write(struct drm_i915_private *dev_priv,
 		I915_WRITE(reg, 0);
 }
 
+void skl_write_plane_wm(struct intel_crtc *intel_crtc,
+			const struct skl_wm_values *wm,
+			int plane)
+{
+	struct drm_crtc *crtc = &intel_crtc->base;
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	int level, max_level = ilk_wm_max_level(dev);
+	enum pipe pipe = intel_crtc->pipe;
+
+	for (level = 0; level <= max_level; level++) {
+		I915_WRITE(PLANE_WM(pipe, plane, level),
+			   wm->plane[pipe][plane][level]);
+	}
+	I915_WRITE(PLANE_WM_TRANS(pipe, plane), wm->plane_trans[pipe][plane]);
+}
+
+void skl_write_cursor_wm(struct intel_crtc *intel_crtc,
+			 const struct skl_wm_values *wm)
+{
+	struct drm_crtc *crtc = &intel_crtc->base;
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	int level, max_level = ilk_wm_max_level(dev);
+	enum pipe pipe = intel_crtc->pipe;
+
+	for (level = 0; level <= max_level; level++) {
+		I915_WRITE(CUR_WM(pipe, level),
+			   wm->plane[pipe][PLANE_CURSOR][level]);
+	}
+	I915_WRITE(CUR_WM_TRANS(pipe), wm->plane_trans[pipe][PLANE_CURSOR]);
+}
+
 static void skl_write_wm_values(struct drm_i915_private *dev_priv,
 				const struct skl_wm_values *new)
 {
@@ -3843,28 +3876,13 @@ static void skl_write_wm_values(struct drm_i915_private *dev_priv,
 	struct intel_crtc *crtc;
 
 	for_each_intel_crtc(dev, crtc) {
-		int i, level, max_level = ilk_wm_max_level(dev);
+		int i;
 		enum pipe pipe = crtc->pipe;
 
 		if ((new->dirty_pipes & drm_crtc_mask(&crtc->base)) == 0)
 			continue;
 		if (!crtc->active)
 			continue;
-
-		I915_WRITE(PIPE_WM_LINETIME(pipe), new->wm_linetime[pipe]);
-
-		for (level = 0; level <= max_level; level++) {
-			for (i = 0; i < intel_num_planes(crtc); i++)
-				I915_WRITE(PLANE_WM(pipe, i, level),
-					   new->plane[pipe][i][level]);
-			I915_WRITE(CUR_WM(pipe, level),
-				   new->plane[pipe][PLANE_CURSOR][level]);
-		}
-		for (i = 0; i < intel_num_planes(crtc); i++)
-			I915_WRITE(PLANE_WM_TRANS(pipe, i),
-				   new->plane_trans[pipe][i]);
-		I915_WRITE(CUR_WM_TRANS(pipe),
-			   new->plane_trans[pipe][PLANE_CURSOR]);
 
 		for (i = 0; i < intel_num_planes(crtc); i++) {
 			skl_ddb_entry_write(dev_priv,
