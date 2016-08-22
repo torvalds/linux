@@ -1,7 +1,7 @@
 /*
  * This file is part of the Chelsio T4 Ethernet driver for Linux.
  *
- * Copyright (c) 2003-2014 Chelsio Communications, Inc. All rights reserved.
+ * Copyright (c) 2003-2016 Chelsio Communications, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -76,6 +76,7 @@
 #include "cxgb4_debugfs.h"
 #include "clip_tbl.h"
 #include "l2t.h"
+#include "sched.h"
 
 char cxgb4_driver_name[] = KBUILD_MODNAME;
 
@@ -4024,6 +4025,12 @@ static int adap_init0(struct adapter *adap)
 	adap->clipt_start = val[0];
 	adap->clipt_end = val[1];
 
+	/* We don't yet have a PARAMs calls to retrieve the number of Traffic
+	 * Classes supported by the hardware/firmware so we hard code it here
+	 * for now.
+	 */
+	adap->params.nsched_cls = is_t4(adap->params.chip) ? 15 : 16;
+
 	/* query params related to active filter region */
 	params[0] = FW_PARAM_PFVF(ACTIVE_FILTER_START);
 	params[1] = FW_PARAM_PFVF(ACTIVE_FILTER_END);
@@ -4882,6 +4889,7 @@ static void free_some_resources(struct adapter *adapter)
 	unsigned int i;
 
 	t4_free_mem(adapter->l2t);
+	t4_cleanup_sched(adapter);
 	t4_free_mem(adapter->tids.tid_tab);
 	kfree(adapter->sge.egr_map);
 	kfree(adapter->sge.ingr_map);
@@ -5249,6 +5257,16 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 	}
 #endif
+
+	for_each_port(adapter, i) {
+		pi = adap2pinfo(adapter, i);
+		pi->sched_tbl = t4_init_sched(adapter->params.nsched_cls);
+		if (!pi->sched_tbl)
+			dev_warn(&pdev->dev,
+				 "could not activate scheduling on port %d\n",
+				 i);
+	}
+
 	if (is_offload(adapter) && tid_init(&adapter->tids) < 0) {
 		dev_warn(&pdev->dev, "could not allocate TID table, "
 			 "continuing\n");

@@ -1,7 +1,7 @@
 /*
  * This file is part of the Chelsio T4 Ethernet driver for Linux.
  *
- * Copyright (c) 2003-2014 Chelsio Communications, Inc. All rights reserved.
+ * Copyright (c) 2003-2016 Chelsio Communications, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -8304,4 +8304,33 @@ int t4_set_vf_mac_acl(struct adapter *adapter, unsigned int vf,
 	}
 
 	return t4_wr_mbox(adapter, adapter->mbox, &cmd, sizeof(cmd), &cmd);
+}
+
+int t4_sched_params(struct adapter *adapter, int type, int level, int mode,
+		    int rateunit, int ratemode, int channel, int class,
+		    int minrate, int maxrate, int weight, int pktsize)
+{
+	struct fw_sched_cmd cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.op_to_write = cpu_to_be32(FW_CMD_OP_V(FW_SCHED_CMD) |
+				      FW_CMD_REQUEST_F |
+				      FW_CMD_WRITE_F);
+	cmd.retval_len16 = cpu_to_be32(FW_LEN16(cmd));
+
+	cmd.u.params.sc = FW_SCHED_SC_PARAMS;
+	cmd.u.params.type = type;
+	cmd.u.params.level = level;
+	cmd.u.params.mode = mode;
+	cmd.u.params.ch = channel;
+	cmd.u.params.cl = class;
+	cmd.u.params.unit = rateunit;
+	cmd.u.params.rate = ratemode;
+	cmd.u.params.min = cpu_to_be32(minrate);
+	cmd.u.params.max = cpu_to_be32(maxrate);
+	cmd.u.params.weight = cpu_to_be16(weight);
+	cmd.u.params.pktsize = cpu_to_be16(pktsize);
+
+	return t4_wr_mbox_meat(adapter, adapter->mbox, &cmd, sizeof(cmd),
+			       NULL, 1);
 }

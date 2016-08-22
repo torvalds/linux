@@ -1,7 +1,7 @@
 /*
  * This file is part of the Chelsio T4 Ethernet driver for Linux.
  *
- * Copyright (c) 2009-2014 Chelsio Communications, Inc. All rights reserved.
+ * Copyright (c) 2009-2016 Chelsio Communications, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -681,6 +681,7 @@ enum fw_cmd_opcodes {
 	FW_RSS_IND_TBL_CMD             = 0x20,
 	FW_RSS_GLB_CONFIG_CMD          = 0x22,
 	FW_RSS_VI_CONFIG_CMD           = 0x23,
+	FW_SCHED_CMD                   = 0x24,
 	FW_DEVLOG_CMD                  = 0x25,
 	FW_CLIP_CMD                    = 0x28,
 	FW_LASTC2E_CMD                 = 0x40,
@@ -2961,6 +2962,41 @@ struct fw_rss_vi_config_cmd {
 #define FW_RSS_VI_CONFIG_CMD_UDPEN_S	0
 #define FW_RSS_VI_CONFIG_CMD_UDPEN_V(x)	((x) << FW_RSS_VI_CONFIG_CMD_UDPEN_S)
 #define FW_RSS_VI_CONFIG_CMD_UDPEN_F	FW_RSS_VI_CONFIG_CMD_UDPEN_V(1U)
+
+enum fw_sched_sc {
+	FW_SCHED_SC_PARAMS		= 1,
+};
+
+struct fw_sched_cmd {
+	__be32 op_to_write;
+	__be32 retval_len16;
+	union fw_sched {
+		struct fw_sched_config {
+			__u8   sc;
+			__u8   type;
+			__u8   minmaxen;
+			__u8   r3[5];
+			__u8   nclasses[4];
+			__be32 r4;
+		} config;
+		struct fw_sched_params {
+			__u8   sc;
+			__u8   type;
+			__u8   level;
+			__u8   mode;
+			__u8   unit;
+			__u8   rate;
+			__u8   ch;
+			__u8   cl;
+			__be32 min;
+			__be32 max;
+			__be16 weight;
+			__be16 pktsize;
+			__be16 burstsize;
+			__be16 r4;
+		} params;
+	} u;
+};
 
 struct fw_clip_cmd {
 	__be32 op_to_write;
