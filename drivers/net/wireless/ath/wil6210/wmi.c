@@ -424,6 +424,7 @@ static void wmi_evt_tx_mgmt(struct wil6210_priv *wil, int id, void *d, int len)
 static void wmi_evt_scan_complete(struct wil6210_priv *wil, int id,
 				  void *d, int len)
 {
+	mutex_lock(&wil->p2p_wdev_mutex);
 	if (wil->scan_request) {
 		struct wmi_scan_complete_event *data = d;
 		struct cfg80211_scan_info info = {
@@ -435,14 +436,13 @@ static void wmi_evt_scan_complete(struct wil6210_priv *wil, int id,
 			     wil->scan_request, info.aborted);
 
 		del_timer_sync(&wil->scan_timer);
-		mutex_lock(&wil->p2p_wdev_mutex);
 		cfg80211_scan_done(wil->scan_request, &info);
 		wil->radio_wdev = wil->wdev;
-		mutex_unlock(&wil->p2p_wdev_mutex);
 		wil->scan_request = NULL;
 	} else {
 		wil_err(wil, "SCAN_COMPLETE while not scanning\n");
 	}
+	mutex_unlock(&wil->p2p_wdev_mutex);
 }
 
 static void wmi_evt_connect(struct wil6210_priv *wil, int id, void *d, int len)

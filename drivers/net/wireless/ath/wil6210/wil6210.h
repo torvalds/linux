@@ -657,7 +657,7 @@ struct wil6210_priv {
 
 	/* P2P_DEVICE vif */
 	struct wireless_dev *p2p_wdev;
-	struct mutex p2p_wdev_mutex; /* protect @p2p_wdev */
+	struct mutex p2p_wdev_mutex; /* protect @p2p_wdev and @scan_request */
 	struct wireless_dev *radio_wdev;
 
 	/* High Access Latency Policy voting */

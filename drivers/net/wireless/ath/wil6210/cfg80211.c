@@ -354,10 +354,13 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 	wil_dbg_misc(wil, "%s(), wdev=0x%p iftype=%d\n",
 		     __func__, wdev, wdev->iftype);
 
+	mutex_lock(&wil->p2p_wdev_mutex);
 	if (wil->scan_request) {
 		wil_err(wil, "Already scanning\n");
+		mutex_unlock(&wil->p2p_wdev_mutex);
 		return -EAGAIN;
 	}
+	mutex_unlock(&wil->p2p_wdev_mutex);
 
 	/* check we are client side */
 	switch (wdev->iftype) {

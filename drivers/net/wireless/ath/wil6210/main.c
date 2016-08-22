@@ -852,6 +852,7 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	bitmap_zero(wil->status, wil_status_last);
 	mutex_unlock(&wil->wmi_mutex);
 
+	mutex_lock(&wil->p2p_wdev_mutex);
 	if (wil->scan_request) {
 		struct cfg80211_scan_info info = {
 			.aborted = true,
@@ -863,6 +864,7 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 		cfg80211_scan_done(wil->scan_request, &info);
 		wil->scan_request = NULL;
 	}
+	mutex_unlock(&wil->p2p_wdev_mutex);
 
 	wil_mask_irq(wil);
 
@@ -1055,6 +1057,7 @@ int __wil_down(struct wil6210_priv *wil)
 
 	wil_p2p_stop_radio_operations(wil);
 
+	mutex_lock(&wil->p2p_wdev_mutex);
 	if (wil->scan_request) {
 		struct cfg80211_scan_info info = {
 			.aborted = true,
@@ -1066,6 +1069,7 @@ int __wil_down(struct wil6210_priv *wil)
 		cfg80211_scan_done(wil->scan_request, &info);
 		wil->scan_request = NULL;
 	}
+	mutex_unlock(&wil->p2p_wdev_mutex);
 
 	wil_reset(wil, false);
 
