@@ -583,7 +583,7 @@ enum ovs_userspace_attr {
 #define OVS_USERSPACE_ATTR_MAX (__OVS_USERSPACE_ATTR_MAX - 1)
 
 struct ovs_action_trunc {
-	uint32_t max_len; /* Max packet size in bytes. */
+	__u32 max_len; /* Max packet size in bytes. */
 };
 
 /**
