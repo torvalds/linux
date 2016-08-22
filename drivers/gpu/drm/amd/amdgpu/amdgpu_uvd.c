@@ -818,6 +818,7 @@ static int amdgpu_uvd_cs_reg(struct amdgpu_uvd_cs_ctx *ctx,
 				return r;
 			break;
 		case mmUVD_ENGINE_CNTL:
+		case mmUVD_NO_OP:
 			break;
 		default:
 			DRM_ERROR("Invalid reg 0x%X!\n", reg);
