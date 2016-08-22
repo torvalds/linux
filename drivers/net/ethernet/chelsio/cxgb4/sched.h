@@ -42,6 +42,9 @@
 
 #define FW_SCHED_CLS_NONE 0xffffffff
 
+/* Max rate that can be set to a scheduling class is 10 Gbps */
+#define SCHED_MAX_RATE_KBPS 10000000U
+
 enum {
 	SCHED_STATE_ACTIVE,
 	SCHED_STATE_UNUSED,
