@@ -14,6 +14,7 @@
 
 #include <linux/atmapi.h>
 #include <linux/atmioc.h>
+#include <linux/time.h>
 
 #define ZATM_GETPOOL	_IOW('a',ATMIOC_SARPRV+1,struct atmif_sioc)
 						/* get pool statistics */
