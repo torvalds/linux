@@ -142,7 +142,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	}
 
 	if (!ring->ready) {
-		dev_err(adev->dev, "couldn't schedule ib\n");
+		dev_err(adev->dev, "couldn't schedule ib on ring <%s>\n", ring->name);
 		return -EINVAL;
 	}
 
