@@ -646,7 +646,7 @@ static struct dentry *bd_mount(struct file_system_type *fs_type,
 {
 	struct dentry *dent;
 	dent = mount_pseudo(fs_type, "bdev:", &bdev_sops, NULL, BDEVFS_MAGIC);
-	if (dent)
+	if (!IS_ERR(dent))
 		dent->d_sb->s_iflags |= SB_I_CGROUPWB;
 	return dent;
 }
