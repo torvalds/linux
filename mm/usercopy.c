@@ -83,7 +83,7 @@ static bool overlaps(const void *ptr, unsigned long n, unsigned long low,
 	unsigned long check_high = check_low + n;
 
 	/* Does not overlap if entirely above or entirely below. */
-	if (check_low >= high || check_high < low)
+	if (check_low >= high || check_high <= low)
 		return false;
 
 	return true;
