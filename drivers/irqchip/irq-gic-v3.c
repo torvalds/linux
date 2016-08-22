@@ -667,13 +667,20 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 #endif
 
 #ifdef CONFIG_CPU_PM
+/* Check whether it's single security state view */
+static bool gic_dist_security_disabled(void)
+{
+	return readl_relaxed(gic_data.dist_base + GICD_CTLR) & GICD_CTLR_DS;
+}
+
 static int gic_cpu_pm_notifier(struct notifier_block *self,
 			       unsigned long cmd, void *v)
 {
 	if (cmd == CPU_PM_EXIT) {
-		gic_enable_redist(true);
+		if (gic_dist_security_disabled())
+			gic_enable_redist(true);
 		gic_cpu_sys_reg_init();
-	} else if (cmd == CPU_PM_ENTER) {
+	} else if (cmd == CPU_PM_ENTER && gic_dist_security_disabled()) {
 		gic_write_grpen1(0);
 		gic_enable_redist(false);
 	}

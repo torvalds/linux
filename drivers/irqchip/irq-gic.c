@@ -769,6 +769,13 @@ static void gic_raise_softirq(const struct cpumask *mask, unsigned int irq)
 	int cpu;
 	unsigned long flags, map = 0;
 
+	if (unlikely(nr_cpu_ids == 1)) {
+		/* Only one CPU? let's do a self-IPI... */
+		writel_relaxed(2 << 24 | irq,
+			       gic_data_dist_base(&gic_data[0]) + GIC_DIST_SOFTINT);
+		return;
+	}
+
 	raw_spin_lock_irqsave(&irq_controller_lock, flags);
 
 	/* Convert our logical CPU mask into a physical one. */

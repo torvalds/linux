@@ -396,6 +396,10 @@ extern void nfs4_schedule_state_renewal(struct nfs_client *);
 extern void nfs4_renewd_prepare_shutdown(struct nfs_server *);
 extern void nfs4_kill_renewd(struct nfs_client *);
 extern void nfs4_renew_state(struct work_struct *);
+extern void nfs4_set_lease_period(struct nfs_client *clp,
+		unsigned long lease,
+		unsigned long lastrenewed);
+
 
 /* nfs4state.c */
 struct rpc_cred *nfs4_get_clid_cred(struct nfs_client *clp);

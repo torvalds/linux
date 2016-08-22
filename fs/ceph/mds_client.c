@@ -2759,6 +2759,7 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 	} else {
 		path = NULL;
 		pathlen = 0;
+		pathbase = 0;
 	}
 
 	spin_lock(&ci->i_ceph_lock);

@@ -111,10 +111,17 @@ static int __init iommu_setup(char *str)
 }
 early_param("iommu", iommu_setup);
 
-static inline bool pnv_pci_is_mem_pref_64(unsigned long flags)
+static inline bool pnv_pci_is_m64(struct pnv_phb *phb, struct resource *r)
 {
-	return ((flags & (IORESOURCE_MEM_64 | IORESOURCE_PREFETCH)) ==
-		(IORESOURCE_MEM_64 | IORESOURCE_PREFETCH));
+	/*
+	 * WARNING: We cannot rely on the resource flags. The Linux PCI
+	 * allocation code sometimes decides to put a 64-bit prefetchable
+	 * BAR in the 32-bit window, so we have to compare the addresses.
+	 *
+	 * For simplicity we only test resource start.
+	 */
+	return (r->start >= phb->ioda.m64_base &&
+		r->start < (phb->ioda.m64_base + phb->ioda.m64_size));
 }
 
 static struct pnv_ioda_pe *pnv_ioda_init_pe(struct pnv_phb *phb, int pe_no)
@@ -229,7 +236,7 @@ static void pnv_ioda_reserve_dev_m64_pe(struct pci_dev *pdev,
 	sgsz = phb->ioda.m64_segsize;
 	for (i = 0; i <= PCI_ROM_RESOURCE; i++) {
 		r = &pdev->resource[i];
-		if (!r->parent || !pnv_pci_is_mem_pref_64(r->flags))
+		if (!r->parent || !pnv_pci_is_m64(phb, r))
 			continue;
 
 		start = _ALIGN_DOWN(r->start - base, sgsz);
@@ -1877,7 +1884,7 @@ static void pnv_pci_phb3_tce_invalidate(struct pnv_ioda_pe *pe, bool rm,
 					unsigned shift, unsigned long index,
 					unsigned long npages)
 {
-	__be64 __iomem *invalidate = pnv_ioda_get_inval_reg(pe->phb, false);
+	__be64 __iomem *invalidate = pnv_ioda_get_inval_reg(pe->phb, rm);
 	unsigned long start, end, inc;
 
 	/* We'll invalidate DMA address in PE scope */
@@ -2863,7 +2870,7 @@ static void pnv_pci_ioda_fixup_iov_resources(struct pci_dev *pdev)
 		res = &pdev->resource[i + PCI_IOV_RESOURCES];
 		if (!res->flags || res->parent)
 			continue;
-		if (!pnv_pci_is_mem_pref_64(res->flags)) {
+		if (!pnv_pci_is_m64(phb, res)) {
 			dev_warn(&pdev->dev, "Don't support SR-IOV with"
 					" non M64 VF BAR%d: %pR. \n",
 				 i, res);
@@ -2958,7 +2965,7 @@ static void pnv_ioda_setup_pe_res(struct pnv_ioda_pe *pe,
 			index++;
 		}
 	} else if ((res->flags & IORESOURCE_MEM) &&
-		   !pnv_pci_is_mem_pref_64(res->flags)) {
+		   !pnv_pci_is_m64(phb, res)) {
 		region.start = res->start -
 			       phb->hose->mem_offset[0] -
 			       phb->ioda.m32_pci_base;
@@ -3083,9 +3090,12 @@ static resource_size_t pnv_pci_window_alignment(struct pci_bus *bus,
 		bridge = bridge->bus->self;
 	}
 
-	/* We fail back to M32 if M64 isn't supported */
-	if (phb->ioda.m64_segsize &&
-	    pnv_pci_is_mem_pref_64(type))
+	/*
+	 * We fall back to M32 if M64 isn't supported. We enforce the M64
+	 * alignment for any 64-bit resource, PCIe doesn't care and
+	 * bridges only do 64-bit prefetchable anyway.
+	 */
+	if (phb->ioda.m64_segsize && (type & IORESOURCE_MEM_64))
 		return phb->ioda.m64_segsize;
 	if (type & IORESOURCE_MEM)
 		return phb->ioda.m32_segsize;
@@ -3125,7 +3135,7 @@ static void pnv_pci_fixup_bridge_resources(struct pci_bus *bus,
 		w = NULL;
 		if (r->flags & type & IORESOURCE_IO)
 			w = &hose->io_resource;
-		else if (pnv_pci_is_mem_pref_64(r->flags) &&
+		else if (pnv_pci_is_m64(phb, r) &&
 			 (type & IORESOURCE_PREFETCH) &&
 			 phb->ioda.m64_segsize)
 			w = &hose->mem_resources[1];
