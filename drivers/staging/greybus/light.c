@@ -293,13 +293,14 @@ static int channel_attr_groups_set(struct gb_channel *channel,
 	if (channel->flags & GB_LIGHT_CHANNEL_MULTICOLOR)
 		size++;
 	if (channel->flags & GB_LIGHT_CHANNEL_FADER)
-		size++;
+		size += 2;
 
 	if (!size)
 		return 0;
 
 	/* Set attributes based in the channel flags */
-	channel->attrs = kcalloc(size, sizeof(**channel->attrs), GFP_KERNEL);
+	channel->attrs = kcalloc(size + 1, sizeof(**channel->attrs),
+				 GFP_KERNEL);
 	if (!channel->attrs)
 		return -ENOMEM;
 	channel->attr_group = kcalloc(1, sizeof(*channel->attr_group),
