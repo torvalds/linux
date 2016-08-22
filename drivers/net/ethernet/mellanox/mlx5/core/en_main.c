@@ -317,6 +317,8 @@ static void mlx5e_async_event(struct mlx5_core_dev *mdev, void *vpriv,
 			      enum mlx5_dev_event event, unsigned long param)
 {
 	struct mlx5e_priv *priv = vpriv;
+	struct ptp_clock_event ptp_event;
+	struct mlx5_eqe *eqe = NULL;
 
 	if (!test_bit(MLX5E_STATE_ASYNC_EVENTS_ENABLED, &priv->state))
 		return;
@@ -326,7 +328,15 @@ static void mlx5e_async_event(struct mlx5_core_dev *mdev, void *vpriv,
 	case MLX5_DEV_EVENT_PORT_DOWN:
 		queue_work(priv->wq, &priv->update_carrier_work);
 		break;
-
+	case MLX5_DEV_EVENT_PPS:
+		eqe = (struct mlx5_eqe *)param;
+		ptp_event.type = PTP_CLOCK_EXTTS;
+		ptp_event.index = eqe->data.pps.pin;
+		ptp_event.timestamp =
+			timecounter_cyc2time(&priv->tstamp.clock,
+					     be64_to_cpu(eqe->data.pps.time_stamp));
+		mlx5e_pps_event_handler(vpriv, &ptp_event);
+		break;
 	default:
 		break;
 	}
