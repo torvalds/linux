@@ -50,9 +50,10 @@ static void net_release_queue(struct virtio_dev *dev, int queue_idx)
 	lkl_host_ops.mutex_unlock(netdev_of(dev)->queue_locks[queue_idx]);
 }
 
-/* The buffers passed through "req" from the virtio_net driver always
- * starts with a vnet_hdr. We need to check the backend device if it
- * expects vnet_hdr and adjust buffer offset accordingly.
+/*
+ * The buffers passed through "req" from the virtio_net driver always starts
+ * with a vnet_hdr. We need to check the backend device if it expects vnet_hdr
+ * and adjust buffer offset accordingly.
  */
 static int net_enqueue(struct virtio_dev *dev, struct virtio_req *req)
 {
@@ -63,14 +64,14 @@ static int net_enqueue(struct virtio_dev *dev, struct virtio_req *req)
 
 	header = req->buf[0].addr;
 	net_dev = netdev_of(dev);
+	/*
+	 * The backend device does not expect a vnet_hdr so adjust buf
+	 * accordingly. (We make adjustment to req->buf so it can be used
+	 * directly for the tx/rx call but remember to undo the change after the
+	 * call.  Note that it's ok to pass iov with entry's len==0.  The caller
+	 * will skip to the next entry correctly.
+	 */
 	if (!net_dev->nd->has_vnet_hdr) {
-		/* The backend device does not expect a vnet_hdr so adjust
-		 * buf accordingly. (We make adjustment to req->buf so it
-		 * can be used directly for the tx/rx call but remember to
-		 * undo the change after the call.
-		 * Note that it's ok to pass iov with entry's len==0.
-		 * The caller will skip to the next entry correctly.
-		 */
 		req->buf[0].addr += sizeof(*header);
 		req->buf[0].len -= sizeof(*header);
 	}
@@ -87,13 +88,12 @@ static int net_enqueue(struct virtio_dev *dev, struct virtio_req *req)
 		if (ret < 0)
 			return -1;
 		if (net_dev->nd->has_vnet_hdr) {
-
-			/* if the number of bytes returned exactly matches
-			 * the total space in the iov then there is a good
-			 * chance we did not supply a large enough buffer for
-			 * the whole pkt, i.e., pkt has been truncated.
-			 * This is only likely to happen under mergeable RX
-			 * buffer mode.
+			/*
+			 * If the number of bytes returned exactly matches the
+			 * total space in the iov then there is a good chance we
+			 * did not supply a large enough buffer for the whole
+			 * pkt, i.e., pkt has been truncated.  This is only
+			 * likely to happen under mergeable RX buffer mode.
 			 */
 			if (req->mergeable_rx_len == (unsigned int)ret)
 				lkl_printf("PKT is likely truncated! len=%d\n",
@@ -102,7 +102,8 @@ static int net_enqueue(struct virtio_dev *dev, struct virtio_req *req)
 			header->flags = 0;
 			header->gso_type = LKL_VIRTIO_NET_HDR_GSO_NONE;
 		}
-		/* Have to compute how many descriptors we've consumed (really
+		/*
+		 * Have to compute how many descriptors we've consumed (really
 		 * only matters to the the mergeable RX mode) and return it
 		 * through "num_buffers".
 		 */
@@ -232,10 +233,12 @@ int lkl_netdev_add(struct lkl_netdev *nd, struct lkl_netdev_args* args)
 	if (!dev->queue_locks)
 		goto out_free;
 
-	/* MUST match the number of queue locks we initialized. We
-	 * could init the queues in virtio_dev_setup to help enforce
-	 * this, but netdevs are the only flavor that need these
-	 * locks, so it's better to do it here. */
+	/*
+	 * MUST match the number of queue locks we initialized. We could init
+	 * the queues in virtio_dev_setup to help enforce this, but netdevs are
+	 * the only flavor that need these locks, so it's better to do it
+	 * here.
+	 */
 	ret = virtio_dev_setup(&dev->dev, NUM_QUEUES, QUEUE_DEPTH);
 
 	if (ret)

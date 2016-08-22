@@ -114,7 +114,8 @@ void virtio_req_complete(struct virtio_req *req, uint32_t len)
 	if (q->last_avail_idx + avail_used == le16toh(q->avail->idx))
 		send_irq = 1;
 
-	/* There are two rings: q->avail and q->used for each of the rx and tx
+	/*
+	 * There are two rings: q->avail and q->used for each of the rx and tx
 	 * queues that are used to pass buffers between kernel driver and the
 	 * virtio device implementation.
 	 *
@@ -151,11 +152,14 @@ void virtio_req_complete(struct virtio_req *req, uint32_t len)
 	}
 }
 
-/* Grab the vring_desc from the queue at the appropriate index in the
+/*
+ * Grab the vring_desc from the queue at the appropriate index in the
  * queue's circular buffer, converting from little-endian to
- * the host's endianness. */
-static inline struct lkl_vring_desc *vring_desc_at_le_idx(struct virtio_queue *q,
-							__lkl__virtio16 le_idx)
+ * the host's endianness.
+ */
+static inline
+struct lkl_vring_desc *vring_desc_at_le_idx(struct virtio_queue *q,
+					    __lkl__virtio16 le_idx)
 {
 	return &q->desc[le16toh(le_idx) & (q->num -1)];
 }
@@ -269,7 +273,9 @@ void virtio_process_queue(struct virtio_dev *dev, uint32_t qidx)
 	    (dev->device_features & BIT(LKL_VIRTIO_NET_F_MRG_RXBUF)));
 
 	while (q->last_avail_idx != le16toh(q->avail->idx)) {
-		/* Make sure following loads happens after loading q->avail->idx.
+		/*
+		 * Make sure following loads happens after loading
+		 * q->avail->idx.
 		 */
 		__sync_synchronize();
 		if (virtio_process_one(dev, q, q->last_avail_idx,
