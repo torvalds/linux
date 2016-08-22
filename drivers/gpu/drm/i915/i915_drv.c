@@ -851,7 +851,7 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 	intel_init_audio_hooks(dev_priv);
 	i915_gem_load_init(&dev_priv->drm);
 
-	intel_display_crc_init(&dev_priv->drm);
+	intel_display_crc_init(dev_priv);
 
 	intel_device_info_dump(dev_priv);
 
