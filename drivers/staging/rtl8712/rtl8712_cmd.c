@@ -264,9 +264,9 @@ static struct cmd_obj *cmd_hdl_filter(struct _adapter *padapter,
 		 */
 		if (padapter->pwrctrlpriv.pwr_mode > PS_MODE_ACTIVE) {
 			padapter->pwrctrlpriv.pwr_mode = PS_MODE_ACTIVE;
-			_enter_pwrlock(&(padapter->pwrctrlpriv.lock));
+			mutex_lock(&padapter->pwrctrlpriv.mutex_lock);
 			r8712_set_rpwm(padapter, PS_STATE_S4);
-			up(&(padapter->pwrctrlpriv.lock));
+			mutex_unlock(&padapter->pwrctrlpriv.mutex_lock);
 		}
 		pcmd_r = pcmd;
 		break;
@@ -395,10 +395,10 @@ _next:
 			}
 			if (pcmd->cmdcode == GEN_CMD_CODE(_SetPwrMode)) {
 				if (padapter->pwrctrlpriv.bSleep) {
-					_enter_pwrlock(&(padapter->
-						       pwrctrlpriv.lock));
+					mutex_lock(&padapter->
+						       pwrctrlpriv.mutex_lock);
 					r8712_set_rpwm(padapter, PS_STATE_S2);
-					up(&padapter->pwrctrlpriv.lock);
+					mutex_unlock(&padapter->pwrctrlpriv.mutex_lock);
 				}
 			}
 			r8712_free_cmd_obj(pcmd);
