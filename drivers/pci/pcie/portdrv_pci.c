@@ -1,12 +1,13 @@
 /*
  * File:	portdrv_pci.c
  * Purpose:	PCI Express Port Bus Driver
+ * Author:	Tom Nguyen <tom.l.nguyen@intel.com>
+ * Version:	v1.0
  *
  * Copyright (C) 2004 Intel
  * Copyright (C) Tom Long Nguyen (tom.l.nguyen@intel.com)
  */
 
-#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -20,16 +21,6 @@
 
 #include "portdrv.h"
 #include "aer/aerdrv.h"
-
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v1.0"
-#define DRIVER_AUTHOR "tom.l.nguyen@intel.com"
-#define DRIVER_DESC "PCIe Port Bus Driver"
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE("GPL");
 
 /* If this switch is set, PCIe port native services should not be enabled. */
 bool pcie_ports_disabled;
@@ -341,7 +332,6 @@ static const struct pci_device_id port_pci_ids[] = { {
 	PCI_DEVICE_CLASS(((PCI_CLASS_BRIDGE_PCI << 8) | 0x00), ~0),
 	}, { /* end: all zeroes */ }
 };
-MODULE_DEVICE_TABLE(pci, port_pci_ids);
 
 static const struct pci_error_handlers pcie_portdrv_err_handler = {
 	.error_detected = pcie_portdrv_error_detected,
@@ -406,5 +396,4 @@ static int __init pcie_portdrv_init(void)
  out:
 	return retval;
 }
-
-module_init(pcie_portdrv_init);
+device_initcall(pcie_portdrv_init);
