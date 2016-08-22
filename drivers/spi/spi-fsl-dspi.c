@@ -624,10 +624,13 @@ static int dspi_resume(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct fsl_dspi *dspi = spi_master_get_devdata(master);
+	int ret;
 
 	pinctrl_pm_select_default_state(dev);
 
-	clk_prepare_enable(dspi->clk);
+	ret = clk_prepare_enable(dspi->clk);
+	if (ret)
+		return ret;
 	spi_master_resume(master);
 
 	return 0;
@@ -726,7 +729,9 @@ static int dspi_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "unable to get clock\n");
 		goto out_master_put;
 	}
-	clk_prepare_enable(dspi->clk);
+	ret = clk_prepare_enable(dspi->clk);
+	if (ret)
+		goto out_master_put;
 
 	master->max_speed_hz =
 		clk_get_rate(dspi->clk) / dspi->devtype_data->max_clock_factor;
