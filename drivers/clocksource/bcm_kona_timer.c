@@ -66,10 +66,10 @@ static void kona_timer_disable_and_clear(void __iomem *base)
 
 }
 
-static void
+static int
 kona_timer_get_counter(void __iomem *timer_base, uint32_t *msw, uint32_t *lsw)
 {
-	int loop_limit = 4;
+	int loop_limit = 3;
 
 	/*
 	 * Read 64-bit free running counter
@@ -83,18 +83,19 @@ kona_timer_get_counter(void __iomem *timer_base, uint32_t *msw, uint32_t *lsw)
 	 *      if new hi-word is equal to previously read hi-word then stop.
 	 */
 
-	while (--loop_limit) {
+	do {
 		*msw = readl(timer_base + KONA_GPTIMER_STCHI_OFFSET);
 		*lsw = readl(timer_base + KONA_GPTIMER_STCLO_OFFSET);
 		if (*msw == readl(timer_base + KONA_GPTIMER_STCHI_OFFSET))
 			break;
-	}
+	} while (--loop_limit);
 	if (!loop_limit) {
 		pr_err("bcm_kona_timer: getting counter failed.\n");
 		pr_err(" Timer will be impacted\n");
+		return -ETIMEDOUT;
 	}
 
-	return;
+	return 0;
 }
 
 static int kona_timer_set_next_event(unsigned long clc,
@@ -112,8 +113,11 @@ static int kona_timer_set_next_event(unsigned long clc,
 
 	uint32_t lsw, msw;
 	uint32_t reg;
+	int ret;
 
-	kona_timer_get_counter(timers.tmr_regs, &msw, &lsw);
+	ret = kona_timer_get_counter(timers.tmr_regs, &msw, &lsw);
+	if (ret)
+		return ret;
 
 	/* Load the "next" event tick value */
 	writel(lsw + clc, timers.tmr_regs + KONA_GPTIMER_STCM0_OFFSET);

@@ -2023,7 +2023,7 @@ static int uvcg_streaming_class_allow_link(struct config_item *src,
 	if (!data) {
 		kfree(*class_array);
 		*class_array = NULL;
-		ret = PTR_ERR(data);
+		ret = -ENOMEM;
 		goto unlock;
 	}
 	cl_arr = *class_array;

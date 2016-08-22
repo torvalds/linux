@@ -55,19 +55,19 @@ struct mtk_iommu_data {
 	bool                            enable_4GB;
 };
 
-static int compare_of(struct device *dev, void *data)
+static inline int compare_of(struct device *dev, void *data)
 {
 	return dev->of_node == data;
 }
 
-static int mtk_iommu_bind(struct device *dev)
+static inline int mtk_iommu_bind(struct device *dev)
 {
 	struct mtk_iommu_data *data = dev_get_drvdata(dev);
 
 	return component_bind_all(dev, &data->smi_imu);
 }
 
-static void mtk_iommu_unbind(struct device *dev)
+static inline void mtk_iommu_unbind(struct device *dev)
 {
 	struct mtk_iommu_data *data = dev_get_drvdata(dev);
 

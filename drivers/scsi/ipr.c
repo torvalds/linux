@@ -10410,8 +10410,11 @@ static int ipr_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 		__ipr_remove(pdev);
 		return rc;
 	}
+	spin_lock_irqsave(ioa_cfg->host->host_lock, flags);
+	ioa_cfg->scan_enabled = 1;
+	schedule_work(&ioa_cfg->work_q);
+	spin_unlock_irqrestore(ioa_cfg->host->host_lock, flags);
 
-	scsi_scan_host(ioa_cfg->host);
 	ioa_cfg->iopoll_weight = ioa_cfg->chip_cfg->iopoll_weight;
 
 	if (ioa_cfg->iopoll_weight && ioa_cfg->sis64 && ioa_cfg->nvectors > 1) {
@@ -10421,10 +10424,8 @@ static int ipr_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 		}
 	}
 
-	spin_lock_irqsave(ioa_cfg->host->host_lock, flags);
-	ioa_cfg->scan_enabled = 1;
-	schedule_work(&ioa_cfg->work_q);
-	spin_unlock_irqrestore(ioa_cfg->host->host_lock, flags);
+	scsi_scan_host(ioa_cfg->host);
+
 	return 0;
 }
 

@@ -57,7 +57,7 @@ int handle_egress(struct __sk_buff *skb)
 		bpf_trace_printk(dont_care_msg, sizeof(dont_care_msg),
 				 eth->h_proto, ip6h->nexthdr);
 		return TC_ACT_OK;
-	} else if (bpf_skb_in_cgroup(skb, &test_cgrp2_array_pin, 0) != 1) {
+	} else if (bpf_skb_under_cgroup(skb, &test_cgrp2_array_pin, 0) != 1) {
 		bpf_trace_printk(pass_msg, sizeof(pass_msg));
 		return TC_ACT_OK;
 	} else {

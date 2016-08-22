@@ -71,7 +71,9 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz, int trip)
 		dev_dbg(&instance->cdev->device, "target=%d\n",
 					(int)instance->target);
 
+		mutex_lock(&instance->cdev->lock);
 		instance->cdev->updated = false; /* cdev needs update */
+		mutex_unlock(&instance->cdev->lock);
 	}
 
 	mutex_unlock(&tz->lock);

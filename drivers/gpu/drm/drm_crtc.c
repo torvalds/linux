@@ -1121,15 +1121,13 @@ static int drm_connector_register_all(struct drm_device *dev)
 	struct drm_connector *connector;
 	int ret;
 
-	mutex_lock(&dev->mode_config.mutex);
-
-	drm_for_each_connector(connector, dev) {
+	/* FIXME: taking the mode config mutex ends up in a clash with
+	 * fbcon/backlight registration */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		ret = drm_connector_register(connector);
 		if (ret)
 			goto err;
 	}
-
-	mutex_unlock(&dev->mode_config.mutex);
 
 	return 0;
 

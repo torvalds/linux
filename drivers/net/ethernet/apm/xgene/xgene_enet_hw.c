@@ -793,6 +793,8 @@ int xgene_enet_phy_connect(struct net_device *ndev)
 			netdev_err(ndev, "Could not connect to PHY\n");
 			return  -ENODEV;
 		}
+#else
+		return -ENODEV;
 #endif
 	}
 

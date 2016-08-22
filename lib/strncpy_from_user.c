@@ -40,8 +40,8 @@ static inline long do_strncpy_from_user(char *dst, const char __user *src, long 
 		unsigned long c, data;
 
 		/* Fall back to byte-at-a-time if we get a page fault */
-		if (unlikely(unsafe_get_user(c,(unsigned long __user *)(src+res))))
-			break;
+		unsafe_get_user(c, (unsigned long __user *)(src+res), byte_at_a_time);
+
 		*(unsigned long *)(dst+res) = c;
 		if (has_zero(c, &data, &constants)) {
 			data = prep_zero_mask(c, data, &constants);
@@ -56,8 +56,7 @@ byte_at_a_time:
 	while (max) {
 		char c;
 
-		if (unlikely(unsafe_get_user(c,src+res)))
-			return -EFAULT;
+		unsafe_get_user(c,src+res, efault);
 		dst[res] = c;
 		if (!c)
 			return res;
@@ -76,6 +75,7 @@ byte_at_a_time:
 	 * Nope: we hit the address space limit, and we still had more
 	 * characters the caller would have wanted. That's an EFAULT.
 	 */
+efault:
 	return -EFAULT;
 }
 

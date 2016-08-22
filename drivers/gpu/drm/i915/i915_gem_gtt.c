@@ -2873,6 +2873,7 @@ void i915_ggtt_cleanup_hw(struct drm_device *dev)
 		struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
 
 		ppgtt->base.cleanup(&ppgtt->base);
+		kfree(ppgtt);
 	}
 
 	i915_gem_cleanup_stolen(dev);

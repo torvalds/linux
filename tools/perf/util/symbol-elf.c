@@ -837,7 +837,8 @@ int dso__load_sym(struct dso *dso, struct map *map,
 	sec = syms_ss->symtab;
 	shdr = syms_ss->symshdr;
 
-	if (elf_section_by_name(elf, &ehdr, &tshdr, ".text", NULL))
+	if (elf_section_by_name(runtime_ss->elf, &runtime_ss->ehdr, &tshdr,
+				".text", NULL))
 		dso->text_offset = tshdr.sh_addr - tshdr.sh_offset;
 
 	if (runtime_ss->opdsec)

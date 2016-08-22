@@ -179,7 +179,15 @@ int __read_mostly futex_cmpxchg_enabled;
  * Futex flags used to encode options to functions and preserve them across
  * restarts.
  */
-#define FLAGS_SHARED		0x01
+#ifdef CONFIG_MMU
+# define FLAGS_SHARED		0x01
+#else
+/*
+ * NOMMU does not have per process address space. Let the compiler optimize
+ * code away.
+ */
+# define FLAGS_SHARED		0x00
+#endif
 #define FLAGS_CLOCKRT		0x02
 #define FLAGS_HAS_TIMEOUT	0x04
 
@@ -405,6 +413,16 @@ static void get_futex_key_refs(union futex_key *key)
 	if (!key->both.ptr)
 		return;
 
+	/*
+	 * On MMU less systems futexes are always "private" as there is no per
+	 * process address space. We need the smp wmb nevertheless - yes,
+	 * arch/blackfin has MMU less SMP ...
+	 */
+	if (!IS_ENABLED(CONFIG_MMU)) {
+		smp_mb(); /* explicit smp_mb(); (B) */
+		return;
+	}
+
 	switch (key->both.offset & (FUT_OFF_INODE|FUT_OFF_MMSHARED)) {
 	case FUT_OFF_INODE:
 		ihold(key->shared.inode); /* implies smp_mb(); (B) */
@@ -435,6 +453,9 @@ static void drop_futex_key_refs(union futex_key *key)
 		WARN_ON_ONCE(1);
 		return;
 	}
+
+	if (!IS_ENABLED(CONFIG_MMU))
+		return;
 
 	switch (key->both.offset & (FUT_OFF_INODE|FUT_OFF_MMSHARED)) {
 	case FUT_OFF_INODE:
