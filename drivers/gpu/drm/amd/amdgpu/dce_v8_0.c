@@ -1739,6 +1739,7 @@ static void dce_v8_0_afmt_setmode(struct drm_encoder *encoder,
 	/* Silent, r600_hdmi_enable will raise WARN for us */
 	if (!dig->afmt->enabled)
 		return;
+
 	offset = dig->afmt->offset;
 
 	/* hdmi deep color mode general control packets setup, if bpc > 8 */
@@ -1863,7 +1864,7 @@ static void dce_v8_0_afmt_setmode(struct drm_encoder *encoder,
 
 	WREG32_OR(mmHDMI_INFOFRAME_CONTROL0 + offset,
 		  HDMI_INFOFRAME_CONTROL0__HDMI_AVI_INFO_SEND_MASK | /* enable AVI info frames */
-		  HDMI_INFOFRAME_CONTROL0__HDMI_AVI_INFO_SEND_MASK); /* required for audio info values to be updated */
+		  HDMI_INFOFRAME_CONTROL0__HDMI_AVI_INFO_CONT_MASK); /* required for audio info values to be updated */
 
 	WREG32_P(mmHDMI_INFOFRAME_CONTROL1 + offset,
 		 (2 << HDMI_INFOFRAME_CONTROL1__HDMI_AVI_INFO_LINE__SHIFT), /* anything other than 0 */
@@ -1872,13 +1873,12 @@ static void dce_v8_0_afmt_setmode(struct drm_encoder *encoder,
 	WREG32_OR(mmAFMT_AUDIO_PACKET_CONTROL + offset,
 		  AFMT_AUDIO_PACKET_CONTROL__AFMT_AUDIO_SAMPLE_SEND_MASK); /* send audio packets */
 
-	/* it's unknown what these bits do excatly, but it's indeed quite useful for debugging */
 	WREG32(mmAFMT_RAMP_CONTROL0 + offset, 0x00FFFFFF);
 	WREG32(mmAFMT_RAMP_CONTROL1 + offset, 0x007FFFFF);
 	WREG32(mmAFMT_RAMP_CONTROL2 + offset, 0x00000001);
 	WREG32(mmAFMT_RAMP_CONTROL3 + offset, 0x00000001);
 
-	/* enable audio after to setting up hw */
+	/* enable audio after setting up hw */
 	dce_v8_0_audio_enable(adev, dig->afmt->pin, true);
 }
 
