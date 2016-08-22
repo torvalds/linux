@@ -1666,7 +1666,7 @@ static int hdspm_set_rate(struct hdspm * hdspm, int rate, int called_internally)
 			    HDSPM_AUTOSYNC_FROM_NONE) {
 
 				dev_warn(hdspm->card->dev,
-					 "Detected no Externel Sync\n");
+					 "Detected no External Sync\n");
 				not_set = 1;
 
 			} else if (rate != external_freq) {
