@@ -514,7 +514,8 @@ int qed_sp_eth_rxq_start_ramrod(struct qed_hwfn *p_hwfn,
 				u8 stats_id,
 				u16 bd_max_bytes,
 				dma_addr_t bd_chain_phys_addr,
-				dma_addr_t cqe_pbl_addr, u16 cqe_pbl_size)
+				dma_addr_t cqe_pbl_addr,
+				u16 cqe_pbl_size, bool b_use_zone_a_prod)
 {
 	struct rx_queue_start_ramrod_data *p_ramrod = NULL;
 	struct qed_spq_entry *p_ent = NULL;
@@ -571,11 +572,14 @@ int qed_sp_eth_rxq_start_ramrod(struct qed_hwfn *p_hwfn,
 	p_ramrod->num_of_pbl_pages = cpu_to_le16(cqe_pbl_size);
 	DMA_REGPAIR_LE(p_ramrod->cqe_pbl_addr, cqe_pbl_addr);
 
-	p_ramrod->vf_rx_prod_index = p_params->vf_qid;
-	if (p_params->vf_qid)
+	if (p_params->vf_qid || b_use_zone_a_prod) {
+		p_ramrod->vf_rx_prod_index = p_params->vf_qid;
 		DP_VERBOSE(p_hwfn, QED_MSG_SP,
-			   "Queue is meant for VF rxq[%04x]\n",
+			   "Queue%s is meant for VF rxq[%02x]\n",
+			   b_use_zone_a_prod ? " [legacy]" : "",
 			   p_params->vf_qid);
+		p_ramrod->vf_rx_prod_use_zone_a = b_use_zone_a_prod;
+	}
 
 	return qed_spq_post(p_hwfn, p_ent, NULL);
 }
@@ -637,8 +641,7 @@ qed_sp_eth_rx_queue_start(struct qed_hwfn *p_hwfn,
 					 abs_stats_id,
 					 bd_max_bytes,
 					 bd_chain_phys_addr,
-					 cqe_pbl_addr,
-					 cqe_pbl_size);
+					 cqe_pbl_addr, cqe_pbl_size, false);
 
 	if (rc)
 		qed_sp_release_queue_cid(p_hwfn, p_rx_cid);

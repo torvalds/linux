@@ -86,7 +86,7 @@ struct vfpf_acquire_tlv {
 	struct vfpf_first_tlv first_tlv;
 
 	struct vf_pf_vfdev_info {
-#define VFPF_ACQUIRE_CAP_OBSOLETE	(1 << 0)
+#define VFPF_ACQUIRE_CAP_PRE_FP_HSI     (1 << 0) /* VF pre-FP hsi version */
 #define VFPF_ACQUIRE_CAP_100G		(1 << 1) /* VF can support 100g */
 		u64 capabilities;
 		u8 fw_major;
