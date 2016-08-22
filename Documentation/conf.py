@@ -326,6 +326,9 @@ latex_elements = {
         \\setromanfont{DejaVu Sans}
         \\setmonofont{DejaVu Sans Mono}
 
+	% To allow adjusting table sizes
+	\\usepackage{adjustbox}
+
      '''
 }
 
