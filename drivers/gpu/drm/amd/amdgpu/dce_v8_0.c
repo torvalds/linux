@@ -1547,13 +1547,13 @@ static void dce_v8_0_audio_write_sad_regs(struct drm_encoder *encoder)
 
 			if (sad->format == eld_reg_to_type[i][1]) {
 				if (sad->channels > max_channels) {
-				value = (sad->channels <<
-				 AZALIA_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR0__MAX_CHANNELS__SHIFT) |
-				(sad->byte2 <<
-				 AZALIA_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR0__DESCRIPTOR_BYTE_2__SHIFT) |
-				(sad->freq <<
-				 AZALIA_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR0__SUPPORTED_FREQUENCIES__SHIFT);
-				max_channels = sad->channels;
+					value = (sad->channels <<
+						 AZALIA_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR0__MAX_CHANNELS__SHIFT) |
+					        (sad->byte2 <<
+						 AZALIA_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR0__DESCRIPTOR_BYTE_2__SHIFT) |
+					        (sad->freq <<
+						 AZALIA_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR0__SUPPORTED_FREQUENCIES__SHIFT);
+					max_channels = sad->channels;
 				}
 
 				if (sad->format == HDMI_AUDIO_CODING_TYPE_PCM)
