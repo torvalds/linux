@@ -72,6 +72,7 @@ installmandocs: mandocs
 
 # no-op for the DocBook toolchain
 epubdocs:
+latexdocs:
 
 ###
 #External programs used

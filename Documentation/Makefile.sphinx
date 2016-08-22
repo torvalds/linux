@@ -66,12 +66,16 @@ quiet_cmd_sphinx = SPHINX  $@ --> file://$(abspath $(BUILDDIR)/$3/$4);
 htmldocs:
 	@$(foreach var,$(SPHINXDIRS),$(call loop_cmd,sphinx,html,$(var),,$(var)))
 
-pdfdocs:
+latexdocs:
 ifeq ($(HAVE_PDFLATEX),0)
 	$(warning The 'xelatex' command was not found. Make sure you have it installed and in PATH to produce PDF output.)
 	@echo "  SKIP    Sphinx $@ target."
 else # HAVE_PDFLATEX
 	@$(call loop_cmd,sphinx,latex,.,latex,.)
+endif # HAVE_PDFLATEX
+
+pdfdocs: latexdocs
+ifneq ($(HAVE_PDFLATEX),0)
 	$(Q)$(MAKE) PDFLATEX=xelatex LATEXOPTS="-interaction=nonstopmode" -C $(BUILDDIR)/latex
 endif # HAVE_PDFLATEX
 
@@ -95,6 +99,7 @@ endif # HAVE_SPHINX
 dochelp:
 	@echo  ' Linux kernel internal documentation in different formats (Sphinx):'
 	@echo  '  htmldocs        - HTML'
+	@echo  '  latexdocs       - LaTeX'
 	@echo  '  pdfdocs         - PDF'
 	@echo  '  epubdocs        - EPUB'
 	@echo  '  xmldocs         - XML'

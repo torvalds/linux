@@ -1849,9 +1849,6 @@ sub output_function_rst(%) {
 	$count++;
 	$type = $args{'parametertypes'}{$parameter};
 
-	# RST doesn't like address_space tags at function prototypes
-	$type =~ s/__(user|kernel|iomem|percpu|pmem|rcu)\s*//;
-
 	if ($type =~ m/([^\(]*\(\*)\s*\)\s*\(([^\)]*)\)/) {
 	    # pointer-to-function
 	    print $1 . $parameter . ") (" . $2;
