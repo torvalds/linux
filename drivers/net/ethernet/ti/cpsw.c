@@ -2535,11 +2535,8 @@ static int cpsw_probe(struct platform_device *pdev)
 		goto clean_runtime_disable_ret;
 	}
 
-	cpsw->txch[0] = cpdma_chan_create(cpsw->dma, tx_chan_num(0),
-					  cpsw_tx_handler);
-	cpsw->rxch[0] = cpdma_chan_create(cpsw->dma, rx_chan_num(0),
-					  cpsw_rx_handler);
-
+	cpsw->txch[0] = cpdma_chan_create(cpsw->dma, 0, cpsw_tx_handler, 0);
+	cpsw->rxch[0] = cpdma_chan_create(cpsw->dma, 0, cpsw_rx_handler, 1);
 	if (WARN_ON(!cpsw->rxch[0] || !cpsw->txch[0])) {
 		dev_err(priv->dev, "error initializing dma channels\n");
 		ret = -ENOMEM;

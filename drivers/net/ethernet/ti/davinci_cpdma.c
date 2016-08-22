@@ -124,6 +124,13 @@ struct cpdma_chan {
 	int	int_set, int_clear, td;
 };
 
+#define tx_chan_num(chan)	(chan)
+#define rx_chan_num(chan)	((chan) + CPDMA_MAX_CHANNELS)
+#define is_rx_chan(chan)	((chan)->chan_num >= CPDMA_MAX_CHANNELS)
+#define is_tx_chan(chan)	(!is_rx_chan(chan))
+#define __chan_linear(chan_num)	((chan_num) & (CPDMA_MAX_CHANNELS - 1))
+#define chan_linear(chan)	__chan_linear((chan)->chan_num)
+
 /* The following make access to common cpdma_ctlr params more readable */
 #define dmaregs		params.dmaregs
 #define num_chan	params.num_chan
@@ -441,11 +448,13 @@ static void cpdma_chan_split_pool(struct cpdma_ctlr *ctlr)
 }
 
 struct cpdma_chan *cpdma_chan_create(struct cpdma_ctlr *ctlr, int chan_num,
-				     cpdma_handler_fn handler)
+				     cpdma_handler_fn handler, int rx_type)
 {
+	int offset = chan_num * 4;
 	struct cpdma_chan *chan;
-	int offset = (chan_num % CPDMA_MAX_CHANNELS) * 4;
 	unsigned long flags;
+
+	chan_num = rx_type ? rx_chan_num(chan_num) : tx_chan_num(chan_num);
 
 	if (__chan_linear(chan_num) >= ctlr->num_chan)
 		return NULL;
