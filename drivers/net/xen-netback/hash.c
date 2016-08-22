@@ -32,15 +32,6 @@
 #include <linux/vmalloc.h>
 #include <linux/rculist.h>
 
-static void xenvif_del_hash(struct rcu_head *rcu)
-{
-	struct xenvif_hash_cache_entry *entry;
-
-	entry = container_of(rcu, struct xenvif_hash_cache_entry, rcu);
-
-	kfree(entry);
-}
-
 static void xenvif_add_hash(struct xenvif *vif, const u8 *tag,
 			    unsigned int len, u32 val)
 {
@@ -76,7 +67,7 @@ static void xenvif_add_hash(struct xenvif *vif, const u8 *tag,
 		if (++vif->hash.cache.count > xenvif_hash_cache_size) {
 			list_del_rcu(&oldest->link);
 			vif->hash.cache.count--;
-			call_rcu(&oldest->rcu, xenvif_del_hash);
+			kfree_rcu(oldest, rcu);
 		}
 	}
 
@@ -114,7 +105,7 @@ static void xenvif_flush_hash(struct xenvif *vif)
 	list_for_each_entry_rcu(entry, &vif->hash.cache.list, link) {
 		list_del_rcu(&entry->link);
 		vif->hash.cache.count--;
-		call_rcu(&entry->rcu, xenvif_del_hash);
+		kfree_rcu(entry, rcu);
 	}
 
 	spin_unlock_irqrestore(&vif->hash.cache.lock, flags);
