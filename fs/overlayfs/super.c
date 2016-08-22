@@ -1018,19 +1018,11 @@ ovl_posix_acl_xattr_set(const struct xattr_handler *handler,
 
 	posix_acl_release(acl);
 
-	return ovl_setxattr(dentry, inode, handler->name, value, size, flags);
+	return ovl_xattr_set(dentry, handler->name, value, size, flags);
 
 out_acl_release:
 	posix_acl_release(acl);
 	return err;
-}
-
-static int ovl_other_xattr_set(const struct xattr_handler *handler,
-			       struct dentry *dentry, struct inode *inode,
-			       const char *name, const void *value,
-			       size_t size, int flags)
-{
-	return ovl_setxattr(dentry, inode, name, value, size, flags);
 }
 
 static int ovl_own_xattr_set(const struct xattr_handler *handler,
@@ -1039,6 +1031,14 @@ static int ovl_own_xattr_set(const struct xattr_handler *handler,
 			     size_t size, int flags)
 {
 	return -EPERM;
+}
+
+static int ovl_other_xattr_set(const struct xattr_handler *handler,
+			       struct dentry *dentry, struct inode *inode,
+			       const char *name, const void *value,
+			       size_t size, int flags)
+{
+	return ovl_xattr_set(dentry, name, value, size, flags);
 }
 
 static const struct xattr_handler __maybe_unused

@@ -198,25 +198,38 @@ bool ovl_is_private_xattr(const char *name)
 		       sizeof(OVL_XATTR_PREFIX) - 1) == 0;
 }
 
-int ovl_setxattr(struct dentry *dentry, struct inode *inode,
-		 const char *name, const void *value,
-		 size_t size, int flags)
+int ovl_xattr_set(struct dentry *dentry, const char *name, const void *value,
+		  size_t size, int flags)
 {
 	int err;
-	struct dentry *upperdentry;
+	struct path realpath;
+	enum ovl_path_type type = ovl_path_real(dentry, &realpath);
 	const struct cred *old_cred;
 
 	err = ovl_want_write(dentry);
 	if (err)
 		goto out;
 
+	if (!value && !OVL_TYPE_UPPER(type)) {
+		err = vfs_getxattr(realpath.dentry, name, NULL, 0);
+		if (err < 0)
+			goto out_drop_write;
+	}
+
 	err = ovl_copy_up(dentry);
 	if (err)
 		goto out_drop_write;
 
-	upperdentry = ovl_dentry_upper(dentry);
+	if (!OVL_TYPE_UPPER(type))
+		ovl_path_upper(dentry, &realpath);
+
 	old_cred = ovl_override_creds(dentry->d_sb);
-	err = vfs_setxattr(upperdentry, name, value, size, flags);
+	if (value)
+		err = vfs_setxattr(realpath.dentry, name, value, size, flags);
+	else {
+		WARN_ON(flags != XATTR_REPLACE);
+		err = vfs_removexattr(realpath.dentry, name);
+	}
 	revert_creds(old_cred);
 
 out_drop_write:
@@ -270,42 +283,6 @@ ssize_t ovl_listxattr(struct dentry *dentry, char *list, size_t size)
 	}
 
 	return res;
-}
-
-int ovl_removexattr(struct dentry *dentry, const char *name)
-{
-	int err;
-	struct path realpath;
-	enum ovl_path_type type = ovl_path_real(dentry, &realpath);
-	const struct cred *old_cred;
-
-	err = ovl_want_write(dentry);
-	if (err)
-		goto out;
-
-	err = -ENODATA;
-	if (ovl_is_private_xattr(name))
-		goto out_drop_write;
-
-	if (!OVL_TYPE_UPPER(type)) {
-		err = vfs_getxattr(realpath.dentry, name, NULL, 0);
-		if (err < 0)
-			goto out_drop_write;
-
-		err = ovl_copy_up(dentry);
-		if (err)
-			goto out_drop_write;
-
-		ovl_path_upper(dentry, &realpath);
-	}
-
-	old_cred = ovl_override_creds(dentry->d_sb);
-	err = vfs_removexattr(realpath.dentry, name);
-	revert_creds(old_cred);
-out_drop_write:
-	ovl_drop_write(dentry);
-out:
-	return err;
 }
 
 struct posix_acl *ovl_get_acl(struct inode *inode, int type)
@@ -393,7 +370,7 @@ static const struct inode_operations ovl_file_inode_operations = {
 	.setxattr	= generic_setxattr,
 	.getxattr	= ovl_getxattr,
 	.listxattr	= ovl_listxattr,
-	.removexattr	= ovl_removexattr,
+	.removexattr	= generic_removexattr,
 	.get_acl	= ovl_get_acl,
 	.update_time	= ovl_update_time,
 };
@@ -406,7 +383,7 @@ static const struct inode_operations ovl_symlink_inode_operations = {
 	.setxattr	= generic_setxattr,
 	.getxattr	= ovl_getxattr,
 	.listxattr	= ovl_listxattr,
-	.removexattr	= ovl_removexattr,
+	.removexattr	= generic_removexattr,
 	.update_time	= ovl_update_time,
 };
 
