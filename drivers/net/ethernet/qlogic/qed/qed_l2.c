@@ -101,6 +101,9 @@ int qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
 
 	p_ramrod->tx_switching_en = p_params->tx_switching;
 
+	p_ramrod->ctl_frame_mac_check_en = !!p_params->check_mac;
+	p_ramrod->ctl_frame_ethtype_check_en = !!p_params->check_ethtype;
+
 	/* Software Function ID in hwfn (PFs are 0 - 15, VFs are 16 - 135) */
 	p_ramrod->sw_fid = qed_concrete_to_sw_fid(p_hwfn->cdev,
 						  p_params->concrete_fid);

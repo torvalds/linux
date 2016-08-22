@@ -1680,6 +1680,7 @@ static void qed_iov_vf_mbx_start_vport(struct qed_hwfn *p_hwfn,
 	params.vport_id = vf->vport_id;
 	params.max_buffers_per_cqe = start->max_buffers_per_cqe;
 	params.mtu = vf->mtu;
+	params.check_mac = true;
 
 	rc = qed_sp_eth_vport_start(p_hwfn, &params);
 	if (rc) {

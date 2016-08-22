@@ -102,6 +102,8 @@ struct qed_sp_vport_start_params {
 	u16 opaque_fid;
 	u8 vport_id;
 	u16 mtu;
+	bool check_mac;
+	bool check_ethtype;
 };
 
 int qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
