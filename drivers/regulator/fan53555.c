@@ -100,6 +100,12 @@ struct fan53555_device_info {
 	unsigned int sleep_vol_cache;
 };
 
+static unsigned int fan53555_map_mode(unsigned int mode)
+{
+	return mode == REGULATOR_MODE_FAST ?
+		REGULATOR_MODE_FAST : REGULATOR_MODE_NORMAL;
+}
+
 static int fan53555_set_suspend_voltage(struct regulator_dev *rdev, int uV)
 {
 	struct fan53555_device_info *di = rdev_get_drvdata(rdev);
@@ -395,6 +401,8 @@ static int fan53555_regulator_probe(struct i2c_client *client,
 					GFP_KERNEL);
 	if (!di)
 		return -ENOMEM;
+
+	di->desc.of_map_mode = fan53555_map_mode;
 
 	pdata = dev_get_platdata(&client->dev);
 	if (!pdata)
