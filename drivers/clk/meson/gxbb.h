@@ -170,11 +170,11 @@
  */
 #define CLKID_SYS_PLL		  0
 /* CLKID_CPUCLK */
-#define CLKID_HDMI_PLL		  2
+/* CLKID_HDMI_PLL */
 #define CLKID_FIXED_PLL		  3
 /* CLKID_FCLK_DIV2 */
-#define CLKID_FCLK_DIV3		  5
-#define CLKID_FCLK_DIV4		  6
+/* CLKID_FCLK_DIV3 */
+/* CLKID_FCLK_DIV4 */
 #define CLKID_FCLK_DIV5		  7
 #define CLKID_FCLK_DIV7		  8
 #define CLKID_GP0_PLL		  9
