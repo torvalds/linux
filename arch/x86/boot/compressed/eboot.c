@@ -29,22 +29,11 @@ __pure const struct efi_config *__efi_early(void)
 static void setup_boot_services##bits(struct efi_config *c)		\
 {									\
 	efi_system_table_##bits##_t *table;				\
-	efi_boot_services_##bits##_t *bt;				\
 									\
 	table = (typeof(table))sys_table;				\
 									\
+	c->boot_services = table->boottime;				\
 	c->text_output = table->con_out;				\
-									\
-	bt = (typeof(bt))(unsigned long)(table->boottime);		\
-									\
-	c->allocate_pool = bt->allocate_pool;				\
-	c->allocate_pages = bt->allocate_pages;				\
-	c->get_memory_map = bt->get_memory_map;				\
-	c->free_pool = bt->free_pool;					\
-	c->free_pages = bt->free_pages;					\
-	c->locate_handle = bt->locate_handle;				\
-	c->handle_protocol = bt->handle_protocol;			\
-	c->exit_boot_services = bt->exit_boot_services;			\
 }
 BOOT_SERVICES(32);
 BOOT_SERVICES(64);
