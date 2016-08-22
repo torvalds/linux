@@ -472,6 +472,19 @@ __i915_gem_active_get_rcu(const struct i915_gem_active *active)
 		if (!request || i915_gem_request_completed(request))
 			return NULL;
 
+		/* An especially silly compiler could decide to recompute the
+		 * result of i915_gem_request_completed, more specifically
+		 * re-emit the load for request->fence.seqno. A race would catch
+		 * a later seqno value, which could flip the result from true to
+		 * false. Which means part of the instructions below might not
+		 * be executed, while later on instructions are executed. Due to
+		 * barriers within the refcounting the inconsistency can't reach
+		 * past the call to i915_gem_request_get_rcu, but not executing
+		 * that while still executing i915_gem_request_put() creates
+		 * havoc enough.  Prevent this with a compiler barrier.
+		 */
+		barrier();
+
 		request = i915_gem_request_get_rcu(request);
 
 		/* What stops the following rcu_access_pointer() from occurring
