@@ -1,4 +1,8 @@
 /*
+ * Altera PCIe MSI support
+ *
+ * Author: Ley Foon Tan <lftan@altera.com>
+ *
  * Copyright Altera Corporation (C) 2013-2015. All rights reserved
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -16,7 +20,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/irqchip/chained_irq.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/msi.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -308,7 +312,3 @@ static int __init altera_msi_init(void)
 	return platform_driver_register(&altera_msi_driver);
 }
 subsys_initcall(altera_msi_init);
-
-MODULE_AUTHOR("Ley Foon Tan <lftan@altera.com>");
-MODULE_DESCRIPTION("Altera PCIe MSI support");
-MODULE_LICENSE("GPL v2");
