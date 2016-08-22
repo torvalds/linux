@@ -48,6 +48,27 @@
 		interrupt-parent = <&pic>;
 		/* These are the logical module IRQs */
 		interrupts = <9>, <10>, <11>, <12>;
+
+		/*
+		 * SYSCLK clocks PCIv3 bridge, system controller and the
+		 * logic modules.
+		 */
+		sysclk: apsys@24M {
+			compatible = "arm,syscon-icst525-integratorap-sys";
+			#clock-cells = <0>;
+			lock-offset = <0x1c>;
+			vco-offset = <0x04>;
+			clocks = <&xtal24mhz>;
+		};
+
+		/* One-bit control for the PCI bus clock (33 or 25 MHz) */
+		pciclk: pciclk@24M {
+			compatible = "arm,syscon-icst525-integratorap-pci";
+			#clock-cells = <0>;
+			lock-offset = <0x1c>;
+			vco-offset = <0x04>;
+			clocks = <&xtal24mhz>;
+		};
 	};
 
 	timer0: timer@13000000 {
