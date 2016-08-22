@@ -422,16 +422,12 @@ static struct i915_page_scratch *alloc_scratch_page(struct drm_device *dev)
 		return ERR_PTR(ret);
 	}
 
-	set_pages_uc(px_page(sp), 1);
-
 	return sp;
 }
 
 static void free_scratch_page(struct drm_device *dev,
 			      struct i915_page_scratch *sp)
 {
-	set_pages_wb(px_page(sp), 1);
-
 	cleanup_px(dev, sp);
 	kfree(sp);
 }
