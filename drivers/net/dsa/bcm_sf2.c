@@ -136,6 +136,11 @@ static int bcm_sf2_sw_get_sset_count(struct dsa_switch *ds)
 	return BCM_SF2_STATS_SIZE;
 }
 
+static enum dsa_tag_protocol bcm_sf2_sw_get_tag_protocol(struct dsa_switch *ds)
+{
+	return DSA_TAG_PROTO_BRCM;
+}
+
 static void bcm_sf2_imp_vlan_setup(struct dsa_switch *ds, int cpu_port)
 {
 	struct bcm_sf2_priv *priv = ds_to_priv(ds);
@@ -1577,8 +1582,8 @@ static int bcm_sf2_sw_setup(struct dsa_switch *ds)
 }
 
 static struct dsa_switch_driver bcm_sf2_switch_driver = {
-	.tag_protocol		= DSA_TAG_PROTO_BRCM,
 	.setup			= bcm_sf2_sw_setup,
+	.get_tag_protocol	= bcm_sf2_sw_get_tag_protocol,
 	.set_addr		= bcm_sf2_sw_set_addr,
 	.get_phy_flags		= bcm_sf2_sw_get_phy_flags,
 	.get_strings		= bcm_sf2_sw_get_strings,
