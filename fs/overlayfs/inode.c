@@ -194,9 +194,8 @@ static int ovl_readlink(struct dentry *dentry, char __user *buf, int bufsiz)
 
 bool ovl_is_private_xattr(const char *name)
 {
-#define OVL_XATTR_PRE_NAME OVL_XATTR_PREFIX "."
-	return strncmp(name, OVL_XATTR_PRE_NAME,
-		       sizeof(OVL_XATTR_PRE_NAME) - 1) == 0;
+	return strncmp(name, OVL_XATTR_PREFIX,
+		       sizeof(OVL_XATTR_PREFIX) - 1) == 0;
 }
 
 int ovl_setxattr(struct dentry *dentry, struct inode *inode,
