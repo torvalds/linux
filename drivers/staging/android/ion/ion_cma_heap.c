@@ -126,7 +126,7 @@ static void *ion_cma_map_kernel(struct ion_heap *heap,
 }
 
 static void ion_cma_unmap_kernel(struct ion_heap *heap,
-					struct ion_buffer *buffer)
+				 struct ion_buffer *buffer)
 {
 }
 

@@ -34,9 +34,9 @@ struct ion_chunk_heap {
 };
 
 static int ion_chunk_heap_allocate(struct ion_heap *heap,
-				      struct ion_buffer *buffer,
-				      unsigned long size, unsigned long align,
-				      unsigned long flags)
+				   struct ion_buffer *buffer,
+				   unsigned long size, unsigned long align,
+				   unsigned long flags)
 {
 	struct ion_chunk_heap *chunk_heap =
 		container_of(heap, struct ion_chunk_heap, heap);
@@ -71,7 +71,7 @@ static int ion_chunk_heap_allocate(struct ion_heap *heap,
 		if (!paddr)
 			goto err;
 		sg_set_page(sg, pfn_to_page(PFN_DOWN(paddr)),
-				chunk_heap->chunk_size, 0);
+			    chunk_heap->chunk_size, 0);
 		sg = sg_next(sg);
 	}
 
@@ -106,7 +106,7 @@ static void ion_chunk_heap_free(struct ion_buffer *buffer)
 
 	if (ion_buffer_cached(buffer))
 		dma_sync_sg_for_device(NULL, table->sgl, table->nents,
-							DMA_BIDIRECTIONAL);
+				       DMA_BIDIRECTIONAL);
 
 	for_each_sg(table->sgl, sg, table->nents, i) {
 		gen_pool_free(chunk_heap->pool, page_to_phys(sg_page(sg)),
@@ -161,7 +161,7 @@ struct ion_heap *ion_chunk_heap_create(struct ion_platform_heap *heap_data)
 	chunk_heap->heap.type = ION_HEAP_TYPE_CHUNK;
 	chunk_heap->heap.flags = ION_HEAP_FLAG_DEFER_FREE;
 	pr_debug("%s: base %lu size %zu align %ld\n", __func__,
-		chunk_heap->base, heap_data->size, heap_data->align);
+		 chunk_heap->base, heap_data->size, heap_data->align);
 
 	return &chunk_heap->heap;
 

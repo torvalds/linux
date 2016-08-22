@@ -115,7 +115,7 @@ static int ion_page_pool_total(struct ion_page_pool *pool, bool high)
 }
 
 int ion_page_pool_shrink(struct ion_page_pool *pool, gfp_t gfp_mask,
-				int nr_to_scan)
+			 int nr_to_scan)
 {
 	int freed = 0;
 	bool high;
