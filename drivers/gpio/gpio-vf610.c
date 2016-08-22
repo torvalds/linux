@@ -1,5 +1,5 @@
 /*
- * vf610 GPIO support through PORT and GPIO module
+ * Freescale vf610 GPIO support through PORT and GPIO
  *
  * Copyright (c) 2014 Toradex AG.
  *
@@ -23,7 +23,6 @@
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/irq.h>
-#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -289,7 +288,3 @@ static int __init gpio_vf610_init(void)
 	return platform_driver_register(&vf610_gpio_driver);
 }
 device_initcall(gpio_vf610_init);
-
-MODULE_AUTHOR("Stefan Agner <stefan@agner.ch>");
-MODULE_DESCRIPTION("Freescale VF610 GPIO");
-MODULE_LICENSE("GPL v2");
