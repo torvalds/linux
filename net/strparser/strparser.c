@@ -390,9 +390,6 @@ static void do_strp_rx_work(struct strparser *strp)
 	 */
 	lock_sock(csk);
 
-	if (unlikely(csk->sk_user_data != strp))
-		goto out;
-
 	if (unlikely(strp->rx_stopped))
 		goto out;
 
