@@ -547,12 +547,11 @@ static int
 actcapi_data_b3_ind(act2000_card *card, struct sk_buff *skb) {
 	__u16 plci;
 	__u16 ncci;
-	__u16 controller;
 	__u8  blocknr;
 	int chan;
 	actcapi_msg *msg = (actcapi_msg *)skb->data;
 
-	EVAL_NCCI(msg->msg.data_b3_ind.fakencci, plci, controller, ncci);
+	EVAL_NCCI(msg->msg.data_b3_ind.fakencci, plci, ncci);
 	chan = find_ncci(card, ncci);
 	if (chan < 0)
 		return 0;

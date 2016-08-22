@@ -114,9 +114,8 @@ typedef struct actcapi_ncpd {
 #define MAKE_NCCI(plci, contr, ncci)					\
 	((plci & 0x1f) | ((contr & 0x7) << 5) | ((ncci & 0xff) << 8))
 
-#define EVAL_NCCI(fakencci, plci, contr, ncci) {	\
+#define EVAL_NCCI(fakencci, plci, ncci) {	\
 		plci  = fakencci & 0x1f;		\
-		contr = (fakencci >> 5) & 0x7;		\
 		ncci  = (fakencci >> 8) & 0xff;		\
 	}
 
