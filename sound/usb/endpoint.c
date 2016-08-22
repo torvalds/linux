@@ -1167,9 +1167,10 @@ void snd_usb_handle_sync_urb(struct snd_usb_endpoint *ep,
 	if (f == 0)
 		return;
 
-	if (unlikely(sender->udh01_fb_quirk)) {
+	if (unlikely(sender->tenor_fb_quirk)) {
 		/*
-		 * The TEAC UD-H01 firmware sometimes changes the feedback value
+		 * Devices based on Tenor 8802 chipsets (TEAC UD-H01
+		 * and others) sometimes change the feedback value
 		 * by +/- 0x1.0000.
 		 */
 		if (f < ep->freqn - 0x8000)

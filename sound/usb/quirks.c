@@ -1218,9 +1218,10 @@ void snd_usb_endpoint_start_quirk(struct snd_usb_endpoint *ep)
 		ep->skip_packets = 16;
 
 	/* Work around devices that report unreasonable feedback data */
-	if (ep->chip->usb_id == USB_ID(0x0644, 0x8038) /* TEAC UD-H01 */ &&
+	if ((ep->chip->usb_id == USB_ID(0x0644, 0x8038) ||  /* TEAC UD-H01 */
+	     ep->chip->usb_id == USB_ID(0x1852, 0x5034)) && /* T+A Dac8 */
 	    ep->syncmaxsize == 4)
-		ep->udh01_fb_quirk = 1;
+		ep->tenor_fb_quirk = 1;
 }
 
 void snd_usb_set_interface_quirk(struct usb_device *dev)
