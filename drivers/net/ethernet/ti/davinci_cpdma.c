@@ -403,6 +403,18 @@ void cpdma_ctlr_eoi(struct cpdma_ctlr *ctlr, u32 value)
 }
 EXPORT_SYMBOL_GPL(cpdma_ctlr_eoi);
 
+u32 cpdma_ctrl_rxchs_state(struct cpdma_ctlr *ctlr)
+{
+	return dma_reg_read(ctlr, CPDMA_RXINTSTATMASKED);
+}
+EXPORT_SYMBOL_GPL(cpdma_ctrl_rxchs_state);
+
+u32 cpdma_ctrl_txchs_state(struct cpdma_ctlr *ctlr)
+{
+	return dma_reg_read(ctlr, CPDMA_TXINTSTATMASKED);
+}
+EXPORT_SYMBOL_GPL(cpdma_ctrl_txchs_state);
+
 /**
  * cpdma_chan_split_pool - Splits ctrl pool between all channels.
  * Has to be called under ctlr lock
