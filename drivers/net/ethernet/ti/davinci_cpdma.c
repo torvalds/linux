@@ -104,6 +104,7 @@ struct cpdma_ctlr {
 	struct cpdma_desc_pool	*pool;
 	spinlock_t		lock;
 	struct cpdma_chan	*channels[2 * CPDMA_MAX_CHANNELS];
+	int chan_num;
 };
 
 struct cpdma_chan {
@@ -256,6 +257,7 @@ struct cpdma_ctlr *cpdma_ctlr_create(struct cpdma_params *params)
 	ctlr->state = CPDMA_STATE_IDLE;
 	ctlr->params = *params;
 	ctlr->dev = params->dev;
+	ctlr->chan_num = 0;
 	spin_lock_init(&ctlr->lock);
 
 	ctlr->pool = cpdma_desc_pool_create(ctlr->dev,
@@ -399,6 +401,31 @@ void cpdma_ctlr_eoi(struct cpdma_ctlr *ctlr, u32 value)
 }
 EXPORT_SYMBOL_GPL(cpdma_ctlr_eoi);
 
+/**
+ * cpdma_chan_split_pool - Splits ctrl pool between all channels.
+ * Has to be called under ctlr lock
+ */
+static void cpdma_chan_split_pool(struct cpdma_ctlr *ctlr)
+{
+	struct cpdma_desc_pool *pool = ctlr->pool;
+	struct cpdma_chan *chan;
+	int ch_desc_num;
+	int i;
+
+	if (!ctlr->chan_num)
+		return;
+
+	/* calculate average size of pool slice */
+	ch_desc_num = pool->num_desc / ctlr->chan_num;
+
+	/* split ctlr pool */
+	for (i = 0; i < ARRAY_SIZE(ctlr->channels); i++) {
+		chan = ctlr->channels[i];
+		if (chan)
+			chan->desc_num = ch_desc_num;
+	}
+}
+
 struct cpdma_chan *cpdma_chan_create(struct cpdma_ctlr *ctlr, int chan_num,
 				     cpdma_handler_fn handler)
 {
@@ -447,14 +474,25 @@ struct cpdma_chan *cpdma_chan_create(struct cpdma_ctlr *ctlr, int chan_num,
 	spin_lock_init(&chan->lock);
 
 	ctlr->channels[chan_num] = chan;
+	ctlr->chan_num++;
+
+	cpdma_chan_split_pool(ctlr);
+
 	spin_unlock_irqrestore(&ctlr->lock, flags);
 	return chan;
 }
 EXPORT_SYMBOL_GPL(cpdma_chan_create);
 
-int cpdma_chan_get_rx_buf_num(struct cpdma_ctlr *ctlr)
+int cpdma_chan_get_rx_buf_num(struct cpdma_chan *chan)
 {
-	return ctlr->pool->num_desc / 2;
+	unsigned long flags;
+	int desc_num;
+
+	spin_lock_irqsave(&chan->lock, flags);
+	desc_num = chan->desc_num;
+	spin_unlock_irqrestore(&chan->lock, flags);
+
+	return desc_num;
 }
 EXPORT_SYMBOL_GPL(cpdma_chan_get_rx_buf_num);
 
@@ -471,6 +509,10 @@ int cpdma_chan_destroy(struct cpdma_chan *chan)
 	if (chan->state != CPDMA_STATE_IDLE)
 		cpdma_chan_stop(chan);
 	ctlr->channels[chan->chan_num] = NULL;
+	ctlr->chan_num--;
+
+	cpdma_chan_split_pool(ctlr);
+
 	spin_unlock_irqrestore(&ctlr->lock, flags);
 	return 0;
 }

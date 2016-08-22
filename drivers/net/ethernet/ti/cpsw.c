@@ -1213,6 +1213,40 @@ static void cpsw_init_host_port(struct cpsw_priv *priv)
 	}
 }
 
+static int cpsw_fill_rx_channels(struct cpsw_priv *priv)
+{
+	struct cpsw_common *cpsw = priv->cpsw;
+	struct sk_buff *skb;
+	int ch_buf_num;
+	int i, ret;
+
+	ch_buf_num = cpdma_chan_get_rx_buf_num(cpsw->rxch);
+	for (i = 0; i < ch_buf_num; i++) {
+		skb = __netdev_alloc_skb_ip_align(priv->ndev,
+						  cpsw->rx_packet_max,
+						  GFP_KERNEL);
+		if (!skb) {
+			cpsw_err(priv, ifup, "cannot allocate skb\n");
+			return -ENOMEM;
+		}
+
+		ret = cpdma_chan_submit(cpsw->rxch, skb, skb->data,
+					skb_tailroom(skb), 0);
+		if (ret < 0) {
+			cpsw_err(priv, ifup,
+				 "cannot submit skb to rx channel, error %d\n",
+				 ret);
+			kfree_skb(skb);
+			return ret;
+		}
+		kmemleak_not_leak(skb);
+	}
+
+	cpsw_info(priv, ifup, "submitted %d rx descriptors\n", ch_buf_num);
+
+	return ch_buf_num;
+}
+
 static void cpsw_slave_stop(struct cpsw_slave *slave, struct cpsw_common *cpsw)
 {
 	u32 slave_port;
@@ -1233,7 +1267,7 @@ static int cpsw_ndo_open(struct net_device *ndev)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	struct cpsw_common *cpsw = priv->cpsw;
-	int i, ret;
+	int ret;
 	u32 reg;
 
 	ret = pm_runtime_get_sync(cpsw->dev);
@@ -1265,8 +1299,6 @@ static int cpsw_ndo_open(struct net_device *ndev)
 				  ALE_ALL_PORTS, ALE_ALL_PORTS, 0, 0);
 
 	if (!cpsw_common_res_usage_state(cpsw)) {
-		int buf_num;
-
 		/* setup tx dma to fixed prio and zero offset */
 		cpdma_control_set(cpsw->dma, CPDMA_TX_PRIO_FIXED, 1);
 		cpdma_control_set(cpsw->dma, CPDMA_RX_BUFFER_OFFSET, 0);
@@ -1293,27 +1325,9 @@ static int cpsw_ndo_open(struct net_device *ndev)
 			enable_irq(cpsw->irqs_table[0]);
 		}
 
-		buf_num = cpdma_chan_get_rx_buf_num(cpsw->dma);
-		for (i = 0; i < buf_num; i++) {
-			struct sk_buff *skb;
-
-			ret = -ENOMEM;
-			skb = __netdev_alloc_skb_ip_align(priv->ndev,
-					cpsw->rx_packet_max, GFP_KERNEL);
-			if (!skb)
-				goto err_cleanup;
-			ret = cpdma_chan_submit(cpsw->rxch, skb, skb->data,
-						skb_tailroom(skb), 0);
-			if (ret < 0) {
-				kfree_skb(skb);
-				goto err_cleanup;
-			}
-			kmemleak_not_leak(skb);
-		}
-		/* continue even if we didn't manage to submit all
-		 * receive descs
-		 */
-		cpsw_info(priv, ifup, "submitted %d rx descriptors\n", i);
+		ret = cpsw_fill_rx_channels(priv);
+		if (ret < 0)
+			goto err_cleanup;
 
 		if (cpts_register(cpsw->dev, cpsw->cpts,
 				  cpsw->data.cpts_clock_mult,
