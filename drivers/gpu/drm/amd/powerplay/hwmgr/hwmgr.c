@@ -76,9 +76,6 @@ int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 	hwmgr->device = pp_init->device;
 	hwmgr->chip_family = pp_init->chip_family;
 	hwmgr->chip_id = pp_init->chip_id;
-	hwmgr->hw_revision = pp_init->rev_id;
-	hwmgr->sub_sys_id = pp_init->sub_sys_id;
-	hwmgr->sub_vendor_id = pp_init->sub_vendor_id;
 	hwmgr->usec_timeout = AMD_MAX_USEC_TIMEOUT;
 	hwmgr->power_source = PP_PowerSource_AC;
 

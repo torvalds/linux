@@ -74,7 +74,6 @@ struct pp_smumgr_func {
 struct pp_smumgr {
 	uint32_t chip_family;
 	uint32_t chip_id;
-	uint32_t hw_revision;
 	void *device;
 	void *backend;
 	uint32_t usec_timeout;

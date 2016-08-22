@@ -579,9 +579,6 @@ struct phm_microcode_version_info {
 struct pp_hwmgr {
 	uint32_t chip_family;
 	uint32_t chip_id;
-	uint32_t hw_revision;
-	uint32_t sub_sys_id;
-	uint32_t sub_vendor_id;
 
 	void *device;
 	struct pp_smumgr *smumgr;

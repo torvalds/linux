@@ -48,7 +48,6 @@ int smum_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 	smumgr->device = pp_init->device;
 	smumgr->chip_family = pp_init->chip_family;
 	smumgr->chip_id = pp_init->chip_id;
-	smumgr->hw_revision = pp_init->rev_id;
 	smumgr->usec_timeout = AMD_MAX_USEC_TIMEOUT;
 	smumgr->reload_fw = 1;
 	handle->smu_mgr = smumgr;
