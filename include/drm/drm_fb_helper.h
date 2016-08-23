@@ -177,6 +177,7 @@ struct drm_fb_helper_connector {
  *              the screen buffer
  * @dirty_lock: spinlock protecting @dirty_clip
  * @dirty_work: worker used to flush the framebuffer
+ * @resume_work: worker used during resume if the console lock is already taken
  *
  * This is the main structure used by the fbdev helpers. Drivers supporting
  * fbdev emulation should embedded this into their overall driver structure.
@@ -197,6 +198,7 @@ struct drm_fb_helper {
 	struct drm_clip_rect dirty_clip;
 	spinlock_t dirty_lock;
 	struct work_struct dirty_work;
+	struct work_struct resume_work;
 
 	/**
 	 * @kernel_fb_list:
@@ -264,6 +266,8 @@ void drm_fb_helper_cfb_imageblit(struct fb_info *info,
 				 const struct fb_image *image);
 
 void drm_fb_helper_set_suspend(struct drm_fb_helper *fb_helper, int state);
+void drm_fb_helper_set_suspend_unlocked(struct drm_fb_helper *fb_helper,
+					int suspend);
 
 int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info);
 
@@ -418,6 +422,11 @@ static inline void drm_fb_helper_cfb_imageblit(struct fb_info *info,
 
 static inline void drm_fb_helper_set_suspend(struct drm_fb_helper *fb_helper,
 					     int state)
+{
+}
+
+static inline void
+drm_fb_helper_set_suspend_unlocked(struct drm_fb_helper *fb_helper, int suspend)
 {
 }
 

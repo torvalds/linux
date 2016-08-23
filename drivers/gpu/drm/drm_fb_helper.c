@@ -29,6 +29,7 @@
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/console.h>
 #include <linux/kernel.h>
 #include <linux/sysrq.h>
 #include <linux/slab.h>
@@ -617,6 +618,16 @@ static void drm_fb_helper_crtc_free(struct drm_fb_helper *helper)
 	kfree(helper->crtc_info);
 }
 
+static void drm_fb_helper_resume_worker(struct work_struct *work)
+{
+	struct drm_fb_helper *helper = container_of(work, struct drm_fb_helper,
+						    resume_work);
+
+	console_lock();
+	fb_set_suspend(helper->fbdev, 0);
+	console_unlock();
+}
+
 static void drm_fb_helper_dirty_work(struct work_struct *work)
 {
 	struct drm_fb_helper *helper = container_of(work, struct drm_fb_helper,
@@ -648,6 +659,7 @@ void drm_fb_helper_prepare(struct drm_device *dev, struct drm_fb_helper *helper,
 {
 	INIT_LIST_HEAD(&helper->kernel_fb_list);
 	spin_lock_init(&helper->dirty_lock);
+	INIT_WORK(&helper->resume_work, drm_fb_helper_resume_worker);
 	INIT_WORK(&helper->dirty_work, drm_fb_helper_dirty_work);
 	helper->dirty_clip.x1 = helper->dirty_clip.y1 = ~0;
 	helper->funcs = funcs;
@@ -1025,7 +1037,9 @@ EXPORT_SYMBOL(drm_fb_helper_cfb_imageblit);
  * @fb_helper: driver-allocated fbdev helper
  * @state: desired state, zero to resume, non-zero to suspend
  *
- * A wrapper around fb_set_suspend implemented by fbdev core
+ * A wrapper around fb_set_suspend implemented by fbdev core.
+ * Use drm_fb_helper_set_suspend_unlocked() if you don't need to take
+ * the lock yourself
  */
 void drm_fb_helper_set_suspend(struct drm_fb_helper *fb_helper, int state)
 {
@@ -1033,6 +1047,52 @@ void drm_fb_helper_set_suspend(struct drm_fb_helper *fb_helper, int state)
 		fb_set_suspend(fb_helper->fbdev, state);
 }
 EXPORT_SYMBOL(drm_fb_helper_set_suspend);
+
+/**
+ * drm_fb_helper_set_suspend_unlocked - wrapper around fb_set_suspend that also
+ *                                      takes the console lock
+ * @fb_helper: driver-allocated fbdev helper
+ * @state: desired state, zero to resume, non-zero to suspend
+ *
+ * A wrapper around fb_set_suspend() that takes the console lock. If the lock
+ * isn't available on resume, a worker is tasked with waiting for the lock
+ * to become available. The console lock can be pretty contented on resume
+ * due to all the printk activity.
+ *
+ * This function can be called multiple times with the same state since
+ * &fb_info->state is checked to see if fbdev is running or not before locking.
+ *
+ * Use drm_fb_helper_set_suspend() if you need to take the lock yourself.
+ */
+void drm_fb_helper_set_suspend_unlocked(struct drm_fb_helper *fb_helper,
+					int suspend)
+{
+	if (!fb_helper || !fb_helper->fbdev)
+		return;
+
+	/* make sure there's no pending/ongoing resume */
+	flush_work(&fb_helper->resume_work);
+
+	if (suspend) {
+		if (fb_helper->fbdev->state != FBINFO_STATE_RUNNING)
+			return;
+
+		console_lock();
+
+	} else {
+		if (fb_helper->fbdev->state == FBINFO_STATE_RUNNING)
+			return;
+
+		if (!console_trylock()) {
+			schedule_work(&fb_helper->resume_work);
+			return;
+		}
+	}
+
+	fb_set_suspend(fb_helper->fbdev, suspend);
+	console_unlock();
+}
+EXPORT_SYMBOL(drm_fb_helper_set_suspend_unlocked);
 
 static int setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 		     u16 blue, u16 regno, struct fb_info *info)
