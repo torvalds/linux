@@ -102,6 +102,8 @@ struct qed_sp_vport_start_params {
 	u16 opaque_fid;
 	u8 vport_id;
 	u16 mtu;
+	bool check_mac;
+	bool check_ethtype;
 };
 
 int qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
@@ -225,7 +227,8 @@ int qed_sp_eth_rxq_start_ramrod(struct qed_hwfn *p_hwfn,
 				u8 stats_id,
 				u16 bd_max_bytes,
 				dma_addr_t bd_chain_phys_addr,
-				dma_addr_t cqe_pbl_addr, u16 cqe_pbl_size);
+				dma_addr_t cqe_pbl_addr,
+				u16 cqe_pbl_size, bool b_use_zone_a_prod);
 
 int qed_sp_eth_txq_start_ramrod(struct qed_hwfn  *p_hwfn,
 				u16  opaque_fid,

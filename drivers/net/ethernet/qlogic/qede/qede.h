@@ -268,6 +268,8 @@ struct qede_tx_queue {
 	u16			num_tx_buffers;
 	u64			xmit_pkts;
 	u64			stopped_cnt;
+
+	bool			is_legacy;
 };
 
 #define BD_UNMAP_ADDR(bd)		HILO_U64(le32_to_cpu((bd)->addr.hi), \
