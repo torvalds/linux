@@ -486,6 +486,11 @@ static void mv88e6xxx_ppu_state_init(struct mv88e6xxx_chip *chip)
 	chip->ppu_timer.function = mv88e6xxx_ppu_reenable_timer;
 }
 
+static void mv88e6xxx_ppu_state_destroy(struct mv88e6xxx_chip *chip)
+{
+	del_timer_sync(&chip->ppu_timer);
+}
+
 static int mv88e6xxx_phy_ppu_read(struct mv88e6xxx_chip *chip, int addr,
 				  int reg, u16 *val)
 {
@@ -2483,28 +2488,13 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 		PORT_CONTROL_USE_TAG | PORT_CONTROL_USE_IP |
 		PORT_CONTROL_STATE_FORWARDING;
 	if (dsa_is_cpu_port(ds, port)) {
-		if (mv88e6xxx_6095_family(chip) || mv88e6xxx_6185_family(chip))
-			reg |= PORT_CONTROL_DSA_TAG;
-		if (mv88e6xxx_6352_family(chip) ||
-		    mv88e6xxx_6351_family(chip) ||
-		    mv88e6xxx_6165_family(chip) ||
-		    mv88e6xxx_6097_family(chip) ||
-		    mv88e6xxx_6320_family(chip)) {
+		if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_EDSA))
 			reg |= PORT_CONTROL_FRAME_ETHER_TYPE_DSA |
-				PORT_CONTROL_FORWARD_UNKNOWN |
 				PORT_CONTROL_FORWARD_UNKNOWN_MC;
-		}
-
-		if (mv88e6xxx_6352_family(chip) ||
-		    mv88e6xxx_6351_family(chip) ||
-		    mv88e6xxx_6165_family(chip) ||
-		    mv88e6xxx_6097_family(chip) ||
-		    mv88e6xxx_6095_family(chip) ||
-		    mv88e6xxx_6065_family(chip) ||
-		    mv88e6xxx_6185_family(chip) ||
-		    mv88e6xxx_6320_family(chip)) {
-			reg |= PORT_CONTROL_EGRESS_ADD_TAG;
-		}
+		else
+			reg |= PORT_CONTROL_DSA_TAG;
+		reg |= PORT_CONTROL_EGRESS_ADD_TAG |
+			PORT_CONTROL_FORWARD_UNKNOWN;
 	}
 	if (dsa_is_dsa_port(ds, port)) {
 		if (mv88e6xxx_6095_family(chip) ||
@@ -2632,10 +2622,13 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 		/* Port Ethertype: use the Ethertype DSA Ethertype
 		 * value.
 		 */
-		ret = _mv88e6xxx_reg_write(chip, REG_PORT(port),
-					   PORT_ETH_TYPE, ETH_P_EDSA);
-		if (ret)
-			return ret;
+		if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_EDSA)) {
+			ret = _mv88e6xxx_reg_write(chip, REG_PORT(port),
+						   PORT_ETH_TYPE, ETH_P_EDSA);
+			if (ret)
+				return ret;
+		}
+
 		/* Tag Remap: use an identity 802.1p prio -> switch
 		 * prio mapping.
 		 */
@@ -3904,6 +3897,13 @@ static void mv88e6xxx_phy_init(struct mv88e6xxx_chip *chip)
 	}
 }
 
+static void mv88e6xxx_phy_destroy(struct mv88e6xxx_chip *chip)
+{
+	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_PPU)) {
+		mv88e6xxx_ppu_state_destroy(chip);
+	}
+}
+
 static int mv88e6xxx_smi_init(struct mv88e6xxx_chip *chip,
 			      struct mii_bus *bus, int sw_addr)
 {
@@ -3922,6 +3922,16 @@ static int mv88e6xxx_smi_init(struct mv88e6xxx_chip *chip,
 	chip->sw_addr = sw_addr;
 
 	return 0;
+}
+
+static enum dsa_tag_protocol mv88e6xxx_get_tag_protocol(struct dsa_switch *ds)
+{
+	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+
+	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_EDSA))
+		return DSA_TAG_PROTO_EDSA;
+
+	return DSA_TAG_PROTO_DSA;
 }
 
 static const char *mv88e6xxx_drv_probe(struct device *dsa_dev,
@@ -3967,8 +3977,8 @@ free:
 }
 
 static struct dsa_switch_driver mv88e6xxx_switch_driver = {
-	.tag_protocol		= DSA_TAG_PROTO_EDSA,
 	.probe			= mv88e6xxx_drv_probe,
+	.get_tag_protocol	= mv88e6xxx_get_tag_protocol,
 	.setup			= mv88e6xxx_setup,
 	.set_addr		= mv88e6xxx_set_addr,
 	.adjust_link		= mv88e6xxx_adjust_link,
@@ -4082,6 +4092,7 @@ static void mv88e6xxx_remove(struct mdio_device *mdiodev)
 	struct dsa_switch *ds = dev_get_drvdata(&mdiodev->dev);
 	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
 
+	mv88e6xxx_phy_destroy(chip);
 	mv88e6xxx_unregister_switch(chip);
 	mv88e6xxx_mdio_unregister(chip);
 }

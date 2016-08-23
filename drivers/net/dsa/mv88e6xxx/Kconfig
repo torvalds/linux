@@ -2,6 +2,7 @@ config NET_DSA_MV88E6XXX
 	tristate "Marvell 88E6xxx Ethernet switch fabric support"
 	depends on NET_DSA
 	select NET_DSA_TAG_EDSA
+	select NET_DSA_TAG_DSA
 	help
 	  This driver adds support for most of the Marvell 88E6xxx models of
 	  Ethernet switch chips, except 88E6060.

@@ -354,7 +354,10 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 	 * switch.
 	 */
 	if (dst->cpu_switch == index) {
-		dst->tag_ops = dsa_resolve_tag_protocol(drv->tag_protocol);
+		enum dsa_tag_protocol tag_protocol;
+
+		tag_protocol = drv->get_tag_protocol(ds);
+		dst->tag_ops = dsa_resolve_tag_protocol(tag_protocol);
 		if (IS_ERR(dst->tag_ops)) {
 			ret = PTR_ERR(dst->tag_ops);
 			goto out;

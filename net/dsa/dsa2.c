@@ -443,6 +443,7 @@ static int dsa_cpu_parse(struct device_node *port, u32 index,
 			 struct dsa_switch_tree *dst,
 			 struct dsa_switch *ds)
 {
+	enum dsa_tag_protocol tag_protocol;
 	struct net_device *ethernet_dev;
 	struct device_node *ethernet;
 
@@ -465,7 +466,8 @@ static int dsa_cpu_parse(struct device_node *port, u32 index,
 		dst->cpu_port = index;
 	}
 
-	dst->tag_ops = dsa_resolve_tag_protocol(ds->drv->tag_protocol);
+	tag_protocol = ds->drv->get_tag_protocol(ds);
+	dst->tag_ops = dsa_resolve_tag_protocol(tag_protocol);
 	if (IS_ERR(dst->tag_ops)) {
 		dev_warn(ds->dev, "No tagger for this switch\n");
 		return PTR_ERR(dst->tag_ops);
