@@ -1027,7 +1027,7 @@ static void amdgpu_switcheroo_set_state(struct pci_dev *pdev, enum vga_switchero
 		/* don't suspend or resume card normally */
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 
-		amdgpu_resume_kms(dev, true, true);
+		amdgpu_device_resume(dev, true, true);
 
 		dev->pdev->d3_delay = d3_delay;
 
@@ -1037,7 +1037,7 @@ static void amdgpu_switcheroo_set_state(struct pci_dev *pdev, enum vga_switchero
 		printk(KERN_INFO "amdgpu: switched off\n");
 		drm_kms_helper_poll_disable(dev);
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
-		amdgpu_suspend_kms(dev, true, true);
+		amdgpu_device_suspend(dev, true, true);
 		dev->switch_power_state = DRM_SWITCH_POWER_OFF;
 	}
 }
@@ -1774,7 +1774,7 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
  * Suspend & resume.
  */
 /**
- * amdgpu_suspend_kms - initiate device suspend
+ * amdgpu_device_suspend - initiate device suspend
  *
  * @pdev: drm dev pointer
  * @state: suspend state
@@ -1783,7 +1783,7 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
  * Returns 0 for success or an error on failure.
  * Called at driver suspend.
  */
-int amdgpu_suspend_kms(struct drm_device *dev, bool suspend, bool fbcon)
+int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 {
 	struct amdgpu_device *adev;
 	struct drm_crtc *crtc;
@@ -1862,7 +1862,7 @@ int amdgpu_suspend_kms(struct drm_device *dev, bool suspend, bool fbcon)
 }
 
 /**
- * amdgpu_resume_kms - initiate device resume
+ * amdgpu_device_resume - initiate device resume
  *
  * @pdev: drm dev pointer
  *
@@ -1870,7 +1870,7 @@ int amdgpu_suspend_kms(struct drm_device *dev, bool suspend, bool fbcon)
  * Returns 0 for success or an error on failure.
  * Called at driver resume.
  */
-int amdgpu_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
+int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 {
 	struct drm_connector *connector;
 	struct amdgpu_device *adev = dev->dev_private;
