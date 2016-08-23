@@ -59,7 +59,6 @@ void netvsc_switch_datapath(struct net_device *ndev, bool vf)
 			       VM_PKT_DATA_INBAND, 0);
 }
 
-
 static struct netvsc_device *alloc_net_device(void)
 {
 	struct netvsc_device *net_device;
@@ -122,7 +121,6 @@ static struct netvsc_device *get_inbound_net_device(struct hv_device *device)
 get_in_err:
 	return net_device;
 }
-
 
 static int netvsc_destroy_buf(struct hv_device *device)
 {
@@ -285,7 +283,6 @@ static int netvsc_init_buf(struct hv_device *device)
 		goto cleanup;
 	}
 
-
 	/* Notify the NetVsp of the gpadl handle */
 	init_packet = &net_device->channel_init_pkt;
 
@@ -412,7 +409,7 @@ static int netvsc_init_buf(struct hv_device *device)
 	/* Section count is simply the size divided by the section size.
 	 */
 	net_device->send_section_cnt =
-		net_device->send_buf_size/net_device->send_section_size;
+		net_device->send_buf_size / net_device->send_section_size;
 
 	dev_info(&device->device, "Send section size: %d, Section count:%d\n",
 		 net_device->send_section_size, net_device->send_section_cnt);
@@ -436,7 +433,6 @@ cleanup:
 exit:
 	return ret;
 }
-
 
 /* Negotiate NVSP protocol version */
 static int negotiate_nvsp_ver(struct hv_device *device,
@@ -593,7 +589,6 @@ int netvsc_device_remove(struct hv_device *device)
 	return 0;
 }
 
-
 #define RING_AVAIL_PERCENT_HIWATER 20
 #define RING_AVAIL_PERCENT_LOWATER 10
 
@@ -676,13 +671,11 @@ static void netvsc_send_completion(struct netvsc_device *net_device,
 		    !net_device_ctx->start_remove &&
 		    (hv_ringbuf_avail_percent(&channel->outbound) >
 		     RING_AVAIL_PERCENT_HIWATER || queue_sends < 1))
-				netif_tx_wake_queue(netdev_get_tx_queue(
-						    ndev, q_idx));
+			netif_tx_wake_queue(netdev_get_tx_queue(ndev, q_idx));
 	} else {
 		netdev_err(ndev, "Unknown send completion packet type- "
 			   "%d received!!\n", nvsp_packet->hdr.msg_type);
 	}
-
 }
 
 static u32 netvsc_get_next_send_section(struct netvsc_device *net_device)
@@ -1157,7 +1150,6 @@ static void netvsc_receive(struct netvsc_device *net_device,
 		/* Pass it to the upper layer */
 		status = rndis_filter_receive(device, netvsc_packet, &data,
 					      channel);
-
 	}
 
 	if (!net_device->mrc[q_idx].buf) {
@@ -1181,7 +1173,6 @@ static void netvsc_receive(struct netvsc_device *net_device,
 	rcd->tid = vmxferpage_packet->d.trans_id;
 	rcd->status = status;
 }
-
 
 static void netvsc_send_table(struct hv_device *hdev,
 			      struct nvsp_message *nvmsg)
@@ -1263,7 +1254,6 @@ static void netvsc_process_raw_pkt(struct hv_device *device,
 	}
 }
 
-
 void netvsc_channel_cb(void *context)
 {
 	int ret;
@@ -1320,8 +1310,6 @@ void netvsc_channel_cb(void *context)
 						       ndev,
 						       request_id,
 						       desc);
-
-
 			} else {
 				/*
 				 * We are done for this pass.
@@ -1350,8 +1338,6 @@ void netvsc_channel_cb(void *context)
 		kfree(buffer);
 
 	netvsc_chk_recv_comp(net_device, channel, q_idx);
-
-	return;
 }
 
 /*
