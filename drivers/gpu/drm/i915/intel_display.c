@@ -16423,6 +16423,17 @@ static bool intel_crtc_has_encoders(struct intel_crtc *crtc)
 	return false;
 }
 
+static struct intel_connector *intel_encoder_find_connector(struct intel_encoder *encoder)
+{
+	struct drm_device *dev = encoder->base.dev;
+	struct intel_connector *connector;
+
+	for_each_connector_on_encoder(dev, &encoder->base, connector)
+		return connector;
+
+	return NULL;
+}
+
 static bool has_pch_trancoder(struct drm_i915_private *dev_priv,
 			      enum transcoder pch_transcoder)
 {
@@ -16525,8 +16536,6 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 static void intel_sanitize_encoder(struct intel_encoder *encoder)
 {
 	struct intel_connector *connector;
-	struct drm_device *dev = encoder->base.dev;
-	bool found_connector = false;
 
 	/* We need to check both for a crtc link (meaning that the
 	 * encoder is active and trying to read from a pipe) and the
@@ -16534,12 +16543,8 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 	bool has_active_crtc = encoder->base.crtc &&
 		to_intel_crtc(encoder->base.crtc)->active;
 
-	for_each_connector_on_encoder(dev, &encoder->base, connector) {
-		found_connector = true;
-		break;
-	}
-
-	if (found_connector && !has_active_crtc) {
+	connector = intel_encoder_find_connector(encoder);
+	if (connector && !has_active_crtc) {
 		DRM_DEBUG_KMS("[ENCODER:%d:%s] has active connectors but no active pipe!\n",
 			      encoder->base.base.id,
 			      encoder->base.name);
