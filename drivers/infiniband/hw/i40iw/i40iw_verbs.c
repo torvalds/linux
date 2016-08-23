@@ -794,7 +794,6 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 	return &iwqp->ibqp;
 error:
 	i40iw_free_qp_resources(iwdev, iwqp, qp_num);
-	kfree(mem);
 	return ERR_PTR(err_code);
 }
 
