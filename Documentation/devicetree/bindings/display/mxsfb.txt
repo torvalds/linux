@@ -1,10 +1,47 @@
 * Freescale MXS LCD Interface (LCDIF)
 
+New bindings:
+=============
 Required properties:
 - compatible:	Should be "fsl,imx23-lcdif" for i.MX23.
 		Should be "fsl,imx28-lcdif" for i.MX28.
-- reg:		Address and length of the register set for lcdif
-- interrupts:	Should contain lcdif interrupts
+		Should be "fsl,imx6sx-lcdif" for i.MX6SX.
+- reg:		Address and length of the register set for LCDIF
+- interrupts:	Should contain LCDIF interrupt
+- clocks:	A list of phandle + clock-specifier pairs, one for each
+		entry in 'clock-names'.
+- clock-names:	A list of clock names. For MXSFB it should contain:
+    - "pix" for the LCDIF block clock
+    - (MX6SX-only) "axi", "disp_axi" for the bus interface clock
+
+Required sub-nodes:
+  - port: The connection to an encoder chip.
+
+Example:
+
+	lcdif1: display-controller@2220000 {
+		compatible = "fsl,imx6sx-lcdif", "fsl,imx28-lcdif";
+		reg = <0x02220000 0x4000>;
+		interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clks IMX6SX_CLK_LCDIF1_PIX>,
+			 <&clks IMX6SX_CLK_LCDIF_APB>,
+			 <&clks IMX6SX_CLK_DISPLAY_AXI>;
+		clock-names = "pix", "axi", "disp_axi";
+
+		port {
+			parallel_out: endpoint {
+				remote-endpoint = <&panel_in_parallel>;
+			};
+		};
+	};
+
+Deprecated bindings:
+====================
+Required properties:
+- compatible:	Should be "fsl,imx23-lcdif" for i.MX23.
+		Should be "fsl,imx28-lcdif" for i.MX28.
+- reg:		Address and length of the register set for LCDIF
+- interrupts:	Should contain LCDIF interrupts
 - display:	phandle to display node (see below for details)
 
 * display node
