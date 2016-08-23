@@ -798,6 +798,7 @@ struct adapter {
 	unsigned int mbox;
 	unsigned int pf;
 	unsigned int flags;
+	unsigned int adap_idx;
 	enum chip_type chip;
 
 	int msg_enable;

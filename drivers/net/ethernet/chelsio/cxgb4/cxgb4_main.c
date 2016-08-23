@@ -3085,6 +3085,15 @@ static int cxgb_change_mtu(struct net_device *dev, int new_mtu)
 }
 
 #ifdef CONFIG_PCI_IOV
+static int dummy_open(struct net_device *dev)
+{
+	/* Turn carrier off since we don't have to transmit anything on this
+	 * interface.
+	 */
+	netif_carrier_off(dev);
+	return 0;
+}
+
 static int cxgb_set_vf_mac(struct net_device *dev, int vf, u8 *mac)
 {
 	struct port_info *pi = netdev_priv(dev);
@@ -3246,11 +3255,12 @@ static const struct net_device_ops cxgb4_netdev_ops = {
 	.ndo_set_tx_maxrate   = cxgb_set_tx_maxrate,
 };
 
-static const struct net_device_ops cxgb4_mgmt_netdev_ops = {
 #ifdef CONFIG_PCI_IOV
+static const struct net_device_ops cxgb4_mgmt_netdev_ops = {
+	.ndo_open             = dummy_open,
 	.ndo_set_vf_mac       = cxgb_set_vf_mac,
-#endif
 };
+#endif
 
 static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
@@ -5023,6 +5033,51 @@ static int get_chip_type(struct pci_dev *pdev, u32 pl_rev)
 }
 
 #ifdef CONFIG_PCI_IOV
+static void dummy_setup(struct net_device *dev)
+{
+	dev->type = ARPHRD_NONE;
+	dev->mtu = 0;
+	dev->hard_header_len = 0;
+	dev->addr_len = 0;
+	dev->tx_queue_len = 0;
+	dev->flags |= IFF_NOARP;
+	dev->priv_flags |= IFF_NO_QUEUE;
+
+	/* Initialize the device structure. */
+	dev->netdev_ops = &cxgb4_mgmt_netdev_ops;
+	dev->ethtool_ops = &cxgb4_mgmt_ethtool_ops;
+	dev->destructor = free_netdev;
+}
+
+static int config_mgmt_dev(struct pci_dev *pdev)
+{
+	struct adapter *adap = pci_get_drvdata(pdev);
+	struct net_device *netdev;
+	struct port_info *pi;
+	char name[IFNAMSIZ];
+	int err;
+
+	snprintf(name, IFNAMSIZ, "mgmtpf%d%d", adap->adap_idx, adap->pf);
+	netdev = alloc_netdev(0, name, NET_NAME_UNKNOWN, dummy_setup);
+	if (!netdev)
+		return -ENOMEM;
+
+	pi = netdev_priv(netdev);
+	pi->adapter = adap;
+	SET_NETDEV_DEV(netdev, &pdev->dev);
+
+	adap->port[0] = netdev;
+
+	err = register_netdev(adap->port[0]);
+	if (err) {
+		pr_info("Unable to register VF mgmt netdev %s\n", name);
+		free_netdev(adap->port[0]);
+		adap->port[0] = NULL;
+		return err;
+	}
+	return 0;
+}
+
 static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
 {
 	struct adapter *adap = pci_get_drvdata(pdev);
@@ -5057,8 +5112,10 @@ static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
 	 */
 	if (!num_vfs) {
 		pci_disable_sriov(pdev);
-		if (adap->port[0]->reg_state == NETREG_REGISTERED)
+		if (adap->port[0]) {
 			unregister_netdev(adap->port[0]);
+			adap->port[0] = NULL;
+		}
 		return num_vfs;
 	}
 
@@ -5067,11 +5124,9 @@ static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
 		if (err)
 			return err;
 
-		if (adap->port[0]->reg_state == NETREG_UNINITIALIZED) {
-			err = register_netdev(adap->port[0]);
-			if (err < 0)
-				pr_info("Unable to register VF mgmt netdev\n");
-		}
+		err = config_mgmt_dev(pdev);
+		if (err)
+			return err;
 	}
 	return num_vfs;
 }
@@ -5084,9 +5139,6 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	bool highdma = false;
 	struct adapter *adapter = NULL;
 	struct net_device *netdev;
-#ifdef CONFIG_PCI_IOV
-	char name[IFNAMSIZ];
-#endif
 	void __iomem *regs;
 	u32 whoami, pl_rev;
 	enum chip_type chip;
@@ -5447,40 +5499,24 @@ sriov:
 		goto free_pci_region;
 	}
 
-	snprintf(name, IFNAMSIZ, "mgmtpf%d%d", adap_idx, func);
-	netdev = alloc_netdev(0, name, NET_NAME_UNKNOWN, ether_setup);
-	if (!netdev) {
-		err = -ENOMEM;
-		goto free_adapter;
-	}
-
 	adapter->pdev = pdev;
 	adapter->pdev_dev = &pdev->dev;
 	adapter->name = pci_name(pdev);
 	adapter->mbox = func;
 	adapter->pf = func;
 	adapter->regs = regs;
+	adapter->adap_idx = adap_idx;
 	adapter->mbox_log = kzalloc(sizeof(*adapter->mbox_log) +
 				    (sizeof(struct mbox_cmd) *
 				     T4_OS_LOG_MBOX_CMDS),
 				    GFP_KERNEL);
 	if (!adapter->mbox_log) {
 		err = -ENOMEM;
-		goto free_netdevice;
+		goto free_adapter;
 	}
-	pi = netdev_priv(netdev);
-	pi->adapter = adapter;
-	SET_NETDEV_DEV(netdev, &pdev->dev);
 	pci_set_drvdata(pdev, adapter);
-
-	adapter->port[0] = netdev;
-	netdev->netdev_ops = &cxgb4_mgmt_netdev_ops;
-	netdev->ethtool_ops = &cxgb4_mgmt_ethtool_ops;
-
 	return 0;
 
- free_netdevice:
-	free_netdev(adapter->port[0]);
  free_adapter:
 	kfree(adapter);
  free_pci_region:
@@ -5582,9 +5618,8 @@ static void remove_one(struct pci_dev *pdev)
 	}
 #ifdef CONFIG_PCI_IOV
 	else {
-		if (adapter->port[0]->reg_state == NETREG_REGISTERED)
+		if (adapter->port[0])
 			unregister_netdev(adapter->port[0]);
-		free_netdev(adapter->port[0]);
 		iounmap(adapter->regs);
 		kfree(adapter);
 		pci_disable_sriov(pdev);
