@@ -1477,11 +1477,12 @@ out:
 	return err;
 }
 
-/* Lower socket lock held */
 static void kcm_unattach(struct kcm_psock *psock)
 {
 	struct sock *csk = psock->sk;
 	struct kcm_mux *mux = psock->mux;
+
+	lock_sock(csk);
 
 	/* Stop getting callbacks from TCP socket. After this there should
 	 * be no way to reserve a kcm for this psock.
@@ -1514,7 +1515,10 @@ static void kcm_unattach(struct kcm_psock *psock)
 
 	write_unlock_bh(&csk->sk_callback_lock);
 
+	/* Call strp_done without sock lock */
+	release_sock(csk);
 	strp_done(&psock->strp);
+	lock_sock(csk);
 
 	bpf_prog_put(psock->bpf_prog);
 
@@ -1564,6 +1568,8 @@ no_reserved:
 		fput(csk->sk_socket->file);
 		kmem_cache_free(kcm_psockp, psock);
 	}
+
+	release_sock(csk);
 }
 
 static int kcm_unattach_ioctl(struct socket *sock, struct kcm_unattach *info)
@@ -1749,11 +1755,8 @@ static void release_mux(struct kcm_mux *mux)
 	/* Release psocks */
 	list_for_each_entry_safe(psock, tmp_psock,
 				 &mux->psocks, psock_list) {
-		if (!WARN_ON(psock->unattaching)) {
-			lock_sock(psock->strp.sk);
+		if (!WARN_ON(psock->unattaching))
 			kcm_unattach(psock);
-			release_sock(psock->strp.sk);
-		}
 	}
 
 	if (WARN_ON(mux->psocks_cnt))

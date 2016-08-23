@@ -445,6 +445,17 @@ int strp_init(struct strparser *strp, struct sock *csk,
 }
 EXPORT_SYMBOL_GPL(strp_init);
 
+void strp_unpause(struct strparser *strp)
+{
+	strp->rx_paused = 0;
+
+	/* Sync setting rx_paused with RX work */
+	smp_mb();
+
+	queue_work(strp_wq, &strp->rx_work);
+}
+EXPORT_SYMBOL_GPL(strp_unpause);
+
 /* strp must already be stopped so that strp_tcp_recv will no longer be called.
  * Note that strp_done is not called with the lower socket held.
  */

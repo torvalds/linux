@@ -88,10 +88,7 @@ static inline void strp_pause(struct strparser *strp)
 }
 
 /* May be called without holding lock for attached socket */
-static inline void strp_unpause(struct strparser *strp)
-{
-	strp->rx_paused = 0;
-}
+void strp_unpause(struct strparser *strp);
 
 static inline void save_strp_stats(struct strparser *strp,
 				   struct strp_aggr_stats *agg_stats)
