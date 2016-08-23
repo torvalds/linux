@@ -800,6 +800,7 @@ extern int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 extern int rk_fb_unregister(struct rk_lcdc_driver *dev_drv);
 extern struct rk_lcdc_driver *rk_get_lcdc_drv(char *name);
 extern int rk_fb_get_extern_screen(struct rk_screen *screen);
+extern int rk_fb_set_vop_pwm(void);
 extern int rk_fb_get_prmry_screen( struct rk_screen *screen);
 extern int rk_fb_set_prmry_screen(struct rk_screen *screen);
 extern u32 rk_fb_get_prmry_screen_pixclock(void);

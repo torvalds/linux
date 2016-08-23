@@ -644,6 +644,34 @@ char *get_format_string(enum data_format format, char *fmt)
 	return fmt;
 }
 
+int rk_fb_set_vop_pwm(void)
+{
+	int i = 0;
+	struct rk_fb *inf = NULL;
+	struct rk_lcdc_driver *dev_drv = NULL;
+
+	if (likely(fb_pdev))
+		inf = platform_get_drvdata(fb_pdev);
+	else
+		return -1;
+
+	for (i = 0; i < inf->num_lcdc; i++) {
+		if (inf->lcdc_dev_drv[i]->cabc_mode == 1) {
+			dev_drv = inf->lcdc_dev_drv[i];
+			break;
+		}
+	}
+
+	if (!dev_drv)
+		return -1;
+
+	mutex_lock(&dev_drv->win_config);
+	dev_drv->ops->cfg_done(dev_drv);
+	mutex_unlock(&dev_drv->win_config);
+
+	return 0;
+}
+
 /*
  * this is for hdmi
  * name: lcdc device name ,lcdc0 , lcdc1
@@ -1899,16 +1927,15 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 		}
 	}
 
+	mutex_lock(&dev_drv->win_config);
 	for (i = 0; i < dev_drv->lcdc_win_num; i++) {
 		win = dev_drv->win[i];
 		win_data = rk_fb_get_win_data(regs, i);
 		if (win_data) {
-			mutex_lock(&dev_drv->win_config);
 			rk_fb_update_win(dev_drv, win, win_data);
 			win->state = 1;
 			dev_drv->ops->set_par(dev_drv, i);
 			dev_drv->ops->pan_display(dev_drv, i);
-			mutex_unlock(&dev_drv->win_config);
 		} else {
 			win->z_order = -1;
 			win->state = 0;
@@ -1940,6 +1967,7 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 		dev_drv->ops->cfg_done(dev_drv);
 	else
 		sw_sync_timeline_inc(dev_drv->timeline, 1);
+	mutex_unlock(&dev_drv->win_config);
 
 	do {
 		timestamp = dev_drv->vsync_info.timestamp;
