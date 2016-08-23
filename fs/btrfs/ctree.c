@@ -2268,7 +2268,6 @@ static void reada_for_search(struct btrfs_root *root,
 	u64 search;
 	u64 target;
 	u64 nread = 0;
-	u64 gen;
 	struct extent_buffer *eb;
 	u32 nr;
 	u32 blocksize;
@@ -2313,7 +2312,6 @@ static void reada_for_search(struct btrfs_root *root,
 		search = btrfs_node_blockptr(node, nr);
 		if ((search <= target && target - search <= 65536) ||
 		    (search > target && search - target <= 65536)) {
-			gen = btrfs_node_ptr_generation(node, nr);
 			readahead_tree_block(root, search);
 			nread += blocksize;
 		}
