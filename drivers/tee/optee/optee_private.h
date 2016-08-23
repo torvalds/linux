@@ -50,8 +50,10 @@ struct optee_wait_queue {
 
 /**
  * struct optee_supp - supplicant synchronization struct
- * @available:		if 1 the supplicant device is available for use, else
- *			busy
+ * @ctx			the context of current connected supplicant.
+ *			if !NULL the supplicant device is available for use,
+ *			else busy
+ * @ctx_mutex:		held while accessing @ctx
  * @func:		supplicant function id to call
  * @ret:		call return value
  * @num_params:		number of elements in @param
@@ -64,7 +66,9 @@ struct optee_wait_queue {
  * @data_from_supp:	requesting thread is waiting on this to get the result
  */
 struct optee_supp {
-	atomic_t available;
+	struct tee_context *ctx;
+	/* Serializes access of ctx */
+	struct mutex ctx_mutex;
 
 	u32 func;
 	u32 ret;

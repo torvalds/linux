@@ -28,6 +28,8 @@ static int pool_op_gen_alloc(struct tee_shm_pool_mgr *poolm,
 	va = gen_pool_alloc(genpool, s);
 	if (!va)
 		return -ENOMEM;
+
+	memset((void *)va, 0, s);
 	shm->kaddr = (void *)va;
 	shm->paddr = gen_pool_virt_to_phys(genpool, va);
 	shm->size = s;
@@ -99,9 +101,10 @@ static int pool_res_mem_mgr_init(struct tee_shm_pool_mgr *mgr,
  *
  * @returns pointer to a 'struct tee_shm_pool' or an ERR_PTR on failure.
  */
-struct tee_shm_pool *tee_shm_pool_alloc_res_mem(struct device *dev,
-			struct tee_shm_pool_mem_info *priv_info,
-			struct tee_shm_pool_mem_info *dmabuf_info)
+struct tee_shm_pool *
+tee_shm_pool_alloc_res_mem(struct device *dev,
+			   struct tee_shm_pool_mem_info *priv_info,
+			   struct tee_shm_pool_mem_info *dmabuf_info)
 {
 	struct tee_shm_pool *pool = NULL;
 	int ret;

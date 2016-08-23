@@ -19,15 +19,16 @@
 void optee_supp_init(struct optee_supp *supp)
 {
 	memset(supp, 0, sizeof(*supp));
+	mutex_init(&supp->ctx_mutex);
 	mutex_init(&supp->thrd_mutex);
 	mutex_init(&supp->supp_mutex);
 	init_completion(&supp->data_to_supp);
 	init_completion(&supp->data_from_supp);
-	atomic_set(&supp->available, 1);
 }
 
 void optee_supp_uninit(struct optee_supp *supp)
 {
+	mutex_destroy(&supp->ctx_mutex);
 	mutex_destroy(&supp->thrd_mutex);
 	mutex_destroy(&supp->supp_mutex);
 }
@@ -44,6 +45,7 @@ void optee_supp_uninit(struct optee_supp *supp)
 u32 optee_supp_thrd_req(struct tee_context *ctx, u32 func, size_t num_params,
 			struct tee_param *param)
 {
+	bool interruptable;
 	struct optee *optee = tee_get_drvdata(ctx->teedev);
 	struct optee_supp *supp = &optee->supp;
 	u32 ret;
@@ -52,14 +54,21 @@ u32 optee_supp_thrd_req(struct tee_context *ctx, u32 func, size_t num_params,
 	 * Other threads blocks here until we've copied our answer from
 	 * supplicant.
 	 */
-	mutex_lock(&supp->thrd_mutex);
+	while (mutex_lock_interruptible(&supp->thrd_mutex)) {
+		/* See comment below on when the RPC can be interrupted. */
+		mutex_lock(&supp->ctx_mutex);
+		interruptable = !supp->ctx;
+		mutex_unlock(&supp->ctx_mutex);
+		if (interruptable)
+			return TEEC_ERROR_COMMUNICATION;
+	}
 
 	/*
 	 * We have exclusive access now since the supplicant at this
 	 * point is either doing a
-	 * wait_for_completion_interruptible(data_to_supp) or is in
+	 * wait_for_completion_interruptible(&supp->data_to_supp) or is in
 	 * userspace still about to do the ioctl() to enter
-	 * optee_supp_read() below.
+	 * optee_supp_recv() below.
 	 */
 
 	supp->func = func;
@@ -75,7 +84,30 @@ u32 optee_supp_thrd_req(struct tee_context *ctx, u32 func, size_t num_params,
 	 * returned from wait_for_completion(data_from_supp) we have
 	 * exclusive access again.
 	 */
-	wait_for_completion(&supp->data_from_supp);
+	while (wait_for_completion_interruptible(&supp->data_from_supp)) {
+		mutex_lock(&supp->ctx_mutex);
+		interruptable = !supp->ctx;
+		if (interruptable) {
+			/*
+			 * There's no supplicant available and since the
+			 * supp->ctx_mutex currently is held none can
+			 * become available until the mutex released
+			 * again.
+			 *
+			 * Interrupting an RPC to supplicant is only
+			 * allowed as a way of slightly improving the user
+			 * experience in case the supplicant hasn't been
+			 * started yet. During normal operation the supplicant
+			 * will serve all requests in a timely manner and
+			 * interrupting then wouldn't make sense.
+			 */
+			supp->ret = TEEC_ERROR_COMMUNICATION;
+			init_completion(&supp->data_to_supp);
+		}
+		mutex_unlock(&supp->ctx_mutex);
+		if (interruptable)
+			break;
+	}
 
 	ret = supp->ret;
 	supp->param = NULL;
@@ -106,9 +138,9 @@ int optee_supp_recv(struct tee_context *ctx, u32 *func, u32 *num_params,
 	int rc;
 
 	/*
-	 * In case two supplicants or two threads in one supplicant is
-	 * calling this function simultaneously we need to protect the
-	 * data with a mutex which we'll release before returning.
+	 * In case two threads in one supplicant is calling this function
+	 * simultaneously we need to protect the data with a mutex which
+	 * we'll release before returning.
 	 */
 	mutex_lock(&supp->supp_mutex);
 

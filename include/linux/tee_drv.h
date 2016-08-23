@@ -35,10 +35,12 @@ struct tee_shm_pool;
 /**
  * struct tee_context - driver specific context on file pointer data
  * @teedev:	pointer to this drivers struct tee_device
+ * @list_shm:	List of shared memory object owned by this context
  * @data:	driver specific context data, managed by the driver
  */
 struct tee_context {
 	struct tee_device *teedev;
+	struct list_head list_shm;
 	void *data;
 };
 
@@ -121,8 +123,9 @@ struct tee_desc {
  * @returns a pointer to a 'struct tee_device' or an ERR_PTR on failure
  */
 struct tee_device *tee_device_alloc(const struct tee_desc *teedesc,
-			struct device *dev, struct tee_shm_pool *pool,
-			void *driver_data);
+				    struct device *dev,
+				    struct tee_shm_pool *pool,
+				    void *driver_data);
 
 /**
  * tee_device_register() - Registers a TEE device
@@ -146,7 +149,8 @@ int tee_device_register(struct tee_device *teedev);
 void tee_device_unregister(struct tee_device *teedev);
 
 /**
- * struct tee_shm_pool_mem_info - holds information needed to create a shared memory pool
+ * struct tee_shm_pool_mem_info - holds information needed to create a shared
+ * memory pool
  * @vaddr:	Virtual address of start of pool
  * @paddr:	Physical address of start of pool
  * @size:	Size in bytes of the pool
@@ -158,9 +162,10 @@ struct tee_shm_pool_mem_info {
 };
 
 /**
- * tee_shm_pool_alloc_res_mem() - Create a shared memory pool from reserved memory range
- * @dev:	Device allocating the pool
- * @priv_info:	Information for driver private shared memory pool
+ * tee_shm_pool_alloc_res_mem() - Create a shared memory pool from reserved
+ * memory range
+ * @dev:	 Device allocating the pool
+ * @priv_info:	 Information for driver private shared memory pool
  * @dmabuf_info: Information for dma-buf shared memory pool
  *
  * Start and end of pools will must be page aligned.
@@ -170,9 +175,10 @@ struct tee_shm_pool_mem_info {
  *
  * @returns pointer to a 'struct tee_shm_pool' or an ERR_PTR on failure.
  */
-struct tee_shm_pool *tee_shm_pool_alloc_res_mem(struct device *dev,
-			struct tee_shm_pool_mem_info *priv_info,
-			struct tee_shm_pool_mem_info *dmabuf_info);
+struct tee_shm_pool *
+tee_shm_pool_alloc_res_mem(struct device *dev,
+			   struct tee_shm_pool_mem_info *priv_info,
+			   struct tee_shm_pool_mem_info *dmabuf_info);
 
 /**
  * tee_shm_pool_free() - Free a shared memory pool
@@ -191,7 +197,7 @@ void *tee_get_drvdata(struct tee_device *teedev);
 
 /**
  * tee_shm_alloc() - Allocate shared memory
- * @teedev:	Driver that allocates the shared memory
+ * @ctx:	Context that allocates the shared memory
  * @size:	Requested size of shared memory
  * @flags:	Flags setting properties for the requested shared memory.
  *
@@ -203,8 +209,7 @@ void *tee_get_drvdata(struct tee_device *teedev);
  *
  * @returns a pointer to 'struct tee_shm'
  */
-struct tee_shm *tee_shm_alloc(struct tee_device *teedev, size_t size,
-			      u32 flags);
+struct tee_shm *tee_shm_alloc(struct tee_context *ctx, size_t size, u32 flags);
 
 /**
  * tee_shm_free() - Free shared memory
@@ -264,10 +269,10 @@ int tee_shm_get_id(struct tee_shm *shm);
 
 /**
  * tee_shm_get_from_id() - Find shared memory object and increase referece count
- * @teedev:	Driver owning the shared mmemory
+ * @ctx:	Context owning the shared memory
  * @id:		Id of shared memory object
  * @returns a pointer to 'struct tee_shm' on success or an ERR_PTR on failure
  */
-struct tee_shm *tee_shm_get_from_id(struct tee_device *teedev, int id);
+struct tee_shm *tee_shm_get_from_id(struct tee_context *ctx, int id);
 
 #endif /*__TEE_DRV_H*/

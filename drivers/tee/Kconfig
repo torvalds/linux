@@ -1,7 +1,6 @@
 # Generic Trusted Execution Environment Configuration
 config TEE
-	bool "Trusted Execution Environment support"
-	default n
+	tristate "Trusted Execution Environment support"
 	select DMA_SHARED_BUFFER
 	select GENERIC_ALLOCATOR
 	help

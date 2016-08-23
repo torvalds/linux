@@ -1,7 +1,6 @@
 # OP-TEE Trusted Execution Environment Configuration
 config OPTEE
 	tristate "OP-TEE"
-	default n
 	depends on HAVE_ARM_SMCCC
 	help
 	  This implements the OP-TEE Trusted Execution Environment (TEE)

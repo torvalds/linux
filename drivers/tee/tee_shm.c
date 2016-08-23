@@ -27,6 +27,8 @@ static void tee_shm_release(struct tee_shm *shm)
 
 	mutex_lock(&teedev->mutex);
 	idr_remove(&teedev->idr, shm->id);
+	if (shm->ctx)
+		list_del(&shm->link);
 	mutex_unlock(&teedev->mutex);
 
 	if (shm->flags & TEE_SHM_DMA_BUF)
@@ -89,7 +91,7 @@ static struct dma_buf_ops tee_shm_dma_buf_ops = {
 
 /**
  * tee_shm_alloc() - Allocate shared memory
- * @teedev:	Driver that allocates the shared memory
+ * @ctx:	Context that allocates the shared memory
  * @size:	Requested size of shared memory
  * @flags:	Flags setting properties for the requested shared memory.
  *
@@ -101,8 +103,9 @@ static struct dma_buf_ops tee_shm_dma_buf_ops = {
  *
  * @returns a pointer to 'struct tee_shm'
  */
-struct tee_shm *tee_shm_alloc(struct tee_device *teedev, size_t size, u32 flags)
+struct tee_shm *tee_shm_alloc(struct tee_context *ctx, size_t size, u32 flags)
 {
+	struct tee_device *teedev = ctx->teedev;
 	struct tee_shm_pool_mgr *poolm = NULL;
 	struct tee_shm *shm;
 	void *ret;
@@ -136,6 +139,7 @@ struct tee_shm *tee_shm_alloc(struct tee_device *teedev, size_t size, u32 flags)
 
 	shm->flags = flags;
 	shm->teedev = teedev;
+	shm->ctx = ctx;
 	if (flags & TEE_SHM_DMA_BUF)
 		poolm = &teedev->pool->dma_buf_mgr;
 	else
@@ -169,6 +173,9 @@ struct tee_shm *tee_shm_alloc(struct tee_device *teedev, size_t size, u32 flags)
 			goto err_rem;
 		}
 	}
+	mutex_lock(&teedev->mutex);
+	list_add_tail(&shm->link, &ctx->list_shm);
+	mutex_unlock(&teedev->mutex);
 
 	return shm;
 err_rem:
@@ -305,17 +312,22 @@ EXPORT_SYMBOL_GPL(tee_shm_get_pa);
 
 /**
  * tee_shm_get_from_id() - Find shared memory object and increase referece count
- * @teedev:	Driver owning the shared mmemory
+ * @ctx:	Context owning the shared memory
  * @id:		Id of shared memory object
  * @returns a pointer to 'struct tee_shm' on success or an ERR_PTR on failure
  */
-struct tee_shm *tee_shm_get_from_id(struct tee_device *teedev, int id)
+struct tee_shm *tee_shm_get_from_id(struct tee_context *ctx, int id)
 {
+	struct tee_device *teedev;
 	struct tee_shm *shm;
 
+	if (!ctx)
+		return ERR_PTR(-EINVAL);
+
+	teedev = ctx->teedev;
 	mutex_lock(&teedev->mutex);
 	shm = idr_find(&teedev->idr, id);
-	if (!shm)
+	if (!shm || shm->ctx != ctx)
 		shm = ERR_PTR(-EINVAL);
 	else if (shm->flags & TEE_SHM_DMA_BUF)
 		get_dma_buf(shm->dmabuf);

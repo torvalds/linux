@@ -165,7 +165,7 @@ static struct tee_shm *get_msg_arg(struct tee_context *ctx, size_t num_params,
 	struct tee_shm *shm;
 	struct optee_msg_arg *ma;
 
-	shm = tee_shm_alloc(ctx->teedev, OPTEE_MSG_GET_ARG_SIZE(num_params),
+	shm = tee_shm_alloc(ctx, OPTEE_MSG_GET_ARG_SIZE(num_params),
 			    TEE_SHM_MAPPED);
 	if (IS_ERR(shm))
 		return shm;

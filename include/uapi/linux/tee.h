@@ -258,7 +258,8 @@ struct tee_ioctl_open_session_arg {
 				     struct tee_ioctl_buf_data)
 
 /**
- * struct tee_ioctl_invoke_func_arg - Invokes a function in a Trusted Application
+ * struct tee_ioctl_invoke_func_arg - Invokes a function in a Trusted
+ * Application
  * @func:	[in] Trusted Application function, specific to the TA
  * @session:	[in] Session id
  * @cancel_id:	[in] Cancellation id, a unique value to identify this request

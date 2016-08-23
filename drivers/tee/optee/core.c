@@ -181,9 +181,15 @@ static int optee_open(struct tee_context *ctx)
 		return -ENOMEM;
 
 	if (teedev == optee->supp_teedev) {
-		if (!atomic_dec_and_test(&optee->supp.available)) {
-			/* Supplicant device is already open */
-			atomic_inc(&optee->supp.available);
+		bool busy = true;
+
+		mutex_lock(&optee->supp.ctx_mutex);
+		if (!optee->supp.ctx) {
+			busy = false;
+			optee->supp.ctx = ctx;
+		}
+		mutex_unlock(&optee->supp.ctx_mutex);
+		if (busy) {
 			kfree(ctxdata);
 			return -EBUSY;
 		}
@@ -208,8 +214,7 @@ static void optee_release(struct tee_context *ctx)
 	if (!ctxdata)
 		return;
 
-	shm = tee_shm_alloc(ctx->teedev, sizeof(struct optee_msg_arg),
-			    TEE_SHM_MAPPED);
+	shm = tee_shm_alloc(ctx, sizeof(struct optee_msg_arg), TEE_SHM_MAPPED);
 	if (!IS_ERR(shm)) {
 		arg = tee_shm_get_va(shm, 0);
 		/*
@@ -246,8 +251,11 @@ static void optee_release(struct tee_context *ctx)
 
 	ctx->data = NULL;
 
-	if (teedev == optee->supp_teedev)
-		atomic_inc(&optee->supp.available);
+	if (teedev == optee->supp_teedev) {
+		mutex_lock(&optee->supp.ctx_mutex);
+		optee->supp.ctx = NULL;
+		mutex_unlock(&optee->supp.ctx_mutex);
+	}
 }
 
 static struct tee_driver_ops optee_ops = {
@@ -329,9 +337,9 @@ static bool optee_msg_exchange_capabilities(optee_invoke_fn *invoke_fn,
 	return true;
 }
 
-static struct tee_shm_pool *optee_config_shm_ioremap(struct device *dev,
-			optee_invoke_fn *invoke_fn,
-			void __iomem **ioremaped_shm)
+static struct tee_shm_pool *
+optee_config_shm_ioremap(struct device *dev, optee_invoke_fn *invoke_fn,
+			 void __iomem **ioremaped_shm)
 {
 	struct arm_smccc_res res;
 	struct tee_shm_pool *pool;
@@ -485,8 +493,10 @@ static int optee_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "initialized driver\n");
 	return 0;
 err:
-	tee_device_unregister(optee->teedev);
-	tee_device_unregister(optee->supp_teedev);
+	if (optee) {
+		tee_device_unregister(optee->teedev);
+		tee_device_unregister(optee->supp_teedev);
+	}
 	if (pool)
 		tee_shm_pool_free(pool);
 	if (ioremaped_shm)

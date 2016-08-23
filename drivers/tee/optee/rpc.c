@@ -189,6 +189,7 @@ static struct tee_shm *cmd_alloc_suppl(struct tee_context *ctx, size_t sz)
 	u32 ret;
 	struct tee_param param;
 	struct optee *optee = tee_get_drvdata(ctx->teedev);
+	struct tee_shm *shm;
 
 	param.attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INOUT;
 	param.u.value.a = OPTEE_MSG_RPC_SHM_TYPE_APPL;
@@ -199,14 +200,16 @@ static struct tee_shm *cmd_alloc_suppl(struct tee_context *ctx, size_t sz)
 	if (ret)
 		return ERR_PTR(-ENOMEM);
 
+	mutex_lock(&optee->supp.ctx_mutex);
 	/* Increases count as secure world doesn't have a reference */
-	return tee_shm_get_from_id(optee->supp_teedev, param.u.value.c);
+	shm = tee_shm_get_from_id(optee->supp.ctx, param.u.value.c);
+	mutex_unlock(&optee->supp.ctx_mutex);
+	return shm;
 }
 
 static void handle_rpc_func_cmd_shm_alloc(struct tee_context *ctx,
 					  struct optee_msg_arg *arg)
 {
-	struct tee_device *teedev = ctx->teedev;
 	struct optee_msg_param *params = OPTEE_MSG_GET_PARAMS(arg);
 	phys_addr_t pa;
 	struct tee_shm *shm;
@@ -234,7 +237,7 @@ static void handle_rpc_func_cmd_shm_alloc(struct tee_context *ctx,
 		shm = cmd_alloc_suppl(ctx, sz);
 		break;
 	case OPTEE_MSG_RPC_SHM_TYPE_KERNEL:
-		shm = tee_shm_alloc(teedev, sz, TEE_SHM_MAPPED);
+		shm = tee_shm_alloc(ctx, sz, TEE_SHM_MAPPED);
 		break;
 	default:
 		arg->ret = TEEC_ERROR_BAD_PARAMETERS;
@@ -363,7 +366,7 @@ void optee_handle_rpc(struct tee_context *ctx, struct optee_rpc_param *param)
 
 	switch (OPTEE_SMC_RETURN_GET_RPC_FUNC(param->a0)) {
 	case OPTEE_SMC_RPC_FUNC_ALLOC:
-		shm = tee_shm_alloc(teedev, param->a1, TEE_SHM_MAPPED);
+		shm = tee_shm_alloc(ctx, param->a1, TEE_SHM_MAPPED);
 		if (!IS_ERR(shm) && !tee_shm_get_pa(shm, 0, &pa)) {
 			reg_pair_from_64(&param->a1, &param->a2, pa);
 			reg_pair_from_64(&param->a4, &param->a5,
