@@ -1363,7 +1363,7 @@ struct batadv_skb_cb {
 
 /**
  * struct batadv_forw_packet - structure for bcast packets to be sent/forwarded
- * @list: list node for batadv_socket_client::queue_list
+ * @list: list node for batadv_priv::forw_{bat,bcast}_list
  * @send_time: execution time for delayed_work (packet sending)
  * @own: bool for locally generated packets (local OGMs are re-scheduled after
  *  sending)
