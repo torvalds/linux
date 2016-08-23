@@ -1555,6 +1555,7 @@ pnfs_update_layout(struct inode *ino,
 	}
 
 lookup_again:
+	nfs4_client_recover_expired_lease(clp);
 	first = false;
 	spin_lock(&ino->i_lock);
 	lo = pnfs_find_alloc_layout(ino, ctx, gfp_flags);
