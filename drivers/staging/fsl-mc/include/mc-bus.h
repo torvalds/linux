@@ -15,12 +15,6 @@
 #include <linux/mutex.h>
 #include <linux/stringify.h>
 
-#define FSL_MC_DPRC_DRIVER_NAME    "fsl_mc_dprc"
-
-#define FSL_MC_DEVICE_MATCH(_mc_dev, _obj_desc) \
-	(strcmp((_mc_dev)->obj_desc.type, (_obj_desc)->type) == 0 && \
-	 (_mc_dev)->obj_desc.id == (_obj_desc)->id)
-
 struct irq_domain;
 struct msi_domain_info;
 
