@@ -17,6 +17,11 @@
 #include "dpmcp.h"
 #include <linux/msi.h>
 
+#define FSL_MC_IS_ALLOCATABLE(_obj_type) \
+	(strcmp(_obj_type, "dpbp") == 0 || \
+	 strcmp(_obj_type, "dpmcp") == 0 || \
+	 strcmp(_obj_type, "dpcon") == 0)
+
 /**
  * fsl_mc_resource_pool_add_device - add allocatable device to a resource
  * pool of a given MC bus
