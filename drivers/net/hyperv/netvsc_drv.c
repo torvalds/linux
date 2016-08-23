@@ -40,7 +40,6 @@
 
 #include "hyperv_net.h"
 
-
 #define RING_SIZE_MIN 64
 #define LINKCHANGE_INT (2 * HZ)
 #define NETVSC_HW_FEATURES	(NETIF_F_RXCSUM | \
@@ -358,18 +357,14 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	struct rndis_message *rndis_msg;
 	struct rndis_packet *rndis_pkt;
 	u32 rndis_msg_size;
-	bool isvlan;
-	bool linear = false;
 	struct rndis_per_packet_info *ppi;
 	struct ndis_tcp_ip_checksum_info *csum_info;
-	struct ndis_tcp_lso_info *lso_info;
 	int  hdr_offset;
 	u32 net_trans_info;
 	u32 hash;
 	u32 skb_length;
 	struct hv_page_buffer page_buf[MAX_PAGE_BUFFER_COUNT];
 	struct hv_page_buffer *pb = page_buf;
-	struct netvsc_stats *tx_stats = this_cpu_ptr(net_device_ctx->tx_stats);
 
 	/* We will atmost need two pages to describe the rndis
 	 * header. We can only transmit MAX_PAGE_BUFFER_COUNT number
@@ -377,22 +372,20 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	 * more pages we try linearizing it.
 	 */
 
-check_size:
 	skb_length = skb->len;
 	num_data_pgs = netvsc_get_slots(skb) + 2;
-	if (num_data_pgs > MAX_PAGE_BUFFER_COUNT && linear) {
-		net_alert_ratelimited("packet too big: %u pages (%u bytes)\n",
-				      num_data_pgs, skb->len);
-		ret = -EFAULT;
-		goto drop;
-	} else if (num_data_pgs > MAX_PAGE_BUFFER_COUNT) {
-		if (skb_linearize(skb)) {
-			net_alert_ratelimited("failed to linearize skb\n");
-			ret = -ENOMEM;
+
+	if (unlikely(num_data_pgs > MAX_PAGE_BUFFER_COUNT)) {
+		++net_device_ctx->eth_stats.tx_scattered;
+
+		if (skb_linearize(skb))
+			goto no_memory;
+
+		num_data_pgs = netvsc_get_slots(skb) + 2;
+		if (num_data_pgs > MAX_PAGE_BUFFER_COUNT) {
+			++net_device_ctx->eth_stats.tx_too_big;
 			goto drop;
 		}
-		linear = true;
-		goto check_size;
 	}
 
 	/*
@@ -401,16 +394,13 @@ check_size:
 	 * structure.
 	 */
 	ret = skb_cow_head(skb, RNDIS_AND_PPI_SIZE);
-	if (ret) {
-		netdev_err(net, "unable to alloc hv_netvsc_packet\n");
-		ret = -ENOMEM;
-		goto drop;
-	}
+	if (ret)
+		goto no_memory;
+
 	/* Use the skb control buffer for building up the packet */
 	BUILD_BUG_ON(sizeof(struct hv_netvsc_packet) >
 			FIELD_SIZEOF(struct sk_buff, cb));
 	packet = (struct hv_netvsc_packet *)skb->cb;
-
 
 	packet->q_idx = skb_get_queue_mapping(skb);
 
@@ -419,8 +409,6 @@ check_size:
 	rndis_msg = (struct rndis_message *)skb->head;
 
 	memset(rndis_msg, 0, RNDIS_AND_PPI_SIZE);
-
-	isvlan = skb->vlan_tci & VLAN_TAG_PRESENT;
 
 	/* Add the rndis header */
 	rndis_msg->ndis_msg_type = RNDIS_MSG_PACKET;
@@ -440,7 +428,7 @@ check_size:
 		*(u32 *)((void *)ppi + ppi->ppi_offset) = hash;
 	}
 
-	if (isvlan) {
+	if (skb_vlan_tag_present(skb)) {
 		struct ndis_pkt_8021q_info *vlan;
 
 		rndis_msg_size += NDIS_VLAN_PPI_SIZE;
@@ -461,8 +449,37 @@ check_size:
 	 * Setup the sendside checksum offload only if this is not a
 	 * GSO packet.
 	 */
-	if (skb_is_gso(skb))
-		goto do_lso;
+	if (skb_is_gso(skb)) {
+		struct ndis_tcp_lso_info *lso_info;
+
+		rndis_msg_size += NDIS_LSO_PPI_SIZE;
+		ppi = init_ppi_data(rndis_msg, NDIS_LSO_PPI_SIZE,
+				    TCP_LARGESEND_PKTINFO);
+
+		lso_info = (struct ndis_tcp_lso_info *)((void *)ppi +
+							ppi->ppi_offset);
+
+		lso_info->lso_v2_transmit.type = NDIS_TCP_LARGE_SEND_OFFLOAD_V2_TYPE;
+		if (net_trans_info & (INFO_IPV4 << 16)) {
+			lso_info->lso_v2_transmit.ip_version =
+				NDIS_TCP_LARGE_SEND_OFFLOAD_IPV4;
+			ip_hdr(skb)->tot_len = 0;
+			ip_hdr(skb)->check = 0;
+			tcp_hdr(skb)->check =
+				~csum_tcpudp_magic(ip_hdr(skb)->saddr,
+						   ip_hdr(skb)->daddr, 0, IPPROTO_TCP, 0);
+		} else {
+			lso_info->lso_v2_transmit.ip_version =
+				NDIS_TCP_LARGE_SEND_OFFLOAD_IPV6;
+			ipv6_hdr(skb)->payload_len = 0;
+			tcp_hdr(skb)->check =
+				~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
+						 &ipv6_hdr(skb)->daddr, 0, IPPROTO_TCP, 0);
+		}
+		lso_info->lso_v2_transmit.tcp_header_offset = hdr_offset;
+		lso_info->lso_v2_transmit.mss = skb_shinfo(skb)->gso_size;
+		goto do_send;
+	}
 
 	if ((skb->ip_summed == CHECKSUM_NONE) ||
 	    (skb->ip_summed == CHECKSUM_UNNECESSARY))
@@ -495,7 +512,7 @@ check_size:
 
 		ret = skb_cow_head(skb, 0);
 		if (ret)
-			goto drop;
+			goto no_memory;
 
 		uh = udp_hdr(skb);
 		udp_len = ntohs(uh->len);
@@ -509,35 +526,6 @@ check_size:
 
 		csum_info->transmit.udp_checksum = 0;
 	}
-	goto do_send;
-
-do_lso:
-	rndis_msg_size += NDIS_LSO_PPI_SIZE;
-	ppi = init_ppi_data(rndis_msg, NDIS_LSO_PPI_SIZE,
-			    TCP_LARGESEND_PKTINFO);
-
-	lso_info = (struct ndis_tcp_lso_info *)((void *)ppi +
-			ppi->ppi_offset);
-
-	lso_info->lso_v2_transmit.type = NDIS_TCP_LARGE_SEND_OFFLOAD_V2_TYPE;
-	if (net_trans_info & (INFO_IPV4 << 16)) {
-		lso_info->lso_v2_transmit.ip_version =
-			NDIS_TCP_LARGE_SEND_OFFLOAD_IPV4;
-		ip_hdr(skb)->tot_len = 0;
-		ip_hdr(skb)->check = 0;
-		tcp_hdr(skb)->check =
-		~csum_tcpudp_magic(ip_hdr(skb)->saddr,
-				   ip_hdr(skb)->daddr, 0, IPPROTO_TCP, 0);
-	} else {
-		lso_info->lso_v2_transmit.ip_version =
-			NDIS_TCP_LARGE_SEND_OFFLOAD_IPV6;
-		ipv6_hdr(skb)->payload_len = 0;
-		tcp_hdr(skb)->check =
-		~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
-				&ipv6_hdr(skb)->daddr, 0, IPPROTO_TCP, 0);
-	}
-	lso_info->lso_v2_transmit.tcp_header_offset = hdr_offset;
-	lso_info->lso_v2_transmit.mss = skb_shinfo(skb)->gso_size;
 
 do_send:
 	/* Start filling in the page buffers with the rndis hdr */
@@ -550,21 +538,33 @@ do_send:
 	skb_tx_timestamp(skb);
 	ret = netvsc_send(net_device_ctx->device_ctx, packet,
 			  rndis_msg, &pb, skb);
+	if (likely(ret == 0)) {
+		struct netvsc_stats *tx_stats = this_cpu_ptr(net_device_ctx->tx_stats);
 
-drop:
-	if (ret == 0) {
 		u64_stats_update_begin(&tx_stats->syncp);
 		tx_stats->packets++;
 		tx_stats->bytes += skb_length;
 		u64_stats_update_end(&tx_stats->syncp);
-	} else {
-		if (ret != -EAGAIN) {
-			dev_kfree_skb_any(skb);
-			net->stats.tx_dropped++;
-		}
+		return NETDEV_TX_OK;
 	}
 
-	return (ret == -EAGAIN) ? NETDEV_TX_BUSY : NETDEV_TX_OK;
+	if (ret == -EAGAIN) {
+		++net_device_ctx->eth_stats.tx_busy;
+		return NETDEV_TX_BUSY;
+	}
+
+	if (ret == -ENOSPC)
+		++net_device_ctx->eth_stats.tx_no_space;
+
+drop:
+	dev_kfree_skb_any(skb);
+	net->stats.tx_dropped++;
+
+	return NETDEV_TX_OK;
+
+no_memory:
+	++net_device_ctx->eth_stats.tx_no_memory;
+	goto drop;
 }
 
 /*
@@ -616,7 +616,6 @@ void netvsc_linkstatus_callback(struct hv_device *device_obj,
 
 	schedule_delayed_work(&ndev_ctx->dwork, 0);
 }
-
 
 static struct sk_buff *netvsc_alloc_recv_skb(struct net_device *net,
 				struct hv_netvsc_packet *packet,
@@ -741,8 +740,12 @@ vf_injection_done:
 static void netvsc_get_drvinfo(struct net_device *net,
 			       struct ethtool_drvinfo *info)
 {
+	struct net_device_context *net_device_ctx = netdev_priv(net);
+	struct hv_device *dev = net_device_ctx->device_ctx;
+
 	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
 	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
+	strlcpy(info->bus_info, vmbus_dev_name(dev), sizeof(info->bus_info));
 }
 
 static void netvsc_get_channels(struct net_device *net,
@@ -1018,6 +1021,51 @@ static int netvsc_set_mac_addr(struct net_device *ndev, void *p)
 	return err;
 }
 
+static const struct {
+	char name[ETH_GSTRING_LEN];
+	u16 offset;
+} netvsc_stats[] = {
+	{ "tx_scattered", offsetof(struct netvsc_ethtool_stats, tx_scattered) },
+	{ "tx_no_memory",  offsetof(struct netvsc_ethtool_stats, tx_no_memory) },
+	{ "tx_no_space",  offsetof(struct netvsc_ethtool_stats, tx_no_space) },
+	{ "tx_too_big",	  offsetof(struct netvsc_ethtool_stats, tx_too_big) },
+	{ "tx_busy",	  offsetof(struct netvsc_ethtool_stats, tx_busy) },
+};
+
+static int netvsc_get_sset_count(struct net_device *dev, int string_set)
+{
+	switch (string_set) {
+	case ETH_SS_STATS:
+		return ARRAY_SIZE(netvsc_stats);
+	default:
+		return -EINVAL;
+	}
+}
+
+static void netvsc_get_ethtool_stats(struct net_device *dev,
+				     struct ethtool_stats *stats, u64 *data)
+{
+	struct net_device_context *ndc = netdev_priv(dev);
+	const void *nds = &ndc->eth_stats;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(netvsc_stats); i++)
+		data[i] = *(unsigned long *)(nds + netvsc_stats[i].offset);
+}
+
+static void netvsc_get_strings(struct net_device *dev, u32 stringset, u8 *data)
+{
+	int i;
+
+	switch (stringset) {
+	case ETH_SS_STATS:
+		for (i = 0; i < ARRAY_SIZE(netvsc_stats); i++)
+			memcpy(data + i * ETH_GSTRING_LEN,
+			       netvsc_stats[i].name, ETH_GSTRING_LEN);
+		break;
+	}
+}
+
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void netvsc_poll_controller(struct net_device *net)
 {
@@ -1030,6 +1078,9 @@ static void netvsc_poll_controller(struct net_device *net)
 static const struct ethtool_ops ethtool_ops = {
 	.get_drvinfo	= netvsc_get_drvinfo,
 	.get_link	= ethtool_op_get_link,
+	.get_ethtool_stats = netvsc_get_ethtool_stats,
+	.get_sset_count = netvsc_get_sset_count,
+	.get_strings	= netvsc_get_strings,
 	.get_channels   = netvsc_get_channels,
 	.set_channels   = netvsc_set_channels,
 	.get_ts_info	= ethtool_op_get_ts_info,
@@ -1167,9 +1218,8 @@ static void netvsc_free_netdev(struct net_device *netdev)
 static struct net_device *get_netvsc_net_device(char *mac)
 {
 	struct net_device *dev, *found = NULL;
-	int rtnl_locked;
 
-	rtnl_locked = rtnl_trylock();
+	ASSERT_RTNL();
 
 	for_each_netdev(&init_net, dev) {
 		if (memcmp(dev->dev_addr, mac, ETH_ALEN) == 0) {
@@ -1179,8 +1229,6 @@ static struct net_device *get_netvsc_net_device(char *mac)
 			break;
 		}
 	}
-	if (rtnl_locked)
-		rtnl_unlock();
 
 	return found;
 }
@@ -1274,7 +1322,6 @@ static int netvsc_vf_up(struct net_device *vf_netdev)
 	return NOTIFY_OK;
 }
 
-
 static int netvsc_vf_down(struct net_device *vf_netdev)
 {
 	struct net_device *ndev;
@@ -1307,7 +1354,6 @@ static int netvsc_vf_down(struct net_device *vf_netdev)
 
 	return NOTIFY_OK;
 }
-
 
 static int netvsc_unregister_vf(struct net_device *vf_netdev)
 {
@@ -1436,7 +1482,6 @@ static int netvsc_remove(struct hv_device *dev)
 		return 0;
 	}
 
-
 	ndev_ctx = netdev_priv(net);
 	net_device = ndev_ctx->nvdev;
 
@@ -1482,7 +1527,6 @@ static struct  hv_driver netvsc_drv = {
 	.probe = netvsc_probe,
 	.remove = netvsc_remove,
 };
-
 
 /*
  * On Hyper-V, every VF interface is matched with a corresponding

@@ -1114,6 +1114,13 @@ int __must_check __vmbus_driver_register(struct hv_driver *hv_driver,
 					 const char *mod_name);
 void vmbus_driver_unregister(struct hv_driver *hv_driver);
 
+static inline const char *vmbus_dev_name(const struct hv_device *device_obj)
+{
+	const struct kobject *kobj = &device_obj->device.kobj;
+
+	return kobj->name;
+}
+
 void vmbus_hvsock_device_unregister(struct vmbus_channel *channel);
 
 int vmbus_allocate_mmio(struct resource **new, struct hv_device *device_obj,
@@ -1421,89 +1428,5 @@ static inline  bool hv_need_to_signal_on_read(struct hv_ring_buffer_info *rbi)
 
 	return false;
 }
-
-/*
- * An API to support in-place processing of incoming VMBUS packets.
- */
-#define VMBUS_PKT_TRAILER	8
-
-static inline struct vmpacket_descriptor *
-get_next_pkt_raw(struct vmbus_channel *channel)
-{
-	struct hv_ring_buffer_info *ring_info = &channel->inbound;
-	u32 read_loc = ring_info->priv_read_index;
-	void *ring_buffer = hv_get_ring_buffer(ring_info);
-	struct vmpacket_descriptor *cur_desc;
-	u32 packetlen;
-	u32 dsize = ring_info->ring_datasize;
-	u32 delta = read_loc - ring_info->ring_buffer->read_index;
-	u32 bytes_avail_toread = (hv_get_bytes_to_read(ring_info) - delta);
-
-	if (bytes_avail_toread < sizeof(struct vmpacket_descriptor))
-		return NULL;
-
-	if ((read_loc + sizeof(*cur_desc)) > dsize)
-		return NULL;
-
-	cur_desc = ring_buffer + read_loc;
-	packetlen = cur_desc->len8 << 3;
-
-	/*
-	 * If the packet under consideration is wrapping around,
-	 * return failure.
-	 */
-	if ((read_loc + packetlen + VMBUS_PKT_TRAILER) > (dsize - 1))
-		return NULL;
-
-	return cur_desc;
-}
-
-/*
- * A helper function to step through packets "in-place"
- * This API is to be called after each successful call
- * get_next_pkt_raw().
- */
-static inline void put_pkt_raw(struct vmbus_channel *channel,
-				struct vmpacket_descriptor *desc)
-{
-	struct hv_ring_buffer_info *ring_info = &channel->inbound;
-	u32 read_loc = ring_info->priv_read_index;
-	u32 packetlen = desc->len8 << 3;
-	u32 dsize = ring_info->ring_datasize;
-
-	if ((read_loc + packetlen + VMBUS_PKT_TRAILER) > dsize)
-		BUG();
-	/*
-	 * Include the packet trailer.
-	 */
-	ring_info->priv_read_index += packetlen + VMBUS_PKT_TRAILER;
-}
-
-/*
- * This call commits the read index and potentially signals the host.
- * Here is the pattern for using the "in-place" consumption APIs:
- *
- * while (get_next_pkt_raw() {
- *	process the packet "in-place";
- *	put_pkt_raw();
- * }
- * if (packets processed in place)
- *	commit_rd_index();
- */
-static inline void commit_rd_index(struct vmbus_channel *channel)
-{
-	struct hv_ring_buffer_info *ring_info = &channel->inbound;
-	/*
-	 * Make sure all reads are done before we update the read index since
-	 * the writer may start writing to the read area once the read index
-	 * is updated.
-	 */
-	virt_rmb();
-	ring_info->ring_buffer->read_index = ring_info->priv_read_index;
-
-	if (hv_need_to_signal_on_read(ring_info))
-		vmbus_set_event(channel);
-}
-
 
 #endif /* _HYPERV_H */

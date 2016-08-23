@@ -84,8 +84,6 @@ struct ndis_recv_scale_cap { /* NDIS_RECEIVE_SCALE_CAPABILITIES */
 #define NDIS_RSS_HASH_SECRET_KEY_MAX_SIZE_REVISION_2   40
 
 #define ITAB_NUM 128
-#define HASH_KEYLEN NDIS_RSS_HASH_SECRET_KEY_MAX_SIZE_REVISION_2
-extern u8 netvsc_hash_key[];
 
 struct ndis_recv_scale_param { /* NDIS_RECEIVE_SCALE_PARAMETERS */
 	struct ndis_obj_header hdr;
@@ -175,7 +173,7 @@ struct rndis_device {
 struct rndis_message;
 struct netvsc_device;
 int netvsc_device_add(struct hv_device *device, void *additional_info);
-int netvsc_device_remove(struct hv_device *device);
+void netvsc_device_remove(struct hv_device *device);
 int netvsc_send(struct hv_device *device,
 		struct hv_netvsc_packet *packet,
 		struct rndis_message *rndis_msg,
@@ -654,6 +652,14 @@ struct netvsc_stats {
 	struct u64_stats_sync syncp;
 };
 
+struct netvsc_ethtool_stats {
+	unsigned long tx_scattered;
+	unsigned long tx_no_memory;
+	unsigned long tx_no_space;
+	unsigned long tx_too_big;
+	unsigned long tx_busy;
+};
+
 struct netvsc_reconfig {
 	struct list_head list;
 	u32 event;
@@ -683,6 +689,7 @@ struct net_device_context {
 	/* Ethtool settings */
 	u8 duplex;
 	u32 speed;
+	struct netvsc_ethtool_stats eth_stats;
 
 	/* the device is going away */
 	bool start_remove;
