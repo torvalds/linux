@@ -60,6 +60,12 @@ struct drm_simple_display_pipe_funcs {
 	 *
 	 * This function is called when the underlying plane state is updated.
 	 * This hook is optional.
+	 *
+	 * This is the function drivers should submit the
+	 * &drm_pending_vblank_event from. Using either
+	 * drm_crtc_arm_vblank_event(), when the driver supports vblank
+	 * interrupt handling, or drm_crtc_send_vblank_event() directly in case
+	 * the hardware lacks vblank support entirely.
 	 */
 	void (*update)(struct drm_simple_display_pipe *pipe,
 		       struct drm_plane_state *plane_state);

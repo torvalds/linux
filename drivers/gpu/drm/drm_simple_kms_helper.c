@@ -34,6 +34,12 @@ static const struct drm_encoder_funcs drm_simple_kms_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
+static int drm_simple_kms_crtc_check(struct drm_crtc *crtc,
+				     struct drm_crtc_state *state)
+{
+	return drm_atomic_add_affected_planes(state->state, crtc);
+}
+
 static void drm_simple_kms_crtc_enable(struct drm_crtc *crtc)
 {
 	struct drm_simple_display_pipe *pipe;
@@ -57,6 +63,7 @@ static void drm_simple_kms_crtc_disable(struct drm_crtc *crtc)
 }
 
 static const struct drm_crtc_helper_funcs drm_simple_kms_crtc_helper_funcs = {
+	.atomic_check = drm_simple_kms_crtc_check,
 	.disable = drm_simple_kms_crtc_disable,
 	.enable = drm_simple_kms_crtc_enable,
 };
