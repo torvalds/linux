@@ -1714,6 +1714,39 @@ static void intel_ddi_post_disable(struct intel_encoder *intel_encoder,
 	}
 }
 
+void intel_ddi_fdi_post_disable(struct intel_encoder *intel_encoder,
+				struct intel_crtc_state *old_crtc_state,
+				struct drm_connector_state *old_conn_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(intel_encoder->base.dev);
+	uint32_t val;
+
+	/*
+	 * Bspec lists this as both step 13 (before DDI_BUF_CTL disable)
+	 * and step 18 (after clearing PORT_CLK_SEL). Based on a BUN,
+	 * step 13 is the correct place for it. Step 18 is where it was
+	 * originally before the BUN.
+	 */
+	val = I915_READ(FDI_RX_CTL(PIPE_A));
+	val &= ~FDI_RX_ENABLE;
+	I915_WRITE(FDI_RX_CTL(PIPE_A), val);
+
+	intel_ddi_post_disable(intel_encoder, old_crtc_state, old_conn_state);
+
+	val = I915_READ(FDI_RX_MISC(PIPE_A));
+	val &= ~(FDI_RX_PWRDN_LANE1_MASK | FDI_RX_PWRDN_LANE0_MASK);
+	val |= FDI_RX_PWRDN_LANE1_VAL(2) | FDI_RX_PWRDN_LANE0_VAL(2);
+	I915_WRITE(FDI_RX_MISC(PIPE_A), val);
+
+	val = I915_READ(FDI_RX_CTL(PIPE_A));
+	val &= ~FDI_PCDCLK;
+	I915_WRITE(FDI_RX_CTL(PIPE_A), val);
+
+	val = I915_READ(FDI_RX_CTL(PIPE_A));
+	val &= ~FDI_RX_PLL_ENABLE;
+	I915_WRITE(FDI_RX_CTL(PIPE_A), val);
+}
+
 static void intel_enable_ddi(struct intel_encoder *intel_encoder,
 			     struct intel_crtc_state *pipe_config,
 			     struct drm_connector_state *conn_state)
@@ -2151,39 +2184,6 @@ void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp)
 	POSTING_READ(DDI_BUF_CTL(port));
 
 	udelay(600);
-}
-
-void intel_ddi_fdi_disable(struct intel_encoder *intel_encoder,
-			   struct intel_crtc_state *old_crtc_state,
-			   struct drm_connector_state *old_conn_state)
-{
-	struct drm_i915_private *dev_priv = to_i915(intel_encoder->base.dev);
-	uint32_t val;
-
-	/*
-	 * Bspec lists this as both step 13 (before DDI_BUF_CTL disable)
-	 * and step 18 (after clearing PORT_CLK_SEL). Based on a BUN,
-	 * step 13 is the correct place for it. Step 18 is where it was
-	 * originally before the BUN.
-	 */
-	val = I915_READ(FDI_RX_CTL(PIPE_A));
-	val &= ~FDI_RX_ENABLE;
-	I915_WRITE(FDI_RX_CTL(PIPE_A), val);
-
-	intel_ddi_post_disable(intel_encoder, old_crtc_state, old_conn_state);
-
-	val = I915_READ(FDI_RX_MISC(PIPE_A));
-	val &= ~(FDI_RX_PWRDN_LANE1_MASK | FDI_RX_PWRDN_LANE0_MASK);
-	val |= FDI_RX_PWRDN_LANE1_VAL(2) | FDI_RX_PWRDN_LANE0_VAL(2);
-	I915_WRITE(FDI_RX_MISC(PIPE_A), val);
-
-	val = I915_READ(FDI_RX_CTL(PIPE_A));
-	val &= ~FDI_PCDCLK;
-	I915_WRITE(FDI_RX_CTL(PIPE_A), val);
-
-	val = I915_READ(FDI_RX_CTL(PIPE_A));
-	val &= ~FDI_RX_PLL_ENABLE;
-	I915_WRITE(FDI_RX_CTL(PIPE_A), val);
 }
 
 void intel_ddi_get_config(struct intel_encoder *encoder,

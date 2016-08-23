@@ -1907,7 +1907,7 @@ static void ironlake_disable_pch_transcoder(struct drm_i915_private *dev_priv,
 	}
 }
 
-static void lpt_disable_pch_transcoder(struct drm_i915_private *dev_priv)
+void lpt_disable_pch_transcoder(struct drm_i915_private *dev_priv)
 {
 	u32 val;
 
@@ -4292,7 +4292,7 @@ static int intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
 	return 0;
 }
 
-static void lpt_disable_iclkip(struct drm_i915_private *dev_priv)
+void lpt_disable_iclkip(struct drm_i915_private *dev_priv)
 {
 	u32 temp;
 
@@ -5606,28 +5606,9 @@ static void haswell_crtc_disable(struct intel_crtc_state *old_crtc_state,
 
 	intel_encoders_post_disable(crtc, old_crtc_state, old_state);
 
-	if (intel_crtc->config->has_pch_encoder) {
-		struct drm_connector_state *old_conn_state;
-		struct drm_connector *conn;
-		int i;
-
-		lpt_disable_pch_transcoder(dev_priv);
-		lpt_disable_iclkip(dev_priv);
-
-		for_each_connector_in_state(old_state, conn, old_conn_state, i)
-			if (old_conn_state->crtc == crtc) {
-				struct intel_encoder *encoder =
-					to_intel_encoder(old_conn_state->best_encoder);
-
-				intel_ddi_fdi_disable(encoder,
-						      old_crtc_state,
-						      old_conn_state);
-				break;
-			}
-
+	if (old_crtc_state->has_pch_encoder)
 		intel_set_pch_fifo_underrun_reporting(dev_priv, TRANSCODER_A,
 						      true);
-	}
 }
 
 static void i9xx_pfit_enable(struct intel_crtc *crtc)

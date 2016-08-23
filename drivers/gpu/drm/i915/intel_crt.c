@@ -215,6 +215,20 @@ static void pch_post_disable_crt(struct intel_encoder *encoder,
 	intel_disable_crt(encoder, old_crtc_state, old_conn_state);
 }
 
+static void hsw_post_disable_crt(struct intel_encoder *encoder,
+				 struct intel_crtc_state *old_crtc_state,
+				 struct drm_connector_state *old_conn_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+
+	pch_post_disable_crt(encoder, old_crtc_state, old_conn_state);
+
+	lpt_disable_pch_transcoder(dev_priv);
+	lpt_disable_iclkip(dev_priv);
+
+	intel_ddi_fdi_post_disable(encoder, old_crtc_state, old_conn_state);
+}
+
 static void intel_enable_crt(struct intel_encoder *encoder,
 			     struct intel_crtc_state *pipe_config,
 			     struct drm_connector_state *conn_state)
@@ -905,6 +919,7 @@ void intel_crt_init(struct drm_device *dev)
 	if (HAS_DDI(dev)) {
 		crt->base.get_config = hsw_crt_get_config;
 		crt->base.get_hw_state = intel_ddi_get_hw_state;
+		crt->base.post_disable = hsw_post_disable_crt;
 	} else {
 		crt->base.get_config = intel_crt_get_config;
 		crt->base.get_hw_state = intel_crt_get_hw_state;
