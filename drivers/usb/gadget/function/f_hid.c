@@ -677,11 +677,8 @@ fail_free_descs:
 	usb_free_all_descriptors(f);
 fail:
 	ERROR(f->config->cdev, "hidg_bind FAILED\n");
-	if (hidg->req != NULL) {
-		kfree(hidg->req->buf);
-		if (hidg->in_ep != NULL)
-			usb_ep_free_request(hidg->in_ep, hidg->req);
-	}
+	if (hidg->req != NULL)
+		free_ep_req(hidg->in_ep, hidg->req);
 
 	return status;
 }
@@ -920,8 +917,7 @@ static void hidg_unbind(struct usb_configuration *c, struct usb_function *f)
 
 	/* disable/free request and end point */
 	usb_ep_disable(hidg->in_ep);
-	kfree(hidg->req->buf);
-	usb_ep_free_request(hidg->in_ep, hidg->req);
+	free_ep_req(hidg->in_ep, hidg->req);
 
 	usb_free_all_descriptors(f);
 }
