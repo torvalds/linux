@@ -488,8 +488,8 @@ static int omap_modeset_init(struct drm_device *dev)
 		priv->num_planes, priv->num_crtcs, priv->num_encoders,
 		priv->num_connectors);
 
-	dev->mode_config.min_width = 32;
-	dev->mode_config.min_height = 32;
+	dev->mode_config.min_width = 8;
+	dev->mode_config.min_height = 2;
 
 	/* note: eventually will need some cpu_is_omapXYZ() type stuff here
 	 * to fill in these limits properly on different OMAP generations..
