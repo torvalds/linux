@@ -9777,7 +9777,7 @@ skylake_get_initial_plane_config(struct intel_crtc *crtc,
 	return;
 
 error:
-	kfree(fb);
+	kfree(intel_fb);
 }
 
 static void ironlake_get_pfit_config(struct intel_crtc *crtc,
