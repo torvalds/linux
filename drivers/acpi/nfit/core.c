@@ -1248,7 +1248,7 @@ static struct nvdimm *acpi_nfit_dimm_by_handle(struct acpi_nfit_desc *acpi_desc,
 	return NULL;
 }
 
-static void __acpi_nvdimm_notify(struct device *dev, u32 event)
+void __acpi_nvdimm_notify(struct device *dev, u32 event)
 {
 	struct nfit_mem *nfit_mem;
 	struct acpi_nfit_desc *acpi_desc;
@@ -1274,6 +1274,7 @@ static void __acpi_nvdimm_notify(struct device *dev, u32 event)
 	if (nfit_mem && nfit_mem->flags_attr)
 		sysfs_notify_dirent(nfit_mem->flags_attr);
 }
+EXPORT_SYMBOL_GPL(__acpi_nvdimm_notify);
 
 static void acpi_nvdimm_notify(acpi_handle handle, u32 event, void *data)
 {
@@ -1365,12 +1366,15 @@ static void shutdown_dimm_notify(void *data)
 	 * notifications.
 	 */
 	list_for_each_entry(nfit_mem, &acpi_desc->dimms, list) {
+		struct acpi_device *adev_dimm = nfit_mem->adev;
+
 		if (nfit_mem->flags_attr) {
 			sysfs_put(nfit_mem->flags_attr);
 			nfit_mem->flags_attr = NULL;
 		}
-		acpi_remove_notify_handler(nfit_mem->adev->handle,
-				ACPI_DEVICE_NOTIFY, acpi_nvdimm_notify);
+		if (adev_dimm)
+			acpi_remove_notify_handler(adev_dimm->handle,
+					ACPI_DEVICE_NOTIFY, acpi_nvdimm_notify);
 	}
 	mutex_unlock(&acpi_desc->init_mutex);
 }
