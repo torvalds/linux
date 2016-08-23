@@ -541,21 +541,21 @@ static int policydb_index(struct policydb *p)
 
 	rc = -ENOMEM;
 	p->class_val_to_struct =
-		kmalloc(p->p_classes.nprim * sizeof(*(p->class_val_to_struct)),
+		kzalloc(p->p_classes.nprim * sizeof(*(p->class_val_to_struct)),
 			GFP_KERNEL);
 	if (!p->class_val_to_struct)
 		goto out;
 
 	rc = -ENOMEM;
 	p->role_val_to_struct =
-		kmalloc(p->p_roles.nprim * sizeof(*(p->role_val_to_struct)),
+		kzalloc(p->p_roles.nprim * sizeof(*(p->role_val_to_struct)),
 			GFP_KERNEL);
 	if (!p->role_val_to_struct)
 		goto out;
 
 	rc = -ENOMEM;
 	p->user_val_to_struct =
-		kmalloc(p->p_users.nprim * sizeof(*(p->user_val_to_struct)),
+		kzalloc(p->p_users.nprim * sizeof(*(p->user_val_to_struct)),
 			GFP_KERNEL);
 	if (!p->user_val_to_struct)
 		goto out;
@@ -964,7 +964,7 @@ int policydb_context_isvalid(struct policydb *p, struct context *c)
 		 * Role must be authorized for the type.
 		 */
 		role = p->role_val_to_struct[c->role - 1];
-		if (!ebitmap_get_bit(&role->types, c->type - 1))
+		if (!role || !ebitmap_get_bit(&role->types, c->type - 1))
 			/* role may not be associated with type */
 			return 0;
 
