@@ -1242,8 +1242,6 @@ static inline int __sk_prot_rehash(struct sock *sk)
 	return sk->sk_prot->hash(sk);
 }
 
-void sk_prot_clear_portaddr_nulls(struct sock *sk, int size);
-
 /* About 10 seconds */
 #define SOCK_DESTROY_TIME (10*HZ)
 
