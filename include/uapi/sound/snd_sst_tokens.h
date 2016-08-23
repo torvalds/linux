@@ -153,6 +153,10 @@
  *
  * %SKL_TKN_U32_PROC_DOMAIN:    Specify processing domain
  *
+ * %SKL_TKN_U32_LIB_COUNT:      Specifies the number of libraries
+ *
+ * %SKL_TKN_STR_LIB_NAME:       Specifies the library name
+ *
  * module_id and loadable flags dont have tokens as these values will be
  * read from the DSP FW manifest
  */
@@ -202,7 +206,9 @@ enum SKL_TKNS {
 	SKL_TKN_U32_CAPS_PARAMS_ID,
 	SKL_TKN_U32_CAPS_SIZE,
 	SKL_TKN_U32_PROC_DOMAIN,
-	SKL_TKN_MAX = SKL_TKN_U32_PROC_DOMAIN,
+	SKL_TKN_U32_LIB_COUNT,
+	SKL_TKN_STR_LIB_NAME,
+	SKL_TKN_MAX = SKL_TKN_STR_LIB_NAME,
 };
 
 #endif
