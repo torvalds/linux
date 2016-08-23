@@ -26,39 +26,12 @@
 #ifndef _ICELAND_SMUMGR_H_
 #define _ICELAND_SMUMGR_H_
 
-struct iceland_buffer_entry {
-	uint32_t data_size;
-	uint32_t mc_addr_low;
-	uint32_t mc_addr_high;
-	void *kaddr;
-	unsigned long  handle;
-};
 
-/* Iceland only has header_buffer, don't have smu buffer. */
+#include "smu7_smumgr.h"
+
+
 struct iceland_smumgr {
-	uint8_t *pHeader;
-	uint8_t *pMecImage;
-	uint32_t ulSoftRegsStart;
-
-	struct iceland_buffer_entry header_buffer;
+	struct smu7_smumgr smu7_data;
 };
-
-extern int iceland_smum_init(struct pp_smumgr *smumgr);
-extern int iceland_copy_bytes_to_smc(struct pp_smumgr *smumgr,
-				     uint32_t smcStartAddress,
-				     const uint8_t *src,
-				     uint32_t byteCount, uint32_t limit);
-
-extern int iceland_smu_start_smc(struct pp_smumgr *smumgr);
-
-extern int iceland_read_smc_sram_dword(struct pp_smumgr *smumgr,
-				       uint32_t smcAddress,
-				       uint32_t *value, uint32_t limit);
-extern int iceland_write_smc_sram_dword(struct pp_smumgr *smumgr,
-					uint32_t smcAddress,
-					uint32_t value, uint32_t limit);
-
-extern bool iceland_is_smc_ram_running(struct pp_smumgr *smumgr);
-extern int iceland_smu_upload_firmware_image(struct pp_smumgr *smumgr);
 
 #endif

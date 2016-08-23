@@ -767,12 +767,7 @@ int iceland_program_voting_clients(struct pp_hwmgr *hwmgr)
 
 static int iceland_upload_firmware(struct pp_hwmgr *hwmgr)
 {
-	int ret = 0;
-
-	if (!iceland_is_smc_ram_running(hwmgr->smumgr))
-		ret = iceland_smu_upload_firmware_image(hwmgr->smumgr);
-
-	return ret;
+	return 0;
 }
 
 /**
@@ -789,7 +784,7 @@ static int iceland_process_firmware_header(struct pp_hwmgr *hwmgr)
 	int result;
 	bool error = 0;
 
-	result = iceland_read_smc_sram_dword(hwmgr->smumgr,
+	result = smu7_read_smc_sram_dword(hwmgr->smumgr,
 				SMU71_FIRMWARE_HEADER_LOCATION +
 				offsetof(SMU71_Firmware_Header, DpmTable),
 				&tmp, data->sram_end);
@@ -800,7 +795,7 @@ static int iceland_process_firmware_header(struct pp_hwmgr *hwmgr)
 
 	error |= (0 != result);
 
-	result = iceland_read_smc_sram_dword(hwmgr->smumgr,
+	result = smu7_read_smc_sram_dword(hwmgr->smumgr,
 				SMU71_FIRMWARE_HEADER_LOCATION +
 				offsetof(SMU71_Firmware_Header, SoftRegisters),
 				&tmp, data->sram_end);
@@ -812,7 +807,7 @@ static int iceland_process_firmware_header(struct pp_hwmgr *hwmgr)
 	error |= (0 != result);
 
 
-	result = iceland_read_smc_sram_dword(hwmgr->smumgr,
+	result = smu7_read_smc_sram_dword(hwmgr->smumgr,
 				SMU71_FIRMWARE_HEADER_LOCATION +
 				offsetof(SMU71_Firmware_Header, mcRegisterTable),
 				&tmp, data->sram_end);
@@ -821,7 +816,7 @@ static int iceland_process_firmware_header(struct pp_hwmgr *hwmgr)
 		data->mc_reg_table_start = tmp;
 	}
 
-	result = iceland_read_smc_sram_dword(hwmgr->smumgr,
+	result = smu7_read_smc_sram_dword(hwmgr->smumgr,
 				SMU71_FIRMWARE_HEADER_LOCATION +
 				offsetof(SMU71_Firmware_Header, FanTable),
 				&tmp, data->sram_end);
@@ -832,7 +827,7 @@ static int iceland_process_firmware_header(struct pp_hwmgr *hwmgr)
 
 	error |= (0 != result);
 
-	result = iceland_read_smc_sram_dword(hwmgr->smumgr,
+	result = smu7_read_smc_sram_dword(hwmgr->smumgr,
 				SMU71_FIRMWARE_HEADER_LOCATION +
 				offsetof(SMU71_Firmware_Header, mcArbDramTimingTable),
 				&tmp, data->sram_end);
@@ -844,7 +839,7 @@ static int iceland_process_firmware_header(struct pp_hwmgr *hwmgr)
 	error |= (0 != result);
 
 
-	result = iceland_read_smc_sram_dword(hwmgr->smumgr,
+	result = smu7_read_smc_sram_dword(hwmgr->smumgr,
 				SMU71_FIRMWARE_HEADER_LOCATION +
 				offsetof(SMU71_Firmware_Header, Version),
 				&tmp, data->sram_end);
@@ -855,7 +850,7 @@ static int iceland_process_firmware_header(struct pp_hwmgr *hwmgr)
 
 	error |= (0 != result);
 
-	result = iceland_read_smc_sram_dword(hwmgr->smumgr,
+	result = smu7_read_smc_sram_dword(hwmgr->smumgr,
 				SMU71_FIRMWARE_HEADER_LOCATION +
 				offsetof(SMU71_Firmware_Header, UlvSettings),
 				&tmp, data->sram_end);
@@ -1507,7 +1502,7 @@ int iceland_program_memory_timing_parameters(struct pp_hwmgr *hwmgr)
 	}
 
 	if (0 == result) {
-		result = iceland_copy_bytes_to_smc(
+		result = smu7_copy_bytes_to_smc(
 				hwmgr->smumgr,
 				data->arb_table_start,
 				(uint8_t *)&arb_regs,
@@ -2438,7 +2433,7 @@ static int iceland_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 	data->smc_state_table.GraphicsLevel[1].pcieDpmLevel = mid_pcie_level_enabled;
 
 	/* level count will send to smc once at init smc table and never change*/
-	result = iceland_copy_bytes_to_smc(hwmgr->smumgr, level_array_adress, (uint8_t *)levels, (uint32_t)level_array_size, data->sram_end);
+	result = smu7_copy_bytes_to_smc(hwmgr->smumgr, level_array_adress, (uint8_t *)levels, (uint32_t)level_array_size, data->sram_end);
 
 	if (0 != result)
 		return result;
@@ -2492,7 +2487,7 @@ static int iceland_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 	data->smc_state_table.MemoryLevel[dpm_table->mclk_table.count-1].DisplayWatermark = PPSMC_DISPLAY_WATERMARK_HIGH;
 
 	/* level count will send to smc once at init smc table and never change*/
-	result = iceland_copy_bytes_to_smc(hwmgr->smumgr,
+	result = smu7_copy_bytes_to_smc(hwmgr->smumgr,
 		level_array_adress, (uint8_t *)levels, (uint32_t)level_array_size, data->sram_end);
 
 	if (0 != result) {
@@ -2754,7 +2749,7 @@ static int iceland_init_smc_table(struct pp_hwmgr *hwmgr)
 	table->BootMVdd = PP_HOST_TO_SMC_US(table->BootMVdd * VOLTAGE_SCALE);
 
 	/* Upload all dpm data to SMC memory.(dpm level, dpm level count etc) */
-	result = iceland_copy_bytes_to_smc(hwmgr->smumgr, data->dpm_table_start +
+	result = smu7_copy_bytes_to_smc(hwmgr->smumgr, data->dpm_table_start +
 				offsetof(SMU71_Discrete_DpmTable, SystemFlags),
 				(uint8_t *)&(table->SystemFlags),
 				sizeof(SMU71_Discrete_DpmTable) - 3 * sizeof(SMU71_PIDController),
@@ -2764,7 +2759,7 @@ static int iceland_init_smc_table(struct pp_hwmgr *hwmgr)
 		"Failed to upload dpm data to SMC memory!", return result);
 
 	/* Upload all ulv setting to SMC memory.(dpm level, dpm level count etc) */
-	result = iceland_copy_bytes_to_smc(hwmgr->smumgr,
+	result = smu7_copy_bytes_to_smc(hwmgr->smumgr,
 			data->ulv_settings_start,
 			(uint8_t *)&(data->ulv_setting),
 			sizeof(SMU71_Discrete_Ulv),
@@ -2884,7 +2879,7 @@ int iceland_populate_initial_mc_reg_table(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE(0 == result,
 		"Failed to initialize MCRegTable for driver state!", return result;);
 
-	return iceland_copy_bytes_to_smc(hwmgr->smumgr, data->mc_reg_table_start,
+	return smu7_copy_bytes_to_smc(hwmgr->smumgr, data->mc_reg_table_start,
 			(uint8_t *)&data->mc_reg_table, sizeof(SMU71_Discrete_MCRegisters), data->sram_end);
 }
 
@@ -3047,15 +3042,6 @@ static int iceland_enable_thermal_auto_throttle(struct pp_hwmgr *hwmgr)
 	return iceland_enable_auto_throttle_source(hwmgr, PHM_AutoThrottleSource_Thermal);
 }
 
-static int iceland_tf_start_smc(struct pp_hwmgr *hwmgr)
-{
-	int ret = 0;
-
-	if (!iceland_is_smc_ram_running(hwmgr->smumgr))
-		ret = iceland_smu_start_smc(hwmgr->smumgr);
-
-	return ret;
-}
 
 /**
 * Programs the Deep Sleep registers
@@ -3141,10 +3127,6 @@ static int iceland_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 		"Failed to populate PM fuses!", return tmp_result);
 
-	/* start SMC */
-	tmp_result = iceland_tf_start_smc(hwmgr);
-	PP_ASSERT_WITH_CODE((0 == tmp_result),
-		"Failed to start SMC!", return tmp_result);
 
 	/* enable SCLK control */
 	tmp_result = iceland_enable_sclk_control(hwmgr);
@@ -4636,7 +4618,7 @@ static int iceland_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 
 		CONVERT_FROM_HOST_TO_SMC_UL(low_sclk_interrupt_threshold);
 
-		result = iceland_copy_bytes_to_smc(
+		result = smu7_copy_bytes_to_smc(
 				hwmgr->smumgr,
 				data->dpm_table_start + offsetof(SMU71_Discrete_DpmTable,
 				LowSclkInterruptThreshold),
@@ -4670,7 +4652,7 @@ static int iceland_update_and_upload_mc_reg_table(struct pp_hwmgr *hwmgr)
 
 	address = data->mc_reg_table_start + (uint32_t)offsetof(SMU71_Discrete_MCRegisters, data[0]);
 
-	return  iceland_copy_bytes_to_smc(hwmgr->smumgr, address,
+	return  smu7_copy_bytes_to_smc(hwmgr->smumgr, address,
 				 (uint8_t *)&data->mc_reg_table.data[0],
 				sizeof(SMU71_Discrete_MCRegisterSet) * data->dpm_table.mclk_table.count,
 				data->sram_end);

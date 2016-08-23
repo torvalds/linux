@@ -239,7 +239,7 @@ static int iceland_populate_dw8(struct pp_hwmgr *hwmgr, uint32_t fuse_table_offs
 	const struct iceland_pt_defaults *defaults = data->power_tune_defaults;
 	uint32_t temp;
 
-	if (iceland_read_smc_sram_dword(hwmgr->smumgr,
+	if (smu7_read_smc_sram_dword(hwmgr->smumgr,
 			fuse_table_offset +
 			offsetof(SMU71_Discrete_PmFuses, TdcWaterfallCtl),
 			(uint32_t *)&temp, data->sram_end))
@@ -299,7 +299,7 @@ int iceland_populate_pm_fuses(struct pp_hwmgr *hwmgr)
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_PowerContainment)) {
-		if (iceland_read_smc_sram_dword(hwmgr->smumgr,
+		if (smu7_read_smc_sram_dword(hwmgr->smumgr,
 				SMU71_FIRMWARE_HEADER_LOCATION +
 				offsetof(SMU71_Firmware_Header, PmFuseTable),
 				&pm_fuse_table_offset, data->sram_end))
@@ -359,7 +359,7 @@ int iceland_populate_pm_fuses(struct pp_hwmgr *hwmgr)
 					"Attempt to populate BapmVddCBaseLeakage Hi and Lo Sidd Failed!",
 					return -EINVAL);
 
-		if (iceland_copy_bytes_to_smc(hwmgr->smumgr, pm_fuse_table_offset,
+		if (smu7_copy_bytes_to_smc(hwmgr->smumgr, pm_fuse_table_offset,
 				(uint8_t *)&data->power_tune_table,
 				sizeof(struct SMU71_Discrete_PmFuses), data->sram_end))
 			PP_ASSERT_WITH_CODE(false,

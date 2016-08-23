@@ -426,7 +426,7 @@ int tf_iceland_thermal_setup_fan_table(struct pp_hwmgr *hwmgr, void *input, void
 
 	//fan_table.FanControl_GL_Flag = 1;
 
-	res = iceland_copy_bytes_to_smc(hwmgr->smumgr, data->fan_table_start, (uint8_t *)&fan_table, (uint32_t)sizeof(fan_table), data->sram_end);
+	res = smu7_copy_bytes_to_smc(hwmgr->smumgr, data->fan_table_start, (uint8_t *)&fan_table, (uint32_t)sizeof(fan_table), data->sram_end);
 /* TO DO FOR SOME DEVICE ID 0X692b, send this msg return invalid command.
 	if (res == 0 && hwmgr->thermal_controller.advanceFanControlParameters.ucMinimumPWMLimit != 0)
 		res = (0 == smum_send_msg_to_smc_with_parameter(hwmgr->smumgr, PPSMC_MSG_SetFanMinPwm, \
