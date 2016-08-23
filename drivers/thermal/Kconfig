@@ -195,6 +195,16 @@ config IMX_THERMAL
 	  cpufreq is used as the cooling device to throttle CPUs when the
 	  passive trip is crossed.
 
+config MAX77620_THERMAL
+	tristate "Temperature sensor driver for Maxim MAX77620 PMIC"
+	depends on MFD_MAX77620
+	depends on OF
+	help
+	  Support for die junction temperature warning alarm for Maxim
+	  Semiconductor PMIC MAX77620 device. Device generates two alarm
+	  interrupts when PMIC die temperature cross the threshold of
+	  120 degC and 140 degC.
+
 config QORIQ_THERMAL
 	tristate "QorIQ Thermal Monitoring Unit"
 	depends on THERMAL_OF
