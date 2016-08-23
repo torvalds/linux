@@ -26,6 +26,8 @@ enum _dsm_rst_type {
 	HNS_XGE_CORE_RESET_FUNC = 0x3,
 	HNS_XGE_RESET_FUNC      = 0x4,
 	HNS_GE_RESET_FUNC       = 0x5,
+	HNS_DSAF_CHN_RESET_FUNC = 0x6,
+	HNS_ROCE_RESET_FUNC     = 0x7,
 };
 
 const u8 hns_dsaf_acpi_dsm_uuid[] = {
@@ -241,11 +243,11 @@ static void hns_dsaf_xge_core_srst_by_port(struct dsaf_device *dsaf_dev,
  * bit18-19 for com/dfx
  * @enable: false - request reset , true - drop reset
  */
-void hns_dsaf_srst_chns(struct dsaf_device *dsaf_dev, u32 msk, bool enable)
+void hns_dsaf_srst_chns(struct dsaf_device *dsaf_dev, u32 msk, bool dereset)
 {
 	u32 reg_addr;
 
-	if (!enable)
+	if (!dereset)
 		reg_addr = DSAF_SUB_SC_DSAF_RESET_REQ_REG;
 	else
 		reg_addr = DSAF_SUB_SC_DSAF_RESET_DREQ_REG;
@@ -253,9 +255,27 @@ void hns_dsaf_srst_chns(struct dsaf_device *dsaf_dev, u32 msk, bool enable)
 	dsaf_write_sub(dsaf_dev, reg_addr, msk);
 }
 
-void hns_dsaf_roce_srst(struct dsaf_device *dsaf_dev, bool enable)
+/**
+ * hns_dsaf_srst_chns - reset dsaf channels
+ * @dsaf_dev: dsaf device struct pointer
+ * @msk: xbar channels mask value:
+ * bit0-5 for xge0-5
+ * bit6-11 for ppe0-5
+ * bit12-17 for roce0-5
+ * bit18-19 for com/dfx
+ * @enable: false - request reset , true - drop reset
+ */
+void
+hns_dsaf_srst_chns_acpi(struct dsaf_device *dsaf_dev, u32 msk, bool dereset)
 {
-	if (!enable) {
+	hns_dsaf_acpi_srst_by_port(dsaf_dev, HNS_OP_RESET_FUNC,
+				   HNS_DSAF_CHN_RESET_FUNC,
+				   msk, dereset);
+}
+
+void hns_dsaf_roce_srst(struct dsaf_device *dsaf_dev, bool dereset)
+{
+	if (!dereset) {
 		dsaf_write_sub(dsaf_dev, DSAF_SUB_SC_ROCEE_RESET_REQ_REG, 1);
 	} else {
 		dsaf_write_sub(dsaf_dev,
@@ -265,6 +285,12 @@ void hns_dsaf_roce_srst(struct dsaf_device *dsaf_dev, bool enable)
 		msleep(20);
 		dsaf_write_sub(dsaf_dev, DSAF_SUB_SC_ROCEE_CLK_EN_REG, 1);
 	}
+}
+
+void hns_dsaf_roce_srst_acpi(struct dsaf_device *dsaf_dev, bool dereset)
+{
+	hns_dsaf_acpi_srst_by_port(dsaf_dev, HNS_OP_RESET_FUNC,
+				   HNS_ROCE_RESET_FUNC, 0, dereset);
 }
 
 static void
@@ -575,6 +601,8 @@ struct dsaf_misc_op *hns_misc_op_get(struct dsaf_device *dsaf_dev)
 		misc_op->ge_srst = hns_dsaf_ge_srst_by_port;
 		misc_op->ppe_srst = hns_ppe_srst_by_port;
 		misc_op->ppe_comm_srst = hns_ppe_com_srst;
+		misc_op->hns_dsaf_srst_chns = hns_dsaf_srst_chns;
+		misc_op->hns_dsaf_roce_srst = hns_dsaf_roce_srst;
 
 		misc_op->get_phy_if = hns_mac_get_phy_if;
 		misc_op->get_sfp_prsnt = hns_mac_get_sfp_prsnt;
@@ -591,6 +619,8 @@ struct dsaf_misc_op *hns_misc_op_get(struct dsaf_device *dsaf_dev)
 		misc_op->ge_srst = hns_dsaf_ge_srst_by_port_acpi;
 		misc_op->ppe_srst = hns_ppe_srst_by_port_acpi;
 		misc_op->ppe_comm_srst = hns_ppe_com_srst;
+		misc_op->hns_dsaf_srst_chns = hns_dsaf_srst_chns_acpi;
+		misc_op->hns_dsaf_roce_srst = hns_dsaf_roce_srst_acpi;
 
 		misc_op->get_phy_if = hns_mac_get_phy_if_acpi;
 		misc_op->get_sfp_prsnt = hns_mac_get_sfp_prsnt;
@@ -602,4 +632,19 @@ struct dsaf_misc_op *hns_misc_op_get(struct dsaf_device *dsaf_dev)
 	}
 
 	return (void *)misc_op;
+}
+
+static int hns_dsaf_dev_match(struct device *dev, void *fwnode)
+{
+	return dev->fwnode == fwnode;
+}
+
+struct
+platform_device *hns_dsaf_find_platform_device(struct fwnode_handle *fwnode)
+{
+	struct device *dev;
+
+	dev = bus_find_device(&platform_bus_type, NULL,
+			      fwnode, hns_dsaf_dev_match);
+	return dev ? to_platform_device(dev) : NULL;
 }

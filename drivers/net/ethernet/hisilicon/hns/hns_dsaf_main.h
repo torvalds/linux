@@ -305,7 +305,7 @@ struct dsaf_misc_op {
 	void (*cpld_reset_led)(struct hns_mac_cb *mac_cb);
 	int (*cpld_set_led_id)(struct hns_mac_cb *mac_cb,
 			       enum hnae_led_state status);
-	/* reset seris function, it will be reset if the dereseet is 0 */
+	/* reset series function, it will be reset if the dereset is 0 */
 	void (*dsaf_reset)(struct dsaf_device *dsaf_dev, bool dereset);
 	void (*xge_srst)(struct dsaf_device *dsaf_dev, u32 port, bool dereset);
 	void (*xge_core_srst)(struct dsaf_device *dsaf_dev, u32 port,
@@ -313,6 +313,9 @@ struct dsaf_misc_op {
 	void (*ge_srst)(struct dsaf_device *dsaf_dev, u32 port, bool dereset);
 	void (*ppe_srst)(struct dsaf_device *dsaf_dev, u32 port, bool dereset);
 	void (*ppe_comm_srst)(struct dsaf_device *dsaf_dev, bool dereset);
+	void (*hns_dsaf_srst_chns)(struct dsaf_device *dsaf_dev, u32 msk,
+				   bool dereset);
+	void (*hns_dsaf_roce_srst)(struct dsaf_device *dsaf_dev, bool dereset);
 
 	phy_interface_t (*get_phy_if)(struct hns_mac_cb *mac_cb);
 	int (*get_sfp_prsnt)(struct hns_mac_cb *mac_cb, int *sfp_prsnt);
@@ -444,10 +447,6 @@ int hns_dsaf_get_mac_entry_by_index(
 	struct dsaf_drv_mac_multi_dest_entry *mac_entry);
 
 void hns_dsaf_fix_mac_mode(struct hns_mac_cb *mac_cb);
-
-void hns_dsaf_srst_chns(struct dsaf_device *dsaf_dev, u32 msk, bool enable);
-
-void hns_dsaf_roce_srst(struct dsaf_device *dsaf_dev, bool enable);
 
 int hns_dsaf_ae_init(struct dsaf_device *dsaf_dev);
 void hns_dsaf_ae_uninit(struct dsaf_device *dsaf_dev);
