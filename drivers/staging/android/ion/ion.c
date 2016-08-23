@@ -550,8 +550,6 @@ static void ion_free_nolock(struct ion_client *client,
 {
 	bool valid_handle;
 
-	BUG_ON(client != handle->client);
-
 	valid_handle = ion_handle_validate(client, handle);
 
 	if (!valid_handle) {
