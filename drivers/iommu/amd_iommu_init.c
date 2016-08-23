@@ -146,7 +146,7 @@ struct ivmd_header {
 bool amd_iommu_dump;
 bool amd_iommu_irq_remap __read_mostly;
 
-int amd_iommu_guest_ir;
+int amd_iommu_guest_ir = AMD_IOMMU_GUEST_IR_VAPIC;
 
 static bool amd_iommu_detected;
 static bool __initdata amd_iommu_disabled;
@@ -2019,6 +2019,11 @@ static void early_enable_iommus(void)
 		iommu_enable(iommu);
 		iommu_flush_all_caches(iommu);
 	}
+
+#ifdef CONFIG_IRQ_REMAP
+	if (AMD_IOMMU_GUEST_IR_VAPIC(amd_iommu_guest_ir))
+		amd_iommu_irq_ops.capability |= (1 << IRQ_POSTING_CAP);
+#endif
 }
 
 static void enable_iommus_v2(void)
@@ -2044,6 +2049,11 @@ static void disable_iommus(void)
 
 	for_each_iommu(iommu)
 		iommu_disable(iommu);
+
+#ifdef CONFIG_IRQ_REMAP
+	if (AMD_IOMMU_GUEST_IR_VAPIC(amd_iommu_guest_ir))
+		amd_iommu_irq_ops.capability &= ~(1 << IRQ_POSTING_CAP);
+#endif
 }
 
 /*

@@ -137,6 +137,7 @@ struct iommu_dev_data {
 	bool pri_tlp;			  /* PASID TLB required for
 					     PPR completions */
 	u32 errata;			  /* Bitmap for errata to apply */
+	bool use_vapic;			  /* Enable device to use vapic mode */
 };
 
 /*
@@ -3015,6 +3016,12 @@ static void amd_iommu_detach_device(struct iommu_domain *dom,
 	if (!iommu)
 		return;
 
+#ifdef CONFIG_IRQ_REMAP
+	if (AMD_IOMMU_GUEST_IR_VAPIC(amd_iommu_guest_ir) &&
+	    (dom->type == IOMMU_DOMAIN_UNMANAGED))
+		dev_data->use_vapic = 0;
+#endif
+
 	iommu_completion_wait(iommu);
 }
 
@@ -3039,6 +3046,15 @@ static int amd_iommu_attach_device(struct iommu_domain *dom,
 		detach_device(dev);
 
 	ret = attach_device(dev, domain);
+
+#ifdef CONFIG_IRQ_REMAP
+	if (AMD_IOMMU_GUEST_IR_VAPIC(amd_iommu_guest_ir)) {
+		if (dom->type == IOMMU_DOMAIN_UNMANAGED)
+			dev_data->use_vapic = 1;
+		else
+			dev_data->use_vapic = 0;
+	}
+#endif
 
 	iommu_completion_wait(iommu);
 
@@ -3801,7 +3817,7 @@ static void free_irte(u16 devid, int index)
 
 static void irte_prepare(void *entry,
 			 u32 delivery_mode, u32 dest_mode,
-			 u8 vector, u32 dest_apicid)
+			 u8 vector, u32 dest_apicid, int devid)
 {
 	union irte *irte = (union irte *) entry;
 
@@ -3815,13 +3831,14 @@ static void irte_prepare(void *entry,
 
 static void irte_ga_prepare(void *entry,
 			    u32 delivery_mode, u32 dest_mode,
-			    u8 vector, u32 dest_apicid)
+			    u8 vector, u32 dest_apicid, int devid)
 {
 	struct irte_ga *irte = (struct irte_ga *) entry;
+	struct iommu_dev_data *dev_data = search_dev_data(devid);
 
 	irte->lo.val                      = 0;
 	irte->hi.val                      = 0;
-	irte->lo.fields_remap.guest_mode  = 0;
+	irte->lo.fields_remap.guest_mode  = dev_data ? dev_data->use_vapic : 0;
 	irte->lo.fields_remap.int_type    = delivery_mode;
 	irte->lo.fields_remap.dm          = dest_mode;
 	irte->hi.fields.vector            = vector;
@@ -3875,11 +3892,14 @@ static void irte_ga_set_affinity(void *entry, u16 devid, u16 index,
 				 u8 vector, u32 dest_apicid)
 {
 	struct irte_ga *irte = (struct irte_ga *) entry;
+	struct iommu_dev_data *dev_data = search_dev_data(devid);
 
-	irte->hi.fields.vector = vector;
-	irte->lo.fields_remap.destination = dest_apicid;
-	irte->lo.fields_remap.guest_mode = 0;
-	modify_irte_ga(devid, index, irte, NULL);
+	if (!dev_data || !dev_data->use_vapic) {
+		irte->hi.fields.vector = vector;
+		irte->lo.fields_remap.destination = dest_apicid;
+		irte->lo.fields_remap.guest_mode = 0;
+		modify_irte_ga(devid, index, irte, NULL);
+	}
 }
 
 #define IRTE_ALLOCATED (~1U)
@@ -4022,7 +4042,7 @@ static void irq_remapping_prepare_irte(struct amd_ir_data *data,
 	data->irq_2_irte.index = index + sub_handle;
 	iommu->irte_ops->prepare(data->entry, apic->irq_delivery_mode,
 				 apic->irq_dest_mode, irq_cfg->vector,
-				 irq_cfg->dest_apicid);
+				 irq_cfg->dest_apicid, devid);
 
 	switch (info->type) {
 	case X86_IRQ_ALLOC_TYPE_IOAPIC:
@@ -4222,6 +4242,14 @@ static int amd_ir_set_vcpu_affinity(struct irq_data *data, void *vcpu_info)
 	struct amd_ir_data *ir_data = data->chip_data;
 	struct irte_ga *irte = (struct irte_ga *) ir_data->entry;
 	struct irq_2_irte *irte_info = &ir_data->irq_2_irte;
+	struct iommu_dev_data *dev_data = search_dev_data(irte_info->devid);
+
+	/* Note:
+	 * This device has never been set up for guest mode.
+	 * we should not modify the IRTE
+	 */
+	if (!dev_data || !dev_data->use_vapic)
+		return 0;
 
 	pi_data->ir_data = ir_data;
 
