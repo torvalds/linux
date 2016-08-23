@@ -1318,7 +1318,8 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 		sec_dai = i2s_alloc_dai(pdev, true);
 		if (!sec_dai) {
 			dev_err(&pdev->dev, "Unable to alloc I2S_sec\n");
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto err_disable_clk;
 		}
 
 		sec_dai->lock = &pri_dai->spinlock;
@@ -1342,7 +1343,8 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 
 	if (i2s_pdata && i2s_pdata->cfg_gpio && i2s_pdata->cfg_gpio(pdev)) {
 		dev_err(&pdev->dev, "Unable to configure gpio\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_disable_clk;
 	}
 
 	ret = devm_snd_soc_register_component(&pri_dai->pdev->dev,
@@ -1366,6 +1368,8 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 err_free_dai:
 	if (sec_dai)
 		i2s_free_sec_dai(sec_dai);
+err_disable_clk:
+	clk_disable_unprepare(pri_dai->clk);
 	return ret;
 }
 
