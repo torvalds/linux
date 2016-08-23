@@ -263,6 +263,12 @@ const char *nvdimm_name(struct nvdimm *nvdimm)
 }
 EXPORT_SYMBOL_GPL(nvdimm_name);
 
+struct kobject *nvdimm_kobj(struct nvdimm *nvdimm)
+{
+	return &nvdimm->dev.kobj;
+}
+EXPORT_SYMBOL_GPL(nvdimm_kobj);
+
 unsigned long nvdimm_cmd_mask(struct nvdimm *nvdimm)
 {
 	return nvdimm->cmd_mask;

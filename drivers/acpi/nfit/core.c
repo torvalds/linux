@@ -1248,6 +1248,43 @@ static struct nvdimm *acpi_nfit_dimm_by_handle(struct acpi_nfit_desc *acpi_desc,
 	return NULL;
 }
 
+static void __acpi_nvdimm_notify(struct device *dev, u32 event)
+{
+	struct nfit_mem *nfit_mem;
+	struct acpi_nfit_desc *acpi_desc;
+
+	dev_dbg(dev->parent, "%s: %s: event: %d\n", dev_name(dev), __func__,
+			event);
+
+	if (event != NFIT_NOTIFY_DIMM_HEALTH) {
+		dev_dbg(dev->parent, "%s: unknown event: %d\n", dev_name(dev),
+				event);
+		return;
+	}
+
+	acpi_desc = dev_get_drvdata(dev->parent);
+	if (!acpi_desc)
+		return;
+
+	/*
+	 * If we successfully retrieved acpi_desc, then we know nfit_mem data
+	 * is still valid.
+	 */
+	nfit_mem = dev_get_drvdata(dev);
+	if (nfit_mem && nfit_mem->flags_attr)
+		sysfs_notify_dirent(nfit_mem->flags_attr);
+}
+
+static void acpi_nvdimm_notify(acpi_handle handle, u32 event, void *data)
+{
+	struct acpi_device *adev = data;
+	struct device *dev = &adev->dev;
+
+	device_lock(dev->parent);
+	__acpi_nvdimm_notify(dev, event);
+	device_unlock(dev->parent);
+}
+
 static int acpi_nfit_add_dimm(struct acpi_nfit_desc *acpi_desc,
 		struct nfit_mem *nfit_mem, u32 device_handle)
 {
@@ -1270,6 +1307,13 @@ static int acpi_nfit_add_dimm(struct acpi_nfit_desc *acpi_desc,
 		dev_err(dev, "no ACPI.NFIT device with _ADR %#x, disabling...\n",
 				device_handle);
 		return force_enable_dimms ? 0 : -ENODEV;
+	}
+
+	if (ACPI_FAILURE(acpi_install_notify_handler(adev_dimm->handle,
+		ACPI_DEVICE_NOTIFY, acpi_nvdimm_notify, adev_dimm))) {
+		dev_err(dev, "%s: notification registration failed\n",
+				dev_name(&adev_dimm->dev));
+		return -ENXIO;
 	}
 
 	/*
@@ -1310,18 +1354,38 @@ static int acpi_nfit_add_dimm(struct acpi_nfit_desc *acpi_desc,
 	return 0;
 }
 
+static void shutdown_dimm_notify(void *data)
+{
+	struct acpi_nfit_desc *acpi_desc = data;
+	struct nfit_mem *nfit_mem;
+
+	mutex_lock(&acpi_desc->init_mutex);
+	/*
+	 * Clear out the nfit_mem->flags_attr and shut down dimm event
+	 * notifications.
+	 */
+	list_for_each_entry(nfit_mem, &acpi_desc->dimms, list) {
+		if (nfit_mem->flags_attr) {
+			sysfs_put(nfit_mem->flags_attr);
+			nfit_mem->flags_attr = NULL;
+		}
+		acpi_remove_notify_handler(nfit_mem->adev->handle,
+				ACPI_DEVICE_NOTIFY, acpi_nvdimm_notify);
+	}
+	mutex_unlock(&acpi_desc->init_mutex);
+}
+
 static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
 {
 	struct nfit_mem *nfit_mem;
-	int dimm_count = 0;
+	int dimm_count = 0, rc;
+	struct nvdimm *nvdimm;
 
 	list_for_each_entry(nfit_mem, &acpi_desc->dimms, list) {
 		struct acpi_nfit_flush_address *flush;
 		unsigned long flags = 0, cmd_mask;
-		struct nvdimm *nvdimm;
 		u32 device_handle;
 		u16 mem_flags;
-		int rc;
 
 		device_handle = __to_nfit_memdev(nfit_mem)->device_handle;
 		nvdimm = acpi_nfit_dimm_by_handle(acpi_desc, device_handle);
@@ -1374,7 +1438,30 @@ static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
 
 	}
 
-	return nvdimm_bus_check_dimm_count(acpi_desc->nvdimm_bus, dimm_count);
+	rc = nvdimm_bus_check_dimm_count(acpi_desc->nvdimm_bus, dimm_count);
+	if (rc)
+		return rc;
+
+	/*
+	 * Now that dimms are successfully registered, and async registration
+	 * is flushed, attempt to enable event notification.
+	 */
+	list_for_each_entry(nfit_mem, &acpi_desc->dimms, list) {
+		struct kernfs_node *nfit_kernfs;
+
+		nvdimm = nfit_mem->nvdimm;
+		nfit_kernfs = sysfs_get_dirent(nvdimm_kobj(nvdimm)->sd, "nfit");
+		if (nfit_kernfs)
+			nfit_mem->flags_attr = sysfs_get_dirent(nfit_kernfs,
+					"flags");
+		sysfs_put(nfit_kernfs);
+		if (!nfit_mem->flags_attr)
+			dev_warn(acpi_desc->dev, "%s: notifications disabled\n",
+					nvdimm_name(nvdimm));
+	}
+
+	return devm_add_action_or_reset(acpi_desc->dev, shutdown_dimm_notify,
+			acpi_desc);
 }
 
 static void acpi_nfit_init_dsms(struct acpi_nfit_desc *acpi_desc)
