@@ -3530,7 +3530,7 @@ bthci_CmdLinkStatusNotify(
 				pBtMgnt->ExtConfig.linkInfo[i].BTProfile,
 				pBtMgnt->ExtConfig.linkInfo[i].BTCoreSpec));
 			pTriple += 4;
-		} else if (pBtMgnt->ExtConfig.HCIExtensionVer >= 1) {
+		} else {
 			pBtMgnt->ExtConfig.linkInfo[i].ConnectHandle = *((u16 *)&pTriple[0]);
 			pBtMgnt->ExtConfig.linkInfo[i].BTProfile = pTriple[2];
 			pBtMgnt->ExtConfig.linkInfo[i].BTCoreSpec = pTriple[3];
