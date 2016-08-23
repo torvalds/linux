@@ -28,20 +28,7 @@ struct rsrc_card_of_data {
 	int num_routes;
 };
 
-static const struct snd_soc_dapm_route routes_ssi0_ak4642[] = {
-	{"ak4642 Playback", NULL, "DAI0 Playback"},
-	{"DAI0 Capture", NULL, "ak4642 Capture"},
-};
-
-static const struct rsrc_card_of_data routes_of_ssi0_ak4642 = {
-	.prefix		= "ak4642",
-	.routes		= routes_ssi0_ak4642,
-	.num_routes	= ARRAY_SIZE(routes_ssi0_ak4642),
-};
-
 static const struct of_device_id rsrc_card_of_match[] = {
-	{ .compatible = "renesas,rsrc-card,lager",	.data = &routes_of_ssi0_ak4642 },
-	{ .compatible = "renesas,rsrc-card,koelsch",	.data = &routes_of_ssi0_ak4642 },
 	{ .compatible = "renesas,rsrc-card", },
 	{},
 };
