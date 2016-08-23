@@ -1016,15 +1016,15 @@ int c4iw_resize_cq(struct ib_cq *cq, int cqe, struct ib_udata *udata)
 int c4iw_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 {
 	struct c4iw_cq *chp;
-	int ret;
+	int ret = 0;
 	unsigned long flag;
 
 	chp = to_c4iw_cq(ibcq);
 	spin_lock_irqsave(&chp->lock, flag);
-	ret = t4_arm_cq(&chp->cq,
-			(flags & IB_CQ_SOLICITED_MASK) == IB_CQ_SOLICITED);
+	t4_arm_cq(&chp->cq,
+		  (flags & IB_CQ_SOLICITED_MASK) == IB_CQ_SOLICITED);
+	if (flags & IB_CQ_REPORT_MISSED_EVENTS)
+		ret = t4_cq_notempty(&chp->cq);
 	spin_unlock_irqrestore(&chp->lock, flag);
-	if (ret && !(flags & IB_CQ_REPORT_MISSED_EVENTS))
-		ret = 0;
 	return ret;
 }

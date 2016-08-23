@@ -634,6 +634,11 @@ static inline int t4_valid_cqe(struct t4_cq *cq, struct t4_cqe *cqe)
 	return (CQE_GENBIT(cqe) == cq->gen);
 }
 
+static inline int t4_cq_notempty(struct t4_cq *cq)
+{
+	return cq->sw_in_use || t4_valid_cqe(cq, &cq->queue[cq->cidx]);
+}
+
 static inline int t4_next_hw_cqe(struct t4_cq *cq, struct t4_cqe **cqe)
 {
 	int ret;
