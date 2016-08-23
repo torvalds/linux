@@ -1916,7 +1916,7 @@ static int __init psmouse_init(void)
 	synaptics_module_init();
 	hgpk_module_init();
 
-	kpsmoused_wq = create_singlethread_workqueue("kpsmoused");
+	kpsmoused_wq = alloc_ordered_workqueue("kpsmoused", 0);
 	if (!kpsmoused_wq) {
 		pr_err("failed to create kpsmoused workqueue\n");
 		return -ENOMEM;
