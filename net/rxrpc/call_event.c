@@ -832,11 +832,6 @@ void rxrpc_process_call(struct work_struct *work)
 	       call->debug_id, rxrpc_call_states[call->state], call->events,
 	       (jiffies - call->creation_jif) / (HZ / 10));
 
-	if (test_and_set_bit(RXRPC_CALL_PROC_BUSY, &call->flags)) {
-		_debug("XXXXXXXXXXXXX RUNNING ON MULTIPLE CPUS XXXXXXXXXXXXX");
-		return;
-	}
-
 	if (!call->conn)
 		goto skip_msg_init;
 
@@ -1281,7 +1276,6 @@ maybe_reschedule:
 	}
 
 error:
-	clear_bit(RXRPC_CALL_PROC_BUSY, &call->flags);
 	kfree(acks);
 
 	/* because we don't want two CPUs both processing the work item for one

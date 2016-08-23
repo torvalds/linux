@@ -341,7 +341,6 @@ enum rxrpc_call_flag {
 	RXRPC_CALL_RCVD_LAST,		/* all packets received */
 	RXRPC_CALL_RUN_RTIMER,		/* Tx resend timer started */
 	RXRPC_CALL_TX_SOFT_ACK,		/* sent some soft ACKs */
-	RXRPC_CALL_PROC_BUSY,		/* the processor is busy */
 	RXRPC_CALL_INIT_ACCEPT,		/* acceptance was initiated */
 	RXRPC_CALL_HAS_USERID,		/* has a user ID attached */
 	RXRPC_CALL_EXPECT_OOS,		/* expect out of sequence packets */
