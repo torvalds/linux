@@ -299,7 +299,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			for (i = 0; i < AMDGPU_MAX_VCE_RINGS; i++)
 				ring_mask |= ((adev->vce.ring[i].ready ? 1 : 0) << i);
 			ib_start_alignment = AMDGPU_GPU_PAGE_SIZE;
-			ib_size_alignment = 8;
+			ib_size_alignment = 1;
 			break;
 		default:
 			return -EINVAL;
