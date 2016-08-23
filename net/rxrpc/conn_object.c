@@ -166,7 +166,15 @@ void __rxrpc_disconnect_call(struct rxrpc_call *call)
 		/* Save the result of the call so that we can repeat it if necessary
 		 * through the channel, whilst disposing of the actual call record.
 		 */
-		chan->last_result = call->local_abort;
+		chan->last_service_id = call->service_id;
+		if (call->local_abort) {
+			chan->last_abort = call->local_abort;
+			chan->last_type = RXRPC_PACKET_TYPE_ABORT;
+		} else {
+			chan->last_seq = call->rx_data_eaten;
+			chan->last_type = RXRPC_PACKET_TYPE_ACK;
+		}
+		/* Sync with rxrpc_conn_retransmit(). */
 		smp_wmb();
 		chan->last_call = chan->call_id;
 		chan->call_id = chan->call_counter;

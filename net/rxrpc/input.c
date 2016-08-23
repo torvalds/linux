@@ -566,7 +566,8 @@ done:
 
 /*
  * post connection-level events to the connection
- * - this includes challenges, responses and some aborts
+ * - this includes challenges, responses, some aborts and call terminal packet
+ *   retransmission.
  */
 static void rxrpc_post_packet_to_conn(struct rxrpc_connection *conn,
 				      struct sk_buff *skb)
@@ -716,18 +717,44 @@ void rxrpc_data_ready(struct sock *sk)
 		/* Connection-level packet */
 		_debug("CONN %p {%d}", conn, conn->debug_id);
 		rxrpc_post_packet_to_conn(conn, skb);
+		goto out_unlock;
 	} else {
 		/* Call-bound packets are routed by connection channel. */
 		unsigned int channel = sp->hdr.cid & RXRPC_CHANNELMASK;
 		struct rxrpc_channel *chan = &conn->channels[channel];
-		struct rxrpc_call *call = rcu_dereference(chan->call);
+		struct rxrpc_call *call;
 
+		/* Ignore really old calls */
+		if (sp->hdr.callNumber < chan->last_call)
+			goto discard_unlock;
+
+		if (sp->hdr.callNumber == chan->last_call) {
+			/* For the previous service call, if completed
+			 * successfully, we discard all further packets.
+			 */
+			if (rxrpc_conn_is_service(call->conn) &&
+			    (chan->last_type == RXRPC_PACKET_TYPE_ACK ||
+			     sp->hdr.type == RXRPC_PACKET_TYPE_ABORT))
+				goto discard_unlock;
+
+			/* But otherwise we need to retransmit the final packet
+			 * from data cached in the connection record.
+			 */
+			rxrpc_post_packet_to_conn(conn, skb);
+			goto out_unlock;
+		}
+
+		call = rcu_dereference(chan->call);
 		if (!call || atomic_read(&call->usage) == 0)
 			goto cant_route_call;
 
 		rxrpc_post_packet_to_call(call, skb);
+		goto out_unlock;
 	}
 
+discard_unlock:
+	rxrpc_free_skb(skb);
+out_unlock:
 	rcu_read_unlock();
 out:
 	return;
