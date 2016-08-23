@@ -64,18 +64,6 @@
  */
 
 /*
- * This is the minimal list of formats that seem to be safe for modeset use
- * with all current DRM drivers.  Most hardware can actually support more
- * formats than this and drivers may specify a more accurate list when
- * creating the primary plane.  However drivers that still call
- * drm_plane_init() will use this minimal format list as the default.
- */
-static const uint32_t safe_modeset_formats[] = {
-	DRM_FORMAT_XRGB8888,
-	DRM_FORMAT_ARGB8888,
-};
-
-/*
  * Returns the connectors currently associated with a CRTC.  This function
  * should be called twice:  once with a NULL connector list to retrieve
  * the list size, and once with the properly allocated list to be filled in.
@@ -211,7 +199,7 @@ EXPORT_SYMBOL(drm_plane_helper_check_state);
  * @crtc: owning CRTC of owning plane
  * @fb: framebuffer to flip onto plane
  * @src: source coordinates in 16.16 fixed point
- * @dest: integer destination coordinates
+ * @dst: integer destination coordinates
  * @clip: integer clipping coordinates
  * @rotation: plane rotation
  * @min_scale: minimum @src:@dest scaling factor in 16.16 fixed point
@@ -437,60 +425,6 @@ const struct drm_plane_funcs drm_primary_helper_funcs = {
 	.destroy = drm_primary_helper_destroy,
 };
 EXPORT_SYMBOL(drm_primary_helper_funcs);
-
-static struct drm_plane *create_primary_plane(struct drm_device *dev)
-{
-	struct drm_plane *primary;
-	int ret;
-
-	primary = kzalloc(sizeof(*primary), GFP_KERNEL);
-	if (primary == NULL) {
-		DRM_DEBUG_KMS("Failed to allocate primary plane\n");
-		return NULL;
-	}
-
-	/*
-	 * Remove the format_default field from drm_plane when dropping
-	 * this helper.
-	 */
-	primary->format_default = true;
-
-	/* possible_crtc's will be filled in later by crtc_init */
-	ret = drm_universal_plane_init(dev, primary, 0,
-				       &drm_primary_helper_funcs,
-				       safe_modeset_formats,
-				       ARRAY_SIZE(safe_modeset_formats),
-				       DRM_PLANE_TYPE_PRIMARY, NULL);
-	if (ret) {
-		kfree(primary);
-		primary = NULL;
-	}
-
-	return primary;
-}
-
-/**
- * drm_crtc_init - Legacy CRTC initialization function
- * @dev: DRM device
- * @crtc: CRTC object to init
- * @funcs: callbacks for the new CRTC
- *
- * Initialize a CRTC object with a default helper-provided primary plane and no
- * cursor plane.
- *
- * Returns:
- * Zero on success, error code on failure.
- */
-int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
-		  const struct drm_crtc_funcs *funcs)
-{
-	struct drm_plane *primary;
-
-	primary = create_primary_plane(dev);
-	return drm_crtc_init_with_planes(dev, crtc, primary, NULL, funcs,
-					 NULL);
-}
-EXPORT_SYMBOL(drm_crtc_init);
 
 int drm_plane_helper_commit(struct drm_plane *plane,
 			    struct drm_plane_state *plane_state,

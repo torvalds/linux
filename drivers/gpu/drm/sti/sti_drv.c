@@ -282,7 +282,7 @@ static const struct file_operations sti_driver_fops = {
 };
 
 static struct drm_driver sti_driver = {
-	.driver_features = DRIVER_HAVE_IRQ | DRIVER_MODESET |
+	.driver_features = DRIVER_MODESET |
 	    DRIVER_GEM | DRIVER_PRIME | DRIVER_ATOMIC,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,

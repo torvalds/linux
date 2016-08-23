@@ -488,8 +488,7 @@ static const struct file_operations fops = {
 };
 
 static struct drm_driver etnaviv_drm_driver = {
-	.driver_features    = DRIVER_HAVE_IRQ |
-				DRIVER_GEM |
+	.driver_features    = DRIVER_GEM |
 				DRIVER_PRIME |
 				DRIVER_RENDER,
 	.open               = etnaviv_open,
@@ -532,8 +531,6 @@ static int etnaviv_bind(struct device *dev)
 	drm = drm_dev_alloc(&etnaviv_drm_driver, dev);
 	if (!drm)
 		return -ENOMEM;
-
-	drm->platformdev = to_platform_device(dev);
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {

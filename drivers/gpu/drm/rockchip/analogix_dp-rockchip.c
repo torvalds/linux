@@ -445,7 +445,6 @@ static struct platform_driver rockchip_dp_driver = {
 	.remove = rockchip_dp_remove,
 	.driver = {
 		   .name = "rockchip-dp",
-		   .owner = THIS_MODULE,
 		   .pm = &rockchip_dp_pm_ops,
 		   .of_match_table = of_match_ptr(rockchip_dp_dt_ids),
 	},

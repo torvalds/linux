@@ -1,5 +1,3 @@
-.. _vga_switcheroo:
-
 ==============
 VGA Switcheroo
 ==============

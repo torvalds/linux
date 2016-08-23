@@ -2,9 +2,6 @@
 Kernel Mode Setting (KMS)
 =========================
 
-Mode Setting
-============
-
 Drivers must initialize the mode setting core by calling
 :c:func:`drm_mode_config_init()` on the DRM device. The function
 initializes the :c:type:`struct drm_device <drm_device>`
@@ -18,60 +15,50 @@ be setup by initializing the following fields.
 -  struct drm_mode_config_funcs \*funcs;
    Mode setting functions.
 
-Display Modes Function Reference
---------------------------------
+KMS Data Structures
+===================
 
-.. kernel-doc:: include/drm/drm_modes.h
+.. kernel-doc:: include/drm/drm_crtc.h
    :internal:
 
-.. kernel-doc:: drivers/gpu/drm/drm_modes.c
+KMS API Functions
+=================
+
+.. kernel-doc:: drivers/gpu/drm/drm_crtc.c
    :export:
 
 Atomic Mode Setting Function Reference
---------------------------------------
+======================================
 
 .. kernel-doc:: drivers/gpu/drm/drm_atomic.c
    :export:
 
-.. kernel-doc:: drivers/gpu/drm/drm_atomic.c
+.. kernel-doc:: include/drm/drm_atomic.h
    :internal:
 
 Frame Buffer Abstraction
-------------------------
+========================
 
-Frame buffers are abstract memory objects that provide a source of
-pixels to scanout to a CRTC. Applications explicitly request the
-creation of frame buffers through the DRM_IOCTL_MODE_ADDFB(2) ioctls
-and receive an opaque handle that can be passed to the KMS CRTC control,
-plane configuration and page flip functions.
+.. kernel-doc:: drivers/gpu/drm/drm_framebuffer.c
+   :doc: overview
 
-Frame buffers rely on the underneath memory manager for low-level memory
-operations. When creating a frame buffer applications pass a memory
-handle (or a list of memory handles for multi-planar formats) through
-the ``drm_mode_fb_cmd2`` argument. For drivers using GEM as their
-userspace buffer management interface this would be a GEM handle.
-Drivers are however free to use their own backing storage object
-handles, e.g. vmwgfx directly exposes special TTM handles to userspace
-and so expects TTM handles in the create ioctl and not GEM handles.
+Frame Buffer Functions Reference
+--------------------------------
 
-The lifetime of a drm framebuffer is controlled with a reference count,
-drivers can grab additional references with
-:c:func:`drm_framebuffer_reference()`and drop them again with
-:c:func:`drm_framebuffer_unreference()`. For driver-private
-framebuffers for which the last reference is never dropped (e.g. for the
-fbdev framebuffer when the struct :c:type:`struct drm_framebuffer
-<drm_framebuffer>` is embedded into the fbdev helper struct)
-drivers can manually clean up a framebuffer at module unload time with
-:c:func:`drm_framebuffer_unregister_private()`.
+.. kernel-doc:: drivers/gpu/drm/drm_framebuffer.c
+   :export:
+
+.. kernel-doc:: include/drm/drm_framebuffer.h
+   :internal:
 
 DRM Format Handling
--------------------
+===================
 
 .. kernel-doc:: drivers/gpu/drm/drm_fourcc.c
    :export:
 
 Dumb Buffer Objects
--------------------
+===================
 
 The KMS API doesn't standardize backing storage object creation and
 leaves it to driver-specific ioctls. Furthermore actually creating a
@@ -114,14 +101,29 @@ Note that dumb objects may not be used for gpu acceleration, as has been
 attempted on some ARM embedded platforms. Such drivers really must have
 a hardware-specific ioctl to allocate suitable buffer objects.
 
-Output Polling
---------------
+Display Modes Function Reference
+================================
 
-void (\*output_poll_changed)(struct drm_device \*dev);
-This operation notifies the driver that the status of one or more
-connectors has changed. Drivers that use the fb helper can just call the
-:c:func:`drm_fb_helper_hotplug_event()` function to handle this
-operation.
+.. kernel-doc:: include/drm/drm_modes.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_modes.c
+   :export:
+
+Connector Abstraction
+=====================
+
+.. kernel-doc:: drivers/gpu/drm/drm_connector.c
+   :doc: overview
+
+Connector Functions Reference
+-----------------------------
+
+.. kernel-doc:: include/drm/drm_connector.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_connector.c
+   :export:
 
 KMS Initialization and Cleanup
 ==============================
@@ -236,166 +238,6 @@ encoders unattached at initialization time. Applications (or the fbdev
 compatibility layer when implemented) are responsible for attaching the
 encoders they want to use to a CRTC.
 
-Connectors (:c:type:`struct drm_connector <drm_connector>`)
------------------------------------------------------------
-
-A connector is the final destination for pixel data on a device, and
-usually connects directly to an external display device like a monitor
-or laptop panel. A connector can only be attached to one encoder at a
-time. The connector is also the structure where information about the
-attached display is kept, so it contains fields for display data, EDID
-data, DPMS & connection status, and information about modes supported on
-the attached displays.
-
-Connector Initialization
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-Finally a KMS driver must create, initialize, register and attach at
-least one :c:type:`struct drm_connector <drm_connector>`
-instance. The instance is created as other KMS objects and initialized
-by setting the following fields.
-
-interlace_allowed
-    Whether the connector can handle interlaced modes.
-
-doublescan_allowed
-    Whether the connector can handle doublescan.
-
-display_info
-    Display information is filled from EDID information when a display
-    is detected. For non hot-pluggable displays such as flat panels in
-    embedded systems, the driver should initialize the
-    display_info.width_mm and display_info.height_mm fields with the
-    physical size of the display.
-
-polled
-    Connector polling mode, a combination of
-
-    DRM_CONNECTOR_POLL_HPD
-        The connector generates hotplug events and doesn't need to be
-        periodically polled. The CONNECT and DISCONNECT flags must not
-        be set together with the HPD flag.
-
-    DRM_CONNECTOR_POLL_CONNECT
-        Periodically poll the connector for connection.
-
-    DRM_CONNECTOR_POLL_DISCONNECT
-        Periodically poll the connector for disconnection.
-
-    Set to 0 for connectors that don't support connection status
-    discovery.
-
-The connector is then registered with a call to
-:c:func:`drm_connector_init()` with a pointer to the connector
-functions and a connector type, and exposed through sysfs with a call to
-:c:func:`drm_connector_register()`.
-
-Supported connector types are
-
--  DRM_MODE_CONNECTOR_VGA
--  DRM_MODE_CONNECTOR_DVII
--  DRM_MODE_CONNECTOR_DVID
--  DRM_MODE_CONNECTOR_DVIA
--  DRM_MODE_CONNECTOR_Composite
--  DRM_MODE_CONNECTOR_SVIDEO
--  DRM_MODE_CONNECTOR_LVDS
--  DRM_MODE_CONNECTOR_Component
--  DRM_MODE_CONNECTOR_9PinDIN
--  DRM_MODE_CONNECTOR_DisplayPort
--  DRM_MODE_CONNECTOR_HDMIA
--  DRM_MODE_CONNECTOR_HDMIB
--  DRM_MODE_CONNECTOR_TV
--  DRM_MODE_CONNECTOR_eDP
--  DRM_MODE_CONNECTOR_VIRTUAL
-
-Connectors must be attached to an encoder to be used. For devices that
-map connectors to encoders 1:1, the connector should be attached at
-initialization time with a call to
-:c:func:`drm_mode_connector_attach_encoder()`. The driver must
-also set the :c:type:`struct drm_connector <drm_connector>`
-encoder field to point to the attached encoder.
-
-Finally, drivers must initialize the connectors state change detection
-with a call to :c:func:`drm_kms_helper_poll_init()`. If at least
-one connector is pollable but can't generate hotplug interrupts
-(indicated by the DRM_CONNECTOR_POLL_CONNECT and
-DRM_CONNECTOR_POLL_DISCONNECT connector flags), a delayed work will
-automatically be queued to periodically poll for changes. Connectors
-that can generate hotplug interrupts must be marked with the
-DRM_CONNECTOR_POLL_HPD flag instead, and their interrupt handler must
-call :c:func:`drm_helper_hpd_irq_event()`. The function will
-queue a delayed work to check the state of all connectors, but no
-periodic polling will be done.
-
-Connector Operations
-~~~~~~~~~~~~~~~~~~~~
-
-    **Note**
-
-    Unless otherwise state, all operations are mandatory.
-
-DPMS
-''''
-
-void (\*dpms)(struct drm_connector \*connector, int mode);
-The DPMS operation sets the power state of a connector. The mode
-argument is one of
-
--  DRM_MODE_DPMS_ON
-
--  DRM_MODE_DPMS_STANDBY
-
--  DRM_MODE_DPMS_SUSPEND
-
--  DRM_MODE_DPMS_OFF
-
-In all but DPMS_ON mode the encoder to which the connector is attached
-should put the display in low-power mode by driving its signals
-appropriately. If more than one connector is attached to the encoder
-care should be taken not to change the power state of other displays as
-a side effect. Low-power mode should be propagated to the encoders and
-CRTCs when all related connectors are put in low-power mode.
-
-Modes
-'''''
-
-int (\*fill_modes)(struct drm_connector \*connector, uint32_t
-max_width, uint32_t max_height);
-Fill the mode list with all supported modes for the connector. If the
-``max_width`` and ``max_height`` arguments are non-zero, the
-implementation must ignore all modes wider than ``max_width`` or higher
-than ``max_height``.
-
-The connector must also fill in this operation its display_info
-width_mm and height_mm fields with the connected display physical size
-in millimeters. The fields should be set to 0 if the value isn't known
-or is not applicable (for instance for projector devices).
-
-Connection Status
-'''''''''''''''''
-
-The connection status is updated through polling or hotplug events when
-supported (see ?). The status value is reported to userspace through
-ioctls and must not be used inside the driver, as it only gets
-initialized by a call to :c:func:`drm_mode_getconnector()` from
-userspace.
-
-enum drm_connector_status (\*detect)(struct drm_connector
-\*connector, bool force);
-Check to see if anything is attached to the connector. The ``force``
-parameter is set to false whilst polling or to true when checking the
-connector due to user request. ``force`` can be used by the driver to
-avoid expensive, destructive operations during automated probing.
-
-Return connector_status_connected if something is connected to the
-connector, connector_status_disconnected if nothing is connected and
-connector_status_unknown if the connection state isn't known.
-
-Drivers should only return connector_status_connected if the
-connection status has really been probed as connected. Connectors that
-can't detect the connection status, or failed connection status probes,
-should return connector_status_unknown.
-
 Cleanup
 -------
 
@@ -463,20 +305,8 @@ created for fetching EDID data and performing monitor detection. Once
 the process is complete, the new connector is registered with sysfs to
 make its properties available to applications.
 
-KMS API Functions
------------------
-
-.. kernel-doc:: drivers/gpu/drm/drm_crtc.c
-   :export:
-
-KMS Data Structures
--------------------
-
-.. kernel-doc:: include/drm/drm_crtc.h
-   :internal:
-
 KMS Locking
------------
+===========
 
 .. kernel-doc:: drivers/gpu/drm/drm_modeset_lock.c
    :doc: kms locking
@@ -574,6 +404,12 @@ connector and plane objects by calling the
 :c:func:`drm_object_attach_property()`. The function takes a
 pointer to the target object, a pointer to the previously created
 property and an initial instance value.
+
+Blending and Z-Position properties
+----------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_blend.c
+   :export:
 
 Existing KMS Properties
 -----------------------

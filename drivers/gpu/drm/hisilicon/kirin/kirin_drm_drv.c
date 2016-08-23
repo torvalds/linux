@@ -169,7 +169,7 @@ static int kirin_gem_cma_dumb_create(struct drm_file *file,
 
 static struct drm_driver kirin_drm_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME |
-				  DRIVER_ATOMIC | DRIVER_HAVE_IRQ,
+				  DRIVER_ATOMIC,
 	.fops			= &kirin_drm_fops,
 
 	.gem_free_object_unlocked = drm_gem_cma_free_object,

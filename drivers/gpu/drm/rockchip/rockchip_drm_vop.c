@@ -238,7 +238,7 @@ static enum vop_data_format vop_convert_format(uint32_t format)
 	case DRM_FORMAT_NV24:
 		return VOP_FMT_YUV444SP;
 	default:
-		DRM_ERROR("unsupport format[%08x]\n", format);
+		DRM_ERROR("unsupported format[%08x]\n", format);
 		return -EINVAL;
 	}
 }
@@ -315,7 +315,7 @@ static void scl_vop_cal_scl_fac(struct vop *vop, const struct vop_win_data *win,
 	int vskiplines = 0;
 
 	if (dst_w > 3840) {
-		DRM_ERROR("Maximum destination width (3840) exceeded\n");
+		DRM_DEV_ERROR(vop->dev, "Maximum dst width (3840) exceeded\n");
 		return;
 	}
 
@@ -353,11 +353,11 @@ static void scl_vop_cal_scl_fac(struct vop *vop, const struct vop_win_data *win,
 	VOP_SCL_SET_EXT(vop, win, lb_mode, lb_mode);
 	if (lb_mode == LB_RGB_3840X2) {
 		if (yrgb_ver_scl_mode != SCALE_NONE) {
-			DRM_ERROR("ERROR : not allow yrgb ver scale\n");
+			DRM_DEV_ERROR(vop->dev, "not allow yrgb ver scale\n");
 			return;
 		}
 		if (cbcr_ver_scl_mode != SCALE_NONE) {
-			DRM_ERROR("ERROR : not allow cbcr ver scale\n");
+			DRM_DEV_ERROR(vop->dev, "not allow cbcr ver scale\n");
 			return;
 		}
 		vsu_mode = SCALE_UP_BIL;
@@ -428,7 +428,7 @@ static void vop_dsp_hold_valid_irq_disable(struct vop *vop)
 	spin_unlock_irqrestore(&vop->irq_lock, flags);
 }
 
-static void vop_enable(struct drm_crtc *crtc)
+static int vop_enable(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
 	int ret;
@@ -436,26 +436,20 @@ static void vop_enable(struct drm_crtc *crtc)
 	ret = pm_runtime_get_sync(vop->dev);
 	if (ret < 0) {
 		dev_err(vop->dev, "failed to get pm runtime: %d\n", ret);
-		return;
+		goto err_put_pm_runtime;
 	}
 
 	ret = clk_enable(vop->hclk);
-	if (ret < 0) {
-		dev_err(vop->dev, "failed to enable hclk - %d\n", ret);
-		return;
-	}
+	if (WARN_ON(ret < 0))
+		goto err_put_pm_runtime;
 
 	ret = clk_enable(vop->dclk);
-	if (ret < 0) {
-		dev_err(vop->dev, "failed to enable dclk - %d\n", ret);
+	if (WARN_ON(ret < 0))
 		goto err_disable_hclk;
-	}
 
 	ret = clk_enable(vop->aclk);
-	if (ret < 0) {
-		dev_err(vop->dev, "failed to enable aclk - %d\n", ret);
+	if (WARN_ON(ret < 0))
 		goto err_disable_dclk;
-	}
 
 	/*
 	 * Slave iommu shares power, irq and clock with vop.  It was associated
@@ -485,7 +479,7 @@ static void vop_enable(struct drm_crtc *crtc)
 
 	drm_crtc_vblank_on(crtc);
 
-	return;
+	return 0;
 
 err_disable_aclk:
 	clk_disable(vop->aclk);
@@ -493,6 +487,9 @@ err_disable_dclk:
 	clk_disable(vop->dclk);
 err_disable_hclk:
 	clk_disable(vop->hclk);
+err_put_pm_runtime:
+	pm_runtime_put_sync(vop->dev);
+	return ret;
 }
 
 static void vop_crtc_disable(struct drm_crtc *crtc)
@@ -567,7 +564,7 @@ static void vop_plane_destroy(struct drm_plane *plane)
 }
 
 static int vop_plane_prepare_fb(struct drm_plane *plane,
-				const struct drm_plane_state *new_state)
+				struct drm_plane_state *new_state)
 {
 	if (plane->state->fb)
 		drm_framebuffer_reference(plane->state->fb);
@@ -576,7 +573,7 @@ static int vop_plane_prepare_fb(struct drm_plane *plane,
 }
 
 static void vop_plane_cleanup_fb(struct drm_plane *plane,
-				 const struct drm_plane_state *old_state)
+				 struct drm_plane_state *old_state)
 {
 	if (old_state->fb)
 		drm_framebuffer_unreference(old_state->fb);
@@ -912,10 +909,16 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	u16 vact_st = adjusted_mode->vtotal - adjusted_mode->vsync_start;
 	u16 vact_end = vact_st + vdisplay;
 	uint32_t val;
+	int ret;
 
 	WARN_ON(vop->event);
 
-	vop_enable(crtc);
+	ret = vop_enable(crtc);
+	if (ret) {
+		DRM_DEV_ERROR(vop->dev, "Failed to enable vop (%d)\n", ret);
+		return;
+	}
+
 	/*
 	 * If dclk rate is zero, mean that scanout is stop,
 	 * we don't need wait any more.
@@ -970,7 +973,8 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 		VOP_CTRL_SET(vop, mipi_en, 1);
 		break;
 	default:
-		DRM_ERROR("unsupport connector_type[%d]\n", s->output_type);
+		DRM_DEV_ERROR(vop->dev, "unsupported connector_type [%d]\n",
+			      s->output_type);
 	}
 	VOP_CTRL_SET(vop, out_mode, s->output_mode);
 
@@ -1154,7 +1158,8 @@ static irqreturn_t vop_isr(int irq, void *data)
 
 	/* Unhandled irqs are spurious. */
 	if (active_irqs)
-		DRM_ERROR("Unknown VOP IRQs: %#02x\n", active_irqs);
+		DRM_DEV_ERROR(vop->dev, "Unknown VOP IRQs: %#02x\n",
+			      active_irqs);
 
 	return ret;
 }
@@ -1189,7 +1194,8 @@ static int vop_create_crtc(struct vop *vop)
 					       win_data->phy->nformats,
 					       win_data->type, NULL);
 		if (ret) {
-			DRM_ERROR("failed to initialize plane\n");
+			DRM_DEV_ERROR(vop->dev, "failed to init plane %d\n",
+				      ret);
 			goto err_cleanup_planes;
 		}
 
@@ -1227,7 +1233,8 @@ static int vop_create_crtc(struct vop *vop)
 					       win_data->phy->nformats,
 					       win_data->type, NULL);
 		if (ret) {
-			DRM_ERROR("failed to initialize overlay plane\n");
+			DRM_DEV_ERROR(vop->dev, "failed to init overlay %d\n",
+				      ret);
 			goto err_cleanup_crtc;
 		}
 		drm_plane_helper_add(&vop_win->base, &plane_helper_funcs);
@@ -1235,8 +1242,8 @@ static int vop_create_crtc(struct vop *vop)
 
 	port = of_get_child_by_name(dev->of_node, "port");
 	if (!port) {
-		DRM_ERROR("no port node found in %s\n",
-			  dev->of_node->full_name);
+		DRM_DEV_ERROR(vop->dev, "no port node found in %s\n",
+			      dev->of_node->full_name);
 		ret = -ENOENT;
 		goto err_cleanup_crtc;
 	}

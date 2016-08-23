@@ -107,14 +107,14 @@ EXPORT_SYMBOL(fence_array_ops);
  * @fences:		[in]	array containing the fences
  * @context:		[in]	fence context to use
  * @seqno:		[in]	sequence number to use
- * @signal_on_any	[in]	signal on any fence in the array
+ * @signal_on_any:	[in]	signal on any fence in the array
  *
  * Allocate a fence_array object and initialize the base fence with fence_init().
  * In case of error it returns NULL.
  *
- * The caller should allocte the fences array with num_fences size
+ * The caller should allocate the fences array with num_fences size
  * and fill it with the fences it wants to add to the object. Ownership of this
- * array is take and fence_put() is used on each fence on release.
+ * array is taken and fence_put() is used on each fence on release.
  *
  * If @signal_on_any is true the fence array signals if any fence in the array
  * signals, otherwise it signals when all fences in the array signal.

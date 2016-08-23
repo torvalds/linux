@@ -855,7 +855,7 @@ struct drm_plane_helper_funcs {
 	 * everything else must complete successfully.
 	 */
 	int (*prepare_fb)(struct drm_plane *plane,
-			  const struct drm_plane_state *new_state);
+			  struct drm_plane_state *new_state);
 	/**
 	 * @cleanup_fb:
 	 *
@@ -866,7 +866,7 @@ struct drm_plane_helper_funcs {
 	 * transitional plane helpers, but it is optional.
 	 */
 	void (*cleanup_fb)(struct drm_plane *plane,
-			   const struct drm_plane_state *old_state);
+			   struct drm_plane_state *old_state);
 
 	/**
 	 * @atomic_check:

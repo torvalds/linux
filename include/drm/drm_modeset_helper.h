@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+ * Copyright (c) 2016 Intel Corporation
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
@@ -19,19 +19,18 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
  * OF THIS SOFTWARE.
  */
-#ifndef __DRM_FOURCC_H__
-#define __DRM_FOURCC_H__
 
-#include <linux/types.h>
-#include <uapi/drm/drm_fourcc.h>
+#ifndef __DRM_KMS_HELPER_H__
+#define __DRM_KMS_HELPER_H__
 
-void drm_fb_get_bpp_depth(uint32_t format, unsigned int *depth, int *bpp);
-int drm_format_num_planes(uint32_t format);
-int drm_format_plane_cpp(uint32_t format, int plane);
-int drm_format_horz_chroma_subsampling(uint32_t format);
-int drm_format_vert_chroma_subsampling(uint32_t format);
-int drm_format_plane_width(int width, uint32_t format, int plane);
-int drm_format_plane_height(int height, uint32_t format, int plane);
-char *drm_get_format_name(uint32_t format) __malloc;
+#include <drm/drmP.h>
 
-#endif /* __DRM_FOURCC_H__ */
+void drm_helper_move_panel_connectors_to_head(struct drm_device *);
+
+void drm_helper_mode_fill_fb_struct(struct drm_framebuffer *fb,
+				    const struct drm_mode_fb_cmd2 *mode_cmd);
+
+int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
+		  const struct drm_crtc_funcs *funcs);
+
+#endif

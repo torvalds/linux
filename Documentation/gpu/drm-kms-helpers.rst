@@ -2,38 +2,45 @@
 Mode Setting Helper Functions
 =============================
 
-The plane, CRTC, encoder and connector functions provided by the drivers
-implement the DRM API. They're called by the DRM core and ioctl handlers
-to handle device state changes and configuration request. As
-implementing those functions often requires logic not specific to
-drivers, mid-layer helper functions are available to avoid duplicating
-boilerplate code.
+The DRM subsystem aims for a strong separation between core code and helper
+libraries. Core code takes care of general setup and teardown and decoding
+userspace requests to kernel internal objects. Everything else is handled by a
+large set of helper libraries, which can be combined freely to pick and choose
+for each driver what fits, and avoid shared code where special behaviour is
+needed.
 
-The DRM core contains one mid-layer implementation. The mid-layer
-provides implementations of several plane, CRTC, encoder and connector
-functions (called from the top of the mid-layer) that pre-process
-requests and call lower-level functions provided by the driver (at the
-bottom of the mid-layer). For instance, the
-:c:func:`drm_crtc_helper_set_config()` function can be used to
-fill the :c:type:`struct drm_crtc_funcs <drm_crtc_funcs>`
-set_config field. When called, it will split the set_config operation
-in smaller, simpler operations and call the driver to handle them.
+This distinction between core code and helpers is especially strong in the
+modesetting code, where there's a shared userspace ABI for all drivers. This is
+in contrast to the render side, where pretty much everything (with very few
+exceptions) can be considered optional helper code.
 
-To use the mid-layer, drivers call
-:c:func:`drm_crtc_helper_add()`,
-:c:func:`drm_encoder_helper_add()` and
-:c:func:`drm_connector_helper_add()` functions to install their
-mid-layer bottom operations handlers, and fill the :c:type:`struct
-drm_crtc_funcs <drm_crtc_funcs>`, :c:type:`struct
-drm_encoder_funcs <drm_encoder_funcs>` and :c:type:`struct
-drm_connector_funcs <drm_connector_funcs>` structures with
-pointers to the mid-layer top API functions. Installing the mid-layer
-bottom operation handlers is best done right after registering the
-corresponding KMS object.
+There are a few areas these helpers can grouped into:
 
-The mid-layer is not split between CRTC, encoder and connector
-operations. To use it, a driver must provide bottom functions for all of
-the three KMS entities.
+* Helpers to implement modesetting. The important ones here are the atomic
+  helpers. Old drivers still often use the legacy CRTC helpers. They both share
+  the same set of common helper vtables. For really simple drivers (anything
+  that would have been a great fit in the deprecated fbdev subsystem) there's
+  also the simple display pipe helpers.
+
+* There's a big pile of helpers for handling outputs. First the generic bridge
+  helpers for handling encoder and transcoder IP blocks. Second the panel helpers
+  for handling panel-related information and logic. Plus then a big set of
+  helpers for the various sink standards (DisplayPort, HDMI, MIPI DSI). Finally
+  there's also generic helpers for handling output probing, and for dealing with
+  EDIDs.
+
+* The last group of helpers concerns itself with the frontend side of a display
+  pipeline: Planes, handling rectangles for visibility checking and scissoring,
+  flip queues and assorted bits.
+
+Modeset Helper Reference for Common Vtables
+===========================================
+
+.. kernel-doc:: include/drm/drm_modeset_helper_vtables.h
+   :internal:
+
+.. kernel-doc:: include/drm/drm_modeset_helper_vtables.h
+   :doc: overview
 
 Atomic Modeset Helper Functions Reference
 =========================================
@@ -62,32 +69,26 @@ Atomic State Reset and Initialization
 .. kernel-doc:: drivers/gpu/drm/drm_atomic_helper.c
    :export:
 
-Modeset Helper Reference for Common Vtables
-===========================================
-
-.. kernel-doc:: include/drm/drm_modeset_helper_vtables.h
-   :internal:
-
-.. kernel-doc:: include/drm/drm_modeset_helper_vtables.h
-   :doc: overview
-
 Legacy CRTC/Modeset Helper Functions Reference
 ==============================================
 
 .. kernel-doc:: drivers/gpu/drm/drm_crtc_helper.c
-   :export:
-
-.. kernel-doc:: drivers/gpu/drm/drm_crtc_helper.c
    :doc: overview
 
-Output Probing Helper Functions Reference
-=========================================
-
-.. kernel-doc:: drivers/gpu/drm/drm_probe_helper.c
-   :doc: output probing helper overview
-
-.. kernel-doc:: drivers/gpu/drm/drm_probe_helper.c
+.. kernel-doc:: drivers/gpu/drm/drm_crtc_helper.c
    :export:
+
+Simple KMS Helper Reference
+===========================
+
+.. kernel-doc:: include/drm/drm_simple_kms_helper.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_simple_kms_helper.c
+   :export:
+
+.. kernel-doc:: drivers/gpu/drm/drm_simple_kms_helper.c
+   :doc: overview
 
 fbdev Helper Functions Reference
 ================================
@@ -109,6 +110,36 @@ Framebuffer CMA Helper Functions Reference
 
 .. kernel-doc:: drivers/gpu/drm/drm_fb_cma_helper.c
    :export:
+
+Bridges
+=======
+
+Overview
+--------
+
+.. kernel-doc:: drivers/gpu/drm/drm_bridge.c
+   :doc: overview
+
+Default bridge callback sequence
+--------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_bridge.c
+   :doc: bridge callbacks
+
+.. kernel-doc:: drivers/gpu/drm/drm_bridge.c
+   :export:
+
+Panel Helper Reference
+======================
+
+.. kernel-doc:: include/drm/drm_panel.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_panel.c
+   :export:
+
+.. kernel-doc:: drivers/gpu/drm/drm_panel.c
+   :doc: drm panel
 
 Display Port Helper Functions Reference
 =======================================
@@ -158,6 +189,15 @@ MIPI DSI Helper Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_mipi_dsi.c
    :export:
 
+Output Probing Helper Functions Reference
+=========================================
+
+.. kernel-doc:: drivers/gpu/drm/drm_probe_helper.c
+   :doc: output probing helper overview
+
+.. kernel-doc:: drivers/gpu/drm/drm_probe_helper.c
+   :export:
+
 EDID Helper Functions Reference
 ===============================
 
@@ -176,18 +216,6 @@ Rectangle Utilities Reference
 .. kernel-doc:: drivers/gpu/drm/drm_rect.c
    :export:
 
-Flip-work Helper Reference
-==========================
-
-.. kernel-doc:: include/drm/drm_flip_work.h
-   :doc: flip utils
-
-.. kernel-doc:: include/drm/drm_flip_work.h
-   :internal:
-
-.. kernel-doc:: drivers/gpu/drm/drm_flip_work.c
-   :export:
-
 HDMI Infoframes Helper Reference
 ================================
 
@@ -202,59 +230,40 @@ libraries and hence is also included here.
 .. kernel-doc:: drivers/video/hdmi.c
    :export:
 
+Flip-work Helper Reference
+==========================
+
+.. kernel-doc:: include/drm/drm_flip_work.h
+   :doc: flip utils
+
+.. kernel-doc:: include/drm/drm_flip_work.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_flip_work.c
+   :export:
+
 Plane Helper Reference
 ======================
 
 .. kernel-doc:: drivers/gpu/drm/drm_plane_helper.c
-   :export:
-
-.. kernel-doc:: drivers/gpu/drm/drm_plane_helper.c
    :doc: overview
 
+.. kernel-doc:: drivers/gpu/drm/drm_plane_helper.c
+   :export:
+
 Tile group
-----------
+==========
+
+# FIXME: This should probably be moved into a property documentation section
 
 .. kernel-doc:: drivers/gpu/drm/drm_crtc.c
    :doc: Tile group
 
-Bridges
-=======
+Auxiliary Modeset Helpers
+=========================
 
-Overview
---------
+.. kernel-doc:: drivers/gpu/drm/drm_modeset_helper.c
+   :doc: aux kms helpers
 
-.. kernel-doc:: drivers/gpu/drm/drm_bridge.c
-   :doc: overview
-
-Default bridge callback sequence
---------------------------------
-
-.. kernel-doc:: drivers/gpu/drm/drm_bridge.c
-   :doc: bridge callbacks
-
-.. kernel-doc:: drivers/gpu/drm/drm_bridge.c
+.. kernel-doc:: drivers/gpu/drm/drm_modeset_helper.c
    :export:
-
-Panel Helper Reference
-======================
-
-.. kernel-doc:: include/drm/drm_panel.h
-   :internal:
-
-.. kernel-doc:: drivers/gpu/drm/drm_panel.c
-   :export:
-
-.. kernel-doc:: drivers/gpu/drm/drm_panel.c
-   :doc: drm panel
-
-Simple KMS Helper Reference
-===========================
-
-.. kernel-doc:: include/drm/drm_simple_kms_helper.h
-   :internal:
-
-.. kernel-doc:: drivers/gpu/drm/drm_simple_kms_helper.c
-   :export:
-
-.. kernel-doc:: drivers/gpu/drm/drm_simple_kms_helper.c
-   :doc: overview

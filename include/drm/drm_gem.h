@@ -210,8 +210,8 @@ drm_gem_object_reference(struct drm_gem_object *obj)
  * drm_gem_object_unreference_unlocked().
  *
  * Drivers should never call this directly in their code. Instead they should
- * wrap it up into a driver_gem_object_unreference(struct driver_gem_object
- * *obj) wrapper function, and use that. Shared code should never call this, to
+ * wrap it up into a ``driver_gem_object_unreference(struct driver_gem_object
+ * *obj)`` wrapper function, and use that. Shared code should never call this, to
  * avoid breaking drivers by accident which still depend upon dev->struct_mutex
  * locking.
  */

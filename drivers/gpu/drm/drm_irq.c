@@ -713,10 +713,10 @@ EXPORT_SYMBOL(drm_calc_timestamping_constants);
  * Negative value on error, failure or if not supported in current
  * video mode:
  *
- * -EINVAL   - Invalid CRTC.
- * -EAGAIN   - Temporary unavailable, e.g., called before initial modeset.
- * -ENOTSUPP - Function not supported in current display mode.
- * -EIO      - Failed, e.g., due to failed scanout position query.
+ * -EINVAL    Invalid CRTC.
+ * -EAGAIN    Temporary unavailable, e.g., called before initial modeset.
+ * -ENOTSUPP  Function not supported in current display mode.
+ * -EIO       Failed, e.g., due to failed scanout position query.
  *
  * Returns or'ed positive status flags on success:
  *

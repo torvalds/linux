@@ -250,7 +250,7 @@ static const struct drm_plane_funcs mdp5_plane_funcs = {
 };
 
 static int mdp5_plane_prepare_fb(struct drm_plane *plane,
-		const struct drm_plane_state *new_state)
+				 struct drm_plane_state *new_state)
 {
 	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
 	struct mdp5_kms *mdp5_kms = get_kms(plane);
@@ -264,7 +264,7 @@ static int mdp5_plane_prepare_fb(struct drm_plane *plane,
 }
 
 static void mdp5_plane_cleanup_fb(struct drm_plane *plane,
-		const struct drm_plane_state *old_state)
+				  struct drm_plane_state *old_state)
 {
 	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
 	struct mdp5_kms *mdp5_kms = get_kms(plane);

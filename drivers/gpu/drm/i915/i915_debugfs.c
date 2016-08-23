@@ -3113,6 +3113,7 @@ static void intel_plane_info(struct seq_file *m, struct intel_crtc *intel_crtc)
 	for_each_intel_plane_on_crtc(dev, intel_crtc, intel_plane) {
 		struct drm_plane_state *state;
 		struct drm_plane *plane = &intel_plane->base;
+		char *format_name;
 
 		if (!plane->state) {
 			seq_puts(m, "plane->state is NULL!\n");
@@ -3120,6 +3121,12 @@ static void intel_plane_info(struct seq_file *m, struct intel_crtc *intel_crtc)
 		}
 
 		state = plane->state;
+
+		if (state->fb) {
+			format_name = drm_get_format_name(state->fb->pixel_format);
+		} else {
+			format_name = kstrdup("N/A", GFP_KERNEL);
+		}
 
 		seq_printf(m, "\t--Plane id %d: type=%s, crtc_pos=%4dx%4d, crtc_size=%4dx%4d, src_pos=%d.%04ux%d.%04u, src_size=%d.%04ux%d.%04u, format=%s, rotation=%s\n",
 			   plane->base.id,
@@ -3134,8 +3141,10 @@ static void intel_plane_info(struct seq_file *m, struct intel_crtc *intel_crtc)
 			   ((state->src_w & 0xffff) * 15625) >> 10,
 			   (state->src_h >> 16),
 			   ((state->src_h & 0xffff) * 15625) >> 10,
-			   state->fb ? drm_get_format_name(state->fb->pixel_format) : "N/A",
+			   format_name,
 			   plane_rotation(state->rotation));
+
+		kfree(format_name);
 	}
 }
 

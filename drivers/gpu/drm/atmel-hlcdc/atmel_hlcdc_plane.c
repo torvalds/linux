@@ -755,7 +755,7 @@ static int atmel_hlcdc_plane_atomic_check(struct drm_plane *p,
 }
 
 static int atmel_hlcdc_plane_prepare_fb(struct drm_plane *p,
-					const struct drm_plane_state *new_state)
+					struct drm_plane_state *new_state)
 {
 	/*
 	 * FIXME: we should avoid this const -> non-const cast but it's
@@ -780,7 +780,7 @@ static int atmel_hlcdc_plane_prepare_fb(struct drm_plane *p,
 }
 
 static void atmel_hlcdc_plane_cleanup_fb(struct drm_plane *p,
-				const struct drm_plane_state *old_state)
+					 struct drm_plane_state *old_state)
 {
 	/*
 	 * FIXME: we should avoid this const -> non-const cast but it's

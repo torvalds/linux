@@ -27,6 +27,7 @@
 #include <drm/drm_rect.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_modeset_helper_vtables.h>
+#include <drm/drm_modeset_helper.h>
 
 /*
  * Drivers that don't allow primary plane scaling may pass this macro in place
@@ -36,9 +37,6 @@
  * 1<<16 represents no scaling.
  */
 #define DRM_PLANE_HELPER_NO_SCALING (1<<16)
-
-int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
-		  const struct drm_crtc_funcs *funcs);
 
 int drm_plane_helper_check_state(struct drm_plane_state *state,
 				 const struct drm_rect *clip,

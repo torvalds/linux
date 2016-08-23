@@ -377,9 +377,6 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 	drm_mode_crtc_set_gamma_size(crtc, 256);
 
 	drm_object_attach_property(&connector->base,
-				   dev->mode_config.dirty_info_property,
-				   1);
-	drm_object_attach_property(&connector->base,
 				   dev_priv->hotplug_mode_update_property, 1);
 	drm_object_attach_property(&connector->base,
 				   dev->mode_config.suggested_x_property, 0);
@@ -421,10 +418,6 @@ int vmw_kms_ldu_init_display(struct vmw_private *dev_priv)
 	if (ret != 0)
 		goto err_free;
 
-	ret = drm_mode_create_dirty_info_property(dev);
-	if (ret != 0)
-		goto err_vblank_cleanup;
-
 	vmw_kms_create_implicit_placement_property(dev_priv, true);
 
 	if (dev_priv->capabilities & SVGA_CAP_MULTIMON)
@@ -439,8 +432,6 @@ int vmw_kms_ldu_init_display(struct vmw_private *dev_priv)
 
 	return 0;
 
-err_vblank_cleanup:
-	drm_vblank_cleanup(dev);
 err_free:
 	kfree(dev_priv->ldu_priv);
 	dev_priv->ldu_priv = NULL;

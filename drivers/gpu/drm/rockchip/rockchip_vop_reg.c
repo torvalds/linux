@@ -305,7 +305,6 @@ static struct platform_driver vop_platform_driver = {
 	.remove = vop_remove,
 	.driver = {
 		.name = "rockchip-vop",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(vop_driver_dt_match),
 	},
 };

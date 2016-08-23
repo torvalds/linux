@@ -991,7 +991,7 @@ static const struct drm_display_mode edid_cea_modes[] = {
 	 .vrefresh = 120, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_16_9, },
 	/* 64 - 1920x1080@100Hz */
 	{ DRM_MODE("1920x1080", DRM_MODE_TYPE_DRIVER, 297000, 1920, 2448,
-		   2492, 2640, 0, 1080, 1084, 1094, 1125, 0,
+		   2492, 2640, 0, 1080, 1084, 1089, 1125, 0,
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC),
 	 .vrefresh = 100, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_16_9, },
 };
@@ -3721,14 +3721,7 @@ bool drm_rgb_quant_range_selectable(struct edid *edid)
 }
 EXPORT_SYMBOL(drm_rgb_quant_range_selectable);
 
-/**
- * drm_assign_hdmi_deep_color_info - detect whether monitor supports
- * hdmi deep color modes and update drm_display_info if so.
- * @edid: monitor EDID information
- * @info: Updated with maximum supported deep color bpc and color format
- *        if deep color supported.
- * @connector: DRM connector, used only for debug output
- *
+/*
  * Parse the CEA extension according to CEA-861-B.
  * Return true if HDMI deep color supported, false if not or unknown.
  */
@@ -3822,16 +3815,6 @@ static bool drm_assign_hdmi_deep_color_info(struct edid *edid,
 	return false;
 }
 
-/**
- * drm_add_display_info - pull display info out if present
- * @edid: EDID data
- * @info: display info (attached to connector)
- * @connector: connector whose edid is used to build display info
- *
- * Grab any available display info and stuff it into the drm_display_info
- * structure that's part of the connector.  Useful for tracking bpp and
- * color spaces.
- */
 static void drm_add_display_info(struct edid *edid,
                                  struct drm_display_info *info,
                                  struct drm_connector *connector)
@@ -4052,7 +4035,9 @@ static int add_displayid_detailed_modes(struct drm_connector *connector,
  * @connector: connector we're probing
  * @edid: EDID data
  *
- * Add the specified modes to the connector's mode list.
+ * Add the specified modes to the connector's mode list. Also fills out the
+ * &drm_display_info structure in @connector with any information which can be
+ * derived from the edid.
  *
  * Return: The number of modes added or 0 if we couldn't find any.
  */

@@ -33,6 +33,9 @@ Primary Nodes, DRM Master and Authentication
 .. kernel-doc:: include/drm/drm_auth.h
    :internal:
 
+Open-Source Userspace Requirements
+==================================
+
 Render nodes
 ============
 

@@ -63,37 +63,51 @@ static struct idr drm_minors_idr;
 
 static struct dentry *drm_debugfs_root;
 
-void drm_err(const char *format, ...)
+#define DRM_PRINTK_FMT "[" DRM_NAME ":%s]%s %pV"
+
+void drm_dev_printk(const struct device *dev, const char *level,
+		    unsigned int category, const char *function_name,
+		    const char *prefix, const char *format, ...)
 {
 	struct va_format vaf;
 	va_list args;
 
-	va_start(args, format);
-
-	vaf.fmt = format;
-	vaf.va = &args;
-
-	printk(KERN_ERR "[" DRM_NAME ":%ps] *ERROR* %pV",
-	       __builtin_return_address(0), &vaf);
-
-	va_end(args);
-}
-EXPORT_SYMBOL(drm_err);
-
-void drm_ut_debug_printk(const char *function_name, const char *format, ...)
-{
-	struct va_format vaf;
-	va_list args;
+	if (category != DRM_UT_NONE && !(drm_debug & category))
+		return;
 
 	va_start(args, format);
 	vaf.fmt = format;
 	vaf.va = &args;
 
-	printk(KERN_DEBUG "[" DRM_NAME ":%s] %pV", function_name, &vaf);
+	if (dev)
+		dev_printk(level, dev, DRM_PRINTK_FMT, function_name, prefix,
+			   &vaf);
+	else
+		printk("%s" DRM_PRINTK_FMT, level, function_name, prefix, &vaf);
 
 	va_end(args);
 }
-EXPORT_SYMBOL(drm_ut_debug_printk);
+EXPORT_SYMBOL(drm_dev_printk);
+
+void drm_printk(const char *level, unsigned int category,
+		const char *function_name, const char *prefix,
+		const char *format, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	if (category != DRM_UT_NONE && !(drm_debug & category))
+		return;
+
+	va_start(args, format);
+	vaf.fmt = format;
+	vaf.va = &args;
+
+	printk("%s" DRM_PRINTK_FMT, level, function_name, prefix, &vaf);
+
+	va_end(args);
+}
+EXPORT_SYMBOL(drm_printk);
 
 /*
  * DRM Minors

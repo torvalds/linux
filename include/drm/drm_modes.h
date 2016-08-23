@@ -27,6 +27,9 @@
 #ifndef __DRM_MODES_H__
 #define __DRM_MODES_H__
 
+#include <drm/drm_modeset.h>
+#include <drm/drm_connector.h>
+
 /*
  * Note on terminology:  here, for brevity and convenience, we refer to connector
  * control chips as 'CRTCs'.  They can control any type of connector, VGA, LVDS,
@@ -398,21 +401,6 @@ struct drm_display_mode {
 	 * Field for setting the HDMI picture aspect ratio of a mode.
 	 */
 	enum hdmi_picture_aspect picture_aspect_ratio;
-};
-
-/* mode specified on the command line */
-struct drm_cmdline_mode {
-	bool specified;
-	bool refresh_specified;
-	bool bpp_specified;
-	int xres, yres;
-	int bpp;
-	int refresh;
-	bool rb;
-	bool interlace;
-	bool cvt;
-	bool margins;
-	enum drm_connector_force force;
 };
 
 /**
