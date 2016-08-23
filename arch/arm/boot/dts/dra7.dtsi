@@ -1413,7 +1413,7 @@
 			ti,hwmods = "ocp2scp1";
 
 			usb2_phy1: phy@4a084000 {
-				compatible = "ti,omap-usb2";
+				compatible = "ti,dra7x-usb2", "ti,omap-usb2";
 				reg = <0x4a084000 0x400>;
 				syscon-phy-power = <&scm_conf 0x300>;
 				clocks = <&usb_phy1_always_on_clk32k>,
