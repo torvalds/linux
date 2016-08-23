@@ -88,4 +88,11 @@ void mlx5_cmd_fc_bulk_get(struct mlx5_core_dev *dev,
 			  struct mlx5_cmd_fc_bulk *b, u16 id,
 			  u64 *packets, u64 *bytes);
 
+int mlx5_cmd_alloc_encap(struct mlx5_core_dev *dev,
+			 int header_type,
+			 size_t size,
+			 void *encap_header,
+			 u32 *encap_id);
+void mlx5_cmd_dealloc_encap(struct mlx5_core_dev *dev, u32 encap_id);
+
 #endif
