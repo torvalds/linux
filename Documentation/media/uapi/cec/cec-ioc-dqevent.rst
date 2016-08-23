@@ -15,7 +15,8 @@ CEC_DQEVENT - Dequeue a CEC event
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct cec_event *argp )
+.. c:function:: int ioctl( int fd, int request, struct cec_event *argp )
+   :name: CEC_DQEVENT
 
 Arguments
 =========
@@ -38,7 +39,7 @@ Description
    and is currently only available as a staging kernel module.
 
 CEC devices can send asynchronous events. These can be retrieved by
-calling :ref:`ioctl CEC_DQEVENT <CEC_DQEVENT>`. If the file descriptor is in
+calling :c:func:`CEC_DQEVENT`. If the file descriptor is in
 non-blocking mode and no event is pending, then it will return -1 and
 set errno to the ``EAGAIN`` error code.
 

@@ -107,6 +107,35 @@ Here are some specific guidelines for the kernel documentation:
   the order as encountered."), having the higher levels the same overall makes
   it easier to follow the documents.
 
+
+the C domain
+------------
+
+The `Sphinx C Domain`_ (name c) is suited for documentation of C API. E.g. a
+function prototype:
+
+.. code-block:: rst
+
+    .. c:function:: int ioctl( int fd, int request )
+
+The C domain of the kernel-doc has some additional features. E.g. you can
+*rename* the reference name of a function with a common name like ``open`` or
+``ioctl``:
+
+.. code-block:: rst
+
+     .. c:function:: int ioctl( int fd, int request )
+        :name: VIDIOC_LOG_STATUS
+
+The func-name (e.g. ioctl) remains in the output but the ref-name changed from
+``ioctl`` to ``VIDIOC_LOG_STATUS``. The index entry for this function is also
+changed to ``VIDIOC_LOG_STATUS`` and the function can now referenced by:
+
+.. code-block:: rst
+
+     :c:func:`VIDIOC_LOG_STATUS`
+
+
 list tables
 -----------
 
@@ -366,8 +395,6 @@ Domain`_ references.
 Cross-referencing from reStructuredText
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. highlight:: none
-
 To cross-reference the functions and types defined in the kernel-doc comments
 from reStructuredText documents, please use the `Sphinx C Domain`_
 references. For example::
@@ -389,8 +416,6 @@ For further details, please refer to the `Sphinx C Domain`_ documentation.
 
 Function documentation
 ----------------------
-
-.. highlight:: c
 
 The general format of a function and function-like macro kernel-doc comment is::
 
@@ -571,8 +596,6 @@ DocBook XML [DEPRECATED]
 
 Converting DocBook to Sphinx
 ----------------------------
-
-.. highlight:: none
 
 Over time, we expect all of the documents under ``Documentation/DocBook`` to be
 converted to Sphinx and reStructuredText. For most DocBook XML documents, a good

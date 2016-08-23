@@ -1,7 +1,5 @@
-Undefined Behavior Sanitizer - UBSAN
-
-Overview
---------
+The Undefined Behavior Sanitizer - UBSAN
+========================================
 
 UBSAN is a runtime undefined behaviour checker.
 
@@ -10,11 +8,13 @@ Compiler inserts code that perform certain kinds of checks before operations
 that may cause UB. If check fails (i.e. UB detected) __ubsan_handle_*
 function called to print error message.
 
-GCC has that feature since 4.9.x [1] (see -fsanitize=undefined option and
-its suboptions). GCC 5.x has more checkers implemented [2].
+GCC has that feature since 4.9.x [1_] (see ``-fsanitize=undefined`` option and
+its suboptions). GCC 5.x has more checkers implemented [2_].
 
 Report example
----------------
+--------------
+
+::
 
 	 ================================================================================
 	 UBSAN: Undefined behaviour in ../include/linux/bitops.h:110:33
@@ -47,29 +47,33 @@ Report example
 Usage
 -----
 
-To enable UBSAN configure kernel with:
+To enable UBSAN configure kernel with::
 
 	CONFIG_UBSAN=y
 
-and to check the entire kernel:
+and to check the entire kernel::
 
         CONFIG_UBSAN_SANITIZE_ALL=y
 
 To enable instrumentation for specific files or directories, add a line
 similar to the following to the respective kernel Makefile:
 
-        For a single file (e.g. main.o):
-                UBSAN_SANITIZE_main.o := y
+- For a single file (e.g. main.o)::
 
-        For all files in one directory:
-                UBSAN_SANITIZE := y
+    UBSAN_SANITIZE_main.o := y
+
+- For all files in one directory::
+
+    UBSAN_SANITIZE := y
 
 To exclude files from being instrumented even if
-CONFIG_UBSAN_SANITIZE_ALL=y, use:
+``CONFIG_UBSAN_SANITIZE_ALL=y``, use::
 
-                UBSAN_SANITIZE_main.o := n
-        and:
-                UBSAN_SANITIZE := n
+  UBSAN_SANITIZE_main.o := n
+
+and::
+
+  UBSAN_SANITIZE := n
 
 Detection of unaligned accesses controlled through the separate option -
 CONFIG_UBSAN_ALIGNMENT. It's off by default on architectures that support
@@ -80,5 +84,5 @@ reports.
 References
 ----------
 
-[1] - https://gcc.gnu.org/onlinedocs/gcc-4.9.0/gcc/Debugging-Options.html
-[2] - https://gcc.gnu.org/onlinedocs/gcc/Debugging-Options.html
+.. _1: https://gcc.gnu.org/onlinedocs/gcc-4.9.0/gcc/Debugging-Options.html
+.. _2: https://gcc.gnu.org/onlinedocs/gcc/Debugging-Options.html
