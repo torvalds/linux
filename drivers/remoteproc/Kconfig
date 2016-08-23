@@ -77,6 +77,17 @@ config DA8XX_REMOTEPROC
 	  It's safe to say n here if you're not interested in multimedia
 	  offloading.
 
+config QCOM_ADSP_PIL
+	tristate "Qualcomm ADSP Peripheral Image Loader"
+	depends on OF && ARCH_QCOM
+	depends on QCOM_SMEM
+	select MFD_SYSCON
+	select QCOM_MDT_LOADER
+	select REMOTEPROC
+	help
+	  Say y here to support the TrustZone based Peripherial Image Loader
+	  for the Qualcomm ADSP remote processors.
+
 config QCOM_MDT_LOADER
 	tristate
 
