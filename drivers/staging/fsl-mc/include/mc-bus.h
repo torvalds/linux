@@ -24,10 +24,6 @@ struct msi_domain_info;
  */
 #define FSL_MC_IRQ_POOL_MAX_TOTAL_IRQS	256
 
-struct device_node;
-struct irq_domain;
-struct msi_domain_info;
-
 /**
  * struct fsl_mc_resource_pool - Pool of MC resources of a given
  * type

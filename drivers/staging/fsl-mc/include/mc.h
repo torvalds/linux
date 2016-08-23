@@ -21,7 +21,6 @@
 
 struct fsl_mc_device;
 struct fsl_mc_io;
-struct fsl_mc_bus;
 
 /**
  * struct fsl_mc_driver - MC object device driver object
