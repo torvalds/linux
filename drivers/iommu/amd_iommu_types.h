@@ -92,6 +92,7 @@
 #define FEATURE_GA		(1ULL<<7)
 #define FEATURE_HE		(1ULL<<8)
 #define FEATURE_PC		(1ULL<<9)
+#define FEATURE_GAM_VAPIC	(1ULL<<21)
 
 #define FEATURE_PASID_SHIFT	32
 #define FEATURE_PASID_MASK	(0x1fULL << FEATURE_PASID_SHIFT)
@@ -146,6 +147,8 @@
 #define CONTROL_PPFINT_EN       0x0eULL
 #define CONTROL_PPR_EN          0x0fULL
 #define CONTROL_GT_EN           0x10ULL
+#define CONTROL_GA_EN           0x11ULL
+#define CONTROL_GAM_EN          0x19ULL
 
 #define CTRL_INV_TO_MASK	(7 << CONTROL_INV_TIMEOUT)
 #define CTRL_INV_TO_NONE	0
@@ -328,6 +331,12 @@
 #define IOMMU_CAP_IOTLB   24
 #define IOMMU_CAP_NPCACHE 26
 #define IOMMU_CAP_EFR     27
+
+/* IOMMU Feature Reporting Field (for IVHD type 10h */
+#define IOMMU_FEAT_GASUP_SHIFT	6
+
+/* IOMMU Extended Feature Register (EFR) */
+#define IOMMU_EFR_GASUP_SHIFT	7
 
 #define MAX_DOMAIN_ID 65536
 
@@ -681,4 +690,19 @@ static inline int get_hpet_devid(int id)
 	return -EINVAL;
 }
 
+enum amd_iommu_intr_mode_type {
+	AMD_IOMMU_GUEST_IR_LEGACY,
+
+	/* This mode is not visible to users. It is used when
+	 * we cannot fully enable vAPIC and fallback to only support
+	 * legacy interrupt remapping via 128-bit IRTE.
+	 */
+	AMD_IOMMU_GUEST_IR_LEGACY_GA,
+	AMD_IOMMU_GUEST_IR_VAPIC,
+};
+
+#define AMD_IOMMU_GUEST_IR_GA(x)	(x == AMD_IOMMU_GUEST_IR_VAPIC || \
+					 x == AMD_IOMMU_GUEST_IR_LEGACY_GA)
+
+#define AMD_IOMMU_GUEST_IR_VAPIC(x)	(x == AMD_IOMMU_GUEST_IR_VAPIC)
 #endif /* _ASM_X86_AMD_IOMMU_TYPES_H */
