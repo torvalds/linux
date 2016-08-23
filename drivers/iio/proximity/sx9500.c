@@ -516,7 +516,7 @@ static irqreturn_t sx9500_irq_thread_handler(int irq, void *private)
 		sx9500_push_events(indio_dev);
 
 	if (val & SX9500_CONVDONE_IRQ)
-		complete_all(&data->completion);
+		complete(&data->completion);
 
 out:
 	mutex_unlock(&data->mutex);

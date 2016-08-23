@@ -50,6 +50,27 @@ config BMC150_ACCEL_SPI
 	tristate
 	select REGMAP_SPI
 
+config DMARD06
+	tristate "Domintech DMARD06 Digital Accelerometer Driver"
+	depends on OF || COMPILE_TEST
+	depends on I2C
+	help
+	  Say yes here to build support for the Domintech low-g tri-axial
+	  digital accelerometers: DMARD05, DMARD06, DMARD07.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called dmard06.
+
+config DMARD09
+	tristate "Domintech DMARD09 3-axis Accelerometer Driver"
+	depends on I2C
+	help
+	  Say yes here to get support for the Domintech DMARD09 3-axis
+	  accelerometer.
+
+	  Choosing M will build the driver as a module. If so, the module
+	  will be called dmard09.
+
 config HID_SENSOR_ACCEL_3D
 	depends on HID_SENSOR_HUB
 	select IIO_BUFFER
