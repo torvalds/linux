@@ -112,11 +112,6 @@ struct fsl_mc_device_irq {
 #define FSL_MC_IS_DPRC	0x0001
 
 /**
- * Default DMA mask for devices on a fsl-mc bus
- */
-#define FSL_MC_DEFAULT_DMA_MASK	(~0ULL)
-
-/**
  * struct fsl_mc_device - MC object device object
  * @dev: Linux driver model device object
  * @dma_mask: Default DMA mask
