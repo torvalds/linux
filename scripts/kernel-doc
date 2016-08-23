@@ -2000,7 +2000,7 @@ sub output_struct_rst(%) {
 	($args{'parameterdescs'}{$parameter_name} ne $undescribed) || next;
 	$type = $args{'parametertypes'}{$parameter};
         print_lineno($parameterdesc_start_lines{$parameter_name});
-	print "``$type $parameter``\n";
+	print "``" . $parameter . "``\n";
 	output_highlight_rst($args{'parameterdescs'}{$parameter_name});
 	print "\n";
     }
