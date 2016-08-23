@@ -256,6 +256,7 @@ ste	ST-Ericsson
 stericsson	ST-Ericsson
 sunchip	Shenzhen Sunchip Technology Co., Ltd
 SUNW	Sun Microsystems, Inc
+swir	Sierra Wireless
 syna	Synaptics Inc.
 synology	Synology, Inc.
 tbs	TBS Technologies
