@@ -1518,6 +1518,132 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(bcast_filters_macs, 256);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(d3_sram, 8);
 #endif
 
+static ssize_t iwl_dbgfs_mem_read(struct file *file, char __user *user_buf,
+				  size_t count, loff_t *ppos)
+{
+	struct iwl_mvm *mvm = file->private_data;
+	struct iwl_dbg_mem_access_cmd cmd = {};
+	struct iwl_dbg_mem_access_rsp *rsp;
+	struct iwl_host_cmd hcmd = {
+		.flags = CMD_WANT_SKB | CMD_SEND_IN_RFKILL,
+		.data = { &cmd, },
+		.len = { sizeof(cmd) },
+	};
+	size_t delta, len;
+	ssize_t ret;
+
+	hcmd.id = iwl_cmd_id(*ppos >> 24 ? UMAC_RD_WR : LMAC_RD_WR,
+			     DEBUG_GROUP, 0);
+	cmd.op = cpu_to_le32(DEBUG_MEM_OP_READ);
+
+	/* Take care of alignment of both the position and the length */
+	delta = *ppos & 0x3;
+	cmd.addr = cpu_to_le32(*ppos - delta);
+	cmd.len = cpu_to_le32(min(ALIGN(count + delta, 4) / 4,
+				  (size_t)DEBUG_MEM_MAX_SIZE_DWORDS));
+
+	mutex_lock(&mvm->mutex);
+	ret = iwl_mvm_send_cmd(mvm, &hcmd);
+	mutex_unlock(&mvm->mutex);
+
+	if (ret < 0)
+		return ret;
+
+	rsp = (void *)hcmd.resp_pkt->data;
+	if (le32_to_cpu(rsp->status) != DEBUG_MEM_STATUS_SUCCESS) {
+		ret = -ENXIO;
+		goto out;
+	}
+
+	len = min((size_t)le32_to_cpu(rsp->len) << 2,
+		  iwl_rx_packet_payload_len(hcmd.resp_pkt) - sizeof(*rsp));
+	len = min(len - delta, count);
+	if (len < 0) {
+		ret = -EFAULT;
+		goto out;
+	}
+
+	ret = len - copy_to_user(user_buf, (void *)rsp->data + delta, len);
+	*ppos += ret;
+
+out:
+	iwl_free_resp(&hcmd);
+	return ret;
+}
+
+static ssize_t iwl_dbgfs_mem_write(struct file *file,
+				   const char __user *user_buf, size_t count,
+				   loff_t *ppos)
+{
+	struct iwl_mvm *mvm = file->private_data;
+	struct iwl_dbg_mem_access_cmd *cmd;
+	struct iwl_dbg_mem_access_rsp *rsp;
+	struct iwl_host_cmd hcmd = {};
+	size_t cmd_size;
+	size_t data_size;
+	u32 op, len;
+	ssize_t ret;
+
+	hcmd.id = iwl_cmd_id(*ppos >> 24 ? UMAC_RD_WR : LMAC_RD_WR,
+			     DEBUG_GROUP, 0);
+
+	if (*ppos & 0x3 || count < 4) {
+		op = DEBUG_MEM_OP_WRITE_BYTES;
+		len = min(count, (size_t)(4 - (*ppos & 0x3)));
+		data_size = len;
+	} else {
+		op = DEBUG_MEM_OP_WRITE;
+		len = min(count >> 2, (size_t)DEBUG_MEM_MAX_SIZE_DWORDS);
+		data_size = len << 2;
+	}
+
+	cmd_size = sizeof(*cmd) + ALIGN(data_size, 4);
+	cmd = kzalloc(cmd_size, GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	cmd->op = cpu_to_le32(op);
+	cmd->len = cpu_to_le32(len);
+	cmd->addr = cpu_to_le32(*ppos);
+	if (copy_from_user((void *)cmd->data, user_buf, data_size)) {
+		kfree(cmd);
+		return -EFAULT;
+	}
+
+	hcmd.flags = CMD_WANT_SKB | CMD_SEND_IN_RFKILL,
+	hcmd.data[0] = (void *)cmd;
+	hcmd.len[0] = cmd_size;
+
+	mutex_lock(&mvm->mutex);
+	ret = iwl_mvm_send_cmd(mvm, &hcmd);
+	mutex_unlock(&mvm->mutex);
+
+	kfree(cmd);
+
+	if (ret < 0)
+		return ret;
+
+	rsp = (void *)hcmd.resp_pkt->data;
+	if (rsp->status != DEBUG_MEM_STATUS_SUCCESS) {
+		ret = -ENXIO;
+		goto out;
+	}
+
+	ret = data_size;
+	*ppos += ret;
+
+out:
+	iwl_free_resp(&hcmd);
+	return ret;
+}
+
+static const struct file_operations iwl_dbgfs_mem_ops = {
+	.read = iwl_dbgfs_mem_read,
+	.write = iwl_dbgfs_mem_write,
+	.open = simple_open,
+	.llseek = default_llseek,
+};
+
 int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 {
 	struct dentry *bcast_dir __maybe_unused;
@@ -1614,6 +1740,9 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	if (!debugfs_create_blob("nvm_phy_sku", S_IRUSR,
 				 mvm->debugfs_dir, &mvm->nvm_phy_sku_blob))
 		goto err;
+
+	debugfs_create_file("mem", S_IRUSR | S_IWUSR, dbgfs_dir, mvm,
+			    &iwl_dbgfs_mem_ops);
 
 	/*
 	 * Create a symlink with mac80211. It will be removed when mac80211
