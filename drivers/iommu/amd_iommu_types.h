@@ -22,6 +22,7 @@
 
 #include <linux/types.h>
 #include <linux/mutex.h>
+#include <linux/msi.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/pci.h>
@@ -705,4 +706,79 @@ enum amd_iommu_intr_mode_type {
 					 x == AMD_IOMMU_GUEST_IR_LEGACY_GA)
 
 #define AMD_IOMMU_GUEST_IR_VAPIC(x)	(x == AMD_IOMMU_GUEST_IR_VAPIC)
+
+union irte {
+	u32 val;
+	struct {
+		u32 valid	: 1,
+		    no_fault	: 1,
+		    int_type	: 3,
+		    rq_eoi	: 1,
+		    dm		: 1,
+		    rsvd_1	: 1,
+		    destination	: 8,
+		    vector	: 8,
+		    rsvd_2	: 8;
+	} fields;
+};
+
+union irte_ga_lo {
+	u64 val;
+
+	/* For int remapping */
+	struct {
+		u64 valid	: 1,
+		    no_fault	: 1,
+		    /* ------ */
+		    int_type	: 3,
+		    rq_eoi	: 1,
+		    dm		: 1,
+		    /* ------ */
+		    guest_mode	: 1,
+		    destination	: 8,
+		    rsvd	: 48;
+	} fields_remap;
+
+	/* For guest vAPIC */
+	struct {
+		u64 valid	: 1,
+		    no_fault	: 1,
+		    /* ------ */
+		    ga_log_intr	: 1,
+		    rsvd1	: 3,
+		    is_run	: 1,
+		    /* ------ */
+		    guest_mode	: 1,
+		    destination	: 8,
+		    rsvd2	: 16,
+		    ga_tag	: 32;
+	} fields_vapic;
+};
+
+union irte_ga_hi {
+	u64 val;
+	struct {
+		u64 vector	: 8,
+		    rsvd_1	: 4,
+		    ga_root_ptr	: 40,
+		    rsvd_2	: 12;
+	} fields;
+};
+
+struct irte_ga {
+	union irte_ga_lo lo;
+	union irte_ga_hi hi;
+};
+
+struct irq_2_irte {
+	u16 devid; /* Device ID for IRTE table */
+	u16 index; /* Index into IRTE table*/
+};
+
+struct amd_ir_data {
+	struct irq_2_irte irq_2_irte;
+	union irte irte_entry;
+	struct msi_msg msi_entry;
+};
+
 #endif /* _ASM_X86_AMD_IOMMU_TYPES_H */
