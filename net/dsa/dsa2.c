@@ -294,25 +294,25 @@ static int dsa_ds_apply(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 	int err;
 
 	/* Initialize ds->phys_mii_mask before registering the slave MDIO bus
-	 * driver and before drv->setup() has run, since the switch drivers and
+	 * driver and before ops->setup() has run, since the switch drivers and
 	 * the slave MDIO bus driver rely on these values for probing PHY
 	 * devices or not
 	 */
 	ds->phys_mii_mask = ds->enabled_port_mask;
 
-	err = ds->drv->setup(ds);
+	err = ds->ops->setup(ds);
 	if (err < 0)
 		return err;
 
-	err = ds->drv->set_addr(ds, dst->master_netdev->dev_addr);
+	err = ds->ops->set_addr(ds, dst->master_netdev->dev_addr);
 	if (err < 0)
 		return err;
 
-	err = ds->drv->set_addr(ds, dst->master_netdev->dev_addr);
+	err = ds->ops->set_addr(ds, dst->master_netdev->dev_addr);
 	if (err < 0)
 		return err;
 
-	if (!ds->slave_mii_bus && ds->drv->phy_read) {
+	if (!ds->slave_mii_bus && ds->ops->phy_read) {
 		ds->slave_mii_bus = devm_mdiobus_alloc(ds->dev);
 		if (!ds->slave_mii_bus)
 			return -ENOMEM;
@@ -374,7 +374,7 @@ static void dsa_ds_unapply(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 		dsa_user_port_unapply(port, index, ds);
 	}
 
-	if (ds->slave_mii_bus && ds->drv->phy_read)
+	if (ds->slave_mii_bus && ds->ops->phy_read)
 		mdiobus_unregister(ds->slave_mii_bus);
 }
 
@@ -466,7 +466,7 @@ static int dsa_cpu_parse(struct device_node *port, u32 index,
 		dst->cpu_port = index;
 	}
 
-	tag_protocol = ds->drv->get_tag_protocol(ds);
+	tag_protocol = ds->ops->get_tag_protocol(ds);
 	dst->tag_ops = dsa_resolve_tag_protocol(tag_protocol);
 	if (IS_ERR(dst->tag_ops)) {
 		dev_warn(ds->dev, "No tagger for this switch\n");
@@ -543,7 +543,7 @@ static int dsa_parse_ports_dn(struct device_node *ports, struct dsa_switch *ds)
 
 		ds->ports[reg].dn = port;
 
-		/* Initialize enabled_port_mask now for drv->setup()
+		/* Initialize enabled_port_mask now for ops->setup()
 		 * to have access to a correct value, just like what
 		 * net/dsa/dsa.c::dsa_switch_setup_one does.
 		 */

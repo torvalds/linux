@@ -3976,7 +3976,7 @@ free:
 	return NULL;
 }
 
-static struct dsa_switch_driver mv88e6xxx_switch_driver = {
+static struct dsa_switch_ops mv88e6xxx_switch_ops = {
 	.probe			= mv88e6xxx_drv_probe,
 	.get_tag_protocol	= mv88e6xxx_get_tag_protocol,
 	.setup			= mv88e6xxx_setup,
@@ -4025,7 +4025,7 @@ static int mv88e6xxx_register_switch(struct mv88e6xxx_chip *chip,
 
 	ds->dev = dev;
 	ds->priv = chip;
-	ds->drv = &mv88e6xxx_switch_driver;
+	ds->ops = &mv88e6xxx_switch_ops;
 
 	dev_set_drvdata(dev, ds);
 
@@ -4118,7 +4118,7 @@ static struct mdio_driver mv88e6xxx_driver = {
 
 static int __init mv88e6xxx_init(void)
 {
-	register_switch_driver(&mv88e6xxx_switch_driver);
+	register_switch_driver(&mv88e6xxx_switch_ops);
 	return mdio_driver_register(&mv88e6xxx_driver);
 }
 module_init(mv88e6xxx_init);
@@ -4126,7 +4126,7 @@ module_init(mv88e6xxx_init);
 static void __exit mv88e6xxx_cleanup(void)
 {
 	mdio_driver_unregister(&mv88e6xxx_driver);
-	unregister_switch_driver(&mv88e6xxx_switch_driver);
+	unregister_switch_driver(&mv88e6xxx_switch_ops);
 }
 module_exit(mv88e6xxx_cleanup);
 

@@ -165,9 +165,9 @@ struct dsa_switch {
 	struct dsa_chip_data	*cd;
 
 	/*
-	 * The used switch driver.
+	 * The switch operations.
 	 */
-	struct dsa_switch_driver	*drv;
+	struct dsa_switch_ops	*ops;
 
 	/*
 	 * An array of which element [a] indicates which port on this
@@ -236,7 +236,7 @@ struct switchdev_obj;
 struct switchdev_obj_port_fdb;
 struct switchdev_obj_port_vlan;
 
-struct dsa_switch_driver {
+struct dsa_switch_ops {
 	struct list_head	list;
 
 	/*
@@ -371,8 +371,8 @@ struct dsa_switch_driver {
 				 int (*cb)(struct switchdev_obj *obj));
 };
 
-void register_switch_driver(struct dsa_switch_driver *type);
-void unregister_switch_driver(struct dsa_switch_driver *type);
+void register_switch_driver(struct dsa_switch_ops *type);
+void unregister_switch_driver(struct dsa_switch_ops *type);
 struct mii_bus *dsa_host_dev_to_mii_bus(struct device *dev);
 
 static inline void *ds_to_priv(struct dsa_switch *ds)

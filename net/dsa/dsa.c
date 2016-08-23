@@ -61,27 +61,27 @@ const struct dsa_device_ops *dsa_device_ops[DSA_TAG_LAST] = {
 static DEFINE_MUTEX(dsa_switch_drivers_mutex);
 static LIST_HEAD(dsa_switch_drivers);
 
-void register_switch_driver(struct dsa_switch_driver *drv)
+void register_switch_driver(struct dsa_switch_ops *ops)
 {
 	mutex_lock(&dsa_switch_drivers_mutex);
-	list_add_tail(&drv->list, &dsa_switch_drivers);
+	list_add_tail(&ops->list, &dsa_switch_drivers);
 	mutex_unlock(&dsa_switch_drivers_mutex);
 }
 EXPORT_SYMBOL_GPL(register_switch_driver);
 
-void unregister_switch_driver(struct dsa_switch_driver *drv)
+void unregister_switch_driver(struct dsa_switch_ops *ops)
 {
 	mutex_lock(&dsa_switch_drivers_mutex);
-	list_del_init(&drv->list);
+	list_del_init(&ops->list);
 	mutex_unlock(&dsa_switch_drivers_mutex);
 }
 EXPORT_SYMBOL_GPL(unregister_switch_driver);
 
-static struct dsa_switch_driver *
+static struct dsa_switch_ops *
 dsa_switch_probe(struct device *parent, struct device *host_dev, int sw_addr,
 		 const char **_name, void **priv)
 {
-	struct dsa_switch_driver *ret;
+	struct dsa_switch_ops *ret;
 	struct list_head *list;
 	const char *name;
 
@@ -90,13 +90,13 @@ dsa_switch_probe(struct device *parent, struct device *host_dev, int sw_addr,
 
 	mutex_lock(&dsa_switch_drivers_mutex);
 	list_for_each(list, &dsa_switch_drivers) {
-		struct dsa_switch_driver *drv;
+		struct dsa_switch_ops *ops;
 
-		drv = list_entry(list, struct dsa_switch_driver, list);
+		ops = list_entry(list, struct dsa_switch_ops, list);
 
-		name = drv->probe(parent, host_dev, sw_addr, priv);
+		name = ops->probe(parent, host_dev, sw_addr, priv);
 		if (name != NULL) {
-			ret = drv;
+			ret = ops;
 			break;
 		}
 	}
@@ -117,7 +117,7 @@ static ssize_t temp1_input_show(struct device *dev,
 	struct dsa_switch *ds = dev_get_drvdata(dev);
 	int temp, ret;
 
-	ret = ds->drv->get_temp(ds, &temp);
+	ret = ds->ops->get_temp(ds, &temp);
 	if (ret < 0)
 		return ret;
 
@@ -131,7 +131,7 @@ static ssize_t temp1_max_show(struct device *dev,
 	struct dsa_switch *ds = dev_get_drvdata(dev);
 	int temp, ret;
 
-	ret = ds->drv->get_temp_limit(ds, &temp);
+	ret = ds->ops->get_temp_limit(ds, &temp);
 	if (ret < 0)
 		return ret;
 
@@ -149,7 +149,7 @@ static ssize_t temp1_max_store(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	ret = ds->drv->set_temp_limit(ds, DIV_ROUND_CLOSEST(temp, 1000));
+	ret = ds->ops->set_temp_limit(ds, DIV_ROUND_CLOSEST(temp, 1000));
 	if (ret < 0)
 		return ret;
 
@@ -164,7 +164,7 @@ static ssize_t temp1_max_alarm_show(struct device *dev,
 	bool alarm;
 	int ret;
 
-	ret = ds->drv->get_temp_alarm(ds, &alarm);
+	ret = ds->ops->get_temp_alarm(ds, &alarm);
 	if (ret < 0)
 		return ret;
 
@@ -184,15 +184,15 @@ static umode_t dsa_hwmon_attrs_visible(struct kobject *kobj,
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct dsa_switch *ds = dev_get_drvdata(dev);
-	struct dsa_switch_driver *drv = ds->drv;
+	struct dsa_switch_ops *ops = ds->ops;
 	umode_t mode = attr->mode;
 
 	if (index == 1) {
-		if (!drv->get_temp_limit)
+		if (!ops->get_temp_limit)
 			mode = 0;
-		else if (!drv->set_temp_limit)
+		else if (!ops->set_temp_limit)
 			mode &= ~S_IWUSR;
-	} else if (index == 2 && !drv->get_temp_alarm) {
+	} else if (index == 2 && !ops->get_temp_alarm) {
 		mode = 0;
 	}
 	return mode;
@@ -228,8 +228,8 @@ int dsa_cpu_dsa_setup(struct dsa_switch *ds, struct device *dev,
 
 		genphy_config_init(phydev);
 		genphy_read_status(phydev);
-		if (ds->drv->adjust_link)
-			ds->drv->adjust_link(ds, port, phydev);
+		if (ds->ops->adjust_link)
+			ds->ops->adjust_link(ds, port, phydev);
 	}
 
 	return 0;
@@ -303,7 +303,7 @@ void dsa_cpu_port_ethtool_restore(struct dsa_switch *ds)
 
 static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 {
-	struct dsa_switch_driver *drv = ds->drv;
+	struct dsa_switch_ops *ops = ds->ops;
 	struct dsa_switch_tree *dst = ds->dst;
 	struct dsa_chip_data *cd = ds->cd;
 	bool valid_name_found = false;
@@ -356,7 +356,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 	if (dst->cpu_switch == index) {
 		enum dsa_tag_protocol tag_protocol;
 
-		tag_protocol = drv->get_tag_protocol(ds);
+		tag_protocol = ops->get_tag_protocol(ds);
 		dst->tag_ops = dsa_resolve_tag_protocol(tag_protocol);
 		if (IS_ERR(dst->tag_ops)) {
 			ret = PTR_ERR(dst->tag_ops);
@@ -371,15 +371,15 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 	/*
 	 * Do basic register setup.
 	 */
-	ret = drv->setup(ds);
+	ret = ops->setup(ds);
 	if (ret < 0)
 		goto out;
 
-	ret = drv->set_addr(ds, dst->master_netdev->dev_addr);
+	ret = ops->set_addr(ds, dst->master_netdev->dev_addr);
 	if (ret < 0)
 		goto out;
 
-	if (!ds->slave_mii_bus && drv->phy_read) {
+	if (!ds->slave_mii_bus && ops->phy_read) {
 		ds->slave_mii_bus = devm_mdiobus_alloc(parent);
 		if (!ds->slave_mii_bus) {
 			ret = -ENOMEM;
@@ -426,7 +426,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 	 * register with hardware monitoring subsystem.
 	 * Treat registration error as non-fatal and ignore it.
 	 */
-	if (drv->get_temp) {
+	if (ops->get_temp) {
 		const char *netname = netdev_name(dst->master_netdev);
 		char hname[IFNAMSIZ + 1];
 		int i, j;
@@ -457,7 +457,7 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 		 struct device *parent, struct device *host_dev)
 {
 	struct dsa_chip_data *cd = dst->pd->chip + index;
-	struct dsa_switch_driver *drv;
+	struct dsa_switch_ops *ops;
 	struct dsa_switch *ds;
 	int ret;
 	const char *name;
@@ -466,8 +466,8 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	/*
 	 * Probe for switch model.
 	 */
-	drv = dsa_switch_probe(parent, host_dev, cd->sw_addr, &name, &priv);
-	if (drv == NULL) {
+	ops = dsa_switch_probe(parent, host_dev, cd->sw_addr, &name, &priv);
+	if (!ops) {
 		netdev_err(dst->master_netdev, "[%d]: could not detect attached switch\n",
 			   index);
 		return ERR_PTR(-EINVAL);
@@ -486,7 +486,7 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	ds->dst = dst;
 	ds->index = index;
 	ds->cd = cd;
-	ds->drv = drv;
+	ds->ops = ops;
 	ds->priv = priv;
 	ds->dev = parent;
 
@@ -541,7 +541,7 @@ static void dsa_switch_destroy(struct dsa_switch *ds)
 		ds->dsa_port_mask |= ~(1 << port);
 	}
 
-	if (ds->slave_mii_bus && ds->drv->phy_read)
+	if (ds->slave_mii_bus && ds->ops->phy_read)
 		mdiobus_unregister(ds->slave_mii_bus);
 }
 
@@ -560,8 +560,8 @@ int dsa_switch_suspend(struct dsa_switch *ds)
 			return ret;
 	}
 
-	if (ds->drv->suspend)
-		ret = ds->drv->suspend(ds);
+	if (ds->ops->suspend)
+		ret = ds->ops->suspend(ds);
 
 	return ret;
 }
@@ -571,8 +571,8 @@ int dsa_switch_resume(struct dsa_switch *ds)
 {
 	int i, ret = 0;
 
-	if (ds->drv->resume)
-		ret = ds->drv->resume(ds);
+	if (ds->ops->resume)
+		ret = ds->ops->resume(ds);
 
 	if (ret)
 		return ret;

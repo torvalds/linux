@@ -1581,7 +1581,7 @@ static int bcm_sf2_sw_setup(struct dsa_switch *ds)
 	return 0;
 }
 
-static struct dsa_switch_driver bcm_sf2_switch_driver = {
+static struct dsa_switch_ops bcm_sf2_switch_ops = {
 	.setup			= bcm_sf2_sw_setup,
 	.get_tag_protocol	= bcm_sf2_sw_get_tag_protocol,
 	.set_addr		= bcm_sf2_sw_set_addr,
@@ -1632,7 +1632,7 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	priv = (struct bcm_sf2_priv *)(ds + 1);
 	ds->priv = priv;
 	ds->dev = &pdev->dev;
-	ds->drv = &bcm_sf2_switch_driver;
+	ds->ops = &bcm_sf2_switch_ops;
 
 	dev_set_drvdata(&pdev->dev, ds);
 

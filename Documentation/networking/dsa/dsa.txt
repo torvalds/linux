@@ -227,9 +227,9 @@ to address individual switches in the tree.
 
 dsa_switch: structure describing a switch device in the tree, referencing a
 dsa_switch_tree as a backpointer, slave network devices, master network device,
-and a reference to the backing dsa_switch_driver
+and a reference to the backing dsa_switch_ops
 
-dsa_switch_driver: structure referencing function pointers, see below for a full
+dsa_switch_ops: structure referencing function pointers, see below for a full
 description.
 
 Design limitations
@@ -357,10 +357,10 @@ regular HWMON devices in /sys/class/hwmon/.
 Driver development
 ==================
 
-DSA switch drivers need to implement a dsa_switch_driver structure which will
+DSA switch drivers need to implement a dsa_switch_ops structure which will
 contain the various members described below.
 
-register_switch_driver() registers this dsa_switch_driver in its internal list
+register_switch_driver() registers this dsa_switch_ops in its internal list
 of drivers to probe for. unregister_switch_driver() does the exact opposite.
 
 Unless requested differently by setting the priv_size member accordingly, DSA
@@ -379,7 +379,7 @@ Switch configuration
   buses, return a non-NULL string
 
 - setup: setup function for the switch, this function is responsible for setting
-  up the dsa_switch_driver private structure with all it needs: register maps,
+  up the dsa_switch_ops private structure with all it needs: register maps,
   interrupts, mutexes, locks etc.. This function is also expected to properly
   configure the switch to separate all network interfaces from each other, that
   is, they should be isolated by the switch hardware itself, typically by creating
