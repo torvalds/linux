@@ -227,10 +227,9 @@ void tcp_time_wait(struct sock *sk, int state, int timeo);
 #define	TFO_SERVER_COOKIE_NOT_REQD	0x200
 
 /* Force enable TFO on all listeners, i.e., not requiring the
- * TCP_FASTOPEN socket option. SOCKOPT1/2 determine how to set max_qlen.
+ * TCP_FASTOPEN socket option.
  */
 #define	TFO_SERVER_WO_SOCKOPT1	0x400
-#define	TFO_SERVER_WO_SOCKOPT2	0x800
 
 extern struct inet_timewait_death_row tcp_death_row;
 
