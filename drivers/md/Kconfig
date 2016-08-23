@@ -501,7 +501,7 @@ config DM_LOG_WRITES
 	  If unsure, say N.
 
 config DM_ANDROID_VERITY
-	bool "Android verity target support"
+	tristate "Android verity target support"
 	depends on DM_VERITY
 	depends on X509_CERTIFICATE_PARSER
 	depends on SYSTEM_TRUSTED_KEYRING
@@ -509,6 +509,7 @@ config DM_ANDROID_VERITY
 	depends on KEYS
 	depends on ASYMMETRIC_KEY_TYPE
 	depends on ASYMMETRIC_PUBLIC_KEY_SUBTYPE
+	depends on MD_LINEAR
 	---help---
 	  This device-mapper target is virtually a VERITY target. This
 	  target is setup by reading the metadata contents piggybacked
