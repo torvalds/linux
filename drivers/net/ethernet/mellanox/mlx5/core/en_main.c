@@ -180,10 +180,8 @@ static void mlx5e_update_vport_counters(struct mlx5e_priv *priv)
 {
 	int outlen = MLX5_ST_SZ_BYTES(query_vport_counter_out);
 	u32 *out = (u32 *)priv->stats.vport.query_vport_out;
-	u32 in[MLX5_ST_SZ_DW(query_vport_counter_in)];
+	u32 in[MLX5_ST_SZ_DW(query_vport_counter_in)] = {0};
 	struct mlx5_core_dev *mdev = priv->mdev;
-
-	memset(in, 0, sizeof(in));
 
 	MLX5_SET(query_vport_counter_in, in, opcode,
 		 MLX5_CMD_OP_QUERY_VPORT_COUNTER);
@@ -191,7 +189,6 @@ static void mlx5e_update_vport_counters(struct mlx5e_priv *priv)
 	MLX5_SET(query_vport_counter_in, in, other_vport, 0);
 
 	memset(out, 0, outlen);
-
 	mlx5_cmd_exec(mdev, in, sizeof(in), out, outlen);
 }
 
@@ -2022,14 +2019,11 @@ static void mlx5e_close_drop_rq(struct mlx5e_priv *priv)
 static int mlx5e_create_tis(struct mlx5e_priv *priv, int tc)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
-	u32 in[MLX5_ST_SZ_DW(create_tis_in)];
+	u32 in[MLX5_ST_SZ_DW(create_tis_in)] = {0};
 	void *tisc = MLX5_ADDR_OF(create_tis_in, in, ctx);
-
-	memset(in, 0, sizeof(in));
 
 	MLX5_SET(tisc, tisc, prio, tc << 1);
 	MLX5_SET(tisc, tisc, transport_domain, mdev->mlx5e_res.td.tdn);
-
 	return mlx5_core_create_tis(mdev, in, sizeof(in), &priv->tisn[tc]);
 }
 
@@ -3228,35 +3222,34 @@ static void mlx5e_destroy_q_counter(struct mlx5e_priv *priv)
 static int mlx5e_create_umr_mkey(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
-	struct mlx5_create_mkey_mbox_in *in;
-	struct mlx5_mkey_seg *mkc;
-	int inlen = sizeof(*in);
-	u64 npages =
-		priv->profile->max_nch(mdev) * MLX5_CHANNEL_MAX_NUM_MTTS;
+	u64 npages = priv->profile->max_nch(mdev) * MLX5_CHANNEL_MAX_NUM_MTTS;
+	int inlen = MLX5_ST_SZ_BYTES(create_mkey_in);
+	void *mkc;
+	u32 *in;
 	int err;
 
 	in = mlx5_vzalloc(inlen);
 	if (!in)
 		return -ENOMEM;
 
-	mkc = &in->seg;
-	mkc->status = MLX5_MKEY_STATUS_FREE;
-	mkc->flags = MLX5_PERM_UMR_EN |
-		     MLX5_PERM_LOCAL_READ |
-		     MLX5_PERM_LOCAL_WRITE |
-		     MLX5_ACCESS_MODE_MTT;
+	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
 
-	mkc->qpn_mkey7_0 = cpu_to_be32(0xffffff << 8);
-	mkc->flags_pd = cpu_to_be32(mdev->mlx5e_res.pdn);
-	mkc->len = cpu_to_be64(npages << PAGE_SHIFT);
-	mkc->xlt_oct_size = cpu_to_be32(mlx5e_get_mtt_octw(npages));
-	mkc->log2_page_size = PAGE_SHIFT;
+	MLX5_SET(mkc, mkc, free, 1);
+	MLX5_SET(mkc, mkc, umr_en, 1);
+	MLX5_SET(mkc, mkc, lw, 1);
+	MLX5_SET(mkc, mkc, lr, 1);
+	MLX5_SET(mkc, mkc, access_mode, MLX5_MKC_ACCESS_MODE_MTT);
 
-	err = mlx5_core_create_mkey(mdev, &priv->umr_mkey, in, inlen, NULL,
-				    NULL, NULL);
+	MLX5_SET(mkc, mkc, qpn, 0xffffff);
+	MLX5_SET(mkc, mkc, pd, mdev->mlx5e_res.pdn);
+	MLX5_SET64(mkc, mkc, len, npages << PAGE_SHIFT);
+	MLX5_SET(mkc, mkc, translations_octword_size,
+		 mlx5e_get_mtt_octw(npages));
+	MLX5_SET(mkc, mkc, log_page_size, PAGE_SHIFT);
+
+	err = mlx5_core_create_mkey(mdev, &priv->umr_mkey, in, inlen);
 
 	kvfree(in);
-
 	return err;
 }
 

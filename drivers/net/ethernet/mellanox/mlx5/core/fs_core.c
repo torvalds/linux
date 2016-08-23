@@ -345,7 +345,7 @@ static void del_flow_table(struct fs_node *node)
 
 	err = mlx5_cmd_destroy_flow_table(dev, ft);
 	if (err)
-		pr_warn("flow steering can't destroy ft\n");
+		mlx5_core_warn(dev, "flow steering can't destroy ft\n");
 	fs_get_obj(prio, ft->node.parent);
 	prio->num_ft--;
 }
@@ -364,7 +364,7 @@ static void del_rule(struct fs_node *node)
 
 	match_value = mlx5_vzalloc(match_len);
 	if (!match_value) {
-		pr_warn("failed to allocate inbox\n");
+		mlx5_core_warn(dev, "failed to allocate inbox\n");
 		return;
 	}
 
@@ -387,8 +387,9 @@ static void del_rule(struct fs_node *node)
 					  modify_mask,
 					  fte);
 		if (err)
-			pr_warn("%s can't del rule fg id=%d fte_index=%d\n",
-				__func__, fg->id, fte->index);
+			mlx5_core_warn(dev,
+				       "%s can't del rule fg id=%d fte_index=%d\n",
+				       __func__, fg->id, fte->index);
 	}
 	kvfree(match_value);
 }
@@ -409,8 +410,9 @@ static void del_fte(struct fs_node *node)
 	err = mlx5_cmd_delete_fte(dev, ft,
 				  fte->index);
 	if (err)
-		pr_warn("flow steering can't delete fte in index %d of flow group id %d\n",
-			fte->index, fg->id);
+		mlx5_core_warn(dev,
+			       "flow steering can't delete fte in index %d of flow group id %d\n",
+			       fte->index, fg->id);
 
 	fte->status = 0;
 	fg->num_ftes--;
@@ -427,8 +429,8 @@ static void del_flow_group(struct fs_node *node)
 	dev = get_dev(&ft->node);
 
 	if (mlx5_cmd_destroy_flow_group(dev, ft, fg->id))
-		pr_warn("flow steering can't destroy fg %d of ft %d\n",
-			fg->id, ft->id);
+		mlx5_core_warn(dev, "flow steering can't destroy fg %d of ft %d\n",
+			       fg->id, ft->id);
 }
 
 static struct fs_fte *alloc_fte(u8 action,
