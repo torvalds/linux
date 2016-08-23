@@ -313,7 +313,7 @@ struct rxrpc_connection {
 	struct rxrpc_crypt	csum_iv;	/* packet checksum base */
 	unsigned long		flags;
 	unsigned long		events;
-	unsigned long		put_time;	/* Time at which last put */
+	unsigned long		idle_timestamp;	/* Time at which last became idle */
 	spinlock_t		state_lock;	/* state-change lock */
 	atomic_t		usage;
 	enum rxrpc_conn_proto_state state : 8;	/* current state of connection */
@@ -565,7 +565,7 @@ struct rxrpc_connection *rxrpc_find_connection_rcu(struct rxrpc_local *,
 						   struct sk_buff *);
 void __rxrpc_disconnect_call(struct rxrpc_call *);
 void rxrpc_disconnect_call(struct rxrpc_call *);
-void rxrpc_put_connection(struct rxrpc_connection *);
+void __rxrpc_put_connection(struct rxrpc_connection *);
 void __exit rxrpc_destroy_all_connections(void);
 
 static inline bool rxrpc_conn_is_client(const struct rxrpc_connection *conn)
@@ -588,6 +588,13 @@ struct rxrpc_connection *rxrpc_get_connection_maybe(struct rxrpc_connection *con
 {
 	return atomic_inc_not_zero(&conn->usage) ? conn : NULL;
 }
+
+static inline void rxrpc_put_connection(struct rxrpc_connection *conn)
+{
+	if (conn && atomic_dec_return(&conn->usage) == 1)
+		__rxrpc_put_connection(conn);
+}
+
 
 static inline bool rxrpc_queue_conn(struct rxrpc_connection *conn)
 {
