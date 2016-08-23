@@ -126,16 +126,22 @@ struct qede_dev {
 				 (edev)->dev_info.num_tc)
 
 	struct qede_fastpath		*fp_array;
-	u16				req_rss;
-	u16				num_rss;
+	u8				req_num_tx;
+	u8				fp_num_tx;
+	u8				req_num_rx;
+	u8				fp_num_rx;
+	u16				req_queues;
+	u16				num_queues;
 	u8				num_tc;
-#define QEDE_RSS_CNT(edev)		((edev)->num_rss)
-#define QEDE_TSS_CNT(edev)		((edev)->num_rss *	\
-					 (edev)->num_tc)
-#define QEDE_TSS_IDX(edev, txqidx)	((txqidx) % (edev)->num_rss)
-#define QEDE_TC_IDX(edev, txqidx)	((txqidx) / (edev)->num_rss)
+#define QEDE_QUEUE_CNT(edev)	((edev)->num_queues)
+#define QEDE_RSS_COUNT(edev)	((edev)->num_queues - (edev)->fp_num_tx)
+#define QEDE_TSS_COUNT(edev)	(((edev)->num_queues - (edev)->fp_num_rx) * \
+				 (edev)->num_tc)
+#define QEDE_TX_IDX(edev, txqidx)	((edev)->fp_num_rx + (txqidx) % \
+					 QEDE_TSS_COUNT(edev))
+#define QEDE_TC_IDX(edev, txqidx)	((txqidx) / QEDE_TSS_COUNT(edev))
 #define QEDE_TX_QUEUE(edev, txqidx)	\
-	(&(edev)->fp_array[QEDE_TSS_IDX((edev), (txqidx))].txqs[QEDE_TC_IDX( \
+	(&(edev)->fp_array[QEDE_TX_IDX((edev), (txqidx))].txqs[QEDE_TC_IDX(\
 							(edev), (txqidx))])
 
 	struct qed_int_info		int_info;
@@ -284,7 +290,11 @@ struct qede_tx_queue {
 
 struct qede_fastpath {
 	struct qede_dev	*edev;
-	u8			rss_id;
+#define QEDE_FASTPATH_TX	BIT(0)
+#define QEDE_FASTPATH_RX	BIT(1)
+#define QEDE_FASTPATH_COMBINED	(QEDE_FASTPATH_TX | QEDE_FASTPATH_RX)
+	u8			type;
+	u8			id;
 	struct napi_struct	napi;
 	struct qed_sb_info	*sb_info;
 	struct qede_rx_queue	*rxq;
@@ -344,6 +354,6 @@ void qede_recycle_rx_bd_ring(struct qede_rx_queue *rxq, struct qede_dev *edev,
 
 #define QEDE_MIN_PKT_LEN	64
 #define QEDE_RX_HDR_SIZE	256
-#define	for_each_rss(i) for (i = 0; i < edev->num_rss; i++)
+#define	for_each_queue(i) for (i = 0; i < edev->num_queues; i++)
 
 #endif /* _QEDE_H_ */

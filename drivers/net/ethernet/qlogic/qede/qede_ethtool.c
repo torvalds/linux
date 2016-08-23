@@ -172,7 +172,7 @@ static void qede_get_strings_stats(struct qede_dev *edev, u8 *buf)
 {
 	int i, j, k;
 
-	for (i = 0, k = 0; i < edev->num_rss; i++) {
+	for (i = 0, k = 0; i < QEDE_QUEUE_CNT(edev); i++) {
 		int tc;
 
 		for (j = 0; j < QEDE_NUM_RQSTATS; j++)
@@ -230,15 +230,21 @@ static void qede_get_ethtool_stats(struct net_device *dev,
 
 	mutex_lock(&edev->qede_lock);
 
-	for (qid = 0; qid < edev->num_rss; qid++) {
+	for (qid = 0; qid < QEDE_QUEUE_CNT(edev); qid++) {
 		int tc;
 
-		for (sidx = 0; sidx < QEDE_NUM_RQSTATS; sidx++)
-			buf[cnt++] = QEDE_RQSTATS_DATA(edev, sidx, qid);
-		for (tc = 0; tc < edev->num_tc; tc++) {
-			for (sidx = 0; sidx < QEDE_NUM_TQSTATS; sidx++)
-				buf[cnt++] = QEDE_TQSTATS_DATA(edev, sidx, qid,
-							       tc);
+		if (edev->fp_array[qid].type & QEDE_FASTPATH_RX) {
+			for (sidx = 0; sidx < QEDE_NUM_RQSTATS; sidx++)
+				buf[cnt++] = QEDE_RQSTATS_DATA(edev, sidx, qid);
+		}
+
+		if (edev->fp_array[qid].type & QEDE_FASTPATH_TX) {
+			for (tc = 0; tc < edev->num_tc; tc++) {
+				for (sidx = 0; sidx < QEDE_NUM_TQSTATS; sidx++)
+					buf[cnt++] = QEDE_TQSTATS_DATA(edev,
+								       sidx,
+								       qid, tc);
+			}
 		}
 	}
 
@@ -265,8 +271,8 @@ static int qede_get_sset_count(struct net_device *dev, int stringset)
 				if (qede_stats_arr[i].pf_only)
 					num_stats--;
 		}
-		return num_stats +  edev->num_rss *
-			(QEDE_NUM_RQSTATS + QEDE_NUM_TQSTATS * edev->num_tc);
+		return num_stats + QEDE_RSS_COUNT(edev) * QEDE_NUM_RQSTATS +
+		       QEDE_TSS_COUNT(edev) * QEDE_NUM_TQSTATS * edev->num_tc;
 	case ETH_SS_PRIV_FLAGS:
 		return QEDE_PRI_FLAG_LEN;
 	case ETH_SS_TEST:
@@ -576,7 +582,7 @@ static int qede_set_coalesce(struct net_device *dev,
 
 	rxc = (u16)coal->rx_coalesce_usecs;
 	txc = (u16)coal->tx_coalesce_usecs;
-	for_each_rss(i) {
+	for_each_queue(i) {
 		sb_id = edev->fp_array[i].sb_info->igu_sb_id;
 		rc = edev->ops->common->set_coalesce(edev->cdev, rxc, txc,
 						     (u8)i, sb_id);
@@ -728,45 +734,70 @@ static void qede_get_channels(struct net_device *dev,
 	struct qede_dev *edev = netdev_priv(dev);
 
 	channels->max_combined = QEDE_MAX_RSS_CNT(edev);
-	channels->combined_count = QEDE_RSS_CNT(edev);
+	channels->combined_count = QEDE_QUEUE_CNT(edev) - edev->fp_num_tx -
+					edev->fp_num_rx;
+	channels->tx_count = edev->fp_num_tx;
+	channels->rx_count = edev->fp_num_rx;
 }
 
 static int qede_set_channels(struct net_device *dev,
 			     struct ethtool_channels *channels)
 {
 	struct qede_dev *edev = netdev_priv(dev);
+	u32 count;
 
 	DP_VERBOSE(edev, (NETIF_MSG_IFUP | NETIF_MSG_IFDOWN),
 		   "set-channels command parameters: rx = %d, tx = %d, other = %d, combined = %d\n",
 		   channels->rx_count, channels->tx_count,
 		   channels->other_count, channels->combined_count);
 
-	/* We don't support separate rx / tx, nor `other' channels. */
-	if (channels->rx_count || channels->tx_count ||
-	    channels->other_count || (channels->combined_count == 0) ||
-	    (channels->combined_count > QEDE_MAX_RSS_CNT(edev))) {
+	count = channels->rx_count + channels->tx_count +
+			channels->combined_count;
+
+	/* We don't support `other' channels */
+	if (channels->other_count) {
 		DP_VERBOSE(edev, (NETIF_MSG_IFUP | NETIF_MSG_IFDOWN),
 			   "command parameters not supported\n");
 		return -EINVAL;
 	}
 
+	if (!(channels->combined_count || (channels->rx_count &&
+					   channels->tx_count))) {
+		DP_VERBOSE(edev, (NETIF_MSG_IFUP | NETIF_MSG_IFDOWN),
+			   "need to request at least one transmit and one receive channel\n");
+		return -EINVAL;
+	}
+
+	if (count > QEDE_MAX_RSS_CNT(edev)) {
+		DP_VERBOSE(edev, (NETIF_MSG_IFUP | NETIF_MSG_IFDOWN),
+			   "requested channels = %d max supported channels = %d\n",
+			   count, QEDE_MAX_RSS_CNT(edev));
+		return -EINVAL;
+	}
+
 	/* Check if there was a change in the active parameters */
-	if (channels->combined_count == QEDE_RSS_CNT(edev)) {
+	if ((count == QEDE_QUEUE_CNT(edev)) &&
+	    (channels->tx_count == edev->fp_num_tx) &&
+	    (channels->rx_count == edev->fp_num_rx)) {
 		DP_VERBOSE(edev, (NETIF_MSG_IFUP | NETIF_MSG_IFDOWN),
 			   "No change in active parameters\n");
 		return 0;
 	}
 
 	/* We need the number of queues to be divisible between the hwfns */
-	if (channels->combined_count % edev->dev_info.common.num_hwfns) {
+	if ((count % edev->dev_info.common.num_hwfns) ||
+	    (channels->tx_count % edev->dev_info.common.num_hwfns) ||
+	    (channels->rx_count % edev->dev_info.common.num_hwfns)) {
 		DP_VERBOSE(edev, (NETIF_MSG_IFUP | NETIF_MSG_IFDOWN),
-			   "Number of channels must be divisable by %04x\n",
+			   "Number of channels must be divisible by %04x\n",
 			   edev->dev_info.common.num_hwfns);
 		return -EINVAL;
 	}
 
 	/* Set number of queues and reload if necessary */
-	edev->req_rss = channels->combined_count;
+	edev->req_queues = count;
+	edev->req_num_tx = channels->tx_count;
+	edev->req_num_rx = channels->rx_count;
 	if (netif_running(dev))
 		qede_reload(edev, NULL, NULL);
 
@@ -836,7 +867,7 @@ static int qede_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 
 	switch (info->cmd) {
 	case ETHTOOL_GRXRINGS:
-		info->data = edev->num_rss;
+		info->data = QEDE_RSS_COUNT(edev);
 		return 0;
 	case ETHTOOL_GRXFH:
 		return qede_get_rss_flags(edev, info);
@@ -1039,7 +1070,7 @@ static void qede_netif_start(struct qede_dev *edev)
 	if (!netif_running(edev->ndev))
 		return;
 
-	for_each_rss(i) {
+	for_each_queue(i) {
 		/* Update and reenable interrupts */
 		qed_sb_ack(edev->fp_array[i].sb_info, IGU_INT_ENABLE, 1);
 		napi_enable(&edev->fp_array[i].napi);
@@ -1051,7 +1082,7 @@ static void qede_netif_stop(struct qede_dev *edev)
 {
 	int i;
 
-	for_each_rss(i) {
+	for_each_queue(i) {
 		napi_disable(&edev->fp_array[i].napi);
 		/* Disable interrupts */
 		qed_sb_ack(edev->fp_array[i].sb_info, IGU_INT_DISABLE, 0);
@@ -1061,10 +1092,22 @@ static void qede_netif_stop(struct qede_dev *edev)
 static int qede_selftest_transmit_traffic(struct qede_dev *edev,
 					  struct sk_buff *skb)
 {
-	struct qede_tx_queue *txq = &edev->fp_array[0].txqs[0];
+	struct qede_tx_queue *txq = NULL;
 	struct eth_tx_1st_bd *first_bd;
 	dma_addr_t mapping;
 	int i, idx, val;
+
+	for_each_queue(i) {
+		if (edev->fp_array[i].type & QEDE_FASTPATH_TX) {
+			txq = edev->fp_array[i].txqs;
+			break;
+		}
+	}
+
+	if (!txq) {
+		DP_NOTICE(edev, "Tx path is not available\n");
+		return -1;
+	}
 
 	/* Fill the entry in the SW ring and the BDs in the FW ring */
 	idx = txq->sw_tx_prod & NUM_TX_BDS_MAX;
@@ -1129,13 +1172,25 @@ static int qede_selftest_transmit_traffic(struct qede_dev *edev,
 
 static int qede_selftest_receive_traffic(struct qede_dev *edev)
 {
-	struct qede_rx_queue *rxq = edev->fp_array[0].rxq;
 	u16 hw_comp_cons, sw_comp_cons, sw_rx_index, len;
 	struct eth_fast_path_rx_reg_cqe *fp_cqe;
+	struct qede_rx_queue *rxq = NULL;
 	struct sw_rx_data *sw_rx_data;
 	union eth_rx_cqe *cqe;
 	u8 *data_ptr;
 	int i;
+
+	for_each_queue(i) {
+		if (edev->fp_array[i].type & QEDE_FASTPATH_RX) {
+			rxq = edev->fp_array[i].rxq;
+			break;
+		}
+	}
+
+	if (!rxq) {
+		DP_NOTICE(edev, "Rx path is not available\n");
+		return -1;
+	}
 
 	/* The packet is expected to receive on rx-queue 0 even though RSS is
 	 * enabled. This is because the queue 0 is configured as the default

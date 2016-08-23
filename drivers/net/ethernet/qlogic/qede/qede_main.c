@@ -519,7 +519,7 @@ static netdev_tx_t qede_start_xmit(struct sk_buff *skb,
 
 	/* Get tx-queue context and netdev index */
 	txq_index = skb_get_queue_mapping(skb);
-	WARN_ON(txq_index >= QEDE_TSS_CNT(edev));
+	WARN_ON(txq_index >= QEDE_TSS_COUNT(edev));
 	txq = QEDE_TX_QUEUE(edev, txq_index);
 	netdev_txq = netdev_get_tx_queue(ndev, txq_index);
 
@@ -1203,7 +1203,7 @@ static void qede_gro_receive(struct qede_dev *edev,
 #endif
 
 send_skb:
-	skb_record_rx_queue(skb, fp->rss_id);
+	skb_record_rx_queue(skb, fp->rxq->rxq_id);
 	qede_skb_receive(edev, fp, skb, vlan_tag);
 }
 
@@ -1407,7 +1407,7 @@ static int qede_rx_int(struct qede_fastpath *fp, int budget)
 
 		if (unlikely(cqe_type == ETH_RX_CQE_TYPE_SLOW_PATH)) {
 			edev->ops->eth_cqe_completion(
-					edev->cdev, fp->rss_id,
+					edev->cdev, fp->id,
 					(struct eth_slow_path_rx_cqe *)cqe);
 			goto next_cqe;
 		}
@@ -1578,7 +1578,7 @@ alloc_skb:
 
 		qede_set_skb_csum(skb, csum_flag);
 
-		skb_record_rx_queue(skb, fp->rss_id);
+		skb_record_rx_queue(skb, fp->rxq->rxq_id);
 
 		qede_skb_receive(edev, fp, skb, le16_to_cpu(fp_cqe->vlan_tag));
 next_rx_only:
@@ -1611,10 +1611,12 @@ static int qede_poll(struct napi_struct *napi, int budget)
 	u8 tc;
 
 	for (tc = 0; tc < edev->num_tc; tc++)
-		if (qede_txq_has_work(&fp->txqs[tc]))
+		if (likely(fp->type & QEDE_FASTPATH_TX) &&
+		    qede_txq_has_work(&fp->txqs[tc]))
 			qede_tx_int(edev, &fp->txqs[tc]);
 
-	rx_work_done = qede_has_rx_work(fp->rxq) ?
+	rx_work_done = (likely(fp->type & QEDE_FASTPATH_RX) &&
+			qede_has_rx_work(fp->rxq)) ?
 			qede_rx_int(fp, budget) : 0;
 	if (rx_work_done < budget) {
 		qed_sb_update_sb_idx(fp->sb_info);
@@ -1634,8 +1636,10 @@ static int qede_poll(struct napi_struct *napi, int budget)
 		rmb();
 
 		/* Fall out from the NAPI loop if needed */
-		if (!(qede_has_rx_work(fp->rxq) ||
-		      qede_has_tx_work(fp))) {
+		if (!((likely(fp->type & QEDE_FASTPATH_RX) &&
+		       qede_has_rx_work(fp->rxq)) ||
+		      (likely(fp->type & QEDE_FASTPATH_TX) &&
+		       qede_has_tx_work(fp)))) {
 			napi_complete(napi);
 
 			/* Update and reenable interrupts */
@@ -2349,7 +2353,7 @@ static void qede_free_fp_array(struct qede_dev *edev)
 		struct qede_fastpath *fp;
 		int i;
 
-		for_each_rss(i) {
+		for_each_queue(i) {
 			fp = &edev->fp_array[i];
 
 			kfree(fp->sb_info);
@@ -2358,22 +2362,33 @@ static void qede_free_fp_array(struct qede_dev *edev)
 		}
 		kfree(edev->fp_array);
 	}
-	edev->num_rss = 0;
+
+	edev->num_queues = 0;
+	edev->fp_num_tx = 0;
+	edev->fp_num_rx = 0;
 }
 
 static int qede_alloc_fp_array(struct qede_dev *edev)
 {
+	u8 fp_combined, fp_rx = edev->fp_num_rx;
 	struct qede_fastpath *fp;
 	int i;
 
-	edev->fp_array = kcalloc(QEDE_RSS_CNT(edev),
+	edev->fp_array = kcalloc(QEDE_QUEUE_CNT(edev),
 				 sizeof(*edev->fp_array), GFP_KERNEL);
 	if (!edev->fp_array) {
 		DP_NOTICE(edev, "fp array allocation failed\n");
 		goto err;
 	}
 
-	for_each_rss(i) {
+	fp_combined = QEDE_QUEUE_CNT(edev) - fp_rx - edev->fp_num_tx;
+
+	/* Allocate the FP elements for Rx queues followed by combined and then
+	 * the Tx. This ordering should be maintained so that the respective
+	 * queues (Rx or Tx) will be together in the fastpath array and the
+	 * associated ids will be sequential.
+	 */
+	for_each_queue(i) {
 		fp = &edev->fp_array[i];
 
 		fp->sb_info = kcalloc(1, sizeof(*fp->sb_info), GFP_KERNEL);
@@ -2382,16 +2397,33 @@ static int qede_alloc_fp_array(struct qede_dev *edev)
 			goto err;
 		}
 
-		fp->rxq = kcalloc(1, sizeof(*fp->rxq), GFP_KERNEL);
-		if (!fp->rxq) {
-			DP_NOTICE(edev, "RXQ struct allocation failed\n");
-			goto err;
+		if (fp_rx) {
+			fp->type = QEDE_FASTPATH_RX;
+			fp_rx--;
+		} else if (fp_combined) {
+			fp->type = QEDE_FASTPATH_COMBINED;
+			fp_combined--;
+		} else {
+			fp->type = QEDE_FASTPATH_TX;
 		}
 
-		fp->txqs = kcalloc(edev->num_tc, sizeof(*fp->txqs), GFP_KERNEL);
-		if (!fp->txqs) {
-			DP_NOTICE(edev, "TXQ array allocation failed\n");
-			goto err;
+		if (fp->type & QEDE_FASTPATH_TX) {
+			fp->txqs = kcalloc(edev->num_tc, sizeof(*fp->txqs),
+					   GFP_KERNEL);
+			if (!fp->txqs) {
+				DP_NOTICE(edev,
+					  "TXQ array allocation failed\n");
+				goto err;
+			}
+		}
+
+		if (fp->type & QEDE_FASTPATH_RX) {
+			fp->rxq = kcalloc(1, sizeof(*fp->rxq), GFP_KERNEL);
+			if (!fp->rxq) {
+				DP_NOTICE(edev,
+					  "RXQ struct allocation failed\n");
+				goto err;
+			}
 		}
 	}
 
@@ -2605,8 +2637,8 @@ static int qede_set_num_queues(struct qede_dev *edev)
 	u16 rss_num;
 
 	/* Setup queues according to possible resources*/
-	if (edev->req_rss)
-		rss_num = edev->req_rss;
+	if (edev->req_queues)
+		rss_num = edev->req_queues;
 	else
 		rss_num = netif_get_num_default_rss_queues() *
 			  edev->dev_info.common.num_hwfns;
@@ -2616,11 +2648,15 @@ static int qede_set_num_queues(struct qede_dev *edev)
 	rc = edev->ops->common->set_fp_int(edev->cdev, rss_num);
 	if (rc > 0) {
 		/* Managed to request interrupts for our queues */
-		edev->num_rss = rc;
+		edev->num_queues = rc;
 		DP_INFO(edev, "Managed %d [of %d] RSS queues\n",
-			QEDE_RSS_CNT(edev), rss_num);
+			QEDE_QUEUE_CNT(edev), rss_num);
 		rc = 0;
 	}
+
+	edev->fp_num_tx = edev->req_num_tx;
+	edev->fp_num_rx = edev->req_num_rx;
+
 	return rc;
 }
 
@@ -2912,31 +2948,37 @@ static void qede_free_mem_fp(struct qede_dev *edev, struct qede_fastpath *fp)
 
 	qede_free_mem_sb(edev, fp->sb_info);
 
-	qede_free_mem_rxq(edev, fp->rxq);
+	if (fp->type & QEDE_FASTPATH_RX)
+		qede_free_mem_rxq(edev, fp->rxq);
 
-	for (tc = 0; tc < edev->num_tc; tc++)
-		qede_free_mem_txq(edev, &fp->txqs[tc]);
+	if (fp->type & QEDE_FASTPATH_TX)
+		for (tc = 0; tc < edev->num_tc; tc++)
+			qede_free_mem_txq(edev, &fp->txqs[tc]);
 }
 
 /* This function allocates all memory needed for a single fp (i.e. an entity
- * which contains status block, one rx queue and multiple per-TC tx queues.
+ * which contains status block, one rx queue and/or multiple per-TC tx queues.
  */
 static int qede_alloc_mem_fp(struct qede_dev *edev, struct qede_fastpath *fp)
 {
 	int rc, tc;
 
-	rc = qede_alloc_mem_sb(edev, fp->sb_info, fp->rss_id);
+	rc = qede_alloc_mem_sb(edev, fp->sb_info, fp->id);
 	if (rc)
 		goto err;
 
-	rc = qede_alloc_mem_rxq(edev, fp->rxq);
-	if (rc)
-		goto err;
-
-	for (tc = 0; tc < edev->num_tc; tc++) {
-		rc = qede_alloc_mem_txq(edev, &fp->txqs[tc]);
+	if (fp->type & QEDE_FASTPATH_RX) {
+		rc = qede_alloc_mem_rxq(edev, fp->rxq);
 		if (rc)
 			goto err;
+	}
+
+	if (fp->type & QEDE_FASTPATH_TX) {
+		for (tc = 0; tc < edev->num_tc; tc++) {
+			rc = qede_alloc_mem_txq(edev, &fp->txqs[tc]);
+			if (rc)
+				goto err;
+		}
 	}
 
 	return 0;
@@ -2948,7 +2990,7 @@ static void qede_free_mem_load(struct qede_dev *edev)
 {
 	int i;
 
-	for_each_rss(i) {
+	for_each_queue(i) {
 		struct qede_fastpath *fp = &edev->fp_array[i];
 
 		qede_free_mem_fp(edev, fp);
@@ -2958,16 +3000,16 @@ static void qede_free_mem_load(struct qede_dev *edev)
 /* This function allocates all qede memory at NIC load. */
 static int qede_alloc_mem_load(struct qede_dev *edev)
 {
-	int rc = 0, rss_id;
+	int rc = 0, queue_id;
 
-	for (rss_id = 0; rss_id < QEDE_RSS_CNT(edev); rss_id++) {
-		struct qede_fastpath *fp = &edev->fp_array[rss_id];
+	for (queue_id = 0; queue_id < QEDE_QUEUE_CNT(edev); queue_id++) {
+		struct qede_fastpath *fp = &edev->fp_array[queue_id];
 
 		rc = qede_alloc_mem_fp(edev, fp);
 		if (rc) {
 			DP_ERR(edev,
 			       "Failed to allocate memory for fastpath - rss id = %d\n",
-			       rss_id);
+			       queue_id);
 			qede_free_mem_load(edev);
 			return rc;
 		}
@@ -2979,32 +3021,38 @@ static int qede_alloc_mem_load(struct qede_dev *edev)
 /* This function inits fp content and resets the SB, RXQ and TXQ structures */
 static void qede_init_fp(struct qede_dev *edev)
 {
-	int rss_id, txq_index, tc;
+	int queue_id, rxq_index = 0, txq_index = 0, tc;
 	struct qede_fastpath *fp;
 
-	for_each_rss(rss_id) {
-		fp = &edev->fp_array[rss_id];
+	for_each_queue(queue_id) {
+		fp = &edev->fp_array[queue_id];
 
 		fp->edev = edev;
-		fp->rss_id = rss_id;
+		fp->id = queue_id;
 
 		memset((void *)&fp->napi, 0, sizeof(fp->napi));
 
 		memset((void *)fp->sb_info, 0, sizeof(*fp->sb_info));
 
-		memset((void *)fp->rxq, 0, sizeof(*fp->rxq));
-		fp->rxq->rxq_id = rss_id;
+		if (fp->type & QEDE_FASTPATH_RX) {
+			memset((void *)fp->rxq, 0, sizeof(*fp->rxq));
+			fp->rxq->rxq_id = rxq_index++;
+		}
 
-		memset((void *)fp->txqs, 0, (edev->num_tc * sizeof(*fp->txqs)));
-		for (tc = 0; tc < edev->num_tc; tc++) {
-			txq_index = tc * QEDE_RSS_CNT(edev) + rss_id;
-			fp->txqs[tc].index = txq_index;
-			if (edev->dev_info.is_legacy)
-				fp->txqs[tc].is_legacy = true;
+		if (fp->type & QEDE_FASTPATH_TX) {
+			memset((void *)fp->txqs, 0,
+			       (edev->num_tc * sizeof(*fp->txqs)));
+			for (tc = 0; tc < edev->num_tc; tc++) {
+				fp->txqs[tc].index = txq_index +
+				    tc * QEDE_TSS_COUNT(edev);
+				if (edev->dev_info.is_legacy)
+					fp->txqs[tc].is_legacy = true;
+			}
+			txq_index++;
 		}
 
 		snprintf(fp->name, sizeof(fp->name), "%s-fp-%d",
-			 edev->ndev->name, rss_id);
+			 edev->ndev->name, queue_id);
 	}
 
 	edev->gro_disable = !(edev->ndev->features & NETIF_F_GRO);
@@ -3014,12 +3062,13 @@ static int qede_set_real_num_queues(struct qede_dev *edev)
 {
 	int rc = 0;
 
-	rc = netif_set_real_num_tx_queues(edev->ndev, QEDE_TSS_CNT(edev));
+	rc = netif_set_real_num_tx_queues(edev->ndev, QEDE_TSS_COUNT(edev));
 	if (rc) {
 		DP_NOTICE(edev, "Failed to set real number of Tx queues\n");
 		return rc;
 	}
-	rc = netif_set_real_num_rx_queues(edev->ndev, QEDE_RSS_CNT(edev));
+
+	rc = netif_set_real_num_rx_queues(edev->ndev, QEDE_RSS_COUNT(edev));
 	if (rc) {
 		DP_NOTICE(edev, "Failed to set real number of Rx queues\n");
 		return rc;
@@ -3032,7 +3081,7 @@ static void qede_napi_disable_remove(struct qede_dev *edev)
 {
 	int i;
 
-	for_each_rss(i) {
+	for_each_queue(i) {
 		napi_disable(&edev->fp_array[i].napi);
 
 		netif_napi_del(&edev->fp_array[i].napi);
@@ -3044,7 +3093,7 @@ static void qede_napi_add_enable(struct qede_dev *edev)
 	int i;
 
 	/* Add NAPI objects */
-	for_each_rss(i) {
+	for_each_queue(i) {
 		netif_napi_add(edev->ndev, &edev->fp_array[i].napi,
 			       qede_poll, NAPI_POLL_WEIGHT);
 		napi_enable(&edev->fp_array[i].napi);
@@ -3073,14 +3122,14 @@ static int qede_req_msix_irqs(struct qede_dev *edev)
 	int i, rc;
 
 	/* Sanitize number of interrupts == number of prepared RSS queues */
-	if (QEDE_RSS_CNT(edev) > edev->int_info.msix_cnt) {
+	if (QEDE_QUEUE_CNT(edev) > edev->int_info.msix_cnt) {
 		DP_ERR(edev,
 		       "Interrupt mismatch: %d RSS queues > %d MSI-x vectors\n",
-		       QEDE_RSS_CNT(edev), edev->int_info.msix_cnt);
+		       QEDE_QUEUE_CNT(edev), edev->int_info.msix_cnt);
 		return -EINVAL;
 	}
 
-	for (i = 0; i < QEDE_RSS_CNT(edev); i++) {
+	for (i = 0; i < QEDE_QUEUE_CNT(edev); i++) {
 		rc = request_irq(edev->int_info.msix[i].vector,
 				 qede_msix_fp_int, 0, edev->fp_array[i].name,
 				 &edev->fp_array[i]);
@@ -3125,11 +3174,11 @@ static int qede_setup_irqs(struct qede_dev *edev)
 
 		/* qed should learn receive the RSS ids and callbacks */
 		ops = edev->ops->common;
-		for (i = 0; i < QEDE_RSS_CNT(edev); i++)
+		for (i = 0; i < QEDE_QUEUE_CNT(edev); i++)
 			ops->simd_handler_config(edev->cdev,
 						 &edev->fp_array[i], i,
 						 qede_simd_fp_handler);
-		edev->int_info.used_cnt = QEDE_RSS_CNT(edev);
+		edev->int_info.used_cnt = QEDE_QUEUE_CNT(edev);
 	}
 	return 0;
 }
@@ -3187,45 +3236,53 @@ static int qede_stop_queues(struct qede_dev *edev)
 	}
 
 	/* Flush Tx queues. If needed, request drain from MCP */
-	for_each_rss(i) {
+	for_each_queue(i) {
 		struct qede_fastpath *fp = &edev->fp_array[i];
 
-		for (tc = 0; tc < edev->num_tc; tc++) {
-			struct qede_tx_queue *txq = &fp->txqs[tc];
+		if (fp->type & QEDE_FASTPATH_TX) {
+			for (tc = 0; tc < edev->num_tc; tc++) {
+				struct qede_tx_queue *txq = &fp->txqs[tc];
 
-			rc = qede_drain_txq(edev, txq, true);
-			if (rc)
-				return rc;
+				rc = qede_drain_txq(edev, txq, true);
+				if (rc)
+					return rc;
+			}
 		}
 	}
 
-	/* Stop all Queues in reverse order*/
-	for (i = QEDE_RSS_CNT(edev) - 1; i >= 0; i--) {
+	/* Stop all Queues in reverse order */
+	for (i = QEDE_QUEUE_CNT(edev) - 1; i >= 0; i--) {
 		struct qed_stop_rxq_params rx_params;
 
-		/* Stop the Tx Queue(s)*/
-		for (tc = 0; tc < edev->num_tc; tc++) {
-			struct qed_stop_txq_params tx_params;
+		/* Stop the Tx Queue(s) */
+		if (edev->fp_array[i].type & QEDE_FASTPATH_TX) {
+			for (tc = 0; tc < edev->num_tc; tc++) {
+				struct qed_stop_txq_params tx_params;
+				u8 val;
 
-			tx_params.rss_id = i;
-			tx_params.tx_queue_id = tc * QEDE_RSS_CNT(edev) + i;
-			rc = edev->ops->q_tx_stop(cdev, &tx_params);
-			if (rc) {
-				DP_ERR(edev, "Failed to stop TXQ #%d\n",
-				       tx_params.tx_queue_id);
-				return rc;
+				tx_params.rss_id = i;
+				val = edev->fp_array[i].txqs[tc].index;
+				tx_params.tx_queue_id = val;
+				rc = edev->ops->q_tx_stop(cdev, &tx_params);
+				if (rc) {
+					DP_ERR(edev, "Failed to stop TXQ #%d\n",
+					       tx_params.tx_queue_id);
+					return rc;
+				}
 			}
 		}
 
-		/* Stop the Rx Queue*/
-		memset(&rx_params, 0, sizeof(rx_params));
-		rx_params.rss_id = i;
-		rx_params.rx_queue_id = i;
+		/* Stop the Rx Queue */
+		if (edev->fp_array[i].type & QEDE_FASTPATH_RX) {
+			memset(&rx_params, 0, sizeof(rx_params));
+			rx_params.rss_id = i;
+			rx_params.rx_queue_id = edev->fp_array[i].rxq->rxq_id;
 
-		rc = edev->ops->q_rx_stop(cdev, &rx_params);
-		if (rc) {
-			DP_ERR(edev, "Failed to stop RXQ #%d\n", i);
-			return rc;
+			rc = edev->ops->q_rx_stop(cdev, &rx_params);
+			if (rc) {
+				DP_ERR(edev, "Failed to stop RXQ #%d\n", i);
+				return rc;
+			}
 		}
 	}
 
@@ -3248,7 +3305,7 @@ static int qede_start_queues(struct qede_dev *edev, bool clear_stats)
 	struct qed_start_vport_params start = {0};
 	bool reset_rss_indir = false;
 
-	if (!edev->num_rss) {
+	if (!edev->num_queues) {
 		DP_ERR(edev,
 		       "Cannot update V-VPORT as active as there are no Rx queues\n");
 		return -EINVAL;
@@ -3272,50 +3329,66 @@ static int qede_start_queues(struct qede_dev *edev, bool clear_stats)
 		   "Start vport ramrod passed, vport_id = %d, MTU = %d, vlan_removal_en = %d\n",
 		   start.vport_id, edev->ndev->mtu + 0xe, vlan_removal_en);
 
-	for_each_rss(i) {
+	for_each_queue(i) {
 		struct qede_fastpath *fp = &edev->fp_array[i];
-		dma_addr_t phys_table = fp->rxq->rx_comp_ring.pbl.p_phys_table;
+		dma_addr_t p_phys_table;
+		u32 page_cnt;
 
-		memset(&q_params, 0, sizeof(q_params));
-		q_params.rss_id = i;
-		q_params.queue_id = i;
-		q_params.vport_id = 0;
-		q_params.sb = fp->sb_info->igu_sb_id;
-		q_params.sb_idx = RX_PI;
-
-		rc = edev->ops->q_rx_start(cdev, &q_params,
-					   fp->rxq->rx_buf_size,
-					   fp->rxq->rx_bd_ring.p_phys_addr,
-					   phys_table,
-					   fp->rxq->rx_comp_ring.page_cnt,
-					   &fp->rxq->hw_rxq_prod_addr);
-		if (rc) {
-			DP_ERR(edev, "Start RXQ #%d failed %d\n", i, rc);
-			return rc;
-		}
-
-		fp->rxq->hw_cons_ptr = &fp->sb_info->sb_virt->pi_array[RX_PI];
-
-		qede_update_rx_prod(edev, fp->rxq);
-
-		for (tc = 0; tc < edev->num_tc; tc++) {
-			struct qede_tx_queue *txq = &fp->txqs[tc];
-			int txq_index = tc * QEDE_RSS_CNT(edev) + i;
+		if (fp->type & QEDE_FASTPATH_RX) {
+			struct qede_rx_queue *rxq = fp->rxq;
+			__le16 *val;
 
 			memset(&q_params, 0, sizeof(q_params));
 			q_params.rss_id = i;
-			q_params.queue_id = txq_index;
+			q_params.queue_id = rxq->rxq_id;
+			q_params.vport_id = 0;
+			q_params.sb = fp->sb_info->igu_sb_id;
+			q_params.sb_idx = RX_PI;
+
+			p_phys_table =
+			    qed_chain_get_pbl_phys(&rxq->rx_comp_ring);
+			page_cnt = qed_chain_get_page_cnt(&rxq->rx_comp_ring);
+
+			rc = edev->ops->q_rx_start(cdev, &q_params,
+						   rxq->rx_buf_size,
+						   rxq->rx_bd_ring.p_phys_addr,
+						   p_phys_table,
+						   page_cnt,
+						   &rxq->hw_rxq_prod_addr);
+			if (rc) {
+				DP_ERR(edev, "Start RXQ #%d failed %d\n", i,
+				       rc);
+				return rc;
+			}
+
+			val = &fp->sb_info->sb_virt->pi_array[RX_PI];
+			rxq->hw_cons_ptr = val;
+
+			qede_update_rx_prod(edev, rxq);
+		}
+
+		if (!(fp->type & QEDE_FASTPATH_TX))
+			continue;
+
+		for (tc = 0; tc < edev->num_tc; tc++) {
+			struct qede_tx_queue *txq = &fp->txqs[tc];
+
+			p_phys_table = qed_chain_get_pbl_phys(&txq->tx_pbl);
+			page_cnt = qed_chain_get_page_cnt(&txq->tx_pbl);
+
+			memset(&q_params, 0, sizeof(q_params));
+			q_params.rss_id = i;
+			q_params.queue_id = txq->index;
 			q_params.vport_id = 0;
 			q_params.sb = fp->sb_info->igu_sb_id;
 			q_params.sb_idx = TX_PI(tc);
 
 			rc = edev->ops->q_tx_start(cdev, &q_params,
-						   txq->tx_pbl.pbl.p_phys_table,
-						   txq->tx_pbl.page_cnt,
+						   p_phys_table, page_cnt,
 						   &txq->doorbell_addr);
 			if (rc) {
 				DP_ERR(edev, "Start TXQ #%d failed %d\n",
-				       txq_index, rc);
+				       txq->index, rc);
 				return rc;
 			}
 
@@ -3346,13 +3419,13 @@ static int qede_start_queues(struct qede_dev *edev, bool clear_stats)
 	}
 
 	/* Fill struct with RSS params */
-	if (QEDE_RSS_CNT(edev) > 1) {
+	if (QEDE_RSS_COUNT(edev) > 1) {
 		vport_update_params.update_rss_flg = 1;
 
 		/* Need to validate current RSS config uses valid entries */
 		for (i = 0; i < QED_RSS_IND_TABLE_SIZE; i++) {
 			if (edev->rss_params.rss_ind_table[i] >=
-			    edev->num_rss) {
+			    QEDE_RSS_COUNT(edev)) {
 				reset_rss_indir = true;
 				break;
 			}
@@ -3365,7 +3438,7 @@ static int qede_start_queues(struct qede_dev *edev, bool clear_stats)
 			for (i = 0; i < QED_RSS_IND_TABLE_SIZE; i++) {
 				u16 indir_val;
 
-				val = QEDE_RSS_CNT(edev);
+				val = QEDE_RSS_COUNT(edev);
 				indir_val = ethtool_rxfh_indir_default(i, val);
 				edev->rss_params.rss_ind_table[i] = indir_val;
 			}
@@ -3494,7 +3567,7 @@ static int qede_load(struct qede_dev *edev, enum qede_load_mode mode)
 	if (rc)
 		goto err1;
 	DP_INFO(edev, "Allocated %d RSS queues on %d TC/s\n",
-		QEDE_RSS_CNT(edev), edev->num_tc);
+		QEDE_QUEUE_CNT(edev), edev->num_tc);
 
 	rc = qede_set_real_num_queues(edev);
 	if (rc)
@@ -3547,7 +3620,9 @@ err2:
 err1:
 	edev->ops->common->set_fp_int(edev->cdev, 0);
 	qede_free_fp_array(edev);
-	edev->num_rss = 0;
+	edev->num_queues = 0;
+	edev->fp_num_tx = 0;
+	edev->fp_num_rx = 0;
 err0:
 	return rc;
 }
