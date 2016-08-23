@@ -577,9 +577,10 @@ static int netvsc_connect_vsp(struct hv_device *device)
 	struct netvsc_device *net_device;
 	struct nvsp_message *init_packet;
 	int ndis_version;
-	u32 ver_list[] = { NVSP_PROTOCOL_VERSION_1, NVSP_PROTOCOL_VERSION_2,
+	const u32 ver_list[] = {
+		NVSP_PROTOCOL_VERSION_1, NVSP_PROTOCOL_VERSION_2,
 		NVSP_PROTOCOL_VERSION_4, NVSP_PROTOCOL_VERSION_5 };
-	int i, num_ver = 4; /* number of different NVSP versions */
+	int i;
 
 	net_device = get_outbound_net_device(device);
 	if (!net_device)
@@ -588,7 +589,7 @@ static int netvsc_connect_vsp(struct hv_device *device)
 	init_packet = &net_device->channel_init_pkt;
 
 	/* Negotiate the latest NVSP protocol supported */
-	for (i = num_ver - 1; i >= 0; i--)
+	for (i = ARRAY_SIZE(ver_list) - 1; i >= 0; i--)
 		if (negotiate_nvsp_ver(device, net_device, init_packet,
 				       ver_list[i])  == 0) {
 			net_device->nvsp_version = ver_list[i];
