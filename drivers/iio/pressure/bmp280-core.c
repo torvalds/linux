@@ -970,7 +970,7 @@ int bmp280_common_probe(struct device *dev,
 	data->vdda = devm_regulator_get(dev, "vdda");
 	if (IS_ERR(data->vdda)) {
 		dev_err(dev, "failed to get VDDA regulator\n");
-		ret = PTR_ERR(data->vddd);
+		ret = PTR_ERR(data->vdda);
 		goto out_disable_vddd;
 	}
 	ret = regulator_enable(data->vdda);
@@ -1079,7 +1079,8 @@ EXPORT_SYMBOL(bmp280_common_remove);
 #ifdef CONFIG_PM
 static int bmp280_runtime_suspend(struct device *dev)
 {
-	struct bmp280_data *data = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct bmp280_data *data = iio_priv(indio_dev);
 	int ret;
 
 	ret = regulator_disable(data->vdda);
@@ -1090,7 +1091,8 @@ static int bmp280_runtime_suspend(struct device *dev)
 
 static int bmp280_runtime_resume(struct device *dev)
 {
-	struct bmp280_data *data = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct bmp280_data *data = iio_priv(indio_dev);
 	int ret;
 
 	ret = regulator_enable(data->vddd);
