@@ -11,7 +11,6 @@
  * published by the Free Software Foundation.
  */
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
@@ -1983,7 +1982,3 @@ static int __init nmk_pinctrl_init(void)
 	return platform_driver_register(&nmk_pinctrl_driver);
 }
 core_initcall(nmk_pinctrl_init);
-
-MODULE_AUTHOR("Prafulla WADASKAR and Alessandro Rubini");
-MODULE_DESCRIPTION("Nomadik GPIO Driver");
-MODULE_LICENSE("GPL");
