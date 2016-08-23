@@ -529,7 +529,7 @@ void tipc_bearer_xmit(struct net *net, u32 bearer_id,
 		if (likely(test_bit(0, &b->up) || msg_is_reset(buf_msg(skb))))
 			b->media->send_msg(net, skb, b, dst);
 		else
-			kfree(skb);
+			kfree_skb(skb);
 	}
 	rcu_read_unlock();
 }
