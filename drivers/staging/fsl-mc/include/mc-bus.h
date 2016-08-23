@@ -13,7 +13,6 @@
 
 #include "../include/mc.h"
 #include <linux/mutex.h>
-#include <linux/stringify.h>
 
 struct irq_domain;
 struct msi_domain_info;

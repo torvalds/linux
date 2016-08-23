@@ -17,8 +17,6 @@
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/msi.h>
-#include "../include/mc-sys.h"
-#include "dprc-cmd.h"
 
 /*
  * Generate a unique ID identifying the interrupt (only used within the MSI

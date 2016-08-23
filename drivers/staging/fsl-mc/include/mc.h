@@ -13,7 +13,6 @@
 
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
-#include <linux/list.h>
 #include <linux/interrupt.h>
 #include "../include/dprc.h"
 
