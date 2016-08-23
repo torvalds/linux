@@ -15,7 +15,6 @@
 
 #include <linux/io.h>
 #include <linux/gpio/driver.h>
-#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
@@ -1496,7 +1495,3 @@ chip_error:
 	gpiochip_remove(pctl->chip);
 	return ret;
 }
-
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("MediaTek Pinctrl Driver");
-MODULE_AUTHOR("Hongzhou Yang <hongzhou.yang@mediatek.com>");
