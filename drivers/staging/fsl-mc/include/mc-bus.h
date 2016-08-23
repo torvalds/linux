@@ -150,4 +150,8 @@ int fsl_mc_populate_irq_pool(struct fsl_mc_bus *mc_bus,
 
 void fsl_mc_cleanup_irq_pool(struct fsl_mc_bus *mc_bus);
 
+void fsl_mc_init_all_resource_pools(struct fsl_mc_device *mc_bus_dev);
+
+void fsl_mc_cleanup_all_resource_pools(struct fsl_mc_device *mc_bus_dev);
+
 #endif /* _FSL_MC_MCBUS_H_ */

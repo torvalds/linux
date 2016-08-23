@@ -190,55 +190,6 @@ static void dprc_add_new_devices(struct fsl_mc_device *mc_bus_dev,
 	}
 }
 
-static void dprc_init_all_resource_pools(struct fsl_mc_device *mc_bus_dev)
-{
-	int pool_type;
-	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_bus_dev);
-
-	for (pool_type = 0; pool_type < FSL_MC_NUM_POOL_TYPES; pool_type++) {
-		struct fsl_mc_resource_pool *res_pool =
-		    &mc_bus->resource_pools[pool_type];
-
-		res_pool->type = pool_type;
-		res_pool->max_count = 0;
-		res_pool->free_count = 0;
-		res_pool->mc_bus = mc_bus;
-		INIT_LIST_HEAD(&res_pool->free_list);
-		mutex_init(&res_pool->mutex);
-	}
-}
-
-static void dprc_cleanup_resource_pool(struct fsl_mc_device *mc_bus_dev,
-				       enum fsl_mc_pool_type pool_type)
-{
-	struct fsl_mc_resource *resource;
-	struct fsl_mc_resource *next;
-	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_bus_dev);
-	struct fsl_mc_resource_pool *res_pool =
-					&mc_bus->resource_pools[pool_type];
-	int free_count = 0;
-
-	WARN_ON(res_pool->type != pool_type);
-	WARN_ON(res_pool->free_count != res_pool->max_count);
-
-	list_for_each_entry_safe(resource, next, &res_pool->free_list, node) {
-		free_count++;
-		WARN_ON(resource->type != res_pool->type);
-		WARN_ON(resource->parent_pool != res_pool);
-		devm_kfree(&mc_bus_dev->dev, resource);
-	}
-
-	WARN_ON(free_count != res_pool->free_count);
-}
-
-static void dprc_cleanup_all_resource_pools(struct fsl_mc_device *mc_bus_dev)
-{
-	int pool_type;
-
-	for (pool_type = 0; pool_type < FSL_MC_NUM_POOL_TYPES; pool_type++)
-		dprc_cleanup_resource_pool(mc_bus_dev, pool_type);
-}
-
 /**
  * dprc_scan_objects - Discover objects in a DPRC
  *
@@ -363,7 +314,7 @@ int dprc_scan_container(struct fsl_mc_device *mc_bus_dev)
 	unsigned int irq_count;
 	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_bus_dev);
 
-	dprc_init_all_resource_pools(mc_bus_dev);
+	fsl_mc_init_all_resource_pools(mc_bus_dev);
 
 	/*
 	 * Discover objects in the DPRC:
@@ -390,7 +341,7 @@ int dprc_scan_container(struct fsl_mc_device *mc_bus_dev)
 
 	return 0;
 error:
-	dprc_cleanup_all_resource_pools(mc_bus_dev);
+	fsl_mc_cleanup_all_resource_pools(mc_bus_dev);
 	return error;
 }
 EXPORT_SYMBOL_GPL(dprc_scan_container);
@@ -802,7 +753,7 @@ static int dprc_remove(struct fsl_mc_device *mc_dev)
 		dev_set_msi_domain(&mc_dev->dev, NULL);
 	}
 
-	dprc_cleanup_all_resource_pools(mc_dev);
+	fsl_mc_cleanup_all_resource_pools(mc_dev);
 
 	error = dprc_close(mc_dev->mc_io, 0, mc_dev->mc_handle);
 	if (error < 0)
