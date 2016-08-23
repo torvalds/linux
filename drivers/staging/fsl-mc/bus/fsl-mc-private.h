@@ -41,4 +41,12 @@ int __init its_fsl_mc_msi_init(void);
 
 void its_fsl_mc_msi_cleanup(void);
 
+int __must_check fsl_create_mc_io(struct device *dev,
+				  phys_addr_t mc_portal_phys_addr,
+				  u32 mc_portal_size,
+				  struct fsl_mc_device *dpmcp_dev,
+				  u32 flags, struct fsl_mc_io **new_mc_io);
+
+void fsl_destroy_mc_io(struct fsl_mc_io *mc_io);
+
 #endif /* _FSL_MC_PRIVATE_H_ */

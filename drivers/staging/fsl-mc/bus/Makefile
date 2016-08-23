@@ -9,6 +9,7 @@ obj-$(CONFIG_FSL_MC_BUS) += mc-bus-driver.o
 
 mc-bus-driver-objs := fsl-mc-bus.o \
 		      mc-sys.o \
+		      mc-io.o \
 		      dprc.o \
 		      dpmng.o \
 		      dprc-driver.o \
