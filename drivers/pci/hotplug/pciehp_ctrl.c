@@ -302,20 +302,6 @@ static void handle_button_press_event(struct slot *p_slot)
 /*
  * Note: This function must be called with slot->lock held
  */
-static void handle_surprise_event(struct slot *p_slot)
-{
-	u8 getstatus;
-
-	pciehp_get_adapter_status(p_slot, &getstatus);
-	if (!getstatus)
-		pciehp_queue_power_work(p_slot, DISABLE_REQ);
-	else
-		pciehp_queue_power_work(p_slot, ENABLE_REQ);
-}
-
-/*
- * Note: This function must be called with slot->lock held
- */
 static void handle_link_event(struct slot *p_slot, u32 event)
 {
 	struct controller *ctrl = p_slot->ctrl;
@@ -378,14 +364,14 @@ static void interrupt_event_handler(struct work_struct *work)
 		pciehp_green_led_off(p_slot);
 		break;
 	case INT_PRESENCE_ON:
-		handle_surprise_event(p_slot);
+		pciehp_queue_power_work(p_slot, ENABLE_REQ);
 		break;
 	case INT_PRESENCE_OFF:
 		/*
 		 * Regardless of surprise capability, we need to
 		 * definitely remove a card that has been pulled out!
 		 */
-		handle_surprise_event(p_slot);
+		pciehp_queue_power_work(p_slot, DISABLE_REQ);
 		break;
 	case INT_LINK_UP:
 	case INT_LINK_DOWN:
