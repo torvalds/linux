@@ -381,15 +381,16 @@
 	};
 };
 
+&pcie_phy {
+	status = "disabled";
+};
+
 &pcie0 {
-	assigned-clocks = <&cru SCLK_PCIEPHY_REF>;
-	assigned-clock-parents = <&cru SCLK_PCIEPHY_REF100M>;
-	assigned-clock-rates = <100000000>;
 	ep-gpios = <&gpio3 13 GPIO_ACTIVE_HIGH>;
 	num-lanes = <4>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie_clkreqn>;
-	status = "okay";
+	status = "disabled";
 };
 
 &tcphy0 {
