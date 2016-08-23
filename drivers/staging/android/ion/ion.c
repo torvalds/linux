@@ -383,11 +383,7 @@ static void ion_handle_get(struct ion_handle *handle)
 
 static int ion_handle_put_nolock(struct ion_handle *handle)
 {
-	int ret;
-
-	ret = kref_put(&handle->ref, ion_handle_destroy);
-
-	return ret;
+	return kref_put(&handle->ref, ion_handle_destroy);
 }
 
 static int ion_handle_put(struct ion_handle *handle)
