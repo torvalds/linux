@@ -707,14 +707,74 @@ static void iommu_poll_ppr_log(struct amd_iommu *iommu)
 	}
 }
 
+#ifdef CONFIG_IRQ_REMAP
+static int (*iommu_ga_log_notifier)(u32);
+
+int amd_iommu_register_ga_log_notifier(int (*notifier)(u32))
+{
+	iommu_ga_log_notifier = notifier;
+
+	return 0;
+}
+EXPORT_SYMBOL(amd_iommu_register_ga_log_notifier);
+
+static void iommu_poll_ga_log(struct amd_iommu *iommu)
+{
+	u32 head, tail, cnt = 0;
+
+	if (iommu->ga_log == NULL)
+		return;
+
+	head = readl(iommu->mmio_base + MMIO_GA_HEAD_OFFSET);
+	tail = readl(iommu->mmio_base + MMIO_GA_TAIL_OFFSET);
+
+	while (head != tail) {
+		volatile u64 *raw;
+		u64 log_entry;
+
+		raw = (u64 *)(iommu->ga_log + head);
+		cnt++;
+
+		/* Avoid memcpy function-call overhead */
+		log_entry = *raw;
+
+		/* Update head pointer of hardware ring-buffer */
+		head = (head + GA_ENTRY_SIZE) % GA_LOG_SIZE;
+		writel(head, iommu->mmio_base + MMIO_GA_HEAD_OFFSET);
+
+		/* Handle GA entry */
+		switch (GA_REQ_TYPE(log_entry)) {
+		case GA_GUEST_NR:
+			if (!iommu_ga_log_notifier)
+				break;
+
+			pr_debug("AMD-Vi: %s: devid=%#x, ga_tag=%#x\n",
+				 __func__, GA_DEVID(log_entry),
+				 GA_TAG(log_entry));
+
+			if (iommu_ga_log_notifier(GA_TAG(log_entry)) != 0)
+				pr_err("AMD-Vi: GA log notifier failed.\n");
+			break;
+		default:
+			break;
+		}
+	}
+}
+#endif /* CONFIG_IRQ_REMAP */
+
+#define AMD_IOMMU_INT_MASK	\
+	(MMIO_STATUS_EVT_INT_MASK | \
+	 MMIO_STATUS_PPR_INT_MASK | \
+	 MMIO_STATUS_GALOG_INT_MASK)
+
 irqreturn_t amd_iommu_int_thread(int irq, void *data)
 {
 	struct amd_iommu *iommu = (struct amd_iommu *) data;
 	u32 status = readl(iommu->mmio_base + MMIO_STATUS_OFFSET);
 
-	while (status & (MMIO_STATUS_EVT_INT_MASK | MMIO_STATUS_PPR_INT_MASK)) {
-		/* Enable EVT and PPR interrupts again */
-		writel((MMIO_STATUS_EVT_INT_MASK | MMIO_STATUS_PPR_INT_MASK),
+	while (status & AMD_IOMMU_INT_MASK) {
+		/* Enable EVT and PPR and GA interrupts again */
+		writel(AMD_IOMMU_INT_MASK,
 			iommu->mmio_base + MMIO_STATUS_OFFSET);
 
 		if (status & MMIO_STATUS_EVT_INT_MASK) {
@@ -726,6 +786,13 @@ irqreturn_t amd_iommu_int_thread(int irq, void *data)
 			pr_devel("AMD-Vi: Processing IOMMU PPR Log\n");
 			iommu_poll_ppr_log(iommu);
 		}
+
+#ifdef CONFIG_IRQ_REMAP
+		if (status & MMIO_STATUS_GALOG_INT_MASK) {
+			pr_devel("AMD-Vi: Processing IOMMU GA Log\n");
+			iommu_poll_ga_log(iommu);
+		}
+#endif
 
 		/*
 		 * Hardware bug: ERBT1312
