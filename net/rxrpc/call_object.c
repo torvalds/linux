@@ -564,18 +564,18 @@ void rxrpc_release_calls_on_socket(struct rxrpc_sock *rx)
 
 	read_lock_bh(&rx->call_lock);
 
-	/* mark all the calls as no longer wanting incoming packets */
-	for (p = rb_first(&rx->calls); p; p = rb_next(p)) {
-		call = rb_entry(p, struct rxrpc_call, sock_node);
-		rxrpc_mark_call_released(call);
-	}
-
 	/* kill the not-yet-accepted incoming calls */
 	list_for_each_entry(call, &rx->secureq, accept_link) {
 		rxrpc_mark_call_released(call);
 	}
 
 	list_for_each_entry(call, &rx->acceptq, accept_link) {
+		rxrpc_mark_call_released(call);
+	}
+
+	/* mark all the calls as no longer wanting incoming packets */
+	for (p = rb_first(&rx->calls); p; p = rb_next(p)) {
+		call = rb_entry(p, struct rxrpc_call, sock_node);
 		rxrpc_mark_call_released(call);
 	}
 
