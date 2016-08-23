@@ -156,9 +156,10 @@ not_found:
 void __rxrpc_disconnect_call(struct rxrpc_call *call)
 {
 	struct rxrpc_connection *conn = call->conn;
-	struct rxrpc_channel *chan = &conn->channels[call->channel];
+	struct rxrpc_channel *chan =
+		&conn->channels[call->cid & RXRPC_CHANNELMASK];
 
-	_enter("%d,%d", conn->debug_id, call->channel);
+	_enter("%d,%x", conn->debug_id, call->cid);
 
 	if (rcu_access_pointer(chan->call) == call) {
 		/* Save the result of the call so that we can repeat it if necessary

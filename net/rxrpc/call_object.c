@@ -317,7 +317,6 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 	candidate->conn		= conn;
 	candidate->cid		= sp->hdr.cid;
 	candidate->call_id	= sp->hdr.callNumber;
-	candidate->channel	= chan;
 	candidate->rx_data_post	= 0;
 	candidate->state	= RXRPC_CALL_SERVER_ACCEPTING;
 	candidate->flags	|= (1 << RXRPC_CALL_IS_SERVICE);
@@ -330,7 +329,7 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 	call = rcu_dereference_protected(conn->channels[chan].call,
 					 lockdep_is_held(&conn->channel_lock));
 
-	_debug("channel[%u] is %p", candidate->channel, call);
+	_debug("channel[%u] is %p", candidate->cid & RXRPC_CHANNELMASK, call);
 	if (call && call->call_id == sp->hdr.callNumber) {
 		/* already set; must've been a duplicate packet */
 		_debug("extant call [%d]", call->state);
@@ -677,8 +676,8 @@ static void rxrpc_destroy_call(struct work_struct *work)
 	struct rxrpc_call *call =
 		container_of(work, struct rxrpc_call, destroyer);
 
-	_enter("%p{%d,%d,%p}",
-	       call, atomic_read(&call->usage), call->channel, call->conn);
+	_enter("%p{%d,%x,%p}",
+	       call, atomic_read(&call->usage), call->cid, call->conn);
 
 	ASSERTCMP(call->state, ==, RXRPC_CALL_DEAD);
 

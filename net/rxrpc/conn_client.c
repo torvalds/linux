@@ -280,7 +280,6 @@ attached:
 found_channel:
 	_debug("found chan");
 	call->conn	= conn;
-	call->channel	= chan;
 	call->cid	= conn->proto.cid | chan;
 	call->call_id	= ++conn->channels[chan].call_counter;
 	conn->channels[chan].call_id = call->call_id;

@@ -275,7 +275,7 @@ static int rxkad_secure_packet(struct rxrpc_call *call,
 	memcpy(&iv, call->conn->csum_iv.x, sizeof(iv));
 
 	/* calculate the security checksum */
-	x = call->channel << (32 - RXRPC_CIDSHIFT);
+	x = (call->cid & RXRPC_CHANNELMASK) << (32 - RXRPC_CIDSHIFT);
 	x |= sp->hdr.seq & 0x3fffffff;
 	call->crypto_buf[0] = htonl(sp->hdr.callNumber);
 	call->crypto_buf[1] = htonl(x);
@@ -507,7 +507,7 @@ static int rxkad_verify_packet(struct rxrpc_call *call,
 	memcpy(&iv, call->conn->csum_iv.x, sizeof(iv));
 
 	/* validate the security checksum */
-	x = call->channel << (32 - RXRPC_CIDSHIFT);
+	x = (call->cid & RXRPC_CHANNELMASK) << (32 - RXRPC_CIDSHIFT);
 	x |= sp->hdr.seq & 0x3fffffff;
 	call->crypto_buf[0] = htonl(call->call_id);
 	call->crypto_buf[1] = htonl(x);
