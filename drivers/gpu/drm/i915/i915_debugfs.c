@@ -5465,6 +5465,40 @@ static const struct file_operations i915_dpcd_fops = {
 	.release = single_release,
 };
 
+static int i915_panel_show(struct seq_file *m, void *data)
+{
+	struct drm_connector *connector = m->private;
+	struct intel_dp *intel_dp =
+		enc_to_intel_dp(&intel_attached_encoder(connector)->base);
+
+	if (connector->status != connector_status_connected)
+		return -ENODEV;
+
+	seq_printf(m, "Panel power up delay: %d\n",
+		   intel_dp->panel_power_up_delay);
+	seq_printf(m, "Panel power down delay: %d\n",
+		   intel_dp->panel_power_down_delay);
+	seq_printf(m, "Backlight on delay: %d\n",
+		   intel_dp->backlight_on_delay);
+	seq_printf(m, "Backlight off delay: %d\n",
+		   intel_dp->backlight_off_delay);
+
+	return 0;
+}
+
+static int i915_panel_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, i915_panel_show, inode->i_private);
+}
+
+static const struct file_operations i915_panel_fops = {
+	.owner = THIS_MODULE,
+	.open = i915_panel_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
 /**
  * i915_debugfs_connector_add - add i915 specific connector debugfs files
  * @connector: pointer to a registered drm_connector
@@ -5484,8 +5518,12 @@ int i915_debugfs_connector_add(struct drm_connector *connector)
 
 	if (connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
 	    connector->connector_type == DRM_MODE_CONNECTOR_eDP)
-		debugfs_create_file("i915_dpcd", S_IRUGO, root, connector,
-				    &i915_dpcd_fops);
+		debugfs_create_file("i915_dpcd", S_IRUGO, root,
+				    connector, &i915_dpcd_fops);
+
+	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP)
+		debugfs_create_file("i915_panel_timings", S_IRUGO, root,
+				    connector, &i915_panel_fops);
 
 	return 0;
 }
