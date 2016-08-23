@@ -374,7 +374,6 @@ struct hv_pcibus_device {
 
 	struct list_head children;
 	struct list_head dr_list;
-	struct work_struct wrk;
 
 	struct msi_domain_info msi_info;
 	struct msi_controller msi_chip;
