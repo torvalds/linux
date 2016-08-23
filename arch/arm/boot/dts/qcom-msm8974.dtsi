@@ -31,7 +31,7 @@
 			no-map;
 		};
 
-		adsp@0dc00000 {
+		adsp_region: adsp@0dc00000 {
 			reg = <0x0dc00000 0x1900000>;
 			no-map;
 		};
@@ -241,6 +241,24 @@
 			     <1 4 0xf08>,
 			     <1 1 0xf08>;
 		clock-frequency = <19200000>;
+	};
+
+	adsp-pil {
+		compatible = "qcom,msm8974-adsp-pil";
+
+		interrupts-extended = <&intc 0 162 IRQ_TYPE_EDGE_RISING>,
+				      <&adsp_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
+				      <&adsp_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
+				      <&adsp_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
+				      <&adsp_smp2p_in 3 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "wdog", "fatal", "ready", "handover", "stop-ack";
+
+		cx-supply = <&pm8841_s2>;
+
+		memory-region = <&adsp_region>;
+
+		qcom,smem-states = <&adsp_smp2p_out 0>;
+		qcom,smem-state-names = "stop";
 	};
 
 	smem {
