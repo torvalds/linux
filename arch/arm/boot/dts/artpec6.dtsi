@@ -137,6 +137,13 @@
 		arm,data-latency = <1 1 1>;
 		arm,tag-latency = <1 1 1>;
 		arm,filter-ranges = <0x0 0x80000000>;
+		arm,double-linefill = <1>;
+		arm,double-linefill-incr = <0>;
+		arm,double-linefill-wrap = <0>;
+		prefetch-data = <1>;
+		prefetch-instr = <1>;
+		arm,prefetch-offset = <0>;
+		arm,prefetch-drop = <1>;
 	};
 
 	pmu {
