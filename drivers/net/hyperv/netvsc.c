@@ -164,6 +164,7 @@ static struct netvsc_device *alloc_net_device(void)
 	atomic_set(&net_device->open_cnt, 0);
 	net_device->max_pkt = RNDIS_MAX_PKT_DEFAULT;
 	net_device->pkt_align = RNDIS_PKT_ALIGN_DEFAULT;
+	init_completion(&net_device->channel_init_wait);
 
 	return net_device;
 }
@@ -1441,9 +1442,6 @@ int netvsc_device_add(struct hv_device *device, void *additional_info)
 		return -ENOMEM;
 
 	net_device->ring_size = ring_size;
-
-	/* Initialize the NetVSC channel extension */
-	init_completion(&net_device->channel_init_wait);
 
 	set_per_channel_state(device->channel, net_device->cb_buffer);
 
