@@ -112,7 +112,7 @@ io_mapping_unmap(void __iomem *vaddr)
 #else
 
 #include <linux/uaccess.h>
-#include <asm/pgtable_types.h>
+#include <asm/pgtable.h>
 
 /* Create the io_mapping object*/
 static inline struct io_mapping *
@@ -123,7 +123,7 @@ io_mapping_init_wc(struct io_mapping *iomap,
 	iomap->base = base;
 	iomap->size = size;
 	iomap->iomem = ioremap_wc(base, size);
-	iomap->prot = pgprot_writecombine(PAGE_KERNEL_IO);
+	iomap->prot = pgprot_writecombine(PAGE_KERNEL);
 
 	return iomap;
 }
