@@ -203,6 +203,7 @@ void rxrpc_accept_incoming_calls(struct rxrpc_local *local)
 
 	_net("incoming call skb %p", skb);
 
+	rxrpc_see_skb(skb);
 	sp = rxrpc_skb(skb);
 
 	/* Set up a response packet header in case we need it */

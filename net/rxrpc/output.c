@@ -548,6 +548,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 
 	skb = call->tx_pending;
 	call->tx_pending = NULL;
+	rxrpc_see_skb(skb);
 
 	copied = 0;
 	do {

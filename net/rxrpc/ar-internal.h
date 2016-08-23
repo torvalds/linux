@@ -479,6 +479,8 @@ static inline void rxrpc_abort_call(struct rxrpc_call *call, u32 abort_code)
 	write_unlock_bh(&call->state_lock);
 }
 
+#include <trace/events/rxrpc.h>
+
 /*
  * af_rxrpc.c
  */
@@ -752,6 +754,11 @@ int rxrpc_init_server_conn_security(struct rxrpc_connection *);
  * skbuff.c
  */
 void rxrpc_packet_destructor(struct sk_buff *);
+void rxrpc_new_skb(struct sk_buff *);
+void rxrpc_see_skb(struct sk_buff *);
+void rxrpc_get_skb(struct sk_buff *);
+void rxrpc_free_skb(struct sk_buff *);
+void rxrpc_purge_queue(struct sk_buff_head *);
 
 /*
  * sysctl.c
@@ -899,44 +906,6 @@ do {						\
 
 #endif /* __KDEBUGALL */
 
-/*
- * socket buffer accounting / leak finding
- */
-static inline void __rxrpc_new_skb(struct sk_buff *skb, const char *fn)
-{
-	//_net("new skb %p %s [%d]", skb, fn, atomic_read(&rxrpc_n_skbs));
-	//atomic_inc(&rxrpc_n_skbs);
-}
-
-#define rxrpc_new_skb(skb) __rxrpc_new_skb((skb), __func__)
-
-static inline void __rxrpc_kill_skb(struct sk_buff *skb, const char *fn)
-{
-	//_net("kill skb %p %s [%d]", skb, fn, atomic_read(&rxrpc_n_skbs));
-	//atomic_dec(&rxrpc_n_skbs);
-}
-
-#define rxrpc_kill_skb(skb) __rxrpc_kill_skb((skb), __func__)
-
-static inline void __rxrpc_free_skb(struct sk_buff *skb, const char *fn)
-{
-	if (skb) {
-		CHECK_SLAB_OKAY(&skb->users);
-		//_net("free skb %p %s [%d]",
-		//     skb, fn, atomic_read(&rxrpc_n_skbs));
-		//atomic_dec(&rxrpc_n_skbs);
-		kfree_skb(skb);
-	}
-}
-
-#define rxrpc_free_skb(skb) __rxrpc_free_skb((skb), __func__)
-
-static inline void rxrpc_purge_queue(struct sk_buff_head *list)
-{
-	struct sk_buff *skb;
-	while ((skb = skb_dequeue((list))) != NULL)
-		rxrpc_free_skb(skb);
-}
 
 #define rxrpc_get_call(CALL)				\
 do {							\

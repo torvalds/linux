@@ -407,6 +407,7 @@ static int rxrpc_drain_rx_oos_queue(struct rxrpc_call *call)
 
 	skb = skb_dequeue(&call->rx_oos_queue);
 	if (skb) {
+		rxrpc_see_skb(skb);
 		sp = rxrpc_skb(skb);
 
 		_debug("drain OOS packet %d [%d]",
@@ -427,6 +428,7 @@ static int rxrpc_drain_rx_oos_queue(struct rxrpc_call *call)
 
 			/* find out what the next packet is */
 			skb = skb_peek(&call->rx_oos_queue);
+			rxrpc_see_skb(skb);
 			if (skb)
 				call->rx_first_oos = rxrpc_skb(skb)->hdr.seq;
 			else
@@ -576,6 +578,7 @@ process_further:
 	if (!skb)
 		return -EAGAIN;
 
+	rxrpc_see_skb(skb);
 	_net("deferred skb %p", skb);
 
 	sp = rxrpc_skb(skb);
