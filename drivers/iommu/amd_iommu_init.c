@@ -1893,8 +1893,10 @@ static void iommu_enable_ga(struct amd_iommu *iommu)
 		/* Fall through */
 	case AMD_IOMMU_GUEST_IR_LEGACY_GA:
 		iommu_feature_enable(iommu, CONTROL_GA_EN);
+		iommu->irte_ops = &irte_128_ops;
 		break;
 	default:
+		iommu->irte_ops = &irte_32_ops;
 		break;
 	}
 #endif
