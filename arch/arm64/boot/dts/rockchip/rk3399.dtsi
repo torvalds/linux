@@ -1850,6 +1850,18 @@
 			drive-strength = <13>;
 		};
 
+		pcfg_output_high: pcfg-output-high {
+			output-high;
+		};
+
+		pcfg_output_low: pcfg-output-low {
+			output-low;
+		};
+
+		pcfg_input: pcfg-input {
+			input-enable;
+		};
+
 		emmc {
 			emmc_pwr: emmc-pwr {
 				rockchip,pins =
