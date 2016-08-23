@@ -785,6 +785,7 @@ struct kvm_arch {
 	u32 ldr_mode;
 	struct page *avic_logical_id_table_page;
 	struct page *avic_physical_id_table_page;
+	struct hlist_node hnode;
 
 	bool x2apic_format;
 	bool x2apic_broadcast_quirk_disabled;
