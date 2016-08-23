@@ -957,8 +957,10 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 	ib->ptr[3] = addr >> 32;
 	ib->ptr[4] = PACKET0(mmUVD_GPCOM_VCPU_CMD, 0);
 	ib->ptr[5] = 0;
-	for (i = 6; i < 16; ++i)
-		ib->ptr[i] = PACKET2(0);
+	for (i = 6; i < 16; i += 2) {
+		ib->ptr[i] = PACKET0(mmUVD_NO_OP, 0);
+		ib->ptr[i+1] = 0;
+	}
 	ib->length_dw = 16;
 
 	if (direct) {
