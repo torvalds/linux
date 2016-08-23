@@ -167,10 +167,7 @@ static struct rxrpc_call *rxrpc_alloc_client_call(struct rxrpc_sock *rx,
 	sock_hold(&rx->sk);
 	call->socket = rx;
 	call->rx_data_post = 1;
-
-	call->local = rx->local;
 	call->service_id = srx->srx_service;
-	call->in_clientflag = 0;
 
 	_leave(" = %p", call);
 	return call;
@@ -323,6 +320,7 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 	candidate->channel	= chan;
 	candidate->rx_data_post	= 0;
 	candidate->state	= RXRPC_CALL_SERVER_ACCEPTING;
+	candidate->flags	|= (1 << RXRPC_CALL_IS_SERVICE);
 	if (conn->security_ix > 0)
 		candidate->state = RXRPC_CALL_SERVER_SECURING;
 
@@ -397,10 +395,7 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 	list_add_tail(&call->link, &rxrpc_calls);
 	write_unlock_bh(&rxrpc_call_lock);
 
-	call->local = conn->params.local;
-	call->epoch = conn->proto.epoch;
 	call->service_id = conn->params.service_id;
-	call->in_clientflag = RXRPC_CLIENT_INITIATED;
 
 	_net("CALL incoming %d on CONN %d", call->debug_id, call->conn->debug_id);
 

@@ -344,6 +344,7 @@ enum rxrpc_call_flag {
 	RXRPC_CALL_INIT_ACCEPT,		/* acceptance was initiated */
 	RXRPC_CALL_HAS_USERID,		/* has a user ID attached */
 	RXRPC_CALL_EXPECT_OOS,		/* expect out of sequence packets */
+	RXRPC_CALL_IS_SERVICE,		/* Call is service call */
 };
 
 /*
@@ -431,8 +432,11 @@ struct rxrpc_call {
 	int			error_report;	/* Network error (ICMP/local transport) */
 	int			error;		/* Local error incurred */
 	enum rxrpc_call_state	state : 8;	/* current state of call */
-	int			debug_id;	/* debug ID for printks */
 	u8			channel;	/* connection channel occupied by this call */
+	u16			service_id;	/* service ID */
+	u32			call_id;	/* call ID on connection  */
+	u32			cid;		/* connection ID plus channel index */
+	int			debug_id;	/* debug ID for printks */
 
 	/* transmission-phase ACK management */
 	u8			acks_head;	/* offset into window of first entry */
@@ -460,13 +464,6 @@ struct rxrpc_call {
 	/* received packet records, 1 bit per record */
 #define RXRPC_ACKR_WINDOW_ASZ DIV_ROUND_UP(RXRPC_MAXACKS, BITS_PER_LONG)
 	unsigned long		ackr_window[RXRPC_ACKR_WINDOW_ASZ + 1];
-
-	u8			in_clientflag;	/* Copy of conn->in_clientflag */
-	struct rxrpc_local	*local;		/* Local endpoint. */
-	u32			call_id;	/* call ID on connection  */
-	u32			cid;		/* connection ID plus channel index */
-	u32			epoch;		/* epoch of this connection */
-	u16			service_id;	/* service ID */
 };
 
 /*
@@ -526,6 +523,16 @@ void rxrpc_release_call(struct rxrpc_call *);
 void rxrpc_release_calls_on_socket(struct rxrpc_sock *);
 void __rxrpc_put_call(struct rxrpc_call *);
 void __exit rxrpc_destroy_all_calls(void);
+
+static inline bool rxrpc_is_service_call(const struct rxrpc_call *call)
+{
+	return test_bit(RXRPC_CALL_IS_SERVICE, &call->flags);
+}
+
+static inline bool rxrpc_is_client_call(const struct rxrpc_call *call)
+{
+	return !rxrpc_is_service_call(call);
+}
 
 /*
  * conn_client.c
