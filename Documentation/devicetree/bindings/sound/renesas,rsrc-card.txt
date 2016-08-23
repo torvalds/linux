@@ -1,35 +1,36 @@
-Renesas Sampling Rate Convert Sound Card:
+ASoC simple SCU Sound Card
 
-Renesas Sampling Rate Convert Sound Card specifies audio DAI connections of SoC <-> codec.
+Simple-Card specifies audio DAI connections of SoC <-> codec.
 
 Required properties:
 
-- compatible				: "renesas,rsrc-card"
+- compatible				: "simple-scu-audio-card"
+					  "renesas,rsrc-card"
 
 Optional properties:
 
-- card_name				: User specified audio sound card name, one string
+- simple-audio-card,name		: User specified audio sound card name, one string
 					  property.
-- cpu					: CPU   sub-node
-- codec					: CODEC sub-node
+- simple-audio-card,cpu			: CPU   sub-node
+- simple-audio-card,codec		: CODEC sub-node
 
 Optional subnode properties:
 
-- format				: CPU/CODEC common audio format.
+- simple-audio-card,format		: CPU/CODEC common audio format.
 					  "i2s", "right_j", "left_j" , "dsp_a"
 					  "dsp_b", "ac97", "pdm", "msb", "lsb"
-- frame-master				: Indicates dai-link frame master.
+- simple-audio-card,frame-master	: Indicates dai-link frame master.
 					  phandle to a cpu or codec subnode.
-- bitclock-master			: Indicates dai-link bit clock master.
+- simple-audio-card,bitclock-master	: Indicates dai-link bit clock master.
 					  phandle to a cpu or codec subnode.
-- bitclock-inversion			: bool property. Add this if the
+- simple-audio-card,bitclock-inversion	: bool property. Add this if the
 					  dai-link uses bit clock inversion.
-- frame-inversion			: bool property. Add this if the
+- simple-audio-card,frame-inversion	: bool property. Add this if the
 					  dai-link uses frame clock inversion.
-- convert-rate				: platform specified sampling rate convert
-- convert-channels			: platform specified converted channel size (2 - 8 ch)
-- audio-prefix				: see audio-routing
-- audio-routing				: A list of the connections between audio components.
+- simple-audio-card,convert-rate	: platform specified sampling rate convert
+- simple-audio-card,convert-channels	: platform specified converted channel size (2 - 8 ch)
+- simple-audio-card,prefix		: see audio-routing
+- simple-audio-card,routing		: A list of the connections between audio components.
 					  Each entry is a pair of strings, the first being the connection's sink,
 					  the second being the connection's source. Valid names for sources.
 					  use audio-prefix if some components is using same sink/sources naming.
@@ -54,18 +55,25 @@ Optional CPU/CODEC subnodes properties:
 Example
 
 sound {
-	compatible = "renesas,rsrc-card,lager";
+	compatible = "simple-scu-audio-card";
 
-	card-name = "rsnd-ak4643";
-	format = "left_j";
-	bitclock-master = <&sndcodec>;
-	frame-master = <&sndcodec>;
+	simple-audio-card,name = "rsnd-ak4643";
+	simple-audio-card,format = "left_j";
+	simple-audio-card,format = "left_j";
+	simple-audio-card,bitclock-master = <&sndcodec>;
+	simple-audio-card,frame-master = <&sndcodec>;
 
-	sndcpu: cpu {
+	simple-audio-card,convert-rate = <48000>; /* see audio_clk_a */
+
+	simple-audio-card,prefix = "ak4642";
+	simple-audio-card,routing = "ak4642 Playback", "DAI0 Playback",
+			"DAI0 Capture", "ak4642 Capture";
+
+	sndcpu: simple-audio-card,cpu {
 		sound-dai = <&rcar_sound>;
 	};
 
-	sndcodec: codec {
+	sndcodec: simple-audio-card,codec {
 		sound-dai = <&ak4643>;
 		system-clock-frequency = <11289600>;
 	};

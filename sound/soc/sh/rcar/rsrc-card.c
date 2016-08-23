@@ -30,6 +30,7 @@ struct asoc_simple_card_of_data {
 
 static const struct of_device_id asoc_simple_card_of_match[] = {
 	{ .compatible = "renesas,rsrc-card", },
+	{ .compatible = "simple-scu-audio-card", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, asoc_simple_card_of_match);
@@ -51,6 +52,7 @@ struct asoc_simple_card_priv {
 
 #define DAI	"sound-dai"
 #define CELL	"#sound-dai-cells"
+#define PREFIX	"simple-audio-card,"
 
 static int asoc_simple_card_startup(struct snd_pcm_substream *substream)
 {
@@ -161,10 +163,6 @@ static int asoc_simple_card_parse_links(struct device_node *np,
 
 		asoc_simple_card_canonicalize_cpu(dai_link, is_single_links);
 	} else {
-		const struct asoc_simple_card_of_data *of_data;
-
-		of_data = of_device_get_match_data(dev);
-
 		/* FE is dummy */
 		dai_link->cpu_of_node		= NULL;
 		dai_link->cpu_dai_name		= "snd-soc-dummy-dai";
@@ -188,16 +186,10 @@ static int asoc_simple_card_parse_links(struct device_node *np,
 		if (ret < 0)
 			return ret;
 
-		/* additional name prefix */
-		if (of_data) {
-			priv->codec_conf.of_node = dai_link->codec_of_node;
-			priv->codec_conf.name_prefix = of_data->prefix;
-		} else {
-			snd_soc_of_parse_audio_prefix(&priv->snd_card,
-						      &priv->codec_conf,
-						      dai_link->codec_of_node,
-						      "audio-prefix");
-		}
+		snd_soc_of_parse_audio_prefix(&priv->snd_card,
+					      &priv->codec_conf,
+					      dai_link->codec_of_node,
+					      PREFIX "prefix");
 	}
 
 	ret = asoc_simple_card_canonicalize_dailink(dai_link);
@@ -232,9 +224,9 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 	for_each_child_of_node(node, np) {
 		dai_link = simple_priv_to_link(priv, i);
 
-		if (strcmp(np->name, "codec") == 0) {
+		if (strcmp(np->name, PREFIX "codec") == 0) {
 			ret = asoc_simple_card_parse_daifmt(dev, node, np,
-							    NULL, &daifmt);
+							    PREFIX, &daifmt);
 			if (ret < 0)
 				return ret;
 			break;
@@ -248,7 +240,7 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 		dai_link->dai_fmt = daifmt;
 
 		is_fe = false;
-		if (strcmp(np->name, "cpu") == 0)
+		if (strcmp(np->name, PREFIX "cpu") == 0)
 			is_fe = true;
 
 		ret = asoc_simple_card_parse_links(np, priv, i, is_fe);
@@ -264,7 +256,6 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 			      struct asoc_simple_card_priv *priv,
 			      struct device *dev)
 {
-	const struct asoc_simple_card_of_data *of_data = of_device_get_match_data(dev);
 	struct asoc_simple_dai *props;
 	struct snd_soc_dai_link *links;
 	int ret;
@@ -290,32 +281,28 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 	priv->snd_card.codec_conf		= &priv->codec_conf;
 	priv->snd_card.num_configs		= 1;
 
-	if (of_data) {
-		priv->snd_card.of_dapm_routes		= of_data->routes;
-		priv->snd_card.num_of_dapm_routes	= of_data->num_routes;
-	} else {
-		snd_soc_of_parse_audio_routing(&priv->snd_card,
-					       "audio-routing");
-	}
+	ret = snd_soc_of_parse_audio_routing(&priv->snd_card, PREFIX "routing");
+	if (ret < 0)
+		return ret;
 
 	/* sampling rate convert */
-	of_property_read_u32(node, "convert-rate", &priv->convert_rate);
+	of_property_read_u32(node, PREFIX "convert-rate", &priv->convert_rate);
 
 	/* channels transfer */
-	of_property_read_u32(node, "convert-channels", &priv->convert_channels);
-
-	dev_dbg(dev, "New rsrc-audio-card: %s\n",
-		priv->snd_card.name ? priv->snd_card.name : "");
-	dev_dbg(dev, "SRC : convert_rate     %d\n", priv->convert_rate);
-	dev_dbg(dev, "CTU : convert_channels %d\n", priv->convert_channels);
+	of_property_read_u32(node, PREFIX "convert-channels", &priv->convert_channels);
 
 	ret = asoc_simple_card_dai_link_of(node, priv);
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_card_parse_card_name(&priv->snd_card, "card-");
+	ret = asoc_simple_card_parse_card_name(&priv->snd_card, PREFIX);
 	if (ret < 0)
 		return ret;
+
+	dev_dbg(dev, "New card: %s\n",
+		priv->snd_card.name ? priv->snd_card.name : "");
+	dev_dbg(dev, "convert_rate     %d\n", priv->convert_rate);
+	dev_dbg(dev, "convert_channels %d\n", priv->convert_channels);
 
 	return 0;
 }
@@ -359,7 +346,7 @@ static int asoc_simple_card_remove(struct platform_device *pdev)
 
 static struct platform_driver asoc_simple_card = {
 	.driver = {
-		.name = "renesas-src-audio-card",
+		.name = "simple-scu-audio-card",
 		.of_match_table = asoc_simple_card_of_match,
 	},
 	.probe = asoc_simple_card_probe,
