@@ -9,7 +9,6 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include "../include/mc-bus.h"
 #include <linux/of_device.h>
 #include <linux/of_address.h>
 #include <linux/irqchip/arm-gic-v3.h>
@@ -17,6 +16,7 @@
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/msi.h>
+#include "../include/mc-bus.h"
 
 /*
  * Generate a unique ID identifying the interrupt (only used within the MSI

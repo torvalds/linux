@@ -9,7 +9,6 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include "../include/mc-bus.h"
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_address.h>
@@ -19,8 +18,10 @@
 #include <linux/bitops.h>
 #include <linux/msi.h>
 #include <linux/dma-mapping.h>
+#include "../include/mc-bus.h"
 #include "../include/dpmng.h"
 #include "../include/mc-sys.h"
+
 #include "fsl-mc-private.h"
 #include "dprc-cmd.h"
 

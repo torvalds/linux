@@ -8,13 +8,14 @@
  * warranty of any kind, whether express or implied.
  */
 
+#include <linux/module.h>
+#include <linux/msi.h>
 #include "../include/mc-bus.h"
 #include "../include/mc-sys.h"
-#include <linux/module.h>
 #include "../include/dpbp-cmd.h"
 #include "../include/dpcon-cmd.h"
+
 #include "fsl-mc-private.h"
-#include <linux/msi.h>
 
 #define FSL_MC_IS_ALLOCATABLE(_obj_type) \
 	(strcmp(_obj_type, "dpbp") == 0 || \

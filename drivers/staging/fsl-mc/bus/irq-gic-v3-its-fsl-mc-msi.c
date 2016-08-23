@@ -9,7 +9,6 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include "../include/mc-bus.h"
 #include <linux/of_device.h>
 #include <linux/of_address.h>
 #include <linux/irqchip/arm-gic-v3.h>
@@ -17,6 +16,7 @@
 #include <linux/msi.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
+#include "../include/mc-bus.h"
 
 static struct irq_chip its_msi_irq_chip = {
 	.name = "fsl-mc-bus-msi",
