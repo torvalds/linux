@@ -173,14 +173,24 @@ static void kcm_format_psock(struct kcm_psock *psock, struct seq_file *seq,
 	if (psock->strp.rx_stopped)
 		seq_puts(seq, "RxStop ");
 
-	if (psock->strp.rx_paused)
-		seq_puts(seq, "RxPause ");
-
 	if (psock->tx_kcm)
 		seq_printf(seq, "Rsvd-%d ", psock->tx_kcm->index);
 
-	if (psock->ready_rx_msg)
-		seq_puts(seq, "RdyRx ");
+	if (!psock->strp.rx_paused && !psock->ready_rx_msg) {
+		if (psock->sk->sk_receive_queue.qlen) {
+			if (psock->strp.rx_need_bytes)
+				seq_printf(seq, "RxWait=%u ",
+					   psock->strp.rx_need_bytes);
+			else
+				seq_printf(seq, "RxWait ");
+		}
+	} else  {
+		if (psock->strp.rx_paused)
+			seq_puts(seq, "RxPause ");
+
+		if (psock->ready_rx_msg)
+			seq_puts(seq, "RdyRx ");
+	}
 
 	seq_puts(seq, "\n");
 }
