@@ -34,6 +34,89 @@
 #include "hyperv_net.h"
 
 /*
+ * An API to support in-place processing of incoming VMBUS packets.
+ */
+#define VMBUS_PKT_TRAILER	8
+
+static struct vmpacket_descriptor *
+get_next_pkt_raw(struct vmbus_channel *channel)
+{
+	struct hv_ring_buffer_info *ring_info = &channel->inbound;
+	u32 read_loc = ring_info->priv_read_index;
+	void *ring_buffer = hv_get_ring_buffer(ring_info);
+	struct vmpacket_descriptor *cur_desc;
+	u32 packetlen;
+	u32 dsize = ring_info->ring_datasize;
+	u32 delta = read_loc - ring_info->ring_buffer->read_index;
+	u32 bytes_avail_toread = (hv_get_bytes_to_read(ring_info) - delta);
+
+	if (bytes_avail_toread < sizeof(struct vmpacket_descriptor))
+		return NULL;
+
+	if ((read_loc + sizeof(*cur_desc)) > dsize)
+		return NULL;
+
+	cur_desc = ring_buffer + read_loc;
+	packetlen = cur_desc->len8 << 3;
+
+	/*
+	 * If the packet under consideration is wrapping around,
+	 * return failure.
+	 */
+	if ((read_loc + packetlen + VMBUS_PKT_TRAILER) > (dsize - 1))
+		return NULL;
+
+	return cur_desc;
+}
+
+/*
+ * A helper function to step through packets "in-place"
+ * This API is to be called after each successful call
+ * get_next_pkt_raw().
+ */
+static void put_pkt_raw(struct vmbus_channel *channel,
+			struct vmpacket_descriptor *desc)
+{
+	struct hv_ring_buffer_info *ring_info = &channel->inbound;
+	u32 read_loc = ring_info->priv_read_index;
+	u32 packetlen = desc->len8 << 3;
+	u32 dsize = ring_info->ring_datasize;
+
+	BUG_ON((read_loc + packetlen + VMBUS_PKT_TRAILER) > dsize);
+
+	/*
+	 * Include the packet trailer.
+	 */
+	ring_info->priv_read_index += packetlen + VMBUS_PKT_TRAILER;
+}
+
+/*
+ * This call commits the read index and potentially signals the host.
+ * Here is the pattern for using the "in-place" consumption APIs:
+ *
+ * while (get_next_pkt_raw() {
+ *	process the packet "in-place";
+ *	put_pkt_raw();
+ * }
+ * if (packets processed in place)
+ *	commit_rd_index();
+ */
+static void commit_rd_index(struct vmbus_channel *channel)
+{
+	struct hv_ring_buffer_info *ring_info = &channel->inbound;
+	/*
+	 * Make sure all reads are done before we update the read index since
+	 * the writer may start writing to the read area once the read index
+	 * is updated.
+	 */
+	virt_rmb();
+	ring_info->ring_buffer->read_index = ring_info->priv_read_index;
+
+	if (hv_need_to_signal_on_read(ring_info))
+		vmbus_set_event(channel);
+}
+
+/*
  * Switch the data path from the synthetic interface to the VF
  * interface.
  */
@@ -749,7 +832,7 @@ static u32 netvsc_copy_to_send_buf(struct netvsc_device *net_device,
 	return msg_size;
 }
 
-static inline int netvsc_send_pkt(
+static int netvsc_send_pkt(
 	struct hv_device *device,
 	struct hv_netvsc_packet *packet,
 	struct netvsc_device *net_device,
