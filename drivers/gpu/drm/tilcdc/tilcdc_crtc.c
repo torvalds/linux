@@ -80,7 +80,7 @@ static void set_scanout(struct drm_crtc *crtc, struct drm_framebuffer *fb)
 	end = start + (crtc->mode.vdisplay * fb->pitches[0]);
 
 	tilcdc_write(dev, LCDC_DMA_FB_BASE_ADDR_0_REG, start);
-	tilcdc_write(dev, LCDC_DMA_FB_CEILING_ADDR_0_REG, end);
+	tilcdc_write(dev, LCDC_DMA_FB_CEILING_ADDR_0_REG, end - 1);
 
 	if (tilcdc_crtc->curr_fb)
 		drm_flip_work_queue(&tilcdc_crtc->unref_work,
