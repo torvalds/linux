@@ -22,6 +22,20 @@
 
 #include <linux/types.h>
 
+/*
+ * This is mainly used to communicate information back-and-forth
+ * between SVM and IOMMU for setting up and tearing down posted
+ * interrupt
+ */
+struct amd_iommu_pi_data {
+	u32 ga_tag;
+	u32 prev_ga_tag;
+	u64 base;
+	bool is_guest_mode;
+	struct vcpu_data *vcpu_data;
+	void *ir_data;
+};
+
 #ifdef CONFIG_AMD_IOMMU
 
 struct task_struct;
