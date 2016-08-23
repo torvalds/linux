@@ -39,6 +39,8 @@
 #include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/device.h>
+#include <linux/io.h>
+
 #include "dpmcp.h"
 
 /**

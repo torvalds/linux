@@ -18,6 +18,7 @@
 #include <linux/limits.h>
 #include <linux/bitops.h>
 #include <linux/msi.h>
+#include <linux/dma-mapping.h>
 #include "../include/dpmng.h"
 #include "../include/mc-sys.h"
 #include "fsl-mc-private.h"
