@@ -734,7 +734,6 @@ bool batadv_tt_local_add(struct net_device *soft_iface, const u8 *addr,
 	if (batadv_is_wifi_netdev(in_dev))
 		tt_local->common.flags |= BATADV_TT_CLIENT_WIFI;
 	kref_init(&tt_local->common.refcount);
-	kref_get(&tt_local->common.refcount);
 	tt_local->last_seen = jiffies;
 	tt_local->common.added_at = tt_local->last_seen;
 	tt_local->vlan = vlan;
@@ -746,6 +745,7 @@ bool batadv_tt_local_add(struct net_device *soft_iface, const u8 *addr,
 	    is_multicast_ether_addr(addr))
 		tt_local->common.flags |= BATADV_TT_CLIENT_NOPURGE;
 
+	kref_get(&tt_local->common.refcount);
 	hash_added = batadv_hash_add(bat_priv->tt.local_hash, batadv_compare_tt,
 				     batadv_choose_tt, &tt_local->common,
 				     &tt_local->common.hash_entry);
@@ -1047,6 +1047,7 @@ container_register:
 	kfree(tt_data);
 }
 
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 int batadv_tt_local_seq_print_text(struct seq_file *seq, void *offset)
 {
 	struct net_device *net_dev = (struct net_device *)seq->private;
@@ -1114,6 +1115,7 @@ out:
 		batadv_hardif_put(primary_if);
 	return 0;
 }
+#endif
 
 /**
  * batadv_tt_local_dump_entry - Dump one TT local entry into a message
@@ -1567,9 +1569,9 @@ batadv_tt_global_orig_entry_add(struct batadv_tt_global_entry *tt_global,
 	orig_entry->orig_node = orig_node;
 	orig_entry->ttvn = ttvn;
 	kref_init(&orig_entry->refcount);
-	kref_get(&orig_entry->refcount);
 
 	spin_lock_bh(&tt_global->list_lock);
+	kref_get(&orig_entry->refcount);
 	hlist_add_head_rcu(&orig_entry->list,
 			   &tt_global->orig_list);
 	spin_unlock_bh(&tt_global->list_lock);
@@ -1645,13 +1647,13 @@ static bool batadv_tt_global_add(struct batadv_priv *bat_priv,
 		if (flags & BATADV_TT_CLIENT_ROAM)
 			tt_global_entry->roam_at = jiffies;
 		kref_init(&common->refcount);
-		kref_get(&common->refcount);
 		common->added_at = jiffies;
 
 		INIT_HLIST_HEAD(&tt_global_entry->orig_list);
 		atomic_set(&tt_global_entry->orig_list_count, 0);
 		spin_lock_init(&tt_global_entry->list_lock);
 
+		kref_get(&common->refcount);
 		hash_added = batadv_hash_add(bat_priv->tt.global_hash,
 					     batadv_compare_tt,
 					     batadv_choose_tt, common,
@@ -1796,6 +1798,7 @@ batadv_transtable_best_orig(struct batadv_priv *bat_priv,
 	return best_entry;
 }
 
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 /**
  * batadv_tt_global_print_entry - print all orig nodes who announce the address
  *  for this global entry
@@ -1919,6 +1922,7 @@ out:
 		batadv_hardif_put(primary_if);
 	return 0;
 }
+#endif
 
 /**
  * batadv_tt_global_dump_subentry - Dump all TT local entries into a message

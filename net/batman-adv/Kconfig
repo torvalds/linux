@@ -73,10 +73,21 @@ config BATMAN_ADV_MCAST
 	  reduce the air overhead while improving the reliability of
 	  multicast messages.
 
-config BATMAN_ADV_DEBUG
-	bool "B.A.T.M.A.N. debugging"
+config BATMAN_ADV_DEBUGFS
+	bool "batman-adv debugfs entries"
 	depends on BATMAN_ADV
 	depends on DEBUG_FS
+	default y
+	help
+	  Enable this to export routing related debug tables via debugfs.
+	  The information for each soft-interface and used hard-interface can be
+	  found under batman_adv/
+
+	  If unsure, say Y.
+
+config BATMAN_ADV_DEBUG
+	bool "B.A.T.M.A.N. debugging"
+	depends on BATMAN_ADV_DEBUGFS
 	help
 	  This is an option for use by developers; most people should
 	  say N here. This enables compilation of support for

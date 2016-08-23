@@ -324,17 +324,18 @@ batadv_iv_ogm_orig_get(struct batadv_priv *bat_priv, const u8 *addr)
 	if (!orig_node->bat_iv.bcast_own_sum)
 		goto free_orig_node;
 
+	kref_get(&orig_node->refcount);
 	hash_added = batadv_hash_add(bat_priv->orig_hash, batadv_compare_orig,
 				     batadv_choose_orig, orig_node,
 				     &orig_node->hash_entry);
 	if (hash_added != 0)
-		goto free_orig_node;
+		goto free_orig_node_hash;
 
 	return orig_node;
 
-free_orig_node:
-	/* free twice, as batadv_orig_node_new sets refcount to 2 */
+free_orig_node_hash:
 	batadv_orig_node_put(orig_node);
+free_orig_node:
 	batadv_orig_node_put(orig_node);
 
 	return NULL;
@@ -1854,6 +1855,7 @@ static int batadv_iv_ogm_receive(struct sk_buff *skb,
 	return NET_RX_SUCCESS;
 }
 
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 /**
  * batadv_iv_ogm_orig_print_neigh - print neighbors for the originator table
  * @orig_node: the orig_node for which the neighbors are printed
@@ -1951,6 +1953,7 @@ next:
 	if (batman_count == 0)
 		seq_puts(seq, "No batman nodes in range ...\n");
 }
+#endif
 
 /**
  * batadv_iv_ogm_neigh_get_tq_avg - Get the TQ average for a neighbour on a
@@ -2181,6 +2184,7 @@ batadv_iv_ogm_orig_dump(struct sk_buff *msg, struct netlink_callback *cb,
 	cb->args[2] = sub;
 }
 
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 /**
  * batadv_iv_hardif_neigh_print - print a single hop neighbour node
  * @seq: neighbour table seq_file struct
@@ -2231,6 +2235,7 @@ static void batadv_iv_neigh_print(struct batadv_priv *bat_priv,
 	if (batman_count == 0)
 		seq_puts(seq, "No batman nodes in range ...\n");
 }
+#endif
 
 /**
  * batadv_iv_ogm_neigh_diff - calculate tq difference of two neighbors
@@ -2617,6 +2622,7 @@ out:
 	return ret;
 }
 
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 /* fails if orig_node has no router */
 static int batadv_iv_gw_write_buffer_text(struct batadv_priv *bat_priv,
 					  struct seq_file *seq,
@@ -2680,6 +2686,7 @@ static void batadv_iv_gw_print(struct batadv_priv *bat_priv,
 	if (gw_count == 0)
 		seq_puts(seq, "No gateways in range ...\n");
 }
+#endif
 
 /**
  * batadv_iv_gw_dump_entry - Dump a gateway into a message
@@ -2797,11 +2804,15 @@ static struct batadv_algo_ops batadv_batman_iv __read_mostly = {
 	.neigh = {
 		.cmp = batadv_iv_ogm_neigh_cmp,
 		.is_similar_or_better = batadv_iv_ogm_neigh_is_sob,
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 		.print = batadv_iv_neigh_print,
+#endif
 		.dump = batadv_iv_ogm_neigh_dump,
 	},
 	.orig = {
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 		.print = batadv_iv_ogm_orig_print,
+#endif
 		.dump = batadv_iv_ogm_orig_dump,
 		.free = batadv_iv_ogm_orig_free,
 		.add_if = batadv_iv_ogm_orig_add_if,
@@ -2810,7 +2821,9 @@ static struct batadv_algo_ops batadv_batman_iv __read_mostly = {
 	.gw = {
 		.get_best_gw_node = batadv_iv_gw_get_best_gw_node,
 		.is_eligible = batadv_iv_gw_is_eligible,
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 		.print = batadv_iv_gw_print,
+#endif
 		.dump = batadv_iv_gw_dump,
 	},
 };

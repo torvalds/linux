@@ -526,11 +526,9 @@ batadv_bla_get_backbone_gw(struct batadv_priv *bat_priv, u8 *orig,
 	atomic_set(&entry->wait_periods, 0);
 	ether_addr_copy(entry->orig, orig);
 	INIT_WORK(&entry->report_work, batadv_bla_loopdetect_report);
-
-	/* one for the hash, one for returning */
 	kref_init(&entry->refcount);
-	kref_get(&entry->refcount);
 
+	kref_get(&entry->refcount);
 	hash_added = batadv_hash_add(bat_priv->bla.backbone_hash,
 				     batadv_compare_backbone_gw,
 				     batadv_choose_backbone_gw, entry,
@@ -718,12 +716,13 @@ static void batadv_bla_add_claim(struct batadv_priv *bat_priv,
 		claim->lasttime = jiffies;
 		kref_get(&backbone_gw->refcount);
 		claim->backbone_gw = backbone_gw;
-
 		kref_init(&claim->refcount);
-		kref_get(&claim->refcount);
+
 		batadv_dbg(BATADV_DBG_BLA, bat_priv,
 			   "bla_add_claim(): adding new entry %pM, vid %d to hash ...\n",
 			   mac, BATADV_PRINT_VID(vid));
+
+		kref_get(&claim->refcount);
 		hash_added = batadv_hash_add(bat_priv->bla.claim_hash,
 					     batadv_compare_claim,
 					     batadv_choose_claim, claim,
@@ -1997,6 +1996,7 @@ out:
 	return ret;
 }
 
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 /**
  * batadv_bla_claim_table_seq_print_text - print the claim table in a seq file
  * @seq: seq file to print on
@@ -2057,6 +2057,7 @@ out:
 		batadv_hardif_put(primary_if);
 	return 0;
 }
+#endif
 
 /**
  * batadv_bla_claim_dump_entry - dump one entry of the claim table
@@ -2220,6 +2221,7 @@ out:
 	return ret;
 }
 
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 /**
  * batadv_bla_backbone_table_seq_print_text - print the backbone table in a seq
  *  file
@@ -2283,6 +2285,7 @@ out:
 		batadv_hardif_put(primary_if);
 	return 0;
 }
+#endif
 
 /**
  * batadv_bla_backbone_dump_entry - dump one entry of the backbone table

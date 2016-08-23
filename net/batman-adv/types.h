@@ -1431,7 +1431,9 @@ struct batadv_algo_neigh_ops {
 				     struct batadv_hard_iface *if_outgoing1,
 				     struct batadv_neigh_node *neigh2,
 				     struct batadv_hard_iface *if_outgoing2);
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 	void (*print)(struct batadv_priv *priv, struct seq_file *seq);
+#endif
 	void (*dump)(struct sk_buff *msg, struct netlink_callback *cb,
 		     struct batadv_priv *priv,
 		     struct batadv_hard_iface *hard_iface);
@@ -1453,8 +1455,10 @@ struct batadv_algo_orig_ops {
 	int (*add_if)(struct batadv_orig_node *orig_node, int max_if_num);
 	int (*del_if)(struct batadv_orig_node *orig_node, int max_if_num,
 		      int del_if_num);
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 	void (*print)(struct batadv_priv *priv, struct seq_file *seq,
 		      struct batadv_hard_iface *hard_iface);
+#endif
 	void (*dump)(struct sk_buff *msg, struct netlink_callback *cb,
 		     struct batadv_priv *priv,
 		     struct batadv_hard_iface *hard_iface);
@@ -1480,7 +1484,9 @@ struct batadv_algo_gw_ops {
 	bool (*is_eligible)(struct batadv_priv *bat_priv,
 			    struct batadv_orig_node *curr_gw_orig,
 			    struct batadv_orig_node *orig_node);
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 	void (*print)(struct batadv_priv *bat_priv, struct seq_file *seq);
+#endif
 	void (*dump)(struct sk_buff *msg, struct netlink_callback *cb,
 		     struct batadv_priv *priv);
 };

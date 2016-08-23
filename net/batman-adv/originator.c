@@ -133,9 +133,9 @@ batadv_orig_node_vlan_new(struct batadv_orig_node *orig_node,
 		goto out;
 
 	kref_init(&vlan->refcount);
-	kref_get(&vlan->refcount);
 	vlan->vid = vid;
 
+	kref_get(&vlan->refcount);
 	hlist_add_head_rcu(&vlan->list, &orig_node->vlan_list);
 
 out:
@@ -386,6 +386,7 @@ batadv_orig_ifinfo_new(struct batadv_orig_node *orig_node,
 	orig_ifinfo->if_outgoing = if_outgoing;
 	INIT_HLIST_NODE(&orig_ifinfo->list);
 	kref_init(&orig_ifinfo->refcount);
+
 	kref_get(&orig_ifinfo->refcount);
 	hlist_add_head_rcu(&orig_ifinfo->list,
 			   &orig_node->ifinfo_list);
@@ -459,9 +460,9 @@ batadv_neigh_ifinfo_new(struct batadv_neigh_node *neigh,
 
 	INIT_HLIST_NODE(&neigh_ifinfo->list);
 	kref_init(&neigh_ifinfo->refcount);
-	kref_get(&neigh_ifinfo->refcount);
 	neigh_ifinfo->if_outgoing = if_outgoing;
 
+	kref_get(&neigh_ifinfo->refcount);
 	hlist_add_head_rcu(&neigh_ifinfo->list, &neigh->ifinfo_list);
 
 out:
@@ -653,8 +654,8 @@ batadv_neigh_node_create(struct batadv_orig_node *orig_node,
 
 	/* extra reference for return */
 	kref_init(&neigh_node->refcount);
-	kref_get(&neigh_node->refcount);
 
+	kref_get(&neigh_node->refcount);
 	hlist_add_head_rcu(&neigh_node->list, &orig_node->neigh_list);
 
 	batadv_dbg(BATADV_DBG_BATMAN, orig_node->bat_priv,
@@ -692,6 +693,7 @@ batadv_neigh_node_get_or_create(struct batadv_orig_node *orig_node,
 	return batadv_neigh_node_create(orig_node, hard_iface, neigh_addr);
 }
 
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 /**
  * batadv_hardif_neigh_seq_print_text - print the single hop neighbour list
  * @seq: neighbour table seq_file struct
@@ -725,6 +727,7 @@ int batadv_hardif_neigh_seq_print_text(struct seq_file *seq, void *offset)
 	bat_priv->algo_ops->neigh.print(bat_priv, seq);
 	return 0;
 }
+#endif
 
 /**
  * batadv_hardif_neigh_dump - Dump to netlink the neighbor infos for a specific
@@ -988,7 +991,6 @@ struct batadv_orig_node *batadv_orig_node_new(struct batadv_priv *bat_priv,
 
 	/* extra reference for return */
 	kref_init(&orig_node->refcount);
-	kref_get(&orig_node->refcount);
 
 	orig_node->bat_priv = bat_priv;
 	ether_addr_copy(orig_node->orig, addr);
@@ -1339,6 +1341,7 @@ void batadv_purge_orig_ref(struct batadv_priv *bat_priv)
 	_batadv_purge_orig(bat_priv);
 }
 
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 int batadv_orig_seq_print_text(struct seq_file *seq, void *offset)
 {
 	struct net_device *net_dev = (struct net_device *)seq->private;
@@ -1412,6 +1415,7 @@ out:
 		batadv_hardif_put(hard_iface);
 	return 0;
 }
+#endif
 
 /**
  * batadv_orig_dump - Dump to netlink the originator infos for a specific
