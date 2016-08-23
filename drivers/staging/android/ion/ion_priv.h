@@ -29,8 +29,6 @@
 
 #include "ion.h"
 
-struct ion_buffer *ion_handle_buffer(struct ion_handle *handle);
-
 /**
  * struct ion_buffer - metadata for a particular buffer
  * @ref:		reference count
