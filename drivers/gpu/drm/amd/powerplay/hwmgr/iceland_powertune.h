@@ -49,20 +49,6 @@ struct iceland_pt_config_reg {
 	enum iceland_pt_config_reg_type       type;
 };
 
-struct iceland_pt_defaults
-{
-	uint8_t   svi_load_line_en;
-	uint8_t   svi_load_line_vddc;
-	uint8_t   tdc_vddc_throttle_release_limit_perc;
-	uint8_t   tdc_mawt;
-	uint8_t   tdc_waterfall_ctl;
-	uint8_t   dte_ambient_temp_base;
-	uint32_t  display_cac;
-	uint32_t  bamp_temp_gradient;
-	uint16_t  bapmti_r[SMU71_DTE_ITERATIONS * SMU71_DTE_SOURCES * SMU71_DTE_SINKS];
-	uint16_t  bapmti_rc[SMU71_DTE_ITERATIONS * SMU71_DTE_SOURCES * SMU71_DTE_SINKS];
-};
-
 void iceland_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr);
 int iceland_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr);
 int iceland_populate_pm_fuses(struct pp_hwmgr *hwmgr);

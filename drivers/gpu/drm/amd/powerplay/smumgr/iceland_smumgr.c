@@ -35,6 +35,7 @@
 #include "smu/smu_7_1_1_d.h"
 #include "smu/smu_7_1_1_sh_mask.h"
 #include "cgs_common.h"
+#include "iceland_smc.h"
 
 #define ICELAND_SMC_SIZE               0x20000
 
@@ -199,7 +200,15 @@ static int iceland_start_smu(struct pp_smumgr *smumgr)
  */
 static int iceland_smu_init(struct pp_smumgr *smumgr)
 {
-	return smu7_init(smumgr);
+	int i;
+	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(smumgr->backend);
+	if (smu7_init(smumgr))
+		return -EINVAL;
+
+	for (i = 0; i < SMU71_MAX_LEVELS_GRAPHICS; i++)
+		smu_data->activity_target[i] = 30;
+
+	return 0;
 }
 
 static const struct pp_smumgr_func iceland_smu_funcs = {
@@ -213,6 +222,16 @@ static const struct pp_smumgr_func iceland_smu_funcs = {
 	.send_msg_to_smc_with_parameter = &smu7_send_msg_to_smc_with_parameter,
 	.download_pptable_settings = NULL,
 	.upload_pptable_settings = NULL,
+	.get_offsetof = iceland_get_offsetof,
+	.process_firmware_header = iceland_process_firmware_header,
+	.init_smc_table = iceland_init_smc_table,
+	.update_sclk_threshold = iceland_update_sclk_threshold,
+	.thermal_setup_fan_table = iceland_thermal_setup_fan_table,
+	.populate_all_graphic_levels = iceland_populate_all_graphic_levels,
+	.populate_all_memory_levels = iceland_populate_all_memory_levels,
+	.get_mac_definition = iceland_get_mac_definition,
+	.initialize_mc_reg_table = iceland_initialize_mc_reg_table,
+	.is_dpm_running = iceland_is_dpm_running,
 };
 
 int iceland_smum_init(struct pp_smumgr *smumgr)
