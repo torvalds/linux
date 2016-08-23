@@ -1,7 +1,7 @@
 /*
  * This file is part of the Chelsio T4 Ethernet driver for Linux.
  *
- * Copyright (c) 2003-2014 Chelsio Communications, Inc. All rights reserved.
+ * Copyright (c) 2003-2016 Chelsio Communications, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -76,6 +76,7 @@
 #include "cxgb4_debugfs.h"
 #include "clip_tbl.h"
 #include "l2t.h"
+#include "sched.h"
 
 char cxgb4_driver_name[] = KBUILD_MODNAME;
 
@@ -3139,6 +3140,87 @@ static void cxgb_netpoll(struct net_device *dev)
 }
 #endif
 
+static int cxgb_set_tx_maxrate(struct net_device *dev, int index, u32 rate)
+{
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = pi->adapter;
+	struct sched_class *e;
+	struct ch_sched_params p;
+	struct ch_sched_queue qe;
+	u32 req_rate;
+	int err = 0;
+
+	if (!can_sched(dev))
+		return -ENOTSUPP;
+
+	if (index < 0 || index > pi->nqsets - 1)
+		return -EINVAL;
+
+	if (!(adap->flags & FULL_INIT_DONE)) {
+		dev_err(adap->pdev_dev,
+			"Failed to rate limit on queue %d. Link Down?\n",
+			index);
+		return -EINVAL;
+	}
+
+	/* Convert from Mbps to Kbps */
+	req_rate = rate << 10;
+
+	/* Max rate is 10 Gbps */
+	if (req_rate >= SCHED_MAX_RATE_KBPS) {
+		dev_err(adap->pdev_dev,
+			"Invalid rate %u Mbps, Max rate is %u Gbps\n",
+			rate, SCHED_MAX_RATE_KBPS);
+		return -ERANGE;
+	}
+
+	/* First unbind the queue from any existing class */
+	memset(&qe, 0, sizeof(qe));
+	qe.queue = index;
+	qe.class = SCHED_CLS_NONE;
+
+	err = cxgb4_sched_class_unbind(dev, (void *)(&qe), SCHED_QUEUE);
+	if (err) {
+		dev_err(adap->pdev_dev,
+			"Unbinding Queue %d on port %d fail. Err: %d\n",
+			index, pi->port_id, err);
+		return err;
+	}
+
+	/* Queue already unbound */
+	if (!req_rate)
+		return 0;
+
+	/* Fetch any available unused or matching scheduling class */
+	memset(&p, 0, sizeof(p));
+	p.type = SCHED_CLASS_TYPE_PACKET;
+	p.u.params.level    = SCHED_CLASS_LEVEL_CL_RL;
+	p.u.params.mode     = SCHED_CLASS_MODE_CLASS;
+	p.u.params.rateunit = SCHED_CLASS_RATEUNIT_BITS;
+	p.u.params.ratemode = SCHED_CLASS_RATEMODE_ABS;
+	p.u.params.channel  = pi->tx_chan;
+	p.u.params.class    = SCHED_CLS_NONE;
+	p.u.params.minrate  = 0;
+	p.u.params.maxrate  = req_rate;
+	p.u.params.weight   = 0;
+	p.u.params.pktsize  = dev->mtu;
+
+	e = cxgb4_sched_class_alloc(dev, &p);
+	if (!e)
+		return -ENOMEM;
+
+	/* Bind the queue to a scheduling class */
+	memset(&qe, 0, sizeof(qe));
+	qe.queue = index;
+	qe.class = e->idx;
+
+	err = cxgb4_sched_class_bind(dev, (void *)(&qe), SCHED_QUEUE);
+	if (err)
+		dev_err(adap->pdev_dev,
+			"Queue rate limiting failed. Err: %d\n", err);
+	return err;
+}
+
 static const struct net_device_ops cxgb4_netdev_ops = {
 	.ndo_open             = cxgb_open,
 	.ndo_stop             = cxgb_close,
@@ -3161,6 +3243,7 @@ static const struct net_device_ops cxgb4_netdev_ops = {
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	.ndo_busy_poll        = cxgb_busy_poll,
 #endif
+	.ndo_set_tx_maxrate   = cxgb_set_tx_maxrate,
 };
 
 static const struct net_device_ops cxgb4_mgmt_netdev_ops = {
@@ -4024,6 +4107,12 @@ static int adap_init0(struct adapter *adap)
 	adap->clipt_start = val[0];
 	adap->clipt_end = val[1];
 
+	/* We don't yet have a PARAMs calls to retrieve the number of Traffic
+	 * Classes supported by the hardware/firmware so we hard code it here
+	 * for now.
+	 */
+	adap->params.nsched_cls = is_t4(adap->params.chip) ? 15 : 16;
+
 	/* query params related to active filter region */
 	params[0] = FW_PARAM_PFVF(ACTIVE_FILTER_START);
 	params[1] = FW_PARAM_PFVF(ACTIVE_FILTER_END);
@@ -4882,6 +4971,7 @@ static void free_some_resources(struct adapter *adapter)
 	unsigned int i;
 
 	t4_free_mem(adapter->l2t);
+	t4_cleanup_sched(adapter);
 	t4_free_mem(adapter->tids.tid_tab);
 	kfree(adapter->sge.egr_map);
 	kfree(adapter->sge.ingr_map);
@@ -5249,6 +5339,16 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 	}
 #endif
+
+	for_each_port(adapter, i) {
+		pi = adap2pinfo(adapter, i);
+		pi->sched_tbl = t4_init_sched(adapter->params.nsched_cls);
+		if (!pi->sched_tbl)
+			dev_warn(&pdev->dev,
+				 "could not activate scheduling on port %d\n",
+				 i);
+	}
+
 	if (is_offload(adapter) && tid_init(&adapter->tids) < 0) {
 		dev_warn(&pdev->dev, "could not allocate TID table, "
 			 "continuing\n");

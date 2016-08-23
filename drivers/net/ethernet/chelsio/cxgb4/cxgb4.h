@@ -1,7 +1,7 @@
 /*
  * This file is part of the Chelsio T4 Ethernet driver for Linux.
  *
- * Copyright (c) 2003-2014 Chelsio Communications, Inc. All rights reserved.
+ * Copyright (c) 2003-2016 Chelsio Communications, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -347,6 +347,7 @@ struct adapter_params {
 	unsigned int ofldq_wr_cred;
 	bool ulptx_memwrite_dsgl;          /* use of T5 DSGL allowed */
 
+	unsigned int nsched_cls;          /* number of traffic classes */
 	unsigned int max_ordird_qp;       /* Max read depth per RDMA QP */
 	unsigned int max_ird_adapter;     /* Max read depth per adapter */
 };
@@ -495,6 +496,7 @@ struct port_info {
 #endif /* CONFIG_CHELSIO_T4_FCOE */
 	bool rxtstamp;  /* Enable TS */
 	struct hwtstamp_config tstamp_config;
+	struct sched_table *sched_tbl;
 };
 
 struct dentry;
@@ -856,6 +858,55 @@ struct adapter {
 
 	spinlock_t stats_lock;
 	spinlock_t win0_lock ____cacheline_aligned_in_smp;
+};
+
+/* Support for "sched-class" command to allow a TX Scheduling Class to be
+ * programmed with various parameters.
+ */
+struct ch_sched_params {
+	s8   type;                     /* packet or flow */
+	union {
+		struct {
+			s8   level;    /* scheduler hierarchy level */
+			s8   mode;     /* per-class or per-flow */
+			s8   rateunit; /* bit or packet rate */
+			s8   ratemode; /* %port relative or kbps absolute */
+			s8   channel;  /* scheduler channel [0..N] */
+			s8   class;    /* scheduler class [0..N] */
+			s32  minrate;  /* minimum rate */
+			s32  maxrate;  /* maximum rate */
+			s16  weight;   /* percent weight */
+			s16  pktsize;  /* average packet size */
+		} params;
+	} u;
+};
+
+enum {
+	SCHED_CLASS_TYPE_PACKET = 0,    /* class type */
+};
+
+enum {
+	SCHED_CLASS_LEVEL_CL_RL = 0,    /* class rate limiter */
+};
+
+enum {
+	SCHED_CLASS_MODE_CLASS = 0,     /* per-class scheduling */
+};
+
+enum {
+	SCHED_CLASS_RATEUNIT_BITS = 0,  /* bit rate scheduling */
+};
+
+enum {
+	SCHED_CLASS_RATEMODE_ABS = 1,   /* Kb/s */
+};
+
+/* Support for "sched_queue" command to allow one or more NIC TX Queues
+ * to be bound to a TX Scheduling Class.
+ */
+struct ch_sched_queue {
+	s8   queue;    /* queue index */
+	s8   class;    /* class index */
 };
 
 /* Defined bit width of user definable filter tuples
@@ -1563,6 +1614,9 @@ void t4_get_trace_filter(struct adapter *adapter, struct trace_params *tp,
 			 int filter_index, int *enabled);
 int t4_fwaddrspace_write(struct adapter *adap, unsigned int mbox,
 			 u32 addr, u32 val);
+int t4_sched_params(struct adapter *adapter, int type, int level, int mode,
+		    int rateunit, int ratemode, int channel, int class,
+		    int minrate, int maxrate, int weight, int pktsize);
 void t4_sge_decode_idma_state(struct adapter *adapter, int state);
 void t4_free_mem(void *addr);
 void t4_idma_monitor_init(struct adapter *adapter,
