@@ -976,6 +976,6 @@ struct hns_roce_v1_priv {
 	struct hns_roce_raq_table raq_table;
 };
 
-int hns_dsaf_roce_reset(struct fwnode_handle *dsaf_fwnode, bool enable);
+int hns_dsaf_roce_reset(struct fwnode_handle *dsaf_fwnode, bool dereset);
 
 #endif
