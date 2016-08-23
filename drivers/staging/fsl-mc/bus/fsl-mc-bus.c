@@ -20,6 +20,7 @@
 #include <linux/msi.h>
 #include "../include/dpmng.h"
 #include "../include/mc-sys.h"
+#include "fsl-mc-private.h"
 #include "dprc-cmd.h"
 
 static struct kmem_cache *mc_dev_cache;

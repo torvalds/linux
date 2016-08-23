@@ -15,6 +15,7 @@
 #include "../include/dpcon-cmd.h"
 #include "dpmcp-cmd.h"
 #include "dpmcp.h"
+#include "fsl-mc-private.h"
 #include <linux/msi.h>
 
 #define FSL_MC_IS_ALLOCATABLE(_obj_type) \

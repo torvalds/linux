@@ -102,13 +102,6 @@ struct fsl_mc_bus {
 #define to_fsl_mc_bus(_mc_dev) \
 	container_of(_mc_dev, struct fsl_mc_bus, mc_dev)
 
-int __must_check fsl_mc_device_add(struct dprc_obj_desc *obj_desc,
-				   struct fsl_mc_io *mc_io,
-				   struct device *parent_dev,
-				   struct fsl_mc_device **new_mc_dev);
-
-void fsl_mc_device_remove(struct fsl_mc_device *mc_dev);
-
 int dprc_scan_container(struct fsl_mc_device *mc_bus_dev);
 
 int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev,
@@ -122,28 +115,12 @@ int __init fsl_mc_allocator_driver_init(void);
 
 void fsl_mc_allocator_driver_exit(void);
 
-int __must_check fsl_mc_resource_allocate(struct fsl_mc_bus *mc_bus,
-					  enum fsl_mc_pool_type pool_type,
-					  struct fsl_mc_resource
-							  **new_resource);
-
-void fsl_mc_resource_free(struct fsl_mc_resource *resource);
-
 struct irq_domain *fsl_mc_msi_create_irq_domain(struct fwnode_handle *fwnode,
 						struct msi_domain_info *info,
 						struct irq_domain *parent);
 
 int fsl_mc_find_msi_domain(struct device *mc_platform_dev,
 			   struct irq_domain **mc_msi_domain);
-
-int fsl_mc_msi_domain_alloc_irqs(struct device *dev,
-				 unsigned int irq_count);
-
-void fsl_mc_msi_domain_free_irqs(struct device *dev);
-
-int __init its_fsl_mc_msi_init(void);
-
-void its_fsl_mc_msi_cleanup(void);
 
 int fsl_mc_populate_irq_pool(struct fsl_mc_bus *mc_bus,
 			     unsigned int irq_count);

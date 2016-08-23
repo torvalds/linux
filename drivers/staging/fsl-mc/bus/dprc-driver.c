@@ -16,6 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/msi.h>
 #include "dprc-cmd.h"
+#include "fsl-mc-private.h"
 
 struct dprc_child_objs {
 	int child_count;
