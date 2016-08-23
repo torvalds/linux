@@ -365,7 +365,7 @@ static int f_hidg_open(struct inode *inode, struct file *fd)
 static inline struct usb_request *hidg_alloc_ep_req(struct usb_ep *ep,
 						    unsigned length)
 {
-	return alloc_ep_req(ep, length, length);
+	return alloc_ep_req(ep, length);
 }
 
 static void hidg_set_report_complete(struct usb_ep *ep, struct usb_request *req)
