@@ -175,14 +175,13 @@ config PCI_HISI
 
 config PCIE_ROCKCHIP
 	bool "Rockchip PCIe controller"
-	depends on ARM64 && ARCH_ROCKCHIP
+	depends on ARCH_ROCKCHIP
 	depends on OF
-	select MFD_SYSCON
-	select PCI_MSI
 	select PCI_MSI_IRQ_DOMAIN
+	select MFD_SYSCON
 	help
 	  Say Y here if you want internal PCI support on Rockchip SoC.
-	  There are 1 internal PCIe port available to support GEN2 with
+	  There is 1 internal PCIe port available to support GEN2 with
 	  4 slots.
 
 endmenu
