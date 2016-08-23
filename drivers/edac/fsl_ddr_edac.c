@@ -92,9 +92,15 @@ static ssize_t fsl_mc_inject_data_hi_store(struct device *dev,
 {
 	struct mem_ctl_info *mci = to_mci(dev);
 	struct fsl_mc_pdata *pdata = mci->pvt_info;
+	unsigned long val;
+	int rc;
+
 	if (isdigit(*data)) {
-		ddr_out32(pdata->mc_vbase + FSL_MC_DATA_ERR_INJECT_HI,
-			  simple_strtoul(data, NULL, 0));
+		rc = kstrtoul(data, 0, &val);
+		if (rc)
+			return rc;
+
+		ddr_out32(pdata->mc_vbase + FSL_MC_DATA_ERR_INJECT_HI, val);
 		return count;
 	}
 	return 0;
@@ -106,9 +112,15 @@ static ssize_t fsl_mc_inject_data_lo_store(struct device *dev,
 {
 	struct mem_ctl_info *mci = to_mci(dev);
 	struct fsl_mc_pdata *pdata = mci->pvt_info;
+	unsigned long val;
+	int rc;
+
 	if (isdigit(*data)) {
-		ddr_out32(pdata->mc_vbase + FSL_MC_DATA_ERR_INJECT_LO,
-			  simple_strtoul(data, NULL, 0));
+		rc = kstrtoul(data, 0, &val);
+		if (rc)
+			return rc;
+
+		ddr_out32(pdata->mc_vbase + FSL_MC_DATA_ERR_INJECT_LO, val);
 		return count;
 	}
 	return 0;
@@ -120,9 +132,15 @@ static ssize_t fsl_mc_inject_ctrl_store(struct device *dev,
 {
 	struct mem_ctl_info *mci = to_mci(dev);
 	struct fsl_mc_pdata *pdata = mci->pvt_info;
+	unsigned long val;
+	int rc;
+
 	if (isdigit(*data)) {
-		ddr_out32(pdata->mc_vbase + FSL_MC_ECC_ERR_INJECT,
-			  simple_strtoul(data, NULL, 0));
+		rc = kstrtoul(data, 0, &val);
+		if (rc)
+			return rc;
+
+		ddr_out32(pdata->mc_vbase + FSL_MC_ECC_ERR_INJECT, val);
 		return count;
 	}
 	return 0;
