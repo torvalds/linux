@@ -201,6 +201,12 @@ static const struct counter_desc vport_stats_desc[] = {
 #define PPORT_2819_GET(pstats, c) \
 	MLX5_GET64(ppcnt_reg, pstats->RFC_2819_counters, \
 		   counter_set.eth_2819_cntrs_grp_data_layout.c##_high)
+#define PPORT_PHY_STATISTICAL_OFF(c) \
+	MLX5_BYTE_OFF(ppcnt_reg, \
+		      counter_set.phys_layer_statistical_cntrs.c##_high)
+#define PPORT_PHY_STATISTICAL_GET(pstats, c) \
+	MLX5_GET64(ppcnt_reg, (pstats)->phy_statistical_counters, \
+		   counter_set.phys_layer_statistical_cntrs.c##_high)
 #define PPORT_PER_PRIO_OFF(c) \
 	MLX5_BYTE_OFF(ppcnt_reg, \
 		      counter_set.eth_per_prio_grp_data_layout.c##_high)
@@ -215,6 +221,7 @@ struct mlx5e_pport_stats {
 	__be64 RFC_2819_counters[MLX5_ST_SZ_QW(ppcnt_reg)];
 	__be64 per_prio_counters[NUM_PPORT_PRIO][MLX5_ST_SZ_QW(ppcnt_reg)];
 	__be64 phy_counters[MLX5_ST_SZ_QW(ppcnt_reg)];
+	__be64 phy_statistical_counters[MLX5_ST_SZ_QW(ppcnt_reg)];
 };
 
 static const struct counter_desc pport_802_3_stats_desc[] = {
@@ -258,6 +265,11 @@ static const struct counter_desc pport_2819_stats_desc[] = {
 	{ "rx_2048_to_4095_bytes_phy", PPORT_2819_OFF(ether_stats_pkts2048to4095octets) },
 	{ "rx_4096_to_8191_bytes_phy", PPORT_2819_OFF(ether_stats_pkts4096to8191octets) },
 	{ "rx_8192_to_10239_bytes_phy", PPORT_2819_OFF(ether_stats_pkts8192to10239octets) },
+};
+
+static const struct counter_desc pport_phy_statistical_stats_desc[] = {
+	{ "rx_symbol_errors_phy", PPORT_PHY_STATISTICAL_OFF(phy_symbol_errors) },
+	{ "rx_corrected_bits_phy", PPORT_PHY_STATISTICAL_OFF(phy_corrected_bits) },
 };
 
 static const struct counter_desc pport_per_prio_traffic_stats_desc[] = {
@@ -360,13 +372,17 @@ static const struct counter_desc sq_stats_desc[] = {
 #define NUM_PPORT_802_3_COUNTERS	ARRAY_SIZE(pport_802_3_stats_desc)
 #define NUM_PPORT_2863_COUNTERS		ARRAY_SIZE(pport_2863_stats_desc)
 #define NUM_PPORT_2819_COUNTERS		ARRAY_SIZE(pport_2819_stats_desc)
+#define NUM_PPORT_PHY_STATISTICAL_COUNTERS(priv) \
+	(ARRAY_SIZE(pport_phy_statistical_stats_desc) * \
+	 MLX5_CAP_PCAM_FEATURE((priv)->mdev, ppcnt_statistical_group))
 #define NUM_PPORT_PER_PRIO_TRAFFIC_COUNTERS \
 	ARRAY_SIZE(pport_per_prio_traffic_stats_desc)
 #define NUM_PPORT_PER_PRIO_PFC_COUNTERS \
 	ARRAY_SIZE(pport_per_prio_pfc_stats_desc)
-#define NUM_PPORT_COUNTERS		(NUM_PPORT_802_3_COUNTERS + \
+#define NUM_PPORT_COUNTERS(priv)	(NUM_PPORT_802_3_COUNTERS + \
 					 NUM_PPORT_2863_COUNTERS  + \
 					 NUM_PPORT_2819_COUNTERS  + \
+					 NUM_PPORT_PHY_STATISTICAL_COUNTERS(priv) + \
 					 NUM_PPORT_PER_PRIO_TRAFFIC_COUNTERS * \
 					 NUM_PPORT_PRIO)
 #define NUM_RQ_STATS			ARRAY_SIZE(rq_stats_desc)
