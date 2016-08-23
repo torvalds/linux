@@ -263,6 +263,15 @@
 					marvell,function = "spi1";
 				};
 
+				nand_pins: nand-pins {
+					marvell,pins = "mpp22", "mpp34", "mpp23",
+						       "mpp33", "mpp38", "mpp28",
+						       "mpp40", "mpp42", "mpp35",
+						       "mpp36", "mpp25", "mpp30",
+						       "mpp32";
+					marvell,function = "dev";
+				};
+
 				uart0_pins: uart-pins-0 {
 					marvell,pins = "mpp0", "mpp1";
 					marvell,function = "ua0";
