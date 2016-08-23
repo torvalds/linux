@@ -6,3 +6,10 @@ config SND_SIMPLE_CARD
 	select SND_SIMPLE_CARD_UTILS
 	help
 	  This option enables generic simple sound card support
+
+config SND_SIMPLE_SCU_CARD
+	tristate "ASoC Simple SCU sound card support"
+	select SND_SIMPLE_CARD_UTILS
+	help
+	  This option enables generic simple SCU sound card support.
+	  It supports DPCM of multi CPU single Codec ststem.
