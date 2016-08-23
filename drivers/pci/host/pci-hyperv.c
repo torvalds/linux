@@ -259,7 +259,7 @@ struct pci_bus_d0_entry {
 struct pci_bus_relations {
 	struct pci_incoming_message incoming;
 	u32 device_count;
-	struct pci_function_description func[1];
+	struct pci_function_description func[0];
 } __packed;
 
 struct pci_q_res_req_response {
@@ -394,7 +394,7 @@ struct hv_dr_work {
 struct hv_dr_state {
 	struct list_head list_entry;
 	u32 device_count;
-	struct pci_function_description func[1];
+	struct pci_function_description func[0];
 };
 
 enum hv_pcichild_state {
