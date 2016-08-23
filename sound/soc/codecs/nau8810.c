@@ -391,10 +391,9 @@ static const struct snd_kcontrol_new nau8810_mic_boost_controls =
 		NAU8810_PMICBSTGAIN_SFT, 0x7, 0);
 
 /* Loopback Switch */
-static const struct snd_kcontrol_new nau8810_loopback[] = {
+static const struct snd_kcontrol_new nau8810_loopback =
 	SOC_DAPM_SINGLE("Switch", NAU8810_REG_COMP,
-		NAU8810_ADDAP_SFT, 1, 0),
-};
+		NAU8810_ADDAP_SFT, 1, 0);
 
 static int check_mclk_select_pll(struct snd_soc_dapm_widget *source,
 			 struct snd_soc_dapm_widget *sink)
