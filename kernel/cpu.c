@@ -24,6 +24,7 @@
 #include <linux/irq.h>
 #include <linux/smpboot.h>
 #include <linux/relay.h>
+#include <linux/slab.h>
 
 #include <trace/events/power.h>
 #define CREATE_TRACE_POINTS
@@ -1277,6 +1278,11 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 		.name			= "relay:prepare",
 		.startup.single		= relay_prepare_cpu,
 		.teardown.single	= NULL,
+	},
+	[CPUHP_SLAB_PREPARE] = {
+		.name			= "slab:prepare",
+		.startup.single		= slab_prepare_cpu,
+		.teardown.single	= slab_dead_cpu,
 	},
 	[CPUHP_RCUTREE_PREP] = {
 		.name			= "RCU/tree:prepare",
