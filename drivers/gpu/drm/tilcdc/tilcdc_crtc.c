@@ -98,6 +98,8 @@ static void tilcdc_crtc_enable_irqs(struct drm_device *dev)
 	if (priv->rev == 1) {
 		tilcdc_set(dev, LCDC_RASTER_CTRL_REG,
 			LCDC_V1_UNDERFLOW_INT_ENA);
+		tilcdc_set(dev, LCDC_DMA_CTRL_REG,
+			LCDC_V1_END_OF_FRAME_INT_ENA);
 	} else {
 		tilcdc_write(dev, LCDC_INT_ENABLE_SET_REG,
 			LCDC_V2_UNDERFLOW_INT_ENA |
