@@ -648,7 +648,7 @@ static void netvsc_disconnect_vsp(struct hv_device *device)
 /*
  * netvsc_device_remove - Callback when the root bus device is removed
  */
-int netvsc_device_remove(struct hv_device *device)
+void netvsc_device_remove(struct hv_device *device)
 {
 	struct net_device *ndev = hv_get_drvdata(device);
 	struct net_device_context *net_device_ctx = netdev_priv(ndev);
@@ -670,7 +670,6 @@ int netvsc_device_remove(struct hv_device *device)
 	/* Release all resources */
 	vfree(net_device->sub_cb_buf);
 	free_netvsc_device(net_device);
-	return 0;
 }
 
 #define RING_AVAIL_PERCENT_HIWATER 20

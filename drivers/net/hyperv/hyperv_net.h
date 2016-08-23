@@ -173,7 +173,7 @@ struct rndis_device {
 struct rndis_message;
 struct netvsc_device;
 int netvsc_device_add(struct hv_device *device, void *additional_info);
-int netvsc_device_remove(struct hv_device *device);
+void netvsc_device_remove(struct hv_device *device);
 int netvsc_send(struct hv_device *device,
 		struct hv_netvsc_packet *packet,
 		struct rndis_message *rndis_msg,
