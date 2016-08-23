@@ -4403,8 +4403,7 @@ static int vop_set_dsp_cabc(struct rk_lcdc_driver *dev_drv, int mode,
 		return 0;
 	}
 
-	dev_drv->cabc_mode = mode;
-	if (!dev_drv->cabc_mode) {
+	if (!mode) {
 		spin_lock(&vop_dev->reg_lock);
 		if (vop_dev->clk_on) {
 			vop_msk_reg(vop_dev, CABC_CTRL0,
@@ -4839,6 +4838,11 @@ static int vop_parse_dt(struct vop_device *vop_dev)
 		dev_drv->rotate_mode = NO_MIRROR;
 	else
 		dev_drv->rotate_mode = val;
+
+	if (of_property_read_u32(np, "rockchip,cabc_mode", &val))
+		dev_drv->cabc_mode = 0;	/* default set close cabc */
+	else
+		dev_drv->cabc_mode = val;
 
 	if (of_property_read_u32(np, "rockchip,pwr18", &val))
 		/*default set it as 3.xv power supply */
