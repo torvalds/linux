@@ -410,6 +410,7 @@ struct amd_iommu_fault {
 
 struct iommu_domain;
 struct irq_domain;
+struct amd_irte_ops;
 
 /*
  * This structure contains generic data for  IOMMU protection domains
@@ -533,6 +534,8 @@ struct amd_iommu {
 #ifdef CONFIG_IRQ_REMAP
 	struct irq_domain *ir_domain;
 	struct irq_domain *msi_domain;
+
+	struct amd_irte_ops *irte_ops;
 #endif
 };
 
@@ -779,6 +782,23 @@ struct amd_ir_data {
 	struct irq_2_irte irq_2_irte;
 	union irte irte_entry;
 	struct msi_msg msi_entry;
+	void *entry;    /* Pointer to union irte or struct irte_ga */
 };
+
+struct amd_irte_ops {
+	void (*prepare)(void *, u32, u32, u8, u32);
+	void (*activate)(void *, u16, u16);
+	void (*deactivate)(void *, u16, u16);
+	void (*set_affinity)(void *, u16, u16, u8, u32);
+	void *(*get)(struct irq_remap_table *, int);
+	void (*set_allocated)(struct irq_remap_table *, int);
+	bool (*is_allocated)(struct irq_remap_table *, int);
+	void (*clear_allocated)(struct irq_remap_table *, int);
+};
+
+#ifdef CONFIG_IRQ_REMAP
+extern struct amd_irte_ops irte_32_ops;
+extern struct amd_irte_ops irte_128_ops;
+#endif
 
 #endif /* _ASM_X86_AMD_IOMMU_TYPES_H */
