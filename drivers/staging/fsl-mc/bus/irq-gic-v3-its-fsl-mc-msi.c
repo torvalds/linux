@@ -9,7 +9,7 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include "../include/mc-private.h"
+#include "../include/mc-bus.h"
 #include <linux/of_device.h>
 #include <linux/of_address.h>
 #include <linux/irqchip/arm-gic-v3.h>

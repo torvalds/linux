@@ -1,5 +1,5 @@
 /*
- * Freescale Management Complex (MC) bus private declarations
+ * Freescale Management Complex (MC) bus declarations
  *
  * Copyright (C) 2014 Freescale Semiconductor, Inc.
  * Author: German Rivera <German.Rivera@freescale.com>
@@ -8,8 +8,8 @@
  * License version 2. This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
-#ifndef _FSL_MC_PRIVATE_H_
-#define _FSL_MC_PRIVATE_H_
+#ifndef _FSL_MC_MCBUS_H_
+#define _FSL_MC_MCBUS_H_
 
 #include "../include/mc.h"
 #include <linux/mutex.h>
@@ -155,4 +155,4 @@ int fsl_mc_populate_irq_pool(struct fsl_mc_bus *mc_bus,
 
 void fsl_mc_cleanup_irq_pool(struct fsl_mc_bus *mc_bus);
 
-#endif /* _FSL_MC_PRIVATE_H_ */
+#endif /* _FSL_MC_MCBUS_H_ */

@@ -8,7 +8,7 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include "../include/mc-private.h"
+#include "../include/mc-bus.h"
 #include "../include/mc-sys.h"
 #include <linux/module.h>
 #include "../include/dpbp-cmd.h"
