@@ -548,11 +548,7 @@ EXPORT_SYMBOL(ion_alloc);
 static void ion_free_nolock(struct ion_client *client,
 			    struct ion_handle *handle)
 {
-	bool valid_handle;
-
-	valid_handle = ion_handle_validate(client, handle);
-
-	if (!valid_handle) {
+	if (!ion_handle_validate(client, handle)) {
 		WARN(1, "%s: invalid handle passed to free.\n", __func__);
 		return;
 	}
