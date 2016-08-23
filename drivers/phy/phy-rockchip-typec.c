@@ -165,6 +165,7 @@
 #define RX_SLC_QEN1_OVRD		(0x8155 << 2)
 #define RX_SLC_EEN0_OVRD		(0x8159 << 2)
 #define RX_SLC_EEN1_OVRD		(0x815d << 2)
+#define RX_REE_CTRL_DATA_MASK(n)	((0x81bb | ((n) << 9)) << 2)
 #define RX_DIAG_SIGDET_TUNE(n)		((0x81dc | ((n) << 9)) << 2)
 #define RX_DIAG_SC2C_DELAY		(0x81e1 << 2)
 
@@ -372,6 +373,7 @@ static void tcphy_rx_usb_cfg_lane(struct rockchip_typec_phy *tcphy, u32 lane)
 	writel(0x2410, tcphy->base + RX_PSC_A3(lane));
 	writel(0x23ff, tcphy->base + RX_PSC_CAL(lane));
 	writel(0x13, tcphy->base + RX_SIGDET_HL_FILT_TMR(lane));
+	writel(0x03e7, tcphy->base + RX_REE_CTRL_DATA_MASK(lane));
 	writel(0x1004, tcphy->base + RX_DIAG_SIGDET_TUNE(lane));
 	writel(0x2010, tcphy->base + RX_PSC_RDY(lane));
 	writel(0xfb, tcphy->base + XCVR_DIAG_BIDI_CTRL(lane));
