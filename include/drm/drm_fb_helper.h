@@ -265,9 +265,9 @@ void drm_fb_helper_cfb_copyarea(struct fb_info *info,
 void drm_fb_helper_cfb_imageblit(struct fb_info *info,
 				 const struct fb_image *image);
 
-void drm_fb_helper_set_suspend(struct drm_fb_helper *fb_helper, int state);
+void drm_fb_helper_set_suspend(struct drm_fb_helper *fb_helper, bool suspend);
 void drm_fb_helper_set_suspend_unlocked(struct drm_fb_helper *fb_helper,
-					int suspend);
+					bool suspend);
 
 int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info);
 
@@ -421,12 +421,12 @@ static inline void drm_fb_helper_cfb_imageblit(struct fb_info *info,
 }
 
 static inline void drm_fb_helper_set_suspend(struct drm_fb_helper *fb_helper,
-					     int state)
+					     bool suspend)
 {
 }
 
 static inline void
-drm_fb_helper_set_suspend_unlocked(struct drm_fb_helper *fb_helper, int suspend)
+drm_fb_helper_set_suspend_unlocked(struct drm_fb_helper *fb_helper, bool suspend)
 {
 }
 

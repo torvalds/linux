@@ -1035,16 +1035,16 @@ EXPORT_SYMBOL(drm_fb_helper_cfb_imageblit);
 /**
  * drm_fb_helper_set_suspend - wrapper around fb_set_suspend
  * @fb_helper: driver-allocated fbdev helper
- * @state: desired state, zero to resume, non-zero to suspend
+ * @suspend: whether to suspend or resume
  *
  * A wrapper around fb_set_suspend implemented by fbdev core.
  * Use drm_fb_helper_set_suspend_unlocked() if you don't need to take
  * the lock yourself
  */
-void drm_fb_helper_set_suspend(struct drm_fb_helper *fb_helper, int state)
+void drm_fb_helper_set_suspend(struct drm_fb_helper *fb_helper, bool suspend)
 {
 	if (fb_helper && fb_helper->fbdev)
-		fb_set_suspend(fb_helper->fbdev, state);
+		fb_set_suspend(fb_helper->fbdev, suspend);
 }
 EXPORT_SYMBOL(drm_fb_helper_set_suspend);
 
@@ -1052,7 +1052,7 @@ EXPORT_SYMBOL(drm_fb_helper_set_suspend);
  * drm_fb_helper_set_suspend_unlocked - wrapper around fb_set_suspend that also
  *                                      takes the console lock
  * @fb_helper: driver-allocated fbdev helper
- * @state: desired state, zero to resume, non-zero to suspend
+ * @suspend: whether to suspend or resume
  *
  * A wrapper around fb_set_suspend() that takes the console lock. If the lock
  * isn't available on resume, a worker is tasked with waiting for the lock
@@ -1065,7 +1065,7 @@ EXPORT_SYMBOL(drm_fb_helper_set_suspend);
  * Use drm_fb_helper_set_suspend() if you need to take the lock yourself.
  */
 void drm_fb_helper_set_suspend_unlocked(struct drm_fb_helper *fb_helper,
-					int suspend)
+					bool suspend)
 {
 	if (!fb_helper || !fb_helper->fbdev)
 		return;
