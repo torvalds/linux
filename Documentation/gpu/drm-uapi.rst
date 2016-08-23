@@ -36,6 +36,73 @@ Primary Nodes, DRM Master and Authentication
 Open-Source Userspace Requirements
 ==================================
 
+The DRM subsystem has stricter requirements than most other kernel subsystems on
+what the userspace side for new uAPI needs to look like. This section here
+explains what exactly those requirements are, and why they exist.
+
+The short summary is that any addition of DRM uAPI requires corresponding
+open-sourced userspace patches, and those patches must be reviewed and ready for
+merging into a suitable and canonical upstream project.
+
+GFX devices (both display and render/GPU side) are really complex bits of
+hardware, with userspace and kernel by necessity having to work together really
+closely.  The interfaces, for rendering and modesetting, must be extremely wide
+and flexible, and therefore it is almost always impossible to precisely define
+them for every possible corner case. This in turn makes it really practically
+infeasible to differentiate between behaviour that's required by userspace, and
+which must not be changed to avoid regressions, and behaviour which is only an
+accidental artifact of the current implementation.
+
+Without access to the full source code of all userspace users that means it
+becomes impossible to change the implementation details, since userspace could
+depend upon the accidental behaviour of the current implementation in minute
+details. And debugging such regressions without access to source code is pretty
+much impossible. As a consequence this means:
+
+- The Linux kernel's "no regression" policy holds in practice only for
+  open-source userspace of the DRM subsystem. DRM developers are perfectly fine
+  if closed-source blob drivers in userspace use the same uAPI as the open
+  drivers, but they must do so in the exact same way as the open drivers.
+  Creative (ab)use of the interfaces will, and in the past routinely has, lead
+  to breakage.
+
+- Any new userspace interface must have an open-source implementation as
+  demonstration vehicle.
+
+The other reason for requiring open-source userspace is uAPI review. Since the
+kernel and userspace parts of a GFX stack must work together so closely, code
+review can only assess whether a new interface achieves its goals by looking at
+both sides. Making sure that the interface indeed covers the use-case fully
+leads to a few additional requirements:
+
+- The open-source userspace must not be a toy/test application, but the real
+  thing. Specifically it needs to handle all the usual error and corner cases.
+  These are often the places where new uAPI falls apart and hence essential to
+  assess the fitness of a proposed interface.
+
+- The userspace side must be fully reviewed and tested to the standards of that
+  userspace project. For e.g. mesa this means piglit testcases and review on the
+  mailing list. This is again to ensure that the new interface actually gets the
+  job done.
+
+- The userspace patches must be against the canonical upstream, not some vendor
+  fork. This is to make sure that no one cheats on the review and testing
+  requirements by doing a quick fork.
+
+- The kernel patch can only be merged after all the above requirements are met,
+  but it **must** be merged **before** the userspace patches land. uAPI always flows
+  from the kernel, doing things the other way round risks divergence of the uAPI
+  definitions and header files.
+
+These are fairly steep requirements, but have grown out from years of shared
+pain and experience with uAPI added hastily, and almost always regretted about
+just as fast. GFX devices change really fast, requiring a paradigm shift and
+entire new set of uAPI interfaces every few years at least. Together with the
+Linux kernel's guarantee to keep existing userspace running for 10+ years this
+is already rather painful for the DRM subsystem, with multiple different uAPIs
+for the same thing co-existing. If we add a few more complete mistakes into the
+mix every year it would be entirely unmanageable.
+
 Render nodes
 ============
 
