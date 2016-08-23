@@ -258,6 +258,13 @@ config EDAC_MPC85XX
 	  Support for error detection and correction on the Freescale
 	  MPC8349, MPC8560, MPC8540, MPC8548, T4240
 
+config EDAC_LAYERSCAPE
+	tristate "Freescale Layerscape DDR"
+	depends on EDAC_MM_EDAC && ARCH_LAYERSCAPE
+	help
+	  Support for error detection and correction on Freescale memory
+	  controllers on Layerscape SoCs.
+
 config EDAC_MV64X60
 	tristate "Marvell MV64x60"
 	depends on EDAC_MM_EDAC && MV64X60

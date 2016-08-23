@@ -26,6 +26,7 @@
 
 #include <linux/of_platform.h>
 #include <linux/of_device.h>
+#include <linux/of_address.h>
 #include "edac_module.h"
 #include "edac_core.h"
 #include "fsl_ddr_edac.h"
@@ -478,7 +479,6 @@ int fsl_mc_err_probe(struct platform_device *op)
 
 	pdata = mci->pvt_info;
 	pdata->name = "fsl_mc_err";
-	pdata->irq = NO_IRQ;
 	mci->pdev = &op->dev;
 	pdata->edac_idx = edac_mc_idx++;
 	dev_set_drvdata(mci->pdev, mci);
