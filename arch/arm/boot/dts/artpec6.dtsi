@@ -150,6 +150,7 @@
 		compatible = "arm,cortex-a9-pmu";
 		interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
 			<GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&cpu0>, <&cpu1>;
 		interrupt-parent = <&intc>;
 	};
 
