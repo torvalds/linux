@@ -84,6 +84,7 @@
 #define ACPI_DEVFLAG_LINT1              0x80
 #define ACPI_DEVFLAG_ATSDIS             0x10000000
 
+#define LOOP_TIMEOUT	100000
 /*
  * ACPI table definitions
  *
@@ -388,6 +389,10 @@ static void iommu_disable(struct amd_iommu *iommu)
 	iommu_feature_disable(iommu, CONTROL_EVT_INT_EN);
 	iommu_feature_disable(iommu, CONTROL_EVT_LOG_EN);
 
+	/* Disable IOMMU GA_LOG */
+	iommu_feature_disable(iommu, CONTROL_GALOG_EN);
+	iommu_feature_disable(iommu, CONTROL_GAINT_EN);
+
 	/* Disable IOMMU hardware itself */
 	iommu_feature_disable(iommu, CONTROL_IOMMU_EN);
 }
@@ -671,6 +676,99 @@ static void __init free_ppr_log(struct amd_iommu *iommu)
 		return;
 
 	free_pages((unsigned long)iommu->ppr_log, get_order(PPR_LOG_SIZE));
+}
+
+static void free_ga_log(struct amd_iommu *iommu)
+{
+#ifdef CONFIG_IRQ_REMAP
+	if (iommu->ga_log)
+		free_pages((unsigned long)iommu->ga_log,
+			    get_order(GA_LOG_SIZE));
+	if (iommu->ga_log_tail)
+		free_pages((unsigned long)iommu->ga_log_tail,
+			    get_order(8));
+#endif
+}
+
+static int iommu_ga_log_enable(struct amd_iommu *iommu)
+{
+#ifdef CONFIG_IRQ_REMAP
+	u32 status, i;
+
+	if (!iommu->ga_log)
+		return -EINVAL;
+
+	status = readl(iommu->mmio_base + MMIO_STATUS_OFFSET);
+
+	/* Check if already running */
+	if (status & (MMIO_STATUS_GALOG_RUN_MASK))
+		return 0;
+
+	iommu_feature_enable(iommu, CONTROL_GAINT_EN);
+	iommu_feature_enable(iommu, CONTROL_GALOG_EN);
+
+	for (i = 0; i < LOOP_TIMEOUT; ++i) {
+		status = readl(iommu->mmio_base + MMIO_STATUS_OFFSET);
+		if (status & (MMIO_STATUS_GALOG_RUN_MASK))
+			break;
+	}
+
+	if (i >= LOOP_TIMEOUT)
+		return -EINVAL;
+#endif /* CONFIG_IRQ_REMAP */
+	return 0;
+}
+
+#ifdef CONFIG_IRQ_REMAP
+static int iommu_init_ga_log(struct amd_iommu *iommu)
+{
+	u64 entry;
+
+	if (!AMD_IOMMU_GUEST_IR_VAPIC(amd_iommu_guest_ir))
+		return 0;
+
+	iommu->ga_log = (u8 *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
+					get_order(GA_LOG_SIZE));
+	if (!iommu->ga_log)
+		goto err_out;
+
+	iommu->ga_log_tail = (u8 *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
+					get_order(8));
+	if (!iommu->ga_log_tail)
+		goto err_out;
+
+	entry = (u64)virt_to_phys(iommu->ga_log) | GA_LOG_SIZE_512;
+	memcpy_toio(iommu->mmio_base + MMIO_GA_LOG_BASE_OFFSET,
+		    &entry, sizeof(entry));
+	entry = ((u64)virt_to_phys(iommu->ga_log) & 0xFFFFFFFFFFFFFULL) & ~7ULL;
+	memcpy_toio(iommu->mmio_base + MMIO_GA_LOG_TAIL_OFFSET,
+		    &entry, sizeof(entry));
+	writel(0x00, iommu->mmio_base + MMIO_GA_HEAD_OFFSET);
+	writel(0x00, iommu->mmio_base + MMIO_GA_TAIL_OFFSET);
+
+	return 0;
+err_out:
+	free_ga_log(iommu);
+	return -EINVAL;
+}
+#endif /* CONFIG_IRQ_REMAP */
+
+static int iommu_init_ga(struct amd_iommu *iommu)
+{
+	int ret = 0;
+
+#ifdef CONFIG_IRQ_REMAP
+	/* Note: We have already checked GASup from IVRS table.
+	 *       Now, we need to make sure that GAMSup is set.
+	 */
+	if (AMD_IOMMU_GUEST_IR_VAPIC(amd_iommu_guest_ir) &&
+	    !iommu_feature(iommu, FEATURE_GAM_VAPIC))
+		amd_iommu_guest_ir = AMD_IOMMU_GUEST_IR_LEGACY_GA;
+
+	ret = iommu_init_ga_log(iommu);
+#endif /* CONFIG_IRQ_REMAP */
+
+	return ret;
 }
 
 static void iommu_enable_gt(struct amd_iommu *iommu)
@@ -1146,6 +1244,7 @@ static void __init free_iommu_one(struct amd_iommu *iommu)
 	free_command_buffer(iommu);
 	free_event_buffer(iommu);
 	free_ppr_log(iommu);
+	free_ga_log(iommu);
 	iommu_unmap_mmio_space(iommu);
 }
 
@@ -1438,6 +1537,7 @@ static int iommu_init_pci(struct amd_iommu *iommu)
 {
 	int cap_ptr = iommu->cap_ptr;
 	u32 range, misc, low, high;
+	int ret;
 
 	iommu->dev = pci_get_bus_and_slot(PCI_BUS_NUM(iommu->devid),
 					  iommu->devid & 0xff);
@@ -1494,13 +1594,9 @@ static int iommu_init_pci(struct amd_iommu *iommu)
 	if (iommu_feature(iommu, FEATURE_PPR) && alloc_ppr_log(iommu))
 		return -ENOMEM;
 
-	/* Note: We have already checked GASup from IVRS table.
-	 *       Now, we need to make sure that GAMSup is set.
-	 */
-	if (AMD_IOMMU_GUEST_IR_VAPIC(amd_iommu_guest_ir) &&
-	    !iommu_feature(iommu, FEATURE_GAM_VAPIC))
-		amd_iommu_guest_ir = AMD_IOMMU_GUEST_IR_LEGACY_GA;
-
+	ret = iommu_init_ga(iommu);
+	if (ret)
+		return ret;
 
 	if (iommu->cap & (1UL << IOMMU_CAP_NPCACHE))
 		amd_iommu_np_cache = true;
@@ -1666,6 +1762,8 @@ enable_faults:
 
 	if (iommu->ppr_log != NULL)
 		iommu_feature_enable(iommu, CONTROL_PPFINT_EN);
+
+	iommu_ga_log_enable(iommu);
 
 	return 0;
 }

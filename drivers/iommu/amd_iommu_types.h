@@ -70,6 +70,8 @@
 #define MMIO_EXCL_LIMIT_OFFSET  0x0028
 #define MMIO_EXT_FEATURES	0x0030
 #define MMIO_PPR_LOG_OFFSET	0x0038
+#define MMIO_GA_LOG_BASE_OFFSET	0x00e0
+#define MMIO_GA_LOG_TAIL_OFFSET	0x00e8
 #define MMIO_CMD_HEAD_OFFSET	0x2000
 #define MMIO_CMD_TAIL_OFFSET	0x2008
 #define MMIO_EVT_HEAD_OFFSET	0x2010
@@ -77,6 +79,8 @@
 #define MMIO_STATUS_OFFSET	0x2020
 #define MMIO_PPR_HEAD_OFFSET	0x2030
 #define MMIO_PPR_TAIL_OFFSET	0x2038
+#define MMIO_GA_HEAD_OFFSET	0x2040
+#define MMIO_GA_TAIL_OFFSET	0x2048
 #define MMIO_CNTR_CONF_OFFSET	0x4000
 #define MMIO_CNTR_REG_OFFSET	0x40000
 #define MMIO_REG_END_OFFSET	0x80000
@@ -112,6 +116,9 @@
 #define MMIO_STATUS_EVT_INT_MASK	(1 << 1)
 #define MMIO_STATUS_COM_WAIT_INT_MASK	(1 << 2)
 #define MMIO_STATUS_PPR_INT_MASK	(1 << 6)
+#define MMIO_STATUS_GALOG_RUN_MASK	(1 << 8)
+#define MMIO_STATUS_GALOG_OVERFLOW_MASK	(1 << 9)
+#define MMIO_STATUS_GALOG_INT_MASK	(1 << 10)
 
 /* event logging constants */
 #define EVENT_ENTRY_SIZE	0x10
@@ -150,6 +157,8 @@
 #define CONTROL_GT_EN           0x10ULL
 #define CONTROL_GA_EN           0x11ULL
 #define CONTROL_GAM_EN          0x19ULL
+#define CONTROL_GALOG_EN        0x1CULL
+#define CONTROL_GAINT_EN        0x1DULL
 
 #define CTRL_INV_TO_MASK	(7 << CONTROL_INV_TIMEOUT)
 #define CTRL_INV_TO_NONE	0
@@ -227,6 +236,19 @@
 #define PPR_PASID(x)		((PPR_PASID2(x) << 16) | PPR_PASID1(x))
 
 #define PPR_REQ_FAULT		0x01
+
+/* Constants for GA Log handling */
+#define GA_LOG_ENTRIES		512
+#define GA_LOG_SIZE_SHIFT	56
+#define GA_LOG_SIZE_512		(0x8ULL << GA_LOG_SIZE_SHIFT)
+#define GA_ENTRY_SIZE		8
+#define GA_LOG_SIZE		(GA_ENTRY_SIZE * GA_LOG_ENTRIES)
+
+#define GA_TAG(x)		(u32)(x & 0xffffffffULL)
+#define GA_DEVID(x)		(u16)(((x) >> 32) & 0xffffULL)
+#define GA_REQ_TYPE(x)		(((x) >> 60) & 0xfULL)
+
+#define GA_GUEST_NR		0x1
 
 #define PAGE_MODE_NONE    0x00
 #define PAGE_MODE_1_LEVEL 0x01
@@ -500,6 +522,12 @@ struct amd_iommu {
 
 	/* Base of the PPR log, if present */
 	u8 *ppr_log;
+
+	/* Base of the GA log, if present */
+	u8 *ga_log;
+
+	/* Tail of the GA log, if present */
+	u8 *ga_log_tail;
 
 	/* true if interrupts for this IOMMU are already enabled */
 	bool int_enabled;
