@@ -8,9 +8,15 @@
 #include <linux/pci.h>
 
 /* Register offsets */
-#define SW_TWSI			0x00
-#define TWSI_INT		0x10
-#define SW_TWSI_EXT		0x18
+#if IS_ENABLED(CONFIG_I2C_THUNDERX)
+	#define SW_TWSI			0x1000
+	#define TWSI_INT		0x1010
+	#define SW_TWSI_EXT		0x1018
+#else
+	#define SW_TWSI			0x00
+	#define TWSI_INT		0x10
+	#define SW_TWSI_EXT		0x18
+#endif
 
 /* Controller command patterns */
 #define SW_TWSI_V		BIT_ULL(63)	/* Valid bit */
@@ -94,6 +100,7 @@
 struct octeon_i2c {
 	wait_queue_head_t queue;
 	struct i2c_adapter adap;
+	struct clk *clk;
 	int irq;
 	int hlc_irq;		/* For cn7890 only */
 	u32 twsi_freq;
@@ -109,6 +116,9 @@ struct octeon_i2c {
 	void (*hlc_int_disable)(struct octeon_i2c *);
 	atomic_t int_enable_cnt;
 	atomic_t hlc_int_enable_cnt;
+#if IS_ENABLED(CONFIG_I2C_THUNDERX)
+	struct msix_entry i2c_msix;
+#endif
 };
 
 static inline void octeon_i2c_writeq_flush(u64 val, void __iomem *addr)
