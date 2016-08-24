@@ -13,6 +13,10 @@ Optional properties, default is to retain the chip's current setting:
 - maxim,fan-prescale  : Pre-scaling value, as per datasheet [1]. Lower values
 			allow more fine-grained control of slower fans.
 			Valid: 1, 2, 4, 8, 16.
+- maxim,fan-target-rpm: Initial requested fan rotation speed. If specified, the
+			driver selects closed-loop mode and the requested speed.
+			This ensures the fan is already running before userspace
+			takes over.
 
 Example:
 	fan-max6650: max6650@1b {
@@ -20,4 +24,5 @@ Example:
 		compatible = "maxim,max6650";
 		maxim,fan-microvolt = <12000000>;
 		maxim,fan-prescale = <4>;
+		maxim,fan-target-rpm = <1200>;
 	};
