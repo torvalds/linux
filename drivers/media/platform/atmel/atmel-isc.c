@@ -1358,7 +1358,7 @@ static int atmel_isc_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (IS_ERR_VALUE(irq)) {
+	if (irq < 0) {
 		ret = irq;
 		dev_err(dev, "failed to get irq: %d\n", ret);
 		return ret;
