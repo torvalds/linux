@@ -126,7 +126,8 @@ err1:
 }
 
 static int nft_hash_insert(const struct net *net, const struct nft_set *set,
-			   const struct nft_set_elem *elem)
+			   const struct nft_set_elem *elem,
+			   struct nft_set_ext **ext)
 {
 	struct nft_hash *priv = nft_set_priv(set);
 	struct nft_hash_elem *he = elem->priv;
@@ -135,9 +136,17 @@ static int nft_hash_insert(const struct net *net, const struct nft_set *set,
 		.set	 = set,
 		.key	 = elem->key.val.data,
 	};
+	struct nft_hash_elem *prev;
 
-	return rhashtable_lookup_insert_key(&priv->ht, &arg, &he->node,
-					    nft_hash_params);
+	prev = rhashtable_lookup_get_insert_key(&priv->ht, &arg, &he->node,
+					       nft_hash_params);
+	if (IS_ERR(prev))
+		return PTR_ERR(prev);
+	if (prev) {
+		*ext = &prev->ext;
+		return -EEXIST;
+	}
+	return 0;
 }
 
 static void nft_hash_activate(const struct net *net, const struct nft_set *set,

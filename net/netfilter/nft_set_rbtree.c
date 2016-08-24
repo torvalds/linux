@@ -94,7 +94,8 @@ out:
 }
 
 static int __nft_rbtree_insert(const struct net *net, const struct nft_set *set,
-			       struct nft_rbtree_elem *new)
+			       struct nft_rbtree_elem *new,
+			       struct nft_set_ext **ext)
 {
 	struct nft_rbtree *priv = nft_set_priv(set);
 	u8 genmask = nft_genmask_next(net);
@@ -122,8 +123,10 @@ static int __nft_rbtree_insert(const struct net *net, const struct nft_set *set,
 				else if (!nft_rbtree_interval_end(rbe) &&
 					 nft_rbtree_interval_end(new))
 					p = &parent->rb_right;
-				else
+				else {
+					*ext = &rbe->ext;
 					return -EEXIST;
+				}
 			}
 		}
 	}
@@ -133,13 +136,14 @@ static int __nft_rbtree_insert(const struct net *net, const struct nft_set *set,
 }
 
 static int nft_rbtree_insert(const struct net *net, const struct nft_set *set,
-			     const struct nft_set_elem *elem)
+			     const struct nft_set_elem *elem,
+			     struct nft_set_ext **ext)
 {
 	struct nft_rbtree_elem *rbe = elem->priv;
 	int err;
 
 	spin_lock_bh(&nft_rbtree_lock);
-	err = __nft_rbtree_insert(net, set, rbe);
+	err = __nft_rbtree_insert(net, set, rbe, ext);
 	spin_unlock_bh(&nft_rbtree_lock);
 
 	return err;

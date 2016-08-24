@@ -3483,12 +3483,12 @@ static int nft_setelem_parse_flags(const struct nft_set *set,
 }
 
 static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
-			    const struct nlattr *attr)
+			    const struct nlattr *attr, u32 nlmsg_flags)
 {
 	struct nlattr *nla[NFTA_SET_ELEM_MAX + 1];
 	struct nft_data_desc d1, d2;
 	struct nft_set_ext_tmpl tmpl;
-	struct nft_set_ext *ext;
+	struct nft_set_ext *ext, *ext2;
 	struct nft_set_elem elem;
 	struct nft_set_binding *binding;
 	struct nft_userdata *udata;
@@ -3615,9 +3615,19 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 		goto err4;
 
 	ext->genmask = nft_genmask_cur(ctx->net) | NFT_SET_ELEM_BUSY_MASK;
-	err = set->ops->insert(ctx->net, set, &elem);
-	if (err < 0)
+	err = set->ops->insert(ctx->net, set, &elem, &ext2);
+	if (err) {
+		if (err == -EEXIST) {
+			if (nft_set_ext_exists(ext, NFT_SET_EXT_DATA) &&
+			    nft_set_ext_exists(ext2, NFT_SET_EXT_DATA) &&
+			    memcmp(nft_set_ext_data(ext),
+				   nft_set_ext_data(ext2), set->dlen) != 0)
+				err = -EBUSY;
+			else if (!(nlmsg_flags & NLM_F_EXCL))
+				err = 0;
+		}
 		goto err5;
+	}
 
 	nft_trans_elem(trans) = elem;
 	list_add_tail(&trans->list, &ctx->net->nft.commit_list);
@@ -3673,7 +3683,7 @@ static int nf_tables_newsetelem(struct net *net, struct sock *nlsk,
 		    !atomic_add_unless(&set->nelems, 1, set->size + set->ndeact))
 			return -ENFILE;
 
-		err = nft_add_set_elem(&ctx, set, attr);
+		err = nft_add_set_elem(&ctx, set, attr, nlh->nlmsg_flags);
 		if (err < 0) {
 			atomic_dec(&set->nelems);
 			break;
