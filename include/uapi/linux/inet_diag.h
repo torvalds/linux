@@ -73,6 +73,7 @@ enum {
 	INET_DIAG_BC_S_COND,
 	INET_DIAG_BC_D_COND,
 	INET_DIAG_BC_DEV_COND,   /* u32 ifindex */
+	INET_DIAG_BC_MARK_COND,
 };
 
 struct inet_diag_hostcond {
@@ -80,6 +81,11 @@ struct inet_diag_hostcond {
 	__u8	prefix_len;
 	int	port;
 	__be32	addr[0];
+};
+
+struct inet_diag_markcond {
+	__u32 mark;
+	__u32 mask;
 };
 
 /* Base info structure. It contains socket identity (addrs/ports/cookie)
