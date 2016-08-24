@@ -959,6 +959,7 @@ config I2C_OCTEON
 config I2C_THUNDERX
 	tristate "Cavium ThunderX I2C bus support"
 	depends on 64BIT && PCI && (ARM64 || COMPILE_TEST)
+	select I2C_SMBUS
 	help
 	  Say yes if you want to support the I2C serial bus on Cavium
 	  ThunderX SOC.

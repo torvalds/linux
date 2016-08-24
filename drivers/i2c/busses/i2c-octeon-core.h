@@ -3,6 +3,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/i2c.h>
+#include <linux/i2c-smbus.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
@@ -119,6 +120,8 @@ struct octeon_i2c {
 #if IS_ENABLED(CONFIG_I2C_THUNDERX)
 	struct msix_entry i2c_msix;
 #endif
+	struct i2c_smbus_alert_setup alert_data;
+	struct i2c_client *ara;
 };
 
 static inline void octeon_i2c_writeq_flush(u64 val, void __iomem *addr)

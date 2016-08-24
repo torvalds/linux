@@ -14,9 +14,11 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
+#include <linux/i2c-smbus.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of_irq.h>
 #include <linux/pci.h>
 
 #include "i2c-octeon-core.h"
@@ -107,6 +109,44 @@ static void thunder_i2c_clock_disable(struct device *dev, struct clk *clk)
 	clk_put(clk);
 }
 
+static int thunder_i2c_smbus_setup_of(struct octeon_i2c *i2c,
+				      struct device_node *node)
+{
+	u32 type;
+
+	if (!node)
+		return -EINVAL;
+
+	i2c->alert_data.irq = irq_of_parse_and_map(node, 0);
+	if (!i2c->alert_data.irq)
+		return -EINVAL;
+
+	type = irqd_get_trigger_type(irq_get_irq_data(i2c->alert_data.irq));
+	i2c->alert_data.alert_edge_triggered =
+		(type & IRQ_TYPE_LEVEL_MASK) ? 1 : 0;
+
+	i2c->ara = i2c_setup_smbus_alert(&i2c->adap, &i2c->alert_data);
+	if (!i2c->ara)
+		return -ENODEV;
+	return 0;
+}
+
+static int thunder_i2c_smbus_setup(struct octeon_i2c *i2c,
+				   struct device_node *node)
+{
+	/* TODO: ACPI support */
+	if (!acpi_disabled)
+		return -EOPNOTSUPP;
+
+	return thunder_i2c_smbus_setup_of(i2c, node);
+}
+
+static void thunder_i2c_smbus_remove(struct octeon_i2c *i2c)
+{
+	if (i2c->ara)
+		i2c_unregister_device(i2c->ara);
+}
+
 static int thunder_i2c_probe_pci(struct pci_dev *pdev,
 				 const struct pci_device_id *ent)
 {
@@ -173,6 +213,11 @@ static int thunder_i2c_probe_pci(struct pci_dev *pdev,
 		goto error;
 
 	dev_info(i2c->dev, "Probed. Set system clock to %u\n", i2c->sys_freq);
+
+	ret = thunder_i2c_smbus_setup(i2c, pdev->dev.of_node);
+	if (ret)
+		dev_info(dev, "SMBUS alert not active on this bus\n");
+
 	return 0;
 
 error:
@@ -184,6 +229,7 @@ static void thunder_i2c_remove_pci(struct pci_dev *pdev)
 {
 	struct octeon_i2c *i2c = pci_get_drvdata(pdev);
 
+	thunder_i2c_smbus_remove(i2c);
 	thunder_i2c_clock_disable(&pdev->dev, i2c->clk);
 	i2c_del_adapter(&i2c->adap);
 }
