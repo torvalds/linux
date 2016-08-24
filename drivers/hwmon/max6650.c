@@ -185,6 +185,30 @@ static struct max6650_data *max6650_update_device(struct device *dev)
 	return data;
 }
 
+/*
+ * Change the operating mode of the chip (if needed).
+ * mode is one of the MAX6650_CFG_MODE_* values.
+ */
+static int max6650_set_operating_mode(struct max6650_data *data, u8 mode)
+{
+	int result;
+	u8 config = data->config;
+
+	if (mode == (config & MAX6650_CFG_MODE_MASK))
+		return 0;
+
+	config = (config & ~MAX6650_CFG_MODE_MASK) | mode;
+
+	result = i2c_smbus_write_byte_data(data->client, MAX6650_REG_CONFIG,
+					   config);
+	if (result < 0)
+		return result;
+
+	data->config = config;
+
+	return 0;
+}
+
 static ssize_t get_fan(struct device *dev, struct device_attribute *devattr,
 		       char *buf)
 {
@@ -266,18 +290,12 @@ static ssize_t get_target(struct device *dev, struct device_attribute *devattr,
 	return sprintf(buf, "%d\n", rpm);
 }
 
-static ssize_t set_target(struct device *dev, struct device_attribute *devattr,
-			 const char *buf, size_t count)
+static int max6650_set_target(struct max6650_data *data, unsigned long rpm)
 {
-	struct max6650_data *data = dev_get_drvdata(dev);
-	struct i2c_client *client = data->client;
 	int kscale, ktach;
-	unsigned long rpm;
-	int err;
 
-	err = kstrtoul(buf, 10, &rpm);
-	if (err)
-		return err;
+	if (rpm == 0)
+		return max6650_set_operating_mode(data, MAX6650_CFG_MODE_OFF);
 
 	rpm = clamp_val(rpm, FAN_RPM_MIN, FAN_RPM_MAX);
 
@@ -288,8 +306,6 @@ static ssize_t set_target(struct device *dev, struct device_attribute *devattr,
 	 *     KTACH = [(fCLK x KSCALE) / (256 x FanSpeed)] - 1
 	 */
 
-	mutex_lock(&data->update_lock);
-
 	kscale = DIV_FROM_REG(data->config);
 	ktach = ((clock * kscale) / (256 * rpm / 60)) - 1;
 	if (ktach < 0)
@@ -298,9 +314,29 @@ static ssize_t set_target(struct device *dev, struct device_attribute *devattr,
 		ktach = 255;
 	data->speed = ktach;
 
-	i2c_smbus_write_byte_data(client, MAX6650_REG_SPEED, data->speed);
+	return i2c_smbus_write_byte_data(data->client, MAX6650_REG_SPEED,
+					 data->speed);
+}
+
+static ssize_t set_target(struct device *dev, struct device_attribute *devattr,
+			 const char *buf, size_t count)
+{
+	struct max6650_data *data = dev_get_drvdata(dev);
+	unsigned long rpm;
+	int err;
+
+	err = kstrtoul(buf, 10, &rpm);
+	if (err)
+		return err;
+
+	mutex_lock(&data->update_lock);
+
+	err = max6650_set_target(data, rpm);
 
 	mutex_unlock(&data->update_lock);
+
+	if (err < 0)
+		return err;
 
 	return count;
 }
@@ -355,12 +391,11 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *devattr,
 		data->dac = 180 - (180 * pwm)/255;
 	else
 		data->dac = 76 - (76 * pwm)/255;
-
-	i2c_smbus_write_byte_data(client, MAX6650_REG_DAC, data->dac);
+	err = i2c_smbus_write_byte_data(client, MAX6650_REG_DAC, data->dac);
 
 	mutex_unlock(&data->update_lock);
 
-	return count;
+	return err < 0 ? err : count;
 }
 
 /*
@@ -369,14 +404,14 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *devattr,
  * 0 = Fan always on
  * 1 = Open loop, Voltage is set according to speed, not regulated.
  * 2 = Closed loop, RPM for all fans regulated by fan1 tachometer
+ * 3 = Fan off
  */
-
 static ssize_t get_enable(struct device *dev, struct device_attribute *devattr,
 			  char *buf)
 {
 	struct max6650_data *data = max6650_update_device(dev);
 	int mode = (data->config & MAX6650_CFG_MODE_MASK) >> 4;
-	int sysfs_modes[4] = {0, 1, 2, 1};
+	int sysfs_modes[4] = {0, 3, 2, 1};
 
 	return sprintf(buf, "%d\n", sysfs_modes[mode]);
 }
@@ -385,25 +420,25 @@ static ssize_t set_enable(struct device *dev, struct device_attribute *devattr,
 			  const char *buf, size_t count)
 {
 	struct max6650_data *data = dev_get_drvdata(dev);
-	struct i2c_client *client = data->client;
-	int max6650_modes[3] = {0, 3, 2};
 	unsigned long mode;
 	int err;
+	const u8 max6650_modes[] = {
+		MAX6650_CFG_MODE_ON,
+		MAX6650_CFG_MODE_OPEN_LOOP,
+		MAX6650_CFG_MODE_CLOSED_LOOP,
+		MAX6650_CFG_MODE_OFF,
+		};
 
 	err = kstrtoul(buf, 10, &mode);
 	if (err)
 		return err;
 
-	if (mode > 2)
+	if (mode >= ARRAY_SIZE(max6650_modes))
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
 
-	data->config = i2c_smbus_read_byte_data(client, MAX6650_REG_CONFIG);
-	data->config = (data->config & ~MAX6650_CFG_MODE_MASK)
-		       | (max6650_modes[mode] << 4);
-
-	i2c_smbus_write_byte_data(client, MAX6650_REG_CONFIG, data->config);
+	max6650_set_operating_mode(data, max6650_modes[mode]);
 
 	mutex_unlock(&data->update_lock);
 
@@ -582,6 +617,7 @@ static int max6650_init_client(struct max6650_data *data,
 	int err = -EIO;
 	u32 voltage;
 	u32 prescale;
+	u32 target_rpm;
 
 	if (of_property_read_u32(dev->of_node, "maxim,fan-microvolt",
 				 &voltage))
@@ -642,22 +678,6 @@ static int max6650_init_client(struct max6650_data *data,
 		 (config & MAX6650_CFG_V12) ? 12 : 5,
 		 1 << (config & MAX6650_CFG_PRESCALER_MASK));
 
-	/*
-	 * If mode is set to "full off", we change it to "open loop" and
-	 * set DAC to 255, which has the same effect. We do this because
-	 * there's no "full off" mode defined in hwmon specifications.
-	 */
-
-	if ((config & MAX6650_CFG_MODE_MASK) == MAX6650_CFG_MODE_OFF) {
-		dev_dbg(dev, "Change mode to open loop, full off.\n");
-		config = (config & ~MAX6650_CFG_MODE_MASK)
-			 | MAX6650_CFG_MODE_OPEN_LOOP;
-		if (i2c_smbus_write_byte_data(client, MAX6650_REG_DAC, 255)) {
-			dev_err(dev, "DAC write error, aborting.\n");
-			return err;
-		}
-	}
-
 	if (i2c_smbus_write_byte_data(client, MAX6650_REG_CONFIG, config)) {
 		dev_err(dev, "Config write error, aborting.\n");
 		return err;
@@ -665,6 +685,12 @@ static int max6650_init_client(struct max6650_data *data,
 
 	data->config = config;
 	data->count = i2c_smbus_read_byte_data(client, MAX6650_REG_COUNT);
+
+	if (!of_property_read_u32(client->dev.of_node, "maxim,fan-target-rpm",
+				  &target_rpm)) {
+		max6650_set_target(data, target_rpm);
+		max6650_set_operating_mode(data, MAX6650_CFG_MODE_CLOSED_LOOP);
+	}
 
 	return 0;
 }
