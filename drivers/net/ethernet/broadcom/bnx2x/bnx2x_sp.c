@@ -2600,6 +2600,12 @@ struct bnx2x_mcast_mac_elem {
 	u8 pad[2]; /* For a natural alignment of the following buffer */
 };
 
+struct bnx2x_mcast_bin_elem {
+	struct list_head link;
+	int bin;
+	int type; /* BNX2X_MCAST_CMD_SET_{ADD, DEL} */
+};
+
 struct bnx2x_pending_mcast_cmd {
 	struct list_head link;
 	int type; /* BNX2X_MCAST_CMD_X */
@@ -2608,6 +2614,11 @@ struct bnx2x_pending_mcast_cmd {
 		u32 macs_num; /* Needed for DEL command */
 		int next_bin; /* Needed for RESTORE flow with aprox match */
 	} data;
+
+	bool set_convert; /* in case type == BNX2X_MCAST_CMD_SET, this is set
+			   * when macs_head had been converted to a list of
+			   * bnx2x_mcast_bin_elem.
+			   */
 
 	bool done; /* set to true, when the command has been handled,
 		    * practically used in 57712 handling only, where one pending
@@ -2636,15 +2647,30 @@ static int bnx2x_mcast_enqueue_cmd(struct bnx2x *bp,
 	struct bnx2x_pending_mcast_cmd *new_cmd;
 	struct bnx2x_mcast_mac_elem *cur_mac = NULL;
 	struct bnx2x_mcast_list_elem *pos;
-	int macs_list_len = ((cmd == BNX2X_MCAST_CMD_ADD) ?
-			     p->mcast_list_len : 0);
+	int macs_list_len = 0, macs_list_len_size;
+
+	/* When adding MACs we'll need to store their values */
+	if (cmd == BNX2X_MCAST_CMD_ADD || cmd == BNX2X_MCAST_CMD_SET)
+		macs_list_len = p->mcast_list_len;
 
 	/* If the command is empty ("handle pending commands only"), break */
 	if (!p->mcast_list_len)
 		return 0;
 
-	total_sz = sizeof(*new_cmd) +
-		macs_list_len * sizeof(struct bnx2x_mcast_mac_elem);
+	/* For a set command, we need to allocate sufficient memory for all
+	 * the bins, since we can't analyze at this point how much memory would
+	 * be required.
+	 */
+	macs_list_len_size = macs_list_len *
+			     sizeof(struct bnx2x_mcast_mac_elem);
+	if (cmd == BNX2X_MCAST_CMD_SET) {
+		int bin_size = BNX2X_MCAST_BINS_NUM *
+			       sizeof(struct bnx2x_mcast_bin_elem);
+
+		if (bin_size > macs_list_len_size)
+			macs_list_len_size = bin_size;
+	}
+	total_sz = sizeof(*new_cmd) + macs_list_len_size;
 
 	/* Add mcast is called under spin_lock, thus calling with GFP_ATOMIC */
 	new_cmd = kzalloc(total_sz, GFP_ATOMIC);
@@ -2662,6 +2688,7 @@ static int bnx2x_mcast_enqueue_cmd(struct bnx2x *bp,
 
 	switch (cmd) {
 	case BNX2X_MCAST_CMD_ADD:
+	case BNX2X_MCAST_CMD_SET:
 		cur_mac = (struct bnx2x_mcast_mac_elem *)
 			  ((u8 *)new_cmd + sizeof(*new_cmd));
 
@@ -2771,7 +2798,8 @@ static void bnx2x_mcast_set_one_rule_e2(struct bnx2x *bp,
 	u8 rx_tx_add_flag = bnx2x_mcast_get_rx_tx_flag(o);
 	int bin;
 
-	if ((cmd == BNX2X_MCAST_CMD_ADD) || (cmd == BNX2X_MCAST_CMD_RESTORE))
+	if ((cmd == BNX2X_MCAST_CMD_ADD) || (cmd == BNX2X_MCAST_CMD_RESTORE) ||
+	    (cmd == BNX2X_MCAST_CMD_SET_ADD))
 		rx_tx_add_flag |= ETH_MULTICAST_RULES_CMD_IS_ADD;
 
 	data->rules[idx].cmd_general_data |= rx_tx_add_flag;
@@ -2795,6 +2823,16 @@ static void bnx2x_mcast_set_one_rule_e2(struct bnx2x *bp,
 
 	case BNX2X_MCAST_CMD_RESTORE:
 		bin = cfg_data->bin;
+		break;
+
+	case BNX2X_MCAST_CMD_SET_ADD:
+		bin = cfg_data->bin;
+		BIT_VEC64_SET_BIT(o->registry.aprox_match.vec, bin);
+		break;
+
+	case BNX2X_MCAST_CMD_SET_DEL:
+		bin = cfg_data->bin;
+		BIT_VEC64_CLEAR_BIT(o->registry.aprox_match.vec, bin);
 		break;
 
 	default:
@@ -2932,6 +2970,102 @@ static inline void bnx2x_mcast_hdl_pending_restore_e2(struct bnx2x *bp,
 		cmd_pos->data.next_bin++;
 }
 
+static void
+bnx2x_mcast_hdl_pending_set_e2_convert(struct bnx2x *bp,
+				       struct bnx2x_mcast_obj *o,
+				       struct bnx2x_pending_mcast_cmd *cmd_pos)
+{
+	u64 cur[BNX2X_MCAST_VEC_SZ], req[BNX2X_MCAST_VEC_SZ];
+	struct bnx2x_mcast_mac_elem *pmac_pos, *pmac_pos_n;
+	struct bnx2x_mcast_bin_elem *p_item;
+	int i, cnt = 0, mac_cnt = 0;
+
+	memset(req, 0, sizeof(u64) * BNX2X_MCAST_VEC_SZ);
+	memcpy(cur, o->registry.aprox_match.vec,
+	       sizeof(u64) * BNX2X_MCAST_VEC_SZ);
+
+	/* Fill `current' with the required set of bins to configure */
+	list_for_each_entry_safe(pmac_pos, pmac_pos_n, &cmd_pos->data.macs_head,
+				 link) {
+		int bin = bnx2x_mcast_bin_from_mac(pmac_pos->mac);
+
+		DP(BNX2X_MSG_SP, "Set contains %pM mcast MAC\n",
+		   pmac_pos->mac);
+
+		BIT_VEC64_SET_BIT(req, bin);
+		list_del(&pmac_pos->link);
+		mac_cnt++;
+	}
+
+	/* We no longer have use for the MACs; Need to re-use memory for
+	 * a list that will be used to configure bins.
+	 */
+	cmd_pos->set_convert = true;
+	p_item = (struct bnx2x_mcast_bin_elem *)(cmd_pos + 1);
+	INIT_LIST_HEAD(&cmd_pos->data.macs_head);
+
+	for (i = 0; i < BNX2X_MCAST_BINS_NUM; i++) {
+		bool b_current = !!BIT_VEC64_TEST_BIT(cur, i);
+		bool b_required = !!BIT_VEC64_TEST_BIT(req, i);
+
+		if (b_current == b_required)
+			continue;
+
+		p_item->bin = i;
+		p_item->type = b_required ? BNX2X_MCAST_CMD_SET_ADD
+					  : BNX2X_MCAST_CMD_SET_DEL;
+		list_add_tail(&p_item->link , &cmd_pos->data.macs_head);
+		p_item++;
+		cnt++;
+	}
+
+	/* We now definitely know how many commands are hiding here.
+	 * Also need to correct the disruption we've added to guarantee this
+	 * would be enqueued.
+	 */
+	o->total_pending_num -= (o->max_cmd_len + mac_cnt);
+	o->total_pending_num += cnt;
+
+	DP(BNX2X_MSG_SP, "o->total_pending_num=%d\n", o->total_pending_num);
+}
+
+static void
+bnx2x_mcast_hdl_pending_set_e2(struct bnx2x *bp,
+			       struct bnx2x_mcast_obj *o,
+			       struct bnx2x_pending_mcast_cmd *cmd_pos,
+			       int *cnt)
+{
+	union bnx2x_mcast_config_data cfg_data = {NULL};
+	struct bnx2x_mcast_bin_elem *p_item, *p_item_n;
+
+	/* This is actually a 2-part scheme - it starts by converting the MACs
+	 * into a list of bins to be added/removed, and correcting the numbers
+	 * on the object. this is now allowed, as we're now sure that all
+	 * previous configured requests have already applied.
+	 * The second part is actually adding rules for the newly introduced
+	 * entries [like all the rest of the hdl_pending functions].
+	 */
+	if (!cmd_pos->set_convert)
+		bnx2x_mcast_hdl_pending_set_e2_convert(bp, o, cmd_pos);
+
+	list_for_each_entry_safe(p_item, p_item_n, &cmd_pos->data.macs_head,
+				 link) {
+		cfg_data.bin = (u8)p_item->bin;
+		o->set_one_rule(bp, o, *cnt, &cfg_data, p_item->type);
+		(*cnt)++;
+
+		list_del(&p_item->link);
+
+		/* Break if we reached the maximum number of rules. */
+		if (*cnt >= o->max_cmd_len)
+			break;
+	}
+
+	/* if no more MACs to configure - we are done */
+	if (list_empty(&cmd_pos->data.macs_head))
+		cmd_pos->done = true;
+}
+
 static inline int bnx2x_mcast_handle_pending_cmds_e2(struct bnx2x *bp,
 				struct bnx2x_mcast_ramrod_params *p)
 {
@@ -2953,6 +3087,10 @@ static inline int bnx2x_mcast_handle_pending_cmds_e2(struct bnx2x *bp,
 		case BNX2X_MCAST_CMD_RESTORE:
 			bnx2x_mcast_hdl_pending_restore_e2(bp, o, cmd_pos,
 							   &cnt);
+			break;
+
+		case BNX2X_MCAST_CMD_SET:
+			bnx2x_mcast_hdl_pending_set_e2(bp, o, cmd_pos, &cnt);
 			break;
 
 		default:
@@ -3095,6 +3233,19 @@ static int bnx2x_mcast_validate_e2(struct bnx2x *bp,
 		o->set_registry_size(o, reg_sz + p->mcast_list_len);
 		break;
 
+	case BNX2X_MCAST_CMD_SET:
+		/* We can only learn how many commands would actually be used
+		 * when this is being configured. So for now, simply guarantee
+		 * the command will be enqueued [to refrain from adding logic
+		 * that handles this and THEN learns it needs several ramrods].
+		 * Just like for ADD/Cont, the mcast_list_len might be an over
+		 * estimation; or even more so, since we don't take into
+		 * account the possibility of removal of existing bins.
+		 */
+		o->set_registry_size(o, reg_sz + p->mcast_list_len);
+		o->total_pending_num += o->max_cmd_len;
+		break;
+
 	default:
 		BNX2X_ERR("Unknown command: %d\n", cmd);
 		return -EINVAL;
@@ -3108,12 +3259,16 @@ static int bnx2x_mcast_validate_e2(struct bnx2x *bp,
 
 static void bnx2x_mcast_revert_e2(struct bnx2x *bp,
 				      struct bnx2x_mcast_ramrod_params *p,
-				      int old_num_bins)
+				  int old_num_bins,
+				  enum bnx2x_mcast_cmd cmd)
 {
 	struct bnx2x_mcast_obj *o = p->mcast_obj;
 
 	o->set_registry_size(o, old_num_bins);
 	o->total_pending_num -= p->mcast_list_len;
+
+	if (cmd == BNX2X_MCAST_CMD_SET)
+		o->total_pending_num -= o->max_cmd_len;
 }
 
 /**
@@ -3223,9 +3378,11 @@ static int bnx2x_mcast_setup_e2(struct bnx2x *bp,
 		bnx2x_mcast_refresh_registry_e2(bp, o);
 
 	/* If CLEAR_ONLY was requested - don't send a ramrod and clear
-	 * RAMROD_PENDING status immediately.
+	 * RAMROD_PENDING status immediately. due to the SET option, it's also
+	 * possible that after evaluating the differences there's no need for
+	 * a ramrod. In that case, we can skip it as well.
 	 */
-	if (test_bit(RAMROD_DRV_CLR_ONLY, &p->ramrod_flags)) {
+	if (test_bit(RAMROD_DRV_CLR_ONLY, &p->ramrod_flags) || !cnt) {
 		raw->clear_pending(raw);
 		return 0;
 	} else {
@@ -3253,6 +3410,11 @@ static int bnx2x_mcast_validate_e1h(struct bnx2x *bp,
 				    struct bnx2x_mcast_ramrod_params *p,
 				    enum bnx2x_mcast_cmd cmd)
 {
+	if (cmd == BNX2X_MCAST_CMD_SET) {
+		BNX2X_ERR("Can't use `set' command on e1h!\n");
+		return -EINVAL;
+	}
+
 	/* Mark, that there is a work to do */
 	if ((cmd == BNX2X_MCAST_CMD_DEL) || (cmd == BNX2X_MCAST_CMD_RESTORE))
 		p->mcast_list_len = 1;
@@ -3262,7 +3424,8 @@ static int bnx2x_mcast_validate_e1h(struct bnx2x *bp,
 
 static void bnx2x_mcast_revert_e1h(struct bnx2x *bp,
 				       struct bnx2x_mcast_ramrod_params *p,
-				       int old_num_bins)
+				       int old_num_bins,
+				       enum bnx2x_mcast_cmd cmd)
 {
 	/* Do nothing */
 }
@@ -3372,6 +3535,11 @@ static int bnx2x_mcast_validate_e1(struct bnx2x *bp,
 	struct bnx2x_mcast_obj *o = p->mcast_obj;
 	int reg_sz = o->get_registry_size(o);
 
+	if (cmd == BNX2X_MCAST_CMD_SET) {
+		BNX2X_ERR("Can't use `set' command on e1!\n");
+		return -EINVAL;
+	}
+
 	switch (cmd) {
 	/* DEL command deletes all currently configured MACs */
 	case BNX2X_MCAST_CMD_DEL:
@@ -3422,7 +3590,8 @@ static int bnx2x_mcast_validate_e1(struct bnx2x *bp,
 
 static void bnx2x_mcast_revert_e1(struct bnx2x *bp,
 				      struct bnx2x_mcast_ramrod_params *p,
-				      int old_num_macs)
+				   int old_num_macs,
+				   enum bnx2x_mcast_cmd cmd)
 {
 	struct bnx2x_mcast_obj *o = p->mcast_obj;
 
@@ -3816,7 +3985,7 @@ error_exit2:
 	r->clear_pending(r);
 
 error_exit1:
-	o->revert(bp, p, old_reg_size);
+	o->revert(bp, p, old_reg_size, cmd);
 
 	return rc;
 }

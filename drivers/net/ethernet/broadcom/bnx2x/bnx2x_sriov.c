@@ -573,17 +573,6 @@ int bnx2x_vf_mcast(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		}
 	}
 
-	/* clear existing mcasts */
-	mcast.mcast_list_len = vf->mcast_list_len;
-	vf->mcast_list_len = mc_num;
-	rc = bnx2x_config_mcast(bp, &mcast, BNX2X_MCAST_CMD_DEL);
-	if (rc) {
-		BNX2X_ERR("Failed to remove multicasts\n");
-		kfree(mc);
-		return rc;
-	}
-
-	/* update mcast list on the ramrod params */
 	if (mc_num) {
 		INIT_LIST_HEAD(&mcast.mcast_list);
 		for (i = 0; i < mc_num; i++) {
@@ -594,11 +583,17 @@ int bnx2x_vf_mcast(struct bnx2x *bp, struct bnx2x_virtf *vf,
 
 		/* add new mcasts */
 		mcast.mcast_list_len = mc_num;
-		rc = bnx2x_config_mcast(bp, &mcast, BNX2X_MCAST_CMD_ADD);
+		rc = bnx2x_config_mcast(bp, &mcast, BNX2X_MCAST_CMD_SET);
 		if (rc)
-			BNX2X_ERR("Faled to add multicasts\n");
-		kfree(mc);
+			BNX2X_ERR("Faled to set multicasts\n");
+	} else {
+		/* clear existing mcasts */
+		rc = bnx2x_config_mcast(bp, &mcast, BNX2X_MCAST_CMD_DEL);
+		if (rc)
+			BNX2X_ERR("Failed to remove multicasts\n");
 	}
+
+	kfree(mc);
 
 	return rc;
 }
@@ -1583,7 +1578,6 @@ int bnx2x_iov_nic_init(struct bnx2x *bp)
 		 *  It needs to be initialized here so that it can be safely
 		 *  handled by a subsequent FLR flow.
 		 */
-		vf->mcast_list_len = 0;
 		bnx2x_init_mcast_obj(bp, &vf->mcast_obj, 0xFF,
 				     0xFF, 0xFF, 0xFF,
 				     bnx2x_vf_sp(bp, vf, mcast_rdata),

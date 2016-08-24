@@ -12560,8 +12560,10 @@ static int bnx2x_init_mcast_macs_list(struct bnx2x *bp,
 		kcalloc(mc_count, sizeof(*mc_mac), GFP_ATOMIC);
 	struct netdev_hw_addr *ha;
 
-	if (!mc_mac)
+	if (!mc_mac) {
+		BNX2X_ERR("Failed to allocate mc MAC list\n");
 		return -ENOMEM;
+	}
 
 	INIT_LIST_HEAD(&p->mcast_list);
 
@@ -12632,7 +12634,7 @@ static int bnx2x_set_uc_list(struct bnx2x *bp)
 				 BNX2X_UC_LIST_MAC, &ramrod_flags);
 }
 
-static int bnx2x_set_mc_list(struct bnx2x *bp)
+static int bnx2x_set_mc_list_e1x(struct bnx2x *bp)
 {
 	struct net_device *dev = bp->dev;
 	struct bnx2x_mcast_ramrod_params rparam = {NULL};
@@ -12650,11 +12652,8 @@ static int bnx2x_set_mc_list(struct bnx2x *bp)
 	/* then, configure a new MACs list */
 	if (netdev_mc_count(dev)) {
 		rc = bnx2x_init_mcast_macs_list(bp, &rparam);
-		if (rc) {
-			BNX2X_ERR("Failed to create multicast MACs list: %d\n",
-				  rc);
+		if (rc)
 			return rc;
-		}
 
 		/* Now add the new MACs */
 		rc = bnx2x_config_mcast(bp, &rparam,
@@ -12664,6 +12663,42 @@ static int bnx2x_set_mc_list(struct bnx2x *bp)
 				  rc);
 
 		bnx2x_free_mcast_macs_list(&rparam);
+	}
+
+	return rc;
+}
+
+static int bnx2x_set_mc_list(struct bnx2x *bp)
+{
+	struct bnx2x_mcast_ramrod_params rparam = {NULL};
+	struct net_device *dev = bp->dev;
+	int rc = 0;
+
+	/* On older adapters, we need to flush and re-add filters */
+	if (CHIP_IS_E1x(bp))
+		return bnx2x_set_mc_list_e1x(bp);
+
+	rparam.mcast_obj = &bp->mcast_obj;
+
+	if (netdev_mc_count(dev)) {
+		rc = bnx2x_init_mcast_macs_list(bp, &rparam);
+		if (rc)
+			return rc;
+
+		/* Override the curently configured set of mc filters */
+		rc = bnx2x_config_mcast(bp, &rparam,
+					BNX2X_MCAST_CMD_SET);
+		if (rc < 0)
+			BNX2X_ERR("Failed to set a new multicast configuration: %d\n",
+				  rc);
+
+		bnx2x_free_mcast_macs_list(&rparam);
+	} else {
+		/* If no mc addresses are required, flush the configuration */
+		rc = bnx2x_config_mcast(bp, &rparam, BNX2X_MCAST_CMD_DEL);
+		if (rc)
+			BNX2X_ERR("Failed to clear multicast configuration %d\n",
+				  rc);
 	}
 
 	return rc;
