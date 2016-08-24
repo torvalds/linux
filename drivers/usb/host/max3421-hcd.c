@@ -1675,7 +1675,7 @@ max3421_gpout_set_value(struct usb_hcd *hcd, u8 pin_number, u8 value)
 	if (pin_number > 7)
 		return;
 
-	mask = 1u << pin_number;
+	mask = 1u << (pin_number % 4);
 	idx = pin_number / 4;
 
 	if (value)

@@ -491,7 +491,7 @@ struct it87_sio_data {
 struct it87_data {
 	const struct attribute_group *groups[7];
 	enum chips type;
-	u16 features;
+	u32 features;
 	u8 peci_mask;
 	u8 old_peci_mask;
 

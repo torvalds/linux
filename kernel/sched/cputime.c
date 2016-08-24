@@ -263,6 +263,11 @@ void account_idle_time(cputime_t cputime)
 		cpustat[CPUTIME_IDLE] += (__force u64) cputime;
 }
 
+/*
+ * When a guest is interrupted for a longer amount of time, missed clock
+ * ticks are not redelivered later. Due to that, this function may on
+ * occasion account more time than the calling functions think elapsed.
+ */
 static __always_inline cputime_t steal_account_process_time(cputime_t maxtime)
 {
 #ifdef CONFIG_PARAVIRT
@@ -371,7 +376,7 @@ static void irqtime_account_process_tick(struct task_struct *p, int user_tick,
 	 * idle, or potentially user or system time. Due to rounding,
 	 * other time can exceed ticks occasionally.
 	 */
-	other = account_other_time(cputime);
+	other = account_other_time(ULONG_MAX);
 	if (other >= cputime)
 		return;
 	cputime -= other;
@@ -486,7 +491,7 @@ void account_process_tick(struct task_struct *p, int user_tick)
 	}
 
 	cputime = cputime_one_jiffy;
-	steal = steal_account_process_time(cputime);
+	steal = steal_account_process_time(ULONG_MAX);
 
 	if (steal >= cputime)
 		return;
@@ -516,7 +521,7 @@ void account_idle_ticks(unsigned long ticks)
 	}
 
 	cputime = jiffies_to_cputime(ticks);
-	steal = steal_account_process_time(cputime);
+	steal = steal_account_process_time(ULONG_MAX);
 
 	if (steal >= cputime)
 		return;
@@ -614,19 +619,25 @@ static void cputime_adjust(struct task_cputime *curr,
 	stime = curr->stime;
 	utime = curr->utime;
 
-	if (utime == 0) {
-		stime = rtime;
+	/*
+	 * If either stime or both stime and utime are 0, assume all runtime is
+	 * userspace. Once a task gets some ticks, the monotonicy code at
+	 * 'update' will ensure things converge to the observed ratio.
+	 */
+	if (stime == 0) {
+		utime = rtime;
 		goto update;
 	}
 
-	if (stime == 0) {
-		utime = rtime;
+	if (utime == 0) {
+		stime = rtime;
 		goto update;
 	}
 
 	stime = scale_stime((__force u64)stime, (__force u64)rtime,
 			    (__force u64)(stime + utime));
 
+update:
 	/*
 	 * Make sure stime doesn't go backwards; this preserves monotonicity
 	 * for utime because rtime is monotonic.
@@ -649,7 +660,6 @@ static void cputime_adjust(struct task_cputime *curr,
 		stime = rtime - utime;
 	}
 
-update:
 	prev->stime = stime;
 	prev->utime = utime;
 out:
@@ -694,6 +704,13 @@ static cputime_t get_vtime_delta(struct task_struct *tsk)
 	unsigned long now = READ_ONCE(jiffies);
 	cputime_t delta, other;
 
+	/*
+	 * Unlike tick based timing, vtime based timing never has lost
+	 * ticks, and no need for steal time accounting to make up for
+	 * lost ticks. Vtime accounts a rounded version of actual
+	 * elapsed time. Limit account_other_time to prevent rounding
+	 * errors from causing elapsed vtime to go negative.
+	 */
 	delta = jiffies_to_cputime(now - tsk->vtime_snap);
 	other = account_other_time(delta);
 	WARN_ON_ONCE(tsk->vtime_snap_whence == VTIME_INACTIVE);

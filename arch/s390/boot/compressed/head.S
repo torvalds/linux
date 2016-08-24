@@ -21,16 +21,21 @@ ENTRY(startup_continue)
 	lg	%r15,.Lstack-.LPG1(%r13)
 	aghi	%r15,-160
 	brasl	%r14,decompress_kernel
-	# setup registers for memory mover & branch to target
+	# Set up registers for memory mover. We move the decompressed image to
+	# 0x11000, starting at offset 0x11000 in the decompressed image so
+	# that code living at 0x11000 in the image will end up at 0x11000 in
+	# memory.
 	lgr	%r4,%r2
 	lg	%r2,.Loffset-.LPG1(%r13)
 	la	%r4,0(%r2,%r4)
 	lg	%r3,.Lmvsize-.LPG1(%r13)
 	lgr	%r5,%r3
-	# move the memory mover someplace safe
+	# Move the memory mover someplace safe so it doesn't overwrite itself.
 	la	%r1,0x200
 	mvc	0(mover_end-mover,%r1),mover-.LPG1(%r13)
-	# decompress image is started at 0x11000
+	# When the memory mover is done we pass control to
+	# arch/s390/kernel/head64.S:startup_continue which lives at 0x11000 in
+	# the decompressed image.
 	lgr	%r6,%r2
 	br	%r1
 mover:
