@@ -174,6 +174,10 @@
 /* HW dma structures */
 /* Delivery queue header */
 /* dw0 */
+#define CMD_HDR_ABORT_FLAG_OFF		0
+#define CMD_HDR_ABORT_FLAG_MSK		(0x3 << CMD_HDR_ABORT_FLAG_OFF)
+#define CMD_HDR_ABORT_DEVICE_TYPE_OFF	2
+#define CMD_HDR_ABORT_DEVICE_TYPE_MSK	(0x1 << CMD_HDR_ABORT_DEVICE_TYPE_OFF)
 #define CMD_HDR_RESP_REPORT_OFF		5
 #define CMD_HDR_RESP_REPORT_MSK		(0x1 << CMD_HDR_RESP_REPORT_OFF)
 #define CMD_HDR_TLR_CTRL_OFF		6
@@ -214,6 +218,8 @@
 #define CMD_HDR_DIF_SGL_LEN_MSK		(0xffff << CMD_HDR_DIF_SGL_LEN_OFF)
 #define CMD_HDR_DATA_SGL_LEN_OFF	16
 #define CMD_HDR_DATA_SGL_LEN_MSK	(0xffff << CMD_HDR_DATA_SGL_LEN_OFF)
+#define CMD_HDR_ABORT_IPTT_OFF		16
+#define CMD_HDR_ABORT_IPTT_MSK		(0xffff << CMD_HDR_ABORT_IPTT_OFF)
 
 /* Completion header */
 /* dw0 */
@@ -1775,6 +1781,32 @@ static int prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 	return 0;
 }
 
+static int prep_abort_v2_hw(struct hisi_hba *hisi_hba,
+		struct hisi_sas_slot *slot,
+		int device_id, int abort_flag, int tag_to_abort)
+{
+	struct sas_task *task = slot->task;
+	struct domain_device *dev = task->dev;
+	struct hisi_sas_cmd_hdr *hdr = slot->cmd_hdr;
+	struct hisi_sas_port *port = slot->port;
+
+	/* dw0 */
+	hdr->dw0 = cpu_to_le32((5 << CMD_HDR_CMD_OFF) | /*abort*/
+			       (port->id << CMD_HDR_PORT_OFF) |
+			       ((dev_is_sata(dev) ? 1:0) <<
+				CMD_HDR_ABORT_DEVICE_TYPE_OFF) |
+			       (abort_flag << CMD_HDR_ABORT_FLAG_OFF));
+
+	/* dw1 */
+	hdr->dw1 = cpu_to_le32(device_id << CMD_HDR_DEV_ID_OFF);
+
+	/* dw7 */
+	hdr->dw7 = cpu_to_le32(tag_to_abort << CMD_HDR_ABORT_IPTT_OFF);
+	hdr->transfer_tags = cpu_to_le32(slot->idx);
+
+	return 0;
+}
+
 static int phy_up_v2_hw(int phy_no, struct hisi_hba *hisi_hba)
 {
 	int i, res = 0;
@@ -2239,6 +2271,7 @@ static const struct hisi_sas_hw hisi_sas_v2_hw = {
 	.prep_smp = prep_smp_v2_hw,
 	.prep_ssp = prep_ssp_v2_hw,
 	.prep_stp = prep_ata_v2_hw,
+	.prep_abort = prep_abort_v2_hw,
 	.get_free_slot = get_free_slot_v2_hw,
 	.start_delivery = start_delivery_v2_hw,
 	.slot_complete = slot_complete_v2_hw,
