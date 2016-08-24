@@ -1020,7 +1020,7 @@ static int skl_platform_pcm_trigger(struct snd_pcm_substream *substream,
 {
 	struct hdac_ext_bus *ebus = get_bus_ctx(substream);
 
-	if ((ebus_to_hbus(ebus))->ppcap)
+	if (!(ebus_to_hbus(ebus))->ppcap)
 		return skl_coupled_trigger(substream, cmd);
 
 	return 0;
