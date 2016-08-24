@@ -1559,66 +1559,6 @@ exit:
 	return ret;
 }
 
-void issue_action_spct_ch_switch(struct adapter *padapter, u8 *ra, u8 new_ch, u8 ch_offset)
-{
-	struct xmit_frame			*pmgntframe;
-	struct pkt_attrib			*pattrib;
-	unsigned char				*pframe;
-	struct rtw_ieee80211_hdr	*pwlanhdr;
-	__le16 *fctrl;
-	struct xmit_priv			*pxmitpriv = &(padapter->xmitpriv);
-	struct mlme_ext_priv	*pmlmeext = &(padapter->mlmeextpriv);
-
-
-	DBG_88E(FUNC_NDEV_FMT" ra =%pM, ch:%u, offset:%u\n",
-		FUNC_NDEV_ARG(padapter->pnetdev), ra, new_ch, ch_offset);
-
-	pmgntframe = alloc_mgtxmitframe(pxmitpriv);
-	if (pmgntframe == NULL)
-		return;
-
-	/* update attribute */
-	pattrib = &pmgntframe->attrib;
-	update_mgntframe_attrib(padapter, pattrib);
-
-	memset(pmgntframe->buf_addr, 0, WLANHDR_OFFSET + TXDESC_OFFSET);
-
-	pframe = (u8 *)(pmgntframe->buf_addr) + TXDESC_OFFSET;
-	pwlanhdr = (struct rtw_ieee80211_hdr *)pframe;
-
-	fctrl = &(pwlanhdr->frame_ctl);
-	*(fctrl) = 0;
-
-	memcpy(pwlanhdr->addr1, ra, ETH_ALEN); /* RA */
-	memcpy(pwlanhdr->addr2, myid(&(padapter->eeprompriv)), ETH_ALEN); /* TA */
-	memcpy(pwlanhdr->addr3, ra, ETH_ALEN); /* DA = RA */
-
-	SetSeqNum(pwlanhdr, pmlmeext->mgnt_seq);
-	pmlmeext->mgnt_seq++;
-	SetFrameSubType(pframe, WIFI_ACTION);
-
-	pframe += sizeof(struct rtw_ieee80211_hdr_3addr);
-	pattrib->pktlen = sizeof(struct rtw_ieee80211_hdr_3addr);
-
-	/* category, action */
-	{
-		u8 category, action;
-		category = RTW_WLAN_CATEGORY_SPECTRUM_MGMT;
-		action = RTW_WLAN_ACTION_SPCT_CHL_SWITCH;
-
-		pframe = rtw_set_fixed_ie(pframe, 1, &(category), &(pattrib->pktlen));
-		pframe = rtw_set_fixed_ie(pframe, 1, &(action), &(pattrib->pktlen));
-	}
-
-	pframe = rtw_set_ie_ch_switch(pframe, &(pattrib->pktlen), 0, new_ch, 0);
-	pframe = rtw_set_ie_secondary_ch_offset(pframe, &(pattrib->pktlen),
-		hal_ch_offset_to_secondary_ch_offset(ch_offset));
-
-	pattrib->last_txcmdsz = pattrib->pktlen;
-
-	dump_mgntframe(padapter, pmgntframe);
-}
-
 static void issue_action_BA(struct adapter *padapter, unsigned char *raddr,
 			    unsigned char action, unsigned short status)
 {

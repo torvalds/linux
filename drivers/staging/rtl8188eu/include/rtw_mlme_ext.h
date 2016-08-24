@@ -562,8 +562,6 @@ int issue_qos_nulldata(struct adapter *padapter, unsigned char *da,
 		       u16 tid, int try_cnt, int wait_ms);
 int issue_deauth(struct adapter *padapter, unsigned char *da,
 		 unsigned short reason);
-void issue_action_spct_ch_switch(struct adapter *padapter, u8 *ra, u8 new_ch,
-				 u8 ch_offset);
 unsigned int send_delba(struct adapter *padapter, u8 initiator, u8 *addr);
 unsigned int send_beacon(struct adapter *padapter);
 
