@@ -569,7 +569,7 @@ static void hdmi_swreset(struct sti_hdmi *hdmi)
 
 	/* Wait reset completed */
 	wait_event_interruptible_timeout(hdmi->wait_event,
-					 hdmi->event_received == true,
+					 hdmi->event_received,
 					 msecs_to_jiffies
 					 (HDMI_TIMEOUT_SWRESET));
 
@@ -1181,7 +1181,7 @@ static void hdmi_audio_shutdown(struct device *dev, void *data)
 		    HDMI_AUD_CFG_ONE_BIT_INVALID;
 	hdmi_write(hdmi, audio_cfg, HDMI_AUDIO_CFG);
 
-	hdmi->audio.enabled = 0;
+	hdmi->audio.enabled = false;
 	hdmi_audio_infoframe_config(hdmi);
 }
 
@@ -1213,7 +1213,7 @@ static int hdmi_audio_hw_params(struct device *dev,
 		return -EINVAL;
 	}
 
-	audio.enabled = 1;
+	audio.enabled = true;
 
 	ret = hdmi_audio_configure(hdmi, &audio);
 	if (ret < 0)
@@ -1265,7 +1265,7 @@ static int sti_hdmi_register_audio_driver(struct device *dev,
 
 	DRM_DEBUG_DRIVER("\n");
 
-	hdmi->audio.enabled = 0;
+	hdmi->audio.enabled = false;
 
 	hdmi->audio_pdev = platform_device_register_data(
 		dev, HDMI_CODEC_DRV_NAME, PLATFORM_DEVID_AUTO,
