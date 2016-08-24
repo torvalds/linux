@@ -14,7 +14,7 @@
  * must be accompanied. If changing the state, a LED on the device starts to
  * blink and its sync status is false. In this state, the device sounds nothing
  * even if streaming. To start streaming at the current sampling rate is only
- * way to revocer this state. GO46 is better for stand-alone mixer.
+ * way to recover this state. GO46 is better for stand-alone mixer.
  *
  * Both of them have a capability to change its sampling rate up to 192.0kHz.
  * At 192.0kHz, the device reports 4 PCM-in, 1 MIDI-in, 6 PCM-out, 1 MIDI-out.
@@ -25,7 +25,7 @@
  * streaming with many asynchronous transactions brings sounds with noises.
  * Unfortunately current 'ffado-mixer' generated many asynchronous transaction
  * to observe device's state, mainly check cmp connection and signal format. I
- * reccomend users to close ffado-mixer at 192.0kHz if mixer is needless.
+ * recommend users to close ffado-mixer at 192.0kHz if mixer is needless.
  */
 
 static enum snd_bebob_clock_type clk_src_types[] = {
