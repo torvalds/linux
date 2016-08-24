@@ -673,7 +673,7 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
 		has->covered_end_pfn +=  processed_pfn;
 
 		init_completion(&dm_device.ol_waitevent);
-		dm_device.ha_waiting = true;
+		dm_device.ha_waiting = !memhp_auto_online;
 
 		mutex_unlock(&dm_device.ha_region_mutex);
 		nid = memory_add_physaddr_to_nid(PFN_PHYS(start_pfn));
@@ -699,12 +699,15 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
 		}
 
 		/*
-		 * Wait for the memory block to be onlined.
-		 * Since the hot add has succeeded, it is ok to
-		 * proceed even if the pages in the hot added region
-		 * have not been "onlined" within the allowed time.
+		 * Wait for the memory block to be onlined when memory onlining
+		 * is done outside of kernel (memhp_auto_online). Since the hot
+		 * add has succeeded, it is ok to proceed even if the pages in
+		 * the hot added region have not been "onlined" within the
+		 * allowed time.
 		 */
-		wait_for_completion_timeout(&dm_device.ol_waitevent, 5*HZ);
+		if (dm_device.ha_waiting)
+			wait_for_completion_timeout(&dm_device.ol_waitevent,
+						    5*HZ);
 		mutex_lock(&dm_device.ha_region_mutex);
 		post_status(&dm_device);
 	}
