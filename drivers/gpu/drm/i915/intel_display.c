@@ -14173,6 +14173,52 @@ static bool needs_vblank_wait(struct intel_crtc_state *crtc_state)
 	return false;
 }
 
+static void intel_update_crtc(struct drm_crtc *crtc,
+			      struct drm_atomic_state *state,
+			      struct drm_crtc_state *old_crtc_state,
+			      unsigned int *crtc_vblank_mask)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc_state *pipe_config = to_intel_crtc_state(crtc->state);
+	bool modeset = needs_modeset(crtc->state);
+
+	if (modeset) {
+		update_scanline_offset(intel_crtc);
+		dev_priv->display.crtc_enable(pipe_config, state);
+	} else {
+		intel_pre_plane_update(to_intel_crtc_state(old_crtc_state));
+	}
+
+	if (drm_atomic_get_existing_plane_state(state, crtc->primary)) {
+		intel_fbc_enable(
+		    intel_crtc, pipe_config,
+		    to_intel_plane_state(crtc->primary->state));
+	}
+
+	drm_atomic_helper_commit_planes_on_crtc(old_crtc_state);
+
+	if (needs_vblank_wait(pipe_config))
+		*crtc_vblank_mask |= drm_crtc_mask(crtc);
+}
+
+static void intel_update_crtcs(struct drm_atomic_state *state,
+			       unsigned int *crtc_vblank_mask)
+{
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *old_crtc_state;
+	int i;
+
+	for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
+		if (!crtc->state->active)
+			continue;
+
+		intel_update_crtc(crtc, state, old_crtc_state,
+				  crtc_vblank_mask);
+	}
+}
+
 static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
@@ -14271,17 +14317,9 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 		intel_modeset_verify_disabled(dev);
 	}
 
-	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
+	/* Complete the events for pipes that have now been disabled */
 	for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
-		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 		bool modeset = needs_modeset(crtc->state);
-		struct intel_crtc_state *pipe_config =
-			to_intel_crtc_state(crtc->state);
-
-		if (modeset && crtc->state->active) {
-			update_scanline_offset(to_intel_crtc(crtc));
-			dev_priv->display.crtc_enable(pipe_config, state);
-		}
 
 		/* Complete events for now disable pipes here. */
 		if (modeset && !crtc->state->active && crtc->state->event) {
@@ -14291,20 +14329,10 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 
 			crtc->state->event = NULL;
 		}
-
-		if (!modeset)
-			intel_pre_plane_update(to_intel_crtc_state(old_crtc_state));
-
-		if (crtc->state->active &&
-		    drm_atomic_get_existing_plane_state(state, crtc->primary))
-			intel_fbc_enable(intel_crtc, pipe_config, to_intel_plane_state(crtc->primary->state));
-
-		if (crtc->state->active)
-			drm_atomic_helper_commit_planes_on_crtc(old_crtc_state);
-
-		if (pipe_config->base.active && needs_vblank_wait(pipe_config))
-			crtc_vblank_mask |= 1 << i;
 	}
+
+	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
+	dev_priv->display.update_crtcs(state, &crtc_vblank_mask);
 
 	/* FIXME: We should call drm_atomic_helper_commit_hw_done() here
 	 * already, but still need the state for the delayed optimization. To
@@ -15822,6 +15850,8 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.crtc_enable = i9xx_crtc_enable;
 		dev_priv->display.crtc_disable = i9xx_crtc_disable;
 	}
+
+	dev_priv->display.update_crtcs = intel_update_crtcs;
 
 	/* Returns the core display clock speed */
 	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
