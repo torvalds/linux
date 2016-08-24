@@ -65,13 +65,6 @@ struct	stainfo_rxcache	{
 */
 };
 
-struct smooth_rssi_data {
-	u32	elements[100];	/* array to store values */
-	u32	index;			/* index to current array to store */
-	u32	total_num;		/* num of valid elements */
-	u32	total_val;		/* sum of valid elements */
-};
-
 struct signal_stat {
 	u8	update_req;		/* used to indicate */
 	u8	avg_val;		/* avg of valid elements */
