@@ -387,7 +387,7 @@ static int tas5086_hw_params(struct snd_pcm_substream *substream,
 	val = index_in_array(tas5086_ratios, ARRAY_SIZE(tas5086_ratios),
 			     priv->mclk / priv->rate);
 	if (val < 0) {
-		dev_err(codec->dev, "Inavlid MCLK / Fs ratio\n");
+		dev_err(codec->dev, "Invalid MCLK / Fs ratio\n");
 		return -EINVAL;
 	}
 
