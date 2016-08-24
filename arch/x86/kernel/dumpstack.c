@@ -185,7 +185,7 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 
 void show_stack_regs(struct pt_regs *regs)
 {
-	show_stack_log_lvl(current, regs, (unsigned long *)regs->sp, regs->bp, "");
+	show_stack_log_lvl(current, regs, NULL, 0, "");
 }
 
 static arch_spinlock_t die_lock = __ARCH_SPIN_LOCK_UNLOCKED;

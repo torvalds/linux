@@ -113,8 +113,6 @@ x86_backtrace(struct pt_regs * const regs, unsigned int depth)
 	struct stack_frame *head = (struct stack_frame *)frame_pointer(regs);
 
 	if (!user_mode(regs)) {
-		unsigned long stack = kernel_stack_pointer(regs);
-
 		if (!depth)
 			return;
 
@@ -122,8 +120,7 @@ x86_backtrace(struct pt_regs * const regs, unsigned int depth)
 		if (!--depth)
 			return;
 
-		dump_trace(NULL, regs, (unsigned long *)stack, 0,
-			   &backtrace_ops, &depth);
+		dump_trace(NULL, regs, NULL, 0, &backtrace_ops, &depth);
 		return;
 	}
 
