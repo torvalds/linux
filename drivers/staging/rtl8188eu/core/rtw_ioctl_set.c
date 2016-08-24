@@ -588,8 +588,8 @@ u16 rtw_get_cur_max_rate(struct adapter *adapter)
 			/* cur_bwmod is updated by beacon, pmlmeinfo is updated by association response */
 			bw_40MHz = (pmlmeext->cur_bwmode && (HT_INFO_HT_PARAM_REC_TRANS_CHNL_WIDTH & pmlmeinfo->HT_info.infos[0])) ? 1 : 0;
 
-			short_GI_20 = (le16_to_cpu(pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info) & IEEE80211_HT_CAP_SGI_20) ? 1 : 0;
-			short_GI_40 = (le16_to_cpu(pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info) & IEEE80211_HT_CAP_SGI_40) ? 1 : 0;
+			short_GI_20 = (le16_to_cpu(pmlmeinfo->HT_caps.HT_caps_info) & IEEE80211_HT_CAP_SGI_20) ? 1 : 0;
+			short_GI_40 = (le16_to_cpu(pmlmeinfo->HT_caps.HT_caps_info) & IEEE80211_HT_CAP_SGI_40) ? 1 : 0;
 
 			rtw_hal_get_hwreg(adapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
 			max_rate = rtw_mcs_rate(
@@ -597,7 +597,7 @@ u16 rtw_get_cur_max_rate(struct adapter *adapter)
 				bw_40MHz & (pregistrypriv->cbw40_enable),
 				short_GI_20,
 				short_GI_40,
-				pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate
+				pmlmeinfo->HT_caps.MCS_rate
 			);
 		}
 	} else {

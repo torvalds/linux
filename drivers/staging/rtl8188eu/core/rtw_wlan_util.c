@@ -716,7 +716,7 @@ void HT_caps_handler(struct adapter *padapter, struct ndis_802_11_var_ie *pIE)
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
 	struct mlme_priv		*pmlmepriv = &padapter->mlmepriv;
 	struct ht_priv			*phtpriv = &pmlmepriv->htpriv;
-	u8 *HT_cap = (u8 *)(&pmlmeinfo->HT_caps.u.HT_cap_element);
+	u8 *HT_cap = (u8 *)(&pmlmeinfo->HT_caps);
 
 	if (pIE == NULL)
 		return;
@@ -732,17 +732,17 @@ void HT_caps_handler(struct adapter *padapter, struct ndis_802_11_var_ie *pIE)
 			HT_cap[i] &= (pIE->data[i]);
 		} else {
 			/* modify from  fw by Thomas 2010/11/17 */
-			if ((pmlmeinfo->HT_caps.u.HT_cap_element.AMPDU_para & 0x3) > (pIE->data[i] & 0x3))
+			if ((pmlmeinfo->HT_caps.AMPDU_para & 0x3) > (pIE->data[i] & 0x3))
 				max_AMPDU_len = pIE->data[i] & 0x3;
 			else
-				max_AMPDU_len = pmlmeinfo->HT_caps.u.HT_cap_element.AMPDU_para & 0x3;
+				max_AMPDU_len = pmlmeinfo->HT_caps.AMPDU_para & 0x3;
 
-			if ((pmlmeinfo->HT_caps.u.HT_cap_element.AMPDU_para & 0x1c) > (pIE->data[i] & 0x1c))
-				min_MPDU_spacing = pmlmeinfo->HT_caps.u.HT_cap_element.AMPDU_para & 0x1c;
+			if ((pmlmeinfo->HT_caps.AMPDU_para & 0x1c) > (pIE->data[i] & 0x1c))
+				min_MPDU_spacing = pmlmeinfo->HT_caps.AMPDU_para & 0x1c;
 			else
 				min_MPDU_spacing = pIE->data[i] & 0x1c;
 
-			pmlmeinfo->HT_caps.u.HT_cap_element.AMPDU_para = max_AMPDU_len | min_MPDU_spacing;
+			pmlmeinfo->HT_caps.AMPDU_para = max_AMPDU_len | min_MPDU_spacing;
 		}
 	}
 
@@ -751,9 +751,9 @@ void HT_caps_handler(struct adapter *padapter, struct ndis_802_11_var_ie *pIE)
 	/* update the MCS rates */
 	for (i = 0; i < 16; i++) {
 		if ((rf_type == RF_1T1R) || (rf_type == RF_1T2R))
-			pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate[i] &= MCS_rate_1R[i];
+			pmlmeinfo->HT_caps.MCS_rate[i] &= MCS_rate_1R[i];
 		else
-			pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate[i] &= MCS_rate_2R[i];
+			pmlmeinfo->HT_caps.MCS_rate[i] &= MCS_rate_2R[i];
 	}
 }
 
@@ -799,9 +799,9 @@ void HTOnAssocRsp(struct adapter *padapter)
 		AMPDU_para [1:0]:Max AMPDU Len => 0:8k , 1:16k, 2:32k, 3:64k
 		AMPDU_para [4:2]:Min MPDU Start Spacing
 	*/
-	max_AMPDU_len = pmlmeinfo->HT_caps.u.HT_cap_element.AMPDU_para & 0x03;
+	max_AMPDU_len = pmlmeinfo->HT_caps.AMPDU_para & 0x03;
 
-	min_MPDU_spacing = (pmlmeinfo->HT_caps.u.HT_cap_element.AMPDU_para & 0x1c) >> 2;
+	min_MPDU_spacing = (pmlmeinfo->HT_caps.AMPDU_para & 0x1c) >> 2;
 
 	rtw_hal_set_hwreg(padapter, HW_VAR_AMPDU_MIN_SPACE, (u8 *)(&min_MPDU_spacing));
 
@@ -1249,7 +1249,7 @@ unsigned int update_MSC_rate(struct HT_caps_element *pHT_caps)
 {
 	unsigned int mask = 0;
 
-	mask = (pHT_caps->u.HT_cap_element.MCS_rate[0] << 12) | (pHT_caps->u.HT_cap_element.MCS_rate[1] << 20);
+	mask = (pHT_caps->MCS_rate[0] << 12) | (pHT_caps->MCS_rate[1] << 20);
 
 	return mask;
 }
@@ -1268,7 +1268,7 @@ int support_short_GI(struct adapter *padapter, struct HT_caps_element *pHT_caps)
 
 	bit_offset = (pmlmeext->cur_bwmode & HT_CHANNEL_WIDTH_40) ? 6 : 5;
 
-	if (__le16_to_cpu(pHT_caps->u.HT_cap_element.HT_caps_info) & (0x1 << bit_offset))
+	if (__le16_to_cpu(pHT_caps->HT_caps_info) & (0x1 << bit_offset))
 		return _SUCCESS;
 	else
 		return _FAIL;

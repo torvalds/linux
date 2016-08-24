@@ -523,16 +523,12 @@ struct ieee80211_ht_addt_info {
 } __packed;
 
 struct HT_caps_element {
-	union {
-		struct {
-			__le16	HT_caps_info;
-			unsigned char	AMPDU_para;
-			unsigned char	MCS_rate[16];
-			unsigned short	HT_ext_caps;
-			unsigned int	Beamforming_caps;
-			unsigned char	ASEL_caps;
-		} HT_cap_element;
-	} u;
+	__le16	HT_caps_info;
+	unsigned char	AMPDU_para;
+	unsigned char	MCS_rate[16];
+	unsigned short	HT_ext_caps;
+	unsigned int	Beamforming_caps;
+	unsigned char	ASEL_caps;
 } __packed;
 
 struct HT_info_element {

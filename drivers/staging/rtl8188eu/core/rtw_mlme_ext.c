@@ -1136,19 +1136,19 @@ static void issue_assocreq(struct adapter *padapter)
 
 			/* to disable 40M Hz support while gd_bw_40MHz_en = 0 */
 			if (pregpriv->cbw40_enable == 0)
-				pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info &= cpu_to_le16(~(BIT(6) | BIT(1)));
+				pmlmeinfo->HT_caps.HT_caps_info &= cpu_to_le16(~(BIT(6) | BIT(1)));
 			else
-				pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info |= cpu_to_le16(BIT(1));
+				pmlmeinfo->HT_caps.HT_caps_info |= cpu_to_le16(BIT(1));
 
 			/* todo: disable SM power save mode */
-			pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info |= cpu_to_le16(0x000c);
+			pmlmeinfo->HT_caps.HT_caps_info |= cpu_to_le16(0x000c);
 
 			rtw_hal_get_hwreg(padapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
 			switch (rf_type) {
 			case RF_1T1R:
 				if (pregpriv->rx_stbc)
-					pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info |= cpu_to_le16(0x0100);/* RX STBC One spatial stream */
-				memcpy(pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate, MCS_rate_1R, 16);
+					pmlmeinfo->HT_caps.HT_caps_info |= cpu_to_le16(0x0100);/* RX STBC One spatial stream */
+				memcpy(pmlmeinfo->HT_caps.MCS_rate, MCS_rate_1R, 16);
 				break;
 			case RF_2T2R:
 			case RF_1T2R:
@@ -1157,9 +1157,9 @@ static void issue_assocreq(struct adapter *padapter)
 				    ((pmlmeext->cur_wireless_mode & WIRELESS_11_24N) && (pregpriv->rx_stbc == 0x1)) || /* enable for 2.4GHz */
 				    (pregpriv->wifi_spec == 1)) {
 					DBG_88E("declare supporting RX STBC\n");
-					pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info |= cpu_to_le16(0x0200);/* RX STBC two spatial stream */
+					pmlmeinfo->HT_caps.HT_caps_info |= cpu_to_le16(0x0200);/* RX STBC two spatial stream */
 				}
-				memcpy(pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate, MCS_rate_2R, 16);
+				memcpy(pmlmeinfo->HT_caps.MCS_rate, MCS_rate_2R, 16);
 				break;
 			}
 			pframe = rtw_set_ie(pframe, _HT_CAPABILITY_IE_, ie_len , (u8 *)(&(pmlmeinfo->HT_caps)), &(pattrib->pktlen));
@@ -2192,7 +2192,7 @@ static u8 collect_bss_info(struct adapter *padapter,
 			struct HT_caps_element	*pHT_caps;
 			pHT_caps = (struct HT_caps_element *)(p + 2);
 
-			if (le16_to_cpu(pHT_caps->u.HT_cap_element.HT_caps_info)&BIT(14))
+			if (le16_to_cpu(pHT_caps->HT_caps_info) & BIT(14))
 				pmlmepriv->num_FortyMHzIntolerant++;
 		} else {
 			pmlmepriv->num_sta_no_ht++;
@@ -4479,7 +4479,7 @@ void update_sta_info(struct adapter *padapter, struct sta_info *psta)
 
 		psta->htpriv.ampdu_enable = pmlmepriv->htpriv.ampdu_enable;
 
-		if (support_short_GI(padapter, &(pmlmeinfo->HT_caps)))
+		if (support_short_GI(padapter, &pmlmeinfo->HT_caps))
 			psta->htpriv.sgi = true;
 
 		psta->qos_option = true;
