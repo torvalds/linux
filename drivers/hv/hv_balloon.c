@@ -547,7 +547,11 @@ struct hv_dynmem_device {
 	 */
 	struct task_struct *thread;
 
-	struct mutex ha_region_mutex;
+	/*
+	 * Protects ha_region_list, num_pages_onlined counter and individual
+	 * regions from ha_region_list.
+	 */
+	spinlock_t ha_lock;
 
 	/*
 	 * A list of hot-add regions.
@@ -571,18 +575,14 @@ static int hv_memory_notifier(struct notifier_block *nb, unsigned long val,
 			      void *v)
 {
 	struct memory_notify *mem = (struct memory_notify *)v;
+	unsigned long flags;
 
 	switch (val) {
-	case MEM_GOING_ONLINE:
-		mutex_lock(&dm_device.ha_region_mutex);
-		break;
-
 	case MEM_ONLINE:
+		spin_lock_irqsave(&dm_device.ha_lock, flags);
 		dm_device.num_pages_onlined += mem->nr_pages;
+		spin_unlock_irqrestore(&dm_device.ha_lock, flags);
 	case MEM_CANCEL_ONLINE:
-		if (val == MEM_ONLINE ||
-		    mutex_is_locked(&dm_device.ha_region_mutex))
-			mutex_unlock(&dm_device.ha_region_mutex);
 		if (dm_device.ha_waiting) {
 			dm_device.ha_waiting = false;
 			complete(&dm_device.ol_waitevent);
@@ -590,10 +590,11 @@ static int hv_memory_notifier(struct notifier_block *nb, unsigned long val,
 		break;
 
 	case MEM_OFFLINE:
-		mutex_lock(&dm_device.ha_region_mutex);
+		spin_lock_irqsave(&dm_device.ha_lock, flags);
 		dm_device.num_pages_onlined -= mem->nr_pages;
-		mutex_unlock(&dm_device.ha_region_mutex);
+		spin_unlock_irqrestore(&dm_device.ha_lock, flags);
 		break;
+	case MEM_GOING_ONLINE:
 	case MEM_GOING_OFFLINE:
 	case MEM_CANCEL_OFFLINE:
 		break;
@@ -657,9 +658,12 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
 	unsigned long start_pfn;
 	unsigned long processed_pfn;
 	unsigned long total_pfn = pfn_count;
+	unsigned long flags;
 
 	for (i = 0; i < (size/HA_CHUNK); i++) {
 		start_pfn = start + (i * HA_CHUNK);
+
+		spin_lock_irqsave(&dm_device.ha_lock, flags);
 		has->ha_end_pfn +=  HA_CHUNK;
 
 		if (total_pfn > HA_CHUNK) {
@@ -671,11 +675,11 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
 		}
 
 		has->covered_end_pfn +=  processed_pfn;
+		spin_unlock_irqrestore(&dm_device.ha_lock, flags);
 
 		init_completion(&dm_device.ol_waitevent);
 		dm_device.ha_waiting = !memhp_auto_online;
 
-		mutex_unlock(&dm_device.ha_region_mutex);
 		nid = memory_add_physaddr_to_nid(PFN_PHYS(start_pfn));
 		ret = add_memory(nid, PFN_PHYS((start_pfn)),
 				(HA_CHUNK << PAGE_SHIFT));
@@ -692,9 +696,10 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
 				 */
 				do_hot_add = false;
 			}
+			spin_lock_irqsave(&dm_device.ha_lock, flags);
 			has->ha_end_pfn -= HA_CHUNK;
 			has->covered_end_pfn -=  processed_pfn;
-			mutex_lock(&dm_device.ha_region_mutex);
+			spin_unlock_irqrestore(&dm_device.ha_lock, flags);
 			break;
 		}
 
@@ -708,7 +713,6 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
 		if (dm_device.ha_waiting)
 			wait_for_completion_timeout(&dm_device.ol_waitevent,
 						    5*HZ);
-		mutex_lock(&dm_device.ha_region_mutex);
 		post_status(&dm_device);
 	}
 
@@ -717,13 +721,13 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
 
 static void hv_online_page(struct page *pg)
 {
-	struct list_head *cur;
 	struct hv_hotadd_state *has;
 	unsigned long cur_start_pgp;
 	unsigned long cur_end_pgp;
+	unsigned long flags;
 
-	list_for_each(cur, &dm_device.ha_region_list) {
-		has = list_entry(cur, struct hv_hotadd_state, list);
+	spin_lock_irqsave(&dm_device.ha_lock, flags);
+	list_for_each_entry(has, &dm_device.ha_region_list, list) {
 		cur_start_pgp = (unsigned long)
 			pfn_to_page(has->start_pfn);
 		cur_end_pgp = (unsigned long)pfn_to_page(has->end_pfn);
@@ -736,21 +740,19 @@ static void hv_online_page(struct page *pg)
 		hv_page_online_one(has, pg);
 		break;
 	}
+	spin_unlock_irqrestore(&dm_device.ha_lock, flags);
 }
 
 static int pfn_covered(unsigned long start_pfn, unsigned long pfn_cnt)
 {
-	struct list_head *cur;
 	struct hv_hotadd_state *has;
 	struct hv_hotadd_gap *gap;
 	unsigned long residual, new_inc;
+	int ret = 0;
+	unsigned long flags;
 
-	if (list_empty(&dm_device.ha_region_list))
-		return false;
-
-	list_for_each(cur, &dm_device.ha_region_list) {
-		has = list_entry(cur, struct hv_hotadd_state, list);
-
+	spin_lock_irqsave(&dm_device.ha_lock, flags);
+	list_for_each_entry(has, &dm_device.ha_region_list, list) {
 		/*
 		 * If the pfn range we are dealing with is not in the current
 		 * "hot add block", move on.
@@ -764,8 +766,10 @@ static int pfn_covered(unsigned long start_pfn, unsigned long pfn_cnt)
 		 */
 		if (has->covered_end_pfn != start_pfn) {
 			gap = kzalloc(sizeof(struct hv_hotadd_gap), GFP_ATOMIC);
-			if (!gap)
-				return -ENOMEM;
+			if (!gap) {
+				ret = -ENOMEM;
+				break;
+			}
 
 			INIT_LIST_HEAD(&gap->list);
 			gap->start_pfn = has->covered_end_pfn;
@@ -791,10 +795,12 @@ static int pfn_covered(unsigned long start_pfn, unsigned long pfn_cnt)
 			has->end_pfn += new_inc;
 		}
 
-		return 1;
+		ret = 1;
+		break;
 	}
+	spin_unlock_irqrestore(&dm_device.ha_lock, flags);
 
-	return 0;
+	return ret;
 }
 
 static unsigned long handle_pg_range(unsigned long pg_start,
@@ -803,17 +809,13 @@ static unsigned long handle_pg_range(unsigned long pg_start,
 	unsigned long start_pfn = pg_start;
 	unsigned long pfn_cnt = pg_count;
 	unsigned long size;
-	struct list_head *cur;
 	struct hv_hotadd_state *has;
 	unsigned long pgs_ol = 0;
 	unsigned long old_covered_state;
+	unsigned long res = 0, flags;
 
-	if (list_empty(&dm_device.ha_region_list))
-		return 0;
-
-	list_for_each(cur, &dm_device.ha_region_list) {
-		has = list_entry(cur, struct hv_hotadd_state, list);
-
+	spin_lock_irqsave(&dm_device.ha_lock, flags);
+	list_for_each_entry(has, &dm_device.ha_region_list, list) {
 		/*
 		 * If the pfn range we are dealing with is not in the current
 		 * "hot add block", move on.
@@ -863,17 +865,20 @@ static unsigned long handle_pg_range(unsigned long pg_start,
 			} else {
 				pfn_cnt = size;
 			}
+			spin_unlock_irqrestore(&dm_device.ha_lock, flags);
 			hv_mem_hot_add(has->ha_end_pfn, size, pfn_cnt, has);
+			spin_lock_irqsave(&dm_device.ha_lock, flags);
 		}
 		/*
 		 * If we managed to online any pages that were given to us,
 		 * we declare success.
 		 */
-		return has->covered_end_pfn - old_covered_state;
-
+		res = has->covered_end_pfn - old_covered_state;
+		break;
 	}
+	spin_unlock_irqrestore(&dm_device.ha_lock, flags);
 
-	return 0;
+	return res;
 }
 
 static unsigned long process_hot_add(unsigned long pg_start,
@@ -883,6 +888,7 @@ static unsigned long process_hot_add(unsigned long pg_start,
 {
 	struct hv_hotadd_state *ha_region = NULL;
 	int covered;
+	unsigned long flags;
 
 	if (pfn_cnt == 0)
 		return 0;
@@ -908,12 +914,15 @@ static unsigned long process_hot_add(unsigned long pg_start,
 		INIT_LIST_HEAD(&ha_region->list);
 		INIT_LIST_HEAD(&ha_region->gap_list);
 
-		list_add_tail(&ha_region->list, &dm_device.ha_region_list);
 		ha_region->start_pfn = rg_start;
 		ha_region->ha_end_pfn = rg_start;
 		ha_region->covered_start_pfn = pg_start;
 		ha_region->covered_end_pfn = pg_start;
 		ha_region->end_pfn = rg_start + rg_size;
+
+		spin_lock_irqsave(&dm_device.ha_lock, flags);
+		list_add_tail(&ha_region->list, &dm_device.ha_region_list);
+		spin_unlock_irqrestore(&dm_device.ha_lock, flags);
 	}
 
 do_pg_range:
@@ -940,7 +949,6 @@ static void hot_add_req(struct work_struct *dummy)
 	resp.hdr.size = sizeof(struct dm_hot_add_response);
 
 #ifdef CONFIG_MEMORY_HOTPLUG
-	mutex_lock(&dm_device.ha_region_mutex);
 	pg_start = dm->ha_wrk.ha_page_range.finfo.start_page;
 	pfn_cnt = dm->ha_wrk.ha_page_range.finfo.page_cnt;
 
@@ -974,7 +982,6 @@ static void hot_add_req(struct work_struct *dummy)
 						rg_start, rg_sz);
 
 	dm->num_pages_added += resp.page_count;
-	mutex_unlock(&dm_device.ha_region_mutex);
 #endif
 	/*
 	 * The result field of the response structure has the
@@ -1519,7 +1526,7 @@ static int balloon_probe(struct hv_device *dev,
 	init_completion(&dm_device.host_event);
 	init_completion(&dm_device.config_event);
 	INIT_LIST_HEAD(&dm_device.ha_region_list);
-	mutex_init(&dm_device.ha_region_mutex);
+	spin_lock_init(&dm_device.ha_lock);
 	INIT_WORK(&dm_device.balloon_wrk.wrk, balloon_up);
 	INIT_WORK(&dm_device.ha_wrk.wrk, hot_add_req);
 	dm_device.host_specified_ha_region = false;
@@ -1638,9 +1645,9 @@ probe_error0:
 static int balloon_remove(struct hv_device *dev)
 {
 	struct hv_dynmem_device *dm = hv_get_drvdata(dev);
-	struct list_head *cur, *tmp;
-	struct hv_hotadd_state *has;
+	struct hv_hotadd_state *has, *tmp;
 	struct hv_hotadd_gap *gap, *tmp_gap;
+	unsigned long flags;
 
 	if (dm->num_pages_ballooned != 0)
 		pr_warn("Ballooned pages: %d\n", dm->num_pages_ballooned);
@@ -1655,8 +1662,8 @@ static int balloon_remove(struct hv_device *dev)
 	restore_online_page_callback(&hv_online_page);
 	unregister_memory_notifier(&hv_memory_nb);
 #endif
-	list_for_each_safe(cur, tmp, &dm->ha_region_list) {
-		has = list_entry(cur, struct hv_hotadd_state, list);
+	spin_lock_irqsave(&dm_device.ha_lock, flags);
+	list_for_each_entry_safe(has, tmp, &dm->ha_region_list, list) {
 		list_for_each_entry_safe(gap, tmp_gap, &has->gap_list, list) {
 			list_del(&gap->list);
 			kfree(gap);
@@ -1664,6 +1671,7 @@ static int balloon_remove(struct hv_device *dev)
 		list_del(&has->list);
 		kfree(has);
 	}
+	spin_unlock_irqrestore(&dm_device.ha_lock, flags);
 
 	return 0;
 }
