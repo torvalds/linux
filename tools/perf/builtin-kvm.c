@@ -24,6 +24,7 @@
 #include <sys/timerfd.h>
 #endif
 
+#include <linux/time64.h>
 #include <termios.h>
 #include <semaphore.h>
 #include <pthread.h>
@@ -362,7 +363,7 @@ static bool handle_end_event(struct perf_kvm_stat *kvm,
 		if (!skip_event(decode)) {
 			pr_info("%" PRIu64 " VM %d, vcpu %d: %s event took %" PRIu64 "usec\n",
 				 sample->time, sample->pid, vcpu_record->vcpu_id,
-				 decode, time_diff/1000);
+				 decode, time_diff / NSEC_PER_USEC);
 		}
 	}
 
@@ -608,15 +609,15 @@ static void print_result(struct perf_kvm_stat *kvm)
 		pr_info("%10llu ", (unsigned long long)ecount);
 		pr_info("%8.2f%% ", (double)ecount / kvm->total_count * 100);
 		pr_info("%8.2f%% ", (double)etime / kvm->total_time * 100);
-		pr_info("%9.2fus ", (double)min / 1e3);
-		pr_info("%9.2fus ", (double)max / 1e3);
-		pr_info("%9.2fus ( +-%7.2f%% )", (double)etime / ecount/1e3,
+		pr_info("%9.2fus ", (double)min / NSEC_PER_USEC);
+		pr_info("%9.2fus ", (double)max / NSEC_PER_USEC);
+		pr_info("%9.2fus ( +-%7.2f%% )", (double)etime / ecount / NSEC_PER_USEC,
 			kvm_event_rel_stddev(vcpu, event));
 		pr_info("\n");
 	}
 
 	pr_info("\nTotal Samples:%" PRIu64 ", Total events handled time:%.2fus.\n\n",
-		kvm->total_count, kvm->total_time / 1e3);
+		kvm->total_count, kvm->total_time / (double)NSEC_PER_USEC);
 
 	if (kvm->lost_events)
 		pr_info("\nLost events: %" PRIu64 "\n\n", kvm->lost_events);

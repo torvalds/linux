@@ -230,7 +230,8 @@ static int hpp__width_fn(struct perf_hpp_fmt *fmt,
 }
 
 static int hpp__header_fn(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
-			  struct hists *hists)
+			  struct hists *hists, int line __maybe_unused,
+			  int *span __maybe_unused)
 {
 	int len = hpp__width_fn(fmt, hpp, hists);
 	return scnprintf(hpp->buf, hpp->size, "%*s", len, fmt->name);
@@ -441,6 +442,7 @@ struct perf_hpp_fmt perf_hpp__format[] = {
 struct perf_hpp_list perf_hpp_list = {
 	.fields	= LIST_HEAD_INIT(perf_hpp_list.fields),
 	.sorts	= LIST_HEAD_INIT(perf_hpp_list.sorts),
+	.nr_header_lines = 1,
 };
 
 #undef HPP__COLOR_PRINT_FNS

@@ -39,6 +39,7 @@
 #include "util.h"
 #include "symbol.h"
 #include "probe-finder.h"
+#include "probe-file.h"
 
 /* Kprobe tracer basic type is up to u64 */
 #define MAX_BASIC_TYPE_BITS	64
@@ -297,13 +298,13 @@ static int convert_variable_type(Dwarf_Die *vr_die,
 	char sbuf[STRERR_BUFSIZE];
 	int bsize, boffs, total;
 	int ret;
-	char sign;
+	char prefix;
 
 	/* TODO: check all types */
-	if (cast && strcmp(cast, "string") != 0 &&
+	if (cast && strcmp(cast, "string") != 0 && strcmp(cast, "x") != 0 &&
 	    strcmp(cast, "s") != 0 && strcmp(cast, "u") != 0) {
 		/* Non string type is OK */
-		/* and respect signedness cast */
+		/* and respect signedness/hexadecimal cast */
 		tvar->type = strdup(cast);
 		return (tvar->type == NULL) ? -ENOMEM : 0;
 	}
@@ -365,11 +366,15 @@ static int convert_variable_type(Dwarf_Die *vr_die,
 	}
 
 	if (cast && (strcmp(cast, "u") == 0))
-		sign = 'u';
+		prefix = 'u';
 	else if (cast && (strcmp(cast, "s") == 0))
-		sign = 's';
+		prefix = 's';
+	else if (cast && (strcmp(cast, "x") == 0) &&
+		 probe_type_is_available(PROBE_TYPE_X))
+		prefix = 'x';
 	else
-		sign = die_is_signed_type(&type) ? 's' : 'u';
+		prefix = die_is_signed_type(&type) ? 's' :
+			 probe_type_is_available(PROBE_TYPE_X) ? 'x' : 'u';
 
 	ret = dwarf_bytesize(&type);
 	if (ret <= 0)
@@ -383,7 +388,7 @@ static int convert_variable_type(Dwarf_Die *vr_die,
 			dwarf_diename(&type), MAX_BASIC_TYPE_BITS);
 		ret = MAX_BASIC_TYPE_BITS;
 	}
-	ret = snprintf(buf, 16, "%c%d", sign, ret);
+	ret = snprintf(buf, 16, "%c%d", prefix, ret);
 
 formatted:
 	if (ret < 0 || ret >= 16) {

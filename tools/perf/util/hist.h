@@ -230,7 +230,7 @@ struct perf_hpp {
 struct perf_hpp_fmt {
 	const char *name;
 	int (*header)(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
-		      struct hists *hists);
+		      struct hists *hists, int line, int *span);
 	int (*width)(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 		     struct hists *hists);
 	int (*color)(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
@@ -259,6 +259,7 @@ struct perf_hpp_list {
 	struct list_head fields;
 	struct list_head sorts;
 
+	int nr_header_lines;
 	int need_collapse;
 	int parent;
 	int sym;

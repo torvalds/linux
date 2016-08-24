@@ -45,6 +45,7 @@
 #include <linux/audit.h>
 #include <linux/random.h>
 #include <linux/stringify.h>
+#include <linux/time64.h>
 
 #ifndef O_CLOEXEC
 # define O_CLOEXEC		02000000
