@@ -952,27 +952,6 @@ void rtw_macaddr_cfg(u8 *mac_addr)
 	DBG_88E("rtw_macaddr_cfg MAC Address  = %pM\n", (mac_addr));
 }
 
-void dump_wps_ie(u8 *ie, u32 ie_len)
-{
-	u8 *pos = ie;
-	u16 id;
-	u16 len;
-	u8 *wps_ie;
-	uint wps_ielen;
-
-	wps_ie = rtw_get_wps_ie(ie, ie_len, NULL, &wps_ielen);
-	if (wps_ie != ie || wps_ielen == 0)
-		return;
-
-	pos += 6;
-	while (pos - ie < ie_len) {
-		id = get_unaligned_be16(pos);
-		len = get_unaligned_be16(pos + 2);
-		DBG_88E("%s ID:0x%04x, LEN:%u\n", __func__, id, len);
-		pos += (4 + len);
-	}
-}
-
 /* Baron adds to avoid FreeBSD warning */
 int ieee80211_is_empty_essid(const char *essid, int essid_len)
 {
