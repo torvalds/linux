@@ -363,7 +363,8 @@ static struct dentry *ll_find_alias(struct inode *inode, struct dentry *dentry)
 		LASSERT(alias != dentry);
 
 		spin_lock(&alias->d_lock);
-		if (alias->d_flags & DCACHE_DISCONNECTED)
+		if ((alias->d_flags & DCACHE_DISCONNECTED) &&
+		    S_ISDIR(inode->i_mode))
 			/* LASSERT(last_discon == NULL); LU-405, bz 20055 */
 			discon_alias = alias;
 		else if (alias->d_parent == dentry->d_parent	     &&
