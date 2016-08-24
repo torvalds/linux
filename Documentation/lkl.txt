@@ -28,7 +28,7 @@ The supported hosts for now are POSIX and Windows userspace applications.
 Building LKL, the host library and LKL based tools
 ==================================================
 
-    $ make tools/lkl
+    $ make -C tools/lkl
 
 will build LKL as a object file, it will install it in tools/lkl/lib together
 with the headers files in tools/lkl/include then will build the host library,
@@ -56,7 +56,7 @@ Building LKL on FreeBSD
     #Prefer ports binutils and GNU bc(1):
     $ export PATH=/sbin:/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/usr/lib64/ccache
 
-    $ gmake tools/lkl
+    $ gmake -C tools/lkl
 
 Building LKL on Ubuntu
 -----------------------
@@ -66,7 +66,7 @@ Building LKL on Ubuntu
     # Optional, if you would like to be able to run tests
     $ sudo apt-get install btrfs-tools
     
-    $ make tools/lkl
+    $ make -C tools/lkl
     
     # To check that everything works:
     $ cd tools/lkl
