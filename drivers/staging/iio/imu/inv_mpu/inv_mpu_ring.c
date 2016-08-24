@@ -718,14 +718,6 @@ flush_fifo:
 	return IRQ_HANDLED;
 }
 
-#ifdef _RATE_DEBUG
-static s64 tm_min = -1;
-static s64 tm_max = -1;
-static s64 tm_sum = -1;
-static s64 tm_last_print = -1;
-static s64 tm_count = -1;
-#endif
-
 static int inv_report_gyro_accl_compass(struct iio_dev *indio_dev,
 					u8 *data, s64 t)
 {
@@ -843,34 +835,6 @@ static int inv_report_gyro_accl_compass(struct iio_dev *indio_dev,
 	tmp[DIV_ROUND_UP(ind, 8)] = t;
 
 	if (ind > 0) {
-#ifdef _RATE_DEBUG
-		s64 tm_cur = get_time_ns();
-		s64 tm_delta = tm_cur - t;
-
-		if (tm_min <= 0 && tm_max <= 0) {
-			tm_min = tm_delta;
-			tm_max = tm_delta;
-			tm_sum = 0;
-			tm_count = 0;
-		} else if (tm_delta < tm_min) {
-			tm_min = tm_delta;
-		} else if (tm_delta > tm_max) {
-			tm_max = tm_delta;
-		}
-		tm_sum += tm_delta;
-		tm_count++;
-
-		if (unlikely((tm_cur - tm_last_print) >= 1000000000)) {
-			pr_info("MPU6050 report size: %d rate: %lld\n", ind, tm_count);
-			pr_info("MPU KRNL report: [%lld] %lld,%d,%lld\n", t, tm_min, (u32)tm_sum / (u32)tm_count, tm_max);
-			tm_last_print = tm_cur;
-			tm_min = 0;
-			tm_max = 0;
-			tm_count = 0;
-			tm_sum = 0;
-		}
-#endif
-
 #ifdef INV_KERNEL_3_10
 		iio_push_to_buffers(indio_dev, buf);
 #else
@@ -930,6 +894,13 @@ static int get_bytes_per_datum(struct inv_mpu_iio_s *st)
 	return bytes_per_datum;
 }
 
+#ifdef _RATE_DEBUG
+static s64 tm_end_min = -1;
+static s64 tm_end_max = -1;
+static s64 tm_end_sum = -1;
+static s64 tm_end_last_print = -1;
+static s64 tm_end_count = -1;
+#endif
 /**
  *  inv_read_fifo() - Transfer data from FIFO to ring buffer.
  */
@@ -947,14 +918,6 @@ irqreturn_t inv_read_fifo(int irq, void *dev_id)
 	struct inv_reg_map_s *reg;
 	s64 buf[8];
 	s8 *tmp;
-
-#ifdef _RATE_DEBUG
-	s64 tm_i2c_sum = 0;
-	s64 tm = 0;
-	s64 tm_begin, tm_end;
-
-	tm_begin = get_time_ns();
-#endif
 
 	mutex_lock(&indio_dev->mlock);
 	if (!(iio_buffer_enabled(indio_dev)))
@@ -991,14 +954,8 @@ irqreturn_t inv_read_fifo(int irq, void *dev_id)
 	bytes_per_datum = get_bytes_per_datum(st);
 	fifo_count = 0;
 	if (bytes_per_datum != 0) {
-#ifdef _RATE_DEBUG
-		tm = get_time_ns();
-#endif
 		result = inv_plat_read(st, reg->fifo_count_h,
 				FIFO_COUNT_BYTE, data);
-#ifdef _RATE_DEBUG
-		tm_i2c_sum += get_time_ns() - tm;
-#endif
 		if (result)
 			goto end_session;
 		fifo_count = be16_to_cpup((__be16 *)(&data[0]));
@@ -1034,14 +991,8 @@ irqreturn_t inv_read_fifo(int irq, void *dev_id)
 	}
 	tmp = (s8 *)buf;
 	while ((bytes_per_datum != 0) && (fifo_count >= bytes_per_datum)) {
-#ifdef _RATE_DEBUG
-		tm = get_time_ns();
-#endif
 		result = inv_plat_read(st, reg->fifo_r_w, bytes_per_datum,
 			data);
-#ifdef _RATE_DEBUG
-		tm_i2c_sum += get_time_ns() - tm;
-#endif
 		if (result)
 			goto flush_fifo;
 
@@ -1055,19 +1006,43 @@ irqreturn_t inv_read_fifo(int irq, void *dev_id)
 	if (bytes_per_datum == 0 && st->chip_config.compass_fifo_enable)
 		inv_report_gyro_accl_compass(indio_dev, data, timestamp);
 
-end_session:
-	mutex_unlock(&indio_dev->mlock);
-
 #ifdef _RATE_DEBUG
-	tm_end = get_time_ns();
-	if (tm_end - tm_begin > 700000)
-		pr_info("%s: [%lld] %lld %lld %lld\n", __func__, timestamp, tm_begin - timestamp, tm_i2c_sum, tm_end - tm_begin);
+{
+	s64 tm_end_cur = get_time_ns();
+	s64 tm_end_delta = tm_end_cur - timestamp;
+
+	if (tm_end_min <= 0 && tm_end_max <= 0) {
+		tm_end_min = tm_end_delta;
+		tm_end_max = tm_end_delta;
+		tm_end_sum = 0;
+		tm_end_count = 0;
+	} else if (tm_end_delta < tm_end_min) {
+		tm_end_min = tm_end_delta;
+	} else if (tm_end_delta > tm_end_max) {
+		tm_end_max = tm_end_delta;
+	}
+	tm_end_sum += tm_end_delta;
+	tm_end_count++;
+
+	if (unlikely((tm_end_cur - tm_end_last_print) >= 1000000000)) {
+		pr_info("MPU KRNL report rate[%4lld]: %8lld, %8d, %8lld\n",
+			tm_end_count, tm_end_min, (u32)tm_end_sum / (u32)tm_end_count, tm_end_max);
+		tm_end_last_print = tm_end_cur;
+		tm_end_min = 0;
+		tm_end_max = 0;
+		tm_end_count = 0;
+		tm_end_sum = 0;
+	}
+}
 #endif
 
+end_session:
+	mutex_unlock(&indio_dev->mlock);
 	return IRQ_HANDLED;
 
 flush_fifo:
 	/* Flush HW and SW FIFOs. */
+	pr_info("fifo_count = %d, fifo_len = %d\n", fifo_count, kfifo_len(&st->timestamps));
 	inv_reset_fifo(indio_dev);
 	inv_clear_kfifo(st);
 	mutex_unlock(&indio_dev->mlock);
