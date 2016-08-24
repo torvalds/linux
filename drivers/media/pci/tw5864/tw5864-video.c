@@ -1215,8 +1215,6 @@ void tw5864_prepare_frame_headers(struct tw5864_input *input)
 	u8 *dst;
 	size_t dst_space;
 	unsigned long flags;
-	u8 *sl_hdr;
-	unsigned long space_before_sl_hdr;
 
 	if (!vb) {
 		spin_lock_irqsave(&input->slock, flags);
@@ -1253,8 +1251,6 @@ void tw5864_prepare_frame_headers(struct tw5864_input *input)
 					      input->width, input->height);
 
 	/* Put slice header */
-	sl_hdr = dst;
-	space_before_sl_hdr = dst_space;
 	tw5864_h264_put_slice_header(&dst, &dst_space, input->h264_idr_pic_id,
 				     input->frame_gop_seqno,
 				     &input->tail_nb_bits, &input->tail);
