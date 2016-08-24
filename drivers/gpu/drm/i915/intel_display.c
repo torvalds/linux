@@ -10022,7 +10022,7 @@ static void hsw_write_dcomp(struct drm_i915_private *dev_priv, uint32_t val)
 		mutex_lock(&dev_priv->rps.hw_lock);
 		if (sandybridge_pcode_write(dev_priv, GEN6_PCODE_WRITE_D_COMP,
 					    val))
-			DRM_ERROR("Failed to write to D_COMP\n");
+			DRM_DEBUG_KMS("Failed to write to D_COMP\n");
 		mutex_unlock(&dev_priv->rps.hw_lock);
 	} else {
 		I915_WRITE(D_COMP_BDW, val);
