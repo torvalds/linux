@@ -555,8 +555,9 @@ int mlxsw_sp_port_vid_to_fid_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(svfa), svfa_pl);
 }
 
-static int mlxsw_sp_port_vid_learning_set(struct mlxsw_sp_port *mlxsw_sp_port,
-					  u16 vid, bool learn_enable)
+int __mlxsw_sp_port_vid_learning_set(struct mlxsw_sp_port *mlxsw_sp_port,
+				     u16 vid_begin, u16 vid_end,
+				     bool learn_enable)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	char *spvmlr_pl;
@@ -565,11 +566,18 @@ static int mlxsw_sp_port_vid_learning_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	spvmlr_pl = kmalloc(MLXSW_REG_SPVMLR_LEN, GFP_KERNEL);
 	if (!spvmlr_pl)
 		return -ENOMEM;
-	mlxsw_reg_spvmlr_pack(spvmlr_pl, mlxsw_sp_port->local_port, vid, vid,
-			      learn_enable);
+	mlxsw_reg_spvmlr_pack(spvmlr_pl, mlxsw_sp_port->local_port, vid_begin,
+			      vid_end, learn_enable);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spvmlr), spvmlr_pl);
 	kfree(spvmlr_pl);
 	return err;
+}
+
+static int mlxsw_sp_port_vid_learning_set(struct mlxsw_sp_port *mlxsw_sp_port,
+					  u16 vid, bool learn_enable)
+{
+	return __mlxsw_sp_port_vid_learning_set(mlxsw_sp_port, vid, vid,
+						learn_enable);
 }
 
 static int
@@ -973,10 +981,6 @@ static int mlxsw_sp_port_add_vid(struct net_device *dev,
 			goto err_port_vp_mode_trans;
 	}
 
-	err = mlxsw_sp_port_vid_learning_set(mlxsw_sp_vport, vid, false);
-	if (err)
-		goto err_port_vid_learning_set;
-
 	err = mlxsw_sp_port_vlan_set(mlxsw_sp_vport, vid, vid, true, untagged);
 	if (err)
 		goto err_port_add_vid;
@@ -984,8 +988,6 @@ static int mlxsw_sp_port_add_vid(struct net_device *dev,
 	return 0;
 
 err_port_add_vid:
-	mlxsw_sp_port_vid_learning_set(mlxsw_sp_vport, vid, true);
-err_port_vid_learning_set:
 	if (list_is_singular(&mlxsw_sp_port->vports_list))
 		mlxsw_sp_port_vlan_mode_trans(mlxsw_sp_port);
 err_port_vp_mode_trans:
@@ -1011,8 +1013,6 @@ static int mlxsw_sp_port_kill_vid(struct net_device *dev,
 		return 0;
 
 	mlxsw_sp_port_vlan_set(mlxsw_sp_vport, vid, vid, false, false);
-
-	mlxsw_sp_port_vid_learning_set(mlxsw_sp_vport, vid, true);
 
 	/* Drop FID reference. If this was the last reference the
 	 * resources will be freed.
