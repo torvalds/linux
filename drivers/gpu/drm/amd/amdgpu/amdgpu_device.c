@@ -1052,6 +1052,13 @@ static void amdgpu_check_arguments(struct amdgpu_device *adev)
 			 amdgpu_vm_block_size);
 		amdgpu_vm_block_size = 9;
 	}
+
+	if ((amdgpu_vram_page_split != -1 && amdgpu_vram_page_split < 16) ||
+	    !amdgpu_check_pot_argument(amdgpu_vram_page_split)) {
+		dev_warn(adev->dev, "invalid VRAM page split (%d)\n",
+			 amdgpu_vram_page_split);
+		amdgpu_vram_page_split = 1024;
+	}
 }
 
 /**
