@@ -26,10 +26,11 @@ int kstack_depth_to_print = 3 * STACKSLOTS_PER_LINE;
 static int die_counter;
 
 static void printk_stack_address(unsigned long address, int reliable,
-		void *data)
+				 char *log_lvl)
 {
+	touch_nmi_watchdog();
 	printk("%s [<%p>] %s%pB\n",
-		(char *)data, (void *)address, reliable ? "" : "? ",
+		log_lvl, (void *)address, reliable ? "" : "? ",
 		(void *)address);
 }
 
@@ -148,7 +149,6 @@ static int print_trace_stack(void *data, char *name)
  */
 static int print_trace_address(void *data, unsigned long addr, int reliable)
 {
-	touch_nmi_watchdog();
 	printk_stack_address(addr, reliable, data);
 	return 0;
 }
