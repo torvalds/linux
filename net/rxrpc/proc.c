@@ -126,13 +126,13 @@ const struct file_operations rxrpc_call_seq_fops = {
 static void *rxrpc_connection_seq_start(struct seq_file *seq, loff_t *_pos)
 {
 	read_lock(&rxrpc_connection_lock);
-	return seq_list_start_head(&rxrpc_connections, *_pos);
+	return seq_list_start_head(&rxrpc_connection_proc_list, *_pos);
 }
 
 static void *rxrpc_connection_seq_next(struct seq_file *seq, void *v,
 				       loff_t *pos)
 {
-	return seq_list_next(v, &rxrpc_connections, pos);
+	return seq_list_next(v, &rxrpc_connection_proc_list, pos);
 }
 
 static void rxrpc_connection_seq_stop(struct seq_file *seq, void *v)
@@ -145,7 +145,7 @@ static int rxrpc_connection_seq_show(struct seq_file *seq, void *v)
 	struct rxrpc_connection *conn;
 	char lbuff[4 + 4 + 4 + 4 + 5 + 1], rbuff[4 + 4 + 4 + 4 + 5 + 1];
 
-	if (v == &rxrpc_connections) {
+	if (v == &rxrpc_connection_proc_list) {
 		seq_puts(seq,
 			 "Proto Local                  Remote                "
 			 " SvID ConnID   End Use State    Key     "
@@ -154,7 +154,7 @@ static int rxrpc_connection_seq_show(struct seq_file *seq, void *v)
 		return 0;
 	}
 
-	conn = list_entry(v, struct rxrpc_connection, link);
+	conn = list_entry(v, struct rxrpc_connection, proc_link);
 
 	sprintf(lbuff, "%pI4:%u",
 		&conn->params.local->srx.transport.sin.sin_addr,
