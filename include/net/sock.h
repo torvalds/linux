@@ -1020,7 +1020,6 @@ struct proto {
 	void			(*unhash)(struct sock *sk);
 	void			(*rehash)(struct sock *sk);
 	int			(*get_port)(struct sock *sk, unsigned short snum);
-	void			(*clear_sk)(struct sock *sk, int size);
 
 	/* Keeping track of sockets in use */
 #ifdef CONFIG_PROC_FS
@@ -1241,8 +1240,6 @@ static inline int __sk_prot_rehash(struct sock *sk)
 	sk->sk_prot->unhash(sk);
 	return sk->sk_prot->hash(sk);
 }
-
-void sk_prot_clear_portaddr_nulls(struct sock *sk, int size);
 
 /* About 10 seconds */
 #define SOCK_DESTROY_TIME (10*HZ)
