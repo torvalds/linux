@@ -771,6 +771,7 @@ static void sti_hqvdp_disable(struct sti_hqvdp *hqvdp)
 		DRM_ERROR("XP70 could not revert to idle\n");
 
 	hqvdp->plane.status = STI_PLANE_DISABLED;
+	hqvdp->xp70_initialized = false;
 }
 
 /**
@@ -1013,7 +1014,6 @@ static int sti_hqvdp_atomic_check(struct drm_plane *drm_plane,
 	struct sti_hqvdp *hqvdp = to_sti_hqvdp(plane);
 	struct drm_crtc *crtc = state->crtc;
 	struct drm_framebuffer *fb = state->fb;
-	bool first_prepare = plane->status == STI_PLANE_DISABLED ? true : false;
 	struct drm_crtc_state *crtc_state;
 	struct drm_display_mode *mode;
 	int dst_x, dst_y, dst_w, dst_h;
@@ -1064,7 +1064,7 @@ static int sti_hqvdp_atomic_check(struct drm_plane *drm_plane,
 		return -EINVAL;
 	}
 
-	if (first_prepare) {
+	if (!hqvdp->xp70_initialized) {
 		/* Start HQVDP XP70 coprocessor */
 		sti_hqvdp_start_xp70(hqvdp);
 
