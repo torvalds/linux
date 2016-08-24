@@ -376,8 +376,14 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	host->clk_update	= sh_mobile_sdhi_clk_update;
 	host->clk_disable	= sh_mobile_sdhi_clk_disable;
 	host->multi_io_quirk	= sh_mobile_sdhi_multi_io_quirk;
-	host->card_busy	= sh_mobile_sdhi_card_busy;
-	host->start_signal_voltage_switch = sh_mobile_sdhi_start_signal_voltage_switch;
+
+	/* SDR speeds are only available on Gen2+ */
+	if (mmc_data->flags & TMIO_MMC_MIN_RCAR2) {
+		/* card_busy caused issues on r8a73a4 (pre-Gen2) CD-less SDHI */
+		host->card_busy	= sh_mobile_sdhi_card_busy;
+		host->start_signal_voltage_switch =
+			sh_mobile_sdhi_start_signal_voltage_switch;
+	}
 
 	/* Orginally registers were 16 bit apart, could be 32 or 64 nowadays */
 	if (!host->bus_shift && resource_size(res) > 0x100) /* old way to determine the shift */
