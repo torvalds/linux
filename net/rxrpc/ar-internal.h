@@ -310,6 +310,7 @@ struct rxrpc_connection {
 		struct rb_node	client_node;	/* Node in local->client_conns */
 		struct rb_node	service_node;	/* Node in peer->service_conns */
 	};
+	struct list_head	proc_link;	/* link in procfs list */
 	struct list_head	link;		/* link in master connection list */
 	struct sk_buff_head	rx_queue;	/* received conn-level packets */
 	const struct rxrpc_security *security;	/* applied security module */
@@ -564,6 +565,7 @@ void rxrpc_reject_packets(struct rxrpc_local *);
  */
 extern unsigned int rxrpc_connection_expiry;
 extern struct list_head rxrpc_connections;
+extern struct list_head rxrpc_connection_proc_list;
 extern rwlock_t rxrpc_connection_lock;
 
 int rxrpc_extract_addr_from_skb(struct sockaddr_rxrpc *, struct sk_buff *);

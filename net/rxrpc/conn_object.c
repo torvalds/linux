@@ -27,6 +27,7 @@ unsigned int rxrpc_connection_expiry = 10 * 60;
 static void rxrpc_connection_reaper(struct work_struct *work);
 
 LIST_HEAD(rxrpc_connections);
+LIST_HEAD(rxrpc_connection_proc_list);
 DEFINE_RWLOCK(rxrpc_connection_lock);
 static DECLARE_DELAYED_WORK(rxrpc_connection_reap, rxrpc_connection_reaper);
 
@@ -44,6 +45,7 @@ struct rxrpc_connection *rxrpc_alloc_connection(gfp_t gfp)
 		spin_lock_init(&conn->channel_lock);
 		init_waitqueue_head(&conn->channel_wq);
 		INIT_WORK(&conn->processor, &rxrpc_process_connection);
+		INIT_LIST_HEAD(&conn->proc_link);
 		INIT_LIST_HEAD(&conn->link);
 		skb_queue_head_init(&conn->rx_queue);
 		conn->security = &rxrpc_no_security;
@@ -283,6 +285,7 @@ static void rxrpc_connection_reaper(struct work_struct *work)
 			rxrpc_unpublish_service_conn(conn);
 
 		list_move_tail(&conn->link, &graveyard);
+		list_del_init(&conn->proc_link);
 	}
 	write_unlock(&rxrpc_connection_lock);
 
