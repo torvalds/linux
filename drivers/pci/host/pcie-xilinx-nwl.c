@@ -15,7 +15,7 @@
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/msi.h>
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
@@ -459,40 +459,6 @@ static const struct irq_domain_ops dev_msi_domain_ops = {
 	.free   = nwl_irq_domain_free,
 };
 
-static void nwl_msi_free_irq_domain(struct nwl_pcie *pcie)
-{
-	struct nwl_msi *msi = &pcie->msi;
-
-	if (msi->irq_msi0)
-		irq_set_chained_handler_and_data(msi->irq_msi0, NULL, NULL);
-	if (msi->irq_msi1)
-		irq_set_chained_handler_and_data(msi->irq_msi1, NULL, NULL);
-
-	if (msi->msi_domain)
-		irq_domain_remove(msi->msi_domain);
-	if (msi->dev_domain)
-		irq_domain_remove(msi->dev_domain);
-
-	kfree(msi->bitmap);
-	msi->bitmap = NULL;
-}
-
-static void nwl_pcie_free_irq_domain(struct nwl_pcie *pcie)
-{
-	int i;
-	u32 irq;
-
-	for (i = 0; i < INTX_NUM; i++) {
-		irq = irq_find_mapping(pcie->legacy_irq_domain, i + 1);
-		if (irq > 0)
-			irq_dispose_mapping(irq);
-	}
-	if (pcie->legacy_irq_domain)
-		irq_domain_remove(pcie->legacy_irq_domain);
-
-	nwl_msi_free_irq_domain(pcie);
-}
-
 static int nwl_pcie_init_msi_irq_domain(struct nwl_pcie *pcie)
 {
 #ifdef CONFIG_PCI_MSI
@@ -867,25 +833,12 @@ error:
 	return err;
 }
 
-static int nwl_pcie_remove(struct platform_device *pdev)
-{
-	struct nwl_pcie *pcie = platform_get_drvdata(pdev);
-
-	nwl_pcie_free_irq_domain(pcie);
-	platform_set_drvdata(pdev, NULL);
-	return 0;
-}
-
 static struct platform_driver nwl_pcie_driver = {
 	.driver = {
 		.name = "nwl-pcie",
+		.suppress_bind_attrs = true,
 		.of_match_table = nwl_pcie_of_match,
 	},
 	.probe = nwl_pcie_probe,
-	.remove = nwl_pcie_remove,
 };
-module_platform_driver(nwl_pcie_driver);
-
-MODULE_AUTHOR("Xilinx, Inc");
-MODULE_DESCRIPTION("NWL PCIe driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(nwl_pcie_driver);
