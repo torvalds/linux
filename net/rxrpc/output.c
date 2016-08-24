@@ -390,7 +390,7 @@ static int rxrpc_wait_for_tx_window(struct rxrpc_sock *rx,
 			  call->acks_winsz),
 	       *timeo);
 
-	add_wait_queue(&call->tx_waitq, &myself);
+	add_wait_queue(&call->waitq, &myself);
 
 	for (;;) {
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -408,7 +408,7 @@ static int rxrpc_wait_for_tx_window(struct rxrpc_sock *rx,
 		lock_sock(&rx->sk);
 	}
 
-	remove_wait_queue(&call->tx_waitq, &myself);
+	remove_wait_queue(&call->waitq, &myself);
 	set_current_state(TASK_RUNNING);
 	_leave(" = %d", ret);
 	return ret;
@@ -482,6 +482,8 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	if (try_to_del_timer_sync(&call->ack_timer) >= 0) {
 		/* the packet may be freed by rxrpc_process_call() before this
 		 * returns */
+		if (rxrpc_is_client_call(call))
+			rxrpc_expose_client_call(call);
 		ret = rxrpc_send_data_packet(call->conn, skb);
 		_net("sent skb %p", skb);
 	} else {

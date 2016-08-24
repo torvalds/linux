@@ -127,10 +127,11 @@ static struct rxrpc_call *rxrpc_alloc_call(gfp_t gfp)
 	INIT_WORK(&call->destroyer, &rxrpc_destroy_call);
 	INIT_WORK(&call->processor, &rxrpc_process_call);
 	INIT_LIST_HEAD(&call->link);
+	INIT_LIST_HEAD(&call->chan_wait_link);
 	INIT_LIST_HEAD(&call->accept_link);
 	skb_queue_head_init(&call->rx_queue);
 	skb_queue_head_init(&call->rx_oos_queue);
-	init_waitqueue_head(&call->tx_waitq);
+	init_waitqueue_head(&call->waitq);
 	spin_lock_init(&call->lock);
 	rwlock_init(&call->state_lock);
 	atomic_set(&call->usage, 1);
@@ -358,7 +359,7 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 		       call->debug_id, rxrpc_call_states[call->state]);
 
 		if (call->state >= RXRPC_CALL_COMPLETE) {
-			__rxrpc_disconnect_call(call);
+			__rxrpc_disconnect_call(conn, call);
 		} else {
 			spin_unlock(&conn->channel_lock);
 			kmem_cache_free(rxrpc_call_jar, candidate);

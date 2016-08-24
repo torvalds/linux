@@ -1,6 +1,6 @@
-/* RxRPC virtual connection handler
+/* RxRPC virtual connection handler, common bits.
  *
- * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2007, 2016 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -15,8 +15,6 @@
 #include <linux/slab.h>
 #include <linux/net.h>
 #include <linux/skbuff.h>
-#include <net/sock.h>
-#include <net/af_rxrpc.h>
 #include "ar-internal.h"
 
 /*
@@ -31,6 +29,8 @@ LIST_HEAD(rxrpc_connection_proc_list);
 DEFINE_RWLOCK(rxrpc_connection_lock);
 static DECLARE_DELAYED_WORK(rxrpc_connection_reap, rxrpc_connection_reaper);
 
+static void rxrpc_destroy_connection(struct rcu_head *);
+
 /*
  * allocate a new connection
  */
@@ -42,20 +42,16 @@ struct rxrpc_connection *rxrpc_alloc_connection(gfp_t gfp)
 
 	conn = kzalloc(sizeof(struct rxrpc_connection), gfp);
 	if (conn) {
+		INIT_LIST_HEAD(&conn->cache_link);
 		spin_lock_init(&conn->channel_lock);
-		init_waitqueue_head(&conn->channel_wq);
+		INIT_LIST_HEAD(&conn->waiting_calls);
 		INIT_WORK(&conn->processor, &rxrpc_process_connection);
 		INIT_LIST_HEAD(&conn->proc_link);
 		INIT_LIST_HEAD(&conn->link);
 		skb_queue_head_init(&conn->rx_queue);
 		conn->security = &rxrpc_no_security;
 		spin_lock_init(&conn->state_lock);
-		/* We maintain an extra ref on the connection whilst it is
-		 * on the rxrpc_connections list.
-		 */
-		atomic_set(&conn->usage, 2);
 		conn->debug_id = atomic_inc_return(&rxrpc_debug_id);
-		atomic_set(&conn->avail_chans, RXRPC_MAXCALLS);
 		conn->size_align = 4;
 		conn->header_size = sizeof(struct rxrpc_wire_header);
 		conn->idle_timestamp = jiffies;
@@ -156,9 +152,9 @@ not_found:
  * terminates.  The caller must hold the channel_lock and must release the
  * call's ref on the connection.
  */
-void __rxrpc_disconnect_call(struct rxrpc_call *call)
+void __rxrpc_disconnect_call(struct rxrpc_connection *conn,
+			     struct rxrpc_call *call)
 {
-	struct rxrpc_connection *conn = call->conn;
 	struct rxrpc_channel *chan =
 		&conn->channels[call->cid & RXRPC_CHANNELMASK];
 
@@ -182,8 +178,6 @@ void __rxrpc_disconnect_call(struct rxrpc_call *call)
 		chan->call_id = chan->call_counter;
 
 		rcu_assign_pointer(chan->call, NULL);
-		atomic_inc(&conn->avail_chans);
-		wake_up(&conn->channel_wq);
 	}
 
 	_leave("");
@@ -197,13 +191,44 @@ void rxrpc_disconnect_call(struct rxrpc_call *call)
 {
 	struct rxrpc_connection *conn = call->conn;
 
+	if (rxrpc_is_client_call(call))
+		return rxrpc_disconnect_client_call(call);
+
 	spin_lock(&conn->channel_lock);
-	__rxrpc_disconnect_call(call);
+	__rxrpc_disconnect_call(conn, call);
 	spin_unlock(&conn->channel_lock);
 
 	call->conn = NULL;
 	conn->idle_timestamp = jiffies;
 	rxrpc_put_connection(conn);
+}
+
+/*
+ * Kill off a connection.
+ */
+void rxrpc_kill_connection(struct rxrpc_connection *conn)
+{
+	ASSERT(!rcu_access_pointer(conn->channels[0].call) &&
+	       !rcu_access_pointer(conn->channels[1].call) &&
+	       !rcu_access_pointer(conn->channels[2].call) &&
+	       !rcu_access_pointer(conn->channels[3].call));
+	ASSERT(list_empty(&conn->cache_link));
+
+	write_lock(&rxrpc_connection_lock);
+	list_del_init(&conn->proc_link);
+	write_unlock(&rxrpc_connection_lock);
+
+	/* Drain the Rx queue.  Note that even though we've unpublished, an
+	 * incoming packet could still be being added to our Rx queue, so we
+	 * will need to drain it again in the RCU cleanup handler.
+	 */
+	rxrpc_purge_queue(&conn->rx_queue);
+
+	/* Leave final destruction to RCU.  The connection processor work item
+	 * must carry a ref on the connection to prevent us getting here whilst
+	 * it is queued or running.
+	 */
+	call_rcu(&conn->rcu, rxrpc_destroy_connection);
 }
 
 /*
@@ -241,7 +266,7 @@ static void rxrpc_destroy_connection(struct rcu_head *rcu)
 }
 
 /*
- * reap dead connections
+ * reap dead service connections
  */
 static void rxrpc_connection_reaper(struct work_struct *work)
 {
@@ -280,12 +305,11 @@ static void rxrpc_connection_reaper(struct work_struct *work)
 			continue;
 
 		if (rxrpc_conn_is_client(conn))
-			rxrpc_unpublish_client_conn(conn);
+			BUG();
 		else
 			rxrpc_unpublish_service_conn(conn);
 
 		list_move_tail(&conn->link, &graveyard);
-		list_del_init(&conn->proc_link);
 	}
 	write_unlock(&rxrpc_connection_lock);
 
@@ -302,16 +326,15 @@ static void rxrpc_connection_reaper(struct work_struct *work)
 		list_del_init(&conn->link);
 
 		ASSERTCMP(atomic_read(&conn->usage), ==, 0);
-		skb_queue_purge(&conn->rx_queue);
-		call_rcu(&conn->rcu, rxrpc_destroy_connection);
+		rxrpc_kill_connection(conn);
 	}
 
 	_leave("");
 }
 
 /*
- * preemptively destroy all the connection records rather than waiting for them
- * to time out
+ * preemptively destroy all the service connection records rather than
+ * waiting for them to time out
  */
 void __exit rxrpc_destroy_all_connections(void)
 {
@@ -319,6 +342,8 @@ void __exit rxrpc_destroy_all_connections(void)
 	bool leak = false;
 
 	_enter("");
+
+	rxrpc_destroy_all_client_connections();
 
 	rxrpc_connection_expiry = 0;
 	cancel_delayed_work(&rxrpc_connection_reap);
@@ -333,6 +358,8 @@ void __exit rxrpc_destroy_all_connections(void)
 	}
 	write_unlock(&rxrpc_connection_lock);
 	BUG_ON(leak);
+
+	ASSERT(list_empty(&rxrpc_connection_proc_list));
 
 	/* Make sure the local and peer records pinned by any dying connections
 	 * are released.

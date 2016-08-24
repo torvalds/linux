@@ -185,6 +185,11 @@ struct rxrpc_connection *rxrpc_incoming_connection(struct rxrpc_local *local,
 
 	rxrpc_get_local(local);
 
+	/* We maintain an extra ref on the connection whilst it is on
+	 * the rxrpc_connections list.
+	 */
+	atomic_set(&conn->usage, 2);
+
 	write_lock(&rxrpc_connection_lock);
 	list_add_tail(&conn->link, &rxrpc_connections);
 	list_add_tail(&conn->proc_link, &rxrpc_connection_proc_list);

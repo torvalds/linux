@@ -193,6 +193,8 @@ static void rxrpc_resend(struct rxrpc_call *call)
 				stop = true;
 				sp->resend_at = jiffies + 3;
 			} else {
+				if (rxrpc_is_client_call(call))
+					rxrpc_expose_client_call(call);
 				sp->resend_at =
 					jiffies + rxrpc_resend_timeout;
 			}
@@ -378,7 +380,7 @@ static void rxrpc_rotate_tx_window(struct rxrpc_call *call, u32 hard)
 		call->acks_hard++;
 	}
 
-	wake_up(&call->tx_waitq);
+	wake_up(&call->waitq);
 }
 
 /*
