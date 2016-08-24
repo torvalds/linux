@@ -764,7 +764,6 @@ kiblnd_post_tx_locked(struct kib_conn *conn, struct kib_tx *tx, int credit)
 	LASSERT(tx->tx_queued);
 	/* We rely on this for QP sizing */
 	LASSERT(tx->tx_nwrq > 0);
-	LASSERT(tx->tx_nwrq <= 1 + conn->ibc_max_frags);
 
 	LASSERT(!credit || credit == 1);
 	LASSERT(conn->ibc_outstanding_credits >= 0);
@@ -1072,6 +1071,15 @@ kiblnd_init_rdma(struct kib_conn *conn, struct kib_tx *tx, int type,
 	LASSERT(type == IBLND_MSG_GET_DONE ||
 		type == IBLND_MSG_PUT_DONE);
 
+	if (kiblnd_rd_size(srcrd) > conn->ibc_max_frags << PAGE_SHIFT) {
+		CERROR("RDMA is too large for peer %s (%d), src size: %d dst size: %d\n",
+		       libcfs_nid2str(conn->ibc_peer->ibp_nid),
+		       conn->ibc_max_frags << PAGE_SHIFT,
+		       kiblnd_rd_size(srcrd), kiblnd_rd_size(dstrd));
+		rc = -EMSGSIZE;
+		goto too_big;
+	}
+
 	while (resid > 0) {
 		if (srcidx >= srcrd->rd_nfrags) {
 			CERROR("Src buffer exhausted: %d frags\n", srcidx);
@@ -1082,16 +1090,6 @@ kiblnd_init_rdma(struct kib_conn *conn, struct kib_tx *tx, int type,
 		if (dstidx == dstrd->rd_nfrags) {
 			CERROR("Dst buffer exhausted: %d frags\n", dstidx);
 			rc = -EPROTO;
-			break;
-		}
-
-		if (tx->tx_nwrq >= conn->ibc_max_frags) {
-			CERROR("RDMA has too many fragments for peer %s (%d), src idx/frags: %d/%d dst idx/frags: %d/%d\n",
-			       libcfs_nid2str(conn->ibc_peer->ibp_nid),
-			       conn->ibc_max_frags,
-			       srcidx, srcrd->rd_nfrags,
-			       dstidx, dstrd->rd_nfrags);
-			rc = -EMSGSIZE;
 			break;
 		}
 
@@ -1126,7 +1124,7 @@ kiblnd_init_rdma(struct kib_conn *conn, struct kib_tx *tx, int type,
 		wrq++;
 		sge++;
 	}
-
+too_big:
 	if (rc < 0)			     /* no RDMA if completing with failure */
 		tx->tx_nwrq = 0;
 
@@ -2226,6 +2224,7 @@ kiblnd_passive_connect(struct rdma_cm_id *cmid, void *priv, int priv_nob)
 	struct kib_rej rej;
 	int version = IBLND_MSG_VERSION;
 	unsigned long flags;
+	int max_frags;
 	int rc;
 	struct sockaddr_in *peer_addr;
 
@@ -2332,22 +2331,20 @@ kiblnd_passive_connect(struct rdma_cm_id *cmid, void *priv, int priv_nob)
 		goto failed;
 	}
 
-	if (reqmsg->ibm_u.connparams.ibcp_max_frags >
-	    kiblnd_rdma_frags(version, ni)) {
-		CWARN("Can't accept conn from %s (version %x): max_frags %d too large (%d wanted)\n",
-		      libcfs_nid2str(nid), version,
-		      reqmsg->ibm_u.connparams.ibcp_max_frags,
+	max_frags = reqmsg->ibm_u.connparams.ibcp_max_frags >> IBLND_FRAG_SHIFT;
+	if (max_frags > kiblnd_rdma_frags(version, ni)) {
+		CWARN("Can't accept conn from %s (version %x): max message size %d is too large (%d wanted)\n",
+		      libcfs_nid2str(nid), version, max_frags,
 		      kiblnd_rdma_frags(version, ni));
 
 		if (version >= IBLND_MSG_VERSION)
 			rej.ibr_why = IBLND_REJECT_RDMA_FRAGS;
 
 		goto failed;
-	} else if (reqmsg->ibm_u.connparams.ibcp_max_frags <
-		   kiblnd_rdma_frags(version, ni) && !net->ibn_fmr_ps) {
-		CWARN("Can't accept conn from %s (version %x): max_frags %d incompatible without FMR pool (%d wanted)\n",
-		      libcfs_nid2str(nid), version,
-		      reqmsg->ibm_u.connparams.ibcp_max_frags,
+	} else if (max_frags < kiblnd_rdma_frags(version, ni) &&
+		   !net->ibn_fmr_ps) {
+		CWARN("Can't accept conn from %s (version %x): max message size %d incompatible without FMR pool (%d wanted)\n",
+		      libcfs_nid2str(nid), version, max_frags,
 		      kiblnd_rdma_frags(version, ni));
 
 		if (version == IBLND_MSG_VERSION)
@@ -2373,7 +2370,7 @@ kiblnd_passive_connect(struct rdma_cm_id *cmid, void *priv, int priv_nob)
 	}
 
 	/* We have validated the peer's parameters so use those */
-	peer->ibp_max_frags = reqmsg->ibm_u.connparams.ibcp_max_frags;
+	peer->ibp_max_frags = max_frags;
 	peer->ibp_queue_depth = reqmsg->ibm_u.connparams.ibcp_queue_depth;
 
 	write_lock_irqsave(g_lock, flags);
@@ -2494,7 +2491,7 @@ kiblnd_passive_connect(struct rdma_cm_id *cmid, void *priv, int priv_nob)
 	kiblnd_init_msg(ackmsg, IBLND_MSG_CONNACK,
 			sizeof(ackmsg->ibm_u.connparams));
 	ackmsg->ibm_u.connparams.ibcp_queue_depth = conn->ibc_queue_depth;
-	ackmsg->ibm_u.connparams.ibcp_max_frags = conn->ibc_max_frags;
+	ackmsg->ibm_u.connparams.ibcp_max_frags = conn->ibc_max_frags << IBLND_FRAG_SHIFT;
 	ackmsg->ibm_u.connparams.ibcp_max_msg_size = IBLND_MSG_SIZE;
 
 	kiblnd_pack_msg(ni, ackmsg, version, 0, nid, reqmsg->ibm_srcstamp);
@@ -2556,7 +2553,7 @@ kiblnd_check_reconnect(struct kib_conn *conn, int version,
 
 	if (cp) {
 		msg_size = cp->ibcp_max_msg_size;
-		frag_num = cp->ibcp_max_frags;
+		frag_num	= cp->ibcp_max_frags << IBLND_FRAG_SHIFT;
 		queue_dep = cp->ibcp_queue_depth;
 	}
 
@@ -2821,11 +2818,11 @@ kiblnd_check_connreply(struct kib_conn *conn, void *priv, int priv_nob)
 		goto failed;
 	}
 
-	if (msg->ibm_u.connparams.ibcp_max_frags >
+	if ((msg->ibm_u.connparams.ibcp_max_frags >> IBLND_FRAG_SHIFT) >
 	    conn->ibc_max_frags) {
 		CERROR("%s has incompatible max_frags %d (<=%d wanted)\n",
 		       libcfs_nid2str(peer->ibp_nid),
-		       msg->ibm_u.connparams.ibcp_max_frags,
+		       msg->ibm_u.connparams.ibcp_max_frags >> IBLND_FRAG_SHIFT,
 		       conn->ibc_max_frags);
 		rc = -EPROTO;
 		goto failed;
@@ -2859,7 +2856,7 @@ kiblnd_check_connreply(struct kib_conn *conn, void *priv, int priv_nob)
 	conn->ibc_credits = msg->ibm_u.connparams.ibcp_queue_depth;
 	conn->ibc_reserved_credits = msg->ibm_u.connparams.ibcp_queue_depth;
 	conn->ibc_queue_depth = msg->ibm_u.connparams.ibcp_queue_depth;
-	conn->ibc_max_frags = msg->ibm_u.connparams.ibcp_max_frags;
+	conn->ibc_max_frags = msg->ibm_u.connparams.ibcp_max_frags >> IBLND_FRAG_SHIFT;
 	LASSERT(conn->ibc_credits + conn->ibc_reserved_credits +
 		IBLND_OOB_MSGS(ver) <= IBLND_RX_MSGS(conn));
 
@@ -2916,7 +2913,7 @@ kiblnd_active_connect(struct rdma_cm_id *cmid)
 	memset(msg, 0, sizeof(*msg));
 	kiblnd_init_msg(msg, IBLND_MSG_CONNREQ, sizeof(msg->ibm_u.connparams));
 	msg->ibm_u.connparams.ibcp_queue_depth = conn->ibc_queue_depth;
-	msg->ibm_u.connparams.ibcp_max_frags = conn->ibc_max_frags;
+	msg->ibm_u.connparams.ibcp_max_frags = conn->ibc_max_frags << IBLND_FRAG_SHIFT;
 	msg->ibm_u.connparams.ibcp_max_msg_size = IBLND_MSG_SIZE;
 
 	kiblnd_pack_msg(peer->ibp_ni, msg, version,
