@@ -821,10 +821,9 @@ int analogix_dp_get_modes(struct drm_connector *connector)
 
 	pm_runtime_get_sync(dp->dev);
 
-	if (dp->plat_data->panel)
+	if (dp->plat_data->panel) {
 		num_modes += drm_panel_get_modes(dp->plat_data->panel);
-
-	if (!num_modes) {
+	} else {
 		edid = drm_get_edid(connector, &dp->aux.ddc);
 		if (edid) {
 			drm_mode_connector_update_edid_property(&dp->connector,
