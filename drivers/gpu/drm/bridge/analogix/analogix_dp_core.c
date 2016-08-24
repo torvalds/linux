@@ -31,6 +31,7 @@
 #include <drm/bridge/analogix_dp.h>
 
 #include "analogix_dp_core.h"
+#include "analogix_dp_reg.h"
 
 #define to_dp(nm)	container_of(nm, struct analogix_dp_device, nm)
 
@@ -97,150 +98,21 @@ static int analogix_dp_detect_hpd(struct analogix_dp_device *dp)
 	return 0;
 }
 
-static unsigned char analogix_dp_calc_edid_check_sum(unsigned char *edid_data)
-{
-	int i;
-	unsigned char sum = 0;
-
-	for (i = 0; i < EDID_BLOCK_LENGTH; i++)
-		sum = sum + edid_data[i];
-
-	return sum;
-}
-
-static int analogix_dp_read_edid(struct analogix_dp_device *dp)
-{
-	unsigned char *edid = dp->edid;
-	unsigned int extend_block = 0;
-	unsigned char sum;
-	unsigned char test_vector;
-	int retval;
-
-	/*
-	 * EDID device address is 0x50.
-	 * However, if necessary, you must have set upper address
-	 * into E-EDID in I2C device, 0x30.
-	 */
-
-	/* Read Extension Flag, Number of 128-byte EDID extension blocks */
-	retval = analogix_dp_read_byte_from_i2c(dp, I2C_EDID_DEVICE_ADDR,
-						EDID_EXTENSION_FLAG,
-						&extend_block);
-	if (retval)
-		return retval;
-
-	if (extend_block > 0) {
-		dev_dbg(dp->dev, "EDID data includes a single extension!\n");
-
-		/* Read EDID data */
-		retval = analogix_dp_read_bytes_from_i2c(dp,
-						I2C_EDID_DEVICE_ADDR,
-						EDID_HEADER_PATTERN,
-						EDID_BLOCK_LENGTH,
-						&edid[EDID_HEADER_PATTERN]);
-		if (retval != 0) {
-			dev_err(dp->dev, "EDID Read failed!\n");
-			return -EIO;
-		}
-		sum = analogix_dp_calc_edid_check_sum(edid);
-		if (sum != 0) {
-			dev_err(dp->dev, "EDID bad checksum!\n");
-			return -EIO;
-		}
-
-		/* Read additional EDID data */
-		retval = analogix_dp_read_bytes_from_i2c(dp,
-				I2C_EDID_DEVICE_ADDR,
-				EDID_BLOCK_LENGTH,
-				EDID_BLOCK_LENGTH,
-				&edid[EDID_BLOCK_LENGTH]);
-		if (retval != 0) {
-			dev_err(dp->dev, "EDID Read failed!\n");
-			return -EIO;
-		}
-		sum = analogix_dp_calc_edid_check_sum(&edid[EDID_BLOCK_LENGTH]);
-		if (sum != 0) {
-			dev_err(dp->dev, "EDID bad checksum!\n");
-			return -EIO;
-		}
-
-		analogix_dp_read_byte_from_dpcd(dp, DP_TEST_REQUEST,
-						&test_vector);
-		if (test_vector & DP_TEST_LINK_EDID_READ) {
-			analogix_dp_write_byte_to_dpcd(dp,
-				DP_TEST_EDID_CHECKSUM,
-				edid[EDID_BLOCK_LENGTH + EDID_CHECKSUM]);
-			analogix_dp_write_byte_to_dpcd(dp,
-				DP_TEST_RESPONSE,
-				DP_TEST_EDID_CHECKSUM_WRITE);
-		}
-	} else {
-		dev_info(dp->dev, "EDID data does not include any extensions.\n");
-
-		/* Read EDID data */
-		retval = analogix_dp_read_bytes_from_i2c(dp,
-				I2C_EDID_DEVICE_ADDR, EDID_HEADER_PATTERN,
-				EDID_BLOCK_LENGTH, &edid[EDID_HEADER_PATTERN]);
-		if (retval != 0) {
-			dev_err(dp->dev, "EDID Read failed!\n");
-			return -EIO;
-		}
-		sum = analogix_dp_calc_edid_check_sum(edid);
-		if (sum != 0) {
-			dev_err(dp->dev, "EDID bad checksum!\n");
-			return -EIO;
-		}
-
-		analogix_dp_read_byte_from_dpcd(dp, DP_TEST_REQUEST,
-						&test_vector);
-		if (test_vector & DP_TEST_LINK_EDID_READ) {
-			analogix_dp_write_byte_to_dpcd(dp,
-				DP_TEST_EDID_CHECKSUM, edid[EDID_CHECKSUM]);
-			analogix_dp_write_byte_to_dpcd(dp,
-				DP_TEST_RESPONSE, DP_TEST_EDID_CHECKSUM_WRITE);
-		}
-	}
-
-	dev_dbg(dp->dev, "EDID Read success!\n");
-	return 0;
-}
-
-static int analogix_dp_handle_edid(struct analogix_dp_device *dp)
-{
-	u8 buf[12];
-	int i;
-	int retval;
-
-	/* Read DPCD DP_DPCD_REV~RECEIVE_PORT1_CAP_1 */
-	retval = analogix_dp_read_bytes_from_dpcd(dp, DP_DPCD_REV, 12, buf);
-	if (retval)
-		return retval;
-
-	/* Read EDID */
-	for (i = 0; i < 3; i++) {
-		retval = analogix_dp_read_edid(dp);
-		if (!retval)
-			break;
-	}
-
-	return retval;
-}
-
 static void
 analogix_dp_enable_rx_to_enhanced_mode(struct analogix_dp_device *dp,
 				       bool enable)
 {
 	u8 data;
 
-	analogix_dp_read_byte_from_dpcd(dp, DP_LANE_COUNT_SET, &data);
+	drm_dp_dpcd_readb(&dp->aux, DP_LANE_COUNT_SET, &data);
 
 	if (enable)
-		analogix_dp_write_byte_to_dpcd(dp, DP_LANE_COUNT_SET,
-					       DP_LANE_COUNT_ENHANCED_FRAME_EN |
-					       DPCD_LANE_COUNT_SET(data));
+		drm_dp_dpcd_writeb(&dp->aux, DP_LANE_COUNT_SET,
+				   DP_LANE_COUNT_ENHANCED_FRAME_EN |
+				   DPCD_LANE_COUNT_SET(data));
 	else
-		analogix_dp_write_byte_to_dpcd(dp, DP_LANE_COUNT_SET,
-					       DPCD_LANE_COUNT_SET(data));
+		drm_dp_dpcd_writeb(&dp->aux, DP_LANE_COUNT_SET,
+				   DPCD_LANE_COUNT_SET(data));
 }
 
 static int analogix_dp_is_enhanced_mode_available(struct analogix_dp_device *dp)
@@ -248,7 +120,7 @@ static int analogix_dp_is_enhanced_mode_available(struct analogix_dp_device *dp)
 	u8 data;
 	int retval;
 
-	analogix_dp_read_byte_from_dpcd(dp, DP_MAX_LANE_COUNT, &data);
+	drm_dp_dpcd_readb(&dp->aux, DP_MAX_LANE_COUNT, &data);
 	retval = DPCD_ENHANCED_FRAME_CAP(data);
 
 	return retval;
@@ -267,8 +139,8 @@ static void analogix_dp_training_pattern_dis(struct analogix_dp_device *dp)
 {
 	analogix_dp_set_training_pattern(dp, DP_NONE);
 
-	analogix_dp_write_byte_to_dpcd(dp, DP_TRAINING_PATTERN_SET,
-				       DP_TRAINING_PATTERN_DISABLE);
+	drm_dp_dpcd_writeb(&dp->aux, DP_TRAINING_PATTERN_SET,
+			   DP_TRAINING_PATTERN_DISABLE);
 }
 
 static void
@@ -313,8 +185,8 @@ static int analogix_dp_link_start(struct analogix_dp_device *dp)
 	/* Setup RX configuration */
 	buf[0] = dp->link_train.link_rate;
 	buf[1] = dp->link_train.lane_count;
-	retval = analogix_dp_write_bytes_to_dpcd(dp, DP_LINK_BW_SET, 2, buf);
-	if (retval)
+	retval = drm_dp_dpcd_write(&dp->aux, DP_LINK_BW_SET, buf, 2);
+	if (retval < 0)
 		return retval;
 
 	/* Set TX pre-emphasis to minimum */
@@ -338,20 +210,22 @@ static int analogix_dp_link_start(struct analogix_dp_device *dp)
 	analogix_dp_set_training_pattern(dp, TRAINING_PTN1);
 
 	/* Set RX training pattern */
-	retval = analogix_dp_write_byte_to_dpcd(dp,
-			DP_TRAINING_PATTERN_SET,
-			DP_LINK_SCRAMBLING_DISABLE | DP_TRAINING_PATTERN_1);
-	if (retval)
+	retval = drm_dp_dpcd_writeb(&dp->aux, DP_TRAINING_PATTERN_SET,
+				    DP_LINK_SCRAMBLING_DISABLE |
+					DP_TRAINING_PATTERN_1);
+	if (retval < 0)
 		return retval;
 
 	for (lane = 0; lane < lane_count; lane++)
 		buf[lane] = DP_TRAIN_PRE_EMPH_LEVEL_0 |
 			    DP_TRAIN_VOLTAGE_SWING_LEVEL_0;
 
-	retval = analogix_dp_write_bytes_to_dpcd(dp, DP_TRAINING_LANE0_SET,
-						 lane_count, buf);
+	retval = drm_dp_dpcd_write(&dp->aux, DP_TRAINING_LANE0_SET, buf,
+				   lane_count);
+	if (retval < 0)
+		return retval;
 
-	return retval;
+	return 0;
 }
 
 static unsigned char analogix_dp_get_lane_status(u8 link_status[2], int lane)
@@ -505,20 +379,18 @@ static int analogix_dp_process_clock_recovery(struct analogix_dp_device *dp)
 
 	lane_count = dp->link_train.lane_count;
 
-	retval =  analogix_dp_read_bytes_from_dpcd(dp,
-			DP_LANE0_1_STATUS, 2, link_status);
-	if (retval)
+	retval = drm_dp_dpcd_read(&dp->aux, DP_LANE0_1_STATUS, link_status, 2);
+	if (retval < 0)
 		return retval;
 
-	retval =  analogix_dp_read_bytes_from_dpcd(dp,
-			DP_ADJUST_REQUEST_LANE0_1, 2, adjust_request);
-	if (retval)
+	retval = drm_dp_dpcd_read(&dp->aux, DP_ADJUST_REQUEST_LANE0_1,
+				  adjust_request, 2);
+	if (retval < 0)
 		return retval;
 
 	if (analogix_dp_clock_recovery_ok(link_status, lane_count) == 0) {
-		retval = analogix_dp_read_byte_from_dpcd(dp, DP_MAX_LANE_COUNT,
-							 &dpcd);
-		if (retval)
+		retval = drm_dp_dpcd_readb(&dp->aux, DP_MAX_LANE_COUNT, &dpcd);
+		if (retval < 0)
 			return retval;
 
 		tps3_supported = !!(dpcd & DP_TPS3_SUPPORTED);
@@ -530,12 +402,12 @@ static int analogix_dp_process_clock_recovery(struct analogix_dp_device *dp)
 		analogix_dp_set_training_pattern(dp, tps3_supported ?
 						 TRAINING_PTN3 : TRAINING_PTN2);
 
-		retval = analogix_dp_write_byte_to_dpcd(dp,
-				DP_TRAINING_PATTERN_SET,
-				DP_LINK_SCRAMBLING_DISABLE |
-				(tps3_supported ? DP_TRAINING_PATTERN_3 :
-				 DP_TRAINING_PATTERN_2));
-		if (retval)
+		retval = drm_dp_dpcd_writeb(&dp->aux, DP_TRAINING_PATTERN_SET,
+					    DP_LINK_SCRAMBLING_DISABLE |
+					    (tps3_supported ?
+					     DP_TRAINING_PATTERN_3 :
+					     DP_TRAINING_PATTERN_2));
+		if (retval < 0)
 			return retval;
 
 		dev_info(dp->dev, "Link Training Clock Recovery success\n");
@@ -573,13 +445,12 @@ static int analogix_dp_process_clock_recovery(struct analogix_dp_device *dp)
 		analogix_dp_set_lane_link_training(dp,
 			dp->link_train.training_lane[lane], lane);
 
-	retval = analogix_dp_write_bytes_to_dpcd(dp,
-			DP_TRAINING_LANE0_SET, lane_count,
-			dp->link_train.training_lane);
-	if (retval)
+	retval = drm_dp_dpcd_write(&dp->aux, DP_TRAINING_LANE0_SET,
+				   dp->link_train.training_lane, lane_count);
+	if (retval < 0)
 		return retval;
 
-	return retval;
+	return 0;
 }
 
 static int analogix_dp_process_equalizer_training(struct analogix_dp_device *dp)
@@ -592,9 +463,8 @@ static int analogix_dp_process_equalizer_training(struct analogix_dp_device *dp)
 
 	lane_count = dp->link_train.lane_count;
 
-	retval = analogix_dp_read_bytes_from_dpcd(dp,
-			DP_LANE0_1_STATUS, 2, link_status);
-	if (retval)
+	retval = drm_dp_dpcd_read(&dp->aux, DP_LANE0_1_STATUS, link_status, 2);
+	if (retval < 0)
 		return retval;
 
 	if (analogix_dp_clock_recovery_ok(link_status, lane_count)) {
@@ -602,14 +472,14 @@ static int analogix_dp_process_equalizer_training(struct analogix_dp_device *dp)
 		return -EIO;
 	}
 
-	retval = analogix_dp_read_bytes_from_dpcd(dp,
-			DP_ADJUST_REQUEST_LANE0_1, 2, adjust_request);
-	if (retval)
+	retval = drm_dp_dpcd_read(&dp->aux, DP_ADJUST_REQUEST_LANE0_1,
+				  adjust_request, 2);
+	if (retval < 0)
 		return retval;
 
-	retval = analogix_dp_read_byte_from_dpcd(dp,
-			DP_LANE_ALIGN_STATUS_UPDATED, &link_align);
-	if (retval)
+	retval = drm_dp_dpcd_readb(&dp->aux, DP_LANE_ALIGN_STATUS_UPDATED,
+				   &link_align);
+	if (retval < 0)
 		return retval;
 
 	analogix_dp_get_adjust_training_lane(dp, adjust_request);
@@ -650,10 +520,12 @@ static int analogix_dp_process_equalizer_training(struct analogix_dp_device *dp)
 		analogix_dp_set_lane_link_training(dp,
 			dp->link_train.training_lane[lane], lane);
 
-	retval = analogix_dp_write_bytes_to_dpcd(dp, DP_TRAINING_LANE0_SET,
-			lane_count, dp->link_train.training_lane);
+	retval = drm_dp_dpcd_write(&dp->aux, DP_TRAINING_LANE0_SET,
+				   dp->link_train.training_lane, lane_count);
+	if (retval < 0)
+		return retval;
 
-	return retval;
+	return 0;
 }
 
 static void analogix_dp_get_max_rx_bandwidth(struct analogix_dp_device *dp,
@@ -667,7 +539,7 @@ static void analogix_dp_get_max_rx_bandwidth(struct analogix_dp_device *dp,
 	 * For DP rev.1.2, Maximum link rate of Main Link lanes
 	 * 0x06 = 1.62 Gbps, 0x0a = 2.7 Gbps, 0x14 = 5.4Gbps
 	 */
-	analogix_dp_read_byte_from_dpcd(dp, DP_MAX_LINK_RATE, &data);
+	drm_dp_dpcd_readb(&dp->aux, DP_MAX_LINK_RATE, &data);
 	*bandwidth = data;
 }
 
@@ -680,7 +552,7 @@ static void analogix_dp_get_max_rx_lane_count(struct analogix_dp_device *dp,
 	 * For DP rev.1.1, Maximum number of Main Link lanes
 	 * 0x01 = 1 lane, 0x02 = 2 lanes, 0x04 = 4 lanes
 	 */
-	analogix_dp_read_byte_from_dpcd(dp, DP_MAX_LANE_COUNT, &data);
+	drm_dp_dpcd_readb(&dp->aux, DP_MAX_LANE_COUNT, &data);
 	*lane_count = DPCD_MAX_LANE_COUNT(data);
 }
 
@@ -847,19 +719,15 @@ static void analogix_dp_enable_scramble(struct analogix_dp_device *dp,
 	if (enable) {
 		analogix_dp_enable_scrambling(dp);
 
-		analogix_dp_read_byte_from_dpcd(dp, DP_TRAINING_PATTERN_SET,
-						&data);
-		analogix_dp_write_byte_to_dpcd(dp,
-			DP_TRAINING_PATTERN_SET,
-			(u8)(data & ~DP_LINK_SCRAMBLING_DISABLE));
+		drm_dp_dpcd_readb(&dp->aux, DP_TRAINING_PATTERN_SET, &data);
+		drm_dp_dpcd_writeb(&dp->aux, DP_TRAINING_PATTERN_SET,
+				   (u8)(data & ~DP_LINK_SCRAMBLING_DISABLE));
 	} else {
 		analogix_dp_disable_scrambling(dp);
 
-		analogix_dp_read_byte_from_dpcd(dp, DP_TRAINING_PATTERN_SET,
-						&data);
-		analogix_dp_write_byte_to_dpcd(dp,
-			DP_TRAINING_PATTERN_SET,
-			(u8)(data | DP_LINK_SCRAMBLING_DISABLE));
+		drm_dp_dpcd_readb(&dp->aux, DP_TRAINING_PATTERN_SET, &data);
+		drm_dp_dpcd_writeb(&dp->aux, DP_TRAINING_PATTERN_SET,
+				   (u8)(data | DP_LINK_SCRAMBLING_DISABLE));
 	}
 }
 
@@ -948,7 +816,7 @@ static void analogix_dp_commit(struct analogix_dp_device *dp)
 int analogix_dp_get_modes(struct drm_connector *connector)
 {
 	struct analogix_dp_device *dp = to_dp(connector);
-	struct edid *edid = (struct edid *)dp->edid;
+	struct edid *edid;
 	int num_modes = 0;
 
 	pm_runtime_get_sync(dp->dev);
@@ -956,9 +824,14 @@ int analogix_dp_get_modes(struct drm_connector *connector)
 	if (dp->plat_data->panel)
 		num_modes += drm_panel_get_modes(dp->plat_data->panel);
 
-	if (!num_modes && !analogix_dp_handle_edid(dp)) {
-		drm_mode_connector_update_edid_property(&dp->connector, edid);
-		num_modes += drm_add_edid_modes(&dp->connector, edid);
+	if (!num_modes) {
+		edid = drm_get_edid(connector, &dp->aux.ddc);
+		if (edid) {
+			drm_mode_connector_update_edid_property(&dp->connector,
+								edid);
+			num_modes += drm_add_edid_modes(&dp->connector, edid);
+			kfree(edid);
+		}
 	}
 
 	if (dp->plat_data->get_modes)
@@ -1283,6 +1156,14 @@ static int analogix_dp_dt_parse_pdata(struct analogix_dp_device *dp)
 	return 0;
 }
 
+static ssize_t analogix_dpaux_transfer(struct drm_dp_aux *aux,
+				       struct drm_dp_aux_msg *msg)
+{
+	struct analogix_dp_device *dp = to_dp(aux);
+
+	return analogix_dp_transfer(dp, msg);
+}
+
 int analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 		     struct analogix_dp_plat_data *plat_data)
 {
@@ -1404,6 +1285,14 @@ int analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 
 	dp->drm_dev = drm_dev;
 	dp->encoder = dp->plat_data->encoder;
+
+	dp->aux.name = "DP-AUX";
+	dp->aux.transfer = analogix_dpaux_transfer;
+	dp->aux.dev = &pdev->dev;
+
+	ret = drm_dp_aux_register(&dp->aux);
+	if (ret)
+		goto err_disable_pm_runtime;
 
 	ret = analogix_dp_create_bridge(drm_dev, dp);
 	if (ret) {
