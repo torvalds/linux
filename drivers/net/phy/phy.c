@@ -640,8 +640,10 @@ phy_err:
 int phy_start_interrupts(struct phy_device *phydev)
 {
 	atomic_set(&phydev->irq_disable, 0);
-	if (request_irq(phydev->irq, phy_interrupt, 0, "phy_interrupt",
-			phydev) < 0) {
+	if (request_irq(phydev->irq, phy_interrupt,
+				IRQF_SHARED,
+				"phy_interrupt",
+				phydev) < 0) {
 		pr_warn("%s: Can't get IRQ %d (PHY)\n",
 			phydev->bus->name, phydev->irq);
 		phydev->irq = PHY_POLL;
