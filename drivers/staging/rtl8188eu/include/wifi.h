@@ -532,7 +532,6 @@ struct HT_caps_element {
 			unsigned int	Beamforming_caps;
 			unsigned char	ASEL_caps;
 		} HT_cap_element;
-		unsigned char HT_cap[26];
 	} u;
 } __packed;
 
