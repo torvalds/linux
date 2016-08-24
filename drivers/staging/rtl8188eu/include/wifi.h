@@ -522,15 +522,6 @@ struct ieee80211_ht_addt_info {
 	unsigned char	basic_set[16];
 } __packed;
 
-struct HT_caps_element {
-	__le16	HT_caps_info;
-	unsigned char	AMPDU_para;
-	unsigned char	MCS_rate[16];
-	unsigned short	HT_ext_caps;
-	unsigned int	Beamforming_caps;
-	unsigned char	ASEL_caps;
-} __packed;
-
 struct HT_info_element {
 	unsigned char	primary_channel;
 	unsigned char	infos[5];
