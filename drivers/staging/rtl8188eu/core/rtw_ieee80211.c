@@ -166,19 +166,6 @@ inline u8 *rtw_set_ie_ch_switch(u8 *buf, u32 *buf_len, u8 ch_switch_mode,
 	return rtw_set_ie(buf, WLAN_EID_CHANNEL_SWITCH,  3, ie_data, buf_len);
 }
 
-inline u8 *rtw_set_ie_mesh_ch_switch_parm(u8 *buf, u32 *buf_len, u8 ttl,
-	u8 flags, u16 reason, u16 precedence)
-{
-	u8 ie_data[6];
-
-	ie_data[0] = ttl;
-	ie_data[1] = flags;
-	*(u16 *)(ie_data + 2) = cpu_to_le16(reason);
-	*(u16 *)(ie_data + 4) = cpu_to_le16(precedence);
-
-	return rtw_set_ie(buf, 0x118,  6, ie_data, buf_len);
-}
-
 /*----------------------------------------------------------------------------
 index: the information element id index, limit is the limit for search
 -----------------------------------------------------------------------------*/
