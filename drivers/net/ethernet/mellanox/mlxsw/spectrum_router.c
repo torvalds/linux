@@ -657,7 +657,7 @@ int mlxsw_sp_router_neigh_construct(struct net_device *dev,
 		return 0;
 	}
 
-	r = mlxsw_sp_rif_find_by_dev(mlxsw_sp, dev);
+	r = mlxsw_sp_rif_find_by_dev(mlxsw_sp, n->dev);
 	if (WARN_ON(!r))
 		return -EINVAL;
 
