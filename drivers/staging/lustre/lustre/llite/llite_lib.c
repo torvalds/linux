@@ -498,11 +498,21 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	err = obd_set_info_async(NULL, sbi->ll_dt_exp, sizeof(KEY_CHECKSUM),
 				 KEY_CHECKSUM, sizeof(checksum), &checksum,
 				 NULL);
+	if (err) {
+		CERROR("%s: Set checksum failed: rc = %d\n",
+		       sbi->ll_dt_exp->exp_obd->obd_name, err);
+		goto out_root;
+	}
 	cl_sb_init(sb);
 
 	err = obd_set_info_async(NULL, sbi->ll_dt_exp, sizeof(KEY_CACHE_SET),
 				 KEY_CACHE_SET, sizeof(*sbi->ll_cache),
 				 sbi->ll_cache, NULL);
+	if (err) {
+		CERROR("%s: Set cache_set failed: rc = %d\n",
+		       sbi->ll_dt_exp->exp_obd->obd_name, err);
+		goto out_root;
+	}
 
 	sb->s_root = d_make_root(root);
 	if (!sb->s_root) {
