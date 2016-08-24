@@ -157,12 +157,10 @@ static void tw5864_h264_isr(struct tw5864_dev *dev)
 
 		cur_frame = next_frame;
 
-		spin_lock_irqsave(&input->slock, flags);
 		input->frame_seqno++;
 		input->frame_gop_seqno++;
 		if (input->frame_gop_seqno >= input->gop)
 			input->frame_gop_seqno = 0;
-		spin_unlock_irqrestore(&input->slock, flags);
 	} else {
 		dev_err(&dev->pci->dev,
 			"Skipped frame on input %d because all buffers busy\n",
