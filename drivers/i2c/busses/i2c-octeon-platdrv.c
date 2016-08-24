@@ -163,6 +163,10 @@ static int octeon_i2c_probe(struct platform_device *pdev)
 	}
 	i2c->dev = &pdev->dev;
 
+	i2c->roff.sw_twsi = 0x00;
+	i2c->roff.twsi_int = 0x10;
+	i2c->roff.sw_twsi_ext = 0x18;
+
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	i2c->twsi_base = devm_ioremap_resource(&pdev->dev, res_mem);
 	if (IS_ERR(i2c->twsi_base)) {
