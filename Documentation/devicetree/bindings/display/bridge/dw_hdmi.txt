@@ -19,7 +19,9 @@ Required properties:
 
 Optional properties
 - reg-io-width: the width of the reg:1,4, default set to 1 if not present
-- ddc-i2c-bus: phandle of an I2C controller used for DDC EDID probing
+- ddc-i2c-bus: phandle of an I2C controller used for DDC EDID probing,
+  if the property is omitted, a functionally reduced I2C bus
+  controller on DW HDMI is probed
 - clocks, clock-names: phandle to the HDMI CEC clock, name should be "cec"
 
 Example:
