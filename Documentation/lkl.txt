@@ -92,7 +92,7 @@ to be recompiled.
 With that pre-requisites fullfilled you can now build LKL for Win32 with the
 following command:
 
-    $ make CROSS_COMPILE=i686-w64-mingw32- tools/lkl
+    $ make CROSS_COMPILE=i686-w64-mingw32- -C tools/lkl
 
     
     
@@ -119,14 +119,14 @@ be built on LLP64.
 Msys2 will install a gcc tool chain as part of the base-devel bundle. Binutils (2.26) is already 
 patched for NT weak externals. Using the msys2 shell, cd to the lkl sources and run:
 
-    $ make tools/lkl
+    $ make -C tools/lkl
 
 ### For MinGW:
 Install mingw-w64-i686-toolchain via pacman, mingw-w64-i686-binutils (2.26) is already patched
 for NT weak externals. Start a MinGW Win32 shell (64-bit will not work, see above)
 and run:
 
-    $ make tools/lkl
+    $ make -C tools/lkl
 
 
 LKL hijack library
