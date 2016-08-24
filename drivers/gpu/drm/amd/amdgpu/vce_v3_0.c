@@ -345,6 +345,8 @@ static int vce_v3_0_early_init(void *handle)
 	    (AMDGPU_VCE_HARVEST_VCE0 | AMDGPU_VCE_HARVEST_VCE1))
 		return -ENOENT;
 
+	adev->vce.num_rings = 2;
+
 	vce_v3_0_set_ring_funcs(adev);
 	vce_v3_0_set_irq_funcs(adev);
 
@@ -355,7 +357,7 @@ static int vce_v3_0_sw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct amdgpu_ring *ring;
-	int r;
+	int r, i;
 
 	/* VCE */
 	r = amdgpu_irq_add_id(adev, 167, &adev->vce.irq);
@@ -371,19 +373,14 @@ static int vce_v3_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	ring = &adev->vce.ring[0];
-	sprintf(ring->name, "vce0");
-	r = amdgpu_ring_init(adev, ring, 512, VCE_CMD_NO_OP, 0xf,
-			     &adev->vce.irq, 0, AMDGPU_RING_TYPE_VCE);
-	if (r)
-		return r;
-
-	ring = &adev->vce.ring[1];
-	sprintf(ring->name, "vce1");
-	r = amdgpu_ring_init(adev, ring, 512, VCE_CMD_NO_OP, 0xf,
-			     &adev->vce.irq, 0, AMDGPU_RING_TYPE_VCE);
-	if (r)
-		return r;
+	for (i = 0; i < adev->vce.num_rings; i++) {
+		ring = &adev->vce.ring[i];
+		sprintf(ring->name, "vce%d", i);
+		r = amdgpu_ring_init(adev, ring, 512, VCE_CMD_NO_OP, 0xf,
+				     &adev->vce.irq, 0, AMDGPU_RING_TYPE_VCE);
+		if (r)
+			return r;
+	}
 
 	return r;
 }
@@ -413,10 +410,10 @@ static int vce_v3_0_hw_init(void *handle)
 	if (r)
 		return r;
 
-	adev->vce.ring[0].ready = false;
-	adev->vce.ring[1].ready = false;
+	for (i = 0; i < adev->vce.num_rings; i++)
+		adev->vce.ring[i].ready = false;
 
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < adev->vce.num_rings; i++) {
 		r = amdgpu_ring_test_ring(&adev->vce.ring[i]);
 		if (r)
 			return r;
@@ -800,8 +797,10 @@ static const struct amdgpu_ring_funcs vce_v3_0_ring_funcs = {
 
 static void vce_v3_0_set_ring_funcs(struct amdgpu_device *adev)
 {
-	adev->vce.ring[0].funcs = &vce_v3_0_ring_funcs;
-	adev->vce.ring[1].funcs = &vce_v3_0_ring_funcs;
+	int i;
+
+	for (i = 0; i < adev->vce.num_rings; i++)
+		adev->vce.ring[i].funcs = &vce_v3_0_ring_funcs;
 }
 
 static const struct amdgpu_irq_src_funcs vce_v3_0_irq_funcs = {

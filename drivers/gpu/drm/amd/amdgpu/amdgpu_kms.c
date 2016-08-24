@@ -296,7 +296,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			break;
 		case AMDGPU_HW_IP_VCE:
 			type = AMD_IP_BLOCK_TYPE_VCE;
-			for (i = 0; i < AMDGPU_MAX_VCE_RINGS; i++)
+			for (i = 0; i < adev->vce.num_rings; i++)
 				ring_mask |= ((adev->vce.ring[i].ready ? 1 : 0) << i);
 			ib_start_alignment = AMDGPU_GPU_PAGE_SIZE;
 			ib_size_alignment = 1;
