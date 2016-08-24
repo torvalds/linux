@@ -133,7 +133,7 @@ struct skl_i2s_config_blob {
 struct skl_dma_control {
 	u32 node_id;
 	u32 config_length;
-	u32 config_data[1];
+	u32 config_data[0];
 } __packed;
 
 struct skl_cpr_cfg {
