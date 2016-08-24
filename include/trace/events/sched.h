@@ -1032,7 +1032,8 @@ TRACE_EVENT(walt_update_history,
 		__entry->samples        = samples;
 		__entry->evt            = evt;
 		__entry->demand         = p->ravg.demand;
-		__entry->walt_avg = (__entry->demand << 10) / walt_ravg_window,
+		__entry->walt_avg	= (__entry->demand << 10);
+		do_div(__entry->walt_avg, walt_ravg_window);
 		__entry->pelt_avg	= p->se.avg.util_avg;
 		memcpy(__entry->hist, p->ravg.sum_history,
 					RAVG_HIST_SIZE_MAX * sizeof(u32));
