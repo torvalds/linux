@@ -677,9 +677,15 @@ static void mdc_free_open(struct md_open_data *mod)
 	    imp_connect_disp_stripe(mod->mod_open_req->rq_import))
 		committed = 1;
 
-	LASSERT(mod->mod_open_req->rq_replay == 0);
-
-	DEBUG_REQ(D_RPCTRACE, mod->mod_open_req, "free open request\n");
+	/*
+	 * No reason to asssert here if the open request has
+	 * rq_replay == 1. It means that mdc_close failed, and
+	 * close request wasn`t sent. It is not fatal to client.
+	 * The worst thing is eviction if the client gets open lock
+	 */
+	DEBUG_REQ(D_RPCTRACE, mod->mod_open_req,
+		  "free open request rq_replay = %d\n",
+		   mod->mod_open_req->rq_replay);
 
 	ptlrpc_request_committed(mod->mod_open_req, committed);
 	if (mod->mod_close_req)
@@ -749,22 +755,10 @@ static int mdc_close(struct obd_export *exp, struct md_op_data *op_data,
 	}
 
 	*request = NULL;
-	req = ptlrpc_request_alloc(class_exp2cliimp(exp), req_fmt);
-	if (!req)
-		return -ENOMEM;
-
-	rc = ptlrpc_request_pack(req, LUSTRE_MDS_VERSION, MDS_CLOSE);
-	if (rc) {
-		ptlrpc_request_free(req);
-		return rc;
-	}
-
-	/* To avoid a livelock (bug 7034), we need to send CLOSE RPCs to a
-	 * portal whose threads are not taking any DLM locks and are therefore
-	 * always progressing
-	 */
-	req->rq_request_portal = MDS_READPAGE_PORTAL;
-	ptlrpc_at_set_req_timeout(req);
+	if (OBD_FAIL_CHECK(OBD_FAIL_MDC_CLOSE))
+		req = NULL;
+	else
+		req = ptlrpc_request_alloc(class_exp2cliimp(exp), req_fmt);
 
 	/* Ensure that this close's handle is fixed up during replay. */
 	if (likely(mod)) {
@@ -785,6 +779,29 @@ static int mdc_close(struct obd_export *exp, struct md_op_data *op_data,
 		 CDEBUG(D_HA,
 			"couldn't find open req; expecting close error\n");
 	}
+	if (!req) {
+		/*
+		 * TODO: repeat close after errors
+		 */
+		CWARN("%s: close of FID "DFID" failed, file reference will be dropped when this client unmounts or is evicted\n",
+		      obd->obd_name, PFID(&op_data->op_fid1));
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	rc = ptlrpc_request_pack(req, LUSTRE_MDS_VERSION, MDS_CLOSE);
+	if (rc) {
+		ptlrpc_request_free(req);
+		goto out;
+	}
+
+	/*
+	 * To avoid a livelock (bug 7034), we need to send CLOSE RPCs to a
+	 * portal whose threads are not taking any DLM locks and are therefore
+	 * always progressing
+	 */
+	req->rq_request_portal = MDS_READPAGE_PORTAL;
+	ptlrpc_at_set_req_timeout(req);
 
 	mdc_close_pack(req, op_data);
 
@@ -830,6 +847,7 @@ static int mdc_close(struct obd_export *exp, struct md_op_data *op_data,
 		}
 	}
 
+out:
 	if (mod) {
 		if (rc != 0)
 			mod->mod_close_req = NULL;

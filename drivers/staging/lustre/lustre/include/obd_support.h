@@ -402,6 +402,7 @@ extern char obd_jobid_var[];
 #define OBD_FAIL_MDC_GETATTR_ENQUEUE     0x803
 #define OBD_FAIL_MDC_RPCS_SEM		 0x804
 #define OBD_FAIL_MDC_LIGHTWEIGHT	 0x805
+#define OBD_FAIL_MDC_CLOSE		 0x806
 
 #define OBD_FAIL_MGS		     0x900
 #define OBD_FAIL_MGS_ALL_REQUEST_NET     0x901
