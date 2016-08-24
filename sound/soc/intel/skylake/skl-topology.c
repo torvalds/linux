@@ -2401,6 +2401,10 @@ static int skl_manifest_load(struct snd_soc_component *cmpnt,
 	struct skl *skl = ebus_to_skl(ebus);
 	int ret = 0;
 
+	/* proceed only if we have private data defined */
+	if (manifest->priv.size == 0)
+		return 0;
+
 	minfo = &skl->skl_sst->manifest;
 
 	skl_tplg_get_manifest_data(manifest, bus->dev, minfo);
