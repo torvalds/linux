@@ -2083,13 +2083,12 @@ static int soc_cleanup_card_resources(struct snd_soc_card *card)
 	/* remove auxiliary devices */
 	soc_remove_aux_devices(card);
 
+	snd_soc_dapm_free(&card->dapm);
 	soc_cleanup_card_debugfs(card);
 
 	/* remove the card */
 	if (card->remove)
 		card->remove(card);
-
-	snd_soc_dapm_free(&card->dapm);
 
 	snd_card_free(card->snd_card);
 	return 0;
