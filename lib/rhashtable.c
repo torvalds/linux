@@ -438,7 +438,8 @@ EXPORT_SYMBOL_GPL(rhashtable_insert_rehash);
 struct bucket_table *rhashtable_insert_slow(struct rhashtable *ht,
 					    const void *key,
 					    struct rhash_head *obj,
-					    struct bucket_table *tbl)
+					    struct bucket_table *tbl,
+					    void **data)
 {
 	struct rhash_head *head;
 	unsigned int hash;
@@ -449,8 +450,11 @@ struct bucket_table *rhashtable_insert_slow(struct rhashtable *ht,
 	spin_lock_nested(rht_bucket_lock(tbl, hash), SINGLE_DEPTH_NESTING);
 
 	err = -EEXIST;
-	if (key && rhashtable_lookup_fast(ht, key, ht->p))
-		goto exit;
+	if (key) {
+		*data = rhashtable_lookup_fast(ht, key, ht->p);
+		if (*data)
+			goto exit;
+	}
 
 	err = -E2BIG;
 	if (unlikely(rht_grow_above_max(ht, tbl)))

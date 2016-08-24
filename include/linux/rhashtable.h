@@ -343,7 +343,8 @@ int rhashtable_init(struct rhashtable *ht,
 struct bucket_table *rhashtable_insert_slow(struct rhashtable *ht,
 					    const void *key,
 					    struct rhash_head *obj,
-					    struct bucket_table *old_tbl);
+					    struct bucket_table *old_tbl,
+					    void **data);
 int rhashtable_insert_rehash(struct rhashtable *ht, struct bucket_table *tbl);
 
 int rhashtable_walk_init(struct rhashtable *ht, struct rhashtable_iter *iter,
@@ -563,8 +564,11 @@ restart:
 	return NULL;
 }
 
-/* Internal function, please use rhashtable_insert_fast() instead */
-static inline int __rhashtable_insert_fast(
+/* Internal function, please use rhashtable_insert_fast() instead. This
+ * function returns the existing element already in hashes in there is a clash,
+ * otherwise it returns an error via ERR_PTR().
+ */
+static inline void *__rhashtable_insert_fast(
 	struct rhashtable *ht, const void *key, struct rhash_head *obj,
 	const struct rhashtable_params params)
 {
@@ -577,6 +581,7 @@ static inline int __rhashtable_insert_fast(
 	spinlock_t *lock;
 	unsigned int elasticity;
 	unsigned int hash;
+	void *data = NULL;
 	int err;
 
 restart:
@@ -601,11 +606,14 @@ restart:
 
 	new_tbl = rht_dereference_rcu(tbl->future_tbl, ht);
 	if (unlikely(new_tbl)) {
-		tbl = rhashtable_insert_slow(ht, key, obj, new_tbl);
+		tbl = rhashtable_insert_slow(ht, key, obj, new_tbl, &data);
 		if (!IS_ERR_OR_NULL(tbl))
 			goto slow_path;
 
 		err = PTR_ERR(tbl);
+		if (err == -EEXIST)
+			err = 0;
+
 		goto out;
 	}
 
@@ -619,24 +627,24 @@ slow_path:
 		err = rhashtable_insert_rehash(ht, tbl);
 		rcu_read_unlock();
 		if (err)
-			return err;
+			return ERR_PTR(err);
 
 		goto restart;
 	}
 
-	err = -EEXIST;
+	err = 0;
 	elasticity = ht->elasticity;
 	rht_for_each(head, tbl, hash) {
 		if (key &&
 		    unlikely(!(params.obj_cmpfn ?
 			       params.obj_cmpfn(&arg, rht_obj(ht, head)) :
-			       rhashtable_compare(&arg, rht_obj(ht, head)))))
+			       rhashtable_compare(&arg, rht_obj(ht, head))))) {
+			data = rht_obj(ht, head);
 			goto out;
+		}
 		if (!--elasticity)
 			goto slow_path;
 	}
-
-	err = 0;
 
 	head = rht_dereference_bucket(tbl->buckets[hash], tbl, hash);
 
@@ -652,7 +660,7 @@ out:
 	spin_unlock_bh(lock);
 	rcu_read_unlock();
 
-	return err;
+	return err ? ERR_PTR(err) : data;
 }
 
 /**
@@ -675,7 +683,13 @@ static inline int rhashtable_insert_fast(
 	struct rhashtable *ht, struct rhash_head *obj,
 	const struct rhashtable_params params)
 {
-	return __rhashtable_insert_fast(ht, NULL, obj, params);
+	void *ret;
+
+	ret = __rhashtable_insert_fast(ht, NULL, obj, params);
+	if (IS_ERR(ret))
+		return PTR_ERR(ret);
+
+	return ret == NULL ? 0 : -EEXIST;
 }
 
 /**
@@ -704,11 +718,15 @@ static inline int rhashtable_lookup_insert_fast(
 	const struct rhashtable_params params)
 {
 	const char *key = rht_obj(ht, obj);
+	void *ret;
 
 	BUG_ON(ht->p.obj_hashfn);
 
-	return __rhashtable_insert_fast(ht, key + ht->p.key_offset, obj,
-					params);
+	ret = __rhashtable_insert_fast(ht, key + ht->p.key_offset, obj, params);
+	if (IS_ERR(ret))
+		return PTR_ERR(ret);
+
+	return ret == NULL ? 0 : -EEXIST;
 }
 
 /**
@@ -734,6 +752,32 @@ static inline int rhashtable_lookup_insert_fast(
  * Returns zero on success.
  */
 static inline int rhashtable_lookup_insert_key(
+	struct rhashtable *ht, const void *key, struct rhash_head *obj,
+	const struct rhashtable_params params)
+{
+	void *ret;
+
+	BUG_ON(!ht->p.obj_hashfn || !key);
+
+	ret = __rhashtable_insert_fast(ht, key, obj, params);
+	if (IS_ERR(ret))
+		return PTR_ERR(ret);
+
+	return ret == NULL ? 0 : -EEXIST;
+}
+
+/**
+ * rhashtable_lookup_get_insert_key - lookup and insert object into hash table
+ * @ht:		hash table
+ * @obj:	pointer to hash head inside object
+ * @params:	hash table parameters
+ * @data:	pointer to element data already in hashes
+ *
+ * Just like rhashtable_lookup_insert_key(), but this function returns the
+ * object if it exists, NULL if it does not and the insertion was successful,
+ * and an ERR_PTR otherwise.
+ */
+static inline void *rhashtable_lookup_get_insert_key(
 	struct rhashtable *ht, const void *key, struct rhash_head *obj,
 	const struct rhashtable_params params)
 {
