@@ -1430,8 +1430,6 @@ static void mlxsw_sp_fdb_notify_mac_process(struct mlxsw_sp *mlxsw_sp,
 		vid = fid;
 	}
 
-	adding = adding && mlxsw_sp_port->learning;
-
 do_fdb_op:
 	err = mlxsw_sp_port_fdb_uc_op(mlxsw_sp, local_port, mac, fid,
 				      adding, true);
@@ -1492,8 +1490,6 @@ static void mlxsw_sp_fdb_notify_mac_lag_process(struct mlxsw_sp *mlxsw_sp,
 		dev = mlxsw_sp_lag_get(mlxsw_sp, lag_id)->dev;
 		vid = fid;
 	}
-
-	adding = adding && mlxsw_sp_port->learning;
 
 do_fdb_op:
 	err = mlxsw_sp_port_fdb_uc_lag_op(mlxsw_sp, lag_id, mac, fid, lag_vid,
