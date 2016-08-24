@@ -1155,35 +1155,6 @@ u16 rtw_mcs_rate(u8 rf_type, u8 bw_40MHz, u8 short_GI_20, u8 short_GI_40, unsign
 	return max_rate;
 }
 
-int rtw_action_frame_parse(const u8 *frame, u32 frame_len, u8 *category, u8 *action)
-{
-	const u8 *frame_body = frame + sizeof(struct rtw_ieee80211_hdr_3addr);
-	u16 fc;
-	u8 c, a = 0;
-
-	fc = le16_to_cpu(((struct rtw_ieee80211_hdr_3addr *)frame)->frame_ctl);
-
-	if ((fc & (RTW_IEEE80211_FCTL_FTYPE | RTW_IEEE80211_FCTL_STYPE)) !=
-	    (RTW_IEEE80211_FTYPE_MGMT | RTW_IEEE80211_STYPE_ACTION))
-		return false;
-
-	c = frame_body[0];
-
-	switch (c) {
-	case RTW_WLAN_CATEGORY_P2P: /* vendor-specific */
-		break;
-	default:
-		a = frame_body[1];
-	}
-
-	if (category)
-		*category = c;
-	if (action)
-		*action = a;
-
-	return true;
-}
-
 static const char *_action_public_str[] = {
 	"ACT_PUB_BSSCOEXIST",
 	"ACT_PUB_DSE_ENABLE",
