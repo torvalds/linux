@@ -744,6 +744,12 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 		}
 
 		if (task->task_status.resp == SAS_TASK_COMPLETE &&
+			task->task_status.stat == TMF_RESP_FUNC_SUCC) {
+			res = TMF_RESP_FUNC_SUCC;
+			break;
+		}
+
+		if (task->task_status.resp == SAS_TASK_COMPLETE &&
 		      task->task_status.stat == SAS_DATA_UNDERRUN) {
 			/* no error, but return the number of bytes of
 			 * underrun
