@@ -742,7 +742,7 @@ static int ion_get_client_serial(const struct rb_root *root,
 
 	for (node = rb_first(root); node; node = rb_next(node)) {
 		struct ion_client *client = rb_entry(node, struct ion_client,
-						node);
+						     node);
 
 		if (strcmp(client->name, name))
 			continue;
@@ -817,8 +817,8 @@ struct ion_client *ion_client_create(struct ion_device *dev,
 	rb_insert_color(&client->node, &dev->clients);
 
 	client->debug_root = debugfs_create_file(client->display_name, 0664,
-						dev->clients_debug_root,
-						client, &debug_client_fops);
+						 dev->clients_debug_root,
+						 client, &debug_client_fops);
 	if (!client->debug_root) {
 		char buf[256], *path;
 
@@ -1636,4 +1636,3 @@ void ion_device_destroy(struct ion_device *dev)
 	kfree(dev);
 }
 EXPORT_SYMBOL(ion_device_destroy);
-
