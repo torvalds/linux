@@ -463,7 +463,7 @@ ENDPROC(__primary_switched)
  * end early head section, begin head code that is also used for
  * hotplug and needs to have the same protections as the text region
  */
-	.section ".text","ax"
+	.section ".idmap.text","ax"
 
 ENTRY(kimage_vaddr)
 	.quad		_text - TEXT_OFFSET
@@ -619,17 +619,29 @@ set_cpu_boot_mode_flag:
 ENDPROC(set_cpu_boot_mode_flag)
 
 /*
+ * These values are written with the MMU off, but read with the MMU on.
+ * Writers will invalidate the corresponding address, discarding up to a
+ * 'Cache Writeback Granule' (CWG) worth of data. The linker script ensures
+ * sufficient alignment that the CWG doesn't overlap another section.
+ */
+	.pushsection ".mmuoff.data.write", "aw"
+/*
  * We need to find out the CPU boot mode long after boot, so we need to
  * store it in a writable variable.
  *
  * This is not in .bss, because we set it sufficiently early that the boot-time
  * zeroing of .bss would clobber it.
  */
-	.pushsection	.data..cacheline_aligned
-	.align	L1_CACHE_SHIFT
 ENTRY(__boot_cpu_mode)
 	.long	BOOT_CPU_MODE_EL2
 	.long	BOOT_CPU_MODE_EL1
+/*
+ * The booting CPU updates the failed status @__early_cpu_boot_status,
+ * with MMU turned off.
+ */
+ENTRY(__early_cpu_boot_status)
+	.long 	0
+
 	.popsection
 
 	/*
@@ -702,12 +714,6 @@ ENDPROC(__secondary_switched)
 	dc	ivac, \tmp1			// Invalidate potentially stale cache line
 	.endm
 
-	.pushsection	.data..cacheline_aligned
-	.align	L1_CACHE_SHIFT
-ENTRY(__early_cpu_boot_status)
-	.long 	0
-	.popsection
-
 /*
  * Enable the MMU.
  *
@@ -719,7 +725,6 @@ ENTRY(__early_cpu_boot_status)
  * Checks if the selected granule size is supported by the CPU.
  * If it isn't, park the CPU
  */
-	.section	".idmap.text", "ax"
 ENTRY(__enable_mmu)
 	mrs	x22, sctlr_el1			// preserve old SCTLR_EL1 value
 	mrs	x1, ID_AA64MMFR0_EL1

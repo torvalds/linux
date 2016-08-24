@@ -97,6 +97,7 @@ ENTRY(__cpu_suspend_enter)
 ENDPROC(__cpu_suspend_enter)
 	.ltorg
 
+	.pushsection ".idmap.text", "ax"
 ENTRY(cpu_resume)
 	bl	el2_setup		// if in EL2 drop to EL1 cleanly
 	/* enable the MMU early - so we can access sleep_save_stash by va */
@@ -105,7 +106,6 @@ ENTRY(cpu_resume)
 	b	__cpu_setup
 ENDPROC(cpu_resume)
 
-	.pushsection	".idmap.text", "ax"
 _resume_switched:
 	ldr	x8, =_cpu_resume
 	br	x8
