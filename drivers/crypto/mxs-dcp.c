@@ -21,6 +21,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/stmp_device.h>
+#include <linux/clk.h>
 
 #include <crypto/aes.h>
 #include <crypto/sha.h>
@@ -66,6 +67,9 @@ struct dcp {
 	struct mutex			mutex[DCP_MAX_CHANS];
 	struct task_struct		*thread[DCP_MAX_CHANS];
 	struct crypto_queue		queue[DCP_MAX_CHANS];
+#ifdef CONFIG_ARM
+	struct clk *dcp_clk;
+#endif
 };
 
 enum dcp_chan {
@@ -969,6 +973,26 @@ static int mxs_dcp_probe(struct platform_device *pdev)
 	if (IS_ERR(sdcp->base))
 		return PTR_ERR(sdcp->base);
 
+#ifdef CONFIG_ARM
+	sdcp->dcp_clk = devm_clk_get(dev, "dcp");
+
+	if (IS_ERR(sdcp->dcp_clk)) {
+		ret = PTR_ERR(sdcp->dcp_clk);
+		dev_err(dev, "can't identify DCP clk: %d\n", ret);
+		return -ENODEV;
+	}
+
+	ret = clk_prepare(sdcp->dcp_clk);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "can't prepare DCP clock: %d\n", ret);
+		return -ENODEV;
+	}
+	ret = clk_enable(sdcp->dcp_clk);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "can't enable DCP clock: %d\n", ret);
+		return -ENODEV;
+	}
+#endif
 
 	ret = devm_request_irq(dev, dcp_vmi_irq, mxs_dcp_irq, 0,
 			       "dcp-vmi-irq", sdcp);
@@ -1109,6 +1133,11 @@ static int mxs_dcp_remove(struct platform_device *pdev)
 
 	kthread_stop(sdcp->thread[DCP_CHAN_HASH_SHA]);
 	kthread_stop(sdcp->thread[DCP_CHAN_CRYPTO]);
+
+#ifdef CONFIG_ARM
+	/* shut clocks off before finalizing shutdown */
+	clk_disable(sdcp->dcp_clk);
+#endif
 
 	platform_set_drvdata(pdev, NULL);
 
