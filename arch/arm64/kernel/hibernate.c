@@ -54,12 +54,6 @@ extern int in_suspend;
 /* Do we need to reset el2? */
 #define el2_reset_needed() (is_hyp_mode_available() && !is_kernel_in_hyp_mode())
 
-/*
- * Start/end of the hibernate exit code, this must be copied to a 'safe'
- * location in memory, and executed from there.
- */
-extern char __hibernate_exit_text_start[], __hibernate_exit_text_end[];
-
 /* temporary el2 vectors in the __hibernate_exit_text section. */
 extern char hibernate_el2_vectors[];
 
