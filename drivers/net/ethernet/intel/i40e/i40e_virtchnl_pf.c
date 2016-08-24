@@ -502,8 +502,16 @@ static int i40e_config_vsi_tx_queue(struct i40e_vf *vf, u16 vsi_id,
 	u32 qtx_ctl;
 	int ret = 0;
 
+	if (!i40e_vc_isvalid_vsi_id(vf, info->vsi_id)) {
+		ret = -ENOENT;
+		goto error_context;
+	}
 	pf_queue_id = i40e_vc_get_pf_queue_id(vf, vsi_id, vsi_queue_id);
 	vsi = i40e_find_vsi_from_id(pf, vsi_id);
+	if (!vsi) {
+		ret = -ENOENT;
+		goto error_context;
+	}
 
 	/* clear the context structure first */
 	memset(&tx_ctx, 0, sizeof(struct i40e_hmc_obj_txq));
@@ -1476,7 +1484,8 @@ static int i40e_vc_config_promiscuous_mode_msg(struct i40e_vf *vf,
 
 	vsi = i40e_find_vsi_from_id(pf, info->vsi_id);
 	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states) ||
-	    !i40e_vc_isvalid_vsi_id(vf, info->vsi_id)) {
+	    !i40e_vc_isvalid_vsi_id(vf, info->vsi_id) ||
+	    !vsi) {
 		aq_ret = I40E_ERR_PARAM;
 		goto error_param;
 	}
