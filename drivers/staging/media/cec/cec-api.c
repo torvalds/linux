@@ -435,7 +435,7 @@ static long cec_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	void __user *parg = (void __user *)arg;
 
 	if (!devnode->registered)
-		return -EIO;
+		return -ENODEV;
 
 	switch (cmd) {
 	case CEC_ADAP_G_CAPS:
