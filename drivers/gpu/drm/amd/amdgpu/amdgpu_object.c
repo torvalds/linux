@@ -121,12 +121,17 @@ static void amdgpu_ttm_placement_init(struct amdgpu_device *adev,
 
 	if (domain & AMDGPU_GEM_DOMAIN_VRAM) {
 		unsigned visible_pfn = adev->mc.visible_vram_size >> PAGE_SHIFT;
+		unsigned lpfn = 0;
+
+		/* This forces a reallocation if the flag wasn't set before */
+		if (flags & AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS)
+			lpfn = adev->mc.real_vram_size >> PAGE_SHIFT;
 
 		if (flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS &&
 		    !(flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED) &&
 		    adev->mc.visible_vram_size < adev->mc.real_vram_size) {
 			places[c].fpfn = visible_pfn;
-			places[c].lpfn = 0;
+			places[c].lpfn = lpfn;
 			places[c].flags = TTM_PL_FLAG_WC |
 				TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_VRAM |
 				TTM_PL_FLAG_TOPDOWN;
@@ -134,7 +139,7 @@ static void amdgpu_ttm_placement_init(struct amdgpu_device *adev,
 		}
 
 		places[c].fpfn = 0;
-		places[c].lpfn = 0;
+		places[c].lpfn = lpfn;
 		places[c].flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED |
 			TTM_PL_FLAG_VRAM;
 		if (flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED)
