@@ -280,53 +280,6 @@ u8 *rtw_get_ie_ex(u8 *in_ie, uint in_len, u8 eid, u8 *oui, u8 oui_len, u8 *ie, u
 	return target_ie;
 }
 
-/**
- * rtw_ies_remove_ie - Find matching IEs and remove
- * @ies: Address of IEs to search
- * @ies_len: Pointer of length of ies, will update to new length
- * @offset: The offset to start scarch
- * @eid: Element ID to match
- * @oui: OUI to match
- * @oui_len: OUI length
- *
- * Returns: _SUCCESS: ies is updated, _FAIL: not updated
- */
-int rtw_ies_remove_ie(u8 *ies, uint *ies_len, uint offset, u8 eid, u8 *oui, u8 oui_len)
-{
-	int ret = _FAIL;
-	u8 *target_ie;
-	u32 target_ielen;
-	u8 *start;
-	uint search_len;
-
-	if (!ies || !ies_len || *ies_len <= offset)
-		goto exit;
-
-	start = ies + offset;
-	search_len = *ies_len - offset;
-
-	while (1) {
-		target_ie = rtw_get_ie_ex(start, search_len, eid, oui, oui_len, NULL, &target_ielen);
-		if (target_ie && target_ielen) {
-			u8 buf[MAX_IE_SZ] = {0};
-			u8 *remain_ies = target_ie + target_ielen;
-			uint remain_len = search_len - (remain_ies - start);
-
-			memcpy(buf, remain_ies, remain_len);
-			memcpy(target_ie, buf, remain_len);
-			*ies_len = *ies_len - target_ielen;
-			ret = _SUCCESS;
-
-			start = target_ie;
-			search_len = remain_len;
-		} else {
-			break;
-		}
-	}
-exit:
-	return ret;
-}
-
 void rtw_set_supported_rate(u8 *SupportedRates, uint mode)
 {
 
