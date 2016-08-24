@@ -132,12 +132,15 @@ static char *translate_scan(struct adapter *padapter,
 	p = rtw_get_ie(&pnetwork->network.IEs[12], _HT_CAPABILITY_IE_, &ht_ielen, pnetwork->network.IELength-12);
 
 	if (p && ht_ielen > 0) {
-		struct rtw_ieee80211_ht_cap *pht_capie;
+		struct ieee80211_ht_cap *pht_capie;
 		ht_cap = true;
-		pht_capie = (struct rtw_ieee80211_ht_cap *)(p+2);
-		memcpy(&mcs_rate, pht_capie->supp_mcs_set, 2);
-		bw_40MHz = (pht_capie->cap_info&IEEE80211_HT_CAP_SUP_WIDTH) ? 1 : 0;
-		short_GI = (pht_capie->cap_info&(IEEE80211_HT_CAP_SGI_20|IEEE80211_HT_CAP_SGI_40)) ? 1 : 0;
+		pht_capie = (struct ieee80211_ht_cap *)(p + 2);
+		memcpy(&mcs_rate, pht_capie->mcs.rx_mask, 2);
+		bw_40MHz = !!(le16_to_cpu(pht_capie->cap_info) &
+			      IEEE80211_HT_CAP_SUP_WIDTH);
+		short_GI = !!(le16_to_cpu(pht_capie->cap_info) &
+			      (IEEE80211_HT_CAP_SGI_20 |
+			       IEEE80211_HT_CAP_SGI_40));
 	}
 
 	/* Add the protocol name */
