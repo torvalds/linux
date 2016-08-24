@@ -1484,6 +1484,7 @@ static const char *const rk3399_cru_critical_clocks[] __initconst = {
 	"hclk_perilp1",
 	"hclk_perilp1_noc",
 	"aclk_dmac0_perilp",
+	"aclk_emmc_noc",
 	"gpll_hclk_perilp1_src",
 	"gpll_aclk_perilp0_src",
 	"gpll_aclk_perihp_src",
