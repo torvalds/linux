@@ -1001,29 +1001,17 @@ static int mlxsw_sp_port_obj_add(struct net_device *dev,
 static int __mlxsw_sp_port_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port,
 				     u16 vid_begin, u16 vid_end)
 {
-	struct net_device *dev = mlxsw_sp_port->dev;
 	u16 vid, pvid;
-	int err;
 
 	if (!mlxsw_sp_port->bridged)
 		return -EINVAL;
 
 	pvid = mlxsw_sp_port->pvid;
-	if (pvid >= vid_begin && pvid <= vid_end) {
-		err = mlxsw_sp_port_pvid_set(mlxsw_sp_port, 0);
-		if (err) {
-			netdev_err(dev, "Unable to del PVID %d\n", pvid);
-			return err;
-		}
-	}
+	if (pvid >= vid_begin && pvid <= vid_end)
+		mlxsw_sp_port_pvid_set(mlxsw_sp_port, 0);
 
-	err = __mlxsw_sp_port_vlans_set(mlxsw_sp_port, vid_begin, vid_end,
-					false, false);
-	if (err) {
-		netdev_err(dev, "Unable to del VIDs %d-%d\n", vid_begin,
-			   vid_end);
-		return err;
-	}
+	__mlxsw_sp_port_vlans_set(mlxsw_sp_port, vid_begin, vid_end, false,
+				  false);
 
 	mlxsw_sp_port_fid_leave(mlxsw_sp_port, vid_begin, vid_end);
 
