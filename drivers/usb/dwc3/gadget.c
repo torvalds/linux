@@ -886,7 +886,7 @@ static u32 dwc3_calc_trbs_left(struct dwc3_ep *dep)
 }
 
 static void dwc3_prepare_one_trb_sg(struct dwc3_ep *dep,
-		struct dwc3_request *req, unsigned int trbs_left)
+		struct dwc3_request *req)
 {
 	struct scatterlist *sg = req->sg;
 	struct scatterlist *s;
@@ -906,13 +906,13 @@ static void dwc3_prepare_one_trb_sg(struct dwc3_ep *dep,
 		dwc3_prepare_one_trb(dep, req, dma, length,
 				chain, i);
 
-		if (!trbs_left--)
+		if (!dwc3_calc_trbs_left(dep))
 			break;
 	}
 }
 
 static void dwc3_prepare_one_trb_linear(struct dwc3_ep *dep,
-		struct dwc3_request *req, unsigned int trbs_left)
+		struct dwc3_request *req)
 {
 	unsigned int	length;
 	dma_addr_t	dma;
@@ -935,21 +935,19 @@ static void dwc3_prepare_one_trb_linear(struct dwc3_ep *dep,
 static void dwc3_prepare_trbs(struct dwc3_ep *dep)
 {
 	struct dwc3_request	*req, *n;
-	u32			trbs_left;
 
 	BUILD_BUG_ON_NOT_POWER_OF_2(DWC3_TRB_NUM);
 
-	trbs_left = dwc3_calc_trbs_left(dep);
-	if (!trbs_left)
+	if (!dwc3_calc_trbs_left(dep))
 		return;
 
 	list_for_each_entry_safe(req, n, &dep->pending_list, list) {
 		if (req->num_pending_sgs > 0)
-			dwc3_prepare_one_trb_sg(dep, req, trbs_left--);
+			dwc3_prepare_one_trb_sg(dep, req);
 		else
-			dwc3_prepare_one_trb_linear(dep, req, trbs_left--);
+			dwc3_prepare_one_trb_linear(dep, req);
 
-		if (!trbs_left)
+		if (!dwc3_calc_trbs_left(dep))
 			return;
 	}
 }
