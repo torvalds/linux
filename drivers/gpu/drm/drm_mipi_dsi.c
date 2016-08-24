@@ -999,6 +999,27 @@ int mipi_dsi_dcs_set_tear_on(struct mipi_dsi_device *dsi,
 EXPORT_SYMBOL(mipi_dsi_dcs_set_tear_on);
 
 /**
+ * mipi_dsi_dcs_set_pixel_format() - sets the pixel format for the RGB image
+ *    data used by the interface
+ * @dsi: DSI peripheral device
+ * @format: pixel format
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int mipi_dsi_dcs_set_pixel_format(struct mipi_dsi_device *dsi, u8 format)
+{
+	ssize_t err;
+
+	err = mipi_dsi_dcs_write(dsi, MIPI_DCS_SET_PIXEL_FORMAT, &format,
+				 sizeof(format));
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+EXPORT_SYMBOL(mipi_dsi_dcs_set_pixel_format);
+
+/**
  * mipi_dsi_dcs_set_tear_scanline() - set the scanline to use as trigger for
  *    the Tearing Effect output signal of the display module
  * @dsi: DSI peripheral device
@@ -1019,27 +1040,6 @@ int mipi_dsi_dcs_set_tear_scanline(struct mipi_dsi_device *dsi, u16 scanline)
 	return 0;
 }
 EXPORT_SYMBOL(mipi_dsi_dcs_set_tear_scanline);
-
-/**
- * mipi_dsi_dcs_set_pixel_format() - sets the pixel format for the RGB image
- *    data used by the interface
- * @dsi: DSI peripheral device
- * @format: pixel format
- *
- * Return: 0 on success or a negative error code on failure.
- */
-int mipi_dsi_dcs_set_pixel_format(struct mipi_dsi_device *dsi, u8 format)
-{
-	ssize_t err;
-
-	err = mipi_dsi_dcs_write(dsi, MIPI_DCS_SET_PIXEL_FORMAT, &format,
-				 sizeof(format));
-	if (err < 0)
-		return err;
-
-	return 0;
-}
-EXPORT_SYMBOL(mipi_dsi_dcs_set_pixel_format);
 
 static int mipi_dsi_drv_probe(struct device *dev)
 {
