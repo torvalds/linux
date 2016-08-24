@@ -206,7 +206,7 @@ static int __import_wp_info(struct kvm_vcpu *vcpu,
 int kvm_s390_import_bp_data(struct kvm_vcpu *vcpu,
 			    struct kvm_guest_debug *dbg)
 {
-	int ret = 0, nr_wp = 0, nr_bp = 0, i, size;
+	int ret = 0, nr_wp = 0, nr_bp = 0, i;
 	struct kvm_hw_breakpoint *bp_data = NULL;
 	struct kvm_hw_wp_info_arch *wp_info = NULL;
 	struct kvm_hw_bp_info_arch *bp_info = NULL;
@@ -216,14 +216,17 @@ int kvm_s390_import_bp_data(struct kvm_vcpu *vcpu,
 	else if (dbg->arch.nr_hw_bp > MAX_BP_COUNT)
 		return -EINVAL;
 
-	size = dbg->arch.nr_hw_bp * sizeof(struct kvm_hw_breakpoint);
-	bp_data = kmalloc(size, GFP_KERNEL);
+	bp_data = kmalloc_array(dbg->arch.nr_hw_bp,
+				sizeof(*bp_data),
+				GFP_KERNEL);
 	if (!bp_data) {
 		ret = -ENOMEM;
 		goto error;
 	}
 
-	if (copy_from_user(bp_data, dbg->arch.hw_bp, size)) {
+	if (copy_from_user(bp_data,
+			   dbg->arch.hw_bp,
+			   sizeof(*bp_data) * dbg->arch.nr_hw_bp)) {
 		ret = -EFAULT;
 		goto error;
 	}
@@ -241,17 +244,19 @@ int kvm_s390_import_bp_data(struct kvm_vcpu *vcpu,
 		}
 	}
 
-	size = nr_wp * sizeof(struct kvm_hw_wp_info_arch);
-	if (size > 0) {
-		wp_info = kmalloc(size, GFP_KERNEL);
+	if (nr_wp > 0) {
+		wp_info = kmalloc_array(nr_wp,
+					sizeof(*wp_info),
+					GFP_KERNEL);
 		if (!wp_info) {
 			ret = -ENOMEM;
 			goto error;
 		}
 	}
-	size = nr_bp * sizeof(struct kvm_hw_bp_info_arch);
-	if (size > 0) {
-		bp_info = kmalloc(size, GFP_KERNEL);
+	if (nr_bp > 0) {
+		bp_info = kmalloc_array(nr_bp,
+					sizeof(*bp_info),
+					GFP_KERNEL);
 		if (!bp_info) {
 			ret = -ENOMEM;
 			goto error;
