@@ -2112,8 +2112,8 @@ enum v4l2_mpeg_video_h264_sei_fp_arrangement_type -
 
 .. _v4l2-mpeg-video-h264-fmo-map-type:
 
-``V4L2_CID_MPEG_VIDEO_H264_FMO_MAP_TYPE`` ````
-    (enum)
+``V4L2_CID_MPEG_VIDEO_H264_FMO_MAP_TYPE``
+   (enum)
 
 enum v4l2_mpeg_video_h264_fmo_map_type -
     When using FMO, the map type divides the image in different scan
