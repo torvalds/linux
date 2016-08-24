@@ -979,7 +979,7 @@ int xfrm_policy_flush(struct net *net, u8 type, bool task_valid)
 
 			xfrm_policy_kill(pol);
 
-			spin_unlock_bh(&net->xfrm.xfrm_policy_lock);
+			spin_lock_bh(&net->xfrm.xfrm_policy_lock);
 			goto again1;
 		}
 
