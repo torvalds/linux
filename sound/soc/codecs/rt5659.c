@@ -4187,6 +4187,9 @@ static int rt5659_i2c_probe(struct i2c_client *i2c,
 		if (ret)
 			dev_err(&i2c->dev, "Failed to reguest IRQ: %d\n", ret);
 
+		/* Enable IRQ output for GPIO1 pin any way */
+		regmap_update_bits(rt5659->regmap, RT5659_GPIO_CTRL_1,
+				   RT5659_GP1_PIN_MASK, RT5659_GP1_PIN_IRQ);
 	}
 
 	return snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt5659,
