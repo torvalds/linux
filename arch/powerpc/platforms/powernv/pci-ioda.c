@@ -1326,7 +1326,9 @@ static int pnv_pci_vf_assign_m64(struct pci_dev *pdev, u16 num_vfs)
 	else
 		m64_bars = 1;
 
-	pdn->m64_map = kmalloc(sizeof(*pdn->m64_map) * m64_bars, GFP_KERNEL);
+	pdn->m64_map = kmalloc_array(m64_bars,
+				     sizeof(*pdn->m64_map),
+				     GFP_KERNEL);
 	if (!pdn->m64_map)
 		return -ENOMEM;
 	/* Initialize the m64_map to IODA_INVALID_M64 */
@@ -1593,8 +1595,9 @@ int pnv_pci_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
 
 		/* Allocating pe_num_map */
 		if (pdn->m64_single_mode)
-			pdn->pe_num_map = kmalloc(sizeof(*pdn->pe_num_map) * num_vfs,
-					GFP_KERNEL);
+			pdn->pe_num_map = kmalloc_array(num_vfs,
+							sizeof(*pdn->pe_num_map),
+							GFP_KERNEL);
 		else
 			pdn->pe_num_map = kmalloc(sizeof(*pdn->pe_num_map), GFP_KERNEL);
 
