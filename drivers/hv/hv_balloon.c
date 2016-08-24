@@ -1075,7 +1075,6 @@ static unsigned long compute_balloon_floor(void)
 static void post_status(struct hv_dynmem_device *dm)
 {
 	struct dm_status status;
-	struct sysinfo val;
 	unsigned long now = jiffies;
 	unsigned long last_post = last_post_time;
 
@@ -1087,7 +1086,6 @@ static void post_status(struct hv_dynmem_device *dm)
 	if (!time_after(now, (last_post_time + HZ)))
 		return;
 
-	si_meminfo(&val);
 	memset(&status, 0, sizeof(struct dm_status));
 	status.hdr.type = DM_STATUS_REPORT;
 	status.hdr.size = sizeof(struct dm_status);
@@ -1103,7 +1101,7 @@ static void post_status(struct hv_dynmem_device *dm)
 	 * num_pages_onlined) as committed to the host, otherwise it can try
 	 * asking us to balloon them out.
 	 */
-	status.num_avail = val.freeram;
+	status.num_avail = si_mem_available();
 	status.num_committed = vm_memory_committed() +
 		dm->num_pages_ballooned +
 		(dm->num_pages_added > dm->num_pages_onlined ?
@@ -1209,7 +1207,7 @@ static void balloon_up(struct work_struct *dummy)
 	int ret;
 	bool done = false;
 	int i;
-	struct sysinfo val;
+	long avail_pages;
 	unsigned long floor;
 
 	/* The host balloons pages in 2M granularity. */
@@ -1221,12 +1219,12 @@ static void balloon_up(struct work_struct *dummy)
 	 */
 	alloc_unit = 512;
 
-	si_meminfo(&val);
+	avail_pages = si_mem_available();
 	floor = compute_balloon_floor();
 
 	/* Refuse to balloon below the floor, keep the 2M granularity. */
-	if (val.freeram < num_pages || val.freeram - num_pages < floor) {
-		num_pages = val.freeram > floor ? (val.freeram - floor) : 0;
+	if (avail_pages < num_pages || avail_pages - num_pages < floor) {
+		num_pages = avail_pages > floor ? (avail_pages - floor) : 0;
 		num_pages -= num_pages % PAGES_IN_2M;
 	}
 
@@ -1236,7 +1234,6 @@ static void balloon_up(struct work_struct *dummy)
 		bl_resp->hdr.type = DM_BALLOON_RESPONSE;
 		bl_resp->hdr.size = sizeof(struct dm_balloon_response);
 		bl_resp->more_pages = 1;
-
 
 		num_pages -= num_ballooned;
 		num_ballooned = alloc_balloon_pages(&dm_device, num_pages,
