@@ -349,7 +349,7 @@ struct mlme_ext_info {
 
 	struct ADDBA_request	ADDBA_req;
 	struct WMM_para_element	WMM_param;
-	struct HT_caps_element	HT_caps;
+	struct ieee80211_ht_cap HT_caps;
 	struct HT_info_element	HT_info;
 	struct wlan_bssid_ex	network;/* join network or bss_network,
 					 * if in ap mode, it is the same
@@ -529,12 +529,12 @@ int update_sta_support_rate(struct adapter *padapter, u8 *pvar_ie,
 void update_sta_info(struct adapter *padapter, struct sta_info *psta);
 unsigned int update_basic_rate(unsigned char *ptn, unsigned int ptn_sz);
 unsigned int update_supported_rate(unsigned char *ptn, unsigned int ptn_sz);
-unsigned int update_MSC_rate(struct HT_caps_element *pHT_caps);
+unsigned int update_MSC_rate(struct ieee80211_ht_cap *pHT_caps);
 void Update_RA_Entry(struct adapter *padapter, u32 mac_id);
 void set_sta_rate(struct adapter *padapter, struct sta_info *psta);
 
 unsigned char get_highest_rate_idx(u32 mask);
-int support_short_GI(struct adapter *padapter, struct HT_caps_element *caps);
+int support_short_GI(struct adapter *padapter, struct ieee80211_ht_cap *caps);
 unsigned int is_ap_in_tkip(struct adapter *padapter);
 unsigned int is_ap_in_wep(struct adapter *padapter);
 unsigned int should_forbid_n_rate(struct adapter *padapter);
