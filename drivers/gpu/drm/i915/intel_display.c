@@ -13458,16 +13458,23 @@ static void verify_wm_state(struct drm_crtc *crtc,
 			  hw_entry->start, hw_entry->end);
 	}
 
-	/* cursor */
-	hw_entry = &hw_ddb.plane[pipe][PLANE_CURSOR];
-	sw_entry = &sw_ddb->plane[pipe][PLANE_CURSOR];
+	/*
+	 * cursor
+	 * If the cursor plane isn't active, we may not have updated it's ddb
+	 * allocation. In that case since the ddb allocation will be updated
+	 * once the plane becomes visible, we can skip this check
+	 */
+	if (intel_crtc->cursor_addr) {
+		hw_entry = &hw_ddb.plane[pipe][PLANE_CURSOR];
+		sw_entry = &sw_ddb->plane[pipe][PLANE_CURSOR];
 
-	if (!skl_ddb_entry_equal(hw_entry, sw_entry)) {
-		DRM_ERROR("mismatch in DDB state pipe %c cursor "
-			  "(expected (%u,%u), found (%u,%u))\n",
-			  pipe_name(pipe),
-			  sw_entry->start, sw_entry->end,
-			  hw_entry->start, hw_entry->end);
+		if (!skl_ddb_entry_equal(hw_entry, sw_entry)) {
+			DRM_ERROR("mismatch in DDB state pipe %c cursor "
+				  "(expected (%u,%u), found (%u,%u))\n",
+				  pipe_name(pipe),
+				  sw_entry->start, sw_entry->end,
+				  hw_entry->start, hw_entry->end);
+		}
 	}
 }
 
@@ -14217,6 +14224,65 @@ static void intel_update_crtcs(struct drm_atomic_state *state,
 		intel_update_crtc(crtc, state, old_crtc_state,
 				  crtc_vblank_mask);
 	}
+}
+
+static void skl_update_crtcs(struct drm_atomic_state *state,
+			     unsigned int *crtc_vblank_mask)
+{
+	struct drm_device *dev = state->dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *old_crtc_state;
+	struct skl_ddb_allocation *new_ddb = &intel_state->wm_results.ddb;
+	struct skl_ddb_allocation *cur_ddb = &dev_priv->wm.skl_hw.ddb;
+	unsigned int updated = 0;
+	bool progress;
+	enum pipe pipe;
+
+	/*
+	 * Whenever the number of active pipes changes, we need to make sure we
+	 * update the pipes in the right order so that their ddb allocations
+	 * never overlap with eachother inbetween CRTC updates. Otherwise we'll
+	 * cause pipe underruns and other bad stuff.
+	 */
+	do {
+		int i;
+		progress = false;
+
+		for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
+			bool vbl_wait = false;
+			unsigned int cmask = drm_crtc_mask(crtc);
+			pipe = to_intel_crtc(crtc)->pipe;
+
+			if (updated & cmask || !crtc->state->active)
+				continue;
+			if (skl_ddb_allocation_overlaps(state, cur_ddb, new_ddb,
+							pipe))
+				continue;
+
+			updated |= cmask;
+
+			/*
+			 * If this is an already active pipe, it's DDB changed,
+			 * and this isn't the last pipe that needs updating
+			 * then we need to wait for a vblank to pass for the
+			 * new ddb allocation to take effect.
+			 */
+			if (!skl_ddb_allocation_equals(cur_ddb, new_ddb, pipe) &&
+			    !crtc->state->active_changed &&
+			    intel_state->wm_results.dirty_pipes != updated)
+				vbl_wait = true;
+
+			intel_update_crtc(crtc, state, old_crtc_state,
+					  crtc_vblank_mask);
+
+			if (vbl_wait)
+				intel_wait_for_vblank(dev, pipe);
+
+			progress = true;
+		}
+	} while (progress);
 }
 
 static void intel_atomic_commit_tail(struct drm_atomic_state *state)
@@ -15851,8 +15917,6 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.crtc_disable = i9xx_crtc_disable;
 	}
 
-	dev_priv->display.update_crtcs = intel_update_crtcs;
-
 	/* Returns the core display clock speed */
 	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 		dev_priv->display.get_display_clock_speed =
@@ -15941,6 +16005,11 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.modeset_calc_cdclk =
 			skl_modeset_calc_cdclk;
 	}
+
+	if (dev_priv->info.gen >= 9)
+		dev_priv->display.update_crtcs = skl_update_crtcs;
+	else
+		dev_priv->display.update_crtcs = intel_update_crtcs;
 
 	switch (INTEL_INFO(dev_priv)->gen) {
 	case 2:
