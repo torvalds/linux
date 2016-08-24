@@ -952,22 +952,6 @@ void rtw_macaddr_cfg(u8 *mac_addr)
 	DBG_88E("rtw_macaddr_cfg MAC Address  = %pM\n", (mac_addr));
 }
 
-void dump_ies(u8 *buf, u32 buf_len)
-{
-	u8 *pos = buf;
-	u8 id, len;
-
-	while (pos - buf <= buf_len) {
-		id = *pos;
-		len = *(pos + 1);
-
-		DBG_88E("%s ID:%u, LEN:%u\n", __func__, id, len);
-		dump_wps_ie(pos, len);
-
-		pos += (2 + len);
-	}
-}
-
 void dump_wps_ie(u8 *ie, u32 ie_len)
 {
 	u8 *pos = ie;
