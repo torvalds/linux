@@ -58,7 +58,7 @@ struct ad5820_device {
 	struct mutex power_lock;
 	int power_count;
 
-	int standby : 1;
+	unsigned int standby : 1;
 };
 
 static int ad5820_write(struct ad5820_device *coil, u16 data)
