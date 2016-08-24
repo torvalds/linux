@@ -635,6 +635,27 @@ static int __mlxsw_sp_port_vlans_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	return 0;
 }
 
+static int mlxsw_sp_port_vid_learning_set(struct mlxsw_sp_port *mlxsw_sp_port,
+					  u16 vid_begin, u16 vid_end,
+					  bool learn_enable)
+{
+	u16 vid, vid_e;
+	int err;
+
+	for (vid = vid_begin; vid <= vid_end;
+	     vid += MLXSW_REG_SPVMLR_REC_MAX_COUNT) {
+		vid_e = min((u16) (vid + MLXSW_REG_SPVMLR_REC_MAX_COUNT - 1),
+			    vid_end);
+
+		err = __mlxsw_sp_port_vid_learning_set(mlxsw_sp_port, vid,
+						       vid_e, learn_enable);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int __mlxsw_sp_port_vlans_add(struct mlxsw_sp_port *mlxsw_sp_port,
 				     u16 vid_begin, u16 vid_end,
 				     bool flag_untagged, bool flag_pvid)
@@ -675,6 +696,14 @@ static int __mlxsw_sp_port_vlans_add(struct mlxsw_sp_port *mlxsw_sp_port,
 		}
 	}
 
+	err = mlxsw_sp_port_vid_learning_set(mlxsw_sp_port, vid_begin, vid_end,
+					     mlxsw_sp_port->learning);
+	if (err) {
+		netdev_err(dev, "Failed to set learning for VIDs %d-%d\n",
+			   vid_begin, vid_end);
+		goto err_port_vid_learning_set;
+	}
+
 	/* Changing activity bits only if HW operation succeded */
 	for (vid = vid_begin; vid <= vid_end; vid++) {
 		set_bit(vid, mlxsw_sp_port->active_vlans);
@@ -697,6 +726,9 @@ static int __mlxsw_sp_port_vlans_add(struct mlxsw_sp_port *mlxsw_sp_port,
 err_port_stp_state_set:
 	for (vid = vid_begin; vid <= vid_end; vid++)
 		clear_bit(vid, mlxsw_sp_port->active_vlans);
+	mlxsw_sp_port_vid_learning_set(mlxsw_sp_port, vid_begin, vid_end,
+				       false);
+err_port_vid_learning_set:
 	if (old_pvid != mlxsw_sp_port->pvid)
 		mlxsw_sp_port_pvid_set(mlxsw_sp_port, old_pvid);
 err_port_pvid_set:
@@ -1005,6 +1037,9 @@ static int __mlxsw_sp_port_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	if (!mlxsw_sp_port->bridged)
 		return -EINVAL;
+
+	mlxsw_sp_port_vid_learning_set(mlxsw_sp_port, vid_begin, vid_end,
+				       false);
 
 	pvid = mlxsw_sp_port->pvid;
 	if (pvid >= vid_begin && pvid <= vid_end)
