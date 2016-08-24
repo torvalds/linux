@@ -21,8 +21,6 @@
 struct ht_priv {
 	u32	ht_option;
 	u32	ampdu_enable;/* for enable Tx A-MPDU */
-	u32	rx_ampdu_maxlen; /* for rx reordering ctrl win_sz,
-				  * updated when join_callback. */
 	u8	bwmode;/*  */
 	u8	ch_offset;/* PRIME_CHNL_OFFSET */
 	u8	sgi;/* short GI */

@@ -2037,7 +2037,6 @@ void rtw_update_ht_cap(struct adapter *padapter, u8 *pie, uint ie_len)
 
 		max_ampdu_sz = ht_cap->ampdu_params_info & IEEE80211_HT_CAP_AMPDU_FACTOR;
 		max_ampdu_sz = 1 << (max_ampdu_sz+3); /*  max_ampdu_sz (kbytes); */
-		phtpriv->rx_ampdu_maxlen = max_ampdu_sz;
 	}
 	len = 0;
 	p = rtw_get_ie(pie+sizeof(struct ndis_802_11_fixed_ie), _HT_ADD_INFO_IE_, &len, ie_len-sizeof(struct ndis_802_11_fixed_ie));
