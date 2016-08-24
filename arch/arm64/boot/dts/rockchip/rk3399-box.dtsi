@@ -147,7 +147,7 @@
 	};
 
 	hdmi_sound: hdmi-sound {
-		status = "okay";
+		status = "disabled";
 		compatible = "simple-audio-card";
 		simple-audio-card,format = "i2s";
 		simple-audio-card,mclk-fs = <256>;
@@ -955,6 +955,16 @@
 &hdmi_rk_fb {
 	status = "okay";
 	rockchip,hdmi_video_source = <DISPLAY_SOURCE_LCDC0>;
+};
+
+&cdn_dp_sound {
+	status = "okay";
+};
+
+&cdn_dp_fb {
+	status = "okay";
+	extcon = <&fusb0>;
+	phys = <&tcphy0 0>;
 };
 
 &i2s2 {

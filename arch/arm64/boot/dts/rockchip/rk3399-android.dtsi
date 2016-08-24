@@ -200,17 +200,6 @@
 				sound-dai = <&cdn_dp_fb 0>;
 			};
 		};
-
-		simple-audio-card,dai-link@1 {
-			format = "spdif";
-			cpu {
-				sound-dai = <&spdif>;
-			};
-
-			codec {
-				sound-dai = <&cdn_dp_fb 1>;
-			};
-		};
 	};
 
 	vpu: vpu_service@ff650000 {
