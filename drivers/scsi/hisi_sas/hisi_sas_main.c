@@ -204,7 +204,7 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_hba *hisi_hba,
 		return rc;
 	}
 	port = device->port->lldd_port;
-	if (port && !port->port_attached && !tmf) {
+	if (port && !port->port_attached) {
 		if (sas_protocol_ata(task->task_proto)) {
 			struct task_status_struct *ts = &task->task_status;
 
