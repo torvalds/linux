@@ -397,6 +397,15 @@ config PHY_ROCKCHIP_PCIE
 	help
 	  Enable this to support the Rockchip PCIe PHY.
 
+config PHY_ROCKCHIP_TYPEC
+	tristate "Rockchip TYPEC PHY Driver"
+	depends on OF && (ARCH_ROCKCHIP || COMPILE_TEST)
+	select EXTCON
+	select GENERIC_PHY
+	select RESET_CONTROLLER
+	help
+	  Enable this to support the Rockchip USB TYPEC PHY.
+
 config PHY_ST_SPEAR1310_MIPHY
 	tristate "ST SPEAR1310-MIPHY driver"
 	select GENERIC_PHY
