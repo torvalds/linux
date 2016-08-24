@@ -108,7 +108,7 @@ extern char *amdgpu_virtual_display;
 #define AMDGPU_MAX_RINGS			16
 #define AMDGPU_MAX_GFX_RINGS			1
 #define AMDGPU_MAX_COMPUTE_RINGS		8
-#define AMDGPU_MAX_VCE_RINGS			2
+#define AMDGPU_MAX_VCE_RINGS			3
 
 /* max number of IP instances */
 #define AMDGPU_MAX_SDMA_INSTANCES		2

@@ -850,8 +850,8 @@ int amdgpu_vce_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	struct fence *fence = NULL;
 	long r;
 
-	/* skip vce ring1 ib test for now, since it's not reliable */
-	if (ring == &ring->adev->vce.ring[1])
+	/* skip vce ring1/2 ib test for now, since it's not reliable */
+	if (ring != &ring->adev->vce.ring[0])
 		return 0;
 
 	r = amdgpu_vce_get_create_msg(ring, 1, NULL);

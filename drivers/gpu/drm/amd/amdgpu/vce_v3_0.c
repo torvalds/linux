@@ -70,8 +70,10 @@ static uint32_t vce_v3_0_ring_get_rptr(struct amdgpu_ring *ring)
 
 	if (ring == &adev->vce.ring[0])
 		return RREG32(mmVCE_RB_RPTR);
-	else
+	else if (ring == &adev->vce.ring[1])
 		return RREG32(mmVCE_RB_RPTR2);
+	else
+		return RREG32(mmVCE_RB_RPTR3);
 }
 
 /**
@@ -87,8 +89,10 @@ static uint32_t vce_v3_0_ring_get_wptr(struct amdgpu_ring *ring)
 
 	if (ring == &adev->vce.ring[0])
 		return RREG32(mmVCE_RB_WPTR);
-	else
+	else if (ring == &adev->vce.ring[1])
 		return RREG32(mmVCE_RB_WPTR2);
+	else
+		return RREG32(mmVCE_RB_WPTR3);
 }
 
 /**
@@ -104,8 +108,10 @@ static void vce_v3_0_ring_set_wptr(struct amdgpu_ring *ring)
 
 	if (ring == &adev->vce.ring[0])
 		WREG32(mmVCE_RB_WPTR, ring->wptr);
-	else
+	else if (ring == &adev->vce.ring[1])
 		WREG32(mmVCE_RB_WPTR2, ring->wptr);
+	else
+		WREG32(mmVCE_RB_WPTR3, ring->wptr);
 }
 
 static void vce_v3_0_override_vce_clock_gating(struct amdgpu_device *adev, bool override)
@@ -229,6 +235,13 @@ static int vce_v3_0_start(struct amdgpu_device *adev)
 	WREG32(mmVCE_RB_BASE_HI2, upper_32_bits(ring->gpu_addr));
 	WREG32(mmVCE_RB_SIZE2, ring->ring_size / 4);
 
+	ring = &adev->vce.ring[2];
+	WREG32(mmVCE_RB_RPTR3, ring->wptr);
+	WREG32(mmVCE_RB_WPTR3, ring->wptr);
+	WREG32(mmVCE_RB_BASE_LO3, ring->gpu_addr);
+	WREG32(mmVCE_RB_BASE_HI3, upper_32_bits(ring->gpu_addr));
+	WREG32(mmVCE_RB_SIZE3, ring->ring_size / 4);
+
 	mutex_lock(&adev->grbm_idx_mutex);
 	for (idx = 0; idx < 2; ++idx) {
 		if (adev->vce.harvest_config & (1 << idx))
@@ -345,7 +358,7 @@ static int vce_v3_0_early_init(void *handle)
 	    (AMDGPU_VCE_HARVEST_VCE0 | AMDGPU_VCE_HARVEST_VCE1))
 		return -ENOENT;
 
-	adev->vce.num_rings = 2;
+	adev->vce.num_rings = 3;
 
 	vce_v3_0_set_ring_funcs(adev);
 	vce_v3_0_set_irq_funcs(adev);
@@ -671,6 +684,7 @@ static int vce_v3_0_process_interrupt(struct amdgpu_device *adev,
 	switch (entry->src_data) {
 	case 0:
 	case 1:
+	case 2:
 		amdgpu_fence_process(&adev->vce.ring[entry->src_data]);
 		break;
 	default:
