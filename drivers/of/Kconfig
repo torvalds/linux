@@ -112,4 +112,14 @@ config OF_OVERLAY
 config OF_NUMA
 	bool
 
+config OF_OVERLAY_MGR
+	bool "Enable Overlay manager"
+	default n
+	depends on OF_OVERLAY
+	help
+	  Enables Overlay manager - it accepts DT entry from command line
+	  overlay_mgr.overlay_dt_entry=<name> and applies all overlays in
+	  it to current DT. It is also possible to apply predefined DT
+	  entry on the fly by writing it to 'current_overlay' sysfs entry.
+
 endif # OF

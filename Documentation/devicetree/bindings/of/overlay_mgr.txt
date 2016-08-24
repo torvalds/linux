@@ -1,0 +1,32 @@
+overlay_mgr
+
+Required properties:
+- compatible: "linux,overlay_manager";
+
+Optional properties:
+- starts from the word "hardware": hardware_cfg_0
+
+These properties can be chosen from kernel command line:
+overlay_mgr.overlay_dt_entry=hardware_cfg_0
+DT contains main overlay_mng entry with all possible
+HW config setups. And then kernel command line option
+will allow to choose between them.
+
+Example:
+    overlay_mgr {
+        compatible = "linux,overlay_manager";
+        hardware_cfg_0 {
+            overlay@0 {
+                    fragment@0 {
+                            __overlay__ {
+                            };
+                    };
+            };
+            overlay@1 {
+                    fragment@0 {
+                            __overlay__ {
+                            };
+                    };
+            };
+        };
+    };
