@@ -2217,8 +2217,8 @@ static int i40e_vc_iwarp_qvmap_msg(struct i40e_vf *vf, u8 *msg, u16 msglen,
 error_param:
 	/* send the response to the VF */
 	return i40e_vc_send_resp_to_vf(vf,
-			       config ? I40E_VIRTCHNL_OP_RELEASE_IWARP_IRQ_MAP :
-			       I40E_VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP,
+			       config ? I40E_VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP :
+			       I40E_VIRTCHNL_OP_RELEASE_IWARP_IRQ_MAP,
 			       aq_ret);
 }
 
