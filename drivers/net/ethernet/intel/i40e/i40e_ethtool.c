@@ -2922,14 +2922,12 @@ static int i40e_set_rxfh(struct net_device *netdev, const u32 *indir,
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
+	struct i40e_pf *pf = vsi->back;
 	u8 *seed = NULL;
 	u16 i;
 
 	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)
 		return -EOPNOTSUPP;
-
-	if (!indir)
-		return 0;
 
 	if (key) {
 		if (!vsi->rss_hkey_user) {
@@ -2948,8 +2946,12 @@ static int i40e_set_rxfh(struct net_device *netdev, const u32 *indir,
 	}
 
 	/* Each 32 bits pointed by 'indir' is stored with a lut entry */
-	for (i = 0; i < I40E_HLUT_ARRAY_SIZE; i++)
-		vsi->rss_lut_user[i] = (u8)(indir[i]);
+	if (indir)
+		for (i = 0; i < I40E_HLUT_ARRAY_SIZE; i++)
+			vsi->rss_lut_user[i] = (u8)(indir[i]);
+	else
+		i40e_fill_rss_lut(pf, vsi->rss_lut_user, I40E_HLUT_ARRAY_SIZE,
+				  vsi->rss_size);
 
 	return i40e_config_rss(vsi, seed, vsi->rss_lut_user,
 			       I40E_HLUT_ARRAY_SIZE);

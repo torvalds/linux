@@ -57,8 +57,6 @@ static int i40e_setup_pf_switch(struct i40e_pf *pf, bool reinit);
 static int i40e_setup_misc_vector(struct i40e_pf *pf);
 static void i40e_determine_queue_usage(struct i40e_pf *pf);
 static int i40e_setup_pf_filter_control(struct i40e_pf *pf);
-static void i40e_fill_rss_lut(struct i40e_pf *pf, u8 *lut,
-			      u16 rss_table_size, u16 rss_size);
 static void i40e_fdir_sb_setup(struct i40e_pf *pf);
 static int i40e_veb_get_bw_info(struct i40e_veb *veb);
 
@@ -8244,8 +8242,8 @@ int i40e_get_rss(struct i40e_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size)
  * @rss_table_size: Lookup table size
  * @rss_size: Range of queue number for hashing
  */
-static void i40e_fill_rss_lut(struct i40e_pf *pf, u8 *lut,
-			      u16 rss_table_size, u16 rss_size)
+void i40e_fill_rss_lut(struct i40e_pf *pf, u8 *lut,
+		       u16 rss_table_size, u16 rss_size)
 {
 	u16 i;
 
