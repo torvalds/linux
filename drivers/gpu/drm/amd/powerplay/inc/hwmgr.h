@@ -599,6 +599,13 @@ enum PP_VCE_LEVEL {
 };
 
 
+enum PP_TABLE_VERSION {
+	PP_TABLE_V0 = 0,
+	PP_TABLE_V1,
+	PP_TABLE_V2,
+	PP_TABLE_MAX
+};
+
 /**
  * The main hardware manager structure.
  */
@@ -606,6 +613,7 @@ struct pp_hwmgr {
 	uint32_t chip_family;
 	uint32_t chip_id;
 
+	uint32_t pp_table_version;
 	void *device;
 	struct pp_smumgr *smumgr;
 	const void *soft_pp_table;

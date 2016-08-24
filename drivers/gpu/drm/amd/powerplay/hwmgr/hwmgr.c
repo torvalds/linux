@@ -67,6 +67,7 @@ int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 	hwmgr->chip_id = pp_init->chip_id;
 	hwmgr->usec_timeout = AMD_MAX_USEC_TIMEOUT;
 	hwmgr->power_source = PP_PowerSource_AC;
+	hwmgr->pp_table_version = PP_TABLE_V1;
 
 	hwmgr_init_default_caps(hwmgr);
 	hwmgr_set_user_specify_caps(hwmgr);
