@@ -53,9 +53,9 @@ static void rxrpc_request_final_ACK(struct rxrpc_call *call)
 /*
  * drop the bottom ACK off of the call ACK window and advance the window
  */
-static void rxrpc_hard_ACK_data(struct rxrpc_call *call,
-				struct rxrpc_skb_priv *sp)
+static void rxrpc_hard_ACK_data(struct rxrpc_call *call, struct sk_buff *skb)
 {
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	int loop;
 	u32 seq;
 
@@ -91,8 +91,8 @@ static void rxrpc_hard_ACK_data(struct rxrpc_call *call,
 		 * its Tx bufferage.
 		 */
 		_debug("send Rx idle ACK");
-		__rxrpc_propose_ACK(call, RXRPC_ACK_IDLE, sp->hdr.serial,
-				    false);
+		__rxrpc_propose_ACK(call, RXRPC_ACK_IDLE,
+				    skb->priority, sp->hdr.serial, false);
 	}
 
 	spin_unlock_bh(&call->lock);
@@ -125,7 +125,7 @@ void rxrpc_kernel_data_consumed(struct rxrpc_call *call, struct sk_buff *skb)
 	ASSERTCMP(sp->hdr.seq, >, call->rx_data_eaten);
 
 	call->rx_data_recv = sp->hdr.seq;
-	rxrpc_hard_ACK_data(call, sp);
+	rxrpc_hard_ACK_data(call, skb);
 }
 EXPORT_SYMBOL(rxrpc_kernel_data_consumed);
 

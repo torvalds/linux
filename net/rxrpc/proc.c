@@ -165,7 +165,7 @@ static int rxrpc_connection_seq_show(struct seq_file *seq, void *v)
 		   rxrpc_conn_states[conn->state],
 		   key_serial(conn->params.key),
 		   atomic_read(&conn->serial),
-		   atomic_read(&conn->hi_serial));
+		   conn->hi_serial);
 
 	return 0;
 }

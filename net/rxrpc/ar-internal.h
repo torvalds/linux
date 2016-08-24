@@ -295,7 +295,12 @@ struct rxrpc_connection {
 		u32			call_id;	/* ID of current call */
 		u32			call_counter;	/* Call ID counter */
 		u32			last_call;	/* ID of last call */
-		u32			last_result;	/* Result of last call (0/abort) */
+		u8			last_type;	/* Type of last packet */
+		u16			last_service_id;
+		union {
+			u32		last_seq;
+			u32		last_abort;
+		};
 	} channels[RXRPC_MAXCALLS];
 	wait_queue_head_t	channel_wq;	/* queue to wait for channel to become available */
 
@@ -313,7 +318,7 @@ struct rxrpc_connection {
 	struct rxrpc_crypt	csum_iv;	/* packet checksum base */
 	unsigned long		flags;
 	unsigned long		events;
-	unsigned long		put_time;	/* Time at which last put */
+	unsigned long		idle_timestamp;	/* Time at which last became idle */
 	spinlock_t		state_lock;	/* state-change lock */
 	atomic_t		usage;
 	enum rxrpc_conn_proto_state state : 8;	/* current state of connection */
@@ -322,7 +327,7 @@ struct rxrpc_connection {
 	int			error;		/* local error incurred */
 	int			debug_id;	/* debug ID for printks */
 	atomic_t		serial;		/* packet serial number counter */
-	atomic_t		hi_serial;	/* highest serial number received */
+	unsigned int		hi_serial;	/* highest serial number received */
 	atomic_t		avail_chans;	/* number of channels available */
 	u8			size_align;	/* data size alignment (for security) */
 	u8			header_size;	/* rxrpc + security header size */
@@ -457,6 +462,7 @@ struct rxrpc_call {
 	rxrpc_seq_t		ackr_win_top;	/* top of ACK window (rx_data_eaten is bottom) */
 	rxrpc_seq_t		ackr_prev_seq;	/* previous sequence number received */
 	u8			ackr_reason;	/* reason to ACK */
+	u16			ackr_skew;	/* skew on packet being ACK'd */
 	rxrpc_serial_t		ackr_serial;	/* serial of packet being ACK'd */
 	atomic_t		ackr_not_idle;	/* number of packets in Rx queue */
 
@@ -499,8 +505,8 @@ int rxrpc_reject_call(struct rxrpc_sock *);
 /*
  * call_event.c
  */
-void __rxrpc_propose_ACK(struct rxrpc_call *, u8, u32, bool);
-void rxrpc_propose_ACK(struct rxrpc_call *, u8, u32, bool);
+void __rxrpc_propose_ACK(struct rxrpc_call *, u8, u16, u32, bool);
+void rxrpc_propose_ACK(struct rxrpc_call *, u8, u16, u32, bool);
 void rxrpc_process_call(struct work_struct *);
 
 /*
@@ -565,7 +571,7 @@ struct rxrpc_connection *rxrpc_find_connection_rcu(struct rxrpc_local *,
 						   struct sk_buff *);
 void __rxrpc_disconnect_call(struct rxrpc_call *);
 void rxrpc_disconnect_call(struct rxrpc_call *);
-void rxrpc_put_connection(struct rxrpc_connection *);
+void __rxrpc_put_connection(struct rxrpc_connection *);
 void __exit rxrpc_destroy_all_connections(void);
 
 static inline bool rxrpc_conn_is_client(const struct rxrpc_connection *conn)
@@ -588,6 +594,13 @@ struct rxrpc_connection *rxrpc_get_connection_maybe(struct rxrpc_connection *con
 {
 	return atomic_inc_not_zero(&conn->usage) ? conn : NULL;
 }
+
+static inline void rxrpc_put_connection(struct rxrpc_connection *conn)
+{
+	if (conn && atomic_dec_return(&conn->usage) == 1)
+		__rxrpc_put_connection(conn);
+}
+
 
 static inline bool rxrpc_queue_conn(struct rxrpc_connection *conn)
 {

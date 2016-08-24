@@ -125,6 +125,7 @@ static int rxrpc_fast_process_data(struct rxrpc_call *call,
 	bool terminal;
 	int ret, ackbit, ack;
 	u32 serial;
+	u16 skew;
 	u8 flags;
 
 	_enter("{%u,%u},,{%u}", call->rx_data_post, call->rx_first_oos, seq);
@@ -133,6 +134,7 @@ static int rxrpc_fast_process_data(struct rxrpc_call *call,
 	ASSERTCMP(sp->call, ==, NULL);
 	flags = sp->hdr.flags;
 	serial = sp->hdr.serial;
+	skew = skb->priority;
 
 	spin_lock(&call->lock);
 
@@ -231,7 +233,7 @@ static int rxrpc_fast_process_data(struct rxrpc_call *call,
 
 	spin_unlock(&call->lock);
 	atomic_inc(&call->ackr_not_idle);
-	rxrpc_propose_ACK(call, RXRPC_ACK_DELAY, serial, false);
+	rxrpc_propose_ACK(call, RXRPC_ACK_DELAY, skew, serial, false);
 	_leave(" = 0 [posted]");
 	return 0;
 
@@ -244,7 +246,7 @@ out:
 
 discard_and_ack:
 	_debug("discard and ACK packet %p", skb);
-	__rxrpc_propose_ACK(call, ack, serial, true);
+	__rxrpc_propose_ACK(call, ack, skew, serial, true);
 discard:
 	spin_unlock(&call->lock);
 	rxrpc_free_skb(skb);
@@ -252,7 +254,7 @@ discard:
 	return 0;
 
 enqueue_and_ack:
-	__rxrpc_propose_ACK(call, ack, serial, true);
+	__rxrpc_propose_ACK(call, ack, skew, serial, true);
 enqueue_packet:
 	_net("defer skb %p", skb);
 	spin_unlock(&call->lock);
@@ -304,7 +306,7 @@ void rxrpc_fast_process_packet(struct rxrpc_call *call, struct sk_buff *skb)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	__be32 wtmp;
-	u32 hi_serial, abort_code;
+	u32 abort_code;
 
 	_enter("%p,%p", call, skb);
 
@@ -321,18 +323,12 @@ void rxrpc_fast_process_packet(struct rxrpc_call *call, struct sk_buff *skb)
 	}
 #endif
 
-	/* track the latest serial number on this connection for ACK packet
-	 * information */
-	hi_serial = atomic_read(&call->conn->hi_serial);
-	while (sp->hdr.serial > hi_serial)
-		hi_serial = atomic_cmpxchg(&call->conn->hi_serial, hi_serial,
-					   sp->hdr.serial);
-
 	/* request ACK generation for any ACK or DATA packet that requests
 	 * it */
 	if (sp->hdr.flags & RXRPC_REQUEST_ACK) {
 		_proto("ACK Requested on %%%u", sp->hdr.serial);
-		rxrpc_propose_ACK(call, RXRPC_ACK_REQUESTED, sp->hdr.serial, false);
+		rxrpc_propose_ACK(call, RXRPC_ACK_REQUESTED,
+				  skb->priority, sp->hdr.serial, false);
 	}
 
 	switch (sp->hdr.type) {
@@ -570,7 +566,8 @@ done:
 
 /*
  * post connection-level events to the connection
- * - this includes challenges, responses and some aborts
+ * - this includes challenges, responses, some aborts and call terminal packet
+ *   retransmission.
  */
 static void rxrpc_post_packet_to_conn(struct rxrpc_connection *conn,
 				      struct sk_buff *skb)
@@ -637,7 +634,7 @@ void rxrpc_data_ready(struct sock *sk)
 	struct rxrpc_skb_priv *sp;
 	struct rxrpc_local *local = sk->sk_user_data;
 	struct sk_buff *skb;
-	int ret;
+	int ret, skew;
 
 	_enter("%p", sk);
 
@@ -700,25 +697,64 @@ void rxrpc_data_ready(struct sock *sk)
 	rcu_read_lock();
 
 	conn = rxrpc_find_connection_rcu(local, skb);
-	if (!conn)
+	if (!conn) {
+		skb->priority = 0;
 		goto cant_route_call;
+	}
+
+	/* Note the serial number skew here */
+	skew = (int)sp->hdr.serial - (int)conn->hi_serial;
+	if (skew >= 0) {
+		if (skew > 0)
+			conn->hi_serial = sp->hdr.serial;
+		skb->priority = 0;
+	} else {
+		skew = -skew;
+		skb->priority = min(skew, 65535);
+	}
 
 	if (sp->hdr.callNumber == 0) {
 		/* Connection-level packet */
 		_debug("CONN %p {%d}", conn, conn->debug_id);
 		rxrpc_post_packet_to_conn(conn, skb);
+		goto out_unlock;
 	} else {
 		/* Call-bound packets are routed by connection channel. */
 		unsigned int channel = sp->hdr.cid & RXRPC_CHANNELMASK;
 		struct rxrpc_channel *chan = &conn->channels[channel];
-		struct rxrpc_call *call = rcu_dereference(chan->call);
+		struct rxrpc_call *call;
 
+		/* Ignore really old calls */
+		if (sp->hdr.callNumber < chan->last_call)
+			goto discard_unlock;
+
+		if (sp->hdr.callNumber == chan->last_call) {
+			/* For the previous service call, if completed
+			 * successfully, we discard all further packets.
+			 */
+			if (rxrpc_conn_is_service(call->conn) &&
+			    (chan->last_type == RXRPC_PACKET_TYPE_ACK ||
+			     sp->hdr.type == RXRPC_PACKET_TYPE_ABORT))
+				goto discard_unlock;
+
+			/* But otherwise we need to retransmit the final packet
+			 * from data cached in the connection record.
+			 */
+			rxrpc_post_packet_to_conn(conn, skb);
+			goto out_unlock;
+		}
+
+		call = rcu_dereference(chan->call);
 		if (!call || atomic_read(&call->usage) == 0)
 			goto cant_route_call;
 
 		rxrpc_post_packet_to_call(call, skb);
+		goto out_unlock;
 	}
 
+discard_unlock:
+	rxrpc_free_skb(skb);
+out_unlock:
 	rcu_read_unlock();
 out:
 	return;
