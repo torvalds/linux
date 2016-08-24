@@ -1210,6 +1210,8 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	struct ubi_volume *vol;
 	uint32_t crc;
 
+	ubi_assert(rwsem_is_locked(&ubi->fm_eba_sem));
+
 	vol_id = be32_to_cpu(vid_hdr->vol_id);
 	lnum = be32_to_cpu(vid_hdr->lnum);
 
@@ -1352,9 +1354,7 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	}
 
 	ubi_assert(vol->eba_tbl->entries[lnum].pnum == from);
-	down_read(&ubi->fm_eba_sem);
 	vol->eba_tbl->entries[lnum].pnum = to;
-	up_read(&ubi->fm_eba_sem);
 
 out_unlock_buf:
 	mutex_unlock(&ubi->buf_mutex);
