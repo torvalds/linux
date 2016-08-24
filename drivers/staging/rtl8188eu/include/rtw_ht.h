@@ -15,8 +15,8 @@
 #ifndef _RTW_HT_H_
 #define _RTW_HT_H_
 
+#include <linux/ieee80211.h>
 #include <osdep_service.h>
-#include "wifi.h"
 
 struct ht_priv {
 	u32	ht_option;
@@ -33,7 +33,7 @@ struct ht_priv {
 	u8	agg_enable_bitmap;
 	u8	candidate_tid_bitmap;
 
-	struct rtw_ieee80211_ht_cap ht_cap;
+	struct ieee80211_ht_cap ht_cap;
 };
 
 #endif	/* _RTL871X_HT_H_ */
