@@ -214,6 +214,7 @@ static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 		return PTR_ERR(ssp->clk);
 
 	memset(&pi, 0, sizeof(pi));
+	pi.fwnode = dev->dev.fwnode;
 	pi.parent = &dev->dev;
 	pi.name = "pxa2xx-spi";
 	pi.id = ssp->port_id;
