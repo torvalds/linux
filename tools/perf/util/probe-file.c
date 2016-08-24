@@ -73,11 +73,10 @@ static void print_both_open_warning(int kerr, int uerr)
 static int open_probe_events(const char *trace_file, bool readwrite)
 {
 	char buf[PATH_MAX];
-	const char *tracing_dir = "";
 	int ret;
 
-	ret = e_snprintf(buf, PATH_MAX, "%s/%s%s",
-			 tracing_path, tracing_dir, trace_file);
+	ret = e_snprintf(buf, PATH_MAX, "%s/%s",
+			 tracing_path, trace_file);
 	if (ret >= 0) {
 		pr_debug("Opening %s write=%d\n", buf, readwrite);
 		if (readwrite && !probe_event_dry_run)
