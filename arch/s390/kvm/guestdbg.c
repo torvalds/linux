@@ -216,20 +216,10 @@ int kvm_s390_import_bp_data(struct kvm_vcpu *vcpu,
 	else if (dbg->arch.nr_hw_bp > MAX_BP_COUNT)
 		return -EINVAL;
 
-	bp_data = kmalloc_array(dbg->arch.nr_hw_bp,
-				sizeof(*bp_data),
-				GFP_KERNEL);
-	if (!bp_data) {
-		ret = -ENOMEM;
-		goto error;
-	}
-
-	if (copy_from_user(bp_data,
-			   dbg->arch.hw_bp,
-			   sizeof(*bp_data) * dbg->arch.nr_hw_bp)) {
-		ret = -EFAULT;
-		goto error;
-	}
+	bp_data = memdup_user(dbg->arch.hw_bp,
+			      sizeof(*bp_data) * dbg->arch.nr_hw_bp);
+	if (IS_ERR(bp_data))
+		return PTR_ERR(bp_data);
 
 	for (i = 0; i < dbg->arch.nr_hw_bp; i++) {
 		switch (bp_data[i].type) {
