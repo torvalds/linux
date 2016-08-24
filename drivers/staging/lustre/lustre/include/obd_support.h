@@ -458,6 +458,7 @@ extern char obd_jobid_var[];
 #define OBD_FAIL_LOV_INIT			    0x1403
 #define OBD_FAIL_GLIMPSE_DELAY			    0x1404
 #define OBD_FAIL_LLITE_XATTR_ENOMEM		    0x1405
+#define OBD_FAIL_GETATTR_DELAY			    0x1409
 
 #define OBD_FAIL_FID_INDIR	0x1501
 #define OBD_FAIL_FID_INLMA	0x1502

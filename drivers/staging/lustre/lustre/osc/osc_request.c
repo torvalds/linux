@@ -2119,27 +2119,6 @@ static int osc_set_data_with_check(struct lustre_handle *lockh,
 	return set;
 }
 
-/* find any ldlm lock of the inode in osc
- * return 0    not find
- *	1    find one
- *      < 0    error
- */
-static int osc_find_cbdata(struct obd_export *exp, struct lov_stripe_md *lsm,
-			   ldlm_iterator_t replace, void *data)
-{
-	struct ldlm_res_id res_id;
-	struct obd_device *obd = class_exp2obd(exp);
-	int rc = 0;
-
-	ostid_build_res_name(&lsm->lsm_oi, &res_id);
-	rc = ldlm_resource_iterate(obd->obd_namespace, &res_id, replace, data);
-	if (rc == LDLM_ITER_STOP)
-		return 1;
-	if (rc == LDLM_ITER_CONTINUE)
-		return 0;
-	return rc;
-}
-
 static int osc_enqueue_fini(struct ptlrpc_request *req,
 			    osc_enqueue_upcall_f upcall, void *cookie,
 			    struct lustre_handle *lockh, enum ldlm_mode mode,
@@ -3358,7 +3337,6 @@ static struct obd_ops osc_obd_ops = {
 	.getattr_async  = osc_getattr_async,
 	.setattr        = osc_setattr,
 	.setattr_async  = osc_setattr_async,
-	.find_cbdata    = osc_find_cbdata,
 	.iocontrol      = osc_iocontrol,
 	.get_info       = osc_get_info,
 	.set_info_async = osc_set_info_async,

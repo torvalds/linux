@@ -66,9 +66,6 @@ int mdc_set_lock_data(struct obd_export *exp,
 
 int mdc_null_inode(struct obd_export *exp, const struct lu_fid *fid);
 
-int mdc_find_cbdata(struct obd_export *exp, const struct lu_fid *fid,
-		    ldlm_iterator_t it, void *data);
-
 int mdc_intent_lock(struct obd_export *exp,
 		    struct md_op_data *op_data,
 		    struct lookup_intent *it,

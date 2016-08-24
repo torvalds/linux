@@ -896,8 +896,6 @@ struct obd_ops {
 			struct niobuf_remote *remote, int pages,
 			struct niobuf_local *local,
 			struct obd_trans_info *oti, int rc);
-	int (*find_cbdata)(struct obd_export *, struct lov_stripe_md *,
-			   ldlm_iterator_t it, void *data);
 	int (*init_export)(struct obd_export *exp);
 	int (*destroy_export)(struct obd_export *exp);
 
@@ -958,8 +956,6 @@ struct cl_attr;
 struct md_ops {
 	int (*getstatus)(struct obd_export *, struct lu_fid *);
 	int (*null_inode)(struct obd_export *, const struct lu_fid *);
-	int (*find_cbdata)(struct obd_export *, const struct lu_fid *,
-			   ldlm_iterator_t, void *);
 	int (*close)(struct obd_export *, struct md_op_data *,
 		     struct md_open_data *, struct ptlrpc_request **);
 	int (*create)(struct obd_export *, struct md_op_data *,

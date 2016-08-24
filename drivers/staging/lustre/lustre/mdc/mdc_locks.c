@@ -185,28 +185,6 @@ int mdc_null_inode(struct obd_export *exp,
 	return 0;
 }
 
-/* find any ldlm lock of the inode in mdc
- * return 0    not find
- *	1    find one
- *      < 0    error
- */
-int mdc_find_cbdata(struct obd_export *exp,
-		    const struct lu_fid *fid,
-		    ldlm_iterator_t it, void *data)
-{
-	struct ldlm_res_id res_id;
-	int rc = 0;
-
-	fid_build_reg_res_name((struct lu_fid *)fid, &res_id);
-	rc = ldlm_resource_iterate(class_exp2obd(exp)->obd_namespace, &res_id,
-				   it, data);
-	if (rc == LDLM_ITER_STOP)
-		return 1;
-	else if (rc == LDLM_ITER_CONTINUE)
-		return 0;
-	return rc;
-}
-
 static inline void mdc_clear_replay_flag(struct ptlrpc_request *req, int rc)
 {
 	/* Don't hold error requests for replay. */

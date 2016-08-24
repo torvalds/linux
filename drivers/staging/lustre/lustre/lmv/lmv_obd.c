@@ -1609,47 +1609,6 @@ static int lmv_null_inode(struct obd_export *exp, const struct lu_fid *fid)
 	return 0;
 }
 
-static int lmv_find_cbdata(struct obd_export *exp, const struct lu_fid *fid,
-			   ldlm_iterator_t it, void *data)
-{
-	struct obd_device   *obd = exp->exp_obd;
-	struct lmv_obd      *lmv = &obd->u.lmv;
-	int tgt;
-	u32 i;
-	int		  rc;
-
-	rc = lmv_check_connect(obd);
-	if (rc)
-		return rc;
-
-	CDEBUG(D_INODE, "CBDATA for "DFID"\n", PFID(fid));
-
-	/*
-	 * With DNE every object can have two locks in different namespaces:
-	 * lookup lock in space of MDT storing direntry and update/open lock in
-	 * space of MDT storing inode. Try the MDT that the FID maps to first,
-	 * since this can be easily found, and only try others if that fails.
-	 */
-	for (i = 0, tgt = lmv_find_target_index(lmv, fid);
-	     i < lmv->desc.ld_tgt_count;
-	     i++, tgt = (tgt + 1) % lmv->desc.ld_tgt_count) {
-		if (tgt < 0) {
-			CDEBUG(D_HA, "%s: "DFID" is inaccessible: rc = %d\n",
-			       obd->obd_name, PFID(fid), tgt);
-			tgt = 0;
-		}
-
-		if (!lmv->tgts[tgt] || !lmv->tgts[tgt]->ltd_exp)
-			continue;
-
-		rc = md_find_cbdata(lmv->tgts[tgt]->ltd_exp, fid, it, data);
-		if (rc)
-			return rc;
-	}
-
-	return rc;
-}
-
 static int lmv_close(struct obd_export *exp, struct md_op_data *op_data,
 		     struct md_open_data *mod, struct ptlrpc_request **request)
 {
@@ -3373,7 +3332,6 @@ static struct obd_ops lmv_obd_ops = {
 static struct md_ops lmv_md_ops = {
 	.getstatus		= lmv_getstatus,
 	.null_inode		= lmv_null_inode,
-	.find_cbdata		= lmv_find_cbdata,
 	.close			= lmv_close,
 	.create			= lmv_create,
 	.done_writing		= lmv_done_writing,
