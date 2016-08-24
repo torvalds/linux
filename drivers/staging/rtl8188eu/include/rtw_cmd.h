@@ -210,34 +210,6 @@ struct set_assocsta_rsp {
 };
 
 /*
-	Caller Ad-Hoc/AP
-
-	Command mode
-
-	This is to force fw to del an sta_data entry per driver's request
-
-	FW will invalidate the cam entry associated with it.
-
-*/
-struct del_assocsta_parm {
-	u8	addr[ETH_ALEN];
-};
-
-/*
-Caller Mode: AP/Ad-HoC(M)
-
-Notes: To notify fw that given staid has changed its power state
-
-Command Mode
-
-*/
-struct setstapwrstate_parm {
-	u8	staid;
-	u8	status;
-	u8	hwaddr[6];
-};
-
-/*
 	Notes: This command is used for H2C/C2H loopback testing
 
 	mac[0] == 0
