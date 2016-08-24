@@ -430,13 +430,14 @@ struct dm_info_msg {
  * currently hot added. We hot add in multiples of 128M
  * chunks; it is possible that we may not be able to bring
  * online all the pages in the region. The range
- * covered_end_pfn defines the pages that can
+ * covered_start_pfn:covered_end_pfn defines the pages that can
  * be brough online.
  */
 
 struct hv_hotadd_state {
 	struct list_head list;
 	unsigned long start_pfn;
+	unsigned long covered_start_pfn;
 	unsigned long covered_end_pfn;
 	unsigned long ha_end_pfn;
 	unsigned long end_pfn;
@@ -682,7 +683,8 @@ static void hv_online_page(struct page *pg)
 
 	list_for_each(cur, &dm_device.ha_region_list) {
 		has = list_entry(cur, struct hv_hotadd_state, list);
-		cur_start_pgp = (unsigned long)pfn_to_page(has->start_pfn);
+		cur_start_pgp = (unsigned long)
+			pfn_to_page(has->covered_start_pfn);
 		cur_end_pgp = (unsigned long)pfn_to_page(has->covered_end_pfn);
 
 		if (((unsigned long)pg >= cur_start_pgp) &&
@@ -854,6 +856,7 @@ static unsigned long process_hot_add(unsigned long pg_start,
 		list_add_tail(&ha_region->list, &dm_device.ha_region_list);
 		ha_region->start_pfn = rg_start;
 		ha_region->ha_end_pfn = rg_start;
+		ha_region->covered_start_pfn = pg_start;
 		ha_region->covered_end_pfn = pg_start;
 		ha_region->end_pfn = rg_start + rg_size;
 	}
