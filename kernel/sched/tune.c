@@ -730,6 +730,8 @@ schedtune_init_cgroups(void)
 
 	pr_info("schedtune: configured to support %d boost groups\n",
 		BOOSTGROUPS_COUNT);
+
+	schedtune_initialized = true;
 }
 
 #else /* CONFIG_CGROUP_SCHEDTUNE */
