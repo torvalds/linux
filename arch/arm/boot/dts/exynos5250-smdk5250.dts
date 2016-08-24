@@ -116,7 +116,7 @@
 };
 
 &hdmi {
-	hpd-gpio = <&gpx3 7 GPIO_ACTIVE_HIGH>;
+	hpd-gpios = <&gpx3 7 GPIO_ACTIVE_HIGH>;
 };
 
 &i2c_0 {

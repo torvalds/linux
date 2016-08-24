@@ -260,7 +260,7 @@
 };
 
 &hdmi {
-	hpd-gpio = <&gpx3 7 GPIO_ACTIVE_HIGH>;
+	hpd-gpios = <&gpx3 7 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmi_hpd_irq>;
 	phy = <&hdmiphy>;
