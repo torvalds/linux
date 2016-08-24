@@ -121,6 +121,17 @@ config SND_SOC_INTEL_BYT_MAX98090_MACH
 	  This adds audio driver for Intel Baytrail platform based boards
 	  with the MAX98090 audio codec.
 
+config SND_SOC_INTEL_BDW_RT5677_MACH
+	tristate "ASoC Audio driver for Intel Broadwell with RT5677 codec"
+	depends on X86_INTEL_LPSS && GPIOLIB && I2C && DW_DMAC
+	depends on DW_DMAC_CORE=y
+	select SND_SOC_INTEL_SST
+	select SND_SOC_INTEL_HASWELL
+	select SND_SOC_RT5677
+	help
+	  This adds support for Intel Broadwell platform based boards with
+	  the RT5677 audio codec.
+
 config SND_SOC_INTEL_BROADWELL_MACH
 	tristate "ASoC Audio DSP support for Intel Broadwell Wildcatpoint"
 	depends on X86_INTEL_LPSS && I2C && DW_DMAC && \
