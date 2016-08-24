@@ -280,6 +280,7 @@ attached:
 found_channel:
 	_debug("found chan");
 	call->conn	= conn;
+	call->peer	= rxrpc_get_peer(conn->params.peer);
 	call->cid	= conn->proto.cid | chan;
 	call->call_id	= ++conn->channels[chan].call_counter;
 	conn->channels[chan].call_id = call->call_id;

@@ -732,7 +732,7 @@ void rxrpc_data_ready(struct sock *sk)
 			/* For the previous service call, if completed
 			 * successfully, we discard all further packets.
 			 */
-			if (rxrpc_conn_is_service(call->conn) &&
+			if (rxrpc_conn_is_service(conn) &&
 			    (chan->last_type == RXRPC_PACKET_TYPE_ACK ||
 			     sp->hdr.type == RXRPC_PACKET_TYPE_ABORT))
 				goto discard_unlock;

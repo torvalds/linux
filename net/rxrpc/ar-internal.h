@@ -407,6 +407,7 @@ enum rxrpc_call_state {
 struct rxrpc_call {
 	struct rcu_head		rcu;
 	struct rxrpc_connection	*conn;		/* connection carrying call */
+	struct rxrpc_peer	*peer;		/* Peer record for remote address */
 	struct rxrpc_sock	*socket;	/* socket responsible */
 	struct timer_list	lifetimer;	/* lifetime remaining on call */
 	struct timer_list	deadspan;	/* reap timer for re-ACK'ing, etc  */
@@ -717,9 +718,10 @@ struct rxrpc_peer *rxrpc_lookup_peer(struct rxrpc_local *,
 				     struct sockaddr_rxrpc *, gfp_t);
 struct rxrpc_peer *rxrpc_alloc_peer(struct rxrpc_local *, gfp_t);
 
-static inline void rxrpc_get_peer(struct rxrpc_peer *peer)
+static inline struct rxrpc_peer *rxrpc_get_peer(struct rxrpc_peer *peer)
 {
 	atomic_inc(&peer->usage);
+	return peer;
 }
 
 static inline

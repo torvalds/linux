@@ -42,6 +42,7 @@ static void rxrpc_conn_retransmit(struct rxrpc_connection *conn,
 			} abort;
 			struct {
 				struct rxrpc_ackpacket ack;
+				u8 padding[3];
 				struct rxrpc_ackinfo info;
 			};
 		};

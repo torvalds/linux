@@ -46,7 +46,9 @@ static void rxrpc_call_seq_stop(struct seq_file *seq, void *v)
 
 static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 {
-	struct rxrpc_connection *conn;
+	struct rxrpc_local *local;
+	struct rxrpc_sock *rx;
+	struct rxrpc_peer *peer;
 	struct rxrpc_call *call;
 	char lbuff[4 + 4 + 4 + 4 + 5 + 1], rbuff[4 + 4 + 4 + 4 + 5 + 1];
 
@@ -60,15 +62,24 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 
 	call = list_entry(v, struct rxrpc_call, link);
 
-	sprintf(lbuff, "%pI4:%u",
-		&call->socket->local->srx.transport.sin.sin_addr,
-		ntohs(call->socket->local->srx.transport.sin.sin_port));
+	rx = READ_ONCE(call->socket);
+	if (rx) {
+		local = READ_ONCE(rx->local);
+		if (local)
+			sprintf(lbuff, "%pI4:%u",
+				&local->srx.transport.sin.sin_addr,
+				ntohs(local->srx.transport.sin.sin_port));
+		else
+			strcpy(lbuff, "no_local");
+	} else {
+		strcpy(lbuff, "no_socket");
+	}
 
-	conn = call->conn;
-	if (conn)
+	peer = call->peer;
+	if (peer)
 		sprintf(rbuff, "%pI4:%u",
-			&conn->params.peer->srx.transport.sin.sin_addr,
-			ntohs(conn->params.peer->srx.transport.sin.sin_port));
+			&peer->srx.transport.sin.sin_addr,
+			ntohs(peer->srx.transport.sin.sin_port));
 	else
 		strcpy(rbuff, "no_connection");
 
