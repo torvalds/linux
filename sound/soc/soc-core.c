@@ -1056,7 +1056,7 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 	if (!rtd->platform) {
 		dev_err(card->dev, "ASoC: platform %s not registered\n",
 			dai_link->platform_name);
-		return -EPROBE_DEFER;
+		goto _err_defer;
 	}
 
 	soc_add_pcm_runtime(card, rtd);
