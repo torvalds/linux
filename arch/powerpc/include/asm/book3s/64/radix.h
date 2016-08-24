@@ -233,14 +233,19 @@ static inline unsigned long radix__get_tree_size(void)
 {
 	unsigned long rts_field;
 	/*
-	 * we support 52 bits, hence 52-31 = 21, 0b10101
+	 * We support 52 bits, hence:
+	 *  DD1    52-28 = 24, 0b11000
+	 *  Others 52-31 = 21, 0b10101
 	 * RTS encoding details
 	 * bits 0 - 3 of rts -> bits 6 - 8 unsigned long
 	 * bits 4 - 5 of rts -> bits 62 - 63 of unsigned long
 	 */
-	rts_field = (0x5UL << 5); /* 6 - 8 bits */
-	rts_field |= (0x2UL << 61);
-
+	if (cpu_has_feature(CPU_FTR_POWER9_DD1))
+		rts_field = (0x3UL << 61);
+	else {
+		rts_field = (0x5UL << 5); /* 6 - 8 bits */
+		rts_field |= (0x2UL << 61);
+	}
 	return rts_field;
 }
 #endif /* __ASSEMBLY__ */
