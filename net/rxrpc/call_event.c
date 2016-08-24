@@ -407,6 +407,7 @@ static int rxrpc_drain_rx_oos_queue(struct rxrpc_call *call)
 
 	skb = skb_dequeue(&call->rx_oos_queue);
 	if (skb) {
+		rxrpc_see_skb(skb);
 		sp = rxrpc_skb(skb);
 
 		_debug("drain OOS packet %d [%d]",
@@ -427,6 +428,7 @@ static int rxrpc_drain_rx_oos_queue(struct rxrpc_call *call)
 
 			/* find out what the next packet is */
 			skb = skb_peek(&call->rx_oos_queue);
+			rxrpc_see_skb(skb);
 			if (skb)
 				call->rx_first_oos = rxrpc_skb(skb)->hdr.seq;
 			else
@@ -576,6 +578,7 @@ process_further:
 	if (!skb)
 		return -EAGAIN;
 
+	rxrpc_see_skb(skb);
 	_net("deferred skb %p", skb);
 
 	sp = rxrpc_skb(skb);
@@ -831,11 +834,6 @@ void rxrpc_process_call(struct work_struct *work)
 	_enter("{%d,%s,%lx} [%lu]",
 	       call->debug_id, rxrpc_call_states[call->state], call->events,
 	       (jiffies - call->creation_jif) / (HZ / 10));
-
-	if (test_and_set_bit(RXRPC_CALL_PROC_BUSY, &call->flags)) {
-		_debug("XXXXXXXXXXXXX RUNNING ON MULTIPLE CPUS XXXXXXXXXXXXX");
-		return;
-	}
 
 	if (!call->conn)
 		goto skip_msg_init;
@@ -1281,7 +1279,6 @@ maybe_reschedule:
 	}
 
 error:
-	clear_bit(RXRPC_CALL_PROC_BUSY, &call->flags);
 	kfree(acks);
 
 	/* because we don't want two CPUs both processing the work item for one

@@ -61,8 +61,8 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 	call = list_entry(v, struct rxrpc_call, link);
 
 	sprintf(lbuff, "%pI4:%u",
-		&call->local->srx.transport.sin.sin_addr,
-		ntohs(call->local->srx.transport.sin.sin_port));
+		&call->socket->local->srx.transport.sin.sin_addr,
+		ntohs(call->socket->local->srx.transport.sin.sin_port));
 
 	conn = call->conn;
 	if (conn)
@@ -80,7 +80,7 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 		   call->service_id,
 		   call->cid,
 		   call->call_id,
-		   call->in_clientflag ? "Svc" : "Clt",
+		   rxrpc_is_service_call(call) ? "Svc" : "Clt",
 		   atomic_read(&call->usage),
 		   rxrpc_call_states[call->state],
 		   call->remote_abort ?: call->local_abort,

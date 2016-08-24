@@ -22,6 +22,7 @@
 #include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
+#define CREATE_TRACE_POINTS
 #include "ar-internal.h"
 
 MODULE_DESCRIPTION("RxRPC network protocol");

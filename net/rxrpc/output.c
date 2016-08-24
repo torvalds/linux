@@ -218,11 +218,11 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 		ret = 0;
 	} else if (cmd != RXRPC_CMD_SEND_DATA) {
 		ret = -EINVAL;
-	} else if (!call->in_clientflag &&
+	} else if (rxrpc_is_client_call(call) &&
 		   call->state != RXRPC_CALL_CLIENT_SEND_REQUEST) {
 		/* request phase complete for this client call */
 		ret = -EPROTO;
-	} else if (call->in_clientflag &&
+	} else if (rxrpc_is_service_call(call) &&
 		   call->state != RXRPC_CALL_SERVER_ACK_REQUEST &&
 		   call->state != RXRPC_CALL_SERVER_SEND_REPLY) {
 		/* Reply phase not begun or not complete for service call. */
@@ -548,6 +548,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 
 	skb = call->tx_pending;
 	call->tx_pending = NULL;
+	rxrpc_see_skb(skb);
 
 	copied = 0;
 	do {
