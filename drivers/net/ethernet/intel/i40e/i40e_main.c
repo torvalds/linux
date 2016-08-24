@@ -7154,9 +7154,9 @@ static void i40e_sync_udp_filters_subtask(struct i40e_pf *pf)
 			pf->pending_udp_bitmap &= ~BIT_ULL(i);
 			port = pf->udp_ports[i].index;
 			if (port)
-				ret = i40e_aq_add_udp_tunnel(hw, ntohs(port),
-						     pf->udp_ports[i].type,
-						     NULL, NULL);
+				ret = i40e_aq_add_udp_tunnel(hw, port,
+							pf->udp_ports[i].type,
+							NULL, NULL);
 			else
 				ret = i40e_aq_del_udp_tunnel(hw, i, NULL);
 
