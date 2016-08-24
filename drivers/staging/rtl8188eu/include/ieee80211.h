@@ -1106,8 +1106,6 @@ u8 *rtw_set_ie_mesh_ch_switch_parm(u8 *buf, u32 *buf_len, u8 ttl,
 				   u8 flags, u16 reason, u16 precedence);
 
 u8 *rtw_get_ie(u8 *pbuf, int index, int *len, int limit);
-u8 *rtw_get_ie_ex(u8 *in_ie, uint in_len, u8 eid, u8 *oui,
-		  u8 oui_len, u8 *ie, uint *ielen);
 
 void rtw_set_supported_rate(u8 *SupportedRates, uint mode);
 

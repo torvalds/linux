@@ -236,50 +236,6 @@ u8 *rtw_get_ie(u8 *pbuf, int index, int *len, int limit)
 	return NULL;
 }
 
-/**
- * rtw_get_ie_ex - Search specific IE from a series of IEs
- * @in_ie: Address of IEs to search
- * @in_len: Length limit from in_ie
- * @eid: Element ID to match
- * @oui: OUI to match
- * @oui_len: OUI length
- * @ie: If not NULL and the specific IE is found, the IE will be copied to the buf starting from the specific IE
- * @ielen: If not NULL and the specific IE is found, will set to the length of the entire IE
- *
- * Returns: The address of the specific IE found, or NULL
- */
-u8 *rtw_get_ie_ex(u8 *in_ie, uint in_len, u8 eid, u8 *oui, u8 oui_len, u8 *ie, uint *ielen)
-{
-	uint cnt;
-	u8 *target_ie = NULL;
-
-
-	if (ielen)
-		*ielen = 0;
-
-	if (!in_ie || in_len <= 0)
-		return target_ie;
-
-	cnt = 0;
-
-	while (cnt < in_len) {
-		if (eid == in_ie[cnt] && (!oui || !memcmp(&in_ie[cnt + 2], oui, oui_len))) {
-			target_ie = &in_ie[cnt];
-
-			if (ie)
-				memcpy(ie, &in_ie[cnt], in_ie[cnt + 1] + 2);
-
-			if (ielen)
-				*ielen = in_ie[cnt + 1] + 2;
-
-			break;
-		} else {
-			cnt += in_ie[cnt + 1] + 2; /* goto next */
-		}
-	}
-	return target_ie;
-}
-
 void rtw_set_supported_rate(u8 *SupportedRates, uint mode)
 {
 
