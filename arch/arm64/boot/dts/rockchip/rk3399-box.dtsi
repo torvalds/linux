@@ -486,6 +486,7 @@
 		regulator-always-on;
 		regulator-boot-on;
 		vin-supply = <&vcc_sys>;
+		regulator-initial-mode = <1>; /* 1:force PWM 2:auto */
 		regulator-state-mem {
 			regulator-off-in-suspend;
 		};
