@@ -11,6 +11,11 @@
 #include <asm/book3s/64/radix-4k.h>
 #endif
 
+#ifndef __ASSEMBLY__
+#include <asm/book3s/64/tlbflush-radix.h>
+#include <asm/cpu_has_feature.h>
+#endif
+
 /* An empty PTE can still have a R or C writeback */
 #define RADIX_PTE_NONE_MASK		(_PAGE_DIRTY | _PAGE_ACCESSED)
 
@@ -105,11 +110,8 @@
 #define RADIX_PUD_TABLE_SIZE	(sizeof(pud_t) << RADIX_PUD_INDEX_SIZE)
 #define RADIX_PGD_TABLE_SIZE	(sizeof(pgd_t) << RADIX_PGD_INDEX_SIZE)
 
-static inline unsigned long radix__pte_update(struct mm_struct *mm,
-					unsigned long addr,
-					pte_t *ptep, unsigned long clr,
-					unsigned long set,
-					int huge)
+static inline unsigned long __radix_pte_update(pte_t *ptep, unsigned long clr,
+					       unsigned long set)
 {
 	pte_t pte;
 	unsigned long old_pte, new_pte;
@@ -121,9 +123,39 @@ static inline unsigned long radix__pte_update(struct mm_struct *mm,
 
 	} while (!pte_xchg(ptep, __pte(old_pte), __pte(new_pte)));
 
-	/* We already do a sync in cmpxchg, is ptesync needed ?*/
+	return old_pte;
+}
+
+
+static inline unsigned long radix__pte_update(struct mm_struct *mm,
+					unsigned long addr,
+					pte_t *ptep, unsigned long clr,
+					unsigned long set,
+					int huge)
+{
+	unsigned long old_pte;
+
+	if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
+
+		unsigned long new_pte;
+
+		old_pte = __radix_pte_update(ptep, ~0, 0);
+		asm volatile("ptesync" : : : "memory");
+		/*
+		 * new value of pte
+		 */
+		new_pte = (old_pte | set) & ~clr;
+
+		/*
+		 * For now let's do heavy pid flush
+		 * radix__flush_tlb_page_psize(mm, addr, mmu_virtual_psize);
+		 */
+		radix__flush_tlb_mm(mm);
+
+		__radix_pte_update(ptep, 0, new_pte);
+	} else
+		old_pte = __radix_pte_update(ptep, clr, set);
 	asm volatile("ptesync" : : : "memory");
-	/* huge pages use the old page table lock */
 	if (!huge)
 		assert_pte_locked(mm, addr);
 
@@ -134,20 +166,33 @@ static inline unsigned long radix__pte_update(struct mm_struct *mm,
  * Set the dirty and/or accessed bits atomically in a linux PTE, this
  * function doesn't need to invalidate tlb.
  */
-static inline void radix__ptep_set_access_flags(pte_t *ptep, pte_t entry)
+static inline void radix__ptep_set_access_flags(struct mm_struct *mm,
+						pte_t *ptep, pte_t entry)
 {
-	pte_t pte;
-	unsigned long old_pte, new_pte;
+
 	unsigned long set = pte_val(entry) & (_PAGE_DIRTY | _PAGE_ACCESSED |
 					      _PAGE_RW | _PAGE_EXEC);
-	do {
-		pte = READ_ONCE(*ptep);
-		old_pte = pte_val(pte);
+
+	if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
+
+		unsigned long old_pte, new_pte;
+
+		old_pte = __radix_pte_update(ptep, ~0, 0);
+		asm volatile("ptesync" : : : "memory");
+		/*
+		 * new value of pte
+		 */
 		new_pte = old_pte | set;
 
-	} while (!pte_xchg(ptep, __pte(old_pte), __pte(new_pte)));
+		/*
+		 * For now let's do heavy pid flush
+		 * radix__flush_tlb_page_psize(mm, addr, mmu_virtual_psize);
+		 */
+		radix__flush_tlb_mm(mm);
 
-	/* We already do a sync in cmpxchg, is ptesync needed ?*/
+		__radix_pte_update(ptep, 0, new_pte);
+	} else
+		__radix_pte_update(ptep, 0, set);
 	asm volatile("ptesync" : : : "memory");
 }
 
