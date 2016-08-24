@@ -841,18 +841,22 @@ static int hisi_sas_abort_task(struct sas_task *task)
 			}
 		}
 
+		hisi_sas_internal_task_abort(hisi_hba, device,
+					     HISI_SAS_INT_ABT_CMD, tag);
 	} else if (task->task_proto & SAS_PROTOCOL_SATA ||
 		task->task_proto & SAS_PROTOCOL_STP) {
 		if (task->dev->dev_type == SAS_SATA_DEV) {
-			struct hisi_slot_info *slot = task->lldd_task;
-
-			dev_notice(dev, "abort task: hba=%p task=%p slot=%p\n",
-				   hisi_hba, task, slot);
-			task->task_state_flags |= SAS_TASK_STATE_ABORTED;
+			hisi_sas_internal_task_abort(hisi_hba, device,
+						     HISI_SAS_INT_ABT_DEV, 0);
 			rc = TMF_RESP_FUNC_COMPLETE;
-			goto out;
 		}
+	} else if (task->task_proto & SAS_PROTOCOL_SMP) {
+		/* SMP */
+		struct hisi_sas_slot *slot = task->lldd_task;
+		u32 tag = slot->idx;
 
+		hisi_sas_internal_task_abort(hisi_hba, device,
+					     HISI_SAS_INT_ABT_CMD, tag);
 	}
 
 out:
