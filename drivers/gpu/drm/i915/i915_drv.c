@@ -1560,6 +1560,7 @@ static int i915_drm_resume(struct drm_device *dev)
 	int ret;
 
 	disable_rpm_wakeref_asserts(dev_priv);
+	intel_sanitize_gt_powersave(dev_priv);
 
 	ret = i915_ggtt_enable_hw(dev_priv);
 	if (ret)
@@ -1809,6 +1810,7 @@ int i915_reset(struct drm_i915_private *dev_priv)
 	 * previous concerns that it doesn't respond well to some forms
 	 * of re-init after reset.
 	 */
+	intel_sanitize_gt_powersave(dev_priv);
 	intel_autoenable_gt_powersave(dev_priv);
 
 	return 0;
