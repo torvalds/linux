@@ -1409,7 +1409,6 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 	u8 init_laddr = cec_msg_initiator(msg);
 	u8 devtype = cec_log_addr2dev(adap, dest_laddr);
 	int la_idx = cec_log_addr2idx(adap, dest_laddr);
-	bool is_directed = la_idx >= 0;
 	bool from_unregistered = init_laddr == 0xf;
 	struct cec_msg tx_cec_msg = { };
 
@@ -1571,7 +1570,7 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 		 * Unprocessed messages are aborted if userspace isn't doing
 		 * any processing either.
 		 */
-		if (is_directed && !is_reply && !adap->follower_cnt &&
+		if (!is_broadcast && !is_reply && !adap->follower_cnt &&
 		    !adap->cec_follower && msg->msg[1] != CEC_MSG_FEATURE_ABORT)
 			return cec_feature_abort(adap, msg);
 		break;
