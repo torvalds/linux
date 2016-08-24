@@ -250,7 +250,7 @@ int lmv_revalidate_slaves(struct obd_export *exp, struct mdt_body *mbody,
 				ptlrpc_req_finished(req);
 		}
 
-		md_set_lock_data(tgt->ltd_exp, &lockh->cookie, inode, NULL);
+		md_set_lock_data(tgt->ltd_exp, lockh, inode, NULL);
 
 		if (i != 0)
 			nlink += inode->i_nlink - 2;

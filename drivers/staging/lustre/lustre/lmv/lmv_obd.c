@@ -3060,8 +3060,9 @@ static int lmv_cancel_unused(struct obd_export *exp, const struct lu_fid *fid,
 	return rc;
 }
 
-static int lmv_set_lock_data(struct obd_export *exp, __u64 *lockh, void *data,
-			     __u64 *bits)
+static int lmv_set_lock_data(struct obd_export *exp,
+			     const struct lustre_handle *lockh,
+			     void *data, __u64 *bits)
 {
 	struct lmv_obd	  *lmv = &exp->exp_obd->u.lmv;
 	struct lmv_tgt_desc *tgt = lmv->tgts[0];

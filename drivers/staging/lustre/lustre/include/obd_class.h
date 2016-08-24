@@ -1610,7 +1610,8 @@ static inline int md_clear_open_replay_data(struct obd_export *exp,
 }
 
 static inline int md_set_lock_data(struct obd_export *exp,
-				   __u64 *lockh, void *data, __u64 *bits)
+				   const struct lustre_handle *lockh,
+				   void *data, __u64 *bits)
 {
 	EXP_CHECK_MD_OP(exp, set_lock_data);
 	EXP_MD_COUNTER_INCREMENT(exp, set_lock_data);

@@ -3629,7 +3629,7 @@ static int ll_layout_lock_set(struct lustre_handle *lockh, enum ldlm_mode mode,
 		   PFID(&lli->lli_fid), inode, reconf);
 
 	/* in case this is a caching lock and reinstate with new inode */
-	md_set_lock_data(sbi->ll_md_exp, &lockh->cookie, inode, NULL);
+	md_set_lock_data(sbi->ll_md_exp, lockh, inode, NULL);
 
 	lock_res_and_lock(lock);
 	lvb_ready = ldlm_is_lvb_ready(lock);

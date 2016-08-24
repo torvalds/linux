@@ -61,7 +61,8 @@ void mdc_close_pack(struct ptlrpc_request *req, struct md_op_data *op_data);
 
 /* mdc/mdc_locks.c */
 int mdc_set_lock_data(struct obd_export *exp,
-		      __u64 *lockh, void *data, __u64 *bits);
+		      const struct lustre_handle *lockh,
+		      void *data, __u64 *bits);
 
 int mdc_null_inode(struct obd_export *exp, const struct lu_fid *fid);
 

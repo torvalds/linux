@@ -1342,7 +1342,8 @@ static int mdc_read_page(struct obd_export *exp, struct md_op_data *op_data,
 	}
 
 	rc = 0;
-	mdc_set_lock_data(exp, &it.it_lock_handle, dir, NULL);
+	lockh.cookie = it.it_lock_handle;
+	mdc_set_lock_data(exp, &lockh, dir, NULL);
 
 	rp_param.rp_off = hash_offset;
 	rp_param.rp_hash64 = op_data->op_cli_flags & CLI_HASH64;
@@ -1431,9 +1432,7 @@ hash_collision:
 	}
 	*ppage = page;
 out_unlock:
-	lockh.cookie = it.it_lock_handle;
 	ldlm_lock_decref(&lockh, it.it_lock_mode);
-	it.it_lock_handle = 0;
 	return rc;
 fail:
 	kunmap(page);
