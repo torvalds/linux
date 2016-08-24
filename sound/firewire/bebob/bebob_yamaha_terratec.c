@@ -26,6 +26,9 @@
  * Unfortunately current 'ffado-mixer' generated many asynchronous transaction
  * to observe device's state, mainly check cmp connection and signal format. I
  * recommend users to close ffado-mixer at 192.0kHz if mixer is needless.
+ *
+ * Terratec PHASE 24 FW and PHASE X24 FW are internally the same as
+ * Yamaha GO 44 and GO 46. Yamaha and Terratec had cooperated for these models.
  */
 
 static enum snd_bebob_clock_type clk_src_types[] = {
@@ -55,7 +58,7 @@ static const struct snd_bebob_rate_spec rate_spec = {
 	.get	= &snd_bebob_stream_get_rate,
 	.set	= &snd_bebob_stream_set_rate,
 };
-const struct snd_bebob_spec yamaha_go_spec = {
+const struct snd_bebob_spec yamaha_terratec_spec = {
 	.clock	= &clock_spec,
 	.rate	= &rate_spec,
 	.meter	= NULL
