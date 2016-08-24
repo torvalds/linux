@@ -3745,6 +3745,7 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	if (dma_mapping_error(&dev->dev, adapter->stats_token)) {
 		if (!firmware_has_feature(FW_FEATURE_CMO))
 			dev_err(&dev->dev, "Couldn't map stats buffer\n");
+		rc = -ENOMEM;
 		goto free_crq;
 	}
 
