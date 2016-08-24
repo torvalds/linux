@@ -16,7 +16,6 @@
 #define _RTW_HT_H_
 
 #include <linux/ieee80211.h>
-#include <osdep_service.h>
 
 struct ht_priv {
 	u32	ht_option;
