@@ -813,6 +813,8 @@ static int rockchip_spi_suspend(struct device *dev)
 		clk_disable_unprepare(rs->apb_pclk);
 	}
 
+	pinctrl_pm_select_sleep_state(dev);
+
 	return ret;
 }
 
@@ -821,6 +823,8 @@ static int rockchip_spi_resume(struct device *dev)
 	int ret = 0;
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct rockchip_spi *rs = spi_master_get_devdata(master);
+
+	pinctrl_pm_select_default_state(dev);
 
 	if (!pm_runtime_suspended(dev)) {
 		ret = clk_prepare_enable(rs->apb_pclk);
