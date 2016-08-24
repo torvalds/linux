@@ -151,25 +151,14 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 {
 	const unsigned cpu = get_cpu();
 	unsigned long *irq_stack = (unsigned long *)per_cpu(irq_stack_ptr, cpu);
-	unsigned long dummy;
 	unsigned used = 0;
 	int graph = 0;
 	int done = 0;
 
-	if (!task)
-		task = current;
+	task = task ? : current;
+	stack = stack ? : get_stack_pointer(task, regs);
+	bp = bp ? : (unsigned long)get_frame_pointer(task, regs);
 
-	if (!stack) {
-		if (regs)
-			stack = (unsigned long *)regs->sp;
-		else if (task != current)
-			stack = (unsigned long *)task->thread.sp;
-		else
-			stack = &dummy;
-	}
-
-	if (!bp)
-		bp = stack_frame(task, regs);
 	/*
 	 * Print function call entries in all stacks, starting at the
 	 * current stack address. If the stacks consist of nested
@@ -256,18 +245,7 @@ show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
 	irq_stack_end = (unsigned long *)(per_cpu(irq_stack_ptr, cpu));
 	irq_stack     = irq_stack_end - (IRQ_STACK_SIZE / sizeof(long));
 
-	/*
-	 * Debugging aid: "show_stack(NULL, NULL);" prints the
-	 * back trace for this cpu:
-	 */
-	if (sp == NULL) {
-		if (regs)
-			sp = (unsigned long *)regs->sp;
-		else if (task)
-			sp = (unsigned long *)task->thread.sp;
-		else
-			sp = (unsigned long *)&sp;
-	}
+	sp = sp ? : get_stack_pointer(task, regs);
 
 	stack = sp;
 	for (i = 0; i < kstack_depth_to_print; i++) {

@@ -50,36 +50,41 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
 
 #ifdef CONFIG_X86_32
 #define STACKSLOTS_PER_LINE 8
-#define get_bp(bp) asm("movl %%ebp, %0" : "=r" (bp) :)
 #else
 #define STACKSLOTS_PER_LINE 4
-#define get_bp(bp) asm("movq %%rbp, %0" : "=r" (bp) :)
 #endif
 
 #ifdef CONFIG_FRAME_POINTER
-static inline unsigned long
-stack_frame(struct task_struct *task, struct pt_regs *regs)
+static inline unsigned long *
+get_frame_pointer(struct task_struct *task, struct pt_regs *regs)
 {
-	unsigned long bp;
-
 	if (regs)
-		return regs->bp;
+		return (unsigned long *)regs->bp;
 
-	if (task == current) {
-		/* Grab bp right from our regs */
-		get_bp(bp);
-		return bp;
-	}
+	if (!task || task == current)
+		return __builtin_frame_address(0);
 
-	return ((struct inactive_task_frame *)task->thread.sp)->bp;
+	return (unsigned long *)((struct inactive_task_frame *)task->thread.sp)->bp;
 }
 #else
-static inline unsigned long
-stack_frame(struct task_struct *task, struct pt_regs *regs)
+static inline unsigned long *
+get_frame_pointer(struct task_struct *task, struct pt_regs *regs)
 {
-	return 0;
+	return NULL;
 }
-#endif
+#endif /* CONFIG_FRAME_POINTER */
+
+static inline unsigned long *
+get_stack_pointer(struct task_struct *task, struct pt_regs *regs)
+{
+	if (regs)
+		return (unsigned long *)kernel_stack_pointer(regs);
+
+	if (!task || task == current)
+		return __builtin_frame_address(0);
+
+	return (unsigned long *)task->thread.sp;
+}
 
 extern void
 show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
@@ -106,7 +111,7 @@ static inline unsigned long caller_frame_pointer(void)
 {
 	struct stack_frame *frame;
 
-	get_bp(frame);
+	frame = __builtin_frame_address(0);
 
 #ifdef CONFIG_FRAME_POINTER
 	frame = frame->next_frame;

@@ -170,15 +170,14 @@ show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 void show_stack(struct task_struct *task, unsigned long *sp)
 {
 	unsigned long bp = 0;
-	unsigned long stack;
 
 	/*
 	 * Stack frames below this one aren't interesting.  Don't show them
 	 * if we're printing for %current.
 	 */
 	if (!sp && (!task || task == current)) {
-		sp = &stack;
-		bp = stack_frame(current, NULL);
+		sp = get_stack_pointer(current, NULL);
+		bp = (unsigned long)get_frame_pointer(current, NULL);
 	}
 
 	show_stack_log_lvl(task, NULL, sp, bp, "");
