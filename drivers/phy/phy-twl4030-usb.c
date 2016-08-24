@@ -440,6 +440,17 @@ static int __maybe_unused twl4030_usb_runtime_resume(struct device *dev)
 			  (PHY_CLK_CTRL_CLOCKGATING_EN |
 			   PHY_CLK_CTRL_CLK32K_EN));
 
+	twl4030_i2c_access(twl, 1);
+	twl4030_usb_set_mode(twl, twl->usb_mode);
+	if (twl->usb_mode == T2_USB_MODE_ULPI)
+		twl4030_i2c_access(twl, 0);
+	/*
+	 * According to the TPS65950 TRM, there has to be at least 50ms
+	 * delay between setting POWER_CTRL_OTG_ENAB and enabling charging
+	 * so wait here so that a fully enabled phy can be expected after
+	 * resume
+	 */
+	msleep(50);
 	return 0;
 }
 
@@ -460,11 +471,6 @@ static int twl4030_phy_power_on(struct phy *phy)
 
 	dev_dbg(twl->dev, "%s\n", __func__);
 	pm_runtime_get_sync(twl->dev);
-	twl4030_i2c_access(twl, 1);
-	twl4030_usb_set_mode(twl, twl->usb_mode);
-	if (twl->usb_mode == T2_USB_MODE_ULPI)
-		twl4030_i2c_access(twl, 0);
-	twl->linkstat = MUSB_UNKNOWN;
 	schedule_delayed_work(&twl->id_workaround_work, HZ);
 
 	return 0;
