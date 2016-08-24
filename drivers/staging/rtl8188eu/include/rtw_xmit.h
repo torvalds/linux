@@ -256,11 +256,6 @@ struct	hw_txqueue {
 	int	ac_tag;
 };
 
-struct agg_pkt_info {
-	u16 offset;
-	u16 pkt_len;
-};
-
 struct	xmit_priv {
 	spinlock_t lock;
 	struct __queue be_pending;
