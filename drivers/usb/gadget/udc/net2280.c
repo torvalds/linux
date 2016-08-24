@@ -589,7 +589,7 @@ static void net2280_free_request(struct usb_ep *_ep, struct usb_request *_req)
 
 	ep = container_of(_ep, struct net2280_ep, ep);
 	if (!_ep || !_req) {
-		dev_err(&ep->dev->pdev->dev, "%s: Inavlid ep=%p or req=%p\n",
+		dev_err(&ep->dev->pdev->dev, "%s: Invalid ep=%p or req=%p\n",
 							__func__, _ep, _req);
 		return;
 	}
