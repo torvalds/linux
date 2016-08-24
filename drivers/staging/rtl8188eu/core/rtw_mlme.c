@@ -2001,8 +2001,6 @@ unsigned int rtw_restructure_ht_ie(struct adapter *padapter, u8 *in_ie, u8 *out_
 /* the function is > passive_level (in critical_section) */
 void rtw_update_ht_cap(struct adapter *padapter, u8 *pie, uint ie_len)
 {
-	u8 *p, max_ampdu_sz;
-	int len;
 	struct mlme_priv	*pmlmepriv = &padapter->mlmepriv;
 	struct ht_priv		*phtpriv = &pmlmepriv->htpriv;
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
@@ -2026,20 +2024,6 @@ void rtw_update_ht_cap(struct adapter *padapter, u8 *pie, uint ie_len)
 	} else if (pregistrypriv->ampdu_enable == 2) {
 		phtpriv->ampdu_enable = true;
 	}
-
-
-	/* check Max Rx A-MPDU Size */
-	len = 0;
-	p = rtw_get_ie(pie+sizeof(struct ndis_802_11_fixed_ie), _HT_CAPABILITY_IE_, &len, ie_len-sizeof(struct ndis_802_11_fixed_ie));
-	if (p && len > 0) {
-		struct ieee80211_ht_cap *ht_cap =
-			(struct ieee80211_ht_cap *)(p + 2);
-
-		max_ampdu_sz = ht_cap->ampdu_params_info & IEEE80211_HT_CAP_AMPDU_FACTOR;
-		max_ampdu_sz = 1 << (max_ampdu_sz+3); /*  max_ampdu_sz (kbytes); */
-	}
-	len = 0;
-	p = rtw_get_ie(pie+sizeof(struct ndis_802_11_fixed_ie), _HT_ADD_INFO_IE_, &len, ie_len-sizeof(struct ndis_802_11_fixed_ie));
 
 	/* update cur_bwmode & cur_ch_offset */
 	if ((pregistrypriv->cbw40_enable) &&
