@@ -523,6 +523,7 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 static int skl_tplg_unload_pipe_modules(struct skl_sst *ctx,
 	 struct skl_pipe *pipe)
 {
+	int ret;
 	struct skl_pipe_module *w_module = NULL;
 	struct skl_module_cfg *mconfig = NULL;
 
@@ -530,9 +531,12 @@ static int skl_tplg_unload_pipe_modules(struct skl_sst *ctx,
 		mconfig  = w_module->w->priv;
 
 		if (mconfig->is_loadable && ctx->dsp->fw_ops.unload_mod &&
-			mconfig->m_state > SKL_MODULE_UNINIT)
-			return ctx->dsp->fw_ops.unload_mod(ctx->dsp,
+			mconfig->m_state > SKL_MODULE_UNINIT) {
+			ret = ctx->dsp->fw_ops.unload_mod(ctx->dsp,
 						mconfig->id.module_id);
+			if (ret < 0)
+				return -EIO;
+		}
 	}
 
 	/* no modules to unload in this path, so return */
