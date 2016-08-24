@@ -154,7 +154,9 @@
 #define IPR_DEFAULT_MAX_ERROR_DUMP			984
 #define IPR_NUM_LOG_HCAMS				2
 #define IPR_NUM_CFG_CHG_HCAMS				2
+#define IPR_NUM_HCAM_QUEUE				12
 #define IPR_NUM_HCAMS	(IPR_NUM_LOG_HCAMS + IPR_NUM_CFG_CHG_HCAMS)
+#define IPR_MAX_HCAMS	(IPR_NUM_HCAMS + IPR_NUM_HCAM_QUEUE)
 
 #define IPR_MAX_SIS64_TARGETS_PER_BUS			1024
 #define IPR_MAX_SIS64_LUNS_PER_TARGET			0xffffffff
@@ -1532,10 +1534,11 @@ struct ipr_ioa_cfg {
 
 	char ipr_hcam_label[8];
 #define IPR_HCAM_LABEL			"hcams"
-	struct ipr_hostrcb *hostrcb[IPR_NUM_HCAMS];
-	dma_addr_t hostrcb_dma[IPR_NUM_HCAMS];
+	struct ipr_hostrcb *hostrcb[IPR_MAX_HCAMS];
+	dma_addr_t hostrcb_dma[IPR_MAX_HCAMS];
 	struct list_head hostrcb_free_q;
 	struct list_head hostrcb_pending_q;
+	struct list_head hostrcb_report_q;
 
 	struct ipr_hrr_queue hrrq[IPR_MAX_HRRQ_NUM];
 	u32 hrrq_num;
