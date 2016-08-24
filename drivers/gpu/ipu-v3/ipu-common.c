@@ -1355,8 +1355,6 @@ EXPORT_SYMBOL_GPL(ipu_dump);
 
 static int ipu_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id =
-			of_match_device(imx_ipu_dt_ids, &pdev->dev);
 	struct device_node *np = pdev->dev.of_node;
 	struct ipu_soc *ipu;
 	struct resource *res;
@@ -1364,7 +1362,9 @@ static int ipu_probe(struct platform_device *pdev)
 	int i, ret, irq_sync, irq_err;
 	const struct ipu_devtype *devtype;
 
-	devtype = of_id->data;
+	devtype = of_device_get_match_data(&pdev->dev);
+	if (!devtype)
+		return -EINVAL;
 
 	irq_sync = platform_get_irq(pdev, 0);
 	irq_err = platform_get_irq(pdev, 1);
