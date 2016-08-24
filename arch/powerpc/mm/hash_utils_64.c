@@ -711,6 +711,29 @@ int remove_section_mapping(unsigned long start, unsigned long end)
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
+static void update_hid_for_hash(void)
+{
+	unsigned long hid0;
+	unsigned long rb = 3UL << PPC_BITLSHIFT(53); /* IS = 3 */
+
+	asm volatile("ptesync": : :"memory");
+	/* prs = 0, ric = 2, rs = 0, r = 1 is = 3 */
+	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
+		     : : "r"(rb), "i"(0), "i"(0), "i"(2), "r"(0) : "memory");
+	asm volatile("eieio; tlbsync; ptesync; isync; slbia": : :"memory");
+	/*
+	 * now switch the HID
+	 */
+	hid0  = mfspr(SPRN_HID0);
+	hid0 &= ~HID0_POWER9_RADIX;
+	mtspr(SPRN_HID0, hid0);
+	asm volatile("isync": : :"memory");
+
+	/* Wait for it to happen */
+	while ((mfspr(SPRN_HID0) & HID0_POWER9_RADIX))
+		cpu_relax();
+}
+
 static void __init hash_init_partition_table(phys_addr_t hash_table,
 					     unsigned long htab_size)
 {
@@ -737,6 +760,8 @@ static void __init hash_init_partition_table(phys_addr_t hash_table,
 	 */
 	partition_tb->patb1 = 0;
 	pr_info("Partition table %p\n", partition_tb);
+	if (cpu_has_feature(CPU_FTR_POWER9_DD1))
+		update_hid_for_hash();
 	/*
 	 * update partition table control register,
 	 * 64 K size.

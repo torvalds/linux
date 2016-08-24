@@ -475,6 +475,9 @@
 #define HID0_POWER8_1TO4LPAR	__MASK(51)
 #define HID0_POWER8_DYNLPARDIS	__MASK(48)
 
+/* POWER9 HID0 bits */
+#define HID0_POWER9_RADIX	__MASK(63 - 8)
+
 #define SPRN_HID1	0x3F1		/* Hardware Implementation Register 1 */
 #ifdef CONFIG_6xx
 #define HID1_EMCP	(1<<31)		/* 7450 Machine Check Pin Enable */
