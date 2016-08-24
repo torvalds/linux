@@ -138,8 +138,11 @@
 		1) some modifications.
 *v0.0x21.4:
 		1) modify for rk3399.
+*v0.0x21.5:
+		1) modify for mipiphy hsfreqrange.
+
 */
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x21, 4)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x21, 5)
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"
 #define CAMSYS_PLATFORM_MARVIN_NAME             "Platform_MarvinDev"
