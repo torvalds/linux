@@ -930,15 +930,17 @@ int analogix_dp_get_modes(struct drm_connector *connector)
 		return 0;
 	}
 
-	edid = drm_get_edid(connector, &dp->aux.ddc);
-	if (edid) {
-		drm_mode_connector_update_edid_property(&dp->connector, edid);
-		num_modes += drm_add_edid_modes(&dp->connector, edid);
-		kfree(edid);
-	}
-
-	if (dp->plat_data->panel)
+	if (dp->plat_data->panel) {
 		num_modes += drm_panel_get_modes(dp->plat_data->panel);
+	} else {
+		edid = drm_get_edid(connector, &dp->aux.ddc);
+		if (edid) {
+			drm_mode_connector_update_edid_property(&dp->connector,
+								edid);
+			num_modes += drm_add_edid_modes(&dp->connector, edid);
+			kfree(edid);
+		}
+	}
 
 	if (dp->plat_data->get_modes)
 		num_modes += dp->plat_data->get_modes(dp->plat_data, connector);
