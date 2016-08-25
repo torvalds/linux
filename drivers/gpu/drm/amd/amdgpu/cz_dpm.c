@@ -678,17 +678,12 @@ static void cz_reset_ap_mask(struct amdgpu_device *adev)
 	struct cz_power_info *pi = cz_get_pi(adev);
 
 	pi->active_process_mask = 0;
-
 }
 
 static int cz_dpm_download_pptable_from_smu(struct amdgpu_device *adev,
 							void **table)
 {
-	int ret = 0;
-
-	ret = cz_smu_download_pptable(adev, table);
-
-	return ret;
+	return cz_smu_download_pptable(adev, table);
 }
 
 static int cz_dpm_upload_pptable_to_smu(struct amdgpu_device *adev)
@@ -828,9 +823,9 @@ static void cz_init_sclk_limit(struct amdgpu_device *adev)
 	pi->sclk_dpm.hard_min_clk = 0;
 	cz_send_msg_to_smc(adev, PPSMC_MSG_GetMaxSclkLevel);
 	level = cz_get_argument(adev);
-	if (level < table->count)
+	if (level < table->count) {
 		clock = table->entries[level].clk;
-	else {
+	} else {
 		DRM_ERROR("Invalid SLCK Voltage Dependency table entry.\n");
 		clock = table->entries[table->count - 1].clk;
 	}
@@ -856,9 +851,9 @@ static void cz_init_uvd_limit(struct amdgpu_device *adev)
 	pi->uvd_dpm.hard_min_clk = 0;
 	cz_send_msg_to_smc(adev, PPSMC_MSG_GetMaxUvdLevel);
 	level = cz_get_argument(adev);
-	if (level < table->count)
+	if (level < table->count) {
 		clock = table->entries[level].vclk;
-	else {
+	} else {
 		DRM_ERROR("Invalid UVD Voltage Dependency table entry.\n");
 		clock = table->entries[table->count - 1].vclk;
 	}
@@ -884,9 +879,9 @@ static void cz_init_vce_limit(struct amdgpu_device *adev)
 	pi->vce_dpm.hard_min_clk = table->entries[0].ecclk;
 	cz_send_msg_to_smc(adev, PPSMC_MSG_GetMaxEclkLevel);
 	level = cz_get_argument(adev);
-	if (level < table->count)
+	if (level < table->count) {
 		clock = table->entries[level].ecclk;
-	else {
+	} else {
 		/* future BIOS would fix this error */
 		DRM_ERROR("Invalid VCE Voltage Dependency table entry.\n");
 		clock = table->entries[table->count - 1].ecclk;
@@ -913,9 +908,9 @@ static void cz_init_acp_limit(struct amdgpu_device *adev)
 	pi->acp_dpm.hard_min_clk = 0;
 	cz_send_msg_to_smc(adev, PPSMC_MSG_GetMaxAclkLevel);
 	level = cz_get_argument(adev);
-	if (level < table->count)
+	if (level < table->count) {
 		clock = table->entries[level].clk;
-	else {
+	} else {
 		DRM_ERROR("Invalid ACP Voltage Dependency table entry.\n");
 		clock = table->entries[table->count - 1].clk;
 	}
@@ -940,7 +935,6 @@ static void cz_init_sclk_threshold(struct amdgpu_device *adev)
 	struct cz_power_info *pi = cz_get_pi(adev);
 
 	pi->low_sclk_interrupt_threshold = 0;
-
 }
 
 static void cz_dpm_setup_asic(struct amdgpu_device *adev)
@@ -1213,7 +1207,7 @@ static int cz_enable_didt(struct amdgpu_device *adev, bool enable)
 	int ret;
 
 	if (pi->caps_sq_ramping || pi->caps_db_ramping ||
-			pi->caps_td_ramping || pi->caps_tcp_ramping) {
+	    pi->caps_td_ramping || pi->caps_tcp_ramping) {
 		if (adev->gfx.gfx_current_status != AMDGPU_GFX_SAFE_MODE) {
 			ret = cz_disable_cgpg(adev);
 			if (ret) {
@@ -1287,7 +1281,7 @@ static void cz_apply_state_adjust_rules(struct amdgpu_device *adev,
 	ps->force_high = false;
 	ps->need_dfs_bypass = true;
 	pi->video_start = new_rps->dclk || new_rps->vclk ||
-				new_rps->evclk || new_rps->ecclk;
+			  new_rps->evclk || new_rps->ecclk;
 
 	if ((new_rps->class & ATOM_PPLIB_CLASSIFICATION_UI_MASK) ==
 			ATOM_PPLIB_CLASSIFICATION_UI_BATTERY)
@@ -1345,7 +1339,6 @@ static int cz_dpm_enable(struct amdgpu_device *adev)
 	}
 
 	cz_reset_acp_boot_level(adev);
-
 	cz_update_current_ps(adev, adev->pm.dpm.boot_ps);
 
 	return 0;
@@ -1675,7 +1668,6 @@ static void cz_dpm_post_set_power_state(struct amdgpu_device *adev)
 	struct amdgpu_ps *ps = &pi->requested_rps;
 
 	cz_update_current_ps(adev, ps);
-
 }
 
 static int cz_dpm_force_highest(struct amdgpu_device *adev)
@@ -2207,7 +2199,6 @@ static int cz_update_vce_dpm(struct amdgpu_device *adev)
 	/* Stable Pstate is enabled and we need to set the VCE DPM to highest level */
 	if (pi->caps_stable_power_state) {
 		pi->vce_dpm.hard_min_clk = table->entries[table->count-1].ecclk;
-
 	} else { /* non-stable p-state cases. without vce.Arbiter.EcclkHardMin */
 		/* leave it as set by user */
 		/*pi->vce_dpm.hard_min_clk = table->entries[0].ecclk;*/
