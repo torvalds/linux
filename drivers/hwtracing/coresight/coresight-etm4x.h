@@ -183,6 +183,9 @@
 #define TRCSTATR_IDLE_BIT		0
 #define ETM_DEFAULT_ADDR_COMP		0
 
+/* PowerDown Control Register bits */
+#define TRCPDCR_PU			BIT(3)
+
 /* secure state access levels */
 #define ETM_EXLEVEL_S_APP		BIT(8)
 #define ETM_EXLEVEL_S_OS		BIT(9)
