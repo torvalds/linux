@@ -2319,8 +2319,11 @@ static int rk818_bat_sleep_dischrg(struct rk818_battery *di)
 
 static void rk818_bat_power_supply_changed(struct rk818_battery *di)
 {
+	u8 status;
 	static int old_soc = -1;
-
+	const char *st[] = {"charge off", "dead charge", "trickle charge",
+			    "cc cv", "finish", "usb over vol", "bat temp error",
+			    "timer error",};
 	if (di->dsoc > 100)
 		di->dsoc = 100;
 	else if (di->dsoc < 0)
@@ -2329,12 +2332,22 @@ static void rk818_bat_power_supply_changed(struct rk818_battery *di)
 	if (di->dsoc == old_soc)
 		return;
 
+	status = rk818_bat_read(di, RK818_SUP_STS_REG);
+	status = (status & CHRG_STATUS_MSK) >> 4;
 	old_soc = di->dsoc;
 	di->last_dsoc = di->dsoc;
 	power_supply_changed(di->bat);
-	BAT_INFO("changed: dsoc=%d, rsoc=%d, v=%d, c=%d, cap=%d\n",
-		 di->dsoc, di->rsoc, di->voltage_avg, di->current_avg,
-		 di->remain_cap);
+	BAT_INFO("changed: dsoc=%d, rsoc=%d, v=%d, ov=%d c=%d, "
+		 "cap=%d, f=%d, st=%s\n",
+		 di->dsoc, di->rsoc, di->voltage_avg, di->voltage_ocv,
+		 di->current_avg, di->remain_cap, di->fcc, st[status]);
+
+	BAT_INFO("dl=%d, rl=%d, v=%d, halt=%d, halt_n=%d, max=%d, "
+		 "init=%d, sw=%d, calib=%d, below0=%d\n",
+		 di->dbg_pwr_dsoc, di->dbg_pwr_rsoc, di->dbg_pwr_vol,
+		 di->is_halt, di->halt_cnt, di->is_max_soc_offset,
+		 di->is_initialized, di->is_sw_reset, di->is_ocv_calib,
+		 di->dbg_cap_low0);
 }
 
 static u8 rk818_bat_check_reboot(struct rk818_battery *di)
@@ -2531,10 +2544,6 @@ static void rk818_bat_init_dsoc_algorithm(struct rk818_battery *di)
 	if (rk818_bat_get_chrg_status(di) == CHARGE_FINISH) {
 		rk818_bat_finish_algo_prepare(di);
 		di->work_mode = MODE_FINISH;
-	} else if ((di->current_avg < 0) &&
-		   (di->voltage_avg < di->pdata->zero_algorithm_vol)) {
-		rk818_bat_zero_algo_prepare(di);
-		di->work_mode = MODE_ZERO;
 	} else {
 		rk818_bat_smooth_algo_prepare(di);
 		di->work_mode = MODE_SMOOTH;
