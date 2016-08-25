@@ -212,19 +212,14 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 	bool is_fe;
 
 	/* find 1st codec */
-	i = 0;
-	for_each_child_of_node(node, np) {
-		dai_link = simple_priv_to_link(priv, i);
+	np = of_get_child_by_name(node, PREFIX "codec");
+	if (!np)
+		return -ENODEV;
 
-		if (strcmp(np->name, PREFIX "codec") == 0) {
-			ret = asoc_simple_card_parse_daifmt(dev, node, np,
-							    PREFIX, &daifmt);
-			if (ret < 0)
-				return ret;
-			break;
-		}
-		i++;
-	}
+	ret = asoc_simple_card_parse_daifmt(dev, node, np,
+					    PREFIX, &daifmt);
+	if (ret < 0)
+		return ret;
 
 	i = 0;
 	for_each_child_of_node(node, np) {
