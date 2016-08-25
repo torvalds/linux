@@ -815,14 +815,23 @@ ctnetlink_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 	struct hlist_nulls_node *n;
 	struct nfgenmsg *nfmsg = nlmsg_data(cb->nlh);
 	u_int8_t l3proto = nfmsg->nfgen_family;
-	int res;
+	struct nf_conn *nf_ct_evict[8];
+	int res, i;
 	spinlock_t *lockp;
 
 	last = (struct nf_conn *)cb->args[1];
+	i = 0;
 
 	local_bh_disable();
 	for (; cb->args[0] < nf_conntrack_htable_size; cb->args[0]++) {
 restart:
+		while (i) {
+			i--;
+			if (nf_ct_should_gc(nf_ct_evict[i]))
+				nf_ct_kill(nf_ct_evict[i]);
+			nf_ct_put(nf_ct_evict[i]);
+		}
+
 		lockp = &nf_conntrack_locks[cb->args[0] % CONNTRACK_LOCKS];
 		nf_conntrack_lock(lockp);
 		if (cb->args[0] >= nf_conntrack_htable_size) {
@@ -834,6 +843,13 @@ restart:
 			if (NF_CT_DIRECTION(h) != IP_CT_DIR_ORIGINAL)
 				continue;
 			ct = nf_ct_tuplehash_to_ctrack(h);
+			if (nf_ct_is_expired(ct)) {
+				if (i < ARRAY_SIZE(nf_ct_evict) &&
+				    atomic_inc_not_zero(&ct->ct_general.use))
+					nf_ct_evict[i++] = ct;
+				continue;
+			}
+
 			if (!net_eq(net, nf_ct_net(ct)))
 				continue;
 
@@ -874,6 +890,13 @@ out:
 	local_bh_enable();
 	if (last)
 		nf_ct_put(last);
+
+	while (i) {
+		i--;
+		if (nf_ct_should_gc(nf_ct_evict[i]))
+			nf_ct_kill(nf_ct_evict[i]);
+		nf_ct_put(nf_ct_evict[i]);
+	}
 
 	return skb->len;
 }
