@@ -38,8 +38,7 @@ void tmc_wait_for_tmcready(struct tmc_drvdata *drvdata)
 	if (coresight_timeout(drvdata->base,
 			      TMC_STS, TMC_STS_TMCREADY_BIT, 1)) {
 		dev_err(drvdata->dev,
-			"timeout observed when probing at offset %#x\n",
-			TMC_STS);
+			"timeout while waiting for TMC to be Ready\n");
 	}
 }
 
@@ -56,8 +55,7 @@ void tmc_flush_and_stop(struct tmc_drvdata *drvdata)
 	if (coresight_timeout(drvdata->base,
 			      TMC_FFCR, TMC_FFCR_FLUSHMAN_BIT, 0)) {
 		dev_err(drvdata->dev,
-			"timeout observed when probing at offset %#x\n",
-			TMC_FFCR);
+		"timeout while waiting for completion of Manual Flush\n");
 	}
 
 	tmc_wait_for_tmcready(drvdata);

@@ -184,8 +184,7 @@ static void etb_disable_hw(struct etb_drvdata *drvdata)
 
 	if (coresight_timeout(drvdata->base, ETB_FFCR, ETB_FFCR_BIT, 0)) {
 		dev_err(drvdata->dev,
-			"timeout observed when probing at offset %#x\n",
-			ETB_FFCR);
+		"timeout while waiting for completion of Manual Flush\n");
 	}
 
 	/* disable trace capture */
@@ -193,8 +192,7 @@ static void etb_disable_hw(struct etb_drvdata *drvdata)
 
 	if (coresight_timeout(drvdata->base, ETB_FFSR, ETB_FFSR_BIT, 1)) {
 		dev_err(drvdata->dev,
-			"timeout observed when probing at offset %#x\n",
-			ETB_FFCR);
+			"timeout while waiting for Formatter to Stop\n");
 	}
 
 	CS_LOCK(drvdata->base);

@@ -99,8 +99,7 @@ static void etm4_enable_hw(void *info)
 	/* wait for TRCSTATR.IDLE to go up */
 	if (coresight_timeout(drvdata->base, TRCSTATR, TRCSTATR_IDLE_BIT, 1))
 		dev_err(drvdata->dev,
-			"timeout observed when probing at offset %#x\n",
-			TRCSTATR);
+			"timeout while waiting for Idle Trace Status\n");
 
 	writel_relaxed(config->pe_sel, drvdata->base + TRCPROCSELR);
 	writel_relaxed(config->cfg, drvdata->base + TRCCONFIGR);
@@ -172,8 +171,7 @@ static void etm4_enable_hw(void *info)
 	/* wait for TRCSTATR.IDLE to go back down to '0' */
 	if (coresight_timeout(drvdata->base, TRCSTATR, TRCSTATR_IDLE_BIT, 0))
 		dev_err(drvdata->dev,
-			"timeout observed when probing at offset %#x\n",
-			TRCSTATR);
+			"timeout while waiting for Idle Trace Status\n");
 
 	CS_LOCK(drvdata->base);
 
