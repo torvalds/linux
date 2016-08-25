@@ -725,7 +725,8 @@ static int coresight_orphan_match(struct device *dev, void *data)
 		/* We have found at least one orphan connection */
 		if (conn->child_dev == NULL) {
 			/* Does it match this newly added device? */
-			if (!strcmp(dev_name(&csdev->dev), conn->child_name)) {
+			if (conn->child_name &&
+			    !strcmp(dev_name(&csdev->dev), conn->child_name)) {
 				conn->child_dev = csdev;
 			} else {
 				/* This component still has an orphan */
