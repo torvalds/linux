@@ -1430,17 +1430,15 @@ acct:
 }
 EXPORT_SYMBOL_GPL(__nf_ct_refresh_acct);
 
-bool __nf_ct_kill_acct(struct nf_conn *ct,
-		       enum ip_conntrack_info ctinfo,
-		       const struct sk_buff *skb,
-		       int do_acct)
+bool nf_ct_kill_acct(struct nf_conn *ct,
+		     enum ip_conntrack_info ctinfo,
+		     const struct sk_buff *skb)
 {
-	if (do_acct)
-		nf_ct_acct_update(ct, ctinfo, skb->len);
+	nf_ct_acct_update(ct, ctinfo, skb->len);
 
 	return nf_ct_delete(ct, 0, 0);
 }
-EXPORT_SYMBOL_GPL(__nf_ct_kill_acct);
+EXPORT_SYMBOL_GPL(nf_ct_kill_acct);
 
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 
