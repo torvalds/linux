@@ -792,6 +792,8 @@
 &spi1 {
 	status = "okay";
 	max-freq = <50000000>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-1 = <&spi1_gpio>;
 	mpu6500@0 {
 		status = "okay";
 		compatible = "inv-spi,mpu6500";
@@ -1056,6 +1058,16 @@
 	ak8963 {
 		ak8963_irq_gpio: ak8963-irq-gpio {
 			rockchip,pins = <1 0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	spi1 {
+		spi1_gpio: spi1-gpio {
+			rockchip,pins =
+				<1 7 RK_FUNC_GPIO &pcfg_output_low>,
+				<1 8 RK_FUNC_GPIO &pcfg_output_low>,
+				<1 9 RK_FUNC_GPIO &pcfg_output_low>,
+				<1 10 RK_FUNC_GPIO &pcfg_output_low>;
 		};
 	};
 
