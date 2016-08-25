@@ -110,6 +110,7 @@ static int asoc_simple_card_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 
 static int asoc_simple_card_parse_links(struct device_node *np,
 					struct asoc_simple_card_priv *priv,
+					unsigned int daifmt,
 					int idx, bool is_fe)
 {
 	struct device *dev = simple_priv_to_dev(priv);
@@ -188,6 +189,7 @@ static int asoc_simple_card_parse_links(struct device_node *np,
 	if (ret < 0)
 		return ret;
 
+	dai_link->dai_fmt		= daifmt;
 	dai_link->dpcm_playback		= 1;
 	dai_link->dpcm_capture		= 1;
 	dai_link->ops			= &asoc_simple_card_ops;
@@ -205,7 +207,6 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 				 struct asoc_simple_card_priv *priv)
 {
 	struct device *dev = simple_priv_to_dev(priv);
-	struct snd_soc_dai_link *dai_link;
 	struct device_node *np;
 	unsigned int daifmt = 0;
 	int ret, i;
@@ -223,14 +224,11 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 
 	i = 0;
 	for_each_child_of_node(node, np) {
-		dai_link = simple_priv_to_link(priv, i);
-		dai_link->dai_fmt = daifmt;
-
 		is_fe = false;
 		if (strcmp(np->name, PREFIX "cpu") == 0)
 			is_fe = true;
 
-		ret = asoc_simple_card_parse_links(np, priv, i, is_fe);
+		ret = asoc_simple_card_parse_links(np, priv, daifmt, i, is_fe);
 		if (ret < 0)
 			return ret;
 		i++;
