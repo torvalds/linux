@@ -91,14 +91,14 @@ config ARM_EXYNOS_BUS_DEVFREQ
 	  This does not yet operate with optimal voltages.
 
 config ARM_TEGRA_DEVFREQ
-       tristate "Tegra DEVFREQ Driver"
-       depends on ARCH_TEGRA_124_SOC || COMPILE_TEST
-       select DEVFREQ_GOV_SIMPLE_ONDEMAND
-       select PM_OPP
-       help
-         This adds the DEVFREQ driver for the Tegra family of SoCs.
-         It reads ACTMON counters of memory controllers and adjusts the
-         operating frequencies and voltages with OPP support.
+	tristate "Tegra DEVFREQ Driver"
+	depends on ARCH_TEGRA_124_SOC || COMPILE_TEST
+	select DEVFREQ_GOV_SIMPLE_ONDEMAND
+	select PM_OPP
+	help
+	  This adds the DEVFREQ driver for the Tegra family of SoCs.
+	  It reads ACTMON counters of memory controllers and adjusts the
+	  operating frequencies and voltages with OPP support.
 
 source "drivers/devfreq/event/Kconfig"
 
