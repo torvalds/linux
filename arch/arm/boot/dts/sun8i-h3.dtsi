@@ -140,6 +140,12 @@
 		#size-cells = <1>;
 		ranges;
 
+		syscon: syscon@01c00000 {
+			compatible = "syscon",
+				     "allwinner,sun8i-h3-system-controller";
+			reg = <0x01c00000 0x1000>;
+		};
+
 		dma: dma-controller@01c02000 {
 			compatible = "allwinner,sun8i-h3-dma";
 			reg = <0x01c02000 0x1000>;
