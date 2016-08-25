@@ -184,6 +184,7 @@ struct coresight_platform_data *of_get_coresight_platform_data(
 			break;
 		}
 	}
+	of_node_put(dn);
 
 	return pdata;
 }
