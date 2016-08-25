@@ -433,11 +433,14 @@ tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 		BUG_ON(!(se_cmd->t_bidi_data_sg && se_cmd->t_bidi_data_nents));
 		data_length += se_cmd->t_bidi_data_sg->length;
 	}
-	if ((command_size > (udev->cmdr_size / 2))
-	    || data_length > udev->data_size)
-		pr_warn("TCMU: Request of size %zu/%zu may be too big for %u/%zu "
+	if ((command_size > (udev->cmdr_size / 2)) ||
+	    data_length > udev->data_size) {
+		pr_warn("TCMU: Request of size %zu/%zu is too big for %u/%zu "
 			"cmd/data ring buffers\n", command_size, data_length,
 			udev->cmdr_size, udev->data_size);
+		spin_unlock_irq(&udev->cmdr_lock);
+		return TCM_INVALID_CDB_FIELD;
+	}
 
 	while (!is_ring_space_avail(udev, command_size, data_length)) {
 		int ret;
