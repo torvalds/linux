@@ -1013,23 +1013,12 @@ static struct miscdevice uinput_misc = {
 	.minor		= UINPUT_MINOR,
 	.name		= UINPUT_NAME,
 };
+module_misc_device(uinput_misc);
+
 MODULE_ALIAS_MISCDEV(UINPUT_MINOR);
 MODULE_ALIAS("devname:" UINPUT_NAME);
-
-static int __init uinput_init(void)
-{
-	return misc_register(&uinput_misc);
-}
-
-static void __exit uinput_exit(void)
-{
-	misc_deregister(&uinput_misc);
-}
 
 MODULE_AUTHOR("Aristeu Sergio Rozanski Filho");
 MODULE_DESCRIPTION("User level driver support for input subsystem");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.3");
-
-module_init(uinput_init);
-module_exit(uinput_exit);
