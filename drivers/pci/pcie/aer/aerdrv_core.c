@@ -132,7 +132,9 @@ static bool is_error_source(struct pci_dev *dev, struct aer_err_info *e_info)
 	 * When bus id is equal to 0, it might be a bad id
 	 * reported by root port.
 	 */
-	if (!nosourceid && (PCI_BUS_NUM(e_info->id) != 0)) {
+	if (!nosourceid &&
+	    (PCI_BUS_NUM(e_info->id) != 0) &&
+	    !(dev->bus->bus_flags & PCI_BUS_FLAGS_NO_AERSID)) {
 		/* Device ID match? */
 		if (e_info->id == ((dev->bus->number << 8) | dev->devfn))
 			return true;
@@ -147,7 +149,8 @@ static bool is_error_source(struct pci_dev *dev, struct aer_err_info *e_info)
 	 *      1) nosourceid==y;
 	 *      2) bus id is equal to 0. Some ports might lose the bus
 	 *              id of error source id;
-	 *      3) There are multiple errors and prior id comparing fails;
+	 *      3) bus flag PCI_BUS_FLAGS_NO_AERSID is set
+	 *      4) There are multiple errors and prior ID comparing fails;
 	 * We check AER status registers to find possible reporter.
 	 */
 	if (atomic_read(&dev->enable_cnt) == 0)
