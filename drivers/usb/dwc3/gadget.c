@@ -3084,7 +3084,7 @@ int dwc3_gadget_suspend(struct dwc3 *dwc)
 
 	ret = dwc3_gadget_run_stop(dwc, false, false);
 	if (ret < 0)
-		return ret;
+		dev_err(dwc->dev, "dwc3 gadget stop timeout\n");
 
 	dwc3_disconnect_gadget(dwc);
 	__dwc3_gadget_stop(dwc);
