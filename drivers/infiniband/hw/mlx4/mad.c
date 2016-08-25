@@ -345,7 +345,8 @@ static void node_desc_override(struct ib_device *dev,
 	    mad->mad_hdr.method == IB_MGMT_METHOD_GET_RESP &&
 	    mad->mad_hdr.attr_id == IB_SMP_ATTR_NODE_DESC) {
 		spin_lock_irqsave(&to_mdev(dev)->sm_lock, flags);
-		memcpy(((struct ib_smp *) mad)->data, dev->node_desc, 64);
+		memcpy(((struct ib_smp *) mad)->data, dev->node_desc,
+		       IB_DEVICE_NODE_DESC_MAX);
 		spin_unlock_irqrestore(&to_mdev(dev)->sm_lock, flags);
 	}
 }

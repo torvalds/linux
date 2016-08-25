@@ -537,9 +537,11 @@ enum ib_device_modify_flags {
 	IB_DEVICE_MODIFY_NODE_DESC	= 1 << 1
 };
 
+#define IB_DEVICE_NODE_DESC_MAX 64
+
 struct ib_device_modify {
 	u64	sys_image_guid;
-	char	node_desc[64];
+	char	node_desc[IB_DEVICE_NODE_DESC_MAX];
 };
 
 enum ib_port_modify_flags {
@@ -2077,7 +2079,7 @@ struct ib_device {
 	u64			     uverbs_cmd_mask;
 	u64			     uverbs_ex_cmd_mask;
 
-	char			     node_desc[64];
+	char			     node_desc[IB_DEVICE_NODE_DESC_MAX];
 	__be64			     node_guid;
 	u32			     local_dma_lkey;
 	u16                          is_switch:1;
