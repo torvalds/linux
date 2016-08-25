@@ -68,6 +68,32 @@
 /* Unicast Filter MAC Address Register - High */
 #define MTK_GDMA_MAC_ADRH(x)	(0x50C + (x * 0x1000))
 
+/* PDMA RX Base Pointer Register */
+#define MTK_PRX_BASE_PTR0	0x900
+
+/* PDMA RX Maximum Count Register */
+#define MTK_PRX_MAX_CNT0	0x904
+
+/* PDMA RX CPU Pointer Register */
+#define MTK_PRX_CRX_IDX0	0x908
+
+/* PDMA Global Configuration Register */
+#define MTK_PDMA_GLO_CFG	0xa04
+#define MTK_MULTI_EN		BIT(10)
+
+/* PDMA Reset Index Register */
+#define MTK_PDMA_RST_IDX	0xa08
+#define MTK_PST_DRX_IDX0	BIT(16)
+
+/* PDMA Delay Interrupt Register */
+#define MTK_PDMA_DELAY_INT	0xa0c
+
+/* PDMA Interrupt Status Register */
+#define MTK_PDMA_INT_STATUS	0xa20
+
+/* PDMA Interrupt Mask Register */
+#define MTK_PDMA_INT_MASK	0xa28
+
 /* PDMA Interrupt grouping registers */
 #define MTK_PDMA_INT_GRP1	0xa50
 #define MTK_PDMA_INT_GRP2	0xa54
@@ -119,13 +145,16 @@
 
 /* QDMA Interrupt Status Register */
 #define MTK_QMTK_INT_STATUS	0x1A18
+#define MTK_RX_DONE_INT3	BIT(19)
+#define MTK_RX_DONE_INT2	BIT(18)
 #define MTK_RX_DONE_INT1	BIT(17)
 #define MTK_RX_DONE_INT0	BIT(16)
 #define MTK_TX_DONE_INT3	BIT(3)
 #define MTK_TX_DONE_INT2	BIT(2)
 #define MTK_TX_DONE_INT1	BIT(1)
 #define MTK_TX_DONE_INT0	BIT(0)
-#define MTK_RX_DONE_INT		(MTK_RX_DONE_INT0 | MTK_RX_DONE_INT1)
+#define MTK_RX_DONE_INT		(MTK_RX_DONE_INT0 | MTK_RX_DONE_INT1 | \
+				 MTK_RX_DONE_INT2 | MTK_RX_DONE_INT3)
 #define MTK_TX_DONE_INT		(MTK_TX_DONE_INT0 | MTK_TX_DONE_INT1 | \
 				 MTK_TX_DONE_INT2 | MTK_TX_DONE_INT3)
 
