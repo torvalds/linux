@@ -335,12 +335,25 @@ static void etm4_disable_hw(void *info)
 static int etm4_disable_perf(struct coresight_device *csdev,
 			     struct perf_event *event)
 {
+	u32 control;
+	struct etm_filters *filters = event->hw.addr_filters;
 	struct etmv4_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
 	if (WARN_ON_ONCE(drvdata->cpu != smp_processor_id()))
 		return -EINVAL;
 
 	etm4_disable_hw(drvdata);
+
+	/*
+	 * Check if the start/stop logic was active when the unit was stopped.
+	 * That way we can re-enable the start/stop logic when the process is
+	 * scheduled again.  Configuration of the start/stop logic happens in
+	 * function etm4_set_event_filters().
+	 */
+	control = readl_relaxed(drvdata->base + TRCVICTLR);
+	/* TRCVICTLR::SSSTATUS, bit[9] */
+	filters->ssstatus = (control & BIT(9));
+
 	return 0;
 }
 
@@ -657,6 +670,27 @@ static void etm4_set_comparator_filter(struct etmv4_config *config,
 	config->viiectlr |= BIT(comparator / 2);
 }
 
+static void etm4_set_start_stop_filter(struct etmv4_config *config,
+				       u64 address, int comparator,
+				       enum etm_addr_type type)
+{
+	int shift;
+	u64 access_type = etm4_get_access_type(config);
+
+	/* Configure the comparator */
+	config->addr_val[comparator] = address;
+	config->addr_acc[comparator] = access_type;
+	config->addr_type[comparator] = type;
+
+	/*
+	 * Configure ViewInst Start-Stop control register.
+	 * Addresses configured to start tracing go from bit 0 to n-1,
+	 * while those configured to stop tracing from 16 to 16 + n-1.
+	 */
+	shift = (type == ETM_ADDR_TYPE_START ? 0 : 16);
+	config->vissctlr |= BIT(shift + comparator);
+}
+
 static void etm4_set_default_filter(struct etmv4_config *config)
 {
 	u64 start, stop;
@@ -721,6 +755,14 @@ static int etm4_get_next_comparator(struct etmv4_drvdata *drvdata, u32 type)
 			/* Address range comparators go in pairs */
 			index += 2;
 			break;
+		case ETM_ADDR_TYPE_START:
+		case ETM_ADDR_TYPE_STOP:
+			if (config->addr_type[index] == ETM_ADDR_TYPE_NONE)
+				return index;
+
+			/* Start/stop address can have odd indexes */
+			index += 1;
+			break;
 		default:
 			return -EINVAL;
 		}
@@ -734,6 +776,7 @@ static int etm4_set_event_filters(struct etmv4_drvdata *drvdata,
 				  struct perf_event *event)
 {
 	int i, comparator, ret = 0;
+	u64 address;
 	struct etmv4_config *config = &drvdata->config;
 	struct etm_filters *filters = event->hw.addr_filters;
 
@@ -775,6 +818,34 @@ static int etm4_set_event_filters(struct etmv4_drvdata *drvdata,
 
 			/* No start-stop filtering for ViewInst */
 			config->vissctlr = 0x0;
+			break;
+		case ETM_ADDR_TYPE_START:
+		case ETM_ADDR_TYPE_STOP:
+			/* Get the right start or stop address */
+			address = (type == ETM_ADDR_TYPE_START ?
+				   filter->start_addr :
+				   filter->stop_addr);
+
+			/* Configure comparator */
+			etm4_set_start_stop_filter(config, address,
+						   comparator, type);
+
+			/*
+			 * If filters::ssstatus == 1, trace acquisition was
+			 * started but the process was yanked away before the
+			 * the stop address was hit.  As such the start/stop
+			 * logic needs to be re-started so that tracing can
+			 * resume where it left.
+			 *
+			 * The start/stop logic status when a process is
+			 * scheduled out is checked in function
+			 * etm4_disable_perf().
+			 */
+			if (filters->ssstatus)
+				config->vinst_ctrl |= BIT(9);
+
+			/* No include/exclude filtering for ViewInst */
+			config->viiectlr = 0x0;
 			break;
 		default:
 			ret = -EINVAL;
