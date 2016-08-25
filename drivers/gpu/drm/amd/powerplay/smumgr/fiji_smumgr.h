@@ -25,35 +25,20 @@
 
 #include "smu73_discrete.h"
 #include <pp_endian.h>
+#include "smu7_smumgr.h"
 
-#define SMC_RAM_END		0x40000
+
 
 struct fiji_smu_avfs {
 	enum AVFS_BTC_STATUS AvfsBtcStatus;
 	uint32_t           AvfsBtcParam;
 };
 
-struct fiji_buffer_entry {
-	uint32_t data_size;
-	uint32_t mc_addr_low;
-	uint32_t mc_addr_high;
-	void *kaddr;
-	unsigned long  handle;
-};
 
 struct fiji_smumgr {
-	uint8_t        *header;
-	uint8_t        *mec_image;
+	struct smu7_smumgr                   smu7_data;
 
-	uint32_t                             soft_regs_start;
-	uint32_t                             dpm_table_start;
-	uint32_t                             mc_reg_table_start;
-	uint32_t                             fan_table_start;
-	uint32_t                             arb_table_start;
 	struct fiji_smu_avfs avfs;
-	uint32_t        acpi_optimization;
-	struct fiji_buffer_entry header_buffer;
-
 	struct SMU73_Discrete_DpmTable       smc_state_table;
 	struct SMU73_Discrete_Ulv            ulv_setting;
 	struct SMU73_Discrete_PmFuses  power_tune_table;
@@ -62,13 +47,7 @@ struct fiji_smumgr {
 
 };
 
-int fiji_smum_init(struct pp_smumgr *smumgr);
-int fiji_read_smc_sram_dword(struct pp_smumgr *smumgr, uint32_t smcAddress,
-		uint32_t *value, uint32_t limit);
-int fiji_write_smc_sram_dword(struct pp_smumgr *smumgr, uint32_t smc_addr,
-		uint32_t value, uint32_t limit);
-int fiji_copy_bytes_to_smc(struct pp_smumgr *smumgr, uint32_t smcStartAddress,
-		const uint8_t *src,	uint32_t byteCount, uint32_t limit);
+
 
 #endif
 
