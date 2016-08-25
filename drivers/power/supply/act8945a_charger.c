@@ -328,11 +328,11 @@ static int act8945a_charger_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	ret = act8945a_charger_config(pdev->dev.parent, charger);
+	ret = act8945a_charger_config(&pdev->dev, charger);
 	if (ret)
 		return ret;
 
-	psy_cfg.of_node	= pdev->dev.parent->of_node;
+	psy_cfg.of_node	= pdev->dev.of_node;
 	psy_cfg.drv_data = charger;
 
 	psy = devm_power_supply_register(&pdev->dev,
