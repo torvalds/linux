@@ -130,7 +130,7 @@ static u32 fsl_espi_tx_buf_lsb(struct mpc8xxx_spi *mpc8xxx_spi)
 	return data;
 }
 
-static int fsl_espi_setup_transfer(struct spi_device *spi,
+static void fsl_espi_setup_transfer(struct spi_device *spi,
 					struct spi_transfer *t)
 {
 	struct mpc8xxx_spi *mpc8xxx_spi = spi_master_get_devdata(spi->master);
@@ -195,7 +195,6 @@ static int fsl_espi_setup_transfer(struct spi_device *spi,
 	cs->hw_mode |= CSMODE_PM(pm);
 
 	fsl_espi_change_mode(spi);
-	return 0;
 }
 
 static int fsl_espi_cpu_bufs(struct mpc8xxx_spi *mspi, struct spi_transfer *t,
@@ -292,13 +291,8 @@ static void fsl_espi_do_trans(struct spi_message *m,
 	spi_message_add_tail(&trans, &message);
 
 	list_for_each_entry(t, &message.transfers, transfer_list) {
-		if (t->bits_per_word || t->speed_hz) {
-			status = -EINVAL;
-
-			status = fsl_espi_setup_transfer(spi, t);
-			if (status < 0)
-				break;
-		}
+		if (t->bits_per_word || t->speed_hz)
+			fsl_espi_setup_transfer(spi, t);
 
 		if (t->len)
 			status = fsl_espi_bufs(spi, t);
@@ -425,7 +419,6 @@ static int fsl_espi_setup(struct spi_device *spi)
 {
 	struct mpc8xxx_spi *mpc8xxx_spi;
 	struct fsl_espi_reg *reg_base;
-	int retval;
 	u32 hw_mode;
 	u32 loop_mode;
 	struct spi_mpc8xxx_cs *cs = spi_get_ctldata(spi);
@@ -466,15 +459,11 @@ static int fsl_espi_setup(struct spi_device *spi)
 		loop_mode |= SPMODE_LOOP;
 	mpc8xxx_spi_write_reg(&reg_base->mode, loop_mode);
 
-	retval = fsl_espi_setup_transfer(spi, NULL);
+	fsl_espi_setup_transfer(spi, NULL);
 
 	pm_runtime_mark_last_busy(mpc8xxx_spi->dev);
 	pm_runtime_put_autosuspend(mpc8xxx_spi->dev);
 
-	if (retval < 0) {
-		cs->hw_mode = hw_mode; /* Restore settings */
-		return retval;
-	}
 	return 0;
 }
 
