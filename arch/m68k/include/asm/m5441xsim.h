@@ -11,6 +11,7 @@
 #define CPU_INSTR_PER_JIFFY	2
 #define MCF_BUSCLK		(MCF_CLK / 2)
 #define MACHINE			MACH_M5441X
+#define FPUTYPE			0
 
 #include <asm/m54xxacr.h>
 
