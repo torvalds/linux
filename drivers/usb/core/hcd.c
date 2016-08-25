@@ -2517,10 +2517,8 @@ struct usb_hcd *usb_create_shared_hcd(const struct hc_driver *driver,
 	struct usb_hcd *hcd;
 
 	hcd = kzalloc(sizeof(*hcd) + driver->hcd_priv_size, GFP_KERNEL);
-	if (!hcd) {
-		dev_dbg (dev, "hcd alloc failed\n");
+	if (!hcd)
 		return NULL;
-	}
 	if (primary_hcd == NULL) {
 		hcd->address0_mutex = kmalloc(sizeof(*hcd->address0_mutex),
 				GFP_KERNEL);
