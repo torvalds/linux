@@ -205,13 +205,6 @@ static int etm4_parse_event_config(struct etmv4_drvdata *drvdata,
 	/* Always start from the default config */
 	etm4_set_default(config);
 
-	/*
-	 * By default the tracers are configured to trace the whole address
-	 * range.  Narrow the field only if requested by user space.
-	 */
-	if (config->mode)
-		etm4_config_trace_mode(config);
-
 	/* Go from generic option to ETMv4 specifics */
 	if (attr->config & BIT(ETM_OPT_CYCACC))
 		config->cfg |= ETMv4_MODE_CYCACC;
@@ -581,13 +574,27 @@ static void etm4_set_default_config(struct etmv4_config *config)
 	config->vinst_ctrl |= BIT(0);
 }
 
-static void etm4_set_comparator_filter(struct etmv4_config *config,
-				       u64 start, u64 stop, int comparator)
+static u64 etm4_get_access_type(struct etmv4_config *config)
 {
 	u64 access_type = 0;
 
-	/* EXLEVEL_NS, bits[12:15], always stay away from hypervisor mode. */
+	/*
+	 * EXLEVEL_NS, bits[15:12]
+	 * The Exception levels are:
+	 *   Bit[12] Exception level 0 - Application
+	 *   Bit[13] Exception level 1 - OS
+	 *   Bit[14] Exception level 2 - Hypervisor
+	 *   Bit[15] Never implemented
+	 *
+	 * Always stay away from hypervisor mode.
+	 */
 	access_type = ETM_EXLEVEL_NS_HYP;
+
+	if (config->mode & ETM_MODE_EXCL_KERN)
+		access_type |= ETM_EXLEVEL_NS_OS;
+
+	if (config->mode & ETM_MODE_EXCL_USER)
+		access_type |= ETM_EXLEVEL_NS_APP;
 
 	/*
 	 * EXLEVEL_S, bits[11:8], don't trace anything happening
@@ -596,6 +603,14 @@ static void etm4_set_comparator_filter(struct etmv4_config *config,
 	access_type |= (ETM_EXLEVEL_S_APP	|
 			ETM_EXLEVEL_S_OS	|
 			ETM_EXLEVEL_S_HYP);
+
+	return access_type;
+}
+
+static void etm4_set_comparator_filter(struct etmv4_config *config,
+				       u64 start, u64 stop, int comparator)
+{
+	u64 access_type = etm4_get_access_type(config);
 
 	/* First half of default address comparator */
 	config->addr_val[comparator] = start;
