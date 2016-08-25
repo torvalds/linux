@@ -292,11 +292,13 @@ static int imx6q_cpufreq_probe(struct platform_device *pdev)
 {
 	struct device_node *np;
 	struct dev_pm_opp *opp;
+	struct clk *vpu_axi_podf;
 	unsigned long min_volt, max_volt;
 	int num, ret;
 	const struct property *prop;
 	const __be32 *val;
 	u32 nr, j, i = 0;
+	u32 vpu_axi_rate = 0;
 
 	cpu_dev = get_cpu_device(0);
 	if (!cpu_dev) {
@@ -330,6 +332,10 @@ static int imx6q_cpufreq_probe(struct platform_device *pdev)
 	pll2_bus = devm_clk_get(cpu_dev, "pll2_bus");
 	secondary_sel = devm_clk_get(cpu_dev, "secondary_sel");
 	osc = devm_clk_get(cpu_dev, "osc");
+
+	vpu_axi_podf = devm_clk_get(cpu_dev, "vpu_axi_podf");
+	if (!IS_ERR(vpu_axi_podf))
+		vpu_axi_rate = clk_get_rate(vpu_axi_podf);
 
 	arm_reg = devm_regulator_get_optional(cpu_dev, "arm");
 	pu_reg = devm_regulator_get_optional(cpu_dev, "pu");
@@ -423,6 +429,13 @@ static int imx6q_cpufreq_probe(struct platform_device *pdev)
 					imx6_soc_volt[soc_opp_count - 1] = 1250000;
 				}
 #endif
+				if (vpu_axi_rate == 396000000) {
+					if (freq <= 996000) {
+						pr_info("increase SOC/PU voltage for VPU396MHz at %ld MHz\n",
+							freq / 1000);
+						imx6_soc_volt[soc_opp_count - 1] = 1275000;
+					}
+				}
 				break;
 			}
 		}
