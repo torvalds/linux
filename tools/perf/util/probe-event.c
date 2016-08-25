@@ -674,6 +674,10 @@ post_process_kernel_probe_trace_events(struct probe_trace_event *tevs,
 	char *tmp;
 	int i, skipped = 0;
 
+	/* Skip post process if the target is an offline kernel */
+	if (symbol_conf.ignore_vmlinux_buildid)
+		return 0;
+
 	reloc_sym = kernel_get_ref_reloc_sym();
 	if (!reloc_sym) {
 		pr_warning("Relocated base symbol is not found!\n");

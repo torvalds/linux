@@ -732,7 +732,7 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 	}
 
 	/* Always reject images with a mismatched build-id: */
-	if (dso->has_build_id) {
+	if (dso->has_build_id && !symbol_conf.ignore_vmlinux_buildid) {
 		u8 build_id[BUILD_ID_SIZE];
 
 		if (elf_read_build_id(elf, build_id, BUILD_ID_SIZE) < 0) {

@@ -654,8 +654,16 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 			return ret;
 		}
 		break;
-	case 'a':
 	case 'D':
+		/*
+		 * If user gives offline vmlinux, ignore buildid, since
+		 * --definition doesn't change running kernel.
+		 */
+		if (symbol_conf.vmlinux_name)
+			symbol_conf.ignore_vmlinux_buildid = true;
+		/* fall through */
+	case 'a':
+
 		/* Ensure the last given target is used */
 		if (params.target && !params.target_used) {
 			pr_err("  Error: -x/-m must follow the probe definitions.\n");
