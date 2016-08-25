@@ -8,8 +8,6 @@ Required properties:
 - interrupts: Interrupt number for McPDM
 - interrupt-parent: The parent interrupt controller
 - ti,hwmods: Name of the hwmod associated to the McPDM
-- clocks:  phandle for the pdmclk provider, likely <&twl6040>
-- clock-names: Must be "pdmclk"
 
 Example:
 
@@ -20,12 +18,4 @@ mcpdm: mcpdm@40132000 {
 	interrupts = <0 112 0x4>;
 	interrupt-parent = <&gic>;
 	ti,hwmods = "mcpdm";
-};
-
-In board DTS file the pdmclk needs to be added:
-
-&mcpdm {
-	clocks = <&twl6040>;
-	clock-names = "pdmclk";
-	status = "okay";
 };

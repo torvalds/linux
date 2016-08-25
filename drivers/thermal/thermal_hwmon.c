@@ -232,6 +232,7 @@ int thermal_add_hwmon_sysfs(struct thermal_zone_device *tz)
 
 	return result;
 }
+EXPORT_SYMBOL_GPL(thermal_add_hwmon_sysfs);
 
 void thermal_remove_hwmon_sysfs(struct thermal_zone_device *tz)
 {
@@ -270,3 +271,4 @@ void thermal_remove_hwmon_sysfs(struct thermal_zone_device *tz)
 	hwmon_device_unregister(hwmon->device);
 	kfree(hwmon);
 }
+EXPORT_SYMBOL_GPL(thermal_remove_hwmon_sysfs);

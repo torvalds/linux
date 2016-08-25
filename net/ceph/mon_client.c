@@ -574,7 +574,7 @@ static void complete_generic_request(struct ceph_mon_generic_request *req)
 	put_generic_request(req);
 }
 
-void cancel_generic_request(struct ceph_mon_generic_request *req)
+static void cancel_generic_request(struct ceph_mon_generic_request *req)
 {
 	struct ceph_mon_client *monc = req->monc;
 	struct ceph_mon_generic_request *lookup_req;

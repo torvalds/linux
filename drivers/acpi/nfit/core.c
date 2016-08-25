@@ -1527,11 +1527,12 @@ static u32 read_blk_stat(struct nfit_blk *nfit_blk, unsigned int bw)
 {
 	struct nfit_blk_mmio *mmio = &nfit_blk->mmio[DCR];
 	u64 offset = nfit_blk->stat_offset + mmio->size * bw;
+	const u32 STATUS_MASK = 0x80000037;
 
 	if (mmio->num_lines)
 		offset = to_interleave_offset(offset, mmio);
 
-	return readl(mmio->addr.base + offset);
+	return readl(mmio->addr.base + offset) & STATUS_MASK;
 }
 
 static void write_blk_ctl(struct nfit_blk *nfit_blk, unsigned int bw,
