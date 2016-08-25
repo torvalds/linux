@@ -80,6 +80,9 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 	int			ret;
 	u32			reg;
 
+	if (!dwc)
+		return;
+
 	if (extcon_get_cable_state_(edev, EXTCON_USB) > 0) {
 		if (dwc->connected)
 			return;
@@ -318,6 +321,11 @@ static int dwc3_rockchip_probe(struct platform_device *pdev)
 	}
 
 	rockchip->dwc = platform_get_drvdata(child_pdev);
+	if (!rockchip->dwc) {
+		dev_err(dev, "failed to get drvdata dwc3\n");
+		ret = -ENODEV;
+		goto err3;
+	}
 
 	if (rockchip->edev) {
 		pm_runtime_set_autosuspend_delay(&child_pdev->dev,
