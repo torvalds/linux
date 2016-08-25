@@ -98,11 +98,11 @@ EXPORT_SYMBOL(drm_bridge_remove);
  * @dev: DRM device
  * @bridge: bridge control structure
  *
- * called by a kms driver to link one of our encoder/bridge to the given
+ * Called by a kms driver to link one of our encoder/bridge to the given
  * bridge.
  *
  * Note that setting up links between the bridge and our encoder/bridge
- * objects needs to be handled by the kms driver itself
+ * objects needs to be handled by the kms driver itself.
  *
  * RETURNS:
  * Zero on success, error code on failure
@@ -123,6 +123,31 @@ int drm_bridge_attach(struct drm_device *dev, struct drm_bridge *bridge)
 	return 0;
 }
 EXPORT_SYMBOL(drm_bridge_attach);
+
+/**
+ * drm_bridge_detach - deassociate given bridge from its DRM device
+ *
+ * @bridge: bridge control structure
+ *
+ * Called by a kms driver to unlink the given bridge from its DRM device.
+ *
+ * Note that tearing down links between the bridge and our encoder/bridge
+ * objects needs to be handled by the kms driver itself.
+ */
+void drm_bridge_detach(struct drm_bridge *bridge)
+{
+	if (WARN_ON(!bridge))
+		return;
+
+	if (WARN_ON(!bridge->dev))
+		return;
+
+	if (bridge->funcs->detach)
+		bridge->funcs->detach(bridge);
+
+	bridge->dev = NULL;
+}
+EXPORT_SYMBOL(drm_bridge_detach);
 
 /**
  * DOC: bridge callbacks

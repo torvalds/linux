@@ -1118,10 +1118,31 @@ struct drm_plane {
 
 /**
  * struct drm_bridge_funcs - drm_bridge control functions
- * @attach: Called during drm_bridge_attach
  */
 struct drm_bridge_funcs {
+	/**
+	 * @attach:
+	 *
+	 * This callback is invoked whenever our bridge is being attached to a
+	 * &drm_encoder.
+	 *
+	 * The attach callback is optional.
+	 *
+	 * RETURNS:
+	 *
+	 * Zero on success, error code on failure.
+	 */
 	int (*attach)(struct drm_bridge *bridge);
+
+	/**
+	 * @detach:
+	 *
+	 * This callback is invoked whenever our bridge is being detached from a
+	 * &drm_encoder.
+	 *
+	 * The detach callback is optional.
+	 */
+	void (*detach)(struct drm_bridge *bridge);
 
 	/**
 	 * @mode_fixup:
@@ -1136,6 +1157,8 @@ struct drm_bridge_funcs {
 	 * This is the only hook that allows a bridge to reject a modeset. If
 	 * this function passes all other callbacks must succeed for this
 	 * configuration.
+	 *
+	 * The mode_fixup callback is optional.
 	 *
 	 * NOTE:
 	 *
@@ -2426,6 +2449,7 @@ extern int drm_bridge_add(struct drm_bridge *bridge);
 extern void drm_bridge_remove(struct drm_bridge *bridge);
 extern struct drm_bridge *of_drm_find_bridge(struct device_node *np);
 extern int drm_bridge_attach(struct drm_device *dev, struct drm_bridge *bridge);
+extern void drm_bridge_detach(struct drm_bridge *bridge);
 
 bool drm_bridge_mode_fixup(struct drm_bridge *bridge,
 			const struct drm_display_mode *mode,
