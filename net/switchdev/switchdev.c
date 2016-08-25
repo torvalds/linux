@@ -1292,12 +1292,10 @@ bool switchdev_port_same_parent_id(struct net_device *a,
 	struct switchdev_attr a_attr = {
 		.orig_dev = a,
 		.id = SWITCHDEV_ATTR_ID_PORT_PARENT_ID,
-		.flags = SWITCHDEV_F_NO_RECURSE,
 	};
 	struct switchdev_attr b_attr = {
 		.orig_dev = b,
 		.id = SWITCHDEV_ATTR_ID_PORT_PARENT_ID,
-		.flags = SWITCHDEV_F_NO_RECURSE,
 	};
 
 	if (switchdev_port_attr_get(a, &a_attr) ||
