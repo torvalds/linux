@@ -257,7 +257,7 @@ static void coresight_disable_source(struct coresight_device *csdev)
 {
 	if (atomic_dec_return(csdev->refcnt) == 0) {
 		if (source_ops(csdev)->disable) {
-			source_ops(csdev)->disable(csdev);
+			source_ops(csdev)->disable(csdev, NULL);
 			csdev->enable = false;
 		}
 	}

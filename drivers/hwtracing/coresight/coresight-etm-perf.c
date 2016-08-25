@@ -258,7 +258,7 @@ static void etm_event_start(struct perf_event *event, int flags)
 	event->hw.state = 0;
 
 	/* Finally enable the tracer */
-	if (source_ops(csdev)->enable(csdev, &event->attr, CS_MODE_PERF))
+	if (source_ops(csdev)->enable(csdev, event, CS_MODE_PERF))
 		goto fail_end_stop;
 
 out:
@@ -291,7 +291,7 @@ static void etm_event_stop(struct perf_event *event, int mode)
 		return;
 
 	/* stop tracer */
-	source_ops(csdev)->disable(csdev);
+	source_ops(csdev)->disable(csdev, event);
 
 	/* tell the core */
 	event->hw.state = PERF_HES_STOPPED;

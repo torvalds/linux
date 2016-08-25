@@ -198,7 +198,7 @@ static void stm_enable_hw(struct stm_drvdata *drvdata)
 }
 
 static int stm_enable(struct coresight_device *csdev,
-		      struct perf_event_attr *attr, u32 mode)
+		      struct perf_event *event, u32 mode)
 {
 	u32 val;
 	struct stm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
@@ -260,7 +260,8 @@ static void stm_disable_hw(struct stm_drvdata *drvdata)
 		stm_hwevent_disable_hw(drvdata);
 }
 
-static void stm_disable(struct coresight_device *csdev)
+static void stm_disable(struct coresight_device *csdev,
+			struct perf_event *event)
 {
 	struct stm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
@@ -355,7 +356,7 @@ static void stm_generic_unlink(struct stm_data *stm_data,
 	if (!drvdata || !drvdata->csdev)
 		return;
 
-	stm_disable(drvdata->csdev);
+	stm_disable(drvdata->csdev, NULL);
 }
 
 static phys_addr_t

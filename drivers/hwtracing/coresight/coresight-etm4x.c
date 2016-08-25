@@ -185,9 +185,10 @@ static void etm4_enable_hw(void *info)
 }
 
 static int etm4_parse_event_config(struct etmv4_drvdata *drvdata,
-				   struct perf_event_attr *attr)
+				   struct perf_event *event)
 {
 	struct etmv4_config *config = &drvdata->config;
+	struct perf_event_attr *attr = &event->attr;
 
 	if (!attr)
 		return -EINVAL;
@@ -221,7 +222,7 @@ static int etm4_parse_event_config(struct etmv4_drvdata *drvdata,
 }
 
 static int etm4_enable_perf(struct coresight_device *csdev,
-			    struct perf_event_attr *attr)
+			    struct perf_event *event)
 {
 	struct etmv4_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
@@ -229,7 +230,7 @@ static int etm4_enable_perf(struct coresight_device *csdev,
 		return -EINVAL;
 
 	/* Configure the tracer based on the session's specifics */
-	etm4_parse_event_config(drvdata, attr);
+	etm4_parse_event_config(drvdata, event);
 	/* And enable it */
 	etm4_enable_hw(drvdata);
 
@@ -264,7 +265,7 @@ err:
 }
 
 static int etm4_enable(struct coresight_device *csdev,
-		       struct perf_event_attr *attr, u32 mode)
+		       struct perf_event *event, u32 mode)
 {
 	int ret;
 	u32 val;
@@ -281,7 +282,7 @@ static int etm4_enable(struct coresight_device *csdev,
 		ret = etm4_enable_sysfs(csdev);
 		break;
 	case CS_MODE_PERF:
-		ret = etm4_enable_perf(csdev, attr);
+		ret = etm4_enable_perf(csdev, event);
 		break;
 	default:
 		ret = -EINVAL;
@@ -321,7 +322,8 @@ static void etm4_disable_hw(void *info)
 	dev_dbg(drvdata->dev, "cpu: %d disable smp call done\n", drvdata->cpu);
 }
 
-static int etm4_disable_perf(struct coresight_device *csdev)
+static int etm4_disable_perf(struct coresight_device *csdev,
+			     struct perf_event *event)
 {
 	struct etmv4_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
@@ -357,7 +359,8 @@ static void etm4_disable_sysfs(struct coresight_device *csdev)
 	dev_info(drvdata->dev, "ETM tracing disabled\n");
 }
 
-static void etm4_disable(struct coresight_device *csdev)
+static void etm4_disable(struct coresight_device *csdev,
+			 struct perf_event *event)
 {
 	u32 mode;
 	struct etmv4_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
@@ -376,7 +379,7 @@ static void etm4_disable(struct coresight_device *csdev)
 		etm4_disable_sysfs(csdev);
 		break;
 	case CS_MODE_PERF:
-		etm4_disable_perf(csdev);
+		etm4_disable_perf(csdev, event);
 		break;
 	}
 

@@ -311,9 +311,10 @@ void etm_config_trace_mode(struct etm_config *config)
 #define ETM3X_SUPPORTED_OPTIONS (ETMCR_CYC_ACC | ETMCR_TIMESTAMP_EN)
 
 static int etm_parse_event_config(struct etm_drvdata *drvdata,
-				  struct perf_event_attr *attr)
+				  struct perf_event *event)
 {
 	struct etm_config *config = &drvdata->config;
+	struct perf_event_attr *attr = &event->attr;
 
 	if (!attr)
 		return -EINVAL;
@@ -459,7 +460,7 @@ static int etm_trace_id(struct coresight_device *csdev)
 }
 
 static int etm_enable_perf(struct coresight_device *csdev,
-			   struct perf_event_attr *attr)
+			   struct perf_event *event)
 {
 	struct etm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
@@ -467,7 +468,7 @@ static int etm_enable_perf(struct coresight_device *csdev,
 		return -EINVAL;
 
 	/* Configure the tracer based on the session's specifics */
-	etm_parse_event_config(drvdata, attr);
+	etm_parse_event_config(drvdata, event);
 	/* And enable it */
 	etm_enable_hw(drvdata);
 
@@ -504,7 +505,7 @@ err:
 }
 
 static int etm_enable(struct coresight_device *csdev,
-		      struct perf_event_attr *attr, u32 mode)
+		      struct perf_event *event, u32 mode)
 {
 	int ret;
 	u32 val;
@@ -521,7 +522,7 @@ static int etm_enable(struct coresight_device *csdev,
 		ret = etm_enable_sysfs(csdev);
 		break;
 	case CS_MODE_PERF:
-		ret = etm_enable_perf(csdev, attr);
+		ret = etm_enable_perf(csdev, event);
 		break;
 	default:
 		ret = -EINVAL;
@@ -601,7 +602,8 @@ static void etm_disable_sysfs(struct coresight_device *csdev)
 	dev_info(drvdata->dev, "ETM tracing disabled\n");
 }
 
-static void etm_disable(struct coresight_device *csdev)
+static void etm_disable(struct coresight_device *csdev,
+			struct perf_event *event)
 {
 	u32 mode;
 	struct etm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
