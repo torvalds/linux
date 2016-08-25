@@ -2268,7 +2268,7 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 					 ARIZONA_FLL1_SYNC_BW);
 
 	if (!already_enabled)
-		pm_runtime_get(arizona->dev);
+		pm_runtime_get_sync(arizona->dev);
 
 	regmap_update_bits_async(arizona->regmap, fll->base + 1,
 				 ARIZONA_FLL1_ENA, ARIZONA_FLL1_ENA);
