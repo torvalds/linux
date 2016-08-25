@@ -20,6 +20,7 @@ void ccu_mux_helper_adjust_parent_for_prediv(struct ccu_common *common,
 {
 	u16 prediv = 1;
 	u32 reg;
+	int i;
 
 	if (!((common->features & CCU_FEATURE_FIXED_PREDIV) ||
 	      (common->features & CCU_FEATURE_VARIABLE_PREDIV)))
@@ -32,8 +33,9 @@ void ccu_mux_helper_adjust_parent_for_prediv(struct ccu_common *common,
 	}
 
 	if (common->features & CCU_FEATURE_FIXED_PREDIV)
-		if (parent_index == cm->fixed_prediv.index)
-			prediv = cm->fixed_prediv.div;
+		for (i = 0; i < cm->n_predivs; i++)
+			if (parent_index == cm->fixed_predivs[i].index)
+				prediv = cm->fixed_predivs[i].div;
 
 	if (common->features & CCU_FEATURE_VARIABLE_PREDIV)
 		if (parent_index == cm->variable_prediv.index) {
