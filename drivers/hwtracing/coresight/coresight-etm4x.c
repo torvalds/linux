@@ -562,21 +562,8 @@ static void etm4_init_arch_data(void *info)
 	CS_LOCK(drvdata->base);
 }
 
-static void etm4_set_default(struct etmv4_config *config)
+static void etm4_set_default_config(struct etmv4_config *config)
 {
-	if (WARN_ON_ONCE(!config))
-		return;
-
-	/*
-	 * Make default initialisation trace everything
-	 *
-	 * Select the "always true" resource selector on the
-	 * "Enablign Event" line and configure address range comparator
-	 * '0' to trace all the possible address range.  From there
-	 * configure the "include/exclude" engine to include address
-	 * range comparator '0'.
-	 */
-
 	/* disable all events tracing */
 	config->eventctrl0 = 0x0;
 	config->eventctrl1 = 0x0;
@@ -592,7 +579,10 @@ static void etm4_set_default(struct etmv4_config *config)
 
 	/* TRCVICTLR::EVENT = 0x01, select the always on logic */
 	config->vinst_ctrl |= BIT(0);
+}
 
+static void etm4_set_default_filter(struct etmv4_config *config)
+{
 	/*
 	 * TRCVICTLR::SSSTATUS == 1, the start-stop logic is
 	 * in the started state
@@ -636,6 +626,24 @@ static void etm4_set_default(struct etmv4_config *config)
 
 	/* no start-stop filtering for ViewInst */
 	config->vissctlr = 0x0;
+}
+
+static void etm4_set_default(struct etmv4_config *config)
+{
+	if (WARN_ON_ONCE(!config))
+		return;
+
+	/*
+	 * Make default initialisation trace everything
+	 *
+	 * Select the "always true" resource selector on the
+	 * "Enablign Event" line and configure address range comparator
+	 * '0' to trace all the possible address range.  From there
+	 * configure the "include/exclude" engine to include address
+	 * range comparator '0'.
+	 */
+	etm4_set_default_config(config);
+	etm4_set_default_filter(config);
 }
 
 void etm4_config_trace_mode(struct etmv4_config *config)
