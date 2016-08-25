@@ -39,6 +39,7 @@
 #define GRE_IS_REC(f)		((f) & GRE_REC)
 #define GRE_IS_ACK(f)		((f) & GRE_ACK)
 
+#define GRE_VERSION_0		__cpu_to_be16(0x0000)
 #define GRE_VERSION_1		__cpu_to_be16(0x0001)
 #define GRE_PROTO_PPP		__cpu_to_be16(0x880b)
 #define GRE_PPTP_KEY_MASK	__cpu_to_be32(0xffff)

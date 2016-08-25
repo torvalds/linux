@@ -104,11 +104,11 @@ gre_manip_pkt(struct sk_buff *skb,
 	if (maniptype != NF_NAT_MANIP_DST)
 		return true;
 	switch (greh->version) {
-	case GRE_VERSION_1701:
+	case ntohs(GRE_VERSION_0):
 		/* We do not currently NAT any GREv0 packets.
 		 * Try to behave like "nf_nat_proto_unknown" */
 		break;
-	case GRE_VERSION_PPTP:
+	case ntohs(GRE_VERSION_1):
 		pr_debug("call_id -> 0x%04x\n", ntohs(tuple->dst.u.gre.key));
 		pgreh->call_id = tuple->dst.u.gre.key;
 		break;
