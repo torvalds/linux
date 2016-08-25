@@ -945,6 +945,7 @@ static void gc_worker(struct work_struct *work)
 {
 	unsigned int i, goal, buckets = 0, expired_count = 0;
 	unsigned long next_run = GC_INTERVAL;
+	unsigned int ratio, scanned = 0;
 	struct conntrack_gc_work *gc_work;
 
 	gc_work = container_of(work, struct conntrack_gc_work, dwork.work);
@@ -969,6 +970,7 @@ static void gc_worker(struct work_struct *work)
 		hlist_nulls_for_each_entry_rcu(h, n, &ct_hash[i], hnnode) {
 			tmp = nf_ct_tuplehash_to_ctrack(h);
 
+			scanned++;
 			if (nf_ct_is_expired(tmp)) {
 				nf_ct_gc_expired(tmp);
 				expired_count++;
@@ -987,6 +989,10 @@ static void gc_worker(struct work_struct *work)
 
 	if (gc_work->exiting)
 		return;
+
+	ratio = scanned ? expired_count * 100 / scanned : 0;
+	if (ratio >= 90)
+		next_run = 0;
 
 	gc_work->last_bucket = i;
 	schedule_delayed_work(&gc_work->dwork, next_run);
