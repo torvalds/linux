@@ -221,6 +221,7 @@ static int nau8810_eq_put(struct snd_kcontrol *kcontrol,
 		if (ret) {
 			dev_err(codec->dev, "EQ configuration fail, register: %x ret: %d\n",
 				reg + i, ret);
+			kfree(data);
 			return ret;
 		}
 	}
