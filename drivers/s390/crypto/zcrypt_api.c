@@ -539,6 +539,29 @@ static long zcrypt_rng(char *buffer)
 	return rc;
 }
 
+static void zcrypt_device_status_mask(struct zcrypt_device_matrix *matrix)
+{
+	struct zcrypt_card *zc;
+	struct zcrypt_queue *zq;
+	struct zcrypt_device_status *stat;
+
+	memset(matrix, 0, sizeof(*matrix));
+	spin_lock(&zcrypt_list_lock);
+	for_each_zcrypt_card(zc) {
+		for_each_zcrypt_queue(zq, zc) {
+			stat = matrix->device;
+			stat += AP_QID_CARD(zq->queue->qid) * MAX_ZDEV_DOMAINS;
+			stat += AP_QID_QUEUE(zq->queue->qid);
+			stat->hwtype = zc->card->ap_dev.device_type;
+			stat->functions = zc->card->functions >> 26;
+			stat->qid = zq->queue->qid;
+			stat->online = zq->online ? 0x01 : 0x00;
+		}
+	}
+	spin_unlock(&zcrypt_list_lock);
+}
+EXPORT_SYMBOL(zcrypt_device_status_mask);
+
 static void zcrypt_status_mask(char status[AP_DEVICES])
 {
 	struct zcrypt_card *zc;
@@ -763,6 +786,25 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 		if (copy_to_user(uxcrb, &xcrb, sizeof(xcrb)))
 			return -EFAULT;
 		return rc;
+	}
+	case ZDEVICESTATUS: {
+		struct zcrypt_device_matrix *device_status;
+
+		device_status = kzalloc(sizeof(struct zcrypt_device_matrix),
+					GFP_KERNEL);
+		if (!device_status)
+			return -ENOMEM;
+
+		zcrypt_device_status_mask(device_status);
+
+		if (copy_to_user((char __user *) arg, device_status,
+				 sizeof(struct zcrypt_device_matrix))) {
+			kfree(device_status);
+			return -EFAULT;
+		}
+
+		kfree(device_status);
+		return 0;
 	}
 	case Z90STAT_STATUS_MASK: {
 		char status[AP_DEVICES];
