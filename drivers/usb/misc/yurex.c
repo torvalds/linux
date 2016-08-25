@@ -200,10 +200,8 @@ static int yurex_probe(struct usb_interface *interface, const struct usb_device_
 
 	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev) {
-		dev_err(&interface->dev, "Out of memory\n");
+	if (!dev)
 		goto error;
-	}
 	kref_init(&dev->kref);
 	mutex_init(&dev->io_mutex);
 	spin_lock_init(&dev->lock);
@@ -236,10 +234,8 @@ static int yurex_probe(struct usb_interface *interface, const struct usb_device_
 
 	/* allocate buffer for control req */
 	dev->cntl_req = kmalloc(YUREX_BUF_SIZE, GFP_KERNEL);
-	if (!dev->cntl_req) {
-		dev_err(&interface->dev, "Could not allocate cntl_req\n");
+	if (!dev->cntl_req)
 		goto error;
-	}
 
 	/* allocate buffer for control msg */
 	dev->cntl_buffer = usb_alloc_coherent(dev->udev, YUREX_BUF_SIZE,
