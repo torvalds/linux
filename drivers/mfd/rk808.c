@@ -383,6 +383,7 @@ static int rk808_probe(struct i2c_client *client,
 	int pm_off = 0;
 	int ret;
 	int i;
+	int on_source, off_source;
 
 	if (!of_id) {
 		dev_err(&client->dev, "Failed to find matching dt id\n");
@@ -409,6 +410,17 @@ static int rk808_probe(struct i2c_client *client,
 	if (!pm_shutdown) {
 		dev_err(&client->dev, "shutdown initialization failed\n");
 		return -EINVAL;
+	}
+
+	if (strcmp(pdata->name, "rk818") == 0) {
+		ret = regmap_read(rk808->regmap, RK818_ON_SOURCE_REG, &on_source);
+		if (ret)
+			dev_err(&client->dev, "read reg:0x%x failed\n", RK818_ON_SOURCE_REG);
+		ret = regmap_read(rk808->regmap, RK818_OFF_SOURCE_REG, &off_source);
+		if (ret)
+			dev_err(&client->dev, "read reg:0x%x failed\n", RK818_OFF_SOURCE_REG);
+		dev_info(&client->dev, "ON_SOURCE:0x%02x OFF_SOURCE:0x%02x\n",
+					on_source, off_source);
 	}
 
 	for (i = 0; i < pdata->reg_num; i++) {
