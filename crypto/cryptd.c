@@ -733,13 +733,14 @@ static void cryptd_aead_crypt(struct aead_request *req,
 	rctx = aead_request_ctx(req);
 	compl = rctx->complete;
 
+	tfm = crypto_aead_reqtfm(req);
+
 	if (unlikely(err == -EINPROGRESS))
 		goto out;
 	aead_request_set_tfm(req, child);
 	err = crypt( req );
 
 out:
-	tfm = crypto_aead_reqtfm(req);
 	ctx = crypto_aead_ctx(tfm);
 	refcnt = atomic_read(&ctx->refcnt);
 
