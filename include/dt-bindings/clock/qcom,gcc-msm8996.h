@@ -335,6 +335,9 @@
 #define GCC_MSMPU_BCR						98
 #define GCC_MSS_Q6_BCR						99
 #define GCC_QREFS_VBG_CAL_BCR					100
+#define GCC_PCIE_PHY_COM_BCR					101
+#define GCC_PCIE_PHY_COM_NOCSR_BCR				102
+
 
 /* Indexes for GDSCs */
 #define AGGRE0_NOC_GDSC			0
