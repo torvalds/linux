@@ -88,6 +88,7 @@ struct symbol_conf {
 	unsigned short	priv_size;
 	unsigned short	nr_events;
 	bool		try_vmlinux_path,
+			init_annotation,
 			force,
 			ignore_vmlinux,
 			ignore_vmlinux_buildid,
@@ -277,6 +278,8 @@ struct perf_env;
 int symbol__init(struct perf_env *env);
 void symbol__exit(void);
 void symbol__elf_init(void);
+int symbol__annotation_init(void);
+
 struct symbol *symbol__new(u64 start, u64 len, u8 binding, const char *name);
 size_t __symbol__fprintf_symname_offs(const struct symbol *sym,
 				      const struct addr_location *al,

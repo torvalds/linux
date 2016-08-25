@@ -1324,7 +1324,9 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (symbol_conf.cumulate_callchain && !callchain_param.order_set)
 		callchain_param.order = ORDER_CALLER;
 
-	symbol_conf.priv_size = sizeof(struct annotation);
+	status = symbol__annotation_init();
+	if (status < 0)
+		goto out_delete_evlist;
 
 	symbol_conf.try_vmlinux_path = (symbol_conf.vmlinux_name == NULL);
 	if (symbol__init(NULL) < 0)

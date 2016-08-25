@@ -204,8 +204,6 @@ static int __cmd_annotate(struct perf_annotate *ann)
 	struct perf_evsel *pos;
 	u64 total_nr_samples;
 
-	machines__set_symbol_filter(&session->machines, symbol__annotate_init);
-
 	if (ann->cpu_list) {
 		ret = perf_session__cpu_bitmap(session, ann->cpu_list,
 					       ann->cpu_bitmap);
@@ -367,7 +365,10 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (annotate.session == NULL)
 		return -1;
 
-	symbol_conf.priv_size = sizeof(struct annotation);
+	ret = symbol__annotation_init();
+	if (ret < 0)
+		goto out_delete;
+
 	symbol_conf.try_vmlinux_path = true;
 
 	ret = symbol__init(&annotate.session->header.env);

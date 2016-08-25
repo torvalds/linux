@@ -177,7 +177,6 @@ enum symbol_disassemble_errno {
 int symbol__strerror_disassemble(struct symbol *sym, struct map *map,
 				 int errnum, char *buf, size_t buflen);
 
-int symbol__annotate_init(struct map *map, struct symbol *sym);
 int symbol__annotate_printf(struct symbol *sym, struct map *map,
 			    struct perf_evsel *evsel, bool full_paths,
 			    int min_pcnt, int max_lines, int context);
