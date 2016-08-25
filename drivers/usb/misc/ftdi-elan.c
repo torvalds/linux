@@ -2730,7 +2730,6 @@ static int ftdi_elan_probe(struct usb_interface *interface,
 			ftdi->bulk_in_endpointAddr = endpoint->bEndpointAddress;
 			ftdi->bulk_in_buffer = kmalloc(buffer_size, GFP_KERNEL);
 			if (!ftdi->bulk_in_buffer) {
-				dev_err(&ftdi->udev->dev, "Could not allocate bulk_in_buffer\n");
 				retval = -ENOMEM;
 				goto error;
 			}
