@@ -817,10 +817,8 @@ static int tower_probe (struct usb_interface *interface, const struct usb_device
 
 	dev = kmalloc (sizeof(struct lego_usb_tower), GFP_KERNEL);
 
-	if (dev == NULL) {
-		dev_err(idev, "Out of memory\n");
+	if (!dev)
 		goto exit;
-	}
 
 	mutex_init(&dev->lock);
 
@@ -871,23 +869,17 @@ static int tower_probe (struct usb_interface *interface, const struct usb_device
 	}
 
 	dev->read_buffer = kmalloc (read_buffer_size, GFP_KERNEL);
-	if (!dev->read_buffer) {
-		dev_err(idev, "Couldn't allocate read_buffer\n");
+	if (!dev->read_buffer)
 		goto error;
-	}
 	dev->interrupt_in_buffer = kmalloc (usb_endpoint_maxp(dev->interrupt_in_endpoint), GFP_KERNEL);
-	if (!dev->interrupt_in_buffer) {
-		dev_err(idev, "Couldn't allocate interrupt_in_buffer\n");
+	if (!dev->interrupt_in_buffer)
 		goto error;
-	}
 	dev->interrupt_in_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!dev->interrupt_in_urb)
 		goto error;
 	dev->interrupt_out_buffer = kmalloc (write_buffer_size, GFP_KERNEL);
-	if (!dev->interrupt_out_buffer) {
-		dev_err(idev, "Couldn't allocate interrupt_out_buffer\n");
+	if (!dev->interrupt_out_buffer)
 		goto error;
-	}
 	dev->interrupt_out_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!dev->interrupt_out_urb)
 		goto error;
