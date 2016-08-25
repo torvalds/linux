@@ -68,7 +68,7 @@ static void tmc_etr_dump_hw(struct tmc_drvdata *drvdata)
 	 * Adjust the buffer to point to the beginning of the trace data
 	 * and update the available trace data.
 	 */
-	if (val & BIT(0)) {
+	if (val & TMC_STS_FULL) {
 		drvdata->buf = drvdata->vaddr + rwp - drvdata->paddr;
 		drvdata->len = drvdata->size;
 	} else {
