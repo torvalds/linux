@@ -1473,9 +1473,8 @@ static int __init mtk_hw_init(struct mtk_eth *eth)
 	for (i = 0; i < 2; i++) {
 		u32 val = mtk_r32(eth, MTK_GDMA_FWD_CFG(i));
 
-		/* setup the forward port to send frame to QDMA */
+		/* setup the forward port to send frame to PDMA */
 		val &= ~0xffff;
-		val |= 0x5555;
 
 		/* Enable RX checksum */
 		val |= MTK_GDMA_ICS_EN | MTK_GDMA_TCS_EN | MTK_GDMA_UCS_EN;
