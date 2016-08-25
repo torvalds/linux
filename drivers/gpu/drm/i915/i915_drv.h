@@ -3528,7 +3528,7 @@ static inline int i915_debugfs_register(struct drm_i915_private *dev_priv) {retu
 static inline void i915_debugfs_unregister(struct drm_i915_private *dev_priv) {}
 static inline int i915_debugfs_connector_add(struct drm_connector *connector)
 { return 0; }
-static inline void intel_display_crc_init(struct drm_device *dev) {}
+static inline void intel_display_crc_init(struct drm_i915_private *dev_priv) {}
 #endif
 
 /* i915_gpu_error.c */
