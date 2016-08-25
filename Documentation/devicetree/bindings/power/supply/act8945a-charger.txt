@@ -1,13 +1,18 @@
 Device-Tree bindings for charger of Active-semi ACT8945A Multi-Function Device
 
 Required properties:
- - compatible: "active-semi,act8945a", please refer to ../mfd/act8945a.txt.
+ - compatible: "active-semi,act8945a-charger".
  - active-semi,chglev-gpios: charge current level phandle with args
    as described in ../gpio/gpio.txt.
+ - active-semi,lbo-gpios: specify the low battery voltage detect phandle
+   with args as as described in ../gpio/gpio.txt.
+ - interrupts: <a b> where a is the interrupt number and b is a
+   field that represents an encoding of the sense and level
+   information for the interrupt.
+ - interrupt-parent: the phandle for the interrupt controller that
+   services interrupts for this device.
 
 Optional properties:
- - active-semi,check-battery-temperature: boolean to check the battery
-   temperature or not.
  - active-semi,input-voltage-threshold-microvolt: unit: mV;
    Specifies the charger's input over-voltage threshold value;
    The value can be: 6600, 7000, 7500, 8000; default: 6600
@@ -26,10 +31,18 @@ Example:
 		reg = <0x5b>;
 		status = "okay";
 
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_charger_chglev>;
-		active-semi,chglev-gpios = <&pioA 12 GPIO_ACTIVE_HIGH>;
-		active-semi,input-voltage-threshold-microvolt = <6600>;
-		active-semi,precondition-timeout = <40>;
-		active-semi,total-timeout = <3>;
+		charger {
+			compatible = "active-semi,act8945a-charger";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_charger_chglev &pinctrl_charger_lbo &pinctrl_charger_irq>;
+			interrupt-parent = <&pioA>;
+			interrupts = <45 GPIO_ACTIVE_LOW>;
+
+			active-semi,chglev-gpios = <&pioA 12 GPIO_ACTIVE_HIGH>;
+			active-semi,lbo-gpios = <&pioA 72 GPIO_ACTIVE_LOW>;
+			active-semi,input-voltage-threshold-microvolt = <6600>;
+			active-semi,precondition-timeout = <40>;
+			active-semi,total-timeout = <3>;
+			status = "okay";
+		};
 	};
