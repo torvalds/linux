@@ -3207,6 +3207,52 @@ int convert_perf_probe_events(struct perf_probe_event *pevs, int npevs)
 	return 0;
 }
 
+static int show_probe_trace_event(struct probe_trace_event *tev)
+{
+	char *buf = synthesize_probe_trace_command(tev);
+
+	if (!buf) {
+		pr_debug("Failed to synthesize probe trace event.\n");
+		return -EINVAL;
+	}
+
+	/* Showing definition always go stdout */
+	printf("%s\n", buf);
+	free(buf);
+
+	return 0;
+}
+
+int show_probe_trace_events(struct perf_probe_event *pevs, int npevs)
+{
+	struct strlist *namelist = strlist__new(NULL, NULL);
+	struct probe_trace_event *tev;
+	struct perf_probe_event *pev;
+	int i, j, ret = 0;
+
+	if (!namelist)
+		return -ENOMEM;
+
+	for (j = 0; j < npevs && !ret; j++) {
+		pev = &pevs[j];
+		for (i = 0; i < pev->ntevs && !ret; i++) {
+			tev = &pev->tevs[i];
+			/* Skip if the symbol is out of .text or blacklisted */
+			if (!tev->point.symbol && !pev->uprobes)
+				continue;
+
+			/* Set new name for tev (and update namelist) */
+			ret = probe_trace_event__set_name(tev, pev,
+							  namelist, true);
+			if (!ret)
+				ret = show_probe_trace_event(tev);
+		}
+	}
+	strlist__delete(namelist);
+
+	return ret;
+}
+
 int apply_perf_probe_events(struct perf_probe_event *pevs, int npevs)
 {
 	int i, ret = 0;

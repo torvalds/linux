@@ -21,6 +21,8 @@ or
 'perf probe' [options] --vars='PROBEPOINT'
 or
 'perf probe' [options] --funcs
+or
+'perf probe' [options] --definition='PROBE' [...]
 
 DESCRIPTION
 -----------
@@ -95,6 +97,11 @@ OPTIONS
 	Show available functions in given module or kernel. With -x/--exec,
 	can also list functions in a user space executable / shared library.
 	This also can accept a FILTER rule argument.
+
+-D::
+--definition=::
+	Show trace-event definition converted from given probe-event instead
+	of write it into tracing/[k,u]probe_events.
 
 --filter=FILTER::
 	(Only for --vars and --funcs) Set filter. FILTER is a combination of glob
