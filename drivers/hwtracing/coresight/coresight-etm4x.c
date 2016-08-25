@@ -581,16 +581,10 @@ static void etm4_set_default_config(struct etmv4_config *config)
 	config->vinst_ctrl |= BIT(0);
 }
 
-static void etm4_set_default_filter(struct etmv4_config *config)
+static void etm4_set_comparator_filter(struct etmv4_config *config,
+				       u64 start, u64 stop, int comparator)
 {
-	u64 start, stop, access_type = 0;
-
-	/*
-	 * Configure address range comparator '0' to encompass all
-	 * possible addresses.
-	 */
-	start = 0x0;
-	stop = ~0x0;
+	u64 access_type = 0;
 
 	/* EXLEVEL_NS, bits[12:15], always stay away from hypervisor mode. */
 	access_type = ETM_EXLEVEL_NS_HYP;
@@ -604,20 +598,46 @@ static void etm4_set_default_filter(struct etmv4_config *config)
 			ETM_EXLEVEL_S_HYP);
 
 	/* First half of default address comparator */
-	config->addr_val[ETM_DEFAULT_ADDR_COMP] = start;
-	config->addr_acc[ETM_DEFAULT_ADDR_COMP] = access_type;
-	config->addr_type[ETM_DEFAULT_ADDR_COMP] = ETM_ADDR_TYPE_RANGE;
+	config->addr_val[comparator] = start;
+	config->addr_acc[comparator] = access_type;
+	config->addr_type[comparator] = ETM_ADDR_TYPE_RANGE;
 
 	/* Second half of default address comparator */
-	config->addr_val[ETM_DEFAULT_ADDR_COMP + 1] = stop;
-	config->addr_acc[ETM_DEFAULT_ADDR_COMP + 1] = access_type;
-	config->addr_type[ETM_DEFAULT_ADDR_COMP + 1] = ETM_ADDR_TYPE_RANGE;
+	config->addr_val[comparator + 1] = stop;
+	config->addr_acc[comparator + 1] = access_type;
+	config->addr_type[comparator + 1] = ETM_ADDR_TYPE_RANGE;
 
 	/*
-	 * Configure the ViewInst function to filter on address range
-	 * comparator '0'.
+	 * Configure the ViewInst function to include this address range
+	 * comparator.
+	 *
+	 * @comparator is divided by two since it is the index in the
+	 * etmv4_config::addr_val array but register TRCVIIECTLR deals with
+	 * address range comparator _pairs_.
+	 *
+	 * Therefore:
+	 *	index 0 -> compatator pair 0
+	 *	index 2 -> comparator pair 1
+	 *	index 4 -> comparator pair 2
+	 *	...
+	 *	index 14 -> comparator pair 7
 	 */
-	config->viiectlr = BIT(0);
+	config->viiectlr |= BIT(comparator / 2);
+}
+
+static void etm4_set_default_filter(struct etmv4_config *config)
+{
+	u64 start, stop;
+
+	/*
+	 * Configure address range comparator '0' to encompass all
+	 * possible addresses.
+	 */
+	start = 0x0;
+	stop = ~0x0;
+
+	etm4_set_comparator_filter(config, start, stop,
+				   ETM_DEFAULT_ADDR_COMP);
 
 	/*
 	 * TRCVICTLR::SSSTATUS == 1, the start-stop logic is
