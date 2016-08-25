@@ -282,8 +282,8 @@ _clear_bss:
 	movel	%d0,m68k_mmutype
 	movel	#FPU_COLDFIRE,%d0
 	movel	%d0,m68k_fputype
-	movel	#MACH_M54XX,%d0
-	movel	%d0,m68k_machtype		/* Mark us as a 54xx machine */
+	movel	#MACHINE,%d0
+	movel	%d0,m68k_machtype		/* Mark machine type */
 	lea	init_task,%a2			/* Set "current" init task */
 #endif
 

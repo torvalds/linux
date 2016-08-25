@@ -341,6 +341,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 #ifdef CONFIG_COLDFIRE
 	case MACH_M54XX:
+	case MACH_M5441X:
 		config_BSP(NULL, 0);
 		break;
 #endif
