@@ -1139,10 +1139,8 @@ static int cxacru_bind(struct usbatm_data *usbatm_instance,
 
 	/* instance init */
 	instance = kzalloc(sizeof(*instance), GFP_KERNEL);
-	if (!instance) {
-		usb_dbg(usbatm_instance, "cxacru_bind: no memory for instance data\n");
+	if (!instance)
 		return -ENOMEM;
-	}
 
 	instance->usbatm = usbatm_instance;
 	instance->modem_type = (struct cxacru_modem_type *) id->driver_info;
