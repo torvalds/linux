@@ -16,6 +16,7 @@
 #include <linux/bitops.h>
 #include <linux/io.h>
 #include <linux/coresight.h>
+#include <linux/pm_runtime.h>
 
 /*
  * Coresight management registers (0xf00-0xfcc)
@@ -42,8 +43,11 @@ static ssize_t name##_show(struct device *_dev,				\
 			   struct device_attribute *attr, char *buf)	\
 {									\
 	type *drvdata = dev_get_drvdata(_dev->parent);			\
-	return scnprintf(buf, PAGE_SIZE, "0x%x\n",			\
-			 readl_relaxed(drvdata->base + offset));	\
+	u32 val;							\
+	pm_runtime_get_sync(_dev->parent);				\
+	val = readl_relaxed(drvdata->base + offset);			\
+	pm_runtime_put_sync(_dev->parent);				\
+	return scnprintf(buf, PAGE_SIZE, "0x%x\n", val);		\
 }									\
 static DEVICE_ATTR_RO(name)
 
