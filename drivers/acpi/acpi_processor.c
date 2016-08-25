@@ -659,6 +659,21 @@ static void __init acpi_processor_check_duplicates(void)
 						NULL, NULL, NULL);
 }
 
+bool __init acpi_processor_validate_proc_id(int proc_id)
+{
+	int i;
+
+	/*
+	 * compare the proc_id with duplicate IDs, if the proc_id is already
+	 * in the duplicate IDs, return true, otherwise, return false.
+	 */
+	for (i = 0; i < nr_duplicate_ids; i++) {
+		if (duplicate_processor_ids[i] == proc_id)
+			return true;
+	}
+	return false;
+}
+
 void __init acpi_processor_init(void)
 {
 	acpi_processor_check_duplicates();
