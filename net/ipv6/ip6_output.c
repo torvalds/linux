@@ -56,6 +56,7 @@
 #include <net/checksum.h>
 #include <linux/mroute6.h>
 #include <net/l3mdev.h>
+#include <net/lwtunnel.h>
 
 static int ip6_finish_output2(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
@@ -102,6 +103,13 @@ static int ip6_finish_output2(struct net *net, struct sock *sk, struct sk_buff *
 			kfree_skb(skb);
 			return 0;
 		}
+	}
+
+	if (lwtunnel_xmit_redirect(dst->lwtstate)) {
+		int res = lwtunnel_xmit(skb);
+
+		if (res < 0 || res == LWTUNNEL_XMIT_DONE)
+			return res;
 	}
 
 	rcu_read_lock_bh();
