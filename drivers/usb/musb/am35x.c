@@ -474,10 +474,8 @@ static int am35x_probe(struct platform_device *pdev)
 	int				ret = -ENOMEM;
 
 	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
-	if (!glue) {
-		dev_err(&pdev->dev, "failed to allocate glue context\n");
+	if (!glue)
 		goto err0;
-	}
 
 	phy_clk = clk_get(&pdev->dev, "fck");
 	if (IS_ERR(phy_clk)) {
