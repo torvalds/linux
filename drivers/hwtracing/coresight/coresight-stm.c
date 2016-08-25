@@ -105,10 +105,12 @@ module_param_named(
 /**
  * struct channel_space - central management entity for extended ports
  * @base:		memory mapped base address where channels start.
+ * @phys:		physical base address of channel region.
  * @guaraneed:		is the channel delivery guaranteed.
  */
 struct channel_space {
 	void __iomem		*base;
+	phys_addr_t		phys;
 	unsigned long		*guaranteed;
 };
 
@@ -354,6 +356,23 @@ static void stm_generic_unlink(struct stm_data *stm_data,
 		return;
 
 	stm_disable(drvdata->csdev);
+}
+
+static phys_addr_t
+stm_mmio_addr(struct stm_data *stm_data, unsigned int master,
+	      unsigned int channel, unsigned int nr_chans)
+{
+	struct stm_drvdata *drvdata = container_of(stm_data,
+						   struct stm_drvdata, stm);
+	phys_addr_t addr;
+
+	addr = drvdata->chs.phys + channel * BYTES_PER_CHANNEL;
+
+	if (offset_in_page(addr) ||
+	    offset_in_page(nr_chans * BYTES_PER_CHANNEL))
+		return 0;
+
+	return addr;
 }
 
 static long stm_generic_set_options(struct stm_data *stm_data,
@@ -761,7 +780,9 @@ static void stm_init_generic_data(struct stm_drvdata *drvdata)
 	drvdata->stm.sw_end = 1;
 	drvdata->stm.hw_override = true;
 	drvdata->stm.sw_nchannels = drvdata->numsp;
+	drvdata->stm.sw_mmiosz = BYTES_PER_CHANNEL;
 	drvdata->stm.packet = stm_generic_packet;
+	drvdata->stm.mmio_addr = stm_mmio_addr;
 	drvdata->stm.link = stm_generic_link;
 	drvdata->stm.unlink = stm_generic_unlink;
 	drvdata->stm.set_options = stm_generic_set_options;
@@ -808,6 +829,7 @@ static int stm_probe(struct amba_device *adev, const struct amba_id *id)
 	ret = stm_get_resource_byname(np, "stm-stimulus-base", &ch_res);
 	if (ret)
 		return ret;
+	drvdata->chs.phys = ch_res.start;
 
 	base = devm_ioremap_resource(dev, &ch_res);
 	if (IS_ERR(base))
