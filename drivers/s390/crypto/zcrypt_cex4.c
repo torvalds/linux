@@ -24,13 +24,6 @@
 #define CEX4C_MIN_MOD_SIZE	 16	/*  256 bits	*/
 #define CEX4C_MAX_MOD_SIZE	512	/* 4096 bits	*/
 
-#define CEX4A_SPEED_RATING	900	 /* TODO new card, new speed rating */
-#define CEX4C_SPEED_RATING	6500	 /* TODO new card, new speed rating */
-#define CEX4P_SPEED_RATING	7000	 /* TODO new card, new speed rating */
-#define CEX5A_SPEED_RATING	450	 /* TODO new card, new speed rating */
-#define CEX5C_SPEED_RATING	3250	 /* TODO new card, new speed rating */
-#define CEX5P_SPEED_RATING	3500	 /* TODO new card, new speed rating */
-
 #define CEX4A_MAX_MESSAGE_SIZE	MSGTYPE50_CRB3_MAX_MSG_SIZE
 #define CEX4C_MAX_MESSAGE_SIZE	MSGTYPE06_MAX_MSG_SIZE
 
@@ -71,6 +64,16 @@ static struct ap_driver zcrypt_cex4_driver = {
 static int zcrypt_cex4_probe(struct ap_device *ap_dev)
 {
 	struct zcrypt_device *zdev = NULL;
+	/*
+	 * Normalized speed ratings per crypto adapter
+	 * MEX_1k, MEX_2k, MEX_4k, CRT_1k, CRT_2k, CRT_4k, RNG, SECKEY
+	 */
+	int CEX4A_SPEED_IDX[] = {  5,  6,    59,  20, 115,  581,  0,  0};
+	int CEX5A_SPEED_IDX[] = {  3,  3,     6,   8,  32,  218,  0,  0};
+	int CEX4C_SPEED_IDX[] = { 24,  25,   82,  41, 138, 1111, 79,  8};
+	int CEX5C_SPEED_IDX[] = { 10,  14,   23,  17,  45,  242, 63,  4};
+	int CEX4P_SPEED_IDX[] = {142, 198, 1852, 203, 331, 1563,  0,  8};
+	int CEX5P_SPEED_IDX[] = { 49,  67,  131,  52,  85,  287,  0,  4};
 	int rc = 0;
 
 	switch (ap_dev->device_type) {
@@ -82,10 +85,12 @@ static int zcrypt_cex4_probe(struct ap_device *ap_dev)
 				return -ENOMEM;
 			if (ap_dev->device_type == AP_DEVICE_TYPE_CEX4) {
 				zdev->type_string = "CEX4A";
-				zdev->speed_rating = CEX4A_SPEED_RATING;
+				memcpy(zdev->speed_rating, CEX4A_SPEED_IDX,
+				       sizeof(CEX4A_SPEED_IDX));
 			} else {
 				zdev->type_string = "CEX5A";
-				zdev->speed_rating = CEX5A_SPEED_RATING;
+				memcpy(zdev->speed_rating, CEX5A_SPEED_IDX,
+				       sizeof(CEX5A_SPEED_IDX));
 			}
 			zdev->user_space_type = ZCRYPT_CEX3A;
 			zdev->min_mod_size = CEX4A_MIN_MOD_SIZE;
@@ -110,10 +115,12 @@ static int zcrypt_cex4_probe(struct ap_device *ap_dev)
 				return -ENOMEM;
 			if (ap_dev->device_type == AP_DEVICE_TYPE_CEX4) {
 				zdev->type_string = "CEX4C";
-				zdev->speed_rating = CEX4C_SPEED_RATING;
+				memcpy(zdev->speed_rating, CEX4C_SPEED_IDX,
+				       sizeof(CEX4C_SPEED_IDX));
 			} else {
 				zdev->type_string = "CEX5C";
-				zdev->speed_rating = CEX5C_SPEED_RATING;
+				memcpy(zdev->speed_rating, CEX5C_SPEED_IDX,
+				       sizeof(CEX5C_SPEED_IDX));
 			}
 			zdev->user_space_type = ZCRYPT_CEX3C;
 			zdev->min_mod_size = CEX4C_MIN_MOD_SIZE;
@@ -128,10 +135,12 @@ static int zcrypt_cex4_probe(struct ap_device *ap_dev)
 				return -ENOMEM;
 			if (ap_dev->device_type == AP_DEVICE_TYPE_CEX4) {
 				zdev->type_string = "CEX4P";
-				zdev->speed_rating = CEX4P_SPEED_RATING;
+				memcpy(zdev->speed_rating, CEX4P_SPEED_IDX,
+				       sizeof(CEX4P_SPEED_IDX));
 			} else {
 				zdev->type_string = "CEX5P";
-				zdev->speed_rating = CEX5P_SPEED_RATING;
+				memcpy(zdev->speed_rating, CEX5P_SPEED_IDX,
+				       sizeof(CEX5P_SPEED_IDX));
 			}
 			zdev->user_space_type = ZCRYPT_CEX4;
 			zdev->min_mod_size = CEX4C_MIN_MOD_SIZE;
@@ -147,6 +156,7 @@ static int zcrypt_cex4_probe(struct ap_device *ap_dev)
 		return -ENODEV;
 	zdev->ap_dev = ap_dev;
 	zdev->online = 1;
+	zdev->load = zdev->speed_rating[0];
 	ap_device_init_reply(ap_dev, &zdev->reply);
 	ap_dev->private = zdev;
 	rc = zcrypt_device_register(zdev);

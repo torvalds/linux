@@ -84,15 +84,32 @@ struct ica_z90_status {
  */
 #define ZCRYPT_RNG_BUFFER_SIZE	4096
 
+/*
+ * Identifier for Crypto Request Performance Index
+ */
+enum crypto_ops {
+	MEX_1K = 0,
+	MEX_2K,
+	MEX_4K,
+	CRT_1K,
+	CRT_2K,
+	CRT_4K,
+	HWRNG,
+	SECKEY,
+	NUM_OPS
+};
+
 struct zcrypt_device;
 
 struct zcrypt_ops {
 	long (*rsa_modexpo)(struct zcrypt_device *, struct ica_rsa_modexpo *);
 	long (*rsa_modexpo_crt)(struct zcrypt_device *,
 				struct ica_rsa_modexpo_crt *);
-	long (*send_cprb)(struct zcrypt_device *, struct ica_xcRB *);
-	long (*send_ep11_cprb)(struct zcrypt_device *, struct ep11_urb *);
-	long (*rng)(struct zcrypt_device *, char *);
+	long (*send_cprb)(struct zcrypt_device *, struct ica_xcRB *,
+			  struct ap_message *);
+	long (*send_ep11_cprb)(struct zcrypt_device *, struct ep11_urb *,
+			       struct ap_message *);
+	long (*rng)(struct zcrypt_device *, char *, struct ap_message *);
 	struct list_head list;		/* zcrypt ops list. */
 	struct module *owner;
 	int variant;
@@ -112,7 +129,8 @@ struct zcrypt_device {
 	int min_mod_size;		/* Min number of bits. */
 	int max_mod_size;		/* Max number of bits. */
 	int short_crt;			/* Card has crt length restriction. */
-	int speed_rating;		/* Speed of the crypto device. */
+	int speed_rating[NUM_OPS];	/* Speed idx of crypto ops. */
+	int load;			/* Utilization of the crypto device */
 
 	int request_count;		/* # current requests. */
 

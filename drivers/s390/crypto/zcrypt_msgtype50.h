@@ -35,6 +35,9 @@
 
 #define MSGTYPE_ADJUSTMENT		0x08  /*type04 extension (not needed in type50)*/
 
+unsigned int get_rsa_modex_fc(struct ica_rsa_modexpo *, int *);
+unsigned int get_rsa_crt_fc(struct ica_rsa_modexpo_crt *, int *);
+
 void zcrypt_msgtype50_init(void);
 void zcrypt_msgtype50_exit(void);
 

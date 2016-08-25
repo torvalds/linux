@@ -43,9 +43,6 @@
 #define CEX3A_MIN_MOD_SIZE	CEX2A_MIN_MOD_SIZE
 #define CEX3A_MAX_MOD_SIZE	512	/* 4096 bits	*/
 
-#define CEX2A_SPEED_RATING	970
-#define CEX3A_SPEED_RATING	900 /* Fixme: Needs finetuning */
-
 #define CEX2A_MAX_MESSAGE_SIZE	0x390	/* sizeof(struct type50_crb2_msg)    */
 #define CEX2A_MAX_RESPONSE_SIZE 0x110	/* max outputdatalength + type80_hdr */
 
@@ -87,6 +84,8 @@ static struct ap_driver zcrypt_cex2a_driver = {
 static int zcrypt_cex2a_probe(struct ap_device *ap_dev)
 {
 	struct zcrypt_device *zdev = NULL;
+	int CEX2A_SPEED_IDX[] = { 800, 1000, 2000,  900, 1200, 2400, 0};
+	int CEX3A_SPEED_IDX[] = { 400,	500, 1000,  450,  550, 1200, 0};
 	int rc = 0;
 
 	switch (ap_dev->device_type) {
@@ -99,7 +98,8 @@ static int zcrypt_cex2a_probe(struct ap_device *ap_dev)
 		zdev->min_mod_size = CEX2A_MIN_MOD_SIZE;
 		zdev->max_mod_size = CEX2A_MAX_MOD_SIZE;
 		zdev->short_crt = 1;
-		zdev->speed_rating = CEX2A_SPEED_RATING;
+		memcpy(zdev->speed_rating, CEX2A_SPEED_IDX,
+		       sizeof(CEX2A_SPEED_IDX));
 		zdev->max_exp_bit_length = CEX2A_MAX_MOD_SIZE;
 		break;
 	case AP_DEVICE_TYPE_CEX3A:
@@ -117,7 +117,8 @@ static int zcrypt_cex2a_probe(struct ap_device *ap_dev)
 			zdev->max_exp_bit_length = CEX3A_MAX_MOD_SIZE;
 		}
 		zdev->short_crt = 1;
-		zdev->speed_rating = CEX3A_SPEED_RATING;
+		memcpy(zdev->speed_rating, CEX3A_SPEED_IDX,
+		       sizeof(CEX3A_SPEED_IDX));
 		break;
 	}
 	if (!zdev)
@@ -125,6 +126,7 @@ static int zcrypt_cex2a_probe(struct ap_device *ap_dev)
 	zdev->ops = zcrypt_msgtype(MSGTYPE50_NAME, MSGTYPE50_VARIANT_DEFAULT);
 	zdev->ap_dev = ap_dev;
 	zdev->online = 1;
+	zdev->load = zdev->speed_rating[0];
 	ap_device_init_reply(ap_dev, &zdev->reply);
 	ap_dev->private = zdev;
 	rc = zcrypt_device_register(zdev);

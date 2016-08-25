@@ -173,6 +173,38 @@ struct type80_hdr {
 	unsigned char	reserved3[8];
 } __packed;
 
+unsigned int get_rsa_modex_fc(struct ica_rsa_modexpo *mex, int *fcode)
+{
+
+	if (!mex->inputdatalength)
+		return -EINVAL;
+
+	if (mex->inputdatalength <= 128)	/* 1024 bit */
+		*fcode = MEX_1K;
+	else if (mex->inputdatalength <= 256)	/* 2048 bit */
+		*fcode = MEX_2K;
+	else					/* 4096 bit */
+		*fcode = MEX_4K;
+
+	return 0;
+}
+
+unsigned int get_rsa_crt_fc(struct ica_rsa_modexpo_crt *crt, int *fcode)
+{
+
+	if (!crt->inputdatalength)
+		return -EINVAL;
+
+	if (crt->inputdatalength <= 128)	/* 1024 bit */
+		*fcode = CRT_1K;
+	else if (crt->inputdatalength <= 256)	/* 2048 bit */
+		*fcode = CRT_2K;
+	else					/* 4096 bit */
+		*fcode = CRT_4K;
+
+	return 0;
+}
+
 /**
  * Convert a ICAMEX message to a type50 MEX message.
  *
