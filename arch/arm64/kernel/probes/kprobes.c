@@ -41,18 +41,6 @@ DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 static void __kprobes
 post_kprobe_handler(struct kprobe_ctlblk *, struct pt_regs *);
 
-static inline unsigned long min_stack_size(unsigned long addr)
-{
-	unsigned long size;
-
-	if (on_irq_stack(addr, raw_smp_processor_id()))
-		size = IRQ_STACK_PTR(raw_smp_processor_id()) - addr;
-	else
-		size = (unsigned long)current_thread_info() + THREAD_START_SP - addr;
-
-	return min(size, FIELD_SIZEOF(struct kprobe_ctlblk, jprobes_stack));
-}
-
 static void __kprobes arch_prepare_ss_slot(struct kprobe *p)
 {
 	/* prepare insn slot */
@@ -489,20 +477,15 @@ int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	struct jprobe *jp = container_of(p, struct jprobe, kp);
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
-	long stack_ptr = kernel_stack_pointer(regs);
 
 	kcb->jprobe_saved_regs = *regs;
 	/*
-	 * As Linus pointed out, gcc assumes that the callee
-	 * owns the argument space and could overwrite it, e.g.
-	 * tailcall optimization. So, to be absolutely safe
-	 * we also save and restore enough stack bytes to cover
-	 * the argument area.
+	 * Since we can't be sure where in the stack frame "stacked"
+	 * pass-by-value arguments are stored we just don't try to
+	 * duplicate any of the stack. Do not use jprobes on functions that
+	 * use more than 64 bytes (after padding each to an 8 byte boundary)
+	 * of arguments, or pass individual arguments larger than 16 bytes.
 	 */
-	kasan_disable_current();
-	memcpy(kcb->jprobes_stack, (void *)stack_ptr,
-	       min_stack_size(stack_ptr));
-	kasan_enable_current();
 
 	instruction_pointer_set(regs, (unsigned long) jp->entry);
 	preempt_disable();
@@ -554,10 +537,6 @@ int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 	}
 	unpause_graph_tracing();
 	*regs = kcb->jprobe_saved_regs;
-	kasan_disable_current();
-	memcpy((void *)stack_addr, kcb->jprobes_stack,
-	       min_stack_size(stack_addr));
-	kasan_enable_current();
 	preempt_enable_no_resched();
 	return 1;
 }

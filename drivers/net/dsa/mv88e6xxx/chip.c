@@ -3187,6 +3187,7 @@ static int mv88e6xxx_set_addr(struct dsa_switch *ds, u8 *addr)
 	return err;
 }
 
+#ifdef CONFIG_NET_DSA_HWMON
 static int mv88e6xxx_mdio_page_read(struct dsa_switch *ds, int port, int page,
 				    int reg)
 {
@@ -3212,6 +3213,7 @@ static int mv88e6xxx_mdio_page_write(struct dsa_switch *ds, int port, int page,
 
 	return ret;
 }
+#endif
 
 static int mv88e6xxx_port_to_mdio_addr(struct mv88e6xxx_chip *chip, int port)
 {

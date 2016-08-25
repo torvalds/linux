@@ -661,9 +661,9 @@ void __init smp_init_cpus(void)
 		acpi_table_parse_madt(ACPI_MADT_TYPE_GENERIC_INTERRUPT,
 				      acpi_parse_gic_cpu_interface, 0);
 
-	if (cpu_count > NR_CPUS)
-		pr_warn("no. of cores (%d) greater than configured maximum of %d - clipping\n",
-			cpu_count, NR_CPUS);
+	if (cpu_count > nr_cpu_ids)
+		pr_warn("Number of cores (%d) exceeds configured maximum of %d - clipping\n",
+			cpu_count, nr_cpu_ids);
 
 	if (!bootcpu_valid) {
 		pr_err("missing boot CPU MPIDR, not enabling secondaries\n");
@@ -677,7 +677,7 @@ void __init smp_init_cpus(void)
 	 * with entries in cpu_logical_map while initializing the cpus.
 	 * If the cpu set-up fails, invalidate the cpu_logical_map entry.
 	 */
-	for (i = 1; i < NR_CPUS; i++) {
+	for (i = 1; i < nr_cpu_ids; i++) {
 		if (cpu_logical_map(i) != INVALID_HWID) {
 			if (smp_cpu_setup(i))
 				cpu_logical_map(i) = INVALID_HWID;

@@ -764,7 +764,7 @@ bool task_will_free_mem(struct task_struct *task)
 {
 	struct mm_struct *mm = task->mm;
 	struct task_struct *p;
-	bool ret;
+	bool ret = true;
 
 	/*
 	 * Skip tasks without mm because it might have passed its exit_mm and

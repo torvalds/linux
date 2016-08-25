@@ -113,6 +113,7 @@ struct nvmet_ctrl {
 
 	struct mutex		lock;
 	u64			cap;
+	u64			serial;
 	u32			cc;
 	u32			csts;
 
