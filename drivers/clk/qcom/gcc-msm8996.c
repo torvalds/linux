@@ -2592,9 +2592,9 @@ static struct clk_branch gcc_pcie_2_aux_clk = {
 };
 
 static struct clk_branch gcc_pcie_2_pipe_clk = {
-	.halt_reg = 0x6e108,
+	.halt_reg = 0x6e018,
 	.clkr = {
-		.enable_reg = 0x6e108,
+		.enable_reg = 0x6e018,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_pcie_2_pipe_clk",
