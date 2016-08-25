@@ -35,19 +35,6 @@
 #include "i915_drv.h"
 #include "i915_trace.h"
 
-static bool mutex_is_locked_by(struct mutex *mutex, struct task_struct *task)
-{
-	if (!mutex_is_locked(mutex))
-		return false;
-
-#if defined(CONFIG_DEBUG_MUTEXES) || defined(CONFIG_MUTEX_SPIN_ON_OWNER)
-	return mutex->owner == task;
-#else
-	/* Since UP may be pre-empted, we cannot assume that we own the lock */
-	return false;
-#endif
-}
-
 static bool any_vma_pinned(struct drm_i915_gem_object *obj)
 {
 	struct i915_vma *vma;
@@ -240,13 +227,8 @@ unsigned long i915_gem_shrink_all(struct drm_i915_private *dev_priv)
 
 static bool i915_gem_shrinker_lock(struct drm_device *dev, bool *unlock)
 {
-	if (!mutex_trylock(&dev->struct_mutex)) {
-		if (!mutex_is_locked_by(&dev->struct_mutex, current))
-			return false;
-
+	if (!mutex_trylock(&dev->struct_mutex))
 		*unlock = false;
-	} else
-		*unlock = true;
 
 	return true;
 }
