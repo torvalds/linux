@@ -3908,17 +3908,13 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 
 	hsotg->ctrl_buff = devm_kzalloc(hsotg->dev,
 			DWC2_CTRL_BUFF_SIZE, GFP_KERNEL);
-	if (!hsotg->ctrl_buff) {
-		dev_err(dev, "failed to allocate ctrl request buff\n");
+	if (!hsotg->ctrl_buff)
 		return -ENOMEM;
-	}
 
 	hsotg->ep0_buff = devm_kzalloc(hsotg->dev,
 			DWC2_CTRL_BUFF_SIZE, GFP_KERNEL);
-	if (!hsotg->ep0_buff) {
-		dev_err(dev, "failed to allocate ctrl reply buff\n");
+	if (!hsotg->ep0_buff)
 		return -ENOMEM;
-	}
 
 	ret = devm_request_irq(hsotg->dev, irq, dwc2_hsotg_irq, IRQF_SHARED,
 				dev_name(hsotg->dev), hsotg);
