@@ -302,7 +302,7 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 	struct coresight_platform_data *pdata = NULL;
 	struct tmc_drvdata *drvdata;
 	struct resource *res = &adev->res;
-	struct coresight_desc *desc;
+	struct coresight_desc desc = { 0 };
 	struct device_node *np = adev->dev.of_node;
 
 	if (np) {
@@ -317,10 +317,6 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 	ret = -ENOMEM;
 	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
-		goto out;
-
-	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
-	if (!desc)
 		goto out;
 
 	drvdata->dev = &adev->dev;
@@ -354,24 +350,25 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 
 	pm_runtime_put(&adev->dev);
 
-	desc->pdata = pdata;
-	desc->dev = dev;
-	desc->subtype.sink_subtype = CORESIGHT_DEV_SUBTYPE_SINK_BUFFER;
-	desc->groups = coresight_tmc_groups;
+	desc.pdata = pdata;
+	desc.dev = dev;
+	desc.groups = coresight_tmc_groups;
 
 	if (drvdata->config_type == TMC_CONFIG_TYPE_ETB) {
-		desc->type = CORESIGHT_DEV_TYPE_SINK;
-		desc->ops = &tmc_etb_cs_ops;
+		desc.type = CORESIGHT_DEV_TYPE_SINK;
+		desc.subtype.sink_subtype = CORESIGHT_DEV_SUBTYPE_SINK_BUFFER;
+		desc.ops = &tmc_etb_cs_ops;
 	} else if (drvdata->config_type == TMC_CONFIG_TYPE_ETR) {
-		desc->type = CORESIGHT_DEV_TYPE_SINK;
-		desc->ops = &tmc_etr_cs_ops;
+		desc.type = CORESIGHT_DEV_TYPE_SINK;
+		desc.subtype.sink_subtype = CORESIGHT_DEV_SUBTYPE_SINK_BUFFER;
+		desc.ops = &tmc_etr_cs_ops;
 	} else {
-		desc->type = CORESIGHT_DEV_TYPE_LINKSINK;
-		desc->subtype.link_subtype = CORESIGHT_DEV_SUBTYPE_LINK_FIFO;
-		desc->ops = &tmc_etf_cs_ops;
+		desc.type = CORESIGHT_DEV_TYPE_LINKSINK;
+		desc.subtype.link_subtype = CORESIGHT_DEV_SUBTYPE_LINK_FIFO;
+		desc.ops = &tmc_etf_cs_ops;
 	}
 
-	drvdata->csdev = coresight_register(desc);
+	drvdata->csdev = coresight_register(&desc);
 	if (IS_ERR(drvdata->csdev)) {
 		ret = PTR_ERR(drvdata->csdev);
 		goto out;
