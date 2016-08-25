@@ -2264,9 +2264,7 @@ static int _nbu2ss_enable_controller(struct nbu2ss_udc *udc)
 	if (udc->udc_enabled)
 		return 0;
 
-	/*
-		Reset
-	*/
+	/* Reset */
 	_nbu2ss_bitset(&udc->p_regs->EPCTR, (DIRPD | EPC_RST));
 	udelay(EPC_RST_DISABLE_TIME);	/* 1us wait */
 
