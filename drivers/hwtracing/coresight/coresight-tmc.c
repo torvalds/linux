@@ -140,8 +140,8 @@ static ssize_t tmc_read(struct file *file, char __user *data, size_t len,
 						   struct tmc_drvdata, miscdev);
 	char *bufp = drvdata->buf + *ppos;
 
-	if (*ppos + len > drvdata->size)
-		len = drvdata->size - *ppos;
+	if (*ppos + len > drvdata->len)
+		len = drvdata->len - *ppos;
 
 	if (drvdata->config_type == TMC_CONFIG_TYPE_ETR) {
 		if (bufp == (char *)(drvdata->vaddr + drvdata->size))
@@ -160,7 +160,7 @@ static ssize_t tmc_read(struct file *file, char __user *data, size_t len,
 	*ppos += len;
 
 	dev_dbg(drvdata->dev, "%s: %zu bytes copied, %d bytes left\n",
-		__func__, len, (int)(drvdata->size - *ppos));
+		__func__, len, (int)(drvdata->len - *ppos));
 	return len;
 }
 
