@@ -1476,10 +1476,8 @@ static int usbtmc_probe(struct usb_interface *intf,
 		/* allocate buffer for interrupt in */
 		data->iin_buffer = kmalloc(data->iin_wMaxPacketSize,
 					GFP_KERNEL);
-		if (!data->iin_buffer) {
-			dev_err(&intf->dev, "Failed to allocate int buf\n");
+		if (!data->iin_buffer)
 			goto error_register;
-		}
 
 		/* fill interrupt urb */
 		usb_fill_int_urb(data->iin_urb, data->usb_dev,
