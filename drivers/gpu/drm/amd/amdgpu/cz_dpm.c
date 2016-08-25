@@ -350,6 +350,8 @@ static int cz_parse_power_table(struct amdgpu_device *adev)
 
 		ps = kzalloc(sizeof(struct cz_ps), GFP_KERNEL);
 		if (ps == NULL) {
+			for (j = 0; j < i; j++)
+				kfree(adev->pm.dpm.ps[j].ps_priv);
 			kfree(adev->pm.dpm.ps);
 			return -ENOMEM;
 		}
