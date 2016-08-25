@@ -258,11 +258,9 @@ static void fsl_espi_do_trans(struct spi_message *m,
 	struct spi_device *spi = m->spi;
 	struct mpc8xxx_spi *mspi = spi_master_get_devdata(spi->master);
 	struct fsl_espi_transfer *espi_trans = tr;
-	struct spi_message message;
 	struct spi_transfer *t, *first, trans;
 	int status = 0;
 
-	spi_message_init(&message);
 	memset(&trans, 0, sizeof(trans));
 
 	first = list_first_entry(&m->transfers, struct spi_transfer,
@@ -284,23 +282,18 @@ static void fsl_espi_do_trans(struct spi_message *m,
 	trans.len = espi_trans->len;
 	trans.tx_buf = espi_trans->tx_buf;
 	trans.rx_buf = espi_trans->rx_buf;
-	spi_message_add_tail(&trans, &message);
 
-	list_for_each_entry(t, &message.transfers, transfer_list) {
-		if (t->bits_per_word || t->speed_hz)
-			fsl_espi_setup_transfer(spi, t);
+	if (trans.bits_per_word || trans.speed_hz)
+		fsl_espi_setup_transfer(spi, &trans);
 
-		if (t->len)
-			status = fsl_espi_bufs(spi, t);
+	if (trans.len)
+		status = fsl_espi_bufs(spi, &trans);
 
-		if (status) {
-			status = -EMSGSIZE;
-			break;
-		}
+	if (status)
+		status = -EMSGSIZE;
 
-		if (t->delay_usecs)
-			udelay(t->delay_usecs);
-	}
+	if (trans.delay_usecs)
+		udelay(trans.delay_usecs);
 
 	espi_trans->status = status;
 	fsl_espi_setup_transfer(spi, NULL);
