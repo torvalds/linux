@@ -52,7 +52,7 @@ Optional CPU/CODEC subnodes properties:
 					  clk_disable_unprepare() in dai
 					  shutdown().
 
-Example
+Example 1. Sampling Rate Covert
 
 sound {
 	compatible = "simple-scu-audio-card";
@@ -76,5 +76,35 @@ sound {
 	sndcodec: simple-audio-card,codec {
 		sound-dai = <&ak4643>;
 		system-clock-frequency = <11289600>;
+	};
+};
+
+Example 2. 2 CPU 1 Codec
+
+sound {
+	compatible = "renesas,rsrc-card";
+
+	card-name = "rsnd-ak4643";
+	format = "left_j";
+	bitclock-master = <&dpcmcpu>;
+	frame-master = <&dpcmcpu>;
+
+	convert-rate = <48000>;  /* see audio_clk_a */
+
+	audio-prefix = "ak4642";
+	audio-routing = "ak4642 Playback", "DAI0 Playback",
+			"ak4642 Playback", "DAI1 Playback";
+
+	dpcmcpu: cpu@0 {
+		sound-dai = <&rcar_sound 0>;
+	};
+
+	cpu@1 {
+		sound-dai = <&rcar_sound 1>;
+	};
+
+	codec {
+		sound-dai = <&ak4643>;
+		clocks = <&audio_clock>;
 	};
 };
