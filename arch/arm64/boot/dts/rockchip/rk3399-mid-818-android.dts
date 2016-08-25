@@ -911,14 +911,6 @@
 	};
 };
 
-&u2phy1 {
-	status = "okay";
-
-	u2phy1_otg: otg-port {
-		status = "okay";
-	};
-};
-
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_xfer &uart0_cts>;
@@ -937,28 +929,12 @@
 	status = "okay";
 };
 
-&usb_host1_ehci {
-	status = "okay";
-};
-
-&usb_host1_ohci {
-	status = "okay";
-};
-
 &usbdrd3_0 {
 	extcon = <&fusb0>;
 	status = "okay";
 };
 
 &usbdrd_dwc3_0 {
-	status = "okay";
-};
-
-&usbdrd3_1 {
-	status = "okay";
-};
-
-&usbdrd_dwc3_1 {
 	status = "okay";
 };
 
