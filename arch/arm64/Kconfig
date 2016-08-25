@@ -122,6 +122,9 @@ config ARCH_PHYS_ADDR_T_64BIT
 config MMU
 	def_bool y
 
+config DEBUG_RODATA
+	def_bool y
+
 config ARM64_PAGE_SHIFT
 	int
 	default 16 if ARM64_64K_PAGES
