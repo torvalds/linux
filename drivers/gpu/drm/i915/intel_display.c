@@ -13122,12 +13122,6 @@ static bool intel_fuzzy_clock_check(int clock1, int clock2)
 	return false;
 }
 
-#define for_each_intel_crtc_masked(dev, mask, intel_crtc) \
-	list_for_each_entry((intel_crtc), \
-			    &(dev)->mode_config.crtc_list, \
-			    base.head) \
-		for_each_if (mask & (1 <<(intel_crtc)->pipe))
-
 static bool
 intel_compare_m_n(unsigned int m, unsigned int n,
 		  unsigned int m2, unsigned int n2,
@@ -14578,8 +14572,6 @@ retry:
 out:
 		drm_atomic_state_free(state);
 }
-
-#undef for_each_intel_crtc_masked
 
 /*
  * FIXME: Remove this once i915 is fully DRIVER_ATOMIC by calling
