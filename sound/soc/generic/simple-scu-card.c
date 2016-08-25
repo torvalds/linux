@@ -22,12 +22,6 @@
 #include <sound/soc-dai.h>
 #include <sound/simple_card_utils.h>
 
-struct asoc_simple_card_of_data {
-	const char *prefix;
-	const struct snd_soc_dapm_route *routes;
-	int num_routes;
-};
-
 static const struct of_device_id asoc_simple_card_of_match[] = {
 	{ .compatible = "renesas,rsrc-card", },
 	{ .compatible = "simple-scu-audio-card", },
@@ -35,8 +29,6 @@ static const struct of_device_id asoc_simple_card_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, asoc_simple_card_of_match);
 
-#define IDX_CPU		0
-#define IDX_CODEC	1
 struct asoc_simple_card_priv {
 	struct snd_soc_card snd_card;
 	struct snd_soc_codec_conf codec_conf;
