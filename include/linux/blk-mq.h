@@ -22,11 +22,10 @@ struct blk_mq_hw_ctx {
 	struct {
 		spinlock_t		lock;
 		struct list_head	dispatch;
+		unsigned long		state;		/* BLK_MQ_S_* flags */
 	} ____cacheline_aligned_in_smp;
 
-	unsigned long		state;		/* BLK_MQ_S_* flags */
 	struct work_struct	run_work;
-	struct delayed_work	delay_work;
 	cpumask_var_t		cpumask;
 	int			next_cpu;
 	int			next_cpu_batch;
@@ -40,8 +39,8 @@ struct blk_mq_hw_ctx {
 
 	struct blk_mq_ctxmap	ctx_map;
 
-	unsigned int		nr_ctx;
 	struct blk_mq_ctx	**ctxs;
+	unsigned int		nr_ctx;
 
 	atomic_t		wait_index;
 
@@ -49,13 +48,15 @@ struct blk_mq_hw_ctx {
 
 	unsigned long		queued;
 	unsigned long		run;
-#define BLK_MQ_MAX_DISPATCH_ORDER	10
+#define BLK_MQ_MAX_DISPATCH_ORDER	7
 	unsigned long		dispatched[BLK_MQ_MAX_DISPATCH_ORDER];
 
 	unsigned int		numa_node;
 	unsigned int		queue_num;
 
 	atomic_t		nr_active;
+
+	struct delayed_work	delay_work;
 
 	struct blk_mq_cpu_notifier	cpu_notifier;
 	struct kobject		kobj;
