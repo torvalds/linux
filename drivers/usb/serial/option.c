@@ -525,6 +525,12 @@ static void option_instat_callback(struct urb *urb);
 #define VIATELECOM_VENDOR_ID			0x15eb
 #define VIATELECOM_PRODUCT_CDS7			0x0001
 
+/* WeTelecom products */
+#define WETELECOM_VENDOR_ID			0x22de
+#define WETELECOM_PRODUCT_WMD200		0x6801
+#define WETELECOM_PRODUCT_6802			0x6802
+#define WETELECOM_PRODUCT_WMD300		0x6803
+
 struct option_blacklist_info {
 	/* bitmask of interface numbers blacklisted for send_setup */
 	const unsigned long sendsetup;
@@ -1991,6 +1997,9 @@ static const struct usb_device_id option_ids[] = {
 	{ USB_DEVICE_INTERFACE_CLASS(0x2020, 0x4000, 0xff) },                /* OLICARD300 - MT6225 */
 	{ USB_DEVICE(INOVIA_VENDOR_ID, INOVIA_SEW858) },
 	{ USB_DEVICE(VIATELECOM_VENDOR_ID, VIATELECOM_PRODUCT_CDS7) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(WETELECOM_VENDOR_ID, WETELECOM_PRODUCT_WMD200, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(WETELECOM_VENDOR_ID, WETELECOM_PRODUCT_6802, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(WETELECOM_VENDOR_ID, WETELECOM_PRODUCT_WMD300, 0xff, 0xff, 0xff) },
 	{ } /* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, option_ids);
