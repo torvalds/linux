@@ -107,6 +107,15 @@ u8 ccu_mux_helper_get_parent(struct ccu_common *common,
 	parent = reg >> cm->shift;
 	parent &= (1 << cm->width) - 1;
 
+	if (cm->table) {
+		int num_parents = clk_hw_get_num_parents(&common->hw);
+		int i;
+
+		for (i = 0; i < num_parents; i++)
+			if (cm->table[i] == parent)
+				return i;
+	}
+
 	return parent;
 }
 
@@ -116,6 +125,9 @@ int ccu_mux_helper_set_parent(struct ccu_common *common,
 {
 	unsigned long flags;
 	u32 reg;
+
+	if (cm->table)
+		index = cm->table[index];
 
 	spin_lock_irqsave(common->lock, flags);
 
