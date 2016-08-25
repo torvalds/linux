@@ -7,9 +7,7 @@ HARDWARE_MGR = hwmgr.o processpptables.o functiontables.o \
 		cz_clockpowergating.o pppcielanes.o\
 		process_pptables_v1_0.o ppatomctrl.o \
 		smu7_hwmgr.o smu7_powertune.o smu7_thermal.o \
-		smu7_clockpowergating.o iceland_hwmgr.o \
-		iceland_clockpowergating.o iceland_thermal.o \
-		iceland_powertune.o
+		smu7_clockpowergating.o
 
 
 AMD_PP_HWMGR = $(addprefix $(AMD_PP_PATH)/hwmgr/,$(HARDWARE_MGR))

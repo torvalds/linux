@@ -36,13 +36,13 @@
 #include "amd_acpi.h"
 
 extern int cz_hwmgr_init(struct pp_hwmgr *hwmgr);
-extern int iceland_hwmgr_init(struct pp_hwmgr *hwmgr);
 
 static int polaris_set_asic_special_caps(struct pp_hwmgr *hwmgr);
 static void hwmgr_init_default_caps(struct pp_hwmgr *hwmgr);
 static int hwmgr_set_user_specify_caps(struct pp_hwmgr *hwmgr);
 static int fiji_set_asic_special_caps(struct pp_hwmgr *hwmgr);
 static int tonga_set_asic_special_caps(struct pp_hwmgr *hwmgr);
+static int topaz_set_asic_special_caps(struct pp_hwmgr *hwmgr);
 
 uint8_t convert_to_vid(uint16_t vddc)
 {
@@ -79,16 +79,18 @@ int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 	case AMDGPU_FAMILY_VI:
 		switch (hwmgr->chip_id) {
 		case CHIP_TOPAZ:
-			iceland_hwmgr_init(hwmgr);
+			topaz_set_asic_special_caps(hwmgr);
+			hwmgr->feature_mask &= ~(PP_SMC_VOLTAGE_CONTROL_MASK |
+						PP_VBI_TIME_SUPPORT_MASK |
+						PP_ENABLE_GFX_CG_THRU_SMU);
+			hwmgr->pp_table_version = PP_TABLE_V0;
 			break;
 		case CHIP_TONGA:
-			smu7_hwmgr_init(hwmgr);
 			tonga_set_asic_special_caps(hwmgr);
 			hwmgr->feature_mask &= ~(PP_SMC_VOLTAGE_CONTROL_MASK |
 						PP_VBI_TIME_SUPPORT_MASK);
 			break;
 		case CHIP_FIJI:
-			smu7_hwmgr_init(hwmgr);
 			fiji_set_asic_special_caps(hwmgr);
 			hwmgr->feature_mask &= ~(PP_SMC_VOLTAGE_CONTROL_MASK |
 						PP_VBI_TIME_SUPPORT_MASK |
@@ -96,13 +98,13 @@ int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 			break;
 		case CHIP_POLARIS11:
 		case CHIP_POLARIS10:
-			smu7_hwmgr_init(hwmgr);
 			polaris_set_asic_special_caps(hwmgr);
 			hwmgr->feature_mask &= ~(PP_UVD_HANDSHAKE_MASK);
 			break;
 		default:
 			return -EINVAL;
 		}
+		smu7_hwmgr_init(hwmgr);
 		break;
 	default:
 		return -EINVAL;
@@ -213,8 +215,6 @@ int phm_wait_on_register(struct pp_hwmgr *hwmgr, uint32_t index,
 		return -1;
 	return 0;
 }
-
-
 
 
 /**
@@ -792,5 +792,24 @@ int tonga_set_asic_special_caps(struct pp_hwmgr *hwmgr)
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_CAC);
 
+	return 0;
+}
+
+int topaz_set_asic_special_caps(struct pp_hwmgr *hwmgr)
+{
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_SQRamping);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_DBRamping);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_TDRamping);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_TCPRamping);
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			 PHM_PlatformCaps_TablelessHardwareInterface);
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_CAC);
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+		    PHM_PlatformCaps_EVV);
 	return 0;
 }
