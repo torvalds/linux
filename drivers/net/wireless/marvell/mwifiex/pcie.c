@@ -2043,6 +2043,10 @@ mwifiex_check_fw_status(struct mwifiex_adapter *adapter, u32 poll_num)
 			ret = -1;
 		else
 			ret = 0;
+
+		mwifiex_dbg(adapter, INFO, "Try %d if FW is ready <%d,%#x>",
+			    tries, ret, firmware_stat);
+
 		if (ret)
 			continue;
 		if (firmware_stat == FIRMWARE_READY_PCIE) {
