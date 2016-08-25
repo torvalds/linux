@@ -12,7 +12,6 @@
 #include <linux/err.h>
 #include <linux/fsl_devices.h>
 #include <linux/interrupt.h>
-#include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/of.h>
