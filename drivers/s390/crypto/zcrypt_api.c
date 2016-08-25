@@ -59,71 +59,22 @@ static int zcrypt_hwrng_seed = 1;
 module_param_named(hwrng_seed, zcrypt_hwrng_seed, int, S_IRUSR|S_IRGRP);
 MODULE_PARM_DESC(hwrng_seed, "Turn on/off hwrng auto seed, default is 1 (on).");
 
-static DEFINE_SPINLOCK(zcrypt_device_lock);
-static LIST_HEAD(zcrypt_device_list);
-static int zcrypt_device_count = 0;
+DEFINE_SPINLOCK(zcrypt_list_lock);
+LIST_HEAD(zcrypt_card_list);
+int zcrypt_device_count;
+
 static atomic_t zcrypt_open_count = ATOMIC_INIT(0);
 static atomic_t zcrypt_rescan_count = ATOMIC_INIT(0);
 
 atomic_t zcrypt_rescan_req = ATOMIC_INIT(0);
 EXPORT_SYMBOL(zcrypt_rescan_req);
 
-static int zcrypt_rng_device_add(void);
-static void zcrypt_rng_device_remove(void);
-
 static LIST_HEAD(zcrypt_ops_list);
 
-static debug_info_t *zcrypt_dbf_common;
-static debug_info_t *zcrypt_dbf_devices;
 static struct dentry *debugfs_root;
-
-/*
- * Device attributes common for all crypto devices.
- */
-static ssize_t zcrypt_type_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct zcrypt_device *zdev = to_ap_dev(dev)->private;
-	return snprintf(buf, PAGE_SIZE, "%s\n", zdev->type_string);
-}
-
-static DEVICE_ATTR(type, 0444, zcrypt_type_show, NULL);
-
-static ssize_t zcrypt_online_show(struct device *dev,
-				  struct device_attribute *attr, char *buf)
-{
-	struct zcrypt_device *zdev = to_ap_dev(dev)->private;
-	return snprintf(buf, PAGE_SIZE, "%d\n", zdev->online);
-}
-
-static ssize_t zcrypt_online_store(struct device *dev,
-				   struct device_attribute *attr,
-				   const char *buf, size_t count)
-{
-	struct zcrypt_device *zdev = to_ap_dev(dev)->private;
-	int online;
-
-	if (sscanf(buf, "%d\n", &online) != 1 || online < 0 || online > 1)
-		return -EINVAL;
-	zdev->online = online;
-	ZCRYPT_DBF_DEV(DBF_INFO, zdev, "dev%04xo%dman", zdev->ap_dev->qid,
-		       zdev->online);
-	if (!online)
-		ap_flush_queue(zdev->ap_dev);
-	return count;
-}
-
-static DEVICE_ATTR(online, 0644, zcrypt_online_show, zcrypt_online_store);
-
-static struct attribute * zcrypt_device_attrs[] = {
-	&dev_attr_type.attr,
-	&dev_attr_online.attr,
-	NULL,
-};
-
-static struct attribute_group zcrypt_device_attr_group = {
-	.attrs = zcrypt_device_attrs,
-};
+debug_info_t *zcrypt_dbf_common;
+debug_info_t *zcrypt_dbf_devices;
+debug_info_t *zcrypt_dbf_cards;
 
 /**
  * Process a rescan of the transport layer.
@@ -142,174 +93,6 @@ static inline int zcrypt_process_rescan(void)
 	}
 	return 0;
 }
-
-/**
- * __zcrypt_increase_preference(): Increase preference of a crypto device.
- * @zdev: Pointer the crypto device
- *
- * Move the device towards the head of the device list.
- * Need to be called while holding the zcrypt device list lock.
- * Note: cards with speed_rating of 0 are kept at the end of the list.
- */
-static void __zcrypt_increase_preference(struct zcrypt_device *zdev,
-				  unsigned int weight)
-{
-	struct zcrypt_device *tmp;
-	struct list_head *l;
-
-	zdev->load -= weight;
-	for (l = zdev->list.prev; l != &zcrypt_device_list; l = l->prev) {
-		tmp = list_entry(l, struct zcrypt_device, list);
-		if (tmp->load <= zdev->load)
-			break;
-	}
-	if (l == zdev->list.prev)
-		return;
-	/* Move zdev behind l */
-	list_move(&zdev->list, l);
-}
-
-/**
- * __zcrypt_decrease_preference(): Decrease preference of a crypto device.
- * @zdev: Pointer to a crypto device.
- *
- * Move the device towards the tail of the device list.
- * Need to be called while holding the zcrypt device list lock.
- * Note: cards with speed_rating of 0 are kept at the end of the list.
- */
-static void __zcrypt_decrease_preference(struct zcrypt_device *zdev,
-				  unsigned int weight)
-{
-	struct zcrypt_device *tmp;
-	struct list_head *l;
-
-	zdev->load += weight;
-	for (l = zdev->list.next; l != &zcrypt_device_list; l = l->next) {
-		tmp = list_entry(l, struct zcrypt_device, list);
-		if (tmp->load > zdev->load)
-			break;
-	}
-	if (l == zdev->list.next)
-		return;
-	/* Move zdev before l */
-	list_move_tail(&zdev->list, l);
-}
-
-static void zcrypt_device_release(struct kref *kref)
-{
-	struct zcrypt_device *zdev =
-		container_of(kref, struct zcrypt_device, refcount);
-	zcrypt_device_free(zdev);
-}
-
-void zcrypt_device_get(struct zcrypt_device *zdev)
-{
-	kref_get(&zdev->refcount);
-}
-EXPORT_SYMBOL(zcrypt_device_get);
-
-int zcrypt_device_put(struct zcrypt_device *zdev)
-{
-	return kref_put(&zdev->refcount, zcrypt_device_release);
-}
-EXPORT_SYMBOL(zcrypt_device_put);
-
-struct zcrypt_device *zcrypt_device_alloc(size_t max_response_size)
-{
-	struct zcrypt_device *zdev;
-
-	zdev = kzalloc(sizeof(struct zcrypt_device), GFP_KERNEL);
-	if (!zdev)
-		return NULL;
-	zdev->reply.message = kmalloc(max_response_size, GFP_KERNEL);
-	if (!zdev->reply.message)
-		goto out_free;
-	zdev->reply.length = max_response_size;
-	spin_lock_init(&zdev->lock);
-	INIT_LIST_HEAD(&zdev->list);
-	zdev->dbf_area = zcrypt_dbf_devices;
-	return zdev;
-
-out_free:
-	kfree(zdev);
-	return NULL;
-}
-EXPORT_SYMBOL(zcrypt_device_alloc);
-
-void zcrypt_device_free(struct zcrypt_device *zdev)
-{
-	kfree(zdev->reply.message);
-	kfree(zdev);
-}
-EXPORT_SYMBOL(zcrypt_device_free);
-
-/**
- * zcrypt_device_register() - Register a crypto device.
- * @zdev: Pointer to a crypto device
- *
- * Register a crypto device. Returns 0 if successful.
- */
-int zcrypt_device_register(struct zcrypt_device *zdev)
-{
-	int rc;
-
-	if (!zdev->ops)
-		return -ENODEV;
-	rc = sysfs_create_group(&zdev->ap_dev->device.kobj,
-				&zcrypt_device_attr_group);
-	if (rc)
-		goto out;
-	get_device(&zdev->ap_dev->device);
-	kref_init(&zdev->refcount);
-	spin_lock_bh(&zcrypt_device_lock);
-	zdev->online = 1;	/* New devices are online by default. */
-	ZCRYPT_DBF_DEV(DBF_INFO, zdev, "dev%04xo%dreg", zdev->ap_dev->qid,
-		       zdev->online);
-	list_add_tail(&zdev->list, &zcrypt_device_list);
-	__zcrypt_increase_preference(zdev, 0); /* sort devices acc. weight */
-	zcrypt_device_count++;
-	spin_unlock_bh(&zcrypt_device_lock);
-	if (zdev->ops->rng) {
-		rc = zcrypt_rng_device_add();
-		if (rc)
-			goto out_unregister;
-	}
-	return 0;
-
-out_unregister:
-	spin_lock_bh(&zcrypt_device_lock);
-	zcrypt_device_count--;
-	list_del_init(&zdev->list);
-	spin_unlock_bh(&zcrypt_device_lock);
-	sysfs_remove_group(&zdev->ap_dev->device.kobj,
-			   &zcrypt_device_attr_group);
-	put_device(&zdev->ap_dev->device);
-	zcrypt_device_put(zdev);
-out:
-	return rc;
-}
-EXPORT_SYMBOL(zcrypt_device_register);
-
-/**
- * zcrypt_device_unregister(): Unregister a crypto device.
- * @zdev: Pointer to crypto device
- *
- * Unregister a crypto device.
- */
-void zcrypt_device_unregister(struct zcrypt_device *zdev)
-{
-	if (zdev->ops->rng)
-		zcrypt_rng_device_remove();
-	spin_lock_bh(&zcrypt_device_lock);
-	zcrypt_device_count--;
-	list_del_init(&zdev->list);
-	spin_unlock_bh(&zcrypt_device_lock);
-	sysfs_remove_group(&zdev->ap_dev->device.kobj,
-			   &zcrypt_device_attr_group);
-	put_device(&zdev->ap_dev->device);
-	zcrypt_device_put(zdev);
-}
-EXPORT_SYMBOL(zcrypt_device_unregister);
 
 void zcrypt_msgtype_register(struct zcrypt_ops *zops)
 {
@@ -377,14 +160,44 @@ static int zcrypt_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+static inline struct zcrypt_queue *zcrypt_pick_queue(struct zcrypt_card *zc,
+						     struct zcrypt_queue *zq,
+						     unsigned int weight)
+{
+	if (!zq || !try_module_get(zq->queue->ap_dev.drv->driver.owner))
+		return NULL;
+	zcrypt_queue_get(zq);
+	get_device(&zq->queue->ap_dev.device);
+	atomic_add(weight, &zc->load);
+	atomic_add(weight, &zq->load);
+	zq->request_count++;
+	return zq;
+}
+
+static inline void zcrypt_drop_queue(struct zcrypt_card *zc,
+				     struct zcrypt_queue *zq,
+				     unsigned int weight)
+{
+	struct module *mod = zq->queue->ap_dev.drv->driver.owner;
+
+	zq->request_count--;
+	atomic_sub(weight, &zc->load);
+	atomic_sub(weight, &zq->load);
+	put_device(&zq->queue->ap_dev.device);
+	zcrypt_queue_put(zq);
+	module_put(mod);
+}
+
 /*
  * zcrypt ioctls.
  */
 static long zcrypt_rsa_modexpo(struct ica_rsa_modexpo *mex)
 {
-	struct zcrypt_device *zdev, *pref_zdev = NULL;
+	struct zcrypt_card *zc, *pref_zc;
+	struct zcrypt_queue *zq, *pref_zq;
+	unsigned int weight, pref_weight;
+	unsigned int func_code;
 	int rc;
-	unsigned int weight, func_code, pref_weight = 0;
 
 	if (mex->outputdatalength < mex->inputdatalength)
 		return -EINVAL;
@@ -399,59 +212,56 @@ static long zcrypt_rsa_modexpo(struct ica_rsa_modexpo *mex)
 	if (rc)
 		return rc;
 
-	spin_lock_bh(&zcrypt_device_lock);
-	list_for_each_entry(zdev, &zcrypt_device_list, list) {
-		if (!zdev->online ||
-		    !zdev->ops->rsa_modexpo ||
-		    zdev->min_mod_size > mex->inputdatalength ||
-		    zdev->max_mod_size < mex->inputdatalength)
+	pref_zc = NULL;
+	pref_zq = NULL;
+	spin_lock(&zcrypt_list_lock);
+	for_each_zcrypt_card(zc) {
+		/* Check for online accelarator and CCA cards */
+		if (!zc->online || !(zc->card->functions & 0x18000000))
 			continue;
-		weight = zdev->speed_rating[func_code];
-		if (!pref_zdev) {
-			pref_zdev = zdev;
+		/* Check for size limits */
+		if (zc->min_mod_size > mex->inputdatalength ||
+		    zc->max_mod_size < mex->inputdatalength)
+			continue;
+		/* get weight index of the card device	*/
+		weight = zc->speed_rating[func_code];
+		if (pref_zc && atomic_read(&zc->load) + weight >=
+		    atomic_read(&pref_zc->load) + pref_weight)
+			continue;
+		for_each_zcrypt_queue(zq, zc) {
+			/* check if device is online and eligible */
+			if (!zq->online)
+				continue;
+			if (pref_zq && atomic_read(&zq->load) + weight >=
+			    atomic_read(&pref_zq->load) + pref_weight)
+				continue;
+			pref_zc = zc;
+			pref_zq = zq;
 			pref_weight = weight;
-			continue;
 		}
-		if ((pref_zdev->load + pref_weight) > (zdev->load + weight)) {
-			pref_zdev = zdev;
-			pref_weight = weight;
-			continue;
-		}
-		if ((pref_zdev->load + pref_weight) <= zdev->load)
-			break; /* Load on remaining devices too high - abort */
 	}
+	pref_zq = zcrypt_pick_queue(pref_zc, pref_zq, weight);
+	spin_unlock(&zcrypt_list_lock);
 
-	if (!pref_zdev) {
-		spin_unlock_bh(&zcrypt_device_lock);
+	if (!pref_zq)
 		return -ENODEV;
-	}
-	__zcrypt_decrease_preference(pref_zdev, pref_weight);
-	zcrypt_device_get(pref_zdev);
-	get_device(&pref_zdev->ap_dev->device);
-	pref_zdev->request_count++;
-	if (try_module_get(pref_zdev->ap_dev->drv->driver.owner)) {
-		spin_unlock_bh(&zcrypt_device_lock);
-		rc = -ENODEV;
-		rc = pref_zdev->ops->rsa_modexpo(pref_zdev, mex);
-		spin_lock_bh(&zcrypt_device_lock);
-		module_put(pref_zdev->ap_dev->drv->driver.owner);
-	} else
-		rc = -EAGAIN;
 
-	pref_zdev->request_count--;
-	__zcrypt_increase_preference(pref_zdev, pref_weight);
-	put_device(&pref_zdev->ap_dev->device);
-	zcrypt_device_put(pref_zdev);
-	spin_unlock_bh(&zcrypt_device_lock);
+	rc = pref_zq->ops->rsa_modexpo(pref_zq, mex);
+
+	spin_lock(&zcrypt_list_lock);
+	zcrypt_drop_queue(pref_zc, pref_zq, weight);
+	spin_unlock(&zcrypt_list_lock);
+
 	return rc;
 }
 
 static long zcrypt_rsa_crt(struct ica_rsa_modexpo_crt *crt)
 {
-	struct zcrypt_device *zdev, *pref_zdev = NULL;
-	unsigned long long z1, z2, z3;
-	int rc, copied;
-	unsigned int weight, func_code, pref_weight = 0;
+	struct zcrypt_card *zc, *pref_zc;
+	struct zcrypt_queue *zq, *pref_zq;
+	unsigned int weight, pref_weight;
+	unsigned int func_code;
+	int rc;
 
 	if (crt->outputdatalength < crt->inputdatalength)
 		return -EINVAL;
@@ -466,385 +276,388 @@ static long zcrypt_rsa_crt(struct ica_rsa_modexpo_crt *crt)
 	if (rc)
 		return rc;
 
-	copied = 0;
- restart:
-	spin_lock_bh(&zcrypt_device_lock);
-	list_for_each_entry(zdev, &zcrypt_device_list, list) {
-		if (!zdev->online ||
-		    !zdev->ops->rsa_modexpo_crt ||
-		    zdev->min_mod_size > crt->inputdatalength ||
-		    zdev->max_mod_size < crt->inputdatalength)
+	pref_zc = NULL;
+	pref_zq = NULL;
+	spin_lock(&zcrypt_list_lock);
+	for_each_zcrypt_card(zc) {
+		/* Check for online accelarator and CCA cards */
+		if (!zc->online || !(zc->card->functions & 0x18000000))
 			continue;
-		if (zdev->short_crt && crt->inputdatalength > 240) {
-			/*
-			 * Check inputdata for leading zeros for cards
-			 * that can't handle np_prime, bp_key, or
-			 * u_mult_inv > 128 bytes.
-			 */
-			if (copied == 0) {
-				unsigned int len;
-				spin_unlock_bh(&zcrypt_device_lock);
-				/* len is max 256 / 2 - 120 = 8
-				 * For bigger device just assume len of leading
-				 * 0s is 8 as stated in the requirements for
-				 * ica_rsa_modexpo_crt struct in zcrypt.h.
-				 */
-				if (crt->inputdatalength <= 256)
-					len = crt->inputdatalength / 2 - 120;
-				else
-					len = 8;
-				if (len > sizeof(z1))
-					return -EFAULT;
-				z1 = z2 = z3 = 0;
-				if (copy_from_user(&z1, crt->np_prime, len) ||
-				    copy_from_user(&z2, crt->bp_key, len) ||
-				    copy_from_user(&z3, crt->u_mult_inv, len))
-					return -EFAULT;
-				z1 = z2 = z3 = 0;
-				copied = 1;
-				/*
-				 * We have to restart device lookup -
-				 * the device list may have changed by now.
-				 */
-				goto restart;
-			}
-			if (z1 != 0ULL || z2 != 0ULL || z3 != 0ULL)
-				/* The device can't handle this request. */
+		/* Check for size limits */
+		if (zc->min_mod_size > crt->inputdatalength ||
+		    zc->max_mod_size < crt->inputdatalength)
+			continue;
+		/* get weight index of the card device	*/
+		weight = zc->speed_rating[func_code];
+		if (pref_zc && atomic_read(&zc->load) + weight >=
+		    atomic_read(&pref_zc->load) + pref_weight)
+			continue;
+		for_each_zcrypt_queue(zq, zc) {
+			/* check if device is online and eligible */
+			if (!zq->online)
 				continue;
+			if (pref_zq && atomic_read(&zq->load) + weight >=
+			    atomic_read(&pref_zq->load) + pref_weight)
+				continue;
+			pref_zc = zc;
+			pref_zq = zq;
+			pref_weight = weight;
 		}
+	}
+	pref_zq = zcrypt_pick_queue(pref_zc, pref_zq, weight);
+	spin_unlock(&zcrypt_list_lock);
 
-		weight = zdev->speed_rating[func_code];
-		if (!pref_zdev) {
-			pref_zdev = zdev;
-			pref_weight = weight;
-			continue;
-		}
-		if ((pref_zdev->load + pref_weight) > (zdev->load + weight)) {
-			pref_zdev = zdev;
-			pref_weight = weight;
-			continue;
-		}
-		if ((pref_zdev->load + pref_weight) <= zdev->load)
-			break; /* Load on remaining devices too high - abort */
-	}
-	if (!pref_zdev) {
-		spin_unlock_bh(&zcrypt_device_lock);
+	if (!pref_zq)
 		return -ENODEV;
-	}
-	__zcrypt_decrease_preference(pref_zdev, pref_weight);
-	zcrypt_device_get(pref_zdev);
-	get_device(&pref_zdev->ap_dev->device);
-	pref_zdev->request_count++;
-	if (try_module_get(pref_zdev->ap_dev->drv->driver.owner)) {
-		spin_unlock_bh(&zcrypt_device_lock);
-		rc = pref_zdev->ops->rsa_modexpo_crt(pref_zdev, crt);
-		spin_lock_bh(&zcrypt_device_lock);
-		module_put(pref_zdev->ap_dev->drv->driver.owner);
-	} else
-		rc = -EAGAIN;
-	pref_zdev->request_count--;
-	__zcrypt_increase_preference(pref_zdev, pref_weight);
-	put_device(&pref_zdev->ap_dev->device);
-	zcrypt_device_put(pref_zdev);
-	spin_unlock_bh(&zcrypt_device_lock);
+
+	rc = pref_zq->ops->rsa_modexpo_crt(pref_zq, crt);
+
+	spin_lock(&zcrypt_list_lock);
+	zcrypt_drop_queue(pref_zc, pref_zq, weight);
+	spin_unlock(&zcrypt_list_lock);
+
 	return rc;
 }
 
 static long zcrypt_send_cprb(struct ica_xcRB *xcRB)
 {
-	struct zcrypt_device *zdev, *pref_zdev = NULL;
-	unsigned int weight = 0, func_code = 0, pref_weight = 0;
-	int rc;
+	struct zcrypt_card *zc, *pref_zc;
+	struct zcrypt_queue *zq, *pref_zq;
 	struct ap_message ap_msg;
+	unsigned int weight, pref_weight;
+	unsigned int func_code;
+	unsigned short *domain;
+	int rc;
 
-	rc = get_cprb_fc(xcRB, &ap_msg, &func_code);
+	rc = get_cprb_fc(xcRB, &ap_msg, &func_code, &domain);
 	if (rc)
 		return rc;
 
-	spin_lock_bh(&zcrypt_device_lock);
-	list_for_each_entry(zdev, &zcrypt_device_list, list) {
-		if (!zdev->online || !zdev->ops->send_cprb ||
-		   (zdev->ops->variant == MSGTYPE06_VARIANT_EP11) ||
-		   (xcRB->user_defined != AUTOSELECT &&
-		    AP_QID_DEVICE(zdev->ap_dev->qid) != xcRB->user_defined))
+	pref_zc = NULL;
+	pref_zq = NULL;
+	spin_lock(&zcrypt_list_lock);
+	for_each_zcrypt_card(zc) {
+		/* Check for online CCA cards */
+		if (!zc->online || !(zc->card->functions & 0x10000000))
 			continue;
+		/* Check for user selected CCA card */
+		if (xcRB->user_defined != AUTOSELECT &&
+		    xcRB->user_defined != zc->card->id)
+			continue;
+		/* get weight index of the card device	*/
+		weight = speed_idx_cca(func_code) * zc->speed_rating[SECKEY];
+		if (pref_zc && atomic_read(&zc->load) + weight >=
+		    atomic_read(&pref_zc->load) + pref_weight)
+			continue;
+		for_each_zcrypt_queue(zq, zc) {
+			/* check if device is online and eligible */
+			if (!zq->online ||
+			    ((*domain != (unsigned short) AUTOSELECT) &&
+			     (*domain != AP_QID_QUEUE(zq->queue->qid))))
+				continue;
+			if (pref_zq && atomic_read(&zq->load) + weight >=
+			    atomic_read(&pref_zq->load) + pref_weight)
+				continue;
+			pref_zc = zc;
+			pref_zq = zq;
+			pref_weight = weight;
+		}
+	}
+	pref_zq = zcrypt_pick_queue(pref_zc, pref_zq, weight);
+	spin_unlock(&zcrypt_list_lock);
 
-		weight = speed_idx_cca(func_code) * zdev->speed_rating[SECKEY];
-		if (!pref_zdev) {
-			pref_zdev = zdev;
-			pref_weight = weight;
-			continue;
-		}
-		if ((pref_zdev->load + pref_weight) > (zdev->load + weight)) {
-			pref_zdev = zdev;
-			pref_weight = weight;
-			continue;
-		}
-		if ((pref_zdev->load + pref_weight) <= zdev->load)
-			break; /* Load on remaining devices too high - abort */
-	}
-	if (!pref_zdev) {
-		spin_unlock_bh(&zcrypt_device_lock);
+	if (!pref_zq)
 		return -ENODEV;
-	}
-	__zcrypt_decrease_preference(pref_zdev, pref_weight);
-	zcrypt_device_get(pref_zdev);
-	get_device(&pref_zdev->ap_dev->device);
-	pref_zdev->request_count++;
-	if (try_module_get(pref_zdev->ap_dev->drv->driver.owner)) {
-		spin_unlock_bh(&zcrypt_device_lock);
-		rc = pref_zdev->ops->send_cprb(pref_zdev, xcRB, &ap_msg);
-		spin_lock_bh(&zcrypt_device_lock);
-		module_put(pref_zdev->ap_dev->drv->driver.owner);
-	} else
-		rc = -EAGAIN;
-	pref_zdev->request_count--;
-	__zcrypt_increase_preference(pref_zdev, pref_weight);
-	put_device(&pref_zdev->ap_dev->device);
-	zcrypt_device_put(pref_zdev);
-	spin_unlock_bh(&zcrypt_device_lock);
+
+	/* in case of auto select, provide the correct domain */
+	if (*domain == (unsigned short) AUTOSELECT)
+		*domain = AP_QID_QUEUE(pref_zq->queue->qid);
+
+	rc = pref_zq->ops->send_cprb(pref_zq, xcRB, &ap_msg);
+
+	spin_lock(&zcrypt_list_lock);
+	zcrypt_drop_queue(pref_zc, pref_zq, weight);
+	spin_unlock(&zcrypt_list_lock);
 	return rc;
 }
 
-struct ep11_target_dev_list {
-	unsigned short		targets_num;
-	struct ep11_target_dev	*targets;
-};
-
-static bool is_desired_ep11dev(unsigned int dev_qid,
-			       struct ep11_target_dev_list dev_list)
+static bool is_desired_ep11_card(unsigned int dev_id,
+				 unsigned short target_num,
+				 struct ep11_target_dev *targets)
 {
-	int n;
-
-	for (n = 0; n < dev_list.targets_num; n++, dev_list.targets++) {
-		if ((AP_QID_DEVICE(dev_qid) == dev_list.targets->ap_id) &&
-		    (AP_QID_QUEUE(dev_qid) == dev_list.targets->dom_id)) {
+	while (target_num-- > 0) {
+		if (dev_id == targets->ap_id)
 			return true;
-		}
+		targets++;
+	}
+	return false;
+}
+
+static bool is_desired_ep11_queue(unsigned int dev_qid,
+				  unsigned short target_num,
+				  struct ep11_target_dev *targets)
+{
+	while (target_num-- > 0) {
+		if (AP_MKQID(targets->ap_id, targets->dom_id) == dev_qid)
+			return true;
+		targets++;
 	}
 	return false;
 }
 
 static long zcrypt_send_ep11_cprb(struct ep11_urb *xcrb)
 {
-	struct zcrypt_device *zdev, *pref_zdev = NULL;
+	struct zcrypt_card *zc, *pref_zc;
+	struct zcrypt_queue *zq, *pref_zq;
+	struct ep11_target_dev *targets;
+	unsigned short target_num;
+	unsigned int weight, pref_weight;
+	unsigned int func_code;
 	struct ap_message ap_msg;
-	unsigned int weight = 0, func_code = 0, pref_weight = 0;
-	bool autoselect = false;
 	int rc;
-	struct ep11_target_dev_list ep11_dev_list = {
-		.targets_num	=  0x00,
-		.targets	=  NULL,
-	};
 
-	ep11_dev_list.targets_num = (unsigned short) xcrb->targets_num;
+	target_num = (unsigned short) xcrb->targets_num;
 
 	/* empty list indicates autoselect (all available targets) */
-	if (ep11_dev_list.targets_num == 0)
-		autoselect = true;
-	else {
-		ep11_dev_list.targets = kcalloc((unsigned short)
-						xcrb->targets_num,
-						sizeof(struct ep11_target_dev),
-						GFP_KERNEL);
-		if (!ep11_dev_list.targets)
+	targets = NULL;
+	if (target_num != 0) {
+		struct ep11_target_dev __user *uptr;
+
+		targets = kcalloc(target_num, sizeof(*targets), GFP_KERNEL);
+		if (!targets)
 			return -ENOMEM;
 
-		if (copy_from_user(ep11_dev_list.targets,
-				   (struct ep11_target_dev __force __user *)
-				   xcrb->targets, xcrb->targets_num *
-				   sizeof(struct ep11_target_dev)))
+		uptr = (struct ep11_target_dev __force __user *) xcrb->targets;
+		if (copy_from_user(targets, uptr,
+				   target_num * sizeof(*targets)))
 			return -EFAULT;
 	}
 
 	rc = get_ep11cprb_fc(xcrb, &ap_msg, &func_code);
 	if (rc)
-		return rc;
+		goto out_free;
 
-	spin_lock_bh(&zcrypt_device_lock);
-	list_for_each_entry(zdev, &zcrypt_device_list, list) {
-		/* check if device is eligible */
-		if (!zdev->online ||
-		    zdev->ops->variant != MSGTYPE06_VARIANT_EP11)
+	pref_zc = NULL;
+	pref_zq = NULL;
+	spin_lock(&zcrypt_list_lock);
+	for_each_zcrypt_card(zc) {
+		/* Check for online EP11 cards */
+		if (!zc->online || !(zc->card->functions & 0x04000000))
 			continue;
-
-		/* check if device is selected as valid target */
-		if (!is_desired_ep11dev(zdev->ap_dev->qid, ep11_dev_list) &&
-		    !autoselect)
+		/* Check for user selected EP11 card */
+		if (targets &&
+		    !is_desired_ep11_card(zc->card->id, target_num, targets))
 			continue;
-
-		weight = speed_idx_ep11(func_code) * zdev->speed_rating[SECKEY];
-		if (!pref_zdev) {
-			pref_zdev = zdev;
+		/* get weight index of the card device	*/
+		weight = speed_idx_ep11(func_code) * zc->speed_rating[SECKEY];
+		if (pref_zc && atomic_read(&zc->load) + weight >=
+		    atomic_read(&pref_zc->load) + pref_weight)
+			continue;
+		for_each_zcrypt_queue(zq, zc) {
+			/* check if device is online and eligible */
+			if (!zq->online ||
+			    (targets &&
+			     !is_desired_ep11_queue(zq->queue->qid,
+						    target_num, targets)))
+				continue;
+			if (pref_zq && atomic_read(&zq->load) + weight >=
+			    atomic_read(&pref_zq->load) + pref_weight)
+				continue;
+			pref_zc = zc;
+			pref_zq = zq;
 			pref_weight = weight;
-			continue;
 		}
-		if ((pref_zdev->load + pref_weight) > (zdev->load + weight)) {
-			pref_zdev = zdev;
-			pref_weight = weight;
-			continue;
-		}
-		if ((pref_zdev->load + pref_weight) <= zdev->load)
-			break; /* Load on remaining devices too high - abort */
 	}
-	if (!pref_zdev) {
-		spin_unlock_bh(&zcrypt_device_lock);
-		return -ENODEV;
+	pref_zq = zcrypt_pick_queue(pref_zc, pref_zq, weight);
+	spin_unlock(&zcrypt_list_lock);
+
+	if (!pref_zq) {
+		rc = -ENODEV;
+		goto out_free;
 	}
 
-	zcrypt_device_get(pref_zdev);
-	get_device(&pref_zdev->ap_dev->device);
-	pref_zdev->request_count++;
-	if (try_module_get(pref_zdev->ap_dev->drv->driver.owner)) {
-		spin_unlock_bh(&zcrypt_device_lock);
-		rc = pref_zdev->ops->send_ep11_cprb(pref_zdev, xcrb, &ap_msg);
-		spin_lock_bh(&zcrypt_device_lock);
-		module_put(pref_zdev->ap_dev->drv->driver.owner);
-	} else {
-		rc = -EAGAIN;
-	}
-	pref_zdev->request_count--;
-	put_device(&pref_zdev->ap_dev->device);
-	zcrypt_device_put(pref_zdev);
-	spin_unlock_bh(&zcrypt_device_lock);
+	rc = pref_zq->ops->send_ep11_cprb(pref_zq, xcrb, &ap_msg);
+
+	spin_lock(&zcrypt_list_lock);
+	zcrypt_drop_queue(pref_zc, pref_zq, weight);
+	spin_unlock(&zcrypt_list_lock);
+
+out_free:
+	kfree(targets);
 	return rc;
 }
 
 static long zcrypt_rng(char *buffer)
 {
-	struct zcrypt_device *zdev, *pref_zdev = NULL;
+	struct zcrypt_card *zc, *pref_zc;
+	struct zcrypt_queue *zq, *pref_zq;
+	unsigned int weight, pref_weight;
+	unsigned int func_code;
 	struct ap_message ap_msg;
-	unsigned int weight = 0, func_code = 0, pref_weight = 0;
+	unsigned int domain;
 	int rc;
 
-	rc = get_rng_fc(&ap_msg, &func_code);
+	rc = get_rng_fc(&ap_msg, &func_code, &domain);
 	if (rc)
 		return rc;
 
-	spin_lock_bh(&zcrypt_device_lock);
-	list_for_each_entry(zdev, &zcrypt_device_list, list) {
-		if (!zdev->online || !zdev->ops->rng)
+	pref_zc = NULL;
+	pref_zq = NULL;
+	spin_lock(&zcrypt_list_lock);
+	for_each_zcrypt_card(zc) {
+		/* Check for online CCA cards */
+		if (!zc->online || !(zc->card->functions & 0x10000000))
 			continue;
-
-		weight = zdev->speed_rating[func_code];
-		if (!pref_zdev) {
-			pref_zdev = zdev;
+		/* get weight index of the card device	*/
+		weight = zc->speed_rating[func_code];
+		if (pref_zc && atomic_read(&zc->load) + weight >=
+		    atomic_read(&pref_zc->load) + pref_weight)
+			continue;
+		for_each_zcrypt_queue(zq, zc) {
+			/* check if device is online and eligible */
+			if (!zq->online)
+				continue;
+			if (pref_zq && atomic_read(&zq->load) + weight >=
+			    atomic_read(&pref_zq->load) + pref_weight)
+				continue;
+			pref_zc = zc;
+			pref_zq = zq;
 			pref_weight = weight;
-			continue;
 		}
-		if ((pref_zdev->load + pref_weight) > (zdev->load + weight)) {
-			pref_zdev = zdev;
-			pref_weight = weight;
-			continue;
-		}
-		if ((pref_zdev->load + pref_weight) <= zdev->load)
-			break; /* Load on remaining devices too high - abort */
 	}
-	if (!pref_zdev) {
-		spin_unlock_bh(&zcrypt_device_lock);
+	pref_zq = zcrypt_pick_queue(pref_zc, pref_zq, weight);
+	spin_unlock(&zcrypt_list_lock);
+
+	if (!pref_zq)
 		return -ENODEV;
-	}
 
-	zcrypt_device_get(pref_zdev);
-	get_device(&pref_zdev->ap_dev->device);
-	pref_zdev->request_count++;
-	if (try_module_get(pref_zdev->ap_dev->drv->driver.owner)) {
-		spin_unlock_bh(&zcrypt_device_lock);
-		rc = pref_zdev->ops->rng(pref_zdev, buffer, &ap_msg);
-		spin_lock_bh(&zcrypt_device_lock);
-		module_put(pref_zdev->ap_dev->drv->driver.owner);
-	} else
-		rc = -EAGAIN;
-	pref_zdev->request_count--;
-	put_device(&pref_zdev->ap_dev->device);
-	zcrypt_device_put(pref_zdev);
-	spin_unlock_bh(&zcrypt_device_lock);
+	rc = pref_zq->ops->rng(pref_zq, buffer, &ap_msg);
+
+	spin_lock(&zcrypt_list_lock);
+	zcrypt_drop_queue(pref_zc, pref_zq, weight);
+	spin_unlock(&zcrypt_list_lock);
 	return rc;
 }
 
 static void zcrypt_status_mask(char status[AP_DEVICES])
 {
-	struct zcrypt_device *zdev;
+	struct zcrypt_card *zc;
+	struct zcrypt_queue *zq;
 
 	memset(status, 0, sizeof(char) * AP_DEVICES);
-	spin_lock_bh(&zcrypt_device_lock);
-	list_for_each_entry(zdev, &zcrypt_device_list, list)
-		status[AP_QID_DEVICE(zdev->ap_dev->qid)] =
-			zdev->online ? zdev->user_space_type : 0x0d;
-	spin_unlock_bh(&zcrypt_device_lock);
+	spin_lock(&zcrypt_list_lock);
+	for_each_zcrypt_card(zc) {
+		for_each_zcrypt_queue(zq, zc) {
+			if (AP_QID_QUEUE(zq->queue->qid) != ap_domain_index)
+				continue;
+			status[AP_QID_CARD(zq->queue->qid)] =
+				zc->online ? zc->user_space_type : 0x0d;
+		}
+	}
+	spin_unlock(&zcrypt_list_lock);
 }
 
 static void zcrypt_qdepth_mask(char qdepth[AP_DEVICES])
 {
-	struct zcrypt_device *zdev;
+	struct zcrypt_card *zc;
+	struct zcrypt_queue *zq;
 
 	memset(qdepth, 0, sizeof(char)	* AP_DEVICES);
-	spin_lock_bh(&zcrypt_device_lock);
-	list_for_each_entry(zdev, &zcrypt_device_list, list) {
-		spin_lock(&zdev->ap_dev->lock);
-		qdepth[AP_QID_DEVICE(zdev->ap_dev->qid)] =
-			zdev->ap_dev->pendingq_count +
-			zdev->ap_dev->requestq_count;
-		spin_unlock(&zdev->ap_dev->lock);
+	spin_lock(&zcrypt_list_lock);
+	for_each_zcrypt_card(zc) {
+		for_each_zcrypt_queue(zq, zc) {
+			if (AP_QID_QUEUE(zq->queue->qid) != ap_domain_index)
+				continue;
+			spin_lock(&zq->queue->lock);
+			qdepth[AP_QID_CARD(zq->queue->qid)] =
+				zq->queue->pendingq_count +
+				zq->queue->requestq_count;
+			spin_unlock(&zq->queue->lock);
+		}
 	}
-	spin_unlock_bh(&zcrypt_device_lock);
+	spin_unlock(&zcrypt_list_lock);
 }
 
 static void zcrypt_perdev_reqcnt(int reqcnt[AP_DEVICES])
 {
-	struct zcrypt_device *zdev;
+	struct zcrypt_card *zc;
+	struct zcrypt_queue *zq;
 
 	memset(reqcnt, 0, sizeof(int) * AP_DEVICES);
-	spin_lock_bh(&zcrypt_device_lock);
-	list_for_each_entry(zdev, &zcrypt_device_list, list) {
-		spin_lock(&zdev->ap_dev->lock);
-		reqcnt[AP_QID_DEVICE(zdev->ap_dev->qid)] =
-			zdev->ap_dev->total_request_count;
-		spin_unlock(&zdev->ap_dev->lock);
+	spin_lock(&zcrypt_list_lock);
+	for_each_zcrypt_card(zc) {
+		for_each_zcrypt_queue(zq, zc) {
+			if (AP_QID_QUEUE(zq->queue->qid) != ap_domain_index)
+				continue;
+			spin_lock(&zq->queue->lock);
+			reqcnt[AP_QID_CARD(zq->queue->qid)] =
+				zq->queue->total_request_count;
+			spin_unlock(&zq->queue->lock);
+		}
 	}
-	spin_unlock_bh(&zcrypt_device_lock);
+	spin_unlock(&zcrypt_list_lock);
 }
 
 static int zcrypt_pendingq_count(void)
 {
-	struct zcrypt_device *zdev;
-	int pendingq_count = 0;
+	struct zcrypt_card *zc;
+	struct zcrypt_queue *zq;
+	int pendingq_count;
 
-	spin_lock_bh(&zcrypt_device_lock);
-	list_for_each_entry(zdev, &zcrypt_device_list, list) {
-		spin_lock(&zdev->ap_dev->lock);
-		pendingq_count += zdev->ap_dev->pendingq_count;
-		spin_unlock(&zdev->ap_dev->lock);
+	pendingq_count = 0;
+	spin_lock(&zcrypt_list_lock);
+	for_each_zcrypt_card(zc) {
+		for_each_zcrypt_queue(zq, zc) {
+			if (AP_QID_QUEUE(zq->queue->qid) != ap_domain_index)
+				continue;
+			spin_lock(&zq->queue->lock);
+			pendingq_count += zq->queue->pendingq_count;
+			spin_unlock(&zq->queue->lock);
+		}
 	}
-	spin_unlock_bh(&zcrypt_device_lock);
+	spin_unlock(&zcrypt_list_lock);
 	return pendingq_count;
 }
 
 static int zcrypt_requestq_count(void)
 {
-	struct zcrypt_device *zdev;
-	int requestq_count = 0;
+	struct zcrypt_card *zc;
+	struct zcrypt_queue *zq;
+	int requestq_count;
 
-	spin_lock_bh(&zcrypt_device_lock);
-	list_for_each_entry(zdev, &zcrypt_device_list, list) {
-		spin_lock(&zdev->ap_dev->lock);
-		requestq_count += zdev->ap_dev->requestq_count;
-		spin_unlock(&zdev->ap_dev->lock);
+	requestq_count = 0;
+	spin_lock(&zcrypt_list_lock);
+	for_each_zcrypt_card(zc) {
+		for_each_zcrypt_queue(zq, zc) {
+			if (AP_QID_QUEUE(zq->queue->qid) != ap_domain_index)
+				continue;
+			spin_lock(&zq->queue->lock);
+			requestq_count += zq->queue->requestq_count;
+			spin_unlock(&zq->queue->lock);
+		}
 	}
-	spin_unlock_bh(&zcrypt_device_lock);
+	spin_unlock(&zcrypt_list_lock);
 	return requestq_count;
 }
 
 static int zcrypt_count_type(int type)
 {
-	struct zcrypt_device *zdev;
-	int device_count = 0;
+	struct zcrypt_card *zc;
+	struct zcrypt_queue *zq;
+	int device_count;
 
-	spin_lock_bh(&zcrypt_device_lock);
-	list_for_each_entry(zdev, &zcrypt_device_list, list)
-		if (zdev->user_space_type == type)
+	device_count = 0;
+	spin_lock(&zcrypt_list_lock);
+	for_each_zcrypt_card(zc) {
+		if (zc->card->id != type)
+			continue;
+		for_each_zcrypt_queue(zq, zc) {
+			if (AP_QID_QUEUE(zq->queue->qid) != ap_domain_index)
+				continue;
 			device_count++;
-	spin_unlock_bh(&zcrypt_device_lock);
+		}
+	}
+	spin_unlock(&zcrypt_list_lock);
 	return device_count;
 }
 
@@ -1313,29 +1126,36 @@ static int zcrypt_proc_open(struct inode *inode, struct file *file)
 
 static void zcrypt_disable_card(int index)
 {
-	struct zcrypt_device *zdev;
+	struct zcrypt_card *zc;
+	struct zcrypt_queue *zq;
 
-	spin_lock_bh(&zcrypt_device_lock);
-	list_for_each_entry(zdev, &zcrypt_device_list, list)
-		if (AP_QID_DEVICE(zdev->ap_dev->qid) == index) {
-			zdev->online = 0;
-			ap_flush_queue(zdev->ap_dev);
-			break;
+	spin_lock(&zcrypt_list_lock);
+	for_each_zcrypt_card(zc) {
+		for_each_zcrypt_queue(zq, zc) {
+			if (AP_QID_QUEUE(zq->queue->qid) != ap_domain_index)
+				continue;
+			zq->online = 0;
+			ap_flush_queue(zq->queue);
 		}
-	spin_unlock_bh(&zcrypt_device_lock);
+	}
+	spin_unlock(&zcrypt_list_lock);
 }
 
 static void zcrypt_enable_card(int index)
 {
-	struct zcrypt_device *zdev;
+	struct zcrypt_card *zc;
+	struct zcrypt_queue *zq;
 
-	spin_lock_bh(&zcrypt_device_lock);
-	list_for_each_entry(zdev, &zcrypt_device_list, list)
-		if (AP_QID_DEVICE(zdev->ap_dev->qid) == index) {
-			zdev->online = 1;
-			break;
+	spin_lock(&zcrypt_list_lock);
+	for_each_zcrypt_card(zc) {
+		for_each_zcrypt_queue(zq, zc) {
+			if (AP_QID_QUEUE(zq->queue->qid) != ap_domain_index)
+				continue;
+			zq->online = 1;
+			ap_flush_queue(zq->queue);
 		}
-	spin_unlock_bh(&zcrypt_device_lock);
+	}
+	spin_unlock(&zcrypt_list_lock);
 }
 
 static ssize_t zcrypt_proc_write(struct file *file, const char __user *buffer,
@@ -1433,7 +1253,7 @@ static struct hwrng zcrypt_rng_dev = {
 	.quality	= 990,
 };
 
-static int zcrypt_rng_device_add(void)
+int zcrypt_rng_device_add(void)
 {
 	int rc = 0;
 
@@ -1463,7 +1283,7 @@ out:
 	return rc;
 }
 
-static void zcrypt_rng_device_remove(void)
+void zcrypt_rng_device_remove(void)
 {
 	mutex_lock(&zcrypt_rng_mutex);
 	zcrypt_rng_device_count--;
@@ -1485,6 +1305,10 @@ int __init zcrypt_debug_init(void)
 	zcrypt_dbf_devices = debug_register("zcrypt_devices", 1, 1, 16);
 	debug_register_view(zcrypt_dbf_devices, &debug_hex_ascii_view);
 	debug_set_level(zcrypt_dbf_devices, DBF_ERR);
+
+	zcrypt_dbf_cards = debug_register("zcrypt_cards", 1, 1, 16);
+	debug_register_view(zcrypt_dbf_cards, &debug_hex_ascii_view);
+	debug_set_level(zcrypt_dbf_cards, DBF_ERR);
 
 	return 0;
 }
@@ -1517,7 +1341,8 @@ int __init zcrypt_api_init(void)
 		goto out;
 
 	/* Set up the proc file system */
-	zcrypt_entry = proc_create("driver/z90crypt", 0644, NULL, &zcrypt_proc_fops);
+	zcrypt_entry = proc_create("driver/z90crypt", 0644, NULL,
+				   &zcrypt_proc_fops);
 	if (!zcrypt_entry) {
 		rc = -ENOMEM;
 		goto out_misc;

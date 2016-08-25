@@ -87,7 +87,7 @@ struct error_hdr {
 #define REP88_ERROR_OPERAND	     0x84	/* CEX2A	*/
 #define REP88_ERROR_OPERAND_EVEN_MOD 0x85	/* CEX2A	*/
 
-static inline int convert_error(struct zcrypt_device *zdev,
+static inline int convert_error(struct zcrypt_queue *zq,
 				struct ap_message *reply)
 {
 	struct error_hdr *ehdr = reply->message;
@@ -110,11 +110,13 @@ static inline int convert_error(struct zcrypt_device *zdev,
 		 * and then repeat the request.
 		 */
 		atomic_set(&zcrypt_rescan_req, 1);
-		zdev->online = 0;
-		pr_err("Cryptographic device %x failed and was set offline\n",
-		       AP_QID_DEVICE(zdev->ap_dev->qid));
-		ZCRYPT_DBF_DEV(DBF_ERR, zdev, "dev%04xo%drc%d",
-			AP_QID_DEVICE(zdev->ap_dev->qid), zdev->online,
+		zq->online = 0;
+		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
+		       AP_QID_CARD(zq->queue->qid),
+		       AP_QID_QUEUE(zq->queue->qid));
+		ZCRYPT_DBF_DEV(DBF_ERR, zq, "dev%02x%04xo%drc%d",
+			AP_QID_CARD(zq->queue->qid),
+			AP_QID_QUEUE(zq->queue->qid), zq->online,
 			ehdr->reply_code);
 		return -EAGAIN;
 	case REP82_ERROR_TRANSPORT_FAIL:
@@ -122,19 +124,23 @@ static inline int convert_error(struct zcrypt_device *zdev,
 	//   REP88_ERROR_MODULE_FAILURE		// '10' CEX2A
 		/* If a card fails disable it and repeat the request. */
 		atomic_set(&zcrypt_rescan_req, 1);
-		zdev->online = 0;
-		pr_err("Cryptographic device %x failed and was set offline\n",
-		       AP_QID_DEVICE(zdev->ap_dev->qid));
-		ZCRYPT_DBF_DEV(DBF_ERR, zdev, "dev%04xo%drc%d",
-			AP_QID_DEVICE(zdev->ap_dev->qid), zdev->online,
+		zq->online = 0;
+		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
+		       AP_QID_CARD(zq->queue->qid),
+		       AP_QID_QUEUE(zq->queue->qid));
+		ZCRYPT_DBF_DEV(DBF_ERR, zq, "dev%02x%04xo%drc%d",
+			AP_QID_CARD(zq->queue->qid),
+			AP_QID_QUEUE(zq->queue->qid), zq->online,
 			ehdr->reply_code);
 		return -EAGAIN;
 	default:
-		zdev->online = 0;
-		pr_err("Cryptographic device %x failed and was set offline\n",
-		       AP_QID_DEVICE(zdev->ap_dev->qid));
-		ZCRYPT_DBF_DEV(DBF_ERR, zdev, "dev%04xo%drc%d",
-			AP_QID_DEVICE(zdev->ap_dev->qid), zdev->online,
+		zq->online = 0;
+		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
+		       AP_QID_CARD(zq->queue->qid),
+		       AP_QID_QUEUE(zq->queue->qid));
+		ZCRYPT_DBF_DEV(DBF_ERR, zq, "dev%02x%04xo%drc%d",
+			AP_QID_CARD(zq->queue->qid),
+			AP_QID_QUEUE(zq->queue->qid), zq->online,
 			ehdr->reply_code);
 		return -EAGAIN;	/* repeat the request on a different device. */
 	}

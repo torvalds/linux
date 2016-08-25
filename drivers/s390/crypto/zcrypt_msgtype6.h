@@ -116,9 +116,11 @@ struct type86_fmt2_ext {
 	unsigned int	  offset4;	/* 0x00000000			*/
 } __packed;
 
-unsigned int get_cprb_fc(struct ica_xcRB *, struct ap_message *, int *);
-unsigned int get_ep11cprb_fc(struct ep11_urb *, struct ap_message *, int *);
-unsigned int get_rng_fc(struct ap_message *, int *);
+unsigned int get_cprb_fc(struct ica_xcRB *, struct ap_message *,
+			 unsigned int *, unsigned short **);
+unsigned int get_ep11cprb_fc(struct ep11_urb *, struct ap_message *,
+			     unsigned int *);
+unsigned int get_rng_fc(struct ap_message *, int *, unsigned int *);
 
 #define LOW	10
 #define MEDIUM	100
@@ -134,7 +136,8 @@ int speed_idx_ep11(int);
  * @ap_msg: pointer to AP message
  */
 static inline void rng_type6CPRB_msgX(struct ap_message *ap_msg,
-				      unsigned int random_number_length)
+				      unsigned int random_number_length,
+				      unsigned int *domain)
 {
 	struct {
 		struct type6_hdr hdr;
@@ -172,6 +175,7 @@ static inline void rng_type6CPRB_msgX(struct ap_message *ap_msg,
 	msg->verb_length = 0x02;
 	msg->key_length = 0x02;
 	ap_msg->length = sizeof(*msg);
+	*domain = (unsigned short)msg->cprbx.domain;
 }
 
 void zcrypt_msgtype6_init(void);
