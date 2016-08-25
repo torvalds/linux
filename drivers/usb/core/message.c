@@ -1760,17 +1760,14 @@ int usb_set_configuration(struct usb_device *dev, int configuration)
 		nintf = cp->desc.bNumInterfaces;
 		new_interfaces = kmalloc(nintf * sizeof(*new_interfaces),
 				GFP_NOIO);
-		if (!new_interfaces) {
-			dev_err(&dev->dev, "Out of memory\n");
+		if (!new_interfaces)
 			return -ENOMEM;
-		}
 
 		for (; n < nintf; ++n) {
 			new_interfaces[n] = kzalloc(
 					sizeof(struct usb_interface),
 					GFP_NOIO);
 			if (!new_interfaces[n]) {
-				dev_err(&dev->dev, "Out of memory\n");
 				ret = -ENOMEM;
 free_interfaces:
 				while (--n >= 0)
