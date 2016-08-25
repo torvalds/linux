@@ -1313,6 +1313,9 @@ static int br_fill_linkxstats(struct sk_buff *skb,
 		return -EMSGSIZE;
 
 	if (vg) {
+		u16 pvid;
+
+		pvid = br_get_pvid(vg);
 		list_for_each_entry(v, &vg->vlan_list, vlist) {
 			struct bridge_vlan_xstats vxi;
 			struct br_vlan_stats stats;
@@ -1322,6 +1325,8 @@ static int br_fill_linkxstats(struct sk_buff *skb,
 			memset(&vxi, 0, sizeof(vxi));
 			vxi.vid = v->vid;
 			vxi.flags = v->flags;
+			if (v->vid == pvid)
+				vxi.flags |= BRIDGE_VLAN_INFO_PVID;
 			br_vlan_get_stats(v, &stats);
 			vxi.rx_bytes = stats.rx_bytes;
 			vxi.rx_packets = stats.rx_packets;
