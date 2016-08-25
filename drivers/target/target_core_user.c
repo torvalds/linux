@@ -96,7 +96,7 @@ struct tcmu_dev {
 	size_t dev_size;
 	u32 cmdr_size;
 	u32 cmdr_last_cleaned;
-	/* Offset of data ring from start of mb */
+	/* Offset of data area from start of mb */
 	/* Must add data_off and mb_addr to get the address */
 	size_t data_off;
 	size_t data_size;
@@ -349,7 +349,7 @@ static inline size_t spc_bitmap_free(unsigned long *bitmap)
 
 /*
  * We can't queue a command until we have space available on the cmd ring *and*
- * space available on the data ring.
+ * space available on the data area.
  *
  * Called with ring lock held.
  */
@@ -436,7 +436,7 @@ tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 	if ((command_size > (udev->cmdr_size / 2)) ||
 	    data_length > udev->data_size) {
 		pr_warn("TCMU: Request of size %zu/%zu is too big for %u/%zu "
-			"cmd/data ring buffers\n", command_size, data_length,
+			"cmd ring/data area\n", command_size, data_length,
 			udev->cmdr_size, udev->data_size);
 		spin_unlock_irq(&udev->cmdr_lock);
 		return TCM_INVALID_CDB_FIELD;
@@ -491,9 +491,7 @@ tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 
 	bitmap_copy(old_bitmap, udev->data_bitmap, DATA_BLOCK_BITS);
 
-	/*
-	 * Fix up iovecs, and handle if allocation in data ring wrapped.
-	 */
+	/* Handle allocating space from the data area */
 	iov = &entry->req.iov[0];
 	iov_cnt = 0;
 	copy_to_data_area = (se_cmd->data_direction == DMA_TO_DEVICE
@@ -566,7 +564,7 @@ static void tcmu_handle_completion(struct tcmu_cmd *cmd, struct tcmu_cmd_entry *
 	if (test_bit(TCMU_CMD_BIT_EXPIRED, &cmd->flags)) {
 		/*
 		 * cmd has been completed already from timeout, just reclaim
-		 * data ring space and free cmd
+		 * data area space and free cmd
 		 */
 		free_data_area(udev, cmd);
 
