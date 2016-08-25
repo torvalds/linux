@@ -95,8 +95,9 @@ LUSTRE_STATIC_UINT_ATTR(timeout, &obd_timeout);
 static ssize_t max_dirty_mb_show(struct kobject *kobj, struct attribute *attr,
 				 char *buf)
 {
-	return sprintf(buf, "%ul\n",
-			obd_max_dirty_pages / (1 << (20 - PAGE_SHIFT)));
+	return sprintf(buf, "%lu\n",
+		       (unsigned long)obd_max_dirty_pages /
+		       (1 << (20 - PAGE_SHIFT)));
 }
 
 static ssize_t max_dirty_mb_store(struct kobject *kobj, struct attribute *attr,
