@@ -1008,6 +1008,9 @@ static int test_cipher(struct crypto_cipher *tfm, int enc,
 		if (template[i].np)
 			continue;
 
+		if (fips_enabled && template[i].fips_skip)
+			continue;
+
 		j++;
 
 		ret = -EINVAL;
@@ -1112,6 +1115,9 @@ static int __test_skcipher(struct crypto_skcipher *tfm, int enc,
 		if (template[i].np && !template[i].also_non_np)
 			continue;
 
+		if (fips_enabled && template[i].fips_skip)
+			continue;
+
 		if (template[i].iv)
 			memcpy(iv, template[i].iv, ivsize);
 		else
@@ -1196,6 +1202,9 @@ static int __test_skcipher(struct crypto_skcipher *tfm, int enc,
 			break;
 
 		if (!template[i].np)
+			continue;
+
+		if (fips_enabled && template[i].fips_skip)
 			continue;
 
 		if (template[i].iv)
