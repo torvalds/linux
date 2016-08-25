@@ -22,6 +22,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/cpufreq.h>
 #include <trace/events/sched.h>
+#include <clocksource/arm_arch_timer.h>
 #include "sched.h"
 #include "walt.h"
 
