@@ -90,7 +90,11 @@ static int mpls_xmit(struct sk_buff *skb)
 	if (skb_cow(skb, hh_len + new_header_size))
 		goto drop;
 
+	skb_set_inner_protocol(skb, skb->protocol);
+	skb_reset_inner_network_header(skb);
+
 	skb_push(skb, new_header_size);
+
 	skb_reset_network_header(skb);
 
 	skb->dev = out_dev;
