@@ -22,6 +22,7 @@
 #include <linux/sched/sysctl.h>
 #include <linux/delay.h>
 #include <linux/crash_dump.h>
+#include <linux/prefetch.h>
 
 #include <trace/events/block.h>
 
@@ -588,8 +589,10 @@ EXPORT_SYMBOL(blk_mq_abort_requeue_list);
 
 struct request *blk_mq_tag_to_rq(struct blk_mq_tags *tags, unsigned int tag)
 {
-	if (tag < tags->nr_tags)
+	if (tag < tags->nr_tags) {
+		prefetch(tags->rqs[tag]);
 		return tags->rqs[tag];
+	}
 
 	return NULL;
 }
