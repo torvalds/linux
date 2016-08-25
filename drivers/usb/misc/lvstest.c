@@ -245,10 +245,8 @@ static ssize_t get_dev_desc_store(struct device *dev,
 	int ret;
 
 	descriptor = kmalloc(sizeof(*descriptor), GFP_KERNEL);
-	if (!descriptor) {
-		dev_err(dev, "failed to allocate descriptor memory\n");
+	if (!descriptor)
 		return -ENOMEM;
-	}
 
 	udev = create_lvs_device(intf);
 	if (!udev) {
