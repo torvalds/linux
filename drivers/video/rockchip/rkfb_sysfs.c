@@ -1211,6 +1211,24 @@ static ssize_t show_win_property(struct device *dev,
 			dev_drv->win[win_id]->property.max_input_y);
 }
 
+static ssize_t set_car_reverse(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct rk_fb_par *fb_par = (struct rk_fb_par *)fbi->par;
+	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
+	u32 status;
+	int ret;
+
+	ret = kstrtou32(buf, 0, &status);
+	if (ret)
+		return ret;
+	rk_fb_set_car_reverse_status(dev_drv, status);
+
+	return count;
+}
+
 static struct device_attribute rkfb_attrs[] = {
 	__ATTR(phys_addr, S_IRUGO, show_phys, NULL),
 	__ATTR(virt_addr, S_IRUGO, show_virt, NULL),
@@ -1231,6 +1249,7 @@ static struct device_attribute rkfb_attrs[] = {
 	__ATTR(scale, S_IRUGO | S_IWUSR, show_scale, set_scale),
 	__ATTR(lcdcid, S_IRUGO, show_lcdc_id, NULL),
 	__ATTR(win_property, S_IRUGO, show_win_property, NULL),
+	__ATTR(car_reverse, S_IWUSR, NULL, set_car_reverse),
 };
 
 int rkfb_create_sysfs(struct fb_info *fbi)

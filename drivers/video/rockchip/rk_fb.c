@@ -90,6 +90,12 @@ module_param(rk_fb_iommu_debug, int, S_IRUGO | S_IWUSR);
 static int rk_fb_config_debug(struct rk_lcdc_driver *dev_drv,
 			      struct rk_fb_win_cfg_data *win_data,
 			      struct rk_fb_reg_data *regs, u32 cmd);
+static int car_reversing;
+
+static int is_car_camcap(void) {
+	return car_reversing && strcmp("camcap", current->comm);
+}
+
 int support_uboot_display(void)
 {
 	return uboot_logo_on;
@@ -1374,7 +1380,7 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var,
 	u16 uv_x_off, uv_y_off, uv_y_act;
 	u8 is_pic_yuv = 0;
 
-	if (dev_drv->suspend_flag)
+	if (dev_drv->suspend_flag || is_car_camcap())
 		return 0;
 	win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
 	if (win_id < 0)
@@ -2979,6 +2985,15 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 			if (cfgdone_index >= 10)
 				cfgdone_index = 0;
 		}
+		if (is_car_camcap()) {
+			int i = 0;
+
+			for (i = 0; i < RK_MAX_BUF_NUM; i++)
+				win_data.rel_fence_fd[i] = -1;
+
+			win_data.ret_fence_fd = -1;
+			goto cam_exit;
+		}
 		if (copy_from_user(&win_data,
 				   (struct rk_fb_win_cfg_data __user *)argp,
 				   sizeof(win_data))) {
@@ -2989,6 +3004,7 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		dev_drv->wait_fs = win_data.wait_fs;
 		ret = rk_fb_set_win_config(info, &win_data);
 
+cam_exit:
 		if (copy_to_user((struct rk_fb_win_cfg_data __user *)arg,
 				 &win_data, sizeof(win_data))) {
 			ret = -EFAULT;
@@ -3018,6 +3034,8 @@ static int rk_fb_blank(int blank_mode, struct fb_info *info)
 	struct rk_fb *rk_fb = dev_get_drvdata(info->device);
 #endif
 
+	if (is_car_camcap())
+		return 0;
 	win_id = dev_drv->ops->fb_get_win_id(dev_drv, fix->id);
 	if (win_id < 0)
 		return -ENODEV;
@@ -3229,7 +3247,7 @@ static int rk_fb_set_par(struct fb_info *info)
 	u16 uv_x_off, uv_y_off, uv_y_act;
 	u8 is_pic_yuv = 0;
 	/*var->pixclock = dev_drv->pixclock;*/
-	if (dev_drv->suspend_flag)
+	if (dev_drv->suspend_flag || is_car_camcap())
 		return 0;
 	win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
 	if (win_id < 0)
@@ -4507,6 +4525,29 @@ int rk_fb_unregister(struct rk_lcdc_driver *dev_drv)
 	}
 	fb_inf->lcdc_dev_drv[dev_drv->id] = NULL;
 	fb_inf->num_lcdc--;
+
+	return 0;
+}
+
+int rk_fb_set_car_reverse_status(struct rk_lcdc_driver *dev_drv,
+				 int status)
+{
+	char *envp[3] = {"Request", "FORCE UPDATE", NULL};
+
+	if (status) {
+		car_reversing = 1;
+		flush_kthread_worker(&dev_drv->update_regs_worker);
+		dev_drv->timeline_max++;
+#ifdef H_USE_FENCE
+		sw_sync_timeline_inc(dev_drv->timeline, 1);
+#endif
+		pr_debug("%s: camcap reverse start...\n", __func__);
+	} else {
+		car_reversing = 0;
+		kobject_uevent_env(&dev_drv->dev->kobj,
+				   KOBJ_CHANGE, envp);
+		pr_debug("%s: camcap reverse finish...\n", __func__);
+	}
 
 	return 0;
 }

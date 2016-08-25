@@ -830,5 +830,6 @@ int rk_fb_get_display_policy(void);
 int rk_fb_pixel_width(int data_format);
 void trace_buffer_dump(struct device *dev,
 			      struct rk_lcdc_driver *dev_drv);
+int rk_fb_set_car_reverse_status(struct rk_lcdc_driver *dev_drv, int status);
 extern int rockchip_get_screen_type(void);
 #endif
