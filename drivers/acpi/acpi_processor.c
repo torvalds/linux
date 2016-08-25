@@ -182,6 +182,11 @@ int __weak arch_register_cpu(int cpu)
 
 void __weak arch_unregister_cpu(int cpu) {}
 
+int __weak acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
+{
+	return -ENODEV;
+}
+
 static int acpi_processor_hotadd_init(struct acpi_processor *pr)
 {
 	unsigned long long sta;
