@@ -348,6 +348,6 @@ static struct platform_driver asoc_simple_card = {
 module_platform_driver(asoc_simple_card);
 
 MODULE_ALIAS("platform:asoc-simple-scu-card");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("ASoC Simple SCU Sound Card");
 MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
