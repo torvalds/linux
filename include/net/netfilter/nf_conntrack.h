@@ -42,7 +42,6 @@ union nf_conntrack_expect_proto {
 
 #include <linux/types.h>
 #include <linux/skbuff.h>
-#include <linux/timer.h>
 
 #ifdef CONFIG_NETFILTER_DEBUG
 #define NF_CT_ASSERT(x)		WARN_ON(!(x))
@@ -73,7 +72,7 @@ struct nf_conn_help {
 #include <net/netfilter/ipv6/nf_conntrack_ipv6.h>
 
 struct nf_conn {
-	/* Usage count in here is 1 for hash table/destruct timer, 1 per skb,
+	/* Usage count in here is 1 for hash table, 1 per skb,
 	 * plus 1 for any connection(s) we are `master' for
 	 *
 	 * Hint, SKB address this struct and refcnt via skb->nfct and
@@ -96,8 +95,8 @@ struct nf_conn {
 	/* Have we seen traffic both ways yet? (bitset) */
 	unsigned long status;
 
-	/* Timer function; drops refcnt when it goes off. */
-	struct timer_list timeout;
+	/* jiffies32 when this ct is considered dead */
+	u32 timeout;
 
 	possible_net_t ct_net;
 
@@ -291,12 +290,26 @@ static inline bool nf_is_loopback_packet(const struct sk_buff *skb)
 	return skb->dev && skb->skb_iif && skb->dev->flags & IFF_LOOPBACK;
 }
 
+#define nfct_time_stamp ((u32)(jiffies))
+
 /* jiffies until ct expires, 0 if already expired */
 static inline unsigned long nf_ct_expires(const struct nf_conn *ct)
 {
-	long timeout = (long)ct->timeout.expires - (long)jiffies;
+	s32 timeout = ct->timeout - nfct_time_stamp;
 
 	return timeout > 0 ? timeout : 0;
+}
+
+static inline bool nf_ct_is_expired(const struct nf_conn *ct)
+{
+	return (__s32)(ct->timeout - nfct_time_stamp) <= 0;
+}
+
+/* use after obtaining a reference count */
+static inline bool nf_ct_should_gc(const struct nf_conn *ct)
+{
+	return nf_ct_is_expired(ct) && nf_ct_is_confirmed(ct) &&
+	       !nf_ct_is_dying(ct);
 }
 
 struct kernel_param;

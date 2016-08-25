@@ -371,7 +371,6 @@ destroy_conntrack(struct nf_conntrack *nfct)
 
 	pr_debug("destroy_conntrack(%p)\n", ct);
 	NF_CT_ASSERT(atomic_read(&nfct->use) == 0);
-	NF_CT_ASSERT(!timer_pending(&ct->timeout));
 
 	if (unlikely(nf_ct_is_template(ct))) {
 		nf_ct_tmpl_free(ct);
@@ -434,34 +433,29 @@ bool nf_ct_delete(struct nf_conn *ct, u32 portid, int report)
 {
 	struct nf_conn_tstamp *tstamp;
 
+	if (test_and_set_bit(IPS_DYING_BIT, &ct->status))
+		return false;
+
 	tstamp = nf_conn_tstamp_find(ct);
 	if (tstamp && tstamp->stop == 0)
 		tstamp->stop = ktime_get_real_ns();
 
-	if (nf_ct_is_dying(ct))
-		goto delete;
-
 	if (nf_conntrack_event_report(IPCT_DESTROY, ct,
 				    portid, report) < 0) {
-		/* destroy event was not delivered */
+		/* destroy event was not delivered. nf_ct_put will
+		 * be done by event cache worker on redelivery.
+		 */
 		nf_ct_delete_from_lists(ct);
 		nf_conntrack_ecache_delayed_work(nf_ct_net(ct));
 		return false;
 	}
 
 	nf_conntrack_ecache_work(nf_ct_net(ct));
-	set_bit(IPS_DYING_BIT, &ct->status);
- delete:
 	nf_ct_delete_from_lists(ct);
 	nf_ct_put(ct);
 	return true;
 }
 EXPORT_SYMBOL_GPL(nf_ct_delete);
-
-static void death_by_timeout(unsigned long ul_conntrack)
-{
-	nf_ct_delete((struct nf_conn *)ul_conntrack, 0, 0);
-}
 
 static inline bool
 nf_ct_key_equal(struct nf_conntrack_tuple_hash *h,
@@ -478,6 +472,18 @@ nf_ct_key_equal(struct nf_conntrack_tuple_hash *h,
 	       nf_ct_zone_equal(ct, zone, NF_CT_DIRECTION(h)) &&
 	       nf_ct_is_confirmed(ct) &&
 	       net_eq(net, nf_ct_net(ct));
+}
+
+/* caller must hold rcu readlock and none of the nf_conntrack_locks */
+static void nf_ct_gc_expired(struct nf_conn *ct)
+{
+	if (!atomic_inc_not_zero(&ct->ct_general.use))
+		return;
+
+	if (nf_ct_should_gc(ct))
+		nf_ct_kill(ct);
+
+	nf_ct_put(ct);
 }
 
 /*
@@ -499,6 +505,17 @@ begin:
 	bucket = reciprocal_scale(hash, hsize);
 
 	hlist_nulls_for_each_entry_rcu(h, n, &ct_hash[bucket], hnnode) {
+		struct nf_conn *ct;
+
+		ct = nf_ct_tuplehash_to_ctrack(h);
+		if (nf_ct_is_expired(ct)) {
+			nf_ct_gc_expired(ct);
+			continue;
+		}
+
+		if (nf_ct_is_dying(ct))
+			continue;
+
 		if (nf_ct_key_equal(h, tuple, zone, net)) {
 			NF_CT_STAT_INC_ATOMIC(net, found);
 			return h;
@@ -597,7 +614,6 @@ nf_conntrack_hash_check_insert(struct nf_conn *ct)
 				    zone, net))
 			goto out;
 
-	add_timer(&ct->timeout);
 	smp_wmb();
 	/* The caller holds a reference to this object */
 	atomic_set(&ct->ct_general.use, 2);
@@ -750,8 +766,7 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 	/* Timer relative to confirmation time, not original
 	   setting time, otherwise we'd get timer wrap in
 	   weird delay cases. */
-	ct->timeout.expires += jiffies;
-	add_timer(&ct->timeout);
+	ct->timeout += nfct_time_stamp;
 	atomic_inc(&ct->ct_general.use);
 	ct->status |= IPS_CONFIRMED;
 
@@ -815,8 +830,16 @@ nf_conntrack_tuple_taken(const struct nf_conntrack_tuple *tuple,
 
 	hlist_nulls_for_each_entry_rcu(h, n, &ct_hash[hash], hnnode) {
 		ct = nf_ct_tuplehash_to_ctrack(h);
-		if (ct != ignored_conntrack &&
-		    nf_ct_key_equal(h, tuple, zone, net)) {
+
+		if (ct == ignored_conntrack)
+			continue;
+
+		if (nf_ct_is_expired(ct)) {
+			nf_ct_gc_expired(ct);
+			continue;
+		}
+
+		if (nf_ct_key_equal(h, tuple, zone, net)) {
 			NF_CT_STAT_INC_ATOMIC(net, found);
 			rcu_read_unlock();
 			return 1;
@@ -850,6 +873,11 @@ static unsigned int early_drop_list(struct net *net,
 	hlist_nulls_for_each_entry_rcu(h, n, head, hnnode) {
 		tmp = nf_ct_tuplehash_to_ctrack(h);
 
+		if (nf_ct_is_expired(tmp)) {
+			nf_ct_gc_expired(tmp);
+			continue;
+		}
+
 		if (test_bit(IPS_ASSURED_BIT, &tmp->status) ||
 		    !net_eq(nf_ct_net(tmp), net) ||
 		    nf_ct_is_dying(tmp))
@@ -867,7 +895,6 @@ static unsigned int early_drop_list(struct net *net,
 		 */
 		if (net_eq(nf_ct_net(tmp), net) &&
 		    nf_ct_is_confirmed(tmp) &&
-		    del_timer(&tmp->timeout) &&
 		    nf_ct_delete(tmp, 0, 0))
 			drops++;
 
@@ -937,8 +964,6 @@ __nf_conntrack_alloc(struct net *net,
 	/* save hash for reusing when confirming */
 	*(unsigned long *)(&ct->tuplehash[IP_CT_DIR_REPLY].hnnode.pprev) = hash;
 	ct->status = 0;
-	/* Don't set timer yet: wait for confirmation */
-	setup_timer(&ct->timeout, death_by_timeout, (unsigned long)ct);
 	write_pnet(&ct->ct_net, net);
 	memset(&ct->__nfct_init_offset[0], 0,
 	       offsetof(struct nf_conn, proto) -
@@ -1312,7 +1337,6 @@ void __nf_ct_refresh_acct(struct nf_conn *ct,
 			  unsigned long extra_jiffies,
 			  int do_acct)
 {
-	NF_CT_ASSERT(ct->timeout.data == (unsigned long)ct);
 	NF_CT_ASSERT(skb);
 
 	/* Only update if this is not a fixed timeout */
@@ -1320,18 +1344,10 @@ void __nf_ct_refresh_acct(struct nf_conn *ct,
 		goto acct;
 
 	/* If not in hash table, timer will not be active yet */
-	if (!nf_ct_is_confirmed(ct)) {
-		ct->timeout.expires = extra_jiffies;
-	} else {
-		unsigned long newtime = jiffies + extra_jiffies;
+	if (nf_ct_is_confirmed(ct))
+		extra_jiffies += nfct_time_stamp;
 
-		/* Only update the timeout if the new timeout is at least
-		   HZ jiffies from the old timeout. Need del_timer for race
-		   avoidance (may already be dying). */
-		if (newtime - ct->timeout.expires >= HZ)
-			mod_timer_pending(&ct->timeout, newtime);
-	}
-
+	ct->timeout = extra_jiffies;
 acct:
 	if (do_acct)
 		nf_ct_acct_update(ct, ctinfo, skb->len);
@@ -1346,11 +1362,7 @@ bool __nf_ct_kill_acct(struct nf_conn *ct,
 	if (do_acct)
 		nf_ct_acct_update(ct, ctinfo, skb->len);
 
-	if (del_timer(&ct->timeout)) {
-		ct->timeout.function((unsigned long)ct);
-		return true;
-	}
-	return false;
+	return nf_ct_delete(ct, 0, 0);
 }
 EXPORT_SYMBOL_GPL(__nf_ct_kill_acct);
 
@@ -1485,11 +1497,8 @@ void nf_ct_iterate_cleanup(struct net *net,
 
 	while ((ct = get_next_corpse(net, iter, data, &bucket)) != NULL) {
 		/* Time to push up daises... */
-		if (del_timer(&ct->timeout))
-			nf_ct_delete(ct, portid, report);
 
-		/* ... else the timer will get him soon. */
-
+		nf_ct_delete(ct, portid, report);
 		nf_ct_put(ct);
 		cond_resched();
 	}

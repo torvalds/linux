@@ -1144,9 +1144,7 @@ static int ctnetlink_del_conntrack(struct net *net, struct sock *ctnl,
 		}
 	}
 
-	if (del_timer(&ct->timeout))
-		nf_ct_delete(ct, NETLINK_CB(skb).portid, nlmsg_report(nlh));
-
+	nf_ct_delete(ct, NETLINK_CB(skb).portid, nlmsg_report(nlh));
 	nf_ct_put(ct);
 
 	return 0;
@@ -1514,11 +1512,10 @@ static int ctnetlink_change_timeout(struct nf_conn *ct,
 {
 	u_int32_t timeout = ntohl(nla_get_be32(cda[CTA_TIMEOUT]));
 
-	if (!del_timer(&ct->timeout))
-		return -ETIME;
+	ct->timeout = nfct_time_stamp + timeout * HZ;
 
-	ct->timeout.expires = jiffies + timeout * HZ;
-	add_timer(&ct->timeout);
+	if (test_bit(IPS_DYING_BIT, &ct->status))
+		return -ETIME;
 
 	return 0;
 }
@@ -1716,9 +1713,8 @@ ctnetlink_create_conntrack(struct net *net,
 
 	if (!cda[CTA_TIMEOUT])
 		goto err1;
-	ct->timeout.expires = ntohl(nla_get_be32(cda[CTA_TIMEOUT]));
 
-	ct->timeout.expires = jiffies + ct->timeout.expires * HZ;
+	ct->timeout = nfct_time_stamp + ntohl(nla_get_be32(cda[CTA_TIMEOUT])) * HZ;
 
 	rcu_read_lock();
  	if (cda[CTA_HELP]) {
