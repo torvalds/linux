@@ -140,6 +140,46 @@ static const struct drm_plane_funcs drm_simple_kms_plane_funcs = {
 };
 
 /**
+ * drm_simple_display_pipe_attach_bridge - Attach a bridge to the display pipe
+ * @pipe: simple display pipe object
+ * @bridge: bridge to attach
+ *
+ * Makes it possible to still use the drm_simple_display_pipe helpers when
+ * a DRM bridge has to be used.
+ *
+ * Note that you probably want to initialize the pipe by passing a NULL
+ * connector to drm_simple_display_pipe_init().
+ *
+ * Returns:
+ * Zero on success, negative error code on failure.
+ */
+int drm_simple_display_pipe_attach_bridge(struct drm_simple_display_pipe *pipe,
+					  struct drm_bridge *bridge)
+{
+	bridge->encoder = &pipe->encoder;
+	pipe->encoder.bridge = bridge;
+	return drm_bridge_attach(pipe->encoder.dev, bridge);
+}
+EXPORT_SYMBOL(drm_simple_display_pipe_attach_bridge);
+
+/**
+ * drm_simple_display_pipe_detach_bridge - Detach the bridge from the display pipe
+ * @pipe: simple display pipe object
+ *
+ * Detaches the drm bridge previously attached with
+ * drm_simple_display_pipe_attach_bridge()
+ */
+void drm_simple_display_pipe_detach_bridge(struct drm_simple_display_pipe *pipe)
+{
+	if (WARN_ON(!pipe->encoder.bridge))
+		return;
+
+	drm_bridge_detach(pipe->encoder.bridge);
+	pipe->encoder.bridge = NULL;
+}
+EXPORT_SYMBOL(drm_simple_display_pipe_detach_bridge);
+
+/**
  * drm_simple_display_pipe_init - Initialize a simple display pipeline
  * @dev: DRM device
  * @pipe: simple display pipe object to initialize

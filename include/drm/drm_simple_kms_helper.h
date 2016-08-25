@@ -91,6 +91,11 @@ struct drm_simple_display_pipe {
 	const struct drm_simple_display_pipe_funcs *funcs;
 };
 
+int drm_simple_display_pipe_attach_bridge(struct drm_simple_display_pipe *pipe,
+					  struct drm_bridge *bridge);
+
+void drm_simple_display_pipe_detach_bridge(struct drm_simple_display_pipe *pipe);
+
 int drm_simple_display_pipe_init(struct drm_device *dev,
 			struct drm_simple_display_pipe *pipe,
 			const struct drm_simple_display_pipe_funcs *funcs,
