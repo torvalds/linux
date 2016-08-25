@@ -2074,8 +2074,7 @@ mwifiex_check_winner_status(struct mwifiex_adapter *adapter)
 		adapter->winner = 1;
 	} else {
 		mwifiex_dbg(adapter, ERROR,
-			    "PCI-E is not the winner <%#x,%d>, exit dnld\n",
-			    ret, adapter->winner);
+			    "PCI-E is not the winner <%#x>", winner);
 	}
 
 	return ret;
