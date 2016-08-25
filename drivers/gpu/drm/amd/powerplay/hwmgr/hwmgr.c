@@ -39,6 +39,26 @@ extern int cz_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int tonga_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int fiji_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int polaris10_hwmgr_init(struct pp_hwmgr *hwmgr);
+extern int iceland_hwmgr_init(struct pp_hwmgr *hwmgr);
+
+static int hwmgr_set_features_platform_caps(struct pp_hwmgr *hwmgr)
+{
+	if (amdgpu_sclk_deep_sleep_en)
+		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_SclkDeepSleep);
+	else
+		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_SclkDeepSleep);
+
+	if (amdgpu_powercontainment)
+		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			    PHM_PlatformCaps_PowerContainment);
+	else
+		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			    PHM_PlatformCaps_PowerContainment);
+
+	return 0;
+}
 
 int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 {
@@ -57,9 +77,12 @@ int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 	hwmgr->chip_family = pp_init->chip_family;
 	hwmgr->chip_id = pp_init->chip_id;
 	hwmgr->hw_revision = pp_init->rev_id;
+	hwmgr->sub_sys_id = pp_init->sub_sys_id;
+	hwmgr->sub_vendor_id = pp_init->sub_vendor_id;
 	hwmgr->usec_timeout = AMD_MAX_USEC_TIMEOUT;
 	hwmgr->power_source = PP_PowerSource_AC;
-	hwmgr->powercontainment_enabled = pp_init->powercontainment_enabled;
+
+	hwmgr_set_features_platform_caps(hwmgr);
 
 	switch (hwmgr->chip_family) {
 	case AMDGPU_FAMILY_CZ:
@@ -67,6 +90,9 @@ int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 		break;
 	case AMDGPU_FAMILY_VI:
 		switch (hwmgr->chip_id) {
+		case CHIP_TOPAZ:
+			iceland_hwmgr_init(hwmgr);
+			break;
 		case CHIP_TONGA:
 			tonga_hwmgr_init(hwmgr);
 			break;
@@ -182,29 +208,7 @@ int phm_wait_on_register(struct pp_hwmgr *hwmgr, uint32_t index,
 	return 0;
 }
 
-int phm_wait_for_register_unequal(struct pp_hwmgr *hwmgr,
-				uint32_t index, uint32_t value, uint32_t mask)
-{
-	uint32_t i;
-	uint32_t cur_value;
 
-	if (hwmgr == NULL || hwmgr->device == NULL) {
-		printk(KERN_ERR "[ powerplay ] Invalid Hardware Manager!");
-		return -EINVAL;
-	}
-
-	for (i = 0; i < hwmgr->usec_timeout; i++) {
-		cur_value = cgs_read_register(hwmgr->device, index);
-		if ((cur_value & mask) != (value & mask))
-			break;
-		udelay(1);
-	}
-
-	/* timeout means wrong logic*/
-	if (i == hwmgr->usec_timeout)
-		return -1;
-	return 0;
-}
 
 
 /**
@@ -227,21 +231,7 @@ void phm_wait_on_indirect_register(struct pp_hwmgr *hwmgr,
 	phm_wait_on_register(hwmgr, indirect_port + 1, mask, value);
 }
 
-void phm_wait_for_indirect_register_unequal(struct pp_hwmgr *hwmgr,
-					uint32_t indirect_port,
-					uint32_t index,
-					uint32_t value,
-					uint32_t mask)
-{
-	if (hwmgr == NULL || hwmgr->device == NULL) {
-		printk(KERN_ERR "[ powerplay ] Invalid Hardware Manager!");
-		return;
-	}
 
-	cgs_write_register(hwmgr->device, indirect_port, index);
-	phm_wait_for_register_unequal(hwmgr, indirect_port + 1,
-				      value, mask);
-}
 
 bool phm_cf_want_uvd_power_gating(struct pp_hwmgr *hwmgr)
 {

@@ -301,6 +301,8 @@ void tonga_initialize_dpm_defaults(struct pp_hwmgr *hwmgr)
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_DisableMemoryTransition);
 
+	tonga_initialize_power_tune_defaults(hwmgr);
+
 	data->mclk_strobe_mode_threshold = 40000;
 	data->mclk_stutter_mode_threshold = 30000;
 	data->mclk_edc_enable_threshold = 40000;
@@ -2478,7 +2480,7 @@ static int tonga_populate_single_graphic_level(struct pp_hwmgr *hwmgr, uint32_t 
 	graphic_level->VoltageDownHyst = 0;
 	graphic_level->PowerThrottle = 0;
 
-	threshold = engine_clock * data->fast_watemark_threshold / 100;
+	threshold = engine_clock * data->fast_watermark_threshold / 100;
 /*
 	*get the DAL clock. do it in funture.
 	PECI_GetMinClockSettings(hwmgr->peci, &minClocks);
@@ -2980,6 +2982,10 @@ int tonga_init_smc_table(struct pp_hwmgr *hwmgr)
 	result = tonga_populate_smc_boot_level(hwmgr, table);
 	PP_ASSERT_WITH_CODE(0 == result,
 		"Failed to initialize Boot Level!", return result;);
+
+	result = tonga_populate_bapm_parameters_in_dpm_table(hwmgr);
+	PP_ASSERT_WITH_CODE(result == 0,
+			"Failed to populate BAPM Parameters!", return result);
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_ClockStretcher)) {
@@ -4369,6 +4375,10 @@ int tonga_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 		"Failed to initialize ARB table index!", result = tmp_result);
 
+	tmp_result = tonga_populate_pm_fuses(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to populate PM fuses!", result = tmp_result);
+
 	tmp_result = tonga_populate_initial_mc_reg_table(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 		"Failed to populate initialize MC Reg table!", result = tmp_result);
@@ -4386,6 +4396,18 @@ int tonga_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	tmp_result = tonga_start_dpm(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 		"Failed to start DPM!", result = tmp_result);
+
+	tmp_result = tonga_enable_smc_cac(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to enable SMC CAC!", result = tmp_result);
+
+	tmp_result = tonga_enable_power_containment(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to enable power containment!", result = tmp_result);
+
+	tmp_result = tonga_power_control_set_level(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to power control set level!", result = tmp_result);
 
 	return result;
 }

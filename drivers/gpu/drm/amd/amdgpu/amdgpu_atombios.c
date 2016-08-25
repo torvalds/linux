@@ -259,6 +259,33 @@ static const int object_connector_convert[] = {
 	DRM_MODE_CONNECTOR_Unknown
 };
 
+bool amdgpu_atombios_has_dce_engine_info(struct amdgpu_device *adev)
+{
+	struct amdgpu_mode_info *mode_info = &adev->mode_info;
+	struct atom_context *ctx = mode_info->atom_context;
+	int index = GetIndexIntoMasterTable(DATA, Object_Header);
+	u16 size, data_offset;
+	u8 frev, crev;
+	ATOM_DISPLAY_OBJECT_PATH_TABLE *path_obj;
+	ATOM_OBJECT_HEADER *obj_header;
+
+	if (!amdgpu_atom_parse_data_header(ctx, index, &size, &frev, &crev, &data_offset))
+		return false;
+
+	if (crev < 2)
+		return false;
+
+	obj_header = (ATOM_OBJECT_HEADER *) (ctx->bios + data_offset);
+	path_obj = (ATOM_DISPLAY_OBJECT_PATH_TABLE *)
+	    (ctx->bios + data_offset +
+	     le16_to_cpu(obj_header->usDisplayPathTableOffset));
+
+	if (path_obj->ucNumOfDispPath)
+		return true;
+	else
+		return false;
+}
+
 bool amdgpu_atombios_get_connector_info_from_object_table(struct amdgpu_device *adev)
 {
 	struct amdgpu_mode_info *mode_info = &adev->mode_info;

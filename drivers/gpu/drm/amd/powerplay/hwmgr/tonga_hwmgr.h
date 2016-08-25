@@ -300,6 +300,7 @@ struct tonga_hwmgr {
 	bool                         dll_defaule_on;
 	bool                         performance_request_registered;
 
+
 	/* ----------------- Low Power Features ---------------------*/
 	phw_tonga_bacos					bacos;
 	phw_tonga_ulv_parm              ulv;
@@ -314,10 +315,14 @@ struct tonga_hwmgr {
 	bool                         enable_tdc_limit_feature;
 	bool                         enable_pkg_pwr_tracking_feature;
 	bool                         disable_uvd_power_tune_feature;
-	phw_tonga_pt_defaults           *power_tune_defaults;
+	struct tonga_pt_defaults           *power_tune_defaults;
 	SMU72_Discrete_PmFuses           power_tune_table;
-	uint32_t                           ul_dte_tj_offset;             /* Fudge factor in DPM table to correct HW DTE errors */
-	uint32_t                           fast_watemark_threshold;      /* use fast watermark if clock is equal or above this. In percentage of the target high sclk. */
+	uint32_t                           dte_tj_offset;             /* Fudge factor in DPM table to correct HW DTE errors */
+	uint32_t                           fast_watermark_threshold;      /* use fast watermark if clock is equal or above this. In percentage of the target high sclk. */
+
+
+	bool                           enable_dte_feature;
+
 
 	/* ----------------- Phase Shedding ---------------------*/
 	bool                         vddc_phase_shed_control;

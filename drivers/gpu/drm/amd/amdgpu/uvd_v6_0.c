@@ -116,7 +116,7 @@ static int uvd_v6_0_sw_init(void *handle)
 
 	ring = &adev->uvd.ring;
 	sprintf(ring->name, "uvd");
-	r = amdgpu_ring_init(adev, ring, 512, CP_PACKET2, 0xf,
+	r = amdgpu_ring_init(adev, ring, 512, PACKET0(mmUVD_NO_OP, 0), 0xf,
 			     &adev->uvd.irq, 0, AMDGPU_RING_TYPE_UVD);
 
 	return r;
@@ -396,21 +396,14 @@ static int uvd_v6_0_start(struct amdgpu_device *adev)
 
 	uvd_v6_0_mc_resume(adev);
 
-	/* Set dynamic clock gating in S/W control mode */
-	if (adev->cg_flags & AMD_CG_SUPPORT_UVD_MGCG) {
-		uvd_v6_0_set_sw_clock_gating(adev);
-	} else {
-		/* disable clock gating */
-		uint32_t data = RREG32(mmUVD_CGC_CTRL);
-		data &= ~UVD_CGC_CTRL__DYN_CLOCK_MODE_MASK;
-		WREG32(mmUVD_CGC_CTRL, data);
-	}
+	/* disable clock gating */
+	WREG32_FIELD(UVD_CGC_CTRL, DYN_CLOCK_MODE, 0);
 
 	/* disable interupt */
-	WREG32_P(mmUVD_MASTINT_EN, 0, ~UVD_MASTINT_EN__VCPU_EN_MASK);
+	WREG32_FIELD(UVD_MASTINT_EN, VCPU_EN, 0);
 
 	/* stall UMC and register bus before resetting VCPU */
-	WREG32_P(mmUVD_LMI_CTRL2, UVD_LMI_CTRL2__STALL_ARB_UMC_MASK, ~UVD_LMI_CTRL2__STALL_ARB_UMC_MASK);
+	WREG32_FIELD(UVD_LMI_CTRL2, STALL_ARB_UMC, 1);
 	mdelay(1);
 
 	/* put LMI, VCPU, RBC etc... into reset */
@@ -426,7 +419,7 @@ static int uvd_v6_0_start(struct amdgpu_device *adev)
 	mdelay(5);
 
 	/* take UVD block out of reset */
-	WREG32_P(mmSRBM_SOFT_RESET, 0, ~SRBM_SOFT_RESET__SOFT_RESET_UVD_MASK);
+	WREG32_FIELD(SRBM_SOFT_RESET, SOFT_RESET_UVD, 0);
 	mdelay(5);
 
 	/* initialize UVD memory controller */
@@ -461,7 +454,7 @@ static int uvd_v6_0_start(struct amdgpu_device *adev)
 	WREG32(mmUVD_VCPU_CNTL, UVD_VCPU_CNTL__CLK_EN_MASK);
 
 	/* enable UMC */
-	WREG32_P(mmUVD_LMI_CTRL2, 0, ~UVD_LMI_CTRL2__STALL_ARB_UMC_MASK);
+	WREG32_FIELD(UVD_LMI_CTRL2, STALL_ARB_UMC, 0);
 
 	/* boot up the VCPU */
 	WREG32(mmUVD_SOFT_RESET, 0);
@@ -481,11 +474,9 @@ static int uvd_v6_0_start(struct amdgpu_device *adev)
 			break;
 
 		DRM_ERROR("UVD not responding, trying to reset the VCPU!!!\n");
-		WREG32_P(mmUVD_SOFT_RESET, UVD_SOFT_RESET__VCPU_SOFT_RESET_MASK,
-				~UVD_SOFT_RESET__VCPU_SOFT_RESET_MASK);
+		WREG32_FIELD(UVD_SOFT_RESET, VCPU_SOFT_RESET, 1);
 		mdelay(10);
-		WREG32_P(mmUVD_SOFT_RESET, 0,
-			 ~UVD_SOFT_RESET__VCPU_SOFT_RESET_MASK);
+		WREG32_FIELD(UVD_SOFT_RESET, VCPU_SOFT_RESET, 0);
 		mdelay(10);
 		r = -1;
 	}
@@ -502,15 +493,14 @@ static int uvd_v6_0_start(struct amdgpu_device *adev)
 	/* clear the bit 4 of UVD_STATUS */
 	WREG32_P(mmUVD_STATUS, 0, ~(2 << UVD_STATUS__VCPU_REPORT__SHIFT));
 
+	/* force RBC into idle state */
 	rb_bufsz = order_base_2(ring->ring_size);
-	tmp = 0;
-	tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_BUFSZ, rb_bufsz);
+	tmp = REG_SET_FIELD(0, UVD_RBC_RB_CNTL, RB_BUFSZ, rb_bufsz);
 	tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_BLKSZ, 1);
 	tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_NO_FETCH, 1);
 	tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_WPTR_POLL_EN, 0);
 	tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_NO_UPDATE, 1);
 	tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_RPTR_WR_EN, 1);
-	/* force RBC into idle state */
 	WREG32(mmUVD_RBC_RB_CNTL, tmp);
 
 	/* set the write pointer delay */
@@ -531,7 +521,7 @@ static int uvd_v6_0_start(struct amdgpu_device *adev)
 	ring->wptr = RREG32(mmUVD_RBC_RB_RPTR);
 	WREG32(mmUVD_RBC_RB_WPTR, ring->wptr);
 
-	WREG32_P(mmUVD_RBC_RB_CNTL, 0, ~UVD_RBC_RB_CNTL__RB_NO_FETCH_MASK);
+	WREG32_FIELD(UVD_RBC_RB_CNTL, RB_NO_FETCH, 0);
 
 	return 0;
 }
@@ -748,20 +738,82 @@ static int uvd_v6_0_wait_for_idle(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		if (!(RREG32(mmSRBM_STATUS) & SRBM_STATUS__UVD_BUSY_MASK))
+		if (uvd_v6_0_is_idle(handle))
 			return 0;
 	}
 	return -ETIMEDOUT;
 }
 
-static int uvd_v6_0_soft_reset(void *handle)
+#define AMDGPU_UVD_STATUS_BUSY_MASK    0xfd
+static int uvd_v6_0_check_soft_reset(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	u32 srbm_soft_reset = 0;
+	u32 tmp = RREG32(mmSRBM_STATUS);
+
+	if (REG_GET_FIELD(tmp, SRBM_STATUS, UVD_RQ_PENDING) ||
+	    REG_GET_FIELD(tmp, SRBM_STATUS, UVD_BUSY) ||
+	    (RREG32(mmUVD_STATUS) & AMDGPU_UVD_STATUS_BUSY_MASK))
+		srbm_soft_reset = REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_UVD, 1);
+
+	if (srbm_soft_reset) {
+		adev->ip_block_status[AMD_IP_BLOCK_TYPE_UVD].hang = true;
+		adev->uvd.srbm_soft_reset = srbm_soft_reset;
+	} else {
+		adev->ip_block_status[AMD_IP_BLOCK_TYPE_UVD].hang = false;
+		adev->uvd.srbm_soft_reset = 0;
+	}
+	return 0;
+}
+static int uvd_v6_0_pre_soft_reset(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	uvd_v6_0_stop(adev);
+	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_UVD].hang)
+		return 0;
 
-	WREG32_P(mmSRBM_SOFT_RESET, SRBM_SOFT_RESET__SOFT_RESET_UVD_MASK,
-			~SRBM_SOFT_RESET__SOFT_RESET_UVD_MASK);
+	uvd_v6_0_stop(adev);
+	return 0;
+}
+
+static int uvd_v6_0_soft_reset(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	u32 srbm_soft_reset;
+
+	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_UVD].hang)
+		return 0;
+	srbm_soft_reset = adev->uvd.srbm_soft_reset;
+
+	if (srbm_soft_reset) {
+		u32 tmp;
+
+		tmp = RREG32(mmSRBM_SOFT_RESET);
+		tmp |= srbm_soft_reset;
+		dev_info(adev->dev, "SRBM_SOFT_RESET=0x%08X\n", tmp);
+		WREG32(mmSRBM_SOFT_RESET, tmp);
+		tmp = RREG32(mmSRBM_SOFT_RESET);
+
+		udelay(50);
+
+		tmp &= ~srbm_soft_reset;
+		WREG32(mmSRBM_SOFT_RESET, tmp);
+		tmp = RREG32(mmSRBM_SOFT_RESET);
+
+		/* Wait a little for things to settle down */
+		udelay(50);
+	}
+
+	return 0;
+}
+
+static int uvd_v6_0_post_soft_reset(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_UVD].hang)
+		return 0;
+
 	mdelay(5);
 
 	return uvd_v6_0_start(adev);
@@ -902,21 +954,15 @@ static int uvd_v6_0_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
-	static int curstate = -1;
 
 	if (adev->asic_type == CHIP_FIJI ||
-			adev->asic_type == CHIP_POLARIS10)
-		uvd_v6_set_bypass_mode(adev, enable);
+	    adev->asic_type == CHIP_POLARIS10)
+		uvd_v6_set_bypass_mode(adev, state == AMD_CG_STATE_GATE ? true : false);
 
 	if (!(adev->cg_flags & AMD_CG_SUPPORT_UVD_MGCG))
 		return 0;
 
-	if (curstate == state)
-		return 0;
-
-	curstate = state;
-	if (enable) {
+	if (state == AMD_CG_STATE_GATE) {
 		/* disable HW gating and enable Sw gating */
 		uvd_v6_0_set_sw_clock_gating(adev);
 	} else {
@@ -946,6 +992,8 @@ static int uvd_v6_0_set_powergating_state(void *handle,
 	if (!(adev->pg_flags & AMD_PG_SUPPORT_UVD))
 		return 0;
 
+	WREG32(mmUVD_POWER_STATUS, UVD_POWER_STATUS__UVD_PG_EN_MASK);
+
 	if (state == AMD_PG_STATE_GATE) {
 		uvd_v6_0_stop(adev);
 		return 0;
@@ -966,7 +1014,10 @@ const struct amd_ip_funcs uvd_v6_0_ip_funcs = {
 	.resume = uvd_v6_0_resume,
 	.is_idle = uvd_v6_0_is_idle,
 	.wait_for_idle = uvd_v6_0_wait_for_idle,
+	.check_soft_reset = uvd_v6_0_check_soft_reset,
+	.pre_soft_reset = uvd_v6_0_pre_soft_reset,
 	.soft_reset = uvd_v6_0_soft_reset,
+	.post_soft_reset = uvd_v6_0_post_soft_reset,
 	.set_clockgating_state = uvd_v6_0_set_clockgating_state,
 	.set_powergating_state = uvd_v6_0_set_powergating_state,
 };

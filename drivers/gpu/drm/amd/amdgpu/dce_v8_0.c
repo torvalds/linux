@@ -604,6 +604,52 @@ static void dce_v8_0_set_vga_render_state(struct amdgpu_device *adev,
 	WREG32(mmVGA_RENDER_CONTROL, tmp);
 }
 
+static int dce_v8_0_get_num_crtc(struct amdgpu_device *adev)
+{
+	int num_crtc = 0;
+
+	switch (adev->asic_type) {
+	case CHIP_BONAIRE:
+	case CHIP_HAWAII:
+		num_crtc = 6;
+		break;
+	case CHIP_KAVERI:
+		num_crtc = 4;
+		break;
+	case CHIP_KABINI:
+	case CHIP_MULLINS:
+		num_crtc = 2;
+		break;
+	default:
+		num_crtc = 0;
+	}
+	return num_crtc;
+}
+
+void dce_v8_0_disable_dce(struct amdgpu_device *adev)
+{
+	/*Disable VGA render and enabled crtc, if has DCE engine*/
+	if (amdgpu_atombios_has_dce_engine_info(adev)) {
+		u32 tmp;
+		int crtc_enabled, i;
+
+		dce_v8_0_set_vga_render_state(adev, false);
+
+		/*Disable crtc*/
+		for (i = 0; i < dce_v8_0_get_num_crtc(adev); i++) {
+			crtc_enabled = REG_GET_FIELD(RREG32(mmCRTC_CONTROL + crtc_offsets[i]),
+									 CRTC_CONTROL, CRTC_MASTER_EN);
+			if (crtc_enabled) {
+				WREG32(mmCRTC_UPDATE_LOCK + crtc_offsets[i], 1);
+				tmp = RREG32(mmCRTC_CONTROL + crtc_offsets[i]);
+				tmp = REG_SET_FIELD(tmp, CRTC_CONTROL, CRTC_MASTER_EN, 0);
+				WREG32(mmCRTC_CONTROL + crtc_offsets[i], tmp);
+				WREG32(mmCRTC_UPDATE_LOCK + crtc_offsets[i], 0);
+			}
+		}
+	}
+}
+
 static void dce_v8_0_program_fmt(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
@@ -1501,13 +1547,13 @@ static void dce_v8_0_audio_write_sad_regs(struct drm_encoder *encoder)
 
 			if (sad->format == eld_reg_to_type[i][1]) {
 				if (sad->channels > max_channels) {
-				value = (sad->channels <<
-				 AZALIA_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR0__MAX_CHANNELS__SHIFT) |
-				(sad->byte2 <<
-				 AZALIA_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR0__DESCRIPTOR_BYTE_2__SHIFT) |
-				(sad->freq <<
-				 AZALIA_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR0__SUPPORTED_FREQUENCIES__SHIFT);
-				max_channels = sad->channels;
+					value = (sad->channels <<
+						 AZALIA_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR0__MAX_CHANNELS__SHIFT) |
+					        (sad->byte2 <<
+						 AZALIA_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR0__DESCRIPTOR_BYTE_2__SHIFT) |
+					        (sad->freq <<
+						 AZALIA_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR0__SUPPORTED_FREQUENCIES__SHIFT);
+					max_channels = sad->channels;
 				}
 
 				if (sad->format == HDMI_AUDIO_CODING_TYPE_PCM)
@@ -1613,7 +1659,7 @@ static void dce_v8_0_afmt_update_ACR(struct drm_encoder *encoder, uint32_t clock
 	struct amdgpu_encoder_atom_dig *dig = amdgpu_encoder->enc_priv;
 	uint32_t offset = dig->afmt->offset;
 
-	WREG32(mmHDMI_ACR_32_0 + offset, (acr.cts_32khz << HDMI_ACR_44_0__HDMI_ACR_CTS_44__SHIFT));
+	WREG32(mmHDMI_ACR_32_0 + offset, (acr.cts_32khz << HDMI_ACR_32_0__HDMI_ACR_CTS_32__SHIFT));
 	WREG32(mmHDMI_ACR_32_1 + offset, acr.n_32khz);
 
 	WREG32(mmHDMI_ACR_44_0 + offset, (acr.cts_44_1khz << HDMI_ACR_44_0__HDMI_ACR_CTS_44__SHIFT));
@@ -1693,6 +1739,7 @@ static void dce_v8_0_afmt_setmode(struct drm_encoder *encoder,
 	/* Silent, r600_hdmi_enable will raise WARN for us */
 	if (!dig->afmt->enabled)
 		return;
+
 	offset = dig->afmt->offset;
 
 	/* hdmi deep color mode general control packets setup, if bpc > 8 */
@@ -1817,7 +1864,7 @@ static void dce_v8_0_afmt_setmode(struct drm_encoder *encoder,
 
 	WREG32_OR(mmHDMI_INFOFRAME_CONTROL0 + offset,
 		  HDMI_INFOFRAME_CONTROL0__HDMI_AVI_INFO_SEND_MASK | /* enable AVI info frames */
-		  HDMI_INFOFRAME_CONTROL0__HDMI_AVI_INFO_SEND_MASK); /* required for audio info values to be updated */
+		  HDMI_INFOFRAME_CONTROL0__HDMI_AVI_INFO_CONT_MASK); /* required for audio info values to be updated */
 
 	WREG32_P(mmHDMI_INFOFRAME_CONTROL1 + offset,
 		 (2 << HDMI_INFOFRAME_CONTROL1__HDMI_AVI_INFO_LINE__SHIFT), /* anything other than 0 */
@@ -1826,13 +1873,12 @@ static void dce_v8_0_afmt_setmode(struct drm_encoder *encoder,
 	WREG32_OR(mmAFMT_AUDIO_PACKET_CONTROL + offset,
 		  AFMT_AUDIO_PACKET_CONTROL__AFMT_AUDIO_SAMPLE_SEND_MASK); /* send audio packets */
 
-	/* it's unknown what these bits do excatly, but it's indeed quite useful for debugging */
 	WREG32(mmAFMT_RAMP_CONTROL0 + offset, 0x00FFFFFF);
 	WREG32(mmAFMT_RAMP_CONTROL1 + offset, 0x007FFFFF);
 	WREG32(mmAFMT_RAMP_CONTROL2 + offset, 0x00000001);
 	WREG32(mmAFMT_RAMP_CONTROL3 + offset, 0x00000001);
 
-	/* enable audio after to setting up hw */
+	/* enable audio after setting up hw */
 	dce_v8_0_audio_enable(adev, dig->afmt->pin, true);
 }
 
@@ -2000,7 +2046,7 @@ static int dce_v8_0_crtc_do_set_base(struct drm_crtc *crtc,
 	case DRM_FORMAT_XRGB4444:
 	case DRM_FORMAT_ARGB4444:
 		fb_format = ((GRPH_DEPTH_16BPP << GRPH_CONTROL__GRPH_DEPTH__SHIFT) |
-			     (GRPH_FORMAT_ARGB1555 << GRPH_CONTROL__GRPH_FORMAT__SHIFT));
+			     (GRPH_FORMAT_ARGB4444 << GRPH_CONTROL__GRPH_FORMAT__SHIFT));
 #ifdef __BIG_ENDIAN
 		fb_swap = (GRPH_ENDIAN_8IN16 << GRPH_SWAP_CNTL__GRPH_ENDIAN_SWAP__SHIFT);
 #endif
@@ -2139,8 +2185,8 @@ static int dce_v8_0_crtc_do_set_base(struct drm_crtc *crtc,
 	WREG32(mmVIEWPORT_SIZE + amdgpu_crtc->crtc_offset,
 	       (viewport_w << 16) | viewport_h);
 
-	/* set pageflip to happen only at start of vblank interval (front porch) */
-	WREG32(mmMASTER_UPDATE_MODE + amdgpu_crtc->crtc_offset, 3);
+	/* set pageflip to happen anywhere in vblank interval */
+	WREG32(mmMASTER_UPDATE_MODE + amdgpu_crtc->crtc_offset, 0);
 
 	if (!atomic && fb && fb != crtc->primary->fb) {
 		amdgpu_fb = to_amdgpu_framebuffer(fb);
@@ -2554,7 +2600,7 @@ static const struct drm_crtc_funcs dce_v8_0_crtc_funcs = {
 	.gamma_set = dce_v8_0_crtc_gamma_set,
 	.set_config = amdgpu_crtc_set_config,
 	.destroy = dce_v8_0_crtc_destroy,
-	.page_flip = amdgpu_crtc_page_flip,
+	.page_flip_target = amdgpu_crtc_page_flip_target,
 };
 
 static void dce_v8_0_crtc_dpms(struct drm_crtc *crtc, int mode)
@@ -2655,7 +2701,7 @@ static void dce_v8_0_crtc_disable(struct drm_crtc *crtc)
 	case ATOM_PPLL2:
 		/* disable the ppll */
 		amdgpu_atombios_crtc_program_pll(crtc, amdgpu_crtc->crtc_id, amdgpu_crtc->pll_id,
-					  0, 0, ATOM_DISABLE, 0, 0, 0, 0, 0, false, &ss);
+                                                 0, 0, ATOM_DISABLE, 0, 0, 0, 0, 0, false, &ss);
 		break;
 	case ATOM_PPLL0:
 		/* disable the ppll */
@@ -2805,21 +2851,20 @@ static int dce_v8_0_early_init(void *handle)
 	dce_v8_0_set_display_funcs(adev);
 	dce_v8_0_set_irq_funcs(adev);
 
+	adev->mode_info.num_crtc = dce_v8_0_get_num_crtc(adev);
+
 	switch (adev->asic_type) {
 	case CHIP_BONAIRE:
 	case CHIP_HAWAII:
-		adev->mode_info.num_crtc = 6;
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 6;
 		break;
 	case CHIP_KAVERI:
-		adev->mode_info.num_crtc = 4;
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 7;
 		break;
 	case CHIP_KABINI:
 	case CHIP_MULLINS:
-		adev->mode_info.num_crtc = 2;
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 6; /* ? */
 		break;
@@ -3238,7 +3283,6 @@ static int dce_v8_0_crtc_irq(struct amdgpu_device *adev,
 			drm_handle_vblank(adev->ddev, crtc);
 		}
 		DRM_DEBUG("IH: D%d vblank\n", crtc + 1);
-
 		break;
 	case 1: /* vline */
 		if (disp_int & interrupt_status_offsets[crtc].vline)
@@ -3247,7 +3291,6 @@ static int dce_v8_0_crtc_irq(struct amdgpu_device *adev,
 			DRM_DEBUG("IH: IH event w/o asserted irq bit?\n");
 
 		DRM_DEBUG("IH: D%d vline\n", crtc + 1);
-
 		break;
 	default:
 		DRM_DEBUG("Unhandled interrupt: %d %d\n", entry->src_id, entry->src_data);

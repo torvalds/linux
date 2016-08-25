@@ -292,14 +292,14 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			type = AMD_IP_BLOCK_TYPE_UVD;
 			ring_mask = adev->uvd.ring.ready ? 1 : 0;
 			ib_start_alignment = AMDGPU_GPU_PAGE_SIZE;
-			ib_size_alignment = 8;
+			ib_size_alignment = 16;
 			break;
 		case AMDGPU_HW_IP_VCE:
 			type = AMD_IP_BLOCK_TYPE_VCE;
 			for (i = 0; i < AMDGPU_MAX_VCE_RINGS; i++)
 				ring_mask |= ((adev->vce.ring[i].ready ? 1 : 0) << i);
 			ib_start_alignment = AMDGPU_GPU_PAGE_SIZE;
-			ib_size_alignment = 8;
+			ib_size_alignment = 1;
 			break;
 		default:
 			return -EINVAL;
@@ -372,6 +372,9 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 	}
 	case AMDGPU_INFO_NUM_BYTES_MOVED:
 		ui64 = atomic64_read(&adev->num_bytes_moved);
+		return copy_to_user(out, &ui64, min(size, 8u)) ? -EFAULT : 0;
+	case AMDGPU_INFO_NUM_EVICTIONS:
+		ui64 = atomic64_read(&adev->num_evictions);
 		return copy_to_user(out, &ui64, min(size, 8u)) ? -EFAULT : 0;
 	case AMDGPU_INFO_VRAM_USAGE:
 		ui64 = atomic64_read(&adev->vram_usage);

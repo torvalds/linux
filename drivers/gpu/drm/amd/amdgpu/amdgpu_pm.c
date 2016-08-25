@@ -1103,54 +1103,46 @@ force:
 
 void amdgpu_dpm_enable_uvd(struct amdgpu_device *adev, bool enable)
 {
-	if (adev->pp_enabled)
+	if (adev->pp_enabled || adev->pm.funcs->powergate_uvd) {
+		/* enable/disable UVD */
+		mutex_lock(&adev->pm.mutex);
 		amdgpu_dpm_powergate_uvd(adev, !enable);
-	else {
-		if (adev->pm.funcs->powergate_uvd) {
+		mutex_unlock(&adev->pm.mutex);
+	} else {
+		if (enable) {
 			mutex_lock(&adev->pm.mutex);
-			/* enable/disable UVD */
-			amdgpu_dpm_powergate_uvd(adev, !enable);
+			adev->pm.dpm.uvd_active = true;
+			adev->pm.dpm.state = POWER_STATE_TYPE_INTERNAL_UVD;
 			mutex_unlock(&adev->pm.mutex);
 		} else {
-			if (enable) {
-				mutex_lock(&adev->pm.mutex);
-				adev->pm.dpm.uvd_active = true;
-				adev->pm.dpm.state = POWER_STATE_TYPE_INTERNAL_UVD;
-				mutex_unlock(&adev->pm.mutex);
-			} else {
-				mutex_lock(&adev->pm.mutex);
-				adev->pm.dpm.uvd_active = false;
-				mutex_unlock(&adev->pm.mutex);
-			}
-			amdgpu_pm_compute_clocks(adev);
+			mutex_lock(&adev->pm.mutex);
+			adev->pm.dpm.uvd_active = false;
+			mutex_unlock(&adev->pm.mutex);
 		}
-
+		amdgpu_pm_compute_clocks(adev);
 	}
 }
 
 void amdgpu_dpm_enable_vce(struct amdgpu_device *adev, bool enable)
 {
-	if (adev->pp_enabled)
+	if (adev->pp_enabled || adev->pm.funcs->powergate_vce) {
+		/* enable/disable VCE */
+		mutex_lock(&adev->pm.mutex);
 		amdgpu_dpm_powergate_vce(adev, !enable);
-	else {
-		if (adev->pm.funcs->powergate_vce) {
+		mutex_unlock(&adev->pm.mutex);
+	} else {
+		if (enable) {
 			mutex_lock(&adev->pm.mutex);
-			amdgpu_dpm_powergate_vce(adev, !enable);
+			adev->pm.dpm.vce_active = true;
+			/* XXX select vce level based on ring/task */
+			adev->pm.dpm.vce_level = AMDGPU_VCE_LEVEL_AC_ALL;
 			mutex_unlock(&adev->pm.mutex);
 		} else {
-			if (enable) {
-				mutex_lock(&adev->pm.mutex);
-				adev->pm.dpm.vce_active = true;
-				/* XXX select vce level based on ring/task */
-				adev->pm.dpm.vce_level = AMDGPU_VCE_LEVEL_AC_ALL;
-				mutex_unlock(&adev->pm.mutex);
-			} else {
-				mutex_lock(&adev->pm.mutex);
-				adev->pm.dpm.vce_active = false;
-				mutex_unlock(&adev->pm.mutex);
-			}
-			amdgpu_pm_compute_clocks(adev);
+			mutex_lock(&adev->pm.mutex);
+			adev->pm.dpm.vce_active = false;
+			mutex_unlock(&adev->pm.mutex);
 		}
+		amdgpu_pm_compute_clocks(adev);
 	}
 }
 

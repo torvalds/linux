@@ -228,6 +228,7 @@ static int drm_getstats(struct drm_device *dev, void *data,
 static int drm_getcap(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	struct drm_get_cap *req = data;
+	struct drm_crtc *crtc;
 
 	req->value = 0;
 	switch (req->capability) {
@@ -253,6 +254,13 @@ static int drm_getcap(struct drm_device *dev, void *data, struct drm_file *file_
 		break;
 	case DRM_CAP_ASYNC_PAGE_FLIP:
 		req->value = dev->mode_config.async_page_flip;
+		break;
+	case DRM_CAP_PAGE_FLIP_TARGET:
+		req->value = 1;
+		drm_for_each_crtc(crtc, dev) {
+			if (!crtc->funcs->page_flip_target)
+				req->value = 0;
+		}
 		break;
 	case DRM_CAP_CURSOR_WIDTH:
 		if (dev->mode_config.cursor_width)

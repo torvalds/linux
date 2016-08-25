@@ -287,18 +287,56 @@ static u64 amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev)
 	return max(bytes_moved_threshold, 1024*1024ull);
 }
 
+static int amdgpu_cs_bo_validate(struct amdgpu_cs_parser *p,
+				 struct amdgpu_bo *bo)
+{
+	u64 initial_bytes_moved;
+	uint32_t domain;
+	int r;
+
+	if (bo->pin_count)
+		return 0;
+
+	/* Avoid moving this one if we have moved too many buffers
+	 * for this IB already.
+	 *
+	 * Note that this allows moving at least one buffer of
+	 * any size, because it doesn't take the current "bo"
+	 * into account. We don't want to disallow buffer moves
+	 * completely.
+	 */
+	if (p->bytes_moved <= p->bytes_moved_threshold)
+		domain = bo->prefered_domains;
+	else
+		domain = bo->allowed_domains;
+
+retry:
+	amdgpu_ttm_placement_from_domain(bo, domain);
+	initial_bytes_moved = atomic64_read(&bo->adev->num_bytes_moved);
+	r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
+	p->bytes_moved += atomic64_read(&bo->adev->num_bytes_moved) -
+		initial_bytes_moved;
+
+	if (unlikely(r)) {
+		if (r != -ERESTARTSYS && domain != bo->allowed_domains) {
+			domain = bo->allowed_domains;
+			goto retry;
+		}
+	}
+
+	return r;
+}
+
 int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 			    struct list_head *validated)
 {
 	struct amdgpu_bo_list_entry *lobj;
-	u64 initial_bytes_moved;
 	int r;
 
 	list_for_each_entry(lobj, validated, tv.head) {
 		struct amdgpu_bo *bo = lobj->robj;
 		bool binding_userptr = false;
 		struct mm_struct *usermm;
-		uint32_t domain;
 
 		usermm = amdgpu_ttm_tt_get_usermm(bo->tbo.ttm);
 		if (usermm && usermm != current->mm)
@@ -313,35 +351,13 @@ int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 			binding_userptr = true;
 		}
 
-		if (bo->pin_count)
-			continue;
-
-		/* Avoid moving this one if we have moved too many buffers
-		 * for this IB already.
-		 *
-		 * Note that this allows moving at least one buffer of
-		 * any size, because it doesn't take the current "bo"
-		 * into account. We don't want to disallow buffer moves
-		 * completely.
-		 */
-		if (p->bytes_moved <= p->bytes_moved_threshold)
-			domain = bo->prefered_domains;
-		else
-			domain = bo->allowed_domains;
-
-	retry:
-		amdgpu_ttm_placement_from_domain(bo, domain);
-		initial_bytes_moved = atomic64_read(&bo->adev->num_bytes_moved);
-		r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
-		p->bytes_moved += atomic64_read(&bo->adev->num_bytes_moved) -
-			       initial_bytes_moved;
-
-		if (unlikely(r)) {
-			if (r != -ERESTARTSYS && domain != bo->allowed_domains) {
-				domain = bo->allowed_domains;
-				goto retry;
-			}
+		r = amdgpu_cs_bo_validate(p, bo);
+		if (r)
 			return r;
+		if (bo->shadow) {
+			r = amdgpu_cs_bo_validate(p, bo);
+			if (r)
+				return r;
 		}
 
 		if (binding_userptr) {
@@ -386,8 +402,10 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 
 		r = ttm_eu_reserve_buffers(&p->ticket, &p->validated, true,
 					   &duplicates);
-		if (unlikely(r != 0))
+		if (unlikely(r != 0)) {
+			DRM_ERROR("ttm_eu_reserve_buffers failed.\n");
 			goto error_free_pages;
+		}
 
 		/* Without a BO list we don't have userptr BOs */
 		if (!p->bo_list)
@@ -427,9 +445,10 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 		/* Unreserve everything again. */
 		ttm_eu_backoff_reservation(&p->ticket, &p->validated);
 
-		/* We tried to often, just abort */
+		/* We tried too many times, just abort */
 		if (!--tries) {
 			r = -EDEADLK;
+			DRM_ERROR("deadlock in %s\n", __func__);
 			goto error_free_pages;
 		}
 
@@ -441,11 +460,13 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 							 sizeof(struct page*));
 			if (!e->user_pages) {
 				r = -ENOMEM;
+				DRM_ERROR("calloc failure in %s\n", __func__);
 				goto error_free_pages;
 			}
 
 			r = amdgpu_ttm_tt_get_user_pages(ttm, e->user_pages);
 			if (r) {
+				DRM_ERROR("amdgpu_ttm_tt_get_user_pages failed.\n");
 				drm_free_large(e->user_pages);
 				e->user_pages = NULL;
 				goto error_free_pages;
@@ -462,12 +483,16 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 	p->bytes_moved = 0;
 
 	r = amdgpu_cs_list_validate(p, &duplicates);
-	if (r)
+	if (r) {
+		DRM_ERROR("amdgpu_cs_list_validate(duplicates) failed.\n");
 		goto error_validate;
+	}
 
 	r = amdgpu_cs_list_validate(p, &p->validated);
-	if (r)
+	if (r) {
+		DRM_ERROR("amdgpu_cs_list_validate(validated) failed.\n");
 		goto error_validate;
+	}
 
 	fpriv->vm.last_eviction_counter =
 		atomic64_read(&p->adev->num_evictions);
@@ -617,7 +642,7 @@ static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p,
 			if (bo_va == NULL)
 				continue;
 
-			r = amdgpu_vm_bo_update(adev, bo_va, &bo->tbo.mem);
+			r = amdgpu_vm_bo_update(adev, bo_va, false);
 			if (r)
 				return r;
 

@@ -37,6 +37,9 @@
 #include "gca/gfx_8_0_d.h"
 #include "smu/smu_7_1_2_d.h"
 #include "smu/smu_7_1_2_sh_mask.h"
+#include "gca/gfx_8_0_d.h"
+#include "gca/gfx_8_0_sh_mask.h"
+
 
 #define GRBM_GFX_INDEX__VCE_INSTANCE__SHIFT	0x04
 #define GRBM_GFX_INDEX__VCE_INSTANCE_MASK	0x10
@@ -107,102 +110,72 @@ static void vce_v3_0_ring_set_wptr(struct amdgpu_ring *ring)
 
 static void vce_v3_0_override_vce_clock_gating(struct amdgpu_device *adev, bool override)
 {
-	u32 tmp, data;
-
-	tmp = data = RREG32(mmVCE_RB_ARB_CTRL);
-	if (override)
-		data |= VCE_RB_ARB_CTRL__VCE_CGTT_OVERRIDE_MASK;
-	else
-		data &= ~VCE_RB_ARB_CTRL__VCE_CGTT_OVERRIDE_MASK;
-
-	if (tmp != data)
-		WREG32(mmVCE_RB_ARB_CTRL, data);
+	WREG32_FIELD(VCE_RB_ARB_CTRL, VCE_CGTT_OVERRIDE, override ? 1 : 0);
 }
 
 static void vce_v3_0_set_vce_sw_clock_gating(struct amdgpu_device *adev,
 					     bool gated)
 {
-	u32 tmp, data;
+	u32 data;
+
 	/* Set Override to disable Clock Gating */
 	vce_v3_0_override_vce_clock_gating(adev, true);
 
-	if (!gated) {
-		/* Force CLOCK ON for VCE_CLOCK_GATING_B,
-		 * {*_FORCE_ON, *_FORCE_OFF} = {1, 0}
-		 * VREG can be FORCE ON or set to Dynamic, but can't be OFF
-		 */
-		tmp = data = RREG32(mmVCE_CLOCK_GATING_B);
+	/* This function enables MGCG which is controlled by firmware.
+	   With the clocks in the gated state the core is still
+	   accessible but the firmware will throttle the clocks on the
+	   fly as necessary.
+	*/
+	if (gated) {
+		data = RREG32(mmVCE_CLOCK_GATING_B);
 		data |= 0x1ff;
 		data &= ~0xef0000;
-		if (tmp != data)
-			WREG32(mmVCE_CLOCK_GATING_B, data);
+		WREG32(mmVCE_CLOCK_GATING_B, data);
 
-		/* Force CLOCK ON for VCE_UENC_CLOCK_GATING,
-		 * {*_FORCE_ON, *_FORCE_OFF} = {1, 0}
-		 */
-		tmp = data = RREG32(mmVCE_UENC_CLOCK_GATING);
+		data = RREG32(mmVCE_UENC_CLOCK_GATING);
 		data |= 0x3ff000;
 		data &= ~0xffc00000;
-		if (tmp != data)
-			WREG32(mmVCE_UENC_CLOCK_GATING, data);
+		WREG32(mmVCE_UENC_CLOCK_GATING, data);
 
-		/* set VCE_UENC_CLOCK_GATING_2 */
-		tmp = data = RREG32(mmVCE_UENC_CLOCK_GATING_2);
+		data = RREG32(mmVCE_UENC_CLOCK_GATING_2);
 		data |= 0x2;
-		data &= ~0x2;
-		if (tmp != data)
-			WREG32(mmVCE_UENC_CLOCK_GATING_2, data);
+		data &= ~0x00010000;
+		WREG32(mmVCE_UENC_CLOCK_GATING_2, data);
 
-		/* Force CLOCK ON for VCE_UENC_REG_CLOCK_GATING */
-		tmp = data = RREG32(mmVCE_UENC_REG_CLOCK_GATING);
+		data = RREG32(mmVCE_UENC_REG_CLOCK_GATING);
 		data |= 0x37f;
-		if (tmp != data)
-			WREG32(mmVCE_UENC_REG_CLOCK_GATING, data);
+		WREG32(mmVCE_UENC_REG_CLOCK_GATING, data);
 
-		/* Force VCE_UENC_DMA_DCLK_CTRL Clock ON */
-		tmp = data = RREG32(mmVCE_UENC_DMA_DCLK_CTRL);
+		data = RREG32(mmVCE_UENC_DMA_DCLK_CTRL);
 		data |= VCE_UENC_DMA_DCLK_CTRL__WRDMCLK_FORCEON_MASK |
-				VCE_UENC_DMA_DCLK_CTRL__RDDMCLK_FORCEON_MASK |
-				VCE_UENC_DMA_DCLK_CTRL__REGCLK_FORCEON_MASK  |
-				0x8;
-		if (tmp != data)
-			WREG32(mmVCE_UENC_DMA_DCLK_CTRL, data);
+			VCE_UENC_DMA_DCLK_CTRL__RDDMCLK_FORCEON_MASK |
+			VCE_UENC_DMA_DCLK_CTRL__REGCLK_FORCEON_MASK  |
+			0x8;
+		WREG32(mmVCE_UENC_DMA_DCLK_CTRL, data);
 	} else {
-		/* Force CLOCK OFF for VCE_CLOCK_GATING_B,
-		 * {*, *_FORCE_OFF} = {*, 1}
-		 * set VREG to Dynamic, as it can't be OFF
-		 */
-		tmp = data = RREG32(mmVCE_CLOCK_GATING_B);
+		data = RREG32(mmVCE_CLOCK_GATING_B);
 		data &= ~0x80010;
 		data |= 0xe70008;
-		if (tmp != data)
-			WREG32(mmVCE_CLOCK_GATING_B, data);
-		/* Force CLOCK OFF for VCE_UENC_CLOCK_GATING,
-		 * Force ClOCK OFF takes precedent over Force CLOCK ON setting.
-		 * {*_FORCE_ON, *_FORCE_OFF} = {*, 1}
-		 */
-		tmp = data = RREG32(mmVCE_UENC_CLOCK_GATING);
+		WREG32(mmVCE_CLOCK_GATING_B, data);
+
+		data = RREG32(mmVCE_UENC_CLOCK_GATING);
 		data |= 0xffc00000;
-		if (tmp != data)
-			WREG32(mmVCE_UENC_CLOCK_GATING, data);
-		/* Set VCE_UENC_CLOCK_GATING_2 */
-		tmp = data = RREG32(mmVCE_UENC_CLOCK_GATING_2);
+		WREG32(mmVCE_UENC_CLOCK_GATING, data);
+
+		data = RREG32(mmVCE_UENC_CLOCK_GATING_2);
 		data |= 0x10000;
-		if (tmp != data)
-			WREG32(mmVCE_UENC_CLOCK_GATING_2, data);
-		/* Set VCE_UENC_REG_CLOCK_GATING to dynamic */
-		tmp = data = RREG32(mmVCE_UENC_REG_CLOCK_GATING);
+		WREG32(mmVCE_UENC_CLOCK_GATING_2, data);
+
+		data = RREG32(mmVCE_UENC_REG_CLOCK_GATING);
 		data &= ~0xffc00000;
-		if (tmp != data)
-			WREG32(mmVCE_UENC_REG_CLOCK_GATING, data);
-		/* Set VCE_UENC_DMA_DCLK_CTRL CG always in dynamic mode */
-		tmp = data = RREG32(mmVCE_UENC_DMA_DCLK_CTRL);
+		WREG32(mmVCE_UENC_REG_CLOCK_GATING, data);
+
+		data = RREG32(mmVCE_UENC_DMA_DCLK_CTRL);
 		data &= ~(VCE_UENC_DMA_DCLK_CTRL__WRDMCLK_FORCEON_MASK |
-				VCE_UENC_DMA_DCLK_CTRL__RDDMCLK_FORCEON_MASK |
-				VCE_UENC_DMA_DCLK_CTRL__REGCLK_FORCEON_MASK  |
-				0x8);
-		if (tmp != data)
-			WREG32(mmVCE_UENC_DMA_DCLK_CTRL, data);
+			  VCE_UENC_DMA_DCLK_CTRL__RDDMCLK_FORCEON_MASK |
+			  VCE_UENC_DMA_DCLK_CTRL__REGCLK_FORCEON_MASK  |
+			  0x8);
+		WREG32(mmVCE_UENC_DMA_DCLK_CTRL, data);
 	}
 	vce_v3_0_override_vce_clock_gating(adev, false);
 }
@@ -221,12 +194,9 @@ static int vce_v3_0_firmware_loaded(struct amdgpu_device *adev)
 		}
 
 		DRM_ERROR("VCE not responding, trying to reset the ECPU!!!\n");
-		WREG32_P(mmVCE_SOFT_RESET,
-			VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK,
-			~VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK);
+		WREG32_FIELD(VCE_SOFT_RESET, ECPU_SOFT_RESET, 1);
 		mdelay(10);
-		WREG32_P(mmVCE_SOFT_RESET, 0,
-			~VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK);
+		WREG32_FIELD(VCE_SOFT_RESET, ECPU_SOFT_RESET, 0);
 		mdelay(10);
 	}
 
@@ -264,38 +234,22 @@ static int vce_v3_0_start(struct amdgpu_device *adev)
 		if (adev->vce.harvest_config & (1 << idx))
 			continue;
 
-		if (idx == 0)
-			WREG32_P(mmGRBM_GFX_INDEX, 0,
-				~GRBM_GFX_INDEX__VCE_INSTANCE_MASK);
-		else
-			WREG32_P(mmGRBM_GFX_INDEX,
-				GRBM_GFX_INDEX__VCE_INSTANCE_MASK,
-				~GRBM_GFX_INDEX__VCE_INSTANCE_MASK);
-
+		WREG32_FIELD(GRBM_GFX_INDEX, VCE_INSTANCE, idx);
 		vce_v3_0_mc_resume(adev, idx);
-
-		WREG32_P(mmVCE_STATUS, VCE_STATUS__JOB_BUSY_MASK,
-		         ~VCE_STATUS__JOB_BUSY_MASK);
+		WREG32_FIELD(VCE_STATUS, JOB_BUSY, 1);
 
 		if (adev->asic_type >= CHIP_STONEY)
 			WREG32_P(mmVCE_VCPU_CNTL, 1, ~0x200001);
 		else
-			WREG32_P(mmVCE_VCPU_CNTL, VCE_VCPU_CNTL__CLK_EN_MASK,
-				~VCE_VCPU_CNTL__CLK_EN_MASK);
+			WREG32_FIELD(VCE_VCPU_CNTL, CLK_EN, 1);
 
-		WREG32_P(mmVCE_SOFT_RESET, 0,
-			~VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK);
-
+		WREG32_FIELD(VCE_SOFT_RESET, ECPU_SOFT_RESET, 0);
 		mdelay(100);
 
 		r = vce_v3_0_firmware_loaded(adev);
 
 		/* clear BUSY flag */
-		WREG32_P(mmVCE_STATUS, 0, ~VCE_STATUS__JOB_BUSY_MASK);
-
-		/* Set Clock-Gating off */
-		if (adev->cg_flags & AMD_CG_SUPPORT_VCE_MGCG)
-			vce_v3_0_set_vce_sw_clock_gating(adev, false);
+		WREG32_FIELD(VCE_STATUS, JOB_BUSY, 0);
 
 		if (r) {
 			DRM_ERROR("VCE not responding, giving up!!!\n");
@@ -304,7 +258,7 @@ static int vce_v3_0_start(struct amdgpu_device *adev)
 		}
 	}
 
-	WREG32_P(mmGRBM_GFX_INDEX, 0, ~GRBM_GFX_INDEX__VCE_INSTANCE_MASK);
+	WREG32_FIELD(GRBM_GFX_INDEX, VCE_INSTANCE, 0);
 	mutex_unlock(&adev->grbm_idx_mutex);
 
 	return 0;
@@ -319,33 +273,25 @@ static int vce_v3_0_stop(struct amdgpu_device *adev)
 		if (adev->vce.harvest_config & (1 << idx))
 			continue;
 
-		if (idx == 0)
-			WREG32_P(mmGRBM_GFX_INDEX, 0,
-				~GRBM_GFX_INDEX__VCE_INSTANCE_MASK);
-		else
-			WREG32_P(mmGRBM_GFX_INDEX,
-				GRBM_GFX_INDEX__VCE_INSTANCE_MASK,
-				~GRBM_GFX_INDEX__VCE_INSTANCE_MASK);
+		WREG32_FIELD(GRBM_GFX_INDEX, VCE_INSTANCE, idx);
 
 		if (adev->asic_type >= CHIP_STONEY)
 			WREG32_P(mmVCE_VCPU_CNTL, 0, ~0x200001);
 		else
-			WREG32_P(mmVCE_VCPU_CNTL, 0,
-				~VCE_VCPU_CNTL__CLK_EN_MASK);
+			WREG32_FIELD(VCE_VCPU_CNTL, CLK_EN, 0);
+
 		/* hold on ECPU */
-		WREG32_P(mmVCE_SOFT_RESET,
-			 VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK,
-			 ~VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK);
+		WREG32_FIELD(VCE_SOFT_RESET, ECPU_SOFT_RESET, 1);
 
 		/* clear BUSY flag */
-		WREG32_P(mmVCE_STATUS, 0, ~VCE_STATUS__JOB_BUSY_MASK);
+		WREG32_FIELD(VCE_STATUS, JOB_BUSY, 0);
 
 		/* Set Clock-Gating off */
 		if (adev->cg_flags & AMD_CG_SUPPORT_VCE_MGCG)
 			vce_v3_0_set_vce_sw_clock_gating(adev, false);
 	}
 
-	WREG32_P(mmGRBM_GFX_INDEX, 0, ~GRBM_GFX_INDEX__VCE_INSTANCE_MASK);
+	WREG32_FIELD(GRBM_GFX_INDEX, VCE_INSTANCE, 0);
 	mutex_unlock(&adev->grbm_idx_mutex);
 
 	return 0;
@@ -534,7 +480,7 @@ static void vce_v3_0_mc_resume(struct amdgpu_device *adev, int idx)
 	WREG32_P(mmVCE_CLOCK_GATING_A, 0, ~(1 << 16));
 	WREG32_P(mmVCE_UENC_CLOCK_GATING, 0x1FF000, ~0xFF9FF000);
 	WREG32_P(mmVCE_UENC_REG_CLOCK_GATING, 0x3F, ~0x3F);
-	WREG32(mmVCE_CLOCK_GATING_B, 0xf7);
+	WREG32(mmVCE_CLOCK_GATING_B, 0x1FF);
 
 	WREG32(mmVCE_LMI_CTRL, 0x00398000);
 	WREG32_P(mmVCE_LMI_CACHE_CTRL, 0x0, ~0x1);
@@ -573,9 +519,7 @@ static void vce_v3_0_mc_resume(struct amdgpu_device *adev, int idx)
 	}
 
 	WREG32_P(mmVCE_LMI_CTRL2, 0x0, ~0x100);
-
-	WREG32_P(mmVCE_SYS_INT_EN, VCE_SYS_INT_EN__VCE_SYS_INT_TRAP_INTERRUPT_EN_MASK,
-		 ~VCE_SYS_INT_EN__VCE_SYS_INT_TRAP_INTERRUPT_EN_MASK);
+	WREG32_FIELD(VCE_SYS_INT_EN, VCE_SYS_INT_TRAP_INTERRUPT_EN, 1);
 }
 
 static bool vce_v3_0_is_idle(void *handle)
@@ -601,20 +545,108 @@ static int vce_v3_0_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
+#define  VCE_STATUS_VCPU_REPORT_AUTO_BUSY_MASK  0x00000008L   /* AUTO_BUSY */
+#define  VCE_STATUS_VCPU_REPORT_RB0_BUSY_MASK   0x00000010L   /* RB0_BUSY */
+#define  VCE_STATUS_VCPU_REPORT_RB1_BUSY_MASK   0x00000020L   /* RB1_BUSY */
+#define  AMDGPU_VCE_STATUS_BUSY_MASK (VCE_STATUS_VCPU_REPORT_AUTO_BUSY_MASK | \
+				      VCE_STATUS_VCPU_REPORT_RB0_BUSY_MASK)
+
+static int vce_v3_0_check_soft_reset(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	u32 srbm_soft_reset = 0;
+
+	/* According to VCE team , we should use VCE_STATUS instead
+	 * SRBM_STATUS.VCE_BUSY bit for busy status checking.
+	 * GRBM_GFX_INDEX.INSTANCE_INDEX is used to specify which VCE
+	 * instance's registers are accessed
+	 * (0 for 1st instance, 10 for 2nd instance).
+	 *
+	 *VCE_STATUS
+	 *|UENC|ACPI|AUTO ACTIVE|RB1 |RB0 |RB2 |          |FW_LOADED|JOB |
+	 *|----+----+-----------+----+----+----+----------+---------+----|
+	 *|bit8|bit7|    bit6   |bit5|bit4|bit3|   bit2   |  bit1   |bit0|
+	 *
+	 * VCE team suggest use bit 3--bit 6 for busy status check
+	 */
+	mutex_lock(&adev->grbm_idx_mutex);
+	WREG32_FIELD(GRBM_GFX_INDEX, INSTANCE_INDEX, 0);
+	if (RREG32(mmVCE_STATUS) & AMDGPU_VCE_STATUS_BUSY_MASK) {
+		srbm_soft_reset = REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_VCE0, 1);
+		srbm_soft_reset = REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_VCE1, 1);
+	}
+	WREG32_FIELD(GRBM_GFX_INDEX, INSTANCE_INDEX, 0x10);
+	if (RREG32(mmVCE_STATUS) & AMDGPU_VCE_STATUS_BUSY_MASK) {
+		srbm_soft_reset = REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_VCE0, 1);
+		srbm_soft_reset = REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_VCE1, 1);
+	}
+	WREG32_FIELD(GRBM_GFX_INDEX, INSTANCE_INDEX, 0);
+
+	if (srbm_soft_reset) {
+		adev->ip_block_status[AMD_IP_BLOCK_TYPE_VCE].hang = true;
+		adev->vce.srbm_soft_reset = srbm_soft_reset;
+	} else {
+		adev->ip_block_status[AMD_IP_BLOCK_TYPE_VCE].hang = false;
+		adev->vce.srbm_soft_reset = 0;
+	}
+	mutex_unlock(&adev->grbm_idx_mutex);
+	return 0;
+}
+
 static int vce_v3_0_soft_reset(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	u32 mask = 0;
+	u32 srbm_soft_reset;
 
-	mask |= (adev->vce.harvest_config & AMDGPU_VCE_HARVEST_VCE0) ? 0 : SRBM_SOFT_RESET__SOFT_RESET_VCE0_MASK;
-	mask |= (adev->vce.harvest_config & AMDGPU_VCE_HARVEST_VCE1) ? 0 : SRBM_SOFT_RESET__SOFT_RESET_VCE1_MASK;
+	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_VCE].hang)
+		return 0;
+	srbm_soft_reset = adev->vce.srbm_soft_reset;
 
-	WREG32_P(mmSRBM_SOFT_RESET, mask,
-		 ~(SRBM_SOFT_RESET__SOFT_RESET_VCE0_MASK |
-		   SRBM_SOFT_RESET__SOFT_RESET_VCE1_MASK));
+	if (srbm_soft_reset) {
+		u32 tmp;
+
+		tmp = RREG32(mmSRBM_SOFT_RESET);
+		tmp |= srbm_soft_reset;
+		dev_info(adev->dev, "SRBM_SOFT_RESET=0x%08X\n", tmp);
+		WREG32(mmSRBM_SOFT_RESET, tmp);
+		tmp = RREG32(mmSRBM_SOFT_RESET);
+
+		udelay(50);
+
+		tmp &= ~srbm_soft_reset;
+		WREG32(mmSRBM_SOFT_RESET, tmp);
+		tmp = RREG32(mmSRBM_SOFT_RESET);
+
+		/* Wait a little for things to settle down */
+		udelay(50);
+	}
+
+	return 0;
+}
+
+static int vce_v3_0_pre_soft_reset(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_VCE].hang)
+		return 0;
+
 	mdelay(5);
 
-	return vce_v3_0_start(adev);
+	return vce_v3_0_suspend(adev);
+}
+
+
+static int vce_v3_0_post_soft_reset(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_VCE].hang)
+		return 0;
+
+	mdelay(5);
+
+	return vce_v3_0_resume(adev);
 }
 
 static int vce_v3_0_set_interrupt_state(struct amdgpu_device *adev,
@@ -637,9 +669,7 @@ static int vce_v3_0_process_interrupt(struct amdgpu_device *adev,
 {
 	DRM_DEBUG("IH: VCE\n");
 
-	WREG32_P(mmVCE_SYS_INT_STATUS,
-		VCE_SYS_INT_STATUS__VCE_SYS_INT_TRAP_INTERRUPT_INT_MASK,
-		~VCE_SYS_INT_STATUS__VCE_SYS_INT_TRAP_INTERRUPT_INT_MASK);
+	WREG32_FIELD(VCE_SYS_INT_STATUS, VCE_SYS_INT_TRAP_INTERRUPT_INT, 1);
 
 	switch (entry->src_data) {
 	case 0:
@@ -686,13 +716,7 @@ static int vce_v3_0_set_clockgating_state(void *handle,
 		if (adev->vce.harvest_config & (1 << i))
 			continue;
 
-		if (i == 0)
-			WREG32_P(mmGRBM_GFX_INDEX, 0,
-					~GRBM_GFX_INDEX__VCE_INSTANCE_MASK);
-		else
-			WREG32_P(mmGRBM_GFX_INDEX,
-					GRBM_GFX_INDEX__VCE_INSTANCE_MASK,
-					~GRBM_GFX_INDEX__VCE_INSTANCE_MASK);
+		WREG32_FIELD(GRBM_GFX_INDEX, VCE_INSTANCE, i);
 
 		if (enable) {
 			/* initialize VCE_CLOCK_GATING_A: Clock ON/OFF delay */
@@ -711,7 +735,7 @@ static int vce_v3_0_set_clockgating_state(void *handle,
 		vce_v3_0_set_vce_sw_clock_gating(adev, enable);
 	}
 
-	WREG32_P(mmGRBM_GFX_INDEX, 0, ~GRBM_GFX_INDEX__VCE_INSTANCE_MASK);
+	WREG32_FIELD(GRBM_GFX_INDEX, VCE_INSTANCE, 0);
 	mutex_unlock(&adev->grbm_idx_mutex);
 
 	return 0;
@@ -751,7 +775,10 @@ const struct amd_ip_funcs vce_v3_0_ip_funcs = {
 	.resume = vce_v3_0_resume,
 	.is_idle = vce_v3_0_is_idle,
 	.wait_for_idle = vce_v3_0_wait_for_idle,
+	.check_soft_reset = vce_v3_0_check_soft_reset,
+	.pre_soft_reset = vce_v3_0_pre_soft_reset,
 	.soft_reset = vce_v3_0_soft_reset,
+	.post_soft_reset = vce_v3_0_post_soft_reset,
 	.set_clockgating_state = vce_v3_0_set_clockgating_state,
 	.set_powergating_state = vce_v3_0_set_powergating_state,
 };

@@ -5874,7 +5874,10 @@ static int ci_dpm_init(struct amdgpu_device *adev)
 	pi->pcie_dpm_key_disabled = 0;
 	pi->thermal_sclk_dpm_enabled = 0;
 
-	pi->caps_sclk_ds = true;
+	if (amdgpu_sclk_deep_sleep_en)
+		pi->caps_sclk_ds = true;
+	else
+		pi->caps_sclk_ds = false;
 
 	pi->mclk_strobe_mode_threshold = 40000;
 	pi->mclk_stutter_mode_threshold = 40000;

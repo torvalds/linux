@@ -201,38 +201,13 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 	bo_size = AMDGPU_GPU_PAGE_ALIGN(le32_to_cpu(hdr->ucode_size_bytes) + 8)
 		  +  AMDGPU_UVD_STACK_SIZE + AMDGPU_UVD_HEAP_SIZE
 		  +  AMDGPU_UVD_SESSION_SIZE * adev->uvd.max_handles;
-	r = amdgpu_bo_create(adev, bo_size, PAGE_SIZE, true,
-			     AMDGPU_GEM_DOMAIN_VRAM,
-			     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
-			     NULL, NULL, &adev->uvd.vcpu_bo);
+	r = amdgpu_bo_create_kernel(adev, bo_size, PAGE_SIZE,
+				    AMDGPU_GEM_DOMAIN_VRAM, &adev->uvd.vcpu_bo,
+				    &adev->uvd.gpu_addr, &adev->uvd.cpu_addr);
 	if (r) {
 		dev_err(adev->dev, "(%d) failed to allocate UVD bo\n", r);
 		return r;
 	}
-
-	r = amdgpu_bo_reserve(adev->uvd.vcpu_bo, false);
-	if (r) {
-		amdgpu_bo_unref(&adev->uvd.vcpu_bo);
-		dev_err(adev->dev, "(%d) failed to reserve UVD bo\n", r);
-		return r;
-	}
-
-	r = amdgpu_bo_pin(adev->uvd.vcpu_bo, AMDGPU_GEM_DOMAIN_VRAM,
-			  &adev->uvd.gpu_addr);
-	if (r) {
-		amdgpu_bo_unreserve(adev->uvd.vcpu_bo);
-		amdgpu_bo_unref(&adev->uvd.vcpu_bo);
-		dev_err(adev->dev, "(%d) UVD bo pin failed\n", r);
-		return r;
-	}
-
-	r = amdgpu_bo_kmap(adev->uvd.vcpu_bo, &adev->uvd.cpu_addr);
-	if (r) {
-		dev_err(adev->dev, "(%d) UVD map failed\n", r);
-		return r;
-	}
-
-	amdgpu_bo_unreserve(adev->uvd.vcpu_bo);
 
 	ring = &adev->uvd.ring;
 	rq = &ring->sched.sched_rq[AMD_SCHED_PRIORITY_NORMAL];
@@ -323,7 +298,7 @@ int amdgpu_uvd_suspend(struct amdgpu_device *adev)
 	if (!adev->uvd.saved_bo)
 		return -ENOMEM;
 
-	memcpy(adev->uvd.saved_bo, ptr, size);
+	memcpy_fromio(adev->uvd.saved_bo, ptr, size);
 
 	return 0;
 }
@@ -340,7 +315,7 @@ int amdgpu_uvd_resume(struct amdgpu_device *adev)
 	ptr = adev->uvd.cpu_addr;
 
 	if (adev->uvd.saved_bo != NULL) {
-		memcpy(ptr, adev->uvd.saved_bo, size);
+		memcpy_toio(ptr, adev->uvd.saved_bo, size);
 		kfree(adev->uvd.saved_bo);
 		adev->uvd.saved_bo = NULL;
 	} else {
@@ -349,11 +324,11 @@ int amdgpu_uvd_resume(struct amdgpu_device *adev)
 
 		hdr = (const struct common_firmware_header *)adev->uvd.fw->data;
 		offset = le32_to_cpu(hdr->ucode_array_offset_bytes);
-		memcpy(adev->uvd.cpu_addr, (adev->uvd.fw->data) + offset,
-			(adev->uvd.fw->size) - offset);
+		memcpy_toio(adev->uvd.cpu_addr, adev->uvd.fw->data + offset,
+			    le32_to_cpu(hdr->ucode_size_bytes));
 		size -= le32_to_cpu(hdr->ucode_size_bytes);
 		ptr += le32_to_cpu(hdr->ucode_size_bytes);
-		memset(ptr, 0, size);
+		memset_io(ptr, 0, size);
 	}
 
 	return 0;
@@ -843,6 +818,7 @@ static int amdgpu_uvd_cs_reg(struct amdgpu_uvd_cs_ctx *ctx,
 				return r;
 			break;
 		case mmUVD_ENGINE_CNTL:
+		case mmUVD_NO_OP:
 			break;
 		default:
 			DRM_ERROR("Invalid reg 0x%X!\n", reg);
@@ -981,8 +957,10 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 	ib->ptr[3] = addr >> 32;
 	ib->ptr[4] = PACKET0(mmUVD_GPCOM_VCPU_CMD, 0);
 	ib->ptr[5] = 0;
-	for (i = 6; i < 16; ++i)
-		ib->ptr[i] = PACKET2(0);
+	for (i = 6; i < 16; i += 2) {
+		ib->ptr[i] = PACKET0(mmUVD_NO_OP, 0);
+		ib->ptr[i+1] = 0;
+	}
 	ib->length_dw = 16;
 
 	if (direct) {
@@ -1114,15 +1092,9 @@ static void amdgpu_uvd_idle_work_handler(struct work_struct *work)
 {
 	struct amdgpu_device *adev =
 		container_of(work, struct amdgpu_device, uvd.idle_work.work);
-	unsigned i, fences, handles = 0;
+	unsigned fences = amdgpu_fence_count_emitted(&adev->uvd.ring);
 
-	fences = amdgpu_fence_count_emitted(&adev->uvd.ring);
-
-	for (i = 0; i < adev->uvd.max_handles; ++i)
-		if (atomic_read(&adev->uvd.handles[i]))
-			++handles;
-
-	if (fences == 0 && handles == 0) {
+	if (fences == 0) {
 		if (adev->pm.dpm_enabled) {
 			amdgpu_dpm_enable_uvd(adev, false);
 		} else {

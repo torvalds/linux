@@ -435,7 +435,11 @@ static int cz_dpm_init(struct amdgpu_device *adev)
 		pi->caps_td_ramping = true;
 		pi->caps_tcp_ramping = true;
 	}
-	pi->caps_sclk_ds = true;
+	if (amdgpu_sclk_deep_sleep_en)
+		pi->caps_sclk_ds = true;
+	else
+		pi->caps_sclk_ds = false;
+
 	pi->voting_clients = 0x00c00033;
 	pi->auto_thermal_throttling_enabled = true;
 	pi->bapm_enabled = false;
@@ -2108,29 +2112,58 @@ static void cz_dpm_powergate_uvd(struct amdgpu_device *adev, bool gate)
 			/* disable clockgating so we can properly shut down the block */
 			ret = amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
 							    AMD_CG_STATE_UNGATE);
+			if (ret) {
+				DRM_ERROR("UVD DPM Power Gating failed to set clockgating state\n");
+				return;
+			}
+
 			/* shutdown the UVD block */
 			ret = amdgpu_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
 							    AMD_PG_STATE_GATE);
-			/* XXX: check for errors */
+
+			if (ret) {
+				DRM_ERROR("UVD DPM Power Gating failed to set powergating state\n");
+				return;
+			}
 		}
 		cz_update_uvd_dpm(adev, gate);
-		if (pi->caps_uvd_pg)
+		if (pi->caps_uvd_pg) {
 			/* power off the UVD block */
-			cz_send_msg_to_smc(adev, PPSMC_MSG_UVDPowerOFF);
+			ret = cz_send_msg_to_smc(adev, PPSMC_MSG_UVDPowerOFF);
+			if (ret) {
+				DRM_ERROR("UVD DPM Power Gating failed to send SMU PowerOFF message\n");
+				return;
+			}
+		}
 	} else {
 		if (pi->caps_uvd_pg) {
 			/* power on the UVD block */
 			if (pi->uvd_dynamic_pg)
-				cz_send_msg_to_smc_with_parameter(adev, PPSMC_MSG_UVDPowerON, 1);
+				ret = cz_send_msg_to_smc_with_parameter(adev, PPSMC_MSG_UVDPowerON, 1);
 			else
-				cz_send_msg_to_smc_with_parameter(adev, PPSMC_MSG_UVDPowerON, 0);
+				ret = cz_send_msg_to_smc_with_parameter(adev, PPSMC_MSG_UVDPowerON, 0);
+
+			if (ret) {
+				DRM_ERROR("UVD DPM Power Gating Failed to send SMU PowerON message\n");
+				return;
+			}
+
 			/* re-init the UVD block */
 			ret = amdgpu_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
 							    AMD_PG_STATE_UNGATE);
+
+			if (ret) {
+				DRM_ERROR("UVD DPM Power Gating Failed to set powergating state\n");
+				return;
+			}
+
 			/* enable clockgating. hw will dynamically gate/ungate clocks on the fly */
 			ret = amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
 							    AMD_CG_STATE_GATE);
-			/* XXX: check for errors */
+			if (ret) {
+				DRM_ERROR("UVD DPM Power Gating Failed to set clockgating state\n");
+				return;
+			}
 		}
 		cz_update_uvd_dpm(adev, gate);
 	}

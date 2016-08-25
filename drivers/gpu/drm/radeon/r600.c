@@ -3097,7 +3097,7 @@ static void r600_uvd_resume(struct radeon_device *rdev)
 		return;
 
 	ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
-	r = radeon_ring_init(rdev, ring, ring->ring_size, 0, RADEON_CP_PACKET2);
+	r = radeon_ring_init(rdev, ring, ring->ring_size, 0, PACKET0(UVD_NO_OP, 0));
 	if (r) {
 		dev_err(rdev->dev, "failed initializing UVD ring (%d).\n", r);
 		return;

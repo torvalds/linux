@@ -53,9 +53,11 @@
  * - 3.2.0 - GFX8: Uses EOP_TC_WB_ACTION_EN, so UMDs don't have to do the same
  *           at the end of IBs.
  * - 3.3.0 - Add VM support for UVD on supported hardware.
+ * - 3.4.0 - Add AMDGPU_INFO_NUM_EVICTIONS.
+ * - 3.5.0 - Add support for new UVD_NO_OP register.
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	3
+#define KMS_DRIVER_MINOR	5
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit = 0;
@@ -84,11 +86,13 @@ int amdgpu_sched_jobs = 32;
 int amdgpu_sched_hw_submission = 2;
 int amdgpu_powerplay = -1;
 int amdgpu_powercontainment = 1;
+int amdgpu_sclk_deep_sleep_en = 1;
 unsigned amdgpu_pcie_gen_cap = 0;
 unsigned amdgpu_pcie_lane_cap = 0;
 unsigned amdgpu_cg_mask = 0xffffffff;
 unsigned amdgpu_pg_mask = 0xffffffff;
 char *amdgpu_disable_cu = NULL;
+char *amdgpu_virtual_display = NULL;
 
 MODULE_PARM_DESC(vramlimit, "Restrict VRAM for testing, in megabytes");
 module_param_named(vramlimit, amdgpu_vram_limit, int, 0600);
@@ -170,6 +174,9 @@ MODULE_PARM_DESC(powercontainment, "Power Containment (1 = enable (default), 0 =
 module_param_named(powercontainment, amdgpu_powercontainment, int, 0444);
 #endif
 
+MODULE_PARM_DESC(sclkdeepsleep, "SCLK Deep Sleep (1 = enable (default), 0 = disable)");
+module_param_named(sclkdeepsleep, amdgpu_sclk_deep_sleep_en, int, 0444);
+
 MODULE_PARM_DESC(pcie_gen_cap, "PCIE Gen Caps (0: autodetect (default))");
 module_param_named(pcie_gen_cap, amdgpu_pcie_gen_cap, uint, 0444);
 
@@ -184,6 +191,9 @@ module_param_named(pg_mask, amdgpu_pg_mask, uint, 0444);
 
 MODULE_PARM_DESC(disable_cu, "Disable CUs (se.sh.cu,...)");
 module_param_named(disable_cu, amdgpu_disable_cu, charp, 0444);
+
+MODULE_PARM_DESC(virtual_display, "Enable virtual display feature (the virtual_display will be set like xxxx:xx:xx.x;xxxx:xx:xx.x)");
+module_param_named(virtual_display, amdgpu_virtual_display, charp, 0444);
 
 static const struct pci_device_id pciidlist[] = {
 #ifdef CONFIG_DRM_AMDGPU_CIK

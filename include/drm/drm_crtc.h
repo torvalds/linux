@@ -391,6 +391,24 @@ struct drm_crtc_funcs {
 			 uint32_t flags);
 
 	/**
+	 * @page_flip_target:
+	 *
+	 * Same as @page_flip but with an additional parameter specifying the
+	 * absolute target vertical blank period (as reported by
+	 * drm_crtc_vblank_count()) when the flip should take effect.
+	 *
+	 * Note that the core code calls drm_crtc_vblank_get before this entry
+	 * point, and will call drm_crtc_vblank_put if this entry point returns
+	 * any non-0 error code. It's the driver's responsibility to call
+	 * drm_crtc_vblank_put after this entry point returns 0, typically when
+	 * the flip completes.
+	 */
+	int (*page_flip_target)(struct drm_crtc *crtc,
+				struct drm_framebuffer *fb,
+				struct drm_pending_vblank_event *event,
+				uint32_t flags, uint32_t target);
+
+	/**
 	 * @set_property:
 	 *
 	 * This is the legacy entry point to update a property attached to the

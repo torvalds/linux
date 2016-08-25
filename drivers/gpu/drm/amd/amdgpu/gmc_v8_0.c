@@ -261,7 +261,7 @@ static int gmc_v8_0_mc_load_microcode(struct amdgpu_device *adev)
 	const struct mc_firmware_header_v1_0 *hdr;
 	const __le32 *fw_data = NULL;
 	const __le32 *io_mc_regs = NULL;
-	u32 running, blackout = 0;
+	u32 running;
 	int i, ucode_size, regs_size;
 
 	if (!adev->mc.fw)
@@ -287,11 +287,6 @@ static int gmc_v8_0_mc_load_microcode(struct amdgpu_device *adev)
 	running = REG_GET_FIELD(RREG32(mmMC_SEQ_SUP_CNTL), MC_SEQ_SUP_CNTL, RUN);
 
 	if (running == 0) {
-		if (running) {
-			blackout = RREG32(mmMC_SHARED_BLACKOUT_CNTL);
-			WREG32(mmMC_SHARED_BLACKOUT_CNTL, blackout | 1);
-		}
-
 		/* reset the engine and set to writable */
 		WREG32(mmMC_SEQ_SUP_CNTL, 0x00000008);
 		WREG32(mmMC_SEQ_SUP_CNTL, 0x00000010);
@@ -323,9 +318,6 @@ static int gmc_v8_0_mc_load_microcode(struct amdgpu_device *adev)
 				break;
 			udelay(1);
 		}
-
-		if (running)
-			WREG32(mmMC_SHARED_BLACKOUT_CNTL, blackout);
 	}
 
 	return 0;
@@ -477,7 +469,7 @@ static int gmc_v8_0_mc_init(struct amdgpu_device *adev)
 	 * size equal to the 1024 or vram, whichever is larger.
 	 */
 	if (amdgpu_gart_size == -1)
-		adev->mc.gtt_size = max((1024ULL << 20), adev->mc.mc_vram_size);
+		adev->mc.gtt_size = amdgpu_ttm_get_gtt_mem_size(adev);
 	else
 		adev->mc.gtt_size = (uint64_t)amdgpu_gart_size << 20;
 
@@ -957,6 +949,11 @@ static int gmc_v8_0_sw_init(void *handle)
 		return r;
 	}
 
+	r = amdgpu_ttm_global_init(adev);
+	if (r) {
+		return r;
+	}
+
 	r = gmc_v8_0_mc_init(adev);
 	if (r)
 		return r;
@@ -1100,9 +1097,8 @@ static int gmc_v8_0_wait_for_idle(void *handle)
 
 }
 
-static int gmc_v8_0_soft_reset(void *handle)
+static int gmc_v8_0_check_soft_reset(void *handle)
 {
-	struct amdgpu_mode_mc_save save;
 	u32 srbm_soft_reset = 0;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	u32 tmp = RREG32(mmSRBM_STATUS);
@@ -1117,13 +1113,42 @@ static int gmc_v8_0_soft_reset(void *handle)
 			srbm_soft_reset = REG_SET_FIELD(srbm_soft_reset,
 							SRBM_SOFT_RESET, SOFT_RESET_MC, 1);
 	}
+	if (srbm_soft_reset) {
+		adev->ip_block_status[AMD_IP_BLOCK_TYPE_GMC].hang = true;
+		adev->mc.srbm_soft_reset = srbm_soft_reset;
+	} else {
+		adev->ip_block_status[AMD_IP_BLOCK_TYPE_GMC].hang = false;
+		adev->mc.srbm_soft_reset = 0;
+	}
+	return 0;
+}
+
+static int gmc_v8_0_pre_soft_reset(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_GMC].hang)
+		return 0;
+
+	gmc_v8_0_mc_stop(adev, &adev->mc.save);
+	if (gmc_v8_0_wait_for_idle(adev)) {
+		dev_warn(adev->dev, "Wait for GMC idle timed out !\n");
+	}
+
+	return 0;
+}
+
+static int gmc_v8_0_soft_reset(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	u32 srbm_soft_reset;
+
+	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_GMC].hang)
+		return 0;
+	srbm_soft_reset = adev->mc.srbm_soft_reset;
 
 	if (srbm_soft_reset) {
-		gmc_v8_0_mc_stop(adev, &save);
-		if (gmc_v8_0_wait_for_idle((void *)adev)) {
-			dev_warn(adev->dev, "Wait for GMC idle timed out !\n");
-		}
-
+		u32 tmp;
 
 		tmp = RREG32(mmSRBM_SOFT_RESET);
 		tmp |= srbm_soft_reset;
@@ -1139,11 +1164,19 @@ static int gmc_v8_0_soft_reset(void *handle)
 
 		/* Wait a little for things to settle down */
 		udelay(50);
-
-		gmc_v8_0_mc_resume(adev, &save);
-		udelay(50);
 	}
 
+	return 0;
+}
+
+static int gmc_v8_0_post_soft_reset(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_GMC].hang)
+		return 0;
+
+	gmc_v8_0_mc_resume(adev, &adev->mc.save);
 	return 0;
 }
 
@@ -1414,7 +1447,10 @@ const struct amd_ip_funcs gmc_v8_0_ip_funcs = {
 	.resume = gmc_v8_0_resume,
 	.is_idle = gmc_v8_0_is_idle,
 	.wait_for_idle = gmc_v8_0_wait_for_idle,
+	.check_soft_reset = gmc_v8_0_check_soft_reset,
+	.pre_soft_reset = gmc_v8_0_pre_soft_reset,
 	.soft_reset = gmc_v8_0_soft_reset,
+	.post_soft_reset = gmc_v8_0_post_soft_reset,
 	.set_clockgating_state = gmc_v8_0_set_clockgating_state,
 	.set_powergating_state = gmc_v8_0_set_powergating_state,
 };

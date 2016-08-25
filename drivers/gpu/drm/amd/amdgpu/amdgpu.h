@@ -51,6 +51,7 @@
 #include "amdgpu_ih.h"
 #include "amdgpu_irq.h"
 #include "amdgpu_ucode.h"
+#include "amdgpu_ttm.h"
 #include "amdgpu_gds.h"
 #include "amd_powerplay.h"
 #include "amdgpu_acp.h"
@@ -91,6 +92,8 @@ extern unsigned amdgpu_pcie_lane_cap;
 extern unsigned amdgpu_cg_mask;
 extern unsigned amdgpu_pg_mask;
 extern char *amdgpu_disable_cu;
+extern int amdgpu_sclk_deep_sleep_en;
+extern char *amdgpu_virtual_display;
 
 #define AMDGPU_WAIT_IDLE_TIMEOUT_IN_MS	        3000
 #define AMDGPU_MAX_USEC_TIMEOUT			100000	/* 100 ms */
@@ -248,10 +251,9 @@ struct amdgpu_vm_pte_funcs {
 			 uint64_t pe, uint64_t src,
 			 unsigned count);
 	/* write pte one entry at a time with addr mapping */
-	void (*write_pte)(struct amdgpu_ib *ib,
-			  const dma_addr_t *pages_addr, uint64_t pe,
-			  uint64_t addr, unsigned count,
-			  uint32_t incr, uint32_t flags);
+	void (*write_pte)(struct amdgpu_ib *ib, uint64_t pe,
+			  uint64_t value, unsigned count,
+			  uint32_t incr);
 	/* for linear pte/pde updates without addr mapping */
 	void (*set_pte_pde)(struct amdgpu_ib *ib,
 			    uint64_t pe,
@@ -396,45 +398,8 @@ int amdgpu_fence_wait_empty(struct amdgpu_ring *ring);
 unsigned amdgpu_fence_count_emitted(struct amdgpu_ring *ring);
 
 /*
- * TTM.
+ * BO.
  */
-
-#define AMDGPU_TTM_LRU_SIZE	20
-
-struct amdgpu_mman_lru {
-	struct list_head		*lru[TTM_NUM_MEM_TYPES];
-	struct list_head		*swap_lru;
-};
-
-struct amdgpu_mman {
-	struct ttm_bo_global_ref        bo_global_ref;
-	struct drm_global_reference	mem_global_ref;
-	struct ttm_bo_device		bdev;
-	bool				mem_global_referenced;
-	bool				initialized;
-
-#if defined(CONFIG_DEBUG_FS)
-	struct dentry			*vram;
-	struct dentry			*gtt;
-#endif
-
-	/* buffer handling */
-	const struct amdgpu_buffer_funcs	*buffer_funcs;
-	struct amdgpu_ring			*buffer_funcs_ring;
-	/* Scheduler entity for buffer moves */
-	struct amd_sched_entity			entity;
-
-	/* custom LRU management */
-	struct amdgpu_mman_lru			log2_size[AMDGPU_TTM_LRU_SIZE];
-};
-
-int amdgpu_copy_buffer(struct amdgpu_ring *ring,
-		       uint64_t src_offset,
-		       uint64_t dst_offset,
-		       uint32_t byte_count,
-		       struct reservation_object *resv,
-		       struct fence **fence);
-int amdgpu_mmap(struct file *filp, struct vm_area_struct *vma);
 
 struct amdgpu_bo_list_entry {
 	struct amdgpu_bo		*robj;
@@ -498,10 +463,12 @@ struct amdgpu_bo {
 	struct amdgpu_device		*adev;
 	struct drm_gem_object		gem_base;
 	struct amdgpu_bo		*parent;
+	struct amdgpu_bo		*shadow;
 
 	struct ttm_bo_kmap_obj		dma_buf_vmap;
 	struct amdgpu_mn		*mn;
 	struct list_head		mn_list;
+	struct list_head		shadow_list;
 };
 #define gem_to_amdgpu_bo(gobj) container_of((gobj), struct amdgpu_bo, gem_base)
 
@@ -677,6 +644,8 @@ struct amdgpu_mc {
 	uint32_t                fw_version;
 	struct amdgpu_irq_src	vm_fault;
 	uint32_t		vram_type;
+	uint32_t                srbm_soft_reset;
+	struct amdgpu_mode_mc_save save;
 };
 
 /*
@@ -721,10 +690,11 @@ void amdgpu_doorbell_get_kfd_info(struct amdgpu_device *adev,
  */
 
 struct amdgpu_flip_work {
-	struct work_struct		flip_work;
+	struct delayed_work		flip_work;
 	struct work_struct		unpin_work;
 	struct amdgpu_device		*adev;
 	int				crtc_id;
+	u32				target_vblank;
 	uint64_t			base;
 	struct drm_pending_vblank_event *event;
 	struct amdgpu_bo		*old_rbo;
@@ -815,13 +785,17 @@ struct amdgpu_ring {
 /* maximum number of VMIDs */
 #define AMDGPU_NUM_VM	16
 
+/* Maximum number of PTEs the hardware can write with one command */
+#define AMDGPU_VM_MAX_UPDATE_SIZE	0x3FFFF
+
 /* number of entries in page table */
 #define AMDGPU_VM_PTE_COUNT (1 << amdgpu_vm_block_size)
 
 /* PTBs (Page Table Blocks) need to be aligned to 32K */
 #define AMDGPU_VM_PTB_ALIGN_SIZE   32768
-#define AMDGPU_VM_PTB_ALIGN_MASK (AMDGPU_VM_PTB_ALIGN_SIZE - 1)
-#define AMDGPU_VM_PTB_ALIGN(a) (((a) + AMDGPU_VM_PTB_ALIGN_MASK) & ~AMDGPU_VM_PTB_ALIGN_MASK)
+
+/* LOG2 number of continuous pages for the fragment field */
+#define AMDGPU_LOG2_PAGES_PER_FRAG 4
 
 #define AMDGPU_PTE_VALID	(1 << 0)
 #define AMDGPU_PTE_SYSTEM	(1 << 1)
@@ -833,10 +807,7 @@ struct amdgpu_ring {
 #define AMDGPU_PTE_READABLE	(1 << 5)
 #define AMDGPU_PTE_WRITEABLE	(1 << 6)
 
-/* PTE (Page Table Entry) fragment field for different page sizes */
-#define AMDGPU_PTE_FRAG_4KB	(0 << 7)
-#define AMDGPU_PTE_FRAG_64KB	(4 << 7)
-#define AMDGPU_LOG2_PAGES_PER_FRAG 4
+#define AMDGPU_PTE_FRAG(x)	((x & 0x1f) << 7)
 
 /* How to programm VM fault handling */
 #define AMDGPU_VM_FAULT_STOP_NEVER	0
@@ -846,6 +817,7 @@ struct amdgpu_ring {
 struct amdgpu_vm_pt {
 	struct amdgpu_bo_list_entry	entry;
 	uint64_t			addr;
+	uint64_t			shadow_addr;
 };
 
 struct amdgpu_vm {
@@ -948,7 +920,6 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		      struct amdgpu_job *job);
 int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job);
 void amdgpu_vm_reset_id(struct amdgpu_device *adev, unsigned vm_id);
-uint64_t amdgpu_vm_map_gart(const dma_addr_t *pages_addr, uint64_t addr);
 int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 				    struct amdgpu_vm *vm);
 int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
@@ -957,7 +928,7 @@ int amdgpu_vm_clear_invalids(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			     struct amdgpu_sync *sync);
 int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 			struct amdgpu_bo_va *bo_va,
-			struct ttm_mem_reg *mem);
+			bool clear);
 void amdgpu_vm_bo_invalidate(struct amdgpu_device *adev,
 			     struct amdgpu_bo *bo);
 struct amdgpu_bo_va *amdgpu_vm_bo_find(struct amdgpu_vm *vm,
@@ -1195,6 +1166,10 @@ struct amdgpu_gfx {
 	unsigned			ce_ram_size;
 	struct amdgpu_cu_info		cu_info;
 	const struct amdgpu_gfx_funcs	*funcs;
+
+	/* reset mask */
+	uint32_t                        grbm_soft_reset;
+	uint32_t                        srbm_soft_reset;
 };
 
 int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
@@ -1683,6 +1658,7 @@ struct amdgpu_uvd {
 	bool			address_64_bit;
 	bool			use_ctx_buf;
 	struct amd_sched_entity entity;
+	uint32_t                srbm_soft_reset;
 };
 
 /*
@@ -1709,6 +1685,7 @@ struct amdgpu_vce {
 	struct amdgpu_irq_src	irq;
 	unsigned		harvest_config;
 	struct amd_sched_entity	entity;
+	uint32_t                srbm_soft_reset;
 };
 
 /*
@@ -1729,6 +1706,7 @@ struct amdgpu_sdma {
 	struct amdgpu_irq_src	trap_irq;
 	struct amdgpu_irq_src	illegal_inst_irq;
 	int			num_instances;
+	uint32_t                    srbm_soft_reset;
 };
 
 /*
@@ -1956,6 +1934,7 @@ struct amdgpu_ip_block_status {
 	bool valid;
 	bool sw;
 	bool hw;
+	bool hang;
 };
 
 struct amdgpu_device {
@@ -2055,6 +2034,7 @@ struct amdgpu_device {
 	atomic_t			gpu_reset_counter;
 
 	/* display */
+	bool				enable_virtual_display;
 	struct amdgpu_mode_info		mode_info;
 	struct work_struct		hotplug_work;
 	struct amdgpu_irq_src		crtc_irq;
@@ -2117,6 +2097,10 @@ struct amdgpu_device {
 	struct kfd_dev          *kfd;
 
 	struct amdgpu_virtualization virtualization;
+
+	/* link all shadow bo */
+	struct list_head                shadow_list;
+	struct mutex                    shadow_list_lock;
 };
 
 bool amdgpu_device_is_px(struct drm_device *dev);
@@ -2192,6 +2176,9 @@ void amdgpu_mm_wdoorbell(struct amdgpu_device *adev, u32 index, u32 v);
 #define REG_GET_FIELD(value, reg, field)				\
 	(((value) & REG_FIELD_MASK(reg, field)) >> REG_FIELD_SHIFT(reg, field))
 
+#define WREG32_FIELD(reg, field, val)	\
+	WREG32(mm##reg, (RREG32(mm##reg) & ~REG_FIELD_MASK(reg, field)) | (val) << REG_FIELD_SHIFT(reg, field))
+
 /*
  * BIOS helpers.
  */
@@ -2242,7 +2229,7 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_gart_flush_gpu_tlb(adev, vmid) (adev)->gart.gart_funcs->flush_gpu_tlb((adev), (vmid))
 #define amdgpu_gart_set_pte_pde(adev, pt, idx, addr, flags) (adev)->gart.gart_funcs->set_pte_pde((adev), (pt), (idx), (addr), (flags))
 #define amdgpu_vm_copy_pte(adev, ib, pe, src, count) ((adev)->vm_manager.vm_pte_funcs->copy_pte((ib), (pe), (src), (count)))
-#define amdgpu_vm_write_pte(adev, ib, pa, pe, addr, count, incr, flags) ((adev)->vm_manager.vm_pte_funcs->write_pte((ib), (pa), (pe), (addr), (count), (incr), (flags)))
+#define amdgpu_vm_write_pte(adev, ib, pe, value, count, incr) ((adev)->vm_manager.vm_pte_funcs->write_pte((ib), (pe), (value), (count), (incr)))
 #define amdgpu_vm_set_pte_pde(adev, ib, pe, addr, count, incr, flags) ((adev)->vm_manager.vm_pte_funcs->set_pte_pde((ib), (pe), (addr), (count), (incr), (flags)))
 #define amdgpu_ring_parse_cs(r, p, ib) ((r)->funcs->parse_cs((p), (ib)))
 #define amdgpu_ring_test_ring(r) (r)->funcs->test_ring((r))
@@ -2387,6 +2374,7 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 
 /* Common functions */
 int amdgpu_gpu_reset(struct amdgpu_device *adev);
+bool amdgpu_need_backup(struct amdgpu_device *adev);
 void amdgpu_pci_config_reset(struct amdgpu_device *adev);
 bool amdgpu_card_posted(struct amdgpu_device *adev);
 void amdgpu_update_display_priority(struct amdgpu_device *adev);
@@ -2412,6 +2400,8 @@ uint32_t amdgpu_ttm_tt_pte_flags(struct amdgpu_device *adev, struct ttm_tt *ttm,
 void amdgpu_vram_location(struct amdgpu_device *adev, struct amdgpu_mc *mc, u64 base);
 void amdgpu_gtt_location(struct amdgpu_device *adev, struct amdgpu_mc *mc);
 void amdgpu_ttm_set_active_vram_size(struct amdgpu_device *adev, u64 size);
+u64 amdgpu_ttm_get_gtt_mem_size(struct amdgpu_device *adev);
+int amdgpu_ttm_global_init(struct amdgpu_device *adev);
 void amdgpu_program_register_sequence(struct amdgpu_device *adev,
 					     const u32 *registers,
 					     const u32 array_size);

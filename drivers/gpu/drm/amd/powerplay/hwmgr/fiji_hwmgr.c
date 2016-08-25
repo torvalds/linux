@@ -618,9 +618,6 @@ static int fiji_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_TablelessHardwareInterface);
 
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_SclkDeepSleep);
-
 	data->gpio_debug = 0;
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,

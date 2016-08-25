@@ -354,14 +354,12 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 
 	if (!(old_man->flags & TTM_MEMTYPE_FLAG_FIXED) &&
 	    !(new_man->flags & TTM_MEMTYPE_FLAG_FIXED))
-		ret = ttm_bo_move_ttm(bo, evict, interruptible, no_wait_gpu,
-				      mem);
+		ret = ttm_bo_move_ttm(bo, interruptible, no_wait_gpu, mem);
 	else if (bdev->driver->move)
 		ret = bdev->driver->move(bo, evict, interruptible,
 					 no_wait_gpu, mem);
 	else
-		ret = ttm_bo_move_memcpy(bo, evict, interruptible,
-					 no_wait_gpu, mem);
+		ret = ttm_bo_move_memcpy(bo, interruptible, no_wait_gpu, mem);
 
 	if (ret) {
 		if (bdev->driver->move_notify) {

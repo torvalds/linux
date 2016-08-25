@@ -97,19 +97,6 @@
 #define PCIE_BUS_CLK                10000
 #define TCLK                        (PCIE_BUS_CLK / 10)
 
-
-static const uint16_t polaris10_clock_stretcher_lookup_table[2][4] =
-{ {600, 1050, 3, 0}, {600, 1050, 6, 1} };
-
-/*  [FF, SS] type, [] 4 voltage ranges, and [Floor Freq, Boundary Freq, VID min , VID max] */
-static const uint32_t polaris10_clock_stretcher_ddt_table[2][4][4] =
-{ { {265, 529, 120, 128}, {325, 650, 96, 119}, {430, 860, 32, 95}, {0, 0, 0, 31} },
-  { {275, 550, 104, 112}, {319, 638, 96, 103}, {360, 720, 64, 95}, {384, 768, 32, 63} } };
-
-/*  [Use_For_Low_freq] value, [0%, 5%, 10%, 7.14%, 14.28%, 20%] (coming from PWR_CKS_CNTL.stretch_amount reg spec) */
-static const uint8_t polaris10_clock_stretch_amount_conversion[2][6] =
-{ {0, 1, 3, 2, 4, 5}, {0, 2, 4, 5, 6, 5} };
-
 /** Values for the CG_THERMAL_CTRL::DPM_EVENT_SRC field. */
 enum DPM_EVENT_SRC {
 	DPM_EVENT_SRC_ANALOG = 0,
@@ -2772,9 +2759,6 @@ int polaris10_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_SclkDeepSleep);
-
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 		PHM_PlatformCaps_DynamicPatchPowerState);
 
 	if (data->mvdd_control == POLARIS10_VOLTAGE_CONTROL_NONE)
@@ -2818,13 +2802,6 @@ int polaris10_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 						PHM_PlatformCaps_TDRamping);
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 						PHM_PlatformCaps_TCPRamping);
-
-	if (hwmgr->powercontainment_enabled)
-		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-			    PHM_PlatformCaps_PowerContainment);
-	else
-		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
-			    PHM_PlatformCaps_PowerContainment);
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 							PHM_PlatformCaps_CAC);
@@ -2904,8 +2881,8 @@ static int polaris10_get_evv_voltages(struct pp_hwmgr *hwmgr)
 				continue;
 			}
 
-			/* need to make sure vddc is less than 2v or else, it could burn the ASIC.
-			 * real voltage level in unit of 0.01mv */
+			/* need to make sure vddc is less than 2V or else, it could burn the ASIC.
+			 * real voltage level in unit of 0.01mV */
 			PP_ASSERT_WITH_CODE((vddc < 200000 && vddc != 0),
 					"Invalid VDDC value", result = -EINVAL;);
 
@@ -3142,7 +3119,10 @@ int polaris10_patch_voltage_workaround(struct pp_hwmgr *hwmgr)
 			table_info->vddc_lookup_table;
 	uint32_t i;
 
-	if (hwmgr->chip_id == CHIP_POLARIS10 && hwmgr->hw_revision == 0xC7) {
+	if (hwmgr->chip_id == CHIP_POLARIS10 && hwmgr->hw_revision == 0xC7 &&
+			((hwmgr->sub_sys_id == 0xb37 && hwmgr->sub_vendor_id == 0x1002) ||
+		    (hwmgr->sub_sys_id == 0x4a8 && hwmgr->sub_vendor_id == 0x1043) ||
+		    (hwmgr->sub_sys_id == 0x9480 && hwmgr->sub_vendor_id == 0x1682))) {
 		if (lookup_table->entries[dep_mclk_table->entries[dep_mclk_table->count-1].vddInd].us_vdd >= 1000)
 			return 0;
 

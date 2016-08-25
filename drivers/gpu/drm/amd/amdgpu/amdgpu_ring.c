@@ -222,33 +222,16 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 
 	/* Allocate ring buffer */
 	if (ring->ring_obj == NULL) {
-		r = amdgpu_bo_create(adev, ring->ring_size, PAGE_SIZE, true,
-				     AMDGPU_GEM_DOMAIN_GTT, 0,
-				     NULL, NULL, &ring->ring_obj);
+		r = amdgpu_bo_create_kernel(adev, ring->ring_size, PAGE_SIZE,
+					    AMDGPU_GEM_DOMAIN_GTT,
+					    &ring->ring_obj,
+					    &ring->gpu_addr,
+					    (void **)&ring->ring);
 		if (r) {
 			dev_err(adev->dev, "(%d) ring create failed\n", r);
 			return r;
 		}
-		r = amdgpu_bo_reserve(ring->ring_obj, false);
-		if (unlikely(r != 0))
-			return r;
-		r = amdgpu_bo_pin(ring->ring_obj, AMDGPU_GEM_DOMAIN_GTT,
-					&ring->gpu_addr);
-		if (r) {
-			amdgpu_bo_unreserve(ring->ring_obj);
-			dev_err(adev->dev, "(%d) ring pin failed\n", r);
-			return r;
-		}
-		r = amdgpu_bo_kmap(ring->ring_obj,
-				       (void **)&ring->ring);
-
 		memset((void *)ring->ring, 0, ring->ring_size);
-
-		amdgpu_bo_unreserve(ring->ring_obj);
-		if (r) {
-			dev_err(adev->dev, "(%d) ring map failed\n", r);
-			return r;
-		}
 	}
 	ring->ptr_mask = (ring->ring_size / 4) - 1;
 	ring->max_dw = max_dw;
