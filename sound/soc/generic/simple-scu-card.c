@@ -22,13 +22,6 @@
 #include <sound/soc-dai.h>
 #include <sound/simple_card_utils.h>
 
-static const struct of_device_id asoc_simple_card_of_match[] = {
-	{ .compatible = "renesas,rsrc-card", },
-	{ .compatible = "simple-scu-audio-card", },
-	{},
-};
-MODULE_DEVICE_TABLE(of, asoc_simple_card_of_match);
-
 struct asoc_simple_card_priv {
 	struct snd_soc_card snd_card;
 	struct snd_soc_codec_conf codec_conf;
@@ -329,10 +322,17 @@ static int asoc_simple_card_remove(struct platform_device *pdev)
 	return asoc_simple_card_clean_reference(card);
 }
 
+static const struct of_device_id asoc_simple_of_match[] = {
+	{ .compatible = "renesas,rsrc-card", },
+	{ .compatible = "simple-scu-audio-card", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, asoc_simple_of_match);
+
 static struct platform_driver asoc_simple_card = {
 	.driver = {
 		.name = "simple-scu-audio-card",
-		.of_match_table = asoc_simple_card_of_match,
+		.of_match_table = asoc_simple_of_match,
 	},
 	.probe = asoc_simple_card_probe,
 	.remove = asoc_simple_card_remove,
