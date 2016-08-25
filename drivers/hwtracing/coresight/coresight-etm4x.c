@@ -583,39 +583,34 @@ static void etm4_set_default_config(struct etmv4_config *config)
 
 static void etm4_set_default_filter(struct etmv4_config *config)
 {
-	/*
-	 * TRCVICTLR::SSSTATUS == 1, the start-stop logic is
-	 * in the started state
-	 */
-	config->vinst_ctrl |= BIT(9);
+	u64 start, stop, access_type = 0;
 
 	/*
 	 * Configure address range comparator '0' to encompass all
 	 * possible addresses.
 	 */
+	start = 0x0;
+	stop = ~0x0;
 
-	/* First half of default address comparator: start at address 0 */
-	config->addr_val[ETM_DEFAULT_ADDR_COMP] = 0x0;
-	/* trace instruction addresses */
-	config->addr_acc[ETM_DEFAULT_ADDR_COMP] &= ~(BIT(0) | BIT(1));
-	/* EXLEVEL_NS, bits[12:15], only trace application and kernel space */
-	config->addr_acc[ETM_DEFAULT_ADDR_COMP] |= ETM_EXLEVEL_NS_HYP;
-	/* EXLEVEL_S, bits[11:8], don't trace anything in secure state */
-	config->addr_acc[ETM_DEFAULT_ADDR_COMP] |= (ETM_EXLEVEL_S_APP |
-						    ETM_EXLEVEL_S_OS |
-						    ETM_EXLEVEL_S_HYP);
-	config->addr_type[ETM_DEFAULT_ADDR_COMP] = ETM_ADDR_TYPE_RANGE;
+	/* EXLEVEL_NS, bits[12:15], always stay away from hypervisor mode. */
+	access_type = ETM_EXLEVEL_NS_HYP;
 
 	/*
-	 * Second half of default address comparator: go all
-	 * the way to the top.
-	*/
-	config->addr_val[ETM_DEFAULT_ADDR_COMP + 1] = ~0x0;
-	/* trace instruction addresses */
-	config->addr_acc[ETM_DEFAULT_ADDR_COMP + 1] &= ~(BIT(0) | BIT(1));
-	/* Address comparator type must be equal for both halves */
-	config->addr_acc[ETM_DEFAULT_ADDR_COMP + 1] =
-					config->addr_acc[ETM_DEFAULT_ADDR_COMP];
+	 * EXLEVEL_S, bits[11:8], don't trace anything happening
+	 * in secure state.
+	 */
+	access_type |= (ETM_EXLEVEL_S_APP	|
+			ETM_EXLEVEL_S_OS	|
+			ETM_EXLEVEL_S_HYP);
+
+	/* First half of default address comparator */
+	config->addr_val[ETM_DEFAULT_ADDR_COMP] = start;
+	config->addr_acc[ETM_DEFAULT_ADDR_COMP] = access_type;
+	config->addr_type[ETM_DEFAULT_ADDR_COMP] = ETM_ADDR_TYPE_RANGE;
+
+	/* Second half of default address comparator */
+	config->addr_val[ETM_DEFAULT_ADDR_COMP + 1] = stop;
+	config->addr_acc[ETM_DEFAULT_ADDR_COMP + 1] = access_type;
 	config->addr_type[ETM_DEFAULT_ADDR_COMP + 1] = ETM_ADDR_TYPE_RANGE;
 
 	/*
@@ -624,7 +619,13 @@ static void etm4_set_default_filter(struct etmv4_config *config)
 	 */
 	config->viiectlr = BIT(0);
 
-	/* no start-stop filtering for ViewInst */
+	/*
+	 * TRCVICTLR::SSSTATUS == 1, the start-stop logic is
+	 * in the started state
+	 */
+	config->vinst_ctrl |= BIT(9);
+
+	/* No start-stop filtering for ViewInst */
 	config->vissctlr = 0x0;
 }
 
