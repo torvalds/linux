@@ -26,15 +26,11 @@
 #else
 #define PMD_CACHE_INDEX	PMD_INDEX_SIZE
 #endif
+
 /*
  * Define the address range of the kernel non-linear virtual area
  */
-
-#ifdef CONFIG_PPC_BOOK3E
 #define KERN_VIRT_START ASM_CONST(0x8000000000000000)
-#else
-#define KERN_VIRT_START ASM_CONST(0xD000000000000000)
-#endif
 #define KERN_VIRT_SIZE	ASM_CONST(0x0000100000000000)
 
 /*
@@ -43,11 +39,7 @@
  * (we keep a quarter for the virtual memmap)
  */
 #define VMALLOC_START	KERN_VIRT_START
-#ifdef CONFIG_PPC_BOOK3E
 #define VMALLOC_SIZE	(KERN_VIRT_SIZE >> 2)
-#else
-#define VMALLOC_SIZE	(KERN_VIRT_SIZE >> 1)
-#endif
 #define VMALLOC_END	(VMALLOC_START + VMALLOC_SIZE)
 
 /*
@@ -85,12 +77,8 @@
  * Defines the address of the vmemap area, in its own region on
  * hash table CPUs and after the vmalloc space on Book3E
  */
-#ifdef CONFIG_PPC_BOOK3E
 #define VMEMMAP_BASE		VMALLOC_END
 #define VMEMMAP_END		KERN_IO_START
-#else
-#define VMEMMAP_BASE		(VMEMMAP_REGION_ID << REGION_SHIFT)
-#endif
 #define vmemmap			((struct page *)VMEMMAP_BASE)
 
 
