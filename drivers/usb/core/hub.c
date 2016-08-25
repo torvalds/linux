@@ -1823,10 +1823,8 @@ descriptor_error:
 	dev_info(&intf->dev, "USB hub found\n");
 
 	hub = kzalloc(sizeof(*hub), GFP_KERNEL);
-	if (!hub) {
-		dev_dbg(&intf->dev, "couldn't kmalloc hub struct\n");
+	if (!hub)
 		return -ENOMEM;
-	}
 
 	kref_init(&hub->kref);
 	hub->intfdev = &intf->dev;
@@ -5337,11 +5335,10 @@ static int descriptors_changed(struct usb_device *udev,
 	}
 
 	buf = kmalloc(len, GFP_NOIO);
-	if (buf == NULL) {
-		dev_err(&udev->dev, "no mem to re-read configs after reset\n");
+	if (!buf)
 		/* assume the worst */
 		return 1;
-	}
+
 	for (index = 0; index < udev->descriptor.bNumConfigurations; index++) {
 		old_length = le16_to_cpu(udev->config[index].desc.wTotalLength);
 		length = usb_get_descriptor(udev, USB_DT_CONFIG, index, buf,
