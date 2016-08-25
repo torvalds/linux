@@ -55,6 +55,7 @@ struct vz89x_data {
 	struct mutex lock;
 	int (*xfer)(struct vz89x_data *data, u8 cmd);
 
+	bool is_valid;
 	unsigned long last_update;
 	u8 buffer[VZ89TE_REG_MEASUREMENT_RD_SIZE];
 };
@@ -229,7 +230,10 @@ static int vz89x_get_measurement(struct vz89x_data *data)
 
 	/* sensor can only be polled once a second max per datasheet */
 	if (!time_after(jiffies, data->last_update + HZ))
-		return 0;
+		return data->is_valid ? 0 : -EAGAIN;
+
+	data->is_valid = false;
+	data->last_update = jiffies;
 
 	ret = data->xfer(data, chip->cmd);
 	if (ret < 0)
@@ -239,7 +243,7 @@ static int vz89x_get_measurement(struct vz89x_data *data)
 	if (ret)
 		return -EAGAIN;
 
-	data->last_update = jiffies;
+	data->is_valid = true;
 
 	return 0;
 }
