@@ -45,6 +45,8 @@ struct gb_channel {
 	bool				is_registered;
 	bool				releasing;
 	bool				strobe_state;
+	bool				active;
+	struct mutex			lock;
 };
 
 struct gb_light {
@@ -384,11 +386,15 @@ static int __gb_lights_led_brightness_set(struct gb_channel *channel)
 	struct gb_lights_set_brightness_request req;
 	struct gb_connection *connection = get_conn_from_channel(channel);
 	struct gb_bundle *bundle = connection->bundle;
+	bool old_active;
 	int ret;
 
+	mutex_lock(&channel->lock);
 	ret = gb_pm_runtime_get_sync(bundle);
 	if (ret < 0)
-		return ret;
+		goto out_unlock;
+
+	old_active = channel->active;
 
 	req.light_id = channel->light->id;
 	req.channel_id = channel->id;
@@ -396,8 +402,29 @@ static int __gb_lights_led_brightness_set(struct gb_channel *channel)
 
 	ret = gb_operation_sync(connection, GB_LIGHTS_TYPE_SET_BRIGHTNESS,
 				&req, sizeof(req), NULL, 0);
+	if (ret < 0)
+		goto out_pm_put;
 
+	if (channel->led->brightness)
+		channel->active = true;
+	else
+		channel->active = false;
+
+	/* we need to keep module alive when turning to active state */
+	if (!old_active && channel->active)
+		goto out_unlock;
+
+	/*
+	 * on the other hand if going to inactive we still hold a reference and
+	 * need to put it, so we could go to suspend.
+	 */
+	if (old_active && !channel->active)
+		gb_pm_runtime_put_autosuspend(bundle);
+
+out_pm_put:
 	gb_pm_runtime_put_autosuspend(bundle);
+out_unlock:
+	mutex_unlock(&channel->lock);
 
 	return ret;
 }
@@ -476,14 +503,18 @@ static int gb_blink_set(struct led_classdev *cdev, unsigned long *delay_on,
 	struct gb_connection *connection = get_conn_from_channel(channel);
 	struct gb_bundle *bundle = connection->bundle;
 	struct gb_lights_blink_request req;
+	bool old_active;
 	int ret;
 
 	if (channel->releasing)
 		return -ESHUTDOWN;
 
+	mutex_lock(&channel->lock);
 	ret = gb_pm_runtime_get_sync(bundle);
 	if (ret < 0)
-		return ret;
+		goto out_unlock;
+
+	old_active = channel->active;
 
 	req.light_id = channel->light->id;
 	req.channel_id = channel->id;
@@ -492,8 +523,29 @@ static int gb_blink_set(struct led_classdev *cdev, unsigned long *delay_on,
 
 	ret = gb_operation_sync(connection, GB_LIGHTS_TYPE_SET_BLINK, &req,
 				sizeof(req), NULL, 0);
+	if (ret < 0)
+		goto out_pm_put;
 
+	if (delay_on)
+		channel->active = true;
+	else
+		channel->active = false;
+
+	/* we need to keep module alive when turning to active state */
+	if (!old_active && channel->active)
+		goto out_unlock;
+
+	/*
+	 * on the other hand if going to inactive we still hold a reference and
+	 * need to put it, so we could go to suspend.
+	 */
+	if (old_active && !channel->active)
+		gb_pm_runtime_put_autosuspend(bundle);
+
+out_pm_put:
 	gb_pm_runtime_put_autosuspend(bundle);
+out_unlock:
+	mutex_unlock(&channel->lock);
 
 	return ret;
 }
@@ -1061,6 +1113,8 @@ static int gb_lights_light_register(struct gb_light *light)
 		ret = gb_lights_channel_register(&light->channels[i]);
 		if (ret < 0)
 			return ret;
+
+		mutex_init(&light->channels[i].lock);
 	}
 
 	light->ready = true;
@@ -1086,6 +1140,7 @@ static void gb_lights_channel_free(struct gb_channel *channel)
 	kfree(channel->attr_groups);
 	kfree(channel->color_name);
 	kfree(channel->mode_name);
+	mutex_destroy(&channel->lock);
 }
 
 static void gb_lights_channel_release(struct gb_channel *channel)
