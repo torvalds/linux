@@ -827,7 +827,7 @@ void usb_gadget_unmap_request_by_dev(struct device *dev,
 		return;
 
 	if (req->num_mapped_sgs) {
-		dma_unmap_sg(dev, req->sg, req->num_mapped_sgs,
+		dma_unmap_sg(dev, req->sg, req->num_sgs,
 				is_in ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 
 		req->num_mapped_sgs = 0;
