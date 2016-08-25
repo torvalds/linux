@@ -1465,7 +1465,7 @@ static int crypt_alloc_tfms(struct crypt_config *cc, char *ciphermode)
 	return 0;
 }
 
-static int crypt_setkey_allcpus(struct crypt_config *cc)
+static int crypt_setkey(struct crypt_config *cc)
 {
 	unsigned subkey_size;
 	int err = 0, i, r;
@@ -1503,7 +1503,7 @@ static int crypt_set_key(struct crypt_config *cc, char *key)
 	if (cc->key_size && crypt_decode_key(cc->key, key, cc->key_size) < 0)
 		goto out;
 
-	r = crypt_setkey_allcpus(cc);
+	r = crypt_setkey(cc);
 	if (!r)
 		set_bit(DM_CRYPT_KEY_VALID, &cc->flags);
 
@@ -1519,7 +1519,7 @@ static int crypt_wipe_key(struct crypt_config *cc)
 	clear_bit(DM_CRYPT_KEY_VALID, &cc->flags);
 	memset(&cc->key, 0, cc->key_size * sizeof(u8));
 
-	return crypt_setkey_allcpus(cc);
+	return crypt_setkey(cc);
 }
 
 static void crypt_dtr(struct dm_target *ti)
