@@ -271,11 +271,8 @@ int wa_nep_create(struct wahc *wa, struct usb_interface *iface)
 	epd = &iface->cur_altsetting->endpoint[0].desc;
 	wa->nep_buffer_size = 1024;
 	wa->nep_buffer = kmalloc(wa->nep_buffer_size, GFP_KERNEL);
-	if (wa->nep_buffer == NULL) {
-		dev_err(dev,
-			"Unable to allocate notification's read buffer\n");
+	if (!wa->nep_buffer)
 		goto error_nep_buffer;
-	}
 	wa->nep_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (wa->nep_urb == NULL)
 		goto error_urb_alloc;
