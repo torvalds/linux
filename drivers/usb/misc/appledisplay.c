@@ -238,7 +238,6 @@ static int appledisplay_probe(struct usb_interface *iface,
 	pdata = kzalloc(sizeof(struct appledisplay), GFP_KERNEL);
 	if (!pdata) {
 		retval = -ENOMEM;
-		dev_err(&iface->dev, "Out of memory\n");
 		goto error;
 	}
 
@@ -252,8 +251,6 @@ static int appledisplay_probe(struct usb_interface *iface,
 	pdata->msgdata = kmalloc(ACD_MSG_BUFFER_LEN, GFP_KERNEL);
 	if (!pdata->msgdata) {
 		retval = -ENOMEM;
-		dev_err(&iface->dev,
-			"Allocating buffer for control messages failed\n");
 		goto error;
 	}
 
