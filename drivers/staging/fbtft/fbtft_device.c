@@ -1215,7 +1215,8 @@ static struct fbtft_device_display displays[] = {
 		}
 	}, {
 		/* This should be the last item.
-		   Used with the custom argument */
+		 * Used with the custom argument
+		 */
 		.name = "",
 		.spi = &(struct spi_board_info) {
 			.modalias = "",
@@ -1306,8 +1307,9 @@ static struct fbtft_gpio fbtft_device_param_gpios[MAX_GPIOS + 1] = { };
 static void fbtft_device_pdev_release(struct device *dev)
 {
 /* Needed to silence this message:
-Device 'xxx' does not have a release() function, it is broken and must be fixed
-*/
+ * Device 'xxx' does not have a release() function,
+ * it is broken and must be fixed
+ */
 }
 
 static int spi_device_found(struct device *dev, void *data)
