@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2016 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -21,6 +21,28 @@
 
 #ifdef __cplusplus
 extern "C" {
+#endif
+
+#ifdef CONFIG_MALI_DEVFREQ
+struct mali_device {
+	struct device *dev;
+#ifdef CONFIG_HAVE_CLK
+	struct clk *clock;
+#endif
+#ifdef CONFIG_REGULATOR
+	struct regulator *regulator;
+#endif
+#ifdef CONFIG_PM_DEVFREQ
+	struct devfreq_dev_profile devfreq_profile;
+	struct devfreq *devfreq;
+	unsigned long current_freq;
+	unsigned long current_voltage;
+#ifdef CONFIG_DEVFREQ_THERMAL
+	struct thermal_cooling_device *devfreq_cooling;
+#endif
+#endif
+	struct mali_pm_metrics_data mali_metrics;
+};
 #endif
 
 /** @addtogroup _mali_osk_miscellaneous
@@ -53,11 +75,15 @@ _mali_osk_errcode_t _mali_osk_resource_find(u32 addr, _mali_osk_resource_t *res)
  */
 uintptr_t _mali_osk_resource_base_address(void);
 
-/** @brief Find the number of L2 cache cores.
+/** @brief Find the specific GPU resource.
  *
- * @return return the number of l2 cache cores we find in device resources.
+ * @return value
+ * 0x400 if Mali 400 specific GPU resource identified
+ * 0x450 if Mali 450 specific GPU resource identified
+ * 0x470 if Mali 470 specific GPU resource identified
+ *
  */
-u32 _mali_osk_l2_resource_count(void);
+u32 _mali_osk_identify_gpu_resource(void);
 
 /** @brief Retrieve the Mali GPU specific data
  *
@@ -83,6 +109,38 @@ u32 _mali_osk_get_pmu_switch_delay(void);
  * @return MALI_TRUE if shared interrupts, MALI_FALSE if not.
  */
 mali_bool _mali_osk_shared_interrupts(void);
+
+/** @brief Initialize the gpu secure mode.
+ * The gpu secure mode will initially be in a disabled state.
+ * @return _MALI_OSK_ERR_OK on success, otherwise failure.
+ */
+_mali_osk_errcode_t _mali_osk_gpu_secure_mode_init(void);
+
+/** @brief Deinitialize the gpu secure mode.
+ * @return _MALI_OSK_ERR_OK on success, otherwise failure.
+ */
+_mali_osk_errcode_t _mali_osk_gpu_secure_mode_deinit(void);
+
+/** @brief Reset GPU and enable the gpu secure mode.
+ * @return _MALI_OSK_ERR_OK on success, otherwise failure.
+ */
+_mali_osk_errcode_t _mali_osk_gpu_reset_and_secure_mode_enable(void);
+
+/** @brief Reset GPU and disable the gpu secure mode.
+ * @return _MALI_OSK_ERR_OK on success, otherwise failure.
+ */
+_mali_osk_errcode_t _mali_osk_gpu_reset_and_secure_mode_disable(void);
+
+/** @brief Check if the gpu secure mode has been enabled.
+ * @return MALI_TRUE if enabled, otherwise MALI_FALSE.
+ */
+mali_bool _mali_osk_gpu_secure_mode_is_enabled(void);
+
+/** @brief Check if the gpu secure mode is supported.
+ * @return MALI_TRUE if supported, otherwise MALI_FALSE.
+ */
+mali_bool _mali_osk_gpu_secure_mode_is_supported(void);
+
 
 /** @} */ /* end group _mali_osk_miscellaneous */
 

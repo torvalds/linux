@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2016 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -15,6 +15,7 @@
 
 #include <linux/sched.h>
 
+#include "mali_kernel_linux.h"
 #ifdef CONFIG_PM_RUNTIME
 #include <linux/pm_runtime.h>
 #endif /* CONFIG_PM_RUNTIME */
@@ -22,7 +23,6 @@
 #include <linux/version.h>
 #include "mali_osk.h"
 #include "mali_kernel_common.h"
-#include "mali_kernel_linux.h"
 
 /* Can NOT run in atomic context */
 _mali_osk_errcode_t _mali_osk_pm_dev_ref_get_sync(void)

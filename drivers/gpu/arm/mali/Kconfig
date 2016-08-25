@@ -1,6 +1,6 @@
 config MALI400
 	tristate "Mali-300/400/450 support"
-	depends on ARM
+	depends on ARM || ARM64
 	select DMA_SHARED_BUFFER
 	---help---
 	  This enables support for the ARM Mali-300, Mali-400, and Mali-450
@@ -14,6 +14,12 @@ config MALI450
 	depends on MALI400
 	---help---
 	  This enables support for Mali-450 specific features.
+
+config MALI470
+	bool "Enable Mali-470 support"
+	depends on MALI400
+	---help---
+	  This enables support for Mali-470 specific features.
 
 config MALI400_DEBUG
 	bool "Enable debug in Mali driver"
@@ -44,7 +50,7 @@ config MALI400_UMP
 
 config MALI_DVFS
 	bool "Enable Mali dynamically frequency change"
-	depends on MALI400
+	depends on MALI400 && !MALI_DEVFREQ
 	default y
 	---help---
 	  This enables support for dynamic change frequency of Mali with the goal of lowering power consumption.
@@ -82,13 +88,24 @@ config MALI_PMU_PARALLEL_POWER_UP
 
 config MALI_DT
 	bool "Using device tree to initialize module"
-	depends on MALI400 && CONFIG_OF
+	depends on MALI400 && OF
 	default n
 	---help---
 	  This enable the Mali driver to choose the device tree path to get platform resoures
 	  and disable the old config method. Mali driver could run on the platform which the
 	  device tree is enabled in kernel and corresponding hardware description is implemented
 	  properly in device DTS file.
+
+config MALI_DEVFREQ
+	bool "Using devfreq to tuning frequency"
+	depends on MALI400 && PM_DEVFREQ
+	default n
+	---help---
+	Support devfreq for Mali.
+
+	Using the devfreq framework and, by default, the simpleondemand
+	governor, the frequency of Mali will be dynamically selected from the
+	available OPPs.
 
 config MALI_QUIET
 	bool "Make Mali driver very quiet"

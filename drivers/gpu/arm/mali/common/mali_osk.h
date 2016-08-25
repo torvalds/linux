@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2016 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -16,6 +16,7 @@
 #ifndef __MALI_OSK_H__
 #define __MALI_OSK_H__
 
+#include <linux/seq_file.h>
 #include "mali_osk_types.h"
 #include "mali_osk_specific.h"           /* include any per-os specifics */
 #include "mali_osk_locks.h"
@@ -49,6 +50,8 @@ extern "C" {
 #else
 #define MALI_DEBUG_ASSERT_LOCK_HELD(l) do {} while(0)
 #endif
+
+#define _mali_osk_ctxprintf     seq_printf
 
 /** @} */ /* end group _mali_osk_lock */
 
@@ -1237,17 +1240,6 @@ void _mali_osk_dbgmsg(const char *fmt, ...);
  */
 u32 _mali_osk_snprintf(char *buf, u32 size, const char *fmt, ...);
 
-/** @brief Print fmt into print_ctx.
- *
- * The interpretation of \a fmt is the same as the \c format parameter in
- * _mali_osu_vsnprintf().
- *
- * @param print_ctx a pointer to the result file buffer
- * @param fmt a _mali_osu_vsnprintf() style format string
- * @param ... a variable-number of parameters suitable for \a fmt
- */
-void _mali_osk_ctxprintf(_mali_osk_print_ctx *print_ctx, const char *fmt, ...);
-
 /** @brief Abnormal process abort.
  *
  * Terminates the caller-process if this function is called.
@@ -1322,6 +1314,58 @@ void _mali_osk_pm_dev_ref_put(void);
 void _mali_osk_pm_dev_barrier(void);
 
 /** @} */ /* end group  _mali_osk_miscellaneous */
+
+/** @defgroup _mali_osk_bitmap OSK Bitmap
+ * @{ */
+
+/** @brief Allocate a unique number from the bitmap object.
+ *
+ * @param bitmap Initialized bitmap object.
+ * @return An unique existence in the bitmap object.
+ */
+u32 _mali_osk_bitmap_alloc(struct _mali_osk_bitmap *bitmap);
+
+/** @brief Free a interger to the bitmap object.
+ *
+ * @param bitmap Initialized bitmap object.
+ * @param obj An number allocated from bitmap object.
+ */
+void _mali_osk_bitmap_free(struct _mali_osk_bitmap *bitmap, u32 obj);
+
+/** @brief Allocate continuous number from the bitmap object.
+ *
+ * @param bitmap Initialized bitmap object.
+ * @return start number of the continuous number block.
+ */
+u32 _mali_osk_bitmap_alloc_range(struct _mali_osk_bitmap *bitmap, int cnt);
+
+/** @brief Free a block of continuous number block to the bitmap object.
+ *
+ * @param bitmap Initialized bitmap object.
+ * @param obj Start number.
+ * @param cnt The size of the continuous number block.
+ */
+void _mali_osk_bitmap_free_range(struct _mali_osk_bitmap *bitmap, u32 obj, int cnt);
+
+/** @brief Available count could be used to allocate in the given bitmap object.
+ *
+ */
+u32 _mali_osk_bitmap_avail(struct _mali_osk_bitmap *bitmap);
+
+/** @brief Initialize an bitmap object..
+ *
+ * @param bitmap An poiter of uninitialized bitmap object.
+ * @param num Size of thei bitmap object and decide the memory size allocated.
+ * @param reserve start number used to allocate.
+ */
+int _mali_osk_bitmap_init(struct _mali_osk_bitmap *bitmap, u32 num, u32 reserve);
+
+/** @brief Free the given bitmap object.
+ *
+ * @param bitmap Initialized bitmap object.
+ */
+void _mali_osk_bitmap_term(struct _mali_osk_bitmap *bitmap);
+/** @} */ /* end group  _mali_osk_bitmap */
 
 /** @} */ /* end group osuapi */
 

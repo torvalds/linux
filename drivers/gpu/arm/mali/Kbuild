@@ -26,7 +26,7 @@ MALI_ENABLE_CPU_CYCLES ?= 0
 # For customer releases the Linux Device Drivers will be provided as ARM proprietary and GPL releases:
 # The ARM proprietary product will only include the license/proprietary directory
 # The GPL product will only include the license/gpl directory
-ifeq ($(wildcard $(srctree)/$(src)/linux/license/gpl/*),)
+ifeq ($(wildcard $(src)/linux/license/gpl/*),)
     ccflags-y += -I$(src)/linux/license/proprietary
     ifeq ($(CONFIG_MALI400_PROFILING),y)
         $(error Profiling is incompatible with non-GPL license)
@@ -48,6 +48,15 @@ ifeq ($(USING_GPU_UTILIZATION), 1)
     endif
 endif
 
+ifeq ($(MALI_PLATFORM_FILES),)
+ifeq ($(CONFIG_ARCH_EXYNOS4),y)
+EXTRA_DEFINES += -DMALI_FAKE_PLATFORM_DEVICE=1
+export MALI_PLATFORM=exynos4
+export MALI_PLATFORM_FILES_BUILDIN = $(notdir $(wildcard $(src)/platform/$(MALI_PLATFORM)/*.c))
+export MALI_PLATFORM_FILES_ADD_PREFIX = $(addprefix platform/$(MALI_PLATFORM)/,$(MALI_PLATFORM_FILES_BUILDIN)) 
+endif
+endif
+
 mali-y += \
 	linux/mali_osk_atomics.o \
 	linux/mali_osk_irq.o \
@@ -61,11 +70,20 @@ mali-y += \
 	linux/mali_osk_mali.o \
 	linux/mali_osk_notification.o \
 	linux/mali_osk_time.o \
-	linux/mali_osk_timers.o
+	linux/mali_osk_timers.o \
+	linux/mali_osk_bitmap.o
 
 mali-y += linux/mali_memory.o linux/mali_memory_os_alloc.o
 mali-y += linux/mali_memory_external.o
 mali-y += linux/mali_memory_block_alloc.o
+mali-y += linux/mali_memory_swap_alloc.o
+
+mali-y += \
+	linux/mali_memory_manager.o \
+	linux/mali_memory_virtual.o \
+	linux/mali_memory_util.o \
+	linux/mali_memory_cow.o \
+	linux/mali_memory_defer_bind.o
 
 mali-y += \
 	linux/mali_ukk_mem.o \
@@ -75,11 +93,14 @@ mali-y += \
 	linux/mali_ukk_soft_job.o \
 	linux/mali_ukk_timeline.o
 
+mali-$(CONFIG_MALI_DEVFREQ) += \
+	linux/mali_devfreq.o \
+	common/mali_pm_metrics.o
+
 # Source files which always are included in a build
 mali-y += \
 	common/mali_kernel_core.o \
 	linux/mali_kernel_linux.o \
-	common/mali_kernel_descriptor_mapping.o \
 	common/mali_session.o \
 	linux/mali_device_pause_resume.o \
 	common/mali_kernel_vsync.o \
@@ -123,10 +144,17 @@ mali-y += \
 	platform/meson_m450/platform_m8b.o
 
 ccflags-$(CONFIG_SYNC) += -Idrivers/staging/android
-ccflags-y += -I$(src)/../../../../include/ump
+
+ifneq ($(wildcard $(src)/linux/mali_slp_global_lock.c),)
+	mali-y += linux/mali_slp_global_lock.o
+endif
 
 ifneq ($(MALI_PLATFORM_FILES),)
 	mali-y += $(MALI_PLATFORM_FILES:.c=.o)
+endif
+
+ifneq ($(MALI_PLATFORM_FILES_ADD_PREFIX),)
+	mali-y += $(MALI_PLATFORM_FILES_ADD_PREFIX:.c=.o)
 endif
 
 mali-$(CONFIG_MALI400_PROFILING) += linux/mali_ukk_profiling.o
@@ -136,7 +164,9 @@ mali-$(CONFIG_MALI400_INTERNAL_PROFILING) += linux/mali_profiling_internal.o tim
 ccflags-$(CONFIG_MALI400_INTERNAL_PROFILING) += -I$(src)/timestamp-$(TIMESTAMP)
 
 mali-$(CONFIG_DMA_SHARED_BUFFER) += linux/mali_memory_dma_buf.o
+mali-$(CONFIG_DMA_SHARED_BUFFER) += linux/mali_memory_secure.o
 mali-$(CONFIG_SYNC) += linux/mali_sync.o
+mali-$(CONFIG_MALI_DMA_BUF_FENCE) += linux/mali_dma_fence.o
 ccflags-$(CONFIG_SYNC) += -Idrivers/staging/android
 
 mali-$(CONFIG_MALI400_UMP) += linux/mali_memory_ump.o
@@ -161,11 +191,16 @@ ifeq ($(MALI_UPPER_HALF_SCHEDULING),1)
 	ccflags-y += -DMALI_UPPER_HALF_SCHEDULING
 endif
 
+#build-in include path is different
+ifeq ($(MALI_PLATFORM_FILES),)
+ccflags-$(CONFIG_MALI400_UMP) += -I$(src)/../ump/include/
+else
 ccflags-$(CONFIG_MALI400_UMP) += -I$(src)/../../ump/include/ump
+endif
 ccflags-$(CONFIG_MALI400_DEBUG) += -DDEBUG
 
 # Use our defines when compiling
-ccflags-y += -I$(src) -I$(src)/include -I$(src)/common -I$(src)/linux -I$(src)/platform
+ccflags-y += -I$(src) -I$(src)/include -I$(src)/common -I$(src)/linux -I$(src)/platform -Wno-date-time
 
 # Get subversion revision number, fall back to only ${MALI_RELEASE_NAME} if no svn info is available
 MALI_RELEASE_NAME=$(shell cat $(src)/.version 2> /dev/null)
@@ -200,7 +235,7 @@ endif
 ccflags-y += -DSVN_REV_STRING=\"$(DRIVER_REV)\"
 
 VERSION_STRINGS :=
-VERSION_STRINGS += API_VERSION=$(shell cd $(srctree)/$(src); grep "\#define _MALI_API_VERSION" $(FILES_PREFIX)include/linux/mali/mali_utgard_uk_types.h | cut -d' ' -f 3 )
+VERSION_STRINGS += API_VERSION=$(shell cd $(src); grep "\#define _MALI_API_VERSION" $(FILES_PREFIX)include/linux/mali/mali_utgard_uk_types.h | cut -d' ' -f 3 )
 VERSION_STRINGS += REPO_URL=$(REPO_URL)
 VERSION_STRINGS += REVISION=$(DRIVER_REV)
 VERSION_STRINGS += CHANGED_REVISION=$(CHANGED_REVISION)
@@ -210,7 +245,6 @@ ifdef CONFIG_MALI400_DEBUG
 VERSION_STRINGS += BUILD=debug
 else
 VERSION_STRINGS += BUILD=release
-ldflags-y += --strip-debug
 endif
 VERSION_STRINGS += TARGET_PLATFORM=$(TARGET_PLATFORM)
 VERSION_STRINGS += MALI_PLATFORM=$(MALI_PLATFORM)
@@ -221,6 +255,7 @@ VERSION_STRINGS += USING_PROFILING=$(CONFIG_MALI400_PROFILING)
 VERSION_STRINGS += USING_INTERNAL_PROFILING=$(CONFIG_MALI400_INTERNAL_PROFILING)
 VERSION_STRINGS += USING_GPU_UTILIZATION=$(USING_GPU_UTILIZATION)
 VERSION_STRINGS += USING_DVFS=$(CONFIG_MALI_DVFS)
+VERSION_STRINGS += USING_DMA_BUF_FENCE = $(CONFIG_MALI_DMA_BUF_FENCE)
 VERSION_STRINGS += MALI_UPPER_HALF_SCHEDULING=$(MALI_UPPER_HALF_SCHEDULING)
 
 # Create file with Mali driver configuration

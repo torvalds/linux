@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2016 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -24,6 +24,15 @@
 #include "mali_osk.h"           /* kernel side OS functions */
 #include "mali_kernel_linux.h"
 
+static mali_bool mali_secure_mode_enabled = MALI_FALSE;
+static mali_bool mali_secure_mode_supported = MALI_FALSE;
+
+/* Function that init the mali gpu secure mode */
+void (*mali_secure_mode_deinit)(void) = NULL;
+/* Function that reset GPU and enable the mali gpu secure mode */
+int (*mali_gpu_reset_and_secure_mode_enable)(void) = NULL;
+/* Function that reset GPU and disable the mali gpu secure mode */
+int (*mali_gpu_reset_and_secure_mode_disable)(void) = NULL;
 
 #ifdef CONFIG_MALI_DT
 
@@ -52,50 +61,71 @@
 #define MALI_OSK_RESOURCE_L2_LOCATION_START 20
 #define MALI_OSK_RESOURCE_l2_LOCATION_END 22
 
+/**
+ * DMA unit location.
+ */
+#define MALI_OSK_RESOURCE_DMA_LOCATION 26
+
 static _mali_osk_resource_t mali_osk_resource_bank[MALI_OSK_MAX_RESOURCE_NUMBER] = {
-{.description = "Mali_GP", .base = MALI_OFFSET_GP, .irq_name = "IRQGP",},
-{.description = "Mali_GP_MMU", .base = MALI_OFFSET_GP_MMU, .irq_name = "IRQGPMMU",},
-{.description = "Mali_PP0", .base = MALI_OFFSET_PP0, .irq_name = "IRQPP0",},
-{.description = "Mali_PP0_MMU", .base = MALI_OFFSET_PP0_MMU, .irq_name = "IRQPPMMU0",},
-{.description = "Mali_PP1", .base = MALI_OFFSET_PP1, .irq_name = "IRQPP1",},
-{.description = "Mali_PP1_MMU", .base = MALI_OFFSET_PP1_MMU, .irq_name = "IRQPPMMU1",},
-{.description = "Mali_PP2", .base = MALI_OFFSET_PP2, .irq_name = "IRQPP2",},
-{.description = "Mali_PP2_MMU", .base = MALI_OFFSET_PP2_MMU, .irq_name = "IRQPPMMU2",},
-{.description = "Mali_PP3", .base = MALI_OFFSET_PP3, .irq_name = "IRQPP3",},
-{.description = "Mali_PP3_MMU", .base = MALI_OFFSET_PP3_MMU, .irq_name = "IRQPPMMU3",},
-{.description = "Mali_PP4", .base = MALI_OFFSET_PP4, .irq_name = "IRQPP4",},
-{.description = "Mali_PP4_MMU", .base = MALI_OFFSET_PP4_MMU, .irq_name = "IRQPPMMU4",},
-{.description = "Mali_PP5", .base = MALI_OFFSET_PP5, .irq_name = "IRQPP5",},
-{.description = "Mali_PP5_MMU", .base = MALI_OFFSET_PP5_MMU, .irq_name = "IRQPPMMU5",},
-{.description = "Mali_PP6", .base = MALI_OFFSET_PP6, .irq_name = "IRQPP6",},
-{.description = "Mali_PP6_MMU", .base = MALI_OFFSET_PP6_MMU, .irq_name = "IRQPPMMU6",},
-{.description = "Mali_PP7", .base = MALI_OFFSET_PP7, .irq_name = "IRQPP7",},
-{.description = "Mali_PP7_MMU", .base = MALI_OFFSET_PP7_MMU, .irq_name = "IRQPPMMU",},
-{.description = "Mali_PP_Broadcast", .base = MALI_OFFSET_PP_BCAST, .irq_name = "IRQPP",},
-{.description = "Mali_PMU", .base = MALI_OFFSET_PMU, .irq_name = "IRQPMU",},
-{.description = "Mali_L2", .base = MALI_OFFSET_L2_RESOURCE0,},
-{.description = "Mali_L2", .base = MALI_OFFSET_L2_RESOURCE1,},
-{.description = "Mali_L2", .base = MALI_OFFSET_L2_RESOURCE2,},
-{.description = "Mali_PP_MMU_Broadcast", .base = MALI_OFFSET_PP_BCAST_MMU,},
-{.description = "Mali_Broadcast", .base = MALI_OFFSET_BCAST,},
-{.description = "Mali_DLBU", .base = MALI_OFFSET_DLBU,},
-{.description = "Mali_DMA", .base = MALI_OFFSET_DMA,},
+	{.description = "Mali_GP", .base = MALI_OFFSET_GP, .irq_name = "IRQGP",},
+	{.description = "Mali_GP_MMU", .base = MALI_OFFSET_GP_MMU, .irq_name = "IRQGPMMU",},
+	{.description = "Mali_PP0", .base = MALI_OFFSET_PP0, .irq_name = "IRQPP0",},
+	{.description = "Mali_PP0_MMU", .base = MALI_OFFSET_PP0_MMU, .irq_name = "IRQPPMMU0",},
+	{.description = "Mali_PP1", .base = MALI_OFFSET_PP1, .irq_name = "IRQPP1",},
+	{.description = "Mali_PP1_MMU", .base = MALI_OFFSET_PP1_MMU, .irq_name = "IRQPPMMU1",},
+	{.description = "Mali_PP2", .base = MALI_OFFSET_PP2, .irq_name = "IRQPP2",},
+	{.description = "Mali_PP2_MMU", .base = MALI_OFFSET_PP2_MMU, .irq_name = "IRQPPMMU2",},
+	{.description = "Mali_PP3", .base = MALI_OFFSET_PP3, .irq_name = "IRQPP3",},
+	{.description = "Mali_PP3_MMU", .base = MALI_OFFSET_PP3_MMU, .irq_name = "IRQPPMMU3",},
+	{.description = "Mali_PP4", .base = MALI_OFFSET_PP4, .irq_name = "IRQPP4",},
+	{.description = "Mali_PP4_MMU", .base = MALI_OFFSET_PP4_MMU, .irq_name = "IRQPPMMU4",},
+	{.description = "Mali_PP5", .base = MALI_OFFSET_PP5, .irq_name = "IRQPP5",},
+	{.description = "Mali_PP5_MMU", .base = MALI_OFFSET_PP5_MMU, .irq_name = "IRQPPMMU5",},
+	{.description = "Mali_PP6", .base = MALI_OFFSET_PP6, .irq_name = "IRQPP6",},
+	{.description = "Mali_PP6_MMU", .base = MALI_OFFSET_PP6_MMU, .irq_name = "IRQPPMMU6",},
+	{.description = "Mali_PP7", .base = MALI_OFFSET_PP7, .irq_name = "IRQPP7",},
+	{.description = "Mali_PP7_MMU", .base = MALI_OFFSET_PP7_MMU, .irq_name = "IRQPPMMU",},
+	{.description = "Mali_PP_Broadcast", .base = MALI_OFFSET_PP_BCAST, .irq_name = "IRQPP",},
+	{.description = "Mali_PMU", .base = MALI_OFFSET_PMU, .irq_name = "IRQPMU",},
+	{.description = "Mali_L2", .base = MALI_OFFSET_L2_RESOURCE0,},
+	{.description = "Mali_L2", .base = MALI_OFFSET_L2_RESOURCE1,},
+	{.description = "Mali_L2", .base = MALI_OFFSET_L2_RESOURCE2,},
+	{.description = "Mali_PP_MMU_Broadcast", .base = MALI_OFFSET_PP_BCAST_MMU,},
+	{.description = "Mali_Broadcast", .base = MALI_OFFSET_BCAST,},
+	{.description = "Mali_DLBU", .base = MALI_OFFSET_DLBU,},
+	{.description = "Mali_DMA", .base = MALI_OFFSET_DMA,},
 };
+
+static int _mali_osk_get_compatible_name(const char **out_string)
+{
+	struct device_node *node = mali_platform_device->dev.of_node;
+
+	MALI_DEBUG_ASSERT(NULL != node);
+
+	return of_property_read_string(node, "compatible", out_string);
+}
 
 _mali_osk_errcode_t _mali_osk_resource_initialize(void)
 {
-	mali_bool mali_is_450 = MALI_FALSE;
+	mali_bool mali_is_450 = MALI_FALSE, mali_is_470 = MALI_FALSE;
 	int i, pp_core_num = 0, l2_core_num = 0;
 	struct resource *res;
+	const char *compatible_name = NULL;
+
+	if (0 == _mali_osk_get_compatible_name(&compatible_name)) {
+		if (0 == strncmp(compatible_name, "arm,mali-450", strlen("arm,mali-450"))) {
+			mali_is_450 = MALI_TRUE;
+			MALI_DEBUG_PRINT(2, ("mali-450 device tree detected."));
+		} else if (0 == strncmp(compatible_name, "arm,mali-470", strlen("arm,mali-470"))) {
+			mali_is_470 = MALI_TRUE;
+			MALI_DEBUG_PRINT(2, ("mali-470 device tree detected."));
+		}
+	}
 
 	for (i = 0; i < MALI_OSK_RESOURCE_WITH_IRQ_NUMBER; i++) {
 		res = platform_get_resource_byname(mali_platform_device, IORESOURCE_IRQ, mali_osk_resource_bank[i].irq_name);
 		if (res) {
 			mali_osk_resource_bank[i].irq = res->start;
-			if (0 == strncmp("Mali_PP_Broadcast", mali_osk_resource_bank[i].description,
-					strlen(mali_osk_resource_bank[i].description))) {
-				mali_is_450 = MALI_TRUE;
-			}
 		} else {
 			mali_osk_resource_bank[i].base = MALI_OSK_INVALID_RESOURCE_ADDRESS;
 		}
@@ -117,14 +147,15 @@ _mali_osk_errcode_t _mali_osk_resource_initialize(void)
 
 	/**
 	 * we can caculate the number of l2 cache core according the number of pp core number
-	 * and device type(mali400/mali450).
+	 * and device type(mali400/mali450/mali470).
 	 */
-	if (mali_is_450 && 4 < pp_core_num) {
-		l2_core_num = 3;
-	} else if (mali_is_450 && 4 >= pp_core_num) {
-		l2_core_num = 2;
-	} else {
-		l2_core_num = 1;
+	l2_core_num = 1;
+	if (mali_is_450) {
+		if (pp_core_num > 4) {
+			l2_core_num = 3;
+		} else if (pp_core_num <= 4) {
+			l2_core_num = 2;
+		}
 	}
 
 	for (i = MALI_OSK_RESOURCE_l2_LOCATION_END; i > MALI_OSK_RESOURCE_L2_LOCATION_START + l2_core_num - 1; i--) {
@@ -132,11 +163,14 @@ _mali_osk_errcode_t _mali_osk_resource_initialize(void)
 	}
 
 	/* If device is not mali-450 type, we have to remove related resource from resource bank. */
-	if (!mali_is_450) {
+	if (!(mali_is_450 || mali_is_470)) {
 		for (i = MALI_OSK_RESOURCE_l2_LOCATION_END + 1; i < MALI_OSK_MAX_RESOURCE_NUMBER; i++) {
 			mali_osk_resource_bank[i].base = MALI_OSK_INVALID_RESOURCE_ADDRESS;
 		}
 	}
+
+	if (mali_is_470)
+		mali_osk_resource_bank[MALI_OSK_RESOURCE_DMA_LOCATION].base = MALI_OSK_INVALID_RESOURCE_ADDRESS;
 
 	return _MALI_OSK_ERR_OK;
 }
@@ -186,13 +220,15 @@ void _mali_osk_device_data_pmu_config_get(u16 *domain_config_array, int array_si
 	int length = 0, i = 0;
 	u32 u;
 
+	MALI_DEBUG_PRINT(2, ("Get pmu config from device tree configuration.\n"));
+
 	MALI_DEBUG_ASSERT(NULL != node);
 
 	if (!of_get_property(node, "pmu_domain_config", &length)) {
 		return;
 	}
 
-	if (array_size != length/sizeof(u32)) {
+	if (array_size != length / sizeof(u32)) {
 		MALI_PRINT_ERROR(("Wrong pmu domain config in device tree."));
 		return;
 	}
@@ -279,6 +315,7 @@ void _mali_osk_device_data_pmu_config_get(u16 *domain_config_array, int array_si
 {
 	_mali_osk_device_data data = { 0, };
 
+	MALI_DEBUG_PRINT(2, ("Get pmu config from platform device data.\n"));
 	if (_MALI_OSK_ERR_OK == _mali_osk_device_data_get(&data)) {
 		/* Copy the custom customer power domain config */
 		_mali_osk_memcpy(domain_config_array, data.pmu_domain_config, sizeof(data.pmu_domain_config));
@@ -322,22 +359,18 @@ _mali_osk_errcode_t _mali_osk_device_data_get(_mali_osk_device_data *data)
 	return _MALI_OSK_ERR_ITEM_NOT_FOUND;
 }
 
-u32 _mali_osk_l2_resource_count(void)
+u32 _mali_osk_identify_gpu_resource(void)
 {
-	u32 l2_core_num = 0;
-
-	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(MALI_OFFSET_L2_RESOURCE0, NULL))
-		l2_core_num++;
-
 	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(MALI_OFFSET_L2_RESOURCE1, NULL))
-		l2_core_num++;
+		/* Mali 450 */
+		return 0x450;
 
-	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(MALI_OFFSET_L2_RESOURCE2, NULL))
-		l2_core_num++;
+	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(MALI_OFFSET_DLBU, NULL))
+		/* Mali 470 */
+		return 0x470;
 
-	MALI_DEBUG_ASSERT(0 < l2_core_num);
-
-	return l2_core_num;
+	/* Mali 400 */
+	return 0x400;
 }
 
 mali_bool _mali_osk_shared_interrupts(void)
@@ -364,3 +397,95 @@ mali_bool _mali_osk_shared_interrupts(void)
 
 	return MALI_FALSE;
 }
+
+_mali_osk_errcode_t _mali_osk_gpu_secure_mode_init(void)
+{
+	_mali_osk_device_data data = { 0, };
+
+	if (_MALI_OSK_ERR_OK ==  _mali_osk_device_data_get(&data)) {
+		if ((NULL != data.secure_mode_init) && (NULL != data.secure_mode_deinit)
+		    && (NULL != data.gpu_reset_and_secure_mode_enable) && (NULL != data.gpu_reset_and_secure_mode_disable)) {
+			int err = data.secure_mode_init();
+			if (err) {
+				MALI_DEBUG_PRINT(1, ("Failed to init gpu secure mode.\n"));
+				return _MALI_OSK_ERR_FAULT;
+			}
+
+			mali_secure_mode_deinit = data.secure_mode_deinit;
+			mali_gpu_reset_and_secure_mode_enable = data.gpu_reset_and_secure_mode_enable;
+			mali_gpu_reset_and_secure_mode_disable = data.gpu_reset_and_secure_mode_disable;
+
+			mali_secure_mode_supported = MALI_TRUE;
+			mali_secure_mode_enabled = MALI_FALSE;
+			return _MALI_OSK_ERR_OK;
+		}
+	}
+	MALI_DEBUG_PRINT(3, ("GPU secure mode not supported.\n"));
+	return _MALI_OSK_ERR_UNSUPPORTED;
+
+}
+
+_mali_osk_errcode_t _mali_osk_gpu_secure_mode_deinit(void)
+{
+	if (NULL !=  mali_secure_mode_deinit) {
+		mali_secure_mode_deinit();
+		mali_secure_mode_enabled = MALI_FALSE;
+		mali_secure_mode_supported = MALI_FALSE;
+		return _MALI_OSK_ERR_OK;
+	}
+	MALI_DEBUG_PRINT(3, ("GPU secure mode not supported.\n"));
+	return _MALI_OSK_ERR_UNSUPPORTED;
+
+}
+
+
+_mali_osk_errcode_t _mali_osk_gpu_reset_and_secure_mode_enable(void)
+{
+	/* the mali executor lock must be held before enter this function. */
+
+	MALI_DEBUG_ASSERT(MALI_FALSE == mali_secure_mode_enabled);
+
+	if (NULL !=  mali_gpu_reset_and_secure_mode_enable) {
+		if (mali_gpu_reset_and_secure_mode_enable()) {
+			MALI_DEBUG_PRINT(1, ("Failed to reset GPU or enable gpu secure mode.\n"));
+			return _MALI_OSK_ERR_FAULT;
+		}
+		mali_secure_mode_enabled = MALI_TRUE;
+		return _MALI_OSK_ERR_OK;
+	}
+	MALI_DEBUG_PRINT(1, ("GPU secure mode not supported.\n"));
+	return _MALI_OSK_ERR_UNSUPPORTED;
+}
+
+_mali_osk_errcode_t _mali_osk_gpu_reset_and_secure_mode_disable(void)
+{
+	/* the mali executor lock must be held before enter this function. */
+
+	MALI_DEBUG_ASSERT(MALI_TRUE == mali_secure_mode_enabled);
+
+	if (NULL != mali_gpu_reset_and_secure_mode_disable) {
+		if (mali_gpu_reset_and_secure_mode_disable()) {
+			MALI_DEBUG_PRINT(1, ("Failed to reset GPU or disable gpu secure mode.\n"));
+			return _MALI_OSK_ERR_FAULT;
+		}
+		mali_secure_mode_enabled = MALI_FALSE;
+
+		return _MALI_OSK_ERR_OK;
+
+	}
+	MALI_DEBUG_PRINT(1, ("GPU secure mode not supported.\n"));
+	return _MALI_OSK_ERR_UNSUPPORTED;
+
+}
+
+mali_bool _mali_osk_gpu_secure_mode_is_enabled(void)
+{
+	return mali_secure_mode_enabled;
+}
+
+mali_bool _mali_osk_gpu_secure_mode_is_supported(void)
+{
+	return mali_secure_mode_supported;
+}
+
+

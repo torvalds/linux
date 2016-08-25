@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2016 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -91,6 +91,7 @@ MALI_STATIC_INLINE enum mali_interrupt_result mali_mmu_get_interrupt_result(stru
 	if (0 == rawstat_used) {
 		return MALI_INTERRUPT_RESULT_NONE;
 	}
+
 	return MALI_INTERRUPT_RESULT_ERROR;
 }
 

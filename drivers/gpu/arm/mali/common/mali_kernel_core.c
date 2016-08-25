@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2016 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -41,6 +41,11 @@
 #endif
 #include "mali_control_timer.h"
 #include "mali_dvfs_policy.h"
+#include <linux/sched.h>
+#include <linux/atomic.h>
+#if defined(CONFIG_MALI_DMA_BUF_FENCE)
+#include <linux/fence.h>
+#endif
 
 #define MALI_SHARED_MEMORY_DEFAULT_SIZE 0xffffffff
 
@@ -74,6 +79,7 @@ static u32 global_gpu_major_version = 0;
 static u32 global_gpu_minor_version = 0;
 
 mali_bool mali_gpu_class_is_mali450 = MALI_FALSE;
+mali_bool mali_gpu_class_is_mali470 = MALI_FALSE;
 
 static _mali_osk_errcode_t mali_set_global_gpu_base_address(void)
 {
@@ -153,6 +159,10 @@ static _mali_osk_errcode_t mali_parse_product_info(void)
 				case MALI450_PP_PRODUCT_ID:
 					global_product_id = _MALI_PRODUCT_ID_MALI450;
 					MALI_DEBUG_PRINT(2, ("Found Mali GPU Mali-450 MP r%up%u\n", global_gpu_major_version, global_gpu_minor_version));
+					break;
+				case MALI470_PP_PRODUCT_ID:
+					global_product_id = _MALI_PRODUCT_ID_MALI470;
+					MALI_DEBUG_PRINT(2, ("Found Mali GPU Mali-470 MP r%up%u\n", global_gpu_major_version, global_gpu_minor_version));
 					break;
 				default:
 					MALI_DEBUG_PRINT(2, ("Found unknown Mali GPU (r%up%u)\n", global_gpu_major_version, global_gpu_minor_version));
@@ -275,6 +285,20 @@ static _mali_osk_errcode_t mali_parse_config_l2_cache(void)
 			if (NULL == l2_cache) {
 				return _MALI_OSK_ERR_FAULT;
 			}
+		}
+	} else if (mali_is_mali470()) {
+		_mali_osk_resource_t l2c1_resource;
+
+		/* Make cluster for L2C1 */
+		if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(MALI470_OFFSET_L2_CACHE1, &l2c1_resource)) {
+			MALI_DEBUG_PRINT(3, ("Creating Mali-470 L2 cache 1\n"));
+			l2_cache = mali_create_l2_cache_core(&l2c1_resource, MALI_DOMAIN_INDEX_L21);
+			if (NULL == l2_cache) {
+				return _MALI_OSK_ERR_FAULT;
+			}
+		} else {
+			MALI_DEBUG_PRINT(3, ("Did not find required Mali L2 cache for L2C1\n"));
+			return _MALI_OSK_ERR_FAULT;
 		}
 	}
 
@@ -443,7 +467,7 @@ static _mali_osk_errcode_t mali_parse_config_groups(void)
 	_mali_osk_errcode_t resource_dlbu_found;
 	_mali_osk_errcode_t resource_bcast_found;
 
-	if (!(mali_is_mali400() || mali_is_mali450())) {
+	if (!(mali_is_mali400() || mali_is_mali450() || mali_is_mali470())) {
 		/* No known HW core */
 		return _MALI_OSK_ERR_FAULT;
 	}
@@ -486,7 +510,7 @@ static _mali_osk_errcode_t mali_parse_config_groups(void)
 	resource_pp_mmu_found[7] = _mali_osk_resource_find(MALI_OFFSET_PP7_MMU, &(resource_pp_mmu[7]));
 
 
-	if (mali_is_mali450()) {
+	if (mali_is_mali450() || mali_is_mali470()) {
 		resource_bcast_found = _mali_osk_resource_find(MALI_OFFSET_BCAST, &resource_bcast);
 		resource_dlbu_found = _mali_osk_resource_find(MALI_OFFSET_DLBU, &resource_dlbu);
 		resource_pp_mmu_bcast_found = _mali_osk_resource_find(MALI_OFFSET_PP_BCAST_MMU, &resource_pp_mmu_bcast);
@@ -496,7 +520,7 @@ static _mali_osk_errcode_t mali_parse_config_groups(void)
 		    _MALI_OSK_ERR_OK != resource_dlbu_found ||
 		    _MALI_OSK_ERR_OK != resource_pp_mmu_bcast_found ||
 		    _MALI_OSK_ERR_OK != resource_pp_bcast_found) {
-			/* Missing mandatory core(s) for Mali-450 */
+			/* Missing mandatory core(s) for Mali-450 or Mali-470 */
 			MALI_DEBUG_PRINT(2, ("Missing mandatory resources, Mali-450 needs DLBU, Broadcast unit, virtual PP core and virtual MMU\n"));
 			return _MALI_OSK_ERR_FAULT;
 		}
@@ -555,7 +579,7 @@ static _mali_osk_errcode_t mali_parse_config_groups(void)
 		}
 	}
 
-	if (mali_is_mali450()) {
+	if (mali_is_mali450() || mali_is_mali470()) {
 		_mali_osk_errcode_t err = mali_create_virtual_group(&resource_pp_mmu_bcast, &resource_pp_bcast, &resource_dlbu, &resource_bcast);
 		if (_MALI_OSK_ERR_OK != err) {
 			return err;
@@ -622,7 +646,7 @@ static _mali_osk_errcode_t mali_parse_config_memory(void)
 		}
 
 		if (MALI_SHARED_MEMORY_DEFAULT_SIZE == mali_shared_mem_size &&
-				0 != data.shared_mem_size) {
+		    0 != data.shared_mem_size) {
 			mali_shared_mem_size = data.shared_mem_size;
 		}
 	}
@@ -684,14 +708,16 @@ static _mali_osk_errcode_t mali_parse_config_memory(void)
 
 static void mali_detect_gpu_class(void)
 {
-	if (_mali_osk_l2_resource_count() > 1) {
+	if (_mali_osk_identify_gpu_resource() == 0x450)
 		mali_gpu_class_is_mali450 = MALI_TRUE;
-	}
+
+	if (_mali_osk_identify_gpu_resource() == 0x470)
+		mali_gpu_class_is_mali470 = MALI_TRUE;
 }
 
 static _mali_osk_errcode_t mali_init_hw_reset(void)
 {
-#if defined(CONFIG_MALI450)
+#if (defined(CONFIG_MALI450) || defined(CONFIG_MALI470))
 	_mali_osk_resource_t resource_bcast;
 
 	/* Ensure broadcast unit is in a good state before we start creating
@@ -707,7 +733,7 @@ static _mali_osk_errcode_t mali_init_hw_reset(void)
 		}
 		mali_bcast_unit_delete(bcast_core);
 	}
-#endif /* CONFIG_MALI450 */
+#endif /* (defined(CONFIG_MALI450) || defined(CONFIG_MALI470)) */
 
 	return _MALI_OSK_ERR_OK;
 }
@@ -733,6 +759,9 @@ _mali_osk_errcode_t mali_initialize_subsystems(void)
 		mali_terminate_subsystems();
 		return err;
 	}
+
+	/*Try to init gpu secure mode */
+	_mali_osk_gpu_secure_mode_init();
 
 #if defined(CONFIG_MALI400_PROFILING)
 	err = _mali_osk_profiling_init(mali_boot_profiling ? MALI_TRUE : MALI_FALSE);
@@ -825,7 +854,7 @@ _mali_osk_errcode_t mali_initialize_subsystems(void)
 		return err;
 	}
 
-	if (mali_is_mali450()) {
+	if (mali_is_mali450() || mali_is_mali470()) {
 		err = mali_dlbu_initialize();
 		if (_MALI_OSK_ERR_OK != err) {
 			mali_pm_init_end();
@@ -903,7 +932,7 @@ void mali_terminate_subsystems(void)
 	mali_delete_l2_cache_cores();
 	mali_mmu_terminate();
 
-	if (mali_is_mali450()) {
+	if (mali_is_mali450() || mali_is_mali470()) {
 		mali_dlbu_terminate();
 	}
 
@@ -916,6 +945,8 @@ void mali_terminate_subsystems(void)
 #if defined(CONFIG_MALI400_PROFILING)
 	_mali_osk_profiling_term();
 #endif
+
+	_mali_osk_gpu_secure_mode_deinit();
 
 	mali_memory_terminate();
 
@@ -974,7 +1005,7 @@ _mali_osk_errcode_t _mali_ukk_get_api_version_v2(_mali_uk_get_api_version_v2_s *
 	args->version = _MALI_UK_API_VERSION; /* report our version */
 
 	/* success regardless of being compatible or not */
-	return _MALI_OSK_ERR_OK;;
+	return _MALI_OSK_ERR_OK;
 }
 
 _mali_osk_errcode_t _mali_ukk_wait_for_notification(_mali_uk_wait_for_notification_s *args)
@@ -995,7 +1026,7 @@ _mali_osk_errcode_t _mali_ukk_wait_for_notification(_mali_uk_wait_for_notificati
 	if (NULL == queue) {
 		MALI_DEBUG_PRINT(1, ("No notification queue registered with the session. Asking userspace to stop querying\n"));
 		args->type = _MALI_NOTIFICATION_CORE_SHUTDOWN_IN_PROGRESS;
-		return _MALI_OSK_ERR_OK;;
+		return _MALI_OSK_ERR_OK;
 	}
 
 	/* receive a notification, might sleep */
@@ -1011,7 +1042,7 @@ _mali_osk_errcode_t _mali_ukk_wait_for_notification(_mali_uk_wait_for_notificati
 	/* finished with the notification */
 	_mali_osk_notification_delete(notification);
 
-	return _MALI_OSK_ERR_OK;; /* all ok */
+	return _MALI_OSK_ERR_OK; /* all ok */
 }
 
 _mali_osk_errcode_t _mali_ukk_post_notification(_mali_uk_post_notification_s *args)
@@ -1030,7 +1061,7 @@ _mali_osk_errcode_t _mali_ukk_post_notification(_mali_uk_post_notification_s *ar
 	/* if the queue does not exist we're currently shutting down */
 	if (NULL == queue) {
 		MALI_DEBUG_PRINT(1, ("No notification queue registered with the session. Asking userspace to stop querying\n"));
-		return _MALI_OSK_ERR_OK;;
+		return _MALI_OSK_ERR_OK;
 	}
 
 	notification = _mali_osk_notification_create(args->type, 0);
@@ -1041,8 +1072,27 @@ _mali_osk_errcode_t _mali_ukk_post_notification(_mali_uk_post_notification_s *ar
 
 	_mali_osk_notification_queue_send(queue, notification);
 
-	return _MALI_OSK_ERR_OK;; /* all ok */
+	return _MALI_OSK_ERR_OK; /* all ok */
 }
+
+_mali_osk_errcode_t _mali_ukk_pending_submit(_mali_uk_pending_submit_s *args)
+{
+	wait_queue_head_t *queue;
+
+	/* check input */
+	MALI_DEBUG_ASSERT_POINTER(args);
+	MALI_DEBUG_ASSERT(NULL != (void *)(uintptr_t)args->ctx);
+
+	queue = mali_session_get_wait_queue();
+
+	/* check pending big job number, might sleep if larger than MAX allowed number */
+	if (wait_event_interruptible(*queue, MALI_MAX_PENDING_BIG_JOB > mali_scheduler_job_gp_big_job_count())) {
+		return _MALI_OSK_ERR_RESTARTSYSCALL;
+	}
+
+	return _MALI_OSK_ERR_OK; /* all ok */
+}
+
 
 _mali_osk_errcode_t _mali_ukk_request_high_priority(_mali_uk_request_high_priority_s *args)
 {
@@ -1058,7 +1108,7 @@ _mali_osk_errcode_t _mali_ukk_request_high_priority(_mali_uk_request_high_priori
 		MALI_DEBUG_PRINT(2, ("Session 0x%08X with pid %d was granted higher priority.\n", session, _mali_osk_get_pid()));
 	}
 
-	return _MALI_OSK_ERR_OK;;
+	return _MALI_OSK_ERR_OK;
 }
 
 _mali_osk_errcode_t _mali_ukk_open(void **context)
@@ -1075,22 +1125,17 @@ _mali_osk_errcode_t _mali_ukk_open(void **context)
 	/* create a response queue for this session */
 	session->ioctl_queue = _mali_osk_notification_queue_init();
 	if (NULL == session->ioctl_queue) {
-		_mali_osk_free(session);
-		MALI_ERROR(_MALI_OSK_ERR_NOMEM);
+		goto err;
 	}
 
 	session->page_directory = mali_mmu_pagedir_alloc();
 	if (NULL == session->page_directory) {
-		_mali_osk_notification_queue_term(session->ioctl_queue);
-		_mali_osk_free(session);
-		MALI_ERROR(_MALI_OSK_ERR_NOMEM);
+		goto err_mmu;
 	}
 
 	if (_MALI_OSK_ERR_OK != mali_mmu_pagedir_map(session->page_directory, MALI_DLBU_VIRT_ADDR, _MALI_OSK_MALI_PAGE_SIZE)) {
 		MALI_PRINT_ERROR(("Failed to map DLBU page into session\n"));
-		_mali_osk_notification_queue_term(session->ioctl_queue);
-		_mali_osk_free(session);
-		MALI_ERROR(_MALI_OSK_ERR_NOMEM);
+		goto err_mmu;
 	}
 
 	if (0 != mali_dlbu_phys_addr) {
@@ -1099,31 +1144,30 @@ _mali_osk_errcode_t _mali_ukk_open(void **context)
 	}
 
 	if (_MALI_OSK_ERR_OK != mali_memory_session_begin(session)) {
-		mali_mmu_pagedir_free(session->page_directory);
-		_mali_osk_notification_queue_term(session->ioctl_queue);
-		_mali_osk_free(session);
-		MALI_ERROR(_MALI_OSK_ERR_NOMEM);
+		goto err_session;
 	}
 
 	/* Create soft system. */
 	session->soft_job_system = mali_soft_job_system_create(session);
 	if (NULL == session->soft_job_system) {
-		mali_memory_session_end(session);
-		mali_mmu_pagedir_free(session->page_directory);
-		_mali_osk_notification_queue_term(session->ioctl_queue);
-		_mali_osk_free(session);
-		MALI_ERROR(_MALI_OSK_ERR_NOMEM);
+		goto err_soft;
 	}
+
+	/* Initialize the dma fence context.*/
+#if defined(CONFIG_MALI_DMA_BUF_FENCE)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
+	session->fence_context = fence_context_alloc(1);
+	_mali_osk_atomic_init(&session->fence_seqno, 0);
+#else
+	MALI_PRINT_ERROR(("The kernel version not support dma fence!\n"));
+	goto err_time_line;
+#endif
+#endif
 
 	/* Create timeline system. */
 	session->timeline_system = mali_timeline_system_create(session);
 	if (NULL == session->timeline_system) {
-		mali_soft_job_system_destroy(session->soft_job_system);
-		mali_memory_session_end(session);
-		mali_mmu_pagedir_free(session->page_directory);
-		_mali_osk_notification_queue_term(session->ioctl_queue);
-		_mali_osk_free(session);
-		MALI_ERROR(_MALI_OSK_ERR_NOMEM);
+		goto err_time_line;
 	}
 
 #if defined(CONFIG_MALI_DVFS)
@@ -1142,15 +1186,31 @@ _mali_osk_errcode_t _mali_ukk_open(void **context)
 
 	session->pid = _mali_osk_get_pid();
 	session->comm = _mali_osk_get_comm();
-	session->max_mali_mem_allocated = 0;
-	_mali_osk_memset(session->mali_mem_array, 0, sizeof(size_t) * MALI_MEM_TYPE_MAX);
+	session->max_mali_mem_allocated_size = 0;
+	for (i = 0; i < MALI_MEM_TYPE_MAX; i ++) {
+		atomic_set(&session->mali_mem_array[i], 0);
+	}
+	atomic_set(&session->mali_mem_allocated_pages, 0);
 	*context = (void *)session;
 
 	/* Add session to the list of all sessions. */
 	mali_session_add(session);
 
 	MALI_DEBUG_PRINT(3, ("Session started\n"));
-	return _MALI_OSK_ERR_OK;;
+	return _MALI_OSK_ERR_OK;
+
+err_time_line:
+	mali_soft_job_system_destroy(session->soft_job_system);
+err_soft:
+	mali_memory_session_end(session);
+err_session:
+	mali_mmu_pagedir_free(session->page_directory);
+err_mmu:
+	_mali_osk_notification_queue_term(session->ioctl_queue);
+err:
+	_mali_osk_free(session);
+	MALI_ERROR(_MALI_OSK_ERR_NOMEM);
+
 }
 
 #if defined(DEBUG)
@@ -1234,7 +1294,12 @@ _mali_osk_errcode_t _mali_ukk_close(void **context)
 	_mali_osk_atomic_term(&session->number_of_window_jobs);
 #endif
 
+#if defined(CONFIG_MALI400_PROFILING)
+	_mali_osk_profiling_stop_sampling(session->pid);
+#endif
+
 	/* Free session data structures */
+	mali_mmu_pagedir_unmap(session->page_directory, MALI_DLBU_VIRT_ADDR, _MALI_OSK_MALI_PAGE_SIZE);
 	mali_mmu_pagedir_free(session->page_directory);
 	_mali_osk_notification_queue_term(session->ioctl_queue);
 	_mali_osk_free(session);

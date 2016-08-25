@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2010-2014 ARM Limited. All rights reserved.
+# Copyright (C) 2010-2016 ARM Limited. All rights reserved.
 # 
 # This program is free software and is provided to you under the terms of the GNU General Public License version 2
 # as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -12,10 +12,13 @@ USE_UMPV2=0
 USING_PROFILING ?= 1
 USING_INTERNAL_PROFILING ?= 0
 USING_DVFS ?= 1
+USING_DMA_BUF_FENCE ?= 0
 MALI_HEATMAPS_ENABLED ?= 0
 MALI_DMA_BUF_MAP_ON_ATTACH ?= 1
 MALI_PMU_PARALLEL_POWER_UP ?= 0
 USING_DT ?= 0
+MALI_MEM_SWAP_TRACKING ?= 0
+USING_DEVFREQ ?= 0
 
 # The Makefile sets up "arch" based on the CONFIG, creates the version info
 # string and the __malidrv_build_info.c file, and then call the Linux build
@@ -102,10 +105,11 @@ endif
 # Set up build config
 export CONFIG_MALI400=m
 export CONFIG_MALI450=y
+export CONFIG_MALI470=y
 
 export EXTRA_DEFINES += -DCONFIG_MALI400=1
 export EXTRA_DEFINES += -DCONFIG_MALI450=1
-export EXTRA_DEFINES += -DMALI_FAKE_PLATFORM_DEVICE=1
+export EXTRA_DEFINES += -DCONFIG_MALI470=1
 
 ifneq ($(MALI_PLATFORM),)
 export EXTRA_DEFINES += -DMALI_FAKE_PLATFORM_DEVICE=1
@@ -144,6 +148,11 @@ export CONFIG_MALI_DVFS=y
 export EXTRA_DEFINES += -DCONFIG_MALI_DVFS
 endif
 
+ifeq ($(USING_DMA_BUF_FENCE),1)
+export CONFIG_MALI_DMA_BUF_FENCE=y
+export EXTRA_DEFINES += -DCONFIG_MALI_DMA_BUF_FENCE
+endif
+
 ifeq ($(MALI_PMU_PARALLEL_POWER_UP),1)
 export CONFIG_MALI_PMU_PARALLEL_POWER_UP=y
 export EXTRA_DEFINES += -DCONFIG_MALI_PMU_PARALLEL_POWER_UP
@@ -153,6 +162,15 @@ ifdef CONFIG_OF
 ifeq ($(USING_DT),1)
 export CONFIG_MALI_DT=y
 export EXTRA_DEFINES += -DCONFIG_MALI_DT
+endif
+endif
+
+ifeq ($(USING_DEVFREQ), 1)
+ifdef CONFIG_PM_DEVFREQ
+export CONFIG_MALI_DEVFREQ=y
+export EXTRA_DEFINES += -DCONFIG_MALI_DEVFREQ=1
+else
+$(warning "You want to support DEVFREQ but kernel didn't support DEVFREQ.")
 endif
 endif
 
@@ -169,6 +187,10 @@ endif
 
 ifeq ($(MALI_SKIP_JOBS),1)
 EXTRA_DEFINES += -DPROFILING_SKIP_PP_JOBS=1 -DPROFILING_SKIP_GP_JOBS=1
+endif
+
+ifeq ($(MALI_MEM_SWAP_TRACKING),1)
+EXTRA_DEFINES += -DMALI_MEM_SWAP_TRACKING=1
 endif
 
 all: $(UMP_SYMVERS_FILE)

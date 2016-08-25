@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2016 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -24,6 +24,8 @@
 #include <linux/miscdevice.h>
 #include <linux/bug.h>
 #include <linux/of.h>
+#include <linux/clk.h>
+#include <linux/regulator/consumer.h>
 
 #include <linux/mali/mali_utgard.h>
 #include "mali_kernel_common.h"
@@ -38,12 +40,15 @@
 #include "mali_kernel_license.h"
 #include "mali_memory.h"
 #include "mali_memory_dma_buf.h"
+#include "mali_memory_manager.h"
+#include "mali_memory_swap_alloc.h"
 #if defined(CONFIG_MALI400_INTERNAL_PROFILING)
 #include "mali_profiling_internal.h"
 #endif
 #if defined(CONFIG_MALI400_PROFILING) && defined(CONFIG_MALI_DVFS)
 #include "mali_osk_profiling.h"
 #include "mali_dvfs_policy.h"
+
 static int is_first_resume = 1;
 /*Store the clk and vol for boot/insmod and mali_resume*/
 static struct mali_gpu_clk_item mali_gpu_clk[2];
@@ -59,6 +64,29 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(mali_timeline_event);
 EXPORT_TRACEPOINT_SYMBOL_GPL(mali_hw_counter);
 EXPORT_TRACEPOINT_SYMBOL_GPL(mali_sw_counters);
 #endif /* CONFIG_TRACEPOINTS */
+
+#ifdef CONFIG_MALI_DEVFREQ
+#include "mali_devfreq.h"
+#include "mali_osk_mali.h"
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
+#include <linux/pm_opp.h>
+#else
+/* In 3.13 the OPP include header file, types, and functions were all
+ * renamed. Use the old filename for the include, and define the new names to
+ * the old, when an old kernel is detected.
+ */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
+#include <linux/pm_opp.h>
+#else
+#include <linux/opp.h>
+#endif /* Linux >= 3.13*/
+#define dev_pm_opp_of_add_table of_init_opp_table
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)
+#define dev_pm_opp_of_remove_table of_free_opp_table
+#endif /* Linux >= 3.19 */
+#endif /* Linux >= 4.4.0 */
+#endif
 
 /* from the __malidrv_build_info.c file that is generated during build */
 extern const char *__malidrv_build_info(void);
@@ -101,6 +129,10 @@ MODULE_PARM_DESC(mali_max_pp_cores_group_1, "Limit the number of PP cores to use
 extern int mali_max_pp_cores_group_2;
 module_param(mali_max_pp_cores_group_2, int, S_IRUSR | S_IRGRP | S_IROTH);
 MODULE_PARM_DESC(mali_max_pp_cores_group_2, "Limit the number of PP cores to use from second PP group (Mali-450 only).");
+
+extern unsigned int mali_mem_swap_out_threshold_value;
+module_param(mali_mem_swap_out_threshold_value, uint, S_IRUSR | S_IRGRP | S_IROTH);
+MODULE_PARM_DESC(mali_mem_swap_out_threshold_value, "Threshold value used to limit how much swappable memory cached in Mali driver.");
 
 #if defined(CONFIG_MALI_DVFS)
 /** the max fps the same as display vsync default 60, can set by module insert parameter */
@@ -199,7 +231,7 @@ static struct of_device_id base_dt_ids[] = {
 	{.compatible = "arm,mali-300"},
 	{.compatible = "arm,mali-400"},
 	{.compatible = "arm,mali-450"},
-	{.compatible = "arm,mali-utgard"},
+	{.compatible = "arm,mali-470"},
 	{},
 };
 
@@ -387,13 +419,12 @@ int mali_module_init(void)
 	MALI_DEBUG_PRINT(2, ("mali_module_init() registering driver\n"));
 
 	err = platform_driver_register(&mali_platform_driver);
-	//mpgpu_class_init();
 
 	if (0 != err) {
 		MALI_DEBUG_PRINT(2, ("mali_module_init() Failed to register driver (%d)\n", err));
 #ifdef MALI_FAKE_PLATFORM_DEVICE
 #ifndef CONFIG_MALI_DT
-	mali_platform_device_unregister();
+		mali_platform_device_unregister();
 #endif
 #endif
 		mali_platform_device = NULL;
@@ -413,11 +444,11 @@ int mali_module_init(void)
 	/* Just call mali_get_current_gpu_clk_item(),to record current clk info.*/
 	mali_get_current_gpu_clk_item(&mali_gpu_clk[0]);
 	_mali_osk_profiling_add_event(MALI_PROFILING_EVENT_TYPE_SINGLE |
-					  MALI_PROFILING_EVENT_CHANNEL_GPU |
-					  MALI_PROFILING_EVENT_REASON_SINGLE_GPU_FREQ_VOLT_CHANGE,
-					  mali_gpu_clk[0].clock,
-					  mali_gpu_clk[0].vol / 1000,
-					  0, 0, 0);
+				      MALI_PROFILING_EVENT_CHANNEL_GPU |
+				      MALI_PROFILING_EVENT_REASON_SINGLE_GPU_FREQ_VOLT_CHANGE,
+				      mali_gpu_clk[0].clock,
+				      mali_gpu_clk[0].vol / 1000,
+				      0, 0, 0);
 #endif
 
 	mpgpu_class_init();
@@ -456,9 +487,24 @@ void mali_module_exit(void)
 	MALI_PRINT(("Mali device driver unloaded\n"));
 }
 
+#ifdef CONFIG_MALI_DEVFREQ
+struct mali_device *mali_device_alloc(void)
+{
+	return kzalloc(sizeof(struct mali_device), GFP_KERNEL);
+}
+
+void mali_device_free(struct mali_device *mdev)
+{
+	kfree(mdev);
+}
+#endif
+
 static int mali_probe(struct platform_device *pdev)
 {
 	int err;
+#ifdef CONFIG_MALI_DEVFREQ
+	struct mali_device *mdev;
+#endif
 
 	MALI_DEBUG_PRINT(2, ("mali_probe(): Called for platform device %s\n", pdev->name));
 
@@ -475,9 +521,65 @@ static int mali_probe(struct platform_device *pdev)
 	err = mali_platform_device_init(mali_platform_device);
 	if (0 != err) {
 		MALI_PRINT_ERROR(("mali_probe(): Failed to initialize platform device."));
+		mali_platform_device = NULL;
 		return -EFAULT;
 	}
 #endif
+
+#ifdef CONFIG_MALI_DEVFREQ
+	mdev = mali_device_alloc();
+	if (!mdev) {
+		MALI_PRINT_ERROR(("Can't allocate mali device private data\n"));
+		return -ENOMEM;
+	}
+
+	mdev->dev = &pdev->dev;
+	dev_set_drvdata(mdev->dev, mdev);
+
+	/*Initilization clock and regulator*/
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 12, 0)) && defined(CONFIG_OF) \
+                        && defined(CONFIG_REGULATOR)
+	mdev->regulator = regulator_get_optional(mdev->dev, "mali");
+	if (IS_ERR_OR_NULL(mdev->regulator)) {
+		MALI_DEBUG_PRINT(2, ("Continuing without Mali regulator control\n"));
+		mdev->regulator = NULL;
+		/* Allow probe to continue without regulator */
+	}
+#endif /* LINUX_VERSION_CODE >= 3, 12, 0 */
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 7, 0)) && defined(CONFIG_OF) \
+                        && defined(CONFIG_PM_OPP)
+	/* Register the OPPs if they are available in device tree */
+	if (dev_pm_opp_of_add_table(mdev->dev) < 0)
+		MALI_DEBUG_PRINT(3, ("OPP table not found\n"));
+#endif
+
+	/* Need to name the gpu clock "clk_mali" in the device tree */
+	mdev->clock = clk_get(mdev->dev, "clk_mali");
+	if (IS_ERR_OR_NULL(mdev->clock)) {
+		MALI_DEBUG_PRINT(2, ("Continuing without Mali clock control\n"));
+		mdev->clock = NULL;
+		/* Allow probe to continue without clock. */
+	} else {
+		err = clk_prepare_enable(mdev->clock);
+		if (err) {
+			MALI_PRINT_ERROR(("Failed to prepare and enable clock (%d)\n", err));
+			goto clock_prepare_failed;
+		}
+	}
+
+	/* initilize pm metrics related */
+	if (mali_pm_metrics_init(mdev) < 0) {
+		MALI_DEBUG_PRINT(2, ("mali pm metrics init failed\n"));
+		goto pm_metrics_init_failed;
+	}
+
+	if (mali_devfreq_init(mdev) < 0) {
+		MALI_DEBUG_PRINT(2, ("mali devfreq init failed\n"));
+		goto devfreq_init_failed;
+	}
+#endif
+
 
 	if (_MALI_OSK_ERR_OK == _mali_osk_wq_init()) {
 		/* Initialize the Mali GPU HW specified by pdev */
@@ -506,17 +608,67 @@ static int mali_probe(struct platform_device *pdev)
 		_mali_osk_wq_term();
 	}
 
+#ifdef CONFIG_MALI_DEVFREQ
+	mali_devfreq_term(mdev);
+devfreq_init_failed:
+	mali_pm_metrics_term(mdev);
+pm_metrics_init_failed:
+	clk_disable_unprepare(mdev->clock);
+clock_prepare_failed:
+	clk_put(mdev->clock);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)) && defined(CONFIG_OF) \
+                        && defined(CONFIG_PM_OPP)
+	dev_pm_opp_of_remove_table(mdev->dev);
+#endif
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 12, 0)) && defined(CONFIG_OF) \
+                        && defined(CONFIG_REGULATOR)
+	regulator_put(mdev->regulator);
+#endif /* LINUX_VERSION_CODE >= 3, 12, 0 */
+	mali_device_free(mdev);
+#endif
+
+#ifdef CONFIG_MALI_DT
+	mali_platform_device_deinit(mali_platform_device);
+#endif
 	mali_platform_device = NULL;
 	return -EFAULT;
 }
 
 static int mali_remove(struct platform_device *pdev)
 {
+#ifdef CONFIG_MALI_DEVFREQ
+	struct mali_device *mdev = dev_get_drvdata(&pdev->dev);
+#endif
+
 	MALI_DEBUG_PRINT(2, ("mali_remove() called for platform device %s\n", pdev->name));
 	mali_sysfs_unregister();
 	mali_miscdevice_unregister();
 	mali_terminate_subsystems();
 	_mali_osk_wq_term();
+
+#ifdef CONFIG_MALI_DEVFREQ
+	mali_devfreq_term(mdev);
+
+	mali_pm_metrics_term(mdev);
+
+	if (mdev->clock) {
+		clk_disable_unprepare(mdev->clock);
+		clk_put(mdev->clock);
+		mdev->clock = NULL;
+	}
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)) && defined(CONFIG_OF) \
+                        && defined(CONFIG_PM_OPP)
+	dev_pm_opp_of_remove_table(mdev->dev);
+#endif
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 12, 0)) && defined(CONFIG_OF) \
+                        && defined(CONFIG_REGULATOR)
+	regulator_put(mdev->regulator);
+#endif /* LINUX_VERSION_CODE >= 3, 12, 0 */
+	mali_device_free(mdev);
+#endif
+
 #ifdef CONFIG_MALI_DT
 	mali_platform_device_deinit(mali_platform_device);
 #endif
@@ -548,6 +700,17 @@ static void mali_miscdevice_unregister(void)
 
 static int mali_driver_suspend_scheduler(struct device *dev)
 {
+#ifdef CONFIG_MALI_DEVFREQ
+	struct mali_device *mdev = dev_get_drvdata(dev);
+	if (!mdev)
+		return -ENODEV;
+#endif
+
+#if defined(CONFIG_MALI_DEVFREQ) && \
+                (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
+	devfreq_suspend_device(mdev->devfreq);
+#endif
+
 	mali_pm_os_suspend(MALI_TRUE);
 	/* Tracing the frequency and voltage after mali is suspended */
 	_mali_osk_profiling_add_event(MALI_PROFILING_EVENT_TYPE_SINGLE |
@@ -561,6 +724,12 @@ static int mali_driver_suspend_scheduler(struct device *dev)
 
 static int mali_driver_resume_scheduler(struct device *dev)
 {
+#ifdef CONFIG_MALI_DEVFREQ
+	struct mali_device *mdev = dev_get_drvdata(dev);
+	if (!mdev)
+		return -ENODEV;
+#endif
+
 	/* Tracing the frequency and voltage after mali is resumed */
 #if defined(CONFIG_MALI400_PROFILING) && defined(CONFIG_MALI_DVFS)
 	/* Just call mali_get_current_gpu_clk_item() once,to record current clk info.*/
@@ -576,12 +745,24 @@ static int mali_driver_resume_scheduler(struct device *dev)
 				      0, 0, 0);
 #endif
 	mali_pm_os_resume();
+
+#if defined(CONFIG_MALI_DEVFREQ) && \
+                (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
+	devfreq_resume_device(mdev->devfreq);
+#endif
+
 	return 0;
 }
 
 #ifdef CONFIG_PM_RUNTIME
 static int mali_driver_runtime_suspend(struct device *dev)
 {
+#ifdef CONFIG_MALI_DEVFREQ
+	struct mali_device *mdev = dev_get_drvdata(dev);
+	if (!mdev)
+		return -ENODEV;
+#endif
+
 	if (MALI_TRUE == mali_pm_runtime_suspend()) {
 		/* Tracing the frequency and voltage after mali is suspended */
 		_mali_osk_profiling_add_event(MALI_PROFILING_EVENT_TYPE_SINGLE |
@@ -591,6 +772,12 @@ static int mali_driver_runtime_suspend(struct device *dev)
 					      0,
 					      0, 0, 0);
 
+#if defined(CONFIG_MALI_DEVFREQ) && \
+                (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
+		MALI_DEBUG_PRINT(4, ("devfreq_suspend_device: stop devfreq monitor\n"));
+		devfreq_suspend_device(mdev->devfreq);
+#endif
+
 		return 0;
 	} else {
 		return -EBUSY;
@@ -599,6 +786,12 @@ static int mali_driver_runtime_suspend(struct device *dev)
 
 static int mali_driver_runtime_resume(struct device *dev)
 {
+#ifdef CONFIG_MALI_DEVFREQ
+	struct mali_device *mdev = dev_get_drvdata(dev);
+	if (!mdev)
+		return -ENODEV;
+#endif
+
 	/* Tracing the frequency and voltage after mali is resumed */
 #if defined(CONFIG_MALI400_PROFILING) && defined(CONFIG_MALI_DVFS)
 	/* Just call mali_get_current_gpu_clk_item() once,to record current clk info.*/
@@ -615,6 +808,12 @@ static int mali_driver_runtime_resume(struct device *dev)
 #endif
 
 	mali_pm_runtime_resume();
+
+#if defined(CONFIG_MALI_DEVFREQ) && \
+                (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
+	MALI_DEBUG_PRINT(4, ("devfreq_resume_device: start devfreq monitor\n"));
+	devfreq_resume_device(mdev->devfreq);
+#endif
 	return 0;
 }
 
@@ -645,6 +844,8 @@ static int mali_open(struct inode *inode, struct file *filp)
 
 	/* link in our session data */
 	filp->private_data = (void *)session_data;
+
+	filp->f_mapping = mali_mem_swap_get_global_swap_file()->f_mapping;
 
 	return 0;
 }
@@ -746,6 +947,11 @@ static int mali_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, 
 		err = request_high_priority_wrapper(session_data, (_mali_uk_request_high_priority_s __user *)arg);
 		break;
 
+	case MALI_IOC_PENDING_SUBMIT:
+		BUILD_BUG_ON(!IS_ALIGNED(sizeof(_mali_uk_pending_submit_s), sizeof(u64)));
+		err = pending_submit_wrapper(session_data, (_mali_uk_pending_submit_s __user *)arg);
+		break;
+
 #if defined(CONFIG_MALI400_PROFILING)
 	case MALI_IOC_PROFILING_ADD_EVENT:
 		BUILD_BUG_ON(!IS_ALIGNED(sizeof(_mali_uk_profiling_add_event_s), sizeof(u64)));
@@ -757,36 +963,67 @@ static int mali_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, 
 		err = profiling_report_sw_counters_wrapper(session_data, (_mali_uk_sw_counters_report_s __user *)arg);
 		break;
 
-
-	case MALI_IOC_PROFILING_MEMORY_USAGE_GET:
-		BUILD_BUG_ON(!IS_ALIGNED(sizeof(_mali_uk_profiling_memory_usage_get_s), sizeof(u64)));
-		err = profiling_memory_usage_get_wrapper(session_data, (_mali_uk_profiling_memory_usage_get_s __user *)arg);
+	case MALI_IOC_PROFILING_STREAM_FD_GET:
+		BUILD_BUG_ON(!IS_ALIGNED(sizeof(_mali_uk_profiling_stream_fd_get_s), sizeof(u64)));
+		err = profiling_get_stream_fd_wrapper(session_data, (_mali_uk_profiling_stream_fd_get_s __user *)arg);
 		break;
 
+	case MALI_IOC_PROILING_CONTROL_SET:
+		BUILD_BUG_ON(!IS_ALIGNED(sizeof(_mali_uk_profiling_control_set_s), sizeof(u64)));
+		err = profiling_control_set_wrapper(session_data, (_mali_uk_profiling_control_set_s __user *)arg);
+		break;
 #else
 
 	case MALI_IOC_PROFILING_ADD_EVENT:          /* FALL-THROUGH */
 	case MALI_IOC_PROFILING_REPORT_SW_COUNTERS: /* FALL-THROUGH */
-	case MALI_IOC_PROFILING_MEMORY_USAGE_GET:   /* FALL-THROUGH */
 		MALI_DEBUG_PRINT(2, ("Profiling not supported\n"));
 		err = -ENOTTY;
 		break;
-
 #endif
+
+	case MALI_IOC_PROFILING_MEMORY_USAGE_GET:
+		BUILD_BUG_ON(!IS_ALIGNED(sizeof(_mali_uk_profiling_memory_usage_get_s), sizeof(u64)));
+		err = mem_usage_get_wrapper(session_data, (_mali_uk_profiling_memory_usage_get_s __user *)arg);
+		break;
+
+	case MALI_IOC_MEM_ALLOC:
+		BUILD_BUG_ON(!IS_ALIGNED(sizeof(_mali_uk_alloc_mem_s), sizeof(u64)));
+		err = mem_alloc_wrapper(session_data, (_mali_uk_alloc_mem_s __user *)arg);
+		break;
+
+	case MALI_IOC_MEM_FREE:
+		BUILD_BUG_ON(!IS_ALIGNED(sizeof(_mali_uk_free_mem_s), sizeof(u64)));
+		err = mem_free_wrapper(session_data, (_mali_uk_free_mem_s __user *)arg);
+		break;
+
+	case MALI_IOC_MEM_BIND:
+		BUILD_BUG_ON(!IS_ALIGNED(sizeof(_mali_uk_bind_mem_s), sizeof(u64)));
+		err = mem_bind_wrapper(session_data, (_mali_uk_bind_mem_s __user *)arg);
+		break;
+
+	case MALI_IOC_MEM_UNBIND:
+		BUILD_BUG_ON(!IS_ALIGNED(sizeof(_mali_uk_unbind_mem_s), sizeof(u64)));
+		err = mem_unbind_wrapper(session_data, (_mali_uk_unbind_mem_s __user *)arg);
+		break;
+
+	case MALI_IOC_MEM_COW:
+		BUILD_BUG_ON(!IS_ALIGNED(sizeof(_mali_uk_cow_mem_s), sizeof(u64)));
+		err = mem_cow_wrapper(session_data, (_mali_uk_cow_mem_s __user *)arg);
+		break;
+
+	case MALI_IOC_MEM_COW_MODIFY_RANGE:
+		BUILD_BUG_ON(!IS_ALIGNED(sizeof(_mali_uk_cow_modify_range_s), sizeof(u64)));
+		err = mem_cow_modify_range_wrapper(session_data, (_mali_uk_cow_modify_range_s __user *)arg);
+		break;
+
+	case MALI_IOC_MEM_RESIZE:
+		BUILD_BUG_ON(!IS_ALIGNED(sizeof(_mali_uk_mem_resize_s), sizeof(u64)));
+		err = mem_resize_mem_wrapper(session_data, (_mali_uk_mem_resize_s __user *)arg);
+		break;
 
 	case MALI_IOC_MEM_WRITE_SAFE:
 		BUILD_BUG_ON(!IS_ALIGNED(sizeof(_mali_uk_mem_write_safe_s), sizeof(u64)));
 		err = mem_write_safe_wrapper(session_data, (_mali_uk_mem_write_safe_s __user *)arg);
-		break;
-
-	case MALI_IOC_MEM_MAP_EXT:
-		BUILD_BUG_ON(!IS_ALIGNED(sizeof(_mali_uk_map_external_mem_s), sizeof(u64)));
-		err = mem_map_ext_wrapper(session_data, (_mali_uk_map_external_mem_s __user *)arg);
-		break;
-
-	case MALI_IOC_MEM_UNMAP_EXT:
-		BUILD_BUG_ON(!IS_ALIGNED(sizeof(_mali_uk_unmap_external_mem_s), sizeof(u64)));
-		err = mem_unmap_ext_wrapper(session_data, (_mali_uk_unmap_external_mem_s __user *)arg);
 		break;
 
 	case MALI_IOC_MEM_QUERY_MMU_PAGE_TABLE_DUMP_SIZE:
@@ -799,51 +1036,15 @@ static int mali_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, 
 		err = mem_dump_mmu_page_table_wrapper(session_data, (_mali_uk_dump_mmu_page_table_s __user *)arg);
 		break;
 
-#if defined(CONFIG_MALI400_UMP)
-
-	case MALI_IOC_MEM_ATTACH_UMP:
-		BUILD_BUG_ON(!IS_ALIGNED(sizeof(_mali_uk_attach_ump_mem_s), sizeof(u64)));
-		err = mem_attach_ump_wrapper(session_data, (_mali_uk_attach_ump_mem_s __user *)arg);
-		break;
-
-	case MALI_IOC_MEM_RELEASE_UMP:
-		BUILD_BUG_ON(!IS_ALIGNED(sizeof(_mali_uk_release_ump_mem_s), sizeof(u64)));
-		err = mem_release_ump_wrapper(session_data, (_mali_uk_release_ump_mem_s __user *)arg);
-		break;
-
-#else
-
-	case MALI_IOC_MEM_ATTACH_UMP:
-	case MALI_IOC_MEM_RELEASE_UMP: /* FALL-THROUGH */
-		MALI_DEBUG_PRINT(2, ("UMP not supported\n"));
-		err = -ENOTTY;
-		break;
-#endif
-
-#ifdef CONFIG_DMA_SHARED_BUFFER
-	case MALI_IOC_MEM_ATTACH_DMA_BUF:
-		BUILD_BUG_ON(!IS_ALIGNED(sizeof(_mali_uk_attach_dma_buf_s), sizeof(u64)));
-		err = mali_attach_dma_buf(session_data, (_mali_uk_attach_dma_buf_s __user *)arg);
-		break;
-
-	case MALI_IOC_MEM_RELEASE_DMA_BUF:
-		BUILD_BUG_ON(!IS_ALIGNED(sizeof(_mali_uk_release_dma_buf_s), sizeof(u64)));
-		err = mali_release_dma_buf(session_data, (_mali_uk_release_dma_buf_s __user *)arg);
-		break;
-
 	case MALI_IOC_MEM_DMA_BUF_GET_SIZE:
+#ifdef CONFIG_DMA_SHARED_BUFFER
 		BUILD_BUG_ON(!IS_ALIGNED(sizeof(_mali_uk_dma_buf_get_size_s), sizeof(u64)));
 		err = mali_dma_buf_get_size(session_data, (_mali_uk_dma_buf_get_size_s __user *)arg);
-		break;
 #else
-
-	case MALI_IOC_MEM_ATTACH_DMA_BUF:   /* FALL-THROUGH */
-	case MALI_IOC_MEM_RELEASE_DMA_BUF:  /* FALL-THROUGH */
-	case MALI_IOC_MEM_DMA_BUF_GET_SIZE: /* FALL-THROUGH */
 		MALI_DEBUG_PRINT(2, ("DMA-BUF not supported\n"));
 		err = -ENOTTY;
-		break;
 #endif
+		break;
 
 	case MALI_IOC_PP_START_JOB:
 		BUILD_BUG_ON(!IS_ALIGNED(sizeof(_mali_uk_pp_start_job_s), sizeof(u64)));
