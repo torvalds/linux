@@ -555,7 +555,8 @@ int phm_initializa_dynamic_state_adjustment_rule_settings(struct pp_hwmgr *hwmgr
 		table_clk_vlt->entries[2].v = 810;
 		table_clk_vlt->entries[3].clk = PP_DAL_POWERLEVEL_PERFORMANCE;
 		table_clk_vlt->entries[3].v = 900;
-		pptable_info->vddc_dep_on_dal_pwrl = table_clk_vlt;
+		if (pptable_info != NULL)
+			pptable_info->vddc_dep_on_dal_pwrl = table_clk_vlt;
 		hwmgr->dyn_state.vddc_dep_on_dal_pwrl = table_clk_vlt;
 	}
 
