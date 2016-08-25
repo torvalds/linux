@@ -635,7 +635,7 @@ static ssize_t traceid_store(struct device *dev,
 static DEVICE_ATTR_RW(traceid);
 
 #define coresight_stm_simple_func(name, offset)	\
-	coresight_simple_func(struct stm_drvdata, name, offset)
+	coresight_simple_func(struct stm_drvdata, NULL, name, offset)
 
 coresight_stm_simple_func(tcsr, STMTCSR);
 coresight_stm_simple_func(tsfreqr, STMTSFREQR);

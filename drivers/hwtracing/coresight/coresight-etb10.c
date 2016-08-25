@@ -559,7 +559,7 @@ static const struct file_operations etb_fops = {
 };
 
 #define coresight_etb10_simple_func(name, offset)                       \
-	coresight_simple_func(struct etb_drvdata, name, offset)
+	coresight_simple_func(struct etb_drvdata, NULL, name, offset)
 
 coresight_etb10_simple_func(rdp, ETB_RAM_DEPTH_REG);
 coresight_etb10_simple_func(sts, ETB_STATUS_REG);

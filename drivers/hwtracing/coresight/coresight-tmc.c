@@ -218,7 +218,7 @@ static enum tmc_mem_intf_width tmc_get_memwidth(u32 devid)
 }
 
 #define coresight_tmc_simple_func(name, offset)			\
-	coresight_simple_func(struct tmc_drvdata, name, offset)
+	coresight_simple_func(struct tmc_drvdata, NULL, name, offset)
 
 coresight_tmc_simple_func(rsz, TMC_RSZ);
 coresight_tmc_simple_func(sts, TMC_STS);

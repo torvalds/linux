@@ -1222,7 +1222,7 @@ static struct attribute *coresight_etm_attrs[] = {
 };
 
 #define coresight_etm3x_simple_func(name, offset)			\
-	coresight_simple_func(struct etm_drvdata, name, offset)
+	coresight_simple_func(struct etm_drvdata, NULL, name, offset)
 
 coresight_etm3x_simple_func(etmccr, ETMCCR);
 coresight_etm3x_simple_func(etmccer, ETMCCER);
