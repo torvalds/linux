@@ -464,12 +464,10 @@ static int bcm_sf2_sw_rst(struct bcm_sf2_priv *priv)
 
 static void bcm_sf2_intr_disable(struct bcm_sf2_priv *priv)
 {
-	intrl2_0_writel(priv, 0xffffffff, INTRL2_CPU_MASK_SET);
+	intrl2_0_mask_set(priv, 0xffffffff);
 	intrl2_0_writel(priv, 0xffffffff, INTRL2_CPU_CLEAR);
-	intrl2_0_writel(priv, 0, INTRL2_CPU_MASK_CLEAR);
-	intrl2_1_writel(priv, 0xffffffff, INTRL2_CPU_MASK_SET);
+	intrl2_1_mask_set(priv, 0xffffffff);
 	intrl2_1_writel(priv, 0xffffffff, INTRL2_CPU_CLEAR);
-	intrl2_1_writel(priv, 0, INTRL2_CPU_MASK_CLEAR);
 }
 
 static void bcm_sf2_identify_ports(struct bcm_sf2_priv *priv,
