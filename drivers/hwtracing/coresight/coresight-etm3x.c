@@ -893,6 +893,11 @@ static struct amba_id etm_ids[] = {
 		.mask	= 0x0003ffff,
 		.data	= "ETM 3.3",
 	},
+	{	/* ETM 3.5 - Cortex-A5 */
+		.id	= 0x0003b955,
+		.mask	= 0x0003ffff,
+		.data	= "ETM 3.5",
+	},
 	{	/* ETM 3.5 */
 		.id	= 0x0003b956,
 		.mask	= 0x0003ffff,
