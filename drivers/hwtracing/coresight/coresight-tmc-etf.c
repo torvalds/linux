@@ -168,7 +168,7 @@ out:
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
 	/* Free memory outside the spinlock if need be */
-	if (!used && buf)
+	if (!used)
 		kfree(buf);
 
 	if (!ret)
