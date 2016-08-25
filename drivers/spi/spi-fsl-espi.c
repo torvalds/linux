@@ -197,7 +197,7 @@ static void fsl_espi_setup_transfer(struct spi_device *spi,
 	fsl_espi_change_mode(spi);
 }
 
-static int fsl_espi_cpu_bufs(struct mpc8xxx_spi *mspi, struct spi_transfer *t,
+static void fsl_espi_cpu_bufs(struct mpc8xxx_spi *mspi, struct spi_transfer *t,
 		unsigned int len)
 {
 	u32 word;
@@ -211,8 +211,6 @@ static int fsl_espi_cpu_bufs(struct mpc8xxx_spi *mspi, struct spi_transfer *t,
 	/* transmit word */
 	word = mspi->get_tx(mspi);
 	mpc8xxx_spi_write_reg(&reg_base->transmit, word);
-
-	return 0;
 }
 
 static int fsl_espi_bufs(struct spi_device *spi, struct spi_transfer *t)
@@ -239,9 +237,7 @@ static int fsl_espi_bufs(struct spi_device *spi, struct spi_transfer *t)
 	mpc8xxx_spi_write_reg(&reg_base->command,
 		(SPCOM_CS(spi->chip_select) | SPCOM_TRANLEN(t->len - 1)));
 
-	ret = fsl_espi_cpu_bufs(mpc8xxx_spi, t, len);
-	if (ret)
-		return ret;
+	fsl_espi_cpu_bufs(mpc8xxx_spi, t, len);
 
 	/* Won't hang up forever, SPI bus sometimes got lost interrupts... */
 	ret = wait_for_completion_timeout(&mpc8xxx_spi->done, 2 * HZ);
