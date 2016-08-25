@@ -713,7 +713,7 @@ int hns_roce_init_eq_table(struct hns_roce_dev *hr_dev)
 
 	for (j = 0; j < eq_num; j++) {
 		ret = request_irq(eq_table->eq[j].irq, hns_roce_msi_x_interrupt,
-				  0, hr_dev->irq_names, eq_table->eq + j);
+				  0, hr_dev->irq_names[j], eq_table->eq + j);
 		if (ret) {
 			dev_err(dev, "request irq error!\n");
 			goto err_request_irq_fail;

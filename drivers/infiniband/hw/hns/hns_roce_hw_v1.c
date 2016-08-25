@@ -31,6 +31,7 @@
  */
 
 #include <linux/platform_device.h>
+#include <linux/acpi.h>
 #include <rdma/ib_umem.h>
 #include "hns_roce_common.h"
 #include "hns_roce_device.h"
@@ -794,29 +795,47 @@ static void hns_roce_port_enable(struct hns_roce_dev *hr_dev, int enable_flag)
  * @enable: true -- drop reset, false -- reset
  * return 0 - success , negative --fail
  */
-int hns_roce_v1_reset(struct hns_roce_dev *hr_dev, bool enable)
+int hns_roce_v1_reset(struct hns_roce_dev *hr_dev, bool dereset)
 {
 	struct device_node *dsaf_node;
 	struct device *dev = &hr_dev->pdev->dev;
 	struct device_node *np = dev->of_node;
+	struct fwnode_handle *fwnode;
 	int ret;
 
-	dsaf_node = of_parse_phandle(np, "dsaf-handle", 0);
-	if (!dsaf_node) {
-		dev_err(dev, "Unable to get dsaf node by dsaf-handle!\n");
-		return -EINVAL;
+	/* check if this is DT/ACPI case */
+	if (dev_of_node(dev)) {
+		dsaf_node = of_parse_phandle(np, "dsaf-handle", 0);
+		if (!dsaf_node) {
+			dev_err(dev, "could not find dsaf-handle\n");
+			return -EINVAL;
+		}
+		fwnode = &dsaf_node->fwnode;
+	} else if (is_acpi_device_node(dev->fwnode)) {
+		struct acpi_reference_args args;
+
+		ret = acpi_node_get_property_reference(dev->fwnode,
+						       "dsaf-handle", 0, &args);
+		if (ret) {
+			dev_err(dev, "could not find dsaf-handle\n");
+			return ret;
+		}
+		fwnode = acpi_fwnode_handle(args.adev);
+	} else {
+		dev_err(dev, "cannot read data from DT or ACPI\n");
+		return -ENXIO;
 	}
 
-	ret = hns_dsaf_roce_reset(&dsaf_node->fwnode, false);
+	ret = hns_dsaf_roce_reset(fwnode, false);
 	if (ret)
 		return ret;
 
-	if (enable) {
+	if (dereset) {
 		msleep(SLEEP_TIME_INTERVAL);
-		return hns_dsaf_roce_reset(&dsaf_node->fwnode, true);
+		ret = hns_dsaf_roce_reset(fwnode, true);
 	}
 
-	return 0;
+	return ret;
 }
 
 void hns_roce_v1_profile(struct hns_roce_dev *hr_dev)
