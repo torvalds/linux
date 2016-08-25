@@ -26,9 +26,9 @@
 
 u64 efi_system_table;
 
-static int __init is_normal_ram(efi_memory_desc_t *md)
+static int __init is_memory(efi_memory_desc_t *md)
 {
-	if (md->attribute & EFI_MEMORY_WB)
+	if (md->attribute & (EFI_MEMORY_WB|EFI_MEMORY_WT|EFI_MEMORY_WC))
 		return 1;
 	return 0;
 }
@@ -152,9 +152,9 @@ out:
 }
 
 /*
- * Return true for RAM regions we want to permanently reserve.
+ * Return true for regions that can be used as System RAM.
  */
-static __init int is_reserve_region(efi_memory_desc_t *md)
+static __init int is_usable_memory(efi_memory_desc_t *md)
 {
 	switch (md->type) {
 	case EFI_LOADER_CODE:
@@ -163,18 +163,22 @@ static __init int is_reserve_region(efi_memory_desc_t *md)
 	case EFI_BOOT_SERVICES_DATA:
 	case EFI_CONVENTIONAL_MEMORY:
 	case EFI_PERSISTENT_MEMORY:
-		return 0;
+		/*
+		 * According to the spec, these regions are no longer reserved
+		 * after calling ExitBootServices(). However, we can only use
+		 * them as System RAM if they can be mapped writeback cacheable.
+		 */
+		return (md->attribute & EFI_MEMORY_WB);
 	default:
 		break;
 	}
-	return is_normal_ram(md);
+	return false;
 }
 
 static __init void reserve_regions(void)
 {
 	efi_memory_desc_t *md;
 	u64 paddr, npages, size;
-	int resv;
 
 	if (efi_enabled(EFI_DBG))
 		pr_info("Processing EFI memory map:\n");
@@ -191,25 +195,23 @@ static __init void reserve_regions(void)
 		paddr = md->phys_addr;
 		npages = md->num_pages;
 
-		resv = is_reserve_region(md);
 		if (efi_enabled(EFI_DBG)) {
 			char buf[64];
 
-			pr_info("  0x%012llx-0x%012llx %s%s\n",
+			pr_info("  0x%012llx-0x%012llx %s\n",
 				paddr, paddr + (npages << EFI_PAGE_SHIFT) - 1,
-				efi_md_typeattr_format(buf, sizeof(buf), md),
-				resv ? "*" : "");
+				efi_md_typeattr_format(buf, sizeof(buf), md));
 		}
 
 		memrange_efi_to_native(&paddr, &npages);
 		size = npages << PAGE_SHIFT;
 
-		if (is_normal_ram(md))
+		if (is_memory(md)) {
 			early_init_dt_add_memory_arch(paddr, size);
 
-		if (resv)
-			memblock_mark_nomap(paddr, size);
-
+			if (!is_usable_memory(md))
+				memblock_mark_nomap(paddr, size);
+		}
 	}
 }
 
