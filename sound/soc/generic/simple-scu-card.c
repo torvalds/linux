@@ -111,15 +111,6 @@ static int asoc_simple_card_parse_links(struct device_node *np,
 	struct asoc_simple_dai *dai_props = simple_priv_to_props(priv, idx);
 	int ret;
 
-	/* Parse TDM slot */
-	ret = snd_soc_of_parse_tdm_slot(np,
-					&dai_props->tx_slot_mask,
-					&dai_props->rx_slot_mask,
-					&dai_props->slots,
-					&dai_props->slot_width);
-	if (ret)
-		return ret;
-
 	if (is_fe) {
 		int is_single_links = 0;
 
@@ -177,6 +168,14 @@ static int asoc_simple_card_parse_links(struct device_node *np,
 					      dai_link->codec_of_node,
 					      PREFIX "prefix");
 	}
+
+	ret = snd_soc_of_parse_tdm_slot(np,
+					&dai_props->tx_slot_mask,
+					&dai_props->rx_slot_mask,
+					&dai_props->slots,
+					&dai_props->slot_width);
+	if (ret)
+		return ret;
 
 	ret = asoc_simple_card_canonicalize_dailink(dai_link);
 	if (ret < 0)
