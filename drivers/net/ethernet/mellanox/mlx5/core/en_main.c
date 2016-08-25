@@ -489,7 +489,8 @@ static int mlx5e_modify_rq_vsd(struct mlx5e_rq *rq, bool vsd)
 	rqc = MLX5_ADDR_OF(modify_rq_in, in, ctx);
 
 	MLX5_SET(modify_rq_in, in, rq_state, MLX5_RQC_STATE_RDY);
-	MLX5_SET64(modify_rq_in, in, modify_bitmask, MLX5_RQ_BITMASK_VSD);
+	MLX5_SET64(modify_rq_in, in, modify_bitmask,
+		   MLX5_MODIFY_RQ_IN_MODIFY_BITMASK_VSD);
 	MLX5_SET(rqc, rqc, vsd, vsd);
 	MLX5_SET(rqc, rqc, state, MLX5_RQC_STATE_RDY);
 
@@ -2024,6 +2025,10 @@ static int mlx5e_create_tis(struct mlx5e_priv *priv, int tc)
 
 	MLX5_SET(tisc, tisc, prio, tc << 1);
 	MLX5_SET(tisc, tisc, transport_domain, mdev->mlx5e_res.td.tdn);
+
+	if (mlx5_lag_is_lacp_owner(mdev))
+		MLX5_SET(tisc, tisc, strict_lag_tx_port_affinity, 1);
+
 	return mlx5_core_create_tis(mdev, in, sizeof(in), &priv->tisn[tc]);
 }
 
@@ -3368,6 +3373,8 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 	struct mlx5_eswitch *esw = mdev->priv.eswitch;
 	struct mlx5_eswitch_rep rep;
 
+	mlx5_lag_add(mdev, netdev);
+
 	if (mlx5e_vxlan_allowed(mdev)) {
 		rtnl_lock();
 		udp_tunnel_get_rx_info(netdev);
@@ -3390,6 +3397,7 @@ static void mlx5e_nic_disable(struct mlx5e_priv *priv)
 {
 	queue_work(priv->wq, &priv->set_rx_mode_work);
 	mlx5e_disable_async_events(priv);
+	mlx5_lag_remove(priv->mdev);
 }
 
 static const struct mlx5e_profile mlx5e_nic_profile = {
