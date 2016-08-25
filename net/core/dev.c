@@ -3355,16 +3355,6 @@ static int __dev_queue_xmit(struct sk_buff *skb, void *accel_priv)
 	else
 		skb_dst_force(skb);
 
-#ifdef CONFIG_NET_SWITCHDEV
-	/* Don't forward if offload device already forwarded */
-	if (skb->offload_fwd_mark &&
-	    skb->offload_fwd_mark == dev->offload_fwd_mark) {
-		consume_skb(skb);
-		rc = NET_XMIT_SUCCESS;
-		goto out;
-	}
-#endif
-
 	txq = netdev_pick_tx(dev, skb, accel_priv);
 	q = rcu_dereference_bh(txq->qdisc);
 

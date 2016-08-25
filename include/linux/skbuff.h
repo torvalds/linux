@@ -612,7 +612,6 @@ static inline bool skb_mstamp_after(const struct skb_mstamp *t1,
  *	@no_fcs:  Request NIC to treat last 4 bytes as Ethernet FCS
   *	@napi_id: id of the NAPI struct this skb came from
  *	@secmark: security marking
- *	@offload_fwd_mark: fwding offload mark
  *	@mark: Generic packet mark
  *	@vlan_proto: vlan encapsulation protocol
  *	@vlan_tci: vlan tag control information
@@ -730,7 +729,10 @@ struct sk_buff {
 	__u8			ipvs_property:1;
 	__u8			inner_protocol_type:1;
 	__u8			remcsum_offload:1;
-	/* 3 or 5 bit hole */
+#ifdef CONFIG_NET_SWITCHDEV
+	__u8			offload_fwd_mark:1;
+#endif
+	/* 2, 4 or 5 bit hole */
 
 #ifdef CONFIG_NET_SCHED
 	__u16			tc_index;	/* traffic control index */
@@ -757,14 +759,9 @@ struct sk_buff {
 		unsigned int	sender_cpu;
 	};
 #endif
-	union {
 #ifdef CONFIG_NETWORK_SECMARK
-		__u32		secmark;
+	__u32		secmark;
 #endif
-#ifdef CONFIG_NET_SWITCHDEV
-		__u32		offload_fwd_mark;
-#endif
-	};
 
 	union {
 		__u32		mark;

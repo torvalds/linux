@@ -2412,7 +2412,7 @@ static int rocker_port_rx_proc(const struct rocker *rocker,
 	skb->protocol = eth_type_trans(skb, rocker_port->dev);
 
 	if (rx_flags & ROCKER_RX_FLAGS_FWD_OFFLOAD)
-		skb->offload_fwd_mark = rocker_port->dev->offload_fwd_mark;
+		skb->offload_fwd_mark = 1;
 
 	rocker_port->dev->stats.rx_packets++;
 	rocker_port->dev->stats.rx_bytes += skb->len;

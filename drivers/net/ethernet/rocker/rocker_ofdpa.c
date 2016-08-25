@@ -2558,7 +2558,6 @@ static int ofdpa_port_init(struct rocker_port *rocker_port)
 	struct ofdpa_port *ofdpa_port = rocker_port->wpriv;
 	int err;
 
-	switchdev_port_fwd_mark_set(ofdpa_port->dev, NULL, false);
 	rocker_port_set_learning(rocker_port,
 				 !!(ofdpa_port->brport_flags & BR_LEARNING));
 
@@ -2817,7 +2816,6 @@ static int ofdpa_port_bridge_join(struct ofdpa_port *ofdpa_port,
 		ofdpa_port_internal_vlan_id_get(ofdpa_port, bridge->ifindex);
 
 	ofdpa_port->bridge_dev = bridge;
-	switchdev_port_fwd_mark_set(ofdpa_port->dev, bridge, true);
 
 	return ofdpa_port_vlan_add(ofdpa_port, NULL, OFDPA_UNTAGGED_VID, 0);
 }
@@ -2836,8 +2834,6 @@ static int ofdpa_port_bridge_leave(struct ofdpa_port *ofdpa_port)
 		ofdpa_port_internal_vlan_id_get(ofdpa_port,
 						ofdpa_port->dev->ifindex);
 
-	switchdev_port_fwd_mark_set(ofdpa_port->dev, ofdpa_port->bridge_dev,
-				    false);
 	ofdpa_port->bridge_dev = NULL;
 
 	err = ofdpa_port_vlan_add(ofdpa_port, NULL, OFDPA_UNTAGGED_VID, 0);

@@ -347,12 +347,6 @@ static inline int switchdev_port_fdb_dump(struct sk_buff *skb,
        return idx;
 }
 
-static inline void switchdev_port_fwd_mark_set(struct net_device *dev,
-					       struct net_device *group_dev,
-					       bool joining)
-{
-}
-
 static inline bool switchdev_port_same_parent_id(struct net_device *a,
 						 struct net_device *b)
 {

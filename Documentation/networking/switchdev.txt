@@ -283,15 +283,10 @@ be sent to the port netdev for processing by the bridge driver.  The
 bridge should not reflood the packet to the same ports the device flooded,
 otherwise there will be duplicate packets on the wire.
 
-To avoid duplicate packets, the device/driver should mark a packet as already
-forwarded using skb->offload_fwd_mark.  The same mark is set on the device
-ports in the domain using dev->offload_fwd_mark.  If the skb->offload_fwd_mark
-is non-zero and matches the forwarding egress port's dev->skb_mark, the kernel
-will drop the skb right before transmit on the egress port, with the
-understanding that the device already forwarded the packet on same egress port.
-The driver can use switchdev_port_fwd_mark_set() to set a globally unique mark
-for port's dev->offload_fwd_mark, based on the port's parent ID (switch ID) and
-a group ifindex.
+To avoid duplicate packets, the switch driver should mark a packet as already
+forwarded by setting the skb->offload_fwd_mark bit. The bridge driver will mark
+the skb using the ingress bridge port's mark and prevent it from being forwarded
+through any bridge port with the same mark.
 
 It is possible for the switch device to not handle flooding and push the
 packets up to the bridge driver for flooding.  This is not ideal as the number
