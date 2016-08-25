@@ -5049,6 +5049,7 @@ static void intel_dp_pps_init(struct drm_device *dev,
 /**
  * intel_dp_set_drrs_state - program registers for RR switch to take effect
  * @dev: DRM device
+ * @crtc_state: a pointer to the active intel_crtc_state
  * @refresh_rate: RR to be programmed
  *
  * This function gets called when refresh rate (RR) has to be changed from
