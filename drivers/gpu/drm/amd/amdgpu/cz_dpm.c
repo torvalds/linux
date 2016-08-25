@@ -44,6 +44,7 @@
 
 static void cz_dpm_powergate_uvd(struct amdgpu_device *adev, bool gate);
 static void cz_dpm_powergate_vce(struct amdgpu_device *adev, bool gate);
+static void cz_dpm_fini(struct amdgpu_device *adev);
 
 static struct cz_ps *cz_get_ps(struct amdgpu_ps *rps)
 {
@@ -411,11 +412,11 @@ static int cz_dpm_init(struct amdgpu_device *adev)
 
 	ret = amdgpu_get_platform_caps(adev);
 	if (ret)
-		return ret;
+		goto err;
 
 	ret = amdgpu_parse_extended_power_table(adev);
 	if (ret)
-		return ret;
+		goto err;
 
 	pi->sram_end = SMC_RAM_END;
 
@@ -469,23 +470,26 @@ static int cz_dpm_init(struct amdgpu_device *adev)
 
 	ret = cz_parse_sys_info_table(adev);
 	if (ret)
-		return ret;
+		goto err;
 
 	cz_patch_voltage_values(adev);
 	cz_construct_boot_state(adev);
 
 	ret = cz_parse_power_table(adev);
 	if (ret)
-		return ret;
+		goto err;
 
 	ret = cz_process_firmware_header(adev);
 	if (ret)
-		return ret;
+		goto err;
 
 	pi->dpm_enabled = true;
 	pi->uvd_dynamic_pg = false;
 
 	return 0;
+err:
+	cz_dpm_fini(adev);
+	return ret;
 }
 
 static void cz_dpm_fini(struct amdgpu_device *adev)
