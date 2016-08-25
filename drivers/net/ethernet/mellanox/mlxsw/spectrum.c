@@ -2570,6 +2570,13 @@ static void mlxsw_sp_rx_listener_func(struct sk_buff *skb, u8 local_port,
 	netif_receive_skb(skb);
 }
 
+static void mlxsw_sp_rx_listener_mark_func(struct sk_buff *skb, u8 local_port,
+					   void *priv)
+{
+	skb->offload_fwd_mark = 1;
+	return mlxsw_sp_rx_listener_func(skb, local_port, priv);
+}
+
 #define MLXSW_SP_RXL(_func, _trap_id, _action)			\
 	{							\
 		.func = _func,					\
@@ -2588,19 +2595,19 @@ static const struct mlxsw_rx_listener mlxsw_sp_rx_listener[] = {
 	MLXSW_SP_RXL(mlxsw_sp_rx_listener_func, MMRP, TRAP_TO_CPU),
 	MLXSW_SP_RXL(mlxsw_sp_rx_listener_func, MVRP, TRAP_TO_CPU),
 	MLXSW_SP_RXL(mlxsw_sp_rx_listener_func, RPVST, TRAP_TO_CPU),
-	MLXSW_SP_RXL(mlxsw_sp_rx_listener_func, DHCP, TRAP_TO_CPU),
-	MLXSW_SP_RXL(mlxsw_sp_rx_listener_func, IGMP_QUERY, TRAP_TO_CPU),
+	MLXSW_SP_RXL(mlxsw_sp_rx_listener_mark_func, DHCP, MIRROR_TO_CPU),
+	MLXSW_SP_RXL(mlxsw_sp_rx_listener_mark_func, IGMP_QUERY, MIRROR_TO_CPU),
 	MLXSW_SP_RXL(mlxsw_sp_rx_listener_func, IGMP_V1_REPORT, TRAP_TO_CPU),
 	MLXSW_SP_RXL(mlxsw_sp_rx_listener_func, IGMP_V2_REPORT, TRAP_TO_CPU),
 	MLXSW_SP_RXL(mlxsw_sp_rx_listener_func, IGMP_V2_LEAVE, TRAP_TO_CPU),
 	MLXSW_SP_RXL(mlxsw_sp_rx_listener_func, IGMP_V3_REPORT, TRAP_TO_CPU),
-	MLXSW_SP_RXL(mlxsw_sp_rx_listener_func, ARPBC, TRAP_TO_CPU),
-	MLXSW_SP_RXL(mlxsw_sp_rx_listener_func, ARPUC, TRAP_TO_CPU),
+	MLXSW_SP_RXL(mlxsw_sp_rx_listener_mark_func, ARPBC, MIRROR_TO_CPU),
+	MLXSW_SP_RXL(mlxsw_sp_rx_listener_mark_func, ARPUC, MIRROR_TO_CPU),
 	/* L3 traps */
 	MLXSW_SP_RXL(mlxsw_sp_rx_listener_func, MTUERROR, TRAP_TO_CPU),
 	MLXSW_SP_RXL(mlxsw_sp_rx_listener_func, TTLERROR, TRAP_TO_CPU),
 	MLXSW_SP_RXL(mlxsw_sp_rx_listener_func, LBERROR, TRAP_TO_CPU),
-	MLXSW_SP_RXL(mlxsw_sp_rx_listener_func, OSPF, TRAP_TO_CPU),
+	MLXSW_SP_RXL(mlxsw_sp_rx_listener_mark_func, OSPF, TRAP_TO_CPU),
 	MLXSW_SP_RXL(mlxsw_sp_rx_listener_func, IP2ME, TRAP_TO_CPU),
 	MLXSW_SP_RXL(mlxsw_sp_rx_listener_func, RTR_INGRESS0, TRAP_TO_CPU),
 	MLXSW_SP_RXL(mlxsw_sp_rx_listener_func, HOST_MISS_IPV4, TRAP_TO_CPU),
