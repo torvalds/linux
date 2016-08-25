@@ -3,12 +3,16 @@
 # Direct Rendering Infrastructure (DRI) in XFree86 4.1.0 and higher.
 
 subdir-ccflags-$(CONFIG_DRM_I915_WERROR) := -Werror
+subdir-ccflags-y += \
+	$(call as-instr,movntdqa (%eax)$(comma)%xmm0,-DCONFIG_AS_MOVNTDQA)
 
 # Please keep these build lists sorted!
 
 # core driver code
 i915-y := i915_drv.o \
 	  i915_irq.o \
+	  i915_memcpy.o \
+	  i915_mm.o \
 	  i915_params.o \
 	  i915_pci.o \
           i915_suspend.o \
@@ -110,6 +114,6 @@ i915-y += intel_gvt.o
 include $(src)/gvt/Makefile
 endif
 
-obj-$(CONFIG_DRM_I915)  += i915.o
+obj-$(CONFIG_DRM_I915) += i915.o
 
 CFLAGS_i915_trace_points.o := -I$(src)

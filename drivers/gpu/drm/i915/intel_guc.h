@@ -63,26 +63,25 @@ struct drm_i915_gem_request;
  *   retcode: errno from last guc_submit()
  */
 struct i915_guc_client {
-	struct drm_i915_gem_object *client_obj;
+	struct i915_vma *vma;
 	void *client_base;		/* first page (only) of above	*/
 	struct i915_gem_context *owner;
 	struct intel_guc *guc;
+
+	uint32_t engines;		/* bitmap of (host) engine ids	*/
 	uint32_t priority;
 	uint32_t ctx_index;
-
 	uint32_t proc_desc_offset;
+
 	uint32_t doorbell_offset;
 	uint32_t cookie;
 	uint16_t doorbell_id;
-	uint16_t padding;		/* Maintain alignment		*/
+	uint16_t padding[3];		/* Maintain alignment		*/
 
 	uint32_t wq_offset;
 	uint32_t wq_size;
 	uint32_t wq_tail;
-	uint32_t unused;		/* Was 'wq_head'		*/
-
 	uint32_t no_wq_space;
-	uint32_t q_fail;		/* No longer used		*/
 	uint32_t b_fail;
 	int retcode;
 
@@ -125,11 +124,10 @@ struct intel_guc_fw {
 struct intel_guc {
 	struct intel_guc_fw guc_fw;
 	uint32_t log_flags;
-	struct drm_i915_gem_object *log_obj;
+	struct i915_vma *log_vma;
 
-	struct drm_i915_gem_object *ads_obj;
-
-	struct drm_i915_gem_object *ctx_pool_obj;
+	struct i915_vma *ads_vma;
+	struct i915_vma *ctx_pool_vma;
 	struct ida ctx_ids;
 
 	struct i915_guc_client *execbuf_client;

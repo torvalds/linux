@@ -170,11 +170,13 @@ static int ppgtt_bind_vma(struct i915_vma *vma,
 {
 	u32 pte_flags = 0;
 
+	vma->pages = vma->obj->pages;
+
 	/* Currently applicable only to VLV */
 	if (vma->obj->gt_ro)
 		pte_flags |= PTE_READ_ONLY;
 
-	vma->vm->insert_entries(vma->vm, vma->obj->pages, vma->node.start,
+	vma->vm->insert_entries(vma->vm, vma->pages, vma->node.start,
 				cache_level, pte_flags);
 
 	return 0;
@@ -2618,8 +2620,7 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 	if (obj->gt_ro)
 		pte_flags |= PTE_READ_ONLY;
 
-	vma->vm->insert_entries(vma->vm, vma->ggtt_view.pages,
-				vma->node.start,
+	vma->vm->insert_entries(vma->vm, vma->pages, vma->node.start,
 				cache_level, pte_flags);
 
 	/*
@@ -2651,8 +2652,7 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 
 	if (flags & I915_VMA_GLOBAL_BIND) {
 		vma->vm->insert_entries(vma->vm,
-					vma->ggtt_view.pages,
-					vma->node.start,
+					vma->pages, vma->node.start,
 					cache_level, pte_flags);
 	}
 
@@ -2660,8 +2660,7 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 		struct i915_hw_ppgtt *appgtt =
 			to_i915(vma->vm->dev)->mm.aliasing_ppgtt;
 		appgtt->base.insert_entries(&appgtt->base,
-					    vma->ggtt_view.pages,
-					    vma->node.start,
+					    vma->pages, vma->node.start,
 					    cache_level, pte_flags);
 	}
 
@@ -2795,7 +2794,6 @@ void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv)
 
 	if (dev_priv->mm.aliasing_ppgtt) {
 		struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
-
 		ppgtt->base.cleanup(&ppgtt->base);
 		kfree(ppgtt);
 	}
@@ -2812,7 +2810,7 @@ void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv)
 	ggtt->base.cleanup(&ggtt->base);
 
 	arch_phys_wc_del(ggtt->mtrr);
-	io_mapping_free(ggtt->mappable);
+	io_mapping_fini(&ggtt->mappable);
 }
 
 static unsigned int gen6_get_total_gtt_size(u16 snb_gmch_ctl)
@@ -3210,9 +3208,9 @@ int i915_ggtt_init_hw(struct drm_i915_private *dev_priv)
 	if (!HAS_LLC(dev_priv))
 		ggtt->base.mm.color_adjust = i915_gtt_color_adjust;
 
-	ggtt->mappable =
-		io_mapping_create_wc(ggtt->mappable_base, ggtt->mappable_end);
-	if (!ggtt->mappable) {
+	if (!io_mapping_init_wc(&dev_priv->ggtt.mappable,
+				dev_priv->ggtt.mappable_base,
+				dev_priv->ggtt.mappable_end)) {
 		ret = -EIO;
 		goto out_gtt_cleanup;
 	}
@@ -3323,6 +3321,7 @@ void i915_vma_destroy(struct i915_vma *vma)
 	GEM_BUG_ON(vma->node.allocated);
 	GEM_BUG_ON(i915_vma_is_active(vma));
 	GEM_BUG_ON(!i915_vma_is_closed(vma));
+	GEM_BUG_ON(vma->fence);
 
 	list_del(&vma->vm_link);
 	if (!i915_vma_is_ggtt(vma))
@@ -3342,33 +3341,29 @@ void i915_vma_close(struct i915_vma *vma)
 }
 
 static struct i915_vma *
-__i915_gem_vma_create(struct drm_i915_gem_object *obj,
-		      struct i915_address_space *vm,
-		      const struct i915_ggtt_view *view)
+__i915_vma_create(struct drm_i915_gem_object *obj,
+		  struct i915_address_space *vm,
+		  const struct i915_ggtt_view *view)
 {
 	struct i915_vma *vma;
 	int i;
 
 	GEM_BUG_ON(vm->closed);
 
-	if (WARN_ON(i915_is_ggtt(vm) != !!view))
-		return ERR_PTR(-EINVAL);
-
 	vma = kmem_cache_zalloc(to_i915(obj->base.dev)->vmas, GFP_KERNEL);
 	if (vma == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	INIT_LIST_HEAD(&vma->obj_link);
 	INIT_LIST_HEAD(&vma->exec_list);
 	for (i = 0; i < ARRAY_SIZE(vma->last_read); i++)
 		init_request_active(&vma->last_read[i], i915_vma_retire);
+	init_request_active(&vma->last_fence, NULL);
 	list_add(&vma->vm_link, &vm->unbound_list);
 	vma->vm = vm;
 	vma->obj = obj;
 	vma->size = obj->base.size;
 
-	if (i915_is_ggtt(vm)) {
-		vma->flags |= I915_VMA_GGTT;
+	if (view) {
 		vma->ggtt_view = *view;
 		if (view->type == I915_GGTT_VIEW_PARTIAL) {
 			vma->size = view->params.partial.size;
@@ -3378,46 +3373,79 @@ __i915_gem_vma_create(struct drm_i915_gem_object *obj,
 				intel_rotation_info_size(&view->params.rotated);
 			vma->size <<= PAGE_SHIFT;
 		}
+	}
+
+	if (i915_is_ggtt(vm)) {
+		vma->flags |= I915_VMA_GGTT;
 	} else {
 		i915_ppgtt_get(i915_vm_to_ppgtt(vm));
 	}
 
 	list_add_tail(&vma->obj_link, &obj->vma_list);
-
 	return vma;
+}
+
+static inline bool vma_matches(struct i915_vma *vma,
+			       struct i915_address_space *vm,
+			       const struct i915_ggtt_view *view)
+{
+	if (vma->vm != vm)
+		return false;
+
+	if (!i915_vma_is_ggtt(vma))
+		return true;
+
+	if (!view)
+		return vma->ggtt_view.type == 0;
+
+	if (vma->ggtt_view.type != view->type)
+		return false;
+
+	return memcmp(&vma->ggtt_view.params,
+		      &view->params,
+		      sizeof(view->params)) == 0;
+}
+
+struct i915_vma *
+i915_vma_create(struct drm_i915_gem_object *obj,
+		struct i915_address_space *vm,
+		const struct i915_ggtt_view *view)
+{
+	GEM_BUG_ON(view && !i915_is_ggtt(vm));
+	GEM_BUG_ON(i915_gem_obj_to_vma(obj, vm, view));
+
+	return __i915_vma_create(obj, vm, view);
+}
+
+struct i915_vma *
+i915_gem_obj_to_vma(struct drm_i915_gem_object *obj,
+		    struct i915_address_space *vm,
+		    const struct i915_ggtt_view *view)
+{
+	struct i915_vma *vma;
+
+	list_for_each_entry_reverse(vma, &obj->vma_list, obj_link)
+		if (vma_matches(vma, vm, view))
+			return vma;
+
+	return NULL;
 }
 
 struct i915_vma *
 i915_gem_obj_lookup_or_create_vma(struct drm_i915_gem_object *obj,
-				  struct i915_address_space *vm)
+				  struct i915_address_space *vm,
+				  const struct i915_ggtt_view *view)
 {
 	struct i915_vma *vma;
 
-	vma = i915_gem_obj_to_vma(obj, vm);
+	GEM_BUG_ON(view && !i915_is_ggtt(vm));
+
+	vma = i915_gem_obj_to_vma(obj, vm, view);
 	if (!vma)
-		vma = __i915_gem_vma_create(obj, vm,
-					    i915_is_ggtt(vm) ? &i915_ggtt_view_normal : NULL);
-
-	return vma;
-}
-
-struct i915_vma *
-i915_gem_obj_lookup_or_create_ggtt_vma(struct drm_i915_gem_object *obj,
-				       const struct i915_ggtt_view *view)
-{
-	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	struct i915_vma *vma = i915_gem_obj_to_ggtt_view(obj, view);
-
-	GEM_BUG_ON(!view);
-
-	if (!vma)
-		vma = __i915_gem_vma_create(obj, &ggtt->base, view);
+		vma = __i915_vma_create(obj, vm, view);
 
 	GEM_BUG_ON(i915_vma_is_closed(vma));
 	return vma;
-
 }
 
 static struct scatterlist *
@@ -3449,18 +3477,16 @@ rotate_pages(const dma_addr_t *in, unsigned int offset,
 }
 
 static struct sg_table *
-intel_rotate_fb_obj_pages(struct intel_rotation_info *rot_info,
+intel_rotate_fb_obj_pages(const struct intel_rotation_info *rot_info,
 			  struct drm_i915_gem_object *obj)
 {
 	const size_t n_pages = obj->base.size / PAGE_SIZE;
-	unsigned int size_pages = rot_info->plane[0].width * rot_info->plane[0].height;
-	unsigned int size_pages_uv;
+	unsigned int size = intel_rotation_info_size(rot_info);
 	struct sgt_iter sgt_iter;
 	dma_addr_t dma_addr;
 	unsigned long i;
 	dma_addr_t *page_addr_list;
 	struct sg_table *st;
-	unsigned int uv_start_page;
 	struct scatterlist *sg;
 	int ret = -ENOMEM;
 
@@ -3471,18 +3497,12 @@ intel_rotate_fb_obj_pages(struct intel_rotation_info *rot_info,
 	if (!page_addr_list)
 		return ERR_PTR(ret);
 
-	/* Account for UV plane with NV12. */
-	if (rot_info->pixel_format == DRM_FORMAT_NV12)
-		size_pages_uv = rot_info->plane[1].width * rot_info->plane[1].height;
-	else
-		size_pages_uv = 0;
-
 	/* Allocate target SG list. */
 	st = kmalloc(sizeof(*st), GFP_KERNEL);
 	if (!st)
 		goto err_st_alloc;
 
-	ret = sg_alloc_table(st, size_pages + size_pages_uv, GFP_KERNEL);
+	ret = sg_alloc_table(st, size, GFP_KERNEL);
 	if (ret)
 		goto err_sg_alloc;
 
@@ -3495,32 +3515,14 @@ intel_rotate_fb_obj_pages(struct intel_rotation_info *rot_info,
 	st->nents = 0;
 	sg = st->sgl;
 
-	/* Rotate the pages. */
-	sg = rotate_pages(page_addr_list, 0,
-			  rot_info->plane[0].width, rot_info->plane[0].height,
-			  rot_info->plane[0].width,
-			  st, sg);
-
-	/* Append the UV plane if NV12. */
-	if (rot_info->pixel_format == DRM_FORMAT_NV12) {
-		uv_start_page = size_pages;
-
-		/* Check for tile-row un-alignment. */
-		if (offset_in_page(rot_info->uv_offset))
-			uv_start_page--;
-
-		rot_info->uv_start_page = uv_start_page;
-
-		sg = rotate_pages(page_addr_list, rot_info->uv_start_page,
-				  rot_info->plane[1].width, rot_info->plane[1].height,
-				  rot_info->plane[1].width,
-				  st, sg);
+	for (i = 0 ; i < ARRAY_SIZE(rot_info->plane); i++) {
+		sg = rotate_pages(page_addr_list, rot_info->plane[i].offset,
+				  rot_info->plane[i].width, rot_info->plane[i].height,
+				  rot_info->plane[i].stride, st, sg);
 	}
 
-	DRM_DEBUG_KMS("Created rotated page mapping for object size %zu (%ux%u tiles, %u pages (%u plane 0)).\n",
-		      obj->base.size, rot_info->plane[0].width,
-		      rot_info->plane[0].height, size_pages + size_pages_uv,
-		      size_pages);
+	DRM_DEBUG_KMS("Created rotated page mapping for object size %zu (%ux%u tiles, %u pages)\n",
+		      obj->base.size, rot_info->plane[0].width, rot_info->plane[0].height, size);
 
 	drm_free_large(page_addr_list);
 
@@ -3531,10 +3533,9 @@ err_sg_alloc:
 err_st_alloc:
 	drm_free_large(page_addr_list);
 
-	DRM_DEBUG_KMS("Failed to create rotated mapping for object size %zu! (%d) (%ux%u tiles, %u pages (%u plane 0))\n",
-		      obj->base.size, ret, rot_info->plane[0].width,
-		      rot_info->plane[0].height, size_pages + size_pages_uv,
-		      size_pages);
+	DRM_DEBUG_KMS("Failed to create rotated mapping for object size %zu! (%ux%u tiles, %u pages)\n",
+		      obj->base.size, rot_info->plane[0].width, rot_info->plane[0].height, size);
+
 	return ERR_PTR(ret);
 }
 
@@ -3584,28 +3585,27 @@ i915_get_ggtt_vma_pages(struct i915_vma *vma)
 {
 	int ret = 0;
 
-	if (vma->ggtt_view.pages)
+	if (vma->pages)
 		return 0;
 
 	if (vma->ggtt_view.type == I915_GGTT_VIEW_NORMAL)
-		vma->ggtt_view.pages = vma->obj->pages;
+		vma->pages = vma->obj->pages;
 	else if (vma->ggtt_view.type == I915_GGTT_VIEW_ROTATED)
-		vma->ggtt_view.pages =
+		vma->pages =
 			intel_rotate_fb_obj_pages(&vma->ggtt_view.params.rotated, vma->obj);
 	else if (vma->ggtt_view.type == I915_GGTT_VIEW_PARTIAL)
-		vma->ggtt_view.pages =
-			intel_partial_pages(&vma->ggtt_view, vma->obj);
+		vma->pages = intel_partial_pages(&vma->ggtt_view, vma->obj);
 	else
 		WARN_ONCE(1, "GGTT view %u not implemented!\n",
 			  vma->ggtt_view.type);
 
-	if (!vma->ggtt_view.pages) {
+	if (!vma->pages) {
 		DRM_ERROR("Failed to get pages for GGTT view type %u!\n",
 			  vma->ggtt_view.type);
 		ret = -EINVAL;
-	} else if (IS_ERR(vma->ggtt_view.pages)) {
-		ret = PTR_ERR(vma->ggtt_view.pages);
-		vma->ggtt_view.pages = NULL;
+	} else if (IS_ERR(vma->pages)) {
+		ret = PTR_ERR(vma->pages);
+		vma->pages = NULL;
 		DRM_ERROR("Failed to get pages for VMA view type %u (%d)!\n",
 			  vma->ggtt_view.type, ret);
 	}
@@ -3668,8 +3668,11 @@ void __iomem *i915_vma_pin_iomap(struct i915_vma *vma)
 {
 	void __iomem *ptr;
 
+	/* Access through the GTT requires the device to be awake. */
+	assert_rpm_wakelock_held(to_i915(vma->vm->dev));
+
 	lockdep_assert_held(&vma->vm->dev->struct_mutex);
-	if (WARN_ON(!vma->obj->map_and_fenceable))
+	if (WARN_ON(!i915_vma_is_map_and_fenceable(vma)))
 		return IO_ERR_PTR(-ENODEV);
 
 	GEM_BUG_ON(!i915_vma_is_ggtt(vma));
@@ -3677,7 +3680,7 @@ void __iomem *i915_vma_pin_iomap(struct i915_vma *vma)
 
 	ptr = vma->iomap;
 	if (ptr == NULL) {
-		ptr = io_mapping_map_wc(i915_vm_to_ggtt(vma->vm)->mappable,
+		ptr = io_mapping_map_wc(&i915_vm_to_ggtt(vma->vm)->mappable,
 					vma->node.start,
 					vma->node.size);
 		if (ptr == NULL)
@@ -3688,4 +3691,16 @@ void __iomem *i915_vma_pin_iomap(struct i915_vma *vma)
 
 	__i915_vma_pin(vma);
 	return ptr;
+}
+
+void i915_vma_unpin_and_release(struct i915_vma **p_vma)
+{
+	struct i915_vma *vma;
+
+	vma = fetch_and_zero(p_vma);
+	if (!vma)
+		return;
+
+	i915_vma_unpin(vma);
+	i915_vma_put(vma);
 }

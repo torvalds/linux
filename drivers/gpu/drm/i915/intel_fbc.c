@@ -190,9 +190,13 @@ static void g4x_fbc_activate(struct drm_i915_private *dev_priv)
 		dpfc_ctl |= DPFC_CTL_LIMIT_2X;
 	else
 		dpfc_ctl |= DPFC_CTL_LIMIT_1X;
-	dpfc_ctl |= DPFC_CTL_FENCE_EN | params->fb.fence_reg;
 
-	I915_WRITE(DPFC_FENCE_YOFF, params->crtc.fence_y_offset);
+	if (params->fb.fence_reg != I915_FENCE_REG_NONE) {
+		dpfc_ctl |= DPFC_CTL_FENCE_EN | params->fb.fence_reg;
+		I915_WRITE(DPFC_FENCE_YOFF, params->crtc.fence_y_offset);
+	} else {
+		I915_WRITE(DPFC_FENCE_YOFF, 0);
+	}
 
 	/* enable it... */
 	I915_WRITE(DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
@@ -244,20 +248,28 @@ static void ilk_fbc_activate(struct drm_i915_private *dev_priv)
 		dpfc_ctl |= DPFC_CTL_LIMIT_1X;
 		break;
 	}
-	dpfc_ctl |= DPFC_CTL_FENCE_EN;
-	if (IS_GEN5(dev_priv))
-		dpfc_ctl |= params->fb.fence_reg;
+
+	if (params->fb.fence_reg != I915_FENCE_REG_NONE) {
+		dpfc_ctl |= DPFC_CTL_FENCE_EN;
+		if (IS_GEN5(dev_priv))
+			dpfc_ctl |= params->fb.fence_reg;
+		if (IS_GEN6(dev_priv)) {
+			I915_WRITE(SNB_DPFC_CTL_SA,
+				   SNB_CPU_FENCE_ENABLE | params->fb.fence_reg);
+			I915_WRITE(DPFC_CPU_FENCE_OFFSET,
+				   params->crtc.fence_y_offset);
+		}
+	} else {
+		if (IS_GEN6(dev_priv)) {
+			I915_WRITE(SNB_DPFC_CTL_SA, 0);
+			I915_WRITE(DPFC_CPU_FENCE_OFFSET, 0);
+		}
+	}
 
 	I915_WRITE(ILK_DPFC_FENCE_YOFF, params->crtc.fence_y_offset);
 	I915_WRITE(ILK_FBC_RT_BASE, params->fb.ggtt_offset | ILK_FBC_RT_VALID);
 	/* enable it... */
 	I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
-
-	if (IS_GEN6(dev_priv)) {
-		I915_WRITE(SNB_DPFC_CTL_SA,
-			   SNB_CPU_FENCE_ENABLE | params->fb.fence_reg);
-		I915_WRITE(DPFC_CPU_FENCE_OFFSET, params->crtc.fence_y_offset);
-	}
 
 	intel_fbc_recompress(dev_priv);
 }
@@ -305,7 +317,15 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 		break;
 	}
 
-	dpfc_ctl |= IVB_DPFC_CTL_FENCE_EN;
+	if (params->fb.fence_reg != I915_FENCE_REG_NONE) {
+		dpfc_ctl |= IVB_DPFC_CTL_FENCE_EN;
+		I915_WRITE(SNB_DPFC_CTL_SA,
+			   SNB_CPU_FENCE_ENABLE | params->fb.fence_reg);
+		I915_WRITE(DPFC_CPU_FENCE_OFFSET, params->crtc.fence_y_offset);
+	} else {
+		I915_WRITE(SNB_DPFC_CTL_SA,0);
+		I915_WRITE(DPFC_CPU_FENCE_OFFSET, 0);
+	}
 
 	if (dev_priv->fbc.false_color)
 		dpfc_ctl |= FBC_CTL_FALSE_COLOR;
@@ -323,10 +343,6 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 	}
 
 	I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
-
-	I915_WRITE(SNB_DPFC_CTL_SA,
-		   SNB_CPU_FENCE_ENABLE | params->fb.fence_reg);
-	I915_WRITE(DPFC_CPU_FENCE_OFFSET, params->crtc.fence_y_offset);
 
 	intel_fbc_recompress(dev_priv);
 }
@@ -709,6 +725,14 @@ static bool intel_fbc_hw_tracking_covers_screen(struct intel_crtc *crtc)
 	return effective_w <= max_w && effective_h <= max_h;
 }
 
+/* XXX replace me when we have VMA tracking for intel_plane_state */
+static int get_fence_id(struct drm_framebuffer *fb)
+{
+	struct i915_vma *vma = i915_gem_object_to_ggtt(intel_fb_obj(fb), NULL);
+
+	return vma && vma->fence ? vma->fence->id : I915_FENCE_REG_NONE;
+}
+
 static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 					 struct intel_crtc_state *crtc_state,
 					 struct intel_plane_state *plane_state)
@@ -737,10 +761,10 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	/* FIXME: We lack the proper locking here, so only run this on the
 	 * platforms that need. */
 	if (IS_GEN(dev_priv, 5, 6))
-		cache->fb.ilk_ggtt_offset = i915_gem_obj_ggtt_offset(obj);
+		cache->fb.ilk_ggtt_offset = i915_gem_object_ggtt_offset(obj, NULL);
 	cache->fb.pixel_format = fb->pixel_format;
 	cache->fb.stride = fb->pitches[0];
-	cache->fb.fence_reg = obj->fence_reg;
+	cache->fb.fence_reg = get_fence_id(fb);
 	cache->fb.tiling_mode = i915_gem_object_get_tiling(obj);
 }
 
@@ -768,11 +792,17 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 
 	/* The use of a CPU fence is mandatory in order to detect writes
 	 * by the CPU to the scanout and trigger updates to the FBC.
+	 *
+	 * Note that is possible for a tiled surface to be unmappable (and
+	 * so have no fence associated with it) due to aperture constaints
+	 * at the time of pinning.
 	 */
 	if (cache->fb.tiling_mode != I915_TILING_X ||
 	    cache->fb.fence_reg == I915_FENCE_REG_NONE) {
-		fbc->no_fbc_reason = "framebuffer not tiled or fenced";
-		return false;
+		if (INTEL_GEN(dev_priv) < 5) {
+			fbc->no_fbc_reason = "framebuffer not tiled or fenced";
+			return false;
+		}
 	}
 	if (INTEL_INFO(dev_priv)->gen <= 4 && !IS_G4X(dev_priv) &&
 	    cache->plane.rotation != DRM_ROTATE_0) {

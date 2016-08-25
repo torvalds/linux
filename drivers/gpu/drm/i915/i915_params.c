@@ -45,6 +45,7 @@ struct i915_params i915 __read_mostly = {
 	.fastboot = 0,
 	.prefault_disable = 0,
 	.load_detect_test = 0,
+	.force_reset_modeset_test = 0,
 	.reset = true,
 	.invert_brightness = 0,
 	.disable_display = 0,
@@ -159,6 +160,11 @@ MODULE_PARM_DESC(prefault_disable,
 module_param_named_unsafe(load_detect_test, i915.load_detect_test, bool, 0600);
 MODULE_PARM_DESC(load_detect_test,
 	"Force-enable the VGA load detect code for testing (default:false). "
+	"For developers only.");
+
+module_param_named_unsafe(force_reset_modeset_test, i915.force_reset_modeset_test, bool, 0600);
+MODULE_PARM_DESC(force_reset_modeset_test,
+	"Force a modeset during gpu reset for testing (default:false). "
 	"For developers only.");
 
 module_param_named_unsafe(invert_brightness, i915.invert_brightness, int, 0600);

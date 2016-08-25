@@ -171,8 +171,8 @@ struct overlay_registers {
 struct intel_overlay {
 	struct drm_i915_private *i915;
 	struct intel_crtc *crtc;
-	struct drm_i915_gem_object *vid_bo;
-	struct drm_i915_gem_object *old_vid_bo;
+	struct i915_vma *vma;
+	struct i915_vma *old_vma;
 	bool active;
 	bool pfit_active;
 	u32 pfit_vscale_ratio; /* shifted-point number, (1<<12) == 1.0 */
@@ -196,7 +196,7 @@ intel_overlay_map_regs(struct intel_overlay *overlay)
 	if (OVERLAY_NEEDS_PHYSICAL(dev_priv))
 		regs = (struct overlay_registers __iomem *)overlay->reg_bo->phys_handle->vaddr;
 	else
-		regs = io_mapping_map_wc(dev_priv->ggtt.mappable,
+		regs = io_mapping_map_wc(&dev_priv->ggtt.mappable,
 					 overlay->flip_addr,
 					 PAGE_SIZE);
 
@@ -317,15 +317,17 @@ static void intel_overlay_release_old_vid_tail(struct i915_gem_active *active,
 {
 	struct intel_overlay *overlay =
 		container_of(active, typeof(*overlay), last_flip);
-	struct drm_i915_gem_object *obj = overlay->old_vid_bo;
+	struct i915_vma *vma;
 
-	i915_gem_track_fb(obj, NULL,
+	vma = fetch_and_zero(&overlay->old_vma);
+	if (WARN_ON(!vma))
+		return;
+
+	i915_gem_track_fb(vma->obj, NULL,
 			  INTEL_FRONTBUFFER_OVERLAY(overlay->crtc->pipe));
 
-	i915_gem_object_ggtt_unpin(obj);
-	i915_gem_object_put(obj);
-
-	overlay->old_vid_bo = NULL;
+	i915_gem_object_unpin_from_display_plane(vma);
+	i915_vma_put(vma);
 }
 
 static void intel_overlay_off_tail(struct i915_gem_active *active,
@@ -333,15 +335,15 @@ static void intel_overlay_off_tail(struct i915_gem_active *active,
 {
 	struct intel_overlay *overlay =
 		container_of(active, typeof(*overlay), last_flip);
-	struct drm_i915_gem_object *obj = overlay->vid_bo;
+	struct i915_vma *vma;
 
 	/* never have the overlay hw on without showing a frame */
-	if (WARN_ON(!obj))
+	vma = fetch_and_zero(&overlay->vma);
+	if (WARN_ON(!vma))
 		return;
 
-	i915_gem_object_ggtt_unpin(obj);
-	i915_gem_object_put(obj);
-	overlay->vid_bo = NULL;
+	i915_gem_object_unpin_from_display_plane(vma);
+	i915_vma_put(vma);
 
 	overlay->crtc->overlay = NULL;
 	overlay->crtc = NULL;
@@ -421,7 +423,7 @@ static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
 	/* Only wait if there is actually an old frame to release to
 	 * guarantee forward progress.
 	 */
-	if (!overlay->old_vid_bo)
+	if (!overlay->old_vma)
 		return 0;
 
 	if (I915_READ(ISR) & I915_OVERLAY_PLANE_FLIP_PENDING_INTERRUPT) {
@@ -744,6 +746,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	struct drm_i915_private *dev_priv = overlay->i915;
 	u32 swidth, swidthsw, sheight, ostride;
 	enum pipe pipe = overlay->crtc->pipe;
+	struct i915_vma *vma;
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 	WARN_ON(!drm_modeset_is_locked(&dev_priv->drm.mode_config.connection_mutex));
@@ -752,12 +755,12 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	if (ret != 0)
 		return ret;
 
-	ret = i915_gem_object_pin_to_display_plane(new_bo, 0,
+	vma = i915_gem_object_pin_to_display_plane(new_bo, 0,
 						   &i915_ggtt_view_normal);
-	if (ret != 0)
-		return ret;
+	if (IS_ERR(vma))
+		return PTR_ERR(vma);
 
-	ret = i915_gem_object_put_fence(new_bo);
+	ret = i915_vma_put_fence(vma);
 	if (ret)
 		goto out_unpin;
 
@@ -798,7 +801,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	swidth = params->src_w;
 	swidthsw = calc_swidthsw(dev_priv, params->offset_Y, tmp_width);
 	sheight = params->src_h;
-	iowrite32(i915_gem_obj_ggtt_offset(new_bo) + params->offset_Y, &regs->OBUF_0Y);
+	iowrite32(i915_ggtt_offset(vma) + params->offset_Y, &regs->OBUF_0Y);
 	ostride = params->stride_Y;
 
 	if (params->format & I915_OVERLAY_YUV_PLANAR) {
@@ -812,8 +815,10 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 				      params->src_w/uv_hscale);
 		swidthsw |= max_t(u32, tmp_U, tmp_V) << 16;
 		sheight |= (params->src_h/uv_vscale) << 16;
-		iowrite32(i915_gem_obj_ggtt_offset(new_bo) + params->offset_U, &regs->OBUF_0U);
-		iowrite32(i915_gem_obj_ggtt_offset(new_bo) + params->offset_V, &regs->OBUF_0V);
+		iowrite32(i915_ggtt_offset(vma) + params->offset_U,
+			  &regs->OBUF_0U);
+		iowrite32(i915_ggtt_offset(vma) + params->offset_V,
+			  &regs->OBUF_0V);
 		ostride |= params->stride_UV << 16;
 	}
 
@@ -834,18 +839,18 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	if (ret)
 		goto out_unpin;
 
-	i915_gem_track_fb(overlay->vid_bo, new_bo,
+	i915_gem_track_fb(overlay->vma->obj, new_bo,
 			  INTEL_FRONTBUFFER_OVERLAY(pipe));
 
-	overlay->old_vid_bo = overlay->vid_bo;
-	overlay->vid_bo = new_bo;
+	overlay->old_vma = overlay->vma;
+	overlay->vma = vma;
 
 	intel_frontbuffer_flip(dev_priv, INTEL_FRONTBUFFER_OVERLAY(pipe));
 
 	return 0;
 
 out_unpin:
-	i915_gem_object_ggtt_unpin(new_bo);
+	i915_gem_object_unpin_from_display_plane(vma);
 	return ret;
 }
 
@@ -1368,6 +1373,7 @@ void intel_setup_overlay(struct drm_i915_private *dev_priv)
 	struct intel_overlay *overlay;
 	struct drm_i915_gem_object *reg_bo;
 	struct overlay_registers __iomem *regs;
+	struct i915_vma *vma = NULL;
 	int ret;
 
 	if (!HAS_OVERLAY(dev_priv))
@@ -1401,13 +1407,14 @@ void intel_setup_overlay(struct drm_i915_private *dev_priv)
 		}
 		overlay->flip_addr = reg_bo->phys_handle->busaddr;
 	} else {
-		ret = i915_gem_object_ggtt_pin(reg_bo, NULL,
+		vma = i915_gem_object_ggtt_pin(reg_bo, NULL,
 					       0, PAGE_SIZE, PIN_MAPPABLE);
-		if (ret) {
+		if (IS_ERR(vma)) {
 			DRM_ERROR("failed to pin overlay register bo\n");
+			ret = PTR_ERR(vma);
 			goto out_free_bo;
 		}
-		overlay->flip_addr = i915_gem_obj_ggtt_offset(reg_bo);
+		overlay->flip_addr = i915_ggtt_offset(vma);
 
 		ret = i915_gem_object_set_to_gtt_domain(reg_bo, true);
 		if (ret) {
@@ -1439,8 +1446,8 @@ void intel_setup_overlay(struct drm_i915_private *dev_priv)
 	return;
 
 out_unpin_bo:
-	if (!OVERLAY_NEEDS_PHYSICAL(dev_priv))
-		i915_gem_object_ggtt_unpin(reg_bo);
+	if (vma)
+		i915_vma_unpin(vma);
 out_free_bo:
 	i915_gem_object_put(reg_bo);
 out_free:
@@ -1482,7 +1489,7 @@ intel_overlay_map_regs_atomic(struct intel_overlay *overlay)
 		regs = (struct overlay_registers __iomem *)
 			overlay->reg_bo->phys_handle->vaddr;
 	else
-		regs = io_mapping_map_atomic_wc(dev_priv->ggtt.mappable,
+		regs = io_mapping_map_atomic_wc(&dev_priv->ggtt.mappable,
 						overlay->flip_addr);
 
 	return regs;

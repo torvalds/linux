@@ -137,8 +137,6 @@ int i915_gem_request_add_to_client(struct drm_i915_gem_request *req,
 	list_add_tail(&req->client_list, &file_priv->mm.request_list);
 	spin_unlock(&file_priv->mm.lock);
 
-	req->pid = get_pid(task_pid(current));
-
 	return 0;
 }
 
@@ -154,9 +152,6 @@ i915_gem_request_remove_from_client(struct drm_i915_gem_request *request)
 	list_del(&request->client_list);
 	request->file_priv = NULL;
 	spin_unlock(&file_priv->mm.lock);
-
-	put_pid(request->pid);
-	request->pid = NULL;
 }
 
 void i915_gem_retire_noop(struct i915_gem_active *active,
@@ -355,7 +350,35 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	if (req && i915_gem_request_completed(req))
 		i915_gem_request_retire(req);
 
-	req = kmem_cache_zalloc(dev_priv->requests, GFP_KERNEL);
+	/* Beware: Dragons be flying overhead.
+	 *
+	 * We use RCU to look up requests in flight. The lookups may
+	 * race with the request being allocated from the slab freelist.
+	 * That is the request we are writing to here, may be in the process
+	 * of being read by __i915_gem_active_get_rcu(). As such,
+	 * we have to be very careful when overwriting the contents. During
+	 * the RCU lookup, we change chase the request->engine pointer,
+	 * read the request->fence.seqno and increment the reference count.
+	 *
+	 * The reference count is incremented atomically. If it is zero,
+	 * the lookup knows the request is unallocated and complete. Otherwise,
+	 * it is either still in use, or has been reallocated and reset
+	 * with fence_init(). This increment is safe for release as we check
+	 * that the request we have a reference to and matches the active
+	 * request.
+	 *
+	 * Before we increment the refcount, we chase the request->engine
+	 * pointer. We must not call kmem_cache_zalloc() or else we set
+	 * that pointer to NULL and cause a crash during the lookup. If
+	 * we see the request is completed (based on the value of the
+	 * old engine and seqno), the lookup is complete and reports NULL.
+	 * If we decide the request is not completed (new engine or seqno),
+	 * then we grab a reference and double check that it is still the
+	 * active request - which it won't be and restart the lookup.
+	 *
+	 * Do not use kmem_cache_zalloc() here!
+	 */
+	req = kmem_cache_alloc(dev_priv->requests, GFP_KERNEL);
 	if (!req)
 		return ERR_PTR(-ENOMEM);
 
@@ -375,6 +398,12 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	req->engine = engine;
 	req->ctx = i915_gem_context_get(ctx);
 
+	/* No zalloc, must clear what we need by hand */
+	req->previous_context = NULL;
+	req->file_priv = NULL;
+	req->batch = NULL;
+	req->elsp_submitted = 0;
+
 	/*
 	 * Reserve space in the ring buffer for all the commands required to
 	 * eventually emit this request. This is to guarantee that the
@@ -390,6 +419,13 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 		ret = intel_ring_alloc_request_extras(req);
 	if (ret)
 		goto err_ctx;
+
+	/* Record the position of the start of the request so that
+	 * should we detect the updated seqno part-way through the
+	 * GPU processing the request, we never over-estimate the
+	 * position of the head.
+	 */
+	req->head = req->ring->tail;
 
 	return req;
 
@@ -426,21 +462,13 @@ static void i915_gem_mark_busy(const struct intel_engine_cs *engine)
  * request is not being tracked for completion but the work itself is
  * going to happen on the hardware. This would be a Bad Thing(tm).
  */
-void __i915_add_request(struct drm_i915_gem_request *request,
-			struct drm_i915_gem_object *obj,
-			bool flush_caches)
+void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 {
-	struct intel_engine_cs *engine;
-	struct intel_ring *ring;
+	struct intel_engine_cs *engine = request->engine;
+	struct intel_ring *ring = request->ring;
 	u32 request_start;
 	u32 reserved_tail;
 	int ret;
-
-	if (WARN_ON(!request))
-		return;
-
-	engine = request->engine;
-	ring = request->ring;
 
 	/*
 	 * To ensure that this call will not fail, space for its emissions
@@ -467,16 +495,6 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 
 	trace_i915_gem_request_add(request);
 
-	request->head = request_start;
-
-	/* Whilst this request exists, batch_obj will be on the
-	 * active_list, and so will hold the active reference. Only when this
-	 * request is retired will the the batch_obj be moved onto the
-	 * inactive_list and lose its active reference. Hence we do not need
-	 * to explicitly hold another reference here.
-	 */
-	request->batch_obj = obj;
-
 	/* Seal the request and mark it as pending execution. Note that
 	 * we may inspect this state, without holding any locks, during
 	 * hangcheck. Hence we apply the barrier to ensure that we do not
@@ -489,10 +507,10 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	list_add_tail(&request->link, &engine->request_list);
 	list_add_tail(&request->ring_link, &ring->request_list);
 
-	/* Record the position of the start of the request so that
+	/* Record the position of the start of the breadcrumb so that
 	 * should we detect the updated seqno part-way through the
 	 * GPU processing the request, we never over-estimate the
-	 * position of the head.
+	 * position of the ring's HEAD.
 	 */
 	request->postfix = ring->tail;
 

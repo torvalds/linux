@@ -39,6 +39,8 @@
 #include "intel_drv.h"
 #include "intel_frontbuffer.h"
 
+#define DBG_USE_CPU_RELOC 0 /* -1 force GTT relocs; 1 force CPU relocs */
+
 #define  __EXEC_OBJECT_HAS_PIN		(1<<31)
 #define  __EXEC_OBJECT_HAS_FENCE	(1<<30)
 #define  __EXEC_OBJECT_NEEDS_MAP	(1<<29)
@@ -59,6 +61,7 @@ struct i915_execbuffer_params {
 };
 
 struct eb_vmas {
+	struct drm_i915_private *i915;
 	struct list_head vmas;
 	int and;
 	union {
@@ -68,7 +71,8 @@ struct eb_vmas {
 };
 
 static struct eb_vmas *
-eb_create(struct drm_i915_gem_execbuffer2 *args)
+eb_create(struct drm_i915_private *i915,
+	  struct drm_i915_gem_execbuffer2 *args)
 {
 	struct eb_vmas *eb = NULL;
 
@@ -95,6 +99,7 @@ eb_create(struct drm_i915_gem_execbuffer2 *args)
 	} else
 		eb->and = -args->buffer_count;
 
+	eb->i915 = i915;
 	INIT_LIST_HEAD(&eb->vmas);
 	return eb;
 }
@@ -180,8 +185,8 @@ eb_lookup_vmas(struct eb_vmas *eb,
 		 * from the (obj, vm) we don't run the risk of creating
 		 * duplicated vmas for the same vm.
 		 */
-		vma = i915_gem_obj_lookup_or_create_vma(obj, vm);
-		if (IS_ERR(vma)) {
+		vma = i915_gem_obj_lookup_or_create_vma(obj, vm, NULL);
+		if (unlikely(IS_ERR(vma))) {
 			DRM_DEBUG("Failed to lookup VMA\n");
 			ret = PTR_ERR(vma);
 			goto err;
@@ -245,7 +250,6 @@ static void
 i915_gem_execbuffer_unreserve_vma(struct i915_vma *vma)
 {
 	struct drm_i915_gem_exec_object2 *entry;
-	struct drm_i915_gem_object *obj = vma->obj;
 
 	if (!drm_mm_node_allocated(&vma->node))
 		return;
@@ -253,7 +257,7 @@ i915_gem_execbuffer_unreserve_vma(struct i915_vma *vma)
 	entry = vma->exec_entry;
 
 	if (entry->flags & __EXEC_OBJECT_HAS_FENCE)
-		i915_gem_object_unpin_fence(obj);
+		i915_vma_unpin_fence(vma);
 
 	if (entry->flags & __EXEC_OBJECT_HAS_PIN)
 		__i915_vma_unpin(vma);
@@ -271,13 +275,19 @@ static void eb_destroy(struct eb_vmas *eb)
 				       exec_list);
 		list_del_init(&vma->exec_list);
 		i915_gem_execbuffer_unreserve_vma(vma);
-		i915_gem_object_put(vma->obj);
+		i915_vma_put(vma);
 	}
 	kfree(eb);
 }
 
 static inline int use_cpu_reloc(struct drm_i915_gem_object *obj)
 {
+	if (!i915_gem_object_has_struct_page(obj))
+		return false;
+
+	if (DBG_USE_CPU_RELOC)
+		return DBG_USE_CPU_RELOC > 0;
+
 	return (HAS_LLC(obj->base.dev) ||
 		obj->base.write_domain == I915_GEM_DOMAIN_CPU ||
 		obj->cache_level != I915_CACHE_NONE);
@@ -302,136 +312,242 @@ static inline uint64_t gen8_noncanonical_addr(uint64_t address)
 }
 
 static inline uint64_t
-relocation_target(struct drm_i915_gem_relocation_entry *reloc,
+relocation_target(const struct drm_i915_gem_relocation_entry *reloc,
 		  uint64_t target_offset)
 {
 	return gen8_canonical_addr((int)reloc->delta + target_offset);
 }
 
-static int
-relocate_entry_cpu(struct drm_i915_gem_object *obj,
-		   struct drm_i915_gem_relocation_entry *reloc,
-		   uint64_t target_offset)
+struct reloc_cache {
+	struct drm_i915_private *i915;
+	struct drm_mm_node node;
+	unsigned long vaddr;
+	unsigned int page;
+	bool use_64bit_reloc;
+};
+
+static void reloc_cache_init(struct reloc_cache *cache,
+			     struct drm_i915_private *i915)
 {
-	struct drm_device *dev = obj->base.dev;
-	uint32_t page_offset = offset_in_page(reloc->offset);
-	uint64_t delta = relocation_target(reloc, target_offset);
-	char *vaddr;
-	int ret;
+	cache->page = -1;
+	cache->vaddr = 0;
+	cache->i915 = i915;
+	cache->use_64bit_reloc = INTEL_GEN(cache->i915) >= 8;
+	cache->node.allocated = false;
+}
 
-	ret = i915_gem_object_set_to_cpu_domain(obj, true);
-	if (ret)
-		return ret;
+static inline void *unmask_page(unsigned long p)
+{
+	return (void *)(uintptr_t)(p & PAGE_MASK);
+}
 
-	vaddr = kmap_atomic(i915_gem_object_get_dirty_page(obj,
-				reloc->offset >> PAGE_SHIFT));
-	*(uint32_t *)(vaddr + page_offset) = lower_32_bits(delta);
+static inline unsigned int unmask_flags(unsigned long p)
+{
+	return p & ~PAGE_MASK;
+}
 
-	if (INTEL_INFO(dev)->gen >= 8) {
-		page_offset = offset_in_page(page_offset + sizeof(uint32_t));
+#define KMAP 0x4 /* after CLFLUSH_FLAGS */
 
-		if (page_offset == 0) {
-			kunmap_atomic(vaddr);
-			vaddr = kmap_atomic(i915_gem_object_get_dirty_page(obj,
-			    (reloc->offset + sizeof(uint32_t)) >> PAGE_SHIFT));
+static void reloc_cache_fini(struct reloc_cache *cache)
+{
+	void *vaddr;
+
+	if (!cache->vaddr)
+		return;
+
+	vaddr = unmask_page(cache->vaddr);
+	if (cache->vaddr & KMAP) {
+		if (cache->vaddr & CLFLUSH_AFTER)
+			mb();
+
+		kunmap_atomic(vaddr);
+		i915_gem_obj_finish_shmem_access((struct drm_i915_gem_object *)cache->node.mm);
+	} else {
+		wmb();
+		io_mapping_unmap_atomic((void __iomem *)vaddr);
+		if (cache->node.allocated) {
+			struct i915_ggtt *ggtt = &cache->i915->ggtt;
+
+			ggtt->base.clear_range(&ggtt->base,
+					       cache->node.start,
+					       cache->node.size,
+					       true);
+			drm_mm_remove_node(&cache->node);
+		} else {
+			i915_vma_unpin((struct i915_vma *)cache->node.mm);
 		}
+	}
+}
 
-		*(uint32_t *)(vaddr + page_offset) = upper_32_bits(delta);
+static void *reloc_kmap(struct drm_i915_gem_object *obj,
+			struct reloc_cache *cache,
+			int page)
+{
+	void *vaddr;
+
+	if (cache->vaddr) {
+		kunmap_atomic(unmask_page(cache->vaddr));
+	} else {
+		unsigned int flushes;
+		int ret;
+
+		ret = i915_gem_obj_prepare_shmem_write(obj, &flushes);
+		if (ret)
+			return ERR_PTR(ret);
+
+		BUILD_BUG_ON(KMAP & CLFLUSH_FLAGS);
+		BUILD_BUG_ON((KMAP | CLFLUSH_FLAGS) & PAGE_MASK);
+
+		cache->vaddr = flushes | KMAP;
+		cache->node.mm = (void *)obj;
+		if (flushes)
+			mb();
 	}
 
-	kunmap_atomic(vaddr);
+	vaddr = kmap_atomic(i915_gem_object_get_dirty_page(obj, page));
+	cache->vaddr = unmask_flags(cache->vaddr) | (unsigned long)vaddr;
+	cache->page = page;
 
-	return 0;
+	return vaddr;
+}
+
+static void *reloc_iomap(struct drm_i915_gem_object *obj,
+			 struct reloc_cache *cache,
+			 int page)
+{
+	struct i915_ggtt *ggtt = &cache->i915->ggtt;
+	unsigned long offset;
+	void *vaddr;
+
+	if (cache->node.allocated) {
+		wmb();
+		ggtt->base.insert_page(&ggtt->base,
+				       i915_gem_object_get_dma_address(obj, page),
+				       cache->node.start, I915_CACHE_NONE, 0);
+		cache->page = page;
+		return unmask_page(cache->vaddr);
+	}
+
+	if (cache->vaddr) {
+		io_mapping_unmap_atomic(unmask_page(cache->vaddr));
+	} else {
+		struct i915_vma *vma;
+		int ret;
+
+		if (use_cpu_reloc(obj))
+			return NULL;
+
+		ret = i915_gem_object_set_to_gtt_domain(obj, true);
+		if (ret)
+			return ERR_PTR(ret);
+
+		vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
+					       PIN_MAPPABLE | PIN_NONBLOCK);
+		if (IS_ERR(vma)) {
+			memset(&cache->node, 0, sizeof(cache->node));
+			ret = drm_mm_insert_node_in_range_generic
+				(&ggtt->base.mm, &cache->node,
+				 4096, 0, 0,
+				 0, ggtt->mappable_end,
+				 DRM_MM_SEARCH_DEFAULT,
+				 DRM_MM_CREATE_DEFAULT);
+			if (ret)
+				return ERR_PTR(ret);
+		} else {
+			ret = i915_vma_put_fence(vma);
+			if (ret) {
+				i915_vma_unpin(vma);
+				return ERR_PTR(ret);
+			}
+
+			cache->node.start = vma->node.start;
+			cache->node.mm = (void *)vma;
+		}
+	}
+
+	offset = cache->node.start;
+	if (cache->node.allocated) {
+		ggtt->base.insert_page(&ggtt->base,
+				       i915_gem_object_get_dma_address(obj, page),
+				       offset, I915_CACHE_NONE, 0);
+	} else {
+		offset += page << PAGE_SHIFT;
+	}
+
+	vaddr = io_mapping_map_atomic_wc(&cache->i915->ggtt.mappable, offset);
+	cache->page = page;
+	cache->vaddr = (unsigned long)vaddr;
+
+	return vaddr;
+}
+
+static void *reloc_vaddr(struct drm_i915_gem_object *obj,
+			 struct reloc_cache *cache,
+			 int page)
+{
+	void *vaddr;
+
+	if (cache->page == page) {
+		vaddr = unmask_page(cache->vaddr);
+	} else {
+		vaddr = NULL;
+		if ((cache->vaddr & KMAP) == 0)
+			vaddr = reloc_iomap(obj, cache, page);
+		if (!vaddr)
+			vaddr = reloc_kmap(obj, cache, page);
+	}
+
+	return vaddr;
+}
+
+static void clflush_write32(u32 *addr, u32 value, unsigned int flushes)
+{
+	if (unlikely(flushes & (CLFLUSH_BEFORE | CLFLUSH_AFTER))) {
+		if (flushes & CLFLUSH_BEFORE) {
+			clflushopt(addr);
+			mb();
+		}
+
+		*addr = value;
+
+		/* Writes to the same cacheline are serialised by the CPU
+		 * (including clflush). On the write path, we only require
+		 * that it hits memory in an orderly fashion and place
+		 * mb barriers at the start and end of the relocation phase
+		 * to ensure ordering of clflush wrt to the system.
+		 */
+		if (flushes & CLFLUSH_AFTER)
+			clflushopt(addr);
+	} else
+		*addr = value;
 }
 
 static int
-relocate_entry_gtt(struct drm_i915_gem_object *obj,
-		   struct drm_i915_gem_relocation_entry *reloc,
-		   uint64_t target_offset)
+relocate_entry(struct drm_i915_gem_object *obj,
+	       const struct drm_i915_gem_relocation_entry *reloc,
+	       struct reloc_cache *cache,
+	       u64 target_offset)
 {
-	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	uint64_t delta = relocation_target(reloc, target_offset);
-	uint64_t offset;
-	void __iomem *reloc_page;
-	int ret;
+	u64 offset = reloc->offset;
+	bool wide = cache->use_64bit_reloc;
+	void *vaddr;
 
-	ret = i915_gem_object_set_to_gtt_domain(obj, true);
-	if (ret)
-		return ret;
+	target_offset = relocation_target(reloc, target_offset);
+repeat:
+	vaddr = reloc_vaddr(obj, cache, offset >> PAGE_SHIFT);
+	if (IS_ERR(vaddr))
+		return PTR_ERR(vaddr);
 
-	ret = i915_gem_object_put_fence(obj);
-	if (ret)
-		return ret;
+	clflush_write32(vaddr + offset_in_page(offset),
+			lower_32_bits(target_offset),
+			cache->vaddr);
 
-	/* Map the page containing the relocation we're going to perform.  */
-	offset = i915_gem_obj_ggtt_offset(obj);
-	offset += reloc->offset;
-	reloc_page = io_mapping_map_atomic_wc(ggtt->mappable,
-					      offset & PAGE_MASK);
-	iowrite32(lower_32_bits(delta), reloc_page + offset_in_page(offset));
-
-	if (INTEL_INFO(dev)->gen >= 8) {
-		offset += sizeof(uint32_t);
-
-		if (offset_in_page(offset) == 0) {
-			io_mapping_unmap_atomic(reloc_page);
-			reloc_page =
-				io_mapping_map_atomic_wc(ggtt->mappable,
-							 offset);
-		}
-
-		iowrite32(upper_32_bits(delta),
-			  reloc_page + offset_in_page(offset));
+	if (wide) {
+		offset += sizeof(u32);
+		target_offset >>= 32;
+		wide = false;
+		goto repeat;
 	}
-
-	io_mapping_unmap_atomic(reloc_page);
-
-	return 0;
-}
-
-static void
-clflush_write32(void *addr, uint32_t value)
-{
-	/* This is not a fast path, so KISS. */
-	drm_clflush_virt_range(addr, sizeof(uint32_t));
-	*(uint32_t *)addr = value;
-	drm_clflush_virt_range(addr, sizeof(uint32_t));
-}
-
-static int
-relocate_entry_clflush(struct drm_i915_gem_object *obj,
-		       struct drm_i915_gem_relocation_entry *reloc,
-		       uint64_t target_offset)
-{
-	struct drm_device *dev = obj->base.dev;
-	uint32_t page_offset = offset_in_page(reloc->offset);
-	uint64_t delta = relocation_target(reloc, target_offset);
-	char *vaddr;
-	int ret;
-
-	ret = i915_gem_object_set_to_gtt_domain(obj, true);
-	if (ret)
-		return ret;
-
-	vaddr = kmap_atomic(i915_gem_object_get_dirty_page(obj,
-				reloc->offset >> PAGE_SHIFT));
-	clflush_write32(vaddr + page_offset, lower_32_bits(delta));
-
-	if (INTEL_INFO(dev)->gen >= 8) {
-		page_offset = offset_in_page(page_offset + sizeof(uint32_t));
-
-		if (page_offset == 0) {
-			kunmap_atomic(vaddr);
-			vaddr = kmap_atomic(i915_gem_object_get_dirty_page(obj,
-			    (reloc->offset + sizeof(uint32_t)) >> PAGE_SHIFT));
-		}
-
-		clflush_write32(vaddr + page_offset, upper_32_bits(delta));
-	}
-
-	kunmap_atomic(vaddr);
 
 	return 0;
 }
@@ -453,7 +569,8 @@ static bool object_is_idle(struct drm_i915_gem_object *obj)
 static int
 i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 				   struct eb_vmas *eb,
-				   struct drm_i915_gem_relocation_entry *reloc)
+				   struct drm_i915_gem_relocation_entry *reloc,
+				   struct reloc_cache *cache)
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_gem_object *target_obj;
@@ -516,7 +633,7 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 
 	/* Check that the relocation address is valid... */
 	if (unlikely(reloc->offset >
-		obj->base.size - (INTEL_INFO(dev)->gen >= 8 ? 8 : 4))) {
+		     obj->base.size - (cache->use_64bit_reloc ? 8 : 4))) {
 		DRM_DEBUG("Relocation beyond object bounds: "
 			  "obj %p target %d offset %d size %d.\n",
 			  obj, reloc->target_handle,
@@ -536,23 +653,12 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 	if (pagefault_disabled() && !object_is_idle(obj))
 		return -EFAULT;
 
-	if (use_cpu_reloc(obj))
-		ret = relocate_entry_cpu(obj, reloc, target_offset);
-	else if (obj->map_and_fenceable)
-		ret = relocate_entry_gtt(obj, reloc, target_offset);
-	else if (static_cpu_has(X86_FEATURE_CLFLUSH))
-		ret = relocate_entry_clflush(obj, reloc, target_offset);
-	else {
-		WARN_ONCE(1, "Impossible case in relocation handling\n");
-		ret = -ENODEV;
-	}
-
+	ret = relocate_entry(obj, reloc, cache, target_offset);
 	if (ret)
 		return ret;
 
 	/* and update the user's relocation entry */
 	reloc->presumed_offset = target_offset;
-
 	return 0;
 }
 
@@ -564,9 +670,11 @@ i915_gem_execbuffer_relocate_vma(struct i915_vma *vma,
 	struct drm_i915_gem_relocation_entry stack_reloc[N_RELOC(512)];
 	struct drm_i915_gem_relocation_entry __user *user_relocs;
 	struct drm_i915_gem_exec_object2 *entry = vma->exec_entry;
-	int remain, ret;
+	struct reloc_cache cache;
+	int remain, ret = 0;
 
 	user_relocs = u64_to_user_ptr(entry->relocs_ptr);
+	reloc_cache_init(&cache, eb->i915);
 
 	remain = entry->relocation_count;
 	while (remain) {
@@ -576,19 +684,23 @@ i915_gem_execbuffer_relocate_vma(struct i915_vma *vma,
 			count = ARRAY_SIZE(stack_reloc);
 		remain -= count;
 
-		if (__copy_from_user_inatomic(r, user_relocs, count*sizeof(r[0])))
-			return -EFAULT;
+		if (__copy_from_user_inatomic(r, user_relocs, count*sizeof(r[0]))) {
+			ret = -EFAULT;
+			goto out;
+		}
 
 		do {
 			u64 offset = r->presumed_offset;
 
-			ret = i915_gem_execbuffer_relocate_entry(vma->obj, eb, r);
+			ret = i915_gem_execbuffer_relocate_entry(vma->obj, eb, r, &cache);
 			if (ret)
-				return ret;
+				goto out;
 
 			if (r->presumed_offset != offset &&
-			    __put_user(r->presumed_offset, &user_relocs->presumed_offset)) {
-				return -EFAULT;
+			    __put_user(r->presumed_offset,
+				       &user_relocs->presumed_offset)) {
+				ret = -EFAULT;
+				goto out;
 			}
 
 			user_relocs++;
@@ -596,7 +708,9 @@ i915_gem_execbuffer_relocate_vma(struct i915_vma *vma,
 		} while (--count);
 	}
 
-	return 0;
+out:
+	reloc_cache_fini(&cache);
+	return ret;
 #undef N_RELOC
 }
 
@@ -606,15 +720,18 @@ i915_gem_execbuffer_relocate_vma_slow(struct i915_vma *vma,
 				      struct drm_i915_gem_relocation_entry *relocs)
 {
 	const struct drm_i915_gem_exec_object2 *entry = vma->exec_entry;
-	int i, ret;
+	struct reloc_cache cache;
+	int i, ret = 0;
 
+	reloc_cache_init(&cache, eb->i915);
 	for (i = 0; i < entry->relocation_count; i++) {
-		ret = i915_gem_execbuffer_relocate_entry(vma->obj, eb, &relocs[i]);
+		ret = i915_gem_execbuffer_relocate_entry(vma->obj, eb, &relocs[i], &cache);
 		if (ret)
-			return ret;
+			break;
 	}
+	reloc_cache_fini(&cache);
 
-	return 0;
+	return ret;
 }
 
 static int
@@ -693,11 +810,11 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 	entry->flags |= __EXEC_OBJECT_HAS_PIN;
 
 	if (entry->flags & EXEC_OBJECT_NEEDS_FENCE) {
-		ret = i915_gem_object_get_fence(obj);
+		ret = i915_vma_get_fence(vma);
 		if (ret)
 			return ret;
 
-		if (i915_gem_object_pin_fence(obj))
+		if (i915_vma_pin_fence(vma))
 			entry->flags |= __EXEC_OBJECT_HAS_FENCE;
 	}
 
@@ -739,7 +856,6 @@ static bool
 eb_vma_misplaced(struct i915_vma *vma)
 {
 	struct drm_i915_gem_exec_object2 *entry = vma->exec_entry;
-	struct drm_i915_gem_object *obj = vma->obj;
 
 	WARN_ON(entry->flags & __EXEC_OBJECT_NEEDS_MAP &&
 		!i915_vma_is_ggtt(vma));
@@ -760,7 +876,8 @@ eb_vma_misplaced(struct i915_vma *vma)
 		return true;
 
 	/* avoid costly ping-pong once a batch bo ended up non-mappable */
-	if (entry->flags & __EXEC_OBJECT_NEEDS_MAP && !obj->map_and_fenceable)
+	if (entry->flags & __EXEC_OBJECT_NEEDS_MAP &&
+	    !i915_vma_is_map_and_fenceable(vma))
 		return !only_mappable_for_reloc(entry->flags);
 
 	if ((entry->flags & EXEC_OBJECT_SUPPORTS_48B_ADDRESS) == 0 &&
@@ -900,7 +1017,7 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 		vma = list_first_entry(&eb->vmas, struct i915_vma, exec_list);
 		list_del_init(&vma->exec_list);
 		i915_gem_execbuffer_unreserve_vma(vma);
-		i915_gem_object_put(vma->obj);
+		i915_vma_put(vma);
 	}
 
 	mutex_unlock(&dev->struct_mutex);
@@ -1010,8 +1127,6 @@ i915_gem_execbuffer_move_to_gpu(struct drm_i915_gem_request *req,
 {
 	const unsigned int other_rings = eb_other_engines(req);
 	struct i915_vma *vma;
-	uint32_t flush_domains = 0;
-	bool flush_chipset = false;
 	int ret;
 
 	list_for_each_entry(vma, vmas, exec_list) {
@@ -1024,16 +1139,11 @@ i915_gem_execbuffer_move_to_gpu(struct drm_i915_gem_request *req,
 		}
 
 		if (obj->base.write_domain & I915_GEM_DOMAIN_CPU)
-			flush_chipset |= i915_gem_clflush_object(obj, false);
-
-		flush_domains |= obj->base.write_domain;
+			i915_gem_clflush_object(obj, false);
 	}
 
-	if (flush_chipset)
-		i915_gem_chipset_flush(req->engine->i915);
-
-	if (flush_domains & I915_GEM_DOMAIN_GTT)
-		wmb();
+	/* Unconditionally flush any chipset caches (for streaming writes). */
+	i915_gem_chipset_flush(req->engine->i915);
 
 	/* Unconditionally invalidate GPU caches and TLBs. */
 	return req->engine->emit_flush(req, EMIT_INVALIDATE);
@@ -1194,15 +1304,8 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 		obj->base.write_domain &= ~I915_GEM_GPU_DOMAINS;
 	}
 
-	if (flags & EXEC_OBJECT_NEEDS_FENCE) {
-		i915_gem_active_set(&obj->last_fence, req);
-		if (flags & __EXEC_OBJECT_HAS_FENCE) {
-			struct drm_i915_private *dev_priv = req->i915;
-
-			list_move_tail(&dev_priv->fence_regs[obj->fence_reg].lru_list,
-				       &dev_priv->mm.fence_list);
-		}
-	}
+	if (flags & EXEC_OBJECT_NEEDS_FENCE)
+		i915_gem_active_set(&vma->last_fence, req);
 
 	i915_vma_set_active(vma, idx);
 	i915_gem_active_set(&vma->last_read[idx], req);
@@ -1281,7 +1384,7 @@ i915_reset_gen7_sol_offsets(struct drm_i915_gem_request *req)
 	return 0;
 }
 
-static struct i915_vma*
+static struct i915_vma *
 i915_gem_execbuffer_parse(struct intel_engine_cs *engine,
 			  struct drm_i915_gem_exec_object2 *shadow_exec_entry,
 			  struct drm_i915_gem_object *batch_obj,
@@ -1305,31 +1408,28 @@ i915_gem_execbuffer_parse(struct intel_engine_cs *engine,
 				      batch_start_offset,
 				      batch_len,
 				      is_master);
-	if (ret)
-		goto err;
+	if (ret) {
+		if (ret == -EACCES) /* unhandled chained batch */
+			vma = NULL;
+		else
+			vma = ERR_PTR(ret);
+		goto out;
+	}
 
-	ret = i915_gem_object_ggtt_pin(shadow_batch_obj, NULL, 0, 0, 0);
-	if (ret)
-		goto err;
-
-	i915_gem_object_unpin_pages(shadow_batch_obj);
+	vma = i915_gem_object_ggtt_pin(shadow_batch_obj, NULL, 0, 0, 0);
+	if (IS_ERR(vma))
+		goto out;
 
 	memset(shadow_exec_entry, 0, sizeof(*shadow_exec_entry));
 
-	vma = i915_gem_obj_to_ggtt(shadow_batch_obj);
 	vma->exec_entry = shadow_exec_entry;
 	vma->exec_entry->flags = __EXEC_OBJECT_HAS_PIN;
 	i915_gem_object_get(shadow_batch_obj);
 	list_add_tail(&vma->exec_list, &eb->vmas);
 
-	return vma;
-
-err:
+out:
 	i915_gem_object_unpin_pages(shadow_batch_obj);
-	if (ret == -EACCES) /* unhandled chained batch */
-		return NULL;
-	else
-		return ERR_PTR(ret);
+	return vma;
 }
 
 static int
@@ -1412,7 +1512,7 @@ execbuf_submit(struct i915_execbuffer_params *params,
 		     params->args_batch_start_offset;
 
 	if (exec_len == 0)
-		exec_len = params->batch->size;
+		exec_len = params->batch->size - params->args_batch_start_offset;
 
 	ret = params->engine->emit_bb_start(params->request,
 					    exec_start, exec_len,
@@ -1595,7 +1695,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	memset(&params_master, 0x00, sizeof(params_master));
 
-	eb = eb_create(args);
+	eb = eb_create(dev_priv, args);
 	if (eb == NULL) {
 		i915_gem_context_put(ctx);
 		mutex_unlock(&dev->struct_mutex);
@@ -1638,6 +1738,12 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		ret = -EINVAL;
 		goto err;
 	}
+	if (args->batch_start_offset > params->batch->size ||
+	    args->batch_len > params->batch->size - args->batch_start_offset) {
+		DRM_DEBUG("Attempting to use out-of-bounds batch\n");
+		ret = -EINVAL;
+		goto err;
+	}
 
 	params->args_batch_start_offset = args->batch_start_offset;
 	if (intel_engine_needs_cmd_parser(engine) && args->batch_len) {
@@ -1677,6 +1783,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	 * hsw should have this fixed, but bdw mucks it up again. */
 	if (dispatch_flags & I915_DISPATCH_SECURE) {
 		struct drm_i915_gem_object *obj = params->batch->obj;
+		struct i915_vma *vma;
 
 		/*
 		 * So on first glance it looks freaky that we pin the batch here
@@ -1688,11 +1795,13 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		 *   fitting due to fragmentation.
 		 * So this is actually safe.
 		 */
-		ret = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, 0);
-		if (ret)
+		vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, 0);
+		if (IS_ERR(vma)) {
+			ret = PTR_ERR(vma);
 			goto err;
+		}
 
-		params->batch = i915_gem_obj_to_ggtt(obj);
+		params->batch = vma;
 	}
 
 	/* Allocate a request for this batch buffer nice and early. */
@@ -1701,6 +1810,14 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		ret = PTR_ERR(params->request);
 		goto err_batch_unpin;
 	}
+
+	/* Whilst this request exists, batch_obj will be on the
+	 * active_list, and so will hold the active reference. Only when this
+	 * request is retired will the the batch_obj be moved onto the
+	 * inactive_list and lose its active reference. Hence we do not need
+	 * to explicitly hold another reference here.
+	 */
+	params->request->batch = params->batch;
 
 	ret = i915_gem_request_add_to_client(params->request, file);
 	if (ret)
@@ -1720,7 +1837,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	ret = execbuf_submit(params, args, &eb->vmas);
 err_request:
-	__i915_add_request(params->request, params->batch->obj, ret == 0);
+	__i915_add_request(params->request, ret == 0);
 
 err_batch_unpin:
 	/*

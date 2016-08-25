@@ -827,6 +827,8 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 	mutex_init(&dev_priv->wm.wm_mutex);
 	mutex_init(&dev_priv->pps_mutex);
 
+	i915_memcpy_init_early(dev_priv);
+
 	ret = i915_workqueues_init(dev_priv);
 	if (ret < 0)
 		return ret;
@@ -1560,6 +1562,7 @@ static int i915_drm_resume(struct drm_device *dev)
 	i915_gem_resume(dev);
 
 	i915_restore_state(dev);
+	intel_pps_unlock_regs_wa(dev_priv);
 	intel_opregion_setup(dev_priv);
 
 	intel_init_pch_refclk(dev);

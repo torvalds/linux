@@ -26,10 +26,10 @@
  */
 #define I915_RING_FREE_SPACE 64
 
-struct  intel_hw_status_page {
-	u32		*page_addr;
-	unsigned int	gfx_addr;
-	struct		drm_i915_gem_object *obj;
+struct intel_hw_status_page {
+	struct i915_vma *vma;
+	u32 *page_addr;
+	u32 ggtt_offset;
 };
 
 #define I915_READ_TAIL(engine) I915_READ(RING_TAIL((engine)->mmio_base))
@@ -57,10 +57,10 @@ struct  intel_hw_status_page {
 #define GEN8_SEMAPHORE_OFFSET(__from, __to)			     \
 	(((__from) * I915_NUM_ENGINES  + (__to)) * gen8_semaphore_seqno_size)
 #define GEN8_SIGNAL_OFFSET(__ring, to)			     \
-	(i915_gem_obj_ggtt_offset(dev_priv->semaphore_obj) + \
+	(dev_priv->semaphore->node.start + \
 	 GEN8_SEMAPHORE_OFFSET((__ring)->id, (to)))
 #define GEN8_WAIT_OFFSET(__ring, from)			     \
-	(i915_gem_obj_ggtt_offset(dev_priv->semaphore_obj) + \
+	(dev_priv->semaphore->node.start + \
 	 GEN8_SEMAPHORE_OFFSET(from, (__ring)->id))
 
 enum intel_engine_hangcheck_action {
@@ -75,7 +75,6 @@ enum intel_engine_hangcheck_action {
 
 struct intel_engine_hangcheck {
 	u64 acthd;
-	unsigned long user_interrupts;
 	u32 seqno;
 	int score;
 	enum intel_engine_hangcheck_action action;
@@ -84,9 +83,8 @@ struct intel_engine_hangcheck {
 };
 
 struct intel_ring {
-	struct drm_i915_gem_object *obj;
-	void *vaddr;
 	struct i915_vma *vma;
+	void *vaddr;
 
 	struct intel_engine_cs *engine;
 	struct list_head link;
@@ -124,12 +122,12 @@ struct drm_i915_reg_table;
  *    an option for future use.
  *  size: size of the batch in DWORDS
  */
-struct  i915_ctx_workarounds {
+struct i915_ctx_workarounds {
 	struct i915_wa_ctx_bb {
 		u32 offset;
 		u32 size;
 	} indirect_ctx, per_ctx;
-	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
 };
 
 struct drm_i915_gem_request;
@@ -147,8 +145,14 @@ struct intel_engine_cs {
 #define I915_NUM_ENGINES 5
 #define _VCS(n) (VCS + (n))
 	unsigned int exec_id;
-	unsigned int hw_id;
-	unsigned int guc_id; /* XXX same as hw_id? */
+	enum intel_engine_hw_id {
+		RCS_HW = 0,
+		VCS_HW,
+		BCS_HW,
+		VECS_HW,
+		VCS2_HW
+	} hw_id;
+	enum intel_engine_hw_id guc_id; /* XXX same as hw_id? */
 	u64 fence_context;
 	u32		mmio_base;
 	unsigned int irq_shift;
@@ -172,8 +176,7 @@ struct intel_engine_cs {
 	 * the overhead of waking that client is much preferred.
 	 */
 	struct intel_breadcrumbs {
-		struct task_struct *irq_seqno_bh; /* bh for user interrupts */
-		unsigned long irq_wakeups;
+		struct task_struct __rcu *irq_seqno_bh; /* bh for interrupts */
 		bool irq_posted;
 
 		spinlock_t lock; /* protects the lists of requests */
@@ -183,6 +186,9 @@ struct intel_engine_cs {
 		struct task_struct *signaler; /* used for fence signalling */
 		struct drm_i915_gem_request *first_signal;
 		struct timer_list fake_irq; /* used after a missed interrupt */
+		struct timer_list hangcheck; /* detect missed interrupts */
+
+		unsigned long timeout;
 
 		bool irq_enabled : 1;
 		bool rpm_wakelock : 1;
@@ -197,6 +203,7 @@ struct intel_engine_cs {
 
 	struct intel_hw_status_page status_page;
 	struct i915_ctx_workarounds wa_ctx;
+	struct i915_vma *scratch;
 
 	u32             irq_keep_mask; /* always keep these interrupts */
 	u32		irq_enable_mask; /* bitmask to enable ring interrupt */
@@ -270,11 +277,14 @@ struct intel_engine_cs {
 		u32	sync_seqno[I915_NUM_ENGINES-1];
 
 		union {
+#define GEN6_SEMAPHORE_LAST	VECS_HW
+#define GEN6_NUM_SEMAPHORES	(GEN6_SEMAPHORE_LAST + 1)
+#define GEN6_SEMAPHORES_MASK	GENMASK(GEN6_SEMAPHORE_LAST, 0)
 			struct {
 				/* our mbox written by others */
-				u32		wait[I915_NUM_ENGINES];
+				u32		wait[GEN6_NUM_SEMAPHORES];
 				/* mboxes this ring signals to */
-				i915_reg_t	signal[I915_NUM_ENGINES];
+				i915_reg_t	signal[GEN6_NUM_SEMAPHORES];
 			} mbox;
 			u64		signal_ggtt[I915_NUM_ENGINES];
 		};
@@ -310,7 +320,7 @@ struct intel_engine_cs {
 
 	/* An RCU guarded pointer to the last request. No reference is
 	 * held to the request, users must carefully acquire a reference to
-	 * the request using i915_gem_active_get_request_rcu(), or hold the
+	 * the request using i915_gem_active_get_rcu(), or hold the
 	 * struct_mutex.
 	 */
 	struct i915_gem_active last_request;
@@ -318,11 +328,6 @@ struct intel_engine_cs {
 	struct i915_gem_context *last_context;
 
 	struct intel_engine_hangcheck hangcheck;
-
-	struct {
-		struct drm_i915_gem_object *obj;
-		u32 gtt_offset;
-	} scratch;
 
 	bool needs_cmd_parser;
 
@@ -475,11 +480,9 @@ void intel_ring_update_space(struct intel_ring *ring);
 
 void intel_engine_init_seqno(struct intel_engine_cs *engine, u32 seqno);
 
-int intel_init_pipe_control(struct intel_engine_cs *engine, int size);
-void intel_fini_pipe_control(struct intel_engine_cs *engine);
-
 void intel_engine_setup_common(struct intel_engine_cs *engine);
 int intel_engine_init_common(struct intel_engine_cs *engine);
+int intel_engine_create_scratch(struct intel_engine_cs *engine, int size);
 void intel_engine_cleanup_common(struct intel_engine_cs *engine);
 
 static inline int intel_engine_idle(struct intel_engine_cs *engine,
@@ -515,7 +518,7 @@ int init_workarounds_ring(struct intel_engine_cs *engine);
 
 static inline u32 intel_hws_seqno_address(struct intel_engine_cs *engine)
 {
-	return engine->status_page.gfx_addr + I915_GEM_HWS_INDEX_ADDR;
+	return engine->status_page.ggtt_offset + I915_GEM_HWS_INDEX_ADDR;
 }
 
 /* intel_breadcrumbs.c -- user interrupt bottom-half for waiters */
@@ -538,29 +541,35 @@ void intel_engine_remove_wait(struct intel_engine_cs *engine,
 			      struct intel_wait *wait);
 void intel_engine_enable_signaling(struct drm_i915_gem_request *request);
 
-static inline bool intel_engine_has_waiter(struct intel_engine_cs *engine)
+static inline bool intel_engine_has_waiter(const struct intel_engine_cs *engine)
 {
-	return READ_ONCE(engine->breadcrumbs.irq_seqno_bh);
+	return rcu_access_pointer(engine->breadcrumbs.irq_seqno_bh);
 }
 
-static inline bool intel_engine_wakeup(struct intel_engine_cs *engine)
+static inline bool intel_engine_wakeup(const struct intel_engine_cs *engine)
 {
 	bool wakeup = false;
-	struct task_struct *tsk = READ_ONCE(engine->breadcrumbs.irq_seqno_bh);
+
 	/* Note that for this not to dangerously chase a dangling pointer,
-	 * the caller is responsible for ensure that the task remain valid for
-	 * wake_up_process() i.e. that the RCU grace period cannot expire.
+	 * we must hold the rcu_read_lock here.
 	 *
 	 * Also note that tsk is likely to be in !TASK_RUNNING state so an
 	 * early test for tsk->state != TASK_RUNNING before wake_up_process()
 	 * is unlikely to be beneficial.
 	 */
-	if (tsk)
-		wakeup = wake_up_process(tsk);
+	if (intel_engine_has_waiter(engine)) {
+		struct task_struct *tsk;
+
+		rcu_read_lock();
+		tsk = rcu_dereference(engine->breadcrumbs.irq_seqno_bh);
+		if (tsk)
+			wakeup = wake_up_process(tsk);
+		rcu_read_unlock();
+	}
+
 	return wakeup;
 }
 
-void intel_engine_enable_fake_irq(struct intel_engine_cs *engine);
 void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine);
 unsigned int intel_kick_waiters(struct drm_i915_private *i915);
 unsigned int intel_kick_signalers(struct drm_i915_private *i915);

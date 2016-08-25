@@ -70,7 +70,7 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20160808"
+#define DRIVER_DATE		"20160822"
 
 #undef WARN_ON
 /* Many gcc seem to no see through this and fall over :( */
@@ -455,15 +455,21 @@ struct intel_opregion {
 struct intel_overlay;
 struct intel_overlay_error_state;
 
-#define I915_FENCE_REG_NONE -1
-#define I915_MAX_NUM_FENCES 32
-/* 32 fences + sign bit for FENCE_REG_NONE */
-#define I915_MAX_NUM_FENCE_BITS 6
-
 struct drm_i915_fence_reg {
-	struct list_head lru_list;
-	struct drm_i915_gem_object *obj;
+	struct list_head link;
+	struct drm_i915_private *i915;
+	struct i915_vma *vma;
 	int pin_count;
+	int id;
+	/**
+	 * Whether the tiling parameters for the currently
+	 * associated fence register have changed. Note that
+	 * for the purposes of tracking tiling changes we also
+	 * treat the unfenced register, the register slot that
+	 * the object occupies whilst it executes a fenced
+	 * command (such as BLT on gen2/3), as a "fence".
+	 */
+	bool dirty;
 };
 
 struct sdvo_device_mapping {
@@ -473,130 +479,6 @@ struct sdvo_device_mapping {
 	u8 dvo_wiring;
 	u8 i2c_pin;
 	u8 ddc_pin;
-};
-
-struct intel_display_error_state;
-
-struct drm_i915_error_state {
-	struct kref ref;
-	struct timeval time;
-
-	char error_msg[128];
-	bool simulated;
-	int iommu;
-	u32 reset_count;
-	u32 suspend_count;
-
-	/* Generic register state */
-	u32 eir;
-	u32 pgtbl_er;
-	u32 ier;
-	u32 gtier[4];
-	u32 ccid;
-	u32 derrmr;
-	u32 forcewake;
-	u32 error; /* gen6+ */
-	u32 err_int; /* gen7 */
-	u32 fault_data0; /* gen8, gen9 */
-	u32 fault_data1; /* gen8, gen9 */
-	u32 done_reg;
-	u32 gac_eco;
-	u32 gam_ecochk;
-	u32 gab_ctl;
-	u32 gfx_mode;
-	u32 extra_instdone[I915_NUM_INSTDONE_REG];
-	u64 fence[I915_MAX_NUM_FENCES];
-	struct intel_overlay_error_state *overlay;
-	struct intel_display_error_state *display;
-	struct drm_i915_error_object *semaphore_obj;
-
-	struct drm_i915_error_engine {
-		int engine_id;
-		/* Software tracked state */
-		bool waiting;
-		int num_waiters;
-		int hangcheck_score;
-		enum intel_engine_hangcheck_action hangcheck_action;
-		int num_requests;
-
-		/* our own tracking of ring head and tail */
-		u32 cpu_ring_head;
-		u32 cpu_ring_tail;
-
-		u32 last_seqno;
-		u32 semaphore_seqno[I915_NUM_ENGINES - 1];
-
-		/* Register state */
-		u32 start;
-		u32 tail;
-		u32 head;
-		u32 ctl;
-		u32 hws;
-		u32 ipeir;
-		u32 ipehr;
-		u32 instdone;
-		u32 bbstate;
-		u32 instpm;
-		u32 instps;
-		u32 seqno;
-		u64 bbaddr;
-		u64 acthd;
-		u32 fault_reg;
-		u64 faddr;
-		u32 rc_psmi; /* sleep state */
-		u32 semaphore_mboxes[I915_NUM_ENGINES - 1];
-
-		struct drm_i915_error_object {
-			int page_count;
-			u64 gtt_offset;
-			u32 *pages[0];
-		} *ringbuffer, *batchbuffer, *wa_batchbuffer, *ctx, *hws_page;
-
-		struct drm_i915_error_object *wa_ctx;
-
-		struct drm_i915_error_request {
-			long jiffies;
-			u32 seqno;
-			u32 tail;
-		} *requests;
-
-		struct drm_i915_error_waiter {
-			char comm[TASK_COMM_LEN];
-			pid_t pid;
-			u32 seqno;
-		} *waiters;
-
-		struct {
-			u32 gfx_mode;
-			union {
-				u64 pdp[4];
-				u32 pp_dir_base;
-			};
-		} vm_info;
-
-		pid_t pid;
-		char comm[TASK_COMM_LEN];
-	} engine[I915_NUM_ENGINES];
-
-	struct drm_i915_error_buffer {
-		u32 size;
-		u32 name;
-		u32 rseqno[I915_NUM_ENGINES], wseqno;
-		u64 gtt_offset;
-		u32 read_domains;
-		u32 write_domain;
-		s32 fence_reg:I915_MAX_NUM_FENCE_BITS;
-		s32 pinned:2;
-		u32 tiling:2;
-		u32 dirty:1;
-		u32 purgeable:1;
-		u32 userptr:1;
-		s32 engine:4;
-		u32 cache_level:3;
-	} **active_bo, **pinned_bo;
-
-	u32 *active_bo_count, *pinned_bo_count;
-	u32 vm_count;
 };
 
 struct intel_connector;
@@ -793,6 +675,7 @@ struct intel_device_info {
 	u8 gen;
 	u16 gen_mask;
 	u8 ring_mask; /* Rings supported by the HW */
+	u8 num_rings;
 	DEV_INFO_FOR_EACH_FLAG(DEFINE_FLAG, SEP_SEMICOLON);
 	/* Register offsets for the various display pipes and transcoders */
 	int pipe_offsets[I915_MAX_TRANSCODERS];
@@ -821,6 +704,134 @@ struct intel_device_info {
 
 #undef DEFINE_FLAG
 #undef SEP_SEMICOLON
+
+struct intel_display_error_state;
+
+struct drm_i915_error_state {
+	struct kref ref;
+	struct timeval time;
+
+	char error_msg[128];
+	bool simulated;
+	int iommu;
+	u32 reset_count;
+	u32 suspend_count;
+	struct intel_device_info device_info;
+
+	/* Generic register state */
+	u32 eir;
+	u32 pgtbl_er;
+	u32 ier;
+	u32 gtier[4];
+	u32 ccid;
+	u32 derrmr;
+	u32 forcewake;
+	u32 error; /* gen6+ */
+	u32 err_int; /* gen7 */
+	u32 fault_data0; /* gen8, gen9 */
+	u32 fault_data1; /* gen8, gen9 */
+	u32 done_reg;
+	u32 gac_eco;
+	u32 gam_ecochk;
+	u32 gab_ctl;
+	u32 gfx_mode;
+	u32 extra_instdone[I915_NUM_INSTDONE_REG];
+	u64 fence[I915_MAX_NUM_FENCES];
+	struct intel_overlay_error_state *overlay;
+	struct intel_display_error_state *display;
+	struct drm_i915_error_object *semaphore;
+
+	struct drm_i915_error_engine {
+		int engine_id;
+		/* Software tracked state */
+		bool waiting;
+		int num_waiters;
+		int hangcheck_score;
+		enum intel_engine_hangcheck_action hangcheck_action;
+		struct i915_address_space *vm;
+		int num_requests;
+
+		/* our own tracking of ring head and tail */
+		u32 cpu_ring_head;
+		u32 cpu_ring_tail;
+
+		u32 last_seqno;
+		u32 semaphore_seqno[I915_NUM_ENGINES - 1];
+
+		/* Register state */
+		u32 start;
+		u32 tail;
+		u32 head;
+		u32 ctl;
+		u32 mode;
+		u32 hws;
+		u32 ipeir;
+		u32 ipehr;
+		u32 instdone;
+		u32 bbstate;
+		u32 instpm;
+		u32 instps;
+		u32 seqno;
+		u64 bbaddr;
+		u64 acthd;
+		u32 fault_reg;
+		u64 faddr;
+		u32 rc_psmi; /* sleep state */
+		u32 semaphore_mboxes[I915_NUM_ENGINES - 1];
+
+		struct drm_i915_error_object {
+			int page_count;
+			u64 gtt_offset;
+			u64 gtt_size;
+			u32 *pages[0];
+		} *ringbuffer, *batchbuffer, *wa_batchbuffer, *ctx, *hws_page;
+
+		struct drm_i915_error_object *wa_ctx;
+
+		struct drm_i915_error_request {
+			long jiffies;
+			pid_t pid;
+			u32 seqno;
+			u32 head;
+			u32 tail;
+		} *requests;
+
+		struct drm_i915_error_waiter {
+			char comm[TASK_COMM_LEN];
+			pid_t pid;
+			u32 seqno;
+		} *waiters;
+
+		struct {
+			u32 gfx_mode;
+			union {
+				u64 pdp[4];
+				u32 pp_dir_base;
+			};
+		} vm_info;
+
+		pid_t pid;
+		char comm[TASK_COMM_LEN];
+	} engine[I915_NUM_ENGINES];
+
+	struct drm_i915_error_buffer {
+		u32 size;
+		u32 name;
+		u32 rseqno[I915_NUM_ENGINES], wseqno;
+		u64 gtt_offset;
+		u32 read_domains;
+		u32 write_domain;
+		s32 fence_reg:I915_MAX_NUM_FENCE_BITS;
+		u32 tiling:2;
+		u32 dirty:1;
+		u32 purgeable:1;
+		u32 userptr:1;
+		s32 engine:4;
+		u32 cache_level:3;
+	} *active_bo[I915_NUM_ENGINES], *pinned_bo;
+	u32 active_bo_count[I915_NUM_ENGINES], pinned_bo_count;
+	struct i915_address_space *active_vm[I915_NUM_ENGINES];
+};
 
 enum i915_cache_level {
 	I915_CACHE_NONE = 0,
@@ -878,22 +889,23 @@ struct i915_gem_context {
 	struct drm_i915_private *i915;
 	struct drm_i915_file_private *file_priv;
 	struct i915_hw_ppgtt *ppgtt;
+	struct pid *pid;
 
 	struct i915_ctx_hang_stats hang_stats;
 
-	/* Unique identifier for this context, used by the hw for tracking */
 	unsigned long flags;
 #define CONTEXT_NO_ZEROMAP		BIT(0)
 #define CONTEXT_NO_ERROR_CAPTURE	BIT(1)
-	unsigned hw_id;
+
+	/* Unique identifier for this context, used by the hw for tracking */
+	unsigned int hw_id;
 	u32 user_handle;
 
 	u32 ggtt_alignment;
 
 	struct intel_context {
-		struct drm_i915_gem_object *state;
+		struct i915_vma *state;
 		struct intel_ring *ring;
-		struct i915_vma *lrc_vma;
 		uint32_t *lrc_reg_state;
 		u64 lrc_desc;
 		int pin_count;
@@ -1061,13 +1073,6 @@ struct intel_gmbus {
 
 struct i915_suspend_saved_registers {
 	u32 saveDSPARB;
-	u32 saveLVDS;
-	u32 savePP_ON_DELAYS;
-	u32 savePP_OFF_DELAYS;
-	u32 savePP_ON;
-	u32 savePP_OFF;
-	u32 savePP_CONTROL;
-	u32 savePP_DIVISOR;
 	u32 saveFBC_CONTROL;
 	u32 saveCACHE_MODE_0;
 	u32 saveMI_ARB_STATE;
@@ -1749,12 +1754,14 @@ struct drm_i915_private {
 
 	uint32_t psr_mmio_base;
 
+	uint32_t pps_mmio_base;
+
 	wait_queue_head_t gmbus_wait_queue;
 
 	struct pci_dev *bridge_dev;
 	struct i915_gem_context *kernel_context;
 	struct intel_engine_cs engine[I915_NUM_ENGINES];
-	struct drm_i915_gem_object *semaphore_obj;
+	struct i915_vma *semaphore;
 	u32 next_seqno;
 
 	struct drm_dma_handle *status_page_dmah;
@@ -1840,6 +1847,7 @@ struct drm_i915_private {
 	enum modeset_restore modeset_restore;
 	struct mutex modeset_restore_lock;
 	struct drm_atomic_state *modeset_restore_state;
+	struct drm_modeset_acquire_ctx reset_ctx;
 
 	struct list_head vm_list; /* Global list of all address spaces */
 	struct i915_ggtt ggtt; /* VM representing the global address space */
@@ -2171,31 +2179,9 @@ struct drm_i915_gem_object {
 	unsigned int dirty:1;
 
 	/**
-	 * Fence register bits (if any) for this object.  Will be set
-	 * as needed when mapped into the GTT.
-	 * Protected by dev->struct_mutex.
-	 */
-	signed int fence_reg:I915_MAX_NUM_FENCE_BITS;
-
-	/**
 	 * Advice: are the backing pages purgeable?
 	 */
 	unsigned int madv:2;
-
-	/**
-	 * Whether the tiling parameters for the currently associated fence
-	 * register have changed. Note that for the purposes of tracking
-	 * tiling changes we also treat the unfenced register, the register
-	 * slot that the object occupies whilst it executes a fenced
-	 * command (such as BLT on gen2/3), as a "fence".
-	 */
-	unsigned int fence_dirty:1;
-
-	/**
-	 * Is the object at the current location in the gtt mappable and
-	 * fenceable? Used to avoid costly recalculations.
-	 */
-	unsigned int map_and_fenceable:1;
 
 	/**
 	 * Whether the current gtt mapping needs to be mappable (and isn't just
@@ -2213,6 +2199,7 @@ struct drm_i915_gem_object {
 	unsigned int cache_dirty:1;
 
 	atomic_t frontbuffer_bits;
+	unsigned int frontbuffer_ggtt_origin; /* write once */
 
 	/** Current tiling stride for the object, if it's tiled. */
 	unsigned int tiling_and_stride;
@@ -2220,7 +2207,6 @@ struct drm_i915_gem_object {
 #define TILING_MASK (FENCE_MINIMUM_STRIDE-1)
 #define STRIDE_MASK (~TILING_MASK)
 
-	unsigned int has_wc_mmap;
 	/** Count of VMA actually bound by this object */
 	unsigned int bind_count;
 	unsigned int pin_display;
@@ -2245,7 +2231,6 @@ struct drm_i915_gem_object {
 	 */
 	struct i915_gem_active last_read[I915_NUM_ENGINES];
 	struct i915_gem_active last_write;
-	struct i915_gem_active last_fence;
 
 	/** References from framebuffers, locks out tiling changes. */
 	unsigned long framebuffer_references;
@@ -2373,6 +2358,18 @@ static inline unsigned int
 i915_gem_object_get_stride(struct drm_i915_gem_object *obj)
 {
 	return obj->tiling_and_stride & STRIDE_MASK;
+}
+
+static inline struct i915_vma *i915_vma_get(struct i915_vma *vma)
+{
+	i915_gem_object_get(vma->obj);
+	return vma;
+}
+
+static inline void i915_vma_put(struct i915_vma *vma)
+{
+	lockdep_assert_held(&vma->vm->dev->struct_mutex);
+	i915_gem_object_put(vma->obj);
 }
 
 /*
@@ -3066,7 +3063,7 @@ struct drm_i915_gem_object *i915_gem_object_create_from_data(
 void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file);
 void i915_gem_free_object(struct drm_gem_object *obj);
 
-int __must_check
+struct i915_vma * __must_check
 i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 			 const struct i915_ggtt_view *view,
 			 u64 size,
@@ -3084,9 +3081,6 @@ int i915_gem_object_unbind(struct drm_i915_gem_object *obj);
 int i915_gem_object_put_pages(struct drm_i915_gem_object *obj);
 void i915_gem_release_all_mmaps(struct drm_i915_private *dev_priv);
 void i915_gem_release_mmap(struct drm_i915_gem_object *obj);
-
-int i915_gem_obj_prepare_shmem_read(struct drm_i915_gem_object *obj,
-				    int *needs_clflush);
 
 int __must_check i915_gem_object_get_pages(struct drm_i915_gem_object *obj);
 
@@ -3147,13 +3141,20 @@ static inline void i915_gem_object_unpin_pages(struct drm_i915_gem_object *obj)
 	obj->pages_pin_count--;
 }
 
+enum i915_map_type {
+	I915_MAP_WB = 0,
+	I915_MAP_WC,
+};
+
 /**
  * i915_gem_object_pin_map - return a contiguous mapping of the entire object
  * @obj - the object to map into kernel address space
+ * @type - the type of mapping, used to select pgprot_t
  *
  * Calls i915_gem_object_pin_pages() to prevent reaping of the object's
  * pages and then returns a contiguous mapping of the backing storage into
- * the kernel address space.
+ * the kernel address space. Based on the @type of mapping, the PTE will be
+ * set to either WriteBack or WriteCombine (via pgprot_t).
  *
  * The caller must hold the struct_mutex, and is responsible for calling
  * i915_gem_object_unpin_map() when the mapping is no longer required.
@@ -3161,7 +3162,8 @@ static inline void i915_gem_object_unpin_pages(struct drm_i915_gem_object *obj)
  * Returns the pointer through which to access the mapped object, or an
  * ERR_PTR() on error.
  */
-void *__must_check i915_gem_object_pin_map(struct drm_i915_gem_object *obj);
+void *__must_check i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
+					   enum i915_map_type type);
 
 /**
  * i915_gem_object_unpin_map - releases an earlier mapping
@@ -3177,6 +3179,20 @@ void *__must_check i915_gem_object_pin_map(struct drm_i915_gem_object *obj);
 static inline void i915_gem_object_unpin_map(struct drm_i915_gem_object *obj)
 {
 	lockdep_assert_held(&obj->base.dev->struct_mutex);
+	i915_gem_object_unpin_pages(obj);
+}
+
+int i915_gem_obj_prepare_shmem_read(struct drm_i915_gem_object *obj,
+				    unsigned int *needs_clflush);
+int i915_gem_obj_prepare_shmem_write(struct drm_i915_gem_object *obj,
+				     unsigned int *needs_clflush);
+#define CLFLUSH_BEFORE 0x1
+#define CLFLUSH_AFTER 0x2
+#define CLFLUSH_FLAGS (CLFLUSH_BEFORE | CLFLUSH_AFTER)
+
+static inline void
+i915_gem_obj_finish_shmem_access(struct drm_i915_gem_object *obj)
+{
 	i915_gem_object_unpin_pages(obj);
 }
 
@@ -3262,12 +3278,11 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj,
 				  bool write);
 int __must_check
 i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write);
-int __must_check
+struct i915_vma * __must_check
 i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 				     u32 alignment,
 				     const struct i915_ggtt_view *view);
-void i915_gem_object_unpin_from_display_plane(struct drm_i915_gem_object *obj,
-					      const struct i915_ggtt_view *view);
+void i915_gem_object_unpin_from_display_plane(struct i915_vma *vma);
 int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj,
 				int align);
 int i915_gem_open(struct drm_device *dev, struct drm_file *file);
@@ -3287,71 +3302,81 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
 				struct drm_gem_object *gem_obj, int flags);
 
-u64 i915_gem_obj_ggtt_offset_view(struct drm_i915_gem_object *o,
-				  const struct i915_ggtt_view *view);
-u64 i915_gem_obj_offset(struct drm_i915_gem_object *o,
-			struct i915_address_space *vm);
-static inline u64
-i915_gem_obj_ggtt_offset(struct drm_i915_gem_object *o)
-{
-	return i915_gem_obj_ggtt_offset_view(o, &i915_ggtt_view_normal);
-}
-
-bool i915_gem_obj_ggtt_bound_view(struct drm_i915_gem_object *o,
-				  const struct i915_ggtt_view *view);
-bool i915_gem_obj_bound(struct drm_i915_gem_object *o,
-			struct i915_address_space *vm);
-
 struct i915_vma *
 i915_gem_obj_to_vma(struct drm_i915_gem_object *obj,
-		    struct i915_address_space *vm);
-struct i915_vma *
-i915_gem_obj_to_ggtt_view(struct drm_i915_gem_object *obj,
-			  const struct i915_ggtt_view *view);
+		     struct i915_address_space *vm,
+		     const struct i915_ggtt_view *view);
 
 struct i915_vma *
 i915_gem_obj_lookup_or_create_vma(struct drm_i915_gem_object *obj,
-				  struct i915_address_space *vm);
-struct i915_vma *
-i915_gem_obj_lookup_or_create_ggtt_vma(struct drm_i915_gem_object *obj,
-				       const struct i915_ggtt_view *view);
+				  struct i915_address_space *vm,
+				  const struct i915_ggtt_view *view);
 
-static inline struct i915_vma *
-i915_gem_obj_to_ggtt(struct drm_i915_gem_object *obj)
-{
-	return i915_gem_obj_to_ggtt_view(obj, &i915_ggtt_view_normal);
-}
-bool i915_gem_obj_is_pinned(struct drm_i915_gem_object *obj);
-
-/* Some GGTT VM helpers */
 static inline struct i915_hw_ppgtt *
 i915_vm_to_ppgtt(struct i915_address_space *vm)
 {
 	return container_of(vm, struct i915_hw_ppgtt, base);
 }
 
-static inline bool i915_gem_obj_ggtt_bound(struct drm_i915_gem_object *obj)
+static inline struct i915_vma *
+i915_gem_object_to_ggtt(struct drm_i915_gem_object *obj,
+			const struct i915_ggtt_view *view)
 {
-	return i915_gem_obj_ggtt_bound_view(obj, &i915_ggtt_view_normal);
+	return i915_gem_obj_to_vma(obj, &to_i915(obj->base.dev)->ggtt.base, view);
 }
 
-unsigned long
-i915_gem_obj_ggtt_size(struct drm_i915_gem_object *obj);
-
-void i915_gem_object_ggtt_unpin_view(struct drm_i915_gem_object *obj,
-				     const struct i915_ggtt_view *view);
-static inline void
-i915_gem_object_ggtt_unpin(struct drm_i915_gem_object *obj)
+static inline unsigned long
+i915_gem_object_ggtt_offset(struct drm_i915_gem_object *o,
+			    const struct i915_ggtt_view *view)
 {
-	i915_gem_object_ggtt_unpin_view(obj, &i915_ggtt_view_normal);
+	return i915_ggtt_offset(i915_gem_object_to_ggtt(o, view));
 }
 
 /* i915_gem_fence.c */
-int __must_check i915_gem_object_get_fence(struct drm_i915_gem_object *obj);
-int __must_check i915_gem_object_put_fence(struct drm_i915_gem_object *obj);
+int __must_check i915_vma_get_fence(struct i915_vma *vma);
+int __must_check i915_vma_put_fence(struct i915_vma *vma);
 
-bool i915_gem_object_pin_fence(struct drm_i915_gem_object *obj);
-void i915_gem_object_unpin_fence(struct drm_i915_gem_object *obj);
+/**
+ * i915_vma_pin_fence - pin fencing state
+ * @vma: vma to pin fencing for
+ *
+ * This pins the fencing state (whether tiled or untiled) to make sure the
+ * vma (and its object) is ready to be used as a scanout target. Fencing
+ * status must be synchronize first by calling i915_vma_get_fence():
+ *
+ * The resulting fence pin reference must be released again with
+ * i915_vma_unpin_fence().
+ *
+ * Returns:
+ *
+ * True if the vma has a fence, false otherwise.
+ */
+static inline bool
+i915_vma_pin_fence(struct i915_vma *vma)
+{
+	if (vma->fence) {
+		vma->fence->pin_count++;
+		return true;
+	} else
+		return false;
+}
+
+/**
+ * i915_vma_unpin_fence - unpin fencing state
+ * @vma: vma to unpin fencing for
+ *
+ * This releases the fence pin reference acquired through
+ * i915_vma_pin_fence. It will handle both objects with and without an
+ * attached fence correctly, callers do not need to distinguish this.
+ */
+static inline void
+i915_vma_unpin_fence(struct i915_vma *vma)
+{
+	if (vma->fence) {
+		GEM_BUG_ON(vma->fence->pin_count <= 0);
+		vma->fence->pin_count--;
+	}
+}
 
 void i915_gem_restore_fences(struct drm_device *dev);
 
@@ -3429,6 +3454,7 @@ int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle);
 /* belongs in i915_gem_gtt.h */
 static inline void i915_gem_chipset_flush(struct drm_i915_private *dev_priv)
 {
+	wmb();
 	if (INTEL_GEN(dev_priv) < 6)
 		intel_gtt_chipset_flush();
 }
@@ -3516,7 +3542,7 @@ const char *i915_cache_level_str(struct drm_i915_private *i915, int type);
 
 /* i915_cmd_parser.c */
 int i915_cmd_parser_get_version(struct drm_i915_private *dev_priv);
-int intel_engine_init_cmd_parser(struct intel_engine_cs *engine);
+void intel_engine_init_cmd_parser(struct intel_engine_cs *engine);
 void intel_engine_cleanup_cmd_parser(struct intel_engine_cs *engine);
 bool intel_engine_needs_cmd_parser(struct intel_engine_cs *engine);
 int intel_engine_cmd_parser(struct intel_engine_cs *engine,
@@ -3848,7 +3874,7 @@ static inline bool __i915_request_irq_complete(struct drm_i915_gem_request *req)
 	 * is woken.
 	 */
 	if (engine->irq_seqno_barrier &&
-	    READ_ONCE(engine->breadcrumbs.irq_seqno_bh) == current &&
+	    rcu_access_pointer(engine->breadcrumbs.irq_seqno_bh) == current &&
 	    cmpxchg_relaxed(&engine->breadcrumbs.irq_posted, 1, 0)) {
 		struct task_struct *tsk;
 
@@ -3873,7 +3899,7 @@ static inline bool __i915_request_irq_complete(struct drm_i915_gem_request *req)
 		 * irq_posted == false but we are still running).
 		 */
 		rcu_read_lock();
-		tsk = READ_ONCE(engine->breadcrumbs.irq_seqno_bh);
+		tsk = rcu_dereference(engine->breadcrumbs.irq_seqno_bh);
 		if (tsk && tsk != current)
 			/* Note that if the bottom-half is changed as we
 			 * are sending the wake-up, the new bottom-half will
@@ -3901,5 +3927,33 @@ static inline bool __i915_request_irq_complete(struct drm_i915_gem_request *req)
 
 	return false;
 }
+
+void i915_memcpy_init_early(struct drm_i915_private *dev_priv);
+bool i915_memcpy_from_wc(void *dst, const void *src, unsigned long len);
+
+/* i915_mm.c */
+int remap_io_mapping(struct vm_area_struct *vma,
+		     unsigned long addr, unsigned long pfn, unsigned long size,
+		     struct io_mapping *iomap);
+
+#define ptr_mask_bits(ptr) ({						\
+	unsigned long __v = (unsigned long)(ptr);			\
+	(typeof(ptr))(__v & PAGE_MASK);					\
+})
+
+#define ptr_unpack_bits(ptr, bits) ({					\
+	unsigned long __v = (unsigned long)(ptr);			\
+	(bits) = __v & ~PAGE_MASK;					\
+	(typeof(ptr))(__v & PAGE_MASK);					\
+})
+
+#define ptr_pack_bits(ptr, bits)					\
+	((typeof(ptr))((unsigned long)(ptr) | (bits)))
+
+#define fetch_and_zero(ptr) ({						\
+	typeof(*ptr) __T = *(ptr);					\
+	*(ptr) = (typeof(*ptr))0;					\
+	__T;								\
+})
 
 #endif

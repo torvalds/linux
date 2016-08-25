@@ -317,16 +317,11 @@ static phys_addr_t __init i85x_stolen_base(int num, int slot, int func,
 static phys_addr_t __init i865_stolen_base(int num, int slot, int func,
 					   size_t stolen_size)
 {
-	u16 toud;
+	u16 toud = 0;
 
-	/*
-	 * FIXME is the graphics stolen memory region
-	 * always at TOUD? Ie. is it always the last
-	 * one to be allocated by the BIOS?
-	 */
 	toud = read_pci_config_16(0, 0, 0, I865_TOUD);
 
-	return (phys_addr_t)toud << 16;
+	return (phys_addr_t)(toud << 16) + i845_tseg_size();
 }
 
 static phys_addr_t __init gen3_stolen_base(int num, int slot, int func,

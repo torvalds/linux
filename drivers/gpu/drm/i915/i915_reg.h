@@ -3660,8 +3660,17 @@ enum {
 #define   VIDEO_DIP_ENABLE_SPD_HSW	(1 << 0)
 
 /* Panel power sequencing */
-#define PP_STATUS	_MMIO(0x61200)
-#define   PP_ON		(1 << 31)
+#define PPS_BASE			0x61200
+#define VLV_PPS_BASE			(VLV_DISPLAY_BASE + PPS_BASE)
+#define PCH_PPS_BASE			0xC7200
+
+#define _MMIO_PPS(pps_idx, reg)		_MMIO(dev_priv->pps_mmio_base -	\
+					      PPS_BASE + (reg) +	\
+					      (pps_idx) * 0x100)
+
+#define _PP_STATUS			0x61200
+#define PP_STATUS(pps_idx)		_MMIO_PPS(pps_idx, _PP_STATUS)
+#define   PP_ON				(1 << 31)
 /*
  * Indicates that all dependencies of the panel are on:
  *
@@ -3669,14 +3678,14 @@ enum {
  * - pipe enabled
  * - LVDS/DVOB/DVOC on
  */
-#define   PP_READY		(1 << 30)
-#define   PP_SEQUENCE_NONE	(0 << 28)
-#define   PP_SEQUENCE_POWER_UP	(1 << 28)
-#define   PP_SEQUENCE_POWER_DOWN (2 << 28)
-#define   PP_SEQUENCE_MASK	(3 << 28)
-#define   PP_SEQUENCE_SHIFT	28
-#define   PP_CYCLE_DELAY_ACTIVE	(1 << 27)
-#define   PP_SEQUENCE_STATE_MASK 0x0000000f
+#define   PP_READY			(1 << 30)
+#define   PP_SEQUENCE_NONE		(0 << 28)
+#define   PP_SEQUENCE_POWER_UP		(1 << 28)
+#define   PP_SEQUENCE_POWER_DOWN	(2 << 28)
+#define   PP_SEQUENCE_MASK		(3 << 28)
+#define   PP_SEQUENCE_SHIFT		28
+#define   PP_CYCLE_DELAY_ACTIVE		(1 << 27)
+#define   PP_SEQUENCE_STATE_MASK	0x0000000f
 #define   PP_SEQUENCE_STATE_OFF_IDLE	(0x0 << 0)
 #define   PP_SEQUENCE_STATE_OFF_S0_1	(0x1 << 0)
 #define   PP_SEQUENCE_STATE_OFF_S0_2	(0x2 << 0)
@@ -3686,11 +3695,46 @@ enum {
 #define   PP_SEQUENCE_STATE_ON_S1_2	(0xa << 0)
 #define   PP_SEQUENCE_STATE_ON_S1_3	(0xb << 0)
 #define   PP_SEQUENCE_STATE_RESET	(0xf << 0)
-#define PP_CONTROL	_MMIO(0x61204)
-#define   POWER_TARGET_ON	(1 << 0)
-#define PP_ON_DELAYS	_MMIO(0x61208)
-#define PP_OFF_DELAYS	_MMIO(0x6120c)
-#define PP_DIVISOR	_MMIO(0x61210)
+
+#define _PP_CONTROL			0x61204
+#define PP_CONTROL(pps_idx)		_MMIO_PPS(pps_idx, _PP_CONTROL)
+#define  PANEL_UNLOCK_REGS		(0xabcd << 16)
+#define  PANEL_UNLOCK_MASK		(0xffff << 16)
+#define  BXT_POWER_CYCLE_DELAY_MASK	0x1f0
+#define  BXT_POWER_CYCLE_DELAY_SHIFT	4
+#define  EDP_FORCE_VDD			(1 << 3)
+#define  EDP_BLC_ENABLE			(1 << 2)
+#define  PANEL_POWER_RESET		(1 << 1)
+#define  PANEL_POWER_OFF		(0 << 0)
+#define  PANEL_POWER_ON			(1 << 0)
+
+#define _PP_ON_DELAYS			0x61208
+#define PP_ON_DELAYS(pps_idx)		_MMIO_PPS(pps_idx, _PP_ON_DELAYS)
+#define  PANEL_PORT_SELECT_SHIFT	30
+#define  PANEL_PORT_SELECT_MASK		(3 << 30)
+#define  PANEL_PORT_SELECT_LVDS		(0 << 30)
+#define  PANEL_PORT_SELECT_DPA		(1 << 30)
+#define  PANEL_PORT_SELECT_DPC		(2 << 30)
+#define  PANEL_PORT_SELECT_DPD		(3 << 30)
+#define  PANEL_PORT_SELECT_VLV(port)	((port) << 30)
+#define  PANEL_POWER_UP_DELAY_MASK	0x1fff0000
+#define  PANEL_POWER_UP_DELAY_SHIFT	16
+#define  PANEL_LIGHT_ON_DELAY_MASK	0x1fff
+#define  PANEL_LIGHT_ON_DELAY_SHIFT	0
+
+#define _PP_OFF_DELAYS			0x6120C
+#define PP_OFF_DELAYS(pps_idx)		_MMIO_PPS(pps_idx, _PP_OFF_DELAYS)
+#define  PANEL_POWER_DOWN_DELAY_MASK	0x1fff0000
+#define  PANEL_POWER_DOWN_DELAY_SHIFT	16
+#define  PANEL_LIGHT_OFF_DELAY_MASK	0x1fff
+#define  PANEL_LIGHT_OFF_DELAY_SHIFT	0
+
+#define _PP_DIVISOR			0x61210
+#define PP_DIVISOR(pps_idx)		_MMIO_PPS(pps_idx, _PP_DIVISOR)
+#define  PP_REFERENCE_DIVIDER_MASK	0xffffff00
+#define  PP_REFERENCE_DIVIDER_SHIFT	8
+#define  PANEL_POWER_CYCLE_DELAY_MASK	0x1f
+#define  PANEL_POWER_CYCLE_DELAY_SHIFT	0
 
 /* Panel fitting */
 #define PFIT_CONTROL	_MMIO(dev_priv->info.display_mmio_offset + 0x61230)
@@ -6750,77 +6794,6 @@ enum {
 #define PCH_LVDS	_MMIO(0xe1180)
 #define  LVDS_DETECTED	(1 << 1)
 
-/* vlv has 2 sets of panel control regs. */
-#define _PIPEA_PP_STATUS         (VLV_DISPLAY_BASE + 0x61200)
-#define _PIPEA_PP_CONTROL        (VLV_DISPLAY_BASE + 0x61204)
-#define _PIPEA_PP_ON_DELAYS      (VLV_DISPLAY_BASE + 0x61208)
-#define  PANEL_PORT_SELECT_VLV(port)	((port) << 30)
-#define _PIPEA_PP_OFF_DELAYS     (VLV_DISPLAY_BASE + 0x6120c)
-#define _PIPEA_PP_DIVISOR        (VLV_DISPLAY_BASE + 0x61210)
-
-#define _PIPEB_PP_STATUS         (VLV_DISPLAY_BASE + 0x61300)
-#define _PIPEB_PP_CONTROL        (VLV_DISPLAY_BASE + 0x61304)
-#define _PIPEB_PP_ON_DELAYS      (VLV_DISPLAY_BASE + 0x61308)
-#define _PIPEB_PP_OFF_DELAYS     (VLV_DISPLAY_BASE + 0x6130c)
-#define _PIPEB_PP_DIVISOR        (VLV_DISPLAY_BASE + 0x61310)
-
-#define VLV_PIPE_PP_STATUS(pipe)	_MMIO_PIPE(pipe, _PIPEA_PP_STATUS, _PIPEB_PP_STATUS)
-#define VLV_PIPE_PP_CONTROL(pipe)	_MMIO_PIPE(pipe, _PIPEA_PP_CONTROL, _PIPEB_PP_CONTROL)
-#define VLV_PIPE_PP_ON_DELAYS(pipe)	_MMIO_PIPE(pipe, _PIPEA_PP_ON_DELAYS, _PIPEB_PP_ON_DELAYS)
-#define VLV_PIPE_PP_OFF_DELAYS(pipe)	_MMIO_PIPE(pipe, _PIPEA_PP_OFF_DELAYS, _PIPEB_PP_OFF_DELAYS)
-#define VLV_PIPE_PP_DIVISOR(pipe)	_MMIO_PIPE(pipe, _PIPEA_PP_DIVISOR, _PIPEB_PP_DIVISOR)
-
-#define _PCH_PP_STATUS		0xc7200
-#define _PCH_PP_CONTROL		0xc7204
-#define  PANEL_UNLOCK_REGS	(0xabcd << 16)
-#define  PANEL_UNLOCK_MASK	(0xffff << 16)
-#define  BXT_POWER_CYCLE_DELAY_MASK	(0x1f0)
-#define  BXT_POWER_CYCLE_DELAY_SHIFT	4
-#define  EDP_FORCE_VDD		(1 << 3)
-#define  EDP_BLC_ENABLE		(1 << 2)
-#define  PANEL_POWER_RESET	(1 << 1)
-#define  PANEL_POWER_OFF	(0 << 0)
-#define  PANEL_POWER_ON		(1 << 0)
-#define _PCH_PP_ON_DELAYS	0xc7208
-#define  PANEL_PORT_SELECT_MASK	(3 << 30)
-#define  PANEL_PORT_SELECT_LVDS	(0 << 30)
-#define  PANEL_PORT_SELECT_DPA	(1 << 30)
-#define  PANEL_PORT_SELECT_DPC	(2 << 30)
-#define  PANEL_PORT_SELECT_DPD	(3 << 30)
-#define  PANEL_POWER_UP_DELAY_MASK	(0x1fff0000)
-#define  PANEL_POWER_UP_DELAY_SHIFT	16
-#define  PANEL_LIGHT_ON_DELAY_MASK	(0x1fff)
-#define  PANEL_LIGHT_ON_DELAY_SHIFT	0
-
-#define _PCH_PP_OFF_DELAYS		0xc720c
-#define  PANEL_POWER_DOWN_DELAY_MASK	(0x1fff0000)
-#define  PANEL_POWER_DOWN_DELAY_SHIFT	16
-#define  PANEL_LIGHT_OFF_DELAY_MASK	(0x1fff)
-#define  PANEL_LIGHT_OFF_DELAY_SHIFT	0
-
-#define _PCH_PP_DIVISOR			0xc7210
-#define  PP_REFERENCE_DIVIDER_MASK	(0xffffff00)
-#define  PP_REFERENCE_DIVIDER_SHIFT	8
-#define  PANEL_POWER_CYCLE_DELAY_MASK	(0x1f)
-#define  PANEL_POWER_CYCLE_DELAY_SHIFT	0
-
-#define PCH_PP_STATUS			_MMIO(_PCH_PP_STATUS)
-#define PCH_PP_CONTROL			_MMIO(_PCH_PP_CONTROL)
-#define PCH_PP_ON_DELAYS		_MMIO(_PCH_PP_ON_DELAYS)
-#define PCH_PP_OFF_DELAYS		_MMIO(_PCH_PP_OFF_DELAYS)
-#define PCH_PP_DIVISOR			_MMIO(_PCH_PP_DIVISOR)
-
-/* BXT PPS changes - 2nd set of PPS registers */
-#define _BXT_PP_STATUS2 	0xc7300
-#define _BXT_PP_CONTROL2 	0xc7304
-#define _BXT_PP_ON_DELAYS2	0xc7308
-#define _BXT_PP_OFF_DELAYS2	0xc730c
-
-#define BXT_PP_STATUS(n)	_MMIO_PIPE(n, _PCH_PP_STATUS, _BXT_PP_STATUS2)
-#define BXT_PP_CONTROL(n)	_MMIO_PIPE(n, _PCH_PP_CONTROL, _BXT_PP_CONTROL2)
-#define BXT_PP_ON_DELAYS(n)	_MMIO_PIPE(n, _PCH_PP_ON_DELAYS, _BXT_PP_ON_DELAYS2)
-#define BXT_PP_OFF_DELAYS(n)	_MMIO_PIPE(n, _PCH_PP_OFF_DELAYS, _BXT_PP_OFF_DELAYS2)
-
 #define _PCH_DP_B		0xe4100
 #define PCH_DP_B		_MMIO(_PCH_DP_B)
 #define _PCH_DPB_AUX_CH_CTL	0xe4110
@@ -7063,12 +7036,13 @@ enum {
 #define GEN6_RP_UP_THRESHOLD			_MMIO(0xA02C)
 #define GEN6_RP_DOWN_THRESHOLD			_MMIO(0xA030)
 #define GEN6_RP_CUR_UP_EI			_MMIO(0xA050)
-#define   GEN6_CURICONT_MASK			0xffffff
+#define   GEN6_RP_EI_MASK			0xffffff
+#define   GEN6_CURICONT_MASK			GEN6_RP_EI_MASK
 #define GEN6_RP_CUR_UP				_MMIO(0xA054)
-#define   GEN6_CURBSYTAVG_MASK			0xffffff
+#define   GEN6_CURBSYTAVG_MASK			GEN6_RP_EI_MASK
 #define GEN6_RP_PREV_UP				_MMIO(0xA058)
 #define GEN6_RP_CUR_DOWN_EI			_MMIO(0xA05C)
-#define   GEN6_CURIAVG_MASK			0xffffff
+#define   GEN6_CURIAVG_MASK			GEN6_RP_EI_MASK
 #define GEN6_RP_CUR_DOWN			_MMIO(0xA060)
 #define GEN6_RP_PREV_DOWN			_MMIO(0xA064)
 #define GEN6_RP_UP_EI				_MMIO(0xA068)

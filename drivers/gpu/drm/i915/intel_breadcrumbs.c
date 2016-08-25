@@ -26,6 +26,40 @@
 
 #include "i915_drv.h"
 
+static void intel_breadcrumbs_hangcheck(unsigned long data)
+{
+	struct intel_engine_cs *engine = (struct intel_engine_cs *)data;
+	struct intel_breadcrumbs *b = &engine->breadcrumbs;
+
+	if (!b->irq_enabled)
+		return;
+
+	if (time_before(jiffies, b->timeout)) {
+		mod_timer(&b->hangcheck, b->timeout);
+		return;
+	}
+
+	DRM_DEBUG("Hangcheck timer elapsed... %s idle\n", engine->name);
+	set_bit(engine->id, &engine->i915->gpu_error.missed_irq_rings);
+	mod_timer(&engine->breadcrumbs.fake_irq, jiffies + 1);
+
+	/* Ensure that even if the GPU hangs, we get woken up.
+	 *
+	 * However, note that if no one is waiting, we never notice
+	 * a gpu hang. Eventually, we will have to wait for a resource
+	 * held by the GPU and so trigger a hangcheck. In the most
+	 * pathological case, this will be upon memory starvation! To
+	 * prevent this, we also queue the hangcheck from the retire
+	 * worker.
+	 */
+	i915_queue_hangcheck(engine->i915);
+}
+
+static unsigned long wait_timeout(void)
+{
+	return round_jiffies_up(jiffies + DRM_I915_HANGCHECK_JIFFIES);
+}
+
 static void intel_breadcrumbs_fake_irq(unsigned long data)
 {
 	struct intel_engine_cs *engine = (struct intel_engine_cs *)data;
@@ -37,10 +71,8 @@ static void intel_breadcrumbs_fake_irq(unsigned long data)
 	 * every jiffie in order to kick the oldest waiter to do the
 	 * coherent seqno check.
 	 */
-	rcu_read_lock();
 	if (intel_engine_wakeup(engine))
 		mod_timer(&engine->breadcrumbs.fake_irq, jiffies + 1);
-	rcu_read_unlock();
 }
 
 static void irq_enable(struct intel_engine_cs *engine)
@@ -50,13 +82,6 @@ static void irq_enable(struct intel_engine_cs *engine)
 	 * just in case.
 	 */
 	engine->breadcrumbs.irq_posted = true;
-
-	/* Make sure the current hangcheck doesn't falsely accuse a just
-	 * started irq handler from missing an interrupt (because the
-	 * interrupt count still matches the stale value from when
-	 * the irq handler was disabled, many hangchecks ago).
-	 */
-	engine->breadcrumbs.irq_wakeups++;
 
 	spin_lock_irq(&engine->i915->irq_lock);
 	engine->irq_enable(engine);
@@ -98,17 +123,13 @@ static void __intel_breadcrumbs_enable_irq(struct intel_breadcrumbs *b)
 	}
 
 	if (!b->irq_enabled ||
-	    test_bit(engine->id, &i915->gpu_error.missed_irq_rings))
+	    test_bit(engine->id, &i915->gpu_error.missed_irq_rings)) {
 		mod_timer(&b->fake_irq, jiffies + 1);
-
-	/* Ensure that even if the GPU hangs, we get woken up.
-	 *
-	 * However, note that if no one is waiting, we never notice
-	 * a gpu hang. Eventually, we will have to wait for a resource
-	 * held by the GPU and so trigger a hangcheck. In the most
-	 * pathological case, this will be upon memory starvation!
-	 */
-	i915_queue_hangcheck(i915);
+	} else {
+		/* Ensure we never sleep indefinitely */
+		GEM_BUG_ON(!time_after(b->timeout, jiffies));
+		mod_timer(&b->hangcheck, b->timeout);
+	}
 }
 
 static void __intel_breadcrumbs_disable_irq(struct intel_breadcrumbs *b)
@@ -211,7 +232,7 @@ static bool __intel_engine_add_wait(struct intel_engine_cs *engine,
 	}
 	rb_link_node(&wait->node, parent, p);
 	rb_insert_color(&wait->node, &b->waiters);
-	GEM_BUG_ON(!first && !b->irq_seqno_bh);
+	GEM_BUG_ON(!first && !rcu_access_pointer(b->irq_seqno_bh));
 
 	if (completed) {
 		struct rb_node *next = rb_next(completed);
@@ -219,8 +240,9 @@ static bool __intel_engine_add_wait(struct intel_engine_cs *engine,
 		GEM_BUG_ON(!next && !first);
 		if (next && next != &wait->node) {
 			GEM_BUG_ON(first);
+			b->timeout = wait_timeout();
 			b->first_wait = to_wait(next);
-			smp_store_mb(b->irq_seqno_bh, b->first_wait->tsk);
+			rcu_assign_pointer(b->irq_seqno_bh, b->first_wait->tsk);
 			/* As there is a delay between reading the current
 			 * seqno, processing the completed tasks and selecting
 			 * the next waiter, we may have missed the interrupt
@@ -245,8 +267,9 @@ static bool __intel_engine_add_wait(struct intel_engine_cs *engine,
 
 	if (first) {
 		GEM_BUG_ON(rb_first(&b->waiters) != &wait->node);
+		b->timeout = wait_timeout();
 		b->first_wait = wait;
-		smp_store_mb(b->irq_seqno_bh, wait->tsk);
+		rcu_assign_pointer(b->irq_seqno_bh, wait->tsk);
 		/* After assigning ourselves as the new bottom-half, we must
 		 * perform a cursory check to prevent a missed interrupt.
 		 * Either we miss the interrupt whilst programming the hardware,
@@ -257,7 +280,7 @@ static bool __intel_engine_add_wait(struct intel_engine_cs *engine,
 		 */
 		__intel_breadcrumbs_enable_irq(b);
 	}
-	GEM_BUG_ON(!b->irq_seqno_bh);
+	GEM_BUG_ON(!rcu_access_pointer(b->irq_seqno_bh));
 	GEM_BUG_ON(!b->first_wait);
 	GEM_BUG_ON(rb_first(&b->waiters) != &b->first_wait->node);
 
@@ -275,11 +298,6 @@ bool intel_engine_add_wait(struct intel_engine_cs *engine,
 	spin_unlock(&b->lock);
 
 	return first;
-}
-
-void intel_engine_enable_fake_irq(struct intel_engine_cs *engine)
-{
-	mod_timer(&engine->breadcrumbs.fake_irq, jiffies + 1);
 }
 
 static inline bool chain_wakeup(struct rb_node *rb, int priority)
@@ -317,7 +335,7 @@ void intel_engine_remove_wait(struct intel_engine_cs *engine,
 		const int priority = wakeup_priority(b, wait->tsk);
 		struct rb_node *next;
 
-		GEM_BUG_ON(b->irq_seqno_bh != wait->tsk);
+		GEM_BUG_ON(rcu_access_pointer(b->irq_seqno_bh) != wait->tsk);
 
 		/* We are the current bottom-half. Find the next candidate,
 		 * the first waiter in the queue on the remaining oldest
@@ -359,14 +377,15 @@ void intel_engine_remove_wait(struct intel_engine_cs *engine,
 			 * the interrupt, or if we have to handle an
 			 * exception rather than a seqno completion.
 			 */
+			b->timeout = wait_timeout();
 			b->first_wait = to_wait(next);
-			smp_store_mb(b->irq_seqno_bh, b->first_wait->tsk);
+			rcu_assign_pointer(b->irq_seqno_bh, b->first_wait->tsk);
 			if (b->first_wait->seqno != wait->seqno)
 				__intel_breadcrumbs_enable_irq(b);
-			wake_up_process(b->irq_seqno_bh);
+			wake_up_process(b->first_wait->tsk);
 		} else {
 			b->first_wait = NULL;
-			WRITE_ONCE(b->irq_seqno_bh, NULL);
+			rcu_assign_pointer(b->irq_seqno_bh, NULL);
 			__intel_breadcrumbs_disable_irq(b);
 		}
 	} else {
@@ -380,7 +399,7 @@ out_unlock:
 	GEM_BUG_ON(b->first_wait == wait);
 	GEM_BUG_ON(rb_first(&b->waiters) !=
 		   (b->first_wait ? &b->first_wait->node : NULL));
-	GEM_BUG_ON(!b->irq_seqno_bh ^ RB_EMPTY_ROOT(&b->waiters));
+	GEM_BUG_ON(!rcu_access_pointer(b->irq_seqno_bh) ^ RB_EMPTY_ROOT(&b->waiters));
 	spin_unlock(&b->lock);
 }
 
@@ -536,6 +555,9 @@ int intel_engine_init_breadcrumbs(struct intel_engine_cs *engine)
 	setup_timer(&b->fake_irq,
 		    intel_breadcrumbs_fake_irq,
 		    (unsigned long)engine);
+	setup_timer(&b->hangcheck,
+		    intel_breadcrumbs_hangcheck,
+		    (unsigned long)engine);
 
 	/* Spawn a thread to provide a common bottom-half for all signals.
 	 * As this is an asynchronous interface we cannot steal the current
@@ -560,6 +582,7 @@ void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine)
 	if (!IS_ERR_OR_NULL(b->signaler))
 		kthread_stop(b->signaler);
 
+	del_timer_sync(&b->hangcheck);
 	del_timer_sync(&b->fake_irq);
 }
 
@@ -573,11 +596,9 @@ unsigned int intel_kick_waiters(struct drm_i915_private *i915)
 	 * RCU lock, i.e. as we call wake_up_process() we must be holding the
 	 * rcu_read_lock().
 	 */
-	rcu_read_lock();
 	for_each_engine(engine, i915)
 		if (unlikely(intel_engine_wakeup(engine)))
 			mask |= intel_engine_flag(engine);
-	rcu_read_unlock();
 
 	return mask;
 }

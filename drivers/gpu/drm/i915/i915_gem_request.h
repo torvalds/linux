@@ -51,6 +51,13 @@ struct intel_signal_node {
  * emission time to be associated with the request for tracking how far ahead
  * of the GPU the submission is.
  *
+ * When modifying this structure be very aware that we perform a lockless
+ * RCU lookup of it that may race against reallocation of the struct
+ * from the slab freelist. We intentionally do not zero the structure on
+ * allocation so that the lookup can use the dangling pointers (and is
+ * cogniscent that those pointers may be wrong). Instead, everything that
+ * needs to be initialised must be done so explicitly.
+ *
  * The requests are reference counted.
  */
 struct drm_i915_gem_request {
@@ -111,7 +118,7 @@ struct drm_i915_gem_request {
 	/** Batch buffer related to this request if any (used for
 	 * error state dump only).
 	 */
-	struct drm_i915_gem_object *batch_obj;
+	struct i915_vma *batch;
 	struct list_head active_list;
 
 	/** Time at which this request was emitted, in jiffies. */
@@ -126,9 +133,6 @@ struct drm_i915_gem_request {
 	struct drm_i915_file_private *file_priv;
 	/** file_priv list entry for this request */
 	struct list_head client_list;
-
-	/** process identifier submitting this request */
-	struct pid *pid;
 
 	/**
 	 * The ELSP only accepts two elements at a time, so we queue
@@ -218,13 +222,11 @@ static inline void i915_gem_request_assign(struct drm_i915_gem_request **pdst,
 	*pdst = src;
 }
 
-void __i915_add_request(struct drm_i915_gem_request *req,
-			struct drm_i915_gem_object *batch_obj,
-			bool flush_caches);
+void __i915_add_request(struct drm_i915_gem_request *req, bool flush_caches);
 #define i915_add_request(req) \
-	__i915_add_request(req, NULL, true)
+	__i915_add_request(req, true)
 #define i915_add_request_no_flush(req) \
-	__i915_add_request(req, NULL, false)
+	__i915_add_request(req, false)
 
 struct intel_rps_client;
 #define NO_WAITBOOST ERR_PTR(-1)
@@ -360,6 +362,21 @@ __i915_gem_active_peek(const struct i915_gem_active *active)
 }
 
 /**
+ * i915_gem_active_raw - return the active request
+ * @active - the active tracker
+ *
+ * i915_gem_active_raw() returns the current request being tracked, or NULL.
+ * It does not obtain a reference on the request for the caller, so the caller
+ * must hold struct_mutex.
+ */
+static inline struct drm_i915_gem_request *
+i915_gem_active_raw(const struct i915_gem_active *active, struct mutex *mutex)
+{
+	return rcu_dereference_protected(active->request,
+					 lockdep_is_held(mutex));
+}
+
+/**
  * i915_gem_active_peek - report the active request being monitored
  * @active - the active tracker
  *
@@ -372,29 +389,7 @@ i915_gem_active_peek(const struct i915_gem_active *active, struct mutex *mutex)
 {
 	struct drm_i915_gem_request *request;
 
-	request = rcu_dereference_protected(active->request,
-					    lockdep_is_held(mutex));
-	if (!request || i915_gem_request_completed(request))
-		return NULL;
-
-	return request;
-}
-
-/**
- * i915_gem_active_peek_rcu - report the active request being monitored
- * @active - the active tracker
- *
- * i915_gem_active_peek_rcu() returns the current request being tracked if
- * still active, or NULL. It does not obtain a reference on the request
- * for the caller, and inspection of the request is only valid under
- * the RCU lock.
- */
-static inline struct drm_i915_gem_request *
-i915_gem_active_peek_rcu(const struct i915_gem_active *active)
-{
-	struct drm_i915_gem_request *request;
-
-	request = rcu_dereference(active->request);
+	request = i915_gem_active_raw(active, mutex);
 	if (!request || i915_gem_request_completed(request))
 		return NULL;
 
@@ -465,6 +460,10 @@ __i915_gem_active_get_rcu(const struct i915_gem_active *active)
 	 * just report the active tracker is idle. If the new request is
 	 * incomplete, then we acquire a reference on it and check that
 	 * it remained the active request.
+	 *
+	 * It is then imperative that we do not zero the request on
+	 * reallocation, so that we can chase the dangling pointers!
+	 * See i915_gem_request_alloc().
 	 */
 	do {
 		struct drm_i915_gem_request *request;
@@ -497,6 +496,9 @@ __i915_gem_active_get_rcu(const struct i915_gem_active *active)
 		 * incremented) then the following read for rcu_access_pointer()
 		 * must occur after the atomic operation and so confirm
 		 * that this request is the one currently being tracked.
+		 *
+		 * The corresponding write barrier is part of
+		 * rcu_assign_pointer().
 		 */
 		if (!request || request == rcu_access_pointer(active->request))
 			return rcu_pointer_handoff(request);
@@ -635,8 +637,7 @@ i915_gem_active_retire(struct i915_gem_active *active,
 	struct drm_i915_gem_request *request;
 	int ret;
 
-	request = rcu_dereference_protected(active->request,
-					    lockdep_is_held(mutex));
+	request = i915_gem_active_raw(active, mutex);
 	if (!request)
 		return 0;
 

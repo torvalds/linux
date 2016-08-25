@@ -315,7 +315,7 @@ intel_lr_context_descriptor_update(struct i915_gem_context *ctx,
 
 	desc = ctx->desc_template;				/* bits  3-4  */
 	desc |= engine->ctx_desc_template;			/* bits  0-11 */
-	desc |= ce->lrc_vma->node.start + LRC_PPHWSP_PN * PAGE_SIZE;
+	desc |= i915_ggtt_offset(ce->state) + LRC_PPHWSP_PN * PAGE_SIZE;
 								/* bits 12-31 */
 	desc |= (u64)ctx->hw_id << GEN8_CTX_ID_SHIFT;		/* bits 32-52 */
 
@@ -763,7 +763,6 @@ void intel_execlists_cancel_requests(struct intel_engine_cs *engine)
 static int intel_lr_context_pin(struct i915_gem_context *ctx,
 				struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = ctx->i915;
 	struct intel_context *ce = &ctx->engine[engine->id];
 	void *vaddr;
 	u32 *lrc_reg_state;
@@ -774,16 +773,15 @@ static int intel_lr_context_pin(struct i915_gem_context *ctx,
 	if (ce->pin_count++)
 		return 0;
 
-	ret = i915_gem_object_ggtt_pin(ce->state, NULL,
-				       0, GEN8_LR_CONTEXT_ALIGN,
-				       PIN_OFFSET_BIAS | GUC_WOPCM_TOP);
+	ret = i915_vma_pin(ce->state, 0, GEN8_LR_CONTEXT_ALIGN,
+			   PIN_OFFSET_BIAS | GUC_WOPCM_TOP | PIN_GLOBAL);
 	if (ret)
 		goto err;
 
-	vaddr = i915_gem_object_pin_map(ce->state);
+	vaddr = i915_gem_object_pin_map(ce->state->obj, I915_MAP_WB);
 	if (IS_ERR(vaddr)) {
 		ret = PTR_ERR(vaddr);
-		goto unpin_ctx_obj;
+		goto unpin_vma;
 	}
 
 	lrc_reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
@@ -792,24 +790,26 @@ static int intel_lr_context_pin(struct i915_gem_context *ctx,
 	if (ret)
 		goto unpin_map;
 
-	ce->lrc_vma = i915_gem_obj_to_ggtt(ce->state);
 	intel_lr_context_descriptor_update(ctx, engine);
 
-	lrc_reg_state[CTX_RING_BUFFER_START+1] = ce->ring->vma->node.start;
+	lrc_reg_state[CTX_RING_BUFFER_START+1] =
+		i915_ggtt_offset(ce->ring->vma);
 	ce->lrc_reg_state = lrc_reg_state;
-	ce->state->dirty = true;
+	ce->state->obj->dirty = true;
 
 	/* Invalidate GuC TLB. */
-	if (i915.enable_guc_submission)
+	if (i915.enable_guc_submission) {
+		struct drm_i915_private *dev_priv = ctx->i915;
 		I915_WRITE(GEN8_GTCR, GEN8_GTCR_INVALIDATE);
+	}
 
 	i915_gem_context_get(ctx);
 	return 0;
 
 unpin_map:
-	i915_gem_object_unpin_map(ce->state);
-unpin_ctx_obj:
-	i915_gem_object_ggtt_unpin(ce->state);
+	i915_gem_object_unpin_map(ce->state->obj);
+unpin_vma:
+	__i915_vma_unpin(ce->state);
 err:
 	ce->pin_count = 0;
 	return ret;
@@ -828,12 +828,8 @@ void intel_lr_context_unpin(struct i915_gem_context *ctx,
 
 	intel_ring_unpin(ce->ring);
 
-	i915_gem_object_unpin_map(ce->state);
-	i915_gem_object_ggtt_unpin(ce->state);
-
-	ce->lrc_vma = NULL;
-	ce->lrc_desc = 0;
-	ce->lrc_reg_state = NULL;
+	i915_gem_object_unpin_map(ce->state->obj);
+	i915_vma_unpin(ce->state);
 
 	i915_gem_context_put(ctx);
 }
@@ -919,7 +915,7 @@ static inline int gen8_emit_flush_coherentl3_wa(struct intel_engine_cs *engine,
 	wa_ctx_emit(batch, index, (MI_STORE_REGISTER_MEM_GEN8 |
 				   MI_SRM_LRM_GLOBAL_GTT));
 	wa_ctx_emit_reg(batch, index, GEN8_L3SQCREG4);
-	wa_ctx_emit(batch, index, engine->scratch.gtt_offset + 256);
+	wa_ctx_emit(batch, index, i915_ggtt_offset(engine->scratch) + 256);
 	wa_ctx_emit(batch, index, 0);
 
 	wa_ctx_emit(batch, index, MI_LOAD_REGISTER_IMM(1));
@@ -937,7 +933,7 @@ static inline int gen8_emit_flush_coherentl3_wa(struct intel_engine_cs *engine,
 	wa_ctx_emit(batch, index, (MI_LOAD_REGISTER_MEM_GEN8 |
 				   MI_SRM_LRM_GLOBAL_GTT));
 	wa_ctx_emit_reg(batch, index, GEN8_L3SQCREG4);
-	wa_ctx_emit(batch, index, engine->scratch.gtt_offset + 256);
+	wa_ctx_emit(batch, index, i915_ggtt_offset(engine->scratch) + 256);
 	wa_ctx_emit(batch, index, 0);
 
 	return index;
@@ -998,7 +994,7 @@ static int gen8_init_indirectctx_bb(struct intel_engine_cs *engine,
 
 	/* WaClearSlmSpaceAtContextSwitch:bdw,chv */
 	/* Actual scratch location is at 128 bytes offset */
-	scratch_addr = engine->scratch.gtt_offset + 2*CACHELINE_BYTES;
+	scratch_addr = i915_ggtt_offset(engine->scratch) + 2 * CACHELINE_BYTES;
 
 	wa_ctx_emit(batch, index, GFX_OP_PIPE_CONTROL(6));
 	wa_ctx_emit(batch, index, (PIPE_CONTROL_FLUSH_L3 |
@@ -1077,8 +1073,8 @@ static int gen9_init_indirectctx_bb(struct intel_engine_cs *engine,
 	/* WaClearSlmSpaceAtContextSwitch:kbl */
 	/* Actual scratch location is at 128 bytes offset */
 	if (IS_KBL_REVID(dev_priv, 0, KBL_REVID_A0)) {
-		uint32_t scratch_addr
-			= engine->scratch.gtt_offset + 2*CACHELINE_BYTES;
+		u32 scratch_addr =
+			i915_ggtt_offset(engine->scratch) + 2 * CACHELINE_BYTES;
 
 		wa_ctx_emit(batch, index, GFX_OP_PIPE_CONTROL(6));
 		wa_ctx_emit(batch, index, (PIPE_CONTROL_FLUSH_L3 |
@@ -1170,45 +1166,44 @@ static int gen9_init_perctx_bb(struct intel_engine_cs *engine,
 
 static int lrc_setup_wa_ctx_obj(struct intel_engine_cs *engine, u32 size)
 {
-	int ret;
+	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
+	int err;
 
-	engine->wa_ctx.obj = i915_gem_object_create(&engine->i915->drm,
-						    PAGE_ALIGN(size));
-	if (IS_ERR(engine->wa_ctx.obj)) {
-		DRM_DEBUG_DRIVER("alloc LRC WA ctx backing obj failed.\n");
-		ret = PTR_ERR(engine->wa_ctx.obj);
-		engine->wa_ctx.obj = NULL;
-		return ret;
+	obj = i915_gem_object_create(&engine->i915->drm, PAGE_ALIGN(size));
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	vma = i915_vma_create(obj, &engine->i915->ggtt.base, NULL);
+	if (IS_ERR(vma)) {
+		err = PTR_ERR(vma);
+		goto err;
 	}
 
-	ret = i915_gem_object_ggtt_pin(engine->wa_ctx.obj, NULL,
-				       0, PAGE_SIZE, 0);
-	if (ret) {
-		DRM_DEBUG_DRIVER("pin LRC WA ctx backing obj failed: %d\n",
-				 ret);
-		i915_gem_object_put(engine->wa_ctx.obj);
-		return ret;
-	}
+	err = i915_vma_pin(vma, 0, PAGE_SIZE, PIN_GLOBAL | PIN_HIGH);
+	if (err)
+		goto err;
 
+	engine->wa_ctx.vma = vma;
 	return 0;
+
+err:
+	i915_gem_object_put(obj);
+	return err;
 }
 
 static void lrc_destroy_wa_ctx_obj(struct intel_engine_cs *engine)
 {
-	if (engine->wa_ctx.obj) {
-		i915_gem_object_ggtt_unpin(engine->wa_ctx.obj);
-		i915_gem_object_put(engine->wa_ctx.obj);
-		engine->wa_ctx.obj = NULL;
-	}
+	i915_vma_unpin_and_release(&engine->wa_ctx.vma);
 }
 
 static int intel_init_workaround_bb(struct intel_engine_cs *engine)
 {
-	int ret;
+	struct i915_ctx_workarounds *wa_ctx = &engine->wa_ctx;
 	uint32_t *batch;
 	uint32_t offset;
 	struct page *page;
-	struct i915_ctx_workarounds *wa_ctx = &engine->wa_ctx;
+	int ret;
 
 	WARN_ON(engine->id != RCS);
 
@@ -1220,7 +1215,7 @@ static int intel_init_workaround_bb(struct intel_engine_cs *engine)
 	}
 
 	/* some WA perform writes to scratch page, ensure it is valid */
-	if (engine->scratch.obj == NULL) {
+	if (!engine->scratch) {
 		DRM_ERROR("scratch page not allocated for %s\n", engine->name);
 		return -EINVAL;
 	}
@@ -1231,7 +1226,7 @@ static int intel_init_workaround_bb(struct intel_engine_cs *engine)
 		return ret;
 	}
 
-	page = i915_gem_object_get_dirty_page(wa_ctx->obj, 0);
+	page = i915_gem_object_get_dirty_page(wa_ctx->vma->obj, 0);
 	batch = kmap_atomic(page);
 	offset = 0;
 
@@ -1278,7 +1273,7 @@ static void lrc_init_hws(struct intel_engine_cs *engine)
 	struct drm_i915_private *dev_priv = engine->i915;
 
 	I915_WRITE(RING_HWS_PGA(engine->mmio_base),
-		   (u32)engine->status_page.gfx_addr);
+		   engine->status_page.ggtt_offset);
 	POSTING_READ(RING_HWS_PGA(engine->mmio_base));
 }
 
@@ -1488,7 +1483,8 @@ static int gen8_emit_flush_render(struct drm_i915_gem_request *request,
 {
 	struct intel_ring *ring = request->ring;
 	struct intel_engine_cs *engine = request->engine;
-	u32 scratch_addr = engine->scratch.gtt_offset + 2 * CACHELINE_BYTES;
+	u32 scratch_addr =
+		i915_ggtt_offset(engine->scratch) + 2 * CACHELINE_BYTES;
 	bool vf_flush_wa = false, dc_flush_wa = false;
 	u32 flags = 0;
 	int ret;
@@ -1700,9 +1696,9 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *engine)
 
 	intel_engine_cleanup_common(engine);
 
-	if (engine->status_page.obj) {
-		i915_gem_object_unpin_map(engine->status_page.obj);
-		engine->status_page.obj = NULL;
+	if (engine->status_page.vma) {
+		i915_gem_object_unpin_map(engine->status_page.vma->obj);
+		engine->status_page.vma = NULL;
 	}
 	intel_lr_context_unpin(dev_priv->kernel_context, engine);
 
@@ -1747,19 +1743,19 @@ logical_ring_default_irqs(struct intel_engine_cs *engine)
 }
 
 static int
-lrc_setup_hws(struct intel_engine_cs *engine,
-	      struct drm_i915_gem_object *dctx_obj)
+lrc_setup_hws(struct intel_engine_cs *engine, struct i915_vma *vma)
 {
+	const int hws_offset = LRC_PPHWSP_PN * PAGE_SIZE;
 	void *hws;
 
 	/* The HWSP is part of the default context object in LRC mode. */
-	engine->status_page.gfx_addr = i915_gem_obj_ggtt_offset(dctx_obj) +
-				       LRC_PPHWSP_PN * PAGE_SIZE;
-	hws = i915_gem_object_pin_map(dctx_obj);
+	hws = i915_gem_object_pin_map(vma->obj, I915_MAP_WB);
 	if (IS_ERR(hws))
 		return PTR_ERR(hws);
-	engine->status_page.page_addr = hws + LRC_PPHWSP_PN * PAGE_SIZE;
-	engine->status_page.obj = dctx_obj;
+
+	engine->status_page.page_addr = hws + hws_offset;
+	engine->status_page.ggtt_offset = i915_ggtt_offset(vma) + hws_offset;
+	engine->status_page.vma = vma;
 
 	return 0;
 }
@@ -1849,11 +1845,10 @@ int logical_render_ring_init(struct intel_engine_cs *engine)
 	else
 		engine->init_hw = gen8_init_render_ring;
 	engine->init_context = gen8_init_rcs_context;
-	engine->cleanup = intel_fini_pipe_control;
 	engine->emit_flush = gen8_emit_flush_render;
 	engine->emit_request = gen8_emit_request_render;
 
-	ret = intel_init_pipe_control(engine, 4096);
+	ret = intel_engine_create_scratch(engine, 4096);
 	if (ret)
 		return ret;
 
@@ -1968,7 +1963,7 @@ populate_lr_context(struct i915_gem_context *ctx,
 		return ret;
 	}
 
-	vaddr = i915_gem_object_pin_map(ctx_obj);
+	vaddr = i915_gem_object_pin_map(ctx_obj, I915_MAP_WB);
 	if (IS_ERR(vaddr)) {
 		ret = PTR_ERR(vaddr);
 		DRM_DEBUG_DRIVER("Could not map object pages! (%d)\n", ret);
@@ -2025,9 +2020,9 @@ populate_lr_context(struct i915_gem_context *ctx,
 			       RING_INDIRECT_CTX(engine->mmio_base), 0);
 		ASSIGN_CTX_REG(reg_state, CTX_RCS_INDIRECT_CTX_OFFSET,
 			       RING_INDIRECT_CTX_OFFSET(engine->mmio_base), 0);
-		if (engine->wa_ctx.obj) {
+		if (engine->wa_ctx.vma) {
 			struct i915_ctx_workarounds *wa_ctx = &engine->wa_ctx;
-			uint32_t ggtt_offset = i915_gem_obj_ggtt_offset(wa_ctx->obj);
+			u32 ggtt_offset = i915_ggtt_offset(wa_ctx->vma);
 
 			reg_state[CTX_RCS_INDIRECT_CTX+1] =
 				(ggtt_offset + wa_ctx->indirect_ctx.offset * sizeof(uint32_t)) |
@@ -2131,6 +2126,7 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 {
 	struct drm_i915_gem_object *ctx_obj;
 	struct intel_context *ce = &ctx->engine[engine->id];
+	struct i915_vma *vma;
 	uint32_t context_size;
 	struct intel_ring *ring;
 	int ret;
@@ -2148,6 +2144,12 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 		return PTR_ERR(ctx_obj);
 	}
 
+	vma = i915_vma_create(ctx_obj, &ctx->i915->ggtt.base, NULL);
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
+		goto error_deref_obj;
+	}
+
 	ring = intel_engine_create_ring(engine, ctx->ring_size);
 	if (IS_ERR(ring)) {
 		ret = PTR_ERR(ring);
@@ -2161,7 +2163,7 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 	}
 
 	ce->ring = ring;
-	ce->state = ctx_obj;
+	ce->state = vma;
 	ce->initialised = engine->init_context == NULL;
 
 	return 0;
@@ -2170,8 +2172,6 @@ error_ring_free:
 	intel_ring_free(ring);
 error_deref_obj:
 	i915_gem_object_put(ctx_obj);
-	ce->ring = NULL;
-	ce->state = NULL;
 	return ret;
 }
 
@@ -2182,24 +2182,23 @@ void intel_lr_context_reset(struct drm_i915_private *dev_priv,
 
 	for_each_engine(engine, dev_priv) {
 		struct intel_context *ce = &ctx->engine[engine->id];
-		struct drm_i915_gem_object *ctx_obj = ce->state;
 		void *vaddr;
 		uint32_t *reg_state;
 
-		if (!ctx_obj)
+		if (!ce->state)
 			continue;
 
-		vaddr = i915_gem_object_pin_map(ctx_obj);
+		vaddr = i915_gem_object_pin_map(ce->state->obj, I915_MAP_WB);
 		if (WARN_ON(IS_ERR(vaddr)))
 			continue;
 
 		reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
-		ctx_obj->dirty = true;
 
 		reg_state[CTX_RING_HEAD+1] = 0;
 		reg_state[CTX_RING_TAIL+1] = 0;
 
-		i915_gem_object_unpin_map(ctx_obj);
+		ce->state->obj->dirty = true;
+		i915_gem_object_unpin_map(ce->state->obj);
 
 		ce->ring->head = 0;
 		ce->ring->tail = 0;

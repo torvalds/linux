@@ -59,13 +59,25 @@
  *
  */
 
-#define I915_SKL_GUC_UCODE "i915/skl_guc_ver6_1.bin"
+#define SKL_FW_MAJOR 6
+#define SKL_FW_MINOR 1
+
+#define BXT_FW_MAJOR 8
+#define BXT_FW_MINOR 7
+
+#define KBL_FW_MAJOR 9
+#define KBL_FW_MINOR 14
+
+#define GUC_FW_PATH(platform, major, minor) \
+       "i915/" __stringify(platform) "_guc_ver" __stringify(major) "_" __stringify(minor) ".bin"
+
+#define I915_SKL_GUC_UCODE GUC_FW_PATH(skl, SKL_FW_MAJOR, SKL_FW_MINOR)
 MODULE_FIRMWARE(I915_SKL_GUC_UCODE);
 
-#define I915_BXT_GUC_UCODE "i915/bxt_guc_ver8_7.bin"
+#define I915_BXT_GUC_UCODE GUC_FW_PATH(bxt, BXT_FW_MAJOR, BXT_FW_MINOR)
 MODULE_FIRMWARE(I915_BXT_GUC_UCODE);
 
-#define I915_KBL_GUC_UCODE "i915/kbl_guc_ver9_14.bin"
+#define I915_KBL_GUC_UCODE GUC_FW_PATH(kbl, KBL_FW_MAJOR, KBL_FW_MINOR)
 MODULE_FIRMWARE(I915_KBL_GUC_UCODE);
 
 /* User-friendly representation of an enum */
@@ -181,16 +193,15 @@ static void set_guc_init_params(struct drm_i915_private *dev_priv)
 			i915.guc_log_level << GUC_LOG_VERBOSITY_SHIFT;
 	}
 
-	if (guc->ads_obj) {
-		u32 ads = (u32)i915_gem_obj_ggtt_offset(guc->ads_obj)
-				>> PAGE_SHIFT;
+	if (guc->ads_vma) {
+		u32 ads = i915_ggtt_offset(guc->ads_vma) >> PAGE_SHIFT;
 		params[GUC_CTL_DEBUG] |= ads << GUC_ADS_ADDR_SHIFT;
 		params[GUC_CTL_DEBUG] |= GUC_ADS_ENABLED;
 	}
 
 	/* If GuC submission is enabled, set up additional parameters here */
 	if (i915.enable_guc_submission) {
-		u32 pgs = i915_gem_obj_ggtt_offset(dev_priv->guc.ctx_pool_obj);
+		u32 pgs = i915_ggtt_offset(dev_priv->guc.ctx_pool_vma);
 		u32 ctx_in_16 = GUC_MAX_GPU_CONTEXTS / 16;
 
 		pgs >>= PAGE_SHIFT;
@@ -238,12 +249,12 @@ static inline bool guc_ucode_response(struct drm_i915_private *dev_priv,
  * Note that GuC needs the CSS header plus uKernel code to be copied by the
  * DMA engine in one operation, whereas the RSA signature is loaded via MMIO.
  */
-static int guc_ucode_xfer_dma(struct drm_i915_private *dev_priv)
+static int guc_ucode_xfer_dma(struct drm_i915_private *dev_priv,
+			      struct i915_vma *vma)
 {
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
-	struct drm_i915_gem_object *fw_obj = guc_fw->guc_fw_obj;
 	unsigned long offset;
-	struct sg_table *sg = fw_obj->pages;
+	struct sg_table *sg = vma->pages;
 	u32 status, rsa[UOS_RSA_SCRATCH_MAX_COUNT];
 	int i, ret = 0;
 
@@ -260,7 +271,7 @@ static int guc_ucode_xfer_dma(struct drm_i915_private *dev_priv)
 	I915_WRITE(DMA_COPY_SIZE, guc_fw->header_size + guc_fw->ucode_size);
 
 	/* Set the source address for the new blob */
-	offset = i915_gem_obj_ggtt_offset(fw_obj) + guc_fw->header_offset;
+	offset = i915_ggtt_offset(vma) + guc_fw->header_offset;
 	I915_WRITE(DMA_ADDR_0_LOW, lower_32_bits(offset));
 	I915_WRITE(DMA_ADDR_0_HIGH, upper_32_bits(offset) & 0xFFFF);
 
@@ -315,6 +326,7 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
 	struct drm_device *dev = &dev_priv->drm;
+	struct i915_vma *vma;
 	int ret;
 
 	ret = i915_gem_object_set_to_gtt_domain(guc_fw->guc_fw_obj, false);
@@ -323,10 +335,10 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 		return ret;
 	}
 
-	ret = i915_gem_object_ggtt_pin(guc_fw->guc_fw_obj, NULL, 0, 0, 0);
-	if (ret) {
-		DRM_DEBUG_DRIVER("pin failed %d\n", ret);
-		return ret;
+	vma = i915_gem_object_ggtt_pin(guc_fw->guc_fw_obj, NULL, 0, 0, 0);
+	if (IS_ERR(vma)) {
+		DRM_DEBUG_DRIVER("pin failed %d\n", (int)PTR_ERR(vma));
+		return PTR_ERR(vma);
 	}
 
 	/* Invalidate GuC TLB to let GuC take the latest updates to GTT. */
@@ -369,7 +381,7 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 
 	set_guc_init_params(dev_priv);
 
-	ret = guc_ucode_xfer_dma(dev_priv);
+	ret = guc_ucode_xfer_dma(dev_priv, vma);
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 
@@ -377,7 +389,7 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 	 * We keep the object pages for reuse during resume. But we can unpin it
 	 * now that DMA has completed, so it doesn't continue to take up space.
 	 */
-	i915_gem_object_ggtt_unpin(guc_fw->guc_fw_obj);
+	i915_vma_unpin(vma);
 
 	return ret;
 }
@@ -697,16 +709,16 @@ void intel_guc_init(struct drm_device *dev)
 		fw_path = NULL;
 	} else if (IS_SKYLAKE(dev)) {
 		fw_path = I915_SKL_GUC_UCODE;
-		guc_fw->guc_fw_major_wanted = 6;
-		guc_fw->guc_fw_minor_wanted = 1;
+		guc_fw->guc_fw_major_wanted = SKL_FW_MAJOR;
+		guc_fw->guc_fw_minor_wanted = SKL_FW_MINOR;
 	} else if (IS_BROXTON(dev)) {
 		fw_path = I915_BXT_GUC_UCODE;
-		guc_fw->guc_fw_major_wanted = 8;
-		guc_fw->guc_fw_minor_wanted = 7;
+		guc_fw->guc_fw_major_wanted = BXT_FW_MAJOR;
+		guc_fw->guc_fw_minor_wanted = BXT_FW_MINOR;
 	} else if (IS_KABYLAKE(dev)) {
 		fw_path = I915_KBL_GUC_UCODE;
-		guc_fw->guc_fw_major_wanted = 9;
-		guc_fw->guc_fw_minor_wanted = 14;
+		guc_fw->guc_fw_major_wanted = KBL_FW_MAJOR;
+		guc_fw->guc_fw_minor_wanted = KBL_FW_MINOR;
 	} else {
 		fw_path = "";	/* unknown device */
 	}

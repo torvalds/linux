@@ -178,11 +178,22 @@ struct intel_framebuffer {
 	struct drm_framebuffer base;
 	struct drm_i915_gem_object *obj;
 	struct intel_rotation_info rot_info;
+
+	/* for each plane in the normal GTT view */
+	struct {
+		unsigned int x, y;
+	} normal[2];
+	/* for each plane in the rotated GTT view */
+	struct {
+		unsigned int x, y;
+		unsigned int pitch; /* pixels */
+	} rotated[2];
 };
 
 struct intel_fbdev {
 	struct drm_fb_helper helper;
 	struct intel_framebuffer *fb;
+	struct i915_vma *vma;
 	async_cookie_t cookie;
 	int preferred_bpp;
 };
@@ -339,6 +350,15 @@ struct intel_atomic_state {
 struct intel_plane_state {
 	struct drm_plane_state base;
 	struct drm_rect clip;
+
+	struct {
+		u32 offset;
+		int x, y;
+	} main;
+	struct {
+		u32 offset;
+		int x, y;
+	} aux;
 
 	/*
 	 * scaler_id
@@ -1153,12 +1173,18 @@ int vlv_get_cck_clock(struct drm_i915_private *dev_priv,
 		      const char *name, u32 reg, int ref_freq);
 extern const struct drm_plane_funcs intel_plane_funcs;
 void intel_init_display_hooks(struct drm_i915_private *dev_priv);
+unsigned int intel_fb_xy_to_linear(int x, int y,
+				   const struct intel_plane_state *state,
+				   int plane);
+void intel_add_fb_offsets(int *x, int *y,
+			  const struct intel_plane_state *state, int plane);
 unsigned int intel_rotation_info_size(const struct intel_rotation_info *rot_info);
 bool intel_has_pending_fb_unpin(struct drm_device *dev);
 void intel_mark_busy(struct drm_i915_private *dev_priv);
 void intel_mark_idle(struct drm_i915_private *dev_priv);
 void intel_crtc_restore_mode(struct drm_crtc *crtc);
 int intel_display_suspend(struct drm_device *dev);
+void intel_pps_unlock_regs_wa(struct drm_i915_private *dev_priv);
 void intel_encoder_destroy(struct drm_encoder *encoder);
 int intel_connector_init(struct intel_connector *);
 struct intel_connector *intel_connector_alloc(void);
@@ -1214,8 +1240,8 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 void intel_release_load_detect_pipe(struct drm_connector *connector,
 				    struct intel_load_detect_pipe *old,
 				    struct drm_modeset_acquire_ctx *ctx);
-int intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
-			       unsigned int rotation);
+struct i915_vma *
+intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb, unsigned int rotation);
 void intel_unpin_fb_obj(struct drm_framebuffer *fb, unsigned int rotation);
 struct drm_framebuffer *
 __intel_framebuffer_create(struct drm_device *dev,
@@ -1277,9 +1303,7 @@ void assert_pipe(struct drm_i915_private *dev_priv, enum pipe pipe, bool state);
 #define assert_pipe_enabled(d, p) assert_pipe(d, p, true)
 #define assert_pipe_disabled(d, p) assert_pipe(d, p, false)
 u32 intel_compute_tile_offset(int *x, int *y,
-			      const struct drm_framebuffer *fb, int plane,
-			      unsigned int pitch,
-			      unsigned int rotation);
+			      const struct intel_plane_state *state, int plane);
 void intel_prepare_reset(struct drm_i915_private *dev_priv);
 void intel_finish_reset(struct drm_i915_private *dev_priv);
 void hsw_enable_pc8(struct drm_i915_private *dev_priv);
@@ -1322,13 +1346,14 @@ void intel_mode_from_pipe_config(struct drm_display_mode *mode,
 int skl_update_scaler_crtc(struct intel_crtc_state *crtc_state);
 int skl_max_scale(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state);
 
-u32 intel_plane_obj_offset(struct intel_plane *intel_plane,
-			   struct drm_i915_gem_object *obj,
-			   unsigned int plane);
+u32 intel_fb_gtt_offset(struct drm_framebuffer *fb, unsigned int rotation);
 
 u32 skl_plane_ctl_format(uint32_t pixel_format);
 u32 skl_plane_ctl_tiling(uint64_t fb_modifier);
 u32 skl_plane_ctl_rotation(unsigned int rotation);
+u32 skl_plane_stride(const struct drm_framebuffer *fb, int plane,
+		     unsigned int rotation);
+int skl_check_plane_surface(struct intel_plane_state *plane_state);
 
 /* intel_csr.c */
 void intel_csr_ucode_init(struct drm_i915_private *);

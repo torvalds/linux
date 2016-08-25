@@ -116,35 +116,56 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 	return true;
 }
 
-/* Is the current GTT allocation valid for the change in tiling? */
-static bool
-i915_gem_object_fence_ok(struct drm_i915_gem_object *obj, int tiling_mode)
+static bool i915_vma_fence_prepare(struct i915_vma *vma, int tiling_mode)
 {
-	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
+	struct drm_i915_private *dev_priv = to_i915(vma->vm->dev);
 	u32 size;
 
-	if (tiling_mode == I915_TILING_NONE)
+	if (!i915_vma_is_map_and_fenceable(vma))
 		return true;
 
-	if (INTEL_GEN(dev_priv) >= 4)
-		return true;
-
-	if (IS_GEN3(dev_priv)) {
-		if (i915_gem_obj_ggtt_offset(obj) & ~I915_FENCE_START_MASK)
+	if (INTEL_GEN(dev_priv) == 3) {
+		if (vma->node.start & ~I915_FENCE_START_MASK)
 			return false;
 	} else {
-		if (i915_gem_obj_ggtt_offset(obj) & ~I830_FENCE_START_MASK)
+		if (vma->node.start & ~I830_FENCE_START_MASK)
 			return false;
 	}
 
-	size = i915_gem_get_ggtt_size(dev_priv, obj->base.size, tiling_mode);
-	if (i915_gem_obj_ggtt_size(obj) != size)
+	size = i915_gem_get_ggtt_size(dev_priv, vma->size, tiling_mode);
+	if (vma->node.size < size)
 		return false;
 
-	if (i915_gem_obj_ggtt_offset(obj) & (size - 1))
+	if (vma->node.start & (size - 1))
 		return false;
 
 	return true;
+}
+
+/* Make the current GTT allocation valid for the change in tiling. */
+static int
+i915_gem_object_fence_prepare(struct drm_i915_gem_object *obj, int tiling_mode)
+{
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
+	struct i915_vma *vma;
+	int ret;
+
+	if (tiling_mode == I915_TILING_NONE)
+		return 0;
+
+	if (INTEL_GEN(dev_priv) >= 4)
+		return 0;
+
+	list_for_each_entry(vma, &obj->vma_list, obj_link) {
+		if (i915_vma_fence_prepare(vma, tiling_mode))
+			continue;
+
+		ret = i915_vma_unbind(vma);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 /**
@@ -168,7 +189,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 	struct drm_i915_gem_set_tiling *args = data;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_object *obj;
-	int ret = 0;
+	int err = 0;
 
 	/* Make sure we don't cross-contaminate obj->tiling_and_stride */
 	BUILD_BUG_ON(I915_TILING_LAST & STRIDE_MASK);
@@ -187,7 +208,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 
 	mutex_lock(&dev->struct_mutex);
 	if (obj->pin_display || obj->framebuffer_references) {
-		ret = -EBUSY;
+		err = -EBUSY;
 		goto err;
 	}
 
@@ -234,11 +255,11 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		 * has to also include the unfenced register the GPU uses
 		 * whilst executing a fenced command for an untiled object.
 		 */
-		if (obj->map_and_fenceable &&
-		    !i915_gem_object_fence_ok(obj, args->tiling_mode))
-			ret = i915_vma_unbind(i915_gem_obj_to_ggtt(obj));
 
-		if (ret == 0) {
+		err = i915_gem_object_fence_prepare(obj, args->tiling_mode);
+		if (!err) {
+			struct i915_vma *vma;
+
 			if (obj->pages &&
 			    obj->madv == I915_MADV_WILLNEED &&
 			    dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES) {
@@ -248,11 +269,12 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 					i915_gem_object_pin_pages(obj);
 			}
 
-			obj->fence_dirty =
-				!i915_gem_active_is_idle(&obj->last_fence,
-							 &dev->struct_mutex) ||
-				obj->fence_reg != I915_FENCE_REG_NONE;
+			list_for_each_entry(vma, &obj->vma_list, obj_link) {
+				if (!vma->fence)
+					continue;
 
+				vma->fence->dirty = true;
+			}
 			obj->tiling_and_stride =
 				args->stride | args->tiling_mode;
 
@@ -281,7 +303,7 @@ err:
 
 	intel_runtime_pm_put(dev_priv);
 
-	return ret;
+	return err;
 }
 
 /**

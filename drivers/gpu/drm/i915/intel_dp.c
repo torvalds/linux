@@ -256,6 +256,8 @@ intel_dp_init_panel_power_sequencer(struct drm_device *dev,
 static void
 intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 					      struct intel_dp *intel_dp);
+static void
+intel_dp_pps_init(struct drm_device *dev, struct intel_dp *intel_dp);
 
 static void pps_lock(struct intel_dp *intel_dp)
 {
@@ -463,13 +465,13 @@ typedef bool (*vlv_pipe_check)(struct drm_i915_private *dev_priv,
 static bool vlv_pipe_has_pp_on(struct drm_i915_private *dev_priv,
 			       enum pipe pipe)
 {
-	return I915_READ(VLV_PIPE_PP_STATUS(pipe)) & PP_ON;
+	return I915_READ(PP_STATUS(pipe)) & PP_ON;
 }
 
 static bool vlv_pipe_has_vdd_on(struct drm_i915_private *dev_priv,
 				enum pipe pipe)
 {
-	return I915_READ(VLV_PIPE_PP_CONTROL(pipe)) & EDP_FORCE_VDD;
+	return I915_READ(PP_CONTROL(pipe)) & EDP_FORCE_VDD;
 }
 
 static bool vlv_pipe_any(struct drm_i915_private *dev_priv,
@@ -486,7 +488,7 @@ vlv_initial_pps_pipe(struct drm_i915_private *dev_priv,
 	enum pipe pipe;
 
 	for (pipe = PIPE_A; pipe <= PIPE_B; pipe++) {
-		u32 port_sel = I915_READ(VLV_PIPE_PP_ON_DELAYS(pipe)) &
+		u32 port_sel = I915_READ(PP_ON_DELAYS(pipe)) &
 			PANEL_PORT_SELECT_MASK;
 
 		if (port_sel != PANEL_PORT_SELECT_VLV(port))
@@ -583,30 +585,21 @@ static void intel_pps_get_registers(struct drm_i915_private *dev_priv,
 				    struct intel_dp *intel_dp,
 				    struct pps_registers *regs)
 {
+	int pps_idx = 0;
+
 	memset(regs, 0, sizeof(*regs));
 
-	if (IS_BROXTON(dev_priv)) {
-		int idx = bxt_power_sequencer_idx(intel_dp);
+	if (IS_BROXTON(dev_priv))
+		pps_idx = bxt_power_sequencer_idx(intel_dp);
+	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+		pps_idx = vlv_power_sequencer_pipe(intel_dp);
 
-		regs->pp_ctrl = BXT_PP_CONTROL(idx);
-		regs->pp_stat = BXT_PP_STATUS(idx);
-		regs->pp_on = BXT_PP_ON_DELAYS(idx);
-		regs->pp_off = BXT_PP_OFF_DELAYS(idx);
-	} else if (HAS_PCH_SPLIT(dev_priv)) {
-		regs->pp_ctrl = PCH_PP_CONTROL;
-		regs->pp_stat = PCH_PP_STATUS;
-		regs->pp_on = PCH_PP_ON_DELAYS;
-		regs->pp_off = PCH_PP_OFF_DELAYS;
-		regs->pp_div = PCH_PP_DIVISOR;
-	} else {
-		enum pipe pipe = vlv_power_sequencer_pipe(intel_dp);
-
-		regs->pp_ctrl = VLV_PIPE_PP_CONTROL(pipe);
-		regs->pp_stat = VLV_PIPE_PP_STATUS(pipe);
-		regs->pp_on = VLV_PIPE_PP_ON_DELAYS(pipe);
-		regs->pp_off = VLV_PIPE_PP_OFF_DELAYS(pipe);
-		regs->pp_div = VLV_PIPE_PP_DIVISOR(pipe);
-	}
+	regs->pp_ctrl = PP_CONTROL(pps_idx);
+	regs->pp_stat = PP_STATUS(pps_idx);
+	regs->pp_on = PP_ON_DELAYS(pps_idx);
+	regs->pp_off = PP_OFF_DELAYS(pps_idx);
+	if (!IS_BROXTON(dev_priv))
+		regs->pp_div = PP_DIVISOR(pps_idx);
 }
 
 static i915_reg_t
@@ -651,8 +644,8 @@ static int edp_notify_handler(struct notifier_block *this, unsigned long code,
 		i915_reg_t pp_ctrl_reg, pp_div_reg;
 		u32 pp_div;
 
-		pp_ctrl_reg = VLV_PIPE_PP_CONTROL(pipe);
-		pp_div_reg  = VLV_PIPE_PP_DIVISOR(pipe);
+		pp_ctrl_reg = PP_CONTROL(pipe);
+		pp_div_reg  = PP_DIVISOR(pipe);
 		pp_div = I915_READ(pp_div_reg);
 		pp_div &= PP_REFERENCE_DIVIDER_MASK;
 
@@ -1836,7 +1829,8 @@ static  u32 ironlake_get_pp_control(struct intel_dp *intel_dp)
 	lockdep_assert_held(&dev_priv->pps_mutex);
 
 	control = I915_READ(_pp_ctrl_reg(intel_dp));
-	if (!IS_BROXTON(dev)) {
+	if (WARN_ON(!HAS_DDI(dev_priv) &&
+		    (control & PANEL_UNLOCK_MASK) != PANEL_UNLOCK_REGS)) {
 		control &= ~PANEL_UNLOCK_MASK;
 		control |= PANEL_UNLOCK_REGS;
 	}
@@ -1957,7 +1951,7 @@ static void edp_panel_vdd_off_sync(struct intel_dp *intel_dp)
 	DRM_DEBUG_KMS("PP_STATUS: 0x%08x PP_CONTROL: 0x%08x\n",
 	I915_READ(pp_stat_reg), I915_READ(pp_ctrl_reg));
 
-	if ((pp & POWER_TARGET_ON) == 0)
+	if ((pp & PANEL_POWER_ON) == 0)
 		intel_dp->panel_power_off_time = ktime_get_boottime();
 
 	power_domain = intel_display_port_aux_power_domain(intel_encoder);
@@ -2044,7 +2038,7 @@ static void edp_panel_on(struct intel_dp *intel_dp)
 		POSTING_READ(pp_ctrl_reg);
 	}
 
-	pp |= POWER_TARGET_ON;
+	pp |= PANEL_POWER_ON;
 	if (!IS_GEN5(dev))
 		pp |= PANEL_POWER_RESET;
 
@@ -2096,7 +2090,7 @@ static void edp_panel_off(struct intel_dp *intel_dp)
 	pp = ironlake_get_pp_control(intel_dp);
 	/* We need to switch off panel power _and_ force vdd, for otherwise some
 	 * panels get very unhappy and cease to work. */
-	pp &= ~(POWER_TARGET_ON | PANEL_POWER_RESET | EDP_FORCE_VDD |
+	pp &= ~(PANEL_POWER_ON | PANEL_POWER_RESET | EDP_FORCE_VDD |
 		EDP_BLC_ENABLE);
 
 	pp_ctrl_reg = _pp_ctrl_reg(intel_dp);
@@ -2729,7 +2723,7 @@ static void vlv_detach_power_sequencer(struct intel_dp *intel_dp)
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(intel_dig_port->base.base.dev);
 	enum pipe pipe = intel_dp->pps_pipe;
-	i915_reg_t pp_on_reg = VLV_PIPE_PP_ON_DELAYS(pipe);
+	i915_reg_t pp_on_reg = PP_ON_DELAYS(pipe);
 
 	edp_panel_vdd_off_sync(intel_dp);
 
@@ -4666,13 +4660,8 @@ void intel_dp_encoder_reset(struct drm_encoder *encoder)
 
 	pps_lock(intel_dp);
 
-	/*
-	 * Read out the current power sequencer assignment,
-	 * in case the BIOS did something with it.
-	 */
-	if (IS_VALLEYVIEW(encoder->dev) || IS_CHERRYVIEW(encoder->dev))
-		vlv_initial_power_sequencer_setup(intel_dp);
-
+	/* Reinit the power sequencer, in case BIOS did something with it. */
+	intel_dp_pps_init(encoder->dev, intel_dp);
 	intel_edp_panel_vdd_sanitize(intel_dp);
 
 	pps_unlock(intel_dp);
@@ -5018,6 +5007,17 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 		      IS_BROXTON(dev) ?
 		      (I915_READ(regs.pp_ctrl) & BXT_POWER_CYCLE_DELAY_MASK) :
 		      I915_READ(regs.pp_div));
+}
+
+static void intel_dp_pps_init(struct drm_device *dev,
+			      struct intel_dp *intel_dp)
+{
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
+		vlv_initial_power_sequencer_setup(intel_dp);
+	} else {
+		intel_dp_init_panel_power_sequencer(dev, intel_dp);
+		intel_dp_init_panel_power_sequencer_registers(dev, intel_dp);
+	}
 }
 
 /**
@@ -5434,14 +5434,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	pps_lock(intel_dp);
 
 	intel_dp_init_panel_power_timestamps(intel_dp);
-
-	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
-		vlv_initial_power_sequencer_setup(intel_dp);
-	} else {
-		intel_dp_init_panel_power_sequencer(dev, intel_dp);
-		intel_dp_init_panel_power_sequencer_registers(dev, intel_dp);
-	}
-
+	intel_dp_pps_init(dev, intel_dp);
 	intel_edp_panel_vdd_sanitize(intel_dp);
 
 	pps_unlock(intel_dp);

@@ -3115,8 +3115,6 @@ skl_get_total_relative_data_rate(struct intel_crtc_state *intel_cstate)
 		total_data_rate += intel_cstate->wm.skl.plane_y_data_rate[id];
 	}
 
-	WARN_ON(cstate->plane_mask && total_data_rate == 0);
-
 	return total_data_rate;
 }
 
@@ -3920,8 +3918,23 @@ skl_compute_ddb(struct drm_atomic_state *state)
 	 * pretend that all pipes switched active status so that we'll
 	 * ensure a full DDB recompute.
 	 */
-	if (dev_priv->wm.distrust_bios_wm)
+	if (dev_priv->wm.distrust_bios_wm) {
+		ret = drm_modeset_lock(&dev->mode_config.connection_mutex,
+				       state->acquire_ctx);
+		if (ret)
+			return ret;
+
 		intel_state->active_pipe_changes = ~0;
+
+		/*
+		 * We usually only initialize intel_state->active_crtcs if we
+		 * we're doing a modeset; make sure this field is always
+		 * initialized during the sanitization process that happens
+		 * on the first commit too.
+		 */
+		if (!intel_state->modeset)
+			intel_state->active_crtcs = dev_priv->active_crtcs;
+	}
 
 	/*
 	 * If the modeset changes which CRTC's are active, we need to
@@ -5675,8 +5688,6 @@ static void valleyview_setup_pctx(struct drm_i915_private *dev_priv)
 	u32 pcbr;
 	int pctx_size = 24*1024;
 
-	mutex_lock(&dev_priv->drm.struct_mutex);
-
 	pcbr = I915_READ(VLV_PCBR);
 	if (pcbr) {
 		/* BIOS set it up already, grab the pre-alloc'd space */
@@ -5712,7 +5723,6 @@ static void valleyview_setup_pctx(struct drm_i915_private *dev_priv)
 out:
 	DRM_DEBUG_DRIVER("PCBR: 0x%08x\n", I915_READ(VLV_PCBR));
 	dev_priv->vlv_pctx = pctx;
-	mutex_unlock(&dev_priv->drm.struct_mutex);
 }
 
 static void valleyview_cleanup_pctx(struct drm_i915_private *dev_priv)
@@ -6488,6 +6498,7 @@ void intel_init_gt_powersave(struct drm_i915_private *dev_priv)
 		intel_runtime_pm_get(dev_priv);
 	}
 
+	mutex_lock(&dev_priv->drm.struct_mutex);
 	mutex_lock(&dev_priv->rps.hw_lock);
 
 	/* Initialize RPS limits (for userspace) */
@@ -6529,6 +6540,7 @@ void intel_init_gt_powersave(struct drm_i915_private *dev_priv)
 	dev_priv->rps.boost_freq = dev_priv->rps.max_freq;
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
+	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	intel_autoenable_gt_powersave(dev_priv);
 }
