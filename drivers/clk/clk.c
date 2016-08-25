@@ -3174,19 +3174,14 @@ __of_clk_get_hw_from_provider(struct of_clk_provider *provider,
 			      struct of_phandle_args *clkspec)
 {
 	struct clk *clk;
-	struct clk_hw *hw = ERR_PTR(-EPROBE_DEFER);
 
-	if (provider->get_hw) {
-		hw = provider->get_hw(clkspec, provider->data);
-	} else if (provider->get) {
-		clk = provider->get(clkspec, provider->data);
-		if (!IS_ERR(clk))
-			hw = __clk_get_hw(clk);
-		else
-			hw = ERR_CAST(clk);
-	}
+	if (provider->get_hw)
+		return provider->get_hw(clkspec, provider->data);
 
-	return hw;
+	clk = provider->get(clkspec, provider->data);
+	if (IS_ERR(clk))
+		return ERR_CAST(clk);
+	return __clk_get_hw(clk);
 }
 
 struct clk *__of_clk_get_from_provider(struct of_phandle_args *clkspec,
