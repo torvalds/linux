@@ -62,6 +62,7 @@ MODULE_ALIAS_CRYPTO("z90crypt");
  * Module parameter
  */
 int ap_domain_index = -1;	/* Adjunct Processor Domain Index */
+static DEFINE_SPINLOCK(ap_domain_lock);
 module_param_named(domain, ap_domain_index, int, S_IRUSR|S_IRGRP);
 MODULE_PARM_DESC(domain, "domain index for ap devices");
 EXPORT_SYMBOL(ap_domain_index);
@@ -1481,7 +1482,21 @@ static ssize_t ap_domain_show(struct bus_type *bus, char *buf)
 	return snprintf(buf, PAGE_SIZE, "%d\n", ap_domain_index);
 }
 
-static BUS_ATTR(ap_domain, 0444, ap_domain_show, NULL);
+static ssize_t ap_domain_store(struct bus_type *bus,
+			       const char *buf, size_t count)
+{
+	int domain;
+
+	if (sscanf(buf, "%i\n", &domain) != 1 ||
+	    domain < 0 || domain > ap_max_domain_id)
+		return -EINVAL;
+	spin_lock_bh(&ap_domain_lock);
+	ap_domain_index = domain;
+	spin_unlock_bh(&ap_domain_lock);
+	return count;
+}
+
+static BUS_ATTR(ap_domain, 0644, ap_domain_show, ap_domain_store);
 
 static ssize_t ap_control_domain_mask_show(struct bus_type *bus, char *buf)
 {
@@ -1623,9 +1638,12 @@ static int ap_select_domain(void)
 	 * the "domain=" parameter or the domain with the maximum number
 	 * of devices.
 	 */
-	if (ap_domain_index >= 0)
+	spin_lock_bh(&ap_domain_lock);
+	if (ap_domain_index >= 0) {
 		/* Domain has already been selected. */
+		spin_unlock_bh(&ap_domain_lock);
 		return 0;
+	}
 	best_domain = -1;
 	max_count = 0;
 	for (i = 0; i < AP_DOMAINS; i++) {
@@ -1647,8 +1665,10 @@ static int ap_select_domain(void)
 	}
 	if (best_domain >= 0){
 		ap_domain_index = best_domain;
+		spin_unlock_bh(&ap_domain_lock);
 		return 0;
 	}
+	spin_unlock_bh(&ap_domain_lock);
 	return -ENODEV;
 }
 
@@ -1677,6 +1697,8 @@ static void ap_scan_bus(struct work_struct *unused)
 	if (ap_select_domain() != 0)
 		goto out;
 
+
+	spin_lock_bh(&ap_domain_lock);
 	for (i = 0; i < AP_DEVICES; i++) {
 		qid = AP_MKQID(i, ap_domain_index);
 		dev = bus_find_device(&ap_bus_type, NULL,
@@ -1753,6 +1775,7 @@ static void ap_scan_bus(struct work_struct *unused)
 			continue;
 		}
 	}
+	spin_unlock_bh(&ap_domain_lock);
 out:
 	mod_timer(&ap_config_timer, jiffies + ap_config_time * HZ);
 }

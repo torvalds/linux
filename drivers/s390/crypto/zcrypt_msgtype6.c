@@ -1145,12 +1145,11 @@ static struct zcrypt_ops zcrypt_msgtype6_ep11_ops = {
 	.send_ep11_cprb = zcrypt_msgtype6_send_ep11_cprb,
 };
 
-int __init zcrypt_msgtype6_init(void)
+void __init zcrypt_msgtype6_init(void)
 {
 	zcrypt_msgtype_register(&zcrypt_msgtype6_norng_ops);
 	zcrypt_msgtype_register(&zcrypt_msgtype6_ops);
 	zcrypt_msgtype_register(&zcrypt_msgtype6_ep11_ops);
-	return 0;
 }
 
 void __exit zcrypt_msgtype6_exit(void)
@@ -1159,6 +1158,3 @@ void __exit zcrypt_msgtype6_exit(void)
 	zcrypt_msgtype_unregister(&zcrypt_msgtype6_ops);
 	zcrypt_msgtype_unregister(&zcrypt_msgtype6_ep11_ops);
 }
-
-module_init(zcrypt_msgtype6_init);
-module_exit(zcrypt_msgtype6_exit);

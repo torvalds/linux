@@ -518,16 +518,12 @@ static struct zcrypt_ops zcrypt_msgtype50_ops = {
 	.variant = MSGTYPE50_VARIANT_DEFAULT,
 };
 
-int __init zcrypt_msgtype50_init(void)
+void __init zcrypt_msgtype50_init(void)
 {
 	zcrypt_msgtype_register(&zcrypt_msgtype50_ops);
-	return 0;
 }
 
 void __exit zcrypt_msgtype50_exit(void)
 {
 	zcrypt_msgtype_unregister(&zcrypt_msgtype50_ops);
 }
-
-module_init(zcrypt_msgtype50_init);
-module_exit(zcrypt_msgtype50_exit);

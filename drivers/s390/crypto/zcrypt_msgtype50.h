@@ -35,7 +35,7 @@
 
 #define MSGTYPE_ADJUSTMENT		0x08  /*type04 extension (not needed in type50)*/
 
-int zcrypt_msgtype50_init(void);
+void zcrypt_msgtype50_init(void);
 void zcrypt_msgtype50_exit(void);
 
 #endif /* _ZCRYPT_MSGTYPE50_H_ */
