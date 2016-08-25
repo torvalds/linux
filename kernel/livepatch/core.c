@@ -545,9 +545,6 @@ static int __klp_enable_patch(struct klp_patch *patch)
 	    list_prev_entry(patch, list)->state == KLP_DISABLED)
 		return -EBUSY;
 
-	pr_notice_once("tainting kernel with TAINT_LIVEPATCH\n");
-	add_taint(TAINT_LIVEPATCH, LOCKDEP_STILL_OK);
-
 	pr_notice("enabling patch '%s'\n", patch->mod->name);
 
 	klp_for_each_object(patch, obj) {
