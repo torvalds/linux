@@ -278,7 +278,7 @@ static ssize_t iowarrior_read(struct file *file, char __user *buffer,
 	dev = file->private_data;
 
 	/* verify that the device wasn't unplugged */
-	if (dev == NULL || !dev->present)
+	if (!dev || !dev->present)
 		return -ENODEV;
 
 	dev_dbg(&dev->interface->dev, "minor %d, count = %zd\n",
@@ -480,9 +480,8 @@ static long iowarrior_ioctl(struct file *file, unsigned int cmd,
 	int io_res;		/* checks for bytes read/written and copy_to/from_user results */
 
 	dev = file->private_data;
-	if (dev == NULL) {
+	if (!dev)
 		return -ENODEV;
-	}
 
 	buffer = kzalloc(dev->report_size, GFP_KERNEL);
 	if (!buffer)
@@ -652,9 +651,8 @@ static int iowarrior_release(struct inode *inode, struct file *file)
 	int retval = 0;
 
 	dev = file->private_data;
-	if (dev == NULL) {
+	if (!dev)
 		return -ENODEV;
-	}
 
 	dev_dbg(&dev->interface->dev, "minor %d\n", dev->minor);
 
@@ -764,10 +762,8 @@ static int iowarrior_probe(struct usb_interface *interface,
 
 	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(struct iowarrior), GFP_KERNEL);
-	if (dev == NULL) {
-		dev_err(&interface->dev, "Out of memory\n");
+	if (!dev)
 		return retval;
-	}
 
 	mutex_init(&dev->mutex);
 
@@ -813,10 +809,8 @@ static int iowarrior_probe(struct usb_interface *interface,
 	if (!dev->int_in_urb)
 		goto error;
 	dev->int_in_buffer = kmalloc(dev->report_size, GFP_KERNEL);
-	if (!dev->int_in_buffer) {
-		dev_err(&interface->dev, "Couldn't allocate int_in_buffer\n");
+	if (!dev->int_in_buffer)
 		goto error;
-	}
 	usb_fill_int_urb(dev->int_in_urb, dev->udev,
 			 usb_rcvintpipe(dev->udev,
 					dev->int_in_endpoint->bEndpointAddress),
@@ -827,10 +821,8 @@ static int iowarrior_probe(struct usb_interface *interface,
 	dev->read_queue =
 	    kmalloc(((dev->report_size + 1) * MAX_INTERRUPT_BUFFER),
 		    GFP_KERNEL);
-	if (!dev->read_queue) {
-		dev_err(&interface->dev, "Couldn't allocate read_queue\n");
+	if (!dev->read_queue)
 		goto error;
-	}
 	/* Get the serial-number of the chip */
 	memset(dev->chip_serial, 0x00, sizeof(dev->chip_serial));
 	usb_string(udev, udev->descriptor.iSerialNumber, dev->chip_serial,
