@@ -43,10 +43,6 @@
 
 #define NVME_RDMA_MAX_INLINE_SEGMENTS	1
 
-#define NVME_RDMA_MAX_PAGES_PER_MR	512
-
-#define NVME_RDMA_DEF_RECONNECT_DELAY	20
-
 /*
  * We handle AEN commands ourselves and don't even let the
  * block layer know about them.
