@@ -34,17 +34,21 @@
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_gem.h"
 #include "rockchip_drm_fb.h"
+#include "rockchip_drm_psr.h"
 #include "rockchip_drm_vop.h"
 
-#define __REG_SET_RELAXED(x, off, mask, shift, v) \
-		vop_mask_write_relaxed(x, off, (mask) << shift, (v) << shift)
-#define __REG_SET_NORMAL(x, off, mask, shift, v) \
-		vop_mask_write(x, off, (mask) << shift, (v) << shift)
+#define __REG_SET_RELAXED(x, off, mask, shift, v, write_mask) \
+		vop_mask_write(x, off, mask, shift, v, write_mask, true)
+
+#define __REG_SET_NORMAL(x, off, mask, shift, v, write_mask) \
+		vop_mask_write(x, off, mask, shift, v, write_mask, false)
 
 #define REG_SET(x, base, reg, v, mode) \
-		__REG_SET_##mode(x, base + reg.offset, reg.mask, reg.shift, v)
+		__REG_SET_##mode(x, base + reg.offset, \
+				 reg.mask, reg.shift, v, reg.write_mask)
 #define REG_SET_MASK(x, base, reg, mask, v, mode) \
-		__REG_SET_##mode(x, base + reg.offset, mask, reg.shift, v)
+		__REG_SET_##mode(x, base + reg.offset, \
+				 mask, reg.shift, v, reg.write_mask)
 
 #define VOP_WIN_SET(x, win, name, v) \
 		REG_SET(x, win->base, win->phy->name, v, RELAXED)
@@ -106,6 +110,7 @@ struct vop {
 	struct device *dev;
 	struct drm_device *drm_dev;
 	bool is_enabled;
+	bool vblank_active;
 
 	/* mutex vsync_ work */
 	struct mutex vsync_mutex;
@@ -115,6 +120,8 @@ struct vop {
 
 	/* protected by dev->event_lock */
 	struct drm_pending_vblank_event *event;
+
+	struct completion line_flag_completion;
 
 	const struct vop_data *data;
 
@@ -162,27 +169,25 @@ static inline uint32_t vop_read_reg(struct vop *vop, uint32_t base,
 }
 
 static inline void vop_mask_write(struct vop *vop, uint32_t offset,
-				  uint32_t mask, uint32_t v)
+				  uint32_t mask, uint32_t shift, uint32_t v,
+				  bool write_mask, bool relaxed)
 {
-	if (mask) {
+	if (!mask)
+		return;
+
+	if (write_mask) {
+		v = ((v << shift) & 0xffff) | (mask << (shift + 16));
+	} else {
 		uint32_t cached_val = vop->regsbak[offset >> 2];
 
-		cached_val = (cached_val & ~mask) | v;
-		writel(cached_val, vop->regs + offset);
-		vop->regsbak[offset >> 2] = cached_val;
+		v = (cached_val & ~(mask << shift)) | ((v & mask) << shift);
+		vop->regsbak[offset >> 2] = v;
 	}
-}
 
-static inline void vop_mask_write_relaxed(struct vop *vop, uint32_t offset,
-					  uint32_t mask, uint32_t v)
-{
-	if (mask) {
-		uint32_t cached_val = vop->regsbak[offset >> 2];
-
-		cached_val = (cached_val & ~mask) | v;
-		writel_relaxed(cached_val, vop->regs + offset);
-		vop->regsbak[offset >> 2] = cached_val;
-	}
+	if (relaxed)
+		writel_relaxed(v, vop->regs + offset);
+	else
+		writel(v, vop->regs + offset);
 }
 
 static inline uint32_t vop_get_intr_type(struct vop *vop,
@@ -424,6 +429,71 @@ static void vop_dsp_hold_valid_irq_disable(struct vop *vop)
 	spin_lock_irqsave(&vop->irq_lock, flags);
 
 	VOP_INTR_SET_TYPE(vop, enable, DSP_HOLD_VALID_INTR, 0);
+
+	spin_unlock_irqrestore(&vop->irq_lock, flags);
+}
+
+/*
+ * (1) each frame starts at the start of the Vsync pulse which is signaled by
+ *     the "FRAME_SYNC" interrupt.
+ * (2) the active data region of each frame ends at dsp_vact_end
+ * (3) we should program this same number (dsp_vact_end) into dsp_line_frag_num,
+ *      to get "LINE_FLAG" interrupt at the end of the active on screen data.
+ *
+ * VOP_INTR_CTRL0.dsp_line_frag_num = VOP_DSP_VACT_ST_END.dsp_vact_end
+ * Interrupts
+ * LINE_FLAG -------------------------------+
+ * FRAME_SYNC ----+                         |
+ *                |                         |
+ *                v                         v
+ *                | Vsync | Vbp |  Vactive  | Vfp |
+ *                        ^     ^           ^     ^
+ *                        |     |           |     |
+ *                        |     |           |     |
+ * dsp_vs_end ------------+     |           |     |   VOP_DSP_VTOTAL_VS_END
+ * dsp_vact_start --------------+           |     |   VOP_DSP_VACT_ST_END
+ * dsp_vact_end ----------------------------+     |   VOP_DSP_VACT_ST_END
+ * dsp_total -------------------------------------+   VOP_DSP_VTOTAL_VS_END
+ */
+static bool vop_line_flag_irq_is_enabled(struct vop *vop)
+{
+	uint32_t line_flag_irq;
+	unsigned long flags;
+
+	spin_lock_irqsave(&vop->irq_lock, flags);
+
+	line_flag_irq = VOP_INTR_GET_TYPE(vop, enable, LINE_FLAG_INTR);
+
+	spin_unlock_irqrestore(&vop->irq_lock, flags);
+
+	return !!line_flag_irq;
+}
+
+static void vop_line_flag_irq_enable(struct vop *vop, int line_num)
+{
+	unsigned long flags;
+
+	if (WARN_ON(!vop->is_enabled))
+		return;
+
+	spin_lock_irqsave(&vop->irq_lock, flags);
+
+	VOP_CTRL_SET(vop, line_flag_num[0], line_num);
+	VOP_INTR_SET_TYPE(vop, enable, LINE_FLAG_INTR, 1);
+
+	spin_unlock_irqrestore(&vop->irq_lock, flags);
+}
+
+static void vop_line_flag_irq_disable(struct vop *vop)
+{
+	unsigned long flags;
+
+	if (WARN_ON(!vop->is_enabled))
+		return;
+
+	spin_lock_irqsave(&vop->irq_lock, flags);
+
+	VOP_INTR_SET_TYPE(vop, enable, LINE_FLAG_INTR, 0);
 
 	spin_unlock_irqrestore(&vop->irq_lock, flags);
 }
@@ -849,6 +919,8 @@ static int vop_crtc_enable_vblank(struct drm_crtc *crtc)
 
 	spin_unlock_irqrestore(&vop->irq_lock, flags);
 
+	rockchip_drm_psr_disable(&vop->crtc);
+
 	return 0;
 }
 
@@ -865,6 +937,8 @@ static void vop_crtc_disable_vblank(struct drm_crtc *crtc)
 	VOP_INTR_SET_TYPE(vop, enable, FS_INTR, 0);
 
 	spin_unlock_irqrestore(&vop->irq_lock, flags);
+
+	rockchip_drm_psr_enable(&vop->crtc);
 }
 
 static void vop_crtc_wait_for_update(struct drm_crtc *crtc)
@@ -908,7 +982,7 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	u16 vsync_len = adjusted_mode->vsync_end - adjusted_mode->vsync_start;
 	u16 vact_st = adjusted_mode->vtotal - adjusted_mode->vsync_start;
 	u16 vact_end = vact_st + vdisplay;
-	uint32_t val;
+	uint32_t pin_pol, val;
 	int ret;
 
 	WARN_ON(vop->event);
@@ -955,21 +1029,26 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 		vop_dsp_hold_valid_irq_disable(vop);
 	}
 
-	val = 0x8;
-	val |= (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ? 0 : 1;
-	val |= (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC) ? 0 : (1 << 1);
-	VOP_CTRL_SET(vop, pin_pol, val);
+	pin_pol = 0x8;
+	pin_pol |= (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ? 0 : 1;
+	pin_pol |= (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC) ? 0 : (1 << 1);
+	VOP_CTRL_SET(vop, pin_pol, pin_pol);
+
 	switch (s->output_type) {
 	case DRM_MODE_CONNECTOR_LVDS:
 		VOP_CTRL_SET(vop, rgb_en, 1);
+		VOP_CTRL_SET(vop, rgb_pin_pol, pin_pol);
 		break;
 	case DRM_MODE_CONNECTOR_eDP:
+		VOP_CTRL_SET(vop, edp_pin_pol, pin_pol);
 		VOP_CTRL_SET(vop, edp_en, 1);
 		break;
 	case DRM_MODE_CONNECTOR_HDMIA:
+		VOP_CTRL_SET(vop, hdmi_pin_pol, pin_pol);
 		VOP_CTRL_SET(vop, hdmi_en, 1);
 		break;
 	case DRM_MODE_CONNECTOR_DSI:
+		VOP_CTRL_SET(vop, mipi_pin_pol, pin_pol);
 		VOP_CTRL_SET(vop, mipi_en, 1);
 		break;
 	default:
@@ -1016,10 +1095,11 @@ static void vop_crtc_atomic_begin(struct drm_crtc *crtc,
 	struct vop *vop = to_vop(crtc);
 
 	spin_lock_irq(&crtc->dev->event_lock);
-	if (crtc->state->event) {
-		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
-		WARN_ON(vop->event);
+	vop->vblank_active = true;
+	WARN_ON(drm_crtc_vblank_get(crtc) != 0);
+	WARN_ON(vop->event);
 
+	if (crtc->state->event) {
 		vop->event = crtc->state->event;
 		crtc->state->event = NULL;
 	}
@@ -1106,11 +1186,13 @@ static void vop_handle_vblank(struct vop *vop)
 
 	spin_lock_irqsave(&drm->event_lock, flags);
 	if (vop->event) {
-
 		drm_crtc_send_vblank_event(crtc, vop->event);
-		drm_crtc_vblank_put(crtc);
 		vop->event = NULL;
 
+	}
+	if (vop->vblank_active) {
+		vop->vblank_active = false;
+		drm_crtc_vblank_put(crtc);
 	}
 	spin_unlock_irqrestore(&drm->event_lock, flags);
 
@@ -1146,6 +1228,12 @@ static irqreturn_t vop_isr(int irq, void *data)
 	if (active_irqs & DSP_HOLD_VALID_INTR) {
 		complete(&vop->dsp_hold_completion);
 		active_irqs &= ~DSP_HOLD_VALID_INTR;
+		ret = IRQ_HANDLED;
+	}
+
+	if (active_irqs & LINE_FLAG_INTR) {
+		complete(&vop->line_flag_completion);
+		active_irqs &= ~LINE_FLAG_INTR;
 		ret = IRQ_HANDLED;
 	}
 
@@ -1250,6 +1338,7 @@ static int vop_create_crtc(struct vop *vop)
 
 	init_completion(&vop->dsp_hold_completion);
 	init_completion(&vop->wait_update_complete);
+	init_completion(&vop->line_flag_completion);
 	crtc->port = port;
 	rockchip_register_crtc_funcs(crtc, &private_crtc_funcs);
 
@@ -1377,6 +1466,7 @@ static int vop_initial(struct vop *vop)
 	clk_disable(vop->aclk);
 
 	vop->is_enabled = false;
+	vop->vblank_active = false;
 
 	return 0;
 
@@ -1405,6 +1495,49 @@ static void vop_win_init(struct vop *vop)
 		vop_win->vop = vop;
 	}
 }
+
+/**
+ * rockchip_drm_wait_line_flag - acqiure the give line flag event
+ * @crtc: CRTC to enable line flag
+ * @line_num: interested line number
+ * @mstimeout: millisecond for timeout
+ *
+ * Driver would hold here until the interested line flag interrupt have
+ * happened or timeout to wait.
+ *
+ * Returns:
+ * Zero on success, negative errno on failure.
+ */
+int rockchip_drm_wait_line_flag(struct drm_crtc *crtc, unsigned int line_num,
+				unsigned int mstimeout)
+{
+	struct vop *vop = to_vop(crtc);
+	unsigned long jiffies_left;
+
+	if (!crtc || !vop->is_enabled)
+		return -ENODEV;
+
+	if (line_num > crtc->mode.vtotal || mstimeout <= 0)
+		return -EINVAL;
+
+	if (vop_line_flag_irq_is_enabled(vop))
+		return -EBUSY;
+
+	reinit_completion(&vop->line_flag_completion);
+	vop_line_flag_irq_enable(vop, line_num);
+
+	jiffies_left = wait_for_completion_timeout(&vop->line_flag_completion,
+						   msecs_to_jiffies(mstimeout));
+	vop_line_flag_irq_disable(vop);
+
+	if (jiffies_left == 0) {
+		dev_err(vop->dev, "Timeout waiting for IRQ\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(rockchip_drm_wait_line_flag);
 
 static int vop_bind(struct device *dev, struct device *master, void *data)
 {
@@ -1474,6 +1607,7 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 
 	pm_runtime_enable(&pdev->dev);
+
 	return 0;
 }
 
