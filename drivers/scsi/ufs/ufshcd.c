@@ -1266,9 +1266,12 @@ static void ufshcd_prepare_utp_query_req_upiu(struct ufs_hba *hba,
 	ucd_req_ptr->header.dword_1 = UPIU_HEADER_DWORD(
 			0, query->request.query_func, 0, 0);
 
-	/* Data segment length */
-	ucd_req_ptr->header.dword_2 = UPIU_HEADER_DWORD(
-			0, 0, len >> 8, (u8)len);
+	/* Data segment length only need for WRITE_DESC */
+	if (query->request.upiu_req.opcode == UPIU_QUERY_OPCODE_WRITE_DESC)
+		ucd_req_ptr->header.dword_2 =
+			UPIU_HEADER_DWORD(0, 0, (len >> 8), (u8)len);
+	else
+		ucd_req_ptr->header.dword_2 = 0;
 
 	/* Copy the Query Request buffer as is */
 	memcpy(&ucd_req_ptr->qr, &query->request.upiu_req,
