@@ -387,6 +387,7 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_HAS_EXEC_SOFTPIN	 37
 #define I915_PARAM_HAS_POOLED_EU	 38
 #define I915_PARAM_MIN_EU_IN_POOL	 39
+#define I915_PARAM_MMAP_GTT_VERSION	 40
 
 typedef struct drm_i915_getparam {
 	__s32 param;

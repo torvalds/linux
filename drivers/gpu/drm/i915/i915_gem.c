@@ -1680,6 +1680,56 @@ static unsigned int tile_row_pages(struct drm_i915_gem_object *obj)
 }
 
 /**
+ * i915_gem_mmap_gtt_version - report the current feature set for GTT mmaps
+ *
+ * A history of the GTT mmap interface:
+ *
+ * 0 - Everything had to fit into the GTT. Both parties of a memcpy had to
+ *     aligned and suitable for fencing, and still fit into the available
+ *     mappable space left by the pinned display objects. A classic problem
+ *     we called the page-fault-of-doom where we would ping-pong between
+ *     two objects that could not fit inside the GTT and so the memcpy
+ *     would page one object in at the expense of the other between every
+ *     single byte.
+ *
+ * 1 - Objects can be any size, and have any compatible fencing (X Y, or none
+ *     as set via i915_gem_set_tiling() [DRM_I915_GEM_SET_TILING]). If the
+ *     object is too large for the available space (or simply too large
+ *     for the mappable aperture!), a view is created instead and faulted
+ *     into userspace. (This view is aligned and sized appropriately for
+ *     fenced access.)
+ *
+ * Restrictions:
+ *
+ *  * snoopable objects cannot be accessed via the GTT. It can cause machine
+ *    hangs on some architectures, corruption on others. An attempt to service
+ *    a GTT page fault from a snoopable object will generate a SIGBUS.
+ *
+ *  * the object must be able to fit into RAM (physical memory, though no
+ *    limited to the mappable aperture).
+ *
+ *
+ * Caveats:
+ *
+ *  * a new GTT page fault will synchronize rendering from the GPU and flush
+ *    all data to system memory. Subsequent access will not be synchronized.
+ *
+ *  * all mappings are revoked on runtime device suspend.
+ *
+ *  * there are only 8, 16 or 32 fence registers to share between all users
+ *    (older machines require fence register for display and blitter access
+ *    as well). Contention of the fence registers will cause the previous users
+ *    to be unmapped and any new access will generate new page faults.
+ *
+ *  * running out of memory while servicing a fault may generate a SIGBUS,
+ *    rather than the expected SIGSEGV.
+ */
+int i915_gem_mmap_gtt_version(void)
+{
+	return 1;
+}
+
+/**
  * i915_gem_fault - fault a page into the GTT
  * @area: CPU VMA in question
  * @vmf: fault info
@@ -1694,6 +1744,9 @@ static unsigned int tile_row_pages(struct drm_i915_gem_object *obj)
  * from the GTT and/or fence registers to make room.  So performance may
  * suffer if the GTT working set is large or there are few fence registers
  * left.
+ *
+ * The current feature set supported by i915_gem_fault() and thus GTT mmaps
+ * is exposed via I915_PARAM_MMAP_GTT_VERSION (see i915_gem_mmap_gtt_version).
  */
 int i915_gem_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 {

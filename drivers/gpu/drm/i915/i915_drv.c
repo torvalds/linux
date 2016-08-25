@@ -355,6 +355,13 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_MIN_EU_IN_POOL:
 		value = INTEL_INFO(dev)->min_eu_in_pool;
 		break;
+	case I915_PARAM_MMAP_GTT_VERSION:
+		/* Though we've started our numbering from 1, and so class all
+		 * earlier versions as 0, in effect their value is undefined as
+		 * the ioctl will report EINVAL for the unknown param!
+		 */
+		value = i915_gem_mmap_gtt_version();
+		break;
 	default:
 		DRM_DEBUG("Unknown parameter %d\n", param->param);
 		return -EINVAL;
