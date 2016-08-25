@@ -812,12 +812,12 @@ err_arch_supported:
 }
 
 static struct amba_id etm4_ids[] = {
-	{       /* ETM 4.0 - Qualcomm */
-		.id	= 0x0003b95d,
-		.mask	= 0x0003ffff,
+	{       /* ETM 4.0 - Cortex-A53  */
+		.id	= 0x000bb95d,
+		.mask	= 0x000fffff,
 		.data	= "ETM 4.0",
 	},
-	{       /* ETM 4.0 - Juno board */
+	{       /* ETM 4.0 - Cortex-A57 */
 		.id	= 0x000bb95e,
 		.mask	= 0x000fffff,
 		.data	= "ETM 4.0",
