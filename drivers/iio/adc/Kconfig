@@ -264,6 +264,15 @@ config LPC18XX_ADC
 	  To compile this driver as a module, choose M here: the module will be
 	  called lpc18xx_adc.
 
+config LTC2485
+	tristate "Linear Technology LTC2485 ADC driver"
+	depends on I2C
+	help
+	  Say yes here to build support for Linear Technology LTC2485 ADC.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ltc2485.
+
 config MAX1027
 	tristate "Maxim max1027 ADC driver"
 	depends on SPI
