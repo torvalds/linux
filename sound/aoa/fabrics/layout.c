@@ -112,6 +112,7 @@ MODULE_ALIAS("sound-layout-100");
 
 MODULE_ALIAS("aoa-device-id-14");
 MODULE_ALIAS("aoa-device-id-22");
+MODULE_ALIAS("aoa-device-id-31");
 MODULE_ALIAS("aoa-device-id-35");
 MODULE_ALIAS("aoa-device-id-44");
 
@@ -357,6 +358,13 @@ static struct layout layouts[] = {
 	},
 	/* PowerBook 5,4 */
 	{ .layout_id = 51,
+	  .codecs[0] = {
+		.name = "tas",
+		.connections = tas_connections_nolineout,
+	  },
+	},
+	/* PowerBook6,1 */
+	{ .device_id = 31,
 	  .codecs[0] = {
 		.name = "tas",
 		.connections = tas_connections_nolineout,
