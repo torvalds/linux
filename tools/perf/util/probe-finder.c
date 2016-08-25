@@ -171,6 +171,7 @@ static struct probe_trace_arg_ref *alloc_trace_arg_ref(long offs)
  */
 static int convert_variable_location(Dwarf_Die *vr_die, Dwarf_Addr addr,
 				     Dwarf_Op *fb_ops, Dwarf_Die *sp_die,
+				     unsigned int machine,
 				     struct probe_trace_arg *tvar)
 {
 	Dwarf_Attribute attr;
@@ -266,7 +267,7 @@ static_var:
 	if (!tvar)
 		return ret2;
 
-	regs = get_arch_regstr(regn);
+	regs = get_dwarf_regstr(regn, machine);
 	if (!regs) {
 		/* This should be a bug in DWARF or this tool */
 		pr_warning("Mapping for the register number %u "
@@ -543,7 +544,7 @@ static int convert_variable(Dwarf_Die *vr_die, struct probe_finder *pf)
 		 dwarf_diename(vr_die));
 
 	ret = convert_variable_location(vr_die, pf->addr, pf->fb_ops,
-					&pf->sp_die, pf->tvar);
+					&pf->sp_die, pf->machine, pf->tvar);
 	if (ret == -ENOENT || ret == -EINVAL) {
 		pr_err("Failed to find the location of the '%s' variable at this address.\n"
 		       " Perhaps it has been optimized out.\n"
@@ -1106,11 +1107,8 @@ static int debuginfo__find_probes(struct debuginfo *dbg,
 				  struct probe_finder *pf)
 {
 	int ret = 0;
-
-#if _ELFUTILS_PREREQ(0, 142)
 	Elf *elf;
 	GElf_Ehdr ehdr;
-	GElf_Shdr shdr;
 
 	if (pf->cfi_eh || pf->cfi_dbg)
 		return debuginfo__find_probe_location(dbg, pf);
@@ -1123,11 +1121,18 @@ static int debuginfo__find_probes(struct debuginfo *dbg,
 	if (gelf_getehdr(elf, &ehdr) == NULL)
 		return -EINVAL;
 
-	if (elf_section_by_name(elf, &ehdr, &shdr, ".eh_frame", NULL) &&
-	    shdr.sh_type == SHT_PROGBITS)
-		pf->cfi_eh = dwarf_getcfi_elf(elf);
+	pf->machine = ehdr.e_machine;
 
-	pf->cfi_dbg = dwarf_getcfi(dbg->dbg);
+#if _ELFUTILS_PREREQ(0, 142)
+	do {
+		GElf_Shdr shdr;
+
+		if (elf_section_by_name(elf, &ehdr, &shdr, ".eh_frame", NULL) &&
+		    shdr.sh_type == SHT_PROGBITS)
+			pf->cfi_eh = dwarf_getcfi_elf(elf);
+
+		pf->cfi_dbg = dwarf_getcfi(dbg->dbg);
+	} while (0);
 #endif
 
 	ret = debuginfo__find_probe_location(dbg, pf);
@@ -1155,7 +1160,7 @@ static int copy_variables_cb(Dwarf_Die *die_mem, void *data)
 	    (tag == DW_TAG_variable && vf->vars)) {
 		if (convert_variable_location(die_mem, vf->pf->addr,
 					      vf->pf->fb_ops, &pf->sp_die,
-					      NULL) == 0) {
+					      pf->machine, NULL) == 0) {
 			vf->args[vf->nargs].var = (char *)dwarf_diename(die_mem);
 			if (vf->args[vf->nargs].var == NULL) {
 				vf->ret = -ENOMEM;
@@ -1318,7 +1323,7 @@ static int collect_variables_cb(Dwarf_Die *die_mem, void *data)
 	    tag == DW_TAG_variable) {
 		ret = convert_variable_location(die_mem, af->pf.addr,
 						af->pf.fb_ops, &af->pf.sp_die,
-						NULL);
+						af->pf.machine, NULL);
 		if (ret == 0 || ret == -ERANGE) {
 			int ret2;
 			bool externs = !af->child;
