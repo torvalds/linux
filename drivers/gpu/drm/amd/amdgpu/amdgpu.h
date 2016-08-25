@@ -1241,7 +1241,7 @@ struct amdgpu_job {
 	struct fence		*fence; /* the hw fence */
 	uint32_t		num_ibs;
 	void			*owner;
-	uint64_t		ctx;
+	uint64_t		fence_ctx; /* the fence_context this job uses */
 	bool                    vm_needs_flush;
 	unsigned		vm_id;
 	uint64_t		vm_pd_addr;

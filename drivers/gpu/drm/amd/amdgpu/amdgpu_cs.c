@@ -989,7 +989,7 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	}
 
 	job->owner = p->filp;
-	job->ctx = entity->fence_context;
+	job->fence_ctx = entity->fence_context;
 	p->fence = fence_get(&job->base.s_fence->finished);
 	cs->out.handle = amdgpu_ctx_add_fence(p->ctx, ring, p->fence);
 	job->uf_sequence = cs->out.handle;
