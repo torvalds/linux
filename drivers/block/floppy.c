@@ -3663,6 +3663,11 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 
 	opened_bdev[drive] = bdev;
 
+	if (!(mode & (FMODE_READ|FMODE_WRITE))) {
+		res = -EINVAL;
+		goto out;
+	}
+
 	res = -ENXIO;
 
 	if (!floppy_track_buffer) {
@@ -3706,15 +3711,13 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 	if (UFDCS->rawcmd == 1)
 		UFDCS->rawcmd = 2;
 
-	if (mode & (FMODE_READ|FMODE_WRITE)) {
-		UDRS->last_checked = 0;
-		clear_bit(FD_OPEN_SHOULD_FAIL_BIT, &UDRS->flags);
-		check_disk_change(bdev);
-		if (test_bit(FD_DISK_CHANGED_BIT, &UDRS->flags))
-			goto out;
-		if (test_bit(FD_OPEN_SHOULD_FAIL_BIT, &UDRS->flags))
-			goto out;
-	}
+	UDRS->last_checked = 0;
+	clear_bit(FD_OPEN_SHOULD_FAIL_BIT, &UDRS->flags);
+	check_disk_change(bdev);
+	if (test_bit(FD_DISK_CHANGED_BIT, &UDRS->flags))
+		goto out;
+	if (test_bit(FD_OPEN_SHOULD_FAIL_BIT, &UDRS->flags))
+		goto out;
 
 	res = -EROFS;
 
