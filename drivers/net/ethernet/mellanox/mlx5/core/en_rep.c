@@ -416,8 +416,8 @@ int mlx5e_vport_rep_load(struct mlx5_eswitch *esw,
 {
 	rep->priv_data = mlx5e_create_netdev(esw->dev, &mlx5e_rep_profile, rep);
 	if (!rep->priv_data) {
-		pr_warn("Failed to create representor for vport %d\n",
-			rep->vport);
+		mlx5_core_warn(esw->dev, "Failed to create representor for vport %d\n",
+			       rep->vport);
 		return -EINVAL;
 	}
 	return 0;

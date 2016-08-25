@@ -280,11 +280,13 @@ static int mlx5_internal_err_ret_value(struct mlx5_core_dev *dev, u16 op,
 	case MLX5_CMD_OP_DEALLOC_Q_COUNTER:
 	case MLX5_CMD_OP_DEALLOC_PD:
 	case MLX5_CMD_OP_DEALLOC_UAR:
-	case MLX5_CMD_OP_DETTACH_FROM_MCG:
+	case MLX5_CMD_OP_DETACH_FROM_MCG:
 	case MLX5_CMD_OP_DEALLOC_XRCD:
 	case MLX5_CMD_OP_DEALLOC_TRANSPORT_DOMAIN:
 	case MLX5_CMD_OP_DELETE_VXLAN_UDP_DPORT:
 	case MLX5_CMD_OP_DELETE_L2_TABLE_ENTRY:
+	case MLX5_CMD_OP_DESTROY_LAG:
+	case MLX5_CMD_OP_DESTROY_VPORT_LAG:
 	case MLX5_CMD_OP_DESTROY_TIR:
 	case MLX5_CMD_OP_DESTROY_SQ:
 	case MLX5_CMD_OP_DESTROY_RQ:
@@ -301,6 +303,7 @@ static int mlx5_internal_err_ret_value(struct mlx5_core_dev *dev, u16 op,
 	case MLX5_CMD_OP_MODIFY_FLOW_TABLE:
 	case MLX5_CMD_OP_SET_FLOW_TABLE_ENTRY:
 	case MLX5_CMD_OP_SET_FLOW_TABLE_ROOT:
+	case MLX5_CMD_OP_DEALLOC_ENCAP_HEADER:
 		return MLX5_CMD_STAT_OK;
 
 	case MLX5_CMD_OP_QUERY_HCA_CAP:
@@ -375,6 +378,10 @@ static int mlx5_internal_err_ret_value(struct mlx5_core_dev *dev, u16 op,
 	case MLX5_CMD_OP_ADD_VXLAN_UDP_DPORT:
 	case MLX5_CMD_OP_SET_L2_TABLE_ENTRY:
 	case MLX5_CMD_OP_QUERY_L2_TABLE_ENTRY:
+	case MLX5_CMD_OP_CREATE_LAG:
+	case MLX5_CMD_OP_MODIFY_LAG:
+	case MLX5_CMD_OP_QUERY_LAG:
+	case MLX5_CMD_OP_CREATE_VPORT_LAG:
 	case MLX5_CMD_OP_CREATE_TIR:
 	case MLX5_CMD_OP_MODIFY_TIR:
 	case MLX5_CMD_OP_QUERY_TIR:
@@ -402,6 +409,7 @@ static int mlx5_internal_err_ret_value(struct mlx5_core_dev *dev, u16 op,
 	case MLX5_CMD_OP_QUERY_FLOW_TABLE_ENTRY:
 	case MLX5_CMD_OP_ALLOC_FLOW_COUNTER:
 	case MLX5_CMD_OP_QUERY_FLOW_COUNTER:
+	case MLX5_CMD_OP_ALLOC_ENCAP_HEADER:
 		*status = MLX5_DRIVER_STATUS_ABORTED;
 		*synd = MLX5_DRIVER_SYND;
 		return -EIO;
@@ -490,7 +498,7 @@ const char *mlx5_command_str(int command)
 	MLX5_COMMAND_STR_CASE(CONFIG_INT_MODERATION);
 	MLX5_COMMAND_STR_CASE(ACCESS_REG);
 	MLX5_COMMAND_STR_CASE(ATTACH_TO_MCG);
-	MLX5_COMMAND_STR_CASE(DETTACH_FROM_MCG);
+	MLX5_COMMAND_STR_CASE(DETACH_FROM_MCG);
 	MLX5_COMMAND_STR_CASE(GET_DROPPED_PACKET_LOG);
 	MLX5_COMMAND_STR_CASE(MAD_IFC);
 	MLX5_COMMAND_STR_CASE(QUERY_MAD_DEMUX);
@@ -512,6 +520,12 @@ const char *mlx5_command_str(int command)
 	MLX5_COMMAND_STR_CASE(DELETE_L2_TABLE_ENTRY);
 	MLX5_COMMAND_STR_CASE(SET_WOL_ROL);
 	MLX5_COMMAND_STR_CASE(QUERY_WOL_ROL);
+	MLX5_COMMAND_STR_CASE(CREATE_LAG);
+	MLX5_COMMAND_STR_CASE(MODIFY_LAG);
+	MLX5_COMMAND_STR_CASE(QUERY_LAG);
+	MLX5_COMMAND_STR_CASE(DESTROY_LAG);
+	MLX5_COMMAND_STR_CASE(CREATE_VPORT_LAG);
+	MLX5_COMMAND_STR_CASE(DESTROY_VPORT_LAG);
 	MLX5_COMMAND_STR_CASE(CREATE_TIR);
 	MLX5_COMMAND_STR_CASE(MODIFY_TIR);
 	MLX5_COMMAND_STR_CASE(DESTROY_TIR);
@@ -550,15 +564,130 @@ const char *mlx5_command_str(int command)
 	MLX5_COMMAND_STR_CASE(DEALLOC_FLOW_COUNTER);
 	MLX5_COMMAND_STR_CASE(QUERY_FLOW_COUNTER);
 	MLX5_COMMAND_STR_CASE(MODIFY_FLOW_TABLE);
+	MLX5_COMMAND_STR_CASE(ALLOC_ENCAP_HEADER);
+	MLX5_COMMAND_STR_CASE(DEALLOC_ENCAP_HEADER);
 	default: return "unknown command opcode";
 	}
+}
+
+static const char *cmd_status_str(u8 status)
+{
+	switch (status) {
+	case MLX5_CMD_STAT_OK:
+		return "OK";
+	case MLX5_CMD_STAT_INT_ERR:
+		return "internal error";
+	case MLX5_CMD_STAT_BAD_OP_ERR:
+		return "bad operation";
+	case MLX5_CMD_STAT_BAD_PARAM_ERR:
+		return "bad parameter";
+	case MLX5_CMD_STAT_BAD_SYS_STATE_ERR:
+		return "bad system state";
+	case MLX5_CMD_STAT_BAD_RES_ERR:
+		return "bad resource";
+	case MLX5_CMD_STAT_RES_BUSY:
+		return "resource busy";
+	case MLX5_CMD_STAT_LIM_ERR:
+		return "limits exceeded";
+	case MLX5_CMD_STAT_BAD_RES_STATE_ERR:
+		return "bad resource state";
+	case MLX5_CMD_STAT_IX_ERR:
+		return "bad index";
+	case MLX5_CMD_STAT_NO_RES_ERR:
+		return "no resources";
+	case MLX5_CMD_STAT_BAD_INP_LEN_ERR:
+		return "bad input length";
+	case MLX5_CMD_STAT_BAD_OUTP_LEN_ERR:
+		return "bad output length";
+	case MLX5_CMD_STAT_BAD_QP_STATE_ERR:
+		return "bad QP state";
+	case MLX5_CMD_STAT_BAD_PKT_ERR:
+		return "bad packet (discarded)";
+	case MLX5_CMD_STAT_BAD_SIZE_OUTS_CQES_ERR:
+		return "bad size too many outstanding CQEs";
+	default:
+		return "unknown status";
+	}
+}
+
+static int cmd_status_to_err(u8 status)
+{
+	switch (status) {
+	case MLX5_CMD_STAT_OK:				return 0;
+	case MLX5_CMD_STAT_INT_ERR:			return -EIO;
+	case MLX5_CMD_STAT_BAD_OP_ERR:			return -EINVAL;
+	case MLX5_CMD_STAT_BAD_PARAM_ERR:		return -EINVAL;
+	case MLX5_CMD_STAT_BAD_SYS_STATE_ERR:		return -EIO;
+	case MLX5_CMD_STAT_BAD_RES_ERR:			return -EINVAL;
+	case MLX5_CMD_STAT_RES_BUSY:			return -EBUSY;
+	case MLX5_CMD_STAT_LIM_ERR:			return -ENOMEM;
+	case MLX5_CMD_STAT_BAD_RES_STATE_ERR:		return -EINVAL;
+	case MLX5_CMD_STAT_IX_ERR:			return -EINVAL;
+	case MLX5_CMD_STAT_NO_RES_ERR:			return -EAGAIN;
+	case MLX5_CMD_STAT_BAD_INP_LEN_ERR:		return -EIO;
+	case MLX5_CMD_STAT_BAD_OUTP_LEN_ERR:		return -EIO;
+	case MLX5_CMD_STAT_BAD_QP_STATE_ERR:		return -EINVAL;
+	case MLX5_CMD_STAT_BAD_PKT_ERR:			return -EINVAL;
+	case MLX5_CMD_STAT_BAD_SIZE_OUTS_CQES_ERR:	return -EINVAL;
+	default:					return -EIO;
+	}
+}
+
+struct mlx5_ifc_mbox_out_bits {
+	u8         status[0x8];
+	u8         reserved_at_8[0x18];
+
+	u8         syndrome[0x20];
+
+	u8         reserved_at_40[0x40];
+};
+
+struct mlx5_ifc_mbox_in_bits {
+	u8         opcode[0x10];
+	u8         reserved_at_10[0x10];
+
+	u8         reserved_at_20[0x10];
+	u8         op_mod[0x10];
+
+	u8         reserved_at_40[0x40];
+};
+
+void mlx5_cmd_mbox_status(void *out, u8 *status, u32 *syndrome)
+{
+	*status = MLX5_GET(mbox_out, out, status);
+	*syndrome = MLX5_GET(mbox_out, out, syndrome);
+}
+
+static int mlx5_cmd_check(struct mlx5_core_dev *dev, void *in, void *out)
+{
+	u32 syndrome;
+	u8  status;
+	u16 opcode;
+	u16 op_mod;
+
+	mlx5_cmd_mbox_status(out, &status, &syndrome);
+	if (!status)
+		return 0;
+
+	opcode = MLX5_GET(mbox_in, in, opcode);
+	op_mod = MLX5_GET(mbox_in, in, op_mod);
+
+	mlx5_core_err(dev,
+		      "%s(0x%x) op_mod(0x%x) failed, status %s(0x%x), syndrome (0x%x)\n",
+		      mlx5_command_str(opcode),
+		      opcode, op_mod,
+		      cmd_status_str(status),
+		      status,
+		      syndrome);
+
+	return cmd_status_to_err(status);
 }
 
 static void dump_command(struct mlx5_core_dev *dev,
 			 struct mlx5_cmd_work_ent *ent, int input)
 {
-	u16 op = be16_to_cpu(((struct mlx5_inbox_hdr *)(ent->lay->in))->opcode);
 	struct mlx5_cmd_msg *msg = input ? ent->in : ent->out;
+	u16 op = MLX5_GET(mbox_in, ent->lay->in, opcode);
 	struct mlx5_cmd_mailbox *next = msg->next;
 	int data_only;
 	u32 offset = 0;
@@ -608,9 +737,7 @@ static void dump_command(struct mlx5_core_dev *dev,
 
 static u16 msg_to_opcode(struct mlx5_cmd_msg *in)
 {
-	struct mlx5_inbox_hdr *hdr = (struct mlx5_inbox_hdr *)(in->first.data);
-
-	return be16_to_cpu(hdr->opcode);
+	return MLX5_GET(mbox_in, in->first.data, opcode);
 }
 
 static void cb_timeout_handler(struct work_struct *work)
@@ -749,16 +876,6 @@ static int wait_func(struct mlx5_core_dev *dev, struct mlx5_cmd_work_ent *ent)
 	return err;
 }
 
-static __be32 *get_synd_ptr(struct mlx5_outbox_hdr *out)
-{
-	return &out->syndrome;
-}
-
-static u8 *get_status_ptr(struct mlx5_outbox_hdr *out)
-{
-	return &out->status;
-}
-
 /*  Notes:
  *    1. Callback functions may not sleep
  *    2. page queue commands do not support asynchrous completion
@@ -804,7 +921,7 @@ static int mlx5_cmd_invoke(struct mlx5_core_dev *dev, struct mlx5_cmd_msg *in,
 		goto out_free;
 
 	ds = ent->ts2 - ent->ts1;
-	op = be16_to_cpu(((struct mlx5_inbox_hdr *)in->first.data)->opcode);
+	op = MLX5_GET(mbox_in, in->first.data, opcode);
 	if (op < ARRAY_SIZE(cmd->stats)) {
 		stats = &cmd->stats[op];
 		spin_lock_irq(&stats->lock);
@@ -1301,10 +1418,15 @@ void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vec)
 				callback = ent->callback;
 				context = ent->context;
 				err = ent->ret;
-				if (!err)
+				if (!err) {
 					err = mlx5_copy_from_msg(ent->uout,
 								 ent->out,
 								 ent->uout_size);
+
+					err = err ? err : mlx5_cmd_check(dev,
+									ent->in->first.data,
+									ent->uout);
+				}
 
 				mlx5_free_cmd_msg(dev, ent->out);
 				free_msg(dev, ent->in);
@@ -1357,14 +1479,9 @@ static struct mlx5_cmd_msg *alloc_msg(struct mlx5_core_dev *dev, int in_size,
 	return msg;
 }
 
-static u16 opcode_from_in(struct mlx5_inbox_hdr *in)
+static int is_manage_pages(void *in)
 {
-	return be16_to_cpu(in->opcode);
-}
-
-static int is_manage_pages(struct mlx5_inbox_hdr *in)
-{
-	return be16_to_cpu(in->opcode) == MLX5_CMD_OP_MANAGE_PAGES;
+	return MLX5_GET(mbox_in, in, opcode) == MLX5_CMD_OP_MANAGE_PAGES;
 }
 
 static int cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
@@ -1380,9 +1497,11 @@ static int cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 
 	if (pci_channel_offline(dev->pdev) ||
 	    dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR) {
-		err = mlx5_internal_err_ret_value(dev, opcode_from_in(in), &drv_synd, &status);
-		*get_synd_ptr(out) = cpu_to_be32(drv_synd);
-		*get_status_ptr(out) = status;
+		u16 opcode = MLX5_GET(mbox_in, in, opcode);
+
+		err = mlx5_internal_err_ret_value(dev, opcode, &drv_synd, &status);
+		MLX5_SET(mbox_out, out, status, status);
+		MLX5_SET(mbox_out, out, syndrome, drv_synd);
 		return err;
 	}
 
@@ -1434,7 +1553,10 @@ out_in:
 int mlx5_cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 		  int out_size)
 {
-	return cmd_exec(dev, in, in_size, out, out_size, NULL, NULL);
+	int err;
+
+	err = cmd_exec(dev, in, in_size, out, out_size, NULL, NULL);
+	return err ? : mlx5_cmd_check(dev, in, out);
 }
 EXPORT_SYMBOL(mlx5_cmd_exec);
 
@@ -1671,96 +1793,3 @@ void mlx5_cmd_cleanup(struct mlx5_core_dev *dev)
 	pci_pool_destroy(cmd->pool);
 }
 EXPORT_SYMBOL(mlx5_cmd_cleanup);
-
-static const char *cmd_status_str(u8 status)
-{
-	switch (status) {
-	case MLX5_CMD_STAT_OK:
-		return "OK";
-	case MLX5_CMD_STAT_INT_ERR:
-		return "internal error";
-	case MLX5_CMD_STAT_BAD_OP_ERR:
-		return "bad operation";
-	case MLX5_CMD_STAT_BAD_PARAM_ERR:
-		return "bad parameter";
-	case MLX5_CMD_STAT_BAD_SYS_STATE_ERR:
-		return "bad system state";
-	case MLX5_CMD_STAT_BAD_RES_ERR:
-		return "bad resource";
-	case MLX5_CMD_STAT_RES_BUSY:
-		return "resource busy";
-	case MLX5_CMD_STAT_LIM_ERR:
-		return "limits exceeded";
-	case MLX5_CMD_STAT_BAD_RES_STATE_ERR:
-		return "bad resource state";
-	case MLX5_CMD_STAT_IX_ERR:
-		return "bad index";
-	case MLX5_CMD_STAT_NO_RES_ERR:
-		return "no resources";
-	case MLX5_CMD_STAT_BAD_INP_LEN_ERR:
-		return "bad input length";
-	case MLX5_CMD_STAT_BAD_OUTP_LEN_ERR:
-		return "bad output length";
-	case MLX5_CMD_STAT_BAD_QP_STATE_ERR:
-		return "bad QP state";
-	case MLX5_CMD_STAT_BAD_PKT_ERR:
-		return "bad packet (discarded)";
-	case MLX5_CMD_STAT_BAD_SIZE_OUTS_CQES_ERR:
-		return "bad size too many outstanding CQEs";
-	default:
-		return "unknown status";
-	}
-}
-
-static int cmd_status_to_err(u8 status)
-{
-	switch (status) {
-	case MLX5_CMD_STAT_OK:				return 0;
-	case MLX5_CMD_STAT_INT_ERR:			return -EIO;
-	case MLX5_CMD_STAT_BAD_OP_ERR:			return -EINVAL;
-	case MLX5_CMD_STAT_BAD_PARAM_ERR:		return -EINVAL;
-	case MLX5_CMD_STAT_BAD_SYS_STATE_ERR:		return -EIO;
-	case MLX5_CMD_STAT_BAD_RES_ERR:			return -EINVAL;
-	case MLX5_CMD_STAT_RES_BUSY:			return -EBUSY;
-	case MLX5_CMD_STAT_LIM_ERR:			return -ENOMEM;
-	case MLX5_CMD_STAT_BAD_RES_STATE_ERR:		return -EINVAL;
-	case MLX5_CMD_STAT_IX_ERR:			return -EINVAL;
-	case MLX5_CMD_STAT_NO_RES_ERR:			return -EAGAIN;
-	case MLX5_CMD_STAT_BAD_INP_LEN_ERR:		return -EIO;
-	case MLX5_CMD_STAT_BAD_OUTP_LEN_ERR:		return -EIO;
-	case MLX5_CMD_STAT_BAD_QP_STATE_ERR:		return -EINVAL;
-	case MLX5_CMD_STAT_BAD_PKT_ERR:			return -EINVAL;
-	case MLX5_CMD_STAT_BAD_SIZE_OUTS_CQES_ERR:	return -EINVAL;
-	default:					return -EIO;
-	}
-}
-
-/* this will be available till all the commands use set/get macros */
-int mlx5_cmd_status_to_err(struct mlx5_outbox_hdr *hdr)
-{
-	if (!hdr->status)
-		return 0;
-
-	pr_warn("command failed, status %s(0x%x), syndrome 0x%x\n",
-		cmd_status_str(hdr->status), hdr->status,
-		be32_to_cpu(hdr->syndrome));
-
-	return cmd_status_to_err(hdr->status);
-}
-
-int mlx5_cmd_status_to_err_v2(void *ptr)
-{
-	u32	syndrome;
-	u8	status;
-
-	status = be32_to_cpu(*(__be32 *)ptr) >> 24;
-	if (!status)
-		return 0;
-
-	syndrome = be32_to_cpu(*(__be32 *)(ptr + 4));
-
-	pr_warn("command failed, status %s(0x%x), syndrome 0x%x\n",
-		cmd_status_str(status), status, syndrome);
-
-	return cmd_status_to_err(status);
-}

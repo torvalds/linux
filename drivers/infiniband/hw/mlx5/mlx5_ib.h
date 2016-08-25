@@ -504,7 +504,7 @@ struct mlx5_ib_mr {
 	int			umred;
 	int			npages;
 	struct mlx5_ib_dev     *dev;
-	struct mlx5_create_mkey_mbox_out out;
+	u32 out[MLX5_ST_SZ_DW(create_mkey_out)];
 	struct mlx5_core_sig_ctx    *sig;
 	int			live;
 	void			*descs_alloc;

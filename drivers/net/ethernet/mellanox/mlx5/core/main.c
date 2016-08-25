@@ -73,8 +73,9 @@ module_param_named(prof_sel, prof_sel, int, 0444);
 MODULE_PARM_DESC(prof_sel, "profile selector. Valid range 0 - 2");
 
 static LIST_HEAD(intf_list);
-static LIST_HEAD(dev_list);
-static DEFINE_MUTEX(intf_mutex);
+
+LIST_HEAD(mlx5_dev_list);
+DEFINE_MUTEX(mlx5_intf_mutex);
 
 struct mlx5_device_context {
 	struct list_head	list;
@@ -324,7 +325,7 @@ enum {
 				MLX5_DEV_CAP_FLAG_DCT,
 };
 
-static u16 to_fw_pkey_sz(u32 size)
+static u16 to_fw_pkey_sz(struct mlx5_core_dev *dev, u32 size)
 {
 	switch (size) {
 	case 128:
@@ -340,7 +341,7 @@ static u16 to_fw_pkey_sz(u32 size)
 	case 4096:
 		return 5;
 	default:
-		pr_warn("invalid pkey table size %d\n", size);
+		mlx5_core_warn(dev, "invalid pkey table size %d\n", size);
 		return 0;
 	}
 }
@@ -363,10 +364,6 @@ static int mlx5_core_get_caps_mode(struct mlx5_core_dev *dev,
 	MLX5_SET(query_hca_cap_in, in, opcode, MLX5_CMD_OP_QUERY_HCA_CAP);
 	MLX5_SET(query_hca_cap_in, in, op_mod, opmod);
 	err = mlx5_cmd_exec(dev, in, sizeof(in), out, out_sz);
-	if (err)
-		goto query_ex;
-
-	err = mlx5_cmd_status_to_err_v2(out);
 	if (err) {
 		mlx5_core_warn(dev,
 			       "QUERY_HCA_CAP : type(%x) opmode(%x) Failed(%d)\n",
@@ -409,20 +406,11 @@ int mlx5_core_get_caps(struct mlx5_core_dev *dev, enum mlx5_cap_type cap_type)
 
 static int set_caps(struct mlx5_core_dev *dev, void *in, int in_sz, int opmod)
 {
-	u32 out[MLX5_ST_SZ_DW(set_hca_cap_out)];
-	int err;
-
-	memset(out, 0, sizeof(out));
+	u32 out[MLX5_ST_SZ_DW(set_hca_cap_out)] = {0};
 
 	MLX5_SET(set_hca_cap_in, in, opcode, MLX5_CMD_OP_SET_HCA_CAP);
 	MLX5_SET(set_hca_cap_in, in, op_mod, opmod << 1);
-	err = mlx5_cmd_exec(dev, in, in_sz, out, sizeof(out));
-	if (err)
-		return err;
-
-	err = mlx5_cmd_status_to_err_v2(out);
-
-	return err;
+	return mlx5_cmd_exec(dev, in, in_sz, out, sizeof(out));
 }
 
 static int handle_hca_cap_atomic(struct mlx5_core_dev *dev)
@@ -490,7 +478,7 @@ static int handle_hca_cap(struct mlx5_core_dev *dev)
 		      128);
 	/* we limit the size of the pkey table to 128 entries for now */
 	MLX5_SET(cmd_hca_cap, set_hca_cap, pkey_table_size,
-		 to_fw_pkey_sz(128));
+		 to_fw_pkey_sz(dev, 128));
 
 	if (prof->mask & MLX5_PROF_MASK_QP_SIZE)
 		MLX5_SET(cmd_hca_cap, set_hca_cap, log_max_qp,
@@ -528,37 +516,22 @@ static int set_hca_ctrl(struct mlx5_core_dev *dev)
 
 int mlx5_core_enable_hca(struct mlx5_core_dev *dev, u16 func_id)
 {
-	u32 out[MLX5_ST_SZ_DW(enable_hca_out)];
-	u32 in[MLX5_ST_SZ_DW(enable_hca_in)];
-	int err;
+	u32 out[MLX5_ST_SZ_DW(enable_hca_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(enable_hca_in)]   = {0};
 
-	memset(in, 0, sizeof(in));
 	MLX5_SET(enable_hca_in, in, opcode, MLX5_CMD_OP_ENABLE_HCA);
 	MLX5_SET(enable_hca_in, in, function_id, func_id);
-	memset(out, 0, sizeof(out));
-
-	err = mlx5_cmd_exec(dev, &in, sizeof(in), &out, sizeof(out));
-	if (err)
-		return err;
-
-	return mlx5_cmd_status_to_err_v2(out);
+	return mlx5_cmd_exec(dev, &in, sizeof(in), &out, sizeof(out));
 }
 
 int mlx5_core_disable_hca(struct mlx5_core_dev *dev, u16 func_id)
 {
-	u32 out[MLX5_ST_SZ_DW(disable_hca_out)];
-	u32 in[MLX5_ST_SZ_DW(disable_hca_in)];
-	int err;
+	u32 out[MLX5_ST_SZ_DW(disable_hca_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(disable_hca_in)]   = {0};
 
-	memset(in, 0, sizeof(in));
 	MLX5_SET(disable_hca_in, in, opcode, MLX5_CMD_OP_DISABLE_HCA);
 	MLX5_SET(disable_hca_in, in, function_id, func_id);
-	memset(out, 0, sizeof(out));
-	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
-	if (err)
-		return err;
-
-	return mlx5_cmd_status_to_err_v2(out);
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 
 cycle_t mlx5_read_internal_timer(struct mlx5_core_dev *dev)
@@ -758,44 +731,40 @@ clean:
 
 static int mlx5_core_set_issi(struct mlx5_core_dev *dev)
 {
-	u32 query_in[MLX5_ST_SZ_DW(query_issi_in)];
-	u32 query_out[MLX5_ST_SZ_DW(query_issi_out)];
-	u32 set_in[MLX5_ST_SZ_DW(set_issi_in)];
-	u32 set_out[MLX5_ST_SZ_DW(set_issi_out)];
-	int err;
+	u32 query_in[MLX5_ST_SZ_DW(query_issi_in)]   = {0};
+	u32 query_out[MLX5_ST_SZ_DW(query_issi_out)] = {0};
 	u32 sup_issi;
-
-	memset(query_in, 0, sizeof(query_in));
-	memset(query_out, 0, sizeof(query_out));
+	int err;
 
 	MLX5_SET(query_issi_in, query_in, opcode, MLX5_CMD_OP_QUERY_ISSI);
-
-	err = mlx5_cmd_exec_check_status(dev, query_in, sizeof(query_in),
-					 query_out, sizeof(query_out));
+	err = mlx5_cmd_exec(dev, query_in, sizeof(query_in),
+			    query_out, sizeof(query_out));
 	if (err) {
-		if (((struct mlx5_outbox_hdr *)query_out)->status ==
-		    MLX5_CMD_STAT_BAD_OP_ERR) {
+		u32 syndrome;
+		u8 status;
+
+		mlx5_cmd_mbox_status(query_out, &status, &syndrome);
+		if (status == MLX5_CMD_STAT_BAD_OP_ERR) {
 			pr_debug("Only ISSI 0 is supported\n");
 			return 0;
 		}
 
-		pr_err("failed to query ISSI\n");
+		pr_err("failed to query ISSI err(%d)\n", err);
 		return err;
 	}
 
 	sup_issi = MLX5_GET(query_issi_out, query_out, supported_issi_dw0);
 
 	if (sup_issi & (1 << 1)) {
-		memset(set_in, 0, sizeof(set_in));
-		memset(set_out, 0, sizeof(set_out));
+		u32 set_in[MLX5_ST_SZ_DW(set_issi_in)]   = {0};
+		u32 set_out[MLX5_ST_SZ_DW(set_issi_out)] = {0};
 
 		MLX5_SET(set_issi_in, set_in, opcode, MLX5_CMD_OP_SET_ISSI);
 		MLX5_SET(set_issi_in, set_in, current_issi, 1);
-
-		err = mlx5_cmd_exec_check_status(dev, set_in, sizeof(set_in),
-						 set_out, sizeof(set_out));
+		err = mlx5_cmd_exec(dev, set_in, sizeof(set_in),
+				    set_out, sizeof(set_out));
 		if (err) {
-			pr_err("failed to set ISSI=1\n");
+			pr_err("failed to set ISSI=1 err(%d)\n", err);
 			return err;
 		}
 
@@ -813,6 +782,9 @@ static void mlx5_add_device(struct mlx5_interface *intf, struct mlx5_priv *priv)
 {
 	struct mlx5_device_context *dev_ctx;
 	struct mlx5_core_dev *dev = container_of(priv, struct mlx5_core_dev, priv);
+
+	if (!mlx5_lag_intf_add(intf, priv))
+		return;
 
 	dev_ctx = kmalloc(sizeof(*dev_ctx), GFP_KERNEL);
 	if (!dev_ctx)
@@ -852,11 +824,11 @@ static int mlx5_register_device(struct mlx5_core_dev *dev)
 	struct mlx5_priv *priv = &dev->priv;
 	struct mlx5_interface *intf;
 
-	mutex_lock(&intf_mutex);
-	list_add_tail(&priv->dev_list, &dev_list);
+	mutex_lock(&mlx5_intf_mutex);
+	list_add_tail(&priv->dev_list, &mlx5_dev_list);
 	list_for_each_entry(intf, &intf_list, list)
 		mlx5_add_device(intf, priv);
-	mutex_unlock(&intf_mutex);
+	mutex_unlock(&mlx5_intf_mutex);
 
 	return 0;
 }
@@ -866,11 +838,11 @@ static void mlx5_unregister_device(struct mlx5_core_dev *dev)
 	struct mlx5_priv *priv = &dev->priv;
 	struct mlx5_interface *intf;
 
-	mutex_lock(&intf_mutex);
+	mutex_lock(&mlx5_intf_mutex);
 	list_for_each_entry(intf, &intf_list, list)
 		mlx5_remove_device(intf, priv);
 	list_del(&priv->dev_list);
-	mutex_unlock(&intf_mutex);
+	mutex_unlock(&mlx5_intf_mutex);
 }
 
 int mlx5_register_interface(struct mlx5_interface *intf)
@@ -880,11 +852,11 @@ int mlx5_register_interface(struct mlx5_interface *intf)
 	if (!intf->add || !intf->remove)
 		return -EINVAL;
 
-	mutex_lock(&intf_mutex);
+	mutex_lock(&mlx5_intf_mutex);
 	list_add_tail(&intf->list, &intf_list);
-	list_for_each_entry(priv, &dev_list, dev_list)
+	list_for_each_entry(priv, &mlx5_dev_list, dev_list)
 		mlx5_add_device(intf, priv);
-	mutex_unlock(&intf_mutex);
+	mutex_unlock(&mlx5_intf_mutex);
 
 	return 0;
 }
@@ -894,11 +866,11 @@ void mlx5_unregister_interface(struct mlx5_interface *intf)
 {
 	struct mlx5_priv *priv;
 
-	mutex_lock(&intf_mutex);
-	list_for_each_entry(priv, &dev_list, dev_list)
+	mutex_lock(&mlx5_intf_mutex);
+	list_for_each_entry(priv, &mlx5_dev_list, dev_list)
 		mlx5_remove_device(intf, priv);
 	list_del(&intf->list);
-	mutex_unlock(&intf_mutex);
+	mutex_unlock(&mlx5_intf_mutex);
 }
 EXPORT_SYMBOL(mlx5_unregister_interface);
 
@@ -923,6 +895,30 @@ void *mlx5_get_protocol_dev(struct mlx5_core_dev *mdev, int protocol)
 	return result;
 }
 EXPORT_SYMBOL(mlx5_get_protocol_dev);
+
+/* Must be called with intf_mutex held */
+void mlx5_add_dev_by_protocol(struct mlx5_core_dev *dev, int protocol)
+{
+	struct mlx5_interface *intf;
+
+	list_for_each_entry(intf, &intf_list, list)
+		if (intf->protocol == protocol) {
+			mlx5_add_device(intf, &dev->priv);
+			break;
+		}
+}
+
+/* Must be called with intf_mutex held */
+void mlx5_remove_dev_by_protocol(struct mlx5_core_dev *dev, int protocol)
+{
+	struct mlx5_interface *intf;
+
+	list_for_each_entry(intf, &intf_list, list)
+		if (intf->protocol == protocol) {
+			mlx5_remove_device(intf, &dev->priv);
+			break;
+		}
+}
 
 static int mlx5_pci_init(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 {
@@ -1344,8 +1340,9 @@ static int init_one(struct pci_dev *pdev,
 	pci_set_drvdata(pdev, dev);
 
 	if (prof_sel < 0 || prof_sel >= ARRAY_SIZE(profile)) {
-		pr_warn("selected profile out of range, selecting default (%d)\n",
-			MLX5_DEFAULT_PROF);
+		mlx5_core_warn(dev,
+			       "selected profile out of range, selecting default (%d)\n",
+			       MLX5_DEFAULT_PROF);
 		prof_sel = MLX5_DEFAULT_PROF;
 	}
 	dev->profile = &profile[prof_sel];

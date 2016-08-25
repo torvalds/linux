@@ -60,24 +60,27 @@ void mlx5e_destroy_tir(struct mlx5_core_dev *mdev,
 static int mlx5e_create_mkey(struct mlx5_core_dev *mdev, u32 pdn,
 			     struct mlx5_core_mkey *mkey)
 {
-	struct mlx5_create_mkey_mbox_in *in;
+	int inlen = MLX5_ST_SZ_BYTES(create_mkey_in);
+	void *mkc;
+	u32 *in;
 	int err;
 
-	in = mlx5_vzalloc(sizeof(*in));
+	in = mlx5_vzalloc(inlen);
 	if (!in)
 		return -ENOMEM;
 
-	in->seg.flags = MLX5_PERM_LOCAL_WRITE |
-			MLX5_PERM_LOCAL_READ  |
-			MLX5_ACCESS_MODE_PA;
-	in->seg.flags_pd = cpu_to_be32(pdn | MLX5_MKEY_LEN64);
-	in->seg.qpn_mkey7_0 = cpu_to_be32(0xffffff << 8);
+	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
+	MLX5_SET(mkc, mkc, access_mode, MLX5_MKC_ACCESS_MODE_PA);
+	MLX5_SET(mkc, mkc, lw, 1);
+	MLX5_SET(mkc, mkc, lr, 1);
 
-	err = mlx5_core_create_mkey(mdev, mkey, in, sizeof(*in), NULL, NULL,
-				    NULL);
+	MLX5_SET(mkc, mkc, pd, pdn);
+	MLX5_SET(mkc, mkc, length64, 1);
+	MLX5_SET(mkc, mkc, qpn, 0xffffff);
+
+	err = mlx5_core_create_mkey(mdev, mkey, in, inlen);
 
 	kvfree(in);
-
 	return err;
 }
 
