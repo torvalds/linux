@@ -176,15 +176,10 @@ static int acpi_register_lapic(int id, u32 acpiid, u8 enabled)
 		return -EINVAL;
 	}
 
-	if (!enabled) {
-		++disabled_cpus;
-		return -EINVAL;
-	}
-
 	if (boot_cpu_physical_apicid != -1U)
 		ver = boot_cpu_apic_version;
 
-	cpu = generic_processor_info(id, ver);
+	cpu = __generic_processor_info(id, ver, enabled);
 	if (cpu >= 0)
 		early_per_cpu(x86_cpu_to_acpiid, cpu) = acpiid;
 
