@@ -33,7 +33,6 @@
 #include <linux/uaccess.h>
 #include <linux/perf_event.h>
 #include <linux/pm_runtime.h>
-#include <linux/perf_event.h>
 #include <asm/sections.h>
 #include <asm/local.h>
 
