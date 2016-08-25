@@ -199,6 +199,8 @@
 		reg = <0x0a>;
 		compatible = "fsl,sgtl5000";
 		clocks = <&clks IMX7D_AUDIO_MCLK_ROOT_CLK>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_sai1_mclk>;
 		VDDA-supply = <&vgen4_reg>;
 		VDDIO-supply = <&vgen4_reg>;
 		VDDD-supply = <&vgen2_reg>;
@@ -291,7 +293,12 @@
 			MX7D_PAD_SAI1_TX_BCLK__SAI1_TX_BCLK	0x1f
 			MX7D_PAD_SAI1_TX_SYNC__SAI1_TX_SYNC	0x1f
 			MX7D_PAD_SAI1_TX_DATA__SAI1_TX_DATA0	0x30
-			MX7D_PAD_SAI1_MCLK__SAI1_MCLK		0x1f
+		>;
+	};
+
+	pinctrl_sai1_mclk: sai1mclkgrp {
+		fsl,pins = <
+			MX7D_PAD_SAI1_MCLK__SAI1_MCLK           0x1f
 		>;
 	};
 
