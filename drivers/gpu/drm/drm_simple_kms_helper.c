@@ -146,10 +146,15 @@ static const struct drm_plane_funcs drm_simple_kms_plane_funcs = {
  * @funcs: callbacks for the display pipe (optional)
  * @formats: array of supported formats (DRM_FORMAT\_\*)
  * @format_count: number of elements in @formats
- * @connector: connector to attach and register
+ * @connector: connector to attach and register (optional)
  *
  * Sets up a display pipeline which consist of a really simple
- * plane-crtc-encoder pipe coupled with the provided connector.
+ * plane-crtc-encoder pipe.
+ *
+ * If a connector is supplied, the pipe will be coupled with the provided
+ * connector. You may supply a NULL connector when using drm bridges, that
+ * handle connectors themselves (see drm_simple_display_pipe_attach_bridge()).
+ *
  * Teardown of a simple display pipe is all handled automatically by the drm
  * core through calling drm_mode_config_cleanup(). Drivers afterwards need to
  * release the memory for the structure themselves.
@@ -188,7 +193,7 @@ int drm_simple_display_pipe_init(struct drm_device *dev,
 	encoder->possible_crtcs = 1 << drm_crtc_index(crtc);
 	ret = drm_encoder_init(dev, encoder, &drm_simple_kms_encoder_funcs,
 			       DRM_MODE_ENCODER_NONE, NULL);
-	if (ret)
+	if (ret || !connector)
 		return ret;
 
 	return drm_mode_connector_attach_encoder(connector, encoder);
