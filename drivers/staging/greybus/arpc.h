@@ -81,6 +81,7 @@ struct arpc_response_message {
 #define ARPC_TYPE_CPORT_QUIESCE			0x02
 #define ARPC_TYPE_CPORT_CLEAR			0x03
 #define ARPC_TYPE_CPORT_FLUSH			0x04
+#define ARPC_TYPE_CPORT_SHUTDOWN		0x05
 
 struct arpc_cport_reset_req {
 	__le16 cport_id;
@@ -102,6 +103,12 @@ struct arpc_cport_clear_req {
 
 struct arpc_cport_flush_req {
 	__le16 cport_id;
+} __packed;
+
+struct arpc_cport_shutdown_req {
+	__le16 cport_id;
+	__le16 timeout;
+	__u8 phase;
 } __packed;
 
 #endif	/* __ARPC_H */

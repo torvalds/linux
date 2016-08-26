@@ -783,6 +783,32 @@ static int es2_cport_flush(struct gb_host_device *hd, u16 cport_id)
 	return 0;
 }
 
+static int es2_cport_shutdown(struct gb_host_device *hd, u16 cport_id,
+				u8 phase, unsigned int timeout)
+{
+	struct es2_ap_dev *es2 = hd_to_es2(hd);
+	struct device *dev = &es2->usb_dev->dev;
+	struct arpc_cport_shutdown_req req;
+	int result;
+	int ret;
+
+	if (timeout > U16_MAX)
+		return -EINVAL;
+
+	req.cport_id = cpu_to_le16(cport_id);
+	req.timeout = cpu_to_le16(timeout);
+	req.phase = phase;
+	ret = arpc_sync(es2, ARPC_TYPE_CPORT_SHUTDOWN, &req, sizeof(req),
+			&result, ES2_ARPC_CPORT_TIMEOUT + timeout);
+	if (ret) {
+		dev_err(dev, "failed to send shutdown over cport %u: %d (%d)\n",
+				cport_id, ret, result);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int es2_cport_quiesce(struct gb_host_device *hd, u16 cport_id,
 				size_t peer_space, unsigned int timeout)
 {
@@ -1016,6 +1042,7 @@ static struct gb_hd_driver es2_driver = {
 	.cport_disable			= cport_disable,
 	.cport_connected		= es2_cport_connected,
 	.cport_flush			= es2_cport_flush,
+	.cport_shutdown			= es2_cport_shutdown,
 	.cport_quiesce			= es2_cport_quiesce,
 	.cport_clear			= es2_cport_clear,
 	.latency_tag_enable		= latency_tag_enable,
