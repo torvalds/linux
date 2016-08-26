@@ -12,6 +12,8 @@
 #define MCF_BUSCLK		(MCF_CLK / 2)
 #define MACHINE			MACH_M5441X
 #define FPUTYPE			0
+#define IOMEMBASE		0xe0000000
+#define IOMEMSIZE		0x20000000
 
 #include <asm/m54xxacr.h>
 
