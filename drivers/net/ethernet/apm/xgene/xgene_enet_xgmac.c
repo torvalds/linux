@@ -155,19 +155,23 @@ static void xgene_enet_rd_mac(struct xgene_enet_pdata *pdata,
 			   rd_addr);
 }
 
-static void xgene_enet_rd_pcs(struct xgene_enet_pdata *pdata,
+static bool xgene_enet_rd_pcs(struct xgene_enet_pdata *pdata,
 			      u32 rd_addr, u32 *rd_data)
 {
 	void __iomem *addr, *rd, *cmd, *cmd_done;
+	bool success;
 
 	addr = pdata->pcs_addr + PCS_ADDR_REG_OFFSET;
 	rd = pdata->pcs_addr + PCS_READ_REG_OFFSET;
 	cmd = pdata->pcs_addr + PCS_COMMAND_REG_OFFSET;
 	cmd_done = pdata->pcs_addr + PCS_COMMAND_DONE_REG_OFFSET;
 
-	if (!xgene_enet_rd_indirect(addr, rd, cmd, cmd_done, rd_addr, rd_data))
+	success = xgene_enet_rd_indirect(addr, rd, cmd, cmd_done, rd_addr, rd_data);
+	if (!success)
 		netdev_err(pdata->ndev, "PCS read failed, addr: %04x\n",
 			   rd_addr);
+
+	return success;
 }
 
 static int xgene_enet_ecc_init(struct xgene_enet_pdata *pdata)
@@ -208,7 +212,9 @@ static void xgene_pcs_reset(struct xgene_enet_pdata *pdata)
 {
 	u32 data;
 
-	xgene_enet_rd_pcs(pdata, PCS_CONTROL_1, &data);
+	if (!xgene_enet_rd_pcs(pdata, PCS_CONTROL_1, &data))
+		return;
+
 	xgene_enet_wr_pcs(pdata, PCS_CONTROL_1, data | PCS_CTRL_PCS_RST);
 	xgene_enet_wr_pcs(pdata, PCS_CONTROL_1, data & ~PCS_CTRL_PCS_RST);
 }
