@@ -4563,10 +4563,10 @@ xfs_btree_simple_query_range(
 		error = xfs_btree_get_rec(cur, &recp, &stat);
 		if (error || !stat)
 			break;
-		cur->bc_ops->init_high_key_from_rec(&rec_key, recp);
 
 		/* Skip if high_key(rec) < low_key. */
 		if (firstrec) {
+			cur->bc_ops->init_high_key_from_rec(&rec_key, recp);
 			firstrec = false;
 			diff = cur->bc_ops->diff_two_keys(cur, low_key,
 					&rec_key);
@@ -4575,6 +4575,7 @@ xfs_btree_simple_query_range(
 		}
 
 		/* Stop if high_key < low_key(rec). */
+		cur->bc_ops->init_key_from_rec(&rec_key, recp);
 		diff = cur->bc_ops->diff_two_keys(cur, &rec_key, high_key);
 		if (diff > 0)
 			break;
