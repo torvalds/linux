@@ -89,13 +89,8 @@ static int cz_send_msg_to_smc(struct pp_smumgr *smumgr, uint16_t msg)
 	if (result != 0)
 		return result;
 
-	result = SMUM_WAIT_FIELD_UNEQUAL(smumgr,
+	return SMUM_WAIT_FIELD_UNEQUAL(smumgr,
 					SMU_MP1_SRBM2P_RESP_0, CONTENT, 0);
-
-	if (result != 0)
-		return result;
-
-	return 0;
 }
 
 static int cz_set_smc_sram_address(struct pp_smumgr *smumgr,
@@ -177,11 +172,9 @@ static int cz_request_smu_load_fw(struct pp_smumgr *smumgr)
 	cz_send_msg_to_smc_with_parameter(smumgr, PPSMC_MSG_ExecuteJob,
 				cz_smu->toc_entry_power_profiling_index);
 
-	result = cz_send_msg_to_smc_with_parameter(smumgr,
+	return cz_send_msg_to_smc_with_parameter(smumgr,
 					PPSMC_MSG_ExecuteJob,
 					cz_smu->toc_entry_initialize_index);
-
-	return result;
 }
 
 static int cz_check_fw_load_finish(struct pp_smumgr *smumgr,
@@ -610,19 +603,12 @@ static int cz_smu_construct_toc(struct pp_smumgr *smumgr)
 	struct cz_smumgr *cz_smu = (struct cz_smumgr *)smumgr->backend;
 
 	cz_smu->toc_entry_used_count = 0;
-
 	cz_smu_initialize_toc_empty_job_list(smumgr);
-
 	cz_smu_construct_toc_for_rlc_aram_save(smumgr);
-
 	cz_smu_construct_toc_for_vddgfx_enter(smumgr);
-
 	cz_smu_construct_toc_for_vddgfx_exit(smumgr);
-
 	cz_smu_construct_toc_for_power_profiling(smumgr);
-
 	cz_smu_construct_toc_for_bootup(smumgr);
-
 	cz_smu_construct_toc_for_clock_table(smumgr);
 
 	return 0;
