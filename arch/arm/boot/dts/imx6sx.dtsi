@@ -159,6 +159,16 @@
 			arm,data-latency = <4 2 3>;
 		};
 
+		gpu: gpu@01800000 {
+			compatible = "vivante,gc";
+			reg = <0x01800000 0x4000>;
+			interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clks IMX6SX_CLK_GPU>,
+				 <&clks IMX6SX_CLK_GPU>,
+				 <&clks IMX6SX_CLK_GPU>;
+			clock-names = "bus", "core", "shader";
+		};
+
 		dma_apbh: dma-apbh@01804000 {
 			compatible = "fsl,imx6sx-dma-apbh", "fsl,imx28-dma-apbh";
 			reg = <0x01804000 0x2000>;
@@ -1272,5 +1282,10 @@
 				      "lvds_gate", "display_axi";
 			status = "disabled";
 		};
+	};
+
+	gpu-subsystem {
+		compatible = "fsl,imx-gpu-subsystem";
+		cores = <&gpu>;
 	};
 };
