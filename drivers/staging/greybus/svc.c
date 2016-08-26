@@ -14,7 +14,7 @@
 
 #define SVC_INTF_EJECT_TIMEOUT		9000
 #define SVC_INTF_ACTIVATE_TIMEOUT	6000
-#define SVC_INTF_RESUME_TIMEOUT	3000
+#define SVC_INTF_RESUME_TIMEOUT		3000
 
 struct gb_svc_deferred_request {
 	struct work_struct work;
