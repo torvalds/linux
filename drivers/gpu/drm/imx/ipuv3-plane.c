@@ -392,8 +392,12 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 	enum ipu_color_space ics;
 
 	if (old_state->fb) {
-		ipu_plane_atomic_set_base(ipu_plane, old_state);
-		return;
+		struct drm_crtc_state *crtc_state = state->crtc->state;
+
+		if (!drm_atomic_crtc_needs_modeset(crtc_state)) {
+			ipu_plane_atomic_set_base(ipu_plane, old_state);
+			return;
+		}
 	}
 
 	switch (ipu_plane->dp_flow) {
