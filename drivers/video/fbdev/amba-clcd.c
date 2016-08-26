@@ -782,12 +782,9 @@ static int clcdfb_of_init_display(struct clcd_fb *fb)
 	/*
 	 * Fetch the panel endpoint.
 	 */
-	if (!endpoint) {
-		endpoint = of_graph_get_next_endpoint(fb->dev->dev.of_node,
-						      NULL);
-		if (!endpoint)
-			return -ENODEV;
-	}
+	endpoint = of_graph_get_next_endpoint(fb->dev->dev.of_node, NULL);
+	if (!endpoint)
+		return -ENODEV;
 
 	if (fb->vendor->init_panel) {
 		err = fb->vendor->init_panel(fb, endpoint);
