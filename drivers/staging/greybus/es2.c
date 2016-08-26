@@ -611,32 +611,6 @@ static void message_cancel(struct gb_message *message)
 	usb_free_urb(urb);
 }
 
-static int cport_reset(struct gb_host_device *hd, u16 cport_id)
-{
-	struct es2_ap_dev *es2 = hd_to_es2(hd);
-	struct usb_device *udev = es2->usb_dev;
-	struct arpc_cport_reset_req req;
-	int retval;
-	int result;
-
-	switch (cport_id) {
-	case GB_SVC_CPORT_ID:
-	case ES2_CPORT_CDSI0:
-	case ES2_CPORT_CDSI1:
-		return 0;
-	}
-
-	req.cport_id = cpu_to_le16(cport_id);
-	retval = arpc_sync(es2, ARPC_TYPE_CPORT_RESET, &req, sizeof(req),
-			   &result, ES2_ARPC_CPORT_TIMEOUT);
-	if (retval == -EREMOTEIO) {
-		dev_err(&udev->dev, "failed to reset cport %u: %d\n", cport_id,
-			result);
-	}
-
-	return retval;
-}
-
 static int es2_cport_allocate(struct gb_host_device *hd, int cport_id,
 				unsigned long flags)
 {
@@ -733,17 +707,6 @@ out:
 	kfree(req);
 
 	return ret;
-}
-
-static int cport_disable(struct gb_host_device *hd, u16 cport_id)
-{
-	int retval;
-
-	retval = cport_reset(hd, cport_id);
-	if (retval)
-		return retval;
-
-	return 0;
 }
 
 static int es2_cport_connected(struct gb_host_device *hd, u16 cport_id)
@@ -1004,7 +967,6 @@ static struct gb_hd_driver es2_driver = {
 	.cport_allocate			= es2_cport_allocate,
 	.cport_release			= es2_cport_release,
 	.cport_enable			= cport_enable,
-	.cport_disable			= cport_disable,
 	.cport_connected		= es2_cport_connected,
 	.cport_flush			= es2_cport_flush,
 	.cport_shutdown			= es2_cport_shutdown,
