@@ -63,12 +63,6 @@ static unsigned int __init estimate_cpu_frequency(void)
 	return freq ;
 }
 
-void read_persistent_clock(struct timespec *ts)
-{
-	ts->tv_sec = 0;
-	ts->tv_nsec = 0;
-}
-
 int get_c0_perfcount_int(void)
 {
 	if (gic_present)
