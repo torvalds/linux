@@ -26,6 +26,7 @@
 #include <net/dsa.h>
 
 #include "bcm_sf2_regs.h"
+#include "b53/b53_priv.h"
 
 struct bcm_sf2_hw_params {
 	u16	top_rev;
@@ -134,6 +135,9 @@ struct bcm_sf2_priv {
 	u32				irq1_stat;
 	u32				irq1_mask;
 
+	/* Backing b53_device */
+	struct b53_device		*dev;
+
 	/* Mutex protecting access to the MIB counters */
 	struct mutex			stats_mutex;
 
@@ -159,6 +163,13 @@ struct bcm_sf2_priv {
 	/* Cache of programmed VLANs */
 	struct bcm_sf2_vlan		vlans[VLAN_N_VID];
 };
+
+static inline struct bcm_sf2_priv *bcm_sf2_to_priv(struct dsa_switch *ds)
+{
+	struct b53_device *dev = ds_to_priv(ds);
+
+	return dev->priv;
+}
 
 struct bcm_sf2_hw_stats {
 	const char	*string;

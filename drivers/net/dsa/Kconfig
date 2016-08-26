@@ -16,6 +16,7 @@ config NET_DSA_BCM_SF2
 	select FIXED_PHY
 	select BCM7XXX_PHY
 	select MDIO_BCM_UNIMAC
+	select B53
 	---help---
 	  This enables support for the Broadcom Starfighter 2 Ethernet
 	  switch chips.
