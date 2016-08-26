@@ -369,7 +369,6 @@ struct mcb_device *mcb_alloc_dev(struct mcb_bus *bus)
 	if (!dev)
 		return NULL;
 
-	INIT_LIST_HEAD(&dev->bus_list);
 	dev->bus = bus;
 
 	return dev;
@@ -405,20 +404,6 @@ static int __mcb_bus_add_devices(struct device *dev, void *data)
 	return 0;
 }
 
-static int __mcb_bus_add_child(struct device *dev, void *data)
-{
-	struct mcb_device *mdev = to_mcb_device(dev);
-	struct mcb_bus *child;
-
-	BUG_ON(!mdev->is_added);
-	child = mdev->subordinate;
-
-	if (child)
-		mcb_bus_add_devices(child);
-
-	return 0;
-}
-
 /**
  * mcb_bus_add_devices() - Add devices in the bus' internal device list
  * @bus: The @mcb_bus we add the devices
@@ -428,8 +413,6 @@ static int __mcb_bus_add_child(struct device *dev, void *data)
 void mcb_bus_add_devices(const struct mcb_bus *bus)
 {
 	bus_for_each_dev(&mcb_bus_type, NULL, NULL, __mcb_bus_add_devices);
-	bus_for_each_dev(&mcb_bus_type, NULL, NULL, __mcb_bus_add_child);
-
 }
 EXPORT_SYMBOL_GPL(mcb_bus_add_devices);
 
