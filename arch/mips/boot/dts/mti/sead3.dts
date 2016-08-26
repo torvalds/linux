@@ -93,6 +93,18 @@
 		};
 	};
 
+	fpga_regs: system-controller@1f000000 {
+		compatible = "mti,sead3-fpga", "syscon", "simple-mfd";
+		reg = <0x1f000000 0x200>;
+
+		reboot {
+			compatible = "syscon-reboot";
+			regmap = <&fpga_regs>;
+			offset = <0x50>;
+			mask = <0x4d>;
+		};
+	};
+
 	system-controller@1f000200 {
 		compatible = "mti,sead3-cpld", "syscon", "simple-mfd";
 		reg = <0x1f000200 0x300>;
