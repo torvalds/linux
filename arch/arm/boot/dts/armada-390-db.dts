@@ -66,36 +66,6 @@
 			  MBUS_ID(0x01, 0x1d) 0 0xfff00000 0x100000>;
 
 		internal-regs {
-			spi@10680 {
-				status = "okay";
-				pinctrl-0 = <&spi1_pins>;
-				pinctrl-names = "default";
-
-				spi-flash@1 {
-					#address-cells = <1>;
-					#size-cells = <1>;
-					compatible = "n25q128a13",
-						     "jedec,spi-nor";
-					reg = <0>; /* Chip select 0 */
-					spi-max-frequency = <108000000>;
-
-					partitions {
-						compatible = "fixed-partitions";
-						#address-cells = <1>;
-						#size-cells = <1>;
-
-						partition@0 {
-							label = "U-Boot";
-							reg = <0 0x400000>;
-						};
-						partition@400000 {
-							label = "Filesystem";
-							reg = <0x400000 0xc00000>;
-						};
-					};
-				};
-			};
-
 			i2c@11000 {
 				status = "okay";
 				clock-frequency = <100000>;
@@ -169,6 +139,36 @@
 			/* CON61 */
 			pcie@3,0 {
 				status = "okay";
+			};
+		};
+	};
+};
+
+&spi1 {
+	status = "okay";
+	pinctrl-0 = <&spi1_pins>;
+	pinctrl-names = "default";
+
+	spi-flash@1 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "n25q128a13",
+			     "jedec,spi-nor";
+		reg = <0>; /* Chip select 0 */
+		spi-max-frequency = <108000000>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "U-Boot";
+				reg = <0 0x400000>;
+			};
+			partition@400000 {
+				label = "Filesystem";
+				reg = <0x400000 0xc00000>;
 			};
 		};
 	};
