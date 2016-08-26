@@ -5968,6 +5968,7 @@ IMGTEC ASCII LCD DRIVER
 M:	Paul Burton <paul.burton@imgtec.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/auxdisplay/img-ascii-lcd.txt
+F:	drivers/auxdisplay/img-ascii-lcd.c
 
 INA209 HARDWARE MONITOR DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
