@@ -854,7 +854,7 @@ of_clk_hw_onecell_get(struct of_phandle_args *clkspec, void *data)
 {
 	return ERR_PTR(-ENOENT);
 }
-static inline int of_clk_get_parent_count(struct device_node *np)
+static inline unsigned int of_clk_get_parent_count(struct device_node *np)
 {
 	return 0;
 }
