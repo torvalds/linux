@@ -611,6 +611,14 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 	 */
 	symbol_conf.try_vmlinux_path = (symbol_conf.vmlinux_name == NULL);
 
+	/*
+	 * Except for --list, --del and --add, other command doesn't depend
+	 * nor change running kernel. So if user gives offline vmlinux,
+	 * ignore its buildid.
+	 */
+	if (!strchr("lda", params.command) && symbol_conf.vmlinux_name)
+		symbol_conf.ignore_vmlinux_buildid = true;
+
 	switch (params.command) {
 	case 'l':
 		if (params.uprobes) {
@@ -655,13 +663,6 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 		}
 		break;
 	case 'D':
-		/*
-		 * If user gives offline vmlinux, ignore buildid, since
-		 * --definition doesn't change running kernel.
-		 */
-		if (symbol_conf.vmlinux_name)
-			symbol_conf.ignore_vmlinux_buildid = true;
-		/* fall through */
 	case 'a':
 
 		/* Ensure the last given target is used */
