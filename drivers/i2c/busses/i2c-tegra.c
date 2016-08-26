@@ -28,6 +28,7 @@
 #include <linux/of_device.h>
 #include <linux/module.h>
 #include <linux/reset.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/pm_runtime.h>
 
 #include <asm/unaligned.h>
@@ -407,6 +408,10 @@ static int tegra_i2c_runtime_resume(struct device *dev)
 	struct tegra_i2c_dev *i2c_dev = dev_get_drvdata(dev);
 	int ret;
 
+	ret = pinctrl_pm_select_default_state(i2c_dev->dev);
+	if (ret)
+		return ret;
+
 	if (!i2c_dev->hw->has_single_clk_source) {
 		ret = clk_enable(i2c_dev->fast_clk);
 		if (ret < 0) {
@@ -435,7 +440,7 @@ static int tegra_i2c_runtime_suspend(struct device *dev)
 	if (!i2c_dev->hw->has_single_clk_source)
 		clk_disable(i2c_dev->fast_clk);
 
-	return 0;
+	return pinctrl_pm_select_idle_state(i2c_dev->dev);
 }
 
 static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
