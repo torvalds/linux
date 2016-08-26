@@ -258,68 +258,47 @@ static int enable_mcast(struct udp_bearer *ub, struct udp_media_addr *remote)
 }
 
 /**
- * parse_options - build local/remote addresses from configuration
- * @attrs:	netlink config data
- * @ub:		UDP bearer instance
- * @local:	local bearer IP address/port
- * @remote:	peer or multicast IP/port
+ * tipc_parse_udp_addr - build udp media address from netlink data
+ * @nlattr:	netlink attribute containing sockaddr storage aligned address
+ * @addr:	tipc media address to fill with address, port and protocol type
+ * @scope_id:	IPv6 scope id pointer, not NULL indicates it's required
  */
-static int parse_options(struct nlattr *attrs[], struct udp_bearer *ub,
-			 struct udp_media_addr *local,
-			 struct udp_media_addr *remote)
+
+static int tipc_parse_udp_addr(struct nlattr *nla, struct udp_media_addr *addr,
+			       u32 *scope_id)
 {
-	struct nlattr *opts[TIPC_NLA_UDP_MAX + 1];
-	struct sockaddr_storage sa_local, sa_remote;
+	struct sockaddr_storage sa;
 
-	if (!attrs[TIPC_NLA_BEARER_UDP_OPTS])
-		goto err;
-	if (nla_parse_nested(opts, TIPC_NLA_UDP_MAX,
-			     attrs[TIPC_NLA_BEARER_UDP_OPTS],
-			     tipc_nl_udp_policy))
-		goto err;
-	if (opts[TIPC_NLA_UDP_LOCAL] && opts[TIPC_NLA_UDP_REMOTE]) {
-		nla_memcpy(&sa_local, opts[TIPC_NLA_UDP_LOCAL],
-			   sizeof(sa_local));
-		nla_memcpy(&sa_remote, opts[TIPC_NLA_UDP_REMOTE],
-			   sizeof(sa_remote));
-	} else {
-err:
-		pr_err("Invalid UDP bearer configuration");
-		return -EINVAL;
-	}
-	if ((sa_local.ss_family & sa_remote.ss_family) == AF_INET) {
-		struct sockaddr_in *ip4;
+	nla_memcpy(&sa, nla, sizeof(sa));
+	if (sa.ss_family == AF_INET) {
+		struct sockaddr_in *ip4 = (struct sockaddr_in *)&sa;
 
-		ip4 = (struct sockaddr_in *)&sa_local;
-		local->proto = htons(ETH_P_IP);
-		local->port = ip4->sin_port;
-		local->ipv4.s_addr = ip4->sin_addr.s_addr;
-
-		ip4 = (struct sockaddr_in *)&sa_remote;
-		remote->proto = htons(ETH_P_IP);
-		remote->port = ip4->sin_port;
-		remote->ipv4.s_addr = ip4->sin_addr.s_addr;
+		addr->proto = htons(ETH_P_IP);
+		addr->port = ip4->sin_port;
+		addr->ipv4.s_addr = ip4->sin_addr.s_addr;
 		return 0;
 
 #if IS_ENABLED(CONFIG_IPV6)
-	} else if ((sa_local.ss_family & sa_remote.ss_family) == AF_INET6) {
-		int atype;
-		struct sockaddr_in6 *ip6;
+	} else if (sa.ss_family == AF_INET6) {
+		struct sockaddr_in6 *ip6 = (struct sockaddr_in6 *)&sa;
 
-		ip6 = (struct sockaddr_in6 *)&sa_local;
-		atype = ipv6_addr_type(&ip6->sin6_addr);
-		if (__ipv6_addr_needs_scope_id(atype) && !ip6->sin6_scope_id)
-			return -EINVAL;
+		addr->proto = htons(ETH_P_IPV6);
+		addr->port = ip6->sin6_port;
+		memcpy(&addr->ipv6, &ip6->sin6_addr, sizeof(struct in6_addr));
 
-		local->proto = htons(ETH_P_IPV6);
-		local->port = ip6->sin6_port;
-		memcpy(&local->ipv6, &ip6->sin6_addr, sizeof(struct in6_addr));
-		ub->ifindex = ip6->sin6_scope_id;
+		/* Scope ID is only interesting for local addresses */
+		if (scope_id) {
+			int atype;
 
-		ip6 = (struct sockaddr_in6 *)&sa_remote;
-		remote->proto = htons(ETH_P_IPV6);
-		remote->port = ip6->sin6_port;
-		memcpy(&remote->ipv6, &ip6->sin6_addr, sizeof(struct in6_addr));
+			atype = ipv6_addr_type(&ip6->sin6_addr);
+			if (__ipv6_addr_needs_scope_id(atype) &&
+			    !ip6->sin6_scope_id) {
+				return -EINVAL;
+			}
+
+			*scope_id = ip6->sin6_scope_id ? : 0;
+		}
+
 		return 0;
 #endif
 	}
@@ -344,14 +323,33 @@ static int tipc_udp_enable(struct net *net, struct tipc_bearer *b,
 	struct udp_media_addr local = {0};
 	struct udp_port_cfg udp_conf = {0};
 	struct udp_tunnel_sock_cfg tuncfg = {NULL};
+	struct nlattr *opts[TIPC_NLA_UDP_MAX + 1];
 
 	ub = kzalloc(sizeof(*ub), GFP_ATOMIC);
 	if (!ub)
 		return -ENOMEM;
 
+	if (!attrs[TIPC_NLA_BEARER_UDP_OPTS])
+		goto err;
+
+	if (nla_parse_nested(opts, TIPC_NLA_UDP_MAX,
+			     attrs[TIPC_NLA_BEARER_UDP_OPTS],
+			     tipc_nl_udp_policy))
+		goto err;
+
+	if (!opts[TIPC_NLA_UDP_LOCAL] || !opts[TIPC_NLA_UDP_REMOTE]) {
+		pr_err("Invalid UDP bearer configuration");
+		return -EINVAL;
+	}
+
+	err = tipc_parse_udp_addr(opts[TIPC_NLA_UDP_LOCAL], &local,
+				  &ub->ifindex);
+	if (err)
+		goto err;
+
 	remote = (struct udp_media_addr *)&b->bcast_addr.value;
 	memset(remote, 0, sizeof(struct udp_media_addr));
-	err = parse_options(attrs, ub, &local, remote);
+	err = tipc_parse_udp_addr(opts[TIPC_NLA_UDP_REMOTE], remote, NULL);
 	if (err)
 		goto err;
 
