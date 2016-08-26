@@ -101,12 +101,12 @@ static int cz_set_smc_sram_address(struct pp_smumgr *smumgr,
 
 	if (0 != (3 & smc_address)) {
 		printk(KERN_ERR "[ powerplay ] SMC address must be 4 byte aligned\n");
-		return -1;
+		return -EINVAL;
 	}
 
 	if (limit <= (smc_address + 3)) {
 		printk(KERN_ERR "[ powerplay ] SMC address beyond the SMC RAM area\n");
-		return -1;
+		return -EINVAL;
 	}
 
 	cgs_write_register(smumgr->device, mmMP0PUB_IND_INDEX_0,
@@ -124,9 +124,10 @@ static int cz_write_smc_sram_dword(struct pp_smumgr *smumgr,
 		return -EINVAL;
 
 	result = cz_set_smc_sram_address(smumgr, smc_address, limit);
-	cgs_write_register(smumgr->device, mmMP0PUB_IND_DATA_0, value);
+	if (!result)
+		cgs_write_register(smumgr->device, mmMP0PUB_IND_DATA_0, value);
 
-	return 0;
+	return result;
 }
 
 static int cz_send_msg_to_smc_with_parameter(struct pp_smumgr *smumgr,
