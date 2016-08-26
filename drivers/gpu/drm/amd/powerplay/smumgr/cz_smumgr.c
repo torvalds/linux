@@ -195,9 +195,6 @@ static int cz_check_fw_load_finish(struct pp_smumgr *smumgr,
 	if (smumgr == NULL || smumgr->device == NULL)
 		return -EINVAL;
 
-	return cgs_read_register(smumgr->device,
-					mmSMU_MP1_SRBM2P_ARG_0);
-
 	cgs_write_register(smumgr->device, mmMP0PUB_IND_INDEX, index);
 
 	for (i = 0; i < smumgr->usec_timeout; i++) {
@@ -275,7 +272,10 @@ static int cz_start_smu(struct pp_smumgr *smumgr)
 	if (smumgr->chip_id == CHIP_STONEY)
 		fw_to_check &= ~(UCODE_ID_SDMA1_MASK | UCODE_ID_CP_MEC_JT2_MASK);
 
-	cz_request_smu_load_fw(smumgr);
+	ret = cz_request_smu_load_fw(smumgr);
+	if (ret)
+		printk(KERN_ERR "[ powerplay] SMU firmware load failed\n");
+
 	cz_check_fw_load_finish(smumgr, fw_to_check);
 
 	ret = cz_load_mec_firmware(smumgr);
