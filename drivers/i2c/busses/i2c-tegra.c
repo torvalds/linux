@@ -193,7 +193,8 @@ struct tegra_i2c_dev {
 	bool is_multimaster_mode;
 };
 
-static void dvc_writel(struct tegra_i2c_dev *i2c_dev, u32 val, unsigned long reg)
+static void dvc_writel(struct tegra_i2c_dev *i2c_dev, u32 val,
+		       unsigned long reg)
 {
 	writel(val, i2c_dev->base + reg);
 }
@@ -643,9 +644,10 @@ static int tegra_i2c_xfer_msg(struct tegra_i2c_dev *i2c_dev,
 		return 0;
 
 	/*
-	 * NACK interrupt is generated before the I2C controller generates the
-	 * STOP condition on the bus. So wait for 2 clock periods before resetting
-	 * the controller so that STOP condition has been delivered properly.
+	 * NACK interrupt is generated before the I2C controller generates
+	 * the STOP condition on the bus. So wait for 2 clock periods
+	 * before resetting the controller so that the STOP condition has
+	 * been delivered properly.
 	 */
 	if (i2c_dev->msg_err == I2C_ERR_NO_ACK)
 		udelay(DIV_ROUND_UP(2 * 1000000, i2c_dev->bus_clk_rate));
