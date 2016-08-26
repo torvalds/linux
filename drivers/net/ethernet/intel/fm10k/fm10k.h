@@ -240,9 +240,7 @@ struct fm10k_iov_data {
 	struct fm10k_vf_info	vf_info[0];
 };
 
-#define fm10k_vxlan_port_for_each(vp, intfc) \
-	list_for_each_entry(vp, &(intfc)->vxlan_port, list)
-struct fm10k_vxlan_port {
+struct fm10k_udp_port {
 	struct list_head	list;
 	sa_family_t		sa_family;
 	__be16			port;
@@ -335,7 +333,7 @@ struct fm10k_intfc {
 	u32 reta[FM10K_RETA_SIZE];
 	u32 rssrk[FM10K_RSSRK_SIZE];
 
-	/* VXLAN port tracking information */
+	/* UDP encapsulation port tracking information */
 	struct list_head vxlan_port;
 
 #ifdef CONFIG_DEBUG_FS
