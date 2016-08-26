@@ -94,7 +94,8 @@
  * maybe I'll support this someday
  */
 #define PRESCALED_TIMER_BASE	10000
-#define DMA_BUFFER_SIZE 0x1000
+#define DMA_BUFFER_SIZE		0x1000
+#define DAC_FIFO_SIZE		0x2000
 
 /* maximum value that can be loaded into board's 24-bit counters */
 static const int max_counter_value = 0xffffff;
@@ -227,7 +228,6 @@ enum hw_config_contents {
 	DAC_FIFO_SIZE_MASK = 0xff00,	/* bits that set dac fifo size */
 	DAC_FIFO_BITS = 0xf800,		/* 8k sample ao fifo */
 };
-#define DAC_FIFO_SIZE 0x2000
 
 enum daq_atrig_low_4020_contents {
 	/* use trig/ext clk bnc input for analog gate signal */
