@@ -120,7 +120,7 @@ static int asoc_simple_card_startup(struct snd_pcm_substream *substream)
 	ret = clk_prepare_enable(dai_props->cpu_dai.clk);
 	if (ret)
 		return ret;
-	
+
 	ret = clk_prepare_enable(dai_props->codec_dai.clk);
 	if (ret)
 		clk_disable_unprepare(dai_props->cpu_dai.clk);
@@ -454,7 +454,6 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 					sizeof(priv->dai_props->cpu_dai));
 		memcpy(&priv->dai_props->codec_dai, &cinfo->codec_dai,
 					sizeof(priv->dai_props->codec_dai));
-
 	}
 
 	snd_soc_card_set_drvdata(&priv->snd_card, priv);
@@ -462,9 +461,9 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 	ret = devm_snd_soc_register_card(&pdev->dev, &priv->snd_card);
 	if (ret >= 0)
 		return ret;
-
 err:
 	asoc_simple_card_clean_reference(&priv->snd_card);
+
 	return ret;
 }
 
