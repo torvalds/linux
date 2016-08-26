@@ -19,6 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of_graph.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
@@ -30,7 +31,7 @@
 #include <media/v4l2-dev.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-of.h>
+#include <media/v4l2-fwnode.h>
 #include <media/videobuf2-dma-contig.h>
 #include <media/v4l2-image-sizes.h>
 
@@ -801,7 +802,7 @@ static int atmel_isi_parse_dt(struct atmel_isi *isi,
 			struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct v4l2_of_endpoint ep;
+	struct v4l2_fwnode_endpoint ep;
 	int err;
 
 	/* Default settings for ISI */
@@ -814,7 +815,7 @@ static int atmel_isi_parse_dt(struct atmel_isi *isi,
 		return -EINVAL;
 	}
 
-	err = v4l2_of_parse_endpoint(np, &ep);
+	err = v4l2_fwnode_endpoint_parse(of_fwnode_handle(np), &ep);
 	of_node_put(np);
 	if (err) {
 		dev_err(&pdev->dev, "Could not parse the endpoint\n");
@@ -1126,8 +1127,8 @@ static int isi_graph_parse(struct atmel_isi *isi, struct device_node *node)
 
 		/* Remote node to connect */
 		isi->entity.node = remote;
-		isi->entity.asd.match_type = V4L2_ASYNC_MATCH_OF;
-		isi->entity.asd.match.of.node = remote;
+		isi->entity.asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
+		isi->entity.asd.match.fwnode.fwnode = of_fwnode_handle(remote);
 		return 0;
 	}
 }

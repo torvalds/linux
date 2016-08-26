@@ -21,7 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
-#include <media/v4l2-of.h>
+#include <media/v4l2-fwnode.h>
 
 #include "rcar-vin.h"
 
@@ -104,7 +104,8 @@ static int rvin_digital_notify_bound(struct v4l2_async_notifier *notifier,
 
 	v4l2_set_subdev_hostdata(subdev, vin);
 
-	if (vin->digital.asd.match.of.node == subdev->dev->of_node) {
+	if (vin->digital.asd.match.fwnode.fwnode ==
+	    of_fwnode_handle(subdev->dev->of_node)) {
 		vin_dbg(vin, "bound digital subdev %s\n", subdev->name);
 		vin->digital.subdev = subdev;
 		return 0;
@@ -118,10 +119,10 @@ static int rvin_digitial_parse_v4l2(struct rvin_dev *vin,
 				    struct device_node *ep,
 				    struct v4l2_mbus_config *mbus_cfg)
 {
-	struct v4l2_of_endpoint v4l2_ep;
+	struct v4l2_fwnode_endpoint v4l2_ep;
 	int ret;
 
-	ret = v4l2_of_parse_endpoint(ep, &v4l2_ep);
+	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep), &v4l2_ep);
 	if (ret) {
 		vin_err(vin, "Could not parse v4l2 endpoint\n");
 		return -EINVAL;
@@ -151,7 +152,7 @@ static int rvin_digital_graph_parse(struct rvin_dev *vin)
 	struct device_node *ep, *np;
 	int ret;
 
-	vin->digital.asd.match.of.node = NULL;
+	vin->digital.asd.match.fwnode.fwnode = NULL;
 	vin->digital.subdev = NULL;
 
 	/*
@@ -175,8 +176,8 @@ static int rvin_digital_graph_parse(struct rvin_dev *vin)
 	if (ret)
 		return ret;
 
-	vin->digital.asd.match.of.node = np;
-	vin->digital.asd.match_type = V4L2_ASYNC_MATCH_OF;
+	vin->digital.asd.match.fwnode.fwnode = of_fwnode_handle(np);
+	vin->digital.asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
 
 	return 0;
 }
@@ -190,7 +191,7 @@ static int rvin_digital_graph_init(struct rvin_dev *vin)
 	if (ret)
 		return ret;
 
-	if (!vin->digital.asd.match.of.node) {
+	if (!vin->digital.asd.match.fwnode.fwnode) {
 		vin_dbg(vin, "No digital subdevice found\n");
 		return -ENODEV;
 	}
@@ -203,7 +204,7 @@ static int rvin_digital_graph_init(struct rvin_dev *vin)
 	subdevs[0] = &vin->digital.asd;
 
 	vin_dbg(vin, "Found digital subdevice %s\n",
-		of_node_full_name(subdevs[0]->match.of.node));
+		of_node_full_name(to_of_node(subdevs[0]->match.fwnode.fwnode)));
 
 	vin->notifier.num_subdevs = 1;
 	vin->notifier.subdevs = subdevs;

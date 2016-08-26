@@ -33,6 +33,7 @@
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
+#include <linux/of_graph.h>
 #include <linux/videodev2.h>
 #include <linux/workqueue.h>
 #include <linux/v4l2-dv-timings.h>
@@ -41,7 +42,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-of.h>
+#include <media/v4l2-fwnode.h>
 #include <media/i2c/tc358743.h>
 
 #include "tc358743_regs.h"
@@ -76,7 +77,7 @@ static const struct v4l2_dv_timings_cap tc358743_timings_cap = {
 
 struct tc358743_state {
 	struct tc358743_platform_data pdata;
-	struct v4l2_of_bus_mipi_csi2 bus;
+	struct v4l2_fwnode_bus_mipi_csi2 bus;
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 	struct v4l2_ctrl_handler hdl;
@@ -1695,7 +1696,7 @@ static void tc358743_gpio_reset(struct tc358743_state *state)
 static int tc358743_probe_of(struct tc358743_state *state)
 {
 	struct device *dev = &state->i2c_client->dev;
-	struct v4l2_of_endpoint *endpoint;
+	struct v4l2_fwnode_endpoint *endpoint;
 	struct device_node *ep;
 	struct clk *refclk;
 	u32 bps_pr_lane;
@@ -1715,7 +1716,7 @@ static int tc358743_probe_of(struct tc358743_state *state)
 		return -EINVAL;
 	}
 
-	endpoint = v4l2_of_alloc_parse_endpoint(ep);
+	endpoint = v4l2_fwnode_endpoint_alloc_parse(of_fwnode_handle(ep));
 	if (IS_ERR(endpoint)) {
 		dev_err(dev, "failed to parse endpoint\n");
 		return PTR_ERR(endpoint);
@@ -1803,7 +1804,7 @@ static int tc358743_probe_of(struct tc358743_state *state)
 disable_clk:
 	clk_disable_unprepare(refclk);
 free_endpoint:
-	v4l2_of_free_endpoint(endpoint);
+	v4l2_fwnode_endpoint_free(endpoint);
 	return ret;
 }
 #else

@@ -30,7 +30,7 @@
 #include <linux/spinlock.h>
 #include <linux/videodev2.h>
 #include <media/drv-intf/exynos-fimc.h>
-#include <media/v4l2-of.h>
+#include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
 #include "mipi-csis.h"
@@ -718,7 +718,7 @@ static int s5pcsis_parse_dt(struct platform_device *pdev,
 			    struct csis_state *state)
 {
 	struct device_node *node = pdev->dev.of_node;
-	struct v4l2_of_endpoint endpoint;
+	struct v4l2_fwnode_endpoint endpoint;
 	int ret;
 
 	if (of_property_read_u32(node, "clock-frequency",
@@ -735,7 +735,7 @@ static int s5pcsis_parse_dt(struct platform_device *pdev,
 		return -EINVAL;
 	}
 	/* Get port node and validate MIPI-CSI channel id. */
-	ret = v4l2_of_parse_endpoint(node, &endpoint);
+	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(node), &endpoint);
 	if (ret)
 		goto err;
 

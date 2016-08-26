@@ -82,6 +82,7 @@ config VIDEO_OMAP3
 	select ARM_DMA_USE_IOMMU
 	select VIDEOBUF2_DMA_CONTIG
 	select MFD_SYSCON
+	select V4L2_FWNODE
 	---help---
 	  Driver for an OMAP 3 camera controller.
 
@@ -97,6 +98,7 @@ config VIDEO_PXA27x
 	depends on PXA27x || COMPILE_TEST
 	select VIDEOBUF2_DMA_SG
 	select SG_SPLIT
+	select V4L2_FWNODE
 	---help---
 	  This is a v4l2 driver for the PXA27x Quick Capture Interface
 
@@ -119,6 +121,7 @@ config VIDEO_STM32_DCMI
 	depends on VIDEO_V4L2 && OF && HAS_DMA
 	depends on ARCH_STM32 || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_FWNODE
 	---help---
 	  This module makes the STM32 Digital Camera Memory Interface (DCMI)
 	  available as a v4l2 device.
@@ -139,6 +142,7 @@ config VIDEO_TI_CAL
 	depends on SOC_DRA7XX || COMPILE_TEST
 	depends on HAS_DMA
 	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_FWNODE
 	default n
 	---help---
 	  Support for the TI CAL (Camera Adaptation Layer) block

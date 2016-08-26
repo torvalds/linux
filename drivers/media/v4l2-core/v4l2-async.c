@@ -41,12 +41,6 @@ static bool match_devname(struct v4l2_subdev *sd,
 	return !strcmp(asd->match.device_name.name, dev_name(sd->dev));
 }
 
-static bool match_of(struct v4l2_subdev *sd, struct v4l2_async_subdev *asd)
-{
-	return !of_node_cmp(of_node_full_name(sd->of_node),
-			    of_node_full_name(asd->match.of.node));
-}
-
 static bool match_fwnode(struct v4l2_subdev *sd, struct v4l2_async_subdev *asd)
 {
 	if (!is_of_node(sd->fwnode) || !is_of_node(asd->match.fwnode.fwnode))
@@ -87,9 +81,6 @@ static struct v4l2_async_subdev *v4l2_async_belongs(struct v4l2_async_notifier *
 			break;
 		case V4L2_ASYNC_MATCH_I2C:
 			match = match_i2c;
-			break;
-		case V4L2_ASYNC_MATCH_OF:
-			match = match_of;
 			break;
 		case V4L2_ASYNC_MATCH_FWNODE:
 			match = match_fwnode;
@@ -171,7 +162,6 @@ int v4l2_async_notifier_register(struct v4l2_device *v4l2_dev,
 		case V4L2_ASYNC_MATCH_CUSTOM:
 		case V4L2_ASYNC_MATCH_DEVNAME:
 		case V4L2_ASYNC_MATCH_I2C:
-		case V4L2_ASYNC_MATCH_OF:
 		case V4L2_ASYNC_MATCH_FWNODE:
 			break;
 		default:
@@ -295,8 +285,8 @@ int v4l2_async_register_subdev(struct v4l2_subdev *sd)
 	 * (struct v4l2_subdev.dev), and async sub-device does not
 	 * exist independently of the device at any point of time.
 	 */
-	if (!sd->of_node && sd->dev)
-		sd->of_node = sd->dev->of_node;
+	if (!sd->fwnode && sd->dev)
+		sd->fwnode = dev_fwnode(sd->dev);
 
 	mutex_lock(&list_lock);
 

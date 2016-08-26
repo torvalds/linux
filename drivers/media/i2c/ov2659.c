@@ -42,9 +42,9 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
+#include <media/v4l2-fwnode.h>
 #include <media/v4l2-image-sizes.h>
 #include <media/v4l2-mediabus.h>
-#include <media/v4l2-of.h>
 #include <media/v4l2-subdev.h>
 
 #define DRIVER_NAME "ov2659"
@@ -1347,7 +1347,7 @@ static struct ov2659_platform_data *
 ov2659_get_pdata(struct i2c_client *client)
 {
 	struct ov2659_platform_data *pdata;
-	struct v4l2_of_endpoint *bus_cfg;
+	struct v4l2_fwnode_endpoint *bus_cfg;
 	struct device_node *endpoint;
 
 	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
@@ -1357,7 +1357,7 @@ ov2659_get_pdata(struct i2c_client *client)
 	if (!endpoint)
 		return NULL;
 
-	bus_cfg = v4l2_of_alloc_parse_endpoint(endpoint);
+	bus_cfg = v4l2_fwnode_endpoint_alloc_parse(of_fwnode_handle(endpoint));
 	if (IS_ERR(bus_cfg)) {
 		pdata = NULL;
 		goto done;
@@ -1377,7 +1377,7 @@ ov2659_get_pdata(struct i2c_client *client)
 	pdata->link_frequency = bus_cfg->link_frequencies[0];
 
 done:
-	v4l2_of_free_endpoint(bus_cfg);
+	v4l2_fwnode_endpoint_free(bus_cfg);
 	of_node_put(endpoint);
 	return pdata;
 }

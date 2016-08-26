@@ -209,6 +209,7 @@ config VIDEO_ADV7604
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
 	depends on GPIOLIB || COMPILE_TEST
 	select HDMI
+	select V4L2_FWNODE
 	---help---
 	  Support for the Analog Devices ADV7604 video decoder.
 
@@ -322,6 +323,7 @@ config VIDEO_TC358743
 	tristate "Toshiba TC358743 decoder"
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
 	select HDMI
+	select V4L2_FWNODE
 	---help---
 	  Support for the Toshiba TC358743 HDMI to MIPI CSI-2 bridge.
 
@@ -331,6 +333,7 @@ config VIDEO_TC358743
 config VIDEO_TVP514X
 	tristate "Texas Instruments TVP514x video decoder"
 	depends on VIDEO_V4L2 && I2C
+	select V4L2_FWNODE
 	---help---
 	  This is a Video4Linux2 sensor-level driver for the TI TVP5146/47
 	  decoder. It is currently working with the TI OMAP3 camera
@@ -342,6 +345,7 @@ config VIDEO_TVP514X
 config VIDEO_TVP5150
 	tristate "Texas Instruments TVP5150 video decoder"
 	depends on VIDEO_V4L2 && I2C
+	select V4L2_FWNODE
 	---help---
 	  Support for the Texas Instruments TVP5150 video decoder.
 
@@ -351,6 +355,7 @@ config VIDEO_TVP5150
 config VIDEO_TVP7002
 	tristate "Texas Instruments TVP7002 video decoder"
 	depends on VIDEO_V4L2 && I2C
+	select V4L2_FWNODE
 	---help---
 	  Support for the Texas Instruments TVP7002 video decoder.
 
@@ -532,6 +537,7 @@ config VIDEO_OV2659
 	tristate "OmniVision OV2659 sensor support"
 	depends on VIDEO_V4L2 && I2C
 	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
 	---help---
 	  This is a Video4Linux2 sensor-level driver for the OmniVision
 	  OV2659 camera.
@@ -544,6 +550,7 @@ config VIDEO_OV5645
 	depends on OF
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
 	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
 	---help---
 	  This is a Video4Linux2 sensor-level driver for the OmniVision
 	  OV5645 camera.
@@ -555,6 +562,7 @@ config VIDEO_OV5647
 	tristate "OmniVision OV5647 sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
 	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
 	---help---
 	  This is a Video4Linux2 sensor-level driver for the OmniVision
 	  OV5647 camera.
@@ -647,6 +655,7 @@ config VIDEO_MT9V032
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
 	depends on MEDIA_CAMERA_SUPPORT
 	select REGMAP_I2C
+	select V4L2_FWNODE
 	---help---
 	  This is a Video4Linux2 sensor-level driver for the Micron
 	  MT9V032 752x480 CMOS sensor.
@@ -694,6 +703,7 @@ config VIDEO_S5K4ECGX
 config VIDEO_S5K5BAF
 	tristate "Samsung S5K5BAF sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
 	---help---
 	  This is a V4L2 sensor-level driver for Samsung S5K5BAF 2M
 	  camera sensor with an embedded SoC image signal processor.
@@ -704,6 +714,7 @@ source "drivers/media/i2c/et8ek8/Kconfig"
 config VIDEO_S5C73M3
 	tristate "Samsung S5C73M3 sensor support"
 	depends on I2C && SPI && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
 	---help---
 	  This is a V4L2 sensor-level driver for Samsung S5C73M3
 	  8 Mpixel camera.

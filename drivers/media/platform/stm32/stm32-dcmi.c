@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of_graph.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/videodev2.h>
@@ -29,9 +30,9 @@
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
+#include <media/v4l2-fwnode.h>
 #include <media/v4l2-image-sizes.h>
 #include <media/v4l2-ioctl.h>
-#include <media/v4l2-of.h>
 #include <media/videobuf2-dma-contig.h>
 
 #define DRV_NAME "stm32-dcmi"
@@ -139,7 +140,7 @@ struct stm32_dcmi {
 	struct mutex			lock;
 	struct vb2_queue		queue;
 
-	struct v4l2_of_bus_parallel	bus;
+	struct v4l2_fwnode_bus_parallel	bus;
 	struct completion		complete;
 	struct clk			*mclk;
 	enum state			state;
@@ -1143,8 +1144,8 @@ static int dcmi_graph_parse(struct stm32_dcmi *dcmi, struct device_node *node)
 
 		/* Remote node to connect */
 		dcmi->entity.node = remote;
-		dcmi->entity.asd.match_type = V4L2_ASYNC_MATCH_OF;
-		dcmi->entity.asd.match.of.node = remote;
+		dcmi->entity.asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
+		dcmi->entity.asd.match.fwnode.fwnode = of_fwnode_handle(remote);
 		return 0;
 	}
 }
@@ -1190,7 +1191,7 @@ static int dcmi_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *match = NULL;
-	struct v4l2_of_endpoint ep;
+	struct v4l2_fwnode_endpoint ep;
 	struct stm32_dcmi *dcmi;
 	struct vb2_queue *q;
 	struct dma_chan *chan;
@@ -1222,7 +1223,7 @@ static int dcmi_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	ret = v4l2_of_parse_endpoint(np, &ep);
+	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(np), &ep);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not parse the endpoint\n");
 		of_node_put(np);
