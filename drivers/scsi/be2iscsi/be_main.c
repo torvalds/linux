@@ -967,7 +967,9 @@ beiscsi_get_wrb_handle(struct hwi_wrb_context *pwrb_context,
 	else
 		pwrb_context->alloc_index++;
 	spin_unlock_bh(&pwrb_context->wrb_lock);
-	memset(pwrb_handle->pwrb, 0, sizeof(*pwrb_handle->pwrb));
+
+	if (pwrb_handle)
+		memset(pwrb_handle->pwrb, 0, sizeof(*pwrb_handle->pwrb));
 
 	return pwrb_handle;
 }
@@ -4718,7 +4720,6 @@ static int beiscsi_mtask(struct iscsi_task *task)
 
 	cid = beiscsi_conn->beiscsi_conn_cid;
 	pwrb = io_task->pwrb_handle->pwrb;
-	memset(pwrb, 0, sizeof(*pwrb));
 
 	if (is_chip_be2_be3r(phba)) {
 		AMAP_SET_BITS(struct amap_iscsi_wrb, cmdsn_itt, pwrb,
