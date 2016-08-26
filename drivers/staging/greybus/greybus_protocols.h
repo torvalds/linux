@@ -250,10 +250,6 @@ struct gb_control_intf_pm_response {
 /* request to control audio streaming */
 #define GB_APB_REQUEST_AUDIO_CONTROL		0x09
 
-/* vendor requests to enable/disable CPort features */
-#define GB_APB_REQUEST_CPORT_FEAT_EN		0x0b
-#define GB_APB_REQUEST_CPORT_FEAT_DIS		0x0c
-
 /* TimeSync requests */
 #define GB_APB_REQUEST_TIMESYNC_ENABLE		0x0d
 #define GB_APB_REQUEST_TIMESYNC_DISABLE		0x0e

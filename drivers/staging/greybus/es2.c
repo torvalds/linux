@@ -892,41 +892,6 @@ static int latency_tag_disable(struct gb_host_device *hd, u16 cport_id)
 	return retval;
 }
 
-static int cport_features_enable(struct gb_host_device *hd, u16 cport_id)
-{
-	int retval;
-	struct es2_ap_dev *es2 = hd_to_es2(hd);
-	struct usb_device *udev = es2->usb_dev;
-
-	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
-				 GB_APB_REQUEST_CPORT_FEAT_EN,
-				 USB_DIR_OUT | USB_TYPE_VENDOR |
-				 USB_RECIP_INTERFACE, cport_id, 0, NULL,
-				 0, ES2_USB_CTRL_TIMEOUT);
-	if (retval < 0)
-		dev_err(&udev->dev, "Cannot enable CPort features for cport %u: %d\n",
-			cport_id, retval);
-	return retval;
-}
-
-static int cport_features_disable(struct gb_host_device *hd, u16 cport_id)
-{
-	int retval;
-	struct es2_ap_dev *es2 = hd_to_es2(hd);
-	struct usb_device *udev = es2->usb_dev;
-
-	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
-				 GB_APB_REQUEST_CPORT_FEAT_DIS,
-				 USB_DIR_OUT | USB_TYPE_VENDOR |
-				 USB_RECIP_INTERFACE, cport_id, 0, NULL,
-				 0, ES2_USB_CTRL_TIMEOUT);
-	if (retval < 0)
-		dev_err(&udev->dev,
-			"Cannot disable CPort features for cport %u: %d\n",
-			cport_id, retval);
-	return retval;
-}
-
 static int timesync_enable(struct gb_host_device *hd, u8 count,
 			   u64 frame_time, u32 strobe_delay, u32 refclk)
 {
@@ -1048,8 +1013,6 @@ static struct gb_hd_driver es2_driver = {
 	.latency_tag_enable		= latency_tag_enable,
 	.latency_tag_disable		= latency_tag_disable,
 	.output				= output,
-	.cport_features_enable		= cport_features_enable,
-	.cport_features_disable		= cport_features_disable,
 	.timesync_enable		= timesync_enable,
 	.timesync_disable		= timesync_disable,
 	.timesync_authoritative		= timesync_authoritative,

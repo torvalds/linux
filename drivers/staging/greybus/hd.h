@@ -24,7 +24,6 @@ struct gb_hd_driver {
 	int (*cport_disable)(struct gb_host_device *hd, u16 cport_id);
 	int (*cport_connected)(struct gb_host_device *hd, u16 cport_id);
 	int (*cport_flush)(struct gb_host_device *hd, u16 cport_id);
-	int (*cport_ping)(struct gb_host_device *hd, u16 cport_id);
 	int (*cport_shutdown)(struct gb_host_device *hd, u16 cport_id,
 				u8 phase, unsigned int timeout);
 	int (*cport_quiesce)(struct gb_host_device *hd, u16 cport_id,
@@ -38,8 +37,6 @@ struct gb_hd_driver {
 	int (*latency_tag_disable)(struct gb_host_device *hd, u16 cport_id);
 	int (*output)(struct gb_host_device *hd, void *req, u16 size, u8 cmd,
 		      bool async);
-	int (*cport_features_enable)(struct gb_host_device *hd, u16 cport_id);
-	int (*cport_features_disable)(struct gb_host_device *hd, u16 cport_id);
 	int (*timesync_enable)(struct gb_host_device *hd, u8 count,
 			       u64 frame_time, u32 strobe_delay, u32 refclk);
 	int (*timesync_disable)(struct gb_host_device *hd);
