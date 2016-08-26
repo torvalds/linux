@@ -1715,7 +1715,6 @@ static int efx_ef10_try_update_nic_stats_pf(struct efx_nic *efx)
 	efx_ef10_get_stat_mask(efx, mask);
 
 	dma_stats = efx->stats_buffer.addr;
-	nic_data = efx->nic_data;
 
 	generation_end = dma_stats[MC_CMD_MAC_GENERATION_END];
 	if (generation_end == EFX_MC_STATS_GENERATION_INVALID)
