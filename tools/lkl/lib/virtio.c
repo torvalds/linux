@@ -39,14 +39,10 @@
 
 #define BIT(x) (1ULL << x)
 
-#ifdef DEBUG
-#define bad_driver(msg) do {					\
-		lkl_printf("LKL virtio error: %s\n", msg);	\
-		lkl_host_ops.panic();				\
+#define virtio_panic(msg, ...) do {					\
+		lkl_printf("LKL virtio error" msg, ##__VA_ARGS__);	\
+		lkl_host_ops.panic();					\
 	} while (0)
-#else
-#define bad_driver(msg) do { } while (0)
-#endif /* DEBUG */
 
 static inline uint16_t virtio_get_used_event(struct virtio_queue *q)
 {
@@ -172,7 +168,7 @@ static void init_dev_buf_from_vring_desc(struct lkl_dev_buf *buf,
 	buf->len = le32toh(vring_desc->len);
 
 	if (!(buf->addr && buf->len))
-		bad_driver("bad vring_desc\n");
+		virtio_panic("bad vring_desc: %p %d\n", buf->addr, buf->len);
 }
 
 /*
@@ -227,7 +223,7 @@ static int virtio_process_one(struct virtio_dev *dev, struct virtio_queue *q,
 		/* Somehow we've built a request too long to fit our device */
 		if (q_buf_cnt == VIRTIO_REQ_MAX_BUFS &&
 			(prev_flags & LKL_VRING_DESC_F_NEXT))
-			bad_driver("enqueued too many request bufs");
+			virtio_panic("enqueued too many request bufs");
 	}
 	req.buf_count = q_buf_cnt;
 	ret = dev->ops->enqueue(dev, &req);
