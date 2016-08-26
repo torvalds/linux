@@ -41,8 +41,8 @@ struct simple_card_data {
 };
 
 #define simple_priv_to_dev(priv) ((priv)->snd_card.dev)
-#define simple_priv_to_link(priv, i) ((priv)->snd_card.dai_link + i)
-#define simple_priv_to_props(priv, i) ((priv)->dai_props + i)
+#define simple_priv_to_link(priv, i) ((priv)->snd_card.dai_link + (i))
+#define simple_priv_to_props(priv, i) ((priv)->dai_props + (i))
 
 #define DAI	"sound-dai"
 #define CELL	"#sound-dai-cells"
