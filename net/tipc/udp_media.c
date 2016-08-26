@@ -84,6 +84,17 @@ struct udp_bearer {
 	struct work_struct work;
 };
 
+static int tipc_udp_is_mcast_addr(struct udp_media_addr *addr)
+{
+	if (ntohs(addr->proto) == ETH_P_IP)
+		return ipv4_is_multicast(addr->ipv4.s_addr);
+#if IS_ENABLED(CONFIG_IPV6)
+	else
+		return ipv6_addr_is_multicast(&addr->ipv6);
+#endif
+	return 0;
+}
+
 /* udp_media_addr_set - convert a ip/udp address to a TIPC media address */
 static void tipc_udp_media_addr_set(struct tipc_media_addr *addr,
 				    struct udp_media_addr *ua)
@@ -91,15 +102,9 @@ static void tipc_udp_media_addr_set(struct tipc_media_addr *addr,
 	memset(addr, 0, sizeof(struct tipc_media_addr));
 	addr->media_id = TIPC_MEDIA_TYPE_UDP;
 	memcpy(addr->value, ua, sizeof(struct udp_media_addr));
-	if (ntohs(ua->proto) == ETH_P_IP) {
-		if (ipv4_is_multicast(ua->ipv4.s_addr))
-			addr->broadcast = 1;
-	} else if (ntohs(ua->proto) == ETH_P_IPV6) {
-		if (ipv6_addr_type(&ua->ipv6) & IPV6_ADDR_MULTICAST)
-			addr->broadcast = 1;
-	} else {
-		pr_err("Invalid UDP media address\n");
-	}
+
+	if (tipc_udp_is_mcast_addr(ua))
+		addr->broadcast = 1;
 }
 
 /* tipc_udp_addr2str - convert ip/udp address to string */
@@ -255,15 +260,11 @@ static int enable_mcast(struct udp_bearer *ub, struct udp_media_addr *remote)
 	struct sock *sk = ub->ubsock->sk;
 
 	if (ntohs(remote->proto) == ETH_P_IP) {
-		if (!ipv4_is_multicast(remote->ipv4.s_addr))
-			return 0;
 		mreqn.imr_multiaddr = remote->ipv4;
 		mreqn.imr_ifindex = ub->ifindex;
 		err = ip_mc_join_group(sk, &mreqn);
 #if IS_ENABLED(CONFIG_IPV6)
 	} else {
-		if (!ipv6_addr_is_multicast(&remote->ipv6))
-			return 0;
 		err = ipv6_stub->ipv6_sock_mc_join(sk, ub->ifindex,
 						   &remote->ipv6);
 #endif
@@ -408,8 +409,11 @@ static int tipc_udp_enable(struct net *net, struct tipc_bearer *b,
 	tuncfg.encap_destroy = NULL;
 	setup_udp_tunnel_sock(net, ub->ubsock, &tuncfg);
 
-	if (enable_mcast(ub, remote))
-		goto err;
+	if (tipc_udp_is_mcast_addr(remote)) {
+		if (enable_mcast(ub, remote))
+			goto err;
+	}
+
 	return 0;
 err:
 	kfree(ub);
