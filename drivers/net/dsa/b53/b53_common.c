@@ -1315,8 +1315,20 @@ static int b53_br_join(struct dsa_switch *ds, int port,
 		       struct net_device *bridge)
 {
 	struct b53_device *dev = ds_to_priv(ds);
+	s8 cpu_port = ds->dst->cpu_port;
 	u16 pvlan, reg;
 	unsigned int i;
+
+	/* Make this port leave the all VLANs join since we will have proper
+	 * VLAN entries from now on
+	 */
+	if (is58xx(dev)) {
+		b53_read16(dev, B53_VLAN_PAGE, B53_JOIN_ALL_VLAN_EN, &reg);
+		reg &= ~BIT(port);
+		if ((reg & BIT(cpu_port)) == BIT(cpu_port))
+			reg &= ~BIT(cpu_port);
+		b53_write16(dev, B53_VLAN_PAGE, B53_JOIN_ALL_VLAN_EN, reg);
+	}
 
 	dev->ports[port].bridge_dev = bridge;
 	b53_read16(dev, B53_PVLAN_PAGE, B53_PVLAN_PORT_MASK(port), &pvlan);
@@ -1350,6 +1362,7 @@ static void b53_br_leave(struct dsa_switch *ds, int port)
 	struct b53_device *dev = ds_to_priv(ds);
 	struct net_device *bridge = dev->ports[port].bridge_dev;
 	struct b53_vlan *vl = &dev->vlans[0];
+	s8 cpu_port = ds->dst->cpu_port;
 	unsigned int i;
 	u16 pvlan, reg, pvid;
 
@@ -1379,10 +1392,19 @@ static void b53_br_leave(struct dsa_switch *ds, int port)
 	else
 		pvid = 0;
 
-	b53_get_vlan_entry(dev, pvid, vl);
-	vl->members |= BIT(port) | BIT(dev->cpu_port);
-	vl->untag |= BIT(port) | BIT(dev->cpu_port);
-	b53_set_vlan_entry(dev, pvid, vl);
+	/* Make this port join all VLANs without VLAN entries */
+	if (is58xx(dev)) {
+		b53_read16(dev, B53_VLAN_PAGE, B53_JOIN_ALL_VLAN_EN, &reg);
+		reg |= BIT(port);
+		if (!(reg & BIT(cpu_port)))
+			reg |= BIT(cpu_port);
+		b53_write16(dev, B53_VLAN_PAGE, B53_JOIN_ALL_VLAN_EN, reg);
+	} else {
+		b53_get_vlan_entry(dev, pvid, vl);
+		vl->members |= BIT(port) | BIT(dev->cpu_port);
+		vl->untag |= BIT(port) | BIT(dev->cpu_port);
+		b53_set_vlan_entry(dev, pvid, vl);
+	}
 }
 
 static void b53_br_set_stp_state(struct dsa_switch *ds, int port,
