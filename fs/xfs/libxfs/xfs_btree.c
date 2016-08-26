@@ -4558,6 +4558,13 @@ xfs_btree_simple_query_range(
 	if (error)
 		goto out;
 
+	/* Nothing?  See if there's anything to the right. */
+	if (!stat) {
+		error = xfs_btree_increment(cur, 0, &stat);
+		if (error)
+			goto out;
+	}
+
 	while (stat) {
 		/* Find the record. */
 		error = xfs_btree_get_rec(cur, &recp, &stat);
