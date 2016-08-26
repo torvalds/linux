@@ -2100,8 +2100,7 @@ static int ravb_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int ravb_suspend(struct device *dev)
+static int __maybe_unused ravb_suspend(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	int ret = 0;
@@ -2114,7 +2113,7 @@ static int ravb_suspend(struct device *dev)
 	return ret;
 }
 
-static int ravb_resume(struct device *dev)
+static int __maybe_unused ravb_resume(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct ravb_private *priv = netdev_priv(ndev);
@@ -2149,7 +2148,7 @@ static int ravb_resume(struct device *dev)
 	return ret;
 }
 
-static int ravb_runtime_nop(struct device *dev)
+static int __maybe_unused ravb_runtime_nop(struct device *dev)
 {
 	/* Runtime PM callback shared between ->runtime_suspend()
 	 * and ->runtime_resume(). Simply returns success.
@@ -2166,17 +2165,12 @@ static const struct dev_pm_ops ravb_dev_pm_ops = {
 	SET_RUNTIME_PM_OPS(ravb_runtime_nop, ravb_runtime_nop, NULL)
 };
 
-#define RAVB_PM_OPS (&ravb_dev_pm_ops)
-#else
-#define RAVB_PM_OPS NULL
-#endif
-
 static struct platform_driver ravb_driver = {
 	.probe		= ravb_probe,
 	.remove		= ravb_remove,
 	.driver = {
 		.name	= "ravb",
-		.pm	= RAVB_PM_OPS,
+		.pm	= &ravb_dev_pm_ops,
 		.of_match_table = ravb_match_table,
 	},
 };
