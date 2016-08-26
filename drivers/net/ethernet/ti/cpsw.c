@@ -2217,7 +2217,8 @@ static int cpsw_set_channels(struct net_device *ndev,
 	}
 
 	if (cpsw_common_res_usage_state(cpsw)) {
-		if (cpsw_fill_rx_channels(priv))
+		ret = cpsw_fill_rx_channels(priv);
+		if (ret)
 			goto err;
 
 		/* After this receive is started */
