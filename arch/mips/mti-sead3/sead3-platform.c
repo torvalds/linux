@@ -14,34 +14,9 @@
 #include <linux/mtd/physmap.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/serial_8250.h>
 #include <linux/smsc911x.h>
 
 #include <asm/mips-boards/sead3int.h>
-
-#define UART(base)							\
-{									\
-	.mapbase	= base,						\
-	.irq		= -1,						\
-	.uartclk	= 14745600,					\
-	.iotype		= UPIO_MEM32,					\
-	.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST | UPF_IOREMAP, \
-	.regshift	= 2,						\
-}
-
-static struct plat_serial8250_port uart8250_data[] = {
-	UART(0x1f000900),   /* ttyS0 = USB   */
-	UART(0x1f000800),   /* ttyS1 = RS232 */
-	{ },
-};
-
-static struct platform_device uart8250_device = {
-	.name			= "serial8250",
-	.id			= PLAT8250_DEV_PLATFORM2,
-	.dev			= {
-		.platform_data	= uart8250_data,
-	},
-};
 
 static struct smsc911x_platform_config sead3_smsc911x_data = {
 	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
@@ -195,7 +170,6 @@ static struct platform_device ehci_device = {
 };
 
 static struct platform_device *sead3_platform_devices[] __initdata = {
-	&uart8250_device,
 	&sead3_flash,
 	&pled_device,
 	&fled_device,
@@ -228,15 +202,11 @@ static int __init sead3_platforms_device_init(void)
 	}
 
 	if (gic_present) {
-		uart8250_data[0].irq = irq_create_mapping(irqd, GIC_INT_UART0);
-		uart8250_data[1].irq = irq_create_mapping(irqd, GIC_INT_UART1);
 		ehci_resources[1].start =
 			irq_create_mapping(irqd, GIC_INT_EHCI);
 		sead3_net_resources[1].start =
 			irq_create_mapping(irqd, GIC_INT_NET);
 	} else {
-		uart8250_data[0].irq = irq_create_mapping(irqd, CPU_INT_UART0);
-		uart8250_data[1].irq = irq_create_mapping(irqd, CPU_INT_UART1);
 		ehci_resources[1].start =
 			irq_create_mapping(irqd, CPU_INT_EHCI);
 		sead3_net_resources[1].start =

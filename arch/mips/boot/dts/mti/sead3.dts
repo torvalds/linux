@@ -12,6 +12,15 @@
 	compatible = "mti,sead-3";
 	interrupt-parent = <&gic>;
 
+	chosen {
+		stdout-path = "uart1:115200";
+	};
+
+	aliases {
+		uart0 = &uart0;
+		uart1 = &uart1;
+	};
+
 	cpus {
 		cpu@0 {
 			compatible = "mti,mips14KEc", "mti,mips14Kc";
@@ -49,5 +58,33 @@
 			compatible = "mti,gic-timer";
 			interrupts = <GIC_LOCAL 1 IRQ_TYPE_NONE>;
 		};
+	};
+
+	/* UART connected to FTDI & miniUSB socket */
+	uart0: uart@1f000900 {
+		compatible = "ns16550a";
+		reg = <0x1f000900 0x20>;
+		reg-io-width = <4>;
+		reg-shift = <2>;
+
+		clock-frequency = <14745600>;
+
+		interrupts = <3>; /* GIC 3 or CPU 4 */
+
+		no-loopback-test;
+	};
+
+	/* UART connected to RS232 socket */
+	uart1: uart@1f000800 {
+		compatible = "ns16550a";
+		reg = <0x1f000800 0x20>;
+		reg-io-width = <4>;
+		reg-shift = <2>;
+
+		clock-frequency = <14745600>;
+
+		interrupts = <2>; /* GIC 2 or CPU 4 */
+
+		no-loopback-test;
 	};
 };

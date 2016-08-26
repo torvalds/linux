@@ -14,6 +14,7 @@
 #include <linux/libfdt.h>
 #include <linux/printk.h>
 
+#include <asm/fw/fw.h>
 #include <asm/io.h>
 
 #define SEAD_CONFIG			CKSEG1ADDR(0x1b100110)
@@ -23,7 +24,8 @@ static unsigned char fdt_buf[16 << 10] __initdata;
 
 static int remove_gic(void *fdt)
 {
-	int gic_off, cpu_off, err;
+	const unsigned int cpu_uart_int = 4;
+	int gic_off, cpu_off, uart_off, err;
 	uint32_t cfg, cpu_phandle;
 
 	/* leave the GIC node intact if a GIC is present */
@@ -62,6 +64,103 @@ static int remove_gic(void *fdt)
 		return err;
 	}
 
+	uart_off = fdt_node_offset_by_compatible(fdt, -1, "ns16550a");
+	while (uart_off >= 0) {
+		err = fdt_setprop_u32(fdt, uart_off, "interrupts",
+				      cpu_uart_int);
+		if (err) {
+			pr_err("unable to set UART interrupts property: %d\n",
+			       err);
+			return err;
+		}
+
+		uart_off = fdt_node_offset_by_compatible(fdt, uart_off,
+							 "ns16550a");
+	}
+	if (uart_off != -FDT_ERR_NOTFOUND) {
+		pr_err("error searching for UART DT node: %d\n", uart_off);
+		return uart_off;
+	}
+
+	return 0;
+}
+
+static int serial_config(void *fdt)
+{
+	const char *yamontty, *mode_var;
+	char mode_var_name[9], path[18], parity;
+	unsigned int uart, baud, stop_bits;
+	bool hw_flow;
+	int chosen_off, err;
+
+	yamontty = fw_getenv("yamontty");
+	if (!yamontty || !strcmp(yamontty, "tty0")) {
+		uart = 0;
+	} else if (!strcmp(yamontty, "tty1")) {
+		uart = 1;
+	} else {
+		pr_warn("yamontty environment variable '%s' invalid\n",
+			yamontty);
+		uart = 0;
+	}
+
+	baud = stop_bits = 0;
+	parity = 0;
+	hw_flow = false;
+
+	snprintf(mode_var_name, sizeof(mode_var_name), "modetty%u", uart);
+	mode_var = fw_getenv(mode_var_name);
+	if (mode_var) {
+		while (mode_var[0] >= '0' && mode_var[0] <= '9') {
+			baud *= 10;
+			baud += mode_var[0] - '0';
+			mode_var++;
+		}
+		if (mode_var[0] == ',')
+			mode_var++;
+		if (mode_var[0])
+			parity = mode_var[0];
+		if (mode_var[0] == ',')
+			mode_var++;
+		if (mode_var[0])
+			stop_bits = mode_var[0] - '0';
+		if (mode_var[0] == ',')
+			mode_var++;
+		if (!strcmp(mode_var, "hw"))
+			hw_flow = true;
+	}
+
+	if (!baud)
+		baud = 38400;
+
+	if (parity != 'e' && parity != 'n' && parity != 'o')
+		parity = 'n';
+
+	if (stop_bits != 7 && stop_bits != 8)
+		stop_bits = 8;
+
+	WARN_ON(snprintf(path, sizeof(path), "uart%u:%u%c%u%s",
+			 uart, baud, parity, stop_bits,
+			 hw_flow ? "r" : "") >= sizeof(path));
+
+	/* find or add chosen node */
+	chosen_off = fdt_path_offset(fdt, "/chosen");
+	if (chosen_off == -FDT_ERR_NOTFOUND)
+		chosen_off = fdt_path_offset(fdt, "/chosen@0");
+	if (chosen_off == -FDT_ERR_NOTFOUND)
+		chosen_off = fdt_add_subnode(fdt, 0, "chosen");
+	if (chosen_off < 0) {
+		pr_err("Unable to find or add DT chosen node: %d\n",
+		       chosen_off);
+		return chosen_off;
+	}
+
+	err = fdt_setprop_string(fdt, chosen_off, "stdout-path", path);
+	if (err) {
+		pr_err("Unable to set stdout-path property: %d\n", err);
+		return err;
+	}
+
 	return 0;
 }
 
@@ -81,6 +180,10 @@ void __init *sead3_dt_shim(void *fdt)
 		panic("Unable to open FDT: %d", err);
 
 	err = remove_gic(fdt_buf);
+	if (err)
+		panic("Unable to patch FDT: %d", err);
+
+	err = serial_config(fdt_buf);
 	if (err)
 		panic("Unable to patch FDT: %d", err);
 

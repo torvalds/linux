@@ -17,47 +17,6 @@
 extern char except_vec_nmi;
 extern char except_vec_ejtag_debug;
 
-#ifdef CONFIG_SERIAL_8250_CONSOLE
-static void __init console_config(void)
-{
-	char console_string[40];
-	int baud = 0;
-	char parity = '\0', bits = '\0', flow = '\0';
-	char *s;
-
-	if ((strstr(fw_getcmdline(), "console=")) == NULL) {
-		s = fw_getenv("modetty0");
-		if (s) {
-			while (*s >= '0' && *s <= '9')
-				baud = baud*10 + *s++ - '0';
-			if (*s == ',')
-				s++;
-			if (*s)
-				parity = *s++;
-			if (*s == ',')
-				s++;
-			if (*s)
-				bits = *s++;
-			if (*s == ',')
-				s++;
-			if (*s == 'h')
-				flow = 'r';
-		}
-		if (baud == 0)
-			baud = 38400;
-		if (parity != 'n' && parity != 'o' && parity != 'e')
-			parity = 'n';
-		if (bits != '7' && bits != '8')
-			bits = '8';
-		if (flow == '\0')
-			flow = 'r';
-		sprintf(console_string, " console=ttyS0,%d%c%c%c", baud,
-			parity, bits, flow);
-		strcat(fw_getcmdline(), console_string);
-	}
-}
-#endif
-
 static void __init mips_nmi_setup(void)
 {
 	void *base;
@@ -139,11 +98,6 @@ void __init prom_init(void)
 		fw_init_early_console(0);
 	else if ((strstr(fw_getcmdline(), "console=ttyS1")) != NULL)
 		fw_init_early_console(1);
-#endif
-#ifdef CONFIG_SERIAL_8250_CONSOLE
-	if ((strstr(fw_getcmdline(), "console=")) == NULL)
-		strcat(fw_getcmdline(), " console=ttyS0,38400n8r");
-	console_config();
 #endif
 }
 
