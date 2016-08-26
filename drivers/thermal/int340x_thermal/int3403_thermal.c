@@ -72,7 +72,8 @@ static void int3403_notify(acpi_handle handle,
 	case INT3403_PERF_CHANGED_EVENT:
 		break;
 	case INT3403_THERMAL_EVENT:
-		int340x_thermal_zone_device_update(obj->int340x_zone);
+		int340x_thermal_zone_device_update(obj->int340x_zone,
+						   THERMAL_TRIP_VIOLATED);
 		break;
 	default:
 		dev_err(&priv->pdev->dev, "Unsupported event [0x%x]\n", event);
