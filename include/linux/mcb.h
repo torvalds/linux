@@ -41,7 +41,11 @@ struct mcb_bus {
 	char name[CHAMELEON_FILENAME_LEN + 1];
 	int (*get_irq)(struct mcb_device *dev);
 };
-#define to_mcb_bus(b) container_of((b), struct mcb_bus, dev)
+
+static inline struct mcb_bus *to_mcb_bus(struct device *dev)
+{
+	return container_of(dev, struct mcb_bus, dev);
+}
 
 /**
  * struct mcb_device - MEN Chameleon Bus device
@@ -77,7 +81,11 @@ struct mcb_device {
 	struct resource irq;
 	struct resource mem;
 };
-#define to_mcb_device(x) container_of((x), struct mcb_device, dev)
+
+static inline struct mcb_device *to_mcb_device(struct device *dev)
+{
+	return container_of(dev, struct mcb_device, dev);
+}
 
 /**
  * struct mcb_driver - MEN Chameleon Bus device driver
@@ -95,7 +103,11 @@ struct mcb_driver {
 	void (*remove)(struct mcb_device *mdev);
 	void (*shutdown)(struct mcb_device *mdev);
 };
-#define to_mcb_driver(x) container_of((x), struct mcb_driver, driver)
+
+static inline struct mcb_driver *to_mcb_driver(struct device_driver *drv)
+{
+	return container_of(drv, struct mcb_driver, driver);
+}
 
 static inline void *mcb_get_drvdata(struct mcb_device *dev)
 {
