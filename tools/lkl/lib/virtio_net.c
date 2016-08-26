@@ -63,8 +63,8 @@ static int net_enqueue(struct virtio_dev *dev, int q, struct virtio_req *req)
 {
 	struct lkl_virtio_net_hdr_v1 *header;
 	struct virtio_net_dev *net_dev;
-	int ret, len, i;
 	struct lkl_dev_buf *iov;
+	int ret;
 
 	header = req->buf[0].addr;
 	net_dev = netdev_of(dev);
@@ -86,8 +86,9 @@ static int net_enqueue(struct virtio_dev *dev, int q, struct virtio_req *req)
 		ret = net_dev->nd->ops->tx(net_dev->nd, iov, req->buf_count);
 		if (ret < 0)
 			return -1;
-		i = 1;
 	} else if (q == RX_QUEUE_IDX) {
+		int i, len;
+
 		ret = net_dev->nd->ops->rx(net_dev->nd, iov, req->buf_count);
 		if (ret < 0)
 			return -1;
@@ -99,7 +100,7 @@ static int net_enqueue(struct virtio_dev *dev, int q, struct virtio_req *req)
 			 * pkt, i.e., pkt has been truncated.  This is only
 			 * likely to happen under mergeable RX buffer mode.
 			 */
-			if (req->mergeable_rx_len == (unsigned int)ret)
+			if (req->total_len == (unsigned int)ret)
 				lkl_printf("PKT is likely truncated! len=%d\n",
 				    ret);
 		} else {
@@ -113,10 +114,8 @@ static int net_enqueue(struct virtio_dev *dev, int q, struct virtio_req *req)
 		 */
 		for (i = 0, len = ret; len > 0; i++)
 			len -= req->buf[i].len;
-		req->buf_count = header->num_buffers = i;
-		/* Need to set "buf_count" to how many we really used in
-		 * order for virtio_req_complete() to work.
-		 */
+		header->num_buffers = i;
+
 		if (dev->device_features & BIT(LKL_VIRTIO_NET_F_GUEST_CSUM))
 			header->flags = LKL_VIRTIO_NET_HDR_F_DATA_VALID;
 	} else {
@@ -130,7 +129,7 @@ static int net_enqueue(struct virtio_dev *dev, int q, struct virtio_req *req)
 		ret += sizeof(struct lkl_virtio_net_hdr_v1);
 	}
 	virtio_req_complete(req, ret);
-	return i;
+	return 0;
 }
 
 static struct virtio_dev_ops net_ops = {

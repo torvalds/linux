@@ -75,52 +75,68 @@ static inline void virtio_deliver_irq(struct virtio_dev *dev)
 	lkl_trigger_irq(dev->irq);
 }
 
+static inline uint16_t virtio_get_used_idx(struct virtio_queue *q)
+{
+	return le16toh(q->used->idx);
+}
+
+static inline void virtio_add_used(struct virtio_queue *q, uint16_t used_idx,
+				   uint16_t avail_idx, uint16_t len)
+{
+	uint16_t desc_idx = q->avail->ring[avail_idx & (q->num - 1)];
+
+	used_idx = used_idx & (q->num - 1);
+	q->used->ring[used_idx].id = desc_idx;
+	q->used->ring[used_idx].len = htole16(len);
+}
+
+/*
+ * Make sure all memory writes before are visible to the driver before updating
+ * the idx.  We need it here even we already have one in virtio_deliver_irq()
+ * because there might already be an driver thread reading the idx and dequeuing
+ * used buffers.
+ */
+static inline void virtio_sync_used_idx(struct virtio_queue *q, uint16_t idx)
+{
+	__sync_synchronize();
+	q->used->idx = htole16(idx);
+}
+
+#define min_len(a, b) (a < b ? a : b)
+
 void virtio_req_complete(struct virtio_req *req, uint32_t len)
 {
-	struct virtio_queue *q = req->q;
-	struct virtio_dev *dev = req->dev;
-	uint16_t idx = le16toh(q->used->idx) & (q->num - 1);
-	uint16_t new;
 	int send_irq = 0;
-	int avail_used;
+	struct virtio_queue *q = req->q;
+	uint16_t avail_idx = req->idx;
+	uint16_t used_idx = virtio_get_used_idx(q);
+	int i;
 
-	q->used->ring[idx].id = htole16(req->idx);
-	if (req->mergeable_rx_len == 0) {
-		new = le16toh(q->used->idx) + 1;
-		avail_used = 1;
-	} else {
-		/* we've potentially used up multiple (non-chained)
-		 * descriptors and have to create one "used" entry for
-		 * each descr we've consumed.
-		 */
-		int i = 0, last_idx = q->last_avail_idx, req_idx;
+	/*
+	 * We've potentially used up multiple (non-chained) descriptors and have
+	 * to create one "used" entry for each descriptor we've consumed.
+	 */
+	for (i = 0; i < req->buf_count; i++) {
+		uint16_t used_len;
 
-		avail_used = req->buf_count;
-		new = le16toh(q->used->idx) + req->buf_count;
-		while (i < req->buf_count-1) {
-			q->used->ring[idx].len = htole16(req->buf[i].len);
-			len -= req->buf[i].len;
-			idx++; i++; last_idx++;
-			idx &= (q->num - 1);
-			req_idx = q->avail->ring[last_idx & (q->num - 1)];
-			q->used->ring[idx].id = htole16(req_idx);
-		}
+		if (!q->max_merge_len)
+			used_len = len;
+		else
+			used_len = min_len(len,  req->buf[i].len);
+
+		virtio_add_used(q, used_idx++, avail_idx++, used_len);
+
+		len -= used_len;
+		if (!len)
+			break;
 	}
-	q->used->ring[idx].len = htole16(len);
-	/* Make sure all memory writes before are visible to the driver before
-	 * updating the idx.
-	 * We need it here even we already have one in virtio_deliver_irq()
-	 * because there might already be an driver thread reading the idx and
-	 * dequeuing used buffers.
-	 */
-	__sync_synchronize();
-	q->used->idx = htole16(new);
+	virtio_sync_used_idx(q, used_idx);
+	q->last_avail_idx = avail_idx;
 
-	/* Triggers the irq whenever there is no available buffer.
-	 * q->last_avail_idx is incremented after calling virtio_req_complete(),
-	 * so here we need to add avail_used to it.
+	/*
+	 * Triggers the irq whenever there is no available buffer.
 	 */
-	if (q->last_avail_idx + avail_used == le16toh(q->avail->idx))
+	if (q->last_avail_idx == le16toh(q->avail->idx))
 		send_irq = 1;
 
 	/*
@@ -155,9 +171,10 @@ void virtio_req_complete(struct virtio_req *req, uint32_t len)
 	 * case when those numbers wrap up.
 	 */
 	if (send_irq || lkl_vring_need_event(le16toh(virtio_get_used_event(q)),
-					     new, q->last_used_idx_signaled)) {
-		q->last_used_idx_signaled = new;
-		virtio_deliver_irq(dev);
+					     virtio_get_used_idx(q),
+					     q->last_used_idx_signaled)) {
+		q->last_used_idx_signaled = virtio_get_used_idx(q);
+		virtio_deliver_irq(req->dev);
 	}
 }
 
@@ -173,15 +190,46 @@ struct lkl_vring_desc *vring_desc_at_le_idx(struct virtio_queue *q,
 	return &q->desc[le16toh(le_idx) & (q->num -1)];
 }
 
+static inline
+struct lkl_vring_desc *vring_desc_at_avail_idx(struct virtio_queue *q,
+					       uint16_t idx)
+{
+	uint16_t desc_idx = q->avail->ring[idx & (q->num - 1)];
+
+	return vring_desc_at_le_idx(q, desc_idx);
+}
+
 /* Initialize buf to hold the same info as the vring_desc */
-static void init_dev_buf_from_vring_desc(struct lkl_dev_buf *buf,
+static void add_dev_buf_from_vring_desc(struct virtio_req *req,
 					struct lkl_vring_desc *vring_desc)
 {
+	struct lkl_dev_buf *buf = &req->buf[req->buf_count++];
+
 	buf->addr = (void *)(uintptr_t)le64toh(vring_desc->addr);
 	buf->len = le32toh(vring_desc->len);
 
 	if (!(buf->addr && buf->len))
 		virtio_panic("bad vring_desc: %p %d\n", buf->addr, buf->len);
+
+	req->total_len += buf->len;
+}
+
+static struct lkl_vring_desc *get_next_desc(struct virtio_queue *q,
+					    struct lkl_vring_desc *desc,
+					    uint16_t *idx)
+{
+	uint16_t desc_idx;
+
+	if (q->max_merge_len) {
+		if (++(*idx) == le16toh(q->avail->idx))
+			return NULL;
+		desc_idx = q->avail->ring[*idx & (q->num - 1)];
+		return vring_desc_at_le_idx(q, desc_idx);
+	}
+
+	if (!(le16toh(desc->flags) & LKL_VRING_DESC_F_NEXT))
+		return NULL;
+	return vring_desc_at_le_idx(q, desc->next);
 }
 
 /*
@@ -195,59 +243,28 @@ static void init_dev_buf_from_vring_desc(struct lkl_dev_buf *buf,
  *    The mode is entered when the VIRTIO_NET_F_MRG_RXBUF device feature
  *    is enabled.
  */
-static int virtio_process_one(struct virtio_dev *dev, int qidx,
-			      int idx, bool is_mergeable_rx)
+static int virtio_process_one(struct virtio_dev *dev, int qidx)
 {
-	int q_buf_cnt = 0, ret = -1;
 	struct virtio_queue *q = &dev->queue[qidx];
+	uint16_t idx = q->last_avail_idx;
 	struct virtio_req req = {
 		.dev = dev,
 		.q = q,
-		.idx = q->avail->ring[idx & (q->num - 1)],
-		.mergeable_rx_len = 0,
+		.idx = idx,
 	};
-	uint16_t prev_flags = LKL_VRING_DESC_F_NEXT;
-	struct lkl_vring_desc *curr_vring_desc = vring_desc_at_le_idx(q, req.idx);
+	struct lkl_vring_desc *desc = vring_desc_at_avail_idx(q, req.idx);
 
-	if (is_mergeable_rx) {
-		int len = 0, desc_idx;
+	do {
+		add_dev_buf_from_vring_desc(&req, desc);
+		if (q->max_merge_len && req.total_len > q->max_merge_len)
+			break;
+		desc = get_next_desc(q, desc, &idx);
+	} while (desc && req.buf_count < VIRTIO_REQ_MAX_BUFS);
 
-		/* We may receive upto 64KB TSO packet so collect as many
-		 * descriptors as there are available upto 64KB in total len.
-		 */
-		while ((len < 65535) && (q_buf_cnt < VIRTIO_REQ_MAX_BUFS)) {
-			init_dev_buf_from_vring_desc(
-			    &req.buf[q_buf_cnt], curr_vring_desc);
-			len += req.buf[q_buf_cnt++].len;
-			if (++idx == le16toh(q->avail->idx))
-				break;
-			desc_idx = q->avail->ring[idx & (q->num - 1)];
-			curr_vring_desc = vring_desc_at_le_idx(q, desc_idx);
-		}
-		req.mergeable_rx_len = len;
-	} else {
-		while ((prev_flags & LKL_VRING_DESC_F_NEXT) &&
-			(q_buf_cnt < VIRTIO_REQ_MAX_BUFS)) {
-			prev_flags = le16toh(curr_vring_desc->flags);
-			init_dev_buf_from_vring_desc(
-			    &req.buf[q_buf_cnt++], curr_vring_desc);
-			curr_vring_desc =
-			    vring_desc_at_le_idx(q, curr_vring_desc->next);
-		}
-		/* Somehow we've built a request too long to fit our device */
-		if (q_buf_cnt == VIRTIO_REQ_MAX_BUFS &&
-			(prev_flags & LKL_VRING_DESC_F_NEXT))
-			virtio_panic("enqueued too many request bufs");
-	}
-	req.buf_count = q_buf_cnt;
-	ret = dev->ops->enqueue(dev, qidx, &req);
-	if (ret < 0)
-		return ret;
-	if (is_mergeable_rx)
-		q->last_avail_idx += ret;
-	else
-		q->last_avail_idx++;
-	return 0;
+	if (desc && le16toh(desc->flags) & LKL_VRING_DESC_F_NEXT)
+		virtio_panic("too many chained bufs");
+
+	return dev->ops->enqueue(dev, qidx, &req);
 }
 
 /* NB: we can enter this function two different ways in the case of
@@ -270,7 +287,6 @@ static int virtio_process_one(struct virtio_dev *dev, int qidx,
 void virtio_process_queue(struct virtio_dev *dev, uint32_t qidx)
 {
 	struct virtio_queue *q = &dev->queue[qidx];
-	bool is_mergeable_rx;
 
 	if (!q->ready)
 		return;
@@ -278,16 +294,13 @@ void virtio_process_queue(struct virtio_dev *dev, uint32_t qidx)
 	if (dev->ops->acquire_queue)
 		dev->ops->acquire_queue(dev, qidx);
 
-	is_mergeable_rx = q->max_merge_len > 0;
-
 	while (q->last_avail_idx != le16toh(q->avail->idx)) {
 		/*
 		 * Make sure following loads happens after loading
 		 * q->avail->idx.
 		 */
 		__sync_synchronize();
-		if (virtio_process_one(dev, qidx, q->last_avail_idx,
-		    is_mergeable_rx) < 0)
+		if (virtio_process_one(dev, qidx) < 0)
 			break;
 		if (q->last_avail_idx == le16toh(q->avail->idx))
 			virtio_set_avail_event(q, q->avail->idx);

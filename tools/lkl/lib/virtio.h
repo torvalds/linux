@@ -21,19 +21,28 @@ struct virtio_req {
 	uint16_t idx;
 	uint16_t buf_count;
 	struct lkl_dev_buf buf[VIRTIO_REQ_MAX_BUFS];
-	uint32_t mergeable_rx_len;
+	uint32_t total_len;
 };
+
+struct virtio_dev;
 
 struct virtio_dev_ops {
 	int (*check_features)(struct virtio_dev *dev);
-	/*
-	 * Return a negative value to stop the queue processing. In this case
-	 * the current request is not consumed from the queue and the host
-	 * device is resposible for restaring the queue processing by calling
-	 * virtio_process_queue at a later time.
-	 * A special case exists if a netdev is in mergeable RX buffer mode
-	 * where more than one "avail" slots may be consumed. In this case
-	 * it will return how many avail idx to advance.
+	/**
+	 * enqueue - queues the request for processing
+	 *
+	 * Note that the curret implementation assumes that the requests are
+	 * processed synchronous and, as such, @virtio_req_complete must be
+	 * called by from this function.
+	 *
+	 * @dev - virtio device
+	 * @q	- queue index
+	 *
+	 * @returns a negative value if the request has not been queued for
+	 * processing in which case the virtio device is resposible for
+	 * restaring the queue processing by calling @virtio_process_queue at a
+	 * later time; 0 or a positive value means that the request has been
+	 * queued for processing
 	 */
 	int (*enqueue)(struct virtio_dev *dev, int q, struct virtio_req *req);
 	/*
@@ -68,6 +77,12 @@ struct virtio_dev {
 
 int virtio_dev_setup(struct virtio_dev *dev, int queues, int num_max);
 void virtio_dev_cleanup(struct virtio_dev *dev);
+/**
+ * virtio_req_complete - complete a virtio request
+ *
+ * @req - the request to be completed
+ * @len - the total size in bytes of the completed request
+ */
 void virtio_req_complete(struct virtio_req *req, uint32_t len);
 void virtio_process_queue(struct virtio_dev *dev, uint32_t qidx);
 void virtio_set_queue_max_merge_len(struct virtio_dev *dev, int q, int len);
