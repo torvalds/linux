@@ -39,7 +39,7 @@ struct virtio_dev_ops {
 	 * where more than one "avail" slots may be consumed. In this case
 	 * it will return how many avail idx to advance.
 	 */
-	int (*enqueue)(struct virtio_dev *dev, struct virtio_req *req);
+	int (*enqueue)(struct virtio_dev *dev, int q, struct virtio_req *req);
 	/*
 	 * Acquire/release a lock on the specified queue. Only implemented by
 	 * netdevs, all other devices have NULL acquire/release function
@@ -47,18 +47,6 @@ struct virtio_dev_ops {
 	 */
 	void (*acquire_queue)(struct virtio_dev *dev, int queue_idx);
 	void (*release_queue)(struct virtio_dev *dev, int queue_idx);
-};
-
-struct virtio_queue {
-	uint32_t num_max;
-	uint32_t num;
-	uint32_t ready;
-
-	struct lkl_vring_desc *desc;
-	struct lkl_vring_avail *avail;
-	struct lkl_vring_used *used;
-	uint16_t last_avail_idx;
-	uint16_t last_used_idx_signaled;
 };
 
 struct virtio_dev {
@@ -89,18 +77,5 @@ void virtio_process_queue(struct virtio_dev *dev, uint32_t qidx);
 
 #define container_of(ptr, type, member) \
 	(type *)((char *)(ptr) - __builtin_offsetof(type, member))
-
-
-static inline int is_rx_queue(struct virtio_dev *dev,
-			      struct virtio_queue *queue)
-{
-	return &dev->queue[RX_QUEUE_IDX] == queue;
-}
-
-static inline int is_tx_queue(struct virtio_dev *dev,
-			      struct virtio_queue *queue)
-{
-	return &dev->queue[TX_QUEUE_IDX] == queue;
-}
 
 #endif /* _LKL_LIB_VIRTIO_H */

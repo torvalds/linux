@@ -21,7 +21,7 @@ static int blk_check_features(struct virtio_dev *dev)
 	return -LKL_EINVAL;
 }
 
-static int blk_enqueue(struct virtio_dev *dev, struct virtio_req *req)
+static int blk_enqueue(struct virtio_dev *dev, int q, struct virtio_req *req)
 {
 	struct virtio_blk_dev *blk_dev;
 	struct lkl_virtio_blk_outhdr *h;

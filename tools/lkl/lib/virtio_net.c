@@ -55,7 +55,7 @@ static void net_release_queue(struct virtio_dev *dev, int queue_idx)
  * with a vnet_hdr. We need to check the backend device if it expects vnet_hdr
  * and adjust buffer offset accordingly.
  */
-static int net_enqueue(struct virtio_dev *dev, struct virtio_req *req)
+static int net_enqueue(struct virtio_dev *dev, int q, struct virtio_req *req)
 {
 	struct lkl_virtio_net_hdr_v1 *header;
 	struct virtio_net_dev *net_dev;
@@ -78,12 +78,12 @@ static int net_enqueue(struct virtio_dev *dev, struct virtio_req *req)
 	iov = req->buf;
 
 	/* Pick which virtqueue to send the buffer(s) to */
-	if (is_tx_queue(dev, req->q)) {
+	if (q == TX_QUEUE_IDX) {
 		ret = net_dev->nd->ops->tx(net_dev->nd, iov, req->buf_count);
 		if (ret < 0)
 			return -1;
 		i = 1;
-	} else if (is_rx_queue(dev, req->q)) {
+	} else if (q == RX_QUEUE_IDX) {
 		ret = net_dev->nd->ops->rx(net_dev->nd, iov, req->buf_count);
 		if (ret < 0)
 			return -1;

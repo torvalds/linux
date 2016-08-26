@@ -44,6 +44,18 @@
 		lkl_host_ops.panic();					\
 	} while (0)
 
+struct virtio_queue {
+	uint32_t num_max;
+	uint32_t num;
+	uint32_t ready;
+
+	struct lkl_vring_desc *desc;
+	struct lkl_vring_avail *avail;
+	struct lkl_vring_used *used;
+	uint16_t last_avail_idx;
+	uint16_t last_used_idx_signaled;
+};
+
 static inline uint16_t virtio_get_used_event(struct virtio_queue *q)
 {
 	return q->avail->ring[q->num];
@@ -182,10 +194,11 @@ static void init_dev_buf_from_vring_desc(struct lkl_dev_buf *buf,
  *    The mode is entered when the VIRTIO_NET_F_MRG_RXBUF device feature
  *    is enabled.
  */
-static int virtio_process_one(struct virtio_dev *dev, struct virtio_queue *q,
+static int virtio_process_one(struct virtio_dev *dev, int qidx,
 			      int idx, bool is_mergeable_rx)
 {
 	int q_buf_cnt = 0, ret = -1;
+	struct virtio_queue *q = &dev->queue[qidx];
 	struct virtio_req req = {
 		.dev = dev,
 		.q = q,
@@ -226,7 +239,7 @@ static int virtio_process_one(struct virtio_dev *dev, struct virtio_queue *q,
 			virtio_panic("enqueued too many request bufs");
 	}
 	req.buf_count = q_buf_cnt;
-	ret = dev->ops->enqueue(dev, &req);
+	ret = dev->ops->enqueue(dev, qidx, &req);
 	if (ret < 0)
 		return ret;
 	if (is_mergeable_rx)
@@ -265,7 +278,7 @@ void virtio_process_queue(struct virtio_dev *dev, uint32_t qidx)
 		dev->ops->acquire_queue(dev, qidx);
 
 	is_mergeable_rx = ((dev->device_id == LKL_VIRTIO_ID_NET) &&
-	    is_rx_queue(dev, q) &&
+	    qidx == RX_QUEUE_IDX &&
 	    (dev->device_features & BIT(LKL_VIRTIO_NET_F_MRG_RXBUF)));
 
 	while (q->last_avail_idx != le16toh(q->avail->idx)) {
@@ -274,7 +287,7 @@ void virtio_process_queue(struct virtio_dev *dev, uint32_t qidx)
 		 * q->avail->idx.
 		 */
 		__sync_synchronize();
-		if (virtio_process_one(dev, q, q->last_avail_idx,
+		if (virtio_process_one(dev, qidx, q->last_avail_idx,
 		    is_mergeable_rx) < 0)
 			break;
 		if (q->last_avail_idx == le16toh(q->avail->idx))
