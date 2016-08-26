@@ -857,15 +857,9 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 
 	tegra_i2c_parse_dt(i2c_dev);
 
-	i2c_dev->hw = &tegra20_i2c_hw;
-
-	if (pdev->dev.of_node) {
-		i2c_dev->hw = of_device_get_match_data(&pdev->dev);
-		i2c_dev->is_dvc = of_device_is_compatible(pdev->dev.of_node,
-						"nvidia,tegra20-i2c-dvc");
-	} else if (pdev->id == 3) {
-		i2c_dev->is_dvc = 1;
-	}
+	i2c_dev->hw = of_device_get_match_data(&pdev->dev);
+	i2c_dev->is_dvc = of_device_is_compatible(pdev->dev.of_node,
+						  "nvidia,tegra20-i2c-dvc");
 	init_completion(&i2c_dev->msg_complete);
 
 	if (!i2c_dev->hw->has_single_clk_source) {
