@@ -833,7 +833,7 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 
 	div_clk = devm_clk_get(&pdev->dev, "div-clk");
 	if (IS_ERR(div_clk)) {
-		dev_err(&pdev->dev, "missing controller clock");
+		dev_err(&pdev->dev, "missing controller clock\n");
 		return PTR_ERR(div_clk);
 	}
 
@@ -851,7 +851,7 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 
 	i2c_dev->rst = devm_reset_control_get(&pdev->dev, "i2c");
 	if (IS_ERR(i2c_dev->rst)) {
-		dev_err(&pdev->dev, "missing controller reset");
+		dev_err(&pdev->dev, "missing controller reset\n");
 		return PTR_ERR(i2c_dev->rst);
 	}
 
@@ -871,7 +871,7 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	if (!i2c_dev->hw->has_single_clk_source) {
 		fast_clk = devm_clk_get(&pdev->dev, "fast-clk");
 		if (IS_ERR(fast_clk)) {
-			dev_err(&pdev->dev, "missing fast clock");
+			dev_err(&pdev->dev, "missing fast clock\n");
 			return PTR_ERR(fast_clk);
 		}
 		i2c_dev->fast_clk = fast_clk;
@@ -919,7 +919,7 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 
 	ret = tegra_i2c_init(i2c_dev);
 	if (ret) {
-		dev_err(&pdev->dev, "Failed to initialize i2c controller");
+		dev_err(&pdev->dev, "Failed to initialize i2c controller\n");
 		goto disable_div_clk;
 	}
 
