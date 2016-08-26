@@ -69,3 +69,5 @@ Boards:
     compatible = "renesas,salvator-x", "renesas,r8a7796";
   - SILK (RTP0RC7794LCB00011S)
     compatible = "renesas,silk", "renesas,r8a7794"
+  - Wheat
+    compatible = "renesas,wheat", "renesas,r8a7792"
