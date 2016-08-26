@@ -78,11 +78,11 @@ static int amd_rng_init(struct hwrng *rng)
 	u8 rnen;
 
 	pci_read_config_byte(amd_pdev, 0x40, &rnen);
-	rnen |= (1 << 7);	/* RNG on */
+	rnen |= BIT(7);	/* RNG on */
 	pci_write_config_byte(amd_pdev, 0x40, rnen);
 
 	pci_read_config_byte(amd_pdev, 0x41, &rnen);
-	rnen |= (1 << 7);	/* PMIO enable */
+	rnen |= BIT(7);	/* PMIO enable */
 	pci_write_config_byte(amd_pdev, 0x41, rnen);
 
 	return 0;
@@ -93,7 +93,7 @@ static void amd_rng_cleanup(struct hwrng *rng)
 	u8 rnen;
 
 	pci_read_config_byte(amd_pdev, 0x40, &rnen);
-	rnen &= ~(1 << 7);	/* RNG off */
+	rnen &= ~BIT(7);	/* RNG off */
 	pci_write_config_byte(amd_pdev, 0x40, rnen);
 }
 
