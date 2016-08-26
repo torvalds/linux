@@ -204,7 +204,8 @@ static irqreturn_t pmic_thermal_irq_handler(int irq, void *data)
 			trip = td->maps[i].trip_config[j].trip_num;
 			tzd = thermal_zone_get_zone_by_name(td->maps[i].handle);
 			if (!IS_ERR(tzd))
-				thermal_zone_device_update(tzd);
+				thermal_zone_device_update(tzd,
+						THERMAL_EVENT_UNSPECIFIED);
 
 			/* Clear the appropriate irq */
 			regmap_write(regmap, reg, reg_val & mask);

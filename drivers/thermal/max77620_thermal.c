@@ -82,7 +82,8 @@ static irqreturn_t max77620_thermal_irq(int irq, void *data)
 	else if (irq == mtherm->irq_tjalarm2)
 		dev_crit(mtherm->dev, "Junction Temp Alarm2(140C) occurred\n");
 
-	thermal_zone_device_update(mtherm->tz_device);
+	thermal_zone_device_update(mtherm->tz_device,
+				   THERMAL_EVENT_UNSPECIFIED);
 
 	return IRQ_HANDLED;
 }
