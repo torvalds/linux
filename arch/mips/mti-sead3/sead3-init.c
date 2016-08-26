@@ -93,12 +93,6 @@ void __init prom_init(void)
 	board_ejtag_handler_setup = mips_ejtag_setup;
 
 	fw_init_cmdline();
-#ifdef CONFIG_EARLY_PRINTK
-	if ((strstr(fw_getcmdline(), "console=ttyS0")) != NULL)
-		fw_init_early_console(0);
-	else if ((strstr(fw_getcmdline(), "console=ttyS1")) != NULL)
-		fw_init_early_console(1);
-#endif
 }
 
 void __init prom_free_prom_memory(void)

@@ -17,5 +17,3 @@ obj-y += sead3-platform.o
 obj-y += sead3-reset.o
 obj-y += sead3-setup.o
 obj-y += sead3-time.o
-
-obj-$(CONFIG_EARLY_PRINTK)	+= sead3-console.o
