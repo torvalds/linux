@@ -161,6 +161,11 @@ static const struct genl_ops tipc_genl_v2_ops[] = {
 		.policy = tipc_nl_policy,
 	},
 	{
+		.cmd	= TIPC_NL_BEARER_ADD,
+		.doit	= tipc_nl_bearer_add,
+		.policy = tipc_nl_policy,
+	},
+	{
 		.cmd	= TIPC_NL_BEARER_SET,
 		.doit	= tipc_nl_bearer_set,
 		.policy = tipc_nl_policy,
