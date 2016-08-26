@@ -40,6 +40,7 @@
 
 int tipc_udp_nl_bearer_add(struct tipc_bearer *b, struct nlattr *attr);
 int tipc_udp_nl_add_bearer_data(struct tipc_nl_msg *msg, struct tipc_bearer *b);
+int tipc_udp_nl_dump_remoteip(struct sk_buff *skb, struct netlink_callback *cb);
 
 #endif
 #endif

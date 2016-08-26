@@ -428,6 +428,96 @@ static int __tipc_nl_add_udp_addr(struct sk_buff *skb,
 	return 0;
 }
 
+int tipc_udp_nl_dump_remoteip(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	u32 bid = cb->args[0];
+	u32 skip_cnt = cb->args[1];
+	u32 portid = NETLINK_CB(cb->skb).portid;
+	struct udp_replicast *rcast, *tmp;
+	struct tipc_bearer *b;
+	struct udp_bearer *ub;
+	void *hdr;
+	int err;
+	int i;
+
+	if (!bid && !skip_cnt) {
+		struct net *net = sock_net(skb->sk);
+		struct nlattr *battrs[TIPC_NLA_BEARER_MAX + 1];
+		struct nlattr **attrs;
+		char *bname;
+
+		err = tipc_nlmsg_parse(cb->nlh, &attrs);
+		if (err)
+			return err;
+
+		if (!attrs[TIPC_NLA_BEARER])
+			return -EINVAL;
+
+		err = nla_parse_nested(battrs, TIPC_NLA_BEARER_MAX,
+				       attrs[TIPC_NLA_BEARER],
+				       tipc_nl_bearer_policy);
+		if (err)
+			return err;
+
+		if (!battrs[TIPC_NLA_BEARER_NAME])
+			return -EINVAL;
+
+		bname = nla_data(battrs[TIPC_NLA_BEARER_NAME]);
+
+		rtnl_lock();
+		b = tipc_bearer_find(net, bname);
+		if (!b) {
+			rtnl_unlock();
+			return -EINVAL;
+		}
+		bid = b->identity;
+	} else {
+		struct net *net = sock_net(skb->sk);
+		struct tipc_net *tn = net_generic(net, tipc_net_id);
+
+		rtnl_lock();
+		b = rtnl_dereference(tn->bearer_list[bid]);
+		if (!b) {
+			rtnl_unlock();
+			return -EINVAL;
+		}
+	}
+
+	ub = rcu_dereference_rtnl(b->media_ptr);
+	if (!ub) {
+		rtnl_unlock();
+		return -EINVAL;
+	}
+
+	i = 0;
+	list_for_each_entry_safe(rcast, tmp, &ub->rcast.list, list) {
+		if (i < skip_cnt)
+			goto count;
+
+		hdr = genlmsg_put(skb, portid, cb->nlh->nlmsg_seq,
+				  &tipc_genl_family, NLM_F_MULTI,
+				  TIPC_NL_BEARER_GET);
+		if (!hdr)
+			goto done;
+
+		err = __tipc_nl_add_udp_addr(skb, &rcast->addr,
+					     TIPC_NLA_UDP_REMOTE);
+		if (err) {
+			genlmsg_cancel(skb, hdr);
+			goto done;
+		}
+		genlmsg_end(skb, hdr);
+count:
+		i++;
+	}
+done:
+	rtnl_unlock();
+	cb->args[0] = bid;
+	cb->args[1] = i;
+
+	return skb->len;
+}
+
 int tipc_udp_nl_add_bearer_data(struct tipc_nl_msg *msg, struct tipc_bearer *b)
 {
 	struct udp_media_addr *src = (struct udp_media_addr *)&b->addr.value;
