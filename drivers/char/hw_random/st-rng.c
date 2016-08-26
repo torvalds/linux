@@ -54,9 +54,6 @@ static int st_rng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 	u32 status;
 	int i;
 
-	if (max < sizeof(u16))
-		return -EINVAL;
-
 	/* Wait until FIFO is full - max 4uS*/
 	for (i = 0; i < ST_RNG_FILL_FIFO_TIMEOUT; i++) {
 		status = readl_relaxed(ddata->base + ST_RNG_STATUS_REG);
