@@ -587,10 +587,11 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 	struct mutex_waiter waiter;
 	unsigned long flags;
 	bool first = false;
+	struct ww_mutex *ww;
 	int ret;
 
 	if (use_ww_ctx) {
-		struct ww_mutex *ww = container_of(lock, struct ww_mutex, base);
+		ww = container_of(lock, struct ww_mutex, base);
 		if (unlikely(ww_ctx == READ_ONCE(ww->ctx)))
 			return -EALREADY;
 	}
@@ -602,12 +603,8 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 	    mutex_optimistic_spin(lock, ww_ctx, use_ww_ctx)) {
 		/* got the lock, yay! */
 		lock_acquired(&lock->dep_map, ip);
-		if (use_ww_ctx) {
-			struct ww_mutex *ww;
-			ww = container_of(lock, struct ww_mutex, base);
-
+		if (use_ww_ctx)
 			ww_mutex_set_context_fastpath(ww, ww_ctx);
-		}
 		preempt_enable();
 		return 0;
 	}
@@ -691,10 +688,8 @@ skip_wait:
 	/* got the lock - cleanup and rejoice! */
 	lock_acquired(&lock->dep_map, ip);
 
-	if (use_ww_ctx) {
-		struct ww_mutex *ww = container_of(lock, struct ww_mutex, base);
+	if (use_ww_ctx)
 		ww_mutex_set_context_slowpath(ww, ww_ctx);
-	}
 
 	spin_unlock_mutex(&lock->wait_lock, flags);
 	preempt_enable();
