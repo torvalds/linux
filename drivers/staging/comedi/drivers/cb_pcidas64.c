@@ -1,34 +1,34 @@
 /*
-    comedi/drivers/cb_pcidas64.c
-    This is a driver for the ComputerBoards/MeasurementComputing PCI-DAS
-    64xx, 60xx, and 4020 cards.
-
-    Author:  Frank Mori Hess <fmhess@users.sourceforge.net>
-    Copyright (C) 2001, 2002 Frank Mori Hess
-
-    Thanks also go to the following people:
-
-    Steve Rosenbluth, for providing the source code for
-    his pci-das6402 driver, and source code for working QNX pci-6402
-    drivers by Greg Laird and Mariusz Bogacz.  None of the code was
-    used directly here, but it was useful as an additional source of
-    documentation on how to program the boards.
-
-    John Sims, for much testing and feedback on pcidas-4020 support.
-
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1997-8 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
+ * comedi/drivers/cb_pcidas64.c
+ * This is a driver for the ComputerBoards/MeasurementComputing PCI-DAS
+ * 64xx, 60xx, and 4020 cards.
+ *
+ * Author:  Frank Mori Hess <fmhess@users.sourceforge.net>
+ * Copyright (C) 2001, 2002 Frank Mori Hess
+ *
+ * Thanks also go to the following people:
+ *
+ * Steve Rosenbluth, for providing the source code for
+ * his pci-das6402 driver, and source code for working QNX pci-6402
+ * drivers by Greg Laird and Mariusz Bogacz.  None of the code was
+ * used directly here, but it was useful as an additional source of
+ * documentation on how to program the boards.
+ *
+ * John Sims, for much testing and feedback on pcidas-4020 support.
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 1997-8 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
 /*
  * Driver: cb_pcidas64
@@ -66,19 +66,18 @@
  */
 
 /*
-
-TODO:
-	make it return error if user attempts an ai command that uses the
-	external queue, and an ao command simultaneously user counter subdevice
-	there are a number of boards this driver will support when they are
-	fully released, but does not yet since the pci device id numbers
-	are not yet available.
-
-	support prescaled 100khz clock for slow pacing (not available on 6000
-	series?)
-
-	make ao fifo size adjustable like ai fifo
-*/
+ * TODO:
+ * make it return error if user attempts an ai command that uses the
+ * external queue, and an ao command simultaneously user counter subdevice
+ * there are a number of boards this driver will support when they are
+ * fully released, but does not yet since the pci device id numbers
+ * are not yet available.
+ *
+ * support prescaled 100khz clock for slow pacing (not available on 6000
+ * series?)
+ *
+ * make ao fifo size adjustable like ai fifo
+ */
 
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -90,53 +89,55 @@ TODO:
 #include "plx9080.h"
 
 #define TIMER_BASE 25		/*  40MHz master clock */
-/* 100kHz 'prescaled' clock for slow acquisition,
- * maybe I'll support this someday */
+/*
+ * 100kHz 'prescaled' clock for slow acquisition,
+ * maybe I'll support this someday
+ */
 #define PRESCALED_TIMER_BASE	10000
 #define DMA_BUFFER_SIZE 0x1000
 
-/* maximum value that can be loaded into board's 24-bit counters*/
+/* maximum value that can be loaded into board's 24-bit counters */
 static const int max_counter_value = 0xffffff;
 
 /* PCI-DAS64xxx base addresses */
 
 /* devpriv->main_iobase registers */
 enum write_only_registers {
-	INTR_ENABLE_REG = 0x0,	/*  interrupt enable register */
-	HW_CONFIG_REG = 0x2,	/*  hardware config register */
+	INTR_ENABLE_REG = 0x0,		/* interrupt enable register */
+	HW_CONFIG_REG = 0x2,		/* hardware config register */
 	DAQ_SYNC_REG = 0xc,
 	DAQ_ATRIG_LOW_4020_REG = 0xc,
-	ADC_CONTROL0_REG = 0x10,	/*  adc control register 0 */
-	ADC_CONTROL1_REG = 0x12,	/*  adc control register 1 */
+	ADC_CONTROL0_REG = 0x10,	/* adc control register 0 */
+	ADC_CONTROL1_REG = 0x12,	/* adc control register 1 */
 	CALIBRATION_REG = 0x14,
-	/*  lower 16 bits of adc sample interval counter */
+	/* lower 16 bits of adc sample interval counter */
 	ADC_SAMPLE_INTERVAL_LOWER_REG = 0x16,
-	/*  upper 8 bits of adc sample interval counter */
+	/* upper 8 bits of adc sample interval counter */
 	ADC_SAMPLE_INTERVAL_UPPER_REG = 0x18,
-	/*  lower 16 bits of delay interval counter */
+	/* lower 16 bits of delay interval counter */
 	ADC_DELAY_INTERVAL_LOWER_REG = 0x1a,
-	/*  upper 8 bits of delay interval counter */
+	/* upper 8 bits of delay interval counter */
 	ADC_DELAY_INTERVAL_UPPER_REG = 0x1c,
-	/*  lower 16 bits of hardware conversion/scan counter */
+	/* lower 16 bits of hardware conversion/scan counter */
 	ADC_COUNT_LOWER_REG = 0x1e,
-	/*  upper 8 bits of hardware conversion/scan counter */
+	/* upper 8 bits of hardware conversion/scan counter */
 	ADC_COUNT_UPPER_REG = 0x20,
-	ADC_START_REG = 0x22,	/*  software trigger to start acquisition */
-	ADC_CONVERT_REG = 0x24,	/*  initiates single conversion */
-	ADC_QUEUE_CLEAR_REG = 0x26,	/*  clears adc queue */
-	ADC_QUEUE_LOAD_REG = 0x28,	/*  loads adc queue */
+	ADC_START_REG = 0x22,	/* software trigger to start acquisition */
+	ADC_CONVERT_REG = 0x24,	/* initiates single conversion */
+	ADC_QUEUE_CLEAR_REG = 0x26,	/* clears adc queue */
+	ADC_QUEUE_LOAD_REG = 0x28,	/* loads adc queue */
 	ADC_BUFFER_CLEAR_REG = 0x2a,
-	/*  high channel for internal queue, use adc_chan_bits() inline above */
+	/* high channel for internal queue, use adc_chan_bits() inline above */
 	ADC_QUEUE_HIGH_REG = 0x2c,
-	DAC_CONTROL0_REG = 0x50,	/*  dac control register 0 */
-	DAC_CONTROL1_REG = 0x52,	/*  dac control register 0 */
-	/*  lower 16 bits of dac sample interval counter */
+	DAC_CONTROL0_REG = 0x50,	/* dac control register 0 */
+	DAC_CONTROL1_REG = 0x52,	/* dac control register 0 */
+	/* lower 16 bits of dac sample interval counter */
 	DAC_SAMPLE_INTERVAL_LOWER_REG = 0x54,
-	/*  upper 8 bits of dac sample interval counter */
+	/* upper 8 bits of dac sample interval counter */
 	DAC_SAMPLE_INTERVAL_UPPER_REG = 0x56,
 	DAC_SELECT_REG = 0x60,
 	DAC_START_REG = 0x64,
-	DAC_BUFFER_CLEAR_REG = 0x66,	/*  clear dac buffer */
+	DAC_BUFFER_CLEAR_REG = 0x66,	/* clear dac buffer */
 };
 
 static inline unsigned int dac_convert_reg(unsigned int channel)
@@ -216,7 +217,8 @@ enum hw_config_contents {
 	/*  use 225 nanosec strobe when loading dac instead of 50 nanosec */
 	SLOW_DAC_BIT = 0x400,
 	/*  bit with unknown function yet given as default value in pci-das64
-	 *  manual */
+	 *  manual
+	 */
 	HW_CONFIG_DUMMY_BITS = 0x2000,
 	/*  bit selects channels 1/0 for analog input/output, otherwise 0/1 */
 	DMA_CH_SELECT_BIT = 0x8000,
@@ -1138,12 +1140,14 @@ struct pcidas64_private {
 	/*  physical addresses of ai dma buffers */
 	dma_addr_t ai_buffer_bus_addr[MAX_AI_DMA_RING_COUNT];
 	/*  array of ai dma descriptors read by plx9080,
-	 *  allocated to get proper alignment */
+	 *  allocated to get proper alignment
+	 */
 	struct plx_dma_desc *ai_dma_desc;
 	/*  physical address of ai dma descriptor array */
 	dma_addr_t ai_dma_desc_bus_addr;
 	/*  index of the ai dma descriptor/buffer
-	 *  that is currently being used */
+	 *  that is currently being used
+	 */
 	unsigned int ai_dma_index;
 	/*  dma buffers for analog output */
 	uint16_t *ao_buffer[AO_DMA_RING_COUNT];
@@ -1314,10 +1318,12 @@ static void init_plx9080(struct comedi_device *dev)
 	/*  enable dma chaining */
 	bits |= PLX_DMAMODE_CHAINEN;
 	/*  enable interrupt on dma done
-	 *  (probably don't need this, since chain never finishes) */
+	 *  (probably don't need this, since chain never finishes)
+	 */
 	bits |= PLX_DMAMODE_DONEIEN;
 	/*  don't increment local address during transfers
-	 *  (we are transferring from a fixed fifo register) */
+	 *  (we are transferring from a fixed fifo register)
+	 */
 	bits |= PLX_DMAMODE_LACONST;
 	/*  route dma interrupt to pci bus */
 	bits |= PLX_DMAMODE_INTRPCI;
