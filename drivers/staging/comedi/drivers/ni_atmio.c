@@ -89,10 +89,7 @@
 #include "ni_stc.h"
 #include "8255.h"
 
-/*
- *  AT specific setup
- */
-
+/* AT specific setup */
 static const struct ni_board_struct ni_boards[] = {
 	{
 		.name		= "at-mio-16e-1",
@@ -206,7 +203,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.n_adchan	= 16,
 		.ai_maxdata	= 0xffff,
 		.ai_fifo_depth	= 512,
-		.alwaysdither	= 1,	/* unknown */
+		.alwaysdither	= 1,		/* unknown */
 		.gainlkup	= ai_gain_14,
 		.ai_speed	= 10000,
 		.caldac		= { dac8800, dac8043, ad8522 },
@@ -278,10 +275,10 @@ static const struct ni_board_struct *ni_atmio_probe(struct comedi_device *dev)
 	}
 	if (device_id == 255)
 		dev_err(dev->class_dev, "can't find board\n");
-	 else if (device_id == 0)
+	else if (device_id == 0)
 		dev_err(dev->class_dev,
 			"EEPROM read error (?) or device not found\n");
-	 else
+	else
 		dev_err(dev->class_dev,
 			"unknown device ID %d -- contact author\n", device_id);
 
