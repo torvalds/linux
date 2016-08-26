@@ -94,6 +94,4 @@ void __init plat_time_init(void)
 
 	pr_debug("CPU frequency %d.%02d MHz\n", (est_freq / 1000000),
 		(est_freq % 1000000) * 100 / 1000000);
-
-	mips_scroll_message();
 }

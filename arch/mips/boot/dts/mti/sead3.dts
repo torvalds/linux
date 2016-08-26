@@ -210,6 +210,11 @@
 			mask = <0x80>;
 			label = "fled7";
 		};
+
+		lcd@200 {
+			compatible = "mti,sead3-lcd";
+			offset = <0x200>;
+		};
 	};
 
 	/* UART connected to FTDI & miniUSB socket */
