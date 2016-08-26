@@ -1562,8 +1562,6 @@ enum netdev_priv_flags {
  *
  *	@xps_maps:	XXX: need comments on this one
  *
- *	@offload_fwd_mark:	Offload device fwding mark
- *
  *	@watchdog_timeo:	Represents the timeout that is used by
  *				the watchdog (see dev_watchdog())
  *	@watchdog_timer:	List of timers
@@ -1813,9 +1811,6 @@ struct net_device {
 #endif
 #ifdef CONFIG_NET_CLS_ACT
 	struct tcf_proto __rcu  *egress_cl_list;
-#endif
-#ifdef CONFIG_NET_SWITCHDEV
-	u32			offload_fwd_mark;
 #endif
 
 	/* These may be needed for future network-power-down code. */

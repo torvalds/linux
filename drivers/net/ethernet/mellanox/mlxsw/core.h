@@ -87,6 +87,7 @@ struct mlxsw_rx_listener {
 	void (*func)(struct sk_buff *skb, u8 local_port, void *priv);
 	u8 local_port;
 	u16 trap_id;
+	enum mlxsw_reg_hpkt_action action;
 };
 
 struct mlxsw_event_listener {

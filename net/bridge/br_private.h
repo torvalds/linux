@@ -251,6 +251,9 @@ struct net_bridge_port
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	struct net_bridge_vlan_group	__rcu *vlgrp;
 #endif
+#ifdef CONFIG_NET_SWITCHDEV
+	int				offload_fwd_mark;
+#endif
 };
 
 #define br_auto_port(p) ((p)->flags & BR_AUTO_MASK)
@@ -359,6 +362,11 @@ struct net_bridge
 	struct timer_list		gc_timer;
 	struct kobject			*ifobj;
 	u32				auto_cnt;
+
+#ifdef CONFIG_NET_SWITCHDEV
+	int offload_fwd_mark;
+#endif
+
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	struct net_bridge_vlan_group	__rcu *vlgrp;
 	u8				vlan_enabled;
@@ -380,6 +388,10 @@ struct br_input_skb_cb {
 
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	bool vlan_filtered;
+#endif
+
+#ifdef CONFIG_NET_SWITCHDEV
+	int offload_fwd_mark;
 #endif
 };
 
@@ -1033,5 +1045,30 @@ static inline int br_sysfs_renameif(struct net_bridge_port *p) { return 0; }
 static inline int br_sysfs_addbr(struct net_device *dev) { return 0; }
 static inline void br_sysfs_delbr(struct net_device *dev) { return; }
 #endif /* CONFIG_SYSFS */
+
+/* br_switchdev.c */
+#ifdef CONFIG_NET_SWITCHDEV
+int nbp_switchdev_mark_set(struct net_bridge_port *p);
+void nbp_switchdev_frame_mark(const struct net_bridge_port *p,
+			      struct sk_buff *skb);
+bool nbp_switchdev_allowed_egress(const struct net_bridge_port *p,
+				  const struct sk_buff *skb);
+#else
+static inline int nbp_switchdev_mark_set(struct net_bridge_port *p)
+{
+	return 0;
+}
+
+static inline void nbp_switchdev_frame_mark(const struct net_bridge_port *p,
+					    struct sk_buff *skb)
+{
+}
+
+static inline bool nbp_switchdev_allowed_egress(const struct net_bridge_port *p,
+						const struct sk_buff *skb)
+{
+	return true;
+}
+#endif /* CONFIG_NET_SWITCHDEV */
 
 #endif
