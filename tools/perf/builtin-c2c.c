@@ -1,3 +1,14 @@
+/*
+ * This is rewrite of original c2c tool introduced in here:
+ *   http://lwn.net/Articles/588866/
+ *
+ * The original tool was changed to fit in current perf state.
+ *
+ * Original authors:
+ *   Don Zickus <dzickus@redhat.com>
+ *   Dick Fowles <fowles@inreach.com>
+ *   Joe Mario <jmario@redhat.com>
+ */
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/stringify.h>
