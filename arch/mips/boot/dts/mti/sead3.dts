@@ -60,6 +60,15 @@
 		};
 	};
 
+	ehci@1b200000 {
+		compatible = "generic-ehci";
+		reg = <0x1b200000 0x1000>;
+
+		interrupts = <0>; /* GIC 0 or CPU 6 */
+
+		has-transaction-translator;
+	};
+
 	/* UART connected to FTDI & miniUSB socket */
 	uart0: uart@1f000900 {
 		compatible = "ns16550a";

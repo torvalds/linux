@@ -24,9 +24,10 @@ static unsigned char fdt_buf[16 << 10] __initdata;
 
 static int remove_gic(void *fdt)
 {
+	const unsigned int cpu_ehci_int = 2;
 	const unsigned int cpu_uart_int = 4;
 	const unsigned int cpu_eth_int = 6;
-	int gic_off, cpu_off, uart_off, eth_off, err;
+	int gic_off, cpu_off, uart_off, eth_off, ehci_off, err;
 	uint32_t cfg, cpu_phandle;
 
 	/* leave the GIC node intact if a GIC is present */
@@ -92,6 +93,18 @@ static int remove_gic(void *fdt)
 	err = fdt_setprop_u32(fdt, eth_off, "interrupts", cpu_eth_int);
 	if (err) {
 		pr_err("unable to set ethernet interrupts property: %d\n", err);
+		return err;
+	}
+
+	ehci_off = fdt_node_offset_by_compatible(fdt, -1, "mti,sead3-ehci");
+	if (ehci_off < 0) {
+		pr_err("unable to find EHCI DT node: %d\n", ehci_off);
+		return ehci_off;
+	}
+
+	err = fdt_setprop_u32(fdt, ehci_off, "interrupts", cpu_ehci_int);
+	if (err) {
+		pr_err("unable to set EHCI interrupts property: %d\n", err);
 		return err;
 	}
 
