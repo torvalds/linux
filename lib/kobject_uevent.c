@@ -520,6 +520,21 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 		return 0;
 	}
 
+	if (IS_ENABLED(CONFIG_ARCH_ROCKCHIP) &&
+	    IS_ENABLED(CONFIG_FREEZER) &&
+	    IS_ENABLED(CONFIG_ANDROID)) {
+		/*
+		 * Android healthd try to listen power_supply subsystem uevent,
+		 * but which will block system from suspend on big.LITTLE system
+		 * because thermal_cooling_device_unregister will called when
+		 * cpufreq_exit. So ignore this uevent when suspend.
+		 */
+		extern bool pm_freezing;
+
+		if (pm_freezing && !strcmp(subsystem, "thermal"))
+			return 0;
+	}
+
 	/* environment buffer */
 	env = kzalloc(sizeof(struct kobj_uevent_env), GFP_KERNEL);
 	if (!env)
