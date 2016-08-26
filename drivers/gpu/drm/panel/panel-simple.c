@@ -1273,6 +1273,7 @@ static const struct panel_desc ortustech_com43h4m85ulc = {
 		.height = 93,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_POSEDGE,
 };
 
 static const struct drm_display_mode qd43003c0_40_mode = {
