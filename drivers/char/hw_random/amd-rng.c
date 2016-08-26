@@ -151,8 +151,9 @@ static void __exit mod_exit(void)
 {
 	u32 pmbase = (unsigned long)amd_rng.priv;
 
-	release_region(pmbase + 0xF0, 8);
 	hwrng_unregister(&amd_rng);
+
+	release_region(pmbase + 0xF0, 8);
 }
 
 module_init(mod_init);
