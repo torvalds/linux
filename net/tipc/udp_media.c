@@ -140,28 +140,13 @@ static int tipc_udp_addr2msg(char *msg, struct tipc_media_addr *a)
 }
 
 /* tipc_send_msg - enqueue a send request */
-static int tipc_udp_send_msg(struct net *net, struct sk_buff *skb,
-			     struct tipc_bearer *b,
-			     struct tipc_media_addr *dest)
+static int tipc_udp_xmit(struct net *net, struct sk_buff *skb,
+			 struct udp_bearer *ub, struct udp_media_addr *src,
+			 struct udp_media_addr *dst)
 {
 	int ttl, err = 0;
-	struct udp_bearer *ub;
-	struct udp_media_addr *dst = (struct udp_media_addr *)&dest->value;
-	struct udp_media_addr *src = (struct udp_media_addr *)&b->addr.value;
 	struct rtable *rt;
 
-	if (skb_headroom(skb) < UDP_MIN_HEADROOM) {
-		err = pskb_expand_head(skb, UDP_MIN_HEADROOM, 0, GFP_ATOMIC);
-		if (err)
-			goto tx_error;
-	}
-
-	skb_set_inner_protocol(skb, htons(ETH_P_TIPC));
-	ub = rcu_dereference_rtnl(b->media_ptr);
-	if (!ub) {
-		err = -ENODEV;
-		goto tx_error;
-	}
 	if (dst->proto == htons(ETH_P_IP)) {
 		struct flowi4 fl = {
 			.daddr = dst->ipv4.s_addr,
@@ -201,6 +186,35 @@ static int tipc_udp_send_msg(struct net *net, struct sk_buff *skb,
 #endif
 	}
 	return err;
+
+tx_error:
+	kfree_skb(skb);
+	return err;
+}
+
+static int tipc_udp_send_msg(struct net *net, struct sk_buff *skb,
+			     struct tipc_bearer *b,
+			     struct tipc_media_addr *addr)
+{
+	struct udp_media_addr *src = (struct udp_media_addr *)&b->addr.value;
+	struct udp_media_addr *dst = (struct udp_media_addr *)&addr->value;
+	struct udp_bearer *ub;
+	int err = 0;
+
+	if (skb_headroom(skb) < UDP_MIN_HEADROOM) {
+		err = pskb_expand_head(skb, UDP_MIN_HEADROOM, 0, GFP_ATOMIC);
+		if (err)
+			goto tx_error;
+	}
+
+	skb_set_inner_protocol(skb, htons(ETH_P_TIPC));
+	ub = rcu_dereference_rtnl(b->media_ptr);
+	if (!ub) {
+		err = -ENODEV;
+		goto tx_error;
+	}
+
+	return tipc_udp_xmit(net, skb, ub, src, dst);
 
 tx_error:
 	kfree_skb(skb);
