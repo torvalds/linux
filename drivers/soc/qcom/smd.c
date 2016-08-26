@@ -363,7 +363,7 @@ static void qcom_smd_channel_reset(struct qcom_smd_channel *channel)
 	SET_TX_CHANNEL_FLAG(channel, fSTATE, 1);
 	SET_TX_CHANNEL_FLAG(channel, fBLOCKREADINTR, 1);
 	SET_TX_CHANNEL_INFO(channel, head, 0);
-	SET_TX_CHANNEL_INFO(channel, tail, 0);
+	SET_RX_CHANNEL_INFO(channel, tail, 0);
 
 	qcom_smd_signal_channel(channel);
 
