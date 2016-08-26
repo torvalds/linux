@@ -14,10 +14,8 @@
 
 /* CPU interrupt offsets */
 #define CPU_INT_EHCI		2
-#define CPU_INT_NET		6
 
 /* GIC interrupt offsets */
-#define GIC_INT_NET		GIC_SHARED_TO_HWIRQ(0)
 #define GIC_INT_EHCI		GIC_SHARED_TO_HWIRQ(5)
 
 #endif /* !(_MIPS_SEAD3INT_H) */

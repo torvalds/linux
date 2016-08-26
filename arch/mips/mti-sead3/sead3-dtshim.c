@@ -25,7 +25,8 @@ static unsigned char fdt_buf[16 << 10] __initdata;
 static int remove_gic(void *fdt)
 {
 	const unsigned int cpu_uart_int = 4;
-	int gic_off, cpu_off, uart_off, err;
+	const unsigned int cpu_eth_int = 6;
+	int gic_off, cpu_off, uart_off, eth_off, err;
 	uint32_t cfg, cpu_phandle;
 
 	/* leave the GIC node intact if a GIC is present */
@@ -80,6 +81,18 @@ static int remove_gic(void *fdt)
 	if (uart_off != -FDT_ERR_NOTFOUND) {
 		pr_err("error searching for UART DT node: %d\n", uart_off);
 		return uart_off;
+	}
+
+	eth_off = fdt_node_offset_by_compatible(fdt, -1, "smsc,lan9115");
+	if (eth_off < 0) {
+		pr_err("unable to find ethernet DT node: %d\n", eth_off);
+		return eth_off;
+	}
+
+	err = fdt_setprop_u32(fdt, eth_off, "interrupts", cpu_eth_int);
+	if (err) {
+		pr_err("unable to set ethernet interrupts property: %d\n", err);
+		return err;
 	}
 
 	return 0;

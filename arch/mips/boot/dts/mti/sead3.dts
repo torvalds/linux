@@ -87,4 +87,16 @@
 
 		no-loopback-test;
 	};
+
+	eth@1f010000 {
+		compatible = "smsc,lan9115";
+		reg = <0x1f010000 0x10000>;
+		reg-io-width = <4>;
+
+		interrupts = <0>; /* GIC 0 or CPU 6 */
+
+		phy-mode = "mii";
+		smsc,irq-push-pull;
+		smsc,save-mac-address;
+	};
 };

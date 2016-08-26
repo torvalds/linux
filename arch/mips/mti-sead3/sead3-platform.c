@@ -14,36 +14,8 @@
 #include <linux/mtd/physmap.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/smsc911x.h>
 
 #include <asm/mips-boards/sead3int.h>
-
-static struct smsc911x_platform_config sead3_smsc911x_data = {
-	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
-	.irq_type	= SMSC911X_IRQ_TYPE_PUSH_PULL,
-	.flags		= SMSC911X_USE_32BIT | SMSC911X_SAVE_MAC_ADDRESS,
-	.phy_interface	= PHY_INTERFACE_MODE_MII,
-};
-
-static struct resource sead3_net_resources[] = {
-	{
-		.start			= 0x1f010000,
-		.end			= 0x1f01ffff,
-		.flags			= IORESOURCE_MEM
-	}, {
-		.flags			= IORESOURCE_IRQ
-	}
-};
-
-static struct platform_device sead3_net_device = {
-	.name			= "smsc911x",
-	.id			= 0,
-	.dev			= {
-		.platform_data	= &sead3_smsc911x_data,
-	},
-	.num_resources		= ARRAY_SIZE(sead3_net_resources),
-	.resource		= sead3_net_resources
-};
 
 static struct mtd_partition sead3_mtd_partitions[] = {
 	{
@@ -175,7 +147,6 @@ static struct platform_device *sead3_platform_devices[] __initdata = {
 	&fled_device,
 	&sead3_led_device,
 	&ehci_device,
-	&sead3_net_device,
 };
 
 static int __init sead3_platforms_device_init(void)
@@ -204,13 +175,9 @@ static int __init sead3_platforms_device_init(void)
 	if (gic_present) {
 		ehci_resources[1].start =
 			irq_create_mapping(irqd, GIC_INT_EHCI);
-		sead3_net_resources[1].start =
-			irq_create_mapping(irqd, GIC_INT_NET);
 	} else {
 		ehci_resources[1].start =
 			irq_create_mapping(irqd, CPU_INT_EHCI);
-		sead3_net_resources[1].start =
-			irq_create_mapping(irqd, CPU_INT_NET);
 	}
 
 	return platform_add_devices(sead3_platform_devices,
