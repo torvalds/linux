@@ -150,6 +150,9 @@ static int prism2_add_key(struct wiphy *wiphy, struct net_device *dev,
 	int err = 0;
 	int result = 0;
 
+	if (key_index >= NUM_WEPKEYS)
+		return -EINVAL;
+
 	switch (params->cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
@@ -160,27 +163,7 @@ static int prism2_add_key(struct wiphy *wiphy, struct net_device *dev,
 			goto exit;
 
 		/* send key to driver */
-		switch (key_index) {
-		case 0:
-			did = DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey0;
-			break;
-
-		case 1:
-			did = DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey1;
-			break;
-
-		case 2:
-			did = DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey2;
-			break;
-
-		case 3:
-			did = DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey3;
-			break;
-
-		default:
-			err = -EINVAL;
-			goto exit;
-		}
+		did = DIDmib_dot11smt_dot11WEPDefaultKeysTable_key(key_index + 1);
 
 		result = prism2_domibset_pstr32(wlandev, did,
 						params->key_len, params->key);
@@ -242,36 +225,13 @@ static int prism2_del_key(struct wiphy *wiphy, struct net_device *dev,
 	 * a key, so we will cheat by setting the key to a bogus value
 	 */
 
+	if (key_index >= NUM_WEPKEYS)
+		return -EINVAL;
+
 	/* send key to driver */
-	switch (key_index) {
-	case 0:
-		did =
-		    DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey0;
-		break;
-
-	case 1:
-		did =
-		    DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey1;
-		break;
-
-	case 2:
-		did =
-		    DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey2;
-		break;
-
-	case 3:
-		did =
-		    DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey3;
-		break;
-
-	default:
-		err = -EINVAL;
-		goto exit;
-	}
-
+	did = DIDmib_dot11smt_dot11WEPDefaultKeysTable_key(key_index + 1);
 	result = prism2_domibset_pstr32(wlandev, did, 13, "0000000000000");
 
-exit:
 	if (result)
 		err = -EFAULT;
 
@@ -529,6 +489,11 @@ static int prism2_connect(struct wiphy *wiphy, struct net_device *dev,
 	/* Set the encryption - we only support wep */
 	if (is_wep) {
 		if (sme->key) {
+			if (sme->key_idx >= NUM_WEPKEYS) {
+				err = -EINVAL;
+				goto exit;
+			}
+
 			result = prism2_domibset_uint32(wlandev,
 				DIDmib_dot11smt_dot11PrivacyTable_dot11WEPDefaultKeyID,
 				sme->key_idx);
@@ -536,28 +501,8 @@ static int prism2_connect(struct wiphy *wiphy, struct net_device *dev,
 				goto exit;
 
 			/* send key to driver */
-			switch (sme->key_idx) {
-			case 0:
-				did = DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey0;
-				break;
-
-			case 1:
-				did = DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey1;
-				break;
-
-			case 2:
-				did = DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey2;
-				break;
-
-			case 3:
-				did = DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey3;
-				break;
-
-			default:
-				err = -EINVAL;
-				goto exit;
-			}
-
+			did = DIDmib_dot11smt_dot11WEPDefaultKeysTable_key(
+					sme->key_idx + 1);
 			result = prism2_domibset_pstr32(wlandev,
 							did, sme->key_len,
 							(u8 *)sme->key);
