@@ -132,10 +132,7 @@ module_param(nested, int, S_IRUGO);
 MODULE_PARM_DESC(nested, "Nested virtualization support");
 
 /* upper facilities limit for kvm */
-unsigned long kvm_s390_fac_list_mask[16] = {
-	0xffe6000000000000UL,
-	0x005e000000000000UL,
-};
+unsigned long kvm_s390_fac_list_mask[16] = { FACILITIES_KVM };
 
 unsigned long kvm_s390_fac_list_mask_size(void)
 {
