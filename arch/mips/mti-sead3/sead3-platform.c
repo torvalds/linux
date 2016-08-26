@@ -9,8 +9,10 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/irqchip/mips-gic.h>
+#include <linux/irqdomain.h>
 #include <linux/leds.h>
 #include <linux/mtd/physmap.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
 #include <linux/smsc911x.h>
@@ -204,16 +206,41 @@ static struct platform_device *sead3_platform_devices[] __initdata = {
 
 static int __init sead3_platforms_device_init(void)
 {
+	const char *intc_compat;
+	struct device_node *node;
+	struct irq_domain *irqd;
+
+	if (gic_present)
+		intc_compat = "mti,gic";
+	else
+		intc_compat = "mti,cpu-interrupt-controller";
+
+	node = of_find_compatible_node(NULL, NULL, intc_compat);
+	if (!node) {
+		pr_err("unable to find interrupt controller DT node\n");
+		return -ENODEV;
+	}
+
+	irqd = irq_find_host(node);
+	if (!irqd) {
+		pr_err("unable to find interrupt controller IRQ domain\n");
+		return -ENODEV;
+	}
+
 	if (gic_present) {
-		uart8250_data[0].irq = MIPS_GIC_IRQ_BASE + GIC_INT_UART0;
-		uart8250_data[1].irq = MIPS_GIC_IRQ_BASE + GIC_INT_UART1;
-		ehci_resources[1].start = MIPS_GIC_IRQ_BASE + GIC_INT_EHCI;
-		sead3_net_resources[1].start = MIPS_GIC_IRQ_BASE + GIC_INT_NET;
+		uart8250_data[0].irq = irq_create_mapping(irqd, GIC_INT_UART0);
+		uart8250_data[1].irq = irq_create_mapping(irqd, GIC_INT_UART1);
+		ehci_resources[1].start =
+			irq_create_mapping(irqd, GIC_INT_EHCI);
+		sead3_net_resources[1].start =
+			irq_create_mapping(irqd, GIC_INT_NET);
 	} else {
-		uart8250_data[0].irq = MIPS_CPU_IRQ_BASE + CPU_INT_UART0;
-		uart8250_data[1].irq = MIPS_CPU_IRQ_BASE + CPU_INT_UART1;
-		ehci_resources[1].start = MIPS_CPU_IRQ_BASE + CPU_INT_EHCI;
-		sead3_net_resources[1].start = MIPS_CPU_IRQ_BASE + CPU_INT_NET;
+		uart8250_data[0].irq = irq_create_mapping(irqd, CPU_INT_UART0);
+		uart8250_data[1].irq = irq_create_mapping(irqd, CPU_INT_UART1);
+		ehci_resources[1].start =
+			irq_create_mapping(irqd, CPU_INT_EHCI);
+		sead3_net_resources[1].start =
+			irq_create_mapping(irqd, CPU_INT_NET);
 	}
 
 	return platform_add_devices(sead3_platform_devices,

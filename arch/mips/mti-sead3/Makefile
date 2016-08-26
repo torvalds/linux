@@ -10,6 +10,7 @@
 #
 obj-y := sead3-lcd.o
 obj-y += sead3-display.o
+obj-y += sead3-dtshim.o
 obj-y += sead3-init.o
 obj-y += sead3-int.o
 obj-y += sead3-platform.o
