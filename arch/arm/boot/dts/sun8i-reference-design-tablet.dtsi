@@ -71,15 +71,13 @@
 	 */
 	clock-frequency = <400000>;
 
-	gsl1680: touchscreen@40 {
-		compatible = "silead,gsl1680";
-		reg = <0x40>;
+	touchscreen: touchscreen@0 {
 		interrupt-parent = <&pio>;
 		interrupts = <1 5 IRQ_TYPE_EDGE_FALLING>; /* PB5 */
 		pinctrl-names = "default";
 		pinctrl-0 = <&ts_power_pin>;
 		power-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
-		/* Most tablets use this touchscreen, but not all */
+		/* Tablet dts must provide reg and compatible */
 		status = "disabled";
 	};
 };
