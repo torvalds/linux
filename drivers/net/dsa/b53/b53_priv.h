@@ -60,6 +60,7 @@ enum {
 	BCM53018_DEVICE_ID = 0x53018,
 	BCM53019_DEVICE_ID = 0x53019,
 	BCM58XX_DEVICE_ID = 0x5800,
+	BCM7445_DEVICE_ID = 0x7445,
 };
 
 #define B53_N_PORTS	9
@@ -172,6 +173,12 @@ static inline int is5301x(struct b53_device *dev)
 		dev->chip_id == BCM53012_DEVICE_ID ||
 		dev->chip_id == BCM53018_DEVICE_ID ||
 		dev->chip_id == BCM53019_DEVICE_ID;
+}
+
+static inline int is58xx(struct b53_device *dev)
+{
+	return dev->chip_id == BCM58XX_DEVICE_ID ||
+		dev->chip_id == BCM7445_DEVICE_ID;
 }
 
 #define B53_CPU_PORT_25	5
