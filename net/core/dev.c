@@ -4282,18 +4282,11 @@ int netif_receive_skb(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(netif_receive_skb);
 
-struct flush_work {
-	struct net_device *dev;
-	struct work_struct work;
-};
-
-DEFINE_PER_CPU(struct flush_work, flush_works);
+DEFINE_PER_CPU(struct work_struct, flush_works);
 
 /* Network device is going away, flush any packets still pending */
 static void flush_backlog(struct work_struct *work)
 {
-	struct flush_work *flush = container_of(work, typeof(*flush), work);
-	struct net_device *dev = flush->dev;
 	struct sk_buff *skb, *tmp;
 	struct softnet_data *sd;
 
@@ -4303,7 +4296,7 @@ static void flush_backlog(struct work_struct *work)
 	local_irq_disable();
 	rps_lock(sd);
 	skb_queue_walk_safe(&sd->input_pkt_queue, skb, tmp) {
-		if (skb->dev == dev) {
+		if (skb->dev->reg_state == NETREG_UNREGISTERING) {
 			__skb_unlink(skb, &sd->input_pkt_queue);
 			kfree_skb(skb);
 			input_queue_head_incr(sd);
@@ -4313,7 +4306,7 @@ static void flush_backlog(struct work_struct *work)
 	local_irq_enable();
 
 	skb_queue_walk_safe(&sd->process_queue, skb, tmp) {
-		if (skb->dev == dev) {
+		if (skb->dev->reg_state == NETREG_UNREGISTERING) {
 			__skb_unlink(skb, &sd->process_queue);
 			kfree_skb(skb);
 			input_queue_head_incr(sd);
@@ -4322,22 +4315,18 @@ static void flush_backlog(struct work_struct *work)
 	local_bh_enable();
 }
 
-static void flush_all_backlogs(struct net_device *dev)
+static void flush_all_backlogs(void)
 {
 	unsigned int cpu;
 
 	get_online_cpus();
 
-	for_each_online_cpu(cpu) {
-		struct flush_work *flush = per_cpu_ptr(&flush_works, cpu);
-
-		INIT_WORK(&flush->work, flush_backlog);
-		flush->dev = dev;
-		queue_work_on(cpu, system_highpri_wq, &flush->work);
-	}
+	for_each_online_cpu(cpu)
+		queue_work_on(cpu, system_highpri_wq,
+			      per_cpu_ptr(&flush_works, cpu));
 
 	for_each_online_cpu(cpu)
-		flush_work(&per_cpu_ptr(&flush_works, cpu)->work);
+		flush_work(per_cpu_ptr(&flush_works, cpu));
 
 	put_online_cpus();
 }
@@ -6725,8 +6714,8 @@ static void rollback_registered_many(struct list_head *head)
 		unlist_netdevice(dev);
 
 		dev->reg_state = NETREG_UNREGISTERING;
-		flush_all_backlogs(dev);
 	}
+	flush_all_backlogs();
 
 	synchronize_net();
 
@@ -8291,7 +8280,10 @@ static int __init net_dev_init(void)
 	 */
 
 	for_each_possible_cpu(i) {
+		struct work_struct *flush = per_cpu_ptr(&flush_works, i);
 		struct softnet_data *sd = &per_cpu(softnet_data, i);
+
+		INIT_WORK(flush, flush_backlog);
 
 		skb_queue_head_init(&sd->input_pkt_queue);
 		skb_queue_head_init(&sd->process_queue);
