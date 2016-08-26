@@ -320,6 +320,7 @@ struct amdgpu_ring_funcs {
 	void (*begin_use)(struct amdgpu_ring *ring);
 	void (*end_use)(struct amdgpu_ring *ring);
 	void (*emit_switch_buffer) (struct amdgpu_ring *ring);
+	void (*emit_cntxcntl) (struct amdgpu_ring *ring, uint32_t flags);
 };
 
 /*
@@ -966,6 +967,7 @@ struct amdgpu_ctx {
 	spinlock_t		ring_lock;
 	struct fence            **fences;
 	struct amdgpu_ctx_ring	rings[AMDGPU_MAX_RINGS];
+	bool preamble_presented;
 };
 
 struct amdgpu_ctx_mgr {
@@ -1231,6 +1233,10 @@ struct amdgpu_cs_parser {
 	struct amdgpu_bo_list_entry	uf_entry;
 };
 
+#define AMDGPU_PREAMBLE_IB_PRESENT          (1 << 0) /* bit set means command submit involves a preamble IB */
+#define AMDGPU_PREAMBLE_IB_PRESENT_FIRST    (1 << 1) /* bit set means preamble IB is first presented in belonging context */
+#define AMDGPU_HAVE_CTX_SWITCH              (1 << 2) /* bit set means context switch occured */
+
 struct amdgpu_job {
 	struct amd_sched_job    base;
 	struct amdgpu_device	*adev;
@@ -1239,6 +1245,7 @@ struct amdgpu_job {
 	struct amdgpu_sync	sync;
 	struct amdgpu_ib	*ibs;
 	struct fence		*fence; /* the hw fence */
+	uint32_t		preamble_status;
 	uint32_t		num_ibs;
 	void			*owner;
 	uint64_t		fence_ctx; /* the fence_context this job uses */
@@ -2276,6 +2283,7 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_ring_emit_hdp_flush(r) (r)->funcs->emit_hdp_flush((r))
 #define amdgpu_ring_emit_hdp_invalidate(r) (r)->funcs->emit_hdp_invalidate((r))
 #define amdgpu_ring_emit_switch_buffer(r) (r)->funcs->emit_switch_buffer((r))
+#define amdgpu_ring_emit_cntxcntl(r, d) (r)->funcs->emit_cntxcntl((r), (d))
 #define amdgpu_ring_pad_ib(r, ib) ((r)->funcs->pad_ib((r), (ib)))
 #define amdgpu_ring_init_cond_exec(r) (r)->funcs->init_cond_exec((r))
 #define amdgpu_ring_patch_cond_exec(r,o) (r)->funcs->patch_cond_exec((r),(o))

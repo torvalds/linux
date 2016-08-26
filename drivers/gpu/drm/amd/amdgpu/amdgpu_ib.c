@@ -125,6 +125,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	unsigned patch_offset = ~0;
 	struct amdgpu_vm *vm;
 	uint64_t fence_ctx;
+	uint32_t status = 0;
 
 	unsigned i;
 	int r = 0;
@@ -176,11 +177,20 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 
 	skip_preamble = ring->current_ctx == fence_ctx;
 	need_ctx_switch = ring->current_ctx != fence_ctx;
+	if (job && ring->funcs->emit_cntxcntl) {
+		if (need_ctx_switch)
+			status |= AMDGPU_HAVE_CTX_SWITCH;
+		status |= job->preamble_status;
+		amdgpu_ring_emit_cntxcntl(ring, status);
+	}
+
 	for (i = 0; i < num_ibs; ++i) {
 		ib = &ibs[i];
 
 		/* drop preamble IBs if we don't have a context switch */
-		if ((ib->flags & AMDGPU_IB_FLAG_PREAMBLE) && skip_preamble)
+		if ((ib->flags & AMDGPU_IB_FLAG_PREAMBLE) &&
+			skip_preamble &&
+			!(status & AMDGPU_PREAMBLE_IB_PRESENT_FIRST))
 			continue;
 
 		amdgpu_ring_emit_ib(ring, ib, job ? job->vm_id : 0,
