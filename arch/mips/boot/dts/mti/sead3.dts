@@ -93,6 +93,109 @@
 		};
 	};
 
+	system-controller@1f000200 {
+		compatible = "mti,sead3-cpld", "syscon", "simple-mfd";
+		reg = <0x1f000200 0x300>;
+
+		led@10.0 {
+			compatible = "register-bit-led";
+			offset = <0x10>;
+			mask = <0x1>;
+			label = "pled0";
+		};
+		led@10.1 {
+			compatible = "register-bit-led";
+			offset = <0x10>;
+			mask = <0x2>;
+			label = "pled1";
+		};
+		led@10.2 {
+			compatible = "register-bit-led";
+			offset = <0x10>;
+			mask = <0x4>;
+			label = "pled2";
+		};
+		led@10.3 {
+			compatible = "register-bit-led";
+			offset = <0x10>;
+			mask = <0x8>;
+			label = "pled3";
+		};
+		led@10.4 {
+			compatible = "register-bit-led";
+			offset = <0x10>;
+			mask = <0x10>;
+			label = "pled4";
+		};
+		led@10.5 {
+			compatible = "register-bit-led";
+			offset = <0x10>;
+			mask = <0x20>;
+			label = "pled5";
+		};
+		led@10.6 {
+			compatible = "register-bit-led";
+			offset = <0x10>;
+			mask = <0x40>;
+			label = "pled6";
+		};
+		led@10.7 {
+			compatible = "register-bit-led";
+			offset = <0x10>;
+			mask = <0x80>;
+			label = "pled7";
+		};
+
+		led@18.0 {
+			compatible = "register-bit-led";
+			offset = <0x18>;
+			mask = <0x1>;
+			label = "fled0";
+		};
+		led@18.1 {
+			compatible = "register-bit-led";
+			offset = <0x18>;
+			mask = <0x2>;
+			label = "fled1";
+		};
+		led@18.2 {
+			compatible = "register-bit-led";
+			offset = <0x18>;
+			mask = <0x4>;
+			label = "fled2";
+		};
+		led@18.3 {
+			compatible = "register-bit-led";
+			offset = <0x18>;
+			mask = <0x8>;
+			label = "fled3";
+		};
+		led@18.4 {
+			compatible = "register-bit-led";
+			offset = <0x18>;
+			mask = <0x10>;
+			label = "fled4";
+		};
+		led@18.5 {
+			compatible = "register-bit-led";
+			offset = <0x18>;
+			mask = <0x20>;
+			label = "fled5";
+		};
+		led@18.6 {
+			compatible = "register-bit-led";
+			offset = <0x18>;
+			mask = <0x40>;
+			label = "fled6";
+		};
+		led@18.7 {
+			compatible = "register-bit-led";
+			offset = <0x18>;
+			mask = <0x80>;
+			label = "fled7";
+		};
+	};
+
 	/* UART connected to FTDI & miniUSB socket */
 	uart0: uart@1f000900 {
 		compatible = "ns16550a";
