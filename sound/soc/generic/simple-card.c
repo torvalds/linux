@@ -385,17 +385,17 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 	struct snd_soc_dai_link *dai_link;
 	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
-	int num_links, ret;
+	int num, ret;
 
 	/* Get the number of DAI links */
 	if (np && of_get_child_by_name(np, PREFIX "dai-link"))
-		num_links = of_get_child_count(np);
+		num = of_get_child_count(np);
 	else
-		num_links = 1;
+		num = 1;
 
 	/* Allocate the private data and the DAI link array */
 	priv = devm_kzalloc(dev,
-			sizeof(*priv) + sizeof(*dai_link) * num_links,
+			sizeof(*priv) + sizeof(*dai_link) * num,
 			GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
@@ -405,11 +405,11 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 	priv->snd_card.owner		= THIS_MODULE;
 	priv->snd_card.dev		= dev;
 	priv->snd_card.dai_link		= priv->dai_link;
-	priv->snd_card.num_links	= num_links;
+	priv->snd_card.num_links	= num;
 
 	/* Get room for the other properties */
 	priv->dai_props = devm_kzalloc(dev,
-			sizeof(*priv->dai_props) * num_links,
+			sizeof(*priv->dai_props) * num,
 			GFP_KERNEL);
 	if (!priv->dai_props)
 		return -ENOMEM;
