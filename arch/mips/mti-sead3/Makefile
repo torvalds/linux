@@ -8,8 +8,13 @@
 # Copyright (C) 2012 MIPS Technoligies, Inc.  All rights reserved.
 # Steven J. Hill <sjhill@mips.com>
 #
-obj-y				:= sead3-lcd.o sead3-display.o sead3-init.o \
-				   sead3-int.o sead3-platform.o sead3-reset.o \
-				   sead3-setup.o sead3-time.o
+obj-y := sead3-lcd.o
+obj-y += sead3-display.o
+obj-y += sead3-init.o
+obj-y += sead3-int.o
+obj-y += sead3-platform.o
+obj-y += sead3-reset.o
+obj-y += sead3-setup.o
+obj-y += sead3-time.o
 
 obj-$(CONFIG_EARLY_PRINTK)	+= sead3-console.o
