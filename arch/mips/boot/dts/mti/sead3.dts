@@ -69,6 +69,30 @@
 		has-transaction-translator;
 	};
 
+	flash@1c000000 {
+		compatible = "intel,28f128j3", "cfi-flash";
+		reg = <0x1c000000 0x2000000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		bank-width = <4>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			user-fs@0 {
+				label = "User FS";
+				reg = <0x0 0x1fc0000>;
+			};
+
+			board-config@3e0000 {
+				label = "Board Config";
+				reg = <0x1fc0000 0x40000>;
+			};
+		};
+	};
+
 	/* UART connected to FTDI & miniUSB socket */
 	uart0: uart@1f000900 {
 		compatible = "ns16550a";
