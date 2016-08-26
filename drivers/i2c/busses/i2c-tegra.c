@@ -989,17 +989,12 @@ static int tegra_i2c_resume(struct device *dev)
 	i2c_lock_adapter(&i2c_dev->adapter);
 
 	ret = tegra_i2c_init(i2c_dev);
-
-	if (ret) {
-		i2c_unlock_adapter(&i2c_dev->adapter);
-		return ret;
-	}
-
-	i2c_dev->is_suspended = false;
+	if (!ret)
+		i2c_dev->is_suspended = false;
 
 	i2c_unlock_adapter(&i2c_dev->adapter);
 
-	return 0;
+	return ret;
 }
 
 static SIMPLE_DEV_PM_OPS(tegra_i2c_pm, tegra_i2c_suspend, tegra_i2c_resume);
