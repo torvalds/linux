@@ -1085,8 +1085,10 @@ unsigned int beiscsi_boot_get_sinfo(struct beiscsi_hba *phba)
 	nonemb_cmd->va = pci_alloc_consistent(phba->ctrl.pdev,
 					      sizeof(nonemb_cmd->size),
 					      &nonemb_cmd->dma);
-	if (!nonemb_cmd->va)
+	if (!nonemb_cmd->va) {
+		mutex_unlock(&ctrl->mbox_lock);
 		return 0;
+	}
 
 	req = nonemb_cmd->va;
 	memset(req, 0, sizeof(*req));
