@@ -171,6 +171,7 @@ static const struct cpuinfo_data arc_cpu_tbl[] = {
 #else
 	{ {0x50, "ARC HS38 R2.0"}, 0x51},
 	{ {0x52, "ARC HS38 R2.1"}, 0x52},
+	{ {0x53, "ARC HS38 R3.0"}, 0x53},
 #endif
 	{ {0x00, NULL		} }
 };
