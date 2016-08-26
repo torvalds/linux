@@ -24,6 +24,7 @@
 #include <linux/media.h>
 #include <linux/module.h>
 #include <linux/of_gpio.h>
+#include <linux/of_graph.h>
 #include <linux/regulator/consumer.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
@@ -35,7 +36,7 @@
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-mediabus.h>
 #include <media/s5c73m3.h>
-#include <media/v4l2-of.h>
+#include <media/v4l2-fwnode.h>
 
 #include "s5c73m3.h"
 
@@ -1602,7 +1603,7 @@ static int s5c73m3_get_platform_data(struct s5c73m3 *state)
 	const struct s5c73m3_platform_data *pdata = dev->platform_data;
 	struct device_node *node = dev->of_node;
 	struct device_node *node_ep;
-	struct v4l2_of_endpoint ep;
+	struct v4l2_fwnode_endpoint ep;
 	int ret;
 
 	if (!node) {
@@ -1639,8 +1640,10 @@ static int s5c73m3_get_platform_data(struct s5c73m3 *state)
 		return 0;
 	}
 
-	v4l2_of_parse_endpoint(node_ep, &ep);
+	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(node_ep), &ep);
 	of_node_put(node_ep);
+	if (ret)
+		return ret;
 
 	if (ep.bus_type != V4L2_MBUS_CSI2) {
 		dev_err(dev, "unsupported bus type\n");

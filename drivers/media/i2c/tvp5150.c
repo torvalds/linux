@@ -10,10 +10,12 @@
 #include <linux/videodev2.h>
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/of_graph.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
 #include <media/tvp5150.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-fwnode.h>
 
 #include "tvp5150_reg.h"
 

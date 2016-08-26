@@ -724,8 +724,6 @@ struct v4l2_subdev {
 	struct video_device *devnode;
 	/* pointer to the physical device, if any */
 	struct device *dev;
-	/* The device_node of the subdev, usually the same as dev->of_node. */
-	struct device_node *of_node;
 	struct fwnode_handle *fwnode;
 	/* Links this subdev to a global subdev_list or @notifier->done list. */
 	struct list_head async_list;

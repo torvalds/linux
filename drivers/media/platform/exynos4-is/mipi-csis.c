@@ -30,7 +30,7 @@
 #include <linux/spinlock.h>
 #include <linux/videodev2.h>
 #include <media/exynos-fimc.h>
-#include <media/v4l2-of.h>
+#include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
 #include "mipi-csis.h"
@@ -735,7 +735,8 @@ static int s5pcsis_parse_dt(struct platform_device *pdev,
 			    struct csis_state *state)
 {
 	struct device_node *node = pdev->dev.of_node;
-	struct v4l2_of_endpoint endpoint;
+	struct v4l2_fwnode_endpoint endpoint;
+	int ret;
 
 	if (of_property_read_u32(node, "clock-frequency",
 				 &state->clk_frequency))
@@ -751,7 +752,9 @@ static int s5pcsis_parse_dt(struct platform_device *pdev,
 		return -EINVAL;
 	}
 	/* Get port node and validate MIPI-CSI channel id. */
-	v4l2_of_parse_endpoint(node, &endpoint);
+	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(node), &endpoint);
+	if (ret)
+		goto err;
 
 	state->index = endpoint.base.port - FIMC_INPUT_MIPI_CSI2_0;
 	if (state->index >= CSIS_MAX_ENTITIES)
@@ -764,9 +767,10 @@ static int s5pcsis_parse_dt(struct platform_device *pdev,
 					"samsung,csis-wclk");
 
 	state->num_lanes = endpoint.bus.mipi_csi2.num_data_lanes;
-	of_node_put(node);
 
-	return 0;
+err:
+	of_node_put(node);
+	return ret;
 }
 
 static int s5pcsis_pm_resume(struct device *dev, bool runtime);

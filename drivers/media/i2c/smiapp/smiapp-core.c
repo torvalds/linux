@@ -26,12 +26,13 @@
 #include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/of_gpio.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/smiapp.h>
 #include <linux/v4l2-mediabus.h>
+#include <media/v4l2-fwnode.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-of.h>
 
 #include "smiapp.h"
 
@@ -2975,19 +2976,20 @@ static int smiapp_resume(struct device *dev)
 static struct smiapp_platform_data *smiapp_get_pdata(struct device *dev)
 {
 	struct smiapp_platform_data *pdata;
-	struct v4l2_of_endpoint *bus_cfg;
-	struct device_node *ep;
+	struct v4l2_fwnode_endpoint *bus_cfg;
+	struct fwnode_handle *ep;
+	struct fwnode_handle *fwnode = dev_fwnode(dev);
 	int i;
 	int rval;
 
-	if (!dev->of_node)
+	if (!fwnode)
 		return dev->platform_data;
 
-	ep = of_graph_get_next_endpoint(dev->of_node, NULL);
+	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
 	if (!ep)
 		return NULL;
 
-	bus_cfg = v4l2_of_alloc_parse_endpoint(ep);
+	bus_cfg = v4l2_fwnode_endpoint_alloc_parse(ep);
 	if (IS_ERR(bus_cfg))
 		goto out_err;
 
@@ -3042,13 +3044,13 @@ static struct smiapp_platform_data *smiapp_get_pdata(struct device *dev)
 		dev_dbg(dev, "freq %d: %lld\n", i, pdata->op_sys_clock[i]);
 	}
 
-	v4l2_of_free_endpoint(bus_cfg);
-	of_node_put(ep);
+	v4l2_fwnode_endpoint_free(bus_cfg);
+	fwnode_handle_put(ep);
 	return pdata;
 
 out_err:
-	v4l2_of_free_endpoint(bus_cfg);
-	of_node_put(ep);
+	v4l2_fwnode_endpoint_free(bus_cfg);
+	fwnode_handle_put(ep);
 	return NULL;
 }
 

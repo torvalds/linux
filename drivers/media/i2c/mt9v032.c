@@ -19,6 +19,7 @@
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
+#include <linux/of_graph.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
@@ -28,7 +29,7 @@
 #include <media/mt9v032.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-of.h>
+#include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
 /* The first four rows are black rows. The active area spans 753x481 pixels. */
@@ -883,7 +884,7 @@ static struct mt9v032_platform_data *
 mt9v032_get_pdata(struct i2c_client *client)
 {
 	struct mt9v032_platform_data *pdata = NULL;
-	struct v4l2_of_endpoint endpoint;
+	struct v4l2_fwnode_endpoint endpoint;
 	struct device_node *np;
 	struct property *prop;
 
@@ -894,7 +895,7 @@ mt9v032_get_pdata(struct i2c_client *client)
 	if (!np)
 		return NULL;
 
-	if (v4l2_of_parse_endpoint(np, &endpoint) < 0)
+	if (v4l2_fwnode_endpoint_parse(of_fwnode_handle(np), &endpoint) < 0)
 		goto done;
 
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
