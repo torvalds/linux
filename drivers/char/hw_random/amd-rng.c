@@ -31,7 +31,7 @@
 #include <linux/delay.h>
 #include <asm/io.h>
 
-#define PFX	KBUILD_MODNAME ": "
+#define DRV_NAME "AMD768-HWRNG"
 
 /*
  * Data for PCI driver interface
@@ -128,8 +128,8 @@ found:
 	pmbase &= 0x0000FF00;
 	if (pmbase == 0)
 		goto out;
-	if (!request_region(pmbase + 0xF0, 8, "AMD HWRNG")) {
-		dev_err(&pdev->dev, "AMD HWRNG region 0x%x already in use!\n",
+	if (!request_region(pmbase + 0xF0, 8, DRV_NAME)) {
+		dev_err(&pdev->dev, DRV_NAME " region 0x%x already in use!\n",
 			pmbase + 0xF0);
 		err = -EBUSY;
 		goto out;
@@ -137,11 +137,10 @@ found:
 	amd_rng.priv = (unsigned long)pmbase;
 	amd_pdev = pdev;
 
-	pr_info("AMD768 RNG detected\n");
+	pr_info(DRV_NAME " detected\n");
 	err = hwrng_register(&amd_rng);
 	if (err) {
-		pr_err(PFX "RNG registering failed (%d)\n",
-		       err);
+		pr_err(DRV_NAME " registering failed (%d)\n", err);
 		release_region(pmbase + 0xF0, 8);
 		goto out;
 	}
