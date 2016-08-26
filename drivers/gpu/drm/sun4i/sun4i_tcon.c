@@ -374,10 +374,8 @@ static int sun4i_tcon_init_regmap(struct device *dev,
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(regs)) {
-		dev_err(dev, "Couldn't map the TCON registers\n");
+	if (IS_ERR(regs))
 		return PTR_ERR(regs);
-	}
 
 	tcon->regs = devm_regmap_init_mmio(dev, regs,
 					   &sun4i_tcon_regmap_config);
