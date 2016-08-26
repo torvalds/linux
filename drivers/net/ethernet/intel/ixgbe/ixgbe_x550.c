@@ -3049,6 +3049,8 @@ static const struct ixgbe_phy_operations phy_ops_x550em_a = {
 	.identify		= &ixgbe_identify_phy_x550em,
 	.read_reg		= &ixgbe_read_phy_reg_x550a,
 	.write_reg		= &ixgbe_write_phy_reg_x550a,
+	.read_reg_mdi		= &ixgbe_read_phy_reg_mdi,
+	.write_reg_mdi		= &ixgbe_write_phy_reg_mdi,
 };
 
 static const u32 ixgbe_mvals_X550[IXGBE_MVALS_IDX_LIMIT] = {
