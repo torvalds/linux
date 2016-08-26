@@ -423,10 +423,10 @@ static int check_valid_map(struct f2fs_sb_info *sbi,
 static void gc_node_segment(struct f2fs_sb_info *sbi,
 		struct f2fs_summary *sum, unsigned int segno, int gc_type)
 {
-	bool initial = true;
 	struct f2fs_summary *entry;
 	block_t start_addr;
 	int off;
+	int phase = 0;
 
 	start_addr = START_BLOCK(sbi, segno);
 
@@ -445,10 +445,18 @@ next_step:
 		if (check_valid_map(sbi, segno, off) == 0)
 			continue;
 
-		if (initial) {
+		if (phase == 0) {
+			ra_meta_pages(sbi, NAT_BLOCK_OFFSET(nid), 1,
+							META_NAT, true);
+			continue;
+		}
+
+		if (phase == 1) {
 			ra_node_page(sbi, nid);
 			continue;
 		}
+
+		/* phase == 2 */
 		node_page = get_node_page(sbi, nid);
 		if (IS_ERR(node_page))
 			continue;
@@ -469,10 +477,8 @@ next_step:
 		stat_inc_node_blk_count(sbi, 1, gc_type);
 	}
 
-	if (initial) {
-		initial = false;
+	if (++phase < 3)
 		goto next_step;
-	}
 }
 
 /*
@@ -706,6 +712,7 @@ next_step:
 		struct node_info dni; /* dnode info for the data */
 		unsigned int ofs_in_node, nofs;
 		block_t start_bidx;
+		nid_t nid = le32_to_cpu(entry->nid);
 
 		/* stop BG_GC if there is not enough free sections. */
 		if (gc_type == BG_GC && has_not_enough_free_secs(sbi, 0))
@@ -715,7 +722,13 @@ next_step:
 			continue;
 
 		if (phase == 0) {
-			ra_node_page(sbi, le32_to_cpu(entry->nid));
+			ra_meta_pages(sbi, NAT_BLOCK_OFFSET(nid), 1,
+							META_NAT, true);
+			continue;
+		}
+
+		if (phase == 1) {
+			ra_node_page(sbi, nid);
 			continue;
 		}
 
@@ -723,14 +736,14 @@ next_step:
 		if (!is_alive(sbi, entry, &dni, start_addr + off, &nofs))
 			continue;
 
-		if (phase == 1) {
+		if (phase == 2) {
 			ra_node_page(sbi, dni.ino);
 			continue;
 		}
 
 		ofs_in_node = le16_to_cpu(entry->ofs_in_node);
 
-		if (phase == 2) {
+		if (phase == 3) {
 			inode = f2fs_iget(sb, dni.ino);
 			if (IS_ERR(inode) || is_bad_inode(inode))
 				continue;
@@ -756,7 +769,7 @@ next_step:
 			continue;
 		}
 
-		/* phase 3 */
+		/* phase 4 */
 		inode = find_gc_inode(gc_list, dni.ino);
 		if (inode) {
 			struct f2fs_inode_info *fi = F2FS_I(inode);
@@ -789,7 +802,7 @@ next_step:
 		}
 	}
 
-	if (++phase < 4)
+	if (++phase < 5)
 		goto next_step;
 }
 
