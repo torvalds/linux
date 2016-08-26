@@ -870,18 +870,18 @@ static int gb_power_supply_config(struct gb_power_supplies *supplies, int id)
 	if (ret < 0)
 		return ret;
 
-	ret = gb_power_supply_prop_descriptors_get(gbpsy);
-	if (ret < 0)
-		return ret;
-
-	/* guarantee that we have an unique name, before register */
-	return __gb_power_supply_set_name(gbpsy->model_name, gbpsy->name,
-					  sizeof(gbpsy->name));
+	return gb_power_supply_prop_descriptors_get(gbpsy);
 }
 
 static int gb_power_supply_enable(struct gb_power_supply *gbpsy)
 {
 	int ret;
+
+	/* guarantee that we have an unique name, before register */
+	ret =  __gb_power_supply_set_name(gbpsy->model_name, gbpsy->name,
+					  sizeof(gbpsy->name));
+	if (ret < 0)
+		return ret;
 
 	ret = gb_power_supply_register(gbpsy);
 	if (ret < 0)
