@@ -60,7 +60,7 @@ static const struct {
 };
 
 #define QEDE_TQSTATS_DATA(dev, sindex, tssid, tcid) \
-	(*((u64 *)(((u64)(&dev->fp_array[tssid].txqs[tcid])) +\
+	(*((u64 *)(((void *)(&dev->fp_array[tssid].txqs[tcid])) +\
 		   qede_tqstats_arr[(sindex)].offset)))
 
 static const struct {
