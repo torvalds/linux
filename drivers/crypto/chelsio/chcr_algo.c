@@ -590,7 +590,7 @@ badkey_err:
 	return -EINVAL;
 }
 
-int cxgb4_is_crypto_q_full(struct net_device *dev, unsigned int idx)
+static int cxgb4_is_crypto_q_full(struct net_device *dev, unsigned int idx)
 {
 	int ret = 0;
 	struct sge_ofld_txq *q;
