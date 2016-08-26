@@ -7753,6 +7753,7 @@ static inline int gen6_check_mailbox_status(struct drm_i915_private *dev_priv)
 	case GEN6_PCODE_ILLEGAL_CMD:
 		return -ENXIO;
 	case GEN6_PCODE_MIN_FREQ_TABLE_GT_RATIO_OUT_OF_RANGE:
+	case GEN7_PCODE_MIN_FREQ_TABLE_GT_RATIO_OUT_OF_RANGE:
 		return -EOVERFLOW;
 	case GEN6_PCODE_TIMEOUT:
 		return -ETIMEDOUT;
