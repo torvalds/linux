@@ -103,6 +103,10 @@
 			offset = <0x50>;
 			mask = <0x4d>;
 		};
+
+		poweroff {
+			compatible = "restart-poweroff";
+		};
 	};
 
 	system-controller@1f000200 {

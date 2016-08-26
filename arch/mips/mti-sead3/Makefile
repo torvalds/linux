@@ -13,6 +13,5 @@ obj-y += sead3-display.o
 obj-y += sead3-dtshim.o
 obj-y += sead3-init.o
 obj-y += sead3-int.o
-obj-y += sead3-reset.o
 obj-y += sead3-setup.o
 obj-y += sead3-time.o
