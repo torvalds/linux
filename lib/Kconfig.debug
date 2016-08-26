@@ -1214,7 +1214,7 @@ config DEBUG_BUGVERBOSE
 
 config DEBUG_LIST
 	bool "Debug linked list manipulation"
-	depends on DEBUG_KERNEL
+	depends on DEBUG_KERNEL || BUG_ON_DATA_CORRUPTION
 	help
 	  Enable this to turn on extended checks in the linked-list
 	  walking routines.
