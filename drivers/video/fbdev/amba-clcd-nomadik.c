@@ -231,6 +231,7 @@ int nomadik_clcd_init_panel(struct clcd_fb *fb,
 	/* Unknown panel, fall through */
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nomadik_clcd_init_panel);
 
 #define PMU_CTRL_OFFSET 0x0000
 #define PMU_CTRL_LCDNDIF BIT(26)
@@ -255,3 +256,4 @@ int nomadik_clcd_init_board(struct amba_device *adev,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nomadik_clcd_init_board);
