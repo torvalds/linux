@@ -60,7 +60,8 @@ static void ipu_crtc_enable(struct drm_crtc *crtc)
 	ipu_di_enable(ipu_crtc->di);
 }
 
-static void ipu_crtc_disable(struct drm_crtc *crtc)
+static void ipu_crtc_atomic_disable(struct drm_crtc *crtc,
+				    struct drm_crtc_state *old_crtc_state)
 {
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
 	struct ipu_soc *ipu = dev_get_drvdata(ipu_crtc->dev->parent);
@@ -241,7 +242,7 @@ static const struct drm_crtc_helper_funcs ipu_helper_funcs = {
 	.mode_set_nofb = ipu_crtc_mode_set_nofb,
 	.atomic_check = ipu_crtc_atomic_check,
 	.atomic_begin = ipu_crtc_atomic_begin,
-	.disable = ipu_crtc_disable,
+	.atomic_disable = ipu_crtc_atomic_disable,
 	.enable = ipu_crtc_enable,
 };
 
