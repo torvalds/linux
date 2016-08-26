@@ -31,9 +31,7 @@
 #include <linux/delay.h>
 #include <asm/io.h>
 
-
 #define PFX	KBUILD_MODNAME ": "
-
 
 /*
  * Data for PCI driver interface
@@ -51,7 +49,6 @@ static const struct pci_device_id pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, pci_tbl);
 
 static struct pci_dev *amd_pdev;
-
 
 static int amd_rng_data_present(struct hwrng *rng, int wait)
 {
@@ -100,7 +97,6 @@ static void amd_rng_cleanup(struct hwrng *rng)
 	pci_write_config_byte(amd_pdev, 0x40, rnen);
 }
 
-
 static struct hwrng amd_rng = {
 	.name		= "amd",
 	.init		= amd_rng_init,
@@ -108,7 +104,6 @@ static struct hwrng amd_rng = {
 	.data_present	= amd_rng_data_present,
 	.data_read	= amd_rng_data_read,
 };
-
 
 static int __init mod_init(void)
 {
@@ -157,6 +152,7 @@ out:
 static void __exit mod_exit(void)
 {
 	u32 pmbase = (unsigned long)amd_rng.priv;
+
 	release_region(pmbase + 0xF0, 8);
 	hwrng_unregister(&amd_rng);
 }
