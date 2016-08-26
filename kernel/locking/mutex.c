@@ -416,24 +416,39 @@ static inline int mutex_can_spin_on_owner(struct mutex *lock)
  *
  * Returns true when the lock was taken, otherwise false, indicating
  * that we need to jump to the slowpath and sleep.
+ *
+ * The waiter flag is set to true if the spinner is a waiter in the wait
+ * queue. The waiter-spinner will spin on the lock directly and concurrently
+ * with the spinner at the head of the OSQ, if present, until the owner is
+ * changed to itself.
  */
 static bool mutex_optimistic_spin(struct mutex *lock,
-				  struct ww_acquire_ctx *ww_ctx, const bool use_ww_ctx)
+				  struct ww_acquire_ctx *ww_ctx,
+				  const bool use_ww_ctx, const bool waiter)
 {
 	struct task_struct *task = current;
 
-	if (!mutex_can_spin_on_owner(lock))
-		goto done;
+	if (!waiter) {
+		/*
+		 * The purpose of the mutex_can_spin_on_owner() function is
+		 * to eliminate the overhead of osq_lock() and osq_unlock()
+		 * in case spinning isn't possible. As a waiter-spinner
+		 * is not going to take OSQ lock anyway, there is no need
+		 * to call mutex_can_spin_on_owner().
+		 */
+		if (!mutex_can_spin_on_owner(lock))
+			goto fail;
 
-	/*
-	 * In order to avoid a stampede of mutex spinners trying to
-	 * acquire the mutex all at once, the spinners need to take a
-	 * MCS (queued) lock first before spinning on the owner field.
-	 */
-	if (!osq_lock(&lock->osq))
-		goto done;
+		/*
+		 * In order to avoid a stampede of mutex spinners trying to
+		 * acquire the mutex all at once, the spinners need to take a
+		 * MCS (queued) lock first before spinning on the owner field.
+		 */
+		if (!osq_lock(&lock->osq))
+			goto fail;
+	}
 
-	while (true) {
+	for (;;) {
 		struct task_struct *owner;
 
 		if (use_ww_ctx && ww_ctx->acquired > 0) {
@@ -449,7 +464,7 @@ static bool mutex_optimistic_spin(struct mutex *lock,
 			 * performed the optimistic spinning cannot be done.
 			 */
 			if (READ_ONCE(ww->ctx))
-				break;
+				goto fail_unlock;
 		}
 
 		/*
@@ -457,14 +472,19 @@ static bool mutex_optimistic_spin(struct mutex *lock,
 		 * release the lock or go to sleep.
 		 */
 		owner = __mutex_owner(lock);
-		if (owner && !mutex_spin_on_owner(lock, owner))
-			break;
+		if (owner) {
+			if (waiter && owner == task) {
+				smp_mb(); /* ACQUIRE */
+				break;
+			}
+
+			if (!mutex_spin_on_owner(lock, owner))
+				goto fail_unlock;
+		}
 
 		/* Try to acquire the mutex if it is unlocked. */
-		if (__mutex_trylock(lock, false)) {
-			osq_unlock(&lock->osq);
-			return true;
-		}
+		if (__mutex_trylock(lock, waiter))
+			break;
 
 		/*
 		 * The cpu_relax() call is a compiler barrier which forces
@@ -475,8 +495,17 @@ static bool mutex_optimistic_spin(struct mutex *lock,
 		cpu_relax_lowlatency();
 	}
 
-	osq_unlock(&lock->osq);
-done:
+	if (!waiter)
+		osq_unlock(&lock->osq);
+
+	return true;
+
+
+fail_unlock:
+	if (!waiter)
+		osq_unlock(&lock->osq);
+
+fail:
 	/*
 	 * If we fell out of the spin path because of need_resched(),
 	 * reschedule now, before we try-lock the mutex. This avoids getting
@@ -495,7 +524,8 @@ done:
 }
 #else
 static bool mutex_optimistic_spin(struct mutex *lock,
-				  struct ww_acquire_ctx *ww_ctx, const bool use_ww_ctx)
+				  struct ww_acquire_ctx *ww_ctx,
+				  const bool use_ww_ctx, const bool waiter)
 {
 	return false;
 }
@@ -600,7 +630,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 	mutex_acquire_nest(&lock->dep_map, subclass, 0, nest_lock, ip);
 
 	if (__mutex_trylock(lock, false) ||
-	    mutex_optimistic_spin(lock, ww_ctx, use_ww_ctx)) {
+	    mutex_optimistic_spin(lock, ww_ctx, use_ww_ctx, false)) {
 		/* got the lock, yay! */
 		lock_acquired(&lock->dep_map, ip);
 		if (use_ww_ctx)
@@ -669,7 +699,8 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 		 * state back to RUNNING and fall through the next schedule(),
 		 * or we must see its unlock and acquire.
 		 */
-		if (__mutex_trylock(lock, first))
+		if ((first && mutex_optimistic_spin(lock, ww_ctx, use_ww_ctx, true)) ||
+		     __mutex_trylock(lock, first))
 			break;
 
 		spin_lock_mutex(&lock->wait_lock, flags);
