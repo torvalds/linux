@@ -560,10 +560,7 @@ static int cz_smu_construct_toc_for_bootup(struct pp_smumgr *smumgr)
 
 	cz_smu_populate_single_ucode_load_task(smumgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_SDMA0, false);
-	if (smumgr->chip_id == CHIP_STONEY)
-		cz_smu_populate_single_ucode_load_task(smumgr,
-				CZ_SCRATCH_ENTRY_UCODE_ID_SDMA0, false);
-	else
+	if (smumgr->chip_id != CHIP_STONEY)
 		cz_smu_populate_single_ucode_load_task(smumgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_SDMA1, false);
 	cz_smu_populate_single_ucode_load_task(smumgr,
@@ -574,10 +571,7 @@ static int cz_smu_construct_toc_for_bootup(struct pp_smumgr *smumgr)
 				CZ_SCRATCH_ENTRY_UCODE_ID_CP_ME, false);
 	cz_smu_populate_single_ucode_load_task(smumgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_CP_MEC_JT1, false);
-	if (smumgr->chip_id == CHIP_STONEY)
-		cz_smu_populate_single_ucode_load_task(smumgr,
-				CZ_SCRATCH_ENTRY_UCODE_ID_CP_MEC_JT1, false);
-	else
+	if (smumgr->chip_id != CHIP_STONEY)
 		cz_smu_populate_single_ucode_load_task(smumgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_CP_MEC_JT2, false);
 	cz_smu_populate_single_ucode_load_task(smumgr,
