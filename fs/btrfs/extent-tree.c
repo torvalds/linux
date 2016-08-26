@@ -8216,6 +8216,7 @@ int btrfs_alloc_logged_file_extent(struct btrfs_trans_handle *trans,
 {
 	int ret;
 	struct btrfs_block_group_cache *block_group;
+	struct btrfs_space_info *space_info;
 
 	/*
 	 * Mixed block groups will exclude before processing the log so we only
@@ -8231,9 +8232,14 @@ int btrfs_alloc_logged_file_extent(struct btrfs_trans_handle *trans,
 	if (!block_group)
 		return -EINVAL;
 
-	ret = btrfs_add_reserved_bytes(block_group, ins->offset,
-				       ins->offset, 0);
-	BUG_ON(ret); /* logic error */
+	space_info = block_group->space_info;
+	spin_lock(&space_info->lock);
+	spin_lock(&block_group->lock);
+	space_info->bytes_reserved += ins->offset;
+	block_group->reserved += ins->offset;
+	spin_unlock(&block_group->lock);
+	spin_unlock(&space_info->lock);
+
 	ret = alloc_reserved_file_extent(trans, root, 0, root_objectid,
 					 0, owner, offset, ins, 1);
 	btrfs_put_block_group(block_group);
