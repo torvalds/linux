@@ -24,6 +24,10 @@
 #include <linux/preempt.h>
 #include <asm/xor.h>
 
+#ifndef XOR_SELECT_TEMPLATE
+#define XOR_SELECT_TEMPLATE(x) (x)
+#endif
+
 /* The xor routines to use.  */
 static struct xor_block_template *active_template;
 
@@ -109,17 +113,14 @@ calibrate_xor_blocks(void)
 	void *b1, *b2;
 	struct xor_block_template *f, *fastest;
 
-	fastest = NULL;
+	fastest = XOR_SELECT_TEMPLATE(NULL);
 
-#ifdef XOR_SELECT_TEMPLATE
-	fastest = XOR_SELECT_TEMPLATE(fastest);
 	if (fastest) {
 		printk(KERN_INFO "xor: automatically using best "
 				 "checksumming function   %-10s\n",
 		       fastest->name);
 		goto out;
 	}
-#endif
 
 	/*
 	 * Note: Since the memory is not actually used for _anything_ but to
