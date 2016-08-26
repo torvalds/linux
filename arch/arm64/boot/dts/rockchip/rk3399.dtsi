@@ -1002,9 +1002,9 @@
 		};
 	};
 
-	watchdog@ff840000 {
+	watchdog@ff848000 {
 		compatible = "snps,dw-wdt";
-		reg = <0x0 0xff840000 0x0 0x100>;
+		reg = <0x0 0xff848000 0x0 0x100>;
 		clocks = <&cru PCLK_WDT>;
 		interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
 	};
