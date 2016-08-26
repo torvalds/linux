@@ -712,6 +712,14 @@ static int __tipc_nl_add_bearer(struct tipc_nl_msg *msg,
 		goto prop_msg_full;
 
 	nla_nest_end(msg->skb, prop);
+
+#ifdef CONFIG_TIPC_MEDIA_UDP
+	if (bearer->media->type_id == TIPC_MEDIA_TYPE_UDP) {
+		if (tipc_udp_nl_add_bearer_data(msg, bearer))
+			goto attr_msg_full;
+	}
+#endif
+
 	nla_nest_end(msg->skb, attrs);
 	genlmsg_end(msg->skb, hdr);
 

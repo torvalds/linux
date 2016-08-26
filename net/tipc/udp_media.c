@@ -401,6 +401,67 @@ static int enable_mcast(struct udp_bearer *ub, struct udp_media_addr *remote)
 	return err;
 }
 
+static int __tipc_nl_add_udp_addr(struct sk_buff *skb,
+				  struct udp_media_addr *addr, int nla_t)
+{
+	if (ntohs(addr->proto) == ETH_P_IP) {
+		struct sockaddr_in ip4;
+
+		ip4.sin_family = AF_INET;
+		ip4.sin_port = addr->port;
+		ip4.sin_addr.s_addr = addr->ipv4.s_addr;
+		if (nla_put(skb, nla_t, sizeof(ip4), &ip4))
+			return -EMSGSIZE;
+
+#if IS_ENABLED(CONFIG_IPV6)
+	} else if (ntohs(addr->proto) == ETH_P_IPV6) {
+		struct sockaddr_in6 ip6;
+
+		ip6.sin6_family = AF_INET6;
+		ip6.sin6_port  = addr->port;
+		memcpy(&ip6.sin6_addr, &addr->ipv6, sizeof(struct in6_addr));
+		if (nla_put(skb, nla_t, sizeof(ip6), &ip6))
+			return -EMSGSIZE;
+#endif
+	}
+
+	return 0;
+}
+
+int tipc_udp_nl_add_bearer_data(struct tipc_nl_msg *msg, struct tipc_bearer *b)
+{
+	struct udp_media_addr *src = (struct udp_media_addr *)&b->addr.value;
+	struct udp_media_addr *dst;
+	struct udp_bearer *ub;
+	struct nlattr *nest;
+
+	ub = rcu_dereference_rtnl(b->media_ptr);
+	if (!ub)
+		return -ENODEV;
+
+	nest = nla_nest_start(msg->skb, TIPC_NLA_BEARER_UDP_OPTS);
+	if (!nest)
+		goto msg_full;
+
+	if (__tipc_nl_add_udp_addr(msg->skb, src, TIPC_NLA_UDP_LOCAL))
+		goto msg_full;
+
+	dst = (struct udp_media_addr *)&b->bcast_addr.value;
+	if (__tipc_nl_add_udp_addr(msg->skb, dst, TIPC_NLA_UDP_REMOTE))
+		goto msg_full;
+
+	if (!list_empty(&ub->rcast.list)) {
+		if (nla_put_flag(msg->skb, TIPC_NLA_UDP_MULTI_REMOTEIP))
+			goto msg_full;
+	}
+
+	nla_nest_end(msg->skb, nest);
+	return 0;
+msg_full:
+	nla_nest_cancel(msg->skb, nest);
+	return -EMSGSIZE;
+}
+
 /**
  * tipc_parse_udp_addr - build udp media address from netlink data
  * @nlattr:	netlink attribute containing sockaddr storage aligned address
