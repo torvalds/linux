@@ -322,18 +322,21 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 				     struct simple_card_data *priv)
 {
 	struct device *dev = simple_priv_to_dev(priv);
+	struct device_node *dai_link;
 	u32 val;
 	int ret;
 
 	if (!node)
 		return -EINVAL;
 
+	dai_link = of_get_child_by_name(node, PREFIX "dai-link");
+
 	/* The off-codec widgets */
 	if (of_property_read_bool(node, PREFIX "widgets")) {
 		ret = snd_soc_of_parse_audio_simple_widgets(&priv->snd_card,
 					PREFIX "widgets");
 		if (ret)
-			return ret;
+			goto card_parse_end;
 	}
 
 	/* DAPM routes */
@@ -341,7 +344,7 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 		ret = snd_soc_of_parse_audio_routing(&priv->snd_card,
 					PREFIX "routing");
 		if (ret)
-			return ret;
+			goto card_parse_end;
 	}
 
 	/* Factor to mclk, used in hw_params() */
@@ -350,7 +353,7 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 		priv->mclk_fs = val;
 
 	/* Single/Muti DAI link(s) & New style of DT node */
-	if (of_get_child_by_name(node, PREFIX "dai-link")) {
+	if (dai_link) {
 		struct device_node *np = NULL;
 		int i = 0;
 
@@ -360,7 +363,7 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 							   i, false);
 			if (ret < 0) {
 				of_node_put(np);
-				return ret;
+				goto card_parse_end;
 			}
 			i++;
 		}
@@ -368,14 +371,15 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 		/* For single DAI link & old style of DT node */
 		ret = asoc_simple_card_dai_link_of(node, priv, 0, true);
 		if (ret < 0)
-			return ret;
+			goto card_parse_end;
 	}
 
 	ret = asoc_simple_card_parse_card_name(&priv->snd_card, PREFIX);
-	if (ret)
-		return ret;
 
-	return 0;
+card_parse_end:
+	of_node_put(dai_link);
+
+	return ret;
 }
 
 static int asoc_simple_card_probe(struct platform_device *pdev)
