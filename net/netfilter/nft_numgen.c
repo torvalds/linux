@@ -68,9 +68,9 @@ static int nft_ng_dump(struct sk_buff *skb, enum nft_registers dreg,
 {
 	if (nft_dump_register(skb, NFTA_NG_DREG, dreg))
 		goto nla_put_failure;
-	if (nft_dump_register(skb, NFTA_NG_UNTIL, until))
+	if (nla_put_be32(skb, NFTA_NG_UNTIL, htonl(until)))
 		goto nla_put_failure;
-	if (nft_dump_register(skb, NFTA_NG_TYPE, type))
+	if (nla_put_be32(skb, NFTA_NG_TYPE, htonl(type)))
 		goto nla_put_failure;
 
 	return 0;

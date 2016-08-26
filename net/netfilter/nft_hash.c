@@ -88,11 +88,11 @@ static int nft_hash_dump(struct sk_buff *skb,
 		goto nla_put_failure;
 	if (nft_dump_register(skb, NFTA_HASH_DREG, priv->dreg))
 		goto nla_put_failure;
-	if (nft_dump_register(skb, NFTA_HASH_LEN, priv->len))
+	if (nla_put_be32(skb, NFTA_HASH_LEN, htonl(priv->len)))
 		goto nla_put_failure;
-	if (nft_dump_register(skb, NFTA_HASH_MODULUS, priv->modulus))
+	if (nla_put_be32(skb, NFTA_HASH_MODULUS, htonl(priv->modulus)))
 		goto nla_put_failure;
-	if (nft_dump_register(skb, NFTA_HASH_SEED, priv->seed))
+	if (nla_put_be32(skb, NFTA_HASH_SEED, htonl(priv->seed)))
 		goto nla_put_failure;
 
 	return 0;
