@@ -749,6 +749,8 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 		/* Right function depends upon target state. */
 		if (crtc->state->enable && funcs->prepare)
 			funcs->prepare(crtc);
+		else if (funcs->atomic_disable)
+			funcs->atomic_disable(crtc, old_crtc_state);
 		else if (funcs->disable)
 			funcs->disable(crtc);
 		else
