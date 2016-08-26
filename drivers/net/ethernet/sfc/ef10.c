@@ -2048,14 +2048,18 @@ static irqreturn_t efx_ef10_legacy_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void efx_ef10_irq_test_generate(struct efx_nic *efx)
+static int efx_ef10_irq_test_generate(struct efx_nic *efx)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_TRIGGER_INTERRUPT_IN_LEN);
+
+	if (efx_mcdi_set_workaround(efx, MC_CMD_WORKAROUND_BUG41750, true,
+				    NULL) == 0)
+		return -ENOTSUPP;
 
 	BUILD_BUG_ON(MC_CMD_TRIGGER_INTERRUPT_OUT_LEN != 0);
 
 	MCDI_SET_DWORD(inbuf, TRIGGER_INTERRUPT_IN_INTR_LEVEL, efx->irq_level);
-	(void) efx_mcdi_rpc(efx, MC_CMD_TRIGGER_INTERRUPT,
+	return efx_mcdi_rpc(efx, MC_CMD_TRIGGER_INTERRUPT,
 			    inbuf, sizeof(inbuf), NULL, 0, NULL);
 }
 

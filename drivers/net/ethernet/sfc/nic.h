@@ -746,12 +746,12 @@ static inline void efx_update_diff_stat(u64 *stat, u64 diff)
 
 /* Interrupts */
 int efx_nic_init_interrupt(struct efx_nic *efx);
-void efx_nic_irq_test_start(struct efx_nic *efx);
+int efx_nic_irq_test_start(struct efx_nic *efx);
 void efx_nic_fini_interrupt(struct efx_nic *efx);
 
 /* Falcon/Siena interrupts */
 void efx_farch_irq_enable_master(struct efx_nic *efx);
-void efx_farch_irq_test_generate(struct efx_nic *efx);
+int efx_farch_irq_test_generate(struct efx_nic *efx);
 void efx_farch_irq_disable_master(struct efx_nic *efx);
 irqreturn_t efx_farch_msi_interrupt(int irq, void *dev_id);
 irqreturn_t efx_farch_legacy_interrupt(int irq, void *dev_id);
