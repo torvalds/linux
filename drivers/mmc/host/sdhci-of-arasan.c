@@ -67,10 +67,12 @@ struct sdhci_arasan_soc_ctl_field {
  * accessible via the syscon API.
  *
  * @baseclkfreq:	Where to find corecfg_baseclkfreq
+ * @clockmultiplier:	Where to find corecfg_clockmultiplier
  * @hiword_update:	If true, use HIWORD_UPDATE to access the syscon
  */
 struct sdhci_arasan_soc_ctl_map {
 	struct sdhci_arasan_soc_ctl_field	baseclkfreq;
+	struct sdhci_arasan_soc_ctl_field	clockmultiplier;
 	bool					hiword_update;
 };
 
@@ -100,6 +102,7 @@ struct sdhci_arasan_data {
 
 static const struct sdhci_arasan_soc_ctl_map rk3399_soc_ctl_map = {
 	.baseclkfreq = { .reg = 0xf000, .width = 8, .shift = 8 },
+	.clockmultiplier = { .reg = 0xf02c, .width = 8, .shift = 0},
 	.hiword_update = true,
 };
 
@@ -379,6 +382,45 @@ static const struct clk_ops arasan_sdcardclk_ops = {
 };
 
 /**
+ * sdhci_arasan_update_clockmultiplier - Set corecfg_clockmultiplier
+ *
+ * The corecfg_clockmultiplier is supposed to contain clock multiplier
+ * value of programmable clock generator.
+ *
+ * NOTES:
+ * - Many existing devices don't seem to do this and work fine.  To keep
+ *   compatibility for old hardware where the device tree doesn't provide a
+ *   register map, this function is a noop if a soc_ctl_map hasn't been provided
+ *   for this platform.
+ * - The value of corecfg_clockmultiplier should sync with that of corresponding
+ *   value reading from sdhci_capability_register. So this function is called
+ *   once at probe time and never called again.
+ *
+ * @host:		The sdhci_host
+ */
+static void sdhci_arasan_update_clockmultiplier(struct sdhci_host *host,
+						u32 value)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_arasan_data *sdhci_arasan = sdhci_pltfm_priv(pltfm_host);
+	const struct sdhci_arasan_soc_ctl_map *soc_ctl_map =
+		sdhci_arasan->soc_ctl_map;
+
+	/* Having a map is optional */
+	if (!soc_ctl_map)
+		return;
+
+	/* If we have a map, we expect to have a syscon */
+	if (!sdhci_arasan->soc_ctl_base) {
+		pr_warn("%s: Have regmap, but no soc-ctl-syscon\n",
+			mmc_hostname(host->mmc));
+		return;
+	}
+
+	sdhci_arasan_syscon_write(host, &soc_ctl_map->clockmultiplier, value);
+}
+
+/**
  * sdhci_arasan_update_baseclkfreq - Set corecfg_baseclkfreq
  *
  * The corecfg_baseclkfreq is supposed to contain the MHz of clk_xin.  This
@@ -558,6 +600,10 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 
 	sdhci_get_of_property(pdev);
 	pltfm_host->clk = clk_xin;
+
+	if (of_device_is_compatible(pdev->dev.of_node,
+				    "rockchip,rk3399-sdhci-5.1"))
+		sdhci_arasan_update_clockmultiplier(host, 0x0);
 
 	sdhci_arasan_update_baseclkfreq(host);
 
