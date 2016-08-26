@@ -26,6 +26,7 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 
+#include <linux/clk.h>
 #include "rl6231.h"
 #include "rt5651.h"
 
@@ -920,8 +921,8 @@ static const struct snd_soc_dapm_widget rt5651_dapm_widgets[] = {
 	/* micbias */
 	SND_SOC_DAPM_SUPPLY("LDO", RT5651_PWR_ANLG1,
 			RT5651_PWR_LDO_BIT, 0, NULL, 0),
-	SND_SOC_DAPM_MICBIAS("micbias1", RT5651_PWR_ANLG2,
-			RT5651_PWR_MB1_BIT, 0),
+	SND_SOC_DAPM_SUPPLY("micbias1", RT5651_PWR_ANLG2,
+			RT5651_PWR_MB1_BIT, 0, NULL, 0),
 	/* Input Lines */
 	SND_SOC_DAPM_INPUT("MIC1"),
 	SND_SOC_DAPM_INPUT("MIC2"),
@@ -1144,6 +1145,9 @@ static const struct snd_soc_dapm_route rt5651_dapm_routes[] = {
 	{"IN1P", NULL, "LDO"},
 	{"IN2P", NULL, "LDO"},
 	{"IN3P", NULL, "LDO"},
+	{"BST1", NULL, "micbias1"},
+	{"BST2", NULL, "micbias1"},
+	{"BST3", NULL, "micbias1"},
 
 	{"IN1P", NULL, "MIC1"},
 	{"IN2P", NULL, "MIC2"},
@@ -1569,9 +1573,13 @@ static int rt5651_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 static int rt5651_set_bias_level(struct snd_soc_codec *codec,
 			enum snd_soc_bias_level level)
 {
+	struct rt5651_priv *rt5651 = snd_soc_codec_get_drvdata(codec);
+
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
 		if (SND_SOC_BIAS_STANDBY == snd_soc_codec_get_bias_level(codec)) {
+			if (!IS_ERR(rt5651->mclk))
+				clk_prepare_enable(rt5651->mclk);
 			snd_soc_update_bits(codec, RT5651_PWR_ANLG1,
 				RT5651_PWR_VREF1 | RT5651_PWR_MB |
 				RT5651_PWR_BG | RT5651_PWR_VREF2,
@@ -1599,6 +1607,10 @@ static int rt5651_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_write(codec, RT5651_PWR_MIXER, 0x0000);
 		snd_soc_write(codec, RT5651_PWR_ANLG1, 0x0000);
 		snd_soc_write(codec, RT5651_PWR_ANLG2, 0x0000);
+		if (SND_SOC_BIAS_PREPARE ==
+				snd_soc_codec_get_bias_level(codec))
+			if (!IS_ERR(rt5651->mclk))
+				clk_disable_unprepare(rt5651->mclk);
 		break;
 
 	default:
@@ -1613,6 +1625,9 @@ static int rt5651_probe(struct snd_soc_codec *codec)
 	struct rt5651_priv *rt5651 = snd_soc_codec_get_drvdata(codec);
 
 	rt5651->codec = codec;
+	rt5651->mclk = devm_clk_get(codec->dev, "mclk");
+	if (PTR_ERR(rt5651->mclk) == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
 
 	snd_soc_update_bits(codec, RT5651_PWR_ANLG1,
 		RT5651_PWR_VREF1 | RT5651_PWR_MB |
@@ -1803,9 +1818,15 @@ static int rt5651_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
+static const struct of_device_id rt5651_of_match[] = {
+	{ .compatible = "realtek,rt5651", },
+	{ }
+};
+
 static struct i2c_driver rt5651_i2c_driver = {
 	.driver = {
 		.name = "rt5651",
+		.of_match_table = rt5651_of_match,
 	},
 	.probe = rt5651_i2c_probe,
 	.remove   = rt5651_i2c_remove,
