@@ -8,6 +8,10 @@
 #define netdev_of(x) (container_of(x, struct virtio_net_dev, dev))
 #define BIT(x) (1ULL << x)
 
+/* We always have 2 queues on a netdev: one for tx, one for rx. */
+#define RX_QUEUE_IDX 0
+#define TX_QUEUE_IDX 1
+
 #define NUM_QUEUES (TX_QUEUE_IDX + 1)
 #define QUEUE_DEPTH 128
 
@@ -243,6 +247,13 @@ int lkl_netdev_add(struct lkl_netdev *nd, struct lkl_netdev_args* args)
 
 	if (ret)
 		goto out_free;
+
+	/*
+	 * We may receive upto 64KB TSO packet so collect as many descriptors as
+	 * there are available up to 64KB in total len.
+	 */
+	if (dev->dev.device_features & BIT(LKL_VIRTIO_NET_F_MRG_RXBUF))
+		virtio_set_queue_max_merge_len(&dev->dev, RX_QUEUE_IDX, 65536);
 
 	dev->poll_tid = lkl_host_ops.thread_create(poll_thread, dev);
 	if (dev->poll_tid == 0)

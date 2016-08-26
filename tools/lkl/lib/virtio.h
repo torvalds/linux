@@ -15,10 +15,6 @@
 
 #define VIRTIO_REQ_MAX_BUFS	(MAX_SKB_FRAGS + 2)
 
-/* We always have 2 queues on a netdev: one for tx, one for rx. */
-#define RX_QUEUE_IDX 0
-#define TX_QUEUE_IDX 1
-
 struct virtio_req {
 	struct virtio_dev *dev;
 	struct virtio_queue *q;
@@ -74,6 +70,7 @@ int virtio_dev_setup(struct virtio_dev *dev, int queues, int num_max);
 void virtio_dev_cleanup(struct virtio_dev *dev);
 void virtio_req_complete(struct virtio_req *req, uint32_t len);
 void virtio_process_queue(struct virtio_dev *dev, uint32_t qidx);
+void virtio_set_queue_max_merge_len(struct virtio_dev *dev, int q, int len);
 
 #define container_of(ptr, type, member) \
 	(type *)((char *)(ptr) - __builtin_offsetof(type, member))

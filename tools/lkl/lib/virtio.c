@@ -48,6 +48,7 @@ struct virtio_queue {
 	uint32_t num_max;
 	uint32_t num;
 	uint32_t ready;
+	uint32_t max_merge_len;
 
 	struct lkl_vring_desc *desc;
 	struct lkl_vring_avail *avail;
@@ -277,9 +278,7 @@ void virtio_process_queue(struct virtio_dev *dev, uint32_t qidx)
 	if (dev->ops->acquire_queue)
 		dev->ops->acquire_queue(dev, qidx);
 
-	is_mergeable_rx = ((dev->device_id == LKL_VIRTIO_ID_NET) &&
-	    qidx == RX_QUEUE_IDX &&
-	    (dev->device_features & BIT(LKL_VIRTIO_NET_F_MRG_RXBUF)));
+	is_mergeable_rx = q->max_merge_len > 0;
 
 	while (q->last_avail_idx != le16toh(q->avail->idx)) {
 		/*
@@ -487,6 +486,11 @@ static const struct lkl_iomem_ops virtio_ops = {
 
 char lkl_virtio_devs[256];
 static char *devs = lkl_virtio_devs;
+
+void virtio_set_queue_max_merge_len(struct virtio_dev *dev, int q, int len)
+{
+	dev->queue[q].max_merge_len = len;
+}
 
 int virtio_dev_setup(struct virtio_dev *dev, int queues, int num_max)
 {
