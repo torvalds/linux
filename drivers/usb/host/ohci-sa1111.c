@@ -13,7 +13,6 @@
  * This file is licenced under the GPL.
  */
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/hardware/sa1111.h>
 
