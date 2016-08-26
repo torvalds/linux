@@ -96,8 +96,12 @@ struct gb_operation_msg_hdr {
 
 
 /* Generic request types */
-#define GB_REQUEST_TYPE_PING			0x00
+#define GB_REQUEST_TYPE_CPORT_SHUTDOWN		0x00
 #define GB_REQUEST_TYPE_INVALID			0x7f
+
+struct gb_cport_shutdown_request {
+	__u8 phase;
+} __packed;
 
 
 /* Control Protocol */
