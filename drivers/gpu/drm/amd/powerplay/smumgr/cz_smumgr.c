@@ -144,7 +144,6 @@ static int cz_send_msg_to_smc_with_parameter(struct pp_smumgr *smumgr,
 static int cz_request_smu_load_fw(struct pp_smumgr *smumgr)
 {
 	struct cz_smumgr *cz_smu = (struct cz_smumgr *)(smumgr->backend);
-	int result = 0;
 	uint32_t smc_address;
 
 	if (!smumgr->reload_fw) {
