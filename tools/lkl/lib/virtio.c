@@ -57,6 +57,14 @@ struct virtio_queue {
 	uint16_t last_used_idx_signaled;
 };
 
+struct _virtio_req {
+	struct virtio_req req;
+	struct virtio_dev *dev;
+	struct virtio_queue *q;
+	uint16_t idx;
+};
+
+
 static inline uint16_t virtio_get_used_event(struct virtio_queue *q)
 {
 	return q->avail->ring[q->num];
@@ -107,9 +115,10 @@ static inline void virtio_sync_used_idx(struct virtio_queue *q, uint16_t idx)
 void virtio_req_complete(struct virtio_req *req, uint32_t len)
 {
 	int send_irq = 0;
-	struct virtio_queue *q = req->q;
-	uint16_t avail_idx = req->idx;
-	uint16_t used_idx = virtio_get_used_idx(q);
+	struct _virtio_req *_req = container_of(req, struct _virtio_req, req);
+	struct virtio_queue *q = _req->q;
+	uint16_t avail_idx = _req->idx;
+	uint16_t used_idx = virtio_get_used_idx(_req->q);
 	int i;
 
 	/*
@@ -174,7 +183,7 @@ void virtio_req_complete(struct virtio_req *req, uint32_t len)
 					     virtio_get_used_idx(q),
 					     q->last_used_idx_signaled)) {
 		q->last_used_idx_signaled = virtio_get_used_idx(q);
-		virtio_deliver_irq(req->dev);
+		virtio_deliver_irq(_req->dev);
 	}
 }
 
@@ -247,24 +256,25 @@ static int virtio_process_one(struct virtio_dev *dev, int qidx)
 {
 	struct virtio_queue *q = &dev->queue[qidx];
 	uint16_t idx = q->last_avail_idx;
-	struct virtio_req req = {
+	struct _virtio_req _req = {
 		.dev = dev,
 		.q = q,
 		.idx = idx,
 	};
-	struct lkl_vring_desc *desc = vring_desc_at_avail_idx(q, req.idx);
+	struct virtio_req *req = &_req.req;
+	struct lkl_vring_desc *desc = vring_desc_at_avail_idx(q, _req.idx);
 
 	do {
-		add_dev_buf_from_vring_desc(&req, desc);
-		if (q->max_merge_len && req.total_len > q->max_merge_len)
+		add_dev_buf_from_vring_desc(req, desc);
+		if (q->max_merge_len && req->total_len > q->max_merge_len)
 			break;
 		desc = get_next_desc(q, desc, &idx);
-	} while (desc && req.buf_count < VIRTIO_REQ_MAX_BUFS);
+	} while (desc && req->buf_count < VIRTIO_REQ_MAX_BUFS);
 
 	if (desc && le16toh(desc->flags) & LKL_VRING_DESC_F_NEXT)
 		virtio_panic("too many chained bufs");
 
-	return dev->ops->enqueue(dev, qidx, &req);
+	return dev->ops->enqueue(dev, qidx, req);
 }
 
 /* NB: we can enter this function two different ways in the case of

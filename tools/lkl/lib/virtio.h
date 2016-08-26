@@ -16,9 +16,6 @@
 #define VIRTIO_REQ_MAX_BUFS	(MAX_SKB_FRAGS + 2)
 
 struct virtio_req {
-	struct virtio_dev *dev;
-	struct virtio_queue *q;
-	uint16_t idx;
 	uint16_t buf_count;
 	struct lkl_dev_buf buf[VIRTIO_REQ_MAX_BUFS];
 	uint32_t total_len;
