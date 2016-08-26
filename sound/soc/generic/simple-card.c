@@ -222,7 +222,6 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 	char prop[128];
 	char *prefix = "";
 	int ret, single_cpu;
-	u32 val;
 
 	/* For single DAI link & old style of DT node */
 	if (is_top_level_node)
@@ -248,8 +247,7 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 	if (ret < 0)
 		goto dai_link_of_err;
 
-	if (!of_property_read_u32(node, "mclk-fs", &val))
-		dai_props->mclk_fs = val;
+	of_property_read_u32(node, "mclk-fs", &dai_props->mclk_fs);
 
 	ret = asoc_simple_card_parse_cpu(cpu, dai_link,
 					 DAI, CELL, &single_cpu);
@@ -323,7 +321,6 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 {
 	struct device *dev = simple_priv_to_dev(priv);
 	struct device_node *dai_link;
-	u32 val;
 	int ret;
 
 	if (!node)
@@ -348,9 +345,7 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 	}
 
 	/* Factor to mclk, used in hw_params() */
-	ret = of_property_read_u32(node, PREFIX "mclk-fs", &val);
-	if (ret == 0)
-		priv->mclk_fs = val;
+	of_property_read_u32(node, PREFIX "mclk-fs", &priv->mclk_fs);
 
 	/* Single/Muti DAI link(s) & New style of DT node */
 	if (dai_link) {
