@@ -37,7 +37,7 @@ struct simple_card_data {
 	unsigned int mclk_fs;
 	struct asoc_simple_jack hp_jack;
 	struct asoc_simple_jack mic_jack;
-	struct snd_soc_dai_link dai_link[];	/* dynamically allocated */
+	struct snd_soc_dai_link *dai_link;
 };
 
 #define simple_priv_to_dev(priv) ((priv)->snd_card.dev)
@@ -383,6 +383,7 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 {
 	struct simple_card_data *priv;
 	struct snd_soc_dai_link *dai_link;
+	struct simple_dai_props *dai_props;
 	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	int num, ret;
@@ -394,25 +395,23 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 		num = 1;
 
 	/* Allocate the private data and the DAI link array */
-	priv = devm_kzalloc(dev,
-			sizeof(*priv) + sizeof(*dai_link) * num,
-			GFP_KERNEL);
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
+	dai_props = devm_kzalloc(dev, sizeof(*dai_props) * num, GFP_KERNEL);
+	dai_link  = devm_kzalloc(dev, sizeof(*dai_link)  * num, GFP_KERNEL);
+	if (!dai_props || !dai_link)
+		return -ENOMEM;
+
+	priv->dai_props			= dai_props;
+	priv->dai_link			= dai_link;
+
 	/* Init snd_soc_card */
-	dai_link = priv->dai_link;
 	priv->snd_card.owner		= THIS_MODULE;
 	priv->snd_card.dev		= dev;
 	priv->snd_card.dai_link		= priv->dai_link;
 	priv->snd_card.num_links	= num;
-
-	/* Get room for the other properties */
-	priv->dai_props = devm_kzalloc(dev,
-			sizeof(*priv->dai_props) * num,
-			GFP_KERNEL);
-	if (!priv->dai_props)
-		return -ENOMEM;
 
 	if (np && of_device_is_available(np)) {
 
