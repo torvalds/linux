@@ -58,27 +58,37 @@ struct amd768_priv {
 	u32 pmbase;
 };
 
-static int amd_rng_data_present(struct hwrng *rng, int wait)
+static int amd_rng_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 {
+	u32 *data = buf;
 	struct amd768_priv *priv = (struct amd768_priv *)rng->priv;
-	int data, i;
+	size_t read = 0;
+	/* We will wait at maximum one time per read */
+	int timeout = max / 4 + 1;
 
-	for (i = 0; i < 20; i++) {
-		data = !!(ioread32(priv->iobase + RNGDONE) & 1);
-		if (data || !wait)
-			break;
-		udelay(10);
+	/*
+	 * RNG data is available when RNGDONE is set to 1
+	 * New random numbers are generated approximately 128 microseconds
+	 * after RNGDATA is read
+	 */
+	while (read < max) {
+		if (ioread32(priv->iobase + RNGDONE) == 0) {
+			if (wait) {
+				/* Delay given by datasheet */
+				usleep_range(128, 196);
+				if (timeout-- == 0)
+					return read;
+			} else {
+				return 0;
+			}
+		} else {
+			*data = ioread32(priv->iobase + RNGDATA);
+			data++;
+			read += 4;
+		}
 	}
-	return data;
-}
 
-static int amd_rng_data_read(struct hwrng *rng, u32 *data)
-{
-	struct amd768_priv *priv = (struct amd768_priv *)rng->priv;
-
-	*data = ioread32(priv->iobase + RNGDATA);
-
-	return 4;
+	return read;
 }
 
 static int amd_rng_init(struct hwrng *rng)
@@ -111,8 +121,7 @@ static struct hwrng amd_rng = {
 	.name		= "amd",
 	.init		= amd_rng_init,
 	.cleanup	= amd_rng_cleanup,
-	.data_present	= amd_rng_data_present,
-	.data_read	= amd_rng_data_read,
+	.read		= amd_rng_read,
 };
 
 static int __init mod_init(void)
