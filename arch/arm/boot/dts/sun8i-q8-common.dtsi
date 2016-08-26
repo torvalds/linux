@@ -42,8 +42,57 @@
 #include "sunxi-reference-design-tablet.dtsi"
 #include "sun8i-reference-design-tablet.dtsi"
 
+/ {
+	aliases {
+		serial0 = &r_uart;
+		/* Make u-boot set mac-address for wifi without an eeprom */
+		ethernet0 = &sdio_wifi;
+	};
+
+	wifi_pwrseq: wifi_pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		/*
+		 * Q8 boards use various PL# pins as wifi-en. On other boards
+		 * these may be connected to a wifi module output pin. To avoid
+		 * short-circuits we configure these as inputs with pull-ups via
+		 * pinctrl, instead of listing them as active-low reset-gpios.
+		 */
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_pwrseq_pin_q8>;
+		/* The esp8089 needs 200 ms after driving wifi-en high */
+		post-power-on-delay-ms = <200>;
+	};
+};
+
 &ehci0 {
 	status  = "okay";
+};
+
+&mmc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins_a>;
+	vmmc-supply = <&reg_dldo1>;
+	mmc-pwrseq = <&wifi_pwrseq>;
+	bus-width = <4>;
+	non-removable;
+	status = "okay";
+
+	sdio_wifi: sdio_wifi@1 {
+		reg = <1>;
+	};
+};
+
+&mmc1_pins_a {
+	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+};
+
+&r_pio {
+	wifi_pwrseq_pin_q8: wifi_pwrseq_pin@0 {
+		allwinner,pins = "PL6", "PL7", "PL11";
+		allwinner,function = "gpio_in";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+	};
 };
 
 &usbphy {
