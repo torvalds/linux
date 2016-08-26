@@ -254,6 +254,26 @@ out:
 	return err;
 }
 
+static bool tipc_udp_is_known_peer(struct tipc_bearer *b,
+				   struct udp_media_addr *addr)
+{
+	struct udp_replicast *rcast, *tmp;
+	struct udp_bearer *ub;
+
+	ub = rcu_dereference_rtnl(b->media_ptr);
+	if (!ub) {
+		pr_err_ratelimited("UDP bearer instance not found\n");
+		return false;
+	}
+
+	list_for_each_entry_safe(rcast, tmp, &ub->rcast.list, list) {
+		if (!memcmp(&rcast->addr, addr, sizeof(struct udp_media_addr)))
+			return true;
+	}
+
+	return false;
+}
+
 static int tipc_udp_rcast_add(struct tipc_bearer *b,
 			      struct udp_media_addr *addr)
 {
@@ -281,29 +301,83 @@ static int tipc_udp_rcast_add(struct tipc_bearer *b,
 	return 0;
 }
 
+static int tipc_udp_rcast_disc(struct tipc_bearer *b, struct sk_buff *skb)
+{
+	struct udp_media_addr src = {0};
+	struct udp_media_addr *dst;
+
+	dst = (struct udp_media_addr *)&b->bcast_addr.value;
+	if (tipc_udp_is_mcast_addr(dst))
+		return 0;
+
+	src.port = udp_hdr(skb)->source;
+
+	if (ip_hdr(skb)->version == 4) {
+		struct iphdr *iphdr = ip_hdr(skb);
+
+		src.proto = htons(ETH_P_IP);
+		src.ipv4.s_addr = iphdr->saddr;
+		if (ipv4_is_multicast(iphdr->daddr))
+			return 0;
+#if IS_ENABLED(CONFIG_IPV6)
+	} else if (ip_hdr(skb)->version == 6) {
+		struct ipv6hdr *iphdr = ipv6_hdr(skb);
+
+		src.proto = htons(ETH_P_IPV6);
+		src.ipv6 = iphdr->saddr;
+		if (ipv6_addr_is_multicast(&iphdr->daddr))
+			return 0;
+#endif
+	} else {
+		return 0;
+	}
+
+	if (likely(tipc_udp_is_known_peer(b, &src)))
+		return 0;
+
+	return tipc_udp_rcast_add(b, &src);
+}
+
 /* tipc_udp_recv - read data from bearer socket */
 static int tipc_udp_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct udp_bearer *ub;
 	struct tipc_bearer *b;
+	struct tipc_msg *hdr;
+	int err;
 
 	ub = rcu_dereference_sk_user_data(sk);
 	if (!ub) {
 		pr_err_ratelimited("Failed to get UDP bearer reference");
-		kfree_skb(skb);
-		return 0;
+		goto out;
 	}
-
 	skb_pull(skb, sizeof(struct udphdr));
+	hdr = buf_msg(skb);
+
 	rcu_read_lock();
 	b = rcu_dereference_rtnl(ub->bearer);
+	if (!b)
+		goto rcu_out;
 
 	if (b && test_bit(0, &b->up)) {
 		tipc_rcv(sock_net(sk), skb, b);
 		rcu_read_unlock();
 		return 0;
 	}
+
+	if (unlikely(msg_user(hdr) == LINK_CONFIG)) {
+		err = tipc_udp_rcast_disc(b, skb);
+		if (err)
+			goto rcu_out;
+	}
+
+	tipc_rcv(sock_net(sk), skb, b);
 	rcu_read_unlock();
+	return 0;
+
+rcu_out:
+	rcu_read_unlock();
+out:
 	kfree_skb(skb);
 	return 0;
 }
@@ -397,6 +471,9 @@ int tipc_udp_nl_bearer_add(struct tipc_bearer *b, struct nlattr *attr)
 		pr_err("Can't add remote ip to TIPC UDP multicast bearer\n");
 		return -EINVAL;
 	}
+
+	if (tipc_udp_is_known_peer(b, &addr))
+		return 0;
 
 	return tipc_udp_rcast_add(b, &addr);
 }
