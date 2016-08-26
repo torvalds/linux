@@ -315,8 +315,10 @@ static int rtw_resume_process(struct adapter *padapter)
 
 	ret = 0;
 exit:
-	if (pwrpriv)
+	if (pwrpriv) {
 		pwrpriv->bInSuspend = false;
+		mutex_unlock(&pwrpriv->mutex_lock);
+	}
 	pr_debug("<===  %s return %d.............. in %dms\n", __func__,
 		ret, jiffies_to_msecs(jiffies - start_time));
 
