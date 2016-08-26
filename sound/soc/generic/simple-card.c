@@ -401,11 +401,11 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	/* Init snd_soc_card */
-	priv->snd_card.owner = THIS_MODULE;
-	priv->snd_card.dev = dev;
 	dai_link = priv->dai_link;
-	priv->snd_card.dai_link = dai_link;
-	priv->snd_card.num_links = num_links;
+	priv->snd_card.owner		= THIS_MODULE;
+	priv->snd_card.dev		= dev;
+	priv->snd_card.dai_link		= priv->dai_link;
+	priv->snd_card.num_links	= num_links;
 
 	/* Get room for the other properties */
 	priv->dai_props = devm_kzalloc(dev,
