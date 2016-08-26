@@ -26,6 +26,8 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/log2.h>
+#include <linux/of.h>
+#include <linux/of_net.h>
 
 #include "rt2x00.h"
 #include "rt2x00lib.h"
@@ -930,6 +932,21 @@ static void rt2x00lib_rate(struct ieee80211_rate *entry,
 	if (rate->flags & DEV_RATE_SHORT_PREAMBLE)
 		entry->flags |= IEEE80211_RATE_SHORT_PREAMBLE;
 }
+
+void rt2x00lib_set_mac_address(struct rt2x00_dev *rt2x00dev, u8 *eeprom_mac_addr)
+{
+	const char *mac_addr;
+
+	mac_addr = of_get_mac_address(rt2x00dev->dev->of_node);
+	if (mac_addr)
+		ether_addr_copy(eeprom_mac_addr, mac_addr);
+
+	if (!is_valid_ether_addr(eeprom_mac_addr)) {
+		eth_random_addr(eeprom_mac_addr);
+		rt2x00_eeprom_dbg(rt2x00dev, "MAC: %pM\n", eeprom_mac_addr);
+	}
+}
+EXPORT_SYMBOL_GPL(rt2x00lib_set_mac_address);
 
 static int rt2x00lib_probe_hw_modes(struct rt2x00_dev *rt2x00dev,
 				    struct hw_mode_spec *spec)
