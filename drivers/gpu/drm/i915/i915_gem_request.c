@@ -766,6 +766,7 @@ static bool engine_retire_requests(struct intel_engine_cs *engine)
 void i915_gem_retire_requests(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
+	unsigned int tmp;
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
@@ -774,7 +775,7 @@ void i915_gem_retire_requests(struct drm_i915_private *dev_priv)
 
 	GEM_BUG_ON(!dev_priv->gt.awake);
 
-	for_each_engine_masked(engine, dev_priv, dev_priv->gt.active_engines)
+	for_each_engine_masked(engine, dev_priv, dev_priv->gt.active_engines, tmp)
 		if (engine_retire_requests(engine))
 			dev_priv->gt.active_engines &= ~intel_engine_flag(engine);
 

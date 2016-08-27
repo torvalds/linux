@@ -1597,8 +1597,10 @@ static int gen6_reset_engines(struct drm_i915_private *dev_priv,
 	if (engine_mask == ALL_ENGINES) {
 		hw_mask = GEN6_GRDOM_FULL;
 	} else {
+		unsigned int tmp;
+
 		hw_mask = 0;
-		for_each_engine_masked(engine, dev_priv, engine_mask)
+		for_each_engine_masked(engine, dev_priv, engine_mask, tmp)
 			hw_mask |= hw_engine_mask[engine->id];
 	}
 
@@ -1714,15 +1716,16 @@ static int gen8_reset_engines(struct drm_i915_private *dev_priv,
 			      unsigned engine_mask)
 {
 	struct intel_engine_cs *engine;
+	unsigned int tmp;
 
-	for_each_engine_masked(engine, dev_priv, engine_mask)
+	for_each_engine_masked(engine, dev_priv, engine_mask, tmp)
 		if (gen8_request_engine_reset(engine))
 			goto not_ready;
 
 	return gen6_reset_engines(dev_priv, engine_mask);
 
 not_ready:
-	for_each_engine_masked(engine, dev_priv, engine_mask)
+	for_each_engine_masked(engine, dev_priv, engine_mask, tmp)
 		gen8_unrequest_engine_reset(engine);
 
 	return -EIO;
