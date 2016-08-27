@@ -42,6 +42,7 @@
 #include "monitor.h"
 #include "bcast.h"
 #include "netlink.h"
+#include "udp_media.h"
 
 #define MAX_ADDR_STR 60
 
@@ -711,6 +712,14 @@ static int __tipc_nl_add_bearer(struct tipc_nl_msg *msg,
 		goto prop_msg_full;
 
 	nla_nest_end(msg->skb, prop);
+
+#ifdef CONFIG_TIPC_MEDIA_UDP
+	if (bearer->media->type_id == TIPC_MEDIA_TYPE_UDP) {
+		if (tipc_udp_nl_add_bearer_data(msg, bearer))
+			goto attr_msg_full;
+	}
+#endif
+
 	nla_nest_end(msg->skb, attrs);
 	genlmsg_end(msg->skb, hdr);
 
@@ -892,6 +901,49 @@ int tipc_nl_bearer_enable(struct sk_buff *skb, struct genl_info *info)
 		rtnl_unlock();
 		return err;
 	}
+	rtnl_unlock();
+
+	return 0;
+}
+
+int tipc_nl_bearer_add(struct sk_buff *skb, struct genl_info *info)
+{
+	int err;
+	char *name;
+	struct tipc_bearer *b;
+	struct nlattr *attrs[TIPC_NLA_BEARER_MAX + 1];
+	struct net *net = sock_net(skb->sk);
+
+	if (!info->attrs[TIPC_NLA_BEARER])
+		return -EINVAL;
+
+	err = nla_parse_nested(attrs, TIPC_NLA_BEARER_MAX,
+			       info->attrs[TIPC_NLA_BEARER],
+			       tipc_nl_bearer_policy);
+	if (err)
+		return err;
+
+	if (!attrs[TIPC_NLA_BEARER_NAME])
+		return -EINVAL;
+	name = nla_data(attrs[TIPC_NLA_BEARER_NAME]);
+
+	rtnl_lock();
+	b = tipc_bearer_find(net, name);
+	if (!b) {
+		rtnl_unlock();
+		return -EINVAL;
+	}
+
+#ifdef CONFIG_TIPC_MEDIA_UDP
+	if (attrs[TIPC_NLA_BEARER_UDP_OPTS]) {
+		err = tipc_udp_nl_bearer_add(b,
+					     attrs[TIPC_NLA_BEARER_UDP_OPTS]);
+		if (err) {
+			rtnl_unlock();
+			return err;
+		}
+	}
+#endif
 	rtnl_unlock();
 
 	return 0;
