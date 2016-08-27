@@ -409,7 +409,7 @@ static int sx865x_dt_probe(struct i2c_client *client, struct sx865x *ts)
 		}
 		ts->gpio_reset = amlogic_gpio_name_map_num(str);
 
-		err = amlogic_gpio_request_one(ts->gpio_reset, GPIOF_INIT_LOW,
+		err = amlogic_gpio_request_one(ts->gpio_reset, GPIOF_OUT_INIT_LOW,
 						"ts-reset");
 		if (err) {
 			dev_err(&client->dev,
@@ -572,7 +572,7 @@ err_free_irq:
 	if (ts->gpio_pendown)
 		gpio_free(ts->gpio_pendown);
 	if (ts->gpio_reset)
-		gpio_free(ts->gpio_pendown);
+		gpio_free(ts->gpio_reset);
 #if defined(CONFIG_MACH_MESON8B_ODROIDC)
 	sx865x_irq_free(client, ts);
 #else
@@ -592,7 +592,7 @@ static int sx865x_remove(struct i2c_client *client)
 	if (ts->gpio_pendown)
 		gpio_free(ts->gpio_pendown);
 	if (ts->gpio_reset)
-		gpio_free(ts->gpio_pendown);
+		gpio_free(ts->gpio_reset);
 #if defined(CONFIG_MACH_MESON8B_ODROIDC)
 	sx865x_irq_free(client, ts);
 #else

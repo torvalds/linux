@@ -298,6 +298,7 @@ EXPORT_SYMBOL(fbtft_write_gpio16_wr_latched);
  * Optimized use of gpiolib is twice as fast as no optimization
  * only one driver can use the optimized version at a time
  */
+
 int fbtft_write_gpio8_wr(struct fbtft_par *par, void *buf, size_t len)
 {
 	u8 data;
@@ -346,6 +347,7 @@ int fbtft_write_gpio8_wr(struct fbtft_par *par, void *buf, size_t len)
 
 	return 0;
 }
+
 EXPORT_SYMBOL(fbtft_write_gpio8_wr);
 
 int fbtft_write_gpio16_wr(struct fbtft_par *par, void *buf, size_t len)
@@ -405,5 +407,71 @@ int fbtft_write_gpio16_wr_latched(struct fbtft_par *par, void *buf, size_t len)
 	return -1;
 }
 EXPORT_SYMBOL(fbtft_write_gpio16_wr_latched);
+
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+
+union	reg_bitfield {
+	unsigned int	wvalue;
+	struct {
+		/* GPIOX.0 - GPIOX.4 */
+		unsigned int	bit0_bit4 : 5;
+		unsigned int	db00 : 1;	/* GPIOX.5 */
+		unsigned int	db01 : 1;	/* GPIOX.6 */
+		unsigned int	db02 : 1;	/* GPIOX.7 */
+		unsigned int	db03 : 1;	/* GPIOX.8 */
+		unsigned int	db04 : 1;	/* GPIOX.9 */
+		unsigned int	db05 : 1;	/* GPIOX.10 */
+
+		/* GPIOX.11 - GPIOX.17 */
+		unsigned int	bit11_bit_17 : 7;
+		unsigned int	db06 : 1;	/* GPIOX.18 */
+		unsigned int	db07 : 1;	/* GPIOX.19 */
+		unsigned int	wr : 1;		/* GPIOX.20 */
+
+		/* GPIOX.21 - GPIOX.31 */
+		unsigned int	bit21_bit31 : 11;
+	} bits;
+};
+
+int fbtft_write_reg_wr(struct fbtft_par *par, void *buf, size_t len)
+{
+	u8 	data;
+	union	reg_bitfield	dbus;
+
+	fbtft_par_dbg_hex(DEBUG_WRITE, par, par->info->device, u8, buf, len,
+		"%s(len=%d): ", __func__, len);
+
+	if (par->reg_gpiox == NULL) {
+		pr_err("%s : ioremap gpio register fail!\n", __func__);
+		return	0;
+	}
+
+	dbus.wvalue = ioread32(par->reg_gpiox + OFFSET_GPIOX_IN);
+
+	while (len--) {
+		data = *(u8 *) buf;
+		dbus.bits.db00 = (data & 0x01) ? 1 : 0;
+		dbus.bits.db01 = (data & 0x02) ? 1 : 0;
+		dbus.bits.db02 = (data & 0x04) ? 1 : 0;
+		dbus.bits.db03 = (data & 0x08) ? 1 : 0;
+		dbus.bits.db04 = (data & 0x10) ? 1 : 0;
+		dbus.bits.db05 = (data & 0x20) ? 1 : 0;
+		dbus.bits.db06 = (data & 0x40) ? 1 : 0;
+		dbus.bits.db07 = (data & 0x80) ? 1 : 0;
+		/* Start writing by pulling down /WR */
+		dbus.bits.wr = 0;
+		iowrite32(dbus.wvalue, par->reg_gpiox + OFFSET_GPIOX_OUT);
+		dbus.bits.wr = 1;
+		iowrite32(dbus.wvalue, par->reg_gpiox + OFFSET_GPIOX_OUT);
+
+		buf++;
+	}
+
+	return 0;
+}
+
+EXPORT_SYMBOL(fbtft_write_reg_wr);
+
+#endif /* #if defined(CONFIG_MACH_MESON8B_ODROIDC) */
 
 #endif /* CONFIG_ARCH_BCM2708 */
