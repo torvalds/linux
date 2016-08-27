@@ -2574,8 +2574,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	nodelayacct	[KNL] Disable per-task delay accounting
 
-	nodisconnect	[HW,SCSI,M68K] Disables SCSI disconnects.
-
 	nodsp		[SH] Disable hardware DSP at boot time.
 
 	noefi		Disable EFI runtime services support.
