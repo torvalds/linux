@@ -113,7 +113,9 @@ actcapi_chkhdr(act2000_card *card, actcapi_msghdr *hdr)
 			m->hdr.cmd.cmd = c;			\
 			m->hdr.cmd.subcmd = s;			\
 			m->hdr.msgnum = actcapi_nextsmsg(card); \
-		} else m = NULL;				\
+		} else {					\
+			m = NULL;				\
+		}						\
 	}
 
 #define ACTCAPI_CHKSKB if (!skb) {					\
@@ -989,7 +991,8 @@ actcapi_debug_dlpd(actcapi_dlpd *dlpd)
 }
 
 #ifdef DEBUG_DUMP_SKB
-static void dump_skb(struct sk_buff *skb) {
+static void dump_skb(struct sk_buff *skb)
+{
 	char tmp[80];
 	char *p = skb->data;
 	char *t = tmp;
