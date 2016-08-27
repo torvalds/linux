@@ -898,8 +898,7 @@
 			resets = <&apbs_rst 0>;
 			gpio-controller;
 			interrupt-controller;
-			#address-cells = <1>;
-			#size-cells = <0>;
+			#interrupt-cells = <3>;
 			#gpio-cells = <3>;
 
 			r_ir_pins: r_ir {
