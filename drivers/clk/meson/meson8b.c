@@ -113,17 +113,17 @@ static struct clk_fixed_rate meson8b_xtal = {
 
 static struct meson_clk_pll meson8b_fixed_pll = {
 	.m = {
-		.reg_off = MESON8B_REG_PLL_FIXED,
+		.reg_off = HHI_MPLL_CNTL,
 		.shift   = 0,
 		.width   = 9,
 	},
 	.n = {
-		.reg_off = MESON8B_REG_PLL_FIXED,
+		.reg_off = HHI_MPLL_CNTL,
 		.shift   = 9,
 		.width   = 5,
 	},
 	.od = {
-		.reg_off = MESON8B_REG_PLL_FIXED,
+		.reg_off = HHI_MPLL_CNTL,
 		.shift   = 16,
 		.width   = 2,
 	},
@@ -139,17 +139,17 @@ static struct meson_clk_pll meson8b_fixed_pll = {
 
 static struct meson_clk_pll meson8b_vid_pll = {
 	.m = {
-		.reg_off = MESON8B_REG_PLL_VID,
+		.reg_off = HHI_VID_PLL_CNTL,
 		.shift   = 0,
 		.width   = 9,
 	},
 	.n = {
-		.reg_off = MESON8B_REG_PLL_VID,
+		.reg_off = HHI_VID_PLL_CNTL,
 		.shift   = 9,
 		.width   = 5,
 	},
 	.od = {
-		.reg_off = MESON8B_REG_PLL_VID,
+		.reg_off = HHI_VID_PLL_CNTL,
 		.shift   = 16,
 		.width   = 2,
 	},
@@ -165,17 +165,17 @@ static struct meson_clk_pll meson8b_vid_pll = {
 
 static struct meson_clk_pll meson8b_sys_pll = {
 	.m = {
-		.reg_off = MESON8B_REG_PLL_SYS,
+		.reg_off = HHI_SYS_PLL_CNTL,
 		.shift   = 0,
 		.width   = 9,
 	},
 	.n = {
-		.reg_off = MESON8B_REG_PLL_SYS,
+		.reg_off = HHI_SYS_PLL_CNTL,
 		.shift   = 9,
 		.width   = 5,
 	},
 	.od = {
-		.reg_off = MESON8B_REG_PLL_SYS,
+		.reg_off = HHI_SYS_PLL_CNTL,
 		.shift   = 16,
 		.width   = 2,
 	},
@@ -252,7 +252,7 @@ static struct clk_fixed_factor meson8b_fclk_div7 = {
  * forthcoming coordinated clock rates feature
  */
 static struct meson_clk_cpu meson8b_cpu_clk = {
-	.reg_off = MESON8B_REG_SYS_CPU_CNTL1,
+	.reg_off = HHI_SYS_CPU_CLK_CNTL1,
 	.div_table = cpu_div_table,
 	.clk_nb.notifier_call = meson_clk_cpu_notifier_cb,
 	.hw.init = &(struct clk_init_data){
@@ -266,7 +266,7 @@ static struct meson_clk_cpu meson8b_cpu_clk = {
 static u32 mux_table_clk81[]	= { 6, 5, 7 };
 
 struct clk_mux meson8b_mpeg_clk_sel = {
-	.reg = (void *)MESON8B_REG_HHI_MPEG,
+	.reg = (void *)HHI_MPEG_CLK_CNTL,
 	.mask = 0x7,
 	.shift = 12,
 	.flags = CLK_MUX_READ_ONLY,
@@ -288,7 +288,7 @@ struct clk_mux meson8b_mpeg_clk_sel = {
 };
 
 struct clk_divider meson8b_mpeg_clk_div = {
-	.reg = (void *)MESON8B_REG_HHI_MPEG,
+	.reg = (void *)HHI_MPEG_CLK_CNTL,
 	.shift = 0,
 	.width = 7,
 	.lock = &clk_lock,
@@ -302,7 +302,7 @@ struct clk_divider meson8b_mpeg_clk_div = {
 };
 
 struct clk_gate meson8b_clk81 = {
-	.reg = (void *)MESON8B_REG_HHI_MPEG,
+	.reg = (void *)HHI_MPEG_CLK_CNTL,
 	.bit_idx = 7,
 	.lock = &clk_lock,
 	.hw.init = &(struct clk_init_data){

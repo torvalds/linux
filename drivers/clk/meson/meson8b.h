@@ -30,11 +30,10 @@
  *
  * [0] http://dn.odroid.com/S805/Datasheet/S805_Datasheet%20V0.8%2020150126.pdf
  */
-#define MESON8B_REG_SYS_CPU_CNTL1	0x015c /* 0x57 offset in data sheet */
-#define MESON8B_REG_HHI_MPEG		0x0174 /* 0x5d offset in data sheet */
-#define MESON8B_REG_MALI		0x01b0 /* 0x6c offset in data sheet */
-#define MESON8B_REG_PLL_FIXED		0x0280
-#define MESON8B_REG_PLL_SYS		0x0300
-#define MESON8B_REG_PLL_VID		0x0320
+#define HHI_SYS_CPU_CLK_CNTL1		0x15c /* 0x57 offset in data sheet */
+#define HHI_MPEG_CLK_CNTL		0x174 /* 0x5d offset in data sheet */
+#define HHI_MPLL_CNTL			0x280 /* 0xa0 offset in data sheet */
+#define HHI_SYS_PLL_CNTL		0x300 /* 0xc0 offset in data sheet */
+#define HHI_VID_PLL_CNTL		0x320 /* 0xc8 offset in data sheet */
 
 #endif /* __MESON8B_H */
