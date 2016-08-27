@@ -41,20 +41,14 @@ struct lkl_netdev_fd {
 	int pipe[2];
 };
 
-/* The following tx() and rx() code assume struct lkl_dev_buf matches
- * sruct iovec so we can safely cast iov to (struct iovec *). (If
- * BUILD_BUG_ON() were supported in LKL, I would have added
- *
- * "BUILD_BUG_ON(sizeof(struct lkl_dev_buf) == sizeof(struct iovec));"
- */
-static int fd_net_tx(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt)
+static int fd_net_tx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
 {
 	int ret;
 	struct lkl_netdev_fd *nd_fd =
 		container_of(nd, struct lkl_netdev_fd, dev);
 
 	do {
-		ret = writev(nd_fd->fd, (struct iovec *)iov, cnt);
+		ret = writev(nd_fd->fd, iov, cnt);
 	} while (ret == -1 && errno == EINTR);
 
 	if (ret < 0) {
@@ -71,7 +65,7 @@ static int fd_net_tx(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt)
 	return ret;
 }
 
-static int fd_net_rx(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt)
+static int fd_net_rx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
 {
 	int ret;
 	struct lkl_netdev_fd *nd_fd =

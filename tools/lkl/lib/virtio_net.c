@@ -63,10 +63,10 @@ static int net_enqueue(struct virtio_dev *dev, int q, struct virtio_req *req)
 {
 	struct lkl_virtio_net_hdr_v1 *header;
 	struct virtio_net_dev *net_dev;
-	struct lkl_dev_buf *iov;
+	struct iovec *iov;
 	int ret;
 
-	header = req->buf[0].addr;
+	header = req->buf[0].iov_base;
 	net_dev = netdev_of(dev);
 	/*
 	 * The backend device does not expect a vnet_hdr so adjust buf
@@ -76,8 +76,8 @@ static int net_enqueue(struct virtio_dev *dev, int q, struct virtio_req *req)
 	 * will skip to the next entry correctly.
 	 */
 	if (!net_dev->nd->has_vnet_hdr) {
-		req->buf[0].addr += sizeof(*header);
-		req->buf[0].len -= sizeof(*header);
+		req->buf[0].iov_base += sizeof(*header);
+		req->buf[0].iov_len -= sizeof(*header);
 	}
 	iov = req->buf;
 
@@ -113,7 +113,7 @@ static int net_enqueue(struct virtio_dev *dev, int q, struct virtio_req *req)
 		 * through "num_buffers".
 		 */
 		for (i = 0, len = ret; len > 0; i++)
-			len -= req->buf[i].len;
+			len -= req->buf[i].iov_len;
 		header->num_buffers = i;
 
 		if (dev->device_features & BIT(LKL_VIRTIO_NET_F_GUEST_CSUM))
@@ -124,8 +124,8 @@ static int net_enqueue(struct virtio_dev *dev, int q, struct virtio_req *req)
 	}
 	if (!net_dev->nd->has_vnet_hdr) {
 		/* Undo the adjustment */
-		req->buf[0].addr -= sizeof(*header);
-		req->buf[0].len += sizeof(*header);
+		req->buf[0].iov_base -= sizeof(*header);
+		req->buf[0].iov_len += sizeof(*header);
 		ret += sizeof(struct lkl_virtio_net_hdr_v1);
 	}
 	virtio_req_complete(req, ret);

@@ -33,18 +33,18 @@ static int blk_enqueue(struct virtio_dev *dev, int q, struct virtio_req *req)
 		goto out;
 	}
 
-	h = req->buf[0].addr;
-	t = req->buf[req->buf_count - 1].addr;
+	h = req->buf[0].iov_base;
+	t = req->buf[req->buf_count - 1].iov_base;
 	blk_dev = container_of(dev, struct virtio_blk_dev, dev);
 
 	t->status = LKL_DEV_BLK_STATUS_IOERR;
 
-	if (req->buf[0].len != sizeof(*h)) {
+	if (req->buf[0].iov_len != sizeof(*h)) {
 		lkl_printf("virtio_blk: bad header buf\n");
 		goto out;
 	}
 
-	if (req->buf[req->buf_count - 1].len != sizeof(*t)) {
+	if (req->buf[req->buf_count - 1].iov_len != sizeof(*t)) {
 		lkl_printf("virtio_blk: bad status buf\n");
 		goto out;
 	}

@@ -61,13 +61,13 @@ struct lkl_netdev_dpdk {
 	int close;
 };
 
-static int net_tx(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt)
+static int net_tx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
 {
 	void *pkt;
 	struct rte_mbuf *rm;
 	struct lkl_netdev_dpdk *nd_dpdk;
-	void *data = iov[0].addr;
-	int len = (int)iov[0].len;
+	void *data = iov[0].iov_base;
+	int len = (int)iov[0].iov_len;
 
 	nd_dpdk = (struct lkl_netdev_dpdk *) nd;
 
@@ -95,12 +95,12 @@ static int net_tx(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt)
  * refactor allows us to read in parallel, the buffer (nd_dpdk->rms) shall
  * be guarded.
  */
-static int net_rx(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt)
+static int net_rx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
 {
 	struct lkl_netdev_dpdk *nd_dpdk;
 	int i, nb_rx, read = 0;
-	void *data = iov[0].addr;
-	int len = (int)iov[0].len;
+	void *data = iov[0].iov_base;
+	int len = (int)iov[0].iov_len;
 
 	nd_dpdk = (struct lkl_netdev_dpdk *) nd;
 

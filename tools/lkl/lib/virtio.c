@@ -131,7 +131,7 @@ void virtio_req_complete(struct virtio_req *req, uint32_t len)
 		if (!q->max_merge_len)
 			used_len = len;
 		else
-			used_len = min_len(len,  req->buf[i].len);
+			used_len = min_len(len,  req->buf[i].iov_len);
 
 		virtio_add_used(q, used_idx++, avail_idx++, used_len);
 
@@ -212,15 +212,16 @@ struct lkl_vring_desc *vring_desc_at_avail_idx(struct virtio_queue *q,
 static void add_dev_buf_from_vring_desc(struct virtio_req *req,
 					struct lkl_vring_desc *vring_desc)
 {
-	struct lkl_dev_buf *buf = &req->buf[req->buf_count++];
+	struct iovec *buf = &req->buf[req->buf_count++];
 
-	buf->addr = (void *)(uintptr_t)le64toh(vring_desc->addr);
-	buf->len = le32toh(vring_desc->len);
+	buf->iov_base = (void *)(uintptr_t)le64toh(vring_desc->addr);
+	buf->iov_len = le32toh(vring_desc->len);
 
-	if (!(buf->addr && buf->len))
-		virtio_panic("bad vring_desc: %p %d\n", buf->addr, buf->len);
+	if (!(buf->iov_base && buf->iov_len))
+		virtio_panic("bad vring_desc: %p %d\n",
+			     buf->iov_base, buf->iov_len);
 
-	req->total_len += buf->len;
+	req->total_len += buf->iov_len;
 }
 
 static struct lkl_vring_desc *get_next_desc(struct virtio_queue *q,

@@ -262,16 +262,17 @@ static int blk_request(struct lkl_disk disk, struct lkl_blk_req *req)
 
 		for (i = 0; i < req->count; i++) {
 			DWORD res;
+			struct iovec *buf = &req->buf[i];
 
 			ov.Offset = offset & 0xffffffff;
 			ov.OffsetHigh = offset >> 32;
 
 			if (req->type == LKL_DEV_BLK_TYPE_READ)
-				ret = ReadFile(disk.handle, req->buf[i].addr,
-					       req->buf[i].len, &res, &ov);
+				ret = ReadFile(disk.handle, buf->iov_base,
+					       buf->iov_len, &res, &ov);
 			else
-				ret = WriteFile(disk.handle, req->buf[i].addr,
-						req->buf[i].len, &res, &ov);
+				ret = WriteFile(disk.handle, buf->iov_base,
+						buf->iov_len, &res, &ov);
 			if (!ret) {
 				lkl_printf("%s: I/O error: %d\n", __func__,
 					   GetLastError());
@@ -279,14 +280,14 @@ static int blk_request(struct lkl_disk disk, struct lkl_blk_req *req)
 				goto out;
 			}
 
-			if (res != req->buf[i].len) {
+			if (res != buf->iov_len) {
 				lkl_printf("%s: I/O error: short: %d %d\n",
-					   res, req->buf[i].len);
+					   res, buf->iov_len);
 				err = -1;
 				goto out;
 			}
 
-			offset += req->buf[i].len;
+			offset += buf->iov_len;
 		}
 		break;
 	}

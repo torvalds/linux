@@ -17,7 +17,7 @@
 
 struct virtio_req {
 	uint16_t buf_count;
-	struct lkl_dev_buf buf[VIRTIO_REQ_MAX_BUFS];
+	struct iovec buf[VIRTIO_REQ_MAX_BUFS];
 	uint32_t total_len;
 };
 
