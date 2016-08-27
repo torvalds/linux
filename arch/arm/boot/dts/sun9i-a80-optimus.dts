@@ -112,7 +112,8 @@
 };
 
 &ehci1 {
-	status = "okay";
+	/* Enable if HSIC peripheral is connected */
+	status = "disabled";
 };
 
 &ehci2 {
@@ -484,7 +485,8 @@
 
 &usbphy2 {
 	phy-supply = <&reg_bldo4>;
-	status = "okay";
+	/* Enable if HSIC peripheral is connected */
+	status = "disabled";
 };
 
 &usbphy3 {
