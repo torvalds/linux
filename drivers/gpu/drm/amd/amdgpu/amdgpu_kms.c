@@ -601,6 +601,9 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 
 	kfree(fpriv);
 	file_priv->driver_priv = NULL;
+
+	pm_runtime_mark_last_busy(dev->dev);
+	pm_runtime_put_autosuspend(dev->dev);
 }
 
 /**
@@ -615,6 +618,7 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 void amdgpu_driver_preclose_kms(struct drm_device *dev,
 				struct drm_file *file_priv)
 {
+	pm_runtime_get_sync(dev->dev);
 }
 
 /*
