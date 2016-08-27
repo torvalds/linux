@@ -45,6 +45,8 @@ struct hci_mon_hdr {
 #define HCI_MON_VENDOR_DIAG	11
 #define HCI_MON_SYSTEM_NOTE	12
 #define HCI_MON_USER_LOGGING	13
+#define HCI_MON_CTRL_OPEN	14
+#define HCI_MON_CTRL_CLOSE	15
 
 struct hci_mon_new_index {
 	__u8		type;
