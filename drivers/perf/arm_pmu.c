@@ -970,7 +970,7 @@ static int of_pmu_irq_cfg(struct arm_pmu *pmu)
 	if (cpumask_weight(&pmu->supported_cpus) == 0) {
 		int irq = platform_get_irq(pdev, 0);
 
-		if (irq_is_percpu(irq)) {
+		if (irq >= 0 && irq_is_percpu(irq)) {
 			/* If using PPIs, check the affinity of the partition */
 			int ret;
 
