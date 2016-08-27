@@ -315,6 +315,60 @@ void hci_send_to_monitor(struct hci_dev *hdev, struct sk_buff *skb)
 	kfree_skb(skb_copy);
 }
 
+void hci_send_monitor_ctrl_event(struct hci_dev *hdev, u16 event,
+				 void *data, u16 data_len, ktime_t tstamp,
+				 int flag, struct sock *skip_sk)
+{
+	struct sock *sk;
+	__le16 index;
+
+	if (hdev)
+		index = cpu_to_le16(hdev->id);
+	else
+		index = cpu_to_le16(MGMT_INDEX_NONE);
+
+	read_lock(&hci_sk_list.lock);
+
+	sk_for_each(sk, &hci_sk_list.head) {
+		struct hci_mon_hdr *hdr;
+		struct sk_buff *skb;
+
+		if (hci_pi(sk)->channel != HCI_CHANNEL_CONTROL)
+			continue;
+
+		/* Ignore socket without the flag set */
+		if (!hci_sock_test_flag(sk, flag))
+			continue;
+
+		/* Skip the original socket */
+		if (sk == skip_sk)
+			continue;
+
+		skb = bt_skb_alloc(6 + data_len, GFP_ATOMIC);
+		if (!skb)
+			continue;
+
+		put_unaligned_le32(hci_pi(sk)->cookie, skb_put(skb, 4));
+		put_unaligned_le16(event, skb_put(skb, 2));
+
+		if (data)
+			memcpy(skb_put(skb, data_len), data, data_len);
+
+		skb->tstamp = tstamp;
+
+		hdr = (void *)skb_push(skb, HCI_MON_HDR_SIZE);
+		hdr->opcode = cpu_to_le16(HCI_MON_CTRL_EVENT);
+		hdr->index = index;
+		hdr->len = cpu_to_le16(skb->len - HCI_MON_HDR_SIZE);
+
+		hci_send_to_channel(HCI_CHANNEL_MONITOR, skb,
+				    HCI_SOCK_TRUSTED, NULL);
+		kfree_skb(skb);
+	}
+
+	read_unlock(&hci_sk_list.lock);
+}
+
 static struct sk_buff *create_monitor_event(struct hci_dev *hdev, int event)
 {
 	struct hci_mon_hdr *hdr;
@@ -442,6 +496,33 @@ static struct sk_buff *create_monitor_ctrl_close(struct sock *sk)
 	hdr = (void *)skb_push(skb, HCI_MON_HDR_SIZE);
 	hdr->opcode = cpu_to_le16(HCI_MON_CTRL_CLOSE);
 	hdr->index = cpu_to_le16(HCI_DEV_NONE);
+	hdr->len = cpu_to_le16(skb->len - HCI_MON_HDR_SIZE);
+
+	return skb;
+}
+
+static struct sk_buff *create_monitor_ctrl_command(struct sock *sk, u16 index,
+						   u16 opcode, u16 len,
+						   const void *buf)
+{
+	struct hci_mon_hdr *hdr;
+	struct sk_buff *skb;
+
+	skb = bt_skb_alloc(6 + len, GFP_ATOMIC);
+	if (!skb)
+		return NULL;
+
+	put_unaligned_le32(hci_pi(sk)->cookie, skb_put(skb, 4));
+	put_unaligned_le16(opcode, skb_put(skb, 2));
+
+	if (buf)
+		memcpy(skb_put(skb, len), buf, len);
+
+	__net_timestamp(skb);
+
+	hdr = (void *)skb_push(skb, HCI_MON_HDR_SIZE);
+	hdr->opcode = cpu_to_le16(HCI_MON_CTRL_COMMAND);
+	hdr->index = cpu_to_le16(index);
 	hdr->len = cpu_to_le16(skb->len - HCI_MON_HDR_SIZE);
 
 	return skb;
@@ -1255,6 +1336,19 @@ static int hci_mgmt_cmd(struct hci_mgmt_chan *chan, struct sock *sk,
 	if (len != msglen - sizeof(*hdr)) {
 		err = -EINVAL;
 		goto done;
+	}
+
+	if (chan->channel == HCI_CHANNEL_CONTROL) {
+		struct sk_buff *skb;
+
+		/* Send event to monitor */
+		skb = create_monitor_ctrl_command(sk, index, opcode, len,
+						  buf + sizeof(*hdr));
+		if (skb) {
+			hci_send_to_channel(HCI_CHANNEL_MONITOR, skb,
+					    HCI_SOCK_TRUSTED, NULL);
+			kfree_skb(skb);
+		}
 	}
 
 	if (opcode >= chan->handler_count ||
