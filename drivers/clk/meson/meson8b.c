@@ -28,22 +28,7 @@
 #include <linux/init.h>
 
 #include "clkc.h"
-
-/*
- * Clock controller register offsets
- *
- * Register offsets from the HardKernel[0] data sheet are listed in comment
- * blocks below. Those offsets must be multiplied by 4 before adding them to
- * the base address to get the right value
- *
- * [0] http://dn.odroid.com/S805/Datasheet/S805_Datasheet%20V0.8%2020150126.pdf
- */
-#define MESON8B_REG_SYS_CPU_CNTL1	0x015c /* 0x57 offset in data sheet */
-#define MESON8B_REG_HHI_MPEG		0x0174 /* 0x5d offset in data sheet */
-#define MESON8B_REG_MALI		0x01b0 /* 0x6c offset in data sheet */
-#define MESON8B_REG_PLL_FIXED		0x0280
-#define MESON8B_REG_PLL_SYS		0x0300
-#define MESON8B_REG_PLL_VID		0x0320
+#include "meson8b.h"
 
 static DEFINE_SPINLOCK(clk_lock);
 
