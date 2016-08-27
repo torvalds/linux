@@ -13,6 +13,8 @@
 #include "tool.h"
 #include "data.h"
 #include "sort.h"
+#include "evlist.h"
+#include "evsel.h"
 #include <asm/bug.h>
 #include "ui/browsers/hists.h"
 
@@ -1893,13 +1895,32 @@ static void print_pareto(FILE *out)
 	}
 }
 
-static void perf_c2c__hists_fprintf(FILE *out)
+static void print_c2c_info(FILE *out, struct perf_session *session)
+{
+	struct perf_evlist *evlist = session->evlist;
+	struct perf_evsel *evsel;
+	bool first = true;
+
+	fprintf(out, "=================================================\n");
+	fprintf(out, "                 c2c details                     \n");
+	fprintf(out, "=================================================\n");
+
+	evlist__for_each_entry(evlist, evsel) {
+		fprintf(out, "%-36s: %s\n", first ? "  Events" : "",
+			perf_evsel__name(evsel));
+		first = false;
+	}
+}
+
+static void perf_c2c__hists_fprintf(FILE *out, struct perf_session *session)
 {
 	setup_pager();
 
 	print_c2c__display_stats(out);
 	fprintf(out, "\n");
 	print_shared_cacheline_info(out);
+	fprintf(out, "\n");
+	print_c2c_info(out, session);
 
 	if (c2c.stats_only)
 		return;
@@ -2073,18 +2094,18 @@ out:
 	return 0;
 }
 
-static void perf_c2c_display(void)
+static void perf_c2c_display(struct perf_session *session)
 {
 	if (c2c.use_stdio)
-		perf_c2c__hists_fprintf(stdout);
+		perf_c2c__hists_fprintf(stdout, session);
 	else
 		perf_c2c__hists_browse(&c2c.hists.hists);
 }
 #else
-static void perf_c2c_display(void)
+static void perf_c2c_display(struct perf_session *session)
 {
 	use_browser = 0;
-	perf_c2c__hists_fprintf(stdout);
+	perf_c2c__hists_fprintf(stdout, session);
 }
 #endif /* HAVE_SLANG_SUPPORT */
 
@@ -2197,7 +2218,7 @@ static int perf_c2c__report(int argc, const char **argv)
 
 	ui_quirks();
 
-	perf_c2c_display();
+	perf_c2c_display(session);
 
 out_session:
 	perf_session__delete(session);
