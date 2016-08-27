@@ -469,7 +469,7 @@ static const struct file_operations pdc_debugfs_stats = {
  * this directory for a SPU.
  * @pdcs: PDC state structure
  */
-void pdc_setup_debugfs(struct pdc_state *pdcs)
+static void pdc_setup_debugfs(struct pdc_state *pdcs)
 {
 	char spu_stats_name[16];
 
@@ -485,7 +485,7 @@ void pdc_setup_debugfs(struct pdc_state *pdcs)
 						  &pdc_debugfs_stats);
 }
 
-void pdc_free_debugfs(void)
+static void pdc_free_debugfs(void)
 {
 	if (debugfs_dir && simple_empty(debugfs_dir)) {
 		debugfs_remove_recursive(debugfs_dir);
