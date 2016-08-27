@@ -230,13 +230,6 @@ static int NCR5380_poll_politely2(struct Scsi_Host *instance,
 	return -ETIMEDOUT;
 }
 
-static inline int NCR5380_poll_politely(struct Scsi_Host *instance,
-                                        int reg, int bit, int val, int wait)
-{
-	return NCR5380_poll_politely2(instance, reg, bit, val,
-	                                        reg, bit, val, wait);
-}
-
 #if NDEBUG
 static struct {
 	unsigned char mask;
