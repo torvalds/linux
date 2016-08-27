@@ -1440,6 +1440,9 @@ static int hci_sock_setsockopt(struct socket *sock, int level, int optname,
 
 	BT_DBG("sk %p, opt %d", sk, optname);
 
+	if (level != SOL_HCI)
+		return -ENOPROTOOPT;
+
 	lock_sock(sk);
 
 	if (hci_pi(sk)->channel != HCI_CHANNEL_RAW) {
@@ -1522,6 +1525,9 @@ static int hci_sock_getsockopt(struct socket *sock, int level, int optname,
 	int len, opt, err = 0;
 
 	BT_DBG("sk %p, opt %d", sk, optname);
+
+	if (level != SOL_HCI)
+		return -ENOPROTOOPT;
 
 	if (get_user(len, optlen))
 		return -EFAULT;
