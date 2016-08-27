@@ -749,16 +749,18 @@ complete:
 	return ret;
 }
 
-static void engine_retire_requests(struct intel_engine_cs *engine)
+static bool engine_retire_requests(struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_request *request, *next;
 
 	list_for_each_entry_safe(request, next, &engine->request_list, link) {
 		if (!i915_gem_request_completed(request))
-			break;
+			return false;
 
 		i915_gem_request_retire(request);
 	}
+
+	return true;
 }
 
 void i915_gem_retire_requests(struct drm_i915_private *dev_priv)
@@ -772,11 +774,9 @@ void i915_gem_retire_requests(struct drm_i915_private *dev_priv)
 
 	GEM_BUG_ON(!dev_priv->gt.awake);
 
-	for_each_engine(engine, dev_priv) {
-		engine_retire_requests(engine);
-		if (!intel_engine_is_active(engine))
+	for_each_engine_masked(engine, dev_priv, dev_priv->gt.active_engines)
+		if (engine_retire_requests(engine))
 			dev_priv->gt.active_engines &= ~intel_engine_flag(engine);
-	}
 
 	if (dev_priv->gt.active_engines == 0)
 		queue_delayed_work(dev_priv->wq,
