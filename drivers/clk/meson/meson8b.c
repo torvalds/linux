@@ -23,7 +23,6 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/of_address.h>
-#include <dt-bindings/clock/meson8b-clkc.h>
 #include <linux/platform_device.h>
 #include <linux/init.h>
 
