@@ -278,6 +278,14 @@ static u8 le_addr_type(u8 mgmt_addr_type)
 		return ADDR_LE_DEV_RANDOM;
 }
 
+void mgmt_fill_version_info(void *ver)
+{
+	struct mgmt_rp_read_version *rp = ver;
+
+	rp->version = MGMT_VERSION;
+	rp->revision = cpu_to_le16(MGMT_REVISION);
+}
+
 static int read_version(struct sock *sk, struct hci_dev *hdev, void *data,
 			u16 data_len)
 {
@@ -285,8 +293,7 @@ static int read_version(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	BT_DBG("sock %p", sk);
 
-	rp.version = MGMT_VERSION;
-	rp.revision = cpu_to_le16(MGMT_REVISION);
+	mgmt_fill_version_info(&rp);
 
 	return mgmt_cmd_complete(sk, MGMT_INDEX_NONE, MGMT_OP_READ_VERSION, 0,
 				 &rp, sizeof(rp));
