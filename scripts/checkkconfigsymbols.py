@@ -2,7 +2,7 @@
 
 """Find Kconfig symbols that are referenced but not defined."""
 
-# (c) 2014-2015 Valentin Rothberg <valentinrothberg@gmail.com>
+# (c) 2014-2016 Valentin Rothberg <valentinrothberg@gmail.com>
 # (c) 2014 Stefan Hengelein <stefan.hengelein@fau.de>
 #
 # Licensed under the terms of the GNU GPL License version 2
@@ -12,6 +12,7 @@ import difflib
 import os
 import re
 import signal
+import subprocess
 import sys
 from multiprocessing import Pool, cpu_count
 from optparse import OptionParser
@@ -222,10 +223,11 @@ def red(string):
 
 def execute(cmd):
     """Execute %cmd and return stdout.  Exit in case of error."""
-    pop = Popen(cmd, stdout=PIPE, stderr=STDOUT, shell=True)
-    (stdout, _) = pop.communicate()  # wait until finished
-    if pop.returncode != 0:
-        sys.exit(stdout)
+    try:
+        cmdlist = cmd.split(" ")
+        stdout = subprocess.check_output(cmdlist, stderr=STDOUT, shell=False)
+    except subprocess.CalledProcessError as fail:
+        exit("Failed to execute %s\n%s" % (cmd, fail))
     return stdout
 
 
