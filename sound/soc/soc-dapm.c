@@ -3049,6 +3049,9 @@ int snd_soc_dapm_get_volsw(struct snd_kcontrol *kcontrol,
 	}
 	mutex_unlock(&card->dapm_mutex);
 
+	if (ret)
+		return ret;
+
 	if (invert)
 		ucontrol->value.integer.value[0] = max - val;
 	else
