@@ -1,5 +1,7 @@
+#include <linux/binfmts.h>
 #include <linux/init.h>
 #include <linux/init_task.h>
+#include <linux/personality.h>
 #include <linux/reboot.h>
 #include <linux/tick.h>
 #include <linux/fs.h>
@@ -30,15 +32,6 @@ void __init setup_arch(char **cl)
 	*cl = cmd_line;
 	panic_blink = lkl_panic_blink;
 	bootmem_init(mem_size);
-}
-
-int run_init_process(const char *init_filename)
-{
-	initial_syscall_thread(init_sem);
-
-	kernel_halt();
-
-	return 0;
 }
 
 static void __init lkl_run_kernel(void *arg)
@@ -168,14 +161,47 @@ void wakeup_cpu(void)
                 lkl_ops->sem_up(idle_sem);
 }
 
+static int lkl_run_init(struct linux_binprm *bprm);
+
+static struct linux_binfmt lkl_run_init_binfmt = {
+	.module		= THIS_MODULE,
+	.load_binary	= lkl_run_init,
+};
+
+static int lkl_run_init(struct linux_binprm *bprm)
+{
+	int ret;
+
+	if (strcmp("/init", bprm->filename) != 0)
+		return -EINVAL;
+
+	ret = flush_old_exec(bprm);
+	if (ret)
+		return ret;
+	set_personality(PER_LINUX);
+	setup_new_exec(bprm);
+	install_exec_creds(bprm);
+
+	set_binfmt(&lkl_run_init_binfmt);
+
+	initial_syscall_thread(init_sem);
+
+	kernel_halt();
+
+	return 0;
+}
+
+
 /* skip mounting the "real" rootfs. ramfs is good enough. */
 static int __init fs_setup(void)
 {
 	int fd;
 
-	fd = sys_open("/init", O_CREAT, 0600);
+	fd = sys_open("/init", O_CREAT, 0700);
 	WARN_ON(fd < 0);
 	sys_close(fd);
+
+	register_binfmt(&lkl_run_init_binfmt);
 
 	return 0;
 }

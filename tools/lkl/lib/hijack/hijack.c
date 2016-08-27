@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <sys/types.h>
+#include <sys/mman.h>
 #define __USE_GNU
 #include <dlfcn.h>
 #include <sys/socket.h>
@@ -155,6 +156,8 @@ HOOK_FD_CALL(read)
 HOOK_FD_CALL(recvfrom)
 HOOK_FD_CALL(recv)
 HOOK_FD_CALL(epoll_wait)
+HOOK_FD_CALL(splice)
+HOOK_FD_CALL(vmsplice)
 HOOK_CALL_USE_HOST_BEFORE_START(pipe);
 
 HOST_CALL(setsockopt);
@@ -337,4 +340,15 @@ int eventfd_write(int fd, uint64_t value)
 
 	return lkl_sys_write(fd, (void *) &value,
 			     sizeof(value)) != sizeof(value) ? -1 : 0;
+}
+
+HOST_CALL(mmap)
+void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
+{
+	CHECK_HOST_CALL(mmap);
+
+	if (addr != NULL || flags != (MAP_ANONYMOUS|MAP_PRIVATE) ||
+	    prot != (PROT_READ|PROT_WRITE) || fd != -2 || offset != 0)
+		return (void *)host_mmap(addr, length, prot, flags, fd, offset);
+	return lkl_sys_mmap(addr, length, prot, flags, fd, offset);
 }
