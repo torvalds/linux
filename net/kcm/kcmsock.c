@@ -26,7 +26,6 @@
 #include <net/kcm.h>
 #include <net/netns/generic.h>
 #include <net/sock.h>
-#include <net/tcp.h>
 #include <uapi/linux/kcm.h>
 
 unsigned int kcm_net_id;
@@ -340,7 +339,7 @@ static void unreserve_rx_kcm(struct kcm_psock *psock,
 }
 
 /* Lower sock lock held */
-static void psock_tcp_data_ready(struct sock *sk)
+static void psock_data_ready(struct sock *sk)
 {
 	struct kcm_psock *psock;
 
@@ -348,7 +347,7 @@ static void psock_tcp_data_ready(struct sock *sk)
 
 	psock = (struct kcm_psock *)sk->sk_user_data;
 	if (likely(psock))
-		strp_tcp_data_ready(&psock->strp);
+		strp_data_ready(&psock->strp);
 
 	read_unlock_bh(&sk->sk_callback_lock);
 }
@@ -392,7 +391,7 @@ static int kcm_read_sock_done(struct strparser *strp, int err)
 	return err;
 }
 
-static void psock_tcp_state_change(struct sock *sk)
+static void psock_state_change(struct sock *sk)
 {
 	/* TCP only does a POLLIN for a half close. Do a POLLHUP here
 	 * since application will normally not poll with POLLIN
@@ -402,7 +401,7 @@ static void psock_tcp_state_change(struct sock *sk)
 	report_csk_error(sk, EPIPE);
 }
 
-static void psock_tcp_write_space(struct sock *sk)
+static void psock_write_space(struct sock *sk)
 {
 	struct kcm_psock *psock;
 	struct kcm_mux *mux;
@@ -1383,17 +1382,10 @@ static int kcm_attach(struct socket *sock, struct socket *csock,
 	struct list_head *head;
 	int index = 0;
 	struct strp_callbacks cb;
-
-	if (csock->ops->family != PF_INET &&
-	    csock->ops->family != PF_INET6)
-		return -EINVAL;
+	int err;
 
 	csk = csock->sk;
 	if (!csk)
-		return -EINVAL;
-
-	/* Only support TCP for now */
-	if (csk->sk_protocol != IPPROTO_TCP)
 		return -EINVAL;
 
 	psock = kmem_cache_zalloc(kcm_psockp, GFP_KERNEL);
@@ -1409,7 +1401,11 @@ static int kcm_attach(struct socket *sock, struct socket *csock,
 	cb.parse_msg = kcm_parse_func_strparser;
 	cb.read_sock_done = kcm_read_sock_done;
 
-	strp_init(&psock->strp, csk, &cb);
+	err = strp_init(&psock->strp, csk, &cb);
+	if (err) {
+		kmem_cache_free(kcm_psockp, psock);
+		return err;
+	}
 
 	sock_hold(csk);
 
@@ -1418,9 +1414,9 @@ static int kcm_attach(struct socket *sock, struct socket *csock,
 	psock->save_write_space = csk->sk_write_space;
 	psock->save_state_change = csk->sk_state_change;
 	csk->sk_user_data = psock;
-	csk->sk_data_ready = psock_tcp_data_ready;
-	csk->sk_write_space = psock_tcp_write_space;
-	csk->sk_state_change = psock_tcp_state_change;
+	csk->sk_data_ready = psock_data_ready;
+	csk->sk_write_space = psock_write_space;
+	csk->sk_state_change = psock_state_change;
 	write_unlock_bh(&csk->sk_callback_lock);
 
 	/* Finished initialization, now add the psock to the MUX. */
