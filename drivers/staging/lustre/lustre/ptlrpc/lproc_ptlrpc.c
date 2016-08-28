@@ -937,7 +937,7 @@ static int ptlrpc_lprocfs_svc_req_history_show(struct seq_file *s, void *iter)
 static int
 ptlrpc_lprocfs_svc_req_history_open(struct inode *inode, struct file *file)
 {
-	static struct seq_operations sops = {
+	static const struct seq_operations sops = {
 		.start = ptlrpc_lprocfs_svc_req_history_start,
 		.stop  = ptlrpc_lprocfs_svc_req_history_stop,
 		.next  = ptlrpc_lprocfs_svc_req_history_next,
