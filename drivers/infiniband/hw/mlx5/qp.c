@@ -3758,7 +3758,7 @@ int mlx5_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		num_sge = wr->num_sge;
 		if (unlikely(num_sge > qp->sq.max_gs)) {
 			mlx5_ib_warn(dev, "\n");
-			err = -ENOMEM;
+			err = -EINVAL;
 			*bad_wr = wr;
 			goto out;
 		}
