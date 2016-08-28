@@ -799,22 +799,21 @@ int kvm_vcpu_ioctl_config_tlb(struct kvm_vcpu *vcpu,
 		goto put_pages;
 	}
 
-	privs[0] = kzalloc(sizeof(struct tlbe_priv) * params.tlb_sizes[0],
-			   GFP_KERNEL);
+	privs[0] = kcalloc(params.tlb_sizes[0], sizeof(*privs[0]), GFP_KERNEL);
 	if (!privs[0]) {
 		ret = -ENOMEM;
 		goto put_pages;
 	}
 
-	privs[1] = kzalloc(sizeof(struct tlbe_priv) * params.tlb_sizes[1],
-			   GFP_KERNEL);
+	privs[1] = kcalloc(params.tlb_sizes[1], sizeof(*privs[1]), GFP_KERNEL);
 	if (!privs[1]) {
 		ret = -ENOMEM;
 		goto free_privs_first;
 	}
 
-	g2h_bitmap = kzalloc(sizeof(u64) * params.tlb_sizes[1],
-	                     GFP_KERNEL);
+	g2h_bitmap = kcalloc(params.tlb_sizes[1],
+			     sizeof(*g2h_bitmap),
+			     GFP_KERNEL);
 	if (!g2h_bitmap) {
 		ret = -ENOMEM;
 		goto free_privs_second;
@@ -929,20 +928,20 @@ int kvmppc_e500_tlb_init(struct kvmppc_vcpu_e500 *vcpu_e500)
 	vcpu_e500->gtlb_offset[0] = 0;
 	vcpu_e500->gtlb_offset[1] = KVM_E500_TLB0_SIZE;
 
-	vcpu_e500->gtlb_priv[0] = kzalloc(sizeof(struct tlbe_ref) *
-					  vcpu_e500->gtlb_params[0].entries,
+	vcpu_e500->gtlb_priv[0] = kcalloc(vcpu_e500->gtlb_params[0].entries,
+					  sizeof(struct tlbe_ref),
 					  GFP_KERNEL);
 	if (!vcpu_e500->gtlb_priv[0])
 		goto err;
 
-	vcpu_e500->gtlb_priv[1] = kzalloc(sizeof(struct tlbe_ref) *
-					  vcpu_e500->gtlb_params[1].entries,
+	vcpu_e500->gtlb_priv[1] = kcalloc(vcpu_e500->gtlb_params[1].entries,
+					  sizeof(struct tlbe_ref),
 					  GFP_KERNEL);
 	if (!vcpu_e500->gtlb_priv[1])
 		goto err;
 
-	vcpu_e500->g2h_tlb1_map = kzalloc(sizeof(u64) *
-					  vcpu_e500->gtlb_params[1].entries,
+	vcpu_e500->g2h_tlb1_map = kcalloc(vcpu_e500->gtlb_params[1].entries,
+					  sizeof(*vcpu_e500->g2h_tlb1_map),
 					  GFP_KERNEL);
 	if (!vcpu_e500->g2h_tlb1_map)
 		goto err;
