@@ -506,6 +506,12 @@ void mlx5e_post_rx_fragmented_mpwqe(struct mlx5e_rq *rq)
 	struct mlx5e_rx_wqe *wqe = mlx5_wq_ll_get_wqe(wq, wq->head);
 
 	clear_bit(MLX5E_RQ_STATE_UMR_WQE_IN_PROGRESS, &rq->state);
+
+	if (unlikely(test_bit(MLX5E_RQ_STATE_FLUSH, &rq->state))) {
+		mlx5e_free_rx_fragmented_mpwqe(rq, &rq->wqe_info[wq->head]);
+		return;
+	}
+
 	mlx5_wq_ll_push(wq, be16_to_cpu(wqe->next.next_wqe_index));
 	rq->stats.mpwqe_frag++;
 

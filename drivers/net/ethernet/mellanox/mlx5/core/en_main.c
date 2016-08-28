@@ -534,6 +534,10 @@ static void mlx5e_free_rx_descs(struct mlx5e_rq *rq)
 	__be16 wqe_ix_be;
 	u16 wqe_ix;
 
+	/* UMR WQE (if in progress) is always at wq->head */
+	if (test_bit(MLX5E_RQ_STATE_UMR_WQE_IN_PROGRESS, &rq->state))
+		mlx5e_free_rx_fragmented_mpwqe(rq, &rq->wqe_info[wq->head]);
+
 	while (!mlx5_wq_ll_is_empty(wq)) {
 		wqe_ix_be = *wq->tail_next;
 		wqe_ix    = be16_to_cpu(wqe_ix_be);
