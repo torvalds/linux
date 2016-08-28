@@ -137,14 +137,8 @@ static struct attribute *fsl_mc_dev_attrs[] = {
 	NULL,
 };
 
-static const struct attribute_group fsl_mc_dev_group = {
-	.attrs = fsl_mc_dev_attrs,
-};
+ATTRIBUTE_GROUPS(fsl_mc_dev);
 
-static const struct attribute_group *fsl_mc_dev_groups[] = {
-	&fsl_mc_dev_group,
-	NULL,
-};
 
 struct bus_type fsl_mc_bus_type = {
 	.name = "fsl-mc",
