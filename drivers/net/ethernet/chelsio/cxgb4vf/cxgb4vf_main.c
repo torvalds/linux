@@ -2378,7 +2378,7 @@ static void size_nports_qsets(struct adapter *adapter)
 	 */
 	pmask_nports = hweight32(adapter->params.vfres.pmask);
 	if (pmask_nports < adapter->params.nports) {
-		dev_warn(adapter->pdev_dev, "only using %d of %d provissioned"
+		dev_warn(adapter->pdev_dev, "only using %d of %d provisioned"
 			 " virtual interfaces; limited by Port Access Rights"
 			 " mask %#x\n", pmask_nports, adapter->params.nports,
 			 adapter->params.vfres.pmask);
