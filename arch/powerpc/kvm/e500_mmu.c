@@ -743,7 +743,7 @@ int kvm_vcpu_ioctl_config_tlb(struct kvm_vcpu *vcpu,
 	char *virt;
 	struct page **pages;
 	struct tlbe_priv *privs[2] = {};
-	u64 *g2h_bitmap = NULL;
+	u64 *g2h_bitmap;
 	size_t array_len;
 	u32 sets;
 	int num_pages, ret, i;
