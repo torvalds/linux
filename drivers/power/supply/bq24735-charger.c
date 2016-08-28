@@ -201,8 +201,12 @@ static bool bq24735_charger_is_present(struct bq24735 *charger)
 
 static int bq24735_charger_is_charging(struct bq24735 *charger)
 {
-	int ret = bq24735_read_word(charger->client, BQ24735_CHG_OPT);
+	int ret;
 
+	if (!bq24735_charger_is_present(charger))
+		return 0;
+
+	ret  = bq24735_read_word(charger->client, BQ24735_CHG_OPT);
 	if (ret < 0)
 		return ret;
 
