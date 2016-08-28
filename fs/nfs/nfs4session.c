@@ -172,6 +172,39 @@ struct nfs4_slot *nfs4_lookup_slot(struct nfs4_slot_table *tbl, u32 slotid)
 	return ERR_PTR(-E2BIG);
 }
 
+static int nfs4_slot_get_seqid(struct nfs4_slot_table  *tbl, u32 slotid,
+		u32 *seq_nr)
+	__must_hold(&tbl->slot_tbl_lock)
+{
+	struct nfs4_slot *slot;
+
+	slot = nfs4_lookup_slot(tbl, slotid);
+	if (IS_ERR(slot))
+		return PTR_ERR(slot);
+	*seq_nr = slot->seq_nr;
+	return 0;
+}
+
+/*
+ * nfs4_slot_seqid_in_use - test if a slot sequence id is still in use
+ *
+ * Given a slot table, slot id and sequence number, determine if the
+ * RPC call in question is still in flight. This function is mainly
+ * intended for use by the callback channel.
+ */
+bool nfs4_slot_seqid_in_use(struct nfs4_slot_table *tbl, u32 slotid, u32 seq_nr)
+{
+	u32 cur_seq;
+	bool ret = false;
+
+	spin_lock(&tbl->slot_tbl_lock);
+	if (nfs4_slot_get_seqid(tbl, slotid, &cur_seq) == 0 &&
+	    cur_seq == seq_nr && test_bit(slotid, tbl->used_slots))
+		ret = true;
+	spin_unlock(&tbl->slot_tbl_lock);
+	return ret;
+}
+
 /*
  * nfs4_alloc_slot - efficiently look for a free slot
  *

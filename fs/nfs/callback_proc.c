@@ -454,11 +454,8 @@ static bool referring_call_exists(struct nfs_client *clp,
 				((u32 *)&rclist->rcl_sessionid.data)[3],
 				ref->rc_sequenceid, ref->rc_slotid);
 
-			spin_lock(&tbl->slot_tbl_lock);
-			status = (test_bit(ref->rc_slotid, tbl->used_slots) &&
-				  tbl->slots[ref->rc_slotid].seq_nr ==
+			status = nfs4_slot_seqid_in_use(tbl, ref->rc_slotid,
 					ref->rc_sequenceid);
-			spin_unlock(&tbl->slot_tbl_lock);
 			if (status)
 				goto out;
 		}
