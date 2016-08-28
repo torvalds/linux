@@ -121,10 +121,17 @@ struct mlx5_ib_tso_caps {
 	__u32 supported_qpts;
 };
 
+struct mlx5_ib_rss_caps {
+	__u64 rx_hash_fields_mask; /* enum mlx5_rx_hash_fields */
+	__u8 rx_hash_function; /* enum mlx5_rx_hash_function_flags */
+	__u8 reserved[7];
+};
+
 struct mlx5_ib_query_device_resp {
 	__u32	comp_mask;
 	__u32	response_length;
 	struct	mlx5_ib_tso_caps tso_caps;
+	struct	mlx5_ib_rss_caps rss_caps;
 };
 
 struct mlx5_ib_create_cq {
