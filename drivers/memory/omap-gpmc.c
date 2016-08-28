@@ -350,8 +350,8 @@ static unsigned int gpmc_ps_to_ticks(unsigned int time_ps)
 	return (time_ps + tick_ps - 1) / tick_ps;
 }
 
-unsigned int gpmc_clk_ticks_to_ns(unsigned ticks, int cs,
-				  enum gpmc_clk_domain cd)
+static unsigned int gpmc_clk_ticks_to_ns(unsigned int ticks, int cs,
+					 enum gpmc_clk_domain cd)
 {
 	return ticks * gpmc_get_clk_period(cs, cd) / 1000;
 }
