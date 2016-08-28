@@ -920,6 +920,13 @@ config HID_SENSOR_CUSTOM_SENSOR
 	  standard sensors.
 	  Select this config option for custom/generic sensor support.
 
+config HID_RKVR
+	tristate "RKVR device support"
+	depends on USB_HID
+	---help---
+	  Support for RKVR devices.
+	  Say Y here if you have a RKVR device.
+
 endmenu
 
 endif # HID
