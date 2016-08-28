@@ -141,7 +141,7 @@
 			reg = <0x5f800000 0x2000>;
 
 			pinctrl: pinctrl {
-				 /* specify compatible in each SoC DTSI */
+				/* specify compatible in each SoC DTSI */
 			};
 		};
 	};
