@@ -4173,6 +4173,23 @@ int ib_uverbs_ex_query_device(struct ib_uverbs_file *file,
 
 	resp.device_cap_flags_ex = attr.device_cap_flags;
 	resp.response_length += sizeof(resp.device_cap_flags_ex);
+
+	if (ucore->outlen < resp.response_length + sizeof(resp.rss_caps))
+		goto end;
+
+	resp.rss_caps.supported_qpts = attr.rss_caps.supported_qpts;
+	resp.rss_caps.max_rwq_indirection_tables =
+		attr.rss_caps.max_rwq_indirection_tables;
+	resp.rss_caps.max_rwq_indirection_table_size =
+		attr.rss_caps.max_rwq_indirection_table_size;
+
+	resp.response_length += sizeof(resp.rss_caps);
+
+	if (ucore->outlen < resp.response_length + sizeof(resp.max_wq_type_rq))
+		goto end;
+
+	resp.max_wq_type_rq = attr.max_wq_type_rq;
+	resp.response_length += sizeof(resp.max_wq_type_rq);
 end:
 	err = ib_copy_to_udata(ucore, &resp, resp.response_length);
 	return err;

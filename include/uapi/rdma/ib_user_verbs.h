@@ -224,6 +224,17 @@ struct ib_uverbs_odp_caps {
 	__u32 reserved;
 };
 
+struct ib_uverbs_rss_caps {
+	/* Corresponding bit will be set if qp type from
+	 * 'enum ib_qp_type' is supported, e.g.
+	 * supported_qpts |= 1 << IB_QPT_UD
+	 */
+	__u32 supported_qpts;
+	__u32 max_rwq_indirection_tables;
+	__u32 max_rwq_indirection_table_size;
+	__u32 reserved;
+};
+
 struct ib_uverbs_ex_query_device_resp {
 	struct ib_uverbs_query_device_resp base;
 	__u32 comp_mask;
@@ -232,6 +243,9 @@ struct ib_uverbs_ex_query_device_resp {
 	__u64 timestamp_mask;
 	__u64 hca_core_clock; /* in KHZ */
 	__u64 device_cap_flags_ex;
+	struct ib_uverbs_rss_caps rss_caps;
+	__u32  max_wq_type_rq;
+	__u32 reserved;
 };
 
 struct ib_uverbs_query_port {
