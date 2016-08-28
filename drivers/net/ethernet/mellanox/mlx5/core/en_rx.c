@@ -595,26 +595,9 @@ void mlx5e_dealloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 	wi->free_wqe(rq, wi);
 }
 
-void mlx5e_free_rx_descs(struct mlx5e_rq *rq)
-{
-	struct mlx5_wq_ll *wq = &rq->wq;
-	struct mlx5e_rx_wqe *wqe;
-	__be16 wqe_ix_be;
-	u16 wqe_ix;
-
-	while (!mlx5_wq_ll_is_empty(wq)) {
-		wqe_ix_be = *wq->tail_next;
-		wqe_ix    = be16_to_cpu(wqe_ix_be);
-		wqe       = mlx5_wq_ll_get_wqe(&rq->wq, wqe_ix);
-		rq->dealloc_wqe(rq, wqe_ix);
-		mlx5_wq_ll_pop(&rq->wq, wqe_ix_be,
-			       &wqe->next.next_wqe_index);
-	}
-}
-
 #define RQ_CANNOT_POST(rq) \
-		(!test_bit(MLX5E_RQ_STATE_POST_WQES_ENABLE, &rq->state) || \
-		 test_bit(MLX5E_RQ_STATE_UMR_WQE_IN_PROGRESS, &rq->state))
+	(test_bit(MLX5E_RQ_STATE_FLUSH, &rq->state) || \
+	 test_bit(MLX5E_RQ_STATE_UMR_WQE_IN_PROGRESS, &rq->state))
 
 bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq)
 {
@@ -916,7 +899,7 @@ int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 	struct mlx5e_rq *rq = container_of(cq, struct mlx5e_rq, cq);
 	int work_done = 0;
 
-	if (unlikely(test_bit(MLX5E_RQ_STATE_FLUSH_TIMEOUT, &rq->state)))
+	if (unlikely(test_bit(MLX5E_RQ_STATE_FLUSH, &rq->state)))
 		return 0;
 
 	if (cq->decmprs_left)

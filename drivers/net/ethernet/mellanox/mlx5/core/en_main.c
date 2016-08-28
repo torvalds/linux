@@ -431,7 +431,6 @@ static int mlx5e_enable_rq(struct mlx5e_rq *rq, struct mlx5e_rq_param *param)
 
 	MLX5_SET(rqc,  rqc, cqn,		rq->cq.mcq.cqn);
 	MLX5_SET(rqc,  rqc, state,		MLX5_RQC_STATE_RST);
-	MLX5_SET(rqc,  rqc, flush_in_error_en,	1);
 	MLX5_SET(rqc,  rqc, vsd, priv->params.vlan_strip_disable);
 	MLX5_SET(wq,   wq,  log_wq_pg_sz,	rq->wq_ctrl.buf.page_shift -
 						MLX5_ADAPTER_PAGE_SHIFT);
@@ -528,6 +527,23 @@ static int mlx5e_wait_for_min_rx_wqes(struct mlx5e_rq *rq)
 	return -ETIMEDOUT;
 }
 
+static void mlx5e_free_rx_descs(struct mlx5e_rq *rq)
+{
+	struct mlx5_wq_ll *wq = &rq->wq;
+	struct mlx5e_rx_wqe *wqe;
+	__be16 wqe_ix_be;
+	u16 wqe_ix;
+
+	while (!mlx5_wq_ll_is_empty(wq)) {
+		wqe_ix_be = *wq->tail_next;
+		wqe_ix    = be16_to_cpu(wqe_ix_be);
+		wqe       = mlx5_wq_ll_get_wqe(&rq->wq, wqe_ix);
+		rq->dealloc_wqe(rq, wqe_ix);
+		mlx5_wq_ll_pop(&rq->wq, wqe_ix_be,
+			       &wqe->next.next_wqe_index);
+	}
+}
+
 static int mlx5e_open_rq(struct mlx5e_channel *c,
 			 struct mlx5e_rq_param *param,
 			 struct mlx5e_rq *rq)
@@ -551,8 +567,6 @@ static int mlx5e_open_rq(struct mlx5e_channel *c,
 	if (param->am_enabled)
 		set_bit(MLX5E_RQ_STATE_AM, &c->rq.state);
 
-	set_bit(MLX5E_RQ_STATE_POST_WQES_ENABLE, &rq->state);
-
 	sq->ico_wqe_info[pi].opcode     = MLX5_OPCODE_NOP;
 	sq->ico_wqe_info[pi].num_wqebbs = 1;
 	mlx5e_send_nop(sq, true); /* trigger mlx5e_post_rx_wqes() */
@@ -569,23 +583,8 @@ err_destroy_rq:
 
 static void mlx5e_close_rq(struct mlx5e_rq *rq)
 {
-	int tout = 0;
-	int err;
-
-	clear_bit(MLX5E_RQ_STATE_POST_WQES_ENABLE, &rq->state);
+	set_bit(MLX5E_RQ_STATE_FLUSH, &rq->state);
 	napi_synchronize(&rq->channel->napi); /* prevent mlx5e_post_rx_wqes */
-
-	err = mlx5e_modify_rq_state(rq, MLX5_RQC_STATE_RDY, MLX5_RQC_STATE_ERR);
-	while (!mlx5_wq_ll_is_empty(&rq->wq) && !err &&
-	       tout++ < MLX5_EN_QP_FLUSH_MAX_ITER)
-		msleep(MLX5_EN_QP_FLUSH_MSLEEP_QUANT);
-
-	if (err || tout == MLX5_EN_QP_FLUSH_MAX_ITER)
-		set_bit(MLX5E_RQ_STATE_FLUSH_TIMEOUT, &rq->state);
-
-	/* avoid destroying rq before mlx5e_poll_rx_cq() is done with it */
-	napi_synchronize(&rq->channel->napi);
-
 	cancel_work_sync(&rq->am.work);
 
 	mlx5e_disable_rq(rq);

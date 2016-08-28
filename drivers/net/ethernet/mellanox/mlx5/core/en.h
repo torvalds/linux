@@ -223,9 +223,8 @@ struct mlx5e_tstamp {
 };
 
 enum {
-	MLX5E_RQ_STATE_POST_WQES_ENABLE,
+	MLX5E_RQ_STATE_FLUSH,
 	MLX5E_RQ_STATE_UMR_WQE_IN_PROGRESS,
-	MLX5E_RQ_STATE_FLUSH_TIMEOUT,
 	MLX5E_RQ_STATE_AM,
 };
 
@@ -703,7 +702,6 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget);
 bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget);
 int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget);
 void mlx5e_free_tx_descs(struct mlx5e_sq *sq);
-void mlx5e_free_rx_descs(struct mlx5e_rq *rq);
 
 void mlx5e_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
 void mlx5e_handle_rx_cqe_mpwrq(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
