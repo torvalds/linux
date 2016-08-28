@@ -147,7 +147,7 @@ static void test_sys32_regs(void (*do_syscall)(struct syscall_args32 *))
 	if (args.nr != getpid() ||
 	    args.arg0 != 10 || args.arg1 != 11 || args.arg2 != 12 ||
 	    args.arg3 != 13 || args.arg4 != 14 || args.arg5 != 15) {
-		printf("[FAIL]\tgetpid() failed to preseve regs\n");
+		printf("[FAIL]\tgetpid() failed to preserve regs\n");
 		nerrs++;
 	} else {
 		printf("[OK]\tgetpid() preserves regs\n");
@@ -162,7 +162,7 @@ static void test_sys32_regs(void (*do_syscall)(struct syscall_args32 *))
 	if (args.nr != 0 ||
 	    args.arg0 != getpid() || args.arg1 != SIGUSR1 || args.arg2 != 12 ||
 	    args.arg3 != 13 || args.arg4 != 14 || args.arg5 != 15) {
-		printf("[FAIL]\tkill(getpid(), SIGUSR1) failed to preseve regs\n");
+		printf("[FAIL]\tkill(getpid(), SIGUSR1) failed to preserve regs\n");
 		nerrs++;
 	} else {
 		printf("[OK]\tkill(getpid(), SIGUSR1) preserves regs\n");
