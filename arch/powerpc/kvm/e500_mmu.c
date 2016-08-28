@@ -905,8 +905,6 @@ static int vcpu_mmu_init(struct kvm_vcpu *vcpu,
 int kvmppc_e500_tlb_init(struct kvmppc_vcpu_e500 *vcpu_e500)
 {
 	struct kvm_vcpu *vcpu = &vcpu_e500->vcpu;
-	int entry_size = sizeof(struct kvm_book3e_206_tlb_entry);
-	int entries = KVM_E500_TLB0_SIZE + KVM_E500_TLB1_SIZE;
 
 	if (e500_mmu_host_init(vcpu_e500))
 		goto err;
@@ -921,7 +919,10 @@ int kvmppc_e500_tlb_init(struct kvmppc_vcpu_e500 *vcpu_e500)
 	vcpu_e500->gtlb_params[1].ways = KVM_E500_TLB1_SIZE;
 	vcpu_e500->gtlb_params[1].sets = 1;
 
-	vcpu_e500->gtlb_arch = kmalloc(entries * entry_size, GFP_KERNEL);
+	vcpu_e500->gtlb_arch = kmalloc_array(KVM_E500_TLB0_SIZE +
+					     KVM_E500_TLB1_SIZE,
+					     sizeof(*vcpu_e500->gtlb_arch),
+					     GFP_KERNEL);
 	if (!vcpu_e500->gtlb_arch)
 		return -ENOMEM;
 
