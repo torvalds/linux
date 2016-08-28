@@ -4536,6 +4536,28 @@ int mlx5_ib_dealloc_xrcd(struct ib_xrcd *xrcd)
 	return 0;
 }
 
+static void mlx5_ib_wq_event(struct mlx5_core_qp *core_qp, int type)
+{
+	struct mlx5_ib_rwq *rwq = to_mibrwq(core_qp);
+	struct mlx5_ib_dev *dev = to_mdev(rwq->ibwq.device);
+	struct ib_event event;
+
+	if (rwq->ibwq.event_handler) {
+		event.device     = rwq->ibwq.device;
+		event.element.wq = &rwq->ibwq;
+		switch (type) {
+		case MLX5_EVENT_TYPE_WQ_CATAS_ERROR:
+			event.event = IB_EVENT_WQ_FATAL;
+			break;
+		default:
+			mlx5_ib_warn(dev, "Unexpected event type %d on WQ %06x\n", type, core_qp->qpn);
+			return;
+		}
+
+		rwq->ibwq.event_handler(&event, rwq->ibwq.wq_context);
+	}
+}
+
 static int  create_rq(struct mlx5_ib_rwq *rwq, struct ib_pd *pd,
 		      struct ib_wq_init_attr *init_attr)
 {
@@ -4573,7 +4595,7 @@ static int  create_rq(struct mlx5_ib_rwq *rwq, struct ib_pd *pd,
 	MLX5_SET64(wq, wq, dbr_addr, rwq->db.dma);
 	rq_pas0 = (__be64 *)MLX5_ADDR_OF(wq, wq, pas);
 	mlx5_ib_populate_pas(dev, rwq->umem, rwq->page_shift, rq_pas0, 0);
-	err = mlx5_core_create_rq(dev->mdev, in, inlen, &rwq->rqn);
+	err = mlx5_core_create_rq_tracked(dev->mdev, in, inlen, &rwq->core_qp);
 	kvfree(in);
 	return err;
 }
@@ -4689,7 +4711,7 @@ struct ib_wq *mlx5_ib_create_wq(struct ib_pd *pd,
 		return ERR_PTR(-EINVAL);
 	}
 
-	rwq->ibwq.wq_num = rwq->rqn;
+	rwq->ibwq.wq_num = rwq->core_qp.qpn;
 	rwq->ibwq.state = IB_WQS_RESET;
 	if (udata->outlen) {
 		resp.response_length = offsetof(typeof(resp), response_length) +
@@ -4699,10 +4721,12 @@ struct ib_wq *mlx5_ib_create_wq(struct ib_pd *pd,
 			goto err_copy;
 	}
 
+	rwq->core_qp.event = mlx5_ib_wq_event;
+	rwq->ibwq.event_handler = init_attr->event_handler;
 	return &rwq->ibwq;
 
 err_copy:
-	mlx5_core_destroy_rq(dev->mdev, rwq->rqn);
+	mlx5_core_destroy_rq_tracked(dev->mdev, &rwq->core_qp);
 err_user_rq:
 	destroy_user_rq(pd, rwq);
 err:
@@ -4715,7 +4739,7 @@ int mlx5_ib_destroy_wq(struct ib_wq *wq)
 	struct mlx5_ib_dev *dev = to_mdev(wq->device);
 	struct mlx5_ib_rwq *rwq = to_mrwq(wq);
 
-	mlx5_core_destroy_rq(dev->mdev, rwq->rqn);
+	mlx5_core_destroy_rq_tracked(dev->mdev, &rwq->core_qp);
 	destroy_user_rq(wq->pd, rwq);
 	kfree(rwq);
 
@@ -4847,7 +4871,7 @@ int mlx5_ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
 	MLX5_SET(modify_rq_in, in, rq_state, curr_wq_state);
 	MLX5_SET(rqc, rqc, state, wq_state);
 
-	err = mlx5_core_modify_rq(dev->mdev, rwq->rqn, in, inlen);
+	err = mlx5_core_modify_rq(dev->mdev, rwq->core_qp.qpn, in, inlen);
 	kvfree(in);
 	if (!err)
 		rwq->ibwq.state = (wq_state == MLX5_RQC_STATE_ERR) ? IB_WQS_ERR : wq_state;

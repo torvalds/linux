@@ -227,7 +227,7 @@ struct mlx5_ib_wq {
 
 struct mlx5_ib_rwq {
 	struct ib_wq		ibwq;
-	u32			rqn;
+	struct mlx5_core_qp	core_qp;
 	u32			rq_num_pas;
 	u32			log_rq_stride;
 	u32			log_rq_size;
@@ -662,6 +662,11 @@ static inline struct mlx5_ib_cq *to_mcq(struct ib_cq *ibcq)
 static inline struct mlx5_ib_qp *to_mibqp(struct mlx5_core_qp *mqp)
 {
 	return container_of(mqp, struct mlx5_ib_qp_base, mqp)->container_mibqp;
+}
+
+static inline struct mlx5_ib_rwq *to_mibrwq(struct mlx5_core_qp *core_qp)
+{
+	return container_of(core_qp, struct mlx5_ib_rwq, core_qp);
 }
 
 static inline struct mlx5_ib_mr *to_mibmr(struct mlx5_core_mkey *mmkey)
