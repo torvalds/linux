@@ -150,7 +150,7 @@ struct mlx5_ib_flow_prio {
 struct mlx5_ib_flow_handler {
 	struct list_head		list;
 	struct ib_flow			ibflow;
-	unsigned int			prio;
+	struct mlx5_ib_flow_prio	*prio;
 	struct mlx5_flow_rule	*rule;
 };
 

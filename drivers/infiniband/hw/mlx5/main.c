@@ -1654,7 +1654,7 @@ static int mlx5_ib_destroy_flow(struct ib_flow *flow_id)
 	}
 
 	mlx5_del_flow_rule(handler->rule);
-	put_flow_table(dev, &dev->flow_db.prios[handler->prio], true);
+	put_flow_table(dev, handler->prio, true);
 	mutex_unlock(&dev->flow_db.lock);
 
 	kfree(handler);
@@ -1776,7 +1776,7 @@ static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
 		goto free;
 	}
 
-	handler->prio = ft_prio - dev->flow_db.prios;
+	handler->prio = ft_prio;
 
 	ft_prio->flow_table = ft;
 free:
