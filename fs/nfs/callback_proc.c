@@ -454,8 +454,8 @@ static bool referring_call_exists(struct nfs_client *clp,
 				((u32 *)&rclist->rcl_sessionid.data)[3],
 				ref->rc_sequenceid, ref->rc_slotid);
 
-			status = nfs4_slot_seqid_in_use(tbl, ref->rc_slotid,
-					ref->rc_sequenceid);
+			status = nfs4_slot_wait_on_seqid(tbl, ref->rc_slotid,
+					ref->rc_sequenceid, HZ >> 1) < 0;
 			if (status)
 				goto out;
 		}

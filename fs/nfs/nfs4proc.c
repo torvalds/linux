@@ -686,6 +686,8 @@ out_unlock:
 	res->sr_slot = NULL;
 	if (send_new_highest_used_slotid)
 		nfs41_notify_server(session->clp);
+	if (waitqueue_active(&tbl->slot_waitq))
+		wake_up_all(&tbl->slot_waitq);
 }
 
 int nfs41_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *res)
