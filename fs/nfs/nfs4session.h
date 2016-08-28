@@ -21,7 +21,8 @@ struct nfs4_slot {
 	unsigned long		generation;
 	u32			slot_nr;
 	u32		 	seq_nr;
-	unsigned int		interrupted : 1;
+	unsigned int		interrupted : 1,
+				seq_done : 1;
 };
 
 /* Sessions */
