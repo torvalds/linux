@@ -45,6 +45,11 @@
 /include/ "skeleton.dtsi"
 
 / {
+	psci {
+		compatible = "arm,psci-0.2";
+		method = "smc";
+	};
+
 	clocks {
 		refclk: ref {
 			#clock-cells = <0>;

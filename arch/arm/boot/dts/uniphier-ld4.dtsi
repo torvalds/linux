@@ -56,6 +56,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <0>;
+			enable-method = "psci";
 			next-level-cache = <&l2>;
 		};
 	};

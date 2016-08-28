@@ -51,12 +51,12 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		enable-method = "socionext,uniphier-smp";
 
 		cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <0>;
+			enable-method = "psci";
 			next-level-cache = <&l2>;
 		};
 
@@ -64,6 +64,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <1>;
+			enable-method = "psci";
 			next-level-cache = <&l2>;
 		};
 	};
