@@ -192,7 +192,7 @@ static long obd_class_ioctl(struct file *filp, unsigned int cmd,
 }
 
 /* declare character device */
-static struct file_operations obd_psdev_fops = {
+static const struct file_operations obd_psdev_fops = {
 	.owner	  = THIS_MODULE,
 	.unlocked_ioctl = obd_class_ioctl, /* unlocked_ioctl */
 	.open	   = obd_class_open,      /* open */
