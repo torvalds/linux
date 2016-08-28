@@ -1848,6 +1848,8 @@ static inline int tcp_inq(struct sock *sk)
 	return answ;
 }
 
+int tcp_peek_len(struct socket *sock);
+
 static inline void tcp_segs_in(struct tcp_sock *tp, const struct sk_buff *skb)
 {
 	u16 segs_in;

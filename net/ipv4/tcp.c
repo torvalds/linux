@@ -1570,6 +1570,12 @@ int tcp_read_sock(struct sock *sk, read_descriptor_t *desc,
 }
 EXPORT_SYMBOL(tcp_read_sock);
 
+int tcp_peek_len(struct socket *sock)
+{
+	return tcp_inq(sock->sk);
+}
+EXPORT_SYMBOL(tcp_peek_len);
+
 /*
  *	This routine copies from a sock struct into the user buffer.
  *
