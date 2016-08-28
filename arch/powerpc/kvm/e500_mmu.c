@@ -785,35 +785,39 @@ int kvm_vcpu_ioctl_config_tlb(struct kvm_vcpu *vcpu,
 
 	ret = get_user_pages_fast(cfg->array, num_pages, 1, pages);
 	if (ret < 0)
-		goto err_pages;
+		goto free_pages;
 
 	if (ret != num_pages) {
 		num_pages = ret;
 		ret = -EFAULT;
-		goto err_put_page;
+		goto put_pages;
 	}
 
 	virt = vmap(pages, num_pages, VM_MAP, PAGE_KERNEL);
 	if (!virt) {
 		ret = -ENOMEM;
-		goto err_put_page;
+		goto put_pages;
 	}
 
 	privs[0] = kzalloc(sizeof(struct tlbe_priv) * params.tlb_sizes[0],
 			   GFP_KERNEL);
+	if (!privs[0]) {
+		ret = -ENOMEM;
+		goto put_pages;
+	}
+
 	privs[1] = kzalloc(sizeof(struct tlbe_priv) * params.tlb_sizes[1],
 			   GFP_KERNEL);
-
-	if (!privs[0] || !privs[1]) {
+	if (!privs[1]) {
 		ret = -ENOMEM;
-		goto err_privs;
+		goto free_privs_first;
 	}
 
 	g2h_bitmap = kzalloc(sizeof(u64) * params.tlb_sizes[1],
 	                     GFP_KERNEL);
 	if (!g2h_bitmap) {
 		ret = -ENOMEM;
-		goto err_privs;
+		goto free_privs_second;
 	}
 
 	free_gtlb(vcpu_e500);
@@ -845,16 +849,14 @@ int kvm_vcpu_ioctl_config_tlb(struct kvm_vcpu *vcpu,
 
 	kvmppc_recalc_tlb1map_range(vcpu_e500);
 	return 0;
-
-err_privs:
-	kfree(privs[0]);
+ free_privs_second:
 	kfree(privs[1]);
-
-err_put_page:
+ free_privs_first:
+	kfree(privs[0]);
+ put_pages:
 	for (i = 0; i < num_pages; i++)
 		put_page(pages[i]);
-
-err_pages:
+ free_pages:
 	kfree(pages);
 	return ret;
 }
