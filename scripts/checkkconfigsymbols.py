@@ -149,11 +149,11 @@ def main():
             undefined_b = {}
 
         # get undefined items before the commit
-        execute("git reset --hard %s" % commit_a)
+        reset(commit_a)
         undefined_a, _ = check_symbols(args.ignore)
 
         # get undefined items for the commit
-        execute("git reset --hard %s" % commit_b)
+        reset(commit_b)
         undefined_b, defined = check_symbols(args.ignore)
 
         # report cases that are present for the commit but not before
@@ -170,7 +170,7 @@ def main():
                     undefined[symbol] = files
 
         # reset to head
-        execute("git reset --hard %s" % head)
+        reset(head)
 
     # default to check the entire tree
     else:
@@ -202,6 +202,11 @@ def main():
         print()  # new line
 
 
+def reset(commit):
+    """Reset current git tree to %commit."""
+    execute(["git", "reset", "--hard", commit])
+
+
 def yel(string):
     """
     Color %string yellow.
@@ -219,25 +224,25 @@ def red(string):
 def execute(cmd):
     """Execute %cmd and return stdout.  Exit in case of error."""
     try:
-        cmdlist = cmd.split(" ")
-        stdout = subprocess.check_output(cmdlist, stderr=subprocess.STDOUT, shell=False)
+        stdout = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=False)
         stdout = stdout.decode(errors='replace')
     except subprocess.CalledProcessError as fail:
-        exit("Failed to execute %s\n%s" % (cmd, fail))
+        exit(fail)
     return stdout
 
 
 def find_commits(symbol, diff):
     """Find commits changing %symbol in the given range of %diff."""
-    commits = execute("git log --pretty=oneline --abbrev-commit -G %s %s"
-                      % (symbol, diff))
+    commits = execute(["git", "log", "--pretty=oneline",
+                       "--abbrev-commit", "-G",
+                       symbol, diff])
     return [x for x in commits.split("\n") if x]
 
 
 def tree_is_dirty():
     """Return true if the current working tree is dirty (i.e., if any file has
     been added, deleted, modified, renamed or copied but not committed)."""
-    stdout = execute("git status --porcelain")
+    stdout = execute(["git", "status", "--porcelain"])
     for line in stdout:
         if re.findall(r"[URMADC]{1}", line[:2]):
             return True
@@ -246,7 +251,7 @@ def tree_is_dirty():
 
 def get_head():
     """Return commit hash of current HEAD."""
-    stdout = execute("git rev-parse HEAD")
+    stdout = execute(["git", "rev-parse", "HEAD"])
     return stdout.strip('\n')
 
 
@@ -285,7 +290,7 @@ def find_sims(symbol, ignore, defined=[]):
 def get_files():
     """Return a list of all files in the current git directory."""
     # use 'git ls-files' to get the worklist
-    stdout = execute("git ls-files")
+    stdout = execute(["git", "ls-files"])
     if len(stdout) > 0 and stdout[-1] == "\n":
         stdout = stdout[:-1]
 
