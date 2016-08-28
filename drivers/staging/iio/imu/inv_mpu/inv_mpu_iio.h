@@ -362,6 +362,9 @@ struct inv_mpu_iio_s {
 	const short *compass_st_upper;
 	const short *compass_st_lower;
 	short irq;
+	signed short hid_temperature;
+	u64 hid_timestamp;
+	int use_hid;
 	int accel_bias[3];
 	int gyro_bias[3];
 	short raw_gyro[3];

@@ -340,23 +340,24 @@ int inv_get_silicon_rev_mpu6500(struct inv_mpu_iio_s *st)
 	int result;
 	u8 whoami, sw_rev;
 
-	result = inv_plat_read(st, REG_WHOAMI, 1, &whoami);
-	if (result)
-		return result;
-	if (whoami != MPU6500_ID && whoami != MPU9250_ID &&
-			whoami != MPU6515_ID)
-		return -EINVAL;
+	if (!st->use_hid) {
+		result = inv_plat_read(st, REG_WHOAMI, 1, &whoami);
+		if (result)
+			return result;
+		if (whoami != MPU6500_ID && whoami != MPU9250_ID &&
+				whoami != MPU6515_ID)
+			return -EINVAL;
 
-	/*memory read need more time after power up */
-	msleep(POWER_UP_TIME);
-	result = mpu_memory_read(st, st->i2c_addr,
-			MPU6500_MEM_REV_ADDR, 1, &sw_rev);
-	sw_rev &= INV_MPU_REV_MASK;
-	if (result)
-		return result;
-	if (sw_rev != 0)
-		return -EINVAL;
-
+		/*memory read need more time after power up */
+		msleep(POWER_UP_TIME);
+		result = mpu_memory_read(st, st->i2c_addr,
+				MPU6500_MEM_REV_ADDR, 1, &sw_rev);
+		sw_rev &= INV_MPU_REV_MASK;
+		if (result)
+			return result;
+		if (sw_rev != 0)
+			return -EINVAL;
+	}
 	/* these values are place holders and not real values */
 	chip_info->product_id = MPU6500_PRODUCT_REVISION;
 	chip_info->product_revision = MPU6500_PRODUCT_REVISION;

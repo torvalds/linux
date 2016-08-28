@@ -1047,7 +1047,10 @@ static ssize_t inv_temperature_show(struct device *dev,
 		pr_err("Could not read temperature register.\n");
 		return result;
 	}
-	temp = (signed short)(be16_to_cpup((short *)&data[0]));
+	if (st->use_hid)
+		temp = st->hid_temperature;
+	else
+		temp = (signed short)(be16_to_cpup((short *)&data[0]));
 	switch (st->chip_type) {
 	case INV_MPU3050:
 		cur_scale = scale[0];
@@ -1069,7 +1072,10 @@ static ssize_t inv_temperature_show(struct device *dev,
 
 	INV_I2C_INC_TEMPREAD(1);
 
-	return sprintf(buf, "%ld %lld\n", scale_t, get_time_ns());
+	if (st->use_hid)
+		return sprintf(buf, "%ld %lld\n", scale_t, st->hid_timestamp);
+	else
+		return sprintf(buf, "%ld %lld\n", scale_t, get_time_ns());
 }
 
 /**

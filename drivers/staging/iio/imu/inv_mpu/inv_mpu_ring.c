@@ -50,6 +50,7 @@
 #endif
 
 #include "inv_mpu_iio.h"
+#include "../../../../hid/hid-rkvr.h"
 
 /**
  *  reset_fifo_mpu3050() - Reset FIFO related registers
@@ -547,9 +548,9 @@ static irqreturn_t inv_irq_handler(int irq, void *dev_id)
 
 	catch_up = 0;
 	while ((time_since_last_irq > st->irq_dur_ns * 2) &&
-	       (catch_up < MAX_CATCH_UP) &&
-	       (!st->chip_config.lpa_mode) &&
-	       (!st->chip_config.dmp_on)) {
+		(catch_up < MAX_CATCH_UP) &&
+		(!st->chip_config.lpa_mode) &&
+		(!st->chip_config.dmp_on)) {
 		st->last_isr_time += st->irq_dur_ns;
 		kfifo_in(&st->timestamps,
 			 &st->last_isr_time, 1);
@@ -1053,7 +1054,8 @@ flush_fifo:
 void inv_mpu_unconfigure_ring(struct iio_dev *indio_dev)
 {
 	struct inv_mpu_iio_s *st = iio_priv(indio_dev);
-	free_irq(st->irq, st);
+	if (!st->use_hid)
+		free_irq(st->irq, st);
 	iio_kfifo_free(indio_dev->buffer);
 };
 
@@ -1074,22 +1076,22 @@ static void inv_scan_query(struct iio_dev *indio_dev)
 	int result;
 
 	if (iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_GYRO_X) ||
-	    iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_GYRO_Y) ||
-	    iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_GYRO_Z))
+		iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_GYRO_Y) ||
+		iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_GYRO_Z))
 		st->chip_config.gyro_fifo_enable = 1;
 	else
 		st->chip_config.gyro_fifo_enable = 0;
 
 	if (iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_ACCL_X) ||
-	    iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_ACCL_Y) ||
-	    iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_ACCL_Z))
+		iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_ACCL_Y) ||
+		iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_ACCL_Z))
 		st->chip_config.accl_fifo_enable = 1;
 	else
 		st->chip_config.accl_fifo_enable = 0;
 
 	if (iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_MAGN_X) ||
-	    iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_MAGN_Y) ||
-	    iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_MAGN_Z))
+		iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_MAGN_Y) ||
+		iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_MAGN_Z))
 		st->chip_config.compass_fifo_enable = 1;
 	else
 		st->chip_config.compass_fifo_enable = 0;
@@ -1119,10 +1121,10 @@ static int inv_check_quaternion(struct iio_dev *indio_dev)
 
 	if (st->chip_config.dmp_on) {
 		if (
-		  iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_QUAT_R) ||
-		  iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_QUAT_X) ||
-		  iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_QUAT_Y) ||
-		  iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_QUAT_Z))
+			iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_QUAT_R) ||
+			iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_QUAT_X) ||
+			iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_QUAT_Y) ||
+			iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_QUAT_Z))
 			st->chip_config.quaternion_on = 1;
 		else
 			st->chip_config.quaternion_on = 0;
@@ -1195,6 +1197,76 @@ static const struct iio_buffer_setup_ops inv_mpu_ring_setup_ops = {
 	.predisable = &inv_predisable,
 };
 
+#ifdef CONFIG_HID_RKVR
+/* Callback handler to send event */
+static int inv_proc_event(char *raw_data, size_t raw_len, void *priv)
+{
+	struct inv_mpu_iio_s *st = (struct inv_mpu_iio_s *)priv;
+	struct iio_dev *indio_dev = iio_priv_to_dev(st);
+	short g[THREE_AXIS], a[THREE_AXIS];
+	int ind;
+	u8 buf[64];
+	u64 *tmp;
+	int i;
+	char *p;
+	struct inv_chip_config_s *conf;
+
+	conf = &st->chip_config;
+	ind = 0;
+
+#ifdef DUMP_HEX
+{
+	int hex_index;
+	char hex[raw_len * 3 + (8 - 3)];
+
+	for (hex_index = 0; hex_index < raw_len; hex_index++)
+		sprintf(&hex[hex_index * 3], "%02X ", raw_data[hex_index]);
+	hex[hex_index * 3] = '\n';
+	hex[hex_index * 3 + 1] = '\0';
+	pr_info("in:%s\n", hex);
+}
+#endif
+	p = raw_data + 6;
+	st->hid_temperature = (p[1] << 8) | p[0];
+	p = raw_data + 8;
+
+	if (conf->quaternion_on)
+		ind += BYTES_FOR_DMP;
+
+	if (conf->accl_fifo_enable) {
+		for (i = 0; i < ARRAY_SIZE(a); i++) {
+			a[i] = (p[1] << 8) | p[0];
+			p += 2;
+		}
+		memcpy(&buf[ind], a, sizeof(a));
+		ind += BYTES_PER_SENSOR;
+	}
+
+	if (conf->gyro_fifo_enable) {
+		for (i = 0; i < ARRAY_SIZE(g); i++) {
+			g[i] = (p[1] << 8) | p[0];
+			p += 2;
+		}
+		memcpy(&buf[ind], g, sizeof(g));
+		ind += BYTES_PER_SENSOR;
+	}
+
+	tmp = (u64 *)buf;
+	st->hid_timestamp = get_time_ns();
+	tmp[DIV_ROUND_UP(ind, 8)] = st->hid_timestamp;
+
+	if (ind > 0) {
+#ifdef INV_KERNEL_3_10
+		iio_push_to_buffers(indio_dev, buf);
+#else
+		iio_push_to_buffer(indio_dev->buffer, buf, st->hid_timestamp);
+#endif
+	}
+
+	return 0;
+}
+#endif
+
 int inv_mpu_configure_ring(struct iio_dev *indio_dev)
 {
 	int ret;
@@ -1208,19 +1280,26 @@ int inv_mpu_configure_ring(struct iio_dev *indio_dev)
 	/* setup ring buffer */
 	ring->scan_timestamp = true;
 	indio_dev->setup_ops = &inv_mpu_ring_setup_ops;
-	/*scan count double count timestamp. should subtract 1. but
-	number of channels still includes timestamp*/
-	if (INV_MPU3050 == st->chip_type)
-		ret = request_threaded_irq(st->irq, inv_irq_handler,
-			inv_read_fifo_mpu3050,
-			IRQF_TRIGGER_RISING | IRQF_SHARED, "inv_irq", st);
-	else
-		ret = request_threaded_irq(st->irq, inv_irq_handler,
-			inv_read_fifo,
-			IRQF_TRIGGER_RISING | IRQF_SHARED, "inv_irq", st);
-	if (ret)
-		goto error_iio_sw_rb_free;
 
+	if (st->use_hid) {
+#ifdef CONFIG_HID_RKVR
+		pr_info("register event callback\n");
+		rkvr_sensor_register_callback(inv_proc_event, st);
+#endif
+	} else {
+		/*scan count double count timestamp. should subtract 1. but
+		number of channels still includes timestamp*/
+		if (INV_MPU3050 == st->chip_type)
+			ret = request_threaded_irq(st->irq, inv_irq_handler,
+				inv_read_fifo_mpu3050,
+				IRQF_TRIGGER_RISING | IRQF_SHARED, "inv_irq", st);
+		else
+			ret = request_threaded_irq(st->irq, inv_irq_handler,
+				inv_read_fifo,
+				IRQF_TRIGGER_RISING | IRQF_SHARED, "inv_irq", st);
+		if (ret)
+			goto error_iio_sw_rb_free;
+	}
 	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
 	return 0;
 error_iio_sw_rb_free:
