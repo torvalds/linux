@@ -16,7 +16,6 @@ import signal
 import subprocess
 import sys
 from multiprocessing import Pool, cpu_count
-from subprocess import Popen, PIPE, STDOUT
 
 
 # regex expressions
@@ -118,8 +117,8 @@ def main():
     """Main function of this module."""
     args = parse_options()
 
-    global color
-    color = args.color and sys.stdout.isatty()
+    global COLOR
+    COLOR = args.color and sys.stdout.isatty()
 
     if args.sim and not args.commit and not args.diff:
         sims = find_sims(args.sim, args.ignore)
@@ -160,7 +159,7 @@ def main():
         # report cases that are present for the commit but not before
         for feature in sorted(undefined_b):
             # feature has not been undefined before
-            if not feature in undefined_a:
+            if feature not in undefined_a:
                 files = sorted(undefined_b.get(feature))
                 undefined[feature] = files
             # check if there are new files that reference the undefined feature
@@ -200,21 +199,21 @@ def main():
                     print("\t- %s (\"%s\")" % (yel(commit[0]), commit[1]))
             else:
                 print("\t- no commit found")
-        print()  #  new line
+        print()  # new line
 
 
 def yel(string):
     """
     Color %string yellow.
     """
-    return "\033[33m%s\033[0m" % string if color else string
+    return "\033[33m%s\033[0m" % string if COLOR else string
 
 
 def red(string):
     """
     Color %string red.
     """
-    return "\033[31m%s\033[0m" % string if color else string
+    return "\033[31m%s\033[0m" % string if COLOR else string
 
 
 def execute(cmd):
@@ -261,7 +260,7 @@ def init_worker():
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
 
-def find_sims(symbol, ignore, defined = []):
+def find_sims(symbol, ignore, defined=[]):
     """Return a list of max. ten Kconfig symbols that are string-similar to
     @symbol."""
     if defined:
@@ -335,7 +334,6 @@ def check_symbols_helper(pool, ignore):
     for res in pool.map(parse_source_files, arglist):
         referenced_features.update(res)
 
-
     # parse kconfig files
     arglist = []
     for part in partition(kconfig_files, cpu_count()):
@@ -389,7 +387,7 @@ def parse_source_file(sfile):
         lines = stream.readlines()
 
     for line in lines:
-        if not "CONFIG_" in line:
+        if "CONFIG_" not in line:
             continue
         features = REGEX_SOURCE_FEATURE.findall(line)
         for feature in features:
