@@ -1861,6 +1861,7 @@ static struct mlx5_ib_flow_handler *create_leftovers_rule(struct mlx5_ib_dev *de
 						 &leftovers_specs[LEFTOVERS_UC].flow_attr,
 						 dst);
 		if (IS_ERR(handler_ucast)) {
+			mlx5_del_flow_rule(handler->rule);
 			kfree(handler);
 			handler = handler_ucast;
 		} else {
