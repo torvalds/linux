@@ -73,8 +73,12 @@
 #define MLX5_MPWRQ_PAGES_PER_WQE		BIT(MLX5_MPWRQ_WQE_PAGE_ORDER)
 #define MLX5_MPWRQ_STRIDES_PER_PAGE		(MLX5_MPWRQ_NUM_STRIDES >> \
 						 MLX5_MPWRQ_WQE_PAGE_ORDER)
-#define MLX5_CHANNEL_MAX_NUM_MTTS (ALIGN(MLX5_MPWRQ_PAGES_PER_WQE, 8) * \
-				   BIT(MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE_MPW))
+
+#define MLX5_MTT_OCTW(npages) (ALIGN(npages, 8) / 2)
+#define MLX5E_REQUIRED_MTTS(rqs, wqes)\
+	(rqs * wqes * ALIGN(MLX5_MPWRQ_PAGES_PER_WQE, 8))
+#define MLX5E_VALID_NUM_MTTS(num_mtts) (MLX5_MTT_OCTW(num_mtts) <= U16_MAX)
+
 #define MLX5_UMR_ALIGN				(2048)
 #define MLX5_MPWRQ_SMALL_PACKET_THRESHOLD	(128)
 
@@ -304,6 +308,7 @@ struct mlx5e_rq {
 
 	unsigned long          state;
 	int                    ix;
+	u32                    mpwqe_mtt_offset;
 
 	struct mlx5e_rx_am     am; /* Adaptive Moderation */
 
@@ -812,11 +817,6 @@ static inline int mlx5e_get_max_num_channels(struct mlx5_core_dev *mdev)
 {
 	return min_t(int, mdev->priv.eq_table.num_comp_vectors,
 		     MLX5E_MAX_NUM_CHANNELS);
-}
-
-static inline int mlx5e_get_mtt_octw(int npages)
-{
-	return ALIGN(npages, 8) / 2;
 }
 
 extern const struct ethtool_ops mlx5e_ethtool_ops;

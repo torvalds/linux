@@ -340,6 +340,9 @@ static int mlx5e_create_rq(struct mlx5e_channel *c,
 		rq->alloc_wqe = mlx5e_alloc_rx_mpwqe;
 		rq->dealloc_wqe = mlx5e_dealloc_rx_mpwqe;
 
+		rq->mpwqe_mtt_offset = c->ix *
+			MLX5E_REQUIRED_MTTS(1, BIT(priv->params.log_rq_size));
+
 		rq->mpwqe_stride_sz = BIT(priv->params.mpwqe_log_stride_sz);
 		rq->mpwqe_num_strides = BIT(priv->params.mpwqe_log_num_strides);
 		rq->wqe_sz = rq->mpwqe_stride_sz * rq->mpwqe_num_strides;
@@ -3233,8 +3236,8 @@ static int mlx5e_create_umr_mkey(struct mlx5e_priv *priv)
 	struct mlx5_create_mkey_mbox_in *in;
 	struct mlx5_mkey_seg *mkc;
 	int inlen = sizeof(*in);
-	u64 npages =
-		priv->profile->max_nch(mdev) * MLX5_CHANNEL_MAX_NUM_MTTS;
+	u64 npages = MLX5E_REQUIRED_MTTS(priv->profile->max_nch(mdev),
+					 BIT(MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE_MPW));
 	int err;
 
 	in = mlx5_vzalloc(inlen);
@@ -3248,10 +3251,12 @@ static int mlx5e_create_umr_mkey(struct mlx5e_priv *priv)
 		     MLX5_PERM_LOCAL_WRITE |
 		     MLX5_ACCESS_MODE_MTT;
 
+	npages = min_t(u32, ALIGN(U16_MAX, 4) * 2, npages);
+
 	mkc->qpn_mkey7_0 = cpu_to_be32(0xffffff << 8);
 	mkc->flags_pd = cpu_to_be32(mdev->mlx5e_res.pdn);
 	mkc->len = cpu_to_be64(npages << PAGE_SHIFT);
-	mkc->xlt_oct_size = cpu_to_be32(mlx5e_get_mtt_octw(npages));
+	mkc->xlt_oct_size = cpu_to_be32(MLX5_MTT_OCTW(npages));
 	mkc->log2_page_size = PAGE_SHIFT;
 
 	err = mlx5_core_create_mkey(mdev, &priv->umr_mkey, in, inlen, NULL,

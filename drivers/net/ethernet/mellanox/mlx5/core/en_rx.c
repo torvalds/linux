@@ -324,9 +324,9 @@ mlx5e_copy_skb_header_fragmented_mpwqe(struct device *pdev,
 	}
 }
 
-static u16 mlx5e_get_wqe_mtt_offset(u16 rq_ix, u16 wqe_ix)
+static u32 mlx5e_get_wqe_mtt_offset(struct mlx5e_rq *rq, u16 wqe_ix)
 {
-	return rq_ix * MLX5_CHANNEL_MAX_NUM_MTTS +
+	return rq->mpwqe_mtt_offset +
 		wqe_ix * ALIGN(MLX5_MPWRQ_PAGES_PER_WQE, 8);
 }
 
@@ -340,7 +340,7 @@ static void mlx5e_build_umr_wqe(struct mlx5e_rq *rq,
 	struct mlx5_wqe_data_seg      *dseg = &wqe->data;
 	struct mlx5e_mpw_info *wi = &rq->wqe_info[ix];
 	u8 ds_cnt = DIV_ROUND_UP(sizeof(*wqe), MLX5_SEND_WQE_DS);
-	u16 umr_wqe_mtt_offset = mlx5e_get_wqe_mtt_offset(rq->ix, ix);
+	u32 umr_wqe_mtt_offset = mlx5e_get_wqe_mtt_offset(rq, ix);
 
 	memset(wqe, 0, sizeof(*wqe));
 	cseg->opmod_idx_opcode =
@@ -353,9 +353,9 @@ static void mlx5e_build_umr_wqe(struct mlx5e_rq *rq,
 
 	ucseg->flags = MLX5_UMR_TRANSLATION_OFFSET_EN;
 	ucseg->klm_octowords =
-		cpu_to_be16(mlx5e_get_mtt_octw(MLX5_MPWRQ_PAGES_PER_WQE));
+		cpu_to_be16(MLX5_MTT_OCTW(MLX5_MPWRQ_PAGES_PER_WQE));
 	ucseg->bsf_octowords =
-		cpu_to_be16(mlx5e_get_mtt_octw(umr_wqe_mtt_offset));
+		cpu_to_be16(MLX5_MTT_OCTW(umr_wqe_mtt_offset));
 	ucseg->mkey_mask     = cpu_to_be64(MLX5_MKEY_MASK_FREE);
 
 	dseg->lkey = sq->mkey_be;
@@ -423,7 +423,7 @@ static int mlx5e_alloc_rx_fragmented_mpwqe(struct mlx5e_rq *rq,
 {
 	struct mlx5e_mpw_info *wi = &rq->wqe_info[ix];
 	int mtt_sz = mlx5e_get_wqe_mtt_sz();
-	u32 dma_offset = mlx5e_get_wqe_mtt_offset(rq->ix, ix) << PAGE_SHIFT;
+	u64 dma_offset = (u64)mlx5e_get_wqe_mtt_offset(rq, ix) << PAGE_SHIFT;
 	int i;
 
 	wi->umr.dma_info = kmalloc(sizeof(*wi->umr.dma_info) *
