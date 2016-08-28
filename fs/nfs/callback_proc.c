@@ -484,7 +484,6 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 		goto out;
 
 	tbl = &clp->cl_session->bc_slot_table;
-	slot = tbl->slots + args->csa_slotid;
 
 	/* Set up res before grabbing the spinlock */
 	memcpy(&res->csr_sessionid, &args->csa_sessionid,
