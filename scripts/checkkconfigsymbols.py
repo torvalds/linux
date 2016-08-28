@@ -8,6 +8,7 @@
 # Licensed under the terms of the GNU GPL License version 2
 
 
+import argparse
 import difflib
 import os
 import re
@@ -15,7 +16,6 @@ import signal
 import subprocess
 import sys
 from multiprocessing import Pool, cpu_count
-from optparse import OptionParser
 from subprocess import Popen, PIPE, STDOUT
 
 
@@ -43,62 +43,58 @@ REGEX_QUOTES = re.compile("(\"(.*?)\")")
 
 def parse_options():
     """The user interface of this module."""
-    usage = "%prog [options]\n\n"                                              \
-            "Run this tool to detect Kconfig symbols that are referenced but " \
-            "not defined in\nKconfig.  The output of this tool has the "       \
-            "format \'Undefined symbol\\tFile list\'\n\n"                      \
-            "If no option is specified, %prog will default to check your\n"    \
-            "current tree.  Please note that specifying commits will "         \
-            "\'git reset --hard\'\nyour current tree!  You may save "          \
-            "uncommitted changes to avoid losing data."
+    usage = "Run this tool to detect Kconfig symbols that are referenced but " \
+            "not defined in Kconfig.  If no option is specified, "             \
+            "checkkconfigsymbols defaults to check your current tree.  "       \
+            "Please note that specifying commits will 'git reset --hard\' "    \
+            "your current tree!  You may save uncommitted changes to avoid "   \
+            "losing data."
 
-    parser = OptionParser(usage=usage)
+    parser = argparse.ArgumentParser(description=usage)
 
-    parser.add_option('-c', '--commit', dest='commit', action='store',
-                      default="",
-                      help="Check if the specified commit (hash) introduces "
-                           "undefined Kconfig symbols.")
+    parser.add_argument('-c', '--commit', dest='commit', action='store',
+                        default="",
+                        help="check if the specified commit (hash) introduces "
+                             "undefined Kconfig symbols")
 
-    parser.add_option('-d', '--diff', dest='diff', action='store',
-                      default="",
-                      help="Diff undefined symbols between two commits.  The "
-                           "input format bases on Git log's "
-                           "\'commmit1..commit2\'.")
+    parser.add_argument('-d', '--diff', dest='diff', action='store',
+                        default="",
+                        help="diff undefined symbols between two commits "
+                             "(e.g., -d commmit1..commit2)")
 
-    parser.add_option('-f', '--find', dest='find', action='store_true',
-                      default=False,
-                      help="Find and show commits that may cause symbols to be "
-                           "missing.  Required to run with --diff.")
+    parser.add_argument('-f', '--find', dest='find', action='store_true',
+                        default=False,
+                        help="find and show commits that may cause symbols to be "
+                             "missing (required to run with --diff)")
 
-    parser.add_option('-i', '--ignore', dest='ignore', action='store',
-                      default="",
-                      help="Ignore files matching this pattern.  Note that "
-                           "the pattern needs to be a Python regex.  To "
-                           "ignore defconfigs, specify -i '.*defconfig'.")
+    parser.add_argument('-i', '--ignore', dest='ignore', action='store',
+                        default="",
+                        help="ignore files matching this Python regex "
+                             "(e.g., -i '.*defconfig')")
 
-    parser.add_option('-s', '--sim', dest='sim', action='store', default="",
-                      help="Print a list of maximum 10 string-similar symbols.")
+    parser.add_argument('-s', '--sim', dest='sim', action='store', default="",
+                        help="print a list of max. 10 string-similar symbols")
 
-    parser.add_option('', '--force', dest='force', action='store_true',
-                      default=False,
-                      help="Reset current Git tree even when it's dirty.")
+    parser.add_argument('--force', dest='force', action='store_true',
+                        default=False,
+                        help="reset current Git tree even when it's dirty")
 
-    parser.add_option('', '--no-color', dest='color', action='store_false',
-                      default=True,
-                      help="Don't print colored output. Default when not "
-                           "outputting to a terminal.")
+    parser.add_argument('--no-color', dest='color', action='store_false',
+                        default=True,
+                        help="don't print colored output (default when not "
+                             "outputting to a terminal)")
 
-    (opts, _) = parser.parse_args()
+    args = parser.parse_args()
 
-    if opts.commit and opts.diff:
+    if args.commit and args.diff:
         sys.exit("Please specify only one option at once.")
 
-    if opts.diff and not re.match(r"^[\w\-\.]+\.\.[\w\-\.]+$", opts.diff):
+    if args.diff and not re.match(r"^[\w\-\.]+\.\.[\w\-\.]+$", args.diff):
         sys.exit("Please specify valid input in the following format: "
                  "\'commit1..commit2\'")
 
-    if opts.commit or opts.diff:
-        if not opts.force and tree_is_dirty():
+    if args.commit or args.diff:
+        if not args.force and tree_is_dirty():
             sys.exit("The current Git tree is dirty (see 'git status').  "
                      "Running this script may\ndelete important data since it "
                      "calls 'git reset --hard' for some performance\nreasons. "
@@ -106,27 +102,27 @@ def parse_options():
                      "'--force' if you\nwant to ignore this warning and "
                      "continue.")
 
-    if opts.commit:
-        opts.find = False
+    if args.commit:
+        args.find = False
 
-    if opts.ignore:
+    if args.ignore:
         try:
-            re.match(opts.ignore, "this/is/just/a/test.c")
+            re.match(args.ignore, "this/is/just/a/test.c")
         except:
             sys.exit("Please specify a valid Python regex.")
 
-    return opts
+    return args
 
 
 def main():
     """Main function of this module."""
-    opts = parse_options()
+    args = parse_options()
 
     global color
-    color = opts.color and sys.stdout.isatty()
+    color = args.color and sys.stdout.isatty()
 
-    if opts.sim and not opts.commit and not opts.diff:
-        sims = find_sims(opts.sim, opts.ignore)
+    if args.sim and not args.commit and not args.diff:
+        sims = find_sims(args.sim, args.ignore)
         if sims:
             print("%s: %s" % (yel("Similar symbols"), ', '.join(sims)))
         else:
@@ -137,17 +133,17 @@ def main():
     defined = {}
     undefined = {}
 
-    if opts.commit or opts.diff:
+    if args.commit or args.diff:
         head = get_head()
 
         # get commit range
         commit_a = None
         commit_b = None
-        if opts.commit:
-            commit_a = opts.commit + "~"
-            commit_b = opts.commit
-        elif opts.diff:
-            split = opts.diff.split("..")
+        if args.commit:
+            commit_a = args.commit + "~"
+            commit_b = args.commit
+        elif args.diff:
+            split = args.diff.split("..")
             commit_a = split[0]
             commit_b = split[1]
             undefined_a = {}
@@ -155,11 +151,11 @@ def main():
 
         # get undefined items before the commit
         execute("git reset --hard %s" % commit_a)
-        undefined_a, _ = check_symbols(opts.ignore)
+        undefined_a, _ = check_symbols(args.ignore)
 
         # get undefined items for the commit
         execute("git reset --hard %s" % commit_b)
-        undefined_b, defined = check_symbols(opts.ignore)
+        undefined_b, defined = check_symbols(args.ignore)
 
         # report cases that are present for the commit but not before
         for feature in sorted(undefined_b):
@@ -179,7 +175,7 @@ def main():
 
     # default to check the entire tree
     else:
-        undefined, defined = check_symbols(opts.ignore)
+        undefined, defined = check_symbols(args.ignore)
 
     # now print the output
     for feature in sorted(undefined):
@@ -188,16 +184,16 @@ def main():
         files = sorted(undefined.get(feature))
         print("%s: %s" % (yel("Referencing files"), ", ".join(files)))
 
-        sims = find_sims(feature, opts.ignore, defined)
+        sims = find_sims(feature, args.ignore, defined)
         sims_out = yel("Similar symbols")
         if sims:
             print("%s: %s" % (sims_out, ', '.join(sims)))
         else:
             print("%s: %s" % (sims_out, "no similar symbols found"))
 
-        if opts.find:
+        if args.find:
             print("%s:" % yel("Commits changing symbol"))
-            commits = find_commits(feature, opts.diff)
+            commits = find_commits(feature, args.diff)
             if commits:
                 for commit in commits:
                     commit = commit.split(" ", 1)
