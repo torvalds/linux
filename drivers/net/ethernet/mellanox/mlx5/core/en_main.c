@@ -39,13 +39,6 @@
 #include "eswitch.h"
 #include "vxlan.h"
 
-enum {
-	MLX5_EN_QP_FLUSH_TIMEOUT_MS	= 5000,
-	MLX5_EN_QP_FLUSH_MSLEEP_QUANT	= 20,
-	MLX5_EN_QP_FLUSH_MAX_ITER	= MLX5_EN_QP_FLUSH_TIMEOUT_MS /
-					  MLX5_EN_QP_FLUSH_MSLEEP_QUANT,
-};
-
 struct mlx5e_rq_param {
 	u32			rqc[MLX5_ST_SZ_DW(rqc)];
 	struct mlx5_wq_param	wq;
@@ -827,7 +820,6 @@ static int mlx5e_open_sq(struct mlx5e_channel *c,
 		goto err_disable_sq;
 
 	if (sq->txq) {
-		set_bit(MLX5E_SQ_STATE_WAKE_TXQ_ENABLE, &sq->state);
 		netdev_tx_reset_queue(sq->txq);
 		netif_tx_start_queue(sq->txq);
 	}
@@ -851,38 +843,20 @@ static inline void netif_tx_disable_queue(struct netdev_queue *txq)
 
 static void mlx5e_close_sq(struct mlx5e_sq *sq)
 {
-	int tout = 0;
-	int err;
-
-	if (sq->txq) {
-		clear_bit(MLX5E_SQ_STATE_WAKE_TXQ_ENABLE, &sq->state);
-		/* prevent netif_tx_wake_queue */
-		napi_synchronize(&sq->channel->napi);
-		netif_tx_disable_queue(sq->txq);
-
-		/* ensure hw is notified of all pending wqes */
-		if (mlx5e_sq_has_room_for(sq, 1))
-			mlx5e_send_nop(sq, true);
-
-		err = mlx5e_modify_sq(sq, MLX5_SQC_STATE_RDY,
-				      MLX5_SQC_STATE_ERR, false, 0);
-		if (err)
-			set_bit(MLX5E_SQ_STATE_TX_TIMEOUT, &sq->state);
-	}
-
-	/* wait till sq is empty, unless a TX timeout occurred on this SQ */
-	while (sq->cc != sq->pc &&
-	       !test_bit(MLX5E_SQ_STATE_TX_TIMEOUT, &sq->state)) {
-		msleep(MLX5_EN_QP_FLUSH_MSLEEP_QUANT);
-		if (tout++ > MLX5_EN_QP_FLUSH_MAX_ITER)
-			set_bit(MLX5E_SQ_STATE_TX_TIMEOUT, &sq->state);
-	}
-
-	/* avoid destroying sq before mlx5e_poll_tx_cq() is done with it */
+	set_bit(MLX5E_SQ_STATE_FLUSH, &sq->state);
+	/* prevent netif_tx_wake_queue */
 	napi_synchronize(&sq->channel->napi);
 
-	mlx5e_free_tx_descs(sq);
+	if (sq->txq) {
+		netif_tx_disable_queue(sq->txq);
+
+		/* last doorbell out, godspeed .. */
+		if (mlx5e_sq_has_room_for(sq, 1))
+			mlx5e_send_nop(sq, true);
+	}
+
 	mlx5e_disable_sq(sq);
+	mlx5e_free_tx_descs(sq);
 	mlx5e_destroy_sq(sq);
 }
 
@@ -2802,7 +2776,7 @@ static void mlx5e_tx_timeout(struct net_device *dev)
 		if (!netif_xmit_stopped(netdev_get_tx_queue(dev, i)))
 			continue;
 		sched_work = true;
-		set_bit(MLX5E_SQ_STATE_TX_TIMEOUT, &sq->state);
+		set_bit(MLX5E_SQ_STATE_FLUSH, &sq->state);
 		netdev_err(dev, "TX timeout on queue: %d, SQ: 0x%x, CQ: 0x%x, SQ Cons: 0x%x SQ Prod: 0x%x\n",
 			   i, sq->sqn, sq->cq.mcq.cqn, sq->cc, sq->pc);
 	}
