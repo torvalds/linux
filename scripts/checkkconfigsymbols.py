@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 """Find Kconfig symbols that are referenced but not defined."""
 
@@ -128,9 +128,9 @@ def main():
     if opts.sim and not opts.commit and not opts.diff:
         sims = find_sims(opts.sim, opts.ignore)
         if sims:
-            print "%s: %s" % (yel("Similar symbols"), ', '.join(sims))
+            print("%s: %s" % (yel("Similar symbols"), ', '.join(sims)))
         else:
-            print "%s: no similar symbols found" % yel("Similar symbols")
+            print("%s: no similar symbols found" % yel("Similar symbols"))
         sys.exit(0)
 
     # dictionary of (un)defined symbols
@@ -183,28 +183,28 @@ def main():
 
     # now print the output
     for feature in sorted(undefined):
-        print red(feature)
+        print(red(feature))
 
         files = sorted(undefined.get(feature))
-        print "%s: %s" % (yel("Referencing files"), ", ".join(files))
+        print("%s: %s" % (yel("Referencing files"), ", ".join(files)))
 
         sims = find_sims(feature, opts.ignore, defined)
         sims_out = yel("Similar symbols")
         if sims:
-            print "%s: %s" % (sims_out, ', '.join(sims))
+            print("%s: %s" % (sims_out, ', '.join(sims)))
         else:
-            print "%s: %s" % (sims_out, "no similar symbols found")
+            print("%s: %s" % (sims_out, "no similar symbols found"))
 
         if opts.find:
-            print "%s:" % yel("Commits changing symbol")
+            print("%s:" % yel("Commits changing symbol"))
             commits = find_commits(feature, opts.diff)
             if commits:
                 for commit in commits:
                     commit = commit.split(" ", 1)
-                    print "\t- %s (\"%s\")" % (yel(commit[0]), commit[1])
+                    print("\t- %s (\"%s\")" % (yel(commit[0]), commit[1]))
             else:
-                print "\t- no commit found"
-        print  #  new line
+                print("\t- no commit found")
+        print()  #  new line
 
 
 def yel(string):
@@ -225,7 +225,8 @@ def execute(cmd):
     """Execute %cmd and return stdout.  Exit in case of error."""
     try:
         cmdlist = cmd.split(" ")
-        stdout = subprocess.check_output(cmdlist, stderr=STDOUT, shell=False)
+        stdout = subprocess.check_output(cmdlist, stderr=subprocess.STDOUT, shell=False)
+        stdout = stdout.decode(errors='replace')
     except subprocess.CalledProcessError as fail:
         exit("Failed to execute %s\n%s" % (cmd, fail))
     return stdout
@@ -256,7 +257,7 @@ def get_head():
 
 def partition(lst, size):
     """Partition list @lst into eveni-sized lists of size @size."""
-    return [lst[i::size] for i in xrange(size)]
+    return [lst[i::size] for i in range(size)]
 
 
 def init_worker():
@@ -350,7 +351,7 @@ def check_symbols_helper(pool, ignore):
 
     # inverse mapping of referenced_features to dict(feature: [files])
     inv_map = dict()
-    for _file, features in referenced_features.iteritems():
+    for _file, features in referenced_features.items():
         for feature in features:
             inv_map[feature] = inv_map.get(feature, set())
             inv_map[feature].add(_file)
@@ -388,7 +389,7 @@ def parse_source_file(sfile):
     if not os.path.exists(sfile):
         return references
 
-    with open(sfile, "r") as stream:
+    with open(sfile, "r", encoding='utf-8', errors='replace') as stream:
         lines = stream.readlines()
 
     for line in lines:
@@ -437,7 +438,7 @@ def parse_kconfig_file(kfile):
     if not os.path.exists(kfile):
         return defined, references
 
-    with open(kfile, "r") as stream:
+    with open(kfile, "r", encoding='utf-8', errors='replace') as stream:
         lines = stream.readlines()
 
     for i in range(len(lines)):
