@@ -162,7 +162,7 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 				ALIGNMENT_OF_UCC_HDLC_PRAM);
 
 	if (priv->ucc_pram_offset < 0) {
-		dev_err(priv->dev, "Can not allocate MURAM for hdlc prameter.\n");
+		dev_err(priv->dev, "Can not allocate MURAM for hdlc parameter.\n");
 		ret = -ENOMEM;
 		goto free_tx_bd;
 	}
