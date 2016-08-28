@@ -375,6 +375,7 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 
 	sq->stats.packets++;
 	sq->stats.bytes += num_bytes;
+	sq->stats.xmit_more += skb->xmit_more;
 	return NETDEV_TX_OK;
 
 dma_unmap_wqe_err:
