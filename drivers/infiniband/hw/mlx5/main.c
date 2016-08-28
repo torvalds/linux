@@ -1776,6 +1776,7 @@ static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
 		goto free;
 	}
 
+	ft_prio->refcount++;
 	handler->prio = ft_prio;
 
 	ft_prio->flow_table = ft;
@@ -1800,6 +1801,7 @@ static struct mlx5_ib_flow_handler *create_dont_trap_rule(struct mlx5_ib_dev *de
 					       flow_attr, dst);
 		if (IS_ERR(handler_dst)) {
 			mlx5_del_flow_rule(handler->rule);
+			ft_prio->refcount--;
 			kfree(handler);
 			handler = handler_dst;
 		} else {
@@ -1862,6 +1864,7 @@ static struct mlx5_ib_flow_handler *create_leftovers_rule(struct mlx5_ib_dev *de
 						 dst);
 		if (IS_ERR(handler_ucast)) {
 			mlx5_del_flow_rule(handler->rule);
+			ft_prio->refcount--;
 			kfree(handler);
 			handler = handler_ucast;
 		} else {
@@ -1928,7 +1931,6 @@ static struct ib_flow *mlx5_ib_create_flow(struct ib_qp *qp,
 		goto destroy_ft;
 	}
 
-	ft_prio->refcount++;
 	mutex_unlock(&dev->flow_db.lock);
 	kfree(dst);
 
