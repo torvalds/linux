@@ -356,7 +356,9 @@ static int qcom_scm_probe(struct platform_device *pdev)
 	scm->reset.ops = &qcom_scm_pas_reset_ops;
 	scm->reset.nr_resets = 1;
 	scm->reset.of_node = pdev->dev.of_node;
-	reset_controller_register(&scm->reset);
+	ret = devm_reset_controller_register(&pdev->dev, &scm->reset);
+	if (ret)
+		return ret;
 
 	/* vote for max clk rate for highest performance */
 	ret = clk_set_rate(scm->core_clk, INT_MAX);
