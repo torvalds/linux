@@ -164,6 +164,6 @@ struct lmv_tgt_desc
 /* lproc_lmv.c */
 void lprocfs_lmv_init_vars(struct lprocfs_static_vars *lvars);
 
-extern struct file_operations lmv_proc_target_fops;
+extern const struct file_operations lmv_proc_target_fops;
 
 #endif
