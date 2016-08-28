@@ -4694,7 +4694,7 @@ retry_unlock:
 			qla83xx_wait_logic();
 			retry++;
 			ql_dbg(ql_dbg_p3p, base_vha, 0xb064,
-			    "Failed to release IDC lock, retyring=%d\n", retry);
+			    "Failed to release IDC lock, retrying=%d\n", retry);
 			goto retry_unlock;
 		}
 	} else if (retry < 10) {
@@ -4702,7 +4702,7 @@ retry_unlock:
 		qla83xx_wait_logic();
 		retry++;
 		ql_dbg(ql_dbg_p3p, base_vha, 0xb065,
-		    "Failed to read drv-lockid, retyring=%d\n", retry);
+		    "Failed to read drv-lockid, retrying=%d\n", retry);
 		goto retry_unlock;
 	}
 
@@ -4718,7 +4718,7 @@ retry_unlock2:
 			qla83xx_wait_logic();
 			retry++;
 			ql_dbg(ql_dbg_p3p, base_vha, 0xb066,
-			    "Failed to release IDC lock, retyring=%d\n", retry);
+			    "Failed to release IDC lock, retrying=%d\n", retry);
 			goto retry_unlock2;
 		}
 	}
