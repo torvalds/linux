@@ -20,22 +20,22 @@ from multiprocessing import Pool, cpu_count
 
 # regex expressions
 OPERATORS = r"&|\(|\)|\||\!"
-FEATURE = r"(?:\w*[A-Z0-9]\w*){2,}"
-DEF = r"^\s*(?:menu){,1}config\s+(" + FEATURE + r")\s*"
-EXPR = r"(?:" + OPERATORS + r"|\s|" + FEATURE + r")+"
+SYMBOL = r"(?:\w*[A-Z0-9]\w*){2,}"
+DEF = r"^\s*(?:menu){,1}config\s+(" + SYMBOL + r")\s*"
+EXPR = r"(?:" + OPERATORS + r"|\s|" + SYMBOL + r")+"
 DEFAULT = r"default\s+.*?(?:if\s.+){,1}"
 STMT = r"^\s*(?:if|select|depends\s+on|(?:" + DEFAULT + r"))\s+" + EXPR
-SOURCE_FEATURE = r"(?:\W|\b)+[D]{,1}CONFIG_(" + FEATURE + r")"
+SOURCE_SYMBOL = r"(?:\W|\b)+[D]{,1}CONFIG_(" + SYMBOL + r")"
 
 # regex objects
 REGEX_FILE_KCONFIG = re.compile(r".*Kconfig[\.\w+\-]*$")
-REGEX_FEATURE = re.compile(r'(?!\B)' + FEATURE + r'(?!\B)')
-REGEX_SOURCE_FEATURE = re.compile(SOURCE_FEATURE)
+REGEX_SYMBOL = re.compile(r'(?!\B)' + SYMBOL + r'(?!\B)')
+REGEX_SOURCE_SYMBOL = re.compile(SOURCE_SYMBOL)
 REGEX_KCONFIG_DEF = re.compile(DEF)
 REGEX_KCONFIG_EXPR = re.compile(EXPR)
 REGEX_KCONFIG_STMT = re.compile(STMT)
 REGEX_KCONFIG_HELP = re.compile(r"^\s+(help|---help---)\s*$")
-REGEX_FILTER_FEATURES = re.compile(r"[A-Za-z0-9]$")
+REGEX_FILTER_SYMBOLS = re.compile(r"[A-Za-z0-9]$")
 REGEX_NUMERIC = re.compile(r"0[xX][0-9a-fA-F]+|[0-9]+")
 REGEX_QUOTES = re.compile("(\"(.*?)\")")
 
@@ -157,17 +157,17 @@ def main():
         undefined_b, defined = check_symbols(args.ignore)
 
         # report cases that are present for the commit but not before
-        for feature in sorted(undefined_b):
-            # feature has not been undefined before
-            if feature not in undefined_a:
-                files = sorted(undefined_b.get(feature))
-                undefined[feature] = files
-            # check if there are new files that reference the undefined feature
+        for symbol in sorted(undefined_b):
+            # symbol has not been undefined before
+            if symbol not in undefined_a:
+                files = sorted(undefined_b.get(symbol))
+                undefined[symbol] = files
+            # check if there are new files that reference the undefined symbol
             else:
-                files = sorted(undefined_b.get(feature) -
-                               undefined_a.get(feature))
+                files = sorted(undefined_b.get(symbol) -
+                               undefined_a.get(symbol))
                 if files:
-                    undefined[feature] = files
+                    undefined[symbol] = files
 
         # reset to head
         execute("git reset --hard %s" % head)
@@ -177,13 +177,13 @@ def main():
         undefined, defined = check_symbols(args.ignore)
 
     # now print the output
-    for feature in sorted(undefined):
-        print(red(feature))
+    for symbol in sorted(undefined):
+        print(red(symbol))
 
-        files = sorted(undefined.get(feature))
+        files = sorted(undefined.get(symbol))
         print("%s: %s" % (yel("Referencing files"), ", ".join(files)))
 
-        sims = find_sims(feature, args.ignore, defined)
+        sims = find_sims(symbol, args.ignore, defined)
         sims_out = yel("Similar symbols")
         if sims:
             print("%s: %s" % (sims_out, ', '.join(sims)))
@@ -192,7 +192,7 @@ def main():
 
         if args.find:
             print("%s:" % yel("Commits changing symbol"))
-            commits = find_commits(feature, args.diff)
+            commits = find_commits(symbol, args.diff)
             if commits:
                 for commit in commits:
                     commit = commit.split(" ", 1)
@@ -317,8 +317,8 @@ def check_symbols_helper(pool, ignore):
     check_symbols() in order to properly terminate running worker processes."""
     source_files = []
     kconfig_files = []
-    defined_features = []
-    referenced_features = dict()  # {file: [features]}
+    defined_symbols = []
+    referenced_symbols = dict()  # {file: [symbols]}
 
     for gitfile in get_files():
         if REGEX_FILE_KCONFIG.match(gitfile):
@@ -332,51 +332,51 @@ def check_symbols_helper(pool, ignore):
     # parse source files
     arglist = partition(source_files, cpu_count())
     for res in pool.map(parse_source_files, arglist):
-        referenced_features.update(res)
+        referenced_symbols.update(res)
 
     # parse kconfig files
     arglist = []
     for part in partition(kconfig_files, cpu_count()):
         arglist.append((part, ignore))
     for res in pool.map(parse_kconfig_files, arglist):
-        defined_features.extend(res[0])
-        referenced_features.update(res[1])
-    defined_features = set(defined_features)
+        defined_symbols.extend(res[0])
+        referenced_symbols.update(res[1])
+    defined_symbols = set(defined_symbols)
 
-    # inverse mapping of referenced_features to dict(feature: [files])
+    # inverse mapping of referenced_symbols to dict(symbol: [files])
     inv_map = dict()
-    for _file, features in referenced_features.items():
-        for feature in features:
-            inv_map[feature] = inv_map.get(feature, set())
-            inv_map[feature].add(_file)
-    referenced_features = inv_map
+    for _file, symbols in referenced_symbols.items():
+        for symbol in symbols:
+            inv_map[symbol] = inv_map.get(symbol, set())
+            inv_map[symbol].add(_file)
+    referenced_symbols = inv_map
 
-    undefined = {}  # {feature: [files]}
-    for feature in sorted(referenced_features):
+    undefined = {}  # {symbol: [files]}
+    for symbol in sorted(referenced_symbols):
         # filter some false positives
-        if feature == "FOO" or feature == "BAR" or \
-                feature == "FOO_BAR" or feature == "XXX":
+        if symbol == "FOO" or symbol == "BAR" or \
+                symbol == "FOO_BAR" or symbol == "XXX":
             continue
-        if feature not in defined_features:
-            if feature.endswith("_MODULE"):
+        if symbol not in defined_symbols:
+            if symbol.endswith("_MODULE"):
                 # avoid false positives for kernel modules
-                if feature[:-len("_MODULE")] in defined_features:
+                if symbol[:-len("_MODULE")] in defined_symbols:
                     continue
-            undefined[feature] = referenced_features.get(feature)
-    return undefined, defined_features
+            undefined[symbol] = referenced_symbols.get(symbol)
+    return undefined, defined_symbols
 
 
 def parse_source_files(source_files):
     """Parse each source file in @source_files and return dictionary with source
     files as keys and lists of references Kconfig symbols as values."""
-    referenced_features = dict()
+    referenced_symbols = dict()
     for sfile in source_files:
-        referenced_features[sfile] = parse_source_file(sfile)
-    return referenced_features
+        referenced_symbols[sfile] = parse_source_file(sfile)
+    return referenced_symbols
 
 
 def parse_source_file(sfile):
-    """Parse @sfile and return a list of referenced Kconfig features."""
+    """Parse @sfile and return a list of referenced Kconfig symbols."""
     lines = []
     references = []
 
@@ -389,18 +389,18 @@ def parse_source_file(sfile):
     for line in lines:
         if "CONFIG_" not in line:
             continue
-        features = REGEX_SOURCE_FEATURE.findall(line)
-        for feature in features:
-            if not REGEX_FILTER_FEATURES.search(feature):
+        symbols = REGEX_SOURCE_SYMBOL.findall(line)
+        for symbol in symbols:
+            if not REGEX_FILTER_SYMBOLS.search(symbol):
                 continue
-            references.append(feature)
+            references.append(symbol)
 
     return references
 
 
-def get_features_in_line(line):
-    """Return mentioned Kconfig features in @line."""
-    return REGEX_FEATURE.findall(line)
+def get_symbols_in_line(line):
+    """Return mentioned Kconfig symbols in @line."""
+    return REGEX_SYMBOL.findall(line)
 
 
 def parse_kconfig_files(args):
@@ -409,21 +409,21 @@ def parse_kconfig_files(args):
     pattern."""
     kconfig_files = args[0]
     ignore = args[1]
-    defined_features = []
-    referenced_features = dict()
+    defined_symbols = []
+    referenced_symbols = dict()
 
     for kfile in kconfig_files:
         defined, references = parse_kconfig_file(kfile)
-        defined_features.extend(defined)
+        defined_symbols.extend(defined)
         if ignore and re.match(ignore, kfile):
             # do not collect references for files that match the ignore pattern
             continue
-        referenced_features[kfile] = references
-    return (defined_features, referenced_features)
+        referenced_symbols[kfile] = references
+    return (defined_symbols, referenced_symbols)
 
 
 def parse_kconfig_file(kfile):
-    """Parse @kfile and update feature definitions and references."""
+    """Parse @kfile and update symbol definitions and references."""
     lines = []
     defined = []
     references = []
@@ -441,8 +441,8 @@ def parse_kconfig_file(kfile):
         line = line.split("#")[0]  # ignore comments
 
         if REGEX_KCONFIG_DEF.match(line):
-            feature_def = REGEX_KCONFIG_DEF.findall(line)
-            defined.append(feature_def[0])
+            symbol_def = REGEX_KCONFIG_DEF.findall(line)
+            defined.append(symbol_def[0])
             skip = False
         elif REGEX_KCONFIG_HELP.match(line):
             skip = True
@@ -451,18 +451,18 @@ def parse_kconfig_file(kfile):
             pass
         elif REGEX_KCONFIG_STMT.match(line):
             line = REGEX_QUOTES.sub("", line)
-            features = get_features_in_line(line)
+            symbols = get_symbols_in_line(line)
             # multi-line statements
             while line.endswith("\\"):
                 i += 1
                 line = lines[i]
                 line = line.strip('\n')
-                features.extend(get_features_in_line(line))
-            for feature in set(features):
-                if REGEX_NUMERIC.match(feature):
+                symbols.extend(get_symbols_in_line(line))
+            for symbol in set(symbols):
+                if REGEX_NUMERIC.match(symbol):
                     # ignore numeric values
                     continue
-                references.append(feature)
+                references.append(symbol)
 
     return defined, references
 
