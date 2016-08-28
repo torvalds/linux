@@ -315,7 +315,7 @@ struct dentry *ldebugfs_add_simple(struct dentry *root,
 }
 EXPORT_SYMBOL_GPL(ldebugfs_add_simple);
 
-static struct file_operations lprocfs_generic_fops = { };
+static const struct file_operations lprocfs_generic_fops = { };
 
 int ldebugfs_add_vars(struct dentry *parent,
 		      struct lprocfs_vars *list,
