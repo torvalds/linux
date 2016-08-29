@@ -824,6 +824,10 @@ struct txq_info {
 	struct ieee80211_txq txq;
 };
 
+struct ieee80211_if_mntr {
+	u32 flags;
+};
+
 struct ieee80211_sub_if_data {
 	struct list_head list;
 
@@ -922,7 +926,7 @@ struct ieee80211_sub_if_data {
 		struct ieee80211_if_ibss ibss;
 		struct ieee80211_if_mesh mesh;
 		struct ieee80211_if_ocb ocb;
-		u32 mntr_flags;
+		struct ieee80211_if_mntr mntr;
 	} u;
 
 #ifdef CONFIG_MAC80211_DEBUGFS

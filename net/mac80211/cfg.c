@@ -39,7 +39,7 @@ static struct wireless_dev *ieee80211_add_iface(struct wiphy *wiphy,
 
 	if (type == NL80211_IFTYPE_MONITOR && flags) {
 		sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
-		sdata->u.mntr_flags = *flags;
+		sdata->u.mntr.flags = *flags;
 	}
 
 	return wdev;
@@ -89,11 +89,11 @@ static int ieee80211_change_iface(struct wiphy *wiphy,
 			 *	cooked_mntrs, monitor and all fif_* counters
 			 *	reconfigure hardware
 			 */
-			if ((*flags & mask) != (sdata->u.mntr_flags & mask))
+			if ((*flags & mask) != (sdata->u.mntr.flags & mask))
 				return -EBUSY;
 
 			ieee80211_adjust_monitor_flags(sdata, -1);
-			sdata->u.mntr_flags = *flags;
+			sdata->u.mntr.flags = *flags;
 			ieee80211_adjust_monitor_flags(sdata, 1);
 
 			ieee80211_configure_filter(local);
@@ -103,7 +103,7 @@ static int ieee80211_change_iface(struct wiphy *wiphy,
 			 * and ieee80211_do_open take care of "everything"
 			 * mentioned in the comment above.
 			 */
-			sdata->u.mntr_flags = *flags;
+			sdata->u.mntr.flags = *flags;
 		}
 	}
 

@@ -188,7 +188,7 @@ static int ieee80211_verify_mac(struct ieee80211_sub_if_data *sdata, u8 *addr,
 			continue;
 
 		if (iter->vif.type == NL80211_IFTYPE_MONITOR &&
-		    !(iter->u.mntr_flags & MONITOR_FLAG_ACTIVE))
+		    !(iter->u.mntr.flags & MONITOR_FLAG_ACTIVE))
 			continue;
 
 		m = iter->vif.addr;
@@ -217,7 +217,7 @@ static int ieee80211_change_mac(struct net_device *dev, void *addr)
 		return -EBUSY;
 
 	if (sdata->vif.type == NL80211_IFTYPE_MONITOR &&
-	    !(sdata->u.mntr_flags & MONITOR_FLAG_ACTIVE))
+	    !(sdata->u.mntr.flags & MONITOR_FLAG_ACTIVE))
 		check_dup = false;
 
 	ret = ieee80211_verify_mac(sdata, sa->sa_data, check_dup);
@@ -357,7 +357,7 @@ void ieee80211_adjust_monitor_flags(struct ieee80211_sub_if_data *sdata,
 				    const int offset)
 {
 	struct ieee80211_local *local = sdata->local;
-	u32 flags = sdata->u.mntr_flags;
+	u32 flags = sdata->u.mntr.flags;
 
 #define ADJUST(_f, _s)	do {					\
 	if (flags & MONITOR_FLAG_##_f)				\
@@ -589,12 +589,12 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 		}
 		break;
 	case NL80211_IFTYPE_MONITOR:
-		if (sdata->u.mntr_flags & MONITOR_FLAG_COOK_FRAMES) {
+		if (sdata->u.mntr.flags & MONITOR_FLAG_COOK_FRAMES) {
 			local->cooked_mntrs++;
 			break;
 		}
 
-		if (sdata->u.mntr_flags & MONITOR_FLAG_ACTIVE) {
+		if (sdata->u.mntr.flags & MONITOR_FLAG_ACTIVE) {
 			res = drv_add_interface(local, sdata);
 			if (res)
 				goto err_stop;
@@ -926,7 +926,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		/* no need to tell driver */
 		break;
 	case NL80211_IFTYPE_MONITOR:
-		if (sdata->u.mntr_flags & MONITOR_FLAG_COOK_FRAMES) {
+		if (sdata->u.mntr.flags & MONITOR_FLAG_COOK_FRAMES) {
 			local->cooked_mntrs--;
 			break;
 		}
@@ -1012,7 +1012,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		ieee80211_recalc_idle(local);
 		mutex_unlock(&local->mtx);
 
-		if (!(sdata->u.mntr_flags & MONITOR_FLAG_ACTIVE))
+		if (!(sdata->u.mntr.flags & MONITOR_FLAG_ACTIVE))
 			break;
 
 		/* fall through */
@@ -1444,7 +1444,7 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 	case NL80211_IFTYPE_MONITOR:
 		sdata->dev->type = ARPHRD_IEEE80211_RADIOTAP;
 		sdata->dev->netdev_ops = &ieee80211_monitorif_ops;
-		sdata->u.mntr_flags = MONITOR_FLAG_CONTROL |
+		sdata->u.mntr.flags = MONITOR_FLAG_CONTROL |
 				      MONITOR_FLAG_OTHER_BSS;
 		break;
 	case NL80211_IFTYPE_WDS:

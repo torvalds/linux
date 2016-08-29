@@ -567,7 +567,7 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 		if (sdata->vif.type != NL80211_IFTYPE_MONITOR)
 			continue;
 
-		if (sdata->u.mntr_flags & MONITOR_FLAG_COOK_FRAMES)
+		if (sdata->u.mntr.flags & MONITOR_FLAG_COOK_FRAMES)
 			continue;
 
 		if (!ieee80211_sdata_running(sdata))
@@ -3147,7 +3147,7 @@ static void ieee80211_rx_cooked_monitor(struct ieee80211_rx_data *rx,
 			continue;
 
 		if (sdata->vif.type != NL80211_IFTYPE_MONITOR ||
-		    !(sdata->u.mntr_flags & MONITOR_FLAG_COOK_FRAMES))
+		    !(sdata->u.mntr.flags & MONITOR_FLAG_COOK_FRAMES))
 			continue;
 
 		if (prev_dev) {

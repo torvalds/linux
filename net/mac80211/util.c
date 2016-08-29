@@ -598,7 +598,7 @@ static void __iterate_interfaces(struct ieee80211_local *local,
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		switch (sdata->vif.type) {
 		case NL80211_IFTYPE_MONITOR:
-			if (!(sdata->u.mntr_flags & MONITOR_FLAG_ACTIVE))
+			if (!(sdata->u.mntr.flags & MONITOR_FLAG_ACTIVE))
 				continue;
 			break;
 		case NL80211_IFTYPE_AP_VLAN:
