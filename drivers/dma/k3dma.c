@@ -34,8 +34,8 @@
 #define INT_ERR1_MASK		0x20
 #define INT_ERR2_MASK		0x24
 #define INT_TC1_RAW		0x600
-#define INT_ERR1_RAW		0x608
-#define INT_ERR2_RAW		0x610
+#define INT_ERR1_RAW		0x610
+#define INT_ERR2_RAW		0x618
 #define CH_PRI			0x688
 #define CH_STAT			0x690
 #define CX_CUR_CNT		0x704
