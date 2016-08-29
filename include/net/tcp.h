@@ -603,8 +603,6 @@ static inline int tcp_bound_to_half_wnd(struct tcp_sock *tp, int pktsize)
 void tcp_get_info(struct sock *, struct tcp_info *);
 
 /* Read 'sendfile()'-style from a TCP socket */
-typedef int (*sk_read_actor_t)(read_descriptor_t *, struct sk_buff *,
-				unsigned int, size_t);
 int tcp_read_sock(struct sock *sk, read_descriptor_t *desc,
 		  sk_read_actor_t recv_actor);
 
@@ -1849,6 +1847,8 @@ static inline int tcp_inq(struct sock *sk)
 
 	return answ;
 }
+
+int tcp_peek_len(struct socket *sock);
 
 static inline void tcp_segs_in(struct tcp_sock *tp, const struct sk_buff *skb)
 {

@@ -26,7 +26,6 @@
 #include <net/strparser.h>
 #include <net/netns/generic.h>
 #include <net/sock.h>
-#include <net/tcp.h>
 
 static struct workqueue_struct *strp_wq;
 
@@ -80,9 +79,16 @@ static void strp_parser_err(struct strparser *strp, int err,
 	strp->cb.abort_parser(strp, err);
 }
 
+static inline int strp_peek_len(struct strparser *strp)
+{
+	struct socket *sock = strp->sk->sk_socket;
+
+	return sock->ops->peek_len(sock);
+}
+
 /* Lower socket lock held */
-static int strp_tcp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
-			 unsigned int orig_offset, size_t orig_len)
+static int strp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
+		     unsigned int orig_offset, size_t orig_len)
 {
 	struct strparser *strp = (struct strparser *)desc->arg.data;
 	struct _strp_rx_msg *rxm;
@@ -266,12 +272,12 @@ static int strp_tcp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
 		if (extra < 0) {
 			/* Message not complete yet. */
 			if (rxm->strp.full_len - rxm->accum_len >
-			    tcp_inq(strp->sk)) {
+			    strp_peek_len(strp)) {
 				/* Don't have the whole messages in the socket
 				 * buffer. Set strp->rx_need_bytes to wait for
 				 * the rest of the message. Also, set "early
 				 * eaten" since we've already buffered the skb
-				 * but don't consume yet per tcp_read_sock.
+				 * but don't consume yet per strp_read_sock.
 				 */
 
 				if (!rxm->accum_len) {
@@ -329,16 +335,17 @@ static int default_read_sock_done(struct strparser *strp, int err)
 }
 
 /* Called with lock held on lower socket */
-static int strp_tcp_read_sock(struct strparser *strp)
+static int strp_read_sock(struct strparser *strp)
 {
+	struct socket *sock = strp->sk->sk_socket;
 	read_descriptor_t desc;
 
 	desc.arg.data = strp;
 	desc.error = 0;
 	desc.count = 1; /* give more than one skb per call */
 
-	/* sk should be locked here, so okay to do tcp_read_sock */
-	tcp_read_sock(strp->sk, &desc, strp_tcp_recv);
+	/* sk should be locked here, so okay to do read_sock */
+	sock->ops->read_sock(strp->sk, &desc, strp_recv);
 
 	desc.error = strp->cb.read_sock_done(strp, desc.error);
 
@@ -346,10 +353,8 @@ static int strp_tcp_read_sock(struct strparser *strp)
 }
 
 /* Lower sock lock held */
-void strp_tcp_data_ready(struct strparser *strp)
+void strp_data_ready(struct strparser *strp)
 {
-	struct sock *csk = strp->sk;
-
 	if (unlikely(strp->rx_stopped))
 		return;
 
@@ -360,7 +365,7 @@ void strp_tcp_data_ready(struct strparser *strp)
 	 * allows a thread in BH context to safely check if the process
 	 * lock is held. In this case, if the lock is held, queue work.
 	 */
-	if (sock_owned_by_user(csk)) {
+	if (sock_owned_by_user(strp->sk)) {
 		queue_work(strp_wq, &strp->rx_work);
 		return;
 	}
@@ -369,24 +374,24 @@ void strp_tcp_data_ready(struct strparser *strp)
 		return;
 
 	if (strp->rx_need_bytes) {
-		if (tcp_inq(csk) >= strp->rx_need_bytes)
+		if (strp_peek_len(strp) >= strp->rx_need_bytes)
 			strp->rx_need_bytes = 0;
 		else
 			return;
 	}
 
-	if (strp_tcp_read_sock(strp) == -ENOMEM)
+	if (strp_read_sock(strp) == -ENOMEM)
 		queue_work(strp_wq, &strp->rx_work);
 }
-EXPORT_SYMBOL_GPL(strp_tcp_data_ready);
+EXPORT_SYMBOL_GPL(strp_data_ready);
 
 static void do_strp_rx_work(struct strparser *strp)
 {
 	read_descriptor_t rd_desc;
 	struct sock *csk = strp->sk;
 
-	/* We need the read lock to synchronize with strp_tcp_data_ready. We
-	 * need the socket lock for calling tcp_read_sock.
+	/* We need the read lock to synchronize with strp_data_ready. We
+	 * need the socket lock for calling strp_read_sock.
 	 */
 	lock_sock(csk);
 
@@ -398,7 +403,7 @@ static void do_strp_rx_work(struct strparser *strp)
 
 	rd_desc.arg.data = strp;
 
-	if (strp_tcp_read_sock(strp) == -ENOMEM)
+	if (strp_read_sock(strp) == -ENOMEM)
 		queue_work(strp_wq, &strp->rx_work);
 
 out:
@@ -424,8 +429,13 @@ static void strp_rx_msg_timeout(unsigned long arg)
 int strp_init(struct strparser *strp, struct sock *csk,
 	      struct strp_callbacks *cb)
 {
+	struct socket *sock = csk->sk_socket;
+
 	if (!cb || !cb->rcv_msg || !cb->parse_msg)
 		return -EINVAL;
+
+	if (!sock->ops->read_sock || !sock->ops->peek_len)
+		return -EAFNOSUPPORT;
 
 	memset(strp, 0, sizeof(*strp));
 
@@ -456,7 +466,7 @@ void strp_unpause(struct strparser *strp)
 }
 EXPORT_SYMBOL_GPL(strp_unpause);
 
-/* strp must already be stopped so that strp_tcp_recv will no longer be called.
+/* strp must already be stopped so that strp_recv will no longer be called.
  * Note that strp_done is not called with the lower socket held.
  */
 void strp_done(struct strparser *strp)
