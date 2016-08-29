@@ -551,7 +551,7 @@ static int k3_dma_config(struct dma_chan *chan,
 	c->ccfg |= (val << 12) | (val << 16);
 
 	if ((maxburst == 0) || (maxburst > 16))
-		val = 16;
+		val = 15;
 	else
 		val = maxburst - 1;
 	c->ccfg |= (val << 20) | (val << 24);
