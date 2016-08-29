@@ -379,8 +379,7 @@ static struct nf_logger nf_ip6_logger __read_mostly = {
 
 static int __net_init nf_log_ipv6_net_init(struct net *net)
 {
-	nf_log_set(net, NFPROTO_IPV6, &nf_ip6_logger);
-	return 0;
+	return nf_log_set(net, NFPROTO_IPV6, &nf_ip6_logger);
 }
 
 static void __net_exit nf_log_ipv6_net_exit(struct net *net)
