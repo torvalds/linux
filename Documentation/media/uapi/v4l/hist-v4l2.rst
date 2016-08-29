@@ -1361,7 +1361,7 @@ V4L2 in Linux 3.19
    :ref:`v4l2_quantization <v4l2-quantization>` fields to struct
    :c:type:`v4l2_pix_format`, struct
    :c:type:`v4l2_pix_format_mplane` and
-   struct :ref:`v4l2_mbus_framefmt <v4l2-mbus-framefmt>`.
+   struct :c:type:`v4l2_mbus_framefmt`.
 
 
 V4L2 in Linux 4.4

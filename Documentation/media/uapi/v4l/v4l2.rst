@@ -116,7 +116,7 @@ Rewrote Colorspace chapter, added new enum
 :ref:`v4l2_quantization <v4l2-quantization>` fields to struct
 :c:type:`v4l2_pix_format`, struct
 :c:type:`v4l2_pix_format_mplane` and struct
-:ref:`v4l2_mbus_framefmt <v4l2-mbus-framefmt>`.
+:c:type:`v4l2_mbus_framefmt`.
 
 
 :revision: 3.17 / 2014-08-04 (*lp, hv*)

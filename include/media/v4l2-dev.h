@@ -56,7 +56,7 @@ struct v4l2_ctrl_handler;
  *
  * .. note::
  *    The size of @prios array matches the number of priority types defined
- *    by :ref:`enum v4l2_priority <v4l2-priority>`.
+ *    by enum &v4l2_priority.
  */
 struct v4l2_prio_state {
 	atomic_t prios[4];
@@ -73,8 +73,8 @@ void v4l2_prio_init(struct v4l2_prio_state *global);
  * v4l2_prio_change - changes the v4l2 file handler priority
  *
  * @global: pointer to the &struct v4l2_prio_state of the device node.
- * @local: pointer to the desired priority, as defined by :ref:`enum v4l2_priority <v4l2-priority>`
- * @new: Priority type requested, as defined by :ref:`enum v4l2_priority <v4l2-priority>`.
+ * @local: pointer to the desired priority, as defined by enum &v4l2_priority
+ * @new: Priority type requested, as defined by enum &v4l2_priority.
  *
  * .. note::
  *	This function should be used only by the V4L2 core.
@@ -86,7 +86,7 @@ int v4l2_prio_change(struct v4l2_prio_state *global, enum v4l2_priority *local,
  * v4l2_prio_open - Implements the priority logic for a file handler open
  *
  * @global: pointer to the &struct v4l2_prio_state of the device node.
- * @local: pointer to the desired priority, as defined by :ref:`enum v4l2_priority <v4l2-priority>`
+ * @local: pointer to the desired priority, as defined by enum &v4l2_priority
  *
  * .. note::
  *	This function should be used only by the V4L2 core.
@@ -97,7 +97,7 @@ void v4l2_prio_open(struct v4l2_prio_state *global, enum v4l2_priority *local);
  * v4l2_prio_close - Implements the priority logic for a file handler close
  *
  * @global: pointer to the &struct v4l2_prio_state of the device node.
- * @local: priority to be released, as defined by :ref:`enum v4l2_priority <v4l2-priority>`
+ * @local: priority to be released, as defined by enum &v4l2_priority
  *
  * .. note::
  *	This function should be used only by the V4L2 core.
@@ -118,7 +118,7 @@ enum v4l2_priority v4l2_prio_max(struct v4l2_prio_state *global);
  * v4l2_prio_close - Implements the priority logic for a file handler close
  *
  * @global: pointer to the &struct v4l2_prio_state of the device node.
- * @local: desired priority, as defined by :ref:`enum v4l2_priority <v4l2-priority>` local
+ * @local: desired priority, as defined by enum &v4l2_priority local
  *
  * .. note::
  *	This function should be used only by the V4L2 core.

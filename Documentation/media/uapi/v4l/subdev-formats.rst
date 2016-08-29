@@ -7,7 +7,7 @@ Media Bus Formats
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
-.. _v4l2-mbus-framefmt:
+.. c:type:: v4l2_mbus_framefmt
 
 .. flat-table:: struct v4l2_mbus_framefmt
     :header-rows:  0

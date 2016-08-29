@@ -356,7 +356,7 @@ call.
 
        -
        -  The type of the control. See enum
-	  :ref:`v4l2_ctrl_type <v4l2-ctrl-type>`.
+	  :c:type:`v4l2_ctrl_type`.
 
     -  .. row 3
 

@@ -44,7 +44,7 @@ an enum v4l2_priority variable and call :ref:`VIDIOC_S_PRIORITY <VIDIOC_G_PRIORI
 with a pointer to this variable.
 
 
-.. _v4l2-priority:
+.. c:type:: v4l2_priority
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
