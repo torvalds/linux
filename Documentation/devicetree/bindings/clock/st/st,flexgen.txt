@@ -60,6 +60,8 @@ This binding uses the common clock binding[2].
 Required properties:
 - compatible : shall be:
   "st,flexgen"
+  "st,flexgen-audio", "st,flexgen" (enable clock propagation on parent for
+  audio use case)
 
 - #clock-cells : from common clock binding; shall be set to 1 (multiple clock
   outputs).

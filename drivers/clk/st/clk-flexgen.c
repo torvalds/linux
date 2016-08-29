@@ -15,6 +15,10 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 
+struct clkgen_data {
+	unsigned long flags;
+};
+
 struct flexgen {
 	struct clk_hw hw;
 
@@ -259,6 +263,18 @@ static const char ** __init flexgen_get_parents(struct device_node *np,
 	return parents;
 }
 
+static const struct clkgen_data clkgen_audio = {
+	.flags = CLK_SET_RATE_PARENT,
+};
+
+static const struct of_device_id flexgen_of_match[] = {
+	{
+		.compatible = "st,flexgen-audio",
+		.data = &clkgen_audio,
+	},
+	{}
+};
+
 static void __init st_of_flexgen_setup(struct device_node *np)
 {
 	struct device_node *pnode;
@@ -267,6 +283,9 @@ static void __init st_of_flexgen_setup(struct device_node *np)
 	const char **parents;
 	int num_parents, i;
 	spinlock_t *rlock = NULL;
+	const struct of_device_id *match;
+	struct clkgen_data *data = NULL;
+	unsigned long flex_flags = 0;
 	int ret;
 
 	pnode = of_get_parent(np);
@@ -280,6 +299,12 @@ static void __init st_of_flexgen_setup(struct device_node *np)
 	parents = flexgen_get_parents(np, &num_parents);
 	if (!parents)
 		return;
+
+	match = of_match_node(flexgen_of_match, np);
+	if (match) {
+		data = (struct clkgen_data *)match->data;
+		flex_flags = data->flags;
+	}
 
 	clk_data = kzalloc(sizeof(*clk_data), GFP_KERNEL);
 	if (!clk_data)
@@ -307,7 +332,6 @@ static void __init st_of_flexgen_setup(struct device_node *np)
 	for (i = 0; i < clk_data->clk_num; i++) {
 		struct clk *clk;
 		const char *clk_name;
-		unsigned long flex_flags = 0;
 
 		if (of_property_read_string_index(np, "clock-output-names",
 						  i, &clk_name)) {
