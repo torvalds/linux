@@ -1008,7 +1008,7 @@ static efi_status_t exit_boot(struct boot_params *boot_params,
 			      void *handle, bool is64)
 {
 	struct efi_info *efi = &boot_params->efi_info;
-	unsigned long map_sz, key, desc_size;
+	unsigned long map_sz, key, desc_size, buff_size;
 	efi_memory_desc_t *mem_map;
 	struct setup_data *e820ext;
 	const char *signature;
@@ -1019,14 +1019,20 @@ static efi_status_t exit_boot(struct boot_params *boot_params,
 	bool called_exit = false;
 	u8 nr_entries;
 	int i;
+	struct efi_boot_memmap map;
 
-	nr_desc = 0;
-	e820ext = NULL;
-	e820ext_size = 0;
+	nr_desc =	0;
+	e820ext =	NULL;
+	e820ext_size =	0;
+	map.map =	&mem_map;
+	map.map_size =	&map_sz;
+	map.desc_size =	&desc_size;
+	map.desc_ver =	&desc_version;
+	map.key_ptr =	&key;
+	map.buff_size =	&buff_size;
 
 get_map:
-	status = efi_get_memory_map(sys_table, &mem_map, &map_sz, &desc_size,
-				    &desc_version, &key);
+	status = efi_get_memory_map(sys_table, &map);
 
 	if (status != EFI_SUCCESS)
 		return status;

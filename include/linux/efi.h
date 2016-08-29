@@ -118,6 +118,15 @@ typedef struct {
 	u32 imagesize;
 } efi_capsule_header_t;
 
+struct efi_boot_memmap {
+	efi_memory_desc_t	**map;
+	unsigned long		*map_size;
+	unsigned long		*desc_size;
+	u32			*desc_ver;
+	unsigned long		*key_ptr;
+	unsigned long		*buff_size;
+};
+
 /*
  * EFI capsule flags
  */
@@ -1371,11 +1380,7 @@ char *efi_convert_cmdline(efi_system_table_t *sys_table_arg,
 			  efi_loaded_image_t *image, int *cmd_line_len);
 
 efi_status_t efi_get_memory_map(efi_system_table_t *sys_table_arg,
-				efi_memory_desc_t **map,
-				unsigned long *map_size,
-				unsigned long *desc_size,
-				u32 *desc_ver,
-				unsigned long *key_ptr);
+				struct efi_boot_memmap *map);
 
 efi_status_t efi_low_alloc(efi_system_table_t *sys_table_arg,
 			   unsigned long size, unsigned long align,

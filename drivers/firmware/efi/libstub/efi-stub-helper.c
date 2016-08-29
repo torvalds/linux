@@ -41,6 +41,8 @@ static unsigned long __chunk_size = EFI_READ_CHUNK_SIZE;
 #define EFI_ALLOC_ALIGN		EFI_PAGE_SIZE
 #endif
 
+#define EFI_MMAP_NR_SLACK_SLOTS	8
+
 struct file_info {
 	efi_file_handle_t *handle;
 	u64 size;
@@ -63,49 +65,62 @@ void efi_printk(efi_system_table_t *sys_table_arg, char *str)
 	}
 }
 
+static inline bool mmap_has_headroom(unsigned long buff_size,
+				     unsigned long map_size,
+				     unsigned long desc_size)
+{
+	unsigned long slack = buff_size - map_size;
+
+	return slack / desc_size >= EFI_MMAP_NR_SLACK_SLOTS;
+}
+
 efi_status_t efi_get_memory_map(efi_system_table_t *sys_table_arg,
-				efi_memory_desc_t **map,
-				unsigned long *map_size,
-				unsigned long *desc_size,
-				u32 *desc_ver,
-				unsigned long *key_ptr)
+				struct efi_boot_memmap *map)
 {
 	efi_memory_desc_t *m = NULL;
 	efi_status_t status;
 	unsigned long key;
 	u32 desc_version;
 
-	*map_size = sizeof(*m) * 32;
+	*map->desc_size =	sizeof(*m);
+	*map->map_size =	*map->desc_size * 32;
+	*map->buff_size =	*map->map_size;
 again:
-	/*
-	 * Add an additional efi_memory_desc_t because we're doing an
-	 * allocation which may be in a new descriptor region.
-	 */
-	*map_size += sizeof(*m);
 	status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
-				*map_size, (void **)&m);
+				*map->map_size, (void **)&m);
 	if (status != EFI_SUCCESS)
 		goto fail;
 
-	*desc_size = 0;
+	*map->desc_size = 0;
 	key = 0;
-	status = efi_call_early(get_memory_map, map_size, m,
-				&key, desc_size, &desc_version);
-	if (status == EFI_BUFFER_TOO_SMALL) {
+	status = efi_call_early(get_memory_map, map->map_size, m,
+				&key, map->desc_size, &desc_version);
+	if (status == EFI_BUFFER_TOO_SMALL ||
+	    !mmap_has_headroom(*map->buff_size, *map->map_size,
+			       *map->desc_size)) {
 		efi_call_early(free_pool, m);
+		/*
+		 * Make sure there is some entries of headroom so that the
+		 * buffer can be reused for a new map after allocations are
+		 * no longer permitted.  Its unlikely that the map will grow to
+		 * exceed this headroom once we are ready to trigger
+		 * ExitBootServices()
+		 */
+		*map->map_size += *map->desc_size * EFI_MMAP_NR_SLACK_SLOTS;
+		*map->buff_size = *map->map_size;
 		goto again;
 	}
 
 	if (status != EFI_SUCCESS)
 		efi_call_early(free_pool, m);
 
-	if (key_ptr && status == EFI_SUCCESS)
-		*key_ptr = key;
-	if (desc_ver && status == EFI_SUCCESS)
-		*desc_ver = desc_version;
+	if (map->key_ptr && status == EFI_SUCCESS)
+		*map->key_ptr = key;
+	if (map->desc_ver && status == EFI_SUCCESS)
+		*map->desc_ver = desc_version;
 
 fail:
-	*map = m;
+	*map->map = m;
 	return status;
 }
 
@@ -113,13 +128,20 @@ fail:
 unsigned long get_dram_base(efi_system_table_t *sys_table_arg)
 {
 	efi_status_t status;
-	unsigned long map_size;
+	unsigned long map_size, buff_size;
 	unsigned long membase  = EFI_ERROR;
 	struct efi_memory_map map;
 	efi_memory_desc_t *md;
+	struct efi_boot_memmap boot_map;
 
-	status = efi_get_memory_map(sys_table_arg, (efi_memory_desc_t **)&map.map,
-				    &map_size, &map.desc_size, NULL, NULL);
+	boot_map.map =		(efi_memory_desc_t **)&map.map;
+	boot_map.map_size =	&map_size;
+	boot_map.desc_size =	&map.desc_size;
+	boot_map.desc_ver =	NULL;
+	boot_map.key_ptr =	NULL;
+	boot_map.buff_size =	&buff_size;
+
+	status = efi_get_memory_map(sys_table_arg, &boot_map);
 	if (status != EFI_SUCCESS)
 		return membase;
 
@@ -144,15 +166,22 @@ efi_status_t efi_high_alloc(efi_system_table_t *sys_table_arg,
 			    unsigned long size, unsigned long align,
 			    unsigned long *addr, unsigned long max)
 {
-	unsigned long map_size, desc_size;
+	unsigned long map_size, desc_size, buff_size;
 	efi_memory_desc_t *map;
 	efi_status_t status;
 	unsigned long nr_pages;
 	u64 max_addr = 0;
 	int i;
+	struct efi_boot_memmap boot_map;
 
-	status = efi_get_memory_map(sys_table_arg, &map, &map_size, &desc_size,
-				    NULL, NULL);
+	boot_map.map =		&map;
+	boot_map.map_size =	&map_size;
+	boot_map.desc_size =	&desc_size;
+	boot_map.desc_ver =	NULL;
+	boot_map.key_ptr =	NULL;
+	boot_map.buff_size =	&buff_size;
+
+	status = efi_get_memory_map(sys_table_arg, &boot_map);
 	if (status != EFI_SUCCESS)
 		goto fail;
 
@@ -230,14 +259,21 @@ efi_status_t efi_low_alloc(efi_system_table_t *sys_table_arg,
 			   unsigned long size, unsigned long align,
 			   unsigned long *addr)
 {
-	unsigned long map_size, desc_size;
+	unsigned long map_size, desc_size, buff_size;
 	efi_memory_desc_t *map;
 	efi_status_t status;
 	unsigned long nr_pages;
 	int i;
+	struct efi_boot_memmap boot_map;
 
-	status = efi_get_memory_map(sys_table_arg, &map, &map_size, &desc_size,
-				    NULL, NULL);
+	boot_map.map =		&map;
+	boot_map.map_size =	&map_size;
+	boot_map.desc_size =	&desc_size;
+	boot_map.desc_ver =	NULL;
+	boot_map.key_ptr =	NULL;
+	boot_map.buff_size =	&buff_size;
+
+	status = efi_get_memory_map(sys_table_arg, &boot_map);
 	if (status != EFI_SUCCESS)
 		goto fail;
 

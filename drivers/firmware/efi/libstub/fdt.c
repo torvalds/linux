@@ -175,13 +175,21 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 					    unsigned long fdt_addr,
 					    unsigned long fdt_size)
 {
-	unsigned long map_size, desc_size;
+	unsigned long map_size, desc_size, buff_size;
 	u32 desc_ver;
 	unsigned long mmap_key;
 	efi_memory_desc_t *memory_map, *runtime_map;
 	unsigned long new_fdt_size;
 	efi_status_t status;
 	int runtime_entry_count = 0;
+	struct efi_boot_memmap map;
+
+	map.map =	&runtime_map;
+	map.map_size =	&map_size;
+	map.desc_size =	&desc_size;
+	map.desc_ver =	&desc_ver;
+	map.key_ptr =	&mmap_key;
+	map.buff_size =	&buff_size;
 
 	/*
 	 * Get a copy of the current memory map that we will use to prepare
@@ -189,8 +197,7 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 	 * subsequent allocations adding entries, since they could not affect
 	 * the number of EFI_MEMORY_RUNTIME regions.
 	 */
-	status = efi_get_memory_map(sys_table, &runtime_map, &map_size,
-				    &desc_size, &desc_ver, &mmap_key);
+	status = efi_get_memory_map(sys_table, &map);
 	if (status != EFI_SUCCESS) {
 		pr_efi_err(sys_table, "Unable to retrieve UEFI memory map.\n");
 		return status;
@@ -199,6 +206,7 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 	pr_efi(sys_table,
 	       "Exiting boot services and installing virtual address map...\n");
 
+	map.map = &memory_map;
 	/*
 	 * Estimate size of new FDT, and allocate memory for it. We
 	 * will allocate a bigger buffer if this ends up being too
@@ -218,8 +226,7 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 		 * we can get the memory map key  needed for
 		 * exit_boot_services().
 		 */
-		status = efi_get_memory_map(sys_table, &memory_map, &map_size,
-					    &desc_size, &desc_ver, &mmap_key);
+		status = efi_get_memory_map(sys_table, &map);
 		if (status != EFI_SUCCESS)
 			goto fail_free_new_fdt;
 
