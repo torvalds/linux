@@ -789,7 +789,7 @@ out:
 
 /**
  * Atomic operations are expensive. We accumulate the accounting for the
- * same page zone to get better performance.
+ * same page pgdat to get better performance.
  * In practice this can work pretty good because the pages in the same RPC
  * are likely from the same page zone.
  */
@@ -797,28 +797,28 @@ static inline void unstable_page_accounting(struct ptlrpc_bulk_desc *desc,
 					    int factor)
 {
 	int page_count = desc->bd_iov_count;
-	void *zone = NULL;
+	pg_data_t *last = NULL;
 	int count = 0;
 	int i;
 
 	for (i = 0; i < page_count; i++) {
-		void *pz = page_zone(desc->bd_iov[i].bv_page);
+		pg_data_t *pgdat = page_pgdat(desc->bd_iov[i].bv_page);
 
-		if (likely(pz == zone)) {
+		if (likely(pgdat == last)) {
 			++count;
 			continue;
 		}
 
 		if (count > 0) {
-			mod_zone_page_state(zone, NR_UNSTABLE_NFS,
+			mod_node_page_state(pgdat, NR_UNSTABLE_NFS,
 					    factor * count);
 			count = 0;
 		}
-		zone = pz;
+		last = pgdat;
 		++count;
 	}
 	if (count > 0)
-		mod_zone_page_state(zone, NR_UNSTABLE_NFS, factor * count);
+		mod_node_page_state(last, NR_UNSTABLE_NFS, factor * count);
 }
 
 static inline void add_unstable_page_accounting(struct ptlrpc_bulk_desc *desc)
