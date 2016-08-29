@@ -33,29 +33,14 @@
 
 
 /* drm_crtc.c */
-int drm_mode_object_get_reg(struct drm_device *dev,
-			    struct drm_mode_object *obj,
-			    uint32_t obj_type,
-			    bool register_obj,
-			    void (*obj_free_cb)(struct kref *kref));
-void drm_mode_object_register(struct drm_device *dev,
-			      struct drm_mode_object *obj);
-int drm_mode_object_get(struct drm_device *dev,
-			struct drm_mode_object *obj, uint32_t obj_type);
-struct drm_mode_object *__drm_mode_object_find(struct drm_device *dev,
-					       uint32_t id, uint32_t type);
-void drm_mode_object_unregister(struct drm_device *dev,
-				struct drm_mode_object *object);
-int drm_mode_object_get_properties(struct drm_mode_object *obj, bool atomic,
-				   uint32_t __user *prop_ptr,
-				   uint64_t __user *prop_values,
-				   uint32_t *arg_count_props);
+int drm_mode_crtc_set_obj_prop(struct drm_mode_object *obj,
+			       struct drm_property *property,
+			       uint64_t value);
 bool drm_property_change_valid_get(struct drm_property *property,
 				   uint64_t value,
 				   struct drm_mode_object **ref);
 void drm_property_change_valid_put(struct drm_property *property,
 				   struct drm_mode_object *ref);
-
 int drm_plane_check_pixel_format(const struct drm_plane *plane,
 				 u32 format);
 int drm_crtc_check_viewport(const struct drm_crtc *crtc,
@@ -76,11 +61,6 @@ int drm_mode_destroy_dumb_ioctl(struct drm_device *dev,
 				void *data, struct drm_file *file_priv);
 
 /* IOCTLs */
-int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
-				      struct drm_file *file_priv);
-int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
-				    struct drm_file *file_priv);
-
 int drm_mode_getresources(struct drm_device *dev,
 			  void *data, struct drm_file *file_priv);
 int drm_mode_getplane_res(struct drm_device *dev, void *data,
@@ -112,6 +92,32 @@ int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 
 int drm_mode_page_flip_ioctl(struct drm_device *dev,
 			     void *data, struct drm_file *file_priv);
+
+/* drm_mode_object.c */
+int drm_mode_object_get_reg(struct drm_device *dev,
+			    struct drm_mode_object *obj,
+			    uint32_t obj_type,
+			    bool register_obj,
+			    void (*obj_free_cb)(struct kref *kref));
+void drm_mode_object_register(struct drm_device *dev,
+			      struct drm_mode_object *obj);
+int drm_mode_object_get(struct drm_device *dev,
+			struct drm_mode_object *obj, uint32_t obj_type);
+struct drm_mode_object *__drm_mode_object_find(struct drm_device *dev,
+					       uint32_t id, uint32_t type);
+void drm_mode_object_unregister(struct drm_device *dev,
+				struct drm_mode_object *object);
+int drm_mode_object_get_properties(struct drm_mode_object *obj, bool atomic,
+				   uint32_t __user *prop_ptr,
+				   uint64_t __user *prop_values,
+				   uint32_t *arg_count_props);
+
+/* IOCTL */
+
+int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
+				      struct drm_file *file_priv);
+int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
+				    struct drm_file *file_priv);
 
 /* drm_encoder.c */
 int drm_encoder_register_all(struct drm_device *dev);

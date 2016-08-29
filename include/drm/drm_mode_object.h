@@ -67,4 +67,14 @@ struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
 void drm_mode_object_reference(struct drm_mode_object *obj);
 void drm_mode_object_unreference(struct drm_mode_object *obj);
 
+int drm_object_property_set_value(struct drm_mode_object *obj,
+				  struct drm_property *property,
+				  uint64_t val);
+int drm_object_property_get_value(struct drm_mode_object *obj,
+				  struct drm_property *property,
+				  uint64_t *value);
+
+void drm_object_attach_property(struct drm_mode_object *obj,
+				struct drm_property *property,
+				uint64_t init_val);
 #endif

@@ -25,7 +25,7 @@
 
 #include <linux/list.h>
 #include <linux/ctype.h>
-#include <drm/drm_modeset.h>
+#include <drm/drm_mode_object.h>
 
 /**
  * struct drm_encoder_funcs - encoder controls

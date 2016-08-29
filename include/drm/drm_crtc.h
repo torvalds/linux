@@ -36,7 +36,7 @@
 #include <uapi/drm/drm_fourcc.h>
 #include <drm/drm_modeset_lock.h>
 #include <drm/drm_rect.h>
-#include <drm/drm_modeset.h>
+#include <drm/drm_mode_object.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_connector.h>
@@ -2116,16 +2116,6 @@ static inline bool drm_property_type_is(struct drm_property *property,
 	return property->flags & type;
 }
 
-extern int drm_object_property_set_value(struct drm_mode_object *obj,
-					 struct drm_property *property,
-					 uint64_t val);
-extern int drm_object_property_get_value(struct drm_mode_object *obj,
-					 struct drm_property *property,
-					 uint64_t *value);
-
-extern void drm_object_attach_property(struct drm_mode_object *obj,
-				       struct drm_property *property,
-				       uint64_t init_val);
 extern struct drm_property *drm_property_create(struct drm_device *dev, int flags,
 						const char *name, int num_values);
 extern struct drm_property *drm_property_create_enum(struct drm_device *dev, int flags,

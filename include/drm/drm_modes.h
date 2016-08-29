@@ -27,7 +27,7 @@
 #ifndef __DRM_MODES_H__
 #define __DRM_MODES_H__
 
-#include <drm/drm_modeset.h>
+#include <drm/drm_mode_object.h>
 #include <drm/drm_connector.h>
 
 /*
