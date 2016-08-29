@@ -448,8 +448,7 @@ static int ish_fw_reset_handler(struct ishtp_device *dev)
 	spin_lock_irqsave(&dev->wr_processing_spinlock, flags);
 	list_for_each_entry_safe(processing, next,
 			&dev->wr_processing_list_head.link, link) {
-		list_del(&processing->link);
-		list_add_tail(&processing->link, &dev->wr_free_list_head.link);
+		list_move_tail(&processing->link, &dev->wr_free_list_head.link);
 	}
 	spin_unlock_irqrestore(&dev->wr_processing_spinlock, flags);
 

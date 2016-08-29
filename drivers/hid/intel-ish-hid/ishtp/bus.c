@@ -16,7 +16,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -380,11 +379,9 @@ static struct ishtp_cl_device *ishtp_bus_add_device(struct ishtp_device *dev,
 	struct ishtp_cl_device *device;
 	int status;
 	unsigned long flags;
-	struct list_head *pos;
 
 	spin_lock_irqsave(&dev->device_list_lock, flags);
-	list_for_each(pos, &dev->device_list) {
-		device = list_entry(pos, struct ishtp_cl_device, device_link);
+	list_for_each_entry(device, &dev->device_list, device_link) {
 		if (!strcmp(name, dev_name(&device->dev))) {
 			device->fw_client = &dev->fw_clients[
 				dev->fw_client_presentation_num - 1];
