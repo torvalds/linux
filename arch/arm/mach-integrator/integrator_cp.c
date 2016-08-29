@@ -17,8 +17,6 @@
 #include <linux/device.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/kmi.h>
-#include <linux/amba/clcd.h>
-#include <linux/platform_data/video-clcd-versatile.h>
 #include <linux/amba/mmci.h>
 #include <linux/io.h>
 #include <linux/irqchip.h>
@@ -41,8 +39,6 @@
 
 /* Base address to the CP controller */
 static void __iomem *intcp_con_base;
-
-#define INTCP_PA_CLCD_BASE		0xc0000000
 
 /*
  * Logical      Physical
@@ -121,57 +117,6 @@ static struct mmci_platform_data mmc_data = {
 	.gpio_cd	= -1,
 };
 
-/*
- * CLCD support
- */
-/*
- * Ensure VGA is selected.
- */
-static void cp_clcd_enable(struct clcd_fb *fb)
-{
-	struct fb_var_screeninfo *var = &fb->fb.var;
-	u32 val = CM_CTRL_STATIC1 | CM_CTRL_STATIC2
-			| CM_CTRL_LCDEN0 | CM_CTRL_LCDEN1;
-
-	if (var->bits_per_pixel <= 8 ||
-	    (var->bits_per_pixel == 16 && var->green.length == 5))
-		/* Pseudocolor, RGB555, BGR555 */
-		val |= CM_CTRL_LCDMUXSEL_VGA555_TFT555;
-	else if (fb->fb.var.bits_per_pixel <= 16)
-		/* truecolor RGB565 */
-		val |= CM_CTRL_LCDMUXSEL_VGA565_TFT555;
-	else
-		val = 0; /* no idea for this, don't trust the docs */
-
-	cm_control(CM_CTRL_LCDMUXSEL_MASK|
-		   CM_CTRL_LCDEN0|
-		   CM_CTRL_LCDEN1|
-		   CM_CTRL_STATIC1|
-		   CM_CTRL_STATIC2|
-		   CM_CTRL_STATIC|
-		   CM_CTRL_n24BITEN, val);
-}
-
-static int cp_clcd_setup(struct clcd_fb *fb)
-{
-	fb->panel = versatile_clcd_get_panel("VGA");
-	if (!fb->panel)
-		return -EINVAL;
-
-	return versatile_clcd_setup_dma(fb, SZ_1M);
-}
-
-static struct clcd_board clcd_data = {
-	.name		= "Integrator/CP",
-	.caps		= CLCD_CAP_5551 | CLCD_CAP_RGB565 | CLCD_CAP_888,
-	.check		= clcdfb_check,
-	.decode		= clcdfb_decode,
-	.enable		= cp_clcd_enable,
-	.setup		= cp_clcd_setup,
-	.mmap		= versatile_clcd_mmap_dma,
-	.remove		= versatile_clcd_remove_dma,
-};
-
 #define REFCOUNTER (__io_address(INTEGRATOR_HDR_BASE) + 0x28)
 
 static u64 notrace intcp_read_sched_clock(void)
@@ -209,8 +154,6 @@ static struct of_dev_auxdata intcp_auxdata_lookup[] __initdata = {
 		"mmci", &mmc_data),
 	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_CP_AACI_BASE,
 		"aaci", &mmc_data),
-	OF_DEV_AUXDATA("arm,primecell", INTCP_PA_CLCD_BASE,
-		"clcd", &clcd_data),
 	{ /* sentinel */ },
 };
 

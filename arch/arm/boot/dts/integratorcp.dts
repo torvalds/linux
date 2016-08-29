@@ -226,7 +226,42 @@
 			reg = <0xC0000000 0x1000>;
 			interrupts = <22>;
 			clocks = <&auxosc>, <&pclk>;
-			clock-names = "clcd", "apb_pclk";
+			clock-names = "clcdclk", "apb_pclk";
+
+			port {
+				/*
+				 * The VGA connected is implemented with a
+				 * THS8134A triple DAC that can be run in 24bit
+				 * or 16bit RGB mode.
+				 */
+				clcd_pads: endpoint {
+					remote-endpoint = <&clcd_panel>;
+					arm,pl11x,tft-r0g0b0-pads = <1 7 13>;
+				};
+			};
+
+			panel {
+				compatible = "panel-dpi";
+
+				port {
+					clcd_panel: endpoint {
+						remote-endpoint = <&clcd_pads>;
+					};
+				};
+
+				/* Standard 640x480 VGA timings */
+				panel-timing {
+					clock-frequency = <25175000>;
+					hactive = <640>;
+					hback-porch = <48>;
+					hfront-porch = <16>;
+					hsync-len = <96>;
+					vactive = <480>;
+					vback-porch = <33>;
+					vfront-porch = <10>;
+					vsync-len = <2>;
+				};
+			};
 		};
 	};
 };
