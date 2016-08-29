@@ -26,6 +26,30 @@
 
 #include "drm_crtc_internal.h"
 
+/**
+ * DOC: overview
+ *
+ * Encoders represent the connecting element between the CRTC (as the overall
+ * pixel pipeline, represented by struct &drm_crtc) and the connectors (as the
+ * generic sink entity, represented by struct &drm_connector). Encoders are
+ * objects exposed to userspace, originally to allow userspace to infer cloning
+ * and connector/CRTC restrictions. Unfortunately almost all drivers get this
+ * wrong, making the uabi pretty much useless. On top of that the exposed
+ * restrictions are too simple for todays hardware, and the recommend way to
+ * infer restrictions is by using the DRM_MODE_ATOMIC_TEST_ONLY flag for the
+ * atomic IOCTL.
+ *
+ * Otherwise encoders aren't used in the uapi at all (any modeset request from
+ * userspace directly connects a connector with a CRTC), drivers are therefore
+ * free to use them however they wish. Modeset helper libraries make strong use
+ * of encoders to facilitate code sharing. But for more complex settings it is
+ * usually better to move shared code into a separate &drm_bridge. Compared to
+ * encoders bridges also have the benefit of not being purely an internal
+ * abstraction since they are not exposed to userspace at all.
+ *
+ * Encoders are initialized with drm_encoder_init() and cleaned up using
+ * drm_encoder_cleanup().
+ */
 static const struct drm_prop_enum_list drm_encoder_enum_list[] = {
 	{ DRM_MODE_ENCODER_NONE, "None" },
 	{ DRM_MODE_ENCODER_DAC, "DAC" },
@@ -71,16 +95,17 @@ void drm_encoder_unregister_all(struct drm_device *dev)
  * @encoder_type: user visible type of the encoder
  * @name: printf style format string for the encoder name, or NULL for default name
  *
- * Initialises a preallocated encoder. Encoder should be
- * subclassed as part of driver encoder objects.
+ * Initialises a preallocated encoder. Encoder should be subclassed as part of
+ * driver encoder objects. At driver unload time drm_encoder_cleanup() should be
+ * called from the driver's destroy hook in &drm_encoder_funcs.
  *
  * Returns:
  * Zero on success, error code on failure.
  */
 int drm_encoder_init(struct drm_device *dev,
-		      struct drm_encoder *encoder,
-		      const struct drm_encoder_funcs *funcs,
-		      int encoder_type, const char *name, ...)
+		     struct drm_encoder *encoder,
+		     const struct drm_encoder_funcs *funcs,
+		     int encoder_type, const char *name, ...)
 {
 	int ret;
 
@@ -176,19 +201,6 @@ static struct drm_crtc *drm_encoder_get_crtc(struct drm_encoder *encoder)
 	return encoder->crtc;
 }
 
-/**
- * drm_mode_getencoder - get encoder configuration
- * @dev: drm device for the ioctl
- * @data: data pointer for the ioctl
- * @file_priv: drm file for the ioctl call
- *
- * Construct a encoder configuration structure to return to the user.
- *
- * Called by the user via ioctl.
- *
- * Returns:
- * Zero on success, negative errno on failure.
- */
 int drm_mode_getencoder(struct drm_device *dev, void *data,
 			struct drm_file *file_priv)
 {

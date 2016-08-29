@@ -128,6 +128,12 @@ Connector Functions Reference
 Encoder Abstraction
 ===================
 
+.. kernel-doc:: drivers/gpu/drm/drm_encoder.c
+   :doc: overview
+
+Encoder Functions Reference
+---------------------------
+
 .. kernel-doc:: include/drm/drm_encoder.h
    :internal:
 
@@ -206,46 +212,6 @@ primary plane per CRTC (although this requirement may change in the
 future); drivers that do not wish to provide special handling for
 primary planes may make use of the helper functions described in ? to
 create and register a primary plane with standard capabilities.
-
-Encoders (:c:type:`struct drm_encoder <drm_encoder>`)
------------------------------------------------------
-
-An encoder takes pixel data from a CRTC and converts it to a format
-suitable for any attached connectors. On some devices, it may be
-possible to have a CRTC send data to more than one encoder. In that
-case, both encoders would receive data from the same scanout buffer,
-resulting in a "cloned" display configuration across the connectors
-attached to each encoder.
-
-Encoder Initialization
-~~~~~~~~~~~~~~~~~~~~~~
-
-As for CRTCs, a KMS driver must create, initialize and register at least
-one :c:type:`struct drm_encoder <drm_encoder>` instance. The
-instance is allocated and zeroed by the driver, possibly as part of a
-larger structure.
-
-Drivers must initialize the :c:type:`struct drm_encoder
-<drm_encoder>` possible_crtcs and possible_clones fields before
-registering the encoder. Both fields are bitmasks of respectively the
-CRTCs that the encoder can be connected to, and sibling encoders
-candidate for cloning.
-
-After being initialized, the encoder must be registered with a call to
-:c:func:`drm_encoder_init()`. The function takes a pointer to the
-encoder functions and an encoder type. Supported types are
-
--  DRM_MODE_ENCODER_DAC for VGA and analog on DVI-I/DVI-A
--  DRM_MODE_ENCODER_TMDS for DVI, HDMI and (embedded) DisplayPort
--  DRM_MODE_ENCODER_LVDS for display panels
--  DRM_MODE_ENCODER_TVDAC for TV output (Composite, S-Video,
-   Component, SCART)
--  DRM_MODE_ENCODER_VIRTUAL for virtual machine displays
-
-Encoders must be attached to a CRTC to be used. DRM drivers leave
-encoders unattached at initialization time. Applications (or the fbdev
-compatibility layer when implemented) are responsible for attaching the
-encoders they want to use to a CRTC.
 
 Cleanup
 -------

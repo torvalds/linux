@@ -84,9 +84,6 @@ struct drm_encoder_funcs {
  * @head: list management
  * @base: base KMS object
  * @name: human readable name, can be overwritten by the driver
- * @encoder_type: one of the DRM_MODE_ENCODER_<foo> types in drm_mode.h
- * @possible_crtcs: bitmask of potential CRTC bindings
- * @possible_clones: bitmask of potential sibling encoders for cloning
  * @crtc: currently bound CRTC
  * @bridge: bridge associated to the encoder
  * @funcs: control functions
@@ -101,6 +98,32 @@ struct drm_encoder {
 
 	struct drm_mode_object base;
 	char *name;
+	/**
+	 * @encoder_type:
+	 *
+	 * One of the DRM_MODE_ENCODER_<foo> types in drm_mode.h. The following
+	 * encoder types are defined thus far:
+	 *
+	 * - DRM_MODE_ENCODER_DAC for VGA and analog on DVI-I/DVI-A.
+	 *
+	 * - DRM_MODE_ENCODER_TMDS for DVI, HDMI and (embedded) DisplayPort.
+	 *
+	 * - DRM_MODE_ENCODER_LVDS for display panels, or in general any panel
+	 *   with a proprietary parallel connector.
+	 *
+	 * - DRM_MODE_ENCODER_TVDAC for TV output (Composite, S-Video,
+	 *   Component, SCART).
+	 *
+	 * - DRM_MODE_ENCODER_VIRTUAL for virtual machine displays
+	 *
+	 * - DRM_MODE_ENCODER_DSI for panels connected using the DSI serial bus.
+	 *
+	 * - DRM_MODE_ENCODER_DPI for panels connected using the DPI parallel
+	 *   bus.
+	 *
+	 * - DRM_MODE_ENCODER_DPMST for special fake encoders used to allow
+	 *   mutliple DP MST streams to share one physical encoder.
+	 */
 	int encoder_type;
 
 	/**
@@ -109,7 +132,34 @@ struct drm_encoder {
 	 */
 	unsigned index;
 
+	/**
+	 * @possible_crtcs: Bitmask of potential CRTC bindings, using
+	 * drm_crtc_index() as the index into the bitfield. The driver must set
+	 * the bits for all &drm_crtc objects this encoder can be connected to
+	 * before calling drm_encoder_init().
+	 *
+	 * In reality almost every driver gets this wrong.
+	 *
+	 * Note that since CRTC objects can't be hotplugged the assigned indices
+	 * are stable and hence known before registering all objects.
+	 */
 	uint32_t possible_crtcs;
+
+	/**
+	 * @possible_clones: Bitmask of potential sibling encoders for cloning,
+	 * using drm_encoder_index() as the index into the bitfield. The driver
+	 * must set the bits for all &drm_encoder objects which can clone a
+	 * &drm_crtc together with this encoder before calling
+	 * drm_encoder_init(). Drivers should set the bit representing the
+	 * encoder itself, too. Cloning bits should be set such that when two
+	 * encoders can be used in a cloned configuration, they both should have
+	 * each another bits set.
+	 *
+	 * In reality almost every driver gets this wrong.
+	 *
+	 * Note that since encoder objects can't be hotplugged the assigned indices
+	 * are stable and hence known before registering all objects.
+	 */
 	uint32_t possible_clones;
 
 	struct drm_crtc *crtc;
@@ -146,7 +196,7 @@ static inline uint32_t drm_crtc_mask(struct drm_crtc *crtc);
  * @encoder: encoder to test
  * @crtc: crtc to test
  *
- * Return false if @encoder can't be driven by @crtc, true otherwise.
+ * Returns false if @encoder can't be driven by @crtc, true otherwise.
  */
 static inline bool drm_encoder_crtc_ok(struct drm_encoder *encoder,
 				       struct drm_crtc *crtc)
@@ -154,11 +204,21 @@ static inline bool drm_encoder_crtc_ok(struct drm_encoder *encoder,
 	return !!(encoder->possible_crtcs & drm_crtc_mask(crtc));
 }
 
+/**
+ * drm_encoder_find - find a &drm_encoder
+ * @dev: DRM device
+ * @id: encoder id
+ *
+ * Returns the encoder with @id, NULL if it doesn't exist. Simple wrapper around
+ * drm_mode_object_find().
+ */
 static inline struct drm_encoder *drm_encoder_find(struct drm_device *dev,
-	uint32_t id)
+						   uint32_t id)
 {
 	struct drm_mode_object *mo;
+
 	mo = drm_mode_object_find(dev, id, DRM_MODE_OBJECT_ENCODER);
+
 	return mo ? obj_to_encoder(mo) : NULL;
 }
 
