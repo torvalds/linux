@@ -1340,6 +1340,84 @@ static void ext4_xattr_shift_entries(struct ext4_xattr_entry *entry,
 }
 
 /*
+ * Move xattr pointed to by 'entry' from inode into external xattr block
+ */
+static int ext4_xattr_move_to_block(handle_t *handle, struct inode *inode,
+				    struct ext4_inode *raw_inode,
+				    struct ext4_xattr_entry *entry)
+{
+	struct ext4_xattr_ibody_find *is = NULL;
+	struct ext4_xattr_block_find *bs = NULL;
+	char *buffer = NULL, *b_entry_name = NULL;
+	size_t value_offs, value_size;
+	struct ext4_xattr_info i = {
+		.value = NULL,
+		.value_len = 0,
+		.name_index = entry->e_name_index,
+	};
+	struct ext4_xattr_ibody_header *header = IHDR(inode, raw_inode);
+	int error;
+
+	value_offs = le16_to_cpu(entry->e_value_offs);
+	value_size = le32_to_cpu(entry->e_value_size);
+
+	is = kzalloc(sizeof(struct ext4_xattr_ibody_find), GFP_NOFS);
+	bs = kzalloc(sizeof(struct ext4_xattr_block_find), GFP_NOFS);
+	buffer = kmalloc(value_size, GFP_NOFS);
+	b_entry_name = kmalloc(entry->e_name_len + 1, GFP_NOFS);
+	if (!is || !bs || !buffer || !b_entry_name) {
+		error = -ENOMEM;
+		goto out;
+	}
+
+	is->s.not_found = -ENODATA;
+	bs->s.not_found = -ENODATA;
+	is->iloc.bh = NULL;
+	bs->bh = NULL;
+
+	/* Save the entry name and the entry value */
+	memcpy(buffer, (void *)IFIRST(header) + value_offs, value_size);
+	memcpy(b_entry_name, entry->e_name, entry->e_name_len);
+	b_entry_name[entry->e_name_len] = '\0';
+	i.name = b_entry_name;
+
+	error = ext4_get_inode_loc(inode, &is->iloc);
+	if (error)
+		goto out;
+
+	error = ext4_xattr_ibody_find(inode, &i, is);
+	if (error)
+		goto out;
+
+	/* Remove the chosen entry from the inode */
+	error = ext4_xattr_ibody_set(handle, inode, &i, is);
+	if (error)
+		goto out;
+
+	i.name = b_entry_name;
+	i.value = buffer;
+	i.value_len = value_size;
+	error = ext4_xattr_block_find(inode, &i, bs);
+	if (error)
+		goto out;
+
+	/* Add entry which was removed from the inode into the block */
+	error = ext4_xattr_block_set(handle, inode, &i, bs);
+	if (error)
+		goto out;
+	error = 0;
+out:
+	kfree(b_entry_name);
+	kfree(buffer);
+	if (is)
+		brelse(is->iloc.bh);
+	kfree(is);
+	kfree(bs);
+
+	return error;
+}
+
+/*
  * Expand an inode by new_extra_isize bytes when EAs are present.
  * Returns 0 on success or negative error number on failure.
  */
@@ -1349,9 +1427,6 @@ int ext4_expand_extra_isize_ea(struct inode *inode, int new_extra_isize,
 	struct ext4_xattr_ibody_header *header;
 	struct ext4_xattr_entry *entry, *last, *first;
 	struct buffer_head *bh = NULL;
-	struct ext4_xattr_ibody_find *is = NULL;
-	struct ext4_xattr_block_find *bs = NULL;
-	char *buffer = NULL, *b_entry_name = NULL;
 	size_t min_offs;
 	size_t ifree, bfree;
 	int total_ino;
@@ -1427,26 +1502,10 @@ retry:
 	}
 
 	while (isize_diff > ifree) {
-		size_t offs, size, entry_size;
 		struct ext4_xattr_entry *small_entry = NULL;
-		struct ext4_xattr_info i = {
-			.value = NULL,
-			.value_len = 0,
-		};
-		unsigned int total_size;  /* EA entry size + value size */
+		unsigned int entry_size;	/* EA entry size */
+		unsigned int total_size;	/* EA entry size + value size */
 		unsigned int min_total_size = ~0U;
-
-		is = kzalloc(sizeof(struct ext4_xattr_ibody_find), GFP_NOFS);
-		bs = kzalloc(sizeof(struct ext4_xattr_block_find), GFP_NOFS);
-		if (!is || !bs) {
-			error = -ENOMEM;
-			goto cleanup;
-		}
-
-		is->s.not_found = -ENODATA;
-		bs->s.not_found = -ENODATA;
-		is->iloc.bh = NULL;
-		bs->bh = NULL;
 
 		last = IFIRST(header);
 		/* Find the entry best suited to be pushed into EA block */
@@ -1474,8 +1533,6 @@ retry:
 				    s_min_extra_isize) {
 					tried_min_extra_isize++;
 					new_extra_isize = s_min_extra_isize;
-					kfree(is); is = NULL;
-					kfree(bs); bs = NULL;
 					brelse(bh);
 					goto retry;
 				}
@@ -1483,58 +1540,18 @@ retry:
 				goto cleanup;
 			}
 		}
-		offs = le16_to_cpu(entry->e_value_offs);
-		size = le32_to_cpu(entry->e_value_size);
+
 		entry_size = EXT4_XATTR_LEN(entry->e_name_len);
-		total_size = entry_size + EXT4_XATTR_SIZE(size);
-		i.name_index = entry->e_name_index,
-		buffer = kmalloc(EXT4_XATTR_SIZE(size), GFP_NOFS);
-		b_entry_name = kmalloc(entry->e_name_len + 1, GFP_NOFS);
-		if (!buffer || !b_entry_name) {
-			error = -ENOMEM;
-			goto cleanup;
-		}
-		/* Save the entry name and the entry value */
-		memcpy(buffer, (void *)IFIRST(header) + offs,
-		       EXT4_XATTR_SIZE(size));
-		memcpy(b_entry_name, entry->e_name, entry->e_name_len);
-		b_entry_name[entry->e_name_len] = '\0';
-		i.name = b_entry_name;
-
-		error = ext4_get_inode_loc(inode, &is->iloc);
+		total_size = entry_size +
+			EXT4_XATTR_SIZE(le32_to_cpu(entry->e_value_size));
+		error = ext4_xattr_move_to_block(handle, inode, raw_inode,
+						 entry);
 		if (error)
 			goto cleanup;
 
-		error = ext4_xattr_ibody_find(inode, &i, is);
-		if (error)
-			goto cleanup;
-
-		/* Remove the chosen entry from the inode */
-		error = ext4_xattr_ibody_set(handle, inode, &i, is);
-		if (error)
-			goto cleanup;
 		total_ino -= entry_size;
 		ifree += total_size;
 		bfree -= total_size;
-
-		i.name = b_entry_name;
-		i.value = buffer;
-		i.value_len = size;
-		error = ext4_xattr_block_find(inode, &i, bs);
-		if (error)
-			goto cleanup;
-
-		/* Add entry which was removed from the inode into the block */
-		error = ext4_xattr_block_set(handle, inode, &i, bs);
-		if (error)
-			goto cleanup;
-		kfree(b_entry_name);
-		kfree(buffer);
-		b_entry_name = NULL;
-		buffer = NULL;
-		brelse(is->iloc.bh);
-		kfree(is);
-		kfree(bs);
 	}
 
 shift:
@@ -1552,12 +1569,6 @@ out:
 	return 0;
 
 cleanup:
-	kfree(b_entry_name);
-	kfree(buffer);
-	if (is)
-		brelse(is->iloc.bh);
-	kfree(is);
-	kfree(bs);
 	brelse(bh);
 	/*
 	 * We deliberately leave EXT4_STATE_NO_EXPAND set here since inode
