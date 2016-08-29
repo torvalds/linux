@@ -861,6 +861,7 @@ nouveau_gem_ioctl_cpu_prep(struct drm_device *dev, void *data,
 	struct nouveau_bo *nvbo;
 	bool no_wait = !!(req->flags & NOUVEAU_GEM_CPU_PREP_NOWAIT);
 	bool write = !!(req->flags & NOUVEAU_GEM_CPU_PREP_WRITE);
+	long lret;
 	int ret;
 
 	gem = drm_gem_object_lookup(file_priv, req->handle);
@@ -868,19 +869,15 @@ nouveau_gem_ioctl_cpu_prep(struct drm_device *dev, void *data,
 		return -ENOENT;
 	nvbo = nouveau_gem_object(gem);
 
-	if (no_wait)
-		ret = reservation_object_test_signaled_rcu(nvbo->bo.resv, write) ? 0 : -EBUSY;
-	else {
-		long lret;
+	lret = reservation_object_wait_timeout_rcu(nvbo->bo.resv, write, true,
+						   no_wait ? 0 : 30 * HZ);
+	if (!lret)
+		ret = -EBUSY;
+	else if (lret > 0)
+		ret = 0;
+	else
+		ret = lret;
 
-		lret = reservation_object_wait_timeout_rcu(nvbo->bo.resv, write, true, 30 * HZ);
-		if (!lret)
-			ret = -EBUSY;
-		else if (lret > 0)
-			ret = 0;
-		else
-			ret = lret;
-	}
 	nouveau_bo_sync_for_cpu(nvbo);
 	drm_gem_object_unreference_unlocked(gem);
 
