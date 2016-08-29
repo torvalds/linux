@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Linaro Ltd.
+ * Copyright (c) 2013 - 2015 Linaro Ltd.
  * Copyright (c) 2013 Hisilicon Limited.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -27,23 +27,28 @@
 
 #define DRIVER_NAME		"k3-dma"
 #define DMA_MAX_SIZE		0x1ffc
+#define DMA_CYCLIC_MAX_PERIOD	0x1000
 #define LLI_BLOCK_SIZE		(4 * PAGE_SIZE)
 
 #define INT_STAT		0x00
 #define INT_TC1			0x04
+#define INT_TC2			0x08
 #define INT_ERR1		0x0c
 #define INT_ERR2		0x10
 #define INT_TC1_MASK		0x18
+#define INT_TC2_MASK		0x1c
 #define INT_ERR1_MASK		0x20
 #define INT_ERR2_MASK		0x24
 #define INT_TC1_RAW		0x600
+#define INT_TC2_RAW		0x608
 #define INT_ERR1_RAW		0x610
 #define INT_ERR2_RAW		0x618
 #define CH_PRI			0x688
 #define CH_STAT			0x690
 #define CX_CUR_CNT		0x704
 #define CX_LLI			0x800
-#define CX_CNT			0x810
+#define CX_CNT1			0x80c
+#define CX_CNT0			0x810
 #define CX_SRC			0x814
 #define CX_DST			0x818
 #define CX_CFG			0x81c
@@ -52,6 +57,7 @@
 
 #define CX_LLI_CHAIN_EN		0x2
 #define CX_CFG_EN		0x1
+#define CX_CFG_NODEIRQ		BIT(1)
 #define CX_CFG_MEM2PER		(0x1 << 2)
 #define CX_CFG_PER2MEM		(0x2 << 2)
 #define CX_CFG_SRCINCR		(0x1 << 31)
@@ -84,6 +90,7 @@ struct k3_dma_chan {
 	enum dma_transfer_direction dir;
 	dma_addr_t		dev_addr;
 	enum dma_status		status;
+	bool			cyclic;
 };
 
 struct k3_dma_phy {
@@ -139,6 +146,7 @@ static void k3_dma_terminate_chan(struct k3_dma_phy *phy, struct k3_dma_dev *d)
 
 	val = 0x1 << phy->idx;
 	writel_relaxed(val, d->base + INT_TC1_RAW);
+	writel_relaxed(val, d->base + INT_TC2_RAW);
 	writel_relaxed(val, d->base + INT_ERR1_RAW);
 	writel_relaxed(val, d->base + INT_ERR2_RAW);
 }
@@ -146,7 +154,7 @@ static void k3_dma_terminate_chan(struct k3_dma_phy *phy, struct k3_dma_dev *d)
 static void k3_dma_set_desc(struct k3_dma_phy *phy, struct k3_desc_hw *hw)
 {
 	writel_relaxed(hw->lli, phy->base + CX_LLI);
-	writel_relaxed(hw->count, phy->base + CX_CNT);
+	writel_relaxed(hw->count, phy->base + CX_CNT0);
 	writel_relaxed(hw->saddr, phy->base + CX_SRC);
 	writel_relaxed(hw->daddr, phy->base + CX_DST);
 	writel_relaxed(AXI_CFG_DEFAULT, phy->base + AXI_CFG);
@@ -180,11 +188,13 @@ static void k3_dma_enable_dma(struct k3_dma_dev *d, bool on)
 
 		/* unmask irq */
 		writel_relaxed(0xffff, d->base + INT_TC1_MASK);
+		writel_relaxed(0xffff, d->base + INT_TC2_MASK);
 		writel_relaxed(0xffff, d->base + INT_ERR1_MASK);
 		writel_relaxed(0xffff, d->base + INT_ERR2_MASK);
 	} else {
 		/* mask irq */
 		writel_relaxed(0x0, d->base + INT_TC1_MASK);
+		writel_relaxed(0x0, d->base + INT_TC2_MASK);
 		writel_relaxed(0x0, d->base + INT_ERR1_MASK);
 		writel_relaxed(0x0, d->base + INT_ERR2_MASK);
 	}
@@ -197,24 +207,31 @@ static irqreturn_t k3_dma_int_handler(int irq, void *dev_id)
 	struct k3_dma_chan *c;
 	u32 stat = readl_relaxed(d->base + INT_STAT);
 	u32 tc1  = readl_relaxed(d->base + INT_TC1);
+	u32 tc2  = readl_relaxed(d->base + INT_TC2);
 	u32 err1 = readl_relaxed(d->base + INT_ERR1);
 	u32 err2 = readl_relaxed(d->base + INT_ERR2);
 	u32 i, irq_chan = 0;
 
 	while (stat) {
 		i = __ffs(stat);
-		stat &= (stat - 1);
-		if (likely(tc1 & BIT(i))) {
+		stat &= ~BIT(i);
+		if (likely(tc1 & BIT(i)) || (tc2 & BIT(i))) {
+			unsigned long flags;
+
 			p = &d->phy[i];
 			c = p->vchan;
-			if (c) {
-				unsigned long flags;
-
+			if (c && (tc1 & BIT(i))) {
 				spin_lock_irqsave(&c->vc.lock, flags);
 				vchan_cookie_complete(&p->ds_run->vd);
 				WARN_ON_ONCE(p->ds_done);
 				p->ds_done = p->ds_run;
 				p->ds_run = NULL;
+				spin_unlock_irqrestore(&c->vc.lock, flags);
+			}
+			if (c && (tc2 & BIT(i))) {
+				spin_lock_irqsave(&c->vc.lock, flags);
+				if (p->ds_run != NULL)
+					vchan_cyclic_callback(&p->ds_run->vd);
 				spin_unlock_irqrestore(&c->vc.lock, flags);
 			}
 			irq_chan |= BIT(i);
@@ -224,6 +241,7 @@ static irqreturn_t k3_dma_int_handler(int irq, void *dev_id)
 	}
 
 	writel_relaxed(irq_chan, d->base + INT_TC1_RAW);
+	writel_relaxed(irq_chan, d->base + INT_TC2_RAW);
 	writel_relaxed(err1, d->base + INT_ERR1_RAW);
 	writel_relaxed(err2, d->base + INT_ERR2_RAW);
 
@@ -359,7 +377,7 @@ static enum dma_status k3_dma_tx_status(struct dma_chan *chan,
 	 * its total size.
 	 */
 	vd = vchan_find_desc(&c->vc, cookie);
-	if (vd) {
+	if (vd && !c->cyclic) {
 		bytes = container_of(vd, struct k3_dma_desc_sw, vd)->size;
 	} else if ((!p) || (!p->ds_run)) {
 		bytes = 0;
@@ -369,7 +387,8 @@ static enum dma_status k3_dma_tx_status(struct dma_chan *chan,
 
 		bytes = k3_dma_get_curr_cnt(d, p);
 		clli = k3_dma_get_curr_lli(p);
-		index = (clli - ds->desc_hw_lli) / sizeof(struct k3_desc_hw);
+		index = ((clli - ds->desc_hw_lli) /
+				sizeof(struct k3_desc_hw)) + 1;
 		for (; index < ds->desc_num; index++) {
 			bytes += ds->desc_hw[index].count;
 			/* end of lli */
@@ -410,9 +429,10 @@ static void k3_dma_issue_pending(struct dma_chan *chan)
 static void k3_dma_fill_desc(struct k3_dma_desc_sw *ds, dma_addr_t dst,
 			dma_addr_t src, size_t len, u32 num, u32 ccfg)
 {
-	if ((num + 1) < ds->desc_num)
+	if (num != ds->desc_num - 1)
 		ds->desc_hw[num].lli = ds->desc_hw_lli + (num + 1) *
 			sizeof(struct k3_desc_hw);
+
 	ds->desc_hw[num].lli |= CX_LLI_CHAIN_EN;
 	ds->desc_hw[num].count = len;
 	ds->desc_hw[num].saddr = src;
@@ -467,6 +487,7 @@ static struct dma_async_tx_descriptor *k3_dma_prep_memcpy(
 	if (!ds)
 		return NULL;
 
+	c->cyclic = 0;
 	ds->size = len;
 	num = 0;
 
@@ -510,6 +531,8 @@ static struct dma_async_tx_descriptor *k3_dma_prep_slave_sg(
 	if (sgl == NULL)
 		return NULL;
 
+	c->cyclic = 0;
+
 	for_each_sg(sgl, sg, sglen, i) {
 		avail = sg_dma_len(sg);
 		if (avail > DMA_MAX_SIZE)
@@ -546,6 +569,73 @@ static struct dma_async_tx_descriptor *k3_dma_prep_slave_sg(
 
 	ds->desc_hw[num-1].lli = 0;	/* end of link */
 	ds->size = total;
+	return vchan_tx_prep(&c->vc, &ds->vd, flags);
+}
+
+static struct dma_async_tx_descriptor *
+k3_dma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
+		       size_t buf_len, size_t period_len,
+		       enum dma_transfer_direction dir,
+		       unsigned long flags)
+{
+	struct k3_dma_chan *c = to_k3_chan(chan);
+	struct k3_dma_desc_sw *ds;
+	size_t len, avail, total = 0;
+	dma_addr_t addr, src = 0, dst = 0;
+	int num = 1, since = 0;
+	size_t modulo = DMA_CYCLIC_MAX_PERIOD;
+	u32 en_tc2 = 0;
+
+	dev_dbg(chan->device->dev, "%s: buf %p, dst %p, buf len %d, period_len = %d, dir %d\n",
+	       __func__, (void *)buf_addr, (void *)to_k3_chan(chan)->dev_addr,
+	       (int)buf_len, (int)period_len, (int)dir);
+
+	avail = buf_len;
+	if (avail > modulo)
+		num += DIV_ROUND_UP(avail, modulo) - 1;
+
+	ds = k3_dma_alloc_desc_resource(num, chan);
+	if (!ds)
+		return NULL;
+
+	c->cyclic = 1;
+	addr = buf_addr;
+	avail = buf_len;
+	total = avail;
+	num = 0;
+
+	if (period_len < modulo)
+		modulo = period_len;
+
+	do {
+		len = min_t(size_t, avail, modulo);
+
+		if (dir == DMA_MEM_TO_DEV) {
+			src = addr;
+			dst = c->dev_addr;
+		} else if (dir == DMA_DEV_TO_MEM) {
+			src = c->dev_addr;
+			dst = addr;
+		}
+		since += len;
+		if (since >= period_len) {
+			/* descriptor asks for TC2 interrupt on completion */
+			en_tc2 = CX_CFG_NODEIRQ;
+			since -= period_len;
+		} else
+			en_tc2 = 0;
+
+		k3_dma_fill_desc(ds, dst, src, len, num++, c->ccfg | en_tc2);
+
+		addr += len;
+		avail -= len;
+	} while (avail);
+
+	/* "Cyclic" == end of link points back to start of link */
+	ds->desc_hw[num - 1].lli |= ds->desc_hw_lli;
+
+	ds->size = total;
+
 	return vchan_tx_prep(&c->vc, &ds->vd, flags);
 }
 
@@ -771,11 +861,13 @@ static int k3_dma_probe(struct platform_device *op)
 	INIT_LIST_HEAD(&d->slave.channels);
 	dma_cap_set(DMA_SLAVE, d->slave.cap_mask);
 	dma_cap_set(DMA_MEMCPY, d->slave.cap_mask);
+	dma_cap_set(DMA_CYCLIC, d->slave.cap_mask);
 	d->slave.dev = &op->dev;
 	d->slave.device_free_chan_resources = k3_dma_free_chan_resources;
 	d->slave.device_tx_status = k3_dma_tx_status;
 	d->slave.device_prep_dma_memcpy = k3_dma_prep_memcpy;
 	d->slave.device_prep_slave_sg = k3_dma_prep_slave_sg;
+	d->slave.device_prep_dma_cyclic = k3_dma_prep_dma_cyclic;
 	d->slave.device_issue_pending = k3_dma_issue_pending;
 	d->slave.device_config = k3_dma_config;
 	d->slave.device_pause = k3_dma_transfer_pause;
