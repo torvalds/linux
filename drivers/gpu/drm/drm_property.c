@@ -26,6 +26,30 @@
 
 #include "drm_crtc_internal.h"
 
+/**
+ * DOC: overview
+ *
+ * Properties as represented by &drm_property are used to extend the modeset
+ * interface exposed to userspace. For the atomic modeset IOCTL properties are
+ * even the only way to transport metadata about the desired new modeset
+ * configuration from userspace to the kernel. Properties have a well-defined
+ * value range, which is enforced by the drm core. See the documentation of the
+ * flags member of struct &drm_property for an overview of the different
+ * property types and ranges.
+ *
+ * Properties don't store the current value directly, but need to be
+ * instatiated by attaching them to a &drm_mode_object with
+ * drm_object_attach_property().
+ *
+ * Property values are only 64bit. To support bigger piles of data (like gamma
+ * tables, color correction matrizes or large structures) a property can instead
+ * point at a &drm_property_blob with that additional data
+ *
+ * Properties are defined by their symbolic name, userspace must keep a
+ * per-object mapping from those names to the property ID used in the atomic
+ * IOCTL and in the get/set property IOCTL.
+ */
+
 static bool drm_property_type_valid(struct drm_property *property)
 {
 	if (property->flags & DRM_MODE_PROP_EXTENDED_TYPE)
@@ -42,11 +66,8 @@ static bool drm_property_type_valid(struct drm_property *property)
  *
  * This creates a new generic drm property which can then be attached to a drm
  * object with drm_object_attach_property. The returned property object must be
- * freed with drm_property_destroy.
- *
- * Note that the DRM core keeps a per-device list of properties and that, if
- * drm_mode_config_cleanup() is called, it will destroy all properties created
- * by the driver.
+ * freed with drm_property_destroy(), which is done automatically when calling
+ * drm_mode_config_cleanup().
  *
  * Returns:
  * A pointer to the newly created property on success, NULL on failure.
@@ -105,7 +126,8 @@ EXPORT_SYMBOL(drm_property_create);
  *
  * This creates a new generic drm property which can then be attached to a drm
  * object with drm_object_attach_property. The returned property object must be
- * freed with drm_property_destroy.
+ * freed with drm_property_destroy(), which is done automatically when calling
+ * drm_mode_config_cleanup().
  *
  * Userspace is only allowed to set one of the predefined values for enumeration
  * properties.
@@ -152,7 +174,8 @@ EXPORT_SYMBOL(drm_property_create_enum);
  *
  * This creates a new bitmask drm property which can then be attached to a drm
  * object with drm_object_attach_property. The returned property object must be
- * freed with drm_property_destroy.
+ * freed with drm_property_destroy(), which is done automatically when calling
+ * drm_mode_config_cleanup().
  *
  * Compared to plain enumeration properties userspace is allowed to set any
  * or'ed together combination of the predefined property bitflag values
@@ -223,7 +246,8 @@ static struct drm_property *property_create_range(struct drm_device *dev,
  *
  * This creates a new generic drm property which can then be attached to a drm
  * object with drm_object_attach_property. The returned property object must be
- * freed with drm_property_destroy.
+ * freed with drm_property_destroy(), which is done automatically when calling
+ * drm_mode_config_cleanup().
  *
  * Userspace is allowed to set any unsigned integer value in the (min, max)
  * range inclusive.
@@ -250,7 +274,8 @@ EXPORT_SYMBOL(drm_property_create_range);
  *
  * This creates a new generic drm property which can then be attached to a drm
  * object with drm_object_attach_property. The returned property object must be
- * freed with drm_property_destroy.
+ * freed with drm_property_destroy(), which is done automatically when calling
+ * drm_mode_config_cleanup().
  *
  * Userspace is allowed to set any signed integer value in the (min, max)
  * range inclusive.
@@ -276,7 +301,8 @@ EXPORT_SYMBOL(drm_property_create_signed_range);
  *
  * This creates a new generic drm property which can then be attached to a drm
  * object with drm_object_attach_property. The returned property object must be
- * freed with drm_property_destroy.
+ * freed with drm_property_destroy(), which is done automatically when calling
+ * drm_mode_config_cleanup().
  *
  * Userspace is only allowed to set this to any property value of the given
  * @type. Only useful for atomic properties, which is enforced.
@@ -285,7 +311,8 @@ EXPORT_SYMBOL(drm_property_create_signed_range);
  * A pointer to the newly created property on success, NULL on failure.
  */
 struct drm_property *drm_property_create_object(struct drm_device *dev,
-					 int flags, const char *name, uint32_t type)
+						int flags, const char *name,
+						uint32_t type)
 {
 	struct drm_property *property;
 
@@ -312,7 +339,8 @@ EXPORT_SYMBOL(drm_property_create_object);
  *
  * This creates a new generic drm property which can then be attached to a drm
  * object with drm_object_attach_property. The returned property object must be
- * freed with drm_property_destroy.
+ * freed with drm_property_destroy(), which is done automatically when calling
+ * drm_mode_config_cleanup().
  *
  * This is implemented as a ranged property with only {0, 1} as valid values.
  *
@@ -320,7 +348,7 @@ EXPORT_SYMBOL(drm_property_create_object);
  * A pointer to the newly created property on success, NULL on failure.
  */
 struct drm_property *drm_property_create_bool(struct drm_device *dev, int flags,
-					 const char *name)
+					      const char *name)
 {
 	return drm_property_create_range(dev, flags, name, 0, 1);
 }
@@ -407,22 +435,6 @@ void drm_property_destroy(struct drm_device *dev, struct drm_property *property)
 }
 EXPORT_SYMBOL(drm_property_destroy);
 
-/**
- * drm_mode_getproperty_ioctl - get the property metadata
- * @dev: DRM device
- * @data: ioctl data
- * @file_priv: DRM file info
- *
- * This function retrieves the metadata for a given property, like the different
- * possible values for an enum property or the limits for a range property.
- *
- * Blob properties are special
- *
- * Called by the user via ioctl.
- *
- * Returns:
- * Zero on success, negative errno on failure.
- */
 int drm_mode_getproperty_ioctl(struct drm_device *dev,
 			       void *data, struct drm_file *file_priv)
 {
@@ -523,13 +535,13 @@ static void drm_property_free_blob(struct kref *kref)
 
 /**
  * drm_property_create_blob - Create new blob property
- *
- * Creates a new blob property for a specified DRM device, optionally
- * copying data.
- *
  * @dev: DRM device to create property for
  * @length: Length to allocate for blob data
  * @data: If specified, copies data into blob
+ *
+ * Creates a new blob property for a specified DRM device, optionally
+ * copying data. Note that blob properties are meant to be invariant, hence the
+ * data must be filled out before the blob is used as the value of any property.
  *
  * Returns:
  * New blob property with a single reference on success, or an ERR_PTR
@@ -576,10 +588,9 @@ EXPORT_SYMBOL(drm_property_create_blob);
 
 /**
  * drm_property_unreference_blob - Unreference a blob property
+ * @blob: Pointer to blob property
  *
  * Drop a reference on a blob property. May free the object.
- *
- * @blob: Pointer to blob property
  */
 void drm_property_unreference_blob(struct drm_property_blob *blob)
 {
@@ -590,11 +601,6 @@ void drm_property_unreference_blob(struct drm_property_blob *blob)
 }
 EXPORT_SYMBOL(drm_property_unreference_blob);
 
-/**
- * drm_property_destroy_user_blobs - destroy all blobs created by this client
- * @dev:       DRM device
- * @file_priv: destroy all blobs owned by this file handle
- */
 void drm_property_destroy_user_blobs(struct drm_device *dev,
 				     struct drm_file *file_priv)
 {
@@ -612,10 +618,10 @@ void drm_property_destroy_user_blobs(struct drm_device *dev,
 
 /**
  * drm_property_reference_blob - Take a reference on an existing property
- *
- * Take a new reference on an existing blob property.
- *
  * @blob: Pointer to blob property
+ *
+ * Take a new reference on an existing blob property. Returns @blob, which
+ * allows this to be used as a shorthand in assignments.
  */
 struct drm_property_blob *drm_property_reference_blob(struct drm_property_blob *blob)
 {
@@ -632,6 +638,9 @@ EXPORT_SYMBOL(drm_property_reference_blob);
  * If successful, this takes an additional reference to the blob property.
  * callers need to make sure to eventually unreference the returned property
  * again, using @drm_property_unreference_blob.
+ *
+ * Return:
+ * NULL on failure, pointer to the blob on success.
  */
 struct drm_property_blob *drm_property_lookup_blob(struct drm_device *dev,
 					           uint32_t id)
@@ -647,7 +656,7 @@ struct drm_property_blob *drm_property_lookup_blob(struct drm_device *dev,
 EXPORT_SYMBOL(drm_property_lookup_blob);
 
 /**
- * drm_property_replace_global_blob - atomically replace existing blob property
+ * drm_property_replace_global_blob - replace existing blob property
  * @dev: drm device
  * @replace: location of blob property pointer to be replaced
  * @length: length of data for new blob, or 0 for no data
@@ -656,11 +665,8 @@ EXPORT_SYMBOL(drm_property_lookup_blob);
  * @prop_holds_id: optional property holding blob ID
  * @return 0 on success or error on failure
  *
- * This function will atomically replace a global property in the blob list,
- * optionally updating a property which holds the ID of that property. It is
- * guaranteed to be atomic: no caller will be allowed to see intermediate
- * results, and either the entire operation will succeed and clean up the
- * previous property, or it will fail and the state will be unchanged.
+ * This function will replace a global property in the blob list, optionally
+ * updating a property which holds the ID of that property.
  *
  * If length is 0 or data is NULL, no new blob will be created, and the holding
  * property, if specified, will be set to 0.
@@ -697,11 +703,6 @@ int drm_property_replace_global_blob(struct drm_device *dev,
 			return PTR_ERR(new_blob);
 	}
 
-	/* This does not need to be synchronised with blob_lock, as the
-	 * get_properties ioctl locks all modesetting objects, and
-	 * obj_holds_id must be locked before calling here, so we cannot
-	 * have its value out of sync with the list membership modified
-	 * below under blob_lock. */
 	if (obj_holds_id) {
 		ret = drm_object_property_set_value(obj_holds_id,
 						    prop_holds_id,
@@ -722,20 +723,6 @@ err_created:
 }
 EXPORT_SYMBOL(drm_property_replace_global_blob);
 
-/**
- * drm_mode_getblob_ioctl - get the contents of a blob property value
- * @dev: DRM device
- * @data: ioctl data
- * @file_priv: DRM file info
- *
- * This function retrieves the contents of a blob property. The value stored in
- * an object's blob property is just a normal modeset object id.
- *
- * Called by the user via ioctl.
- *
- * Returns:
- * Zero on success, negative errno on failure.
- */
 int drm_mode_getblob_ioctl(struct drm_device *dev,
 			   void *data, struct drm_file *file_priv)
 {
@@ -765,21 +752,6 @@ unref:
 	return ret;
 }
 
-/**
- * drm_mode_createblob_ioctl - create a new blob property
- * @dev: DRM device
- * @data: ioctl data
- * @file_priv: DRM file info
- *
- * This function creates a new blob property with user-defined values. In order
- * to give us sensible validation and checking when creating, rather than at
- * every potential use, we also require a type to be provided upfront.
- *
- * Called by the user via ioctl.
- *
- * Returns:
- * Zero on success, negative errno on failure.
- */
 int drm_mode_createblob_ioctl(struct drm_device *dev,
 			      void *data, struct drm_file *file_priv)
 {
@@ -816,19 +788,6 @@ out_blob:
 	return ret;
 }
 
-/**
- * drm_mode_destroyblob_ioctl - destroy a user blob property
- * @dev: DRM device
- * @data: ioctl data
- * @file_priv: DRM file info
- *
- * Destroy an existing user-defined blob property.
- *
- * Called by the user via ioctl.
- *
- * Returns:
- * Zero on success, negative errno on failure.
- */
 int drm_mode_destroyblob_ioctl(struct drm_device *dev,
 			       void *data, struct drm_file *file_priv)
 {
@@ -885,7 +844,7 @@ err:
  * reference).
  */
 bool drm_property_change_valid_get(struct drm_property *property,
-					 uint64_t value, struct drm_mode_object **ref)
+				   uint64_t value, struct drm_mode_object **ref)
 {
 	int i;
 

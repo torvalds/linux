@@ -304,93 +304,11 @@ KMS Locking
 KMS Properties
 ==============
 
-Drivers may need to expose additional parameters to applications than
-those described in the previous sections. KMS supports attaching
-properties to CRTCs, connectors and planes and offers a userspace API to
-list, get and set the property values.
-
-Properties are identified by a name that uniquely defines the property
-purpose, and store an associated value. For all property types except
-blob properties the value is a 64-bit unsigned integer.
-
-KMS differentiates between properties and property instances. Drivers
-first create properties and then create and associate individual
-instances of those properties to objects. A property can be instantiated
-multiple times and associated with different objects. Values are stored
-in property instances, and all other property information are stored in
-the property and shared between all instances of the property.
-
-Every property is created with a type that influences how the KMS core
-handles the property. Supported property types are
-
-DRM_MODE_PROP_RANGE
-    Range properties report their minimum and maximum admissible values.
-    The KMS core verifies that values set by application fit in that
-    range.
-
-DRM_MODE_PROP_ENUM
-    Enumerated properties take a numerical value that ranges from 0 to
-    the number of enumerated values defined by the property minus one,
-    and associate a free-formed string name to each value. Applications
-    can retrieve the list of defined value-name pairs and use the
-    numerical value to get and set property instance values.
-
-DRM_MODE_PROP_BITMASK
-    Bitmask properties are enumeration properties that additionally
-    restrict all enumerated values to the 0..63 range. Bitmask property
-    instance values combine one or more of the enumerated bits defined
-    by the property.
-
-DRM_MODE_PROP_BLOB
-    Blob properties store a binary blob without any format restriction.
-    The binary blobs are created as KMS standalone objects, and blob
-    property instance values store the ID of their associated blob
-    object.
-
-    Blob properties are only used for the connector EDID property and
-    cannot be created by drivers.
-
-To create a property drivers call one of the following functions
-depending on the property type. All property creation functions take
-property flags and name, as well as type-specific arguments.
-
--  struct drm_property \*drm_property_create_range(struct
-   drm_device \*dev, int flags, const char \*name, uint64_t min,
-   uint64_t max);
-   Create a range property with the given minimum and maximum values.
-
--  struct drm_property \*drm_property_create_enum(struct drm_device
-   \*dev, int flags, const char \*name, const struct
-   drm_prop_enum_list \*props, int num_values);
-   Create an enumerated property. The ``props`` argument points to an
-   array of ``num_values`` value-name pairs.
-
--  struct drm_property \*drm_property_create_bitmask(struct
-   drm_device \*dev, int flags, const char \*name, const struct
-   drm_prop_enum_list \*props, int num_values);
-   Create a bitmask property. The ``props`` argument points to an array
-   of ``num_values`` value-name pairs.
-
-Properties can additionally be created as immutable, in which case they
-will be read-only for applications but can be modified by the driver. To
-create an immutable property drivers must set the
-DRM_MODE_PROP_IMMUTABLE flag at property creation time.
-
-When no array of value-name pairs is readily available at property
-creation time for enumerated or range properties, drivers can create the
-property using the :c:func:`drm_property_create()` function and
-manually add enumeration value-name pairs by calling the
-:c:func:`drm_property_add_enum()` function. Care must be taken to
-properly specify the property type through the ``flags`` argument.
-
-After creating properties drivers can attach property instances to CRTC,
-connector and plane objects by calling the
-:c:func:`drm_object_attach_property()`. The function takes a
-pointer to the target object, a pointer to the previously created
-property and an initial instance value.
-
 Property Types and Blob Property Support
 ----------------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_property.c
+   :doc: overview
 
 .. kernel-doc:: include/drm/drm_property.h
    :internal:
