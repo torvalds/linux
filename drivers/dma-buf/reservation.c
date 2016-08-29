@@ -388,9 +388,6 @@ retry:
 		if (fobj)
 			shared_count = fobj->shared_count;
 
-		if (read_seqcount_retry(&obj->seq, seq))
-			goto unlock_retry;
-
 		for (i = 0; i < shared_count; ++i) {
 			struct fence *lfence = rcu_dereference(fobj->shared[i]);
 
@@ -413,9 +410,6 @@ retry:
 	if (!shared_count) {
 		struct fence *fence_excl = rcu_dereference(obj->fence_excl);
 
-		if (read_seqcount_retry(&obj->seq, seq))
-			goto unlock_retry;
-
 		if (fence_excl &&
 		    !test_bit(FENCE_FLAG_SIGNALED_BIT, &fence_excl->flags)) {
 			if (!fence_get_rcu(fence_excl))
@@ -430,6 +424,11 @@ retry:
 
 	rcu_read_unlock();
 	if (fence) {
+		if (read_seqcount_retry(&obj->seq, seq)) {
+			fence_put(fence);
+			goto retry;
+		}
+
 		ret = fence_wait_timeout(fence, intr, ret);
 		fence_put(fence);
 		if (ret > 0 && wait_all && (i + 1 < shared_count))
