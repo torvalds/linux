@@ -911,20 +911,8 @@ bool drm_property_change_valid_get(struct drm_property *property,
 		for (i = 0; i < property->num_values; i++)
 			valid_mask |= (1ULL << property->values[i]);
 		return !(value & ~valid_mask);
-	} else if (drm_property_type_is(property, DRM_MODE_PROP_BLOB)) {
-		struct drm_property_blob *blob;
-
-		if (value == 0)
-			return true;
-
-		blob = drm_property_lookup_blob(property->dev, value);
-		if (blob) {
-			*ref = &blob->base;
-			return true;
-		} else {
-			return false;
-		}
-	} else if (drm_property_type_is(property, DRM_MODE_PROP_OBJECT)) {
+	} else if (drm_property_type_is(property, DRM_MODE_PROP_BLOB) ||
+		   drm_property_type_is(property, DRM_MODE_PROP_OBJECT)) {
 		/* a zero value for an object property translates to null: */
 		if (value == 0)
 			return true;
@@ -941,13 +929,12 @@ bool drm_property_change_valid_get(struct drm_property *property,
 }
 
 void drm_property_change_valid_put(struct drm_property *property,
-		struct drm_mode_object *ref)
+				   struct drm_mode_object *ref)
 {
 	if (!ref)
 		return;
 
-	if (drm_property_type_is(property, DRM_MODE_PROP_OBJECT)) {
+	if (drm_property_type_is(property, DRM_MODE_PROP_OBJECT) ||
+	    drm_property_type_is(property, DRM_MODE_PROP_BLOB))
 		drm_mode_object_unreference(ref);
-	} else if (drm_property_type_is(property, DRM_MODE_PROP_BLOB))
-		drm_property_unreference_blob(obj_to_blob(ref));
 }
