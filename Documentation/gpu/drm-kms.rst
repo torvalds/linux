@@ -389,6 +389,15 @@ connector and plane objects by calling the
 pointer to the target object, a pointer to the previously created
 property and an initial instance value.
 
+Property Types and Blob Property Support
+----------------------------------------
+
+.. kernel-doc:: include/drm/drm_property.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_property.c
+   :export:
+
 Blending and Z-Position properties
 ----------------------------------
 

@@ -36,11 +36,6 @@
 int drm_mode_crtc_set_obj_prop(struct drm_mode_object *obj,
 			       struct drm_property *property,
 			       uint64_t value);
-bool drm_property_change_valid_get(struct drm_property *property,
-				   uint64_t value,
-				   struct drm_mode_object **ref);
-void drm_property_change_valid_put(struct drm_property *property,
-				   struct drm_mode_object *ref);
 int drm_plane_check_pixel_format(const struct drm_plane *plane,
 				 u32 format);
 int drm_crtc_check_viewport(const struct drm_crtc *crtc,
@@ -49,8 +44,6 @@ int drm_crtc_check_viewport(const struct drm_crtc *crtc,
 			    const struct drm_framebuffer *fb);
 
 void drm_fb_release(struct drm_file *file_priv);
-void drm_property_destroy_user_blobs(struct drm_device *dev,
-				     struct drm_file *file_priv);
 
 /* dumb buffer support IOCTLs */
 int drm_mode_create_dumb_ioctl(struct drm_device *dev,
@@ -77,6 +70,24 @@ int drm_mode_cursor_ioctl(struct drm_device *dev,
 			  void *data, struct drm_file *file_priv);
 int drm_mode_cursor2_ioctl(struct drm_device *dev,
 			   void *data, struct drm_file *file_priv);
+int drm_mode_gamma_get_ioctl(struct drm_device *dev,
+			     void *data, struct drm_file *file_priv);
+int drm_mode_gamma_set_ioctl(struct drm_device *dev,
+			     void *data, struct drm_file *file_priv);
+
+int drm_mode_page_flip_ioctl(struct drm_device *dev,
+			     void *data, struct drm_file *file_priv);
+
+/* drm_property.c */
+void drm_property_destroy_user_blobs(struct drm_device *dev,
+				     struct drm_file *file_priv);
+bool drm_property_change_valid_get(struct drm_property *property,
+				   uint64_t value,
+				   struct drm_mode_object **ref);
+void drm_property_change_valid_put(struct drm_property *property,
+				   struct drm_mode_object *ref);
+
+/* IOCTL */
 int drm_mode_getproperty_ioctl(struct drm_device *dev,
 			       void *data, struct drm_file *file_priv);
 int drm_mode_getblob_ioctl(struct drm_device *dev,
@@ -85,13 +96,6 @@ int drm_mode_createblob_ioctl(struct drm_device *dev,
 			      void *data, struct drm_file *file_priv);
 int drm_mode_destroyblob_ioctl(struct drm_device *dev,
 			       void *data, struct drm_file *file_priv);
-int drm_mode_gamma_get_ioctl(struct drm_device *dev,
-			     void *data, struct drm_file *file_priv);
-int drm_mode_gamma_set_ioctl(struct drm_device *dev,
-			     void *data, struct drm_file *file_priv);
-
-int drm_mode_page_flip_ioctl(struct drm_device *dev,
-			     void *data, struct drm_file *file_priv);
 
 /* drm_mode_object.c */
 int drm_mode_object_get_reg(struct drm_device *dev,

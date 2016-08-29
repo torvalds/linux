@@ -41,6 +41,7 @@
 #include <drm/drm_modes.h>
 #include <drm/drm_connector.h>
 #include <drm/drm_encoder.h>
+#include <drm/drm_property.h>
 
 struct drm_device;
 struct drm_mode_set;
@@ -80,33 +81,6 @@ struct drm_tile_group {
 	struct drm_device *dev;
 	int id;
 	u8 group_data[8];
-};
-
-struct drm_property_blob {
-	struct drm_mode_object base;
-	struct drm_device *dev;
-	struct list_head head_global;
-	struct list_head head_file;
-	size_t length;
-	unsigned char data[];
-};
-
-struct drm_property_enum {
-	uint64_t value;
-	struct list_head head;
-	char name[DRM_PROP_NAME_LEN];
-};
-
-struct drm_property {
-	struct list_head head;
-	struct drm_mode_object base;
-	uint32_t flags;
-	char name[DRM_PROP_NAME_LEN];
-	uint32_t num_values;
-	uint64_t *values;
-	struct drm_device *dev;
-
-	struct list_head enum_list;
 };
 
 struct drm_crtc;
@@ -2026,14 +2000,8 @@ struct drm_mode_config {
 #define obj_to_crtc(x) container_of(x, struct drm_crtc, base)
 #define obj_to_mode(x) container_of(x, struct drm_display_mode, base)
 #define obj_to_fb(x) container_of(x, struct drm_framebuffer, base)
-#define obj_to_property(x) container_of(x, struct drm_property, base)
 #define obj_to_blob(x) container_of(x, struct drm_property_blob, base)
 #define obj_to_plane(x) container_of(x, struct drm_plane, base)
-
-struct drm_prop_enum_list {
-	int type;
-	char *name;
-};
 
 extern __printf(6, 7)
 int drm_crtc_init_with_planes(struct drm_device *dev,
@@ -2107,52 +2075,6 @@ extern void drm_mode_config_init(struct drm_device *dev);
 extern void drm_mode_config_reset(struct drm_device *dev);
 extern void drm_mode_config_cleanup(struct drm_device *dev);
 
-static inline bool drm_property_type_is(struct drm_property *property,
-		uint32_t type)
-{
-	/* instanceof for props.. handles extended type vs original types: */
-	if (property->flags & DRM_MODE_PROP_EXTENDED_TYPE)
-		return (property->flags & DRM_MODE_PROP_EXTENDED_TYPE) == type;
-	return property->flags & type;
-}
-
-extern struct drm_property *drm_property_create(struct drm_device *dev, int flags,
-						const char *name, int num_values);
-extern struct drm_property *drm_property_create_enum(struct drm_device *dev, int flags,
-					 const char *name,
-					 const struct drm_prop_enum_list *props,
-					 int num_values);
-struct drm_property *drm_property_create_bitmask(struct drm_device *dev,
-					 int flags, const char *name,
-					 const struct drm_prop_enum_list *props,
-					 int num_props,
-					 uint64_t supported_bits);
-struct drm_property *drm_property_create_range(struct drm_device *dev, int flags,
-					 const char *name,
-					 uint64_t min, uint64_t max);
-struct drm_property *drm_property_create_signed_range(struct drm_device *dev,
-					 int flags, const char *name,
-					 int64_t min, int64_t max);
-struct drm_property *drm_property_create_object(struct drm_device *dev,
-					 int flags, const char *name, uint32_t type);
-struct drm_property *drm_property_create_bool(struct drm_device *dev, int flags,
-					 const char *name);
-struct drm_property_blob *drm_property_create_blob(struct drm_device *dev,
-                                                   size_t length,
-                                                   const void *data);
-struct drm_property_blob *drm_property_lookup_blob(struct drm_device *dev,
-                                                   uint32_t id);
-int drm_property_replace_global_blob(struct drm_device *dev,
-				     struct drm_property_blob **replace,
-				     size_t length,
-				     const void *data,
-				     struct drm_mode_object *obj_holds_id,
-				     struct drm_property *prop_holds_id);
-struct drm_property_blob *drm_property_reference_blob(struct drm_property_blob *blob);
-void drm_property_unreference_blob(struct drm_property_blob *blob);
-extern void drm_property_destroy(struct drm_device *dev, struct drm_property *property);
-extern int drm_property_add_enum(struct drm_property *property, int index,
-				 uint64_t value, const char *name);
 extern int drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 					 int gamma_size);
 
@@ -2200,14 +2122,6 @@ static inline struct drm_crtc *drm_crtc_find(struct drm_device *dev,
 	struct drm_mode_object *mo;
 	mo = drm_mode_object_find(dev, id, DRM_MODE_OBJECT_CRTC);
 	return mo ? obj_to_crtc(mo) : NULL;
-}
-
-static inline struct drm_property *drm_property_find(struct drm_device *dev,
-		uint32_t id)
-{
-	struct drm_mode_object *mo;
-	mo = drm_mode_object_find(dev, id, DRM_MODE_OBJECT_PROPERTY);
-	return mo ? obj_to_property(mo) : NULL;
 }
 
 /*
