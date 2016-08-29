@@ -686,8 +686,7 @@ static struct iommu_gather_ops arm_smmu_gather_ops = {
 
 static irqreturn_t arm_smmu_context_fault(int irq, void *dev)
 {
-	int flags, ret;
-	u32 fsr, fsynr, resume;
+	u32 fsr, fsynr;
 	unsigned long iova;
 	struct iommu_domain *domain = dev;
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
@@ -701,34 +700,15 @@ static irqreturn_t arm_smmu_context_fault(int irq, void *dev)
 	if (!(fsr & FSR_FAULT))
 		return IRQ_NONE;
 
-	if (fsr & FSR_IGN)
-		dev_err_ratelimited(smmu->dev,
-				    "Unexpected context fault (fsr 0x%x)\n",
-				    fsr);
-
 	fsynr = readl_relaxed(cb_base + ARM_SMMU_CB_FSYNR0);
-	flags = fsynr & FSYNR0_WNR ? IOMMU_FAULT_WRITE : IOMMU_FAULT_READ;
-
 	iova = readq_relaxed(cb_base + ARM_SMMU_CB_FAR);
-	if (!report_iommu_fault(domain, smmu->dev, iova, flags)) {
-		ret = IRQ_HANDLED;
-		resume = RESUME_RETRY;
-	} else {
-		dev_err_ratelimited(smmu->dev,
-		    "Unhandled context fault: iova=0x%08lx, fsynr=0x%x, cb=%d\n",
-		    iova, fsynr, cfg->cbndx);
-		ret = IRQ_NONE;
-		resume = RESUME_TERMINATE;
-	}
 
-	/* Clear the faulting FSR */
+	dev_err_ratelimited(smmu->dev,
+	"Unhandled context fault: fsr=0x%x, iova=0x%08lx, fsynr=0x%x, cb=%d\n",
+			    fsr, iova, fsynr, cfg->cbndx);
+
 	writel(fsr, cb_base + ARM_SMMU_CB_FSR);
-
-	/* Retry or terminate any stalled transactions */
-	if (fsr & FSR_SS)
-		writel_relaxed(resume, cb_base + ARM_SMMU_CB_RESUME);
-
-	return ret;
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t arm_smmu_global_fault(int irq, void *dev)
@@ -837,7 +817,7 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain,
 	}
 
 	/* SCTLR */
-	reg = SCTLR_CFCFG | SCTLR_CFIE | SCTLR_CFRE | SCTLR_M | SCTLR_EAE_SBOP;
+	reg = SCTLR_CFIE | SCTLR_CFRE | SCTLR_M | SCTLR_EAE_SBOP;
 	if (stage1)
 		reg |= SCTLR_S1_ASIDPNE;
 #ifdef __BIG_ENDIAN

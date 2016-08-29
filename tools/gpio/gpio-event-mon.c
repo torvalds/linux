@@ -1,5 +1,5 @@
 /*
- * gpio-hammer - example swiss army knife to shake GPIO lines on a system
+ * gpio-event-mon - monitor GPIO line events from userspace
  *
  * Copyright (C) 2016 Linus Walleij
  *
