@@ -11,6 +11,7 @@
  *
  */
 
+#include "skeleton.dtsi"
 #include "armv7-m.dtsi"
 
 #include "dt-bindings/clock/lpc18xx-cgu.h"

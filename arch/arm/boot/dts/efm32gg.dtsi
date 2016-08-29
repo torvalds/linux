@@ -4,6 +4,8 @@
  * Documentation available from
  * http://www.silabs.com/Support%20Documents/TechnicalDocs/EFM32GG-RM.pdf
  */
+
+#include "skeleton.dtsi"
 #include "armv7-m.dtsi"
 #include "dt-bindings/clock/efm32-cmu.h"
 
