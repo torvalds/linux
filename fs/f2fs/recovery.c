@@ -636,6 +636,8 @@ out:
 			invalidate = true;
 		}
 
+		f2fs_wait_all_discard_bio(sbi);
+
 		/* Flush all the NAT/SIT pages */
 		while (get_pages(sbi, F2FS_DIRTY_META))
 			sync_meta_pages(sbi, META, LONG_MAX);

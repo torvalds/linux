@@ -211,6 +211,13 @@ struct discard_entry {
 	int len;		/* # of consecutive blocks of the discard */
 };
 
+struct bio_entry {
+	struct list_head list;
+	struct bio *bio;
+	struct completion event;
+	int error;
+};
+
 /* for the list of fsync inodes, used only during recovery */
 struct fsync_inode_entry {
 	struct list_head list;	/* list head */
@@ -645,6 +652,7 @@ struct f2fs_sm_info {
 
 	/* for small discard management */
 	struct list_head discard_list;		/* 4KB discard list */
+	struct list_head wait_list;		/* linked with issued discard bio */
 	int nr_discards;			/* # of discards in the list */
 	int max_discards;			/* max. discards to be issued */
 
@@ -2026,6 +2034,7 @@ void destroy_flush_cmd_control(struct f2fs_sb_info *);
 void invalidate_blocks(struct f2fs_sb_info *, block_t);
 bool is_checkpointed_data(struct f2fs_sb_info *, block_t);
 void refresh_sit_entry(struct f2fs_sb_info *, block_t, block_t);
+void f2fs_wait_all_discard_bio(struct f2fs_sb_info *);
 void clear_prefree_segments(struct f2fs_sb_info *, struct cp_control *);
 void release_discard_addrs(struct f2fs_sb_info *);
 bool discard_next_dnode(struct f2fs_sb_info *, block_t);
