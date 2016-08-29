@@ -27,6 +27,28 @@
 struct drm_object_properties;
 struct drm_property;
 
+/**
+ * struct drm_mode_object - base structure for modeset objects
+ * @id: userspace visible identifier
+ * @type: type of the object, one of DRM_MODE_OBJECT\_\*
+ * @properties: properties attached to this object, including values
+ * @refcount: reference count for objects which with dynamic lifetime
+ * @free_cb: free function callback, only set for objects with dynamic lifetime
+ *
+ * Base structure for modeset objects visible to userspace. Objects can be
+ * looked up using drm_mode_object_find(). Besides basic uapi interface
+ * properties like @id and @type it provides two services:
+ *
+ * - It tracks attached properties and their values. This is used by &drm_crtc,
+ *   &drm_plane and &drm_connector. Properties are attached by calling
+ *   drm_object_attach_property() before the object is visible to userspace.
+ *
+ * - For objects with dynamic lifetimes (as indicated by a non-NULL @free_cb) it
+ *   provides reference counting through drm_mode_object_reference() and
+ *   drm_mode_object_unreference(). This is used by &drm_framebuffer,
+ *   &drm_connector and &drm_property_blob. These objects provide specialized
+ *   reference counting wrappers.
+ */
 struct drm_mode_object {
 	uint32_t id;
 	uint32_t type;
@@ -36,16 +58,38 @@ struct drm_mode_object {
 };
 
 #define DRM_OBJECT_MAX_PROPERTY 24
+/**
+ * struct drm_object_properties - property tracking for &drm_mode_object
+ */
 struct drm_object_properties {
+	/**
+	 * @count: number of valid properties, must be less than or equal to
+	 * DRM_OBJECT_MAX_PROPERTY.
+	 */
+
 	int count;
-	/* NOTE: if we ever start dynamically destroying properties (ie.
+	/**
+	 * @properties: Array of pointers to &drm_property.
+	 *
+	 * NOTE: if we ever start dynamically destroying properties (ie.
 	 * not at drm_mode_config_cleanup() time), then we'd have to do
 	 * a better job of detaching property from mode objects to avoid
 	 * dangling property pointers:
 	 */
 	struct drm_property *properties[DRM_OBJECT_MAX_PROPERTY];
-	/* do not read/write values directly, but use drm_object_property_get_value()
-	 * and drm_object_property_set_value():
+
+	/**
+	 * @values: Array to store the property values, matching @properties. Do
+	 * not read/write values directly, but use
+	 * drm_object_property_get_value() and drm_object_property_set_value().
+	 *
+	 * Note that atomic drivers do not store mutable properties in this
+	 * array, but only the decoded values in the corresponding state
+	 * structure. The decoding is done using the ->atomic_get_property and
+	 * ->atomic_set_property hooks of the corresponding object. Hence atomic
+	 * drivers should not use drm_object_property_set_value() and
+	 * drm_object_property_get_value() on mutable objects, i.e. those
+	 * without the DRM_MODE_PROP_IMMUTABLE flag set.
 	 */
 	uint64_t values[DRM_OBJECT_MAX_PROPERTY];
 };
