@@ -63,7 +63,7 @@
  */
 #define KZM_ARM11_16550		(MX31_CS4_BASE_ADDR + 0x1050)
 
-#if defined(CONFIG_SERIAL_8250) || defined(CONFIG_SERIAL_8250_MODULE)
+#if IS_ENABLED(CONFIG_SERIAL_8250)
 /*
  * KZM-ARM11-01 has an external UART on FPGA
  */
@@ -141,7 +141,7 @@ static inline int kzm_init_ext_uart(void)
 /*
  * SMSC LAN9118
  */
-#if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
+#if IS_ENABLED(CONFIG_SMSC911X)
 static struct smsc911x_platform_config kzm_smsc9118_config = {
 	.phy_interface	= PHY_INTERFACE_MODE_MII,
 	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_HIGH,
@@ -201,7 +201,7 @@ static inline int kzm_init_smsc9118(void)
 }
 #endif
 
-#if defined(CONFIG_SERIAL_IMX) || defined(CONFIG_SERIAL_IMX_MODULE)
+#if IS_ENABLED(CONFIG_SERIAL_IMX)
 static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
