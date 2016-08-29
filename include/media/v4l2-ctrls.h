@@ -973,9 +973,9 @@ extern const struct v4l2_subscribed_event_ops v4l2_ctrl_sub_ev_ops;
  * v4l2_ctrl_replace - Function to be used as a callback to
  *	&struct v4l2_subscribed_event_ops replace\(\)
  *
- * @old: pointer to :ref:`struct v4l2_event <v4l2-event>` with the reported
+ * @old: pointer to struct &v4l2_event with the reported
  *	 event;
- * @new: pointer to :ref:`struct v4l2_event <v4l2-event>` with the modified
+ * @new: pointer to struct &v4l2_event with the modified
  *	 event;
  */
 void v4l2_ctrl_replace(struct v4l2_event *old, const struct v4l2_event *new);
@@ -984,9 +984,9 @@ void v4l2_ctrl_replace(struct v4l2_event *old, const struct v4l2_event *new);
  * v4l2_ctrl_merge - Function to be used as a callback to
  *	&struct v4l2_subscribed_event_ops merge(\)
  *
- * @old: pointer to :ref:`struct v4l2_event <v4l2-event>` with the reported
+ * @old: pointer to struct &v4l2_event with the reported
  *	 event;
- * @new: pointer to :ref:`struct v4l2_event <v4l2-event>` with the merged
+ * @new: pointer to struct &v4l2_event with the merged
  *	 event;
  */
 void v4l2_ctrl_merge(const struct v4l2_event *old, struct v4l2_event *new);
