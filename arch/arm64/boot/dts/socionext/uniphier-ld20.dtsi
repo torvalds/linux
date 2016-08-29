@@ -1,7 +1,8 @@
 /*
- * Device Tree Source for UniPhier PH1-LD20 SoC
+ * Device Tree Source for UniPhier LD20 SoC
  *
- * Copyright (C) 2015 Masahiro Yamada <yamada.masahiro@socionext.com>
+ * Copyright (C) 2015-2016 Socionext Inc.
+ *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -45,7 +46,7 @@
 /memreserve/ 0x80000000 0x00000008;	/* cpu-release-addr */
 
 / {
-	compatible = "socionext,ph1-ld20";
+	compatible = "socionext,uniphier-ld20";
 	#address-cells = <2>;
 	#size-cells = <2>;
 	interrupt-parent = <&gic>;
@@ -271,7 +272,7 @@
 			reg = <0x5f800000 0x2000>;
 
 			pinctrl: pinctrl {
-				 compatible = "socionext,uniphier-ld20-pinctrl";
+				compatible = "socionext,uniphier-ld20-pinctrl";
 			};
 		};
 
