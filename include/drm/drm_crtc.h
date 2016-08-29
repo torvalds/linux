@@ -2158,8 +2158,6 @@ extern int drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 
 extern int drm_mode_set_config_internal(struct drm_mode_set *set);
 
-extern uint32_t drm_mode_legacy_fb_format(uint32_t bpp, uint32_t depth);
-
 extern struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
 							 char topology[8]);
 extern struct drm_tile_group *drm_mode_get_tile_group(struct drm_device *dev,
