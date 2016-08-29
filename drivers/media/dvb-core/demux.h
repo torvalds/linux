@@ -582,10 +582,12 @@ struct dmx_demux {
 
 	int (*get_pes_pids)(struct dmx_demux *demux, u16 *pids);
 
+	/* private: */
+
 	/*
-	 * private: Only used at av7110, to read some data from firmware.
-	 *	As this was never documented, we have no clue about what's
-	 *	there, and its usage on other drivers aren't encouraged.
+	 * Only used at av7110, to read some data from firmware.
+	 * As this was never documented, we have no clue about what's
+	 * there, and its usage on other drivers aren't encouraged.
 	 */
 	int (*get_stc)(struct dmx_demux *demux, unsigned int num,
 		       u64 *stc, unsigned int *base);
