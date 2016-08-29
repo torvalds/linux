@@ -3324,6 +3324,39 @@ static struct mlxsw_sp_fid *mlxsw_sp_bridge_fid_get(struct mlxsw_sp *mlxsw_sp,
 	return mlxsw_sp_fid_find(mlxsw_sp, fid);
 }
 
+static enum mlxsw_flood_table_type mlxsw_sp_flood_table_type_get(u16 fid)
+{
+	return mlxsw_sp_fid_is_vfid(fid) ? MLXSW_REG_SFGC_TABLE_TYPE_FID :
+	       MLXSW_REG_SFGC_TABLE_TYPE_FID_OFFEST;
+}
+
+static u16 mlxsw_sp_flood_table_index_get(u16 fid)
+{
+	return mlxsw_sp_fid_is_vfid(fid) ? mlxsw_sp_fid_to_vfid(fid) : fid;
+}
+
+static int mlxsw_sp_router_port_flood_set(struct mlxsw_sp *mlxsw_sp, u16 fid,
+					  bool set)
+{
+	enum mlxsw_flood_table_type table_type;
+	char *sftr_pl;
+	u16 index;
+	int err;
+
+	sftr_pl = kmalloc(MLXSW_REG_SFTR_LEN, GFP_KERNEL);
+	if (!sftr_pl)
+		return -ENOMEM;
+
+	table_type = mlxsw_sp_flood_table_type_get(fid);
+	index = mlxsw_sp_flood_table_index_get(fid);
+	mlxsw_reg_sftr_pack(sftr_pl, MLXSW_SP_FLOOD_TABLE_BM, index, table_type,
+			    1, MLXSW_PORT_ROUTER_PORT, set);
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sftr), sftr_pl);
+
+	kfree(sftr_pl);
+	return err;
+}
+
 static enum mlxsw_reg_ritr_if_type mlxsw_sp_rif_type_get(u16 fid)
 {
 	if (mlxsw_sp_fid_is_vfid(fid))
@@ -3360,9 +3393,13 @@ static int mlxsw_sp_rif_bridge_create(struct mlxsw_sp *mlxsw_sp,
 	if (rif == MLXSW_SP_RIF_MAX)
 		return -ERANGE;
 
-	err = mlxsw_sp_rif_bridge_op(mlxsw_sp, l3_dev, f->fid, rif, true);
+	err = mlxsw_sp_router_port_flood_set(mlxsw_sp, f->fid, true);
 	if (err)
 		return err;
+
+	err = mlxsw_sp_rif_bridge_op(mlxsw_sp, l3_dev, f->fid, rif, true);
+	if (err)
+		goto err_rif_bridge_op;
 
 	err = mlxsw_sp_rif_fdb_op(mlxsw_sp, l3_dev->dev_addr, f->fid, true);
 	if (err)
@@ -3385,6 +3422,8 @@ err_rif_alloc:
 	mlxsw_sp_rif_fdb_op(mlxsw_sp, l3_dev->dev_addr, f->fid, false);
 err_rif_fdb_op:
 	mlxsw_sp_rif_bridge_op(mlxsw_sp, l3_dev, f->fid, rif, false);
+err_rif_bridge_op:
+	mlxsw_sp_router_port_flood_set(mlxsw_sp, f->fid, false);
 	return err;
 }
 
@@ -3403,6 +3442,8 @@ void mlxsw_sp_rif_bridge_destroy(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_rif_fdb_op(mlxsw_sp, l3_dev->dev_addr, f->fid, false);
 
 	mlxsw_sp_rif_bridge_op(mlxsw_sp, l3_dev, f->fid, rif, false);
+
+	mlxsw_sp_router_port_flood_set(mlxsw_sp, f->fid, false);
 
 	netdev_dbg(l3_dev, "RIF=%d destroyed\n", rif);
 }
