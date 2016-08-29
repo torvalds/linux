@@ -6,6 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/smp.h>
+#include <linux/hypervisor.h>
 
 int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 				int wait)
