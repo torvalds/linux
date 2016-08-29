@@ -90,6 +90,7 @@ static struct cpuidle_driver imx6sx_cpuidle_driver = {
 
 int __init imx6sx_cpuidle_init(void)
 {
+	imx6_set_int_mem_clk_lpm(true);
 	imx6_enable_rbc(false);
 	/*
 	 * set ARM power up/down timing to the fastest,
