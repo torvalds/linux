@@ -292,8 +292,13 @@ skl_disable_plane(struct drm_plane *dplane, struct drm_crtc *crtc)
 	const int pipe = intel_plane->pipe;
 	const int plane = intel_plane->plane + 1;
 
-	skl_write_plane_wm(to_intel_crtc(crtc), &dev_priv->wm.skl_results,
-			   plane);
+	/*
+	 * We only populate skl_results on watermark updates, and if the
+	 * plane's visiblity isn't actually changing neither is its watermarks.
+	 */
+	if (!dplane->state->visible)
+		skl_write_plane_wm(to_intel_crtc(crtc),
+				   &dev_priv->wm.skl_results, plane);
 
 	I915_WRITE(PLANE_CTL(pipe, plane), 0);
 

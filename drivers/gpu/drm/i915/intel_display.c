@@ -3448,7 +3448,12 @@ static void skylake_disable_primary_plane(struct drm_plane *primary,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
 
-	skl_write_plane_wm(intel_crtc, &dev_priv->wm.skl_results, 0);
+	/*
+	 * We only populate skl_results on watermark updates, and if the
+	 * plane's visiblity isn't actually changing neither is its watermarks.
+	 */
+	if (!crtc->primary->state->visible)
+		skl_write_plane_wm(intel_crtc, &dev_priv->wm.skl_results, 0);
 
 	I915_WRITE(PLANE_CTL(pipe, 0), 0);
 	I915_WRITE(PLANE_SURF(pipe, 0), 0);
