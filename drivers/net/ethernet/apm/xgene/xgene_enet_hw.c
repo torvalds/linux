@@ -761,10 +761,6 @@ int xgene_enet_phy_connect(struct net_device *ndev)
 	if (dev->of_node) {
 		for (i = 0 ; i < 2; i++) {
 			np = of_parse_phandle(dev->of_node, "phy-handle", i);
-
-			if (!np)
-				continue;
-
 			phy_dev = of_phy_connect(ndev, np,
 						 &xgene_enet_adjust_link,
 						 0, pdata->phy_mode);
