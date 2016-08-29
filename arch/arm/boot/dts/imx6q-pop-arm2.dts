@@ -42,6 +42,19 @@
 		status = "okay";
 	};
 
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpio_keys>;
+
+		power {
+			label = "Power Button";
+			gpios = <&gpio3 30 1>;
+			linux,code = <116>;
+			gpio-key,wakeup;
+		};
+	};
+
 	hannstar_cabc {
 		compatible = "hannstar,cabc";
 		lvds_share {
@@ -238,6 +251,12 @@
 				MX6QDL_PAD_RGMII_RD2__RGMII_RD2		0x1b0b0
 				MX6QDL_PAD_RGMII_RD3__RGMII_RD3		0x1b0b0
 				MX6QDL_PAD_RGMII_RX_CTL__RGMII_RX_CTL	0x1b0b0
+			>;
+		};
+
+		pinctrl_gpio_keys: gpio_keysgrp {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_D30__GPIO3_IO30 		0x1b0b0
 			>;
 		};
 
