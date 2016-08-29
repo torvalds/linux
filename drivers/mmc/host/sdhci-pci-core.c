@@ -419,6 +419,7 @@ static const struct sdhci_pci_fixes sdhci_intel_byt_sd = {
 /* Define Host controllers for Intel Merrifield platform */
 #define INTEL_MRFLD_EMMC_0	0
 #define INTEL_MRFLD_EMMC_1	1
+#define INTEL_MRFLD_SD		2
 #define INTEL_MRFLD_SDIO	3
 
 static int intel_mrfld_mmc_probe_slot(struct sdhci_pci_slot *slot)
@@ -432,12 +433,14 @@ static int intel_mrfld_mmc_probe_slot(struct sdhci_pci_slot *slot)
 					 MMC_CAP_8_BIT_DATA |
 					 MMC_CAP_1_8V_DDR;
 		break;
+	case INTEL_MRFLD_SD:
+		slot->host->quirks2 |= SDHCI_QUIRK2_NO_1_8_V;
+		break;
 	case INTEL_MRFLD_SDIO:
 		slot->host->mmc->caps |= MMC_CAP_NONREMOVABLE |
 					 MMC_CAP_POWER_OFF_CARD;
 		break;
 	default:
-		/* SD support is not ready yet */
 		return -ENODEV;
 	}
 	return 0;
