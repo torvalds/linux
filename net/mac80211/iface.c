@@ -43,6 +43,8 @@
  * by either the RTNL, the iflist_mtx or RCU.
  */
 
+static void ieee80211_iface_work(struct work_struct *work);
+
 bool __ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_chanctx_conf *chanctx_conf;
@@ -447,6 +449,9 @@ int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 		kfree(sdata);
 		return ret;
 	}
+
+	skb_queue_head_init(&sdata->skb_queue);
+	INIT_WORK(&sdata->work, ieee80211_iface_work);
 
 	return 0;
 }
