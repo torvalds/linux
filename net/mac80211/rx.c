@@ -1122,8 +1122,15 @@ static void ieee80211_rx_reorder_ampdu(struct ieee80211_rx_data *rx,
 	tid = *ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_TID_MASK;
 
 	tid_agg_rx = rcu_dereference(sta->ampdu_mlme.tid_rx[tid]);
-	if (!tid_agg_rx)
+	if (!tid_agg_rx) {
+		if (ack_policy == IEEE80211_QOS_CTL_ACK_POLICY_BLOCKACK &&
+		    !test_bit(tid, rx->sta->ampdu_mlme.agg_session_valid) &&
+		    !test_and_set_bit(tid, rx->sta->ampdu_mlme.unexpected_agg))
+			ieee80211_send_delba(rx->sdata, rx->sta->sta.addr, tid,
+					     WLAN_BACK_RECIPIENT,
+					     WLAN_REASON_QSTA_REQUIRE_SETUP);
 		goto dont_reorder;
+	}
 
 	/* qos null data frames are excluded */
 	if (unlikely(hdr->frame_control & cpu_to_le16(IEEE80211_STYPE_NULLFUNC)))

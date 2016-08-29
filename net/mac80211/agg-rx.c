@@ -409,8 +409,10 @@ void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 	}
 
 end:
-	if (status == WLAN_STATUS_SUCCESS)
+	if (status == WLAN_STATUS_SUCCESS) {
 		__set_bit(tid, sta->ampdu_mlme.agg_session_valid);
+		__clear_bit(tid, sta->ampdu_mlme.unexpected_agg);
+	}
 	mutex_unlock(&sta->ampdu_mlme.mtx);
 
 end_no_lock:
