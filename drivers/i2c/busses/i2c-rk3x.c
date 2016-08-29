@@ -1111,6 +1111,15 @@ static int rk3x_i2c_xfer(struct i2c_adapter *adap,
 	return ret < 0 ? ret : num;
 }
 
+static __maybe_unused int rk3x_i2c_resume(struct device *dev)
+{
+	struct rk3x_i2c *i2c = dev_get_drvdata(dev);
+
+	rk3x_i2c_adapt_div(i2c, clk_get_rate(i2c->clk));
+
+	return 0;
+}
+
 static u32 rk3x_i2c_func(struct i2c_adapter *adap)
 {
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL | I2C_FUNC_PROTOCOL_MANGLING;
@@ -1334,12 +1343,15 @@ static int rk3x_i2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static SIMPLE_DEV_PM_OPS(rk3x_i2c_pm_ops, NULL, rk3x_i2c_resume);
+
 static struct platform_driver rk3x_i2c_driver = {
 	.probe   = rk3x_i2c_probe,
 	.remove  = rk3x_i2c_remove,
 	.driver  = {
 		.name  = "rk3x-i2c",
 		.of_match_table = rk3x_i2c_match,
+		.pm = &rk3x_i2c_pm_ops,
 	},
 };
 
