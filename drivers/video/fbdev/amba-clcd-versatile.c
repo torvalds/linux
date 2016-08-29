@@ -262,7 +262,10 @@ static const struct of_device_id versatile_clcd_of_match[] = {
 /* 0 = 24bit VGA, 1 = 18bit VGA */
 #define INTEGRATOR_CLCD_LCD_N24BITEN	BIT(19)
 
-#define INTEGRATOR_CLCD_MASK		(INTEGRATOR_CLCD_LCDMUX_MASK | \
+#define INTEGRATOR_CLCD_MASK		(INTEGRATOR_CLCD_LCDBIASEN | \
+					 INTEGRATOR_CLCD_LCDBIASUP | \
+					 INTEGRATOR_CLCD_LCDBIASDN | \
+					 INTEGRATOR_CLCD_LCDMUX_MASK | \
 					 INTEGRATOR_CLCD_LCD0_EN | \
 					 INTEGRATOR_CLCD_LCD1_EN | \
 					 INTEGRATOR_CLCD_LCD_STATIC1 | \
@@ -277,6 +280,7 @@ static void integrator_clcd_enable(struct clcd_fb *fb)
 
 	dev_info(&fb->dev->dev, "enable Integrator CLCD connectors\n");
 
+	/* FIXME: really needed? */
 	val = INTEGRATOR_CLCD_LCD_STATIC1 | INTEGRATOR_CLCD_LCD_STATIC2 |
 		INTEGRATOR_CLCD_LCD0_EN | INTEGRATOR_CLCD_LCD1_EN;
 	if (var->bits_per_pixel <= 8 ||
@@ -291,8 +295,8 @@ static void integrator_clcd_enable(struct clcd_fb *fb)
 
 	regmap_update_bits(versatile_syscon_map,
 			   INTEGRATOR_HDR_CTRL_OFFSET,
-			   0,
-			   INTEGRATOR_CLCD_MASK);
+			   INTEGRATOR_CLCD_MASK,
+			   val);
 }
 
 /*
