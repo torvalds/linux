@@ -76,7 +76,22 @@
 		default-brightness-level = <8>;
 	};
 
-	spdif {
+	sound-analog {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "gr8-evb-wm8978";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <512>;
+
+		simple-audio-card,cpu {
+			sound-dai = <&i2s0>;
+		};
+
+		simple-audio-card,codec {
+			sound-dai = <&wm8978>;
+		};
+	};
+
+	sound-spdif {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "On-board SPDIF";
 
