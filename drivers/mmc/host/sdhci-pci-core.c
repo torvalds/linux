@@ -422,14 +422,19 @@ static const struct sdhci_pci_fixes sdhci_intel_byt_sd = {
 
 static int intel_mrfld_mmc_probe_slot(struct sdhci_pci_slot *slot)
 {
-	if ((PCI_FUNC(slot->chip->pdev->devfn) != INTEL_MRFLD_EMMC_0) &&
-	    (PCI_FUNC(slot->chip->pdev->devfn) != INTEL_MRFLD_EMMC_1))
+	unsigned int func = PCI_FUNC(slot->chip->pdev->devfn);
+
+	switch (func) {
+	case INTEL_MRFLD_EMMC_0:
+	case INTEL_MRFLD_EMMC_1:
+		slot->host->mmc->caps |= MMC_CAP_NONREMOVABLE |
+					 MMC_CAP_8_BIT_DATA |
+					 MMC_CAP_1_8V_DDR;
+		break;
+	default:
 		/* SD support is not ready yet */
 		return -ENODEV;
-
-	slot->host->mmc->caps |= MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE |
-				 MMC_CAP_1_8V_DDR;
-
+	}
 	return 0;
 }
 
