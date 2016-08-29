@@ -12,6 +12,7 @@
 #define HDMI_VIDEO_NORMAL				0
 #define HDMI_VIDEO_DMT					BIT(9)
 #define HDMI_VIDEO_YUV420				BIT(10)
+#define HDMI_VIDEO_DISCRETE_VR				BIT(11)
 #define HDMI_VIC_MASK					(0xFF)
 #define HDMI_TYPE_MASK					(0xFF << 8)
 #define HDMI_MAX_ID					4
@@ -359,7 +360,8 @@ enum rk_hdmi_feature {
 	SUPPORT_HDCP		=	(1 << 10),
 	SUPPORT_HDCP2		=	(1 << 11),
 	SUPPORT_YCBCR_INPUT	=	(1 << 12),
-	SUPPORT_VESA_DMT	=	(1 << 13)
+	SUPPORT_VESA_DMT	=	(1 << 13),
+	SUPPORT_RK_DISCRETE_VR	=	(1 << 14)
 };
 
 struct hdmi_property {

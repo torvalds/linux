@@ -771,6 +771,50 @@ static const struct hdmi_video_timing hdmi_mode[] = {
 		.pixelrepeat = 1,
 		.interface = OUT_P888,
 	},
+	{
+		.mode = {
+			.name = "1440x1280@60Hz",
+			.refresh = 60,
+			.xres = 1440,
+			.yres = 1280,
+			.pixclock = 148500000,
+			.left_margin = 84,
+			.right_margin = 360,
+			.upper_margin = 8,
+			.lower_margin = 10,
+			.hsync_len = 20,
+			.vsync_len = 2,
+			.sync = 0,
+			.vmode = 0,
+			.flag = 0,
+		},
+		.vic = HDMI_VIDEO_DISCRETE_VR | 1,
+		.vic_2nd = 0,
+		.pixelrepeat = 1,
+		.interface = OUT_P888,
+	},
+	{
+		.mode = {
+			.name = "1440x2560@60Hz",
+			.refresh = 60,
+			.xres = 1440,
+			.yres = 2560,
+			.pixclock = 269390000,
+			.left_margin = 80,
+			.right_margin = 180,
+			.upper_margin = 7,
+			.lower_margin = 7,
+			.hsync_len = 40,
+			.vsync_len = 6,
+			.sync = 0,
+			.vmode = 0,
+			.flag = 0,
+		},
+		.vic = HDMI_VIDEO_DISCRETE_VR | 2,
+		.vic_2nd = 0,
+		.pixelrepeat = 1,
+		.interface = OUT_P888,
+	},
 };
 
 static int hdmi_set_info(struct rk_screen *screen, struct hdmi *hdmi)
@@ -784,7 +828,7 @@ static int hdmi_set_info(struct rk_screen *screen, struct hdmi *hdmi)
 	if (hdmi->vic == 0)
 		hdmi->vic = hdmi->property->defaultmode;
 
-	if (hdmi->vic & HDMI_VIDEO_DMT)
+	if ((hdmi->vic & HDMI_VIDEO_DMT) || (hdmi->vic & HDMI_VIDEO_DISCRETE_VR))
 		vic = hdmi->vic;
 	else
 		vic = hdmi->vic & HDMI_VIC_MASK;
@@ -1074,8 +1118,8 @@ static void hdmi_sort_modelist(struct hdmi_edid *edid, int feature)
 		modelist = list_entry(pos, struct display_modelist, list);
 		/*pr_info("%s vic %d\n", __function__, modelist->vic);*/
 		for (i = 0; i < ARRAY_SIZE(hdmi_mode); i++) {
-			if (modelist->vic & HDMI_VIDEO_DMT) {
-				if (feature & SUPPORT_VESA_DMT)
+			if ((modelist->vic & HDMI_VIDEO_DMT) || (modelist->vic & HDMI_VIDEO_DISCRETE_VR)) {
+				if (feature & (SUPPORT_VESA_DMT | SUPPORT_RK_DISCRETE_VR))
 					vic = modelist->vic;
 				else
 					continue;
@@ -1219,7 +1263,8 @@ int hdmi_ouputmode_select(struct hdmi *hdmi, int edid_ok)
 				if (mode->xres > 3840 ||
 				    mode->refresh < 50 ||
 				    (mode->vmode & FB_VMODE_INTERLACED) ||
-				    hdmi_mode[i].vic & HDMI_VIDEO_DMT)
+				    hdmi_mode[i].vic & HDMI_VIDEO_DMT ||
+				    hdmi_mode[i].vic & HDMI_VIDEO_DISCRETE_VR)
 					continue;
 			}
 			if ((feature & SUPPORT_TMDS_600M) == 0 &&
@@ -1319,7 +1364,7 @@ const struct fb_videomode *hdmi_vic_to_videomode(int vic)
 
 	if (vic == 0)
 		return NULL;
-	else if (vic & HDMI_VIDEO_DMT)
+	else if ((vic & HDMI_VIDEO_DMT) || (vic & HDMI_VIDEO_DISCRETE_VR))
 		vid = vic;
 	else
 		vid = vic & HDMI_VIC_MASK;
@@ -1346,7 +1391,7 @@ void hdmi_init_modelist(struct hdmi *hdmi)
 	feature = hdmi->property->feature;
 	INIT_LIST_HEAD(&hdmi->edid.modelist);
 	for (i = 0; i < ARRAY_SIZE(hdmi_mode); i++) {
-		if (hdmi_mode[i].vic & HDMI_VIDEO_DMT)
+		if ((hdmi_mode[i].vic & HDMI_VIDEO_DMT) || (hdmi_mode[i].vic & HDMI_VIDEO_DISCRETE_VR))
 			continue;
 		if ((feature & SUPPORT_TMDS_600M) == 0 &&
 		    hdmi_mode[i].mode.pixclock > 340000000)

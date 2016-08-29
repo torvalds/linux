@@ -131,7 +131,7 @@ static void hdmi_wq_set_video(struct hdmi *hdmi)
 	else
 		video->color_input = HDMI_COLOR_RGB_0_255;
 
-	if (hdmi->vic & HDMI_VIDEO_DMT) {
+	if ((hdmi->vic & HDMI_VIDEO_DMT) || (hdmi->vic & HDMI_VIDEO_DISCRETE_VR)) {
 		video->vic = hdmi->vic;
 		video->color_output_depth = 8;
 	} else {

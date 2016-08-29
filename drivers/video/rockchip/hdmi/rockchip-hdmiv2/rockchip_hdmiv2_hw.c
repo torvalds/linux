@@ -73,6 +73,8 @@ static const struct phy_mpll_config_tab PHY_MPLL_TABLE[] = {
 		1,	1,	0,	0,	0,	0,	3},
 	{148500000,	594000000,	0,	8,	0,	3,	1,
 		1,	3,	0,	0,	0,	0,	3},
+	{269390000,	269390000,	0,	8,	0,	0,	0,
+		1,	0,	0,	0,	0,	0,	3},
 	{297000000,	148500000,	0,	8,	0,	0,	0,
 		1,	0,	1,	0,	0,	0,	3},
 	{297000000,	297000000,	0,	8,	0,	0,	0,
@@ -1536,7 +1538,8 @@ static void hdmi_dev_config_avi(struct hdmi_dev *hdmi_dev,
 	/* Set AVI infoFrame Data byte4 */
 	if ((vpara->vic > 92 && vpara->vic < 96) ||
 	    (vpara->vic == 98) ||
-	    (vpara->vic & HDMI_VIDEO_DMT))
+	    (vpara->vic & HDMI_VIDEO_DMT) ||
+	    (vpara->vic & HDMI_VIDEO_DISCRETE_VR))
 		hdmi_writel(hdmi_dev, FC_AVIVID, 0);
 	else
 		hdmi_writel(hdmi_dev, FC_AVIVID, vpara->vic & 0xff);

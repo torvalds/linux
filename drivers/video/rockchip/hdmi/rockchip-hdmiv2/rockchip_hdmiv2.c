@@ -617,7 +617,8 @@ static int rockchip_hdmiv2_probe(struct platform_device *pdev)
 				SUPPORT_YCBCR_INPUT |
 				SUPPORT_1080I |
 				SUPPORT_480I_576I |
-				SUPPORT_VESA_DMT;
+				SUPPORT_VESA_DMT |
+				SUPPORT_RK_DISCRETE_VR;
 		if (rk_hdmi_property.videosrc == DISPLAY_SOURCE_LCDC0)
 			rk_hdmi_property.feature |=
 						SUPPORT_4K |
