@@ -1864,14 +1864,15 @@ static void dispc_ovl_set_rotation_attrs(enum omap_plane_id plane, u8 rotation,
 		REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane),
 			row_repeat ? 1 : 0, 18, 18);
 
-	if (color_mode == OMAP_DSS_COLOR_NV12) {
-		bool doublestride = (rotation_type == OMAP_DSS_ROT_TILER) &&
-					(rotation == OMAP_DSS_ROT_0 ||
-					rotation == OMAP_DSS_ROT_180);
+	if (dss_feat_color_mode_supported(plane, OMAP_DSS_COLOR_NV12)) {
+		bool doublestride =
+			color_mode == OMAP_DSS_COLOR_NV12 &&
+			rotation_type == OMAP_DSS_ROT_TILER &&
+			(rotation == OMAP_DSS_ROT_0 || rotation == OMAP_DSS_ROT_180);
+
 		/* DOUBLESTRIDE */
 		REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane), doublestride, 22, 22);
 	}
-
 }
 
 static int color_mode_to_bpp(enum omap_color_mode color_mode)
