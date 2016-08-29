@@ -1417,6 +1417,63 @@ out:
 	return error;
 }
 
+static int ext4_xattr_make_inode_space(handle_t *handle, struct inode *inode,
+				       struct ext4_inode *raw_inode,
+				       int isize_diff, size_t ifree,
+				       size_t bfree, int *total_ino)
+{
+	struct ext4_xattr_ibody_header *header = IHDR(inode, raw_inode);
+	struct ext4_xattr_entry *small_entry;
+	struct ext4_xattr_entry *entry;
+	struct ext4_xattr_entry *last;
+	unsigned int entry_size;	/* EA entry size */
+	unsigned int total_size;	/* EA entry size + value size */
+	unsigned int min_total_size;
+	int error;
+
+	while (isize_diff > ifree) {
+		entry = NULL;
+		small_entry = NULL;
+		min_total_size = ~0U;
+		last = IFIRST(header);
+		/* Find the entry best suited to be pushed into EA block */
+		for (; !IS_LAST_ENTRY(last); last = EXT4_XATTR_NEXT(last)) {
+			total_size =
+			EXT4_XATTR_SIZE(le32_to_cpu(last->e_value_size)) +
+					EXT4_XATTR_LEN(last->e_name_len);
+			if (total_size <= bfree &&
+			    total_size < min_total_size) {
+				if (total_size + ifree < isize_diff) {
+					small_entry = last;
+				} else {
+					entry = last;
+					min_total_size = total_size;
+				}
+			}
+		}
+
+		if (entry == NULL) {
+			if (small_entry == NULL)
+				return -ENOSPC;
+			entry = small_entry;
+		}
+
+		entry_size = EXT4_XATTR_LEN(entry->e_name_len);
+		total_size = entry_size +
+			EXT4_XATTR_SIZE(le32_to_cpu(entry->e_value_size));
+		error = ext4_xattr_move_to_block(handle, inode, raw_inode,
+						 entry);
+		if (error)
+			return error;
+
+		*total_ino -= entry_size;
+		ifree += total_size;
+		bfree -= total_size;
+	}
+
+	return 0;
+}
+
 /*
  * Expand an inode by new_extra_isize bytes when EAs are present.
  * Returns 0 on success or negative error number on failure.
@@ -1491,66 +1548,26 @@ retry:
 				brelse(bh);
 				goto retry;
 			}
-			error = -1;
+			error = -ENOSPC;
 			goto cleanup;
 		}
 	} else {
 		bfree = inode->i_sb->s_blocksize;
 	}
 
-	while (isize_diff > ifree) {
-		struct ext4_xattr_entry *small_entry = NULL, *entry = NULL;
-		struct ext4_xattr_entry *last;
-		unsigned int entry_size;	/* EA entry size */
-		unsigned int total_size;	/* EA entry size + value size */
-		unsigned int min_total_size = ~0U;
-
-		last = IFIRST(header);
-		/* Find the entry best suited to be pushed into EA block */
-		for (; !IS_LAST_ENTRY(last); last = EXT4_XATTR_NEXT(last)) {
-			total_size =
-			EXT4_XATTR_SIZE(le32_to_cpu(last->e_value_size)) +
-					EXT4_XATTR_LEN(last->e_name_len);
-			if (total_size <= bfree &&
-			    total_size < min_total_size) {
-				if (total_size + ifree < isize_diff) {
-					small_entry = last;
-				} else {
-					entry = last;
-					min_total_size = total_size;
-				}
-			}
+	error = ext4_xattr_make_inode_space(handle, inode, raw_inode,
+					    isize_diff, ifree, bfree,
+					    &total_ino);
+	if (error) {
+		if (error == -ENOSPC && !tried_min_extra_isize &&
+		    s_min_extra_isize) {
+			tried_min_extra_isize++;
+			new_extra_isize = s_min_extra_isize;
+			brelse(bh);
+			goto retry;
 		}
-
-		if (entry == NULL) {
-			if (small_entry) {
-				entry = small_entry;
-			} else {
-				if (!tried_min_extra_isize &&
-				    s_min_extra_isize) {
-					tried_min_extra_isize++;
-					new_extra_isize = s_min_extra_isize;
-					brelse(bh);
-					goto retry;
-				}
-				error = -1;
-				goto cleanup;
-			}
-		}
-
-		entry_size = EXT4_XATTR_LEN(entry->e_name_len);
-		total_size = entry_size +
-			EXT4_XATTR_SIZE(le32_to_cpu(entry->e_value_size));
-		error = ext4_xattr_move_to_block(handle, inode, raw_inode,
-						 entry);
-		if (error)
-			goto cleanup;
-
-		total_ino -= entry_size;
-		ifree += total_size;
-		bfree -= total_size;
+		goto cleanup;
 	}
-
 shift:
 	/* Adjust the offsets and shift the remaining entries ahead */
 	ext4_xattr_shift_entries(IFIRST(header), EXT4_I(inode)->i_extra_isize
