@@ -85,8 +85,9 @@ a driver-specific structure.
 Pads are identified by their entity and their 0-based index in the pads
 array.
 
-Both information are stored in the :c:type:`struct media_pad`, making the
-:c:type:`media_pad` pointer the canonical way to store and pass link references.
+Both information are stored in the :c:type:`struct media_pad <media_pad>`,
+making the :c:type:`struct media_pad <media_pad>` pointer the canonical way
+to store and pass link references.
 
 Pads have flags that describe the pad capabilities and state.
 
