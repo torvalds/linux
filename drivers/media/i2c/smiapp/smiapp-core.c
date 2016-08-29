@@ -2557,8 +2557,9 @@ static int smiapp_init(struct smiapp_sensor *sensor)
 	if (!sensor->hwcfg->set_xclk) {
 		sensor->ext_clk = devm_clk_get(&client->dev, NULL);
 		if (IS_ERR(sensor->ext_clk)) {
-			dev_err(&client->dev, "could not get clock\n");
-			return PTR_ERR(sensor->ext_clk);
+			dev_err(&client->dev, "could not get clock (%ld)\n",
+				PTR_ERR(sensor->ext_clk));
+			return -EPROBE_DEFER;
 		}
 
 		rval = clk_set_rate(sensor->ext_clk,
