@@ -1063,23 +1063,31 @@ qed_dcbx_set_app_data(struct qed_hwfn *p_hwfn,
 	for (i = 0; i < DCBX_MAX_APP_PROTOCOL; i++) {
 		entry = &p_app->app_pri_tbl[i].entry;
 		if (ieee) {
-			*entry &= ~DCBX_APP_SF_IEEE_MASK;
+			*entry &= ~(DCBX_APP_SF_IEEE_MASK | DCBX_APP_SF_MASK);
 			switch (p_params->app_entry[i].sf_ieee) {
 			case QED_DCBX_SF_IEEE_ETHTYPE:
 				*entry |= ((u32)DCBX_APP_SF_IEEE_ETHTYPE <<
 					   DCBX_APP_SF_IEEE_SHIFT);
+				*entry |= ((u32)DCBX_APP_SF_ETHTYPE <<
+					   DCBX_APP_SF_SHIFT);
 				break;
 			case QED_DCBX_SF_IEEE_TCP_PORT:
 				*entry |= ((u32)DCBX_APP_SF_IEEE_TCP_PORT <<
 					   DCBX_APP_SF_IEEE_SHIFT);
+				*entry |= ((u32)DCBX_APP_SF_PORT <<
+					   DCBX_APP_SF_SHIFT);
 				break;
 			case QED_DCBX_SF_IEEE_UDP_PORT:
 				*entry |= ((u32)DCBX_APP_SF_IEEE_UDP_PORT <<
 					   DCBX_APP_SF_IEEE_SHIFT);
+				*entry |= ((u32)DCBX_APP_SF_PORT <<
+					   DCBX_APP_SF_SHIFT);
 				break;
 			case QED_DCBX_SF_IEEE_TCP_UDP_PORT:
 				*entry |= ((u32)DCBX_APP_SF_IEEE_TCP_UDP_PORT <<
 					   DCBX_APP_SF_IEEE_SHIFT);
+				*entry |= ((u32)DCBX_APP_SF_PORT <<
+					   DCBX_APP_SF_SHIFT);
 				break;
 			}
 		} else {
