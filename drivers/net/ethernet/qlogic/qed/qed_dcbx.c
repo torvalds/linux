@@ -988,6 +988,7 @@ qed_dcbx_set_pfc_data(struct qed_hwfn *p_hwfn,
 		if (p_params->pfc.prio[i])
 			pfc_map |= BIT(i);
 
+	*pfc &= ~DCBX_PFC_PRI_EN_BITMAP_MASK;
 	*pfc |= (pfc_map << DCBX_PFC_PRI_EN_BITMAP_SHIFT);
 
 	DP_VERBOSE(p_hwfn, QED_MSG_DCB, "pfc = 0x%x\n", *pfc);
@@ -1062,6 +1063,7 @@ qed_dcbx_set_app_data(struct qed_hwfn *p_hwfn,
 
 	for (i = 0; i < DCBX_MAX_APP_PROTOCOL; i++) {
 		entry = &p_app->app_pri_tbl[i].entry;
+		*entry = 0;
 		if (ieee) {
 			*entry &= ~(DCBX_APP_SF_IEEE_MASK | DCBX_APP_SF_MASK);
 			switch (p_params->app_entry[i].sf_ieee) {
@@ -1193,6 +1195,7 @@ int qed_dcbx_get_config_params(struct qed_hwfn *p_hwfn,
 		return -ENOMEM;
 	}
 
+	memset(dcbx_info, 0, sizeof(*dcbx_info));
 	rc = qed_dcbx_query_params(p_hwfn, dcbx_info, QED_DCBX_OPERATIONAL_MIB);
 	if (rc) {
 		kfree(dcbx_info);
@@ -1230,6 +1233,7 @@ static struct qed_dcbx_get *qed_dcbnl_get_dcbx(struct qed_hwfn *hwfn,
 		return NULL;
 	}
 
+	memset(dcbx_info, 0, sizeof(*dcbx_info));
 	if (qed_dcbx_query_params(hwfn, dcbx_info, type)) {
 		kfree(dcbx_info);
 		return NULL;
