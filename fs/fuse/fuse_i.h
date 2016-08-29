@@ -23,6 +23,7 @@
 #include <linux/poll.h>
 #include <linux/workqueue.h>
 #include <linux/kref.h>
+#include <linux/xattr.h>
 
 /** Max number of pages that can be used in a single read request */
 #define FUSE_MAX_PAGES_PER_REQ 32
@@ -627,6 +628,9 @@ struct fuse_conn {
 	/** Is lseek not implemented by fs? */
 	unsigned no_lseek:1;
 
+	/** Does the filesystem support posix acls? */
+	unsigned posix_acl:1;
+
 	/** The number of requests waiting for completion */
 	atomic_t num_waiting;
 
@@ -971,7 +975,17 @@ void fuse_set_initialized(struct fuse_conn *fc);
 void fuse_unlock_inode(struct inode *inode);
 void fuse_lock_inode(struct inode *inode);
 
+int fuse_setxattr(struct inode *inode, const char *name, const void *value,
+		  size_t size, int flags);
+ssize_t fuse_getxattr(struct inode *inode, const char *name, void *value,
+		      size_t size);
 ssize_t fuse_listxattr(struct dentry *entry, char *list, size_t size);
+int fuse_removexattr(struct inode *inode, const char *name);
 extern const struct xattr_handler *fuse_xattr_handlers[];
+extern const struct xattr_handler *fuse_acl_xattr_handlers[];
+
+struct posix_acl;
+struct posix_acl *fuse_get_acl(struct inode *inode, int type);
+int fuse_set_acl(struct inode *inode, struct posix_acl *acl, int type);
 
 #endif /* _FS_FUSE_I_H */
