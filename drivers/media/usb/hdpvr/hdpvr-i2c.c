@@ -180,7 +180,7 @@ static u32 hdpvr_functionality(struct i2c_adapter *adapter)
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
-static struct i2c_algorithm hdpvr_algo = {
+static const struct i2c_algorithm hdpvr_algo = {
 	.master_xfer   = hdpvr_transfer,
 	.functionality = hdpvr_functionality,
 };
