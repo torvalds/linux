@@ -396,13 +396,21 @@ int asix_mdio_read(struct net_device *netdev, int phy_id, int loc)
 	__le16 res;
 	u8 smsr;
 	int i = 0;
+	int ret;
 
 	mutex_lock(&dev->phy_mutex);
 	do {
-		asix_set_sw_mii(dev, 0);
+		ret = asix_set_sw_mii(dev, 0);
+		if (ret == -ENODEV)
+			break;
 		usleep_range(1000, 1100);
-		asix_read_cmd(dev, AX_CMD_STATMNGSTS_REG, 0, 0, 1, &smsr, 0);
-	} while (!(smsr & AX_HOST_EN) && (i++ < 30));
+		ret = asix_read_cmd(dev, AX_CMD_STATMNGSTS_REG,
+				    0, 0, 1, &smsr, 0);
+	} while (!(smsr & AX_HOST_EN) && (i++ < 30) && (ret != -ENODEV));
+	if (ret == -ENODEV) {
+		mutex_unlock(&dev->phy_mutex);
+		return ret;
+	}
 
 	asix_read_cmd(dev, AX_CMD_READ_MII_REG, phy_id,
 				(__u16)loc, 2, &res, 0);
@@ -421,16 +429,24 @@ void asix_mdio_write(struct net_device *netdev, int phy_id, int loc, int val)
 	__le16 res = cpu_to_le16(val);
 	u8 smsr;
 	int i = 0;
+	int ret;
 
 	netdev_dbg(dev->net, "asix_mdio_write() phy_id=0x%02x, loc=0x%02x, val=0x%04x\n",
 			phy_id, loc, val);
 
 	mutex_lock(&dev->phy_mutex);
 	do {
-		asix_set_sw_mii(dev, 0);
+		ret = asix_set_sw_mii(dev, 0);
+		if (ret == -ENODEV)
+			break;
 		usleep_range(1000, 1100);
-		asix_read_cmd(dev, AX_CMD_STATMNGSTS_REG, 0, 0, 1, &smsr, 0);
-	} while (!(smsr & AX_HOST_EN) && (i++ < 30));
+		ret = asix_read_cmd(dev, AX_CMD_STATMNGSTS_REG,
+				    0, 0, 1, &smsr, 0);
+	} while (!(smsr & AX_HOST_EN) && (i++ < 30) && (ret != -ENODEV));
+	if (ret == -ENODEV) {
+		mutex_unlock(&dev->phy_mutex);
+		return;
+	}
 
 	asix_write_cmd(dev, AX_CMD_WRITE_MII_REG, phy_id,
 		       (__u16)loc, 2, &res, 0);
@@ -444,13 +460,21 @@ int asix_mdio_read_nopm(struct net_device *netdev, int phy_id, int loc)
 	__le16 res;
 	u8 smsr;
 	int i = 0;
+	int ret;
 
 	mutex_lock(&dev->phy_mutex);
 	do {
-		asix_set_sw_mii(dev, 1);
+		ret = asix_set_sw_mii(dev, 1);
+		if (ret == -ENODEV)
+			break;
 		usleep_range(1000, 1100);
-		asix_read_cmd(dev, AX_CMD_STATMNGSTS_REG, 0, 0, 1, &smsr, 1);
-	} while (!(smsr & AX_HOST_EN) && (i++ < 30));
+		ret = asix_read_cmd(dev, AX_CMD_STATMNGSTS_REG,
+				    0, 0, 1, &smsr, 1);
+	} while (!(smsr & AX_HOST_EN) && (i++ < 30) && (ret != -ENODEV));
+	if (ret == -ENODEV) {
+		mutex_unlock(&dev->phy_mutex);
+		return ret;
+	}
 
 	asix_read_cmd(dev, AX_CMD_READ_MII_REG, phy_id,
 		      (__u16)loc, 2, &res, 1);
@@ -470,16 +494,24 @@ asix_mdio_write_nopm(struct net_device *netdev, int phy_id, int loc, int val)
 	__le16 res = cpu_to_le16(val);
 	u8 smsr;
 	int i = 0;
+	int ret;
 
 	netdev_dbg(dev->net, "asix_mdio_write() phy_id=0x%02x, loc=0x%02x, val=0x%04x\n",
 			phy_id, loc, val);
 
 	mutex_lock(&dev->phy_mutex);
 	do {
-		asix_set_sw_mii(dev, 1);
+		ret = asix_set_sw_mii(dev, 1);
+		if (ret == -ENODEV)
+			break;
 		usleep_range(1000, 1100);
-		asix_read_cmd(dev, AX_CMD_STATMNGSTS_REG, 0, 0, 1, &smsr, 1);
-	} while (!(smsr & AX_HOST_EN) && (i++ < 30));
+		ret = asix_read_cmd(dev, AX_CMD_STATMNGSTS_REG,
+				    0, 0, 1, &smsr, 1);
+	} while (!(smsr & AX_HOST_EN) && (i++ < 30) && (ret != -ENODEV));
+	if (ret == -ENODEV) {
+		mutex_unlock(&dev->phy_mutex);
+		return;
+	}
 
 	asix_write_cmd(dev, AX_CMD_WRITE_MII_REG, phy_id,
 		       (__u16)loc, 2, &res, 1);

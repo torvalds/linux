@@ -79,6 +79,8 @@ static u32 asix_get_phyid(struct usbnet *dev)
 	/* Poll for the rare case the FW or phy isn't ready yet.  */
 	for (i = 0; i < 100; i++) {
 		phy_reg = asix_mdio_read(dev->net, dev->mii.phy_id, MII_PHYSID1);
+		if (phy_reg < 0)
+			return 0;
 		if (phy_reg != 0 && phy_reg != 0xFFFF)
 			break;
 		mdelay(1);
