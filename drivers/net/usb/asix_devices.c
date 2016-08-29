@@ -928,11 +928,8 @@ static int ax88178_reset(struct usbnet *dev)
 	asix_mdio_write(dev->net, dev->mii.phy_id, MII_CTRL1000,
 			ADVERTISE_1000FULL);
 
+	asix_write_medium_mode(dev, AX88178_MEDIUM_DEFAULT, 0);
 	mii_nway_restart(&dev->mii);
-
-	ret = asix_write_medium_mode(dev, AX88178_MEDIUM_DEFAULT, 0);
-	if (ret < 0)
-		return ret;
 
 	/* Rewrite MAC address */
 	memcpy(data->mac_addr, dev->net->dev_addr, ETH_ALEN);
