@@ -212,6 +212,28 @@ static const struct net_device_ops ax88172_netdev_ops = {
 	.ndo_set_rx_mode	= ax88172_set_multicast,
 };
 
+static void asix_phy_reset(struct usbnet *dev, unsigned int reset_bits)
+{
+	unsigned int timeout = 5000;
+
+	asix_mdio_write(dev->net, dev->mii.phy_id, MII_BMCR, reset_bits);
+
+	/* give phy_id a chance to process reset */
+	udelay(500);
+
+	/* See IEEE 802.3 "22.2.4.1.1 Reset": 500ms max */
+	while (timeout--) {
+		if (asix_mdio_read(dev->net, dev->mii.phy_id, MII_BMCR)
+							& BMCR_RESET)
+			udelay(100);
+		else
+			return;
+	}
+
+	netdev_err(dev->net, "BMCR_RESET timeout on phy_id %d\n",
+		   dev->mii.phy_id);
+}
+
 static int ax88172_bind(struct usbnet *dev, struct usb_interface *intf)
 {
 	int ret = 0;
@@ -258,7 +280,7 @@ static int ax88172_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->net->needed_headroom = 4; /* cf asix_tx_fixup() */
 	dev->net->needed_tailroom = 4; /* cf asix_tx_fixup() */
 
-	asix_mdio_write(dev->net, dev->mii.phy_id, MII_BMCR, BMCR_RESET);
+	asix_phy_reset(dev, BMCR_RESET);
 	asix_mdio_write(dev->net, dev->mii.phy_id, MII_ADVERTISE,
 		ADVERTISE_ALL | ADVERTISE_CSMA | ADVERTISE_PAUSE_CAP);
 	mii_nway_restart(&dev->mii);
@@ -900,8 +922,7 @@ static int ax88178_reset(struct usbnet *dev)
 	} else if (data->phymode == PHY_MODE_RTL8211CL)
 		rtl8211cl_phy_init(dev);
 
-	asix_mdio_write(dev->net, dev->mii.phy_id, MII_BMCR,
-			BMCR_RESET | BMCR_ANENABLE);
+	asix_phy_reset(dev, BMCR_RESET | BMCR_ANENABLE);
 	asix_mdio_write(dev->net, dev->mii.phy_id, MII_ADVERTISE,
 			ADVERTISE_ALL | ADVERTISE_CSMA | ADVERTISE_PAUSE_CAP);
 	asix_mdio_write(dev->net, dev->mii.phy_id, MII_CTRL1000,
