@@ -19,6 +19,7 @@
 #include "qed_dcbx.h"
 #include "qed_hsi.h"
 #include "qed_sp.h"
+#include "qed_sriov.h"
 #ifdef CONFIG_DCB
 #include <linux/qed/qed_eth_if.h>
 #endif
@@ -944,6 +945,9 @@ static int qed_dcbx_query_params(struct qed_hwfn *p_hwfn,
 {
 	struct qed_ptt *p_ptt;
 	int rc;
+
+	if (IS_VF(p_hwfn->cdev))
+		return -EINVAL;
 
 	p_ptt = qed_ptt_acquire(p_hwfn);
 	if (!p_ptt)
