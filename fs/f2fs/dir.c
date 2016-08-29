@@ -215,31 +215,17 @@ static struct f2fs_dir_entry *find_in_level(struct inode *dir,
 	return de;
 }
 
-/*
- * Find an entry in the specified directory with the wanted name.
- * It returns the page where the entry was found (as a parameter - res_page),
- * and the entry itself. Page is returned mapped and unlocked.
- * Entry is guaranteed to be valid.
- */
-struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir,
-			const struct qstr *child, struct page **res_page)
+struct f2fs_dir_entry *__f2fs_find_entry(struct inode *dir,
+			struct fscrypt_name *fname, struct page **res_page)
 {
 	unsigned long npages = dir_blocks(dir);
 	struct f2fs_dir_entry *de = NULL;
 	unsigned int max_depth;
 	unsigned int level;
-	struct fscrypt_name fname;
-	int err;
-
-	err = fscrypt_setup_filename(dir, child, 1, &fname);
-	if (err) {
-		*res_page = ERR_PTR(err);
-		return NULL;
-	}
 
 	if (f2fs_has_inline_dentry(dir)) {
 		*res_page = NULL;
-		de = find_in_inline_dir(dir, &fname, res_page);
+		de = find_in_inline_dir(dir, fname, res_page);
 		goto out;
 	}
 
@@ -259,11 +245,35 @@ struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir,
 
 	for (level = 0; level < max_depth; level++) {
 		*res_page = NULL;
-		de = find_in_level(dir, level, &fname, res_page);
+		de = find_in_level(dir, level, fname, res_page);
 		if (de || IS_ERR(*res_page))
 			break;
 	}
 out:
+	return de;
+}
+
+/*
+ * Find an entry in the specified directory with the wanted name.
+ * It returns the page where the entry was found (as a parameter - res_page),
+ * and the entry itself. Page is returned mapped and unlocked.
+ * Entry is guaranteed to be valid.
+ */
+struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir,
+			const struct qstr *child, struct page **res_page)
+{
+	struct f2fs_dir_entry *de = NULL;
+	struct fscrypt_name fname;
+	int err;
+
+	err = fscrypt_setup_filename(dir, child, 1, &fname);
+	if (err) {
+		*res_page = ERR_PTR(err);
+		return NULL;
+	}
+
+	de = __f2fs_find_entry(dir, &fname, res_page);
+
 	fscrypt_free_filename(&fname);
 	return de;
 }
@@ -605,6 +615,26 @@ fail:
 	return err;
 }
 
+int __f2fs_do_add_link(struct inode *dir, struct fscrypt_name *fname,
+				struct inode *inode, nid_t ino, umode_t mode)
+{
+	struct qstr new_name;
+	int err = -EAGAIN;
+
+	new_name.name = fname_name(fname);
+	new_name.len = fname_len(fname);
+
+	if (f2fs_has_inline_dentry(dir))
+		err = f2fs_add_inline_entry(dir, &new_name, fname->usr_fname,
+							inode, ino, mode);
+	if (err == -EAGAIN)
+		err = f2fs_add_regular_entry(dir, &new_name, fname->usr_fname,
+							inode, ino, mode);
+
+	f2fs_update_time(F2FS_I_SB(dir), REQ_TIME);
+	return err;
+}
+
 /*
  * Caller should grab and release a rwsem by calling f2fs_lock_op() and
  * f2fs_unlock_op().
@@ -613,26 +643,15 @@ int __f2fs_add_link(struct inode *dir, const struct qstr *name,
 				struct inode *inode, nid_t ino, umode_t mode)
 {
 	struct fscrypt_name fname;
-	struct qstr new_name;
 	int err;
 
 	err = fscrypt_setup_filename(dir, name, 0, &fname);
 	if (err)
 		return err;
 
-	new_name.name = fname_name(&fname);
-	new_name.len = fname_len(&fname);
-
-	err = -EAGAIN;
-	if (f2fs_has_inline_dentry(dir))
-		err = f2fs_add_inline_entry(dir, &new_name, fname.usr_fname,
-							inode, ino, mode);
-	if (err == -EAGAIN)
-		err = f2fs_add_regular_entry(dir, &new_name, fname.usr_fname,
-							inode, ino, mode);
+	err = __f2fs_do_add_link(dir, &fname, inode, ino, mode);
 
 	fscrypt_free_filename(&fname);
-	f2fs_update_time(F2FS_I_SB(dir), REQ_TIME);
 	return err;
 }
 

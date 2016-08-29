@@ -137,8 +137,6 @@ static inline bool need_do_checkpoint(struct inode *inode)
 		need_cp = true;
 	else if (is_sbi_flag_set(sbi, SBI_NEED_CP))
 		need_cp = true;
-	else if (file_enc_name(inode) && need_dentry_mark(sbi, inode->i_ino))
-		need_cp = true;
 	else if (file_wrong_pino(inode))
 		need_cp = true;
 	else if (!space_for_roll_forward(sbi))
