@@ -28,6 +28,7 @@ nitpick_ignore = [
     ("c:func", "i2c_new_device"),
     ("c:func", "ioctl"),
     ("c:func", "IS_ERR"),
+    ("c:func", "KERNEL_VERSION"),
     ("c:func", "mmap"),
     ("c:func", "open"),
     ("c:func", "pci_name"),
@@ -66,6 +67,7 @@ nitpick_ignore = [
     ("c:type", "off_t"),
     ("c:type", "pci_dev"),
     ("c:type", "pdvbdev"),
+    ("c:type", "platform_device"),
     ("c:type", "pollfd"),
     ("c:type", "poll_table_struct"),
     ("c:type", "s32"),
@@ -93,5 +95,6 @@ nitpick_ignore = [
     ("c:type", "union"),
     ("c:type", "__user"),
     ("c:type", "usb_device"),
+    ("c:type", "usb_interface"),
     ("c:type", "video_system_t"),
 ]
