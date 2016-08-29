@@ -221,11 +221,13 @@ static irqreturn_t k3_dma_int_handler(int irq, void *dev_id)
 	writel_relaxed(err1, d->base + INT_ERR1_RAW);
 	writel_relaxed(err2, d->base + INT_ERR2_RAW);
 
-	if (irq_chan) {
+	if (irq_chan)
 		tasklet_schedule(&d->task);
+
+	if (irq_chan || err1 || err2)
 		return IRQ_HANDLED;
-	} else
-		return IRQ_NONE;
+
+	return IRQ_NONE;
 }
 
 static int k3_dma_start_txd(struct k3_dma_chan *c)
