@@ -83,3 +83,20 @@ void on_each_cpu_cond(bool (*cond_func)(int cpu, void *info),
 	preempt_enable();
 }
 EXPORT_SYMBOL(on_each_cpu_cond);
+
+int smp_call_on_cpu(unsigned int cpu, int (*func)(void *), void *par, bool phys)
+{
+	int ret;
+
+	if (cpu != 0)
+		return -ENXIO;
+
+	if (phys)
+		hypervisor_pin_vcpu(0);
+	ret = func(par);
+	if (phys)
+		hypervisor_pin_vcpu(-1);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(smp_call_on_cpu);
