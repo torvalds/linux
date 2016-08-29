@@ -388,7 +388,8 @@ static int dwc2_hsotg_write_fifo(struct dwc2_hsotg *hsotg,
 			return -ENOSPC;
 		}
 	} else if (hsotg->dedicated_fifos && hs_ep->index != 0) {
-		can_write = dwc2_readl(hsotg->regs + DTXFSTS(hs_ep->index));
+		can_write = dwc2_readl(hsotg->regs +
+				DTXFSTS(hs_ep->fifo_index));
 
 		can_write &= 0xffff;
 		can_write *= 4;
@@ -2432,7 +2433,7 @@ static void kill_all_requests(struct dwc2_hsotg *hsotg,
 
 	if (!hsotg->dedicated_fifos)
 		return;
-	size = (dwc2_readl(hsotg->regs + DTXFSTS(ep->index)) & 0xffff) * 4;
+	size = (dwc2_readl(hsotg->regs + DTXFSTS(ep->fifo_index)) & 0xffff) * 4;
 	if (size < ep->fifo_size)
 		dwc2_hsotg_txfifo_flush(hsotg, ep->fifo_index);
 }
