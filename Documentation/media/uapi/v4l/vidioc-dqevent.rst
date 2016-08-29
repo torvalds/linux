@@ -32,7 +32,7 @@ Description
 ===========
 
 Dequeue an event from a video device. No input is required for this
-ioctl. All the fields of the struct :ref:`v4l2_event <v4l2-event>`
+ioctl. All the fields of the struct :c:type:`v4l2_event`
 structure are filled by the driver. The file handle will also receive
 exceptions which the application may get by e.g. using the select system
 call.
@@ -40,7 +40,7 @@ call.
 
 .. tabularcolumns:: |p{3.0cm}|p{4.3cm}|p{2.5cm}|p{7.7cm}|
 
-.. _v4l2-event:
+.. c:type:: v4l2_event
 
 .. cssclass: longtable
 
@@ -71,7 +71,7 @@ call.
     -  .. row 3
 
        -
-       -  struct :ref:`v4l2_event_vsync <v4l2-event-vsync>`
+       -  struct :c:type:`v4l2_event_vsync`
 
        -  ``vsync``
 
@@ -80,7 +80,7 @@ call.
     -  .. row 4
 
        -
-       -  struct :ref:`v4l2_event_ctrl <v4l2-event-ctrl>`
+       -  struct :c:type:`v4l2_event_ctrl`
 
        -  ``ctrl``
 
@@ -89,7 +89,7 @@ call.
     -  .. row 5
 
        -
-       -  struct :ref:`v4l2_event_frame_sync <v4l2-event-frame-sync>`
+       -  struct :c:type:`v4l2_event_frame_sync`
 
        -  ``frame_sync``
 
@@ -98,7 +98,7 @@ call.
     -  .. row 6
 
        -
-       -  struct :ref:`v4l2_event_motion_det <v4l2-event-motion-det>`
+       -  struct :c:type:`v4l2_event_motion_det`
 
        -  ``motion_det``
 
@@ -107,7 +107,7 @@ call.
     -  .. row 7
 
        -
-       -  struct :ref:`v4l2_event_src_change <v4l2-event-src-change>`
+       -  struct :c:type:`v4l2_event_src_change`
 
        -  ``src_change``
 
@@ -205,7 +205,7 @@ call.
        -  1
 
        -  This event is triggered on the vertical sync. This event has a
-	  struct :ref:`v4l2_event_vsync <v4l2-event-vsync>` associated
+	  struct :c:type:`v4l2_event_vsync` associated
 	  with it.
 
     -  .. row 3
@@ -228,10 +228,10 @@ call.
 	  which you want to receive events. This event is triggered if the
 	  control's value changes, if a button control is pressed or if the
 	  control's flags change. This event has a struct
-	  :ref:`v4l2_event_ctrl <v4l2-event-ctrl>` associated with it.
+	  :c:type:`v4l2_event_ctrl` associated with it.
 	  This struct contains much of the same information as struct
 	  :ref:`v4l2_queryctrl <v4l2-queryctrl>` and struct
-	  :ref:`v4l2_control <v4l2-control>`.
+	  :c:type:`v4l2_control`.
 
 	  If the event is generated due to a call to
 	  :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>` or
@@ -243,7 +243,7 @@ call.
 
 	  This event type will ensure that no information is lost when more
 	  events are raised than there is room internally. In that case the
-	  struct :ref:`v4l2_event_ctrl <v4l2-event-ctrl>` of the
+	  struct :c:type:`v4l2_event_ctrl` of the
 	  second-oldest event is kept, but the ``changes`` field of the
 	  second-oldest event is ORed with the ``changes`` field of the
 	  oldest event.
@@ -256,13 +256,13 @@ call.
 
        -  Triggered immediately when the reception of a frame has begun.
 	  This event has a struct
-	  :ref:`v4l2_event_frame_sync <v4l2-event-frame-sync>`
+	  :c:type:`v4l2_event_frame_sync`
 	  associated with it.
 
 	  If the hardware needs to be stopped in the case of a buffer
 	  underrun it might not be able to generate this event. In such
 	  cases the ``frame_sequence`` field in struct
-	  :ref:`v4l2_event_frame_sync <v4l2-event-frame-sync>` will not
+	  :c:type:`v4l2_event_frame_sync` will not
 	  be incremented. This causes two consecutive frame sequence numbers
 	  to have n times frame interval in between them.
 
@@ -281,7 +281,7 @@ call.
 	  receive events.
 
 	  This event has a struct
-	  :ref:`v4l2_event_src_change <v4l2-event-src-change>`
+	  :c:type:`v4l2_event_src_change`
 	  associated with it. The ``changes`` bitfield denotes what has
 	  changed for the subscribed pad. If multiple events occurred before
 	  application could dequeue them, then the changes will have the
@@ -295,7 +295,7 @@ call.
 
        -  Triggered whenever the motion detection state for one or more of
 	  the regions changes. This event has a struct
-	  :ref:`v4l2_event_motion_det <v4l2-event-motion-det>`
+	  :c:type:`v4l2_event_motion_det`
 	  associated with it.
 
     -  .. row 8
@@ -310,7 +310,7 @@ call.
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
-.. _v4l2-event-vsync:
+.. c:type:: v4l2_event_vsync
 
 .. flat-table:: struct v4l2_event_vsync
     :header-rows:  0
@@ -330,7 +330,7 @@ call.
 
 .. tabularcolumns:: |p{3.5cm}|p{3.0cm}|p{1.8cm}|p{8.5cm}|
 
-.. _v4l2-event-ctrl:
+.. c:type:: v4l2_event_ctrl
 
 .. flat-table:: struct v4l2_event_ctrl
     :header-rows:  0
@@ -439,7 +439,7 @@ call.
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
-.. _v4l2-event-frame-sync:
+.. c:type:: v4l2_event_frame_sync
 
 .. flat-table:: struct v4l2_event_frame_sync
     :header-rows:  0
@@ -459,7 +459,7 @@ call.
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
-.. _v4l2-event-src-change:
+.. c:type:: v4l2_event_src_change
 
 .. flat-table:: struct v4l2_event_src_change
     :header-rows:  0
@@ -480,7 +480,7 @@ call.
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
-.. _v4l2-event-motion-det:
+.. c:type:: v4l2_event_motion_det
 
 .. flat-table:: struct v4l2_event_motion_det
     :header-rows:  0

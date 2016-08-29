@@ -341,7 +341,7 @@ It can also be used as part of digital zoom implementations to select
 the area of the image that will be scaled up.
 
 Crop settings are defined by a crop rectangle and represented in a
-struct :ref:`v4l2_rect <v4l2-rect>` by the coordinates of the top
+struct :c:type:`v4l2_rect` by the coordinates of the top
 left corner and the rectangle size. Both the coordinates and sizes are
 expressed in pixels.
 
@@ -357,7 +357,7 @@ sub-device for processing.
 The scaling operation changes the size of the image by scaling it to new
 dimensions. The scaling ratio isn't specified explicitly, but is implied
 from the original and scaled image sizes. Both sizes are represented by
-struct :ref:`v4l2_rect <v4l2-rect>`.
+struct :c:type:`v4l2_rect`.
 
 Scaling support is optional. When supported by a subdev, the crop
 rectangle on the subdev's sink pad is scaled to the size configured

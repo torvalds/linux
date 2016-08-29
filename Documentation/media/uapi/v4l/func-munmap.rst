@@ -34,9 +34,9 @@ Arguments
 ``length``
     Length of the mapped buffer. This must be the same value as given to
     :ref:`mmap() <func-mmap>` and returned by the driver in the struct
-    :ref:`v4l2_buffer <v4l2-buffer>` ``length`` field for the
+    :c:type:`v4l2_buffer` ``length`` field for the
     single-planar API and in the struct
-    :ref:`v4l2_plane <v4l2-plane>` ``length`` field for the
+    :c:type:`v4l2_plane` ``length`` field for the
     multi-planar API.
 
 

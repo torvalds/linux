@@ -15,8 +15,8 @@ transfer functions. The third is the Y'CbCr encoding identifier (enum
 non-standard Y'CbCr encodings and the fourth is the quantization
 identifier (enum :ref:`v4l2_quantization <v4l2-quantization>`) to
 specify non-standard quantization methods. Most of the time only the
-colorspace field of struct :ref:`v4l2_pix_format <v4l2-pix-format>`
-or struct :ref:`v4l2_pix_format_mplane <v4l2-pix-format-mplane>`
+colorspace field of struct :c:type:`v4l2_pix_format`
+or struct :c:type:`v4l2_pix_format_mplane`
 needs to be filled in.
 
 .. note::

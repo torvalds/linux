@@ -32,7 +32,7 @@ Description
 ===========
 
 To query the attributes of a video outputs applications initialize the
-``index`` field of struct :ref:`v4l2_output <v4l2-output>` and call
+``index`` field of struct :c:type:`v4l2_output` and call
 the :ref:`VIDIOC_ENUMOUTPUT` ioctl with a pointer to this structure.
 Drivers fill the rest of the structure or return an ``EINVAL`` error code
 when the index is out of bounds. To enumerate all outputs applications
@@ -42,7 +42,7 @@ EINVAL.
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
-.. _v4l2-output:
+.. c:type:: v4l2_output
 
 .. flat-table:: struct v4l2_output
     :header-rows:  0
@@ -105,7 +105,7 @@ EINVAL.
        -  Output devices can have zero or more RF modulators. When the
 	  ``type`` is ``V4L2_OUTPUT_TYPE_MODULATOR`` this is an RF connector
 	  and this field identifies the modulator. It corresponds to struct
-	  :ref:`v4l2_modulator <v4l2-modulator>` field ``index``. For
+	  :c:type:`v4l2_modulator` field ``index``. For
 	  details on modulators see :ref:`tuner`.
 
     -  .. row 6
@@ -222,5 +222,5 @@ appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
-    The struct :ref:`v4l2_output <v4l2-output>` ``index`` is out of
+    The struct :c:type:`v4l2_output` ``index`` is out of
     bounds.

@@ -26,7 +26,7 @@ Arguments
     File descriptor returned by :ref:`open() <frontend_f_open>`.
 
 ``net_if``
-    pointer to struct :ref:`dvb_net_if <dvb-net-if>`
+    pointer to struct :c:type:`dvb_net_if`
 
 
 Description
@@ -38,7 +38,7 @@ ULE) and the interface number for the new interface to be created. When
 the system call successfully returns, a new virtual network interface is
 created.
 
-The struct :ref:`dvb_net_if <dvb-net-if>`::ifnum field will be
+The struct :c:type:`dvb_net_if`::ifnum field will be
 filled with the number of the created interface.
 
 
@@ -47,7 +47,7 @@ filled with the number of the created interface.
 struct dvb_net_if description
 =============================
 
-.. _dvb-net-if:
+.. c:type:: dvb_net_if
 
 .. flat-table:: struct dvb_net_if
     :header-rows:  1

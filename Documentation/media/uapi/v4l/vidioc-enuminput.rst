@@ -32,7 +32,7 @@ Description
 ===========
 
 To query the attributes of a video input applications initialize the
-``index`` field of struct :ref:`v4l2_input <v4l2-input>` and call the
+``index`` field of struct :c:type:`v4l2_input` and call the
 :ref:`VIDIOC_ENUMINPUT` ioctl with a pointer to this structure. Drivers
 fill the rest of the structure or return an ``EINVAL`` error code when the
 index is out of bounds. To enumerate all inputs applications shall begin
@@ -41,7 +41,7 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
-.. _v4l2-input:
+.. c:type:: v4l2_input
 
 .. flat-table:: struct v4l2_input
     :header-rows:  0
@@ -104,7 +104,7 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
        -  Capture devices can have zero or more tuners (RF demodulators).
 	  When the ``type`` is set to ``V4L2_INPUT_TYPE_TUNER`` this is an
 	  RF connector and this field identifies the tuner. It corresponds
-	  to struct :ref:`v4l2_tuner <v4l2-tuner>` field ``index``. For
+	  to struct :c:type:`v4l2_tuner` field ``index``. For
 	  details on tuners see :ref:`tuner`.
 
     -  .. row 6
@@ -377,5 +377,5 @@ appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
-    The struct :ref:`v4l2_input <v4l2-input>` ``index`` is out of
+    The struct :c:type:`v4l2_input` ``index`` is out of
     bounds.

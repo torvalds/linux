@@ -27,7 +27,7 @@ Arguments
 
 ``argp``
     pointer to struct struct
-    :ref:`dvb_frontend_info <dvb-frontend-info>`
+    :c:type:`dvb_frontend_info`
 
 
 Description
@@ -40,7 +40,7 @@ takes a pointer to dvb_frontend_info which is filled by the driver.
 When the driver is not compatible with this specification the ioctl
 returns an error.
 
-.. _dvb-frontend-info:
+.. c:type:: dvb_frontend_info
 
 struct dvb_frontend_info
 ========================

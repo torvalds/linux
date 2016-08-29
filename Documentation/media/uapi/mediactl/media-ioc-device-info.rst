@@ -33,12 +33,12 @@ Description
 
 All media devices must support the ``MEDIA_IOC_DEVICE_INFO`` ioctl. To
 query device information, applications call the ioctl with a pointer to
-a struct :ref:`media_device_info <media-device-info>`. The driver
+a struct :c:type:`media_device_info`. The driver
 fills the structure and returns the information to the application. The
 ioctl never fails.
 
 
-.. _media-device-info:
+.. c:type:: media_device_info
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 

@@ -37,7 +37,7 @@ Description
 The hardware may be able to detect the current DV timings automatically,
 similar to sensing the video standard. To do so, applications call
 :ref:`VIDIOC_QUERY_DV_TIMINGS` with a pointer to a struct
-:ref:`v4l2_dv_timings <v4l2-dv-timings>`. Once the hardware detects
+:c:type:`v4l2_dv_timings`. Once the hardware detects
 the timings, it will fill in the timings structure.
 
 .. note::

@@ -592,7 +592,7 @@ See also the examples in :ref:`control`.
 	  pass a string of length 8 to
 	  :ref:`VIDIOC_S_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` you need to
 	  set the ``size`` field of struct
-	  :ref:`v4l2_ext_control <v4l2-ext-control>` to 9. For
+	  :c:type:`v4l2_ext_control` to 9. For
 	  :ref:`VIDIOC_G_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` you can set
 	  the ``size`` field to ``maximum`` + 1. Which character encoding is
 	  used will depend on the string control itself and should be part
@@ -769,7 +769,7 @@ See also the examples in :ref:`control`.
 
        -  This control has a pointer type, so its value has to be accessed
 	  using one of the pointer fields of struct
-	  :ref:`v4l2_ext_control <v4l2-ext-control>`. This flag is set
+	  :c:type:`v4l2_ext_control`. This flag is set
 	  for controls that are an array, string, or have a compound type.
 	  In all cases you have to set a pointer to memory containing the
 	  payload of the control.

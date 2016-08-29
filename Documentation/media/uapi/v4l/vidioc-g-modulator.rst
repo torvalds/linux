@@ -36,7 +36,7 @@ Description
 
 To query the attributes of a modulator applications initialize the
 ``index`` field and zero out the ``reserved`` array of a struct
-:ref:`v4l2_modulator <v4l2-modulator>` and call the
+:c:type:`v4l2_modulator` and call the
 :ref:`VIDIOC_G_MODULATOR <VIDIOC_G_MODULATOR>` ioctl with a pointer to this structure. Drivers
 fill the rest of the structure or return an ``EINVAL`` error code when the
 index is out of bounds. To enumerate all modulators applications shall
@@ -62,7 +62,7 @@ To change the radio frequency the
 
 .. tabularcolumns:: |p{2.9cm}|p{2.9cm}|p{5.8cm}|p{2.9cm}|p{3.0cm}|
 
-.. _v4l2-modulator:
+.. c:type:: v4l2_modulator
 
 .. flat-table:: struct v4l2_modulator
     :header-rows:  0
@@ -95,7 +95,7 @@ To change the radio frequency the
        -  ``capability``
 
        -  Modulator capability flags. No flags are defined for this field,
-	  the tuner flags in struct :ref:`v4l2_tuner <v4l2-tuner>` are
+	  the tuner flags in struct :c:type:`v4l2_tuner` are
 	  used accordingly. The audio flags indicate the ability to encode
 	  audio subprograms. They will *not* change for example with the
 	  current video standard.
@@ -260,5 +260,5 @@ appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
-    The struct :ref:`v4l2_modulator <v4l2-modulator>` ``index`` is
+    The struct :c:type:`v4l2_modulator` ``index`` is
     out of bounds.

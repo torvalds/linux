@@ -34,14 +34,14 @@ Description
 All V4L2 devices support the ``VIDIOC_QUERYCAP`` ioctl. It is used to
 identify kernel devices compatible with this specification and to obtain
 information about driver and hardware capabilities. The ioctl takes a
-pointer to a struct :ref:`v4l2_capability <v4l2-capability>` which is
+pointer to a struct :c:type:`v4l2_capability` which is
 filled by the driver. When the driver is not compatible with this
 specification the ioctl returns an ``EINVAL`` error code.
 
 
 .. tabularcolumns:: |p{1.5cm}|p{2.5cm}|p{13cm}|
 
-.. _v4l2-capability:
+.. c:type:: v4l2_capability
 
 .. flat-table:: struct v4l2_capability
     :header-rows:  0
@@ -373,7 +373,7 @@ specification the ioctl returns an ``EINVAL`` error code.
        -  0x00200000
 
        -  The device supports the struct
-	  :ref:`v4l2_pix_format <v4l2-pix-format>` extended fields.
+	  :c:type:`v4l2_pix_format` extended fields.
 
     -  .. row 22
 
@@ -435,6 +435,6 @@ appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 .. [#f1]
-   The struct :ref:`v4l2_framebuffer <v4l2-framebuffer>` lacks an
+   The struct :c:type:`v4l2_framebuffer` lacks an
    enum :ref:`v4l2_buf_type <v4l2-buf-type>` field, therefore the
    type of overlay is implied by the driver capabilities.

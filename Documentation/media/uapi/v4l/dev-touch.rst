@@ -41,7 +41,7 @@ Querying Capabilities
 
 Devices supporting the touch interface set the ``V4L2_CAP_VIDEO_CAPTURE`` flag
 and the ``V4L2_CAP_TOUCH`` flag in the ``capabilities`` field of
-:ref:`v4l2_capability <v4l2-capability>` returned by the
+:c:type:`v4l2_capability` returned by the
 :ref:`VIDIOC_QUERYCAP` ioctl.
 
 At least one of the read/write or streaming I/O methods must be

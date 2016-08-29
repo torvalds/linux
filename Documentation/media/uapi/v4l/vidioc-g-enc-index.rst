@@ -37,7 +37,7 @@ driver, which is useful for random access into the stream without
 decoding it.
 
 To read the data applications must call :ref:`VIDIOC_G_ENC_INDEX <VIDIOC_G_ENC_INDEX>` with a
-pointer to a struct :ref:`v4l2_enc_idx <v4l2-enc-idx>`. On success
+pointer to a struct :c:type:`v4l2_enc_idx`. On success
 the driver fills the ``entry`` array, stores the number of elements
 written in the ``entries`` field, and initializes the ``entries_cap``
 field.
@@ -57,7 +57,7 @@ video elementary streams.
 
 .. tabularcolumns:: |p{3.5cm}|p{5.6cm}|p{8.4cm}|
 
-.. _v4l2-enc-idx:
+.. c:type:: v4l2_enc_idx
 
 .. flat-table:: struct v4l2_enc_idx
     :header-rows:  0
@@ -93,7 +93,7 @@ video elementary streams.
 
     -  .. row 4
 
-       -  struct :ref:`v4l2_enc_idx_entry <v4l2-enc-idx-entry>`
+       -  struct :c:type:`v4l2_enc_idx_entry`
 
        -  ``entry``\ [``V4L2_ENC_IDX_ENTRIES``]
 
@@ -105,7 +105,7 @@ video elementary streams.
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
-.. _v4l2-enc-idx-entry:
+.. c:type:: v4l2_enc_idx_entry
 
 .. flat-table:: struct v4l2_enc_idx_entry
     :header-rows:  0

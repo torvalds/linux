@@ -37,9 +37,9 @@ Arguments
 ``length``
     Length of the memory area to map. This must be the same value as
     returned by the driver in the struct
-    :ref:`v4l2_buffer <v4l2-buffer>` ``length`` field for the
+    :c:type:`v4l2_buffer` ``length`` field for the
     single-planar API, and the same value as returned by the driver in
-    the struct :ref:`v4l2_plane <v4l2-plane>` ``length`` field for
+    the struct :c:type:`v4l2_plane` ``length`` field for
     the multi-planar API.
 
 ``prot``
@@ -92,9 +92,9 @@ Arguments
 ``offset``
     Offset of the buffer in device memory. This must be the same value
     as returned by the driver in the struct
-    :ref:`v4l2_buffer <v4l2-buffer>` ``m`` union ``offset`` field for
+    :c:type:`v4l2_buffer` ``m`` union ``offset`` field for
     the single-planar API, and the same value as returned by the driver
-    in the struct :ref:`v4l2_plane <v4l2-plane>` ``m`` union
+    in the struct :c:type:`v4l2_plane` ``m`` union
     ``mem_offset`` field for the multi-planar API.
 
 

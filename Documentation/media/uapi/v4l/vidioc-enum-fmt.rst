@@ -32,7 +32,7 @@ Description
 ===========
 
 To enumerate image formats applications initialize the ``type`` and
-``index`` field of struct :ref:`v4l2_fmtdesc <v4l2-fmtdesc>` and call
+``index`` field of struct :c:type:`v4l2_fmtdesc` and call
 the :ref:`VIDIOC_ENUM_FMT` ioctl with a pointer to this structure. Drivers
 fill the rest of the structure or return an ``EINVAL`` error code. All
 formats are enumerable by beginning at index zero and incrementing by
@@ -46,7 +46,7 @@ one until ``EINVAL`` is returned.
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
-.. _v4l2-fmtdesc:
+.. c:type:: v4l2_fmtdesc
 
 .. flat-table:: struct v4l2_fmtdesc
     :header-rows:  0
@@ -167,5 +167,5 @@ appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
-    The struct :ref:`v4l2_fmtdesc <v4l2-fmtdesc>` ``type`` is not
+    The struct :c:type:`v4l2_fmtdesc` ``type`` is not
     supported or the ``index`` is out of bounds.

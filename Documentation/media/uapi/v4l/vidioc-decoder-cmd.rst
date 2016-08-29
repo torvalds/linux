@@ -30,7 +30,7 @@ Arguments
     File descriptor returned by :ref:`open() <func-open>`.
 
 ``argp``
-    pointer to struct :ref:`v4l2_decoder_cmd <v4l2-decoder-cmd>`.
+    pointer to struct :c:type:`v4l2_decoder_cmd`.
 
 
 Description
@@ -40,7 +40,7 @@ These ioctls control an audio/video (usually MPEG-) decoder.
 ``VIDIOC_DECODER_CMD`` sends a command to the decoder,
 ``VIDIOC_TRY_DECODER_CMD`` can be used to try a command without actually
 executing it. To send a command applications must initialize all fields
-of a struct :ref:`v4l2_decoder_cmd <v4l2-decoder-cmd>` and call
+of a struct :c:type:`v4l2_decoder_cmd` and call
 ``VIDIOC_DECODER_CMD`` or ``VIDIOC_TRY_DECODER_CMD`` with a pointer to
 this structure.
 
@@ -61,7 +61,7 @@ introduced in Linux 3.3.
 
 .. tabularcolumns:: |p{1.1cm}|p{2.4cm}|p{1.2cm}|p{1.6cm}|p{10.6cm}|
 
-.. _v4l2-decoder-cmd:
+.. c:type:: v4l2_decoder_cmd
 
 .. cssclass:: longtable
 

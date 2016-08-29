@@ -40,15 +40,15 @@ These ioctls are used to negotiate the format of data (typically image
 format) exchanged between driver and application.
 
 To query the current parameters applications set the ``type`` field of a
-struct :ref:`struct v4l2_format <v4l2-format>` to the respective buffer (stream)
+struct :c:type:`struct v4l2_format <v4l2_format>` to the respective buffer (stream)
 type. For example video capture devices use
 ``V4L2_BUF_TYPE_VIDEO_CAPTURE`` or
 ``V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE``. When the application calls the
 :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` ioctl with a pointer to this structure the driver fills
 the respective member of the ``fmt`` union. In case of video capture
 devices that is either the struct
-:ref:`v4l2_pix_format <v4l2-pix-format>` ``pix`` or the struct
-:ref:`v4l2_pix_format_mplane <v4l2-pix-format-mplane>` ``pix_mp``
+:c:type:`v4l2_pix_format` ``pix`` or the struct
+:c:type:`v4l2_pix_format_mplane` ``pix_mp``
 member. When the requested buffer type is not supported drivers return
 an ``EINVAL`` error code.
 
@@ -58,7 +58,7 @@ For details see the documentation of the various devices types in
 :ref:`devices`. Good practice is to query the current parameters
 first, and to modify only those parameters not suitable for the
 application. When the application calls the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl with
-a pointer to a :ref:`struct v4l2_format <v4l2-format>` structure the driver
+a pointer to a :c:type:`struct v4l2_format <v4l2_format>` structure the driver
 checks and adjusts the parameters against hardware abilities. Drivers
 should not return an error code unless the ``type`` field is invalid,
 this is a mechanism to fathom device capabilities and to approach
@@ -85,7 +85,7 @@ The format as returned by :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` must be identical
 :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` returns for the same input or output.
 
 
-.. _v4l2-format:
+.. c:type:: v4l2_format
 
 .. tabularcolumns::  |p{1.2cm}|p{4.3cm}|p{3.0cm}|p{9.0cm}|
 
@@ -112,7 +112,7 @@ The format as returned by :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` must be identical
     -  .. row 3
 
        -
-       -  struct :ref:`v4l2_pix_format <v4l2-pix-format>`
+       -  struct :c:type:`v4l2_pix_format`
 
        -  ``pix``
 
@@ -122,7 +122,7 @@ The format as returned by :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` must be identical
     -  .. row 4
 
        -
-       -  struct :ref:`v4l2_pix_format_mplane <v4l2-pix-format-mplane>`
+       -  struct :c:type:`v4l2_pix_format_mplane`
 
        -  ``pix_mp``
 
@@ -133,7 +133,7 @@ The format as returned by :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` must be identical
     -  .. row 5
 
        -
-       -  struct :ref:`v4l2_window <v4l2-window>`
+       -  struct :c:type:`v4l2_window`
 
        -  ``win``
 
@@ -143,7 +143,7 @@ The format as returned by :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` must be identical
     -  .. row 6
 
        -
-       -  struct :ref:`v4l2_vbi_format <v4l2-vbi-format>`
+       -  struct :c:type:`v4l2_vbi_format`
 
        -  ``vbi``
 
@@ -154,7 +154,7 @@ The format as returned by :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` must be identical
     -  .. row 7
 
        -
-       -  struct :ref:`v4l2_sliced_vbi_format <v4l2-sliced-vbi-format>`
+       -  struct :c:type:`v4l2_sliced_vbi_format`
 
        -  ``sliced``
 
@@ -164,7 +164,7 @@ The format as returned by :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` must be identical
     -  .. row 8
 
        -
-       -  struct :ref:`v4l2_sdr_format <v4l2-sdr-format>`
+       -  struct :c:type:`v4l2_sdr_format`
 
        -  ``sdr``
 
@@ -189,5 +189,5 @@ appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
-    The struct :ref:`v4l2_format <v4l2-format>` ``type`` field is
+    The struct :c:type:`v4l2_format` ``type`` field is
     invalid or the requested buffer type not supported.

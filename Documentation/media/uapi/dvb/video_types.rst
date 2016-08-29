@@ -95,7 +95,7 @@ representing the state of video playback.
     } video_play_state_t;
 
 
-.. _video-command:
+.. c:type:: video_command
 
 struct video_command
 ====================
@@ -146,7 +146,7 @@ video_size_t
     } video_size_t;
 
 
-.. _video-event:
+.. c:type:: video_event
 
 struct video_event
 ==================
@@ -172,7 +172,7 @@ VIDEO_GET_EVENT call.
     };
 
 
-.. _video-status:
+.. c:type:: video_status
 
 struct video_status
 ===================
@@ -203,7 +203,7 @@ case the source video format is not the same as the format of the output
 device.
 
 
-.. _video-still-picture:
+.. c:type:: video_still_picture
 
 struct video_still_picture
 ==========================
@@ -271,7 +271,7 @@ output. The following system types can be set:
     } video_system_t;
 
 
-.. _video-highlight:
+.. c:type:: video_highlight
 
 struct video_highlight
 ======================
@@ -302,7 +302,7 @@ information. The call expects the following format for that information:
      } video_highlight_t;
 
 
-.. _video-spu:
+.. c:type:: video_spu
 
 struct video_spu
 ================
@@ -320,7 +320,7 @@ to the following format:
      } video_spu_t;
 
 
-.. _video-spu-palette:
+.. c:type:: video_spu_palette
 
 struct video_spu_palette
 ========================
@@ -338,7 +338,7 @@ VIDEO_SPU_PALETTE:
      } video_spu_palette_t;
 
 
-.. _video-navi-pack:
+.. c:type:: video_navi_pack
 
 struct video_navi_pack
 ======================

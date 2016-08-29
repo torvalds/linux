@@ -68,7 +68,7 @@ logical address types are already defined will return with error ``EBUSY``.
 
 .. tabularcolumns:: |p{1.0cm}|p{7.5cm}|p{8.0cm}|
 
-.. _cec-log-addrs:
+.. c:type:: cec_log_addrs
 
 .. cssclass:: longtable
 

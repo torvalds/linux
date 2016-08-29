@@ -47,13 +47,13 @@ section discussing the :ref:`read() <func-read>` function.
 
 To get and set the streaming parameters applications call the
 :ref:`VIDIOC_G_PARM <VIDIOC_G_PARM>` and :ref:`VIDIOC_S_PARM <VIDIOC_G_PARM>` ioctl, respectively. They take a
-pointer to a struct :ref:`struct v4l2_streamparm <v4l2-streamparm>` which contains a
+pointer to a struct :c:type:`struct v4l2_streamparm <v4l2_streamparm>` which contains a
 union holding separate parameters for input and output devices.
 
 
 .. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{3.5cm}|p{7.0cm}|
 
-.. _v4l2-streamparm:
+.. c:type:: v4l2_streamparm
 
 .. flat-table:: struct v4l2_streamparm
     :header-rows:  0
@@ -69,7 +69,7 @@ union holding separate parameters for input and output devices.
 
        -
        -  The buffer (stream) type, same as struct
-	  :ref:`v4l2_format <v4l2-format>` ``type``, set by the
+	  :c:type:`v4l2_format` ``type``, set by the
 	  application. See :ref:`v4l2-buf-type`
 
     -  .. row 2
@@ -84,7 +84,7 @@ union holding separate parameters for input and output devices.
     -  .. row 3
 
        -
-       -  struct :ref:`v4l2_captureparm <v4l2-captureparm>`
+       -  struct :c:type:`v4l2_captureparm`
 
        -  ``capture``
 
@@ -94,7 +94,7 @@ union holding separate parameters for input and output devices.
     -  .. row 4
 
        -
-       -  struct :ref:`v4l2_outputparm <v4l2-outputparm>`
+       -  struct :c:type:`v4l2_outputparm`
 
        -  ``output``
 
@@ -114,7 +114,7 @@ union holding separate parameters for input and output devices.
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
-.. _v4l2-captureparm:
+.. c:type:: v4l2_captureparm
 
 .. flat-table:: struct v4l2_captureparm
     :header-rows:  0
@@ -140,7 +140,7 @@ union holding separate parameters for input and output devices.
 
     -  .. row 3
 
-       -  struct :ref:`v4l2_fract <v4l2-fract>`
+       -  struct :c:type:`v4l2_fract`
 
        -  ``timeperframe``
 
@@ -151,7 +151,7 @@ union holding separate parameters for input and output devices.
 	  Applications store here the desired frame period, drivers return
 	  the actual frame period, which must be greater or equal to the
 	  nominal frame period determined by the current video standard
-	  (struct :ref:`v4l2_standard <v4l2-standard>` ``frameperiod``
+	  (struct :c:type:`v4l2_standard` ``frameperiod``
 	  field). Changing the video standard (also implicitly by switching
 	  the video input) may reset this parameter to the nominal frame
 	  period. To reset manually applications can just set this field to
@@ -197,7 +197,7 @@ union holding separate parameters for input and output devices.
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
-.. _v4l2-outputparm:
+.. c:type:: v4l2_outputparm
 
 .. flat-table:: struct v4l2_outputparm
     :header-rows:  0
@@ -223,7 +223,7 @@ union holding separate parameters for input and output devices.
 
     -  .. row 3
 
-       -  struct :ref:`v4l2_fract <v4l2-fract>`
+       -  struct :c:type:`v4l2_fract`
 
        -  ``timeperframe``
 
@@ -241,7 +241,7 @@ union holding separate parameters for input and output devices.
 	  Applications store here the desired frame period, drivers return
 	  the actual frame period, which must be greater or equal to the
 	  nominal frame period determined by the current video standard
-	  (struct :ref:`v4l2_standard <v4l2-standard>` ``frameperiod``
+	  (struct :c:type:`v4l2_standard` ``frameperiod``
 	  field). Changing the video standard (also implicitly by switching
 	  the video output) may reset this parameter to the nominal frame
 	  period. To reset manually applications can just set this field to

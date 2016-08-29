@@ -32,7 +32,7 @@ Description
 ===========
 
 To change link properties applications fill a struct
-:ref:`media_link_desc <media-link-desc>` with link identification
+:c:type:`media_link_desc` with link identification
 information (source and sink pad) and the new requested link flags. They
 then call the MEDIA_IOC_SETUP_LINK ioctl with a pointer to that
 structure.
@@ -61,6 +61,6 @@ appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
-    The struct :ref:`media_link_desc <media-link-desc>` references a
+    The struct :c:type:`media_link_desc` references a
     non-existing link, or the link is immutable and an attempt to modify
     its configuration was made.

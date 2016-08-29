@@ -36,7 +36,7 @@ Description
 
 To query the attributes of a tuner applications initialize the ``index``
 field and zero out the ``reserved`` array of a struct
-:ref:`v4l2_tuner <v4l2-tuner>` and call the ``VIDIOC_G_TUNER`` ioctl
+:c:type:`v4l2_tuner` and call the ``VIDIOC_G_TUNER`` ioctl
 with a pointer to this structure. Drivers fill the rest of the structure
 or return an ``EINVAL`` error code when the index is out of bounds. To
 enumerate all tuners applications shall begin at index zero,
@@ -61,7 +61,7 @@ To change the radio frequency the
 
  .. tabularcolumns:: |p{1.3cm}|p{3.0cm}|p{6.6cm}|p{6.6cm}|
 
-.. _v4l2-tuner:
+.. c:type:: v4l2_tuner
 
 .. cssclass:: longtable
 
@@ -116,7 +116,7 @@ To change the radio frequency the
 
 	  If multiple frequency bands are supported, then ``capability`` is
 	  the union of all ``capability`` fields of each struct
-	  :ref:`v4l2_frequency_band <v4l2-frequency-band>`.
+	  :c:type:`v4l2_frequency_band`.
 
     -  .. row 5
 
@@ -226,7 +226,7 @@ To change the radio frequency the
 	  received audio programs do not match.
 
 	  Currently this is the only field of struct
-	  :ref:`struct v4l2_tuner <v4l2-tuner>` applications can change.
+	  :c:type:`struct v4l2_tuner <v4l2_tuner>` applications can change.
 
     -  .. row 15
 
@@ -337,7 +337,7 @@ To change the radio frequency the
 	  multi-standard because the video standard is automatically
 	  determined from the frequency band.) The set of supported video
 	  standards is available from the struct
-	  :ref:`v4l2_input <v4l2-input>` pointing to this tuner, see the
+	  :c:type:`v4l2_input` pointing to this tuner, see the
 	  description of ioctl :ref:`VIDIOC_ENUMINPUT`
 	  for details. Only ``V4L2_TUNER_ANALOG_TV`` tuners can have this
 	  capability.
@@ -730,7 +730,7 @@ appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
-    The struct :ref:`v4l2_tuner <v4l2-tuner>` ``index`` is out of
+    The struct :c:type:`v4l2_tuner` ``index`` is out of
     bounds.
 
 .. [#f1]

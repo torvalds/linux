@@ -35,10 +35,10 @@ Description
 ===========
 
 To get the current value of a control applications initialize the ``id``
-field of a struct :ref:`struct v4l2_control <v4l2-control>` and call the
+field of a struct :c:type:`struct v4l2_control <v4l2_control>` and call the
 :ref:`VIDIOC_G_CTRL <VIDIOC_G_CTRL>` ioctl with a pointer to this structure. To change the
 value of a control applications initialize the ``id`` and ``value``
-fields of a struct :ref:`struct v4l2_control <v4l2-control>` and call the
+fields of a struct :c:type:`struct v4l2_control <v4l2_control>` and call the
 :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>` ioctl.
 
 When the ``id`` is invalid drivers return an ``EINVAL`` error code. When the
@@ -55,7 +55,7 @@ These ioctls work only with user controls. For other control classes the
 :ref:`VIDIOC_TRY_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` must be used.
 
 
-.. _v4l2-control:
+.. c:type:: v4l2_control
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
@@ -90,13 +90,13 @@ appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
-    The struct :ref:`v4l2_control <v4l2-control>` ``id`` is invalid
+    The struct :c:type:`v4l2_control` ``id`` is invalid
     or the ``value`` is inappropriate for the given control (i.e. if a
     menu item is selected that is not supported by the driver according
     to :ref:`VIDIOC_QUERYMENU <VIDIOC_QUERYCTRL>`).
 
 ERANGE
-    The struct :ref:`v4l2_control <v4l2-control>` ``value`` is out of
+    The struct :c:type:`v4l2_control` ``value`` is out of
     bounds.
 
 EBUSY

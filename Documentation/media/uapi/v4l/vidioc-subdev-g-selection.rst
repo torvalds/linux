@@ -110,7 +110,7 @@ Selection targets and flags are documented in
 
     -  .. row 5
 
-       -  struct :ref:`v4l2_rect <v4l2-rect>`
+       -  struct :c:type:`v4l2_rect`
 
        -  ``r``
 

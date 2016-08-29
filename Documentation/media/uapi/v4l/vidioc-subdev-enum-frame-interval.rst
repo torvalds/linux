@@ -113,7 +113,7 @@ multiple pads of the same sub-device is not defined.
 
     -  .. row 6
 
-       -  struct :ref:`v4l2_fract <v4l2-fract>`
+       -  struct :c:type:`v4l2_fract`
 
        -  ``interval``
 

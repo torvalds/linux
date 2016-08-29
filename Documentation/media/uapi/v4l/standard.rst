@@ -9,8 +9,8 @@ Video Standards
 Video devices typically support one or more different video standards or
 variations of standards. Each video input and output may support another
 set of standards. This set is reported by the ``std`` field of struct
-:ref:`v4l2_input <v4l2-input>` and struct
-:ref:`v4l2_output <v4l2-output>` returned by the
+:c:type:`v4l2_input` and struct
+:c:type:`v4l2_output` returned by the
 :ref:`VIDIOC_ENUMINPUT` and
 :ref:`VIDIOC_ENUMOUTPUT` ioctls, respectively.
 
@@ -58,8 +58,8 @@ output device which is:
 -  that does not support the video standard formats at all.
 
 Here the driver shall set the ``std`` field of struct
-:ref:`v4l2_input <v4l2-input>` and struct
-:ref:`v4l2_output <v4l2-output>` to zero and the :ref:`VIDIOC_G_STD <VIDIOC_G_STD>`,
+:c:type:`v4l2_input` and struct
+:c:type:`v4l2_output` to zero and the :ref:`VIDIOC_G_STD <VIDIOC_G_STD>`,
 :ref:`VIDIOC_S_STD <VIDIOC_G_STD>`, :ref:`VIDIOC_QUERYSTD` and :ref:`VIDIOC_ENUMSTD` ioctls
 shall return the ``ENOTTY`` error code or the ``EINVAL`` error code.
 

@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _dvb-frontend-event:
+.. c:type:: dvb_frontend_event
 
 ***************
 frontend events

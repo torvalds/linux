@@ -71,7 +71,7 @@ the following values.
     } audio_channel_select_t;
 
 
-.. _audio-status:
+.. c:type:: audio_status
 
 struct audio_status
 ===================
@@ -93,7 +93,7 @@ about various states of the playback operation.
     } audio_status_t;
 
 
-.. _audio-mixer:
+.. c:type:: audio_mixer
 
 struct audio_mixer
 ==================
@@ -132,7 +132,7 @@ following bits set according to the hardwares capabilities.
      #define AUDIO_CAP_AC3  256
 
 
-.. _audio-karaoke:
+.. c:type:: audio_karaoke
 
 struct audio_karaoke
 ====================

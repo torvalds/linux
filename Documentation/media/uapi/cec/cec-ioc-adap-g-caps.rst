@@ -36,12 +36,12 @@ Description
 
 All cec devices must support :ref:`ioctl CEC_ADAP_G_CAPS <CEC_ADAP_G_CAPS>`. To query
 device information, applications call the ioctl with a pointer to a
-struct :ref:`cec_caps <cec-caps>`. The driver fills the structure and
+struct :c:type:`cec_caps`. The driver fills the structure and
 returns the information to the application. The ioctl never fails.
 
 .. tabularcolumns:: |p{1.2cm}|p{2.5cm}|p{13.8cm}|
 
-.. _cec-caps:
+.. c:type:: cec_caps
 
 .. flat-table:: struct cec_caps
     :header-rows:  0

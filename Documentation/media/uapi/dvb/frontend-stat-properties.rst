@@ -20,7 +20,7 @@ standards, up to 3 groups of statistics can be provided, and
 plus one metric per each carrier group (called "layer" on ISDB).
 
 So, in order to be consistent with other delivery systems, the first
-value at :ref:`dtv_property.stat.dtv_stats <dtv-stats>` array refers
+value at :c:type:`dtv_property.stat.dtv_stats <dtv_stats>` array refers
 to the global metric. The other elements of the array represent each
 layer, starting from layer A(index 1), layer B (index 2) and so on.
 

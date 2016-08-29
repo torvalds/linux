@@ -69,7 +69,7 @@ accordingly.
 
 Both ioctls take a pointer to an integer, the desired buffer or stream
 type. This is the same as struct
-:ref:`v4l2_requestbuffers <v4l2-requestbuffers>` ``type``.
+:c:type:`v4l2_requestbuffers` ``type``.
 
 If ``VIDIOC_STREAMON`` is called when streaming is already in progress,
 or if ``VIDIOC_STREAMOFF`` is called when streaming is already stopped,

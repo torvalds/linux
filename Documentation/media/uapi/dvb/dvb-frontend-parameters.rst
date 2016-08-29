@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _dvb-frontend-parameters:
+.. c:type:: dvb_frontend_parameters
 
 *******************
 frontend parameters
@@ -49,7 +49,7 @@ frontends the ``frequency`` specifies the absolute frequency and is
 given in Hz.
 
 
-.. _dvb-qpsk-parameters:
+.. c:type:: dvb_qpsk_parameters
 
 QPSK parameters
 ===============
@@ -66,7 +66,7 @@ structure:
      };
 
 
-.. _dvb-qam-parameters:
+.. c:type:: dvb_qam_parameters
 
 QAM parameters
 ==============
@@ -83,7 +83,7 @@ for cable QAM frontend you use the ``dvb_qam_parameters`` structure:
      };
 
 
-.. _dvb-vsb-parameters:
+.. c:type:: dvb_vsb_parameters
 
 VSB parameters
 ==============
@@ -98,7 +98,7 @@ ATSC frontends are supported by the ``dvb_vsb_parameters`` structure:
     };
 
 
-.. _dvb-ofdm-parameters:
+.. c:type:: dvb_ofdm_parameters
 
 OFDM parameters
 ===============

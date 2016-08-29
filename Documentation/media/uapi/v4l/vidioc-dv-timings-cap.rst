@@ -36,7 +36,7 @@ Description
 
 To query the capabilities of the DV receiver/transmitter applications
 initialize the ``pad`` field to 0, zero the reserved array of struct
-:ref:`v4l2_dv_timings_cap <v4l2-dv-timings-cap>` and call the
+:c:type:`v4l2_dv_timings_cap` and call the
 ``VIDIOC_DV_TIMINGS_CAP`` ioctl on a video node and the driver will fill
 in the structure.
 
@@ -50,14 +50,14 @@ queried by calling the ``VIDIOC_SUBDEV_DV_TIMINGS_CAP`` ioctl directly
 on a subdevice node. The capabilities are specific to inputs (for DV
 receivers) or outputs (for DV transmitters), applications must specify
 the desired pad number in the struct
-:ref:`v4l2_dv_timings_cap <v4l2-dv-timings-cap>` ``pad`` field and
+:c:type:`v4l2_dv_timings_cap` ``pad`` field and
 zero the ``reserved`` array. Attempts to query capabilities on a pad
 that doesn't support them will return an ``EINVAL`` error code.
 
 
 .. tabularcolumns:: |p{1.2cm}|p{3.0cm}|p{13.3cm}|
 
-.. _v4l2-bt-timings-cap:
+.. c:type:: v4l2_bt_timings_cap
 
 .. flat-table:: struct v4l2_bt_timings_cap
     :header-rows:  0
@@ -144,7 +144,7 @@ that doesn't support them will return an ``EINVAL`` error code.
 
 .. tabularcolumns:: |p{1.0cm}|p{3.5cm}|p{3.5cm}|p{9.5cm}|
 
-.. _v4l2-dv-timings-cap:
+.. c:type:: v4l2_dv_timings_cap
 
 .. flat-table:: struct v4l2_dv_timings_cap
     :header-rows:  0
@@ -190,7 +190,7 @@ that doesn't support them will return an ``EINVAL`` error code.
     -  .. row 5
 
        -
-       -  struct :ref:`v4l2_bt_timings_cap <v4l2-bt-timings-cap>`
+       -  struct :c:type:`v4l2_bt_timings_cap`
 
        -  ``bt``
 

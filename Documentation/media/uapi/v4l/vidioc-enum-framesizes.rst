@@ -26,7 +26,7 @@ Arguments
     File descriptor returned by :ref:`open() <func-open>`.
 
 ``argp``
-    Pointer to a struct :ref:`v4l2_frmsizeenum <v4l2-frmsizeenum>`
+    Pointer to a struct :c:type:`v4l2_frmsizeenum`
     that contains an index and pixel format and receives a frame width
     and height.
 
@@ -90,7 +90,7 @@ the application, *OUT* denotes values that the driver fills in. The
 application should zero out all members except for the *IN* fields.
 
 
-.. _v4l2-frmsize-discrete:
+.. c:type:: v4l2_frmsize_discrete
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
@@ -118,7 +118,7 @@ application should zero out all members except for the *IN* fields.
 
 
 
-.. _v4l2-frmsize-stepwise:
+.. c:type:: v4l2_frmsize_stepwise
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
@@ -178,7 +178,7 @@ application should zero out all members except for the *IN* fields.
 
 
 
-.. _v4l2-frmsizeenum:
+.. c:type:: v4l2_frmsizeenum
 
 .. flat-table:: struct v4l2_frmsizeenum
     :header-rows:  0
@@ -223,7 +223,7 @@ application should zero out all members except for the *IN* fields.
     -  .. row 5
 
        -
-       -  struct :ref:`v4l2_frmsize_discrete <v4l2-frmsize-discrete>`
+       -  struct :c:type:`v4l2_frmsize_discrete`
 
        -  ``discrete``
 
@@ -232,7 +232,7 @@ application should zero out all members except for the *IN* fields.
     -  .. row 6
 
        -
-       -  struct :ref:`v4l2_frmsize_stepwise <v4l2-frmsize-stepwise>`
+       -  struct :c:type:`v4l2_frmsize_stepwise`
 
        -  ``stepwise``
 

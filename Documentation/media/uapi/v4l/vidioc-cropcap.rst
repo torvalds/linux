@@ -50,7 +50,7 @@ support cropping and/or scaling and/or have non-square pixels, and for
 overlay devices.
 
 
-.. _v4l2-cropcap:
+.. c:type:: v4l2_cropcap
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
@@ -98,7 +98,7 @@ overlay devices.
 
     -  .. row 4
 
-       -  struct :ref:`v4l2_fract <v4l2-fract>`
+       -  struct :c:type:`v4l2_fract`
 
        -  ``pixelaspect``
 
@@ -165,7 +165,7 @@ appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
-    The struct :ref:`v4l2_cropcap <v4l2-cropcap>` ``type`` is
+    The struct :c:type:`v4l2_cropcap` ``type`` is
     invalid.
 
 ENODATA

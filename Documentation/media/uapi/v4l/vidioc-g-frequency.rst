@@ -36,7 +36,7 @@ Description
 
 To get the current tuner or modulator radio frequency applications set
 the ``tuner`` field of a struct
-:ref:`v4l2_frequency <v4l2-frequency>` to the respective tuner or
+:c:type:`v4l2_frequency` to the respective tuner or
 modulator number (only input devices have tuners, only output devices
 have modulators), zero out the ``reserved`` array and call the
 :ref:`VIDIOC_G_FREQUENCY <VIDIOC_G_FREQUENCY>` ioctl with a pointer to this structure. The
@@ -44,7 +44,7 @@ driver stores the current frequency in the ``frequency`` field.
 
 To change the current tuner or modulator radio frequency applications
 initialize the ``tuner``, ``type`` and ``frequency`` fields, and the
-``reserved`` array of a struct :ref:`v4l2_frequency <v4l2-frequency>`
+``reserved`` array of a struct :c:type:`v4l2_frequency`
 and call the :ref:`VIDIOC_S_FREQUENCY <VIDIOC_G_FREQUENCY>` ioctl with a pointer to this
 structure. When the requested frequency is not possible the driver
 assumes the closest possible value. However :ref:`VIDIOC_S_FREQUENCY <VIDIOC_G_FREQUENCY>` is a
@@ -53,7 +53,7 @@ write-only ioctl, it does not return the actual new frequency.
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
-.. _v4l2-frequency:
+.. c:type:: v4l2_frequency
 
 .. flat-table:: struct v4l2_frequency
     :header-rows:  0
@@ -68,10 +68,10 @@ write-only ioctl, it does not return the actual new frequency.
        -  ``tuner``
 
        -  The tuner or modulator index number. This is the same value as in
-	  the struct :ref:`v4l2_input <v4l2-input>` ``tuner`` field and
-	  the struct :ref:`v4l2_tuner <v4l2-tuner>` ``index`` field, or
-	  the struct :ref:`v4l2_output <v4l2-output>` ``modulator`` field
-	  and the struct :ref:`v4l2_modulator <v4l2-modulator>` ``index``
+	  the struct :c:type:`v4l2_input` ``tuner`` field and
+	  the struct :c:type:`v4l2_tuner` ``index`` field, or
+	  the struct :c:type:`v4l2_output` ``modulator`` field
+	  and the struct :c:type:`v4l2_modulator` ``index``
 	  field.
 
     -  .. row 2
@@ -81,7 +81,7 @@ write-only ioctl, it does not return the actual new frequency.
        -  ``type``
 
        -  The tuner type. This is the same value as in the struct
-	  :ref:`v4l2_tuner <v4l2-tuner>` ``type`` field. The type must be
+	  :c:type:`v4l2_tuner` ``type`` field. The type must be
 	  set to ``V4L2_TUNER_RADIO`` for ``/dev/radioX`` device nodes, and
 	  to ``V4L2_TUNER_ANALOG_TV`` for all others. Set this field to
 	  ``V4L2_TUNER_RADIO`` for modulators (currently only radio
@@ -94,8 +94,8 @@ write-only ioctl, it does not return the actual new frequency.
        -  ``frequency``
 
        -  Tuning frequency in units of 62.5 kHz, or if the struct
-	  :ref:`v4l2_tuner <v4l2-tuner>` or struct
-	  :ref:`v4l2_modulator <v4l2-modulator>` ``capability`` flag
+	  :c:type:`v4l2_tuner` or struct
+	  :c:type:`v4l2_modulator` ``capability`` flag
 	  ``V4L2_TUNER_CAP_LOW`` is set, in units of 62.5 Hz. A 1 Hz unit is
 	  used when the ``capability`` flag ``V4L2_TUNER_CAP_1HZ`` is set.
 

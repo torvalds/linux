@@ -39,14 +39,14 @@ Applications call the ``VIDIOC_QBUF`` ioctl to enqueue an empty
 The semantics depend on the selected I/O method.
 
 To enqueue a buffer applications set the ``type`` field of a struct
-:ref:`v4l2_buffer <v4l2-buffer>` to the same buffer type as was
-previously used with struct :ref:`v4l2_format <v4l2-format>` ``type``
-and struct :ref:`v4l2_requestbuffers <v4l2-requestbuffers>` ``type``.
+:c:type:`v4l2_buffer` to the same buffer type as was
+previously used with struct :c:type:`v4l2_format` ``type``
+and struct :c:type:`v4l2_requestbuffers` ``type``.
 Applications must also set the ``index`` field. Valid index numbers
 range from zero to the number of buffers allocated with
 :ref:`VIDIOC_REQBUFS` (struct
-:ref:`v4l2_requestbuffers <v4l2-requestbuffers>` ``count``) minus
-one. The contents of the struct :ref:`struct v4l2_buffer <v4l2-buffer>` returned
+:c:type:`v4l2_requestbuffers` ``count``) minus
+one. The contents of the struct :c:type:`struct v4l2_buffer <v4l2_buffer>` returned
 by a :ref:`VIDIOC_QUERYBUF` ioctl will do as well.
 When the buffer is intended for output (``type`` is
 ``V4L2_BUF_TYPE_VIDEO_OUTPUT``, ``V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE``,
@@ -56,7 +56,7 @@ for details. Applications must also set ``flags`` to 0. The
 ``reserved2`` and ``reserved`` fields must be set to 0. When using the
 :ref:`multi-planar API <planar-apis>`, the ``m.planes`` field must
 contain a userspace pointer to a filled-in array of struct
-:ref:`v4l2_plane <v4l2-plane>` and the ``length`` field must be set
+:c:type:`v4l2_plane` and the ``length`` field must be set
 to the number of elements in that array.
 
 To enqueue a :ref:`memory mapped <mmap>` buffer applications set the
@@ -70,7 +70,7 @@ To enqueue a :ref:`user pointer <userp>` buffer applications set the
 ``memory`` field to ``V4L2_MEMORY_USERPTR``, the ``m.userptr`` field to
 the address of the buffer and ``length`` to its size. When the
 multi-planar API is used, ``m.userptr`` and ``length`` members of the
-passed array of struct :ref:`v4l2_plane <v4l2-plane>` have to be used
+passed array of struct :c:type:`v4l2_plane` have to be used
 instead. When ``VIDIOC_QBUF`` is called with a pointer to this structure
 the driver sets the ``V4L2_BUF_FLAG_QUEUED`` flag and clears the
 ``V4L2_BUF_FLAG_MAPPED`` and ``V4L2_BUF_FLAG_DONE`` flags in the
@@ -85,7 +85,7 @@ To enqueue a :ref:`DMABUF <dmabuf>` buffer applications set the
 ``memory`` field to ``V4L2_MEMORY_DMABUF`` and the ``m.fd`` field to a
 file descriptor associated with a DMABUF buffer. When the multi-planar
 API is used the ``m.fd`` fields of the passed array of struct
-:ref:`v4l2_plane <v4l2-plane>` have to be used instead. When
+:c:type:`v4l2_plane` have to be used instead. When
 ``VIDIOC_QBUF`` is called with a pointer to this structure the driver
 sets the ``V4L2_BUF_FLAG_QUEUED`` flag and clears the
 ``V4L2_BUF_FLAG_MAPPED`` and ``V4L2_BUF_FLAG_DONE`` flags in the
@@ -100,7 +100,7 @@ device is closed.
 Applications call the ``VIDIOC_DQBUF`` ioctl to dequeue a filled
 (capturing) or displayed (output) buffer from the driver's outgoing
 queue. They just set the ``type``, ``memory`` and ``reserved`` fields of
-a struct :ref:`v4l2_buffer <v4l2-buffer>` as above, when
+a struct :c:type:`v4l2_buffer` as above, when
 ``VIDIOC_DQBUF`` is called with a pointer to this structure the driver
 fills the remaining fields or returns an error code. The driver may also
 set ``V4L2_BUF_FLAG_ERROR`` in the ``flags`` field. It indicates a
@@ -114,7 +114,7 @@ queue. When the ``O_NONBLOCK`` flag was given to the
 :ref:`open() <func-open>` function, ``VIDIOC_DQBUF`` returns
 immediately with an ``EAGAIN`` error code when no buffer is available.
 
-The :ref:`struct v4l2_buffer <v4l2-buffer>` structure is specified in
+The :c:type:`struct v4l2_buffer <v4l2_buffer>` structure is specified in
 :ref:`buffer`.
 
 

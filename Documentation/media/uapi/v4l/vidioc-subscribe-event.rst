@@ -41,7 +41,7 @@ using the :ref:`VIDIOC_DQEVENT` ioctl.
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
-.. _v4l2-event-subscription:
+.. c:type:: v4l2_event_subscription
 
 .. flat-table:: struct v4l2_event_subscription
     :header-rows:  0

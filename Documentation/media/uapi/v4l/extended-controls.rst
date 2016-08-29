@@ -49,7 +49,7 @@ control). This is needed since it is often required to atomically change
 several controls at once.
 
 Each of the new ioctls expects a pointer to a struct
-:ref:`v4l2_ext_controls <v4l2-ext-controls>`. This structure
+:c:type:`v4l2_ext_controls`. This structure
 contains a pointer to the control array, a count of the number of
 controls in that array and a control class. Control classes are used to
 group similar controls into a single class. For example, control class
@@ -65,12 +65,12 @@ It is also possible to use an empty control array (``count`` == 0) to check
 whether the specified control class is supported.
 
 The control array is a struct
-:ref:`v4l2_ext_control <v4l2-ext-control>` array. The
-:ref:`struct v4l2_ext_control <v4l2-ext-control>` structure is very similar to
-struct :ref:`v4l2_control <v4l2-control>`, except for the fact that
+:c:type:`v4l2_ext_control` array. The
+:c:type:`struct v4l2_ext_control <v4l2_ext_control>` structure is very similar to
+struct :c:type:`v4l2_control`, except for the fact that
 it also allows for 64-bit values and pointers to be passed.
 
-Since the struct :ref:`v4l2_ext_control <v4l2-ext-control>` supports
+Since the struct :c:type:`v4l2_ext_control` supports
 pointers it is now also possible to have controls with compound types
 such as N-dimensional arrays and/or structures. You need to specify the
 ``V4L2_CTRL_FLAG_NEXT_COMPOUND`` when enumerating controls to actually

@@ -33,7 +33,7 @@ Description
 
 The typical usage of this ioctl is to call it twice. On the first call,
 the structure defined at struct
-:ref:`media_v2_topology <media-v2-topology>` should be zeroed. At
+:c:type:`media_v2_topology` should be zeroed. At
 return, if no errors happen, this ioctl will return the
 ``topology_version`` and the total number of entities, interfaces, pads
 and links.
@@ -48,7 +48,7 @@ desired arrays with the media graph elements.
 
 .. tabularcolumns:: |p{1.6cm}|p{3.2cm}|p{12.7cm}|
 
-.. _media-v2-topology:
+.. c:type:: media_v2_topology
 
 .. flat-table:: struct media_v2_topology
     :header-rows:  0
@@ -143,7 +143,7 @@ desired arrays with the media graph elements.
 
 .. tabularcolumns:: |p{1.6cm}|p{3.2cm}|p{12.7cm}|
 
-.. _media-v2-entity:
+.. c:type:: media_v2_entity
 
 .. flat-table:: struct media_v2_entity
     :header-rows:  0
@@ -187,7 +187,7 @@ desired arrays with the media graph elements.
 
 .. tabularcolumns:: |p{1.6cm}|p{3.2cm}|p{12.7cm}|
 
-.. _media-v2-interface:
+.. c:type:: media_v2_interface
 
 .. flat-table:: struct media_v2_interface
     :header-rows:  0
@@ -239,7 +239,7 @@ desired arrays with the media graph elements.
 
 .. tabularcolumns:: |p{1.6cm}|p{3.2cm}|p{12.7cm}|
 
-.. _media-v2-intf-devnode:
+.. c:type:: media_v2_intf_devnode
 
 .. flat-table:: struct media_v2_interface
     :header-rows:  0
@@ -266,7 +266,7 @@ desired arrays with the media graph elements.
 
 .. tabularcolumns:: |p{1.6cm}|p{3.2cm}|p{12.7cm}|
 
-.. _media-v2-pad:
+.. c:type:: media_v2_pad
 
 .. flat-table:: struct media_v2_pad
     :header-rows:  0
@@ -310,7 +310,7 @@ desired arrays with the media graph elements.
 
 .. tabularcolumns:: |p{1.6cm}|p{3.2cm}|p{12.7cm}|
 
-.. _media-v2-link:
+.. c:type:: media_v2_link
 
 .. flat-table:: struct media_v2_pad
     :header-rows:  0

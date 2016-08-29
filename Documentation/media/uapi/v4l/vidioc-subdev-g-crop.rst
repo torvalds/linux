@@ -100,7 +100,7 @@ modified format should be as close as possible to the original request.
 
     -  .. row 3
 
-       -  struct :ref:`v4l2_rect <v4l2-rect>`
+       -  struct :c:type:`v4l2_rect`
 
        -  ``rect``
 

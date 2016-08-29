@@ -32,7 +32,7 @@ Description
 ===========
 
 To query the attributes of an entity, applications set the id field of a
-struct :ref:`media_entity_desc <media-entity-desc>` structure and
+struct :c:type:`media_entity_desc` structure and
 call the MEDIA_IOC_ENUM_ENTITIES ioctl with a pointer to this
 structure. The driver fills the rest of the structure or returns an
 EINVAL error code when the id is invalid.
@@ -49,7 +49,7 @@ enumerate entities by calling MEDIA_IOC_ENUM_ENTITIES with increasing
 id's until they get an error.
 
 
-.. _media-entity-desc:
+.. c:type:: media_entity_desc
 
 .. tabularcolumns:: |p{1.5cm}|p{1.5cm}|p{1.5cm}|p{1.5cm}|p{11.5cm}|
 
@@ -195,5 +195,5 @@ appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
-    The struct :ref:`media_entity_desc <media-entity-desc>` ``id``
+    The struct :c:type:`media_entity_desc` ``id``
     references a non-existing entity.

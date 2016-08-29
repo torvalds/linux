@@ -47,7 +47,7 @@ clearer.
 All video capture and output devices must report the current field
 order. Some drivers may permit the selection of a different order, to
 this end applications initialize the ``field`` field of struct
-:ref:`v4l2_pix_format <v4l2-pix-format>` before calling the
+:c:type:`v4l2_pix_format` before calling the
 :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl. If this is not desired it
 should have the value ``V4L2_FIELD_ANY`` (0).
 
@@ -80,7 +80,7 @@ enum v4l2_field
 	  driver must choose one of the possible field orders during
 	  :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` or
 	  :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>`. struct
-	  :ref:`v4l2_buffer <v4l2-buffer>` ``field`` can never be
+	  :c:type:`v4l2_buffer` ``field`` can never be
 	  ``V4L2_FIELD_ANY``.
 
     -  .. row 2
@@ -156,12 +156,12 @@ enum v4l2_field
 	  temporal order, i. e. the older one first. To indicate the field
 	  parity (whether the current field is a top or bottom field) the
 	  driver or application, depending on data direction, must set
-	  struct :ref:`v4l2_buffer <v4l2-buffer>` ``field`` to
+	  struct :c:type:`v4l2_buffer` ``field`` to
 	  ``V4L2_FIELD_TOP`` or ``V4L2_FIELD_BOTTOM``. Any two successive
 	  fields pair to build a frame. If fields are successive, without
 	  any dropped fields between them (fields can drop individually),
 	  can be determined from the struct
-	  :ref:`v4l2_buffer <v4l2-buffer>` ``sequence`` field. This
+	  :c:type:`v4l2_buffer` ``sequence`` field. This
 	  format cannot be selected when using the read/write I/O method
 	  since there is no way to communicate if a field was a top or
 	  bottom field.

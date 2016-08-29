@@ -33,7 +33,7 @@ Description
 
 To query the attributes of a video standard, especially a custom (driver
 defined) one, applications initialize the ``index`` field of struct
-:ref:`v4l2_standard <v4l2-standard>` and call the :ref:`VIDIOC_ENUMSTD`
+:c:type:`v4l2_standard` and call the :ref:`VIDIOC_ENUMSTD`
 ioctl with a pointer to this structure. Drivers fill the rest of the
 structure or return an ``EINVAL`` error code when the index is out of
 bounds. To enumerate all standards applications shall begin at index
@@ -42,7 +42,7 @@ enumerate a different set of standards after switching the video input
 or output. [#f1]_
 
 
-.. _v4l2-standard:
+.. c:type:: v4l2_standard
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
@@ -71,7 +71,7 @@ or output. [#f1]_
 	  set as custom standards. Multiple bits can be set if the hardware
 	  does not distinguish between these standards, however separate
 	  indices do not indicate the opposite. The ``id`` must be unique.
-	  No other enumerated :ref:`struct v4l2_standard <v4l2-standard>` structure,
+	  No other enumerated :c:type:`struct v4l2_standard <v4l2_standard>` structure,
 	  for this input or output anyway, can contain the same set of bits.
 
     -  .. row 3
@@ -86,7 +86,7 @@ or output. [#f1]_
 
     -  .. row 4
 
-       -  struct :ref:`v4l2_fract <v4l2-fract>`
+       -  struct :c:type:`v4l2_fract`
 
        -  ``frameperiod``
 
@@ -112,7 +112,7 @@ or output. [#f1]_
 
 
 
-.. _v4l2-fract:
+.. c:type:: v4l2_fract
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
@@ -411,7 +411,7 @@ appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
-    The struct :ref:`v4l2_standard <v4l2-standard>` ``index`` is out
+    The struct :c:type:`v4l2_standard` ``index`` is out
     of bounds.
 
 ENODATA

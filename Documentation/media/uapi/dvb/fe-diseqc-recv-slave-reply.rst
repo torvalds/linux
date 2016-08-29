@@ -27,7 +27,7 @@ Arguments
 
 ``argp``
     pointer to struct
-    :ref:`dvb_diseqc_slave_reply <dvb-diseqc-slave-reply>`
+    :c:type:`dvb_diseqc_slave_reply`
 
 
 Description
@@ -35,7 +35,7 @@ Description
 
 Receives reply from a DiSEqC 2.0 command.
 
-.. _dvb-diseqc-slave-reply:
+.. c:type:: dvb_diseqc_slave_reply
 
 struct dvb_diseqc_slave_reply
 -----------------------------

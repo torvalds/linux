@@ -38,9 +38,9 @@ To query and select the current video standard applications use the
 :ref:`VIDIOC_G_STD <VIDIOC_G_STD>` and :ref:`VIDIOC_S_STD <VIDIOC_G_STD>` ioctls which take a pointer to a
 :ref:`v4l2_std_id <v4l2-std-id>` type as argument. :ref:`VIDIOC_G_STD <VIDIOC_G_STD>`
 can return a single flag or a set of flags as in struct
-:ref:`v4l2_standard <v4l2-standard>` field ``id``. The flags must be
+:c:type:`v4l2_standard` field ``id``. The flags must be
 unambiguous such that they appear in only one enumerated
-:ref:`struct v4l2_standard <v4l2-standard>` structure.
+:c:type:`struct v4l2_standard <v4l2_standard>` structure.
 
 :ref:`VIDIOC_S_STD <VIDIOC_G_STD>` accepts one or more flags, being a write-only ioctl it
 does not return the actual new standard as :ref:`VIDIOC_G_STD <VIDIOC_G_STD>` does. When

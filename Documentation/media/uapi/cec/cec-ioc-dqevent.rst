@@ -105,7 +105,7 @@ it is guaranteed that the state did change in between the two events.
 
 .. tabularcolumns:: |p{1.0cm}|p{4.2cm}|p{2.5cm}|p{8.8cm}|
 
-.. _cec-event:
+.. c:type:: cec_event
 
 .. flat-table:: struct cec_event
     :header-rows:  0

@@ -35,7 +35,7 @@ Description
 ===========
 
 To query the current audio output applications zero out the ``reserved``
-array of a struct :ref:`v4l2_audioout <v4l2-audioout>` and call the
+array of a struct :c:type:`v4l2_audioout` and call the
 ``VIDIOC_G_AUDOUT`` ioctl with a pointer to this structure. Drivers fill
 the rest of the structure or return an ``EINVAL`` error code when the device
 has no audio inputs, or none which combine with the current video
@@ -44,7 +44,7 @@ output.
 Audio outputs have no writable properties. Nevertheless, to select the
 current audio output applications can initialize the ``index`` field and
 ``reserved`` array (which in the future may contain writable properties)
-of a :ref:`struct v4l2_audioout <v4l2-audioout>` structure and call the
+of a :c:type:`struct v4l2_audioout <v4l2_audioout>` structure and call the
 ``VIDIOC_S_AUDOUT`` ioctl. Drivers switch to the requested output or
 return the ``EINVAL`` error code when the index is out of bounds. This is a
 write-only ioctl, it does not return the current audio output attributes
@@ -56,7 +56,7 @@ as ``VIDIOC_G_AUDOUT`` does.
    to a sound card are not audio outputs in this sense.
 
 
-.. _v4l2-audioout:
+.. c:type:: v4l2_audioout
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 

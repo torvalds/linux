@@ -32,10 +32,10 @@ Description
 ===========
 
 To enumerate pads and/or links for a given entity, applications set the
-entity field of a struct :ref:`media_links_enum <media-links-enum>`
+entity field of a struct :c:type:`media_links_enum`
 structure and initialize the struct
-:ref:`media_pad_desc <media-pad-desc>` and struct
-:ref:`media_link_desc <media-link-desc>` structure arrays pointed by
+:c:type:`media_pad_desc` and struct
+:c:type:`media_link_desc` structure arrays pointed by
 the ``pads`` and ``links`` fields. They then call the
 MEDIA_IOC_ENUM_LINKS ioctl with a pointer to this structure.
 
@@ -53,7 +53,7 @@ Only forward links that originate at one of the entity's source pads are
 returned during the enumeration process.
 
 
-.. _media-links-enum:
+.. c:type:: media_links_enum
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
@@ -73,7 +73,7 @@ returned during the enumeration process.
 
     -  .. row 2
 
-       -  struct :ref:`media_pad_desc <media-pad-desc>`
+       -  struct :c:type:`media_pad_desc`
 
        -  \*\ ``pads``
 
@@ -82,7 +82,7 @@ returned during the enumeration process.
 
     -  .. row 3
 
-       -  struct :ref:`media_link_desc <media-link-desc>`
+       -  struct :c:type:`media_link_desc`
 
        -  \*\ ``links``
 
@@ -91,7 +91,7 @@ returned during the enumeration process.
 
 
 
-.. _media-pad-desc:
+.. c:type:: media_pad_desc
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
@@ -127,7 +127,7 @@ returned during the enumeration process.
 
 
 
-.. _media-link-desc:
+.. c:type:: media_link_desc
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
@@ -139,7 +139,7 @@ returned during the enumeration process.
 
     -  .. row 1
 
-       -  struct :ref:`media_pad_desc <media-pad-desc>`
+       -  struct :c:type:`media_pad_desc`
 
        -  ``source``
 
@@ -147,7 +147,7 @@ returned during the enumeration process.
 
     -  .. row 2
 
-       -  struct :ref:`media_pad_desc <media-pad-desc>`
+       -  struct :c:type:`media_pad_desc`
 
        -  ``sink``
 
@@ -170,5 +170,5 @@ appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
-    The struct :ref:`media_links_enum <media-links-enum>` ``id``
+    The struct :c:type:`media_links_enum` ``id``
     references a non-existing entity.

@@ -48,7 +48,7 @@ Additionally the Linux kernel must be compiled with the
 
 To query the driver applications must initialize the ``match.type`` and
 ``match.addr`` or ``match.name`` fields of a struct
-:ref:`v4l2_dbg_chip_info <v4l2-dbg-chip-info>` and call
+:c:type:`v4l2_dbg_chip_info` and call
 :ref:`VIDIOC_DBG_G_CHIP_INFO` with a pointer to this structure. On success
 the driver stores information about the selected chip in the ``name``
 and ``flags`` fields.
@@ -124,7 +124,7 @@ instructions.
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
-.. _v4l2-dbg-chip-info:
+.. c:type:: v4l2_dbg_chip_info
 
 .. flat-table:: struct v4l2_dbg_chip_info
     :header-rows:  0

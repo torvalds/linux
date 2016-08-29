@@ -34,10 +34,10 @@ Querying Capabilities
 
 Devices supporting the RDS capturing API set the
 ``V4L2_CAP_RDS_CAPTURE`` flag in the ``capabilities`` field of struct
-:ref:`v4l2_capability <v4l2-capability>` returned by the
+:c:type:`v4l2_capability` returned by the
 :ref:`VIDIOC_QUERYCAP` ioctl. Any tuner that
 supports RDS will set the ``V4L2_TUNER_CAP_RDS`` flag in the
-``capability`` field of struct :ref:`v4l2_tuner <v4l2-tuner>`. If the
+``capability`` field of struct :c:type:`v4l2_tuner`. If the
 driver only passes RDS blocks without interpreting the data the
 ``V4L2_TUNER_CAP_RDS_BLOCK_IO`` flag has to be set, see
 :ref:`Reading RDS data <reading-rds-data>`. For future use the flag
@@ -48,19 +48,19 @@ linux-media mailing list:
 `https://linuxtv.org/lists.php <https://linuxtv.org/lists.php>`__.
 
 Whether an RDS signal is present can be detected by looking at the
-``rxsubchans`` field of struct :ref:`v4l2_tuner <v4l2-tuner>`: the
+``rxsubchans`` field of struct :c:type:`v4l2_tuner`: the
 ``V4L2_TUNER_SUB_RDS`` will be set if RDS data was detected.
 
 Devices supporting the RDS output API set the ``V4L2_CAP_RDS_OUTPUT``
 flag in the ``capabilities`` field of struct
-:ref:`v4l2_capability <v4l2-capability>` returned by the
+:c:type:`v4l2_capability` returned by the
 :ref:`VIDIOC_QUERYCAP` ioctl. Any modulator that
 supports RDS will set the ``V4L2_TUNER_CAP_RDS`` flag in the
 ``capability`` field of struct
-:ref:`v4l2_modulator <v4l2-modulator>`. In order to enable the RDS
+:c:type:`v4l2_modulator`. In order to enable the RDS
 transmission one must set the ``V4L2_TUNER_SUB_RDS`` bit in the
 ``txsubchans`` field of struct
-:ref:`v4l2_modulator <v4l2-modulator>`. If the driver only passes RDS
+:c:type:`v4l2_modulator`. If the driver only passes RDS
 blocks without interpreting the data the ``V4L2_TUNER_CAP_RDS_BLOCK_IO``
 flag has to be set. If the tuner is capable of handling RDS entities
 like program identification codes and radio text, the flag
@@ -93,7 +93,7 @@ RDS datastructures
 ==================
 
 
-.. _v4l2-rds-data:
+.. c:type:: v4l2_rds_data
 
 .. tabularcolumns:: |p{2.5cm}|p{2.5cm}|p{12.5cm}|
 

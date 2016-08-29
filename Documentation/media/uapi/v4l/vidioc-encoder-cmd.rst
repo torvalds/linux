@@ -40,7 +40,7 @@ These ioctls control an audio/video (usually MPEG-) encoder.
 executing it.
 
 To send a command applications must initialize all fields of a struct
-:ref:`v4l2_encoder_cmd <v4l2-encoder-cmd>` and call
+:c:type:`v4l2_encoder_cmd` and call
 ``VIDIOC_ENCODER_CMD`` or ``VIDIOC_TRY_ENCODER_CMD`` with a pointer to
 this structure.
 
@@ -67,7 +67,7 @@ introduced in Linux 2.6.21.
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
-.. _v4l2-encoder-cmd:
+.. c:type:: v4l2_encoder_cmd
 
 .. flat-table:: struct v4l2_encoder_cmd
     :header-rows:  0

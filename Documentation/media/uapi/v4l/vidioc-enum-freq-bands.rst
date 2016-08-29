@@ -34,7 +34,7 @@ Description
 Enumerates the frequency bands that a tuner or modulator supports. To do
 this applications initialize the ``tuner``, ``type`` and ``index``
 fields, and zero out the ``reserved`` array of a struct
-:ref:`v4l2_frequency_band <v4l2-frequency-band>` and call the
+:c:type:`v4l2_frequency_band` and call the
 :ref:`VIDIOC_ENUM_FREQ_BANDS` ioctl with a pointer to this structure.
 
 This ioctl is supported if the ``V4L2_TUNER_CAP_FREQ_BANDS`` capability
@@ -43,7 +43,7 @@ of the corresponding tuner/modulator is set.
 
 .. tabularcolumns:: |p{2.9cm}|p{2.9cm}|p{5.8cm}|p{2.9cm}|p{3.0cm}|
 
-.. _v4l2-frequency-band:
+.. c:type:: v4l2_frequency_band
 
 .. flat-table:: struct v4l2_frequency_band
     :header-rows:  0
@@ -58,10 +58,10 @@ of the corresponding tuner/modulator is set.
        -  ``tuner``
 
        -  The tuner or modulator index number. This is the same value as in
-	  the struct :ref:`v4l2_input <v4l2-input>` ``tuner`` field and
-	  the struct :ref:`v4l2_tuner <v4l2-tuner>` ``index`` field, or
-	  the struct :ref:`v4l2_output <v4l2-output>` ``modulator`` field
-	  and the struct :ref:`v4l2_modulator <v4l2-modulator>` ``index``
+	  the struct :c:type:`v4l2_input` ``tuner`` field and
+	  the struct :c:type:`v4l2_tuner` ``index`` field, or
+	  the struct :c:type:`v4l2_output` ``modulator`` field
+	  and the struct :c:type:`v4l2_modulator` ``index``
 	  field.
 
     -  .. row 2
@@ -71,7 +71,7 @@ of the corresponding tuner/modulator is set.
        -  ``type``
 
        -  The tuner type. This is the same value as in the struct
-	  :ref:`v4l2_tuner <v4l2-tuner>` ``type`` field. The type must be
+	  :c:type:`v4l2_tuner` ``type`` field. The type must be
 	  set to ``V4L2_TUNER_RADIO`` for ``/dev/radioX`` device nodes, and
 	  to ``V4L2_TUNER_ANALOG_TV`` for all others. Set this field to
 	  ``V4L2_TUNER_RADIO`` for modulators (currently only radio

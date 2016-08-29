@@ -76,7 +76,7 @@ result.
 
 .. tabularcolumns:: |p{1.0cm}|p{3.5cm}|p{13.0cm}|
 
-.. _cec-msg:
+.. c:type:: cec_msg
 
 .. cssclass:: longtable
 

@@ -11,14 +11,14 @@ the Streaming I/O methods. In the multi-planar API, the data is held in
 planes, while the buffer structure acts as a container for the planes.
 Only pointers to buffers (planes) are exchanged, the data itself is not
 copied. These pointers, together with meta-information like timestamps
-or field parity, are stored in a struct :ref:`struct v4l2_buffer <v4l2-buffer>`,
+or field parity, are stored in a struct :c:type:`struct v4l2_buffer <v4l2_buffer>`,
 argument to the :ref:`VIDIOC_QUERYBUF`,
 :ref:`VIDIOC_QBUF` and
 :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl. In the multi-planar API,
-some plane-specific members of struct :ref:`struct v4l2_buffer <v4l2-buffer>`,
+some plane-specific members of struct :c:type:`struct v4l2_buffer <v4l2_buffer>`,
 such as pointers and sizes for each plane, are stored in struct
-:ref:`struct v4l2_plane <v4l2-plane>` instead. In that case, struct
-:ref:`struct v4l2_buffer <v4l2-buffer>` contains an array of plane structures.
+:c:type:`struct v4l2_plane <v4l2_plane>` instead. In that case, struct
+:c:type:`struct v4l2_buffer <v4l2_buffer>` contains an array of plane structures.
 
 Dequeued video buffers come with timestamps. The driver decides at which
 part of the frame and with which clock the timestamp is taken. Please
@@ -34,7 +34,7 @@ flags are copied from the OUTPUT video buffer to the CAPTURE video
 buffer.
 
 
-.. _v4l2-buffer:
+.. c:type:: v4l2_buffer
 
 struct v4l2_buffer
 ==================
@@ -60,7 +60,7 @@ struct v4l2_buffer
 	  :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>`, then it is set by the
 	  driver. This field can range from zero to the number of buffers
 	  allocated with the :ref:`VIDIOC_REQBUFS` ioctl
-	  (struct :ref:`v4l2_requestbuffers <v4l2-requestbuffers>`
+	  (struct :c:type:`v4l2_requestbuffers`
 	  ``count``), plus any buffers allocated with
 	  :ref:`VIDIOC_CREATE_BUFS` minus one.
 
@@ -72,8 +72,8 @@ struct v4l2_buffer
 
        -
        -  Type of the buffer, same as struct
-	  :ref:`v4l2_format <v4l2-format>` ``type`` or struct
-	  :ref:`v4l2_requestbuffers <v4l2-requestbuffers>` ``type``, set
+	  :c:type:`v4l2_format` ``type`` or struct
+	  :c:type:`v4l2_requestbuffers` ``type``, set
 	  by the application. See :ref:`v4l2-buf-type`
 
     -  .. row 3
@@ -134,7 +134,7 @@ struct v4l2_buffer
 
     -  .. row 7
 
-       -  struct :ref:`v4l2_timecode <v4l2-timecode>`
+       -  struct :c:type:`v4l2_timecode`
 
        -  ``timecode``
 
@@ -229,9 +229,9 @@ struct v4l2_buffer
        -  ``*planes``
 
        -  When using the multi-planar API, contains a userspace pointer to
-	  an array of struct :ref:`v4l2_plane <v4l2-plane>`. The size of
+	  an array of struct :c:type:`v4l2_plane`. The size of
 	  the array should be put in the ``length`` field of this
-	  :ref:`struct v4l2_buffer <v4l2-buffer>` structure.
+	  :c:type:`struct v4l2_buffer <v4l2_buffer>` structure.
 
     -  .. row 15
 
@@ -281,7 +281,7 @@ struct v4l2_buffer
 
 
 
-.. _v4l2-plane:
+.. c:type:: v4l2_plane
 
 struct v4l2_plane
 =================
@@ -344,10 +344,10 @@ struct v4l2_plane
        -  ``mem_offset``
 
        -  When the memory type in the containing struct
-	  :ref:`v4l2_buffer <v4l2-buffer>` is ``V4L2_MEMORY_MMAP``, this
+	  :c:type:`v4l2_buffer` is ``V4L2_MEMORY_MMAP``, this
 	  is the value that should be passed to :ref:`mmap() <func-mmap>`,
 	  similar to the ``offset`` field in struct
-	  :ref:`v4l2_buffer <v4l2-buffer>`.
+	  :c:type:`v4l2_buffer`.
 
     -  .. row 5
 
@@ -357,7 +357,7 @@ struct v4l2_plane
        -  ``userptr``
 
        -  When the memory type in the containing struct
-	  :ref:`v4l2_buffer <v4l2-buffer>` is ``V4L2_MEMORY_USERPTR``,
+	  :c:type:`v4l2_buffer` is ``V4L2_MEMORY_USERPTR``,
 	  this is a userspace pointer to the memory allocated for this plane
 	  by an application.
 
@@ -369,9 +369,9 @@ struct v4l2_plane
        -  ``fd``
 
        -  When the memory type in the containing struct
-	  :ref:`v4l2_buffer <v4l2-buffer>` is ``V4L2_MEMORY_DMABUF``,
+	  :c:type:`v4l2_buffer` is ``V4L2_MEMORY_DMABUF``,
 	  this is a file descriptor associated with a DMABUF buffer, similar
-	  to the ``fd`` field in struct :ref:`v4l2_buffer <v4l2-buffer>`.
+	  to the ``fd`` field in struct :c:type:`v4l2_buffer`.
 
     -  .. row 7
 
@@ -823,13 +823,13 @@ enum v4l2_memory
 Timecodes
 =========
 
-The :ref:`struct v4l2_timecode <v4l2-timecode>` structure is designed to hold a
+The :c:type:`struct v4l2_timecode <v4l2_timecode>` structure is designed to hold a
 :ref:`smpte12m` or similar timecode. (struct
 :c:type:`struct timeval` timestamps are stored in struct
-:ref:`v4l2_buffer <v4l2-buffer>` field ``timestamp``.)
+:c:type:`v4l2_buffer` field ``timestamp``.)
 
 
-.. _v4l2-timecode:
+.. c:type:: v4l2_timecode
 
 struct v4l2_timecode
 --------------------

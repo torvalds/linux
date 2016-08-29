@@ -87,7 +87,7 @@ the same sub-device is not defined.
 
     -  .. row 2
 
-       -  struct :ref:`v4l2_fract <v4l2-fract>`
+       -  struct :c:type:`v4l2_fract`
 
        -  ``interval``
 

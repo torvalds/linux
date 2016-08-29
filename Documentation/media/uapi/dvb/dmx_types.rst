@@ -120,7 +120,7 @@ dmx_pes_type_t
     } dmx_pes_type_t;
 
 
-.. _dmx-filter:
+.. c:type:: dmx_filter
 
 struct dmx_filter
 =================
@@ -136,7 +136,7 @@ struct dmx_filter
     } dmx_filter_t;
 
 
-.. _dmx-sct-filter-params:
+.. c:type:: dmx_sct_filter_params
 
 struct dmx_sct_filter_params
 ============================
@@ -157,7 +157,7 @@ struct dmx_sct_filter_params
     };
 
 
-.. _dmx-pes-filter-params:
+.. c:type:: dmx_pes_filter_params
 
 struct dmx_pes_filter_params
 ============================
@@ -194,7 +194,7 @@ struct dmx_event
      };
 
 
-.. _dmx-stc:
+.. c:type:: dmx_stc
 
 struct dmx_stc
 ==============
@@ -209,7 +209,7 @@ struct dmx_stc
     };
 
 
-.. _dmx-caps:
+.. c:type:: dmx_caps
 
 struct dmx_caps
 ===============

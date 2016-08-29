@@ -26,15 +26,15 @@ Arguments
     File descriptor returned by :ref:`open() <frontend_f_open>`.
 
 ``net_if``
-    pointer to struct :ref:`dvb_net_if <dvb-net-if>`
+    pointer to struct :c:type:`dvb_net_if`
 
 
 Description
 ===========
 
 The NET_GET_IF ioctl uses the interface number given by the struct
-:ref:`dvb_net_if <dvb-net-if>`::ifnum field and fills the content of
-struct :ref:`dvb_net_if <dvb-net-if>` with the packet ID and
+:c:type:`dvb_net_if`::ifnum field and fills the content of
+struct :c:type:`dvb_net_if` with the packet ID and
 encapsulation type used on such interface. If the interface was not
 created yet with :ref:`NET_ADD_IF <net>`, it will return -1 and fill
 the ``errno`` with ``EINVAL`` error code.

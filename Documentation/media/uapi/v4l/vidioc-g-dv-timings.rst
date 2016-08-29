@@ -44,8 +44,8 @@ To set DV timings for the input or output, applications use the
 :ref:`VIDIOC_S_DV_TIMINGS <VIDIOC_G_DV_TIMINGS>` ioctl and to get the current timings,
 applications use the :ref:`VIDIOC_G_DV_TIMINGS <VIDIOC_G_DV_TIMINGS>` ioctl. The detailed timing
 information is filled in using the structure struct
-:ref:`v4l2_dv_timings <v4l2-dv-timings>`. These ioctls take a
-pointer to the struct :ref:`v4l2_dv_timings <v4l2-dv-timings>`
+:c:type:`v4l2_dv_timings`. These ioctls take a
+pointer to the struct :c:type:`v4l2_dv_timings`
 structure as argument. If the ioctl is not supported or the timing
 values are not correct, the driver returns ``EINVAL`` error code.
 
@@ -76,7 +76,7 @@ EBUSY
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
-.. _v4l2-bt-timings:
+.. c:type:: v4l2_bt_timings
 
 .. flat-table:: struct v4l2_bt_timings
     :header-rows:  0
@@ -239,7 +239,7 @@ EBUSY
 
 .. tabularcolumns:: |p{3.5cm}|p{3.5cm}|p{7.0cm}|p{3.5cm}|
 
-.. _v4l2-dv-timings:
+.. c:type:: v4l2_dv_timings
 
 .. flat-table:: struct v4l2_dv_timings
     :header-rows:  0
@@ -266,7 +266,7 @@ EBUSY
     -  .. row 3
 
        -
-       -  struct :ref:`v4l2_bt_timings <v4l2-bt-timings>`
+       -  struct :c:type:`v4l2_bt_timings`
 
        -  ``bt``
 
