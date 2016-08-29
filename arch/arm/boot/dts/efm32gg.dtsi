@@ -5,11 +5,13 @@
  * http://www.silabs.com/Support%20Documents/TechnicalDocs/EFM32GG-RM.pdf
  */
 
-#include "skeleton.dtsi"
 #include "armv7-m.dtsi"
 #include "dt-bindings/clock/efm32-cmu.h"
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
 	aliases {
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
