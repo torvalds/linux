@@ -549,7 +549,7 @@ module_init(proc_hardware_init);
 
 void check_bugs(void)
 {
-#ifndef CONFIG_M68KFPU_EMU
+#if defined(CONFIG_FPU) && !defined(CONFIG_M68KFPU_EMU)
 	if (m68k_fputype == 0) {
 		pr_emerg("*** YOU DO NOT HAVE A FLOATING POINT UNIT, "
 			"WHICH IS REQUIRED BY LINUX/M68K ***\n");
