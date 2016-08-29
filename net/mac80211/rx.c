@@ -180,6 +180,11 @@ ieee80211_rx_radiotap_hdrlen(struct ieee80211_local *local,
 		len += 12;
 	}
 
+	if (local->hw.radiotap_timestamp.units_pos >= 0) {
+		len = ALIGN(len, 8);
+		len += 12;
+	}
+
 	if (status->chains) {
 		/* antenna and antenna signal fields */
 		len += 2 * hweight8(status->chains);
@@ -445,6 +450,31 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 		pos++;
 		/* partial_aid */
 		pos += 2;
+	}
+
+	if (local->hw.radiotap_timestamp.units_pos >= 0) {
+		u16 accuracy = 0;
+		u8 flags = IEEE80211_RADIOTAP_TIMESTAMP_FLAG_32BIT;
+
+		rthdr->it_present |=
+			cpu_to_le32(1 << IEEE80211_RADIOTAP_TIMESTAMP);
+
+		/* ensure 8 byte alignment */
+		while ((pos - (u8 *)rthdr) & 7)
+			pos++;
+
+		put_unaligned_le64(status->device_timestamp, pos);
+		pos += sizeof(u64);
+
+		if (local->hw.radiotap_timestamp.accuracy >= 0) {
+			accuracy = local->hw.radiotap_timestamp.accuracy;
+			flags |= IEEE80211_RADIOTAP_TIMESTAMP_FLAG_ACCURACY;
+		}
+		put_unaligned_le16(accuracy, pos);
+		pos += sizeof(u16);
+
+		*pos++ = local->hw.radiotap_timestamp.units_pos;
+		*pos++ = flags;
 	}
 
 	for_each_set_bit(chain, &chains, IEEE80211_MAX_CHAINS) {

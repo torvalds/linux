@@ -660,6 +660,9 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 
 	ieee80211_roc_setup(local);
 
+	local->hw.radiotap_timestamp.units_pos = -1;
+	local->hw.radiotap_timestamp.accuracy = -1;
+
 	return &local->hw;
  err_free:
 	wiphy_free(wiphy);
