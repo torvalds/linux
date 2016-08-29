@@ -1164,7 +1164,10 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 
 			hci_sock_set_flag(sk, HCI_MGMT_INDEX_EVENTS);
 			hci_sock_set_flag(sk, HCI_MGMT_UNCONF_INDEX_EVENTS);
-			hci_sock_set_flag(sk, HCI_MGMT_GENERIC_EVENTS);
+			hci_sock_set_flag(sk, HCI_MGMT_OPTION_EVENTS);
+			hci_sock_set_flag(sk, HCI_MGMT_SETTING_EVENTS);
+			hci_sock_set_flag(sk, HCI_MGMT_DEV_CLASS_EVENTS);
+			hci_sock_set_flag(sk, HCI_MGMT_LOCAL_NAME_EVENTS);
 		}
 		break;
 	}
