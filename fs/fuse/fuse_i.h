@@ -902,6 +902,8 @@ int fuse_allow_current_process(struct fuse_conn *fc);
 
 u64 fuse_lock_owner_id(struct fuse_conn *fc, fl_owner_t id);
 
+void fuse_update_ctime(struct inode *inode);
+
 int fuse_update_attributes(struct inode *inode, struct kstat *stat,
 			   struct file *file, bool *refreshed);
 
@@ -965,5 +967,8 @@ void fuse_set_initialized(struct fuse_conn *fc);
 
 void fuse_unlock_inode(struct inode *inode);
 void fuse_lock_inode(struct inode *inode);
+
+ssize_t fuse_listxattr(struct dentry *entry, char *list, size_t size);
+extern const struct xattr_handler *fuse_xattr_handlers[];
 
 #endif /* _FS_FUSE_I_H */

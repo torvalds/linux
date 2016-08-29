@@ -13,6 +13,7 @@
 #include <linux/sched.h>
 #include <linux/namei.h>
 #include <linux/slab.h>
+#include <linux/xattr.h>
 
 static bool fuse_use_readdirplus(struct inode *dir, struct dir_context *ctx)
 {
@@ -634,7 +635,7 @@ static int fuse_symlink(struct inode *dir, struct dentry *entry,
 	return create_new_entry(fc, &args, dir, entry, S_IFLNK);
 }
 
-static inline void fuse_update_ctime(struct inode *inode)
+void fuse_update_ctime(struct inode *inode)
 {
 	if (!IS_NOCMTIME(inode)) {
 		inode->i_ctime = current_fs_time(inode->i_sb);
@@ -1724,171 +1725,6 @@ static int fuse_getattr(struct vfsmount *mnt, struct dentry *entry,
 	return fuse_update_attributes(inode, stat, NULL, NULL);
 }
 
-static int fuse_setxattr(struct dentry *unused, struct inode *inode,
-			 const char *name, const void *value,
-			 size_t size, int flags)
-{
-	struct fuse_conn *fc = get_fuse_conn(inode);
-	FUSE_ARGS(args);
-	struct fuse_setxattr_in inarg;
-	int err;
-
-	if (fc->no_setxattr)
-		return -EOPNOTSUPP;
-
-	memset(&inarg, 0, sizeof(inarg));
-	inarg.size = size;
-	inarg.flags = flags;
-	args.in.h.opcode = FUSE_SETXATTR;
-	args.in.h.nodeid = get_node_id(inode);
-	args.in.numargs = 3;
-	args.in.args[0].size = sizeof(inarg);
-	args.in.args[0].value = &inarg;
-	args.in.args[1].size = strlen(name) + 1;
-	args.in.args[1].value = name;
-	args.in.args[2].size = size;
-	args.in.args[2].value = value;
-	err = fuse_simple_request(fc, &args);
-	if (err == -ENOSYS) {
-		fc->no_setxattr = 1;
-		err = -EOPNOTSUPP;
-	}
-	if (!err) {
-		fuse_invalidate_attr(inode);
-		fuse_update_ctime(inode);
-	}
-	return err;
-}
-
-static ssize_t fuse_getxattr(struct dentry *entry, struct inode *inode,
-			     const char *name, void *value, size_t size)
-{
-	struct fuse_conn *fc = get_fuse_conn(inode);
-	FUSE_ARGS(args);
-	struct fuse_getxattr_in inarg;
-	struct fuse_getxattr_out outarg;
-	ssize_t ret;
-
-	if (fc->no_getxattr)
-		return -EOPNOTSUPP;
-
-	memset(&inarg, 0, sizeof(inarg));
-	inarg.size = size;
-	args.in.h.opcode = FUSE_GETXATTR;
-	args.in.h.nodeid = get_node_id(inode);
-	args.in.numargs = 2;
-	args.in.args[0].size = sizeof(inarg);
-	args.in.args[0].value = &inarg;
-	args.in.args[1].size = strlen(name) + 1;
-	args.in.args[1].value = name;
-	/* This is really two different operations rolled into one */
-	args.out.numargs = 1;
-	if (size) {
-		args.out.argvar = 1;
-		args.out.args[0].size = size;
-		args.out.args[0].value = value;
-	} else {
-		args.out.args[0].size = sizeof(outarg);
-		args.out.args[0].value = &outarg;
-	}
-	ret = fuse_simple_request(fc, &args);
-	if (!ret && !size)
-		ret = outarg.size;
-	if (ret == -ENOSYS) {
-		fc->no_getxattr = 1;
-		ret = -EOPNOTSUPP;
-	}
-	return ret;
-}
-
-static int fuse_verify_xattr_list(char *list, size_t size)
-{
-	size_t origsize = size;
-
-	while (size) {
-		size_t thislen = strnlen(list, size);
-
-		if (!thislen || thislen == size)
-			return -EIO;
-
-		size -= thislen + 1;
-		list += thislen + 1;
-	}
-
-	return origsize;
-}
-
-static ssize_t fuse_listxattr(struct dentry *entry, char *list, size_t size)
-{
-	struct inode *inode = d_inode(entry);
-	struct fuse_conn *fc = get_fuse_conn(inode);
-	FUSE_ARGS(args);
-	struct fuse_getxattr_in inarg;
-	struct fuse_getxattr_out outarg;
-	ssize_t ret;
-
-	if (!fuse_allow_current_process(fc))
-		return -EACCES;
-
-	if (fc->no_listxattr)
-		return -EOPNOTSUPP;
-
-	memset(&inarg, 0, sizeof(inarg));
-	inarg.size = size;
-	args.in.h.opcode = FUSE_LISTXATTR;
-	args.in.h.nodeid = get_node_id(inode);
-	args.in.numargs = 1;
-	args.in.args[0].size = sizeof(inarg);
-	args.in.args[0].value = &inarg;
-	/* This is really two different operations rolled into one */
-	args.out.numargs = 1;
-	if (size) {
-		args.out.argvar = 1;
-		args.out.args[0].size = size;
-		args.out.args[0].value = list;
-	} else {
-		args.out.args[0].size = sizeof(outarg);
-		args.out.args[0].value = &outarg;
-	}
-	ret = fuse_simple_request(fc, &args);
-	if (!ret && !size)
-		ret = outarg.size;
-	if (ret > 0 && size)
-		ret = fuse_verify_xattr_list(list, ret);
-	if (ret == -ENOSYS) {
-		fc->no_listxattr = 1;
-		ret = -EOPNOTSUPP;
-	}
-	return ret;
-}
-
-static int fuse_removexattr(struct dentry *entry, const char *name)
-{
-	struct inode *inode = d_inode(entry);
-	struct fuse_conn *fc = get_fuse_conn(inode);
-	FUSE_ARGS(args);
-	int err;
-
-	if (fc->no_removexattr)
-		return -EOPNOTSUPP;
-
-	args.in.h.opcode = FUSE_REMOVEXATTR;
-	args.in.h.nodeid = get_node_id(inode);
-	args.in.numargs = 1;
-	args.in.args[0].size = strlen(name) + 1;
-	args.in.args[0].value = name;
-	err = fuse_simple_request(fc, &args);
-	if (err == -ENOSYS) {
-		fc->no_removexattr = 1;
-		err = -EOPNOTSUPP;
-	}
-	if (!err) {
-		fuse_invalidate_attr(inode);
-		fuse_update_ctime(inode);
-	}
-	return err;
-}
-
 static const struct inode_operations fuse_dir_inode_operations = {
 	.lookup		= fuse_lookup,
 	.mkdir		= fuse_mkdir,
@@ -1903,10 +1739,10 @@ static const struct inode_operations fuse_dir_inode_operations = {
 	.mknod		= fuse_mknod,
 	.permission	= fuse_permission,
 	.getattr	= fuse_getattr,
-	.setxattr	= fuse_setxattr,
-	.getxattr	= fuse_getxattr,
+	.setxattr	= generic_setxattr,
+	.getxattr	= generic_getxattr,
 	.listxattr	= fuse_listxattr,
-	.removexattr	= fuse_removexattr,
+	.removexattr	= generic_removexattr,
 };
 
 static const struct file_operations fuse_dir_operations = {
@@ -1924,10 +1760,10 @@ static const struct inode_operations fuse_common_inode_operations = {
 	.setattr	= fuse_setattr,
 	.permission	= fuse_permission,
 	.getattr	= fuse_getattr,
-	.setxattr	= fuse_setxattr,
-	.getxattr	= fuse_getxattr,
+	.setxattr	= generic_setxattr,
+	.getxattr	= generic_getxattr,
 	.listxattr	= fuse_listxattr,
-	.removexattr	= fuse_removexattr,
+	.removexattr	= generic_removexattr,
 };
 
 static const struct inode_operations fuse_symlink_inode_operations = {
@@ -1935,10 +1771,10 @@ static const struct inode_operations fuse_symlink_inode_operations = {
 	.get_link	= fuse_get_link,
 	.readlink	= generic_readlink,
 	.getattr	= fuse_getattr,
-	.setxattr	= fuse_setxattr,
-	.getxattr	= fuse_getxattr,
+	.setxattr	= generic_setxattr,
+	.getxattr	= generic_getxattr,
 	.listxattr	= fuse_listxattr,
-	.removexattr	= fuse_removexattr,
+	.removexattr	= generic_removexattr,
 };
 
 void fuse_init_common(struct inode *inode)
