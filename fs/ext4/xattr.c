@@ -1425,12 +1425,11 @@ int ext4_expand_extra_isize_ea(struct inode *inode, int new_extra_isize,
 			       struct ext4_inode *raw_inode, handle_t *handle)
 {
 	struct ext4_xattr_ibody_header *header;
-	struct ext4_xattr_entry *entry, *last, *first;
 	struct buffer_head *bh = NULL;
 	size_t min_offs;
 	size_t ifree, bfree;
 	int total_ino;
-	void *base, *start, *end;
+	void *base, *end;
 	int error = 0, tried_min_extra_isize = 0;
 	int s_min_extra_isize = le16_to_cpu(EXT4_SB(inode->i_sb)->s_es->s_min_extra_isize);
 	int isize_diff;	/* How much do we need to grow i_extra_isize */
@@ -1446,24 +1445,22 @@ retry:
 		goto out;
 
 	header = IHDR(inode, raw_inode);
-	entry = IFIRST(header);
 
 	/*
 	 * Check if enough free space is available in the inode to shift the
 	 * entries ahead by new_extra_isize.
 	 */
 
-	base = start = entry;
+	base = IFIRST(header);
 	end = (void *)raw_inode + EXT4_SB(inode->i_sb)->s_inode_size;
 	min_offs = end - base;
-	last = entry;
 	total_ino = sizeof(struct ext4_xattr_ibody_header);
 
 	error = xattr_check_inode(inode, header, end);
 	if (error)
 		goto cleanup;
 
-	ifree = ext4_xattr_free_space(last, &min_offs, base, &total_ino);
+	ifree = ext4_xattr_free_space(base, &min_offs, base, &total_ino);
 	if (ifree >= isize_diff)
 		goto shift;
 
@@ -1483,10 +1480,10 @@ retry:
 			goto cleanup;
 		}
 		base = BHDR(bh);
-		first = BFIRST(bh);
 		end = bh->b_data + bh->b_size;
 		min_offs = end - base;
-		bfree = ext4_xattr_free_space(first, &min_offs, base, NULL);
+		bfree = ext4_xattr_free_space(BFIRST(bh), &min_offs, base,
+					      NULL);
 		if (bfree + ifree < isize_diff) {
 			if (!tried_min_extra_isize && s_min_extra_isize) {
 				tried_min_extra_isize++;
@@ -1502,14 +1499,14 @@ retry:
 	}
 
 	while (isize_diff > ifree) {
-		struct ext4_xattr_entry *small_entry = NULL;
+		struct ext4_xattr_entry *small_entry = NULL, *entry = NULL;
+		struct ext4_xattr_entry *last;
 		unsigned int entry_size;	/* EA entry size */
 		unsigned int total_size;	/* EA entry size + value size */
 		unsigned int min_total_size = ~0U;
 
 		last = IFIRST(header);
 		/* Find the entry best suited to be pushed into EA block */
-		entry = NULL;
 		for (; !IS_LAST_ENTRY(last); last = EXT4_XATTR_NEXT(last)) {
 			total_size =
 			EXT4_XATTR_SIZE(le32_to_cpu(last->e_value_size)) +
@@ -1556,8 +1553,7 @@ retry:
 
 shift:
 	/* Adjust the offsets and shift the remaining entries ahead */
-	entry = IFIRST(header);
-	ext4_xattr_shift_entries(entry,	EXT4_I(inode)->i_extra_isize
+	ext4_xattr_shift_entries(IFIRST(header), EXT4_I(inode)->i_extra_isize
 			- new_extra_isize, (void *)raw_inode +
 			EXT4_GOOD_OLD_INODE_SIZE + new_extra_isize,
 			(void *)header, total_ino);
