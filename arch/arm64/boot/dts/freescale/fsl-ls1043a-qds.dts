@@ -61,6 +61,10 @@
 		serial2 = &duart2;
 		serial3 = &duart3;
 	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
 };
 
 &duart0 {
