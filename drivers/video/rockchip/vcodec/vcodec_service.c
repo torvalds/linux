@@ -2745,7 +2745,7 @@ static irqreturn_t vdpu_irq(int irq, void *dev_id)
 			writel(0x100000, dev->regs + task->reg_irq);
 
 		/* set clock gating to save power */
-		writel(task->gating_mask, dev->regs + task->reg_irq);
+		writel(task->gating_mask, dev->regs + task->reg_en);
 
 		atomic_add(1, &dev->irq_count_codec);
 		time_diff(task);
