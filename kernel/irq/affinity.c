@@ -39,6 +39,7 @@ struct cpumask *irq_create_affinity_mask(unsigned int *nr_vecs)
 		return NULL;
 	}
 
+	get_online_cpus();
 	if (max_vecs >= num_online_cpus()) {
 		cpumask_copy(affinity_mask, cpu_online_mask);
 		*nr_vecs = num_online_cpus();
@@ -56,6 +57,7 @@ struct cpumask *irq_create_affinity_mask(unsigned int *nr_vecs)
 		}
 		*nr_vecs = vecs;
 	}
+	put_online_cpus();
 
 	return affinity_mask;
 }

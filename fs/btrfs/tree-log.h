@@ -30,15 +30,18 @@ struct btrfs_log_ctx {
 	int log_transid;
 	int io_err;
 	bool log_new_dentries;
+	struct inode *inode;
 	struct list_head list;
 };
 
-static inline void btrfs_init_log_ctx(struct btrfs_log_ctx *ctx)
+static inline void btrfs_init_log_ctx(struct btrfs_log_ctx *ctx,
+				      struct inode *inode)
 {
 	ctx->log_ret = 0;
 	ctx->log_transid = 0;
 	ctx->io_err = 0;
 	ctx->log_new_dentries = false;
+	ctx->inode = inode;
 	INIT_LIST_HEAD(&ctx->list);
 }
 
