@@ -1462,4 +1462,14 @@ extern void efi_call_virt_check_flags(unsigned long flags, const char *call);
 	arch_efi_call_virt_teardown();					\
 })
 
+typedef efi_status_t (*efi_exit_boot_map_processing)(
+	efi_system_table_t *sys_table_arg,
+	struct efi_boot_memmap *map,
+	void *priv);
+
+efi_status_t efi_exit_boot_services(efi_system_table_t *sys_table,
+				    void *handle,
+				    struct efi_boot_memmap *map,
+				    void *priv,
+				    efi_exit_boot_map_processing priv_func);
 #endif /* _LINUX_EFI_H */
