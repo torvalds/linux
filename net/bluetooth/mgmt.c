@@ -4869,7 +4869,7 @@ static int clock_info_cmd_complete(struct mgmt_pending_cmd *cmd, u8 status)
 	int err;
 
 	memset(&rp, 0, sizeof(rp));
-	memcpy(&rp.addr, &cmd->param, sizeof(rp.addr));
+	memcpy(&rp.addr, cmd->param, sizeof(rp.addr));
 
 	if (status)
 		goto complete;
