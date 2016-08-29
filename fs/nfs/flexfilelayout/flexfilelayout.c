@@ -806,11 +806,14 @@ ff_layout_choose_best_ds_for_read(struct pnfs_layout_segment *lseg,
 {
 	struct nfs4_ff_layout_segment *fls = FF_LAYOUT_LSEG(lseg);
 	struct nfs4_pnfs_ds *ds;
+	bool fail_return = false;
 	int idx;
 
 	/* mirrors are sorted by efficiency */
 	for (idx = start_idx; idx < fls->mirror_array_cnt; idx++) {
-		ds = nfs4_ff_layout_prepare_ds(lseg, idx, false);
+		if (idx+1 == fls->mirror_array_cnt)
+			fail_return = true;
+		ds = nfs4_ff_layout_prepare_ds(lseg, idx, fail_return);
 		if (ds) {
 			*best_idx = idx;
 			return ds;
@@ -859,6 +862,7 @@ ff_layout_pg_init_read(struct nfs_pageio_descriptor *pgio,
 	struct nfs4_pnfs_ds *ds;
 	int ds_idx;
 
+retry:
 	/* Use full layout for now */
 	if (!pgio->pg_lseg)
 		ff_layout_pg_get_read(pgio, req, false);
@@ -871,10 +875,13 @@ ff_layout_pg_init_read(struct nfs_pageio_descriptor *pgio,
 
 	ds = ff_layout_choose_best_ds_for_read(pgio->pg_lseg, 0, &ds_idx);
 	if (!ds) {
-		if (ff_layout_no_fallback_to_mds(pgio->pg_lseg))
-			goto out_pnfs;
-		else
+		if (!ff_layout_no_fallback_to_mds(pgio->pg_lseg))
 			goto out_mds;
+		pnfs_put_lseg(pgio->pg_lseg);
+		pgio->pg_lseg = NULL;
+		/* Sleep for 1 second before retrying */
+		ssleep(1);
+		goto retry;
 	}
 
 	mirror = FF_LAYOUT_COMP(pgio->pg_lseg, ds_idx);
@@ -890,12 +897,6 @@ out_mds:
 	pnfs_put_lseg(pgio->pg_lseg);
 	pgio->pg_lseg = NULL;
 	nfs_pageio_reset_read_mds(pgio);
-	return;
-
-out_pnfs:
-	pnfs_set_lo_fail(pgio->pg_lseg);
-	pnfs_put_lseg(pgio->pg_lseg);
-	pgio->pg_lseg = NULL;
 }
 
 static void
@@ -909,6 +910,7 @@ ff_layout_pg_init_write(struct nfs_pageio_descriptor *pgio,
 	int i;
 	int status;
 
+retry:
 	if (!pgio->pg_lseg) {
 		pgio->pg_lseg = pnfs_update_layout(pgio->pg_inode,
 						   req->wb_context,
@@ -940,10 +942,13 @@ ff_layout_pg_init_write(struct nfs_pageio_descriptor *pgio,
 	for (i = 0; i < pgio->pg_mirror_count; i++) {
 		ds = nfs4_ff_layout_prepare_ds(pgio->pg_lseg, i, true);
 		if (!ds) {
-			if (ff_layout_no_fallback_to_mds(pgio->pg_lseg))
-				goto out_pnfs;
-			else
+			if (!ff_layout_no_fallback_to_mds(pgio->pg_lseg))
 				goto out_mds;
+			pnfs_put_lseg(pgio->pg_lseg);
+			pgio->pg_lseg = NULL;
+			/* Sleep for 1 second before retrying */
+			ssleep(1);
+			goto retry;
 		}
 		pgm = &pgio->pg_mirrors[i];
 		mirror = FF_LAYOUT_COMP(pgio->pg_lseg, i);
@@ -956,12 +961,6 @@ out_mds:
 	pnfs_put_lseg(pgio->pg_lseg);
 	pgio->pg_lseg = NULL;
 	nfs_pageio_reset_write_mds(pgio);
-	return;
-
-out_pnfs:
-	pnfs_set_lo_fail(pgio->pg_lseg);
-	pnfs_put_lseg(pgio->pg_lseg);
-	pgio->pg_lseg = NULL;
 }
 
 static unsigned int
