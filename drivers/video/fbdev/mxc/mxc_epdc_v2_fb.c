@@ -1203,7 +1203,6 @@ static void epdc_init_settings(struct mxc_epdc_fb_data *fb_data)
 	int i;
 #endif
 	int j;
-	unsigned short *wk_p;
 	unsigned char *bb_p;
 
 	/* Enable clocks to access EPDC regs */
@@ -1401,12 +1400,6 @@ static void epdc_init_settings(struct mxc_epdc_fb_data *fb_data)
 	__raw_writel(fb_data->waveform_buffer_phys, EPDC_WVADDR);
 	__raw_writel(fb_data->working_buffer_phys, EPDC_WB_ADDR);
 	__raw_writel(fb_data->working_buffer_phys, EPDC_WB_ADDR_TCE);
-
-	wk_p = (unsigned short *)fb_data->working_buffer_virt;
-	for (j = 0; j < fb_data->cur_mode->vmode->xres * fb_data->cur_mode->vmode->yres; j++) {
-		*wk_p = 0x00F0;
-		wk_p++;
-	}
 
 	bb_p = (unsigned char *)fb_data->virt_addr_black;
 	for (j = 0; j < fb_data->cur_mode->vmode->xres * fb_data->cur_mode->vmode->yres; j++) {
@@ -4931,6 +4924,7 @@ static int mxc_epdc_fb_probe(struct platform_device *pdev)
 	u32 out_val[3];
 	int enable_gpio;
 	enum of_gpio_flags flag;
+	unsigned short *wk_p;
 
 	if (!np)
 		return -EINVAL;
@@ -5349,6 +5343,14 @@ static int mxc_epdc_fb_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Can't allocate mem for working buf!\n");
 		ret = -ENOMEM;
 		goto out_copybuffer;
+	}
+
+	/* initialize the working buffer */
+	wk_p = (unsigned short *)fb_data->working_buffer_virt;
+	for (i = 0; i < fb_data->cur_mode->vmode->xres *
+			fb_data->cur_mode->vmode->yres; i++) {
+		*wk_p = 0x00F0;
+		wk_p++;
 	}
 
 	fb_data->tmp_working_buffer_virt =
