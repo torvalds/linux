@@ -76,7 +76,6 @@ struct vmd_dev {
 	char __iomem		*cfgbar;
 
 	int msix_count;
-	struct msix_entry	*msix_entries;
 	struct vmd_irq_list	*irqs;
 
 	struct pci_sysdata	sysdata;
@@ -671,16 +670,8 @@ static int vmd_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (vmd->msix_count < 0)
 		return -ENODEV;
 
-	vmd->msix_entries = devm_kcalloc(&dev->dev, vmd->msix_count,
-					 sizeof(*vmd->msix_entries),
-					 GFP_KERNEL);
-	if (!vmd->msix_entries)
-		return -ENOMEM;
-	for (i = 0; i < vmd->msix_count; i++)
-		vmd->msix_entries[i].entry = i;
-
-	vmd->msix_count = pci_enable_msix_range(vmd->dev, vmd->msix_entries, 1,
-						vmd->msix_count);
+	vmd->msix_count = pci_alloc_irq_vectors(dev, 1, vmd->msix_count,
+					PCI_IRQ_MSIX | PCI_IRQ_AFFINITY);
 	if (vmd->msix_count < 0)
 		return vmd->msix_count;
 
@@ -691,7 +682,7 @@ static int vmd_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	for (i = 0; i < vmd->msix_count; i++) {
 		INIT_LIST_HEAD(&vmd->irqs[i].irq_list);
-		vmd->irqs[i].vmd_vector = vmd->msix_entries[i].vector;
+		vmd->irqs[i].vmd_vector = pci_irq_vector(dev, i);
 		vmd->irqs[i].index = i;
 
 		err = devm_request_irq(&dev->dev, vmd->irqs[i].vmd_vector,
