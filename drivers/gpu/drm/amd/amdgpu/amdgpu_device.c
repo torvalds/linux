@@ -2610,7 +2610,7 @@ static ssize_t amdgpu_debugfs_regs_smc_read(struct file *f, char __user *buf,
 	while (size) {
 		uint32_t value;
 
-		value = RREG32_SMC(*pos >> 2);
+		value = RREG32_SMC(*pos);
 		r = put_user(value, (uint32_t *)buf);
 		if (r)
 			return r;
@@ -2641,7 +2641,7 @@ static ssize_t amdgpu_debugfs_regs_smc_write(struct file *f, const char __user *
 		if (r)
 			return r;
 
-		WREG32_SMC(*pos >> 2, value);
+		WREG32_SMC(*pos, value);
 
 		result += 4;
 		buf += 4;
