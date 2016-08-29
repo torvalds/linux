@@ -988,6 +988,8 @@ static inline int do_essa(struct kvm_vcpu *vcpu, const int orc)
 		if (pgstev & _PGSTE_GPS_ZERO)
 			res |= 1;
 	}
+	if (pgstev & _PGSTE_GPS_NODAT)
+		res |= 0x20;
 	vcpu->run->s.regs.gprs[r1] = res;
 	/*
 	 * It is possible that all the normal 511 slots were full, in which case
@@ -1027,7 +1029,9 @@ static int handle_essa(struct kvm_vcpu *vcpu)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 	/* Check for invalid operation request code */
 	orc = (vcpu->arch.sie_block->ipb & 0xf0000000) >> 28;
-	if (orc > ESSA_MAX)
+	/* ORCs 0-6 are always valid */
+	if (orc > (test_kvm_facility(vcpu->kvm, 147) ? ESSA_SET_STABLE_NODAT
+						: ESSA_SET_STABLE_IF_RESIDENT))
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
 	if (likely(!vcpu->kvm->arch.migration_state)) {
