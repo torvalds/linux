@@ -105,8 +105,6 @@ int drm_mode_createblob_ioctl(struct drm_device *dev,
 			      void *data, struct drm_file *file_priv);
 int drm_mode_destroyblob_ioctl(struct drm_device *dev,
 			       void *data, struct drm_file *file_priv);
-int drm_mode_getencoder(struct drm_device *dev,
-			void *data, struct drm_file *file_priv);
 int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 			     void *data, struct drm_file *file_priv);
 int drm_mode_gamma_set_ioctl(struct drm_device *dev,
@@ -114,6 +112,14 @@ int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 
 int drm_mode_page_flip_ioctl(struct drm_device *dev,
 			     void *data, struct drm_file *file_priv);
+
+/* drm_encoder.c */
+int drm_encoder_register_all(struct drm_device *dev);
+void drm_encoder_unregister_all(struct drm_device *dev);
+
+/* IOCTL */
+int drm_mode_getencoder(struct drm_device *dev,
+			void *data, struct drm_file *file_priv);
 
 /* drm_connector.c */
 void drm_connector_ida_init(void);

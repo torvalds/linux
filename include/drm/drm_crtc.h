@@ -40,6 +40,7 @@
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_connector.h>
+#include <drm/drm_encoder.h>
 
 struct drm_device;
 struct drm_mode_set;
@@ -659,97 +660,6 @@ struct drm_crtc {
 	 * context.
 	 */
 	struct drm_modeset_acquire_ctx *acquire_ctx;
-};
-
-/**
- * struct drm_encoder_funcs - encoder controls
- *
- * Encoders sit between CRTCs and connectors.
- */
-struct drm_encoder_funcs {
-	/**
-	 * @reset:
-	 *
-	 * Reset encoder hardware and software state to off. This function isn't
-	 * called by the core directly, only through drm_mode_config_reset().
-	 * It's not a helper hook only for historical reasons.
-	 */
-	void (*reset)(struct drm_encoder *encoder);
-
-	/**
-	 * @destroy:
-	 *
-	 * Clean up encoder resources. This is only called at driver unload time
-	 * through drm_mode_config_cleanup() since an encoder cannot be
-	 * hotplugged in DRM.
-	 */
-	void (*destroy)(struct drm_encoder *encoder);
-
-	/**
-	 * @late_register:
-	 *
-	 * This optional hook can be used to register additional userspace
-	 * interfaces attached to the encoder like debugfs interfaces.
-	 * It is called late in the driver load sequence from drm_dev_register().
-	 * Everything added from this callback should be unregistered in
-	 * the early_unregister callback.
-	 *
-	 * Returns:
-	 *
-	 * 0 on success, or a negative error code on failure.
-	 */
-	int (*late_register)(struct drm_encoder *encoder);
-
-	/**
-	 * @early_unregister:
-	 *
-	 * This optional hook should be used to unregister the additional
-	 * userspace interfaces attached to the encoder from
-	 * late_unregister(). It is called from drm_dev_unregister(),
-	 * early in the driver unload sequence to disable userspace access
-	 * before data structures are torndown.
-	 */
-	void (*early_unregister)(struct drm_encoder *encoder);
-};
-
-/**
- * struct drm_encoder - central DRM encoder structure
- * @dev: parent DRM device
- * @head: list management
- * @base: base KMS object
- * @name: human readable name, can be overwritten by the driver
- * @encoder_type: one of the DRM_MODE_ENCODER_<foo> types in drm_mode.h
- * @possible_crtcs: bitmask of potential CRTC bindings
- * @possible_clones: bitmask of potential sibling encoders for cloning
- * @crtc: currently bound CRTC
- * @bridge: bridge associated to the encoder
- * @funcs: control functions
- * @helper_private: mid-layer private data
- *
- * CRTCs drive pixels to encoders, which convert them into signals
- * appropriate for a given connector or set of connectors.
- */
-struct drm_encoder {
-	struct drm_device *dev;
-	struct list_head head;
-
-	struct drm_mode_object base;
-	char *name;
-	int encoder_type;
-
-	/**
-	 * @index: Position inside the mode_config.list, can be used as an array
-	 * index. It is invariant over the lifetime of the encoder.
-	 */
-	unsigned index;
-
-	uint32_t possible_crtcs;
-	uint32_t possible_clones;
-
-	struct drm_crtc *crtc;
-	struct drm_bridge *bridge;
-	const struct drm_encoder_funcs *funcs;
-	const struct drm_encoder_helper_funcs *helper_private;
 };
 
 /**
@@ -2114,7 +2024,6 @@ struct drm_mode_config {
 		for_each_if ((encoder_mask) & (1 << drm_encoder_index(encoder)))
 
 #define obj_to_crtc(x) container_of(x, struct drm_crtc, base)
-#define obj_to_encoder(x) container_of(x, struct drm_encoder, base)
 #define obj_to_mode(x) container_of(x, struct drm_display_mode, base)
 #define obj_to_fb(x) container_of(x, struct drm_framebuffer, base)
 #define obj_to_property(x) container_of(x, struct drm_property, base)
@@ -2159,37 +2068,6 @@ static inline uint32_t drm_crtc_mask(struct drm_crtc *crtc)
 	return 1 << drm_crtc_index(crtc);
 }
 
-extern __printf(5, 6)
-int drm_encoder_init(struct drm_device *dev,
-		     struct drm_encoder *encoder,
-		     const struct drm_encoder_funcs *funcs,
-		     int encoder_type, const char *name, ...);
-
-/**
- * drm_encoder_index - find the index of a registered encoder
- * @encoder: encoder to find index for
- *
- * Given a registered encoder, return the index of that encoder within a DRM
- * device's list of encoders.
- */
-static inline unsigned int drm_encoder_index(struct drm_encoder *encoder)
-{
-	return encoder->index;
-}
-
-/**
- * drm_encoder_crtc_ok - can a given crtc drive a given encoder?
- * @encoder: encoder to test
- * @crtc: crtc to test
- *
- * Return false if @encoder can't be driven by @crtc, true otherwise.
- */
-static inline bool drm_encoder_crtc_ok(struct drm_encoder *encoder,
-				       struct drm_crtc *crtc)
-{
-	return !!(encoder->possible_crtcs & drm_crtc_mask(crtc));
-}
-
 extern __printf(8, 9)
 int drm_universal_plane_init(struct drm_device *dev,
 			     struct drm_plane *plane,
@@ -2224,8 +2102,6 @@ extern void drm_crtc_get_hv_timing(const struct drm_display_mode *mode,
 				   int *hdisplay, int *vdisplay);
 extern int drm_crtc_force_disable(struct drm_crtc *crtc);
 extern int drm_crtc_force_disable_all(struct drm_device *dev);
-
-extern void drm_encoder_cleanup(struct drm_encoder *encoder);
 
 extern void drm_mode_config_init(struct drm_device *dev);
 extern void drm_mode_config_reset(struct drm_device *dev);
@@ -2336,14 +2212,6 @@ static inline struct drm_crtc *drm_crtc_find(struct drm_device *dev,
 	struct drm_mode_object *mo;
 	mo = drm_mode_object_find(dev, id, DRM_MODE_OBJECT_CRTC);
 	return mo ? obj_to_crtc(mo) : NULL;
-}
-
-static inline struct drm_encoder *drm_encoder_find(struct drm_device *dev,
-	uint32_t id)
-{
-	struct drm_mode_object *mo;
-	mo = drm_mode_object_find(dev, id, DRM_MODE_OBJECT_ENCODER);
-	return mo ? obj_to_encoder(mo) : NULL;
 }
 
 static inline struct drm_property *drm_property_find(struct drm_device *dev,
