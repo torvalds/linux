@@ -3043,22 +3043,11 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 		break;
 	}
 
-	/* If fifo is already allocated for this ep */
-	if (hs_ep->fifo_index) {
-		size =  hs_ep->ep.maxpacket * hs_ep->mc;
-		/* If bigger fifo is required deallocate current one */
-		if (size > hs_ep->fifo_size) {
-			hsotg->fifo_map &= ~(1 << hs_ep->fifo_index);
-			hs_ep->fifo_index = 0;
-			hs_ep->fifo_size = 0;
-		}
-	}
-
 	/*
 	 * if the hardware has dedicated fifos, we must give each IN EP
 	 * a unique tx-fifo even if it is non-periodic.
 	 */
-	if (dir_in && hsotg->dedicated_fifos && !hs_ep->fifo_index) {
+	if (dir_in && hsotg->dedicated_fifos) {
 		u32 fifo_index = 0;
 		u32 fifo_size = UINT_MAX;
 		size = hs_ep->ep.maxpacket*hs_ep->mc;
