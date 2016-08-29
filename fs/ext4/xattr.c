@@ -1350,7 +1350,8 @@ int ext4_expand_extra_isize_ea(struct inode *inode, int new_extra_isize,
 	struct ext4_xattr_ibody_find *is = NULL;
 	struct ext4_xattr_block_find *bs = NULL;
 	char *buffer = NULL, *b_entry_name = NULL;
-	size_t min_offs, free;
+	size_t min_offs;
+	size_t ifree, bfree;
 	int total_ino;
 	void *base, *start, *end;
 	int error = 0, tried_min_extra_isize = 0;
@@ -1385,17 +1386,9 @@ retry:
 	if (error)
 		goto cleanup;
 
-	free = ext4_xattr_free_space(last, &min_offs, base, &total_ino);
-	if (free >= isize_diff) {
-		entry = IFIRST(header);
-		ext4_xattr_shift_entries(entry,	EXT4_I(inode)->i_extra_isize
-				- new_extra_isize, (void *)raw_inode +
-				EXT4_GOOD_OLD_INODE_SIZE + new_extra_isize,
-				(void *)header, total_ino,
-				inode->i_sb->s_blocksize);
-		EXT4_I(inode)->i_extra_isize = new_extra_isize;
-		goto out;
-	}
+	ifree = ext4_xattr_free_space(last, &min_offs, base, &total_ino);
+	if (ifree >= isize_diff)
+		goto shift;
 
 	/*
 	 * Enough free space isn't available in the inode, check if
@@ -1416,8 +1409,8 @@ retry:
 		first = BFIRST(bh);
 		end = bh->b_data + bh->b_size;
 		min_offs = end - base;
-		free = ext4_xattr_free_space(first, &min_offs, base, NULL);
-		if (free < isize_diff) {
+		bfree = ext4_xattr_free_space(first, &min_offs, base, NULL);
+		if (bfree + ifree < isize_diff) {
 			if (!tried_min_extra_isize && s_min_extra_isize) {
 				tried_min_extra_isize++;
 				new_extra_isize = s_min_extra_isize;
@@ -1428,10 +1421,10 @@ retry:
 			goto cleanup;
 		}
 	} else {
-		free = inode->i_sb->s_blocksize;
+		bfree = inode->i_sb->s_blocksize;
 	}
 
-	while (isize_diff > 0) {
+	while (isize_diff > ifree) {
 		size_t offs, size, entry_size;
 		struct ext4_xattr_entry *small_entry = NULL;
 		struct ext4_xattr_info i = {
@@ -1439,7 +1432,6 @@ retry:
 			.value_len = 0,
 		};
 		unsigned int total_size;  /* EA entry size + value size */
-		unsigned int shift_bytes; /* No. of bytes to shift EAs by? */
 		unsigned int min_total_size = ~0U;
 
 		is = kzalloc(sizeof(struct ext4_xattr_ibody_find), GFP_NOFS);
@@ -1461,8 +1453,9 @@ retry:
 			total_size =
 			EXT4_XATTR_SIZE(le32_to_cpu(last->e_value_size)) +
 					EXT4_XATTR_LEN(last->e_name_len);
-			if (total_size <= free && total_size < min_total_size) {
-				if (total_size < isize_diff) {
+			if (total_size <= bfree &&
+			    total_size < min_total_size) {
+				if (total_size + ifree < isize_diff) {
 					small_entry = last;
 				} else {
 					entry = last;
@@ -1491,6 +1484,7 @@ retry:
 		offs = le16_to_cpu(entry->e_value_offs);
 		size = le32_to_cpu(entry->e_value_size);
 		entry_size = EXT4_XATTR_LEN(entry->e_name_len);
+		total_size = entry_size + EXT4_XATTR_SIZE(size);
 		i.name_index = entry->e_name_index,
 		buffer = kmalloc(EXT4_XATTR_SIZE(size), GFP_NOFS);
 		b_entry_name = kmalloc(entry->e_name_len + 1, GFP_NOFS);
@@ -1518,21 +1512,8 @@ retry:
 		if (error)
 			goto cleanup;
 		total_ino -= entry_size;
-
-		entry = IFIRST(header);
-		if (entry_size + EXT4_XATTR_SIZE(size) >= isize_diff)
-			shift_bytes = isize_diff;
-		else
-			shift_bytes = entry_size + EXT4_XATTR_SIZE(size);
-		/* Adjust the offsets and shift the remaining entries ahead */
-		ext4_xattr_shift_entries(entry, -shift_bytes,
-			(void *)raw_inode + EXT4_GOOD_OLD_INODE_SIZE +
-			EXT4_I(inode)->i_extra_isize + shift_bytes,
-			(void *)header, total_ino, inode->i_sb->s_blocksize);
-
-		isize_diff -= shift_bytes;
-		EXT4_I(inode)->i_extra_isize += shift_bytes;
-		header = IHDR(inode, raw_inode);
+		ifree += total_size;
+		bfree -= total_size;
 
 		i.name = b_entry_name;
 		i.value = buffer;
@@ -1553,6 +1534,15 @@ retry:
 		kfree(is);
 		kfree(bs);
 	}
+
+shift:
+	/* Adjust the offsets and shift the remaining entries ahead */
+	entry = IFIRST(header);
+	ext4_xattr_shift_entries(entry,	EXT4_I(inode)->i_extra_isize
+			- new_extra_isize, (void *)raw_inode +
+			EXT4_GOOD_OLD_INODE_SIZE + new_extra_isize,
+			(void *)header, total_ino, inode->i_sb->s_blocksize);
+	EXT4_I(inode)->i_extra_isize = new_extra_isize;
 	brelse(bh);
 out:
 	ext4_clear_inode_state(inode, EXT4_STATE_NO_EXPAND);
