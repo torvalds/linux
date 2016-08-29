@@ -53,29 +53,13 @@ static struct clkgen_mux_data stih407_a9_mux_data = {
 	.lock = &clkgen_a9_lock,
 };
 
-static const struct of_device_id mux_of_match[] = {
-	{
-		.compatible = "st,stih407-clkgen-a9-mux",
-		.data = &stih407_a9_mux_data,
-	},
-	{}
-};
-static void __init st_of_clkgen_mux_setup(struct device_node *np)
+static void __init st_of_clkgen_mux_setup(struct device_node *np,
+		struct clkgen_mux_data *data)
 {
-	const struct of_device_id *match;
 	struct clk *clk;
 	void __iomem *reg;
 	const char **parents;
 	int num_parents = 0;
-	const struct clkgen_mux_data *data;
-
-	match = of_match_node(mux_of_match, np);
-	if (!match) {
-		pr_err("%s: No matching data\n", __func__);
-		return;
-	}
-
-	data = match->data;
 
 	reg = of_iomap(np, 0);
 	if (!reg) {
@@ -112,4 +96,10 @@ err:
 err_parents:
 	iounmap(reg);
 }
-CLK_OF_DECLARE(clkgen_mux, "st,clkgen-mux", st_of_clkgen_mux_setup);
+
+static void __init st_of_clkgen_a9_mux_setup(struct device_node *np)
+{
+	st_of_clkgen_mux_setup(np, &stih407_a9_mux_data);
+}
+CLK_OF_DECLARE(clkgen_a9mux, "st,stih407-clkgen-a9-mux",
+		st_of_clkgen_a9_mux_setup);

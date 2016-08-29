@@ -11,8 +11,8 @@ This binding uses the common clock binding[1].
 
 Required properties:
 - compatible : shall be:
-  "st,stih407-quadfs660-C",	"st,quadfs"
-  "st,stih407-quadfs660-D",	"st,quadfs"
+  "st,quadfs"
+  "st,quadfs-pll"
 
 
 - #clock-cells : from common clock binding; shall be set to 1.
@@ -33,7 +33,7 @@ Example:
 
 	clk_s_c0_quadfs: clk-s-c0-quadfs@9103000 {
 		#clock-cells = <1>;
-		compatible = "st,stih407-quadfs660-C", "st,quadfs";
+		compatible = "st,quadfs-pll";
 		reg = <0x9103000 0x1000>;
 
 		clocks = <&clk_sysin>;

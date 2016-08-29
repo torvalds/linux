@@ -9,11 +9,10 @@ Base address is located to the parent node. See clock binding[2]
 Required properties:
 
 - compatible : shall be:
-	"st,stih407-plls-c32-a0",	"st,clkgen-plls-c32"
-	"st,stih407-plls-c32-a9",	"st,clkgen-plls-c32"
-	"sst,plls-c32-cx_0",		"st,clkgen-plls-c32"
-	"sst,plls-c32-cx_1",		"st,clkgen-plls-c32"
-	"st,stih418-plls-c28-a9",	"st,clkgen-plls-c32"
+	"st,clkgen-pll0"
+	"st,clkgen-pll1"
+	"st,stih407-clkgen-plla9"
+	"st,stih418-clkgen-plla9"
 
 - #clock-cells : From common clock binding; shall be set to 1.
 
@@ -29,7 +28,7 @@ Example:
 
 		clockgen_a9_pll: clockgen-a9-pll {
 			#clock-cells = <1>;
-			compatible = "st,stih407-plls-c32-a9", "st,clkgen-plls-c32";
+			compatible = "st,stih407-clkgen-plla9";
 
 			clocks = <&clk_sysin>;
 

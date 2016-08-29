@@ -10,7 +10,7 @@ This binding uses the common clock binding[1].
 Required properties:
 
 - compatible : shall be:
-	"st,stih407-clkgen-a9-mux",	"st,clkgen-mux"
+	"st,stih407-clkgen-a9-mux"
 
 - #clock-cells : from common clock binding; shall be set to 0.
 

@@ -819,18 +819,6 @@ static struct clk * __init st_clk_register_quadfs_fsynth(
 	return clk;
 }
 
-static const struct of_device_id quadfs_of_match[] = {
-	{
-		.compatible = "st,stih407-quadfs660-C",
-		.data = &st_fs660c32_C
-	},
-	{
-		.compatible = "st,stih407-quadfs660-D",
-		.data = &st_fs660c32_D
-	},
-	{}
-};
-
 static void __init st_of_create_quadfs_fsynths(
 		struct device_node *np, const char *pll_name,
 		struct clkgen_quadfs_data *quadfs, void __iomem *reg,
@@ -890,17 +878,13 @@ static void __init st_of_create_quadfs_fsynths(
 	of_clk_add_provider(np, of_clk_src_onecell_get, clk_data);
 }
 
-static void __init st_of_quadfs_setup(struct device_node *np)
+static void __init st_of_quadfs_setup(struct device_node *np,
+		struct clkgen_quadfs_data *data)
 {
-	const struct of_device_id *match;
 	struct clk *clk;
 	const char *pll_name, *clk_parent_name;
 	void __iomem *reg;
 	spinlock_t *lock;
-
-	match = of_match_node(quadfs_of_match, np);
-	if (WARN_ON(!match))
-		return;
 
 	reg = of_iomap(np, 0);
 	if (!reg)
@@ -920,8 +904,8 @@ static void __init st_of_quadfs_setup(struct device_node *np)
 
 	spin_lock_init(lock);
 
-	clk = st_clk_register_quadfs_pll(pll_name, clk_parent_name,
-			(struct clkgen_quadfs_data *) match->data, reg, lock);
+	clk = st_clk_register_quadfs_pll(pll_name, clk_parent_name, data,
+			reg, lock);
 	if (IS_ERR(clk))
 		goto err_exit;
 	else
@@ -930,11 +914,20 @@ static void __init st_of_quadfs_setup(struct device_node *np)
 			__clk_get_name(clk_get_parent(clk)),
 			(unsigned int)clk_get_rate(clk));
 
-	st_of_create_quadfs_fsynths(np, pll_name,
-				    (struct clkgen_quadfs_data *)match->data,
-				    reg, lock);
+	st_of_create_quadfs_fsynths(np, pll_name, data, reg, lock);
 
 err_exit:
 	kfree(pll_name); /* No longer need local copy of the PLL name */
 }
-CLK_OF_DECLARE(quadfs, "st,quadfs", st_of_quadfs_setup);
+
+static void __init st_of_quadfs660C_setup(struct device_node *np)
+{
+	st_of_quadfs_setup(np, (struct clkgen_quadfs_data *) &st_fs660c32_C);
+}
+CLK_OF_DECLARE(quadfs660C, "st,quadfs-pll", st_of_quadfs660C_setup);
+
+static void __init st_of_quadfs660D_setup(struct device_node *np)
+{
+	st_of_quadfs_setup(np, (struct clkgen_quadfs_data *) &st_fs660c32_D);
+}
+CLK_OF_DECLARE(quadfs660D, "st,quadfs", st_of_quadfs660D_setup);

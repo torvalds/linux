@@ -702,48 +702,17 @@ static struct clk * __init clkgen_odf_register(const char *parent_name,
 	return clk;
 }
 
-static const struct of_device_id c32_pll_of_match[] = {
-	{
-		.compatible = "st,stih407-plls-c32-a0",
-		.data = &st_pll3200c32_407_a0,
-	},
-	{
-		.compatible = "st,plls-c32-cx_0",
-		.data = &st_pll3200c32_cx_0,
-	},
-	{
-		.compatible = "st,plls-c32-cx_1",
-		.data = &st_pll3200c32_cx_1,
-	},
-	{
-		.compatible = "st,stih407-plls-c32-a9",
-		.data = &st_pll3200c32_407_a9,
-	},
-	{
-		.compatible = "st,stih418-plls-c28-a9",
-		.data = &st_pll4600c28_418_a9,
-	},
-	{}
-};
 
-static void __init clkgen_c32_pll_setup(struct device_node *np)
+static void __init clkgen_c32_pll_setup(struct device_node *np,
+		struct clkgen_pll_data *data)
 {
-	const struct of_device_id *match;
 	struct clk *clk;
 	const char *parent_name, *pll_name;
 	void __iomem *pll_base;
 	int num_odfs, odf;
 	struct clk_onecell_data *clk_data;
-	struct clkgen_pll_data	*data;
 	unsigned long pll_flags = 0;
 
-	match = of_match_node(c32_pll_of_match, np);
-	if (!match) {
-		pr_err("%s: No matching data\n", __func__);
-		return;
-	}
-
-	data = (struct clkgen_pll_data *) match->data;
 
 	parent_name = of_clk_get_parent_name(np, 0);
 	if (!parent_name)
@@ -802,4 +771,30 @@ err:
 	kfree(clk_data->clks);
 	kfree(clk_data);
 }
-CLK_OF_DECLARE(clkgen_c32_pll, "st,clkgen-plls-c32", clkgen_c32_pll_setup);
+static void __init clkgen_c32_pll0_setup(struct device_node *np)
+{
+	clkgen_c32_pll_setup(np,
+			(struct clkgen_pll_data *) &st_pll3200c32_cx_0);
+}
+CLK_OF_DECLARE(c32_pll0, "st,clkgen-pll0", clkgen_c32_pll0_setup);
+
+static void __init clkgen_c32_pll1_setup(struct device_node *np)
+{
+	clkgen_c32_pll_setup(np,
+			(struct clkgen_pll_data *) &st_pll3200c32_cx_1);
+}
+CLK_OF_DECLARE(c32_pll1, "st,clkgen-pll1", clkgen_c32_pll1_setup);
+
+static void __init clkgen_c32_plla9_setup(struct device_node *np)
+{
+	clkgen_c32_pll_setup(np,
+			(struct clkgen_pll_data *) &st_pll3200c32_407_a9);
+}
+CLK_OF_DECLARE(c32_plla9, "st,stih407-clkgen-plla9", clkgen_c32_plla9_setup);
+
+static void __init clkgen_c28_plla9_setup(struct device_node *np)
+{
+	clkgen_c32_pll_setup(np,
+			(struct clkgen_pll_data *) &st_pll4600c28_418_a9);
+}
+CLK_OF_DECLARE(c28_plla9, "st,stih418-clkgen-plla9", clkgen_c28_plla9_setup);
