@@ -2823,11 +2823,12 @@ static int dispc_ovl_setup_common(enum omap_plane plane,
 }
 
 static int dispc_ovl_setup(enum omap_plane plane, const struct omap_overlay_info *oi,
-		bool replication, const struct videomode *vm, bool mem_to_mem)
+		const struct videomode *vm, bool mem_to_mem)
 {
 	int r;
 	enum omap_overlay_caps caps = dss_feat_get_overlay_caps(plane);
 	enum omap_channel channel;
+	const bool replication = true;
 
 	channel = dispc_ovl_get_channel_out(plane);
 
@@ -2854,7 +2855,7 @@ int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
 	enum omap_plane plane = OMAP_DSS_WB;
 	const int pos_x = 0, pos_y = 0;
 	const u8 zorder = 0, global_alpha = 0;
-	const bool replication = false;
+	const bool replication = true;
 	bool truncation;
 	int in_width = vm->hactive;
 	int in_height = vm->vactive;
@@ -4288,7 +4289,7 @@ static void dispc_errata_i734_wa(void)
 
 	/* Setup and enable GFX plane */
 	dispc_ovl_set_channel_out(OMAP_DSS_GFX, OMAP_DSS_CHANNEL_LCD);
-	dispc_ovl_setup(OMAP_DSS_GFX, &ovli, false, &i734.vm, false);
+	dispc_ovl_setup(OMAP_DSS_GFX, &ovli, &i734.vm, false);
 	dispc_ovl_enable(OMAP_DSS_GFX, true);
 
 	/* Set up and enable display manager for LCD1 */
