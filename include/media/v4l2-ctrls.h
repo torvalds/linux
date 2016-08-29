@@ -239,7 +239,7 @@ struct v4l2_ctrl {
  * @next:	Single-link list node for the hash.
  * @ctrl:	The actual control information.
  * @helper:	Pointer to helper struct. Used internally in
- *		prepare_ext_ctrls().
+ *		``prepare_ext_ctrls`` function at ``v4l2-ctrl.c``.
  *
  * Each control handler has a list of these refs. The list_head is used to
  * keep a sorted-by-control-ID list of all controls, while the next pointer
