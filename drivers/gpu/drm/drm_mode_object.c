@@ -209,8 +209,6 @@ void drm_object_attach_property(struct drm_mode_object *obj,
 	obj->properties->properties[count] = property;
 	obj->properties->values[count] = init_val;
 	obj->properties->count++;
-	if (property->flags & DRM_MODE_PROP_ATOMIC)
-		obj->properties->atomic_count++;
 }
 EXPORT_SYMBOL(drm_object_attach_property);
 
@@ -288,35 +286,30 @@ int drm_mode_object_get_properties(struct drm_mode_object *obj, bool atomic,
 				   uint64_t __user *prop_values,
 				   uint32_t *arg_count_props)
 {
-	int props_count;
-	int i, ret, copied;
+	int i, ret, count;
 
-	props_count = obj->properties->count;
-	if (!atomic)
-		props_count -= obj->properties->atomic_count;
+	for (i = 0, count = 0; i < obj->properties->count; i++) {
+		struct drm_property *prop = obj->properties->properties[i];
+		uint64_t val;
 
-	if ((*arg_count_props >= props_count) && props_count) {
-		for (i = 0, copied = 0; copied < props_count; i++) {
-			struct drm_property *prop = obj->properties->properties[i];
-			uint64_t val;
+		if ((prop->flags & DRM_MODE_PROP_ATOMIC) && !atomic)
+			continue;
 
-			if ((prop->flags & DRM_MODE_PROP_ATOMIC) && !atomic)
-				continue;
-
+		if (*arg_count_props > count) {
 			ret = drm_object_property_get_value(obj, prop, &val);
 			if (ret)
 				return ret;
 
-			if (put_user(prop->base.id, prop_ptr + copied))
+			if (put_user(prop->base.id, prop_ptr + count))
 				return -EFAULT;
 
-			if (put_user(val, prop_values + copied))
+			if (put_user(val, prop_values + count))
 				return -EFAULT;
-
-			copied++;
 		}
+
+		count++;
 	}
-	*arg_count_props = props_count;
+	*arg_count_props = count;
 
 	return 0;
 }
