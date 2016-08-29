@@ -199,6 +199,8 @@ ext4_xattr_check_names(struct ext4_xattr_entry *entry, void *end,
 	}
 
 	while (!IS_LAST_ENTRY(entry)) {
+		if (entry->e_value_block != 0)
+			return -EFSCORRUPTED;
 		if (entry->e_value_size != 0 &&
 		    (value_start + le16_to_cpu(entry->e_value_offs) <
 		     (void *)e + sizeof(__u32) ||
