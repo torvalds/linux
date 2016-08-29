@@ -1291,7 +1291,7 @@ static int toshiba_cooling_method_set(struct toshiba_acpi_dev *dev, u32 state)
 	u32 result = hci_write(dev, HCI_COOLING_METHOD, state);
 
 	if (result == TOS_FAILURE)
-		pr_err("ACPI call to get Cooling Method failed\n");
+		pr_err("ACPI call to set Cooling Method failed\n");
 
 	if (result == TOS_NOT_SUPPORTED)
 		return -ENODEV;
