@@ -1319,18 +1319,19 @@ retry:
  */
 static void ext4_xattr_shift_entries(struct ext4_xattr_entry *entry,
 				     int value_offs_shift, void *to,
-				     void *from, size_t n, int blocksize)
+				     void *from, size_t n)
 {
 	struct ext4_xattr_entry *last = entry;
 	int new_offs;
+
+	/* We always shift xattr headers further thus offsets get lower */
+	BUG_ON(value_offs_shift > 0);
 
 	/* Adjust the value offsets of the entries */
 	for (; !IS_LAST_ENTRY(last); last = EXT4_XATTR_NEXT(last)) {
 		if (last->e_value_size) {
 			new_offs = le16_to_cpu(last->e_value_offs) +
 							value_offs_shift;
-			BUG_ON(new_offs + le32_to_cpu(last->e_value_size)
-				 > blocksize);
 			last->e_value_offs = cpu_to_le16(new_offs);
 		}
 	}
@@ -1542,7 +1543,7 @@ shift:
 	ext4_xattr_shift_entries(entry,	EXT4_I(inode)->i_extra_isize
 			- new_extra_isize, (void *)raw_inode +
 			EXT4_GOOD_OLD_INODE_SIZE + new_extra_isize,
-			(void *)header, total_ino, inode->i_sb->s_blocksize);
+			(void *)header, total_ino);
 	EXT4_I(inode)->i_extra_isize = new_extra_isize;
 	brelse(bh);
 out:
