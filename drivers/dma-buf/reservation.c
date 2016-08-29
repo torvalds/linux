@@ -474,12 +474,13 @@ bool reservation_object_test_signaled_rcu(struct reservation_object *obj,
 					  bool test_all)
 {
 	unsigned seq, shared_count;
-	int ret = true;
+	int ret;
 
+	rcu_read_lock();
 retry:
+	ret = true;
 	shared_count = 0;
 	seq = read_seqcount_begin(&obj->seq);
-	rcu_read_lock();
 
 	if (test_all) {
 		unsigned i;
@@ -490,46 +491,35 @@ retry:
 		if (fobj)
 			shared_count = fobj->shared_count;
 
-		if (read_seqcount_retry(&obj->seq, seq))
-			goto unlock_retry;
-
 		for (i = 0; i < shared_count; ++i) {
 			struct fence *fence = rcu_dereference(fobj->shared[i]);
 
 			ret = reservation_object_test_signaled_single(fence);
 			if (ret < 0)
-				goto unlock_retry;
+				goto retry;
 			else if (!ret)
 				break;
 		}
 
-		/*
-		 * There could be a read_seqcount_retry here, but nothing cares
-		 * about whether it's the old or newer fence pointers that are
-		 * signaled. That race could still have happened after checking
-		 * read_seqcount_retry. If you care, use ww_mutex_lock.
-		 */
+		if (read_seqcount_retry(&obj->seq, seq))
+			goto retry;
 	}
 
 	if (!shared_count) {
 		struct fence *fence_excl = rcu_dereference(obj->fence_excl);
 
-		if (read_seqcount_retry(&obj->seq, seq))
-			goto unlock_retry;
-
 		if (fence_excl) {
 			ret = reservation_object_test_signaled_single(
 								fence_excl);
 			if (ret < 0)
-				goto unlock_retry;
+				goto retry;
+
+			if (read_seqcount_retry(&obj->seq, seq))
+				goto retry;
 		}
 	}
 
 	rcu_read_unlock();
 	return ret;
-
-unlock_retry:
-	rcu_read_unlock();
-	goto retry;
 }
 EXPORT_SYMBOL_GPL(reservation_object_test_signaled_rcu);
