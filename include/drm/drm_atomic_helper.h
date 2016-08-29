@@ -65,9 +65,13 @@ void drm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 
 int drm_atomic_helper_prepare_planes(struct drm_device *dev,
 				     struct drm_atomic_state *state);
+
+#define DRM_PLANE_COMMIT_ACTIVE_ONLY			BIT(0)
+#define DRM_PLANE_COMMIT_NO_DISABLE_AFTER_MODESET	BIT(1)
+
 void drm_atomic_helper_commit_planes(struct drm_device *dev,
 				     struct drm_atomic_state *state,
-				     bool active_only);
+				     uint32_t flags);
 void drm_atomic_helper_cleanup_planes(struct drm_device *dev,
 				      struct drm_atomic_state *old_state);
 void drm_atomic_helper_commit_planes_on_crtc(struct drm_crtc_state *old_crtc_state);

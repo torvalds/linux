@@ -105,7 +105,7 @@ static void exynos_atomic_commit_complete(struct exynos_atomic_commit *commit)
 		atomic_inc(&exynos_crtc->pending_update);
 	}
 
-	drm_atomic_helper_commit_planes(dev, state, false);
+	drm_atomic_helper_commit_planes(dev, state, 0);
 
 	exynos_atomic_wait_for_commit(state);
 
