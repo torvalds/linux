@@ -164,11 +164,21 @@ static inline unsigned int __attribute_const__ read_cpuid_id(void)
 	return read_cpuid(CPUID_ID);
 }
 
+static inline unsigned int __attribute_const__ read_cpuid_cachetype(void)
+{
+	return read_cpuid(CPUID_CACHETYPE);
+}
+
 #elif defined(CONFIG_CPU_V7M)
 
 static inline unsigned int __attribute_const__ read_cpuid_id(void)
 {
 	return readl(BASEADDR_V7M_SCB + V7M_SCB_CPUID);
+}
+
+static inline unsigned int __attribute_const__ read_cpuid_cachetype(void)
+{
+	return readl(BASEADDR_V7M_SCB + V7M_SCB_CTR);
 }
 
 #else /* ifdef CONFIG_CPU_CP15 / elif defined(CONFIG_CPU_V7M) */
@@ -208,11 +218,6 @@ static inline unsigned int __attribute_const__ __deprecated read_cpuid_part_numb
 static inline unsigned int __attribute_const__ xscale_cpu_arch_version(void)
 {
 	return read_cpuid_id() & ARM_CPU_XSCALE_ARCH_MASK;
-}
-
-static inline unsigned int __attribute_const__ read_cpuid_cachetype(void)
-{
-	return read_cpuid(CPUID_CACHETYPE);
 }
 
 static inline unsigned int __attribute_const__ read_cpuid_tcmstatus(void)
