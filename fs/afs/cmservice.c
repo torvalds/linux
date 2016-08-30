@@ -17,10 +17,6 @@
 #include "internal.h"
 #include "afs_cm.h"
 
-#if 0
-struct workqueue_struct *afs_cm_workqueue;
-#endif  /*  0  */
-
 static int afs_deliver_cb_init_call_back_state(struct afs_call *,
 					       struct sk_buff *, bool);
 static int afs_deliver_cb_init_call_back_state3(struct afs_call *,
@@ -282,7 +278,6 @@ static int afs_deliver_cb_callback(struct afs_call *call, struct sk_buff *skb,
 		break;
 	}
 
-
 	call->state = AFS_CALL_REPLYING;
 
 	/* we'll need the file server record as that tells us which set of
@@ -425,7 +420,6 @@ static void SRXAFSCB_ProbeUuid(struct work_struct *work)
 	} reply;
 
 	_enter("");
-
 
 	if (memcmp(r, &afs_uuid, sizeof(afs_uuid)) == 0)
 		reply.match = htonl(0);
