@@ -334,8 +334,7 @@ static const char *sip_skip_whitespace(const char *dptr, const char *limit)
 		if (*dptr != '\r' && *dptr != '\n')
 			break;
 		dptr = sip_follow_continuation(dptr, limit);
-		if (dptr == NULL)
-			return NULL;
+		break;
 	}
 	return dptr;
 }
