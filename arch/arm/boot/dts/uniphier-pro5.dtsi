@@ -1,7 +1,8 @@
 /*
- * Device Tree Source for UniPhier ProXstream2 SoC
+ * Device Tree Source for UniPhier Pro5 SoC
  *
- * Copyright (C) 2015 Masahiro Yamada <yamada.masahiro@socionext.com>
+ * Copyright (C) 2015-2016 Socionext Inc.
+ *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -45,7 +46,7 @@
 /include/ "uniphier-common32.dtsi"
 
 / {
-	compatible = "socionext,proxstream2";
+	compatible = "socionext,uniphier-pro5";
 
 	cpus {
 		#address-cells = <1>;
@@ -65,20 +66,6 @@
 			reg = <1>;
 			next-level-cache = <&l2>;
 		};
-
-		cpu@2 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a9";
-			reg = <2>;
-			next-level-cache = <&l2>;
-		};
-
-		cpu@3 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a9";
-			reg = <3>;
-			next-level-cache = <&l2>;
-		};
 	};
 
 	clocks {
@@ -91,7 +78,7 @@
 		uart_clk: uart_clk {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
-			clock-frequency = <88900000>;
+			clock-frequency = <73728000>;
 		};
 
 		i2c_clk: i2c_clk {
@@ -105,13 +92,25 @@
 &soc {
 	l2: l2-cache@500c0000 {
 		compatible = "socionext,uniphier-system-cache";
-		reg = <0x500c0000 0x2000>, <0x503c0100 0x4>, <0x506c0000 0x400>;
-		interrupts = <0 174 4>, <0 175 4>, <0 190 4>, <0 191 4>;
+		reg = <0x500c0000 0x2000>, <0x503c0100 0x8>, <0x506c0000 0x400>;
+		interrupts = <0 190 4>, <0 191 4>;
 		cache-unified;
-		cache-size = <(1280 * 1024)>;
+		cache-size = <(2 * 1024 * 1024)>;
 		cache-sets = <512>;
 		cache-line-size = <128>;
 		cache-level = <2>;
+		next-level-cache = <&l3>;
+	};
+
+	l3: l3-cache@500c8000 {
+		compatible = "socionext,uniphier-system-cache";
+		reg = <0x500c8000 0x2000>, <0x503c8100 0x8>, <0x506c8000 0x400>;
+		interrupts = <0 174 4>, <0 175 4>;
+		cache-unified;
+		cache-size = <(2 * 1024 * 1024)>;
+		cache-sets = <512>;
+		cache-line-size = <256>;
+		cache-level = <3>;
 	};
 
 	i2c0: i2c@58780000 {
@@ -146,9 +145,9 @@
 		reg = <0x58782000 0x80>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		interrupts = <0 43 4>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c2>;
-		interrupts = <0 43 4>;
 		clocks = <&i2c_clk>;
 		clock-frequency = <100000>;
 	};
@@ -166,18 +165,9 @@
 		clock-frequency = <100000>;
 	};
 
-	/* chip-internal connection for DMD */
-	i2c4: i2c@58784000 {
-		compatible = "socionext,uniphier-fi2c";
-		reg = <0x58784000 0x80>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		interrupts = <0 45 4>;
-		clocks = <&i2c_clk>;
-		clock-frequency = <400000>;
-	};
+	/* i2c4 does not exist */
 
-	/* chip-internal connection for STM */
+	/* chip-internal connection for DMD */
 	i2c5: i2c@58785000 {
 		compatible = "socionext,uniphier-fi2c";
 		reg = <0x58785000 0x80>;
@@ -201,9 +191,9 @@
 };
 
 &refclk {
-	clock-frequency = <25000000>;
+	clock-frequency = <20000000>;
 };
 
 &pinctrl {
-	compatible = "socionext,uniphier-pxs2-pinctrl";
+	compatible = "socionext,uniphier-pro5-pinctrl";
 };
