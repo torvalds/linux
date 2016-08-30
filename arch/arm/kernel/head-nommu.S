@@ -158,7 +158,21 @@ __after_proc_init:
 	bic	r0, r0, #CR_V
 #endif
 	mcr	p15, 0, r0, c1, c0, 0		@ write control reg
-#endif /* CONFIG_CPU_CP15 */
+#elif defined (CONFIG_CPU_V7M)
+	/* For V7M systems we want to modify the CCR similarly to the SCTLR */
+#ifdef CONFIG_CPU_DCACHE_DISABLE
+	bic	r0, r0, #V7M_SCB_CCR_DC
+#endif
+#ifdef CONFIG_CPU_BPREDICT_DISABLE
+	bic	r0, r0, #V7M_SCB_CCR_BP
+#endif
+#ifdef CONFIG_CPU_ICACHE_DISABLE
+	bic	r0, r0, #V7M_SCB_CCR_IC
+#endif
+	movw	r3, #:lower16:(BASEADDR_V7M_SCB + V7M_SCB_CCR)
+	movt	r3, #:upper16:(BASEADDR_V7M_SCB + V7M_SCB_CCR)
+	str	r0, [r3]
+#endif /* CONFIG_CPU_CP15 elif CONFIG_CPU_V7M */
 	ret	lr
 ENDPROC(__after_proc_init)
 	.ltorg

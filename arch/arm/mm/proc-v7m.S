@@ -118,9 +118,8 @@ __v7m_setup:
 
 	@ Configure the System Control Register to ensure 8-byte stack alignment
 	@ Note the STKALIGN bit is either RW or RAO.
-	ldr	r12, [r0, V7M_SCB_CCR]	@ system control register
-	orr	r12, #V7M_SCB_CCR_STKALIGN
-	str	r12, [r0, V7M_SCB_CCR]
+	ldr	r0, [r0, V7M_SCB_CCR]   @ system control register
+	orr	r0, #V7M_SCB_CCR_STKALIGN
 	ret	lr
 ENDPROC(__v7m_setup)
 
