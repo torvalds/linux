@@ -196,16 +196,10 @@ static void __init ap_init_irq_of(void)
 
 /* For the Device Tree, add in the UART callbacks as AUXDATA */
 static struct of_dev_auxdata ap_auxdata_lookup[] __initdata = {
-	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_RTC_BASE,
-		"rtc", NULL),
 	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_UART0_BASE,
 		"uart0", &ap_uart_data),
 	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_UART1_BASE,
 		"uart1", &ap_uart_data),
-	OF_DEV_AUXDATA("arm,primecell", KMI0_BASE,
-		"kmi0", NULL),
-	OF_DEV_AUXDATA("arm,primecell", KMI1_BASE,
-		"kmi1", NULL),
 	{ /* sentinel */ },
 };
 

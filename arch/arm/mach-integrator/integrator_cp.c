@@ -140,20 +140,8 @@ static void __init intcp_init_irq_of(void)
  * and enforce the bus names since these are used for clock lookups.
  */
 static struct of_dev_auxdata intcp_auxdata_lookup[] __initdata = {
-	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_RTC_BASE,
-		"rtc", NULL),
-	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_UART0_BASE,
-		"uart0", NULL),
-	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_UART1_BASE,
-		"uart1", NULL),
-	OF_DEV_AUXDATA("arm,primecell", KMI0_BASE,
-		"kmi0", NULL),
-	OF_DEV_AUXDATA("arm,primecell", KMI1_BASE,
-		"kmi1", NULL),
 	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_CP_MMC_BASE,
 		"mmci", &mmc_data),
-	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_CP_AACI_BASE,
-		"aaci", &mmc_data),
 	{ /* sentinel */ },
 };
 
