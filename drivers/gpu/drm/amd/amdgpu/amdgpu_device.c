@@ -2206,6 +2206,11 @@ retry:
 	}
 	if (!r) {
 		amdgpu_irq_gpu_reset_resume_helper(adev);
+		if (need_full_reset && amdgpu_need_backup(adev)) {
+			r = amdgpu_ttm_recover_gart(adev);
+			if (r)
+				DRM_ERROR("gart recovery failed!!!\n");
+		}
 		r = amdgpu_ib_ring_tests(adev);
 		if (r) {
 			dev_err(adev->dev, "ib ring test failed (%d).\n", r);

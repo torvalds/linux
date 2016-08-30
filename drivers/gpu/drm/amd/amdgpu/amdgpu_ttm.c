@@ -673,6 +673,31 @@ static int amdgpu_ttm_backend_bind(struct ttm_tt *ttm,
 	return 0;
 }
 
+int amdgpu_ttm_recover_gart(struct amdgpu_device *adev)
+{
+	struct amdgpu_ttm_tt *gtt, *tmp;
+	struct ttm_mem_reg bo_mem;
+	uint32_t flags;
+	int r;
+
+	bo_mem.mem_type = TTM_PL_TT;
+	spin_lock(&adev->gtt_list_lock);
+	list_for_each_entry_safe(gtt, tmp, &adev->gtt_list, list) {
+		flags = amdgpu_ttm_tt_pte_flags(gtt->adev, &gtt->ttm.ttm, &bo_mem);
+		r = amdgpu_gart_bind(adev, gtt->offset, gtt->ttm.ttm.num_pages,
+				     gtt->ttm.ttm.pages, gtt->ttm.dma_address,
+				     flags);
+		if (r) {
+			spin_unlock(&adev->gtt_list_lock);
+			DRM_ERROR("failed to bind %lu pages at 0x%08X\n",
+				  gtt->ttm.ttm.num_pages, (unsigned)gtt->offset);
+			return r;
+		}
+	}
+	spin_unlock(&adev->gtt_list_lock);
+	return 0;
+}
+
 static int amdgpu_ttm_backend_unbind(struct ttm_tt *ttm)
 {
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
