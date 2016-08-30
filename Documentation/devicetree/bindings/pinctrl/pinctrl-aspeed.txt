@@ -1,0 +1,65 @@
+Aspeed Pin Controllers
+----------------------
+
+The Aspeed SoCs vary in functionality inside a generation but have a common mux
+device register layout.
+
+Required properties:
+- compatible : Should be any one of the following:
+		"aspeed,ast2400-pinctrl"
+		"aspeed,g4-pinctrl"
+		"aspeed,ast2500-pinctrl"
+		"aspeed,g5-pinctrl"
+
+The pin controller node should be a child of a syscon node with the required
+property:
+- compatible: "syscon", "simple-mfd"
+
+Refer to the the bindings described in
+Documentation/devicetree/bindings/mfd/syscon.txt
+
+Subnode Format
+--------------
+
+The required properties of child nodes are (as defined in pinctrl-bindings):
+- function
+- groups
+
+Each function has only one associated pin group. Each group is named by its
+function. The following values for the function and groups properties are
+supported:
+
+aspeed,ast2400-pinctrl, aspeed,g4-pinctrl:
+
+ACPI BMCINT DDCCLK DDCDAT FLACK FLBUSY FLWP GPID0 GPIE0 GPIE2 GPIE4 GPIE6 I2C10
+I2C11 I2C12 I2C13 I2C3 I2C4 I2C5 I2C6 I2C7 I2C8 I2C9 LPCPD LPCPME LPCSMI MDIO1
+MDIO2 NCTS1 NCTS3 NCTS4 NDCD1 NDCD3 NDCD4 NDSR1 NDSR3 NDTR1 NDTR3 NRI1 NRI3
+NRI4 NRTS1 NRTS3 PWM0 PWM1 PWM2 PWM3 PWM4 PWM5 PWM6 PWM7 RGMII1 RMII1 ROM16
+ROM8 ROMCS1 ROMCS2 ROMCS3 ROMCS4 RXD1 RXD3 RXD4 SD1 SGPMI SIOPBI SIOPBO TIMER3
+TIMER5 TIMER6 TIMER7 TIMER8 TXD1 TXD3 TXD4 UART6 VGAHS VGAVS VPI18 VPI24 VPI30
+VPO12 VPO24
+
+aspeed,ast2500-pinctrl, aspeed,g5-pinctrl:
+
+GPID0 GPID2 GPIE0 I2C10 I2C11 I2C12 I2C13 I2C14 I2C3 I2C4 I2C5 I2C6 I2C7 I2C8
+I2C9 MAC1LINK MDIO1 MDIO2 OSCCLK PEWAKE PWM0 PWM1 PWM2 PWM3 PWM4 PWM5 PWM6 PWM7
+RGMII1 RGMII2 RMII1 RMII2 SD1 SPI1 TIMER4 TIMER5 TIMER6 TIMER7 TIMER8
+
+Examples:
+
+syscon: scu@1e6e2000 {
+	compatible = "syscon", "simple-mfd";
+	reg = <0x1e6e2000 0x1a8>;
+
+	pinctrl: pinctrl {
+		compatible = "aspeed,g4-pinctrl";
+
+		pinctrl_i2c3_default: i2c3_default {
+			function = "I2C3";
+			groups = "I2C3";
+		};
+	};
+};
+
+Please refer to pinctrl-bindings.txt in this directory for details of the
+common pinctrl bindings used by client devices.
