@@ -54,6 +54,19 @@
 		reg = <0x80000000 0x20000000>;
 	};
 
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-0 = <&pinctrl_gpio>;
+		autorepeat;
+
+		back {
+			label = "Back";
+			gpios = <&gpio7 1 GPIO_ACTIVE_HIGH>;
+			linux,code = <KEY_BACK>;
+			wakeup-source;
+		};
+	};
+
 	reg_brcm: regulator-brcm {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -277,6 +290,12 @@
 	pinctrl_brcm_reg: brcmreggrp {
 		fsl,pins = <
 			MX7D_PAD_SD2_WP__GPIO5_IO10	0x14 /* WL_REG_ON */
+		>;
+	};
+
+	pinctrl_gpio: gpiogrp {
+		fsl,pins = <
+			MX7D_PAD_ENET1_RGMII_RD1__GPIO7_IO1	0x14
 		>;
 	};
 
