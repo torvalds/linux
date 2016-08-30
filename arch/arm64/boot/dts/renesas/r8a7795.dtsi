@@ -1122,7 +1122,6 @@
 			clocks = <&cpg CPG_MOD 312>;
 			max-frequency = <200000000>;
 			power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
-			cap-mmc-highspeed;
 			status = "disabled";
 		};
 
@@ -1133,7 +1132,6 @@
 			clocks = <&cpg CPG_MOD 311>;
 			max-frequency = <200000000>;
 			power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
-			cap-mmc-highspeed;
 			status = "disabled";
 		};
 
