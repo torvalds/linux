@@ -741,7 +741,7 @@ void rxrpc_disconnect_client_call(struct rxrpc_call *call)
 	 * terminal retransmission without requiring access to the call.
 	 */
 	if (test_bit(RXRPC_CALL_EXPOSED, &call->flags)) {
-		_debug("exposed %u,%u", call->call_id, call->local_abort);
+		_debug("exposed %u,%u", call->call_id, call->abort_code);
 		__rxrpc_disconnect_call(conn, call);
 	}
 

@@ -22,7 +22,6 @@ static const char *const rxrpc_conn_states[RXRPC_CONN__NR_STATES] = {
 	[RXRPC_CONN_SERVICE]			= "SvSecure",
 	[RXRPC_CONN_REMOTELY_ABORTED]		= "RmtAbort",
 	[RXRPC_CONN_LOCALLY_ABORTED]		= "LocAbort",
-	[RXRPC_CONN_NETWORK_ERROR]		= "NetError",
 };
 
 /*
@@ -94,7 +93,7 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 		   rxrpc_is_service_call(call) ? "Svc" : "Clt",
 		   atomic_read(&call->usage),
 		   rxrpc_call_states[call->state],
-		   call->remote_abort ?: call->local_abort,
+		   call->abort_code,
 		   call->user_call_ID);
 
 	return 0;

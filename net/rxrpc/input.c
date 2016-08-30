@@ -341,14 +341,13 @@ void rxrpc_fast_process_packet(struct rxrpc_call *call, struct sk_buff *skb)
 		abort_code = ntohl(wtmp);
 		_proto("Rx ABORT %%%u { %x }", sp->hdr.serial, abort_code);
 
-		write_lock_bh(&call->state_lock);
-		if (call->state < RXRPC_CALL_COMPLETE) {
-			call->state = RXRPC_CALL_REMOTELY_ABORTED;
-			call->remote_abort = abort_code;
+		if (__rxrpc_set_call_completion(call,
+						RXRPC_CALL_REMOTELY_ABORTED,
+						abort_code, ECONNABORTED)) {
 			set_bit(RXRPC_CALL_EV_RCVD_ABORT, &call->events);
 			rxrpc_queue_call(call);
 		}
-		goto free_packet_unlock;
+		goto free_packet;
 
 	case RXRPC_PACKET_TYPE_BUSY:
 		_proto("Rx BUSY %%%u", sp->hdr.serial);
@@ -359,7 +358,9 @@ void rxrpc_fast_process_packet(struct rxrpc_call *call, struct sk_buff *skb)
 		write_lock_bh(&call->state_lock);
 		switch (call->state) {
 		case RXRPC_CALL_CLIENT_SEND_REQUEST:
-			call->state = RXRPC_CALL_SERVER_BUSY;
+			__rxrpc_set_call_completion(call,
+						    RXRPC_CALL_SERVER_BUSY,
+						    0, EBUSY);
 			set_bit(RXRPC_CALL_EV_RCVD_BUSY, &call->events);
 			rxrpc_queue_call(call);
 		case RXRPC_CALL_SERVER_BUSY:
@@ -415,12 +416,8 @@ protocol_error:
 	_debug("protocol error");
 	write_lock_bh(&call->state_lock);
 protocol_error_locked:
-	if (call->state <= RXRPC_CALL_COMPLETE) {
-		call->state = RXRPC_CALL_LOCALLY_ABORTED;
-		call->local_abort = RX_PROTOCOL_ERROR;
-		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
+	if (__rxrpc_abort_call(call, RX_PROTOCOL_ERROR, EPROTO))
 		rxrpc_queue_call(call);
-	}
 free_packet_unlock:
 	write_unlock_bh(&call->state_lock);
 free_packet:
@@ -486,14 +483,8 @@ protocol_error:
 	_debug("protocol error");
 	rxrpc_free_skb(part);
 	rxrpc_free_skb(jumbo);
-	write_lock_bh(&call->state_lock);
-	if (call->state <= RXRPC_CALL_COMPLETE) {
-		call->state = RXRPC_CALL_LOCALLY_ABORTED;
-		call->local_abort = RX_PROTOCOL_ERROR;
-		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
+	if (rxrpc_abort_call(call, RX_PROTOCOL_ERROR, EPROTO))
 		rxrpc_queue_call(call);
-	}
-	write_unlock_bh(&call->state_lock);
 	_leave("");
 }
 
@@ -514,26 +505,28 @@ static void rxrpc_post_packet_to_call(struct rxrpc_call *call,
 
 	read_lock(&call->state_lock);
 	switch (call->state) {
-	case RXRPC_CALL_LOCALLY_ABORTED:
-		if (!test_and_set_bit(RXRPC_CALL_EV_ABORT, &call->events)) {
-			rxrpc_queue_call(call);
-			goto free_unlock;
-		}
-	case RXRPC_CALL_REMOTELY_ABORTED:
-	case RXRPC_CALL_NETWORK_ERROR:
 	case RXRPC_CALL_DEAD:
 		goto dead_call;
+
 	case RXRPC_CALL_COMPLETE:
-	case RXRPC_CALL_CLIENT_FINAL_ACK:
-		/* complete server call */
-		if (rxrpc_conn_is_service(call->conn))
+		switch (call->completion) {
+		case RXRPC_CALL_LOCALLY_ABORTED:
+			if (!test_and_set_bit(RXRPC_CALL_EV_ABORT,
+					      &call->events)) {
+				rxrpc_queue_call(call);
+				goto free_unlock;
+			}
+		default:
 			goto dead_call;
-		/* resend last packet of a completed call */
-		_debug("final ack again");
-		rxrpc_get_call(call);
-		set_bit(RXRPC_CALL_EV_ACK_FINAL, &call->events);
-		rxrpc_queue_call(call);
-		goto free_unlock;
+		case RXRPC_CALL_SUCCEEDED:
+			if (rxrpc_conn_is_service(call->conn))
+				goto dead_call;
+			goto resend_final_ack;
+		}
+
+	case RXRPC_CALL_CLIENT_FINAL_ACK:
+		goto resend_final_ack;
+
 	default:
 		break;
 	}
@@ -549,6 +542,13 @@ static void rxrpc_post_packet_to_call(struct rxrpc_call *call,
 
 	rxrpc_put_call(call);
 	goto done;
+
+resend_final_ack:
+	_debug("final ack again");
+	rxrpc_get_call(call);
+	set_bit(RXRPC_CALL_EV_ACK_FINAL, &call->events);
+	rxrpc_queue_call(call);
+	goto free_unlock;
 
 dead_call:
 	if (sp->hdr.type != RXRPC_PACKET_TYPE_ABORT) {

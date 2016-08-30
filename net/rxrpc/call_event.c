@@ -95,7 +95,7 @@ cancel_timer:
 	_debug("cancel timer %%%u", serial);
 	try_to_del_timer_sync(&call->ack_timer);
 	read_lock_bh(&call->state_lock);
-	if (call->state <= RXRPC_CALL_COMPLETE &&
+	if (call->state < RXRPC_CALL_COMPLETE &&
 	    !test_and_set_bit(RXRPC_CALL_EV_ACK, &call->events))
 		rxrpc_queue_call(call);
 	read_unlock_bh(&call->state_lock);
@@ -123,7 +123,7 @@ static void rxrpc_set_resend(struct rxrpc_call *call, u8 resend,
 			     unsigned long resend_at)
 {
 	read_lock_bh(&call->state_lock);
-	if (call->state >= RXRPC_CALL_COMPLETE)
+	if (call->state == RXRPC_CALL_COMPLETE)
 		resend = 0;
 
 	if (resend & 1) {
@@ -230,7 +230,7 @@ static void rxrpc_resend_timer(struct rxrpc_call *call)
 	_enter("%d,%d,%d",
 	       call->acks_tail, call->acks_unacked, call->acks_head);
 
-	if (call->state >= RXRPC_CALL_COMPLETE)
+	if (call->state == RXRPC_CALL_COMPLETE)
 		return;
 
 	resend = 0;
@@ -711,7 +711,7 @@ all_acked:
 		break;
 	case RXRPC_CALL_SERVER_AWAIT_ACK:
 		_debug("srv complete");
-		call->state = RXRPC_CALL_COMPLETE;
+		__rxrpc_call_completed(call);
 		post_ACK = true;
 		break;
 	case RXRPC_CALL_CLIENT_SEND_REQUEST:
@@ -875,24 +875,22 @@ skip_msg_init:
 		clear_bit(RXRPC_CALL_EV_REJECT_BUSY, &call->events);
 		clear_bit(RXRPC_CALL_EV_ABORT, &call->events);
 
-		error = call->error_report;
-		if (error < RXRPC_LOCAL_ERROR_OFFSET) {
+		if (call->completion == RXRPC_CALL_NETWORK_ERROR) {
 			mark = RXRPC_SKB_MARK_NET_ERROR;
 			_debug("post net error %d", error);
 		} else {
 			mark = RXRPC_SKB_MARK_LOCAL_ERROR;
-			error -= RXRPC_LOCAL_ERROR_OFFSET;
 			_debug("post net local error %d", error);
 		}
 
-		if (rxrpc_post_message(call, mark, error, true) < 0)
+		if (rxrpc_post_message(call, mark, call->error, true) < 0)
 			goto no_mem;
 		clear_bit(RXRPC_CALL_EV_RCVD_ERROR, &call->events);
 		goto kill_ACKs;
 	}
 
 	if (test_bit(RXRPC_CALL_EV_CONN_ABORT, &call->events)) {
-		ASSERTCMP(call->state, >, RXRPC_CALL_COMPLETE);
+		ASSERTCMP(call->state, ==, RXRPC_CALL_COMPLETE);
 
 		clear_bit(RXRPC_CALL_EV_REJECT_BUSY, &call->events);
 		clear_bit(RXRPC_CALL_EV_ABORT, &call->events);
@@ -900,7 +898,7 @@ skip_msg_init:
 		_debug("post conn abort");
 
 		if (rxrpc_post_message(call, RXRPC_SKB_MARK_LOCAL_ERROR,
-				       call->conn->error, true) < 0)
+				       call->error, true) < 0)
 			goto no_mem;
 		clear_bit(RXRPC_CALL_EV_CONN_ABORT, &call->events);
 		goto kill_ACKs;
@@ -913,13 +911,13 @@ skip_msg_init:
 	}
 
 	if (test_bit(RXRPC_CALL_EV_ABORT, &call->events)) {
-		ASSERTCMP(call->state, >, RXRPC_CALL_COMPLETE);
+		ASSERTCMP(call->state, ==, RXRPC_CALL_COMPLETE);
 
 		if (rxrpc_post_message(call, RXRPC_SKB_MARK_LOCAL_ERROR,
-				       ECONNABORTED, true) < 0)
+				       call->error, true) < 0)
 			goto no_mem;
 		whdr.type = RXRPC_PACKET_TYPE_ABORT;
-		data = htonl(call->local_abort);
+		data = htonl(call->abort_code);
 		iov[1].iov_base = &data;
 		iov[1].iov_len = sizeof(data);
 		genbit = RXRPC_CALL_EV_ABORT;
@@ -979,13 +977,7 @@ skip_msg_init:
 	}
 
 	if (test_bit(RXRPC_CALL_EV_LIFE_TIMER, &call->events)) {
-		write_lock_bh(&call->state_lock);
-		if (call->state <= RXRPC_CALL_COMPLETE) {
-			call->state = RXRPC_CALL_LOCALLY_ABORTED;
-			call->local_abort = RX_CALL_TIMEOUT;
-			set_bit(RXRPC_CALL_EV_ABORT, &call->events);
-		}
-		write_unlock_bh(&call->state_lock);
+		rxrpc_abort_call(call, RX_CALL_TIMEOUT, ETIME);
 
 		_debug("post timeout");
 		if (rxrpc_post_message(call, RXRPC_SKB_MARK_LOCAL_ERROR,
@@ -998,7 +990,8 @@ skip_msg_init:
 
 	/* deal with assorted inbound messages */
 	if (!skb_queue_empty(&call->rx_queue)) {
-		switch (rxrpc_process_rx_queue(call, &abort_code)) {
+		ret = rxrpc_process_rx_queue(call, &abort_code);
+		switch (ret) {
 		case 0:
 		case -EAGAIN:
 			break;
@@ -1007,7 +1000,7 @@ skip_msg_init:
 		case -EKEYEXPIRED:
 		case -EKEYREJECTED:
 		case -EPROTO:
-			rxrpc_abort_call(call, abort_code);
+			rxrpc_abort_call(call, abort_code, -ret);
 			goto kill_ACKs;
 		}
 	}
@@ -1232,10 +1225,7 @@ send_message_2:
 		goto kill_ACKs;
 
 	case RXRPC_CALL_EV_ACK_FINAL:
-		write_lock_bh(&call->state_lock);
-		if (call->state == RXRPC_CALL_CLIENT_FINAL_ACK)
-			call->state = RXRPC_CALL_COMPLETE;
-		write_unlock_bh(&call->state_lock);
+		rxrpc_call_completed(call);
 		goto kill_ACKs;
 
 	default:

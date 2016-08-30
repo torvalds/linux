@@ -329,12 +329,8 @@ struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *rx,
 	case RXRPC_CALL_SERVER_ACCEPTING:
 		call->state = RXRPC_CALL_SERVER_RECV_REQUEST;
 		break;
-	case RXRPC_CALL_REMOTELY_ABORTED:
-	case RXRPC_CALL_LOCALLY_ABORTED:
-		ret = -ECONNABORTED;
-		goto out_release;
-	case RXRPC_CALL_NETWORK_ERROR:
-		ret = call->conn->error;
+	case RXRPC_CALL_COMPLETE:
+		ret = call->error;
 		goto out_release;
 	case RXRPC_CALL_DEAD:
 		ret = -ETIME;
@@ -403,17 +399,14 @@ int rxrpc_reject_call(struct rxrpc_sock *rx)
 	write_lock_bh(&call->state_lock);
 	switch (call->state) {
 	case RXRPC_CALL_SERVER_ACCEPTING:
-		call->state = RXRPC_CALL_SERVER_BUSY;
+		__rxrpc_set_call_completion(call, RXRPC_CALL_SERVER_BUSY,
+					    0, ECONNABORTED);
 		if (test_and_set_bit(RXRPC_CALL_EV_REJECT_BUSY, &call->events))
 			rxrpc_queue_call(call);
 		ret = 0;
 		goto out_release;
-	case RXRPC_CALL_REMOTELY_ABORTED:
-	case RXRPC_CALL_LOCALLY_ABORTED:
-		ret = -ECONNABORTED;
-		goto out_release;
-	case RXRPC_CALL_NETWORK_ERROR:
-		ret = call->conn->error;
+	case RXRPC_CALL_COMPLETE:
+		ret = call->error;
 		goto out_release;
 	case RXRPC_CALL_DEAD:
 		ret = -ETIME;
