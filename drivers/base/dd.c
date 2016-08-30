@@ -51,7 +51,6 @@
 static DEFINE_MUTEX(deferred_probe_mutex);
 static LIST_HEAD(deferred_probe_pending_list);
 static LIST_HEAD(deferred_probe_active_list);
-static struct workqueue_struct *deferred_wq;
 static atomic_t deferred_trigger_count = ATOMIC_INIT(0);
 
 /*
@@ -175,7 +174,7 @@ static void driver_deferred_probe_trigger(void)
 	 * Kick the re-probe thread.  It may already be scheduled, but it is
 	 * safe to kick it again.
 	 */
-	queue_work(deferred_wq, &deferred_probe_work);
+	schedule_work(&deferred_probe_work);
 }
 
 /**
@@ -211,14 +210,10 @@ void device_unblock_probing(void)
  */
 static int deferred_probe_initcall(void)
 {
-	deferred_wq = create_singlethread_workqueue("deferwq");
-	if (WARN_ON(!deferred_wq))
-		return -ENOMEM;
-
 	driver_deferred_probe_enable = true;
 	driver_deferred_probe_trigger();
 	/* Sort as many dependencies as possible before exiting initcalls */
-	flush_workqueue(deferred_wq);
+	flush_work(&deferred_probe_work);
 	return 0;
 }
 late_initcall(deferred_probe_initcall);
@@ -481,8 +476,7 @@ int driver_probe_done(void)
 void wait_for_device_probe(void)
 {
 	/* wait for the deferred probe workqueue to finish */
-	if (driver_deferred_probe_enable)
-		flush_workqueue(deferred_wq);
+	flush_work(&deferred_probe_work);
 
 	/* wait for the known devices to complete their probing */
 	wait_event(probe_waitqueue, atomic_read(&probe_count) == 0);
