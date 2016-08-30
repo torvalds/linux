@@ -1436,6 +1436,20 @@ static bool outer_header_zero(u32 *match_criteria)
 						  size - 1);
 }
 
+#define LAST_ETH_FIELD vlan_tag
+#define LAST_IB_FIELD sl
+#define LAST_IPV4_FIELD dst_ip
+#define LAST_IPV6_FIELD dst_ip
+#define LAST_TCP_UDP_FIELD src_port
+
+/* Field is the last supported field */
+#define FIELDS_NOT_SUPPORTED(filter, field)\
+	memchr_inv((void *)&filter.field  +\
+		   sizeof(filter.field), 0,\
+		   sizeof(filter) -\
+		   offsetof(typeof(filter), field) -\
+		   sizeof(filter.field))
+
 static int parse_flow_attr(u32 *match_c, u32 *match_v,
 			   const union ib_flow_spec *ib_spec)
 {
@@ -1445,8 +1459,8 @@ static int parse_flow_attr(u32 *match_c, u32 *match_v,
 					     outer_headers);
 	switch (ib_spec->type) {
 	case IB_FLOW_SPEC_ETH:
-		if (ib_spec->size != sizeof(ib_spec->eth))
-			return -EINVAL;
+		if (FIELDS_NOT_SUPPORTED(ib_spec->eth.mask, LAST_ETH_FIELD))
+			return -ENOTSUPP;
 
 		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, outer_headers_c,
 					     dmac_47_16),
@@ -1486,8 +1500,8 @@ static int parse_flow_attr(u32 *match_c, u32 *match_v,
 			 ethertype, ntohs(ib_spec->eth.val.ether_type));
 		break;
 	case IB_FLOW_SPEC_IPV4:
-		if (ib_spec->size != sizeof(ib_spec->ipv4))
-			return -EINVAL;
+		if (FIELDS_NOT_SUPPORTED(ib_spec->ipv4.mask, LAST_IPV4_FIELD))
+			return -ENOTSUPP;
 
 		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c,
 			 ethertype, 0xffff);
@@ -1512,8 +1526,8 @@ static int parse_flow_attr(u32 *match_c, u32 *match_v,
 		       sizeof(ib_spec->ipv4.val.dst_ip));
 		break;
 	case IB_FLOW_SPEC_IPV6:
-		if (ib_spec->size != sizeof(ib_spec->ipv6))
-			return -EINVAL;
+		if (FIELDS_NOT_SUPPORTED(ib_spec->ipv6.mask, LAST_IPV6_FIELD))
+			return -ENOTSUPP;
 
 		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c,
 			 ethertype, 0xffff);
@@ -1538,8 +1552,9 @@ static int parse_flow_attr(u32 *match_c, u32 *match_v,
 		       sizeof(ib_spec->ipv6.val.dst_ip));
 		break;
 	case IB_FLOW_SPEC_TCP:
-		if (ib_spec->size != sizeof(ib_spec->tcp_udp))
-			return -EINVAL;
+		if (FIELDS_NOT_SUPPORTED(ib_spec->tcp_udp.mask,
+					 LAST_TCP_UDP_FIELD))
+			return -ENOTSUPP;
 
 		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c, ip_protocol,
 			 0xff);
@@ -1557,8 +1572,9 @@ static int parse_flow_attr(u32 *match_c, u32 *match_v,
 			 ntohs(ib_spec->tcp_udp.val.dst_port));
 		break;
 	case IB_FLOW_SPEC_UDP:
-		if (ib_spec->size != sizeof(ib_spec->tcp_udp))
-			return -EINVAL;
+		if (FIELDS_NOT_SUPPORTED(ib_spec->tcp_udp.mask,
+					 LAST_TCP_UDP_FIELD))
+			return -ENOTSUPP;
 
 		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c, ip_protocol,
 			 0xff);
