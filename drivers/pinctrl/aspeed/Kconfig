@@ -1,0 +1,8 @@
+config PINCTRL_ASPEED
+	bool
+	depends on (ARCH_ASPEED || COMPILE_TEST) && OF
+	depends on MFD_SYSCON
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select REGMAP_MMIO
