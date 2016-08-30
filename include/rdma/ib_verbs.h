@@ -1648,9 +1648,20 @@ struct ib_flow_spec_ib {
 	struct ib_flow_ib_filter mask;
 };
 
+/* IPv4 header flags */
+enum ib_ipv4_flags {
+	IB_IPV4_DONT_FRAG = 0x2, /* Don't enable packet fragmentation */
+	IB_IPV4_MORE_FRAG = 0X4  /* For All fragmented packets except the
+				    last have this flag set */
+};
+
 struct ib_flow_ipv4_filter {
 	__be32	src_ip;
 	__be32	dst_ip;
+	u8	proto;
+	u8	tos;
+	u8	ttl;
+	u8	flags;
 	/* Must be last */
 	u8	real_sz[0];
 };
