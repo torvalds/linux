@@ -1436,9 +1436,23 @@ static bool outer_header_zero(u32 *match_criteria)
 						  size - 1);
 }
 
+static void set_proto(void *outer_c, void *outer_v, u8 mask, u8 val)
+{
+	MLX5_SET(fte_match_set_lyr_2_4, outer_c, ip_protocol, mask);
+	MLX5_SET(fte_match_set_lyr_2_4, outer_v, ip_protocol, val);
+}
+
+static void set_tos(void *outer_c, void *outer_v, u8 mask, u8 val)
+{
+	MLX5_SET(fte_match_set_lyr_2_4, outer_c, ip_ecn, mask);
+	MLX5_SET(fte_match_set_lyr_2_4, outer_v, ip_ecn, val);
+	MLX5_SET(fte_match_set_lyr_2_4, outer_c, ip_dscp, mask >> 2);
+	MLX5_SET(fte_match_set_lyr_2_4, outer_v, ip_dscp, val >> 2);
+}
+
 #define LAST_ETH_FIELD vlan_tag
 #define LAST_IB_FIELD sl
-#define LAST_IPV4_FIELD dst_ip
+#define LAST_IPV4_FIELD tos
 #define LAST_IPV6_FIELD dst_ip
 #define LAST_TCP_UDP_FIELD src_port
 
@@ -1524,6 +1538,12 @@ static int parse_flow_attr(u32 *match_c, u32 *match_v,
 				    dst_ipv4_dst_ipv6.ipv4_layout.ipv4),
 		       &ib_spec->ipv4.val.dst_ip,
 		       sizeof(ib_spec->ipv4.val.dst_ip));
+
+		set_tos(outer_headers_c, outer_headers_v,
+			ib_spec->ipv4.mask.tos, ib_spec->ipv4.val.tos);
+
+		set_proto(outer_headers_c, outer_headers_v,
+			  ib_spec->ipv4.mask.proto, ib_spec->ipv4.val.proto);
 		break;
 	case IB_FLOW_SPEC_IPV6:
 		if (FIELDS_NOT_SUPPORTED(ib_spec->ipv6.mask, LAST_IPV6_FIELD))
