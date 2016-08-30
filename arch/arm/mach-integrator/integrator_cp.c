@@ -7,31 +7,17 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License.
  */
-#include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/list.h>
-#include <linux/platform_device.h>
-#include <linux/dma-mapping.h>
-#include <linux/string.h>
-#include <linux/device.h>
-#include <linux/amba/bus.h>
-#include <linux/amba/kmi.h>
 #include <linux/amba/mmci.h>
 #include <linux/io.h>
 #include <linux/irqchip.h>
-#include <linux/gfp.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/sched_clock.h>
 
-#include <asm/setup.h>
-#include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/irq.h>
 #include <asm/mach/map.h>
-#include <asm/mach/time.h>
 
 #include "hardware.h"
 #include "cm.h"
@@ -43,12 +29,8 @@ static void __iomem *intcp_con_base;
 /*
  * Logical      Physical
  * f1000000	10000000	Core module registers
- * f1300000	13000000	Counter/Timer
  * f1400000	14000000	Interrupt controller
  * f1600000	16000000	UART 0
- * f1700000	17000000	UART 1
- * f1a00000	1a000000	Debug LEDs
- * fc900000	c9000000	GPIO
  * fca00000	ca000000	SIC
  */
 
@@ -59,11 +41,6 @@ static struct map_desc intcp_io_desc[] __initdata __maybe_unused = {
 		.length		= SZ_4K,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	= IO_ADDRESS(INTEGRATOR_CT_BASE),
-		.pfn		= __phys_to_pfn(INTEGRATOR_CT_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE
-	}, {
 		.virtual	= IO_ADDRESS(INTEGRATOR_IC_BASE),
 		.pfn		= __phys_to_pfn(INTEGRATOR_IC_BASE),
 		.length		= SZ_4K,
@@ -71,16 +48,6 @@ static struct map_desc intcp_io_desc[] __initdata __maybe_unused = {
 	}, {
 		.virtual	= IO_ADDRESS(INTEGRATOR_UART0_BASE),
 		.pfn		= __phys_to_pfn(INTEGRATOR_UART0_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	= IO_ADDRESS(INTEGRATOR_DBG_BASE),
-		.pfn		= __phys_to_pfn(INTEGRATOR_DBG_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	= IO_ADDRESS(INTEGRATOR_CP_GPIO_BASE),
-		.pfn		= __phys_to_pfn(INTEGRATOR_CP_GPIO_BASE),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE
 	}, {
