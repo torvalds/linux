@@ -19,6 +19,15 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
+ * Authors:
+ *    Kevin Tian <kevin.tian@intel.com>
+ *    Eddie Dong <eddie.dong@intel.com>
+ *
+ * Contributors:
+ *    Niu Bing <bing.niu@intel.com>
+ *    Zhi Wang <zhi.a.wang@intel.com>
+ *
  */
 
 #ifndef _GVT_H_
@@ -26,6 +35,7 @@
 
 #include "debug.h"
 #include "hypercall.h"
+#include "mmio.h"
 
 #define GVT_MAX_VGPU 8
 
@@ -45,7 +55,7 @@ extern struct intel_gvt_host intel_gvt_host;
 /* Describe per-platform limitations. */
 struct intel_gvt_device_info {
 	u32 max_support_vgpus;
-	/* This data structure will grow bigger in GVT device model patches */
+	u32 mmio_size;
 };
 
 /* GM resources owned by a vGPU */
@@ -83,6 +93,13 @@ struct intel_gvt_fence {
 	unsigned long vgpu_allocated_fence_num;
 };
 
+#define INTEL_GVT_MMIO_HASH_BITS 9
+
+struct intel_gvt_mmio {
+	u32 *mmio_attribute;
+	DECLARE_HASHTABLE(mmio_info_table, INTEL_GVT_MMIO_HASH_BITS);
+};
+
 struct intel_gvt {
 	struct mutex lock;
 	bool initialized;
@@ -93,6 +110,7 @@ struct intel_gvt {
 	struct intel_gvt_device_info device_info;
 	struct intel_gvt_gm gm;
 	struct intel_gvt_fence fence;
+	struct intel_gvt_mmio mmio;
 };
 
 /* Aperture/GM space definitions for GVT device */

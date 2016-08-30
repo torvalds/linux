@@ -19,6 +19,15 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
+ * Authors:
+ *    Kevin Tian <kevin.tian@intel.com>
+ *    Eddie Dong <eddie.dong@intel.com>
+ *
+ * Contributors:
+ *    Niu Bing <bing.niu@intel.com>
+ *    Zhi Wang <zhi.a.wang@intel.com>
+ *
  */
 
 #include <linux/types.h>
@@ -84,9 +93,12 @@ int intel_gvt_init_host(void)
 
 static void init_device_info(struct intel_gvt *gvt)
 {
-	if (IS_BROADWELL(gvt->dev_priv) || IS_SKYLAKE(gvt->dev_priv))
-		gvt->device_info.max_support_vgpus = 8;
-	/* This function will grow large in GVT device model patches. */
+	struct intel_gvt_device_info *info = &gvt->device_info;
+
+	if (IS_BROADWELL(gvt->dev_priv) || IS_SKYLAKE(gvt->dev_priv)) {
+		info->max_support_vgpus = 8;
+		info->mmio_size = 2 * 1024 * 1024;
+	}
 }
 
 /**
@@ -104,7 +116,7 @@ void intel_gvt_clean_device(struct drm_i915_private *dev_priv)
 	if (WARN_ON(!gvt->initialized))
 		return;
 
-	/* Other de-initialization of GVT components will be introduced. */
+	intel_gvt_clean_mmio_info(gvt);
 
 	gvt->initialized = false;
 }
@@ -123,6 +135,8 @@ void intel_gvt_clean_device(struct drm_i915_private *dev_priv)
 int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 {
 	struct intel_gvt *gvt = &dev_priv->gvt;
+	int ret;
+
 	/*
 	 * Cannot initialize GVT device without intel_gvt_host gets
 	 * initialized first.
@@ -139,9 +153,11 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 	gvt->dev_priv = dev_priv;
 
 	init_device_info(gvt);
-	/*
-	 * Other initialization of GVT components will be introduce here.
-	 */
+
+	ret = intel_gvt_setup_mmio_info(gvt);
+	if (ret)
+		return ret;
+
 	gvt_dbg_core("gvt device creation is done\n");
 	gvt->initialized = true;
 	return 0;
