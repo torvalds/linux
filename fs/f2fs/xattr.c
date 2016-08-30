@@ -548,6 +548,8 @@ static int __f2fs_setxattr(struct inode *inode, int index,
 			!strcmp(name, F2FS_XATTR_NAME_ENCRYPTION_CONTEXT))
 		f2fs_set_encrypted_inode(inode);
 	f2fs_mark_inode_dirty_sync(inode);
+	if (!error && S_ISDIR(inode->i_mode))
+		set_sbi_flag(F2FS_I_SB(inode), SBI_NEED_CP);
 exit:
 	kzfree(base_addr);
 	return error;
