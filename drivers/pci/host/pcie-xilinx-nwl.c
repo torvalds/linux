@@ -120,8 +120,8 @@
 					MSGF_LEG_SR_INTC | MSGF_LEG_SR_INTD)
 
 /* MSI interrupt status mask bits */
-#define MSGF_MSI_SR_LO_MASK		BIT(0)
-#define MSGF_MSI_SR_HI_MASK		BIT(0)
+#define MSGF_MSI_SR_LO_MASK		GENMASK(31, 0)
+#define MSGF_MSI_SR_HI_MASK		GENMASK(31, 0)
 
 #define MSII_PRESENT			BIT(0)
 #define MSII_ENABLE			BIT(0)
