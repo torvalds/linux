@@ -81,10 +81,12 @@ EXPORT_SYMBOL_GPL(nvme_cancel_request);
 bool nvme_change_ctrl_state(struct nvme_ctrl *ctrl,
 		enum nvme_ctrl_state new_state)
 {
-	enum nvme_ctrl_state old_state = ctrl->state;
+	enum nvme_ctrl_state old_state;
 	bool changed = false;
 
 	spin_lock_irq(&ctrl->lock);
+
+	old_state = ctrl->state;
 	switch (new_state) {
 	case NVME_CTRL_LIVE:
 		switch (old_state) {
@@ -140,10 +142,11 @@ bool nvme_change_ctrl_state(struct nvme_ctrl *ctrl,
 	default:
 		break;
 	}
-	spin_unlock_irq(&ctrl->lock);
 
 	if (changed)
 		ctrl->state = new_state;
+
+	spin_unlock_irq(&ctrl->lock);
 
 	return changed;
 }
@@ -608,7 +611,7 @@ int nvme_get_features(struct nvme_ctrl *dev, unsigned fid, unsigned nsid,
 
 	ret = __nvme_submit_sync_cmd(dev->admin_q, &c, &cqe, NULL, 0, 0,
 			NVME_QID_ANY, 0, 0);
-	if (ret >= 0)
+	if (ret >= 0 && result)
 		*result = le32_to_cpu(cqe.result);
 	return ret;
 }
@@ -628,7 +631,7 @@ int nvme_set_features(struct nvme_ctrl *dev, unsigned fid, unsigned dword11,
 
 	ret = __nvme_submit_sync_cmd(dev->admin_q, &c, &cqe, NULL, 0, 0,
 			NVME_QID_ANY, 0, 0);
-	if (ret >= 0)
+	if (ret >= 0 && result)
 		*result = le32_to_cpu(cqe.result);
 	return ret;
 }

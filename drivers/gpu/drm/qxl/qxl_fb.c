@@ -73,10 +73,12 @@ static void qxl_fb_image_init(struct qxl_fb_image *qxl_fb_image,
 	}
 }
 
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 static struct fb_deferred_io qxl_defio = {
 	.delay		= QXL_DIRTY_DELAY,
 	.deferred_io	= drm_fb_helper_deferred_io,
 };
+#endif
 
 static struct fb_ops qxlfb_ops = {
 	.owner = THIS_MODULE,
@@ -313,8 +315,10 @@ static int qxlfb_create(struct qxl_fbdev *qfbdev,
 		goto out_destroy_fbi;
 	}
 
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 	info->fbdefio = &qxl_defio;
 	fb_deferred_io_init(info);
+#endif
 
 	qdev->fbdev_info = info;
 	qdev->fbdev_qfb = &qfbdev->qfb;

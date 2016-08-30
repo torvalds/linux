@@ -914,7 +914,9 @@ vmxnet3_copy_hdr(struct sk_buff *skb, struct vmxnet3_tx_queue *tq,
 {
 	struct Vmxnet3_TxDataDesc *tdd;
 
-	tdd = tq->data_ring.base + tq->tx_ring.next2fill;
+	tdd = (struct Vmxnet3_TxDataDesc *)((u8 *)tq->data_ring.base +
+					    tq->tx_ring.next2fill *
+					    tq->txdata_desc_size);
 
 	memcpy(tdd->data, skb->data, ctx->copy_size);
 	netdev_dbg(adapter->netdev,

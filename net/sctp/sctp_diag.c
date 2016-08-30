@@ -424,11 +424,13 @@ static int sctp_diag_dump_one(struct sk_buff *in_skb,
 		paddr.v4.sin_family = AF_INET;
 	} else {
 		laddr.v6.sin6_port = req->id.idiag_sport;
-		memcpy(&laddr.v6.sin6_addr, req->id.idiag_src, 64);
+		memcpy(&laddr.v6.sin6_addr, req->id.idiag_src,
+		       sizeof(laddr.v6.sin6_addr));
 		laddr.v6.sin6_family = AF_INET6;
 
 		paddr.v6.sin6_port = req->id.idiag_dport;
-		memcpy(&paddr.v6.sin6_addr, req->id.idiag_dst, 64);
+		memcpy(&paddr.v6.sin6_addr, req->id.idiag_dst,
+		       sizeof(paddr.v6.sin6_addr));
 		paddr.v6.sin6_family = AF_INET6;
 	}
 

@@ -2852,6 +2852,7 @@ bool ilk_disable_lp_wm(struct drm_device *dev)
 
 #define SKL_DDB_SIZE		896	/* in blocks */
 #define BXT_DDB_SIZE		512
+#define SKL_SAGV_BLOCK_TIME	30 /* µs */
 
 /*
  * Return the index of a plane in the SKL DDB and wm result arrays.  Primary
@@ -2873,6 +2874,153 @@ skl_wm_plane_id(const struct intel_plane *plane)
 		MISSING_CASE(plane->base.type);
 		return plane->plane;
 	}
+}
+
+/*
+ * SAGV dynamically adjusts the system agent voltage and clock frequencies
+ * depending on power and performance requirements. The display engine access
+ * to system memory is blocked during the adjustment time. Because of the
+ * blocking time, having this enabled can cause full system hangs and/or pipe
+ * underruns if we don't meet all of the following requirements:
+ *
+ *  - <= 1 pipe enabled
+ *  - All planes can enable watermarks for latencies >= SAGV engine block time
+ *  - We're not using an interlaced display configuration
+ */
+int
+skl_enable_sagv(struct drm_i915_private *dev_priv)
+{
+	int ret;
+
+	if (dev_priv->skl_sagv_status == I915_SKL_SAGV_NOT_CONTROLLED ||
+	    dev_priv->skl_sagv_status == I915_SKL_SAGV_ENABLED)
+		return 0;
+
+	DRM_DEBUG_KMS("Enabling the SAGV\n");
+	mutex_lock(&dev_priv->rps.hw_lock);
+
+	ret = sandybridge_pcode_write(dev_priv, GEN9_PCODE_SAGV_CONTROL,
+				      GEN9_SAGV_ENABLE);
+
+	/* We don't need to wait for the SAGV when enabling */
+	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	/*
+	 * Some skl systems, pre-release machines in particular,
+	 * don't actually have an SAGV.
+	 */
+	if (ret == -ENXIO) {
+		DRM_DEBUG_DRIVER("No SAGV found on system, ignoring\n");
+		dev_priv->skl_sagv_status = I915_SKL_SAGV_NOT_CONTROLLED;
+		return 0;
+	} else if (ret < 0) {
+		DRM_ERROR("Failed to enable the SAGV\n");
+		return ret;
+	}
+
+	dev_priv->skl_sagv_status = I915_SKL_SAGV_ENABLED;
+	return 0;
+}
+
+static int
+skl_do_sagv_disable(struct drm_i915_private *dev_priv)
+{
+	int ret;
+	uint32_t temp = GEN9_SAGV_DISABLE;
+
+	ret = sandybridge_pcode_read(dev_priv, GEN9_PCODE_SAGV_CONTROL,
+				     &temp);
+	if (ret)
+		return ret;
+	else
+		return temp & GEN9_SAGV_IS_DISABLED;
+}
+
+int
+skl_disable_sagv(struct drm_i915_private *dev_priv)
+{
+	int ret, result;
+
+	if (dev_priv->skl_sagv_status == I915_SKL_SAGV_NOT_CONTROLLED ||
+	    dev_priv->skl_sagv_status == I915_SKL_SAGV_DISABLED)
+		return 0;
+
+	DRM_DEBUG_KMS("Disabling the SAGV\n");
+	mutex_lock(&dev_priv->rps.hw_lock);
+
+	/* bspec says to keep retrying for at least 1 ms */
+	ret = wait_for(result = skl_do_sagv_disable(dev_priv), 1);
+	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	if (ret == -ETIMEDOUT) {
+		DRM_ERROR("Request to disable SAGV timed out\n");
+		return -ETIMEDOUT;
+	}
+
+	/*
+	 * Some skl systems, pre-release machines in particular,
+	 * don't actually have an SAGV.
+	 */
+	if (result == -ENXIO) {
+		DRM_DEBUG_DRIVER("No SAGV found on system, ignoring\n");
+		dev_priv->skl_sagv_status = I915_SKL_SAGV_NOT_CONTROLLED;
+		return 0;
+	} else if (result < 0) {
+		DRM_ERROR("Failed to disable the SAGV\n");
+		return result;
+	}
+
+	dev_priv->skl_sagv_status = I915_SKL_SAGV_DISABLED;
+	return 0;
+}
+
+bool skl_can_enable_sagv(struct drm_atomic_state *state)
+{
+	struct drm_device *dev = state->dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
+	struct drm_crtc *crtc;
+	enum pipe pipe;
+	int level, plane;
+
+	/*
+	 * SKL workaround: bspec recommends we disable the SAGV when we have
+	 * more then one pipe enabled
+	 *
+	 * If there are no active CRTCs, no additional checks need be performed
+	 */
+	if (hweight32(intel_state->active_crtcs) == 0)
+		return true;
+	else if (hweight32(intel_state->active_crtcs) > 1)
+		return false;
+
+	/* Since we're now guaranteed to only have one active CRTC... */
+	pipe = ffs(intel_state->active_crtcs) - 1;
+	crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+
+	if (crtc->state->mode.flags & DRM_MODE_FLAG_INTERLACE)
+		return false;
+
+	for_each_plane(dev_priv, pipe, plane) {
+		/* Skip this plane if it's not enabled */
+		if (intel_state->wm_results.plane[pipe][plane][0] == 0)
+			continue;
+
+		/* Find the highest enabled wm level for this plane */
+		for (level = ilk_wm_max_level(dev);
+		     intel_state->wm_results.plane[pipe][plane][level] == 0; --level)
+		     { }
+
+		/*
+		 * If any of the planes on this pipe don't enable wm levels
+		 * that incur memory latencies higher then 30µs we can't enable
+		 * the SAGV
+		 */
+		if (dev_priv->wm.skl_latency[level] < SKL_SAGV_BLOCK_TIME)
+			return false;
+	}
+
+	return true;
 }
 
 static void
@@ -3106,8 +3254,6 @@ skl_get_total_relative_data_rate(struct intel_crtc_state *intel_cstate)
 		total_data_rate += intel_cstate->wm.skl.plane_data_rate[id];
 		total_data_rate += intel_cstate->wm.skl.plane_y_data_rate[id];
 	}
-
-	WARN_ON(cstate->plane_mask && total_data_rate == 0);
 
 	return total_data_rate;
 }
@@ -3344,6 +3490,8 @@ static uint32_t skl_wm_method2(uint32_t pixel_rate, uint32_t pipe_htotal,
 		plane_bytes_per_line *= 4;
 		plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512);
 		plane_blocks_per_line /= 4;
+	} else if (tiling == DRM_FORMAT_MOD_NONE) {
+		plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512) + 1;
 	} else {
 		plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512);
 	}
@@ -3910,8 +4058,23 @@ skl_compute_ddb(struct drm_atomic_state *state)
 	 * pretend that all pipes switched active status so that we'll
 	 * ensure a full DDB recompute.
 	 */
-	if (dev_priv->wm.distrust_bios_wm)
+	if (dev_priv->wm.distrust_bios_wm) {
+		ret = drm_modeset_lock(&dev->mode_config.connection_mutex,
+				       state->acquire_ctx);
+		if (ret)
+			return ret;
+
 		intel_state->active_pipe_changes = ~0;
+
+		/*
+		 * We usually only initialize intel_state->active_crtcs if we
+		 * we're doing a modeset; make sure this field is always
+		 * initialized during the sanitization process that happens
+		 * on the first commit too.
+		 */
+		if (!intel_state->modeset)
+			intel_state->active_crtcs = dev_priv->active_crtcs;
+	}
 
 	/*
 	 * If the modeset changes which CRTC's are active, we need to
@@ -3941,9 +4104,31 @@ skl_compute_ddb(struct drm_atomic_state *state)
 		ret = skl_allocate_pipe_ddb(cstate, ddb);
 		if (ret)
 			return ret;
+
+		ret = drm_atomic_add_affected_planes(state, &intel_crtc->base);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
+}
+
+static void
+skl_copy_wm_for_pipe(struct skl_wm_values *dst,
+		     struct skl_wm_values *src,
+		     enum pipe pipe)
+{
+	dst->wm_linetime[pipe] = src->wm_linetime[pipe];
+	memcpy(dst->plane[pipe], src->plane[pipe],
+	       sizeof(dst->plane[pipe]));
+	memcpy(dst->plane_trans[pipe], src->plane_trans[pipe],
+	       sizeof(dst->plane_trans[pipe]));
+
+	dst->ddb.pipe[pipe] = src->ddb.pipe[pipe];
+	memcpy(dst->ddb.y_plane[pipe], src->ddb.y_plane[pipe],
+	       sizeof(dst->ddb.y_plane[pipe]));
+	memcpy(dst->ddb.plane[pipe], src->ddb.plane[pipe],
+	       sizeof(dst->ddb.plane[pipe]));
 }
 
 static int
@@ -4018,8 +4203,10 @@ static void skl_update_wm(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct skl_wm_values *results = &dev_priv->wm.skl_results;
+	struct skl_wm_values *hw_vals = &dev_priv->wm.skl_hw;
 	struct intel_crtc_state *cstate = to_intel_crtc_state(crtc->state);
 	struct skl_pipe_wm *pipe_wm = &cstate->wm.skl.optimal;
+	int pipe;
 
 	if ((results->dirty_pipes & drm_crtc_mask(crtc)) == 0)
 		return;
@@ -4031,8 +4218,12 @@ static void skl_update_wm(struct drm_crtc *crtc)
 	skl_write_wm_values(dev_priv, results);
 	skl_flush_wm_values(dev_priv, results);
 
-	/* store the new configuration */
-	dev_priv->wm.skl_hw = *results;
+	/*
+	 * Store the new configuration (but only for the pipes that have
+	 * changed; the other values weren't recomputed).
+	 */
+	for_each_pipe_masked(dev_priv, pipe, results->dirty_pipes)
+		skl_copy_wm_for_pipe(hw_vals, results, pipe);
 
 	mutex_unlock(&dev_priv->wm.wm_mutex);
 }
@@ -6574,9 +6765,7 @@ void intel_init_gt_powersave(struct drm_i915_private *dev_priv)
 
 void intel_cleanup_gt_powersave(struct drm_i915_private *dev_priv)
 {
-	if (IS_CHERRYVIEW(dev_priv))
-		return;
-	else if (IS_VALLEYVIEW(dev_priv))
+	if (IS_VALLEYVIEW(dev_priv))
 		valleyview_cleanup_gt_powersave(dev_priv);
 
 	if (!i915.enable_rc6)
@@ -7658,8 +7847,53 @@ void intel_init_pm(struct drm_device *dev)
 	}
 }
 
+static inline int gen6_check_mailbox_status(struct drm_i915_private *dev_priv)
+{
+	uint32_t flags =
+		I915_READ_FW(GEN6_PCODE_MAILBOX) & GEN6_PCODE_ERROR_MASK;
+
+	switch (flags) {
+	case GEN6_PCODE_SUCCESS:
+		return 0;
+	case GEN6_PCODE_UNIMPLEMENTED_CMD:
+	case GEN6_PCODE_ILLEGAL_CMD:
+		return -ENXIO;
+	case GEN6_PCODE_MIN_FREQ_TABLE_GT_RATIO_OUT_OF_RANGE:
+		return -EOVERFLOW;
+	case GEN6_PCODE_TIMEOUT:
+		return -ETIMEDOUT;
+	default:
+		MISSING_CASE(flags)
+		return 0;
+	}
+}
+
+static inline int gen7_check_mailbox_status(struct drm_i915_private *dev_priv)
+{
+	uint32_t flags =
+		I915_READ_FW(GEN6_PCODE_MAILBOX) & GEN6_PCODE_ERROR_MASK;
+
+	switch (flags) {
+	case GEN6_PCODE_SUCCESS:
+		return 0;
+	case GEN6_PCODE_ILLEGAL_CMD:
+		return -ENXIO;
+	case GEN7_PCODE_TIMEOUT:
+		return -ETIMEDOUT;
+	case GEN7_PCODE_ILLEGAL_DATA:
+		return -EINVAL;
+	case GEN7_PCODE_MIN_FREQ_TABLE_GT_RATIO_OUT_OF_RANGE:
+		return -EOVERFLOW;
+	default:
+		MISSING_CASE(flags);
+		return 0;
+	}
+}
+
 int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox, u32 *val)
 {
+	int status;
+
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
 
 	/* GEN6_PCODE_* are outside of the forcewake domain, we can
@@ -7686,12 +7920,25 @@ int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox, u32 *val
 	*val = I915_READ_FW(GEN6_PCODE_DATA);
 	I915_WRITE_FW(GEN6_PCODE_DATA, 0);
 
+	if (INTEL_GEN(dev_priv) > 6)
+		status = gen7_check_mailbox_status(dev_priv);
+	else
+		status = gen6_check_mailbox_status(dev_priv);
+
+	if (status) {
+		DRM_DEBUG_DRIVER("warning: pcode (read) mailbox access failed: %d\n",
+				 status);
+		return status;
+	}
+
 	return 0;
 }
 
 int sandybridge_pcode_write(struct drm_i915_private *dev_priv,
-			       u32 mbox, u32 val)
+			    u32 mbox, u32 val)
 {
+	int status;
+
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
 
 	/* GEN6_PCODE_* are outside of the forcewake domain, we can
@@ -7715,6 +7962,17 @@ int sandybridge_pcode_write(struct drm_i915_private *dev_priv,
 	}
 
 	I915_WRITE_FW(GEN6_PCODE_DATA, 0);
+
+	if (INTEL_GEN(dev_priv) > 6)
+		status = gen7_check_mailbox_status(dev_priv);
+	else
+		status = gen6_check_mailbox_status(dev_priv);
+
+	if (status) {
+		DRM_DEBUG_DRIVER("warning: pcode (write) mailbox access failed: %d\n",
+				 status);
+		return status;
+	}
 
 	return 0;
 }

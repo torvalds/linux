@@ -3182,7 +3182,6 @@ int tcp_abort(struct sock *sk, int err)
 			local_bh_enable();
 			return 0;
 		}
-		sock_gen_put(sk);
 		return -EOPNOTSUPP;
 	}
 
@@ -3211,7 +3210,6 @@ int tcp_abort(struct sock *sk, int err)
 	bh_unlock_sock(sk);
 	local_bh_enable();
 	release_sock(sk);
-	sock_put(sk);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(tcp_abort);

@@ -1069,7 +1069,7 @@ static int __pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec,
 		nvec = maxvec;
 
 	for (;;) {
-		if (!(flags & PCI_IRQ_NOAFFINITY)) {
+		if (flags & PCI_IRQ_AFFINITY) {
 			dev->irq_affinity = irq_create_affinity_mask(&nvec);
 			if (nvec < minvec)
 				return -ENOSPC;
@@ -1105,7 +1105,7 @@ static int __pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec,
  **/
 int pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec)
 {
-	return __pci_enable_msi_range(dev, minvec, maxvec, PCI_IRQ_NOAFFINITY);
+	return __pci_enable_msi_range(dev, minvec, maxvec, 0);
 }
 EXPORT_SYMBOL(pci_enable_msi_range);
 
@@ -1120,7 +1120,7 @@ static int __pci_enable_msix_range(struct pci_dev *dev,
 		return -ERANGE;
 
 	for (;;) {
-		if (!(flags & PCI_IRQ_NOAFFINITY)) {
+		if (flags & PCI_IRQ_AFFINITY) {
 			dev->irq_affinity = irq_create_affinity_mask(&nvec);
 			if (nvec < minvec)
 				return -ENOSPC;
@@ -1160,8 +1160,7 @@ static int __pci_enable_msix_range(struct pci_dev *dev,
 int pci_enable_msix_range(struct pci_dev *dev, struct msix_entry *entries,
 		int minvec, int maxvec)
 {
-	return __pci_enable_msix_range(dev, entries, minvec, maxvec,
-			PCI_IRQ_NOAFFINITY);
+	return __pci_enable_msix_range(dev, entries, minvec, maxvec, 0);
 }
 EXPORT_SYMBOL(pci_enable_msix_range);
 
@@ -1187,22 +1186,25 @@ int pci_alloc_irq_vectors(struct pci_dev *dev, unsigned int min_vecs,
 {
 	int vecs = -ENOSPC;
 
-	if (!(flags & PCI_IRQ_NOMSIX)) {
+	if (flags & PCI_IRQ_MSIX) {
 		vecs = __pci_enable_msix_range(dev, NULL, min_vecs, max_vecs,
 				flags);
 		if (vecs > 0)
 			return vecs;
 	}
 
-	if (!(flags & PCI_IRQ_NOMSI)) {
+	if (flags & PCI_IRQ_MSI) {
 		vecs = __pci_enable_msi_range(dev, min_vecs, max_vecs, flags);
 		if (vecs > 0)
 			return vecs;
 	}
 
 	/* use legacy irq if allowed */
-	if (!(flags & PCI_IRQ_NOLEGACY) && min_vecs == 1)
+	if ((flags & PCI_IRQ_LEGACY) && min_vecs == 1) {
+		pci_intx(dev, 1);
 		return 1;
+	}
+
 	return vecs;
 }
 EXPORT_SYMBOL(pci_alloc_irq_vectors);

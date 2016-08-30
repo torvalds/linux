@@ -1353,15 +1353,19 @@ int ext4_expand_extra_isize_ea(struct inode *inode, int new_extra_isize,
 	size_t min_offs, free;
 	int total_ino;
 	void *base, *start, *end;
-	int extra_isize = 0, error = 0, tried_min_extra_isize = 0;
+	int error = 0, tried_min_extra_isize = 0;
 	int s_min_extra_isize = le16_to_cpu(EXT4_SB(inode->i_sb)->s_es->s_min_extra_isize);
+	int isize_diff;	/* How much do we need to grow i_extra_isize */
 
 	down_write(&EXT4_I(inode)->xattr_sem);
+	/*
+	 * Set EXT4_STATE_NO_EXPAND to avoid recursion when marking inode dirty
+	 */
+	ext4_set_inode_state(inode, EXT4_STATE_NO_EXPAND);
 retry:
-	if (EXT4_I(inode)->i_extra_isize >= new_extra_isize) {
-		up_write(&EXT4_I(inode)->xattr_sem);
-		return 0;
-	}
+	isize_diff = new_extra_isize - EXT4_I(inode)->i_extra_isize;
+	if (EXT4_I(inode)->i_extra_isize >= new_extra_isize)
+		goto out;
 
 	header = IHDR(inode, raw_inode);
 	entry = IFIRST(header);
@@ -1382,7 +1386,7 @@ retry:
 		goto cleanup;
 
 	free = ext4_xattr_free_space(last, &min_offs, base, &total_ino);
-	if (free >= new_extra_isize) {
+	if (free >= isize_diff) {
 		entry = IFIRST(header);
 		ext4_xattr_shift_entries(entry,	EXT4_I(inode)->i_extra_isize
 				- new_extra_isize, (void *)raw_inode +
@@ -1390,8 +1394,7 @@ retry:
 				(void *)header, total_ino,
 				inode->i_sb->s_blocksize);
 		EXT4_I(inode)->i_extra_isize = new_extra_isize;
-		error = 0;
-		goto cleanup;
+		goto out;
 	}
 
 	/*
@@ -1414,7 +1417,7 @@ retry:
 		end = bh->b_data + bh->b_size;
 		min_offs = end - base;
 		free = ext4_xattr_free_space(first, &min_offs, base, NULL);
-		if (free < new_extra_isize) {
+		if (free < isize_diff) {
 			if (!tried_min_extra_isize && s_min_extra_isize) {
 				tried_min_extra_isize++;
 				new_extra_isize = s_min_extra_isize;
@@ -1428,7 +1431,7 @@ retry:
 		free = inode->i_sb->s_blocksize;
 	}
 
-	while (new_extra_isize > 0) {
+	while (isize_diff > 0) {
 		size_t offs, size, entry_size;
 		struct ext4_xattr_entry *small_entry = NULL;
 		struct ext4_xattr_info i = {
@@ -1459,7 +1462,7 @@ retry:
 			EXT4_XATTR_SIZE(le32_to_cpu(last->e_value_size)) +
 					EXT4_XATTR_LEN(last->e_name_len);
 			if (total_size <= free && total_size < min_total_size) {
-				if (total_size < new_extra_isize) {
+				if (total_size < isize_diff) {
 					small_entry = last;
 				} else {
 					entry = last;
@@ -1514,22 +1517,22 @@ retry:
 		error = ext4_xattr_ibody_set(handle, inode, &i, is);
 		if (error)
 			goto cleanup;
+		total_ino -= entry_size;
 
 		entry = IFIRST(header);
-		if (entry_size + EXT4_XATTR_SIZE(size) >= new_extra_isize)
-			shift_bytes = new_extra_isize;
+		if (entry_size + EXT4_XATTR_SIZE(size) >= isize_diff)
+			shift_bytes = isize_diff;
 		else
-			shift_bytes = entry_size + size;
+			shift_bytes = entry_size + EXT4_XATTR_SIZE(size);
 		/* Adjust the offsets and shift the remaining entries ahead */
-		ext4_xattr_shift_entries(entry, EXT4_I(inode)->i_extra_isize -
-			shift_bytes, (void *)raw_inode +
-			EXT4_GOOD_OLD_INODE_SIZE + extra_isize + shift_bytes,
-			(void *)header, total_ino - entry_size,
-			inode->i_sb->s_blocksize);
+		ext4_xattr_shift_entries(entry, -shift_bytes,
+			(void *)raw_inode + EXT4_GOOD_OLD_INODE_SIZE +
+			EXT4_I(inode)->i_extra_isize + shift_bytes,
+			(void *)header, total_ino, inode->i_sb->s_blocksize);
 
-		extra_isize += shift_bytes;
-		new_extra_isize -= shift_bytes;
-		EXT4_I(inode)->i_extra_isize = extra_isize;
+		isize_diff -= shift_bytes;
+		EXT4_I(inode)->i_extra_isize += shift_bytes;
+		header = IHDR(inode, raw_inode);
 
 		i.name = b_entry_name;
 		i.value = buffer;
@@ -1551,6 +1554,8 @@ retry:
 		kfree(bs);
 	}
 	brelse(bh);
+out:
+	ext4_clear_inode_state(inode, EXT4_STATE_NO_EXPAND);
 	up_write(&EXT4_I(inode)->xattr_sem);
 	return 0;
 
@@ -1562,6 +1567,10 @@ cleanup:
 	kfree(is);
 	kfree(bs);
 	brelse(bh);
+	/*
+	 * We deliberately leave EXT4_STATE_NO_EXPAND set here since inode
+	 * size expansion failed.
+	 */
 	up_write(&EXT4_I(inode)->xattr_sem);
 	return error;
 }

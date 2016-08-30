@@ -123,6 +123,11 @@ int snd_skl_get_module_info(struct skl_sst *ctx, u8 *uuid,
 
 	uuid_mod = (uuid_le *)uuid;
 
+	if (list_empty(&ctx->uuid_list)) {
+		dev_err(ctx->dev, "Module list is empty\n");
+		return -EINVAL;
+	}
+
 	list_for_each_entry(module, &ctx->uuid_list, list) {
 		if (uuid_le_cmp(*uuid_mod, module->uuid) == 0) {
 			dfw_config->module_id = module->id;

@@ -1247,8 +1247,8 @@ static int da7213_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	/* By default only 32 BCLK per WCLK is supported */
-	dai_clk_mode |= DA7213_DAI_BCLKS_PER_WCLK_32;
+	/* By default only 64 BCLK per WCLK is supported */
+	dai_clk_mode |= DA7213_DAI_BCLKS_PER_WCLK_64;
 
 	snd_soc_write(codec, DA7213_DAI_CLK_MODE, dai_clk_mode);
 	snd_soc_update_bits(codec, DA7213_DAI_CTRL, DA7213_DAI_FORMAT_MASK,

@@ -732,6 +732,8 @@ static int tipc_udp_enable(struct net *net, struct tipc_bearer *b,
 
 	return 0;
 err:
+	if (ub->ubsock)
+		udp_tunnel_sock_release(ub->ubsock);
 	kfree(ub);
 	return err;
 }
