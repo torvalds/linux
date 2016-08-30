@@ -247,9 +247,9 @@ int st_sensors_power_enable(struct iio_dev *indio_dev)
 	}
 
 	pdata->vdd_io = devm_regulator_get(indio_dev->dev.parent, "vddio");
-	if (IS_ERR(pdata->vdd)) {
+	if (IS_ERR(pdata->vdd_io)) {
 		dev_err(&indio_dev->dev, "unable to get Vdd_IO supply\n");
-		err = PTR_ERR(pdata->vdd);
+		err = PTR_ERR(pdata->vdd_io);
 		goto st_sensors_disable_vdd;
 	}
 	err = regulator_enable(pdata->vdd_io);
