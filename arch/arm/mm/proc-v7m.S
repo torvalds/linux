@@ -132,6 +132,40 @@ ENDPROC(__v7m_setup)
 
 	.section ".proc.info.init", #alloc
 
+.macro __v7m_proc name, initfunc, cache_fns = nop_cache_fns, hwcaps = 0,  proc_fns = v7m_processor_functions
+	.long	0			/* proc_info_list.__cpu_mm_mmu_flags */
+	.long	0			/* proc_info_list.__cpu_io_mmu_flags */
+	initfn	\initfunc, \name
+	.long	cpu_arch_name
+	.long	cpu_elf_name
+	.long	HWCAP_HALF | HWCAP_THUMB | HWCAP_FAST_MULT | \hwcaps
+	.long	cpu_v7m_name
+	.long   \proc_fns
+	.long	0			/* proc_info_list.tlb */
+	.long	0			/* proc_info_list.user */
+	.long	\cache_fns
+.endm
+
+	/*
+	 * Match ARM Cortex-M4 processor.
+	 */
+	.type	__v7m_cm4_proc_info, #object
+__v7m_cm4_proc_info:
+	.long	0x410fc240		/* ARM Cortex-M4 0xC24 */
+	.long	0xff0ffff0		/* Mask off revision, patch release */
+	__v7m_proc __v7m_cm4_proc_info, __v7m_setup, hwcaps = HWCAP_EDSP
+	.size	__v7m_cm4_proc_info, . - __v7m_cm4_proc_info
+
+	/*
+	 * Match ARM Cortex-M3 processor.
+	 */
+	.type	__v7m_cm3_proc_info, #object
+__v7m_cm3_proc_info:
+	.long	0x410fc230		/* ARM Cortex-M3 0xC23 */
+	.long	0xff0ffff0		/* Mask off revision, patch release */
+	__v7m_proc __v7m_cm3_proc_info, __v7m_setup
+	.size	__v7m_cm3_proc_info, . - __v7m_cm3_proc_info
+
 	/*
 	 * Match any ARMv7-M processor core.
 	 */
@@ -139,16 +173,6 @@ ENDPROC(__v7m_setup)
 __v7m_proc_info:
 	.long	0x000f0000		@ Required ID value
 	.long	0x000f0000		@ Mask for ID
-	.long   0			@ proc_info_list.__cpu_mm_mmu_flags
-	.long   0			@ proc_info_list.__cpu_io_mmu_flags
-	initfn	__v7m_setup, __v7m_proc_info	@ proc_info_list.__cpu_flush
-	.long	cpu_arch_name
-	.long	cpu_elf_name
-	.long	HWCAP_HALF|HWCAP_THUMB|HWCAP_FAST_MULT
-	.long	cpu_v7m_name
-	.long	v7m_processor_functions	@ proc_info_list.proc
-	.long	0			@ proc_info_list.tlb
-	.long	0			@ proc_info_list.user
-	.long	nop_cache_fns		@ proc_info_list.cache
+	__v7m_proc __v7m_proc_info, __v7m_setup
 	.size	__v7m_proc_info, . - __v7m_proc_info
 
