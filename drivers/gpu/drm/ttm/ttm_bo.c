@@ -717,6 +717,20 @@ out:
 	return ret;
 }
 
+bool ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
+			      const struct ttm_place *place)
+{
+	/* Don't evict this BO if it's outside of the
+	 * requested placement range
+	 */
+	if (place->fpfn >= (bo->mem.start + bo->mem.size) ||
+	    (place->lpfn && place->lpfn <= bo->mem.start))
+		return false;
+
+	return true;
+}
+EXPORT_SYMBOL(ttm_bo_eviction_valuable);
+
 static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
 				uint32_t mem_type,
 				const struct ttm_place *place,
@@ -731,21 +745,16 @@ static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
 	spin_lock(&glob->lru_lock);
 	list_for_each_entry(bo, &man->lru, lru) {
 		ret = __ttm_bo_reserve(bo, false, true, NULL);
-		if (!ret) {
-			if (place && (place->fpfn || place->lpfn)) {
-				/* Don't evict this BO if it's outside of the
-				 * requested placement range
-				 */
-				if (place->fpfn >= (bo->mem.start + bo->mem.size) ||
-				    (place->lpfn && place->lpfn <= bo->mem.start)) {
-					__ttm_bo_unreserve(bo);
-					ret = -EBUSY;
-					continue;
-				}
-			}
+		if (ret)
+			continue;
 
-			break;
+		if (place && !bdev->driver->eviction_valuable(bo, place)) {
+			__ttm_bo_unreserve(bo);
+			ret = -EBUSY;
+			continue;
 		}
+
+		break;
 	}
 
 	if (ret) {

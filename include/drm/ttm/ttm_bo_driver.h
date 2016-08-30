@@ -374,6 +374,18 @@ struct ttm_bo_driver {
 	int (*invalidate_caches)(struct ttm_bo_device *bdev, uint32_t flags);
 	int (*init_mem_type)(struct ttm_bo_device *bdev, uint32_t type,
 			     struct ttm_mem_type_manager *man);
+
+	/**
+	 * struct ttm_bo_driver member eviction_valuable
+	 *
+	 * @bo: the buffer object to be evicted
+	 * @place: placement we need room for
+	 *
+	 * Check with the driver if it is valuable to evict a BO to make room
+	 * for a certain placement.
+	 */
+	bool (*eviction_valuable)(struct ttm_buffer_object *bo,
+				  const struct ttm_place *place);
 	/**
 	 * struct ttm_bo_driver member evict_flags:
 	 *
