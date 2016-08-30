@@ -84,6 +84,33 @@ u32 hci_sock_get_cookie(struct sock *sk)
 	return hci_pi(sk)->cookie;
 }
 
+static bool hci_sock_gen_cookie(struct sock *sk)
+{
+	int id = hci_pi(sk)->cookie;
+
+	if (!id) {
+		id = ida_simple_get(&sock_cookie_ida, 1, 0, GFP_KERNEL);
+		if (id < 0)
+			id = 0xffffffff;
+
+		hci_pi(sk)->cookie = id;
+		get_task_comm(hci_pi(sk)->comm, current);
+		return true;
+	}
+
+	return false;
+}
+
+static void hci_sock_free_cookie(struct sock *sk)
+{
+	int id = hci_pi(sk)->cookie;
+
+	if (id) {
+		hci_pi(sk)->cookie = 0xffffffff;
+		ida_simple_remove(&sock_cookie_ida, id);
+	}
+}
+
 static inline int hci_test_bit(int nr, const void *addr)
 {
 	return *((const __u32 *) addr + (nr >> 5)) & ((__u32) 1 << (nr & 31));
@@ -753,7 +780,6 @@ static int hci_sock_release(struct socket *sock)
 	struct sock *sk = sock->sk;
 	struct hci_dev *hdev;
 	struct sk_buff *skb;
-	int id;
 
 	BT_DBG("sock %p sk %p", sock, sk);
 
@@ -767,8 +793,6 @@ static int hci_sock_release(struct socket *sock)
 		atomic_dec(&monitor_promisc);
 		break;
 	case HCI_CHANNEL_CONTROL:
-		id = hci_pi(sk)->cookie;
-
 		/* Send event to monitor */
 		skb = create_monitor_ctrl_close(sk);
 		if (skb) {
@@ -777,8 +801,7 @@ static int hci_sock_release(struct socket *sock)
 			kfree_skb(skb);
 		}
 
-		hci_pi(sk)->cookie = 0xffffffff;
-		ida_simple_remove(&sock_cookie_ida, id);
+		hci_sock_free_cookie(sk);
 		break;
 	}
 
@@ -1145,14 +1168,8 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 		 */
 		if (haddr.hci_channel == HCI_CHANNEL_CONTROL) {
 			struct sk_buff *skb;
-			int id;
 
-			id = ida_simple_get(&sock_cookie_ida, 1, 0, GFP_KERNEL);
-			if (id < 0)
-				id = 0xffffffff;
-
-			hci_pi(sk)->cookie = id;
-			get_task_comm(hci_pi(sk)->comm, current);
+			hci_sock_gen_cookie(sk);
 
 			/* Send event to monitor */
 			skb = create_monitor_ctrl_open(sk);
