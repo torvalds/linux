@@ -63,7 +63,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
-#include <linux/platform_device.h>
 
 #define _GC_OBJ_ZONE    gcvZONE_OS
 
@@ -144,7 +143,7 @@ _CMAFSLAlloc(
     gcmkONERROR(gckOS_Allocate(os, sizeof(struct mdl_cma_priv), (gctPOINTER *)&mdl_priv));
     mdl_priv->kvaddr = gcvNULL;
 
-    mdl_priv->kvaddr = dma_alloc_writecombine(&os->device->platform->device->dev,
+    mdl_priv->kvaddr = dma_alloc_writecombine(gcvNULL,
             NumPages * PAGE_SIZE,
             &mdl_priv->physical,
             GFP_KERNEL | gcdNOWARN);
@@ -176,7 +175,7 @@ _CMAFSLFree(
     gckOS os = Allocator->os;
     struct mdl_cma_priv *mdl_priv=(struct mdl_cma_priv *)Mdl->priv;
     gcsCMA_PRIV_PTR priv = (gcsCMA_PRIV_PTR)Allocator->privateData;
-    dma_free_writecombine(&os->device->platform->device->dev,
+    dma_free_writecombine(gcvNULL,
             Mdl->numPages * PAGE_SIZE,
             mdl_priv->kvaddr,
             mdl_priv->physical);
@@ -184,25 +183,23 @@ _CMAFSLFree(
     priv->cmasize -= Mdl->numPages * PAGE_SIZE;
 }
 
-static gctINT
+gctINT
 _CMAFSLMapUser(
-    IN gckALLOCATOR Allocator,
-    IN PLINUX_MDL Mdl,
-    IN gctBOOL Cacheable,
-    OUT gctPOINTER * UserLogical
+    gckALLOCATOR Allocator,
+    PLINUX_MDL Mdl,
+    PLINUX_MDL_MAP MdlMap,
+    gctBOOL Cacheable
     )
 {
 
     PLINUX_MDL      mdl = Mdl;
+    PLINUX_MDL_MAP  mdlMap = MdlMap;
     struct mdl_cma_priv *mdl_priv=(struct mdl_cma_priv *)Mdl->priv;
-    gckOS           os = Allocator->os;
-    struct vm_area_struct * vma;
-    gctPOINTER      userLogical = gcvNULL;
 
-    gcmkHEADER_ARG("Allocator=%p Mdl=%p gctBOOL=%d", Allocator, Mdl, Cacheable);
+    gcmkHEADER_ARG("Allocator=%p Mdl=%p MdlMap=%p gctBOOL=%d", Allocator, Mdl, MdlMap, Cacheable);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 4, 0)
-    userLogical = (gctSTRING)vm_mmap(gcvNULL,
+    mdlMap->vmaAddr = (gctSTRING)vm_mmap(gcvNULL,
                     0L,
                     mdl->numPages * PAGE_SIZE,
                     PROT_READ | PROT_WRITE,
@@ -211,7 +208,7 @@ _CMAFSLMapUser(
 #else
     down_write(&current->mm->mmap_sem);
 
-    userLogical = (gctSTRING)do_mmap_pgoff(gcvNULL,
+    mdlMap->vmaAddr = (gctSTRING)do_mmap_pgoff(gcvNULL,
                     0L,
                     mdl->numPages * PAGE_SIZE,
                     PROT_READ | PROT_WRITE,
@@ -225,11 +222,11 @@ _CMAFSLMapUser(
         gcvLEVEL_INFO, gcvZONE_OS,
         "%s(%d): vmaAddr->0x%X for phys_addr->0x%X",
         __FUNCTION__, __LINE__,
-        (gctUINT32)(gctUINTPTR_T)userLogical,
+        (gctUINT32)(gctUINTPTR_T)mdlMap->vmaAddr,
         (gctUINT32)(gctUINTPTR_T)mdl
         );
 
-    if (IS_ERR(userLogical))
+    if (IS_ERR(mdlMap->vmaAddr))
     {
         gcmkTRACE_ZONE(
             gcvLEVEL_INFO, gcvZONE_OS,
@@ -237,15 +234,17 @@ _CMAFSLMapUser(
             __FUNCTION__, __LINE__
             );
 
+        mdlMap->vmaAddr = gcvNULL;
+
         gcmkFOOTER_ARG("*status=%d", gcvSTATUS_OUT_OF_MEMORY);
         return gcvSTATUS_OUT_OF_MEMORY;
     }
 
     down_write(&current->mm->mmap_sem);
 
-    vma = find_vma(current->mm, (unsigned long)userLogical);
+    mdlMap->vma = find_vma(current->mm, (unsigned long)mdlMap->vmaAddr);
 
-    if (vma == gcvNULL)
+    if (mdlMap->vma == gcvNULL)
     {
         up_write(&current->mm->mmap_sem);
 
@@ -255,6 +254,8 @@ _CMAFSLMapUser(
             __FUNCTION__, __LINE__
             );
 
+        mdlMap->vmaAddr = gcvNULL;
+
         gcmkFOOTER_ARG("*status=%d", gcvSTATUS_OUT_OF_RESOURCES);
         return gcvSTATUS_OUT_OF_RESOURCES;
     }
@@ -263,8 +264,8 @@ _CMAFSLMapUser(
     if (mdl->contiguous)
     {
         /* map kernel memory to user space.. */
-        if (dma_mmap_writecombine(&os->device->platform->device->dev,
-                vma,
+        if (dma_mmap_writecombine(gcvNULL,
+                mdlMap->vma,
                 mdl_priv->kvaddr,
                 mdl_priv->physical,
                 mdl->numPages * PAGE_SIZE) < 0)
@@ -277,6 +278,8 @@ _CMAFSLMapUser(
                 __FUNCTION__, __LINE__
                 );
 
+             mdlMap->vmaAddr = gcvNULL;
+
             gcmkFOOTER_ARG("*status=%d", gcvSTATUS_OUT_OF_MEMORY);
             return gcvSTATUS_OUT_OF_MEMORY;
         }
@@ -287,17 +290,6 @@ _CMAFSLMapUser(
     }
 
     up_write(&current->mm->mmap_sem);
-
-    gcmkVERIFY_OK(gckOS_CacheFlush(
-        os,
-        _GetProcessID(),
-        mdl,
-        gcvINVALID_ADDRESS,
-        (gctPOINTER)userLogical,
-        mdl->numPages * PAGE_SIZE
-        ));
-
-    *UserLogical = userLogical;
 
     gcmkFOOTER_NO();
     return gcvSTATUS_OK;
@@ -362,6 +354,15 @@ _CMAUnmapKernel(
 }
 
 extern gceSTATUS
+_DefaultLogicalToPhysical(
+    IN gckALLOCATOR Allocator,
+    IN PLINUX_MDL Mdl,
+    IN gctPOINTER Logical,
+    IN gctUINT32 ProcessID,
+    OUT gctPHYS_ADDR_T * Physical
+    );
+
+extern gceSTATUS
 _DefaultCache(
     IN gckALLOCATOR Allocator,
     IN PLINUX_MDL Mdl,
@@ -381,10 +382,11 @@ _CMAPhysical(
 {
     struct mdl_cma_priv *mdl_priv=(struct mdl_cma_priv *)Mdl->priv;
 
-    *Physical = mdl_priv->physical + Offset;
+    *Physical = mdl_priv->physical + Offset * PAGE_SIZE;
 
     return gcvSTATUS_OK;
 }
+
 
 extern void
 _DefaultAllocatorDestructor(
@@ -399,6 +401,7 @@ gcsALLOCATOR_OPERATIONS CMAFSLAllocatorOperations = {
     .UnmapUser          = _CMAUnmapUser,
     .MapKernel          = _CMAMapKernel,
     .UnmapKernel        = _CMAUnmapKernel,
+    .LogicalToPhysical  = _DefaultLogicalToPhysical,
     .Cache              = _DefaultCache,
     .Physical           = _CMAPhysical,
 };

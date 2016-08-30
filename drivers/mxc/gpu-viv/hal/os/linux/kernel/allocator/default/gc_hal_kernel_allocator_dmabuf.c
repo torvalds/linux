@@ -160,9 +160,6 @@ _DmabufAttach(
 
     Mdl->priv = gcdmabuf;
 
-    /* Always treat it as a non-contigous buffer. */
-    Mdl->contiguous = gcvFALSE;
-
     gcmkFOOTER_NO();
     return gcvSTATUS_OK;
 
@@ -196,37 +193,40 @@ static gctINT
 _DmabufMapUser(
     IN gckALLOCATOR Allocator,
     IN PLINUX_MDL Mdl,
-    IN gctBOOL Cacheable,
-    OUT gctPOINTER * UserLogical
+    IN PLINUX_MDL_MAP MdlMap,
+    IN gctBOOL Cacheable
     )
 {
     gcsDMABUF *gcdmabuf = Mdl->priv;
     gceSTATUS       status;
     PLINUX_MDL      mdl = Mdl;
+    PLINUX_MDL_MAP  mdlMap = MdlMap;
     struct file *   file = gcdmabuf->dmabuf->file;
 
-    *UserLogical = (gctSTRING)vm_mmap(file,
+    mdlMap->vmaAddr = (gctSTRING)vm_mmap(file,
                     0L,
                     mdl->numPages * PAGE_SIZE,
                     PROT_READ | PROT_WRITE,
                     MAP_SHARED,
                     0);
 
-    if (IS_ERR(*UserLogical))
+    if (IS_ERR(mdlMap->vmaAddr))
     {
         gcmkONERROR(gcvSTATUS_OUT_OF_RESOURCES);
     }
 
-    /* To make sure the mapping is created. */
-    if (access_ok(VERIFY_READ, *UserLogical, 4))
-    {
-        uint32_t mem;
-        get_user(mem, (uint32_t *) *UserLogical);
+    down_write(&current->mm->mmap_sem);
 
-        (void) mem;
+    mdlMap->vma = find_vma(current->mm, (unsigned long)mdlMap->vmaAddr);
+
+    up_write(&current->mm->mmap_sem);
+
+    if (mdlMap->vma == gcvNULL)
+    {
+        gcmkONERROR(gcvSTATUS_OUT_OF_RESOURCES);
     }
 
-    return gcvSTATUS_OK;
+    return 0;
 
 OnError:
     return status;
@@ -272,6 +272,19 @@ _DmabufUnmapKernel(
 }
 
 static gceSTATUS
+_DmabufLogicalToPhysical(
+    IN gckALLOCATOR Allocator,
+    IN PLINUX_MDL Mdl,
+    IN gctPOINTER Logical,
+    IN gctUINT32 ProcessID,
+    OUT gctPHYS_ADDR_T * Physical
+    )
+{
+    return gcvSTATUS_NOT_SUPPORTED;
+}
+
+
+static gceSTATUS
 _DmabufCache(
     IN gckALLOCATOR Allocator,
     IN PLINUX_MDL Mdl,
@@ -294,10 +307,8 @@ _DmabufPhysical(
     )
 {
     gcsDMABUF *gcdmabuf = Mdl->priv;
-    gctUINT32 offsetInPage = Offset & ~PAGE_MASK;
-    gctUINT32 index = Offset / PAGE_SIZE;
 
-    *Physical = gcdmabuf->pagearray[index] + offsetInPage;
+    *Physical = gcdmabuf->pagearray[Offset];
 
 
     return gcvSTATUS_OK;
@@ -312,6 +323,7 @@ static gcsALLOCATOR_OPERATIONS DmabufAllocatorOperations =
     .UnmapUser          = _DmabufUnmapUser,
     .MapKernel          = _DmabufMapKernel,
     .UnmapKernel        = _DmabufUnmapKernel,
+    .LogicalToPhysical  = _DmabufLogicalToPhysical,
     .Cache              = _DmabufCache,
     .Physical           = _DmabufPhysical,
 };

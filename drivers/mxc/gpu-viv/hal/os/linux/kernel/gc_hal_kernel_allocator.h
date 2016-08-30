@@ -135,13 +135,14 @@ typedef struct _gcsALLOCATOR_OPERATIONS
     **      PLINUX_MDL Mdl
     **          Pointer to a Mdl.
     **
+    **      PLINUX_MDL_MAP MdlMap
+    **          Pointer to a MdlMap, mapped address is stored
+    **          in MdlMap->vmaAddr
+    **
     **      gctBOOL Cacheable
     **          Whether this mapping is cacheable.
     **
     ** OUTPUT:
-    **
-    **      gctPOINTER * UserLogical
-    **          Pointer to user logical address.
     **
     **      Nothing.
     **
@@ -150,8 +151,8 @@ typedef struct _gcsALLOCATOR_OPERATIONS
     (*MapUser)(
         IN gckALLOCATOR Allocator,
         IN PLINUX_MDL Mdl,
-        IN gctBOOL Cacheable,
-        OUT gctPOINTER * UserLogical
+        IN PLINUX_MDL_MAP MdlMap,
+        IN gctBOOL Cacheable
         );
 
     /**************************************************************************
@@ -232,6 +233,41 @@ typedef struct _gcsALLOCATOR_OPERATIONS
         IN gckALLOCATOR Allocator,
         IN PLINUX_MDL Mdl,
         IN gctPOINTER Logical
+        );
+
+    /**************************************************************************
+    **
+    ** LogicalToPhysical
+    **
+    ** Get physical address from logical address, logical
+    ** address could be user virtual address or kernel
+    ** virtual address.
+    **
+    ** INPUT:
+    **      gckALLOCATOR Allocator
+    **          Pointer to an gckALLOCATOER object.
+    **
+    **      PLINUX_MDL Mdl
+    **          Pointer to a Mdl object.
+    **
+    **      gctPOINTER Logical
+    **          Mapped kernel address.
+    **
+    **      gctUINT32 ProcessID
+    **          pid of current process.
+    ** OUTPUT:
+    **
+    **      gctUINT32_PTR Physical
+    **          Physical address.
+    **
+    */
+    gceSTATUS
+    (*LogicalToPhysical)(
+        IN gckALLOCATOR Allocator,
+        IN PLINUX_MDL Mdl,
+        IN gctPOINTER Logical,
+        IN gctUINT32 ProcessID,
+        OUT gctPHYS_ADDR_T * Physical
         );
 
     /**************************************************************************
@@ -378,8 +414,6 @@ typedef struct _gcsATTACH_DESC
     gctPOINTER                 memory;
     gctUINT32                  physical;
     gctSIZE_T                  size;
-
-    gcsEXTERNAL_MEMORY_INFO    info;
 }
 gcsATTACH_DESC;
 

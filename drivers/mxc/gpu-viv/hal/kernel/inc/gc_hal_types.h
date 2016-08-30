@@ -121,13 +121,8 @@ extern "C" {
 /******************************************************************************\
 ************************************ Keyword ***********************************
 \******************************************************************************/
-
 #if defined(ANDROID) && defined(__BIONIC_FORTIFY)
-#if defined(__clang__)
-#       define gcmINLINE            __inline__ __attribute__ ((always_inline)) __attribute__ ((gnu_inline))
-#   else
-#       define gcmINLINE            __inline__ __attribute__ ((always_inline)) __attribute__ ((gnu_inline)) __attribute__ ((artificial))
-#   endif
+#   define gcmINLINE            __inline__ __attribute__ ((always_inline)) __attribute__ ((gnu_inline)) __attribute__ ((artificial))
 #elif ((defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)) || defined(__APPLE__))
 #   define gcmINLINE            inline      /* C99 keyword. */
 #elif defined(__GNUC__)
@@ -210,7 +205,6 @@ typedef unsigned short          gctUINT16;
 typedef unsigned int            gctUINT32;
 typedef unsigned long long      gctUINT64;
 typedef uintptr_t               gctUINTPTR_T;
-typedef ptrdiff_t               gctPTRDIFF_T;
 
 typedef gctUINT *               gctUINT_PTR;
 typedef gctUINT8 *              gctUINT8_PTR;
@@ -239,11 +233,11 @@ typedef gctUINT32               gctTRACE;
 #define gcvMAXUINT8             0xff
 #define gcvMINUINT8             0x0
 #define gcvMAXUINT16            0xffff
-#define gcvMINUINT16            0x0
+#define gcvMINUINT16            0x8000
 #define gcvMAXUINT32            0xffffffff
-#define gcvMINUINT32            0x0
+#define gcvMINUINT32            0x80000000
 #define gcvMAXUINT64            0xffffffffffffffff
-#define gcvMINUINT64            0x0
+#define gcvMINUINT64            0x8000000000000000
 #define gcvMAXUINTPTR_T         (~(gctUINTPTR_T)0)
 
 typedef float                   gctFLOAT;
@@ -486,7 +480,6 @@ typedef enum _gceSTATUS
     gcvSTATUS_INTERRUPTED           =   -26,
     gcvSTATUS_DEVICE                =   -27,
     gcvSTATUS_NOT_MULTI_PIPE_ALIGNED =   -28,
-    gcvSTATUS_OUT_OF_SAMPLER         =   -29,
 
     /* Linker errors. */
     gcvSTATUS_GLOBAL_TYPE_MISMATCH              =   -1000,
@@ -504,7 +497,6 @@ typedef enum _gceSTATUS
     gcvSTATUS_LINK_INVALID_SHADERS              =   -1012,
     gcvSTATUS_CS_NO_WORKGROUP_SIZE              =   -1013,
     gcvSTATUS_LINK_LIB_ERROR                    =   -1014,
-
     gcvSTATUS_SHADER_VERSION_MISMATCH           =   -1015,
     gcvSTATUS_TOO_MANY_INSTRUCTION              =   -1016,
     gcvSTATUS_SSBO_MISMATCH                     =   -1017,
@@ -513,13 +505,7 @@ typedef enum _gceSTATUS
     gcvSTATUS_NOT_SUPPORT_CL                    =   -1020,
     gcvSTATUS_NOT_SUPPORT_INTEGER               =   -1021,
     gcvSTATUS_UNIFORM_TYPE_MISMATCH             =   -1022,
-
-    gcvSTATUS_MISSING_PRIMITIVE_TYPE            =   -1023,
-    gcvSTATUS_MISSING_OUTPUT_VERTEX_COUNT       =   -1024,
-    gcvSTATUS_NON_INVOCATION_ID_AS_INDEX        =   -1025,
-    gcvSTATUS_INPUT_ARRAY_SIZE_MISMATCH         =   -1026,
-    gcvSTATUS_OUTPUT_ARRAY_SIZE_MISMATCH        =   -1027,
-    gcvSTATUS_LOCATION_ALIASED                  =   -1028,
+    gcvSTATUS_TOO_MANY_SAMPLER                  =   -1023,
 
     /* Compiler errors. */
     gcvSTATUS_COMPILER_FE_PREPROCESSOR_ERROR    =   -2000,
@@ -836,23 +822,6 @@ gceSTATUS;
 
 /*******************************************************************************
 **
-**  gcmCONTAINEROF
-**
-**      Get containing structure of a member.
-**
-**  ARGUMENTS:
-**
-**      Pointer Pointer of member.
-**      Type    Structure name.
-**      Name    Field name.
-*/
-#define gcmCONTAINEROF(Pointer, Type, Member) \
-(\
-    (struct Type *)((gctUINTPTR_T)Pointer - gcmOFFSETOF(Type, Member)) \
-)
-
-/*******************************************************************************
-**
 ** gcmSWAB32
 **
 **      Return a value with all bytes in the 32 bit argument swapped.
@@ -950,6 +919,7 @@ typedef struct _gcsHAL_FRAME_INFO
 }
 gcsHAL_FRAME_INFO;
 
+#if gcdLINK_QUEUE_SIZE
 typedef struct _gckLINKDATA * gckLINKDATA;
 struct _gckLINKDATA
 {
@@ -960,29 +930,31 @@ struct _gckLINKDATA
     gctUINT32                   linkHigh;
 };
 
-typedef struct _gckADDRESSDATA * gckADDRESSDATA;
-struct _gckADDRESSDATA
+typedef struct _gckLINKQUEUE * gckLINKQUEUE;
+struct _gckLINKQUEUE
 {
-    gctUINT32                   start;
-    gctUINT32                   end;
-};
-
-typedef union _gcuQUEUEDATA
-{
-    struct _gckLINKDATA         linkData;
-
-    struct _gckADDRESSDATA      addressData;
-}
-gcuQUEUEDATA;
-
-typedef struct _gckQUEUE * gckQUEUE;
-struct _gckQUEUE
-{
-    gcuQUEUEDATA *              datas;
+    struct _gckLINKDATA         data[gcdLINK_QUEUE_SIZE];
     gctUINT32                   rear;
     gctUINT32                   front;
     gctUINT32                   count;
-    gctUINT32                   size;
+};
+#endif
+
+#define gcdENTRY_QUEUE_SIZE 256
+typedef struct _gckENTRYDATA * gckENTRYDATA;
+struct _gckENTRYDATA
+{
+    gctUINT32                   physical;
+    gctUINT32                   bytes;
+};
+
+typedef struct _gckENTRYQUEUE * gckENTRYQUEUE;
+struct _gckENTRYQUEUE
+{
+    struct _gckENTRYDATA        data[gcdENTRY_QUEUE_SIZE];
+    gctUINT32                   rear;
+    gctUINT32                   front;
+    gctUINT32                   count;
 };
 
 typedef enum _gceTRACEMODE
@@ -992,27 +964,10 @@ typedef enum _gceTRACEMODE
     gcvTRACEMODE_LOGGER   = 2,
     gcvTRACEMODE_PRE      = 3,
     gcvTRACEMODE_POST     = 4,
+    gcvTRACEMODE_SYSTRACE = 5,
+
 } gceTRACEMODE;
 
-typedef struct _gcsLISTHEAD * gcsLISTHEAD_PTR;
-typedef struct _gcsLISTHEAD
-{
-    gcsLISTHEAD_PTR     prev;
-    gcsLISTHEAD_PTR     next;
-}
-gcsLISTHEAD;
-
-/*
-    gcvFEATURE_DATABASE_DATE_MASK
-
-    Mask used to control which bits of chip date will be used to
-    query feature database, ignore release date for fpga and emulator.
-*/
-#if (gcdFPGA_BUILD || defined(EMULATOR))
-#   define gcvFEATURE_DATABASE_DATE_MASK    (0U)
-#else
-#   define gcvFEATURE_DATABASE_DATE_MASK    (~0U)
-#endif
 
 #ifdef __cplusplus
 }

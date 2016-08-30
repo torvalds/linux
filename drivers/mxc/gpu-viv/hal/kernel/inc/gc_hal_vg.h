@@ -378,12 +378,15 @@ gckVGKERNEL_Destroy(
     IN gckVGKERNEL Kernel
     );
 
-/* Unlock video memory from gpu. */
+/* Allocate linear video memory. */
 gceSTATUS
-gckVGKERNEL_BottomHalfUnlockVideoMemory(
+gckVGKERNEL_AllocateLinearMemory(
     IN gckKERNEL Kernel,
-    IN gctUINT32 ProcessID,
-    IN gctUINT32 Node
+    IN OUT gcePOOL * Pool,
+    IN gctSIZE_T Bytes,
+    IN gctUINT32 Alignment,
+    IN gceSURF_TYPE Type,
+    OUT gcuVIDMEM_NODE_PTR * Node
     );
 
 /* Unmap memory. */
@@ -472,8 +475,6 @@ gckVGHARDWARE_QueryChipIdentity(
     IN gckVGHARDWARE Hardware,
     OUT gceCHIPMODEL* ChipModel,
     OUT gctUINT32* ChipRevision,
-    OUT gctUINT32* ProductID,
-    OUT gctUINT32* EcoID,
     OUT gctUINT32* ChipFeatures,
     OUT gctUINT32* ChipMinorFeatures,
     OUT gctUINT32* ChipMinorFeatures1

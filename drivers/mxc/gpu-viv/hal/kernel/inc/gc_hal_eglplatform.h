@@ -56,34 +56,36 @@
 #ifndef __gc_hal_eglplatform_h_
 #define __gc_hal_eglplatform_h_
 
+/* Include VDK types. */
 #include "gc_hal_types.h"
 #include "gc_hal_base.h"
-
+#include "gc_hal_eglplatform_type.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 
 #if defined(_WIN32) || defined(__VC32__) && !defined(__CYGWIN__) && !defined(__SCITECH_SNAP__)
-#ifndef WIN32_LEAN_AND_MEAN
-/* #define WIN32_LEAN_AND_MEAN 1 */
-#endif
+/* Win32 and Windows CE platforms. */
 #include <windows.h>
+typedef HDC             HALNativeDisplayType;
+typedef HWND            HALNativeWindowType;
+typedef HBITMAP         HALNativePixmapType;
 
-typedef HDC                             HALNativeDisplayType;
-typedef HWND                            HALNativeWindowType;
-typedef HBITMAP                         HALNativePixmapType;
-
-typedef struct __BITFIELDINFO
-{
+typedef struct __BITFIELDINFO{
     BITMAPINFO    bmi;
     RGBQUAD       bmiColors[2];
-}
-BITFIELDINFO;
+} BITFIELDINFO;
 
-#elif /* defined(__APPLE__) || */ defined(__WINSCW__) || defined(__SYMBIAN32__)  /* Symbian */
+#elif defined(LINUX) && defined(EGL_API_DFB) && !defined(__APPLE__)
+#include <directfb.h>
+typedef struct _DFBDisplay * HALNativeDisplayType;
+typedef struct _DFBWindow *  HALNativeWindowType;
+typedef struct _DFBPixmap *  HALNativePixmapType;
 
-#elif defined(WL_EGL_PLATFORM) || defined(EGL_API_WL) /* Wayland */
+#elif defined(LINUX) && defined(EGL_API_FB) && !defined(__APPLE__)
+
+#if defined(EGL_API_WL)
 
 #if defined(__GNUC__)
 #   define inline            __inline__  /* GNU keyword. */
@@ -93,8 +95,11 @@ BITFIELDINFO;
 #include <wayland-egl.h>
 #include <pthread.h>
 
+
 #define WL_COMPOSITOR_SIGNATURE (0x31415926)
-#define WL_CLIENT_SIGNATURE             (0x27182818)
+
+#define WL_CLIENT_SIGNATURE     (0x27182818)
+
 #define WL_LOCAL_DISPLAY_SIGNATURE      (0x27182991)
 
 typedef struct _gcsWL_VIV_BUFFER
@@ -115,9 +120,10 @@ typedef struct _gcsWL_EGL_DISPLAY
    gctINT file;
 } gcsWL_EGL_DISPLAY;
 
-typedef struct _gcsWL_LOCAL_DISPLAY {
-    gctUINT wl_signature;
-    gctPOINTER localInfo;
+typedef struct _gcsWL_LOCAL_DISPLAY
+{
+   gctUINT wl_signature;
+   gctPOINTER localInfo;
 } gcsWL_LOCAL_DISPLAY;
 
 typedef struct _gcsWL_EGL_BUFFER_INFO
@@ -129,7 +135,7 @@ typedef struct _gcsWL_EGL_BUFFER_INFO
    gceSURF_TYPE   type;
    gcuVIDMEM_NODE_PTR node;
    gcePOOL pool;
-   gctSIZE_T bytes;
+   gctUINT bytes;
    gcoSURF surface;
    gctINT32 invalidate;
    gctBOOL locked;
@@ -171,34 +177,77 @@ struct wl_egl_window
    struct wl_list link;
 };
 
-typedef void *                          HALNativeDisplayType;
-typedef void *                          HALNativeWindowType;
-typedef void *                          HALNativePixmapType;
-
-#elif defined(__GBM__) /* GBM */
-
+typedef void*   HALNativeDisplayType;
+typedef void*   HALNativeWindowType;
+typedef void*   HALNativePixmapType;
+#else
+/* Linux platform for FBDEV. */
+typedef struct _FBDisplay * HALNativeDisplayType;
+typedef struct _FBWindow *  HALNativeWindowType;
+typedef struct _FBPixmap *  HALNativePixmapType;
+#endif
 #elif defined(__ANDROID__) || defined(ANDROID)
 
-#elif defined(MIR_EGL_PLATFORM) /* Mir */
+struct egl_native_pixmap_t;
 
-#elif defined(__QNXNTO__)
+#if ANDROID_SDK_VERSION >= 9
+    #include <android/native_window.h>
 
-#elif defined(__unix__) || defined(__APPLE__)
-
-#if defined(EGL_API_DFB)
-
-#elif defined(EGL_API_FB)
-
-#elif defined(EGL_API_NULLWS)
-
-
+    typedef struct ANativeWindow*           HALNativeWindowType;
+    typedef struct egl_native_pixmap_t*     HALNativePixmapType;
+    typedef void*                           HALNativeDisplayType;
 #else
-
-/* X11 (tetative). */
+    struct android_native_window_t;
+    typedef struct android_native_window_t*    HALNativeWindowType;
+    typedef struct egl_native_pixmap_t *        HALNativePixmapType;
+    typedef void*                               HALNativeDisplayType;
 #endif
 
+#elif defined(LINUX) || defined(__APPLE__)
+/* X11 platform. */
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+
+typedef Display *   HALNativeDisplayType;
+typedef Window      HALNativeWindowType;
+
+#ifdef CUSTOM_PIXMAP
+typedef void *      HALNativePixmapType;
 #else
+typedef Pixmap      HALNativePixmapType;
+#endif /* CUSTOM_PIXMAP */
+
+/* Rename some badly named X defines. */
+#ifdef Status
+#   define XStatus      int
+#   undef Status
+#endif
+#ifdef Always
+#   define XAlways      2
+#   undef Always
+#endif
+#ifdef CurrentTime
+#   undef CurrentTime
+#   define XCurrentTime 0
+#endif
+
+#elif defined(__QNXNTO__)
+#include <screen/screen.h>
+
+/* VOID */
+typedef int              HALNativeDisplayType;
+typedef screen_window_t  HALNativeWindowType;
+typedef screen_pixmap_t  HALNativePixmapType;
+
+#else
+
 #error "Platform not recognized"
+
+/* VOID */
+typedef void *  HALNativeDisplayType;
+typedef void *  HALNativeWindowType;
+typedef void *  HALNativePixmapType;
+
 #endif
 
 /* define DUMMY according to the system */
@@ -211,10 +260,6 @@ typedef void *                          HALNativePixmapType;
 #else
 #   define EGL_DUMMY (31415926)
 #endif
-
-#if defined(_WIN32) || defined(__VC32__) && !defined(__CYGWIN__) && !defined(__SCITECH_SNAP__)
-
-#include "gc_hal_eglplatform_type.h"
 
 /*******************************************************************************
 ** Display. ********************************************************************
@@ -282,17 +327,6 @@ gcoOS_SetDisplayVirtual(
 
 gceSTATUS
 gcoOS_SetDisplayVirtualEx(
-    IN HALNativeDisplayType Display,
-    IN HALNativeWindowType Window,
-    IN gctPOINTER Context,
-    IN gcoSURF Surface,
-    IN gctUINT Offset,
-    IN gctINT X,
-    IN gctINT Y
-    );
-
-gceSTATUS
-gcoOS_CancelDisplayBackbuffer(
     IN HALNativeDisplayType Display,
     IN HALNativeWindowType Window,
     IN gctPOINTER Context,
@@ -410,6 +444,14 @@ gcoOS_GetWindowInfo(
     );
 
 gceSTATUS
+gcoOS_SetWindowFormat(
+    IN HALNativeDisplayType Display,
+    IN HALNativeWindowType Window,
+    IN gceTILING Tiling,
+    IN gceSURF_FORMAT Format
+    );
+
+gceSTATUS
 gcoOS_DestroyWindow(
     IN HALNativeDisplayType Display,
     IN HALNativeWindowType Window
@@ -450,8 +492,7 @@ gcoOS_GetWindowInfoEx(
     OUT gctINT * Height,
     OUT gctINT * BitsPerPixel,
     OUT gctUINT * Offset,
-    OUT gceSURF_FORMAT * Format,
-    OUT gceSURF_TYPE * Type
+    OUT gceSURF_FORMAT * Format
     );
 
 gceSTATUS
@@ -468,22 +509,6 @@ gcoOS_DrawImageEx(
     IN gctPOINTER Bits,
     IN gceSURF_FORMAT  Format
     );
-
-/*
- * Possiable types:
- *   gcvSURF_BITMAP
- *   gcvSURF_RENDER_TARGET
- *   gcvSURF_RENDER_TARGET_NO_COMPRESSION
- *   gcvSURF_RENDER_TARGET_NO_TILE_STATUS
- */
-gceSTATUS
-gcoOS_SetWindowFormat(
-    IN HALNativeDisplayType Display,
-    IN HALNativeWindowType Window,
-    IN gceSURF_TYPE Type,
-    IN gceSURF_FORMAT Format
-    );
-
 
 /*******************************************************************************
 ** Pixmaps. ********************************************************************
@@ -663,6 +688,7 @@ gcoOS_SwapBuffers(
     OUT gctUINT *Height
     );
 
+#ifdef EGL_API_DRI
 gceSTATUS
 gcoOS_ResizeWindow(
     IN gctPOINTER localDisplay,
@@ -671,12 +697,32 @@ gcoOS_ResizeWindow(
     IN gctUINT Height
     );
 
+#ifdef USE_FREESCALE_EGL_ACCEL
 gceSTATUS
-gcoOS_RSForSwap(
+gcoOS_CreateDrawableEx(
     IN gctPOINTER localDisplay,
     IN HALNativeWindowType Drawable,
-    IN gctPOINTER resolve
+    IN gctBOOL linear);
+
+gceSTATUS
+gcoOS_SwapBuffersGeneric_Async(
+    IN gctPOINTER localDisplay,
+    IN HALNativeWindowType Drawable,
+    IN gcoSURF RenderTarget,
+    IN gcoSURF ResolveTarget,
+    IN gctPOINTER ResolveBits,
+    OUT gctUINT *Width,
+    OUT gctUINT *Height,
+    IN void * resolveRect,
+    OUT gcoSURF *nextSurf
     );
+
+gceSTATUS
+gcoOS_DrawSurface(
+    IN gctPOINTER localDisplay,
+    IN HALNativeWindowType Drawable
+    );
+#endif
 
 #endif
 

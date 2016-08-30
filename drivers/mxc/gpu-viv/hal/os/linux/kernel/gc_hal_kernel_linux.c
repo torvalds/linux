@@ -350,16 +350,12 @@ gckKERNEL_MapVideoMemoryEx(
             gctINT processID;
             gckOS_GetProcessID(&processID);
 
-            gcmkVERIFY_OK(gckOS_AcquireMutex(Kernel->os, Kernel->os->memoryLock, gcvINFINITE));
-
             mdl = (PLINUX_MDL) device->contiguousPhysical;
 
             mdlMap = FindMdlMap(mdl, processID);
             gcmkASSERT(mdlMap);
 
             logical = (gctPOINTER) mdlMap->vmaAddr;
-
-            gcmkVERIFY_OK(gckOS_ReleaseMutex(Kernel->os, Kernel->os->memoryLock));
         }
 #if gcdENABLE_VG
         if (Core == gcvCORE_VG)
@@ -471,6 +467,9 @@ gckKERNEL_MapVideoMemory(
 gceSTATUS
 gckKERNEL_Notify(
     IN gckKERNEL Kernel,
+#if gcdMULTI_GPU
+    IN gctUINT CoreId,
+#endif
     IN gceNOTIFY Notification,
     IN gctBOOL Data
     )
@@ -492,6 +491,9 @@ gckKERNEL_Notify(
         status = gckINTERRUPT_Notify(Kernel->interrupt, Data);
 #else
         status = gckHARDWARE_Interrupt(Kernel->hardware,
+#if gcdMULTI_GPU
+                                       CoreId,
+#endif
                                        Data);
 #endif
         break;

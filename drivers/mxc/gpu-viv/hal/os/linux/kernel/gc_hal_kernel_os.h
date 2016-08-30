@@ -60,7 +60,8 @@ typedef struct _LINUX_MDL_MAP
 {
     gctINT                  pid;
     gctPOINTER              vmaAddr;
-    gctUINT32               count;
+    atomic_t                count;
+    struct vm_area_struct * vma;
     struct _LINUX_MDL_MAP * next;
 }
 LINUX_MDL_MAP;
@@ -71,11 +72,27 @@ typedef struct _LINUX_MDL
 {
     char *                  addr;
 
+    union _pages
+    {
+        /* Pointer to a array of pages. */
+        struct page *       contiguousPages;
+        /* Pointer to a array of pointers to page. */
+        struct page **      nonContiguousPages;
+    }
+    u;
+
+#ifdef NO_DMA_COHERENT
+    gctPOINTER              kaddr;
+#endif /* NO_DMA_COHERENT */
+
     gctINT                  numPages;
+    gctINT                  pagedMem;
     gctBOOL                 contiguous;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)
+    gctBOOL                 exact;
+#endif
     dma_addr_t              dmaHandle;
     PLINUX_MDL_MAP          maps;
-    struct mutex            mapsMutex;
     struct _LINUX_MDL *     prev;
     struct _LINUX_MDL *     next;
 
