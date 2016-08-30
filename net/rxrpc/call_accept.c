@@ -286,7 +286,8 @@ security_mismatch:
  * - assign the user call ID to the call at the front of the queue
  */
 struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *rx,
-				     unsigned long user_call_ID)
+				     unsigned long user_call_ID,
+				     rxrpc_notify_rx_t notify_rx)
 {
 	struct rxrpc_call *call;
 	struct rb_node *parent, **pp;
@@ -340,6 +341,7 @@ struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *rx,
 	}
 
 	/* formalise the acceptance */
+	call->notify_rx = notify_rx;
 	call->user_call_ID = user_call_ID;
 	rb_link_node(&call->sock_node, parent, pp);
 	rb_insert_color(&call->sock_node, &rx->calls);
@@ -437,17 +439,20 @@ out:
  * rxrpc_kernel_accept_call - Allow a kernel service to accept an incoming call
  * @sock: The socket on which the impending call is waiting
  * @user_call_ID: The tag to attach to the call
+ * @notify_rx: Where to send notifications instead of socket queue
  *
  * Allow a kernel service to accept an incoming call, assuming the incoming
- * call is still valid.
+ * call is still valid.  The caller should immediately trigger their own
+ * notification as there must be data waiting.
  */
 struct rxrpc_call *rxrpc_kernel_accept_call(struct socket *sock,
-					    unsigned long user_call_ID)
+					    unsigned long user_call_ID,
+					    rxrpc_notify_rx_t notify_rx)
 {
 	struct rxrpc_call *call;
 
 	_enter(",%lx", user_call_ID);
-	call = rxrpc_accept_call(rxrpc_sk(sock->sk), user_call_ID);
+	call = rxrpc_accept_call(rxrpc_sk(sock->sk), user_call_ID, notify_rx);
 	_leave(" = %p", call);
 	return call;
 }

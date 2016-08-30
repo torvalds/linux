@@ -190,7 +190,7 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 	if (cmd == RXRPC_CMD_ACCEPT) {
 		if (rx->sk.sk_state != RXRPC_SERVER_LISTENING)
 			return -EINVAL;
-		call = rxrpc_accept_call(rx, user_call_ID);
+		call = rxrpc_accept_call(rx, user_call_ID, NULL);
 		if (IS_ERR(call))
 			return PTR_ERR(call);
 		rxrpc_put_call(call);

@@ -90,9 +90,15 @@ int rxrpc_queue_rcv_skb(struct rxrpc_call *call, struct sk_buff *skb,
 		}
 
 		/* allow interception by a kernel service */
-		if (rx->interceptor) {
-			rx->interceptor(sk, call->user_call_ID, skb);
+		if (skb->mark == RXRPC_SKB_MARK_NEW_CALL &&
+		    rx->notify_new_call) {
 			spin_unlock_bh(&sk->sk_receive_queue.lock);
+			skb_queue_tail(&call->knlrecv_queue, skb);
+			rx->notify_new_call(&rx->sk);
+		} else if (call->notify_rx) {
+			spin_unlock_bh(&sk->sk_receive_queue.lock);
+			skb_queue_tail(&call->knlrecv_queue, skb);
+			call->notify_rx(&rx->sk, call, call->user_call_ID);
 		} else {
 			_net("post skb %p", skb);
 			__skb_queue_tail(&sk->sk_receive_queue, skb);

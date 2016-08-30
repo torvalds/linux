@@ -282,7 +282,6 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 	case RXRPC_PACKET_TYPE_DATA:
 	case RXRPC_PACKET_TYPE_ACK:
 		rxrpc_conn_retransmit_call(conn, skb);
-		rxrpc_free_skb(skb);
 		return 0;
 
 	case RXRPC_PACKET_TYPE_ABORT:

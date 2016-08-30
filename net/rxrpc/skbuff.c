@@ -127,7 +127,6 @@ void rxrpc_kernel_data_consumed(struct rxrpc_call *call, struct sk_buff *skb)
 	call->rx_data_recv = sp->hdr.seq;
 	rxrpc_hard_ACK_data(call, skb);
 }
-EXPORT_SYMBOL(rxrpc_kernel_data_consumed);
 
 /*
  * Destroy a packet that has an RxRPC control buffer

@@ -40,6 +40,20 @@ struct rxrpc_crypt {
 struct rxrpc_connection;
 
 /*
+ * Mark applied to socket buffers.
+ */
+enum rxrpc_skb_mark {
+	RXRPC_SKB_MARK_DATA,		/* data message */
+	RXRPC_SKB_MARK_FINAL_ACK,	/* final ACK received message */
+	RXRPC_SKB_MARK_BUSY,		/* server busy message */
+	RXRPC_SKB_MARK_REMOTE_ABORT,	/* remote abort message */
+	RXRPC_SKB_MARK_LOCAL_ABORT,	/* local abort message */
+	RXRPC_SKB_MARK_NET_ERROR,	/* network error message */
+	RXRPC_SKB_MARK_LOCAL_ERROR,	/* local error message */
+	RXRPC_SKB_MARK_NEW_CALL,	/* local error message */
+};
+
+/*
  * sk_state for RxRPC sockets
  */
 enum {
@@ -57,7 +71,7 @@ enum {
 struct rxrpc_sock {
 	/* WARNING: sk has to be the first member */
 	struct sock		sk;
-	rxrpc_interceptor_t	interceptor;	/* kernel service Rx interceptor function */
+	rxrpc_notify_new_call_t	notify_new_call; /* Func to notify of new call */
 	struct rxrpc_local	*local;		/* local endpoint */
 	struct list_head	listen_link;	/* link in the local endpoint's listen list */
 	struct list_head	secureq;	/* calls awaiting connection security clearance */
@@ -367,6 +381,7 @@ enum rxrpc_call_flag {
 	RXRPC_CALL_EXPECT_OOS,		/* expect out of sequence packets */
 	RXRPC_CALL_IS_SERVICE,		/* Call is service call */
 	RXRPC_CALL_EXPOSED,		/* The call was exposed to the world */
+	RXRPC_CALL_RX_NO_MORE,		/* Don't indicate MSG_MORE from recvmsg() */
 };
 
 /*
@@ -441,6 +456,7 @@ struct rxrpc_call {
 	struct timer_list	resend_timer;	/* Tx resend timer */
 	struct work_struct	destroyer;	/* call destroyer */
 	struct work_struct	processor;	/* packet processor and ACK generator */
+	rxrpc_notify_rx_t	notify_rx;	/* kernel service Rx notification function */
 	struct list_head	link;		/* link in master call list */
 	struct list_head	chan_wait_link;	/* Link in conn->waiting_calls */
 	struct hlist_node	error_link;	/* link in error distribution list */
@@ -448,6 +464,7 @@ struct rxrpc_call {
 	struct rb_node		sock_node;	/* node in socket call tree */
 	struct sk_buff_head	rx_queue;	/* received packets */
 	struct sk_buff_head	rx_oos_queue;	/* packets received out of sequence */
+	struct sk_buff_head	knlrecv_queue;	/* Queue for kernel_recv [TODO: replace this] */
 	struct sk_buff		*tx_pending;	/* Tx socket buffer being filled */
 	wait_queue_head_t	waitq;		/* Wait queue for channel or Tx */
 	__be32			crypto_buf[2];	/* Temporary packet crypto buffer */
@@ -512,7 +529,8 @@ extern struct workqueue_struct *rxrpc_workqueue;
  * call_accept.c
  */
 void rxrpc_accept_incoming_calls(struct rxrpc_local *);
-struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *, unsigned long);
+struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *, unsigned long,
+				     rxrpc_notify_rx_t);
 int rxrpc_reject_call(struct rxrpc_sock *);
 
 /*
@@ -874,6 +892,7 @@ int rxrpc_init_server_conn_security(struct rxrpc_connection *);
 /*
  * skbuff.c
  */
+void rxrpc_kernel_data_consumed(struct rxrpc_call *, struct sk_buff *);
 void rxrpc_packet_destructor(struct sk_buff *);
 void rxrpc_new_skb(struct sk_buff *);
 void rxrpc_see_skb(struct sk_buff *);

@@ -136,6 +136,7 @@ static struct rxrpc_call *rxrpc_alloc_call(gfp_t gfp)
 	INIT_LIST_HEAD(&call->accept_link);
 	skb_queue_head_init(&call->rx_queue);
 	skb_queue_head_init(&call->rx_oos_queue);
+	skb_queue_head_init(&call->knlrecv_queue);
 	init_waitqueue_head(&call->waitq);
 	spin_lock_init(&call->lock);
 	rwlock_init(&call->state_lock);
@@ -552,8 +553,6 @@ void rxrpc_release_call(struct rxrpc_call *call)
 			spin_lock_bh(&call->lock);
 		}
 		spin_unlock_bh(&call->lock);
-
-		ASSERTCMP(call->state, !=, RXRPC_CALL_COMPLETE);
 	}
 
 	del_timer_sync(&call->resend_timer);
@@ -682,6 +681,7 @@ static void rxrpc_rcu_destroy_call(struct rcu_head *rcu)
 	struct rxrpc_call *call = container_of(rcu, struct rxrpc_call, rcu);
 
 	rxrpc_purge_queue(&call->rx_queue);
+	rxrpc_purge_queue(&call->knlrecv_queue);
 	rxrpc_put_peer(call->peer);
 	kmem_cache_free(rxrpc_call_jar, call);
 }
@@ -737,6 +737,7 @@ static void rxrpc_cleanup_call(struct rxrpc_call *call)
 
 	rxrpc_purge_queue(&call->rx_queue);
 	ASSERT(skb_queue_empty(&call->rx_oos_queue));
+	rxrpc_purge_queue(&call->knlrecv_queue);
 	sock_put(&call->socket->sk);
 	call_rcu(&call->rcu, rxrpc_rcu_destroy_call);
 }

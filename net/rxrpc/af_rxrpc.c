@@ -231,6 +231,8 @@ static int rxrpc_listen(struct socket *sock, int backlog)
  * @srx: The address of the peer to contact
  * @key: The security context to use (defaults to socket setting)
  * @user_call_ID: The ID to use
+ * @gfp: The allocation constraints
+ * @notify_rx: Where to send notifications instead of socket queue
  *
  * Allow a kernel service to begin a call on the nominated socket.  This just
  * sets up all the internal tracking structures and allocates connection and
@@ -243,7 +245,8 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 					   struct sockaddr_rxrpc *srx,
 					   struct key *key,
 					   unsigned long user_call_ID,
-					   gfp_t gfp)
+					   gfp_t gfp,
+					   rxrpc_notify_rx_t notify_rx)
 {
 	struct rxrpc_conn_parameters cp;
 	struct rxrpc_call *call;
@@ -270,6 +273,8 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 	cp.exclusive		= false;
 	cp.service_id		= srx->srx_service;
 	call = rxrpc_new_client_call(rx, &cp, srx, user_call_ID, gfp);
+	if (!IS_ERR(call))
+		call->notify_rx = notify_rx;
 
 	release_sock(&rx->sk);
 	_leave(" = %p", call);
@@ -289,31 +294,27 @@ void rxrpc_kernel_end_call(struct socket *sock, struct rxrpc_call *call)
 {
 	_enter("%d{%d}", call->debug_id, atomic_read(&call->usage));
 	rxrpc_remove_user_ID(rxrpc_sk(sock->sk), call);
+	rxrpc_purge_queue(&call->knlrecv_queue);
 	rxrpc_put_call(call);
 }
 EXPORT_SYMBOL(rxrpc_kernel_end_call);
 
 /**
- * rxrpc_kernel_intercept_rx_messages - Intercept received RxRPC messages
+ * rxrpc_kernel_new_call_notification - Get notifications of new calls
  * @sock: The socket to intercept received messages on
- * @interceptor: The function to pass the messages to
+ * @notify_new_call: Function to be called when new calls appear
  *
- * Allow a kernel service to intercept messages heading for the Rx queue on an
- * RxRPC socket.  They get passed to the specified function instead.
- * @interceptor should free the socket buffers it is given.  @interceptor is
- * called with the socket receive queue spinlock held and softirqs disabled -
- * this ensures that the messages will be delivered in the right order.
+ * Allow a kernel service to be given notifications about new calls.
  */
-void rxrpc_kernel_intercept_rx_messages(struct socket *sock,
-					rxrpc_interceptor_t interceptor)
+void rxrpc_kernel_new_call_notification(
+	struct socket *sock,
+	rxrpc_notify_new_call_t notify_new_call)
 {
 	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
 
-	_enter("");
-	rx->interceptor = interceptor;
+	rx->notify_new_call = notify_new_call;
 }
-
-EXPORT_SYMBOL(rxrpc_kernel_intercept_rx_messages);
+EXPORT_SYMBOL(rxrpc_kernel_new_call_notification);
 
 /*
  * connect an RxRPC socket
