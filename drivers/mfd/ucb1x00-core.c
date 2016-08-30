@@ -446,10 +446,6 @@ static int ucb1x00_detect_irq(struct ucb1x00 *ucb)
 	unsigned long mask;
 
 	mask = probe_irq_on();
-	if (!mask) {
-		probe_irq_off(mask);
-		return NO_IRQ;
-	}
 
 	/*
 	 * Enable the ADC interrupt.
