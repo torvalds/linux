@@ -279,15 +279,16 @@ EXPORT_SYMBOL(rxrpc_kernel_begin_call);
 
 /**
  * rxrpc_kernel_end_call - Allow a kernel service to end a call it was using
+ * @sock: The socket the call is on
  * @call: The call to end
  *
  * Allow a kernel service to end a call it was using.  The call must be
  * complete before this is called (the call should be aborted if necessary).
  */
-void rxrpc_kernel_end_call(struct rxrpc_call *call)
+void rxrpc_kernel_end_call(struct socket *sock, struct rxrpc_call *call)
 {
 	_enter("%d{%d}", call->debug_id, atomic_read(&call->usage));
-	rxrpc_remove_user_ID(call->socket, call);
+	rxrpc_remove_user_ID(rxrpc_sk(sock->sk), call);
 	rxrpc_put_call(call);
 }
 EXPORT_SYMBOL(rxrpc_kernel_end_call);
