@@ -258,12 +258,12 @@ static int log_one_block(struct log_writes_c *lc,
 		goto out;
 	sector++;
 
+	atomic_inc(&lc->io_blocks);
 	bio = bio_alloc(GFP_KERNEL, block->vec_cnt);
 	if (!bio) {
 		DMERR("Couldn't alloc log bio");
 		goto error;
 	}
-	atomic_inc(&lc->io_blocks);
 	bio->bi_iter.bi_size = 0;
 	bio->bi_iter.bi_sector = sector;
 	bio->bi_bdev = lc->logdev->bdev;
