@@ -2394,18 +2394,12 @@ static void ixgbe_read_mng_if_sel_x550em(struct ixgbe_hw *hw)
 	/* If X552 (X550EM_a) and MDIO is connected to external PHY, then set
 	 * PHY address. This register field was has only been used for X552.
 	 */
-	if (!hw->phy.nw_mng_if_sel) {
-		if (hw->mac.type == ixgbe_mac_x550em_a) {
-			struct ixgbe_adapter *adapter = hw->back;
-
-			e_warn(drv, "nw_mng_if_sel not set\n");
-		}
-		return;
+	if (hw->mac.type == ixgbe_mac_x550em_a &&
+	    hw->phy.nw_mng_if_sel & IXGBE_NW_MNG_IF_SEL_MDIO_ACT) {
+		hw->phy.mdio.prtad = (hw->phy.nw_mng_if_sel &
+				      IXGBE_NW_MNG_IF_SEL_MDIO_PHY_ADD) >>
+				     IXGBE_NW_MNG_IF_SEL_MDIO_PHY_ADD_SHIFT;
 	}
-
-	hw->phy.mdio.prtad = (hw->phy.nw_mng_if_sel &
-			      IXGBE_NW_MNG_IF_SEL_MDIO_PHY_ADD) >>
-			     IXGBE_NW_MNG_IF_SEL_MDIO_PHY_ADD_SHIFT;
 }
 
 /** ixgbe_init_phy_ops_X550em - PHY/SFP specific init
