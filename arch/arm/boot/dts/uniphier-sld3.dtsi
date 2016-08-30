@@ -86,18 +86,6 @@
 			compatible = "fixed-clock";
 			clock-frequency = <50000000>;
 		};
-
-		uart_clk: uart_clk {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-			clock-frequency = <36864000>;
-		};
-
-		iobus_clk: iobus_clk {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-			clock-frequency = <100000000>;
-		};
 	};
 
 	soc {
@@ -146,7 +134,7 @@
 			status = "disabled";
 			reg = <0x54006800 0x40>;
 			interrupts = <0 33 4>;
-			clocks = <&uart_clk>;
+			clocks = <&sys_clk 0>;
 			fifo-size = <64>;
 		};
 
@@ -155,7 +143,7 @@
 			status = "disabled";
 			reg = <0x54006900 0x40>;
 			interrupts = <0 35 4>;
-			clocks = <&uart_clk>;
+			clocks = <&sys_clk 0>;
 			fifo-size = <64>;
 		};
 
@@ -164,7 +152,7 @@
 			status = "disabled";
 			reg = <0x54006a00 0x40>;
 			interrupts = <0 37 4>;
-			clocks = <&uart_clk>;
+			clocks = <&sys_clk 0>;
 			fifo-size = <64>;
 		};
 
@@ -175,7 +163,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			interrupts = <0 41 1>;
-			clocks = <&iobus_clk>;
+			clocks = <&sys_clk 1>;
 			clock-frequency = <100000>;
 		};
 
@@ -186,7 +174,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			interrupts = <0 42 1>;
-			clocks = <&iobus_clk>;
+			clocks = <&sys_clk 1>;
 			clock-frequency = <100000>;
 		};
 
@@ -197,7 +185,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			interrupts = <0 43 1>;
-			clocks = <&iobus_clk>;
+			clocks = <&sys_clk 1>;
 			clock-frequency = <100000>;
 		};
 
@@ -208,7 +196,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			interrupts = <0 44 1>;
-			clocks = <&iobus_clk>;
+			clocks = <&sys_clk 1>;
 			clock-frequency = <100000>;
 		};
 
@@ -219,7 +207,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			interrupts = <0 45 1>;
-			clocks = <&iobus_clk>;
+			clocks = <&sys_clk 1>;
 			clock-frequency = <400000>;
 		};
 
@@ -234,6 +222,22 @@
 		smpctrl@59800000 {
 			compatible = "socionext,uniphier-smpctrl";
 			reg = <0x59801000 0x400>;
+		};
+
+		mioctrl@59810000 {
+			compatible = "socionext,uniphier-mioctrl",
+				     "simple-mfd", "syscon";
+			reg = <0x59810000 0x800>;
+
+			mio_clk: clock {
+				compatible = "socionext,uniphier-sld3-mio-clock";
+				#clock-cells = <1>;
+			};
+
+			mio_rst: reset {
+				compatible = "socionext,uniphier-sld3-mio-reset";
+				#reset-cells = <1>;
+			};
 		};
 
 		usb0: usb@5a800100 {
@@ -262,6 +266,22 @@
 			status = "disabled";
 			reg = <0x5a830100 0x100>;
 			interrupts = <0 83 4>;
+		};
+
+		sysctrl@f1840000 {
+			compatible = "socionext,uniphier-sysctrl",
+				     "simple-mfd", "syscon";
+			reg = <0xf1840000 0x4000>;
+
+			sys_clk: clock {
+				compatible = "socionext,uniphier-sld3-clock";
+				#clock-cells = <1>;
+			};
+
+			sys_rst: reset {
+				compatible = "socionext,uniphier-sld3-reset";
+				#reset-cells = <1>;
+			};
 		};
 	};
 };
