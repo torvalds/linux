@@ -129,6 +129,7 @@ struct vop_plane_state {
 	struct drm_rect src;
 	struct drm_rect dest;
 	dma_addr_t yrgb_mst;
+	dma_addr_t uv_mst;
 	bool enable;
 };
 
@@ -671,6 +672,8 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 					DRM_PLANE_HELPER_NO_SCALING;
 	int max_scale = win->phy->scl ? FRAC_16_16(8, 1) :
 					DRM_PLANE_HELPER_NO_SCALING;
+	unsigned long offset;
+	dma_addr_t dma_addr;
 
 	crtc = crtc ? crtc : plane->state->crtc;
 	/*
@@ -719,6 +722,27 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	if (is_yuv_support(fb->pixel_format) && ((src->x1 >> 16) % 2))
 		return -EINVAL;
 
+	offset = (src->x1 >> 16) * drm_format_plane_cpp(fb->pixel_format, 0);
+	if (state->rotation & BIT(DRM_REFLECT_Y))
+		offset += ((src->y2 >> 16) - 1) * fb->pitches[0];
+	else
+		offset += (src->y1 >> 16) * fb->pitches[0];
+
+	dma_addr = rockchip_fb_get_dma_addr(fb, 0);
+	vop_plane_state->yrgb_mst = dma_addr + offset + fb->offsets[0];
+	if (is_yuv_support(fb->pixel_format)) {
+		int hsub = drm_format_horz_chroma_subsampling(fb->pixel_format);
+		int vsub = drm_format_vert_chroma_subsampling(fb->pixel_format);
+		int bpp = drm_format_plane_cpp(fb->pixel_format, 1);
+
+		offset = (src->x1 >> 16) * bpp / hsub;
+		offset += (src->y1 >> 16) * fb->pitches[1] / vsub;
+
+		dma_addr = rockchip_fb_get_dma_addr(fb, 1);
+		dma_addr += offset + fb->offsets[1];
+		vop_plane_state->uv_mst = dma_addr;
+	}
+
 	vop_plane_state->enable = true;
 
 	return 0;
@@ -762,8 +786,6 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	uint32_t act_info, dsp_info, dsp_st;
 	struct drm_rect *src = &vop_plane_state->src;
 	struct drm_rect *dest = &vop_plane_state->dest;
-	unsigned long offset;
-	dma_addr_t dma_addr;
 	int ymirror, xmirror;
 	uint32_t val;
 	bool rb_swap;
@@ -790,15 +812,6 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	dsp_sty = dest->y1 + crtc->mode.vtotal - crtc->mode.vsync_start;
 	dsp_st = dsp_sty << 16 | (dsp_stx & 0xffff);
 
-	offset = (src->x1 >> 16) * drm_format_plane_cpp(fb->pixel_format, 0);
-	if (state->rotation & BIT(DRM_REFLECT_Y))
-		offset += ((src->y2 >> 16) - 1) * fb->pitches[0];
-	else
-		offset += (src->y1 >> 16) * fb->pitches[0];
-
-	dma_addr = rockchip_fb_get_dma_addr(fb, 0);
-	vop_plane_state->yrgb_mst = dma_addr + offset + fb->offsets[0];
-
 	ymirror = !!(state->rotation & BIT(DRM_REFLECT_Y));
 	xmirror = !!(state->rotation & BIT(DRM_REFLECT_X));
 
@@ -810,17 +823,8 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	VOP_WIN_SET(vop, win, yrgb_vir, fb->pitches[0] >> 2);
 	VOP_WIN_SET(vop, win, yrgb_mst, vop_plane_state->yrgb_mst);
 	if (is_yuv_support(fb->pixel_format)) {
-		int hsub = drm_format_horz_chroma_subsampling(fb->pixel_format);
-		int vsub = drm_format_vert_chroma_subsampling(fb->pixel_format);
-		int bpp = drm_format_plane_cpp(fb->pixel_format, 1);
-
-		offset = (src->x1 >> 16) * bpp / hsub;
-		offset += (src->y1 >> 16) * fb->pitches[1] / vsub;
-
-		dma_addr = rockchip_fb_get_dma_addr(fb, 1);
-		dma_addr += offset + fb->offsets[1];
 		VOP_WIN_SET(vop, win, uv_vir, fb->pitches[1] >> 2);
-		VOP_WIN_SET(vop, win, uv_mst, dma_addr);
+		VOP_WIN_SET(vop, win, uv_mst, vop_plane_state->uv_mst);
 	}
 
 	scl_vop_cal_scl_fac(vop, win, actual_w, actual_h,
