@@ -171,7 +171,8 @@
 		};
 
 		soc-glue@5f800000 {
-			compatible = "simple-mfd", "syscon";
+			compatible = "socionext,uniphier-soc-glue",
+				     "simple-mfd", "syscon";
 			reg = <0x5f800000 0x2000>;
 
 			pinctrl: pinctrl {
