@@ -907,138 +907,6 @@ static int find_probe_point_lazy(Dwarf_Die *sp_die, struct probe_finder *pf)
 	return die_walk_lines(sp_die, probe_point_lazy_walker, pf);
 }
 
-static bool var_has_loclist(Dwarf_Die *cu_die)
-{
-	Dwarf_Attribute loc;
-	int tag = dwarf_tag(cu_die);
-
-	if (tag != DW_TAG_formal_parameter &&
-	    tag != DW_TAG_variable)
-		return false;
-
-	return (dwarf_attr_integrate(cu_die, DW_AT_location, &loc) &&
-		dwarf_whatform(&loc) == DW_FORM_sec_offset);
-}
-
-/*
- * For any object in given CU whose DW_AT_location is a location list,
- * target program is compiled with optimization.
- */
-static bool optimized_target(Dwarf_Die *cu_die)
-{
-	Dwarf_Die tmp_die;
-
-	if (var_has_loclist(cu_die))
-		return true;
-
-	if (!dwarf_child(cu_die, &tmp_die) && optimized_target(&tmp_die))
-		return true;
-
-	if (!dwarf_siblingof(cu_die, &tmp_die) && optimized_target(&tmp_die))
-		return true;
-
-	return false;
-}
-
-static bool get_entrypc_idx(Dwarf_Lines *lines, unsigned long nr_lines,
-			    Dwarf_Addr pf_addr, unsigned long *entrypc_idx)
-{
-	unsigned long i;
-	Dwarf_Addr addr;
-
-	for (i = 0; i < nr_lines; i++) {
-		if (dwarf_lineaddr(dwarf_onesrcline(lines, i), &addr))
-			return false;
-
-		if (addr == pf_addr) {
-			*entrypc_idx = i;
-			return true;
-		}
-	}
-	return false;
-}
-
-static bool get_postprologue_addr(unsigned long entrypc_idx,
-				  Dwarf_Lines *lines,
-				  unsigned long nr_lines,
-				  Dwarf_Addr highpc,
-				  Dwarf_Addr *postprologue_addr)
-{
-	unsigned long i;
-	int entrypc_lno, lno;
-	Dwarf_Line *line;
-	Dwarf_Addr addr;
-	bool p_end;
-
-	/* entrypc_lno is actual source line number */
-	line = dwarf_onesrcline(lines, entrypc_idx);
-	if (dwarf_lineno(line, &entrypc_lno))
-		return false;
-
-	for (i = entrypc_idx; i < nr_lines; i++) {
-		line = dwarf_onesrcline(lines, i);
-
-		if (dwarf_lineaddr(line, &addr) ||
-		    dwarf_lineno(line, &lno)    ||
-		    dwarf_lineprologueend(line, &p_end))
-			return false;
-
-		/* highpc is exclusive. [entrypc,highpc) */
-		if (addr >= highpc)
-			break;
-
-		/* clang supports prologue-end marker */
-		if (p_end)
-			break;
-
-		/* Actual next line in source */
-		if (lno != entrypc_lno)
-			break;
-
-		/*
-		 * Single source line can have multiple line records.
-		 * For Example,
-		 *     void foo() { printf("hello\n"); }
-		 * contains two line records. One points to declaration and
-		 * other points to printf() line. Variable 'lno' won't get
-		 * incremented in this case but 'i' will.
-		 */
-		if (i != entrypc_idx)
-			break;
-	}
-
-	dwarf_lineaddr(line, postprologue_addr);
-	if (*postprologue_addr >= highpc)
-		dwarf_lineaddr(dwarf_onesrcline(lines, i - 1),
-			       postprologue_addr);
-
-	return true;
-}
-
-static void __skip_prologue(Dwarf_Die *sp_die, struct probe_finder *pf)
-{
-	size_t nr_lines = 0;
-	unsigned long entrypc_idx = 0;
-	Dwarf_Lines *lines = NULL;
-	Dwarf_Addr postprologue_addr;
-	Dwarf_Addr highpc;
-
-	if (dwarf_highpc(sp_die, &highpc))
-		return;
-
-	if (dwarf_getsrclines(&pf->cu_die, &lines, &nr_lines))
-		return;
-
-	if (!get_entrypc_idx(lines, nr_lines, pf->addr, &entrypc_idx))
-		return;
-
-	if (!get_postprologue_addr(entrypc_idx, lines, nr_lines,
-				   highpc, &postprologue_addr))
-		return;
-
-	pf->addr = postprologue_addr;
-}
-
 static void skip_prologue(Dwarf_Die *sp_die, struct probe_finder *pf)
 {
 	struct perf_probe_point *pp = &pf->pev->point;
@@ -1048,7 +916,7 @@ static void skip_prologue(Dwarf_Die *sp_die, struct probe_finder *pf)
 		return;
 
 	/* Compiled with optimization? */
-	if (optimized_target(&pf->cu_die))
+	if (die_is_optimized_target(&pf->cu_die))
 		return;
 
 	/* Don't know entrypc? */
@@ -1068,7 +936,7 @@ static void skip_prologue(Dwarf_Die *sp_die, struct probe_finder *pf)
 		"Probe on address 0x%" PRIx64 " to force probing at the function entry.\n\n",
 		pf->addr);
 
-	__skip_prologue(sp_die, pf);
+	die_skip_prologue(sp_die, &pf->cu_die, &pf->addr);
 }
 
 static int probe_point_inline_cb(Dwarf_Die *in_die, void *data)
