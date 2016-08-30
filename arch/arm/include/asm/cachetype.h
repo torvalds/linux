@@ -56,4 +56,28 @@ static inline unsigned int __attribute__((pure)) cacheid_is(unsigned int mask)
 	       (~__CACHEID_NEVER & __CACHEID_ARCH_MIN & mask & cacheid);
 }
 
+#define CSSELR_ICACHE	1
+#define CSSELR_DCACHE	0
+
+#define CSSELR_L1	(0 << 1)
+#define CSSELR_L2	(1 << 1)
+#define CSSELR_L3	(2 << 1)
+#define CSSELR_L4	(3 << 1)
+#define CSSELR_L5	(4 << 1)
+#define CSSELR_L6	(5 << 1)
+#define CSSELR_L7	(6 << 1)
+
+static inline void set_csselr(unsigned int cache_selector)
+{
+	asm volatile("mcr p15, 2, %0, c0, c0, 0" : : "r" (cache_selector));
+}
+
+static inline unsigned int read_ccsidr(void)
+{
+	unsigned int val;
+
+	asm volatile("mrc p15, 1, %0, c0, c0, 0" : "=r" (val));
+	return val;
+}
+
 #endif
