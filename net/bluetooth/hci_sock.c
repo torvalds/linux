@@ -483,6 +483,10 @@ static struct sk_buff *create_monitor_ctrl_open(struct sock *sk)
 	u8 ver[3];
 	u32 flags;
 
+	/* No message needed when cookie is not present */
+	if (!hci_pi(sk)->cookie)
+		return NULL;
+
 	skb = bt_skb_alloc(14 + TASK_COMM_LEN , GFP_ATOMIC);
 	if (!skb)
 		return NULL;
@@ -501,7 +505,10 @@ static struct sk_buff *create_monitor_ctrl_open(struct sock *sk)
 
 	hdr = (void *)skb_push(skb, HCI_MON_HDR_SIZE);
 	hdr->opcode = cpu_to_le16(HCI_MON_CTRL_OPEN);
-	hdr->index = cpu_to_le16(HCI_DEV_NONE);
+	if (hci_pi(sk)->hdev)
+		hdr->index = cpu_to_le16(hci_pi(sk)->hdev->id);
+	else
+		hdr->index = cpu_to_le16(HCI_DEV_NONE);
 	hdr->len = cpu_to_le16(skb->len - HCI_MON_HDR_SIZE);
 
 	return skb;
@@ -511,6 +518,10 @@ static struct sk_buff *create_monitor_ctrl_close(struct sock *sk)
 {
 	struct hci_mon_hdr *hdr;
 	struct sk_buff *skb;
+
+	/* No message needed when cookie is not present */
+	if (!hci_pi(sk)->cookie)
+		return NULL;
 
 	skb = bt_skb_alloc(4, GFP_ATOMIC);
 	if (!skb)
@@ -522,7 +533,10 @@ static struct sk_buff *create_monitor_ctrl_close(struct sock *sk)
 
 	hdr = (void *)skb_push(skb, HCI_MON_HDR_SIZE);
 	hdr->opcode = cpu_to_le16(HCI_MON_CTRL_CLOSE);
-	hdr->index = cpu_to_le16(HCI_DEV_NONE);
+	if (hci_pi(sk)->hdev)
+		hdr->index = cpu_to_le16(hci_pi(sk)->hdev->id);
+	else
+		hdr->index = cpu_to_le16(HCI_DEV_NONE);
 	hdr->len = cpu_to_le16(skb->len - HCI_MON_HDR_SIZE);
 
 	return skb;
