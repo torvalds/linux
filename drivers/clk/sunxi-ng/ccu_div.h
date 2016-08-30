@@ -77,13 +77,16 @@ struct ccu_div {
 				      _shift, _width, _table, 0,	\
 				      _flags)
 
-#define SUNXI_CCU_M_WITH_MUX_GATE(_struct, _name, _parents, _reg,	\
-				  _mshift, _mwidth, _muxshift, _muxwidth, \
-				  _gate, _flags)			\
+#define SUNXI_CCU_M_WITH_MUX_TABLE_GATE(_struct, _name,			\
+					_parents, _table,		\
+					_reg,				\
+					_mshift, _mwidth,		\
+					_muxshift, _muxwidth,		\
+					_gate, _flags)			\
 	struct ccu_div _struct = {					\
 		.enable	= _gate,					\
 		.div	= _SUNXI_CCU_DIV(_mshift, _mwidth),		\
-		.mux	= _SUNXI_CCU_MUX(_muxshift, _muxwidth),		\
+		.mux	= _SUNXI_CCU_MUX_TABLE(_muxshift, _muxwidth, _table), \
 		.common	= {						\
 			.reg		= _reg,				\
 			.hw.init	= CLK_HW_INIT_PARENTS(_name,	\
@@ -93,12 +96,23 @@ struct ccu_div {
 		},							\
 	}
 
+#define SUNXI_CCU_M_WITH_MUX_GATE(_struct, _name, _parents, _reg,	\
+				  _mshift, _mwidth, _muxshift, _muxwidth, \
+				  _gate, _flags)			\
+	SUNXI_CCU_M_WITH_MUX_TABLE_GATE(_struct, _name,			\
+					_parents, NULL,			\
+					_reg, _mshift, _mwidth,		\
+					_muxshift, _muxwidth,		\
+					_gate, _flags)
+
 #define SUNXI_CCU_M_WITH_MUX(_struct, _name, _parents, _reg,		\
 			     _mshift, _mwidth, _muxshift, _muxwidth,	\
 			     _flags)					\
-	SUNXI_CCU_M_WITH_MUX_GATE(_struct, _name, _parents, _reg,	\
-				  _mshift, _mwidth, _muxshift, _muxwidth, \
-				  0, _flags)
+	SUNXI_CCU_M_WITH_MUX_TABLE_GATE(_struct, _name,			\
+					_parents, NULL,			\
+					_reg, _mshift, _mwidth,		\
+					_muxshift, _muxwidth,		\
+					0, _flags)
 
 
 #define SUNXI_CCU_M_WITH_GATE(_struct, _name, _parent, _reg,		\
