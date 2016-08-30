@@ -1623,6 +1623,8 @@ struct ib_flow_eth_filter {
 	u8	src_mac[6];
 	__be16	ether_type;
 	__be16	vlan_tag;
+	/* Must be last */
+	u8	real_sz[0];
 };
 
 struct ib_flow_spec_eth {
@@ -1635,6 +1637,8 @@ struct ib_flow_spec_eth {
 struct ib_flow_ib_filter {
 	__be16 dlid;
 	__u8   sl;
+	/* Must be last */
+	u8	real_sz[0];
 };
 
 struct ib_flow_spec_ib {
@@ -1647,6 +1651,8 @@ struct ib_flow_spec_ib {
 struct ib_flow_ipv4_filter {
 	__be32	src_ip;
 	__be32	dst_ip;
+	/* Must be last */
+	u8	real_sz[0];
 };
 
 struct ib_flow_spec_ipv4 {
@@ -1659,6 +1665,8 @@ struct ib_flow_spec_ipv4 {
 struct ib_flow_ipv6_filter {
 	u8	src_ip[16];
 	u8	dst_ip[16];
+	/* Must be last */
+	u8	real_sz[0];
 };
 
 struct ib_flow_spec_ipv6 {
@@ -1671,6 +1679,8 @@ struct ib_flow_spec_ipv6 {
 struct ib_flow_tcp_udp_filter {
 	__be16	dst_port;
 	__be16	src_port;
+	/* Must be last */
+	u8	real_sz[0];
 };
 
 struct ib_flow_spec_tcp_udp {

@@ -3078,51 +3078,98 @@ out_put:
 	return ret ? ret : in_len;
 }
 
+static size_t kern_spec_filter_sz(struct ib_uverbs_flow_spec_hdr *spec)
+{
+	/* Returns user space filter size, includes padding */
+	return (spec->size - sizeof(struct ib_uverbs_flow_spec_hdr)) / 2;
+}
+
+static ssize_t spec_filter_size(void *kern_spec_filter, u16 kern_filter_size,
+				u16 ib_real_filter_sz)
+{
+	/*
+	 * User space filter structures must be 64 bit aligned, otherwise this
+	 * may pass, but we won't handle additional new attributes.
+	 */
+
+	if (kern_filter_size > ib_real_filter_sz) {
+		if (memchr_inv(kern_spec_filter +
+			       ib_real_filter_sz, 0,
+			       kern_filter_size - ib_real_filter_sz))
+			return -EINVAL;
+		return ib_real_filter_sz;
+	}
+	return kern_filter_size;
+}
+
 static int kern_spec_to_ib_spec(struct ib_uverbs_flow_spec *kern_spec,
 				union ib_flow_spec *ib_spec)
 {
+	ssize_t actual_filter_sz;
+	ssize_t kern_filter_sz;
+	ssize_t ib_filter_sz;
+	void *kern_spec_mask;
+	void *kern_spec_val;
+
 	if (kern_spec->reserved)
 		return -EINVAL;
 
 	ib_spec->type = kern_spec->type;
 
+	kern_filter_sz = kern_spec_filter_sz(&kern_spec->hdr);
+	/* User flow spec size must be aligned to 4 bytes */
+	if (kern_filter_sz != ALIGN(kern_filter_sz, 4))
+		return -EINVAL;
+
+	kern_spec_val = (void *)kern_spec +
+		sizeof(struct ib_uverbs_flow_spec_hdr);
+	kern_spec_mask = kern_spec_val + kern_filter_sz;
+
 	switch (ib_spec->type) {
 	case IB_FLOW_SPEC_ETH:
-		ib_spec->eth.size = sizeof(struct ib_flow_spec_eth);
-		if (ib_spec->eth.size != kern_spec->eth.size)
+		ib_filter_sz = offsetof(struct ib_flow_eth_filter, real_sz);
+		actual_filter_sz = spec_filter_size(kern_spec_mask,
+						    kern_filter_sz,
+						    ib_filter_sz);
+		if (actual_filter_sz <= 0)
 			return -EINVAL;
-		memcpy(&ib_spec->eth.val, &kern_spec->eth.val,
-		       sizeof(struct ib_flow_eth_filter));
-		memcpy(&ib_spec->eth.mask, &kern_spec->eth.mask,
-		       sizeof(struct ib_flow_eth_filter));
+		ib_spec->size = sizeof(struct ib_flow_spec_eth);
+		memcpy(&ib_spec->eth.val, kern_spec_val, actual_filter_sz);
+		memcpy(&ib_spec->eth.mask, kern_spec_mask, actual_filter_sz);
 		break;
 	case IB_FLOW_SPEC_IPV4:
-		ib_spec->ipv4.size = sizeof(struct ib_flow_spec_ipv4);
-		if (ib_spec->ipv4.size != kern_spec->ipv4.size)
+		ib_filter_sz = offsetof(struct ib_flow_ipv4_filter, real_sz);
+		actual_filter_sz = spec_filter_size(kern_spec_mask,
+						    kern_filter_sz,
+						    ib_filter_sz);
+		if (actual_filter_sz <= 0)
 			return -EINVAL;
-		memcpy(&ib_spec->ipv4.val, &kern_spec->ipv4.val,
-		       sizeof(struct ib_flow_ipv4_filter));
-		memcpy(&ib_spec->ipv4.mask, &kern_spec->ipv4.mask,
-		       sizeof(struct ib_flow_ipv4_filter));
+		ib_spec->size = sizeof(struct ib_flow_spec_ipv4);
+		memcpy(&ib_spec->ipv4.val, kern_spec_val, actual_filter_sz);
+		memcpy(&ib_spec->ipv4.mask, kern_spec_mask, actual_filter_sz);
 		break;
 	case IB_FLOW_SPEC_IPV6:
-		ib_spec->ipv6.size = sizeof(struct ib_flow_spec_ipv6);
-		if (ib_spec->ipv6.size != kern_spec->ipv6.size)
+		ib_filter_sz = offsetof(struct ib_flow_ipv6_filter, real_sz);
+		actual_filter_sz = spec_filter_size(kern_spec_mask,
+						    kern_filter_sz,
+						    ib_filter_sz);
+		if (actual_filter_sz <= 0)
 			return -EINVAL;
-		memcpy(&ib_spec->ipv6.val, &kern_spec->ipv6.val,
-		       sizeof(struct ib_flow_ipv6_filter));
-		memcpy(&ib_spec->ipv6.mask, &kern_spec->ipv6.mask,
-		       sizeof(struct ib_flow_ipv6_filter));
+		ib_spec->size = sizeof(struct ib_flow_spec_ipv6);
+		memcpy(&ib_spec->ipv6.val, kern_spec_val, actual_filter_sz);
+		memcpy(&ib_spec->ipv6.mask, kern_spec_mask, actual_filter_sz);
 		break;
 	case IB_FLOW_SPEC_TCP:
 	case IB_FLOW_SPEC_UDP:
-		ib_spec->tcp_udp.size = sizeof(struct ib_flow_spec_tcp_udp);
-		if (ib_spec->tcp_udp.size != kern_spec->tcp_udp.size)
+		ib_filter_sz = offsetof(struct ib_flow_tcp_udp_filter, real_sz);
+		actual_filter_sz = spec_filter_size(kern_spec_mask,
+						    kern_filter_sz,
+						    ib_filter_sz);
+		if (actual_filter_sz <= 0)
 			return -EINVAL;
-		memcpy(&ib_spec->tcp_udp.val, &kern_spec->tcp_udp.val,
-		       sizeof(struct ib_flow_tcp_udp_filter));
-		memcpy(&ib_spec->tcp_udp.mask, &kern_spec->tcp_udp.mask,
-		       sizeof(struct ib_flow_tcp_udp_filter));
+		ib_spec->size = sizeof(struct ib_flow_spec_tcp_udp);
+		memcpy(&ib_spec->tcp_udp.val, kern_spec_val, actual_filter_sz);
+		memcpy(&ib_spec->tcp_udp.mask, kern_spec_mask, actual_filter_sz);
 		break;
 	default:
 		return -EINVAL;
@@ -3654,7 +3701,8 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 		goto err_uobj;
 	}
 
-	flow_attr = kmalloc(sizeof(*flow_attr) + cmd.flow_attr.size, GFP_KERNEL);
+	flow_attr = kzalloc(sizeof(*flow_attr) + cmd.flow_attr.num_of_specs *
+			    sizeof(union ib_flow_spec), GFP_KERNEL);
 	if (!flow_attr) {
 		err = -ENOMEM;
 		goto err_put;
