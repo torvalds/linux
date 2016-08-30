@@ -47,8 +47,9 @@ err:
 	return rc;
 }
 
-static struct phy_ops ns2_pci_phy_ops = {
+static const struct phy_ops ns2_pci_phy_ops = {
 	.init = ns2_pci_phy_init,
+	.owner = THIS_MODULE,
 };
 
 static int ns2_pci_phy_probe(struct mdio_device *mdiodev)
