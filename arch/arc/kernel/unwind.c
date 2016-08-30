@@ -984,42 +984,13 @@ int arc_unwind(struct unwind_frame_info *frame)
 							    (const u8 *)(fde +
 									 1) +
 							    *fde, ptrType);
-				if (pc >= endLoc)
+				if (pc >= endLoc) {
 					fde = NULL;
-			} else
-				fde = NULL;
-		}
-		if (fde == NULL) {
-			for (fde = table->address, tableSize = table->size;
-			     cie = NULL, tableSize > sizeof(*fde)
-			     && tableSize - sizeof(*fde) >= *fde;
-			     tableSize -= sizeof(*fde) + *fde,
-			     fde += 1 + *fde / sizeof(*fde)) {
-				cie = cie_for_fde(fde, table);
-				if (cie == &bad_cie) {
 					cie = NULL;
-					break;
 				}
-				if (cie == NULL
-				    || cie == &not_fde
-				    || (ptrType = fde_pointer_type(cie)) < 0)
-					continue;
-				ptr = (const u8 *)(fde + 2);
-				startLoc = read_pointer(&ptr,
-							(const u8 *)(fde + 1) +
-							*fde, ptrType);
-				if (!startLoc)
-					continue;
-				if (!(ptrType & DW_EH_PE_indirect))
-					ptrType &=
-					    DW_EH_PE_FORM | DW_EH_PE_signed;
-				endLoc =
-				    startLoc + read_pointer(&ptr,
-							    (const u8 *)(fde +
-									 1) +
-							    *fde, ptrType);
-				if (pc >= startLoc && pc < endLoc)
-					break;
+			} else {
+				fde = NULL;
+				cie = NULL;
 			}
 		}
 	}

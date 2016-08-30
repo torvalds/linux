@@ -2281,7 +2281,7 @@ static void pool_postsuspend(struct dm_target *ti)
 	struct pool_c *pt = ti->private;
 	struct pool *pool = pt->pool;
 
-	cancel_delayed_work(&pool->waker);
+	cancel_delayed_work_sync(&pool->waker);
 	flush_workqueue(pool->wq);
 	(void) commit_or_fallback(pool);
 }
