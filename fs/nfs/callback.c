@@ -155,13 +155,6 @@ nfs41_callback_up(struct svc_serv *serv)
 	return rqstp;
 }
 
-static void nfs_minorversion_callback_svc_setup(struct svc_serv *serv,
-		struct svc_rqst **rqstpp, int (**callback_svc)(void *vrqstp))
-{
-	*rqstpp = nfs41_callback_up(serv);
-	*callback_svc = nfs41_callback_svc;
-}
-
 static inline void nfs_callback_bc_serv(u32 minorversion, struct rpc_xprt *xprt,
 		struct svc_serv *serv)
 {
@@ -173,11 +166,10 @@ static inline void nfs_callback_bc_serv(u32 minorversion, struct rpc_xprt *xprt,
 		xprt->bc_serv = serv;
 }
 #else
-static void nfs_minorversion_callback_svc_setup(struct svc_serv *serv,
-		struct svc_rqst **rqstpp, int (**callback_svc)(void *vrqstp))
+static struct svc_rqst *
+nfs41_callback_up(struct svc_serv *serv)
 {
-	*rqstpp = ERR_PTR(-ENOTSUPP);
-	*callback_svc = ERR_PTR(-ENOTSUPP);
+	return ERR_PTR(-ENOTSUPP);
 }
 
 static inline void nfs_callback_bc_serv(u32 minorversion, struct rpc_xprt *xprt,
@@ -190,7 +182,6 @@ static int nfs_callback_start_svc(int minorversion, struct rpc_xprt *xprt,
 				  struct svc_serv *serv)
 {
 	struct svc_rqst *rqstp;
-	int (*callback_svc)(void *vrqstp);
 	struct nfs_callback_data *cb_info = &nfs_callback_info[minorversion];
 	int ret;
 
@@ -203,11 +194,9 @@ static int nfs_callback_start_svc(int minorversion, struct rpc_xprt *xprt,
 	case 0:
 		/* v4.0 callback setup */
 		rqstp = nfs4_callback_up(serv);
-		callback_svc = nfs4_callback_svc;
 		break;
 	default:
-		nfs_minorversion_callback_svc_setup(serv,
-				&rqstp, &callback_svc);
+		rqstp = nfs41_callback_up(serv);
 	}
 
 	if (IS_ERR(rqstp))
@@ -217,7 +206,8 @@ static int nfs_callback_start_svc(int minorversion, struct rpc_xprt *xprt,
 
 	cb_info->serv = serv;
 	cb_info->rqst = rqstp;
-	cb_info->task = kthread_create(callback_svc, cb_info->rqst,
+	cb_info->task = kthread_create(serv->sv_ops->svo_function,
+				    cb_info->rqst,
 				    "nfsv4.%u-svc", minorversion);
 	if (IS_ERR(cb_info->task)) {
 		ret = PTR_ERR(cb_info->task);
@@ -281,14 +271,34 @@ err_bind:
 	return ret;
 }
 
-static struct svc_serv_ops nfs_cb_sv_ops = {
+static struct svc_serv_ops nfs40_cb_sv_ops = {
+	.svo_function		= nfs4_callback_svc,
 	.svo_enqueue_xprt	= svc_xprt_do_enqueue,
+	.svo_module		= THIS_MODULE,
 };
+#if defined(CONFIG_NFS_V4_1)
+static struct svc_serv_ops nfs41_cb_sv_ops = {
+	.svo_function		= nfs41_callback_svc,
+	.svo_enqueue_xprt	= svc_xprt_do_enqueue,
+	.svo_module		= THIS_MODULE,
+};
+
+struct svc_serv_ops *nfs4_cb_sv_ops[] = {
+	[0] = &nfs40_cb_sv_ops,
+	[1] = &nfs41_cb_sv_ops,
+};
+#else
+struct svc_serv_ops *nfs4_cb_sv_ops[] = {
+	[0] = &nfs40_cb_sv_ops,
+	[1] = NULL,
+};
+#endif
 
 static struct svc_serv *nfs_callback_create_svc(int minorversion)
 {
 	struct nfs_callback_data *cb_info = &nfs_callback_info[minorversion];
 	struct svc_serv *serv;
+	struct svc_serv_ops *sv_ops;
 
 	/*
 	 * Check whether we're already up and running.
@@ -302,6 +312,17 @@ static struct svc_serv *nfs_callback_create_svc(int minorversion)
 		return cb_info->serv;
 	}
 
+	switch (minorversion) {
+	case 0:
+		sv_ops = nfs4_cb_sv_ops[0];
+		break;
+	default:
+		sv_ops = nfs4_cb_sv_ops[1];
+	}
+
+	if (sv_ops == NULL)
+		return ERR_PTR(-ENOTSUPP);
+
 	/*
 	 * Sanity check: if there's no task,
 	 * we should be the first user ...
@@ -310,7 +331,7 @@ static struct svc_serv *nfs_callback_create_svc(int minorversion)
 		printk(KERN_WARNING "nfs_callback_create_svc: no kthread, %d users??\n",
 			cb_info->users);
 
-	serv = svc_create(&nfs4_callback_program, NFS4_CALLBACK_BUFSIZE, &nfs_cb_sv_ops);
+	serv = svc_create(&nfs4_callback_program, NFS4_CALLBACK_BUFSIZE, sv_ops);
 	if (!serv) {
 		printk(KERN_ERR "nfs_callback_create_svc: create service failed\n");
 		return ERR_PTR(-ENOMEM);
