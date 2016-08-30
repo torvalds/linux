@@ -796,7 +796,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	else
 		offset += (src->y1 >> 16) * fb->pitches[0];
 
-	dma_addr = rockchip_fb_get_dma_addr(fb, 0, vop->dev);
+	dma_addr = rockchip_fb_get_dma_addr(fb, 0);
 	vop_plane_state->yrgb_mst = dma_addr + offset + fb->offsets[0];
 
 	ymirror = !!(state->rotation & BIT(DRM_REFLECT_Y));
@@ -817,7 +817,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		offset = (src->x1 >> 16) * bpp / hsub;
 		offset += (src->y1 >> 16) * fb->pitches[1] / vsub;
 
-		dma_addr = rockchip_fb_get_dma_addr(fb, 1, vop->dev);
+		dma_addr = rockchip_fb_get_dma_addr(fb, 1);
 		dma_addr += offset + fb->offsets[1];
 		VOP_WIN_SET(vop, win, uv_vir, fb->pitches[1] >> 2);
 		VOP_WIN_SET(vop, win, uv_mst, dma_addr);

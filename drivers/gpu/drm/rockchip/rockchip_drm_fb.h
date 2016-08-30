@@ -29,5 +29,5 @@ rockchip_fb_alloc(struct drm_device *dev, struct drm_mode_fb_cmd2 *mode_cmd,
 		  unsigned int num_planes);
 
 dma_addr_t rockchip_fb_get_dma_addr(struct drm_framebuffer *fb,
-				    unsigned int plane, struct device *dev);
+				    unsigned int plane);
 #endif /* _ROCKCHIP_DRM_FB_H */

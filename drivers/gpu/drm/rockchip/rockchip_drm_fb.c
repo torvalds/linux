@@ -33,7 +33,7 @@ struct rockchip_drm_fb {
 };
 
 dma_addr_t rockchip_fb_get_dma_addr(struct drm_framebuffer *fb,
-				    unsigned int plane, struct device *dev)
+				    unsigned int plane)
 {
 	struct rockchip_drm_fb *rk_fb = to_rockchip_fb(fb);
 
