@@ -96,5 +96,6 @@ nitpick_ignore = [
     ("c:type", "__user"),
     ("c:type", "usb_device"),
     ("c:type", "usb_interface"),
+    ("c:type", "v4l2_std_id"),
     ("c:type", "video_system_t"),
 ]
