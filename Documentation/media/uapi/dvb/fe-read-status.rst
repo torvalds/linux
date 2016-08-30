@@ -27,7 +27,7 @@ Arguments
 
 ``status``
     pointer to a bitmask integer filled with the values defined by enum
-    :ref:`fe_status <fe-status>`.
+    :c:type:`fe_status`.
 
 
 Description
@@ -45,14 +45,14 @@ written.
    future.
 
 
-.. _fe-status-t:
-
 int fe_status
 =============
 
 The fe_status parameter is used to indicate the current state and/or
 state changes of the frontend hardware. It is produced using the enum
-:ref:`fe_status <fe-status>` values on a bitmask
+:c:type:`fe_status` values on a bitmask
+
+.. c:type:: fe_status
 
 .. tabularcolumns:: |p{3.5cm}|p{14.0cm}|
 

@@ -26,10 +26,10 @@ Arguments
     File descriptor returned by :ref:`open() <frontend_f_open>`.
 
 ``voltage``
-    pointer to enum :ref:`fe_sec_voltage <fe-sec-voltage>`
+    pointer to enum :c:type:`fe_sec_voltage`
 
     Valid values are described at enum
-    :ref:`fe_sec_voltage <fe-sec-voltage>`.
+    :c:type:`fe_sec_voltage`.
 
 
 Description

@@ -16,7 +16,7 @@ AUDIO_SET_KARAOKE
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, AUDIO_SET_KARAOKE, audio_karaoke_t *karaoke)
+.. c:function:: int ioctl(fd, AUDIO_SET_KARAOKE, struct audio_karaoke *karaoke)
     :name: AUDIO_SET_KARAOKE
 
 

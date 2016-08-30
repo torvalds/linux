@@ -26,7 +26,7 @@ Arguments
     File descriptor returned by :ref:`open() <frontend_f_open>`.
 
 ``tone``
-    pointer to enum :ref:`fe_sec_tone_mode <fe-sec-tone-mode>`
+    pointer to enum :c:type:`fe_sec_tone_mode`
 
 
 Description
@@ -45,12 +45,7 @@ this is done using the DiSEqC ioctls.
    capability of selecting the band. So, it is recommended that applications
    would change to SEC_TONE_OFF when the device is not used.
 
-.. _fe-sec-tone-mode-t:
-
-enum fe_sec_tone_mode
-=====================
-
-.. _fe-sec-tone-mode:
+.. c:type:: fe_sec_tone_mode
 
 .. flat-table:: enum fe_sec_tone_mode
     :header-rows:  1

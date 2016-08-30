@@ -16,7 +16,7 @@ AUDIO_SELECT_SOURCE
 Synopsis
 --------
 
-.. c:function:: int ioctl(int fd, AUDIO_SELECT_SOURCE, audio_stream_source_t source)
+.. c:function:: int ioctl(int fd, AUDIO_SELECT_SOURCE, struct audio_stream_source *source)
     :name: AUDIO_SELECT_SOURCE
 
 

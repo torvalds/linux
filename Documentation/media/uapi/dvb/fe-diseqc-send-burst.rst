@@ -26,7 +26,7 @@ Arguments
     File descriptor returned by :ref:`open() <frontend_f_open>`.
 
 ``tone``
-    pointer to enum :ref:`fe_sec_mini_cmd <fe-sec-mini-cmd>`
+    pointer to enum :c:type:`fe_sec_mini_cmd`
 
 
 Description
@@ -39,12 +39,7 @@ read/write permissions.
 It provides support for what's specified at
 `Digital Satellite Equipment Control (DiSEqC) - Simple "ToneBurst" Detection Circuit specification. <http://www.eutelsat.com/files/contributed/satellites/pdf/Diseqc/associated%20docs/simple_tone_burst_detec.pdf>`__
 
-.. _fe-sec-mini-cmd-t:
-
-enum fe_sec_mini_cmd
-====================
-
-.. _fe-sec-mini-cmd:
+.. c:type:: fe_sec_mini_cmd
 
 .. flat-table:: enum fe_sec_mini_cmd
     :header-rows:  1

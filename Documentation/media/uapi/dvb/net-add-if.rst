@@ -41,12 +41,6 @@ created.
 The struct :c:type:`dvb_net_if`::ifnum field will be
 filled with the number of the created interface.
 
-
-.. _dvb-net-if-t:
-
-struct dvb_net_if description
-=============================
-
 .. c:type:: dvb_net_if
 
 .. flat-table:: struct dvb_net_if

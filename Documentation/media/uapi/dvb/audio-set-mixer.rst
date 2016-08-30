@@ -16,7 +16,7 @@ AUDIO_SET_MIXER
 Synopsis
 --------
 
-.. c:function:: int ioctl(int fd, AUDIO_SET_MIXER, audio_mixer_t *mix)
+.. c:function:: int ioctl(int fd, AUDIO_SET_MIXER, struct audio_mixer *mix)
     :name: AUDIO_SET_MIXER
 
 Arguments

@@ -35,10 +35,8 @@ Description
 
 Sends a DiSEqC command to the antenna subsystem.
 
-.. c:type:: dvb_diseqc_master_cmd
 
-struct dvb_diseqc_master_cmd
-============================
+.. c:type:: dvb_diseqc_master_cmd
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 

@@ -1,7 +1,5 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _fe-type-t:
-
 *************
 Frontend type
 *************
@@ -11,7 +9,7 @@ modulation used in transmission. The fontend types are given by
 fe_type_t type, defined as:
 
 
-.. _fe-type:
+.. c:type:: fe_type
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 

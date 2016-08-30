@@ -17,7 +17,7 @@ AUDIO_SET_ATTRIBUTES
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, AUDIO_SET_ATTRIBUTES, audio_attributes_t attr )
+.. c:function:: int ioctl(fd, AUDIO_SET_ATTRIBUTES, struct audio_attributes *attr )
     :name: AUDIO_SET_ATTRIBUTES
 
 Arguments

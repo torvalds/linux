@@ -6,15 +6,12 @@
 Demux Data Types
 ****************
 
-
-.. _dmx-output-t:
-
 Output for the demux
 ====================
 
-.. tabularcolumns:: |p{5.0cm}|p{12.5cm}|
+.. c:type:: dmx_output
 
-.. _dmx-output:
+.. tabularcolumns:: |p{5.0cm}|p{12.5cm}|
 
 .. flat-table:: enum dmx_output
     :header-rows:  1
@@ -66,12 +63,10 @@ Output for the demux
 	  from the DMX device.
 
 
-
-.. _dmx-input-t:
-
 dmx_input_t
 ===========
 
+.. c:type:: dmx_input
 
 .. code-block:: c
 
@@ -82,10 +77,10 @@ dmx_input_t
     } dmx_input_t;
 
 
-.. _dmx-pes-type-t:
-
 dmx_pes_type_t
 ==============
+
+.. c:type:: dmx_pes_type
 
 
 .. code-block:: c
@@ -120,11 +115,10 @@ dmx_pes_type_t
     } dmx_pes_type_t;
 
 
-.. c:type:: dmx_filter
-
 struct dmx_filter
 =================
 
+.. c:type:: dmx_filter
 
 .. code-block:: c
 
@@ -157,11 +151,10 @@ struct dmx_sct_filter_params
     };
 
 
-.. c:type:: dmx_pes_filter_params
-
 struct dmx_pes_filter_params
 ============================
 
+.. c:type:: dmx_pes_filter_params
 
 .. code-block:: c
 
@@ -175,11 +168,10 @@ struct dmx_pes_filter_params
     };
 
 
-.. _dmx-event:
-
 struct dmx_event
 ================
 
+.. c:type:: dmx_event
 
 .. code-block:: c
 
@@ -194,11 +186,10 @@ struct dmx_event
      };
 
 
-.. c:type:: dmx_stc
-
 struct dmx_stc
 ==============
 
+.. c:type:: dmx_stc
 
 .. code-block:: c
 
@@ -209,11 +200,10 @@ struct dmx_stc
     };
 
 
-.. c:type:: dmx_caps
-
 struct dmx_caps
 ===============
 
+.. c:type:: dmx_caps
 
 .. code-block:: c
 
@@ -223,15 +213,14 @@ struct dmx_caps
     } dmx_caps_t;
 
 
-.. _dmx-source-t:
+enum dmx_source
+===============
 
-enum dmx_source_t
-=================
-
+.. c:type:: dmx_source
 
 .. code-block:: c
 
-    typedef enum {
+    typedef enum dmx_source {
 	DMX_SOURCE_FRONT0 = 0,
 	DMX_SOURCE_FRONT1,
 	DMX_SOURCE_FRONT2,

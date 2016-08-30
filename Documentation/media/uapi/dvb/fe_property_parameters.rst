@@ -68,10 +68,10 @@ DTV_MODULATION
 
 Specifies the frontend modulation type for delivery systems that
 supports more than one modulation type. The modulation can be one of the
-types defined by enum :ref:`fe_modulation <fe-modulation>`.
+types defined by enum :c:type:`fe_modulation`.
 
 
-.. _fe-modulation-t:
+.. c:type:: fe_modulation
 
 Modulation property
 -------------------
@@ -81,8 +81,6 @@ modulation (sometimes called as "constellation" on some standards). This
 enum contains the values used by the Kernel. Please note that not all
 modulations are supported by a given standard.
 
-
-.. _fe-modulation:
 
 .. flat-table:: enum fe_modulation
     :header-rows:  1
@@ -251,8 +249,7 @@ DTV_INVERSION
 
 Specifies if the frontend should do spectral inversion or not.
 
-
-.. _fe-spectral-inversion-t:
+.. c:type:: fe_spectral_inversion
 
 enum fe_modulation: Frontend spectral inversion
 -----------------------------------------------
@@ -263,8 +260,6 @@ to figure out the correct setting by itself. If the hardware doesn't
 support, the DVB core will try to lock at the carrier first with
 inversion off. If it fails, it will try to enable inversion.
 
-
-.. _fe-spectral-inversion:
 
 .. flat-table:: enum fe_modulation
     :header-rows:  1
@@ -327,14 +322,10 @@ DTV_INNER_FEC
 
 Used cable/satellite transmissions. The acceptable values are:
 
-
-.. _fe-code-rate-t:
+.. c:type:: fe_code_rate
 
 enum fe_code_rate: type of the Forward Error Correction.
 --------------------------------------------------------
-
-
-.. _fe-code-rate:
 
 .. flat-table:: enum fe_code_rate
     :header-rows:  1
@@ -464,7 +455,7 @@ voltage has to be switched consistently to the DiSEqC commands as
 described in the DiSEqC spec.
 
 
-.. _fe-sec-voltage:
+.. c:type:: fe_sec_voltage
 
 .. flat-table:: enum fe_sec_voltage
     :header-rows:  1
@@ -519,13 +510,11 @@ DTV_PILOT
 Sets DVB-S2 pilot
 
 
-.. _fe-pilot-t:
+.. c:type:: fe_pilot
 
 fe_pilot type
 -------------
 
-
-.. _fe-pilot:
 
 .. flat-table:: enum fe_pilot
     :header-rows:  1
@@ -572,13 +561,11 @@ DTV_ROLLOFF
 Sets DVB-S2 rolloff
 
 
-.. _fe-rolloff-t:
+.. c:type:: fe_rolloff
 
 fe_rolloff type
 ---------------
 
-
-.. _fe-rolloff:
 
 .. flat-table:: enum fe_rolloff
     :header-rows:  1
@@ -657,15 +644,13 @@ DTV_DELIVERY_SYSTEM
 Specifies the type of Delivery system
 
 
-.. _fe-delivery-system-t:
+.. c:type:: fe_delivery_system
 
 fe_delivery_system type
 -----------------------
 
 Possible values:
 
-
-.. _fe-delivery-system:
 
 .. flat-table:: enum fe_delivery_system
     :header-rows:  1
@@ -1098,7 +1083,7 @@ The values here are referring to what can be found in the
 TMCC-structure, as shown in the table below.
 
 
-.. _isdbt-layer-interleaving-table:
+.. c:type:: isdbt_layer_interleaving_table
 
 .. flat-table:: ISDB-T time interleaving modes
     :header-rows:  0
@@ -1235,7 +1220,7 @@ Possible values are:
 
 .. tabularcolumns:: |p{5.0cm}|p{12.5cm}|
 
-.. _atscmh-rs-frame-mode:
+.. c:type:: atscmh_rs_frame_mode
 
 .. flat-table:: enum atscmh_rs_frame_mode
     :header-rows:  1
@@ -1279,7 +1264,7 @@ Reed Solomon(RS) frame ensemble.
 Possible values are:
 
 
-.. _atscmh-rs-frame-ensemble:
+.. c:type:: atscmh_rs_frame_ensemble
 
 .. flat-table:: enum atscmh_rs_frame_ensemble
     :header-rows:  1
@@ -1328,7 +1313,7 @@ Reed Solomon (RS) code mode (primary).
 Possible values are:
 
 
-.. _atscmh-rs-code-mode:
+.. c:type:: atscmh_rs_code_mode
 
 .. flat-table:: enum atscmh_rs_code_mode
     :header-rows:  1
@@ -1383,7 +1368,7 @@ DTV_ATSCMH_RS_CODE_MODE_SEC
 Reed Solomon (RS) code mode (secondary).
 
 Possible values are the same as documented on enum
-:ref:`atscmh_rs_code_mode <atscmh-rs-code-mode>`:
+:c:type:`atscmh_rs_code_mode`:
 
 
 .. _DTV-ATSCMH-SCCC-BLOCK-MODE:
@@ -1397,7 +1382,7 @@ Possible values are:
 
 .. tabularcolumns:: |p{4.5cm}|p{13.0cm}|
 
-.. _atscmh-sccc-block-mode:
+.. c:type:: atscmh_sccc_block_mode
 
 .. flat-table:: enum atscmh_scc_block_mode
     :header-rows:  1
@@ -1448,7 +1433,7 @@ Series Concatenated Convolutional Code Rate.
 Possible values are:
 
 
-.. _atscmh-sccc-code-mode:
+.. c:type:: atscmh_sccc_code_mode
 
 .. flat-table:: enum atscmh_sccc_code_mode
     :header-rows:  1
@@ -1495,7 +1480,7 @@ DTV_ATSCMH_SCCC_CODE_MODE_B
 Series Concatenated Convolutional Code Rate.
 
 Possible values are the same as documented on enum
-:ref:`atscmh_sccc_code_mode <atscmh-sccc-code-mode>`.
+:c:type:`atscmh_sccc_code_mode`.
 
 
 .. _DTV-ATSCMH-SCCC-CODE-MODE-C:
@@ -1506,7 +1491,7 @@ DTV_ATSCMH_SCCC_CODE_MODE_C
 Series Concatenated Convolutional Code Rate.
 
 Possible values are the same as documented on enum
-:ref:`atscmh_sccc_code_mode <atscmh-sccc-code-mode>`.
+:c:type:`atscmh_sccc_code_mode`.
 
 
 .. _DTV-ATSCMH-SCCC-CODE-MODE-D:
@@ -1517,7 +1502,7 @@ DTV_ATSCMH_SCCC_CODE_MODE_D
 Series Concatenated Convolutional Code Rate.
 
 Possible values are the same as documented on enum
-:ref:`atscmh_sccc_code_mode <atscmh-sccc-code-mode>`.
+:c:type:`atscmh_sccc_code_mode`.
 
 
 .. _DTV-API-VERSION:
@@ -1534,7 +1519,7 @@ DTV_CODE_RATE_HP
 ================
 
 Used on terrestrial transmissions. The acceptable values are the ones
-described at :ref:`fe_transmit_mode_t <fe-transmit-mode-t>`.
+described at :c:type:`fe_transmit_mode`.
 
 
 .. _DTV-CODE-RATE-LP:
@@ -1543,7 +1528,7 @@ DTV_CODE_RATE_LP
 ================
 
 Used on terrestrial transmissions. The acceptable values are the ones
-described at :ref:`fe_transmit_mode_t <fe-transmit-mode-t>`.
+described at :c:type:`fe_transmit_mode`.
 
 
 .. _DTV-GUARD-INTERVAL:
@@ -1554,13 +1539,11 @@ DTV_GUARD_INTERVAL
 Possible values are:
 
 
-.. _fe-guard-interval-t:
+.. c:type:: fe_guard_interval
 
 Modulation guard interval
 -------------------------
 
-
-.. _fe-guard-interval:
 
 .. flat-table:: enum fe_guard_interval
     :header-rows:  1
@@ -1683,14 +1666,12 @@ Specifies the number of carriers used by the standard. This is used only
 on OFTM-based standards, e. g. DVB-T/T2, ISDB-T, DTMB
 
 
-.. _fe-transmit-mode-t:
+.. c:type:: fe_transmit_mode
 
 enum fe_transmit_mode: Number of carriers per channel
 -----------------------------------------------------
 
 .. tabularcolumns:: |p{5.0cm}|p{12.5cm}|
-
-.. _fe-transmit-mode:
 
 .. flat-table:: enum fe_transmit_mode
     :header-rows:  1
@@ -1801,13 +1782,11 @@ DTV_HIERARCHY
 Frontend hierarchy
 
 
-.. _fe-hierarchy-t:
+.. c:type:: fe_hierarchy
 
 Frontend hierarchy
 ------------------
 
-
-.. _fe-hierarchy:
 
 .. flat-table:: enum fe_hierarchy
     :header-rows:  1
@@ -1914,7 +1893,7 @@ DTV_INTERLEAVING
 Time interleaving to be used. Currently, used only on DTMB.
 
 
-.. _fe-interleaving:
+.. c:type:: fe_interleaving
 
 .. flat-table:: enum fe_interleaving
     :header-rows:  1

@@ -2,7 +2,7 @@
 ignore define _DVBAUDIO_H_
 
 # Typedef pointing to structs
-replace typedef audio_karaoke_t audio-karaoke
+replace typedef audio_karaoke_t :c:type:`audio_karaoke`
 
 # Undocumented audio caps, as this is a deprecated API anyway
 ignore define AUDIO_CAP_DTS
@@ -16,5 +16,5 @@ ignore define AUDIO_CAP_SDDS
 ignore define AUDIO_CAP_AC3
 
 # some typedefs should point to struct/enums
-replace typedef audio_mixer_t audio-mixer
-replace typedef audio_status_t audio-status
+replace typedef audio_mixer_t :c:type:`audio_mixer`
+replace typedef audio_status_t :c:type:`audio_status`

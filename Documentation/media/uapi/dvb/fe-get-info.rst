@@ -42,9 +42,6 @@ returns an error.
 
 .. c:type:: dvb_frontend_info
 
-struct dvb_frontend_info
-========================
-
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table:: struct dvb_frontend_info
@@ -137,7 +134,7 @@ struct dvb_frontend_info
 
     -  .. row 11
 
-       -  enum :ref:`fe_caps <fe-caps>`
+       -  enum :c:type:`fe_caps`
 
        -  caps
 
@@ -150,17 +147,15 @@ struct dvb_frontend_info
    systems. They're specified in kHz for Satellite systems
 
 
-.. _fe-caps-t:
-
 frontend capabilities
 =====================
 
 Capabilities describe what a frontend can do. Some capabilities are
 supported only on some specific frontend types.
 
-.. tabularcolumns:: |p{6.5cm}|p{11.0cm}|
+.. c:type:: fe_caps
 
-.. _fe-caps:
+.. tabularcolumns:: |p{6.5cm}|p{11.0cm}|
 
 .. flat-table:: enum fe_caps
     :header-rows:  1
