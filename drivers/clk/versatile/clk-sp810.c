@@ -141,6 +141,7 @@ void __init clk_sp810_of_setup(struct device_node *node)
 	const char *parent_names[2];
 	char name[12];
 	struct clk_init_data init;
+	static int instance;
 	int i;
 
 	if (!sp810) {
@@ -172,7 +173,7 @@ void __init clk_sp810_of_setup(struct device_node *node)
 	init.num_parents = ARRAY_SIZE(parent_names);
 
 	for (i = 0; i < ARRAY_SIZE(sp810->timerclken); i++) {
-		snprintf(name, ARRAY_SIZE(name), "timerclken%d", i);
+		snprintf(name, sizeof(name), "sp810_%d_%d", instance, i);
 
 		sp810->timerclken[i].sp810 = sp810;
 		sp810->timerclken[i].channel = i;
@@ -184,5 +185,6 @@ void __init clk_sp810_of_setup(struct device_node *node)
 	}
 
 	of_clk_add_provider(node, clk_sp810_timerclken_of_get, sp810);
+	instance++;
 }
 CLK_OF_DECLARE(sp810, "arm,sp810", clk_sp810_of_setup);

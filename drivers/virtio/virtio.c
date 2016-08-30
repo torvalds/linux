@@ -238,6 +238,7 @@ static int virtio_init(void)
 static void __exit virtio_exit(void)
 {
 	bus_unregister(&virtio_bus);
+	ida_destroy(&virtio_index_ida);
 }
 core_initcall(virtio_init);
 module_exit(virtio_exit);

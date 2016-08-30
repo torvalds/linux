@@ -219,7 +219,7 @@ ex_saved_reg1:
 #ifdef CONFIG_SMP
 	sr  r0, [ARC_REG_SCRATCH_DATA0]	; freeup r0 to code with
 	GET_CPU_ID  r0			; get to per cpu scratch mem,
-	lsl r0, r0, L1_CACHE_SHIFT	; cache line wide per cpu
+	asl r0, r0, L1_CACHE_SHIFT	; cache line wide per cpu
 	add r0, @ex_saved_reg1, r0
 #else
 	st    r0, [@ex_saved_reg1]
@@ -239,7 +239,7 @@ ex_saved_reg1:
 .macro TLBMISS_RESTORE_REGS
 #ifdef CONFIG_SMP
 	GET_CPU_ID  r0			; get to per cpu scratch mem
-	lsl r0, r0, L1_CACHE_SHIFT	; each is cache line wide
+	asl r0, r0, L1_CACHE_SHIFT	; each is cache line wide
 	add r0, @ex_saved_reg1, r0
 	ld_s  r3, [r0,12]
 	ld_s  r2, [r0, 8]

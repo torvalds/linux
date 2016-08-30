@@ -131,7 +131,7 @@ arc_unwind_core(struct task_struct *tsk, struct pt_regs *regs,
 	 * prelogue is setup (callee regs saved and then fp set and not other
 	 * way around
 	 */
-	pr_warn("CONFIG_ARC_DW2_UNWIND needs to be enabled\n");
+	pr_warn_once("CONFIG_ARC_DW2_UNWIND needs to be enabled\n");
 	return 0;
 
 #endif

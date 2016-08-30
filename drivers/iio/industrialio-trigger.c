@@ -203,21 +203,34 @@ static int iio_trigger_attach_poll_func(struct iio_trigger *trig,
 
 	/* Prevent the module from being removed whilst attached to a trigger */
 	__module_get(pf->indio_dev->info->driver_module);
+
+	/* Get irq number */
 	pf->irq = iio_trigger_get_irq(trig);
+	if (pf->irq < 0)
+		goto out_put_module;
+
+	/* Request irq */
 	ret = request_threaded_irq(pf->irq, pf->h, pf->thread,
 				   pf->type, pf->name,
 				   pf);
-	if (ret < 0) {
-		module_put(pf->indio_dev->info->driver_module);
-		return ret;
-	}
+	if (ret < 0)
+		goto out_put_irq;
 
+	/* Enable trigger in driver */
 	if (trig->ops && trig->ops->set_trigger_state && notinuse) {
 		ret = trig->ops->set_trigger_state(trig, true);
 		if (ret < 0)
-			module_put(pf->indio_dev->info->driver_module);
+			goto out_free_irq;
 	}
 
+	return ret;
+
+out_free_irq:
+	free_irq(pf->irq, pf);
+out_put_irq:
+	iio_trigger_put_irq(trig, pf->irq);
+out_put_module:
+	module_put(pf->indio_dev->info->driver_module);
 	return ret;
 }
 

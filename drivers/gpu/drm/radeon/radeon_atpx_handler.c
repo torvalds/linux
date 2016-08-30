@@ -11,6 +11,7 @@
 #include <acpi/acpi.h>
 #include <acpi/acpi_bus.h>
 #include <linux/pci.h>
+#include <linux/delay.h>
 
 #include "radeon_acpi.h"
 
@@ -252,6 +253,10 @@ static int radeon_atpx_set_discrete_state(struct radeon_atpx *atpx, u8 state)
 		if (!info)
 			return -EIO;
 		kfree(info);
+
+		/* 200ms delay is required after off */
+		if (state == 0)
+			msleep(200);
 	}
 	return 0;
 }
