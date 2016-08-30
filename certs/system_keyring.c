@@ -32,11 +32,13 @@ extern __initconst const unsigned long system_certificate_list_size;
  * Restrict the addition of keys into a keyring based on the key-to-be-added
  * being vouched for by a key in the built in system keyring.
  */
-int restrict_link_by_builtin_trusted(struct key *keyring,
+int restrict_link_by_builtin_trusted(struct key *dest_keyring,
 				     const struct key_type *type,
-				     const union key_payload *payload)
+				     const union key_payload *payload,
+				     struct key *restriction_key)
 {
-	return restrict_link_by_signature(builtin_trusted_keys, type, payload);
+	return restrict_link_by_signature(dest_keyring, type, payload,
+					  builtin_trusted_keys);
 }
 
 #ifdef CONFIG_SECONDARY_TRUSTED_KEYRING
@@ -49,20 +51,22 @@ int restrict_link_by_builtin_trusted(struct key *keyring,
  * keyrings.
  */
 int restrict_link_by_builtin_and_secondary_trusted(
-	struct key *keyring,
+	struct key *dest_keyring,
 	const struct key_type *type,
-	const union key_payload *payload)
+	const union key_payload *payload,
+	struct key *restrict_key)
 {
 	/* If we have a secondary trusted keyring, then that contains a link
 	 * through to the builtin keyring and the search will follow that link.
 	 */
 	if (type == &key_type_keyring &&
-	    keyring == secondary_trusted_keys &&
+	    dest_keyring == secondary_trusted_keys &&
 	    payload == &builtin_trusted_keys->payload)
 		/* Allow the builtin keyring to be added to the secondary */
 		return 0;
 
-	return restrict_link_by_signature(secondary_trusted_keys, type, payload);
+	return restrict_link_by_signature(dest_keyring, type, payload,
+					  secondary_trusted_keys);
 }
 #endif
 

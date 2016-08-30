@@ -499,7 +499,7 @@ int key_instantiate_and_link(struct key *key,
 	if (keyring) {
 		if (keyring->restrict_link) {
 			ret = keyring->restrict_link(keyring, key->type,
-						     &prep.payload);
+						     &prep.payload, NULL);
 			if (ret < 0)
 				goto error;
 		}
@@ -851,7 +851,8 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 	index_key.desc_len = strlen(index_key.description);
 
 	if (restrict_link) {
-		ret = restrict_link(keyring, index_key.type, &prep.payload);
+		ret = restrict_link(keyring, index_key.type, &prep.payload,
+				    NULL);
 		if (ret < 0) {
 			key_ref = ERR_PTR(ret);
 			goto error_free_prep;

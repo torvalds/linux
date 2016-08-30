@@ -56,9 +56,10 @@ __setup("ca_keys=", ca_keys_setup);
 
 /**
  * restrict_link_by_signature - Restrict additions to a ring of public keys
- * @trust_keyring: A ring of keys that can be used to vouch for the new cert.
+ * @dest_keyring: Keyring being linked to.
  * @type: The type of key being added.
  * @payload: The payload of the new key.
+ * @trust_keyring: A ring of keys that can be used to vouch for the new cert.
  *
  * Check the new certificate against the ones in the trust keyring.  If one of
  * those is the signing key and validates the new certificate, then mark the
@@ -69,9 +70,10 @@ __setup("ca_keys=", ca_keys_setup);
  * signature check fails or the key is blacklisted and some other error if
  * there is a matching certificate but the signature check cannot be performed.
  */
-int restrict_link_by_signature(struct key *trust_keyring,
+int restrict_link_by_signature(struct key *dest_keyring,
 			       const struct key_type *type,
-			       const union key_payload *payload)
+			       const union key_payload *payload,
+			       struct key *trust_keyring)
 {
 	const struct public_key_signature *sig;
 	struct key *key;

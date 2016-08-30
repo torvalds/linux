@@ -1054,10 +1054,10 @@ payload contents" for more information.
     can be verified by a key the kernel already has.
 
     When called, the restriction function will be passed the keyring being
-    added to, the key flags value and the type and payload of the key being
-    added.  Note that when a new key is being created, this is called between
-    payload preparsing and actual key creation.  The function should return 0
-    to allow the link or an error to reject it.
+    added to, the key type, the payload of the key being added, and data to be
+    used in the restriction check.  Note that when a new key is being created,
+    this is called between payload preparsing and actual key creation.  The
+    function should return 0 to allow the link or an error to reject it.
 
     A convenience function, restrict_link_reject, exists to always return
     -EPERM to in this case.
