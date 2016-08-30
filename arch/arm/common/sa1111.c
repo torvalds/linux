@@ -700,15 +700,13 @@ static int __sa1111_probe(struct device *me, struct resource *mem, int irq)
 	if (!sachip)
 		return -ENOMEM;
 
-	sachip->clk = clk_get(me, "SA1111_CLK");
-	if (IS_ERR(sachip->clk)) {
-		ret = PTR_ERR(sachip->clk);
-		goto err_free;
-	}
+	sachip->clk = devm_clk_get(me, "SA1111_CLK");
+	if (IS_ERR(sachip->clk))
+		return PTR_ERR(sachip->clk);
 
 	ret = clk_prepare(sachip->clk);
 	if (ret)
-		goto err_clkput;
+		return ret;
 
 	spin_lock_init(&sachip->lock);
 
@@ -805,9 +803,6 @@ static int __sa1111_probe(struct device *me, struct resource *mem, int irq)
 	iounmap(sachip->base);
  err_clk_unprep:
 	clk_unprepare(sachip->clk);
- err_clkput:
-	clk_put(sachip->clk);
- err_free:
 	return ret;
 }
 
@@ -845,7 +840,6 @@ static void __sa1111_remove(struct sa1111 *sachip)
 	}
 
 	iounmap(sachip->base);
-	clk_put(sachip->clk);
 }
 
 struct sa1111_save_data {
