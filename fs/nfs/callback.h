@@ -198,6 +198,8 @@ extern void nfs_callback_down(int minorversion, struct net *net);
 #define NFS41_BC_MIN_CALLBACKS 1
 #define NFS41_BC_MAX_CALLBACKS 1
 
+#define NFS4_NR_CALLBACK_THREADS 1
+
 extern unsigned int nfs_callback_set_tcpport;
 
 #endif /* __LINUX_FS_NFS_CALLBACK_H */
