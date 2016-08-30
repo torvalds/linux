@@ -79,6 +79,18 @@
 		startup-delay-us = <200000>;
 	};
 
+	reg_bt: regulator-bt {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_bt_reg>;
+		enable-active-high;
+		gpio = <&gpio5 17 GPIO_ACTIVE_HIGH>;
+		regulator-name = "bt_reg";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
 	sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "imx7-sgtl5000";
@@ -250,6 +262,15 @@
 	status = "okay";
 };
 
+&uart3  {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart3>;
+	assigned-clocks = <&clks IMX7D_UART3_ROOT_SRC>;
+	assigned-clock-parents = <&clks IMX7D_PLL_SYS_MAIN_240M_CLK>;
+	uart-has-rtscts;
+	status = "okay";
+};
+
 &usbotg1 {
 	dr_mode = "peripheral";
 	status = "okay";
@@ -290,6 +311,12 @@
 	pinctrl_brcm_reg: brcmreggrp {
 		fsl,pins = <
 			MX7D_PAD_SD2_WP__GPIO5_IO10	0x14 /* WL_REG_ON */
+		>;
+	};
+
+	pinctrl_bt_reg: btreggrp {
+		fsl,pins = <
+			MX7D_PAD_SD2_DATA3__GPIO5_IO17	0x14 /* BT_REG_ON */
 		>;
 	};
 
@@ -339,6 +366,15 @@
 		fsl,pins = <
 			MX7D_PAD_UART1_TX_DATA__UART1_DCE_TX	0x79
 			MX7D_PAD_UART1_RX_DATA__UART1_DCE_RX	0x79
+		>;
+	};
+
+	pinctrl_uart3: uart3grp {
+		fsl,pins = <
+			MX7D_PAD_UART3_TX_DATA__UART3_DCE_TX	0x79
+			MX7D_PAD_UART3_RX_DATA__UART3_DCE_RX	0x79
+			MX7D_PAD_UART3_CTS_B__UART3_DCE_CTS	0x79
+			MX7D_PAD_UART3_RTS_B__UART3_DCE_RTS	0x79
 		>;
 	};
 
