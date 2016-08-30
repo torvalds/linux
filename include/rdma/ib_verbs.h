@@ -1676,6 +1676,10 @@ struct ib_flow_spec_ipv4 {
 struct ib_flow_ipv6_filter {
 	u8	src_ip[16];
 	u8	dst_ip[16];
+	__be32	flow_label;
+	u8	next_hdr;
+	u8	traffic_class;
+	u8	hop_limit;
 	/* Must be last */
 	u8	real_sz[0];
 };

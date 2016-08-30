@@ -3158,6 +3158,10 @@ static int kern_spec_to_ib_spec(struct ib_uverbs_flow_spec *kern_spec,
 		ib_spec->size = sizeof(struct ib_flow_spec_ipv6);
 		memcpy(&ib_spec->ipv6.val, kern_spec_val, actual_filter_sz);
 		memcpy(&ib_spec->ipv6.mask, kern_spec_mask, actual_filter_sz);
+
+		if ((ntohl(ib_spec->ipv6.mask.flow_label)) >= BIT(20) ||
+		    (ntohl(ib_spec->ipv6.val.flow_label)) >= BIT(20))
+			return -EINVAL;
 		break;
 	case IB_FLOW_SPEC_TCP:
 	case IB_FLOW_SPEC_UDP:
