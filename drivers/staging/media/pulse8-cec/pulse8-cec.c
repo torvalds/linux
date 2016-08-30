@@ -266,7 +266,7 @@ static int pulse8_send(struct serio *serio, const u8 *command, u8 cmd_len)
 		}
 	}
 	if (!err)
-		err = serio_write(serio, 0xfe);
+		err = serio_write(serio, MSGEND);
 
 	return err;
 }
@@ -331,40 +331,29 @@ static int pulse8_setup(struct pulse8 *pulse8, struct serio *serio,
 	u8 *data = pulse8->data + 1;
 	u8 cmd[2];
 	int err;
+	struct tm tm;
+	time_t date;
 
 	pulse8->vers = 0;
 
-	cmd[0] = MSGCODE_PING;
-	err = pulse8_send_and_wait(pulse8, cmd, 1,
-				   MSGCODE_COMMAND_ACCEPTED, 0);
 	cmd[0] = MSGCODE_FIRMWARE_VERSION;
-	if (!err)
-		err = pulse8_send_and_wait(pulse8, cmd, 1, cmd[0], 2);
+	err = pulse8_send_and_wait(pulse8, cmd, 1, cmd[0], 2);
 	if (err)
 		return err;
-
 	pulse8->vers = (data[0] << 8) | data[1];
-
 	dev_info(pulse8->dev, "Firmware version %04x\n", pulse8->vers);
 	if (pulse8->vers < 2)
 		return 0;
 
 	cmd[0] = MSGCODE_GET_BUILDDATE;
-	if (!err)
-		err = pulse8_send_and_wait(pulse8, cmd, 1, cmd[0], 4);
-	if (!err) {
-		time_t date = (data[0] << 24) | (data[1] << 16) |
-			(data[2] << 8) | data[3];
-		struct tm tm;
-
-		time_to_tm(date, 0, &tm);
-
-		dev_info(pulse8->dev, "Firmware build date %04ld.%02d.%02d %02d:%02d:%02d\n",
-			 tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
-			 tm.tm_hour, tm.tm_min, tm.tm_sec);
-	}
+	err = pulse8_send_and_wait(pulse8, cmd, 1, cmd[0], 4);
 	if (err)
 		return err;
+	date = (data[0] << 24) | (data[1] << 16) | (data[2] << 8) | data[3];
+	time_to_tm(date, 0, &tm);
+	dev_info(pulse8->dev, "Firmware build date %04ld.%02d.%02d %02d:%02d:%02d\n",
+		 tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+		 tm.tm_hour, tm.tm_min, tm.tm_sec);
 
 	dev_dbg(pulse8->dev, "Persistent config:\n");
 	cmd[0] = MSGCODE_GET_AUTO_ENABLED;
@@ -456,8 +445,6 @@ static int pulse8_apply_persistent_config(struct pulse8 *pulse8,
 		return err;
 
 	cec_s_phys_addr(pulse8->adap, pa, false);
-	if (err)
-		return err;
 
 	return 0;
 }
