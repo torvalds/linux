@@ -775,6 +775,39 @@ static int vce_v3_0_set_powergating_state(void *handle,
 		return vce_v3_0_start(adev);
 }
 
+static void vce_v3_0_ring_emit_ib(struct amdgpu_ring *ring,
+		struct amdgpu_ib *ib, unsigned int vm_id, bool ctx_switch)
+{
+	amdgpu_ring_write(ring, VCE_CMD_IB_VM);
+	amdgpu_ring_write(ring, vm_id);
+	amdgpu_ring_write(ring, lower_32_bits(ib->gpu_addr));
+	amdgpu_ring_write(ring, upper_32_bits(ib->gpu_addr));
+	amdgpu_ring_write(ring, ib->length_dw);
+}
+
+static void vce_v3_0_emit_vm_flush(struct amdgpu_ring *ring,
+			 unsigned int vm_id, uint64_t pd_addr)
+{
+	amdgpu_ring_write(ring, VCE_CMD_UPDATE_PTB);
+	amdgpu_ring_write(ring, vm_id);
+	amdgpu_ring_write(ring, pd_addr >> 12);
+
+	amdgpu_ring_write(ring, VCE_CMD_FLUSH_TLB);
+	amdgpu_ring_write(ring, vm_id);
+	amdgpu_ring_write(ring, VCE_CMD_END);
+}
+
+static void vce_v3_0_emit_pipeline_sync(struct amdgpu_ring *ring)
+{
+	uint32_t seq = ring->fence_drv.sync_seq;
+	uint64_t addr = ring->fence_drv.gpu_addr;
+
+	amdgpu_ring_write(ring, VCE_CMD_WAIT_GE);
+	amdgpu_ring_write(ring, lower_32_bits(addr));
+	amdgpu_ring_write(ring, upper_32_bits(addr));
+	amdgpu_ring_write(ring, seq);
+}
+
 const struct amd_ip_funcs vce_v3_0_ip_funcs = {
 	.name = "vce_v3_0",
 	.early_init = vce_v3_0_early_init,
@@ -795,7 +828,7 @@ const struct amd_ip_funcs vce_v3_0_ip_funcs = {
 	.set_powergating_state = vce_v3_0_set_powergating_state,
 };
 
-static const struct amdgpu_ring_funcs vce_v3_0_ring_funcs = {
+static const struct amdgpu_ring_funcs vce_v3_0_ring_phys_funcs = {
 	.get_rptr = vce_v3_0_ring_get_rptr,
 	.get_wptr = vce_v3_0_ring_get_wptr,
 	.set_wptr = vce_v3_0_ring_set_wptr,
@@ -810,12 +843,36 @@ static const struct amdgpu_ring_funcs vce_v3_0_ring_funcs = {
 	.end_use = amdgpu_vce_ring_end_use,
 };
 
+static const struct amdgpu_ring_funcs vce_v3_0_ring_vm_funcs = {
+	.get_rptr = vce_v3_0_ring_get_rptr,
+	.get_wptr = vce_v3_0_ring_get_wptr,
+	.set_wptr = vce_v3_0_ring_set_wptr,
+	.parse_cs = NULL,
+	.emit_ib = vce_v3_0_ring_emit_ib,
+	.emit_vm_flush = vce_v3_0_emit_vm_flush,
+	.emit_pipeline_sync = vce_v3_0_emit_pipeline_sync,
+	.emit_fence = amdgpu_vce_ring_emit_fence,
+	.test_ring = amdgpu_vce_ring_test_ring,
+	.test_ib = amdgpu_vce_ring_test_ib,
+	.insert_nop = amdgpu_ring_insert_nop,
+	.pad_ib = amdgpu_ring_generic_pad_ib,
+	.begin_use = amdgpu_vce_ring_begin_use,
+	.end_use = amdgpu_vce_ring_end_use,
+};
+
 static void vce_v3_0_set_ring_funcs(struct amdgpu_device *adev)
 {
 	int i;
 
-	for (i = 0; i < adev->vce.num_rings; i++)
-		adev->vce.ring[i].funcs = &vce_v3_0_ring_funcs;
+	if (adev->asic_type >= CHIP_STONEY) {
+		for (i = 0; i < adev->vce.num_rings; i++)
+			adev->vce.ring[i].funcs = &vce_v3_0_ring_vm_funcs;
+		DRM_INFO("VCE enabled in VM mode\n");
+	} else {
+		for (i = 0; i < adev->vce.num_rings; i++)
+			adev->vce.ring[i].funcs = &vce_v3_0_ring_phys_funcs;
+		DRM_INFO("VCE enabled in physical mode\n");
+	}
 }
 
 static const struct amdgpu_irq_src_funcs vce_v3_0_irq_funcs = {
