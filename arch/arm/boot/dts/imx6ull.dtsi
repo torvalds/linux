@@ -67,6 +67,7 @@
 				396000	1175000
 				198000	1175000
 			>;
+			fsl,low-power-run;
 			clocks = <&clks IMX6UL_CLK_ARM>,
 				 <&clks IMX6UL_CLK_PLL2_BUS>,
 				 <&clks IMX6UL_CLK_PLL2_PFD2>,
