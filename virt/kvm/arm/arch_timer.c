@@ -31,7 +31,6 @@
 #include "trace.h"
 
 static struct timecounter *timecounter;
-static struct workqueue_struct *wqueue;
 static unsigned int host_vtimer_irq;
 static u32 host_vtimer_irq_flags;
 
@@ -141,7 +140,7 @@ static enum hrtimer_restart kvm_timer_expire(struct hrtimer *hrt)
 		return HRTIMER_RESTART;
 	}
 
-	queue_work(wqueue, &timer->expired);
+	schedule_work(&timer->expired);
 	return HRTIMER_NORESTART;
 }
 
@@ -449,12 +448,6 @@ int kvm_timer_hyp_init(void)
 		goto out;
 	}
 
-	wqueue = create_singlethread_workqueue("kvm_arch_timer");
-	if (!wqueue) {
-		err = -ENOMEM;
-		goto out_free;
-	}
-
 	kvm_info("virtual timer IRQ%d\n", host_vtimer_irq);
 
 	cpuhp_setup_state(CPUHP_AP_KVM_ARM_TIMER_STARTING,
@@ -518,7 +511,7 @@ int kvm_timer_enable(struct kvm_vcpu *vcpu)
 	 * VCPUs have the enabled variable set, before entering the guest, if
 	 * the arch timers are enabled.
 	 */
-	if (timecounter && wqueue)
+	if (timecounter)
 		timer->enabled = 1;
 
 	return 0;
