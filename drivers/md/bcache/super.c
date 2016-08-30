@@ -1295,6 +1295,9 @@ static void cache_set_flush(struct closure *cl)
 	set_bit(CACHE_SET_STOPPING_2, &c->flags);
 	wake_up(&c->alloc_wait);
 
+	if (!c)
+		closure_return(cl);
+
 	bch_cache_accounting_destroy(&c->accounting);
 
 	kobject_put(&c->internal);

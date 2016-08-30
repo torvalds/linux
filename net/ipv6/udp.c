@@ -839,11 +839,9 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 		int ret = udpv6_queue_rcv_skb(sk, skb);
 		sock_put(sk);
 
-		/* a return value > 0 means to resubmit the input, but
-		 * it wants the return to be -protocol, or 0
-		 */
+		/* a return value > 0 means to resubmit the input */
 		if (ret > 0)
-			return -ret;
+			return ret;
 
 		return 0;
 	}
