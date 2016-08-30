@@ -2121,6 +2121,10 @@ struct amdgpu_device {
 	/* link all shadow bo */
 	struct list_head                shadow_list;
 	struct mutex                    shadow_list_lock;
+	/* link all gtt */
+	spinlock_t			gtt_list_lock;
+	struct list_head                gtt_list;
+
 };
 
 bool amdgpu_device_is_px(struct drm_device *dev);

@@ -1577,6 +1577,9 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	INIT_LIST_HEAD(&adev->shadow_list);
 	mutex_init(&adev->shadow_list_lock);
 
+	INIT_LIST_HEAD(&adev->gtt_list);
+	spin_lock_init(&adev->gtt_list_lock);
+
 	if (adev->asic_type >= CHIP_BONAIRE) {
 		adev->rmmio_base = pci_resource_start(adev->pdev, 5);
 		adev->rmmio_size = pci_resource_len(adev->pdev, 5);
@@ -1584,6 +1587,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		adev->rmmio_base = pci_resource_start(adev->pdev, 2);
 		adev->rmmio_size = pci_resource_len(adev->pdev, 2);
 	}
+
 	adev->rmmio = ioremap(adev->rmmio_base, adev->rmmio_size);
 	if (adev->rmmio == NULL) {
 		return -ENOMEM;

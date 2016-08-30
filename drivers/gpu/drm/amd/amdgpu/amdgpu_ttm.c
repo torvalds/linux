@@ -520,6 +520,7 @@ struct amdgpu_ttm_tt {
 	spinlock_t              guptasklock;
 	struct list_head        guptasks;
 	atomic_t		mmu_invalidations;
+	struct list_head        list;
 };
 
 int amdgpu_ttm_tt_get_user_pages(struct ttm_tt *ttm, struct page **pages)
@@ -666,6 +667,9 @@ static int amdgpu_ttm_backend_bind(struct ttm_tt *ttm,
 			  ttm->num_pages, (unsigned)gtt->offset);
 		return r;
 	}
+	spin_lock(&gtt->adev->gtt_list_lock);
+	list_add_tail(&gtt->list, &gtt->adev->gtt_list);
+	spin_unlock(&gtt->adev->gtt_list_lock);
 	return 0;
 }
 
@@ -679,6 +683,10 @@ static int amdgpu_ttm_backend_unbind(struct ttm_tt *ttm)
 
 	if (gtt->userptr)
 		amdgpu_ttm_tt_unpin_userptr(ttm);
+
+	spin_lock(&gtt->adev->gtt_list_lock);
+	list_del_init(&gtt->list);
+	spin_unlock(&gtt->adev->gtt_list_lock);
 
 	return 0;
 }
@@ -716,6 +724,7 @@ static struct ttm_tt *amdgpu_ttm_tt_create(struct ttm_bo_device *bdev,
 		kfree(gtt);
 		return NULL;
 	}
+	INIT_LIST_HEAD(&gtt->list);
 	return &gtt->ttm.ttm;
 }
 
