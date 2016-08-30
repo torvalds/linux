@@ -313,3 +313,18 @@ void __rxrpc_put_peer(struct rxrpc_peer *peer)
 
 	kfree_rcu(peer, rcu);
 }
+
+/**
+ * rxrpc_kernel_get_peer - Get the peer address of a call
+ * @sock: The socket on which the call is in progress.
+ * @call: The call to query
+ * @_srx: Where to place the result
+ *
+ * Get the address of the remote peer in a call.
+ */
+void rxrpc_kernel_get_peer(struct socket *sock, struct rxrpc_call *call,
+			   struct sockaddr_rxrpc *_srx)
+{
+	*_srx = call->peer->srx;
+}
+EXPORT_SYMBOL(rxrpc_kernel_get_peer);

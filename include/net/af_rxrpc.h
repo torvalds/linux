@@ -49,5 +49,7 @@ int rxrpc_kernel_get_error_number(struct sk_buff *);
 void rxrpc_kernel_free_skb(struct sk_buff *);
 struct rxrpc_call *rxrpc_kernel_accept_call(struct socket *, unsigned long);
 int rxrpc_kernel_reject_call(struct socket *);
+void rxrpc_kernel_get_peer(struct socket *, struct rxrpc_call *,
+			   struct sockaddr_rxrpc *);
 
 #endif /* _NET_RXRPC_H */

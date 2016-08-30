@@ -868,6 +868,13 @@ The kernel interface functions are as follows:
      This is used to allocate a null RxRPC key that can be used to indicate
      anonymous security for a particular domain.
 
+ (*) Get the peer address of a call.
+
+	void rxrpc_kernel_get_peer(struct socket *sock, struct rxrpc_call *call,
+				   struct sockaddr_rxrpc *_srx);
+
+     This is used to find the remote peer address of a call.
+
 
 =======================
 CONFIGURABLE PARAMETERS

@@ -20,6 +20,7 @@
 #include <linux/sched.h>
 #include <linux/fscache.h>
 #include <linux/backing-dev.h>
+#include <net/af_rxrpc.h>
 
 #include "afs.h"
 #include "afs_vl.h"
@@ -607,6 +608,8 @@ extern void afs_proc_cell_remove(struct afs_cell *);
 /*
  * rxrpc.c
  */
+extern struct socket *afs_socket;
+
 extern int afs_open_socket(void);
 extern void afs_close_socket(void);
 extern void afs_data_consumed(struct afs_call *, struct sk_buff *);
@@ -654,7 +657,7 @@ do {								\
 
 extern struct afs_server *afs_lookup_server(struct afs_cell *,
 					    const struct in_addr *);
-extern struct afs_server *afs_find_server(const struct in_addr *);
+extern struct afs_server *afs_find_server(const struct sockaddr_rxrpc *);
 extern void afs_put_server(struct afs_server *);
 extern void __exit afs_purge_servers(void);
 

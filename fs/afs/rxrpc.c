@@ -16,7 +16,7 @@
 #include "internal.h"
 #include "afs_cm.h"
 
-static struct socket *afs_socket; /* my RxRPC socket */
+struct socket *afs_socket; /* my RxRPC socket */
 static struct workqueue_struct *afs_async_calls;
 static atomic_t afs_outstanding_calls;
 static atomic_t afs_outstanding_skbs;

@@ -167,9 +167,9 @@ static void SRXAFSCB_CallBack(struct work_struct *work)
 static int afs_deliver_cb_callback(struct afs_call *call, struct sk_buff *skb,
 				   bool last)
 {
+	struct sockaddr_rxrpc srx;
 	struct afs_callback *cb;
 	struct afs_server *server;
-	struct in_addr addr;
 	__be32 *bp;
 	u32 tmp;
 	int ret, loop;
@@ -178,6 +178,7 @@ static int afs_deliver_cb_callback(struct afs_call *call, struct sk_buff *skb,
 
 	switch (call->unmarshall) {
 	case 0:
+		rxrpc_kernel_get_peer(afs_socket, call->rxcall, &srx);
 		call->offset = 0;
 		call->unmarshall++;
 
@@ -282,8 +283,7 @@ static int afs_deliver_cb_callback(struct afs_call *call, struct sk_buff *skb,
 
 	/* we'll need the file server record as that tells us which set of
 	 * vnodes to operate upon */
-	memcpy(&addr, &ip_hdr(skb)->saddr, 4);
-	server = afs_find_server(&addr);
+	server = afs_find_server(&srx);
 	if (!server)
 		return -ENOTCONN;
 	call->server = server;
@@ -314,11 +314,13 @@ static int afs_deliver_cb_init_call_back_state(struct afs_call *call,
 					       struct sk_buff *skb,
 					       bool last)
 {
+	struct sockaddr_rxrpc srx;
 	struct afs_server *server;
-	struct in_addr addr;
 	int ret;
 
 	_enter(",{%u},%d", skb->len, last);
+
+	rxrpc_kernel_get_peer(afs_socket, call->rxcall, &srx);
 
 	ret = afs_data_complete(call, skb, last);
 	if (ret < 0)
@@ -329,8 +331,7 @@ static int afs_deliver_cb_init_call_back_state(struct afs_call *call,
 
 	/* we'll need the file server record as that tells us which set of
 	 * vnodes to operate upon */
-	memcpy(&addr, &ip_hdr(skb)->saddr, 4);
-	server = afs_find_server(&addr);
+	server = afs_find_server(&srx);
 	if (!server)
 		return -ENOTCONN;
 	call->server = server;
@@ -347,10 +348,12 @@ static int afs_deliver_cb_init_call_back_state3(struct afs_call *call,
 						struct sk_buff *skb,
 						bool last)
 {
+	struct sockaddr_rxrpc srx;
 	struct afs_server *server;
-	struct in_addr addr;
 
 	_enter(",{%u},%d", skb->len, last);
+
+	rxrpc_kernel_get_peer(afs_socket, call->rxcall, &srx);
 
 	/* There are some arguments that we ignore */
 	afs_data_consumed(call, skb);
@@ -362,8 +365,7 @@ static int afs_deliver_cb_init_call_back_state3(struct afs_call *call,
 
 	/* we'll need the file server record as that tells us which set of
 	 * vnodes to operate upon */
-	memcpy(&addr, &ip_hdr(skb)->saddr, 4);
-	server = afs_find_server(&addr);
+	server = afs_find_server(&srx);
 	if (!server)
 		return -ENOTCONN;
 	call->server = server;
