@@ -2218,11 +2218,11 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 
 	if (already_enabled) {
 		/* Facilitate smooth refclk across the transition */
-		regmap_update_bits_async(fll->arizona->regmap, fll->base + 0x9,
-					 ARIZONA_FLL1_GAIN_MASK, 0);
 		regmap_update_bits(fll->arizona->regmap, fll->base + 1,
 				   ARIZONA_FLL1_FREERUN, ARIZONA_FLL1_FREERUN);
 		udelay(32);
+		regmap_update_bits_async(fll->arizona->regmap, fll->base + 0x9,
+					 ARIZONA_FLL1_GAIN_MASK, 0);
 	}
 
 	/*
