@@ -1117,8 +1117,8 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 		send_monitor_note(sk, "Linux version %s (%s)",
 				  init_utsname()->release,
 				  init_utsname()->machine);
-		send_monitor_note(sk, "Bluetooth subsystem version %s",
-				  BT_SUBSYS_VERSION);
+		send_monitor_note(sk, "Bluetooth subsystem version %u.%u",
+				  BT_SUBSYS_VERSION, BT_SUBSYS_REVISION);
 		send_monitor_replay(sk);
 		send_monitor_control_replay(sk);
 

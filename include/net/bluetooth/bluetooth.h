@@ -29,7 +29,8 @@
 #include <net/sock.h>
 #include <linux/seq_file.h>
 
-#define BT_SUBSYS_VERSION "2.21"
+#define BT_SUBSYS_VERSION	2
+#define BT_SUBSYS_REVISION	21
 
 #ifndef AF_BLUETOOTH
 #define AF_BLUETOOTH	31
