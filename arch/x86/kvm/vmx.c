@@ -7013,7 +7013,7 @@ static int handle_vmon(struct kvm_vcpu *vcpu)
 	vmx->nested.vmcs02_num = 0;
 
 	hrtimer_init(&vmx->nested.preemption_timer, CLOCK_MONOTONIC,
-		     HRTIMER_MODE_REL);
+		     HRTIMER_MODE_REL_PINNED);
 	vmx->nested.preemption_timer.function = vmx_preemption_timer_fn;
 
 	vmx->nested.vmxon = true;
