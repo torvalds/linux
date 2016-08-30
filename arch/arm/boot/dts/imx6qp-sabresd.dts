@@ -68,10 +68,12 @@
 };
 
 &ov564x {
+	AVDD-supply = <&vgen6_reg>; /* 2.8v */
 	DOVDD-supply = <&sw4_reg>; /* 1.8v */
 };
 
 &ov564x_mipi {
+	AVDD-supply = <&vgen6_reg>; /* 2.8v */
 	DOVDD-supply = <&sw4_reg>; /* 1.8v */
 };
 
