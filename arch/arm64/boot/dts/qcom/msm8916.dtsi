@@ -848,6 +848,14 @@
 				};
 			};
 		};
+
+		hexagon {
+			interrupts = <0 25 IRQ_TYPE_EDGE_RISING>;
+
+			qcom,smd-edge = <0>;
+			qcom,ipc = <&apcs 8 12>;
+			qcom,remote-pid = <1>;
+		};
 	};
 
 	hexagon-smp2p {
