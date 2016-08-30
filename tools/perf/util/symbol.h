@@ -57,7 +57,7 @@ struct symbol {
 	u64		end;
 	u16		namelen;
 	u8		binding;
-	bool		ignore;
+	u8		idle:1;
 	u8		arch_sym;
 	char		name[0];
 };

@@ -680,7 +680,7 @@ static int symbol_filter(struct map *map, struct symbol *sym)
 		return 1;
 
 	if (symbol__is_idle(sym))
-		sym->ignore = true;
+		sym->idle = 1;
 
 	return 0;
 }
@@ -783,7 +783,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 		}
 	}
 
-	if (al.sym == NULL || !al.sym->ignore) {
+	if (al.sym == NULL || !al.sym->idle) {
 		struct hists *hists = evsel__hists(evsel);
 		struct hist_entry_iter iter = {
 			.evsel		= evsel,
