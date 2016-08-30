@@ -38,7 +38,6 @@
 #include <linux/of.h>
 #include <linux/memblock.h>
 #include <linux/device.h>
-#include <linux/of_platform.h>
 
 #include <asm/sections.h>
 #include <asm/segment.h>
@@ -218,15 +217,6 @@ void __init or32_early_setup(void *fdt)
 	}
 	early_init_devtree(fdt);
 }
-
-static int __init openrisc_device_probe(void)
-{
-	of_platform_populate(NULL, NULL, NULL, NULL);
-
-	return 0;
-}
-
-device_initcall(openrisc_device_probe);
 
 static inline unsigned long extract_value_bits(unsigned long reg,
 					       short bit_nr, short width)
