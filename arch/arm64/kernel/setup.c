@@ -233,7 +233,7 @@ void __init setup_arch(char **cmdline_p)
 {
 	pr_info("Boot CPU: AArch64 Processor [%08x]\n", read_cpuid_id());
 
-	sprintf(init_utsname()->machine, ELF_PLATFORM);
+	sprintf(init_utsname()->machine, UTS_MACHINE);
 	init_mm.start_code = (unsigned long) _text;
 	init_mm.end_code   = (unsigned long) _etext;
 	init_mm.end_data   = (unsigned long) _edata;
