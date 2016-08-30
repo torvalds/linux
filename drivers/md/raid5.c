@@ -6639,6 +6639,16 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 	}
 
 	conf->min_nr_stripes = NR_STRIPES;
+	if (mddev->reshape_position != MaxSector) {
+		int stripes = max_t(int,
+			((mddev->chunk_sectors << 9) / STRIPE_SIZE) * 4,
+			((mddev->new_chunk_sectors << 9) / STRIPE_SIZE) * 4);
+		conf->min_nr_stripes = max(NR_STRIPES, stripes);
+		if (conf->min_nr_stripes != NR_STRIPES)
+			printk(KERN_INFO
+				"md/raid:%s: force stripe size %d for reshape\n",
+				mdname(mddev), conf->min_nr_stripes);
+	}
 	memory = conf->min_nr_stripes * (sizeof(struct stripe_head) +
 		 max_disks * ((sizeof(struct bio) + PAGE_SIZE))) / 1024;
 	atomic_set(&conf->empty_inactive_list_nr, NR_STRIPE_HASH_LOCKS);
