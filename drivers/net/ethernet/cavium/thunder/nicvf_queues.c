@@ -938,6 +938,8 @@ static int nicvf_tso_count_subdescs(struct sk_buff *skb)
 	return num_edescs + sh->gso_segs;
 }
 
+#define POST_CQE_DESC_COUNT 2
+
 /* Get the number of SQ descriptors needed to xmit this skb */
 static int nicvf_sq_subdesc_required(struct nicvf *nic, struct sk_buff *skb)
 {
@@ -947,6 +949,10 @@ static int nicvf_sq_subdesc_required(struct nicvf *nic, struct sk_buff *skb)
 		subdesc_cnt = nicvf_tso_count_subdescs(skb);
 		return subdesc_cnt;
 	}
+
+	/* Dummy descriptors to get TSO pkt completion notification */
+	if (nic->t88 && nic->hw_tso && skb_shinfo(skb)->gso_size)
+		subdesc_cnt += POST_CQE_DESC_COUNT;
 
 	if (skb_shinfo(skb)->nr_frags)
 		subdesc_cnt += skb_shinfo(skb)->nr_frags;
@@ -965,14 +971,21 @@ nicvf_sq_add_hdr_subdesc(struct nicvf *nic, struct snd_queue *sq, int qentry,
 	struct sq_hdr_subdesc *hdr;
 
 	hdr = (struct sq_hdr_subdesc *)GET_SQ_DESC(sq, qentry);
-	sq->skbuff[qentry] = (u64)skb;
-
 	memset(hdr, 0, SND_QUEUE_DESC_SIZE);
 	hdr->subdesc_type = SQ_DESC_TYPE_HEADER;
-	/* Enable notification via CQE after processing SQE */
-	hdr->post_cqe = 1;
-	/* No of subdescriptors following this */
-	hdr->subdesc_cnt = subdesc_cnt;
+
+	if (nic->t88 && nic->hw_tso && skb_shinfo(skb)->gso_size) {
+		/* post_cqe = 0, to avoid HW posting a CQE for every TSO
+		 * segment transmitted on 88xx.
+		 */
+		hdr->subdesc_cnt = subdesc_cnt - POST_CQE_DESC_COUNT;
+	} else {
+		sq->skbuff[qentry] = (u64)skb;
+		/* Enable notification via CQE after processing SQE */
+		hdr->post_cqe = 1;
+		/* No of subdescriptors following this */
+		hdr->subdesc_cnt = subdesc_cnt;
+	}
 	hdr->tot_len = len;
 
 	/* Offload checksum calculation to HW */
@@ -1021,6 +1034,37 @@ static inline void nicvf_sq_add_gather_subdesc(struct snd_queue *sq, int qentry,
 	gather->ld_type = NIC_SEND_LD_TYPE_E_LDD;
 	gather->size = size;
 	gather->addr = data;
+}
+
+/* Add HDR + IMMEDIATE subdescriptors right after descriptors of a TSO
+ * packet so that a CQE is posted as a notifation for transmission of
+ * TSO packet.
+ */
+static inline void nicvf_sq_add_cqe_subdesc(struct snd_queue *sq, int qentry,
+					    int tso_sqe, struct sk_buff *skb)
+{
+	struct sq_imm_subdesc *imm;
+	struct sq_hdr_subdesc *hdr;
+
+	sq->skbuff[qentry] = (u64)skb;
+
+	hdr = (struct sq_hdr_subdesc *)GET_SQ_DESC(sq, qentry);
+	memset(hdr, 0, SND_QUEUE_DESC_SIZE);
+	hdr->subdesc_type = SQ_DESC_TYPE_HEADER;
+	/* Enable notification via CQE after processing SQE */
+	hdr->post_cqe = 1;
+	/* There is no packet to transmit here */
+	hdr->dont_send = 1;
+	hdr->subdesc_cnt = POST_CQE_DESC_COUNT - 1;
+	hdr->tot_len = 1;
+	/* Actual TSO header SQE index, needed for cleanup */
+	hdr->rsvd2 = tso_sqe;
+
+	qentry = nicvf_get_nxt_sqentry(sq, qentry);
+	imm = (struct sq_imm_subdesc *)GET_SQ_DESC(sq, qentry);
+	memset(imm, 0, SND_QUEUE_DESC_SIZE);
+	imm->subdesc_type = SQ_DESC_TYPE_IMMEDIATE;
+	imm->len = 1;
 }
 
 /* Segment a TSO packet into 'gso_size' segments and append
@@ -1096,7 +1140,7 @@ static int nicvf_sq_append_tso(struct nicvf *nic, struct snd_queue *sq,
 int nicvf_sq_append_skb(struct nicvf *nic, struct sk_buff *skb)
 {
 	int i, size;
-	int subdesc_cnt;
+	int subdesc_cnt, tso_sqe = 0;
 	int sq_num, qentry;
 	struct queue_set *qs;
 	struct snd_queue *sq;
@@ -1131,6 +1175,7 @@ int nicvf_sq_append_skb(struct nicvf *nic, struct sk_buff *skb)
 	/* Add SQ header subdesc */
 	nicvf_sq_add_hdr_subdesc(nic, sq, qentry, subdesc_cnt - 1,
 				 skb, skb->len);
+	tso_sqe = qentry;
 
 	/* Add SQ gather subdescs */
 	qentry = nicvf_get_nxt_sqentry(sq, qentry);
@@ -1154,6 +1199,11 @@ int nicvf_sq_append_skb(struct nicvf *nic, struct sk_buff *skb)
 	}
 
 doorbell:
+	if (nic->t88 && skb_shinfo(skb)->gso_size) {
+		qentry = nicvf_get_nxt_sqentry(sq, qentry);
+		nicvf_sq_add_cqe_subdesc(sq, qentry, tso_sqe, skb);
+	}
+
 	/* make sure all memory stores are done before ringing doorbell */
 	smp_wmb();
 
