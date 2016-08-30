@@ -56,7 +56,7 @@ You should also set these fields of :c:type:`video_device`:
   :c:type:`video_device`->vfl_dir fields are used to disable ops that do not
   match the type/dir combination. E.g. VBI ops are disabled for non-VBI nodes,
   and output ops  are disabled for a capture device. This makes it possible to
-  provide just one :c:type:`v4l2_ioctl_ops struct` for both vbi and
+  provide just one :c:type:`v4l2_ioctl_ops` struct for both vbi and
   video nodes.
 
 - :c:type:`video_device`->lock: leave to ``NULL`` if you want to do all the
