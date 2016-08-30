@@ -1,6 +1,8 @@
 /* Moorestown PMIC GPIO (access through IPC) driver
  * Copyright (c) 2008 - 2009, Intel Corporation.
  *
+ * Author: Alek Du <alek.du@intel.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -21,7 +23,6 @@
 
 #define pr_fmt(fmt) "%s: " fmt, __func__
 
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -322,9 +323,4 @@ static int __init platform_pmic_gpio_init(void)
 {
 	return platform_driver_register(&platform_pmic_gpio_driver);
 }
-
 subsys_initcall(platform_pmic_gpio_init);
-
-MODULE_AUTHOR("Alek Du <alek.du@intel.com>");
-MODULE_DESCRIPTION("Intel Moorestown PMIC GPIO driver");
-MODULE_LICENSE("GPL v2");
