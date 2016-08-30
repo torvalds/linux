@@ -1324,7 +1324,8 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	snprintf(ioc->fc_rescan_work_q_name, sizeof(ioc->fc_rescan_work_q_name),
 		 "mptfc_wq_%d", sh->host_no);
 	ioc->fc_rescan_work_q =
-		create_singlethread_workqueue(ioc->fc_rescan_work_q_name);
+		alloc_ordered_workqueue(ioc->fc_rescan_work_q_name,
+					WQ_MEM_RECLAIM);
 	if (!ioc->fc_rescan_work_q)
 		goto out_mptfc_probe;
 
