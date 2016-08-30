@@ -35,7 +35,7 @@
 #include <asm/octeon/cvmx-fau.h>
 #include <asm/octeon/cvmx-ipd.h>
 #include <asm/octeon/cvmx-helper.h>
-
+#include <asm/octeon/cvmx-asxx-defs.h>
 #include <asm/octeon/cvmx-gmxx-defs.h>
 #include <asm/octeon/cvmx-smix-defs.h>
 
@@ -647,6 +647,16 @@ static struct device_node *cvm_oct_node_for_port(struct device_node *pip,
 	return np;
 }
 
+static void cvm_set_rgmii_delay(struct device_node *np, int iface, int port)
+{
+	u32 delay_value;
+
+	if (!of_property_read_u32(np, "rx-delay", &delay_value))
+		cvmx_write_csr(CVMX_ASXX_RX_CLK_SETX(port, iface), delay_value);
+	if (!of_property_read_u32(np, "tx-delay", &delay_value))
+		cvmx_write_csr(CVMX_ASXX_TX_CLK_SETX(port, iface), delay_value);
+}
+
 static int cvm_oct_probe(struct platform_device *pdev)
 {
 	int num_interfaces;
@@ -805,6 +815,8 @@ static int cvm_oct_probe(struct platform_device *pdev)
 			case CVMX_HELPER_INTERFACE_MODE_GMII:
 				dev->netdev_ops = &cvm_oct_rgmii_netdev_ops;
 				strcpy(dev->name, "eth%d");
+				cvm_set_rgmii_delay(priv->of_node, interface,
+						    port_index);
 				break;
 			}
 
