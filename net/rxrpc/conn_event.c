@@ -149,19 +149,23 @@ static void rxrpc_abort_calls(struct rxrpc_connection *conn, int state,
 		call = rcu_dereference_protected(
 			conn->channels[i].call,
 			lockdep_is_held(&conn->channel_lock));
-		write_lock_bh(&call->state_lock);
-		if (call->state <= RXRPC_CALL_COMPLETE) {
-			call->state = state;
-			if (state == RXRPC_CALL_LOCALLY_ABORTED) {
-				call->local_abort = conn->local_abort;
-				set_bit(RXRPC_CALL_EV_CONN_ABORT, &call->events);
-			} else {
-				call->remote_abort = conn->remote_abort;
-				set_bit(RXRPC_CALL_EV_RCVD_ABORT, &call->events);
+		if (call) {
+			write_lock_bh(&call->state_lock);
+			if (call->state <= RXRPC_CALL_COMPLETE) {
+				call->state = state;
+				if (state == RXRPC_CALL_LOCALLY_ABORTED) {
+					call->local_abort = conn->local_abort;
+					set_bit(RXRPC_CALL_EV_CONN_ABORT,
+						&call->events);
+				} else {
+					call->remote_abort = conn->remote_abort;
+					set_bit(RXRPC_CALL_EV_RCVD_ABORT,
+						&call->events);
+				}
+				rxrpc_queue_call(call);
 			}
-			rxrpc_queue_call(call);
+			write_unlock_bh(&call->state_lock);
 		}
-		write_unlock_bh(&call->state_lock);
 	}
 
 	spin_unlock(&conn->channel_lock);
