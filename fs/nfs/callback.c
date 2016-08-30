@@ -148,10 +148,13 @@ static inline void nfs_callback_bc_serv(u32 minorversion, struct rpc_xprt *xprt,
 static int nfs_callback_start_svc(int minorversion, struct rpc_xprt *xprt,
 				  struct svc_serv *serv)
 {
-	const int nrservs = NFS4_NR_CALLBACK_THREADS;
+	int nrservs = nfs_callback_nr_threads;
 	int ret;
 
 	nfs_callback_bc_serv(minorversion, xprt, serv);
+
+	if (nrservs < NFS4_MIN_NR_CALLBACK_THREADS)
+		nrservs = NFS4_MIN_NR_CALLBACK_THREADS;
 
 	if (serv->sv_nrthreads-1 == nrservs)
 		return 0;
