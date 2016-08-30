@@ -479,7 +479,7 @@ static struct sk_buff *create_monitor_ctrl_open(struct sock *sk)
 {
 	struct hci_mon_hdr *hdr;
 	struct sk_buff *skb;
-	u16 format = 0x0002;
+	u16 format;
 	u8 ver[3];
 	u32 flags;
 
@@ -487,11 +487,20 @@ static struct sk_buff *create_monitor_ctrl_open(struct sock *sk)
 	if (!hci_pi(sk)->cookie)
 		return NULL;
 
+	switch (hci_pi(sk)->channel) {
+	case HCI_CHANNEL_CONTROL:
+		format = 0x0002;
+		mgmt_fill_version_info(ver);
+		break;
+	default:
+		/* No message for unsupported format */
+		return NULL;
+	}
+
 	skb = bt_skb_alloc(14 + TASK_COMM_LEN , GFP_ATOMIC);
 	if (!skb)
 		return NULL;
 
-	mgmt_fill_version_info(ver);
 	flags = hci_sock_test_flag(sk, HCI_SOCK_TRUSTED) ? 0x1 : 0x0;
 
 	put_unaligned_le32(hci_pi(sk)->cookie, skb_put(skb, 4));
@@ -522,6 +531,14 @@ static struct sk_buff *create_monitor_ctrl_close(struct sock *sk)
 	/* No message needed when cookie is not present */
 	if (!hci_pi(sk)->cookie)
 		return NULL;
+
+	switch (hci_pi(sk)->channel) {
+	case HCI_CHANNEL_CONTROL:
+		break;
+	default:
+		/* No message for unsupported format */
+		return NULL;
+	}
 
 	skb = bt_skb_alloc(4, GFP_ATOMIC);
 	if (!skb)
@@ -651,9 +668,6 @@ static void send_monitor_control_replay(struct sock *mon_sk)
 
 	sk_for_each(sk, &hci_sk_list.head) {
 		struct sk_buff *skb;
-
-		if (hci_pi(sk)->channel != HCI_CHANNEL_CONTROL)
-			continue;
 
 		skb = create_monitor_ctrl_open(sk);
 		if (!skb)
