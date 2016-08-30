@@ -1831,13 +1831,22 @@ sub output_function_rst(%) {
     my %args = %{$_[0]};
     my ($parameter, $section);
     my $oldprefix = $lineprefix;
-    my $start;
+    my $start = "";
 
-    print ".. c:function:: ";
-    if ($args{'functiontype'} ne "") {
-	$start = $args{'functiontype'} . " " . $args{'function'} . " (";
+    if ($args{'typedef'}) {
+	print ".. c:type:: ". $args{'function'} . "\n\n";
+	print_lineno($declaration_start_line);
+	print "   **Typedef**: ";
+	$lineprefix = "";
+	output_highlight_rst($args{'purpose'});
+	$start = "\n\n**Syntax**\n\n  ``";
     } else {
-	$start = $args{'function'} . " (";
+	print ".. c:function:: ";
+    }
+    if ($args{'functiontype'} ne "") {
+	$start .= $args{'functiontype'} . " " . $args{'function'} . " (";
+    } else {
+	$start .= $args{'function'} . " (";
     }
     print $start;
 
@@ -1856,11 +1865,15 @@ sub output_function_rst(%) {
 	    print $type . " " . $parameter;
 	}
     }
-    print ")\n\n";
-    print_lineno($declaration_start_line);
-    $lineprefix = "   ";
-    output_highlight_rst($args{'purpose'});
-    print "\n";
+    if ($args{'typedef'}) {
+	print ");``\n\n";
+    } else {
+	print ")\n\n";
+	print_lineno($declaration_start_line);
+	$lineprefix = "   ";
+	output_highlight_rst($args{'purpose'});
+	print "\n";
+    }
 
     print "**Parameters**\n\n";
     $lineprefix = "  ";
@@ -2203,6 +2216,7 @@ sub dump_typedef($$) {
 	output_declaration($declaration_name,
 			   'function',
 			   {'function' => $declaration_name,
+			    'typedef' => 1,
 			    'module' => $modulename,
 			    'functiontype' => $return_type,
 			    'parameterlist' => \@parameterlist,
