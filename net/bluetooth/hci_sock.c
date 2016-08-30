@@ -1049,6 +1049,7 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 	struct sockaddr_hci haddr;
 	struct sock *sk = sock->sk;
 	struct hci_dev *hdev = NULL;
+	struct sk_buff *skb;
 	int len, err = 0;
 
 	BT_DBG("sock %p sk %p", sock, sk);
@@ -1088,26 +1089,33 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 		}
 
 		hci_pi(sk)->channel = haddr.hci_channel;
-		hci_pi(sk)->hdev = hdev;
 
-		/* Only send the event to monitor when a new cookie has
-		 * been generated. An existing cookie means that an unbound
-		 * socket has seen an ioctl and that triggered the cookie
-		 * generation and sending of the monitor event.
-		 */
-		if (hci_sock_gen_cookie(sk)) {
-			struct sk_buff *skb;
-
-			if (capable(CAP_NET_ADMIN))
-				hci_sock_set_flag(sk, HCI_SOCK_TRUSTED);
-
-			/* Send event to monitor */
-			skb = create_monitor_ctrl_open(sk);
+		if (!hci_sock_gen_cookie(sk)) {
+			/* In the case when a cookie has already been assigned,
+			 * then there has been already an ioctl issued against
+			 * an unbound socket and with that triggerd an open
+			 * notification. Send a close notification first to
+			 * allow the state transition to bounded.
+			 */
+			skb = create_monitor_ctrl_close(sk);
 			if (skb) {
 				hci_send_to_channel(HCI_CHANNEL_MONITOR, skb,
 						    HCI_SOCK_TRUSTED, NULL);
 				kfree_skb(skb);
 			}
+		}
+
+		if (capable(CAP_NET_ADMIN))
+			hci_sock_set_flag(sk, HCI_SOCK_TRUSTED);
+
+		hci_pi(sk)->hdev = hdev;
+
+		/* Send event to monitor */
+		skb = create_monitor_ctrl_open(sk);
+		if (skb) {
+			hci_send_to_channel(HCI_CHANNEL_MONITOR, skb,
+					    HCI_SOCK_TRUSTED, NULL);
+			kfree_skb(skb);
 		}
 		break;
 
@@ -1251,9 +1259,20 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 		 * are changes to settings, class of device, name etc.
 		 */
 		if (hci_pi(sk)->channel == HCI_CHANNEL_CONTROL) {
-			struct sk_buff *skb;
-
-			hci_sock_gen_cookie(sk);
+			if (!hci_sock_gen_cookie(sk)) {
+				/* In the case when a cookie has already been
+				 * assigned, this socket will transtion from
+				 * a raw socket into a control socket. To
+				 * allow for a clean transtion, send the
+				 * close notification first.
+				 */
+				skb = create_monitor_ctrl_close(sk);
+				if (skb) {
+					hci_send_to_channel(HCI_CHANNEL_MONITOR, skb,
+							    HCI_SOCK_TRUSTED, NULL);
+					kfree_skb(skb);
+				}
+			}
 
 			/* Send event to monitor */
 			skb = create_monitor_ctrl_open(sk);
