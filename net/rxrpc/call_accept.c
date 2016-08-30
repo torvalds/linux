@@ -129,8 +129,7 @@ static int rxrpc_accept_incoming_call(struct rxrpc_local *local,
 			_debug("conn ready");
 			call->state = RXRPC_CALL_SERVER_ACCEPTING;
 			list_add_tail(&call->accept_link, &rx->acceptq);
-			rxrpc_get_call(call);
-			atomic_inc(&call->skb_count);
+			rxrpc_get_call_for_skb(call, notification);
 			nsp = rxrpc_skb(notification);
 			nsp->call = call;
 
@@ -323,6 +322,7 @@ struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *rx,
 	call = list_entry(rx->acceptq.next, struct rxrpc_call, accept_link);
 	list_del_init(&call->accept_link);
 	sk_acceptq_removed(&rx->sk);
+	rxrpc_see_call(call);
 
 	write_lock_bh(&call->state_lock);
 	switch (call->state) {
@@ -395,6 +395,7 @@ int rxrpc_reject_call(struct rxrpc_sock *rx)
 	call = list_entry(rx->acceptq.next, struct rxrpc_call, accept_link);
 	list_del_init(&call->accept_link);
 	sk_acceptq_removed(&rx->sk);
+	rxrpc_see_call(call);
 
 	write_lock_bh(&call->state_lock);
 	switch (call->state) {

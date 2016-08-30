@@ -196,8 +196,7 @@ static int rxrpc_fast_process_data(struct rxrpc_call *call,
 		goto enqueue_packet;
 
 	sp->call = call;
-	rxrpc_get_call(call);
-	atomic_inc(&call->skb_count);
+	rxrpc_get_call_for_skb(call, skb);
 	terminal = ((flags & RXRPC_LAST_PACKET) &&
 		    !(flags & RXRPC_CLIENT_INITIATED));
 	ret = rxrpc_queue_rcv_skb(call, skb, false, terminal);
@@ -748,6 +747,7 @@ void rxrpc_data_ready(struct sock *sk)
 		if (!call || atomic_read(&call->usage) == 0)
 			goto cant_route_call;
 
+		rxrpc_see_call(call);
 		rxrpc_post_packet_to_call(call, skb);
 		goto out_unlock;
 	}

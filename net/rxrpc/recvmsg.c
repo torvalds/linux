@@ -115,6 +115,7 @@ int rxrpc_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 		sp = rxrpc_skb(skb);
 		call = sp->call;
 		ASSERT(call != NULL);
+		rxrpc_see_call(call);
 
 		_debug("next pkt %s", rxrpc_pkts[sp->hdr.type]);
 

@@ -543,7 +543,11 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *,
 				       struct sk_buff *);
 void rxrpc_release_call(struct rxrpc_call *);
 void rxrpc_release_calls_on_socket(struct rxrpc_sock *);
-void __rxrpc_put_call(struct rxrpc_call *);
+void rxrpc_see_call(struct rxrpc_call *);
+void rxrpc_get_call(struct rxrpc_call *);
+void rxrpc_put_call(struct rxrpc_call *);
+void rxrpc_get_call_for_skb(struct rxrpc_call *, struct sk_buff *);
+void rxrpc_put_call_for_skb(struct rxrpc_call *, struct sk_buff *);
 void __exit rxrpc_destroy_all_calls(void);
 
 static inline bool rxrpc_is_service_call(const struct rxrpc_call *call)
@@ -1022,16 +1026,3 @@ do {						\
 } while (0)
 
 #endif /* __KDEBUGALL */
-
-
-#define rxrpc_get_call(CALL)				\
-do {							\
-	CHECK_SLAB_OKAY(&(CALL)->usage);		\
-	if (atomic_inc_return(&(CALL)->usage) == 1)	\
-		BUG();					\
-} while (0)
-
-#define rxrpc_put_call(CALL)				\
-do {							\
-	__rxrpc_put_call(CALL);				\
-} while (0)

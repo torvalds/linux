@@ -140,9 +140,7 @@ void rxrpc_packet_destructor(struct sk_buff *skb)
 	_enter("%p{%p}", skb, call);
 
 	if (call) {
-		if (atomic_dec_return(&call->skb_count) < 0)
-			BUG();
-		rxrpc_put_call(call);
+		rxrpc_put_call_for_skb(call, skb);
 		sp->call = NULL;
 	}
 

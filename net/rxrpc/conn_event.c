@@ -157,6 +157,7 @@ static void rxrpc_abort_calls(struct rxrpc_connection *conn,
 			conn->channels[i].call,
 			lockdep_is_held(&conn->channel_lock));
 		if (call) {
+			rxrpc_see_call(call);
 			write_lock_bh(&call->state_lock);
 			if (rxrpc_set_call_completion(call, compl, abort_code,
 						      error)) {

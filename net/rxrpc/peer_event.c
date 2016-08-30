@@ -270,6 +270,7 @@ void rxrpc_peer_error_distributor(struct work_struct *work)
 		call = hlist_entry(peer->error_targets.first,
 				   struct rxrpc_call, error_link);
 		hlist_del_init(&call->error_link);
+		rxrpc_see_call(call);
 
 		queue = false;
 		write_lock(&call->state_lock);

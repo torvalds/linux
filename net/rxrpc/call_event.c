@@ -465,8 +465,7 @@ static void rxrpc_insert_oos_packet(struct rxrpc_call *call,
 	skb->destructor = rxrpc_packet_destructor;
 	ASSERTCMP(sp->call, ==, NULL);
 	sp->call = call;
-	rxrpc_get_call(call);
-	atomic_inc(&call->skb_count);
+	rxrpc_get_call_for_skb(call, skb);
 
 	/* insert into the buffer in sequence order */
 	spin_lock_bh(&call->lock);
@@ -741,8 +740,7 @@ all_acked:
 		_debug("post ACK");
 		skb->mark = RXRPC_SKB_MARK_FINAL_ACK;
 		sp->call = call;
-		rxrpc_get_call(call);
-		atomic_inc(&call->skb_count);
+		rxrpc_get_call_for_skb(call, skb);
 		spin_lock_bh(&call->lock);
 		if (rxrpc_queue_rcv_skb(call, skb, true, true) < 0)
 			BUG();
@@ -801,8 +799,7 @@ static int rxrpc_post_message(struct rxrpc_call *call, u32 mark, u32 error,
 		memset(sp, 0, sizeof(*sp));
 		sp->error = error;
 		sp->call = call;
-		rxrpc_get_call(call);
-		atomic_inc(&call->skb_count);
+		rxrpc_get_call_for_skb(call, skb);
 
 		spin_lock_bh(&call->lock);
 		ret = rxrpc_queue_rcv_skb(call, skb, true, fatal);
@@ -833,6 +830,8 @@ void rxrpc_process_call(struct work_struct *work)
 	int loop, nbit, ioc, ret, mtu;
 	u32 serial, abort_code = RX_PROTOCOL_ERROR;
 	u8 *acks = NULL;
+
+	rxrpc_see_call(call);
 
 	//printk("\n--------------------\n");
 	_enter("{%d,%s,%lx} [%lu]",

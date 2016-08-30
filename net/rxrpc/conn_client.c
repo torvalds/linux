@@ -537,6 +537,7 @@ static void rxrpc_activate_one_channel(struct rxrpc_connection *conn,
 					     struct rxrpc_call, chan_wait_link);
 	u32 call_id = chan->call_counter + 1;
 
+	rxrpc_see_call(call);
 	list_del_init(&call->chan_wait_link);
 	conn->active_chans |= 1 << channel;
 	call->peer	= rxrpc_get_peer(conn->params.peer);
