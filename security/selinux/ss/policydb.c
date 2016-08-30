@@ -1094,6 +1094,9 @@ static int str_read(char **strp, gfp_t flags, void *fp, u32 len)
 	int rc;
 	char *str;
 
+	if ((len == 0) || (len == (u32)-1))
+		return -EINVAL;
+
 	str = kmalloc(len + 1, flags);
 	if (!str)
 		return -ENOMEM;
