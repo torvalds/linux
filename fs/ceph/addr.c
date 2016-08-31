@@ -175,9 +175,8 @@ static void ceph_invalidatepage(struct page *page, unsigned int offset,
 
 static int ceph_releasepage(struct page *page, gfp_t g)
 {
-	dout("%p releasepage %p idx %lu\n", page->mapping->host,
-	     page, page->index);
-	WARN_ON(PageDirty(page));
+	dout("%p releasepage %p idx %lu (%sdirty)\n", page->mapping->host,
+	     page, page->index, PageDirty(page) ? "" : "not ");
 
 	/* Can we release the page from the cache? */
 	if (!ceph_release_fscache_page(page, g))
