@@ -144,7 +144,7 @@ static int
 sa1100_pcmcia_show_timing(struct soc_pcmcia_socket *skt, char *buf)
 {
 	struct soc_pcmcia_timing timing;
-	unsigned int clock = clk_get_rate(skt->clk);
+	unsigned int clock = clk_get_rate(skt->clk) / 1000;
 	unsigned long mecr = MECR;
 	char *p = buf;
 
