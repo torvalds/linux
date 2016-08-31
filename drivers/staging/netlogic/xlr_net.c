@@ -192,7 +192,7 @@ static int xlr_set_settings(struct net_device *ndev, struct ethtool_cmd *ecmd)
 	return phy_ethtool_sset(phydev, ecmd);
 }
 
-static struct ethtool_ops xlr_ethtool_ops = {
+static const struct ethtool_ops xlr_ethtool_ops = {
 	.get_settings = xlr_get_settings,
 	.set_settings = xlr_set_settings,
 };
