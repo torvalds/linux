@@ -293,9 +293,9 @@ DO_ERROR(X86_TRAP_SS,     SIGBUS,  "stack segment",		stack_segment)
 DO_ERROR(X86_TRAP_AC,     SIGBUS,  "alignment check",		alignment_check)
 
 #ifdef CONFIG_VMAP_STACK
-static void __noreturn handle_stack_overflow(const char *message,
-					     struct pt_regs *regs,
-					     unsigned long fault_address)
+__visible void __noreturn handle_stack_overflow(const char *message,
+						struct pt_regs *regs,
+						unsigned long fault_address)
 {
 	printk(KERN_EMERG "BUG: stack guard page was hit at %p (stack is %p..%p)\n",
 		 (void *)fault_address, current->stack,
