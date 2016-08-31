@@ -80,6 +80,10 @@
 	};
 };
 
+&backlight {
+	status = "okay";
+};
+
 &display_subsystem {
 	status = "okay";
 };
