@@ -14,7 +14,6 @@ extern int pcmcia_graphicsmaster_init(struct device *);
 extern int pcmcia_h3600_init(struct device *);
 extern int pcmcia_pangolin_init(struct device *);
 extern int pcmcia_pfs168_init(struct device *);
-extern int pcmcia_shannon_init(struct device *);
 extern int pcmcia_simpad_init(struct device *);
 extern int pcmcia_stork_init(struct device *);
 extern int pcmcia_system3_init(struct device *);
