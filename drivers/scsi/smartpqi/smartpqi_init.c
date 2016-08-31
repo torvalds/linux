@@ -5609,19 +5609,14 @@ static void pqi_free_ctrl_resources(struct pqi_ctrl_info *ctrl_info)
 
 static void pqi_remove_ctrl(struct pqi_ctrl_info *ctrl_info)
 {
-	int rc;
+	cancel_delayed_work_sync(&ctrl_info->rescan_work);
+	cancel_delayed_work_sync(&ctrl_info->update_time_work);
+	pqi_remove_all_scsi_devices(ctrl_info);
+	pqi_unregister_scsi(ctrl_info);
 
-	if (ctrl_info->controller_online) {
-		cancel_delayed_work_sync(&ctrl_info->rescan_work);
-		cancel_delayed_work_sync(&ctrl_info->update_time_work);
-		pqi_remove_all_scsi_devices(ctrl_info);
-		pqi_unregister_scsi(ctrl_info);
-		ctrl_info->controller_online = false;
-	}
 	if (ctrl_info->pqi_mode_enabled) {
 		sis_disable_msix(ctrl_info);
-		rc = pqi_reset(ctrl_info);
-		if (rc == 0)
+		if (pqi_reset(ctrl_info) == 0)
 			sis_reenable_sis_mode(ctrl_info);
 	}
 	pqi_free_ctrl_resources(ctrl_info);
