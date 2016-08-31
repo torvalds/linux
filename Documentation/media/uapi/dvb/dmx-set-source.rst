@@ -15,7 +15,7 @@ DMX_SET_SOURCE
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, DMX_SET_SOURCE, dmx_source_t *src)
+.. c:function:: int ioctl(fd, DMX_SET_SOURCE, struct dmx_source *src)
     :name: DMX_SET_SOURCE
 
 

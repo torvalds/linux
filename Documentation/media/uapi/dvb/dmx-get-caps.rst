@@ -15,7 +15,7 @@ DMX_GET_CAPS
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, DMX_GET_CAPS, dmx_caps_t *caps)
+.. c:function:: int ioctl(fd, DMX_GET_CAPS, struct dmx_caps *caps)
     :name: DMX_GET_CAPS
 
 Arguments
@@ -25,14 +25,13 @@ Arguments
     File descriptor returned by :c:func:`open() <dvb-dmx-open>`.
 
 ``caps``
-    Undocumented.
+    Pointer to struct :c:type:`dmx_caps`
 
 
 Description
 -----------
 
 .. note:: This ioctl is undocumented. Documentation is welcome.
-
 
 Return Value
 ------------
