@@ -8529,6 +8529,10 @@ static int ixgbe_ioctl(struct net_device *netdev, struct ifreq *req, int cmd)
 		return ixgbe_ptp_set_ts_config(adapter, req);
 	case SIOCGHWTSTAMP:
 		return ixgbe_ptp_get_ts_config(adapter, req);
+	case SIOCGMIIPHY:
+		if (!adapter->hw.phy.ops.read_reg)
+			return -EOPNOTSUPP;
+		/* fall through */
 	default:
 		return mdio_mii_ioctl(&adapter->hw.phy.mdio, if_mii(req), cmd);
 	}
