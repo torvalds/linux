@@ -744,7 +744,7 @@ static int soc_common_pcmcia_cpufreq_nb(struct notifier_block *nb,
 #endif
 
 void soc_pcmcia_init_one(struct soc_pcmcia_socket *skt,
-	struct pcmcia_low_level *ops, struct device *dev)
+	const struct pcmcia_low_level *ops, struct device *dev)
 {
 	int i;
 
