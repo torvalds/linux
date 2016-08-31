@@ -4263,48 +4263,58 @@ static int pqi_build_aio_sg_list(struct pqi_ctrl_info *ctrl_info,
 	int i;
 	u16 iu_length;
 	int sg_count;
-	unsigned int num_sg_in_iu = 0;
+	bool chained;
+	unsigned int num_sg_in_iu;
+	unsigned int max_sg_per_iu;
 	struct scatterlist *sg;
 	struct pqi_sg_descriptor *sg_descriptor;
 
 	sg_count = scsi_dma_map(scmd);
 	if (sg_count < 0)
 		return sg_count;
+
+	iu_length = offsetof(struct pqi_aio_path_request, sg_descriptors) -
+		PQI_REQUEST_HEADER_LENGTH;
+	num_sg_in_iu = 0;
+
 	if (sg_count == 0)
 		goto out;
 
-	if (sg_count <= ctrl_info->max_sg_per_iu) {
-		sg_descriptor = &request->sg_descriptors[0];
-		scsi_for_each_sg(scmd, sg, sg_count, i) {
-			pqi_set_sg_descriptor(sg_descriptor, sg);
-			sg_descriptor++;
-		}
-		put_unaligned_le32(CISS_SG_LAST,
-			&request->sg_descriptors[sg_count - 1].flags);
-		num_sg_in_iu = sg_count;
-	} else {
-		sg_descriptor = &request->sg_descriptors[0];
-		put_unaligned_le64((u64)io_request->sg_chain_buffer_dma_handle,
-			&sg_descriptor->address);
-		put_unaligned_le32(sg_count * sizeof(*sg_descriptor),
-			&sg_descriptor->length);
-		put_unaligned_le32(CISS_SG_CHAIN, &sg_descriptor->flags);
+	sg = scsi_sglist(scmd);
+	sg_descriptor = request->sg_descriptors;
+	max_sg_per_iu = ctrl_info->max_sg_per_iu - 1;
+	chained = false;
+	i = 0;
 
-		sg_descriptor = io_request->sg_chain_buffer;
-		scsi_for_each_sg(scmd, sg, sg_count, i) {
-			pqi_set_sg_descriptor(sg_descriptor, sg);
-			sg_descriptor++;
+	while (1) {
+		pqi_set_sg_descriptor(sg_descriptor, sg);
+		if (!chained)
+			num_sg_in_iu++;
+		i++;
+		if (i == sg_count)
+			break;
+		sg_descriptor++;
+		if (i == max_sg_per_iu) {
+			put_unaligned_le64(
+				(u64)io_request->sg_chain_buffer_dma_handle,
+				&sg_descriptor->address);
+			put_unaligned_le32((sg_count - num_sg_in_iu)
+				* sizeof(*sg_descriptor),
+				&sg_descriptor->length);
+			put_unaligned_le32(CISS_SG_CHAIN,
+				&sg_descriptor->flags);
+			chained = true;
+			num_sg_in_iu++;
+			sg_descriptor = io_request->sg_chain_buffer;
 		}
-		put_unaligned_le32(CISS_SG_LAST,
-			&io_request->sg_chain_buffer[sg_count - 1].flags);
-		num_sg_in_iu = 1;
-		request->partial = 1;
+		sg = sg_next(sg);
 	}
 
-out:
-	iu_length = offsetof(struct pqi_aio_path_request, sg_descriptors) -
-		PQI_REQUEST_HEADER_LENGTH;
+	put_unaligned_le32(CISS_SG_LAST, &sg_descriptor->flags);
+	request->partial = chained;
 	iu_length += num_sg_in_iu * sizeof(*sg_descriptor);
+
+out:
 	put_unaligned_le16(iu_length, &request->header.iu_length);
 	request->num_sg_descriptors = num_sg_in_iu;
 
