@@ -28,5 +28,7 @@ void sis_enable_msix(struct pqi_ctrl_info *ctrl_info);
 void sis_disable_msix(struct pqi_ctrl_info *ctrl_info);
 void sis_soft_reset(struct pqi_ctrl_info *ctrl_info);
 int sis_reenable_sis_mode(struct pqi_ctrl_info *ctrl_info);
+void sis_write_driver_scratch(struct pqi_ctrl_info *ctrl_info, u32 value);
+u32 sis_read_driver_scratch(struct pqi_ctrl_info *ctrl_info);
 
 #endif	/* _SMARTPQI_SIS_H */

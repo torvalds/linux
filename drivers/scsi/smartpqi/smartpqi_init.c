@@ -153,6 +153,18 @@ static inline bool pqi_is_hba_lunid(u8 *scsi3addr)
 	return pqi_scsi3addr_equal(scsi3addr, RAID_CTLR_LUNID);
 }
 
+static inline enum pqi_ctrl_mode pqi_get_ctrl_mode(
+	struct pqi_ctrl_info *ctrl_info)
+{
+	return sis_read_driver_scratch(ctrl_info);
+}
+
+static inline void pqi_save_ctrl_mode(struct pqi_ctrl_info *ctrl_info,
+	enum pqi_ctrl_mode mode)
+{
+	sis_write_driver_scratch(ctrl_info, mode);
+}
+
 #define PQI_RESCAN_WORK_INTERVAL	(10 * HZ)
 
 static inline void pqi_schedule_rescan_worker(struct pqi_ctrl_info *ctrl_info)
@@ -5266,9 +5278,29 @@ out:
 	return rc;
 }
 
+static int pqi_kdump_init(struct pqi_ctrl_info *ctrl_info)
+{
+	if (!sis_is_firmware_running(ctrl_info))
+		return -ENXIO;
+
+	if (pqi_get_ctrl_mode(ctrl_info) == PQI_MODE) {
+		sis_disable_msix(ctrl_info);
+		if (pqi_reset(ctrl_info) == 0)
+			sis_reenable_sis_mode(ctrl_info);
+	}
+
+	return 0;
+}
+
 static int pqi_ctrl_init(struct pqi_ctrl_info *ctrl_info)
 {
 	int rc;
+
+	if (reset_devices) {
+		rc = pqi_kdump_init(ctrl_info);
+		if (rc)
+			return rc;
+	}
 
 	/*
 	 * When the controller comes out of reset, it is always running
@@ -5343,6 +5375,7 @@ static int pqi_ctrl_init(struct pqi_ctrl_info *ctrl_info)
 
 	/* From here on, we are running in PQI mode. */
 	ctrl_info->pqi_mode_enabled = true;
+	pqi_save_ctrl_mode(ctrl_info, PQI_MODE);
 
 	rc = pqi_alloc_admin_queues(ctrl_info);
 	if (rc) {
@@ -5878,6 +5911,8 @@ static void __attribute__((unused)) verify_structures(void)
 		sis_ctrl_to_host_doorbell) != 0x9c);
 	BUILD_BUG_ON(offsetof(struct pqi_ctrl_registers,
 		sis_ctrl_to_host_doorbell_clear) != 0xa0);
+	BUILD_BUG_ON(offsetof(struct pqi_ctrl_registers,
+		sis_driver_scratch) != 0xb0);
 	BUILD_BUG_ON(offsetof(struct pqi_ctrl_registers,
 		sis_firmware_status) != 0xbc);
 	BUILD_BUG_ON(offsetof(struct pqi_ctrl_registers,

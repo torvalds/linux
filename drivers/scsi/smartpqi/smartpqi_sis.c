@@ -376,6 +376,16 @@ int sis_reenable_sis_mode(struct pqi_ctrl_info *ctrl_info)
 	return rc;
 }
 
+void sis_write_driver_scratch(struct pqi_ctrl_info *ctrl_info, u32 value)
+{
+	writel(value, &ctrl_info->registers->sis_driver_scratch);
+}
+
+u32 sis_read_driver_scratch(struct pqi_ctrl_info *ctrl_info)
+{
+	return readl(&ctrl_info->registers->sis_driver_scratch);
+}
+
 static void __attribute__((unused)) verify_structures(void)
 {
 	BUILD_BUG_ON(offsetof(struct sis_base_struct,
