@@ -143,14 +143,7 @@ static inline int cvm_oct_check_rcv_error(cvmx_wqe_t *work)
 	return 0;
 }
 
-/**
- * cvm_oct_napi_poll - the NAPI poll function.
- * @napi: The NAPI instance, or null if called from cvm_oct_poll_controller
- * @budget: Maximum number of packets to receive.
- *
- * Returns the number of packets processed.
- */
-static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
+static int cvm_oct_poll(int budget)
 {
 	const int	coreid = cvmx_get_core_num();
 	u64	old_group_mask;
@@ -410,7 +403,23 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 	}
 	cvm_oct_rx_refill_pool(0);
 
-	if (rx_count < budget && napi) {
+	return rx_count;
+}
+
+/**
+ * cvm_oct_napi_poll - the NAPI poll function.
+ * @napi: The NAPI instance.
+ * @budget: Maximum number of packets to receive.
+ *
+ * Returns the number of packets processed.
+ */
+static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
+{
+	int rx_count;
+
+	rx_count = cvm_oct_poll(budget);
+
+	if (rx_count < budget) {
 		/* No more work */
 		napi_complete(napi);
 		enable_irq(OCTEON_IRQ_WORKQ0 + pow_receive_group);
@@ -427,7 +436,7 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
  */
 void cvm_oct_poll_controller(struct net_device *dev)
 {
-	cvm_oct_napi_poll(NULL, 16);
+	cvm_oct_poll(16);
 }
 #endif
 
