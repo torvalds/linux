@@ -223,11 +223,11 @@ static void *tls_get(unsigned int key)
 
 static unsigned long long time_ns(void)
 {
-	struct timeval tv;
+	struct timespec ts;
 
-	gettimeofday(&tv, NULL);
+	clock_gettime(CLOCK_MONOTONIC, &ts);
 
-	return tv.tv_sec * 1000000000ULL + tv.tv_usec * 1000ULL;
+	return 1e9*ts.tv_sec + ts.tv_nsec;
 }
 
 static void *timer_alloc(void (*fn)(void *), void *arg)

@@ -84,7 +84,7 @@ static void thread_exit(void)
 static int thread_join(lkl_thread_t tid)
 {
 	/* TODO: error handling */
-	WaitForSingleObject(tid, INFINITE);
+	WaitForSingleObject((void *)tid, INFINITE);
 	return 0;
 }
 

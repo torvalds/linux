@@ -16,5 +16,6 @@ static int g_test_pass = 0;
 								\
 	printf("%-20s %s [%s]\n", #name,			\
 	       ret == TEST_SUCCESS ? "passed" : "failed", str);	\
+	fflush(stdout);						\
 }
 
