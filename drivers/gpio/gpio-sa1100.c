@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/syscore_ops.h>
+#include <soc/sa1100/pwer.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 
@@ -73,6 +74,7 @@ static struct gpio_chip sa1100_gpio_chip = {
 static int GPIO_IRQ_rising_edge;
 static int GPIO_IRQ_falling_edge;
 static int GPIO_IRQ_mask;
+static int GPIO_IRQ_wake;
 
 static int sa1100_gpio_type(struct irq_data *d, unsigned int type)
 {
@@ -131,11 +133,14 @@ static void sa1100_gpio_unmask(struct irq_data *d)
 
 static int sa1100_gpio_wake(struct irq_data *d, unsigned int on)
 {
-	if (on)
-		PWER |= BIT(d->hwirq);
-	else
-		PWER &= ~BIT(d->hwirq);
-	return 0;
+	int ret = sa11x0_gpio_set_wake(d->hwirq, on);
+	if (!ret) {
+		if (on)
+			GPIO_IRQ_wake |= BIT(d->hwirq);
+		else
+			GPIO_IRQ_wake &= ~BIT(d->hwirq);
+	}
+	return ret;
 }
 
 /*
@@ -201,8 +206,8 @@ static int sa1100_gpio_suspend(void)
 	/*
 	 * Set the appropriate edges for wakeup.
 	 */
-	GRER = PWER & GPIO_IRQ_rising_edge;
-	GFER = PWER & GPIO_IRQ_falling_edge;
+	GRER = GPIO_IRQ_wake & GPIO_IRQ_rising_edge;
+	GFER = GPIO_IRQ_wake & GPIO_IRQ_falling_edge;
 
 	/*
 	 * Clear any pending GPIO interrupts.
