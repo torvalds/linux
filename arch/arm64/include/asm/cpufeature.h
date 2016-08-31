@@ -78,6 +78,8 @@ struct arm64_ftr_reg {
 	const struct arm64_ftr_bits	*ftr_bits;
 };
 
+extern struct arm64_ftr_reg arm64_ftr_reg_ctrel0;
+
 /* scope of capability check */
 enum {
 	SCOPE_SYSTEM,

@@ -155,6 +155,11 @@ static const struct arm64_ftr_bits ftr_ctr[] = {
 	ARM64_FTR_END,
 };
 
+struct arm64_ftr_reg arm64_ftr_reg_ctrel0 = {
+	.name		= "SYS_CTR_EL0",
+	.ftr_bits	= ftr_ctr
+};
+
 static const struct arm64_ftr_bits ftr_id_mmfr0[] = {
 	S_ARM64_FTR_BITS(FTR_STRICT, FTR_EXACT, 28, 4, 0xf),	/* InnerShr */
 	ARM64_FTR_BITS(FTR_STRICT, FTR_EXACT, 24, 4, 0),	/* FCSE */
@@ -318,7 +323,7 @@ static const struct __ftr_reg_entry {
 	ARM64_FTR_REG(SYS_ID_AA64MMFR2_EL1, ftr_id_aa64mmfr2),
 
 	/* Op1 = 3, CRn = 0, CRm = 0 */
-	ARM64_FTR_REG(SYS_CTR_EL0, ftr_ctr),
+	{ SYS_CTR_EL0, &arm64_ftr_reg_ctrel0 },
 	ARM64_FTR_REG(SYS_DCZID_EL0, ftr_dczid),
 
 	/* Op1 = 3, CRn = 14, CRm = 0 */
