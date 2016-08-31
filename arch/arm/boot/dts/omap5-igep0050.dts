@@ -13,7 +13,7 @@
 	model = "IGEPv5";
 	compatible = "isee,omap5-igep0050", "ti,omap5";
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x7f000000>; /* 2032 MB */
 	};

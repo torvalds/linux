@@ -11,7 +11,7 @@
 	model = "CompuLab CM-T54";
 	compatible = "compulab,omap5-cm-t54", "ti,omap5";
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x7F000000>; /* 2048 MB */
 	};

@@ -13,7 +13,7 @@
 	model = "TI OMAP5 uEVM board";
 	compatible = "ti,omap5-uevm", "ti,omap5";
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x7F000000>; /* 2032 MB */
 	};
