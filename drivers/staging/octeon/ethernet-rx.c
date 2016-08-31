@@ -44,6 +44,7 @@
 #include <asm/octeon/cvmx-gmxx-defs.h>
 
 static struct oct_rx_group {
+	int irq;
 	struct napi_struct napi;
 } oct_rx_group;
 
@@ -417,6 +418,8 @@ static int cvm_oct_poll(int budget)
  */
 static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 {
+	struct oct_rx_group *rx_group = container_of(napi, struct oct_rx_group,
+						     napi);
 	int rx_count;
 
 	rx_count = cvm_oct_poll(budget);
@@ -424,7 +427,7 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 	if (rx_count < budget) {
 		/* No more work */
 		napi_complete(napi);
-		enable_irq(OCTEON_IRQ_WORKQ0 + pow_receive_group);
+		enable_irq(rx_group->irq);
 	}
 	return rx_count;
 }
@@ -461,16 +464,16 @@ void cvm_oct_rx_initialize(void)
 		       rx_napi_weight);
 	napi_enable(&oct_rx_group.napi);
 
+	oct_rx_group.irq = OCTEON_IRQ_WORKQ0 + pow_receive_group;
+
 	/* Register an IRQ handler to receive POW interrupts */
-	i = request_irq(OCTEON_IRQ_WORKQ0 + pow_receive_group,
-			cvm_oct_do_interrupt, 0, "Ethernet",
+	i = request_irq(oct_rx_group.irq, cvm_oct_do_interrupt, 0, "Ethernet",
 			&oct_rx_group.napi);
 
 	if (i)
-		panic("Could not acquire Ethernet IRQ %d\n",
-		      OCTEON_IRQ_WORKQ0 + pow_receive_group);
+		panic("Could not acquire Ethernet IRQ %d\n", oct_rx_group.irq);
 
-	disable_irq_nosync(OCTEON_IRQ_WORKQ0 + pow_receive_group);
+	disable_irq_nosync(oct_rx_group.irq);
 
 	/* Enable POW interrupt when our port has at least one packet */
 	if (OCTEON_IS_MODEL(OCTEON_CN68XX)) {
@@ -514,7 +517,7 @@ void cvm_oct_rx_shutdown(void)
 		cvmx_write_csr(CVMX_POW_WQ_INT_THRX(pow_receive_group), 0);
 
 	/* Free the interrupt handler */
-	free_irq(OCTEON_IRQ_WORKQ0 + pow_receive_group, cvm_oct_device);
+	free_irq(oct_rx_group.irq, cvm_oct_device);
 
 	netif_napi_del(&oct_rx_group.napi);
 }
