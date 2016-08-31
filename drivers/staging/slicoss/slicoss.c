@@ -124,7 +124,7 @@ static const struct pci_device_id slic_pci_tbl[] = {
 	{ 0 }
 };
 
-static struct ethtool_ops slic_ethtool_ops;
+static const struct ethtool_ops slic_ethtool_ops;
 
 MODULE_DEVICE_TABLE(pci, slic_pci_tbl);
 
@@ -3128,7 +3128,7 @@ static void __exit slic_module_cleanup(void)
 	pci_unregister_driver(&slic_driver);
 }
 
-static struct ethtool_ops slic_ethtool_ops = {
+static const struct ethtool_ops slic_ethtool_ops = {
 	.get_coalesce = slic_get_coalesce,
 	.set_coalesce = slic_set_coalesce
 };
