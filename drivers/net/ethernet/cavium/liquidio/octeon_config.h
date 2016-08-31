@@ -120,6 +120,9 @@
 #define CFG_GET_IQ_DB_MIN(cfg)                   ((cfg)->iq.db_min)
 #define CFG_GET_IQ_DB_TIMEOUT(cfg)               ((cfg)->iq.db_timeout)
 
+#define CFG_GET_IQ_INTR_PKT(cfg)                 ((cfg)->iq.iq_intr_pkt)
+#define CFG_SET_IQ_INTR_PKT(cfg, val)            (cfg)->iq.iq_intr_pkt = val
+
 #define CFG_GET_OQ_MAX_Q(cfg)                    ((cfg)->oq.max_oqs)
 #define CFG_GET_OQ_INFO_PTR(cfg)                 ((cfg)->oq.info_ptr)
 #define CFG_GET_OQ_PKTS_PER_INTR(cfg)            ((cfg)->oq.pkts_per_intr)

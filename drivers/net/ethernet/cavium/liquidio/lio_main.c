@@ -3695,6 +3695,22 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 
 	octeon_set_io_queues_off(octeon_dev);
 
+	if (OCTEON_CN23XX_PF(octeon_dev)) {
+		ret = octeon_dev->fn_list.setup_device_regs(octeon_dev);
+		if (ret) {
+			dev_err(&octeon_dev->pci_dev->dev, "OCTEON: Failed to configure device registers\n");
+			return ret;
+		}
+	}
+
+	/* Initialize soft command buffer pool
+	 */
+	if (octeon_setup_sc_buffer_pool(octeon_dev)) {
+		dev_err(&octeon_dev->pci_dev->dev, "sc buffer pool allocation failed\n");
+		return 1;
+	}
+	atomic_set(&octeon_dev->status, OCT_DEV_SC_BUFF_POOL_INIT_DONE);
+
 	/*  Setup the data structures that manage this Octeon's Input queues. */
 	if (octeon_setup_instr_queues(octeon_dev)) {
 		dev_err(&octeon_dev->pci_dev->dev,
@@ -3705,14 +3721,6 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 		return 1;
 	}
 	atomic_set(&octeon_dev->status, OCT_DEV_INSTR_QUEUE_INIT_DONE);
-
-	/* Initialize soft command buffer pool
-	 */
-	if (octeon_setup_sc_buffer_pool(octeon_dev)) {
-		dev_err(&octeon_dev->pci_dev->dev, "sc buffer pool allocation failed\n");
-		return 1;
-	}
-	atomic_set(&octeon_dev->status, OCT_DEV_SC_BUFF_POOL_INIT_DONE);
 
 	/* Initialize lists to manage the requests of different types that
 	 * arrive from user & kernel applications for this octeon device.

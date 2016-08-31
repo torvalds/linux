@@ -276,6 +276,42 @@ struct octdev_props {
 	struct net_device *netdev;
 };
 
+struct octeon_pf_vf_hs_word {
+#ifdef __LITTLE_ENDIAN_BITFIELD
+	/** PKIND value assigned for the DPI interface */
+	u64        pkind : 8;
+
+	/** OCTEON core clock multiplier   */
+	u64        core_tics_per_us : 16;
+
+	/** OCTEON coprocessor clock multiplier  */
+	u64        coproc_tics_per_us : 16;
+
+	/** app that currently running on OCTEON  */
+	u64        app_mode : 8;
+
+	/** RESERVED */
+	u64 reserved : 16;
+
+#else
+
+	/** RESERVED */
+	u64 reserved : 16;
+
+	/** app that currently running on OCTEON  */
+	u64        app_mode : 8;
+
+	/** OCTEON coprocessor clock multiplier  */
+	u64        coproc_tics_per_us : 16;
+
+	/** OCTEON core clock multiplier   */
+	u64        core_tics_per_us : 16;
+
+	/** PKIND value assigned for the DPI interface */
+	u64        pkind : 8;
+#endif
+};
+
 struct octeon_sriov_info {
 	/* Actual rings left for PF device */
 	u32	num_pf_rings;
@@ -412,6 +448,8 @@ struct octeon_device {
 	void *priv;
 
 	struct octeon_sriov_info sriov_info;
+
+	struct octeon_pf_vf_hs_word pfvf_hsword;
 
 	int rx_pause;
 	int tx_pause;
