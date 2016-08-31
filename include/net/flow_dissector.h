@@ -183,7 +183,7 @@ struct flow_keys_digest {
 void make_flow_keys_digest(struct flow_keys_digest *digest,
 			   const struct flow_keys *flow);
 
-static inline bool flow_keys_have_l4(struct flow_keys *keys)
+static inline bool flow_keys_have_l4(const struct flow_keys *keys)
 {
 	return (keys->ports.ports || keys->tags.flow_label);
 }
