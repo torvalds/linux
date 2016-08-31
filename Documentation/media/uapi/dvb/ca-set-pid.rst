@@ -26,7 +26,24 @@ Arguments
   File descriptor returned by a previous call to :c:func:`open() <dvb-ca-open>`.
 
 ``pid``
-  Undocumented.
+  Pointer to struct :c:type:`ca_pid`.
+
+.. c:type:: ca_pid
+
+.. flat-table:: struct ca_pid
+    :header-rows:  1
+    :stub-columns: 0
+
+    -
+       - unsigned int
+       - pid
+       - Program ID
+
+    -
+       - int
+       - index
+       - PID index. Use -1 to disable.
+
 
 
 Description
