@@ -3068,7 +3068,7 @@ static int nlmsg_populate_fdb(struct sk_buff *skb,
 	seq = cb->nlh->nlmsg_seq;
 
 	list_for_each_entry(ha, &list->list, list) {
-		if (*idx < cb->args[0])
+		if (*idx < cb->args[2])
 			goto skip;
 
 		err = nlmsg_populate_fdb_fill(skb, dev, ha->addr, 0,
@@ -3095,19 +3095,18 @@ int ndo_dflt_fdb_dump(struct sk_buff *skb,
 		      struct netlink_callback *cb,
 		      struct net_device *dev,
 		      struct net_device *filter_dev,
-		      int idx)
+		      int *idx)
 {
 	int err;
 
 	netif_addr_lock_bh(dev);
-	err = nlmsg_populate_fdb(skb, cb, dev, &idx, &dev->uc);
+	err = nlmsg_populate_fdb(skb, cb, dev, idx, &dev->uc);
 	if (err)
 		goto out;
-	nlmsg_populate_fdb(skb, cb, dev, &idx, &dev->mc);
+	nlmsg_populate_fdb(skb, cb, dev, idx, &dev->mc);
 out:
 	netif_addr_unlock_bh(dev);
-	cb->args[1] = err;
-	return idx;
+	return err;
 }
 EXPORT_SYMBOL(ndo_dflt_fdb_dump);
 
@@ -3120,9 +3119,13 @@ static int rtnl_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	const struct net_device_ops *cops = NULL;
 	struct ifinfomsg *ifm = nlmsg_data(cb->nlh);
 	struct net *net = sock_net(skb->sk);
+	struct hlist_head *head;
 	int brport_idx = 0;
 	int br_idx = 0;
-	int idx = 0;
+	int h, s_h;
+	int idx = 0, s_idx;
+	int err = 0;
+	int fidx = 0;
 
 	if (nlmsg_parse(cb->nlh, sizeof(struct ifinfomsg), tb, IFLA_MAX,
 			ifla_policy) == 0) {
@@ -3140,49 +3143,71 @@ static int rtnl_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb)
 		ops = br_dev->netdev_ops;
 	}
 
-	cb->args[1] = 0;
-	for_each_netdev(net, dev) {
-		if (brport_idx && (dev->ifindex != brport_idx))
-			continue;
+	s_h = cb->args[0];
+	s_idx = cb->args[1];
 
-		if (!br_idx) { /* user did not specify a specific bridge */
-			if (dev->priv_flags & IFF_BRIDGE_PORT) {
-				br_dev = netdev_master_upper_dev_get(dev);
-				cops = br_dev->netdev_ops;
+	for (h = s_h; h < NETDEV_HASHENTRIES; h++, s_idx = 0) {
+		idx = 0;
+		head = &net->dev_index_head[h];
+		hlist_for_each_entry(dev, head, index_hlist) {
+
+			if (brport_idx && (dev->ifindex != brport_idx))
+				continue;
+
+			if (!br_idx) { /* user did not specify a specific bridge */
+				if (dev->priv_flags & IFF_BRIDGE_PORT) {
+					br_dev = netdev_master_upper_dev_get(dev);
+					cops = br_dev->netdev_ops;
+				}
+			} else {
+				if (dev != br_dev &&
+				    !(dev->priv_flags & IFF_BRIDGE_PORT))
+					continue;
+
+				if (br_dev != netdev_master_upper_dev_get(dev) &&
+				    !(dev->priv_flags & IFF_EBRIDGE))
+					continue;
+				cops = ops;
 			}
 
-		} else {
-			if (dev != br_dev &&
-			    !(dev->priv_flags & IFF_BRIDGE_PORT))
-				continue;
+			if (idx < s_idx)
+				goto cont;
 
-			if (br_dev != netdev_master_upper_dev_get(dev) &&
-			    !(dev->priv_flags & IFF_EBRIDGE))
-				continue;
+			if (dev->priv_flags & IFF_BRIDGE_PORT) {
+				if (cops && cops->ndo_fdb_dump) {
+					err = cops->ndo_fdb_dump(skb, cb,
+								br_dev, dev,
+								&fidx);
+					if (err == -EMSGSIZE)
+						goto out;
+				}
+			}
 
-			cops = ops;
+			if (dev->netdev_ops->ndo_fdb_dump)
+				err = dev->netdev_ops->ndo_fdb_dump(skb, cb,
+								    dev, NULL,
+								    &fidx);
+			else
+				err = ndo_dflt_fdb_dump(skb, cb, dev, NULL,
+							&fidx);
+			if (err == -EMSGSIZE)
+				goto out;
+
+			cops = NULL;
+
+			/* reset fdb offset to 0 for rest of the interfaces */
+			cb->args[2] = 0;
+			fidx = 0;
+cont:
+			idx++;
 		}
-
-		if (dev->priv_flags & IFF_BRIDGE_PORT) {
-			if (cops && cops->ndo_fdb_dump)
-				idx = cops->ndo_fdb_dump(skb, cb, br_dev, dev,
-							 idx);
-		}
-		if (cb->args[1] == -EMSGSIZE)
-			break;
-
-		if (dev->netdev_ops->ndo_fdb_dump)
-			idx = dev->netdev_ops->ndo_fdb_dump(skb, cb, dev, NULL,
-							    idx);
-		else
-			idx = ndo_dflt_fdb_dump(skb, cb, dev, NULL, idx);
-		if (cb->args[1] == -EMSGSIZE)
-			break;
-
-		cops = NULL;
 	}
 
-	cb->args[0] = idx;
+out:
+	cb->args[0] = h;
+	cb->args[1] = idx;
+	cb->args[2] = fidx;
+
 	return skb->len;
 }
 

@@ -860,20 +860,20 @@ out:
 /* Dump forwarding table */
 static int vxlan_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 			  struct net_device *dev,
-			  struct net_device *filter_dev, int idx)
+			  struct net_device *filter_dev, int *idx)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	unsigned int h;
+	int err = 0;
 
 	for (h = 0; h < FDB_HASH_SIZE; ++h) {
 		struct vxlan_fdb *f;
-		int err;
 
 		hlist_for_each_entry_rcu(f, &vxlan->fdb_head[h], hlist) {
 			struct vxlan_rdst *rd;
 
 			list_for_each_entry_rcu(rd, &f->remotes, list) {
-				if (idx < cb->args[0])
+				if (*idx < cb->args[2])
 					goto skip;
 
 				err = vxlan_fdb_info(skb, vxlan, f,
@@ -881,17 +881,15 @@ static int vxlan_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 						     cb->nlh->nlmsg_seq,
 						     RTM_NEWNEIGH,
 						     NLM_F_MULTI, rd);
-				if (err < 0) {
-					cb->args[1] = err;
+				if (err < 0)
 					goto out;
-				}
 skip:
-				++idx;
+				*idx += 1;
 			}
 		}
 	}
 out:
-	return idx;
+	return err;
 }
 
 /* Watch incoming packets to learn mapping between Ethernet address

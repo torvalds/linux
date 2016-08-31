@@ -222,7 +222,7 @@ int switchdev_port_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 			   u16 vid);
 int switchdev_port_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 			    struct net_device *dev,
-			    struct net_device *filter_dev, int idx);
+			    struct net_device *filter_dev, int *idx);
 void switchdev_port_fwd_mark_set(struct net_device *dev,
 				 struct net_device *group_dev,
 				 bool joining);
@@ -342,7 +342,7 @@ static inline int switchdev_port_fdb_dump(struct sk_buff *skb,
 					  struct netlink_callback *cb,
 					  struct net_device *dev,
 					  struct net_device *filter_dev,
-					  int idx)
+					  int *idx)
 {
        return idx;
 }

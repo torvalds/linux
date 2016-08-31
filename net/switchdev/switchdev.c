@@ -1042,7 +1042,7 @@ static int switchdev_port_fdb_dump_cb(struct switchdev_obj *obj)
 	struct nlmsghdr *nlh;
 	struct ndmsg *ndm;
 
-	if (dump->idx < dump->cb->args[0])
+	if (dump->idx < dump->cb->args[2])
 		goto skip;
 
 	nlh = nlmsg_put(dump->skb, portid, seq, RTM_NEWNEIGH,
@@ -1089,7 +1089,7 @@ nla_put_failure:
  */
 int switchdev_port_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 			    struct net_device *dev,
-			    struct net_device *filter_dev, int idx)
+			    struct net_device *filter_dev, int *idx)
 {
 	struct switchdev_fdb_dump dump = {
 		.fdb.obj.orig_dev = dev,
@@ -1097,14 +1097,14 @@ int switchdev_port_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 		.dev = dev,
 		.skb = skb,
 		.cb = cb,
-		.idx = idx,
+		.idx = *idx,
 	};
 	int err;
 
 	err = switchdev_port_obj_dump(dev, &dump.fdb.obj,
 				      switchdev_port_fdb_dump_cb);
-	cb->args[1] = err;
-	return dump.idx;
+	*idx = dump.idx;
+	return err;
 }
 EXPORT_SYMBOL_GPL(switchdev_port_fdb_dump);
 
