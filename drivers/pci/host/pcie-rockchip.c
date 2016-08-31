@@ -677,9 +677,9 @@ static irqreturn_t rockchip_pcie_client_irq_handler(int irq, void *arg)
 			      PCIE_CLIENT_INT_MSG | PCIE_CLIENT_INT_HOT_RST |
 			      PCIE_CLIENT_INT_DPA | PCIE_CLIENT_INT_FATAL_ERR |
 			      PCIE_CLIENT_INT_NFATAL_ERR |
-			      PCIE_CLIENT_INT_CORR_ERR),
-			      PCIE_CLIENT_INT_STATUS |
-			      PCIE_CLIENT_INT_PHY);
+			      PCIE_CLIENT_INT_CORR_ERR |
+			      PCIE_CLIENT_INT_PHY),
+			      PCIE_CLIENT_INT_STATUS);
 	return IRQ_HANDLED;
 }
 
