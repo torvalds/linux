@@ -45,4 +45,11 @@ struct octeon_cn23xx_pf {
 
 	struct octeon_config *conf;
 };
+
+int setup_cn23xx_octeon_pf_device(struct octeon_device *oct);
+
+int validate_cn23xx_pf_config_info(struct octeon_device *oct,
+				   struct octeon_config *conf23xx);
+
+void cn23xx_dump_pf_initialized_regs(struct octeon_device *oct);
 #endif

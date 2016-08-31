@@ -10,6 +10,7 @@ liquidio-$(CONFIG_LIQUIDIO) += lio_ethtool.o \
 			octeon_device.o    \
 			cn66xx_device.o    \
 			cn68xx_device.o    \
+			cn23xx_pf_device.o \
 			octeon_mem_ops.o   \
 			octeon_droq.o      \
 			octeon_nic.o

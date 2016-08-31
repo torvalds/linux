@@ -35,6 +35,7 @@
 #include "cn66xx_regs.h"
 #include "cn66xx_device.h"
 #include "cn68xx_device.h"
+#include "cn23xx_pf_device.h"
 #include "liquidio_image.h"
 
 MODULE_AUTHOR("Cavium Networks, <support@cavium.com>");
@@ -132,7 +133,8 @@ union tx_info {
 #define OCTNIC_MAX_SG  (MAX_SKB_FRAGS)
 
 #define OCTNIC_GSO_MAX_HEADER_SIZE 128
-#define OCTNIC_GSO_MAX_SIZE (GSO_MAX_SIZE - OCTNIC_GSO_MAX_HEADER_SIZE)
+#define OCTNIC_GSO_MAX_SIZE                                                    \
+	(CN23XX_DEFAULT_INPUT_JABBER - OCTNIC_GSO_MAX_HEADER_SIZE)
 
 /** Structure of a node in list of gather components maintained by
  * NIC driver for each network device.
@@ -1321,6 +1323,12 @@ static int octeon_chip_specific_setup(struct octeon_device *oct)
 		oct->chip_id = OCTEON_CN66XX;
 		ret = lio_setup_cn66xx_octeon_device(oct);
 		s = "CN66XX";
+		break;
+
+	case OCTEON_CN23XX_PCIID_PF:
+		oct->chip_id = OCTEON_CN23XX_PF_VID;
+		ret = setup_cn23xx_octeon_pf_device(oct);
+		s = "CN23XX";
 		break;
 
 	default:
