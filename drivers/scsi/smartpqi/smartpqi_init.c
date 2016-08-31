@@ -2469,8 +2469,8 @@ static int pqi_interpret_task_management_response(
 	int rc;
 
 	switch (response->response_code) {
-	case SOP_TASK_MANAGEMENT_FUNCTION_COMPLETE:
-	case SOP_TASK_MANAGEMENT_FUNCTION_SUCCEEDED:
+	case SOP_TMF_COMPLETE:
+	case SOP_TMF_FUNCTION_SUCCEEDED:
 		rc = 0;
 		break;
 	default:
