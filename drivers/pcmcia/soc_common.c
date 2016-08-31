@@ -119,6 +119,7 @@ static void __soc_pcmcia_hw_shutdown(struct soc_pcmcia_socket *skt,
 	if (skt->ops->hw_shutdown)
 		skt->ops->hw_shutdown(skt);
 
+
 	clk_disable_unprepare(skt->clk);
 }
 
@@ -286,6 +287,21 @@ static int soc_common_pcmcia_config_skt(
 
 	ret = skt->ops->configure_socket(skt, state);
 	if (ret == 0) {
+		struct gpio_desc *descs[2];
+		int values[2], n = 0;
+
+		if (skt->gpio_reset) {
+			descs[n] = skt->gpio_reset;
+			values[n++] = !!(state->flags & SS_RESET);
+		}
+		if (skt->gpio_bus_enable) {
+			descs[n] = skt->gpio_bus_enable;
+			values[n++] = !!(state->flags & SS_OUTPUT_ENA);
+		}
+
+		if (n)
+			gpiod_set_array_value_cansleep(n, descs, values);
+
 		/*
 		 * This really needs a better solution.  The IRQ
 		 * may or may not be claimed by the driver.

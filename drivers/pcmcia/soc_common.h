@@ -62,6 +62,9 @@ struct soc_pcmcia_socket {
 #define SOC_STAT_BVD2		2	/* BATWARN / IOSPKR */
 #define SOC_STAT_RDY		3	/* Ready / Interrupt */
 
+	struct gpio_desc	*gpio_reset;
+	struct gpio_desc	*gpio_bus_enable;
+
 	unsigned int		irq_state;
 
 	struct timer_list	poll_timer;
