@@ -82,6 +82,7 @@ struct soc_pcmcia_socket {
 #endif
 	struct timer_list	poll_timer;
 	struct list_head	node;
+	void *driver_data;
 };
 
 struct skt_dev_info {
