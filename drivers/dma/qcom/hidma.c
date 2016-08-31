@@ -126,6 +126,7 @@ static void hidma_process_completed(struct hidma_chan *mchan)
 	list_for_each_entry_safe(mdesc, next, &list, node) {
 		enum dma_status llstat;
 		struct dmaengine_desc_callback cb;
+		struct dmaengine_result result;
 
 		desc = &mdesc->desc;
 
@@ -141,10 +142,15 @@ static void hidma_process_completed(struct hidma_chan *mchan)
 
 		spin_lock_irqsave(&mchan->lock, irqflags);
 		list_move(&mdesc->node, &mchan->free);
-		spin_unlock_irqrestore(&mchan->lock, irqflags);
 
 		if (llstat == DMA_COMPLETE)
-			dmaengine_desc_callback_invoke(&cb, NULL);
+			result.result = DMA_TRANS_NOERROR;
+		else
+			result.result = DMA_TRANS_ABORTED;
+
+		spin_unlock_irqrestore(&mchan->lock, irqflags);
+
+		dmaengine_desc_callback_invoke(&cb, &result);
 	}
 }
 
