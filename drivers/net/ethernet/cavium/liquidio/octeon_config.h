@@ -64,6 +64,34 @@
 #define   DEFAULT_NUM_NIC_PORTS_68XX   4
 #define   DEFAULT_NUM_NIC_PORTS_68XX_210NV  2
 
+/* CN23xx  IQ configuration macros */
+#define   CN23XX_MAX_RINGS_PER_PF_PASS_1_0 12
+#define   CN23XX_MAX_RINGS_PER_PF_PASS_1_1 32
+#define   CN23XX_MAX_RINGS_PER_PF          64
+
+#define   CN23XX_MAX_INPUT_QUEUES	CN23XX_MAX_RINGS_PER_PF
+#define   CN23XX_MAX_IQ_DESCRIPTORS	2048
+#define   CN23XX_DB_MIN                 1
+#define   CN23XX_DB_MAX                 8
+#define   CN23XX_DB_TIMEOUT             1
+
+#define   CN23XX_MAX_OUTPUT_QUEUES	CN23XX_MAX_RINGS_PER_PF
+#define   CN23XX_MAX_OQ_DESCRIPTORS	2048
+#define   CN23XX_OQ_BUF_SIZE		1536
+#define   CN23XX_OQ_PKTSPER_INTR	128
+/*#define CAVIUM_ONLY_CN23XX_RX_PERF*/
+#define   CN23XX_OQ_REFIL_THRESHOLD	128
+
+#define   CN23XX_OQ_INTR_PKT		64
+#define   CN23XX_OQ_INTR_TIME		100
+#define   DEFAULT_NUM_NIC_PORTS_23XX	1
+
+#define   CN23XX_CFG_IO_QUEUES		CN23XX_MAX_RINGS_PER_PF
+/* PEMs count */
+#define   CN23XX_MAX_MACS		4
+
+#define   CN23XX_DEF_IQ_INTR_THRESHOLD	32
+#define   CN23XX_DEF_IQ_INTR_BYTE_THRESHOLD   (64 * 1024)
 /* common OCTEON configuration macros */
 #define   CN6XXX_CFG_IO_QUEUES         32
 #define   OCTEON_32BYTE_INSTR          32
@@ -91,6 +119,9 @@
 #define CFG_GET_IQ_INSTR_TYPE(cfg)               ((cfg)->iq.instr_type)
 #define CFG_GET_IQ_DB_MIN(cfg)                   ((cfg)->iq.db_min)
 #define CFG_GET_IQ_DB_TIMEOUT(cfg)               ((cfg)->iq.db_timeout)
+
+#define CFG_GET_IQ_INTR_PKT(cfg)                 ((cfg)->iq.iq_intr_pkt)
+#define CFG_SET_IQ_INTR_PKT(cfg, val)            (cfg)->iq.iq_intr_pkt = val
 
 #define CFG_GET_OQ_MAX_Q(cfg)                    ((cfg)->oq.max_oqs)
 #define CFG_GET_OQ_INFO_PTR(cfg)                 ((cfg)->oq.info_ptr)
@@ -140,19 +171,24 @@
 enum lio_card_type {
 	LIO_210SV = 0, /* Two port, 66xx */
 	LIO_210NV,     /* Two port, 68xx */
-	LIO_410NV      /* Four port, 68xx */
+	LIO_410NV,     /* Four port, 68xx */
+	LIO_23XX       /* 23xx */
 };
 
 #define LIO_210SV_NAME "210sv"
 #define LIO_210NV_NAME "210nv"
 #define LIO_410NV_NAME "410nv"
+#define LIO_23XX_NAME  "23xx"
 
 /** Structure to define the configuration attributes for each Input queue.
  *  Applicable to all Octeon processors
  **/
 struct octeon_iq_config {
 #ifdef __BIG_ENDIAN_BITFIELD
-	u64 reserved:32;
+	u64 reserved:16;
+
+	/** Tx interrupt packets. Applicable to 23xx only */
+	u64 iq_intr_pkt:16;
 
 	/** Minimum ticks to wait before checking for pending instructions. */
 	u64 db_timeout:16;
@@ -192,7 +228,10 @@ struct octeon_iq_config {
 	/** Minimum ticks to wait before checking for pending instructions. */
 	u64 db_timeout:16;
 
-	u64 reserved:32;
+	/** Tx interrupt packets. Applicable to 23xx only */
+	u64 iq_intr_pkt:16;
+
+	u64 reserved:16;
 #endif
 };
 
@@ -416,11 +455,15 @@ struct octeon_config {
 #define DISPATCH_LIST_SIZE                      BIT(OPCODE_MASK_BITS)
 
 /* Maximum number of Octeon Instruction (command) queues */
-#define MAX_OCTEON_INSTR_QUEUES(oct)         CN6XXX_MAX_INPUT_QUEUES
-/* Maximum number of Octeon Output queues */
-#define MAX_OCTEON_OUTPUT_QUEUES(oct)         CN6XXX_MAX_OUTPUT_QUEUES
+#define MAX_OCTEON_INSTR_QUEUES(oct)		\
+		(OCTEON_CN23XX_PF(oct) ? CN23XX_MAX_INPUT_QUEUES : \
+					CN6XXX_MAX_INPUT_QUEUES)
 
-#define MAX_POSSIBLE_OCTEON_INSTR_QUEUES       CN6XXX_MAX_INPUT_QUEUES
-#define MAX_POSSIBLE_OCTEON_OUTPUT_QUEUES      CN6XXX_MAX_OUTPUT_QUEUES
+/* Maximum number of Octeon Instruction (command) queues */
+#define MAX_OCTEON_OUTPUT_QUEUES(oct)		\
+		(OCTEON_CN23XX_PF(oct) ? CN23XX_MAX_OUTPUT_QUEUES : \
+					CN6XXX_MAX_OUTPUT_QUEUES)
 
+#define MAX_POSSIBLE_OCTEON_INSTR_QUEUES	CN23XX_MAX_INPUT_QUEUES
+#define MAX_POSSIBLE_OCTEON_OUTPUT_QUEUES	CN23XX_MAX_OUTPUT_QUEUES
 #endif /* __OCTEON_CONFIG_H__  */

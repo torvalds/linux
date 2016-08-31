@@ -499,6 +499,7 @@ static void __check_db_timeout(struct octeon_device *oct, u64 iq_no)
 
 	if (!oct)
 		return;
+
 	iq = oct->instr_queue[iq_no];
 	if (!iq)
 		return;
@@ -514,6 +515,8 @@ static void __check_db_timeout(struct octeon_device *oct, u64 iq_no)
 
 	/* Flush the instruction queue */
 	octeon_flush_iq(oct, iq, 1, 0);
+
+	lio_enable_irq(NULL, iq);
 }
 
 /* Called by the Poll thread at regular intervals to check the instruction

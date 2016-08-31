@@ -58,7 +58,7 @@ config LIQUIDIO
 	select LIBCRC32C
 	---help---
 	  This driver supports Cavium LiquidIO Intelligent Server Adapters
-	  based on CN66XX and CN68XX chips.
+	  based on CN66XX, CN68XX and CN23XX chips.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called liquidio.  This is recommended.
