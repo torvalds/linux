@@ -371,11 +371,9 @@ retry:
 	p->bytes_moved += atomic64_read(&bo->adev->num_bytes_moved) -
 		initial_bytes_moved;
 
-	if (unlikely(r)) {
-		if (r != -ERESTARTSYS && domain != bo->allowed_domains) {
-			domain = bo->allowed_domains;
-			goto retry;
-		}
+	if (unlikely(r == -ENOMEM) && domain != bo->allowed_domains) {
+		domain = bo->allowed_domains;
+		goto retry;
 	}
 
 	return r;
