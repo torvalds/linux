@@ -533,7 +533,7 @@ static struct pernet_operations __net_initdata net_ns_ops = {
 	.exit = net_ns_net_exit,
 };
 
-static struct nla_policy rtnl_net_policy[NETNSA_MAX + 1] = {
+static const struct nla_policy rtnl_net_policy[NETNSA_MAX + 1] = {
 	[NETNSA_NONE]		= { .type = NLA_UNSPEC },
 	[NETNSA_NSID]		= { .type = NLA_S32 },
 	[NETNSA_PID]		= { .type = NLA_U32 },
