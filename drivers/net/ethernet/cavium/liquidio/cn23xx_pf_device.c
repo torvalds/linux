@@ -214,6 +214,37 @@ void cn23xx_dump_pf_initialized_regs(struct octeon_device *oct)
 		CVM_CAST64(octeon_read_csr64(oct, CN23XX_SLI_PKT_CNT_INT)));
 }
 
+static int cn23xx_pf_soft_reset(struct octeon_device *oct)
+{
+	octeon_write_csr64(oct, CN23XX_WIN_WR_MASK_REG, 0xFF);
+
+	dev_dbg(&oct->pci_dev->dev, "OCTEON[%d]: BIST enabled for CN23XX soft reset\n",
+		oct->octeon_id);
+
+	octeon_write_csr64(oct, CN23XX_SLI_SCRATCH1, 0x1234ULL);
+
+	/* Initiate chip-wide soft reset */
+	lio_pci_readq(oct, CN23XX_RST_SOFT_RST);
+	lio_pci_writeq(oct, 1, CN23XX_RST_SOFT_RST);
+
+	/* Wait for 100ms as Octeon resets. */
+	mdelay(100);
+
+	if (octeon_read_csr64(oct, CN23XX_SLI_SCRATCH1) == 0x1234ULL) {
+		dev_err(&oct->pci_dev->dev, "OCTEON[%d]: Soft reset failed\n",
+			oct->octeon_id);
+		return 1;
+	}
+
+	dev_dbg(&oct->pci_dev->dev, "OCTEON[%d]: Reset completed\n",
+		oct->octeon_id);
+
+	/* restore the  reset value*/
+	octeon_write_csr64(oct, CN23XX_WIN_WR_MASK_REG, 0xFF);
+
+	return 0;
+}
+
 static void cn23xx_enable_error_reporting(struct octeon_device *oct)
 {
 	u32 regval;
@@ -1030,6 +1061,7 @@ int setup_cn23xx_octeon_pf_device(struct octeon_device *oct)
 	oct->fn_list.process_interrupt_regs = cn23xx_interrupt_handler;
 	oct->fn_list.msix_interrupt_handler = cn23xx_pf_msix_interrupt_handler;
 
+	oct->fn_list.soft_reset = cn23xx_pf_soft_reset;
 	oct->fn_list.setup_device_regs = cn23xx_setup_pf_device_regs;
 
 	oct->fn_list.enable_interrupt = cn23xx_enable_pf_interrupt;
@@ -1128,4 +1160,12 @@ void cn23xx_dump_iq_regs(struct octeon_device *oct)
 		oct->pcie_port, CN23XX_SLI_S2M_PORTX_CTL(oct->pcie_port),
 		CVM_CAST64(octeon_read_csr64(
 			oct, CN23XX_SLI_S2M_PORTX_CTL(oct->pcie_port))));
+}
+
+int cn23xx_fw_loaded(struct octeon_device *oct)
+{
+	u64 val;
+
+	val = octeon_read_csr64(oct, CN23XX_SLI_SCRATCH1);
+	return (val >> 1) & 1ULL;
 }
