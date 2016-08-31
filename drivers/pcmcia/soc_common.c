@@ -229,6 +229,18 @@ static void soc_pcmcia_hw_disable(struct soc_pcmcia_socket *skt)
 			irq_set_irq_type(skt->stat[i].irq, IRQ_TYPE_NONE);
 }
 
+/*
+ * The CF 3.0 specification says that cards tie VS1 to ground and leave
+ * VS2 open.  Many implementations do not wire up the VS signals, so we
+ * provide hard-coded values as per the CF 3.0 spec.
+ */
+void soc_common_cf_socket_state(struct soc_pcmcia_socket *skt,
+	struct pcmcia_state *state)
+{
+	state->vs_3v = 1;
+}
+EXPORT_SYMBOL_GPL(soc_common_cf_socket_state);
+
 static unsigned int soc_common_pcmcia_skt_state(struct soc_pcmcia_socket *skt)
 {
 	struct pcmcia_state state;
