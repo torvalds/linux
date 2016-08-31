@@ -15,7 +15,7 @@ CA_GET_SLOT_INFO
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, CA_GET_SLOT_INFO, ca_slot_info_t *info)
+.. c:function:: int ioctl(fd, CA_GET_SLOT_INFO, struct ca_slot_info *info)
     :name: CA_GET_SLOT_INFO
 
 

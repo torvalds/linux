@@ -15,7 +15,7 @@ CA_GET_CAP
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, CA_GET_CAP, ca_caps_t *caps)
+.. c:function:: int ioctl(fd, CA_GET_CAP, struct ca_caps *caps)
     :name: CA_GET_CAP
 
 
@@ -26,7 +26,7 @@ Arguments
   File descriptor returned by a previous call to :c:func:`open() <dvb-ca-open>`.
 
 ``caps``
-  struct :c:type:`ca_caps` pointer
+  Pointer to struct :c:type:`ca_caps`.
 
 .. c:type:: struct ca_caps
 

@@ -15,7 +15,7 @@ CA_GET_MSG
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, CA_GET_MSG, ca_msg_t *msg)
+.. c:function:: int ioctl(fd, CA_GET_MSG, struct ca_msg *msg)
     :name: CA_GET_MSG
 
 

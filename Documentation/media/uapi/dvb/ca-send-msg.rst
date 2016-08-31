@@ -15,7 +15,7 @@ CA_SEND_MSG
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, CA_SEND_MSG, ca_msg_t *msg)
+.. c:function:: int ioctl(fd, CA_SEND_MSG, struct ca_msg *msg)
     :name: CA_SEND_MSG
 
 
@@ -26,7 +26,7 @@ Arguments
   File descriptor returned by a previous call to :c:func:`open() <cec-open>`.
 
 ``msg``
-  Undocumented.
+  Pointer to struct :c:type:`ca_msg`.
 
 
 Description

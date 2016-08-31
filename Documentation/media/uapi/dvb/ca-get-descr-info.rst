@@ -15,7 +15,7 @@ CA_GET_DESCR_INFO
 Synopsis
 --------
 
-.. c:function:: int  ioctl(fd, CA_GET_DESCR_INFO, ca_descr_info_t *desc)
+.. c:function:: int  ioctl(fd, CA_GET_DESCR_INFO, struct ca_descr_info *desc)
     :name: CA_GET_DESCR_INFO
 
 Arguments

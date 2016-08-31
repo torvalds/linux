@@ -15,8 +15,8 @@ CA_SET_DESCR
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, CA_SET_DESCR, ca_descr_t *desc)
-    :name:
+.. c:function:: int ioctl(fd, CA_SET_DESCR, struct ca_descr *desc)
+    :name: CA_SET_DESCR
 
 
 Arguments
@@ -26,7 +26,7 @@ Arguments
   File descriptor returned by a previous call to :c:func:`open() <cec-open>`.
 
 ``msg``
-  Undocumented.
+  Pointer to struct :c:type:`ca_descr`.
 
 
 Description

@@ -15,7 +15,7 @@ CA_SET_PID
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, CA_SET_PID, ca_pid_t *pid)
+.. c:function:: int ioctl(fd, CA_SET_PID, struct ca_pid *pid)
     :name: CA_SET_PID
 
 
