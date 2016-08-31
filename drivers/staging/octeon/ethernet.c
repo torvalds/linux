@@ -488,6 +488,8 @@ int cvm_oct_common_open(struct net_device *dev,
 
 	gmx_cfg.u64 = cvmx_read_csr(CVMX_GMXX_PRTX_CFG(index, interface));
 	gmx_cfg.s.en = 1;
+	if (octeon_has_feature(OCTEON_FEATURE_PKND))
+		gmx_cfg.s.pknd = priv->port;
 	cvmx_write_csr(CVMX_GMXX_PRTX_CFG(index, interface), gmx_cfg.u64);
 
 	if (octeon_is_simulation())
