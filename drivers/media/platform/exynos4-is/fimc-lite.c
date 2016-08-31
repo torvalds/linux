@@ -1454,25 +1454,17 @@ static void fimc_lite_clk_put(struct fimc_lite *fimc)
 	if (IS_ERR(fimc->clock))
 		return;
 
-	clk_unprepare(fimc->clock);
 	clk_put(fimc->clock);
 	fimc->clock = ERR_PTR(-EINVAL);
 }
 
 static int fimc_lite_clk_get(struct fimc_lite *fimc)
 {
-	int ret;
-
 	fimc->clock = clk_get(&fimc->pdev->dev, FLITE_CLK_NAME);
 	if (IS_ERR(fimc->clock))
 		return PTR_ERR(fimc->clock);
 
-	ret = clk_prepare(fimc->clock);
-	if (ret < 0) {
-		clk_put(fimc->clock);
-		fimc->clock = ERR_PTR(-EINVAL);
-	}
-	return ret;
+	return 0;
 }
 
 static const struct of_device_id flite_of_match[];
@@ -1543,7 +1535,7 @@ static int fimc_lite_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 
 	if (!pm_runtime_enabled(dev)) {
-		ret = clk_enable(fimc->clock);
+		ret = clk_prepare_enable(fimc->clock);
 		if (ret < 0)
 			goto err_sd;
 	}
@@ -1568,7 +1560,7 @@ static int fimc_lite_runtime_resume(struct device *dev)
 {
 	struct fimc_lite *fimc = dev_get_drvdata(dev);
 
-	clk_enable(fimc->clock);
+	clk_prepare_enable(fimc->clock);
 	return 0;
 }
 
@@ -1576,7 +1568,7 @@ static int fimc_lite_runtime_suspend(struct device *dev)
 {
 	struct fimc_lite *fimc = dev_get_drvdata(dev);
 
-	clk_disable(fimc->clock);
+	clk_disable_unprepare(fimc->clock);
 	return 0;
 }
 #endif
