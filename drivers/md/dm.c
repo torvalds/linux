@@ -1941,7 +1941,7 @@ void dm_put(struct mapped_device *md)
 }
 EXPORT_SYMBOL_GPL(dm_put);
 
-static int dm_wait_for_completion(struct mapped_device *md, int interruptible)
+static int dm_wait_for_completion(struct mapped_device *md, long task_state)
 {
 	int r = 0;
 	DECLARE_WAITQUEUE(wait, current);
@@ -1949,12 +1949,12 @@ static int dm_wait_for_completion(struct mapped_device *md, int interruptible)
 	add_wait_queue(&md->wait, &wait);
 
 	while (1) {
-		set_current_state(interruptible);
+		set_current_state(task_state);
 
 		if (!md_in_flight(md))
 			break;
 
-		if (interruptible == TASK_INTERRUPTIBLE &&
+		if (task_state == TASK_INTERRUPTIBLE &&
 		    signal_pending(current)) {
 			r = -EINTR;
 			break;
@@ -2082,6 +2082,10 @@ static void unlock_fs(struct mapped_device *md)
 }
 
 /*
+ * @suspend_flags: DM_SUSPEND_LOCKFS_FLAG and/or DM_SUSPEND_NOFLUSH_FLAG
+ * @task_state: e.g. TASK_INTERRUPTIBLE or TASK_UNINTERRUPTIBLE
+ * @dmf_suspended_flag: DMF_SUSPENDED or DMF_SUSPENDED_INTERNALLY
+ *
  * If __dm_suspend returns 0, the device is completely quiescent
  * now. There is no request-processing activity. All new requests
  * are being added to md->deferred list.
@@ -2089,7 +2093,7 @@ static void unlock_fs(struct mapped_device *md)
  * Caller must hold md->suspend_lock
  */
 static int __dm_suspend(struct mapped_device *md, struct dm_table *map,
-			unsigned suspend_flags, int interruptible,
+			unsigned suspend_flags, long task_state,
 			int dmf_suspended_flag)
 {
 	bool do_lockfs = suspend_flags & DM_SUSPEND_LOCKFS_FLAG;
@@ -2158,7 +2162,7 @@ static int __dm_suspend(struct mapped_device *md, struct dm_table *map,
 	 * We call dm_wait_for_completion to wait for all existing requests
 	 * to finish.
 	 */
-	r = dm_wait_for_completion(md, interruptible);
+	r = dm_wait_for_completion(md, task_state);
 	if (!r)
 		set_bit(dmf_suspended_flag, &md->flags);
 
