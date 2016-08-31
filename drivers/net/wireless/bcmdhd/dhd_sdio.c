@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_sdio.c 572232 2015-07-17 12:14:31Z $
+ * $Id: dhd_sdio.c 634247 2016-04-27 05:53:55Z $
  */
 
 #include <typedefs.h>
@@ -417,6 +417,10 @@ uint dhd_dpcpoll = FALSE;
 
 module_param(dhd_doflow, uint, 0644);
 module_param(dhd_dpcpoll, uint, 0644);
+
+#if defined(OOB_PARAM)
+extern uint dhd_oob_disable;
+#endif /* OOB_PARAM */
 
 static bool dhd_alignctl;
 
@@ -1175,9 +1179,13 @@ dhdsdio_htclk(dhd_bus_t *bus, bool on, bool pendok)
 			return BCME_ERROR;
 		}
 
-#if !defined(OOB_INTR_ONLY)
+#if !defined(OOB_INTR_ONLY) || defined(OOB_PARAM)
 		/* Go to pending and await interrupt if appropriate */
-		if (!SBSDIO_CLKAV(clkctl, bus->alp_only) && pendok) {
+		if (1 &&
+#if defined(OOB_PARAM)
+			dhd_oob_disable &&
+#endif /* OOB_PARAM */
+			!SBSDIO_CLKAV(clkctl, bus->alp_only) && pendok) {
 			/* Allow only clock-available interrupt */
 			devctl = bcmsdh_cfg_read(sdh, SDIO_FUNC_1, SBSDIO_DEVICE_CTL, &err);
 			if (err) {
@@ -1192,7 +1200,7 @@ dhdsdio_htclk(dhd_bus_t *bus, bool on, bool pendok)
 			bus->clkstate = CLK_PENDING;
 			return BCME_OK;
 		} else
-#endif /* !defined (OOB_INTR_ONLY) */
+#endif /* !defined(OOB_INTR_ONLY) || defined(OOB_PARAM) */
 		{
 			if (bus->clkstate == CLK_PENDING) {
 				/* Cancel CA-only interrupt filter */
@@ -1877,10 +1885,6 @@ static int dhdsdio_txpkt_preprocess(dhd_bus_t *bus, void *pkt, int chan, int txs
 		PKTALIGN(osh, tmp_pkt, PKTLEN(osh, pkt), DHD_SDALIGN);
 		bcopy(PKTDATA(osh, pkt), PKTDATA(osh, tmp_pkt), PKTLEN(osh, pkt));
 		*new_pkt = tmp_pkt;
-		/* pull back sdpcm_hdrlen length from old skb as new skb here is passed
-		 * to postprocessing
-		 */
-		PKTPULL(osh, pkt, sdpcm_hdrlen);
 		pkt = tmp_pkt;
 	}
 
@@ -2101,7 +2105,6 @@ done:
 				PKTFREE(osh, pkt, TRUE);
 		}
 	}
-
 	for (i = 0; i < new_pkt_num; i++)
 		PKTFREE(osh, new_pkts[i], TRUE);
 
@@ -6014,24 +6017,28 @@ clkwait:
 		          __FUNCTION__, rxdone, framecnt));
 		bus->intdis = FALSE;
 #if defined(OOB_INTR_ONLY)
-		bcmsdh_oob_intr_set(bus->sdh, TRUE);
+		OOB_PARAM_IF(!dhd_oob_disable) {
+			bcmsdh_oob_intr_set(bus->sdh, TRUE);
+		}
 #endif /* defined(OOB_INTR_ONLY) */
 		bcmsdh_intr_enable(sdh);
 	}
 
 #if defined(OOB_INTR_ONLY) && !defined(HW_OOB)
-	/* In case of SW-OOB(using edge trigger),
-	 * Check interrupt status in the dongle again after enable irq on the host.
-	 * and rechedule dpc if interrupt is pended in the dongle.
-	 * There is a chance to miss OOB interrupt while irq is disabled on the host.
-	 * No need to do this with HW-OOB(level trigger)
-	 */
-	R_SDREG(newstatus, &regs->intstatus, retries);
-	if (bcmsdh_regfail(bus->sdh))
-		newstatus = 0;
-	if (newstatus & bus->hostintmask) {
-		bus->ipend = TRUE;
-		resched = TRUE;
+	OOB_PARAM_IF(!dhd_oob_disable) {
+		/* In case of SW-OOB(using edge trigger),
+		 * Check interrupt status in the dongle again after enable irq on the host.
+		 * and rechedule dpc if interrupt is pended in the dongle.
+		 * There is a chance to miss OOB interrupt while irq is disabled on the host.
+		 * No need to do this with HW-OOB(level trigger)
+		 */
+		R_SDREG(newstatus, &regs->intstatus, retries);
+		if (bcmsdh_regfail(bus->sdh))
+			newstatus = 0;
+		if (newstatus & bus->hostintmask) {
+			bus->ipend = TRUE;
+			resched = TRUE;
+		}
 	}
 #endif /* defined(OOB_INTR_ONLY) && !defined(HW_OOB) */
 
@@ -6152,17 +6159,21 @@ dhdsdio_isr(void *arg)
 	bcmsdh_intr_disable(sdh);
 	bus->intdis = TRUE;
 
-#if defined(SDIO_ISR_THREAD)
-	DHD_TRACE(("Calling dhdsdio_dpc() from %s\n", __FUNCTION__));
-	DHD_OS_WAKE_LOCK(bus->dhd);
-	dhdsdio_dpc(bus);
-	DHD_OS_WAKE_UNLOCK(bus->dhd);
-#else
+#if defined(SDIO_ISR_THREAD) || defined(OOB_PARAM)
+	OOB_PARAM_IF(dhd_oob_disable) {
+		DHD_TRACE(("Calling dhdsdio_dpc() from %s\n", __FUNCTION__));
+		DHD_OS_WAKE_LOCK(bus->dhd);
+		dhdsdio_dpc(bus);
+		DHD_OS_WAKE_UNLOCK(bus->dhd);
+	} OOB_PARAM_ELSE()
+#endif /* defined(SDIO_ISR_THREAD) || defined(OOB_PARAM) */
+#if !defined(SDIO_ISR_THREAD) || defined(OOB_PARAM)
+	{
+		bus->dpc_sched = TRUE;
+		dhd_sched_dpc(bus->dhd);
+	}
+#endif /* !defined(SDIO_ISR_THREAD) || defined(OOB_PARAM) */
 
-	bus->dpc_sched = TRUE;
-	dhd_sched_dpc(bus->dhd);
-
-#endif /* defined(SDIO_ISR_THREAD) */
 
 }
 
@@ -6474,7 +6485,9 @@ int dhd_bus_oob_intr_register(dhd_pub_t *dhdp)
 	int err = 0;
 
 #if defined(OOB_INTR_ONLY)
-	err = bcmsdh_oob_intr_register(dhdp->bus->sdh, dhdsdio_isr, dhdp->bus);
+	OOB_PARAM_IF(!dhd_oob_disable) {
+		err = bcmsdh_oob_intr_register(dhdp->bus->sdh, dhdsdio_isr, dhdp->bus);
+	}
 #endif
 	return err;
 }
@@ -6482,14 +6495,18 @@ int dhd_bus_oob_intr_register(dhd_pub_t *dhdp)
 void dhd_bus_oob_intr_unregister(dhd_pub_t *dhdp)
 {
 #if defined(OOB_INTR_ONLY)
-	bcmsdh_oob_intr_unregister(dhdp->bus->sdh);
+	OOB_PARAM_IF(!dhd_oob_disable) {
+		bcmsdh_oob_intr_unregister(dhdp->bus->sdh);
+	}
 #endif
 }
 
 void dhd_bus_oob_intr_set(dhd_pub_t *dhdp, bool enable)
 {
 #if defined(OOB_INTR_ONLY)
-	bcmsdh_oob_intr_set(dhdp->bus->sdh, enable);
+	OOB_PARAM_IF(!dhd_oob_disable) {
+		bcmsdh_oob_intr_set(dhdp->bus->sdh, enable);
+	}
 #endif
 }
 
@@ -7279,6 +7296,7 @@ dhdsdio_probe_init(dhd_bus_t *bus, osl_t *osh, void *sdh)
 		PKTSETNEXT(osh, bus->pad_pkt, NULL);
 	}
 
+
 	/* Query if bus module supports packet chaining, default to use if supported */
 	if (bcmsdh_iovar_op(sdh, "sd_rxchain", NULL, 0,
 	                    &bus->sd_rxchain, sizeof(int32), FALSE) != BCME_OK) {
@@ -7365,6 +7383,7 @@ dhdsdio_release(dhd_bus_t *bus, osl_t *osh)
 
 		if (bus->pad_pkt)
 			PKTFREE(osh, bus->pad_pkt, FALSE);
+
 
 		MFREE(osh, bus, sizeof(dhd_bus_t));
 	}
@@ -7484,8 +7503,10 @@ dhdsdio_resume(void *context)
 #if defined(OOB_INTR_ONLY)
 	dhd_bus_t *bus = (dhd_bus_t*)context;
 
-	if (dhd_os_check_if_up(bus->dhd))
-		bcmsdh_oob_intr_set(bus->sdh, TRUE);
+	OOB_PARAM_IF(!dhd_oob_disable) {
+		if (dhd_os_check_if_up(bus->dhd))
+			bcmsdh_oob_intr_set(bus->sdh, TRUE);
+	}
 #endif 
 	return 0;
 }
@@ -7979,10 +8000,12 @@ dhd_bus_devreset(dhd_pub_t *dhdp, uint8 flag)
 			dhd_bus_stop(bus, FALSE);
 
 #if defined(OOB_INTR_ONLY)
-			/* Clean up any pending IRQ */
-			dhd_enable_oob_intr(bus, FALSE);
-			bcmsdh_oob_intr_set(bus->sdh, FALSE);
-			bcmsdh_oob_intr_unregister(bus->sdh);
+			OOB_PARAM_IF(!dhd_oob_disable) {
+				/* Clean up any pending IRQ */
+				dhd_enable_oob_intr(bus, FALSE);
+				bcmsdh_oob_intr_set(bus->sdh, FALSE);
+				bcmsdh_oob_intr_unregister(bus->sdh);
+			}
 #endif 
 
 			/* Clean tx/rx buffer pointers, detach from the dongle */
@@ -8020,10 +8043,12 @@ dhd_bus_devreset(dhd_pub_t *dhdp, uint8 flag)
 					bcmerror = dhd_bus_init((dhd_pub_t *) bus->dhd, FALSE);
 					if (bcmerror == BCME_OK) {
 #if defined(OOB_INTR_ONLY)
-						dhd_enable_oob_intr(bus, TRUE);
-						bcmsdh_oob_intr_register(bus->sdh,
-							dhdsdio_isr, bus);
-						bcmsdh_oob_intr_set(bus->sdh, TRUE);
+						OOB_PARAM_IF(!dhd_oob_disable) {
+							dhd_enable_oob_intr(bus, TRUE);
+							bcmsdh_oob_intr_register(bus->sdh,
+								dhdsdio_isr, bus);
+							bcmsdh_oob_intr_set(bus->sdh, TRUE);
+						}
 #endif 
 
 						bus->dhd->dongle_reset = FALSE;

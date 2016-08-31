@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfg80211.c 614516 2016-01-22 13:45:21Z $
+ * $Id: wl_cfg80211.c 641576 2016-06-03 08:52:14Z $
  */
 /* */
 #include <typedefs.h>
@@ -1193,8 +1193,10 @@ wl_validate_wps_ie(char *wps_ie, s32 wps_ie_len, bool *pbc)
 			WL_DBG(("  attr WPS_ID_CONFIG_METHODS: %x\n", HTON16(val)));
 		} else if (subelt_id == WPS_ID_DEVICE_NAME) {
 			char devname[100];
-			memcpy(devname, subel, subelt_len);
-			devname[subelt_len] = '\0';
+			int namelen = MIN(subelt_len, (sizeof(devname) - 1));
+			memcpy(devname, subel, namelen);
+			devname[namelen] = '\0';
+			/* Printing len as rx'ed in the IE */
 			WL_DBG(("  attr WPS_ID_DEVICE_NAME: %s (len %u)\n",
 				devname, subelt_len));
 		} else if (subelt_id == WPS_ID_DEVICE_PWD_ID) {
@@ -1302,14 +1304,15 @@ static chanspec_t wl_cfg80211_get_shared_freq(struct wiphy *wiphy)
 	struct wl_bss_info *bss = NULL;
 
 	if ((err = wldev_ioctl(dev, WLC_GET_BSSID, &bssid, sizeof(bssid), false))) {
-		struct channel_info ci;
+		int chspc;
 		/* STA interface is not associated. So start the new interface on a temp
 		 * channel . Later proper channel will be applied by the above framework
 		 * via set_channel (cfg80211 API).
 		 */
 		WL_DBG(("Not associated. Return first channel from supported channel list. \n"));
-		if (!wldev_ioctl(dev, WLC_GET_CHANNEL, &ci, sizeof(ci), false)) {
-			return wl_ch_host_to_driver(ci.hw_channel);
+		err = wldev_iovar_getint(dev, "chanspec", &chspc);
+		if (!err) {
+			return chspc;
 		} else {
 
 			return wl_ch_host_to_driver(WL_P2P_TEMP_CHAN);
@@ -6271,6 +6274,7 @@ wl_cfg80211_bcn_bringup_ap(
 	s32 infra = 1;
 	s32 join_params_size = 0;
 	s32 ap = 1;
+	s32 pm;
 	s32 err = BCME_OK;
 
 	WL_DBG(("Enter dev_role: %d\n", dev_role));
@@ -6318,10 +6322,21 @@ wl_cfg80211_bcn_bringup_ap(
 			WL_ERR(("SET INFRA error %d\n", err));
 			goto exit;
 		}
+		if ((err = wldev_iovar_setint(dev, "apsta", 0)) < 0) {
+			WL_ERR(("wl apsta 0 error %d\n", err));
+			goto exit;
+		}
 		if ((err = wldev_ioctl(dev, WLC_SET_AP, &ap, sizeof(s32), true)) < 0) {
 			WL_ERR(("setting AP mode failed %d \n", err));
 			goto exit;
 		}
+
+		pm = 0;
+		if ((err = wldev_ioctl(dev, WLC_SET_PM, &pm, sizeof(pm), true)) != 0) {
+			WL_ERR(("wl PM 0 returned error:%d\n", err));
+			goto exit;
+		}
+
 
 		err = wldev_ioctl(dev, WLC_UP, &ap, sizeof(s32), true);
 		if (unlikely(err)) {
@@ -6637,6 +6652,7 @@ wl_cfg80211_start_ap(
 	struct parsed_ies ies;
 	s32 bssidx = 0;
 	u32 dev_role = 0;
+	dhd_pub_t *dhd = (dhd_pub_t *)(cfg->pub);
 
 	WL_DBG(("Enter \n"));
 	if (dev == bcmcfg_to_prmry_ndev(cfg)) {
@@ -6657,11 +6673,45 @@ wl_cfg80211_start_ap(
 		WL_ERR(("Find p2p index from dev(%p) failed\n", dev));
 		return BCME_ERROR;
 	}
-	if (p2p_is_on(cfg) &&
-		(bssidx == wl_to_p2p_bss_bssidx(cfg,
-		P2PAPI_BSSCFG_CONNECTION))) {
+
+	if (p2p_is_on(cfg) && (dev->ieee80211_ptr->iftype == NL80211_IFTYPE_P2P_GO)) {
 		dev_role = NL80211_IFTYPE_P2P_GO;
 		WL_DBG(("Start AP req on P2P connection iface\n"));
+	} else if (dev_role == NL80211_IFTYPE_AP) {
+		WL_DBG(("Start AP req\n"));
+		dhd->op_mode |= DHD_FLAG_HOSTAP_MODE;
+		/*
+		 * Enabling Softap is causing issues with STA NDO operations
+		 * as NDO is not interface specific. So disable NDO while
+		 * Softap is enabled
+		 */
+		err = dhd_ndo_enable(dhd, FALSE);
+		WL_DBG(("%s: Disabling NDO on Hostapd mode %d\n", __FUNCTION__, err));
+		if (err) {
+			/* Non fatal error. */
+			WL_ERR(("%s: Disabling NDO Failed %d\n", __FUNCTION__, err));
+		} else {
+			cfg->revert_ndo_disable = true;
+		}
+
+#ifdef PKT_FILTER_SUPPORT
+		/* Disable packet filter */
+		if (dhd->early_suspended) {
+			WL_ERR(("Disable pkt_filter\n"));
+			dhd_enable_packet_filter(0, dhd);
+		}
+#endif /* PKT_FILTER_SUPPORT */
+#ifdef ARP_OFFLOAD_SUPPORT
+		/* IF SoftAP is enabled, disable arpoe */
+		if (dhd->op_mode & DHD_FLAG_STA_MODE) {
+			dhd_arp_offload_set(dhd, 0);
+			dhd_arp_offload_enable(dhd, FALSE);
+		}
+#endif /* ARP_OFFLOAD_SUPPORT */
+	} else {
+		/* only AP or GO role need to be handled here. */
+		err = -EINVAL;
+		goto fail;
 	}
 
 	if (!check_dev_role_integrity(cfg, dev_role))
@@ -6744,37 +6794,61 @@ wl_cfg80211_stop_ap(
 	int ap = 0;
 	s32 bssidx = 0;
 	struct bcm_cfg80211 *cfg = wiphy_priv(wiphy);
+	dhd_pub_t *dhd = (dhd_pub_t *)(cfg->pub);
 
 	WL_DBG(("Enter \n"));
-	if (dev == bcmcfg_to_prmry_ndev(cfg)) {
-		dev_role = NL80211_IFTYPE_AP;
-	}
-#if defined(WL_ENABLE_P2P_IF)
-	else if (dev == cfg->p2p_net) {
-		/* Group Add request on p2p0 */
-#ifndef  P2PONEINT
-		dev = bcmcfg_to_prmry_ndev(cfg);
-#endif
-		dev_role = NL80211_IFTYPE_P2P_GO;
-	}
-#endif /* WL_ENABLE_P2P_IF */
+
 	if (wl_cfgp2p_find_idx(cfg, dev, &bssidx) != BCME_OK) {
 		WL_ERR(("Find p2p index from dev(%p) failed\n", dev));
 		return BCME_ERROR;
 	}
-	if (p2p_is_on(cfg) &&
-		(bssidx == wl_to_p2p_bss_bssidx(cfg,
-		P2PAPI_BSSCFG_CONNECTION))) {
+
+	if (dev->ieee80211_ptr->iftype == NL80211_IFTYPE_AP) {
+		dev_role = NL80211_IFTYPE_AP;
+		WL_DBG(("stopping AP operation\n"));
+	} else if (dev->ieee80211_ptr->iftype == NL80211_IFTYPE_P2P_GO) {
 		dev_role = NL80211_IFTYPE_P2P_GO;
+		WL_DBG(("stopping P2P GO operation\n"));
+	} else {
+		WL_ERR(("no AP/P2P GO interface is operational.\n"));
+		return -EINVAL;
 	}
 
 	if (!check_dev_role_integrity(cfg, dev_role))
 		goto exit;
 
+	if ((err = wl_cfgp2p_bss(cfg, dev, bssidx, 0)) < 0) {
+		WL_ERR(("bss down error %d\n", err));
+	}
+
 	if (dev_role == NL80211_IFTYPE_AP) {
 		/* SoftAp on primary Interface.
 		 * Shut down AP and turn on MPC
 		 */
+		if (cfg->revert_ndo_disable == true) {
+			err = dhd_ndo_enable(dhd, TRUE);
+			WL_DBG(("%s: Enabling back NDO on Softap turn off %d\n",
+				__FUNCTION__, err));
+			if (err) {
+				WL_ERR(("%s: Enabling NDO Failed %d\n", __FUNCTION__, err));
+			}
+			cfg->revert_ndo_disable = false;
+		}
+
+#ifdef PKT_FILTER_SUPPORT
+		/* Enable packet filter */
+		if (dhd->early_suspended) {
+			WL_ERR(("Enable pkt_filter\n"));
+			dhd_enable_packet_filter(1, dhd);
+		}
+#endif /* PKT_FILTER_SUPPORT */
+#ifdef ARP_OFFLOAD_SUPPORT
+		/* IF SoftAP is disabled, enable arpoe back for STA mode. */
+		if (dhd->op_mode & DHD_FLAG_STA_MODE) {
+			dhd_arp_offload_set(dhd, dhd_arp_mode);
+			dhd_arp_offload_enable(dhd, TRUE);
+		}
+#endif /* ARP_OFFLOAD_SUPPORT */
 		if ((err = wldev_ioctl(dev, WLC_SET_AP, &ap, sizeof(s32), true)) < 0) {
 			WL_ERR(("setting AP mode failed %d \n", err));
 			err = -ENOTSUPP;
@@ -6812,6 +6886,10 @@ wl_cfg80211_stop_ap(
 	}
 
 exit:
+	if (dev_role == NL80211_IFTYPE_AP) {
+		/* clear the AP mode */
+		dhd->op_mode &= ~DHD_FLAG_HOSTAP_MODE;
+	}
 	return err;
 }
 
@@ -9206,8 +9284,13 @@ wl_notify_sched_scan_results(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 
 	WL_DBG(("Enter\n"));
 
-	if (e->event_type == WLC_E_PFN_NET_LOST) {
-		WL_PNO(("PFN NET LOST event. Do Nothing \n"));
+	if ((e->event_type == WLC_E_PFN_NET_LOST) || !data) {
+		WL_PNO(("Do Nothing %d\n", e->event_type));
+		return 0;
+	}
+	if (pfn_result->version != PFN_SCANRESULT_VERSION) {
+		WL_ERR(("Incorrect version %d, expected %d\n", pfn_result->version,
+			PFN_SCANRESULT_VERSION));
 		return 0;
 	}
 	WL_PNO((">>> PFN NET FOUND event. count:%d \n", n_pfn_results));
@@ -9250,9 +9333,8 @@ wl_notify_sched_scan_results(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 			 * scan request in the form of cfg80211_scan_request. For timebeing, create
 			 * cfg80211_scan_request one out of the received PNO event.
 			 */
-			memcpy(ssid[i].ssid, netinfo->pfnsubnet.SSID,
-				netinfo->pfnsubnet.SSID_len);
-			ssid[i].ssid_len = netinfo->pfnsubnet.SSID_len;
+			ssid[i].ssid_len = MIN(netinfo->pfnsubnet.SSID_len, DOT11_MAX_SSID_LEN);
+			memcpy(ssid[i].ssid, netinfo->pfnsubnet.SSID, ssid[i].ssid_len);
 			request->n_ssids++;
 
 			channel_req = netinfo->pfnsubnet.channel;

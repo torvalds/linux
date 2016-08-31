@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_sdmmc.c 557203 2015-05-18 02:05:14Z $
+ * $Id: bcmsdh_sdmmc.c 643045 2016-06-13 06:02:06Z $
  */
 #include <typedefs.h>
 
@@ -54,10 +54,13 @@ extern int sdio_function_init(void);
 extern void sdio_function_cleanup(void);
 #endif /* BCMSDH_MODULE */
 
-#if !defined(OOB_INTR_ONLY)
+#if defined(OOB_PARAM)
+extern uint dhd_oob_disable;
+#endif /* OOB_PARAM */
+#if !defined(OOB_INTR_ONLY) || defined(OOB_PARAM)
 static void IRQHandler(struct sdio_func *func);
 static void IRQHandlerF2(struct sdio_func *func);
-#endif /* !defined(OOB_INTR_ONLY) */
+#endif /* !defined(OOB_INTR_ONLY) || defined(OOB_PARAM) */
 static int sdioh_sdmmc_get_cisaddr(sdioh_info_t *sd, uint32 regaddr);
 extern int sdio_reset_comm(struct mmc_card *card);
 
@@ -302,26 +305,31 @@ sdioh_interrupt_register(sdioh_info_t *sd, sdioh_cb_fn_t fn, void *argh)
 		sd_err(("%s: interrupt handler is NULL, not registering\n", __FUNCTION__));
 		return SDIOH_API_RC_FAIL;
 	}
-#if !defined(OOB_INTR_ONLY)
-	sd->intr_handler = fn;
-	sd->intr_handler_arg = argh;
-	sd->intr_handler_valid = TRUE;
+#if !defined(OOB_INTR_ONLY) || defined(OOB_PARAM)
+	OOB_PARAM_IF(dhd_oob_disable) {
+		sd->intr_handler = fn;
+		sd->intr_handler_arg = argh;
+		sd->intr_handler_valid = TRUE;
 
-	/* register and unmask irq */
-	if (sd->func[2]) {
-		sdio_claim_host(sd->func[2]);
-		sdio_claim_irq(sd->func[2], IRQHandlerF2);
-		sdio_release_host(sd->func[2]);
-	}
+		/* register and unmask irq */
+		if (sd->func[2]) {
+			sdio_claim_host(sd->func[2]);
+			sdio_claim_irq(sd->func[2], IRQHandlerF2);
+			sdio_release_host(sd->func[2]);
+		}
 
-	if (sd->func[1]) {
-		sdio_claim_host(sd->func[1]);
-		sdio_claim_irq(sd->func[1], IRQHandler);
-		sdio_release_host(sd->func[1]);
+		if (sd->func[1]) {
+			sdio_claim_host(sd->func[1]);
+			sdio_claim_irq(sd->func[1], IRQHandler);
+			sdio_release_host(sd->func[1]);
+		}
+	} OOB_PARAM_ELSE()
+#endif /* !defined(OOB_INTR_ONLY) || defined(OOB_PARAM) */
+#if defined(OOB_INTR_ONLY) && defined(HW_OOB)
+	{
+		sdioh_enable_func_intr(sd);
 	}
-#elif defined(HW_OOB)
-	sdioh_enable_func_intr(sd);
-#endif /* !defined(OOB_INTR_ONLY) */
+#endif /* defined(OOB_INTR_ONLY) && defined(HW_OOB) */
 
 	return SDIOH_API_RC_SUCCESS;
 }
@@ -331,28 +339,33 @@ sdioh_interrupt_deregister(sdioh_info_t *sd)
 {
 	sd_trace(("%s: Entering\n", __FUNCTION__));
 
-#if !defined(OOB_INTR_ONLY)
-	if (sd->func[1]) {
-		/* register and unmask irq */
-		sdio_claim_host(sd->func[1]);
-		sdio_release_irq(sd->func[1]);
-		sdio_release_host(sd->func[1]);
-	}
+#if !defined(OOB_INTR_ONLY) || defined(OOB_PARAM)
+	OOB_PARAM_IF(dhd_oob_disable) {
+		if (sd->func[1]) {
+			/* register and unmask irq */
+			sdio_claim_host(sd->func[1]);
+			sdio_release_irq(sd->func[1]);
+			sdio_release_host(sd->func[1]);
+		}
 
-	if (sd->func[2]) {
-		/* Claim host controller F2 */
-		sdio_claim_host(sd->func[2]);
-		sdio_release_irq(sd->func[2]);
-		/* Release host controller F2 */
-		sdio_release_host(sd->func[2]);
-	}
+		if (sd->func[2]) {
+			/* Claim host controller F2 */
+			sdio_claim_host(sd->func[2]);
+			sdio_release_irq(sd->func[2]);
+			/* Release host controller F2 */
+			sdio_release_host(sd->func[2]);
+		}
 
-	sd->intr_handler_valid = FALSE;
-	sd->intr_handler = NULL;
-	sd->intr_handler_arg = NULL;
-#elif defined(HW_OOB)
-	sdioh_disable_func_intr(sd);
-#endif /* !defined(OOB_INTR_ONLY) */
+		sd->intr_handler_valid = FALSE;
+		sd->intr_handler = NULL;
+		sd->intr_handler_arg = NULL;
+	} OOB_PARAM_ELSE()
+#endif /* !defined(OOB_INTR_ONLY) || defined(OOB_PARAM) */
+#if defined(OOB_INTR_ONLY) && defined(HW_OOB)
+	{
+		sdioh_disable_func_intr(sd);
+	}
+#endif /* defined(OOB_INTR_ONLY) && defined(HW_OOB) */
 	return SDIOH_API_RC_SUCCESS;
 }
 
@@ -1249,7 +1262,7 @@ sdioh_sdmmc_card_regread(sdioh_info_t *sd, int func, uint32 regaddr, int regsize
 	return SUCCESS;
 }
 
-#if !defined(OOB_INTR_ONLY)
+#if !defined(OOB_INTR_ONLY) || defined(OOB_PARAM)
 /* bcmsdh_sdmmc interrupt handler */
 static void IRQHandler(struct sdio_func *func)
 {
@@ -1280,7 +1293,7 @@ static void IRQHandlerF2(struct sdio_func *func)
 {
 	sd_trace(("bcmsdh_sdmmc: ***IRQHandlerF2\n"));
 }
-#endif /* !defined(OOB_INTR_ONLY) */
+#endif /* !defined(OOB_INTR_ONLY) || defined(OOB_PARAM) */
 
 #ifdef NOTUSED
 /* Write client card reg */
@@ -1377,18 +1390,23 @@ sdioh_start(sdioh_info_t *sd, int stage)
 			sdioh_sdmmc_card_enablefuncs(sd);
 			}
 		} else {
-#if !defined(OOB_INTR_ONLY)
-			sdio_claim_host(sd->func[0]);
-			if (sd->func[2])
-				sdio_claim_irq(sd->func[2], IRQHandlerF2);
-			if (sd->func[1])
-				sdio_claim_irq(sd->func[1], IRQHandler);
-			sdio_release_host(sd->func[0]);
-#else /* defined(OOB_INTR_ONLY) */
+#if !defined(OOB_INTR_ONLY) || defined(OOB_PARAM)
+			OOB_PARAM_IF(dhd_oob_disable) {
+				sdio_claim_host(sd->func[0]);
+				if (sd->func[2])
+					sdio_claim_irq(sd->func[2], IRQHandlerF2);
+				if (sd->func[1])
+					sdio_claim_irq(sd->func[1], IRQHandler);
+				sdio_release_host(sd->func[0]);
+			} OOB_PARAM_ELSE()
+#endif /* !defined(OOB_INTR_ONLY) || defined(OOB_PARAM) */
+#if defined(OOB_INTR_ONLY)
+			{
 #if defined(HW_OOB)
-			sdioh_enable_func_intr(sd);
-#endif
-			bcmsdh_oob_intr_set(sd->bcmsdh, TRUE);
+				sdioh_enable_func_intr(sd);
+#endif /* defined(HW_OOB) */
+				bcmsdh_oob_intr_set(sd->bcmsdh, TRUE);
+			}
 #endif /* !defined(OOB_INTR_ONLY) */
 		}
 	}
@@ -1408,19 +1426,24 @@ sdioh_stop(sdioh_info_t *sd)
 		polling
 	*/
 	if (sd->func[0]) {
-#if !defined(OOB_INTR_ONLY)
-		sdio_claim_host(sd->func[0]);
-		if (sd->func[1])
-			sdio_release_irq(sd->func[1]);
-		if (sd->func[2])
-			sdio_release_irq(sd->func[2]);
-		sdio_release_host(sd->func[0]);
-#else /* defined(OOB_INTR_ONLY) */
+#if !defined(OOB_INTR_ONLY) || defined(OOB_PARAM)
+		OOB_PARAM_IF(dhd_oob_disable) {
+			sdio_claim_host(sd->func[0]);
+			if (sd->func[1])
+				sdio_release_irq(sd->func[1]);
+			if (sd->func[2])
+				sdio_release_irq(sd->func[2]);
+			sdio_release_host(sd->func[0]);
+		} OOB_PARAM_ELSE()
+#endif /* !defined(OOB_INTR_ONLY) || defined(OOB_PARAM) */
+#if defined(OOB_INTR_ONLY)
+		{
 #if defined(HW_OOB)
-		sdioh_disable_func_intr(sd);
+			sdioh_disable_func_intr(sd);
 #endif
-		bcmsdh_oob_intr_set(sd->bcmsdh, FALSE);
-#endif /* !defined(OOB_INTR_ONLY) */
+			bcmsdh_oob_intr_set(sd->bcmsdh, FALSE);
+		}
+#endif /* defined(OOB_INTR_ONLY) */
 	}
 	else
 		sd_err(("%s Failed\n", __FUNCTION__));

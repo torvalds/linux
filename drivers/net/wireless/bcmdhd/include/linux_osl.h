@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: linux_osl.h 432719 2013-10-29 12:04:59Z $
+ * $Id: linux_osl.h 623322 2016-03-07 12:58:14Z $
  */
 
 #ifndef _linux_osl_h_
@@ -317,6 +317,8 @@ extern int osl_error(int bcmerror);
 #endif /* CONFIG_DHD_USE_STATIC_BUF */
 #define	PKTDATA(osh, skb)		({BCM_REFERENCE(osh); (((struct sk_buff*)(skb))->data);})
 #define	PKTLEN(osh, skb)		({BCM_REFERENCE(osh); (((struct sk_buff*)(skb))->len);})
+
+
 #define PKTHEADROOM(osh, skb)		(PKTDATA(osh, skb)-(((struct sk_buff*)(skb))->head))
 #define PKTEXPHEADROOM(osh, skb, b)	\
 	({ \

@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd.h 557502 2015-05-19 06:32:03Z $
+ * $Id: dhd.h 634247 2016-04-27 05:53:55Z $
  */
 
 /****************
@@ -164,6 +164,20 @@ typedef struct reorder_info {
 	uint8 max_idx;
 	uint8 pend_pkts;
 } reorder_info_t;
+
+#if defined(OOB_PARAM)
+#if !defined(OOB_INTR_ONLY)
+#error OOB_PARAM must be defined with OOB_INTR_ONLY!!
+#endif /* !defined(OOB_INTR_ONLY) */
+
+#define OOB_PARAM_IF(x)		if (x)
+#define OOB_PARAM_ELSE()	else
+
+#else	/* defined(OOB_PARAM) */
+
+#define OOB_PARAM_IF(x)
+#define OOB_PARAM_ELSE()
+#endif /* defined(OOB_PARAM) */
 
 #ifdef DHDTCPACK_SUPPRESS
 #define TCPACK_SUP_OFF		0	/* TCPACK suppress off */
@@ -620,8 +634,8 @@ extern int dhd_ifname2idx(struct dhd_info *dhd, char *name);
 extern int dhd_net2idx(struct dhd_info *dhd, struct net_device *net);
 extern struct net_device * dhd_idx2net(void *pub, int ifidx);
 extern int net_os_send_hang_message(struct net_device *dev);
-extern int wl_host_event(dhd_pub_t *dhd_pub, int *idx, void *pktdata,
-                         wl_event_msg_t *, void **data_ptr, void *raw_event);
+extern int wl_host_event(dhd_pub_t *dhd_pub, int *idx, void *pktdata, uint16 pktlen,
+		wl_event_msg_t *, void **data_ptr, void *raw_event);
 extern void wl_event_to_host_order(wl_event_msg_t * evt);
 
 extern int dhd_wl_ioctl(dhd_pub_t *dhd_pub, int ifindex, wl_ioctl_t *ioc, void *buf, int len);

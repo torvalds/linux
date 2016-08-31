@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmspibrcm.c 373331 2012-12-07 04:46:22Z $
+ * $Id: bcmspibrcm.c 634247 2016-04-27 05:53:55Z $
  */
 
 #define HSMODE
@@ -199,11 +199,13 @@ extern SDIOH_API_RC
 sdioh_interrupt_register(sdioh_info_t *sd, sdioh_cb_fn_t fn, void *argh)
 {
 	sd_trace(("%s: Entering\n", __FUNCTION__));
-#if !defined(OOB_INTR_ONLY)
-	sd->intr_handler = fn;
-	sd->intr_handler_arg = argh;
-	sd->intr_handler_valid = TRUE;
-#endif /* !defined(OOB_INTR_ONLY) */
+#if !defined(OOB_INTR_ONLY) || defined(OOB_PARAM)
+	OOB_PARAM_IF(dhd_oob_disable) {
+		sd->intr_handler = fn;
+		sd->intr_handler_arg = argh;
+		sd->intr_handler_valid = TRUE;
+	}
+#endif /* !defined(OOB_INTR_ONLY) || defined(OOB_PARAM) */
 	return SDIOH_API_RC_SUCCESS;
 }
 
@@ -211,11 +213,13 @@ extern SDIOH_API_RC
 sdioh_interrupt_deregister(sdioh_info_t *sd)
 {
 	sd_trace(("%s: Entering\n", __FUNCTION__));
-#if !defined(OOB_INTR_ONLY)
-	sd->intr_handler_valid = FALSE;
-	sd->intr_handler = NULL;
-	sd->intr_handler_arg = NULL;
-#endif /* !defined(OOB_INTR_ONLY) */
+#if !defined(OOB_INTR_ONLY) || defined(OOB_PARAM)
+	OOB_PARAM_IF(dhd_oob_disable) {
+		sd->intr_handler_valid = FALSE;
+		sd->intr_handler = NULL;
+		sd->intr_handler_arg = NULL;
+	}
+#endif /* !defined(OOB_INTR_ONLY) || defined(OOB_PARAM) */
 	return SDIOH_API_RC_SUCCESS;
 }
 

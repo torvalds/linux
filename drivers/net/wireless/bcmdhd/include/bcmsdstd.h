@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdstd.h 455427 2014-02-14 00:11:19Z $
+ * $Id: bcmsdstd.h 623513 2016-03-08 06:22:05Z $
  */
 #ifndef	_BCM_SD_STD_H
 #define	_BCM_SD_STD_H
@@ -237,8 +237,8 @@ extern void sdstd_spinbits(sdioh_info_t *sd, uint16 norm, uint16 err);
  */
 
 /* Register mapping routines */
-extern uint32 *sdstd_reg_map(osl_t *osh, int32 addr, int size);
-extern void sdstd_reg_unmap(osl_t *osh, int32 addr, int size);
+extern uint32 *sdstd_reg_map(osl_t *osh, ulong addr, int size);
+extern void sdstd_reg_unmap(osl_t *osh, ulong addr, int size);
 
 /* Interrupt (de)registration routines */
 extern int sdstd_register_irq(sdioh_info_t *sd, uint irq);

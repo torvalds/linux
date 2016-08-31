@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfg80211.h 599648 2015-11-16 09:33:00Z $
+ * $Id: wl_cfg80211.h 635212 2016-05-03 06:35:20Z $
  */
 
 #ifndef _wl_cfg80211_h_
@@ -617,6 +617,7 @@ struct bcm_cfg80211 {
 	bool nan_running;
 	bool need_wait_afrx;
 	struct ether_addr last_roamed_addr;
+	bool revert_ndo_disable;
 };
 
 

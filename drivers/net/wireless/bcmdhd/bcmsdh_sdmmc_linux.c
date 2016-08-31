@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_sdmmc_linux.c 523920 2015-01-05 06:07:16Z $
+ * $Id: bcmsdh_sdmmc_linux.c 634247 2016-04-27 05:53:55Z $
  */
 
 #include <typedefs.h>
@@ -95,6 +95,10 @@ MODULE_PARM_DESC(clockoverride, "SDIO card clock override");
 #define BCMSDH_SDMMC_MAX_DEVICES 1
 
 extern volatile bool dhd_mmc_suspend;
+
+#if defined(OOB_PARAM)
+extern uint dhd_oob_disable;
+#endif /* OOB_PARAM */
 
 static int sdioh_probe(struct sdio_func *func)
 {
@@ -251,7 +255,9 @@ static int bcmsdh_sdmmc_suspend(struct device *pdev)
 		return err;
 	}
 #if defined(OOB_INTR_ONLY)
-	bcmsdh_oob_intr_set(sdioh->bcmsdh, FALSE);
+	OOB_PARAM_IF(!dhd_oob_disable) {
+		bcmsdh_oob_intr_set(sdioh->bcmsdh, FALSE);
+	}
 #endif 
 	smp_mb();
 
@@ -270,7 +276,9 @@ static int bcmsdh_sdmmc_resume(struct device *pdev)
 	sdioh = sdio_get_drvdata(func);
 	dhd_mmc_suspend = FALSE;
 #if defined(OOB_INTR_ONLY)
-	bcmsdh_resume(sdioh->bcmsdh);
+	OOB_PARAM_IF(!dhd_oob_disable) {
+		bcmsdh_resume(sdioh->bcmsdh);
+	}
 #endif 
 
 	smp_mb();
