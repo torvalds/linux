@@ -12,7 +12,7 @@
 	model = "DM8148 EVM";
 	compatible = "ti,dm8148-evm", "ti,dm8148";
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x40000000>;	/* 1 GB */
 	};
