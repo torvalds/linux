@@ -672,7 +672,7 @@ struct intel_csr {
 #define SEP_SEMICOLON ;
 
 struct sseu_dev_info {
-	u8 slice_total;
+	u8 slice_mask;
 	u8 subslice_total;
 	u8 subslice_per_slice;
 	u8 eu_total;

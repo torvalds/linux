@@ -5007,7 +5007,7 @@ static void cherryview_sseu_device_status(struct drm_i915_private *dev_priv,
 			/* skip disabled subslice */
 			continue;
 
-		sseu->slice_total = 1;
+		sseu->slice_mask = BIT(0);
 		sseu->subslice_per_slice++;
 		eu_cnt = ((sig1[ss] & CHV_EU08_PG_ENABLE) ? 0 : 2) +
 			 ((sig1[ss] & CHV_EU19_PG_ENABLE) ? 0 : 2) +
@@ -5055,7 +5055,7 @@ static void gen9_sseu_device_status(struct drm_i915_private *dev_priv,
 			/* skip disabled slice */
 			continue;
 
-		sseu->slice_total++;
+		sseu->slice_mask |= BIT(s);
 
 		if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 			ss_cnt = INTEL_INFO(dev_priv)->sseu.subslice_per_slice;
@@ -5092,19 +5092,19 @@ static void broadwell_sseu_device_status(struct drm_i915_private *dev_priv,
 	u32 slice_info = I915_READ(GEN8_GT_SLICE_INFO);
 	int s;
 
-	sseu->slice_total = hweight32(slice_info & GEN8_LSLICESTAT_MASK);
+	sseu->slice_mask = slice_info & GEN8_LSLICESTAT_MASK;
 
-	if (sseu->slice_total) {
+	if (sseu->slice_mask) {
 		sseu->subslice_per_slice =
 				INTEL_INFO(dev_priv)->sseu.subslice_per_slice;
-		sseu->subslice_total = sseu->slice_total *
+		sseu->subslice_total = hweight8(sseu->slice_mask) *
 				       sseu->subslice_per_slice;
 		sseu->eu_per_subslice =
 				INTEL_INFO(dev_priv)->sseu.eu_per_subslice;
 		sseu->eu_total = sseu->eu_per_subslice * sseu->subslice_total;
 
 		/* subtract fused off EU(s) from enabled slice(s) */
-		for (s = 0; s < sseu->slice_total; s++) {
+		for (s = 0; s < hweight8(sseu->slice_mask); s++) {
 			u8 subslice_7eu =
 				INTEL_INFO(dev_priv)->sseu.subslice_7eu[s];
 
@@ -5120,7 +5120,7 @@ static void i915_print_sseu_info(struct seq_file *m, bool is_available_info,
 	const char *type = is_available_info ? "Available" : "Enabled";
 
 	seq_printf(m, "  %s Slice Total: %u\n", type,
-		   sseu->slice_total);
+		   hweight8(sseu->slice_mask));
 	seq_printf(m, "  %s Subslice Total: %u\n", type,
 		   sseu->subslice_total);
 	seq_printf(m, "  %s Subslice Per Slice: %u\n", type,

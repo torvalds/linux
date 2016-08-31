@@ -51,7 +51,7 @@ static void cherryview_sseu_info_init(struct drm_i915_private *dev_priv)
 
 	fuse = I915_READ(CHV_FUSE_GT);
 
-	sseu->slice_total = 1;
+	sseu->slice_mask = BIT(0);
 
 	if (!(fuse & CHV_FGT_DISABLE_SS0)) {
 		sseu->subslice_per_slice++;
@@ -91,27 +91,27 @@ static void gen9_sseu_info_init(struct drm_i915_private *dev_priv)
 	struct sseu_dev_info *sseu = &info->sseu;
 	int s_max = 3, ss_max = 4, eu_max = 8;
 	int s, ss;
-	u32 fuse2, s_enable, ss_disable, eu_disable;
+	u32 fuse2, ss_disable, eu_disable;
 	u8 eu_mask = 0xff;
 
 	fuse2 = I915_READ(GEN8_FUSE2);
-	s_enable = (fuse2 & GEN8_F2_S_ENA_MASK) >> GEN8_F2_S_ENA_SHIFT;
+	sseu->slice_mask = (fuse2 & GEN8_F2_S_ENA_MASK) >> GEN8_F2_S_ENA_SHIFT;
 	ss_disable = (fuse2 & GEN9_F2_SS_DIS_MASK) >> GEN9_F2_SS_DIS_SHIFT;
 
-	sseu->slice_total = hweight32(s_enable);
 	/*
 	 * The subslice disable field is global, i.e. it applies
 	 * to each of the enabled slices.
 	*/
 	sseu->subslice_per_slice = ss_max - hweight32(ss_disable);
-	sseu->subslice_total = sseu->slice_total * sseu->subslice_per_slice;
+	sseu->subslice_total = hweight8(sseu->slice_mask) *
+			       sseu->subslice_per_slice;
 
 	/*
 	 * Iterate through enabled slices and subslices to
 	 * count the total enabled EU.
 	*/
 	for (s = 0; s < s_max; s++) {
-		if (!(s_enable & BIT(s)))
+		if (!(sseu->slice_mask & BIT(s)))
 			/* skip disabled slice */
 			continue;
 
@@ -158,7 +158,7 @@ static void gen9_sseu_info_init(struct drm_i915_private *dev_priv)
 	*/
 	sseu->has_slice_pg =
 		(IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) &&
-		sseu->slice_total > 1;
+		hweight8(sseu->slice_mask) > 1;
 	sseu->has_subslice_pg =
 		IS_BROXTON(dev_priv) && sseu->subslice_total > 1;
 	sseu->has_eu_pg = sseu->eu_per_subslice > 2;
@@ -195,10 +195,10 @@ static void broadwell_sseu_info_init(struct drm_i915_private *dev_priv)
 	struct sseu_dev_info *sseu = &mkwrite_device_info(dev_priv)->sseu;
 	const int s_max = 3, ss_max = 3, eu_max = 8;
 	int s, ss;
-	u32 fuse2, eu_disable[s_max], s_enable, ss_disable;
+	u32 fuse2, eu_disable[s_max], ss_disable;
 
 	fuse2 = I915_READ(GEN8_FUSE2);
-	s_enable = (fuse2 & GEN8_F2_S_ENA_MASK) >> GEN8_F2_S_ENA_SHIFT;
+	sseu->slice_mask = (fuse2 & GEN8_F2_S_ENA_MASK) >> GEN8_F2_S_ENA_SHIFT;
 	ss_disable = (fuse2 & GEN8_F2_SS_DIS_MASK) >> GEN8_F2_SS_DIS_SHIFT;
 
 	eu_disable[0] = I915_READ(GEN8_EU_DISABLE0) & GEN8_EU_DIS0_S0_MASK;
@@ -209,21 +209,20 @@ static void broadwell_sseu_info_init(struct drm_i915_private *dev_priv)
 			((I915_READ(GEN8_EU_DISABLE2) & GEN8_EU_DIS2_S2_MASK) <<
 			 (32 - GEN8_EU_DIS1_S2_SHIFT));
 
-	sseu->slice_total = hweight32(s_enable);
-
 	/*
 	 * The subslice disable field is global, i.e. it applies
 	 * to each of the enabled slices.
 	 */
 	sseu->subslice_per_slice = ss_max - hweight32(ss_disable);
-	sseu->subslice_total = sseu->slice_total * sseu->subslice_per_slice;
+	sseu->subslice_total = hweight8(sseu->slice_mask) *
+			       sseu->subslice_per_slice;
 
 	/*
 	 * Iterate through enabled slices and subslices to
 	 * count the total enabled EU.
 	 */
 	for (s = 0; s < s_max; s++) {
-		if (!(s_enable & (0x1 << s)))
+		if (!(sseu->slice_mask & BIT(s)))
 			/* skip disabled slice */
 			continue;
 
@@ -258,7 +257,7 @@ static void broadwell_sseu_info_init(struct drm_i915_private *dev_priv)
 	 * BDW supports slice power gating on devices with more than
 	 * one slice.
 	 */
-	sseu->has_slice_pg = (sseu->slice_total > 1);
+	sseu->has_slice_pg = hweight8(sseu->slice_mask) > 1;
 	sseu->has_subslice_pg = 0;
 	sseu->has_eu_pg = 0;
 }
@@ -375,7 +374,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1))
 		info->has_snoop = false;
 
-	DRM_DEBUG_DRIVER("slice total: %u\n", info->sseu.slice_total);
+	DRM_DEBUG_DRIVER("slice total: %u\n", hweight8(info->sseu.slice_mask));
 	DRM_DEBUG_DRIVER("subslice total: %u\n", info->sseu.subslice_total);
 	DRM_DEBUG_DRIVER("subslice per slice: %u\n",
 			 info->sseu.subslice_per_slice);
