@@ -584,6 +584,29 @@ of DSA, would be the its port-based VLAN, used by the associated bridge device.
   function that the driver has to call for each MAC address known to be behind
   the given port. A switchdev object is used to carry the VID and FDB info.
 
+- port_mdb_prepare: bridge layer function invoked when the bridge prepares the
+  installation of a multicast database entry. If the operation is not supported,
+  this function should return -EOPNOTSUPP to inform the bridge code to fallback
+  to a software implementation. No hardware setup must be done in this function.
+  See port_fdb_add for this and details.
+
+- port_mdb_add: bridge layer function invoked when the bridge wants to install
+  a multicast database entry, the switch hardware should be programmed with the
+  specified address in the specified VLAN ID in the forwarding database
+  associated with this VLAN ID.
+
+Note: VLAN ID 0 corresponds to the port private database, which, in the context
+of DSA, would be the its port-based VLAN, used by the associated bridge device.
+
+- port_mdb_del: bridge layer function invoked when the bridge wants to remove a
+  multicast database entry, the switch hardware should be programmed to delete
+  the specified MAC address from the specified VLAN ID if it was mapped into
+  this port forwarding database.
+
+- port_mdb_dump: bridge layer function invoked with a switchdev callback
+  function that the driver has to call for each MAC address known to be behind
+  the given port. A switchdev object is used to carry the VID and MDB info.
+
 TODO
 ====
 
