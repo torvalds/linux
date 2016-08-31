@@ -290,6 +290,50 @@ static int dsa_slave_port_fdb_dump(struct net_device *dev,
 	return -EOPNOTSUPP;
 }
 
+static int dsa_slave_port_mdb_add(struct net_device *dev,
+				  const struct switchdev_obj_port_mdb *mdb,
+				  struct switchdev_trans *trans)
+{
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_switch *ds = p->parent;
+
+	if (switchdev_trans_ph_prepare(trans)) {
+		if (!ds->ops->port_mdb_prepare || !ds->ops->port_mdb_add)
+			return -EOPNOTSUPP;
+
+		return ds->ops->port_mdb_prepare(ds, p->port, mdb, trans);
+	}
+
+	ds->ops->port_mdb_add(ds, p->port, mdb, trans);
+
+	return 0;
+}
+
+static int dsa_slave_port_mdb_del(struct net_device *dev,
+				  const struct switchdev_obj_port_mdb *mdb)
+{
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_switch *ds = p->parent;
+
+	if (ds->ops->port_mdb_del)
+		return ds->ops->port_mdb_del(ds, p->port, mdb);
+
+	return -EOPNOTSUPP;
+}
+
+static int dsa_slave_port_mdb_dump(struct net_device *dev,
+				   struct switchdev_obj_port_mdb *mdb,
+				   switchdev_obj_dump_cb_t *cb)
+{
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_switch *ds = p->parent;
+
+	if (ds->ops->port_mdb_dump)
+		return ds->ops->port_mdb_dump(ds, p->port, mdb, cb);
+
+	return -EOPNOTSUPP;
+}
+
 static int dsa_slave_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
@@ -412,6 +456,10 @@ static int dsa_slave_port_obj_add(struct net_device *dev,
 					     SWITCHDEV_OBJ_PORT_FDB(obj),
 					     trans);
 		break;
+	case SWITCHDEV_OBJ_ID_PORT_MDB:
+		err = dsa_slave_port_mdb_add(dev, SWITCHDEV_OBJ_PORT_MDB(obj),
+					     trans);
+		break;
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
 		err = dsa_slave_port_vlan_add(dev,
 					      SWITCHDEV_OBJ_PORT_VLAN(obj),
@@ -435,6 +483,9 @@ static int dsa_slave_port_obj_del(struct net_device *dev,
 		err = dsa_slave_port_fdb_del(dev,
 					     SWITCHDEV_OBJ_PORT_FDB(obj));
 		break;
+	case SWITCHDEV_OBJ_ID_PORT_MDB:
+		err = dsa_slave_port_mdb_del(dev, SWITCHDEV_OBJ_PORT_MDB(obj));
+		break;
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
 		err = dsa_slave_port_vlan_del(dev,
 					      SWITCHDEV_OBJ_PORT_VLAN(obj));
@@ -457,6 +508,10 @@ static int dsa_slave_port_obj_dump(struct net_device *dev,
 	case SWITCHDEV_OBJ_ID_PORT_FDB:
 		err = dsa_slave_port_fdb_dump(dev,
 					      SWITCHDEV_OBJ_PORT_FDB(obj),
+					      cb);
+		break;
+	case SWITCHDEV_OBJ_ID_PORT_MDB:
+		err = dsa_slave_port_mdb_dump(dev, SWITCHDEV_OBJ_PORT_MDB(obj),
 					      cb);
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
