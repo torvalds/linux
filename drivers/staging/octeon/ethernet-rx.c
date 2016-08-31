@@ -48,16 +48,16 @@ static struct napi_struct cvm_oct_napi;
 /**
  * cvm_oct_do_interrupt - interrupt handler.
  * @irq: Interrupt number.
- * @dev_id: Cookie to identify the device. Unused
+ * @napi_id: Cookie to identify the NAPI instance.
  *
  * The interrupt occurs whenever the POW has packets in our group.
  *
  */
-static irqreturn_t cvm_oct_do_interrupt(int irq, void *dev_id)
+static irqreturn_t cvm_oct_do_interrupt(int irq, void *napi_id)
 {
 	/* Disable the IRQ and start napi_poll. */
 	disable_irq_nosync(irq);
-	napi_schedule(&cvm_oct_napi);
+	napi_schedule(napi_id);
 
 	return IRQ_HANDLED;
 }
@@ -452,7 +452,7 @@ void cvm_oct_rx_initialize(void)
 
 	/* Register an IRQ handler to receive POW interrupts */
 	i = request_irq(OCTEON_IRQ_WORKQ0 + pow_receive_group,
-			cvm_oct_do_interrupt, 0, "Ethernet", cvm_oct_device);
+			cvm_oct_do_interrupt, 0, "Ethernet", &cvm_oct_napi);
 
 	if (i)
 		panic("Could not acquire Ethernet IRQ %d\n",
