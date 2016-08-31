@@ -2743,7 +2743,7 @@ static void dwceqos_set_msglevel(struct net_device *ndev, u32 msglevel)
 	lp->msg_enable = msglevel;
 }
 
-static struct ethtool_ops dwceqos_ethtool_ops = {
+static const struct ethtool_ops dwceqos_ethtool_ops = {
 	.get_drvinfo    = dwceqos_get_drvinfo,
 	.get_link       = ethtool_op_get_link,
 	.get_pauseparam = dwceqos_get_pauseparam,
