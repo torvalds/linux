@@ -374,6 +374,14 @@ static int radeon_pmops_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+
+	/* GPU comes up enabled by the bios on resume */
+	if (radeon_is_px(drm_dev)) {
+		pm_runtime_disable(dev);
+		pm_runtime_set_active(dev);
+		pm_runtime_enable(dev);
+	}
+
 	return radeon_resume_kms(drm_dev, true, true);
 }
 
