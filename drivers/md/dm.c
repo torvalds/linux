@@ -1944,12 +1944,10 @@ EXPORT_SYMBOL_GPL(dm_put);
 static int dm_wait_for_completion(struct mapped_device *md, long task_state)
 {
 	int r = 0;
-	DECLARE_WAITQUEUE(wait, current);
-
-	add_wait_queue(&md->wait, &wait);
+	DEFINE_WAIT(wait);
 
 	while (1) {
-		set_current_state(task_state);
+		prepare_to_wait(&md->wait, &wait, task_state);
 
 		if (!md_in_flight(md))
 			break;
@@ -1961,9 +1959,7 @@ static int dm_wait_for_completion(struct mapped_device *md, long task_state)
 
 		io_schedule();
 	}
-	set_current_state(TASK_RUNNING);
-
-	remove_wait_queue(&md->wait, &wait);
+	finish_wait(&md->wait, &wait);
 
 	return r;
 }
