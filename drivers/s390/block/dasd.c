@@ -336,6 +336,7 @@ static int dasd_state_basic_to_ready(struct dasd_device *device)
 {
 	int rc;
 	struct dasd_block *block;
+	struct gendisk *disk;
 
 	rc = 0;
 	block = device->block;
@@ -346,6 +347,9 @@ static int dasd_state_basic_to_ready(struct dasd_device *device)
 		if (rc) {
 			if (rc != -EAGAIN) {
 				device->state = DASD_STATE_UNFMT;
+				disk = device->block->gdp;
+				kobject_uevent(&disk_to_dev(disk)->kobj,
+					       KOBJ_CHANGE);
 				goto out;
 			}
 			return rc;
