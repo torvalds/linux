@@ -341,6 +341,10 @@ enum iwl_prot_offload_subcmd_ids {
 	STORED_BEACON_NTF = 0xFF,
 };
 
+enum iwl_regulatory_and_nvm_subcmd_ids {
+	NVM_ACCESS_COMPLETE = 0x0,
+};
+
 enum iwl_fmac_debug_cmds {
 	LMAC_RD_WR = 0x0,
 	UMAC_RD_WR = 0x1,
@@ -355,6 +359,7 @@ enum {
 	PHY_OPS_GROUP = 0x4,
 	DATA_PATH_GROUP = 0x5,
 	PROT_OFFLOAD_GROUP = 0xb,
+	REGULATORY_AND_NVM_GROUP = 0xc,
 	DEBUG_GROUP = 0xf,
 };
 
@@ -2199,5 +2204,12 @@ struct iwl_dbg_mem_access_rsp {
 	__le32 len;
 	__le32 data[];
 } __packed; /* DEBUG_(U|L)MAC_RD_WR_RSP_API_S_VER_1 */
+
+/**
+ * struct iwl_nvm_access_complete_cmd - NVM_ACCESS commands are completed
+ */
+struct iwl_nvm_access_complete_cmd {
+	__le32 reserved;
+} __packed; /* NVM_ACCESS_COMPLETE_CMD_API_S_VER_1 */
 
 #endif /* __fw_api_h__ */
