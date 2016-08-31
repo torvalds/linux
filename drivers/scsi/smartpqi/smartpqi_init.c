@@ -407,7 +407,6 @@ static int pqi_identify_physical_device(struct pqi_ctrl_info *ctrl_info,
 }
 
 #define SA_CACHE_FLUSH_BUFFER_LENGTH	4
-#define PQI_FLUSH_CACHE_TIMEOUT		(30 * 1000)
 
 static int pqi_flush_cache(struct pqi_ctrl_info *ctrl_info)
 {
@@ -434,7 +433,7 @@ static int pqi_flush_cache(struct pqi_ctrl_info *ctrl_info)
 		goto out;
 
 	rc = pqi_submit_raid_request_synchronous(ctrl_info, &request.header,
-		0, NULL, PQI_FLUSH_CACHE_TIMEOUT);
+		0, NULL, NO_TIMEOUT);
 
 	pqi_pci_unmap(ctrl_info->pci_dev, request.sg_descriptors, 1,
 		pci_direction);
