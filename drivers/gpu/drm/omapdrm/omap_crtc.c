@@ -411,19 +411,6 @@ static void omap_crtc_atomic_flush(struct drm_crtc *crtc,
 		dispc_mgr_set_gamma(omap_crtc->channel, lut, length);
 	}
 
-	if (crtc->state->color_mgmt_changed) {
-		struct drm_color_lut *lut = NULL;
-		uint length = 0;
-
-		if (crtc->state->gamma_lut) {
-			lut = (struct drm_color_lut *)
-				crtc->state->gamma_lut->data;
-			length = crtc->state->gamma_lut->length /
-				sizeof(*lut);
-		}
-		dispc_mgr_set_gamma(omap_crtc->channel, lut, length);
-	}
-
 	if (dispc_mgr_is_enabled(omap_crtc->channel)) {
 
 		DBG("%s: GO", omap_crtc->name);
