@@ -1669,10 +1669,9 @@ static int hdmi_resources_init(struct hdmi_context *hdata)
 	if (ret)
 		return ret;
 
-	for (i = 0; i < ARRAY_SIZE(supply); ++i) {
+	for (i = 0; i < ARRAY_SIZE(supply); ++i)
 		hdata->regul_bulk[i].supply = supply[i];
-		hdata->regul_bulk[i].consumer = NULL;
-	}
+
 	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(supply), hdata->regul_bulk);
 	if (ret) {
 		if (ret != -EPROBE_DEFER)
