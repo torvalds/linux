@@ -336,8 +336,8 @@ static int do_rw(ssize_t (*fn)(), struct lkl_disk disk, struct lkl_blk_req *req)
 
 	for (i = 0; i < req->count; i++) {
 
-		addr = req->buf[i].addr;
-		len = req->buf[i].len;
+		addr = req->buf[i].iov_base;
+		len = req->buf[i].iov_len;
 
 		do {
 			ret = fn(disk.fd, addr, len, off);

@@ -19,10 +19,14 @@ int lkl_printf(const char *fmt, ...);
 
 extern char lkl_virtio_devs[256];
 
-struct lkl_dev_buf {
-	void *addr;
-	size_t len;
+#ifdef CONFIG_AUTO_LKL_POSIX_HOST
+#include <sys/uio.h>
+#else
+struct iovec {
+	void *iov_base;
+	size_t iov_len;
 };
+#endif
 
 extern struct lkl_dev_blk_ops lkl_dev_blk_ops;
 
@@ -35,7 +39,7 @@ struct lkl_blk_req {
 	unsigned int type;
 	unsigned int prio;
 	unsigned long long sector;
-	struct lkl_dev_buf *buf;
+	struct iovec *buf;
 	int count;
 };
 
@@ -63,7 +67,7 @@ struct lkl_dev_net_ops {
 	 * @cnt - # of vectors in iov.
 	 * @returns number of bytes transmitted
 	 */
-	int (*tx)(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt);
+	int (*tx)(struct lkl_netdev *nd, struct iovec *iov, int cnt);
 
 	/*
 	 * Reads a packet from the net device.
@@ -78,7 +82,7 @@ struct lkl_dev_net_ops {
 	 * @cnt - # of vectors in iov.
 	 * @returns number of bytes read for success or < 0 if error
 	 */
-	int (*rx)(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt);
+	int (*rx)(struct lkl_netdev *nd, struct iovec *iov, int cnt);
 
 #define LKL_DEV_NET_POLL_RX		1
 #define LKL_DEV_NET_POLL_TX		2

@@ -18,8 +18,8 @@ struct lkl_netdev_vde {
 };
 
 struct lkl_netdev *nuse_vif_vde_create(char *switch_path);
-static int net_vde_tx(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt);
-static int net_vde_rx(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt);
+static int net_vde_tx(struct lkl_netdev *nd, struct iovec *iov, int cnt);
+static int net_vde_rx(struct lkl_netdev *nd, struct iovec *iov, int cnt);
 static int net_vde_poll_with_timeout(struct lkl_netdev *nd, int timeout);
 static int net_vde_poll(struct lkl_netdev *nd);
 static void net_vde_poll_hup(struct lkl_netdev *nd);
@@ -33,13 +33,13 @@ struct lkl_dev_net_ops vde_net_ops = {
 	.free = net_vde_free,
 };
 
-int net_vde_tx(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt)
+int net_vde_tx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
 {
 	int ret;
 	struct lkl_netdev_vde *nd_vde =
 		container_of(nd, struct lkl_netdev_vde, dev);
-	void *data = iov[0].addr;
-	int len = (int)iov[0].len;
+	void *data = iov[0].iov_base;
+	int len = (int)iov[0].iov_len;
 
 	ret = vde_send(nd_vde->conn, data, len, 0);
 	if (ret <= 0 && errno == EAGAIN)
@@ -47,13 +47,13 @@ int net_vde_tx(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt)
 	return ret;
 }
 
-int net_vde_rx(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt)
+int net_vde_rx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
 {
 	int ret;
 	struct lkl_netdev_vde *nd_vde =
 		container_of(nd, struct lkl_netdev_vde, dev);
-	void *data = iov[0].addr;
-	int len = (int)iov[0].len;
+	void *data = iov[0].iov_base;
+	int len = (int)iov[0].iov_len;
 
 	/*
 	 * Due to a bug in libvdeplug we have to first poll to make sure
