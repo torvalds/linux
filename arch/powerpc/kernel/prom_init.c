@@ -2703,6 +2703,22 @@ static void __init fixup_device_tree_pasemi(void)
 		prom_setprop(node, pci_name, "interrupt-parent", &parent,
 					sizeof(parent));
 	}
+
+	/*
+	 * The io-bridge has device_type set to 'io-bridge' change it to 'isa'
+	 * so that generic isa-bridge code can add the SB600 and its on-board
+	 * peripherals.
+	 */
+	name = "/pxp@0,e0000000/io-bridge@0";
+	iob = call_prom("finddevice", 1, 1, ADDR(name));
+	if (!PHANDLE_VALID(iob))
+		return;
+
+	/* device_type is already set, just change it. */
+
+	prom_printf("Changing device_type of SB600 node...\n");
+
+	prom_setprop(iob, name, "device_type", "isa", sizeof("isa"));
 }
 #else	/* !CONFIG_PPC_PASEMI_NEMO */
 static inline void fixup_device_tree_pasemi(void) { }
