@@ -474,6 +474,9 @@ static const struct pci_device_id liquidio_pci_tbl[] = {
 	{       /* 66xx */
 		PCI_VENDOR_ID_CAVIUM, 0x92, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0
 	},
+	{       /* 23xx pf */
+		PCI_VENDOR_ID_CAVIUM, 0x9702, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0
+	},
 	{
 		0, 0, 0, 0, 0, 0, 0
 	}
@@ -491,7 +494,6 @@ static struct pci_driver liquidio_pci_driver = {
 	.suspend	= liquidio_suspend,
 	.resume		= liquidio_resume,
 #endif
-
 };
 
 /**
@@ -3268,15 +3270,24 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		vdata->minor = cpu_to_be16(LIQUIDIO_BASE_MINOR_VERSION);
 		vdata->micro = cpu_to_be16(LIQUIDIO_BASE_MICRO_VERSION);
 
-		num_iqueues =
-			CFG_GET_NUM_TXQS_NIC_IF(octeon_get_conf(octeon_dev), i);
-		num_oqueues =
-			CFG_GET_NUM_RXQS_NIC_IF(octeon_get_conf(octeon_dev), i);
-		base_queue =
-			CFG_GET_BASE_QUE_NIC_IF(octeon_get_conf(octeon_dev), i);
-		gmx_port_id =
-			CFG_GET_GMXID_NIC_IF(octeon_get_conf(octeon_dev), i);
-		ifidx_or_pfnum = i;
+		if (OCTEON_CN23XX_PF(octeon_dev)) {
+			num_iqueues = octeon_dev->sriov_info.num_pf_rings;
+			num_oqueues = octeon_dev->sriov_info.num_pf_rings;
+			base_queue = octeon_dev->sriov_info.pf_srn;
+
+			gmx_port_id = octeon_dev->pf_num;
+			ifidx_or_pfnum = octeon_dev->pf_num;
+		} else {
+			num_iqueues = CFG_GET_NUM_TXQS_NIC_IF(
+						octeon_get_conf(octeon_dev), i);
+			num_oqueues = CFG_GET_NUM_RXQS_NIC_IF(
+						octeon_get_conf(octeon_dev), i);
+			base_queue = CFG_GET_BASE_QUE_NIC_IF(
+						octeon_get_conf(octeon_dev), i);
+			gmx_port_id = CFG_GET_GMXID_NIC_IF(
+						octeon_get_conf(octeon_dev), i);
+			ifidx_or_pfnum = i;
+		}
 
 		dev_dbg(&octeon_dev->pci_dev->dev,
 			"requesting config for interface %d, iqs %d, oqs %d\n",
@@ -3380,12 +3391,16 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 
 		lio->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
 
-		lio->dev_capability = NETIF_F_HIGHDMA
-				| NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM
-				| NETIF_F_SG | NETIF_F_RXCSUM
-				| NETIF_F_GRO
-				| NETIF_F_TSO | NETIF_F_TSO6
-				| NETIF_F_LRO;
+		if (OCTEON_CN23XX_PF(octeon_dev) ||
+		    OCTEON_CN6XXX(octeon_dev)) {
+			lio->dev_capability = NETIF_F_HIGHDMA
+					      | NETIF_F_IP_CSUM
+					      | NETIF_F_IPV6_CSUM
+					      | NETIF_F_SG | NETIF_F_RXCSUM
+					      | NETIF_F_GRO
+					      | NETIF_F_TSO | NETIF_F_TSO6
+					      | NETIF_F_LRO;
+		}
 		netif_set_gso_max_size(netdev, OCTNIC_GSO_MAX_SIZE);
 
 		/*  Copy of transmit encapsulation capabilities:

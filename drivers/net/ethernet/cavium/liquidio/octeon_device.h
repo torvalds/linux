@@ -30,13 +30,19 @@
 /** PCI VendorId Device Id */
 #define  OCTEON_CN68XX_PCIID          0x91177d
 #define  OCTEON_CN66XX_PCIID          0x92177d
-
+#define  OCTEON_CN23XX_PCIID_PF       0x9702177d
 /** Driver identifies chips by these Ids, created by clubbing together
  *  DeviceId+RevisionId; Where Revision Id is not used to distinguish
  *  between chips, a value of 0 is used for revision id.
  */
 #define  OCTEON_CN68XX                0x0091
 #define  OCTEON_CN66XX                0x0092
+#define  OCTEON_CN23XX_PF_VID         0x9702
+
+/**RevisionId for the chips */
+#define  OCTEON_CN23XX_REV_1_0        0x00
+#define  OCTEON_CN23XX_REV_1_1        0x01
+#define  OCTEON_CN23XX_REV_2_0        0x80
 
 /** Endian-swap modes supported by Octeon. */
 enum octeon_pci_swap_mode {
@@ -270,6 +276,17 @@ struct octdev_props {
 	struct net_device *netdev;
 };
 
+struct octeon_sriov_info {
+	/* Actual rings left for PF device */
+	u32	num_pf_rings;
+
+	/* SRN of PF usable IO queues   */
+	u32	pf_srn;
+	/* total pf rings */
+	u32	trs;
+
+};
+
 /** The Octeon device.
  *  Each Octeon device has this structure to represent all its
  *  components.
@@ -295,7 +312,7 @@ struct octeon_device {
 	/** Octeon Chip type. */
 	u16 chip_id;
 	u16 rev_id;
-
+	u16 pf_num;
 	/** This device's id - set by the driver. */
 	u32 octeon_id;
 
@@ -394,6 +411,8 @@ struct octeon_device {
 
 	void *priv;
 
+	struct octeon_sriov_info sriov_info;
+
 	int rx_pause;
 	int tx_pause;
 
@@ -407,6 +426,7 @@ struct octeon_device {
 #define  OCT_DRV_OFFLINE 2
 #define  OCTEON_CN6XXX(oct)           ((oct->chip_id == OCTEON_CN66XX) || \
 				       (oct->chip_id == OCTEON_CN68XX))
+#define  OCTEON_CN23XX_PF(oct)        (oct->chip_id == OCTEON_CN23XX_PF_VID)
 #define CHIP_FIELD(oct, TYPE, field)             \
 	(((struct octeon_ ## TYPE  *)(oct->chip))->field)
 

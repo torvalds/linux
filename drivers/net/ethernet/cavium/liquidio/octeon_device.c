@@ -31,6 +31,7 @@
 #include "octeon_network.h"
 #include "cn66xx_regs.h"
 #include "cn66xx_device.h"
+#include "cn23xx_pf_device.h"
 
 /** Default configuration
  *  for CN66XX OCTEON Models.
@@ -417,6 +418,108 @@ static struct octeon_config default_cn68xx_210nv_conf = {
 	,
 };
 
+static struct octeon_config default_cn23xx_conf = {
+	.card_type                              = LIO_23XX,
+	.card_name                              = LIO_23XX_NAME,
+	/** IQ attributes */
+	.iq = {
+		.max_iqs		= CN23XX_CFG_IO_QUEUES,
+		.pending_list_size	= (CN23XX_MAX_IQ_DESCRIPTORS *
+					   CN23XX_CFG_IO_QUEUES),
+		.instr_type		= OCTEON_64BYTE_INSTR,
+		.db_min			= CN23XX_DB_MIN,
+		.db_timeout		= CN23XX_DB_TIMEOUT,
+		.iq_intr_pkt		= CN23XX_DEF_IQ_INTR_THRESHOLD,
+	},
+
+	/** OQ attributes */
+	.oq = {
+		.max_oqs		= CN23XX_CFG_IO_QUEUES,
+		.info_ptr		= OCTEON_OQ_INFOPTR_MODE,
+		.pkts_per_intr	= CN23XX_OQ_PKTSPER_INTR,
+		.refill_threshold	= CN23XX_OQ_REFIL_THRESHOLD,
+		.oq_intr_pkt	= CN23XX_OQ_INTR_PKT,
+		.oq_intr_time	= CN23XX_OQ_INTR_TIME,
+	},
+
+	.num_nic_ports				= DEFAULT_NUM_NIC_PORTS_23XX,
+	.num_def_rx_descs			= CN23XX_MAX_OQ_DESCRIPTORS,
+	.num_def_tx_descs			= CN23XX_MAX_IQ_DESCRIPTORS,
+	.def_rx_buf_size			= CN23XX_OQ_BUF_SIZE,
+
+	/* For ethernet interface 0:  Port cfg Attributes */
+	.nic_if_cfg[0] = {
+		/* Max Txqs: Half for each of the two ports :max_iq/2 */
+		.max_txqs			= MAX_TXQS_PER_INTF,
+
+		/* Actual configured value. Range could be: 1...max_txqs */
+		.num_txqs			= DEF_TXQS_PER_INTF,
+
+		/* Max Rxqs: Half for each of the two ports :max_oq/2  */
+		.max_rxqs			= MAX_RXQS_PER_INTF,
+
+		/* Actual configured value. Range could be: 1...max_rxqs */
+		.num_rxqs			= DEF_RXQS_PER_INTF,
+
+		/* Num of desc for rx rings */
+		.num_rx_descs			= CN23XX_MAX_OQ_DESCRIPTORS,
+
+		/* Num of desc for tx rings */
+		.num_tx_descs			= CN23XX_MAX_IQ_DESCRIPTORS,
+
+		/* SKB size, We need not change buf size even for Jumbo frames.
+		 * Octeon can send jumbo frames in 4 consecutive descriptors,
+		 */
+		.rx_buf_size			= CN23XX_OQ_BUF_SIZE,
+
+		.base_queue			= BASE_QUEUE_NOT_REQUESTED,
+
+		.gmx_port_id			= 0,
+	},
+
+	.nic_if_cfg[1] = {
+		/* Max Txqs: Half for each of the two ports :max_iq/2 */
+		.max_txqs			= MAX_TXQS_PER_INTF,
+
+		/* Actual configured value. Range could be: 1...max_txqs */
+		.num_txqs			= DEF_TXQS_PER_INTF,
+
+		/* Max Rxqs: Half for each of the two ports :max_oq/2  */
+		.max_rxqs			= MAX_RXQS_PER_INTF,
+
+		/* Actual configured value. Range could be: 1...max_rxqs */
+		.num_rxqs			= DEF_RXQS_PER_INTF,
+
+		/* Num of desc for rx rings */
+		.num_rx_descs			= CN23XX_MAX_OQ_DESCRIPTORS,
+
+		/* Num of desc for tx rings */
+		.num_tx_descs			= CN23XX_MAX_IQ_DESCRIPTORS,
+
+		/* SKB size, We need not change buf size even for Jumbo frames.
+		 * Octeon can send jumbo frames in 4 consecutive descriptors,
+		 */
+		.rx_buf_size			= CN23XX_OQ_BUF_SIZE,
+
+		.base_queue			= BASE_QUEUE_NOT_REQUESTED,
+
+		.gmx_port_id			= 1,
+	},
+
+	.misc					= {
+		/* Host driver link query interval */
+		.oct_link_query_interval	= 100,
+
+		/* Octeon link query interval */
+		.host_link_query_interval	= 500,
+
+		.enable_sli_oq_bp		= 0,
+
+		/* Control queue group */
+		.ctrlq_grp			= 1,
+	}
+};
+
 enum {
 	OCTEON_CONFIG_TYPE_DEFAULT = 0,
 	NUM_OCTEON_CONFS,
@@ -484,6 +587,8 @@ static void *__retrieve_octeon_config_info(struct octeon_device *oct,
 		} else if ((oct->chip_id == OCTEON_CN68XX) &&
 			   (card_type == LIO_410NV)) {
 			ret =  (void *)&default_cn68xx_conf;
+		} else if (oct->chip_id == OCTEON_CN23XX_PF_VID) {
+			ret =  (void *)&default_cn23xx_conf;
 		}
 		break;
 	default:
@@ -498,7 +603,8 @@ static int __verify_octeon_config_info(struct octeon_device *oct, void *conf)
 	case OCTEON_CN66XX:
 	case OCTEON_CN68XX:
 		return lio_validate_cn6xxx_config_info(oct, conf);
-
+	case OCTEON_CN23XX_PF_VID:
+		return 0;
 	default:
 		break;
 	}
@@ -572,6 +678,9 @@ static struct octeon_device *octeon_allocate_device_mem(u32 pci_id,
 		configsize = sizeof(struct octeon_cn6xxx);
 		break;
 
+	case OCTEON_CN23XX_PF_VID:
+		configsize = sizeof(struct octeon_cn23xx_pf);
+		break;
 	default:
 		pr_err("%s: Unknown PCI Device: 0x%x\n",
 		       __func__,
@@ -649,6 +758,9 @@ int octeon_setup_instr_queues(struct octeon_device *oct)
 	if (OCTEON_CN6XXX(oct))
 		num_descs =
 			CFG_GET_NUM_DEF_TX_DESCS(CHIP_FIELD(oct, cn6xxx, conf));
+	else if (OCTEON_CN23XX_PF(oct))
+		num_descs = CFG_GET_NUM_DEF_TX_DESCS(CHIP_FIELD(oct, cn23xx_pf,
+								conf));
 
 	oct->num_iqs = 0;
 
@@ -690,8 +802,12 @@ int octeon_setup_output_queues(struct octeon_device *oct)
 			CFG_GET_NUM_DEF_RX_DESCS(CHIP_FIELD(oct, cn6xxx, conf));
 		desc_size =
 			CFG_GET_DEF_RX_BUF_SIZE(CHIP_FIELD(oct, cn6xxx, conf));
+	} else if (OCTEON_CN23XX_PF(oct)) {
+		num_descs = CFG_GET_NUM_DEF_RX_DESCS(CHIP_FIELD(oct, cn23xx_pf,
+								conf));
+		desc_size = CFG_GET_DEF_RX_BUF_SIZE(CHIP_FIELD(oct, cn23xx_pf,
+							       conf));
 	}
-
 	oct->num_oqs = 0;
 	oct->droq[0] = vmalloc_node(sizeof(*oct->droq[0]), numa_node);
 	if (!oct->droq[0])
@@ -915,6 +1031,9 @@ int octeon_core_drv_init(struct octeon_recv_info *recv_info, void *buf)
 	if (OCTEON_CN6XXX(oct))
 		num_nic_ports =
 			CFG_GET_NUM_NIC_PORTS(CHIP_FIELD(oct, cn6xxx, conf));
+	else if (OCTEON_CN23XX_PF(oct))
+		num_nic_ports =
+			CFG_GET_NUM_NIC_PORTS(CHIP_FIELD(oct, cn23xx_pf, conf));
 
 	if (atomic_read(&oct->status) >= OCT_DEV_RUNNING) {
 		dev_err(&oct->pci_dev->dev, "Received CORE OK when device state is 0x%x\n",
@@ -1004,8 +1123,10 @@ struct octeon_config *octeon_get_conf(struct octeon_device *oct)
 	if (OCTEON_CN6XXX(oct)) {
 		default_oct_conf =
 			(struct octeon_config *)(CHIP_FIELD(oct, cn6xxx, conf));
+	} else if (OCTEON_CN23XX_PF(oct)) {
+		default_oct_conf = (struct octeon_config *)
+			(CHIP_FIELD(oct, cn23xx_pf, conf));
 	}
-
 	return default_oct_conf;
 }
 
@@ -1037,7 +1158,9 @@ u64 lio_pci_readq(struct octeon_device *oct, u64 addr)
 	 * So write MSB first
 	 */
 	addrhi = (addr >> 32);
-	if ((oct->chip_id == OCTEON_CN66XX) || (oct->chip_id == OCTEON_CN68XX))
+	if ((oct->chip_id == OCTEON_CN66XX) ||
+	    (oct->chip_id == OCTEON_CN68XX) ||
+	    (oct->chip_id == OCTEON_CN23XX_PF_VID))
 		addrhi |= 0x00060000;
 	writel(addrhi, oct->reg_list.pci_win_rd_addr_hi);
 
@@ -1081,8 +1204,15 @@ int octeon_mem_access_ok(struct octeon_device *oct)
 	u64 lmc0_reset_ctl;
 
 	/* Check to make sure a DDR interface is enabled */
-	lmc0_reset_ctl = lio_pci_readq(oct, CN6XXX_LMC0_RESET_CTL);
-	access_okay = (lmc0_reset_ctl & CN6XXX_LMC0_RESET_CTL_DDR3RST_MASK);
+	if (OCTEON_CN23XX_PF(oct)) {
+		lmc0_reset_ctl = lio_pci_readq(oct, CN23XX_LMC0_RESET_CTL);
+		access_okay =
+			(lmc0_reset_ctl & CN23XX_LMC0_RESET_CTL_DDR3RST_MASK);
+	} else {
+		lmc0_reset_ctl = lio_pci_readq(oct, CN6XXX_LMC0_RESET_CTL);
+		access_okay =
+			(lmc0_reset_ctl & CN6XXX_LMC0_RESET_CTL_DDR3RST_MASK);
+	}
 
 	return access_okay ? 0 : 1;
 }
