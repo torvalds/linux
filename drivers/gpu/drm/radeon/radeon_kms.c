@@ -718,6 +718,8 @@ void radeon_driver_postclose_kms(struct drm_device *dev,
 		kfree(fpriv);
 		file_priv->driver_priv = NULL;
 	}
+	pm_runtime_mark_last_busy(dev->dev);
+	pm_runtime_put_autosuspend(dev->dev);
 }
 
 /**
@@ -733,6 +735,8 @@ void radeon_driver_preclose_kms(struct drm_device *dev,
 				struct drm_file *file_priv)
 {
 	struct radeon_device *rdev = dev->dev_private;
+
+	pm_runtime_get_sync(dev->dev);
 
 	mutex_lock(&rdev->gem.mutex);
 	if (rdev->hyperz_filp == file_priv)
