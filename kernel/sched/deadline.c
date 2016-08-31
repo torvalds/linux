@@ -243,10 +243,8 @@ static struct rq *find_lock_later_rq(struct task_struct *task, struct rq *rq);
 static struct rq *dl_task_offline_migration(struct rq *rq, struct task_struct *p)
 {
 	struct rq *later_rq = NULL;
-	bool fallback = false;
 
 	later_rq = find_lock_later_rq(p, rq);
-
 	if (!later_rq) {
 		int cpu;
 
@@ -254,7 +252,6 @@ static struct rq *dl_task_offline_migration(struct rq *rq, struct task_struct *p
 		 * If we cannot preempt any rq, fall back to pick any
 		 * online cpu.
 		 */
-		fallback = true;
 		cpu = cpumask_any_and(cpu_active_mask, tsk_cpus_allowed(p));
 		if (cpu >= nr_cpu_ids) {
 			/*
@@ -274,16 +271,7 @@ static struct rq *dl_task_offline_migration(struct rq *rq, struct task_struct *p
 		double_lock_balance(rq, later_rq);
 	}
 
-	/*
-	 * By now the task is replenished and enqueued; migrate it.
-	 */
-	deactivate_task(rq, p, 0);
 	set_task_cpu(p, later_rq->cpu);
-	activate_task(later_rq, p, 0);
-
-	if (!fallback)
-		resched_curr(later_rq);
-
 	double_unlock_balance(later_rq, rq);
 
 	return later_rq;
@@ -641,6 +629,24 @@ static enum hrtimer_restart dl_task_timer(struct hrtimer *timer)
 		goto unlock;
 	}
 
+#ifdef CONFIG_SMP
+	if (unlikely(!rq->online)) {
+		/*
+		 * If the runqueue is no longer available, migrate the
+		 * task elsewhere. This necessarily changes rq.
+		 */
+		lockdep_unpin_lock(&rq->lock, rf.cookie);
+		rq = dl_task_offline_migration(rq, p);
+		rf.cookie = lockdep_pin_lock(&rq->lock);
+
+		/*
+		 * Now that the task has been migrated to the new RQ and we
+		 * have that locked, proceed as normal and enqueue the task
+		 * there.
+		 */
+	}
+#endif
+
 	enqueue_task_dl(rq, p, ENQUEUE_REPLENISH);
 	if (dl_task(rq->curr))
 		check_preempt_curr_dl(rq, p, 0);
@@ -648,22 +654,6 @@ static enum hrtimer_restart dl_task_timer(struct hrtimer *timer)
 		resched_curr(rq);
 
 #ifdef CONFIG_SMP
-	/*
-	 * Perform balancing operations here; after the replenishments.  We
-	 * cannot drop rq->lock before this, otherwise the assertion in
-	 * start_dl_timer() about not missing updates is not true.
-	 *
-	 * If we find that the rq the task was on is no longer available, we
-	 * need to select a new rq.
-	 *
-	 * XXX figure out if select_task_rq_dl() deals with offline cpus.
-	 */
-	if (unlikely(!rq->online)) {
-		lockdep_unpin_lock(&rq->lock, rf.cookie);
-		rq = dl_task_offline_migration(rq, p);
-		rf.cookie = lockdep_pin_lock(&rq->lock);
-	}
-
 	/*
 	 * Queueing this task back might have overloaded rq, check if we need
 	 * to kick someone away.
