@@ -52,6 +52,13 @@ static void sa1100_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	writel_relaxed(BIT(offset), sa1100_gpio_chip(chip)->membase + reg);
 }
 
+static int sa1100_get_direction(struct gpio_chip *chip, unsigned offset)
+{
+	void __iomem *gpdr = sa1100_gpio_chip(chip)->membase + R_GPDR;
+
+	return !(readl_relaxed(gpdr) & BIT(offset));
+}
+
 static int sa1100_direction_input(struct gpio_chip *chip, unsigned offset)
 {
 	void __iomem *gpdr = sa1100_gpio_chip(chip)->membase + R_GPDR;
@@ -85,6 +92,7 @@ static int sa1100_to_irq(struct gpio_chip *chip, unsigned offset)
 static struct sa1100_gpio_chip sa1100_gpio_chip = {
 	.chip = {
 		.label			= "gpio",
+		.get_direction		= sa1100_get_direction,
 		.direction_input	= sa1100_direction_input,
 		.direction_output	= sa1100_direction_output,
 		.set			= sa1100_gpio_set,
