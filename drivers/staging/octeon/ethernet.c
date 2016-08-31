@@ -853,16 +853,7 @@ static int cvm_oct_remove(struct platform_device *pdev)
 {
 	int port;
 
-	/* Disable POW interrupt */
-	if (OCTEON_IS_MODEL(OCTEON_CN68XX))
-		cvmx_write_csr(CVMX_SSO_WQ_INT_THRX(pow_receive_group), 0);
-	else
-		cvmx_write_csr(CVMX_POW_WQ_INT_THRX(pow_receive_group), 0);
-
 	cvmx_ipd_disable();
-
-	/* Free the interrupt handler */
-	free_irq(OCTEON_IRQ_WORKQ0 + pow_receive_group, cvm_oct_device);
 
 	atomic_inc_return(&cvm_oct_poll_queue_stopping);
 	cancel_delayed_work_sync(&cvm_oct_rx_refill_work);

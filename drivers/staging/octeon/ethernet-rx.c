@@ -495,5 +495,14 @@ void cvm_oct_rx_initialize(void)
 
 void cvm_oct_rx_shutdown(void)
 {
+	/* Disable POW interrupt */
+	if (OCTEON_IS_MODEL(OCTEON_CN68XX))
+		cvmx_write_csr(CVMX_SSO_WQ_INT_THRX(pow_receive_group), 0);
+	else
+		cvmx_write_csr(CVMX_POW_WQ_INT_THRX(pow_receive_group), 0);
+
+	/* Free the interrupt handler */
+	free_irq(OCTEON_IRQ_WORKQ0 + pow_receive_group, cvm_oct_device);
+
 	netif_napi_del(&cvm_oct_napi);
 }
