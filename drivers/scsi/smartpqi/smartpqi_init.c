@@ -588,10 +588,6 @@ static void pqi_update_time_worker(struct work_struct *work)
 	ctrl_info = container_of(to_delayed_work(work), struct pqi_ctrl_info,
 		update_time_work);
 
-	if (!ctrl_info) {
-		printk("%s: NULL controller pointer.\n", __func__);
-		return;
-	}
 	rc = pqi_write_current_time_to_host_wellness(ctrl_info);
 	if (rc)
 		dev_warn(&ctrl_info->pci_dev->dev,
@@ -602,9 +598,9 @@ static void pqi_update_time_worker(struct work_struct *work)
 }
 
 static inline void pqi_schedule_update_time_worker(
-			struct pqi_ctrl_info *ctrl_info)
+	struct pqi_ctrl_info *ctrl_info)
 {
-	schedule_delayed_work(&ctrl_info->update_time_work, 120);
+	schedule_delayed_work(&ctrl_info->update_time_work, 0);
 }
 
 static int pqi_report_luns(struct pqi_ctrl_info *ctrl_info, u8 cmd,
