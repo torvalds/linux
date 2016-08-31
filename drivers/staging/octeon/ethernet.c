@@ -45,7 +45,7 @@ MODULE_PARM_DESC(num_packet_buffers, "\n"
 	"\tNumber of packet buffers to allocate and store in the\n"
 	"\tFPA. By default, 1024 packet buffers are used.\n");
 
-int pow_receive_group = 15;
+static int pow_receive_group = 15;
 module_param(pow_receive_group, int, 0444);
 MODULE_PARM_DESC(pow_receive_group, "\n"
 	"\tPOW group to receive packets from. All ethernet hardware\n"
@@ -86,6 +86,8 @@ int rx_napi_weight = 32;
 module_param(rx_napi_weight, int, 0444);
 MODULE_PARM_DESC(rx_napi_weight, "The NAPI WEIGHT parameter.");
 
+/* Mask indicating which receive groups are in use. */
+int pow_receive_groups;
 
 /*
  * cvm_oct_poll_queue_stopping - flag to indicate polling should stop.
@@ -677,6 +679,8 @@ static int cvm_oct_probe(struct platform_device *pdev)
 	cvm_oct_configure_common_hw();
 
 	cvmx_helper_initialize_packet_io_global();
+
+	pow_receive_groups = BIT(pow_receive_group);
 
 	/* Change the input group for all ports before input is enabled */
 	num_interfaces = cvmx_helper_get_number_of_interfaces();

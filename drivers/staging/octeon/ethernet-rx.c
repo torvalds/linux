@@ -47,7 +47,7 @@ static struct oct_rx_group {
 	int irq;
 	int group;
 	struct napi_struct napi;
-} oct_rx_group;
+} oct_rx_group[16];
 
 /**
  * cvm_oct_do_interrupt - interrupt handler.
@@ -442,7 +442,16 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
  */
 void cvm_oct_poll_controller(struct net_device *dev)
 {
-	cvm_oct_poll(&oct_rx_group, 16);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(oct_rx_group); i++) {
+
+		if (!(pow_receive_groups & BIT(i)))
+			continue;
+
+		cvm_oct_poll(&oct_rx_group[i], 16);
+
+	}
 }
 #endif
 
@@ -461,65 +470,80 @@ void cvm_oct_rx_initialize(void)
 	if (!dev_for_napi)
 		panic("No net_devices were allocated.");
 
-	netif_napi_add(dev_for_napi, &oct_rx_group.napi, cvm_oct_napi_poll,
-		       rx_napi_weight);
-	napi_enable(&oct_rx_group.napi);
+	for (i = 0; i < ARRAY_SIZE(oct_rx_group); i++) {
+		int ret;
 
-	oct_rx_group.irq = OCTEON_IRQ_WORKQ0 + pow_receive_group;
-	oct_rx_group.group = pow_receive_group;
+		if (!(pow_receive_groups & BIT(i)))
+			continue;
 
-	/* Register an IRQ handler to receive POW interrupts */
-	i = request_irq(oct_rx_group.irq, cvm_oct_do_interrupt, 0, "Ethernet",
-			&oct_rx_group.napi);
+		netif_napi_add(dev_for_napi, &oct_rx_group[i].napi,
+			       cvm_oct_napi_poll, rx_napi_weight);
+		napi_enable(&oct_rx_group[i].napi);
 
-	if (i)
-		panic("Could not acquire Ethernet IRQ %d\n", oct_rx_group.irq);
+		oct_rx_group[i].irq = OCTEON_IRQ_WORKQ0 + i;
+		oct_rx_group[i].group = i;
 
-	disable_irq_nosync(oct_rx_group.irq);
+		/* Register an IRQ handler to receive POW interrupts */
+		ret = request_irq(oct_rx_group[i].irq, cvm_oct_do_interrupt, 0,
+				  "Ethernet", &oct_rx_group[i].napi);
+		if (ret)
+			panic("Could not acquire Ethernet IRQ %d\n",
+			      oct_rx_group[i].irq);
 
-	/* Enable POW interrupt when our port has at least one packet */
-	if (OCTEON_IS_MODEL(OCTEON_CN68XX)) {
-		union cvmx_sso_wq_int_thrx int_thr;
-		union cvmx_pow_wq_int_pc int_pc;
+		disable_irq_nosync(oct_rx_group[i].irq);
 
-		int_thr.u64 = 0;
-		int_thr.s.tc_en = 1;
-		int_thr.s.tc_thr = 1;
-		cvmx_write_csr(CVMX_SSO_WQ_INT_THRX(pow_receive_group),
-			       int_thr.u64);
+		/* Enable POW interrupt when our port has at least one packet */
+		if (OCTEON_IS_MODEL(OCTEON_CN68XX)) {
+			union cvmx_sso_wq_int_thrx int_thr;
+			union cvmx_pow_wq_int_pc int_pc;
 
-		int_pc.u64 = 0;
-		int_pc.s.pc_thr = 5;
-		cvmx_write_csr(CVMX_SSO_WQ_INT_PC, int_pc.u64);
-	} else {
-		union cvmx_pow_wq_int_thrx int_thr;
-		union cvmx_pow_wq_int_pc int_pc;
+			int_thr.u64 = 0;
+			int_thr.s.tc_en = 1;
+			int_thr.s.tc_thr = 1;
+			cvmx_write_csr(CVMX_SSO_WQ_INT_THRX(i), int_thr.u64);
 
-		int_thr.u64 = 0;
-		int_thr.s.tc_en = 1;
-		int_thr.s.tc_thr = 1;
-		cvmx_write_csr(CVMX_POW_WQ_INT_THRX(pow_receive_group),
-			       int_thr.u64);
+			int_pc.u64 = 0;
+			int_pc.s.pc_thr = 5;
+			cvmx_write_csr(CVMX_SSO_WQ_INT_PC, int_pc.u64);
+		} else {
+			union cvmx_pow_wq_int_thrx int_thr;
+			union cvmx_pow_wq_int_pc int_pc;
 
-		int_pc.u64 = 0;
-		int_pc.s.pc_thr = 5;
-		cvmx_write_csr(CVMX_POW_WQ_INT_PC, int_pc.u64);
+			int_thr.u64 = 0;
+			int_thr.s.tc_en = 1;
+			int_thr.s.tc_thr = 1;
+			cvmx_write_csr(CVMX_POW_WQ_INT_THRX(i), int_thr.u64);
+
+			int_pc.u64 = 0;
+			int_pc.s.pc_thr = 5;
+			cvmx_write_csr(CVMX_POW_WQ_INT_PC, int_pc.u64);
+		}
+
+		/* Schedule NAPI now. This will indirectly enable the
+		 * interrupt.
+		 */
+		napi_schedule(&oct_rx_group[i].napi);
 	}
-
-	/* Schedule NAPI now. This will indirectly enable the interrupt. */
-	napi_schedule(&oct_rx_group.napi);
 }
 
 void cvm_oct_rx_shutdown(void)
 {
-	/* Disable POW interrupt */
-	if (OCTEON_IS_MODEL(OCTEON_CN68XX))
-		cvmx_write_csr(CVMX_SSO_WQ_INT_THRX(pow_receive_group), 0);
-	else
-		cvmx_write_csr(CVMX_POW_WQ_INT_THRX(pow_receive_group), 0);
+	int i;
 
-	/* Free the interrupt handler */
-	free_irq(oct_rx_group.irq, cvm_oct_device);
+	for (i = 0; i < ARRAY_SIZE(oct_rx_group); i++) {
 
-	netif_napi_del(&oct_rx_group.napi);
+		if (!(pow_receive_groups & BIT(i)))
+			continue;
+
+		/* Disable POW interrupt */
+		if (OCTEON_IS_MODEL(OCTEON_CN68XX))
+			cvmx_write_csr(CVMX_SSO_WQ_INT_THRX(i), 0);
+		else
+			cvmx_write_csr(CVMX_POW_WQ_INT_THRX(i), 0);
+
+		/* Free the interrupt handler */
+		free_irq(oct_rx_group[i].irq, cvm_oct_device);
+
+		netif_napi_del(&oct_rx_group[i].napi);
+	}
 }
