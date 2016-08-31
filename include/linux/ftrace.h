@@ -794,7 +794,9 @@ struct ftrace_ret_stack {
 	unsigned long ret;
 	unsigned long func;
 	unsigned long long calltime;
+#ifdef CONFIG_FUNCTION_PROFILER
 	unsigned long long subtime;
+#endif
 	unsigned long fp;
 };
 

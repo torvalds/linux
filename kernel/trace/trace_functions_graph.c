@@ -170,7 +170,6 @@ ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth,
 	current->ret_stack[index].ret = ret;
 	current->ret_stack[index].func = func;
 	current->ret_stack[index].calltime = calltime;
-	current->ret_stack[index].subtime = 0;
 	current->ret_stack[index].fp = frame_pointer;
 	*depth = current->curr_ret_stack;
 
