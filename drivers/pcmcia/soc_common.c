@@ -43,6 +43,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/mutex.h>
+#include <linux/regulator/consumer.h>
 #include <linux/spinlock.h>
 #include <linux/timer.h>
 
@@ -79,6 +80,41 @@ EXPORT_SYMBOL(soc_pcmcia_debug);
 
 #define to_soc_pcmcia_socket(x)	\
 	container_of(x, struct soc_pcmcia_socket, socket)
+
+int soc_pcmcia_regulator_set(struct soc_pcmcia_socket *skt,
+	struct soc_pcmcia_regulator *r, int v)
+{
+	bool on;
+	int ret;
+
+	if (!r->reg)
+		return 0;
+
+	on = v != 0;
+	if (r->on == on)
+		return 0;
+
+	if (on) {
+		ret = regulator_set_voltage(r->reg, v * 100000, v * 100000);
+		if (ret) {
+			int vout = regulator_get_voltage(r->reg) / 100000;
+
+			dev_warn(&skt->socket.dev,
+				 "CS requested %s=%u.%uV, applying %u.%uV\n",
+				 r == &skt->vcc ? "Vcc" : "Vpp",
+				 v / 10, v % 10, vout / 10, vout % 10);
+		}
+
+		ret = regulator_enable(r->reg);
+	} else {
+		regulator_disable(r->reg);
+	}
+	if (ret == 0)
+		r->on = on;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(soc_pcmcia_regulator_set);
 
 static unsigned short
 calc_speed(unsigned short *spds, int num, unsigned short dflt)
@@ -118,7 +154,6 @@ static void __soc_pcmcia_hw_shutdown(struct soc_pcmcia_socket *skt,
 
 	if (skt->ops->hw_shutdown)
 		skt->ops->hw_shutdown(skt);
-
 
 	clk_disable_unprepare(skt->clk);
 }

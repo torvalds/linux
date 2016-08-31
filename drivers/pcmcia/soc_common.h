@@ -19,6 +19,12 @@
 struct device;
 struct gpio_desc;
 struct pcmcia_low_level;
+struct regulator;
+
+struct soc_pcmcia_regulator {
+	struct regulator	*reg;
+	bool			on;
+};
 
 /*
  * This structure encapsulates per-socket state which we might need to
@@ -64,6 +70,8 @@ struct soc_pcmcia_socket {
 
 	struct gpio_desc	*gpio_reset;
 	struct gpio_desc	*gpio_bus_enable;
+	struct soc_pcmcia_regulator vcc;
+	struct soc_pcmcia_regulator vpp;
 
 	unsigned int		irq_state;
 
@@ -145,6 +153,9 @@ int soc_pcmcia_request_gpiods(struct soc_pcmcia_socket *skt);
 
 void soc_common_cf_socket_state(struct soc_pcmcia_socket *skt,
 	struct pcmcia_state *state);
+
+int soc_pcmcia_regulator_set(struct soc_pcmcia_socket *skt,
+	struct soc_pcmcia_regulator *r, int v);
 
 #ifdef CONFIG_PCMCIA_DEBUG
 
