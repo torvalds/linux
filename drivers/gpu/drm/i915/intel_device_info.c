@@ -370,9 +370,11 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1))
 		info->has_snoop = false;
 
+	DRM_DEBUG_DRIVER("slice mask: %04x\n", info->sseu.slice_mask);
 	DRM_DEBUG_DRIVER("slice total: %u\n", hweight8(info->sseu.slice_mask));
 	DRM_DEBUG_DRIVER("subslice total: %u\n",
 			 sseu_subslice_total(&info->sseu));
+	DRM_DEBUG_DRIVER("subslice mask %04x\n", info->sseu.subslice_mask);
 	DRM_DEBUG_DRIVER("subslice per slice: %u\n",
 			 hweight8(info->sseu.subslice_mask));
 	DRM_DEBUG_DRIVER("EU total: %u\n", info->sseu.eu_total);
