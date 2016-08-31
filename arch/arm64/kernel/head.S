@@ -675,9 +675,9 @@ secondary_startup:
 	 * Common entry point for secondary CPUs.
 	 */
 	bl	__cpu_setup			// initialise processor
-
-	adr_l	x27, __secondary_switch		// address to jump to after enabling the MMU
-	b	__enable_mmu
+	bl	__enable_mmu
+	ldr	x8, =__secondary_switched
+	br	x8
 ENDPROC(secondary_startup)
 
 __secondary_switched:
@@ -716,9 +716,9 @@ ENDPROC(__secondary_switched)
  * Enable the MMU.
  *
  *  x0  = SCTLR_EL1 value for turning on the MMU.
- *  x27 = *virtual* address to jump to upon completion
  *
- * Other registers depend on the function called upon completion.
+ * Returns to the caller via x30/lr. This requires the caller to be covered
+ * by the .idmap.text section.
  *
  * Checks if the selected granule size is supported by the CPU.
  * If it isn't, park the CPU
@@ -744,7 +744,7 @@ ENTRY(__enable_mmu)
 	ic	iallu
 	dsb	nsh
 	isb
-	br	x27
+	ret
 ENDPROC(__enable_mmu)
 
 __no_granule_support:
@@ -789,9 +789,7 @@ __primary_switch:
 	mrs	x20, sctlr_el1			// preserve old SCTLR_EL1 value
 #endif
 
-	adr	x27, 0f
-	b	__enable_mmu
-0:
+	bl	__enable_mmu
 #ifdef CONFIG_RELOCATABLE
 	bl	__relocate_kernel
 #ifdef CONFIG_RANDOMIZE_BASE
@@ -822,8 +820,3 @@ __primary_switch:
 	ldr	x8, =__primary_switched
 	br	x8
 ENDPROC(__primary_switch)
-
-__secondary_switch:
-	ldr	x8, =__secondary_switched
-	br	x8
-ENDPROC(__secondary_switch)

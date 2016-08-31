@@ -100,14 +100,10 @@ ENTRY(cpu_resume)
 	bl	el2_setup		// if in EL2 drop to EL1 cleanly
 	bl	__cpu_setup
 	/* enable the MMU early - so we can access sleep_save_stash by va */
-	adr_l	x27, _resume_switched	/* __enable_mmu will branch here */
-	b	__enable_mmu
-ENDPROC(cpu_resume)
-
-_resume_switched:
+	bl	__enable_mmu
 	ldr	x8, =_cpu_resume
 	br	x8
-ENDPROC(_resume_switched)
+ENDPROC(cpu_resume)
 	.ltorg
 	.popsection
 
