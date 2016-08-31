@@ -226,7 +226,7 @@ struct v4l2_subdev_core_ops {
  *
  * @g_tuner: callback for %VIDIOC_G_TUNER ioctl handler code.
  *
- * @s_tuner: callback for %VIDIOC_S_TUNER ioctl handler code. &vt->type must be
+ * @s_tuner: callback for %VIDIOC_S_TUNER ioctl handler code. @vt->type must be
  *	     filled in. Normally done by video_ioctl2 or the
  *	     bridge driver.
  *
