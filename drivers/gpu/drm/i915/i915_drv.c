@@ -288,12 +288,12 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = i915_cmd_parser_get_version(dev_priv);
 		break;
 	case I915_PARAM_SUBSLICE_TOTAL:
-		value = INTEL_INFO(dev_priv)->subslice_total;
+		value = INTEL_INFO(dev_priv)->sseu.subslice_total;
 		if (!value)
 			return -ENODEV;
 		break;
 	case I915_PARAM_EU_TOTAL:
-		value = INTEL_INFO(dev_priv)->eu_total;
+		value = INTEL_INFO(dev_priv)->sseu.eu_total;
 		if (!value)
 			return -ENODEV;
 		break;
@@ -307,7 +307,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = HAS_POOLED_EU(dev_priv);
 		break;
 	case I915_PARAM_MIN_EU_IN_POOL:
-		value = INTEL_INFO(dev_priv)->min_eu_in_pool;
+		value = INTEL_INFO(dev_priv)->sseu.min_eu_in_pool;
 		break;
 	case I915_PARAM_MMAP_GTT_VERSION:
 		/* Though we've started our numbering from 1, and so class all
