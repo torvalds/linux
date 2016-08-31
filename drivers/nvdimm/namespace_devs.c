@@ -294,7 +294,7 @@ static bool __nd_namespace_blk_validate(struct nd_namespace_blk *nsblk)
 		if (strcmp(res->name, label_id.id) != 0)
 			continue;
 		/*
-		 * Resources with unacknoweldged adjustments indicate a
+		 * Resources with unacknowledged adjustments indicate a
 		 * failure to update labels
 		 */
 		if (res->flags & DPA_RESOURCE_ADJUSTED)
