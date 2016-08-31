@@ -487,14 +487,12 @@ static void iwl_pcie_rx_allocator(struct iwl_trans *trans)
 
 	while (pending) {
 		int i;
-		struct list_head local_allocated;
+		LIST_HEAD(local_allocated);
 		gfp_t gfp_mask = GFP_KERNEL;
 
 		/* Do not post a warning if there are only a few requests */
 		if (pending < RX_PENDING_WATERMARK)
 			gfp_mask |= __GFP_NOWARN;
-
-		INIT_LIST_HEAD(&local_allocated);
 
 		for (i = 0; i < RX_CLAIM_REQ_ALLOC;) {
 			struct iwl_rx_mem_buffer *rxb;
