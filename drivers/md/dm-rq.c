@@ -98,18 +98,30 @@ static void dm_old_stop_queue(struct request_queue *q)
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 
+static void dm_mq_stop_queue(struct request_queue *q)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(q->queue_lock, flags);
+	if (blk_queue_stopped(q)) {
+		spin_unlock_irqrestore(q->queue_lock, flags);
+		return;
+	}
+
+	queue_flag_set(QUEUE_FLAG_STOPPED, q);
+	spin_unlock_irqrestore(q->queue_lock, flags);
+
+	/* Avoid that requeuing could restart the queue. */
+	blk_mq_cancel_requeue_work(q);
+	blk_mq_stop_hw_queues(q);
+}
+
 void dm_stop_queue(struct request_queue *q)
 {
 	if (!q->mq_ops)
 		dm_old_stop_queue(q);
-	else {
-		spin_lock_irq(q->queue_lock);
-		queue_flag_set(QUEUE_FLAG_STOPPED, q);
-		spin_unlock_irq(q->queue_lock);
-
-		blk_mq_cancel_requeue_work(q);
-		blk_mq_stop_hw_queues(q);
-	}
+	else
+		dm_mq_stop_queue(q);
 }
 
 static struct dm_rq_target_io *alloc_old_rq_tio(struct mapped_device *md,
