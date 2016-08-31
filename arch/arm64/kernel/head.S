@@ -208,6 +208,16 @@ efi_header_end:
 
 	__INIT
 
+	/*
+	 * The following callee saved general purpose registers are used on the
+	 * primary lowlevel boot path:
+	 *
+	 *  Register   Scope                      Purpose
+	 *  x21        stext() .. start_kernel()  FDT pointer passed at boot in x0
+	 *  x23        stext() .. start_kernel()  physical misalignment/KASLR offset
+	 *  x28        __create_page_tables()     callee preserved temp register
+	 *  x19/x20    __primary_switch()         callee preserved temp registers
+	 */
 ENTRY(stext)
 	bl	preserve_boot_args
 	bl	el2_setup			// Drop to EL1, w0=cpu_boot_mode
