@@ -26,7 +26,34 @@ Arguments
   File descriptor returned by a previous call to :c:func:`open() <dvb-ca-open>`.
 
 ``caps``
-  Undocumented.
+  struct :c:type:`ca_caps` pointer
+
+.. c:type:: struct ca_caps
+
+.. flat-table:: struct ca_caps
+    :header-rows:  1
+    :stub-columns: 0
+
+    -
+      - type
+      - name
+      - description
+    -
+      -	unsigned int
+      - slot_num
+      - total number of CA card and module slots
+    -
+      - unsigned int
+      - slot_type
+      - bitmask with all supported slot types
+    -
+      - unsigned int
+      - descr_num
+      - total number of descrambler slots (keys)
+    -
+      - unsigned int
+      - descr_type
+      - bit mask with all supported descr types
 
 
 Description
