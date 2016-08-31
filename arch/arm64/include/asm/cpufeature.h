@@ -72,7 +72,6 @@ struct arm64_ftr_bits {
  * @sys_val		Safe value across the CPUs (system view)
  */
 struct arm64_ftr_reg {
-	u32				sys_id;
 	const char			*name;
 	u64				strict_mask;
 	u64				sys_val;

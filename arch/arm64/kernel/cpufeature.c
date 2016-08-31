@@ -265,14 +265,17 @@ static const struct arm64_ftr_bits ftr_aa64raz[] = {
 	ARM64_FTR_END,
 };
 
-#define ARM64_FTR_REG(id, table)		\
-	{					\
-		.sys_id = id,			\
+#define ARM64_FTR_REG(id, table) {		\
+	.sys_id = id,				\
+	.reg = 	&(struct arm64_ftr_reg){	\
 		.name = #id,			\
 		.ftr_bits = &((table)[0]),	\
-	}
+	}}
 
-static struct arm64_ftr_reg arm64_ftr_regs[] = {
+static const struct __ftr_reg_entry {
+	u32			sys_id;
+	struct arm64_ftr_reg 	*reg;
+} arm64_ftr_regs[] = {
 
 	/* Op1 = 0, CRn = 0, CRm = 1 */
 	ARM64_FTR_REG(SYS_ID_PFR0_EL1, ftr_id_pfr0),
@@ -324,7 +327,7 @@ static struct arm64_ftr_reg arm64_ftr_regs[] = {
 
 static int search_cmp_ftr_reg(const void *id, const void *regp)
 {
-	return (int)(unsigned long)id - (int)((const struct arm64_ftr_reg *)regp)->sys_id;
+	return (int)(unsigned long)id - (int)((const struct __ftr_reg_entry *)regp)->sys_id;
 }
 
 /*
@@ -339,11 +342,16 @@ static int search_cmp_ftr_reg(const void *id, const void *regp)
  */
 static struct arm64_ftr_reg *get_arm64_ftr_reg(u32 sys_id)
 {
-	return bsearch((const void *)(unsigned long)sys_id,
+	const struct __ftr_reg_entry *ret;
+
+	ret = bsearch((const void *)(unsigned long)sys_id,
 			arm64_ftr_regs,
 			ARRAY_SIZE(arm64_ftr_regs),
 			sizeof(arm64_ftr_regs[0]),
 			search_cmp_ftr_reg);
+	if (ret)
+		return ret->reg;
+	return NULL;
 }
 
 static u64 arm64_ftr_set_value(const struct arm64_ftr_bits *ftrp, s64 reg,
@@ -378,27 +386,13 @@ static s64 arm64_ftr_safe_value(const struct arm64_ftr_bits *ftrp, s64 new,
 	return ret;
 }
 
-static int __init sort_cmp_ftr_regs(const void *a, const void *b)
-{
-	return ((const struct arm64_ftr_reg *)a)->sys_id -
-		 ((const struct arm64_ftr_reg *)b)->sys_id;
-}
-
-static void __init swap_ftr_regs(void *a, void *b, int size)
-{
-	struct arm64_ftr_reg tmp = *(struct arm64_ftr_reg *)a;
-	*(struct arm64_ftr_reg *)a = *(struct arm64_ftr_reg *)b;
-	*(struct arm64_ftr_reg *)b = tmp;
-}
-
 static void __init sort_ftr_regs(void)
 {
-	/* Keep the array sorted so that we can do the binary search */
-	sort(arm64_ftr_regs,
-		ARRAY_SIZE(arm64_ftr_regs),
-		sizeof(arm64_ftr_regs[0]),
-		sort_cmp_ftr_regs,
-		swap_ftr_regs);
+	int i;
+
+	/* Check that the array is sorted so that we can do the binary search */
+	for (i = 1; i < ARRAY_SIZE(arm64_ftr_regs); i++)
+		BUG_ON(arm64_ftr_regs[i].sys_id < arm64_ftr_regs[i - 1].sys_id);
 }
 
 /*
