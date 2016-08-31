@@ -6,7 +6,6 @@
  * Declaration for all machine specific init/exit functions.
  */
 extern int pcmcia_adsbitsy_init(struct device *);
-extern int pcmcia_assabet_init(struct device *);
 extern int pcmcia_badge4_init(struct device *);
 extern int pcmcia_cerf_init(struct device *);
 extern int pcmcia_flexanet_init(struct device *);

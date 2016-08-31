@@ -98,9 +98,6 @@ static struct pcmcia_low_level sa11x0_cf_ops = {
 int __init pcmcia_collie_init(struct device *dev);
 
 static int (*sa11x0_pcmcia_legacy_hw_init[])(struct device *dev) = {
-#ifdef CONFIG_SA1100_ASSABET
-	pcmcia_assabet_init,
-#endif
 #ifdef CONFIG_SA1100_CERF
 	pcmcia_cerf_init,
 #endif
