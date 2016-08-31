@@ -1847,11 +1847,11 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 						/* XXX - need to source or sink data here, as appropriate */
 					}
 				} else {
-					/* Break up transfer into 3 ms chunks,
-					 * presuming 6 accesses per handshake.
+					/* Transfer a small chunk so that the
+					 * irq mode lock is not held too long.
 					 */
-					transfersize = min((unsigned long)cmd->SCp.this_residual,
-					                   hostdata->accesses_per_ms / 2);
+					transfersize = min(cmd->SCp.this_residual,
+							   NCR5380_PIO_CHUNK_SIZE);
 					len = transfersize;
 					NCR5380_transfer_pio(instance, &phase, &len,
 					                     (unsigned char **)&cmd->SCp.ptr);

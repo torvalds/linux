@@ -250,6 +250,8 @@ struct NCR5380_cmd {
 
 #define NCR5380_CMD_SIZE		(sizeof(struct NCR5380_cmd))
 
+#define NCR5380_PIO_CHUNK_SIZE		256
+
 static inline struct scsi_cmnd *NCR5380_to_scmd(struct NCR5380_cmd *ncmd_ptr)
 {
 	return ((struct scsi_cmnd *)ncmd_ptr) - 1;
