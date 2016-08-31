@@ -1154,6 +1154,16 @@ static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	clear_sbi_flag(sbi, SBI_IS_DIRTY);
 	clear_sbi_flag(sbi, SBI_NEED_CP);
 
+	/*
+	 * redirty superblock if metadata like node page or inode cache is
+	 * updated during writing checkpoint.
+	 */
+	if (get_pages(sbi, F2FS_DIRTY_NODES) ||
+			get_pages(sbi, F2FS_DIRTY_IMETA))
+		set_sbi_flag(sbi, SBI_IS_DIRTY);
+
+	f2fs_bug_on(sbi, get_pages(sbi, F2FS_DIRTY_DENTS));
+
 	return 0;
 }
 
