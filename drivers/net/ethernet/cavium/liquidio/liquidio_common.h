@@ -30,10 +30,24 @@
 
 #include "octeon_config.h"
 
-#define LIQUIDIO_BASE_VERSION   "1.4"
-#define LIQUIDIO_MICRO_VERSION  ".1"
 #define LIQUIDIO_PACKAGE ""
-#define LIQUIDIO_VERSION  "1.4.1"
+#define LIQUIDIO_BASE_MAJOR_VERSION 1
+#define LIQUIDIO_BASE_MINOR_VERSION 4
+#define LIQUIDIO_BASE_MICRO_VERSION 1
+#define LIQUIDIO_BASE_VERSION   __stringify(LIQUIDIO_BASE_MAJOR_VERSION) "." \
+				__stringify(LIQUIDIO_BASE_MINOR_VERSION)
+#define LIQUIDIO_MICRO_VERSION  "." __stringify(LIQUIDIO_BASE_MICRO_VERSION)
+#define LIQUIDIO_VERSION        LIQUIDIO_PACKAGE \
+				__stringify(LIQUIDIO_BASE_MAJOR_VERSION) "." \
+				__stringify(LIQUIDIO_BASE_MINOR_VERSION) \
+				"." __stringify(LIQUIDIO_BASE_MICRO_VERSION)
+
+struct lio_version {
+	u16  major;
+	u16  minor;
+	u16  micro;
+	u16  reserved;
+};
 
 #define CONTROL_IQ 0
 /** Tag types used by Octeon cores in its work. */
