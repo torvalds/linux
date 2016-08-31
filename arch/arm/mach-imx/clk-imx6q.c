@@ -869,8 +869,21 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 	imx_clk_set_parent(clk[IMX6QDL_CLK_SPDIF_SEL], clk[IMX6QDL_CLK_PLL3_PFD3_454M]);
 
 	/* All existing boards with PCIe use LVDS1 */
-	if (IS_ENABLED(CONFIG_PCI_IMX6))
+	if (IS_ENABLED(CONFIG_PCI_IMX6)) {
 		imx_clk_set_parent(clk[IMX6QDL_CLK_LVDS1_SEL], clk[IMX6QDL_CLK_SATA_REF_100M]);
+		np = of_find_compatible_node(NULL, NULL, "snps,dw-pcie");
+		 /* external oscillator is used or not. */
+		if (of_property_read_u32(np, "ext_osc", &val) < 0)
+			val = 0;
+		/*
+		 * imx6qp sabresd revb board has the external osc used by pcie
+		 * - pll6 should be set bypass mode later in driver.
+		 * - lvds_clk1 should be selected as pll6 bypass src, set here.
+		 */
+		if (cpu_is_imx6q() && imx_get_soc_revision() == IMX_CHIP_REVISION_2_0
+				&& (val == 1))
+			imx_clk_set_parent(clk[IMX6QDL_PLL6_BYPASS_SRC], clk[IMX6QDL_CLK_LVDS1_IN]);
+	}
 
 	/*
 	 * Enable clocks only after both parent and rate are all initialized
