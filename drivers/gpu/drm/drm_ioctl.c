@@ -189,9 +189,8 @@ static int drm_getclient(struct drm_device *dev, void *data,
 	 */
 	if (client->idx == 0) {
 		client->auth = file_priv->authenticated;
-		client->pid = pid_vnr(file_priv->pid);
-		client->uid = from_kuid_munged(current_user_ns(),
-					       file_priv->uid);
+		client->pid = task_pid_vnr(current);
+		client->uid = overflowuid;
 		client->magic = 0;
 		client->iocs = 0;
 

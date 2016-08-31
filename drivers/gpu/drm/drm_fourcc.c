@@ -36,6 +36,49 @@ static char printable_char(int c)
 }
 
 /**
+ * drm_mode_legacy_fb_format - compute drm fourcc code from legacy description
+ * @bpp: bits per pixels
+ * @depth: bit depth per pixel
+ *
+ * Computes a drm fourcc pixel format code for the given @bpp/@depth values.
+ * Useful in fbdev emulation code, since that deals in those values.
+ */
+uint32_t drm_mode_legacy_fb_format(uint32_t bpp, uint32_t depth)
+{
+	uint32_t fmt;
+
+	switch (bpp) {
+	case 8:
+		fmt = DRM_FORMAT_C8;
+		break;
+	case 16:
+		if (depth == 15)
+			fmt = DRM_FORMAT_XRGB1555;
+		else
+			fmt = DRM_FORMAT_RGB565;
+		break;
+	case 24:
+		fmt = DRM_FORMAT_RGB888;
+		break;
+	case 32:
+		if (depth == 24)
+			fmt = DRM_FORMAT_XRGB8888;
+		else if (depth == 30)
+			fmt = DRM_FORMAT_XRGB2101010;
+		else
+			fmt = DRM_FORMAT_ARGB8888;
+		break;
+	default:
+		DRM_ERROR("bad bpp, assuming x8r8g8b8 pixel format\n");
+		fmt = DRM_FORMAT_XRGB8888;
+		break;
+	}
+
+	return fmt;
+}
+EXPORT_SYMBOL(drm_mode_legacy_fb_format);
+
+/**
  * drm_get_format_name - return a string for drm fourcc format
  * @format: format to compute name of
  *

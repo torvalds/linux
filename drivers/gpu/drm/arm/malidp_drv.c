@@ -91,7 +91,8 @@ static void malidp_atomic_commit_tail(struct drm_atomic_state *state)
 
 	drm_atomic_helper_commit_modeset_disables(drm, state);
 	drm_atomic_helper_commit_modeset_enables(drm, state);
-	drm_atomic_helper_commit_planes(drm, state, true);
+	drm_atomic_helper_commit_planes(drm, state,
+					DRM_PLANE_COMMIT_ACTIVE_ONLY);
 
 	malidp_atomic_commit_hw_done(state);
 

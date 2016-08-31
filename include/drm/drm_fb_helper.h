@@ -491,7 +491,7 @@ static inline int
 drm_fb_helper_remove_conflicting_framebuffers(struct apertures_struct *a,
 					      const char *name, bool primary)
 {
-#if IS_ENABLED(CONFIG_FB)
+#if IS_REACHABLE(CONFIG_FB)
 	return remove_conflicting_framebuffers(a, name, primary);
 #else
 	return 0;

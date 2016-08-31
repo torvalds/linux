@@ -25,6 +25,7 @@
 #include <linux/types.h>
 #include <uapi/drm/drm_fourcc.h>
 
+uint32_t drm_mode_legacy_fb_format(uint32_t bpp, uint32_t depth);
 void drm_fb_get_bpp_depth(uint32_t format, unsigned int *depth, int *bpp);
 int drm_format_num_planes(uint32_t format);
 int drm_format_plane_cpp(uint32_t format, int plane);
