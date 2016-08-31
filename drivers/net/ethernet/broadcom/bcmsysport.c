@@ -1692,7 +1692,7 @@ static int bcm_sysport_stop(struct net_device *dev)
 	return 0;
 }
 
-static struct ethtool_ops bcm_sysport_ethtool_ops = {
+static const struct ethtool_ops bcm_sysport_ethtool_ops = {
 	.get_drvinfo		= bcm_sysport_get_drvinfo,
 	.get_msglevel		= bcm_sysport_get_msglvl,
 	.set_msglevel		= bcm_sysport_set_msglvl,
