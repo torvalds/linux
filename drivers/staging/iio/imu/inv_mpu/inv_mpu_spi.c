@@ -190,11 +190,14 @@ static int of_inv_parse_platform_data(struct spi_device *spi,
 	u32 orientation[9];
 	int orig_x, orig_y, orig_z;
 	int i;
+	struct iio_dev *indio_dev = spi_get_drvdata(spi);
+	struct inv_mpu_iio_s *st = iio_priv(indio_dev);
 	struct device_node *np = spi->dev.of_node;
 	unsigned long irq_flags;
 	int irq_pin;
 	int gpio_pin;
 	int debug;
+	int hw_pwoff;
 
 	gpio_pin = of_get_named_gpio_flags(np, "irq-gpio", 0, (enum of_gpio_flags *)&irq_flags);
 	gpio_request(gpio_pin, "mpu6500");
@@ -264,6 +267,12 @@ static int of_inv_parse_platform_data(struct spi_device *spi,
 				mpu_data.orientation[i] = -1;
 	}
 
+	ret = of_property_read_u32(np, "support-hw-poweroff", &hw_pwoff);
+	if (ret != 0) {
+		st->support_hw_poweroff = 0;
+	}
+	st->support_hw_poweroff = hw_pwoff;
+
 	ret = of_property_read_u32(np, "mpu-debug", &debug);
 	if (ret != 0) {
 		dev_err(&spi->dev, "get mpu-debug error\n");
@@ -312,6 +321,7 @@ static int inv_mpu_probe(struct spi_device *spi)
 		goto out_no_free;
 	}
 	st = iio_priv(indio_dev);
+	spi_set_drvdata(spi, indio_dev);
 	if (spi->dev.of_node) {
 		result = of_inv_parse_platform_data(spi, &st->plat_data);
 		if (result)
@@ -323,7 +333,6 @@ static int inv_mpu_probe(struct spi_device *spi)
 			*(struct mpu_platform_data *)dev_get_platdata(&spi->dev);
 
 	/* Make state variables available to all _show and _store functions. */
-	spi_set_drvdata(spi, indio_dev);
 	indio_dev->dev.parent = &spi->dev;
 	st->dev = &spi->dev;
 	st->irq = spi->irq;
@@ -461,21 +470,60 @@ static int inv_mpu_remove(struct spi_device *spi)
 #ifdef CONFIG_PM
 static int inv_mpu_resume(struct device *dev)
 {
-	struct inv_mpu_iio_s *st =
-			iio_priv(spi_get_drvdata(to_spi_device(dev)));
+	struct iio_dev *indio_dev = spi_get_drvdata(to_spi_device(dev));
+	struct inv_mpu_iio_s *st = iio_priv(indio_dev);
+	int result;
+
 	pr_debug("%s inv_mpu_resume\n", st->hw->name);
-	return st->set_power_state(st, true);
+
+	if (st->support_hw_poweroff) {
+		mutex_lock(&indio_dev->mlock);
+		/* reset to make sure previous state are not there */
+		result = inv_plat_single_write(st, st->reg.pwr_mgmt_1, BIT_H_RESET);
+		if (result) {
+			pr_err("%s, reset failed\n", __func__);
+			goto rw_err;
+		}
+		msleep(POWER_UP_TIME);
+		/* toggle power state */
+		result = st->set_power_state(st, false);
+		if (result) {
+			pr_err("%s, set_power_state false failed\n", __func__);
+			goto rw_err;
+		}
+		result = st->set_power_state(st, true);
+		if (result) {
+			pr_err("%s, set_power_state true failed\n", __func__);
+			goto rw_err;
+		}
+		result = inv_plat_single_write(st, st->reg.user_ctrl, st->i2c_dis);
+		if (result) {
+			pr_err("%s, set user_ctrl failed\n", __func__);
+			goto rw_err;
+		}
+		inv_reg_recover(st);
+		mutex_unlock(&indio_dev->mlock);
+	} else {
+		result = st->set_power_state(st, true);
+	}
+	return result;
+
+rw_err:
+	mutex_unlock(&indio_dev->mlock);
+	return result;
 }
 
 static int inv_mpu_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(to_spi_device(dev));
 	struct inv_mpu_iio_s *st = iio_priv(indio_dev);
-	int result;
+	int result = 0;
 
 	pr_debug("%s inv_mpu_suspend\n", st->hw->name);
+
 	mutex_lock(&indio_dev->mlock);
-	result = 0;
+	if (st->support_hw_poweroff)
+		inv_reg_store(st);
 	if ((!st->chip_config.dmp_on) ||
 		(!st->chip_config.enable) ||
 		(!st->chip_config.dmp_event_int_on))

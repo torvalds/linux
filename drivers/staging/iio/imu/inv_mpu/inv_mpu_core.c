@@ -77,6 +77,57 @@ static const struct inv_hw_s hw_info[INV_NUM_PARTS] = {
 	{128, "MPU6515"},
 };
 
+/* define INV_REG_NUM_MAX the max register unmbers of all sensor type */
+#define INV_REG_NUM_MAX 128
+static u8 inv_reg_data[128] = {0};
+/**
+ *  inv_reg_store() - Register store for hw poweroff.
+ */
+int inv_reg_store(struct inv_mpu_iio_s *st)
+{
+	int ii;
+	char data;
+
+	if (!st->chip_config.enable)
+		st->set_power_state(st, true);
+	for (ii = 0; ii < st->hw->num_reg; ii++) {
+		/* don't read fifo r/w register */
+		if (ii == st->reg.fifo_r_w)
+			data = 0;
+		else
+			inv_plat_read(st, ii, 1, &data);
+		inv_reg_data[ii] = data;
+	}
+	if (!st->chip_config.enable)
+		st->set_power_state(st, false);
+
+	return 0;
+}
+
+/**
+ *  inv_reg_recover() - Register recover for hw poweroff.
+ */
+int inv_reg_recover(struct inv_mpu_iio_s *st)
+{
+	int ii;
+	char data;
+
+	if (!st->chip_config.enable)
+		st->set_power_state(st, true);
+	for (ii = 0; ii < st->hw->num_reg; ii++) {
+		data = inv_reg_data[ii];
+		/* don't write fifo r/w register */
+		if (ii == st->reg.fifo_r_w)
+			continue;
+		else
+			inv_plat_single_write(st, ii, data);
+	}
+	if (!st->chip_config.enable)
+		st->set_power_state(st, false);
+
+	return 0;
+}
+
 static void inv_setup_reg(struct inv_reg_map_s *reg)
 {
 	reg->sample_rate_div	= REG_SAMPLE_RATE_DIV;
