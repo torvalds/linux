@@ -98,5 +98,13 @@
 			clock-frequency = <200000000>;
 			status = "disabled";
 		};
+
+		kirq0: keystone_irq@026202a0 {
+			compatible = "ti,keystone-irq";
+			interrupts = <GIC_SPI 1 IRQ_TYPE_EDGE_RISING>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			ti,syscon-dev = <&devctrl 0x2a0>;
+		};
 	};
 };
