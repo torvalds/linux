@@ -55,79 +55,78 @@
  */
 ENTRY(__guest_enter)
 	// x0: vcpu
-	// x1: host/guest context
-	// x2-x18: clobbered by macros
+	// x1: host context
+	// x2-x17: clobbered by macros
+	// x18: guest context
 
 	// Store the host regs
 	save_callee_saved_regs x1
 
-	// Preserve vcpu & host_ctxt for use at exit time
-	stp	x0, x1, [sp, #-16]!
+	// Store the host_ctxt for use at exit time
+	str	x1, [sp, #-16]!
 
-	add	x1, x0, #VCPU_CONTEXT
+	add	x18, x0, #VCPU_CONTEXT
 
-	// Prepare x0-x1 for later restore by pushing them onto the stack
-	ldp	x2, x3, [x1, #CPU_XREG_OFFSET(0)]
-	stp	x2, x3, [sp, #-16]!
+	// Restore guest regs x0-x17
+	ldp	x0, x1,   [x18, #CPU_XREG_OFFSET(0)]
+	ldp	x2, x3,   [x18, #CPU_XREG_OFFSET(2)]
+	ldp	x4, x5,   [x18, #CPU_XREG_OFFSET(4)]
+	ldp	x6, x7,   [x18, #CPU_XREG_OFFSET(6)]
+	ldp	x8, x9,   [x18, #CPU_XREG_OFFSET(8)]
+	ldp	x10, x11, [x18, #CPU_XREG_OFFSET(10)]
+	ldp	x12, x13, [x18, #CPU_XREG_OFFSET(12)]
+	ldp	x14, x15, [x18, #CPU_XREG_OFFSET(14)]
+	ldp	x16, x17, [x18, #CPU_XREG_OFFSET(16)]
 
-	// x2-x18
-	ldp	x2, x3,   [x1, #CPU_XREG_OFFSET(2)]
-	ldp	x4, x5,   [x1, #CPU_XREG_OFFSET(4)]
-	ldp	x6, x7,   [x1, #CPU_XREG_OFFSET(6)]
-	ldp	x8, x9,   [x1, #CPU_XREG_OFFSET(8)]
-	ldp	x10, x11, [x1, #CPU_XREG_OFFSET(10)]
-	ldp	x12, x13, [x1, #CPU_XREG_OFFSET(12)]
-	ldp	x14, x15, [x1, #CPU_XREG_OFFSET(14)]
-	ldp	x16, x17, [x1, #CPU_XREG_OFFSET(16)]
-	ldr	x18,      [x1, #CPU_XREG_OFFSET(18)]
+	// Restore guest regs x19-x29, lr
+	restore_callee_saved_regs x18
 
-	// x19-x29, lr
-	restore_callee_saved_regs x1
-
-	// Last bits of the 64bit state
-	ldp	x0, x1, [sp], #16
+	// Restore guest reg x18
+	ldr	x18,      [x18, #CPU_XREG_OFFSET(18)]
 
 	// Do not touch any register after this!
 	eret
 ENDPROC(__guest_enter)
 
 ENTRY(__guest_exit)
-	// x0: vcpu
-	// x1: return code
-	// x2-x3: free
-	// x4-x29,lr: vcpu regs
-	// vcpu x0-x3 on the stack
+	// x0: return code
+	// x1: vcpu
+	// x2-x29,lr: vcpu regs
+	// vcpu x0-x1 on the stack
 
-	add	x2, x0, #VCPU_CONTEXT
+	add	x1, x1, #VCPU_CONTEXT
 
-	stp	x4, x5,   [x2, #CPU_XREG_OFFSET(4)]
-	stp	x6, x7,   [x2, #CPU_XREG_OFFSET(6)]
-	stp	x8, x9,   [x2, #CPU_XREG_OFFSET(8)]
-	stp	x10, x11, [x2, #CPU_XREG_OFFSET(10)]
-	stp	x12, x13, [x2, #CPU_XREG_OFFSET(12)]
-	stp	x14, x15, [x2, #CPU_XREG_OFFSET(14)]
-	stp	x16, x17, [x2, #CPU_XREG_OFFSET(16)]
-	str	x18,      [x2, #CPU_XREG_OFFSET(18)]
+	// Store the guest regs x2 and x3
+	stp	x2, x3,   [x1, #CPU_XREG_OFFSET(2)]
 
-	ldp	x6, x7, [sp], #16	// x2, x3
-	ldp	x4, x5, [sp], #16	// x0, x1
+	// Retrieve the guest regs x0-x1 from the stack
+	ldp	x2, x3, [sp], #16	// x0, x1
 
-	stp	x4, x5, [x2, #CPU_XREG_OFFSET(0)]
-	stp	x6, x7, [x2, #CPU_XREG_OFFSET(2)]
+	// Store the guest regs x0-x1 and x4-x18
+	stp	x2, x3,   [x1, #CPU_XREG_OFFSET(0)]
+	stp	x4, x5,   [x1, #CPU_XREG_OFFSET(4)]
+	stp	x6, x7,   [x1, #CPU_XREG_OFFSET(6)]
+	stp	x8, x9,   [x1, #CPU_XREG_OFFSET(8)]
+	stp	x10, x11, [x1, #CPU_XREG_OFFSET(10)]
+	stp	x12, x13, [x1, #CPU_XREG_OFFSET(12)]
+	stp	x14, x15, [x1, #CPU_XREG_OFFSET(14)]
+	stp	x16, x17, [x1, #CPU_XREG_OFFSET(16)]
+	str	x18,      [x1, #CPU_XREG_OFFSET(18)]
 
-	save_callee_saved_regs x2
+	// Store the guest regs x19-x29, lr
+	save_callee_saved_regs x1
 
-	// Restore vcpu & host_ctxt from the stack
-	// (preserving return code in x1)
-	ldp	x0, x2, [sp], #16
+	// Restore the host_ctxt from the stack
+	ldr	x2, [sp], #16
+
 	// Now restore the host regs
 	restore_callee_saved_regs x2
 
-	mov	x0, x1
 	ret
 ENDPROC(__guest_exit)
 
 ENTRY(__fpsimd_guest_restore)
+	stp	x2, x3, [sp, #-16]!
 	stp	x4, lr, [sp, #-16]!
 
 alternative_if_not ARM64_HAS_VIRT_HOST_EXTN

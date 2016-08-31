@@ -27,16 +27,6 @@
 	.text
 	.pushsection	.hyp.text, "ax"
 
-.macro	save_x0_to_x3
-	stp	x0, x1, [sp, #-16]!
-	stp	x2, x3, [sp, #-16]!
-.endm
-
-.macro	restore_x0_to_x3
-	ldp	x2, x3, [sp], #16
-	ldp	x0, x1, [sp], #16
-.endm
-
 .macro do_el2_call
 	/*
 	 * Shuffle the parameters before calling the function
@@ -79,23 +69,23 @@ ENTRY(__kvm_hyp_teardown)
 ENDPROC(__kvm_hyp_teardown)
 	
 el1_sync:				// Guest trapped into EL2
-	save_x0_to_x3
+	stp	x0, x1, [sp, #-16]!
 
 alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
 	mrs	x1, esr_el2
 alternative_else
 	mrs	x1, esr_el1
 alternative_endif
-	lsr	x2, x1, #ESR_ELx_EC_SHIFT
+	lsr	x0, x1, #ESR_ELx_EC_SHIFT
 
-	cmp	x2, #ESR_ELx_EC_HVC64
+	cmp	x0, #ESR_ELx_EC_HVC64
 	b.ne	el1_trap
 
-	mrs	x3, vttbr_el2		// If vttbr is valid, the 64bit guest
-	cbnz	x3, el1_trap		// called HVC
+	mrs	x1, vttbr_el2		// If vttbr is valid, the 64bit guest
+	cbnz	x1, el1_trap		// called HVC
 
 	/* Here, we're pretty sure the host called HVC. */
-	restore_x0_to_x3
+	ldp	x0, x1, [sp], #16
 
 	cmp	x0, #HVC_GET_VECTORS
 	b.ne	1f
@@ -113,22 +103,21 @@ alternative_endif
 
 el1_trap:
 	/*
-	 * x1: ESR
-	 * x2: ESR_EC
+	 * x0: ESR_EC
 	 */
 
 	/* Guest accessed VFP/SIMD registers, save host, restore Guest */
-	cmp	x2, #ESR_ELx_EC_FP_ASIMD
+	cmp	x0, #ESR_ELx_EC_FP_ASIMD
 	b.eq	__fpsimd_guest_restore
 
-	mrs	x0, tpidr_el2
-	mov	x1, #ARM_EXCEPTION_TRAP
+	mrs	x1, tpidr_el2
+	mov	x0, #ARM_EXCEPTION_TRAP
 	b	__guest_exit
 
 el1_irq:
-	save_x0_to_x3
-	mrs	x0, tpidr_el2
-	mov	x1, #ARM_EXCEPTION_IRQ
+	stp     x0, x1, [sp, #-16]!
+	mrs	x1, tpidr_el2
+	mov	x0, #ARM_EXCEPTION_IRQ
 	b	__guest_exit
 
 ENTRY(__hyp_do_panic)
