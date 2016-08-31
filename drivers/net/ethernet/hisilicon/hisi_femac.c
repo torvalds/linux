@@ -699,7 +699,7 @@ static int hisi_femac_net_ioctl(struct net_device *dev,
 	return phy_mii_ioctl(dev->phydev, ifreq, cmd);
 }
 
-static struct ethtool_ops hisi_femac_ethtools_ops = {
+static const struct ethtool_ops hisi_femac_ethtools_ops = {
 	.get_link		= ethtool_op_get_link,
 	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
 	.set_link_ksettings	= phy_ethtool_set_link_ksettings,

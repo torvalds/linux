@@ -755,7 +755,7 @@ static void hip04_get_drvinfo(struct net_device *netdev,
 	strlcpy(drvinfo->version, DRV_VERSION, sizeof(drvinfo->version));
 }
 
-static struct ethtool_ops hip04_ethtool_ops = {
+static const struct ethtool_ops hip04_ethtool_ops = {
 	.get_coalesce		= hip04_get_coalesce,
 	.set_coalesce		= hip04_set_coalesce,
 	.get_drvinfo		= hip04_get_drvinfo,

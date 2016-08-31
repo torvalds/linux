@@ -1264,7 +1264,7 @@ static int hns_get_rxnfc(struct net_device *netdev,
 	return 0;
 }
 
-static struct ethtool_ops hns_ethtool_ops = {
+static const struct ethtool_ops hns_ethtool_ops = {
 	.get_drvinfo = hns_nic_get_drvinfo,
 	.get_link  = hns_nic_get_link,
 	.get_settings  = hns_nic_get_settings,
