@@ -1905,7 +1905,7 @@ make_rpcs(struct drm_i915_private *dev_priv)
 
 	if (INTEL_INFO(dev_priv)->sseu.has_subslice_pg) {
 		rpcs |= GEN8_RPCS_SS_CNT_ENABLE;
-		rpcs |= INTEL_INFO(dev_priv)->sseu.subslice_per_slice <<
+		rpcs |= hweight8(INTEL_INFO(dev_priv)->sseu.subslice_mask) <<
 			GEN8_RPCS_SS_CNT_SHIFT;
 		rpcs |= GEN8_RPCS_ENABLE;
 	}

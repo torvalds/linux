@@ -288,7 +288,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = i915_cmd_parser_get_version(dev_priv);
 		break;
 	case I915_PARAM_SUBSLICE_TOTAL:
-		value = INTEL_INFO(dev_priv)->sseu.subslice_total;
+		value = sseu_subslice_total(&INTEL_INFO(dev_priv)->sseu);
 		if (!value)
 			return -ENODEV;
 		break;
