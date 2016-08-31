@@ -380,6 +380,12 @@ config GPIO_RCAR
 	help
 	  Say yes here to support GPIO on Renesas R-Car SoCs.
 
+config GPIO_REG
+	bool
+	help
+	  A 32-bit single register GPIO fixed in/out implementation.  This
+	  can be used to represent any register as a set of GPIO signals.
+
 config GPIO_SPEAR_SPICS
 	bool "ST SPEAr13xx SPI Chip Select as GPIO support"
 	depends on PLAT_SPEAR
