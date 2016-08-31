@@ -111,6 +111,7 @@ static void hidma_process_completed(struct hidma_chan *mchan)
 	struct dma_async_tx_descriptor *desc;
 	dma_cookie_t last_cookie;
 	struct hidma_desc *mdesc;
+	struct hidma_desc *next;
 	unsigned long irqflags;
 	struct list_head list;
 
@@ -122,8 +123,9 @@ static void hidma_process_completed(struct hidma_chan *mchan)
 	spin_unlock_irqrestore(&mchan->lock, irqflags);
 
 	/* Execute callbacks and run dependencies */
-	list_for_each_entry(mdesc, &list, node) {
+	list_for_each_entry_safe(mdesc, next, &list, node) {
 		enum dma_status llstat;
+		struct dmaengine_desc_callback cb;
 
 		desc = &mdesc->desc;
 
@@ -132,18 +134,18 @@ static void hidma_process_completed(struct hidma_chan *mchan)
 		spin_unlock_irqrestore(&mchan->lock, irqflags);
 
 		llstat = hidma_ll_status(mdma->lldev, mdesc->tre_ch);
-		if (llstat == DMA_COMPLETE)
-			dmaengine_desc_get_callback_invoke(desc, NULL);
+		dmaengine_desc_get_callback(desc, &cb);
 
 		last_cookie = desc->cookie;
 		dma_run_dependencies(desc);
+
+		spin_lock_irqsave(&mchan->lock, irqflags);
+		list_move(&mdesc->node, &mchan->free);
+		spin_unlock_irqrestore(&mchan->lock, irqflags);
+
+		if (llstat == DMA_COMPLETE)
+			dmaengine_desc_callback_invoke(&cb, NULL);
 	}
-
-	/* Free descriptors */
-	spin_lock_irqsave(&mchan->lock, irqflags);
-	list_splice_tail_init(&list, &mchan->free);
-	spin_unlock_irqrestore(&mchan->lock, irqflags);
-
 }
 
 /*
