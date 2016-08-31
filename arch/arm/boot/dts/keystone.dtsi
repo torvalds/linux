@@ -196,7 +196,7 @@
 			status = "disabled";
 		};
 
-		usb: usb@2680000 {
+		keystone_usb0: usb@2680000 {
 			compatible = "ti,keystone-dwc3";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -209,7 +209,7 @@
 			dma-ranges;
 			status = "disabled";
 
-			dwc3@2690000 {
+			usb0: dwc3@2690000 {
 				compatible = "synopsys,dwc3";
 				reg = <0x2690000 0x70000>;
 				interrupts = <GIC_SPI 393 IRQ_TYPE_EDGE_RISING>;
