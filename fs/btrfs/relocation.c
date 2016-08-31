@@ -4200,9 +4200,11 @@ restart:
 		err = PTR_ERR(trans);
 		goto out_free;
 	}
-	err = qgroup_fix_relocated_data_extents(trans, rc);
-	if (err < 0) {
-		btrfs_abort_transaction(trans, err);
+	ret = qgroup_fix_relocated_data_extents(trans, rc);
+	if (ret < 0) {
+		btrfs_abort_transaction(trans, ret);
+		if (!err)
+			err = ret;
 		goto out_free;
 	}
 	btrfs_commit_transaction(trans, rc->extent_root);
