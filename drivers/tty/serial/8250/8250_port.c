@@ -585,11 +585,11 @@ EXPORT_SYMBOL_GPL(serial8250_rpm_put);
  */
 int serial8250_em485_init(struct uart_8250_port *p)
 {
-	if (p->em485 != NULL)
+	if (p->em485)
 		return 0;
 
 	p->em485 = kmalloc(sizeof(struct uart_8250_em485), GFP_ATOMIC);
-	if (p->em485 == NULL)
+	if (!p->em485)
 		return -ENOMEM;
 
 	setup_timer(&p->em485->stop_tx_timer,
@@ -619,7 +619,7 @@ EXPORT_SYMBOL_GPL(serial8250_em485_init);
  */
 void serial8250_em485_destroy(struct uart_8250_port *p)
 {
-	if (p->em485 == NULL)
+	if (!p->em485)
 		return;
 
 	del_timer(&p->em485->start_tx_timer);
@@ -1402,10 +1402,8 @@ static void serial8250_stop_rx(struct uart_port *port)
 
 static void __do_stop_tx_rs485(struct uart_8250_port *p)
 {
-	if (!p->em485)
-		return;
-
 	serial8250_em485_rts_after_send(p);
+
 	/*
 	 * Empty the RX FIFO, we are not interested in anything
 	 * received during the half-duplex transmission.
@@ -1439,9 +1437,6 @@ static void serial8250_em485_handle_stop_tx(unsigned long arg)
 static void __stop_tx_rs485(struct uart_8250_port *p)
 {
 	struct uart_8250_em485 *em485 = p->em485;
-
-	if (!em485)
-		return;
 
 	/*
 	 * __do_stop_tx_rs485 is going to set RTS according to config
