@@ -98,12 +98,8 @@ static void dm_old_stop_queue(struct request_queue *q)
 	unsigned long flags;
 
 	spin_lock_irqsave(q->queue_lock, flags);
-	if (blk_queue_stopped(q)) {
-		spin_unlock_irqrestore(q->queue_lock, flags);
-		return;
-	}
-
-	blk_stop_queue(q);
+	if (!blk_queue_stopped(q))
+		blk_stop_queue(q);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 
