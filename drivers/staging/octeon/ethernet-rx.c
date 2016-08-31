@@ -43,6 +43,8 @@
 
 #include <asm/octeon/cvmx-gmxx-defs.h>
 
+static atomic_t oct_rx_ready = ATOMIC_INIT(0);
+
 static struct oct_rx_group {
 	int irq;
 	int group;
@@ -444,6 +446,9 @@ void cvm_oct_poll_controller(struct net_device *dev)
 {
 	int i;
 
+	if (!atomic_read(&oct_rx_ready))
+		return;
+
 	for (i = 0; i < ARRAY_SIZE(oct_rx_group); i++) {
 
 		if (!(pow_receive_groups & BIT(i)))
@@ -524,6 +529,7 @@ void cvm_oct_rx_initialize(void)
 		 */
 		napi_schedule(&oct_rx_group[i].napi);
 	}
+	atomic_inc(&oct_rx_ready);
 }
 
 void cvm_oct_rx_shutdown(void)
