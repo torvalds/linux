@@ -176,7 +176,7 @@ out:
 
 /* called under rcu_read_lock */
 void br_flood(struct net_bridge *br, struct sk_buff *skb,
-	      bool unicast, bool local_rcv, bool local_orig)
+	      enum br_pkt_type pkt_type, bool local_rcv, bool local_orig)
 {
 	u8 igmp_type = br_multicast_igmp_type(skb);
 	struct net_bridge_port *prev = NULL;
@@ -184,7 +184,7 @@ void br_flood(struct net_bridge *br, struct sk_buff *skb,
 
 	list_for_each_entry_rcu(p, &br->port_list, list) {
 		/* Do not flood unicast traffic to ports that turn it off */
-		if (unicast && !(p->flags & BR_FLOOD))
+		if (pkt_type == BR_PKT_UNICAST && !(p->flags & BR_FLOOD))
 			continue;
 
 		/* Do not flood to ports that enable proxy ARP */
