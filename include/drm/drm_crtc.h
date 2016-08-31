@@ -43,6 +43,7 @@
 #include <drm/drm_encoder.h>
 #include <drm/drm_property.h>
 #include <drm/drm_bridge.h>
+#include <drm/drm_edid.h>
 
 struct drm_device;
 struct drm_mode_set;
@@ -2003,34 +2004,5 @@ assert_drm_connector_list_read_locked(struct drm_mode_config *mode_config)
 	WARN_ON(!mutex_is_locked(&mode_config->mutex) &&
 		!drm_modeset_is_locked(&mode_config->connection_mutex));
 }
-
-/* drm_edid.c */
-bool drm_probe_ddc(struct i2c_adapter *adapter);
-struct edid *drm_get_edid(struct drm_connector *connector,
-			  struct i2c_adapter *adapter);
-struct edid *drm_get_edid_switcheroo(struct drm_connector *connector,
-				     struct i2c_adapter *adapter);
-struct edid *drm_edid_duplicate(const struct edid *edid);
-int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid);
-
-u8 drm_match_cea_mode(const struct drm_display_mode *to_match);
-enum hdmi_picture_aspect drm_get_cea_aspect_ratio(const u8 video_code);
-bool drm_detect_hdmi_monitor(struct edid *edid);
-bool drm_detect_monitor_audio(struct edid *edid);
-bool drm_rgb_quant_range_selectable(struct edid *edid);
-int drm_add_modes_noedid(struct drm_connector *connector,
-			 int hdisplay, int vdisplay);
-void drm_set_preferred_mode(struct drm_connector *connector,
-			    int hpref, int vpref);
-
-int drm_edid_header_is_valid(const u8 *raw_edid);
-bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
-			  bool *edid_corrupt);
-bool drm_edid_is_valid(struct edid *edid);
-void drm_edid_get_monitor_name(struct edid *edid, char *name,
-			       int buflen);
-struct drm_display_mode *drm_mode_find_dmt(struct drm_device *dev,
-					   int hsize, int vsize, int fresh,
-					   bool rb);
 
 #endif /* __DRM_CRTC_H__ */
