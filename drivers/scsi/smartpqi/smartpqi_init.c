@@ -2642,26 +2642,6 @@ static void pqi_start_event_ack(struct pqi_ctrl_info *ctrl_info,
 	writel(iq_pi, queue_group->iq_pi[RAID_PATH]);
 
 	spin_unlock_irqrestore(&queue_group->submit_lock[RAID_PATH], flags);
-
-	/*
-	 * We have to special-case this type of request because the firmware
-	 * does not generate an interrupt when this type of request completes.
-	 * Therefore, we have to poll until we see that the firmware has
-	 * consumed the request before we move on.
-	 */
-
-	timeout = (PQI_EVENT_ACK_TIMEOUT * HZ) + jiffies;
-
-	while (1) {
-		if (*queue_group->iq_ci[RAID_PATH] == iq_pi)
-			break;
-		if (time_after(jiffies, timeout)) {
-			dev_err(&ctrl_info->pci_dev->dev,
-				"completing event acknowledge timed out\n");
-			break;
-		}
-		usleep_range(1000, 2000);
-	}
 }
 
 static void pqi_acknowledge_event(struct pqi_ctrl_info *ctrl_info,
