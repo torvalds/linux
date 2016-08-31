@@ -918,7 +918,7 @@ static void rk3x_i2c_adapt_div(struct rk3x_i2c *i2c, unsigned long clk_rate)
  * Code adapted from i2c-cadence.c.
  *
  * Return:	NOTIFY_STOP if the rate change should be aborted, NOTIFY_OK
- *		to acknowedge the change, NOTIFY_DONE if the notification is
+ *		to acknowledge the change, NOTIFY_DONE if the notification is
  *		considered irrelevant.
  */
 static int rk3x_i2c_clk_notifier_cb(struct notifier_block *nb, unsigned long
