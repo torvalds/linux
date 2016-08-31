@@ -391,11 +391,6 @@ void register_switch_driver(struct dsa_switch_ops *type);
 void unregister_switch_driver(struct dsa_switch_ops *type);
 struct mii_bus *dsa_host_dev_to_mii_bus(struct device *dev);
 
-static inline void *ds_to_priv(struct dsa_switch *ds)
-{
-	return ds->priv;
-}
-
 static inline bool dsa_uses_tagged_protocol(struct dsa_switch_tree *dst)
 {
 	return dst->rcv != NULL;

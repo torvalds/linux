@@ -101,7 +101,7 @@ struct bcm_sf2_priv {
 
 static inline struct bcm_sf2_priv *bcm_sf2_to_priv(struct dsa_switch *ds)
 {
-	struct b53_device *dev = ds_to_priv(ds);
+	struct b53_device *dev = ds->priv;
 
 	return dev->priv;
 }

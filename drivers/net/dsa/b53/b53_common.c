@@ -477,7 +477,7 @@ static int b53_fast_age_vlan(struct b53_device *dev, u16 vid)
 
 static void b53_imp_vlan_setup(struct dsa_switch *ds, int cpu_port)
 {
-	struct b53_device *dev = ds_to_priv(ds);
+	struct b53_device *dev = ds->priv;
 	unsigned int i;
 	u16 pvlan;
 
@@ -495,7 +495,7 @@ static void b53_imp_vlan_setup(struct dsa_switch *ds, int cpu_port)
 static int b53_enable_port(struct dsa_switch *ds, int port,
 			   struct phy_device *phy)
 {
-	struct b53_device *dev = ds_to_priv(ds);
+	struct b53_device *dev = ds->priv;
 	unsigned int cpu_port = dev->cpu_port;
 	u16 pvlan;
 
@@ -520,7 +520,7 @@ static int b53_enable_port(struct dsa_switch *ds, int port,
 static void b53_disable_port(struct dsa_switch *ds, int port,
 			     struct phy_device *phy)
 {
-	struct b53_device *dev = ds_to_priv(ds);
+	struct b53_device *dev = ds->priv;
 	u8 reg;
 
 	/* Disable Tx/Rx for the port */
@@ -629,7 +629,7 @@ static int b53_switch_reset(struct b53_device *dev)
 
 static int b53_phy_read16(struct dsa_switch *ds, int addr, int reg)
 {
-	struct b53_device *priv = ds_to_priv(ds);
+	struct b53_device *priv = ds->priv;
 	u16 value = 0;
 	int ret;
 
@@ -644,7 +644,7 @@ static int b53_phy_read16(struct dsa_switch *ds, int addr, int reg)
 
 static int b53_phy_write16(struct dsa_switch *ds, int addr, int reg, u16 val)
 {
-	struct b53_device *priv = ds_to_priv(ds);
+	struct b53_device *priv = ds->priv;
 
 	if (priv->ops->phy_write16)
 		return priv->ops->phy_write16(priv, addr, reg, val);
@@ -714,7 +714,7 @@ static unsigned int b53_get_mib_size(struct b53_device *dev)
 
 static void b53_get_strings(struct dsa_switch *ds, int port, uint8_t *data)
 {
-	struct b53_device *dev = ds_to_priv(ds);
+	struct b53_device *dev = ds->priv;
 	const struct b53_mib_desc *mibs = b53_get_mib(dev);
 	unsigned int mib_size = b53_get_mib_size(dev);
 	unsigned int i;
@@ -727,7 +727,7 @@ static void b53_get_strings(struct dsa_switch *ds, int port, uint8_t *data)
 static void b53_get_ethtool_stats(struct dsa_switch *ds, int port,
 				  uint64_t *data)
 {
-	struct b53_device *dev = ds_to_priv(ds);
+	struct b53_device *dev = ds->priv;
 	const struct b53_mib_desc *mibs = b53_get_mib(dev);
 	unsigned int mib_size = b53_get_mib_size(dev);
 	const struct b53_mib_desc *s;
@@ -759,7 +759,7 @@ static void b53_get_ethtool_stats(struct dsa_switch *ds, int port,
 
 static int b53_get_sset_count(struct dsa_switch *ds)
 {
-	struct b53_device *dev = ds_to_priv(ds);
+	struct b53_device *dev = ds->priv;
 
 	return b53_get_mib_size(dev);
 }
@@ -771,7 +771,7 @@ static int b53_set_addr(struct dsa_switch *ds, u8 *addr)
 
 static int b53_setup(struct dsa_switch *ds)
 {
-	struct b53_device *dev = ds_to_priv(ds);
+	struct b53_device *dev = ds->priv;
 	unsigned int port;
 	int ret;
 
@@ -802,7 +802,7 @@ static int b53_setup(struct dsa_switch *ds)
 static void b53_adjust_link(struct dsa_switch *ds, int port,
 			    struct phy_device *phydev)
 {
-	struct b53_device *dev = ds_to_priv(ds);
+	struct b53_device *dev = ds->priv;
 	u8 rgmii_ctrl = 0, reg = 0, off;
 
 	if (!phy_is_pseudo_fixed_link(phydev))
@@ -936,7 +936,7 @@ static int b53_vlan_prepare(struct dsa_switch *ds, int port,
 			    const struct switchdev_obj_port_vlan *vlan,
 			    struct switchdev_trans *trans)
 {
-	struct b53_device *dev = ds_to_priv(ds);
+	struct b53_device *dev = ds->priv;
 
 	if ((is5325(dev) || is5365(dev)) && vlan->vid_begin == 0)
 		return -EOPNOTSUPP;
@@ -953,7 +953,7 @@ static void b53_vlan_add(struct dsa_switch *ds, int port,
 			 const struct switchdev_obj_port_vlan *vlan,
 			 struct switchdev_trans *trans)
 {
-	struct b53_device *dev = ds_to_priv(ds);
+	struct b53_device *dev = ds->priv;
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
 	unsigned int cpu_port = dev->cpu_port;
@@ -987,7 +987,7 @@ static void b53_vlan_add(struct dsa_switch *ds, int port,
 static int b53_vlan_del(struct dsa_switch *ds, int port,
 			const struct switchdev_obj_port_vlan *vlan)
 {
-	struct b53_device *dev = ds_to_priv(ds);
+	struct b53_device *dev = ds->priv;
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	unsigned int cpu_port = dev->cpu_port;
 	struct b53_vlan *vl;
@@ -1033,7 +1033,7 @@ static int b53_vlan_dump(struct dsa_switch *ds, int port,
 			 struct switchdev_obj_port_vlan *vlan,
 			 int (*cb)(struct switchdev_obj *obj))
 {
-	struct b53_device *dev = ds_to_priv(ds);
+	struct b53_device *dev = ds->priv;
 	u16 vid, vid_start = 0, pvid;
 	struct b53_vlan *vl;
 	int err = 0;
@@ -1192,7 +1192,7 @@ static int b53_fdb_prepare(struct dsa_switch *ds, int port,
 			   const struct switchdev_obj_port_fdb *fdb,
 			   struct switchdev_trans *trans)
 {
-	struct b53_device *priv = ds_to_priv(ds);
+	struct b53_device *priv = ds->priv;
 
 	/* 5325 and 5365 require some more massaging, but could
 	 * be supported eventually
@@ -1207,7 +1207,7 @@ static void b53_fdb_add(struct dsa_switch *ds, int port,
 			const struct switchdev_obj_port_fdb *fdb,
 			struct switchdev_trans *trans)
 {
-	struct b53_device *priv = ds_to_priv(ds);
+	struct b53_device *priv = ds->priv;
 
 	if (b53_arl_op(priv, 0, port, fdb->addr, fdb->vid, true))
 		pr_err("%s: failed to add MAC address\n", __func__);
@@ -1216,7 +1216,7 @@ static void b53_fdb_add(struct dsa_switch *ds, int port,
 static int b53_fdb_del(struct dsa_switch *ds, int port,
 		       const struct switchdev_obj_port_fdb *fdb)
 {
-	struct b53_device *priv = ds_to_priv(ds);
+	struct b53_device *priv = ds->priv;
 
 	return b53_arl_op(priv, 0, port, fdb->addr, fdb->vid, false);
 }
@@ -1275,7 +1275,7 @@ static int b53_fdb_dump(struct dsa_switch *ds, int port,
 			struct switchdev_obj_port_fdb *fdb,
 			int (*cb)(struct switchdev_obj *obj))
 {
-	struct b53_device *priv = ds_to_priv(ds);
+	struct b53_device *priv = ds->priv;
 	struct net_device *dev = ds->ports[port].netdev;
 	struct b53_arl_entry results[2];
 	unsigned int count = 0;
@@ -1314,7 +1314,7 @@ static int b53_fdb_dump(struct dsa_switch *ds, int port,
 static int b53_br_join(struct dsa_switch *ds, int port,
 		       struct net_device *bridge)
 {
-	struct b53_device *dev = ds_to_priv(ds);
+	struct b53_device *dev = ds->priv;
 	s8 cpu_port = ds->dst->cpu_port;
 	u16 pvlan, reg;
 	unsigned int i;
@@ -1359,7 +1359,7 @@ static int b53_br_join(struct dsa_switch *ds, int port,
 
 static void b53_br_leave(struct dsa_switch *ds, int port)
 {
-	struct b53_device *dev = ds_to_priv(ds);
+	struct b53_device *dev = ds->priv;
 	struct net_device *bridge = dev->ports[port].bridge_dev;
 	struct b53_vlan *vl = &dev->vlans[0];
 	s8 cpu_port = ds->dst->cpu_port;
@@ -1410,7 +1410,7 @@ static void b53_br_leave(struct dsa_switch *ds, int port)
 static void b53_br_set_stp_state(struct dsa_switch *ds, int port,
 				 u8 state)
 {
-	struct b53_device *dev = ds_to_priv(ds);
+	struct b53_device *dev = ds->priv;
 	u8 hw_state, cur_hw_state;
 	u8 reg;
 

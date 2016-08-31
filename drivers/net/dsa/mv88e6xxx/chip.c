@@ -586,7 +586,7 @@ static bool mv88e6xxx_has_fid_reg(struct mv88e6xxx_chip *chip)
 static void mv88e6xxx_adjust_link(struct dsa_switch *ds, int port,
 				  struct phy_device *phydev)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 	u32 reg;
 	int ret;
 
@@ -832,7 +832,7 @@ static uint64_t _mv88e6xxx_get_ethtool_stat(struct mv88e6xxx_chip *chip,
 static void mv88e6xxx_get_strings(struct dsa_switch *ds, int port,
 				  uint8_t *data)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 	struct mv88e6xxx_hw_stat *stat;
 	int i, j;
 
@@ -848,7 +848,7 @@ static void mv88e6xxx_get_strings(struct dsa_switch *ds, int port,
 
 static int mv88e6xxx_get_sset_count(struct dsa_switch *ds)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 	struct mv88e6xxx_hw_stat *stat;
 	int i, j;
 
@@ -863,7 +863,7 @@ static int mv88e6xxx_get_sset_count(struct dsa_switch *ds)
 static void mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds, int port,
 					uint64_t *data)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 	struct mv88e6xxx_hw_stat *stat;
 	int ret;
 	int i, j;
@@ -894,7 +894,7 @@ static int mv88e6xxx_get_regs_len(struct dsa_switch *ds, int port)
 static void mv88e6xxx_get_regs(struct dsa_switch *ds, int port,
 			       struct ethtool_regs *regs, void *_p)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 	u16 *p = _p;
 	int i;
 
@@ -924,7 +924,7 @@ static int _mv88e6xxx_atu_wait(struct mv88e6xxx_chip *chip)
 static int mv88e6xxx_get_eee(struct dsa_switch *ds, int port,
 			     struct ethtool_eee *e)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 	u16 reg;
 	int err;
 
@@ -954,7 +954,7 @@ out:
 static int mv88e6xxx_set_eee(struct dsa_switch *ds, int port,
 			     struct phy_device *phydev, struct ethtool_eee *e)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 	u16 reg;
 	int err;
 
@@ -1185,7 +1185,7 @@ static int _mv88e6xxx_port_based_vlan_map(struct mv88e6xxx_chip *chip, int port)
 static void mv88e6xxx_port_stp_state_set(struct dsa_switch *ds, int port,
 					 u8 state)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 	int stp_state;
 	int err;
 
@@ -1434,7 +1434,7 @@ static int mv88e6xxx_port_vlan_dump(struct dsa_switch *ds, int port,
 				    struct switchdev_obj_port_vlan *vlan,
 				    int (*cb)(struct switchdev_obj *obj))
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 	struct mv88e6xxx_vtu_stu_entry next;
 	u16 pvid;
 	int err;
@@ -1803,7 +1803,7 @@ static int _mv88e6xxx_vtu_get(struct mv88e6xxx_chip *chip, u16 vid,
 static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
 					u16 vid_begin, u16 vid_end)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 	struct mv88e6xxx_vtu_stu_entry vlan;
 	int i, err;
 
@@ -1864,7 +1864,7 @@ static const char * const mv88e6xxx_port_8021q_mode_names[] = {
 static int mv88e6xxx_port_vlan_filtering(struct dsa_switch *ds, int port,
 					 bool vlan_filtering)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 	u16 old, new = vlan_filtering ? PORT_CONTROL_2_8021Q_SECURE :
 		PORT_CONTROL_2_8021Q_DISABLED;
 	int ret;
@@ -1906,7 +1906,7 @@ mv88e6xxx_port_vlan_prepare(struct dsa_switch *ds, int port,
 			    const struct switchdev_obj_port_vlan *vlan,
 			    struct switchdev_trans *trans)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
 
 	if (!mv88e6xxx_has(chip, MV88E6XXX_FLAG_VTU))
@@ -1947,7 +1947,7 @@ static void mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
 				    const struct switchdev_obj_port_vlan *vlan,
 				    struct switchdev_trans *trans)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
 	u16 vid;
@@ -2009,7 +2009,7 @@ static int _mv88e6xxx_port_vlan_del(struct mv88e6xxx_chip *chip,
 static int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port,
 				   const struct switchdev_obj_port_vlan *vlan)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 	u16 pvid, vid;
 	int err = 0;
 
@@ -2134,7 +2134,7 @@ static void mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port,
 				   const struct switchdev_obj_port_fdb *fdb,
 				   struct switchdev_trans *trans)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 
 	mutex_lock(&chip->reg_lock);
 	if (mv88e6xxx_port_db_load_purge(chip, port, fdb->addr, fdb->vid,
@@ -2146,7 +2146,7 @@ static void mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port,
 static int mv88e6xxx_port_fdb_del(struct dsa_switch *ds, int port,
 				  const struct switchdev_obj_port_fdb *fdb)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
 
 	mutex_lock(&chip->reg_lock);
@@ -2306,7 +2306,7 @@ static int mv88e6xxx_port_fdb_dump(struct dsa_switch *ds, int port,
 				   struct switchdev_obj_port_fdb *fdb,
 				   int (*cb)(struct switchdev_obj *obj))
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
 
 	mutex_lock(&chip->reg_lock);
@@ -2319,7 +2319,7 @@ static int mv88e6xxx_port_fdb_dump(struct dsa_switch *ds, int port,
 static int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port,
 				      struct net_device *bridge)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 	int i, err = 0;
 
 	mutex_lock(&chip->reg_lock);
@@ -2342,7 +2342,7 @@ static int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port,
 
 static void mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 	struct net_device *bridge = chip->ports[port].bridge_dev;
 	int i;
 
@@ -2763,7 +2763,7 @@ static int mv88e6xxx_g1_set_age_time(struct mv88e6xxx_chip *chip,
 static int mv88e6xxx_set_ageing_time(struct dsa_switch *ds,
 				     unsigned int ageing_time)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
 
 	mutex_lock(&chip->reg_lock);
@@ -3204,7 +3204,7 @@ static int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)
 
 static int mv88e6xxx_setup(struct dsa_switch *ds)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
 	int i;
 
@@ -3244,7 +3244,7 @@ unlock:
 
 static int mv88e6xxx_set_addr(struct dsa_switch *ds, u8 *addr)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
 
 	mutex_lock(&chip->reg_lock);
@@ -3352,7 +3352,7 @@ static void mv88e6xxx_mdio_unregister(struct mv88e6xxx_chip *chip)
 
 static int mv88e61xx_get_temp(struct dsa_switch *ds, int *temp)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 	u16 val;
 	int ret;
 
@@ -3395,7 +3395,7 @@ error:
 
 static int mv88e63xx_get_temp(struct dsa_switch *ds, int *temp)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 	int phy = mv88e6xxx_6320_family(chip) ? 3 : 0;
 	u16 val;
 	int ret;
@@ -3415,7 +3415,7 @@ static int mv88e63xx_get_temp(struct dsa_switch *ds, int *temp)
 
 static int mv88e6xxx_get_temp(struct dsa_switch *ds, int *temp)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 
 	if (!mv88e6xxx_has(chip, MV88E6XXX_FLAG_TEMP))
 		return -EOPNOTSUPP;
@@ -3428,7 +3428,7 @@ static int mv88e6xxx_get_temp(struct dsa_switch *ds, int *temp)
 
 static int mv88e6xxx_get_temp_limit(struct dsa_switch *ds, int *temp)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 	int phy = mv88e6xxx_6320_family(chip) ? 3 : 0;
 	u16 val;
 	int ret;
@@ -3451,7 +3451,7 @@ static int mv88e6xxx_get_temp_limit(struct dsa_switch *ds, int *temp)
 
 static int mv88e6xxx_set_temp_limit(struct dsa_switch *ds, int temp)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 	int phy = mv88e6xxx_6320_family(chip) ? 3 : 0;
 	u16 val;
 	int err;
@@ -3474,7 +3474,7 @@ unlock:
 
 static int mv88e6xxx_get_temp_alarm(struct dsa_switch *ds, bool *alarm)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 	int phy = mv88e6xxx_6320_family(chip) ? 3 : 0;
 	u16 val;
 	int ret;
@@ -3498,7 +3498,7 @@ static int mv88e6xxx_get_temp_alarm(struct dsa_switch *ds, bool *alarm)
 
 static int mv88e6xxx_get_eeprom_len(struct dsa_switch *ds)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 
 	return chip->eeprom_len;
 }
@@ -3556,7 +3556,7 @@ static int mv88e6xxx_get_eeprom16(struct mv88e6xxx_chip *chip,
 static int mv88e6xxx_get_eeprom(struct dsa_switch *ds,
 				struct ethtool_eeprom *eeprom, u8 *data)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
 
 	mutex_lock(&chip->reg_lock);
@@ -3645,7 +3645,7 @@ static int mv88e6xxx_set_eeprom16(struct mv88e6xxx_chip *chip,
 static int mv88e6xxx_set_eeprom(struct dsa_switch *ds,
 				struct ethtool_eeprom *eeprom, u8 *data)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
 
 	if (eeprom->magic != 0xc3ec4951)
@@ -3953,7 +3953,7 @@ static int mv88e6xxx_smi_init(struct mv88e6xxx_chip *chip,
 
 static enum dsa_tag_protocol mv88e6xxx_get_tag_protocol(struct dsa_switch *ds)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 
 	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_EDSA))
 		return DSA_TAG_PROTO_EDSA;
@@ -4018,7 +4018,7 @@ static void mv88e6xxx_port_mdb_add(struct dsa_switch *ds, int port,
 				   const struct switchdev_obj_port_mdb *mdb,
 				   struct switchdev_trans *trans)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 
 	mutex_lock(&chip->reg_lock);
 	if (mv88e6xxx_port_db_load_purge(chip, port, mdb->addr, mdb->vid,
@@ -4030,7 +4030,7 @@ static void mv88e6xxx_port_mdb_add(struct dsa_switch *ds, int port,
 static int mv88e6xxx_port_mdb_del(struct dsa_switch *ds, int port,
 				  const struct switchdev_obj_port_mdb *mdb)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
 
 	mutex_lock(&chip->reg_lock);
@@ -4045,7 +4045,7 @@ static int mv88e6xxx_port_mdb_dump(struct dsa_switch *ds, int port,
 				   struct switchdev_obj_port_mdb *mdb,
 				   int (*cb)(struct switchdev_obj *obj))
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
 
 	mutex_lock(&chip->reg_lock);
@@ -4173,7 +4173,7 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 static void mv88e6xxx_remove(struct mdio_device *mdiodev)
 {
 	struct dsa_switch *ds = dev_get_drvdata(&mdiodev->dev);
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	struct mv88e6xxx_chip *chip = ds->priv;
 
 	mv88e6xxx_phy_destroy(chip);
 	mv88e6xxx_unregister_switch(chip);

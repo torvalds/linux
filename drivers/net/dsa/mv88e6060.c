@@ -19,7 +19,7 @@
 
 static int reg_read(struct dsa_switch *ds, int addr, int reg)
 {
-	struct mv88e6060_priv *priv = ds_to_priv(ds);
+	struct mv88e6060_priv *priv = ds->priv;
 
 	return mdiobus_read_nested(priv->bus, priv->sw_addr + addr, reg);
 }
@@ -37,7 +37,7 @@ static int reg_read(struct dsa_switch *ds, int addr, int reg)
 
 static int reg_write(struct dsa_switch *ds, int addr, int reg, u16 val)
 {
-	struct mv88e6060_priv *priv = ds_to_priv(ds);
+	struct mv88e6060_priv *priv = ds->priv;
 
 	return mdiobus_write_nested(priv->bus, priv->sw_addr + addr, reg, val);
 }
