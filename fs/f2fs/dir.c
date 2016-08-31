@@ -510,7 +510,7 @@ void f2fs_update_dentry(nid_t ino, umode_t mode, struct f2fs_dentry_ptr *d,
 	de->ino = cpu_to_le32(ino);
 	set_de_type(de, mode);
 	for (i = 0; i < slots; i++) {
-		test_and_set_bit_le(bit_pos + i, (void *)d->bitmap);
+		__set_bit_le(bit_pos + i, (void *)d->bitmap);
 		/* avoid wrong garbage data for readdir */
 		if (i)
 			(de + i)->name_len = 0;

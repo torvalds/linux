@@ -566,7 +566,7 @@ void f2fs_delete_inline_entry(struct f2fs_dir_entry *dentry, struct page *page,
 	inline_dentry = inline_data_addr(page);
 	bit_pos = dentry - inline_dentry->dentry;
 	for (i = 0; i < slots; i++)
-		test_and_clear_bit_le(bit_pos + i,
+		__clear_bit_le(bit_pos + i,
 				&inline_dentry->dentry_bitmap);
 
 	set_page_dirty(page);
