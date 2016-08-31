@@ -2000,6 +2000,8 @@ struct amdgpu_device {
 	spinlock_t pcie_idx_lock;
 	amdgpu_rreg_t			pcie_rreg;
 	amdgpu_wreg_t			pcie_wreg;
+	amdgpu_rreg_t			pciep_rreg;
+	amdgpu_wreg_t			pciep_wreg;
 	/* protects concurrent UVD register access */
 	spinlock_t uvd_ctx_idx_lock;
 	amdgpu_rreg_t			uvd_ctx_rreg;
@@ -2148,6 +2150,8 @@ void amdgpu_mm_wdoorbell(struct amdgpu_device *adev, u32 index, u32 v);
 #define REG_GET(FIELD, v) (((v) << FIELD##_SHIFT) & FIELD##_MASK)
 #define RREG32_PCIE(reg) adev->pcie_rreg(adev, (reg))
 #define WREG32_PCIE(reg, v) adev->pcie_wreg(adev, (reg), (v))
+#define RREG32_PCIE_PORT(reg) adev->pciep_rreg(adev, (reg))
+#define WREG32_PCIE_PORT(reg, v) adev->pciep_wreg(adev, (reg), (v))
 #define RREG32_SMC(reg) adev->smc_rreg(adev, (reg))
 #define WREG32_SMC(reg, v) adev->smc_wreg(adev, (reg), (v))
 #define RREG32_UVD_CTX(reg) adev->uvd_ctx_rreg(adev, (reg))

@@ -905,6 +905,31 @@ static void si_pcie_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
 }
 
+u32 si_pciep_rreg(struct amdgpu_device *adev, u32 reg)
+{
+	unsigned long flags;
+	u32 r;
+
+	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
+	WREG32(PCIE_PORT_INDEX, ((reg) & 0xff));
+	(void)RREG32(PCIE_PORT_INDEX);
+	r = RREG32(PCIE_PORT_DATA);
+	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
+	return r;
+}
+
+void si_pciep_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
+	WREG32(PCIE_PORT_INDEX, ((reg) & 0xff));
+	(void)RREG32(PCIE_PORT_INDEX);
+	WREG32(PCIE_PORT_DATA, (v));
+	(void)RREG32(PCIE_PORT_DATA);
+	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
+}
+
 static u32 si_smc_rreg(struct amdgpu_device *adev, u32 reg)
 {
 	unsigned long flags;
@@ -1124,6 +1149,8 @@ static int si_common_early_init(void *handle)
 	adev->smc_wreg = &si_smc_wreg;
 	adev->pcie_rreg = &si_pcie_rreg;
 	adev->pcie_wreg = &si_pcie_wreg;
+	adev->pciep_rreg = &si_pciep_rreg;
+	adev->pciep_wreg = &si_pciep_wreg;
 	adev->uvd_ctx_rreg = NULL;
 	adev->uvd_ctx_wreg = NULL;
 	adev->didt_rreg = NULL;
@@ -1315,31 +1342,6 @@ static void si_init_golden_registers(struct amdgpu_device *adev)
 	}
 }
 
-u32 si_pciep_rreg(struct amdgpu_device *adev, u32 reg)
-{
-	unsigned long flags;
-	u32 r;
-
-	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
-	WREG32(PCIE_PORT_INDEX, ((reg) & 0xff));
-	(void)RREG32(PCIE_PORT_INDEX);
-	r = RREG32(PCIE_PORT_DATA);
-	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
-	return r;
-}
-
-void si_pciep_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
-	WREG32(PCIE_PORT_INDEX, ((reg) & 0xff));
-	(void)RREG32(PCIE_PORT_INDEX);
-	WREG32(PCIE_PORT_DATA, (v));
-	(void)RREG32(PCIE_PORT_DATA);
-	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
-}
-
 static void si_pcie_gen3_enable(struct amdgpu_device *adev)
 {
 	struct pci_dev *root = adev->pdev->bus->self;
@@ -1364,7 +1366,7 @@ static void si_pcie_gen3_enable(struct amdgpu_device *adev)
 	if (!(mask & (DRM_PCIE_SPEED_50 | DRM_PCIE_SPEED_80)))
 		return;
 
-	speed_cntl = si_pciep_rreg(adev,PCIE_LC_SPEED_CNTL);
+	speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
 	current_data_rate = (speed_cntl & LC_CURRENT_DATA_RATE_MASK) >>
 		LC_CURRENT_DATA_RATE_SHIFT;
 	if (mask & DRM_PCIE_SPEED_80) {
@@ -1409,12 +1411,12 @@ static void si_pcie_gen3_enable(struct amdgpu_device *adev)
 			current_lw = (tmp & LC_OPERATING_LINK_WIDTH_MASK) >> LC_OPERATING_LINK_WIDTH_SHIFT;
 
 			if (current_lw < max_lw) {
-				tmp = si_pciep_rreg(adev, PCIE_LC_LINK_WIDTH_CNTL);
+				tmp = RREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL);
 				if (tmp & LC_RENEGOTIATION_SUPPORT) {
 					tmp &= ~(LC_LINK_WIDTH_MASK | LC_UPCONFIGURE_DIS);
 					tmp |= (max_lw << LC_LINK_WIDTH_SHIFT);
 					tmp |= LC_UPCONFIGURE_SUPPORT | LC_RENEGOTIATE_EN | LC_RECONFIG_NOW;
-					si_pciep_wreg(adev, PCIE_LC_LINK_WIDTH_CNTL, tmp);
+					WREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL, tmp);
 				}
 			}
 
@@ -1429,13 +1431,13 @@ static void si_pcie_gen3_enable(struct amdgpu_device *adev)
 				pci_read_config_word(root, bridge_pos + PCI_EXP_LNKCTL2, &bridge_cfg2);
 				pci_read_config_word(adev->pdev, gpu_pos + PCI_EXP_LNKCTL2, &gpu_cfg2);
 
-				tmp = si_pciep_rreg(adev, PCIE_LC_CNTL4);
+				tmp = RREG32_PCIE_PORT(PCIE_LC_CNTL4);
 				tmp |= LC_SET_QUIESCE;
-				si_pciep_wreg(adev,PCIE_LC_CNTL4, tmp);
+				WREG32_PCIE_PORT(PCIE_LC_CNTL4, tmp);
 
-				tmp = si_pciep_rreg(adev, PCIE_LC_CNTL4);
+				tmp = RREG32_PCIE_PORT(PCIE_LC_CNTL4);
 				tmp |= LC_REDO_EQ;
-				si_pciep_wreg(adev, PCIE_LC_CNTL4, tmp);
+				WREG32_PCIE_PORT(PCIE_LC_CNTL4, tmp);
 
 				mdelay(100);
 
@@ -1459,16 +1461,16 @@ static void si_pcie_gen3_enable(struct amdgpu_device *adev)
 				tmp16 |= (gpu_cfg2 & ((1 << 4) | (7 << 9)));
 				pci_write_config_word(adev->pdev, gpu_pos + PCI_EXP_LNKCTL2, tmp16);
 
-				tmp = si_pciep_rreg(adev, PCIE_LC_CNTL4);
+				tmp = RREG32_PCIE_PORT(PCIE_LC_CNTL4);
 				tmp &= ~LC_SET_QUIESCE;
-				si_pciep_wreg(adev, PCIE_LC_CNTL4, tmp);
+				WREG32_PCIE_PORT(PCIE_LC_CNTL4, tmp);
 			}
 		}
 	}
 
 	speed_cntl |= LC_FORCE_EN_SW_SPEED_CHANGE | LC_FORCE_DIS_HW_SPEED_CHANGE;
 	speed_cntl &= ~LC_FORCE_DIS_SW_SPEED_CHANGE;
-	si_pciep_wreg(adev, PCIE_LC_SPEED_CNTL, speed_cntl);
+	WREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL, speed_cntl);
 
 	pci_read_config_word(adev->pdev, gpu_pos + PCI_EXP_LNKCTL2, &tmp16);
 	tmp16 &= ~0xf;
@@ -1480,12 +1482,12 @@ static void si_pcie_gen3_enable(struct amdgpu_device *adev)
 		tmp16 |= 1;
 	pci_write_config_word(adev->pdev, gpu_pos + PCI_EXP_LNKCTL2, tmp16);
 
-	speed_cntl = si_pciep_rreg(adev, PCIE_LC_SPEED_CNTL);
+	speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
 	speed_cntl |= LC_INITIATE_LINK_SPEED_CHANGE;
-	si_pciep_wreg(adev, PCIE_LC_SPEED_CNTL, speed_cntl);
+	WREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL, speed_cntl);
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		speed_cntl = si_pciep_rreg(adev, PCIE_LC_SPEED_CNTL);
+		speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
 		if ((speed_cntl & LC_INITIATE_LINK_SPEED_CHANGE) == 0)
 			break;
 		udelay(1);
@@ -1546,23 +1548,23 @@ static void si_program_aspm(struct amdgpu_device *adev)
 
 	if (adev->flags & AMD_IS_APU)
 		return;
-	orig = data = si_pciep_rreg(adev, PCIE_LC_N_FTS_CNTL);
+	orig = data = RREG32_PCIE_PORT(PCIE_LC_N_FTS_CNTL);
 	data &= ~LC_XMIT_N_FTS_MASK;
 	data |= LC_XMIT_N_FTS(0x24) | LC_XMIT_N_FTS_OVERRIDE_EN;
 	if (orig != data)
-		si_pciep_wreg(adev, PCIE_LC_N_FTS_CNTL, data);
+		WREG32_PCIE_PORT(PCIE_LC_N_FTS_CNTL, data);
 
-	orig = data = si_pciep_rreg(adev, PCIE_LC_CNTL3);
+	orig = data = RREG32_PCIE_PORT(PCIE_LC_CNTL3);
 	data |= LC_GO_TO_RECOVERY;
 	if (orig != data)
-		si_pciep_wreg(adev, PCIE_LC_CNTL3, data);
+		WREG32_PCIE_PORT(PCIE_LC_CNTL3, data);
 
 	orig = data = RREG32_PCIE(PCIE_P_CNTL);
 	data |= P_IGNORE_EDB_ERR;
 	if (orig != data)
 		WREG32_PCIE(PCIE_P_CNTL, data);
 
-	orig = data = si_pciep_rreg(adev, PCIE_LC_CNTL);
+	orig = data = RREG32_PCIE_PORT(PCIE_LC_CNTL);
 	data &= ~(LC_L0S_INACTIVITY_MASK | LC_L1_INACTIVITY_MASK);
 	data |= LC_PMI_TO_L1_DIS;
 	if (!disable_l0s)
@@ -1572,7 +1574,7 @@ static void si_program_aspm(struct amdgpu_device *adev)
 		data |= LC_L1_INACTIVITY(7);
 		data &= ~LC_PMI_TO_L1_DIS;
 		if (orig != data)
-			si_pciep_wreg(adev, PCIE_LC_CNTL, data);
+			WREG32_PCIE_PORT(PCIE_LC_CNTL, data);
 
 		if (!disable_plloff_in_l1) {
 			bool clk_req_support;
@@ -1642,11 +1644,11 @@ static void si_program_aspm(struct amdgpu_device *adev)
 				if (orig != data)
 					si_pif_phy1_wreg(adev,PB1_PIF_PWRDOWN_3, data);
 			}
-			orig = data = si_pciep_rreg(adev, PCIE_LC_LINK_WIDTH_CNTL);
+			orig = data = RREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL);
 			data &= ~LC_DYN_LANES_PWR_STATE_MASK;
 			data |= LC_DYN_LANES_PWR_STATE(3);
 			if (orig != data)
-				si_pciep_wreg(adev, PCIE_LC_LINK_WIDTH_CNTL, data);
+				WREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL, data);
 
 			orig = data = si_pif_phy0_rreg(adev,PB0_PIF_CNTL);
 			data &= ~LS2_EXIT_TIME_MASK;
@@ -1676,10 +1678,10 @@ static void si_program_aspm(struct amdgpu_device *adev)
 			}
 
 			if (clk_req_support) {
-				orig = data = si_pciep_rreg(adev, PCIE_LC_CNTL2);
+				orig = data = RREG32_PCIE_PORT(PCIE_LC_CNTL2);
 				data |= LC_ALLOW_PDWN_IN_L1 | LC_ALLOW_PDWN_IN_L23;
 				if (orig != data)
-					si_pciep_wreg(adev, PCIE_LC_CNTL2, data);
+					WREG32_PCIE_PORT(PCIE_LC_CNTL2, data);
 
 				orig = data = RREG32(THM_CLK_CNTL);
 				data &= ~(CMON_CLK_SEL_MASK | TMON_CLK_SEL_MASK);
@@ -1717,7 +1719,7 @@ static void si_program_aspm(struct amdgpu_device *adev)
 		}
 	} else {
 		if (orig != data)
-			si_pciep_wreg(adev, PCIE_LC_CNTL, data);
+			WREG32_PCIE_PORT(PCIE_LC_CNTL, data);
 	}
 
 	orig = data = RREG32_PCIE(PCIE_CNTL2);
@@ -1726,14 +1728,14 @@ static void si_program_aspm(struct amdgpu_device *adev)
 		WREG32_PCIE(PCIE_CNTL2, data);
 
 	if (!disable_l0s) {
-		data = si_pciep_rreg(adev, PCIE_LC_N_FTS_CNTL);
+		data = RREG32_PCIE_PORT(PCIE_LC_N_FTS_CNTL);
 		if((data & LC_N_FTS_MASK) == LC_N_FTS_MASK) {
 			data = RREG32_PCIE(PCIE_LC_STATUS1);
 			if ((data & LC_REVERSE_XMIT) && (data & LC_REVERSE_RCVR)) {
-				orig = data = si_pciep_rreg(adev, PCIE_LC_CNTL);
+				orig = data = RREG32_PCIE_PORT(PCIE_LC_CNTL);
 				data &= ~LC_L0S_INACTIVITY_MASK;
 				if (orig != data)
-					si_pciep_wreg(adev, PCIE_LC_CNTL, data);
+					WREG32_PCIE_PORT(PCIE_LC_CNTL, data);
 			}
 		}
 	}

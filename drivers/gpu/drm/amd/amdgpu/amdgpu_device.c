@@ -1514,6 +1514,8 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	adev->smc_wreg = &amdgpu_invalid_wreg;
 	adev->pcie_rreg = &amdgpu_invalid_rreg;
 	adev->pcie_wreg = &amdgpu_invalid_wreg;
+	adev->pciep_rreg = &amdgpu_invalid_rreg;
+	adev->pciep_wreg = &amdgpu_invalid_wreg;
 	adev->uvd_ctx_rreg = &amdgpu_invalid_rreg;
 	adev->uvd_ctx_wreg = &amdgpu_invalid_wreg;
 	adev->didt_rreg = &amdgpu_invalid_rreg;
