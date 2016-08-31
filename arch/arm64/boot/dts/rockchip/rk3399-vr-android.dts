@@ -815,6 +815,7 @@
 		orientation-x= <1>;
 		orientation-y= <0>;
 		orientation-z= <1>;
+		support-hw-poweroff = <1>;
 		mpu-debug = <1>;
 	};
 };
