@@ -97,16 +97,16 @@ struct vport_ingress {
 	struct mlx5_flow_group *allow_spoofchk_only_grp;
 	struct mlx5_flow_group *allow_untagged_only_grp;
 	struct mlx5_flow_group *drop_grp;
-	struct mlx5_flow_rule  *allow_rule;
-	struct mlx5_flow_rule  *drop_rule;
+	struct mlx5_flow_handle  *allow_rule;
+	struct mlx5_flow_handle  *drop_rule;
 };
 
 struct vport_egress {
 	struct mlx5_flow_table *acl;
 	struct mlx5_flow_group *allowed_vlans_grp;
 	struct mlx5_flow_group *drop_grp;
-	struct mlx5_flow_rule  *allowed_vlan;
-	struct mlx5_flow_rule  *drop_rule;
+	struct mlx5_flow_handle  *allowed_vlan;
+	struct mlx5_flow_handle  *drop_rule;
 };
 
 struct mlx5_vport_info {
@@ -125,8 +125,8 @@ struct mlx5_vport {
 	int                     vport;
 	struct hlist_head       uc_list[MLX5_L2_ADDR_HASH_SIZE];
 	struct hlist_head       mc_list[MLX5_L2_ADDR_HASH_SIZE];
-	struct mlx5_flow_rule   *promisc_rule;
-	struct mlx5_flow_rule   *allmulti_rule;
+	struct mlx5_flow_handle *promisc_rule;
+	struct mlx5_flow_handle *allmulti_rule;
 	struct work_struct      vport_change_handler;
 
 	struct vport_ingress    ingress;
@@ -162,7 +162,7 @@ struct mlx5_eswitch_fdb {
 			struct mlx5_flow_table *fdb;
 			struct mlx5_flow_group *send_to_vport_grp;
 			struct mlx5_flow_group *miss_grp;
-			struct mlx5_flow_rule  *miss_rule;
+			struct mlx5_flow_handle *miss_rule;
 			int vlan_push_pop_refcount;
 		} offloads;
 	};
@@ -175,7 +175,7 @@ enum {
 };
 
 struct mlx5_esw_sq {
-	struct mlx5_flow_rule	*send_to_vport_rule;
+	struct mlx5_flow_handle	*send_to_vport_rule;
 	struct list_head	 list;
 };
 
@@ -188,7 +188,7 @@ struct mlx5_eswitch_rep {
 	u8		       hw_id[ETH_ALEN];
 	void		      *priv_data;
 
-	struct mlx5_flow_rule *vport_rx_rule;
+	struct mlx5_flow_handle *vport_rx_rule;
 	struct list_head       vport_sqs_list;
 	u16		       vlan;
 	u32		       vlan_refcount;
@@ -257,11 +257,11 @@ int mlx5_eswitch_get_vport_stats(struct mlx5_eswitch *esw,
 struct mlx5_flow_spec;
 struct mlx5_esw_flow_attr;
 
-struct mlx5_flow_rule *
+struct mlx5_flow_handle *
 mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 				struct mlx5_flow_spec *spec,
 				struct mlx5_esw_flow_attr *attr);
-struct mlx5_flow_rule *
+struct mlx5_flow_handle *
 mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, int vport, u32 tirn);
 
 enum {

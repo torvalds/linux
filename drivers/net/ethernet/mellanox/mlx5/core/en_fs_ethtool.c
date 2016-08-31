@@ -36,7 +36,7 @@
 struct mlx5e_ethtool_rule {
 	struct list_head             list;
 	struct ethtool_rx_flow_spec  flow_spec;
-	struct mlx5_flow_rule        *rule;
+	struct mlx5_flow_handle	     *rule;
 	struct mlx5e_ethtool_table   *eth_ft;
 };
 
@@ -284,13 +284,14 @@ static bool outer_header_zero(u32 *match_criteria)
 						  size - 1);
 }
 
-static struct mlx5_flow_rule *add_ethtool_flow_rule(struct mlx5e_priv *priv,
-						    struct mlx5_flow_table *ft,
-						    struct ethtool_rx_flow_spec *fs)
+static struct mlx5_flow_handle *
+add_ethtool_flow_rule(struct mlx5e_priv *priv,
+		      struct mlx5_flow_table *ft,
+		      struct ethtool_rx_flow_spec *fs)
 {
 	struct mlx5_flow_destination *dst = NULL;
 	struct mlx5_flow_spec *spec;
-	struct mlx5_flow_rule *rule;
+	struct mlx5_flow_handle *rule;
 	int err = 0;
 	u32 action;
 
@@ -317,8 +318,8 @@ static struct mlx5_flow_rule *add_ethtool_flow_rule(struct mlx5e_priv *priv,
 	}
 
 	spec->match_criteria_enable = (!outer_header_zero(spec->match_criteria));
-	rule = mlx5_add_flow_rule(ft, spec, action,
-				  MLX5_FS_DEFAULT_FLOW_TAG, dst);
+	rule = mlx5_add_flow_rules(ft, spec, action,
+				   MLX5_FS_DEFAULT_FLOW_TAG, dst, 1);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
 		netdev_err(priv->netdev, "%s: failed to add ethtool steering rule: %d\n",
@@ -335,7 +336,7 @@ static void del_ethtool_rule(struct mlx5e_priv *priv,
 			     struct mlx5e_ethtool_rule *eth_rule)
 {
 	if (eth_rule->rule)
-		mlx5_del_flow_rule(eth_rule->rule);
+		mlx5_del_flow_rules(eth_rule->rule);
 	list_del(&eth_rule->list);
 	priv->fs.ethtool.tot_num_rules--;
 	put_flow_table(eth_rule->eth_ft);
@@ -475,7 +476,7 @@ int mlx5e_ethtool_flow_replace(struct mlx5e_priv *priv,
 {
 	struct mlx5e_ethtool_table *eth_ft;
 	struct mlx5e_ethtool_rule *eth_rule;
-	struct mlx5_flow_rule *rule;
+	struct mlx5_flow_handle *rule;
 	int num_tuples;
 	int err;
 
