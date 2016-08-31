@@ -2194,18 +2194,14 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 
 		if (chan_band_tlv && adapter->nd_info) {
 			adapter->nd_info->matches[idx] =
-				kzalloc(sizeof(*pmatch) +
-				sizeof(u32), GFP_ATOMIC);
+				kzalloc(sizeof(*pmatch) + sizeof(u32),
+					GFP_ATOMIC);
 
 			pmatch = adapter->nd_info->matches[idx];
 
 			if (pmatch) {
-				memset(pmatch, 0, sizeof(*pmatch));
-				if (chan_band_tlv) {
-					pmatch->n_channels = 1;
-					pmatch->channels[0] =
-						chan_band->chan_number;
-				}
+				pmatch->n_channels = 1;
+				pmatch->channels[0] = chan_band->chan_number;
 			}
 		}
 
