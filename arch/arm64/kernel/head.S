@@ -211,8 +211,8 @@ efi_header_end:
 ENTRY(stext)
 	bl	preserve_boot_args
 	bl	el2_setup			// Drop to EL1, w0=cpu_boot_mode
-	adrp	x24, __PHYS_OFFSET
-	and	x23, x24, MIN_KIMG_ALIGN - 1	// KASLR offset, defaults to 0
+	adrp	x23, __PHYS_OFFSET
+	and	x23, x23, MIN_KIMG_ALIGN - 1	// KASLR offset, defaults to 0
 	bl	set_cpu_boot_mode_flag
 	bl	__create_page_tables
 	/*
@@ -412,6 +412,8 @@ ENDPROC(__create_page_tables)
 
 /*
  * The following fragment of code is executed with the MMU enabled.
+ *
+ *   x0 = __PHYS_OFFSET
  */
 	.set	initial_sp, init_thread_union + THREAD_START_SP
 __primary_switched:
@@ -419,6 +421,12 @@ __primary_switched:
 	adr_l	x8, vectors			// load VBAR_EL1 with virtual
 	msr	vbar_el1, x8			// vector table address
 	isb
+
+	str_l	x21, __fdt_pointer, x5		// Save FDT pointer
+
+	ldr_l	x4, kimage_vaddr		// Save the offset between
+	sub	x4, x4, x0			// the kernel virtual and
+	str_l	x4, kimage_voffset, x5		// physical mappings
 
 	// Clear BSS
 	adr_l	x0, __bss_start
@@ -432,12 +440,6 @@ __primary_switched:
 	mov	x4, sp
 	and	x4, x4, #~(THREAD_SIZE - 1)
 	msr	sp_el0, x4			// Save thread_info
-	str_l	x21, __fdt_pointer, x5		// Save FDT pointer
-
-	ldr_l	x4, kimage_vaddr		// Save the offset between
-	sub	x4, x4, x24			// the kernel virtual and
-	str_l	x4, kimage_voffset, x5		// physical mappings
-
 	mov	x29, #0
 #ifdef CONFIG_KASAN
 	bl	kasan_early_init
@@ -794,6 +796,7 @@ __primary_switch:
 	bl	__relocate_kernel
 #ifdef CONFIG_RANDOMIZE_BASE
 	ldr	x8, =__primary_switched
+	adrp	x0, __PHYS_OFFSET
 	blr	x8
 
 	/*
@@ -818,5 +821,6 @@ __primary_switch:
 #endif
 #endif
 	ldr	x8, =__primary_switched
+	adrp	x0, __PHYS_OFFSET
 	br	x8
 ENDPROC(__primary_switch)
