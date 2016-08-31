@@ -14,6 +14,7 @@
 
 #include <linux/err.h>
 #include <linux/delay.h>
+#include <crypto/engine.h>
 #include "internal.h"
 
 #define CRYPTO_ENGINE_MAX_QLEN 10

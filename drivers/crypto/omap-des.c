@@ -39,6 +39,7 @@
 #include <crypto/scatterwalk.h>
 #include <crypto/des.h>
 #include <crypto/algapi.h>
+#include <crypto/engine.h>
 
 #define DST_MAXBURST			2
 

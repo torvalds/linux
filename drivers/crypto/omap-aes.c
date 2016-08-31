@@ -36,6 +36,7 @@
 #include <crypto/scatterwalk.h>
 #include <crypto/aes.h>
 #include <crypto/algapi.h>
+#include <crypto/engine.h>
 
 #define DST_MAXBURST			4
 #define DMA_MIN				(DST_MAXBURST * sizeof(u32))
