@@ -2084,7 +2084,7 @@ static long snd_seq_ioctl(struct file *file, unsigned int cmd,
 {
 	struct snd_seq_client *client = file->private_data;
 	/* To use kernel stack for ioctl data. */
-	union ioctl_arg {
+	union {
 		int pversion;
 		int client_id;
 		struct snd_seq_system_info	system_info;
@@ -2100,7 +2100,7 @@ static long snd_seq_ioctl(struct file *file, unsigned int cmd,
 		struct snd_seq_client_pool	client_pool;
 		struct snd_seq_remove_events	remove_events;
 		struct snd_seq_query_subs	query_subs;
-	} buf = {0};
+	} buf;
 	const struct ioctl_handler *handler;
 	unsigned long size;
 	int err;
@@ -2114,6 +2114,9 @@ static long snd_seq_ioctl(struct file *file, unsigned int cmd,
 	}
 	if (handler->cmd == 0)
 		return -ENOTTY;
+
+	memset(&buf, 0, sizeof(buf));
+
 	/*
 	 * All of ioctl commands for ALSA sequencer get an argument of size
 	 * within 13 bits. We can safely pick up the size from the command.
