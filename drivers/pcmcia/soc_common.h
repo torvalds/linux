@@ -62,11 +62,13 @@ struct soc_pcmcia_socket {
 		struct gpio_desc *desc;
 		unsigned int	irq;
 		const char	*name;
-	} stat[4];
+	} stat[6];
 #define SOC_STAT_CD		0	/* Card detect */
 #define SOC_STAT_BVD1		1	/* BATDEAD / IOSTSCHG */
 #define SOC_STAT_BVD2		2	/* BATWARN / IOSPKR */
 #define SOC_STAT_RDY		3	/* Ready / Interrupt */
+#define SOC_STAT_VS1		4	/* Voltage sense 1 */
+#define SOC_STAT_VS2		5	/* Voltage sense 2 */
 
 	struct gpio_desc	*gpio_reset;
 	struct gpio_desc	*gpio_bus_enable;

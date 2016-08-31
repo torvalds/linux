@@ -218,7 +218,7 @@ static int soc_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 			skt->stat[i].desc = gpio_to_desc(skt->stat[i].gpio);
 		}
 
-		if (skt->stat[i].desc) {
+		if (i < SOC_STAT_VS1 && skt->stat[i].desc) {
 			int irq = gpiod_to_irq(skt->stat[i].desc);
 
 			if (irq > 0) {
@@ -295,6 +295,10 @@ static unsigned int soc_common_pcmcia_skt_state(struct soc_pcmcia_socket *skt)
 		state.bvd1 = !!gpiod_get_value(skt->stat[SOC_STAT_BVD1].desc);
 	if (skt->stat[SOC_STAT_BVD2].desc)
 		state.bvd2 = !!gpiod_get_value(skt->stat[SOC_STAT_BVD2].desc);
+	if (skt->stat[SOC_STAT_VS1].desc)
+		state.vs_3v = !!gpiod_get_value(skt->stat[SOC_STAT_VS1].desc);
+	if (skt->stat[SOC_STAT_VS2].desc)
+		state.vs_Xv = !!gpiod_get_value(skt->stat[SOC_STAT_VS2].desc);
 
 	skt->ops->socket_state(skt, &state);
 
