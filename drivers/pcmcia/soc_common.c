@@ -179,10 +179,12 @@ static int soc_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 		if (skt->stat[i].desc) {
 			int irq = gpiod_to_irq(skt->stat[i].desc);
 
-			if (i == SOC_STAT_RDY)
-				skt->socket.pci_irq = irq;
-			else
-				skt->stat[i].irq = irq;
+			if (irq > 0) {
+				if (i == SOC_STAT_RDY)
+					skt->socket.pci_irq = irq;
+				else
+					skt->stat[i].irq = irq;
+			}
 		}
 
 		if (skt->stat[i].irq) {
