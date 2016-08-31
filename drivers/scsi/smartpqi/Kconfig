@@ -37,7 +37,6 @@
 
 config SCSI_SMARTPQI
 	tristate "Microsemi PQI Driver"
-	default n
 	depends on PCI && SCSI && !S390
 	select SCSI_SAS_ATTRS
 	select RAID_ATTRS
@@ -47,4 +46,9 @@ config SCSI_SMARTPQI
 	<http://www.microsemi.com>
 
 	To compile this driver as a module, choose M here: the
-	module will be called smartpqi
+	module will be called smartpqi.
+
+        Note: the aacraid driver will not manage a smartpqi
+              controller. You need to enable smartpqi for smartpqi
+              controllers. For more information, please see
+              Documentation/scsi/smartpqi.txt
