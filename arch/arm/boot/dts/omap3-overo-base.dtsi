@@ -12,7 +12,7 @@
 
 / {
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0 0>;
 	};
