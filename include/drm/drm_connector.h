@@ -27,6 +27,10 @@
 #include <linux/ctype.h>
 #include <drm/drm_mode_object.h>
 
+#include <uapi/drm/drm_mode.h>
+
+struct drm_device;
+
 struct drm_connector_helper_funcs;
 struct drm_device;
 struct drm_crtc;

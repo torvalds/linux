@@ -26,6 +26,7 @@
 #include <linux/kref.h>
 struct drm_object_properties;
 struct drm_property;
+struct drm_device;
 
 /**
  * struct drm_mode_object - base structure for modeset objects

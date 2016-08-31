@@ -27,8 +27,12 @@
 #ifndef __DRM_MODES_H__
 #define __DRM_MODES_H__
 
+#include <linux/hdmi.h>
+
 #include <drm/drm_mode_object.h>
 #include <drm/drm_connector.h>
+
+struct videomode;
 
 /*
  * Note on terminology:  here, for brevity and convenience, we refer to connector

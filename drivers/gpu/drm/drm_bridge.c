@@ -23,10 +23,9 @@
 
 #include <linux/err.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 
-#include <drm/drm_crtc.h>
-
-#include "drm/drmP.h"
+#include <drm/drm_bridge.h>
 
 /**
  * DOC: overview
