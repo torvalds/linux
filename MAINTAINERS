@@ -7829,6 +7829,7 @@ F:	drivers/scsi/smartpqi/Kconfig
 F:	drivers/scsi/smartpqi/Makefile
 F:	include/linux/cciss*.h
 F:	include/uapi/linux/cciss*.h
+F:	Documentation/scsi/smartpqi.txt
 
 MN88472 MEDIA DRIVER
 M:	Antti Palosaari <crope@iki.fi>
