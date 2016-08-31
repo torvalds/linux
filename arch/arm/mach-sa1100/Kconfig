@@ -6,6 +6,7 @@ config SA1100_ASSABET
 	bool "Assabet"
 	select ARM_SA1110_CPUFREQ
 	select GPIO_REG
+	select LEDS_GPIO_REGISTER
 	select REGULATOR
 	select REGULATOR_FIXED_VOLTAGE
 	help
