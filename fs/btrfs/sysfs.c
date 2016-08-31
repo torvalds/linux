@@ -836,7 +836,7 @@ static int btrfs_init_debugfs(void)
 	if (!btrfs_debugfs_root_dentry)
 		return -ENOMEM;
 
-	debugfs_create_u64("test", S_IRUGO | S_IWUGO, btrfs_debugfs_root_dentry,
+	debugfs_create_u64("test", S_IRUGO | S_IWUSR, btrfs_debugfs_root_dentry,
 			&btrfs_debugfs_test);
 #endif
 	return 0;
