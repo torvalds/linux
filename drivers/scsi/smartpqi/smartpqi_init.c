@@ -4514,7 +4514,7 @@ static int pqi_aio_submit_io(struct pqi_ctrl_info *ctrl_info,
 }
 
 static int pqi_scsi_queue_command(struct Scsi_Host *shost,
-				struct scsi_cmnd *scmd)
+	struct scsi_cmnd *scmd)
 {
 	int rc;
 	struct pqi_ctrl_info *ctrl_info;
@@ -4531,6 +4531,12 @@ static int pqi_scsi_queue_command(struct Scsi_Host *shost,
 		pqi_scsi_done(scmd);
 		return 0;
 	}
+
+	/*
+	 * This is necessary because the SML doesn't zero out this field during
+	 * error recovery.
+	 */
+	scmd->result = 0;
 
 	hwq = blk_mq_unique_tag_to_hwq(blk_mq_unique_tag(scmd->request));
 	if (hwq >= ctrl_info->num_queue_groups)
