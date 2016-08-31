@@ -1703,7 +1703,7 @@ static void mtk_get_ethtool_stats(struct net_device *dev,
 	} while (u64_stats_fetch_retry_irq(&hwstats->syncp, start));
 }
 
-static struct ethtool_ops mtk_ethtool_ops = {
+static const struct ethtool_ops mtk_ethtool_ops = {
 	.get_settings		= mtk_get_settings,
 	.set_settings		= mtk_set_settings,
 	.get_drvinfo		= mtk_get_drvinfo,
