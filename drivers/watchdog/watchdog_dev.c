@@ -335,12 +335,41 @@ static int watchdog_set_timeout(struct watchdog_device *wdd,
 	if (watchdog_timeout_invalid(wdd, timeout))
 		return -EINVAL;
 
-	if (wdd->ops->set_timeout)
+	if (wdd->ops->set_timeout) {
 		err = wdd->ops->set_timeout(wdd, timeout);
-	else
+	} else {
 		wdd->timeout = timeout;
+		/* Disable pretimeout if it doesn't fit the new timeout */
+		if (wdd->pretimeout >= wdd->timeout)
+			wdd->pretimeout = 0;
+	}
 
 	watchdog_update_worker(wdd);
+
+	return err;
+}
+
+/*
+ *	watchdog_set_pretimeout: set the watchdog timer pretimeout
+ *	@wdd: the watchdog device to set the timeout for
+ *	@timeout: pretimeout to set in seconds
+ */
+
+static int watchdog_set_pretimeout(struct watchdog_device *wdd,
+				   unsigned int timeout)
+{
+	int err = 0;
+
+	if (!(wdd->info->options & WDIOF_PRETIMEOUT))
+		return -EOPNOTSUPP;
+
+	if (watchdog_pretimeout_invalid(wdd, timeout))
+		return -EINVAL;
+
+	if (wdd->ops->set_pretimeout)
+		err = wdd->ops->set_pretimeout(wdd, timeout);
+	else
+		wdd->pretimeout = timeout;
 
 	return err;
 }
@@ -429,6 +458,15 @@ static ssize_t timeout_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(timeout);
 
+static ssize_t pretimeout_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct watchdog_device *wdd = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%u\n", wdd->pretimeout);
+}
+static DEVICE_ATTR_RO(pretimeout);
+
 static ssize_t identity_show(struct device *dev, struct device_attribute *attr,
 				char *buf)
 {
@@ -459,6 +497,9 @@ static umode_t wdt_is_visible(struct kobject *kobj, struct attribute *attr,
 
 	if (attr == &dev_attr_timeleft.attr && !wdd->ops->get_timeleft)
 		mode = 0;
+	else if (attr == &dev_attr_pretimeout.attr &&
+		 !(wdd->info->options & WDIOF_PRETIMEOUT))
+		mode = 0;
 
 	return mode;
 }
@@ -466,6 +507,7 @@ static struct attribute *wdt_attrs[] = {
 	&dev_attr_state.attr,
 	&dev_attr_identity.attr,
 	&dev_attr_timeout.attr,
+	&dev_attr_pretimeout.attr,
 	&dev_attr_timeleft.attr,
 	&dev_attr_bootstatus.attr,
 	&dev_attr_status.attr,
@@ -645,6 +687,16 @@ static long watchdog_ioctl(struct file *file, unsigned int cmd,
 		if (err < 0)
 			break;
 		err = put_user(val, p);
+		break;
+	case WDIOC_SETPRETIMEOUT:
+		if (get_user(val, p)) {
+			err = -EFAULT;
+			break;
+		}
+		err = watchdog_set_pretimeout(wdd, val);
+		break;
+	case WDIOC_GETPRETIMEOUT:
+		err = put_user(wdd->pretimeout, p);
 		break;
 	default:
 		err = -ENOTTY;
