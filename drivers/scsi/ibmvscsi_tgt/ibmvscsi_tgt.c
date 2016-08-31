@@ -1978,7 +1978,7 @@ static long ibmvscsis_srp_login(struct scsi_info *vscsi,
 		reason = SRP_LOGIN_REJ_MULTI_CHANNEL_UNSUPPORTED;
 	else if (fmt->buffers & (~SUPPORTED_FORMATS))
 		reason = SRP_LOGIN_REJ_UNSUPPORTED_DESCRIPTOR_FMT;
-	else if ((fmt->buffers | SUPPORTED_FORMATS) == 0)
+	else if ((fmt->buffers & SUPPORTED_FORMATS) == 0)
 		reason = SRP_LOGIN_REJ_UNSUPPORTED_DESCRIPTOR_FMT;
 
 	if (vscsi->state == SRP_PROCESSING)
