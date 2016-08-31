@@ -3289,24 +3289,10 @@ out:
 	return ret;
 }
 
-/* TODO: don't use a global variable for filter ... */
-static struct strfilter *available_func_filter;
-
-/*
- * If a symbol corresponds to a function with global binding and
- * matches filter return 0. For all others return 1.
- */
-static int filter_available_functions(struct map *map __maybe_unused,
-				      struct symbol *sym)
-{
-	if (strfilter__compare(available_func_filter, sym->name))
-		return 0;
-	return 1;
-}
-
 int show_available_funcs(const char *target, struct strfilter *_filter,
 					bool user)
 {
+        struct rb_node *nd;
 	struct map *map;
 	int ret;
 
@@ -3324,9 +3310,7 @@ int show_available_funcs(const char *target, struct strfilter *_filter,
 		return -EINVAL;
 	}
 
-	/* Load symbols with given filter */
-	available_func_filter = _filter;
-	ret = map__load(map, filter_available_functions);
+	ret = map__load(map, NULL);
 	if (ret) {
 		if (ret == -2) {
 			char *str = strfilter__string(_filter);
@@ -3343,7 +3327,14 @@ int show_available_funcs(const char *target, struct strfilter *_filter,
 
 	/* Show all (filtered) symbols */
 	setup_pager();
-	dso__fprintf_symbols_by_name(map->dso, map->type, stdout);
+
+        for (nd = rb_first(&map->dso->symbol_names[map->type]); nd; nd = rb_next(nd)) {
+		struct symbol_name_rb_node *pos = rb_entry(nd, struct symbol_name_rb_node, rb_node);
+
+		if (strfilter__compare(_filter, pos->sym.name))
+			printf("%s\n", pos->sym.name);
+        }
+
 end:
 	if (user) {
 		map__put(map);
