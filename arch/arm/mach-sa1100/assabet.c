@@ -15,6 +15,7 @@
 #include <linux/errno.h>
 #include <linux/gpio/gpio-reg.h>
 #include <linux/gpio/machine.h>
+#include <linux/gpio_keys.h>
 #include <linux/ioport.h>
 #include <linux/platform_data/sa11x0-serial.h>
 #include <linux/regulator/fixed.h>
@@ -479,6 +480,30 @@ static struct gpiod_lookup_table assabet_cf_vcc_gpio_table = {
 	},
 };
 
+static struct gpio_keys_button assabet_keys_buttons[] = {
+	{
+		.gpio = 0,
+		.irq = IRQ_GPIO0,
+		.desc = "gpio0",
+		.wakeup = 1,
+		.can_disable = 1,
+		.debounce_interval = 5,
+	}, {
+		.gpio = 1,
+		.irq = IRQ_GPIO1,
+		.desc = "gpio1",
+		.wakeup = 1,
+		.can_disable = 1,
+		.debounce_interval = 5,
+	},
+};
+
+static const struct gpio_keys_platform_data assabet_keys_pdata = {
+	.buttons = assabet_keys_buttons,
+	.nbuttons = ARRAY_SIZE(assabet_keys_buttons),
+	.rep = 0,
+};
+
 static void __init assabet_init(void)
 {
 	/*
@@ -532,6 +557,11 @@ static void __init assabet_init(void)
 					true);
 
 	}
+
+	platform_device_register_resndata(NULL, "gpio-keys", 0,
+					  NULL, 0,
+					  &assabet_keys_pdata,
+					  sizeof(assabet_keys_pdata));
 
 #ifndef ASSABET_PAL_VIDEO
 	sa11x0_register_lcd(&lq039q2ds54_info);
