@@ -973,7 +973,7 @@ static int bcmgenet_nway_reset(struct net_device *dev)
 }
 
 /* standard ethtool support functions. */
-static struct ethtool_ops bcmgenet_ethtool_ops = {
+static const struct ethtool_ops bcmgenet_ethtool_ops = {
 	.get_strings		= bcmgenet_get_strings,
 	.get_sset_count		= bcmgenet_get_sset_count,
 	.get_ethtool_stats	= bcmgenet_get_ethtool_stats,
