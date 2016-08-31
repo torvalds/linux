@@ -94,7 +94,7 @@ module_param_array(krcvqs, uint, &krcvqsset, S_IRUGO);
 MODULE_PARM_DESC(krcvqs, "Array of the number of non-control kernel receive queues by VL");
 
 /* computed based on above array */
-unsigned n_krcvqs;
+unsigned long n_krcvqs;
 
 static unsigned hfi1_rcvarr_split = 25;
 module_param_named(rcvarr_split, hfi1_rcvarr_split, uint, S_IRUGO);

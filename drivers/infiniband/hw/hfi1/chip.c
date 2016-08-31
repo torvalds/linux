@@ -12935,7 +12935,7 @@ fail:
  */
 static int set_up_context_variables(struct hfi1_devdata *dd)
 {
-	int num_kernel_contexts;
+	unsigned long num_kernel_contexts;
 	int total_contexts;
 	int ret;
 	unsigned ngroups;
@@ -12964,9 +12964,9 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	 */
 	if (num_kernel_contexts > (dd->chip_send_contexts - num_vls - 1)) {
 		dd_dev_err(dd,
-			   "Reducing # kernel rcv contexts to: %d, from %d\n",
+			   "Reducing # kernel rcv contexts to: %d, from %lu\n",
 			   (int)(dd->chip_send_contexts - num_vls - 1),
-			   (int)num_kernel_contexts);
+			   num_kernel_contexts);
 		num_kernel_contexts = dd->chip_send_contexts - num_vls - 1;
 	}
 	/*

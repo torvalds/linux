@@ -1806,7 +1806,7 @@ extern unsigned int hfi1_max_mtu;
 extern unsigned int hfi1_cu;
 extern unsigned int user_credit_return_threshold;
 extern int num_user_contexts;
-extern unsigned n_krcvqs;
+extern unsigned long n_krcvqs;
 extern uint krcvqs[];
 extern int krcvqsset;
 extern uint kdeth_qp;
