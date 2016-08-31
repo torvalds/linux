@@ -98,6 +98,9 @@ const struct raid6_recov_calls *const raid6_recov_algos[] = {
 #ifdef CONFIG_AS_SSSE3
 	&raid6_recov_ssse3,
 #endif
+#ifdef CONFIG_S390
+	&raid6_recov_s390xc,
+#endif
 	&raid6_recov_intx1,
 	NULL
 };
