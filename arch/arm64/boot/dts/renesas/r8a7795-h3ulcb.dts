@@ -51,6 +51,11 @@
 		function = "scif_clk";
 	};
 
+	i2c2_pins: i2c2 {
+		groups = "i2c2_a";
+		function = "i2c2";
+	};
+
 	avb_pins: avb {
 		groups = "avb_mdc";
 		function = "avb";
@@ -66,6 +71,13 @@
 
 &scif_clk {
 	clock-frequency = <14745600>;
+	status = "okay";
+};
+
+&i2c2 {
+	pinctrl-0 = <&i2c2_pins>;
+	pinctrl-names = "default";
+
 	status = "okay";
 };
 
