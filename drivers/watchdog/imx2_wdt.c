@@ -37,18 +37,18 @@
 
 #define IMX2_WDT_WCR		0x00		/* Control Register */
 #define IMX2_WDT_WCR_WT		(0xFF << 8)	/* -> Watchdog Timeout Field */
-#define IMX2_WDT_WCR_WDA	(1 << 5)	/* -> External Reset WDOG_B */
-#define IMX2_WDT_WCR_SRS	(1 << 4)	/* -> Software Reset Signal */
-#define IMX2_WDT_WCR_WRE	(1 << 3)	/* -> WDOG Reset Enable */
-#define IMX2_WDT_WCR_WDE	(1 << 2)	/* -> Watchdog Enable */
-#define IMX2_WDT_WCR_WDZST	(1 << 0)	/* -> Watchdog timer Suspend */
+#define IMX2_WDT_WCR_WDA	BIT(5)		/* -> External Reset WDOG_B */
+#define IMX2_WDT_WCR_SRS	BIT(4)		/* -> Software Reset Signal */
+#define IMX2_WDT_WCR_WRE	BIT(3)		/* -> WDOG Reset Enable */
+#define IMX2_WDT_WCR_WDE	BIT(2)		/* -> Watchdog Enable */
+#define IMX2_WDT_WCR_WDZST	BIT(0)		/* -> Watchdog timer Suspend */
 
 #define IMX2_WDT_WSR		0x02		/* Service Register */
 #define IMX2_WDT_SEQ1		0x5555		/* -> service sequence 1 */
 #define IMX2_WDT_SEQ2		0xAAAA		/* -> service sequence 2 */
 
 #define IMX2_WDT_WRSR		0x04		/* Reset Status Register */
-#define IMX2_WDT_WRSR_TOUT	(1 << 1)	/* -> Reset due to Timeout */
+#define IMX2_WDT_WRSR_TOUT	BIT(1)		/* -> Reset due to Timeout */
 
 #define IMX2_WDT_WMCR		0x08		/* Misc Register */
 
