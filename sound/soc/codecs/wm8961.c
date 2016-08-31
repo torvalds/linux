@@ -882,7 +882,7 @@ static int wm8961_resume(struct snd_soc_codec *codec)
 #define wm8961_resume NULL
 #endif
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8961 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8961 = {
 	.probe =	wm8961_probe,
 	.resume =	wm8961_resume,
 	.set_bias_level = wm8961_set_bias_level,

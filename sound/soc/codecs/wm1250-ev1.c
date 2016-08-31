@@ -141,7 +141,7 @@ static struct snd_soc_dai_driver wm1250_ev1_dai = {
 	.ops = &wm1250_ev1_ops,
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_wm1250_ev1 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm1250_ev1 = {
 	.component_driver = {
 		.dapm_widgets		= wm1250_ev1_dapm_widgets,
 		.num_dapm_widgets	= ARRAY_SIZE(wm1250_ev1_dapm_widgets),

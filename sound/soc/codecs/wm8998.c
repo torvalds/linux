@@ -1351,7 +1351,7 @@ static struct regmap *wm8998_get_regmap(struct device *dev)
 	return priv->core.arizona->regmap;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8998 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8998 = {
 	.probe = wm8998_codec_probe,
 	.remove = wm8998_codec_remove,
 	.get_regmap = wm8998_get_regmap,

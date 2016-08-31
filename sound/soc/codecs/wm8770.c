@@ -608,7 +608,7 @@ err_reg_enable:
 	return ret;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8770 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8770 = {
 	.probe = wm8770_probe,
 	.set_bias_level = wm8770_set_bias_level,
 	.idle_bias_off = true,

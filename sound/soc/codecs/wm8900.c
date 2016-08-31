@@ -1208,7 +1208,7 @@ static int wm8900_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8900 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8900 = {
 	.probe =	wm8900_probe,
 	.suspend =	wm8900_suspend,
 	.resume =	wm8900_resume,

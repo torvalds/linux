@@ -1332,7 +1332,7 @@ static struct regmap *wm8400_get_regmap(struct device *dev)
 	return wm8400->regmap;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8400 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8400 = {
 	.probe =	wm8400_codec_probe,
 	.remove =	wm8400_codec_remove,
 	.get_regmap =	wm8400_get_regmap,

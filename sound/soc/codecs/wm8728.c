@@ -211,7 +211,7 @@ static struct snd_soc_dai_driver wm8728_dai = {
 	.ops = &wm8728_dai_ops,
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8728 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8728 = {
 	.set_bias_level = wm8728_set_bias_level,
 	.suspend_bias_off = true,
 

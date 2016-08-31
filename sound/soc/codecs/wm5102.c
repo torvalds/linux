@@ -1990,7 +1990,7 @@ static struct regmap *wm5102_get_regmap(struct device *dev)
 	return priv->core.arizona->regmap;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm5102 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm5102 = {
 	.probe = wm5102_codec_probe,
 	.remove = wm5102_codec_remove,
 	.get_regmap = wm5102_get_regmap,

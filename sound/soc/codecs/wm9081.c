@@ -1274,7 +1274,7 @@ static int wm9081_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm9081 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm9081 = {
 	.probe = 	wm9081_probe,
 
 	.set_sysclk = wm9081_set_sysclk,

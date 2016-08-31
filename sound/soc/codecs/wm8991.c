@@ -1232,7 +1232,7 @@ static struct snd_soc_dai_driver wm8991_dai = {
 	.ops = &wm8991_ops
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8991 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8991 = {
 	.set_bias_level = wm8991_set_bias_level,
 	.suspend_bias_off = true,
 

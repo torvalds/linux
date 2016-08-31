@@ -50,7 +50,7 @@ static struct snd_soc_dai_driver wm8782_dai = {
 	},
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8782 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8782 = {
 	.component_driver = {
 		.dapm_widgets		= wm8782_dapm_widgets,
 		.num_dapm_widgets	= ARRAY_SIZE(wm8782_dapm_widgets),

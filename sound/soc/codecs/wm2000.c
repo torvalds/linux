@@ -799,7 +799,7 @@ static int wm2000_remove(struct snd_soc_codec *codec)
 	return wm2000_anc_transition(wm2000, ANC_OFF);
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm2000 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm2000 = {
 	.probe = wm2000_probe,
 	.remove = wm2000_remove,
 	.suspend = wm2000_suspend,

@@ -1235,7 +1235,7 @@ static int wm9713_soc_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm9713 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm9713 = {
 	.probe = 	wm9713_soc_probe,
 	.remove = 	wm9713_soc_remove,
 	.suspend =	wm9713_soc_suspend,

@@ -367,7 +367,7 @@ static int wm8711_probe(struct snd_soc_codec *codec)
 
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8711 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8711 = {
 	.probe =	wm8711_probe,
 	.set_bias_level = wm8711_set_bias_level,
 	.suspend_bias_off = true,

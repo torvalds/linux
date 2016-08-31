@@ -993,7 +993,7 @@ static int wm8978_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8978 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8978 = {
 	.probe =	wm8978_probe,
 	.suspend =	wm8978_suspend,
 	.resume =	wm8978_resume,

@@ -899,7 +899,7 @@ static int wm8580_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8580 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8580 = {
 	.probe =	wm8580_probe,
 	.remove =	wm8580_remove,
 	.set_bias_level = wm8580_set_bias_level,

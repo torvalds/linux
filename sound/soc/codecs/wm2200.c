@@ -2103,7 +2103,7 @@ static struct snd_soc_dai_driver wm2200_dai = {
 	.ops = &wm2200_dai_ops,
 };
 
-static struct snd_soc_codec_driver soc_codec_wm2200 = {
+static const struct snd_soc_codec_driver soc_codec_wm2200 = {
 	.probe = wm2200_probe,
 
 	.idle_bias_off = true,

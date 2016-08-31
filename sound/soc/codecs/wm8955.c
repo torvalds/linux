@@ -940,7 +940,7 @@ err_enable:
 	return ret;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8955 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8955 = {
 	.probe =	wm8955_probe,
 	.set_bias_level = wm8955_set_bias_level,
 	.suspend_bias_off = true,

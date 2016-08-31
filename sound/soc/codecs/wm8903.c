@@ -1874,7 +1874,7 @@ static void wm8903_free_gpio(struct wm8903_priv *wm8903)
 }
 #endif
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8903 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8903 = {
 	.resume =	wm8903_resume,
 	.set_bias_level = wm8903_set_bias_level,
 	.seq_notifier = wm8903_seq_notifier,

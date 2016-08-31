@@ -2381,7 +2381,7 @@ static int wm5100_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm5100 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm5100 = {
 	.probe =	wm5100_probe,
 	.remove =	wm5100_remove,
 

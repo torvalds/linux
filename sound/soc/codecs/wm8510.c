@@ -581,7 +581,7 @@ static int wm8510_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8510 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8510 = {
 	.probe =	wm8510_probe,
 	.set_bias_level = wm8510_set_bias_level,
 	.suspend_bias_off = true,

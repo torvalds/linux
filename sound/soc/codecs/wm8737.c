@@ -573,7 +573,7 @@ err_get:
 	return ret;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8737 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8737 = {
 	.probe		= wm8737_probe,
 	.set_bias_level = wm8737_set_bias_level,
 	.suspend_bias_off = true,

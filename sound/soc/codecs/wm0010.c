@@ -789,7 +789,7 @@ static int wm0010_set_sysclk(struct snd_soc_codec *codec, int source,
 
 static int wm0010_probe(struct snd_soc_codec *codec);
 
-static struct snd_soc_codec_driver soc_codec_dev_wm0010 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm0010 = {
 	.probe = wm0010_probe,
 	.set_bias_level = wm0010_set_bias_level,
 	.set_sysclk = wm0010_set_sysclk,

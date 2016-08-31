@@ -1478,7 +1478,7 @@ static int wm8753_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8753 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8753 = {
 	.probe =	wm8753_probe,
 	.resume =	wm8753_resume,
 	.set_bias_level = wm8753_set_bias_level,

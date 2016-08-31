@@ -2086,7 +2086,7 @@ static int wm8904_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8904 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8904 = {
 	.probe =	wm8904_probe,
 	.remove =	wm8904_remove,
 	.set_bias_level = wm8904_set_bias_level,

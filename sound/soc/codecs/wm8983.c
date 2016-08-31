@@ -976,7 +976,7 @@ static struct snd_soc_dai_driver wm8983_dai = {
 	.symmetric_rates = 1
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8983 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8983 = {
 	.probe = wm8983_probe,
 	.set_bias_level = wm8983_set_bias_level,
 	.suspend_bias_off = true,

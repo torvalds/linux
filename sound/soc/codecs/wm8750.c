@@ -708,7 +708,7 @@ static int wm8750_probe(struct snd_soc_codec *codec)
 	return ret;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8750 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8750 = {
 	.probe =	wm8750_probe,
 	.set_bias_level = wm8750_set_bias_level,
 	.suspend_bias_off = true,

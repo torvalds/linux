@@ -1264,7 +1264,7 @@ static int wm8960_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8960 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8960 = {
 	.probe =	wm8960_probe,
 	.set_bias_level = wm8960_set_bias_level,
 	.suspend_bias_off = true,

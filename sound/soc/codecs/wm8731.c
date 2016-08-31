@@ -628,7 +628,7 @@ err_regulator_enable:
 	return ret;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8731 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8731 = {
 	.set_bias_level = wm8731_set_bias_level,
 	.suspend_bias_off = true,
 
