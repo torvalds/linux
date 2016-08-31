@@ -217,7 +217,7 @@ struct key {
 	};
 
 	/* This is set on a keyring to restrict the addition of a link to a key
-	 * to it.  If this method isn't provided then it is assumed that the
+	 * to it.  If this structure isn't provided then it is assumed that the
 	 * keyring is open to any addition.  It is ignored for non-keyring
 	 * keys.
 	 *
@@ -226,7 +226,7 @@ struct key {
 	 * overrides this, allowing the kernel to add extra keys without
 	 * restriction.
 	 */
-	key_restrict_link_func_t restrict_link;
+	struct key_restriction *restrict_link;
 };
 
 extern struct key *key_alloc(struct key_type *type,
@@ -235,7 +235,7 @@ extern struct key *key_alloc(struct key_type *type,
 			     const struct cred *cred,
 			     key_perm_t perm,
 			     unsigned long flags,
-			     key_restrict_link_func_t restrict_link);
+			     struct key_restriction *restrict_link);
 
 
 #define KEY_ALLOC_IN_QUOTA		0x0000	/* add to quota, reject if would overrun */
@@ -311,7 +311,7 @@ extern struct key *keyring_alloc(const char *description, kuid_t uid, kgid_t gid
 				 const struct cred *cred,
 				 key_perm_t perm,
 				 unsigned long flags,
-				 key_restrict_link_func_t restrict_link,
+				 struct key_restriction *restrict_link,
 				 struct key *dest);
 
 extern int restrict_link_reject(struct key *keyring,

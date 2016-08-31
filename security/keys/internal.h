@@ -168,6 +168,8 @@ extern void key_change_session_keyring(struct callback_head *twork);
 extern struct work_struct key_gc_work;
 extern unsigned key_gc_delay;
 extern void keyring_gc(struct key *keyring, time_t limit);
+extern void keyring_restriction_gc(struct key *keyring,
+				   struct key_type *dead_type);
 extern void key_schedule_gc(time_t gc_at);
 extern void key_schedule_gc_links(void);
 extern void key_gc_keytype(struct key_type *ktype);

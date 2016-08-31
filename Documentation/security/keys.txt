@@ -1032,7 +1032,7 @@ payload contents" for more information.
 	struct key *keyring_alloc(const char *description, uid_t uid, gid_t gid,
 				  const struct cred *cred,
 				  key_perm_t perm,
-				  key_restrict_link_func_t restrict_link,
+				  struct key_restriction *restrict_link,
 				  unsigned long flags,
 				  struct key *dest);
 
@@ -1044,14 +1044,17 @@ payload contents" for more information.
     KEY_ALLOC_NOT_IN_QUOTA in flags if the keyring shouldn't be accounted
     towards the user's quota).  Error ENOMEM can also be returned.
 
-    If restrict_link not NULL, it should point to a function that will be
-    called each time an attempt is made to link a key into the new keyring.
-    This function is called to check whether a key may be added into the keying
-    or not.  Callers of key_create_or_update() within the kernel can pass
-    KEY_ALLOC_BYPASS_RESTRICTION to suppress the check.  An example of using
-    this is to manage rings of cryptographic keys that are set up when the
-    kernel boots where userspace is also permitted to add keys - provided they
-    can be verified by a key the kernel already has.
+    If restrict_link is not NULL, it should point to a structure that contains
+    the function that will be called each time an attempt is made to link a
+    key into the new keyring.  The structure may also contain a key pointer
+    and an associated key type.  The function is called to check whether a key
+    may be added into the keyring or not.  The key type is used by the garbage
+    collector to clean up function or data pointers in this structure if the
+    given key type is unregistered.  Callers of key_create_or_update() within
+    the kernel can pass KEY_ALLOC_BYPASS_RESTRICTION to suppress the check.
+    An example of using this is to manage rings of cryptographic keys that are
+    set up when the kernel boots where userspace is also permitted to add keys
+    - provided they can be verified by a key the kernel already has.
 
     When called, the restriction function will be passed the keyring being
     added to, the key type, the payload of the key being added, and data to be
