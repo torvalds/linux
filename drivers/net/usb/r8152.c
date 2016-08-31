@@ -4032,7 +4032,7 @@ static int rtl8152_set_coalesce(struct net_device *netdev,
 	return ret;
 }
 
-static struct ethtool_ops ops = {
+static const struct ethtool_ops ops = {
 	.get_drvinfo = rtl8152_get_drvinfo,
 	.get_settings = rtl8152_get_settings,
 	.set_settings = rtl8152_set_settings,
