@@ -1,5 +1,7 @@
 # Family-Level Interface Shim (FLIS)
 obj-$(subst m,y,$(CONFIG_PINCTRL_MERRIFIELD)) += platform_mrfld_pinctrl.o
+# SDHCI Devices
+obj-$(subst m,y,$(CONFIG_MMC_SDHCI_PCI)) += platform_mrfld_sd.o
 # WiFi
 obj-$(subst m,y,$(CONFIG_BRCMFMAC_SDIO)) += platform_bcm43xx.o
 # IPC Devices
