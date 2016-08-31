@@ -102,7 +102,8 @@ tegra_xusb_pad_find_phy_node(struct tegra_xusb_pad *pad, unsigned int index)
 	return of_find_node_by_name(np, pad->soc->lanes[index].name);
 }
 
-int tegra_xusb_lane_lookup_function(struct tegra_xusb_lane *lane,
+static int
+tegra_xusb_lane_lookup_function(struct tegra_xusb_lane *lane,
 				    const char *function)
 {
 	unsigned int i;
