@@ -45,6 +45,7 @@
 
 static struct oct_rx_group {
 	int irq;
+	int group;
 	struct napi_struct napi;
 } oct_rx_group;
 
@@ -146,7 +147,7 @@ static inline int cvm_oct_check_rcv_error(cvmx_wqe_t *work)
 	return 0;
 }
 
-static int cvm_oct_poll(int budget)
+static int cvm_oct_poll(struct oct_rx_group *rx_group, int budget)
 {
 	const int	coreid = cvmx_get_core_num();
 	u64	old_group_mask;
@@ -168,13 +169,13 @@ static int cvm_oct_poll(int budget)
 	if (OCTEON_IS_MODEL(OCTEON_CN68XX)) {
 		old_group_mask = cvmx_read_csr(CVMX_SSO_PPX_GRP_MSK(coreid));
 		cvmx_write_csr(CVMX_SSO_PPX_GRP_MSK(coreid),
-			       1ull << pow_receive_group);
+			       BIT(rx_group->group));
 		cvmx_read_csr(CVMX_SSO_PPX_GRP_MSK(coreid)); /* Flush */
 	} else {
 		old_group_mask = cvmx_read_csr(CVMX_POW_PP_GRP_MSKX(coreid));
 		cvmx_write_csr(CVMX_POW_PP_GRP_MSKX(coreid),
 			       (old_group_mask & ~0xFFFFull) |
-			       1 << pow_receive_group);
+			       BIT(rx_group->group));
 	}
 
 	if (USE_ASYNC_IOBDMA) {
@@ -199,15 +200,15 @@ static int cvm_oct_poll(int budget)
 		if (!work) {
 			if (OCTEON_IS_MODEL(OCTEON_CN68XX)) {
 				cvmx_write_csr(CVMX_SSO_WQ_IQ_DIS,
-					       1ull << pow_receive_group);
+					       BIT(rx_group->group));
 				cvmx_write_csr(CVMX_SSO_WQ_INT,
-					       1ull << pow_receive_group);
+					       BIT(rx_group->group));
 			} else {
 				union cvmx_pow_wq_int wq_int;
 
 				wq_int.u64 = 0;
-				wq_int.s.iq_dis = 1 << pow_receive_group;
-				wq_int.s.wq_int = 1 << pow_receive_group;
+				wq_int.s.iq_dis = BIT(rx_group->group);
+				wq_int.s.wq_int = BIT(rx_group->group);
 				cvmx_write_csr(CVMX_POW_WQ_INT, wq_int.u64);
 			}
 			break;
@@ -422,7 +423,7 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 						     napi);
 	int rx_count;
 
-	rx_count = cvm_oct_poll(budget);
+	rx_count = cvm_oct_poll(rx_group, budget);
 
 	if (rx_count < budget) {
 		/* No more work */
@@ -441,7 +442,7 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
  */
 void cvm_oct_poll_controller(struct net_device *dev)
 {
-	cvm_oct_poll(16);
+	cvm_oct_poll(&oct_rx_group, 16);
 }
 #endif
 
@@ -465,6 +466,7 @@ void cvm_oct_rx_initialize(void)
 	napi_enable(&oct_rx_group.napi);
 
 	oct_rx_group.irq = OCTEON_IRQ_WORKQ0 + pow_receive_group;
+	oct_rx_group.group = pow_receive_group;
 
 	/* Register an IRQ handler to receive POW interrupts */
 	i = request_irq(oct_rx_group.irq, cvm_oct_do_interrupt, 0, "Ethernet",
