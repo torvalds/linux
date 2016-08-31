@@ -786,7 +786,7 @@ static int rcar_pcie_get_resources(struct platform_device *pdev,
 	}
 	err = clk_prepare_enable(pcie->clk);
 	if (err)
-		goto fail_clk;
+		return err;
 
 	pcie->bus_clk = devm_clk_get(&pdev->dev, "pcie_bus");
 	if (IS_ERR(pcie->bus_clk)) {
@@ -796,7 +796,7 @@ static int rcar_pcie_get_resources(struct platform_device *pdev,
 	}
 	err = clk_prepare_enable(pcie->bus_clk);
 	if (err)
-		goto err_map_reg;
+		goto fail_clk;
 
 	i = irq_of_parse_and_map(pdev->dev.of_node, 0);
 	if (!i) {
