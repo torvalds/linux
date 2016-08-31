@@ -5113,6 +5113,38 @@ static void broadwell_sseu_device_status(struct drm_i915_private *dev_priv,
 	}
 }
 
+static void i915_print_sseu_info(struct seq_file *m, bool is_available_info,
+				 const struct sseu_dev_info *sseu)
+{
+	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+	const char *type = is_available_info ? "Available" : "Enabled";
+
+	seq_printf(m, "  %s Slice Total: %u\n", type,
+		   sseu->slice_total);
+	seq_printf(m, "  %s Subslice Total: %u\n", type,
+		   sseu->subslice_total);
+	seq_printf(m, "  %s Subslice Per Slice: %u\n", type,
+		   sseu->subslice_per_slice);
+	seq_printf(m, "  %s EU Total: %u\n", type,
+		   sseu->eu_total);
+	seq_printf(m, "  %s EU Per Subslice: %u\n", type,
+		   sseu->eu_per_subslice);
+
+	if (!is_available_info)
+		return;
+
+	seq_printf(m, "  Has Pooled EU: %s\n", yesno(HAS_POOLED_EU(dev_priv)));
+	if (HAS_POOLED_EU(dev_priv))
+		seq_printf(m, "  Min EU in pool: %u\n", sseu->min_eu_in_pool);
+
+	seq_printf(m, "  Has Slice Power Gating: %s\n",
+		   yesno(sseu->has_slice_pg));
+	seq_printf(m, "  Has Subslice Power Gating: %s\n",
+		   yesno(sseu->has_subslice_pg));
+	seq_printf(m, "  Has EU Power Gating: %s\n",
+		   yesno(sseu->has_eu_pg));
+}
+
 static int i915_sseu_status(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
@@ -5122,26 +5154,7 @@ static int i915_sseu_status(struct seq_file *m, void *unused)
 		return -ENODEV;
 
 	seq_puts(m, "SSEU Device Info\n");
-	seq_printf(m, "  Available Slice Total: %u\n",
-		   INTEL_INFO(dev_priv)->sseu.slice_total);
-	seq_printf(m, "  Available Subslice Total: %u\n",
-		   INTEL_INFO(dev_priv)->sseu.subslice_total);
-	seq_printf(m, "  Available Subslice Per Slice: %u\n",
-		   INTEL_INFO(dev_priv)->sseu.subslice_per_slice);
-	seq_printf(m, "  Available EU Total: %u\n",
-		   INTEL_INFO(dev_priv)->sseu.eu_total);
-	seq_printf(m, "  Available EU Per Subslice: %u\n",
-		   INTEL_INFO(dev_priv)->sseu.eu_per_subslice);
-	seq_printf(m, "  Has Pooled EU: %s\n", yesno(HAS_POOLED_EU(dev_priv)));
-	if (HAS_POOLED_EU(dev_priv))
-		seq_printf(m, "  Min EU in pool: %u\n",
-			   INTEL_INFO(dev_priv)->sseu.min_eu_in_pool);
-	seq_printf(m, "  Has Slice Power Gating: %s\n",
-		   yesno(INTEL_INFO(dev_priv)->sseu.has_slice_pg));
-	seq_printf(m, "  Has Subslice Power Gating: %s\n",
-		   yesno(INTEL_INFO(dev_priv)->sseu.has_subslice_pg));
-	seq_printf(m, "  Has EU Power Gating: %s\n",
-		   yesno(INTEL_INFO(dev_priv)->sseu.has_eu_pg));
+	i915_print_sseu_info(m, true, &INTEL_INFO(dev_priv)->sseu);
 
 	seq_puts(m, "SSEU Device Status\n");
 	memset(&sseu, 0, sizeof(sseu));
@@ -5158,16 +5171,7 @@ static int i915_sseu_status(struct seq_file *m, void *unused)
 
 	intel_runtime_pm_put(dev_priv);
 
-	seq_printf(m, "  Enabled Slice Total: %u\n",
-		   sseu.slice_total);
-	seq_printf(m, "  Enabled Subslice Total: %u\n",
-		   sseu.subslice_total);
-	seq_printf(m, "  Enabled Subslice Per Slice: %u\n",
-		   sseu.subslice_per_slice);
-	seq_printf(m, "  Enabled EU Total: %u\n",
-		   sseu.eu_total);
-	seq_printf(m, "  Enabled EU Per Subslice: %u\n",
-		   sseu.eu_per_subslice);
+	i915_print_sseu_info(m, false, &sseu);
 
 	return 0;
 }
