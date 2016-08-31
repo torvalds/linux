@@ -25,7 +25,28 @@ Arguments
   File descriptor returned by a previous call to :c:func:`open() <dvb-ca-open>`.
 
 ``desc``
-  Undocumented.
+  Pointer to struct :c:type:`ca_descr_info`.
+
+.. c:type:: struct ca_descr_info
+
+.. flat-table:: struct ca_descr_info
+    :header-rows:  1
+    :stub-columns: 0
+
+    -
+      - type
+      - name
+      - description
+
+    -
+      - unsigned int
+      - num
+      - number of available descramblers (keys)
+    -
+      - unsigned int
+      - type
+      - type of supported scrambling system. Valid values are:
+	``CA_ECD``, ``CA_NDS`` and ``CA_DSS``.
 
 
 Description
