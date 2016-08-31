@@ -101,7 +101,7 @@
 #define MAX_INTERPOLATE		1000
 #define MAX_INT			0x7FFF
 
-#define DRIVER_VERSION		"7.0"
+#define DRIVER_VERSION		"7.1"
 
 struct battery_platform_data {
 	u32 *ocv_table;
@@ -114,6 +114,7 @@ struct battery_platform_data {
 	u32 pwroff_vol;
 	u32 monitor_sec;
 	u32 zero_algorithm_vol;
+	u32 zero_reserve_dsoc;
 	u32 bat_res;
 	u32 design_capacity;
 	u32 design_qmax;
