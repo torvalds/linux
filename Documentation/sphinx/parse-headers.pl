@@ -2,11 +2,17 @@
 use strict;
 use Text::Tabs;
 
-# Uncomment if debug is needed
-#use Data::Dumper;
-
-# change to 1 to generate some debug prints
 my $debug = 0;
+
+while ($ARGV[0] =~ m/^-(.*)/) {
+	my $cmd = shift @ARGV;
+	if ($cmd eq "--debug") {
+		require Data::Dumper;
+		$debug = 1;
+		next;
+	}
+	die "argument $cmd unknown";
+}
 
 if (scalar @ARGV < 2 || scalar @ARGV > 3) {
 	die "Usage:\n\t$0 <file in> <file out> [<exceptions file>]\n";
