@@ -567,10 +567,16 @@ static void cn23xx_setup_iq_regs(struct octeon_device *oct, u32 iq_no)
 	 */
 	pkt_in_done = readq(iq->inst_cnt_reg);
 
-	/* Clear the count by writing back what we read, but don't
-	 * enable interrupts
-	 */
-	writeq(pkt_in_done, iq->inst_cnt_reg);
+	if (oct->msix_on) {
+		/* Set CINT_ENB to enable IQ interrupt   */
+		writeq((pkt_in_done | CN23XX_INTR_CINT_ENB),
+		       iq->inst_cnt_reg);
+	} else {
+		/* Clear the count by writing back what we read, but don't
+		 * enable interrupts
+		 */
+		writeq(pkt_in_done, iq->inst_cnt_reg);
+	}
 
 	iq->reset_instr_cnt = 0;
 }
@@ -579,6 +585,9 @@ static void cn23xx_setup_oq_regs(struct octeon_device *oct, u32 oq_no)
 {
 	u32 reg_val;
 	struct octeon_droq *droq = oct->droq[oq_no];
+	struct octeon_cn23xx_pf *cn23xx = (struct octeon_cn23xx_pf *)oct->chip;
+	u64 time_threshold;
+	u64 cnt_threshold;
 
 	oq_no += oct->sriov_info.pf_srn;
 
@@ -595,19 +604,31 @@ static void cn23xx_setup_oq_regs(struct octeon_device *oct, u32 oq_no)
 	droq->pkts_credit_reg =
 	    (u8 *)oct->mmio[0].hw_addr + CN23XX_SLI_OQ_PKTS_CREDIT(oq_no);
 
-	/* Enable this output queue to generate Packet Timer Interrupt
-	*/
-	reg_val = octeon_read_csr(oct, CN23XX_SLI_OQ_PKT_CONTROL(oq_no));
-	reg_val |= CN23XX_PKT_OUTPUT_CTL_TENB;
-	octeon_write_csr(oct, CN23XX_SLI_OQ_PKT_CONTROL(oq_no),
-			 reg_val);
+	if (!oct->msix_on) {
+		/* Enable this output queue to generate Packet Timer Interrupt
+		 */
+		reg_val =
+		    octeon_read_csr(oct, CN23XX_SLI_OQ_PKT_CONTROL(oq_no));
+		reg_val |= CN23XX_PKT_OUTPUT_CTL_TENB;
+		octeon_write_csr(oct, CN23XX_SLI_OQ_PKT_CONTROL(oq_no),
+				 reg_val);
 
-	/* Enable this output queue to generate Packet Count Interrupt
-	*/
-	reg_val = octeon_read_csr(oct, CN23XX_SLI_OQ_PKT_CONTROL(oq_no));
-	reg_val |= CN23XX_PKT_OUTPUT_CTL_CENB;
-	octeon_write_csr(oct, CN23XX_SLI_OQ_PKT_CONTROL(oq_no),
-			 reg_val);
+		/* Enable this output queue to generate Packet Count Interrupt
+		 */
+		reg_val =
+		    octeon_read_csr(oct, CN23XX_SLI_OQ_PKT_CONTROL(oq_no));
+		reg_val |= CN23XX_PKT_OUTPUT_CTL_CENB;
+		octeon_write_csr(oct, CN23XX_SLI_OQ_PKT_CONTROL(oq_no),
+				 reg_val);
+	} else {
+		time_threshold = cn23xx_pf_get_oq_ticks(
+		    oct, (u32)CFG_GET_OQ_INTR_TIME(cn23xx->conf));
+		cnt_threshold = (u32)CFG_GET_OQ_INTR_PKT(cn23xx->conf);
+
+		octeon_write_csr64(
+		    oct, CN23XX_SLI_OQ_PKT_INT_LEVELS(oq_no),
+		    ((time_threshold << 32 | cnt_threshold)));
+	}
 }
 
 static int cn23xx_enable_io_queues(struct octeon_device *oct)
@@ -762,6 +783,110 @@ static void cn23xx_disable_io_queues(struct octeon_device *oct)
 	}
 }
 
+static u64 cn23xx_pf_msix_interrupt_handler(void *dev)
+{
+	struct octeon_ioq_vector *ioq_vector = (struct octeon_ioq_vector *)dev;
+	struct octeon_device *oct = ioq_vector->oct_dev;
+	u64 pkts_sent;
+	u64 ret = 0;
+	struct octeon_droq *droq = oct->droq[ioq_vector->droq_index];
+
+	dev_dbg(&oct->pci_dev->dev, "In %s octeon_dev @ %p\n", __func__, oct);
+
+	if (!droq) {
+		dev_err(&oct->pci_dev->dev, "23XX bringup FIXME: oct pfnum:%d ioq_vector->ioq_num :%d droq is NULL\n",
+			oct->pf_num, ioq_vector->ioq_num);
+		return 0;
+	}
+
+	pkts_sent = readq(droq->pkts_sent_reg);
+
+	/* If our device has interrupted, then proceed. Also check
+	 * for all f's if interrupt was triggered on an error
+	 * and the PCI read fails.
+	 */
+	if (!pkts_sent || (pkts_sent == 0xFFFFFFFFFFFFFFFFULL))
+		return ret;
+
+	/* Write count reg in sli_pkt_cnts to clear these int.*/
+	if ((pkts_sent & CN23XX_INTR_PO_INT) ||
+	    (pkts_sent & CN23XX_INTR_PI_INT)) {
+		if (pkts_sent & CN23XX_INTR_PO_INT)
+			ret |= MSIX_PO_INT;
+	}
+
+	if (pkts_sent & CN23XX_INTR_PI_INT)
+		/* We will clear the count when we update the read_index. */
+		ret |= MSIX_PI_INT;
+
+	/* Never need to handle msix mbox intr for pf. They arrive on the last
+	 * msix
+	 */
+	return ret;
+}
+
+static irqreturn_t cn23xx_interrupt_handler(void *dev)
+{
+	struct octeon_device *oct = (struct octeon_device *)dev;
+	struct octeon_cn23xx_pf *cn23xx = (struct octeon_cn23xx_pf *)oct->chip;
+	u64 intr64;
+
+	dev_dbg(&oct->pci_dev->dev, "In %s octeon_dev @ %p\n", __func__, oct);
+	intr64 = readq(cn23xx->intr_sum_reg64);
+
+	oct->int_status = 0;
+
+	if (intr64 & CN23XX_INTR_ERR)
+		dev_err(&oct->pci_dev->dev, "OCTEON[%d]: Error Intr: 0x%016llx\n",
+			oct->octeon_id, CVM_CAST64(intr64));
+
+	if (oct->msix_on != LIO_FLAG_MSIX_ENABLED) {
+		if (intr64 & CN23XX_INTR_PKT_DATA)
+			oct->int_status |= OCT_DEV_INTR_PKT_DATA;
+	}
+
+	if (intr64 & (CN23XX_INTR_DMA0_FORCE))
+		oct->int_status |= OCT_DEV_INTR_DMA0_FORCE;
+	if (intr64 & (CN23XX_INTR_DMA1_FORCE))
+		oct->int_status |= OCT_DEV_INTR_DMA1_FORCE;
+
+	/* Clear the current interrupts */
+	writeq(intr64, cn23xx->intr_sum_reg64);
+
+	return IRQ_HANDLED;
+}
+
+static void cn23xx_enable_pf_interrupt(struct octeon_device *oct, u8 intr_flag)
+{
+	struct octeon_cn23xx_pf *cn23xx = (struct octeon_cn23xx_pf *)oct->chip;
+	u64 intr_val = 0;
+
+	/*  Divide the single write to multiple writes based on the flag. */
+	/* Enable Interrupt */
+	if (intr_flag == OCTEON_ALL_INTR) {
+		writeq(cn23xx->intr_mask64, cn23xx->intr_enb_reg64);
+	} else if (intr_flag & OCTEON_OUTPUT_INTR) {
+		intr_val = readq(cn23xx->intr_enb_reg64);
+		intr_val |= CN23XX_INTR_PKT_DATA;
+		writeq(intr_val, cn23xx->intr_enb_reg64);
+	}
+}
+
+static void cn23xx_disable_pf_interrupt(struct octeon_device *oct, u8 intr_flag)
+{
+	struct octeon_cn23xx_pf *cn23xx = (struct octeon_cn23xx_pf *)oct->chip;
+	u64 intr_val = 0;
+
+	/* Disable Interrupts */
+	if (intr_flag == OCTEON_ALL_INTR) {
+		writeq(0, cn23xx->intr_enb_reg64);
+	} else if (intr_flag & OCTEON_OUTPUT_INTR) {
+		intr_val = readq(cn23xx->intr_enb_reg64);
+		intr_val &= ~CN23XX_INTR_PKT_DATA;
+		writeq(intr_val, cn23xx->intr_enb_reg64);
+	}
+}
+
 static void cn23xx_get_pcie_qlmport(struct octeon_device *oct)
 {
 	oct->pcie_port = (octeon_read_csr(oct, CN23XX_SLI_MAC_NUMBER)) & 0xff;
@@ -816,7 +941,8 @@ static void cn23xx_setup_reg_address(struct octeon_device *oct)
 	cn23xx_get_pcie_qlmport(oct);
 
 	cn23xx->intr_mask64 = CN23XX_INTR_MASK;
-	cn23xx->intr_mask64 |= CN23XX_INTR_PKT_TIME;
+	if (!oct->msix_on)
+		cn23xx->intr_mask64 |= CN23XX_INTR_PKT_TIME;
 	if (oct->rev_id >= OCTEON_CN23XX_REV_1_1)
 		cn23xx->intr_mask64 |= CN23XX_INTR_VF_MBOX;
 
@@ -901,7 +1027,13 @@ int setup_cn23xx_octeon_pf_device(struct octeon_device *oct)
 
 	oct->fn_list.setup_iq_regs = cn23xx_setup_iq_regs;
 	oct->fn_list.setup_oq_regs = cn23xx_setup_oq_regs;
+	oct->fn_list.process_interrupt_regs = cn23xx_interrupt_handler;
+	oct->fn_list.msix_interrupt_handler = cn23xx_pf_msix_interrupt_handler;
+
 	oct->fn_list.setup_device_regs = cn23xx_setup_pf_device_regs;
+
+	oct->fn_list.enable_interrupt = cn23xx_enable_pf_interrupt;
+	oct->fn_list.disable_interrupt = cn23xx_disable_pf_interrupt;
 
 	oct->fn_list.enable_io_queues = cn23xx_enable_io_queues;
 	oct->fn_list.disable_io_queues = cn23xx_disable_io_queues;

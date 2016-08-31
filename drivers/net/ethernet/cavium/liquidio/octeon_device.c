@@ -746,6 +746,45 @@ struct octeon_device *octeon_allocate_device(u32 pci_id,
 	return oct;
 }
 
+int
+octeon_allocate_ioq_vector(struct octeon_device  *oct)
+{
+	int i, num_ioqs = 0;
+	struct octeon_ioq_vector *ioq_vector;
+	int cpu_num;
+	int size;
+
+	if (OCTEON_CN23XX_PF(oct))
+		num_ioqs = oct->sriov_info.num_pf_rings;
+	size = sizeof(struct octeon_ioq_vector) * num_ioqs;
+
+	oct->ioq_vector = vmalloc(size);
+	if (!oct->ioq_vector)
+		return 1;
+	memset(oct->ioq_vector, 0, size);
+	for (i = 0; i < num_ioqs; i++) {
+		ioq_vector		= &oct->ioq_vector[i];
+		ioq_vector->oct_dev	= oct;
+		ioq_vector->iq_index	= i;
+		ioq_vector->droq_index	= i;
+
+		cpu_num = i % num_online_cpus();
+		cpumask_set_cpu(cpu_num, &ioq_vector->affinity_mask);
+
+		if (oct->chip_id == OCTEON_CN23XX_PF_VID)
+			ioq_vector->ioq_num	= i + oct->sriov_info.pf_srn;
+		else
+			ioq_vector->ioq_num	= i;
+	}
+	return 0;
+}
+
+void
+octeon_free_ioq_vector(struct octeon_device *oct)
+{
+	vfree(oct->ioq_vector);
+}
+
 /* this function is only for setting up the first queue */
 int octeon_setup_instr_queues(struct octeon_device *oct)
 {

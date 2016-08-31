@@ -52,6 +52,9 @@ enum octeon_pci_swap_mode {
 	OCTEON_PCI_32BIT_LW_SWAP = 3
 };
 
+#define  OCTEON_OUTPUT_INTR   (2)
+#define  OCTEON_ALL_INTR      0xff
+
 /*---------------   PCI BAR1 index registers -------------*/
 
 /* BAR1 Mask */
@@ -204,6 +207,7 @@ struct octeon_fn_list {
 	void (*setup_oq_regs)(struct octeon_device *, u32);
 
 	irqreturn_t (*process_interrupt_regs)(void *);
+	u64 (*msix_interrupt_handler)(void *);
 	int (*soft_reset)(struct octeon_device *);
 	int (*setup_device_regs)(struct octeon_device *);
 	void (*bar1_idx_setup)(struct octeon_device *, u64, u32, int);
@@ -214,8 +218,8 @@ struct octeon_fn_list {
 	void (*enable_oq_pkt_time_intr)(struct octeon_device *, u32);
 	void (*disable_oq_pkt_time_intr)(struct octeon_device *, u32);
 
-	void (*enable_interrupt)(void *);
-	void (*disable_interrupt)(void *);
+	void (*enable_interrupt)(struct octeon_device *, u8);
+	void (*disable_interrupt)(struct octeon_device *, u8);
 
 	int (*enable_io_queues)(struct octeon_device *);
 	void (*disable_io_queues)(struct octeon_device *);
@@ -276,6 +280,10 @@ struct octdev_props {
 	struct net_device *netdev;
 };
 
+#define LIO_FLAG_MSIX_ENABLED	0x1
+#define MSIX_PO_INT		0x1
+#define MSIX_PI_INT		0x2
+
 struct octeon_pf_vf_hs_word {
 #ifdef __LITTLE_ENDIAN_BITFIELD
 	/** PKIND value assigned for the DPI interface */
@@ -323,6 +331,15 @@ struct octeon_sriov_info {
 
 };
 
+struct octeon_ioq_vector {
+	struct octeon_device   *oct_dev;
+	int		        iq_index;
+	int		        droq_index;
+	int			vector;
+	struct cpumask		affinity_mask;
+	u32			ioq_num;
+};
+
 /** The Octeon device.
  *  Each Octeon device has this structure to represent all its
  *  components.
@@ -357,7 +374,6 @@ struct octeon_device {
 
 	u16 flags;
 #define LIO_FLAG_MSI_ENABLED                  (u32)(1 << 1)
-#define LIO_FLAG_MSIX_ENABLED                 (u32)(1 << 2)
 
 	/** The state of this device */
 	atomic_t status;
@@ -447,9 +463,18 @@ struct octeon_device {
 
 	void *priv;
 
+	int num_msix_irqs;
+
+	void *msix_entries;
+
 	struct octeon_sriov_info sriov_info;
 
 	struct octeon_pf_vf_hs_word pfvf_hsword;
+
+	int msix_on;
+
+	/** IOq information of it's corresponding MSI-X interrupt. */
+	struct octeon_ioq_vector    *ioq_vector;
 
 	int rx_pause;
 	int tx_pause;
@@ -718,6 +743,8 @@ void *oct_get_config_info(struct octeon_device *oct, u16 card_type);
  */
 struct octeon_config *octeon_get_conf(struct octeon_device *oct);
 
+void octeon_free_ioq_vector(struct octeon_device *oct);
+int octeon_allocate_ioq_vector(struct octeon_device  *oct);
 void lio_enable_irq(struct octeon_droq *droq, struct octeon_instr_queue *iq);
 
 /* LiquidIO driver pivate flags */

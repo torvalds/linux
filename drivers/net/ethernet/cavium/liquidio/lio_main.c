@@ -195,6 +195,19 @@ static void octeon_droq_bh(unsigned long pdev)
 		reschedule |= octeon_droq_process_packets(oct, oct->droq[q_no],
 							  MAX_PACKET_BUDGET);
 		lio_enable_irq(oct->droq[q_no], NULL);
+
+		if (OCTEON_CN23XX_PF(oct) && oct->msix_on) {
+			/* set time and cnt interrupt thresholds for this DROQ
+			 * for NAPI
+			 */
+			int adjusted_q_no = q_no + oct->sriov_info.pf_srn;
+
+			octeon_write_csr64(
+			    oct, CN23XX_SLI_OQ_PKT_INT_LEVELS(adjusted_q_no),
+			    0x5700000040ULL);
+			octeon_write_csr64(
+			    oct, CN23XX_SLI_OQ_PKTS_SENT(adjusted_q_no), 0);
+		}
 	}
 
 	if (reschedule)
@@ -347,7 +360,7 @@ static void stop_pci_io(struct octeon_device *oct)
 	pci_disable_device(oct->pci_dev);
 
 	/* Disable interrupts  */
-	oct->fn_list.disable_interrupt(oct->chip);
+	oct->fn_list.disable_interrupt(oct, OCTEON_ALL_INTR);
 
 	pcierror_quiesce_device(oct);
 
@@ -910,6 +923,27 @@ static void update_txq_status(struct octeon_device *oct, int iq_num)
 	}
 }
 
+static
+int liquidio_schedule_msix_droq_pkt_handler(struct octeon_droq *droq, u64 ret)
+{
+	struct octeon_device *oct = droq->oct_dev;
+	struct octeon_device_priv *oct_priv =
+	    (struct octeon_device_priv *)oct->priv;
+
+	if (droq->ops.poll_mode) {
+		droq->ops.napi_fn(droq);
+	} else {
+		if (ret & MSIX_PO_INT) {
+			tasklet_schedule(&oct_priv->droq_tasklet);
+			return 1;
+		}
+		/* this will be flushed periodically by check iq db */
+		if (ret & MSIX_PI_INT)
+			return 0;
+	}
+	return 0;
+}
+
 /**
  * \brief Droq packet processor sceduler
  * @param oct octeon device
@@ -940,19 +974,36 @@ void liquidio_schedule_droq_pkt_handlers(struct octeon_device *oct)
 	}
 }
 
+static irqreturn_t
+liquidio_msix_intr_handler(int irq __attribute__((unused)), void *dev)
+{
+	u64 ret;
+	struct octeon_ioq_vector *ioq_vector = (struct octeon_ioq_vector *)dev;
+	struct octeon_device *oct = ioq_vector->oct_dev;
+	struct octeon_droq *droq = oct->droq[ioq_vector->droq_index];
+
+	ret = oct->fn_list.msix_interrupt_handler(ioq_vector);
+
+	if ((ret & MSIX_PO_INT) || (ret & MSIX_PI_INT))
+		liquidio_schedule_msix_droq_pkt_handler(droq, ret);
+
+	return IRQ_HANDLED;
+}
+
 /**
  * \brief Interrupt handler for octeon
  * @param irq unused
  * @param dev octeon device
  */
 static
-irqreturn_t liquidio_intr_handler(int irq __attribute__((unused)), void *dev)
+irqreturn_t liquidio_legacy_intr_handler(int irq __attribute__((unused)),
+					 void *dev)
 {
 	struct octeon_device *oct = (struct octeon_device *)dev;
 	irqreturn_t ret;
 
 	/* Disable our interrupts for the duration of ISR */
-	oct->fn_list.disable_interrupt(oct->chip);
+	oct->fn_list.disable_interrupt(oct, OCTEON_ALL_INTR);
 
 	ret = oct->fn_list.process_interrupt_regs(oct);
 
@@ -961,7 +1012,7 @@ irqreturn_t liquidio_intr_handler(int irq __attribute__((unused)), void *dev)
 
 	/* Re-enable our interrupts  */
 	if (!(atomic_read(&oct->status) == OCT_DEV_IN_RESET))
-		oct->fn_list.enable_interrupt(oct->chip);
+		oct->fn_list.enable_interrupt(oct, OCTEON_ALL_INTR);
 
 	return ret;
 }
@@ -975,24 +1026,110 @@ irqreturn_t liquidio_intr_handler(int irq __attribute__((unused)), void *dev)
 static int octeon_setup_interrupt(struct octeon_device *oct)
 {
 	int irqret, err;
+	struct msix_entry *msix_entries;
+	int i;
+	int num_ioq_vectors;
+	int num_alloc_ioq_vectors;
 
-	err = pci_enable_msi(oct->pci_dev);
-	if (err)
-		dev_warn(&oct->pci_dev->dev, "Reverting to legacy interrupts. Error: %d\n",
-			 err);
-	else
-		oct->flags |= LIO_FLAG_MSI_ENABLED;
+	if (OCTEON_CN23XX_PF(oct) && oct->msix_on) {
+		oct->num_msix_irqs = oct->sriov_info.num_pf_rings;
+		/* one non ioq interrupt for handling sli_mac_pf_int_sum */
+		oct->num_msix_irqs += 1;
 
-	irqret = request_irq(oct->pci_dev->irq, liquidio_intr_handler,
-			     IRQF_SHARED, "octeon", oct);
-	if (irqret) {
-		if (oct->flags & LIO_FLAG_MSI_ENABLED)
-			pci_disable_msi(oct->pci_dev);
-		dev_err(&oct->pci_dev->dev, "Request IRQ failed with code: %d\n",
-			irqret);
-		return 1;
+		oct->msix_entries = kcalloc(
+		    oct->num_msix_irqs, sizeof(struct msix_entry), GFP_KERNEL);
+		if (!oct->msix_entries)
+			return 1;
+
+		msix_entries = (struct msix_entry *)oct->msix_entries;
+		/*Assumption is that pf msix vectors start from pf srn to pf to
+		 * trs and not from 0. if not change this code
+		 */
+		for (i = 0; i < oct->num_msix_irqs - 1; i++)
+			msix_entries[i].entry = oct->sriov_info.pf_srn + i;
+		msix_entries[oct->num_msix_irqs - 1].entry =
+		    oct->sriov_info.trs;
+		num_alloc_ioq_vectors = pci_enable_msix_range(
+						oct->pci_dev, msix_entries,
+						oct->num_msix_irqs,
+						oct->num_msix_irqs);
+		if (num_alloc_ioq_vectors < 0) {
+			dev_err(&oct->pci_dev->dev, "unable to Allocate MSI-X interrupts\n");
+			kfree(oct->msix_entries);
+			oct->msix_entries = NULL;
+			return 1;
+		}
+		dev_dbg(&oct->pci_dev->dev, "OCTEON: Enough MSI-X interrupts are allocated...\n");
+
+		num_ioq_vectors = oct->num_msix_irqs;
+
+		/** For PF, there is one non-ioq interrupt handler */
+		num_ioq_vectors -= 1;
+		irqret = request_irq(msix_entries[num_ioq_vectors].vector,
+				     liquidio_legacy_intr_handler, 0, "octeon",
+				     oct);
+		if (irqret) {
+			dev_err(&oct->pci_dev->dev,
+				"OCTEON: Request_irq failed for MSIX interrupt Error: %d\n",
+				irqret);
+			pci_disable_msix(oct->pci_dev);
+			kfree(oct->msix_entries);
+			oct->msix_entries = NULL;
+			return 1;
+		}
+
+		for (i = 0; i < num_ioq_vectors; i++) {
+			irqret = request_irq(msix_entries[i].vector,
+					     liquidio_msix_intr_handler, 0,
+					     "octeon", &oct->ioq_vector[i]);
+			if (irqret) {
+				dev_err(&oct->pci_dev->dev,
+					"OCTEON: Request_irq failed for MSIX interrupt Error: %d\n",
+					irqret);
+				/** Freeing the non-ioq irq vector here . */
+				free_irq(msix_entries[num_ioq_vectors].vector,
+					 oct);
+
+				while (i) {
+					i--;
+					/** clearing affinity mask. */
+					irq_set_affinity_hint(
+						msix_entries[i].vector, NULL);
+					free_irq(msix_entries[i].vector,
+						 &oct->ioq_vector[i]);
+				}
+				pci_disable_msix(oct->pci_dev);
+				kfree(oct->msix_entries);
+				oct->msix_entries = NULL;
+				return 1;
+			}
+			oct->ioq_vector[i].vector = msix_entries[i].vector;
+			/* assign the cpu mask for this msix interrupt vector */
+			irq_set_affinity_hint(
+					msix_entries[i].vector,
+					(&oct->ioq_vector[i].affinity_mask));
+		}
+		dev_dbg(&oct->pci_dev->dev, "OCTEON[%d]: MSI-X enabled\n",
+			oct->octeon_id);
+	} else {
+		err = pci_enable_msi(oct->pci_dev);
+		if (err)
+			dev_warn(&oct->pci_dev->dev, "Reverting to legacy interrupts. Error: %d\n",
+				 err);
+		else
+			oct->flags |= LIO_FLAG_MSI_ENABLED;
+
+		irqret = request_irq(oct->pci_dev->irq,
+				     liquidio_legacy_intr_handler, IRQF_SHARED,
+				     "octeon", oct);
+		if (irqret) {
+			if (oct->flags & LIO_FLAG_MSI_ENABLED)
+				pci_disable_msi(oct->pci_dev);
+			dev_err(&oct->pci_dev->dev, "Request IRQ failed with code: %d\n",
+				irqret);
+			return 1;
+		}
 	}
-
 	return 0;
 }
 
@@ -1014,6 +1151,9 @@ liquidio_probe(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "Unable to allocate device\n");
 		return -ENOMEM;
 	}
+
+	if (pdev->device == OCTEON_CN23XX_PF_VID)
+		oct_dev->msix_on = LIO_FLAG_MSIX_ENABLED;
 
 	dev_info(&pdev->dev, "Initializing device %x:%x.\n",
 		 (u32)pdev->vendor, (u32)pdev->device);
@@ -1054,6 +1194,7 @@ liquidio_probe(struct pci_dev *pdev,
 static void octeon_destroy_resources(struct octeon_device *oct)
 {
 	int i;
+	struct msix_entry *msix_entries;
 	struct octeon_device_priv *oct_priv =
 		(struct octeon_device_priv *)oct->priv;
 
@@ -1098,21 +1239,40 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 			dev_err(&oct->pci_dev->dev, "OQ had pending packets\n");
 
 		/* Disable interrupts  */
-		oct->fn_list.disable_interrupt(oct->chip);
+		oct->fn_list.disable_interrupt(oct, OCTEON_ALL_INTR);
 
-		/* Release the interrupt line */
-		free_irq(oct->pci_dev->irq, oct);
+		if (oct->msix_on) {
+			msix_entries = (struct msix_entry *)oct->msix_entries;
+			for (i = 0; i < oct->num_msix_irqs - 1; i++) {
+				/* clear the affinity_cpumask */
+				irq_set_affinity_hint(msix_entries[i].vector,
+						      NULL);
+				free_irq(msix_entries[i].vector,
+					 &oct->ioq_vector[i]);
+			}
+			/* non-iov vector's argument is oct struct */
+			free_irq(msix_entries[i].vector, oct);
 
-		if (oct->flags & LIO_FLAG_MSI_ENABLED)
-			pci_disable_msi(oct->pci_dev);
+			pci_disable_msix(oct->pci_dev);
+			kfree(oct->msix_entries);
+			oct->msix_entries = NULL;
+		} else {
+			/* Release the interrupt line */
+			free_irq(oct->pci_dev->irq, oct);
 
-		/* fallthrough */
+			if (oct->flags & LIO_FLAG_MSI_ENABLED)
+				pci_disable_msi(oct->pci_dev);
+		}
+
+		if (OCTEON_CN23XX_PF(oct))
+			octeon_free_ioq_vector(oct);
+	/* fallthrough */
 	case OCT_DEV_IN_RESET:
 	case OCT_DEV_DROQ_INIT_DONE:
 		/*atomic_set(&oct->status, OCT_DEV_DROQ_INIT_DONE);*/
 		mdelay(100);
 		for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES(oct); i++) {
-			if (!(oct->io_qmask.oq & (1ULL << i)))
+			if (!(oct->io_qmask.oq & BIT_ULL(i)))
 				continue;
 			octeon_delete_droq(oct, i);
 		}
@@ -2147,7 +2307,7 @@ static void octnet_poll_check_txq_status(struct work_struct *work)
  * \brief Sets up the txq poll check
  * @param netdev network device
  */
-static inline void setup_tx_poll_fn(struct net_device *netdev)
+static inline int setup_tx_poll_fn(struct net_device *netdev)
 {
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct = lio->oct_dev;
@@ -2156,21 +2316,24 @@ static inline void setup_tx_poll_fn(struct net_device *netdev)
 						WQ_MEM_RECLAIM, 0);
 	if (!lio->txq_status_wq.wq) {
 		dev_err(&oct->pci_dev->dev, "unable to create cavium txq status wq\n");
-		return;
+		return -1;
 	}
 	INIT_DELAYED_WORK(&lio->txq_status_wq.wk.work,
 			  octnet_poll_check_txq_status);
 	lio->txq_status_wq.wk.ctxptr = lio;
 	queue_delayed_work(lio->txq_status_wq.wq,
 			   &lio->txq_status_wq.wk.work, msecs_to_jiffies(1));
+	return 0;
 }
 
 static inline void cleanup_tx_poll_fn(struct net_device *netdev)
 {
 	struct lio *lio = GET_LIO(netdev);
 
-	cancel_delayed_work_sync(&lio->txq_status_wq.wk.work);
-	destroy_workqueue(lio->txq_status_wq.wq);
+	if (lio->txq_status_wq.wq) {
+		cancel_delayed_work_sync(&lio->txq_status_wq.wk.work);
+		destroy_workqueue(lio->txq_status_wq.wq);
+	}
 }
 
 /**
@@ -2194,7 +2357,14 @@ static int liquidio_open(struct net_device *netdev)
 
 	ifstate_set(lio, LIO_IFSTATE_RUNNING);
 
-	setup_tx_poll_fn(netdev);
+	if (OCTEON_CN23XX_PF(oct)) {
+		if (!oct->msix_on)
+			if (setup_tx_poll_fn(netdev))
+				return -1;
+	} else {
+		if (setup_tx_poll_fn(netdev))
+			return -1;
+	}
 
 	start_txq(netdev);
 
@@ -2240,7 +2410,12 @@ static int liquidio_stop(struct net_device *netdev)
 	/* Now it should be safe to tell Octeon that nic interface is down. */
 	send_rx_ctrl_cmd(lio, 0);
 
-	cleanup_tx_poll_fn(netdev);
+	if (OCTEON_CN23XX_PF(oct)) {
+		if (!oct->msix_on)
+			cleanup_tx_poll_fn(netdev);
+	} else {
+		cleanup_tx_poll_fn(netdev);
+	}
 
 	if (lio->ptp_clock) {
 		ptp_clock_unregister(lio->ptp_clock);
@@ -3739,15 +3914,23 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 
 	atomic_set(&octeon_dev->status, OCT_DEV_DROQ_INIT_DONE);
 
-	/* The input and output queue registers were setup earlier (the queues
-	 * were not enabled). Any additional registers that need to be
-	 * programmed should be done now.
-	 */
-	ret = octeon_dev->fn_list.setup_device_regs(octeon_dev);
-	if (ret) {
-		dev_err(&octeon_dev->pci_dev->dev,
-			"Failed to configure device registers\n");
-		return ret;
+	if (OCTEON_CN23XX_PF(octeon_dev)) {
+		if (octeon_allocate_ioq_vector(octeon_dev)) {
+			dev_err(&octeon_dev->pci_dev->dev, "OCTEON: ioq vector allocation failed\n");
+			return 1;
+		}
+
+	} else {
+		/* The input and output queue registers were setup earlier (the
+		 * queues were not enabled). Any additional registers
+		 * that need to be programmed should be done now.
+		 */
+		ret = octeon_dev->fn_list.setup_device_regs(octeon_dev);
+		if (ret) {
+			dev_err(&octeon_dev->pci_dev->dev,
+				"Failed to configure device registers\n");
+			return ret;
+		}
 	}
 
 	/* Initialize the tasklet that handles output queue packet processing.*/
@@ -3761,7 +3944,7 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 		return 1;
 
 	/* Enable Octeon device interrupts */
-	octeon_dev->fn_list.enable_interrupt(octeon_dev->chip);
+	octeon_dev->fn_list.enable_interrupt(octeon_dev, OCTEON_ALL_INTR);
 
 	/* Enable the input and output queues for this Octeon device */
 	ret = octeon_dev->fn_list.enable_io_queues(octeon_dev);

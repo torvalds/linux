@@ -479,18 +479,20 @@ lio_cn6xxx_update_read_index(struct octeon_instr_queue *iq)
 	return new_idx;
 }
 
-void lio_cn6xxx_enable_interrupt(void *chip)
+void lio_cn6xxx_enable_interrupt(struct octeon_device *oct,
+				 u8 unused __attribute__((unused)))
 {
-	struct octeon_cn6xxx *cn6xxx = (struct octeon_cn6xxx *)chip;
+	struct octeon_cn6xxx *cn6xxx = (struct octeon_cn6xxx *)oct->chip;
 	u64 mask = cn6xxx->intr_mask64 | CN6XXX_INTR_DMA0_FORCE;
 
 	/* Enable Interrupt */
 	writeq(mask, cn6xxx->intr_enb_reg64);
 }
 
-void lio_cn6xxx_disable_interrupt(void *chip)
+void lio_cn6xxx_disable_interrupt(struct octeon_device *oct,
+				  u8 unused __attribute__((unused)))
 {
-	struct octeon_cn6xxx *cn6xxx = (struct octeon_cn6xxx *)chip;
+	struct octeon_cn6xxx *cn6xxx = (struct octeon_cn6xxx *)oct->chip;
 
 	/* Disable Interrupts */
 	writeq(0, cn6xxx->intr_enb_reg64);
