@@ -5048,7 +5048,7 @@ static void intel_dp_pps_init(struct drm_device *dev,
 
 /**
  * intel_dp_set_drrs_state - program registers for RR switch to take effect
- * @dev: DRM device
+ * @dev_priv: i915 device
  * @crtc_state: a pointer to the active intel_crtc_state
  * @refresh_rate: RR to be programmed
  *
@@ -5152,6 +5152,7 @@ static void intel_dp_set_drrs_state(struct drm_i915_private *dev_priv,
 /**
  * intel_edp_drrs_enable - init drrs struct if supported
  * @intel_dp: DP struct
+ * @crtc_state: A pointer to the active crtc state.
  *
  * Initializes frontbuffer_bits and drrs.dp
  */
@@ -5183,6 +5184,7 @@ unlock:
 /**
  * intel_edp_drrs_disable - Disable DRRS
  * @intel_dp: DP struct
+ * @old_crtc_state: Pointer to old crtc_state.
  *
  */
 void intel_edp_drrs_disable(struct intel_dp *intel_dp,
