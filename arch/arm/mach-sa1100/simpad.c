@@ -4,6 +4,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/gpio/machine.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/tty.h>
@@ -364,6 +365,15 @@ static struct platform_device *devices[] __initdata = {
 	&simpad_i2c,
 };
 
+/* Compact Flash */
+static struct gpiod_lookup_table simpad_cf_gpio_table = {
+	.dev_id = "sa11x0-pcmcia",
+	.table = {
+		GPIO_LOOKUP("gpio", GPIO_CF_IRQ, "cf-ready", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio", GPIO_CF_CD, "cf-detect", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
 
 
 static int __init simpad_init(void)
@@ -385,6 +395,7 @@ static int __init simpad_init(void)
 
 	pm_power_off = simpad_power_off;
 
+	sa11x0_register_pcmcia(-1, &simpad_cf_gpio_table);
 	sa11x0_ppc_configure_mcp();
 	sa11x0_register_mtd(&simpad_flash_data, simpad_flash_resources,
 			      ARRAY_SIZE(simpad_flash_resources));
