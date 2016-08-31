@@ -1115,27 +1115,27 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	 * (for example, if we were in RFKILL)
 	 */
 	ret = iwl_run_init_mvm_ucode(mvm, false);
-	if (ret && !iwlmvm_mod_params.init_dbg) {
+
+	if (iwlmvm_mod_params.init_dbg)
+		return 0;
+
+	if (ret) {
 		IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", ret);
 		/* this can't happen */
 		if (WARN_ON(ret > 0))
 			ret = -ERFKILL;
 		goto error;
 	}
-	if (!iwlmvm_mod_params.init_dbg) {
-		/*
-		 * Stop and start the transport without entering low power
-		 * mode. This will save the state of other components on the
-		 * device that are triggered by the INIT firwmare (MFUART).
-		 */
-		_iwl_trans_stop_device(mvm->trans, false);
-		ret = _iwl_trans_start_hw(mvm->trans, false);
-		if (ret)
-			goto error;
-	}
 
-	if (iwlmvm_mod_params.init_dbg)
-		return 0;
+	/*
+	 * Stop and start the transport without entering low power
+	 * mode. This will save the state of other components on the
+	 * device that are triggered by the INIT firwmare (MFUART).
+	 */
+	_iwl_trans_stop_device(mvm->trans, false);
+	ret = _iwl_trans_start_hw(mvm->trans, false);
+	if (ret)
+		goto error;
 
 	ret = iwl_mvm_load_ucode_wait_alive(mvm, IWL_UCODE_REGULAR);
 	if (ret) {
