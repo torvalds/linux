@@ -21,8 +21,6 @@
 **********************************************************************/
 #include <linux/version.h>
 #include <linux/pci.h>
-#include <linux/net_tstamp.h>
-#include <linux/if_vlan.h>
 #include <linux/firmware.h>
 #include <linux/ptp_clock_kernel.h>
 #include <net/vxlan.h>
@@ -51,11 +49,6 @@ static int ddr_timeout = 10000;
 module_param(ddr_timeout, int, 0644);
 MODULE_PARM_DESC(ddr_timeout,
 		 "Number of milliseconds to wait for DDR initialization. 0 waits for ddr_timeout to be set to non-zero value before starting to check");
-
-static u32 console_bitmask;
-module_param(console_bitmask, int, 0644);
-MODULE_PARM_DESC(console_bitmask,
-		 "Bitmask indicating which consoles have debug output redirected to syslog.");
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK)
 
@@ -162,27 +155,6 @@ struct octnic_gather {
 	u64 sg_dma_ptr;
 };
 
-/** This structure is used by NIC driver to store information required
- * to free the sk_buff when the packet has been fetched by Octeon.
- * Bytes offset below assume worst-case of a 64-bit system.
- */
-struct octnet_buf_free_info {
-	/** Bytes 1-8.  Pointer to network device private structure. */
-	struct lio *lio;
-
-	/** Bytes 9-16.  Pointer to sk_buff. */
-	struct sk_buff *skb;
-
-	/** Bytes 17-24.  Pointer to gather list. */
-	struct octnic_gather *g;
-
-	/** Bytes 25-32. Physical address of skb->data or gather list. */
-	u64 dptr;
-
-	/** Bytes 33-47. Piggybacked soft command, if any */
-	struct octeon_soft_command *sc;
-};
-
 struct handshake {
 	struct completion init;
 	struct completion started;
@@ -198,6 +170,7 @@ struct octeon_device_priv {
 };
 
 static int octeon_device_init(struct octeon_device *);
+static int liquidio_stop(struct net_device *netdev);
 static void liquidio_remove(struct pci_dev *pdev);
 static int liquidio_probe(struct pci_dev *pdev,
 			  const struct pci_device_id *ent);
@@ -250,76 +223,6 @@ static int lio_wait_for_oq_pkts(struct octeon_device *oct)
 	} while (retry-- && pending_pkts);
 
 	return pkt_cnt;
-}
-
-void octeon_report_tx_completion_to_bql(void *txq, unsigned int pkts_compl,
-					unsigned int bytes_compl)
-{
-	struct netdev_queue *netdev_queue = txq;
-
-	netdev_tx_completed_queue(netdev_queue, pkts_compl, bytes_compl);
-}
-
-void octeon_update_tx_completion_counters(void *buf, int reqtype,
-					  unsigned int *pkts_compl,
-					  unsigned int *bytes_compl)
-{
-	struct octnet_buf_free_info *finfo;
-	struct sk_buff *skb = NULL;
-	struct octeon_soft_command *sc;
-
-	switch (reqtype) {
-	case REQTYPE_NORESP_NET:
-	case REQTYPE_NORESP_NET_SG:
-		finfo = buf;
-		skb = finfo->skb;
-		break;
-
-	case REQTYPE_RESP_NET_SG:
-	case REQTYPE_RESP_NET:
-		sc = buf;
-		skb = sc->callback_arg;
-		break;
-
-	default:
-		return;
-	}
-
-	(*pkts_compl)++;
-	*bytes_compl += skb->len;
-}
-
-void octeon_report_sent_bytes_to_bql(void *buf, int reqtype)
-{
-	struct octnet_buf_free_info *finfo;
-	struct sk_buff *skb;
-	struct octeon_soft_command *sc;
-	struct netdev_queue *txq;
-
-	switch (reqtype) {
-	case REQTYPE_NORESP_NET:
-	case REQTYPE_NORESP_NET_SG:
-		finfo = buf;
-		skb = finfo->skb;
-		break;
-
-	case REQTYPE_RESP_NET_SG:
-	case REQTYPE_RESP_NET:
-		sc = buf;
-		skb = sc->callback_arg;
-		break;
-
-	default:
-		return;
-	}
-
-	txq = netdev_get_tx_queue(skb->dev, skb_get_queue_mapping(skb));
-	netdev_tx_sent_queue(txq, skb->len);
-}
-
-int octeon_console_debug_enabled(u32 console)
-{
-	return (console_bitmask >> (console)) & 0x1;
 }
 
 /**
@@ -2173,7 +2076,7 @@ static inline int setup_io_queues(struct octeon_device *octeon_dev,
 						   lio->ifidx), NULL);
 		if (retval) {
 			dev_err(&octeon_dev->pci_dev->dev,
-				" %s : Runtime DROQ(RxQ) creation failed.\n",
+				"%s : Runtime DROQ(RxQ) creation failed.\n",
 				__func__);
 			return 1;
 		}
@@ -2338,143 +2241,6 @@ static int liquidio_stop(struct net_device *netdev)
 	dev_info(&oct->pci_dev->dev, "%s interface is stopped\n", netdev->name);
 
 	return 0;
-}
-
-void liquidio_link_ctrl_cmd_completion(void *nctrl_ptr)
-{
-	struct octnic_ctrl_pkt *nctrl = (struct octnic_ctrl_pkt *)nctrl_ptr;
-	struct net_device *netdev = (struct net_device *)nctrl->netpndev;
-	struct lio *lio = GET_LIO(netdev);
-	struct octeon_device *oct = lio->oct_dev;
-	u8 *mac;
-
-	switch (nctrl->ncmd.s.cmd) {
-	case OCTNET_CMD_CHANGE_DEVFLAGS:
-	case OCTNET_CMD_SET_MULTI_LIST:
-		break;
-
-	case OCTNET_CMD_CHANGE_MACADDR:
-		mac = ((u8 *)&nctrl->udd[0]) + 2;
-		netif_info(lio, probe, lio->netdev,
-			   "%s %2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x\n",
-			   "MACAddr changed to", mac[0], mac[1],
-			   mac[2], mac[3], mac[4], mac[5]);
-		break;
-
-	case OCTNET_CMD_CHANGE_MTU:
-		/* If command is successful, change the MTU. */
-		netif_info(lio, probe, lio->netdev, " MTU Changed from %d to %d\n",
-			   netdev->mtu, nctrl->ncmd.s.param1);
-		dev_info(&oct->pci_dev->dev, "%s MTU Changed from %d to %d\n",
-			 netdev->name, netdev->mtu,
-			 nctrl->ncmd.s.param1);
-		rtnl_lock();
-		netdev->mtu = nctrl->ncmd.s.param1;
-		call_netdevice_notifiers(NETDEV_CHANGEMTU, netdev);
-		rtnl_unlock();
-		break;
-
-	case OCTNET_CMD_GPIO_ACCESS:
-		netif_info(lio, probe, lio->netdev, "LED Flashing visual identification\n");
-
-		break;
-
-	case OCTNET_CMD_LRO_ENABLE:
-		dev_info(&oct->pci_dev->dev, "%s LRO Enabled\n", netdev->name);
-		break;
-
-	case OCTNET_CMD_LRO_DISABLE:
-		dev_info(&oct->pci_dev->dev, "%s LRO Disabled\n",
-			 netdev->name);
-		break;
-
-	case OCTNET_CMD_VERBOSE_ENABLE:
-		dev_info(&oct->pci_dev->dev, "%s LRO Enabled\n", netdev->name);
-		break;
-
-	case OCTNET_CMD_VERBOSE_DISABLE:
-		dev_info(&oct->pci_dev->dev, "%s LRO Disabled\n",
-			 netdev->name);
-		break;
-
-	case OCTNET_CMD_ENABLE_VLAN_FILTER:
-		dev_info(&oct->pci_dev->dev, "%s VLAN filter enabled\n",
-			 netdev->name);
-		break;
-
-	case OCTNET_CMD_ADD_VLAN_FILTER:
-		dev_info(&oct->pci_dev->dev, "%s VLAN filter %d added\n",
-			 netdev->name, nctrl->ncmd.s.param1);
-		break;
-
-	case OCTNET_CMD_DEL_VLAN_FILTER:
-		dev_info(&oct->pci_dev->dev, "%s VLAN filter %d removed\n",
-			 netdev->name, nctrl->ncmd.s.param1);
-		break;
-
-	case OCTNET_CMD_SET_SETTINGS:
-		dev_info(&oct->pci_dev->dev, "%s settings changed\n",
-			 netdev->name);
-
-		break;
-		/* Case to handle "OCTNET_CMD_TNL_RX_CSUM_CTL"
-		 * Command passed by NIC driver
-		 */
-	case OCTNET_CMD_TNL_RX_CSUM_CTL:
-		if (nctrl->ncmd.s.param1 == OCTNET_CMD_RXCSUM_ENABLE) {
-			netif_info(lio, probe, lio->netdev,
-				   "%s RX Checksum Offload Enabled\n",
-				   netdev->name);
-		} else if (nctrl->ncmd.s.param1 ==
-			   OCTNET_CMD_RXCSUM_DISABLE) {
-			netif_info(lio, probe, lio->netdev,
-				   "%s RX Checksum Offload Disabled\n",
-				   netdev->name);
-		}
-		break;
-
-		/* Case to handle "OCTNET_CMD_TNL_TX_CSUM_CTL"
-		 * Command passed by NIC driver
-		 */
-	case OCTNET_CMD_TNL_TX_CSUM_CTL:
-		if (nctrl->ncmd.s.param1 == OCTNET_CMD_TXCSUM_ENABLE) {
-			netif_info(lio, probe, lio->netdev,
-				   "%s TX Checksum Offload Enabled\n",
-				   netdev->name);
-		} else if (nctrl->ncmd.s.param1 ==
-			   OCTNET_CMD_TXCSUM_DISABLE) {
-			netif_info(lio, probe, lio->netdev,
-				   "%s TX Checksum Offload Disabled\n",
-				   netdev->name);
-		}
-		break;
-
-		/* Case to handle "OCTNET_CMD_VXLAN_PORT_CONFIG"
-		 * Command passed by NIC driver
-		 */
-	case OCTNET_CMD_VXLAN_PORT_CONFIG:
-		if (nctrl->ncmd.s.more == OCTNET_CMD_VXLAN_PORT_ADD) {
-			netif_info(lio, probe, lio->netdev,
-				   "%s VxLAN Destination UDP PORT:%d ADDED\n",
-				   netdev->name,
-				   nctrl->ncmd.s.param1);
-		} else if (nctrl->ncmd.s.more ==
-			   OCTNET_CMD_VXLAN_PORT_DEL) {
-			netif_info(lio, probe, lio->netdev,
-				   "%s VxLAN Destination UDP PORT:%d DELETED\n",
-				   netdev->name,
-				   nctrl->ncmd.s.param1);
-		}
-		break;
-
-	case OCTNET_CMD_SET_FLOW_CTL:
-		netif_info(lio, probe, lio->netdev, "Set RX/TX flow control parameters\n");
-		break;
-
-	default:
-		dev_err(&oct->pci_dev->dev, "%s Unknown cmd %d\n", __func__,
-			nctrl->ncmd.s.cmd);
-	}
 }
 
 /**
@@ -2817,8 +2583,7 @@ static void handle_timestamp(struct octeon_device *oct,
  */
 static inline int send_nic_timestamp_pkt(struct octeon_device *oct,
 					 struct octnic_data_pkt *ndata,
-					 struct octnet_buf_free_info *finfo,
-					 int xmit_more)
+					 struct octnet_buf_free_info *finfo)
 {
 	int retval;
 	struct octeon_soft_command *sc;
@@ -2848,7 +2613,7 @@ static inline int send_nic_timestamp_pkt(struct octeon_device *oct,
 
 	len = (u32)((struct octeon_instr_ih2 *)(&sc->cmd.cmd2.ih2))->dlengsz;
 
-	ring_doorbell = !xmit_more;
+	ring_doorbell = 1;
 	retval = octeon_send_command(oct, sc->iq_no, ring_doorbell, &sc->cmd,
 				     sc, len, ndata->reqtype);
 
@@ -2881,7 +2646,7 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 	union tx_info *tx_info;
 	int status = 0;
 	int q_idx = 0, iq_no = 0;
-	int xmit_more, j;
+	int j;
 	u64 dptr = 0;
 	u32 tag = 0;
 
@@ -3077,12 +2842,10 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 		irh->vlan = skb_vlan_tag_get(skb) & 0xfff;
 	}
 
-	xmit_more = skb->xmit_more;
-
 	if (unlikely(cmdsetup.s.timestamp))
-		status = send_nic_timestamp_pkt(oct, &ndata, finfo, xmit_more);
+		status = send_nic_timestamp_pkt(oct, &ndata, finfo);
 	else
-		status = octnet_send_nic_data_pkt(oct, &ndata, xmit_more);
+		status = octnet_send_nic_data_pkt(oct, &ndata);
 	if (status == IQ_SEND_FAILED)
 		goto lio_xmit_failed;
 
@@ -3244,31 +3007,6 @@ static int liquidio_vxlan_port_command(struct net_device *netdev, int command,
 	if (ret < 0) {
 		dev_err(&oct->pci_dev->dev,
 			"VxLAN port add/delete failed in core (ret:0x%x)\n",
-			ret);
-	}
-	return ret;
-}
-
-int liquidio_set_feature(struct net_device *netdev, int cmd, u16 param1)
-{
-	struct lio *lio = GET_LIO(netdev);
-	struct octeon_device *oct = lio->oct_dev;
-	struct octnic_ctrl_pkt nctrl;
-	int ret = 0;
-
-	memset(&nctrl, 0, sizeof(struct octnic_ctrl_pkt));
-
-	nctrl.ncmd.u64 = 0;
-	nctrl.ncmd.s.cmd = cmd;
-	nctrl.ncmd.s.param1 = param1;
-	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.wait_time = 100;
-	nctrl.netpndev = (u64)netdev;
-	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
-
-	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
-	if (ret < 0) {
-		dev_err(&oct->pci_dev->dev, "Feature change failed in core (ret: 0x%x)\n",
 			ret);
 	}
 	return ret;

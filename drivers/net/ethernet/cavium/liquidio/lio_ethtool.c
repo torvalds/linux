@@ -290,18 +290,16 @@ lio_get_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct_dev = lio->oct_dev;
 	struct octeon_board_info *board_info;
-	int len;
 
-	if (eeprom->offset != 0)
+	if (eeprom->offset)
 		return -EINVAL;
 
 	eeprom->magic = oct_dev->pci_dev->vendor;
 	board_info = (struct octeon_board_info *)(&oct_dev->boardinfo);
-	len =
-		sprintf((char *)bytes,
-			"boardname:%s serialnum:%s maj:%lld min:%lld\n",
-			board_info->name, board_info->serial_number,
-			board_info->major, board_info->minor);
+	sprintf((char *)bytes,
+		"boardname:%s serialnum:%s maj:%lld min:%lld\n",
+		board_info->name, board_info->serial_number,
+		board_info->major, board_info->minor);
 
 	return 0;
 }
@@ -406,7 +404,7 @@ octnet_mdio45_access(struct lio *lio, int op, int loc, int *value)
 		dev_err(&oct_dev->pci_dev->dev,
 			"octnet_mdio45_access instruction failed status: %x\n",
 			retval);
-		retval =  -EBUSY;
+		retval = -EBUSY;
 	} else {
 		/* Sleep on a wait queue till the cond flag indicates that the
 		 * response arrived
@@ -1320,8 +1318,8 @@ oct_cfg_rx_intrcnt(struct lio *lio, struct ethtool_coalesce *intr_coal)
 	return 0;
 }
 
-static int oct_cfg_rx_intrtime(struct lio *lio, struct ethtool_coalesce
-			       *intr_coal)
+static int oct_cfg_rx_intrtime(struct lio *lio,
+			       struct ethtool_coalesce *intr_coal)
 {
 	struct octeon_device *oct = lio->oct_dev;
 	u32 time_threshold, rx_coalesce_usecs;

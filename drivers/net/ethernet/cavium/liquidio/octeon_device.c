@@ -20,7 +20,6 @@
 * Contact Cavium, Inc. for more information
 **********************************************************************/
 #include <linux/pci.h>
-#include <linux/crc32.h>
 #include <linux/netdevice.h>
 #include <linux/vmalloc.h>
 #include "liquidio_common.h"
@@ -32,8 +31,6 @@
 #include "octeon_network.h"
 #include "cn66xx_regs.h"
 #include "cn66xx_device.h"
-#include "liquidio_image.h"
-#include "octeon_mem_ops.h"
 
 /** Default configuration
  *  for CN66XX OCTEON Models.
@@ -539,107 +536,6 @@ static char *get_oct_app_string(u32 app_mode)
 	if (app_mode <= CVM_DRV_APP_END)
 		return oct_dev_app_str[app_mode - CVM_DRV_APP_START];
 	return oct_dev_app_str[CVM_DRV_INVALID_APP - CVM_DRV_APP_START];
-}
-
-u8 fbuf[4 * 1024 * 1024];
-
-int octeon_download_firmware(struct octeon_device *oct, const u8 *data,
-			     size_t size)
-{
-	int ret = 0;
-	u8 *p = fbuf;
-	u32 crc32_result;
-	u64 load_addr;
-	u32 image_len;
-	struct octeon_firmware_file_header *h;
-	u32 i, rem, base_len = strlen(LIQUIDIO_BASE_VERSION);
-	char *base;
-
-	if (size < sizeof(struct octeon_firmware_file_header)) {
-		dev_err(&oct->pci_dev->dev, "Firmware file too small (%d < %d).\n",
-			(u32)size,
-			(u32)sizeof(struct octeon_firmware_file_header));
-		return -EINVAL;
-	}
-
-	h = (struct octeon_firmware_file_header *)data;
-
-	if (be32_to_cpu(h->magic) != LIO_NIC_MAGIC) {
-		dev_err(&oct->pci_dev->dev, "Unrecognized firmware file.\n");
-		return -EINVAL;
-	}
-
-	crc32_result = crc32((unsigned int)~0, data,
-			     sizeof(struct octeon_firmware_file_header) -
-			     sizeof(u32)) ^ ~0U;
-	if (crc32_result != be32_to_cpu(h->crc32)) {
-		dev_err(&oct->pci_dev->dev, "Firmware CRC mismatch (0x%08x != 0x%08x).\n",
-			crc32_result, be32_to_cpu(h->crc32));
-		return -EINVAL;
-	}
-
-	if (strncmp(LIQUIDIO_PACKAGE, h->version, strlen(LIQUIDIO_PACKAGE))) {
-		dev_err(&oct->pci_dev->dev, "Unmatched firmware package type. Expected %s, got %s.\n",
-			LIQUIDIO_PACKAGE, h->version);
-		return -EINVAL;
-	}
-
-	base = h->version + strlen(LIQUIDIO_PACKAGE);
-	ret = memcmp(LIQUIDIO_BASE_VERSION, base, base_len);
-	if (ret) {
-		dev_err(&oct->pci_dev->dev, "Unmatched firmware version. Expected %s.x, got %s.\n",
-			LIQUIDIO_BASE_VERSION, base);
-		return -EINVAL;
-	}
-
-	if (be32_to_cpu(h->num_images) > LIO_MAX_IMAGES) {
-		dev_err(&oct->pci_dev->dev, "Too many images in firmware file (%d).\n",
-			be32_to_cpu(h->num_images));
-		return -EINVAL;
-	}
-
-	dev_info(&oct->pci_dev->dev, "Firmware version: %s\n", h->version);
-	snprintf(oct->fw_info.liquidio_firmware_version, 32, "LIQUIDIO: %s",
-		 h->version);
-
-	data += sizeof(struct octeon_firmware_file_header);
-
-	dev_info(&oct->pci_dev->dev, "%s: Loading %d images\n", __func__,
-		 be32_to_cpu(h->num_images));
-	/* load all images */
-	for (i = 0; i < be32_to_cpu(h->num_images); i++) {
-		load_addr = be64_to_cpu(h->desc[i].addr);
-		image_len = be32_to_cpu(h->desc[i].len);
-
-		dev_info(&oct->pci_dev->dev, "Loading firmware %d at %llx\n",
-			 image_len, load_addr);
-
-		/* Write in 4MB chunks*/
-		rem = image_len;
-
-		while (rem) {
-			if (rem < (4 * 1024 * 1024))
-				size = rem;
-			else
-				size = 4 * 1024 * 1024;
-
-			memcpy(p, data, size);
-
-			/* download the image */
-			octeon_pci_write_core_mem(oct, load_addr, p, (u32)size);
-
-			data += size;
-			rem -= (u32)size;
-			load_addr += size;
-		}
-	}
-	dev_info(&oct->pci_dev->dev, "Writing boot command: %s\n",
-		 h->bootcmd);
-
-	/* Invoke the bootcmd */
-	ret = octeon_console_send_cmd(oct, h->bootcmd, 50);
-
-	return 0;
 }
 
 void octeon_free_device_mem(struct octeon_device *oct)

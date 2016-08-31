@@ -418,36 +418,6 @@ void lio_cn6xxx_disable_io_queues(struct octeon_device *oct)
 		octeon_write_csr(oct, CN6XXX_SLI_PKT_TIME_INT, d32);
 }
 
-void lio_cn6xxx_reinit_regs(struct octeon_device *oct)
-{
-	int i;
-
-	for (i = 0; i < MAX_OCTEON_INSTR_QUEUES(oct); i++) {
-		if (!(oct->io_qmask.iq & (1ULL << i)))
-			continue;
-		oct->fn_list.setup_iq_regs(oct, i);
-	}
-
-	for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES(oct); i++) {
-		if (!(oct->io_qmask.oq & (1ULL << i)))
-			continue;
-		oct->fn_list.setup_oq_regs(oct, i);
-	}
-
-	oct->fn_list.setup_device_regs(oct);
-
-	oct->fn_list.enable_interrupt(oct->chip);
-
-	oct->fn_list.enable_io_queues(oct);
-
-	/* for (i = 0; i < oct->num_oqs; i++) { */
-	for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES(oct); i++) {
-		if (!(oct->io_qmask.oq & (1ULL << i)))
-			continue;
-		writel(oct->droq[i]->max_count, oct->droq[i]->pkts_credit_reg);
-	}
-}
-
 void
 lio_cn6xxx_bar1_idx_setup(struct octeon_device *oct,
 			  u64 core_addr,
@@ -714,7 +684,6 @@ int lio_setup_cn66xx_octeon_device(struct octeon_device *oct)
 
 	oct->fn_list.soft_reset = lio_cn6xxx_soft_reset;
 	oct->fn_list.setup_device_regs = lio_cn6xxx_setup_device_regs;
-	oct->fn_list.reinit_regs = lio_cn6xxx_reinit_regs;
 	oct->fn_list.update_iq_read_idx = lio_cn6xxx_update_read_index;
 
 	oct->fn_list.bar1_idx_setup = lio_cn6xxx_bar1_idx_setup;

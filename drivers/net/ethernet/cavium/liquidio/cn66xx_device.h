@@ -83,7 +83,6 @@ void lio_cn6xxx_setup_oq_regs(struct octeon_device *oct, u32 oq_no);
 void lio_cn6xxx_enable_io_queues(struct octeon_device *oct);
 void lio_cn6xxx_disable_io_queues(struct octeon_device *oct);
 irqreturn_t lio_cn6xxx_process_interrupt_regs(void *dev);
-void lio_cn6xxx_reinit_regs(struct octeon_device *oct);
 void lio_cn6xxx_bar1_idx_setup(struct octeon_device *oct, u64 core_addr,
 			       u32 idx, int valid);
 void lio_cn6xxx_bar1_idx_write(struct octeon_device *oct, u32 idx, u32 mask);
