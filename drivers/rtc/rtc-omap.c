@@ -469,7 +469,7 @@ static void omap_rtc_power_off(void)
 	mdelay(2500);
 }
 
-static struct rtc_class_ops omap_rtc_ops = {
+static const struct rtc_class_ops omap_rtc_ops = {
 	.read_time	= omap_rtc_read_time,
 	.set_time	= omap_rtc_set_time,
 	.read_alarm	= omap_rtc_read_alarm,

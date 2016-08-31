@@ -317,7 +317,7 @@ static int rx6110_init(struct rx6110_data *rx6110)
 	return ret;
 }
 
-static struct rtc_class_ops rx6110_rtc_ops = {
+static const struct rtc_class_ops rx6110_rtc_ops = {
 	.read_time = rx6110_get_time,
 	.set_time = rx6110_set_time,
 };

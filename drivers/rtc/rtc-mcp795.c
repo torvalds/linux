@@ -151,7 +151,7 @@ static int mcp795_read_time(struct device *dev, struct rtc_time *tim)
 	return rtc_valid_tm(tim);
 }
 
-static struct rtc_class_ops mcp795_rtc_ops = {
+static const struct rtc_class_ops mcp795_rtc_ops = {
 		.read_time = mcp795_read_time,
 		.set_time = mcp795_set_time
 };

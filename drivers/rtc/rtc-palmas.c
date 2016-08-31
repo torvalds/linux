@@ -225,7 +225,7 @@ static irqreturn_t palmas_rtc_interrupt(int irq, void *context)
 	return IRQ_HANDLED;
 }
 
-static struct rtc_class_ops palmas_rtc_ops = {
+static const struct rtc_class_ops palmas_rtc_ops = {
 	.read_time	= palmas_rtc_read_time,
 	.set_time	= palmas_rtc_set_time,
 	.read_alarm	= palmas_rtc_read_alarm,
