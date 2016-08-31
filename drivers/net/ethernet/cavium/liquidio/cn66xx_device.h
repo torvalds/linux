@@ -80,7 +80,7 @@ void lio_cn6xxx_setup_global_input_regs(struct octeon_device *oct);
 void lio_cn6xxx_setup_global_output_regs(struct octeon_device *oct);
 void lio_cn6xxx_setup_iq_regs(struct octeon_device *oct, u32 iq_no);
 void lio_cn6xxx_setup_oq_regs(struct octeon_device *oct, u32 oq_no);
-void lio_cn6xxx_enable_io_queues(struct octeon_device *oct);
+int lio_cn6xxx_enable_io_queues(struct octeon_device *oct);
 void lio_cn6xxx_disable_io_queues(struct octeon_device *oct);
 irqreturn_t lio_cn6xxx_process_interrupt_regs(void *dev);
 void lio_cn6xxx_bar1_idx_setup(struct octeon_device *oct, u64 core_addr,

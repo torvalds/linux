@@ -2094,10 +2094,8 @@ static inline int setup_io_queues(struct octeon_device *octeon_dev,
 
 		droq = octeon_dev->droq[q_no];
 		napi = &droq->napi;
-		dev_dbg(&octeon_dev->pci_dev->dev,
-			"netif_napi_add netdev:%llx oct:%llx\n",
-			(u64)netdev,
-			(u64)octeon_dev);
+		dev_dbg(&octeon_dev->pci_dev->dev, "netif_napi_add netdev:%llx oct:%llx pf_num:%d\n",
+			(u64)netdev, (u64)octeon_dev, octeon_dev->pf_num);
 		netif_napi_add(netdev, napi, liquidio_napi_poll, 64);
 
 		/* designate a CPU for this droq */
@@ -3766,7 +3764,11 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 	octeon_dev->fn_list.enable_interrupt(octeon_dev->chip);
 
 	/* Enable the input and output queues for this Octeon device */
-	octeon_dev->fn_list.enable_io_queues(octeon_dev);
+	ret = octeon_dev->fn_list.enable_io_queues(octeon_dev);
+	if (ret) {
+		dev_err(&octeon_dev->pci_dev->dev, "Failed to enable input/output queues");
+		return ret;
+	}
 
 	atomic_set(&octeon_dev->status, OCT_DEV_IO_QUEUES_DONE);
 

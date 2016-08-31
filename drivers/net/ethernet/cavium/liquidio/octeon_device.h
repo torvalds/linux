@@ -217,7 +217,7 @@ struct octeon_fn_list {
 	void (*enable_interrupt)(void *);
 	void (*disable_interrupt)(void *);
 
-	void (*enable_io_queues)(struct octeon_device *);
+	int (*enable_io_queues)(struct octeon_device *);
 	void (*disable_io_queues)(struct octeon_device *);
 };
 

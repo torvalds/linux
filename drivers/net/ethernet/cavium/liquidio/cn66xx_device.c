@@ -338,7 +338,7 @@ void lio_cn6xxx_setup_oq_regs(struct octeon_device *oct, u32 oq_no)
 	octeon_write_csr(oct, CN6XXX_SLI_PKT_CNT_INT_ENB, intr);
 }
 
-void lio_cn6xxx_enable_io_queues(struct octeon_device *oct)
+int lio_cn6xxx_enable_io_queues(struct octeon_device *oct)
 {
 	u32 mask;
 
@@ -353,6 +353,8 @@ void lio_cn6xxx_enable_io_queues(struct octeon_device *oct)
 	mask = octeon_read_csr(oct, CN6XXX_SLI_PKT_OUT_ENB);
 	mask |= oct->io_qmask.oq;
 	octeon_write_csr(oct, CN6XXX_SLI_PKT_OUT_ENB, mask);
+
+	return 0;
 }
 
 void lio_cn6xxx_disable_io_queues(struct octeon_device *oct)
