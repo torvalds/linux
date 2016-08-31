@@ -43,7 +43,9 @@
 
 #include <asm/octeon/cvmx-gmxx-defs.h>
 
-static struct napi_struct cvm_oct_napi;
+static struct oct_rx_group {
+	struct napi_struct napi;
+} oct_rx_group;
 
 /**
  * cvm_oct_do_interrupt - interrupt handler.
@@ -455,13 +457,14 @@ void cvm_oct_rx_initialize(void)
 	if (!dev_for_napi)
 		panic("No net_devices were allocated.");
 
-	netif_napi_add(dev_for_napi, &cvm_oct_napi, cvm_oct_napi_poll,
+	netif_napi_add(dev_for_napi, &oct_rx_group.napi, cvm_oct_napi_poll,
 		       rx_napi_weight);
-	napi_enable(&cvm_oct_napi);
+	napi_enable(&oct_rx_group.napi);
 
 	/* Register an IRQ handler to receive POW interrupts */
 	i = request_irq(OCTEON_IRQ_WORKQ0 + pow_receive_group,
-			cvm_oct_do_interrupt, 0, "Ethernet", &cvm_oct_napi);
+			cvm_oct_do_interrupt, 0, "Ethernet",
+			&oct_rx_group.napi);
 
 	if (i)
 		panic("Could not acquire Ethernet IRQ %d\n",
@@ -499,7 +502,7 @@ void cvm_oct_rx_initialize(void)
 	}
 
 	/* Schedule NAPI now. This will indirectly enable the interrupt. */
-	napi_schedule(&cvm_oct_napi);
+	napi_schedule(&oct_rx_group.napi);
 }
 
 void cvm_oct_rx_shutdown(void)
@@ -513,5 +516,5 @@ void cvm_oct_rx_shutdown(void)
 	/* Free the interrupt handler */
 	free_irq(OCTEON_IRQ_WORKQ0 + pow_receive_group, cvm_oct_device);
 
-	netif_napi_del(&cvm_oct_napi);
+	netif_napi_del(&oct_rx_group.napi);
 }
