@@ -53,6 +53,15 @@ MODULE_PARM_DESC(pow_receive_group, "\n"
 	"\tgroup. Also any other software can submit packets to this\n"
 	"\tgroup for the kernel to process.");
 
+static int receive_group_order;
+module_param(receive_group_order, int, 0444);
+MODULE_PARM_DESC(receive_group_order, "\n"
+	"\tOrder (0..4) of receive groups to take into use. Ethernet hardware\n"
+	"\twill be configured to send incoming packets to multiple POW\n"
+	"\tgroups. pow_receive_group parameter is ignored when multiple\n"
+	"\tgroups are taken into use and groups are allocated starting\n"
+	"\tfrom 0. By default, a single group is used.\n");
+
 int pow_send_group = -1;
 module_param(pow_send_group, int, 0644);
 MODULE_PARM_DESC(pow_send_group, "\n"
@@ -680,7 +689,13 @@ static int cvm_oct_probe(struct platform_device *pdev)
 
 	cvmx_helper_initialize_packet_io_global();
 
-	pow_receive_groups = BIT(pow_receive_group);
+	if (receive_group_order) {
+		if (receive_group_order > 4)
+			receive_group_order = 4;
+		pow_receive_groups = (1 << (1 << receive_group_order)) - 1;
+	} else {
+		pow_receive_groups = BIT(pow_receive_group);
+	}
 
 	/* Change the input group for all ports before input is enabled */
 	num_interfaces = cvmx_helper_get_number_of_interfaces();
@@ -695,7 +710,37 @@ static int cvm_oct_probe(struct platform_device *pdev)
 
 			pip_prt_tagx.u64 =
 			    cvmx_read_csr(CVMX_PIP_PRT_TAGX(port));
-			pip_prt_tagx.s.grp = pow_receive_group;
+
+			if (receive_group_order) {
+				int tag_mask;
+
+				/* We support only 16 groups at the moment, so
+				 * always disable the two additional "hidden"
+				 * tag_mask bits on CN68XX.
+				 */
+				if (OCTEON_IS_MODEL(OCTEON_CN68XX))
+					pip_prt_tagx.u64 |= 0x3ull << 44;
+
+				tag_mask = ~((1 << receive_group_order) - 1);
+				pip_prt_tagx.s.grptagbase	= 0;
+				pip_prt_tagx.s.grptagmask	= tag_mask;
+				pip_prt_tagx.s.grptag		= 1;
+				pip_prt_tagx.s.tag_mode		= 0;
+				pip_prt_tagx.s.inc_prt_flag	= 1;
+				pip_prt_tagx.s.ip6_dprt_flag	= 1;
+				pip_prt_tagx.s.ip4_dprt_flag	= 1;
+				pip_prt_tagx.s.ip6_sprt_flag	= 1;
+				pip_prt_tagx.s.ip4_sprt_flag	= 1;
+				pip_prt_tagx.s.ip6_dst_flag	= 1;
+				pip_prt_tagx.s.ip4_dst_flag	= 1;
+				pip_prt_tagx.s.ip6_src_flag	= 1;
+				pip_prt_tagx.s.ip4_src_flag	= 1;
+				pip_prt_tagx.s.grp		= 0;
+			} else {
+				pip_prt_tagx.s.grptag	= 0;
+				pip_prt_tagx.s.grp	= pow_receive_group;
+			}
+
 			cvmx_write_csr(CVMX_PIP_PRT_TAGX(port),
 				       pip_prt_tagx.u64);
 		}
