@@ -75,6 +75,9 @@ struct soc_pcmcia_socket {
 
 	unsigned int		irq_state;
 
+#ifdef CONFIG_CPU_FREQ
+	struct notifier_block	cpufreq_nb;
+#endif
 	struct timer_list	poll_timer;
 	struct list_head	node;
 };
