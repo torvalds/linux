@@ -3663,6 +3663,18 @@ static int pqi_validate_device_capability(struct pqi_ctrl_info *ctrl_info)
 		return -EINVAL;
 	}
 
+	if (!ctrl_info->inbound_spanning_supported) {
+		dev_err(&ctrl_info->pci_dev->dev,
+			"the controller does not support inbound spanning\n");
+		return -EINVAL;
+	}
+
+	if (ctrl_info->outbound_spanning_supported) {
+		dev_err(&ctrl_info->pci_dev->dev,
+			"the controller supports outbound spanning but this driver does not\n");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -4138,24 +4150,14 @@ static void pqi_calculate_queue_resources(struct pqi_ctrl_info *ctrl_info)
 
 	ctrl_info->num_queue_groups = num_queue_groups;
 
-	if (ctrl_info->max_inbound_iu_length_per_firmware == 256 &&
-		ctrl_info->outbound_spanning_supported) {
-		/*
-		 * TEMPHACK
-		 * This is older f/w that doesn't actually support spanning.
-		 */
-		ctrl_info->max_inbound_iu_length =
-			PQI_OPERATIONAL_IQ_ELEMENT_LENGTH;
-	} else {
-		/*
-		 * Make sure that the max. inbound IU length is an even multiple
-		 * of our inbound element length.
-		 */
-		ctrl_info->max_inbound_iu_length =
-			(ctrl_info->max_inbound_iu_length_per_firmware /
-			PQI_OPERATIONAL_IQ_ELEMENT_LENGTH) *
-			PQI_OPERATIONAL_IQ_ELEMENT_LENGTH;
-	}
+	/*
+	 * Make sure that the max. inbound IU length is an even multiple
+	 * of our inbound element length.
+	 */
+	ctrl_info->max_inbound_iu_length =
+		(ctrl_info->max_inbound_iu_length_per_firmware /
+		PQI_OPERATIONAL_IQ_ELEMENT_LENGTH) *
+		PQI_OPERATIONAL_IQ_ELEMENT_LENGTH;
 
 	num_elements_per_iq =
 		(ctrl_info->max_inbound_iu_length /
