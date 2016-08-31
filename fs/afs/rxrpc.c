@@ -16,7 +16,7 @@
 #include "internal.h"
 #include "afs_cm.h"
 
-static struct socket *afs_socket; /* my RxRPC socket */
+struct socket *afs_socket; /* my RxRPC socket */
 static struct workqueue_struct *afs_async_calls;
 static atomic_t afs_outstanding_calls;
 static atomic_t afs_outstanding_skbs;
@@ -207,7 +207,7 @@ static void afs_free_call(struct afs_call *call)
 static void afs_end_call_nofree(struct afs_call *call)
 {
 	if (call->rxcall) {
-		rxrpc_kernel_end_call(call->rxcall);
+		rxrpc_kernel_end_call(afs_socket, call->rxcall);
 		call->rxcall = NULL;
 	}
 	if (call->type->destructor)
@@ -325,8 +325,8 @@ static int afs_send_pages(struct afs_call *call, struct msghdr *msg,
 			 * returns from sending the request */
 			if (first + loop >= last)
 				call->state = AFS_CALL_AWAIT_REPLY;
-			ret = rxrpc_kernel_send_data(call->rxcall, msg,
-						     to - offset);
+			ret = rxrpc_kernel_send_data(afs_socket, call->rxcall,
+						     msg, to - offset);
 			kunmap(pages[loop]);
 			if (ret < 0)
 				break;
@@ -406,7 +406,8 @@ int afs_make_call(struct in_addr *addr, struct afs_call *call, gfp_t gfp,
 	 * request */
 	if (!call->send_pages)
 		call->state = AFS_CALL_AWAIT_REPLY;
-	ret = rxrpc_kernel_send_data(rxcall, &msg, call->request_size);
+	ret = rxrpc_kernel_send_data(afs_socket, rxcall,
+				     &msg, call->request_size);
 	if (ret < 0)
 		goto error_do_abort;
 
@@ -421,7 +422,7 @@ int afs_make_call(struct in_addr *addr, struct afs_call *call, gfp_t gfp,
 	return wait_mode->wait(call);
 
 error_do_abort:
-	rxrpc_kernel_abort_call(rxcall, RX_USER_ABORT);
+	rxrpc_kernel_abort_call(afs_socket, rxcall, RX_USER_ABORT);
 	while ((skb = skb_dequeue(&call->rx_queue)))
 		afs_free_skb(skb);
 error_kill_call:
@@ -509,7 +510,8 @@ static void afs_deliver_to_call(struct afs_call *call)
 				if (call->state != AFS_CALL_AWAIT_REPLY)
 					abort_code = RXGEN_SS_UNMARSHAL;
 			do_abort:
-				rxrpc_kernel_abort_call(call->rxcall,
+				rxrpc_kernel_abort_call(afs_socket,
+							call->rxcall,
 							abort_code);
 				call->error = ret;
 				call->state = AFS_CALL_ERROR;
@@ -605,7 +607,7 @@ static int afs_wait_for_call_to_complete(struct afs_call *call)
 	/* kill the call */
 	if (call->state < AFS_CALL_COMPLETE) {
 		_debug("call incomplete");
-		rxrpc_kernel_abort_call(call->rxcall, RX_CALL_DEAD);
+		rxrpc_kernel_abort_call(afs_socket, call->rxcall, RX_CALL_DEAD);
 		while ((skb = skb_dequeue(&call->rx_queue)))
 			afs_free_skb(skb);
 	}
@@ -823,14 +825,15 @@ void afs_send_empty_reply(struct afs_call *call)
 	msg.msg_flags		= 0;
 
 	call->state = AFS_CALL_AWAIT_ACK;
-	switch (rxrpc_kernel_send_data(call->rxcall, &msg, 0)) {
+	switch (rxrpc_kernel_send_data(afs_socket, call->rxcall, &msg, 0)) {
 	case 0:
 		_leave(" [replied]");
 		return;
 
 	case -ENOMEM:
 		_debug("oom");
-		rxrpc_kernel_abort_call(call->rxcall, RX_USER_ABORT);
+		rxrpc_kernel_abort_call(afs_socket, call->rxcall,
+					RX_USER_ABORT);
 	default:
 		afs_end_call(call);
 		_leave(" [error]");
@@ -859,7 +862,7 @@ void afs_send_simple_reply(struct afs_call *call, const void *buf, size_t len)
 	msg.msg_flags		= 0;
 
 	call->state = AFS_CALL_AWAIT_ACK;
-	n = rxrpc_kernel_send_data(call->rxcall, &msg, len);
+	n = rxrpc_kernel_send_data(afs_socket, call->rxcall, &msg, len);
 	if (n >= 0) {
 		/* Success */
 		_leave(" [replied]");
@@ -868,7 +871,8 @@ void afs_send_simple_reply(struct afs_call *call, const void *buf, size_t len)
 
 	if (n == -ENOMEM) {
 		_debug("oom");
-		rxrpc_kernel_abort_call(call->rxcall, RX_USER_ABORT);
+		rxrpc_kernel_abort_call(afs_socket, call->rxcall,
+					RX_USER_ABORT);
 	}
 	afs_end_call(call);
 	_leave(" [error]");

@@ -289,8 +289,6 @@ enum rxrpc_conn_proto_state {
 	RXRPC_CONN_SERVICE,		/* Service secured connection */
 	RXRPC_CONN_REMOTELY_ABORTED,	/* Conn aborted by peer */
 	RXRPC_CONN_LOCALLY_ABORTED,	/* Conn aborted locally */
-	RXRPC_CONN_NETWORK_ERROR,	/* Conn terminated by network error */
-	RXRPC_CONN_LOCAL_ERROR,		/* Conn terminated by local error */
 	RXRPC_CONN__NR_STATES
 };
 
@@ -344,7 +342,6 @@ struct rxrpc_connection {
 	enum rxrpc_conn_proto_state state : 8;	/* current state of connection */
 	u32			local_abort;	/* local abort code */
 	u32			remote_abort;	/* remote abort code */
-	int			error;		/* local error incurred */
 	int			debug_id;	/* debug ID for printks */
 	atomic_t		serial;		/* packet serial number counter */
 	unsigned int		hi_serial;	/* highest serial number received */
@@ -411,13 +408,22 @@ enum rxrpc_call_state {
 	RXRPC_CALL_SERVER_ACK_REQUEST,	/* - server pending ACK of request */
 	RXRPC_CALL_SERVER_SEND_REPLY,	/* - server sending reply */
 	RXRPC_CALL_SERVER_AWAIT_ACK,	/* - server awaiting final ACK */
-	RXRPC_CALL_COMPLETE,		/* - call completed */
+	RXRPC_CALL_COMPLETE,		/* - call complete */
+	RXRPC_CALL_DEAD,		/* - call is dead */
+	NR__RXRPC_CALL_STATES
+};
+
+/*
+ * Call completion condition (state == RXRPC_CALL_COMPLETE).
+ */
+enum rxrpc_call_completion {
+	RXRPC_CALL_SUCCEEDED,		/* - Normal termination */
 	RXRPC_CALL_SERVER_BUSY,		/* - call rejected by busy server */
 	RXRPC_CALL_REMOTELY_ABORTED,	/* - call aborted by peer */
 	RXRPC_CALL_LOCALLY_ABORTED,	/* - call aborted locally on error or close */
+	RXRPC_CALL_LOCAL_ERROR,		/* - call failed due to local error */
 	RXRPC_CALL_NETWORK_ERROR,	/* - call terminated by network error */
-	RXRPC_CALL_DEAD,		/* - call is dead */
-	NR__RXRPC_CALL_STATES
+	NR__RXRPC_CALL_COMPLETIONS
 };
 
 /*
@@ -451,14 +457,13 @@ struct rxrpc_call {
 	unsigned long		events;
 	spinlock_t		lock;
 	rwlock_t		state_lock;	/* lock for state transition */
+	u32			abort_code;	/* Local/remote abort code */
+	int			error;		/* Local error incurred */
+	enum rxrpc_call_state	state : 8;	/* current state of call */
+	enum rxrpc_call_completion completion : 8; /* Call completion condition */
 	atomic_t		usage;
 	atomic_t		skb_count;	/* Outstanding packets on this call */
 	atomic_t		sequence;	/* Tx data packet sequence counter */
-	u32			local_abort;	/* local abort code */
-	u32			remote_abort;	/* remote abort code */
-	int			error_report;	/* Network error (ICMP/local transport) */
-	int			error;		/* Local error incurred */
-	enum rxrpc_call_state	state : 8;	/* current state of call */
 	u16			service_id;	/* service ID */
 	u32			call_id;	/* call ID on connection  */
 	u32			cid;		/* connection ID plus channel index */
@@ -493,20 +498,6 @@ struct rxrpc_call {
 	unsigned long		ackr_window[RXRPC_ACKR_WINDOW_ASZ + 1];
 };
 
-/*
- * locally abort an RxRPC call
- */
-static inline void rxrpc_abort_call(struct rxrpc_call *call, u32 abort_code)
-{
-	write_lock_bh(&call->state_lock);
-	if (call->state < RXRPC_CALL_COMPLETE) {
-		call->local_abort = abort_code;
-		call->state = RXRPC_CALL_LOCALLY_ABORTED;
-		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
-	}
-	write_unlock_bh(&call->state_lock);
-}
-
 #include <trace/events/rxrpc.h>
 
 /*
@@ -534,6 +525,8 @@ void rxrpc_process_call(struct work_struct *);
 /*
  * call_object.c
  */
+extern const char *const rxrpc_call_states[];
+extern const char *const rxrpc_call_completions[];
 extern unsigned int rxrpc_max_call_lifetime;
 extern unsigned int rxrpc_dead_call_expiry;
 extern struct kmem_cache *rxrpc_call_jar;
@@ -550,7 +543,11 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *,
 				       struct sk_buff *);
 void rxrpc_release_call(struct rxrpc_call *);
 void rxrpc_release_calls_on_socket(struct rxrpc_sock *);
-void __rxrpc_put_call(struct rxrpc_call *);
+void rxrpc_see_call(struct rxrpc_call *);
+void rxrpc_get_call(struct rxrpc_call *);
+void rxrpc_put_call(struct rxrpc_call *);
+void rxrpc_get_call_for_skb(struct rxrpc_call *, struct sk_buff *);
+void rxrpc_put_call_for_skb(struct rxrpc_call *, struct sk_buff *);
 void __exit rxrpc_destroy_all_calls(void);
 
 static inline bool rxrpc_is_service_call(const struct rxrpc_call *call)
@@ -561,6 +558,78 @@ static inline bool rxrpc_is_service_call(const struct rxrpc_call *call)
 static inline bool rxrpc_is_client_call(const struct rxrpc_call *call)
 {
 	return !rxrpc_is_service_call(call);
+}
+
+/*
+ * Transition a call to the complete state.
+ */
+static inline bool __rxrpc_set_call_completion(struct rxrpc_call *call,
+					       enum rxrpc_call_completion compl,
+					       u32 abort_code,
+					       int error)
+{
+	if (call->state < RXRPC_CALL_COMPLETE) {
+		call->abort_code = abort_code;
+		call->error = error;
+		call->completion = compl,
+		call->state = RXRPC_CALL_COMPLETE;
+		return true;
+	}
+	return false;
+}
+
+static inline bool rxrpc_set_call_completion(struct rxrpc_call *call,
+					     enum rxrpc_call_completion compl,
+					     u32 abort_code,
+					     int error)
+{
+	int ret;
+
+	write_lock_bh(&call->state_lock);
+	ret = __rxrpc_set_call_completion(call, compl, abort_code, error);
+	write_unlock_bh(&call->state_lock);
+	return ret;
+}
+
+/*
+ * Record that a call successfully completed.
+ */
+static inline void __rxrpc_call_completed(struct rxrpc_call *call)
+{
+	__rxrpc_set_call_completion(call, RXRPC_CALL_SUCCEEDED, 0, 0);
+}
+
+static inline void rxrpc_call_completed(struct rxrpc_call *call)
+{
+	write_lock_bh(&call->state_lock);
+	__rxrpc_call_completed(call);
+	write_unlock_bh(&call->state_lock);
+}
+
+/*
+ * Record that a call is locally aborted.
+ */
+static inline bool __rxrpc_abort_call(struct rxrpc_call *call,
+				      u32 abort_code, int error)
+{
+	if (__rxrpc_set_call_completion(call,
+					RXRPC_CALL_LOCALLY_ABORTED,
+					abort_code, error)) {
+		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
+		return true;
+	}
+	return false;
+}
+
+static inline bool rxrpc_abort_call(struct rxrpc_call *call,
+				    u32 abort_code, int error)
+{
+	bool ret;
+
+	write_lock_bh(&call->state_lock);
+	ret = __rxrpc_abort_call(call, abort_code, error);
+	write_unlock_bh(&call->state_lock);
+	return ret;
 }
 
 /*
@@ -778,7 +847,6 @@ static inline void rxrpc_put_peer(struct rxrpc_peer *peer)
 /*
  * proc.c
  */
-extern const char *const rxrpc_call_states[];
 extern const struct file_operations rxrpc_call_seq_fops;
 extern const struct file_operations rxrpc_connection_seq_fops;
 
@@ -958,16 +1026,3 @@ do {						\
 } while (0)
 
 #endif /* __KDEBUGALL */
-
-
-#define rxrpc_get_call(CALL)				\
-do {							\
-	CHECK_SLAB_OKAY(&(CALL)->usage);		\
-	if (atomic_inc_return(&(CALL)->usage) == 1)	\
-		BUG();					\
-} while (0)
-
-#define rxrpc_put_call(CALL)				\
-do {							\
-	__rxrpc_put_call(CALL);				\
-} while (0)

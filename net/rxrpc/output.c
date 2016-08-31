@@ -115,12 +115,12 @@ static int rxrpc_sendmsg_cmsg(struct msghdr *msg,
  */
 static void rxrpc_send_abort(struct rxrpc_call *call, u32 abort_code)
 {
+	if (call->state >= RXRPC_CALL_COMPLETE)
+		return;
+
 	write_lock_bh(&call->state_lock);
 
-	if (call->state <= RXRPC_CALL_COMPLETE) {
-		call->state = RXRPC_CALL_LOCALLY_ABORTED;
-		call->local_abort = abort_code;
-		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
+	if (__rxrpc_abort_call(call, abort_code, ECONNABORTED)) {
 		del_timer_sync(&call->resend_timer);
 		del_timer_sync(&call->ack_timer);
 		clear_bit(RXRPC_CALL_EV_RESEND_TIMER, &call->events);
@@ -207,12 +207,13 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 			return PTR_ERR(call);
 	}
 
+	rxrpc_see_call(call);
 	_debug("CALL %d USR %lx ST %d on CONN %p",
 	       call->debug_id, call->user_call_ID, call->state, call->conn);
 
 	if (call->state >= RXRPC_CALL_COMPLETE) {
 		/* it's too late for this call */
-		ret = -ECONNRESET;
+		ret = -ESHUTDOWN;
 	} else if (cmd == RXRPC_CMD_SEND_ABORT) {
 		rxrpc_send_abort(call, abort_code);
 		ret = 0;
@@ -238,6 +239,7 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 
 /**
  * rxrpc_kernel_send_data - Allow a kernel service to send data on a call
+ * @sock: The socket the call is on
  * @call: The call to send data through
  * @msg: The data to send
  * @len: The amount of data to send
@@ -247,8 +249,8 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
  * nor should an address be supplied.  MSG_MORE should be flagged if there's
  * more data to come, otherwise this data will end the transmission phase.
  */
-int rxrpc_kernel_send_data(struct rxrpc_call *call, struct msghdr *msg,
-			   size_t len)
+int rxrpc_kernel_send_data(struct socket *sock, struct rxrpc_call *call,
+			   struct msghdr *msg, size_t len)
 {
 	int ret;
 
@@ -257,7 +259,7 @@ int rxrpc_kernel_send_data(struct rxrpc_call *call, struct msghdr *msg,
 	ASSERTCMP(msg->msg_name, ==, NULL);
 	ASSERTCMP(msg->msg_control, ==, NULL);
 
-	lock_sock(&call->socket->sk);
+	lock_sock(sock->sk);
 
 	_debug("CALL %d USR %lx ST %d on CONN %p",
 	       call->debug_id, call->user_call_ID, call->state, call->conn);
@@ -269,36 +271,36 @@ int rxrpc_kernel_send_data(struct rxrpc_call *call, struct msghdr *msg,
 		   call->state != RXRPC_CALL_SERVER_SEND_REPLY) {
 		ret = -EPROTO; /* request phase complete for this client call */
 	} else {
-		ret = rxrpc_send_data(call->socket, call, msg, len);
+		ret = rxrpc_send_data(rxrpc_sk(sock->sk), call, msg, len);
 	}
 
-	release_sock(&call->socket->sk);
+	release_sock(sock->sk);
 	_leave(" = %d", ret);
 	return ret;
 }
-
 EXPORT_SYMBOL(rxrpc_kernel_send_data);
 
 /**
  * rxrpc_kernel_abort_call - Allow a kernel service to abort a call
+ * @sock: The socket the call is on
  * @call: The call to be aborted
  * @abort_code: The abort code to stick into the ABORT packet
  *
  * Allow a kernel service to abort a call, if it's still in an abortable state.
  */
-void rxrpc_kernel_abort_call(struct rxrpc_call *call, u32 abort_code)
+void rxrpc_kernel_abort_call(struct socket *sock, struct rxrpc_call *call,
+			     u32 abort_code)
 {
 	_enter("{%d},%d", call->debug_id, abort_code);
 
-	lock_sock(&call->socket->sk);
+	lock_sock(sock->sk);
 
 	_debug("CALL %d USR %lx ST %d on CONN %p",
 	       call->debug_id, call->user_call_ID, call->state, call->conn);
 
-	if (call->state < RXRPC_CALL_COMPLETE)
-		rxrpc_send_abort(call, abort_code);
+	rxrpc_send_abort(call, abort_code);
 
-	release_sock(&call->socket->sk);
+	release_sock(sock->sk);
 	_leave("");
 }
 
@@ -640,8 +642,8 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 
 		/* check for the far side aborting the call or a network error
 		 * occurring */
-		if (call->state > RXRPC_CALL_COMPLETE)
-			goto call_aborted;
+		if (call->state == RXRPC_CALL_COMPLETE)
+			goto call_terminated;
 
 		/* add the packet to the send queue if it's now full */
 		if (sp->remain <= 0 ||
@@ -702,15 +704,9 @@ out:
 	_leave(" = %d", ret);
 	return ret;
 
-call_aborted:
+call_terminated:
 	rxrpc_free_skb(skb);
-	if (call->state == RXRPC_CALL_NETWORK_ERROR)
-		ret = call->error_report < RXRPC_LOCAL_ERROR_OFFSET ?
-			call->error_report :
-			call->error_report - RXRPC_LOCAL_ERROR_OFFSET;
-	else
-		ret = -ECONNABORTED;
-	_leave(" = %d", ret);
+	_leave(" = %d", -call->error);
 	return ret;
 
 maybe_error:

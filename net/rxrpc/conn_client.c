@@ -537,6 +537,7 @@ static void rxrpc_activate_one_channel(struct rxrpc_connection *conn,
 					     struct rxrpc_call, chan_wait_link);
 	u32 call_id = chan->call_counter + 1;
 
+	rxrpc_see_call(call);
 	list_del_init(&call->chan_wait_link);
 	conn->active_chans |= 1 << channel;
 	call->peer	= rxrpc_get_peer(conn->params.peer);
@@ -741,7 +742,7 @@ void rxrpc_disconnect_client_call(struct rxrpc_call *call)
 	 * terminal retransmission without requiring access to the call.
 	 */
 	if (test_bit(RXRPC_CALL_EXPOSED, &call->flags)) {
-		_debug("exposed %u,%u", call->call_id, call->local_abort);
+		_debug("exposed %u,%u", call->call_id, call->abort_code);
 		__rxrpc_disconnect_call(conn, call);
 	}
 

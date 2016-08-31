@@ -115,6 +115,7 @@ int rxrpc_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 		sp = rxrpc_skb(skb);
 		call = sp->call;
 		ASSERT(call != NULL);
+		rxrpc_see_call(call);
 
 		_debug("next pkt %s", rxrpc_pkts[sp->hdr.type]);
 
@@ -294,12 +295,17 @@ receive_non_data_message:
 		ret = put_cmsg(msg, SOL_RXRPC, RXRPC_BUSY, 0, &abort_code);
 		break;
 	case RXRPC_SKB_MARK_REMOTE_ABORT:
-		abort_code = call->remote_abort;
+		abort_code = call->abort_code;
 		ret = put_cmsg(msg, SOL_RXRPC, RXRPC_ABORT, 4, &abort_code);
 		break;
 	case RXRPC_SKB_MARK_LOCAL_ABORT:
-		abort_code = call->local_abort;
+		abort_code = call->abort_code;
 		ret = put_cmsg(msg, SOL_RXRPC, RXRPC_ABORT, 4, &abort_code);
+		if (call->error) {
+			abort_code = call->error;
+			ret = put_cmsg(msg, SOL_RXRPC, RXRPC_LOCAL_ERROR, 4,
+				       &abort_code);
+		}
 		break;
 	case RXRPC_SKB_MARK_NET_ERROR:
 		_debug("RECV NET ERROR %d", sp->error);
@@ -392,9 +398,8 @@ u32 rxrpc_kernel_get_abort_code(struct sk_buff *skb)
 
 	switch (skb->mark) {
 	case RXRPC_SKB_MARK_REMOTE_ABORT:
-		return sp->call->remote_abort;
 	case RXRPC_SKB_MARK_LOCAL_ABORT:
-		return sp->call->local_abort;
+		return sp->call->abort_code;
 	default:
 		BUG();
 	}

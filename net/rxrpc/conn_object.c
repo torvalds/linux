@@ -165,8 +165,8 @@ void __rxrpc_disconnect_call(struct rxrpc_connection *conn,
 		 * through the channel, whilst disposing of the actual call record.
 		 */
 		chan->last_service_id = call->service_id;
-		if (call->local_abort) {
-			chan->last_abort = call->local_abort;
+		if (call->abort_code) {
+			chan->last_abort = call->abort_code;
 			chan->last_type = RXRPC_PACKET_TYPE_ABORT;
 		} else {
 			chan->last_seq = call->rx_data_eaten;

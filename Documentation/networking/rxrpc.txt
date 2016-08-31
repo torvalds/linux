@@ -725,7 +725,8 @@ The kernel interface functions are as follows:
 
  (*) End a client call.
 
-	void rxrpc_kernel_end_call(struct rxrpc_call *call);
+	void rxrpc_kernel_end_call(struct socket *sock,
+				   struct rxrpc_call *call);
 
      This is used to end a previously begun call.  The user_call_ID is expunged
      from AF_RXRPC's knowledge and will not be seen again in association with
@@ -733,7 +734,9 @@ The kernel interface functions are as follows:
 
  (*) Send data through a call.
 
-	int rxrpc_kernel_send_data(struct rxrpc_call *call, struct msghdr *msg,
+	int rxrpc_kernel_send_data(struct socket *sock,
+				   struct rxrpc_call *call,
+				   struct msghdr *msg,
 				   size_t len);
 
      This is used to supply either the request part of a client call or the
@@ -747,7 +750,9 @@ The kernel interface functions are as follows:
 
  (*) Abort a call.
 
-	void rxrpc_kernel_abort_call(struct rxrpc_call *call, u32 abort_code);
+	void rxrpc_kernel_abort_call(struct socket *sock,
+				     struct rxrpc_call *call,
+				     u32 abort_code);
 
      This is used to abort a call if it's still in an abortable state.  The
      abort code specified will be placed in the ABORT message sent.
@@ -867,6 +872,13 @@ The kernel interface functions are as follows:
 
      This is used to allocate a null RxRPC key that can be used to indicate
      anonymous security for a particular domain.
+
+ (*) Get the peer address of a call.
+
+	void rxrpc_kernel_get_peer(struct socket *sock, struct rxrpc_call *call,
+				   struct sockaddr_rxrpc *_srx);
+
+     This is used to find the remote peer address of a call.
 
 
 =======================
