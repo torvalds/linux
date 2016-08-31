@@ -50,6 +50,8 @@ struct gb_power_supply {
 	bool				changed;
 	struct gb_power_supply_prop	*props;
 	enum power_supply_property	*props_raw;
+	bool				pm_acquired;
+	struct mutex			supply_lock;
 };
 
 struct gb_power_supplies {
@@ -75,10 +77,13 @@ struct gb_power_supply_changes {
 			     struct gb_power_supply_prop *prop);
 };
 
+static void gb_power_supply_state_change(struct gb_power_supply *gbpsy,
+					 struct gb_power_supply_prop *prop);
+
 static const struct gb_power_supply_changes psy_props_changes[] = {
 	{	.prop			= GB_POWER_SUPPLY_PROP_STATUS,
 		.tolerance_change	= 0,
-		.prop_changed		= NULL,
+		.prop_changed		= gb_power_supply_state_change,
 	},
 	{	.prop			= GB_POWER_SUPPLY_PROP_TEMP,
 		.tolerance_change	= 500,
@@ -348,6 +353,40 @@ static void __gb_power_supply_changed(struct gb_power_supply *gbpsy)
 	power_supply_changed(gbpsy->psy);
 }
 #endif
+
+static void gb_power_supply_state_change(struct gb_power_supply *gbpsy,
+					 struct gb_power_supply_prop *prop)
+{
+	struct gb_connection *connection = get_conn_from_psy(gbpsy);
+	int ret;
+
+	/*
+	 * Check gbpsy->pm_acquired to make sure only one pair of 'get_sync'
+	 * and 'put_autosuspend' runtime pm call for state property change.
+	 */
+	mutex_lock(&gbpsy->supply_lock);
+
+	if ((prop->val == GB_POWER_SUPPLY_STATUS_CHARGING) &&
+	    !gbpsy->pm_acquired) {
+		ret = gb_pm_runtime_get_sync(connection->bundle);
+		if (ret)
+			dev_err(&connection->bundle->dev,
+				"Fail to set wake lock for charging state\n");
+		else
+			gbpsy->pm_acquired = true;
+	} else {
+		if (gbpsy->pm_acquired) {
+			ret = gb_pm_runtime_put_autosuspend(connection->bundle);
+			if (ret)
+				dev_err(&connection->bundle->dev,
+					"Fail to set wake unlock for none charging\n");
+			else
+				gbpsy->pm_acquired = false;
+		}
+	}
+
+	mutex_unlock(&gbpsy->supply_lock);
+}
 
 static void check_changed(struct gb_power_supply *gbpsy,
 			  struct gb_power_supply_prop *prop)
@@ -655,11 +694,16 @@ static int is_cache_valid(struct gb_power_supply *gbpsy)
 
 static int gb_power_supply_status_get(struct gb_power_supply *gbpsy)
 {
+	struct gb_connection *connection = get_conn_from_psy(gbpsy);
 	int ret = 0;
 	int i;
 
 	if (is_cache_valid(gbpsy))
 		return 0;
+
+	ret = gb_pm_runtime_get_sync(connection->bundle);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < gbpsy->properties_count; i++) {
 		ret = __gb_power_supply_property_update(gbpsy,
@@ -671,6 +715,7 @@ static int gb_power_supply_status_get(struct gb_power_supply *gbpsy)
 	if (ret == 0)
 		gbpsy->last_update = jiffies;
 
+	gb_pm_runtime_put_autosuspend(connection->bundle);
 	return ret;
 }
 
@@ -725,9 +770,16 @@ static int gb_power_supply_property_set(struct gb_power_supply *gbpsy,
 	struct gb_power_supply_set_property_request req;
 	int ret;
 
+	ret = gb_pm_runtime_get_sync(connection->bundle);
+	if (ret)
+		return ret;
+
 	prop = get_psy_prop(gbpsy, psp);
-	if (!prop)
-		return -EINVAL;
+	if (!prop) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	req.psy_id = gbpsy->id;
 	req.property = prop->gb_prop;
 	req.prop_val = cpu_to_le32((s32)val);
@@ -741,6 +793,7 @@ static int gb_power_supply_property_set(struct gb_power_supply *gbpsy,
 	prop->val = val;
 
 out:
+	gb_pm_runtime_put_autosuspend(connection->bundle);
 	return ret;
 }
 
@@ -882,6 +935,8 @@ static int gb_power_supply_enable(struct gb_power_supply *gbpsy)
 					  sizeof(gbpsy->name));
 	if (ret < 0)
 		return ret;
+
+	mutex_init(&gbpsy->supply_lock);
 
 	ret = gb_power_supply_register(gbpsy);
 	if (ret < 0)
@@ -1067,6 +1122,7 @@ static int gb_power_supply_probe(struct gb_bundle *bundle,
 	if (ret < 0)
 		goto error_connection_disable;
 
+	gb_pm_runtime_put_autosuspend(bundle);
 	return 0;
 
 error_connection_disable:
