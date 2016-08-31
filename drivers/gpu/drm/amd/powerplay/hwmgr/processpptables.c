@@ -1523,7 +1523,7 @@ int get_number_of_vce_state_table_entries(
 
 int get_vce_state_table_entry(struct pp_hwmgr *hwmgr,
 							unsigned long i,
-							struct PP_VCEState *vce_state,
+							struct pp_vce_state *vce_state,
 							void **clock_info,
 							unsigned long *flag)
 {

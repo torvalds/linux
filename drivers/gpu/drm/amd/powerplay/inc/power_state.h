@@ -158,7 +158,7 @@ struct pp_power_state {
 
 
 /*Structure to hold a VCE state entry*/
-struct PP_VCEState {
+struct pp_vce_state {
 	uint32_t evclk;
 	uint32_t ecclk;
 	uint32_t sclk;
