@@ -2298,11 +2298,16 @@ static inline void pqi_aio_path_disabled(struct pqi_io_request *io_request)
 static inline void pqi_take_device_offline(struct scsi_device *sdev)
 {
 	struct pqi_ctrl_info *ctrl_info;
+	struct pqi_scsi_dev *device;
 
 	if (scsi_device_online(sdev)) {
 		scsi_device_set_state(sdev, SDEV_OFFLINE);
 		ctrl_info = shost_to_hba(sdev->host);
 		schedule_delayed_work(&ctrl_info->rescan_work, 0);
+		device = sdev->hostdata;
+		dev_err(&ctrl_info->pci_dev->dev, "offlined scsi %d:%d:%d:%d\n",
+			ctrl_info->scsi_host->host_no, device->bus,
+			device->target, device->lun);
 	}
 }
 
