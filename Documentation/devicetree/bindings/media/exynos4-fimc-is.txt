@@ -16,9 +16,10 @@ Required properties:
 - clocks	: list of clock specifiers, corresponding to entries in
 		  clock-names property;
 - clock-names	: must contain "ppmuispx", "ppmuispx", "lite0", "lite1"
-		  "mpll", "sysreg", "isp", "drc", "fd", "mcuisp", "uart",
-		  "ispdiv0", "ispdiv1", "mcuispdiv0", "mcuispdiv1", "aclk200",
-		  "div_aclk200", "aclk400mcuisp", "div_aclk400mcuisp" entries,
+		  "mpll", "sysreg", "isp", "drc", "fd", "mcuisp", "gicisp",
+		  "pwm_isp", "mcuctl_isp", "uart", "ispdiv0", "ispdiv1",
+		  "mcuispdiv0", "mcuispdiv1", "aclk200", "div_aclk200",
+		  "aclk400mcuisp", "div_aclk400mcuisp" entries,
 		  matching entries in the clocks property.
 pmu subnode
 -----------
