@@ -55,6 +55,22 @@ information about the stream. Some hardware may not need this
 information, but the call also tells the hardware to prepare for DVD
 playback.
 
+.. c:type:: video_attributes_t
+
+.. code-block::c
+
+	typedef __u16 video_attributes_t;
+	/*   bits: descr. */
+	/*   15-14 Video compression mode (0=MPEG-1, 1=MPEG-2) */
+	/*   13-12 TV system (0=525/60, 1=625/50) */
+	/*   11-10 Aspect ratio (0=4:3, 3=16:9) */
+	/*    9- 8 permitted display mode on 4:3 monitor (0=both, 1=only pan-sca */
+	/*    7    line 21-1 data present in GOP (1=yes, 0=no) */
+	/*    6    line 21-2 data present in GOP (1=yes, 0=no) */
+	/*    5- 3 source resolution (0=720x480/576, 1=704x480/576, 2=352x480/57 */
+	/*    2    source letterboxed (1=yes, 0=no) */
+	/*    0    film/camera mode (0=camera, 1=film (625/50 only)) */
+
 
 Return Value
 ------------

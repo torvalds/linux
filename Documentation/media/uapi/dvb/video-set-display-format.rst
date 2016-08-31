@@ -16,7 +16,7 @@ VIDEO_SET_DISPLAY_FORMAT
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, VIDEO_SET_DISPLAY_FORMAT, video_display_format_t format)
+.. c:function:: int ioctl(fd, VIDEO_SET_DISPLAY_FORMAT)
     :name: VIDEO_SET_DISPLAY_FORMAT
 
 

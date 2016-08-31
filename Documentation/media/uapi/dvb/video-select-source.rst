@@ -58,6 +58,16 @@ This ioctl call informs the video device which source shall be used for
 the input data. The possible sources are demux or memory. If memory is
 selected, the data is fed to the video device through the write command.
 
+.. c:type:: video_stream_source_t
+
+.. code-block:: c
+
+	typedef enum {
+		VIDEO_SOURCE_DEMUX, /* Select the demux as the main source */
+		VIDEO_SOURCE_MEMORY /* If this source is selected, the stream
+				comes from the user through the write
+				system call */
+	} video_stream_source_t;
 
 Return Value
 ------------

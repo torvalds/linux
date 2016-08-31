@@ -64,6 +64,23 @@ included in the exceptfds argument, and for poll(), POLLPRI should be
 specified as the wake-up condition. Read-only permissions are sufficient
 for this ioctl call.
 
+.. c:type:: video_event
+
+.. code-block:: c
+
+	struct video_event {
+		__s32 type;
+	#define VIDEO_EVENT_SIZE_CHANGED	1
+	#define VIDEO_EVENT_FRAME_RATE_CHANGED	2
+	#define VIDEO_EVENT_DECODER_STOPPED 	3
+	#define VIDEO_EVENT_VSYNC 		4
+		__kernel_time_t timestamp;
+		union {
+			video_size_t size;
+			unsigned int frame_rate;	/* in frames per 1000sec */
+			unsigned char vsync_field;	/* unknown/odd/even/progressive */
+		} u;
+	};
 
 Return Value
 ------------

@@ -52,6 +52,16 @@ Description
 
 This ioctl returns the size and aspect ratio.
 
+.. c:type:: video_size_t
+
+.. code-block::c
+
+	typedef struct {
+		int w;
+		int h;
+		video_format_t aspect_ratio;
+	} video_size_t;
+
 
 Return Value
 ------------

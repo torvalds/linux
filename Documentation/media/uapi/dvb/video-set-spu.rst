@@ -16,7 +16,7 @@ VIDEO_SET_SPU
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, VIDEO_SET_SPU , video_spu_t *spu)
+.. c:function:: int ioctl(fd, VIDEO_SET_SPU , struct video_spu *spu)
     :name: VIDEO_SET_SPU
 
 
@@ -53,6 +53,15 @@ Description
 
 This ioctl activates or deactivates SPU decoding in a DVD input stream.
 It can only be used, if the driver is able to handle a DVD stream.
+
+.. c:type:: struct video_spu
+
+.. code-block:: c
+
+	typedef struct video_spu {
+		int active;
+		int stream_id;
+	} video_spu_t;
 
 
 Return Value
