@@ -73,8 +73,6 @@ struct smiapp_hwconfig {
 	enum smiapp_module_board_orient module_board_orient;
 
 	struct smiapp_flash_strobe_parms *strobe_setup;
-
-	int (*set_xclk)(struct v4l2_subdev *sd, int hz);
 };
 
 #endif /* __SMIAPP_H_  */
