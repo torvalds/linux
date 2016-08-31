@@ -4988,16 +4988,8 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_cache_sharing_fops,
 			i915_cache_sharing_get, i915_cache_sharing_set,
 			"%llu\n");
 
-struct sseu_dev_status {
-	unsigned int slice_total;
-	unsigned int subslice_total;
-	unsigned int subslice_per_slice;
-	unsigned int eu_total;
-	unsigned int eu_per_subslice;
-};
-
 static void cherryview_sseu_device_status(struct drm_i915_private *dev_priv,
-					  struct sseu_dev_status *stat)
+					  struct sseu_dev_info *sseu)
 {
 	int ss_max = 2;
 	int ss;
@@ -5015,20 +5007,21 @@ static void cherryview_sseu_device_status(struct drm_i915_private *dev_priv,
 			/* skip disabled subslice */
 			continue;
 
-		stat->slice_total = 1;
-		stat->subslice_per_slice++;
+		sseu->slice_total = 1;
+		sseu->subslice_per_slice++;
 		eu_cnt = ((sig1[ss] & CHV_EU08_PG_ENABLE) ? 0 : 2) +
 			 ((sig1[ss] & CHV_EU19_PG_ENABLE) ? 0 : 2) +
 			 ((sig1[ss] & CHV_EU210_PG_ENABLE) ? 0 : 2) +
 			 ((sig2[ss] & CHV_EU311_PG_ENABLE) ? 0 : 2);
-		stat->eu_total += eu_cnt;
-		stat->eu_per_subslice = max(stat->eu_per_subslice, eu_cnt);
+		sseu->eu_total += eu_cnt;
+		sseu->eu_per_subslice = max_t(unsigned int,
+					      sseu->eu_per_subslice, eu_cnt);
 	}
-	stat->subslice_total = stat->subslice_per_slice;
+	sseu->subslice_total = sseu->subslice_per_slice;
 }
 
 static void gen9_sseu_device_status(struct drm_i915_private *dev_priv,
-				    struct sseu_dev_status *stat)
+				    struct sseu_dev_info *sseu)
 {
 	int s_max = 3, ss_max = 4;
 	int s, ss;
@@ -5062,7 +5055,7 @@ static void gen9_sseu_device_status(struct drm_i915_private *dev_priv,
 			/* skip disabled slice */
 			continue;
 
-		stat->slice_total++;
+		sseu->slice_total++;
 
 		if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 			ss_cnt = INTEL_INFO(dev_priv)->subslice_per_slice;
@@ -5080,37 +5073,39 @@ static void gen9_sseu_device_status(struct drm_i915_private *dev_priv,
 
 			eu_cnt = 2 * hweight32(eu_reg[2*s + ss/2] &
 					       eu_mask[ss%2]);
-			stat->eu_total += eu_cnt;
-			stat->eu_per_subslice = max(stat->eu_per_subslice,
-						    eu_cnt);
+			sseu->eu_total += eu_cnt;
+			sseu->eu_per_subslice = max_t(unsigned int,
+						      sseu->eu_per_subslice,
+						      eu_cnt);
 		}
 
-		stat->subslice_total += ss_cnt;
-		stat->subslice_per_slice = max(stat->subslice_per_slice,
-					       ss_cnt);
+		sseu->subslice_total += ss_cnt;
+		sseu->subslice_per_slice = max_t(unsigned int,
+						 sseu->subslice_per_slice,
+						 ss_cnt);
 	}
 }
 
 static void broadwell_sseu_device_status(struct drm_i915_private *dev_priv,
-					 struct sseu_dev_status *stat)
+					 struct sseu_dev_info *sseu)
 {
 	u32 slice_info = I915_READ(GEN8_GT_SLICE_INFO);
 	int s;
 
-	stat->slice_total = hweight32(slice_info & GEN8_LSLICESTAT_MASK);
+	sseu->slice_total = hweight32(slice_info & GEN8_LSLICESTAT_MASK);
 
-	if (stat->slice_total) {
-		stat->subslice_per_slice = INTEL_INFO(dev_priv)->subslice_per_slice;
-		stat->subslice_total = stat->slice_total *
-				       stat->subslice_per_slice;
-		stat->eu_per_subslice = INTEL_INFO(dev_priv)->eu_per_subslice;
-		stat->eu_total = stat->eu_per_subslice * stat->subslice_total;
+	if (sseu->slice_total) {
+		sseu->subslice_per_slice = INTEL_INFO(dev_priv)->subslice_per_slice;
+		sseu->subslice_total = sseu->slice_total *
+				       sseu->subslice_per_slice;
+		sseu->eu_per_subslice = INTEL_INFO(dev_priv)->eu_per_subslice;
+		sseu->eu_total = sseu->eu_per_subslice * sseu->subslice_total;
 
 		/* subtract fused off EU(s) from enabled slice(s) */
-		for (s = 0; s < stat->slice_total; s++) {
+		for (s = 0; s < sseu->slice_total; s++) {
 			u8 subslice_7eu = INTEL_INFO(dev_priv)->subslice_7eu[s];
 
-			stat->eu_total -= hweight8(subslice_7eu);
+			sseu->eu_total -= hweight8(subslice_7eu);
 		}
 	}
 }
@@ -5118,7 +5113,7 @@ static void broadwell_sseu_device_status(struct drm_i915_private *dev_priv,
 static int i915_sseu_status(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct sseu_dev_status stat;
+	struct sseu_dev_info sseu;
 
 	if (INTEL_GEN(dev_priv) < 8)
 		return -ENODEV;
@@ -5146,30 +5141,30 @@ static int i915_sseu_status(struct seq_file *m, void *unused)
 		   yesno(INTEL_INFO(dev_priv)->has_eu_pg));
 
 	seq_puts(m, "SSEU Device Status\n");
-	memset(&stat, 0, sizeof(stat));
+	memset(&sseu, 0, sizeof(sseu));
 
 	intel_runtime_pm_get(dev_priv);
 
 	if (IS_CHERRYVIEW(dev_priv)) {
-		cherryview_sseu_device_status(dev_priv, &stat);
+		cherryview_sseu_device_status(dev_priv, &sseu);
 	} else if (IS_BROADWELL(dev_priv)) {
-		broadwell_sseu_device_status(dev_priv, &stat);
+		broadwell_sseu_device_status(dev_priv, &sseu);
 	} else if (INTEL_GEN(dev_priv) >= 9) {
-		gen9_sseu_device_status(dev_priv, &stat);
+		gen9_sseu_device_status(dev_priv, &sseu);
 	}
 
 	intel_runtime_pm_put(dev_priv);
 
 	seq_printf(m, "  Enabled Slice Total: %u\n",
-		   stat.slice_total);
+		   sseu.slice_total);
 	seq_printf(m, "  Enabled Subslice Total: %u\n",
-		   stat.subslice_total);
+		   sseu.subslice_total);
 	seq_printf(m, "  Enabled Subslice Per Slice: %u\n",
-		   stat.subslice_per_slice);
+		   sseu.subslice_per_slice);
 	seq_printf(m, "  Enabled EU Total: %u\n",
-		   stat.eu_total);
+		   sseu.eu_total);
 	seq_printf(m, "  Enabled EU Per Subslice: %u\n",
-		   stat.eu_per_subslice);
+		   sseu.eu_per_subslice);
 
 	return 0;
 }

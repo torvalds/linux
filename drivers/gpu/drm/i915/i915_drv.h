@@ -671,6 +671,14 @@ struct intel_csr {
 #define DEFINE_FLAG(name) u8 name:1
 #define SEP_SEMICOLON ;
 
+struct sseu_dev_info {
+	u8 slice_total;
+	u8 subslice_total;
+	u8 subslice_per_slice;
+	u8 eu_total;
+	u8 eu_per_subslice;
+};
+
 struct intel_device_info {
 	u32 display_mmio_offset;
 	u16 device_id;
