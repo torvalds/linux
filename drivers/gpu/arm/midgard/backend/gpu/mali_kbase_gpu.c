@@ -20,7 +20,6 @@
  * Register-based HW access backend APIs
  */
 #include <mali_kbase.h>
-#include <mali_kbase_hwaccess_jm.h>
 #include <mali_kbase_hwaccess_backend.h>
 #include <backend/gpu/mali_kbase_irq_internal.h>
 #include <backend/gpu/mali_kbase_jm_internal.h>

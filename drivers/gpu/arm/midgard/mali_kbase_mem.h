@@ -618,6 +618,9 @@ void kbase_mmu_term(struct kbase_context *kctx);
 
 phys_addr_t kbase_mmu_alloc_pgd(struct kbase_context *kctx);
 void kbase_mmu_free_pgd(struct kbase_context *kctx);
+int kbase_mmu_insert_pages_no_flush(struct kbase_context *kctx, u64 vpfn,
+				  phys_addr_t *phys, size_t nr,
+				  unsigned long flags);
 int kbase_mmu_insert_pages(struct kbase_context *kctx, u64 vpfn,
 				  phys_addr_t *phys, size_t nr,
 				  unsigned long flags);
@@ -650,6 +653,12 @@ int kbase_gpu_munmap(struct kbase_context *kctx, struct kbase_va_region *reg);
 void kbase_mmu_update(struct kbase_context *kctx);
 
 /**
+ * kbase_mmu_disable() - Disable the MMU for a previously active kbase context.
+ * @kctx:	Kbase context
+ *
+ * Disable and perform the required cache maintenance to remove the all
+ * data from provided kbase context from the GPU caches.
+ *
  * The caller has the following locking conditions:
  * - It must hold kbase_as::transaction_mutex on kctx's address space
  * - It must hold the kbasep_js_device_data::runpool_irq::lock
@@ -657,11 +666,13 @@ void kbase_mmu_update(struct kbase_context *kctx);
 void kbase_mmu_disable(struct kbase_context *kctx);
 
 /**
- * kbase_mmu_disable_as() - set the MMU in unmapped mode for an address space.
- *
+ * kbase_mmu_disable_as() - Set the MMU to unmapped mode for the specified
+ * address space.
  * @kbdev:	Kbase device
- * @as_nr:	Number of the address space for which the MMU
- *		should be set in unmapped mode.
+ * @as_nr:	The address space number to set to unmapped.
+ *
+ * This function must only be called during reset/power-up and it used to
+ * ensure the registers are in a known state.
  *
  * The caller must hold kbdev->as[as_nr].transaction_mutex.
  */
@@ -881,11 +892,13 @@ void kbase_sync_single_for_device(struct kbase_device *kbdev, dma_addr_t handle,
 void kbase_sync_single_for_cpu(struct kbase_device *kbdev, dma_addr_t handle,
 		size_t size, enum dma_data_direction dir);
 
+#ifdef CONFIG_DEBUG_FS
 /**
  * kbase_jit_debugfs_add - Add per context debugfs entry for JIT.
  * @kctx: kbase context
  */
 void kbase_jit_debugfs_add(struct kbase_context *kctx);
+#endif /* CONFIG_DEBUG_FS */
 
 /**
  * kbase_jit_init - Initialize the JIT memory pool management

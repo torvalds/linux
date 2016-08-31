@@ -756,7 +756,7 @@ static int kbasep_replay_parse_payload(struct kbase_context *kctx,
 					      struct base_jd_atom_v2 *t_atom,
 					      struct base_jd_atom_v2 *f_atom)
 {
-	base_jd_replay_payload *payload;
+	base_jd_replay_payload *payload = NULL;
 	u64 next;
 	u64 prev_jc = 0;
 	u16 hw_job_id_offset = 0;
@@ -767,11 +767,26 @@ static int kbasep_replay_parse_payload(struct kbase_context *kctx,
 			replay_atom->jc, sizeof(payload));
 
 	payload = kbase_vmap(kctx, replay_atom->jc, sizeof(*payload), &map);
-
 	if (!payload) {
 		dev_err(kctx->kbdev->dev, "kbasep_replay_parse_payload: failed to map payload into kernel space\n");
 		return -EINVAL;
 	}
+
+#ifdef BASE_LEGACY_UK10_2_SUPPORT
+	if (KBASE_API_VERSION(10, 3) > replay_atom->kctx->api_version) {
+		base_jd_replay_payload_uk10_2 *payload_uk10_2;
+		u16 tiler_core_req;
+		u16 fragment_core_req;
+
+		payload_uk10_2 = (base_jd_replay_payload_uk10_2 *) payload;
+		memcpy(&tiler_core_req, &payload_uk10_2->tiler_core_req,
+				sizeof(tiler_core_req));
+		memcpy(&fragment_core_req, &payload_uk10_2->fragment_core_req,
+				sizeof(fragment_core_req));
+		payload->tiler_core_req = (u32)(tiler_core_req & 0x7fff);
+		payload->fragment_core_req = (u32)(fragment_core_req & 0x7fff);
+	}
+#endif /* BASE_LEGACY_UK10_2_SUPPORT */
 
 #ifdef CONFIG_MALI_DEBUG
 	dev_dbg(kctx->kbdev->dev, "kbasep_replay_parse_payload: payload=%p\n", payload);
@@ -794,20 +809,17 @@ static int kbasep_replay_parse_payload(struct kbase_context *kctx,
 						   payload->fragment_core_req);
 	payload_dump(kctx, payload);
 #endif
-
 	t_atom->core_req = payload->tiler_core_req | BASEP_JD_REQ_EVENT_NEVER;
 	f_atom->core_req = payload->fragment_core_req | BASEP_JD_REQ_EVENT_NEVER;
 
 	/* Sanity check core requirements*/
-	if (unlikely((t_atom->core_req & BASEP_JD_REQ_ATOM_TYPE &
-			       ~BASE_JD_REQ_COHERENT_GROUP) != BASE_JD_REQ_T ||
-	    (f_atom->core_req & BASEP_JD_REQ_ATOM_TYPE &
-			      ~BASE_JD_REQ_COHERENT_GROUP & ~BASE_JD_REQ_FS_AFBC) != BASE_JD_REQ_FS ||
+	if ((t_atom->core_req & BASE_JD_REQ_ATOM_TYPE) != BASE_JD_REQ_T ||
+	    (f_atom->core_req & BASE_JD_REQ_ATOM_TYPE) != BASE_JD_REQ_FS ||
 	     t_atom->core_req & BASE_JD_REQ_EXTERNAL_RESOURCES ||
-	     f_atom->core_req & BASE_JD_REQ_EXTERNAL_RESOURCES)) {
+	     f_atom->core_req & BASE_JD_REQ_EXTERNAL_RESOURCES) {
 
-		int t_atom_type = t_atom->core_req & BASEP_JD_REQ_ATOM_TYPE & ~BASE_JD_REQ_COHERENT_GROUP;
-		int f_atom_type = f_atom->core_req & BASEP_JD_REQ_ATOM_TYPE & ~BASE_JD_REQ_COHERENT_GROUP & ~BASE_JD_REQ_FS_AFBC;
+		int t_atom_type = t_atom->core_req & BASE_JD_REQ_ATOM_TYPE & ~BASE_JD_REQ_COHERENT_GROUP;
+		int f_atom_type = f_atom->core_req & BASE_JD_REQ_ATOM_TYPE & ~BASE_JD_REQ_COHERENT_GROUP & ~BASE_JD_REQ_FS_AFBC;
 		int t_has_ex_res = t_atom->core_req & BASE_JD_REQ_EXTERNAL_RESOURCES;
 		int f_has_ex_res = f_atom->core_req & BASE_JD_REQ_EXTERNAL_RESOURCES;
 

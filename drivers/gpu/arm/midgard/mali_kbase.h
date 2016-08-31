@@ -175,7 +175,7 @@ void kbase_job_slot_softstop_swflags(struct kbase_device *kbdev, int js,
 void kbase_job_slot_hardstop(struct kbase_context *kctx, int js,
 		struct kbase_jd_atom *target_katom);
 void kbase_job_check_enter_disjoint(struct kbase_device *kbdev, u32 action,
-		u16 core_reqs, struct kbase_jd_atom *target_katom);
+		base_jd_core_req core_reqs, struct kbase_jd_atom *target_katom);
 void kbase_job_check_leave_disjoint(struct kbase_device *kbdev,
 		struct kbase_jd_atom *target_katom);
 
@@ -193,15 +193,15 @@ void kbase_finish_soft_job(struct kbase_jd_atom *katom);
 void kbase_cancel_soft_job(struct kbase_jd_atom *katom);
 void kbase_resume_suspended_soft_jobs(struct kbase_device *kbdev);
 void kbasep_add_waiting_soft_job(struct kbase_jd_atom *katom);
+void kbasep_remove_waiting_soft_job(struct kbase_jd_atom *katom);
+int kbase_soft_event_update(struct kbase_context *kctx,
+			    u64 event,
+			    unsigned char new_status);
 
 bool kbase_replay_process(struct kbase_jd_atom *katom);
 
-enum hrtimer_restart kbasep_soft_event_timeout_worker(struct hrtimer *timer);
+void kbasep_soft_job_timeout_worker(unsigned long data);
 void kbasep_complete_triggered_soft_events(struct kbase_context *kctx, u64 evt);
-int kbasep_read_soft_event_status(
-		struct kbase_context *kctx, u64 evt, unsigned char *status);
-int kbasep_write_soft_event_status(
-		struct kbase_context *kctx, u64 evt, unsigned char new_status);
 
 /* api used internally for register access. Contains validation and tracing */
 void kbase_device_trace_register_access(struct kbase_context *kctx, enum kbase_reg_access_type type, u16 reg_offset, u32 reg_value);

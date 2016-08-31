@@ -24,11 +24,11 @@
 #include <mali_kbase_hwaccess_jm.h>
 #include <mali_kbase_jm.h>
 #include <mali_kbase_js.h>
+#include <mali_kbase_tlstream.h>
 #include <mali_kbase_10969_workaround.h>
 #include <backend/gpu/mali_kbase_device_internal.h>
 #include <backend/gpu/mali_kbase_jm_internal.h>
 #include <backend/gpu/mali_kbase_js_affinity.h>
-#include <backend/gpu/mali_kbase_js_internal.h>
 #include <backend/gpu/mali_kbase_pm_internal.h>
 
 /* Return whether the specified ringbuffer is empty. HW access lock must be
@@ -592,7 +592,7 @@ static void kbase_gpu_release_atom(struct kbase_device *kbdev,
 	case KBASE_ATOM_GPU_RB_READY:
 		/* ***FALLTHROUGH: TRANSITION TO LOWER STATE*** */
 
-	case KBASE_ATOM_GPU_RB_WAITING_SECURE_MODE:
+	case KBASE_ATOM_GPU_RB_WAITING_PROTECTED_MODE_ENTRY:
 		/* ***FALLTHROUGH: TRANSITION TO LOWER STATE*** */
 
 	case KBASE_ATOM_GPU_RB_WAITING_AFFINITY:
@@ -602,6 +602,9 @@ static void kbase_gpu_release_atom(struct kbase_device *kbdev,
 
 	case KBASE_ATOM_GPU_RB_WAITING_FOR_CORE_AVAILABLE:
 		break;
+
+	case KBASE_ATOM_GPU_RB_WAITING_PROTECTED_MODE_EXIT:
+		/* ***FALLTHROUGH: TRANSITION TO LOWER STATE*** */
 
 	case KBASE_ATOM_GPU_RB_WAITING_BLOCKED:
 		/* ***FALLTHROUGH: TRANSITION TO LOWER STATE*** */
@@ -654,53 +657,145 @@ static inline bool kbase_gpu_rmu_workaround(struct kbase_device *kbdev, int js)
 	return true;
 }
 
-static bool kbase_gpu_in_secure_mode(struct kbase_device *kbdev)
+static inline bool kbase_gpu_in_protected_mode(struct kbase_device *kbdev)
 {
-	return kbdev->secure_mode;
+	return kbdev->protected_mode;
 }
 
-static int kbase_gpu_secure_mode_enable(struct kbase_device *kbdev)
+static int kbase_gpu_protected_mode_enter(struct kbase_device *kbdev)
 {
 	int err = -EINVAL;
 
 	lockdep_assert_held(&kbdev->js_data.runpool_irq.lock);
 
-	WARN_ONCE(!kbdev->secure_ops,
-			"Cannot enable secure mode: secure callbacks not specified.\n");
+	WARN_ONCE(!kbdev->protected_ops,
+			"Cannot enter protected mode: protected callbacks not specified.\n");
 
-	if (kbdev->secure_ops) {
-		/* Switch GPU to secure mode */
-		err = kbdev->secure_ops->secure_mode_enable(kbdev);
+	if (kbdev->protected_ops) {
+		/* Switch GPU to protected mode */
+		err = kbdev->protected_ops->protected_mode_enter(kbdev);
 
 		if (err)
-			dev_warn(kbdev->dev, "Failed to enable secure mode: %d\n", err);
+			dev_warn(kbdev->dev, "Failed to enable protected mode: %d\n",
+					err);
 		else
-			kbdev->secure_mode = true;
+			kbdev->protected_mode = true;
 	}
 
 	return err;
 }
 
-static int kbase_gpu_secure_mode_disable(struct kbase_device *kbdev)
+static int kbase_gpu_protected_mode_reset(struct kbase_device *kbdev)
 {
-	int err = -EINVAL;
-
 	lockdep_assert_held(&kbdev->js_data.runpool_irq.lock);
 
-	WARN_ONCE(!kbdev->secure_ops,
-			"Cannot disable secure mode: secure callbacks not specified.\n");
+	WARN_ONCE(!kbdev->protected_ops,
+			"Cannot exit protected mode: protected callbacks not specified.\n");
 
-	if (kbdev->secure_ops) {
-		/* Switch GPU to non-secure mode */
-		err = kbdev->secure_ops->secure_mode_disable(kbdev);
+	if (!kbdev->protected_ops)
+		return -EINVAL;
 
-		if (err)
-			dev_warn(kbdev->dev, "Failed to disable secure mode: %d\n", err);
-		else
-			kbdev->secure_mode = false;
+	kbdev->protected_mode_transition = true;
+	kbase_reset_gpu_silent(kbdev);
+
+	return 0;
+}
+
+static int kbase_jm_exit_protected_mode(struct kbase_device *kbdev,
+		struct kbase_jd_atom **katom, int idx, int js)
+{
+	int err = 0;
+
+	switch (katom[idx]->exit_protected_state) {
+	case KBASE_ATOM_EXIT_PROTECTED_CHECK:
+		/*
+		 * If the atom ahead of this one hasn't got to being
+		 * submitted yet then bail.
+		 */
+		if (idx == 1 &&
+			(katom[0]->gpu_rb_state != KBASE_ATOM_GPU_RB_SUBMITTED &&
+			katom[0]->gpu_rb_state != KBASE_ATOM_GPU_RB_NOT_IN_SLOT_RB))
+			return -EAGAIN;
+
+		/* If we're not exiting protected mode then we're done here. */
+		if (!(kbase_gpu_in_protected_mode(kbdev) &&
+				!kbase_jd_katom_is_protected(katom[idx])))
+			return 0;
+
+		/*
+		 * If there is a transition in progress, or work still
+		 * on the GPU try again later.
+		 */
+		if (kbdev->protected_mode_transition ||
+				kbase_gpu_atoms_submitted_any(kbdev))
+			return -EAGAIN;
+
+		/*
+		 * Exiting protected mode requires a reset, but first the L2
+		 * needs to be powered down to ensure it's not active when the
+		 * reset is issued.
+		 */
+		katom[idx]->exit_protected_state =
+				KBASE_ATOM_EXIT_PROTECTED_IDLE_L2;
+
+		/* ***FALLTHROUGH: TRANSITION TO HIGHER STATE*** */
+
+	case KBASE_ATOM_EXIT_PROTECTED_IDLE_L2:
+		if (kbase_pm_get_active_cores(kbdev, KBASE_PM_CORE_L2) ||
+				kbase_pm_get_trans_cores(kbdev, KBASE_PM_CORE_L2)) {
+			/*
+			 * The L2 is still powered, wait for all the users to
+			 * finish with it before doing the actual reset.
+			 */
+			return -EAGAIN;
+		}
+		katom[idx]->exit_protected_state =
+				KBASE_ATOM_EXIT_PROTECTED_RESET;
+
+		/* ***FALLTHROUGH: TRANSITION TO HIGHER STATE*** */
+
+	case KBASE_ATOM_EXIT_PROTECTED_RESET:
+		/* Issue the reset to the GPU */
+		err = kbase_gpu_protected_mode_reset(kbdev);
+		if (err) {
+			/* Failed to exit protected mode, fail atom */
+			katom[idx]->event_code = BASE_JD_EVENT_JOB_INVALID;
+			kbase_gpu_mark_atom_for_return(kbdev, katom[idx]);
+			/* Only return if head atom or previous atom
+			 * already removed - as atoms must be returned
+			 * in order */
+			if (idx == 0 || katom[0]->gpu_rb_state ==
+					KBASE_ATOM_GPU_RB_NOT_IN_SLOT_RB) {
+				kbase_gpu_dequeue_atom(kbdev, js, NULL);
+				kbase_jm_return_atom_to_js(kbdev, katom[idx]);
+			}
+
+			kbase_vinstr_resume(kbdev->vinstr_ctx);
+
+			return -EINVAL;
+		}
+
+		katom[idx]->exit_protected_state =
+				KBASE_ATOM_EXIT_PROTECTED_RESET_WAIT;
+
+		/* ***FALLTHROUGH: TRANSITION TO HIGHER STATE*** */
+
+	case KBASE_ATOM_EXIT_PROTECTED_RESET_WAIT:
+		if (kbase_reset_gpu_active(kbdev))
+			return -EAGAIN;
+
+		/* protected mode sanity checks */
+		KBASE_DEBUG_ASSERT_MSG(
+			kbase_jd_katom_is_protected(katom[idx]) == kbase_gpu_in_protected_mode(kbdev),
+			"Protected mode of atom (%d) doesn't match protected mode of GPU (%d)",
+			kbase_jd_katom_is_protected(katom[idx]), kbase_gpu_in_protected_mode(kbdev));
+		KBASE_DEBUG_ASSERT_MSG(
+			(kbase_jd_katom_is_protected(katom[idx]) && js == 0) ||
+			!kbase_jd_katom_is_protected(katom[idx]),
+			"Protected atom on JS%d not supported", js);
 	}
 
-	return err;
+	return 0;
 }
 
 void kbase_gpu_slot_update(struct kbase_device *kbdev)
@@ -719,6 +814,7 @@ void kbase_gpu_slot_update(struct kbase_device *kbdev)
 
 		for (idx = 0; idx < SLOT_RB_SIZE; idx++) {
 			bool cores_ready;
+			int ret;
 
 			if (!katom[idx])
 				continue;
@@ -735,11 +831,29 @@ void kbase_gpu_slot_update(struct kbase_device *kbdev)
 					break;
 
 				katom[idx]->gpu_rb_state =
-				KBASE_ATOM_GPU_RB_WAITING_FOR_CORE_AVAILABLE;
+					KBASE_ATOM_GPU_RB_WAITING_PROTECTED_MODE_EXIT;
 
 			/* ***FALLTHROUGH: TRANSITION TO HIGHER STATE*** */
-			case KBASE_ATOM_GPU_RB_WAITING_FOR_CORE_AVAILABLE:
 
+			case KBASE_ATOM_GPU_RB_WAITING_PROTECTED_MODE_EXIT:
+				/*
+				 * Exiting protected mode must be done before
+				 * the references on the cores are taken as
+				 * a power down the L2 is required which
+				 * can't happen after the references for this
+				 * atom are taken.
+				 */
+				ret = kbase_jm_exit_protected_mode(kbdev,
+						katom, idx, js);
+				if (ret)
+					break;
+
+				katom[idx]->gpu_rb_state =
+					KBASE_ATOM_GPU_RB_WAITING_FOR_CORE_AVAILABLE;
+
+			/* ***FALLTHROUGH: TRANSITION TO HIGHER STATE*** */
+
+			case KBASE_ATOM_GPU_RB_WAITING_FOR_CORE_AVAILABLE:
 				if (katom[idx]->will_fail_event_code) {
 					kbase_gpu_mark_atom_for_return(kbdev,
 							katom[idx]);
@@ -785,11 +899,12 @@ void kbase_gpu_slot_update(struct kbase_device *kbdev)
 					break;
 
 				katom[idx]->gpu_rb_state =
-					KBASE_ATOM_GPU_RB_WAITING_SECURE_MODE;
+					KBASE_ATOM_GPU_RB_WAITING_PROTECTED_MODE_ENTRY;
 
 			/* ***FALLTHROUGH: TRANSITION TO HIGHER STATE*** */
 
-			case KBASE_ATOM_GPU_RB_WAITING_SECURE_MODE:
+			case KBASE_ATOM_GPU_RB_WAITING_PROTECTED_MODE_ENTRY:
+
 				/* Only submit if head atom or previous atom
 				 * already submitted */
 				if (idx == 1 &&
@@ -797,7 +912,15 @@ void kbase_gpu_slot_update(struct kbase_device *kbdev)
 					katom[0]->gpu_rb_state != KBASE_ATOM_GPU_RB_NOT_IN_SLOT_RB))
 					break;
 
-				if (kbase_gpu_in_secure_mode(kbdev) != kbase_jd_katom_is_secure(katom[idx])) {
+				/*
+				 * If the GPU is transitioning protected mode
+				 * then bail now and we'll be called when the
+				 * new state has settled.
+				 */
+				if (kbdev->protected_mode_transition)
+					break;
+
+				if (!kbase_gpu_in_protected_mode(kbdev) && kbase_jd_katom_is_protected(katom[idx])) {
 					int err = 0;
 
 					/* Not in correct mode, take action */
@@ -811,16 +934,26 @@ void kbase_gpu_slot_update(struct kbase_device *kbdev)
 						 */
 						break;
 					}
+					if (kbase_vinstr_try_suspend(kbdev->vinstr_ctx) < 0) {
+						/*
+						 * We can't switch now because
+						 * the vinstr core state switch
+						 * is not done yet.
+						 */
+						break;
+					}
+					/* Once reaching this point GPU must be
+					 * switched to protected mode or vinstr
+					 * re-enabled. */
 
 					/* No jobs running, so we can switch GPU mode right now */
-					if (kbase_jd_katom_is_secure(katom[idx])) {
-						err = kbase_gpu_secure_mode_enable(kbdev);
-					} else {
-						err = kbase_gpu_secure_mode_disable(kbdev);
-					}
-
+					err = kbase_gpu_protected_mode_enter(kbdev);
 					if (err) {
-						/* Failed to switch secure mode, fail atom */
+						/*
+						 * Failed to switch into protected mode, resume
+						 * vinstr core and fail atom.
+						 */
+						kbase_vinstr_resume(kbdev->vinstr_ctx);
 						katom[idx]->event_code = BASE_JD_EVENT_JOB_INVALID;
 						kbase_gpu_mark_atom_for_return(kbdev, katom[idx]);
 						/* Only return if head atom or previous atom
@@ -835,17 +968,18 @@ void kbase_gpu_slot_update(struct kbase_device *kbdev)
 					}
 				}
 
-				/* Secure mode sanity checks */
+				/* Protected mode sanity checks */
 				KBASE_DEBUG_ASSERT_MSG(
-					kbase_jd_katom_is_secure(katom[idx]) == kbase_gpu_in_secure_mode(kbdev),
-					"Secure mode of atom (%d) doesn't match secure mode of GPU (%d)",
-					kbase_jd_katom_is_secure(katom[idx]), kbase_gpu_in_secure_mode(kbdev));
+					kbase_jd_katom_is_protected(katom[idx]) == kbase_gpu_in_protected_mode(kbdev),
+					"Protected mode of atom (%d) doesn't match protected mode of GPU (%d)",
+					kbase_jd_katom_is_protected(katom[idx]), kbase_gpu_in_protected_mode(kbdev));
 				katom[idx]->gpu_rb_state =
 					KBASE_ATOM_GPU_RB_READY;
 
 			/* ***FALLTHROUGH: TRANSITION TO HIGHER STATE*** */
 
 			case KBASE_ATOM_GPU_RB_READY:
+
 				/* Only submit if head atom or previous atom
 				 * already submitted */
 				if (idx == 1 &&
@@ -966,8 +1100,16 @@ void kbase_gpu_complete_hw(struct kbase_device *kbdev, int js,
 	}
 
 	katom = kbase_gpu_dequeue_atom(kbdev, js, end_timestamp);
-
 	kbase_timeline_job_slot_done(kbdev, katom->kctx, katom, js, 0);
+	kbase_tlstream_tl_nret_atom_lpu(
+			katom,
+			&kbdev->gpu_props.props.raw_props.js_features[
+				katom->slot_nr]);
+	kbase_tlstream_tl_nret_atom_as(katom, &kbdev->as[kctx->as_nr]);
+	kbase_tlstream_tl_nret_ctx_lpu(
+			kctx,
+			&kbdev->gpu_props.props.raw_props.js_features[
+				katom->slot_nr]);
 
 	if (completion_code == BASE_JD_EVENT_STOPPED) {
 		struct kbase_jd_atom *next_katom = kbase_gpu_inspect(kbdev, js,
@@ -1120,13 +1262,34 @@ void kbase_backend_reset(struct kbase_device *kbdev, ktime_t *end_timestamp)
 		for (idx = 0; idx < 2; idx++) {
 			struct kbase_jd_atom *katom = kbase_gpu_inspect(kbdev,
 									js, 0);
+			bool keep_in_jm_rb = false;
 
-			if (katom) {
-				kbase_gpu_release_atom(kbdev, katom, NULL);
-				kbase_gpu_dequeue_atom(kbdev, js, NULL);
-				katom->event_code = BASE_JD_EVENT_JOB_CANCELLED;
-				kbase_jm_complete(kbdev, katom, end_timestamp);
+			if (!katom)
+				continue;
+
+			if (katom->gpu_rb_state < KBASE_ATOM_GPU_RB_SUBMITTED)
+				keep_in_jm_rb = true;
+
+			kbase_gpu_release_atom(kbdev, katom, NULL);
+
+			/*
+			 * If the atom wasn't on HW when the reset was issued
+			 * then leave it in the RB and next time we're kicked
+			 * it will be processed again from the starting state.
+			 */
+			if (keep_in_jm_rb) {
+				katom->coreref_state = KBASE_ATOM_COREREF_STATE_NO_CORES_REQUESTED;
+				katom->exit_protected_state = KBASE_ATOM_EXIT_PROTECTED_CHECK;
+				continue;
 			}
+
+			/*
+			 * The atom was on the HW when the reset was issued
+			 * all we can do is fail the atom.
+			 */
+			kbase_gpu_dequeue_atom(kbdev, js, NULL);
+			katom->event_code = BASE_JD_EVENT_JOB_CANCELLED;
+			kbase_jm_complete(kbdev, katom, end_timestamp);
 		}
 	}
 }

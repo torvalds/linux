@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2012-2014 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2014, 2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -23,10 +23,9 @@
  *
  */
 
-#ifndef _KBASE_GPU_MEMORY_H
-#define _KBASE_GPU_MEMORY_H
+#ifndef _KBASE_GPU_MEMORY_DEBUGFS_H
+#define _KBASE_GPU_MEMORY_DEBUGFS_H
 
-#include <mali_kbase.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
@@ -35,4 +34,4 @@
  */
 void kbasep_gpu_memory_debugfs_init(struct kbase_device *kbdev);
 
-#endif  /*_KBASE_GPU_MEMORY_H*/
+#endif  /*_KBASE_GPU_MEMORY_DEBUGFS_H*/

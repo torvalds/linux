@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -36,7 +36,12 @@ static struct thermal_zone_device *gpu_tz;
 
 static unsigned long model_static_power(unsigned long voltage)
 {
-	int temperature, temp;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 0)
+	unsigned long temperature;
+#else
+	int temperature;
+#endif
+	unsigned long temp;
 	unsigned long temp_squared, temp_cubed, temp_scaling_factor;
 	const unsigned long voltage_cubed = (voltage * voltage * voltage) >> 10;
 
@@ -85,7 +90,11 @@ static unsigned long model_dynamic_power(unsigned long freq,
 	return (dynamic_coefficient * v2 * f_mhz) / 1000000; /* mW */
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0)
+struct devfreq_cooling_ops power_model_simple_ops = {
+#else
 struct devfreq_cooling_power power_model_simple_ops = {
+#endif
 	.get_static_power = model_static_power,
 	.get_dynamic_power = model_dynamic_power,
 };
@@ -150,7 +159,7 @@ int kbase_power_model_simple_init(struct kbase_device *kbdev)
 	dynamic_coefficient = (((dynamic_power * 1000) / voltage_squared)
 			* 1000) / frequency;
 
-	if (of_property_read_u32_array(power_model_node, "ts", ts, 4)) {
+	if (of_property_read_u32_array(power_model_node, "ts", (u32 *)ts, 4)) {
 		dev_err(kbdev->dev, "ts in power_model not available\n");
 		return -EINVAL;
 	}

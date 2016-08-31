@@ -49,9 +49,16 @@
  * 10.2:
  * - Add KBASE_FUNC_MEM_JIT_INIT which allows clients to request a custom VA
  *   region for use with JIT (ignored on 32-bit platforms)
+ *
+ * 10.3:
+ * - base_jd_core_req typedef-ed to u32 (instead of to u16)
+ * - two flags added: BASE_JD_REQ_SKIP_CACHE_STAT / _END
+ *
+ * 10.4:
+ * - Removed KBASE_FUNC_EXT_BUFFER_LOCK used only in internal tests
  */
 #define BASE_UK_VERSION_MAJOR 10
-#define BASE_UK_VERSION_MINOR 2
+#define BASE_UK_VERSION_MINOR 4
 
 struct kbase_uk_mem_alloc {
 	union uk_header header;
@@ -296,16 +303,6 @@ struct kbase_uk_model_control_params {
 };
 #endif				/* SUPPORT_MALI_NO_MALI */
 
-#define KBASE_MAXIMUM_EXT_RESOURCES       255
-
-struct kbase_uk_ext_buff_kds_data {
-	union uk_header header;
-	union kbase_pointer external_resource;
-	union kbase_pointer file_descriptor;
-	u32 num_res;		/* limited to KBASE_MAXIMUM_EXT_RESOURCES */
-	u32 padding;
-};
-
 #ifdef BASE_LEGACY_UK8_SUPPORT
 struct kbase_uk_keep_gpu_powered {
 	union uk_header header;
@@ -474,7 +471,6 @@ enum kbase_uk_function_id {
 	KBASE_FUNC_FIND_CPU_OFFSET = (UK_FUNC_ID + 15),
 
 	KBASE_FUNC_GET_VERSION = (UK_FUNC_ID + 16),
-	KBASE_FUNC_EXT_BUFFER_LOCK = (UK_FUNC_ID + 17),
 	KBASE_FUNC_SET_FLAGS = (UK_FUNC_ID + 18),
 
 	KBASE_FUNC_SET_TEST_DATA = (UK_FUNC_ID + 19),

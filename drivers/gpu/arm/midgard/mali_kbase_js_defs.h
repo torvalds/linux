@@ -348,8 +348,8 @@ struct kbasep_js_device_data {
 	u32 cfs_ctx_runtime_init_slices; /**< Value for DEFAULT_JS_CFS_CTX_RUNTIME_INIT_SLICES */
 	u32 cfs_ctx_runtime_min_slices;	 /**< Value for  DEFAULT_JS_CFS_CTX_RUNTIME_MIN_SLICES */
 
-	/**< Value for JS_SOFT_EVENT_TIMEOUT */
-	atomic_t soft_event_timeout_ms;
+	/**< Value for JS_SOFT_JOB_TIMEOUT */
+	atomic_t soft_job_timeout_ms;
 
 	/** List of suspended soft jobs */
 	struct list_head suspended_soft_jobs_list;

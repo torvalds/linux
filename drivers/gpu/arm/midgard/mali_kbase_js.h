@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -607,6 +607,16 @@ void kbase_js_zap_context(struct kbase_context *kctx);
  */
 bool kbase_js_is_atom_valid(struct kbase_device *kbdev,
 				struct kbase_jd_atom *katom);
+
+/**
+ * kbase_js_set_timeouts - update all JS timeouts with user specified data
+ * @kbdev: Device pointer
+ *
+ * Timeouts are specified through the 'js_timeouts' sysfs file. If a timeout is
+ * set to a positive number then that becomes the new value used, if a timeout
+ * is negative then the default is set.
+ */
+void kbase_js_set_timeouts(struct kbase_device *kbdev);
 
 /*
  * Helpers follow

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -96,7 +96,7 @@ void kbase_job_hw_submit(struct kbase_device *kbdev,
 void kbasep_job_slot_soft_or_hard_stop_do_action(struct kbase_device *kbdev,
 					int js,
 					u32 action,
-					u16 core_reqs,
+					base_jd_core_req core_reqs,
 					struct kbase_jd_atom *target_katom);
 
 /**

@@ -1086,7 +1086,7 @@ static struct kbase_va_region *kbase_mem_from_umm(struct kbase_context *kctx, in
 
 	/* no read or write permission given on import, only on run do we give the right permissions */
 
-	reg->gpu_alloc->type = BASE_MEM_IMPORT_TYPE_UMM;
+	reg->gpu_alloc->type = KBASE_MEM_TYPE_IMPORTED_UMM;
 	reg->gpu_alloc->imported.umm.sgt = NULL;
 	reg->gpu_alloc->imported.umm.dma_buf = dma_buf;
 	reg->gpu_alloc->imported.umm.dma_attachment = dma_attachment;
@@ -1184,8 +1184,13 @@ static struct kbase_va_region *kbase_mem_from_user_buffer(
 	/* We can't really store the page list because that would involve */
 	/* keeping the pages pinned - instead we pin/unpin around the job */
 	/* (as part of the external resources handling code) */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
 	faulted_pages = get_user_pages(current, current->mm, address, *va_pages,
 			reg->flags & KBASE_REG_GPU_WR, 0, NULL, NULL);
+#else
+	faulted_pages = get_user_pages(address, *va_pages,
+			reg->flags & KBASE_REG_GPU_WR, 0, NULL, NULL);
+#endif
 	up_read(&current->mm->mmap_sem);
 
 	if (faulted_pages != *va_pages)
@@ -1651,18 +1656,6 @@ static int kbase_mem_shrink_gpu_mapping(struct kbase_context *kctx,
 
 	ret = kbase_mmu_teardown_pages(kctx,
 			reg->start_pfn + new_pages, delta);
-	if (ret)
-		return ret;
-
-#ifndef CONFIG_MALI_NO_MALI
-	if (kbase_hw_has_issue(kctx->kbdev, BASE_HW_ISSUE_6367)) {
-		/*
-		* Wait for GPU to flush write buffer before freeing
-		* physical pages.
-		 */
-		kbase_wait_write_flush(kctx);
-	}
-#endif
 
 	return ret;
 }
@@ -2450,8 +2443,8 @@ out:
 
 KBASE_EXPORT_TEST_API(kbase_mmap);
 
-void *kbase_vmap(struct kbase_context *kctx, u64 gpu_addr, size_t size,
-		struct kbase_vmap_struct *map)
+void *kbase_vmap_prot(struct kbase_context *kctx, u64 gpu_addr, size_t size,
+		      unsigned long prot_request, struct kbase_vmap_struct *map)
 {
 	struct kbase_va_region *reg;
 	unsigned long page_index;
@@ -2489,6 +2482,11 @@ void *kbase_vmap(struct kbase_context *kctx, u64 gpu_addr, size_t size,
 	if (reg->flags & KBASE_REG_DONT_NEED)
 		goto out_unlock;
 
+	/* check access permissions can be satisfied
+	 * Intended only for checking KBASE_REG_{CPU,GPU}_{RD,WR} */
+	if ((reg->flags & prot_request) != prot_request)
+		goto out_unlock;
+
 	page_array = kbase_get_cpu_phy_pages(reg);
 	if (!page_array)
 		goto out_unlock;
@@ -2505,6 +2503,9 @@ void *kbase_vmap(struct kbase_context *kctx, u64 gpu_addr, size_t size,
 		/* Map uncached */
 		prot = pgprot_writecombine(prot);
 	}
+	/* Note: enforcing a RO prot_request onto prot is not done, since:
+	 * - CPU-arch-specific integration required
+	 * - kbase_vmap() requires no access checks to be made/enforced */
 
 	cpu_addr = vmap(pages, page_count, VM_MAP, prot);
 
@@ -2562,6 +2563,17 @@ void *kbase_vmap(struct kbase_context *kctx, u64 gpu_addr, size_t size,
 out_unlock:
 	kbase_gpu_vm_unlock(kctx);
 	return NULL;
+}
+
+void *kbase_vmap(struct kbase_context *kctx, u64 gpu_addr, size_t size,
+		struct kbase_vmap_struct *map)
+{
+	/* 0 is specified for prot_request to indicate no access checks should
+	 * be made.
+	 *
+	 * As mentioned in kbase_vmap_prot() this means that a kernel-side
+	 * CPU-RO mapping is not enforced to allow this to work */
+	return kbase_vmap_prot(kctx, gpu_addr, size, 0u, map);
 }
 KBASE_EXPORT_TEST_API(kbase_vmap);
 

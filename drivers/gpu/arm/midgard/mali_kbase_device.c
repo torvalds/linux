@@ -30,6 +30,7 @@
 
 #include <mali_kbase.h>
 #include <mali_kbase_defs.h>
+#include <mali_kbase_hwaccess_instr.h>
 #include <mali_kbase_hw.h>
 #include <mali_kbase_config_defaults.h>
 

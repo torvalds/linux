@@ -118,8 +118,83 @@ struct kbase_vmap_struct {
 	size_t size;
 	bool is_cached;
 };
+
+
+/**
+ * kbase_vmap_prot - Map a GPU VA range into the kernel safely, only if the
+ * requested access permissions are supported
+ * @kctx:         Context the VA range belongs to
+ * @gpu_addr:     Start address of VA range
+ * @size:         Size of VA range
+ * @prot_request: Flags indicating how the caller will then access the memory
+ * @map:          Structure to be given to kbase_vunmap() on freeing
+ *
+ * Return: Kernel-accessible CPU pointer to the VA range, or NULL on error
+ *
+ * Map a GPU VA Range into the kernel. The VA range must be contained within a
+ * GPU memory region. Appropriate CPU cache-flushing operations are made as
+ * required, dependent on the CPU mapping for the memory region.
+ *
+ * This is safer than using kmap() on the pages directly,
+ * because the pages here are refcounted to prevent freeing (and hence reuse
+ * elsewhere in the system) until an kbase_vunmap()
+ *
+ * The flags in @prot_request should use KBASE_REG_{CPU,GPU}_{RD,WR}, to check
+ * whether the region should allow the intended access, and return an error if
+ * disallowed. This is essential for security of imported memory, particularly
+ * a user buf from SHM mapped into the process as RO. In that case, write
+ * access must be checked if the intention is for kernel to write to the
+ * memory.
+ *
+ * The checks are also there to help catch access errors on memory where
+ * security is not a concern: imported memory that is always RW, and memory
+ * that was allocated and owned by the process attached to @kctx. In this case,
+ * it helps to identify memory that was was mapped with the wrong access type.
+ *
+ * Note: KBASE_REG_GPU_{RD,WR} flags are currently supported for legacy cases
+ * where either the security of memory is solely dependent on those flags, or
+ * when userspace code was expecting only the GPU to access the memory (e.g. HW
+ * workarounds).
+ *
+ */
+void *kbase_vmap_prot(struct kbase_context *kctx, u64 gpu_addr, size_t size,
+		      unsigned long prot_request, struct kbase_vmap_struct *map);
+
+/**
+ * kbase_vmap - Map a GPU VA range into the kernel safely
+ * @kctx:     Context the VA range belongs to
+ * @gpu_addr: Start address of VA range
+ * @size:     Size of VA range
+ * @map:      Structure to be given to kbase_vunmap() on freeing
+ *
+ * Return: Kernel-accessible CPU pointer to the VA range, or NULL on error
+ *
+ * Map a GPU VA Range into the kernel. The VA range must be contained within a
+ * GPU memory region. Appropriate CPU cache-flushing operations are made as
+ * required, dependent on the CPU mapping for the memory region.
+ *
+ * This is safer than using kmap() on the pages directly,
+ * because the pages here are refcounted to prevent freeing (and hence reuse
+ * elsewhere in the system) until an kbase_vunmap()
+ *
+ * kbase_vmap_prot() should be used in preference, since kbase_vmap() makes no
+ * checks to ensure the security of e.g. imported user bufs from RO SHM.
+ */
 void *kbase_vmap(struct kbase_context *kctx, u64 gpu_addr, size_t size,
 		struct kbase_vmap_struct *map);
+
+/**
+ * kbase_vunmap - Unmap a GPU VA range from the kernel
+ * @kctx: Context the VA range belongs to
+ * @map:  Structure describing the mapping from the corresponding kbase_vmap()
+ *        call
+ *
+ * Unmaps a GPU VA range from the kernel, given its @map structure obtained
+ * from kbase_vmap(). Appropriate CPU cache-flushing operations are made as
+ * required, dependent on the CPU mapping for the memory region.
+ *
+ * The reference taken on pages during kbase_vmap() is released.
+ */
 void kbase_vunmap(struct kbase_context *kctx, struct kbase_vmap_struct *map);
 
 /** @brief Allocate memory from kernel space and map it onto the GPU

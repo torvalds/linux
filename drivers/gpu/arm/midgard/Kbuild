@@ -15,7 +15,7 @@
 
 
 # Driver version string which is returned to userspace via an ioctl
-MALI_RELEASE_NAME ?= "r12p0-04rel0"
+MALI_RELEASE_NAME ?= "r13p0-00rel0"
 
 # Paths required for build
 KBASE_PATH = $(src)
@@ -88,7 +88,6 @@ SRC := \
 	mali_kbase_context.c \
 	mali_kbase_pm.c \
 	mali_kbase_config.c \
-	mali_kbase_instr.c \
 	mali_kbase_vinstr.c \
 	mali_kbase_softjobs.c \
 	mali_kbase_10969_workaround.c \
@@ -104,6 +103,7 @@ SRC := \
 	mali_kbase_replay.c \
 	mali_kbase_mem_profile_debugfs.c \
 	mali_kbase_mmu_mode_lpae.c \
+	mali_kbase_mmu_mode_aarch64.c \
 	mali_kbase_disjoint_events.c \
 	mali_kbase_gator_api.c \
 	mali_kbase_debug_mem_view.c \
@@ -112,7 +112,8 @@ SRC := \
 	mali_kbase_mem_pool.c \
 	mali_kbase_mem_pool_debugfs.c \
 	mali_kbase_tlstream.c \
-	mali_kbase_strings.c
+	mali_kbase_strings.c \
+	mali_kbase_as_fault_debugfs.c
 
 ifeq ($(MALI_UNIT_TEST),1)
 	SRC += mali_kbase_tlstream_test.c
@@ -201,13 +202,6 @@ obj-$(CONFIG_MALI_MIDGARD) += mali_kbase.o
 mali_kbase-y := $(SRC:.c=.o)
 
 mali_kbase-$(CONFIG_MALI_DMA_FENCE) += mali_kbase_dma_fence.o
-
-ifneq ($(wildcard $(src)/internal/Kbuild),)
-ifeq ($(MALI_CUSTOMER_RELEASE),0)
-include  $(src)/internal/Kbuild
-mali_kbase-y += $(INTERNAL:.c=.o)
-endif
-endif
 
 MALI_BACKEND_PATH ?= backend
 CONFIG_MALI_BACKEND ?= gpu

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -74,9 +74,10 @@ void kbase_wait_write_flush(struct kbase_context *kctx)
 {
 	u32 base_count = 0;
 
-	/* A suspend won't happen here, because we're in a syscall from a
-	 * userspace thread */
-
+	/*
+	 * The caller must be holding onto the kctx or the call is from
+	 * userspace.
+	 */
 	kbase_pm_context_active(kctx->kbdev);
 	kbase_pm_request_gpu_cycle_counter(kctx->kbdev);
 

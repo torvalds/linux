@@ -42,6 +42,9 @@
 /* Support UK9 IOCTLS */
 #define BASE_LEGACY_UK9_SUPPORT 1
 
+/* Support UK10_2 IOCTLS */
+#define BASE_LEGACY_UK10_2_SUPPORT 1
+
 typedef struct base_mem_handle {
 	struct {
 		u64 handle;
@@ -290,7 +293,6 @@ typedef enum base_backing_threshold_status {
 	BASE_BACKING_THRESHOLD_OK = 0,			    /**< Resize successful */
 	BASE_BACKING_THRESHOLD_ERROR_NOT_GROWABLE = -1,	    /**< Not a growable tmem object */
 	BASE_BACKING_THRESHOLD_ERROR_OOM = -2,		    /**< Increase failed due to an out-of-memory condition */
-	BASE_BACKING_THRESHOLD_ERROR_MAPPED = -3,	    /**< Resize attempted on buffer while it was mapped, which is not permitted */
 	BASE_BACKING_THRESHOLD_ERROR_INVALID_ARGUMENTS = -4 /**< Invalid arguments (not tmem, illegal size request, etc.) */
 } base_backing_threshold_status;
 
@@ -442,11 +444,20 @@ typedef u8 base_jd_dep_type;
  * Special case is ::BASE_JD_REQ_DEP, which is used to express complex
  * dependencies, and that doesn't execute anything on the hardware.
  */
-typedef u16 base_jd_core_req;
+typedef u32 base_jd_core_req;
 
 /* Requirements that come from the HW */
-#define BASE_JD_REQ_DEP 0	    /**< No requirement, dependency only */
-#define BASE_JD_REQ_FS  (1U << 0)   /**< Requires fragment shaders */
+
+/**
+ * No requirement, dependency only
+ */
+#define BASE_JD_REQ_DEP ((base_jd_core_req)0)
+
+/**
+ * Requires fragment shaders
+ */
+#define BASE_JD_REQ_FS  ((base_jd_core_req)1 << 0)
+
 /**
  * Requires compute shaders
  * This covers any of the following Midgard Job types:
@@ -458,15 +469,15 @@ typedef u16 base_jd_core_req;
  * job is specifically just the "Compute Shader" job type, and not the "Vertex
  * Shader" nor the "Geometry Shader" job type.
  */
-#define BASE_JD_REQ_CS  (1U << 1)
-#define BASE_JD_REQ_T   (1U << 2)   /**< Requires tiling */
-#define BASE_JD_REQ_CF  (1U << 3)   /**< Requires cache flushes */
-#define BASE_JD_REQ_V   (1U << 4)   /**< Requires value writeback */
+#define BASE_JD_REQ_CS  ((base_jd_core_req)1 << 1)
+#define BASE_JD_REQ_T   ((base_jd_core_req)1 << 2)   /**< Requires tiling */
+#define BASE_JD_REQ_CF  ((base_jd_core_req)1 << 3)   /**< Requires cache flushes */
+#define BASE_JD_REQ_V   ((base_jd_core_req)1 << 4)   /**< Requires value writeback */
 
 /* SW-only requirements - the HW does not expose these as part of the job slot capabilities */
 
 /* Requires fragment job with AFBC encoding */
-#define BASE_JD_REQ_FS_AFBC  (1U << 13)
+#define BASE_JD_REQ_FS_AFBC  ((base_jd_core_req)1 << 13)
 
 /**
  * SW-only requirement: coalesce completion events.
@@ -476,20 +487,20 @@ typedef u16 base_jd_core_req;
  *
  * This bit may not be used in combination with BASE_JD_REQ_EXTERNAL_RESOURCES.
  */
-#define BASE_JD_REQ_EVENT_COALESCE (1U << 5)
+#define BASE_JD_REQ_EVENT_COALESCE ((base_jd_core_req)1 << 5)
 
 /**
  * SW Only requirement: the job chain requires a coherent core group. We don't
  * mind which coherent core group is used.
  */
-#define BASE_JD_REQ_COHERENT_GROUP  (1U << 6)
+#define BASE_JD_REQ_COHERENT_GROUP  ((base_jd_core_req)1 << 6)
 
 /**
  * SW Only requirement: The performance counters should be enabled only when
  * they are needed, to reduce power consumption.
  */
 
-#define BASE_JD_REQ_PERMON               (1U << 7)
+#define BASE_JD_REQ_PERMON               ((base_jd_core_req)1 << 7)
 
 /**
  * SW Only requirement: External resources are referenced by this atom.
@@ -500,13 +511,13 @@ typedef u16 base_jd_core_req;
  *
  * This bit may not be used in combination with BASE_JD_REQ_EVENT_COALESCE.
  */
-#define BASE_JD_REQ_EXTERNAL_RESOURCES   (1U << 8)
+#define BASE_JD_REQ_EXTERNAL_RESOURCES   ((base_jd_core_req)1 << 8)
 
 /**
  * SW Only requirement: Software defined job. Jobs with this bit set will not be submitted
  * to the hardware but will cause some action to happen within the driver
  */
-#define BASE_JD_REQ_SOFT_JOB        (1U << 9)
+#define BASE_JD_REQ_SOFT_JOB        ((base_jd_core_req)1 << 9)
 
 #define BASE_JD_REQ_SOFT_DUMP_CPU_GPU_TIME      (BASE_JD_REQ_SOFT_JOB | 0x1)
 #define BASE_JD_REQ_SOFT_FENCE_TRIGGER          (BASE_JD_REQ_SOFT_JOB | 0x2)
@@ -618,49 +629,79 @@ typedef u16 base_jd_core_req;
  * In contrast to @ref BASE_JD_REQ_CS, this does \b not indicate that the Job
  * Chain contains 'Geometry Shader' or 'Vertex Shader' jobs.
  */
-#define BASE_JD_REQ_ONLY_COMPUTE    (1U << 10)
+#define BASE_JD_REQ_ONLY_COMPUTE    ((base_jd_core_req)1 << 10)
 
 /**
  * HW Requirement: Use the base_jd_atom::device_nr field to specify a
  * particular core group
  *
- * If both BASE_JD_REQ_COHERENT_GROUP and this flag are set, this flag takes priority
+ * If both @ref BASE_JD_REQ_COHERENT_GROUP and this flag are set, this flag takes priority
  *
- * This is only guaranteed to work for BASE_JD_REQ_ONLY_COMPUTE atoms.
+ * This is only guaranteed to work for @ref BASE_JD_REQ_ONLY_COMPUTE atoms.
  *
  * If the core availability policy is keeping the required core group turned off, then
- * the job will fail with a BASE_JD_EVENT_PM_EVENT error code.
+ * the job will fail with a @ref BASE_JD_EVENT_PM_EVENT error code.
  */
-#define BASE_JD_REQ_SPECIFIC_COHERENT_GROUP (1U << 11)
+#define BASE_JD_REQ_SPECIFIC_COHERENT_GROUP ((base_jd_core_req)1 << 11)
 
 /**
  * SW Flag: If this bit is set then the successful completion of this atom
  * will not cause an event to be sent to userspace
  */
-#define BASE_JD_REQ_EVENT_ONLY_ON_FAILURE   (1U << 12)
+#define BASE_JD_REQ_EVENT_ONLY_ON_FAILURE   ((base_jd_core_req)1 << 12)
 
 /**
  * SW Flag: If this bit is set then completion of this atom will not cause an
  * event to be sent to userspace, whether successful or not.
  */
-#define BASEP_JD_REQ_EVENT_NEVER (1U << 14)
+#define BASEP_JD_REQ_EVENT_NEVER ((base_jd_core_req)1 << 14)
 
 /**
- * These requirement bits are currently unused in base_jd_core_req (currently a u16)
+ * SW Flag: Skip GPU cache clean and invalidation before starting a GPU job.
+ *
+ * If this bit is set then the GPU's cache will not be cleaned and invalidated
+ * until a GPU job starts which does not have this bit set or a job completes
+ * which does not have the @ref BASE_JD_REQ_SKIP_CACHE_END bit set. Do not use if
+ * the CPU may have written to memory addressed by the job since the last job
+ * without this bit set was submitted.
  */
+#define BASE_JD_REQ_SKIP_CACHE_START ((base_jd_core_req)1 << 15)
 
-#define BASEP_JD_REQ_RESERVED (1U << 15)
+/**
+ * SW Flag: Skip GPU cache clean and invalidation after a GPU job completes.
+ *
+ * If this bit is set then the GPU's cache will not be cleaned and invalidated
+ * until a GPU job completes which does not have this bit set or a job starts
+ * which does not have the @ref BASE_JD_REQ_SKIP_CACHE_START bti set. Do not use if
+ * the CPU may read from or partially overwrite memory addressed by the job
+ * before the next job without this bit set completes.
+ */
+#define BASE_JD_REQ_SKIP_CACHE_END ((base_jd_core_req)1 << 16)
+
+/**
+ * These requirement bits are currently unused in base_jd_core_req
+ */
+#define BASEP_JD_REQ_RESERVED \
+	(~(BASE_JD_REQ_ATOM_TYPE | BASE_JD_REQ_EXTERNAL_RESOURCES | \
+	BASE_JD_REQ_EVENT_ONLY_ON_FAILURE | BASEP_JD_REQ_EVENT_NEVER | \
+	BASE_JD_REQ_EVENT_COALESCE | \
+	BASE_JD_REQ_COHERENT_GROUP | BASE_JD_REQ_SPECIFIC_COHERENT_GROUP | \
+	BASE_JD_REQ_FS_AFBC | BASE_JD_REQ_PERMON | \
+	BASE_JD_REQ_SKIP_CACHE_START | BASE_JD_REQ_SKIP_CACHE_END))
 
 /**
  * Mask of all bits in base_jd_core_req that control the type of the atom.
  *
  * This allows dependency only atoms to have flags set
  */
-#define BASEP_JD_REQ_ATOM_TYPE (~(BASEP_JD_REQ_RESERVED |\
-				BASE_JD_REQ_EVENT_ONLY_ON_FAILURE |\
-				BASE_JD_REQ_EXTERNAL_RESOURCES |\
-				BASEP_JD_REQ_EVENT_NEVER |\
-				BASE_JD_REQ_EVENT_COALESCE))
+#define BASE_JD_REQ_ATOM_TYPE \
+	(BASE_JD_REQ_FS | BASE_JD_REQ_CS | BASE_JD_REQ_T | BASE_JD_REQ_CF | \
+	BASE_JD_REQ_V | BASE_JD_REQ_SOFT_JOB | BASE_JD_REQ_ONLY_COMPUTE)
+
+/**
+ * Mask of all bits in base_jd_core_req that control the type of a soft job.
+ */
+#define BASE_JD_REQ_SOFT_JOB_TYPE (BASE_JD_REQ_SOFT_JOB | 0x1f)
 
 /**
  * @brief States to model state machine processed by kbasep_js_job_check_ref_cores(), which
@@ -764,18 +805,26 @@ struct base_dependency {
 	base_jd_dep_type dependency_type;    /**< Dependency type */
 };
 
+/* This structure has changed since UK 10.2 for which base_jd_core_req was a u16 value.
+ * In order to keep the size of the structure same, padding field has been adjusted
+ * accordingly and core_req field of a u32 type (to which UK 10.3 base_jd_core_req defines)
+ * is added at the end of the structure. Place in the structure previously occupied by u16 core_req
+ * is kept but renamed to compat_core_req and as such it can be used in ioctl call for job submission
+ * as long as UK 10.2 legacy is supported. Once when this support ends, this field can be left
+ * for possible future use. */
 typedef struct base_jd_atom_v2 {
 	u64 jc;			    /**< job-chain GPU address */
 	struct base_jd_udata udata;		    /**< user data */
 	kbase_pointer extres_list;	    /**< list of external resources */
 	u16 nr_extres;			    /**< nr of external resources */
-	base_jd_core_req core_req;	    /**< core requirements */
+	u16 compat_core_req;	            /**< core requirements which correspond to the legacy support for UK 10.2 */
 	struct base_dependency pre_dep[2];  /**< pre-dependencies, one need to use SETTER function to assign this field,
 	this is done in order to reduce possibility of improper assigment of a dependency field */
 	base_atom_id atom_number;	    /**< unique number to identify the atom */
 	base_jd_prio prio;                  /**< Atom priority. Refer to @ref base_jd_prio for more details */
 	u8 device_nr;			    /**< coregroup when BASE_JD_REQ_SPECIFIC_COHERENT_GROUP specified */
-	u8 padding[5];
+	u8 padding[1];
+	base_jd_core_req core_req;          /**< core requirements */
 } base_jd_atom_v2;
 
 #ifdef BASE_LEGACY_UK6_SUPPORT
@@ -784,14 +833,14 @@ struct base_jd_atom_v2_uk6 {
 	struct base_jd_udata udata;		    /**< user data */
 	kbase_pointer extres_list;	    /**< list of external resources */
 	u16 nr_extres;			    /**< nr of external resources */
-	base_jd_core_req core_req;	    /**< core requirements */
+	u16 core_req;                       /**< core requirements */
 	base_atom_id pre_dep[2]; /**< pre-dependencies */
 	base_atom_id atom_number;	    /**< unique number to identify the atom */
 	base_jd_prio prio;		    /**< priority - smaller is higher priority */
 	u8 device_nr;			    /**< coregroup when BASE_JD_REQ_SPECIFIC_COHERENT_GROUP specified */
 	u8 padding[7];
 };
-#endif
+#endif /* BASE_LEGACY_UK6_SUPPORT */
 
 typedef enum base_external_resource_access {
 	BASE_EXT_RES_ACCESS_SHARED,
@@ -1603,7 +1652,7 @@ typedef struct mali_base_gpu_props {
  * Flags to pass to ::base_context_init.
  * Flags can be ORed together to enable multiple things.
  *
- * These share the same space as @ref basep_context_private_flags, and so must
+ * These share the same space as BASEP_CONTEXT_FLAG_*, and so must
  * not collide with them.
  */
 enum base_context_create_flags {
@@ -1632,7 +1681,7 @@ enum base_context_create_flags {
 #define BASE_CONTEXT_CREATE_KERNEL_FLAGS \
 	((u32)BASE_CONTEXT_SYSTEM_MONITOR_SUBMIT_DISABLED)
 
-/**
+/*
  * Private flags used on the base context
  *
  * These start at bit 31, and run down to zero.
@@ -1640,10 +1689,8 @@ enum base_context_create_flags {
  * They share the same space as @ref base_context_create_flags, and so must
  * not collide with them.
  */
-enum basep_context_private_flags {
-	/** Private flag tracking whether job descriptor dumping is disabled */
-	BASEP_CONTEXT_FLAG_JOB_DUMP_DISABLED = (1 << 31)
-};
+/** Private flag tracking whether job descriptor dumping is disabled */
+#define BASEP_CONTEXT_FLAG_JOB_DUMP_DISABLED ((u32)(1 << 31))
 
 /** @} end group base_user_api_core */
 
@@ -1716,9 +1763,21 @@ typedef struct base_jd_replay_payload {
 	 * Core requirements for the fragment job chain
 	 */
 	base_jd_core_req fragment_core_req;
-
-	u8 padding[4];
 } base_jd_replay_payload;
+
+#ifdef BASE_LEGACY_UK10_2_SUPPORT
+typedef struct base_jd_replay_payload_uk10_2 {
+	u64 tiler_jc_list;
+	u64 fragment_jc;
+	u64 tiler_heap_free;
+	u16 fragment_hierarchy_mask;
+	u16 tiler_hierarchy_mask;
+	u32 hierarchy_default_weight;
+	u16 tiler_core_req;
+	u16 fragment_core_req;
+	u8 padding[4];
+} base_jd_replay_payload_uk10_2;
+#endif /* BASE_LEGACY_UK10_2_SUPPORT */
 
 /**
  * @brief An entry in the linked list of job chains to be replayed. This must

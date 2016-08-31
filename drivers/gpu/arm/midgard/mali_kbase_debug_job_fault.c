@@ -15,8 +15,8 @@
 
 
 
+#include <mali_kbase.h>
 #include <linux/spinlock.h>
-#include "mali_kbase_debug_job_fault.h"
 
 #ifdef CONFIG_DEBUG_FS
 

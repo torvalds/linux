@@ -20,7 +20,6 @@
 #include "mali_kbase_mem_linux.h"
 #include "mali_kbase_gator_api.h"
 #include "mali_kbase_gator_hwcnt_names.h"
-#include "mali_kbase_instr.h"
 
 #define MALI_MAX_CORES_PER_GROUP		4
 #define MALI_MAX_NUM_BLOCKS_PER_GROUP	8

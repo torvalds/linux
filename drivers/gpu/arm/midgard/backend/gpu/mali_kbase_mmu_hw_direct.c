@@ -21,8 +21,8 @@
 #include <mali_kbase_mem.h>
 #include <mali_kbase_mmu_hw.h>
 #include <mali_kbase_tlstream.h>
-#include <backend/gpu/mali_kbase_mmu_hw_direct.h>
 #include <backend/gpu/mali_kbase_device_internal.h>
+#include <mali_kbase_as_fault_debugfs.h>
 
 static inline u64 lock_region(struct kbase_device *kbdev, u64 pfn,
 		u32 num_pages)
@@ -151,6 +151,9 @@ void kbase_mmu_interrupt(struct kbase_device *kbdev, u32 irq_stat)
 						MMU_AS_REG(as_no,
 							AS_FAULTADDRESS_LO),
 						kctx);
+
+		/* report the fault to debugfs */
+		kbase_as_fault_debugfs_new(kbdev, as_no);
 
 		/* record the fault status */
 		as->fault_status = kbase_reg_read(kbdev,

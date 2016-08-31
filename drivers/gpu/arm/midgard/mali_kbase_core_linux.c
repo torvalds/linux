@@ -17,13 +17,10 @@
 #include "platform/rk/custom_log.h"
 
 #include <mali_kbase.h>
-#include <mali_kbase_hwaccess_gpuprops.h>
 #include <mali_kbase_config_defaults.h>
 #include <mali_kbase_uku.h>
 #include <mali_midg_regmap.h>
-#include <mali_kbase_instr.h>
 #include <mali_kbase_gator.h>
-#include <backend/gpu/mali_kbase_js_affinity.h>
 #include <mali_kbase_mem_linux.h>
 #ifdef CONFIG_MALI_DEVFREQ
 #include <backend/gpu/mali_kbase_devfreq.h>
@@ -62,12 +59,10 @@
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <linux/interrupt.h>
-#include <linux/io.h>
 #include <linux/mm.h>
 #include <linux/compat.h>	/* is_compat_task */
 #include <linux/mman.h>
 #include <linux/version.h>
-#include <linux/security.h>
 #ifdef CONFIG_MALI_PLATFORM_DEVICETREE
 #include <linux/pm_runtime.h>
 #endif /* CONFIG_MALI_PLATFORM_DEVICETREE */
@@ -95,6 +90,8 @@
 #endif
 
 #include <mali_kbase_tlstream.h>
+
+#include <mali_kbase_as_fault_debugfs.h>
 
 /* GPU IRQ Tags */
 #define	JOB_IRQ_TAG	0
@@ -150,201 +147,6 @@ static int kds_resource_release(struct inode *inode, struct file *file)
 		kfree(data);
 	}
 	return 0;
-}
-
-static int kbasep_kds_allocate_resource_list_data(struct kbase_context *kctx, struct base_external_resource *ext_res, int num_elems, struct kbase_kds_resource_list_data *resources_list)
-{
-	struct base_external_resource *res = ext_res;
-	int res_id;
-
-	/* assume we have to wait for all */
-
-	KBASE_DEBUG_ASSERT(0 != num_elems);
-	resources_list->kds_resources = kmalloc_array(num_elems,
-			sizeof(struct kds_resource *), GFP_KERNEL);
-
-	if (NULL == resources_list->kds_resources)
-		return -ENOMEM;
-
-	KBASE_DEBUG_ASSERT(0 != num_elems);
-	resources_list->kds_access_bitmap = kzalloc(
-			sizeof(unsigned long) *
-			((num_elems + BITS_PER_LONG - 1) / BITS_PER_LONG),
-			GFP_KERNEL);
-
-	if (NULL == resources_list->kds_access_bitmap) {
-		kfree(resources_list->kds_access_bitmap);
-		return -ENOMEM;
-	}
-
-	kbase_gpu_vm_lock(kctx);
-	for (res_id = 0; res_id < num_elems; res_id++, res++) {
-		int exclusive;
-		struct kbase_va_region *reg;
-		struct kds_resource *kds_res = NULL;
-
-		exclusive = res->ext_resource & BASE_EXT_RES_ACCESS_EXCLUSIVE;
-		reg = kbase_region_tracker_find_region_enclosing_address(kctx, res->ext_resource & ~BASE_EXT_RES_ACCESS_EXCLUSIVE);
-
-		/* did we find a matching region object? */
-		if (NULL == reg || (reg->flags & KBASE_REG_FREE))
-			break;
-
-		/* no need to check reg->alloc as only regions with an alloc has
-		 * a size, and kbase_region_tracker_find_region_enclosing_address
-		 * only returns regions with size > 0 */
-		switch (reg->gpu_alloc->type) {
-#if defined(CONFIG_UMP) && defined(CONFIG_KDS)
-		case KBASE_MEM_TYPE_IMPORTED_UMP:
-			kds_res = ump_dd_kds_resource_get(reg->gpu_alloc->imported.ump_handle);
-			break;
-#endif /* defined(CONFIG_UMP) && defined(CONFIG_KDS) */
-		default:
-			break;
-		}
-
-		/* no kds resource for the region ? */
-		if (!kds_res)
-			break;
-
-		resources_list->kds_resources[res_id] = kds_res;
-
-		if (exclusive)
-			set_bit(res_id, resources_list->kds_access_bitmap);
-	}
-	kbase_gpu_vm_unlock(kctx);
-
-	/* did the loop run to completion? */
-	if (res_id == num_elems)
-		return 0;
-
-	/* Clean up as the resource list is not valid. */
-	kfree(resources_list->kds_resources);
-	kfree(resources_list->kds_access_bitmap);
-
-	return -EINVAL;
-}
-
-static bool kbasep_validate_kbase_pointer(
-		struct kbase_context *kctx, union kbase_pointer *p)
-{
-	if (kctx->is_compat) {
-		if (p->compat_value == 0)
-			return false;
-	} else {
-		if (NULL == p->value)
-			return false;
-	}
-	return true;
-}
-
-static int kbase_external_buffer_lock(struct kbase_context *kctx,
-		struct kbase_uk_ext_buff_kds_data *args, u32 args_size)
-{
-	struct base_external_resource *ext_res_copy;
-	size_t ext_resource_size;
-	int ret = -EINVAL;
-	int fd = -EBADF;
-	struct base_external_resource __user *ext_res_user;
-	int __user *file_desc_usr;
-	struct kbasep_kds_resource_set_file_data *fdata;
-	struct kbase_kds_resource_list_data resource_list_data;
-
-	if (args_size != sizeof(struct kbase_uk_ext_buff_kds_data))
-		return -EINVAL;
-
-	/* Check user space has provided valid data */
-	if (!kbasep_validate_kbase_pointer(kctx, &args->external_resource) ||
-			!kbasep_validate_kbase_pointer(kctx, &args->file_descriptor) ||
-			(0 == args->num_res) ||
-			(args->num_res > KBASE_MAXIMUM_EXT_RESOURCES))
-		return -EINVAL;
-
-	ext_resource_size = sizeof(struct base_external_resource) * args->num_res;
-
-	KBASE_DEBUG_ASSERT(0 != ext_resource_size);
-	ext_res_copy = kmalloc(ext_resource_size, GFP_KERNEL);
-
-	if (!ext_res_copy)
-		return -EINVAL;
-#ifdef CONFIG_COMPAT
-	if (kctx->is_compat) {
-		ext_res_user = compat_ptr(args->external_resource.compat_value);
-		file_desc_usr = compat_ptr(args->file_descriptor.compat_value);
-	} else {
-#endif /* CONFIG_COMPAT */
-		ext_res_user = args->external_resource.value;
-		file_desc_usr = args->file_descriptor.value;
-#ifdef CONFIG_COMPAT
-	}
-#endif /* CONFIG_COMPAT */
-
-	/* Copy the external resources to lock from user space */
-	if (copy_from_user(ext_res_copy, ext_res_user, ext_resource_size))
-		goto out;
-
-	/* Allocate data to be stored in the file */
-	fdata = kmalloc(sizeof(*fdata), GFP_KERNEL);
-
-	if (!fdata) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	/* Parse given elements and create resource and access lists */
-	ret = kbasep_kds_allocate_resource_list_data(kctx,
-			ext_res_copy, args->num_res, &resource_list_data);
-	if (!ret) {
-		long err;
-
-		fdata->lock = NULL;
-
-		fd = anon_inode_getfd("kds_ext", &kds_resource_fops, fdata, 0);
-
-		err = copy_to_user(file_desc_usr, &fd, sizeof(fd));
-
-		/* If the file descriptor was valid and we successfully copied
-		 * it to user space, then we can try and lock the requested
-		 * kds resources.
-		 */
-		if ((fd >= 0) && (0 == err)) {
-			struct kds_resource_set *lock;
-
-			lock = kds_waitall(args->num_res,
-					resource_list_data.kds_access_bitmap,
-					resource_list_data.kds_resources,
-					KDS_WAIT_BLOCKING);
-
-			if (!lock) {
-				ret = -EINVAL;
-			} else if (IS_ERR(lock)) {
-				ret = PTR_ERR(lock);
-			} else {
-				ret = 0;
-				fdata->lock = lock;
-			}
-		} else {
-			ret = -EINVAL;
-		}
-
-		kfree(resource_list_data.kds_resources);
-		kfree(resource_list_data.kds_access_bitmap);
-	}
-
-	if (ret) {
-		/* If the file was opened successfully then close it which will
-		 * clean up the file data, otherwise we clean up the file data
-		 * ourself.
-		 */
-		if (fd >= 0)
-			sys_close(fd);
-		else
-			kfree(fdata);
-	}
-out:
-	kfree(ext_res_copy);
-
-	return ret;
 }
 #endif /* CONFIG_KDS */
 
@@ -632,10 +434,13 @@ static int kbase_dispatch(struct kbase_context *kctx, void * const args, u32 arg
 				break;
 			}
 
-			if (kbase_mem_import(kctx, mem_import->type, phandle,
-						&mem_import->gpu_va,
-						&mem_import->va_pages,
-						&mem_import->flags)) {
+			if (kbase_mem_import(kctx,
+					(enum base_mem_import_type)
+					mem_import->type,
+					phandle,
+					&mem_import->gpu_va,
+					&mem_import->va_pages,
+					&mem_import->flags)) {
 				mem_import->type = BASE_MEM_IMPORT_TYPE_INVALID;
 				ukh->ret = MALI_ERROR_FUNCTION_FAILED;
 			}
@@ -991,26 +796,6 @@ copy_failed:
 			break;
 		}
 
-	case KBASE_FUNC_EXT_BUFFER_LOCK:
-		{
-#ifdef CONFIG_KDS
-			ret = kbase_external_buffer_lock(kctx,
-				(struct kbase_uk_ext_buff_kds_data *)args,
-				args_size);
-			switch (ret) {
-			case 0:
-				ukh->ret = MALI_ERROR_NONE;
-				break;
-			case -ENOMEM:
-				ukh->ret = MALI_ERROR_OUT_OF_MEMORY;
-				break;
-			default:
-				ukh->ret = MALI_ERROR_FUNCTION_FAILED;
-			}
-#endif /* CONFIG_KDS */
-			break;
-		}
-
 	case KBASE_FUNC_SET_TEST_DATA:
 		{
 #if MALI_UNIT_TEST
@@ -1236,16 +1021,9 @@ copy_failed:
 			    (update->flags != 0))
 				goto out_bad;
 
-			if (kbasep_write_soft_event_status(
-						kctx, update->evt,
-						update->new_status) != 0) {
+			if (kbase_soft_event_update(kctx, update->evt,
+						update->new_status))
 				ukh->ret = MALI_ERROR_FUNCTION_FAILED;
-				break;
-			}
-
-			if (update->new_status == BASE_JD_SOFT_EVENT_SET)
-				kbasep_complete_triggered_soft_events(
-						kctx, update->evt);
 
 			break;
 		}
@@ -1412,7 +1190,7 @@ static int kbase_open(struct inode *inode, struct file *filp)
 	kbase_mem_pool_debugfs_add(kctx->kctx_dentry, &kctx->mem_pool);
 
 	kbase_jit_debugfs_add(kctx);
-#endif /* CONFIG_DEBUGFS */
+#endif /* CONFIG_DEBUG_FS */
 
 	dev_dbg(kbdev->dev, "created base context\n");
 
@@ -2085,7 +1863,7 @@ static ssize_t set_core_mask(struct device *dev, struct device_attribute *attr, 
 static DEVICE_ATTR(core_mask, S_IRUGO | S_IWUSR, show_core_mask, set_core_mask);
 
 /**
- * set_soft_event_timeout() - Store callback for the soft_event_timeout sysfs
+ * set_soft_job_timeout() - Store callback for the soft_job_timeout sysfs
  * file.
  *
  * @dev: The device this sysfs file is for.
@@ -2093,37 +1871,40 @@ static DEVICE_ATTR(core_mask, S_IRUGO | S_IWUSR, show_core_mask, set_core_mask);
  * @buf: The value written to the sysfs file.
  * @count: The number of bytes written to the sysfs file.
  *
- * This allows setting the timeout for software event jobs. Waiting jobs will
- * be cancelled after this period expires. This is expressed in milliseconds.
+ * This allows setting the timeout for software jobs. Waiting soft event wait
+ * jobs will be cancelled after this period expires, while soft fence wait jobs
+ * will print debug information if the fence debug feature is enabled.
+ *
+ * This is expressed in milliseconds.
  *
  * Return: count if the function succeeded. An error code on failure.
  */
-static ssize_t set_soft_event_timeout(struct device *dev,
+static ssize_t set_soft_job_timeout(struct device *dev,
 				      struct device_attribute *attr,
 				      const char *buf, size_t count)
 {
 	struct kbase_device *kbdev;
-	int soft_event_timeout_ms;
+	int soft_job_timeout_ms;
 
 	kbdev = to_kbase_device(dev);
 	if (!kbdev)
 		return -ENODEV;
 
-	if ((kstrtoint(buf, 0, &soft_event_timeout_ms) != 0) ||
-	    (soft_event_timeout_ms <= 0))
+	if ((kstrtoint(buf, 0, &soft_job_timeout_ms) != 0) ||
+	    (soft_job_timeout_ms <= 0))
 		return -EINVAL;
 
-	atomic_set(&kbdev->js_data.soft_event_timeout_ms,
-		   soft_event_timeout_ms);
+	atomic_set(&kbdev->js_data.soft_job_timeout_ms,
+		   soft_job_timeout_ms);
 
 	return count;
 }
 
 /**
- * show_soft_event_timeout() - Show callback for the soft_event_timeout sysfs
+ * show_soft_job_timeout() - Show callback for the soft_job_timeout sysfs
  * file.
  *
- * This will return the timeout for the software event jobs.
+ * This will return the timeout for the software jobs.
  *
  * @dev: The device this sysfs file is for.
  * @attr: The attributes of the sysfs file.
@@ -2131,7 +1912,7 @@ static ssize_t set_soft_event_timeout(struct device *dev,
  *
  * Return: The number of bytes output to buf.
  */
-static ssize_t show_soft_event_timeout(struct device *dev,
+static ssize_t show_soft_job_timeout(struct device *dev,
 				       struct device_attribute *attr,
 				       char * const buf)
 {
@@ -2142,11 +1923,27 @@ static ssize_t show_soft_event_timeout(struct device *dev,
 		return -ENODEV;
 
 	return scnprintf(buf, PAGE_SIZE, "%i\n",
-			 atomic_read(&kbdev->js_data.soft_event_timeout_ms));
+			 atomic_read(&kbdev->js_data.soft_job_timeout_ms));
 }
 
-static DEVICE_ATTR(soft_event_timeout, S_IRUGO | S_IWUSR,
-		   show_soft_event_timeout, set_soft_event_timeout);
+static DEVICE_ATTR(soft_job_timeout, S_IRUGO | S_IWUSR,
+		   show_soft_job_timeout, set_soft_job_timeout);
+
+static u32 timeout_ms_to_ticks(struct kbase_device *kbdev, long timeout_ms,
+				int default_ticks, u32 old_ticks)
+{
+	if (timeout_ms > 0) {
+		u64 ticks = timeout_ms * 1000000ULL;
+		do_div(ticks, kbdev->js_data.scheduling_period_ns);
+		if (!ticks)
+			return 1;
+		return ticks;
+	} else if (timeout_ms < 0) {
+		return default_ticks;
+	} else {
+		return old_ticks;
+	}
+}
 
 /** Store callback for the @c js_timeouts sysfs file.
  *
@@ -2192,99 +1989,45 @@ static ssize_t set_js_timeouts(struct device *dev, struct device_attribute *attr
 			&js_reset_ms_cl, &js_reset_ms_dumping);
 
 	if (items == 8) {
-		u64 ticks;
+		struct kbasep_js_device_data *js_data = &kbdev->js_data;
+		unsigned long flags;
 
-		if (js_soft_stop_ms >= 0) {
-			ticks = js_soft_stop_ms * 1000000ULL;
-			do_div(ticks, kbdev->js_data.scheduling_period_ns);
-			kbdev->js_soft_stop_ticks = ticks;
-		} else {
-			kbdev->js_soft_stop_ticks = -1;
-		}
+		spin_lock_irqsave(&kbdev->js_data.runpool_irq.lock, flags);
 
-		if (js_soft_stop_ms_cl >= 0) {
-			ticks = js_soft_stop_ms_cl * 1000000ULL;
-			do_div(ticks, kbdev->js_data.scheduling_period_ns);
-			kbdev->js_soft_stop_ticks_cl = ticks;
-		} else {
-			kbdev->js_soft_stop_ticks_cl = -1;
-		}
+#define UPDATE_TIMEOUT(ticks_name, ms_name, default) do {\
+	js_data->ticks_name = timeout_ms_to_ticks(kbdev, ms_name, \
+			default, js_data->ticks_name); \
+	dev_dbg(kbdev->dev, "Overriding " #ticks_name \
+			" with %lu ticks (%lu ms)\n", \
+			(unsigned long)js_data->ticks_name, \
+			ms_name); \
+	} while (0)
 
-		if (js_hard_stop_ms_ss >= 0) {
-			ticks = js_hard_stop_ms_ss * 1000000ULL;
-			do_div(ticks, kbdev->js_data.scheduling_period_ns);
-			kbdev->js_hard_stop_ticks_ss = ticks;
-		} else {
-			kbdev->js_hard_stop_ticks_ss = -1;
-		}
+		UPDATE_TIMEOUT(soft_stop_ticks, js_soft_stop_ms,
+				DEFAULT_JS_SOFT_STOP_TICKS);
+		UPDATE_TIMEOUT(soft_stop_ticks_cl, js_soft_stop_ms_cl,
+				DEFAULT_JS_SOFT_STOP_TICKS_CL);
+		UPDATE_TIMEOUT(hard_stop_ticks_ss, js_hard_stop_ms_ss,
+				kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8408) ?
+				DEFAULT_JS_HARD_STOP_TICKS_SS_8408 :
+				DEFAULT_JS_HARD_STOP_TICKS_SS);
+		UPDATE_TIMEOUT(hard_stop_ticks_cl, js_hard_stop_ms_cl,
+				DEFAULT_JS_HARD_STOP_TICKS_CL);
+		UPDATE_TIMEOUT(hard_stop_ticks_dumping,
+				js_hard_stop_ms_dumping,
+				DEFAULT_JS_HARD_STOP_TICKS_DUMPING);
+		UPDATE_TIMEOUT(gpu_reset_ticks_ss, js_reset_ms_ss,
+				kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8408) ?
+				DEFAULT_JS_RESET_TICKS_SS_8408 :
+				DEFAULT_JS_RESET_TICKS_SS);
+		UPDATE_TIMEOUT(gpu_reset_ticks_cl, js_reset_ms_cl,
+				DEFAULT_JS_RESET_TICKS_CL);
+		UPDATE_TIMEOUT(gpu_reset_ticks_dumping, js_reset_ms_dumping,
+				DEFAULT_JS_RESET_TICKS_DUMPING);
 
-		if (js_hard_stop_ms_cl >= 0) {
-			ticks = js_hard_stop_ms_cl * 1000000ULL;
-			do_div(ticks, kbdev->js_data.scheduling_period_ns);
-			kbdev->js_hard_stop_ticks_cl = ticks;
-		} else {
-			kbdev->js_hard_stop_ticks_cl = -1;
-		}
+		kbase_js_set_timeouts(kbdev);
 
-		if (js_hard_stop_ms_dumping >= 0) {
-			ticks = js_hard_stop_ms_dumping * 1000000ULL;
-			do_div(ticks, kbdev->js_data.scheduling_period_ns);
-			kbdev->js_hard_stop_ticks_dumping = ticks;
-		} else {
-			kbdev->js_hard_stop_ticks_dumping = -1;
-		}
-
-		if (js_reset_ms_ss >= 0) {
-			ticks = js_reset_ms_ss * 1000000ULL;
-			do_div(ticks, kbdev->js_data.scheduling_period_ns);
-			kbdev->js_reset_ticks_ss = ticks;
-		} else {
-			kbdev->js_reset_ticks_ss = -1;
-		}
-
-		if (js_reset_ms_cl >= 0) {
-			ticks = js_reset_ms_cl * 1000000ULL;
-			do_div(ticks, kbdev->js_data.scheduling_period_ns);
-			kbdev->js_reset_ticks_cl = ticks;
-		} else {
-			kbdev->js_reset_ticks_cl = -1;
-		}
-
-		if (js_reset_ms_dumping >= 0) {
-			ticks = js_reset_ms_dumping * 1000000ULL;
-			do_div(ticks, kbdev->js_data.scheduling_period_ns);
-			kbdev->js_reset_ticks_dumping = ticks;
-		} else {
-			kbdev->js_reset_ticks_dumping = -1;
-		}
-
-		kbdev->js_timeouts_updated = true;
-
-		dev_dbg(kbdev->dev, "Overriding JS_SOFT_STOP_TICKS with %lu ticks (%lu ms)\n",
-				(unsigned long)kbdev->js_soft_stop_ticks,
-				js_soft_stop_ms);
-		dev_dbg(kbdev->dev, "Overriding JS_SOFT_STOP_TICKS_CL with %lu ticks (%lu ms)\n",
-				(unsigned long)kbdev->js_soft_stop_ticks_cl,
-				js_soft_stop_ms_cl);
-		dev_dbg(kbdev->dev, "Overriding JS_HARD_STOP_TICKS_SS with %lu ticks (%lu ms)\n",
-				(unsigned long)kbdev->js_hard_stop_ticks_ss,
-				js_hard_stop_ms_ss);
-		dev_dbg(kbdev->dev, "Overriding JS_HARD_STOP_TICKS_CL with %lu ticks (%lu ms)\n",
-				(unsigned long)kbdev->js_hard_stop_ticks_cl,
-				js_hard_stop_ms_cl);
-		dev_dbg(kbdev->dev, "Overriding JS_HARD_STOP_TICKS_DUMPING with %lu ticks (%lu ms)\n",
-				(unsigned long)
-					kbdev->js_hard_stop_ticks_dumping,
-				js_hard_stop_ms_dumping);
-		dev_dbg(kbdev->dev, "Overriding JS_RESET_TICKS_SS with %lu ticks (%lu ms)\n",
-				(unsigned long)kbdev->js_reset_ticks_ss,
-				js_reset_ms_ss);
-		dev_dbg(kbdev->dev, "Overriding JS_RESET_TICKS_CL with %lu ticks (%lu ms)\n",
-				(unsigned long)kbdev->js_reset_ticks_cl,
-				js_reset_ms_cl);
-		dev_dbg(kbdev->dev, "Overriding JS_RESET_TICKS_DUMPING with %lu ticks (%lu ms)\n",
-				(unsigned long)kbdev->js_reset_ticks_dumping,
-				js_reset_ms_dumping);
+		spin_unlock_irqrestore(&kbdev->js_data.runpool_irq.lock, flags);
 
 		return count;
 	}
@@ -2293,6 +2036,16 @@ static ssize_t set_js_timeouts(struct device *dev, struct device_attribute *attr
 			"Use format <soft_stop_ms> <soft_stop_ms_cl> <hard_stop_ms_ss> <hard_stop_ms_cl> <hard_stop_ms_dumping> <reset_ms_ss> <reset_ms_cl> <reset_ms_dumping>\n"
 			"Write 0 for no change, -1 to restore default timeout\n");
 	return -EINVAL;
+}
+
+static unsigned long get_js_timeout_in_ms(
+		u32 scheduling_period_ns,
+		u32 ticks)
+{
+	u64 ms = (u64)ticks * scheduling_period_ns;
+
+	do_div(ms, 1000000UL);
+	return ms;
 }
 
 /** Show callback for the @c js_timeouts sysfs file.
@@ -2311,7 +2064,6 @@ static ssize_t show_js_timeouts(struct device *dev, struct device_attribute *att
 {
 	struct kbase_device *kbdev;
 	ssize_t ret;
-	u64 ms;
 	unsigned long js_soft_stop_ms;
 	unsigned long js_soft_stop_ms_cl;
 	unsigned long js_hard_stop_ms_ss;
@@ -2320,84 +2072,28 @@ static ssize_t show_js_timeouts(struct device *dev, struct device_attribute *att
 	unsigned long js_reset_ms_ss;
 	unsigned long js_reset_ms_cl;
 	unsigned long js_reset_ms_dumping;
-	unsigned long ticks;
 	u32 scheduling_period_ns;
 
 	kbdev = to_kbase_device(dev);
 	if (!kbdev)
 		return -ENODEV;
 
-	/* If no contexts have been scheduled since js_timeouts was last written
-	 * to, the new timeouts might not have been latched yet. So check if an
-	 * update is pending and use the new values if necessary. */
-	if (kbdev->js_timeouts_updated && kbdev->js_scheduling_period_ns > 0)
-		scheduling_period_ns = kbdev->js_scheduling_period_ns;
-	else
-		scheduling_period_ns = kbdev->js_data.scheduling_period_ns;
+	scheduling_period_ns = kbdev->js_data.scheduling_period_ns;
 
-	if (kbdev->js_timeouts_updated && kbdev->js_soft_stop_ticks > 0)
-		ticks = kbdev->js_soft_stop_ticks;
-	else
-		ticks = kbdev->js_data.soft_stop_ticks;
-	ms = (u64)ticks * scheduling_period_ns;
-	do_div(ms, 1000000UL);
-	js_soft_stop_ms = (unsigned long)ms;
+#define GET_TIMEOUT(name) get_js_timeout_in_ms(\
+		scheduling_period_ns, \
+		kbdev->js_data.name)
 
-	if (kbdev->js_timeouts_updated && kbdev->js_soft_stop_ticks_cl > 0)
-		ticks = kbdev->js_soft_stop_ticks_cl;
-	else
-		ticks = kbdev->js_data.soft_stop_ticks_cl;
-	ms = (u64)ticks * scheduling_period_ns;
-	do_div(ms, 1000000UL);
-	js_soft_stop_ms_cl = (unsigned long)ms;
+	js_soft_stop_ms = GET_TIMEOUT(soft_stop_ticks);
+	js_soft_stop_ms_cl = GET_TIMEOUT(soft_stop_ticks_cl);
+	js_hard_stop_ms_ss = GET_TIMEOUT(hard_stop_ticks_ss);
+	js_hard_stop_ms_cl = GET_TIMEOUT(hard_stop_ticks_cl);
+	js_hard_stop_ms_dumping = GET_TIMEOUT(hard_stop_ticks_dumping);
+	js_reset_ms_ss = GET_TIMEOUT(gpu_reset_ticks_ss);
+	js_reset_ms_cl = GET_TIMEOUT(gpu_reset_ticks_cl);
+	js_reset_ms_dumping = GET_TIMEOUT(gpu_reset_ticks_dumping);
 
-	if (kbdev->js_timeouts_updated && kbdev->js_hard_stop_ticks_ss > 0)
-		ticks = kbdev->js_hard_stop_ticks_ss;
-	else
-		ticks = kbdev->js_data.hard_stop_ticks_ss;
-	ms = (u64)ticks * scheduling_period_ns;
-	do_div(ms, 1000000UL);
-	js_hard_stop_ms_ss = (unsigned long)ms;
-
-	if (kbdev->js_timeouts_updated && kbdev->js_hard_stop_ticks_cl > 0)
-		ticks = kbdev->js_hard_stop_ticks_cl;
-	else
-		ticks = kbdev->js_data.hard_stop_ticks_cl;
-	ms = (u64)ticks * scheduling_period_ns;
-	do_div(ms, 1000000UL);
-	js_hard_stop_ms_cl = (unsigned long)ms;
-
-	if (kbdev->js_timeouts_updated && kbdev->js_hard_stop_ticks_dumping > 0)
-		ticks = kbdev->js_hard_stop_ticks_dumping;
-	else
-		ticks = kbdev->js_data.hard_stop_ticks_dumping;
-	ms = (u64)ticks * scheduling_period_ns;
-	do_div(ms, 1000000UL);
-	js_hard_stop_ms_dumping = (unsigned long)ms;
-
-	if (kbdev->js_timeouts_updated && kbdev->js_reset_ticks_ss > 0)
-		ticks = kbdev->js_reset_ticks_ss;
-	else
-		ticks = kbdev->js_data.gpu_reset_ticks_ss;
-	ms = (u64)ticks * scheduling_period_ns;
-	do_div(ms, 1000000UL);
-	js_reset_ms_ss = (unsigned long)ms;
-
-	if (kbdev->js_timeouts_updated && kbdev->js_reset_ticks_cl > 0)
-		ticks = kbdev->js_reset_ticks_cl;
-	else
-		ticks = kbdev->js_data.gpu_reset_ticks_cl;
-	ms = (u64)ticks * scheduling_period_ns;
-	do_div(ms, 1000000UL);
-	js_reset_ms_cl = (unsigned long)ms;
-
-	if (kbdev->js_timeouts_updated && kbdev->js_reset_ticks_dumping > 0)
-		ticks = kbdev->js_reset_ticks_dumping;
-	else
-		ticks = kbdev->js_data.gpu_reset_ticks_dumping;
-	ms = (u64)ticks * scheduling_period_ns;
-	do_div(ms, 1000000UL);
-	js_reset_ms_dumping = (unsigned long)ms;
+#undef GET_TIMEOUT
 
 	ret = scnprintf(buf, PAGE_SIZE, "%lu %lu %lu %lu %lu %lu %lu %lu\n",
 			js_soft_stop_ms, js_soft_stop_ms_cl,
@@ -2428,6 +2124,16 @@ static ssize_t show_js_timeouts(struct device *dev, struct device_attribute *att
  */
 static DEVICE_ATTR(js_timeouts, S_IRUGO | S_IWUSR, show_js_timeouts, set_js_timeouts);
 
+static u32 get_new_js_timeout(
+		u32 old_period,
+		u32 old_ticks,
+		u32 new_scheduling_period_ns)
+{
+	u64 ticks = (u64)old_period * (u64)old_ticks;
+	do_div(ticks, new_scheduling_period_ns);
+	return ticks?ticks:1;
+}
+
 /**
  * set_js_scheduling_period - Store callback for the js_scheduling_period sysfs
  *                            file
@@ -2450,11 +2156,14 @@ static ssize_t set_js_scheduling_period(struct device *dev,
 	unsigned int js_scheduling_period;
 	u32 new_scheduling_period_ns;
 	u32 old_period;
-	u64 ticks;
+	struct kbasep_js_device_data *js_data;
+	unsigned long flags;
 
 	kbdev = to_kbase_device(dev);
 	if (!kbdev)
 		return -ENODEV;
+
+	js_data = &kbdev->js_data;
 
 	ret = kstrtouint(buf, 0, &js_scheduling_period);
 	if (ret || !js_scheduling_period) {
@@ -2466,86 +2175,39 @@ static ssize_t set_js_scheduling_period(struct device *dev,
 	new_scheduling_period_ns = js_scheduling_period * 1000000;
 
 	/* Update scheduling timeouts */
-	mutex_lock(&kbdev->js_data.runpool_mutex);
+	mutex_lock(&js_data->runpool_mutex);
+	spin_lock_irqsave(&js_data->runpool_irq.lock, flags);
 
 	/* If no contexts have been scheduled since js_timeouts was last written
 	 * to, the new timeouts might not have been latched yet. So check if an
 	 * update is pending and use the new values if necessary. */
 
 	/* Use previous 'new' scheduling period as a base if present. */
-	if (kbdev->js_timeouts_updated && kbdev->js_scheduling_period_ns)
-		old_period = kbdev->js_scheduling_period_ns;
-	else
-		old_period = kbdev->js_data.scheduling_period_ns;
+	old_period = js_data->scheduling_period_ns;
 
-	if (kbdev->js_timeouts_updated && kbdev->js_soft_stop_ticks > 0)
-		ticks = (u64)kbdev->js_soft_stop_ticks * old_period;
-	else
-		ticks = (u64)kbdev->js_data.soft_stop_ticks *
-				kbdev->js_data.scheduling_period_ns;
-	do_div(ticks, new_scheduling_period_ns);
-	kbdev->js_soft_stop_ticks = ticks ? ticks : 1;
+#define SET_TIMEOUT(name) \
+		(js_data->name = get_new_js_timeout(\
+				old_period, \
+				kbdev->js_data.name, \
+				new_scheduling_period_ns))
 
-	if (kbdev->js_timeouts_updated && kbdev->js_soft_stop_ticks_cl > 0)
-		ticks = (u64)kbdev->js_soft_stop_ticks_cl * old_period;
-	else
-		ticks = (u64)kbdev->js_data.soft_stop_ticks_cl *
-				kbdev->js_data.scheduling_period_ns;
-	do_div(ticks, new_scheduling_period_ns);
-	kbdev->js_soft_stop_ticks_cl = ticks ? ticks : 1;
+	SET_TIMEOUT(soft_stop_ticks);
+	SET_TIMEOUT(soft_stop_ticks_cl);
+	SET_TIMEOUT(hard_stop_ticks_ss);
+	SET_TIMEOUT(hard_stop_ticks_cl);
+	SET_TIMEOUT(hard_stop_ticks_dumping);
+	SET_TIMEOUT(gpu_reset_ticks_ss);
+	SET_TIMEOUT(gpu_reset_ticks_cl);
+	SET_TIMEOUT(gpu_reset_ticks_dumping);
 
-	if (kbdev->js_timeouts_updated && kbdev->js_hard_stop_ticks_ss > 0)
-		ticks = (u64)kbdev->js_hard_stop_ticks_ss * old_period;
-	else
-		ticks = (u64)kbdev->js_data.hard_stop_ticks_ss *
-				kbdev->js_data.scheduling_period_ns;
-	do_div(ticks, new_scheduling_period_ns);
-	kbdev->js_hard_stop_ticks_ss = ticks ? ticks : 1;
+#undef SET_TIMEOUT
 
-	if (kbdev->js_timeouts_updated && kbdev->js_hard_stop_ticks_cl > 0)
-		ticks = (u64)kbdev->js_hard_stop_ticks_cl * old_period;
-	else
-		ticks = (u64)kbdev->js_data.hard_stop_ticks_cl *
-				kbdev->js_data.scheduling_period_ns;
-	do_div(ticks, new_scheduling_period_ns);
-	kbdev->js_hard_stop_ticks_cl = ticks ? ticks : 1;
+	js_data->scheduling_period_ns = new_scheduling_period_ns;
 
-	if (kbdev->js_timeouts_updated && kbdev->js_hard_stop_ticks_dumping > 0)
-		ticks = (u64)kbdev->js_hard_stop_ticks_dumping * old_period;
-	else
-		ticks = (u64)kbdev->js_data.hard_stop_ticks_dumping *
-				kbdev->js_data.scheduling_period_ns;
-	do_div(ticks, new_scheduling_period_ns);
-	kbdev->js_hard_stop_ticks_dumping = ticks ? ticks : 1;
+	kbase_js_set_timeouts(kbdev);
 
-	if (kbdev->js_timeouts_updated && kbdev->js_reset_ticks_ss > 0)
-		ticks = (u64)kbdev->js_reset_ticks_ss * old_period;
-	else
-		ticks = (u64)kbdev->js_data.gpu_reset_ticks_ss *
-				kbdev->js_data.scheduling_period_ns;
-	do_div(ticks, new_scheduling_period_ns);
-	kbdev->js_reset_ticks_ss = ticks ? ticks : 1;
-
-	if (kbdev->js_timeouts_updated && kbdev->js_reset_ticks_cl > 0)
-		ticks = (u64)kbdev->js_reset_ticks_cl * old_period;
-	else
-		ticks = (u64)kbdev->js_data.gpu_reset_ticks_cl *
-				kbdev->js_data.scheduling_period_ns;
-	do_div(ticks, new_scheduling_period_ns);
-	kbdev->js_reset_ticks_cl = ticks ? ticks : 1;
-
-	if (kbdev->js_timeouts_updated && kbdev->js_reset_ticks_dumping > 0)
-		ticks = (u64)kbdev->js_reset_ticks_dumping * old_period;
-	else
-		ticks = (u64)kbdev->js_data.gpu_reset_ticks_dumping *
-				kbdev->js_data.scheduling_period_ns;
-	do_div(ticks, new_scheduling_period_ns);
-	kbdev->js_reset_ticks_dumping = ticks ? ticks : 1;
-
-	kbdev->js_scheduling_period_ns = new_scheduling_period_ns;
-	kbdev->js_timeouts_updated = true;
-
-	mutex_unlock(&kbdev->js_data.runpool_mutex);
+	spin_unlock_irqrestore(&js_data->runpool_irq.lock, flags);
+	mutex_unlock(&js_data->runpool_mutex);
 
 	dev_dbg(kbdev->dev, "JS scheduling period: %dms\n",
 			js_scheduling_period);
@@ -2576,10 +2238,7 @@ static ssize_t show_js_scheduling_period(struct device *dev,
 	if (!kbdev)
 		return -ENODEV;
 
-	if (kbdev->js_timeouts_updated && kbdev->js_scheduling_period_ns > 0)
-		period = kbdev->js_scheduling_period_ns;
-	else
-		period = kbdev->js_data.scheduling_period_ns;
+	period = kbdev->js_data.scheduling_period_ns;
 
 	ret = scnprintf(buf, PAGE_SIZE, "%d\n",
 			period / 1000000);
@@ -3208,53 +2867,42 @@ static DEVICE_ATTR(mem_pool_max_size, S_IRUGO | S_IWUSR, show_mem_pool_max_size,
 		set_mem_pool_max_size);
 
 
-static int kbasep_secure_mode_enable(struct kbase_device *kbdev)
+static int kbasep_protected_mode_enter(struct kbase_device *kbdev)
 {
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_COMMAND),
 		GPU_COMMAND_SET_PROTECTED_MODE, NULL);
 	return 0;
 }
 
-static int kbasep_secure_mode_disable(struct kbase_device *kbdev)
+static bool kbasep_protected_mode_supported(struct kbase_device *kbdev)
 {
-	if (!kbase_prepare_to_reset_gpu_locked(kbdev))
-		return -EBUSY;
-
-	kbase_reset_gpu_locked(kbdev);
-
-	return 0;
+	return true;
 }
 
-static struct kbase_secure_ops kbasep_secure_ops = {
-	.secure_mode_enable = kbasep_secure_mode_enable,
-	.secure_mode_disable = kbasep_secure_mode_disable,
+static struct kbase_protected_ops kbasep_protected_ops = {
+	.protected_mode_enter = kbasep_protected_mode_enter,
+	.protected_mode_reset = NULL,
+	.protected_mode_supported = kbasep_protected_mode_supported,
 };
 
-static void kbasep_secure_mode_init(struct kbase_device *kbdev)
+static void kbasep_protected_mode_init(struct kbase_device *kbdev)
 {
+	kbdev->protected_ops = NULL;
+
 	if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_PROTECTED_MODE)) {
-		/* Use native secure ops */
-		kbdev->secure_ops = &kbasep_secure_ops;
-		kbdev->secure_mode_support = true;
+		/* Use native protected ops */
+		kbdev->protected_ops = &kbasep_protected_ops;
 	}
-#ifdef SECURE_CALLBACKS
-	else {
-		kbdev->secure_ops = SECURE_CALLBACKS;
-		kbdev->secure_mode_support = false;
-
-		if (kbdev->secure_ops) {
-			int err;
-
-			/* Make sure secure mode is disabled on startup */
-			err = kbdev->secure_ops->secure_mode_disable(kbdev);
-
-			/* secure_mode_disable() returns -EINVAL if not
-			 * supported
-			 */
-			kbdev->secure_mode_support = (err != -EINVAL);
-		}
-	}
+#ifdef PROTECTED_CALLBACKS
+	else
+		kbdev->protected_ops = PROTECTED_CALLBACKS;
 #endif
+
+	if (kbdev->protected_ops)
+		kbdev->protected_mode_support =
+				kbdev->protected_ops->protected_mode_supported(kbdev);
+	else
+		kbdev->protected_mode_support = false;
 }
 
 #ifdef CONFIG_MALI_NO_MALI
@@ -3508,6 +3156,7 @@ static int kbase_device_debugfs_init(struct kbase_device *kbdev)
 
 	kbase_debug_job_fault_debugfs_init(kbdev);
 	kbasep_gpu_memory_debugfs_init(kbdev);
+	kbase_as_fault_debugfs_init(kbdev);
 #if KBASE_GPU_RESET_EN
 	debugfs_create_file("quirks_sc", 0644,
 			kbdev->mali_debugfs_directory, kbdev,
@@ -3625,7 +3274,7 @@ static struct attribute *kbase_attrs[] = {
 	&dev_attr_force_replay.attr,
 #endif
 	&dev_attr_js_timeouts.attr,
-	&dev_attr_soft_event_timeout.attr,
+	&dev_attr_soft_job_timeout.attr,
 	&dev_attr_gpuinfo.attr,
 	&dev_attr_dvfs_period.attr,
 	&dev_attr_pm_poweroff.attr,
@@ -3898,7 +3547,7 @@ static int kbase_platform_device_probe(struct platform_device *pdev)
 
 	kbase_device_coherency_init(kbdev, gpu_id);
 
-	kbasep_secure_mode_init(kbdev);
+	kbasep_protected_mode_init(kbdev);
 
 	err = kbasep_js_devdata_init(kbdev);
 	if (err) {
@@ -4263,7 +3912,6 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(mali_page_fault_insert_pages);
 EXPORT_TRACEPOINT_SYMBOL_GPL(mali_mmu_as_in_use);
 EXPORT_TRACEPOINT_SYMBOL_GPL(mali_mmu_as_released);
 EXPORT_TRACEPOINT_SYMBOL_GPL(mali_total_alloc_pages_change);
-EXPORT_TRACEPOINT_SYMBOL_GPL(mali_sw_counter);
 
 void kbase_trace_mali_pm_status(u32 event, u64 value)
 {

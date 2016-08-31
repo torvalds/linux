@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -71,6 +71,7 @@ struct slot_rb {
  * @reset_work:			Work item for performing the reset
  * @reset_wait:			Wait event signalled when the reset is complete
  * @reset_timer:		Timeout for soft-stops before the reset
+ * @timeouts_updated:           Have timeout values just been updated?
  *
  * The kbasep_js_device_data::runpool_irq::lock (a spinlock) must be held when
  * accessing this structure
@@ -97,11 +98,15 @@ struct kbase_backend_data {
 /* The GPU reset process is currently occuring (timeout has expired or
  * kbasep_try_reset_gpu_early was called) */
 #define KBASE_RESET_GPU_HAPPENING       3
-
+/* Reset the GPU silently, used when resetting the GPU as part of normal
+ * behavior (e.g. when exiting protected mode). */
+#define KBASE_RESET_GPU_SILENT          4
 	struct workqueue_struct *reset_workq;
 	struct work_struct reset_work;
 	wait_queue_head_t reset_wait;
 	struct hrtimer reset_timer;
+
+	bool timeouts_updated;
 };
 
 /**

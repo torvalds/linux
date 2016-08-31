@@ -60,7 +60,7 @@ config MALI_DEVFREQ
 	  available OPPs.
 
 config MALI_DMA_FENCE
-	bool "DMA_BUF fence support for Mali (EXPERIMENTAL)"
+	bool "DMA_BUF fence support for Mali"
 	depends on MALI_MIDGARD && !KDS
 	default n
 	help
@@ -91,14 +91,6 @@ config MALI_PRFCNT_SET_SECONDARY
 	  bogus results.
 
 	  If unsure, say N.
-
-config MALI_DEBUG_SHADER_SPLIT_FS
-	bool "Allow mapping of shader cores via sysfs"
-	depends on MALI_MIDGARD && MALI_EXPERT
-	default n
-	help
-	  Select this option to provide a sysfs entry for runtime configuration of shader
-	  core affinity masks.
 
 config MALI_PLATFORM_FAKE
 	bool "Enable fake platform device support"
@@ -162,6 +154,23 @@ config MALI_DEBUG
 	help
 	  Select this option for increased checking and reporting of errors.
 
+config MALI_FENCE_DEBUG
+	bool "Debug sync fence usage"
+	depends on MALI_MIDGARD && MALI_EXPERT && SYNC
+	default y if MALI_DEBUG
+	help
+	  Select this option to enable additional checking and reporting on the
+	  use of sync fences in the Mali driver.
+
+	  This will add a 3s timeout to all sync fence waits in the Mali
+	  driver, so that when work for Mali has been waiting on a sync fence
+	  for a long time a debug message will be printed, detailing what fence
+	  is causing the block, and which dependent Mali atoms are blocked as a
+	  result of this.
+
+	  The timeout can be changed at runtime through the js_soft_timeout
+	  device attribute, where the timeout is specified in milliseconds.
+
 config MALI_NO_MALI
 	bool "No Mali"
 	depends on MALI_MIDGARD && MALI_EXPERT
@@ -197,5 +206,20 @@ config MALI_SYSTEM_TRACE
 	  kbase event.	This is typically used for debugging but has
 	  minimal overhead when not in use. Enable only if you know what
 	  you are doing.
+
+config MALI_GPU_MMU_AARCH64
+	bool "Use AArch64 page tables"
+	depends on MALI_MIDGARD && MALI_EXPERT
+	default n
+	help
+	  Use AArch64 format page tables for the GPU instead of LPAE-style.
+	  The two formats have the same functionality and performance but a
+	  future GPU may deprecate or remove the legacy LPAE-style format.
+
+	  The LPAE-style format is supported on all Midgard and current Bifrost
+	  GPUs. Enabling AArch64 format restricts the driver to only supporting
+	  Bifrost GPUs.
+
+	  If in doubt, say N.
 
 source "drivers/gpu/arm/midgard/platform/Kconfig"

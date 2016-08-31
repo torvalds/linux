@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -138,6 +138,17 @@ static enum hrtimer_restart timer_callback(struct hrtimer *timer)
 						js_devdata->gpu_reset_ticks_ss;
 				}
 
+				/* If timeouts have been changed then ensure
+				 * that atom tick count is not greater than the
+				 * new soft_stop timeout. This ensures that
+				 * atoms do not miss any of the timeouts due to
+				 * races between this worker and the thread
+				 * changing the timeouts. */
+				if (backend->timeouts_updated &&
+						ticks > soft_stop_ticks)
+					ticks = atom->sched_info.cfs.ticks =
+							soft_stop_ticks;
+
 				/* Job is Soft-Stoppable */
 				if (ticks == soft_stop_ticks) {
 					int disjoint_threshold =
@@ -257,6 +268,8 @@ static enum hrtimer_restart timer_callback(struct hrtimer *timer)
 			HR_TIMER_DELAY_NSEC(js_devdata->scheduling_period_ns),
 			HRTIMER_MODE_REL);
 
+	backend->timeouts_updated = false;
+
 	spin_unlock_irqrestore(&js_devdata->runpool_irq.lock, flags);
 
 	return HRTIMER_NORESTART;
@@ -333,5 +346,12 @@ void kbase_backend_timer_resume(struct kbase_device *kbdev)
 	backend->suspend_timer = false;
 
 	kbase_backend_ctx_count_changed(kbdev);
+}
+
+void kbase_backend_timeouts_changed(struct kbase_device *kbdev)
+{
+	struct kbase_backend_data *backend = &kbdev->hwaccess.backend;
+
+	backend->timeouts_updated = true;
 }
 

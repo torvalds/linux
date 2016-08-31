@@ -179,24 +179,6 @@ TRACE_EVENT(mali_total_alloc_pages_change,
 	TP_printk("event=%lld", __entry->event_id)
 );
 
-/**
- * mali_sw_counter - not currently used
- * @event_id: counter id
- */
-TRACE_EVENT(mali_sw_counter,
-	TP_PROTO(unsigned int event_id, signed long long value),
-	TP_ARGS(event_id, value),
-	TP_STRUCT__entry(
-		__field(int, event_id)
-		__field(long long, value)
-	),
-	TP_fast_assign(
-		__entry->event_id = event_id;
-		__entry->value = value;
-	),
-	TP_printk("event %d = %lld", __entry->event_id, __entry->value)
-);
-
 #endif				/*  _TRACE_MALI_H */
 
 #undef TRACE_INCLUDE_PATH
