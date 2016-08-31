@@ -549,6 +549,7 @@ config ARCH_SA1100
 	select CLKSRC_MMIO
 	select CLKSRC_PXA
 	select TIMER_OF if OF
+	select COMMON_CLK
 	select CPU_FREQ
 	select CPU_SA1100
 	select GENERIC_CLOCKEVENTS
