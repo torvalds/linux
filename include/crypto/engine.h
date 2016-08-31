@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <crypto/algapi.h>
+#include <crypto/hash.h>
 
 #define ENGINE_NAME_LEN	30
 /*
@@ -36,9 +37,12 @@
  * @unprepare_crypt_hardware: there are currently no more requests on the
  * queue so the subsystem notifies the driver that it may relax the
  * hardware by issuing this call
- * @prepare_request: do some prepare if need before handle the current request
- * @unprepare_request: undo any work done by prepare_message()
- * @crypt_one_request: do encryption for current request
+ * @prepare_cipher_request: do some prepare if need before handle the current request
+ * @unprepare_cipher_request: undo any work done by prepare_cipher_request()
+ * @cipher_one_request: do encryption for current request
+ * @prepare_hash_request: do some prepare if need before handle the current request
+ * @unprepare_hash_request: undo any work done by prepare_hash_request()
+ * @hash_one_request: do hash for current request
  * @kworker: thread struct for request pump
  * @kworker_task: pointer to task for request pump kworker thread
  * @pump_requests: work struct for scheduling work to the request pump
@@ -61,27 +65,40 @@ struct crypto_engine {
 	int (*prepare_crypt_hardware)(struct crypto_engine *engine);
 	int (*unprepare_crypt_hardware)(struct crypto_engine *engine);
 
-	int (*prepare_request)(struct crypto_engine *engine,
-			       struct ablkcipher_request *req);
-	int (*unprepare_request)(struct crypto_engine *engine,
-				 struct ablkcipher_request *req);
-	int (*crypt_one_request)(struct crypto_engine *engine,
-				 struct ablkcipher_request *req);
+	int (*prepare_cipher_request)(struct crypto_engine *engine,
+				      struct ablkcipher_request *req);
+	int (*unprepare_cipher_request)(struct crypto_engine *engine,
+					struct ablkcipher_request *req);
+	int (*prepare_hash_request)(struct crypto_engine *engine,
+				    struct ahash_request *req);
+	int (*unprepare_hash_request)(struct crypto_engine *engine,
+				      struct ahash_request *req);
+	int (*cipher_one_request)(struct crypto_engine *engine,
+				  struct ablkcipher_request *req);
+	int (*hash_one_request)(struct crypto_engine *engine,
+				struct ahash_request *req);
 
 	struct kthread_worker           kworker;
 	struct task_struct              *kworker_task;
 	struct kthread_work             pump_requests;
 
 	void				*priv_data;
-	struct ablkcipher_request	*cur_req;
+	struct crypto_async_request	*cur_req;
 };
 
-int crypto_transfer_request(struct crypto_engine *engine,
-			    struct ablkcipher_request *req, bool need_pump);
-int crypto_transfer_request_to_engine(struct crypto_engine *engine,
-				      struct ablkcipher_request *req);
-void crypto_finalize_request(struct crypto_engine *engine,
-			     struct ablkcipher_request *req, int err);
+int crypto_transfer_cipher_request(struct crypto_engine *engine,
+				   struct ablkcipher_request *req,
+				   bool need_pump);
+int crypto_transfer_cipher_request_to_engine(struct crypto_engine *engine,
+					     struct ablkcipher_request *req);
+int crypto_transfer_hash_request(struct crypto_engine *engine,
+				 struct ahash_request *req, bool need_pump);
+int crypto_transfer_hash_request_to_engine(struct crypto_engine *engine,
+					   struct ahash_request *req);
+void crypto_finalize_cipher_request(struct crypto_engine *engine,
+				    struct ablkcipher_request *req, int err);
+void crypto_finalize_hash_request(struct crypto_engine *engine,
+				  struct ahash_request *req, int err);
 int crypto_engine_start(struct crypto_engine *engine);
 int crypto_engine_stop(struct crypto_engine *engine);
 struct crypto_engine *crypto_engine_alloc_init(struct device *dev, bool rt);

@@ -507,7 +507,7 @@ static void omap_des_finish_req(struct omap_des_dev *dd, int err)
 	pr_debug("err: %d\n", err);
 
 	pm_runtime_put(dd->dev);
-	crypto_finalize_request(dd->engine, req, err);
+	crypto_finalize_cipher_request(dd->engine, req, err);
 }
 
 static int omap_des_crypt_dma_stop(struct omap_des_dev *dd)
@@ -575,7 +575,7 @@ static int omap_des_handle_queue(struct omap_des_dev *dd,
 				 struct ablkcipher_request *req)
 {
 	if (req)
-		return crypto_transfer_request_to_engine(dd->engine, req);
+		return crypto_transfer_cipher_request_to_engine(dd->engine, req);
 
 	return 0;
 }
@@ -1099,8 +1099,8 @@ static int omap_des_probe(struct platform_device *pdev)
 	if (!dd->engine)
 		goto err_algs;
 
-	dd->engine->prepare_request = omap_des_prepare_req;
-	dd->engine->crypt_one_request = omap_des_crypt_req;
+	dd->engine->prepare_cipher_request = omap_des_prepare_req;
+	dd->engine->cipher_one_request = omap_des_crypt_req;
 	err = crypto_engine_start(dd->engine);
 	if (err)
 		goto err_engine;
