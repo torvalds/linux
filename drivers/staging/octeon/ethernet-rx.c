@@ -47,16 +47,16 @@ static struct napi_struct cvm_oct_napi;
 
 /**
  * cvm_oct_do_interrupt - interrupt handler.
- * @cpl: Interrupt number. Unused
+ * @irq: Interrupt number.
  * @dev_id: Cookie to identify the device. Unused
  *
  * The interrupt occurs whenever the POW has packets in our group.
  *
  */
-static irqreturn_t cvm_oct_do_interrupt(int cpl, void *dev_id)
+static irqreturn_t cvm_oct_do_interrupt(int irq, void *dev_id)
 {
 	/* Disable the IRQ and start napi_poll. */
-	disable_irq_nosync(OCTEON_IRQ_WORKQ0 + pow_receive_group);
+	disable_irq_nosync(irq);
 	napi_schedule(&cvm_oct_napi);
 
 	return IRQ_HANDLED;
