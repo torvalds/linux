@@ -370,7 +370,6 @@ struct pqi_task_management_request {
 };
 
 #define SOP_TASK_MANAGEMENT_LUN_RESET	0x8
-#define PQI_ABORT_TIMEOUT_MSECS		(20 * 1000)
 
 struct pqi_task_management_response {
 	struct pqi_iu_header header;
@@ -762,7 +761,6 @@ struct pqi_scsi_dev {
 
 	struct pqi_sas_port *sas_port;
 	struct scsi_device *sdev;
-	bool	reset_in_progress;
 
 	struct list_head scsi_device_list_entry;
 	struct list_head new_device_list_entry;
