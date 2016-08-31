@@ -403,6 +403,8 @@ struct drm_display_mode {
 	enum hdmi_picture_aspect picture_aspect_ratio;
 };
 
+#define obj_to_mode(x) container_of(x, struct drm_display_mode, base)
+
 /**
  * drm_mode_is_stereo - check for stereo mode flags
  * @mode: drm_display_mode to check

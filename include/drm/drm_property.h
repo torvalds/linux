@@ -219,6 +219,7 @@ struct drm_prop_enum_list {
 };
 
 #define obj_to_property(x) container_of(x, struct drm_property, base)
+#define obj_to_blob(x) container_of(x, struct drm_property_blob, base)
 
 /**
  * drm_property_type_is - check the type of a property

@@ -2003,22 +2003,7 @@ struct drm_mode_config {
 	list_for_each_entry((plane), &(dev)->mode_config.plane_list, head) \
 		for_each_if ((plane_mask) & (1 << drm_plane_index(plane)))
 
-/**
- * drm_for_each_encoder_mask - iterate over encoders specified by bitmask
- * @encoder: the loop cursor
- * @dev: the DRM device
- * @encoder_mask: bitmask of encoder indices
- *
- * Iterate over all encoders specified by bitmask.
- */
-#define drm_for_each_encoder_mask(encoder, dev, encoder_mask) \
-	list_for_each_entry((encoder), &(dev)->mode_config.encoder_list, head) \
-		for_each_if ((encoder_mask) & (1 << drm_encoder_index(encoder)))
-
 #define obj_to_crtc(x) container_of(x, struct drm_crtc, base)
-#define obj_to_mode(x) container_of(x, struct drm_display_mode, base)
-#define obj_to_fb(x) container_of(x, struct drm_framebuffer, base)
-#define obj_to_blob(x) container_of(x, struct drm_property_blob, base)
 #define obj_to_plane(x) container_of(x, struct drm_plane, base)
 
 extern __printf(6, 7)
@@ -2185,23 +2170,6 @@ assert_drm_connector_list_read_locked(struct drm_mode_config *mode_config)
 	WARN_ON(!mutex_is_locked(&mode_config->mutex) &&
 		!drm_modeset_is_locked(&mode_config->connection_mutex));
 }
-
-#define drm_for_each_connector(connector, dev) \
-	for (assert_drm_connector_list_read_locked(&(dev)->mode_config),	\
-	     connector = list_first_entry(&(dev)->mode_config.connector_list,	\
-					  struct drm_connector, head);		\
-	     &connector->head != (&(dev)->mode_config.connector_list);		\
-	     connector = list_next_entry(connector, head))
-
-#define drm_for_each_encoder(encoder, dev) \
-	list_for_each_entry(encoder, &(dev)->mode_config.encoder_list, head)
-
-#define drm_for_each_fb(fb, dev) \
-	for (WARN_ON(!mutex_is_locked(&(dev)->mode_config.fb_lock)),		\
-	     fb = list_first_entry(&(dev)->mode_config.fb_list,	\
-					  struct drm_framebuffer, head);	\
-	     &fb->head != (&(dev)->mode_config.fb_list);			\
-	     fb = list_next_entry(fb, head))
 
 /* drm_edid.c */
 bool drm_probe_ddc(struct i2c_adapter *adapter);

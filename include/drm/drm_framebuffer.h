@@ -206,6 +206,8 @@ struct drm_framebuffer {
 	struct list_head filp_head;
 };
 
+#define obj_to_fb(x) container_of(x, struct drm_framebuffer, base)
+
 int drm_framebuffer_init(struct drm_device *dev,
 			 struct drm_framebuffer *fb,
 			 const struct drm_framebuffer_funcs *funcs);
@@ -247,4 +249,19 @@ static inline uint32_t drm_framebuffer_read_refcount(struct drm_framebuffer *fb)
 {
 	return atomic_read(&fb->base.refcount.refcount);
 }
+
+/**
+ * drm_for_each_fb - iterate over all framebuffers
+ * @fb: the loop cursor
+ * @dev: the DRM device
+ *
+ * Iterate over all framebuffers of @dev. User must hold the fb_lock from
+ * &drm_mode_config.
+ */
+#define drm_for_each_fb(fb, dev) \
+	for (WARN_ON(!mutex_is_locked(&(dev)->mode_config.fb_lock)),		\
+	     fb = list_first_entry(&(dev)->mode_config.fb_list,	\
+					  struct drm_framebuffer, head);	\
+	     &fb->head != (&(dev)->mode_config.fb_list);			\
+	     fb = list_next_entry(fb, head))
 #endif
