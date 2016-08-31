@@ -101,7 +101,7 @@ static inline struct v4l2_flash *v4l2_ctrl_to_v4l2_flash(struct v4l2_ctrl *c)
 /**
  * v4l2_flash_init - initialize V4L2 flash led sub-device
  * @dev:	flash device, e.g. an I2C device
- * @of_node:	of_node of the LED, may be NULL if the same as device's
+ * @fwn:	fwnode_handle of the LED, may be NULL if the same as device's
  * @fled_cdev:	LED flash class device to wrap
  * @iled_cdev:	LED flash class device representing indicator LED associated
  *		with fled_cdev, may be NULL
@@ -115,7 +115,7 @@ static inline struct v4l2_flash *v4l2_ctrl_to_v4l2_flash(struct v4l2_ctrl *c)
  * PTR_ERR() to obtain the numeric return value.
  */
 struct v4l2_flash *v4l2_flash_init(
-	struct device *dev, struct device_node *of_node,
+	struct device *dev, struct fwnode_handle *fwn,
 	struct led_classdev_flash *fled_cdev,
 	struct led_classdev_flash *iled_cdev,
 	const struct v4l2_flash_ops *ops,
@@ -131,7 +131,7 @@ void v4l2_flash_release(struct v4l2_flash *v4l2_flash);
 
 #else
 static inline struct v4l2_flash *v4l2_flash_init(
-	struct device *dev, struct device_node *of_node,
+	struct device *dev, struct fwnode_handle *fwn,
 	struct led_classdev_flash *fled_cdev,
 	struct led_classdev_flash *iled_cdev,
 	const struct v4l2_flash_ops *ops,
