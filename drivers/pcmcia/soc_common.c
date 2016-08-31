@@ -286,6 +286,14 @@ static int soc_common_pcmcia_config_skt(
 	int ret;
 
 	ret = skt->ops->configure_socket(skt, state);
+	if (ret < 0) {
+		pr_err("soc_common_pcmcia: unable to configure socket %d\n",
+		       skt->nr);
+		/* restore the previous state */
+		WARN_ON(skt->ops->configure_socket(skt, &skt->cs_state));
+		return ret;
+	}
+
 	if (ret == 0) {
 		struct gpio_desc *descs[2];
 		int values[2], n = 0;
@@ -317,10 +325,6 @@ static int soc_common_pcmcia_config_skt(
 
 		skt->cs_state = *state;
 	}
-
-	if (ret < 0)
-		printk(KERN_ERR "soc_common_pcmcia: unable to configure "
-		       "socket %d\n", skt->nr);
 
 	return ret;
 }
@@ -769,6 +773,8 @@ EXPORT_SYMBOL(soc_pcmcia_remove_one);
 int soc_pcmcia_add_one(struct soc_pcmcia_socket *skt)
 {
 	int ret;
+
+	skt->cs_state = dead_socket;
 
 	setup_timer(&skt->poll_timer, soc_common_pcmcia_poll_event,
 		    (unsigned long)skt);
