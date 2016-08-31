@@ -30,7 +30,7 @@ Arguments
     File descriptor returned by :c:func:`open() <cec-open>`.
 
 ``argp``
-    Pointer to struct cec_log_addrs
+    Pointer to struct :c:type:`cec_log_addrs`.
 
 Description
 ===========
@@ -42,10 +42,10 @@ Description
 
 To query the current CEC logical addresses, applications call
 :ref:`ioctl CEC_ADAP_G_LOG_ADDRS <CEC_ADAP_G_LOG_ADDRS>` with a pointer to a
-:c:type:`struct cec_log_addrs` where the driver stores the logical addresses.
+struct :c:type:`cec_log_addrs` where the driver stores the logical addresses.
 
 To set new logical addresses, applications fill in
-:c:type:`struct cec_log_addrs` and call :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
+struct :c:type:`cec_log_addrs` and call :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
 with a pointer to this struct. The :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
 is only available if ``CEC_CAP_LOG_ADDRS`` is set (the ``ENOTTY`` error code is
 returned otherwise). The :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
@@ -66,9 +66,9 @@ logical addresses are claimed or cleared.
 Attempting to call :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>` when
 logical address types are already defined will return with error ``EBUSY``.
 
-.. tabularcolumns:: |p{1.0cm}|p{7.5cm}|p{8.0cm}|
-
 .. c:type:: cec_log_addrs
+
+.. tabularcolumns:: |p{1.0cm}|p{7.5cm}|p{8.0cm}|
 
 .. cssclass:: longtable
 

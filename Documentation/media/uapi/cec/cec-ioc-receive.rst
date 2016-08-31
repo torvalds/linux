@@ -40,7 +40,8 @@ Description
    and is currently only available as a staging kernel module.
 
 To receive a CEC message the application has to fill in the
-``timeout`` field of :c:type:`struct cec_msg` and pass it to :ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>`.
+``timeout`` field of struct :c:type:`cec_msg` and pass it to
+:ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>`.
 If the file descriptor is in non-blocking mode and there are no received
 messages pending, then it will return -1 and set errno to the ``EAGAIN``
 error code. If the file descriptor is in blocking mode and ``timeout``
@@ -54,9 +55,9 @@ A received message can be:
 2. the result of an earlier non-blocking transmit (the ``sequence`` field will
    be non-zero).
 
-To send a CEC message the application has to fill in the
-:c:type:`struct cec_msg` and pass it to
-:ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>`. The :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>` is only available if
+To send a CEC message the application has to fill in the struct
+:c:type:` cec_msg` and pass it to :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>`.
+The :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>` is only available if
 ``CEC_CAP_TRANSMIT`` is set. If there is no more room in the transmit
 queue, then it will return -1 and set errno to the ``EBUSY`` error code.
 The transmit queue has enough room for 18 messages (about 1 second worth
