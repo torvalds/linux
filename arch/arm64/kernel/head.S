@@ -415,12 +415,17 @@ ENDPROC(__create_page_tables)
  *
  *   x0 = __PHYS_OFFSET
  */
-	.set	initial_sp, init_thread_union + THREAD_START_SP
 __primary_switched:
-	mov	x28, lr				// preserve LR
+	adrp	x4, init_thread_union
+	add	sp, x4, #THREAD_SIZE
+	msr	sp_el0, x4			// Save thread_info
+
 	adr_l	x8, vectors			// load VBAR_EL1 with virtual
 	msr	vbar_el1, x8			// vector table address
 	isb
+
+	stp	xzr, x30, [sp, #-16]!
+	mov	x29, sp
 
 	str_l	x21, __fdt_pointer, x5		// Save FDT pointer
 
@@ -436,11 +441,6 @@ __primary_switched:
 	bl	__pi_memset
 	dsb	ishst				// Make zero page visible to PTW
 
-	adr_l	sp, initial_sp, x4
-	mov	x4, sp
-	and	x4, x4, #~(THREAD_SIZE - 1)
-	msr	sp_el0, x4			// Save thread_info
-	mov	x29, #0
 #ifdef CONFIG_KASAN
 	bl	kasan_early_init
 #endif
@@ -452,8 +452,8 @@ __primary_switched:
 	bl	kaslr_early_init		// parse FDT for KASLR options
 	cbz	x0, 0f				// KASLR disabled? just proceed
 	orr	x23, x23, x0			// record KASLR offset
-	ret	x28				// we must enable KASLR, return
-						// to __primary_switch()
+	ldp	x29, x30, [sp], #16		// we must enable KASLR, return
+	ret					// to __primary_switch()
 0:
 #endif
 	b	start_kernel
