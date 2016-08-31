@@ -173,7 +173,7 @@ static int s5p_cec_probe(struct platform_device *pdev)
 	int ret;
 
 	cec = devm_kzalloc(&pdev->dev, sizeof(*cec), GFP_KERNEL);
-	if (!dev)
+	if (!cec)
 		return -ENOMEM;
 
 	cec->dev = dev;
