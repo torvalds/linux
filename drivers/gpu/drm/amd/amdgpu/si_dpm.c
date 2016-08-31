@@ -7687,9 +7687,8 @@ static int si_dpm_init_microcode(struct amdgpu_device *adev)
 
 out:
 	if (err) {
-		printk(KERN_ERR
-		       "si_smc: Failed to load firmware. err = %d\"%s\"\n",
-		       err, fw_name);
+		DRM_ERROR("si_smc: Failed to load firmware. err = %d\"%s\"\n",
+			  err, fw_name);
 		release_firmware(adev->pm.fw);
 		adev->pm.fw = NULL;
 	}
@@ -7908,15 +7907,15 @@ static void si_dpm_print_power_state(struct amdgpu_device *adev,
                                
         amdgpu_dpm_print_class_info(rps->class, rps->class2);
         amdgpu_dpm_print_cap_info(rps->caps);
-        printk("\tuvd    vclk: %d dclk: %d\n", rps->vclk, rps->dclk);
+        DRM_INFO("\tuvd    vclk: %d dclk: %d\n", rps->vclk, rps->dclk);
         for (i = 0; i < ps->performance_level_count; i++) {
                 pl = &ps->performance_levels[i];
                 if (adev->asic_type >= CHIP_TAHITI)
-                        printk("\t\tpower level %d    sclk: %u mclk: %u vddc: %u vddci: %u pcie gen: %u\n",
-                               i, pl->sclk, pl->mclk, pl->vddc, pl->vddci, pl->pcie_gen + 1);
+                        DRM_INFO("\t\tpower level %d    sclk: %u mclk: %u vddc: %u vddci: %u pcie gen: %u\n",
+				 i, pl->sclk, pl->mclk, pl->vddc, pl->vddci, pl->pcie_gen + 1);
                 else
-                        printk("\t\tpower level %d    sclk: %u mclk: %u vddc: %u vddci: %u\n",
-                               i, pl->sclk, pl->mclk, pl->vddc, pl->vddci);
+                        DRM_INFO("\t\tpower level %d    sclk: %u mclk: %u vddc: %u vddci: %u\n",
+				 i, pl->sclk, pl->mclk, pl->vddc, pl->vddci);
         }
         amdgpu_dpm_print_ps_status(adev, rps);
 }
