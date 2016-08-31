@@ -858,9 +858,7 @@ static void iwl_mvm_async_handlers_wk(struct work_struct *wk)
 	struct iwl_mvm *mvm =
 		container_of(wk, struct iwl_mvm, async_handlers_wk);
 	struct iwl_async_handler_entry *entry, *tmp;
-	struct list_head local_list;
-
-	INIT_LIST_HEAD(&local_list);
+	LIST_HEAD(local_list);
 
 	/* Ensure that we are not in stop flow (check iwl_mvm_mac_stop) */
 
