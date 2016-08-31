@@ -72,11 +72,11 @@ struct arm64_ftr_bits {
  * @sys_val		Safe value across the CPUs (system view)
  */
 struct arm64_ftr_reg {
-	u32			sys_id;
-	const char		*name;
-	u64			strict_mask;
-	u64			sys_val;
-	struct arm64_ftr_bits	*ftr_bits;
+	u32				sys_id;
+	const char			*name;
+	u64				strict_mask;
+	u64				sys_val;
+	const struct arm64_ftr_bits	*ftr_bits;
 };
 
 /* scope of capability check */
@@ -157,7 +157,7 @@ cpuid_feature_extract_unsigned_field(u64 features, int field)
 	return cpuid_feature_extract_unsigned_field_width(features, field, 4);
 }
 
-static inline u64 arm64_ftr_mask(struct arm64_ftr_bits *ftrp)
+static inline u64 arm64_ftr_mask(const struct arm64_ftr_bits *ftrp)
 {
 	return (u64)GENMASK(ftrp->shift + ftrp->width - 1, ftrp->shift);
 }
@@ -170,7 +170,7 @@ cpuid_feature_extract_field(u64 features, int field, bool sign)
 		cpuid_feature_extract_unsigned_field(features, field);
 }
 
-static inline s64 arm64_ftr_value(struct arm64_ftr_bits *ftrp, u64 val)
+static inline s64 arm64_ftr_value(const struct arm64_ftr_bits *ftrp, u64 val)
 {
 	return (s64)cpuid_feature_extract_field(val, ftrp->shift, ftrp->sign);
 }
