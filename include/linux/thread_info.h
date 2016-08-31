@@ -161,7 +161,8 @@ extern void __check_object_size(const void *ptr, unsigned long n,
 static inline void check_object_size(const void *ptr, unsigned long n,
 				     bool to_user)
 {
-	__check_object_size(ptr, n, to_user);
+	if (!__builtin_constant_p(n))
+		__check_object_size(ptr, n, to_user);
 }
 #else
 static inline void check_object_size(const void *ptr, unsigned long n,
