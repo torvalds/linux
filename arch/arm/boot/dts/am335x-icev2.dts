@@ -19,7 +19,7 @@
 	model = "TI AM3359 ICE-V2";
 	compatible = "ti,am3359-icev2", "ti,am33xx";
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x10000000>; /* 256 MB */
 	};
