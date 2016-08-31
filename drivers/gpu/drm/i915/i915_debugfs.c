@@ -5095,7 +5095,7 @@ static void broadwell_sseu_device_status(struct drm_i915_private *dev_priv,
 				 sseu_subslice_total(sseu);
 
 		/* subtract fused off EU(s) from enabled slice(s) */
-		for (s = 0; s < hweight8(sseu->slice_mask); s++) {
+		for (s = 0; s < fls(sseu->slice_mask); s++) {
 			u8 subslice_7eu =
 				INTEL_INFO(dev_priv)->sseu.subslice_7eu[s];
 
