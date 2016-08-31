@@ -846,7 +846,7 @@ struct oct_mdio_cmd {
 /* intrmod: max. packets to trigger interrupt */
 #define LIO_INTRMOD_RXMAXCNT_TRIGGER	384
 /* intrmod: min. packets to trigger interrupt */
-#define LIO_INTRMOD_RXMINCNT_TRIGGER	1
+#define LIO_INTRMOD_RXMINCNT_TRIGGER	0
 /* intrmod: max. time to trigger interrupt */
 #define LIO_INTRMOD_RXMAXTMR_TRIGGER	128
 /* 66xx:intrmod: min. time to trigger interrupt

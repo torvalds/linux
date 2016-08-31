@@ -192,6 +192,7 @@ static void octeon_droq_bh(unsigned long pdev)
 			continue;
 		reschedule |= octeon_droq_process_packets(oct, oct->droq[q_no],
 							  MAX_PACKET_BUDGET);
+		lio_enable_irq(oct->droq[q_no], NULL);
 	}
 
 	if (reschedule)

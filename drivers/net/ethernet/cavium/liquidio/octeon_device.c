@@ -1122,3 +1122,20 @@ int lio_get_device_id(void *dev)
 			return octeon_dev->octeon_id;
 	return -1;
 }
+
+void lio_enable_irq(struct octeon_droq *droq, struct octeon_instr_queue *iq)
+{
+	/* the whole thing needs to be atomic, ideally */
+	if (droq) {
+		spin_lock_bh(&droq->lock);
+		writel(droq->pkt_count, droq->pkts_sent_reg);
+		droq->pkt_count = 0;
+		spin_unlock_bh(&droq->lock);
+	}
+	if (iq) {
+		spin_lock_bh(&iq->lock);
+		writel(iq->pkt_in_done, iq->inst_cnt_reg);
+		iq->pkt_in_done = 0;
+		spin_unlock_bh(&iq->lock);
+	}
+}
