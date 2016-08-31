@@ -9696,6 +9696,12 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kvalo/ath.git
 S:	Supported
 F:	drivers/net/wireless/ath/ath10k/
 
+QUALCOMM EMAC GIGABIT ETHERNET DRIVER
+M:	Timur Tabi <timur@codeaurora.org>
+L:	netdev@vger.kernel.org
+S:	Supported
+F:	drivers/net/ethernet/qualcomm/emac/
+
 QUALCOMM HEXAGON ARCHITECTURE
 M:	Richard Kuo <rkuo@codeaurora.org>
 L:	linux-hexagon@vger.kernel.org
