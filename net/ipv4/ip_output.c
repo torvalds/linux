@@ -73,6 +73,7 @@
 #include <net/icmp.h>
 #include <net/checksum.h>
 #include <net/inetpeer.h>
+#include <net/lwtunnel.h>
 #include <linux/igmp.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_bridge.h>
@@ -195,6 +196,13 @@ static int ip_finish_output2(struct net *net, struct sock *sk, struct sk_buff *s
 			skb_set_owner_w(skb2, skb->sk);
 		consume_skb(skb);
 		skb = skb2;
+	}
+
+	if (lwtunnel_xmit_redirect(dst->lwtstate)) {
+		int res = lwtunnel_xmit(skb);
+
+		if (res < 0 || res == LWTUNNEL_XMIT_DONE)
+			return res;
 	}
 
 	rcu_read_lock_bh();
