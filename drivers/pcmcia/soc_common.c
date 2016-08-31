@@ -235,7 +235,7 @@ static unsigned int soc_common_pcmcia_skt_state(struct soc_pcmcia_socket *skt)
 	stat |= skt->cs_state.Vcc ? SS_POWERON : 0;
 
 	if (skt->cs_state.flags & SS_IOCARD)
-		stat |= state.bvd1 ? SS_STSCHG : 0;
+		stat |= state.bvd1 ? 0 : SS_STSCHG;
 	else {
 		if (state.bvd1 == 0)
 			stat |= SS_BATDEAD;
