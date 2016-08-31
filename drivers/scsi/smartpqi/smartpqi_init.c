@@ -2576,8 +2576,7 @@ static unsigned int pqi_process_io_intr(struct pqi_ctrl_info *ctrl_info,
 }
 
 static inline unsigned int pqi_num_elements_free(unsigned int pi,
-						unsigned int ci,
-						unsigned int elements_in_queue)
+	unsigned int ci, unsigned int elements_in_queue)
 {
 	unsigned int num_elements_used;
 
