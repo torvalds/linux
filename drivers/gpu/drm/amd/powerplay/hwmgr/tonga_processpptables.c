@@ -1164,6 +1164,54 @@ static uint32_t make_classification_flags(struct pp_hwmgr *hwmgr,
 	return result;
 }
 
+static int ppt_get_num_of_vce_state_table_entries_v1_0(struct pp_hwmgr *hwmgr)
+{
+	const ATOM_Tonga_POWERPLAYTABLE *pp_table = get_powerplay_table(hwmgr);
+	const ATOM_Tonga_VCE_State_Table *vce_state_table =
+				(ATOM_Tonga_VCE_State_Table *)(((unsigned long)pp_table) + le16_to_cpu(pp_table->usVCEStateTableOffset));
+
+	if (vce_state_table == NULL)
+		return 0;
+
+	return vce_state_table->ucNumEntries;
+}
+
+
+static int ppt_get_vce_state_table_entry_v1_0(struct pp_hwmgr *hwmgr, uint32_t i,
+		struct pp_vce_state *vce_state, void **clock_info, uint32_t *flag)
+{
+	const ATOM_Tonga_VCE_State_Record *vce_state_record;
+	const ATOM_Tonga_POWERPLAYTABLE *pptable = get_powerplay_table(hwmgr);
+	const ATOM_Tonga_VCE_State_Table *vce_state_table = (ATOM_Tonga_VCE_State_Table *)(((unsigned long)pptable)
+							  + le16_to_cpu(pptable->usVCEStateTableOffset));
+	const ATOM_Tonga_SCLK_Dependency_Table *sclk_dep_table = (ATOM_Tonga_SCLK_Dependency_Table *)(((unsigned long)pptable)
+							  + le16_to_cpu(pptable->usSclkDependencyTableOffset));
+	const ATOM_Tonga_MCLK_Dependency_Table *mclk_dep_table = (ATOM_Tonga_MCLK_Dependency_Table *)(((unsigned long)pptable)
+							  + le16_to_cpu(pptable->usMclkDependencyTableOffset));
+	const ATOM_Tonga_MM_Dependency_Table *mm_dep_table = (ATOM_Tonga_MM_Dependency_Table *)(((unsigned long)pptable)
+							  + le16_to_cpu(pptable->usMMDependencyTableOffset));
+
+	PP_ASSERT_WITH_CODE((i < vce_state_table->ucNumEntries),
+			 "Requested state entry ID is out of range!",
+			 return -EINVAL);
+
+	vce_state_record = (ATOM_Tonga_VCE_State_Record *)((char *)&vce_state_table->entries[1]
+				+ (sizeof(ATOM_Tonga_VCE_State_Record) * i));
+
+	*flag = vce_state_record->ucFlag;
+
+	vce_state->evclk = mm_dep_table->entries[vce_state_record->ucVCEClockIndex].ulEClk;
+	vce_state->ecclk = mm_dep_table->entries[vce_state_record->ucVCEClockIndex].ulEClk;
+	vce_state->sclk = sclk_dep_table->entries[vce_state_record->ucSCLKIndex].ulSclk;
+
+	if (vce_state_record->ucMCLKIndex >= mclk_dep_table->ucNumEntries)
+		vce_state->mclk = mclk_dep_table->entries[mclk_dep_table->ucNumEntries - 1].ulMclk;
+	else
+		vce_state->mclk = mclk_dep_table->entries[vce_state_record->ucMCLKIndex].ulMclk;
+
+	return 0;
+}
+
 /**
 * Create a Power State out of an entry in the PowerPlay table.
 * This function is called by the hardware back-end.
@@ -1181,6 +1229,8 @@ int tonga_get_powerplay_table_entry(struct pp_hwmgr *hwmgr,
 	const ATOM_Tonga_State_Array * state_arrays;
 	const ATOM_Tonga_State *state_entry;
 	const ATOM_Tonga_POWERPLAYTABLE *pp_table = get_powerplay_table(hwmgr);
+	int i, j;
+	uint32_t flags = 0;
 
 	PP_ASSERT_WITH_CODE((NULL != pp_table), "Missing PowerPlay Table!", return -1;);
 	power_state->classification.bios_index = entry_index;
@@ -1210,5 +1260,13 @@ int tonga_get_powerplay_table_entry(struct pp_hwmgr *hwmgr,
 			PP_StateClassificationFlag_Boot))
 		result = hwmgr->hwmgr_func->patch_boot_state(hwmgr, &(power_state->hardware));
 
+	hwmgr->num_vce_state_tables = i = ppt_get_num_of_vce_state_table_entries_v1_0(hwmgr);
+
+	if ((i != 0) && (i <= PP_MAX_VCE_LEVELS)) {
+		for (j = 0; j < i; j++)
+			ppt_get_vce_state_table_entry_v1_0(hwmgr, j, &(hwmgr->vce_states[j]), NULL, &flags);
+	}
+
 	return result;
 }
+

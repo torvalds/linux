@@ -31,15 +31,12 @@
 #include "hwmgr_ppt.h"
 #include "ppatomctrl.h"
 #include "hwmgr_ppt.h"
+#include "power_state.h"
 
 struct pp_instance;
 struct pp_hwmgr;
-struct pp_hw_power_state;
-struct pp_power_state;
-struct pp_vce_state;
 struct phm_fan_speed_info;
 struct pp_atomctrl_voltage_table;
-
 
 extern int amdgpu_powercontainment;
 extern int amdgpu_sclk_deep_sleep_en;
@@ -51,7 +48,6 @@ enum DISPLAY_GAP {
 	DISPLAY_GAP_IGNORE       = 3    /* Do not wait. */
 };
 typedef enum DISPLAY_GAP DISPLAY_GAP;
-
 
 struct vi_dpm_level {
 	bool enabled;
@@ -573,6 +569,18 @@ struct phm_microcode_version_info {
 	uint32_t NB;
 };
 
+#define PP_MAX_VCE_LEVELS 6
+
+enum PP_VCE_LEVEL {
+	PP_VCE_LEVEL_AC_ALL = 0,     /* AC, All cases */
+	PP_VCE_LEVEL_DC_EE = 1,      /* DC, entropy encoding */
+	PP_VCE_LEVEL_DC_LL_LOW = 2,  /* DC, low latency queue, res <= 720 */
+	PP_VCE_LEVEL_DC_LL_HIGH = 3, /* DC, low latency queue, 1080 >= res > 720 */
+	PP_VCE_LEVEL_DC_GP_LOW = 4,  /* DC, general purpose queue, res <= 720 */
+	PP_VCE_LEVEL_DC_GP_HIGH = 5, /* DC, general purpose queue, 1080 >= res > 720 */
+};
+
+
 /**
  * The main hardware manager structure.
  */
@@ -586,6 +594,10 @@ struct pp_hwmgr {
 	uint32_t soft_pp_table_size;
 	void *hardcode_pp_table;
 	bool need_pp_table_upload;
+
+	struct pp_vce_state vce_states[PP_MAX_VCE_LEVELS];
+	uint32_t num_vce_state_tables;
+
 	enum amd_dpm_forced_level dpm_level;
 	bool block_hw_access;
 	struct phm_gfx_arbiter gfx_arbiter;
