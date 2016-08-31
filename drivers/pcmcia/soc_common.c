@@ -33,6 +33,7 @@
 
 #include <linux/cpufreq.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -126,6 +127,30 @@ static void soc_pcmcia_hw_shutdown(struct soc_pcmcia_socket *skt)
 	__soc_pcmcia_hw_shutdown(skt, ARRAY_SIZE(skt->stat));
 }
 
+int soc_pcmcia_request_gpiods(struct soc_pcmcia_socket *skt)
+{
+	struct device *dev = skt->socket.dev.parent;
+	struct gpio_desc *desc;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(skt->stat); i++) {
+		if (!skt->stat[i].name)
+			continue;
+
+		desc = devm_gpiod_get(dev, skt->stat[i].name, GPIOD_IN);
+		if (IS_ERR(desc)) {
+			dev_err(dev, "Failed to get GPIO for %s: %ld\n",
+				skt->stat[i].name, PTR_ERR(desc));
+			return PTR_ERR(desc);
+		}
+
+		skt->stat[i].desc = desc;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(soc_pcmcia_request_gpiods);
+
 static int soc_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {
 	int ret = 0, i;
@@ -140,8 +165,6 @@ static int soc_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 
 	for (i = 0; i < ARRAY_SIZE(skt->stat); i++) {
 		if (gpio_is_valid(skt->stat[i].gpio)) {
-			int irq;
-
 			ret = devm_gpio_request_one(skt->socket.dev.parent,
 						    skt->stat[i].gpio, GPIOF_IN,
 						    skt->stat[i].name);
@@ -150,7 +173,11 @@ static int soc_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 				return ret;
 			}
 
-			irq = gpio_to_irq(skt->stat[i].gpio);
+			skt->stat[i].desc = gpio_to_desc(skt->stat[i].gpio);
+		}
+
+		if (skt->stat[i].desc) {
+			int irq = gpiod_to_irq(skt->stat[i].desc);
 
 			if (i == SOC_STAT_RDY)
 				skt->socket.pci_irq = irq;
@@ -205,16 +232,16 @@ static unsigned int soc_common_pcmcia_skt_state(struct soc_pcmcia_socket *skt)
 	state.bvd2 = 1;
 
 	/* CD is active low by default */
-	if (gpio_is_valid(skt->stat[SOC_STAT_CD].gpio))
-		state.detect = !gpio_get_value(skt->stat[SOC_STAT_CD].gpio);
+	if (skt->stat[SOC_STAT_CD].desc)
+		state.detect = !gpiod_get_raw_value(skt->stat[SOC_STAT_CD].desc);
 
 	/* RDY and BVD are active high by default */
-	if (gpio_is_valid(skt->stat[SOC_STAT_RDY].gpio))
-		state.ready = !!gpio_get_value(skt->stat[SOC_STAT_RDY].gpio);
-	if (gpio_is_valid(skt->stat[SOC_STAT_BVD1].gpio))
-		state.bvd1 = !!gpio_get_value(skt->stat[SOC_STAT_BVD1].gpio);
-	if (gpio_is_valid(skt->stat[SOC_STAT_BVD2].gpio))
-		state.bvd2 = !!gpio_get_value(skt->stat[SOC_STAT_BVD2].gpio);
+	if (skt->stat[SOC_STAT_RDY].desc)
+		state.ready = !!gpiod_get_value(skt->stat[SOC_STAT_RDY].desc);
+	if (skt->stat[SOC_STAT_BVD1].desc)
+		state.bvd1 = !!gpiod_get_value(skt->stat[SOC_STAT_BVD1].desc);
+	if (skt->stat[SOC_STAT_BVD2].desc)
+		state.bvd2 = !!gpiod_get_value(skt->stat[SOC_STAT_BVD2].desc);
 
 	skt->ops->socket_state(skt, &state);
 

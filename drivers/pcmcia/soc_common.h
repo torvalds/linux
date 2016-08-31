@@ -17,6 +17,7 @@
 
 
 struct device;
+struct gpio_desc;
 struct pcmcia_low_level;
 
 /*
@@ -52,6 +53,7 @@ struct soc_pcmcia_socket {
 
 	struct {
 		int		gpio;
+		struct gpio_desc *desc;
 		unsigned int	irq;
 		const char	*name;
 	} stat[4];
@@ -136,6 +138,7 @@ void soc_pcmcia_init_one(struct soc_pcmcia_socket *skt,
 	struct pcmcia_low_level *ops, struct device *dev);
 void soc_pcmcia_remove_one(struct soc_pcmcia_socket *skt);
 int soc_pcmcia_add_one(struct soc_pcmcia_socket *skt);
+int soc_pcmcia_request_gpiods(struct soc_pcmcia_socket *skt);
 
 
 #ifdef CONFIG_PCMCIA_DEBUG
