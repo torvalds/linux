@@ -128,6 +128,8 @@ int hwmgr_fini(struct pp_hwmgr *hwmgr)
 	kfree(hwmgr->set_temperature_range.function_list);
 
 	kfree(hwmgr->ps);
+	kfree(hwmgr->current_ps);
+	kfree(hwmgr->request_ps);
 	kfree(hwmgr);
 	return 0;
 }
@@ -152,8 +154,15 @@ int hw_init_power_state_table(struct pp_hwmgr *hwmgr)
 					  sizeof(struct pp_power_state);
 
 	hwmgr->ps = kzalloc(size * table_entries, GFP_KERNEL);
-
 	if (hwmgr->ps == NULL)
+		return -ENOMEM;
+
+	hwmgr->request_ps = kzalloc(size, GFP_KERNEL);
+	if (hwmgr->request_ps == NULL)
+		return -ENOMEM;
+
+	hwmgr->current_ps = kzalloc(size, GFP_KERNEL);
+	if (hwmgr->current_ps == NULL)
 		return -ENOMEM;
 
 	state = hwmgr->ps;
@@ -163,7 +172,8 @@ int hw_init_power_state_table(struct pp_hwmgr *hwmgr)
 
 		if (state->classification.flags & PP_StateClassificationFlag_Boot) {
 			hwmgr->boot_ps = state;
-			hwmgr->current_ps = hwmgr->request_ps = state;
+			memcpy(hwmgr->current_ps, state, size);
+			memcpy(hwmgr->request_ps, state, size);
 		}
 
 		state->id = i + 1; /* assigned unique num for every power state id */
@@ -172,6 +182,7 @@ int hw_init_power_state_table(struct pp_hwmgr *hwmgr)
 			hwmgr->uvd_ps = state;
 		state = (struct pp_power_state *)((unsigned long)state + size);
 	}
+
 
 	return 0;
 }

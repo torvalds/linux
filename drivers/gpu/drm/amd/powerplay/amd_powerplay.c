@@ -538,7 +538,6 @@ int pp_dpm_dispatch_tasks(void *handle, enum amd_pp_event event_id, void *input,
 		ret = pem_handle_event(pp_handle->eventmgr, event_id, &data);
 		break;
 	case AMD_PP_EVENT_READJUST_POWER_STATE:
-		pp_handle->hwmgr->current_ps = pp_handle->hwmgr->boot_ps;
 		ret = pem_handle_event(pp_handle->eventmgr, event_id, &data);
 		break;
 	default:
