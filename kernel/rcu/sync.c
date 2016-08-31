@@ -68,6 +68,7 @@ void rcu_sync_lockdep_assert(struct rcu_sync *rsp)
 	RCU_LOCKDEP_WARN(!gp_ops[rsp->gp_type].held(),
 			 "suspicious rcu_sync_is_idle() usage");
 }
+EXPORT_SYMBOL_GPL(rcu_sync_lockdep_assert);
 #endif
 
 /**
