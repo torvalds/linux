@@ -237,7 +237,8 @@ static int radeon_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 
 	if (radeon_ttm_tt_has_userptr(bo->ttm))
 		return -EPERM;
-	return drm_vma_node_verify_access(&rbo->gem_base.vma_node, filp);
+	return drm_vma_node_verify_access(&rbo->gem_base.vma_node,
+					  filp->private_data);
 }
 
 static void radeon_move_null(struct ttm_buffer_object *bo,

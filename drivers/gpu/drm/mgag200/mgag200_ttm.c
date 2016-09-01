@@ -150,7 +150,8 @@ static int mgag200_bo_verify_access(struct ttm_buffer_object *bo, struct file *f
 {
 	struct mgag200_bo *mgabo = mgag200_bo(bo);
 
-	return drm_vma_node_verify_access(&mgabo->gem.vma_node, filp);
+	return drm_vma_node_verify_access(&mgabo->gem.vma_node,
+					  filp->private_data);
 }
 
 static int mgag200_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
