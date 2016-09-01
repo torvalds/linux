@@ -588,14 +588,15 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 	dma_addr_t mapped_addr;
 	unsigned int nr_frags;
 	int i, n_desc = 1;
-	u32 txd4 = 0;
+	u32 txd4 = 0, fport;
 
 	itxd = ring->next_free;
 	if (itxd == ring->last_free)
 		return -ENOMEM;
 
 	/* set the forward port */
-	txd4 |= (mac->id + 1) << TX_DMA_FPORT_SHIFT;
+	fport = (mac->id + 1) << TX_DMA_FPORT_SHIFT;
+	txd4 |= fport;
 
 	tx_buf = mtk_desc_to_tx_buf(ring, itxd);
 	memset(tx_buf, 0, sizeof(*tx_buf));
@@ -653,7 +654,7 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 			WRITE_ONCE(txd->txd3, (TX_DMA_SWC |
 					       TX_DMA_PLEN0(frag_map_size) |
 					       last_frag * TX_DMA_LS0));
-			WRITE_ONCE(txd->txd4, 0);
+			WRITE_ONCE(txd->txd4, fport);
 
 			tx_buf->skb = (struct sk_buff *)MTK_DMA_DUMMY_DESC;
 			tx_buf = mtk_desc_to_tx_buf(ring, txd);
