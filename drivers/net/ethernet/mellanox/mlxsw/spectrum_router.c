@@ -125,7 +125,6 @@ struct mlxsw_sp_fib_entry {
 	struct mlxsw_sp_fib_key key;
 	enum mlxsw_sp_fib_entry_type type;
 	unsigned int ref_count;
-	u8 added:1;
 	u16 rif; /* used for action local */
 	struct mlxsw_sp_vr *vr;
 	struct list_head nexthop_group_node;
@@ -1633,11 +1632,8 @@ static int mlxsw_sp_fib_entry_op(struct mlxsw_sp *mlxsw_sp,
 static int mlxsw_sp_fib_entry_update(struct mlxsw_sp *mlxsw_sp,
 				     struct mlxsw_sp_fib_entry *fib_entry)
 {
-	enum mlxsw_reg_ralue_op op;
-
-	op = !fib_entry->added ? MLXSW_REG_RALUE_OP_WRITE_WRITE :
-				 MLXSW_REG_RALUE_OP_WRITE_UPDATE;
-	return mlxsw_sp_fib_entry_op(mlxsw_sp, fib_entry, op);
+	return mlxsw_sp_fib_entry_op(mlxsw_sp, fib_entry,
+				     MLXSW_REG_RALUE_OP_WRITE_WRITE);
 }
 
 static int mlxsw_sp_fib_entry_del(struct mlxsw_sp *mlxsw_sp,
