@@ -160,7 +160,7 @@ static const struct attribute_group vz89x_attrs_group = {
 static bool vz89x_measurement_is_valid(struct vz89x_data *data)
 {
 	if (data->buffer[VZ89X_VOC_SHORT_IDX] == 0)
-		return 1;
+		return true;
 
 	return !!(data->buffer[data->chip->read_size - 1] > 0);
 }
