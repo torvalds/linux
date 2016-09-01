@@ -92,24 +92,27 @@ static int gbaudio_request_button(struct gbaudio_module_info *module,
 	}
 
 	report = module->button_status & module->button_mask;
+	soc_button_id = 0;
 
 	switch (req->button_id) {
 	case 1:
-		soc_button_id = SND_JACK_BTN_0;
+		soc_button_id = SND_JACK_BTN_0 & module->button_mask;
 		break;
 
 	case 2:
-		soc_button_id = SND_JACK_BTN_1;
+		soc_button_id = SND_JACK_BTN_1 & module->button_mask;
 		break;
 
 	case 3:
-		soc_button_id = SND_JACK_BTN_2;
+		soc_button_id = SND_JACK_BTN_2 & module->button_mask;
 		break;
 
 	case 4:
-		soc_button_id = SND_JACK_BTN_3;
+		soc_button_id = SND_JACK_BTN_3 & module->button_mask;
 		break;
-	default:
+	}
+
+	if (!soc_button_id) {
 		dev_err_ratelimited(module->dev,
 				    "Invalid button request received\n");
 		return -EINVAL;
