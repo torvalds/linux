@@ -15,7 +15,7 @@
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of_gpio.h>
 #include <linux/pci.h>
 #include <linux/phy/phy.h>
@@ -443,25 +443,6 @@ err_phy:
 	return ret;
 }
 
-static int __exit dra7xx_pcie_remove(struct platform_device *pdev)
-{
-	struct dra7xx_pcie *dra7xx = platform_get_drvdata(pdev);
-	struct pcie_port *pp = &dra7xx->pp;
-	struct device *dev = &pdev->dev;
-	int count = dra7xx->phy_count;
-
-	if (pp->irq_domain)
-		irq_domain_remove(pp->irq_domain);
-	pm_runtime_put(dev);
-	pm_runtime_disable(dev);
-	while (count--) {
-		phy_power_off(dra7xx->phy[count]);
-		phy_exit(dra7xx->phy[count]);
-	}
-
-	return 0;
-}
-
 #ifdef CONFIG_PM_SLEEP
 static int dra7xx_pcie_suspend(struct device *dev)
 {
@@ -545,19 +526,13 @@ static const struct of_device_id of_dra7xx_pcie_match[] = {
 	{ .compatible = "ti,dra7-pcie", },
 	{},
 };
-MODULE_DEVICE_TABLE(of, of_dra7xx_pcie_match);
 
 static struct platform_driver dra7xx_pcie_driver = {
-	.remove		= __exit_p(dra7xx_pcie_remove),
 	.driver = {
 		.name	= "dra7-pcie",
 		.of_match_table = of_dra7xx_pcie_match,
+		.suppress_bind_attrs = true,
 		.pm	= &dra7xx_pcie_pm_ops,
 	},
 };
-
-module_platform_driver_probe(dra7xx_pcie_driver, dra7xx_pcie_probe);
-
-MODULE_AUTHOR("Kishon Vijay Abraham I <kishon@ti.com>");
-MODULE_DESCRIPTION("TI PCIe controller driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver_probe(dra7xx_pcie_driver, dra7xx_pcie_probe);

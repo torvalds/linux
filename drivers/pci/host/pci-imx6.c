@@ -739,7 +739,6 @@ static const struct of_device_id imx6_pcie_of_match[] = {
 	{ .compatible = "fsl,imx6qp-pcie", .data = (void *)IMX6QP, },
 	{},
 };
-MODULE_DEVICE_TABLE(of, imx6_pcie_of_match);
 
 static struct platform_driver imx6_pcie_driver = {
 	.driver = {
@@ -749,14 +748,8 @@ static struct platform_driver imx6_pcie_driver = {
 	.shutdown = imx6_pcie_shutdown,
 };
 
-/* Freescale PCIe driver does not allow module unload */
-
 static int __init imx6_pcie_init(void)
 {
 	return platform_driver_probe(&imx6_pcie_driver, imx6_pcie_probe);
 }
-module_init(imx6_pcie_init);
-
-MODULE_AUTHOR("Sean Cross <xobs@kosagi.com>");
-MODULE_DESCRIPTION("Freescale i.MX6 PCIe host controller driver");
-MODULE_LICENSE("GPL v2");
+device_initcall(imx6_pcie_init);

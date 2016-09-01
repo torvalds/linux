@@ -18,7 +18,7 @@
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/msi.h>
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
@@ -506,35 +506,6 @@ static irqreturn_t xilinx_pcie_intr_handler(int irq, void *data)
 }
 
 /**
- * xilinx_pcie_free_irq_domain - Free IRQ domain
- * @port: PCIe port information
- */
-static void xilinx_pcie_free_irq_domain(struct xilinx_pcie_port *port)
-{
-	int i;
-	u32 irq, num_irqs;
-
-	/* Free IRQ Domain */
-	if (IS_ENABLED(CONFIG_PCI_MSI)) {
-
-		free_pages(port->msi_pages, 0);
-
-		num_irqs = XILINX_NUM_MSI_IRQS;
-	} else {
-		/* INTx */
-		num_irqs = 4;
-	}
-
-	for (i = 0; i < num_irqs; i++) {
-		irq = irq_find_mapping(port->irq_domain, i);
-		if (irq > 0)
-			irq_dispose_mapping(irq);
-	}
-
-	irq_domain_remove(port->irq_domain);
-}
-
-/**
  * xilinx_pcie_init_irq_domain - Initialize IRQ domain
  * @port: PCIe port information
  *
@@ -724,21 +695,6 @@ error:
 	return err;
 }
 
-/**
- * xilinx_pcie_remove - Remove function
- * @pdev: Platform device pointer
- *
- * Return: '0' always
- */
-static int xilinx_pcie_remove(struct platform_device *pdev)
-{
-	struct xilinx_pcie_port *port = platform_get_drvdata(pdev);
-
-	xilinx_pcie_free_irq_domain(port);
-
-	return 0;
-}
-
 static struct of_device_id xilinx_pcie_of_match[] = {
 	{ .compatible = "xlnx,axi-pcie-host-1.00.a", },
 	{}
@@ -751,10 +707,5 @@ static struct platform_driver xilinx_pcie_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe = xilinx_pcie_probe,
-	.remove = xilinx_pcie_remove,
 };
-module_platform_driver(xilinx_pcie_driver);
-
-MODULE_AUTHOR("Xilinx Inc");
-MODULE_DESCRIPTION("Xilinx AXI PCIe driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(xilinx_pcie_driver);

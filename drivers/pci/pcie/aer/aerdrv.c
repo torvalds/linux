@@ -15,7 +15,6 @@
  *
  */
 
-#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/pci-acpi.h>
 #include <linux/sched.h>
@@ -37,9 +36,6 @@
 #define DRIVER_VERSION "v1.0"
 #define DRIVER_AUTHOR "tom.l.nguyen@intel.com"
 #define DRIVER_DESC "Root Port Advanced Error Reporting Driver"
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE("GPL");
 
 static int aer_probe(struct pcie_device *dev);
 static void aer_remove(struct pcie_device *dev);
@@ -417,16 +413,4 @@ static int __init aer_service_init(void)
 		return -ENXIO;
 	return pcie_port_service_register(&aerdriver);
 }
-
-/**
- * aer_service_exit - unregister AER root service driver
- *
- * Invoked when AER root service driver is unloaded.
- */
-static void __exit aer_service_exit(void)
-{
-	pcie_port_service_unregister(&aerdriver);
-}
-
-module_init(aer_service_init);
-module_exit(aer_service_exit);
+device_initcall(aer_service_init);

@@ -1,6 +1,9 @@
 /*
  * Copyright Altera Corporation (C) 2013-2015. All rights reserved
  *
+ * Author: Ley Foon Tan <lftan@altera.com>
+ * Description: Altera PCIe host controller driver
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
  * version 2, as published by the Free Software Foundation.
@@ -17,7 +20,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/irqchip/chained_irq.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_pci.h>
@@ -568,7 +571,6 @@ static const struct of_device_id altera_pcie_of_match[] = {
 	{ .compatible = "altr,pcie-root-port-1.0", },
 	{},
 };
-MODULE_DEVICE_TABLE(of, altera_pcie_of_match);
 
 static struct platform_driver altera_pcie_driver = {
 	.probe		= altera_pcie_probe,
@@ -583,8 +585,4 @@ static int altera_pcie_init(void)
 {
 	return platform_driver_register(&altera_pcie_driver);
 }
-module_init(altera_pcie_init);
-
-MODULE_AUTHOR("Ley Foon Tan <lftan@altera.com>");
-MODULE_DESCRIPTION("Altera PCIe host controller driver");
-MODULE_LICENSE("GPL v2");
+device_initcall(altera_pcie_init);

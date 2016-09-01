@@ -1,4 +1,6 @@
 /*
+ * Generic PCI host driver common code
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -17,7 +19,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
 #include <linux/pci-ecam.h>
@@ -162,7 +163,3 @@ int pci_host_common_probe(struct platform_device *pdev,
 	pci_bus_add_devices(bus);
 	return 0;
 }
-
-MODULE_DESCRIPTION("Generic PCI host driver common code");
-MODULE_AUTHOR("Will Deacon <will.deacon@arm.com>");
-MODULE_LICENSE("GPL v2");
