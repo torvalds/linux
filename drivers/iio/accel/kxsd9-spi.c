@@ -25,15 +25,6 @@ static int kxsd9_spi_writereg(struct kxsd9_transport *tr, u8 address, u8 val)
 	return spi_write(spi, tr->tx, 2);
 }
 
-static int kxsd9_spi_write2(struct kxsd9_transport *tr, u8 b1, u8 b2)
-{
-	struct spi_device *spi = tr->trdev;
-
-	tr->tx[0] = b1;
-	tr->tx[1] = b2;
-	return spi_write(spi, tr->tx, 2);
-}
-
 static int kxsd9_spi_readval(struct kxsd9_transport *tr, u8 address)
 {
 	struct spi_device *spi = tr->trdev;
@@ -70,7 +61,6 @@ static int kxsd9_spi_probe(struct spi_device *spi)
 	transport->trdev = spi;
 	transport->readreg = kxsd9_spi_readreg;
 	transport->writereg = kxsd9_spi_writereg;
-	transport->write2 = kxsd9_spi_write2;
 	transport->readval = kxsd9_spi_readval;
 	spi->mode = SPI_MODE_0;
 	spi_setup(spi);

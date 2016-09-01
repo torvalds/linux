@@ -184,10 +184,10 @@ static int kxsd9_power_up(struct kxsd9_state *st)
 {
 	int ret;
 
-	ret = st->transport->write2(st->transport, 0x0d, 0x40);
+	ret = st->transport->writereg(st->transport, KXSD9_REG_CTRL_B, 0x40);
 	if (ret)
 		return ret;
-	return st->transport->write2(st->transport, 0x0c, 0x9b);
+	return st->transport->writereg(st->transport, KXSD9_REG_CTRL_C, 0x9b);
 };
 
 static const struct iio_info kxsd9_info = {
