@@ -163,6 +163,12 @@ void liquidio_link_ctrl_cmd_completion(void *nctrl_ptr)
 
 	case OCTNET_CMD_GPIO_ACCESS:
 		netif_info(lio, probe, lio->netdev, "LED Flashing visual identification\n");
+
+		break;
+
+	case OCTNET_CMD_ID_ACTIVE:
+		netif_info(lio, probe, lio->netdev, "LED Flashing visual identification\n");
+
 		break;
 
 	case OCTNET_CMD_LRO_ENABLE:
