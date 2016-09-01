@@ -1460,6 +1460,8 @@ struct bxt_clk_div {
 	uint32_t m2_frac;
 	bool m2_frac_en;
 	uint32_t n;
+
+	int vco;
 };
 
 /* pre-calculated values for DP linkrates */
@@ -1473,57 +1475,59 @@ static const struct bxt_clk_div bxt_dp_clk_val[] = {
 	{432000, 3, 1, 32, 1677722, 1, 1}
 };
 
-static struct intel_shared_dpll *
-bxt_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
-	     struct intel_encoder *encoder)
+static bool
+bxt_ddi_hdmi_pll_dividers(struct intel_crtc *intel_crtc,
+			  struct intel_crtc_state *crtc_state, int clock,
+			  struct bxt_clk_div *clk_div)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct intel_shared_dpll *pll;
-	enum intel_dpll_id i;
-	struct intel_digital_port *intel_dig_port;
-	struct bxt_clk_div clk_div = {0};
-	int vco = 0;
+	struct dpll best_clock;
+
+	/* Calculate HDMI div */
+	/*
+	 * FIXME: tie the following calculation into
+	 * i9xx_crtc_compute_clock
+	 */
+	if (!bxt_find_best_dpll(crtc_state, clock, &best_clock)) {
+		DRM_DEBUG_DRIVER("no PLL dividers found for clock %d pipe %c\n",
+				 clock, pipe_name(intel_crtc->pipe));
+		return false;
+	}
+
+	clk_div->p1 = best_clock.p1;
+	clk_div->p2 = best_clock.p2;
+	WARN_ON(best_clock.m1 != 2);
+	clk_div->n = best_clock.n;
+	clk_div->m2_int = best_clock.m2 >> 22;
+	clk_div->m2_frac = best_clock.m2 & ((1 << 22) - 1);
+	clk_div->m2_frac_en = clk_div->m2_frac != 0;
+
+	clk_div->vco = best_clock.vco;
+
+	return true;
+}
+
+static void bxt_ddi_dp_pll_dividers(int clock, struct bxt_clk_div *clk_div)
+{
+	int i;
+
+	*clk_div = bxt_dp_clk_val[0];
+	for (i = 0; i < ARRAY_SIZE(bxt_dp_clk_val); ++i) {
+		if (bxt_dp_clk_val[i].clock == clock) {
+			*clk_div = bxt_dp_clk_val[i];
+			break;
+		}
+	}
+
+	clk_div->vco = clock * 10 / 2 * clk_div->p1 * clk_div->p2;
+}
+
+static bool bxt_ddi_set_dpll_hw_state(int clock,
+			  struct bxt_clk_div *clk_div,
+			  struct intel_dpll_hw_state *dpll_hw_state)
+{
+	int vco = clk_div->vco;
 	uint32_t prop_coef, int_coef, gain_ctl, targ_cnt;
 	uint32_t lanestagger;
-	int clock = crtc_state->port_clock;
-
-	if (encoder->type == INTEL_OUTPUT_HDMI) {
-		struct dpll best_clock;
-
-		/* Calculate HDMI div */
-		/*
-		 * FIXME: tie the following calculation into
-		 * i9xx_crtc_compute_clock
-		 */
-		if (!bxt_find_best_dpll(crtc_state, clock, &best_clock)) {
-			DRM_DEBUG_DRIVER("no PLL dividers found for clock %d pipe %c\n",
-					 clock, pipe_name(crtc->pipe));
-			return NULL;
-		}
-
-		clk_div.p1 = best_clock.p1;
-		clk_div.p2 = best_clock.p2;
-		WARN_ON(best_clock.m1 != 2);
-		clk_div.n = best_clock.n;
-		clk_div.m2_int = best_clock.m2 >> 22;
-		clk_div.m2_frac = best_clock.m2 & ((1 << 22) - 1);
-		clk_div.m2_frac_en = clk_div.m2_frac != 0;
-
-		vco = best_clock.vco;
-	} else if (encoder->type == INTEL_OUTPUT_DP ||
-		   encoder->type == INTEL_OUTPUT_EDP ||
-		   encoder->type == INTEL_OUTPUT_DP_MST) {
-		int i;
-
-		clk_div = bxt_dp_clk_val[0];
-		for (i = 0; i < ARRAY_SIZE(bxt_dp_clk_val); ++i) {
-			if (bxt_dp_clk_val[i].clock == clock) {
-				clk_div = bxt_dp_clk_val[i];
-				break;
-			}
-		}
-		vco = clock * 10 / 2 * clk_div.p1 * clk_div.p2;
-	}
 
 	if (vco >= 6200000 && vco <= 6700000) {
 		prop_coef = 4;
@@ -1543,11 +1547,8 @@ bxt_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 		targ_cnt = 9;
 	} else {
 		DRM_ERROR("Invalid VCO\n");
-		return NULL;
+		return false;
 	}
-
-	memset(&crtc_state->dpll_hw_state, 0,
-	       sizeof(crtc_state->dpll_hw_state));
 
 	if (clock > 270000)
 		lanestagger = 0x18;
@@ -1560,33 +1561,68 @@ bxt_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 	else
 		lanestagger = 0x02;
 
-	crtc_state->dpll_hw_state.ebb0 =
-		PORT_PLL_P1(clk_div.p1) | PORT_PLL_P2(clk_div.p2);
-	crtc_state->dpll_hw_state.pll0 = clk_div.m2_int;
-	crtc_state->dpll_hw_state.pll1 = PORT_PLL_N(clk_div.n);
-	crtc_state->dpll_hw_state.pll2 = clk_div.m2_frac;
+	dpll_hw_state->ebb0 = PORT_PLL_P1(clk_div->p1) | PORT_PLL_P2(clk_div->p2);
+	dpll_hw_state->pll0 = clk_div->m2_int;
+	dpll_hw_state->pll1 = PORT_PLL_N(clk_div->n);
+	dpll_hw_state->pll2 = clk_div->m2_frac;
 
-	if (clk_div.m2_frac_en)
-		crtc_state->dpll_hw_state.pll3 =
-			PORT_PLL_M2_FRAC_ENABLE;
+	if (clk_div->m2_frac_en)
+		dpll_hw_state->pll3 = PORT_PLL_M2_FRAC_ENABLE;
 
-	crtc_state->dpll_hw_state.pll6 =
-		prop_coef | PORT_PLL_INT_COEFF(int_coef);
-	crtc_state->dpll_hw_state.pll6 |=
-		PORT_PLL_GAIN_CTL(gain_ctl);
+	dpll_hw_state->pll6 = prop_coef | PORT_PLL_INT_COEFF(int_coef);
+	dpll_hw_state->pll6 |= PORT_PLL_GAIN_CTL(gain_ctl);
 
-	crtc_state->dpll_hw_state.pll8 = targ_cnt;
+	dpll_hw_state->pll8 = targ_cnt;
 
-	crtc_state->dpll_hw_state.pll9 = 5 << PORT_PLL_LOCK_THRESHOLD_SHIFT;
+	dpll_hw_state->pll9 = 5 << PORT_PLL_LOCK_THRESHOLD_SHIFT;
 
-	crtc_state->dpll_hw_state.pll10 =
+	dpll_hw_state->pll10 =
 		PORT_PLL_DCO_AMP(PORT_PLL_DCO_AMP_DEFAULT)
 		| PORT_PLL_DCO_AMP_OVR_EN_H;
 
-	crtc_state->dpll_hw_state.ebb4 = PORT_PLL_10BIT_CLK_ENABLE;
+	dpll_hw_state->ebb4 = PORT_PLL_10BIT_CLK_ENABLE;
 
-	crtc_state->dpll_hw_state.pcsdw12 =
-		LANESTAGGER_STRAP_OVRD | lanestagger;
+	dpll_hw_state->pcsdw12 = LANESTAGGER_STRAP_OVRD | lanestagger;
+
+	return true;
+}
+
+bool bxt_ddi_dp_set_dpll_hw_state(int clock,
+			  struct intel_dpll_hw_state *dpll_hw_state)
+{
+	struct bxt_clk_div clk_div = {0};
+
+	bxt_ddi_dp_pll_dividers(clock, &clk_div);
+
+	return bxt_ddi_set_dpll_hw_state(clock, &clk_div, dpll_hw_state);
+}
+
+static struct intel_shared_dpll *
+bxt_get_dpll(struct intel_crtc *crtc,
+		struct intel_crtc_state *crtc_state,
+		struct intel_encoder *encoder)
+{
+	struct bxt_clk_div clk_div = {0};
+	struct intel_dpll_hw_state dpll_hw_state = {0};
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_digital_port *intel_dig_port;
+	struct intel_shared_dpll *pll;
+	int i, clock = crtc_state->port_clock;
+
+	if (encoder->type == INTEL_OUTPUT_HDMI
+	    && !bxt_ddi_hdmi_pll_dividers(crtc, crtc_state,
+					  clock, &clk_div))
+		return false;
+
+	if ((encoder->type == INTEL_OUTPUT_DP ||
+	     encoder->type == INTEL_OUTPUT_EDP) &&
+	    !bxt_ddi_dp_set_dpll_hw_state(clock, &dpll_hw_state))
+		return false;
+
+	memset(&crtc_state->dpll_hw_state, 0,
+	       sizeof(crtc_state->dpll_hw_state));
+
+	crtc_state->dpll_hw_state = dpll_hw_state;
 
 	if (encoder->type == INTEL_OUTPUT_DP_MST) {
 		struct intel_dp_mst_encoder *intel_mst = enc_to_mst(&encoder->base);
