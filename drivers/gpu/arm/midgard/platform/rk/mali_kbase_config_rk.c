@@ -42,9 +42,18 @@
 
 /*---------------------------------------------------------------------------*/
 
+#ifdef CONFIG_REGULATOR
 static int rk_pm_enable_regulator(struct kbase_device *kbdev);
-
 static void rk_pm_disable_regulator(struct kbase_device *kbdev);
+#else
+static inline int rk_pm_enable_regulator(struct kbase_device *kbdev)
+{
+	return 0;
+}
+static inline void rk_pm_disable_regulator(struct kbase_device *kbdev)
+{
+}
+#endif
 
 static int rk_pm_enable_clk(struct kbase_device *kbdev);
 
@@ -249,6 +258,7 @@ void kbase_platform_rk_shutdown(struct kbase_device *kbdev)
 
 /*---------------------------------------------------------------------------*/
 
+#ifdef CONFIG_REGULATOR
 static int rk_pm_enable_regulator(struct kbase_device *kbdev)
 {
 	int ret = 0;
@@ -279,6 +289,7 @@ static void rk_pm_disable_regulator(struct kbase_device *kbdev)
 	D("to disable regulator.");
 	regulator_disable(kbdev->regulator);
 }
+#endif
 
 static int rk_pm_enable_clk(struct kbase_device *kbdev)
 {
