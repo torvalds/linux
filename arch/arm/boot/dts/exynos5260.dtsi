@@ -9,13 +9,13 @@
  * published by the Free Software Foundation.
 */
 
-#include "skeleton.dtsi"
-
 #include <dt-bindings/clock/exynos5260-clk.h>
 
 / {
 	compatible = "samsung,exynos5260", "samsung,exynos5";
 	interrupt-parent = <&gic>;
+	#address-cells = <1>;
+	#size-cells = <1>;
 
 	aliases {
 		pinctrl0 = &pinctrl_0;
