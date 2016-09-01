@@ -455,41 +455,10 @@ static struct i2c_bus_recovery_info uniphier_fi2c_bus_recovery_info = {
 	.unprepare_recovery = uniphier_fi2c_unprepare_recovery,
 };
 
-static int uniphier_fi2c_clk_init(struct device *dev,
-				  struct uniphier_fi2c_priv *priv)
+static void uniphier_fi2c_hw_init(struct uniphier_fi2c_priv *priv,
+				  u32 bus_speed, unsigned long clk_rate)
 {
-	struct device_node *np = dev->of_node;
-	unsigned long clk_rate;
-	u32 bus_speed, clk_count;
-	int ret;
-
-	if (of_property_read_u32(np, "clock-frequency", &bus_speed))
-		bus_speed = UNIPHIER_FI2C_DEFAULT_SPEED;
-
-	if (!bus_speed) {
-		dev_err(dev, "clock-frequency should not be zero\n");
-		return -EINVAL;
-	}
-
-	if (bus_speed > UNIPHIER_FI2C_MAX_SPEED)
-		bus_speed = UNIPHIER_FI2C_MAX_SPEED;
-
-	/* Get input clk rate through clk driver */
-	priv->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(priv->clk)) {
-		dev_err(dev, "failed to get clock\n");
-		return PTR_ERR(priv->clk);
-	}
-
-	ret = clk_prepare_enable(priv->clk);
-	if (ret)
-		return ret;
-
-	clk_rate = clk_get_rate(priv->clk);
-	if (!clk_rate) {
-		dev_err(dev, "input clock rate should not be zero\n");
-		return -EINVAL;
-	}
+	u32 clk_count;
 
 	uniphier_fi2c_reset(priv);
 
@@ -501,8 +470,6 @@ static int uniphier_fi2c_clk_init(struct device *dev,
 	writel(clk_count / 16, priv->membase + UNIPHIER_FI2C_DSUT);
 
 	uniphier_fi2c_prepare_operation(priv);
-
-	return 0;
 }
 
 static int uniphier_fi2c_probe(struct platform_device *pdev)
@@ -510,8 +477,9 @@ static int uniphier_fi2c_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct uniphier_fi2c_priv *priv;
 	struct resource *regs;
-	int irq;
-	int ret;
+	u32 bus_speed;
+	unsigned long clk_rate;
+	int irq, ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -528,6 +496,31 @@ static int uniphier_fi2c_probe(struct platform_device *pdev)
 		return irq;
 	}
 
+	if (of_property_read_u32(dev->of_node, "clock-frequency", &bus_speed))
+		bus_speed = UNIPHIER_FI2C_DEFAULT_SPEED;
+
+	if (!bus_speed || bus_speed > UNIPHIER_FI2C_MAX_SPEED) {
+		dev_err(dev, "invalid clock-frequency %d\n", bus_speed);
+		return -EINVAL;
+	}
+
+	priv->clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(priv->clk)) {
+		dev_err(dev, "failed to get clock\n");
+		return PTR_ERR(priv->clk);
+	}
+
+	ret = clk_prepare_enable(priv->clk);
+	if (ret)
+		return ret;
+
+	clk_rate = clk_get_rate(priv->clk);
+	if (!clk_rate) {
+		dev_err(dev, "input clock rate should not be zero\n");
+		ret = -EINVAL;
+		goto err;
+	}
+
 	init_completion(&priv->comp);
 	priv->adap.owner = THIS_MODULE;
 	priv->adap.algo = &uniphier_fi2c_algo;
@@ -538,9 +531,7 @@ static int uniphier_fi2c_probe(struct platform_device *pdev)
 	i2c_set_adapdata(&priv->adap, priv);
 	platform_set_drvdata(pdev, priv);
 
-	ret = uniphier_fi2c_clk_init(dev, priv);
-	if (ret)
-		goto err;
+	uniphier_fi2c_hw_init(priv, bus_speed, clk_rate);
 
 	ret = devm_request_irq(dev, irq, uniphier_fi2c_interrupt, 0,
 			       pdev->name, priv);
