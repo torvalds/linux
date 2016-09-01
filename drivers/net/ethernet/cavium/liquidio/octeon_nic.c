@@ -35,6 +35,7 @@ octeon_alloc_soft_command_resp(struct octeon_device    *oct,
 			       u32		       rdatasize)
 {
 	struct octeon_soft_command *sc;
+	struct octeon_instr_ih3  *ih3;
 	struct octeon_instr_ih2  *ih2;
 	struct octeon_instr_irh *irh;
 	struct octeon_instr_rdp *rdp;
@@ -51,10 +52,19 @@ octeon_alloc_soft_command_resp(struct octeon_device    *oct,
 	/* Add in the response related fields. Opcode and Param are already
 	 * there.
 	 */
-	ih2      = (struct octeon_instr_ih2 *)&sc->cmd.cmd2.ih2;
-	rdp     = (struct octeon_instr_rdp *)&sc->cmd.cmd2.rdp;
-	irh     = (struct octeon_instr_irh *)&sc->cmd.cmd2.irh;
-	ih2->fsz = 40; /* irh + ossp[0] + ossp[1] + rdp + rptr = 40 bytes */
+	if (OCTEON_CN23XX_PF(oct)) {
+		ih3      = (struct octeon_instr_ih3 *)&sc->cmd.cmd3.ih3;
+		rdp     = (struct octeon_instr_rdp *)&sc->cmd.cmd3.rdp;
+		irh     = (struct octeon_instr_irh *)&sc->cmd.cmd3.irh;
+		/*pkiih3 + irh + ossp[0] + ossp[1] + rdp + rptr = 40 bytes */
+		ih3->fsz = LIO_SOFTCMDRESP_IH3;
+	} else {
+		ih2      = (struct octeon_instr_ih2 *)&sc->cmd.cmd2.ih2;
+		rdp     = (struct octeon_instr_rdp *)&sc->cmd.cmd2.rdp;
+		irh     = (struct octeon_instr_irh *)&sc->cmd.cmd2.irh;
+		/* irh + ossp[0] + ossp[1] + rdp + rptr = 40 bytes */
+		ih2->fsz = LIO_SOFTCMDRESP_IH2;
+	}
 
 	irh->rflag = 1; /* a response is required */
 
@@ -63,7 +73,10 @@ octeon_alloc_soft_command_resp(struct octeon_device    *oct,
 
 	*sc->status_word = COMPLETION_WORD_INIT;
 
-	sc->cmd.cmd2.rptr =  sc->dmarptr;
+	if (OCTEON_CN23XX_PF(oct))
+		sc->cmd.cmd3.rptr =  sc->dmarptr;
+	else
+		sc->cmd.cmd2.rptr =  sc->dmarptr;
 
 	sc->wait_time = 1000;
 	sc->timeout = jiffies + sc->wait_time;
@@ -179,8 +192,8 @@ octnet_send_nic_ctrl_pkt(struct octeon_device *oct,
 	retval = octeon_send_soft_command(oct, sc);
 	if (retval == IQ_SEND_FAILED) {
 		octeon_free_soft_command(oct, sc);
-		dev_err(&oct->pci_dev->dev, "%s soft command:%d send failed status: %x\n",
-			__func__, nctrl->ncmd.s.cmd, retval);
+		dev_err(&oct->pci_dev->dev, "%s pf_num:%d soft command:%d send failed status: %x\n",
+			__func__, oct->pf_num, nctrl->ncmd.s.cmd, retval);
 		spin_unlock_bh(&oct->cmd_resp_wqlock);
 		return -1;
 	}

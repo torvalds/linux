@@ -138,7 +138,7 @@ octnet_prepare_pci_cmd_o2(struct octeon_device *oct,
 	/* assume that rflag is cleared so therefore front data will only have
 	 * irh and ossp[0], ossp[1] for a total of 32 bytes
 	 */
-	ih2->fsz = 24;
+	ih2->fsz = LIO_PCICMD_O2;
 
 	ih2->tagtype = ORDERED_TAG;
 	ih2->grp = DEFAULT_POW_GRP;
@@ -196,7 +196,7 @@ octnet_prepare_pci_cmd_o3(struct octeon_device *oct,
 	 */
 	ih3->pkind       = oct->instr_queue[setup->s.iq_no]->txpciq.s.pkind;
 	/*PKI IH*/
-	ih3->fsz = 24 + 8;
+	ih3->fsz = LIO_PCICMD_O3;
 
 	if (!setup->s.gather) {
 		ih3->dlengsz = setup->s.u.datasize;

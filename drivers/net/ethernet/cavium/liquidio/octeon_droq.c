@@ -31,6 +31,7 @@
 #include "octeon_network.h"
 #include "cn66xx_regs.h"
 #include "cn66xx_device.h"
+#include "cn23xx_pf_device.h"
 
 #define     CVM_MIN(d1, d2)           (((d1) < (d2)) ? (d1) : (d2))
 #define     CVM_MAX(d1, d2)           (((d1) > (d2)) ? (d1) : (d2))
@@ -262,6 +263,11 @@ int octeon_init_droq(struct octeon_device *oct,
 		c_pkts_per_intr = (u32)CFG_GET_OQ_PKTS_PER_INTR(conf6x);
 		c_refill_threshold =
 			(u32)CFG_GET_OQ_REFILL_THRESHOLD(conf6x);
+	} else if (OCTEON_CN23XX_PF(oct)) {
+		struct octeon_config *conf23 = CHIP_FIELD(oct, cn23xx_pf, conf);
+
+		c_pkts_per_intr = (u32)CFG_GET_OQ_PKTS_PER_INTR(conf23);
+		c_refill_threshold = (u32)CFG_GET_OQ_REFILL_THRESHOLD(conf23);
 	} else {
 		return 1;
 	}

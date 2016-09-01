@@ -793,7 +793,6 @@ int octeon_setup_instr_queues(struct octeon_device *oct)
 	union oct_txpciq txpciq;
 	int numa_node = cpu_to_node(iq_no % num_online_cpus());
 
-	/* this causes queue 0 to be default queue */
 	if (OCTEON_CN6XXX(oct))
 		num_descs =
 			CFG_GET_NUM_DEF_TX_DESCS(CHIP_FIELD(oct, cn6xxx, conf));
@@ -816,6 +815,7 @@ int octeon_setup_instr_queues(struct octeon_device *oct)
 	oct->instr_queue[0]->ifidx = 0;
 	txpciq.u64 = 0;
 	txpciq.s.q_no = iq_no;
+	txpciq.s.pkind = oct->pfvf_hsword.pkind;
 	txpciq.s.use_qpg = 0;
 	txpciq.s.qpg = 0;
 	if (octeon_init_instr_queue(oct, txpciq, num_descs)) {
@@ -835,7 +835,6 @@ int octeon_setup_output_queues(struct octeon_device *oct)
 	u32 oq_no = 0;
 	int numa_node = cpu_to_node(oq_no % num_online_cpus());
 
-	/* this causes queue 0 to be default queue */
 	if (OCTEON_CN6XXX(oct)) {
 		num_descs =
 			CFG_GET_NUM_DEF_RX_DESCS(CHIP_FIELD(oct, cn6xxx, conf));
@@ -863,10 +862,10 @@ int octeon_setup_output_queues(struct octeon_device *oct)
 
 void octeon_set_io_queues_off(struct octeon_device *oct)
 {
-	/* Disable the i/p and o/p queues for this Octeon. */
-
-	octeon_write_csr(oct, CN6XXX_SLI_PKT_INSTR_ENB, 0);
-	octeon_write_csr(oct, CN6XXX_SLI_PKT_OUT_ENB, 0);
+	if (OCTEON_CN6XXX(oct)) {
+		octeon_write_csr(oct, CN6XXX_SLI_PKT_INSTR_ENB, 0);
+		octeon_write_csr(oct, CN6XXX_SLI_PKT_OUT_ENB, 0);
+	}
 }
 
 void octeon_set_droq_pkt_op(struct octeon_device *oct,
@@ -876,14 +875,16 @@ void octeon_set_droq_pkt_op(struct octeon_device *oct,
 	u32 reg_val = 0;
 
 	/* Disable the i/p and o/p queues for this Octeon. */
-	reg_val = octeon_read_csr(oct, CN6XXX_SLI_PKT_OUT_ENB);
+	if (OCTEON_CN6XXX(oct)) {
+		reg_val = octeon_read_csr(oct, CN6XXX_SLI_PKT_OUT_ENB);
 
-	if (enable)
-		reg_val = reg_val | (1 << q_no);
-	else
-		reg_val = reg_val & (~(1 << q_no));
+		if (enable)
+			reg_val = reg_val | (1 << q_no);
+		else
+			reg_val = reg_val & (~(1 << q_no));
 
-	octeon_write_csr(oct, CN6XXX_SLI_PKT_OUT_ENB, reg_val);
+		octeon_write_csr(oct, CN6XXX_SLI_PKT_OUT_ENB, reg_val);
+	}
 }
 
 int octeon_init_dispatch_list(struct octeon_device *oct)
@@ -1100,6 +1101,12 @@ int octeon_core_drv_init(struct octeon_recv_info *recv_info, void *buf)
 	}
 	oct->fw_info.app_cap_flags = recv_pkt->rh.r_core_drv_init.app_cap_flags;
 	oct->fw_info.app_mode = (u32)recv_pkt->rh.r_core_drv_init.app_mode;
+	oct->pfvf_hsword.app_mode = (u32)recv_pkt->rh.r_core_drv_init.app_mode;
+
+	oct->pfvf_hsword.pkind = recv_pkt->rh.r_core_drv_init.pkind;
+
+	for (i = 0; i < oct->num_iqs; i++)
+		oct->instr_queue[i]->txpciq.s.pkind = oct->pfvf_hsword.pkind;
 
 	atomic_set(&oct->status, OCT_DEV_CORE_OK);
 

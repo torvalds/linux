@@ -310,6 +310,13 @@ union octnet_cmd {
 
 #define   OCTNET_CMD_SIZE     (sizeof(union octnet_cmd))
 
+/*pkiih3 + irh + ossp[0] + ossp[1] + rdp + rptr = 40 bytes */
+#define LIO_SOFTCMDRESP_IH2       40
+#define LIO_SOFTCMDRESP_IH3       (40 + 8)
+
+#define LIO_PCICMD_O2             24
+#define LIO_PCICMD_O3             (24 + 8)
+
 /* Instruction Header(DPI) - for OCTEON-III models */
 struct  octeon_instr_ih3 {
 #ifdef __BIG_ENDIAN_BITFIELD

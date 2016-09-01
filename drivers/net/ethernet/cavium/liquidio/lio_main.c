@@ -1348,16 +1348,15 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 		octeon_delete_response_list(oct);
 
 		/* fallthrough */
-	case OCT_DEV_SC_BUFF_POOL_INIT_DONE:
-		octeon_free_sc_buffer_pool(oct);
-
-		/* fallthrough */
 	case OCT_DEV_INSTR_QUEUE_INIT_DONE:
 		for (i = 0; i < MAX_OCTEON_INSTR_QUEUES(oct); i++) {
-			if (!(oct->io_qmask.iq & (1ULL << i)))
+			if (!(oct->io_qmask.iq & BIT_ULL(i)))
 				continue;
 			octeon_delete_instr_queue(oct, i);
 		}
+		/* fallthrough */
+	case OCT_DEV_SC_BUFF_POOL_INIT_DONE:
+		octeon_free_sc_buffer_pool(oct);
 
 		/* fallthrough */
 	case OCT_DEV_DISPATCH_INIT_DONE:
@@ -2929,9 +2928,15 @@ static inline int send_nic_timestamp_pkt(struct octeon_device *oct,
 	sc->callback_arg = finfo->skb;
 	sc->iq_no = ndata->q_no;
 
-	len = (u32)((struct octeon_instr_ih2 *)(&sc->cmd.cmd2.ih2))->dlengsz;
+	if (OCTEON_CN23XX_PF(oct))
+		len = (u32)((struct octeon_instr_ih3 *)
+			    (&sc->cmd.cmd3.ih3))->dlengsz;
+	else
+		len = (u32)((struct octeon_instr_ih2 *)
+			    (&sc->cmd.cmd2.ih2))->dlengsz;
 
 	ring_doorbell = 1;
+
 	retval = octeon_send_command(oct, sc->iq_no, ring_doorbell, &sc->cmd,
 				     sc, len, ndata->reqtype);
 
@@ -3063,7 +3068,10 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 			return NETDEV_TX_BUSY;
 		}
 
-		ndata.cmd.cmd2.dptr = dptr;
+		if (OCTEON_CN23XX_PF(oct))
+			ndata.cmd.cmd3.dptr = dptr;
+		else
+			ndata.cmd.cmd2.dptr = dptr;
 		finfo->dptr = dptr;
 		ndata.reqtype = REQTYPE_NORESP_NET;
 
@@ -3138,15 +3146,23 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 					   g->sg_size, DMA_TO_DEVICE);
 		dptr = g->sg_dma_ptr;
 
-		ndata.cmd.cmd2.dptr = dptr;
+		if (OCTEON_CN23XX_PF(oct))
+			ndata.cmd.cmd3.dptr = dptr;
+		else
+			ndata.cmd.cmd2.dptr = dptr;
 		finfo->dptr = dptr;
 		finfo->g = g;
 
 		ndata.reqtype = REQTYPE_NORESP_NET_SG;
 	}
 
-	irh = (struct octeon_instr_irh *)&ndata.cmd.cmd2.irh;
-	tx_info = (union tx_info *)&ndata.cmd.cmd2.ossp[0];
+	if (OCTEON_CN23XX_PF(oct)) {
+		irh = (struct octeon_instr_irh *)&ndata.cmd.cmd3.irh;
+		tx_info = (union tx_info *)&ndata.cmd.cmd3.ossp[0];
+	} else {
+		irh = (struct octeon_instr_irh *)&ndata.cmd.cmd2.irh;
+		tx_info = (union tx_info *)&ndata.cmd.cmd2.ossp[0];
+	}
 
 	if (skb_shinfo(skb)->gso_size) {
 		tx_info->s.gso_size = skb_shinfo(skb)->gso_size;
@@ -3904,6 +3920,7 @@ static int liquidio_init_nic_module(struct octeon_device *oct)
 	intrmod_cfg->tx_mincnt_trigger = LIO_INTRMOD_TXMINCNT_TRIGGER;
 	intrmod_cfg->rx_frames = CFG_GET_OQ_INTR_PKT(octeon_get_conf(oct));
 	intrmod_cfg->rx_usecs = CFG_GET_OQ_INTR_TIME(octeon_get_conf(oct));
+	intrmod_cfg->tx_frames = CFG_GET_IQ_INTR_PKT(octeon_get_conf(oct));
 	dev_dbg(&oct->pci_dev->dev, "Network interfaces ready\n");
 
 	return retval;
