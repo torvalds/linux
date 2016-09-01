@@ -477,7 +477,7 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 		start_ip = *ip;
 
 		/* Load maps to ensure dso->is_64_bit has been updated */
-		map__load(al.map, NULL);
+		map__load(al.map);
 
 		x86_64 = al.map->dso->is_64_bit;
 
@@ -1294,7 +1294,7 @@ static u64 intel_pt_switch_ip(struct intel_pt *pt, u64 *ptss_ip)
 	if (!map)
 		return 0;
 
-	if (map__load(map, NULL))
+	if (map__load(map))
 		return 0;
 
 	start = dso__first_symbol(map->dso, MAP__FUNCTION);

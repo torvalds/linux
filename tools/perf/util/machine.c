@@ -897,10 +897,10 @@ int machines__create_kernel_maps(struct machines *machines, pid_t pid)
 }
 
 int __machine__load_kallsyms(struct machine *machine, const char *filename,
-			     enum map_type type, bool no_kcore, symbol_filter_t filter)
+			     enum map_type type, bool no_kcore)
 {
 	struct map *map = machine__kernel_map(machine);
-	int ret = __dso__load_kallsyms(map->dso, filename, map, no_kcore, filter);
+	int ret = __dso__load_kallsyms(map->dso, filename, map, no_kcore);
 
 	if (ret > 0) {
 		dso__set_loaded(map->dso, type);
@@ -916,16 +916,15 @@ int __machine__load_kallsyms(struct machine *machine, const char *filename,
 }
 
 int machine__load_kallsyms(struct machine *machine, const char *filename,
-			   enum map_type type, symbol_filter_t filter)
+			   enum map_type type)
 {
-	return __machine__load_kallsyms(machine, filename, type, false, filter);
+	return __machine__load_kallsyms(machine, filename, type, false);
 }
 
-int machine__load_vmlinux_path(struct machine *machine, enum map_type type,
-			       symbol_filter_t filter)
+int machine__load_vmlinux_path(struct machine *machine, enum map_type type)
 {
 	struct map *map = machine__kernel_map(machine);
-	int ret = dso__load_vmlinux_path(map->dso, map, filter);
+	int ret = dso__load_vmlinux_path(map->dso, map);
 
 	if (ret > 0)
 		dso__set_loaded(map->dso, type);
@@ -1294,7 +1293,7 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 			/*
 			 * preload dso of guest kernel and modules
 			 */
-			dso__load(kernel, machine__kernel_map(machine), NULL);
+			dso__load(kernel, machine__kernel_map(machine));
 		}
 	}
 	return 0;
@@ -2096,7 +2095,7 @@ int machine__get_kernel_start(struct machine *machine)
 	 */
 	machine->kernel_start = 1ULL << 63;
 	if (map) {
-		err = map__load(map, NULL);
+		err = map__load(map);
 		if (map->start)
 			machine->kernel_start = map->start;
 	}
@@ -2112,7 +2111,7 @@ char *machine__resolve_kernel_addr(void *vmachine, unsigned long long *addrp, ch
 {
 	struct machine *machine = vmachine;
 	struct map *map;
-	struct symbol *sym = map_groups__find_symbol(&machine->kmaps, MAP__FUNCTION, *addrp, &map,  NULL);
+	struct symbol *sym = map_groups__find_symbol(&machine->kmaps, MAP__FUNCTION, *addrp, &map);
 
 	if (sym == NULL)
 		return NULL;

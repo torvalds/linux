@@ -254,8 +254,7 @@ static char *demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
  * And always look at the original dso, not at debuginfo packages, that
  * have the PLT data stripped out (shdr_rel_plt.sh_type == SHT_NOBITS).
  */
-int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss, struct map *map,
-				symbol_filter_t filter)
+int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss, struct map *map)
 {
 	uint32_t nr_rel_entries, idx;
 	GElf_Sym sym;
@@ -351,12 +350,8 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss, struct map *
 			if (!f)
 				goto out_elf_end;
 
-			if (filter && filter(map, f))
-				symbol__delete(f);
-			else {
-				symbols__insert(&dso->symbols[map->type], f);
-				++nr;
-			}
+			symbols__insert(&dso->symbols[map->type], f);
+			++nr;
 		}
 	} else if (shdr_rel_plt.sh_type == SHT_REL) {
 		GElf_Rel pos_mem, *pos;
@@ -381,12 +376,8 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss, struct map *
 			if (!f)
 				goto out_elf_end;
 
-			if (filter && filter(map, f))
-				symbol__delete(f);
-			else {
-				symbols__insert(&dso->symbols[map->type], f);
-				++nr;
-			}
+			symbols__insert(&dso->symbols[map->type], f);
+			++nr;
 		}
 	}
 
@@ -825,9 +816,8 @@ static u64 ref_reloc(struct kmap *kmap)
 void __weak arch__sym_update(struct symbol *s __maybe_unused,
 		GElf_Sym *sym __maybe_unused) { }
 
-int dso__load_sym(struct dso *dso, struct map *map,
-		  struct symsrc *syms_ss, struct symsrc *runtime_ss,
-		  symbol_filter_t filter, int kmodule)
+int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
+		  struct symsrc *runtime_ss, int kmodule)
 {
 	struct kmap *kmap = dso->kernel ? map__kmap(map) : NULL;
 	struct map_groups *kmaps = kmap ? map__kmaps(map) : NULL;
@@ -1124,12 +1114,8 @@ new_symbol:
 
 		arch__sym_update(f, &sym);
 
-		if (filter && filter(curr_map, f))
-			symbol__delete(f);
-		else {
-			__symbols__insert(&curr_dso->symbols[curr_map->type], f, dso->kernel);
-			nr++;
-		}
+		__symbols__insert(&curr_dso->symbols[curr_map->type], f, dso->kernel);
+		nr++;
 	}
 
 	/*

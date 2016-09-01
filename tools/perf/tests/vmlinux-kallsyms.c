@@ -54,7 +54,7 @@ int test__vmlinux_matches_kallsyms(int subtest __maybe_unused)
 	 * be compacted against the list of modules found in the "vmlinux"
 	 * code and with the one got from /proc/modules from the "kallsyms" code.
 	 */
-	if (__machine__load_kallsyms(&kallsyms, "/proc/kallsyms", type, true, NULL) <= 0) {
+	if (__machine__load_kallsyms(&kallsyms, "/proc/kallsyms", type, true) <= 0) {
 		pr_debug("dso__load_kallsyms ");
 		goto out;
 	}
@@ -92,7 +92,7 @@ int test__vmlinux_matches_kallsyms(int subtest __maybe_unused)
 	 * maps__reloc_vmlinux will notice and set proper ->[un]map_ip routines
 	 * to fixup the symbols.
 	 */
-	if (machine__load_vmlinux_path(&vmlinux, type, NULL) <= 0) {
+	if (machine__load_vmlinux_path(&vmlinux, type) <= 0) {
 		pr_debug("Couldn't find a vmlinux that matches the kernel running on this machine, skipping test\n");
 		err = TEST_SKIP;
 		goto out;
@@ -118,7 +118,7 @@ int test__vmlinux_matches_kallsyms(int subtest __maybe_unused)
 		mem_end = vmlinux_map->unmap_ip(vmlinux_map, sym->end);
 
 		first_pair = machine__find_kernel_symbol(&kallsyms, type,
-							 mem_start, NULL, NULL);
+							 mem_start, NULL);
 		pair = first_pair;
 
 		if (pair && UM(pair->start) == mem_start) {
@@ -147,7 +147,7 @@ next_pair:
 				 */
 				continue;
 			} else {
-				pair = machine__find_kernel_symbol_by_name(&kallsyms, type, sym->name, NULL, NULL);
+				pair = machine__find_kernel_symbol_by_name(&kallsyms, type, sym->name, NULL);
 				if (pair) {
 					if (UM(pair->start) == mem_start)
 						goto next_pair;

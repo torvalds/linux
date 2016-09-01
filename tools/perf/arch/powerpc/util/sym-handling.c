@@ -108,7 +108,7 @@ void arch__post_process_probe_trace_events(struct perf_probe_event *pev,
 	int i = 0;
 
 	map = get_target_map(pev->target, pev->uprobes);
-	if (!map || map__load(map, NULL) < 0)
+	if (!map || map__load(map) < 0)
 		return;
 
 	for (i = 0; i < ntevs; i++) {

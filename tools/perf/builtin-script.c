@@ -522,11 +522,11 @@ static void print_sample_brstacksym(struct perf_sample *sample,
 
 		thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, from, &alf);
 		if (alf.map)
-			alf.sym = map__find_symbol(alf.map, alf.addr, NULL);
+			alf.sym = map__find_symbol(alf.map, alf.addr);
 
 		thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, to, &alt);
 		if (alt.map)
-			alt.sym = map__find_symbol(alt.map, alt.addr, NULL);
+			alt.sym = map__find_symbol(alt.map, alt.addr);
 
 		symbol__fprintf_symname_offs(alf.sym, &alf, stdout);
 		putchar('/');

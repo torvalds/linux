@@ -241,16 +241,13 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 bool symsrc__has_symtab(struct symsrc *ss);
 bool symsrc__possibly_runtime(struct symsrc *ss);
 
-int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter);
+int dso__load(struct dso *dso, struct map *map);
 int dso__load_vmlinux(struct dso *dso, struct map *map,
-		      const char *vmlinux, bool vmlinux_allocated,
-		      symbol_filter_t filter);
-int dso__load_vmlinux_path(struct dso *dso, struct map *map,
-			   symbol_filter_t filter);
+		      const char *vmlinux, bool vmlinux_allocated);
+int dso__load_vmlinux_path(struct dso *dso, struct map *map);
 int __dso__load_kallsyms(struct dso *dso, const char *filename, struct map *map,
-			 bool no_kcore, symbol_filter_t filter);
-int dso__load_kallsyms(struct dso *dso, const char *filename, struct map *map,
-		       symbol_filter_t filter);
+			 bool no_kcore);
+int dso__load_kallsyms(struct dso *dso, const char *filename, struct map *map);
 
 void dso__insert_symbol(struct dso *dso, enum map_type type,
 			struct symbol *sym);
@@ -298,10 +295,9 @@ int symbol__config_symfs(const struct option *opt __maybe_unused,
 			 const char *dir, int unset __maybe_unused);
 
 int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
-		  struct symsrc *runtime_ss, symbol_filter_t filter,
-		  int kmodule);
+		  struct symsrc *runtime_ss, int kmodule);
 int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss,
-				struct map *map, symbol_filter_t filter);
+				struct map *map);
 
 void __symbols__insert(struct rb_root *symbols, struct symbol *sym, bool kernel);
 void symbols__insert(struct rb_root *symbols, struct symbol *sym);

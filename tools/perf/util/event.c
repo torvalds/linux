@@ -1286,7 +1286,7 @@ try_again:
 		 * must be done prior to using kernel maps.
 		 */
 		if (load_map)
-			map__load(al->map, NULL);
+			map__load(al->map);
 		al->addr = al->map->map_ip(al->map, al->addr);
 	}
 }
@@ -1297,7 +1297,7 @@ void thread__find_addr_location(struct thread *thread,
 {
 	thread__find_addr_map(thread, cpumode, type, addr, al);
 	if (al->map != NULL)
-		al->sym = map__find_symbol(al->map, al->addr, NULL);
+		al->sym = map__find_symbol(al->map, al->addr);
 	else
 		al->sym = NULL;
 }
@@ -1358,7 +1358,7 @@ int machine__resolve(struct machine *machine, struct addr_location *al,
 			al->filtered |= (1 << HIST_FILTER__DSO);
 		}
 
-		al->sym = map__find_symbol(al->map, al->addr, NULL);
+		al->sym = map__find_symbol(al->map, al->addr);
 	}
 
 	if (symbol_conf.sym_list &&
@@ -1414,5 +1414,5 @@ void thread__resolve(struct thread *thread, struct addr_location *al,
 	al->sym = NULL;
 
 	if (al->map)
-		al->sym = map__find_symbol(al->map, al->addr, NULL);
+		al->sym = map__find_symbol(al->map, al->addr);
 }

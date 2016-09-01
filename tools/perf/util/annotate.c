@@ -1077,7 +1077,7 @@ static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
 			.addr = dl->ops.target.addr,
 		};
 
-		if (!map_groups__find_ams(&target, NULL) &&
+		if (!map_groups__find_ams(&target) &&
 		    target.sym->start == target.al_addr)
 			dl->ops.target.name = strdup(target.sym->name);
 	}

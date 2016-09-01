@@ -52,9 +52,9 @@ static int map_browser__search(struct map_browser *browser)
 
 	if (target[0] == '0' && tolower(target[1]) == 'x') {
 		u64 addr = strtoull(target, NULL, 16);
-		sym = map__find_symbol(browser->map, addr, NULL);
+		sym = map__find_symbol(browser->map, addr);
 	} else
-		sym = map__find_symbol_by_name(browser->map, target, NULL);
+		sym = map__find_symbol_by_name(browser->map, target);
 
 	if (sym != NULL) {
 		u32 *idx = symbol__browser_index(sym);
