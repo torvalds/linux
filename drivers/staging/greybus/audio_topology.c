@@ -1393,6 +1393,13 @@ int gbaudio_tplg_parse_data(struct gbaudio_module_info *module,
 	}
 	dev_dbg(module->dev, "Route parsing finished\n");
 
+	/* parse jack capabilities */
+	if (tplg_data->jack_type) {
+		module->jack_mask = tplg_data->jack_type & GBCODEC_JACK_MASK;
+		module->button_mask = tplg_data->jack_type &
+			GBCODEC_JACK_BUTTON_MASK;
+	}
+
 	return ret;
 }
 

@@ -33,22 +33,22 @@ static int gbaudio_request_jack(struct gbaudio_module_info *module,
 		module->button_status = 0;
 		if (button_status)
 			snd_soc_jack_report(&module->button_jack, 0,
-					    GBCODEC_JACK_BUTTON_MASK);
+					    module->button_mask);
 		snd_soc_jack_report(&module->headset_jack, 0,
-				    GBCODEC_JACK_MASK);
+				    module->jack_mask);
 		return 0;
 	}
 
 	/* currently supports Headphone, Headset & Lineout only */
-	report &= ~GBCODEC_JACK_MASK;
-	report |= req->jack_attribute & GBCODEC_JACK_MASK;
+	report &= ~module->jack_mask;
+	report |= req->jack_attribute & module->jack_mask;
 	if (module->jack_type)
 		dev_warn_ratelimited(module->dev,
 				     "Modifying jack from %d to %d\n",
 				     module->jack_type, report);
 
 	module->jack_type = report;
-	snd_soc_jack_report(&module->headset_jack, report, GBCODEC_JACK_MASK);
+	snd_soc_jack_report(&module->headset_jack, report, module->jack_mask);
 
 	return 0;
 }
@@ -69,7 +69,7 @@ static int gbaudio_request_button(struct gbaudio_module_info *module,
 		return -EINVAL;
 	}
 
-	report = module->button_status & GBCODEC_JACK_BUTTON_MASK;
+	report = module->button_status & module->button_mask;
 
 	switch (req->button_id) {
 	case 1:
@@ -100,8 +100,7 @@ static int gbaudio_request_button(struct gbaudio_module_info *module,
 
 	module->button_status = report;
 
-	snd_soc_jack_report(&module->button_jack, report,
-			    GBCODEC_JACK_BUTTON_MASK);
+	snd_soc_jack_report(&module->button_jack, report, module->button_mask);
 
 	return 0;
 }

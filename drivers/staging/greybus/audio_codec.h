@@ -73,10 +73,8 @@ enum {
 #define GBCODEC_APB1_MUX_REG_DEFAULT	0x00
 #define GBCODEC_APB2_MUX_REG_DEFAULT	0x00
 
-#define GBCODEC_JACK_MASK (SND_JACK_HEADSET | SND_JACK_LINEOUT | \
-			   SND_JACK_LINEIN | SND_JACK_UNSUPPORTED)
-#define GBCODEC_JACK_BUTTON_MASK (SND_JACK_BTN_0 | SND_JACK_BTN_1 | \
-				  SND_JACK_BTN_2 | SND_JACK_BTN_3)
+#define GBCODEC_JACK_MASK		0x0000FFFF
+#define GBCODEC_JACK_BUTTON_MASK	0xFFFF0000
 
 static const u8 gbcodec_reg_defaults[GBCODEC_REG_COUNT] = {
 	GBCODEC_CTL_REG_DEFAULT,
@@ -176,6 +174,8 @@ struct gbaudio_module_info {
 	char jack_name[NAME_SIZE];
 	char button_name[NAME_SIZE];
 	int jack_type;
+	int jack_mask;
+	int button_mask;
 	int button_status;
 	struct snd_soc_jack headset_jack;
 	struct snd_soc_jack button_jack;
