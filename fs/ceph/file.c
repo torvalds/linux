@@ -902,10 +902,10 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 		return ret;
 
 	if (write) {
-		ret = invalidate_inode_pages2_range(inode->i_mapping,
+		int ret2 = invalidate_inode_pages2_range(inode->i_mapping,
 					pos >> PAGE_SHIFT,
 					(pos + count) >> PAGE_SHIFT);
-		if (ret < 0)
+		if (ret2 < 0)
 			dout("invalidate_inode_pages2_range returned %d\n", ret);
 
 		flags = CEPH_OSD_FLAG_ORDERSNAP |
