@@ -1127,7 +1127,7 @@ new_symbol:
 		if (filter && filter(curr_map, f))
 			symbol__delete(f);
 		else {
-			symbols__insert(&curr_dso->symbols[curr_map->type], f);
+			__symbols__insert(&curr_dso->symbols[curr_map->type], f, dso->kernel);
 			nr++;
 		}
 	}

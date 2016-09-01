@@ -28,6 +28,8 @@ static int dso__load_kernel_sym(struct dso *dso, struct map *map,
 				symbol_filter_t filter);
 static int dso__load_guest_kernel_sym(struct dso *dso, struct map *map,
 			symbol_filter_t filter);
+static bool symbol__is_idle(const char *name);
+
 int vmlinux_path__nr_entries;
 char **vmlinux_path;
 
@@ -277,12 +279,23 @@ void symbols__delete(struct rb_root *symbols)
 	}
 }
 
-void symbols__insert(struct rb_root *symbols, struct symbol *sym)
+void __symbols__insert(struct rb_root *symbols, struct symbol *sym, bool kernel)
 {
 	struct rb_node **p = &symbols->rb_node;
 	struct rb_node *parent = NULL;
 	const u64 ip = sym->start;
 	struct symbol *s;
+
+	if (kernel) {
+		const char *name = sym->name;
+		/*
+		 * ppc64 uses function descriptors and appends a '.' to the
+		 * start of every instruction address. Remove it.
+		 */
+		if (name[0] == '.')
+			name++;
+		sym->idle = symbol__is_idle(name);
+	}
 
 	while (*p != NULL) {
 		parent = *p;
@@ -294,6 +307,11 @@ void symbols__insert(struct rb_root *symbols, struct symbol *sym)
 	}
 	rb_link_node(&sym->rb_node, parent, p);
 	rb_insert_color(&sym->rb_node, symbols);
+}
+
+void symbols__insert(struct rb_root *symbols, struct symbol *sym)
+{
+	__symbols__insert(symbols, sym, false);
 }
 
 static struct symbol *symbols__find(struct rb_root *symbols, u64 ip)
@@ -424,7 +442,7 @@ void dso__reset_find_symbol_cache(struct dso *dso)
 
 void dso__insert_symbol(struct dso *dso, enum map_type type, struct symbol *sym)
 {
-	symbols__insert(&dso->symbols[type], sym);
+	__symbols__insert(&dso->symbols[type], sym, dso->kernel);
 
 	/* update the symbol cache if necessary */
 	if (dso->last_find_result[type].addr >= sym->start &&
@@ -546,7 +564,7 @@ struct process_kallsyms_args {
  * These are symbols in the kernel image, so make sure that
  * sym is from a kernel DSO.
  */
-bool symbol__is_idle(struct symbol *sym)
+static bool symbol__is_idle(const char *name)
 {
 	const char * const idle_symbols[] = {
 		"cpu_idle",
@@ -563,14 +581,10 @@ bool symbol__is_idle(struct symbol *sym)
 		"pseries_dedicated_idle_sleep",
 		NULL
 	};
-
 	int i;
 
-	if (!sym)
-		return false;
-
 	for (i = 0; idle_symbols[i]; i++) {
-		if (!strcmp(idle_symbols[i], sym->name))
+		if (!strcmp(idle_symbols[i], name))
 			return true;
 	}
 
@@ -599,7 +613,7 @@ static int map__process_kallsym_symbol(void *arg, const char *name,
 	 * We will pass the symbols to the filter later, in
 	 * map__split_kallsyms, when we have split the maps per module
 	 */
-	symbols__insert(root, sym);
+	__symbols__insert(root, sym, !strchr(name, '['));
 
 	return 0;
 }

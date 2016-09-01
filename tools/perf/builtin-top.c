@@ -679,9 +679,6 @@ static int symbol_filter(struct map *map, struct symbol *sym)
 	    strstr(name, "_text_end"))
 		return 1;
 
-	if (symbol__is_idle(sym))
-		sym->idle = 1;
-
 	return 0;
 }
 
