@@ -2828,8 +2828,7 @@ static void rcu_do_batch(struct rcu_state *rsp, struct rcu_data *rdp)
  * Also schedule RCU core processing.
  *
  * This function must be called from hardirq context.  It is normally
- * invoked from the scheduling-clock interrupt.  If rcu_pending returns
- * false, there is no point in invoking rcu_check_callbacks().
+ * invoked from the scheduling-clock interrupt.
  */
 void rcu_check_callbacks(int user)
 {
