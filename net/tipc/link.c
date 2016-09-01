@@ -181,7 +181,10 @@ struct tipc_link {
 	u16 acked;
 	struct tipc_link *bc_rcvlink;
 	struct tipc_link *bc_sndlink;
-	int nack_state;
+	unsigned long prev_retr;
+	u16 prev_from;
+	u16 prev_to;
+	u8 nack_state;
 	bool bc_peer_is_up;
 
 	/* Statistics */
@@ -201,6 +204,8 @@ enum {
 	BC_NACK_SND_UNCONDITIONAL,
 	BC_NACK_SND_SUPPRESS,
 };
+
+#define TIPC_BC_RETR_LIMIT 10   /* [ms] */
 
 /*
  * Interval between NACKs when packets arrive out of order
@@ -1590,11 +1595,48 @@ void tipc_link_bc_init_rcv(struct tipc_link *l, struct tipc_msg *hdr)
 		l->rcv_nxt = peers_snd_nxt;
 }
 
+/* link_bc_retr eval()- check if the indicated range can be retransmitted now
+ * - Adjust permitted range if there is overlap with previous retransmission
+ */
+static bool link_bc_retr_eval(struct tipc_link *l, u16 *from, u16 *to)
+{
+	unsigned long elapsed = jiffies_to_msecs(jiffies - l->prev_retr);
+
+	if (less(*to, *from))
+		return false;
+
+	/* New retransmission request */
+	if ((elapsed > TIPC_BC_RETR_LIMIT) ||
+	    less(*to, l->prev_from) || more(*from, l->prev_to)) {
+		l->prev_from = *from;
+		l->prev_to = *to;
+		l->prev_retr = jiffies;
+		return true;
+	}
+
+	/* Inside range of previous retransmit */
+	if (!less(*from, l->prev_from) && !more(*to, l->prev_to))
+		return false;
+
+	/* Fully or partially outside previous range => exclude overlap */
+	if (less(*from, l->prev_from)) {
+		*to = l->prev_from - 1;
+		l->prev_from = *from;
+	}
+	if (more(*to, l->prev_to)) {
+		*from = l->prev_to + 1;
+		l->prev_to = *to;
+	}
+	l->prev_retr = jiffies;
+	return true;
+}
+
 /* tipc_link_bc_sync_rcv - update rcv link according to peer's send state
  */
 int tipc_link_bc_sync_rcv(struct tipc_link *l, struct tipc_msg *hdr,
 			  struct sk_buff_head *xmitq)
 {
+	struct tipc_link *snd_l = l->bc_sndlink;
 	u16 peers_snd_nxt = msg_bc_snd_nxt(hdr);
 	u16 from = msg_bcast_ack(hdr) + 1;
 	u16 to = from + msg_bc_gap(hdr) - 1;
@@ -1613,14 +1655,14 @@ int tipc_link_bc_sync_rcv(struct tipc_link *l, struct tipc_msg *hdr,
 	if (!l->bc_peer_is_up)
 		return rc;
 
+	l->stats.recv_nacks++;
+
 	/* Ignore if peers_snd_nxt goes beyond receive window */
 	if (more(peers_snd_nxt, l->rcv_nxt + l->window))
 		return rc;
 
-	if (!less(to, from)) {
-		rc = tipc_link_retrans(l->bc_sndlink, from, to, xmitq);
-		l->stats.recv_nacks++;
-	}
+	if (link_bc_retr_eval(snd_l, &from, &to))
+		rc = tipc_link_retrans(snd_l, from, to, xmitq);
 
 	l->snd_nxt = peers_snd_nxt;
 	if (link_bc_rcv_gap(l))
