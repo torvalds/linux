@@ -68,4 +68,9 @@ struct keyctl_dh_params {
 	__s32 base;
 };
 
+#define KEYCTL_SUPPORTS_ENCRYPT		0x01
+#define KEYCTL_SUPPORTS_DECRYPT		0x02
+#define KEYCTL_SUPPORTS_SIGN		0x04
+#define KEYCTL_SUPPORTS_VERIFY		0x08
+
 #endif /*  _LINUX_KEYCTL_H */
