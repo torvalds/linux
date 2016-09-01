@@ -857,6 +857,52 @@ static void print_link_info(struct net_device *netdev)
 }
 
 /**
+ * \brief Routine to notify MTU change
+ * @param work work_struct data structure
+ */
+static void octnet_link_status_change(struct work_struct *work)
+{
+	struct cavium_wk *wk = (struct cavium_wk *)work;
+	struct lio *lio = (struct lio *)wk->ctxptr;
+
+	rtnl_lock();
+	call_netdevice_notifiers(NETDEV_CHANGEMTU, lio->netdev);
+	rtnl_unlock();
+}
+
+/**
+ * \brief Sets up the mtu status change work
+ * @param netdev network device
+ */
+static inline int setup_link_status_change_wq(struct net_device *netdev)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+
+	lio->link_status_wq.wq = alloc_workqueue("link-status",
+						 WQ_MEM_RECLAIM, 0);
+	if (!lio->link_status_wq.wq) {
+		dev_err(&oct->pci_dev->dev, "unable to create cavium link status wq\n");
+		return -1;
+	}
+	INIT_DELAYED_WORK(&lio->link_status_wq.wk.work,
+			  octnet_link_status_change);
+	lio->link_status_wq.wk.ctxptr = lio;
+
+	return 0;
+}
+
+static inline void cleanup_link_status_change_wq(struct net_device *netdev)
+{
+	struct lio *lio = GET_LIO(netdev);
+
+	if (lio->link_status_wq.wq) {
+		cancel_delayed_work_sync(&lio->link_status_wq.wk.work);
+		destroy_workqueue(lio->link_status_wq.wq);
+	}
+}
+
+/**
  * \brief Update link status
  * @param netdev network device
  * @param ls link status structure
@@ -1385,10 +1431,15 @@ static void liquidio_destroy_nic_device(struct octeon_device *oct, int ifidx)
 			napi_disable(napi);
 
 		oct->props[lio->ifidx].napi_enabled = 0;
+
+		if (OCTEON_CN23XX_PF(oct))
+			oct->droq[0]->ops.poll_mode = 0;
 	}
 
 	if (atomic_read(&lio->ifstate) & LIO_IFSTATE_REGISTERED)
 		unregister_netdev(netdev);
+
+	cleanup_link_status_change_wq(netdev);
 
 	delete_glists(lio);
 
@@ -2267,6 +2318,14 @@ static inline int setup_io_queues(struct octeon_device *octeon_dev,
 		octeon_register_droq_ops(octeon_dev, q_no, &droq_ops);
 	}
 
+	if (OCTEON_CN23XX_PF(octeon_dev)) {
+		/* 23XX PF can receive control messages (via the first PF-owned
+		 * droq) from the firmware even if the ethX interface is down,
+		 * so that's why poll_mode must be off for the first droq.
+		 */
+		octeon_dev->droq[0]->ops.poll_mode = 0;
+	}
+
 	/* set up IQs. */
 	for (q = 0; q < lio->linfo.num_txpciq; q++) {
 		num_tx_descs = CFG_GET_NUM_TX_DESCS_NIC_IF(octeon_get_conf
@@ -2351,11 +2410,19 @@ static int liquidio_open(struct net_device *netdev)
 			napi_enable(napi);
 
 		oct->props[lio->ifidx].napi_enabled = 1;
+
+		if (OCTEON_CN23XX_PF(oct))
+			oct->droq[0]->ops.poll_mode = 1;
 	}
 
 	oct_ptp_open(netdev);
 
 	ifstate_set(lio, LIO_IFSTATE_RUNNING);
+
+	/* Ready for link status updates */
+	lio->intf_open = 1;
+
+	netif_info(lio, ifup, lio->netdev, "Interface Open, ready for traffic\n");
 
 	if (OCTEON_CN23XX_PF(oct)) {
 		if (!oct->msix_on)
@@ -2368,13 +2435,8 @@ static int liquidio_open(struct net_device *netdev)
 
 	start_txq(netdev);
 
-	netif_info(lio, ifup, lio->netdev, "Interface Open, ready for traffic\n");
-
 	/* tell Octeon to start forwarding packets to host */
 	send_rx_ctrl_cmd(lio, 1);
-
-	/* Ready for link status updates */
-	lio->intf_open = 1;
 
 	dev_info(&oct->pci_dev->dev, "%s interface is opened\n",
 		 netdev->name);
@@ -3667,6 +3729,9 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		if ((debug != -1) && (debug & NETIF_MSG_HW))
 			liquidio_set_feature(netdev,
 					     OCTNET_CMD_VERBOSE_ENABLE, 0);
+
+		if (setup_link_status_change_wq(netdev))
+			goto setup_nic_dev_fail;
 
 		/* Register the network device with the OS */
 		if (register_netdev(netdev)) {

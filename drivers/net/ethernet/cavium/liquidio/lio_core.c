@@ -156,10 +156,9 @@ void liquidio_link_ctrl_cmd_completion(void *nctrl_ptr)
 		dev_info(&oct->pci_dev->dev, "%s MTU Changed from %d to %d\n",
 			 netdev->name, netdev->mtu,
 			 nctrl->ncmd.s.param1);
-		rtnl_lock();
 		netdev->mtu = nctrl->ncmd.s.param1;
-		call_netdevice_notifiers(NETDEV_CHANGEMTU, netdev);
-		rtnl_unlock();
+		queue_delayed_work(lio->link_status_wq.wq,
+				   &lio->link_status_wq.wk.work, 0);
 		break;
 
 	case OCTNET_CMD_GPIO_ACCESS:
