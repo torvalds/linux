@@ -784,7 +784,7 @@ retry:
 				goto out_dput;
 
 			retried = true;
-			ovl_cleanup(dir, work);
+			ovl_workdir_cleanup(dir, mnt, work, 0);
 			dput(work);
 			goto retry;
 		}
