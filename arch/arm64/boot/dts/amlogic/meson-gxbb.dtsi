@@ -212,6 +212,13 @@
 						function = "uart_ao";
 					};
 				};
+
+				remote_input_ao_pins: remote_input_ao {
+					mux {
+						groups = "remote_input_ao";
+						function = "remote_input_ao";
+					};
+				};
 			};
 
 			clkc_AO: clock-controller@040 {
