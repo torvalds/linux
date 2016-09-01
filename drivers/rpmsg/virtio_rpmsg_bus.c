@@ -791,8 +791,8 @@ static void rpmsg_xmit_done(struct virtqueue *svq)
 }
 
 /* invoked when a name service announcement arrives */
-static void rpmsg_ns_cb(struct rpmsg_device *rpdev, void *data, int len,
-			void *priv, u32 src)
+static int rpmsg_ns_cb(struct rpmsg_device *rpdev, void *data, int len,
+		       void *priv, u32 src)
 {
 	struct rpmsg_ns_msg *msg = data;
 	struct rpmsg_device *newch;
@@ -808,7 +808,7 @@ static void rpmsg_ns_cb(struct rpmsg_device *rpdev, void *data, int len,
 
 	if (len != sizeof(*msg)) {
 		dev_err(dev, "malformed ns msg (%d)\n", len);
-		return;
+		return -EINVAL;
 	}
 
 	/*
@@ -819,7 +819,7 @@ static void rpmsg_ns_cb(struct rpmsg_device *rpdev, void *data, int len,
 	 */
 	if (rpdev) {
 		dev_err(dev, "anomaly: ns ept has an rpdev handle\n");
-		return;
+		return -EINVAL;
 	}
 
 	/* don't trust the remote processor for null terminating the name */
@@ -842,6 +842,8 @@ static void rpmsg_ns_cb(struct rpmsg_device *rpdev, void *data, int len,
 		if (!newch)
 			dev_err(dev, "rpmsg_create_channel failed\n");
 	}
+
+	return 0;
 }
 
 static int rpmsg_probe(struct virtio_device *vdev)

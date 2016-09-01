@@ -28,7 +28,7 @@ struct instance_data {
 	int rx_count;
 };
 
-static void rpmsg_sample_cb(struct rpmsg_device *rpdev, void *data, int len,
+static int rpmsg_sample_cb(struct rpmsg_device *rpdev, void *data, int len,
 						void *priv, u32 src)
 {
 	int ret;
@@ -43,13 +43,15 @@ static void rpmsg_sample_cb(struct rpmsg_device *rpdev, void *data, int len,
 	/* samples should not live forever */
 	if (idata->rx_count >= MSG_LIMIT) {
 		dev_info(&rpdev->dev, "goodbye!\n");
-		return;
+		return 0;
 	}
 
 	/* send a new message now */
 	ret = rpmsg_send(rpdev->ept, MSG, strlen(MSG));
 	if (ret)
 		dev_err(&rpdev->dev, "rpmsg_send failed: %d\n", ret);
+
+	return 0;
 }
 
 static int rpmsg_sample_probe(struct rpmsg_device *rpdev)
