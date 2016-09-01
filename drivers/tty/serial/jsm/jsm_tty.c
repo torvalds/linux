@@ -346,7 +346,7 @@ static void jsm_config_port(struct uart_port *port, int flags)
 	port->type = PORT_JSM;
 }
 
-static struct uart_ops jsm_ops = {
+static const struct uart_ops jsm_ops = {
 	.tx_empty	= jsm_tty_tx_empty,
 	.set_mctrl	= jsm_tty_set_mctrl,
 	.get_mctrl	= jsm_tty_get_mctrl,
