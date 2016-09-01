@@ -1301,17 +1301,36 @@ int lio_get_device_id(void *dev)
 
 void lio_enable_irq(struct octeon_droq *droq, struct octeon_instr_queue *iq)
 {
+	u64 instr_cnt;
+	struct octeon_device *oct = NULL;
+
 	/* the whole thing needs to be atomic, ideally */
 	if (droq) {
 		spin_lock_bh(&droq->lock);
 		writel(droq->pkt_count, droq->pkts_sent_reg);
 		droq->pkt_count = 0;
 		spin_unlock_bh(&droq->lock);
+		oct = droq->oct_dev;
 	}
 	if (iq) {
 		spin_lock_bh(&iq->lock);
 		writel(iq->pkt_in_done, iq->inst_cnt_reg);
 		iq->pkt_in_done = 0;
 		spin_unlock_bh(&iq->lock);
+		oct = iq->oct_dev;
+	}
+	/*write resend. Writing RESEND in SLI_PKTX_CNTS should be enough
+	 *to trigger tx interrupts as well, if they are pending.
+	 */
+	if (oct && OCTEON_CN23XX_PF(oct)) {
+		if (droq)
+			writeq(CN23XX_INTR_RESEND, droq->pkts_sent_reg);
+		/*we race with firmrware here. read and write the IN_DONE_CNTS*/
+		else if (iq) {
+			instr_cnt =  readq(iq->inst_cnt_reg);
+			writeq(((instr_cnt & 0xFFFFFFFF00000000ULL) |
+				CN23XX_INTR_RESEND),
+			       iq->inst_cnt_reg);
+		}
 	}
 }

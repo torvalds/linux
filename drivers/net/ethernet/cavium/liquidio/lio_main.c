@@ -1001,8 +1001,7 @@ int liquidio_schedule_msix_droq_pkt_handler(struct octeon_droq *droq, u64 ret)
  * \brief Droq packet processor sceduler
  * @param oct octeon device
  */
-static
-void liquidio_schedule_droq_pkt_handlers(struct octeon_device *oct)
+static void liquidio_schedule_droq_pkt_handlers(struct octeon_device *oct)
 {
 	struct octeon_device_priv *oct_priv =
 		(struct octeon_device_priv *)oct->priv;
@@ -2378,11 +2377,14 @@ static void napi_schedule_wrapper(void *param)
  */
 static void liquidio_napi_drv_callback(void *arg)
 {
+	struct octeon_device *oct;
 	struct octeon_droq *droq = arg;
 	int this_cpu = smp_processor_id();
 
-	if (droq->cpu_id == this_cpu) {
-		napi_schedule(&droq->napi);
+	oct = droq->oct_dev;
+
+	if (OCTEON_CN23XX_PF(oct) || droq->cpu_id == this_cpu) {
+		napi_schedule_irqoff(&droq->napi);
 	} else {
 		struct call_single_data *csd = &droq->csd;
 

@@ -573,7 +573,7 @@ octeon_droq_dispatch_pkt(struct octeon_device *oct,
 			(unsigned int)rh->r.opcode,
 			(unsigned int)rh->r.subcode);
 		droq->stats.dropped_nodispatch++;
-	}                       /* else (dispatch_fn ... */
+	}
 
 	return cnt;
 }
@@ -887,8 +887,11 @@ octeon_process_droq_poll_cmd(struct octeon_device *oct, u32 q_no, int cmd,
 			return 0;
 		}
 		break;
+		case OCTEON_CN23XX_PF_VID: {
+			lio_enable_irq(oct->droq[q_no], oct->instr_queue[q_no]);
 		}
-
+		break;
+		}
 		return 0;
 	}
 
