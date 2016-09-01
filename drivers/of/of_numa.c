@@ -158,8 +158,6 @@ int of_node_to_nid(struct device_node *device)
 	np = of_node_get(device);
 
 	while (np) {
-		struct device_node *parent;
-
 		r = of_property_read_u32(np, "numa-node-id", &nid);
 		/*
 		 * -EINVAL indicates the property was not found, and
@@ -170,9 +168,7 @@ int of_node_to_nid(struct device_node *device)
 		if (r != -EINVAL)
 			break;
 
-		parent = of_get_parent(np);
-		of_node_put(np);
-		np = parent;
+		np = of_get_next_parent(np);
 	}
 	if (np && r)
 		pr_warn("NUMA: Invalid \"numa-node-id\" property in node %s\n",
