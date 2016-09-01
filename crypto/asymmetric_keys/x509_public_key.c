@@ -84,6 +84,16 @@ int x509_get_sig_params(struct x509_certificate *cert)
 		goto error_2;
 	might_sleep();
 	ret = crypto_shash_finup(desc, cert->tbs, cert->tbs_size, sig->digest);
+	if (ret < 0)
+		goto error_2;
+
+	ret = is_hash_blacklisted(sig->digest, sig->digest_size, "tbs");
+	if (ret == -EKEYREJECTED) {
+		pr_err("Cert %*phN is blacklisted\n",
+		       sig->digest_size, sig->digest);
+		cert->blacklisted = true;
+		ret = 0;
+	}
 
 error_2:
 	kfree(desc);
@@ -185,6 +195,11 @@ static int x509_key_preparse(struct key_preparsed_payload *prep)
 		pr_devel("Cert Signature: %s + %s\n",
 			 cert->sig->pkey_algo, cert->sig->hash_algo);
 	}
+
+	/* Don't permit addition of blacklisted keys */
+	ret = -EKEYREJECTED;
+	if (cert->blacklisted)
+		goto error_free_cert;
 
 	/* Propose a description */
 	sulen = strlen(cert->subject);
