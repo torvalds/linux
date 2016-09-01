@@ -179,13 +179,8 @@ int of_node_to_nid(struct device_node *device)
 			np->name);
 	of_node_put(np);
 
-	if (!r) {
-		if (nid >= MAX_NUMNODES)
-			pr_warn("NUMA: Node id %u exceeds maximum value\n",
-				nid);
-		else
-			return nid;
-	}
+	if (!r)
+		return nid;
 
 	return NUMA_NO_NODE;
 }
