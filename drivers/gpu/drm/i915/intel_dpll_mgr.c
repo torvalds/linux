@@ -667,11 +667,65 @@ hsw_ddi_calculate_wrpll(int clock /* in Hz */,
 	*r2_out = best.r2;
 }
 
+static struct intel_shared_dpll *hsw_ddi_hdmi_get_dpll(int clock,
+						       struct intel_crtc *crtc,
+						       struct intel_crtc_state *crtc_state)
+{
+	struct intel_shared_dpll *pll;
+	uint32_t val;
+	unsigned int p, n2, r2;
+
+	hsw_ddi_calculate_wrpll(clock * 1000, &r2, &n2, &p);
+
+	val = WRPLL_PLL_ENABLE | WRPLL_PLL_LCPLL |
+	      WRPLL_DIVIDER_REFERENCE(r2) | WRPLL_DIVIDER_FEEDBACK(n2) |
+	      WRPLL_DIVIDER_POST(p);
+
+	crtc_state->dpll_hw_state.wrpll = val;
+
+	pll = intel_find_shared_dpll(crtc, crtc_state,
+				     DPLL_ID_WRPLL1, DPLL_ID_WRPLL2);
+
+	if (!pll)
+		return NULL;
+
+	return pll;
+}
+
+struct intel_shared_dpll *hsw_ddi_dp_get_dpll(struct intel_encoder *encoder,
+					      int clock)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_shared_dpll *pll;
+	enum intel_dpll_id pll_id;
+
+	switch (clock / 2) {
+	case 81000:
+		pll_id = DPLL_ID_LCPLL_810;
+		break;
+	case 135000:
+		pll_id = DPLL_ID_LCPLL_1350;
+		break;
+	case 270000:
+		pll_id = DPLL_ID_LCPLL_2700;
+		break;
+	default:
+		DRM_DEBUG_KMS("Invalid clock for DP: %d\n", clock);
+		return NULL;
+	}
+
+	pll = intel_get_shared_dpll_by_id(dev_priv, pll_id);
+
+	if (!pll)
+		return NULL;
+
+	return pll;
+}
+
 static struct intel_shared_dpll *
 hsw_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 	     struct intel_encoder *encoder)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_shared_dpll *pll;
 	int clock = crtc_state->port_clock;
 
@@ -679,41 +733,12 @@ hsw_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 	       sizeof(crtc_state->dpll_hw_state));
 
 	if (encoder->type == INTEL_OUTPUT_HDMI) {
-		uint32_t val;
-		unsigned p, n2, r2;
-
-		hsw_ddi_calculate_wrpll(clock * 1000, &r2, &n2, &p);
-
-		val = WRPLL_PLL_ENABLE | WRPLL_PLL_LCPLL |
-		      WRPLL_DIVIDER_REFERENCE(r2) | WRPLL_DIVIDER_FEEDBACK(n2) |
-		      WRPLL_DIVIDER_POST(p);
-
-		crtc_state->dpll_hw_state.wrpll = val;
-
-		pll = intel_find_shared_dpll(crtc, crtc_state,
-					     DPLL_ID_WRPLL1, DPLL_ID_WRPLL2);
+		pll = hsw_ddi_hdmi_get_dpll(clock, crtc, crtc_state);
 
 	} else if (encoder->type == INTEL_OUTPUT_DP ||
 		   encoder->type == INTEL_OUTPUT_DP_MST ||
 		   encoder->type == INTEL_OUTPUT_EDP) {
-		enum intel_dpll_id pll_id;
-
-		switch (clock / 2) {
-		case 81000:
-			pll_id = DPLL_ID_LCPLL_810;
-			break;
-		case 135000:
-			pll_id = DPLL_ID_LCPLL_1350;
-			break;
-		case 270000:
-			pll_id = DPLL_ID_LCPLL_2700;
-			break;
-		default:
-			DRM_DEBUG_KMS("Invalid clock for DP: %d\n", clock);
-			return NULL;
-		}
-
-		pll = intel_get_shared_dpll_by_id(dev_priv, pll_id);
+		pll = hsw_ddi_dp_get_dpll(encoder, clock);
 
 	} else if (encoder->type == INTEL_OUTPUT_ANALOG) {
 		if (WARN_ON(crtc_state->port_clock / 2 != 135000))
@@ -735,7 +760,6 @@ hsw_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 
 	return pll;
 }
-
 
 static const struct intel_shared_dpll_funcs hsw_ddi_wrpll_funcs = {
 	.enable = hsw_ddi_wrpll_enable,
