@@ -261,6 +261,7 @@ static void xilinx_msi_teardown_irq(struct msi_controller *chip,
 				    unsigned int irq)
 {
 	xilinx_pcie_destroy_msi(irq);
+	irq_dispose_mapping(irq);
 }
 
 /**
