@@ -17,7 +17,7 @@ config OMAP_REMOTEPROC
 	select REMOTEPROC
 	select MAILBOX
 	select OMAP2PLUS_MBOX
-	select RPMSG
+	select RPMSG_VIRTIO
 	help
 	  Say y here to support OMAP's remote processors (dual M3
 	  and DSP on OMAP4) via the remote processor framework.
@@ -59,7 +59,7 @@ config DA8XX_REMOTEPROC
 	depends on ARCH_DAVINCI_DA8XX
 	select CMA if MMU
 	select REMOTEPROC
-	select RPMSG
+	select RPMSG_VIRTIO
 	help
 	  Say y here to support DA8xx/OMAP-L13x remote processors via the
 	  remote processor framework.
