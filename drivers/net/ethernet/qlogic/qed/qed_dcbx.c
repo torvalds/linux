@@ -1189,13 +1189,12 @@ int qed_dcbx_get_config_params(struct qed_hwfn *p_hwfn,
 		return 0;
 	}
 
-	dcbx_info = kmalloc(sizeof(*dcbx_info), GFP_KERNEL);
+	dcbx_info = kzalloc(sizeof(*dcbx_info), GFP_KERNEL);
 	if (!dcbx_info) {
 		DP_ERR(p_hwfn, "Failed to allocate struct qed_dcbx_info\n");
 		return -ENOMEM;
 	}
 
-	memset(dcbx_info, 0, sizeof(*dcbx_info));
 	rc = qed_dcbx_query_params(p_hwfn, dcbx_info, QED_DCBX_OPERATIONAL_MIB);
 	if (rc) {
 		kfree(dcbx_info);
@@ -1227,13 +1226,12 @@ static struct qed_dcbx_get *qed_dcbnl_get_dcbx(struct qed_hwfn *hwfn,
 {
 	struct qed_dcbx_get *dcbx_info;
 
-	dcbx_info = kmalloc(sizeof(*dcbx_info), GFP_KERNEL);
+	dcbx_info = kzalloc(sizeof(*dcbx_info), GFP_KERNEL);
 	if (!dcbx_info) {
 		DP_ERR(hwfn->cdev, "Failed to allocate memory for dcbx_info\n");
 		return NULL;
 	}
 
-	memset(dcbx_info, 0, sizeof(*dcbx_info));
 	if (qed_dcbx_query_params(hwfn, dcbx_info, type)) {
 		kfree(dcbx_info);
 		return NULL;
