@@ -262,3 +262,234 @@ struct device *rpmsg_find_device(struct device *parent,
 
 }
 EXPORT_SYMBOL(rpmsg_find_device);
+
+/* sysfs show configuration fields */
+#define rpmsg_show_attr(field, path, format_string)			\
+static ssize_t								\
+field##_show(struct device *dev,					\
+			struct device_attribute *attr, char *buf)	\
+{									\
+	struct rpmsg_device *rpdev = to_rpmsg_device(dev);		\
+									\
+	return sprintf(buf, format_string, rpdev->path);		\
+}
+
+/* for more info, see Documentation/ABI/testing/sysfs-bus-rpmsg */
+rpmsg_show_attr(name, id.name, "%s\n");
+rpmsg_show_attr(src, src, "0x%x\n");
+rpmsg_show_attr(dst, dst, "0x%x\n");
+rpmsg_show_attr(announce, announce ? "true" : "false", "%s\n");
+
+static ssize_t modalias_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	struct rpmsg_device *rpdev = to_rpmsg_device(dev);
+
+	return sprintf(buf, RPMSG_DEVICE_MODALIAS_FMT "\n", rpdev->id.name);
+}
+
+static struct device_attribute rpmsg_dev_attrs[] = {
+	__ATTR_RO(name),
+	__ATTR_RO(modalias),
+	__ATTR_RO(dst),
+	__ATTR_RO(src),
+	__ATTR_RO(announce),
+	__ATTR_NULL
+};
+
+/* rpmsg devices and drivers are matched using the service name */
+static inline int rpmsg_id_match(const struct rpmsg_device *rpdev,
+				  const struct rpmsg_device_id *id)
+{
+	return strncmp(id->name, rpdev->id.name, RPMSG_NAME_SIZE) == 0;
+}
+
+/* match rpmsg channel and rpmsg driver */
+static int rpmsg_dev_match(struct device *dev, struct device_driver *drv)
+{
+	struct rpmsg_device *rpdev = to_rpmsg_device(dev);
+	struct rpmsg_driver *rpdrv = to_rpmsg_driver(drv);
+	const struct rpmsg_device_id *ids = rpdrv->id_table;
+	unsigned int i;
+
+	if (ids)
+		for (i = 0; ids[i].name[0]; i++)
+			if (rpmsg_id_match(rpdev, &ids[i]))
+				return 1;
+
+	return of_driver_match_device(dev, drv);
+}
+
+static int rpmsg_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	struct rpmsg_device *rpdev = to_rpmsg_device(dev);
+
+	return add_uevent_var(env, "MODALIAS=" RPMSG_DEVICE_MODALIAS_FMT,
+					rpdev->id.name);
+}
+
+/*
+ * when an rpmsg driver is probed with a channel, we seamlessly create
+ * it an endpoint, binding its rx callback to a unique local rpmsg
+ * address.
+ *
+ * if we need to, we also announce about this channel to the remote
+ * processor (needed in case the driver is exposing an rpmsg service).
+ */
+static int rpmsg_dev_probe(struct device *dev)
+{
+	struct rpmsg_device *rpdev = to_rpmsg_device(dev);
+	struct rpmsg_driver *rpdrv = to_rpmsg_driver(rpdev->dev.driver);
+	struct rpmsg_channel_info chinfo = {};
+	struct rpmsg_endpoint *ept;
+	int err;
+
+	strncpy(chinfo.name, rpdev->id.name, RPMSG_NAME_SIZE);
+	chinfo.src = rpdev->src;
+	chinfo.dst = RPMSG_ADDR_ANY;
+
+	ept = rpmsg_create_ept(rpdev, rpdrv->callback, NULL, chinfo);
+	if (!ept) {
+		dev_err(dev, "failed to create endpoint\n");
+		err = -ENOMEM;
+		goto out;
+	}
+
+	rpdev->ept = ept;
+	rpdev->src = ept->addr;
+
+	err = rpdrv->probe(rpdev);
+	if (err) {
+		dev_err(dev, "%s: failed: %d\n", __func__, err);
+		rpmsg_destroy_ept(ept);
+		goto out;
+	}
+
+	if (rpdev->ops->announce_create)
+		err = rpdev->ops->announce_create(rpdev);
+out:
+	return err;
+}
+
+static int rpmsg_dev_remove(struct device *dev)
+{
+	struct rpmsg_device *rpdev = to_rpmsg_device(dev);
+	struct rpmsg_driver *rpdrv = to_rpmsg_driver(rpdev->dev.driver);
+	int err = 0;
+
+	if (rpdev->ops->announce_destroy)
+		err = rpdev->ops->announce_destroy(rpdev);
+
+	rpdrv->remove(rpdev);
+
+	rpmsg_destroy_ept(rpdev->ept);
+
+	return err;
+}
+
+static struct bus_type rpmsg_bus = {
+	.name		= "rpmsg",
+	.match		= rpmsg_dev_match,
+	.dev_attrs	= rpmsg_dev_attrs,
+	.uevent		= rpmsg_uevent,
+	.probe		= rpmsg_dev_probe,
+	.remove		= rpmsg_dev_remove,
+};
+
+static void rpmsg_release_device(struct device *dev)
+{
+	struct rpmsg_device *rpdev = to_rpmsg_device(dev);
+
+	kfree(rpdev);
+}
+
+int rpmsg_register_device(struct rpmsg_device *rpdev)
+{
+	struct device *dev = &rpdev->dev;
+	int ret;
+
+	dev_set_name(&rpdev->dev, "%s:%s",
+		     dev_name(dev->parent), rpdev->id.name);
+
+	rpdev->dev.bus = &rpmsg_bus;
+	rpdev->dev.release = rpmsg_release_device;
+
+	ret = device_register(&rpdev->dev);
+	if (ret) {
+		dev_err(dev, "device_register failed: %d\n", ret);
+		put_device(&rpdev->dev);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(rpmsg_register_device);
+
+/*
+ * find an existing channel using its name + address properties,
+ * and destroy it
+ */
+int rpmsg_unregister_device(struct device *parent,
+			    struct rpmsg_channel_info *chinfo)
+{
+	struct device *dev;
+
+	dev = rpmsg_find_device(parent, chinfo);
+	if (!dev)
+		return -EINVAL;
+
+	device_unregister(dev);
+
+	put_device(dev);
+
+	return 0;
+}
+EXPORT_SYMBOL(rpmsg_unregister_device);
+
+/**
+ * __register_rpmsg_driver() - register an rpmsg driver with the rpmsg bus
+ * @rpdrv: pointer to a struct rpmsg_driver
+ * @owner: owning module/driver
+ *
+ * Returns 0 on success, and an appropriate error value on failure.
+ */
+int __register_rpmsg_driver(struct rpmsg_driver *rpdrv, struct module *owner)
+{
+	rpdrv->drv.bus = &rpmsg_bus;
+	rpdrv->drv.owner = owner;
+	return driver_register(&rpdrv->drv);
+}
+EXPORT_SYMBOL(__register_rpmsg_driver);
+
+/**
+ * unregister_rpmsg_driver() - unregister an rpmsg driver from the rpmsg bus
+ * @rpdrv: pointer to a struct rpmsg_driver
+ *
+ * Returns 0 on success, and an appropriate error value on failure.
+ */
+void unregister_rpmsg_driver(struct rpmsg_driver *rpdrv)
+{
+	driver_unregister(&rpdrv->drv);
+}
+EXPORT_SYMBOL(unregister_rpmsg_driver);
+
+
+static int __init rpmsg_init(void)
+{
+	int ret;
+
+	ret = bus_register(&rpmsg_bus);
+	if (ret)
+		pr_err("failed to register rpmsg bus: %d\n", ret);
+
+	return ret;
+}
+postcore_initcall(rpmsg_init);
+
+static void __exit rpmsg_fini(void)
+{
+	bus_unregister(&rpmsg_bus);
+}
+module_exit(rpmsg_fini);
+
+MODULE_DESCRIPTION("remote processor messaging bus");
+MODULE_LICENSE("GPL v2");
