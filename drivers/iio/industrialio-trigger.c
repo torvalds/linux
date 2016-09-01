@@ -271,6 +271,14 @@ static int iio_trigger_attach_poll_func(struct iio_trigger *trig,
 			goto out_free_irq;
 	}
 
+	/*
+	 * Check if we just registered to our own trigger: we determine that
+	 * this is the case if the IIO device and the trigger device share the
+	 * same parent device.
+	 */
+	if (pf->indio_dev->dev.parent == trig->dev.parent)
+		trig->attached_own_device = true;
+
 	return ret;
 
 out_free_irq:
@@ -295,6 +303,8 @@ static int iio_trigger_detach_poll_func(struct iio_trigger *trig,
 		if (ret)
 			return ret;
 	}
+	if (pf->indio_dev->dev.parent == trig->dev.parent)
+		trig->attached_own_device = false;
 	iio_trigger_put_irq(trig, pf->irq);
 	free_irq(pf->irq, pf);
 	module_put(pf->indio_dev->info->driver_module);
@@ -700,6 +710,12 @@ void devm_iio_trigger_unregister(struct device *dev,
 	WARN_ON(rc);
 }
 EXPORT_SYMBOL_GPL(devm_iio_trigger_unregister);
+
+bool iio_trigger_using_own(struct iio_dev *indio_dev)
+{
+	return indio_dev->trig->attached_own_device;
+}
+EXPORT_SYMBOL(iio_trigger_using_own);
 
 void iio_device_register_trigger_consumer(struct iio_dev *indio_dev)
 {

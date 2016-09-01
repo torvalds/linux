@@ -56,6 +56,9 @@ struct iio_trigger_ops {
  * @subirqs:		[INTERN] information about the 'child' irqs.
  * @pool:		[INTERN] bitmap of irqs currently in use.
  * @pool_lock:		[INTERN] protection of the irq pool.
+ * @attached_own_device:[INTERN] if we are using our own device as trigger,
+ *			i.e. if we registered a poll function to the same
+ *			device as the one providing the trigger.
  **/
 struct iio_trigger {
 	const struct iio_trigger_ops	*ops;
@@ -73,6 +76,7 @@ struct iio_trigger {
 	struct iio_subirq subirqs[CONFIG_IIO_CONSUMERS_PER_TRIGGER];
 	unsigned long pool[BITS_TO_LONGS(CONFIG_IIO_CONSUMERS_PER_TRIGGER)];
 	struct mutex			pool_lock;
+	bool				attached_own_device;
 };
 
 
@@ -159,6 +163,13 @@ irqreturn_t iio_trigger_generic_data_rdy_poll(int irq, void *private);
 
 __printf(1, 2) struct iio_trigger *iio_trigger_alloc(const char *fmt, ...);
 void iio_trigger_free(struct iio_trigger *trig);
+
+/**
+ * iio_trigger_using_own() - tells us if we use our own HW trigger ourselves
+ * @indio_dev:  device to check
+ */
+bool iio_trigger_using_own(struct iio_dev *indio_dev);
+
 
 #else
 struct iio_trigger;
