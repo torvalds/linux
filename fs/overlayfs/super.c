@@ -1018,7 +1018,11 @@ ovl_posix_acl_xattr_set(const struct xattr_handler *handler,
 
 	posix_acl_release(acl);
 
-	return ovl_xattr_set(dentry, handler->name, value, size, flags);
+	err = ovl_xattr_set(dentry, handler->name, value, size, flags);
+	if (!err)
+		ovl_copyattr(ovl_inode_real(inode, NULL), inode);
+
+	return err;
 
 out_acl_release:
 	posix_acl_release(acl);
