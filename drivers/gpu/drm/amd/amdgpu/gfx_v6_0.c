@@ -911,13 +911,7 @@ static void gfx_v6_0_select_se_sh(struct amdgpu_device *adev, u32 se_num,
 
 static u32 gfx_v6_0_create_bitmask(u32 bit_width)
 {
-	u32 i, mask = 0;
-
-	for (i = 0; i < bit_width; i++) {
-		mask <<= 1;
-		mask |= 1;
-	}
-	return mask;
+	return (u32)(((u64)1 << bit_width) - 1);
 }
 
 static u32 gfx_v6_0_get_rb_disabled(struct amdgpu_device *adev,
