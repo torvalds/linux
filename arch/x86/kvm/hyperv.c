@@ -386,7 +386,7 @@ static void synic_init(struct kvm_vcpu_hv_synic *synic)
 
 static u64 get_time_ref_counter(struct kvm *kvm)
 {
-	return div_u64(get_kernel_ns() + kvm->arch.kvmclock_offset, 100);
+	return div_u64(get_kvmclock_ns(kvm), 100);
 }
 
 static void stimer_mark_pending(struct kvm_vcpu_hv_stimer *stimer,

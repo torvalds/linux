@@ -87,9 +87,10 @@ static inline u64 pvclock_scale_delta(u64 delta, u32 mul_frac, int shift)
 }
 
 static __always_inline
-cycle_t __pvclock_read_cycles(const struct pvclock_vcpu_time_info *src)
+cycle_t __pvclock_read_cycles(const struct pvclock_vcpu_time_info *src,
+			      u64 tsc)
 {
-	u64 delta = rdtsc_ordered() - src->tsc_timestamp;
+	u64 delta = tsc - src->tsc_timestamp;
 	cycle_t offset = pvclock_scale_delta(delta, src->tsc_to_system_mul,
 					     src->tsc_shift);
 	return src->system_time + offset;

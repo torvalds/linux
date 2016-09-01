@@ -1431,7 +1431,7 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, struct msr_data *msr)
 
 	raw_spin_lock_irqsave(&kvm->arch.tsc_write_lock, flags);
 	offset = kvm_compute_tsc_offset(vcpu, data);
-	ns = get_kernel_ns();
+	ns = ktime_get_boot_ns();
 	elapsed = ns - kvm->arch.last_tsc_nsec;
 
 	if (vcpu->arch.virtual_tsc_khz) {
@@ -1722,6 +1722,34 @@ static void kvm_gen_update_masterclock(struct kvm *kvm)
 #endif
 }
 
+static u64 __get_kvmclock_ns(struct kvm *kvm)
+{
+	struct kvm_vcpu *vcpu = kvm_get_vcpu(kvm, 0);
+	struct kvm_arch *ka = &kvm->arch;
+	s64 ns;
+
+	if (vcpu->arch.hv_clock.flags & PVCLOCK_TSC_STABLE_BIT) {
+		u64 tsc = kvm_read_l1_tsc(vcpu, rdtsc());
+		ns = __pvclock_read_cycles(&vcpu->arch.hv_clock, tsc);
+	} else {
+		ns = ktime_get_boot_ns() + ka->kvmclock_offset;
+	}
+
+	return ns;
+}
+
+u64 get_kvmclock_ns(struct kvm *kvm)
+{
+	unsigned long flags;
+	s64 ns;
+
+	local_irq_save(flags);
+	ns = __get_kvmclock_ns(kvm);
+	local_irq_restore(flags);
+
+	return ns;
+}
+
 static void kvm_setup_pvclock_page(struct kvm_vcpu *v)
 {
 	struct kvm_vcpu_arch *vcpu = &v->arch;
@@ -1811,7 +1839,7 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	}
 	if (!use_master_clock) {
 		host_tsc = rdtsc();
-		kernel_ns = get_kernel_ns();
+		kernel_ns = ktime_get_boot_ns();
 	}
 
 	tsc_timestamp = kvm_read_l1_tsc(v, host_tsc);
@@ -4054,7 +4082,6 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	case KVM_SET_CLOCK: {
 		struct kvm_clock_data user_ns;
 		u64 now_ns;
-		s64 delta;
 
 		r = -EFAULT;
 		if (copy_from_user(&user_ns, argp, sizeof(user_ns)))
@@ -4066,10 +4093,9 @@ long kvm_arch_vm_ioctl(struct file *filp,
 
 		r = 0;
 		local_irq_disable();
-		now_ns = get_kernel_ns();
-		delta = user_ns.clock - now_ns;
+		now_ns = __get_kvmclock_ns(kvm);
+		kvm->arch.kvmclock_offset += user_ns.clock - now_ns;
 		local_irq_enable();
-		kvm->arch.kvmclock_offset = delta;
 		kvm_gen_update_masterclock(kvm);
 		break;
 	}
@@ -4077,10 +4103,8 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		struct kvm_clock_data user_ns;
 		u64 now_ns;
 
-		local_irq_disable();
-		now_ns = get_kernel_ns();
-		user_ns.clock = kvm->arch.kvmclock_offset + now_ns;
-		local_irq_enable();
+		now_ns = get_kvmclock_ns(kvm);
+		user_ns.clock = now_ns;
 		user_ns.flags = 0;
 		memset(&user_ns.pad, 0, sizeof(user_ns.pad));
 
@@ -7544,7 +7568,7 @@ int kvm_arch_hardware_enable(void)
 	 * before any KVM threads can be running.  Unfortunately, we can't
 	 * bring the TSCs fully up to date with real time, as we aren't yet far
 	 * enough into CPU bringup that we know how much real time has actually
-	 * elapsed; our helper function, get_kernel_ns() will be using boot
+	 * elapsed; our helper function, ktime_get_boot_ns() will be using boot
 	 * variables that haven't been updated yet.
 	 *
 	 * So we simply find the maximum observed TSC above, then record the
@@ -7779,7 +7803,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	mutex_init(&kvm->arch.apic_map_lock);
 	spin_lock_init(&kvm->arch.pvclock_gtod_sync_lock);
 
-	kvm->arch.kvmclock_offset = -get_kernel_ns();
+	kvm->arch.kvmclock_offset = -ktime_get_boot_ns();
 	pvclock_update_vm_gtod_copy(kvm);
 
 	INIT_DELAYED_WORK(&kvm->arch.kvmclock_update_work, kvmclock_update_fn);
