@@ -1520,17 +1520,20 @@ static int smsc911x_open(struct net_device *dev)
 	unsigned int timeout;
 	unsigned int temp;
 	unsigned int intcfg;
+	int retval;
 
 	/* if the phy is not yet registered, retry later*/
 	if (!dev->phydev) {
 		SMSC_WARN(pdata, hw, "phy_dev is NULL");
-		return -EAGAIN;
+		retval = -EAGAIN;
+		goto out;
 	}
 
 	/* Reset the LAN911x */
-	if (smsc911x_soft_reset(pdata)) {
+	retval = smsc911x_soft_reset(pdata);
+	if (retval) {
 		SMSC_WARN(pdata, hw, "soft reset failed");
-		return -EIO;
+		goto out;
 	}
 
 	smsc911x_reg_write(pdata, HW_CFG, 0x00050000);
@@ -1600,7 +1603,8 @@ static int smsc911x_open(struct net_device *dev)
 	if (!pdata->software_irq_signal) {
 		netdev_warn(dev, "ISR failed signaling test (IRQ %d)\n",
 			    dev->irq);
-		return -ENODEV;
+		retval = -ENODEV;
+		goto out;
 	}
 	SMSC_TRACE(pdata, ifup, "IRQ handler passed test using IRQ %d",
 		   dev->irq);
@@ -1646,6 +1650,8 @@ static int smsc911x_open(struct net_device *dev)
 
 	netif_start_queue(dev);
 	return 0;
+out:
+	return retval;
 }
 
 /* Entry point for stopping the interface */
