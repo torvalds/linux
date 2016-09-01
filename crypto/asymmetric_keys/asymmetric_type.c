@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/ctype.h>
+#include <keys/user-type.h>
 #include "asymmetric_keys.h"
 
 MODULE_LICENSE("GPL");
@@ -451,15 +452,57 @@ static void asymmetric_key_destroy(struct key *key)
 	asymmetric_key_free_kids(kids);
 }
 
+int asymmetric_key_eds_op(struct kernel_pkey_params *params,
+			  const void *in, void *out)
+{
+	const struct asymmetric_key_subtype *subtype;
+	struct key *key = params->key;
+	int ret;
+
+	pr_devel("==>%s()\n", __func__);
+
+	if (key->type != &key_type_asymmetric)
+		return -EINVAL;
+	subtype = asymmetric_key_subtype(key);
+	if (!subtype ||
+	    !key->payload.data[0])
+		return -EINVAL;
+	if (!subtype->eds_op)
+		return -ENOTSUPP;
+
+	ret = subtype->eds_op(params, in, out);
+
+	pr_devel("<==%s() = %d\n", __func__, ret);
+	return ret;
+}
+
+static int asymmetric_key_verify_signature(struct kernel_pkey_params *params,
+					   const void *in, const void *in2)
+{
+	struct public_key_signature sig = {
+		.s_size		= params->in2_len,
+		.digest_size	= params->in_len,
+		.encoding	= params->encoding,
+		.hash_algo	= params->hash_algo,
+		.digest		= (void *)in,
+		.s		= (void *)in2,
+	};
+
+	return verify_signature(params->key, &sig);
+}
+
 struct key_type key_type_asymmetric = {
-	.name		= "asymmetric",
-	.preparse	= asymmetric_key_preparse,
-	.free_preparse	= asymmetric_key_free_preparse,
-	.instantiate	= generic_key_instantiate,
-	.match_preparse	= asymmetric_key_match_preparse,
-	.match_free	= asymmetric_key_match_free,
-	.destroy	= asymmetric_key_destroy,
-	.describe	= asymmetric_key_describe,
+	.name			= "asymmetric",
+	.preparse		= asymmetric_key_preparse,
+	.free_preparse		= asymmetric_key_free_preparse,
+	.instantiate		= generic_key_instantiate,
+	.match_preparse		= asymmetric_key_match_preparse,
+	.match_free		= asymmetric_key_match_free,
+	.destroy		= asymmetric_key_destroy,
+	.describe		= asymmetric_key_describe,
+	.asym_query		= query_asymmetric_key,
+	.asym_eds_op		= asymmetric_key_eds_op,
+	.asym_verify_signature	= asymmetric_key_verify_signature,
 };
 EXPORT_SYMBOL_GPL(key_type_asymmetric);
 
