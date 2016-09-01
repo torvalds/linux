@@ -242,8 +242,8 @@ static void tipc_link_build_proto_msg(struct tipc_link *l, int mtyp, bool probe,
 				      u16 rcvgap, int tolerance, int priority,
 				      struct sk_buff_head *xmitq);
 static void link_print(struct tipc_link *l, const char *str);
-static void tipc_link_build_nack_msg(struct tipc_link *l,
-				     struct sk_buff_head *xmitq);
+static int tipc_link_build_nack_msg(struct tipc_link *l,
+				    struct sk_buff_head *xmitq);
 static void tipc_link_build_bc_init_msg(struct tipc_link *l,
 					struct sk_buff_head *xmitq);
 static bool tipc_link_release_pkts(struct tipc_link *l, u16 to);
@@ -1184,17 +1184,26 @@ void tipc_link_build_reset_msg(struct tipc_link *l, struct sk_buff_head *xmitq)
 }
 
 /* tipc_link_build_nack_msg: prepare link nack message for transmission
+ * Note that sending of broadcast NACK is coordinated among nodes, to
+ * reduce the risk of NACK storms towards the sender
  */
-static void tipc_link_build_nack_msg(struct tipc_link *l,
-				     struct sk_buff_head *xmitq)
+static int tipc_link_build_nack_msg(struct tipc_link *l,
+				    struct sk_buff_head *xmitq)
 {
 	u32 def_cnt = ++l->stats.deferred_recv;
+	int match1, match2;
 
-	if (link_is_bc_rcvlink(l))
-		return;
+	if (link_is_bc_rcvlink(l)) {
+		match1 = def_cnt & 0xf;
+		match2 = tipc_own_addr(l->net) & 0xf;
+		if (match1 == match2)
+			return TIPC_LINK_SND_STATE;
+		return 0;
+	}
 
 	if ((skb_queue_len(&l->deferdq) == 1) || !(def_cnt % TIPC_NACK_INTV))
 		tipc_link_build_proto_msg(l, STATE_MSG, 0, 0, 0, 0, xmitq);
+	return 0;
 }
 
 /* tipc_link_rcv - process TIPC packets/messages arriving from off-node
@@ -1245,7 +1254,7 @@ int tipc_link_rcv(struct tipc_link *l, struct sk_buff *skb,
 		/* Defer delivery if sequence gap */
 		if (unlikely(seqno != rcv_nxt)) {
 			__tipc_skb_queue_sorted(defq, seqno, skb);
-			tipc_link_build_nack_msg(l, xmitq);
+			rc |= tipc_link_build_nack_msg(l, xmitq);
 			break;
 		}
 
