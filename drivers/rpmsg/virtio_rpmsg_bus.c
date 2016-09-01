@@ -35,6 +35,8 @@
 #include <linux/mutex.h>
 #include <linux/of_device.h>
 
+#include "rpmsg_internal.h"
+
 /**
  * struct virtproc_info - virtual remote processor state
  * @vdev:	the virtio device
@@ -452,29 +454,6 @@ static void rpmsg_release_device(struct device *dev)
 	kfree(rpdev);
 }
 
-/*
- * match an rpmsg channel with a channel info struct.
- * this is used to make sure we're not creating rpmsg devices for channels
- * that already exist.
- */
-static int rpmsg_device_match(struct device *dev, void *data)
-{
-	struct rpmsg_channel_info *chinfo = data;
-	struct rpmsg_device *rpdev = to_rpmsg_device(dev);
-
-	if (chinfo->src != RPMSG_ADDR_ANY && chinfo->src != rpdev->src)
-		return 0;
-
-	if (chinfo->dst != RPMSG_ADDR_ANY && chinfo->dst != rpdev->dst)
-		return 0;
-
-	if (strncmp(chinfo->name, rpdev->id.name, RPMSG_NAME_SIZE))
-		return 0;
-
-	/* found a match ! */
-	return 1;
-}
-
 static const struct rpmsg_device_ops virtio_rpmsg_ops = {
 	.create_ept = virtio_rpmsg_create_ept,
 	.announce_create = virtio_rpmsg_announce_create,
@@ -494,7 +473,7 @@ static struct rpmsg_device *rpmsg_create_channel(struct virtproc_info *vrp,
 	int ret;
 
 	/* make sure a similar channel doesn't already exist */
-	tmp = device_find_child(dev, chinfo, rpmsg_device_match);
+	tmp = rpmsg_find_device(dev, chinfo);
 	if (tmp) {
 		/* decrement the matched device's refcount back */
 		put_device(tmp);
@@ -547,7 +526,7 @@ static int rpmsg_destroy_channel(struct virtproc_info *vrp,
 	struct virtio_device *vdev = vrp->vdev;
 	struct device *dev;
 
-	dev = device_find_child(&vdev->dev, chinfo, rpmsg_device_match);
+	dev = rpmsg_find_device(&vdev->dev, chinfo);
 	if (!dev)
 		return -EINVAL;
 

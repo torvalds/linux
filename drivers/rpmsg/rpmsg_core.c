@@ -22,6 +22,8 @@
 #include <linux/kernel.h>
 #include <linux/rpmsg.h>
 
+#include "rpmsg_internal.h"
+
 /**
  * rpmsg_create_ept() - create a new rpmsg_endpoint
  * @rpdev: rpmsg channel device
@@ -229,3 +231,34 @@ int rpmsg_trysend_offchannel(struct rpmsg_endpoint *ept, u32 src, u32 dst,
 	return ept->ops->trysend_offchannel(ept, src, dst, data, len);
 }
 EXPORT_SYMBOL(rpmsg_trysend_offchannel);
+
+/*
+ * match an rpmsg channel with a channel info struct.
+ * this is used to make sure we're not creating rpmsg devices for channels
+ * that already exist.
+ */
+static int rpmsg_device_match(struct device *dev, void *data)
+{
+	struct rpmsg_channel_info *chinfo = data;
+	struct rpmsg_device *rpdev = to_rpmsg_device(dev);
+
+	if (chinfo->src != RPMSG_ADDR_ANY && chinfo->src != rpdev->src)
+		return 0;
+
+	if (chinfo->dst != RPMSG_ADDR_ANY && chinfo->dst != rpdev->dst)
+		return 0;
+
+	if (strncmp(chinfo->name, rpdev->id.name, RPMSG_NAME_SIZE))
+		return 0;
+
+	/* found a match ! */
+	return 1;
+}
+
+struct device *rpmsg_find_device(struct device *parent,
+				 struct rpmsg_channel_info *chinfo)
+{
+	return device_find_child(parent, chinfo, rpmsg_device_match);
+
+}
+EXPORT_SYMBOL(rpmsg_find_device);
