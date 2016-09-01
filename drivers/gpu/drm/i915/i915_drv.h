@@ -1338,7 +1338,7 @@ struct i915_gem_mm {
 	bool interruptible;
 
 	/* the indicator for dispatch video commands on two BSD rings */
-	unsigned int bsd_engine_dispatch_index;
+	atomic_t bsd_engine_dispatch_index;
 
 	/** Bit 6 swizzling required for X tiling */
 	uint32_t bit_6_swizzle_x;
