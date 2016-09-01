@@ -186,7 +186,7 @@ struct batadv_debuginfo batadv_debuginfo_##_name = {	\
 /* the following attributes are general and therefore they will be directly
  * placed in the BATADV_DEBUGFS_SUBDIR subdirectory of debugfs
  */
-static BATADV_DEBUGINFO(routing_algos, S_IRUGO, batadv_algorithms_open);
+static BATADV_DEBUGINFO(routing_algos, 0444, batadv_algorithms_open);
 
 static struct batadv_debuginfo *batadv_general_debuginfos[] = {
 	&batadv_debuginfo_routing_algos,
@@ -194,26 +194,24 @@ static struct batadv_debuginfo *batadv_general_debuginfos[] = {
 };
 
 /* The following attributes are per soft interface */
-static BATADV_DEBUGINFO(neighbors, S_IRUGO, neighbors_open);
-static BATADV_DEBUGINFO(originators, S_IRUGO, batadv_originators_open);
-static BATADV_DEBUGINFO(gateways, S_IRUGO, batadv_gateways_open);
-static BATADV_DEBUGINFO(transtable_global, S_IRUGO,
-			batadv_transtable_global_open);
+static BATADV_DEBUGINFO(neighbors, 0444, neighbors_open);
+static BATADV_DEBUGINFO(originators, 0444, batadv_originators_open);
+static BATADV_DEBUGINFO(gateways, 0444, batadv_gateways_open);
+static BATADV_DEBUGINFO(transtable_global, 0444, batadv_transtable_global_open);
 #ifdef CONFIG_BATMAN_ADV_BLA
-static BATADV_DEBUGINFO(bla_claim_table, S_IRUGO, batadv_bla_claim_table_open);
-static BATADV_DEBUGINFO(bla_backbone_table, S_IRUGO,
+static BATADV_DEBUGINFO(bla_claim_table, 0444, batadv_bla_claim_table_open);
+static BATADV_DEBUGINFO(bla_backbone_table, 0444,
 			batadv_bla_backbone_table_open);
 #endif
 #ifdef CONFIG_BATMAN_ADV_DAT
-static BATADV_DEBUGINFO(dat_cache, S_IRUGO, batadv_dat_cache_open);
+static BATADV_DEBUGINFO(dat_cache, 0444, batadv_dat_cache_open);
 #endif
-static BATADV_DEBUGINFO(transtable_local, S_IRUGO,
-			batadv_transtable_local_open);
+static BATADV_DEBUGINFO(transtable_local, 0444, batadv_transtable_local_open);
 #ifdef CONFIG_BATMAN_ADV_NC
-static BATADV_DEBUGINFO(nc_nodes, S_IRUGO, batadv_nc_nodes_open);
+static BATADV_DEBUGINFO(nc_nodes, 0444, batadv_nc_nodes_open);
 #endif
 #ifdef CONFIG_BATMAN_ADV_MCAST
-static BATADV_DEBUGINFO(mcast_flags, S_IRUGO, batadv_mcast_flags_open);
+static BATADV_DEBUGINFO(mcast_flags, 0444, batadv_mcast_flags_open);
 #endif
 
 static struct batadv_debuginfo *batadv_mesh_debuginfos[] = {
@@ -253,7 +251,7 @@ struct batadv_debuginfo batadv_hardif_debuginfo_##_name = {	\
 	},							\
 }
 
-static BATADV_HARDIF_DEBUGINFO(originators, S_IRUGO,
+static BATADV_HARDIF_DEBUGINFO(originators, 0444,
 			       batadv_originators_hardif_open);
 
 static struct batadv_debuginfo *batadv_hardif_debuginfos[] = {

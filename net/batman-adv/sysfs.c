@@ -33,7 +33,6 @@
 #include <linux/rcupdate.h>
 #include <linux/rtnetlink.h>
 #include <linux/slab.h>
-#include <linux/stat.h>
 #include <linux/stddef.h>
 #include <linux/string.h>
 #include <linux/stringify.h>
@@ -666,41 +665,36 @@ static ssize_t batadv_store_isolation_mark(struct kobject *kobj,
 	return count;
 }
 
-BATADV_ATTR_SIF_BOOL(aggregated_ogms, S_IRUGO | S_IWUSR, NULL);
-BATADV_ATTR_SIF_BOOL(bonding, S_IRUGO | S_IWUSR, NULL);
+BATADV_ATTR_SIF_BOOL(aggregated_ogms, 0644, NULL);
+BATADV_ATTR_SIF_BOOL(bonding, 0644, NULL);
 #ifdef CONFIG_BATMAN_ADV_BLA
-BATADV_ATTR_SIF_BOOL(bridge_loop_avoidance, S_IRUGO | S_IWUSR,
-		     batadv_bla_status_update);
+BATADV_ATTR_SIF_BOOL(bridge_loop_avoidance, 0644, batadv_bla_status_update);
 #endif
 #ifdef CONFIG_BATMAN_ADV_DAT
-BATADV_ATTR_SIF_BOOL(distributed_arp_table, S_IRUGO | S_IWUSR,
-		     batadv_dat_status_update);
+BATADV_ATTR_SIF_BOOL(distributed_arp_table, 0644, batadv_dat_status_update);
 #endif
-BATADV_ATTR_SIF_BOOL(fragmentation, S_IRUGO | S_IWUSR, batadv_update_min_mtu);
-static BATADV_ATTR(routing_algo, S_IRUGO, batadv_show_bat_algo, NULL);
-static BATADV_ATTR(gw_mode, S_IRUGO | S_IWUSR, batadv_show_gw_mode,
-		   batadv_store_gw_mode);
-BATADV_ATTR_SIF_UINT(orig_interval, orig_interval, S_IRUGO | S_IWUSR,
-		     2 * BATADV_JITTER, INT_MAX, NULL);
-BATADV_ATTR_SIF_UINT(hop_penalty, hop_penalty, S_IRUGO | S_IWUSR, 0,
-		     BATADV_TQ_MAX_VALUE, NULL);
-static BATADV_ATTR(gw_sel_class, S_IRUGO | S_IWUSR, batadv_show_gw_sel_class,
+BATADV_ATTR_SIF_BOOL(fragmentation, 0644, batadv_update_min_mtu);
+static BATADV_ATTR(routing_algo, 0444, batadv_show_bat_algo, NULL);
+static BATADV_ATTR(gw_mode, 0644, batadv_show_gw_mode, batadv_store_gw_mode);
+BATADV_ATTR_SIF_UINT(orig_interval, orig_interval, 0644, 2 * BATADV_JITTER,
+		     INT_MAX, NULL);
+BATADV_ATTR_SIF_UINT(hop_penalty, hop_penalty, 0644, 0, BATADV_TQ_MAX_VALUE,
+		     NULL);
+static BATADV_ATTR(gw_sel_class, 0644, batadv_show_gw_sel_class,
 		   batadv_store_gw_sel_class);
-static BATADV_ATTR(gw_bandwidth, S_IRUGO | S_IWUSR, batadv_show_gw_bwidth,
+static BATADV_ATTR(gw_bandwidth, 0644, batadv_show_gw_bwidth,
 		   batadv_store_gw_bwidth);
 #ifdef CONFIG_BATMAN_ADV_MCAST
-BATADV_ATTR_SIF_BOOL(multicast_mode, S_IRUGO | S_IWUSR, NULL);
+BATADV_ATTR_SIF_BOOL(multicast_mode, 0644, NULL);
 #endif
 #ifdef CONFIG_BATMAN_ADV_DEBUG
-BATADV_ATTR_SIF_UINT(log_level, log_level, S_IRUGO | S_IWUSR, 0,
-		     BATADV_DBG_ALL, NULL);
+BATADV_ATTR_SIF_UINT(log_level, log_level, 0644, 0, BATADV_DBG_ALL, NULL);
 #endif
 #ifdef CONFIG_BATMAN_ADV_NC
-BATADV_ATTR_SIF_BOOL(network_coding, S_IRUGO | S_IWUSR,
-		     batadv_nc_status_update);
+BATADV_ATTR_SIF_BOOL(network_coding, 0644, batadv_nc_status_update);
 #endif
-static BATADV_ATTR(isolation_mark, S_IRUGO | S_IWUSR,
-		   batadv_show_isolation_mark, batadv_store_isolation_mark);
+static BATADV_ATTR(isolation_mark, 0644, batadv_show_isolation_mark,
+		   batadv_store_isolation_mark);
 
 static struct batadv_attribute *batadv_mesh_attrs[] = {
 	&batadv_attr_aggregated_ogms,
@@ -731,7 +725,7 @@ static struct batadv_attribute *batadv_mesh_attrs[] = {
 	NULL,
 };
 
-BATADV_ATTR_VLAN_BOOL(ap_isolation, S_IRUGO | S_IWUSR, NULL);
+BATADV_ATTR_VLAN_BOOL(ap_isolation, 0644, NULL);
 
 /* array of vlan specific sysfs attributes */
 static struct batadv_attribute *batadv_vlan_attrs[] = {
@@ -1116,14 +1110,13 @@ static ssize_t batadv_show_throughput_override(struct kobject *kobj,
 
 #endif
 
-static BATADV_ATTR(mesh_iface, S_IRUGO | S_IWUSR, batadv_show_mesh_iface,
+static BATADV_ATTR(mesh_iface, 0644, batadv_show_mesh_iface,
 		   batadv_store_mesh_iface);
-static BATADV_ATTR(iface_status, S_IRUGO, batadv_show_iface_status, NULL);
+static BATADV_ATTR(iface_status, 0444, batadv_show_iface_status, NULL);
 #ifdef CONFIG_BATMAN_ADV_BATMAN_V
-BATADV_ATTR_HIF_UINT(elp_interval, bat_v.elp_interval, S_IRUGO | S_IWUSR,
+BATADV_ATTR_HIF_UINT(elp_interval, bat_v.elp_interval, 0644,
 		     2 * BATADV_JITTER, INT_MAX, NULL);
-static BATADV_ATTR(throughput_override, S_IRUGO | S_IWUSR,
-		   batadv_show_throughput_override,
+static BATADV_ATTR(throughput_override, 0644, batadv_show_throughput_override,
 		   batadv_store_throughput_override);
 #endif
 
