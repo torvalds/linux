@@ -95,7 +95,6 @@ enum rpmsg_ns_flags {
 
 #define RPMSG_ADDR_ANY		0xFFFFFFFF
 
-struct virtproc_info;
 struct rpmsg_device;
 struct rpmsg_endpoint;
 struct rpmsg_device_ops;
@@ -115,7 +114,6 @@ struct rpmsg_channel_info {
 
 /**
  * rpmsg_device - device that belong to the rpmsg bus
- * @vrp: the remote processor this channel belongs to
  * @dev: the device struct
  * @id: device id (used to match between rpmsg drivers and devices)
  * @src: local address
@@ -124,7 +122,6 @@ struct rpmsg_channel_info {
  * @announce: if set, rpmsg will announce the creation/removal of this channel
  */
 struct rpmsg_device {
-	struct virtproc_info *vrp;
 	struct device dev;
 	struct rpmsg_device_id id;
 	u32 src;
