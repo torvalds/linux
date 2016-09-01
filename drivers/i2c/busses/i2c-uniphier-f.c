@@ -458,16 +458,20 @@ static struct i2c_bus_recovery_info uniphier_fi2c_bus_recovery_info = {
 static void uniphier_fi2c_hw_init(struct uniphier_fi2c_priv *priv,
 				  u32 bus_speed, unsigned long clk_rate)
 {
-	u32 clk_count;
+	u32 tmp;
+
+	tmp = readl(priv->membase + UNIPHIER_FI2C_CR);
+	tmp |= UNIPHIER_FI2C_CR_MST;
+	writel(tmp, priv->membase + UNIPHIER_FI2C_CR);
 
 	uniphier_fi2c_reset(priv);
 
-	clk_count = clk_rate / bus_speed;
+	tmp = clk_rate / bus_speed;
 
-	writel(clk_count, priv->membase + UNIPHIER_FI2C_CYC);
-	writel(clk_count / 2, priv->membase + UNIPHIER_FI2C_LCTL);
-	writel(clk_count / 2, priv->membase + UNIPHIER_FI2C_SSUT);
-	writel(clk_count / 16, priv->membase + UNIPHIER_FI2C_DSUT);
+	writel(tmp, priv->membase + UNIPHIER_FI2C_CYC);
+	writel(tmp / 2, priv->membase + UNIPHIER_FI2C_LCTL);
+	writel(tmp / 2, priv->membase + UNIPHIER_FI2C_SSUT);
+	writel(tmp / 16, priv->membase + UNIPHIER_FI2C_DSUT);
 
 	uniphier_fi2c_prepare_operation(priv);
 }
