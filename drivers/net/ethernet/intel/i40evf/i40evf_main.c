@@ -1037,6 +1037,7 @@ void i40evf_down(struct i40evf_adapter *adapter)
 
 	netif_carrier_off(netdev);
 	netif_tx_disable(netdev);
+	adapter->link_up = false;
 	i40evf_napi_disable_all(adapter);
 	i40evf_irq_disable(adapter);
 
@@ -1731,6 +1732,7 @@ static void i40evf_reset_task(struct work_struct *work)
 			set_bit(__I40E_DOWN, &adapter->vsi.state);
 			netif_carrier_off(netdev);
 			netif_tx_disable(netdev);
+			adapter->link_up = false;
 			i40evf_napi_disable_all(adapter);
 			i40evf_irq_disable(adapter);
 			i40evf_free_traffic_irqs(adapter);
@@ -1769,6 +1771,7 @@ continue_reset:
 	if (netif_running(adapter->netdev)) {
 		netif_carrier_off(netdev);
 		netif_tx_stop_all_queues(netdev);
+		adapter->link_up = false;
 		i40evf_napi_disable_all(adapter);
 	}
 	i40evf_irq_disable(adapter);
@@ -2457,6 +2460,7 @@ static void i40evf_init_task(struct work_struct *work)
 		goto err_sw_init;
 
 	netif_carrier_off(netdev);
+	adapter->link_up = false;
 
 	if (!adapter->netdev_registered) {
 		err = register_netdev(netdev);
