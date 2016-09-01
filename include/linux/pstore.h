@@ -22,12 +22,13 @@
 #ifndef _LINUX_PSTORE_H
 #define _LINUX_PSTORE_H
 
-#include <linux/time.h>
+#include <linux/compiler.h>
+#include <linux/errno.h>
 #include <linux/kmsg_dump.h>
 #include <linux/mutex.h>
-#include <linux/types.h>
 #include <linux/spinlock.h>
-#include <linux/errno.h>
+#include <linux/time.h>
+#include <linux/types.h>
 
 /* types */
 enum pstore_type_id {
@@ -68,6 +69,10 @@ struct pstore_info {
 			enum kmsg_dump_reason reason, u64 *id,
 			unsigned int part, const char *buf, bool compressed,
 			size_t size, struct pstore_info *psi);
+	int		(*write_buf_user)(enum pstore_type_id type,
+			enum kmsg_dump_reason reason, u64 *id,
+			unsigned int part, const char __user *buf,
+			bool compressed, size_t size, struct pstore_info *psi);
 	int		(*erase)(enum pstore_type_id type, u64 id,
 			int count, struct timespec time,
 			struct pstore_info *psi);
