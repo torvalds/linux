@@ -119,7 +119,7 @@ struct cppc_perf_fb_ctrs {
 };
 
 /* Per CPU container for runtime CPPC management. */
-struct cpudata {
+struct cppc_cpudata {
 	int cpu;
 	struct cppc_perf_caps perf_caps;
 	struct cppc_perf_ctrls perf_ctrls;
@@ -132,7 +132,7 @@ struct cpudata {
 extern int cppc_get_perf_ctrs(int cpu, struct cppc_perf_fb_ctrs *perf_fb_ctrs);
 extern int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls);
 extern int cppc_get_perf_caps(int cpu, struct cppc_perf_caps *caps);
-extern int acpi_get_psd_map(struct cpudata **);
+extern int acpi_get_psd_map(struct cppc_cpudata **);
 extern unsigned int cppc_get_transition_latency(int cpu);
 
 #endif /* _CPPC_ACPI_H*/

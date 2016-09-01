@@ -409,13 +409,13 @@ end:
  *
  *	Return: 0 for success or negative value for err.
  */
-int acpi_get_psd_map(struct cpudata **all_cpu_data)
+int acpi_get_psd_map(struct cppc_cpudata **all_cpu_data)
 {
 	int count_target;
 	int retval = 0;
 	unsigned int i, j;
 	cpumask_var_t covered_cpus;
-	struct cpudata *pr, *match_pr;
+	struct cppc_cpudata *pr, *match_pr;
 	struct acpi_psd_package *pdomain;
 	struct acpi_psd_package *match_pdomain;
 	struct cpc_desc *cpc_ptr, *match_cpc_ptr;
