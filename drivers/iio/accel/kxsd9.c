@@ -12,8 +12,6 @@
  * I have a suitable wire made up.
  *
  * TODO:	Support the motion detector
- *		Uses register address incrementing so could have a
- *		heavily optimized ring buffer access function.
  */
 
 #include <linux/device.h>
@@ -24,6 +22,9 @@
 #include <linux/regmap.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
+#include <linux/iio/buffer.h>
+#include <linux/iio/triggered_buffer.h>
+#include <linux/iio/trigger_consumer.h>
 
 #include "kxsd9.h"
 
@@ -41,9 +42,11 @@
 
 /**
  * struct kxsd9_state - device related storage
+ * @dev: pointer to the parent device
  * @map: regmap to the device
  */
 struct kxsd9_state {
+	struct device *dev;
 	struct regmap *map;
 };
 
@@ -155,7 +158,35 @@ static int kxsd9_read_raw(struct iio_dev *indio_dev,
 error_ret:
 	return ret;
 };
-#define KXSD9_ACCEL_CHAN(axis)						\
+
+static irqreturn_t kxsd9_trigger_handler(int irq, void *p)
+{
+	const struct iio_poll_func *pf = p;
+	struct iio_dev *indio_dev = pf->indio_dev;
+	struct kxsd9_state *st = iio_priv(indio_dev);
+	int ret;
+	/* 4 * 16bit values AND timestamp */
+	__be16 hw_values[8];
+
+	ret = regmap_bulk_read(st->map,
+			       KXSD9_REG_X,
+			       &hw_values,
+			       8);
+	if (ret) {
+		dev_err(st->dev,
+			"error reading data\n");
+		return ret;
+	}
+
+	iio_push_to_buffers_with_timestamp(indio_dev,
+					   hw_values,
+					   iio_get_time_ns(indio_dev));
+	iio_trigger_notify_done(indio_dev->trig);
+
+	return IRQ_HANDLED;
+}
+
+#define KXSD9_ACCEL_CHAN(axis, index)						\
 	{								\
 		.type = IIO_ACCEL,					\
 		.modified = 1,						\
@@ -164,16 +195,35 @@ error_ret:
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |	\
 					BIT(IIO_CHAN_INFO_OFFSET),	\
 		.address = KXSD9_REG_##axis,				\
+		.scan_index = index,					\
+		.scan_type = {                                          \
+			.sign = 'u',					\
+			.realbits = 12,					\
+			.storagebits = 16,				\
+			.shift = 4,					\
+			.endianness = IIO_BE,				\
+		},							\
 	}
 
 static const struct iio_chan_spec kxsd9_channels[] = {
-	KXSD9_ACCEL_CHAN(X), KXSD9_ACCEL_CHAN(Y), KXSD9_ACCEL_CHAN(Z),
+	KXSD9_ACCEL_CHAN(X, 0),
+	KXSD9_ACCEL_CHAN(Y, 1),
+	KXSD9_ACCEL_CHAN(Z, 2),
 	{
 		.type = IIO_VOLTAGE,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 		.indexed = 1,
 		.address = KXSD9_REG_AUX,
-	}
+		.scan_index = 3,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 12,
+			.storagebits = 16,
+			.shift = 4,
+			.endianness = IIO_BE,
+		},
+	},
+	IIO_CHAN_SOFT_TIMESTAMP(4),
 };
 
 static const struct attribute_group kxsd9_attribute_group = {
@@ -197,6 +247,9 @@ static const struct iio_info kxsd9_info = {
 	.driver_module = THIS_MODULE,
 };
 
+/* Four channels apart from timestamp, scan mask = 0x0f */
+static const unsigned long kxsd9_scan_masks[] = { 0xf, 0 };
+
 int kxsd9_common_probe(struct device *parent,
 		       struct regmap *map,
 		       const char *name)
@@ -210,6 +263,7 @@ int kxsd9_common_probe(struct device *parent,
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
+	st->dev = parent;
 	st->map = map;
 
 	indio_dev->channels = kxsd9_channels;
@@ -218,16 +272,31 @@ int kxsd9_common_probe(struct device *parent,
 	indio_dev->dev.parent = parent;
 	indio_dev->info = &kxsd9_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->available_scan_masks = kxsd9_scan_masks;
 
 	kxsd9_power_up(st);
 
+	ret = iio_triggered_buffer_setup(indio_dev,
+					 iio_pollfunc_store_time,
+					 kxsd9_trigger_handler,
+					 NULL);
+	if (ret) {
+		dev_err(parent, "triggered buffer setup failed\n");
+		return ret;
+	}
+
 	ret = iio_device_register(indio_dev);
 	if (ret)
-		return ret;
+		goto err_cleanup_buffer;
 
 	dev_set_drvdata(parent, indio_dev);
 
 	return 0;
+
+err_cleanup_buffer:
+	iio_triggered_buffer_cleanup(indio_dev);
+
+	return ret;
 }
 EXPORT_SYMBOL(kxsd9_common_probe);
 
@@ -235,6 +304,7 @@ int kxsd9_common_remove(struct device *parent)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(parent);
 
+	iio_triggered_buffer_cleanup(indio_dev);
 	iio_device_unregister(indio_dev);
 
 	return 0;
