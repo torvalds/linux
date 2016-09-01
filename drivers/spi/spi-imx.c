@@ -455,6 +455,9 @@ static void mx51_ecspi_reset(struct spi_imx_data *spi_imx)
 #define MX31_CSPISTATUS		0x14
 #define MX31_STATUS_RR		(1 << 3)
 
+#define MX31_CSPI_TESTREG	0x1C
+#define MX31_TEST_LBC		(1 << 14)
+
 /* These functions also work for the i.MX35, but be aware that
  * the i.MX35 has a slightly different register layout for bits
  * we do not use here.
@@ -509,6 +512,13 @@ static int mx31_config(struct spi_device *spi, struct spi_imx_config *config)
 						  MX31_CSPICTRL_CS_SHIFT);
 
 	writel(reg, spi_imx->base + MXC_CSPICTRL);
+
+	reg = readl(spi_imx->base + MX31_CSPI_TESTREG);
+	if (spi->mode & SPI_LOOP)
+		reg |= MX31_TEST_LBC;
+	else
+		reg &= ~MX31_TEST_LBC;
+	writel(reg, spi_imx->base + MX31_CSPI_TESTREG);
 
 	return 0;
 }
@@ -1186,7 +1196,7 @@ static int spi_imx_probe(struct platform_device *pdev)
 	spi_imx->bitbang.master->prepare_message = spi_imx_prepare_message;
 	spi_imx->bitbang.master->unprepare_message = spi_imx_unprepare_message;
 	spi_imx->bitbang.master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
-	if (is_imx51_ecspi(spi_imx))
+	if (is_imx35_cspi(spi_imx) || is_imx51_ecspi(spi_imx))
 		spi_imx->bitbang.master->mode_bits |= SPI_LOOP;
 
 	init_completion(&spi_imx->xfer_done);
