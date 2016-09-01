@@ -5635,7 +5635,7 @@ static s32 brcmf_notify_vif_event(struct brcmf_if *ifp,
 		  ifevent->action, ifevent->flags, ifevent->ifidx,
 		  ifevent->bsscfgidx);
 
-	mutex_lock(&event->vif_event_lock);
+	spin_lock(&event->vif_event_lock);
 	event->action = ifevent->action;
 	vif = event->vif;
 
@@ -5643,7 +5643,7 @@ static s32 brcmf_notify_vif_event(struct brcmf_if *ifp,
 	case BRCMF_E_IF_ADD:
 		/* waiting process may have timed out */
 		if (!cfg->vif_event.vif) {
-			mutex_unlock(&event->vif_event_lock);
+			spin_unlock(&event->vif_event_lock);
 			return -EBADF;
 		}
 
@@ -5654,24 +5654,24 @@ static s32 brcmf_notify_vif_event(struct brcmf_if *ifp,
 			ifp->ndev->ieee80211_ptr = &vif->wdev;
 			SET_NETDEV_DEV(ifp->ndev, wiphy_dev(cfg->wiphy));
 		}
-		mutex_unlock(&event->vif_event_lock);
+		spin_unlock(&event->vif_event_lock);
 		wake_up(&event->vif_wq);
 		return 0;
 
 	case BRCMF_E_IF_DEL:
-		mutex_unlock(&event->vif_event_lock);
+		spin_unlock(&event->vif_event_lock);
 		/* event may not be upon user request */
 		if (brcmf_cfg80211_vif_event_armed(cfg))
 			wake_up(&event->vif_wq);
 		return 0;
 
 	case BRCMF_E_IF_CHANGE:
-		mutex_unlock(&event->vif_event_lock);
+		spin_unlock(&event->vif_event_lock);
 		wake_up(&event->vif_wq);
 		return 0;
 
 	default:
-		mutex_unlock(&event->vif_event_lock);
+		spin_unlock(&event->vif_event_lock);
 		break;
 	}
 	return -EINVAL;
@@ -5792,7 +5792,7 @@ static void wl_deinit_priv(struct brcmf_cfg80211_info *cfg)
 static void init_vif_event(struct brcmf_cfg80211_vif_event *event)
 {
 	init_waitqueue_head(&event->vif_wq);
-	mutex_init(&event->vif_event_lock);
+	spin_lock_init(&event->vif_event_lock);
 }
 
 static s32 brcmf_dongle_roam(struct brcmf_if *ifp)
@@ -6691,9 +6691,9 @@ static inline bool vif_event_equals(struct brcmf_cfg80211_vif_event *event,
 {
 	u8 evt_action;
 
-	mutex_lock(&event->vif_event_lock);
+	spin_lock(&event->vif_event_lock);
 	evt_action = event->action;
-	mutex_unlock(&event->vif_event_lock);
+	spin_unlock(&event->vif_event_lock);
 	return evt_action == action;
 }
 
@@ -6702,10 +6702,10 @@ void brcmf_cfg80211_arm_vif_event(struct brcmf_cfg80211_info *cfg,
 {
 	struct brcmf_cfg80211_vif_event *event = &cfg->vif_event;
 
-	mutex_lock(&event->vif_event_lock);
+	spin_lock(&event->vif_event_lock);
 	event->vif = vif;
 	event->action = 0;
-	mutex_unlock(&event->vif_event_lock);
+	spin_unlock(&event->vif_event_lock);
 }
 
 bool brcmf_cfg80211_vif_event_armed(struct brcmf_cfg80211_info *cfg)
@@ -6713,9 +6713,9 @@ bool brcmf_cfg80211_vif_event_armed(struct brcmf_cfg80211_info *cfg)
 	struct brcmf_cfg80211_vif_event *event = &cfg->vif_event;
 	bool armed;
 
-	mutex_lock(&event->vif_event_lock);
+	spin_lock(&event->vif_event_lock);
 	armed = event->vif != NULL;
-	mutex_unlock(&event->vif_event_lock);
+	spin_unlock(&event->vif_event_lock);
 
 	return armed;
 }
