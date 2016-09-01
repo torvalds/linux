@@ -50,6 +50,10 @@ static const struct mtk_ethtool_stats {
 	MTK_ETHTOOL_STAT(rx_flow_control_packets),
 };
 
+static const char * const mtk_clks_source_name[] = {
+	"ethif", "esw", "gp1", "gp2"
+};
+
 void mtk_w32(struct mtk_eth *eth, u32 val, unsigned reg)
 {
 	__raw_writel(val, eth->base + reg);
@@ -1814,6 +1818,7 @@ static int mtk_probe(struct platform_device *pdev)
 	if (!eth)
 		return -ENOMEM;
 
+	eth->dev = &pdev->dev;
 	eth->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(eth->base))
 		return PTR_ERR(eth->base);
@@ -1848,21 +1853,21 @@ static int mtk_probe(struct platform_device *pdev)
 			return -ENXIO;
 		}
 	}
+	for (i = 0; i < ARRAY_SIZE(eth->clks); i++) {
+		eth->clks[i] = devm_clk_get(eth->dev,
+					    mtk_clks_source_name[i]);
+		if (IS_ERR(eth->clks[i])) {
+			if (PTR_ERR(eth->clks[i]) == -EPROBE_DEFER)
+				return -EPROBE_DEFER;
+			return -ENODEV;
+		}
+	}
 
-	eth->clk_ethif = devm_clk_get(&pdev->dev, "ethif");
-	eth->clk_esw = devm_clk_get(&pdev->dev, "esw");
-	eth->clk_gp1 = devm_clk_get(&pdev->dev, "gp1");
-	eth->clk_gp2 = devm_clk_get(&pdev->dev, "gp2");
-	if (IS_ERR(eth->clk_esw) || IS_ERR(eth->clk_gp1) ||
-	    IS_ERR(eth->clk_gp2) || IS_ERR(eth->clk_ethif))
-		return -ENODEV;
+	clk_prepare_enable(eth->clks[MTK_CLK_ETHIF]);
+	clk_prepare_enable(eth->clks[MTK_CLK_ESW]);
+	clk_prepare_enable(eth->clks[MTK_CLK_GP1]);
+	clk_prepare_enable(eth->clks[MTK_CLK_GP2]);
 
-	clk_prepare_enable(eth->clk_ethif);
-	clk_prepare_enable(eth->clk_esw);
-	clk_prepare_enable(eth->clk_gp1);
-	clk_prepare_enable(eth->clk_gp2);
-
-	eth->dev = &pdev->dev;
 	eth->msg_enable = netif_msg_init(mtk_msg_level, MTK_DEFAULT_MSG_ENABLE);
 	INIT_WORK(&eth->pending_work, mtk_pending_work);
 
@@ -1905,10 +1910,10 @@ static int mtk_remove(struct platform_device *pdev)
 {
 	struct mtk_eth *eth = platform_get_drvdata(pdev);
 
-	clk_disable_unprepare(eth->clk_ethif);
-	clk_disable_unprepare(eth->clk_esw);
-	clk_disable_unprepare(eth->clk_gp1);
-	clk_disable_unprepare(eth->clk_gp2);
+	clk_disable_unprepare(eth->clks[MTK_CLK_ETHIF]);
+	clk_disable_unprepare(eth->clks[MTK_CLK_ESW]);
+	clk_disable_unprepare(eth->clks[MTK_CLK_GP1]);
+	clk_disable_unprepare(eth->clks[MTK_CLK_GP2]);
 
 	netif_napi_del(&eth->tx_napi);
 	netif_napi_del(&eth->rx_napi);
