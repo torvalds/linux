@@ -136,14 +136,6 @@ rpmsg_show_attr(src, src, "0x%x\n");
 rpmsg_show_attr(dst, dst, "0x%x\n");
 rpmsg_show_attr(announce, announce ? "true" : "false", "%s\n");
 
-/*
- * Unique (and free running) index for rpmsg devices.
- *
- * Yeah, we're not recycling those numbers (yet?). will be easy
- * to change if/when we want to.
- */
-static unsigned int rpmsg_dev_index;
-
 static ssize_t modalias_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
@@ -531,8 +523,8 @@ static struct rpmsg_channel *rpmsg_create_channel(struct virtproc_info *vrp,
 
 	strncpy(rpdev->id.name, chinfo->name, RPMSG_NAME_SIZE);
 
-	/* very simple device indexing plumbing which is enough for now */
-	dev_set_name(&rpdev->dev, "rpmsg%d", rpmsg_dev_index++);
+	dev_set_name(&rpdev->dev, "%s:%s",
+		     dev_name(dev->parent), rpdev->id.name);
 
 	rpdev->dev.parent = &vrp->vdev->dev;
 	rpdev->dev.bus = &rpmsg_bus;
