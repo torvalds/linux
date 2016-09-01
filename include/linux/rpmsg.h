@@ -96,6 +96,8 @@ enum rpmsg_ns_flags {
 #define RPMSG_ADDR_ANY		0xFFFFFFFF
 
 struct virtproc_info;
+struct rpmsg_endpoint;
+struct rpmsg_device_ops;
 
 /**
  * struct rpmsg_channel_info - channel info representation
@@ -127,9 +129,30 @@ struct rpmsg_device {
 	u32 dst;
 	struct rpmsg_endpoint *ept;
 	bool announce;
+
+	const struct rpmsg_device_ops *ops;
 };
 
 typedef void (*rpmsg_rx_cb_t)(struct rpmsg_device *, void *, int, void *, u32);
+
+/**
+ * struct rpmsg_device_ops - indirection table for the rpmsg_device operations
+ * @create_ept:		create backend-specific endpoint, requried
+ * @announce_create:	announce presence of new channel, optional
+ * @announce_destroy:	announce destruction of channel, optional
+ *
+ * Indirection table for the operations that a rpmsg backend should implement.
+ * @announce_create and @announce_destroy are optional as the backend might
+ * advertise new channels implicitly by creating the endpoints.
+ */
+struct rpmsg_device_ops {
+	struct rpmsg_endpoint *(*create_ept)(struct rpmsg_device *rpdev,
+					    rpmsg_rx_cb_t cb, void *priv,
+					    struct rpmsg_channel_info chinfo);
+
+	int (*announce_create)(struct rpmsg_device *ept);
+	int (*announce_destroy)(struct rpmsg_device *ept);
+};
 
 /**
  * struct rpmsg_endpoint - binds a local rpmsg address to its user
