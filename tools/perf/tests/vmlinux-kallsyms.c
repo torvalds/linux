@@ -8,14 +8,6 @@
 #include "debug.h"
 #include "machine.h"
 
-static int vmlinux_matches_kallsyms_filter(struct map *map __maybe_unused,
-					   struct symbol *sym)
-{
-	bool *visited = symbol__priv(sym);
-	*visited = true;
-	return 0;
-}
-
 #define UM(x) kallsyms_map->unmap_ip(kallsyms_map, (x))
 
 int test__vmlinux_matches_kallsyms(int subtest __maybe_unused)
@@ -100,8 +92,7 @@ int test__vmlinux_matches_kallsyms(int subtest __maybe_unused)
 	 * maps__reloc_vmlinux will notice and set proper ->[un]map_ip routines
 	 * to fixup the symbols.
 	 */
-	if (machine__load_vmlinux_path(&vmlinux, type,
-				       vmlinux_matches_kallsyms_filter) <= 0) {
+	if (machine__load_vmlinux_path(&vmlinux, type, NULL) <= 0) {
 		pr_debug("Couldn't find a vmlinux that matches the kernel running on this machine, skipping test\n");
 		err = TEST_SKIP;
 		goto out;
