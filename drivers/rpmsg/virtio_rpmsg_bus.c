@@ -120,6 +120,7 @@ static int virtio_rpmsg_trysendto(struct rpmsg_endpoint *ept, void *data,
 				  int len, u32 dst);
 static int virtio_rpmsg_trysend_offchannel(struct rpmsg_endpoint *ept, u32 src,
 					   u32 dst, void *data, int len);
+static int rpmsg_register_device(struct rpmsg_device *rpdev);
 
 /* sysfs show configuration fields */
 #define rpmsg_show_attr(field, path, format_string)			\
@@ -499,10 +500,22 @@ static struct rpmsg_device *rpmsg_create_channel(struct virtproc_info *vrp,
 
 	strncpy(rpdev->id.name, chinfo->name, RPMSG_NAME_SIZE);
 
+	rpdev->dev.parent = &vrp->vdev->dev;
+	ret = rpmsg_register_device(rpdev);
+	if (ret)
+		return NULL;
+
+	return rpdev;
+}
+
+static int rpmsg_register_device(struct rpmsg_device *rpdev)
+{
+	struct device *dev = &rpdev->dev;
+	int ret;
+
 	dev_set_name(&rpdev->dev, "%s:%s",
 		     dev_name(dev->parent), rpdev->id.name);
 
-	rpdev->dev.parent = &vrp->vdev->dev;
 	rpdev->dev.bus = &rpmsg_bus;
 	rpdev->dev.release = rpmsg_release_device;
 
@@ -510,10 +523,9 @@ static struct rpmsg_device *rpmsg_create_channel(struct virtproc_info *vrp,
 	if (ret) {
 		dev_err(dev, "device_register failed: %d\n", ret);
 		put_device(&rpdev->dev);
-		return NULL;
 	}
 
-	return rpdev;
+	return ret;
 }
 
 /*
