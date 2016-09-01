@@ -20,7 +20,10 @@
 #define pr_fmt(fmt) "%s: " fmt, __func__
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/rpmsg.h>
+#include <linux/of_device.h>
+#include <linux/slab.h>
 
 #include "rpmsg_internal.h"
 
