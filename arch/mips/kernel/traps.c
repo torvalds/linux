@@ -2092,6 +2092,14 @@ static void configure_exception_vector(void)
 {
 	if (cpu_has_veic || cpu_has_vint) {
 		unsigned long sr = set_c0_status(ST0_BEV);
+		/* If available, use WG to set top bits of EBASE */
+		if (cpu_has_ebase_wg) {
+#ifdef CONFIG_64BIT
+			write_c0_ebase_64(ebase | MIPS_EBASE_WG);
+#else
+			write_c0_ebase(ebase | MIPS_EBASE_WG);
+#endif
+		}
 		write_c0_ebase(ebase);
 		write_c0_status(sr);
 		/* Setting vector spacing enables EI/VI mode  */
@@ -2128,8 +2136,17 @@ void per_cpu_trap_init(bool is_boot_cpu)
 		 * We shouldn't trust a secondary core has a sane EBASE register
 		 * so use the one calculated by the boot CPU.
 		 */
-		if (!is_boot_cpu)
+		if (!is_boot_cpu) {
+			/* If available, use WG to set top bits of EBASE */
+			if (cpu_has_ebase_wg) {
+#ifdef CONFIG_64BIT
+				write_c0_ebase_64(ebase | MIPS_EBASE_WG);
+#else
+				write_c0_ebase(ebase | MIPS_EBASE_WG);
+#endif
+			}
 			write_c0_ebase(ebase);
+		}
 
 		cp0_compare_irq_shift = CAUSEB_TI - CAUSEB_IP;
 		cp0_compare_irq = (read_c0_intctl() >> INTCTLB_IPTI) & 7;
