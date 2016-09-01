@@ -853,6 +853,16 @@ static struct rk_priv_data *rk_gmac_setup(struct platform_device *pdev,
 							"rockchip,grf");
 	bsp_priv->pdev = pdev;
 
+	gmac_clk_init(bsp_priv);
+
+	return bsp_priv;
+}
+
+static int rk_gmac_powerup(struct rk_priv_data *bsp_priv)
+{
+	int ret;
+	struct device *dev = &bsp_priv->pdev->dev;
+
 	/*rmii or rgmii*/
 	if (bsp_priv->phy_iface == PHY_INTERFACE_MODE_RGMII) {
 		dev_info(dev, "init for RGMII\n");
@@ -864,15 +874,6 @@ static struct rk_priv_data *rk_gmac_setup(struct platform_device *pdev,
 	} else {
 		dev_err(dev, "NO interface defined!\n");
 	}
-
-	gmac_clk_init(bsp_priv);
-
-	return bsp_priv;
-}
-
-static int rk_gmac_powerup(struct rk_priv_data *bsp_priv)
-{
-	int ret;
 
 	ret = phy_power_on(bsp_priv, true);
 	if (ret)
