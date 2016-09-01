@@ -72,6 +72,7 @@ struct exception_table_entry
 /* Returns 0 if exception not found and fixup otherwise.  */
 extern unsigned long search_exception_table(unsigned long);
 
+
 /*
  * architectures with an MMU should override these two
  */
