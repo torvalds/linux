@@ -77,12 +77,8 @@ static struct netvsc_device *alloc_net_device(void)
 	init_waitqueue_head(&net_device->wait_drain);
 	net_device->destroy = false;
 	atomic_set(&net_device->open_cnt, 0);
-	atomic_set(&net_device->vf_use_cnt, 0);
 	net_device->max_pkt = RNDIS_MAX_PKT_DEFAULT;
 	net_device->pkt_align = RNDIS_PKT_ALIGN_DEFAULT;
-
-	net_device->vf_netdev = NULL;
-	net_device->vf_inject = false;
 
 	return net_device;
 }
@@ -1106,16 +1102,16 @@ static void netvsc_send_table(struct hv_device *hdev,
 		nvscdev->send_table[i] = tab[i];
 }
 
-static void netvsc_send_vf(struct netvsc_device *nvdev,
+static void netvsc_send_vf(struct net_device_context *net_device_ctx,
 			   struct nvsp_message *nvmsg)
 {
-	nvdev->vf_alloc = nvmsg->msg.v4_msg.vf_assoc.allocated;
-	nvdev->vf_serial = nvmsg->msg.v4_msg.vf_assoc.serial;
+	net_device_ctx->vf_alloc = nvmsg->msg.v4_msg.vf_assoc.allocated;
+	net_device_ctx->vf_serial = nvmsg->msg.v4_msg.vf_assoc.serial;
 }
 
 static inline void netvsc_receive_inband(struct hv_device *hdev,
-					 struct netvsc_device *nvdev,
-					 struct nvsp_message *nvmsg)
+				 struct net_device_context *net_device_ctx,
+				 struct nvsp_message *nvmsg)
 {
 	switch (nvmsg->hdr.msg_type) {
 	case NVSP_MSG5_TYPE_SEND_INDIRECTION_TABLE:
@@ -1123,7 +1119,7 @@ static inline void netvsc_receive_inband(struct hv_device *hdev,
 		break;
 
 	case NVSP_MSG4_TYPE_SEND_VF_ASSOCIATION:
-		netvsc_send_vf(nvdev, nvmsg);
+		netvsc_send_vf(net_device_ctx, nvmsg);
 		break;
 	}
 }
@@ -1136,6 +1132,7 @@ static void netvsc_process_raw_pkt(struct hv_device *device,
 				   struct vmpacket_descriptor *desc)
 {
 	struct nvsp_message *nvmsg;
+	struct net_device_context *net_device_ctx = netdev_priv(ndev);
 
 	nvmsg = (struct nvsp_message *)((unsigned long)
 		desc + (desc->offset8 << 3));
@@ -1150,7 +1147,7 @@ static void netvsc_process_raw_pkt(struct hv_device *device,
 		break;
 
 	case VM_PKT_DATA_INBAND:
-		netvsc_receive_inband(device, net_device, nvmsg);
+		netvsc_receive_inband(device, net_device_ctx, nvmsg);
 		break;
 
 	default:

@@ -3543,7 +3543,7 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 	/* combine the user config with event to determine if permanent
 	 * addresses are to be removed from address hash table
 	 */
-	keep_addr = !(how || _keep_addr <= 0);
+	keep_addr = !(how || _keep_addr <= 0 || idev->cnf.disable_ipv6);
 
 	/* Step 2: clear hash table */
 	for (i = 0; i < IN6_ADDR_HSIZE; i++) {
@@ -3599,7 +3599,7 @@ restart:
 	/* re-combine the user config with event to determine if permanent
 	 * addresses are to be removed from the interface list
 	 */
-	keep_addr = (!how && _keep_addr > 0);
+	keep_addr = (!how && _keep_addr > 0 && !idev->cnf.disable_ipv6);
 
 	INIT_LIST_HEAD(&del_list);
 	list_for_each_entry_safe(ifa, tmp, &idev->addr_list, if_list) {

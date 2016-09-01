@@ -1329,19 +1329,15 @@ static int kvmppc_xics_create(struct kvm_device *dev, u32 type)
 	xics->kvm = kvm;
 
 	/* Already there ? */
-	mutex_lock(&kvm->lock);
 	if (kvm->arch.xics)
 		ret = -EEXIST;
 	else
 		kvm->arch.xics = xics;
-	mutex_unlock(&kvm->lock);
 
 	if (ret) {
 		kfree(xics);
 		return ret;
 	}
-
-	xics_debugfs_init(xics);
 
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	if (cpu_has_feature(CPU_FTR_ARCH_206)) {
@@ -1354,9 +1350,17 @@ static int kvmppc_xics_create(struct kvm_device *dev, u32 type)
 	return 0;
 }
 
+static void kvmppc_xics_init(struct kvm_device *dev)
+{
+	struct kvmppc_xics *xics = (struct kvmppc_xics *)dev->private;
+
+	xics_debugfs_init(xics);
+}
+
 struct kvm_device_ops kvm_xics_ops = {
 	.name = "kvm-xics",
 	.create = kvmppc_xics_create,
+	.init = kvmppc_xics_init,
 	.destroy = kvmppc_xics_free,
 	.set_attr = xics_set_attr,
 	.get_attr = xics_get_attr,

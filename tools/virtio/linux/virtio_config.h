@@ -40,6 +40,19 @@ static inline void __virtio_clear_bit(struct virtio_device *vdev,
 #define virtio_has_feature(dev, feature) \
 	(__virtio_test_bit((dev), feature))
 
+/**
+ * virtio_has_iommu_quirk - determine whether this device has the iommu quirk
+ * @vdev: the device
+ */
+static inline bool virtio_has_iommu_quirk(const struct virtio_device *vdev)
+{
+	/*
+	 * Note the reverse polarity of the quirk feature (compared to most
+	 * other features), this is for compatibility with legacy systems.
+	 */
+	return !virtio_has_feature(vdev, VIRTIO_F_IOMMU_PLATFORM);
+}
+
 static inline bool virtio_is_little_endian(struct virtio_device *vdev)
 {
 	return virtio_has_feature(vdev, VIRTIO_F_VERSION_1) ||

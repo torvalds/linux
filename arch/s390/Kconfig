@@ -872,4 +872,17 @@ config S390_GUEST
 	  Select this option if you want to run the kernel as a guest under
 	  the KVM hypervisor.
 
+config S390_GUEST_OLD_TRANSPORT
+	def_bool y
+	prompt "Guest support for old s390 virtio transport (DEPRECATED)"
+	depends on S390_GUEST
+	help
+	  Enable this option to add support for the old s390-virtio
+	  transport (i.e. virtio devices NOT based on virtio-ccw). This
+	  type of virtio devices is only available on the experimental
+	  kuli userspace or with old (< 2.6) qemu. If you are running
+	  with a modern version of qemu (which supports virtio-ccw since
+	  1.4 and uses it by default since version 2.4), you probably won't
+	  need this.
+
 endmenu
