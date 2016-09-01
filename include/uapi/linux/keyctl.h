@@ -60,12 +60,42 @@
 #define KEYCTL_INVALIDATE		21	/* invalidate a key */
 #define KEYCTL_GET_PERSISTENT		22	/* get a user's persistent keyring */
 #define KEYCTL_DH_COMPUTE		23	/* Compute Diffie-Hellman values */
+#define KEYCTL_PKEY_QUERY		24	/* Query public key parameters */
+#define KEYCTL_PKEY_ENCRYPT		25	/* Encrypt a blob using a public key */
+#define KEYCTL_PKEY_DECRYPT		26	/* Decrypt a blob using a public key */
+#define KEYCTL_PKEY_SIGN		27	/* Create a public key signature */
+#define KEYCTL_PKEY_VERIFY		28	/* Verify a public key signature */
 
 /* keyctl structures */
 struct keyctl_dh_params {
 	__s32 private;
 	__s32 prime;
 	__s32 base;
+};
+
+#define KEYCTL_SUPPORTS_ENCRYPT		0x01
+#define KEYCTL_SUPPORTS_DECRYPT		0x02
+#define KEYCTL_SUPPORTS_SIGN		0x04
+#define KEYCTL_SUPPORTS_VERIFY		0x08
+
+struct keyctl_pkey_query {
+	__u32		supported_ops;	/* Which ops are supported */
+	__u32		key_size;	/* Size of the key in bits */
+	__u16		max_data_size;	/* Maximum size of raw data to sign in bytes */
+	__u16		max_sig_size;	/* Maximum size of signature in bytes */
+	__u16		max_enc_size;	/* Maximum size of encrypted blob in bytes */
+	__u16		max_dec_size;	/* Maximum size of decrypted blob in bytes */
+	__u32		__spare[10];
+};
+
+struct keyctl_pkey_params {
+	__s32		key_id;		/* Serial no. of public key to use */
+	__u32		in_len;		/* Input data size */
+	union {
+		__u32		out_len;	/* Output buffer size (encrypt/decrypt/sign) */
+		__u32		in2_len;	/* 2nd input data size (verify) */
+	};
+	__u32		__spare[7];
 };
 
 #endif /*  _LINUX_KEYCTL_H */
