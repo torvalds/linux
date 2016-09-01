@@ -2030,6 +2030,29 @@ struct gb_lights_get_flash_fault_response {
 
 #define GB_AUDIO_INVALID_INDEX			0xff
 
+/* enum snd_jack_types */
+#define GB_AUDIO_JACK_HEADPHONE			0x0000001
+#define GB_AUDIO_JACK_MICROPHONE		0x0000002
+#define GB_AUDIO_JACK_HEADSET			(GB_AUDIO_JACK_HEADPHONE | \
+						 GB_AUDIO_JACK_MICROPHONE)
+#define GB_AUDIO_JACK_LINEOUT			0x0000004
+#define GB_AUDIO_JACK_MECHANICAL		0x0000008
+#define GB_AUDIO_JACK_VIDEOOUT			0x0000010
+#define GB_AUDIO_JACK_AVOUT			(GB_AUDIO_JACK_LINEOUT | \
+						 GB_AUDIO_JACK_VIDEOOUT)
+#define GB_AUDIO_JACK_LINEIN			0x0000020
+#define GB_AUDIO_JACK_OC_HPHL			0x0000040
+#define GB_AUDIO_JACK_OC_HPHR			0x0000080
+#define GB_AUDIO_JACK_MICROPHONE2		0x0000200
+#define GB_AUDIO_JACK_ANC_HEADPHONE		(GB_AUDIO_JACK_HEADPHONE | \
+						 GB_AUDIO_JACK_MICROPHONE | \
+						 GB_AUDIO_JACK_MICROPHONE2)
+/* Kept separate from switches to facilitate implementation */
+#define GB_AUDIO_JACK_BTN_0			0x4000000
+#define GB_AUDIO_JACK_BTN_1			0x2000000
+#define GB_AUDIO_JACK_BTN_2			0x1000000
+#define GB_AUDIO_JACK_BTN_3			0x0800000
+
 struct gb_audio_pcm {
 	__u8	stream_name[GB_AUDIO_PCM_NAME_MAX];
 	__le32	formats;	/* GB_AUDIO_PCM_FMT_* */
@@ -2120,6 +2143,7 @@ struct gb_audio_topology {
 	__le32	size_controls;
 	__le32	size_widgets;
 	__le32	size_routes;
+	__le32	jack_type;
 	/*
 	 * struct gb_audio_dai		dai[num_dais];
 	 * struct gb_audio_control	controls[num_controls];
