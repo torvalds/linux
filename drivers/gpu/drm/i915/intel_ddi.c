@@ -1639,7 +1639,10 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder,
 
 		intel_prepare_dp_ddi_buffers(intel_encoder);
 
-		intel_dp_set_link_params(intel_dp, crtc->config);
+		intel_dp_set_link_params(intel_dp, crtc->config->port_clock,
+					 crtc->config->lane_count,
+					 intel_crtc_has_type(crtc->config,
+							     INTEL_OUTPUT_DP_MST));
 
 		intel_ddi_init_dp_buf_reg(intel_encoder);
 

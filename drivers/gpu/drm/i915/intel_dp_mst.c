@@ -153,8 +153,10 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
 		intel_ddi_clk_select(&intel_dig_port->base, pipe_config);
 
 		intel_prepare_dp_ddi_buffers(&intel_dig_port->base);
-
-		intel_dp_set_link_params(intel_dp, pipe_config);
+		intel_dp_set_link_params(intel_dp,
+					 pipe_config->port_clock,
+					 pipe_config->lane_count,
+					 true);
 
 		intel_ddi_init_dp_buf_reg(&intel_dig_port->base);
 

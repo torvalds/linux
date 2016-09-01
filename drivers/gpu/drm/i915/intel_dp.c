@@ -1641,11 +1641,12 @@ found:
 }
 
 void intel_dp_set_link_params(struct intel_dp *intel_dp,
-			      const struct intel_crtc_state *pipe_config)
+			      int link_rate, uint8_t lane_count,
+			      bool link_mst)
 {
-	intel_dp->link_rate = pipe_config->port_clock;
-	intel_dp->lane_count = pipe_config->lane_count;
-	intel_dp->link_mst = intel_crtc_has_type(pipe_config, INTEL_OUTPUT_DP_MST);
+	intel_dp->link_rate = link_rate;
+	intel_dp->lane_count = lane_count;
+	intel_dp->link_mst = link_mst;
 }
 
 static void intel_dp_prepare(struct intel_encoder *encoder,
@@ -1658,7 +1659,10 @@ static void intel_dp_prepare(struct intel_encoder *encoder,
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 	const struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 
-	intel_dp_set_link_params(intel_dp, pipe_config);
+	intel_dp_set_link_params(intel_dp, pipe_config->port_clock,
+				 pipe_config->lane_count,
+				 intel_crtc_has_type(pipe_config,
+						     INTEL_OUTPUT_DP_MST));
 
 	/*
 	 * There are four kinds of DP registers:

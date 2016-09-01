@@ -1383,7 +1383,8 @@ bool intel_dp_init(struct drm_device *dev, i915_reg_t output_reg, enum port port
 bool intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 			     struct intel_connector *intel_connector);
 void intel_dp_set_link_params(struct intel_dp *intel_dp,
-			      const struct intel_crtc_state *pipe_config);
+			      int link_rate, uint8_t lane_count,
+			      bool link_mst);
 void intel_dp_start_link_train(struct intel_dp *intel_dp);
 void intel_dp_stop_link_train(struct intel_dp *intel_dp);
 void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode);
