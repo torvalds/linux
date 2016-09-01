@@ -556,17 +556,9 @@ static ssize_t error_state_write(struct file *file, struct kobject *kobj,
 {
 	struct device *kdev = kobj_to_dev(kobj);
 	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
-	struct drm_device *dev = &dev_priv->drm;
-	int ret;
 
 	DRM_DEBUG_DRIVER("Resetting error state\n");
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-
-	i915_destroy_error_state(dev);
-	mutex_unlock(&dev->struct_mutex);
+	i915_destroy_error_state(&dev_priv->drm);
 
 	return count;
 }

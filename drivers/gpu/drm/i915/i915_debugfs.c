@@ -978,17 +978,9 @@ i915_error_state_write(struct file *filp,
 		       loff_t *ppos)
 {
 	struct i915_error_state_file_priv *error_priv = filp->private_data;
-	struct drm_device *dev = error_priv->dev;
-	int ret;
 
 	DRM_DEBUG_DRIVER("Resetting error state\n");
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-
-	i915_destroy_error_state(dev);
-	mutex_unlock(&dev->struct_mutex);
+	i915_destroy_error_state(error_priv->dev);
 
 	return cnt;
 }
