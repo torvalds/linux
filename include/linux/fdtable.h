@@ -30,12 +30,12 @@ struct fdtable {
 	struct rcu_head rcu;
 };
 
-static inline bool close_on_exec(int fd, const struct fdtable *fdt)
+static inline bool close_on_exec(unsigned int fd, const struct fdtable *fdt)
 {
 	return test_bit(fd, fdt->close_on_exec);
 }
 
-static inline bool fd_is_open(int fd, const struct fdtable *fdt)
+static inline bool fd_is_open(unsigned int fd, const struct fdtable *fdt)
 {
 	return test_bit(fd, fdt->open_fds);
 }
@@ -57,7 +57,7 @@ struct files_struct {
    * written part on a separate cache line in SMP
    */
 	spinlock_t file_lock ____cacheline_aligned_in_smp;
-	int next_fd;
+	unsigned int next_fd;
 	unsigned long close_on_exec_init[1];
 	unsigned long open_fds_init[1];
 	unsigned long full_fds_bits_init[1];

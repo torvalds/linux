@@ -108,7 +108,7 @@ extern int pid_max_min, pid_max_max;
 extern int percpu_pagelist_fraction;
 extern int compat_log;
 extern int latencytop_enabled;
-extern int sysctl_nr_open_min, sysctl_nr_open_max;
+extern unsigned int sysctl_nr_open_min, sysctl_nr_open_max;
 #ifndef CONFIG_MMU
 extern int sysctl_nr_trim_pages;
 #endif
@@ -1692,7 +1692,7 @@ static struct ctl_table fs_table[] = {
 	{
 		.procname	= "nr_open",
 		.data		= &sysctl_nr_open,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &sysctl_nr_open_min,
