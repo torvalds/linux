@@ -1351,9 +1351,15 @@ static int nvme_rdma_device_unplug(struct nvme_rdma_queue *queue)
 		ret = 1;
 	}
 
-	/* Queue controller deletion */
+	/*
+	 * Queue controller deletion. Keep a reference until all
+	 * work is flushed since delete_work will free the ctrl mem
+	 */
+	kref_get(&ctrl->ctrl.kref);
 	queue_work(nvme_rdma_wq, &ctrl->delete_work);
 	flush_work(&ctrl->delete_work);
+	nvme_put_ctrl(&ctrl->ctrl);
+
 	return ret;
 }
 
@@ -1700,15 +1706,19 @@ static int __nvme_rdma_del_ctrl(struct nvme_rdma_ctrl *ctrl)
 static int nvme_rdma_del_ctrl(struct nvme_ctrl *nctrl)
 {
 	struct nvme_rdma_ctrl *ctrl = to_rdma_ctrl(nctrl);
-	int ret;
+	int ret = 0;
 
+	/*
+	 * Keep a reference until all work is flushed since
+	 * __nvme_rdma_del_ctrl can free the ctrl mem
+	 */
+	if (!kref_get_unless_zero(&ctrl->ctrl.kref))
+		return -EBUSY;
 	ret = __nvme_rdma_del_ctrl(ctrl);
-	if (ret)
-		return ret;
-
-	flush_work(&ctrl->delete_work);
-
-	return 0;
+	if (!ret)
+		flush_work(&ctrl->delete_work);
+	nvme_put_ctrl(&ctrl->ctrl);
+	return ret;
 }
 
 static void nvme_rdma_remove_ctrl_work(struct work_struct *work)
