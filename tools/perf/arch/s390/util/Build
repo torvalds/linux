@@ -4,3 +4,5 @@ libperf-y += kvm-stat.o
 libperf-$(CONFIG_DWARF) += dwarf-regs.o
 
 libperf-y += machine.o
+
+libperf-$(CONFIG_AUXTRACE) += auxtrace.o
