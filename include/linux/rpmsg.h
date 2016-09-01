@@ -98,6 +98,18 @@ enum rpmsg_ns_flags {
 struct virtproc_info;
 
 /**
+ * struct rpmsg_channel_info - channel info representation
+ * @name: name of service
+ * @src: local address
+ * @dst: destination address
+ */
+struct rpmsg_channel_info {
+	char name[RPMSG_NAME_SIZE];
+	u32 src;
+	u32 dst;
+};
+
+/**
  * rpmsg_channel - devices that belong to the rpmsg bus are called channels
  * @vrp: the remote processor this channel belongs to
  * @dev: the device struct
@@ -171,7 +183,8 @@ int __register_rpmsg_driver(struct rpmsg_driver *drv, struct module *owner);
 void unregister_rpmsg_driver(struct rpmsg_driver *drv);
 void rpmsg_destroy_ept(struct rpmsg_endpoint *);
 struct rpmsg_endpoint *rpmsg_create_ept(struct rpmsg_channel *,
-					rpmsg_rx_cb_t cb, void *priv, u32 addr);
+					rpmsg_rx_cb_t cb, void *priv,
+					struct rpmsg_channel_info chinfo);
 int
 rpmsg_send_offchannel_raw(struct rpmsg_channel *, u32, u32, void *, int, bool);
 

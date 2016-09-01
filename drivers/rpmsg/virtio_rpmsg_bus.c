@@ -73,18 +73,6 @@ struct virtproc_info {
 	struct rpmsg_endpoint *ns_ept;
 };
 
-/**
- * struct rpmsg_channel_info - internal channel info representation
- * @name: name of service
- * @src: local address
- * @dst: destination address
- */
-struct rpmsg_channel_info {
-	char name[RPMSG_NAME_SIZE];
-	u32 src;
-	u32 dst;
-};
-
 #define to_rpmsg_channel(d) container_of(d, struct rpmsg_channel, dev)
 #define to_rpmsg_driver(d) container_of(d, struct rpmsg_driver, drv)
 
@@ -259,7 +247,7 @@ free_ept:
  * @rpdev: rpmsg channel device
  * @cb: rx callback handler
  * @priv: private data for the driver's use
- * @addr: local rpmsg address to bind with @cb
+ * @chinfo: channel_info with the local rpmsg address to bind with @cb
  *
  * Every rpmsg address in the system is bound to an rx callback (so when
  * inbound messages arrive, they are dispatched by the rpmsg bus using the
@@ -295,9 +283,10 @@ free_ept:
  * Returns a pointer to the endpoint on success, or NULL on error.
  */
 struct rpmsg_endpoint *rpmsg_create_ept(struct rpmsg_channel *rpdev,
-					rpmsg_rx_cb_t cb, void *priv, u32 addr)
+					rpmsg_rx_cb_t cb, void *priv,
+					struct rpmsg_channel_info chinfo)
 {
-	return __rpmsg_create_ept(rpdev->vrp, rpdev, cb, priv, addr);
+	return __rpmsg_create_ept(rpdev->vrp, rpdev, cb, priv, chinfo.src);
 }
 EXPORT_SYMBOL(rpmsg_create_ept);
 
@@ -353,10 +342,15 @@ static int rpmsg_dev_probe(struct device *dev)
 	struct rpmsg_channel *rpdev = to_rpmsg_channel(dev);
 	struct rpmsg_driver *rpdrv = to_rpmsg_driver(rpdev->dev.driver);
 	struct virtproc_info *vrp = rpdev->vrp;
+	struct rpmsg_channel_info chinfo = {};
 	struct rpmsg_endpoint *ept;
 	int err;
 
-	ept = rpmsg_create_ept(rpdev, rpdrv->callback, NULL, rpdev->src);
+	strncpy(chinfo.name, rpdev->id.name, RPMSG_NAME_SIZE);
+	chinfo.src = rpdev->src;
+	chinfo.dst = RPMSG_ADDR_ANY;
+
+	ept = rpmsg_create_ept(rpdev, rpdrv->callback, NULL, chinfo);
 	if (!ept) {
 		dev_err(dev, "failed to create endpoint\n");
 		err = -ENOMEM;
