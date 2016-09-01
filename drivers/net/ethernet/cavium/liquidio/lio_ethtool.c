@@ -190,6 +190,10 @@ static const char oct_droq_stats_strings[][ETH_GSTRING_LEN] = {
 	"buffer_alloc_failure",
 };
 
+/* LiquidIO driver private flags */
+static const char oct_priv_flags_strings[][ETH_GSTRING_LEN] = {
+};
+
 #define OCTNIC_NCMD_AUTONEG_ON  0x1
 #define OCTNIC_NCMD_PHY_ON      0x2
 
@@ -658,6 +662,69 @@ lio_get_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)
 	pause->rx_pause = oct->rx_pause;
 }
 
+static int
+lio_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)
+{
+	/* Notes: Not supporting any auto negotiation in these
+	 * drivers.
+	 */
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+	struct octnic_ctrl_pkt nctrl;
+	struct oct_link_info *linfo = &lio->linfo;
+
+	int ret = 0;
+
+	if (oct->chip_id != OCTEON_CN23XX_PF_VID)
+		return -EINVAL;
+
+	if (linfo->link.s.duplex == 0) {
+		/*no flow control for half duplex*/
+		if (pause->rx_pause || pause->tx_pause)
+			return -EINVAL;
+	}
+
+	/*do not support autoneg of link flow control*/
+	if (pause->autoneg == AUTONEG_ENABLE)
+		return -EINVAL;
+
+	memset(&nctrl, 0, sizeof(struct octnic_ctrl_pkt));
+
+	nctrl.ncmd.u64 = 0;
+	nctrl.ncmd.s.cmd = OCTNET_CMD_SET_FLOW_CTL;
+	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
+	nctrl.wait_time = 100;
+	nctrl.netpndev = (u64)netdev;
+	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
+
+	if (pause->rx_pause) {
+		/*enable rx pause*/
+		nctrl.ncmd.s.param1 = 1;
+	} else {
+		/*disable rx pause*/
+		nctrl.ncmd.s.param1 = 0;
+	}
+
+	if (pause->tx_pause) {
+		/*enable tx pause*/
+		nctrl.ncmd.s.param2 = 1;
+	} else {
+		/*disable tx pause*/
+		nctrl.ncmd.s.param2 = 0;
+	}
+
+	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
+	if (ret < 0) {
+		dev_err(&oct->pci_dev->dev, "Failed to set pause parameter\n");
+		return -EINVAL;
+	}
+
+	oct->rx_pause = pause->rx_pause;
+	oct->tx_pause = pause->tx_pause;
+
+	return 0;
+}
+
 static void
 lio_get_ethtool_stats(struct net_device *netdev,
 		      struct ethtool_stats *stats  __attribute__((unused)),
@@ -925,6 +992,27 @@ lio_get_ethtool_stats(struct net_device *netdev,
 	}
 }
 
+static void lio_get_priv_flags_strings(struct lio *lio, u8 *data)
+{
+	struct octeon_device *oct_dev = lio->oct_dev;
+	int i;
+
+	switch (oct_dev->chip_id) {
+	case OCTEON_CN23XX_PF_VID:
+		for (i = 0; i < ARRAY_SIZE(oct_priv_flags_strings); i++) {
+			sprintf(data, "%s", oct_priv_flags_strings[i]);
+			data += ETH_GSTRING_LEN;
+		}
+		break;
+	case OCTEON_CN68XX:
+	case OCTEON_CN66XX:
+		break;
+	default:
+		netif_info(lio, drv, lio->netdev, "Unknown Chip !!\n");
+		break;
+	}
+}
+
 static void lio_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 {
 	struct lio *lio = GET_LIO(netdev);
@@ -964,9 +1052,28 @@ static void lio_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 		}
 		break;
 
+	case ETH_SS_PRIV_FLAGS:
+		lio_get_priv_flags_strings(lio, data);
+		break;
 	default:
 		netif_info(lio, drv, lio->netdev, "Unknown Stringset !!\n");
 		break;
+	}
+}
+
+static int lio_get_priv_flags_ss_count(struct lio *lio)
+{
+	struct octeon_device *oct_dev = lio->oct_dev;
+
+	switch (oct_dev->chip_id) {
+	case OCTEON_CN23XX_PF_VID:
+		return ARRAY_SIZE(oct_priv_flags_strings);
+	case OCTEON_CN68XX:
+	case OCTEON_CN66XX:
+		return -EOPNOTSUPP;
+	default:
+		netif_info(lio, drv, lio->netdev, "Unknown Chip !!\n");
+		return -EOPNOTSUPP;
 	}
 }
 
@@ -980,6 +1087,8 @@ static int lio_get_sset_count(struct net_device *netdev, int sset)
 		return (ARRAY_SIZE(oct_stats_strings) +
 			ARRAY_SIZE(oct_iq_stats_strings) * oct_dev->num_iqs +
 			ARRAY_SIZE(oct_droq_stats_strings) * oct_dev->num_oqs);
+	case ETH_SS_PRIV_FLAGS:
+		return lio_get_priv_flags_ss_count(lio);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -2096,6 +2205,7 @@ static const struct ethtool_ops lio_ethtool_ops = {
 	.get_strings		= lio_get_strings,
 	.get_ethtool_stats	= lio_get_ethtool_stats,
 	.get_pauseparam		= lio_get_pauseparam,
+	.set_pauseparam		= lio_set_pauseparam,
 	.get_regs_len		= lio_get_regs_len,
 	.get_regs		= lio_get_regs,
 	.get_msglevel		= lio_get_msglevel,

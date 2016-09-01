@@ -2184,7 +2184,7 @@ static void if_cfg_callback(struct octeon_device *oct,
 	struct liquidio_if_cfg_context *ctx;
 
 	resp = (struct liquidio_if_cfg_resp *)sc->virtrptr;
-	ctx  = (struct liquidio_if_cfg_context *)sc->ctxptr;
+	ctx = (struct liquidio_if_cfg_context *)sc->ctxptr;
 
 	oct = lio_get_device(ctx->octeon_id);
 	if (resp->status)
@@ -3934,7 +3934,10 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 
 		/* Register ethtool support */
 		liquidio_set_ethtool_ops(netdev);
-		octeon_dev->priv_flags = 0x0;
+		if (lio->oct_dev->chip_id == OCTEON_CN23XX_PF_VID)
+			octeon_dev->priv_flags = OCT_PRIV_FLAG_DEFAULT;
+		else
+			octeon_dev->priv_flags = 0x0;
 
 		if (netdev->features & NETIF_F_LRO)
 			liquidio_set_feature(netdev, OCTNET_CMD_LRO_ENABLE,
@@ -4015,8 +4018,7 @@ static int liquidio_init_nic_module(struct octeon_device *oct)
 	/* run port_config command for each port */
 	oct->ifcount = num_nic_ports;
 
-	memset(oct->props, 0,
-	       sizeof(struct octdev_props) * num_nic_ports);
+	memset(oct->props, 0, sizeof(struct octdev_props) * num_nic_ports);
 
 	for (i = 0; i < MAX_OCTEON_LINKS; i++)
 		oct->props[i].gmxport = -1;
@@ -4032,7 +4034,7 @@ static int liquidio_init_nic_module(struct octeon_device *oct)
 	/* Initialize interrupt moderation params */
 	intrmod_cfg = &((struct octeon_device *)oct)->intrmod;
 	intrmod_cfg->rx_enable = 1;
-	intrmod_cfg->check_intrvl =   LIO_INTRMOD_CHECK_INTERVAL;
+	intrmod_cfg->check_intrvl = LIO_INTRMOD_CHECK_INTERVAL;
 	intrmod_cfg->maxpkt_ratethr = LIO_INTRMOD_MAXPKT_RATETHR;
 	intrmod_cfg->minpkt_ratethr = LIO_INTRMOD_MINPKT_RATETHR;
 	intrmod_cfg->rx_maxcnt_trigger = LIO_INTRMOD_RXMAXCNT_TRIGGER;

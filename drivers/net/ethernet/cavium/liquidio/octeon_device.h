@@ -755,8 +755,15 @@ enum {
 	OCT_PRIV_FLAG_TX_BYTES = 0, /* Tx interrupts by pending byte count */
 };
 
-static inline void lio_set_priv_flag(struct octeon_device *octdev, u32 flag,
-				     u32 val)
+#define OCT_PRIV_FLAG_DEFAULT 0x0
+
+static inline u32 lio_get_priv_flag(struct octeon_device *octdev, u32 flag)
+{
+	return !!(octdev->priv_flags & (0x1 << flag));
+}
+
+static inline void lio_set_priv_flag(struct octeon_device *octdev,
+				     u32 flag, u32 val)
 {
 	if (val)
 		octdev->priv_flags |= (0x1 << flag);
