@@ -707,15 +707,6 @@ static int gbaudio_init_jack(struct gbaudio_module_info *module,
 {
 	int ret;
 
-	if (!module->num_jacks)
-		return 0;
-
-	/* register jack(s) in case any */
-	if (module->num_jacks > 1) {
-		dev_err(module->dev, "Currently supports max=1 jack\n");
-		return -EINVAL;
-	}
-
 	snprintf(module->jack_name, NAME_SIZE, "GB %d Headset Jack",
 		 module->dev_id);
 	ret = snd_soc_jack_new(codec, module->jack_name, GBCODEC_JACK_MASK,

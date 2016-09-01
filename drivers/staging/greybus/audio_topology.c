@@ -1065,7 +1065,6 @@ static int gbaudio_tplg_create_widget(struct gbaudio_module_info *module,
 	case snd_soc_dapm_hp:
 		*dw = (struct snd_soc_dapm_widget)
 			SND_SOC_DAPM_HP(w->name, gbcodec_event_hp);
-		module->num_jacks++;
 		module->op_devices |= (GBAUDIO_DEVICE_OUT_WIRED_HEADSET
 					| GBAUDIO_DEVICE_OUT_WIRED_HEADPHONE);
 		module->ip_devices |= GBAUDIO_DEVICE_IN_WIRED_HEADSET;

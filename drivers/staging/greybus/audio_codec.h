@@ -175,7 +175,6 @@ struct gbaudio_module_info {
 	/* jack related */
 	char jack_name[NAME_SIZE];
 	char button_name[NAME_SIZE];
-	int num_jacks;
 	int jack_type;
 	int button_status;
 	struct snd_soc_jack headset_jack;
