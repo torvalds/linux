@@ -471,6 +471,21 @@
 	};
 };
 
+&i2c4 {
+	status = "okay";
+	i2c-scl-rising-time-ns = <475>;
+	i2c-scl-falling-time-ns = <26>;
+
+	fusb0: fusb30x@22 {
+		compatible = "fairchild,fusb302";
+		reg = <0x22>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&fusb0_int>;
+		int-n-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+};
+
 &i2s0 {
 	status = "okay";
 	rockchip,i2s-broken-burst-len;
@@ -551,6 +566,15 @@
 	status = "okay";
 };
 
+&tcphy0 {
+	extcon = <&fusb0>;
+	status = "okay";
+};
+
+&tcphy1 {
+	status = "okay";
+};
+
 &tsadc {
 	/* tshut mode 0:CRU 1:GPIO */
 	rockchip,hw-tshut-mode = <1>;
@@ -561,6 +585,7 @@
 
 &u2phy0 {
 	status = "okay";
+	extcon = <&fusb0>;
 
 	u2phy0_otg: otg-port {
 		status = "okay";
@@ -591,6 +616,7 @@
 
 &usbdrd3_0 {
 	status = "okay";
+	extcon = <&fusb0>;
 };
 
 &usbdrd3_1 {
@@ -810,6 +836,12 @@
 		host_vbus_drv: host-vbus-drv {
 			rockchip,pins =
 				<4 25 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	fusb30x {
+		fusb0_int: fusb0-int {
+			rockchip,pins = <1 2 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };
