@@ -30,6 +30,7 @@
 #include <linux/delay.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
+#include <linux/pm_runtime.h>
 
 #include "stmmac_platform.h"
 
@@ -883,11 +884,19 @@ static int rk_gmac_powerup(struct rk_priv_data *bsp_priv)
 	if (ret)
 		return ret;
 
+	pm_runtime_enable(dev);
+	pm_runtime_get_sync(dev);
+
 	return 0;
 }
 
 static void rk_gmac_powerdown(struct rk_priv_data *gmac)
 {
+	struct device *dev = &gmac->pdev->dev;
+
+	pm_runtime_put_sync(dev);
+	pm_runtime_disable(dev);
+
 	phy_power_on(gmac, false);
 	gmac_clk_enable(gmac, false);
 }
