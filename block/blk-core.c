@@ -2475,6 +2475,8 @@ void blk_start_request(struct request *req)
 {
 	blk_dequeue_request(req);
 
+	req->issue_time = ktime_to_ns(ktime_get());
+
 	/*
 	 * We are now handing the request to the hardware, initialize
 	 * resid_len to full count and add the timeout handler.
@@ -2541,6 +2543,8 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 	int total_bytes;
 
 	trace_block_rq_complete(req->q, req, nr_bytes);
+
+	blk_stat_add(&req->q->rq_stats[rq_data_dir(req)], req);
 
 	if (!req->bio)
 		return false;
