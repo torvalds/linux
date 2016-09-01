@@ -10435,15 +10435,12 @@ static void bxt_get_ddi_pll(struct drm_i915_private *dev_priv,
 
 	switch (port) {
 	case PORT_A:
-		pipe_config->ddi_pll_sel = SKL_DPLL0;
 		id = DPLL_ID_SKL_DPLL0;
 		break;
 	case PORT_B:
-		pipe_config->ddi_pll_sel = SKL_DPLL1;
 		id = DPLL_ID_SKL_DPLL1;
 		break;
 	case PORT_C:
-		pipe_config->ddi_pll_sel = SKL_DPLL2;
 		id = DPLL_ID_SKL_DPLL2;
 		break;
 	default:
@@ -10462,25 +10459,10 @@ static void skylake_get_ddi_pll(struct drm_i915_private *dev_priv,
 	u32 temp;
 
 	temp = I915_READ(DPLL_CTRL2) & DPLL_CTRL2_DDI_CLK_SEL_MASK(port);
-	pipe_config->ddi_pll_sel = temp >> (port * 3 + 1);
+	id = temp >> (port * 3 + 1);
 
-	switch (pipe_config->ddi_pll_sel) {
-	case SKL_DPLL0:
-		id = DPLL_ID_SKL_DPLL0;
-		break;
-	case SKL_DPLL1:
-		id = DPLL_ID_SKL_DPLL1;
-		break;
-	case SKL_DPLL2:
-		id = DPLL_ID_SKL_DPLL2;
-		break;
-	case SKL_DPLL3:
-		id = DPLL_ID_SKL_DPLL3;
-		break;
-	default:
-		MISSING_CASE(pipe_config->ddi_pll_sel);
+	if (WARN_ON(id < SKL_DPLL0 || id > SKL_DPLL3))
 		return;
-	}
 
 	pipe_config->shared_dpll = intel_get_shared_dpll_by_id(dev_priv, id);
 }
@@ -10490,10 +10472,9 @@ static void haswell_get_ddi_pll(struct drm_i915_private *dev_priv,
 				struct intel_crtc_state *pipe_config)
 {
 	enum intel_dpll_id id;
+	uint32_t ddi_pll_sel = I915_READ(PORT_CLK_SEL(port));
 
-	pipe_config->ddi_pll_sel = I915_READ(PORT_CLK_SEL(port));
-
-	switch (pipe_config->ddi_pll_sel) {
+	switch (ddi_pll_sel) {
 	case PORT_CLK_SEL_WRPLL1:
 		id = DPLL_ID_WRPLL1;
 		break;
@@ -10513,7 +10494,7 @@ static void haswell_get_ddi_pll(struct drm_i915_private *dev_priv,
 		id = DPLL_ID_LCPLL_2700;
 		break;
 	default:
-		MISSING_CASE(pipe_config->ddi_pll_sel);
+		MISSING_CASE(ddi_pll_sel);
 		/* fall through */
 	case PORT_CLK_SEL_NONE:
 		return;
@@ -12797,10 +12778,9 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 	DRM_DEBUG_KMS("double wide: %i\n", pipe_config->double_wide);
 
 	if (IS_BROXTON(dev)) {
-		DRM_DEBUG_KMS("ddi_pll_sel: %u; dpll_hw_state: ebb0: 0x%x, ebb4: 0x%x,"
+		DRM_DEBUG_KMS("dpll_hw_state: ebb0: 0x%x, ebb4: 0x%x,"
 			      "pll0: 0x%x, pll1: 0x%x, pll2: 0x%x, pll3: 0x%x, "
 			      "pll6: 0x%x, pll8: 0x%x, pll9: 0x%x, pll10: 0x%x, pcsdw12: 0x%x\n",
-			      pipe_config->ddi_pll_sel,
 			      pipe_config->dpll_hw_state.ebb0,
 			      pipe_config->dpll_hw_state.ebb4,
 			      pipe_config->dpll_hw_state.pll0,
@@ -12813,15 +12793,13 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 			      pipe_config->dpll_hw_state.pll10,
 			      pipe_config->dpll_hw_state.pcsdw12);
 	} else if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) {
-		DRM_DEBUG_KMS("ddi_pll_sel: %u; dpll_hw_state: "
+		DRM_DEBUG_KMS("dpll_hw_state: "
 			      "ctrl1: 0x%x, cfgcr1: 0x%x, cfgcr2: 0x%x\n",
-			      pipe_config->ddi_pll_sel,
 			      pipe_config->dpll_hw_state.ctrl1,
 			      pipe_config->dpll_hw_state.cfgcr1,
 			      pipe_config->dpll_hw_state.cfgcr2);
 	} else if (HAS_DDI(dev)) {
-		DRM_DEBUG_KMS("ddi_pll_sel: 0x%x; dpll_hw_state: wrpll: 0x%x spll: 0x%x\n",
-			      pipe_config->ddi_pll_sel,
+		DRM_DEBUG_KMS("dpll_hw_state: wrpll: 0x%x spll: 0x%x\n",
 			      pipe_config->dpll_hw_state.wrpll,
 			      pipe_config->dpll_hw_state.spll);
 	} else {
@@ -12930,7 +12908,6 @@ clear_intel_crtc_state(struct intel_crtc_state *crtc_state)
 	struct intel_crtc_scaler_state scaler_state;
 	struct intel_dpll_hw_state dpll_hw_state;
 	struct intel_shared_dpll *shared_dpll;
-	uint32_t ddi_pll_sel;
 	bool force_thru;
 
 	/* FIXME: before the switch to atomic started, a new pipe_config was
@@ -12942,7 +12919,6 @@ clear_intel_crtc_state(struct intel_crtc_state *crtc_state)
 	scaler_state = crtc_state->scaler_state;
 	shared_dpll = crtc_state->shared_dpll;
 	dpll_hw_state = crtc_state->dpll_hw_state;
-	ddi_pll_sel = crtc_state->ddi_pll_sel;
 	force_thru = crtc_state->pch_pfit.force_thru;
 
 	memset(crtc_state, 0, sizeof *crtc_state);
@@ -12951,7 +12927,6 @@ clear_intel_crtc_state(struct intel_crtc_state *crtc_state)
 	crtc_state->scaler_state = scaler_state;
 	crtc_state->shared_dpll = shared_dpll;
 	crtc_state->dpll_hw_state = dpll_hw_state;
-	crtc_state->ddi_pll_sel = ddi_pll_sel;
 	crtc_state->pch_pfit.force_thru = force_thru;
 }
 
@@ -13373,8 +13348,6 @@ intel_pipe_config_compare(struct drm_device *dev,
 		PIPE_CONF_CHECK_I(ips_enabled);
 
 	PIPE_CONF_CHECK_I(double_wide);
-
-	PIPE_CONF_CHECK_X(ddi_pll_sel);
 
 	PIPE_CONF_CHECK_P(shared_dpll);
 	PIPE_CONF_CHECK_X(dpll_hw_state.dpll);

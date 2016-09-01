@@ -546,6 +546,27 @@ static void intel_wait_ddi_buf_idle(struct drm_i915_private *dev_priv,
 	DRM_ERROR("Timeout waiting for DDI BUF %c idle bit\n", port_name(port));
 }
 
+static uint32_t hsw_pll_to_ddi_pll_sel(struct intel_shared_dpll *pll)
+{
+	switch (pll->id) {
+	case DPLL_ID_WRPLL1:
+		return PORT_CLK_SEL_WRPLL1;
+	case DPLL_ID_WRPLL2:
+		return PORT_CLK_SEL_WRPLL2;
+	case DPLL_ID_SPLL:
+		return PORT_CLK_SEL_SPLL;
+	case DPLL_ID_LCPLL_810:
+		return PORT_CLK_SEL_LCPLL_810;
+	case DPLL_ID_LCPLL_1350:
+		return PORT_CLK_SEL_LCPLL_1350;
+	case DPLL_ID_LCPLL_2700:
+		return PORT_CLK_SEL_LCPLL_2700;
+	default:
+		MISSING_CASE(pll->id);
+		return PORT_CLK_SEL_NONE;
+	}
+}
+
 /* Starting with Haswell, different DDI ports can work in FDI mode for
  * connection to the PCH-located connectors. For this, it is necessary to train
  * both the DDI port and PCH receiver for the desired DDI buffer settings.
@@ -561,7 +582,7 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_encoder *encoder;
-	u32 temp, i, rx_ctl_val;
+	u32 temp, i, rx_ctl_val, ddi_pll_sel;
 
 	for_each_encoder_on_crtc(dev, crtc, encoder) {
 		WARN_ON(encoder->type != INTEL_OUTPUT_ANALOG);
@@ -592,8 +613,9 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 	I915_WRITE(FDI_RX_CTL(PIPE_A), rx_ctl_val);
 
 	/* Configure Port Clock Select */
-	I915_WRITE(PORT_CLK_SEL(PORT_E), intel_crtc->config->ddi_pll_sel);
-	WARN_ON(intel_crtc->config->ddi_pll_sel != PORT_CLK_SEL_SPLL);
+	ddi_pll_sel = hsw_pll_to_ddi_pll_sel(intel_crtc->config->shared_dpll);
+	I915_WRITE(PORT_CLK_SEL(PORT_E), ddi_pll_sel);
+	WARN_ON(ddi_pll_sel != PORT_CLK_SEL_SPLL);
 
 	/* Start the training iterating through available voltages and emphasis,
 	 * testing each value twice. */
@@ -870,7 +892,7 @@ static void skl_ddi_clock_get(struct intel_encoder *encoder,
 	int link_clock = 0;
 	uint32_t dpll_ctl1, dpll;
 
-	dpll = pipe_config->ddi_pll_sel;
+	dpll = intel_get_shared_dpll_id(dev_priv, pipe_config->shared_dpll);
 
 	dpll_ctl1 = I915_READ(DPLL_CTRL1);
 
@@ -918,7 +940,7 @@ static void hsw_ddi_clock_get(struct intel_encoder *encoder,
 	int link_clock = 0;
 	u32 val, pll;
 
-	val = pipe_config->ddi_pll_sel;
+	val = hsw_pll_to_ddi_pll_sel(pipe_config->shared_dpll);
 	switch (val & PORT_CLK_SEL_MASK) {
 	case PORT_CLK_SEL_LCPLL_810:
 		link_clock = 81000;
@@ -1586,13 +1608,15 @@ uint32_t ddi_signal_levels(struct intel_dp *intel_dp)
 }
 
 void intel_ddi_clk_select(struct intel_encoder *encoder,
-			  const struct intel_crtc_state *pipe_config)
+			  struct intel_shared_dpll *pll)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum port port = intel_ddi_get_encoder_port(encoder);
 
+	if (WARN_ON(!pll))
+		return;
+
 	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
-		uint32_t dpll = pipe_config->ddi_pll_sel;
 		uint32_t val;
 
 		/* DDI -> PLL mapping  */
@@ -1600,14 +1624,13 @@ void intel_ddi_clk_select(struct intel_encoder *encoder,
 
 		val &= ~(DPLL_CTRL2_DDI_CLK_OFF(port) |
 			DPLL_CTRL2_DDI_CLK_SEL_MASK(port));
-		val |= (DPLL_CTRL2_DDI_CLK_SEL(dpll, port) |
+		val |= (DPLL_CTRL2_DDI_CLK_SEL(pll->id, port) |
 			DPLL_CTRL2_DDI_SEL_OVERRIDE(port));
 
 		I915_WRITE(DPLL_CTRL2, val);
 
 	} else if (INTEL_INFO(dev_priv)->gen < 9) {
-		WARN_ON(pipe_config->ddi_pll_sel == PORT_CLK_SEL_NONE);
-		I915_WRITE(PORT_CLK_SEL(port), pipe_config->ddi_pll_sel);
+		I915_WRITE(PORT_CLK_SEL(port), hsw_pll_to_ddi_pll_sel(pll));
 	}
 }
 
@@ -1632,7 +1655,7 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder,
 		intel_edp_panel_on(intel_dp);
 	}
 
-	intel_ddi_clk_select(intel_encoder, crtc->config);
+	intel_ddi_clk_select(intel_encoder, crtc->config->shared_dpll);
 
 	if (type == INTEL_OUTPUT_DP || type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);

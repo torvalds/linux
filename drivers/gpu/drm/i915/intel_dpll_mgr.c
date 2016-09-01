@@ -452,26 +452,6 @@ static bool hsw_ddi_spll_get_hw_state(struct drm_i915_private *dev_priv,
 	return val & SPLL_PLL_ENABLE;
 }
 
-static uint32_t hsw_pll_to_ddi_pll_sel(struct intel_shared_dpll *pll)
-{
-	switch (pll->id) {
-	case DPLL_ID_WRPLL1:
-		return PORT_CLK_SEL_WRPLL1;
-	case DPLL_ID_WRPLL2:
-		return PORT_CLK_SEL_WRPLL2;
-	case DPLL_ID_SPLL:
-		return PORT_CLK_SEL_SPLL;
-	case DPLL_ID_LCPLL_810:
-		return PORT_CLK_SEL_LCPLL_810;
-	case DPLL_ID_LCPLL_1350:
-		return PORT_CLK_SEL_LCPLL_1350;
-	case DPLL_ID_LCPLL_2700:
-		return PORT_CLK_SEL_LCPLL_2700;
-	default:
-		return PORT_CLK_SEL_NONE;
-	}
-}
-
 #define LC_FREQ 2700
 #define LC_FREQ_2K U64_C(LC_FREQ * 2000)
 
@@ -750,8 +730,6 @@ hsw_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 
 	if (!pll)
 		return NULL;
-
-	crtc_state->ddi_pll_sel = hsw_pll_to_ddi_pll_sel(pll);
 
 	intel_reference_shared_dpll(pll, crtc_state);
 
@@ -1274,8 +1252,6 @@ skl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 	if (!pll)
 		return NULL;
 
-	crtc_state->ddi_pll_sel = pll->id;
-
 	intel_reference_shared_dpll(pll, crtc_state);
 
 	return pll;
@@ -1627,9 +1603,6 @@ bxt_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 		      crtc->base.base.id, crtc->base.name, pll->name);
 
 	intel_reference_shared_dpll(pll, crtc_state);
-
-	/* shared DPLL id 0 is DPLL A */
-	crtc_state->ddi_pll_sel = pll->id;
 
 	return pll;
 }

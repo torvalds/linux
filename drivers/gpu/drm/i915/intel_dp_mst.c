@@ -150,7 +150,8 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
 	DRM_DEBUG_KMS("%d\n", intel_dp->active_mst_links);
 
 	if (intel_dp->active_mst_links == 0) {
-		intel_ddi_clk_select(&intel_dig_port->base, pipe_config);
+		intel_ddi_clk_select(&intel_dig_port->base,
+				     pipe_config->shared_dpll);
 
 		intel_prepare_dp_ddi_buffers(&intel_dig_port->base);
 		intel_dp_set_link_params(intel_dp,
