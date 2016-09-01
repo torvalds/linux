@@ -236,7 +236,7 @@ static int single_step_handler(unsigned long addr, unsigned int esr,
 		return 0;
 
 	if (user_mode(regs)) {
-		send_user_sigtrap(TRAP_HWBKPT);
+		send_user_sigtrap(TRAP_TRACE);
 
 		/*
 		 * ptrace will disable single step unless explicitly
@@ -364,7 +364,7 @@ NOKPROBE_SYMBOL(aarch32_break_handler);
 static int __init debug_traps_init(void)
 {
 	hook_debug_fault_code(DBG_ESR_EVT_HWSS, single_step_handler, SIGTRAP,
-			      TRAP_HWBKPT, "single-step handler");
+			      TRAP_TRACE, "single-step handler");
 	hook_debug_fault_code(DBG_ESR_EVT_BRK, brk_handler, SIGTRAP,
 			      TRAP_BRKPT, "ptrace BRK handler");
 	return 0;
