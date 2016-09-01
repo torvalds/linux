@@ -838,6 +838,22 @@ static void iwl_mvm_tx_add_stream(struct iwl_mvm *mvm,
 	}
 }
 
+/* Check if there are any timed-out TIDs on a given shared TXQ */
+static bool iwl_mvm_txq_should_update(struct iwl_mvm *mvm, int txq_id)
+{
+	unsigned long queue_tid_bitmap = mvm->queue_info[txq_id].tid_bitmap;
+	unsigned long now = jiffies;
+	int tid;
+
+	for_each_set_bit(tid, &queue_tid_bitmap, IWL_MAX_TID_COUNT + 1) {
+		if (time_before(mvm->queue_info[txq_id].last_frame_time[tid] +
+				IWL_MVM_DQA_QUEUE_TIMEOUT, now))
+			return true;
+	}
+
+	return false;
+}
+
 /*
  * Sets the fields in the Tx cmd that are crypto related
  */
@@ -940,7 +956,6 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 			iwl_trans_free_tx_cmd(mvm->trans, dev_cmd);
 			spin_unlock(&mvmsta->lock);
 			return 0;
-
 		}
 
 		/* If we are here - TXQ exists and needs to be re-activated */
@@ -953,8 +968,25 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 				    txq_id);
 	}
 
-	/* Keep track of the time of the last frame for this RA/TID */
-	mvm->queue_info[txq_id].last_frame_time[tid] = jiffies;
+	if (iwl_mvm_is_dqa_supported(mvm)) {
+		/* Keep track of the time of the last frame for this RA/TID */
+		mvm->queue_info[txq_id].last_frame_time[tid] = jiffies;
+
+		/*
+		 * If we have timed-out TIDs - schedule the worker that will
+		 * reconfig the queues and update them
+		 *
+		 * Note that the mvm->queue_info_lock isn't being taken here in
+		 * order to not serialize the TX flow. This isn't dangerous
+		 * because scheduling mvm->add_stream_wk can't ruin the state,
+		 * and if we DON'T schedule it due to some race condition then
+		 * next TX we get here we will.
+		 */
+		if (unlikely(mvm->queue_info[txq_id].status ==
+			     IWL_MVM_QUEUE_SHARED &&
+			     iwl_mvm_txq_should_update(mvm, txq_id)))
+			schedule_work(&mvm->add_stream_wk);
+	}
 
 	IWL_DEBUG_TX(mvm, "TX to [%d|%d] Q:%d - seq: 0x%x\n", mvmsta->sta_id,
 		     tid, txq_id, IEEE80211_SEQ_TO_SN(seq_number));

@@ -610,7 +610,7 @@ int iwl_mvm_reconfig_scd(struct iwl_mvm *mvm, int queue, int fifo, int sta_id,
 {
 	struct iwl_scd_txq_cfg_cmd cmd = {
 		.scd_queue = queue,
-		.enable = 1,
+		.action = SCD_CFG_ENABLE_QUEUE,
 		.window = frame_limit,
 		.sta_id = sta_id,
 		.ssn = cpu_to_le16(ssn),
@@ -669,6 +669,8 @@ void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 				tid_to_mac80211_ac[cfg->tid];
 		else
 			mvm->queue_info[queue].mac80211_ac = IEEE80211_AC_VO;
+
+		mvm->queue_info[queue].txq_tid = cfg->tid;
 	}
 
 	IWL_DEBUG_TX_QUEUES(mvm,
@@ -682,7 +684,7 @@ void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 	if (enable_queue) {
 		struct iwl_scd_txq_cfg_cmd cmd = {
 			.scd_queue = queue,
-			.enable = 1,
+			.action = SCD_CFG_ENABLE_QUEUE,
 			.window = cfg->frame_limit,
 			.sta_id = cfg->sta_id,
 			.ssn = cpu_to_le16(ssn),
@@ -709,7 +711,7 @@ void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 {
 	struct iwl_scd_txq_cfg_cmd cmd = {
 		.scd_queue = queue,
-		.enable = 0,
+		.action = SCD_CFG_DISABLE_QUEUE,
 	};
 	bool remove_mac_queue = true;
 	int ret;
@@ -744,8 +746,9 @@ void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 			~BIT(mac80211_queue);
 	mvm->queue_info[queue].hw_queue_refcount--;
 
-	cmd.enable = mvm->queue_info[queue].hw_queue_refcount ? 1 : 0;
-	if (!cmd.enable)
+	cmd.action = mvm->queue_info[queue].hw_queue_refcount ?
+		SCD_CFG_ENABLE_QUEUE : SCD_CFG_DISABLE_QUEUE;
+	if (cmd.action == SCD_CFG_DISABLE_QUEUE)
 		mvm->queue_info[queue].status = IWL_MVM_QUEUE_FREE;
 
 	IWL_DEBUG_TX_QUEUES(mvm,
@@ -755,12 +758,13 @@ void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 			    mvm->queue_info[queue].hw_queue_to_mac80211);
 
 	/* If the queue is still enabled - nothing left to do in this func */
-	if (cmd.enable) {
+	if (cmd.action == SCD_CFG_ENABLE_QUEUE) {
 		spin_unlock_bh(&mvm->queue_info_lock);
 		return;
 	}
 
 	cmd.sta_id = mvm->queue_info[queue].ra_sta_id;
+	cmd.tid = mvm->queue_info[queue].txq_tid;
 
 	/* Make sure queue info is correct even though we overwrite it */
 	WARN(mvm->queue_info[queue].hw_queue_refcount ||
@@ -1131,7 +1135,13 @@ static void iwl_mvm_remove_inactive_tids(struct iwl_mvm *mvm,
 			BIT(mvmsta->vif->hw_queue[tid_to_mac80211_ac[tid]]);
 	}
 
-	/* TODO: if queue was shared - need to re-enable AGGs */
+	/* If the queue is marked as shared - "unshare" it */
+	if (mvm->queue_info[queue].hw_queue_refcount == 1 &&
+	    mvm->queue_info[queue].status == IWL_MVM_QUEUE_SHARED) {
+		mvm->queue_info[queue].status = IWL_MVM_QUEUE_RECONFIGURING;
+		IWL_DEBUG_TX_QUEUES(mvm, "Marking Q:%d for reconfig\n",
+				    queue);
+	}
 }
 
 void iwl_mvm_inactivity_check(struct iwl_mvm *mvm)

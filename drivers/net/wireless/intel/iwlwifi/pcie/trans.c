@@ -827,10 +827,16 @@ static int iwl_pcie_load_cpu_sections_8000(struct iwl_trans *trans,
 		if (ret)
 			return ret;
 
-		/* Notify the ucode of the loaded section number and status */
-		val = iwl_read_direct32(trans, FH_UCODE_LOAD_STATUS);
-		val = val | (sec_num << shift_param);
-		iwl_write_direct32(trans, FH_UCODE_LOAD_STATUS, val);
+		/* Notify ucode of loaded section number and status */
+		if (trans->cfg->use_tfh) {
+			val = iwl_read_prph(trans, UREG_UCODE_LOAD_STATUS);
+			val = val | (sec_num << shift_param);
+			iwl_write_prph(trans, UREG_UCODE_LOAD_STATUS, val);
+		} else {
+			val = iwl_read_direct32(trans, FH_UCODE_LOAD_STATUS);
+			val = val | (sec_num << shift_param);
+			iwl_write_direct32(trans, FH_UCODE_LOAD_STATUS, val);
+		}
 		sec_num = (sec_num << 1) | 0x1;
 	}
 
@@ -838,10 +844,21 @@ static int iwl_pcie_load_cpu_sections_8000(struct iwl_trans *trans,
 
 	iwl_enable_interrupts(trans);
 
-	if (cpu == 1)
-		iwl_write_direct32(trans, FH_UCODE_LOAD_STATUS, 0xFFFF);
-	else
-		iwl_write_direct32(trans, FH_UCODE_LOAD_STATUS, 0xFFFFFFFF);
+	if (trans->cfg->use_tfh) {
+		if (cpu == 1)
+			iwl_write_prph(trans, UREG_UCODE_LOAD_STATUS,
+				       0xFFFF);
+		else
+			iwl_write_prph(trans, UREG_UCODE_LOAD_STATUS,
+				       0xFFFFFFFF);
+	} else {
+		if (cpu == 1)
+			iwl_write_direct32(trans, FH_UCODE_LOAD_STATUS,
+					   0xFFFF);
+		else
+			iwl_write_direct32(trans, FH_UCODE_LOAD_STATUS,
+					   0xFFFFFFFF);
+	}
 
 	return 0;
 }
@@ -885,14 +902,6 @@ static int iwl_pcie_load_cpu_sections(struct iwl_trans *trans,
 		if (ret)
 			return ret;
 	}
-
-	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
-		iwl_set_bits_prph(trans,
-				  CSR_UCODE_LOAD_STATUS_ADDR,
-				  (LMPM_CPU_UCODE_LOADING_COMPLETED |
-				   LMPM_CPU_HDRS_LOADING_COMPLETED |
-				   LMPM_CPU_UCODE_LOADING_STARTED) <<
-					shift_param);
 
 	*first_ucode_section = last_read_idx;
 
@@ -1959,6 +1968,10 @@ void iwl_trans_pcie_log_scd_error(struct iwl_trans *trans, struct iwl_txq *txq)
 
 	IWL_ERR(trans, "Current SW read_ptr %d write_ptr %d\n",
 		txq->q.read_ptr, txq->q.write_ptr);
+
+	if (trans->cfg->use_tfh)
+		/* TODO: access new SCD registers and dump them */
+		return;
 
 	scd_sram_addr = trans_pcie->scd_base_addr +
 			SCD_TX_STTS_QUEUE_OFFSET(txq->q.id);
