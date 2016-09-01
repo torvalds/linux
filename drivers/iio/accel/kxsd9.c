@@ -166,6 +166,7 @@ static int kxsd9_read_raw(struct iio_dev *indio_dev,
 		ret = spi_w8r8(st->us, KXSD9_READ(KXSD9_REG_CTRL_C));
 		if (ret < 0)
 			goto error_ret;
+		*val = 0;
 		*val2 = kxsd9_micro_scales[ret & KXSD9_FS_MASK];
 		ret = IIO_VAL_INT_PLUS_MICRO;
 		break;
