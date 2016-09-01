@@ -155,19 +155,20 @@ next_pair:
 				 * kallsyms.
 				 */
 				continue;
-
 			} else {
 				pair = machine__find_kernel_symbol_by_name(&kallsyms, type, sym->name, NULL, NULL);
 				if (pair) {
 					if (UM(pair->start) == mem_start)
 						goto next_pair;
 
-					pr_debug("ERR : %#" PRIx64 ": diff name v: %s k: %s\n",
+					pr_debug("WARN: %#" PRIx64 ": diff name v: %s k: %s\n",
 						 mem_start, sym->name, pair->name);
 				} else {
-					pr_debug("ERR : %#" PRIx64 ": diff name v: %s k: %s\n",
+					pr_debug("WARN: %#" PRIx64 ": diff name v: %s k: %s\n",
 						 mem_start, sym->name, first_pair->name);
 				}
+
+				continue;
 			}
 		} else
 			pr_debug("ERR : %#" PRIx64 ": %s not on kallsyms\n",
