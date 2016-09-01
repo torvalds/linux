@@ -731,7 +731,7 @@ static int lgdt3306a_set_if(struct lgdt3306a_state *state,
 
 	switch (if_freq_khz) {
 	default:
-		pr_warn("IF=%d KHz is not supportted, 3250 assumed\n",
+		pr_warn("IF=%d KHz is not supported, 3250 assumed\n",
 			if_freq_khz);
 		/* fallthrough */
 	case 3250: /* 3.25Mhz */
