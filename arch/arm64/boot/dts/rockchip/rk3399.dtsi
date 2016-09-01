@@ -1183,6 +1183,12 @@
 			drive-strength = <13>;
 		};
 
+		clock {
+			clk_32k: clk-32k {
+				rockchip,pins = <0 0 RK_FUNC_2 &pcfg_pull_none>;
+			};
+		};
+
 		i2c0 {
 			i2c0_xfer: i2c0-xfer {
 				rockchip,pins =
