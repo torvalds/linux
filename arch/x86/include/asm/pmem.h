@@ -46,10 +46,7 @@ static inline void arch_memcpy_to_pmem(void *dst, const void *src, size_t n)
 
 static inline int arch_memcpy_from_pmem(void *dst, const void *src, size_t n)
 {
-	if (static_cpu_has(X86_FEATURE_MCE_RECOVERY))
-		return memcpy_mcsafe(dst, src, n);
-	memcpy(dst, src, n);
-	return 0;
+	return memcpy_mcsafe(dst, src, n);
 }
 
 /**

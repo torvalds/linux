@@ -79,6 +79,7 @@ int strcmp(const char *cs, const char *ct);
 #define memset(s, c, n) __memset(s, c, n)
 #endif
 
+__must_check int memcpy_mcsafe_unrolled(void *dst, const void *src, size_t cnt);
 DECLARE_STATIC_KEY_FALSE(mcsafe_key);
 
 /**
@@ -89,10 +90,23 @@ DECLARE_STATIC_KEY_FALSE(mcsafe_key);
  * @cnt:	number of bytes to copy
  *
  * Low level memory copy function that catches machine checks
+ * We only call into the "safe" function on systems that can
+ * actually do machine check recovery. Everyone else can just
+ * use memcpy().
  *
  * Return 0 for success, -EFAULT for fail
  */
-int memcpy_mcsafe(void *dst, const void *src, size_t cnt);
+static __always_inline __must_check int
+memcpy_mcsafe(void *dst, const void *src, size_t cnt)
+{
+#ifdef CONFIG_X86_MCE
+	if (static_branch_unlikely(&mcsafe_key))
+		return memcpy_mcsafe_unrolled(dst, src, cnt);
+	else
+#endif
+		memcpy(dst, src, cnt);
+	return 0;
+}
 
 #endif /* __KERNEL__ */
 
