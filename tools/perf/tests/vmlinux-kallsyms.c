@@ -143,7 +143,7 @@ next_pair:
 				 */
 				s64 skew = mem_end - UM(pair->end);
 				if (llabs(skew) >= page_size)
-					pr_debug("%#" PRIx64 ": diff end addr for %s v: %#" PRIx64 " k: %#" PRIx64 "\n",
+					pr_debug("WARN: %#" PRIx64 ": diff end addr for %s v: %#" PRIx64 " k: %#" PRIx64 "\n",
 						 mem_start, sym->name, mem_end,
 						 UM(pair->end));
 
@@ -161,15 +161,15 @@ next_pair:
 					if (UM(pair->start) == mem_start)
 						goto next_pair;
 
-					pr_debug("%#" PRIx64 ": diff name v: %s k: %s\n",
+					pr_debug("ERR : %#" PRIx64 ": diff name v: %s k: %s\n",
 						 mem_start, sym->name, pair->name);
 				} else {
-					pr_debug("%#" PRIx64 ": diff name v: %s k: %s\n",
+					pr_debug("ERR : %#" PRIx64 ": diff name v: %s k: %s\n",
 						 mem_start, sym->name, first_pair->name);
 				}
 			}
 		} else
-			pr_debug("%#" PRIx64 ": %s not on kallsyms\n",
+			pr_debug("ERR : %#" PRIx64 ": %s not on kallsyms\n",
 				 mem_start, sym->name);
 
 		err = -1;
@@ -178,7 +178,7 @@ next_pair:
 	if (!verbose)
 		goto out;
 
-	pr_info("Maps only in vmlinux:\n");
+	pr_info("WARN: Maps only in vmlinux:\n");
 
 	for (map = maps__first(maps); map; map = map__next(map)) {
 		struct map *
@@ -198,7 +198,7 @@ next_pair:
 			map__fprintf(map, stderr);
 	}
 
-	pr_info("Maps in vmlinux with a different name in kallsyms:\n");
+	pr_info("WARN: Maps in vmlinux with a different name in kallsyms:\n");
 
 	for (map = maps__first(maps); map; map = map__next(map)) {
 		struct map *pair;
@@ -212,17 +212,17 @@ next_pair:
 
 		if (pair->start == mem_start) {
 			pair->priv = 1;
-			pr_info(" %" PRIx64 "-%" PRIx64 " %" PRIx64 " %s in kallsyms as",
+			pr_info("WARN: %" PRIx64 "-%" PRIx64 " %" PRIx64 " %s in kallsyms as",
 				map->start, map->end, map->pgoff, map->dso->name);
 			if (mem_end != pair->end)
-				pr_info(":\n*%" PRIx64 "-%" PRIx64 " %" PRIx64,
+				pr_info(":\nWARN: *%" PRIx64 "-%" PRIx64 " %" PRIx64,
 					pair->start, pair->end, pair->pgoff);
 			pr_info(" %s\n", pair->dso->name);
 			pair->priv = 1;
 		}
 	}
 
-	pr_info("Maps only in kallsyms:\n");
+	pr_info("WARN: Maps only in kallsyms:\n");
 
 	maps = &kallsyms.kmaps.maps[type];
 
