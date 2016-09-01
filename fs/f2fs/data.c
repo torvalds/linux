@@ -1293,7 +1293,7 @@ write:
 
 	if (!wbc->for_reclaim)
 		need_balance_fs = true;
-	else if (has_not_enough_free_secs(sbi, 0))
+	else if (has_not_enough_free_secs(sbi, 0, 0))
 		goto redirty_out;
 
 	err = -EAGAIN;
@@ -1625,7 +1625,7 @@ repeat:
 	if (err)
 		goto fail;
 
-	if (need_balance && has_not_enough_free_secs(sbi, 0)) {
+	if (need_balance && has_not_enough_free_secs(sbi, 0, 0)) {
 		unlock_page(page);
 		f2fs_balance_fs(sbi, true);
 		lock_page(page);

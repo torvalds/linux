@@ -1961,7 +1961,7 @@ static int f2fs_defragment_range(struct f2fs_sb_info *sbi,
 	 * avoid defragment running in SSR mode when free section are allocated
 	 * intensively
 	 */
-	if (has_not_enough_free_secs(sbi, sec_num)) {
+	if (has_not_enough_free_secs(sbi, 0, sec_num)) {
 		err = -EAGAIN;
 		goto out;
 	}

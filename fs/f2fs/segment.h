@@ -479,7 +479,8 @@ static inline bool need_SSR(struct f2fs_sb_info *sbi)
 						reserved_sections(sbi) + 1);
 }
 
-static inline bool has_not_enough_free_secs(struct f2fs_sb_info *sbi, int freed)
+static inline bool has_not_enough_free_secs(struct f2fs_sb_info *sbi,
+					int freed, int needed)
 {
 	int node_secs = get_blocktype_secs(sbi, F2FS_DIRTY_NODES);
 	int dent_secs = get_blocktype_secs(sbi, F2FS_DIRTY_DENTS);
@@ -489,8 +490,8 @@ static inline bool has_not_enough_free_secs(struct f2fs_sb_info *sbi, int freed)
 	if (unlikely(is_sbi_flag_set(sbi, SBI_POR_DOING)))
 		return false;
 
-	return (free_sections(sbi) + freed) <= (node_secs + 2 * dent_secs +
-						reserved_sections(sbi));
+	return (free_sections(sbi) + freed) <=
+		(node_secs + 2 * dent_secs + reserved_sections(sbi) + needed);
 }
 
 static inline bool excess_prefree_segs(struct f2fs_sb_info *sbi)
