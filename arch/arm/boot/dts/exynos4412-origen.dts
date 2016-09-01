@@ -23,6 +23,7 @@
 	compatible = "insignal,origen4412", "samsung,exynos4412", "samsung,exynos4";
 
 	memory {
+		device_type = "memory";
 		reg = <0x40000000 0x40000000>;
 	};
 

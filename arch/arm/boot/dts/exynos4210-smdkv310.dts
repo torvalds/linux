@@ -24,6 +24,7 @@
 	compatible = "samsung,smdkv310", "samsung,exynos4210", "samsung,exynos4";
 
 	memory {
+		device_type = "memory";
 		reg = <0x40000000 0x80000000>;
 	};
 

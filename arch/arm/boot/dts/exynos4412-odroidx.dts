@@ -19,6 +19,7 @@
 	compatible = "hardkernel,odroid-x", "samsung,exynos4412", "samsung,exynos4";
 
 	memory {
+		device_type = "memory";
 		reg = <0x40000000 0x3FF00000>;
 	};
 

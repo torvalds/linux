@@ -31,6 +31,7 @@
 	};
 
 	memory {
+		device_type = "memory";
 		reg =  <0x40000000 0x40000000>;
 	};
 
