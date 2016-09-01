@@ -119,13 +119,21 @@ config IIO_ST_ACCEL_SPI_3AXIS
 
 config KXSD9
 	tristate "Kionix KXSD9 Accelerometer Driver"
-	depends on SPI
 	help
 	  Say yes here to build support for the Kionix KXSD9 accelerometer.
 	  Currently this only supports the device via an SPI interface.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called kxsd9.
+
+config KXSD9_SPI
+	tristate "Kionix KXSD9 SPI transport"
+	depends on KXSD9
+	depends on SPI
+	default KXSD9
+	help
+	  Say yes here to enable the Kionix KXSD9 accelerometer
+	  SPI transport channel.
 
 config KXCJK1013
 	tristate "Kionix 3-Axis Accelerometer Driver"
