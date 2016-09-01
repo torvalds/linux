@@ -331,6 +331,7 @@ static int s5k6a3_probe(struct i2c_client *client,
 	sensor->format.width = S5K6A3_DEFAULT_WIDTH;
 	sensor->format.height = S5K6A3_DEFAULT_HEIGHT;
 
+	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	sensor->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&sd->entity, 1, &sensor->pad);
 	if (ret < 0)
