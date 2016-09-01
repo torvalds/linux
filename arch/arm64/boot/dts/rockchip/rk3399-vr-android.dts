@@ -398,17 +398,17 @@
 
 	opp@500000000 {
 		opp-hz = /bits/ 64 <500000000>;
-		opp-microvolt = <925000>;
+		opp-microvolt = <950000>;
 	};
 
 	opp@600000000 {
 		opp-hz = /bits/ 64 <600000000>;
-		opp-microvolt = <975000>;
+		opp-microvolt = <1025000>;
 	};
 
 	opp@800000000 {
 		opp-hz = /bits/ 64 <800000000>;
-		opp-microvolt = <1025000>;
+		opp-microvolt = <1125000>;
 	};
 };
 
