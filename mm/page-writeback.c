@@ -1778,6 +1778,7 @@ pause:
 					  pause,
 					  start_time);
 		__set_current_state(TASK_KILLABLE);
+		wb->dirty_sleep = now;
 		io_schedule_timeout(pause);
 
 		current->dirty_paused_when = now + pause;
