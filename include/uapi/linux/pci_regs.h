@@ -671,7 +671,8 @@
 #define PCI_EXT_CAP_ID_PMUX	0x1A	/* Protocol Multiplexing */
 #define PCI_EXT_CAP_ID_PASID	0x1B	/* Process Address Space ID */
 #define PCI_EXT_CAP_ID_DPC	0x1D	/* Downstream Port Containment */
-#define PCI_EXT_CAP_ID_MAX	PCI_EXT_CAP_ID_DPC
+#define PCI_EXT_CAP_ID_PTM	0x1F	/* Precision Time Measurement */
+#define PCI_EXT_CAP_ID_MAX	PCI_EXT_CAP_ID_PTM
 
 #define PCI_EXT_CAP_DSN_SIZEOF	12
 #define PCI_EXT_CAP_MCAST_ENDPOINT_SIZEOF 40
@@ -963,5 +964,14 @@
 #define  PCI_EXP_DPC_STATUS_INTERRUPT	0x08	/* Interrupt Status */
 
 #define PCI_EXP_DPC_SOURCE_ID		10	/* DPC Source Identifier */
+
+/* Precision Time Measurement */
+#define PCI_PTM_CAP			0x04	    /* PTM Capability */
+#define  PCI_PTM_CAP_REQ		0x00000001  /* Requester capable */
+#define  PCI_PTM_CAP_ROOT		0x00000004  /* Root capable */
+#define  PCI_PTM_GRANULARITY_MASK	0x0000FF00  /* Clock granularity */
+#define PCI_PTM_CTRL			0x08	    /* PTM Control */
+#define  PCI_PTM_CTRL_ENABLE		0x00000001  /* PTM enable */
+#define  PCI_PTM_CTRL_ROOT		0x00000002  /* Root select */
 
 #endif /* LINUX_PCI_REGS_H */
