@@ -308,6 +308,9 @@ static int cdn_dp_audio_hw_params(struct device *dev,  void *data,
 		.channels = 8,
 	};
 
+	if (!cdn_dp_connector_detect(dp))
+		return 0;
+
 	switch (HDMI_I2S) {
 	case HDMI_I2S:
 		audio.format = AFMT_I2S;
@@ -333,9 +336,11 @@ static void cdn_dp_audio_shutdown(struct device *dev, void *data)
 	struct cdn_dp_device *dp = dp_dev->dp;
 	int ret;
 
-	ret = cdn_dp_audio_stop(dp, &dp->audio_info);
-	if (!ret)
-		dp->audio_info.format = AFMT_UNUSED;
+	if (cdn_dp_connector_detect(dp)) {
+		ret = cdn_dp_audio_stop(dp, &dp->audio_info);
+		if (!ret)
+			dp->audio_info.format = AFMT_UNUSED;
+	}
 }
 
 static int cdn_dp_audio_digital_mute(struct device *dev, void *data,
@@ -344,6 +349,8 @@ static int cdn_dp_audio_digital_mute(struct device *dev, void *data,
 	struct dp_dev *dp_dev = dev_get_drvdata(dev);
 	struct cdn_dp_device *dp = dp_dev->dp;
 
+	if (!cdn_dp_connector_detect(dp))
+		return 0;
 	return cdn_dp_audio_mute(dp, enable);
 }
 
