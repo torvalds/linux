@@ -460,6 +460,9 @@ static int __mlxsw_sp_port_fid_join(struct mlxsw_sp_port *mlxsw_sp_port,
 {
 	struct mlxsw_sp_fid *f;
 
+	if (test_bit(fid, mlxsw_sp_port->active_vlans))
+		return 0;
+
 	f = mlxsw_sp_fid_find(mlxsw_sp_port->mlxsw_sp, fid);
 	if (!f) {
 		f = mlxsw_sp_fid_create(mlxsw_sp_port->mlxsw_sp, fid);
