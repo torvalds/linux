@@ -116,16 +116,24 @@ static void __init setup_node_to_cpumask_map(void)
  */
 void numa_store_cpu_info(unsigned int cpu)
 {
-	map_cpu_to_node(cpu, numa_off ? 0 : cpu_to_node_map[cpu]);
+	map_cpu_to_node(cpu, cpu_to_node_map[cpu]);
 }
 
 void __init early_map_cpu_to_node(unsigned int cpu, int nid)
 {
 	/* fallback to node 0 */
-	if (nid < 0 || nid >= MAX_NUMNODES)
+	if (nid < 0 || nid >= MAX_NUMNODES || numa_off)
 		nid = 0;
 
 	cpu_to_node_map[cpu] = nid;
+
+	/*
+	 * We should set the numa node of cpu0 as soon as possible, because it
+	 * has already been set up online before. cpu_to_node(0) will soon be
+	 * called.
+	 */
+	if (!cpu)
+		set_cpu_numa_node(cpu, nid);
 }
 
 #ifdef CONFIG_HAVE_SETUP_PER_CPU_AREA
@@ -392,10 +400,6 @@ static int __init numa_init(int (*init_func)(void))
 		return ret;
 
 	setup_node_to_cpumask_map();
-
-	/* init boot processor */
-	cpu_to_node_map[0] = 0;
-	map_cpu_to_node(0, 0);
 
 	return 0;
 }
