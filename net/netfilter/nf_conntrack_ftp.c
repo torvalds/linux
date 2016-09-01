@@ -309,19 +309,8 @@ static int find_pattern(const char *data, size_t dlen,
 		else return 0;
 	}
 
-	if (strncasecmp(data, pattern, plen) != 0) {
-#if 0
-		size_t i;
-
-		pr_debug("ftp: string mismatch\n");
-		for (i = 0; i < plen; i++) {
-			pr_debug("ftp:char %u `%c'(%u) vs `%c'(%u)\n",
-				 i, data[i], data[i],
-				 pattern[i], pattern[i]);
-		}
-#endif
+	if (strncasecmp(data, pattern, plen) != 0)
 		return 0;
-	}
 
 	pr_debug("Pattern matches!\n");
 	/* Now we've found the constant string, try to skip
