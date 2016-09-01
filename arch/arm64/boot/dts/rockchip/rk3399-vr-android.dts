@@ -515,6 +515,7 @@
 		fcs,suspend-voltage-selector = <1>;
 		regulator-boot-on;
 		regulator-initial-state = <3>;
+		regulator-initial-mode = <1>;/*1:pwm 2: auto mode*/
 			regulator-state-mem {
 			regulator-off-in-suspend;
 		};
