@@ -944,8 +944,8 @@ static void mlxsw_sp_router_neigh_update_hw(struct work_struct *work)
 	mlxsw_sp_port_dev_put(mlxsw_sp_port);
 }
 
-static int mlxsw_sp_router_netevent_event(struct notifier_block *unused,
-					  unsigned long event, void *ptr)
+int mlxsw_sp_router_netevent_event(struct notifier_block *unused,
+				   unsigned long event, void *ptr)
 {
 	struct mlxsw_sp_neigh_entry *neigh_entry;
 	struct mlxsw_sp_port *mlxsw_sp_port;
@@ -1015,10 +1015,6 @@ static int mlxsw_sp_router_netevent_event(struct notifier_block *unused,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block mlxsw_sp_router_netevent_nb __read_mostly = {
-	.notifier_call = mlxsw_sp_router_netevent_event,
-};
-
 static int mlxsw_sp_neigh_init(struct mlxsw_sp *mlxsw_sp)
 {
 	int err;
@@ -1033,10 +1029,6 @@ static int mlxsw_sp_neigh_init(struct mlxsw_sp *mlxsw_sp)
 	 */
 	mlxsw_sp_router_neighs_update_interval_init(mlxsw_sp);
 
-	err = register_netevent_notifier(&mlxsw_sp_router_netevent_nb);
-	if (err)
-		goto err_register_netevent_notifier;
-
 	/* Create the delayed works for the activity_update */
 	INIT_DELAYED_WORK(&mlxsw_sp->router.neighs_update.dw,
 			  mlxsw_sp_router_neighs_update_work);
@@ -1045,17 +1037,12 @@ static int mlxsw_sp_neigh_init(struct mlxsw_sp *mlxsw_sp)
 	mlxsw_core_schedule_dw(&mlxsw_sp->router.neighs_update.dw, 0);
 	mlxsw_core_schedule_dw(&mlxsw_sp->router.nexthop_probe_dw, 0);
 	return 0;
-
-err_register_netevent_notifier:
-	rhashtable_destroy(&mlxsw_sp->router.neigh_ht);
-	return err;
 }
 
 static void mlxsw_sp_neigh_fini(struct mlxsw_sp *mlxsw_sp)
 {
 	cancel_delayed_work_sync(&mlxsw_sp->router.neighs_update.dw);
 	cancel_delayed_work_sync(&mlxsw_sp->router.nexthop_probe_dw);
-	unregister_netevent_notifier(&mlxsw_sp_router_netevent_nb);
 	rhashtable_destroy(&mlxsw_sp->router.neigh_ht);
 }
 
