@@ -657,31 +657,6 @@ repeat:
 	return NULL;
 }
 
-static int symbol_filter(struct map *map, struct symbol *sym)
-{
-	const char *name = sym->name;
-
-	if (!__map__is_kernel(map))
-		return 0;
-	/*
-	 * ppc64 uses function descriptors and appends a '.' to the
-	 * start of every instruction address. Remove it.
-	 */
-	if (name[0] == '.')
-		name++;
-
-	if (!strcmp(name, "_text") ||
-	    !strcmp(name, "_etext") ||
-	    !strcmp(name, "_sinittext") ||
-	    !strncmp("init_module", name, 11) ||
-	    !strncmp("cleanup_module", name, 14) ||
-	    strstr(name, "_text_start") ||
-	    strstr(name, "_text_end"))
-		return 1;
-
-	return 0;
-}
-
 static int hist_iter__top_callback(struct hist_entry_iter *iter,
 				   struct addr_location *al, bool single,
 				   void *arg)
@@ -945,8 +920,6 @@ static int __cmd_top(struct perf_top *top)
 	top->session = perf_session__new(NULL, false, NULL);
 	if (top->session == NULL)
 		return -1;
-
-	machines__set_symbol_filter(&top->session->machines, symbol_filter);
 
 	if (!objdump_path) {
 		ret = perf_env__lookup_objdump(&top->session->header.env);
