@@ -47,7 +47,7 @@ static void rpmsg_sample_cb(struct rpmsg_channel *rpdev, void *data, int len,
 	}
 
 	/* send a new message now */
-	ret = rpmsg_send(rpdev, MSG, strlen(MSG));
+	ret = rpmsg_send(rpdev->ept, MSG, strlen(MSG));
 	if (ret)
 		dev_err(&rpdev->dev, "rpmsg_send failed: %d\n", ret);
 }
@@ -67,7 +67,7 @@ static int rpmsg_sample_probe(struct rpmsg_channel *rpdev)
 	dev_set_drvdata(&rpdev->dev, idata);
 
 	/* send a message to our remote processor */
-	ret = rpmsg_send(rpdev, MSG, strlen(MSG));
+	ret = rpmsg_send(rpdev->ept, MSG, strlen(MSG));
 	if (ret) {
 		dev_err(&rpdev->dev, "rpmsg_send failed: %d\n", ret);
 		return ret;
