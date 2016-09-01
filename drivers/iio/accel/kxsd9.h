@@ -4,7 +4,7 @@
 #define KXSD9_STATE_RX_SIZE 2
 #define KXSD9_STATE_TX_SIZE 2
 
-int kxsd9_common_probe(struct device *parent,
+int kxsd9_common_probe(struct device *dev,
 		       struct regmap *map,
 		       const char *name);
-int kxsd9_common_remove(struct device *parent);
+int kxsd9_common_remove(struct device *dev);

@@ -335,7 +335,7 @@ static const struct iio_info kxsd9_info = {
 /* Four channels apart from timestamp, scan mask = 0x0f */
 static const unsigned long kxsd9_scan_masks[] = { 0xf, 0 };
 
-int kxsd9_common_probe(struct device *parent,
+int kxsd9_common_probe(struct device *dev,
 		       struct regmap *map,
 		       const char *name)
 {
@@ -343,18 +343,18 @@ int kxsd9_common_probe(struct device *parent,
 	struct kxsd9_state *st;
 	int ret;
 
-	indio_dev = devm_iio_device_alloc(parent, sizeof(*st));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
-	st->dev = parent;
+	st->dev = dev;
 	st->map = map;
 
 	indio_dev->channels = kxsd9_channels;
 	indio_dev->num_channels = ARRAY_SIZE(kxsd9_channels);
 	indio_dev->name = name;
-	indio_dev->dev.parent = parent;
+	indio_dev->dev.parent = dev;
 	indio_dev->info = &kxsd9_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->available_scan_masks = kxsd9_scan_masks;
@@ -362,11 +362,11 @@ int kxsd9_common_probe(struct device *parent,
 	/* Fetch and turn on regulators */
 	st->regs[0].supply = kxsd9_reg_vdd;
 	st->regs[1].supply = kxsd9_reg_iovdd;
-	ret = devm_regulator_bulk_get(parent,
+	ret = devm_regulator_bulk_get(dev,
 				      ARRAY_SIZE(st->regs),
 				      st->regs);
 	if (ret) {
-		dev_err(parent, "Cannot get regulators\n");
+		dev_err(dev, "Cannot get regulators\n");
 		return ret;
 	}
 
@@ -377,7 +377,7 @@ int kxsd9_common_probe(struct device *parent,
 					 kxsd9_trigger_handler,
 					 NULL);
 	if (ret) {
-		dev_err(parent, "triggered buffer setup failed\n");
+		dev_err(dev, "triggered buffer setup failed\n");
 		goto err_power_down;
 	}
 
@@ -385,7 +385,7 @@ int kxsd9_common_probe(struct device *parent,
 	if (ret)
 		goto err_cleanup_buffer;
 
-	dev_set_drvdata(parent, indio_dev);
+	dev_set_drvdata(dev, indio_dev);
 
 	return 0;
 
@@ -398,9 +398,9 @@ err_power_down:
 }
 EXPORT_SYMBOL(kxsd9_common_probe);
 
-int kxsd9_common_remove(struct device *parent)
+int kxsd9_common_remove(struct device *dev)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(parent);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct kxsd9_state *st = iio_priv(indio_dev);
 
 	iio_triggered_buffer_cleanup(indio_dev);
