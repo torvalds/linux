@@ -220,8 +220,7 @@ static const struct iio_info kxsd9_info = {
 
 static int kxsd9_common_probe(struct device *parent,
 			      struct kxsd9_transport *transport,
-			      const char *name,
-			      struct iio_dev **retdev)
+			      const char *name)
 {
 	struct iio_dev *indio_dev;
 	struct kxsd9_state *st;
@@ -248,7 +247,17 @@ static int kxsd9_common_probe(struct device *parent,
 	if (ret)
 		return ret;
 
-	*retdev = indio_dev;
+	dev_set_drvdata(parent, indio_dev);
+
+	return 0;
+}
+
+static int kxsd9_common_remove(struct device *parent)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(parent);
+
+	iio_device_unregister(indio_dev);
+
 	return 0;
 }
 
@@ -295,7 +304,6 @@ static int kxsd9_spi_readval(struct kxsd9_transport *tr, u8 address)
 static int kxsd9_spi_probe(struct spi_device *spi)
 {
 	struct kxsd9_transport *transport;
-	struct iio_dev *indio_dev;
 	int ret;
 
 	transport = devm_kzalloc(&spi->dev, sizeof(*transport), GFP_KERNEL);
@@ -311,20 +319,16 @@ static int kxsd9_spi_probe(struct spi_device *spi)
 
 	ret = kxsd9_common_probe(&spi->dev,
 				 transport,
-				 spi_get_device_id(spi)->name,
-				 &indio_dev);
+				 spi_get_device_id(spi)->name);
 	if (ret)
 		return ret;
 
-	spi_set_drvdata(spi, indio_dev);
 	return 0;
 }
 
 static int kxsd9_spi_remove(struct spi_device *spi)
 {
-	iio_device_unregister(spi_get_drvdata(spi));
-
-	return 0;
+	return kxsd9_common_remove(&spi->dev);
 }
 
 static const struct spi_device_id kxsd9_spi_id[] = {
