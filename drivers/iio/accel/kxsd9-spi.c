@@ -43,6 +43,7 @@ MODULE_DEVICE_TABLE(spi, kxsd9_spi_id);
 static struct spi_driver kxsd9_spi_driver = {
 	.driver = {
 		.name = "kxsd9",
+		.pm = &kxsd9_dev_pm_ops,
 	},
 	.probe = kxsd9_spi_probe,
 	.remove = kxsd9_spi_remove,

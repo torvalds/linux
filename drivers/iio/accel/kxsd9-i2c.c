@@ -55,6 +55,7 @@ static struct i2c_driver kxsd9_i2c_driver = {
 	.driver = {
 		.name	= "kxsd9",
 		.of_match_table = of_match_ptr(kxsd9_of_match),
+		.pm = &kxsd9_dev_pm_ops,
 	},
 	.probe		= kxsd9_i2c_probe,
 	.remove		= kxsd9_i2c_remove,
