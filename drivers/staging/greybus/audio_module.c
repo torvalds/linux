@@ -21,7 +21,16 @@
 static int gbaudio_request_jack(struct gbaudio_module_info *module,
 				  struct gb_audio_jack_event_request *req)
 {
-	int report, button_status;
+	int report;
+	struct snd_jack *jack = module->headset_jack.jack;
+	struct snd_jack *btn_jack = module->button_jack.jack;
+
+	if (!jack) {
+		dev_err_ratelimited(module->dev,
+			"Invalid jack event received:type: %u, event: %u\n",
+			req->jack_attribute, req->event);
+		return -EINVAL;
+	}
 
 	dev_warn_ratelimited(module->dev,
 			     "Jack Event received: type: %u, event: %u\n",
@@ -29,19 +38,24 @@ static int gbaudio_request_jack(struct gbaudio_module_info *module,
 
 	if (req->event == GB_AUDIO_JACK_EVENT_REMOVAL) {
 		module->jack_type = 0;
-		button_status = module->button_status;
-		module->button_status = 0;
-		if (button_status)
+		if (btn_jack && module->button_status) {
 			snd_soc_jack_report(&module->button_jack, 0,
 					    module->button_mask);
+			module->button_status = 0;
+		}
 		snd_soc_jack_report(&module->headset_jack, 0,
 				    module->jack_mask);
 		return 0;
 	}
 
-	/* currently supports Headphone, Headset & Lineout only */
-	report &= ~module->jack_mask;
-	report |= req->jack_attribute & module->jack_mask;
+	report = req->jack_attribute & module->jack_mask;
+	if (!report) {
+		dev_err_ratelimited(module->dev,
+			"Invalid jack event received:type: %u, event: %u\n",
+			req->jack_attribute, req->event);
+		return -EINVAL;
+	}
+
 	if (module->jack_type)
 		dev_warn_ratelimited(module->dev,
 				     "Modifying jack from %d to %d\n",
@@ -57,6 +71,14 @@ static int gbaudio_request_button(struct gbaudio_module_info *module,
 				  struct gb_audio_button_event_request *req)
 {
 	int soc_button_id, report;
+	struct snd_jack *btn_jack = module->button_jack.jack;
+
+	if (!btn_jack) {
+		dev_err_ratelimited(module->dev,
+			"Invalid button event received:type: %u, event: %u\n",
+			req->button_id, req->event);
+		return -EINVAL;
+	}
 
 	dev_warn_ratelimited(module->dev,
 			     "Button Event received: id: %u, event: %u\n",
