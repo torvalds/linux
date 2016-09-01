@@ -37,6 +37,7 @@
 #include <linux/workqueue.h>
 #include <linux/security.h>
 #include <linux/sizes.h>
+#include <linux/dynamic_debug.h>
 #include "extent_io.h"
 #include "extent_map.h"
 #include "async-thread.h"
@@ -3315,7 +3316,35 @@ void btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...)
 	btrfs_printk_ratelimited(fs_info, KERN_NOTICE fmt, ##args)
 #define btrfs_info_rl(fs_info, fmt, args...) \
 	btrfs_printk_ratelimited(fs_info, KERN_INFO fmt, ##args)
-#ifdef DEBUG
+
+#if defined(CONFIG_DYNAMIC_DEBUG)
+#define btrfs_debug(fs_info, fmt, args...)				\
+do {									\
+        DEFINE_DYNAMIC_DEBUG_METADATA(descriptor, fmt);         	\
+        if (unlikely(descriptor.flags & _DPRINTK_FLAGS_PRINT))  	\
+		btrfs_printk(fs_info, KERN_DEBUG fmt, ##args);		\
+} while (0)
+#define btrfs_debug_in_rcu(fs_info, fmt, args...) 			\
+do {									\
+        DEFINE_DYNAMIC_DEBUG_METADATA(descriptor, fmt); 	        \
+        if (unlikely(descriptor.flags & _DPRINTK_FLAGS_PRINT)) 		\
+		btrfs_printk_in_rcu(fs_info, KERN_DEBUG fmt, ##args);	\
+} while (0)
+#define btrfs_debug_rl_in_rcu(fs_info, fmt, args...)			\
+do {									\
+        DEFINE_DYNAMIC_DEBUG_METADATA(descriptor, fmt);         	\
+        if (unlikely(descriptor.flags & _DPRINTK_FLAGS_PRINT))  	\
+		btrfs_printk_rl_in_rcu(fs_info, KERN_DEBUG fmt,		\
+				       ##args);\
+} while (0)
+#define btrfs_debug_rl(fs_info, fmt, args...) 				\
+do {									\
+        DEFINE_DYNAMIC_DEBUG_METADATA(descriptor, fmt);         	\
+        if (unlikely(descriptor.flags & _DPRINTK_FLAGS_PRINT))  	\
+		btrfs_printk_ratelimited(fs_info, KERN_DEBUG fmt,	\
+					 ##args);			\
+} while (0)
+#elif defined(DEBUG)
 #define btrfs_debug(fs_info, fmt, args...) \
 	btrfs_printk(fs_info, KERN_DEBUG fmt, ##args)
 #define btrfs_debug_in_rcu(fs_info, fmt, args...) \
