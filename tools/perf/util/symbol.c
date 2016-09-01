@@ -151,6 +151,9 @@ void symbols__fixup_duplicate(struct rb_root *symbols)
 	struct rb_node *nd;
 	struct symbol *curr, *next;
 
+	if (symbol_conf.allow_aliases)
+		return;
+
 	nd = rb_first(symbols);
 
 	while (nd) {
