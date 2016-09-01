@@ -104,6 +104,7 @@ static const u16 mgmt_commands[] = {
 	MGMT_OP_REMOVE_ADVERTISING,
 	MGMT_OP_GET_ADV_SIZE_INFO,
 	MGMT_OP_START_LIMITED_DISCOVERY,
+	MGMT_OP_READ_EXT_INFO,
 };
 
 static const u16 mgmt_events[] = {
@@ -141,6 +142,7 @@ static const u16 mgmt_events[] = {
 	MGMT_EV_LOCAL_OOB_DATA_UPDATED,
 	MGMT_EV_ADVERTISING_ADDED,
 	MGMT_EV_ADVERTISING_REMOVED,
+	MGMT_EV_EXT_INFO_CHANGED,
 };
 
 static const u16 mgmt_untrusted_commands[] = {
@@ -149,6 +151,7 @@ static const u16 mgmt_untrusted_commands[] = {
 	MGMT_OP_READ_UNCONF_INDEX_LIST,
 	MGMT_OP_READ_CONFIG_INFO,
 	MGMT_OP_READ_EXT_INDEX_LIST,
+	MGMT_OP_READ_EXT_INFO,
 };
 
 static const u16 mgmt_untrusted_events[] = {
@@ -162,6 +165,7 @@ static const u16 mgmt_untrusted_events[] = {
 	MGMT_EV_NEW_CONFIG_OPTIONS,
 	MGMT_EV_EXT_INDEX_ADDED,
 	MGMT_EV_EXT_INDEX_REMOVED,
+	MGMT_EV_EXT_INFO_CHANGED,
 };
 
 #define CACHE_TIMEOUT	msecs_to_jiffies(2 * 1000)
@@ -860,6 +864,52 @@ static int read_controller_info(struct sock *sk, struct hci_dev *hdev,
 
 	return mgmt_cmd_complete(sk, hdev->id, MGMT_OP_READ_INFO, 0, &rp,
 				 sizeof(rp));
+}
+
+static int read_ext_controller_info(struct sock *sk, struct hci_dev *hdev,
+				    void *data, u16 data_len)
+{
+	struct mgmt_rp_read_ext_info rp;
+
+	BT_DBG("sock %p %s", sk, hdev->name);
+
+	hci_dev_lock(hdev);
+
+	memset(&rp, 0, sizeof(rp));
+
+	bacpy(&rp.bdaddr, &hdev->bdaddr);
+
+	rp.version = hdev->hci_ver;
+	rp.manufacturer = cpu_to_le16(hdev->manufacturer);
+
+	rp.supported_settings = cpu_to_le32(get_supported_settings(hdev));
+	rp.current_settings = cpu_to_le32(get_current_settings(hdev));
+
+	rp.eir_len = cpu_to_le16(0);
+
+	hci_dev_unlock(hdev);
+
+	/* If this command is called at least once, then the events
+	 * for class of device and local name changes are disabled
+	 * and only the new extended controller information event
+	 * is used.
+	 */
+	hci_sock_set_flag(sk, HCI_MGMT_EXT_INFO_EVENTS);
+	hci_sock_clear_flag(sk, HCI_MGMT_DEV_CLASS_EVENTS);
+	hci_sock_clear_flag(sk, HCI_MGMT_LOCAL_NAME_EVENTS);
+
+	return mgmt_cmd_complete(sk, hdev->id, MGMT_OP_READ_EXT_INFO, 0, &rp,
+				 sizeof(rp));
+}
+
+static int ext_info_changed(struct hci_dev *hdev, struct sock *skip)
+{
+	struct mgmt_ev_ext_info_changed ev;
+
+	ev.eir_len = cpu_to_le16(0);
+
+	return mgmt_limited_event(MGMT_EV_EXT_INFO_CHANGED, hdev, &ev,
+				  sizeof(ev), HCI_MGMT_EXT_INFO_EVENTS, skip);
 }
 
 static int send_settings_rsp(struct sock *sk, u16 opcode, struct hci_dev *hdev)
@@ -2995,6 +3045,7 @@ static int set_local_name(struct sock *sk, struct hci_dev *hdev, void *data,
 
 		err = mgmt_limited_event(MGMT_EV_LOCAL_NAME_CHANGED, hdev, data,
 					 len, HCI_MGMT_LOCAL_NAME_EVENTS, sk);
+		ext_info_changed(hdev, sk);
 
 		goto failed;
 	}
@@ -6356,6 +6407,8 @@ static const struct hci_mgmt_handler mgmt_handlers[] = {
 	{ remove_advertising,	   MGMT_REMOVE_ADVERTISING_SIZE },
 	{ get_adv_size_info,       MGMT_GET_ADV_SIZE_INFO_SIZE },
 	{ start_limited_discovery, MGMT_START_DISCOVERY_SIZE },
+	{ read_ext_controller_info,MGMT_READ_EXT_INFO_SIZE,
+						HCI_MGMT_UNTRUSTED },
 };
 
 void mgmt_index_added(struct hci_dev *hdev)
@@ -6494,10 +6547,12 @@ void __mgmt_power_off(struct hci_dev *hdev)
 
 	mgmt_pending_foreach(0, hdev, cmd_complete_rsp, &status);
 
-	if (memcmp(hdev->dev_class, zero_cod, sizeof(zero_cod)) != 0)
+	if (memcmp(hdev->dev_class, zero_cod, sizeof(zero_cod)) != 0) {
 		mgmt_limited_event(MGMT_EV_CLASS_OF_DEV_CHANGED, hdev,
 				   zero_cod, sizeof(zero_cod),
 				   HCI_MGMT_DEV_CLASS_EVENTS, NULL);
+		ext_info_changed(hdev, NULL);
+	}
 
 	new_settings(hdev, match.sk);
 
@@ -7093,9 +7148,11 @@ void mgmt_set_class_of_dev_complete(struct hci_dev *hdev, u8 *dev_class,
 	mgmt_pending_foreach(MGMT_OP_ADD_UUID, hdev, sk_lookup, &match);
 	mgmt_pending_foreach(MGMT_OP_REMOVE_UUID, hdev, sk_lookup, &match);
 
-	if (!status)
+	if (!status) {
 		mgmt_limited_event(MGMT_EV_CLASS_OF_DEV_CHANGED, hdev, dev_class,
 				   3, HCI_MGMT_DEV_CLASS_EVENTS, NULL);
+		ext_info_changed(hdev, NULL);
+	}
 
 	if (match.sk)
 		sock_put(match.sk);
@@ -7126,6 +7183,7 @@ void mgmt_set_local_name_complete(struct hci_dev *hdev, u8 *name, u8 status)
 
 	mgmt_limited_event(MGMT_EV_LOCAL_NAME_CHANGED, hdev, &ev, sizeof(ev),
 			   HCI_MGMT_LOCAL_NAME_EVENTS, cmd ? cmd->sk : NULL);
+	ext_info_changed(hdev, cmd ? cmd->sk : NULL);
 }
 
 static inline bool has_uuid(u8 *uuid, u16 uuid_count, u8 (*uuids)[16])
