@@ -1579,7 +1579,7 @@ static int lpuart_verify_port(struct uart_port *port, struct serial_struct *ser)
 	return ret;
 }
 
-static struct uart_ops lpuart_pops = {
+static const struct uart_ops lpuart_pops = {
 	.tx_empty	= lpuart_tx_empty,
 	.set_mctrl	= lpuart_set_mctrl,
 	.get_mctrl	= lpuart_get_mctrl,
@@ -1598,7 +1598,7 @@ static struct uart_ops lpuart_pops = {
 	.flush_buffer	= lpuart_flush_buffer,
 };
 
-static struct uart_ops lpuart32_pops = {
+static const struct uart_ops lpuart32_pops = {
 	.tx_empty	= lpuart32_tx_empty,
 	.set_mctrl	= lpuart32_set_mctrl,
 	.get_mctrl	= lpuart32_get_mctrl,
