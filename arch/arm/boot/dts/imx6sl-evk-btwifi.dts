@@ -30,6 +30,7 @@
 
 	bcmdhd_wlan_0: bcmdhd_wlan@0 {
 		compatible = "android,bcmdhd_wlan";
+		gpios = <&gpio5 20 0>; /* WL_HOST_WAKE */
 		wlreg_on-supply = <&wlreg_on>;
 	};
 };
@@ -45,6 +46,7 @@
 				MX6SL_PAD_SD1_DAT1__SD1_DATA1		0x17059
 				MX6SL_PAD_SD1_DAT2__SD1_DATA2		0x17059
 				MX6SL_PAD_SD1_DAT3__SD1_DATA3		0x17059
+				MX6SL_PAD_SD3_DAT1__GPIO5_IO20		0x13069 /* WL_HOST_WAKE */
 				MX6SL_PAD_SD3_DAT2__GPIO5_IO16		0x13069 /* WL_REG_ON */
 			>;
 		};

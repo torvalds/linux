@@ -7,4 +7,4 @@
  */
 
 #include "imx6ull-14x14-evk.dts"
-#include "imx6ull-evk-btwifi.dtsi"
+#include "imx6ul-evk-btwifi.dtsi"

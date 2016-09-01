@@ -381,6 +381,9 @@ typedef struct dhd_bus {
 	bool		txglom_enable;	/* Flag to indicate whether tx glom is enabled/disabled */
 	uint32		txglomsize;	/* Glom size limitation */
 	void		*pad_pkt;
+#ifdef HW_OOB
+	int		bus_wake_on_resume; /* addition to fix suspend/resume powersave issue */
+#endif
 } dhd_bus_t;
 
 /* clkstate */
@@ -6536,7 +6539,13 @@ dhd_bus_watchdog(dhd_pub_t *dhdp)
 	DHD_TIMER(("%s: Enter\n", __FUNCTION__));
 
 	bus = dhdp->bus;
-
+#ifdef HW_OOB
+	/* this code segment added to fix suspend/resume powersave issue */
+	if (bus->bus_wake_on_resume) {
+		BUS_WAKE(bus);
+		bus->bus_wake_on_resume = 0;
+	}
+#endif
 	if (bus->dhd->dongle_reset)
 		return FALSE;
 
@@ -7508,6 +7517,11 @@ dhdsdio_resume(void *context)
 			bcmsdh_oob_intr_set(bus->sdh, TRUE);
 	}
 #endif 
+#ifdef HW_OOB
+	/* this code segment added to fix suspend/resume powersave issue */
+	bus->bus_wake_on_resume = 1;
+	dhd_os_wd_timer(bus->dhd, 1000);
+#endif
 	return 0;
 }
 
