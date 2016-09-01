@@ -269,7 +269,7 @@ static struct watchdog_info cdns_wdt_info = {
 };
 
 /* Watchdog Core Ops */
-static struct watchdog_ops cdns_wdt_ops = {
+static const struct watchdog_ops cdns_wdt_ops = {
 	.owner = THIS_MODULE,
 	.start = cdns_wdt_start,
 	.stop = cdns_wdt_stop,
