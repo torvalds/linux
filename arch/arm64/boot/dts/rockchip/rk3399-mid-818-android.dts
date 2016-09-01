@@ -238,6 +238,41 @@
 	};
 };
 
+&dfi {
+	status = "okay";
+};
+
+&dmc {
+	status = "okay";
+	center-supply = <&vdd_center>;
+	upthreshold = <38>;
+	downdifferential = <20>;
+};
+
+&dmc_opp_table {
+	opp@300000000 {
+		opp-hz = /bits/ 64 <300000000>;
+		opp-microvolt = <900000>;
+	};
+	opp@400000000 {
+		opp-hz = /bits/ 64 <400000000>;
+		opp-microvolt = <900000>;
+	};
+	opp@528000000 {
+		opp-hz = /bits/ 64 <528000000>;
+		opp-microvolt = <900000>;
+	};
+	opp@600000000 {
+		opp-hz = /bits/ 64 <600000000>;
+		opp-microvolt = <900000>;
+	};
+	opp@666000000 {
+		opp-hz = /bits/ 64 <666000000>;
+		opp-microvolt = <900000>;
+		opp-suspend;
+	};
+};
+
 &cluster0_opp {
 	opp@408000000 {
 		opp-hz = /bits/ 64 <408000000>;
@@ -266,7 +301,7 @@
 	};
 	opp@1512000000 {
 		opp-hz = /bits/ 64 <1512000000>;
-		opp-microvolt = <1075000>;
+		opp-microvolt = <1100000>;
 	};
 };
 
