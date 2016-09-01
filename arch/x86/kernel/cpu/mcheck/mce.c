@@ -41,6 +41,7 @@
 #include <linux/debugfs.h>
 #include <linux/irq_work.h>
 #include <linux/export.h>
+#include <linux/jump_label.h>
 
 #include <asm/processor.h>
 #include <asm/traps.h>
@@ -2080,6 +2081,7 @@ void mce_disable_bank(int bank)
  * mce=bootlog Log MCEs from before booting. Disabled by default on AMD.
  * mce=nobootlog Don't log MCEs from before booting.
  * mce=bios_cmci_threshold Don't program the CMCI threshold
+ * mce=recovery force enable memcpy_mcsafe()
  */
 static int __init mcheck_enable(char *str)
 {
@@ -2676,8 +2678,14 @@ static int __init mcheck_debugfs_init(void)
 static int __init mcheck_debugfs_init(void) { return -EINVAL; }
 #endif
 
+DEFINE_STATIC_KEY_FALSE(mcsafe_key);
+EXPORT_SYMBOL_GPL(mcsafe_key);
+
 static int __init mcheck_late_init(void)
 {
+	if (mca_cfg.recovery)
+		static_branch_inc(&mcsafe_key);
+
 	mcheck_debugfs_init();
 
 	/*

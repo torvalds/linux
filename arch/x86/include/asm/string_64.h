@@ -2,6 +2,7 @@
 #define _ASM_X86_STRING_64_H
 
 #ifdef __KERNEL__
+#include <linux/jump_label.h>
 
 /* Written 2002 by Andi Kleen */
 
@@ -77,6 +78,8 @@ int strcmp(const char *cs, const char *ct);
 #define memmove(dst, src, len) __memmove(dst, src, len)
 #define memset(s, c, n) __memset(s, c, n)
 #endif
+
+DECLARE_STATIC_KEY_FALSE(mcsafe_key);
 
 /**
  * memcpy_mcsafe - copy memory with indication if a machine check happened
