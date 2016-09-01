@@ -103,6 +103,7 @@ void cdn_dp_encoder_disable(void *dp)
 
 static void cdn_dp_commit(struct cdn_dp_device *dp)
 {
+	char guid[16];
 	int ret = cdn_dp_training_start(dp);
 
 	if (ret) {
@@ -114,6 +115,25 @@ static void cdn_dp_commit(struct cdn_dp_device *dp)
 	if (ret) {
 		dev_err(dp->dev, "get link training status failed: %d\n", ret);
 		return;
+	}
+
+	dev_info(dp->dev, "rate:%d, lanes:%d\n",
+			dp->link.rate, dp->link.num_lanes);
+
+	/**
+	* Use dpcd@0x0030~0x003f(which is GUID registers) to sync with NanoC
+	* to make sure training is ok. Nanoc will write "nanoc" in GUID registers
+	* when booting, and then we will use these registers to decide whether
+	* need to sync with device which plugged in.
+	* The sync register is 0x0035, firstly we write 0xaa to sync register,
+	* nanoc will read this register and then start the part2 code of DP.
+	*/
+	ret = cdn_dp_dpcd_read(dp, 0x0030, guid, 8);
+	if (ret == 0 && guid[0] == 'n' && guid[1] == 'a' && guid[2] == 'n' &&
+			guid[3] == 'o' && guid[4] == 'c') {
+		u8 sync_number = 0xaa;
+
+		cdn_dp_dpcd_write(dp, 0x0035, sync_number);
 	}
 
 	if (cdn_dp_set_video_status(dp, CONTROL_VIDEO_IDLE))

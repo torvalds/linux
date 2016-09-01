@@ -205,7 +205,8 @@ int cdn_dp_fb_register(struct platform_device *pdev, void *dp)
 				SUPPORT_4K_4096 |
 				SUPPORT_YUV420 |
 				SUPPORT_YCBCR_INPUT |
-				SUPPORT_TMDS_600M;
+				SUPPORT_TMDS_600M |
+				SUPPORT_RK_DISCRETE_VR;
 
 	dp_dev->hdmi = rockchip_hdmi_register(rk_cdn_dp_prop,
 						rk_dp_ops);
