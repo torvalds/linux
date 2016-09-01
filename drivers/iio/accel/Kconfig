@@ -131,6 +131,7 @@ config KXSD9_SPI
 	depends on KXSD9
 	depends on SPI
 	default KXSD9
+	select REGMAP_SPI
 	help
 	  Say yes here to enable the Kionix KXSD9 accelerometer
 	  SPI transport channel.

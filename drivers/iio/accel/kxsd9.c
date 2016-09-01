@@ -21,7 +21,7 @@
 #include <linux/sysfs.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-
+#include <linux/regmap.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 
@@ -46,7 +46,7 @@
  * @us:		spi device
  **/
 struct kxsd9_state {
-	struct kxsd9_transport *transport;
+	struct regmap *map;
 	struct mutex buf_lock;
 };
 
@@ -63,6 +63,7 @@ static int kxsd9_write_scale(struct iio_dev *indio_dev, int micro)
 	int ret, i;
 	struct kxsd9_state *st = iio_priv(indio_dev);
 	bool foundit = false;
+	unsigned int val;
 
 	for (i = 0; i < 4; i++)
 		if (micro == kxsd9_micro_scales[i]) {
@@ -73,13 +74,14 @@ static int kxsd9_write_scale(struct iio_dev *indio_dev, int micro)
 		return -EINVAL;
 
 	mutex_lock(&st->buf_lock);
-	ret = st->transport->readreg(st->transport,
-				     KXSD9_REG_CTRL_C);
+	ret = regmap_read(st->map,
+			  KXSD9_REG_CTRL_C,
+			  &val);
 	if (ret < 0)
 		goto error_ret;
-	ret = st->transport->writereg(st->transport,
-				      KXSD9_REG_CTRL_C,
-				      (ret & ~KXSD9_FS_MASK) | i);
+	ret = regmap_write(st->map,
+			   KXSD9_REG_CTRL_C,
+			   (val & ~KXSD9_FS_MASK) | i);
 error_ret:
 	mutex_unlock(&st->buf_lock);
 	return ret;
@@ -89,11 +91,15 @@ static int kxsd9_read(struct iio_dev *indio_dev, u8 address)
 {
 	int ret;
 	struct kxsd9_state *st = iio_priv(indio_dev);
+	__be16 raw_val;
 
 	mutex_lock(&st->buf_lock);
-	ret = st->transport->readval(st->transport, address);
+	ret = regmap_bulk_read(st->map, address, &raw_val, sizeof(raw_val));
+	if (ret)
+		goto out_fail_read;
 	/* Only 12 bits are valid */
-	ret &= 0xfff0;
+	ret = be16_to_cpu(raw_val) & 0xfff0;
+out_fail_read:
 	mutex_unlock(&st->buf_lock);
 	return ret;
 }
@@ -133,6 +139,7 @@ static int kxsd9_read_raw(struct iio_dev *indio_dev,
 {
 	int ret = -EINVAL;
 	struct kxsd9_state *st = iio_priv(indio_dev);
+	unsigned int regval;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
@@ -143,12 +150,13 @@ static int kxsd9_read_raw(struct iio_dev *indio_dev,
 		ret = IIO_VAL_INT;
 		break;
 	case IIO_CHAN_INFO_SCALE:
-		ret = st->transport->readreg(st->transport,
-					     KXSD9_REG_CTRL_C);
+		ret = regmap_read(st->map,
+				  KXSD9_REG_CTRL_C,
+				  &regval);
 		if (ret < 0)
 			goto error_ret;
 		*val = 0;
-		*val2 = kxsd9_micro_scales[ret & KXSD9_FS_MASK];
+		*val2 = kxsd9_micro_scales[regval & KXSD9_FS_MASK];
 		ret = IIO_VAL_INT_PLUS_MICRO;
 		break;
 	}
@@ -184,10 +192,10 @@ static int kxsd9_power_up(struct kxsd9_state *st)
 {
 	int ret;
 
-	ret = st->transport->writereg(st->transport, KXSD9_REG_CTRL_B, 0x40);
+	ret = regmap_write(st->map, KXSD9_REG_CTRL_B, 0x40);
 	if (ret)
 		return ret;
-	return st->transport->writereg(st->transport, KXSD9_REG_CTRL_C, 0x9b);
+	return regmap_write(st->map, KXSD9_REG_CTRL_C, 0x9b);
 };
 
 static const struct iio_info kxsd9_info = {
@@ -198,7 +206,7 @@ static const struct iio_info kxsd9_info = {
 };
 
 int kxsd9_common_probe(struct device *parent,
-		       struct kxsd9_transport *transport,
+		       struct regmap *map,
 		       const char *name)
 {
 	struct iio_dev *indio_dev;
@@ -210,7 +218,7 @@ int kxsd9_common_probe(struct device *parent,
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
-	st->transport = transport;
+	st->map = map;
 
 	mutex_init(&st->buf_lock);
 	indio_dev->channels = kxsd9_channels;
