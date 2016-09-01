@@ -416,6 +416,9 @@ static void ovl_fill_inode(struct inode *inode, umode_t mode)
 	inode->i_ino = get_next_ino();
 	inode->i_mode = mode;
 	inode->i_flags |= S_NOCMTIME;
+#ifdef CONFIG_FS_POSIX_ACL
+	inode->i_acl = inode->i_default_acl = ACL_DONT_CACHE;
+#endif
 
 	mode &= S_IFMT;
 	switch (mode) {
