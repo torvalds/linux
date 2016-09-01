@@ -96,8 +96,10 @@ enum rpmsg_ns_flags {
 #define RPMSG_ADDR_ANY		0xFFFFFFFF
 
 struct virtproc_info;
+struct rpmsg_device;
 struct rpmsg_endpoint;
 struct rpmsg_device_ops;
+struct rpmsg_endpoint_ops;
 
 /**
  * struct rpmsg_channel_info - channel info representation
@@ -184,6 +186,36 @@ struct rpmsg_endpoint {
 	struct mutex cb_lock;
 	u32 addr;
 	void *priv;
+
+	const struct rpmsg_endpoint_ops *ops;
+};
+
+/**
+ * struct rpmsg_endpoint_ops - indirection table for rpmsg_endpoint operations
+ * @destroy_ept:	destroy the given endpoint, required
+ * @send:		see @rpmsg_send(), required
+ * @sendto:		see @rpmsg_sendto(), optional
+ * @send_offchannel:	see @rpmsg_send_offchannel(), optional
+ * @trysend:		see @rpmsg_trysend(), required
+ * @trysendto:		see @rpmsg_trysendto(), optional
+ * @trysend_offchannel:	see @rpmsg_trysend_offchannel(), optional
+ *
+ * Indirection table for the operations that a rpmsg backend should implement.
+ * In addition to @destroy_ept, the backend must at least implement @send and
+ * @trysend, while the variants sending data off-channel are optional.
+ */
+struct rpmsg_endpoint_ops {
+	void (*destroy_ept)(struct rpmsg_endpoint *ept);
+
+	int (*send)(struct rpmsg_endpoint *ept, void *data, int len);
+	int (*sendto)(struct rpmsg_endpoint *ept, void *data, int len, u32 dst);
+	int (*send_offchannel)(struct rpmsg_endpoint *ept, u32 src, u32 dst,
+				  void *data, int len);
+
+	int (*trysend)(struct rpmsg_endpoint *ept, void *data, int len);
+	int (*trysendto)(struct rpmsg_endpoint *ept, void *data, int len, u32 dst);
+	int (*trysend_offchannel)(struct rpmsg_endpoint *ept, u32 src, u32 dst,
+			     void *data, int len);
 };
 
 /**
@@ -210,8 +242,6 @@ void rpmsg_destroy_ept(struct rpmsg_endpoint *);
 struct rpmsg_endpoint *rpmsg_create_ept(struct rpmsg_device *,
 					rpmsg_rx_cb_t cb, void *priv,
 					struct rpmsg_channel_info chinfo);
-int
-rpmsg_send_offchannel_raw(struct rpmsg_device *, u32, u32, void *, int, bool);
 
 /* use a macro to avoid include chaining to get THIS_MODULE */
 #define register_rpmsg_driver(drv) \
@@ -249,10 +279,7 @@ rpmsg_send_offchannel_raw(struct rpmsg_device *, u32, u32, void *, int, bool);
  */
 static inline int rpmsg_send(struct rpmsg_endpoint *ept, void *data, int len)
 {
-	struct rpmsg_device *rpdev = ept->rpdev;
-	u32 src = ept->addr, dst = rpdev->dst;
-
-	return rpmsg_send_offchannel_raw(rpdev, src, dst, data, len, true);
+	return ept->ops->send(ept, data, len);
 }
 
 /**
@@ -276,10 +303,7 @@ static inline int rpmsg_send(struct rpmsg_endpoint *ept, void *data, int len)
 static inline
 int rpmsg_sendto(struct rpmsg_endpoint *ept, void *data, int len, u32 dst)
 {
-	struct rpmsg_device *rpdev = ept->rpdev;
-	u32 src = ept->addr;
-
-	return rpmsg_send_offchannel_raw(rpdev, src, dst, data, len, true);
+	return ept->ops->sendto(ept, data, len, dst);
 }
 
 /**
@@ -306,9 +330,7 @@ static inline
 int rpmsg_send_offchannel(struct rpmsg_endpoint *ept, u32 src, u32 dst,
 			  void *data, int len)
 {
-	struct rpmsg_device *rpdev = ept->rpdev;
-
-	return rpmsg_send_offchannel_raw(rpdev, src, dst, data, len, true);
+	return ept->ops->send_offchannel(ept, src, dst, data, len);
 }
 
 /**
@@ -331,10 +353,7 @@ int rpmsg_send_offchannel(struct rpmsg_endpoint *ept, u32 src, u32 dst,
 static inline
 int rpmsg_trysend(struct rpmsg_endpoint *ept, void *data, int len)
 {
-	struct rpmsg_device *rpdev = ept->rpdev;
-	u32 src = ept->addr, dst = rpdev->dst;
-
-	return rpmsg_send_offchannel_raw(rpdev, src, dst, data, len, false);
+	return ept->ops->trysend(ept, data, len);
 }
 
 /**
@@ -357,10 +376,7 @@ int rpmsg_trysend(struct rpmsg_endpoint *ept, void *data, int len)
 static inline
 int rpmsg_trysendto(struct rpmsg_endpoint *ept, void *data, int len, u32 dst)
 {
-	struct rpmsg_device *rpdev = ept->rpdev;
-	u32 src = ept->addr;
-
-	return rpmsg_send_offchannel_raw(rpdev, src, dst, data, len, false);
+	return ept->ops->trysendto(ept, data, len, dst);
 }
 
 /**
@@ -386,9 +402,7 @@ static inline
 int rpmsg_trysend_offchannel(struct rpmsg_endpoint *ept, u32 src, u32 dst,
 			     void *data, int len)
 {
-	struct rpmsg_device *rpdev = ept->rpdev;
-
-	return rpmsg_send_offchannel_raw(rpdev, src, dst, data, len, false);
+	return ept->ops->trysend_offchannel(ept, src, dst, data, len);
 }
 
 #endif /* _LINUX_RPMSG_H */
