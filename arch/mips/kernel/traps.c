@@ -2210,8 +2210,25 @@ void __init trap_init(void)
 
 	if (cpu_has_veic || cpu_has_vint) {
 		unsigned long size = 0x200 + VECTORSPACING*64;
+		phys_addr_t ebase_pa;
+
 		ebase = (unsigned long)
 			__alloc_bootmem(size, 1 << fls(size), 0);
+
+		/*
+		 * Try to ensure ebase resides in KSeg0 if possible.
+		 *
+		 * It shouldn't generally be in XKPhys on MIPS64 to avoid
+		 * hitting a poorly defined exception base for Cache Errors.
+		 * The allocation is likely to be in the low 512MB of physical,
+		 * in which case we should be able to convert to KSeg0.
+		 *
+		 * EVA is special though as it allows segments to be rearranged
+		 * and to become uncached during cache error handling.
+		 */
+		ebase_pa = __pa(ebase);
+		if (!IS_ENABLED(CONFIG_EVA) && !WARN_ON(ebase_pa >= 0x20000000))
+			ebase = CKSEG0ADDR(ebase_pa);
 	} else {
 		ebase = CAC_BASE;
 
