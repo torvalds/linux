@@ -836,8 +836,17 @@ static int btrfs_init_debugfs(void)
 	if (!btrfs_debugfs_root_dentry)
 		return -ENOMEM;
 
+	/*
+	 * Example code, how to export data through debugfs.
+	 *
+	 * file:        /sys/kernel/debug/btrfs/test
+	 * contents of: btrfs_debugfs_test
+	 */
+#ifdef CONFIG_BTRFS_DEBUG
 	debugfs_create_u64("test", S_IRUGO | S_IWUSR, btrfs_debugfs_root_dentry,
 			&btrfs_debugfs_test);
+#endif
+
 #endif
 	return 0;
 }
