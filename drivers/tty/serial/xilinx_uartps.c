@@ -993,7 +993,7 @@ static void cdns_uart_pm(struct uart_port *port, unsigned int state,
 	}
 }
 
-static struct uart_ops cdns_uart_ops = {
+static const struct uart_ops cdns_uart_ops = {
 	.set_mctrl	= cdns_uart_set_mctrl,
 	.get_mctrl	= cdns_uart_get_mctrl,
 	.start_tx	= cdns_uart_start_tx,
