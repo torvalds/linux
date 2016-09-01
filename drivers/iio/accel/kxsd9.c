@@ -21,6 +21,8 @@
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/bitops.h>
+#include <linux/delay.h>
+#include <linux/regulator/consumer.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
@@ -65,10 +67,12 @@
  * struct kxsd9_state - device related storage
  * @dev: pointer to the parent device
  * @map: regmap to the device
+ * @regs: regulators for this device, VDD and IOVDD
  */
 struct kxsd9_state {
 	struct device *dev;
 	struct regmap *map;
+	struct regulator_bulk_data regs[2];
 };
 
 #define KXSD9_SCALE_2G "0.011978"
@@ -80,6 +84,12 @@ struct kxsd9_state {
 static const int kxsd9_micro_scales[4] = { 47853, 35934, 23927, 11978 };
 
 #define KXSD9_ZERO_G_OFFSET -2048
+
+/*
+ * Regulator names
+ */
+static const char kxsd9_reg_vdd[] = "vdd";
+static const char kxsd9_reg_iovdd[] = "iovdd";
 
 static int kxsd9_write_scale(struct iio_dev *indio_dev, int micro)
 {
@@ -252,11 +262,68 @@ static int kxsd9_power_up(struct kxsd9_state *st)
 {
 	int ret;
 
-	ret = regmap_write(st->map, KXSD9_REG_CTRL_B, 0x40);
+	/* Enable the regulators */
+	ret = regulator_bulk_enable(ARRAY_SIZE(st->regs), st->regs);
+	if (ret) {
+		dev_err(st->dev, "Cannot enable regulators\n");
+		return ret;
+	}
+
+	/* Power up */
+	ret = regmap_write(st->map,
+			   KXSD9_REG_CTRL_B,
+			   KXSD9_CTRL_B_ENABLE);
 	if (ret)
 		return ret;
-	return regmap_write(st->map, KXSD9_REG_CTRL_C, 0x9b);
+
+	/*
+	 * Set 1000Hz LPF, 2g fullscale, motion wakeup threshold 1g,
+	 * latched wakeup
+	 */
+	ret = regmap_write(st->map,
+			   KXSD9_REG_CTRL_C,
+			   KXSD9_CTRL_C_LP_1000HZ |
+			   KXSD9_CTRL_C_MOT_LEV	|
+			   KXSD9_CTRL_C_MOT_LAT |
+			   KXSD9_CTRL_C_FS_2G);
+	if (ret)
+		return ret;
+
+	/*
+	 * Power-up time depends on the LPF setting, but typ 15.9 ms, let's
+	 * set 20 ms to allow for some slack.
+	 */
+	msleep(20);
+
+	return 0;
 };
+
+static int kxsd9_power_down(struct kxsd9_state *st)
+{
+	int ret;
+
+	/*
+	 * Set into low power mode - since there may be more users of the
+	 * regulators this is the first step of the power saving: it will
+	 * make sure we conserve power even if there are others users on the
+	 * regulators.
+	 */
+	ret = regmap_update_bits(st->map,
+				 KXSD9_REG_CTRL_B,
+				 KXSD9_CTRL_B_ENABLE,
+				 0);
+	if (ret)
+		return ret;
+
+	/* Disable the regulators */
+	ret = regulator_bulk_disable(ARRAY_SIZE(st->regs), st->regs);
+	if (ret) {
+		dev_err(st->dev, "Cannot disable regulators\n");
+		return ret;
+	}
+
+	return 0;
+}
 
 static const struct iio_info kxsd9_info = {
 	.read_raw = &kxsd9_read_raw,
@@ -292,6 +359,17 @@ int kxsd9_common_probe(struct device *parent,
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->available_scan_masks = kxsd9_scan_masks;
 
+	/* Fetch and turn on regulators */
+	st->regs[0].supply = kxsd9_reg_vdd;
+	st->regs[1].supply = kxsd9_reg_iovdd;
+	ret = devm_regulator_bulk_get(parent,
+				      ARRAY_SIZE(st->regs),
+				      st->regs);
+	if (ret) {
+		dev_err(parent, "Cannot get regulators\n");
+		return ret;
+	}
+
 	kxsd9_power_up(st);
 
 	ret = iio_triggered_buffer_setup(indio_dev,
@@ -300,7 +378,7 @@ int kxsd9_common_probe(struct device *parent,
 					 NULL);
 	if (ret) {
 		dev_err(parent, "triggered buffer setup failed\n");
-		return ret;
+		goto err_power_down;
 	}
 
 	ret = iio_device_register(indio_dev);
@@ -313,6 +391,8 @@ int kxsd9_common_probe(struct device *parent,
 
 err_cleanup_buffer:
 	iio_triggered_buffer_cleanup(indio_dev);
+err_power_down:
+	kxsd9_power_down(st);
 
 	return ret;
 }
@@ -321,9 +401,11 @@ EXPORT_SYMBOL(kxsd9_common_probe);
 int kxsd9_common_remove(struct device *parent)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(parent);
+	struct kxsd9_state *st = iio_priv(indio_dev);
 
 	iio_triggered_buffer_cleanup(indio_dev);
 	iio_device_unregister(indio_dev);
+	kxsd9_power_down(st);
 
 	return 0;
 }
