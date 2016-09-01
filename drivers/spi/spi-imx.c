@@ -186,17 +186,19 @@ static unsigned int spi_imx_clkdiv_1(unsigned int fin,
 
 /* MX1, MX31, MX35, MX51 CSPI */
 static unsigned int spi_imx_clkdiv_2(unsigned int fin,
-		unsigned int fspi)
+		unsigned int fspi, unsigned int *fres)
 {
 	int i, div = 4;
 
 	for (i = 0; i < 7; i++) {
 		if (fspi * div >= fin)
-			return i;
+			goto out;
 		div <<= 1;
 	}
 
-	return 7;
+out:
+	*fres = fin / div;
+	return i;
 }
 
 static int spi_imx_bytes_per_word(const int bpw)
@@ -482,9 +484,11 @@ static int mx31_config(struct spi_device *spi, struct spi_imx_config *config)
 {
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(spi->master);
 	unsigned int reg = MX31_CSPICTRL_ENABLE | MX31_CSPICTRL_MASTER;
+	unsigned int clk;
 
-	reg |= spi_imx_clkdiv_2(spi_imx->spi_clk, config->speed_hz) <<
+	reg |= spi_imx_clkdiv_2(spi_imx->spi_clk, config->speed_hz, &clk) <<
 		MX31_CSPICTRL_DR_SHIFT;
+	spi_imx->spi_bus_clk = clk;
 
 	if (is_imx35_cspi(spi_imx)) {
 		reg |= (config->bpw - 1) << MX35_CSPICTRL_BL_SHIFT;
@@ -625,9 +629,12 @@ static int mx1_config(struct spi_device *spi, struct spi_imx_config *config)
 {
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(spi->master);
 	unsigned int reg = MX1_CSPICTRL_ENABLE | MX1_CSPICTRL_MASTER;
+	unsigned int clk;
 
-	reg |= spi_imx_clkdiv_2(spi_imx->spi_clk, config->speed_hz) <<
+	reg |= spi_imx_clkdiv_2(spi_imx->spi_clk, config->speed_hz, &clk) <<
 		MX1_CSPICTRL_DR_SHIFT;
+	spi_imx->spi_bus_clk = clk;
+
 	reg |= config->bpw - 1;
 
 	if (spi->mode & SPI_CPHA)
