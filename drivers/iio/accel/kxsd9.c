@@ -68,12 +68,14 @@
  * struct kxsd9_state - device related storage
  * @dev: pointer to the parent device
  * @map: regmap to the device
+ * @orientation: mounting matrix, flipped axis etc
  * @regs: regulators for this device, VDD and IOVDD
  * @scale: the current scaling setting
  */
 struct kxsd9_state {
 	struct device *dev;
 	struct regmap *map;
+	struct iio_mount_matrix orientation;
 	struct regulator_bulk_data regs[2];
 	u8 scale;
 };
@@ -258,6 +260,20 @@ static const struct iio_buffer_setup_ops kxsd9_buffer_setup_ops = {
 	.postdisable = kxsd9_buffer_postdisable,
 };
 
+static const struct iio_mount_matrix *
+kxsd9_get_mount_matrix(const struct iio_dev *indio_dev,
+		       const struct iio_chan_spec *chan)
+{
+	struct kxsd9_state *st = iio_priv(indio_dev);
+
+	return &st->orientation;
+}
+
+static const struct iio_chan_spec_ext_info kxsd9_ext_info[] = {
+	IIO_MOUNT_MATRIX(IIO_SHARED_BY_TYPE, kxsd9_get_mount_matrix),
+	{ },
+};
+
 #define KXSD9_ACCEL_CHAN(axis, index)						\
 	{								\
 		.type = IIO_ACCEL,					\
@@ -266,6 +282,7 @@ static const struct iio_buffer_setup_ops kxsd9_buffer_setup_ops = {
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |	\
 					BIT(IIO_CHAN_INFO_OFFSET),	\
+		.ext_info = kxsd9_ext_info,				\
 		.address = KXSD9_REG_##axis,				\
 		.scan_index = index,					\
 		.scan_type = {                                          \
@@ -402,6 +419,13 @@ int kxsd9_common_probe(struct device *dev,
 	indio_dev->info = &kxsd9_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->available_scan_masks = kxsd9_scan_masks;
+
+	/* Read the mounting matrix, if present */
+	ret = of_iio_read_mount_matrix(dev,
+				       "mount-matrix",
+				       &st->orientation);
+	if (ret)
+		return ret;
 
 	/* Fetch and turn on regulators */
 	st->regs[0].supply = kxsd9_reg_vdd;
