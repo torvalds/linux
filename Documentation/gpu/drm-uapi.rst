@@ -156,6 +156,43 @@ other hand, a driver requires shared state between clients which is
 visible to user-space and accessible beyond open-file boundaries, they
 cannot support render nodes.
 
+Validating changes with IGT
+===========================
+
+There's a collection of tests that aims to cover the whole functionality of
+DRM drivers and that can be used to check that changes to DRM drivers or the
+core don't regress existing functionality. This test suite is called IGT and
+its code can be found in https://cgit.freedesktop.org/drm/igt-gpu-tools/.
+
+To build IGT, start by installing its build dependencies. In Debian-based
+systems::
+
+	# apt-get build-dep intel-gpu-tools
+
+And in Fedora-based systems::
+
+	# dnf builddep intel-gpu-tools
+
+Then clone the repository::
+
+	$ git clone git://anongit.freedesktop.org/drm/igt-gpu-tools
+
+Configure the build system and start the build::
+
+	$ cd igt-gpu-tools && ./autogen.sh && make -j6
+
+Download the piglit dependency::
+
+	$ ./scripts/run-tests.sh -d
+
+And run the tests::
+
+	$ ./scripts/run-tests.sh -t kms -t core -s
+
+run-tests.sh is a wrapper around piglit that will execute the tests matching
+the -t options. A report in HTML format will be available in
+./results/html/index.html. Results can be compared with piglit.
+
 VBlank event handling
 =====================
 
