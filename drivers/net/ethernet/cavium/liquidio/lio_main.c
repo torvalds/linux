@@ -96,6 +96,14 @@ struct liquidio_if_cfg_resp {
 	u64 status;
 };
 
+struct liquidio_rx_ctl_context {
+	int octeon_id;
+
+	wait_queue_head_t wc;
+
+	int cond;
+};
+
 struct oct_link_status_resp {
 	u64 rh;
 	struct oct_link_info link_info;
@@ -1378,23 +1386,89 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 }
 
 /**
+ * \brief Callback for rx ctrl
+ * @param status status of request
+ * @param buf pointer to resp structure
+ */
+static void rx_ctl_callback(struct octeon_device *oct,
+			    u32 status,
+			    void *buf)
+{
+	struct octeon_soft_command *sc = (struct octeon_soft_command *)buf;
+	struct liquidio_rx_ctl_context *ctx;
+
+	ctx  = (struct liquidio_rx_ctl_context *)sc->ctxptr;
+
+	oct = lio_get_device(ctx->octeon_id);
+	if (status)
+		dev_err(&oct->pci_dev->dev, "rx ctl instruction failed. Status: %llx\n",
+			CVM_CAST64(status));
+	WRITE_ONCE(ctx->cond, 1);
+
+	/* This barrier is required to be sure that the response has been
+	 * written fully before waking up the handler
+	 */
+	wmb();
+
+	wake_up_interruptible(&ctx->wc);
+}
+
+/**
  * \brief Send Rx control command
  * @param lio per-network private data
  * @param start_stop whether to start or stop
  */
 static void send_rx_ctrl_cmd(struct lio *lio, int start_stop)
 {
-	struct octnic_ctrl_pkt nctrl;
+	struct octeon_soft_command *sc;
+	struct liquidio_rx_ctl_context *ctx;
+	union octnet_cmd *ncmd;
+	int ctx_size = sizeof(struct liquidio_rx_ctl_context);
+	struct octeon_device *oct = (struct octeon_device *)lio->oct_dev;
+	int retval;
 
-	memset(&nctrl, 0, sizeof(struct octnic_ctrl_pkt));
+	if (oct->props[lio->ifidx].rx_on == start_stop)
+		return;
 
-	nctrl.ncmd.s.cmd = OCTNET_CMD_RX_CTL;
-	nctrl.ncmd.s.param1 = start_stop;
-	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.netpndev = (u64)lio->netdev;
+	sc = (struct octeon_soft_command *)
+		octeon_alloc_soft_command(oct, OCTNET_CMD_SIZE,
+					  16, ctx_size);
 
-	if (octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl) < 0)
+	ncmd = (union octnet_cmd *)sc->virtdptr;
+	ctx  = (struct liquidio_rx_ctl_context *)sc->ctxptr;
+
+	WRITE_ONCE(ctx->cond, 0);
+	ctx->octeon_id = lio_get_device_id(oct);
+	init_waitqueue_head(&ctx->wc);
+
+	ncmd->u64 = 0;
+	ncmd->s.cmd = OCTNET_CMD_RX_CTL;
+	ncmd->s.param1 = start_stop;
+
+	octeon_swap_8B_data((u64 *)ncmd, (OCTNET_CMD_SIZE >> 3));
+
+	sc->iq_no = lio->linfo.txpciq[0].s.q_no;
+
+	octeon_prepare_soft_command(oct, sc, OPCODE_NIC,
+				    OPCODE_NIC_CMD, 0, 0, 0);
+
+	sc->callback = rx_ctl_callback;
+	sc->callback_arg = sc;
+	sc->wait_time = 5000;
+
+	retval = octeon_send_soft_command(oct, sc);
+	if (retval == IQ_SEND_FAILED) {
 		netif_info(lio, rx_err, lio->netdev, "Failed to send RX Control message\n");
+	} else {
+		/* Sleep on a wait queue till the cond flag indicates that the
+		 * response arrived or timed-out.
+		 */
+		if (sleep_cond(&ctx->wc, &ctx->cond) == -EINTR)
+			return;
+		oct->props[lio->ifidx].rx_on = start_stop;
+	}
+
+	octeon_free_soft_command(oct, sc);
 }
 
 /**
@@ -1421,10 +1495,8 @@ static void liquidio_destroy_nic_device(struct octeon_device *oct, int ifidx)
 
 	dev_dbg(&oct->pci_dev->dev, "NIC device cleanup\n");
 
-	send_rx_ctrl_cmd(lio, 0);
-
 	if (atomic_read(&lio->ifstate) & LIO_IFSTATE_RUNNING)
-		txqs_stop(netdev);
+		liquidio_stop(netdev);
 
 	if (oct->props[lio->ifidx].napi_enabled == 1) {
 		list_for_each_entry_safe(napi, n, &netdev->napi_list, dev_list)
@@ -3567,7 +3639,11 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		/* Sleep on a wait queue till the cond flag indicates that the
 		 * response arrived or timed-out.
 		 */
-		sleep_cond(&ctx->wc, &ctx->cond);
+		if (sleep_cond(&ctx->wc, &ctx->cond) == -EINTR) {
+			dev_err(&octeon_dev->pci_dev->dev, "Wait interrupted\n");
+			goto setup_nic_wait_intr;
+		}
+
 		retval = resp->status;
 		if (retval) {
 			dev_err(&octeon_dev->pci_dev->dev, "iq/oq config failed\n");
@@ -3767,6 +3843,8 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 setup_nic_dev_fail:
 
 	octeon_free_soft_command(octeon_dev, sc);
+
+setup_nic_wait_intr:
 
 	while (i--) {
 		dev_err(&octeon_dev->pci_dev->dev,

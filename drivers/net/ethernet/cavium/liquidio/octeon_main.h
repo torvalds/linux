@@ -181,22 +181,26 @@ cnnic_numa_alloc_aligned_dma(u32 size,
 #define cnnic_free_aligned_dma(pci_dev, ptr, size, orig_ptr, dma_addr) \
 		free_pages(orig_ptr, get_order(size))
 
-static inline void
+static inline int
 sleep_cond(wait_queue_head_t *wait_queue, int *condition)
 {
+	int errno = 0;
 	wait_queue_t we;
 
 	init_waitqueue_entry(&we, current);
 	add_wait_queue(wait_queue, &we);
 	while (!(READ_ONCE(*condition))) {
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (signal_pending(current))
+		if (signal_pending(current)) {
+			errno = -EINTR;
 			goto out;
+		}
 		schedule();
 	}
 out:
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(wait_queue, &we);
+	return errno;
 }
 
 static inline void
