@@ -28,7 +28,7 @@ struct instance_data {
 	int rx_count;
 };
 
-static void rpmsg_sample_cb(struct rpmsg_channel *rpdev, void *data, int len,
+static void rpmsg_sample_cb(struct rpmsg_device *rpdev, void *data, int len,
 						void *priv, u32 src)
 {
 	int ret;
@@ -52,7 +52,7 @@ static void rpmsg_sample_cb(struct rpmsg_channel *rpdev, void *data, int len,
 		dev_err(&rpdev->dev, "rpmsg_send failed: %d\n", ret);
 }
 
-static int rpmsg_sample_probe(struct rpmsg_channel *rpdev)
+static int rpmsg_sample_probe(struct rpmsg_device *rpdev)
 {
 	int ret;
 	struct instance_data *idata;
@@ -76,7 +76,7 @@ static int rpmsg_sample_probe(struct rpmsg_channel *rpdev)
 	return 0;
 }
 
-static void rpmsg_sample_remove(struct rpmsg_channel *rpdev)
+static void rpmsg_sample_remove(struct rpmsg_device *rpdev)
 {
 	dev_info(&rpdev->dev, "rpmsg sample client driver is removed\n");
 }
