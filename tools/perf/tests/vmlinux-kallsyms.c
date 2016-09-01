@@ -28,6 +28,7 @@ int test__vmlinux_matches_kallsyms(int subtest __maybe_unused)
 	enum map_type type = MAP__FUNCTION;
 	struct maps *maps = &vmlinux.kmaps.maps[type];
 	u64 mem_start, mem_end;
+	bool header_printed;
 
 	/*
 	 * Step 1:
@@ -178,7 +179,7 @@ next_pair:
 	if (!verbose)
 		goto out;
 
-	pr_info("WARN: Maps only in vmlinux:\n");
+	header_printed = false;
 
 	for (map = maps__first(maps); map; map = map__next(map)) {
 		struct map *
@@ -192,13 +193,18 @@ next_pair:
 						(map->dso->kernel ?
 							map->dso->short_name :
 							map->dso->name));
-		if (pair)
+		if (pair) {
 			pair->priv = 1;
-		else
+		} else {
+			if (!header_printed) {
+				pr_info("WARN: Maps only in vmlinux:\n");
+				header_printed = true;
+			}
 			map__fprintf(map, stderr);
+		}
 	}
 
-	pr_info("WARN: Maps in vmlinux with a different name in kallsyms:\n");
+	header_printed = false;
 
 	for (map = maps__first(maps); map; map = map__next(map)) {
 		struct map *pair;
@@ -211,7 +217,11 @@ next_pair:
 			continue;
 
 		if (pair->start == mem_start) {
-			pair->priv = 1;
+			if (!header_printed) {
+				pr_info("WARN: Maps in vmlinux with a different name in kallsyms:\n");
+				header_printed = true;
+			}
+
 			pr_info("WARN: %" PRIx64 "-%" PRIx64 " %" PRIx64 " %s in kallsyms as",
 				map->start, map->end, map->pgoff, map->dso->name);
 			if (mem_end != pair->end)
@@ -222,13 +232,18 @@ next_pair:
 		}
 	}
 
-	pr_info("WARN: Maps only in kallsyms:\n");
+	header_printed = false;
 
 	maps = &kallsyms.kmaps.maps[type];
 
 	for (map = maps__first(maps); map; map = map__next(map)) {
-		if (!map->priv)
+		if (!map->priv) {
+			if (!header_printed) {
+				pr_info("WARN: Maps only in kallsyms:\n");
+				header_printed = true;
+			}
 			map__fprintf(map, stderr);
+		}
 	}
 out:
 	machine__exit(&kallsyms);
