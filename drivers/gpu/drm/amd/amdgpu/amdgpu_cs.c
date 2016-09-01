@@ -379,6 +379,58 @@ retry:
 	return r;
 }
 
+/* Last resort, try to evict something from the current working set */
+static bool amdgpu_cs_try_evict(struct amdgpu_cs_parser *p,
+				struct amdgpu_bo_list_entry *lobj)
+{
+	uint32_t domain = lobj->robj->allowed_domains;
+	int r;
+
+	if (!p->evictable)
+		return false;
+
+	for (;&p->evictable->tv.head != &p->validated;
+	     p->evictable = list_prev_entry(p->evictable, tv.head)) {
+
+		struct amdgpu_bo_list_entry *candidate = p->evictable;
+		struct amdgpu_bo *bo = candidate->robj;
+		u64 initial_bytes_moved;
+		uint32_t other;
+
+		/* If we reached our current BO we can forget it */
+		if (candidate == lobj)
+			break;
+
+		other = amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type);
+
+		/* Check if this BO is in one of the domains we need space for */
+		if (!(other & domain))
+			continue;
+
+		/* Check if we can move this BO somewhere else */
+		other = bo->allowed_domains & ~domain;
+		if (!other)
+			continue;
+
+		/* Good we can try to move this BO somewhere else */
+		amdgpu_ttm_placement_from_domain(bo, other);
+		initial_bytes_moved = atomic64_read(&bo->adev->num_bytes_moved);
+		r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
+		p->bytes_moved += atomic64_read(&bo->adev->num_bytes_moved) -
+			initial_bytes_moved;
+
+		if (unlikely(r))
+			break;
+
+		p->evictable = list_prev_entry(p->evictable, tv.head);
+		list_move(&candidate->tv.head, &p->validated);
+
+		return true;
+	}
+
+	return false;
+}
+
 int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 			    struct list_head *validated)
 {
@@ -403,9 +455,15 @@ int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 			binding_userptr = true;
 		}
 
-		r = amdgpu_cs_bo_validate(p, bo);
+		if (p->evictable == lobj)
+			p->evictable = NULL;
+
+		do {
+			r = amdgpu_cs_bo_validate(p, bo);
+		} while (r == -ENOMEM && amdgpu_cs_try_evict(p, lobj));
 		if (r)
 			return r;
+
 		if (bo->shadow) {
 			r = amdgpu_cs_bo_validate(p, bo);
 			if (r)
@@ -533,6 +591,9 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 
 	p->bytes_moved_threshold = amdgpu_cs_get_threshold_for_moves(p->adev);
 	p->bytes_moved = 0;
+	p->evictable = list_last_entry(&p->validated,
+				       struct amdgpu_bo_list_entry,
+				       tv.head);
 
 	r = amdgpu_cs_list_validate(p, &duplicates);
 	if (r) {

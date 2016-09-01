@@ -1225,6 +1225,7 @@ struct amdgpu_cs_parser {
 	struct fence			*fence;
 	uint64_t			bytes_moved_threshold;
 	uint64_t			bytes_moved;
+	struct amdgpu_bo_list_entry	*evictable;
 
 	/* user fence */
 	struct amdgpu_bo_list_entry	uf_entry;
