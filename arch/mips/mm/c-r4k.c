@@ -722,11 +722,13 @@ struct flush_icache_range_args {
 	unsigned long start;
 	unsigned long end;
 	unsigned int type;
+	bool user;
 };
 
 static inline void __local_r4k_flush_icache_range(unsigned long start,
 						  unsigned long end,
-						  unsigned int type)
+						  unsigned int type,
+						  bool user)
 {
 	if (!cpu_has_ic_fills_f_dc) {
 		if (type == R4K_INDEX ||
@@ -734,7 +736,10 @@ static inline void __local_r4k_flush_icache_range(unsigned long start,
 			r4k_blast_dcache();
 		} else {
 			R4600_HIT_CACHEOP_WAR_IMPL;
-			protected_blast_dcache_range(start, end);
+			if (user)
+				protected_blast_dcache_range(start, end);
+			else
+				blast_dcache_range(start, end);
 		}
 	}
 
@@ -748,7 +753,10 @@ static inline void __local_r4k_flush_icache_range(unsigned long start,
 			break;
 
 		default:
-			protected_blast_icache_range(start, end);
+			if (user)
+				protected_blast_icache_range(start, end);
+			else
+				blast_icache_range(start, end);
 			break;
 		}
 	}
@@ -757,7 +765,13 @@ static inline void __local_r4k_flush_icache_range(unsigned long start,
 static inline void local_r4k_flush_icache_range(unsigned long start,
 						unsigned long end)
 {
-	__local_r4k_flush_icache_range(start, end, R4K_HIT | R4K_INDEX);
+	__local_r4k_flush_icache_range(start, end, R4K_HIT | R4K_INDEX, false);
+}
+
+static inline void local_r4k_flush_icache_user_range(unsigned long start,
+						     unsigned long end)
+{
+	__local_r4k_flush_icache_range(start, end, R4K_HIT | R4K_INDEX, true);
 }
 
 static inline void local_r4k_flush_icache_range_ipi(void *args)
@@ -766,11 +780,13 @@ static inline void local_r4k_flush_icache_range_ipi(void *args)
 	unsigned long start = fir_args->start;
 	unsigned long end = fir_args->end;
 	unsigned int type = fir_args->type;
+	bool user = fir_args->user;
 
-	__local_r4k_flush_icache_range(start, end, type);
+	__local_r4k_flush_icache_range(start, end, type, user);
 }
 
-static void r4k_flush_icache_range(unsigned long start, unsigned long end)
+static void __r4k_flush_icache_range(unsigned long start, unsigned long end,
+				     bool user)
 {
 	struct flush_icache_range_args args;
 	unsigned long size, cache_size;
@@ -778,6 +794,7 @@ static void r4k_flush_icache_range(unsigned long start, unsigned long end)
 	args.start = start;
 	args.end = end;
 	args.type = R4K_HIT | R4K_INDEX;
+	args.user = user;
 
 	/*
 	 * Indexed cache ops require an SMP call.
@@ -801,6 +818,16 @@ static void r4k_flush_icache_range(unsigned long start, unsigned long end)
 	r4k_on_each_cpu(args.type, local_r4k_flush_icache_range_ipi, &args);
 	preempt_enable();
 	instruction_hazard();
+}
+
+static void r4k_flush_icache_range(unsigned long start, unsigned long end)
+{
+	return __r4k_flush_icache_range(start, end, false);
+}
+
+static void r4k_flush_icache_user_range(unsigned long start, unsigned long end)
+{
+	return __r4k_flush_icache_range(start, end, true);
 }
 
 #if defined(CONFIG_DMA_NONCOHERENT) || defined(CONFIG_DMA_MAYBE_COHERENT)
@@ -1904,8 +1931,8 @@ void r4k_cache_init(void)
 	flush_data_cache_page	= r4k_flush_data_cache_page;
 	flush_icache_range	= r4k_flush_icache_range;
 	local_flush_icache_range	= local_r4k_flush_icache_range;
-	__flush_icache_user_range	= r4k_flush_icache_range;
-	__local_flush_icache_user_range	= local_r4k_flush_icache_range;
+	__flush_icache_user_range	= r4k_flush_icache_user_range;
+	__local_flush_icache_user_range	= local_r4k_flush_icache_user_range;
 
 #if defined(CONFIG_DMA_NONCOHERENT) || defined(CONFIG_DMA_MAYBE_COHERENT)
 	if (coherentio) {
