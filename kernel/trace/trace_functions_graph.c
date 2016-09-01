@@ -1120,6 +1120,11 @@ print_graph_comment(struct trace_seq *s, struct trace_entry *ent,
 	trace_seq_puts(s, "/* ");
 
 	switch (iter->ent->type) {
+	case TRACE_BPUTS:
+		ret = trace_print_bputs_msg_only(iter);
+		if (ret != TRACE_TYPE_HANDLED)
+			return ret;
+		break;
 	case TRACE_BPRINT:
 		ret = trace_print_bprintk_msg_only(iter);
 		if (ret != TRACE_TYPE_HANDLED)
