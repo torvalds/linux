@@ -299,19 +299,6 @@ __rpmsg_destroy_ept(struct virtproc_info *vrp, struct rpmsg_endpoint *ept)
 	kref_put(&ept->refcount, __ept_release);
 }
 
-/**
- * rpmsg_destroy_ept() - destroy an existing rpmsg endpoint
- * @ept: endpoing to destroy
- *
- * Should be used by drivers to destroy an rpmsg endpoint previously
- * created with rpmsg_create_ept().
- */
-void rpmsg_destroy_ept(struct rpmsg_endpoint *ept)
-{
-	ept->ops->destroy_ept(ept);
-}
-EXPORT_SYMBOL(rpmsg_destroy_ept);
-
 static void virtio_rpmsg_destroy_ept(struct rpmsg_endpoint *ept)
 {
 	__rpmsg_destroy_ept(ept->rpdev->vrp, ept);
