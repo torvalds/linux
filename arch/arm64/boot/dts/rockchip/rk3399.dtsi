@@ -611,6 +611,11 @@
 		status = "disabled";
 	};
 
+	qos_gmac: qos@ffa5c000 {
+		compatible = "syscon";
+		reg = <0x0 0xffa5c000 0x0 0x20>;
+	};
+
 	qos_hdcp: qos@ffa90000 {
 		compatible = "syscon";
 		reg = <0x0 0xffa90000 0x0 0x20>;
@@ -739,6 +744,11 @@
 			};
 
 			/* These power domains are grouped by VD_LOGIC */
+			pd_gmac@RK3399_PD_GMAC {
+				reg = <RK3399_PD_GMAC>;
+				clocks = <&cru ACLK_GMAC>;
+				pm_qos = <&qos_gmac>;
+			};
 			pd_vio@RK3399_PD_VIO {
 				reg = <RK3399_PD_VIO>;
 				#address-cells = <1>;
