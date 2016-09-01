@@ -164,4 +164,8 @@ void intel_shared_dpll_init(struct drm_device *dev);
 bool bxt_ddi_dp_set_dpll_hw_state(int clock,
 			  struct intel_dpll_hw_state *dpll_hw_state);
 
+/* SKL dpll related functions */
+bool skl_ddi_dp_set_dpll_hw_state(int clock,
+				  struct intel_dpll_hw_state *dpll_hw_state);
+
 #endif /* _INTEL_DPLL_MGR_H_ */
