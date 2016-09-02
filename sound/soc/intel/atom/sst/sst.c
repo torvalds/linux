@@ -442,7 +442,7 @@ static int intel_sst_suspend(struct device *dev)
 		struct stream_info *stream = &ctx->streams[i];
 
 		if (stream->status == STREAM_RUNNING) {
-			dev_err(dev, "stream %d is running, cant susupend, abort\n", i);
+			dev_err(dev, "stream %d is running, can't suspend, abort\n", i);
 			return -EBUSY;
 		}
 	}
