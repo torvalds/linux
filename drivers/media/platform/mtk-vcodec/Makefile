@@ -3,7 +3,8 @@ obj-$(CONFIG_VIDEO_MEDIATEK_VCODEC) += mtk-vcodec-dec.o \
 				       mtk-vcodec-enc.o \
 				       mtk-vcodec-common.o
 
-mtk-vcodec-dec-y := mtk_vcodec_dec_drv.o \
+mtk-vcodec-dec-y := vdec/vdec_h264_if.o \
+		mtk_vcodec_dec_drv.o \
 		vdec_drv_if.o \
 		vdec_vpu_if.o \
 		mtk_vcodec_dec.o \

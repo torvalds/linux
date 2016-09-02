@@ -23,6 +23,7 @@
 #include "mtk_vcodec_dec_pm.h"
 #include "mtk_vpu.h"
 
+const struct vdec_common_if *get_h264_dec_comm_if(void);
 
 int vdec_if_init(struct mtk_vcodec_ctx *ctx, unsigned int fourcc)
 {
@@ -30,6 +31,8 @@ int vdec_if_init(struct mtk_vcodec_ctx *ctx, unsigned int fourcc)
 
 	switch (fourcc) {
 	case V4L2_PIX_FMT_H264:
+		ctx->dec_if = get_h264_dec_comm_if();
+		break;
 	case V4L2_PIX_FMT_VP8:
 		break;
 	default:
