@@ -20,7 +20,7 @@
 #include <linux/uuid.h>
 
 #include "controlvmchannel.h"
-#include "vbusdeviceinfo.h"
+#include "vbuschannel.h"
 
 /* TARGET_HOSTNAME specified as -DTARGET_HOSTNAME=\"thename\" on the
  * command line
