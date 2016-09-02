@@ -428,4 +428,17 @@
 		power-domains = <&cpg_clocks>;
 		status = "disabled";
 	};
+
+	ether: ethernet@e8203000 {
+		compatible = "renesas,ether-r7s72100";
+		reg = <0xe8203000 0x800>,
+		      <0xe8204800 0x200>;
+		interrupts = <GIC_SPI 327 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp7_clks R7S72100_CLK_ETHER>;
+		power-domains = <&cpg_clocks>;
+		phy-mode = "mii";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
 };
