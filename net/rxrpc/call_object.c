@@ -586,7 +586,7 @@ static void rxrpc_dead_call_expired(unsigned long _call)
  */
 static void rxrpc_mark_call_released(struct rxrpc_call *call)
 {
-	bool sched;
+	bool sched = false;
 
 	rxrpc_see_call(call);
 	write_lock(&call->state_lock);
