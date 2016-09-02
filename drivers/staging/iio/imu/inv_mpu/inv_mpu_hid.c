@@ -20,7 +20,7 @@
 #include <linux/spinlock.h>
 #include <linux/of_gpio.h>
 #include <linux/of.h>
-
+#include "../../../../hid/hid-rkvr.h"
 #include "inv_mpu_iio.h"
 
 static int inv_hid_read(struct inv_mpu_iio_s *st, u8 reg, int len, u8 *data)
@@ -64,6 +64,14 @@ static struct mpu_platform_data mpu_data = {
 			0,  0,  1,
 	},
 };
+
+static ssize_t inv_dev_attr_sync_store(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	return rkvr_sensor_sync_inv(buf, count);
+}
+
+static DEVICE_ATTR(sync, S_IWUSR, NULL, inv_dev_attr_sync_store);
 
 /**
  *  inv_mpu_probe() - probe function.
@@ -134,12 +142,17 @@ static int inv_mpu_probe(struct platform_device *pdev)
 		goto out_remove_trigger;
 	}
 
+	result = device_create_file(&indio_dev->dev, &dev_attr_sync);
+	if (result < 0) {
+		dev_err(&pdev->dev, "create sync sys file failed\n");
+		goto out_unreg_iio;
+	}
 	if (INV_MPU6050 == st->chip_type ||
 		INV_MPU6500 == st->chip_type) {
 		result = inv_create_dmp_sysfs(indio_dev);
 		if (result) {
 			dev_err(&pdev->dev, "create dmp sysfs failed\n");
-			goto out_unreg_iio;
+			goto out_rmsync_iio;
 		}
 	}
 
@@ -149,6 +162,8 @@ static int inv_mpu_probe(struct platform_device *pdev)
 					indio_dev->name);
 
 	return 0;
+out_rmsync_iio:
+	device_remove_file(&indio_dev->dev, &dev_attr_sync);
 out_unreg_iio:
 	iio_device_unregister(indio_dev);
 out_remove_trigger:
@@ -177,6 +192,7 @@ static int inv_mpu_remove(struct platform_device *pdev)
 	struct inv_mpu_iio_s *st = iio_priv(indio_dev);
 
 	kfifo_free(&st->timestamps);
+	device_remove_file(&indio_dev->dev, &dev_attr_sync);
 	iio_device_unregister(indio_dev);
 	if (indio_dev->modes & INDIO_BUFFER_TRIGGERED)
 		inv_mpu_remove_trigger(indio_dev);
