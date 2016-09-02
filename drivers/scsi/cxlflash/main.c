@@ -823,17 +823,6 @@ static void notify_shutdown(struct cxlflash_cfg *cfg, bool wait)
 }
 
 /**
- * cxlflash_shutdown() - shutdown handler
- * @pdev:	PCI device associated with the host.
- */
-static void cxlflash_shutdown(struct pci_dev *pdev)
-{
-	struct cxlflash_cfg *cfg = pci_get_drvdata(pdev);
-
-	notify_shutdown(cfg, false);
-}
-
-/**
  * cxlflash_remove() - PCI entry point to tear down host
  * @pdev:	PCI device associated with the host.
  *
@@ -843,6 +832,11 @@ static void cxlflash_remove(struct pci_dev *pdev)
 {
 	struct cxlflash_cfg *cfg = pci_get_drvdata(pdev);
 	ulong lock_flags;
+
+	if (!pci_is_enabled(pdev)) {
+		pr_debug("%s: Device is disabled\n", __func__);
+		return;
+	}
 
 	/* If a Task Management Function is active, wait for it to complete
 	 * before continuing with remove.
@@ -2685,7 +2679,7 @@ static struct pci_driver cxlflash_driver = {
 	.id_table = cxlflash_pci_table,
 	.probe = cxlflash_probe,
 	.remove = cxlflash_remove,
-	.shutdown = cxlflash_shutdown,
+	.shutdown = cxlflash_remove,
 	.err_handler = &cxlflash_err_handler,
 };
 
