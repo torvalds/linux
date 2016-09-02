@@ -248,21 +248,11 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_REVISION:
 		value = pdev->revision;
 		break;
-	case I915_PARAM_HAS_GEM:
-		value = 1;
-		break;
 	case I915_PARAM_NUM_FENCES_AVAIL:
 		value = dev_priv->num_fence_regs;
 		break;
 	case I915_PARAM_HAS_OVERLAY:
 		value = dev_priv->overlay ? 1 : 0;
-		break;
-	case I915_PARAM_HAS_PAGEFLIPPING:
-		value = 1;
-		break;
-	case I915_PARAM_HAS_EXECBUF2:
-		/* depends on GEM */
-		value = 1;
 		break;
 	case I915_PARAM_HAS_BSD:
 		value = intel_engine_initialized(&dev_priv->engine[VCS]);
@@ -276,67 +266,34 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_HAS_BSD2:
 		value = intel_engine_initialized(&dev_priv->engine[VCS2]);
 		break;
-	case I915_PARAM_HAS_RELAXED_FENCING:
-		value = 1;
-		break;
-	case I915_PARAM_HAS_COHERENT_RINGS:
-		value = 1;
-		break;
 	case I915_PARAM_HAS_EXEC_CONSTANTS:
-		value = INTEL_INFO(dev)->gen >= 4;
-		break;
-	case I915_PARAM_HAS_RELAXED_DELTA:
-		value = 1;
-		break;
-	case I915_PARAM_HAS_GEN7_SOL_RESET:
-		value = 1;
+		value = INTEL_GEN(dev_priv) >= 4;
 		break;
 	case I915_PARAM_HAS_LLC:
-		value = HAS_LLC(dev);
+		value = HAS_LLC(dev_priv);
 		break;
 	case I915_PARAM_HAS_WT:
-		value = HAS_WT(dev);
+		value = HAS_WT(dev_priv);
 		break;
 	case I915_PARAM_HAS_ALIASING_PPGTT:
-		value = USES_PPGTT(dev);
-		break;
-	case I915_PARAM_HAS_WAIT_TIMEOUT:
-		value = 1;
+		value = USES_PPGTT(dev_priv);
 		break;
 	case I915_PARAM_HAS_SEMAPHORES:
 		value = i915.semaphores;
 		break;
-	case I915_PARAM_HAS_PRIME_VMAP_FLUSH:
-		value = 1;
-		break;
 	case I915_PARAM_HAS_SECURE_BATCHES:
 		value = capable(CAP_SYS_ADMIN);
-		break;
-	case I915_PARAM_HAS_PINNED_BATCHES:
-		value = 1;
-		break;
-	case I915_PARAM_HAS_EXEC_NO_RELOC:
-		value = 1;
-		break;
-	case I915_PARAM_HAS_EXEC_HANDLE_LUT:
-		value = 1;
 		break;
 	case I915_PARAM_CMD_PARSER_VERSION:
 		value = i915_cmd_parser_get_version(dev_priv);
 		break;
-	case I915_PARAM_HAS_COHERENT_PHYS_GTT:
-		value = 1;
-		break;
-	case I915_PARAM_MMAP_VERSION:
-		value = 1;
-		break;
 	case I915_PARAM_SUBSLICE_TOTAL:
-		value = INTEL_INFO(dev)->subslice_total;
+		value = INTEL_INFO(dev_priv)->subslice_total;
 		if (!value)
 			return -ENODEV;
 		break;
 	case I915_PARAM_EU_TOTAL:
-		value = INTEL_INFO(dev)->eu_total;
+		value = INTEL_INFO(dev_priv)->eu_total;
 		if (!value)
 			return -ENODEV;
 		break;
@@ -344,16 +301,13 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = i915.enable_hangcheck && intel_has_gpu_reset(dev_priv);
 		break;
 	case I915_PARAM_HAS_RESOURCE_STREAMER:
-		value = HAS_RESOURCE_STREAMER(dev);
-		break;
-	case I915_PARAM_HAS_EXEC_SOFTPIN:
-		value = 1;
+		value = HAS_RESOURCE_STREAMER(dev_priv);
 		break;
 	case I915_PARAM_HAS_POOLED_EU:
-		value = HAS_POOLED_EU(dev);
+		value = HAS_POOLED_EU(dev_priv);
 		break;
 	case I915_PARAM_MIN_EU_IN_POOL:
-		value = INTEL_INFO(dev)->min_eu_in_pool;
+		value = INTEL_INFO(dev_priv)->min_eu_in_pool;
 		break;
 	case I915_PARAM_MMAP_GTT_VERSION:
 		/* Though we've started our numbering from 1, and so class all
@@ -361,6 +315,29 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		 * the ioctl will report EINVAL for the unknown param!
 		 */
 		value = i915_gem_mmap_gtt_version();
+		break;
+	case I915_PARAM_MMAP_VERSION:
+		/* Remember to bump this if the version changes! */
+	case I915_PARAM_HAS_GEM:
+	case I915_PARAM_HAS_PAGEFLIPPING:
+	case I915_PARAM_HAS_EXECBUF2: /* depends on GEM */
+	case I915_PARAM_HAS_RELAXED_FENCING:
+	case I915_PARAM_HAS_COHERENT_RINGS:
+	case I915_PARAM_HAS_RELAXED_DELTA:
+	case I915_PARAM_HAS_GEN7_SOL_RESET:
+	case I915_PARAM_HAS_WAIT_TIMEOUT:
+	case I915_PARAM_HAS_PRIME_VMAP_FLUSH:
+	case I915_PARAM_HAS_PINNED_BATCHES:
+	case I915_PARAM_HAS_EXEC_NO_RELOC:
+	case I915_PARAM_HAS_EXEC_HANDLE_LUT:
+	case I915_PARAM_HAS_COHERENT_PHYS_GTT:
+	case I915_PARAM_HAS_EXEC_SOFTPIN:
+		/* For the time being all of these are always true;
+		 * if some supported hardware does not have one of these
+		 * features this value needs to be provided from
+		 * INTEL_INFO(), a feature macro, or similar.
+		 */
+		value = 1;
 		break;
 	default:
 		DRM_DEBUG("Unknown parameter %d\n", param->param);
