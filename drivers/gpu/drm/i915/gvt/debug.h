@@ -24,6 +24,9 @@
 #ifndef __GVT_DEBUG_H__
 #define __GVT_DEBUG_H__
 
+#define gvt_err(fmt, args...) \
+	DRM_ERROR("gvt: "fmt, ##args)
+
 #define gvt_dbg_core(fmt, args...) \
 	DRM_DEBUG_DRIVER("gvt: core: "fmt, ##args)
 

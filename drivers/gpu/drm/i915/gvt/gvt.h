@@ -48,10 +48,39 @@ struct intel_gvt_device_info {
 	/* This data structure will grow bigger in GVT device model patches */
 };
 
+/* GM resources owned by a vGPU */
+struct intel_vgpu_gm {
+	u64 aperture_sz;
+	u64 hidden_sz;
+	struct drm_mm_node low_gm_node;
+	struct drm_mm_node high_gm_node;
+};
+
+#define INTEL_GVT_MAX_NUM_FENCES 32
+
+/* Fences owned by a vGPU */
+struct intel_vgpu_fence {
+	struct drm_i915_fence_reg *regs[INTEL_GVT_MAX_NUM_FENCES];
+	u32 base;
+	u32 size;
+};
+
 struct intel_vgpu {
 	struct intel_gvt *gvt;
 	int id;
 	unsigned long handle; /* vGPU handle used by hypervisor MPT modules */
+
+	struct intel_vgpu_fence fence;
+	struct intel_vgpu_gm gm;
+};
+
+struct intel_gvt_gm {
+	unsigned long vgpu_allocated_low_gm_size;
+	unsigned long vgpu_allocated_high_gm_size;
+};
+
+struct intel_gvt_fence {
+	unsigned long vgpu_allocated_fence_num;
 };
 
 struct intel_gvt {
@@ -62,7 +91,67 @@ struct intel_gvt {
 	struct idr vgpu_idr;	/* vGPU IDR pool */
 
 	struct intel_gvt_device_info device_info;
+	struct intel_gvt_gm gm;
+	struct intel_gvt_fence fence;
 };
+
+/* Aperture/GM space definitions for GVT device */
+#define gvt_aperture_sz(gvt)	  (gvt->dev_priv->ggtt.mappable_end)
+#define gvt_aperture_pa_base(gvt) (gvt->dev_priv->ggtt.mappable_base)
+
+#define gvt_ggtt_gm_sz(gvt)	  (gvt->dev_priv->ggtt.base.total)
+#define gvt_hidden_sz(gvt)	  (gvt_ggtt_gm_sz(gvt) - gvt_aperture_sz(gvt))
+
+#define gvt_aperture_gmadr_base(gvt) (0)
+#define gvt_aperture_gmadr_end(gvt) (gvt_aperture_gmadr_base(gvt) \
+				     + gvt_aperture_sz(gvt) - 1)
+
+#define gvt_hidden_gmadr_base(gvt) (gvt_aperture_gmadr_base(gvt) \
+				    + gvt_aperture_sz(gvt))
+#define gvt_hidden_gmadr_end(gvt) (gvt_hidden_gmadr_base(gvt) \
+				   + gvt_hidden_sz(gvt) - 1)
+
+#define gvt_fence_sz(gvt) (gvt->dev_priv->num_fence_regs)
+
+/* Aperture/GM space definitions for vGPU */
+#define vgpu_aperture_offset(vgpu)	((vgpu)->gm.low_gm_node.start)
+#define vgpu_hidden_offset(vgpu)	((vgpu)->gm.high_gm_node.start)
+#define vgpu_aperture_sz(vgpu)		((vgpu)->gm.aperture_sz)
+#define vgpu_hidden_sz(vgpu)		((vgpu)->gm.hidden_sz)
+
+#define vgpu_aperture_pa_base(vgpu) \
+	(gvt_aperture_pa_base(vgpu->gvt) + vgpu_aperture_offset(vgpu))
+
+#define vgpu_ggtt_gm_sz(vgpu) ((vgpu)->gm.aperture_sz + (vgpu)->gm.hidden_sz)
+
+#define vgpu_aperture_pa_end(vgpu) \
+	(vgpu_aperture_pa_base(vgpu) + vgpu_aperture_sz(vgpu) - 1)
+
+#define vgpu_aperture_gmadr_base(vgpu) (vgpu_aperture_offset(vgpu))
+#define vgpu_aperture_gmadr_end(vgpu) \
+	(vgpu_aperture_gmadr_base(vgpu) + vgpu_aperture_sz(vgpu) - 1)
+
+#define vgpu_hidden_gmadr_base(vgpu) (vgpu_hidden_offset(vgpu))
+#define vgpu_hidden_gmadr_end(vgpu) \
+	(vgpu_hidden_gmadr_base(vgpu) + vgpu_hidden_sz(vgpu) - 1)
+
+#define vgpu_fence_base(vgpu) (vgpu->fence.base)
+#define vgpu_fence_sz(vgpu) (vgpu->fence.size)
+
+struct intel_vgpu_creation_params {
+	__u64 handle;
+	__u64 low_gm_sz;  /* in MB */
+	__u64 high_gm_sz; /* in MB */
+	__u64 fence_sz;
+	__s32 primary;
+	__u64 vgpu_id;
+};
+
+int intel_vgpu_alloc_resource(struct intel_vgpu *vgpu,
+			      struct intel_vgpu_creation_params *param);
+void intel_vgpu_free_resource(struct intel_vgpu *vgpu);
+void intel_vgpu_write_fence(struct intel_vgpu *vgpu,
+	u32 fence, u64 value);
 
 #include "mpt.h"
 

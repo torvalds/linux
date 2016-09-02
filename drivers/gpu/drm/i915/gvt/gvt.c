@@ -84,7 +84,7 @@ int intel_gvt_init_host(void)
 
 static void init_device_info(struct intel_gvt *gvt)
 {
-	if (IS_BROADWELL(gvt->dev_priv))
+	if (IS_BROADWELL(gvt->dev_priv) || IS_SKYLAKE(gvt->dev_priv))
 		gvt->device_info.max_support_vgpus = 8;
 	/* This function will grow large in GVT device model patches. */
 }
@@ -134,6 +134,9 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 		return -EEXIST;
 
 	gvt_dbg_core("init gvt device\n");
+
+	mutex_init(&gvt->lock);
+	gvt->dev_priv = dev_priv;
 
 	init_device_info(gvt);
 	/*
