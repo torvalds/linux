@@ -770,7 +770,8 @@ int btrfs_add_delayed_tree_ref(struct btrfs_fs_info *fs_info,
 	if (!head_ref)
 		goto free_ref;
 
-	if (fs_info->quota_enabled && is_fstree(ref_root)) {
+	if (test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags) &&
+	    is_fstree(ref_root)) {
 		record = kmalloc(sizeof(*record), GFP_NOFS);
 		if (!record)
 			goto free_head_ref;
@@ -828,7 +829,8 @@ int btrfs_add_delayed_data_ref(struct btrfs_fs_info *fs_info,
 		return -ENOMEM;
 	}
 
-	if (fs_info->quota_enabled && is_fstree(ref_root)) {
+	if (test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags) &&
+	    is_fstree(ref_root)) {
 		record = kmalloc(sizeof(*record), GFP_NOFS);
 		if (!record) {
 			kmem_cache_free(btrfs_delayed_data_ref_cachep, ref);

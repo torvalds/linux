@@ -5579,7 +5579,7 @@ int btrfs_recover_log_trees(struct btrfs_root *log_root_tree)
 	if (!path)
 		return -ENOMEM;
 
-	fs_info->log_root_recovering = 1;
+	set_bit(BTRFS_FS_LOG_RECOVERING, &fs_info->flags);
 
 	trans = btrfs_start_transaction(fs_info->tree_root, 0);
 	if (IS_ERR(trans)) {
@@ -5689,7 +5689,7 @@ again:
 
 	free_extent_buffer(log_root_tree->node);
 	log_root_tree->log_root = NULL;
-	fs_info->log_root_recovering = 0;
+	clear_bit(BTRFS_FS_LOG_RECOVERING, &fs_info->flags);
 	kfree(log_root_tree);
 
 	return 0;

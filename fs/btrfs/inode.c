@@ -3948,7 +3948,7 @@ noinline int btrfs_update_inode(struct btrfs_trans_handle *trans,
 	 */
 	if (!btrfs_is_free_space_inode(inode)
 	    && root->root_key.objectid != BTRFS_DATA_RELOC_TREE_OBJECTID
-	    && !root->fs_info->log_root_recovering) {
+	    && !test_bit(BTRFS_FS_LOG_RECOVERING, &root->fs_info->flags)) {
 		btrfs_update_root_times(trans, root);
 
 		ret = btrfs_delayed_update_inode(trans, root, inode);
@@ -5235,7 +5235,7 @@ void btrfs_evict_inode(struct inode *inode)
 
 	btrfs_free_io_failure_record(inode, 0, (u64)-1);
 
-	if (root->fs_info->log_root_recovering) {
+	if (test_bit(BTRFS_FS_LOG_RECOVERING, &root->fs_info->flags)) {
 		BUG_ON(test_bit(BTRFS_INODE_HAS_ORPHAN_ITEM,
 				 &BTRFS_I(inode)->runtime_flags));
 		goto no_delete;

@@ -1874,7 +1874,8 @@ int btrfs_delayed_delete_inode_ref(struct inode *inode)
 	 * leads to enospc problems.  This means we also can't do
 	 * delayed inode refs
 	 */
-	if (BTRFS_I(inode)->root->fs_info->log_root_recovering)
+	if (test_bit(BTRFS_FS_LOG_RECOVERING,
+		     &BTRFS_I(inode)->root->fs_info->flags))
 		return -EAGAIN;
 
 	delayed_node = btrfs_get_or_create_delayed_node(inode);

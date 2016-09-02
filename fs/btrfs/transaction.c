@@ -441,7 +441,7 @@ static void wait_current_trans(struct btrfs_root *root)
 
 static int may_wait_transaction(struct btrfs_root *root, int type)
 {
-	if (root->fs_info->log_root_recovering)
+	if (test_bit(BTRFS_FS_LOG_RECOVERING, &root->fs_info->flags))
 		return 0;
 
 	if (type == TRANS_USERSPACE)
@@ -993,7 +993,6 @@ int btrfs_wait_marked_extents(struct btrfs_root *root,
 	struct extent_state *cached_state = NULL;
 	u64 start = 0;
 	u64 end;
-	struct btrfs_inode *btree_ino = BTRFS_I(root->fs_info->btree_inode);
 	bool errors = false;
 
 	while (!find_first_extent_bit(dirty_pages, start, &start, &end,
@@ -1025,17 +1024,17 @@ int btrfs_wait_marked_extents(struct btrfs_root *root,
 
 	if (root->root_key.objectid == BTRFS_TREE_LOG_OBJECTID) {
 		if ((mark & EXTENT_DIRTY) &&
-		    test_and_clear_bit(BTRFS_INODE_BTREE_LOG1_ERR,
-				       &btree_ino->runtime_flags))
+		    test_and_clear_bit(BTRFS_FS_LOG1_ERR,
+				       &root->fs_info->flags))
 			errors = true;
 
 		if ((mark & EXTENT_NEW) &&
-		    test_and_clear_bit(BTRFS_INODE_BTREE_LOG2_ERR,
-				       &btree_ino->runtime_flags))
+		    test_and_clear_bit(BTRFS_FS_LOG2_ERR,
+				       &root->fs_info->flags))
 			errors = true;
 	} else {
-		if (test_and_clear_bit(BTRFS_INODE_BTREE_ERR,
-				       &btree_ino->runtime_flags))
+		if (test_and_clear_bit(BTRFS_FS_BTREE_ERR,
+				       &root->fs_info->flags))
 			errors = true;
 	}
 
@@ -1335,7 +1334,7 @@ static int qgroup_account_snapshot(struct btrfs_trans_handle *trans,
 	 * kick in anyway.
 	 */
 	mutex_lock(&fs_info->qgroup_ioctl_lock);
-	if (!fs_info->quota_enabled) {
+	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags)) {
 		mutex_unlock(&fs_info->qgroup_ioctl_lock);
 		return 0;
 	}
@@ -1712,7 +1711,7 @@ static void update_super_roots(struct btrfs_root *root)
 	super->root_level = root_item->level;
 	if (btrfs_test_opt(root->fs_info, SPACE_CACHE))
 		super->cache_generation = root_item->generation;
-	if (root->fs_info->update_uuid_tree_gen)
+	if (test_bit(BTRFS_FS_UPDATE_UUID_TREE_GEN, &root->fs_info->flags))
 		super->uuid_tree_generation = root_item->generation;
 }
 
@@ -1919,7 +1918,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_transaction *cur_trans = trans->transaction;
 	struct btrfs_transaction *prev_trans = NULL;
-	struct btrfs_inode *btree_ino = BTRFS_I(root->fs_info->btree_inode);
 	int ret;
 
 	/* Stop the commit early if ->aborted is set */
@@ -2213,8 +2211,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	btrfs_update_commit_device_size(root->fs_info);
 	btrfs_update_commit_device_bytes_used(root, cur_trans);
 
-	clear_bit(BTRFS_INODE_BTREE_LOG1_ERR, &btree_ino->runtime_flags);
-	clear_bit(BTRFS_INODE_BTREE_LOG2_ERR, &btree_ino->runtime_flags);
+	clear_bit(BTRFS_FS_LOG1_ERR, &root->fs_info->flags);
+	clear_bit(BTRFS_FS_LOG2_ERR, &root->fs_info->flags);
 
 	btrfs_trans_release_chunk_metadata(trans);
 

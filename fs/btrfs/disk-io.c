@@ -1839,7 +1839,7 @@ static int cleaner_kthread(void *arg)
 		 * Do not do anything if we might cause open_ctree() to block
 		 * before we have finished mounting the filesystem.
 		 */
-		if (!root->fs_info->open)
+		if (!test_bit(BTRFS_FS_OPEN, &root->fs_info->flags))
 			goto sleep;
 
 		if (!mutex_trylock(&root->fs_info->cleaner_mutex))
@@ -2332,8 +2332,6 @@ static void btrfs_init_qgroup(struct btrfs_fs_info *fs_info)
 	fs_info->qgroup_op_tree = RB_ROOT;
 	INIT_LIST_HEAD(&fs_info->dirty_qgroups);
 	fs_info->qgroup_seq = 1;
-	fs_info->quota_enabled = 0;
-	fs_info->pending_quota_state = 0;
 	fs_info->qgroup_ulist = NULL;
 	fs_info->qgroup_rescan_running = false;
 	mutex_init(&fs_info->qgroup_rescan_lock);
@@ -2518,8 +2516,7 @@ static int btrfs_read_roots(struct btrfs_fs_info *fs_info,
 	root = btrfs_read_tree_root(tree_root, &location);
 	if (!IS_ERR(root)) {
 		set_bit(BTRFS_ROOT_TRACK_DIRTY, &root->state);
-		fs_info->quota_enabled = 1;
-		fs_info->pending_quota_state = 1;
+		set_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags);
 		fs_info->quota_root = root;
 	}
 
@@ -2710,8 +2707,7 @@ int open_ctree(struct super_block *sb,
 	extent_io_tree_init(&fs_info->freed_extents[1],
 			     fs_info->btree_inode->i_mapping);
 	fs_info->pinned_extents = &fs_info->freed_extents[0];
-	fs_info->do_barriers = 1;
-
+	set_bit(BTRFS_FS_BARRIER, &fs_info->flags);
 
 	mutex_init(&fs_info->ordered_operations_mutex);
 	mutex_init(&fs_info->tree_log_mutex);
@@ -3199,10 +3195,9 @@ retry_root_backup:
 			return ret;
 		}
 	} else {
-		fs_info->update_uuid_tree_gen = 1;
+		set_bit(BTRFS_FS_UPDATE_UUID_TREE_GEN, &fs_info->flags);
 	}
-
-	fs_info->open = 1;
+	set_bit(BTRFS_FS_OPEN, &fs_info->flags);
 
 	/*
 	 * backuproot only affect mount behavior, and if open_ctree succeeded,
@@ -3893,8 +3888,7 @@ void close_ctree(struct btrfs_root *root)
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	int ret;
 
-	fs_info->closing = 1;
-	smp_mb();
+	set_bit(BTRFS_FS_CLOSING_START, &fs_info->flags);
 
 	/* wait for the qgroup rescan worker to stop */
 	btrfs_qgroup_wait_for_completion(fs_info, false);
@@ -3939,8 +3933,7 @@ void close_ctree(struct btrfs_root *root)
 	kthread_stop(fs_info->transaction_kthread);
 	kthread_stop(fs_info->cleaner_kthread);
 
-	fs_info->closing = 2;
-	smp_mb();
+	set_bit(BTRFS_FS_CLOSING_DONE, &fs_info->flags);
 
 	btrfs_free_qgroup_config(fs_info);
 
@@ -3965,7 +3958,7 @@ void close_ctree(struct btrfs_root *root)
 	invalidate_inode_pages2(fs_info->btree_inode->i_mapping);
 	btrfs_stop_all_workers(fs_info);
 
-	fs_info->open = 0;
+	clear_bit(BTRFS_FS_OPEN, &fs_info->flags);
 	free_root_pointers(fs_info, 1);
 
 	iput(fs_info->btree_inode);

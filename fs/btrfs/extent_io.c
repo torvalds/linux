@@ -3625,7 +3625,6 @@ static void end_extent_buffer_writeback(struct extent_buffer *eb)
 static void set_btree_ioerr(struct page *page)
 {
 	struct extent_buffer *eb = (struct extent_buffer *)page->private;
-	struct btrfs_inode *btree_ino = BTRFS_I(eb->fs_info->btree_inode);
 
 	SetPageError(page);
 	if (test_and_set_bit(EXTENT_BUFFER_WRITE_ERR, &eb->bflags))
@@ -3671,13 +3670,13 @@ static void set_btree_ioerr(struct page *page)
 	 */
 	switch (eb->log_index) {
 	case -1:
-		set_bit(BTRFS_INODE_BTREE_ERR, &btree_ino->runtime_flags);
+		set_bit(BTRFS_FS_BTREE_ERR, &eb->fs_info->flags);
 		break;
 	case 0:
-		set_bit(BTRFS_INODE_BTREE_LOG1_ERR, &btree_ino->runtime_flags);
+		set_bit(BTRFS_FS_LOG1_ERR, &eb->fs_info->flags);
 		break;
 	case 1:
-		set_bit(BTRFS_INODE_BTREE_LOG2_ERR, &btree_ino->runtime_flags);
+		set_bit(BTRFS_FS_LOG2_ERR, &eb->fs_info->flags);
 		break;
 	default:
 		BUG(); /* unexpected, logic error */

@@ -677,9 +677,25 @@ struct btrfs_device;
 struct btrfs_fs_devices;
 struct btrfs_balance_control;
 struct btrfs_delayed_root;
+
+#define BTRFS_FS_BARRIER			1
+#define BTRFS_FS_CLOSING_START			2
+#define BTRFS_FS_CLOSING_DONE			3
+#define BTRFS_FS_LOG_RECOVERING			4
+#define BTRFS_FS_OPEN				5
+#define BTRFS_FS_QUOTA_ENABLED			6
+#define BTRFS_FS_QUOTA_ENABLING			7
+#define BTRFS_FS_QUOTA_DISABLING		8
+#define BTRFS_FS_UPDATE_UUID_TREE_GEN		9
+#define BTRFS_FS_CREATING_FREE_SPACE_TREE	10
+#define BTRFS_FS_BTREE_ERR			11
+#define BTRFS_FS_LOG1_ERR			12
+#define BTRFS_FS_LOG2_ERR			13
+
 struct btrfs_fs_info {
 	u8 fsid[BTRFS_FSID_SIZE];
 	u8 chunk_tree_uuid[BTRFS_UUID_SIZE];
+	unsigned long flags;
 	struct btrfs_root *extent_root;
 	struct btrfs_root *tree_root;
 	struct btrfs_root *chunk_root;
@@ -908,10 +924,6 @@ struct btrfs_fs_info {
 	int thread_pool_size;
 
 	struct kobject *space_info_kobj;
-	int do_barriers;
-	int closing;
-	int log_root_recovering;
-	int open;
 
 	u64 total_pinned;
 
@@ -988,17 +1000,6 @@ struct btrfs_fs_info {
 #ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
 	u32 check_integrity_print_mask;
 #endif
-	/*
-	 * quota information
-	 */
-	unsigned int quota_enabled:1;
-
-	/*
-	 * quota_enabled only changes state after a commit. This holds the
-	 * next state.
-	 */
-	unsigned int pending_quota_state:1;
-
 	/* is qgroup tracking in a consistent state? */
 	u64 qgroup_flags;
 
@@ -1062,7 +1063,6 @@ struct btrfs_fs_info {
 	wait_queue_head_t replace_wait;
 
 	struct semaphore uuid_tree_rescan_sem;
-	unsigned int update_uuid_tree_gen:1;
 
 	/* Used to reclaim the metadata space in the background. */
 	struct work_struct async_reclaim_work;
@@ -1081,7 +1081,6 @@ struct btrfs_fs_info {
 	 */
 	struct list_head pinned_chunks;
 
-	int creating_free_space_tree;
 	/* Used to record internally whether fs has been frozen */
 	int fs_frozen;
 };
@@ -2868,10 +2867,14 @@ int btrfs_drop_subtree(struct btrfs_trans_handle *trans,
 static inline int btrfs_fs_closing(struct btrfs_fs_info *fs_info)
 {
 	/*
-	 * Get synced with close_ctree()
+	 * Do it this way so we only ever do one test_bit in the normal case.
 	 */
-	smp_mb();
-	return fs_info->closing;
+	if (test_bit(BTRFS_FS_CLOSING_START, &fs_info->flags)) {
+		if (test_bit(BTRFS_FS_CLOSING_DONE, &fs_info->flags))
+			return 2;
+		return 1;
+	}
+	return 0;
 }
 
 /*
