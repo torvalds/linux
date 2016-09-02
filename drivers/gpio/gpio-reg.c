@@ -19,6 +19,8 @@ struct gpio_reg {
 	u32 direction;
 	u32 out;
 	void __iomem *reg;
+	struct irq_domain *irqdomain;
+	const int *irqs;
 };
 
 #define to_gpio_reg(x) container_of(x, struct gpio_reg, gc)
@@ -96,6 +98,17 @@ static void gpio_reg_set_multiple(struct gpio_chip *gc, unsigned long *mask,
 	spin_unlock_irqrestore(&r->lock, flags);
 }
 
+static int gpio_reg_to_irq(struct gpio_chip *gc, unsigned offset)
+{
+	struct gpio_reg *r = to_gpio_reg(gc);
+	int irq = r->irqs[offset];
+
+	if (irq >= 0 && r->irqdomain)
+		irq = irq_find_mapping(r->irqdomain, irq);
+
+	return irq;
+}
+
 /**
  * gpio_reg_init - add a fixed in/out register as gpio
  * @dev: optional struct device associated with this register
@@ -104,7 +117,12 @@ static void gpio_reg_set_multiple(struct gpio_chip *gc, unsigned long *mask,
  * @label: GPIO chip label
  * @direction: bitmask of fixed direction, one per GPIO signal, 1 = in
  * @def_out: initial GPIO output value
- * @names: array of %num strings describing each GPIO signal
+ * @names: array of %num strings describing each GPIO signal or %NULL
+ * @irqdom: irq domain or %NULL
+ * @irqs: array of %num ints describing the interrupt mapping for each
+ *        GPIO signal, or %NULL.  If @irqdom is %NULL, then this
+ *        describes the Linux interrupt number, otherwise it describes
+ *        the hardware interrupt number in the specified irq domain.
  *
  * Add a single-register GPIO device containing up to 32 GPIO signals,
  * where each GPIO has a fixed input or output configuration.  Only
@@ -114,7 +132,7 @@ static void gpio_reg_set_multiple(struct gpio_chip *gc, unsigned long *mask,
  */
 struct gpio_chip *gpio_reg_init(struct device *dev, void __iomem *reg,
 	int base, int num, const char *label, u32 direction, u32 def_out,
-	const char *const *names)
+	const char *const *names, struct irq_domain *irqdom, const int *irqs)
 {
 	struct gpio_reg *r;
 	int ret;
@@ -136,12 +154,15 @@ struct gpio_chip *gpio_reg_init(struct device *dev, void __iomem *reg,
 	r->gc.set = gpio_reg_set;
 	r->gc.get = gpio_reg_get;
 	r->gc.set_multiple = gpio_reg_set_multiple;
+	if (irqs)
+		r->gc.to_irq = gpio_reg_to_irq;
 	r->gc.base = base;
 	r->gc.ngpio = num;
 	r->gc.names = names;
 	r->direction = direction;
 	r->out = def_out;
 	r->reg = reg;
+	r->irqs = irqs;
 
 	if (dev)
 		ret = devm_gpiochip_add_data(dev, &r->gc, r);
