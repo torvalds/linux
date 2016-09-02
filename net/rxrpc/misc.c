@@ -64,6 +64,11 @@ unsigned int rxrpc_rx_mtu = 5692;
  */
 unsigned int rxrpc_rx_jumbo_max = 4;
 
+/*
+ * Time till packet resend (in jiffies).
+ */
+unsigned int rxrpc_resend_timeout = 4 * HZ;
+
 const char *const rxrpc_pkts[] = {
 	"?00",
 	"DATA", "ACK", "BUSY", "ABORT", "ACKALL", "CHALL", "RESP", "DEBUG",

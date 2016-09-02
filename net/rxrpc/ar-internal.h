@@ -814,6 +814,7 @@ extern unsigned int rxrpc_idle_ack_delay;
 extern unsigned int rxrpc_rx_window_size;
 extern unsigned int rxrpc_rx_mtu;
 extern unsigned int rxrpc_rx_jumbo_max;
+extern unsigned int rxrpc_resend_timeout;
 
 extern const char *const rxrpc_pkts[];
 extern const s8 rxrpc_ack_priority[];
@@ -823,10 +824,7 @@ extern const char *rxrpc_acks(u8 reason);
 /*
  * output.c
  */
-extern unsigned int rxrpc_resend_timeout;
-
 int rxrpc_send_data_packet(struct rxrpc_connection *, struct sk_buff *);
-int rxrpc_do_sendmsg(struct rxrpc_sock *, struct msghdr *, size_t);
 
 /*
  * peer_event.c
@@ -888,6 +886,11 @@ int __init rxrpc_init_security(void);
 void rxrpc_exit_security(void);
 int rxrpc_init_client_conn_security(struct rxrpc_connection *);
 int rxrpc_init_server_conn_security(struct rxrpc_connection *);
+ 
+/*
+ * sendmsg.c
+ */
+int rxrpc_do_sendmsg(struct rxrpc_sock *, struct msghdr *, size_t);
 
 /*
  * skbuff.c
