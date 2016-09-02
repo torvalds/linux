@@ -480,10 +480,9 @@ config TEGRA20_APB_DMA
 
 config TEGRA210_ADMA
 	bool "NVIDIA Tegra210 ADMA support"
-	depends on ARCH_TEGRA_210_SOC
+	depends on (ARCH_TEGRA_210_SOC || COMPILE_TEST) && PM_CLK
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
-	select PM_CLK
 	help
 	  Support for the NVIDIA Tegra210 ADMA controller driver. The
 	  DMA controller has multiple DMA channels and is used to service
