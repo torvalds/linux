@@ -2908,8 +2908,8 @@ out:
 static int btrfs_relocate_chunk(struct btrfs_root *root, u64 chunk_offset)
 {
 	struct btrfs_root *extent_root;
-	struct btrfs_trans_handle *trans;
 	int ret;
+	struct btrfs_block_group_cache *block_group;
 
 	root = root->fs_info->chunk_root;
 	extent_root = root->fs_info->extent_root;
@@ -2939,21 +2939,17 @@ static int btrfs_relocate_chunk(struct btrfs_root *root, u64 chunk_offset)
 	if (ret)
 		return ret;
 
-	trans = btrfs_start_trans_remove_block_group(root->fs_info,
-						     chunk_offset);
-	if (IS_ERR(trans)) {
-		ret = PTR_ERR(trans);
-		btrfs_handle_fs_error(root->fs_info, ret, NULL);
-		return ret;
-	}
-
 	/*
-	 * step two, delete the device extents and the
-	 * chunk tree entries
+	 * step two, flag the chunk as removed and let
+	 * btrfs_delete_unused_bgs() remove it.
 	 */
-	ret = btrfs_remove_chunk(trans, root, chunk_offset);
-	btrfs_end_transaction(trans, extent_root);
-	return ret;
+	block_group = btrfs_lookup_block_group(root->fs_info, chunk_offset);
+	spin_lock(&block_group->lock);
+	block_group->removed = 1;
+	spin_unlock(&block_group->lock);
+	btrfs_put_block_group(block_group);
+
+	return 0;
 }
 
 static int btrfs_relocate_sys_chunks(struct btrfs_root *root)
