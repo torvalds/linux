@@ -38,7 +38,7 @@ static struct earlycon_device early_console_dev = {
 	.con = &early_con,
 };
 
-static void __iomem * __init earlycon_map(unsigned long paddr, size_t size)
+static void __iomem * __init earlycon_map(resource_size_t paddr, size_t size)
 {
 	void __iomem *base;
 #ifdef CONFIG_FIX_EARLYCON_MEM
@@ -49,8 +49,7 @@ static void __iomem * __init earlycon_map(unsigned long paddr, size_t size)
 	base = ioremap(paddr, size);
 #endif
 	if (!base)
-		pr_err("%s: Couldn't map 0x%llx\n", __func__,
-		       (unsigned long long)paddr);
+		pr_err("%s: Couldn't map %pa\n", __func__, &paddr);
 
 	return base;
 }
@@ -92,7 +91,7 @@ static int __init parse_options(struct earlycon_device *device, char *options)
 {
 	struct uart_port *port = &device->port;
 	int length;
-	unsigned long addr;
+	resource_size_t addr;
 
 	if (uart_parse_earlycon(options, &port->iotype, &addr, &options))
 		return -EINVAL;
