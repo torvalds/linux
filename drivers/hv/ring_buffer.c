@@ -172,18 +172,7 @@ static u32 hv_copyfrom_ringbuffer(
 	void *ring_buffer = hv_get_ring_buffer(ring_info);
 	u32 ring_buffer_size = hv_get_ring_buffersize(ring_info);
 
-	u32 frag_len;
-
-	/* wrap-around detected at the src */
-	if (destlen > ring_buffer_size - start_read_offset) {
-		frag_len = ring_buffer_size - start_read_offset;
-
-		memcpy(dest, ring_buffer + start_read_offset, frag_len);
-		memcpy(dest + frag_len, ring_buffer, destlen - frag_len);
-	} else
-
-		memcpy(dest, ring_buffer + start_read_offset, destlen);
-
+	memcpy(dest, ring_buffer + start_read_offset, destlen);
 
 	start_read_offset += destlen;
 	start_read_offset %= ring_buffer_size;
@@ -204,15 +193,8 @@ static u32 hv_copyto_ringbuffer(
 {
 	void *ring_buffer = hv_get_ring_buffer(ring_info);
 	u32 ring_buffer_size = hv_get_ring_buffersize(ring_info);
-	u32 frag_len;
 
-	/* wrap-around detected! */
-	if (srclen > ring_buffer_size - start_write_offset) {
-		frag_len = ring_buffer_size - start_write_offset;
-		memcpy(ring_buffer + start_write_offset, src, frag_len);
-		memcpy(ring_buffer, src + frag_len, srclen - frag_len);
-	} else
-		memcpy(ring_buffer + start_write_offset, src, srclen);
+	memcpy(ring_buffer + start_write_offset, src, srclen);
 
 	start_write_offset += srclen;
 	start_write_offset %= ring_buffer_size;
