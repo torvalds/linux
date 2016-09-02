@@ -365,6 +365,7 @@ void vsp1_pipelines_suspend(struct vsp1_device *vsp1)
 
 void vsp1_pipelines_resume(struct vsp1_device *vsp1)
 {
+	unsigned long flags;
 	unsigned int i;
 
 	/* Resume all running pipelines. */
@@ -379,7 +380,9 @@ void vsp1_pipelines_resume(struct vsp1_device *vsp1)
 		if (pipe == NULL)
 			continue;
 
+		spin_lock_irqsave(&pipe->irqlock, flags);
 		if (vsp1_pipeline_ready(pipe))
 			vsp1_pipeline_run(pipe);
+		spin_unlock_irqrestore(&pipe->irqlock, flags);
 	}
 }
