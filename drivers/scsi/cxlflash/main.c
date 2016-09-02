@@ -996,6 +996,8 @@ static int wait_port_online(__be64 __iomem *fc_regs, u32 delay_us, u32 nretry)
 	do {
 		msleep(delay_us / 1000);
 		status = readq_be(&fc_regs[FC_MTIP_STATUS / 8]);
+		if (status == U64_MAX)
+			nretry /= 2;
 	} while ((status & FC_MTIP_STATUS_MASK) != FC_MTIP_STATUS_ONLINE &&
 		 nretry--);
 
@@ -1027,6 +1029,8 @@ static int wait_port_offline(__be64 __iomem *fc_regs, u32 delay_us, u32 nretry)
 	do {
 		msleep(delay_us / 1000);
 		status = readq_be(&fc_regs[FC_MTIP_STATUS / 8]);
+		if (status == U64_MAX)
+			nretry /= 2;
 	} while ((status & FC_MTIP_STATUS_MASK) != FC_MTIP_STATUS_OFFLINE &&
 		 nretry--);
 
