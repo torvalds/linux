@@ -32,8 +32,7 @@ struct keyreset_state {
 
 static void do_restart(struct work_struct *unused)
 {
-	sys_sync();
-	kernel_restart(NULL);
+	orderly_reboot();
 }
 
 static void do_reset_fn(void *priv)
