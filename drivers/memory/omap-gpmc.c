@@ -2183,7 +2183,7 @@ static int gpmc_probe_dt(struct platform_device *pdev)
 	return 0;
 }
 
-static int gpmc_probe_dt_children(struct platform_device *pdev)
+static void gpmc_probe_dt_children(struct platform_device *pdev)
 {
 	int ret;
 	struct device_node *child;
@@ -2198,11 +2198,11 @@ static int gpmc_probe_dt_children(struct platform_device *pdev)
 		else
 			ret = gpmc_probe_generic_child(pdev, child);
 
-		if (ret)
-			return ret;
+		if (ret) {
+			dev_err(&pdev->dev, "failed to probe DT child '%s': %d\n",
+				child->name, ret);
+		}
 	}
-
-	return 0;
 }
 #else
 static int gpmc_probe_dt(struct platform_device *pdev)
@@ -2210,9 +2210,8 @@ static int gpmc_probe_dt(struct platform_device *pdev)
 	return 0;
 }
 
-static int gpmc_probe_dt_children(struct platform_device *pdev)
+static void gpmc_probe_dt_children(struct platform_device *pdev)
 {
-	return 0;
 }
 #endif /* CONFIG_OF */
 
@@ -2362,16 +2361,10 @@ static int gpmc_probe(struct platform_device *pdev)
 		goto gpio_init_failed;
 	}
 
-	rc = gpmc_probe_dt_children(pdev);
-	if (rc < 0) {
-		dev_err(gpmc->dev, "failed to probe DT children\n");
-		goto dt_children_failed;
-	}
+	gpmc_probe_dt_children(pdev);
 
 	return 0;
 
-dt_children_failed:
-	gpmc_free_irq(gpmc);
 gpio_init_failed:
 	gpmc_mem_exit();
 	pm_runtime_put_sync(&pdev->dev);
