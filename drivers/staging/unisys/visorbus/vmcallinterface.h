@@ -24,7 +24,6 @@
 #ifdef __GNUC__
 #include "iovmcall_gnuc.h"
 #endif	/*  */
-#include "diagchannel.h"
 
 #ifdef VMCALL_IO_CONTROLVM_ADDR
 #undef VMCALL_IO_CONTROLVM_ADDR

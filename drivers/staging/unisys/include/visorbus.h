@@ -187,6 +187,25 @@ int visorbus_write_channel(struct visor_device *dev,
 void visorbus_enable_channel_interrupts(struct visor_device *dev);
 void visorbus_disable_channel_interrupts(struct visor_device *dev);
 
+/* Levels of severity for diagnostic events, in order from lowest severity to
+ * highest (i.e. fatal errors are the most severe, and should always be logged,
+ * but info events rarely need to be logged except during debugging). The
+ * values DIAG_SEVERITY_ENUM_BEGIN and DIAG_SEVERITY_ENUM_END are not valid
+ * severity values.  They exist merely to dilineate the list, so that future
+ * additions won't require changes to the driver (i.e. when checking for
+ * out-of-range severities in SetSeverity). The values DIAG_SEVERITY_OVERRIDE
+ * and DIAG_SEVERITY_SHUTOFF are not valid severity values for logging events
+ * but they are valid for controlling the amount of event data. Changes made
+ * to the enum, need to be reflected in s-Par.
+ */
+enum diag_severity {
+	DIAG_SEVERITY_VERBOSE = 0,
+	DIAG_SEVERITY_INFO = 1,
+	DIAG_SEVERITY_WARNING = 2,
+	DIAG_SEVERITY_ERR = 3,
+	DIAG_SEVERITY_PRINT = 4,
+};
+
 bool visorchannel_signalremove(struct visorchannel *channel, u32 queue,
 			       void *msg);
 bool visorchannel_signalinsert(struct visorchannel *channel, u32 queue,
