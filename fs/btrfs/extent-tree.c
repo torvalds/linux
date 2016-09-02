@@ -4966,12 +4966,12 @@ static void wake_all_tickets(struct list_head *head)
  */
 static void btrfs_async_reclaim_metadata_space(struct work_struct *work)
 {
-	struct reserve_ticket *last_ticket = NULL;
 	struct btrfs_fs_info *fs_info;
 	struct btrfs_space_info *space_info;
 	u64 to_reclaim;
 	int flush_state;
 	int commit_cycles = 0;
+	u64 last_tickets_id;
 
 	fs_info = container_of(work, struct btrfs_fs_info, async_reclaim_work);
 	space_info = __find_space_info(fs_info, BTRFS_BLOCK_GROUP_METADATA);
@@ -4984,8 +4984,7 @@ static void btrfs_async_reclaim_metadata_space(struct work_struct *work)
 		spin_unlock(&space_info->lock);
 		return;
 	}
-	last_ticket = list_first_entry(&space_info->tickets,
-				       struct reserve_ticket, list);
+	last_tickets_id = space_info->tickets_id;
 	spin_unlock(&space_info->lock);
 
 	flush_state = FLUSH_DELAYED_ITEMS_NR;
@@ -5005,10 +5004,10 @@ static void btrfs_async_reclaim_metadata_space(struct work_struct *work)
 							      space_info);
 		ticket = list_first_entry(&space_info->tickets,
 					  struct reserve_ticket, list);
-		if (last_ticket == ticket) {
+		if (last_tickets_id == space_info->tickets_id) {
 			flush_state++;
 		} else {
-			last_ticket = ticket;
+			last_tickets_id = space_info->tickets_id;
 			flush_state = FLUSH_DELAYED_ITEMS_NR;
 			if (commit_cycles)
 				commit_cycles--;
@@ -5384,6 +5383,7 @@ again:
 			list_del_init(&ticket->list);
 			num_bytes -= ticket->bytes;
 			ticket->bytes = 0;
+			space_info->tickets_id++;
 			wake_up(&ticket->wait);
 		} else {
 			ticket->bytes -= num_bytes;
@@ -5426,6 +5426,7 @@ again:
 			num_bytes -= ticket->bytes;
 			space_info->bytes_may_use += ticket->bytes;
 			ticket->bytes = 0;
+			space_info->tickets_id++;
 			wake_up(&ticket->wait);
 		} else {
 			trace_btrfs_space_reservation(fs_info, "space_info",
