@@ -297,7 +297,7 @@ config LPC18XX_DMAMUX
 
 config MMP_PDMA
 	bool "MMP PDMA support"
-	depends on (ARCH_MMP || ARCH_PXA)
+	depends on ARCH_MMP || ARCH_PXA || COMPILE_TEST
 	select DMA_ENGINE
 	help
 	  Support the MMP PDMA engine for PXA and MMP platform.
