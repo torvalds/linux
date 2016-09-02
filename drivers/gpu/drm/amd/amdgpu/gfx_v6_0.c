@@ -1660,11 +1660,18 @@ static u32 gfx_v6_0_ring_get_rptr(struct amdgpu_ring *ring)
 	return ring->adev->wb.wb[ring->rptr_offs];
 }
 
-static u32 gfx_v6_0_ring_get_wptr_gfx(struct amdgpu_ring *ring)
+static u32 gfx_v6_0_ring_get_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
-	return RREG32(CP_RB0_WPTR);
+	if (ring == &adev->gfx.gfx_ring[0])
+		return RREG32(CP_RB0_WPTR);
+	else if (ring == &adev->gfx.compute_ring[0])
+		return RREG32(CP_RB1_WPTR);
+	else if (ring == &adev->gfx.compute_ring[1])
+		return RREG32(CP_RB2_WPTR);
+	else
+		BUG();
 }
 
 static void gfx_v6_0_ring_set_wptr_gfx(struct amdgpu_ring *ring)
@@ -1673,22 +1680,6 @@ static void gfx_v6_0_ring_set_wptr_gfx(struct amdgpu_ring *ring)
 
 	WREG32(CP_RB0_WPTR, ring->wptr);
 	(void)RREG32(CP_RB0_WPTR);
-}
-
-static u32 gfx_v6_0_ring_get_wptr_compute(struct amdgpu_ring *ring)
-{
-	struct amdgpu_device *adev = ring->adev;
-	u32 wptr;
-
-	if (ring == &adev->gfx.compute_ring[0]) {
-		wptr = RREG32(CP_RB1_WPTR);
-	} else if (ring == &adev->gfx.compute_ring[1]) {
-		wptr = RREG32(CP_RB2_WPTR);
-	} else {
-		BUG();
-	}
-
-	return wptr;
 }
 
 static void gfx_v6_0_ring_set_wptr_compute(struct amdgpu_ring *ring)
@@ -3125,7 +3116,7 @@ const struct amd_ip_funcs gfx_v6_0_ip_funcs = {
 
 static const struct amdgpu_ring_funcs gfx_v6_0_ring_funcs_gfx = {
 	.get_rptr = gfx_v6_0_ring_get_rptr,
-	.get_wptr = gfx_v6_0_ring_get_wptr_gfx,
+	.get_wptr = gfx_v6_0_ring_get_wptr,
 	.set_wptr = gfx_v6_0_ring_set_wptr_gfx,
 	.parse_cs = NULL,
 	.emit_ib = gfx_v6_0_ring_emit_ib_gfx,
@@ -3142,7 +3133,7 @@ static const struct amdgpu_ring_funcs gfx_v6_0_ring_funcs_gfx = {
 
 static const struct amdgpu_ring_funcs gfx_v6_0_ring_funcs_compute = {
 	.get_rptr = gfx_v6_0_ring_get_rptr,
-	.get_wptr = gfx_v6_0_ring_get_wptr_compute,
+	.get_wptr = gfx_v6_0_ring_get_wptr,
 	.set_wptr = gfx_v6_0_ring_set_wptr_compute,
 	.parse_cs = NULL,
 	.emit_ib = gfx_v6_0_ring_emit_ib_compute,
