@@ -560,7 +560,7 @@ config XILINX_ZYNQMP_DMA
 
 config ZX_DMA
 	tristate "ZTE ZX296702 DMA support"
-	depends on ARCH_ZX
+	depends on ARCH_ZX || COMPILE_TEST
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
