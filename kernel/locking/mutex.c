@@ -631,13 +631,21 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 
 	lock_contended(&lock->dep_map, ip);
 
+	set_task_state(task, state);
 	for (;;) {
+		/*
+		 * Once we hold wait_lock, we're serialized against
+		 * mutex_unlock() handing the lock off to us, do a trylock
+		 * before testing the error conditions to make sure we pick up
+		 * the handoff.
+		 */
 		if (__mutex_trylock(lock, first))
-			break;
+			goto acquired;
 
 		/*
-		 * got a signal? (This code gets eliminated in the
-		 * TASK_UNINTERRUPTIBLE case.)
+		 * Check for signals and wound conditions while holding
+		 * wait_lock. This ensures the lock cancellation is ordered
+		 * against mutex_unlock() and wake-ups do not go missing.
 		 */
 		if (unlikely(signal_pending_state(state, task))) {
 			ret = -EINTR;
@@ -650,16 +658,27 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 				goto err;
 		}
 
-		__set_task_state(task, state);
 		spin_unlock_mutex(&lock->wait_lock, flags);
 		schedule_preempt_disabled();
-		spin_lock_mutex(&lock->wait_lock, flags);
 
 		if (!first && __mutex_waiter_is_first(lock, &waiter)) {
 			first = true;
 			__mutex_set_flag(lock, MUTEX_FLAG_HANDOFF);
 		}
+
+		set_task_state(task, state);
+		/*
+		 * Here we order against unlock; we must either see it change
+		 * state back to RUNNING and fall through the next schedule(),
+		 * or we must see its unlock and acquire.
+		 */
+		if (__mutex_trylock(lock, first))
+			break;
+
+		spin_lock_mutex(&lock->wait_lock, flags);
 	}
+	spin_lock_mutex(&lock->wait_lock, flags);
+acquired:
 	__set_task_state(task, TASK_RUNNING);
 
 	mutex_remove_waiter(lock, &waiter, task);
@@ -682,6 +701,7 @@ skip_wait:
 	return 0;
 
 err:
+	__set_task_state(task, TASK_RUNNING);
 	mutex_remove_waiter(lock, &waiter, task);
 	spin_unlock_mutex(&lock->wait_lock, flags);
 	debug_mutex_free_waiter(&waiter);
