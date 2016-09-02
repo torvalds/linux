@@ -1110,13 +1110,25 @@ again:
 
 	leaf = path->nodes[0];
 	btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
-	BUG_ON(key.objectid != ino || key.type != BTRFS_EXTENT_DATA_KEY);
+	if (key.objectid != ino ||
+	    key.type != BTRFS_EXTENT_DATA_KEY) {
+		ret = -EINVAL;
+		btrfs_abort_transaction(trans, ret);
+		goto out;
+	}
 	fi = btrfs_item_ptr(leaf, path->slots[0],
 			    struct btrfs_file_extent_item);
-	BUG_ON(btrfs_file_extent_type(leaf, fi) !=
-	       BTRFS_FILE_EXTENT_PREALLOC);
+	if (btrfs_file_extent_type(leaf, fi) != BTRFS_FILE_EXTENT_PREALLOC) {
+		ret = -EINVAL;
+		btrfs_abort_transaction(trans, ret);
+		goto out;
+	}
 	extent_end = key.offset + btrfs_file_extent_num_bytes(leaf, fi);
-	BUG_ON(key.offset > start || extent_end < end);
+	if (key.offset > start || extent_end < end) {
+		ret = -EINVAL;
+		btrfs_abort_transaction(trans, ret);
+		goto out;
+	}
 
 	bytenr = btrfs_file_extent_disk_bytenr(leaf, fi);
 	num_bytes = btrfs_file_extent_disk_num_bytes(leaf, fi);
@@ -1213,12 +1225,19 @@ again:
 		ret = btrfs_inc_extent_ref(trans, root, bytenr, num_bytes, 0,
 					   root->root_key.objectid,
 					   ino, orig_offset);
-		BUG_ON(ret); /* -ENOMEM */
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			goto out;
+		}
 
 		if (split == start) {
 			key.offset = start;
 		} else {
-			BUG_ON(start != key.offset);
+			if (start != key.offset) {
+				ret = -EINVAL;
+				btrfs_abort_transaction(trans, ret);
+				goto out;
+			}
 			path->slots[0]--;
 			extent_end = end;
 		}
@@ -1240,7 +1259,10 @@ again:
 		ret = btrfs_free_extent(trans, root, bytenr, num_bytes,
 					0, root->root_key.objectid,
 					ino, orig_offset);
-		BUG_ON(ret); /* -ENOMEM */
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			goto out;
+		}
 	}
 	other_start = 0;
 	other_end = start;
@@ -1257,7 +1279,10 @@ again:
 		ret = btrfs_free_extent(trans, root, bytenr, num_bytes,
 					0, root->root_key.objectid,
 					ino, orig_offset);
-		BUG_ON(ret); /* -ENOMEM */
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			goto out;
+		}
 	}
 	if (del_nr == 0) {
 		fi = btrfs_item_ptr(leaf, path->slots[0],
