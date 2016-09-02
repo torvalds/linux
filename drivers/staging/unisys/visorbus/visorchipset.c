@@ -25,7 +25,7 @@
 #include <linux/uuid.h>
 #include <linux/crash_dump.h>
 
-#include "channel_guid.h"
+#include "channel.h"
 #include "controlvmchannel.h"
 #include "controlvmcompletionstatus.h"
 #include "guestlinuxdebug.h"

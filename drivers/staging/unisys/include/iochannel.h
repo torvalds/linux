@@ -33,7 +33,6 @@
 
 #include <linux/dma-direction.h>
 #include "channel.h"
-#include "channel_guid.h"
 
 #define ULTRA_VHBA_CHANNEL_PROTOCOL_SIGNATURE ULTRA_CHANNEL_PROTOCOL_SIGNATURE
 #define ULTRA_VNIC_CHANNEL_PROTOCOL_SIGNATURE ULTRA_CHANNEL_PROTOCOL_SIGNATURE
