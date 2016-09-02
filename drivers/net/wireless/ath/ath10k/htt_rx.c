@@ -2445,6 +2445,8 @@ int ath10k_htt_txrx_compl_task(struct ath10k *ar, int budget)
 	while (kfifo_get(&htt->txdone_fifo, &tx_done))
 		ath10k_txrx_tx_unref(htt, &tx_done);
 
+	ath10k_mac_tx_push_pending(ar);
+
 	spin_lock_irqsave(&htt->tx_fetch_ind_q.lock, flags);
 	skb_queue_splice_init(&htt->tx_fetch_ind_q, &tx_ind_q);
 	spin_unlock_irqrestore(&htt->tx_fetch_ind_q.lock, flags);

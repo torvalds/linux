@@ -119,8 +119,6 @@ int ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 	ieee80211_tx_status(htt->ar->hw, msdu);
 	/* we do not own the msdu anymore */
 
-	ath10k_mac_tx_push_pending(ar);
-
 	return 0;
 }
 
