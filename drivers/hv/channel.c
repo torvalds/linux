@@ -75,7 +75,6 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 {
 	struct vmbus_channel_open_channel *open_msg;
 	struct vmbus_channel_msginfo *open_info = NULL;
-	void *in, *out;
 	unsigned long flags;
 	int ret, err = 0;
 	struct page *page;
@@ -112,23 +111,21 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 		goto error_set_chnstate;
 	}
 
-	out = page_address(page);
-	in = (void *)((unsigned long)out + send_ringbuffer_size);
-
-	newchannel->ringbuffer_pages = out;
+	newchannel->ringbuffer_pages = page_address(page);
 	newchannel->ringbuffer_pagecount = (send_ringbuffer_size +
 					   recv_ringbuffer_size) >> PAGE_SHIFT;
 
-	ret = hv_ringbuffer_init(
-		&newchannel->outbound, out, send_ringbuffer_size);
+	ret = hv_ringbuffer_init(&newchannel->outbound, page,
+				 send_ringbuffer_size >> PAGE_SHIFT);
 
 	if (ret != 0) {
 		err = ret;
 		goto error_free_pages;
 	}
 
-	ret = hv_ringbuffer_init(
-		&newchannel->inbound, in, recv_ringbuffer_size);
+	ret = hv_ringbuffer_init(&newchannel->inbound,
+				 &page[send_ringbuffer_size >> PAGE_SHIFT],
+				 recv_ringbuffer_size >> PAGE_SHIFT);
 	if (ret != 0) {
 		err = ret;
 		goto error_free_pages;
@@ -139,10 +136,10 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 	newchannel->ringbuffer_gpadlhandle = 0;
 
 	ret = vmbus_establish_gpadl(newchannel,
-					 newchannel->outbound.ring_buffer,
-					 send_ringbuffer_size +
-					 recv_ringbuffer_size,
-					 &newchannel->ringbuffer_gpadlhandle);
+				    page_address(page),
+				    send_ringbuffer_size +
+				    recv_ringbuffer_size,
+				    &newchannel->ringbuffer_gpadlhandle);
 
 	if (ret != 0) {
 		err = ret;
@@ -214,8 +211,10 @@ error_free_gpadl:
 	vmbus_teardown_gpadl(newchannel, newchannel->ringbuffer_gpadlhandle);
 	kfree(open_info);
 error_free_pages:
-	free_pages((unsigned long)out,
-		get_order(send_ringbuffer_size + recv_ringbuffer_size));
+	hv_ringbuffer_cleanup(&newchannel->outbound);
+	hv_ringbuffer_cleanup(&newchannel->inbound);
+	__free_pages(page,
+		     get_order(send_ringbuffer_size + recv_ringbuffer_size));
 error_set_chnstate:
 	newchannel->state = CHANNEL_OPEN_STATE;
 	return err;

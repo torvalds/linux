@@ -522,8 +522,8 @@ extern unsigned int host_info_edx;
 /* Interface */
 
 
-int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info, void *buffer,
-		   u32 buflen);
+int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info,
+		       struct page *pages, u32 pagecnt);
 
 void hv_ringbuffer_cleanup(struct hv_ring_buffer_info *ring_info);
 
