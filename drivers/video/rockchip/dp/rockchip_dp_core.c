@@ -425,6 +425,7 @@ static void cdn_dp_pd_event_wq(struct work_struct *work)
 	if (!new_cap_lanes) {
 		ret = phy_power_off(port->phy);
 		if (ret) {
+			port->cap_lanes = 0;
 			dev_err(dp->dev, "phy power off failed: %d", ret);
 			return;
 		}
@@ -446,6 +447,7 @@ static void cdn_dp_pd_event_wq(struct work_struct *work)
 		if (dp->port[i]->phy_status) {
 			dev_warn(dp->dev, "busy, phy[%d] is running",
 				 dp->port[i]->id);
+			port->cap_lanes = 0;
 			return;
 		}
 	}
@@ -463,8 +465,10 @@ static void cdn_dp_pd_event_wq(struct work_struct *work)
 			dev_warn(dp->dev, "retry to request firmware in %dS\n",
 				 dp->fw_wait);
 			dp->fw_wait *= 2;
+			port->cap_lanes = 0;
 			return;
 		} else if (ret) {
+			port->cap_lanes = 0;
 			dev_err(dp->dev, "failed to request firmware: %d\n",
 				ret);
 			return;
@@ -479,6 +483,7 @@ static void cdn_dp_pd_event_wq(struct work_struct *work)
 		if (!dp->fw_loaded)
 			release_firmware(dp->fw);
 		dev_err(dp->dev, "phy power on failed: %d\n", ret);
+		port->cap_lanes = 0;
 		return;
 	}
 	port->phy_status = true;
@@ -537,6 +542,7 @@ static void cdn_dp_pd_event_wq(struct work_struct *work)
 	dev_err(dp->dev, "get dpcd failed: %d", ret);
 
 err_firmware:
+	port->cap_lanes = 0;
 	ret = phy_power_off(port->phy);
 	if (ret)
 		dev_err(dp->dev, "phy power off failed: %d", ret);
@@ -603,14 +609,19 @@ static int cdn_dp_probe(struct platform_device *pdev)
 		phy = devm_of_phy_get_by_index(dev, dev->of_node, i);
 
 		if (PTR_ERR(extcon) == -EPROBE_DEFER ||
-		    PTR_ERR(phy) == -EPROBE_DEFER)
+		    PTR_ERR(phy) == -EPROBE_DEFER){
+			/* don't exit if there already has one port */
+			if(dp->ports)
+				continue;
 			return -EPROBE_DEFER;
+
+		}
 
 		if (IS_ERR(extcon) || IS_ERR(phy))
 			continue;
 
 		port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
-		if (!dp)
+		if (!port)
 			return -ENOMEM;
 
 		port->extcon = extcon;
