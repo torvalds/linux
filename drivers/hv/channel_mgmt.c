@@ -356,8 +356,9 @@ void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid)
 	 * We need to free the bit for init_vp_index() to work in the case
 	 * of sub-channel, when we reload drivers like hv_netvsc.
 	 */
-	cpumask_clear_cpu(channel->target_cpu,
-			  &primary_channel->alloced_cpus_in_node);
+	if (channel->affinity_policy == HV_LOCALIZED)
+		cpumask_clear_cpu(channel->target_cpu,
+				  &primary_channel->alloced_cpus_in_node);
 
 	vmbus_release_relid(relid);
 
@@ -548,17 +549,17 @@ static void init_vp_index(struct vmbus_channel *channel, u16 dev_type)
 	}
 
 	/*
-	 * We distribute primary channels evenly across all the available
-	 * NUMA nodes and within the assigned NUMA node we will assign the
-	 * first available CPU to the primary channel.
-	 * The sub-channels will be assigned to the CPUs available in the
-	 * NUMA node evenly.
+	 * Based on the channel affinity policy, we will assign the NUMA
+	 * nodes.
 	 */
-	if (!primary) {
+
+	if ((channel->affinity_policy == HV_BALANCED) || (!primary)) {
 		while (true) {
 			next_node = next_numa_node_id++;
-			if (next_node == nr_node_ids)
+			if (next_node == nr_node_ids) {
 				next_node = next_numa_node_id = 0;
+				continue;
+			}
 			if (cpumask_empty(cpumask_of_node(next_node)))
 				continue;
 			break;
@@ -582,15 +583,17 @@ static void init_vp_index(struct vmbus_channel *channel, u16 dev_type)
 
 	cur_cpu = -1;
 
-	/*
-	 * Normally Hyper-V host doesn't create more subchannels than there
-	 * are VCPUs on the node but it is possible when not all present VCPUs
-	 * on the node are initialized by guest. Clear the alloced_cpus_in_node
-	 * to start over.
-	 */
-	if (cpumask_equal(&primary->alloced_cpus_in_node,
-			  cpumask_of_node(primary->numa_node)))
-		cpumask_clear(&primary->alloced_cpus_in_node);
+	if (primary->affinity_policy == HV_LOCALIZED) {
+		/*
+		 * Normally Hyper-V host doesn't create more subchannels
+		 * than there are VCPUs on the node but it is possible when not
+		 * all present VCPUs on the node are initialized by guest.
+		 * Clear the alloced_cpus_in_node to start over.
+		 */
+		if (cpumask_equal(&primary->alloced_cpus_in_node,
+				  cpumask_of_node(primary->numa_node)))
+			cpumask_clear(&primary->alloced_cpus_in_node);
+	}
 
 	while (true) {
 		cur_cpu = cpumask_next(cur_cpu, &available_mask);
@@ -601,17 +604,24 @@ static void init_vp_index(struct vmbus_channel *channel, u16 dev_type)
 			continue;
 		}
 
-		/*
-		 * NOTE: in the case of sub-channel, we clear the sub-channel
-		 * related bit(s) in primary->alloced_cpus_in_node in
-		 * hv_process_channel_removal(), so when we reload drivers
-		 * like hv_netvsc in SMP guest, here we're able to re-allocate
-		 * bit from primary->alloced_cpus_in_node.
-		 */
-		if (!cpumask_test_cpu(cur_cpu,
-				&primary->alloced_cpus_in_node)) {
-			cpumask_set_cpu(cur_cpu,
-					&primary->alloced_cpus_in_node);
+		if (primary->affinity_policy == HV_LOCALIZED) {
+			/*
+			 * NOTE: in the case of sub-channel, we clear the
+			 * sub-channel related bit(s) in
+			 * primary->alloced_cpus_in_node in
+			 * hv_process_channel_removal(), so when we
+			 * reload drivers like hv_netvsc in SMP guest, here
+			 * we're able to re-allocate
+			 * bit from primary->alloced_cpus_in_node.
+			 */
+			if (!cpumask_test_cpu(cur_cpu,
+					      &primary->alloced_cpus_in_node)) {
+				cpumask_set_cpu(cur_cpu,
+						&primary->alloced_cpus_in_node);
+				cpumask_set_cpu(cur_cpu, alloced_mask);
+				break;
+			}
+		} else {
 			cpumask_set_cpu(cur_cpu, alloced_mask);
 			break;
 		}
