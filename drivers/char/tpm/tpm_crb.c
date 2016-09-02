@@ -34,14 +34,14 @@ enum crb_defaults {
 	CRB_ACPI_START_INDEX = 1,
 };
 
-enum crb_ca_request {
-	CRB_CA_REQ_GO_IDLE	= BIT(0),
-	CRB_CA_REQ_CMD_READY	= BIT(1),
+enum crb_ctrl_req {
+	CRB_CTRL_REQ_GO_IDLE	= BIT(0),
+	CRB_CTRL_REQ_CMD_READY	= BIT(1),
 };
 
-enum crb_ca_status {
-	CRB_CA_STS_ERROR	= BIT(0),
-	CRB_CA_STS_TPM_IDLE	= BIT(1),
+enum crb_ctrl_sts {
+	CRB_CTRL_STS_ERROR	= BIT(0),
+	CRB_CTRL_STS_TPM_IDLE	= BIT(1),
 };
 
 enum crb_start {
@@ -67,7 +67,7 @@ struct crb_control_area {
 } __packed;
 
 enum crb_status {
-	CRB_STS_COMPLETE	= BIT(0),
+	CRB_DRV_STS_COMPLETE	= BIT(0),
 };
 
 enum crb_flags {
@@ -92,7 +92,7 @@ static u8 crb_status(struct tpm_chip *chip)
 
 	if ((ioread32(&priv->cca->start) & CRB_START_INVOKE) !=
 	    CRB_START_INVOKE)
-		sts |= CRB_STS_COMPLETE;
+		sts |= CRB_DRV_STS_COMPLETE;
 
 	return sts;
 }
@@ -106,7 +106,7 @@ static int crb_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 	if (count < 6)
 		return -EIO;
 
-	if (ioread32(&priv->cca->sts) & CRB_CA_STS_ERROR)
+	if (ioread32(&priv->cca->sts) & CRB_CTRL_STS_ERROR)
 		return -EIO;
 
 	memcpy_fromio(buf, priv->rsp, 6);
@@ -194,8 +194,8 @@ static const struct tpm_class_ops tpm_crb = {
 	.send = crb_send,
 	.cancel = crb_cancel,
 	.req_canceled = crb_req_canceled,
-	.req_complete_mask = CRB_STS_COMPLETE,
-	.req_complete_val = CRB_STS_COMPLETE,
+	.req_complete_mask = CRB_DRV_STS_COMPLETE,
+	.req_complete_val = CRB_DRV_STS_COMPLETE,
 };
 
 static int crb_init(struct acpi_device *device, struct crb_priv *priv)
