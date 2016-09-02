@@ -70,12 +70,18 @@ static struct syscore_ops exynos_audss_clk_syscore_ops = {
 
 struct exynos_audss_clk_drvdata {
 	unsigned int has_adma_clk:1;
+	unsigned int has_mst_clk:1;
 	unsigned int enable_epll:1;
 	unsigned int num_clks;
 };
 
 static const struct exynos_audss_clk_drvdata exynos4210_drvdata = {
 	.num_clks	= EXYNOS_AUDSS_MAX_CLKS - 1,
+};
+
+static const struct exynos_audss_clk_drvdata exynos5410_drvdata = {
+	.num_clks	= EXYNOS_AUDSS_MAX_CLKS - 1,
+	.has_mst_clk	= 1,
 };
 
 static const struct exynos_audss_clk_drvdata exynos5420_drvdata = {
@@ -91,6 +97,9 @@ static const struct of_device_id exynos_audss_clk_of_match[] = {
 	}, {
 		.compatible	= "samsung,exynos5250-audss-clock",
 		.data		= &exynos4210_drvdata,
+	}, {
+		.compatible	= "samsung,exynos5410-audss-clock",
+		.data		= &exynos5410_drvdata,
 	}, {
 		.compatible	= "samsung,exynos5420-audss-clock",
 		.data		= &exynos5420_drvdata,
