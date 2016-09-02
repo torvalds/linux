@@ -134,9 +134,9 @@ act2000_isa_config_irq(act2000_card *card, short irq)
 {
 	int old_irq;
 
-	if (card->flags & ACT2000_FLAGS_IVALID) {
+	if (card->flags & ACT2000_FLAGS_IVALID)
 		free_irq(card->irq, card);
-	}
+
 	card->flags &= ~ACT2000_FLAGS_IVALID;
 	outb(ISA_COR_IRQOFF, ISA_PORT_COR);
 	if (!irq)
