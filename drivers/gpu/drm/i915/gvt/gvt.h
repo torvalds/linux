@@ -87,6 +87,7 @@ struct intel_vgpu_fence {
 struct intel_vgpu_mmio {
 	void *vreg;
 	void *sreg;
+	bool disable_warn_untrack;
 };
 
 #define INTEL_GVT_MAX_CFG_SPACE_SZ 256
@@ -184,6 +185,8 @@ int intel_gvt_load_firmware(struct intel_gvt *gvt);
 #define gvt_aperture_pa_base(gvt) (gvt->dev_priv->ggtt.mappable_base)
 
 #define gvt_ggtt_gm_sz(gvt)	  (gvt->dev_priv->ggtt.base.total)
+#define gvt_ggtt_sz(gvt) \
+	((gvt->dev_priv->ggtt.base.total >> PAGE_SHIFT) << 3)
 #define gvt_hidden_sz(gvt)	  (gvt_ggtt_gm_sz(gvt) - gvt_aperture_sz(gvt))
 
 #define gvt_aperture_gmadr_base(gvt) (0)

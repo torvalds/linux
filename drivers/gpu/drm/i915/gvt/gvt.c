@@ -45,6 +45,8 @@ static const char * const supported_hypervisors[] = {
 struct intel_gvt_io_emulation_ops intel_gvt_io_emulation_ops = {
 	.emulate_cfg_read = intel_vgpu_emulate_cfg_read,
 	.emulate_cfg_write = intel_vgpu_emulate_cfg_write,
+	.emulate_mmio_read = intel_vgpu_emulate_mmio_read,
+	.emulate_mmio_write = intel_vgpu_emulate_mmio_write,
 };
 
 /**

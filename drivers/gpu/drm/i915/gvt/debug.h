@@ -36,4 +36,7 @@
 #define gvt_dbg_mm(fmt, args...) \
 	DRM_DEBUG_DRIVER("gvt: mm: "fmt, ##args)
 
+#define gvt_dbg_mmio(fmt, args...) \
+	DRM_DEBUG_DRIVER("gvt: mmio: "fmt, ##args)
+
 #endif

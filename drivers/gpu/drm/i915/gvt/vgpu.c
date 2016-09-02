@@ -52,6 +52,11 @@ static int setup_vgpu_mmio(struct intel_vgpu *vgpu)
 
 	memcpy(vgpu->mmio.vreg, gvt->firmware.mmio, info->mmio_size);
 	memcpy(vgpu->mmio.sreg, gvt->firmware.mmio, info->mmio_size);
+
+	vgpu_vreg(vgpu, GEN6_GT_THREAD_STATUS_REG) = 0;
+
+	/* set the bit 0:2(Core C-State ) to C0 */
+	vgpu_vreg(vgpu, GEN6_GT_CORE_STATUS) = 0;
 	return 0;
 }
 
