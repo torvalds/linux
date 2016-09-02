@@ -142,6 +142,8 @@ static void l2c_disable(void)
 {
 	void __iomem *base = l2x0_base;
 
+	l2x0_pmu_suspend();
+
 	outer_cache.flush_all();
 	l2c_write_sec(0, base, L2X0_CTRL);
 	dsb(st);
@@ -159,6 +161,8 @@ static void l2c_resume(void)
 	/* Do not touch the controller if already enabled. */
 	if (!(readl_relaxed(base + L2X0_CTRL) & L2X0_CTRL_EN))
 		l2c_enable(base, l2x0_data->num_lock);
+
+	l2x0_pmu_resume();
 }
 
 /*
@@ -890,6 +894,8 @@ static int __init __l2c_init(const struct l2c_init_data *data,
 		data->type, ways, l2x0_size >> 10);
 	pr_info("%s: CACHE_ID 0x%08x, AUX_CTRL 0x%08x\n",
 		data->type, cache_id, aux);
+
+	l2x0_pmu_register(l2x0_base, cache_id);
 
 	return 0;
 }
