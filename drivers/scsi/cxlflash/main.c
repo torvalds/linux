@@ -1137,7 +1137,7 @@ static const struct asyc_intr_info ainfo[] = {
 	{SISL_ASTATUS_FC0_LOGI_F, "login failed", 0, CLR_FC_ERROR},
 	{SISL_ASTATUS_FC0_LOGI_S, "login succeeded", 0, SCAN_HOST},
 	{SISL_ASTATUS_FC0_LINK_DN, "link down", 0, 0},
-	{SISL_ASTATUS_FC0_LINK_UP, "link up", 0, SCAN_HOST},
+	{SISL_ASTATUS_FC0_LINK_UP, "link up", 0, 0},
 	{SISL_ASTATUS_FC1_OTHER, "other error", 1, CLR_FC_ERROR | LINK_RESET},
 	{SISL_ASTATUS_FC1_LOGO, "target initiated LOGO", 1, 0},
 	{SISL_ASTATUS_FC1_CRC_T, "CRC threshold exceeded", 1, LINK_RESET},
@@ -1145,7 +1145,7 @@ static const struct asyc_intr_info ainfo[] = {
 	{SISL_ASTATUS_FC1_LOGI_F, "login failed", 1, CLR_FC_ERROR},
 	{SISL_ASTATUS_FC1_LOGI_S, "login succeeded", 1, SCAN_HOST},
 	{SISL_ASTATUS_FC1_LINK_DN, "link down", 1, 0},
-	{SISL_ASTATUS_FC1_LINK_UP, "link up", 1, SCAN_HOST},
+	{SISL_ASTATUS_FC1_LINK_UP, "link up", 1, 0},
 	{0x0, "", 0, 0}		/* terminator */
 };
 
