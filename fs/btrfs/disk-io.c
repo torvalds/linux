@@ -442,7 +442,7 @@ static int btrfs_check_super_csum(char *raw_disk_sb)
  */
 static int btree_read_extent_buffer_pages(struct btrfs_root *root,
 					  struct extent_buffer *eb,
-					  u64 start, u64 parent_transid)
+					  u64 parent_transid)
 {
 	struct extent_io_tree *io_tree;
 	int failed = 0;
@@ -454,8 +454,7 @@ static int btree_read_extent_buffer_pages(struct btrfs_root *root,
 	clear_bit(EXTENT_BUFFER_CORRUPT, &eb->bflags);
 	io_tree = &BTRFS_I(root->fs_info->btree_inode)->io_tree;
 	while (1) {
-		ret = read_extent_buffer_pages(io_tree, eb, start,
-					       WAIT_COMPLETE,
+		ret = read_extent_buffer_pages(io_tree, eb, WAIT_COMPLETE,
 					       btree_get_extent, mirror_num);
 		if (!ret) {
 			if (!verify_parent_transid(io_tree, eb,
@@ -1132,7 +1131,7 @@ void readahead_tree_block(struct btrfs_root *root, u64 bytenr)
 	if (IS_ERR(buf))
 		return;
 	read_extent_buffer_pages(&BTRFS_I(btree_inode)->io_tree,
-				 buf, 0, WAIT_NONE, btree_get_extent, 0);
+				 buf, WAIT_NONE, btree_get_extent, 0);
 	free_extent_buffer(buf);
 }
 
@@ -1150,7 +1149,7 @@ int reada_tree_block_flagged(struct btrfs_root *root, u64 bytenr,
 
 	set_bit(EXTENT_BUFFER_READAHEAD, &buf->bflags);
 
-	ret = read_extent_buffer_pages(io_tree, buf, 0, WAIT_PAGE_LOCK,
+	ret = read_extent_buffer_pages(io_tree, buf, WAIT_PAGE_LOCK,
 				       btree_get_extent, mirror_num);
 	if (ret) {
 		free_extent_buffer(buf);
@@ -1206,7 +1205,7 @@ struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
 	if (IS_ERR(buf))
 		return buf;
 
-	ret = btree_read_extent_buffer_pages(root, buf, 0, parent_transid);
+	ret = btree_read_extent_buffer_pages(root, buf, parent_transid);
 	if (ret) {
 		free_extent_buffer(buf);
 		return ERR_PTR(ret);
@@ -4081,7 +4080,7 @@ void btrfs_btree_balance_dirty_nodelay(struct btrfs_root *root)
 int btrfs_read_buffer(struct extent_buffer *buf, u64 parent_transid)
 {
 	struct btrfs_root *root = BTRFS_I(buf->pages[0]->mapping->host)->root;
-	return btree_read_extent_buffer_pages(root, buf, 0, parent_transid);
+	return btree_read_extent_buffer_pages(root, buf, parent_transid);
 }
 
 static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info,

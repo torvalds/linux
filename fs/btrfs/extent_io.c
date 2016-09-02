@@ -5188,11 +5188,10 @@ int extent_buffer_uptodate(struct extent_buffer *eb)
 }
 
 int read_extent_buffer_pages(struct extent_io_tree *tree,
-			     struct extent_buffer *eb, u64 start, int wait,
+			     struct extent_buffer *eb, int wait,
 			     get_extent_t *get_extent, int mirror_num)
 {
 	unsigned long i;
-	unsigned long start_i;
 	struct page *page;
 	int err;
 	int ret = 0;
@@ -5206,16 +5205,8 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 	if (test_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags))
 		return 0;
 
-	if (start) {
-		WARN_ON(start < eb->start);
-		start_i = (start >> PAGE_SHIFT) -
-			(eb->start >> PAGE_SHIFT);
-	} else {
-		start_i = 0;
-	}
-
 	num_pages = num_extent_pages(eb->start, eb->len);
-	for (i = start_i; i < num_pages; i++) {
+	for (i = 0; i < num_pages; i++) {
 		page = eb->pages[i];
 		if (wait == WAIT_NONE) {
 			if (!trylock_page(page))
@@ -5230,7 +5221,7 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 	 * the uptodate bit of our pages won't be affected by
 	 * clear_extent_buffer_uptodate().
 	 */
-	for (i = start_i; i < num_pages; i++) {
+	for (i = 0; i < num_pages; i++) {
 		page = eb->pages[i];
 		if (!PageUptodate(page)) {
 			num_reads++;
@@ -5239,15 +5230,14 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 	}
 
 	if (all_uptodate) {
-		if (start_i == 0)
-			set_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);
+		set_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);
 		goto unlock_exit;
 	}
 
 	clear_bit(EXTENT_BUFFER_READ_ERR, &eb->bflags);
 	eb->read_mirror = 0;
 	atomic_set(&eb->io_pages, num_reads);
-	for (i = start_i; i < num_pages; i++) {
+	for (i = 0; i < num_pages; i++) {
 		page = eb->pages[i];
 
 		if (!PageUptodate(page)) {
@@ -5288,7 +5278,7 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 	if (ret || wait != WAIT_COMPLETE)
 		return ret;
 
-	for (i = start_i; i < num_pages; i++) {
+	for (i = 0; i < num_pages; i++) {
 		page = eb->pages[i];
 		wait_on_page_locked(page);
 		if (!PageUptodate(page))
@@ -5298,12 +5288,10 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 	return ret;
 
 unlock_exit:
-	i = start_i;
 	while (locked_pages > 0) {
-		page = eb->pages[i];
-		i++;
-		unlock_page(page);
 		locked_pages--;
+		page = eb->pages[locked_pages];
+		unlock_page(page);
 	}
 	return ret;
 }

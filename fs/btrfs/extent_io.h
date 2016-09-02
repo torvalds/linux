@@ -359,7 +359,7 @@ void free_extent_buffer_stale(struct extent_buffer *eb);
 #define WAIT_COMPLETE	1
 #define WAIT_PAGE_LOCK	2
 int read_extent_buffer_pages(struct extent_io_tree *tree,
-			     struct extent_buffer *eb, u64 start, int wait,
+			     struct extent_buffer *eb, int wait,
 			     get_extent_t *get_extent, int mirror_num);
 void wait_on_extent_buffer_writeback(struct extent_buffer *eb);
 
