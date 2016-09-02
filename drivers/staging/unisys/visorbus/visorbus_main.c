@@ -19,7 +19,6 @@
 #include "visorbus.h"
 #include "visorbus_private.h"
 #include "version.h"
-#include "vbuschannel.h"
 #include "guestlinuxdebug.h"
 #include "vmcallinterface.h"
 
