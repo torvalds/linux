@@ -2322,6 +2322,8 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 	INIT_WORK(&ar->register_work, ath10k_core_register_work);
 	INIT_WORK(&ar->restart_work, ath10k_core_restart);
 
+	init_dummy_netdev(&ar->napi_dev);
+
 	ret = ath10k_debug_create(ar);
 	if (ret)
 		goto err_free_aux_wq;

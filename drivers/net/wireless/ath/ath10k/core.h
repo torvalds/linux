@@ -65,6 +65,10 @@
 #define ATH10K_KEEPALIVE_MAX_IDLE 3895
 #define ATH10K_KEEPALIVE_MAX_UNRESPONSIVE 3900
 
+/* NAPI poll budget */
+#define ATH10K_NAPI_BUDGET      64
+#define ATH10K_NAPI_QUOTA_LIMIT 60
+
 struct ath10k;
 
 enum ath10k_bus {
@@ -953,6 +957,10 @@ struct ath10k {
 
 	struct ath10k_thermal thermal;
 	struct ath10k_wow wow;
+
+	/* NAPI */
+	struct net_device napi_dev;
+	struct napi_struct napi;
 
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));

@@ -177,8 +177,6 @@ struct ath10k_pci {
 	/* Operating interrupt mode */
 	enum ath10k_pci_irq_mode oper_irq_mode;
 
-	struct tasklet_struct intr_tq;
-
 	struct ath10k_pci_pipe pipe_info[CE_COUNT_MAX];
 
 	/* Copy Engine used for Diagnostic Accesses */
@@ -294,8 +292,7 @@ void ath10k_pci_free_pipes(struct ath10k *ar);
 void ath10k_pci_free_pipes(struct ath10k *ar);
 void ath10k_pci_rx_replenish_retry(unsigned long ptr);
 void ath10k_pci_ce_deinit(struct ath10k *ar);
-void ath10k_pci_init_irq_tasklets(struct ath10k *ar);
-void ath10k_pci_kill_tasklet(struct ath10k *ar);
+void ath10k_pci_init_napi(struct ath10k *ar);
 int ath10k_pci_init_pipes(struct ath10k *ar);
 int ath10k_pci_init_config(struct ath10k *ar);
 void ath10k_pci_rx_post(struct ath10k *ar);
@@ -303,6 +300,7 @@ void ath10k_pci_flush(struct ath10k *ar);
 void ath10k_pci_enable_legacy_irq(struct ath10k *ar);
 bool ath10k_pci_irq_pending(struct ath10k *ar);
 void ath10k_pci_disable_and_clear_legacy_irq(struct ath10k *ar);
+void ath10k_pci_irq_msi_fw_mask(struct ath10k *ar);
 int ath10k_pci_wait_for_target_init(struct ath10k *ar);
 int ath10k_pci_setup_resource(struct ath10k *ar);
 void ath10k_pci_release_resource(struct ath10k *ar);

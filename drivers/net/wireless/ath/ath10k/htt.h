@@ -1665,7 +1665,6 @@ struct ath10k_htt {
 
 	/* This is used to group tx/rx completions separately and process them
 	 * in batches to reduce cache stalls */
-	struct tasklet_struct txrx_compl_task;
 	struct sk_buff_head rx_compl_q;
 	struct sk_buff_head rx_in_ord_compl_q;
 	struct sk_buff_head tx_fetch_ind_q;
@@ -1798,5 +1797,6 @@ int ath10k_htt_tx(struct ath10k_htt *htt,
 		  struct sk_buff *msdu);
 void ath10k_htt_rx_pktlog_completion_handler(struct ath10k *ar,
 					     struct sk_buff *skb);
+int ath10k_htt_txrx_compl_task(struct ath10k *ar, int budget);
 
 #endif
