@@ -25,8 +25,6 @@
 #include <linux/uuid.h>
 #include <linux/crash_dump.h>
 
-#include "channel.h"
-#include "controlvmchannel.h"
 #include "version.h"
 #include "visorbus.h"
 #include "visorbus_private.h"
