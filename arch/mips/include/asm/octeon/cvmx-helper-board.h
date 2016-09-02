@@ -76,26 +76,6 @@ typedef enum {
 extern int cvmx_helper_board_get_mii_address(int ipd_port);
 
 /**
- * This function as a board specific method of changing the PHY
- * speed, duplex, and autonegotiation. This programs the PHY and
- * not Octeon. This can be used to force Octeon's links to
- * specific settings.
- *
- * @phy_addr:  The address of the PHY to program
- * @link_flags:
- *		    Flags to control autonegotiation.  Bit 0 is autonegotiation
- *		    enable/disable to maintain backward compatibility.
- * @link_info: Link speed to program. If the speed is zero and autonegotiation
- *		    is enabled, all possible negotiation speeds are advertised.
- *
- * Returns Zero on success, negative on failure
- */
-int cvmx_helper_board_link_set_phy(int phy_addr,
-				   cvmx_helper_board_set_phy_link_flags_types_t
-				   link_flags,
-				   cvmx_helper_link_info_t link_info);
-
-/**
  * This function is the board specific method of determining an
  * ethernet ports link speed. Most Octeon boards have Marvell PHYs
  * and are handled by the fall through case. This function must be
