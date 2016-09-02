@@ -21,7 +21,7 @@ static DEFINE_PER_CPU(struct rnd_state, nft_numgen_prandom_state);
 
 struct nft_ng_inc {
 	enum nft_registers      dreg:8;
-	u32			until;
+	u32			modulus;
 	atomic_t		counter;
 };
 
@@ -34,7 +34,7 @@ static void nft_ng_inc_eval(const struct nft_expr *expr,
 
 	do {
 		oval = atomic_read(&priv->counter);
-		nval = (oval + 1 < priv->until) ? oval + 1 : 0;
+		nval = (oval + 1 < priv->modulus) ? oval + 1 : 0;
 	} while (atomic_cmpxchg(&priv->counter, oval, nval) != oval);
 
 	memcpy(&regs->data[priv->dreg], &priv->counter, sizeof(u32));
@@ -42,7 +42,7 @@ static void nft_ng_inc_eval(const struct nft_expr *expr,
 
 static const struct nla_policy nft_ng_policy[NFTA_NG_MAX + 1] = {
 	[NFTA_NG_DREG]		= { .type = NLA_U32 },
-	[NFTA_NG_UNTIL]		= { .type = NLA_U32 },
+	[NFTA_NG_MODULUS]	= { .type = NLA_U32 },
 	[NFTA_NG_TYPE]		= { .type = NLA_U32 },
 };
 
@@ -52,8 +52,8 @@ static int nft_ng_inc_init(const struct nft_ctx *ctx,
 {
 	struct nft_ng_inc *priv = nft_expr_priv(expr);
 
-	priv->until = ntohl(nla_get_be32(tb[NFTA_NG_UNTIL]));
-	if (priv->until == 0)
+	priv->modulus = ntohl(nla_get_be32(tb[NFTA_NG_MODULUS]));
+	if (priv->modulus == 0)
 		return -ERANGE;
 
 	priv->dreg = nft_parse_register(tb[NFTA_NG_DREG]);
@@ -64,11 +64,11 @@ static int nft_ng_inc_init(const struct nft_ctx *ctx,
 }
 
 static int nft_ng_dump(struct sk_buff *skb, enum nft_registers dreg,
-		       u32 until, enum nft_ng_types type)
+		       u32 modulus, enum nft_ng_types type)
 {
 	if (nft_dump_register(skb, NFTA_NG_DREG, dreg))
 		goto nla_put_failure;
-	if (nla_put_be32(skb, NFTA_NG_UNTIL, htonl(until)))
+	if (nla_put_be32(skb, NFTA_NG_MODULUS, htonl(modulus)))
 		goto nla_put_failure;
 	if (nla_put_be32(skb, NFTA_NG_TYPE, htonl(type)))
 		goto nla_put_failure;
@@ -83,12 +83,12 @@ static int nft_ng_inc_dump(struct sk_buff *skb, const struct nft_expr *expr)
 {
 	const struct nft_ng_inc *priv = nft_expr_priv(expr);
 
-	return nft_ng_dump(skb, priv->dreg, priv->until, NFT_NG_INCREMENTAL);
+	return nft_ng_dump(skb, priv->dreg, priv->modulus, NFT_NG_INCREMENTAL);
 }
 
 struct nft_ng_random {
 	enum nft_registers      dreg:8;
-	u32			until;
+	u32			modulus;
 };
 
 static void nft_ng_random_eval(const struct nft_expr *expr,
@@ -99,7 +99,7 @@ static void nft_ng_random_eval(const struct nft_expr *expr,
 	struct rnd_state *state = this_cpu_ptr(&nft_numgen_prandom_state);
 
 	regs->data[priv->dreg] = reciprocal_scale(prandom_u32_state(state),
-						  priv->until);
+						  priv->modulus);
 }
 
 static int nft_ng_random_init(const struct nft_ctx *ctx,
@@ -108,8 +108,8 @@ static int nft_ng_random_init(const struct nft_ctx *ctx,
 {
 	struct nft_ng_random *priv = nft_expr_priv(expr);
 
-	priv->until = ntohl(nla_get_be32(tb[NFTA_NG_UNTIL]));
-	if (priv->until == 0)
+	priv->modulus = ntohl(nla_get_be32(tb[NFTA_NG_MODULUS]));
+	if (priv->modulus == 0)
 		return -ERANGE;
 
 	prandom_init_once(&nft_numgen_prandom_state);
@@ -124,7 +124,7 @@ static int nft_ng_random_dump(struct sk_buff *skb, const struct nft_expr *expr)
 {
 	const struct nft_ng_random *priv = nft_expr_priv(expr);
 
-	return nft_ng_dump(skb, priv->dreg, priv->until, NFT_NG_RANDOM);
+	return nft_ng_dump(skb, priv->dreg, priv->modulus, NFT_NG_RANDOM);
 }
 
 static struct nft_expr_type nft_ng_type;
@@ -149,8 +149,8 @@ nft_ng_select_ops(const struct nft_ctx *ctx, const struct nlattr * const tb[])
 {
 	u32 type;
 
-	if (!tb[NFTA_NG_DREG]	||
-	    !tb[NFTA_NG_UNTIL]	||
+	if (!tb[NFTA_NG_DREG]	 ||
+	    !tb[NFTA_NG_MODULUS] ||
 	    !tb[NFTA_NG_TYPE])
 		return ERR_PTR(-EINVAL);
 
