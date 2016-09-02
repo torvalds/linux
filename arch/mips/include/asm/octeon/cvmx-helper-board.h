@@ -58,16 +58,6 @@ typedef enum {
 #define CVMX_HELPER_BOARD_MGMT_IPD_PORT	    -10
 
 /**
- * cvmx_override_board_link_get(int ipd_port) is a function
- * pointer. It is meant to allow customization of the process of
- * talking to a PHY to determine link speed. It is called every
- * time a PHY must be polled for link status. Users should set
- * this pointer to a function before calling any cvmx-helper
- * operations.
- */
-extern cvmx_helper_link_info_t(*cvmx_override_board_link_get) (int ipd_port);
-
-/**
  * Return the MII PHY address associated with the given IPD
  * port. A result of -1 means there isn't a MII capable PHY
  * connected to this port. On chips supporting multiple MII

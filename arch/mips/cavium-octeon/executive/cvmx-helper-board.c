@@ -46,17 +46,6 @@
 #include <asm/octeon/cvmx-asxx-defs.h>
 
 /**
- * cvmx_override_board_link_get(int ipd_port) is a function
- * pointer. It is meant to allow customization of the process of
- * talking to a PHY to determine link speed. It is called every
- * time a PHY must be polled for link status. Users should set
- * this pointer to a function before calling any cvmx-helper
- * operations.
- */
-cvmx_helper_link_info_t(*cvmx_override_board_link_get) (int ipd_port) =
-    NULL;
-
-/**
  * Return the MII PHY address associated with the given IPD
  * port. A result of -1 means there isn't a MII capable PHY
  * connected to this port. On chips supporting multiple MII
@@ -224,10 +213,6 @@ cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port)
 	cvmx_helper_link_info_t result;
 	int phy_addr;
 	int is_broadcom_phy = 0;
-
-	/* Give the user a chance to override the processing of this function */
-	if (cvmx_override_board_link_get)
-		return cvmx_override_board_link_get(ipd_port);
 
 	/* Unless we fix it later, all links are defaulted to down */
 	result.u64 = 0;
