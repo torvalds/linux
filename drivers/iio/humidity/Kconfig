@@ -27,6 +27,8 @@ config DHT11
 config HDC100X
 	tristate "TI HDC100x relative humidity and temperature sensor"
 	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Say yes here to build support for the Texas Instruments
 	  HDC1000 and HDC1008 relative humidity and temperature sensors.
