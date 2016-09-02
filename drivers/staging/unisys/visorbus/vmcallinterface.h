@@ -20,10 +20,39 @@
 * Virtualization.  The VMCALLs are provided by Monitor and used by IO code
 * running on IO Partitions.
 */
+static inline unsigned long
+__unisys_vmcall_gnuc(unsigned long tuple, unsigned long reg_ebx,
+		     unsigned long reg_ecx)
+{
+	unsigned long result = 0;
+	unsigned int cpuid_eax, cpuid_ebx, cpuid_ecx, cpuid_edx;
 
-#ifdef __GNUC__
-#include "iovmcall_gnuc.h"
-#endif	/*  */
+	cpuid(0x00000001, &cpuid_eax, &cpuid_ebx, &cpuid_ecx, &cpuid_edx);
+	if (!(cpuid_ecx & 0x80000000))
+		return -EPERM;
+
+	__asm__ __volatile__(".byte 0x00f, 0x001, 0x0c1" : "=a"(result) :
+		"a"(tuple), "b"(reg_ebx), "c"(reg_ecx));
+	return result;
+}
+
+static inline unsigned long
+__unisys_extended_vmcall_gnuc(unsigned long long tuple,
+			      unsigned long long reg_ebx,
+			      unsigned long long reg_ecx,
+			      unsigned long long reg_edx)
+{
+	unsigned long result = 0;
+	unsigned int cpuid_eax, cpuid_ebx, cpuid_ecx, cpuid_edx;
+
+	cpuid(0x00000001, &cpuid_eax, &cpuid_ebx, &cpuid_ecx, &cpuid_edx);
+	if (!(cpuid_ecx & 0x80000000))
+		return -EPERM;
+
+	__asm__ __volatile__(".byte 0x00f, 0x001, 0x0c1" : "=a"(result) :
+		"a"(tuple), "b"(reg_ebx), "c"(reg_ecx), "d"(reg_edx));
+	return result;
+}
 
 #ifdef VMCALL_IO_CONTROLVM_ADDR
 #undef VMCALL_IO_CONTROLVM_ADDR
