@@ -31,7 +31,6 @@
 
 #include "version.h"
 #include "visorbus.h"
-#include "channel.h"
 #include "ultrainputreport.h"
 
 /* Keyboard channel {c73416d0-b0b8-44af-b304-9d2ae99f1b3d} */
