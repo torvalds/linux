@@ -134,6 +134,8 @@ struct vpu_wdt {
  *
  * @signaled:		the signal of vpu initialization completed
  * @fw_ver:		VPU firmware version
+ * @dec_capability:	decoder capability which is not used for now and
+ *			the value is reserved for future use
  * @enc_capability:	encoder capability which is not used for now and
  *			the value is reserved for future use
  * @wq:			wait queue for VPU initialization status
@@ -141,6 +143,7 @@ struct vpu_wdt {
 struct vpu_run {
 	u32 signaled;
 	char fw_ver[VPU_FW_VER_LEN];
+	unsigned int	dec_capability;
 	unsigned int	enc_capability;
 	wait_queue_head_t wq;
 };
@@ -415,6 +418,14 @@ int vpu_wdt_reg_handler(struct platform_device *pdev,
 }
 EXPORT_SYMBOL_GPL(vpu_wdt_reg_handler);
 
+unsigned int vpu_get_vdec_hw_capa(struct platform_device *pdev)
+{
+	struct mtk_vpu *vpu = platform_get_drvdata(pdev);
+
+	return vpu->run.dec_capability;
+}
+EXPORT_SYMBOL_GPL(vpu_get_vdec_hw_capa);
+
 unsigned int vpu_get_venc_hw_capa(struct platform_device *pdev)
 {
 	struct mtk_vpu *vpu = platform_get_drvdata(pdev);
@@ -600,6 +611,7 @@ static void vpu_init_ipi_handler(void *data, unsigned int len, void *priv)
 
 	vpu->run.signaled = run->signaled;
 	strncpy(vpu->run.fw_ver, run->fw_ver, VPU_FW_VER_LEN);
+	vpu->run.dec_capability = run->dec_capability;
 	vpu->run.enc_capability = run->enc_capability;
 	wake_up_interruptible(&vpu->run.wq);
 }
