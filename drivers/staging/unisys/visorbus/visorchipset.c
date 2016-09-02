@@ -98,7 +98,6 @@ static struct delayed_work periodic_controlvm_work;
 
 static struct cdev file_cdev;
 static struct visorchannel **file_controlvm_channel;
-static struct controlvm_message_packet g_devicechangestate_packet;
 
 static LIST_HEAD(bus_info_list);
 static LIST_HEAD(dev_info_list);
@@ -1717,7 +1716,6 @@ handle_command(struct controlvm_message inmsg, u64 channel_addr)
 			 * when sending back the response to Command
 			 */
 			my_device_changestate(&inmsg);
-			g_devicechangestate_packet = inmsg.cmd;
 			break;
 		}
 		break;
