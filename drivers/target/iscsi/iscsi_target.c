@@ -2982,7 +2982,7 @@ iscsit_build_nopin_rsp(struct iscsi_cmd *cmd, struct iscsi_conn *conn,
 
 	pr_debug("Built NOPIN %s Response ITT: 0x%08x, TTT: 0x%08x,"
 		" StatSN: 0x%08x, Length %u\n", (nopout_response) ?
-		"Solicitied" : "Unsolicitied", cmd->init_task_tag,
+		"Solicited" : "Unsolicited", cmd->init_task_tag,
 		cmd->targ_xfer_tag, cmd->stat_sn, cmd->buf_ptr_size);
 }
 EXPORT_SYMBOL(iscsit_build_nopin_rsp);
