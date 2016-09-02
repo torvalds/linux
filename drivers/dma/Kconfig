@@ -167,7 +167,7 @@ config DMA_SUN6I
 
 config EP93XX_DMA
 	bool "Cirrus Logic EP93xx DMA support"
-	depends on ARCH_EP93XX
+	depends on ARCH_EP93XX || COMPILE_TEST
 	select DMA_ENGINE
 	help
 	  Enable support for the Cirrus Logic EP93xx M2P/M2M DMA controller.
