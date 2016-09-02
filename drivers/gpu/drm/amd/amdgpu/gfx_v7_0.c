@@ -2443,7 +2443,7 @@ static int gfx_v7_0_cp_gfx_resume(struct amdgpu_device *adev)
 	return 0;
 }
 
-static u32 gfx_v7_0_ring_get_rptr_gfx(struct amdgpu_ring *ring)
+static u32 gfx_v7_0_ring_get_rptr(struct amdgpu_ring *ring)
 {
 	return ring->adev->wb.wb[ring->rptr_offs];
 }
@@ -2461,11 +2461,6 @@ static void gfx_v7_0_ring_set_wptr_gfx(struct amdgpu_ring *ring)
 
 	WREG32(mmCP_RB0_WPTR, ring->wptr);
 	(void)RREG32(mmCP_RB0_WPTR);
-}
-
-static u32 gfx_v7_0_ring_get_rptr_compute(struct amdgpu_ring *ring)
-{
-	return ring->adev->wb.wb[ring->rptr_offs];
 }
 
 static u32 gfx_v7_0_ring_get_wptr_compute(struct amdgpu_ring *ring)
@@ -4928,7 +4923,7 @@ const struct amd_ip_funcs gfx_v7_0_ip_funcs = {
 };
 
 static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_gfx = {
-	.get_rptr = gfx_v7_0_ring_get_rptr_gfx,
+	.get_rptr = gfx_v7_0_ring_get_rptr,
 	.get_wptr = gfx_v7_0_ring_get_wptr_gfx,
 	.set_wptr = gfx_v7_0_ring_set_wptr_gfx,
 	.parse_cs = NULL,
@@ -4946,7 +4941,7 @@ static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_gfx = {
 };
 
 static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_compute = {
-	.get_rptr = gfx_v7_0_ring_get_rptr_compute,
+	.get_rptr = gfx_v7_0_ring_get_rptr,
 	.get_wptr = gfx_v7_0_ring_get_wptr_compute,
 	.set_wptr = gfx_v7_0_ring_set_wptr_compute,
 	.parse_cs = NULL,
