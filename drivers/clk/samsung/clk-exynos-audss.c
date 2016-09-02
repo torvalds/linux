@@ -39,9 +39,9 @@ static struct clk *epll;
 
 #ifdef CONFIG_PM_SLEEP
 static unsigned long reg_save[][2] = {
-	{ASS_CLK_SRC,  0},
-	{ASS_CLK_DIV,  0},
-	{ASS_CLK_GATE, 0},
+	{ ASS_CLK_SRC,  0 },
+	{ ASS_CLK_DIV,  0 },
+	{ ASS_CLK_GATE, 0 },
 };
 
 static int exynos_audss_clk_suspend(void)
@@ -173,7 +173,7 @@ static int exynos_audss_clk_probe(struct platform_device *pdev)
 			ret = clk_prepare_enable(epll);
 			if (ret) {
 				dev_err(&pdev->dev,
-						"failed to prepare the epll clock\n");
+					"failed to prepare the epll clock\n");
 				return ret;
 			}
 		}
@@ -253,9 +253,6 @@ static int exynos_audss_clk_probe(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 	register_syscore_ops(&exynos_audss_clk_syscore_ops);
 #endif
-
-	dev_info(&pdev->dev, "setup completed\n");
-
 	return 0;
 
 unregister:
