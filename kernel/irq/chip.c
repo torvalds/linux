@@ -756,7 +756,6 @@ void handle_percpu_devid_irq(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct irqaction *action = desc->action;
-	void *dev_id = raw_cpu_ptr(action->percpu_dev_id);
 	unsigned int irq = irq_desc_get_irq(desc);
 	irqreturn_t res;
 
@@ -765,9 +764,20 @@ void handle_percpu_devid_irq(struct irq_desc *desc)
 	if (chip->irq_ack)
 		chip->irq_ack(&desc->irq_data);
 
-	trace_irq_handler_entry(irq, action);
-	res = action->handler(irq, dev_id);
-	trace_irq_handler_exit(irq, action, res);
+	if (likely(action)) {
+		trace_irq_handler_entry(irq, action);
+		res = action->handler(irq, raw_cpu_ptr(action->percpu_dev_id));
+		trace_irq_handler_exit(irq, action, res);
+	} else {
+		unsigned int cpu = smp_processor_id();
+		bool enabled = cpumask_test_cpu(cpu, desc->percpu_enabled);
+
+		if (enabled)
+			irq_percpu_disable(desc, cpu);
+
+		pr_err_once("Spurious%s percpu IRQ%u on CPU%u\n",
+			    enabled ? " and unmasked" : "", irq, cpu);
+	}
 
 	if (chip->irq_eoi)
 		chip->irq_eoi(&desc->irq_data);
