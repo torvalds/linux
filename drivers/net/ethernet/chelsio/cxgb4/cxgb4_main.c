@@ -3094,10 +3094,44 @@ static int dummy_open(struct net_device *dev)
 	return 0;
 }
 
+/* Fill MAC address that will be assigned by the FW */
+static void fill_vf_station_mac_addr(struct adapter *adap)
+{
+	unsigned int i;
+	u8 hw_addr[ETH_ALEN], macaddr[ETH_ALEN];
+	int err;
+	u8 *na;
+	u16 a, b;
+
+	err = t4_get_raw_vpd_params(adap, &adap->params.vpd);
+	if (!err) {
+		na = adap->params.vpd.na;
+		for (i = 0; i < ETH_ALEN; i++)
+			hw_addr[i] = (hex2val(na[2 * i + 0]) * 16 +
+				      hex2val(na[2 * i + 1]));
+		a = (hw_addr[0] << 8) | hw_addr[1];
+		b = (hw_addr[1] << 8) | hw_addr[2];
+		a ^= b;
+		a |= 0x0200;    /* locally assigned Ethernet MAC address */
+		a &= ~0x0100;   /* not a multicast Ethernet MAC address */
+		macaddr[0] = a >> 8;
+		macaddr[1] = a & 0xff;
+
+		for (i = 2; i < 5; i++)
+			macaddr[i] = hw_addr[i + 1];
+
+		for (i = 0; i < adap->num_vfs; i++) {
+			macaddr[5] = adap->pf * 16 + i;
+			ether_addr_copy(adap->vfinfo[i].vf_mac_addr, macaddr);
+		}
+	}
+}
+
 static int cxgb_set_vf_mac(struct net_device *dev, int vf, u8 *mac)
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adap = pi->adapter;
+	int ret;
 
 	/* verify MAC addr is valid */
 	if (!is_valid_ether_addr(mac)) {
@@ -3109,7 +3143,23 @@ static int cxgb_set_vf_mac(struct net_device *dev, int vf, u8 *mac)
 
 	dev_info(pi->adapter->pdev_dev,
 		 "Setting MAC %pM on VF %d\n", mac, vf);
-	return t4_set_vf_mac_acl(adap, vf + 1, 1, mac);
+	ret = t4_set_vf_mac_acl(adap, vf + 1, 1, mac);
+	if (!ret)
+		ether_addr_copy(adap->vfinfo[vf].vf_mac_addr, mac);
+	return ret;
+}
+
+static int cxgb_get_vf_config(struct net_device *dev,
+			      int vf, struct ifla_vf_info *ivi)
+{
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = pi->adapter;
+
+	if (vf >= adap->num_vfs)
+		return -EINVAL;
+	ivi->vf = vf;
+	ether_addr_copy(ivi->mac, adap->vfinfo[vf].vf_mac_addr);
+	return 0;
 }
 #endif
 
@@ -3259,6 +3309,7 @@ static const struct net_device_ops cxgb4_netdev_ops = {
 static const struct net_device_ops cxgb4_mgmt_netdev_ops = {
 	.ndo_open             = dummy_open,
 	.ndo_set_vf_mac       = cxgb_set_vf_mac,
+	.ndo_get_vf_config    = cxgb_get_vf_config,
 };
 #endif
 
@@ -5116,6 +5167,10 @@ static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
 			unregister_netdev(adap->port[0]);
 			adap->port[0] = NULL;
 		}
+		/* free VF resources */
+		kfree(adap->vfinfo);
+		adap->vfinfo = NULL;
+		adap->num_vfs = 0;
 		return num_vfs;
 	}
 
@@ -5124,10 +5179,16 @@ static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
 		if (err)
 			return err;
 
+		adap->num_vfs = num_vfs;
 		err = config_mgmt_dev(pdev);
 		if (err)
 			return err;
 	}
+
+	adap->vfinfo = kcalloc(adap->num_vfs,
+			       sizeof(struct vf_info), GFP_KERNEL);
+	if (adap->vfinfo)
+		fill_vf_station_mac_addr(adap);
 	return num_vfs;
 }
 #endif
@@ -5621,6 +5682,7 @@ static void remove_one(struct pci_dev *pdev)
 		if (adapter->port[0])
 			unregister_netdev(adapter->port[0]);
 		iounmap(adapter->regs);
+		kfree(adapter->vfinfo);
 		kfree(adapter);
 		pci_disable_sriov(pdev);
 		pci_release_regions(pdev);

@@ -788,6 +788,11 @@ struct uld_msix_info {
 	char desc[IFNAMSIZ + 10];
 };
 
+struct vf_info {
+	unsigned char vf_mac_addr[ETH_ALEN];
+	bool pf_set_mac;
+};
+
 struct adapter {
 	void __iomem *regs;
 	void __iomem *bar2;
@@ -820,6 +825,9 @@ struct adapter {
 
 	struct net_device *port[MAX_NPORTS];
 	u8 chan_map[NCHAN];                   /* channel -> port map */
+
+	struct vf_info *vfinfo;
+	u8 num_vfs;
 
 	u32 filter_mode;
 	unsigned int l2t_start;
