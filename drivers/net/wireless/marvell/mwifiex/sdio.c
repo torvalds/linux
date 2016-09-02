@@ -289,7 +289,7 @@ mwifiex_sdio_remove(struct sdio_func *func)
 
 	mwifiex_dbg(adapter, INFO, "info: SDIO func num=%d\n", func->num);
 
-	if (user_rmmod) {
+	if (user_rmmod && !adapter->mfg_mode) {
 		if (adapter->is_suspended)
 			mwifiex_sdio_resume(adapter->dev);
 

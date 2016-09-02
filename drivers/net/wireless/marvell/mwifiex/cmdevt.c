@@ -595,6 +595,14 @@ int mwifiex_send_cmd(struct mwifiex_private *priv, u16 cmd_no,
 			return -1;
 		}
 	}
+	/* We don't expect commands in manufacturing mode. They are cooked
+	 * in application and ready to download buffer is passed to the driver
+	 */
+	if (adapter->mfg_mode && cmd_no) {
+		dev_dbg(adapter->dev, "Ignoring commands in manufacturing mode\n");
+		return -1;
+	}
+
 
 	/* Get a new command node */
 	cmd_node = mwifiex_get_cmd_node(adapter);
