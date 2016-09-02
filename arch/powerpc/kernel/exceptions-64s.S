@@ -175,6 +175,7 @@ data_access_slb_pSeries:
 	std	r3,PACA_EXSLB+EX_R3(r13)
 	mfspr	r3,SPRN_DAR
 	mfspr	r12,SPRN_SRR1
+	crset	4*cr6+eq
 #ifndef CONFIG_RELOCATABLE
 	b	slb_miss_realmode
 #else
@@ -201,6 +202,7 @@ instruction_access_slb_pSeries:
 	std	r3,PACA_EXSLB+EX_R3(r13)
 	mfspr	r3,SPRN_SRR0		/* SRR0 is faulting address */
 	mfspr	r12,SPRN_SRR1
+	crclr	4*cr6+eq
 #ifndef CONFIG_RELOCATABLE
 	b	slb_miss_realmode
 #else
@@ -783,6 +785,7 @@ data_access_slb_relon_pSeries:
 	std	r3,PACA_EXSLB+EX_R3(r13)
 	mfspr	r3,SPRN_DAR
 	mfspr	r12,SPRN_SRR1
+	crset	4*cr6+eq
 #ifndef CONFIG_RELOCATABLE
 	b	slb_miss_realmode
 #else
@@ -808,6 +811,7 @@ instruction_access_slb_relon_pSeries:
 	std	r3,PACA_EXSLB+EX_R3(r13)
 	mfspr	r3,SPRN_SRR0		/* SRR0 is faulting address */
 	mfspr	r12,SPRN_SRR1
+	crclr	4*cr6+eq
 #ifndef CONFIG_RELOCATABLE
 	b	slb_miss_realmode
 #else
@@ -1408,6 +1412,7 @@ unrecover_mce:
  * r3 has the faulting address
  * r9 - r13 are saved in paca->exslb.
  * r3 is saved in paca->slb_r3
+ * cr6.eq is set for a D-SLB miss, clear for a I-SLB miss
  * We assume we aren't going to take any exceptions during this procedure.
  */
 slb_miss_realmode:
@@ -1418,29 +1423,31 @@ slb_miss_realmode:
 
 	stw	r9,PACA_EXSLB+EX_CCR(r13)	/* save CR in exc. frame */
 	std	r10,PACA_EXSLB+EX_LR(r13)	/* save LR */
+	std	r3,PACA_EXSLB+EX_DAR(r13)
 
+	crset	4*cr0+eq
 #ifdef CONFIG_PPC_STD_MMU_64
 BEGIN_MMU_FTR_SECTION
 	bl	slb_allocate_realmode
 END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
 #endif
-	/* All done -- return from exception. */
 
 	ld	r10,PACA_EXSLB+EX_LR(r13)
 	ld	r3,PACA_EXSLB+EX_R3(r13)
 	lwz	r9,PACA_EXSLB+EX_CCR(r13)	/* get saved CR */
-
 	mtlr	r10
+
+	beq	8f		/* if bad address, make full stack frame */
+
 	andi.	r10,r12,MSR_RI	/* check for unrecoverable exception */
-BEGIN_MMU_FTR_SECTION
 	beq-	2f
-FTR_SECTION_ELSE
-	b	2f
-ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
+
+	/* All done -- return from exception. */
 
 .machine	push
 .machine	"power4"
 	mtcrf	0x80,r9
+	mtcrf	0x02,r9		/* I/D indication is in cr6 */
 	mtcrf	0x01,r9		/* slb_allocate uses cr0 and cr7 */
 .machine	pop
 
@@ -1470,6 +1477,27 @@ unrecov_slb:
 	bl	unrecoverable_exception
 	b	1b
 
+8:	mfspr	r11,SPRN_SRR0
+	ld	r10,PACAKBASE(r13)
+	LOAD_HANDLER(r10,bad_addr_slb)
+	mtspr	SPRN_SRR0,r10
+	ld	r10,PACAKMSR(r13)
+	mtspr	SPRN_SRR1,r10
+	rfid
+	b	.
+
+bad_addr_slb:
+	EXCEPTION_PROLOG_COMMON(0x380, PACA_EXSLB)
+	RECONCILE_IRQ_STATE(r10, r11)
+	ld	r3, PACA_EXSLB+EX_DAR(r13)
+	std	r3, _DAR(r1)
+	beq	cr6, 2f
+	li	r10, 0x480		/* fix trap number for I-SLB miss */
+	std	r10, _TRAP(r1)
+2:	bl	save_nvgprs
+	addi	r3, r1, STACK_FRAME_OVERHEAD
+	bl	slb_miss_bad_addr
+	b	ret_from_except
 
 #ifdef CONFIG_PPC_970_NAP
 power4_fixup_nap:
