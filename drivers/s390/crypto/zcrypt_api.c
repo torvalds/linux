@@ -71,7 +71,6 @@ EXPORT_SYMBOL(zcrypt_rescan_req);
 static int zcrypt_rng_device_add(void);
 static void zcrypt_rng_device_remove(void);
 
-static DEFINE_SPINLOCK(zcrypt_ops_list_lock);
 static LIST_HEAD(zcrypt_ops_list);
 
 static debug_info_t *zcrypt_dbf_common;
@@ -318,61 +317,25 @@ EXPORT_SYMBOL(zcrypt_device_unregister);
 
 void zcrypt_msgtype_register(struct zcrypt_ops *zops)
 {
-	spin_lock_bh(&zcrypt_ops_list_lock);
 	list_add_tail(&zops->list, &zcrypt_ops_list);
-	spin_unlock_bh(&zcrypt_ops_list_lock);
 }
-EXPORT_SYMBOL(zcrypt_msgtype_register);
 
 void zcrypt_msgtype_unregister(struct zcrypt_ops *zops)
 {
-	spin_lock_bh(&zcrypt_ops_list_lock);
 	list_del_init(&zops->list);
-	spin_unlock_bh(&zcrypt_ops_list_lock);
 }
-EXPORT_SYMBOL(zcrypt_msgtype_unregister);
 
-static inline
-struct zcrypt_ops *__ops_lookup(unsigned char *name, int variant)
+struct zcrypt_ops *zcrypt_msgtype(unsigned char *name, int variant)
 {
 	struct zcrypt_ops *zops;
-	int found = 0;
 
-	spin_lock_bh(&zcrypt_ops_list_lock);
-	list_for_each_entry(zops, &zcrypt_ops_list, list) {
+	list_for_each_entry(zops, &zcrypt_ops_list, list)
 		if ((zops->variant == variant) &&
-		    (!strncmp(zops->name, name, sizeof(zops->name)))) {
-			found = 1;
-			break;
-		}
-	}
-	if (!found || !try_module_get(zops->owner))
-		zops = NULL;
-
-	spin_unlock_bh(&zcrypt_ops_list_lock);
-
-	return zops;
+		    (!strncmp(zops->name, name, sizeof(zops->name))))
+			return zops;
+	return NULL;
 }
-
-struct zcrypt_ops *zcrypt_msgtype_request(unsigned char *name, int variant)
-{
-	struct zcrypt_ops *zops = NULL;
-
-	zops = __ops_lookup(name, variant);
-	if (!zops) {
-		request_module("%s", name);
-		zops = __ops_lookup(name, variant);
-	}
-	return zops;
-}
-EXPORT_SYMBOL(zcrypt_msgtype_request);
-
-void zcrypt_msgtype_release(struct zcrypt_ops *zops)
-{
-	if (zops)
-		module_put(zops->owner);
-}
-EXPORT_SYMBOL(zcrypt_msgtype_release);
+EXPORT_SYMBOL(zcrypt_msgtype);
 
 /**
  * zcrypt_read (): Not supported beyond zcrypt 1.3.1.

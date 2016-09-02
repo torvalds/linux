@@ -133,8 +133,7 @@ int zcrypt_device_register(struct zcrypt_device *);
 void zcrypt_device_unregister(struct zcrypt_device *);
 void zcrypt_msgtype_register(struct zcrypt_ops *);
 void zcrypt_msgtype_unregister(struct zcrypt_ops *);
-struct zcrypt_ops *zcrypt_msgtype_request(unsigned char *, int);
-void zcrypt_msgtype_release(struct zcrypt_ops *);
+struct zcrypt_ops *zcrypt_msgtype(unsigned char *, int);
 int zcrypt_api_init(void);
 void zcrypt_api_exit(void);
 

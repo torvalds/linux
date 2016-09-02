@@ -322,11 +322,11 @@ static int zcrypt_pcixcc_probe(struct ap_device *ap_dev)
 		return rc;
 	}
 	if (rc)
-		zdev->ops = zcrypt_msgtype_request(MSGTYPE06_NAME,
-						   MSGTYPE06_VARIANT_DEFAULT);
+		zdev->ops = zcrypt_msgtype(MSGTYPE06_NAME,
+					   MSGTYPE06_VARIANT_DEFAULT);
 	else
-		zdev->ops = zcrypt_msgtype_request(MSGTYPE06_NAME,
-						   MSGTYPE06_VARIANT_NORNG);
+		zdev->ops = zcrypt_msgtype(MSGTYPE06_NAME,
+					   MSGTYPE06_VARIANT_NORNG);
 	ap_device_init_reply(ap_dev, &zdev->reply);
 	ap_dev->private = zdev;
 	rc = zcrypt_device_register(zdev);
@@ -336,7 +336,6 @@ static int zcrypt_pcixcc_probe(struct ap_device *ap_dev)
 
  out_free:
 	ap_dev->private = NULL;
-	zcrypt_msgtype_release(zdev->ops);
 	zcrypt_device_free(zdev);
 	return rc;
 }
@@ -348,10 +347,8 @@ static int zcrypt_pcixcc_probe(struct ap_device *ap_dev)
 static void zcrypt_pcixcc_remove(struct ap_device *ap_dev)
 {
 	struct zcrypt_device *zdev = ap_dev->private;
-	struct zcrypt_ops *zops = zdev->ops;
 
 	zcrypt_device_unregister(zdev);
-	zcrypt_msgtype_release(zops);
 }
 
 int __init zcrypt_pcixcc_init(void)
