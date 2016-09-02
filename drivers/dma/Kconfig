@@ -439,9 +439,8 @@ config STE_DMA40
 
 config STM32_DMA
 	bool "STMicroelectronics STM32 DMA support"
-	depends on ARCH_STM32
+	depends on ARCH_STM32 || COMPILE_TEST
 	select DMA_ENGINE
-	select DMA_OF
 	select DMA_VIRTUAL_CHANNELS
 	help
 	  Enable support for the on-chip DMA controller on STMicroelectronics
