@@ -1008,10 +1008,12 @@ static void hp_work(struct work_struct *work)
 	}
 }
 
+static struct snd_soc_codec *es8316_codec;
 static int es8316_probe(struct snd_soc_codec *codec)
 {
 	struct es8316_priv *es8316 = snd_soc_codec_get_drvdata(codec);
 	int ret = 0;
+	es8316_codec = codec;
 
 	es8316->mclk = devm_clk_get(codec->dev, "mclk");
 	if (PTR_ERR(es8316->mclk) == -EPROBE_DEFER)
@@ -1171,6 +1173,17 @@ static  int es8316_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
+static void es8316_i2c_shutdown(struct i2c_client *client)
+{
+	struct es8316_priv *es8316 = i2c_get_clientdata(client);
+
+	if (es8316_codec != NULL) {
+		es8316_enable_spk(es8316, false);
+		msleep(20);
+		es8316_set_bias_level(es8316_codec, SND_SOC_BIAS_OFF);
+	}
+}
+
 static const struct i2c_device_id es8316_i2c_id[] = {
 	{"es8316", 0},
 	{"10ES8316:00", 0},
@@ -1192,6 +1205,7 @@ static struct i2c_driver es8316_i2c_driver = {
 	},
 	.probe    = es8316_i2c_probe,
 	.remove   = es8316_i2c_remove,
+	.shutdown = es8316_i2c_shutdown,
 	.id_table = es8316_i2c_id,
 };
 
