@@ -521,8 +521,10 @@ void cvm_oct_link_poll(struct net_device *dev)
 	if (link_info.u64 == priv->link_info)
 		return;
 
-	link_info = cvmx_helper_link_autoconf(priv->port);
-	priv->link_info = link_info.u64;
+	if (cvmx_helper_link_set(priv->port, link_info))
+		link_info.u64 = priv->link_info;
+	else
+		priv->link_info = link_info.u64;
 
 	if (link_info.s.link_up) {
 		if (!netif_carrier_ok(dev))
