@@ -5831,7 +5831,7 @@ static int gfx_v8_0_set_clockgating_state(void *handle,
 	return 0;
 }
 
-static u32 gfx_v8_0_ring_get_rptr_gfx(struct amdgpu_ring *ring)
+static u32 gfx_v8_0_ring_get_rptr(struct amdgpu_ring *ring)
 {
 	return ring->adev->wb.wb[ring->rptr_offs];
 }
@@ -6047,11 +6047,6 @@ static void gfx_v8_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	}
 }
 
-static u32 gfx_v8_0_ring_get_rptr_compute(struct amdgpu_ring *ring)
-{
-	return ring->adev->wb.wb[ring->rptr_offs];
-}
-
 static u32 gfx_v8_0_ring_get_wptr_compute(struct amdgpu_ring *ring)
 {
 	return ring->adev->wb.wb[ring->wptr_offs];
@@ -6259,7 +6254,7 @@ const struct amd_ip_funcs gfx_v8_0_ip_funcs = {
 };
 
 static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_gfx = {
-	.get_rptr = gfx_v8_0_ring_get_rptr_gfx,
+	.get_rptr = gfx_v8_0_ring_get_rptr,
 	.get_wptr = gfx_v8_0_ring_get_wptr_gfx,
 	.set_wptr = gfx_v8_0_ring_set_wptr_gfx,
 	.parse_cs = NULL,
@@ -6278,7 +6273,7 @@ static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_gfx = {
 };
 
 static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_compute = {
-	.get_rptr = gfx_v8_0_ring_get_rptr_compute,
+	.get_rptr = gfx_v8_0_ring_get_rptr,
 	.get_wptr = gfx_v8_0_ring_get_wptr_compute,
 	.set_wptr = gfx_v8_0_ring_set_wptr_compute,
 	.parse_cs = NULL,
