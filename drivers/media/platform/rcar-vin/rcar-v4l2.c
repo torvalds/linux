@@ -102,6 +102,7 @@ static int __rvin_try_format_source(struct rvin_dev *vin,
 	struct v4l2_subdev_format format = {
 		.which = which,
 	};
+	enum v4l2_field field;
 	int ret;
 
 	sd = vin_to_source(vin);
@@ -114,11 +115,15 @@ static int __rvin_try_format_source(struct rvin_dev *vin,
 
 	format.pad = vin->src_pad_idx;
 
+	field = pix->field;
+
 	ret = v4l2_subdev_call(sd, pad, set_fmt, pad_cfg, &format);
 	if (ret < 0 && ret != -ENOIOCTLCMD)
 		goto done;
 
 	v4l2_fill_pix_format(pix, &format.format);
+
+	pix->field = field;
 
 	source->width = pix->width;
 	source->height = pix->height;
@@ -142,6 +147,10 @@ static int __rvin_try_format(struct rvin_dev *vin,
 	/* Requested */
 	rwidth = pix->width;
 	rheight = pix->height;
+
+	/* Keep current field if no specific one is asked for */
+	if (pix->field == V4L2_FIELD_ANY)
+		pix->field = vin->format.field;
 
 	/*
 	 * Retrieve format information and select the current format if the
