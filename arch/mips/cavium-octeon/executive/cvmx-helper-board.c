@@ -36,8 +36,6 @@
 
 #include <asm/octeon/cvmx-config.h>
 
-#include <asm/octeon/cvmx-mdio.h>
-
 #include <asm/octeon/cvmx-helper.h>
 #include <asm/octeon/cvmx-helper-util.h>
 #include <asm/octeon/cvmx-helper-board.h>
