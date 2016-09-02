@@ -71,6 +71,7 @@ static unsigned int count_array[15] = {0,};
 static unsigned long old_jiffy_array[15] = {0,};
 static int rkvr_index;
 static int opens;
+static char sync_string[64];
 
 struct sensor_hid_data {
 	void *priv;
@@ -566,6 +567,80 @@ static int rkvr_report_event(struct hid_device *hid, u8 *data, int len)
 	return ret;
 }
 
+/*
+ * for enable sensor data
+ ************************************
+ * buf contents ---->
+ * first 8 bytes :random digits
+ * left bytes    :encryt data
+ * eg:32654:3AA4618F6B455D37F06279EC2D6BC478C759443277F3E4E982203562E7ED
+ ***********************************
+ */
+
+static int hid_report_sync(struct device *dev, const char *data, size_t len)
+{
+	struct hid_device *hid = container_of(dev, struct hid_device, dev);
+	u64 *tmp;
+	unsigned char buf[64];
+	unsigned char buf2[3] = {0};
+	char *colon;
+	int i, ret = 0;
+	char *p;
+	unsigned char report_number = HID_REPORT_ID_CRYP;
+	unsigned char report_type = HID_SYNCW_REPORT;
+
+	p = kmalloc(sizeof(*p) * len, GFP_KERNEL);
+	if (!p) {
+		hid_err(hid, "no mem\n");
+		return -ENOMEM;
+	}
+	memcpy(p, data, len);
+	colon = strchr(p, ':');
+	if (!colon) {
+		hid_err(hid, "must have conlon\n");
+		ret = -EINVAL;
+		goto fail;
+	}
+	if (colon - p + 1 >= len) {
+		hid_err(hid, "must have sync string after conlon\n");
+		ret = -EINVAL;
+		goto fail;
+	}
+	colon[0] = 0;
+	colon++;
+	tmp = (u64 *)(buf + 1);
+	if (kstrtoull(p, 10, tmp)) {
+		hid_err(hid, "convert rand string fail,only decimal string allowed\n");
+		ret = -EINVAL;
+		goto fail;
+	}
+	len = min((len - (colon - p)) / 2, sizeof(buf) - 9);
+	for (i = 0; i < len; i++) {
+		buf2[0] = colon[i * 2];
+		buf2[1] = colon[i * 2 + 1];
+		if (kstrtou8(buf2, 16, &buf[9 + i])) {
+			hid_err(hid, "err sync string,only hex string allowed\n");
+			ret = -EINVAL;
+			goto fail;
+		}
+	}
+
+	len = i + 9;
+	ret = hid_hw_raw_request(hid, report_number, (unsigned char *)buf, len,
+		report_type, HID_REQ_SET_REPORT);
+	if (ret != len) {
+		hid_err(hid, "hid_report_encrypt fail\n");
+		ret = -EIO;
+		goto fail;
+	}
+	hid_info(hid, "hid_report_encrypt ok\n");
+	ret = 0;
+fail:
+	kfree(p);
+
+	return ret;
+}
+
 static void hid_report_fill_rw(unsigned char *buf, u8 reg, u8 *data, int len, int w)
 {
 	if (w)
@@ -577,13 +652,12 @@ static void hid_report_fill_rw(unsigned char *buf, u8 reg, u8 *data, int len, in
 }
 
 #if DEBUG_SYS
-#define HID_OUTPUT_READREG	3
 
 static int hid_report_readreg(struct device *dev, u8 reg, u8 *data, int len)
 {
 	struct hid_device *hid = container_of(dev, struct hid_device, dev);
 	unsigned char report_number = reg;
-	unsigned char report_type = HID_OUTPUT_READREG;
+	unsigned char report_type = HID_REGR_REPORT;
 	char buf[1 + sizeof(data) * len];
 	int readlen = 1 + sizeof(data) * len;
 	int ret;
@@ -602,8 +676,8 @@ static int hid_report_readreg(struct device *dev, u8 reg, u8 *data, int len)
 static int hid_report_writereg(struct device *dev, u8 reg, u8 data)
 {
 	struct hid_device *hid = container_of(dev, struct hid_device, dev);
-	unsigned char report_number = 5;
-	unsigned char report_type = HID_OUTPUT_REPORT;
+	unsigned char report_number = HID_REPORT_ID_W;
+	unsigned char report_type = HID_REGW_REPORT;
 	char buf[3 + sizeof(data)];
 	int ret;
 
@@ -621,12 +695,11 @@ static ssize_t rkvr_dev_attr_debug_store(struct device *dev, struct device_attri
 			const char *buf, size_t count)
 {
 	struct hidraw *devraw;
-	struct hid_device *hid = container_of(dev, struct hid_device, dev);
 
 	devraw = dev_get_drvdata(dev);
 	if (0 == strncmp(buf, "write", 5))
 		hid_report_writereg(&devraw->hid->dev, 0, 0);
-	hid_info(hid, "%s\n", buf);
+	hid_info(devraw->hid, "%s\n", buf);
 
 	return count;
 }
@@ -647,13 +720,23 @@ static ssize_t rkvr_dev_attr_debug_show(struct device *dev, struct device_attrib
 	return count;
 }
 static DEVICE_ATTR(debug, 0664, rkvr_dev_attr_debug_show, rkvr_dev_attr_debug_store);
+
+static ssize_t rkvr_dev_attr_sync_store(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct hidraw *devraw = dev_get_drvdata(dev);
+
+	return hid_report_sync(&devraw->hid->dev, buf, count);
+}
+
+static DEVICE_ATTR(sync, S_IWUSR, NULL, rkvr_dev_attr_sync_store);
 #endif
 
 static int rkvr_hid_read(struct rkvr_iio_hw_device *hdev, int reg, unsigned char *data, int len)
 {
 	struct hid_device *hid = container_of(hdev->dev, struct hid_device, dev);
 	unsigned char report_number = reg;
-	unsigned char report_type = HID_OUTPUT_READREG;
+	unsigned char report_type = HID_REGR_REPORT;
 	char buf[1 + sizeof(data) * len];
 	int readlen = 1 + sizeof(data) * len;
 	int ret;
@@ -671,8 +754,8 @@ static int rkvr_hid_read(struct rkvr_iio_hw_device *hdev, int reg, unsigned char
 static int rkvr_hid_write(struct rkvr_iio_hw_device *hdev, int reg, unsigned char data)
 {
 	struct hid_device *hid = container_of(hdev->dev, struct hid_device, dev);
-	unsigned char report_number = 5;
-	unsigned char report_type = HID_OUTPUT_REPORT;
+	unsigned char report_number = HID_REPORT_ID_W;
+	unsigned char report_type = HID_REGW_REPORT;
 	char buf[3 + sizeof(data)];
 	int ret;
 
@@ -758,6 +841,7 @@ static int rkvr_connect(struct hid_device *hid)
 	dev_set_drvdata(dev->dev, dev);
 #if DEBUG_SYS
 	device_create_file(dev->dev, &dev_attr_debug);
+	device_create_file(dev->dev, &dev_attr_sync);
 #endif
 
 	{
@@ -804,6 +888,8 @@ static int rkvr_connect(struct hid_device *hid)
 		hid_err(hid, "rkvr_connect:hid_hw_open fail\n");
 		goto out;
 	}
+	if (strlen(sync_string))
+		hid_report_sync(&hid->dev, sync_string, strlen(sync_string));
 
 	init_waitqueue_head(&dev->wait);
 	spin_lock_init(&dev->list_lock);
@@ -892,6 +978,7 @@ static void rkvr_disconnect(struct hid_device *hid)
 	inv_hid_unregister_and_destroy_devcie_by_name("hid-rkvr");
 #if DEBUG_SYS
 	device_remove_file(hidraw->dev, &dev_attr_debug);
+	device_remove_file(hidraw->dev, &dev_attr_sync);
 #endif
 
 	device_destroy(rkvr_class, MKDEV(rkvr_major, hidraw->minor));
@@ -1033,6 +1120,41 @@ int rkvr_sensor_register_callback(int (*callback)(char *, size_t, void *), void 
 }
 EXPORT_SYMBOL_GPL(rkvr_sensor_register_callback);
 
+static int rkvr_sync_exec(const char *p, size_t c)
+{
+	int minor;
+	int ret = c;
+	int exist = 0;
+
+	mutex_lock(&minors_lock);
+	pr_info("rkvr_sync_exec %s\n", p);
+	for (minor = 0; minor < RKVR_HIDRAW_MAX_DEVICES; minor++) {
+		if (!rkvr_hidraw_table[minor] || !rkvr_hidraw_table[minor]->exist)
+			continue;
+		if (hid_report_sync(&rkvr_hidraw_table[minor]->hid->dev, p, c)) {
+			hid_err(rkvr_hidraw_table[minor]->hid, "hid_report_sync failed\n");
+			ret = -EIO;
+			goto exit;
+		}
+		exist++;
+	}
+	if (!exist)
+		ret = -ENODEV;
+exit:
+	mutex_unlock(&minors_lock);
+
+	return ret;
+}
+
+int rkvr_sensor_sync_inv(const char *p, size_t c)
+{
+	snprintf(sync_string, sizeof(sync_string), "%s", p);
+
+	return rkvr_sync_exec(sync_string, strlen(sync_string));
+}
+
+EXPORT_SYMBOL_GPL(rkvr_sensor_sync_inv);
+
 static int rkvr_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	int retval;
@@ -1102,7 +1224,7 @@ static int rkvr_raw_event(struct hid_device *hdev, struct hid_report *report, u8
 	if (++count >= 1000) {
 		unsigned long cur_jiffy = jiffies;
 
-		hid_info(hdev, "rkvr: %d Hz, hidrkvr %d\n", (int)(1000 * HZ / (cur_jiffy - old_jiffy)), (hdev->hidraw ? 1 : 0));
+		hid_dbg(hdev, "rkvr: %d Hz, hidrkvr %d\n", (int)(1000 * HZ / (cur_jiffy - old_jiffy)), (hdev->hidraw ? 1 : 0));
 		count = 0;
 		old_jiffy = cur_jiffy;
 	}

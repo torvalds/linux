@@ -9,6 +9,16 @@
 #ifndef __HID_RKVR_H
 #define __HID_RKVR_H
 
+#define HIDRKVRHANDSHAKE(len)	_IOC(_IOC_WRITE, 'H', 0x07, len)
+#define HID_REPORT_ID_R	4
+#define HID_REPORT_ID_W	5
+#define HID_REPORT_ID_CRYP	6
+#define HID_REGR_REPORT	(4 - 1)
+#define HID_REGW_REPORT	(5 - 1)
+
+#define HID_SYNCW_REPORT	(7 - 1)
+#define HID_SYNCR_REPORT	(8 - 1)
+
 enum tracker_message_type {
 	TrackerMessage_None              = 0,
 	TrackerMessage_Sensors           = 1,
@@ -21,6 +31,7 @@ enum tracker_message_type {
 #define DYNAMIC_LOAD_MPU6500 0
 
 int rkvr_sensor_register_callback(int (*callback)(char *, size_t, void *), void *priv);
+int rkvr_sensor_sync_inv(const char *p, size_t c);
 
 struct rkvr_iio_hw_device {
 	struct device *dev;
