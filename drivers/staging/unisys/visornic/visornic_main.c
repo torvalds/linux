@@ -29,8 +29,6 @@
 #include "iochannel.h"
 
 #define VISORNIC_INFINITE_RSP_WAIT 0
-#define VISORNICSOPENMAX 32
-#define MAXDEVICES     16384
 
 /* MAX_BUF = 64 lines x 32 MAXVNIC x 80 characters
  *         = 163840 bytes
