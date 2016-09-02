@@ -650,8 +650,11 @@ int ccp_dmaengine_register(struct ccp_device *ccp)
 	dma_desc_cache_name = devm_kasprintf(ccp->dev, GFP_KERNEL,
 					     "%s-dmaengine-desc-cache",
 					     ccp->name);
-	if (!dma_cmd_cache_name)
-		return -ENOMEM;
+	if (!dma_cmd_cache_name) {
+		ret = -ENOMEM;
+		goto err_cache;
+	}
+
 	ccp->dma_desc_cache = kmem_cache_create(dma_desc_cache_name,
 						sizeof(struct ccp_dma_desc),
 						sizeof(void *),
