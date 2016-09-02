@@ -20,287 +20,6 @@
 #include <net/af_rxrpc.h>
 #include "ar-internal.h"
 
-static int rxrpc_send_data(struct rxrpc_sock *rx,
-			   struct rxrpc_call *call,
-			   struct msghdr *msg, size_t len);
-
-/*
- * extract control messages from the sendmsg() control buffer
- */
-static int rxrpc_sendmsg_cmsg(struct msghdr *msg,
-			      unsigned long *user_call_ID,
-			      enum rxrpc_command *command,
-			      u32 *abort_code,
-			      bool *_exclusive)
-{
-	struct cmsghdr *cmsg;
-	bool got_user_ID = false;
-	int len;
-
-	*command = RXRPC_CMD_SEND_DATA;
-
-	if (msg->msg_controllen == 0)
-		return -EINVAL;
-
-	for_each_cmsghdr(cmsg, msg) {
-		if (!CMSG_OK(msg, cmsg))
-			return -EINVAL;
-
-		len = cmsg->cmsg_len - CMSG_ALIGN(sizeof(struct cmsghdr));
-		_debug("CMSG %d, %d, %d",
-		       cmsg->cmsg_level, cmsg->cmsg_type, len);
-
-		if (cmsg->cmsg_level != SOL_RXRPC)
-			continue;
-
-		switch (cmsg->cmsg_type) {
-		case RXRPC_USER_CALL_ID:
-			if (msg->msg_flags & MSG_CMSG_COMPAT) {
-				if (len != sizeof(u32))
-					return -EINVAL;
-				*user_call_ID = *(u32 *) CMSG_DATA(cmsg);
-			} else {
-				if (len != sizeof(unsigned long))
-					return -EINVAL;
-				*user_call_ID = *(unsigned long *)
-					CMSG_DATA(cmsg);
-			}
-			_debug("User Call ID %lx", *user_call_ID);
-			got_user_ID = true;
-			break;
-
-		case RXRPC_ABORT:
-			if (*command != RXRPC_CMD_SEND_DATA)
-				return -EINVAL;
-			*command = RXRPC_CMD_SEND_ABORT;
-			if (len != sizeof(*abort_code))
-				return -EINVAL;
-			*abort_code = *(unsigned int *) CMSG_DATA(cmsg);
-			_debug("Abort %x", *abort_code);
-			if (*abort_code == 0)
-				return -EINVAL;
-			break;
-
-		case RXRPC_ACCEPT:
-			if (*command != RXRPC_CMD_SEND_DATA)
-				return -EINVAL;
-			*command = RXRPC_CMD_ACCEPT;
-			if (len != 0)
-				return -EINVAL;
-			break;
-
-		case RXRPC_EXCLUSIVE_CALL:
-			*_exclusive = true;
-			if (len != 0)
-				return -EINVAL;
-			break;
-		default:
-			return -EINVAL;
-		}
-	}
-
-	if (!got_user_ID)
-		return -EINVAL;
-	_leave(" = 0");
-	return 0;
-}
-
-/*
- * abort a call, sending an ABORT packet to the peer
- */
-static void rxrpc_send_abort(struct rxrpc_call *call, u32 abort_code)
-{
-	if (call->state >= RXRPC_CALL_COMPLETE)
-		return;
-
-	write_lock_bh(&call->state_lock);
-
-	if (__rxrpc_abort_call(call, abort_code, ECONNABORTED)) {
-		del_timer_sync(&call->resend_timer);
-		del_timer_sync(&call->ack_timer);
-		clear_bit(RXRPC_CALL_EV_RESEND_TIMER, &call->events);
-		clear_bit(RXRPC_CALL_EV_ACK, &call->events);
-		clear_bit(RXRPC_CALL_RUN_RTIMER, &call->flags);
-		rxrpc_queue_call(call);
-	}
-
-	write_unlock_bh(&call->state_lock);
-}
-
-/*
- * Create a new client call for sendmsg().
- */
-static struct rxrpc_call *
-rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
-				  unsigned long user_call_ID, bool exclusive)
-{
-	struct rxrpc_conn_parameters cp;
-	struct rxrpc_call *call;
-	struct key *key;
-
-	DECLARE_SOCKADDR(struct sockaddr_rxrpc *, srx, msg->msg_name);
-
-	_enter("");
-
-	if (!msg->msg_name)
-		return ERR_PTR(-EDESTADDRREQ);
-
-	key = rx->key;
-	if (key && !rx->key->payload.data[0])
-		key = NULL;
-
-	memset(&cp, 0, sizeof(cp));
-	cp.local		= rx->local;
-	cp.key			= rx->key;
-	cp.security_level	= rx->min_sec_level;
-	cp.exclusive		= rx->exclusive | exclusive;
-	cp.service_id		= srx->srx_service;
-	call = rxrpc_new_client_call(rx, &cp, srx, user_call_ID, GFP_KERNEL);
-
-	_leave(" = %p\n", call);
-	return call;
-}
-
-/*
- * send a message forming part of a client call through an RxRPC socket
- * - caller holds the socket locked
- * - the socket may be either a client socket or a server socket
- */
-int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
-{
-	enum rxrpc_command cmd;
-	struct rxrpc_call *call;
-	unsigned long user_call_ID = 0;
-	bool exclusive = false;
-	u32 abort_code = 0;
-	int ret;
-
-	_enter("");
-
-	ret = rxrpc_sendmsg_cmsg(msg, &user_call_ID, &cmd, &abort_code,
-				 &exclusive);
-	if (ret < 0)
-		return ret;
-
-	if (cmd == RXRPC_CMD_ACCEPT) {
-		if (rx->sk.sk_state != RXRPC_SERVER_LISTENING)
-			return -EINVAL;
-		call = rxrpc_accept_call(rx, user_call_ID, NULL);
-		if (IS_ERR(call))
-			return PTR_ERR(call);
-		rxrpc_put_call(call);
-		return 0;
-	}
-
-	call = rxrpc_find_call_by_user_ID(rx, user_call_ID);
-	if (!call) {
-		if (cmd != RXRPC_CMD_SEND_DATA)
-			return -EBADSLT;
-		call = rxrpc_new_client_call_for_sendmsg(rx, msg, user_call_ID,
-							 exclusive);
-		if (IS_ERR(call))
-			return PTR_ERR(call);
-	}
-
-	rxrpc_see_call(call);
-	_debug("CALL %d USR %lx ST %d on CONN %p",
-	       call->debug_id, call->user_call_ID, call->state, call->conn);
-
-	if (call->state >= RXRPC_CALL_COMPLETE) {
-		/* it's too late for this call */
-		ret = -ESHUTDOWN;
-	} else if (cmd == RXRPC_CMD_SEND_ABORT) {
-		rxrpc_send_abort(call, abort_code);
-		ret = 0;
-	} else if (cmd != RXRPC_CMD_SEND_DATA) {
-		ret = -EINVAL;
-	} else if (rxrpc_is_client_call(call) &&
-		   call->state != RXRPC_CALL_CLIENT_SEND_REQUEST) {
-		/* request phase complete for this client call */
-		ret = -EPROTO;
-	} else if (rxrpc_is_service_call(call) &&
-		   call->state != RXRPC_CALL_SERVER_ACK_REQUEST &&
-		   call->state != RXRPC_CALL_SERVER_SEND_REPLY) {
-		/* Reply phase not begun or not complete for service call. */
-		ret = -EPROTO;
-	} else {
-		ret = rxrpc_send_data(rx, call, msg, len);
-	}
-
-	rxrpc_put_call(call);
-	_leave(" = %d", ret);
-	return ret;
-}
-
-/**
- * rxrpc_kernel_send_data - Allow a kernel service to send data on a call
- * @sock: The socket the call is on
- * @call: The call to send data through
- * @msg: The data to send
- * @len: The amount of data to send
- *
- * Allow a kernel service to send data on a call.  The call must be in an state
- * appropriate to sending data.  No control data should be supplied in @msg,
- * nor should an address be supplied.  MSG_MORE should be flagged if there's
- * more data to come, otherwise this data will end the transmission phase.
- */
-int rxrpc_kernel_send_data(struct socket *sock, struct rxrpc_call *call,
-			   struct msghdr *msg, size_t len)
-{
-	int ret;
-
-	_enter("{%d,%s},", call->debug_id, rxrpc_call_states[call->state]);
-
-	ASSERTCMP(msg->msg_name, ==, NULL);
-	ASSERTCMP(msg->msg_control, ==, NULL);
-
-	lock_sock(sock->sk);
-
-	_debug("CALL %d USR %lx ST %d on CONN %p",
-	       call->debug_id, call->user_call_ID, call->state, call->conn);
-
-	if (call->state >= RXRPC_CALL_COMPLETE) {
-		ret = -ESHUTDOWN; /* it's too late for this call */
-	} else if (call->state != RXRPC_CALL_CLIENT_SEND_REQUEST &&
-		   call->state != RXRPC_CALL_SERVER_ACK_REQUEST &&
-		   call->state != RXRPC_CALL_SERVER_SEND_REPLY) {
-		ret = -EPROTO; /* request phase complete for this client call */
-	} else {
-		ret = rxrpc_send_data(rxrpc_sk(sock->sk), call, msg, len);
-	}
-
-	release_sock(sock->sk);
-	_leave(" = %d", ret);
-	return ret;
-}
-EXPORT_SYMBOL(rxrpc_kernel_send_data);
-
-/**
- * rxrpc_kernel_abort_call - Allow a kernel service to abort a call
- * @sock: The socket the call is on
- * @call: The call to be aborted
- * @abort_code: The abort code to stick into the ABORT packet
- *
- * Allow a kernel service to abort a call, if it's still in an abortable state.
- */
-void rxrpc_kernel_abort_call(struct socket *sock, struct rxrpc_call *call,
-			     u32 abort_code)
-{
-	_enter("{%d},%d", call->debug_id, abort_code);
-
-	lock_sock(sock->sk);
-
-	_debug("CALL %d USR %lx ST %d on CONN %p",
-	       call->debug_id, call->user_call_ID, call->state, call->conn);
-
-	rxrpc_send_abort(call, abort_code);
-
-	release_sock(sock->sk);
-	_leave("");
-}
-
-EXPORT_SYMBOL(rxrpc_kernel_abort_call);
-
 /*
  * wait for space to appear in the transmit/ACK window
  * - caller holds the socket locked
@@ -643,3 +362,280 @@ efault:
 	ret = -EFAULT;
 	goto out;
 }
+
+/*
+ * extract control messages from the sendmsg() control buffer
+ */
+static int rxrpc_sendmsg_cmsg(struct msghdr *msg,
+			      unsigned long *user_call_ID,
+			      enum rxrpc_command *command,
+			      u32 *abort_code,
+			      bool *_exclusive)
+{
+	struct cmsghdr *cmsg;
+	bool got_user_ID = false;
+	int len;
+
+	*command = RXRPC_CMD_SEND_DATA;
+
+	if (msg->msg_controllen == 0)
+		return -EINVAL;
+
+	for_each_cmsghdr(cmsg, msg) {
+		if (!CMSG_OK(msg, cmsg))
+			return -EINVAL;
+
+		len = cmsg->cmsg_len - CMSG_ALIGN(sizeof(struct cmsghdr));
+		_debug("CMSG %d, %d, %d",
+		       cmsg->cmsg_level, cmsg->cmsg_type, len);
+
+		if (cmsg->cmsg_level != SOL_RXRPC)
+			continue;
+
+		switch (cmsg->cmsg_type) {
+		case RXRPC_USER_CALL_ID:
+			if (msg->msg_flags & MSG_CMSG_COMPAT) {
+				if (len != sizeof(u32))
+					return -EINVAL;
+				*user_call_ID = *(u32 *) CMSG_DATA(cmsg);
+			} else {
+				if (len != sizeof(unsigned long))
+					return -EINVAL;
+				*user_call_ID = *(unsigned long *)
+					CMSG_DATA(cmsg);
+			}
+			_debug("User Call ID %lx", *user_call_ID);
+			got_user_ID = true;
+			break;
+
+		case RXRPC_ABORT:
+			if (*command != RXRPC_CMD_SEND_DATA)
+				return -EINVAL;
+			*command = RXRPC_CMD_SEND_ABORT;
+			if (len != sizeof(*abort_code))
+				return -EINVAL;
+			*abort_code = *(unsigned int *) CMSG_DATA(cmsg);
+			_debug("Abort %x", *abort_code);
+			if (*abort_code == 0)
+				return -EINVAL;
+			break;
+
+		case RXRPC_ACCEPT:
+			if (*command != RXRPC_CMD_SEND_DATA)
+				return -EINVAL;
+			*command = RXRPC_CMD_ACCEPT;
+			if (len != 0)
+				return -EINVAL;
+			break;
+
+		case RXRPC_EXCLUSIVE_CALL:
+			*_exclusive = true;
+			if (len != 0)
+				return -EINVAL;
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+
+	if (!got_user_ID)
+		return -EINVAL;
+	_leave(" = 0");
+	return 0;
+}
+
+/*
+ * abort a call, sending an ABORT packet to the peer
+ */
+static void rxrpc_send_abort(struct rxrpc_call *call, u32 abort_code)
+{
+	if (call->state >= RXRPC_CALL_COMPLETE)
+		return;
+
+	write_lock_bh(&call->state_lock);
+
+	if (__rxrpc_abort_call(call, abort_code, ECONNABORTED)) {
+		del_timer_sync(&call->resend_timer);
+		del_timer_sync(&call->ack_timer);
+		clear_bit(RXRPC_CALL_EV_RESEND_TIMER, &call->events);
+		clear_bit(RXRPC_CALL_EV_ACK, &call->events);
+		clear_bit(RXRPC_CALL_RUN_RTIMER, &call->flags);
+		rxrpc_queue_call(call);
+	}
+
+	write_unlock_bh(&call->state_lock);
+}
+
+/*
+ * Create a new client call for sendmsg().
+ */
+static struct rxrpc_call *
+rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
+				  unsigned long user_call_ID, bool exclusive)
+{
+	struct rxrpc_conn_parameters cp;
+	struct rxrpc_call *call;
+	struct key *key;
+
+	DECLARE_SOCKADDR(struct sockaddr_rxrpc *, srx, msg->msg_name);
+
+	_enter("");
+
+	if (!msg->msg_name)
+		return ERR_PTR(-EDESTADDRREQ);
+
+	key = rx->key;
+	if (key && !rx->key->payload.data[0])
+		key = NULL;
+
+	memset(&cp, 0, sizeof(cp));
+	cp.local		= rx->local;
+	cp.key			= rx->key;
+	cp.security_level	= rx->min_sec_level;
+	cp.exclusive		= rx->exclusive | exclusive;
+	cp.service_id		= srx->srx_service;
+	call = rxrpc_new_client_call(rx, &cp, srx, user_call_ID, GFP_KERNEL);
+
+	_leave(" = %p\n", call);
+	return call;
+}
+
+/*
+ * send a message forming part of a client call through an RxRPC socket
+ * - caller holds the socket locked
+ * - the socket may be either a client socket or a server socket
+ */
+int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
+{
+	enum rxrpc_command cmd;
+	struct rxrpc_call *call;
+	unsigned long user_call_ID = 0;
+	bool exclusive = false;
+	u32 abort_code = 0;
+	int ret;
+
+	_enter("");
+
+	ret = rxrpc_sendmsg_cmsg(msg, &user_call_ID, &cmd, &abort_code,
+				 &exclusive);
+	if (ret < 0)
+		return ret;
+
+	if (cmd == RXRPC_CMD_ACCEPT) {
+		if (rx->sk.sk_state != RXRPC_SERVER_LISTENING)
+			return -EINVAL;
+		call = rxrpc_accept_call(rx, user_call_ID, NULL);
+		if (IS_ERR(call))
+			return PTR_ERR(call);
+		rxrpc_put_call(call);
+		return 0;
+	}
+
+	call = rxrpc_find_call_by_user_ID(rx, user_call_ID);
+	if (!call) {
+		if (cmd != RXRPC_CMD_SEND_DATA)
+			return -EBADSLT;
+		call = rxrpc_new_client_call_for_sendmsg(rx, msg, user_call_ID,
+							 exclusive);
+		if (IS_ERR(call))
+			return PTR_ERR(call);
+	}
+
+	rxrpc_see_call(call);
+	_debug("CALL %d USR %lx ST %d on CONN %p",
+	       call->debug_id, call->user_call_ID, call->state, call->conn);
+
+	if (call->state >= RXRPC_CALL_COMPLETE) {
+		/* it's too late for this call */
+		ret = -ESHUTDOWN;
+	} else if (cmd == RXRPC_CMD_SEND_ABORT) {
+		rxrpc_send_abort(call, abort_code);
+		ret = 0;
+	} else if (cmd != RXRPC_CMD_SEND_DATA) {
+		ret = -EINVAL;
+	} else if (rxrpc_is_client_call(call) &&
+		   call->state != RXRPC_CALL_CLIENT_SEND_REQUEST) {
+		/* request phase complete for this client call */
+		ret = -EPROTO;
+	} else if (rxrpc_is_service_call(call) &&
+		   call->state != RXRPC_CALL_SERVER_ACK_REQUEST &&
+		   call->state != RXRPC_CALL_SERVER_SEND_REPLY) {
+		/* Reply phase not begun or not complete for service call. */
+		ret = -EPROTO;
+	} else {
+		ret = rxrpc_send_data(rx, call, msg, len);
+	}
+
+	rxrpc_put_call(call);
+	_leave(" = %d", ret);
+	return ret;
+}
+
+/**
+ * rxrpc_kernel_send_data - Allow a kernel service to send data on a call
+ * @sock: The socket the call is on
+ * @call: The call to send data through
+ * @msg: The data to send
+ * @len: The amount of data to send
+ *
+ * Allow a kernel service to send data on a call.  The call must be in an state
+ * appropriate to sending data.  No control data should be supplied in @msg,
+ * nor should an address be supplied.  MSG_MORE should be flagged if there's
+ * more data to come, otherwise this data will end the transmission phase.
+ */
+int rxrpc_kernel_send_data(struct socket *sock, struct rxrpc_call *call,
+			   struct msghdr *msg, size_t len)
+{
+	int ret;
+
+	_enter("{%d,%s},", call->debug_id, rxrpc_call_states[call->state]);
+
+	ASSERTCMP(msg->msg_name, ==, NULL);
+	ASSERTCMP(msg->msg_control, ==, NULL);
+
+	lock_sock(sock->sk);
+
+	_debug("CALL %d USR %lx ST %d on CONN %p",
+	       call->debug_id, call->user_call_ID, call->state, call->conn);
+
+	if (call->state >= RXRPC_CALL_COMPLETE) {
+		ret = -ESHUTDOWN; /* it's too late for this call */
+	} else if (call->state != RXRPC_CALL_CLIENT_SEND_REQUEST &&
+		   call->state != RXRPC_CALL_SERVER_ACK_REQUEST &&
+		   call->state != RXRPC_CALL_SERVER_SEND_REPLY) {
+		ret = -EPROTO; /* request phase complete for this client call */
+	} else {
+		ret = rxrpc_send_data(rxrpc_sk(sock->sk), call, msg, len);
+	}
+
+	release_sock(sock->sk);
+	_leave(" = %d", ret);
+	return ret;
+}
+EXPORT_SYMBOL(rxrpc_kernel_send_data);
+
+/**
+ * rxrpc_kernel_abort_call - Allow a kernel service to abort a call
+ * @sock: The socket the call is on
+ * @call: The call to be aborted
+ * @abort_code: The abort code to stick into the ABORT packet
+ *
+ * Allow a kernel service to abort a call, if it's still in an abortable state.
+ */
+void rxrpc_kernel_abort_call(struct socket *sock, struct rxrpc_call *call,
+			     u32 abort_code)
+{
+	_enter("{%d},%d", call->debug_id, abort_code);
+
+	lock_sock(sock->sk);
+
+	_debug("CALL %d USR %lx ST %d on CONN %p",
+	       call->debug_id, call->user_call_ID, call->state, call->conn);
+
+	rxrpc_send_abort(call, abort_code);
+
+	release_sock(sock->sk);
+	_leave("");
+}
+
+EXPORT_SYMBOL(rxrpc_kernel_abort_call);
