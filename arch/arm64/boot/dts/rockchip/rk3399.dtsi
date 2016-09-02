@@ -814,6 +814,16 @@
 					pm_qos = <&qos_isp1_m0>,
 						 <&qos_isp1_m1>;
 				};
+				pd_tcpc0@RK3399_PD_TCPC0 {
+					reg = <RK3399_PD_TCPD0>;
+					clocks = <&cru SCLK_UPHY0_TCPDCORE>,
+						 <&cru SCLK_UPHY0_TCPDPHY_REF>;
+				};
+				pd_tcpc1@RK3399_PD_TCPC1 {
+					reg = <RK3399_PD_TCPD1>;
+					clocks = <&cru SCLK_UPHY1_TCPDCORE>,
+						 <&cru SCLK_UPHY1_TCPDPHY_REF>;
+				};
 				pd_vo@RK3399_PD_VO {
 					reg = <RK3399_PD_VO>;
 					#address-cells = <1>;
