@@ -85,7 +85,6 @@ enum vmcall_monitor_interface_method_tuple { /* VMCALL identification tuples  */
 #define VMCALL_SUCCESS 0
 #define VMCALL_SUCCESSFUL(result)	(result == 0)
 
-#ifdef __GNUC__
 #define unisys_vmcall(tuple, reg_ebx, reg_ecx) \
 	__unisys_vmcall_gnuc(tuple, reg_ebx, reg_ecx)
 #define unisys_extended_vmcall(tuple, reg_ebx, reg_ecx, reg_edx) \
@@ -102,7 +101,6 @@ enum vmcall_monitor_interface_method_tuple { /* VMCALL identification tuples  */
 #define ISSUE_IO_VMCALL_POSTCODE_SEVERITY(postcode, severity)		\
 	ISSUE_IO_EXTENDED_VMCALL(VMCALL_POST_CODE_LOGEVENT, severity,	\
 				 MDS_APPOS, postcode)
-#endif
 
 /* Structures for IO VMCALLs */
 
