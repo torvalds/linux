@@ -1,4 +1,4 @@
-/* visorchipset.h
+/* visorbus_private.h
  *
  * Copyright (C) 2010 - 2015 UNISYS CORPORATION
  * All rights reserved.
@@ -14,8 +14,8 @@
  * details.
  */
 
-#ifndef __VISORCHIPSET_H__
-#define __VISORCHIPSET_H__
+#ifndef __VISORBUS_PRIVATE_H__
+#define __VISORBUS_PRIVATE_H__
 
 #include <linux/uuid.h>
 
