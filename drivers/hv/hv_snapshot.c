@@ -142,6 +142,11 @@ static int vss_on_msg(void *msg, int len)
 		return vss_handle_handshake(vss_msg);
 	} else if (vss_transaction.state == HVUTIL_USERSPACE_REQ) {
 		vss_transaction.state = HVUTIL_USERSPACE_RECV;
+
+		if (vss_msg->vss_hdr.operation == VSS_OP_HOT_BACKUP)
+			vss_transaction.msg->vss_cf.flags =
+				VSS_HBU_NO_AUTO_RECOVERY;
+
 		if (cancel_delayed_work_sync(&vss_timeout_work)) {
 			vss_respond_to_host(vss_msg->error);
 			/* Transaction is finished, reset the state. */
@@ -202,6 +207,7 @@ static void vss_handle_request(struct work_struct *dummy)
 	 */
 	case VSS_OP_THAW:
 	case VSS_OP_FREEZE:
+	case VSS_OP_HOT_BACKUP:
 		if (vss_transaction.state < HVUTIL_READY) {
 			/* Userspace is not registered yet */
 			vss_respond_to_host(HV_E_FAIL);
@@ -210,9 +216,6 @@ static void vss_handle_request(struct work_struct *dummy)
 		vss_transaction.state = HVUTIL_HOSTMSG_RECEIVED;
 		vss_send_op();
 		return;
-	case VSS_OP_HOT_BACKUP:
-		vss_transaction.msg->vss_cf.flags = VSS_HBU_NO_AUTO_RECOVERY;
-		break;
 	case VSS_OP_GET_DM_INFO:
 		vss_transaction.msg->dm_info.flags = 0;
 		break;
