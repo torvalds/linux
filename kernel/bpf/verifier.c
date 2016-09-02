@@ -2333,7 +2333,8 @@ static int do_check(struct verifier_env *env)
 			if (err)
 				return err;
 
-			if (BPF_SIZE(insn->code) != BPF_W) {
+			if (BPF_SIZE(insn->code) != BPF_W &&
+			    BPF_SIZE(insn->code) != BPF_DW) {
 				insn_idx++;
 				continue;
 			}
@@ -2510,6 +2511,20 @@ process_bpf_exit:
 	return 0;
 }
 
+static int check_map_prog_compatibility(struct bpf_map *map,
+					struct bpf_prog *prog)
+
+{
+	if (prog->type == BPF_PROG_TYPE_PERF_EVENT &&
+	    (map->map_type == BPF_MAP_TYPE_HASH ||
+	     map->map_type == BPF_MAP_TYPE_PERCPU_HASH) &&
+	    (map->map_flags & BPF_F_NO_PREALLOC)) {
+		verbose("perf_event programs can only use preallocated hash map\n");
+		return -EINVAL;
+	}
+	return 0;
+}
+
 /* look for pseudo eBPF instructions that access map FDs and
  * replace them with actual map pointers
  */
@@ -2517,7 +2532,7 @@ static int replace_map_fd_with_map_ptr(struct verifier_env *env)
 {
 	struct bpf_insn *insn = env->prog->insnsi;
 	int insn_cnt = env->prog->len;
-	int i, j;
+	int i, j, err;
 
 	for (i = 0; i < insn_cnt; i++, insn++) {
 		if (BPF_CLASS(insn->code) == BPF_LDX &&
@@ -2559,6 +2574,12 @@ static int replace_map_fd_with_map_ptr(struct verifier_env *env)
 				verbose("fd %d is not pointing to valid bpf_map\n",
 					insn->imm);
 				return PTR_ERR(map);
+			}
+
+			err = check_map_prog_compatibility(map, env->prog);
+			if (err) {
+				fdput(f);
+				return err;
 			}
 
 			/* store map pointer inside BPF_LD_IMM64 instruction */
@@ -2642,9 +2663,11 @@ static int convert_ctx_accesses(struct verifier_env *env)
 	for (i = 0; i < insn_cnt; i++, insn++) {
 		u32 insn_delta, cnt;
 
-		if (insn->code == (BPF_LDX | BPF_MEM | BPF_W))
+		if (insn->code == (BPF_LDX | BPF_MEM | BPF_W) ||
+		    insn->code == (BPF_LDX | BPF_MEM | BPF_DW))
 			type = BPF_READ;
-		else if (insn->code == (BPF_STX | BPF_MEM | BPF_W))
+		else if (insn->code == (BPF_STX | BPF_MEM | BPF_W) ||
+			 insn->code == (BPF_STX | BPF_MEM | BPF_DW))
 			type = BPF_WRITE;
 		else
 			continue;

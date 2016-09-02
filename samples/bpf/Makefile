@@ -25,6 +25,8 @@ hostprogs-y += test_cgrp2_array_pin
 hostprogs-y += xdp1
 hostprogs-y += xdp2
 hostprogs-y += test_current_task_under_cgroup
+hostprogs-y += trace_event
+hostprogs-y += sampleip
 
 test_verifier-objs := test_verifier.o libbpf.o
 test_maps-objs := test_maps.o libbpf.o
@@ -52,6 +54,8 @@ xdp1-objs := bpf_load.o libbpf.o xdp1_user.o
 xdp2-objs := bpf_load.o libbpf.o xdp1_user.o
 test_current_task_under_cgroup-objs := bpf_load.o libbpf.o \
 				       test_current_task_under_cgroup_user.o
+trace_event-objs := bpf_load.o libbpf.o trace_event_user.o
+sampleip-objs := bpf_load.o libbpf.o sampleip_user.o
 
 # Tell kbuild to always build the programs
 always := $(hostprogs-y)
@@ -79,6 +83,8 @@ always += test_cgrp2_tc_kern.o
 always += xdp1_kern.o
 always += xdp2_kern.o
 always += test_current_task_under_cgroup_kern.o
+always += trace_event_kern.o
+always += sampleip_kern.o
 
 HOSTCFLAGS += -I$(objtree)/usr/include
 
@@ -103,6 +109,8 @@ HOSTLOADLIBES_test_overhead += -lelf -lrt
 HOSTLOADLIBES_xdp1 += -lelf
 HOSTLOADLIBES_xdp2 += -lelf
 HOSTLOADLIBES_test_current_task_under_cgroup += -lelf
+HOSTLOADLIBES_trace_event += -lelf
+HOSTLOADLIBES_sampleip += -lelf
 
 # Allows pointing LLC/CLANG to a LLVM backend with bpf support, redefine on cmdline:
 #  make samples/bpf/ LLC=~/git/llvm/build/bin/llc CLANG=~/git/llvm/build/bin/clang
