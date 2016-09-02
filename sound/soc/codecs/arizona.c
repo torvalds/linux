@@ -1920,8 +1920,8 @@ static struct {
 
 struct arizona_fll_cfg {
 	int n;
-	int theta;
-	int lambda;
+	unsigned int theta;
+	unsigned int lambda;
 	int refdiv;
 	int outdiv;
 	int fratio;
@@ -2232,6 +2232,10 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 	if (fll->ref_src >= 0 && fll->ref_freq &&
 	    fll->ref_src != fll->sync_src) {
 		arizona_calc_fll(fll, &cfg, fll->ref_freq, false);
+
+		/* Ref path hardcodes lambda to 65536 when sync is on */
+		if (fll->sync_src >= 0 && cfg.lambda)
+			cfg.theta = (cfg.theta * (1 << 16)) / cfg.lambda;
 
 		arizona_apply_fll(arizona, fll->base, &cfg, fll->ref_src,
 				  false);
