@@ -19,6 +19,7 @@
 #include <linux/fs.h>
 #include <linux/poll.h>
 #include <linux/kref.h>
+#include <linux/percpu.h>
 
 /*
  * Tracks changes to rchan/rchan_buf structs
@@ -63,7 +64,7 @@ struct rchan
 	struct kref kref;		/* channel refcount */
 	void *private_data;		/* for user-defined data */
 	size_t last_toobig;		/* tried to log event > subbuf size */
-	struct rchan_buf *buf[NR_CPUS]; /* per-cpu channel buffers */
+	struct rchan_buf ** __percpu buf; /* per-cpu channel buffers */
 	int is_global;			/* One global buffer ? */
 	struct list_head list;		/* for channel list */
 	struct dentry *parent;		/* parent dentry passed to open */
@@ -204,7 +205,7 @@ static inline void relay_write(struct rchan *chan,
 	struct rchan_buf *buf;
 
 	local_irq_save(flags);
-	buf = chan->buf[smp_processor_id()];
+	buf = *this_cpu_ptr(chan->buf);
 	if (unlikely(buf->offset + length > chan->subbuf_size))
 		length = relay_switch_subbuf(buf, length);
 	memcpy(buf->data + buf->offset, data, length);
@@ -230,12 +231,12 @@ static inline void __relay_write(struct rchan *chan,
 {
 	struct rchan_buf *buf;
 
-	buf = chan->buf[get_cpu()];
+	buf = *get_cpu_ptr(chan->buf);
 	if (unlikely(buf->offset + length > buf->chan->subbuf_size))
 		length = relay_switch_subbuf(buf, length);
 	memcpy(buf->data + buf->offset, data, length);
 	buf->offset += length;
-	put_cpu();
+	put_cpu_ptr(chan->buf);
 }
 
 /**
@@ -251,17 +252,19 @@ static inline void __relay_write(struct rchan *chan,
  */
 static inline void *relay_reserve(struct rchan *chan, size_t length)
 {
-	void *reserved;
-	struct rchan_buf *buf = chan->buf[smp_processor_id()];
+	void *reserved = NULL;
+	struct rchan_buf *buf = *get_cpu_ptr(chan->buf);
 
 	if (unlikely(buf->offset + length > buf->chan->subbuf_size)) {
 		length = relay_switch_subbuf(buf, length);
 		if (!length)
-			return NULL;
+			goto end;
 	}
 	reserved = buf->data + buf->offset;
 	buf->offset += length;
 
+end:
+	put_cpu_ptr(chan->buf);
 	return reserved;
 }
 
