@@ -125,11 +125,17 @@ static inline void *iio_trigger_get_drvdata(struct iio_trigger *trig)
  **/
 int iio_trigger_register(struct iio_trigger *trig_info);
 
+int devm_iio_trigger_register(struct device *dev,
+			      struct iio_trigger *trig_info);
+
 /**
  * iio_trigger_unregister() - unregister a trigger from the core
  * @trig_info:	trigger to be unregistered
  **/
 void iio_trigger_unregister(struct iio_trigger *trig_info);
+
+void devm_iio_trigger_unregister(struct device *dev,
+				 struct iio_trigger *trig_info);
 
 /**
  * iio_trigger_set_immutable() - set an immutable trigger on destination
