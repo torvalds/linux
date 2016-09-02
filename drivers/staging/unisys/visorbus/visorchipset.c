@@ -27,7 +27,6 @@
 
 #include "channel.h"
 #include "controlvmchannel.h"
-#include "controlvmcompletionstatus.h"
 #include "guestlinuxdebug.h"
 #include "version.h"
 #include "visorbus.h"
