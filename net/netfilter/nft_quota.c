@@ -33,7 +33,7 @@ static void nft_quota_eval(const struct nft_expr *expr,
 {
 	struct nft_quota *priv = nft_expr_priv(expr);
 
-	if (nft_quota(priv, pkt) < 0 && !priv->invert)
+	if ((nft_quota(priv, pkt) < 0) ^ priv->invert)
 		regs->verdict.code = NFT_BREAK;
 }
 
