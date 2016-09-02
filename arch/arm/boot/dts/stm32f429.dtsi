@@ -326,6 +326,7 @@
 		};
 
 		rcc: rcc@40023810 {
+			#reset-cells = <1>;
 			#clock-cells = <2>;
 			compatible = "st,stm32f42xx-rcc", "st,stm32-rcc";
 			reg = <0x40023800 0x400>;
