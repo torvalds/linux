@@ -496,7 +496,7 @@ config TEGRA210_ADMA
 
 config TIMB_DMA
 	tristate "Timberdale FPGA DMA support"
-	depends on MFD_TIMBERDALE
+	depends on MFD_TIMBERDALE || COMPILE_TEST
 	select DMA_ENGINE
 	help
 	  Enable support for the Timberdale FPGA DMA engine.
