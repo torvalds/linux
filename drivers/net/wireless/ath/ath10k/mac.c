@@ -6576,7 +6576,7 @@ static int ath10k_get_survey(struct ieee80211_hw *hw, int idx,
 		goto exit;
 	}
 
-	ath10k_mac_update_bss_chan_survey(ar, survey->channel);
+	ath10k_mac_update_bss_chan_survey(ar, &sband->channels[idx]);
 
 	spin_lock_bh(&ar->data_lock);
 	memcpy(survey, ar_survey, sizeof(*survey));
