@@ -329,7 +329,7 @@ static snd_pcm_uframes_t pcm_playback_pointer(struct snd_pcm_substream *sbstrm)
 	return amdtp_stream_pcm_pointer(&dg00x->rx_stream);
 }
 
-static struct snd_pcm_ops pcm_capture_ops = {
+static const struct snd_pcm_ops pcm_capture_ops = {
 	.open		= pcm_open,
 	.close		= pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
@@ -341,7 +341,7 @@ static struct snd_pcm_ops pcm_capture_ops = {
 	.page		= snd_pcm_lib_get_vmalloc_page,
 };
 
-static struct snd_pcm_ops pcm_playback_ops = {
+static const struct snd_pcm_ops pcm_playback_ops = {
 	.open		= pcm_open,
 	.close		= pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
