@@ -330,6 +330,7 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 	const char *pix_clk_in_name;
 	const struct of_device_id *id;
 	int ret;
+	u8 div_ratio_shift = 0;
 
 	fsl_dev = devm_kzalloc(dev, sizeof(*fsl_dev), GFP_KERNEL);
 	if (!fsl_dev)
@@ -382,11 +383,14 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 		pix_clk_in = fsl_dev->clk;
 	}
 
+	if (of_property_read_bool(dev->of_node, "big-endian"))
+		div_ratio_shift = 24;
+
 	pix_clk_in_name = __clk_get_name(pix_clk_in);
 	snprintf(pix_clk_name, sizeof(pix_clk_name), "%s_pix", pix_clk_in_name);
 	fsl_dev->pix_clk = clk_register_divider(dev, pix_clk_name,
 			pix_clk_in_name, 0, base + DCU_DIV_RATIO,
-			0, 8, CLK_DIVIDER_ROUND_CLOSEST, NULL);
+			div_ratio_shift, 8, CLK_DIVIDER_ROUND_CLOSEST, NULL);
 	if (IS_ERR(fsl_dev->pix_clk)) {
 		dev_err(dev, "failed to register pix clk\n");
 		ret = PTR_ERR(fsl_dev->pix_clk);
