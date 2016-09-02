@@ -711,6 +711,7 @@ static int adv7180_set_pad_format(struct v4l2_subdev *sd,
 {
 	struct adv7180_state *state = to_state(sd);
 	struct v4l2_mbus_framefmt *framefmt;
+	int ret;
 
 	switch (format->format.field) {
 	case V4L2_FIELD_NONE:
@@ -722,8 +723,9 @@ static int adv7180_set_pad_format(struct v4l2_subdev *sd,
 		break;
 	}
 
+	ret = adv7180_mbus_fmt(sd,  &format->format);
+
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
-		framefmt = &format->format;
 		if (state->field != format->format.field) {
 			state->field = format->format.field;
 			adv7180_set_power(state, false);
@@ -735,7 +737,7 @@ static int adv7180_set_pad_format(struct v4l2_subdev *sd,
 		*framefmt = format->format;
 	}
 
-	return adv7180_mbus_fmt(sd, framefmt);
+	return ret;
 }
 
 static int adv7180_g_mbus_config(struct v4l2_subdev *sd,
