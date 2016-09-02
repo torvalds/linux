@@ -80,6 +80,10 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 	int ret, err = 0;
 	struct page *page;
 
+	if (send_ringbuffer_size % PAGE_SIZE ||
+	    recv_ringbuffer_size % PAGE_SIZE)
+		return -EINVAL;
+
 	spin_lock_irqsave(&newchannel->lock, flags);
 	if (newchannel->state == CHANNEL_OPEN_STATE) {
 		newchannel->state = CHANNEL_OPENING_STATE;
@@ -99,17 +103,16 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 				recv_ringbuffer_size));
 
 	if (!page)
-		out = (void *)__get_free_pages(GFP_KERNEL|__GFP_ZERO,
-					       get_order(send_ringbuffer_size +
-					       recv_ringbuffer_size));
-	else
-		out = (void *)page_address(page);
+		page = alloc_pages(GFP_KERNEL|__GFP_ZERO,
+				   get_order(send_ringbuffer_size +
+					     recv_ringbuffer_size));
 
-	if (!out) {
+	if (!page) {
 		err = -ENOMEM;
-		goto error0;
+		goto error_set_chnstate;
 	}
 
+	out = page_address(page);
 	in = (void *)((unsigned long)out + send_ringbuffer_size);
 
 	newchannel->ringbuffer_pages = out;
@@ -121,14 +124,14 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 
 	if (ret != 0) {
 		err = ret;
-		goto error0;
+		goto error_free_pages;
 	}
 
 	ret = hv_ringbuffer_init(
 		&newchannel->inbound, in, recv_ringbuffer_size);
 	if (ret != 0) {
 		err = ret;
-		goto error0;
+		goto error_free_pages;
 	}
 
 
@@ -143,7 +146,7 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 
 	if (ret != 0) {
 		err = ret;
-		goto error0;
+		goto error_free_pages;
 	}
 
 	/* Create and init the channel open message */
@@ -152,7 +155,7 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 			   GFP_KERNEL);
 	if (!open_info) {
 		err = -ENOMEM;
-		goto error_gpadl;
+		goto error_free_gpadl;
 	}
 
 	init_completion(&open_info->waitevent);
@@ -168,7 +171,7 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 
 	if (userdatalen > MAX_USER_DEFINED_BYTES) {
 		err = -EINVAL;
-		goto error_gpadl;
+		goto error_free_gpadl;
 	}
 
 	if (userdatalen)
@@ -184,7 +187,7 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 
 	if (ret != 0) {
 		err = ret;
-		goto error1;
+		goto error_clean_msglist;
 	}
 
 	wait_for_completion(&open_info->waitevent);
@@ -195,25 +198,25 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 
 	if (open_info->response.open_result.status) {
 		err = -EAGAIN;
-		goto error_gpadl;
+		goto error_free_gpadl;
 	}
 
 	newchannel->state = CHANNEL_OPENED_STATE;
 	kfree(open_info);
 	return 0;
 
-error1:
+error_clean_msglist:
 	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 	list_del(&open_info->msglistentry);
 	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 
-error_gpadl:
+error_free_gpadl:
 	vmbus_teardown_gpadl(newchannel, newchannel->ringbuffer_gpadlhandle);
-
-error0:
+	kfree(open_info);
+error_free_pages:
 	free_pages((unsigned long)out,
 		get_order(send_ringbuffer_size + recv_ringbuffer_size));
-	kfree(open_info);
+error_set_chnstate:
 	newchannel->state = CHANNEL_OPEN_STATE;
 	return err;
 }
