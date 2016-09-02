@@ -25,7 +25,6 @@
 #include "version.h"
 #include "visorbus.h"
 #include "controlvmchannel.h"
-#include "visorbus_private.h"
 
 #define MYDRVNAME "visorchannel"
 
@@ -55,128 +54,6 @@ struct visorchannel {
 	uuid_le type;
 	uuid_le inst;
 };
-
-/**
- * visorchannel_create_guts() - creates the struct visorchannel abstraction
- *                              for a data area in memory, but does NOT modify
- *                              this data area
- * @physaddr:      physical address of start of channel
- * @channel_bytes: size of the channel in bytes; this may 0 if the channel has
- *                 already been initialized in memory (which is true for all
- *                 channels provided to guest environments by the s-Par
- *                 back-end), in which case the actual channel size will be
- *                 read from the channel header in memory
- * @gfp:           gfp_t to use when allocating memory for the data struct
- * @guid:          uuid that identifies channel type; this may 0 if the channel
- *                 has already been initialized in memory (which is true for all
- *                 channels provided to guest environments by the s-Par
- *                 back-end), in which case the actual channel guid will be
- *                 read from the channel header in memory
- * @needs_lock:    must specify true if you have multiple threads of execution
- *                 that will be calling visorchannel methods of this
- *                 visorchannel at the same time
- *
- * Return: pointer to visorchannel that was created if successful,
- *         otherwise NULL
- */
-static struct visorchannel *
-visorchannel_create_guts(u64 physaddr, unsigned long channel_bytes,
-			 gfp_t gfp, uuid_le guid, bool needs_lock)
-{
-	struct visorchannel *channel;
-	int err;
-	size_t size = sizeof(struct channel_header);
-
-	if (physaddr == 0)
-		return NULL;
-
-	channel = kzalloc(sizeof(*channel), gfp);
-	if (!channel)
-		return NULL;
-
-	channel->needs_lock = needs_lock;
-	spin_lock_init(&channel->insert_lock);
-	spin_lock_init(&channel->remove_lock);
-
-	/*
-	 * Video driver constains the efi framebuffer so it will get a
-	 * conflict resource when requesting its full mem region. Since
-	 * we are only using the efi framebuffer for video we can ignore
-	 * this. Remember that we haven't requested it so we don't try to
-	 * release later on.
-	 */
-	channel->requested = request_mem_region(physaddr, size, MYDRVNAME);
-	if (!channel->requested) {
-		if (uuid_le_cmp(guid, spar_video_guid)) {
-			/* Not the video channel we care about this */
-			goto err_destroy_channel;
-		}
-	}
-
-	channel->mapped = memremap(physaddr, size, MEMREMAP_WB);
-	if (!channel->mapped) {
-		release_mem_region(physaddr, size);
-		goto err_destroy_channel;
-	}
-
-	channel->physaddr = physaddr;
-	channel->nbytes = size;
-
-	err = visorchannel_read(channel, 0, &channel->chan_hdr,
-				sizeof(struct channel_header));
-	if (err)
-		goto err_destroy_channel;
-
-	/* we had better be a CLIENT of this channel */
-	if (channel_bytes == 0)
-		channel_bytes = (ulong)channel->chan_hdr.size;
-	if (uuid_le_cmp(guid, NULL_UUID_LE) == 0)
-		guid = channel->chan_hdr.chtype;
-
-	memunmap(channel->mapped);
-	if (channel->requested)
-		release_mem_region(channel->physaddr, channel->nbytes);
-	channel->mapped = NULL;
-	channel->requested = request_mem_region(channel->physaddr,
-						channel_bytes, MYDRVNAME);
-	if (!channel->requested) {
-		if (uuid_le_cmp(guid, spar_video_guid)) {
-			/* Different we care about this */
-			goto err_destroy_channel;
-		}
-	}
-
-	channel->mapped = memremap(channel->physaddr, channel_bytes,
-			MEMREMAP_WB);
-	if (!channel->mapped) {
-		release_mem_region(channel->physaddr, channel_bytes);
-		goto err_destroy_channel;
-	}
-
-	channel->nbytes = channel_bytes;
-	channel->guid = guid;
-	return channel;
-
-err_destroy_channel:
-	visorchannel_destroy(channel);
-	return NULL;
-}
-
-struct visorchannel *
-visorchannel_create(u64 physaddr, unsigned long channel_bytes,
-		    gfp_t gfp, uuid_le guid)
-{
-	return visorchannel_create_guts(physaddr, channel_bytes, gfp, guid,
-					false);
-}
-
-struct visorchannel *
-visorchannel_create_with_lock(u64 physaddr, unsigned long channel_bytes,
-			      gfp_t gfp, uuid_le guid)
-{
-	return visorchannel_create_guts(physaddr, channel_bytes, gfp, guid,
-					true);
-}
 
 void
 visorchannel_destroy(struct visorchannel *channel)
@@ -486,6 +363,128 @@ signalinsert_inner(struct visorchannel *channel, u32 queue, void *msg)
 		return false;
 
 	return true;
+}
+
+/**
+ * visorchannel_create_guts() - creates the struct visorchannel abstraction
+ *                              for a data area in memory, but does NOT modify
+ *                              this data area
+ * @physaddr:      physical address of start of channel
+ * @channel_bytes: size of the channel in bytes; this may 0 if the channel has
+ *                 already been initialized in memory (which is true for all
+ *                 channels provided to guest environments by the s-Par
+ *                 back-end), in which case the actual channel size will be
+ *                 read from the channel header in memory
+ * @gfp:           gfp_t to use when allocating memory for the data struct
+ * @guid:          uuid that identifies channel type; this may 0 if the channel
+ *                 has already been initialized in memory (which is true for all
+ *                 channels provided to guest environments by the s-Par
+ *                 back-end), in which case the actual channel guid will be
+ *                 read from the channel header in memory
+ * @needs_lock:    must specify true if you have multiple threads of execution
+ *                 that will be calling visorchannel methods of this
+ *                 visorchannel at the same time
+ *
+ * Return: pointer to visorchannel that was created if successful,
+ *         otherwise NULL
+ */
+static struct visorchannel *
+visorchannel_create_guts(u64 physaddr, unsigned long channel_bytes,
+			 gfp_t gfp, uuid_le guid, bool needs_lock)
+{
+	struct visorchannel *channel;
+	int err;
+	size_t size = sizeof(struct channel_header);
+
+	if (physaddr == 0)
+		return NULL;
+
+	channel = kzalloc(sizeof(*channel), gfp);
+	if (!channel)
+		return NULL;
+
+	channel->needs_lock = needs_lock;
+	spin_lock_init(&channel->insert_lock);
+	spin_lock_init(&channel->remove_lock);
+
+	/*
+	 * Video driver constains the efi framebuffer so it will get a
+	 * conflict resource when requesting its full mem region. Since
+	 * we are only using the efi framebuffer for video we can ignore
+	 * this. Remember that we haven't requested it so we don't try to
+	 * release later on.
+	 */
+	channel->requested = request_mem_region(physaddr, size, MYDRVNAME);
+	if (!channel->requested) {
+		if (uuid_le_cmp(guid, spar_video_guid)) {
+			/* Not the video channel we care about this */
+			goto err_destroy_channel;
+		}
+	}
+
+	channel->mapped = memremap(physaddr, size, MEMREMAP_WB);
+	if (!channel->mapped) {
+		release_mem_region(physaddr, size);
+		goto err_destroy_channel;
+	}
+
+	channel->physaddr = physaddr;
+	channel->nbytes = size;
+
+	err = visorchannel_read(channel, 0, &channel->chan_hdr,
+				sizeof(struct channel_header));
+	if (err)
+		goto err_destroy_channel;
+
+	/* we had better be a CLIENT of this channel */
+	if (channel_bytes == 0)
+		channel_bytes = (ulong)channel->chan_hdr.size;
+	if (uuid_le_cmp(guid, NULL_UUID_LE) == 0)
+		guid = channel->chan_hdr.chtype;
+
+	memunmap(channel->mapped);
+	if (channel->requested)
+		release_mem_region(channel->physaddr, channel->nbytes);
+	channel->mapped = NULL;
+	channel->requested = request_mem_region(channel->physaddr,
+						channel_bytes, MYDRVNAME);
+	if (!channel->requested) {
+		if (uuid_le_cmp(guid, spar_video_guid)) {
+			/* Different we care about this */
+			goto err_destroy_channel;
+		}
+	}
+
+	channel->mapped = memremap(channel->physaddr, channel_bytes,
+			MEMREMAP_WB);
+	if (!channel->mapped) {
+		release_mem_region(channel->physaddr, channel_bytes);
+		goto err_destroy_channel;
+	}
+
+	channel->nbytes = channel_bytes;
+	channel->guid = guid;
+	return channel;
+
+err_destroy_channel:
+	visorchannel_destroy(channel);
+	return NULL;
+}
+
+struct visorchannel *
+visorchannel_create(u64 physaddr, unsigned long channel_bytes,
+		    gfp_t gfp, uuid_le guid)
+{
+	return visorchannel_create_guts(physaddr, channel_bytes, gfp, guid,
+					false);
+}
+
+struct visorchannel *
+visorchannel_create_with_lock(u64 physaddr, unsigned long channel_bytes,
+			      gfp_t gfp, uuid_le guid)
+{
+	return visorchannel_create_guts(physaddr, channel_bytes, gfp, guid,
+					true);
 }
 
 /**
