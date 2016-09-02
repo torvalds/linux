@@ -440,6 +440,9 @@ static inline void mem_init_free_highmem(void)
 #ifdef CONFIG_HIGHMEM
 	unsigned long tmp;
 
+	if (cpu_has_dc_aliases)
+		return;
+
 	for (tmp = highstart_pfn; tmp < highend_pfn; tmp++) {
 		struct page *page = pfn_to_page(tmp);
 
