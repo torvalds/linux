@@ -56,15 +56,12 @@ struct vmd_irq {
 /**
  * struct vmd_irq_list - list of driver requested IRQs mapping to a VMD vector
  * @irq_list:	the list of irq's the VMD one demuxes to.
- * @vmd_vector:	the h/w IRQ assigned to the VMD.
  * @index:	index into the VMD MSI-X table; used for message routing.
  * @count:	number of child IRQs assigned to this vector; used to track
  *		sharing.
  */
 struct vmd_irq_list {
 	struct list_head	irq_list;
-	struct vmd_dev		*vmd;
-	unsigned int		vmd_vector;
 	unsigned int		index;
 	unsigned int		count;
 };
@@ -201,8 +198,10 @@ static int vmd_msi_init(struct irq_domain *domain, struct msi_domain_info *info,
 	vmdirq->irq = vmd_next_irq(vmd, desc);
 	vmdirq->virq = virq;
 
-	irq_domain_set_info(domain, virq, vmdirq->irq->vmd_vector, info->chip,
-			    vmdirq, handle_untracked_irq, vmd, NULL);
+	irq_domain_set_info(domain, virq,
+			    pci_irq_vector(vmd->dev, vmdirq->irq->index),
+			    info->chip, vmdirq,
+			    handle_untracked_irq, vmd, NULL);
 	return 0;
 }
 
@@ -682,10 +681,8 @@ static int vmd_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	for (i = 0; i < vmd->msix_count; i++) {
 		INIT_LIST_HEAD(&vmd->irqs[i].irq_list);
-		vmd->irqs[i].vmd_vector = pci_irq_vector(dev, i);
 		vmd->irqs[i].index = i;
-
-		err = devm_request_irq(&dev->dev, vmd->irqs[i].vmd_vector,
+		err = devm_request_irq(&dev->dev, pci_irq_vector(dev, i),
 				       vmd_irq, 0, "vmd", &vmd->irqs[i]);
 		if (err)
 			return err;
