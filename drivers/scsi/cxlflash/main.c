@@ -1962,6 +1962,11 @@ retry:
  * cxlflash_eh_host_reset_handler() - reset the host adapter
  * @scp:	SCSI command from stack identifying host.
  *
+ * Following a reset, the state is evaluated again in case an EEH occurred
+ * during the reset. In such a scenario, the host reset will either yield
+ * until the EEH recovery is complete or return success or failure based
+ * upon the current device state.
+ *
  * Return:
  *	SUCCESS as defined in scsi/scsi.h
  *	FAILED as defined in scsi/scsi.h
@@ -1993,7 +1998,8 @@ static int cxlflash_eh_host_reset_handler(struct scsi_cmnd *scp)
 		} else
 			cfg->state = STATE_NORMAL;
 		wake_up_all(&cfg->reset_waitq);
-		break;
+		ssleep(1);
+		/* fall through */
 	case STATE_RESET:
 		wait_event(cfg->reset_waitq, cfg->state != STATE_RESET);
 		if (cfg->state == STATE_NORMAL)
@@ -2534,6 +2540,9 @@ static void drain_ioctls(struct cxlflash_cfg *cfg)
  * @pdev:	PCI device struct.
  * @state:	PCI channel state.
  *
+ * When an EEH occurs during an active reset, wait until the reset is
+ * complete and then take action based upon the device state.
+ *
  * Return: PCI_ERS_RESULT_NEED_RESET or PCI_ERS_RESULT_DISCONNECT
  */
 static pci_ers_result_t cxlflash_pci_error_detected(struct pci_dev *pdev,
@@ -2547,6 +2556,10 @@ static pci_ers_result_t cxlflash_pci_error_detected(struct pci_dev *pdev,
 
 	switch (state) {
 	case pci_channel_io_frozen:
+		wait_event(cfg->reset_waitq, cfg->state != STATE_RESET);
+		if (cfg->state == STATE_FAILTERM)
+			return PCI_ERS_RESULT_DISCONNECT;
+
 		cfg->state = STATE_RESET;
 		scsi_block_requests(cfg->host);
 		drain_ioctls(cfg);
