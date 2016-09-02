@@ -35,8 +35,8 @@ enum crb_defaults {
 };
 
 enum crb_ctrl_req {
-	CRB_CTRL_REQ_GO_IDLE	= BIT(0),
-	CRB_CTRL_REQ_CMD_READY	= BIT(1),
+	CRB_CTRL_REQ_CMD_READY	= BIT(0),
+	CRB_CTRL_REQ_GO_IDLE	= BIT(1),
 };
 
 enum crb_ctrl_sts {
