@@ -43,6 +43,11 @@ static struct mtk_video_fmt mtk_video_formats[] = {
 		.type = MTK_FMT_DEC,
 		.num_planes = 1,
 	},
+	{
+		.fourcc = V4L2_PIX_FMT_VP9,
+		.type = MTK_FMT_DEC,
+		.num_planes = 1,
+	},
 };
 
 static const struct mtk_codec_framesizes mtk_vdec_framesizes[] = {
@@ -53,6 +58,11 @@ static const struct mtk_codec_framesizes mtk_vdec_framesizes[] = {
 	},
 	{
 		.fourcc	= V4L2_PIX_FMT_VP8,
+		.stepwise = {  MTK_VDEC_MIN_W, MTK_VDEC_MAX_W, 16,
+				MTK_VDEC_MIN_H, MTK_VDEC_MAX_H, 16 },
+	},
+	{
+		.fourcc = V4L2_PIX_FMT_VP9,
 		.stepwise = {  MTK_VDEC_MIN_W, MTK_VDEC_MAX_W, 16,
 				MTK_VDEC_MIN_H, MTK_VDEC_MAX_H, 16 },
 	},

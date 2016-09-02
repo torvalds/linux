@@ -25,6 +25,7 @@
 
 const struct vdec_common_if *get_h264_dec_comm_if(void);
 const struct vdec_common_if *get_vp8_dec_comm_if(void);
+const struct vdec_common_if *get_vp9_dec_comm_if(void);
 
 int vdec_if_init(struct mtk_vcodec_ctx *ctx, unsigned int fourcc)
 {
@@ -36,6 +37,9 @@ int vdec_if_init(struct mtk_vcodec_ctx *ctx, unsigned int fourcc)
 		break;
 	case V4L2_PIX_FMT_VP8:
 		ctx->dec_if = get_vp8_dec_comm_if();
+		break;
+	case V4L2_PIX_FMT_VP9:
+		ctx->dec_if = get_vp9_dec_comm_if();
 		break;
 	default:
 		return -EINVAL;
