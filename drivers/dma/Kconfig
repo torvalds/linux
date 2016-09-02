@@ -450,7 +450,7 @@ config STM32_DMA
 
 config S3C24XX_DMAC
 	bool "Samsung S3C24XX DMA support"
-	depends on ARCH_S3C24XX
+	depends on ARCH_S3C24XX || COMPILE_TEST
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
