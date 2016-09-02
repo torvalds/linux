@@ -193,6 +193,7 @@ static inline void assert_pte_locked(struct mm_struct *mm, unsigned long addr)
 #define MMU_PAGE_16G	13
 #define MMU_PAGE_64G	14
 
+/* N.B. we need to change the type of hpte_page_sizes if this gets to be > 16 */
 #define MMU_PAGE_COUNT	15
 
 #ifdef CONFIG_PPC_BOOK3S_64

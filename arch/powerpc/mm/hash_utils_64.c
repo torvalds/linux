@@ -95,6 +95,9 @@ static unsigned long _SDR1;
 struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
 EXPORT_SYMBOL_GPL(mmu_psize_defs);
 
+u8 hpte_page_sizes[1 << LP_BITS];
+EXPORT_SYMBOL_GPL(hpte_page_sizes);
+
 struct hash_pte *htab_address;
 unsigned long htab_size_bytes;
 unsigned long htab_hash_mask;
@@ -522,6 +525,56 @@ static bool might_have_hea(void)
 
 #endif /* #ifdef CONFIG_PPC_64K_PAGES */
 
+/*
+ * Fill in the hpte_page_sizes[] array.
+ * We go through the mmu_psize_defs[] array looking for all the
+ * supported base/actual page size combinations.  Each combination
+ * has a unique pagesize encoding (penc) value in the low bits of
+ * the LP field of the HPTE.  For actual page sizes less than 1MB,
+ * some of the upper LP bits are used for RPN bits, meaning that
+ * we need to fill in several entries in hpte_page_sizes[].
+ *
+ * In diagrammatic form, with r = RPN bits and z = page size bits:
+ *        PTE LP     actual page size
+ *    rrrr rrrz		>=8KB
+ *    rrrr rrzz		>=16KB
+ *    rrrr rzzz		>=32KB
+ *    rrrr zzzz		>=64KB
+ *    ...
+ *
+ * The zzzz bits are implementation-specific but are chosen so that
+ * no encoding for a larger page size uses the same value in its
+ * low-order N bits as the encoding for the 2^(12+N) byte page size
+ * (if it exists).
+ */
+static void init_hpte_page_sizes(void)
+{
+	long int ap, bp;
+	long int shift, penc;
+
+	for (bp = 0; bp < MMU_PAGE_COUNT; ++bp) {
+		if (!mmu_psize_defs[bp].shift)
+			continue;	/* not a supported page size */
+		for (ap = bp; ap < MMU_PAGE_COUNT; ++ap) {
+			penc = mmu_psize_defs[bp].penc[ap];
+			if (penc == -1)
+				continue;
+			shift = mmu_psize_defs[ap].shift - LP_SHIFT;
+			if (shift <= 0)
+				continue;	/* should never happen */
+			/*
+			 * For page sizes less than 1MB, this loop
+			 * replicates the entry for all possible values
+			 * of the rrrr bits.
+			 */
+			while (penc < (1 << LP_BITS)) {
+				hpte_page_sizes[penc] = (ap << 4) | bp;
+				penc += 1 << shift;
+			}
+		}
+	}
+}
+
 static void __init htab_init_page_sizes(void)
 {
 	int rc;
@@ -548,6 +601,8 @@ static void __init htab_init_page_sizes(void)
 		memcpy(mmu_psize_defs, mmu_psize_defaults_gp,
 		       sizeof(mmu_psize_defaults_gp));
 found:
+	init_hpte_page_sizes();
+
 	if (!debug_pagealloc_enabled()) {
 		/*
 		 * Pick a size for the linear mapping. Currently, we only
