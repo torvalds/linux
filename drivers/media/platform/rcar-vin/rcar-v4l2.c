@@ -125,6 +125,8 @@ static int rvin_reset_format(struct rvin_dev *vin)
 	switch (vin->format.field) {
 	case V4L2_FIELD_TOP:
 	case V4L2_FIELD_BOTTOM:
+		vin->format.height /= 2;
+		break;
 	case V4L2_FIELD_NONE:
 	case V4L2_FIELD_INTERLACED_TB:
 	case V4L2_FIELD_INTERLACED_BT:
@@ -220,6 +222,22 @@ static int __rvin_try_format(struct rvin_dev *vin,
 	/* Limit to source capabilities */
 	__rvin_try_format_source(vin, which, pix, source);
 
+	switch (pix->field) {
+	case V4L2_FIELD_TOP:
+	case V4L2_FIELD_BOTTOM:
+		pix->height /= 2;
+		source->height /= 2;
+		break;
+	case V4L2_FIELD_NONE:
+	case V4L2_FIELD_INTERLACED_TB:
+	case V4L2_FIELD_INTERLACED_BT:
+	case V4L2_FIELD_INTERLACED:
+		break;
+	default:
+		pix->field = V4L2_FIELD_NONE;
+		break;
+	}
+
 	/* If source can't match format try if VIN can scale */
 	if (source->width != rwidth || source->height != rheight)
 		rvin_scale_try(vin, pix, rwidth, rheight);
@@ -230,19 +248,6 @@ static int __rvin_try_format(struct rvin_dev *vin,
 	/* Limit to VIN capabilities */
 	v4l_bound_align_image(&pix->width, 2, RVIN_MAX_WIDTH, walign,
 			      &pix->height, 4, RVIN_MAX_HEIGHT, 2, 0);
-
-	switch (pix->field) {
-	case V4L2_FIELD_NONE:
-	case V4L2_FIELD_TOP:
-	case V4L2_FIELD_BOTTOM:
-	case V4L2_FIELD_INTERLACED_TB:
-	case V4L2_FIELD_INTERLACED_BT:
-	case V4L2_FIELD_INTERLACED:
-		break;
-	default:
-		pix->field = V4L2_FIELD_NONE;
-		break;
-	}
 
 	pix->bytesperline = max_t(u32, pix->bytesperline,
 				  rvin_format_bytesperline(pix));
