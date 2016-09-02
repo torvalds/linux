@@ -175,9 +175,6 @@ static void crb_cancel(struct tpm_chip *chip)
 
 	iowrite32(cpu_to_le32(CRB_CANCEL_INVOKE), &priv->cca->cancel);
 
-	/* Make sure that cmd is populated before issuing cancel. */
-	wmb();
-
 	if ((priv->flags & CRB_FL_ACPI_START) && crb_do_acpi_start(chip))
 		dev_err(&chip->dev, "ACPI Start failed\n");
 }
