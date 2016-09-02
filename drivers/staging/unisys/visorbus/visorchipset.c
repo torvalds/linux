@@ -99,9 +99,6 @@ static struct delayed_work periodic_controlvm_work;
 static struct cdev file_cdev;
 static struct visorchannel **file_controlvm_channel;
 
-static LIST_HEAD(bus_info_list);
-static LIST_HEAD(dev_info_list);
-
 static struct visorchannel *controlvm_channel;
 
 /* Manages the request payload in the controlvm channel */
@@ -133,13 +130,6 @@ struct putfile_buffer_entry {
 	struct list_head next;	/* putfile_buffer_entry list */
 	struct parser_context *parser_ctx; /* points to input data buffer */
 };
-
-/*
- * List of struct putfile_request *, via next_putfile_request member.
- * Each entry in this list identifies an outstanding TRANSMIT_FILE
- * conversation.
- */
-static LIST_HEAD(putfile_request_list);
 
 /*
  * This describes a buffer and its current state of transfer (e.g., how many
