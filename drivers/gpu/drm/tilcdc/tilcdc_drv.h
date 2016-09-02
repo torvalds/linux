@@ -65,6 +65,10 @@ struct tilcdc_drm_private {
 	 */
 	uint32_t max_width;
 
+	/* Supported pixel formats */
+	const uint32_t *pixelformats;
+	uint32_t num_pixelformats;
+
 	/* The context for pm susped/resume cycle is stored here */
 	struct drm_atomic_state *saved_state;
 
@@ -112,7 +116,6 @@ struct tilcdc_module {
 	const char *name;
 	struct list_head list;
 	const struct tilcdc_module_ops *funcs;
-	unsigned int preferred_bpp;
 };
 
 void tilcdc_module_init(struct tilcdc_module *mod, const char *name,

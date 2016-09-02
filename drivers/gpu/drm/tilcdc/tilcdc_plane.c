@@ -24,10 +24,6 @@
 
 #include "tilcdc_drv.h"
 
-static const u32 tilcdc_formats[] = { DRM_FORMAT_RGB565,
-				      DRM_FORMAT_RGB888,
-				      DRM_FORMAT_XRGB8888 };
-
 static struct drm_plane_funcs tilcdc_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
 	.disable_plane	= drm_atomic_helper_disable_plane,
@@ -114,12 +110,13 @@ static const struct drm_plane_helper_funcs plane_helper_funcs = {
 int tilcdc_plane_init(struct drm_device *dev,
 		      struct drm_plane *plane)
 {
+	struct tilcdc_drm_private *priv = dev->dev_private;
 	int ret;
 
 	ret = drm_plane_init(dev, plane, 1,
 			     &tilcdc_plane_funcs,
-			     tilcdc_formats,
-			     ARRAY_SIZE(tilcdc_formats),
+			     priv->pixelformats,
+			     priv->num_pixelformats,
 			     true);
 	if (ret) {
 		dev_err(dev->dev, "Failed to initialize plane: %d\n", ret);
