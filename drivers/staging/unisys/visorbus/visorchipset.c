@@ -123,15 +123,6 @@ static struct controlvm_message controlvm_pending_msg;
 static bool controlvm_pending_msg_valid;
 
 /*
- * This identifies a data buffer that has been received via a controlvm messages
- * in a remote --> local CONTROLVM_TRANSMIT_FILE conversation.
- */
-struct putfile_buffer_entry {
-	struct list_head next;	/* putfile_buffer_entry list */
-	struct parser_context *parser_ctx; /* points to input data buffer */
-};
-
-/*
  * This describes a buffer and its current state of transfer (e.g., how many
  * bytes have already been supplied as putfile data, and how many bytes are
  * remaining) for a putfile_request.
