@@ -95,6 +95,7 @@
 /* Video n Module Status Register bits */
 #define VNMS_FBS_MASK		(3 << 3)
 #define VNMS_FBS_SHIFT		3
+#define VNMS_FS			(1 << 2)
 #define VNMS_AV			(1 << 1)
 #define VNMS_CA			(1 << 0)
 
@@ -156,6 +157,7 @@ static int rvin_setup(struct rvin_dev *vin)
 	case V4L2_FIELD_INTERLACED_BT:
 		vnmc = VNMC_IM_FULL | VNMC_FOC;
 		break;
+	case V4L2_FIELD_ALTERNATE:
 	case V4L2_FIELD_NONE:
 		if (vin->continuous) {
 			vnmc = VNMC_IM_ODD_EVEN;
@@ -329,13 +331,24 @@ static bool rvin_capture_active(struct rvin_dev *vin)
 	return rvin_read(vin, VNMS_REG) & VNMS_CA;
 }
 
-static int rvin_get_active_slot(struct rvin_dev *vin)
+static int rvin_get_active_slot(struct rvin_dev *vin, u32 vnms)
 {
 	if (vin->continuous)
-		return (rvin_read(vin, VNMS_REG) & VNMS_FBS_MASK)
-			>> VNMS_FBS_SHIFT;
+		return (vnms & VNMS_FBS_MASK) >> VNMS_FBS_SHIFT;
 
 	return 0;
+}
+
+static enum v4l2_field rvin_get_active_field(struct rvin_dev *vin, u32 vnms)
+{
+	if (vin->format.field == V4L2_FIELD_ALTERNATE) {
+		/* If FS is set it's a Even field */
+		if (vnms & VNMS_FS)
+			return V4L2_FIELD_BOTTOM;
+		return V4L2_FIELD_TOP;
+	}
+
+	return vin->format.field;
 }
 
 static void rvin_set_slot_addr(struct rvin_dev *vin, int slot, dma_addr_t addr)
@@ -878,7 +891,7 @@ static bool rvin_fill_hw(struct rvin_dev *vin)
 static irqreturn_t rvin_irq(int irq, void *data)
 {
 	struct rvin_dev *vin = data;
-	u32 int_status;
+	u32 int_status, vnms;
 	int slot;
 	unsigned int sequence, handled = 0;
 	unsigned long flags;
@@ -905,7 +918,8 @@ static irqreturn_t rvin_irq(int irq, void *data)
 	}
 
 	/* Prepare for capture and update state */
-	slot = rvin_get_active_slot(vin);
+	vnms = rvin_read(vin, VNMS_REG);
+	slot = rvin_get_active_slot(vin, vnms);
 	sequence = vin->sequence++;
 
 	vin_dbg(vin, "IRQ %02d: %d\tbuf0: %c buf1: %c buf2: %c\tmore: %d\n",
@@ -920,7 +934,7 @@ static irqreturn_t rvin_irq(int irq, void *data)
 		goto done;
 
 	/* Capture frame */
-	vin->queue_buf[slot]->field = vin->format.field;
+	vin->queue_buf[slot]->field = rvin_get_active_field(vin, vnms);
 	vin->queue_buf[slot]->sequence = sequence;
 	vin->queue_buf[slot]->vb2_buf.timestamp = ktime_get_ns();
 	vb2_buffer_done(&vin->queue_buf[slot]->vb2_buf, VB2_BUF_STATE_DONE);

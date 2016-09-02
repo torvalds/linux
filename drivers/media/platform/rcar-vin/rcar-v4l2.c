@@ -122,9 +122,21 @@ static int rvin_reset_format(struct rvin_dev *vin)
 	vin->format.colorspace	= mf->colorspace;
 	vin->format.field	= mf->field;
 
+	/*
+	 * If the subdevice uses ALTERNATE field mode and G_STD is
+	 * implemented use the VIN HW to combine the two fields to
+	 * one INTERLACED frame. The ALTERNATE field mode can still
+	 * be requested in S_FMT and be respected, this is just the
+	 * default which is applied at probing or when S_STD is called.
+	 */
+	if (vin->format.field == V4L2_FIELD_ALTERNATE &&
+	    v4l2_subdev_has_op(vin_to_source(vin), video, g_std))
+		vin->format.field = V4L2_FIELD_INTERLACED;
+
 	switch (vin->format.field) {
 	case V4L2_FIELD_TOP:
 	case V4L2_FIELD_BOTTOM:
+	case V4L2_FIELD_ALTERNATE:
 		vin->format.height /= 2;
 		break;
 	case V4L2_FIELD_NONE:
@@ -225,6 +237,7 @@ static int __rvin_try_format(struct rvin_dev *vin,
 	switch (pix->field) {
 	case V4L2_FIELD_TOP:
 	case V4L2_FIELD_BOTTOM:
+	case V4L2_FIELD_ALTERNATE:
 		pix->height /= 2;
 		source->height /= 2;
 		break;
