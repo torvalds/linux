@@ -137,7 +137,7 @@ config DMA_OMAP
 
 config DMA_SA11X0
 	tristate "SA-11x0 DMA support"
-	depends on ARCH_SA1100
+	depends on ARCH_SA1100 || COMPILE_TEST
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
