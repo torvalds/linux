@@ -102,7 +102,7 @@ config AXI_DMAC
 config COH901318
 	bool "ST-Ericsson COH901318 DMA support"
 	select DMA_ENGINE
-	depends on ARCH_U300
+	depends on ARCH_U300 || COMPILE_TEST
 	help
 	  Enable support for ST-Ericsson COH 901 318 DMA.
 
