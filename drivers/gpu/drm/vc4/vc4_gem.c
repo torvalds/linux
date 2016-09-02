@@ -419,10 +419,6 @@ again:
 
 	vc4_flush_caches(dev);
 
-	/* Disable the binner's pre-loaded overflow memory address */
-	V3D_WRITE(V3D_BPOA, 0);
-	V3D_WRITE(V3D_BPOS, 0);
-
 	/* Either put the job in the binner if it uses the binner, or
 	 * immediately move it to the to-be-rendered queue.
 	 */

@@ -340,9 +340,20 @@ static void vc4_dpi_encoder_enable(struct drm_encoder *encoder)
 	}
 }
 
+static bool vc4_dpi_encoder_mode_fixup(struct drm_encoder *encoder,
+				       const struct drm_display_mode *mode,
+				       struct drm_display_mode *adjusted_mode)
+{
+	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
+		return false;
+
+	return true;
+}
+
 static const struct drm_encoder_helper_funcs vc4_dpi_encoder_helper_funcs = {
 	.disable = vc4_dpi_encoder_disable,
 	.enable = vc4_dpi_encoder_enable,
+	.mode_fixup = vc4_dpi_encoder_mode_fixup,
 };
 
 static const struct of_device_id vc4_dpi_dt_match[] = {
