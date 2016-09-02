@@ -169,7 +169,7 @@ static int rvin_setup(struct rvin_dev *vin)
 		vnmc |= VNMC_INF_YUV16;
 		input_is_yuv = true;
 		break;
-	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
 		/* BT.656 8bit YCbCr422 or BT.601 8bit YCbCr422 */
 		vnmc |= vin->digital.mbus_cfg.type == V4L2_MBUS_BT656 ?
 			VNMC_INF_YUV8_BT656 : VNMC_INF_YUV8_BT601;
@@ -178,7 +178,7 @@ static int rvin_setup(struct rvin_dev *vin)
 	case MEDIA_BUS_FMT_RGB888_1X24:
 		vnmc |= VNMC_INF_RGB888;
 		break;
-	case MEDIA_BUS_FMT_YUYV10_2X10:
+	case MEDIA_BUS_FMT_UYVY10_2X10:
 		/* BT.656 10bit YCbCr422 or BT.601 10bit YCbCr422 */
 		vnmc |= vin->digital.mbus_cfg.type == V4L2_MBUS_BT656 ?
 			VNMC_INF_YUV10_BT656 : VNMC_INF_YUV10_BT601;
