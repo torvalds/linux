@@ -12285,6 +12285,7 @@ F:	drivers/net/usb/smsc75xx.*
 
 USB SMSC95XX ETHERNET DRIVER
 M:	Steve Glendinning <steve.glendinning@shawell.net>
+M:	Microchip Linux Driver Support <UNGLinuxDriver@microchip.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/usb/smsc95xx.*
