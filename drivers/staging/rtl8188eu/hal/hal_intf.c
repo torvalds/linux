@@ -104,14 +104,6 @@ u32 rtw_hal_inirp_init(struct adapter *adapt)
 	return rst;
 }
 
-u32 rtw_hal_inirp_deinit(struct adapter *adapt)
-{
-	if (adapt->HalFunc.inirp_deinit)
-		return adapt->HalFunc.inirp_deinit(adapt);
-
-	return _FAIL;
-}
-
 void rtw_hal_update_ra_mask(struct adapter *adapt, u32 mac_id, u8 rssi_level)
 {
 	struct mlme_priv *pmlmepriv = &(adapt->mlmepriv);

@@ -147,7 +147,6 @@ struct hal_ops {
 	void	(*free_hal_data)(struct adapter *padapter);
 
 	u32	(*inirp_init)(struct adapter *padapter);
-	u32	(*inirp_deinit)(struct adapter *padapter);
 
 	void	(*dm_init)(struct adapter *padapter);
 	void	(*read_chip_version)(struct adapter *padapter);
@@ -232,7 +231,7 @@ void rtw_hal_set_odm_var(struct adapter *padapter,
 			 bool bSet);
 
 u32	rtw_hal_inirp_init(struct adapter *padapter);
-u32	rtw_hal_inirp_deinit(struct adapter *padapter);
+void	rtw_hal_inirp_deinit(struct adapter *padapter);
 
 s32	rtw_hal_xmit(struct adapter *padapter, struct xmit_frame *pxmitframe);
 s32	rtw_hal_mgnt_xmit(struct adapter *padapter,

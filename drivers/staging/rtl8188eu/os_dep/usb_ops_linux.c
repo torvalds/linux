@@ -527,7 +527,7 @@ u32 usb_read_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *rmem)
 	return ret;
 }
 
-void usb_read_port_cancel(struct adapter *padapter)
+void rtw_hal_inirp_deinit(struct adapter *padapter)
 {
 	int i;
 	struct recv_buf *precvbuf;

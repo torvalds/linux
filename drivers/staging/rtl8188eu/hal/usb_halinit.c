@@ -1029,17 +1029,6 @@ exit:
 	return status;
 }
 
-static unsigned int rtl8188eu_inirp_deinit(struct adapter *Adapter)
-{
-	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("\n ===> usb_rx_deinit\n"));
-
-	usb_read_port_cancel(Adapter);
-
-	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("\n <=== usb_rx_deinit\n"));
-
-	return _SUCCESS;
-}
-
 /*  */
 /*  */
 /*	EEPROM/EFUSE Content Parsing */
@@ -2066,7 +2055,6 @@ void rtl8188eu_set_hal_ops(struct adapter *adapt)
 	halfunc->hal_deinit = &rtl8188eu_hal_deinit;
 
 	halfunc->inirp_init = &rtl8188eu_inirp_init;
-	halfunc->inirp_deinit = &rtl8188eu_inirp_deinit;
 
 	rtl8188e_set_hal_ops(halfunc);
 }
