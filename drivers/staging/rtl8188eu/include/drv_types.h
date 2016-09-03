@@ -199,7 +199,6 @@ struct adapter {
 	u8	hw_init_completed;
 
 	void *cmdThread;
-	void *evtThread;
 	void (*intf_start)(struct adapter *adapter);
 	void (*intf_stop)(struct adapter *adapter);
 	struct  net_device *pnetdev;
