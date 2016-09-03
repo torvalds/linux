@@ -149,8 +149,6 @@ struct hal_ops {
 	u32	(*inirp_init)(struct adapter *padapter);
 	u32	(*inirp_deinit)(struct adapter *padapter);
 
-	s32	(*init_xmit_priv)(struct adapter *padapter);
-
 	void	(*dm_init)(struct adapter *padapter);
 	void	(*read_chip_version)(struct adapter *padapter);
 

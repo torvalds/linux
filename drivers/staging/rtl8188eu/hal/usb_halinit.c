@@ -2068,7 +2068,5 @@ void rtl8188eu_set_hal_ops(struct adapter *adapt)
 	halfunc->inirp_init = &rtl8188eu_inirp_init;
 	halfunc->inirp_deinit = &rtl8188eu_inirp_deinit;
 
-	halfunc->init_xmit_priv = &rtl8188eu_init_xmit_priv;
-
 	rtl8188e_set_hal_ops(halfunc);
 }

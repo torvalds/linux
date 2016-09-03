@@ -21,7 +21,7 @@
 #include <usb_ops_linux.h>
 #include <rtl8188e_hal.h>
 
-s32	rtl8188eu_init_xmit_priv(struct adapter *adapt)
+s32 rtw_hal_init_xmit_priv(struct adapter *adapt)
 {
 	struct xmit_priv	*pxmitpriv = &adapt->xmitpriv;
 
