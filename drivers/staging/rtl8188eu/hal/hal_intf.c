@@ -243,12 +243,6 @@ void rtw_hal_dm_watchdog(struct adapter *adapt)
 		adapt->HalFunc.hal_dm_watchdog(adapt);
 }
 
-void rtw_hal_bcn_related_reg_setting(struct adapter *adapt)
-{
-	if (adapt->HalFunc.SetBeaconRelatedRegistersHandler)
-		adapt->HalFunc.SetBeaconRelatedRegistersHandler(adapt);
-}
-
 u8 rtw_hal_antdiv_before_linked(struct adapter *adapt)
 {
 	if (adapt->HalFunc.AntDivBeforeLinkHandler)
