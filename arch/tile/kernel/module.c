@@ -43,7 +43,7 @@ void *module_alloc(unsigned long size)
 	int npages;
 
 	npages = (size + PAGE_SIZE - 1) / PAGE_SIZE;
-	pages = kmalloc(npages * sizeof(struct page *), GFP_KERNEL);
+	pages = kmalloc_array(npages, sizeof(*pages), GFP_KERNEL);
 	if (pages == NULL)
 		return NULL;
 	for (; i < npages; ++i) {
