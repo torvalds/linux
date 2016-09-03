@@ -38,7 +38,6 @@
 #define get_ds()	(KERNEL_DS)
 #define get_fs()	(current_thread_info()->addr_limit)
 #define set_fs(x)	(current_thread_info()->addr_limit = (x))
-#define __kernel_ds_p() (current_thread_info()->addr_limit.seg == 0x9FFFFFFF)
 
 #define segment_eq(a, b) ((a).seg == (b).seg)
 
