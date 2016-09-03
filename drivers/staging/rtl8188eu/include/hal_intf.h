@@ -201,8 +201,6 @@ struct hal_ops {
 					struct wlan_bssid_ex *src);
 	s32	(*hal_xmit)(struct adapter *padapter,
 			    struct xmit_frame *pxmitframe);
-	s32 (*mgnt_xmit)(struct adapter *padapter,
-			 struct xmit_frame *pmgntframe);
 	u32	(*read_rfreg)(struct adapter *padapter,
 			      enum rf_radio_path eRFPath, u32 RegAddr,
 			      u32 BitMask);

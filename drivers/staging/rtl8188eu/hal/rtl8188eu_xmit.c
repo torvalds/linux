@@ -672,7 +672,7 @@ enqueue:
 	return false;
 }
 
-s32 rtl8188eu_mgnt_xmit(struct adapter *adapt, struct xmit_frame *pmgntframe)
+s32 rtw_hal_mgnt_xmit(struct adapter *adapt, struct xmit_frame *pmgntframe)
 {
 	struct xmit_priv *xmitpriv = &adapt->xmitpriv;
 
