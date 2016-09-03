@@ -291,16 +291,6 @@ struct sta_data {
 /* this is stolen from ipw2200 driver */
 #define IEEE_IBSS_MAC_HASH_SIZE 31
 
-struct rtw_ieee80211_hdr {
-	__le16 frame_ctl;
-	__le16 duration_id;
-	u8 addr1[ETH_ALEN];
-	u8 addr2[ETH_ALEN];
-	u8 addr3[ETH_ALEN];
-	u16 seq_ctl;
-	u8 addr4[ETH_ALEN];
-} __packed;
-
 struct rtw_ieee80211_hdr_3addr {
 	__le16 frame_ctl;
 	__le16 duration_id;
