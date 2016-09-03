@@ -155,7 +155,6 @@ struct adapter {
 	struct	led_priv	ledpriv;
 
 	void *HalData;
-	struct hal_ops	HalFunc;
 
 	s32	bDriverStopped;
 	s32	bSurpriseRemoved;

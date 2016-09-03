@@ -139,9 +139,6 @@ enum hal_intf_ps_func {
 	HAL_MAX_ID,
 };
 
-struct hal_ops {
-};
-
 enum rt_eeprom_type {
 	EEPROM_93C46,
 	EEPROM_93C56,
