@@ -3862,7 +3862,7 @@ static void gfx_v8_0_init_pg(struct amdgpu_device *adev)
 	}
 }
 
-void gfx_v8_0_rlc_stop(struct amdgpu_device *adev)
+static void gfx_v8_0_rlc_stop(struct amdgpu_device *adev)
 {
 	WREG32_FIELD(RLC_CNTL, RLC_ENABLE_F32, 0);
 

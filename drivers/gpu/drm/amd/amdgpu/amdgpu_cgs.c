@@ -616,7 +616,7 @@ static int amdgpu_cgs_irq_put(struct cgs_device *cgs_device, unsigned src_id, un
 	return amdgpu_irq_put(adev, adev->irq.sources[src_id], type);
 }
 
-int amdgpu_cgs_set_clockgating_state(struct cgs_device *cgs_device,
+static int amdgpu_cgs_set_clockgating_state(struct cgs_device *cgs_device,
 				  enum amd_ip_block_type block_type,
 				  enum amd_clockgating_state state)
 {
@@ -637,7 +637,7 @@ int amdgpu_cgs_set_clockgating_state(struct cgs_device *cgs_device,
 	return r;
 }
 
-int amdgpu_cgs_set_powergating_state(struct cgs_device *cgs_device,
+static int amdgpu_cgs_set_powergating_state(struct cgs_device *cgs_device,
 				  enum amd_ip_block_type block_type,
 				  enum amd_powergating_state state)
 {

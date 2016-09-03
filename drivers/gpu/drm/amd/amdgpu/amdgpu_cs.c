@@ -431,7 +431,7 @@ static bool amdgpu_cs_try_evict(struct amdgpu_cs_parser *p,
 	return false;
 }
 
-int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
+static int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 			    struct list_head *validated)
 {
 	struct amdgpu_bo_list_entry *lobj;
