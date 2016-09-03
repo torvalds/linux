@@ -53,30 +53,17 @@
 #define SPEC_DEV_ID_ASSIGN_IFNAME	BIT(5)
 
 struct registry_priv {
-	u8	chip_version;
-	u8	rfintfs;
-	u8	lbkmode;
-	u8	hci;
 	struct ndis_802_11_ssid	ssid;
-	u8	network_mode;	/* infra, ad-hoc, auto */
 	u8	channel;/* ad-hoc support requirement */
 	u8	wireless_mode;/* A, B, G, auto */
-	u8	scan_mode;/* active, passive */
-	u8	radio_enable;
 	u8	preamble;/* long, short, auto */
 	u8	vrtl_carrier_sense;/* Enable, Disable, Auto */
 	u8	vcs_type;/* RTS/CTS, CTS-to-self */
 	u16	rts_thresh;
 	u16	frag_thresh;
-	u8	adhoc_tx_pwr;
-	u8	soft_ap;
 	u8	power_mgnt;
 	u8	ips_mode;
 	u8	smart_ps;
-	u8	long_retry_lmt;
-	u8	short_retry_lmt;
-	u16	busy_thresh;
-	u8	ack_policy;
 	u8	mp_mode;
 	u8	software_encrypt;
 	u8	software_decrypt;
@@ -84,11 +71,6 @@ struct registry_priv {
 	  /* UAPSD */
 	u8	wmm_enable;
 	u8	uapsd_enable;
-	u8	uapsd_max_sp;
-	u8	uapsd_acbk_en;
-	u8	uapsd_acbe_en;
-	u8	uapsd_acvi_en;
-	u8	uapsd_acvo_en;
 
 	struct wlan_bssid_ex    dev_network;
 
@@ -97,10 +79,6 @@ struct registry_priv {
 	u8	ampdu_enable;/* for tx */
 	u8	rx_stbc;
 	u8	ampdu_amsdu;/* A-MPDU Supports A-MSDU is permitted */
-	u8	lowrate_two_xmit;
-
-	u8	rf_config;
-	u8	low_power;
 
 	u8	wifi_spec;/*  !turbo_mode */
 
@@ -112,9 +90,6 @@ struct registry_priv {
 
 	u8	usbss_enable;/* 0:disable,1:enable */
 	u8	hwpdn_mode;/* 0:disable,1:enable,2:decide by EFUSE config */
-	u8	hwpwrp_detect;/* 0:disable,1:enable */
-
-	u8	hw_wps_pbc;/* 0:disable,1:enable */
 
 	u8	max_roaming_times; /*  the max number driver will try */
 

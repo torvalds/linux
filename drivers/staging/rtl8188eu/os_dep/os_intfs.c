@@ -33,11 +33,7 @@ MODULE_VERSION(DRIVERVERSION);
 #define RTW_NOTCH_FILTER 0 /* 0:Disable, 1:Enable, */
 
 /* module param defaults */
-static int rtw_chip_version;
-static int rtw_rfintfs = HWPI;
-static int rtw_lbkmode;/* RTL8712_AIR_TRX; */
 /* Ndis802_11Infrastructure; infra, ad-hoc, auto */
-static int rtw_network_mode = Ndis802_11IBSS;
 static int rtw_channel = 1;/* ad-hoc support requirement */
 static int rtw_wireless_mode = WIRELESS_11BG_24N;
 static int rtw_vrtl_carrier_sense = AUTO_VCS;
@@ -45,9 +41,6 @@ static int rtw_vcs_type = RTS_CTS;/*  */
 static int rtw_rts_thresh = 2347;/*  */
 static int rtw_frag_thresh = 2346;/*  */
 static int rtw_preamble = PREAMBLE_LONG;/* long, short, auto */
-static int rtw_scan_mode = 1;/* active, passive */
-static int rtw_adhoc_tx_pwr = 1;
-static int rtw_soft_ap;
 static int rtw_power_mgnt = 1;
 static int rtw_ips_mode = IPS_NORMAL;
 
@@ -57,11 +50,6 @@ module_param(rtw_ips_mode, int, 0644);
 MODULE_PARM_DESC(rtw_ips_mode, "The default IPS mode");
 
 static int rtw_debug = 1;
-static int rtw_radio_enable = 1;
-static int rtw_long_retry_lmt = 7;
-static int rtw_short_retry_lmt = 7;
-static int rtw_busy_thresh = 40;
-static int rtw_ack_policy = NORMAL_ACK;
 
 static int rtw_software_encrypt;
 static int rtw_software_decrypt;
@@ -70,11 +58,6 @@ static int rtw_acm_method;/*  0:By SW 1:By HW. */
 
 static int rtw_wmm_enable = 1;/*  default is set to enable the wmm. */
 static int rtw_uapsd_enable;
-static int rtw_uapsd_max_sp = NO_LIMIT;
-static int rtw_uapsd_acbk_en;
-static int rtw_uapsd_acbe_en;
-static int rtw_uapsd_acvi_en;
-static int rtw_uapsd_acvo_en;
 
 static int rtw_ht_enable = 1;
 /* 0 :disable, bit(0): enable 2.4g, bit(1): enable 5g */
@@ -89,11 +72,6 @@ static int rtw_ampdu_enable = 1;/* for enable tx_ampdu */
 static int rtw_rx_stbc = 1;
 static int rtw_ampdu_amsdu;/*  0: disabled, 1:enabled, 2:auto */
 
-/* Use 2 path Tx to transmit MCS0~7 and legacy mode */
-static int rtw_lowrate_two_xmit = 1;
-
-static int rtw_rf_config = RF_819X_MAX_TYPE;  /* auto */
-static int rtw_low_power;
 static int rtw_wifi_spec;
 static int rtw_channel_plan = RT_CHANNEL_DOMAIN_MAX;
 
@@ -110,10 +88,6 @@ static int rtw_antdiv_type;
 static int rtw_enusbss;/* 0:disable, 1:enable */
 
 static int rtw_hwpdn_mode = 2;/* 0:disable, 1:enable, 2: by EFUSE config */
-
-static int rtw_hwpwrp_detect; /* HW power  ping detect 0:disable , 1:enable */
-
-static int rtw_hw_wps_pbc = 1;
 
 int rtw_mc2u_disable;
 
@@ -132,32 +106,22 @@ char *rtw_initmac;
 
 module_param(rtw_initmac, charp, 0644);
 module_param(rtw_channel_plan, int, 0644);
-module_param(rtw_chip_version, int, 0644);
-module_param(rtw_rfintfs, int, 0644);
-module_param(rtw_lbkmode, int, 0644);
-module_param(rtw_network_mode, int, 0644);
 module_param(rtw_channel, int, 0644);
 module_param(rtw_wmm_enable, int, 0644);
 module_param(rtw_vrtl_carrier_sense, int, 0644);
 module_param(rtw_vcs_type, int, 0644);
-module_param(rtw_busy_thresh, int, 0644);
 module_param(rtw_ht_enable, int, 0644);
 module_param(rtw_cbw40_enable, int, 0644);
 module_param(rtw_ampdu_enable, int, 0644);
 module_param(rtw_rx_stbc, int, 0644);
 module_param(rtw_ampdu_amsdu, int, 0644);
-module_param(rtw_lowrate_two_xmit, int, 0644);
-module_param(rtw_rf_config, int, 0644);
 module_param(rtw_power_mgnt, int, 0644);
 module_param(rtw_smart_ps, int, 0644);
-module_param(rtw_low_power, int, 0644);
 module_param(rtw_wifi_spec, int, 0644);
 module_param(rtw_antdiv_cfg, int, 0644);
 module_param(rtw_antdiv_type, int, 0644);
 module_param(rtw_enusbss, int, 0644);
 module_param(rtw_hwpdn_mode, int, 0644);
-module_param(rtw_hwpwrp_detect, int, 0644);
-module_param(rtw_hw_wps_pbc, int, 0644);
 
 static uint rtw_max_roaming_times = 2;
 module_param(rtw_max_roaming_times, uint, 0644);
@@ -536,10 +500,6 @@ static void loadparam(struct adapter *padapter, struct net_device *pnetdev)
 	struct registry_priv  *registry_par = &padapter->registrypriv;
 
 	GlobalDebugLevel = rtw_debug;
-	registry_par->chip_version = (u8)rtw_chip_version;
-	registry_par->rfintfs = (u8)rtw_rfintfs;
-	registry_par->lbkmode = (u8)rtw_lbkmode;
-	registry_par->network_mode  = (u8)rtw_network_mode;
 
 	memcpy(registry_par->ssid.Ssid, "ANY", 3);
 	registry_par->ssid.SsidLength = 3;
@@ -551,17 +511,9 @@ static void loadparam(struct adapter *padapter, struct net_device *pnetdev)
 	registry_par->rts_thresh = (u16)rtw_rts_thresh;
 	registry_par->frag_thresh = (u16)rtw_frag_thresh;
 	registry_par->preamble = (u8)rtw_preamble;
-	registry_par->scan_mode = (u8)rtw_scan_mode;
-	registry_par->adhoc_tx_pwr = (u8)rtw_adhoc_tx_pwr;
-	registry_par->soft_ap =  (u8)rtw_soft_ap;
 	registry_par->smart_ps =  (u8)rtw_smart_ps;
 	registry_par->power_mgnt = (u8)rtw_power_mgnt;
 	registry_par->ips_mode = (u8)rtw_ips_mode;
-	registry_par->radio_enable = (u8)rtw_radio_enable;
-	registry_par->long_retry_lmt = (u8)rtw_long_retry_lmt;
-	registry_par->short_retry_lmt = (u8)rtw_short_retry_lmt;
-	registry_par->busy_thresh = (u16)rtw_busy_thresh;
-	registry_par->ack_policy = (u8)rtw_ack_policy;
 	registry_par->mp_mode = 0;
 	registry_par->software_encrypt = (u8)rtw_software_encrypt;
 	registry_par->software_decrypt = (u8)rtw_software_decrypt;
@@ -570,28 +522,18 @@ static void loadparam(struct adapter *padapter, struct net_device *pnetdev)
 	 /* UAPSD */
 	registry_par->wmm_enable = (u8)rtw_wmm_enable;
 	registry_par->uapsd_enable = (u8)rtw_uapsd_enable;
-	registry_par->uapsd_max_sp = (u8)rtw_uapsd_max_sp;
-	registry_par->uapsd_acbk_en = (u8)rtw_uapsd_acbk_en;
-	registry_par->uapsd_acbe_en = (u8)rtw_uapsd_acbe_en;
-	registry_par->uapsd_acvi_en = (u8)rtw_uapsd_acvi_en;
-	registry_par->uapsd_acvo_en = (u8)rtw_uapsd_acvo_en;
 
 	registry_par->ht_enable = (u8)rtw_ht_enable;
 	registry_par->cbw40_enable = (u8)rtw_cbw40_enable;
 	registry_par->ampdu_enable = (u8)rtw_ampdu_enable;
 	registry_par->rx_stbc = (u8)rtw_rx_stbc;
 	registry_par->ampdu_amsdu = (u8)rtw_ampdu_amsdu;
-	registry_par->lowrate_two_xmit = (u8)rtw_lowrate_two_xmit;
-	registry_par->rf_config = (u8)rtw_rf_config;
-	registry_par->low_power = (u8)rtw_low_power;
 	registry_par->wifi_spec = (u8)rtw_wifi_spec;
 	registry_par->channel_plan = (u8)rtw_channel_plan;
 	registry_par->accept_addba_req = true;
 	registry_par->antdiv_cfg = (u8)rtw_antdiv_cfg;
 	registry_par->antdiv_type = (u8)rtw_antdiv_type;
 	registry_par->hwpdn_mode = (u8)rtw_hwpdn_mode;
-	registry_par->hwpwrp_detect = (u8)rtw_hwpwrp_detect;
-	registry_par->hw_wps_pbc = (u8)rtw_hw_wps_pbc;
 
 	registry_par->max_roaming_times = (u8)rtw_max_roaming_times;
 
