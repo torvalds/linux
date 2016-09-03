@@ -672,7 +672,7 @@ enum rt_rf_power_state RfOnOffDetect(struct adapter *adapt)
 	return rfpowerstate;
 }	/*  HalDetectPwrDownMode */
 
-static u32 rtl8188eu_hal_init(struct adapter *Adapter)
+u32 rtl8188eu_hal_init(struct adapter *Adapter)
 {
 	u8 value8 = 0;
 	u16  value16;
@@ -2051,7 +2051,6 @@ void rtl8188eu_set_hal_ops(struct adapter *adapt)
 		DBG_88E("cant not alloc memory for HAL DATA\n");
 
 	halfunc->hal_power_on = rtl8188eu_InitPowerOn;
-	halfunc->hal_init = &rtl8188eu_hal_init;
 
 	rtl8188e_set_hal_ops(halfunc);
 }

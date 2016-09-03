@@ -50,7 +50,7 @@ uint	 rtw_hal_init(struct adapter *adapt)
 
 	adapt->hw_init_completed = false;
 
-	status = adapt->HalFunc.hal_init(adapt);
+	status = rtl8188eu_hal_init(adapt);
 
 	if (status == _SUCCESS) {
 		adapt->hw_init_completed = true;
