@@ -143,7 +143,6 @@ void rtl8188e_InitHalDm(struct adapter *Adapter)
 
 void rtl8188e_HalDmWatchDog(struct adapter *Adapter)
 {
-	bool fw_ps_awake = true;
 	u8 hw_init_completed = false;
 	struct hal_data_8188e *hal_data = GET_HAL_DATA(Adapter);
 	struct mlme_priv *pmlmepriv = NULL;
@@ -153,8 +152,6 @@ void rtl8188e_HalDmWatchDog(struct adapter *Adapter)
 
 	if (!hw_init_completed)
 		goto skip_dm;
-
-	rtw_hal_get_hwreg(Adapter, HW_VAR_FWLPS_RF_ON, (u8 *)(&fw_ps_awake));
 
 	/* ODM */
 	pmlmepriv = &Adapter->mlmepriv;
