@@ -154,10 +154,6 @@ struct hal_ops {
 
 	void	(*hal_dm_watchdog)(struct adapter *padapter);
 
-	void	(*SetHalODMVarHandler)(struct adapter *padapter,
-				       enum hal_odm_variable eVariable,
-				       void *pValue1, bool bSet);
-
 	void	(*Add_RateATid)(struct adapter *adapter, u32 bitmap, u8 arg,
 				u8 rssi_level);
 

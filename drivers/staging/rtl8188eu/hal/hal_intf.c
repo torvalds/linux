@@ -77,15 +77,6 @@ uint rtw_hal_deinit(struct adapter *adapt)
 	return status;
 }
 
-void rtw_hal_set_odm_var(struct adapter *adapt,
-			 enum hal_odm_variable var, void *val1,
-			 bool set)
-{
-	if (adapt->HalFunc.SetHalODMVarHandler)
-		adapt->HalFunc.SetHalODMVarHandler(adapt, var,
-						      val1, set);
-}
-
 void rtw_hal_update_ra_mask(struct adapter *adapt, u32 mac_id, u8 rssi_level)
 {
 	struct mlme_priv *pmlmepriv = &(adapt->mlmepriv);
