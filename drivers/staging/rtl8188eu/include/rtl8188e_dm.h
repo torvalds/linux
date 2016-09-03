@@ -51,6 +51,5 @@ void rtl8188e_HalDmWatchDog(struct adapter *adapt);
 
 void AntDivCompare8188E(struct adapter *adapt, struct wlan_bssid_ex *dst,
 			struct wlan_bssid_ex *src);
-u8 AntDivBeforeLink8188E(struct adapter *adapt);
 
 #endif

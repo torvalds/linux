@@ -201,7 +201,7 @@ void rtw_hal_antdiv_rssi_compared(struct adapter *Adapter, struct wlan_bssid_ex 
 }
 
 /*  Add new function to reset the state of antenna diversity before link. */
-u8 AntDivBeforeLink8188E(struct adapter *Adapter)
+u8 rtw_hal_antdiv_before_linked(struct adapter *Adapter)
 {
 	struct hal_data_8188e *hal_data = GET_HAL_DATA(Adapter);
 	struct odm_dm_struct *dm_odm = &hal_data->odmpriv;

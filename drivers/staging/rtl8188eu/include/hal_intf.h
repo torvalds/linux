@@ -157,8 +157,6 @@ struct hal_ops {
 	void	(*Add_RateATid)(struct adapter *adapter, u32 bitmap, u8 arg,
 				u8 rssi_level);
 
-	u8	(*AntDivBeforeLinkHandler)(struct adapter *adapter);
-
 	void (*hal_reset_security_engine)(struct adapter *adapter);
 };
 
