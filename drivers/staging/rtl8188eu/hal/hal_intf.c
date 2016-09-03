@@ -127,12 +127,6 @@ s32 rtw_hal_init_recv_priv(struct adapter *adapt)
 	return _FAIL;
 }
 
-void rtw_hal_free_recv_priv(struct adapter *adapt)
-{
-	if (adapt->HalFunc.free_recv_priv)
-		adapt->HalFunc.free_recv_priv(adapt);
-}
-
 void rtw_hal_update_ra_mask(struct adapter *adapt, u32 mac_id, u8 rssi_level)
 {
 	struct mlme_priv *pmlmepriv = &(adapt->mlmepriv);

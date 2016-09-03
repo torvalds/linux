@@ -89,7 +89,7 @@ exit:
 	return res;
 }
 
-void rtl8188eu_free_recv_priv(struct adapter *padapter)
+void rtw_hal_free_recv_priv(struct adapter *padapter)
 {
 	int	i;
 	struct recv_buf	*precvbuf;
