@@ -1388,8 +1388,8 @@ static int _issue_qos_nulldata(struct adapter *padapter, unsigned char *da, u16 
 	pmlmeext->mgnt_seq++;
 	SetFrameSubType(pframe, WIFI_QOS_DATA_NULL);
 
-	pframe += sizeof(struct rtw_ieee80211_hdr_3addr_qos);
-	pattrib->pktlen = sizeof(struct rtw_ieee80211_hdr_3addr_qos);
+	pframe += sizeof(struct ieee80211_qos_hdr);
+	pattrib->pktlen = sizeof(struct ieee80211_qos_hdr);
 
 	pattrib->last_txcmdsz = pattrib->pktlen;
 

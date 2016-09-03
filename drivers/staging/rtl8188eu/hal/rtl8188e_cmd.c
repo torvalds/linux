@@ -378,15 +378,15 @@ static void ConstructNullFunctionData(struct adapter *adapt, u8 *pframe,
 	SetSeqNum(pwlanhdr, 0);
 
 	if (bQoS) {
-		struct rtw_ieee80211_hdr_3addr_qos *pwlanqoshdr;
+		struct ieee80211_qos_hdr *pwlanqoshdr;
 
 		SetFrameSubType(pframe, WIFI_QOS_DATA_NULL);
 
-		pwlanqoshdr = (struct rtw_ieee80211_hdr_3addr_qos *)pframe;
-		SetPriority(&pwlanqoshdr->qc, AC);
-		SetEOSP(&pwlanqoshdr->qc, bEosp);
+		pwlanqoshdr = (struct ieee80211_qos_hdr *)pframe;
+		SetPriority(&pwlanqoshdr->qos_ctrl, AC);
+		SetEOSP(&pwlanqoshdr->qos_ctrl, bEosp);
 
-		pktlen = sizeof(struct rtw_ieee80211_hdr_3addr_qos);
+		pktlen = sizeof(struct ieee80211_qos_hdr);
 	} else {
 		SetFrameSubType(pframe, WIFI_DATA_NULL);
 
