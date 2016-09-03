@@ -140,8 +140,6 @@ enum hal_intf_ps_func {
 };
 
 struct hal_ops {
-	void	(*free_hal_data)(struct adapter *padapter);
-
 	s32	(*interrupt_handler)(struct adapter *padapter);
 
 	void (*hal_reset_security_engine)(struct adapter *adapter);
