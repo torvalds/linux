@@ -229,8 +229,6 @@ struct adapter {
 	spinlock_t br_ext_lock;
 
 	u8	fix_rate;
-
-	unsigned char     in_cta_test;
 };
 
 #define adapter_to_dvobj(adapter) (adapter->dvobj)
