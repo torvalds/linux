@@ -158,9 +158,6 @@ struct hal_ops {
 				u8 rssi_level);
 
 	u8	(*AntDivBeforeLinkHandler)(struct adapter *adapter);
-	void	(*AntDivCompareHandler)(struct adapter *adapter,
-					struct wlan_bssid_ex *dst,
-					struct wlan_bssid_ex *src);
 
 	void (*hal_reset_security_engine)(struct adapter *adapter);
 };

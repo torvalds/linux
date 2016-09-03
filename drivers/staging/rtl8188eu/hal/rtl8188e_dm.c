@@ -187,7 +187,7 @@ void rtl8188e_init_dm_priv(struct adapter *Adapter)
 
 /*  Add new function to reset the state of antenna diversity before link. */
 /*  Compare RSSI for deciding antenna */
-void AntDivCompare8188E(struct adapter *Adapter, struct wlan_bssid_ex *dst, struct wlan_bssid_ex *src)
+void rtw_hal_antdiv_rssi_compared(struct adapter *Adapter, struct wlan_bssid_ex *dst, struct wlan_bssid_ex *src)
 {
 	struct hal_data_8188e *hal_data = GET_HAL_DATA(Adapter);
 

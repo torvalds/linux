@@ -131,14 +131,6 @@ u8 rtw_hal_antdiv_before_linked(struct adapter *adapt)
 	return false;
 }
 
-void rtw_hal_antdiv_rssi_compared(struct adapter *adapt,
-				  struct wlan_bssid_ex *dst,
-				  struct wlan_bssid_ex *src)
-{
-	if (adapt->HalFunc.AntDivCompareHandler)
-		adapt->HalFunc.AntDivCompareHandler(adapt, dst, src);
-}
-
 void rtw_hal_reset_security_engine(struct adapter *adapter)
 {
 	if (adapter->HalFunc.hal_reset_security_engine)

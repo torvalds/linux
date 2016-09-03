@@ -201,7 +201,6 @@ void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc)
 	pHalFunc->Add_RateATid = &rtl8188e_Add_RateATid;
 
 	pHalFunc->AntDivBeforeLinkHandler = &AntDivBeforeLink8188E;
-	pHalFunc->AntDivCompareHandler = &AntDivCompare8188E;
 }
 
 /*  */
