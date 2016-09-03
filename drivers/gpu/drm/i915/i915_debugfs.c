@@ -726,13 +726,9 @@ static int i915_gem_seqno_info(struct seq_file *m, void *data)
 static int i915_interrupt_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
 	struct intel_engine_cs *engine;
-	int ret, i, pipe;
+	int i, pipe;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
 	intel_runtime_pm_get(dev_priv);
 
 	if (IS_CHERRYVIEW(dev_priv)) {
@@ -908,7 +904,6 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 		i915_ring_seqno_info(m, engine);
 	}
 	intel_runtime_pm_put(dev_priv);
-	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
