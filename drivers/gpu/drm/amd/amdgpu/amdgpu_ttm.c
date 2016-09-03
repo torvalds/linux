@@ -648,7 +648,7 @@ static int amdgpu_ttm_backend_bind(struct ttm_tt *ttm,
 			return r;
 		}
 	}
-	gtt->offset = (unsigned long)(bo_mem->start << PAGE_SHIFT);
+	gtt->offset = (u64)bo_mem->start << PAGE_SHIFT;
 	if (!ttm->num_pages) {
 		WARN(1, "nothing to bind %lu pages for mreg %p back %p!\n",
 		     ttm->num_pages, bo_mem, ttm);
@@ -663,8 +663,8 @@ static int amdgpu_ttm_backend_bind(struct ttm_tt *ttm,
 		ttm->pages, gtt->ttm.dma_address, flags);
 
 	if (r) {
-		DRM_ERROR("failed to bind %lu pages at 0x%08X\n",
-			  ttm->num_pages, (unsigned)gtt->offset);
+		DRM_ERROR("failed to bind %lu pages at 0x%08llX\n",
+			  ttm->num_pages, gtt->offset);
 		return r;
 	}
 	spin_lock(&gtt->adev->gtt_list_lock);
@@ -689,8 +689,8 @@ int amdgpu_ttm_recover_gart(struct amdgpu_device *adev)
 				     flags);
 		if (r) {
 			spin_unlock(&adev->gtt_list_lock);
-			DRM_ERROR("failed to bind %lu pages at 0x%08X\n",
-				  gtt->ttm.ttm.num_pages, (unsigned)gtt->offset);
+			DRM_ERROR("failed to bind %lu pages at 0x%08llX\n",
+				  gtt->ttm.ttm.num_pages, gtt->offset);
 			return r;
 		}
 	}
