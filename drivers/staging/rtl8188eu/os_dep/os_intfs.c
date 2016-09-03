@@ -911,8 +911,6 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 
 	rtw_hal_sreset_init(padapter);
 
-	spin_lock_init(&padapter->br_ext_lock);
-
 exit:
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("-rtw_init_drv_sw\n"));
 

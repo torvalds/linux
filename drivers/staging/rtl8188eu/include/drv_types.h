@@ -225,10 +225,6 @@ struct adapter {
 	u8 bRxRSSIDisplay;
 
 	struct mutex hw_init_mutex;
-
-	spinlock_t br_ext_lock;
-
-	u8	fix_rate;
 };
 
 #define adapter_to_dvobj(adapter) (adapter->dvobj)
