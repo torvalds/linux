@@ -66,7 +66,7 @@ exit:
 
 /*	Description: */
 /*		Initialize all LED_871x objects. */
-void rtl8188eu_InitSwLeds(struct adapter *padapter)
+void rtw_hal_sw_led_init(struct adapter *padapter)
 {
 	struct led_priv *pledpriv = &(padapter->ledpriv);
 	struct hal_data_8188e   *haldata = GET_HAL_DATA(padapter);
