@@ -295,9 +295,6 @@ static void phy_sw_chnl_callback(struct adapter *adapt, u8 channel)
 	u32 param1, param2;
 	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
 
-	if (adapt->bNotifyChannelChange)
-		DBG_88E("[%s] ch = %d\n", __func__, channel);
-
 	phy_set_tx_power_level(adapt, channel);
 
 	param1 = RF_CHNLBW;

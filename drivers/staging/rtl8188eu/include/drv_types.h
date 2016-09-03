@@ -223,9 +223,6 @@ struct adapter {
 	u8 bReadPortCancel;
 	u8 bWritePortCancel;
 	u8 bRxRSSIDisplay;
-	/* The driver will show up the desired channel number
-	 * when this flag is 1. */
-	u8 bNotifyChannelChange;
 
 	struct mutex hw_init_mutex;
 

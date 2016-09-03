@@ -821,7 +821,6 @@ static u8 rtw_init_default_value(struct adapter *padapter)
 	padapter->bReadPortCancel = false;
 	padapter->bWritePortCancel = false;
 	padapter->bRxRSSIDisplay = 0;
-	padapter->bNotifyChannelChange = 0;
 	return _SUCCESS;
 }
 
