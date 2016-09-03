@@ -174,7 +174,7 @@ skip_dm:
 	return;
 }
 
-void rtl8188e_init_dm_priv(struct adapter *Adapter)
+void rtw_hal_dm_init(struct adapter *Adapter)
 {
 	struct hal_data_8188e *hal_data = GET_HAL_DATA(Adapter);
 	struct dm_priv	*pdmpriv = &hal_data->dmpriv;

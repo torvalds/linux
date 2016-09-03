@@ -45,7 +45,6 @@ struct	dm_priv {
 	u8	PowerIndex_backup[6];
 };
 
-void rtl8188e_init_dm_priv(struct adapter *adapt);
 void rtl8188e_InitHalDm(struct adapter *adapt);
 
 void AntDivCompare8188E(struct adapter *adapt, struct wlan_bssid_ex *dst,
