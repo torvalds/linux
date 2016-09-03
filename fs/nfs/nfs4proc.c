@@ -8190,10 +8190,13 @@ static void nfs4_layoutreturn_release(void *calldata)
 
 	dprintk("--> %s\n", __func__);
 	spin_lock(&lo->plh_inode->i_lock);
-	pnfs_mark_matching_lsegs_invalid(lo, &freeme, &lrp->args.range,
-			be32_to_cpu(lrp->args.stateid.seqid));
-	if (lrp->res.lrs_present && pnfs_layout_is_valid(lo))
+	if (lrp->res.lrs_present) {
+		pnfs_mark_matching_lsegs_invalid(lo, &freeme,
+				&lrp->args.range,
+				be32_to_cpu(lrp->args.stateid.seqid));
 		pnfs_set_layout_stateid(lo, &lrp->res.stateid, true);
+	} else
+		pnfs_mark_layout_stateid_invalid(lo, &freeme);
 	pnfs_clear_layoutreturn_waitbit(lo);
 	spin_unlock(&lo->plh_inode->i_lock);
 	nfs4_sequence_free_slot(&lrp->res.seq_res);
