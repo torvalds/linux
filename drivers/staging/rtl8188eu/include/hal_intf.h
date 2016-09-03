@@ -161,9 +161,6 @@ struct hal_ops {
 	void	(*AntDivCompareHandler)(struct adapter *adapter,
 					struct wlan_bssid_ex *dst,
 					struct wlan_bssid_ex *src);
-	u32	(*read_rfreg)(struct adapter *padapter,
-			      enum rf_radio_path eRFPath, u32 RegAddr,
-			      u32 BitMask);
 
 	void (*hal_reset_security_engine)(struct adapter *adapter);
 };

@@ -104,17 +104,6 @@ void rtw_hal_add_ra_tid(struct adapter *adapt, u32 bitmap, u8 arg,
 					       rssi_level);
 }
 
-u32 rtw_hal_read_rfreg(struct adapter *adapt, enum rf_radio_path rfpath,
-		       u32 regaddr, u32 bitmask)
-{
-	u32 data = 0;
-
-	if (adapt->HalFunc.read_rfreg)
-		data = adapt->HalFunc.read_rfreg(adapt, rfpath, regaddr,
-						    bitmask);
-	return data;
-}
-
 void rtw_hal_set_bwmode(struct adapter *adapt,
 			enum ht_channel_width bandwidth, u8 offset)
 {
