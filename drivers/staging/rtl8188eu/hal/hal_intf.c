@@ -114,12 +114,6 @@ uint rtw_hal_deinit(struct adapter *adapt)
 	return status;
 }
 
-void rtw_hal_set_hwreg(struct adapter *adapt, u8 variable, u8 *val)
-{
-	if (adapt->HalFunc.SetHwRegHandler)
-		adapt->HalFunc.SetHwRegHandler(adapt, variable, val);
-}
-
 void rtw_hal_set_odm_var(struct adapter *adapt,
 			 enum hal_odm_variable var, void *val1,
 			 bool set)

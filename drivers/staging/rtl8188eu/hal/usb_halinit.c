@@ -1276,7 +1276,7 @@ static void hw_var_set_bcn_func(struct adapter *Adapter, u8 variable, u8 *val)
 		usb_write8(Adapter, bcn_ctrl_reg, usb_read8(Adapter, bcn_ctrl_reg)&(~(EN_BCN_FUNCTION | EN_TXBCN_RPT)));
 }
 
-static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
+void rtw_hal_set_hwreg(struct adapter *Adapter, u8 variable, u8 *val)
 {
 	struct hal_data_8188e	*haldata = GET_HAL_DATA(Adapter);
 	struct dm_priv	*pdmpriv = &haldata->dmpriv;
@@ -2078,8 +2078,6 @@ void rtl8188eu_set_hal_ops(struct adapter *adapt)
 	halfunc->init_default_value = &rtl8188eu_init_default_value;
 	halfunc->intf_chip_configure = &rtl8188eu_interface_configure;
 	halfunc->read_adapter_info = &_ReadAdapterInfo8188EU;
-
-	halfunc->SetHwRegHandler = &SetHwReg8188EU;
 
 	rtl8188e_set_hal_ops(halfunc);
 }

@@ -175,9 +175,6 @@ struct hal_ops {
 
 	void	(*hal_dm_watchdog)(struct adapter *padapter);
 
-	void	(*SetHwRegHandler)(struct adapter *padapter, u8	variable,
-				   u8 *val);
-
 	void	(*SetHalODMVarHandler)(struct adapter *padapter,
 				       enum hal_odm_variable eVariable,
 				       void *pValue1, bool bSet);
