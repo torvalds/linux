@@ -18,9 +18,6 @@ void phy_set_rf_reg(struct adapter *adapt, enum rf_radio_path rf_path,
 
 void phy_set_tx_power_level(struct adapter *adapt, u8 channel);
 
-void phy_set_bw_mode(struct adapter *adapt, enum ht_channel_width bandwidth,
-		     unsigned char offset);
-
 void rtl88eu_dm_txpower_track_adjust(struct odm_dm_struct *dm_odm,
 				     u8 type, u8 *dir, u32 *out_write);
 

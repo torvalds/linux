@@ -274,7 +274,7 @@ static void phy_set_bw_mode_callback(struct adapter *adapt)
 		rtl88eu_phy_rf6052_set_bandwidth(adapt, hal_data->CurrentChannelBW);
 }
 
-void phy_set_bw_mode(struct adapter *adapt, enum ht_channel_width bandwidth,
+void rtw_hal_set_bwmode(struct adapter *adapt, enum ht_channel_width bandwidth,
 		     unsigned char offset)
 {
 	struct hal_data_8188e	*hal_data = GET_HAL_DATA(adapt);

@@ -96,14 +96,6 @@ void rtw_hal_update_ra_mask(struct adapter *adapt, u32 mac_id, u8 rssi_level)
 	}
 }
 
-void rtw_hal_set_bwmode(struct adapter *adapt,
-			enum ht_channel_width bandwidth, u8 offset)
-{
-	if (adapt->HalFunc.set_bwmode_handler)
-		adapt->HalFunc.set_bwmode_handler(adapt, bandwidth,
-						     offset);
-}
-
 void rtw_hal_reset_security_engine(struct adapter *adapter)
 {
 	if (adapter->HalFunc.hal_reset_security_engine)

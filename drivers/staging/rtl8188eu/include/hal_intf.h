@@ -147,10 +147,6 @@ struct hal_ops {
 
 	s32	(*interrupt_handler)(struct adapter *padapter);
 
-	void	(*set_bwmode_handler)(struct adapter *padapter,
-				      enum ht_channel_width Bandwidth,
-				      u8 Offset);
-
 	void (*hal_reset_security_engine)(struct adapter *adapter);
 };
 
