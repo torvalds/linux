@@ -195,8 +195,6 @@ void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc)
 
 	pHalFunc->set_bwmode_handler = &phy_set_bw_mode;
 	pHalFunc->set_channel_handler = &phy_sw_chnl;
-
-	pHalFunc->hal_dm_watchdog = &rtl8188e_HalDmWatchDog;
 }
 
 /*  */

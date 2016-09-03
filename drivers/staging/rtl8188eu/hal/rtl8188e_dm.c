@@ -141,7 +141,7 @@ void rtl8188e_InitHalDm(struct adapter *Adapter)
 	ODM_DMInit(dm_odm);
 }
 
-void rtl8188e_HalDmWatchDog(struct adapter *Adapter)
+void rtw_hal_dm_watchdog(struct adapter *Adapter)
 {
 	u8 hw_init_completed = false;
 	struct hal_data_8188e *hal_data = GET_HAL_DATA(Adapter);

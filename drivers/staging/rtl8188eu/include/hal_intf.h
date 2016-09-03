@@ -152,8 +152,6 @@ struct hal_ops {
 				      u8 Offset);
 	void	(*set_channel_handler)(struct adapter *padapter, u8 channel);
 
-	void	(*hal_dm_watchdog)(struct adapter *padapter);
-
 	void (*hal_reset_security_engine)(struct adapter *adapter);
 };
 
