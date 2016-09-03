@@ -93,17 +93,6 @@ void rtw_hal_set_odm_var(struct adapter *adapt,
 						      val1, set);
 }
 
-u32 rtw_hal_inirp_init(struct adapter *adapt)
-{
-	u32 rst = _FAIL;
-
-	if (adapt->HalFunc.inirp_init)
-		rst = adapt->HalFunc.inirp_init(adapt);
-	else
-		DBG_88E(" %s HalFunc.inirp_init is NULL!!!\n", __func__);
-	return rst;
-}
-
 void rtw_hal_update_ra_mask(struct adapter *adapt, u32 mac_id, u8 rssi_level)
 {
 	struct mlme_priv *pmlmepriv = &(adapt->mlmepriv);
