@@ -180,10 +180,6 @@ struct hal_ops {
 	void	(*GetHwRegHandler)(struct adapter *padapter, u8	variable,
 				   u8 *val);
 
-	u8	(*GetHalDefVarHandler)(struct adapter *padapter,
-				       enum hal_def_variable eVariable,
-				       void *pValue);
-
 	void	(*SetHalODMVarHandler)(struct adapter *padapter,
 				       enum hal_odm_variable eVariable,
 				       void *pValue1, bool bSet);

@@ -1838,8 +1838,7 @@ static void GetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 /*	Description: */
 /*		Query setting of specified variable. */
 /*  */
-static u8
-GetHalDefVar8188EUsb(
+u8 rtw_hal_get_def_var(
 		struct adapter *Adapter,
 		enum hal_def_variable eVariable,
 		void *pValue
@@ -2082,7 +2081,6 @@ void rtl8188eu_set_hal_ops(struct adapter *adapt)
 
 	halfunc->SetHwRegHandler = &SetHwReg8188EU;
 	halfunc->GetHwRegHandler = &GetHwReg8188EU;
-	halfunc->GetHalDefVarHandler = &GetHalDefVar8188EUsb;
 
 	rtl8188e_set_hal_ops(halfunc);
 }
