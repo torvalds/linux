@@ -165,12 +165,6 @@ void rtw_hal_sreset_init(struct adapter *adapt)
 		adapt->HalFunc.sreset_init_value(adapt);
 }
 
-void rtw_hal_notch_filter(struct adapter *adapter, bool enable)
-{
-	if (adapter->HalFunc.hal_notch_filter)
-		adapter->HalFunc.hal_notch_filter(adapter, enable);
-}
-
 void rtw_hal_reset_security_engine(struct adapter *adapter)
 {
 	if (adapter->HalFunc.hal_reset_security_engine)

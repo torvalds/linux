@@ -175,7 +175,7 @@ static void rtl8188e_SetHalODMVar(struct adapter *Adapter, enum hal_odm_variable
 	}
 }
 
-static void hal_notch_filter_8188e(struct adapter *adapter, bool enable)
+void rtw_hal_notch_filter(struct adapter *adapter, bool enable)
 {
 	if (enable) {
 		DBG_88E("Enable notch filter\n");
@@ -208,8 +208,6 @@ void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc)
 	pHalFunc->sreset_get_wifi_status  = &sreset_get_wifi_status;
 
 	pHalFunc->SetHalODMVarHandler = &rtl8188e_SetHalODMVar;
-
-	pHalFunc->hal_notch_filter = &hal_notch_filter_8188e;
 }
 
 /*  */
