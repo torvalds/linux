@@ -815,6 +815,8 @@ static int __sa1111_probe(struct device *me, struct resource *mem, int irq)
 static int sa1111_remove_one(struct device *dev, void *data)
 {
 	struct sa1111_dev *sadev = SA1111_DEV(dev);
+	if (dev->bus != &sa1111_bus_type)
+		return 0;
 	device_del(&sadev->dev);
 	release_resource(&sadev->res);
 	put_device(&sadev->dev);
