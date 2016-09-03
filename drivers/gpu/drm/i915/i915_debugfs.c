@@ -714,20 +714,10 @@ static void i915_ring_seqno_info(struct seq_file *m,
 static int i915_gem_seqno_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
 	struct intel_engine_cs *engine;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-	intel_runtime_pm_get(dev_priv);
 
 	for_each_engine(engine, dev_priv)
 		i915_ring_seqno_info(m, engine);
-
-	intel_runtime_pm_put(dev_priv);
-	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
