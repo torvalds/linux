@@ -848,7 +848,7 @@ void rtl8188eu_xmit_tasklet(void *priv)
 			break;
 		}
 
-		ret = rtl8188eu_xmitframe_complete(adapt, pxmitpriv, NULL);
+		ret = rtl8188eu_xmitframe_complete(adapt, pxmitpriv);
 
 		if (!ret)
 			break;

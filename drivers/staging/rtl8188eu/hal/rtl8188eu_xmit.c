@@ -424,11 +424,12 @@ static u32 xmitframe_need_length(struct xmit_frame *pxmitframe)
 	return len;
 }
 
-s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf)
+s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitpriv)
 {
 	struct hal_data_8188e	*haldata = GET_HAL_DATA(adapt);
 	struct xmit_frame *pxmitframe = NULL;
 	struct xmit_frame *pfirstframe = NULL;
+	struct xmit_buf *pxmitbuf;
 
 	/*  aggregate variable */
 	struct hw_xmit *phwxmit;
@@ -450,12 +451,9 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 
 	RT_TRACE(_module_rtl8192c_xmit_c_, _drv_info_, ("+xmitframe_complete\n"));
 
-	/*  check xmitbuffer is ok */
-	if (pxmitbuf == NULL) {
-		pxmitbuf = rtw_alloc_xmitbuf(pxmitpriv);
-		if (pxmitbuf == NULL)
-			return false;
-	}
+	pxmitbuf = rtw_alloc_xmitbuf(pxmitpriv);
+	if (pxmitbuf == NULL)
+		return false;
 
 	/* 3 1. pick up first frame */
 	rtw_free_xmitframe(pxmitpriv, pxmitframe);
