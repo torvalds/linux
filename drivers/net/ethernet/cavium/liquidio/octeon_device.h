@@ -275,6 +275,7 @@ struct octdev_props {
 	/* Each interface in the Octeon device has a network
 	 * device pointer (used for OS specific calls).
 	 */
+	int    rx_on;
 	int    napi_enabled;
 	int    gmxport;
 	struct net_device *netdev;
@@ -483,6 +484,8 @@ struct octeon_device {
 
 	/* private flags to control driver-specific features through ethtool */
 	u32 priv_flags;
+
+	void *watchdog_task;
 };
 
 #define  OCT_DRV_ONLINE 1
@@ -752,8 +755,15 @@ enum {
 	OCT_PRIV_FLAG_TX_BYTES = 0, /* Tx interrupts by pending byte count */
 };
 
-static inline void lio_set_priv_flag(struct octeon_device *octdev, u32 flag,
-				     u32 val)
+#define OCT_PRIV_FLAG_DEFAULT 0x0
+
+static inline u32 lio_get_priv_flag(struct octeon_device *octdev, u32 flag)
+{
+	return !!(octdev->priv_flags & (0x1 << flag));
+}
+
+static inline void lio_set_priv_flag(struct octeon_device *octdev,
+				     u32 flag, u32 val)
 {
 	if (val)
 		octdev->priv_flags |= (0x1 << flag);

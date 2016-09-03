@@ -887,6 +887,67 @@ static irqreturn_t cn23xx_interrupt_handler(void *dev)
 	return IRQ_HANDLED;
 }
 
+static void cn23xx_bar1_idx_setup(struct octeon_device *oct, u64 core_addr,
+				  u32 idx, int valid)
+{
+	u64 bar1;
+	u64 reg_adr;
+
+	if (!valid) {
+		reg_adr = lio_pci_readq(
+			oct, CN23XX_PEM_BAR1_INDEX_REG(oct->pcie_port, idx));
+		WRITE_ONCE(bar1, reg_adr);
+		lio_pci_writeq(oct, (READ_ONCE(bar1) & 0xFFFFFFFEULL),
+			       CN23XX_PEM_BAR1_INDEX_REG(oct->pcie_port, idx));
+		reg_adr = lio_pci_readq(
+			oct, CN23XX_PEM_BAR1_INDEX_REG(oct->pcie_port, idx));
+		WRITE_ONCE(bar1, reg_adr);
+		return;
+	}
+
+	/*  The PEM(0..3)_BAR1_INDEX(0..15)[ADDR_IDX]<23:4> stores
+	 *  bits <41:22> of the Core Addr
+	 */
+	lio_pci_writeq(oct, (((core_addr >> 22) << 4) | PCI_BAR1_MASK),
+		       CN23XX_PEM_BAR1_INDEX_REG(oct->pcie_port, idx));
+
+	WRITE_ONCE(bar1, lio_pci_readq(
+		   oct, CN23XX_PEM_BAR1_INDEX_REG(oct->pcie_port, idx)));
+}
+
+static void cn23xx_bar1_idx_write(struct octeon_device *oct, u32 idx, u32 mask)
+{
+	lio_pci_writeq(oct, mask,
+		       CN23XX_PEM_BAR1_INDEX_REG(oct->pcie_port, idx));
+}
+
+static u32 cn23xx_bar1_idx_read(struct octeon_device *oct, u32 idx)
+{
+	return (u32)lio_pci_readq(
+	    oct, CN23XX_PEM_BAR1_INDEX_REG(oct->pcie_port, idx));
+}
+
+/* always call with lock held */
+static u32 cn23xx_update_read_index(struct octeon_instr_queue *iq)
+{
+	u32 new_idx;
+	u32 last_done;
+	u32 pkt_in_done = readl(iq->inst_cnt_reg);
+
+	last_done = pkt_in_done - iq->pkt_in_done;
+	iq->pkt_in_done = pkt_in_done;
+
+	/* Modulo of the new index with the IQ size will give us
+	 * the new index.  The iq->reset_instr_cnt is always zero for
+	 * cn23xx, so no extra adjustments are needed.
+	 */
+	new_idx = (iq->octeon_read_index +
+		   (u32)(last_done & CN23XX_PKT_IN_DONE_CNT_MASK)) %
+		  iq->max_count;
+
+	return new_idx;
+}
+
 static void cn23xx_enable_pf_interrupt(struct octeon_device *oct, u8 intr_flag)
 {
 	struct octeon_cn23xx_pf *cn23xx = (struct octeon_cn23xx_pf *)oct->chip;
@@ -1063,6 +1124,11 @@ int setup_cn23xx_octeon_pf_device(struct octeon_device *oct)
 
 	oct->fn_list.soft_reset = cn23xx_pf_soft_reset;
 	oct->fn_list.setup_device_regs = cn23xx_setup_pf_device_regs;
+	oct->fn_list.update_iq_read_idx = cn23xx_update_read_index;
+
+	oct->fn_list.bar1_idx_setup = cn23xx_bar1_idx_setup;
+	oct->fn_list.bar1_idx_write = cn23xx_bar1_idx_write;
+	oct->fn_list.bar1_idx_read = cn23xx_bar1_idx_read;
 
 	oct->fn_list.enable_interrupt = cn23xx_enable_pf_interrupt;
 	oct->fn_list.disable_interrupt = cn23xx_disable_pf_interrupt;
