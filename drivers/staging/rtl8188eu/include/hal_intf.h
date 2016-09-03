@@ -154,9 +154,6 @@ struct hal_ops {
 
 	void	(*hal_dm_watchdog)(struct adapter *padapter);
 
-	void	(*Add_RateATid)(struct adapter *adapter, u32 bitmap, u8 arg,
-				u8 rssi_level);
-
 	void (*hal_reset_security_engine)(struct adapter *adapter);
 };
 
