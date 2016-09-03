@@ -185,9 +185,6 @@ void rtw_hal_notch_filter(struct adapter *adapter, bool enable)
 		usb_write8(adapter, rOFDM0_RxDSP+1, usb_read8(adapter, rOFDM0_RxDSP+1) & ~BIT(1));
 	}
 }
-void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc)
-{
-}
 
 /*  */
 /*  */

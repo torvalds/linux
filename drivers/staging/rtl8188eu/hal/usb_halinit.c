@@ -2043,12 +2043,7 @@ void rtw_hal_def_value_init(struct adapter *adapt)
 
 void rtl8188eu_set_hal_ops(struct adapter *adapt)
 {
-	struct hal_ops	*halfunc = &adapt->HalFunc;
-
-
 	adapt->HalData = kzalloc(sizeof(struct hal_data_8188e), GFP_KERNEL);
 	if (!adapt->HalData)
 		DBG_88E("cant not alloc memory for HAL DATA\n");
-
-	rtl8188e_set_hal_ops(halfunc);
 }

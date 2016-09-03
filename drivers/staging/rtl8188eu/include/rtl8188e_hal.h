@@ -385,8 +385,6 @@ void Hal_EfuseParseBoardType88E(struct adapter *pAdapter, u8 *hwinfo,
 void Hal_ReadPowerSavingMode88E(struct adapter *pAdapter, u8 *hwinfo,
 				bool AutoLoadFail);
 
-void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc);
-
 /*  register */
 
 void rtl8188e_start_thread(struct adapter *padapter);
