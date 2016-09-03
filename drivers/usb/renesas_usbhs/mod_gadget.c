@@ -1076,7 +1076,7 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 
 	gpriv->transceiver = usb_get_phy(USB_PHY_TYPE_UNDEFINED);
 	dev_info(dev, "%stransceiver found\n",
-		 gpriv->transceiver ? "" : "no ");
+		 !IS_ERR(gpriv->transceiver) ? "" : "no ");
 
 	/*
 	 * CAUTION
