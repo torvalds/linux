@@ -2765,8 +2765,7 @@ static void __exit bnx2fc_mod_exit(void)
 	 * held.
 	 */
 	mutex_lock(&bnx2fc_dev_lock);
-	list_splice(&adapter_list, &to_be_deleted);
-	INIT_LIST_HEAD(&adapter_list);
+	list_splice_init(&adapter_list, &to_be_deleted);
 	adapter_count = 0;
 	mutex_unlock(&bnx2fc_dev_lock);
 
