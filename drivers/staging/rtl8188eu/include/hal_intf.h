@@ -140,7 +140,6 @@ enum hal_intf_ps_func {
 };
 
 struct hal_ops {
-	void (*hal_reset_security_engine)(struct adapter *adapter);
 };
 
 enum rt_eeprom_type {
@@ -228,7 +227,6 @@ void	rtw_hal_antdiv_rssi_compared(struct adapter *padapter,
 void rtw_hal_sreset_init(struct adapter *padapter);
 
 void rtw_hal_notch_filter(struct adapter *adapter, bool enable);
-void rtw_hal_reset_security_engine(struct adapter *adapter);
 
 void indicate_wx_scan_complete_event(struct adapter *padapter);
 u8 rtw_do_join(struct adapter *padapter);

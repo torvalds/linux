@@ -32,8 +32,6 @@ uint	 rtw_hal_init(struct adapter *adapt)
 
 		if (adapt->registrypriv.notch_filter == 1)
 			rtw_hal_notch_filter(adapt, 1);
-
-		rtw_hal_reset_security_engine(adapt);
 	} else {
 		adapt->hw_init_completed = false;
 		DBG_88E("rtw_hal_init: hal__init fail\n");
@@ -76,10 +74,4 @@ void rtw_hal_update_ra_mask(struct adapter *adapt, u32 mac_id, u8 rssi_level)
 	} else {
 		UpdateHalRAMask8188EUsb(adapt, mac_id, rssi_level);
 	}
-}
-
-void rtw_hal_reset_security_engine(struct adapter *adapter)
-{
-	if (adapter->HalFunc.hal_reset_security_engine)
-		adapter->HalFunc.hal_reset_security_engine(adapter);
 }
