@@ -24,7 +24,7 @@
 
 #include <rtl8188e_hal.h>
 
-int	rtl8188eu_init_recv_priv(struct adapter *padapter)
+int	rtw_hal_init_recv_priv(struct adapter *padapter)
 {
 	struct recv_priv	*precvpriv = &padapter->recvpriv;
 	int	i, res = _SUCCESS;
