@@ -895,13 +895,14 @@ release_desc:
 		rxd->rxd2 = RX_DMA_PLEN0(ring->buf_size);
 
 		ring->calc_idx = idx;
-		/* make sure that all changes to the dma ring are flushed before
-		 * we continue
-		 */
-		wmb();
-		mtk_w32(eth, ring->calc_idx, MTK_PRX_CRX_IDX0);
+
 		done++;
 	}
+	/* make sure that all changes to the dma ring are flushed before
+	 * we continue
+	 */
+	wmb();
+	mtk_w32(eth, ring->calc_idx, MTK_PRX_CRX_IDX0);
 
 	if (done < budget)
 		mtk_w32(eth, MTK_RX_DONE_INT, MTK_PDMA_INT_STATUS);
