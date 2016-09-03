@@ -387,17 +387,6 @@ struct mlme_priv {
 	u32 wps_probe_resp_ie_len;
 	u32 wps_assoc_resp_ie_len;
 
-	u8 *p2p_beacon_ie;
-	u8 *p2p_probe_req_ie;
-	u8 *p2p_probe_resp_ie;
-	u8 *p2p_go_probe_resp_ie; /* for GO */
-	u8 *p2p_assoc_req_ie;
-
-	u32 p2p_beacon_ie_len;
-	u32 p2p_probe_req_ie_len;
-	u32 p2p_probe_resp_ie_len;
-	u32 p2p_go_probe_resp_ie_len; /* for GO */
-	u32 p2p_assoc_req_ie_len;
 	spinlock_t bcn_update_lock;
 	u8		update_bcn;
 #endif /* if defined (CONFIG_88EU_AP_MODE) */
