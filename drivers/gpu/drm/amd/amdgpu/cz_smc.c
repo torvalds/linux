@@ -29,6 +29,8 @@
 #include "cz_smumgr.h"
 #include "smu_ucode_xfer_cz.h"
 #include "amdgpu_ucode.h"
+#include "cz_dpm.h"
+#include "vi_dpm.h"
 
 #include "smu/smu_8_0_d.h"
 #include "smu/smu_8_0_sh_mask.h"
