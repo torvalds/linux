@@ -306,7 +306,6 @@ struct mlme_priv {
 	struct __queue free_bss_pool;
 	struct __queue scanned_queue;
 	u8 *free_bss_buf;
-	u32	num_of_scanned;
 
 	struct ndis_802_11_ssid	assoc_ssid;
 	u8	assoc_bssid[6];
@@ -484,27 +483,6 @@ static inline void clr_fwstate_ex(struct mlme_priv *pmlmepriv, int state)
 {
 	spin_lock_bh(&pmlmepriv->lock);
 	_clr_fwstate_(pmlmepriv, state);
-	spin_unlock_bh(&pmlmepriv->lock);
-}
-
-static inline void up_scanned_network(struct mlme_priv *pmlmepriv)
-{
-	spin_lock_bh(&pmlmepriv->lock);
-	pmlmepriv->num_of_scanned++;
-	spin_unlock_bh(&pmlmepriv->lock);
-}
-
-static inline void down_scanned_network(struct mlme_priv *pmlmepriv)
-{
-	spin_lock_bh(&pmlmepriv->lock);
-	pmlmepriv->num_of_scanned--;
-	spin_unlock_bh(&pmlmepriv->lock);
-}
-
-static inline void set_scanned_network_val(struct mlme_priv *pmlmepriv, int val)
-{
-	spin_lock_bh(&pmlmepriv->lock);
-	pmlmepriv->num_of_scanned = val;
 	spin_unlock_bh(&pmlmepriv->lock);
 }
 
