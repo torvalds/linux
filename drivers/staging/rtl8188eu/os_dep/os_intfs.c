@@ -958,12 +958,6 @@ u8 rtw_free_drv_sw(struct adapter *padapter)
 
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("<== rtw_free_drv_sw\n"));
 
-	/* free the old_pnetdev */
-	if (padapter->rereg_nd_name_priv.old_pnetdev) {
-		free_netdev(padapter->rereg_nd_name_priv.old_pnetdev);
-		padapter->rereg_nd_name_priv.old_pnetdev = NULL;
-	}
-
 	mutex_destroy(&padapter->hw_init_mutex);
 
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("-rtw_free_drv_sw\n"));

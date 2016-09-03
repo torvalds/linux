@@ -205,14 +205,6 @@ struct adapter {
 	struct  net_device *pnetdev;
 	struct  net_device *pmondev;
 
-	/*  used by rtw_rereg_nd_name related function */
-	struct rereg_nd_name_data {
-		struct  net_device *old_pnetdev;
-		char old_ifname[IFNAMSIZ];
-		u8 old_ips_mode;
-		u8 old_bRegUseLed;
-	} rereg_nd_name_priv;
-
 	int bup;
 	struct net_device_stats stats;
 	struct iw_statistics iwstats;
