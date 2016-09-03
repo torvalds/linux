@@ -1137,7 +1137,7 @@ static void _ReadRFType(struct adapter *Adapter)
 	haldata->rf_chip = RF_6052;
 }
 
-static void _ReadAdapterInfo8188EU(struct adapter *Adapter)
+void rtw_hal_read_chip_info(struct adapter *Adapter)
 {
 	unsigned long start = jiffies;
 
@@ -2077,7 +2077,6 @@ void rtl8188eu_set_hal_ops(struct adapter *adapt)
 
 	halfunc->init_default_value = &rtl8188eu_init_default_value;
 	halfunc->intf_chip_configure = &rtl8188eu_interface_configure;
-	halfunc->read_adapter_info = &_ReadAdapterInfo8188EU;
 
 	rtl8188e_set_hal_ops(halfunc);
 }

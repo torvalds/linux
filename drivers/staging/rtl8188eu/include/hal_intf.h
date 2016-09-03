@@ -164,8 +164,6 @@ struct hal_ops {
 
 	void	(*intf_chip_configure)(struct adapter *padapter);
 
-	void	(*read_adapter_info)(struct adapter *padapter);
-
 	s32	(*interrupt_handler)(struct adapter *padapter);
 
 	void	(*set_bwmode_handler)(struct adapter *padapter,
