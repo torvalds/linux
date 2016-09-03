@@ -123,7 +123,7 @@ static void rtl8188e_free_hal_data(struct adapter *padapter)
 	padapter->HalData = NULL;
 }
 
-static void ReadChipVersion8188E(struct adapter *padapter)
+void rtw_hal_read_chip_version(struct adapter *padapter)
 {
 	u32				value32;
 	struct HAL_VERSION		ChipVersion;
@@ -190,8 +190,6 @@ void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc)
 	pHalFunc->free_hal_data = &rtl8188e_free_hal_data;
 
 	pHalFunc->dm_init = &rtl8188e_init_dm_priv;
-
-	pHalFunc->read_chip_version = &ReadChipVersion8188E;
 }
 
 /*  */

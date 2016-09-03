@@ -143,7 +143,6 @@ struct hal_ops {
 	void	(*free_hal_data)(struct adapter *padapter);
 
 	void	(*dm_init)(struct adapter *padapter);
-	void	(*read_chip_version)(struct adapter *padapter);
 
 	s32	(*interrupt_handler)(struct adapter *padapter);
 
