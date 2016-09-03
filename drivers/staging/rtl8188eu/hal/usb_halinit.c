@@ -2087,7 +2087,5 @@ void rtl8188eu_set_hal_ops(struct adapter *adapt)
 	halfunc->UpdateRAMaskHandler = &UpdateHalRAMask8188EUsb;
 	halfunc->SetBeaconRelatedRegistersHandler = &SetBeaconRelatedRegisters8188EUsb;
 
-	halfunc->hal_xmit = &rtl8188eu_hal_xmit;
-
 	rtl8188e_set_hal_ops(halfunc);
 }

@@ -622,7 +622,7 @@ static s32 xmitframe_direct(struct adapter *adapt, struct xmit_frame *pxmitframe
  *	true	dump packet directly
  *	false	enqueue packet
  */
-static s32 pre_xmitframe(struct adapter *adapt, struct xmit_frame *pxmitframe)
+s32 rtw_hal_xmit(struct adapter *adapt, struct xmit_frame *pxmitframe)
 {
 	s32 res;
 	struct xmit_buf *pxmitbuf = NULL;
@@ -678,14 +678,4 @@ s32 rtw_hal_mgnt_xmit(struct adapter *adapt, struct xmit_frame *pmgntframe)
 
 	rtl88eu_mon_xmit_hook(adapt->pmondev, pmgntframe, xmitpriv->frag_len);
 	return rtw_dump_xframe(adapt, pmgntframe);
-}
-
-/*
- * Return
- *	true	dump packet directly ok
- *	false	temporary can't transmit packets to hardware
- */
-s32 rtl8188eu_hal_xmit(struct adapter *adapt, struct xmit_frame *pxmitframe)
-{
-	return pre_xmitframe(adapt, pxmitframe);
 }

@@ -199,8 +199,6 @@ struct hal_ops {
 	void	(*AntDivCompareHandler)(struct adapter *adapter,
 					struct wlan_bssid_ex *dst,
 					struct wlan_bssid_ex *src);
-	s32	(*hal_xmit)(struct adapter *padapter,
-			    struct xmit_frame *pxmitframe);
 	u32	(*read_rfreg)(struct adapter *padapter,
 			      enum rf_radio_path eRFPath, u32 RegAddr,
 			      u32 BitMask);
