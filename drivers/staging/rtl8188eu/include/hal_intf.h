@@ -166,7 +166,6 @@ struct hal_ops {
 			      u32 BitMask);
 
 	void (*sreset_init_value)(struct adapter *padapter);
-	u8 (*sreset_get_wifi_status)(struct adapter *padapter);
 
 	void (*hal_reset_security_engine)(struct adapter *adapter);
 };
