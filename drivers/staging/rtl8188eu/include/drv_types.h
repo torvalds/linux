@@ -188,8 +188,6 @@ struct adapter {
 	struct	hostapd_priv	*phostapdpriv;
 #endif
 
-	struct wifidirect_info	wdinfo;
-
 	void *HalData;
 	struct hal_ops	HalFunc;
 
