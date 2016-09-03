@@ -1654,16 +1654,6 @@ u32 rtw_get_ff_hwaddr(struct xmit_frame *pxmitframe)
 	return addr;
 }
 
-static void do_queue_select(struct adapter *padapter, struct pkt_attrib *pattrib)
-{
-	u8 qsel;
-
-	qsel = pattrib->priority;
-	RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_, ("### do_queue_select priority=%d , qsel = %d\n", pattrib->priority, qsel));
-
-	pattrib->qsel = qsel;
-}
-
 /*
  * The main transmit(tx) entry
  *
@@ -1696,7 +1686,7 @@ s32 rtw_xmit(struct adapter *padapter, struct sk_buff **ppkt)
 
 	rtw_led_control(padapter, LED_CTL_TX);
 
-	do_queue_select(padapter, &pxmitframe->attrib);
+	pxmitframe->attrib.qsel = pxmitframe->attrib.priority;
 
 #ifdef CONFIG_88EU_AP_MODE
 	spin_lock_bh(&pxmitpriv->lock);
