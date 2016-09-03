@@ -188,9 +188,6 @@ struct hal_ops {
 				       enum hal_odm_variable eVariable,
 				       void *pValue1, bool bSet);
 
-	void	(*UpdateRAMaskHandler)(struct adapter *padapter,
-				       u32 mac_id, u8 rssi_level);
-
 	void	(*Add_RateATid)(struct adapter *adapter, u32 bitmap, u8 arg,
 				u8 rssi_level);
 
@@ -230,6 +227,7 @@ enum hardware_type {
 
 #define is_boot_from_eeprom(adapter) (adapter->eeprompriv.EepromOrEfuse)
 
+void UpdateHalRAMask8188EUsb(struct adapter *adapt, u32 mac_id, u8 rssi_level);
 void rtw_hal_def_value_init(struct adapter *padapter);
 
 void	rtw_hal_free_data(struct adapter *padapter);

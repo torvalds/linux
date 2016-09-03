@@ -1933,7 +1933,7 @@ GetHalDefVar8188EUsb(
 	return bResult;
 }
 
-static void UpdateHalRAMask8188EUsb(struct adapter *adapt, u32 mac_id, u8 rssi_level)
+void UpdateHalRAMask8188EUsb(struct adapter *adapt, u32 mac_id, u8 rssi_level)
 {
 	u8 init_rate = 0;
 	u8 networkType, raid;
@@ -2083,8 +2083,6 @@ void rtl8188eu_set_hal_ops(struct adapter *adapt)
 	halfunc->SetHwRegHandler = &SetHwReg8188EU;
 	halfunc->GetHwRegHandler = &GetHwReg8188EU;
 	halfunc->GetHalDefVarHandler = &GetHalDefVar8188EUsb;
-
-	halfunc->UpdateRAMaskHandler = &UpdateHalRAMask8188EUsb;
 
 	rtl8188e_set_hal_ops(halfunc);
 }
