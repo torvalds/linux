@@ -120,12 +120,6 @@ void rtw_hal_set_hwreg(struct adapter *adapt, u8 variable, u8 *val)
 		adapt->HalFunc.SetHwRegHandler(adapt, variable, val);
 }
 
-void rtw_hal_get_hwreg(struct adapter *adapt, u8 variable, u8 *val)
-{
-	if (adapt->HalFunc.GetHwRegHandler)
-		adapt->HalFunc.GetHwRegHandler(adapt, variable, val);
-}
-
 void rtw_hal_set_odm_var(struct adapter *adapt,
 			 enum hal_odm_variable var, void *val1,
 			 bool set)

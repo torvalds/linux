@@ -1778,7 +1778,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 	}
 }
 
-static void GetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
+void rtw_hal_get_hwreg(struct adapter *Adapter, u8 variable, u8 *val)
 {
 	struct hal_data_8188e	*haldata = GET_HAL_DATA(Adapter);
 	struct odm_dm_struct *podmpriv = &haldata->odmpriv;
@@ -2080,7 +2080,6 @@ void rtl8188eu_set_hal_ops(struct adapter *adapt)
 	halfunc->read_adapter_info = &_ReadAdapterInfo8188EU;
 
 	halfunc->SetHwRegHandler = &SetHwReg8188EU;
-	halfunc->GetHwRegHandler = &GetHwReg8188EU;
 
 	rtl8188e_set_hal_ops(halfunc);
 }
