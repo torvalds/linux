@@ -94,7 +94,7 @@ void rtw_hal_chip_configure(struct adapter *adapt)
 				pdvobjpriv->RtNumInPipes, pdvobjpriv->RtNumOutPipes);
 }
 
-static u32 rtl8188eu_InitPowerOn(struct adapter *adapt)
+u32 rtw_hal_power_on(struct adapter *adapt)
 {
 	u16 value16;
 	/*  HW Power on sequence */
@@ -702,7 +702,7 @@ u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	}
 
 	HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_PW_ON);
-	status = rtl8188eu_InitPowerOn(Adapter);
+	status = rtw_hal_power_on(Adapter);
 	if (status == _FAIL) {
 		RT_TRACE(_module_hci_hal_init_c_, _drv_err_, ("Failed to init power on!\n"));
 		goto exit;
@@ -2049,8 +2049,6 @@ void rtl8188eu_set_hal_ops(struct adapter *adapt)
 	adapt->HalData = kzalloc(sizeof(struct hal_data_8188e), GFP_KERNEL);
 	if (!adapt->HalData)
 		DBG_88E("cant not alloc memory for HAL DATA\n");
-
-	halfunc->hal_power_on = rtl8188eu_InitPowerOn;
 
 	rtl8188e_set_hal_ops(halfunc);
 }

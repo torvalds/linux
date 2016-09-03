@@ -140,8 +140,6 @@ enum hal_intf_ps_func {
 };
 
 struct hal_ops {
-	u32	(*hal_power_on)(struct adapter *padapter);
-
 	void	(*free_hal_data)(struct adapter *padapter);
 
 	void	(*dm_init)(struct adapter *padapter);
