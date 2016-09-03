@@ -165,8 +165,6 @@ struct hal_ops {
 			      enum rf_radio_path eRFPath, u32 RegAddr,
 			      u32 BitMask);
 
-	void (*sreset_init_value)(struct adapter *padapter);
-
 	void (*hal_reset_security_engine)(struct adapter *adapter);
 };
 

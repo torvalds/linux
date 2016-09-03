@@ -16,7 +16,7 @@
 #include <rtw_sreset.h>
 #include <usb_ops_linux.h>
 
-void sreset_init_value(struct adapter *padapter)
+void rtw_hal_sreset_init(struct adapter *padapter)
 {
 	struct hal_data_8188e	*pHalData = GET_HAL_DATA(padapter);
 	struct sreset_priv *psrtpriv = &pHalData->srestpriv;
