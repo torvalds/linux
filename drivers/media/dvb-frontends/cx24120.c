@@ -1154,8 +1154,7 @@ static int cx24120_set_frontend(struct dvb_frontend *fe)
 		dev_dbg(&state->i2c->dev,
 			"delivery system(%d) not supported\n",
 			c->delivery_system);
-		ret = -EINVAL;
-		break;
+		return -EINVAL;
 	}
 
 	state->dnxt.delsys = c->delivery_system;
