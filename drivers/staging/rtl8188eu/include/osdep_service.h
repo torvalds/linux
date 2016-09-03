@@ -82,7 +82,6 @@ void _rtw_init_queue(struct __queue *pqueue);
 
 struct rtw_netdev_priv_indicator {
 	void *priv;
-	u32 sizeof_priv;
 };
 struct net_device *rtw_alloc_etherdev_with_old_priv(int sizeof_priv,
 						    void *old_priv);
