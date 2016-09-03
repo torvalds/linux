@@ -184,10 +184,6 @@ struct adapter {
 	struct	eeprom_priv eeprompriv;
 	struct	led_priv	ledpriv;
 
-#ifdef CONFIG_88EU_AP_MODE
-	struct	hostapd_priv	*phostapdpriv;
-#endif
-
 	void *HalData;
 	struct hal_ops	HalFunc;
 
