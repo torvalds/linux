@@ -194,7 +194,6 @@ void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc)
 	pHalFunc->read_chip_version = &ReadChipVersion8188E;
 
 	pHalFunc->set_bwmode_handler = &phy_set_bw_mode;
-	pHalFunc->set_channel_handler = &phy_sw_chnl;
 }
 
 /*  */

@@ -307,7 +307,7 @@ static void phy_sw_chnl_callback(struct adapter *adapt, u8 channel)
 	}
 }
 
-void phy_sw_chnl(struct adapter *adapt, u8 channel)
+void rtw_hal_set_chan(struct adapter *adapt, u8 channel)
 {
 	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
 	u8 tmpchannel = hal_data->CurrentChannel;

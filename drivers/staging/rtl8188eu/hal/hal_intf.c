@@ -104,12 +104,6 @@ void rtw_hal_set_bwmode(struct adapter *adapt,
 						     offset);
 }
 
-void rtw_hal_set_chan(struct adapter *adapt, u8 channel)
-{
-	if (adapt->HalFunc.set_channel_handler)
-		adapt->HalFunc.set_channel_handler(adapt, channel);
-}
-
 void rtw_hal_reset_security_engine(struct adapter *adapter)
 {
 	if (adapter->HalFunc.hal_reset_security_engine)
