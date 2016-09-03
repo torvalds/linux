@@ -142,7 +142,6 @@ enum hal_intf_ps_func {
 struct hal_ops {
 	u32	(*hal_power_on)(struct adapter *padapter);
 	u32	(*hal_init)(struct adapter *padapter);
-	u32	(*hal_deinit)(struct adapter *padapter);
 
 	void	(*free_hal_data)(struct adapter *padapter);
 
@@ -202,6 +201,7 @@ enum hardware_type {
 #define is_boot_from_eeprom(adapter) (adapter->eeprompriv.EepromOrEfuse)
 
 void UpdateHalRAMask8188EUsb(struct adapter *adapt, u32 mac_id, u8 rssi_level);
+u32 rtl8188eu_hal_deinit(struct adapter *Adapter);
 void rtw_hal_def_value_init(struct adapter *padapter);
 
 void	rtw_hal_free_data(struct adapter *padapter);

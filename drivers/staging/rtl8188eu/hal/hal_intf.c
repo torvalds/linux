@@ -74,7 +74,7 @@ uint rtw_hal_deinit(struct adapter *adapt)
 {
 	uint	status = _SUCCESS;
 
-	status = adapt->HalFunc.hal_deinit(adapt);
+	status = rtl8188eu_hal_deinit(adapt);
 
 	if (status == _SUCCESS)
 		adapt->hw_init_completed = false;

@@ -972,7 +972,7 @@ static void rtl8192cu_hw_power_down(struct adapter *adapt)
 	usb_write16(adapt, REG_APS_FSMCO, 0x8812);
 }
 
-static u32 rtl8188eu_hal_deinit(struct adapter *Adapter)
+u32 rtl8188eu_hal_deinit(struct adapter *Adapter)
 {
 	DBG_88E("==> %s\n", __func__);
 
@@ -2052,7 +2052,6 @@ void rtl8188eu_set_hal_ops(struct adapter *adapt)
 
 	halfunc->hal_power_on = rtl8188eu_InitPowerOn;
 	halfunc->hal_init = &rtl8188eu_hal_init;
-	halfunc->hal_deinit = &rtl8188eu_hal_deinit;
 
 	rtl8188e_set_hal_ops(halfunc);
 }
