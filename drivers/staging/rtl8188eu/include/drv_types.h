@@ -149,8 +149,6 @@ struct dvobj_priv {
 	u8	Queue2Pipe[HW_QUEUE_ENTRY];/* for out pipe mapping */
 
 /*-------- below is for USB INTERFACE --------*/
-
-	u8	nr_endpoint;
 	u8	ishighspeed;
 	u8	RtNumInPipes;
 	u8	RtNumOutPipes;
