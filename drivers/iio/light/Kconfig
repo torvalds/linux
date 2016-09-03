@@ -76,7 +76,6 @@ config BH1750
 config BH1780
 	tristate "ROHM BH1780 ambient light sensor"
 	depends on I2C
-	depends on !SENSORS_BH1780
 	help
 	 Say Y here to build support for the ROHM BH1780GLI ambient
 	 light sensor.
