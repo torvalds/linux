@@ -98,7 +98,6 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 				ep_num;
 			pdvobjpriv->RtNumOutPipes++;
 		}
-		pdvobjpriv->ep_num[i] = ep_num;
 	}
 
 	if (pusbd->speed == USB_SPEED_HIGH)
