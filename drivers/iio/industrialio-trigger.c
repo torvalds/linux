@@ -119,6 +119,22 @@ void iio_trigger_unregister(struct iio_trigger *trig_info)
 }
 EXPORT_SYMBOL(iio_trigger_unregister);
 
+int iio_trigger_set_immutable(struct iio_dev *indio_dev, struct iio_trigger *trig)
+{
+	if (!indio_dev || !trig)
+		return -EINVAL;
+
+	mutex_lock(&indio_dev->mlock);
+	WARN_ON(indio_dev->trig_readonly);
+
+	indio_dev->trig = iio_trigger_get(trig);
+	indio_dev->trig_readonly = true;
+	mutex_unlock(&indio_dev->mlock);
+
+	return 0;
+}
+EXPORT_SYMBOL(iio_trigger_set_immutable);
+
 /* Search for trigger by name, assuming iio_trigger_list_lock held */
 static struct iio_trigger *__iio_trigger_find_by_name(const char *name)
 {
@@ -383,6 +399,10 @@ static ssize_t iio_trigger_write_current(struct device *dev,
 	if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
 		mutex_unlock(&indio_dev->mlock);
 		return -EBUSY;
+	}
+	if (indio_dev->trig_readonly) {
+		mutex_unlock(&indio_dev->mlock);
+		return -EPERM;
 	}
 	mutex_unlock(&indio_dev->mlock);
 
