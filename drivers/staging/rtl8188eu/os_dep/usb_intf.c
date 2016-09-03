@@ -107,13 +107,6 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 		pdvobjpriv->ishighspeed = false;
 
 	mutex_init(&pdvobjpriv->usb_vendor_req_mutex);
-	pdvobjpriv->usb_vendor_req_buf = kzalloc(MAX_USB_IO_CTL_SIZE, GFP_KERNEL);
-
-	if (!pdvobjpriv->usb_vendor_req_buf) {
-		usb_set_intfdata(usb_intf, NULL);
-		kfree(pdvobjpriv);
-		return NULL;
-	}
 	usb_get_dev(pusbd);
 
 	return pdvobjpriv;
@@ -141,7 +134,6 @@ static void usb_dvobj_deinit(struct usb_interface *usb_intf)
 			}
 		}
 
-		kfree(dvobj->usb_vendor_req_buf);
 		mutex_destroy(&dvobj->usb_vendor_req_mutex);
 		kfree(dvobj);
 	}

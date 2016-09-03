@@ -251,7 +251,7 @@ static int usbctrl_vendorreq(struct adapter *adapt, u8 request, u16 value, u16 i
 	}
 
 	/*  Acquire IO memory for vendorreq */
-	pIo_buf = dvobjpriv->usb_vendor_req_buf;
+	pIo_buf = kmalloc(MAX_USB_IO_CTL_SIZE, GFP_ATOMIC);
 
 	if (pIo_buf == NULL) {
 		DBG_88E("[%s] pIo_buf == NULL\n", __func__);
@@ -303,6 +303,8 @@ static int usbctrl_vendorreq(struct adapter *adapt, u8 request, u16 value, u16 i
 		if ((value >= FW_8188E_START_ADDRESS && value <= FW_8188E_END_ADDRESS) || status == len)
 			break;
 	}
+	kfree(pIo_buf);
+
 release_mutex:
 	mutex_unlock(&dvobjpriv->usb_vendor_req_mutex);
 exit:
