@@ -69,7 +69,7 @@ static bool HalUsbSetQueuePipeMapping8188EUsb(struct adapter *adapt, u8 NumInPip
 	return result;
 }
 
-static void rtl8188eu_interface_configure(struct adapter *adapt)
+void rtw_hal_chip_configure(struct adapter *adapt)
 {
 	struct hal_data_8188e	*haldata	= GET_HAL_DATA(adapt);
 	struct dvobj_priv	*pdvobjpriv = adapter_to_dvobj(adapt);
@@ -2076,7 +2076,6 @@ void rtl8188eu_set_hal_ops(struct adapter *adapt)
 	halfunc->DeInitSwLeds = &rtl8188eu_DeInitSwLeds;
 
 	halfunc->init_default_value = &rtl8188eu_init_default_value;
-	halfunc->intf_chip_configure = &rtl8188eu_interface_configure;
 
 	rtl8188e_set_hal_ops(halfunc);
 }

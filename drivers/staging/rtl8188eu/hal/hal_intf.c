@@ -19,12 +19,6 @@
 #include <hal_intf.h>
 #include <usb_hal.h>
 
-void rtw_hal_chip_configure(struct adapter *adapt)
-{
-	if (adapt->HalFunc.intf_chip_configure)
-		adapt->HalFunc.intf_chip_configure(adapt);
-}
-
 void rtw_hal_read_chip_version(struct adapter *adapt)
 {
 	if (adapt->HalFunc.read_chip_version)
