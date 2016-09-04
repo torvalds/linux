@@ -746,7 +746,14 @@ int cx231xx_set_mode(struct cx231xx *dev, enum cx231xx_mode set_mode)
 		}
 	}
 
-	return errCode ? -EINVAL : 0;
+	if (errCode < 0) {
+		dev_err(dev->dev, "Failed to set devmode to %s: error: %i",
+			dev->mode == CX231XX_DIGITAL_MODE ? "digital" : "analog",
+			errCode);
+		return errCode;
+	}
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(cx231xx_set_mode);
 
