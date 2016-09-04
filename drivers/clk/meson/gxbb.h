@@ -218,12 +218,12 @@
 #define CLKID_AIU		  47
 #define CLKID_UART1		  48
 #define CLKID_G2D		  49
-#define CLKID_USB0		  50
-#define CLKID_USB1		  51
+/* CLKID_USB0 */
+/* CLKID_USB1 */
 #define CLKID_RESET		  52
 #define CLKID_NAND		  53
 #define CLKID_DOS_PARSER	  54
-#define CLKID_USB		  55
+/* CLKID_USB */
 #define CLKID_VDIN1		  56
 #define CLKID_AHB_ARB0		  57
 #define CLKID_EFUSE		  58
@@ -232,8 +232,8 @@
 #define CLKID_AHB_CTRL_BUS	  61
 #define CLKID_HDMI_INTR_SYNC	  62
 #define CLKID_HDMI_PCLK		  63
-#define CLKID_USB1_DDR_BRIDGE	  64
-#define CLKID_USB0_DDR_BRIDGE	  65
+/* CLKID_USB1_DDR_BRIDGE */
+/* CLKID_USB0_DDR_BRIDGE */
 #define CLKID_MMC_PCLK		  66
 #define CLKID_DVIN		  67
 #define CLKID_UART2		  68
