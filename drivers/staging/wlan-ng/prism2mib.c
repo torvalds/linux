@@ -148,7 +148,7 @@ static int prism2mib_priv(struct mibrec *mib,
 static struct mibrec mibtab[] = {
 
 	/* dot11smt MIB's */
-	{DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey0,
+	{DIDmib_dot11smt_dot11WEPDefaultKeysTable_key(1),
 	 F_STA | F_WRITE,
 	 HFA384x_RID_CNFWEPDEFAULTKEY0, 0, 0,
 	 prism2mib_wepdefaultkey},
