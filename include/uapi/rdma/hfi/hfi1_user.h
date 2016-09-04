@@ -58,7 +58,6 @@
 
 #include <linux/types.h>
 #include <rdma/rdma_user_ioctl.h>
-#include <rdma/hfi/hfi1_ioctl.h>
 
 /*
  * This version number is given to the driver by the user code during
@@ -113,60 +112,6 @@
 #define HFI1_RCVHDR_ENTSIZE_2    (1UL << 0)
 #define HFI1_RCVHDR_ENTSIZE_16   (1UL << 1)
 #define HFI1_RCVDHR_ENTSIZE_32   (1UL << 2)
-
-/* User commands. */
-#define HFI1_CMD_ASSIGN_CTXT     1	/* allocate HFI and context */
-#define HFI1_CMD_CTXT_INFO       2	/* find out what resources we got */
-#define HFI1_CMD_USER_INFO       3	/* set up userspace */
-#define HFI1_CMD_TID_UPDATE      4	/* update expected TID entries */
-#define HFI1_CMD_TID_FREE        5	/* free expected TID entries */
-#define HFI1_CMD_CREDIT_UPD      6	/* force an update of PIO credit */
-
-#define HFI1_CMD_RECV_CTRL       8	/* control receipt of packets */
-#define HFI1_CMD_POLL_TYPE       9	/* set the kind of polling we want */
-#define HFI1_CMD_ACK_EVENT       10	/* ack & clear user status bits */
-#define HFI1_CMD_SET_PKEY        11     /* set context's pkey */
-#define HFI1_CMD_CTXT_RESET      12     /* reset context's HW send context */
-#define HFI1_CMD_TID_INVAL_READ  13     /* read TID cache invalidations */
-#define HFI1_CMD_GET_VERS	 14	/* get the version of the user cdev */
-
-/*
- * User IOCTLs can not go above 128 if they do then see common.h and change the
- * base for the snoop ioctl
- */
-
-/*
- * Make the ioctls occupy the last 0xf0-0xff portion of the IB range
- */
-#define __NUM(cmd) (HFI1_CMD_##cmd + 0xe0)
-
-struct hfi1_cmd;
-#define HFI1_IOCTL_ASSIGN_CTXT \
-	_IOWR(IB_IOCTL_MAGIC, __NUM(ASSIGN_CTXT), struct hfi1_user_info)
-#define HFI1_IOCTL_CTXT_INFO \
-	_IOW(IB_IOCTL_MAGIC, __NUM(CTXT_INFO), struct hfi1_ctxt_info)
-#define HFI1_IOCTL_USER_INFO \
-	_IOW(IB_IOCTL_MAGIC, __NUM(USER_INFO), struct hfi1_base_info)
-#define HFI1_IOCTL_TID_UPDATE \
-	_IOWR(IB_IOCTL_MAGIC, __NUM(TID_UPDATE), struct hfi1_tid_info)
-#define HFI1_IOCTL_TID_FREE \
-	_IOWR(IB_IOCTL_MAGIC, __NUM(TID_FREE), struct hfi1_tid_info)
-#define HFI1_IOCTL_CREDIT_UPD \
-	_IO(IB_IOCTL_MAGIC, __NUM(CREDIT_UPD))
-#define HFI1_IOCTL_RECV_CTRL \
-	_IOW(IB_IOCTL_MAGIC, __NUM(RECV_CTRL), int)
-#define HFI1_IOCTL_POLL_TYPE \
-	_IOW(IB_IOCTL_MAGIC, __NUM(POLL_TYPE), int)
-#define HFI1_IOCTL_ACK_EVENT \
-	_IOW(IB_IOCTL_MAGIC, __NUM(ACK_EVENT), unsigned long)
-#define HFI1_IOCTL_SET_PKEY \
-	_IOW(IB_IOCTL_MAGIC, __NUM(SET_PKEY), __u16)
-#define HFI1_IOCTL_CTXT_RESET \
-	_IO(IB_IOCTL_MAGIC, __NUM(CTXT_RESET))
-#define HFI1_IOCTL_TID_INVAL_READ \
-	_IOWR(IB_IOCTL_MAGIC, __NUM(TID_INVAL_READ), struct hfi1_tid_info)
-#define HFI1_IOCTL_GET_VERS \
-	_IOR(IB_IOCTL_MAGIC, __NUM(GET_VERS), int)
 
 #define _HFI1_EVENT_FROZEN_BIT         0
 #define _HFI1_EVENT_LINKDOWN_BIT       1
