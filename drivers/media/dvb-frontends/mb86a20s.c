@@ -317,7 +317,11 @@ static int mb86a20s_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	if (val >= 7)
 		*status |= FE_HAS_SYNC;
 
-	if (val >= 8)				/* Maybe 9? */
+	/*
+	 * Actually, on state S8, it starts receiving TS, but the TS
+	 * output is only on normal state after the transition to S9.
+	 */
+	if (val >= 9)
 		*status |= FE_HAS_LOCK;
 
 	dev_dbg(&state->i2c->dev, "%s: Status = 0x%02x (state = %d)\n",
@@ -2067,6 +2071,11 @@ static void mb86a20s_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
+static int mb86a20s_get_frontend_algo(struct dvb_frontend *fe)
+{
+        return DVBFE_ALGO_HW;
+}
+
 static struct dvb_frontend_ops mb86a20s_ops;
 
 struct dvb_frontend *mb86a20s_attach(const struct mb86a20s_config *config,
@@ -2140,6 +2149,7 @@ static struct dvb_frontend_ops mb86a20s_ops = {
 	.read_status = mb86a20s_read_status_and_stats,
 	.read_signal_strength = mb86a20s_read_signal_strength_from_cache,
 	.tune = mb86a20s_tune,
+	.get_frontend_algo = mb86a20s_get_frontend_algo,
 };
 
 MODULE_DESCRIPTION("DVB Frontend module for Fujitsu mb86A20s hardware");
