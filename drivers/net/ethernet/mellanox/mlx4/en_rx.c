@@ -537,7 +537,9 @@ void mlx4_en_destroy_rx_ring(struct mlx4_en_priv *priv,
 	struct mlx4_en_rx_ring *ring = *pring;
 	struct bpf_prog *old_prog;
 
-	old_prog = READ_ONCE(ring->xdp_prog);
+	old_prog = rcu_dereference_protected(
+					ring->xdp_prog,
+					lockdep_is_held(&mdev->state_lock));
 	if (old_prog)
 		bpf_prog_put(old_prog);
 	mlx4_free_hwq_res(mdev->dev, &ring->wqres, size * stride + TXBB_SIZE);
@@ -800,7 +802,9 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 	if (budget <= 0)
 		return polled;
 
-	xdp_prog = READ_ONCE(ring->xdp_prog);
+	/* Protect accesses to: ring->xdp_prog, priv->mac_hash list */
+	rcu_read_lock();
+	xdp_prog = rcu_dereference(ring->xdp_prog);
 	doorbell_pending = 0;
 	tx_index = (priv->tx_ring_num - priv->xdp_ring_num) + cq->ring;
 
@@ -858,15 +862,11 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 				/* Drop the packet, since HW loopback-ed it */
 				mac_hash = ethh->h_source[MLX4_EN_MAC_HASH_IDX];
 				bucket = &priv->mac_hash[mac_hash];
-				rcu_read_lock();
 				hlist_for_each_entry_rcu(entry, bucket, hlist) {
 					if (ether_addr_equal_64bits(entry->mac,
-								    ethh->h_source)) {
-						rcu_read_unlock();
+								    ethh->h_source))
 						goto next;
-					}
 				}
-				rcu_read_unlock();
 			}
 		}
 
@@ -1077,6 +1077,7 @@ consumed:
 	}
 
 out:
+	rcu_read_unlock();
 	if (doorbell_pending)
 		mlx4_en_xmit_doorbell(priv->tx_ring[tx_index]);
 

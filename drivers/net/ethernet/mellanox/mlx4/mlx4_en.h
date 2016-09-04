@@ -340,7 +340,7 @@ struct mlx4_en_rx_ring {
 	u8  fcs_del;
 	void *buf;
 	void *rx_info;
-	struct bpf_prog *xdp_prog;
+	struct bpf_prog __rcu *xdp_prog;
 	struct mlx4_en_page_cache page_cache;
 	unsigned long bytes;
 	unsigned long packets;

@@ -2642,12 +2642,16 @@ static int mlx4_xdp_set(struct net_device *dev, struct bpf_prog *prog)
 			if (IS_ERR(prog))
 				return PTR_ERR(prog);
 		}
+		mutex_lock(&mdev->state_lock);
 		for (i = 0; i < priv->rx_ring_num; i++) {
-			/* This xchg is paired with READ_ONCE in the fastpath */
-			old_prog = xchg(&priv->rx_ring[i]->xdp_prog, prog);
+			old_prog = rcu_dereference_protected(
+					priv->rx_ring[i]->xdp_prog,
+					lockdep_is_held(&mdev->state_lock));
+			rcu_assign_pointer(priv->rx_ring[i]->xdp_prog, prog);
 			if (old_prog)
 				bpf_prog_put(old_prog);
 		}
+		mutex_unlock(&mdev->state_lock);
 		return 0;
 	}
 
@@ -2680,7 +2684,10 @@ static int mlx4_xdp_set(struct net_device *dev, struct bpf_prog *prog)
 							priv->xdp_ring_num);
 
 	for (i = 0; i < priv->rx_ring_num; i++) {
-		old_prog = xchg(&priv->rx_ring[i]->xdp_prog, prog);
+		old_prog = rcu_dereference_protected(
+					priv->rx_ring[i]->xdp_prog,
+					lockdep_is_held(&mdev->state_lock));
+		rcu_assign_pointer(priv->rx_ring[i]->xdp_prog, prog);
 		if (old_prog)
 			bpf_prog_put(old_prog);
 	}
