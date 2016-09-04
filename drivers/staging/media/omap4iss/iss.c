@@ -61,7 +61,7 @@ static void iss_print_status(struct iss_device *iss)
  * See this link for reference:
  *   http://www.mail-archive.com/linux-omap@vger.kernel.org/msg08149.html
  */
-void omap4iss_flush(struct iss_device *iss)
+static void omap4iss_flush(struct iss_device *iss)
 {
 	iss_reg_write(iss, OMAP4_ISS_MEM_TOP, ISS_HL_REVISION, 0);
 	iss_reg_read(iss, OMAP4_ISS_MEM_TOP, ISS_HL_REVISION);
