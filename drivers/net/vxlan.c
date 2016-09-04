@@ -2103,6 +2103,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 				      vni, md, flags, udp_sum);
 		if (err < 0) {
 			dst_release(ndst);
+			dev->stats.tx_errors++;
 			return;
 		}
 		udp_tunnel6_xmit_skb(ndst, sk, skb, dev,
