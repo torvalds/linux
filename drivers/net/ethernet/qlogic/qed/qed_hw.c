@@ -482,28 +482,22 @@ int qed_dmae_info_alloc(struct qed_hwfn *p_hwfn)
 
 	*p_comp = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
 				     sizeof(u32), p_addr, GFP_KERNEL);
-	if (!*p_comp) {
-		DP_NOTICE(p_hwfn, "Failed to allocate `p_completion_word'\n");
+	if (!*p_comp)
 		goto err;
-	}
 
 	p_addr = &p_hwfn->dmae_info.dmae_cmd_phys_addr;
 	*p_cmd = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
 				    sizeof(struct dmae_cmd),
 				    p_addr, GFP_KERNEL);
-	if (!*p_cmd) {
-		DP_NOTICE(p_hwfn, "Failed to allocate `struct dmae_cmd'\n");
+	if (!*p_cmd)
 		goto err;
-	}
 
 	p_addr = &p_hwfn->dmae_info.intermediate_buffer_phys_addr;
 	*p_buff = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
 				     sizeof(u32) * DMAE_MAX_RW_SIZE,
 				     p_addr, GFP_KERNEL);
-	if (!*p_buff) {
-		DP_NOTICE(p_hwfn, "Failed to allocate `intermediate_buffer'\n");
+	if (!*p_buff)
 		goto err;
-	}
 
 	p_hwfn->dmae_info.channel = p_hwfn->rel_pf_id;
 

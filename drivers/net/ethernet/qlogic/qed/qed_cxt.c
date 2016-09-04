@@ -792,10 +792,9 @@ static int qed_cxt_src_t2_alloc(struct qed_hwfn *p_hwfn)
 	p_mngr->t2_num_pages = DIV_ROUND_UP(total_size, psz);
 
 	/* allocate t2 */
-	p_mngr->t2 = kzalloc(p_mngr->t2_num_pages * sizeof(struct qed_dma_mem),
+	p_mngr->t2 = kcalloc(p_mngr->t2_num_pages, sizeof(struct qed_dma_mem),
 			     GFP_KERNEL);
 	if (!p_mngr->t2) {
-		DP_NOTICE(p_hwfn, "Failed to allocate t2 table\n");
 		rc = -ENOMEM;
 		goto t2_fail;
 	}
@@ -957,7 +956,6 @@ static int qed_ilt_shadow_alloc(struct qed_hwfn *p_hwfn)
 	p_mngr->ilt_shadow = kcalloc(size, sizeof(struct qed_dma_mem),
 				     GFP_KERNEL);
 	if (!p_mngr->ilt_shadow) {
-		DP_NOTICE(p_hwfn, "Failed to allocate ilt shadow table\n");
 		rc = -ENOMEM;
 		goto ilt_shadow_fail;
 	}
@@ -1050,10 +1048,8 @@ int qed_cxt_mngr_alloc(struct qed_hwfn *p_hwfn)
 	u32 i;
 
 	p_mngr = kzalloc(sizeof(*p_mngr), GFP_KERNEL);
-	if (!p_mngr) {
-		DP_NOTICE(p_hwfn, "Failed to allocate `struct qed_cxt_mngr'\n");
+	if (!p_mngr)
 		return -ENOMEM;
-	}
 
 	/* Initialize ILT client registers */
 	clients = p_mngr->clients;
@@ -1105,24 +1101,18 @@ int qed_cxt_tables_alloc(struct qed_hwfn *p_hwfn)
 
 	/* Allocate the ILT shadow table */
 	rc = qed_ilt_shadow_alloc(p_hwfn);
-	if (rc) {
-		DP_NOTICE(p_hwfn, "Failed to allocate ilt memory\n");
+	if (rc)
 		goto tables_alloc_fail;
-	}
 
 	/* Allocate the T2  table */
 	rc = qed_cxt_src_t2_alloc(p_hwfn);
-	if (rc) {
-		DP_NOTICE(p_hwfn, "Failed to allocate T2 memory\n");
+	if (rc)
 		goto tables_alloc_fail;
-	}
 
 	/* Allocate and initialize the acquired cids bitmaps */
 	rc = qed_cid_map_alloc(p_hwfn);
-	if (rc) {
-		DP_NOTICE(p_hwfn, "Failed to allocate cid maps\n");
+	if (rc)
 		goto tables_alloc_fail;
-	}
 
 	return 0;
 

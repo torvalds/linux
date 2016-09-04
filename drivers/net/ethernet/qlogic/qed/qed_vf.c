@@ -331,31 +331,23 @@ int qed_vf_hw_prepare(struct qed_hwfn *p_hwfn)
 
 	/* Allocate vf sriov info */
 	p_iov = kzalloc(sizeof(*p_iov), GFP_KERNEL);
-	if (!p_iov) {
-		DP_NOTICE(p_hwfn, "Failed to allocate `struct qed_sriov'\n");
+	if (!p_iov)
 		return -ENOMEM;
-	}
 
 	/* Allocate vf2pf msg */
 	p_iov->vf2pf_request = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
 						  sizeof(union vfpf_tlvs),
 						  &p_iov->vf2pf_request_phys,
 						  GFP_KERNEL);
-	if (!p_iov->vf2pf_request) {
-		DP_NOTICE(p_hwfn,
-			  "Failed to allocate `vf2pf_request' DMA memory\n");
+	if (!p_iov->vf2pf_request)
 		goto free_p_iov;
-	}
 
 	p_iov->pf2vf_reply = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
 						sizeof(union pfvf_tlvs),
 						&p_iov->pf2vf_reply_phys,
 						GFP_KERNEL);
-	if (!p_iov->pf2vf_reply) {
-		DP_NOTICE(p_hwfn,
-			  "Failed to allocate `pf2vf_reply' DMA memory\n");
+	if (!p_iov->pf2vf_reply)
 		goto free_vf2pf_request;
-	}
 
 	DP_VERBOSE(p_hwfn,
 		   QED_MSG_IOV,

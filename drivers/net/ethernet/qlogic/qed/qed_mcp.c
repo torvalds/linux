@@ -171,7 +171,6 @@ int qed_mcp_cmd_init(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	return 0;
 
 err:
-	DP_NOTICE(p_hwfn, "Failed to allocate mcp memory\n");
 	qed_mcp_free(p_hwfn);
 	return -ENOMEM;
 }

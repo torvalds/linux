@@ -323,10 +323,8 @@ struct qed_eq *qed_eq_alloc(struct qed_hwfn *p_hwfn, u16 num_elem)
 
 	/* Allocate EQ struct */
 	p_eq = kzalloc(sizeof(*p_eq), GFP_KERNEL);
-	if (!p_eq) {
-		DP_NOTICE(p_hwfn, "Failed to allocate `struct qed_eq'\n");
+	if (!p_eq)
 		return NULL;
-	}
 
 	/* Allocate and initialize EQ chain*/
 	if (qed_chain_alloc(p_hwfn->cdev,
@@ -335,10 +333,8 @@ struct qed_eq *qed_eq_alloc(struct qed_hwfn *p_hwfn, u16 num_elem)
 			    QED_CHAIN_CNT_TYPE_U16,
 			    num_elem,
 			    sizeof(union event_ring_element),
-			    &p_eq->chain)) {
-		DP_NOTICE(p_hwfn, "Failed to allocate eq chain\n");
+			    &p_eq->chain))
 		goto eq_allocate_fail;
-	}
 
 	/* register EQ completion on the SP SB */
 	qed_int_register_cb(p_hwfn, qed_eq_completion,
@@ -451,10 +447,8 @@ int qed_spq_alloc(struct qed_hwfn *p_hwfn)
 
 	/* SPQ struct */
 	p_spq = kzalloc(sizeof(struct qed_spq), GFP_KERNEL);
-	if (!p_spq) {
-		DP_NOTICE(p_hwfn, "Failed to allocate `struct qed_spq'\n");
+	if (!p_spq)
 		return -ENOMEM;
-	}
 
 	/* SPQ ring  */
 	if (qed_chain_alloc(p_hwfn->cdev,
@@ -463,18 +457,14 @@ int qed_spq_alloc(struct qed_hwfn *p_hwfn)
 			    QED_CHAIN_CNT_TYPE_U16,
 			    0,   /* N/A when the mode is SINGLE */
 			    sizeof(struct slow_path_element),
-			    &p_spq->chain)) {
-		DP_NOTICE(p_hwfn, "Failed to allocate spq chain\n");
+			    &p_spq->chain))
 		goto spq_allocate_fail;
-	}
 
 	/* allocate and fill the SPQ elements (incl. ramrod data list) */
 	capacity = qed_chain_get_capacity(&p_spq->chain);
 	p_virt = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
-				    capacity *
-				    sizeof(struct qed_spq_entry),
+				    capacity * sizeof(struct qed_spq_entry),
 				    &p_phys, GFP_KERNEL);
-
 	if (!p_virt)
 		goto spq_allocate_fail;
 
@@ -863,10 +853,8 @@ struct qed_consq *qed_consq_alloc(struct qed_hwfn *p_hwfn)
 
 	/* Allocate ConsQ struct */
 	p_consq = kzalloc(sizeof(*p_consq), GFP_KERNEL);
-	if (!p_consq) {
-		DP_NOTICE(p_hwfn, "Failed to allocate `struct qed_consq'\n");
+	if (!p_consq)
 		return NULL;
-	}
 
 	/* Allocate and initialize EQ chain*/
 	if (qed_chain_alloc(p_hwfn->cdev,
@@ -874,10 +862,8 @@ struct qed_consq *qed_consq_alloc(struct qed_hwfn *p_hwfn)
 			    QED_CHAIN_MODE_PBL,
 			    QED_CHAIN_CNT_TYPE_U16,
 			    QED_CHAIN_PAGE_SIZE / 0x80,
-			    0x80, &p_consq->chain)) {
-		DP_NOTICE(p_hwfn, "Failed to allocate consq chain");
+			    0x80, &p_consq->chain))
 		goto consq_allocate_fail;
-	}
 
 	return p_consq;
 

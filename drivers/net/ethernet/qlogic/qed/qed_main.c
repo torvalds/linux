@@ -841,10 +841,8 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 	if (IS_PF(cdev)) {
 		/* Allocate stream for unzipping */
 		rc = qed_alloc_stream_mem(cdev);
-		if (rc) {
-			DP_NOTICE(cdev, "Failed to allocate stream memory\n");
+		if (rc)
 			goto err2;
-		}
 
 		/* First Dword used to diffrentiate between various sources */
 		data = cdev->firmware->data + sizeof(u32);

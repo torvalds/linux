@@ -455,10 +455,8 @@ int qed_iov_alloc(struct qed_hwfn *p_hwfn)
 	}
 
 	p_sriov = kzalloc(sizeof(*p_sriov), GFP_KERNEL);
-	if (!p_sriov) {
-		DP_NOTICE(p_hwfn, "Failed to allocate `struct qed_sriov'\n");
+	if (!p_sriov)
 		return -ENOMEM;
-	}
 
 	p_hwfn->pf_iov_info = p_sriov;
 
@@ -507,10 +505,9 @@ int qed_iov_hw_info(struct qed_hwfn *p_hwfn)
 
 	/* Allocate a new struct for IOV information */
 	cdev->p_iov_info = kzalloc(sizeof(*cdev->p_iov_info), GFP_KERNEL);
-	if (!cdev->p_iov_info) {
-		DP_NOTICE(p_hwfn, "Can't support IOV due to lack of memory\n");
+	if (!cdev->p_iov_info)
 		return -ENOMEM;
-	}
+
 	cdev->p_iov_info->pos = pos;
 
 	rc = qed_iov_pci_cfg_info(cdev);

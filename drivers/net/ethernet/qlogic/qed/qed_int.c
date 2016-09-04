@@ -2370,10 +2370,8 @@ static int qed_int_sb_attn_alloc(struct qed_hwfn *p_hwfn,
 
 	/* SB struct */
 	p_sb = kmalloc(sizeof(*p_sb), GFP_KERNEL);
-	if (!p_sb) {
-		DP_NOTICE(cdev, "Failed to allocate `struct qed_sb_attn_info'\n");
+	if (!p_sb)
 		return -ENOMEM;
-	}
 
 	/* SB ring  */
 	p_virt = dma_alloc_coherent(&cdev->pdev->dev,
@@ -2381,7 +2379,6 @@ static int qed_int_sb_attn_alloc(struct qed_hwfn *p_hwfn,
 				    &p_phys, GFP_KERNEL);
 
 	if (!p_virt) {
-		DP_NOTICE(cdev, "Failed to allocate status block (attentions)\n");
 		kfree(p_sb);
 		return -ENOMEM;
 	}
@@ -2667,17 +2664,14 @@ static int qed_int_sp_sb_alloc(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 
 	/* SB struct */
 	p_sb = kmalloc(sizeof(*p_sb), GFP_KERNEL);
-	if (!p_sb) {
-		DP_NOTICE(p_hwfn, "Failed to allocate `struct qed_sb_info'\n");
+	if (!p_sb)
 		return -ENOMEM;
-	}
 
 	/* SB ring  */
 	p_virt = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
 				    SB_ALIGNED_SIZE(p_hwfn),
 				    &p_phys, GFP_KERNEL);
 	if (!p_virt) {
-		DP_NOTICE(p_hwfn, "Failed to allocate status block\n");
 		kfree(p_sb);
 		return -ENOMEM;
 	}
@@ -2959,7 +2953,6 @@ int qed_int_igu_read_cam(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	u16 prev_sb_id = 0xFF;
 
 	p_hwfn->hw_info.p_igu_info = kzalloc(sizeof(*p_igu_info), GFP_KERNEL);
-
 	if (!p_hwfn->hw_info.p_igu_info)
 		return -ENOMEM;
 
@@ -3121,18 +3114,14 @@ int qed_int_alloc(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	int rc = 0;
 
 	rc = qed_int_sp_dpc_alloc(p_hwfn);
-	if (rc) {
-		DP_ERR(p_hwfn->cdev, "Failed to allocate sp dpc mem\n");
-		return rc;
-	}
-	rc = qed_int_sp_sb_alloc(p_hwfn, p_ptt);
-	if (rc) {
-		DP_ERR(p_hwfn->cdev, "Failed to allocate sp sb mem\n");
-		return rc;
-	}
-	rc = qed_int_sb_attn_alloc(p_hwfn, p_ptt);
 	if (rc)
-		DP_ERR(p_hwfn->cdev, "Failed to allocate sb attn mem\n");
+		return rc;
+
+	rc = qed_int_sp_sb_alloc(p_hwfn, p_ptt);
+	if (rc)
+		return rc;
+
+	rc = qed_int_sb_attn_alloc(p_hwfn, p_ptt);
 
 	return rc;
 }
