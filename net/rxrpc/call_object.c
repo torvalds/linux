@@ -197,8 +197,6 @@ static int rxrpc_begin_client_call(struct rxrpc_call *call,
 	if (ret < 0)
 		return ret;
 
-	call->state = RXRPC_CALL_CLIENT_SEND_REQUEST;
-
 	spin_lock(&call->conn->params.peer->lock);
 	hlist_add_head(&call->error_link, &call->conn->params.peer->error_targets);
 	spin_unlock(&call->conn->params.peer->lock);
