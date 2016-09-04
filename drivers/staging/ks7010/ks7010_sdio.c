@@ -776,10 +776,8 @@ static int ks7010_upload_firmware(struct ks_wlan_private *priv,
 
 	/* buffer allocate */
 	rom_buf = kmalloc(ROM_BUFF_SIZE, GFP_KERNEL);
-	if (!rom_buf) {
-		rc = 3;
-		goto error_out0;
-	}
+	if (!rom_buf)
+		return 3;
 
 	sdio_claim_host(card->func);
 
