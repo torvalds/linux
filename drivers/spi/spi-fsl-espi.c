@@ -166,12 +166,10 @@ static void fsl_espi_setup_transfer(struct spi_device *spi,
 	mpc8xxx_spi->get_rx = cs->get_rx;
 	mpc8xxx_spi->get_tx = cs->get_tx;
 
-	bits_per_word = bits_per_word - 1;
-
 	/* mask out bits we are going to set */
 	cs->hw_mode &= ~(CSMODE_LEN(0xF) | CSMODE_DIV16 | CSMODE_PM(0xF));
 
-	cs->hw_mode |= CSMODE_LEN(bits_per_word);
+	cs->hw_mode |= CSMODE_LEN(bits_per_word - 1);
 
 	if ((mpc8xxx_spi->spibrg / hz) > 64) {
 		cs->hw_mode |= CSMODE_DIV16;
