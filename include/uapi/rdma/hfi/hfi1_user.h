@@ -57,6 +57,7 @@
 #define _LINUX__HFI1_USER_H
 
 #include <linux/types.h>
+#include <rdma/rdma_user_ioctl.h>
 
 /*
  * This version number is given to the driver by the user code during
@@ -132,7 +133,6 @@
  * User IOCTLs can not go above 128 if they do then see common.h and change the
  * base for the snoop ioctl
  */
-#define IB_IOCTL_MAGIC 0x1b /* See Documentation/ioctl/ioctl-number.txt */
 
 /*
  * Make the ioctls occupy the last 0xf0-0xff portion of the IB range

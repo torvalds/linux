@@ -35,7 +35,7 @@
 #define IB_USER_MAD_H
 
 #include <linux/types.h>
-#include <linux/ioctl.h>
+#include <rdma/rdma_user_ioctl.h>
 
 /*
  * Increment this value if any changes that break userspace ABI
@@ -229,8 +229,6 @@ struct ib_user_mad_reg_req2 {
 	__u8	rmpp_version;
 	__u8	reserved[3];
 };
-
-#define IB_IOCTL_MAGIC		0x1b
 
 #define IB_USER_MAD_REGISTER_AGENT	_IOWR(IB_IOCTL_MAGIC, 1, \
 					      struct ib_user_mad_reg_req)
