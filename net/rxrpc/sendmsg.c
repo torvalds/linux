@@ -20,6 +20,13 @@
 #include <net/af_rxrpc.h>
 #include "ar-internal.h"
 
+enum rxrpc_command {
+	RXRPC_CMD_SEND_DATA,		/* send data message */
+	RXRPC_CMD_SEND_ABORT,		/* request abort generation */
+	RXRPC_CMD_ACCEPT,		/* [server] accept incoming call */
+	RXRPC_CMD_REJECT_BUSY,		/* [server] reject a call as busy */
+};
+
 /*
  * wait for space to appear in the transmit/ACK window
  * - caller holds the socket locked

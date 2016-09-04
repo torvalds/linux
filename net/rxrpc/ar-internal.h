@@ -131,13 +131,6 @@ struct rxrpc_skb_priv {
 
 #define rxrpc_skb(__skb) ((struct rxrpc_skb_priv *) &(__skb)->cb)
 
-enum rxrpc_command {
-	RXRPC_CMD_SEND_DATA,		/* send data message */
-	RXRPC_CMD_SEND_ABORT,		/* request abort generation */
-	RXRPC_CMD_ACCEPT,		/* [server] accept incoming call */
-	RXRPC_CMD_REJECT_BUSY,		/* [server] reject a call as busy */
-};
-
 /*
  * RxRPC security module interface
  */
