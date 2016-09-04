@@ -41,8 +41,6 @@ struct fsl_espi_transfer {
 	const void *tx_buf;
 	void *rx_buf;
 	unsigned len;
-	unsigned n_tx;
-	unsigned n_rx;
 	unsigned actual_length;
 	int status;
 };
@@ -371,24 +369,16 @@ static int fsl_espi_do_one_msg(struct spi_master *master,
 {
 	struct spi_transfer *t;
 	u8 *rx_buf = NULL;
-	unsigned int n_tx = 0;
-	unsigned int n_rx = 0;
 	unsigned int xfer_len = 0;
 	struct fsl_espi_transfer espi_trans;
 
 	list_for_each_entry(t, &m->transfers, transfer_list) {
-		if (t->tx_buf)
-			n_tx += t->len;
-		if (t->rx_buf) {
-			n_rx += t->len;
+		if (t->rx_buf)
 			rx_buf = t->rx_buf;
-		}
 		if ((t->tx_buf) || (t->rx_buf))
 			xfer_len += t->len;
 	}
 
-	espi_trans.n_tx = n_tx;
-	espi_trans.n_rx = n_rx;
 	espi_trans.len = xfer_len;
 	espi_trans.actual_length = 0;
 	espi_trans.status = 0;
