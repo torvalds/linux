@@ -525,3 +525,7 @@
 &usbphy {
 	status = "okay";
 };
+
+&usb_otg {
+	status = "okay";
+};
