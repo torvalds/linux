@@ -279,8 +279,7 @@ static void fsl_espi_do_trans(struct spi_message *m,
 	trans.tx_buf = espi_trans->tx_buf;
 	trans.rx_buf = espi_trans->rx_buf;
 
-	if (trans.bits_per_word || trans.speed_hz)
-		fsl_espi_setup_transfer(spi, &trans);
+	fsl_espi_setup_transfer(spi, &trans);
 
 	if (trans.len)
 		status = fsl_espi_bufs(spi, &trans);
