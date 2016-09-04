@@ -791,7 +791,7 @@ static int ks7010_upload_firmware(struct ks_wlan_private *priv,
 
 	retval = request_firmware(&fw_entry, ROM_FILE, &priv->ks_wlan_hw.sdio_card->func->dev);
 	if (retval)
-		return retval;
+		goto error_out0;
 
 	length = fw_entry->size;
 
