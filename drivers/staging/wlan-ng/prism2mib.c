@@ -152,7 +152,7 @@ static struct mibrec mibtab[] = {
 	 F_STA | F_WRITE,
 	 HFA384x_RID_CNFWEPDEFAULTKEY0, 0, 0,
 	 prism2mib_wepdefaultkey},
-	{DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey1,
+	{DIDmib_dot11smt_dot11WEPDefaultKeysTable_key(2),
 	 F_STA | F_WRITE,
 	 HFA384x_RID_CNFWEPDEFAULTKEY1, 0, 0,
 	 prism2mib_wepdefaultkey},

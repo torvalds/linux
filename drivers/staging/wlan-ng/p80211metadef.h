@@ -155,10 +155,6 @@
 #define DIDmib_dot11smt_dot11WEPDefaultKeysTable \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(4))
-#define DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey1 \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(4) | \
-			P80211DID_MKITEM(2) | 0x0c000000)
 #define DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey2 \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(4) | \

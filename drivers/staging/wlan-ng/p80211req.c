@@ -201,7 +201,7 @@ static void p80211req_mibset_mibget(wlandevice_t *wlandev,
 
 	switch (mibitem->did) {
 	case DIDmib_dot11smt_dot11WEPDefaultKeysTable_key(1):
-	case DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey1:
+	case DIDmib_dot11smt_dot11WEPDefaultKeysTable_key(2):
 	case DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey2:
 	case DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey3:
 		if (!isget)
