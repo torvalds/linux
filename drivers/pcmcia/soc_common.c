@@ -111,12 +111,9 @@ static void __soc_pcmcia_hw_shutdown(struct soc_pcmcia_socket *skt,
 {
 	unsigned int i;
 
-	for (i = 0; i < nr; i++) {
+	for (i = 0; i < nr; i++)
 		if (skt->stat[i].irq)
 			free_irq(skt->stat[i].irq, skt);
-		if (gpio_is_valid(skt->stat[i].gpio))
-			gpio_free(skt->stat[i].gpio);
-	}
 
 	if (skt->ops->hw_shutdown)
 		skt->ops->hw_shutdown(skt);
@@ -145,8 +142,9 @@ static int soc_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 		if (gpio_is_valid(skt->stat[i].gpio)) {
 			int irq;
 
-			ret = gpio_request_one(skt->stat[i].gpio, GPIOF_IN,
-					       skt->stat[i].name);
+			ret = devm_gpio_request_one(skt->socket.dev.parent,
+						    skt->stat[i].gpio, GPIOF_IN,
+						    skt->stat[i].name);
 			if (ret) {
 				__soc_pcmcia_hw_shutdown(skt, i);
 				return ret;
@@ -166,8 +164,6 @@ static int soc_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 					  IRQF_TRIGGER_NONE,
 					  skt->stat[i].name, skt);
 			if (ret) {
-				if (gpio_is_valid(skt->stat[i].gpio))
-					gpio_free(skt->stat[i].gpio);
 				__soc_pcmcia_hw_shutdown(skt, i);
 				return ret;
 			}
