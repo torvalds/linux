@@ -35,9 +35,20 @@
 
 #include <linux/types.h>
 #include <linux/ioctl.h>
+#include <rdma/ib_user_mad.h>
 
 /* Documentation/ioctl/ioctl-number.txt */
 #define RDMA_IOCTL_MAGIC		0x1b
 #define IB_IOCTL_MAGIC			RDMA_IOCTL_MAGIC
+
+#define IB_USER_MAD_REGISTER_AGENT	_IOWR(IB_IOCTL_MAGIC, 1, \
+					      struct ib_user_mad_reg_req)
+
+#define IB_USER_MAD_UNREGISTER_AGENT	_IOW(IB_IOCTL_MAGIC, 2, __u32)
+
+#define IB_USER_MAD_ENABLE_PKEY		_IO(IB_IOCTL_MAGIC, 3)
+
+#define IB_USER_MAD_REGISTER_AGENT2     _IOWR(IB_IOCTL_MAGIC, 4, \
+					      struct ib_user_mad_reg_req2)
 
 #endif /* RDMA_USER_IOCTL_H */
