@@ -276,8 +276,9 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct rtllib_device *ieee)
 	}
 }
 
-inline void softmac_ps_mgmt_xmit(struct sk_buff *skb,
-		struct rtllib_device *ieee)
+static inline void
+softmac_ps_mgmt_xmit(struct sk_buff *skb,
+		     struct rtllib_device *ieee)
 {
 	short single = ieee->softmac_features & IEEE_SOFTMAC_SINGLE_QUEUE;
 	struct rtllib_hdr_3addr  *header =
@@ -770,8 +771,10 @@ void rtllib_start_scan_syncro(struct rtllib_device *ieee, u8 is_mesh)
 }
 EXPORT_SYMBOL(rtllib_start_scan_syncro);
 
-inline struct sk_buff *rtllib_authentication_req(struct rtllib_network *beacon,
-	struct rtllib_device *ieee, int challengelen, u8 *daddr)
+static inline struct sk_buff *
+rtllib_authentication_req(struct rtllib_network *beacon,
+			  struct rtllib_device *ieee,
+			  int challengelen, u8 *daddr)
 {
 	struct sk_buff *skb;
 	struct rtllib_authentication *auth;
@@ -1130,7 +1133,7 @@ static void rtllib_resp_to_probe(struct rtllib_device *ieee, u8 *dest)
 }
 
 
-inline int SecIsInPMKIDList(struct rtllib_device *ieee, u8 *bssid)
+static inline int SecIsInPMKIDList(struct rtllib_device *ieee, u8 *bssid)
 {
 	int i = 0;
 
@@ -1146,8 +1149,9 @@ inline int SecIsInPMKIDList(struct rtllib_device *ieee, u8 *bssid)
 	return i;
 }
 
-inline struct sk_buff *rtllib_association_req(struct rtllib_network *beacon,
-					      struct rtllib_device *ieee)
+static inline struct sk_buff *
+rtllib_association_req(struct rtllib_network *beacon,
+		       struct rtllib_device *ieee)
 {
 	struct sk_buff *skb;
 	struct rtllib_assoc_request_frame *hdr;
@@ -2209,8 +2213,9 @@ static void rtllib_process_action(struct rtllib_device *ieee,
 	}
 }
 
-inline int rtllib_rx_assoc_resp(struct rtllib_device *ieee, struct sk_buff *skb,
-				struct rtllib_rx_stats *rx_stats)
+static inline int
+rtllib_rx_assoc_resp(struct rtllib_device *ieee, struct sk_buff *skb,
+		     struct rtllib_rx_stats *rx_stats)
 {
 	u16 errcode;
 	int aid;
@@ -2344,8 +2349,9 @@ static void rtllib_rx_auth_resp(struct rtllib_device *ieee, struct sk_buff *skb)
 	}
 }
 
-inline int rtllib_rx_auth(struct rtllib_device *ieee, struct sk_buff *skb,
-			  struct rtllib_rx_stats *rx_stats)
+static inline int
+rtllib_rx_auth(struct rtllib_device *ieee, struct sk_buff *skb,
+	       struct rtllib_rx_stats *rx_stats)
 {
 
 	if (ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE) {
@@ -2361,7 +2367,8 @@ inline int rtllib_rx_auth(struct rtllib_device *ieee, struct sk_buff *skb,
 	return 0;
 }
 
-inline int rtllib_rx_deauth(struct rtllib_device *ieee, struct sk_buff *skb)
+static inline int
+rtllib_rx_deauth(struct rtllib_device *ieee, struct sk_buff *skb)
 {
 	struct rtllib_hdr_3addr *header = (struct rtllib_hdr_3addr *) skb->data;
 	u16 frame_ctl;
@@ -3397,8 +3404,9 @@ static int rtllib_wpa_set_encryption(struct rtllib_device *ieee,
 	return ret;
 }
 
-inline struct sk_buff *rtllib_disauth_skb(struct rtllib_network *beacon,
-		struct rtllib_device *ieee, u16 asRsn)
+static inline struct sk_buff *
+rtllib_disauth_skb(struct rtllib_network *beacon,
+		   struct rtllib_device *ieee, u16 asRsn)
 {
 	struct sk_buff *skb;
 	struct rtllib_disauth *disauth;
@@ -3423,8 +3431,9 @@ inline struct sk_buff *rtllib_disauth_skb(struct rtllib_network *beacon,
 	return skb;
 }
 
-inline struct sk_buff *rtllib_disassociate_skb(struct rtllib_network *beacon,
-		struct rtllib_device *ieee, u16 asRsn)
+static inline struct sk_buff *
+rtllib_disassociate_skb(struct rtllib_network *beacon,
+			struct rtllib_device *ieee, u16 asRsn)
 {
 	struct sk_buff *skb;
 	struct rtllib_disassoc *disass;
