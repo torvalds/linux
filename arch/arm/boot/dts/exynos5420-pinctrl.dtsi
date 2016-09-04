@@ -12,6 +12,8 @@
  * published by the Free Software Foundation.
 */
 
+#include <dt-bindings/pinctrl/samsung.h>
+
 &pinctrl_0 {
 	gpy7: gpy7 {
 		gpio-controller;

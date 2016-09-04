@@ -12,58 +12,46 @@
  * published by the Free Software Foundation.
 */
 
-#define PIN_PULL_NONE		0
-#define PIN_PULL_DOWN		1
-#define PIN_PULL_UP		3
+#include <dt-bindings/pinctrl/samsung.h>
 
-#define PIN_DRV_LV1		0
-#define PIN_DRV_LV2		2
-#define PIN_DRV_LV3		1
-#define PIN_DRV_LV4		3
-
-#define PIN_PDN_OUT0		0
-#define PIN_PDN_OUT1		1
-#define PIN_PDN_INPUT		2
-#define PIN_PDN_PREV		3
-
-#define PIN_IN(_pin, _pull, _drv)			\
-	_pin {						\
-		samsung,pins = #_pin;			\
-		samsung,pin-function = <0>;		\
-		samsung,pin-pud = <PIN_PULL_ ##_pull>;	\
-		samsung,pin-drv = <PIN_DRV_ ##_drv>;	\
+#define PIN_IN(_pin, _pull, _drv)					\
+	_pin {								\
+		samsung,pins = #_pin;					\
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;		\
+		samsung,pin-pud = <EXYNOS_PIN_PULL_ ##_pull>;		\
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_ ##_drv>;		\
 	}
 
-#define PIN_OUT(_pin, _drv)				\
-	_pin {						\
-		samsung,pins = #_pin;			\
-		samsung,pin-function = <1>;		\
-		samsung,pin-pud = <0>;			\
-		samsung,pin-drv = <PIN_DRV_ ##_drv>;	\
+#define PIN_OUT(_pin, _drv)						\
+	_pin {								\
+		samsung,pins = #_pin;					\
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;	\
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;		\
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_ ##_drv>;		\
 	}
 
-#define PIN_OUT_SET(_pin, _val, _drv)			\
-	_pin {						\
-		samsung,pins = #_pin;			\
-		samsung,pin-function = <1>;		\
-		samsung,pin-pud = <0>;			\
-		samsung,pin-drv = <PIN_DRV_ ##_drv>;	\
-		samsung,pin-val = <_val>;		\
+#define PIN_OUT_SET(_pin, _val, _drv)					\
+	_pin {								\
+		samsung,pins = #_pin;					\
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;	\
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;		\
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_ ##_drv>;		\
+		samsung,pin-val = <_val>;				\
 	}
 
-#define PIN_CFG(_pin, _sel, _pull, _drv)		\
-	_pin {						\
-		samsung,pins = #_pin;			\
-		samsung,pin-function = <_sel>;		\
-		samsung,pin-pud = <PIN_PULL_ ##_pull>;	\
-		samsung,pin-drv = <PIN_DRV_ ##_drv>;	\
+#define PIN_CFG(_pin, _sel, _pull, _drv)				\
+	_pin {								\
+		samsung,pins = #_pin;					\
+		samsung,pin-function = <_sel>;				\
+		samsung,pin-pud = <EXYNOS_PIN_PULL_ ##_pull>;		\
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_ ##_drv>;		\
 	}
 
-#define PIN_SLP(_pin, _mode, _pull)				\
-	_pin {							\
-		samsung,pins = #_pin;				\
-		samsung,pin-con-pdn = <PIN_PDN_ ##_mode>;	\
-		samsung,pin-pud-pdn = <PIN_PULL_ ##_pull>;	\
+#define PIN_SLP(_pin, _mode, _pull)					\
+	_pin {								\
+		samsung,pins = #_pin;					\
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_ ##_mode>;	\
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_ ##_pull>;	\
 	}
 
 &pinctrl_0 {

@@ -11,6 +11,8 @@
  * published by the Free Software Foundation.
 */
 
+#include <dt-bindings/pinctrl/samsung.h>
+
 &pinctrl_0 {
 	gpa0: gpa0 {
 		gpio-controller;

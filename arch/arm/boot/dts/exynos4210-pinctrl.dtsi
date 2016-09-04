@@ -14,6 +14,8 @@
  * published by the Free Software Foundation.
 */
 
+#include <dt-bindings/pinctrl/samsung.h>
+
 / {
 	pinctrl@11400000 {
 		gpa0: gpa0 {
