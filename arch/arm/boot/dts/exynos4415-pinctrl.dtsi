@@ -480,14 +480,14 @@
 		samsung,pins = "gpk2-0";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <4>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV4>;
 	};
 
 	sd2_cmd: sd2-cmd {
 		samsung,pins = "gpk2-1";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <4>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV4>;
 	};
 
 	sd2_cd: sd2-cd {
@@ -501,14 +501,14 @@
 		samsung,pins = "gpk2-3";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
-		samsung,pin-drv = <4>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV4>;
 	};
 
 	sd2_bus4: sd2-bus-width4 {
 		samsung,pins = "gpk2-4", "gpk2-5", "gpk2-6";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
-		samsung,pin-drv = <4>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV4>;
 	};
 
 	cam_port_b_io: cam-port-b-io {
