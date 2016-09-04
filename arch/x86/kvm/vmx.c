@@ -939,6 +939,7 @@ static DEFINE_SPINLOCK(vmx_vpid_lock);
 static struct vmcs_config {
 	int size;
 	int order;
+	u32 basic_cap;
 	u32 revision_id;
 	u32 pin_based_exec_ctrl;
 	u32 cpu_based_exec_ctrl;
@@ -1213,6 +1214,11 @@ static inline bool cpu_has_vmx_ple(void)
 {
 	return vmcs_config.cpu_based_2nd_exec_ctrl &
 		SECONDARY_EXEC_PAUSE_LOOP_EXITING;
+}
+
+static inline bool cpu_has_vmx_basic_inout(void)
+{
+	return	(((u64)vmcs_config.basic_cap << 32) & VMX_BASIC_INOUT);
 }
 
 static inline bool cpu_need_virtualize_apic_accesses(struct kvm_vcpu *vcpu)
@@ -2877,6 +2883,8 @@ static int vmx_get_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
 		*pdata = VMCS12_REVISION | VMX_BASIC_TRUE_CTLS |
 			   ((u64)VMCS12_SIZE << VMX_BASIC_VMCS_SIZE_SHIFT) |
 			   (VMX_BASIC_MEM_TYPE_WB << VMX_BASIC_MEM_TYPE_SHIFT);
+		if (cpu_has_vmx_basic_inout())
+			*pdata |= VMX_BASIC_INOUT;
 		break;
 	case MSR_IA32_VMX_TRUE_PINBASED_CTLS:
 	case MSR_IA32_VMX_PINBASED_CTLS:
@@ -3458,6 +3466,7 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 
 	vmcs_conf->size = vmx_msr_high & 0x1fff;
 	vmcs_conf->order = get_order(vmcs_conf->size);
+	vmcs_conf->basic_cap = vmx_msr_high & ~0x1fff;
 	vmcs_conf->revision_id = vmx_msr_low;
 
 	vmcs_conf->pin_based_exec_ctrl = _pin_based_exec_control;
