@@ -129,12 +129,11 @@ void dma_update_cpu_trans(unsigned long *entry, void *page_addr, int flags)
 		entry_clr_protected(entry);
 }
 
-static int dma_update_trans(struct zpci_dev *zdev, unsigned long pa,
-			    dma_addr_t dma_addr, size_t size, int flags)
+static int __dma_update_trans(struct zpci_dev *zdev, unsigned long pa,
+			      dma_addr_t dma_addr, size_t size, int flags)
 {
 	unsigned int nr_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
 	u8 *page_addr = (u8 *) (pa & PAGE_MASK);
-	dma_addr_t start_dma_addr = dma_addr;
 	unsigned long irq_flags;
 	unsigned long *entry;
 	int i, rc = 0;
@@ -145,7 +144,7 @@ static int dma_update_trans(struct zpci_dev *zdev, unsigned long pa,
 	spin_lock_irqsave(&zdev->dma_table_lock, irq_flags);
 	if (!zdev->dma_table) {
 		rc = -EINVAL;
-		goto no_refresh;
+		goto out_unlock;
 	}
 
 	for (i = 0; i < nr_pages; i++) {
@@ -159,20 +158,6 @@ static int dma_update_trans(struct zpci_dev *zdev, unsigned long pa,
 		dma_addr += PAGE_SIZE;
 	}
 
-	/*
-	 * With zdev->tlb_refresh == 0, rpcit is not required to establish new
-	 * translations when previously invalid translation-table entries are
-	 * validated. With lazy unmap, it also is skipped for previously valid
-	 * entries, but a global rpcit is then required before any address can
-	 * be re-used, i.e. after each iommu bitmap wrap-around.
-	 */
-	if (!zdev->tlb_refresh &&
-			(!s390_iommu_strict ||
-			((flags & ZPCI_PTE_VALID_MASK) == ZPCI_PTE_VALID)))
-		goto no_refresh;
-
-	rc = zpci_refresh_trans((u64) zdev->fh << 32, start_dma_addr,
-				nr_pages * PAGE_SIZE);
 undo_cpu_trans:
 	if (rc && ((flags & ZPCI_PTE_VALID_MASK) == ZPCI_PTE_VALID)) {
 		flags = ZPCI_PTE_INVALID;
@@ -185,9 +170,43 @@ undo_cpu_trans:
 			dma_update_cpu_trans(entry, page_addr, flags);
 		}
 	}
-
-no_refresh:
+out_unlock:
 	spin_unlock_irqrestore(&zdev->dma_table_lock, irq_flags);
+	return rc;
+}
+
+static int __dma_purge_tlb(struct zpci_dev *zdev, dma_addr_t dma_addr,
+			   size_t size, int flags)
+{
+	/*
+	 * With zdev->tlb_refresh == 0, rpcit is not required to establish new
+	 * translations when previously invalid translation-table entries are
+	 * validated. With lazy unmap, it also is skipped for previously valid
+	 * entries, but a global rpcit is then required before any address can
+	 * be re-used, i.e. after each iommu bitmap wrap-around.
+	 */
+	if (!zdev->tlb_refresh &&
+			(!s390_iommu_strict ||
+			((flags & ZPCI_PTE_VALID_MASK) == ZPCI_PTE_VALID)))
+		return 0;
+
+	return zpci_refresh_trans((u64) zdev->fh << 32, dma_addr,
+				  PAGE_ALIGN(size));
+}
+
+static int dma_update_trans(struct zpci_dev *zdev, unsigned long pa,
+			    dma_addr_t dma_addr, size_t size, int flags)
+{
+	int rc;
+
+	rc = __dma_update_trans(zdev, pa, dma_addr, size, flags);
+	if (rc)
+		return rc;
+
+	rc = __dma_purge_tlb(zdev, dma_addr, size, flags);
+	if (rc && ((flags & ZPCI_PTE_VALID_MASK) == ZPCI_PTE_VALID))
+		__dma_update_trans(zdev, pa, dma_addr, size, ZPCI_PTE_INVALID);
+
 	return rc;
 }
 
@@ -411,12 +430,16 @@ static int __s390_dma_map_sg(struct device *dev, struct scatterlist *sg,
 
 	for (s = sg; dma_addr < dma_addr_base + size; s = sg_next(s)) {
 		pa = page_to_phys(sg_page(s)) + s->offset;
-		ret = dma_update_trans(zdev, pa, dma_addr, s->length, flags);
+		ret = __dma_update_trans(zdev, pa, dma_addr, s->length, flags);
 		if (ret)
 			goto unmap;
 
 		dma_addr += s->length;
 	}
+	ret = __dma_purge_tlb(zdev, dma_addr_base, size, flags);
+	if (ret)
+		goto unmap;
+
 	*handle = dma_addr_base;
 	atomic64_add(size >> PAGE_SHIFT, &zdev->mapped_pages);
 
