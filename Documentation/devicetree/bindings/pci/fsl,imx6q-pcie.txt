@@ -12,6 +12,7 @@ Required properties:
 	- "msi": The interrupt that is asserted when an MSI is received
 - clock-names: Must include the following additional entries:
 	- "pcie_phy"
+- ext_osc: use the external oscillator or not.
 
 Example:
 
