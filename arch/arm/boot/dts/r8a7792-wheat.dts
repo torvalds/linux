@@ -12,6 +12,7 @@
 /dts-v1/;
 #include "r8a7792.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "Wheat";
@@ -54,6 +55,25 @@
 
 		pinctrl-0 = <&lan89218_pins>;
 		pinctrl-names = "default";
+	};
+
+	keyboard {
+		compatible = "gpio-keys";
+
+		key-a {
+			linux,code = <KEY_A>;
+			label = "SW2";
+			wakeup-source;
+			debounce-interval = <20>;
+			gpios = <&gpio3 20 GPIO_ACTIVE_LOW>;
+		};
+		key-b {
+			linux,code = <KEY_B>;
+			label = "SW3";
+			wakeup-source;
+			debounce-interval = <20>;
+			gpios = <&gpio11 2 GPIO_ACTIVE_LOW>;
+		};
 	};
 
 	vcc_sdhi0: regulator-vcc-sdhi0 {
