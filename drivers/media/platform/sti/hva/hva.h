@@ -23,6 +23,9 @@
 
 #define HVA_PREFIX "[---:----]"
 
+extern const struct hva_enc nv12h264enc;
+extern const struct hva_enc nv21h264enc;
+
 /**
  * struct hva_frameinfo - information about hva frame
  *
@@ -67,13 +70,35 @@ struct hva_streaminfo {
  * @gop_size:       groupe of picture size
  * @bitrate:        bitrate (in bps)
  * @aspect:         video aspect
+ * @profile:        H.264 profile
+ * @level:          H.264 level
+ * @entropy_mode:   H.264 entropy mode (CABAC or CVLC)
+ * @cpb_size:       coded picture buffer size (in kB)
+ * @dct8x8:         transform mode 8x8 enable
+ * @qpmin:          minimum quantizer
+ * @qpmax:          maximum quantizer
+ * @vui_sar:        pixel aspect ratio enable
+ * @vui_sar_idc:    pixel aspect ratio identifier
+ * @sei_fp:         sei frame packing arrangement enable
+ * @sei_fp_type:    sei frame packing arrangement type
  */
 struct hva_controls {
-	struct v4l2_fract			time_per_frame;
-	enum v4l2_mpeg_video_bitrate_mode	bitrate_mode;
-	u32					gop_size;
-	u32					bitrate;
-	enum v4l2_mpeg_video_aspect		aspect;
+	struct v4l2_fract					time_per_frame;
+	enum v4l2_mpeg_video_bitrate_mode			bitrate_mode;
+	u32							gop_size;
+	u32							bitrate;
+	enum v4l2_mpeg_video_aspect				aspect;
+	enum v4l2_mpeg_video_h264_profile			profile;
+	enum v4l2_mpeg_video_h264_level				level;
+	enum v4l2_mpeg_video_h264_entropy_mode			entropy_mode;
+	u32							cpb_size;
+	bool							dct8x8;
+	u32							qpmin;
+	u32							qpmax;
+	bool							vui_sar;
+	enum v4l2_mpeg_video_h264_vui_sar_idc			vui_sar_idc;
+	bool							sei_fp;
+	enum v4l2_mpeg_video_h264_sei_fp_arrangement_type	sei_fp_type;
 };
 
 /**

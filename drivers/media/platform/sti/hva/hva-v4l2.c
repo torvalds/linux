@@ -41,6 +41,8 @@
 
 /* registry of available encoders */
 const struct hva_enc *hva_encoders[] = {
+	&nv12h264enc,
+	&nv21h264enc,
 };
 
 static inline int frame_size(u32 w, u32 h, u32 fmt)
@@ -610,6 +612,49 @@ static int hva_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_MPEG_VIDEO_ASPECT:
 		ctx->ctrls.aspect = ctrl->val;
 		break;
+	case V4L2_CID_MPEG_VIDEO_H264_PROFILE:
+		ctx->ctrls.profile = ctrl->val;
+		if (ctx->flags & HVA_FLAG_STREAMINFO)
+			snprintf(ctx->streaminfo.profile,
+				 sizeof(ctx->streaminfo.profile),
+				 "%s profile",
+				 v4l2_ctrl_get_menu(ctrl->id)[ctrl->val]);
+		break;
+	case V4L2_CID_MPEG_VIDEO_H264_LEVEL:
+		ctx->ctrls.level = ctrl->val;
+		if (ctx->flags & HVA_FLAG_STREAMINFO)
+			snprintf(ctx->streaminfo.level,
+				 sizeof(ctx->streaminfo.level),
+				 "level %s",
+				 v4l2_ctrl_get_menu(ctrl->id)[ctrl->val]);
+		break;
+	case V4L2_CID_MPEG_VIDEO_H264_ENTROPY_MODE:
+		ctx->ctrls.entropy_mode = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_H264_CPB_SIZE:
+		ctx->ctrls.cpb_size = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_H264_8X8_TRANSFORM:
+		ctx->ctrls.dct8x8 = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_H264_MIN_QP:
+		ctx->ctrls.qpmin = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_H264_MAX_QP:
+		ctx->ctrls.qpmax = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_H264_VUI_SAR_ENABLE:
+		ctx->ctrls.vui_sar = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_H264_VUI_SAR_IDC:
+		ctx->ctrls.vui_sar_idc = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_H264_SEI_FRAME_PACKING:
+		ctx->ctrls.sei_fp = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_H264_SEI_FP_ARRANGEMENT_TYPE:
+		ctx->ctrls.sei_fp_type = ctrl->val;
+		break;
 	default:
 		dev_dbg(dev, "%s S_CTRL: invalid control (id = %d)\n",
 			ctx->name, ctrl->id);
@@ -628,8 +673,10 @@ static int hva_ctrls_setup(struct hva_ctx *ctx)
 {
 	struct device *dev = ctx_to_dev(ctx);
 	u64 mask;
+	enum v4l2_mpeg_video_h264_sei_fp_arrangement_type sei_fp_type =
+		V4L2_MPEG_VIDEO_H264_SEI_FP_ARRANGEMENT_TYPE_TOP_BOTTOM;
 
-	v4l2_ctrl_handler_init(&ctx->ctrl_handler, 4);
+	v4l2_ctrl_handler_init(&ctx->ctrl_handler, 15);
 
 	v4l2_ctrl_new_std_menu(&ctx->ctrl_handler, &hva_ctrl_ops,
 			       V4L2_CID_MPEG_VIDEO_BITRATE_MODE,
@@ -651,6 +698,66 @@ static int hva_ctrls_setup(struct hva_ctx *ctx)
 			       V4L2_MPEG_VIDEO_ASPECT_1x1,
 			       mask,
 			       V4L2_MPEG_VIDEO_ASPECT_1x1);
+
+	mask = ~((1 << V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE) |
+		 (1 << V4L2_MPEG_VIDEO_H264_PROFILE_MAIN) |
+		 (1 << V4L2_MPEG_VIDEO_H264_PROFILE_HIGH) |
+		 (1 << V4L2_MPEG_VIDEO_H264_PROFILE_STEREO_HIGH));
+	v4l2_ctrl_new_std_menu(&ctx->ctrl_handler, &hva_ctrl_ops,
+			       V4L2_CID_MPEG_VIDEO_H264_PROFILE,
+			       V4L2_MPEG_VIDEO_H264_PROFILE_STEREO_HIGH,
+			       mask,
+			       V4L2_MPEG_VIDEO_H264_PROFILE_HIGH);
+
+	v4l2_ctrl_new_std_menu(&ctx->ctrl_handler, &hva_ctrl_ops,
+			       V4L2_CID_MPEG_VIDEO_H264_LEVEL,
+			       V4L2_MPEG_VIDEO_H264_LEVEL_4_2,
+			       0,
+			       V4L2_MPEG_VIDEO_H264_LEVEL_4_0);
+
+	v4l2_ctrl_new_std_menu(&ctx->ctrl_handler, &hva_ctrl_ops,
+			       V4L2_CID_MPEG_VIDEO_H264_ENTROPY_MODE,
+			       V4L2_MPEG_VIDEO_H264_ENTROPY_MODE_CABAC,
+			       0,
+			       V4L2_MPEG_VIDEO_H264_ENTROPY_MODE_CAVLC);
+
+	v4l2_ctrl_new_std(&ctx->ctrl_handler, &hva_ctrl_ops,
+			  V4L2_CID_MPEG_VIDEO_H264_CPB_SIZE,
+			  1, 10000, 1, 3000);
+
+	v4l2_ctrl_new_std(&ctx->ctrl_handler, &hva_ctrl_ops,
+			  V4L2_CID_MPEG_VIDEO_H264_8X8_TRANSFORM,
+			  0, 1, 1, 0);
+
+	v4l2_ctrl_new_std(&ctx->ctrl_handler, &hva_ctrl_ops,
+			  V4L2_CID_MPEG_VIDEO_H264_MIN_QP,
+			  0, 51, 1, 5);
+
+	v4l2_ctrl_new_std(&ctx->ctrl_handler, &hva_ctrl_ops,
+			  V4L2_CID_MPEG_VIDEO_H264_MAX_QP,
+			  0, 51, 1, 51);
+
+	v4l2_ctrl_new_std(&ctx->ctrl_handler, &hva_ctrl_ops,
+			  V4L2_CID_MPEG_VIDEO_H264_VUI_SAR_ENABLE,
+			  0, 1, 1, 1);
+
+	mask = ~(1 << V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_1x1);
+	v4l2_ctrl_new_std_menu(&ctx->ctrl_handler, &hva_ctrl_ops,
+			       V4L2_CID_MPEG_VIDEO_H264_VUI_SAR_IDC,
+			       V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_1x1,
+			       mask,
+			       V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_1x1);
+
+	v4l2_ctrl_new_std(&ctx->ctrl_handler, &hva_ctrl_ops,
+			  V4L2_CID_MPEG_VIDEO_H264_SEI_FRAME_PACKING,
+			  0, 1, 1, 0);
+
+	mask = ~(1 << sei_fp_type);
+	v4l2_ctrl_new_std_menu(&ctx->ctrl_handler, &hva_ctrl_ops,
+			       V4L2_CID_MPEG_VIDEO_H264_SEI_FP_ARRANGEMENT_TYPE,
+			       sei_fp_type,
+			       mask,
+			       sei_fp_type);
 
 	if (ctx->ctrl_handler.error) {
 		int err = ctx->ctrl_handler.error;
