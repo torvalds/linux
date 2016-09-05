@@ -256,8 +256,12 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 	new_start = new_mem->start << PAGE_SHIFT;
 
 	switch (old_mem->mem_type) {
-	case TTM_PL_VRAM:
 	case TTM_PL_TT:
+		r = amdgpu_ttm_bind(bo->ttm, old_mem);
+		if (r)
+			return r;
+
+	case TTM_PL_VRAM:
 		old_start += bo->bdev->man[old_mem->mem_type].gpu_offset;
 		break;
 	default:
@@ -265,8 +269,12 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 		return -EINVAL;
 	}
 	switch (new_mem->mem_type) {
-	case TTM_PL_VRAM:
 	case TTM_PL_TT:
+		r = amdgpu_ttm_bind(bo->ttm, new_mem);
+		if (r)
+			return r;
+
+	case TTM_PL_VRAM:
 		new_start += bo->bdev->man[new_mem->mem_type].gpu_offset;
 		break;
 	default:
@@ -638,7 +646,6 @@ static int amdgpu_ttm_backend_bind(struct ttm_tt *ttm,
 				   struct ttm_mem_reg *bo_mem)
 {
 	struct amdgpu_ttm_tt *gtt = (void*)ttm;
-	uint32_t flags = amdgpu_ttm_tt_pte_flags(gtt->adev, ttm, bo_mem);
 	int r;
 
 	if (gtt->userptr) {
@@ -659,6 +666,26 @@ static int amdgpu_ttm_backend_bind(struct ttm_tt *ttm,
 	    bo_mem->mem_type == AMDGPU_PL_OA)
 		return -EINVAL;
 
+	return 0;
+}
+
+bool amdgpu_ttm_is_bound(struct ttm_tt *ttm)
+{
+	struct amdgpu_ttm_tt *gtt = (void *)ttm;
+
+	return gtt && !list_empty(&gtt->list);
+}
+
+int amdgpu_ttm_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem)
+{
+	struct amdgpu_ttm_tt *gtt = (void *)ttm;
+	uint32_t flags;
+	int r;
+
+	if (!ttm || amdgpu_ttm_is_bound(ttm))
+		return 0;
+
+	flags = amdgpu_ttm_tt_pte_flags(gtt->adev, ttm, bo_mem);
 	r = amdgpu_gart_bind(gtt->adev, gtt->offset, ttm->num_pages,
 		ttm->pages, gtt->ttm.dma_address, flags);
 

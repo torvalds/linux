@@ -675,6 +675,11 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 		dev_err(bo->adev->dev, "%p pin failed\n", bo);
 		goto error;
 	}
+	r = amdgpu_ttm_bind(bo->tbo.ttm, &bo->tbo.mem);
+	if (unlikely(r)) {
+		dev_err(bo->adev->dev, "%p bind failed\n", bo);
+		goto error;
+	}
 
 	bo->pin_count = 1;
 	if (gpu_addr != NULL)
@@ -947,6 +952,8 @@ void amdgpu_bo_fence(struct amdgpu_bo *bo, struct fence *fence,
 u64 amdgpu_bo_gpu_offset(struct amdgpu_bo *bo)
 {
 	WARN_ON_ONCE(bo->tbo.mem.mem_type == TTM_PL_SYSTEM);
+	WARN_ON_ONCE(bo->tbo.mem.mem_type == TTM_PL_TT &&
+		     !amdgpu_ttm_is_bound(bo->tbo.ttm));
 	WARN_ON_ONCE(!ww_mutex_is_locked(&bo->tbo.resv->lock) &&
 		     !bo->pin_count);
 

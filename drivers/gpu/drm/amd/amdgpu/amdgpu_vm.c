@@ -1163,7 +1163,8 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 	}
 
 	flags = amdgpu_ttm_tt_pte_flags(adev, bo_va->bo->tbo.ttm, mem);
-	gtt_flags = (adev == bo_va->bo->adev) ? flags : 0;
+	gtt_flags = (amdgpu_ttm_is_bound(bo_va->bo->tbo.ttm) &&
+		adev == bo_va->bo->adev) ? flags : 0;
 
 	spin_lock(&vm->status_lock);
 	if (!list_empty(&bo_va->vm_status))

@@ -2521,6 +2521,7 @@ static inline void amdgpu_acpi_fini(struct amdgpu_device *adev) { }
 struct amdgpu_bo_va_mapping *
 amdgpu_cs_find_mapping(struct amdgpu_cs_parser *parser,
 		       uint64_t addr, struct amdgpu_bo **bo);
+int amdgpu_cs_sysvm_access_required(struct amdgpu_cs_parser *parser);
 
 #include "amdgpu_object.h"
 #endif

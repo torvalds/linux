@@ -882,6 +882,10 @@ int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser, uint32_t ib_idx)
 		return -EINVAL;
 	}
 
+	r = amdgpu_cs_sysvm_access_required(parser);
+	if (r)
+		return r;
+
 	ctx.parser = parser;
 	ctx.buf_sizes = buf_sizes;
 	ctx.ib_idx = ib_idx;

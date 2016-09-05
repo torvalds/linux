@@ -77,4 +77,7 @@ int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 			struct fence **fence);
 
 int amdgpu_mmap(struct file *filp, struct vm_area_struct *vma);
+bool amdgpu_ttm_is_bound(struct ttm_tt *ttm);
+int amdgpu_ttm_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem);
+
 #endif

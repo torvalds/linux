@@ -639,8 +639,12 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 		}
 	}
 
-	if (p->uf_entry.robj)
-		p->job->uf_addr += amdgpu_bo_gpu_offset(p->uf_entry.robj);
+	if (!r && p->uf_entry.robj) {
+		struct amdgpu_bo *uf = p->uf_entry.robj;
+
+		r = amdgpu_ttm_bind(uf->tbo.ttm, &uf->tbo.mem);
+		p->job->uf_addr += amdgpu_bo_gpu_offset(uf);
+	}
 
 error_validate:
 	if (r) {
@@ -1162,4 +1166,30 @@ amdgpu_cs_find_mapping(struct amdgpu_cs_parser *parser,
 	}
 
 	return NULL;
+}
+
+/**
+ * amdgpu_cs_sysvm_access_required - make BOs accessible by the system VM
+ *
+ * @parser: command submission parser context
+ *
+ * Helper for UVD/VCE VM emulation, make sure BOs are accessible by the system VM.
+ */
+int amdgpu_cs_sysvm_access_required(struct amdgpu_cs_parser *parser)
+{
+	unsigned i;
+	int r;
+
+	if (!parser->bo_list)
+		return 0;
+
+	for (i = 0; i < parser->bo_list->num_entries; i++) {
+		struct amdgpu_bo *bo = parser->bo_list->array[i].robj;
+
+		r = amdgpu_ttm_bind(bo->tbo.ttm, &bo->tbo.mem);
+		if (unlikely(r))
+			return r;
+	}
+
+	return 0;
 }
