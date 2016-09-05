@@ -353,8 +353,8 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		push_len = (length + sizeof(*tx_push) + 7) / 8;
 		if (push_len > 16) {
 			__iowrite64_copy(txr->tx_doorbell, tx_push_buf, 16);
-			__iowrite64_copy(txr->tx_doorbell + 4, tx_push_buf + 1,
-					 push_len - 16);
+			__iowrite32_copy(txr->tx_doorbell + 4, tx_push_buf + 1,
+					 (push_len - 16) << 1);
 		} else {
 			__iowrite64_copy(txr->tx_doorbell, tx_push_buf,
 					 push_len);
