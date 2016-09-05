@@ -49,6 +49,7 @@
 #include <asm/debugreg.h>
 #include <asm/switch_to.h>
 #include <asm/xen/hypervisor.h>
+#include <asm/vdso.h>
 
 asmlinkage extern void ret_from_fork(void);
 
@@ -524,6 +525,17 @@ void set_personality_ia32(bool x32)
 }
 EXPORT_SYMBOL_GPL(set_personality_ia32);
 
+static long prctl_map_vdso(const struct vdso_image *image, unsigned long addr)
+{
+	int ret;
+
+	ret = map_vdso_once(image, addr);
+	if (ret)
+		return ret;
+
+	return (long)image->size;
+}
+
 long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 {
 	int ret = 0;
@@ -576,6 +588,19 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 		ret = put_user(base, (unsigned long __user *)addr);
 		break;
 	}
+
+#ifdef CONFIG_CHECKPOINT_RESTORE
+#ifdef CONFIG_X86_X32
+	case ARCH_MAP_VDSO_X32:
+		return prctl_map_vdso(&vdso_image_x32, addr);
+#endif
+#if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION
+	case ARCH_MAP_VDSO_32:
+		return prctl_map_vdso(&vdso_image_32, addr);
+#endif
+	case ARCH_MAP_VDSO_64:
+		return prctl_map_vdso(&vdso_image_64, addr);
+#endif
 
 	default:
 		ret = -EINVAL;

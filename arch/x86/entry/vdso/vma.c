@@ -176,6 +176,16 @@ static int vvar_fault(const struct vm_special_mapping *sm,
 	return VM_FAULT_SIGBUS;
 }
 
+static const struct vm_special_mapping vdso_mapping = {
+	.name = "[vdso]",
+	.fault = vdso_fault,
+	.mremap = vdso_mremap,
+};
+static const struct vm_special_mapping vvar_mapping = {
+	.name = "[vvar]",
+	.fault = vvar_fault,
+};
+
 /*
  * Add vdso and vvar mappings to current process.
  * @image          - blob to map
@@ -187,16 +197,6 @@ static int map_vdso(const struct vdso_image *image, unsigned long addr)
 	struct vm_area_struct *vma;
 	unsigned long text_start;
 	int ret = 0;
-
-	static const struct vm_special_mapping vdso_mapping = {
-		.name = "[vdso]",
-		.fault = vdso_fault,
-		.mremap = vdso_mremap,
-	};
-	static const struct vm_special_mapping vvar_mapping = {
-		.name = "[vvar]",
-		.fault = vvar_fault,
-	};
 
 	if (down_write_killable(&mm->mmap_sem))
 		return -EINTR;
@@ -253,6 +253,31 @@ static int map_vdso_randomized(const struct vdso_image *image)
 {
 	unsigned long addr = vdso_addr(current->mm->start_stack,
 				 image->size - image->sym_vvar_start);
+	return map_vdso(image, addr);
+}
+
+int map_vdso_once(const struct vdso_image *image, unsigned long addr)
+{
+	struct mm_struct *mm = current->mm;
+	struct vm_area_struct *vma;
+
+	down_write(&mm->mmap_sem);
+	/*
+	 * Check if we have already mapped vdso blob - fail to prevent
+	 * abusing from userspace install_speciall_mapping, which may
+	 * not do accounting and rlimit right.
+	 * We could search vma near context.vdso, but it's a slowpath,
+	 * so let's explicitely check all VMAs to be completely sure.
+	 */
+	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+		if (vma_is_special_mapping(vma, &vdso_mapping) ||
+				vma_is_special_mapping(vma, &vvar_mapping)) {
+			up_write(&mm->mmap_sem);
+			return -EEXIST;
+		}
+	}
+	up_write(&mm->mmap_sem);
+
 	return map_vdso(image, addr);
 }
 
