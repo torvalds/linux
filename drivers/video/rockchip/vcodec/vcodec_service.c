@@ -1211,8 +1211,6 @@ static struct vpu_reg *reg_init(struct vpu_subdev_data *data,
 	}
 
 	if (size > data->reg_size) {
-		pr_err("vpu reg size %u is larger than hw reg size %u\n",
-		       size, data->reg_size);
 		extra_size = size - data->reg_size;
 		size = data->reg_size;
 	}
