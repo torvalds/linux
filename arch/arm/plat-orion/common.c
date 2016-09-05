@@ -470,37 +470,15 @@ void __init orion_ge11_init(struct mv643xx_eth_platform_data *eth_data,
 /*****************************************************************************
  * Ethernet switch
  ****************************************************************************/
-static struct resource orion_switch_resources[] = {
-	{
-		.start	= 0,
-		.end	= 0,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device orion_switch_device = {
-	.name		= "dsa",
-	.id		= 0,
-	.num_resources	= 0,
-	.resource	= orion_switch_resources,
-};
-
-void __init orion_ge00_switch_init(struct dsa_platform_data *d, int irq)
+void __init orion_ge00_switch_init(struct dsa_platform_data *d)
 {
 	int i;
-
-	if (irq != NO_IRQ) {
-		orion_switch_resources[0].start = irq;
-		orion_switch_resources[0].end = irq;
-		orion_switch_device.num_resources = 1;
-	}
 
 	d->netdev = &orion_ge00.dev;
 	for (i = 0; i < d->nr_chips; i++)
 		d->chip[i].host_dev = &orion_ge_mvmdio.dev;
-	orion_switch_device.dev.platform_data = d;
 
-	platform_device_register(&orion_switch_device);
+	platform_device_register_data(NULL, "dsa", 0, d, sizeof(d));
 }
 
 /*****************************************************************************

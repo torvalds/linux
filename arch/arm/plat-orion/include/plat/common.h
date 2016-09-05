@@ -57,8 +57,7 @@ void __init orion_ge11_init(struct mv643xx_eth_platform_data *eth_data,
 			    unsigned long mapbase,
 			    unsigned long irq);
 
-void __init orion_ge00_switch_init(struct dsa_platform_data *d,
-				   int irq);
+void __init orion_ge00_switch_init(struct dsa_platform_data *d);
 
 void __init orion_i2c_init(unsigned long mapbase,
 			   unsigned long irq,
