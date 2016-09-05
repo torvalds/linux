@@ -32,51 +32,23 @@ Each cell is one byte.
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  start + 0:
-
-       -  B\ :sub:`00`
-
-       -  G\ :sub:`01`
-
-       -  B\ :sub:`02`
-
-       -  G\ :sub:`03`
-
-    -  .. row 2
-
-       -  start + 4:
-
-       -  G\ :sub:`10`
-
-       -  R\ :sub:`11`
-
-       -  G\ :sub:`12`
-
-       -  R\ :sub:`13`
-
-    -  .. row 3
-
-       -  start + 8:
-
-       -  B\ :sub:`20`
-
-       -  G\ :sub:`21`
-
-       -  B\ :sub:`22`
-
-       -  G\ :sub:`23`
-
-    -  .. row 4
-
-       -  start + 12:
-
-       -  G\ :sub:`30`
-
-       -  R\ :sub:`31`
-
-       -  G\ :sub:`32`
-
-       -  R\ :sub:`33`
+    * - start + 0:
+      - B\ :sub:`00`
+      - G\ :sub:`01`
+      - B\ :sub:`02`
+      - G\ :sub:`03`
+    * - start + 4:
+      - G\ :sub:`10`
+      - R\ :sub:`11`
+      - G\ :sub:`12`
+      - R\ :sub:`13`
+    * - start + 8:
+      - B\ :sub:`20`
+      - G\ :sub:`21`
+      - B\ :sub:`22`
+      - G\ :sub:`23`
+    * - start + 12:
+      - G\ :sub:`30`
+      - R\ :sub:`31`
+      - G\ :sub:`32`
+      - R\ :sub:`33`

@@ -27,11 +27,6 @@ Each cell is one byte.
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  start + 0:
-
-       -  I'\ :sub:`0[7:0]`
-
-       -  I'\ :sub:`0[11:8]`
+    * - start + 0:
+      - I'\ :sub:`0[7:0]`
+      - I'\ :sub:`0[11:8]`

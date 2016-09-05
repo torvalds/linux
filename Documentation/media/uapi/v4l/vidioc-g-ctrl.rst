@@ -64,22 +64,12 @@ These ioctls work only with user controls. For other control classes the
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``id``
-
-       -  Identifies the control, set by the application.
-
-    -  .. row 2
-
-       -  __s32
-
-       -  ``value``
-
-       -  New value or current value.
+    * - __u32
+      - ``id``
+      - Identifies the control, set by the application.
+    * - __s32
+      - ``value``
+      - New value or current value.
 
 
 Return Value

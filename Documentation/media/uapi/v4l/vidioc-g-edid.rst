@@ -106,55 +106,30 @@ EDID is no longer available.
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``pad``
-
-       -  Pad for which to get/set the EDID blocks. When used with a video
-	  device node the pad represents the input or output index as
-	  returned by :ref:`VIDIOC_ENUMINPUT` and
-	  :ref:`VIDIOC_ENUMOUTPUT` respectively.
-
-    -  .. row 2
-
-       -  __u32
-
-       -  ``start_block``
-
-       -  Read the EDID from starting with this block. Must be 0 when
-	  setting the EDID.
-
-    -  .. row 3
-
-       -  __u32
-
-       -  ``blocks``
-
-       -  The number of blocks to get or set. Must be less or equal to 256
-	  (the maximum number of blocks as defined by the standard). When
-	  you set the EDID and ``blocks`` is 0, then the EDID is disabled or
-	  erased.
-
-    -  .. row 4
-
-       -  __u32
-
-       -  ``reserved``\ [5]
-
-       -  Reserved for future extensions. Applications and drivers must set
-	  the array to zero.
-
-    -  .. row 5
-
-       -  __u8 *
-
-       -  ``edid``
-
-       -  Pointer to memory that contains the EDID. The minimum size is
-	  ``blocks`` * 128.
+    * - __u32
+      - ``pad``
+      - Pad for which to get/set the EDID blocks. When used with a video
+	device node the pad represents the input or output index as
+	returned by :ref:`VIDIOC_ENUMINPUT` and
+	:ref:`VIDIOC_ENUMOUTPUT` respectively.
+    * - __u32
+      - ``start_block``
+      - Read the EDID from starting with this block. Must be 0 when
+	setting the EDID.
+    * - __u32
+      - ``blocks``
+      - The number of blocks to get or set. Must be less or equal to 256
+	(the maximum number of blocks as defined by the standard). When
+	you set the EDID and ``blocks`` is 0, then the EDID is disabled or
+	erased.
+    * - __u32
+      - ``reserved``\ [5]
+      - Reserved for future extensions. Applications and drivers must set
+	the array to zero.
+    * - __u8 *
+      - ``edid``
+      - Pointer to memory that contains the EDID. The minimum size is
+	``blocks`` * 128.
 
 
 Return Value

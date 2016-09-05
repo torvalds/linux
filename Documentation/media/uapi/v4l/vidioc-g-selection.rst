@@ -149,50 +149,25 @@ Selection targets and flags are documented in
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``type``
-
-       -  Type of the buffer (from enum
-	  :c:type:`v4l2_buf_type`).
-
-    -  .. row 2
-
-       -  __u32
-
-       -  ``target``
-
-       -  Used to select between
-	  :ref:`cropping and composing rectangles <v4l2-selections-common>`.
-
-    -  .. row 3
-
-       -  __u32
-
-       -  ``flags``
-
-       -  Flags controlling the selection rectangle adjustments, refer to
-	  :ref:`selection flags <v4l2-selection-flags>`.
-
-    -  .. row 4
-
-       -  struct :c:type:`v4l2_rect`
-
-       -  ``r``
-
-       -  The selection rectangle.
-
-    -  .. row 5
-
-       -  __u32
-
-       -  ``reserved[9]``
-
-       -  Reserved fields for future use. Drivers and applications must zero
-	  this array.
+    * - __u32
+      - ``type``
+      - Type of the buffer (from enum
+	:c:type:`v4l2_buf_type`).
+    * - __u32
+      - ``target``
+      - Used to select between
+	:ref:`cropping and composing rectangles <v4l2-selections-common>`.
+    * - __u32
+      - ``flags``
+      - Flags controlling the selection rectangle adjustments, refer to
+	:ref:`selection flags <v4l2-selection-flags>`.
+    * - struct :c:type:`v4l2_rect`
+      - ``r``
+      - The selection rectangle.
+    * - __u32
+      - ``reserved[9]``
+      - Reserved fields for future use. Drivers and applications must zero
+	this array.
 
 
 Return Value

@@ -29,83 +29,39 @@ Each cell is one byte.
     :stub-columns: 0
     :widths:       2 1 1 1 1 1 1 1 1
 
-
-    -  .. row 1
-
-       -  start + 0:
-
-       -  D'\ :sub:`00high`
-
-       -  D'\ :sub:`00low`
-
-       -  D'\ :sub:`01high`
-
-       -  D'\ :sub:`01low`
-
-       -  D'\ :sub:`02high`
-
-       -  D'\ :sub:`02low`
-
-       -  D'\ :sub:`03high`
-
-       -  D'\ :sub:`03low`
-
-    -  .. row 2
-
-       -  start + 8:
-
-       -  D'\ :sub:`10high`
-
-       -  D'\ :sub:`10low`
-
-       -  D'\ :sub:`11high`
-
-       -  D'\ :sub:`11low`
-
-       -  D'\ :sub:`12high`
-
-       -  D'\ :sub:`12low`
-
-       -  D'\ :sub:`13high`
-
-       -  D'\ :sub:`13low`
-
-    -  .. row 3
-
-       -  start + 16:
-
-       -  D'\ :sub:`20high`
-
-       -  D'\ :sub:`20low`
-
-       -  D'\ :sub:`21high`
-
-       -  D'\ :sub:`21low`
-
-       -  D'\ :sub:`22high`
-
-       -  D'\ :sub:`22low`
-
-       -  D'\ :sub:`23high`
-
-       -  D'\ :sub:`23low`
-
-    -  .. row 4
-
-       -  start + 24:
-
-       -  D'\ :sub:`30high`
-
-       -  D'\ :sub:`30low`
-
-       -  D'\ :sub:`31high`
-
-       -  D'\ :sub:`31low`
-
-       -  D'\ :sub:`32high`
-
-       -  D'\ :sub:`32low`
-
-       -  D'\ :sub:`33high`
-
-       -  D'\ :sub:`33low`
+    * - start + 0:
+      - D'\ :sub:`00high`
+      - D'\ :sub:`00low`
+      - D'\ :sub:`01high`
+      - D'\ :sub:`01low`
+      - D'\ :sub:`02high`
+      - D'\ :sub:`02low`
+      - D'\ :sub:`03high`
+      - D'\ :sub:`03low`
+    * - start + 8:
+      - D'\ :sub:`10high`
+      - D'\ :sub:`10low`
+      - D'\ :sub:`11high`
+      - D'\ :sub:`11low`
+      - D'\ :sub:`12high`
+      - D'\ :sub:`12low`
+      - D'\ :sub:`13high`
+      - D'\ :sub:`13low`
+    * - start + 16:
+      - D'\ :sub:`20high`
+      - D'\ :sub:`20low`
+      - D'\ :sub:`21high`
+      - D'\ :sub:`21low`
+      - D'\ :sub:`22high`
+      - D'\ :sub:`22low`
+      - D'\ :sub:`23high`
+      - D'\ :sub:`23low`
+    * - start + 24:
+      - D'\ :sub:`30high`
+      - D'\ :sub:`30low`
+      - D'\ :sub:`31high`
+      - D'\ :sub:`31low`
+      - D'\ :sub:`32high`
+      - D'\ :sub:`32low`
+      - D'\ :sub:`33high`
+      - D'\ :sub:`33low`

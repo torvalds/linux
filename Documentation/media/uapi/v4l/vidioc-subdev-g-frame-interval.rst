@@ -76,31 +76,16 @@ the same sub-device is not defined.
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``pad``
-
-       -  Pad number as reported by the media controller API.
-
-    -  .. row 2
-
-       -  struct :c:type:`v4l2_fract`
-
-       -  ``interval``
-
-       -  Period, in seconds, between consecutive video frames.
-
-    -  .. row 3
-
-       -  __u32
-
-       -  ``reserved``\ [9]
-
-       -  Reserved for future extensions. Applications and drivers must set
-	  the array to zero.
+    * - __u32
+      - ``pad``
+      - Pad number as reported by the media controller API.
+    * - struct :c:type:`v4l2_fract`
+      - ``interval``
+      - Period, in seconds, between consecutive video frames.
+    * - __u32
+      - ``reserved``\ [9]
+      - Reserved for future extensions. Applications and drivers must set
+	the array to zero.
 
 
 Return Value

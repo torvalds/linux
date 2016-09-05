@@ -28,51 +28,23 @@ Each cell is one byte.
     :stub-columns: 0
     :widths:       2 1 1 1 1
 
-
-    -  .. row 1
-
-       -  start + 0:
-
-       -  R'\ :sub:`00`
-
-       -  R'\ :sub:`01`
-
-       -  R'\ :sub:`02`
-
-       -  R'\ :sub:`03`
-
-    -  .. row 2
-
-       -  start + 4:
-
-       -  R'\ :sub:`10`
-
-       -  R'\ :sub:`11`
-
-       -  R'\ :sub:`12`
-
-       -  R'\ :sub:`13`
-
-    -  .. row 3
-
-       -  start + 8:
-
-       -  R'\ :sub:`20`
-
-       -  R'\ :sub:`21`
-
-       -  R'\ :sub:`22`
-
-       -  R'\ :sub:`23`
-
-    -  .. row 4
-
-       -  start + 12:
-
-       -  R'\ :sub:`30`
-
-       -  R'\ :sub:`31`
-
-       -  R'\ :sub:`32`
-
-       -  R'\ :sub:`33`
+    * - start + 0:
+      - R'\ :sub:`00`
+      - R'\ :sub:`01`
+      - R'\ :sub:`02`
+      - R'\ :sub:`03`
+    * - start + 4:
+      - R'\ :sub:`10`
+      - R'\ :sub:`11`
+      - R'\ :sub:`12`
+      - R'\ :sub:`13`
+    * - start + 8:
+      - R'\ :sub:`20`
+      - R'\ :sub:`21`
+      - R'\ :sub:`22`
+      - R'\ :sub:`23`
+    * - start + 12:
+      - R'\ :sub:`30`
+      - R'\ :sub:`31`
+      - R'\ :sub:`32`
+      - R'\ :sub:`33`

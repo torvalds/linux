@@ -80,40 +80,20 @@ modified format should be as close as possible to the original request.
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``pad``
-
-       -  Pad number as reported by the media framework.
-
-    -  .. row 2
-
-       -  __u32
-
-       -  ``which``
-
-       -  Crop rectangle to get or set, from enum
-	  :ref:`v4l2_subdev_format_whence <v4l2-subdev-format-whence>`.
-
-    -  .. row 3
-
-       -  struct :c:type:`v4l2_rect`
-
-       -  ``rect``
-
-       -  Crop rectangle boundaries, in pixels.
-
-    -  .. row 4
-
-       -  __u32
-
-       -  ``reserved``\ [8]
-
-       -  Reserved for future extensions. Applications and drivers must set
-	  the array to zero.
+    * - __u32
+      - ``pad``
+      - Pad number as reported by the media framework.
+    * - __u32
+      - ``which``
+      - Crop rectangle to get or set, from enum
+	:ref:`v4l2_subdev_format_whence <v4l2-subdev-format-whence>`.
+    * - struct :c:type:`v4l2_rect`
+      - ``rect``
+      - Crop rectangle boundaries, in pixels.
+    * - __u32
+      - ``reserved``\ [8]
+      - Reserved for future extensions. Applications and drivers must set
+	the array to zero.
 
 
 Return Value

@@ -53,55 +53,30 @@ with a pointer to this variable.
     :stub-columns: 0
     :widths:       3 1 4
 
-
-    -  .. row 1
-
-       -  ``V4L2_PRIORITY_UNSET``
-
-       -  0
-
-       -
-
-    -  .. row 2
-
-       -  ``V4L2_PRIORITY_BACKGROUND``
-
-       -  1
-
-       -  Lowest priority, usually applications running in background, for
-	  example monitoring VBI transmissions. A proxy application running
-	  in user space will be necessary if multiple applications want to
-	  read from a device at this priority.
-
-    -  .. row 3
-
-       -  ``V4L2_PRIORITY_INTERACTIVE``
-
-       -  2
-
-       -
-
-    -  .. row 4
-
-       -  ``V4L2_PRIORITY_DEFAULT``
-
-       -  2
-
-       -  Medium priority, usually applications started and interactively
-	  controlled by the user. For example TV viewers, Teletext browsers,
-	  or just "panel" applications to change the channel or video
-	  controls. This is the default priority unless an application
-	  requests another.
-
-    -  .. row 5
-
-       -  ``V4L2_PRIORITY_RECORD``
-
-       -  3
-
-       -  Highest priority. Only one file descriptor can have this priority,
-	  it blocks any other fd from changing device properties. Usually
-	  applications which must not be interrupted, like video recording.
+    * - ``V4L2_PRIORITY_UNSET``
+      - 0
+      -
+    * - ``V4L2_PRIORITY_BACKGROUND``
+      - 1
+      - Lowest priority, usually applications running in background, for
+	example monitoring VBI transmissions. A proxy application running
+	in user space will be necessary if multiple applications want to
+	read from a device at this priority.
+    * - ``V4L2_PRIORITY_INTERACTIVE``
+      - 2
+      -
+    * - ``V4L2_PRIORITY_DEFAULT``
+      - 2
+      - Medium priority, usually applications started and interactively
+	controlled by the user. For example TV viewers, Teletext browsers,
+	or just "panel" applications to change the channel or video
+	controls. This is the default priority unless an application
+	requests another.
+    * - ``V4L2_PRIORITY_RECORD``
+      - 3
+      - Highest priority. Only one file descriptor can have this priority,
+	it blocks any other fd from changing device properties. Usually
+	applications which must not be interrupted, like video recording.
 
 
 Return Value

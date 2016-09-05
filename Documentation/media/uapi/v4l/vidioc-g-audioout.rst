@@ -65,51 +65,26 @@ as ``VIDIOC_G_AUDOUT`` does.
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``index``
-
-       -  Identifies the audio output, set by the driver or application.
-
-    -  .. row 2
-
-       -  __u8
-
-       -  ``name``\ [32]
-
-       -  Name of the audio output, a NUL-terminated ASCII string, for
-	  example: "Line Out". This information is intended for the user,
-	  preferably the connector label on the device itself.
-
-    -  .. row 3
-
-       -  __u32
-
-       -  ``capability``
-
-       -  Audio capability flags, none defined yet. Drivers must set this
-	  field to zero.
-
-    -  .. row 4
-
-       -  __u32
-
-       -  ``mode``
-
-       -  Audio mode, none defined yet. Drivers and applications (on
-	  ``VIDIOC_S_AUDOUT``) must set this field to zero.
-
-    -  .. row 5
-
-       -  __u32
-
-       -  ``reserved``\ [2]
-
-       -  Reserved for future extensions. Drivers and applications must set
-	  the array to zero.
+    * - __u32
+      - ``index``
+      - Identifies the audio output, set by the driver or application.
+    * - __u8
+      - ``name``\ [32]
+      - Name of the audio output, a NUL-terminated ASCII string, for
+	example: "Line Out". This information is intended for the user,
+	preferably the connector label on the device itself.
+    * - __u32
+      - ``capability``
+      - Audio capability flags, none defined yet. Drivers must set this
+	field to zero.
+    * - __u32
+      - ``mode``
+      - Audio mode, none defined yet. Drivers and applications (on
+	``VIDIOC_S_AUDOUT``) must set this field to zero.
+    * - __u32
+      - ``reserved``\ [2]
+      - Reserved for future extensions. Drivers and applications must set
+	the array to zero.
 
 
 Return Value

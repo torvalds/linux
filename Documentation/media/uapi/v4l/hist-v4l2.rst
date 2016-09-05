@@ -447,90 +447,34 @@ This unnamed version was finally merged into Linux 2.5.46.
 	:header-rows:  1
 	:stub-columns: 0
 
-
-	-  .. row 1
-
-	   -  Old defines
-
-	   -  enum :c:type:`v4l2_buf_type`
-
-	-  .. row 2
-
-	   -  ``V4L2_BUF_TYPE_CAPTURE``
-
-	   -  ``V4L2_BUF_TYPE_VIDEO_CAPTURE``
-
-	-  .. row 3
-
-	   -  ``V4L2_BUF_TYPE_CODECIN``
-
-	   -  Omitted for now
-
-	-  .. row 4
-
-	   -  ``V4L2_BUF_TYPE_CODECOUT``
-
-	   -  Omitted for now
-
-	-  .. row 5
-
-	   -  ``V4L2_BUF_TYPE_EFFECTSIN``
-
-	   -  Omitted for now
-
-	-  .. row 6
-
-	   -  ``V4L2_BUF_TYPE_EFFECTSIN2``
-
-	   -  Omitted for now
-
-	-  .. row 7
-
-	   -  ``V4L2_BUF_TYPE_EFFECTSOUT``
-
-	   -  Omitted for now
-
-	-  .. row 8
-
-	   -  ``V4L2_BUF_TYPE_VIDEOOUT``
-
-	   -  ``V4L2_BUF_TYPE_VIDEO_OUTPUT``
-
-	-  .. row 9
-
-	   -  ``-``
-
-	   -  ``V4L2_BUF_TYPE_VIDEO_OVERLAY``
-
-	-  .. row 10
-
-	   -  ``-``
-
-	   -  ``V4L2_BUF_TYPE_VBI_CAPTURE``
-
-	-  .. row 11
-
-	   -  ``-``
-
-	   -  ``V4L2_BUF_TYPE_VBI_OUTPUT``
-
-	-  .. row 12
-
-	   -  ``-``
-
-	   -  ``V4L2_BUF_TYPE_SLICED_VBI_CAPTURE``
-
-	-  .. row 13
-
-	   -  ``-``
-
-	   -  ``V4L2_BUF_TYPE_SLICED_VBI_OUTPUT``
-
-	-  .. row 14
-
-	   -  ``V4L2_BUF_TYPE_PRIVATE_BASE``
-
-	   -  ``V4L2_BUF_TYPE_PRIVATE`` (but this is deprecated)
+	* - Old defines
+	  - enum :c:type:`v4l2_buf_type`
+	* - ``V4L2_BUF_TYPE_CAPTURE``
+	  - ``V4L2_BUF_TYPE_VIDEO_CAPTURE``
+	* - ``V4L2_BUF_TYPE_CODECIN``
+	  - Omitted for now
+	* - ``V4L2_BUF_TYPE_CODECOUT``
+	  - Omitted for now
+	* - ``V4L2_BUF_TYPE_EFFECTSIN``
+	  - Omitted for now
+	* - ``V4L2_BUF_TYPE_EFFECTSIN2``
+	  - Omitted for now
+	* - ``V4L2_BUF_TYPE_EFFECTSOUT``
+	  - Omitted for now
+	* - ``V4L2_BUF_TYPE_VIDEOOUT``
+	  - ``V4L2_BUF_TYPE_VIDEO_OUTPUT``
+	* - ``-``
+	  - ``V4L2_BUF_TYPE_VIDEO_OVERLAY``
+	* - ``-``
+	  - ``V4L2_BUF_TYPE_VBI_CAPTURE``
+	* - ``-``
+	  - ``V4L2_BUF_TYPE_VBI_OUTPUT``
+	* - ``-``
+	  - ``V4L2_BUF_TYPE_SLICED_VBI_CAPTURE``
+	* - ``-``
+	  - ``V4L2_BUF_TYPE_SLICED_VBI_OUTPUT``
+	* - ``V4L2_BUF_TYPE_PRIVATE_BASE``
+	  - ``V4L2_BUF_TYPE_PRIVATE`` (but this is deprecated)
 
 
 10. In struct :c:type:`v4l2_fmtdesc` a enum
@@ -564,54 +508,22 @@ This unnamed version was finally merged into Linux 2.5.46.
 	:header-rows:  1
 	:stub-columns: 0
 
-
-	-  .. row 1
-
-	   -  Old flag
-
-	   -  enum :c:type:`v4l2_field`
-
-	-  .. row 2
-
-	   -  ``V4L2_FMT_FLAG_NOT_INTERLACED``
-
-	   -  ?
-
-	-  .. row 3
-
-	   -  ``V4L2_FMT_FLAG_INTERLACED`` = ``V4L2_FMT_FLAG_COMBINED``
-
-	   -  ``V4L2_FIELD_INTERLACED``
-
-	-  .. row 4
-
-	   -  ``V4L2_FMT_FLAG_TOPFIELD`` = ``V4L2_FMT_FLAG_ODDFIELD``
-
-	   -  ``V4L2_FIELD_TOP``
-
-	-  .. row 5
-
-	   -  ``V4L2_FMT_FLAG_BOTFIELD`` = ``V4L2_FMT_FLAG_EVENFIELD``
-
-	   -  ``V4L2_FIELD_BOTTOM``
-
-	-  .. row 6
-
-	   -  ``-``
-
-	   -  ``V4L2_FIELD_SEQ_TB``
-
-	-  .. row 7
-
-	   -  ``-``
-
-	   -  ``V4L2_FIELD_SEQ_BT``
-
-	-  .. row 8
-
-	   -  ``-``
-
-	   -  ``V4L2_FIELD_ALTERNATE``
+	* - Old flag
+	  - enum :c:type:`v4l2_field`
+	* - ``V4L2_FMT_FLAG_NOT_INTERLACED``
+	  - ?
+	* - ``V4L2_FMT_FLAG_INTERLACED`` = ``V4L2_FMT_FLAG_COMBINED``
+	  - ``V4L2_FIELD_INTERLACED``
+	* - ``V4L2_FMT_FLAG_TOPFIELD`` = ``V4L2_FMT_FLAG_ODDFIELD``
+	  - ``V4L2_FIELD_TOP``
+	* - ``V4L2_FMT_FLAG_BOTFIELD`` = ``V4L2_FMT_FLAG_EVENFIELD``
+	  - ``V4L2_FIELD_BOTTOM``
+	* - ``-``
+	  - ``V4L2_FIELD_SEQ_TB``
+	* - ``-``
+	  - ``V4L2_FIELD_SEQ_BT``
+	* - ``-``
+	  - ``V4L2_FIELD_ALTERNATE``
 
 
     The color space flags were replaced by a enum
@@ -768,46 +680,21 @@ V4L2 2003-11-05
        :header-rows:  1
        :stub-columns: 0
 
-
-       -  .. row 1
-
-	  -  Symbol
-
-	  -  In this document prior to revision 0.5
-
-	  -  Corrected
-
-       -  .. row 2
-
-	  -  ``V4L2_PIX_FMT_RGB24``
-
-	  -  B, G, R
-
-	  -  R, G, B
-
-       -  .. row 3
-
-	  -  ``V4L2_PIX_FMT_BGR24``
-
-	  -  R, G, B
-
-	  -  B, G, R
-
-       -  .. row 4
-
-	  -  ``V4L2_PIX_FMT_RGB32``
-
-	  -  B, G, R, X
-
-	  -  R, G, B, X
-
-       -  .. row 5
-
-	  -  ``V4L2_PIX_FMT_BGR32``
-
-	  -  R, G, B, X
-
-	  -  B, G, R, X
+       * - Symbol
+	 - In this document prior to revision 0.5
+	 - Corrected
+       * - ``V4L2_PIX_FMT_RGB24``
+	 - B, G, R
+	 - R, G, B
+       * - ``V4L2_PIX_FMT_BGR24``
+	 - R, G, B
+	 - B, G, R
+       * - ``V4L2_PIX_FMT_RGB32``
+	 - B, G, R, X
+	 - R, G, B, X
+       * - ``V4L2_PIX_FMT_BGR32``
+	 - R, G, B, X
+	 - B, G, R, X
 
 
    The ``V4L2_PIX_FMT_BGR24`` example was always correct.

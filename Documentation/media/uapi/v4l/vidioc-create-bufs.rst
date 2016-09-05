@@ -80,55 +80,30 @@ than the number requested.
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``index``
-
-       -  The starting buffer index, returned by the driver.
-
-    -  .. row 2
-
-       -  __u32
-
-       -  ``count``
-
-       -  The number of buffers requested or granted. If count == 0, then
-	  :ref:`VIDIOC_CREATE_BUFS` will set ``index`` to the current number of
-	  created buffers, and it will check the validity of ``memory`` and
-	  ``format.type``. If those are invalid -1 is returned and errno is
-	  set to ``EINVAL`` error code, otherwise :ref:`VIDIOC_CREATE_BUFS` returns
-	  0. It will never set errno to ``EBUSY`` error code in this particular
-	  case.
-
-    -  .. row 3
-
-       -  __u32
-
-       -  ``memory``
-
-       -  Applications set this field to ``V4L2_MEMORY_MMAP``,
-	  ``V4L2_MEMORY_DMABUF`` or ``V4L2_MEMORY_USERPTR``. See
-	  :c:type:`v4l2_memory`
-
-    -  .. row 4
-
-       -  struct :c:type:`v4l2_format`
-
-       -  ``format``
-
-       -  Filled in by the application, preserved by the driver.
-
-    -  .. row 5
-
-       -  __u32
-
-       -  ``reserved``\ [8]
-
-       -  A place holder for future extensions. Drivers and applications
-	  must set the array to zero.
+    * - __u32
+      - ``index``
+      - The starting buffer index, returned by the driver.
+    * - __u32
+      - ``count``
+      - The number of buffers requested or granted. If count == 0, then
+	:ref:`VIDIOC_CREATE_BUFS` will set ``index`` to the current number of
+	created buffers, and it will check the validity of ``memory`` and
+	``format.type``. If those are invalid -1 is returned and errno is
+	set to ``EINVAL`` error code, otherwise :ref:`VIDIOC_CREATE_BUFS` returns
+	0. It will never set errno to ``EBUSY`` error code in this particular
+	case.
+    * - __u32
+      - ``memory``
+      - Applications set this field to ``V4L2_MEMORY_MMAP``,
+	``V4L2_MEMORY_DMABUF`` or ``V4L2_MEMORY_USERPTR``. See
+	:c:type:`v4l2_memory`
+    * - struct :c:type:`v4l2_format`
+      - ``format``
+      - Filled in by the application, preserved by the driver.
+    * - __u32
+      - ``reserved``\ [8]
+      - A place holder for future extensions. Drivers and applications
+	must set the array to zero.
 
 
 Return Value

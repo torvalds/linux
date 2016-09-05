@@ -37,130 +37,59 @@ Each cell is one byte.
     :header-rows:  0
     :stub-columns: 0
 
-    -  .. row 1
-
-       -  start + 0:
-
-       -  Y'\ :sub:`00`
-
-       -  Y'\ :sub:`01`
-
-       -  Y'\ :sub:`02`
-
-       -  Y'\ :sub:`03`
-
-    -  .. row 2
-
-       -  start + 4:
-
-       -  Y'\ :sub:`10`
-
-       -  Y'\ :sub:`11`
-
-       -  Y'\ :sub:`12`
-
-       -  Y'\ :sub:`13`
-
-    -  .. row 3
-
-       -  start + 8:
-
-       -  Y'\ :sub:`20`
-
-       -  Y'\ :sub:`21`
-
-       -  Y'\ :sub:`22`
-
-       -  Y'\ :sub:`23`
-
-    -  .. row 4
-
-       -  start + 12:
-
-       -  Y'\ :sub:`30`
-
-       -  Y'\ :sub:`31`
-
-       -  Y'\ :sub:`32`
-
-       -  Y'\ :sub:`33`
-
-    -  .. row 5
-
-       -  start + 16:
-
-       -  Cb\ :sub:`00`
-
-       -  Cr\ :sub:`00`
-
-       -  Cb\ :sub:`01`
-
-       -  Cr\ :sub:`01`
-
-       -  Cb\ :sub:`02`
-
-       -  Cr\ :sub:`02`
-
-       -  Cb\ :sub:`03`
-
-       -  Cr\ :sub:`03`
-
-    -  .. row 6
-
-       -  start + 24:
-
-       -  Cb\ :sub:`10`
-
-       -  Cr\ :sub:`10`
-
-       -  Cb\ :sub:`11`
-
-       -  Cr\ :sub:`11`
-
-       -  Cb\ :sub:`12`
-
-       -  Cr\ :sub:`12`
-
-       -  Cb\ :sub:`13`
-
-       -  Cr\ :sub:`13`
-
-    -  .. row 7
-
-       -  start + 32:
-
-       -  Cb\ :sub:`20`
-
-       -  Cr\ :sub:`20`
-
-       -  Cb\ :sub:`21`
-
-       -  Cr\ :sub:`21`
-
-       -  Cb\ :sub:`22`
-
-       -  Cr\ :sub:`22`
-
-       -  Cb\ :sub:`23`
-
-       -  Cr\ :sub:`23`
-
-    -  .. row 8
-
-       -  start + 40:
-
-       -  Cb\ :sub:`30`
-
-       -  Cr\ :sub:`30`
-
-       -  Cb\ :sub:`31`
-
-       -  Cr\ :sub:`31`
-
-       -  Cb\ :sub:`32`
-
-       -  Cr\ :sub:`32`
-
-       -  Cb\ :sub:`33`
-
-       -  Cr\ :sub:`33`
+    * - start + 0:
+      - Y'\ :sub:`00`
+      - Y'\ :sub:`01`
+      - Y'\ :sub:`02`
+      - Y'\ :sub:`03`
+    * - start + 4:
+      - Y'\ :sub:`10`
+      - Y'\ :sub:`11`
+      - Y'\ :sub:`12`
+      - Y'\ :sub:`13`
+    * - start + 8:
+      - Y'\ :sub:`20`
+      - Y'\ :sub:`21`
+      - Y'\ :sub:`22`
+      - Y'\ :sub:`23`
+    * - start + 12:
+      - Y'\ :sub:`30`
+      - Y'\ :sub:`31`
+      - Y'\ :sub:`32`
+      - Y'\ :sub:`33`
+    * - start + 16:
+      - Cb\ :sub:`00`
+      - Cr\ :sub:`00`
+      - Cb\ :sub:`01`
+      - Cr\ :sub:`01`
+      - Cb\ :sub:`02`
+      - Cr\ :sub:`02`
+      - Cb\ :sub:`03`
+      - Cr\ :sub:`03`
+    * - start + 24:
+      - Cb\ :sub:`10`
+      - Cr\ :sub:`10`
+      - Cb\ :sub:`11`
+      - Cr\ :sub:`11`
+      - Cb\ :sub:`12`
+      - Cr\ :sub:`12`
+      - Cb\ :sub:`13`
+      - Cr\ :sub:`13`
+    * - start + 32:
+      - Cb\ :sub:`20`
+      - Cr\ :sub:`20`
+      - Cb\ :sub:`21`
+      - Cr\ :sub:`21`
+      - Cb\ :sub:`22`
+      - Cr\ :sub:`22`
+      - Cb\ :sub:`23`
+      - Cr\ :sub:`23`
+    * - start + 40:
+      - Cb\ :sub:`30`
+      - Cr\ :sub:`30`
+      - Cb\ :sub:`31`
+      - Cr\ :sub:`31`
+      - Cb\ :sub:`32`
+      - Cr\ :sub:`32`
+      - Cb\ :sub:`33`
+      - Cr\ :sub:`33`

@@ -94,40 +94,21 @@ instructions.
     :stub-columns: 0
     :widths:       1 1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``type``
-
-       -  See :ref:`chip-match-types` for a list of possible types.
-
-    -  .. row 2
-
-       -  union
-
-       -  (anonymous)
-
-    -  .. row 3
-
-       -
-       -  __u32
-
-       -  ``addr``
-
-       -  Match a chip by this number, interpreted according to the ``type``
-	  field.
-
-    -  .. row 4
-
-       -
-       -  char
-
-       -  ``name[32]``
-
-       -  Match a chip by this name, interpreted according to the ``type``
-	  field. Currently unused.
+    * - __u32
+      - ``type``
+      - See :ref:`chip-match-types` for a list of possible types.
+    * - union
+      - (anonymous)
+    * -
+      - __u32
+      - ``addr``
+      - Match a chip by this number, interpreted according to the ``type``
+	field.
+    * -
+      - char
+      - ``name[32]``
+      - Match a chip by this name, interpreted according to the ``type``
+	field. Currently unused.
 
 
 
@@ -137,38 +118,18 @@ instructions.
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  struct v4l2_dbg_match
-
-       -  ``match``
-
-       -  How to match the chip, see :c:type:`v4l2_dbg_match`.
-
-    -  .. row 2
-
-       -  __u32
-
-       -  ``size``
-
-       -  The register size in bytes.
-
-    -  .. row 3
-
-       -  __u64
-
-       -  ``reg``
-
-       -  A register number.
-
-    -  .. row 4
-
-       -  __u64
-
-       -  ``val``
-
-       -  The value read from, or to be written into the register.
+    * - struct v4l2_dbg_match
+      - ``match``
+      - How to match the chip, see :c:type:`v4l2_dbg_match`.
+    * - __u32
+      - ``size``
+      - The register size in bytes.
+    * - __u64
+      - ``reg``
+      - A register number.
+    * - __u64
+      - ``val``
+      - The value read from, or to be written into the register.
 
 
 
@@ -181,23 +142,13 @@ instructions.
     :stub-columns: 0
     :widths:       3 1 4
 
-
-    -  .. row 1
-
-       -  ``V4L2_CHIP_MATCH_BRIDGE``
-
-       -  0
-
-       -  Match the nth chip on the card, zero for the bridge chip. Does not
-	  match sub-devices.
-
-    -  .. row 2
-
-       -  ``V4L2_CHIP_MATCH_SUBDEV``
-
-       -  4
-
-       -  Match the nth sub-device.
+    * - ``V4L2_CHIP_MATCH_BRIDGE``
+      - 0
+      - Match the nth chip on the card, zero for the bridge chip. Does not
+	match sub-devices.
+    * - ``V4L2_CHIP_MATCH_SUBDEV``
+      - 4
+      - Match the nth sub-device.
 
 
 Return Value

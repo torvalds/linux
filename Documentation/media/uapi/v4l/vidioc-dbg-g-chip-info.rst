@@ -85,40 +85,21 @@ instructions.
     :stub-columns: 0
     :widths:       1 1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``type``
-
-       -  See :ref:`name-chip-match-types` for a list of possible types.
-
-    -  .. row 2
-
-       -  union
-
-       -  (anonymous)
-
-    -  .. row 3
-
-       -
-       -  __u32
-
-       -  ``addr``
-
-       -  Match a chip by this number, interpreted according to the ``type``
-	  field.
-
-    -  .. row 4
-
-       -
-       -  char
-
-       -  ``name[32]``
-
-       -  Match a chip by this name, interpreted according to the ``type``
-	  field. Currently unused.
+    * - __u32
+      - ``type``
+      - See :ref:`name-chip-match-types` for a list of possible types.
+    * - union
+      - (anonymous)
+    * -
+      - __u32
+      - ``addr``
+      - Match a chip by this number, interpreted according to the ``type``
+	field.
+    * -
+      - char
+      - ``name[32]``
+      - Match a chip by this name, interpreted according to the ``type``
+	field. Currently unused.
 
 
 
@@ -131,41 +112,21 @@ instructions.
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  struct v4l2_dbg_match
-
-       -  ``match``
-
-       -  How to match the chip, see :ref:`name-v4l2-dbg-match`.
-
-    -  .. row 2
-
-       -  char
-
-       -  ``name[32]``
-
-       -  The name of the chip.
-
-    -  .. row 3
-
-       -  __u32
-
-       -  ``flags``
-
-       -  Set by the driver. If ``V4L2_CHIP_FL_READABLE`` is set, then the
-	  driver supports reading registers from the device. If
-	  ``V4L2_CHIP_FL_WRITABLE`` is set, then it supports writing
-	  registers.
-
-    -  .. row 4
-
-       -  __u32
-
-       -  ``reserved[8]``
-
-       -  Reserved fields, both application and driver must set these to 0.
+    * - struct v4l2_dbg_match
+      - ``match``
+      - How to match the chip, see :ref:`name-v4l2-dbg-match`.
+    * - char
+      - ``name[32]``
+      - The name of the chip.
+    * - __u32
+      - ``flags``
+      - Set by the driver. If ``V4L2_CHIP_FL_READABLE`` is set, then the
+	driver supports reading registers from the device. If
+	``V4L2_CHIP_FL_WRITABLE`` is set, then it supports writing
+	registers.
+    * - __u32
+      - ``reserved[8]``
+      - Reserved fields, both application and driver must set these to 0.
 
 
 
@@ -178,23 +139,13 @@ instructions.
     :stub-columns: 0
     :widths:       3 1 4
 
-
-    -  .. row 1
-
-       -  ``V4L2_CHIP_MATCH_BRIDGE``
-
-       -  0
-
-       -  Match the nth chip on the card, zero for the bridge chip. Does not
-	  match sub-devices.
-
-    -  .. row 2
-
-       -  ``V4L2_CHIP_MATCH_SUBDEV``
-
-       -  4
-
-       -  Match the nth sub-device.
+    * - ``V4L2_CHIP_MATCH_BRIDGE``
+      - 0
+      - Match the nth chip on the card, zero for the bridge chip. Does not
+	match sub-devices.
+    * - ``V4L2_CHIP_MATCH_SUBDEV``
+      - 4
+      - Match the nth sub-device.
 
 
 Return Value

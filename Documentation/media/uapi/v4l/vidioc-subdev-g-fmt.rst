@@ -85,41 +85,21 @@ should be as close as possible to the original request.
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``pad``
-
-       -  Pad number as reported by the media controller API.
-
-    -  .. row 2
-
-       -  __u32
-
-       -  ``which``
-
-       -  Format to modified, from enum
-	  :ref:`v4l2_subdev_format_whence <v4l2-subdev-format-whence>`.
-
-    -  .. row 3
-
-       -  struct :c:type:`v4l2_mbus_framefmt`
-
-       -  ``format``
-
-       -  Definition of an image format, see :c:type:`v4l2_mbus_framefmt` for
-	  details.
-
-    -  .. row 4
-
-       -  __u32
-
-       -  ``reserved``\ [8]
-
-       -  Reserved for future extensions. Applications and drivers must set
-	  the array to zero.
+    * - __u32
+      - ``pad``
+      - Pad number as reported by the media controller API.
+    * - __u32
+      - ``which``
+      - Format to modified, from enum
+	:ref:`v4l2_subdev_format_whence <v4l2-subdev-format-whence>`.
+    * - struct :c:type:`v4l2_mbus_framefmt`
+      - ``format``
+      - Definition of an image format, see :c:type:`v4l2_mbus_framefmt` for
+	details.
+    * - __u32
+      - ``reserved``\ [8]
+      - Reserved for future extensions. Applications and drivers must set
+	the array to zero.
 
 
 
@@ -132,22 +112,12 @@ should be as close as possible to the original request.
     :stub-columns: 0
     :widths:       3 1 4
 
-
-    -  .. row 1
-
-       -  V4L2_SUBDEV_FORMAT_TRY
-
-       -  0
-
-       -  Try formats, used for querying device capabilities.
-
-    -  .. row 2
-
-       -  V4L2_SUBDEV_FORMAT_ACTIVE
-
-       -  1
-
-       -  Active formats, applied to the hardware.
+    * - V4L2_SUBDEV_FORMAT_TRY
+      - 0
+      - Try formats, used for querying device capabilities.
+    * - V4L2_SUBDEV_FORMAT_ACTIVE
+      - 1
+      - Active formats, applied to the hardware.
 
 
 Return Value

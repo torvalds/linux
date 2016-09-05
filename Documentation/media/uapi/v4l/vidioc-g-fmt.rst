@@ -93,92 +93,48 @@ The format as returned by :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` must be identical
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``type``
-
-       -
-       -  Type of the data stream, see :c:type:`v4l2_buf_type`.
-
-    -  .. row 2
-
-       -  union
-
-       -  ``fmt``
-
-    -  .. row 3
-
-       -
-       -  struct :c:type:`v4l2_pix_format`
-
-       -  ``pix``
-
-       -  Definition of an image format, see :ref:`pixfmt`, used by video
-	  capture and output devices.
-
-    -  .. row 4
-
-       -
-       -  struct :c:type:`v4l2_pix_format_mplane`
-
-       -  ``pix_mp``
-
-       -  Definition of an image format, see :ref:`pixfmt`, used by video
-	  capture and output devices that support the
-	  :ref:`multi-planar version of the API <planar-apis>`.
-
-    -  .. row 5
-
-       -
-       -  struct :c:type:`v4l2_window`
-
-       -  ``win``
-
-       -  Definition of an overlaid image, see :ref:`overlay`, used by
-	  video overlay devices.
-
-    -  .. row 6
-
-       -
-       -  struct :c:type:`v4l2_vbi_format`
-
-       -  ``vbi``
-
-       -  Raw VBI capture or output parameters. This is discussed in more
-	  detail in :ref:`raw-vbi`. Used by raw VBI capture and output
-	  devices.
-
-    -  .. row 7
-
-       -
-       -  struct :c:type:`v4l2_sliced_vbi_format`
-
-       -  ``sliced``
-
-       -  Sliced VBI capture or output parameters. See :ref:`sliced` for
-	  details. Used by sliced VBI capture and output devices.
-
-    -  .. row 8
-
-       -
-       -  struct :c:type:`v4l2_sdr_format`
-
-       -  ``sdr``
-
-       -  Definition of a data format, see :ref:`pixfmt`, used by SDR
-	  capture and output devices.
-
-    -  .. row 9
-
-       -
-       -  __u8
-
-       -  ``raw_data``\ [200]
-
-       -  Place holder for future extensions.
+    * - __u32
+      - ``type``
+      -
+      - Type of the data stream, see :c:type:`v4l2_buf_type`.
+    * - union
+      - ``fmt``
+    * -
+      - struct :c:type:`v4l2_pix_format`
+      - ``pix``
+      - Definition of an image format, see :ref:`pixfmt`, used by video
+	capture and output devices.
+    * -
+      - struct :c:type:`v4l2_pix_format_mplane`
+      - ``pix_mp``
+      - Definition of an image format, see :ref:`pixfmt`, used by video
+	capture and output devices that support the
+	:ref:`multi-planar version of the API <planar-apis>`.
+    * -
+      - struct :c:type:`v4l2_window`
+      - ``win``
+      - Definition of an overlaid image, see :ref:`overlay`, used by
+	video overlay devices.
+    * -
+      - struct :c:type:`v4l2_vbi_format`
+      - ``vbi``
+      - Raw VBI capture or output parameters. This is discussed in more
+	detail in :ref:`raw-vbi`. Used by raw VBI capture and output
+	devices.
+    * -
+      - struct :c:type:`v4l2_sliced_vbi_format`
+      - ``sliced``
+      - Sliced VBI capture or output parameters. See :ref:`sliced` for
+	details. Used by sliced VBI capture and output devices.
+    * -
+      - struct :c:type:`v4l2_sdr_format`
+      - ``sdr``
+      - Definition of a data format, see :ref:`pixfmt`, used by SDR
+	capture and output devices.
+    * -
+      - __u8
+      - ``raw_data``\ [200]
+      - Place holder for future extensions.
 
 
 Return Value

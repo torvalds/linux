@@ -71,81 +71,36 @@ information about try formats.
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``index``
-
-       -  Number of the format in the enumeration, set by the application.
-
-    -  .. row 2
-
-       -  __u32
-
-       -  ``pad``
-
-       -  Pad number as reported by the media controller API.
-
-    -  .. row 3
-
-       -  __u32
-
-       -  ``code``
-
-       -  The media bus format code, as defined in
-	  :ref:`v4l2-mbus-format`.
-
-    -  .. row 4
-
-       -  __u32
-
-       -  ``min_width``
-
-       -  Minimum frame width, in pixels.
-
-    -  .. row 5
-
-       -  __u32
-
-       -  ``max_width``
-
-       -  Maximum frame width, in pixels.
-
-    -  .. row 6
-
-       -  __u32
-
-       -  ``min_height``
-
-       -  Minimum frame height, in pixels.
-
-    -  .. row 7
-
-       -  __u32
-
-       -  ``max_height``
-
-       -  Maximum frame height, in pixels.
-
-    -  .. row 8
-
-       -  __u32
-
-       -  ``which``
-
-       -  Frame sizes to be enumerated, from enum
-	  :ref:`v4l2_subdev_format_whence <v4l2-subdev-format-whence>`.
-
-    -  .. row 9
-
-       -  __u32
-
-       -  ``reserved``\ [8]
-
-       -  Reserved for future extensions. Applications and drivers must set
-	  the array to zero.
+    * - __u32
+      - ``index``
+      - Number of the format in the enumeration, set by the application.
+    * - __u32
+      - ``pad``
+      - Pad number as reported by the media controller API.
+    * - __u32
+      - ``code``
+      - The media bus format code, as defined in
+	:ref:`v4l2-mbus-format`.
+    * - __u32
+      - ``min_width``
+      - Minimum frame width, in pixels.
+    * - __u32
+      - ``max_width``
+      - Maximum frame width, in pixels.
+    * - __u32
+      - ``min_height``
+      - Minimum frame height, in pixels.
+    * - __u32
+      - ``max_height``
+      - Maximum frame height, in pixels.
+    * - __u32
+      - ``which``
+      - Frame sizes to be enumerated, from enum
+	:ref:`v4l2_subdev_format_whence <v4l2-subdev-format-whence>`.
+    * - __u32
+      - ``reserved``\ [8]
+      - Reserved for future extensions. Applications and drivers must set
+	the array to zero.
 
 
 Return Value

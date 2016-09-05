@@ -39,39 +39,19 @@ using driver module options. The major device number remains 81.
     :header-rows:  1
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  Device Type
-
-       -  File Name
-
-       -  Minor Numbers
-
-    -  .. row 2
-
-       -  Video capture and overlay
-
-       -  ``/dev/video`` and ``/dev/bttv0``\  [#f1]_, ``/dev/video0`` to
-	  ``/dev/video63``
-
-       -  0-63
-
-    -  .. row 3
-
-       -  Radio receiver
-
-       -  ``/dev/radio``\  [#f2]_, ``/dev/radio0`` to ``/dev/radio63``
-
-       -  64-127
-
-    -  .. row 4
-
-       -  Raw VBI capture
-
-       -  ``/dev/vbi``, ``/dev/vbi0`` to ``/dev/vbi31``
-
-       -  224-255
+    * - Device Type
+      - File Name
+      - Minor Numbers
+    * - Video capture and overlay
+      - ``/dev/video`` and ``/dev/bttv0``\  [#f1]_, ``/dev/video0`` to
+	``/dev/video63``
+      - 0-63
+    * - Radio receiver
+      - ``/dev/radio``\  [#f2]_, ``/dev/radio0`` to ``/dev/radio63``
+      - 64-127
+    * - Raw VBI capture
+      - ``/dev/vbi``, ``/dev/vbi0`` to ``/dev/vbi31``
+      - 224-255
 
 
 V4L prohibits (or used to prohibit) multiple opens of a device file.
@@ -103,148 +83,73 @@ introduction.
     :header-rows:  1
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``struct video_capability`` ``type``
-
-       -  struct :c:type:`v4l2_capability`
-	  ``capabilities`` flags
-
-       -  Purpose
-
-    -  .. row 2
-
-       -  ``VID_TYPE_CAPTURE``
-
-       -  ``V4L2_CAP_VIDEO_CAPTURE``
-
-       -  The :ref:`video capture <capture>` interface is supported.
-
-    -  .. row 3
-
-       -  ``VID_TYPE_TUNER``
-
-       -  ``V4L2_CAP_TUNER``
-
-       -  The device has a :ref:`tuner or modulator <tuner>`.
-
-    -  .. row 4
-
-       -  ``VID_TYPE_TELETEXT``
-
-       -  ``V4L2_CAP_VBI_CAPTURE``
-
-       -  The :ref:`raw VBI capture <raw-vbi>` interface is supported.
-
-    -  .. row 5
-
-       -  ``VID_TYPE_OVERLAY``
-
-       -  ``V4L2_CAP_VIDEO_OVERLAY``
-
-       -  The :ref:`video overlay <overlay>` interface is supported.
-
-    -  .. row 6
-
-       -  ``VID_TYPE_CHROMAKEY``
-
-       -  ``V4L2_FBUF_CAP_CHROMAKEY`` in field ``capability`` of struct
-	  :c:type:`v4l2_framebuffer`
-
-       -  Whether chromakey overlay is supported. For more information on
-	  overlay see :ref:`overlay`.
-
-    -  .. row 7
-
-       -  ``VID_TYPE_CLIPPING``
-
-       -  ``V4L2_FBUF_CAP_LIST_CLIPPING`` and
-	  ``V4L2_FBUF_CAP_BITMAP_CLIPPING`` in field ``capability`` of
-	  struct :c:type:`v4l2_framebuffer`
-
-       -  Whether clipping the overlaid image is supported, see
-	  :ref:`overlay`.
-
-    -  .. row 8
-
-       -  ``VID_TYPE_FRAMERAM``
-
-       -  ``V4L2_FBUF_CAP_EXTERNOVERLAY`` *not set* in field ``capability``
-	  of struct :c:type:`v4l2_framebuffer`
-
-       -  Whether overlay overwrites frame buffer memory, see
-	  :ref:`overlay`.
-
-    -  .. row 9
-
-       -  ``VID_TYPE_SCALES``
-
-       -  ``-``
-
-       -  This flag indicates if the hardware can scale images. The V4L2 API
-	  implies the scale factor by setting the cropping dimensions and
-	  image size with the :ref:`VIDIOC_S_CROP <VIDIOC_G_CROP>` and
-	  :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, respectively. The
-	  driver returns the closest sizes possible. For more information on
-	  cropping and scaling see :ref:`crop`.
-
-    -  .. row 10
-
-       -  ``VID_TYPE_MONOCHROME``
-
-       -  ``-``
-
-       -  Applications can enumerate the supported image formats with the
-	  :ref:`VIDIOC_ENUM_FMT` ioctl to determine if
-	  the device supports grey scale capturing only. For more
-	  information on image formats see :ref:`pixfmt`.
-
-    -  .. row 11
-
-       -  ``VID_TYPE_SUBCAPTURE``
-
-       -  ``-``
-
-       -  Applications can call the :ref:`VIDIOC_G_CROP <VIDIOC_G_CROP>`
-	  ioctl to determine if the device supports capturing a subsection
-	  of the full picture ("cropping" in V4L2). If not, the ioctl
-	  returns the ``EINVAL`` error code. For more information on cropping
-	  and scaling see :ref:`crop`.
-
-    -  .. row 12
-
-       -  ``VID_TYPE_MPEG_DECODER``
-
-       -  ``-``
-
-       -  Applications can enumerate the supported image formats with the
-	  :ref:`VIDIOC_ENUM_FMT` ioctl to determine if
-	  the device supports MPEG streams.
-
-    -  .. row 13
-
-       -  ``VID_TYPE_MPEG_ENCODER``
-
-       -  ``-``
-
-       -  See above.
-
-    -  .. row 14
-
-       -  ``VID_TYPE_MJPEG_DECODER``
-
-       -  ``-``
-
-       -  See above.
-
-    -  .. row 15
-
-       -  ``VID_TYPE_MJPEG_ENCODER``
-
-       -  ``-``
-
-       -  See above.
+    * - ``struct video_capability`` ``type``
+      - struct :c:type:`v4l2_capability`
+	``capabilities`` flags
+      - Purpose
+    * - ``VID_TYPE_CAPTURE``
+      - ``V4L2_CAP_VIDEO_CAPTURE``
+      - The :ref:`video capture <capture>` interface is supported.
+    * - ``VID_TYPE_TUNER``
+      - ``V4L2_CAP_TUNER``
+      - The device has a :ref:`tuner or modulator <tuner>`.
+    * - ``VID_TYPE_TELETEXT``
+      - ``V4L2_CAP_VBI_CAPTURE``
+      - The :ref:`raw VBI capture <raw-vbi>` interface is supported.
+    * - ``VID_TYPE_OVERLAY``
+      - ``V4L2_CAP_VIDEO_OVERLAY``
+      - The :ref:`video overlay <overlay>` interface is supported.
+    * - ``VID_TYPE_CHROMAKEY``
+      - ``V4L2_FBUF_CAP_CHROMAKEY`` in field ``capability`` of struct
+	:c:type:`v4l2_framebuffer`
+      - Whether chromakey overlay is supported. For more information on
+	overlay see :ref:`overlay`.
+    * - ``VID_TYPE_CLIPPING``
+      - ``V4L2_FBUF_CAP_LIST_CLIPPING`` and
+	``V4L2_FBUF_CAP_BITMAP_CLIPPING`` in field ``capability`` of
+	struct :c:type:`v4l2_framebuffer`
+      - Whether clipping the overlaid image is supported, see
+	:ref:`overlay`.
+    * - ``VID_TYPE_FRAMERAM``
+      - ``V4L2_FBUF_CAP_EXTERNOVERLAY`` *not set* in field ``capability``
+	of struct :c:type:`v4l2_framebuffer`
+      - Whether overlay overwrites frame buffer memory, see
+	:ref:`overlay`.
+    * - ``VID_TYPE_SCALES``
+      - ``-``
+      - This flag indicates if the hardware can scale images. The V4L2 API
+	implies the scale factor by setting the cropping dimensions and
+	image size with the :ref:`VIDIOC_S_CROP <VIDIOC_G_CROP>` and
+	:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, respectively. The
+	driver returns the closest sizes possible. For more information on
+	cropping and scaling see :ref:`crop`.
+    * - ``VID_TYPE_MONOCHROME``
+      - ``-``
+      - Applications can enumerate the supported image formats with the
+	:ref:`VIDIOC_ENUM_FMT` ioctl to determine if
+	the device supports grey scale capturing only. For more
+	information on image formats see :ref:`pixfmt`.
+    * - ``VID_TYPE_SUBCAPTURE``
+      - ``-``
+      - Applications can call the :ref:`VIDIOC_G_CROP <VIDIOC_G_CROP>`
+	ioctl to determine if the device supports capturing a subsection
+	of the full picture ("cropping" in V4L2). If not, the ioctl
+	returns the ``EINVAL`` error code. For more information on cropping
+	and scaling see :ref:`crop`.
+    * - ``VID_TYPE_MPEG_DECODER``
+      - ``-``
+      - Applications can enumerate the supported image formats with the
+	:ref:`VIDIOC_ENUM_FMT` ioctl to determine if
+	the device supports MPEG streams.
+    * - ``VID_TYPE_MPEG_ENCODER``
+      - ``-``
+      - See above.
+    * - ``VID_TYPE_MJPEG_DECODER``
+      - ``-``
+      - See above.
+    * - ``VID_TYPE_MJPEG_ENCODER``
+      - ``-``
+      - See above.
 
 
 The ``audios`` field was replaced by ``capabilities`` flag
@@ -280,24 +185,12 @@ video input types were renamed as follows:
     :header-rows:  1
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  struct ``video_channel`` ``type``
-
-       -  struct :c:type:`v4l2_input` ``type``
-
-    -  .. row 2
-
-       -  ``VIDEO_TYPE_TV``
-
-       -  ``V4L2_INPUT_TYPE_TUNER``
-
-    -  .. row 3
-
-       -  ``VIDEO_TYPE_CAMERA``
-
-       -  ``V4L2_INPUT_TYPE_CAMERA``
+    * - struct ``video_channel`` ``type``
+      - struct :c:type:`v4l2_input` ``type``
+    * - ``VIDEO_TYPE_TV``
+      - ``V4L2_INPUT_TYPE_TUNER``
+    * - ``VIDEO_TYPE_CAMERA``
+      - ``V4L2_INPUT_TYPE_CAMERA``
 
 
 Unlike the ``tuners`` field expressing the number of tuners of this
@@ -386,42 +279,18 @@ replaced by V4L2 controls accessible with the
     :header-rows:  1
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  struct ``video_picture``
-
-       -  V4L2 Control ID
-
-    -  .. row 2
-
-       -  ``brightness``
-
-       -  ``V4L2_CID_BRIGHTNESS``
-
-    -  .. row 3
-
-       -  ``hue``
-
-       -  ``V4L2_CID_HUE``
-
-    -  .. row 4
-
-       -  ``colour``
-
-       -  ``V4L2_CID_SATURATION``
-
-    -  .. row 5
-
-       -  ``contrast``
-
-       -  ``V4L2_CID_CONTRAST``
-
-    -  .. row 6
-
-       -  ``whiteness``
-
-       -  ``V4L2_CID_WHITENESS``
+    * - struct ``video_picture``
+      - V4L2 Control ID
+    * - ``brightness``
+      - ``V4L2_CID_BRIGHTNESS``
+    * - ``hue``
+      - ``V4L2_CID_HUE``
+    * - ``colour``
+      - ``V4L2_CID_SATURATION``
+    * - ``contrast``
+      - ``V4L2_CID_CONTRAST``
+    * - ``whiteness``
+      - ``V4L2_CID_WHITENESS``
 
 
 The V4L picture controls are assumed to range from 0 to 65535 with no
@@ -442,108 +311,40 @@ into the struct :c:type:`v4l2_pix_format`:
     :header-rows:  1
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  struct ``video_picture`` ``palette``
-
-       -  struct :c:type:`v4l2_pix_format` ``pixfmt``
-
-    -  .. row 2
-
-       -  ``VIDEO_PALETTE_GREY``
-
-       -  :ref:`V4L2_PIX_FMT_GREY <V4L2-PIX-FMT-GREY>`
-
-    -  .. row 3
-
-       -  ``VIDEO_PALETTE_HI240``
-
-       -  :ref:`V4L2_PIX_FMT_HI240 <pixfmt-reserved>` [#f3]_
-
-    -  .. row 4
-
-       -  ``VIDEO_PALETTE_RGB565``
-
-       -  :ref:`V4L2_PIX_FMT_RGB565 <pixfmt-rgb>`
-
-    -  .. row 5
-
-       -  ``VIDEO_PALETTE_RGB555``
-
-       -  :ref:`V4L2_PIX_FMT_RGB555 <pixfmt-rgb>`
-
-    -  .. row 6
-
-       -  ``VIDEO_PALETTE_RGB24``
-
-       -  :ref:`V4L2_PIX_FMT_BGR24 <pixfmt-rgb>`
-
-    -  .. row 7
-
-       -  ``VIDEO_PALETTE_RGB32``
-
-       -  :ref:`V4L2_PIX_FMT_BGR32 <pixfmt-rgb>` [#f4]_
-
-    -  .. row 8
-
-       -  ``VIDEO_PALETTE_YUV422``
-
-       -  :ref:`V4L2_PIX_FMT_YUYV <V4L2-PIX-FMT-YUYV>`
-
-    -  .. row 9
-
-       -  ``VIDEO_PALETTE_YUYV``\  [#f5]_
-
-       -  :ref:`V4L2_PIX_FMT_YUYV <V4L2-PIX-FMT-YUYV>`
-
-    -  .. row 10
-
-       -  ``VIDEO_PALETTE_UYVY``
-
-       -  :ref:`V4L2_PIX_FMT_UYVY <V4L2-PIX-FMT-UYVY>`
-
-    -  .. row 11
-
-       -  ``VIDEO_PALETTE_YUV420``
-
-       -  None
-
-    -  .. row 12
-
-       -  ``VIDEO_PALETTE_YUV411``
-
-       -  :ref:`V4L2_PIX_FMT_Y41P <V4L2-PIX-FMT-Y41P>` [#f6]_
-
-    -  .. row 13
-
-       -  ``VIDEO_PALETTE_RAW``
-
-       -  None [#f7]_
-
-    -  .. row 14
-
-       -  ``VIDEO_PALETTE_YUV422P``
-
-       -  :ref:`V4L2_PIX_FMT_YUV422P <V4L2-PIX-FMT-YUV422P>`
-
-    -  .. row 15
-
-       -  ``VIDEO_PALETTE_YUV411P``
-
-       -  :ref:`V4L2_PIX_FMT_YUV411P <V4L2-PIX-FMT-YUV411P>` [#f8]_
-
-    -  .. row 16
-
-       -  ``VIDEO_PALETTE_YUV420P``
-
-       -  :ref:`V4L2_PIX_FMT_YVU420 <V4L2-PIX-FMT-YVU420>`
-
-    -  .. row 17
-
-       -  ``VIDEO_PALETTE_YUV410P``
-
-       -  :ref:`V4L2_PIX_FMT_YVU410 <V4L2-PIX-FMT-YVU410>`
+    * - struct ``video_picture`` ``palette``
+      - struct :c:type:`v4l2_pix_format` ``pixfmt``
+    * - ``VIDEO_PALETTE_GREY``
+      - :ref:`V4L2_PIX_FMT_GREY <V4L2-PIX-FMT-GREY>`
+    * - ``VIDEO_PALETTE_HI240``
+      - :ref:`V4L2_PIX_FMT_HI240 <pixfmt-reserved>` [#f3]_
+    * - ``VIDEO_PALETTE_RGB565``
+      - :ref:`V4L2_PIX_FMT_RGB565 <pixfmt-rgb>`
+    * - ``VIDEO_PALETTE_RGB555``
+      - :ref:`V4L2_PIX_FMT_RGB555 <pixfmt-rgb>`
+    * - ``VIDEO_PALETTE_RGB24``
+      - :ref:`V4L2_PIX_FMT_BGR24 <pixfmt-rgb>`
+    * - ``VIDEO_PALETTE_RGB32``
+      - :ref:`V4L2_PIX_FMT_BGR32 <pixfmt-rgb>` [#f4]_
+    * - ``VIDEO_PALETTE_YUV422``
+      - :ref:`V4L2_PIX_FMT_YUYV <V4L2-PIX-FMT-YUYV>`
+    * - ``VIDEO_PALETTE_YUYV``\  [#f5]_
+      - :ref:`V4L2_PIX_FMT_YUYV <V4L2-PIX-FMT-YUYV>`
+    * - ``VIDEO_PALETTE_UYVY``
+      - :ref:`V4L2_PIX_FMT_UYVY <V4L2-PIX-FMT-UYVY>`
+    * - ``VIDEO_PALETTE_YUV420``
+      - None
+    * - ``VIDEO_PALETTE_YUV411``
+      - :ref:`V4L2_PIX_FMT_Y41P <V4L2-PIX-FMT-Y41P>` [#f6]_
+    * - ``VIDEO_PALETTE_RAW``
+      - None [#f7]_
+    * - ``VIDEO_PALETTE_YUV422P``
+      - :ref:`V4L2_PIX_FMT_YUV422P <V4L2-PIX-FMT-YUV422P>`
+    * - ``VIDEO_PALETTE_YUV411P``
+      - :ref:`V4L2_PIX_FMT_YUV411P <V4L2-PIX-FMT-YUV411P>` [#f8]_
+    * - ``VIDEO_PALETTE_YUV420P``
+      - :ref:`V4L2_PIX_FMT_YVU420 <V4L2-PIX-FMT-YVU420>`
+    * - ``VIDEO_PALETTE_YUV410P``
+      - :ref:`V4L2_PIX_FMT_YVU410 <V4L2-PIX-FMT-YVU410>`
 
 
 V4L2 image formats are defined in :ref:`pixfmt`. The image format can
@@ -588,36 +389,16 @@ The following fields where replaced by V4L2 controls accessible with the
     :header-rows:  1
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  struct ``video_audio``
-
-       -  V4L2 Control ID
-
-    -  .. row 2
-
-       -  ``volume``
-
-       -  ``V4L2_CID_AUDIO_VOLUME``
-
-    -  .. row 3
-
-       -  ``bass``
-
-       -  ``V4L2_CID_AUDIO_BASS``
-
-    -  .. row 4
-
-       -  ``treble``
-
-       -  ``V4L2_CID_AUDIO_TREBLE``
-
-    -  .. row 5
-
-       -  ``balance``
-
-       -  ``V4L2_CID_AUDIO_BALANCE``
+    * - struct ``video_audio``
+      - V4L2 Control ID
+    * - ``volume``
+      - ``V4L2_CID_AUDIO_VOLUME``
+    * - ``bass``
+      - ``V4L2_CID_AUDIO_BASS``
+    * - ``treble``
+      - ``V4L2_CID_AUDIO_TREBLE``
+    * - ``balance``
+      - ``V4L2_CID_AUDIO_BALANCE``
 
 
 To determine which of these controls are supported by a driver V4L
@@ -752,68 +533,49 @@ differences.
     :header-rows:  1
     :stub-columns: 0
 
+    * - V4L
+      - V4L2
+    * -
+      - The image format must be selected before buffers are allocated,
+	with the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl. When no
+	format is selected the driver may use the last, possibly by
+	another application requested format.
+    * - Applications cannot change the number of buffers. The it is built
+	into the driver, unless it has a module option to change the
+	number when the driver module is loaded.
+      - The :ref:`VIDIOC_REQBUFS` ioctl allocates the
+	desired number of buffers, this is a required step in the
+	initialization sequence.
+    * - Drivers map all buffers as one contiguous range of memory. The
+	``VIDIOCGMBUF`` ioctl is available to query the number of buffers,
+	the offset of each buffer from the start of the virtual file, and
+	the overall amount of memory used, which can be used as arguments
+	for the :ref:`mmap() <func-mmap>` function.
+      - Buffers are individually mapped. The offset and size of each
+	buffer can be determined with the
+	:ref:`VIDIOC_QUERYBUF` ioctl.
+    * - The ``VIDIOCMCAPTURE`` ioctl prepares a buffer for capturing. It
+	also determines the image format for this buffer. The ioctl
+	returns immediately, eventually with an ``EAGAIN`` error code if no
+	video signal had been detected. When the driver supports more than
+	one buffer applications can call the ioctl multiple times and thus
+	have multiple outstanding capture requests.
 
-    -  .. row 1
-
-       -  V4L
-
-       -  V4L2
-
-    -  .. row 2
-
-       -
-       -  The image format must be selected before buffers are allocated,
-	  with the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl. When no
-	  format is selected the driver may use the last, possibly by
-	  another application requested format.
-
-    -  .. row 3
-
-       -  Applications cannot change the number of buffers. The it is built
-	  into the driver, unless it has a module option to change the
-	  number when the driver module is loaded.
-
-       -  The :ref:`VIDIOC_REQBUFS` ioctl allocates the
-	  desired number of buffers, this is a required step in the
-	  initialization sequence.
-
-    -  .. row 4
-
-       -  Drivers map all buffers as one contiguous range of memory. The
-	  ``VIDIOCGMBUF`` ioctl is available to query the number of buffers,
-	  the offset of each buffer from the start of the virtual file, and
-	  the overall amount of memory used, which can be used as arguments
-	  for the :ref:`mmap() <func-mmap>` function.
-
-       -  Buffers are individually mapped. The offset and size of each
-	  buffer can be determined with the
-	  :ref:`VIDIOC_QUERYBUF` ioctl.
-
-    -  .. row 5
-
-       -  The ``VIDIOCMCAPTURE`` ioctl prepares a buffer for capturing. It
-	  also determines the image format for this buffer. The ioctl
-	  returns immediately, eventually with an ``EAGAIN`` error code if no
-	  video signal had been detected. When the driver supports more than
-	  one buffer applications can call the ioctl multiple times and thus
-	  have multiple outstanding capture requests.
-
-	  The ``VIDIOCSYNC`` ioctl suspends execution until a particular
-	  buffer has been filled.
-
-       -  Drivers maintain an incoming and outgoing queue.
-	  :ref:`VIDIOC_QBUF` enqueues any empty buffer into
-	  the incoming queue. Filled buffers are dequeued from the outgoing
-	  queue with the :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl. To wait
-	  until filled buffers become available this function,
-	  :ref:`select() <func-select>` or :ref:`poll() <func-poll>` can
-	  be used. The :ref:`VIDIOC_STREAMON` ioctl
-	  must be called once after enqueuing one or more buffers to start
-	  capturing. Its counterpart
-	  :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` stops capturing and
-	  dequeues all buffers from both queues. Applications can query the
-	  signal status, if known, with the
-	  :ref:`VIDIOC_ENUMINPUT` ioctl.
+	The ``VIDIOCSYNC`` ioctl suspends execution until a particular
+	buffer has been filled.
+      - Drivers maintain an incoming and outgoing queue.
+	:ref:`VIDIOC_QBUF` enqueues any empty buffer into
+	the incoming queue. Filled buffers are dequeued from the outgoing
+	queue with the :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl. To wait
+	until filled buffers become available this function,
+	:ref:`select() <func-select>` or :ref:`poll() <func-poll>` can
+	be used. The :ref:`VIDIOC_STREAMON` ioctl
+	must be called once after enqueuing one or more buffers to start
+	capturing. Its counterpart
+	:ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` stops capturing and
+	dequeues all buffers from both queues. Applications can query the
+	signal status, if known, with the
+	:ref:`VIDIOC_ENUMINPUT` ioctl.
 
 
 For a more in-depth discussion of memory mapping and examples, see
@@ -835,56 +597,24 @@ with the following parameters:
     :header-rows:  1
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  struct :c:type:`v4l2_vbi_format`
-
-       -  V4L, BTTV driver
-
-    -  .. row 2
-
-       -  sampling_rate
-
-       -  28636363 Hz NTSC (or any other 525-line standard); 35468950 Hz PAL
-	  and SECAM (625-line standards)
-
-    -  .. row 3
-
-       -  offset
-
-       -  ?
-
-    -  .. row 4
-
-       -  samples_per_line
-
-       -  2048
-
-    -  .. row 5
-
-       -  sample_format
-
-       -  V4L2_PIX_FMT_GREY. The last four bytes (a machine endianness
-	  integer) contain a frame counter.
-
-    -  .. row 6
-
-       -  start[]
-
-       -  10, 273 NTSC; 22, 335 PAL and SECAM
-
-    -  .. row 7
-
-       -  count[]
-
-       -  16, 16 [#f9]_
-
-    -  .. row 8
-
-       -  flags
-
-       -  0
+    * - struct :c:type:`v4l2_vbi_format`
+      - V4L, BTTV driver
+    * - sampling_rate
+      - 28636363 Hz NTSC (or any other 525-line standard); 35468950 Hz PAL
+	and SECAM (625-line standards)
+    * - offset
+      - ?
+    * - samples_per_line
+      - 2048
+    * - sample_format
+      - V4L2_PIX_FMT_GREY. The last four bytes (a machine endianness
+	integer) contain a frame counter.
+    * - start[]
+      - 10, 273 NTSC; 22, 335 PAL and SECAM
+    * - count[]
+      - 16, 16 [#f9]_
+    * - flags
+      - 0
 
 
 Undocumented in the V4L specification, in Linux 2.3 the

@@ -84,26 +84,16 @@ When cropping is not supported then no parameters are changed and
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``type``
-
-       -  Type of the data stream, set by the application. Only these types
-	  are valid here: ``V4L2_BUF_TYPE_VIDEO_CAPTURE``,
-	  ``V4L2_BUF_TYPE_VIDEO_OUTPUT`` and
-	  ``V4L2_BUF_TYPE_VIDEO_OVERLAY``. See :c:type:`v4l2_buf_type`.
-
-    -  .. row 2
-
-       -  struct :c:type:`v4l2_rect`
-
-       -  ``c``
-
-       -  Cropping rectangle. The same co-ordinate system as for struct
-	  :c:type:`v4l2_cropcap` ``bounds`` is used.
+    * - __u32
+      - ``type``
+      - Type of the data stream, set by the application. Only these types
+	are valid here: ``V4L2_BUF_TYPE_VIDEO_CAPTURE``,
+	``V4L2_BUF_TYPE_VIDEO_OUTPUT`` and
+	``V4L2_BUF_TYPE_VIDEO_OVERLAY``. See :c:type:`v4l2_buf_type`.
+    * - struct :c:type:`v4l2_rect`
+      - ``c``
+      - Cropping rectangle. The same co-ordinate system as for struct
+	:c:type:`v4l2_cropcap` ``bounds`` is used.
 
 
 Return Value

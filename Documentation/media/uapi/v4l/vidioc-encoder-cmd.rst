@@ -74,33 +74,18 @@ introduced in Linux 2.6.21.
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``cmd``
-
-       -  The encoder command, see :ref:`encoder-cmds`.
-
-    -  .. row 2
-
-       -  __u32
-
-       -  ``flags``
-
-       -  Flags to go with the command, see :ref:`encoder-flags`. If no
-	  flags are defined for this command, drivers and applications must
-	  set this field to zero.
-
-    -  .. row 3
-
-       -  __u32
-
-       -  ``data``\ [8]
-
-       -  Reserved for future extensions. Drivers and applications must set
-	  the array to zero.
+    * - __u32
+      - ``cmd``
+      - The encoder command, see :ref:`encoder-cmds`.
+    * - __u32
+      - ``flags``
+      - Flags to go with the command, see :ref:`encoder-flags`. If no
+	flags are defined for this command, drivers and applications must
+	set this field to zero.
+    * - __u32
+      - ``data``\ [8]
+      - Reserved for future extensions. Drivers and applications must set
+	the array to zero.
 
 
 
@@ -113,57 +98,37 @@ introduced in Linux 2.6.21.
     :stub-columns: 0
     :widths:       3 1 4
 
-
-    -  .. row 1
-
-       -  ``V4L2_ENC_CMD_START``
-
-       -  0
-
-       -  Start the encoder. When the encoder is already running or paused,
-	  this command does nothing. No flags are defined for this command.
-
-    -  .. row 2
-
-       -  ``V4L2_ENC_CMD_STOP``
-
-       -  1
-
-       -  Stop the encoder. When the ``V4L2_ENC_CMD_STOP_AT_GOP_END`` flag
-	  is set, encoding will continue until the end of the current *Group
-	  Of Pictures*, otherwise encoding will stop immediately. When the
-	  encoder is already stopped, this command does nothing. mem2mem
-	  encoders will send a ``V4L2_EVENT_EOS`` event when the last frame
-	  has been encoded and all frames are ready to be dequeued and will
-	  set the ``V4L2_BUF_FLAG_LAST`` buffer flag on the last buffer of
-	  the capture queue to indicate there will be no new buffers
-	  produced to dequeue. This buffer may be empty, indicated by the
-	  driver setting the ``bytesused`` field to 0. Once the
-	  ``V4L2_BUF_FLAG_LAST`` flag was set, the
-	  :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl will not block anymore,
-	  but return an ``EPIPE`` error code.
-
-    -  .. row 3
-
-       -  ``V4L2_ENC_CMD_PAUSE``
-
-       -  2
-
-       -  Pause the encoder. When the encoder has not been started yet, the
-	  driver will return an ``EPERM`` error code. When the encoder is
-	  already paused, this command does nothing. No flags are defined
-	  for this command.
-
-    -  .. row 4
-
-       -  ``V4L2_ENC_CMD_RESUME``
-
-       -  3
-
-       -  Resume encoding after a PAUSE command. When the encoder has not
-	  been started yet, the driver will return an ``EPERM`` error code. When
-	  the encoder is already running, this command does nothing. No
-	  flags are defined for this command.
+    * - ``V4L2_ENC_CMD_START``
+      - 0
+      - Start the encoder. When the encoder is already running or paused,
+	this command does nothing. No flags are defined for this command.
+    * - ``V4L2_ENC_CMD_STOP``
+      - 1
+      - Stop the encoder. When the ``V4L2_ENC_CMD_STOP_AT_GOP_END`` flag
+	is set, encoding will continue until the end of the current *Group
+	Of Pictures*, otherwise encoding will stop immediately. When the
+	encoder is already stopped, this command does nothing. mem2mem
+	encoders will send a ``V4L2_EVENT_EOS`` event when the last frame
+	has been encoded and all frames are ready to be dequeued and will
+	set the ``V4L2_BUF_FLAG_LAST`` buffer flag on the last buffer of
+	the capture queue to indicate there will be no new buffers
+	produced to dequeue. This buffer may be empty, indicated by the
+	driver setting the ``bytesused`` field to 0. Once the
+	``V4L2_BUF_FLAG_LAST`` flag was set, the
+	:ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl will not block anymore,
+	but return an ``EPIPE`` error code.
+    * - ``V4L2_ENC_CMD_PAUSE``
+      - 2
+      - Pause the encoder. When the encoder has not been started yet, the
+	driver will return an ``EPERM`` error code. When the encoder is
+	already paused, this command does nothing. No flags are defined
+	for this command.
+    * - ``V4L2_ENC_CMD_RESUME``
+      - 3
+      - Resume encoding after a PAUSE command. When the encoder has not
+	been started yet, the driver will return an ``EPERM`` error code. When
+	the encoder is already running, this command does nothing. No
+	flags are defined for this command.
 
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
@@ -175,15 +140,10 @@ introduced in Linux 2.6.21.
     :stub-columns: 0
     :widths:       3 1 4
 
-
-    -  .. row 1
-
-       -  ``V4L2_ENC_CMD_STOP_AT_GOP_END``
-
-       -  0x0001
-
-       -  Stop encoding at the end of the current *Group Of Pictures*,
-	  rather than immediately.
+    * - ``V4L2_ENC_CMD_STOP_AT_GOP_END``
+      - 0x0001
+      - Stop encoding at the end of the current *Group Of Pictures*,
+	rather than immediately.
 
 
 Return Value

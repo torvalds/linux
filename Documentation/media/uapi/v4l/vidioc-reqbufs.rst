@@ -74,43 +74,23 @@ any DMA in progress, an implicit
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``count``
-
-       -  The number of buffers requested or granted.
-
-    -  .. row 2
-
-       -  __u32
-
-       -  ``type``
-
-       -  Type of the stream or buffers, this is the same as the struct
-	  :c:type:`v4l2_format` ``type`` field. See
-	  :c:type:`v4l2_buf_type` for valid values.
-
-    -  .. row 3
-
-       -  __u32
-
-       -  ``memory``
-
-       -  Applications set this field to ``V4L2_MEMORY_MMAP``,
-	  ``V4L2_MEMORY_DMABUF`` or ``V4L2_MEMORY_USERPTR``. See
-	  :c:type:`v4l2_memory`.
-
-    -  .. row 4
-
-       -  __u32
-
-       -  ``reserved``\ [2]
-
-       -  A place holder for future extensions. Drivers and applications
-	  must set the array to zero.
+    * - __u32
+      - ``count``
+      - The number of buffers requested or granted.
+    * - __u32
+      - ``type``
+      - Type of the stream or buffers, this is the same as the struct
+	:c:type:`v4l2_format` ``type`` field. See
+	:c:type:`v4l2_buf_type` for valid values.
+    * - __u32
+      - ``memory``
+      - Applications set this field to ``V4L2_MEMORY_MMAP``,
+	``V4L2_MEMORY_DMABUF`` or ``V4L2_MEMORY_USERPTR``. See
+	:c:type:`v4l2_memory`.
+    * - __u32
+      - ``reserved``\ [2]
+      - A place holder for future extensions. Drivers and applications
+	must set the array to zero.
 
 
 Return Value

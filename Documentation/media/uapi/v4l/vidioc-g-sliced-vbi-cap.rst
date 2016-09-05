@@ -53,124 +53,67 @@ the sliced VBI API is unsupported or ``type`` is invalid.
     :stub-columns: 0
     :widths:       3 3 2 2 2
 
+    * - __u16
+      - ``service_set``
+      - :cspan:`2` A set of all data services supported by the driver.
 
-    -  .. row 1
+	Equal to the union of all elements of the ``service_lines`` array.
+    * - __u16
+      - ``service_lines``\ [2][24]
+      - :cspan:`2` Each element of this array contains a set of data
+	services the hardware can look for or insert into a particular
+	scan line. Data services are defined in :ref:`vbi-services`.
+	Array indices map to ITU-R line numbers\ [#f1]_ as follows:
+    * -
+      -
+      - Element
+      - 525 line systems
+      - 625 line systems
+    * -
+      -
+      - ``service_lines``\ [0][1]
+      - 1
+      - 1
+    * -
+      -
+      - ``service_lines``\ [0][23]
+      - 23
+      - 23
+    * -
+      -
+      - ``service_lines``\ [1][1]
+      - 264
+      - 314
+    * -
+      -
+      - ``service_lines``\ [1][23]
+      - 286
+      - 336
+    * -
+    * -
+      -
+      - :cspan:`2` The number of VBI lines the hardware can capture or
+	output per frame, or the number of services it can identify on a
+	given line may be limited. For example on PAL line 16 the hardware
+	may be able to look for a VPS or Teletext signal, but not both at
+	the same time. Applications can learn about these limits using the
+	:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl as described in
+	:ref:`sliced`.
+    * -
+    * -
+      -
+      - :cspan:`2` Drivers must set ``service_lines`` [0][0] and
+	``service_lines``\ [1][0] to zero.
+    * - __u32
+      - ``type``
+      - Type of the data stream, see :c:type:`v4l2_buf_type`. Should be
+	``V4L2_BUF_TYPE_SLICED_VBI_CAPTURE`` or
+	``V4L2_BUF_TYPE_SLICED_VBI_OUTPUT``.
+    * - __u32
+      - ``reserved``\ [3]
+      - :cspan:`2` This array is reserved for future extensions.
 
-       -  __u16
-
-       -  ``service_set``
-
-       -  :cspan:`2` A set of all data services supported by the driver.
-
-	  Equal to the union of all elements of the ``service_lines`` array.
-
-    -  .. row 2
-
-       -  __u16
-
-       -  ``service_lines``\ [2][24]
-
-       -  :cspan:`2` Each element of this array contains a set of data
-	  services the hardware can look for or insert into a particular
-	  scan line. Data services are defined in :ref:`vbi-services`.
-	  Array indices map to ITU-R line numbers\ [#f1]_ as follows:
-
-    -  .. row 3
-
-       -
-       -
-       -  Element
-
-       -  525 line systems
-
-       -  625 line systems
-
-    -  .. row 4
-
-       -
-       -
-       -  ``service_lines``\ [0][1]
-
-       -  1
-
-       -  1
-
-    -  .. row 5
-
-       -
-       -
-       -  ``service_lines``\ [0][23]
-
-       -  23
-
-       -  23
-
-    -  .. row 6
-
-       -
-       -
-       -  ``service_lines``\ [1][1]
-
-       -  264
-
-       -  314
-
-    -  .. row 7
-
-       -
-       -
-       -  ``service_lines``\ [1][23]
-
-       -  286
-
-       -  336
-
-    -  .. row 8
-
-       -
-
-    -  .. row 9
-
-       -
-       -
-       -  :cspan:`2` The number of VBI lines the hardware can capture or
-	  output per frame, or the number of services it can identify on a
-	  given line may be limited. For example on PAL line 16 the hardware
-	  may be able to look for a VPS or Teletext signal, but not both at
-	  the same time. Applications can learn about these limits using the
-	  :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl as described in
-	  :ref:`sliced`.
-
-    -  .. row 10
-
-       -
-
-    -  .. row 11
-
-       -
-       -
-       -  :cspan:`2` Drivers must set ``service_lines`` [0][0] and
-	  ``service_lines``\ [1][0] to zero.
-
-    -  .. row 12
-
-       -  __u32
-
-       -  ``type``
-
-       -  Type of the data stream, see :c:type:`v4l2_buf_type`. Should be
-	  ``V4L2_BUF_TYPE_SLICED_VBI_CAPTURE`` or
-	  ``V4L2_BUF_TYPE_SLICED_VBI_OUTPUT``.
-
-    -  .. row 13
-
-       -  __u32
-
-       -  ``reserved``\ [3]
-
-       -  :cspan:`2` This array is reserved for future extensions.
-
-	  Applications and drivers must set it to zero.
+	Applications and drivers must set it to zero.
 
 .. [#f1]
 
@@ -190,95 +133,50 @@ the sliced VBI API is unsupported or ``type`` is invalid.
     :stub-columns: 0
     :widths:       2 1 1 2 2
 
+    * - Symbol
+      - Value
+      - Reference
+      - Lines, usually
+      - Payload
+    * - ``V4L2_SLICED_TELETEXT_B`` (Teletext System B)
+      - 0x0001
+      - :ref:`ets300706`,
 
-    -  .. row 1
+	:ref:`itu653`
+      - PAL/SECAM line 7-22, 320-335 (second field 7-22)
+      - Last 42 of the 45 byte Teletext packet, that is without clock
+	run-in and framing code, lsb first transmitted.
+    * - ``V4L2_SLICED_VPS``
+      - 0x0400
+      - :ref:`ets300231`
+      - PAL line 16
+      - Byte number 3 to 15 according to Figure 9 of ETS 300 231, lsb
+	first transmitted.
+    * - ``V4L2_SLICED_CAPTION_525``
+      - 0x1000
+      - :ref:`cea608`
+      - NTSC line 21, 284 (second field 21)
+      - Two bytes in transmission order, including parity bit, lsb first
+	transmitted.
+    * - ``V4L2_SLICED_WSS_625``
+      - 0x4000
+      - :ref:`en300294`,
 
-       -  Symbol
+	:ref:`itu1119`
+      - PAL/SECAM line 23
+      -
 
-       -  Value
+	::
 
-       -  Reference
-
-       -  Lines, usually
-
-       -  Payload
-
-    -  .. row 2
-
-       -  ``V4L2_SLICED_TELETEXT_B`` (Teletext System B)
-
-       -  0x0001
-
-       -  :ref:`ets300706`,
-
-	  :ref:`itu653`
-
-       -  PAL/SECAM line 7-22, 320-335 (second field 7-22)
-
-       -  Last 42 of the 45 byte Teletext packet, that is without clock
-	  run-in and framing code, lsb first transmitted.
-
-    -  .. row 3
-
-       -  ``V4L2_SLICED_VPS``
-
-       -  0x0400
-
-       -  :ref:`ets300231`
-
-       -  PAL line 16
-
-       -  Byte number 3 to 15 according to Figure 9 of ETS 300 231, lsb
-	  first transmitted.
-
-    -  .. row 4
-
-       -  ``V4L2_SLICED_CAPTION_525``
-
-       -  0x1000
-
-       -  :ref:`cea608`
-
-       -  NTSC line 21, 284 (second field 21)
-
-       -  Two bytes in transmission order, including parity bit, lsb first
-	  transmitted.
-
-    -  .. row 5
-
-       -  ``V4L2_SLICED_WSS_625``
-
-       -  0x4000
-
-       -  :ref:`en300294`,
-
-	  :ref:`itu1119`
-
-       -  PAL/SECAM line 23
-
-       -
-
-	  ::
-
-	      Byte        0                 1
-		   msb         lsb  msb           lsb
-	      Bit  7 6 5 4 3 2 1 0  x x 13 12 11 10 9
-
-    -  .. row 6
-
-       -  ``V4L2_SLICED_VBI_525``
-
-       -  0x1000
-
-       -  :cspan:`2` Set of services applicable to 525 line systems.
-
-    -  .. row 7
-
-       -  ``V4L2_SLICED_VBI_625``
-
-       -  0x4401
-
-       -  :cspan:`2` Set of services applicable to 625 line systems.
+	    Byte        0                 1
+		 msb         lsb  msb           lsb
+	    Bit  7 6 5 4 3 2 1 0  x x 13 12 11 10 9
+    * - ``V4L2_SLICED_VBI_525``
+      - 0x1000
+      - :cspan:`2` Set of services applicable to 525 line systems.
+    * - ``V4L2_SLICED_VBI_625``
+      - 0x4401
+      - :cspan:`2` Set of services applicable to 625 line systems.
 
 .. raw:: latex
 

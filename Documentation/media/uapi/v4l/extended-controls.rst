@@ -224,42 +224,18 @@ enum v4l2_mpeg_stream_type -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_STREAM_TYPE_MPEG2_PS``
-
-       -  MPEG-2 program stream
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_STREAM_TYPE_MPEG2_TS``
-
-       -  MPEG-2 transport stream
-
-    -  .. row 3
-
-       -  ``V4L2_MPEG_STREAM_TYPE_MPEG1_SS``
-
-       -  MPEG-1 system stream
-
-    -  .. row 4
-
-       -  ``V4L2_MPEG_STREAM_TYPE_MPEG2_DVD``
-
-       -  MPEG-2 DVD-compatible stream
-
-    -  .. row 5
-
-       -  ``V4L2_MPEG_STREAM_TYPE_MPEG1_VCD``
-
-       -  MPEG-1 VCD-compatible stream
-
-    -  .. row 6
-
-       -  ``V4L2_MPEG_STREAM_TYPE_MPEG2_SVCD``
-
-       -  MPEG-2 SVCD-compatible stream
+    * - ``V4L2_MPEG_STREAM_TYPE_MPEG2_PS``
+      - MPEG-2 program stream
+    * - ``V4L2_MPEG_STREAM_TYPE_MPEG2_TS``
+      - MPEG-2 transport stream
+    * - ``V4L2_MPEG_STREAM_TYPE_MPEG1_SS``
+      - MPEG-1 system stream
+    * - ``V4L2_MPEG_STREAM_TYPE_MPEG2_DVD``
+      - MPEG-2 DVD-compatible stream
+    * - ``V4L2_MPEG_STREAM_TYPE_MPEG1_VCD``
+      - MPEG-1 VCD-compatible stream
+    * - ``V4L2_MPEG_STREAM_TYPE_MPEG2_SVCD``
+      - MPEG-2 SVCD-compatible stream
 
 
 
@@ -303,20 +279,12 @@ enum v4l2_mpeg_stream_vbi_fmt -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_STREAM_VBI_FMT_NONE``
-
-       -  No VBI in the MPEG stream
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_STREAM_VBI_FMT_IVTV``
-
-       -  VBI in private packets, IVTV format (documented in the kernel
-	  sources in the file
-	  ``Documentation/video4linux/cx2341x/README.vbi``)
+    * - ``V4L2_MPEG_STREAM_VBI_FMT_NONE``
+      - No VBI in the MPEG stream
+    * - ``V4L2_MPEG_STREAM_VBI_FMT_IVTV``
+      - VBI in private packets, IVTV format (documented in the kernel
+	sources in the file
+	``Documentation/video4linux/cx2341x/README.vbi``)
 
 
 
@@ -334,24 +302,12 @@ enum v4l2_mpeg_audio_sampling_freq -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_AUDIO_SAMPLING_FREQ_44100``
-
-       -  44.1 kHz
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_AUDIO_SAMPLING_FREQ_48000``
-
-       -  48 kHz
-
-    -  .. row 3
-
-       -  ``V4L2_MPEG_AUDIO_SAMPLING_FREQ_32000``
-
-       -  32 kHz
+    * - ``V4L2_MPEG_AUDIO_SAMPLING_FREQ_44100``
+      - 44.1 kHz
+    * - ``V4L2_MPEG_AUDIO_SAMPLING_FREQ_48000``
+      - 48 kHz
+    * - ``V4L2_MPEG_AUDIO_SAMPLING_FREQ_32000``
+      - 32 kHz
 
 
 
@@ -370,36 +326,16 @@ enum v4l2_mpeg_audio_encoding -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_AUDIO_ENCODING_LAYER_1``
-
-       -  MPEG-1/2 Layer I encoding
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_AUDIO_ENCODING_LAYER_2``
-
-       -  MPEG-1/2 Layer II encoding
-
-    -  .. row 3
-
-       -  ``V4L2_MPEG_AUDIO_ENCODING_LAYER_3``
-
-       -  MPEG-1/2 Layer III encoding
-
-    -  .. row 4
-
-       -  ``V4L2_MPEG_AUDIO_ENCODING_AAC``
-
-       -  MPEG-2/4 AAC (Advanced Audio Coding)
-
-    -  .. row 5
-
-       -  ``V4L2_MPEG_AUDIO_ENCODING_AC3``
-
-       -  AC-3 aka ATSC A/52 encoding
+    * - ``V4L2_MPEG_AUDIO_ENCODING_LAYER_1``
+      - MPEG-1/2 Layer I encoding
+    * - ``V4L2_MPEG_AUDIO_ENCODING_LAYER_2``
+      - MPEG-1/2 Layer II encoding
+    * - ``V4L2_MPEG_AUDIO_ENCODING_LAYER_3``
+      - MPEG-1/2 Layer III encoding
+    * - ``V4L2_MPEG_AUDIO_ENCODING_AAC``
+      - MPEG-2/4 AAC (Advanced Audio Coding)
+    * - ``V4L2_MPEG_AUDIO_ENCODING_AC3``
+      - AC-3 aka ATSC A/52 encoding
 
 
 
@@ -417,90 +353,34 @@ enum v4l2_mpeg_audio_l1_bitrate -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_AUDIO_L1_BITRATE_32K``
-
-       -  32 kbit/s
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_AUDIO_L1_BITRATE_64K``
-
-       -  64 kbit/s
-
-    -  .. row 3
-
-       -  ``V4L2_MPEG_AUDIO_L1_BITRATE_96K``
-
-       -  96 kbit/s
-
-    -  .. row 4
-
-       -  ``V4L2_MPEG_AUDIO_L1_BITRATE_128K``
-
-       -  128 kbit/s
-
-    -  .. row 5
-
-       -  ``V4L2_MPEG_AUDIO_L1_BITRATE_160K``
-
-       -  160 kbit/s
-
-    -  .. row 6
-
-       -  ``V4L2_MPEG_AUDIO_L1_BITRATE_192K``
-
-       -  192 kbit/s
-
-    -  .. row 7
-
-       -  ``V4L2_MPEG_AUDIO_L1_BITRATE_224K``
-
-       -  224 kbit/s
-
-    -  .. row 8
-
-       -  ``V4L2_MPEG_AUDIO_L1_BITRATE_256K``
-
-       -  256 kbit/s
-
-    -  .. row 9
-
-       -  ``V4L2_MPEG_AUDIO_L1_BITRATE_288K``
-
-       -  288 kbit/s
-
-    -  .. row 10
-
-       -  ``V4L2_MPEG_AUDIO_L1_BITRATE_320K``
-
-       -  320 kbit/s
-
-    -  .. row 11
-
-       -  ``V4L2_MPEG_AUDIO_L1_BITRATE_352K``
-
-       -  352 kbit/s
-
-    -  .. row 12
-
-       -  ``V4L2_MPEG_AUDIO_L1_BITRATE_384K``
-
-       -  384 kbit/s
-
-    -  .. row 13
-
-       -  ``V4L2_MPEG_AUDIO_L1_BITRATE_416K``
-
-       -  416 kbit/s
-
-    -  .. row 14
-
-       -  ``V4L2_MPEG_AUDIO_L1_BITRATE_448K``
-
-       -  448 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L1_BITRATE_32K``
+      - 32 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L1_BITRATE_64K``
+      - 64 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L1_BITRATE_96K``
+      - 96 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L1_BITRATE_128K``
+      - 128 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L1_BITRATE_160K``
+      - 160 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L1_BITRATE_192K``
+      - 192 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L1_BITRATE_224K``
+      - 224 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L1_BITRATE_256K``
+      - 256 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L1_BITRATE_288K``
+      - 288 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L1_BITRATE_320K``
+      - 320 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L1_BITRATE_352K``
+      - 352 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L1_BITRATE_384K``
+      - 384 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L1_BITRATE_416K``
+      - 416 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L1_BITRATE_448K``
+      - 448 kbit/s
 
 
 
@@ -518,90 +398,34 @@ enum v4l2_mpeg_audio_l2_bitrate -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_AUDIO_L2_BITRATE_32K``
-
-       -  32 kbit/s
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_AUDIO_L2_BITRATE_48K``
-
-       -  48 kbit/s
-
-    -  .. row 3
-
-       -  ``V4L2_MPEG_AUDIO_L2_BITRATE_56K``
-
-       -  56 kbit/s
-
-    -  .. row 4
-
-       -  ``V4L2_MPEG_AUDIO_L2_BITRATE_64K``
-
-       -  64 kbit/s
-
-    -  .. row 5
-
-       -  ``V4L2_MPEG_AUDIO_L2_BITRATE_80K``
-
-       -  80 kbit/s
-
-    -  .. row 6
-
-       -  ``V4L2_MPEG_AUDIO_L2_BITRATE_96K``
-
-       -  96 kbit/s
-
-    -  .. row 7
-
-       -  ``V4L2_MPEG_AUDIO_L2_BITRATE_112K``
-
-       -  112 kbit/s
-
-    -  .. row 8
-
-       -  ``V4L2_MPEG_AUDIO_L2_BITRATE_128K``
-
-       -  128 kbit/s
-
-    -  .. row 9
-
-       -  ``V4L2_MPEG_AUDIO_L2_BITRATE_160K``
-
-       -  160 kbit/s
-
-    -  .. row 10
-
-       -  ``V4L2_MPEG_AUDIO_L2_BITRATE_192K``
-
-       -  192 kbit/s
-
-    -  .. row 11
-
-       -  ``V4L2_MPEG_AUDIO_L2_BITRATE_224K``
-
-       -  224 kbit/s
-
-    -  .. row 12
-
-       -  ``V4L2_MPEG_AUDIO_L2_BITRATE_256K``
-
-       -  256 kbit/s
-
-    -  .. row 13
-
-       -  ``V4L2_MPEG_AUDIO_L2_BITRATE_320K``
-
-       -  320 kbit/s
-
-    -  .. row 14
-
-       -  ``V4L2_MPEG_AUDIO_L2_BITRATE_384K``
-
-       -  384 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L2_BITRATE_32K``
+      - 32 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L2_BITRATE_48K``
+      - 48 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L2_BITRATE_56K``
+      - 56 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L2_BITRATE_64K``
+      - 64 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L2_BITRATE_80K``
+      - 80 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L2_BITRATE_96K``
+      - 96 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L2_BITRATE_112K``
+      - 112 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L2_BITRATE_128K``
+      - 128 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L2_BITRATE_160K``
+      - 160 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L2_BITRATE_192K``
+      - 192 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L2_BITRATE_224K``
+      - 224 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L2_BITRATE_256K``
+      - 256 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L2_BITRATE_320K``
+      - 320 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L2_BITRATE_384K``
+      - 384 kbit/s
 
 
 
@@ -619,90 +443,34 @@ enum v4l2_mpeg_audio_l3_bitrate -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_AUDIO_L3_BITRATE_32K``
-
-       -  32 kbit/s
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_AUDIO_L3_BITRATE_40K``
-
-       -  40 kbit/s
-
-    -  .. row 3
-
-       -  ``V4L2_MPEG_AUDIO_L3_BITRATE_48K``
-
-       -  48 kbit/s
-
-    -  .. row 4
-
-       -  ``V4L2_MPEG_AUDIO_L3_BITRATE_56K``
-
-       -  56 kbit/s
-
-    -  .. row 5
-
-       -  ``V4L2_MPEG_AUDIO_L3_BITRATE_64K``
-
-       -  64 kbit/s
-
-    -  .. row 6
-
-       -  ``V4L2_MPEG_AUDIO_L3_BITRATE_80K``
-
-       -  80 kbit/s
-
-    -  .. row 7
-
-       -  ``V4L2_MPEG_AUDIO_L3_BITRATE_96K``
-
-       -  96 kbit/s
-
-    -  .. row 8
-
-       -  ``V4L2_MPEG_AUDIO_L3_BITRATE_112K``
-
-       -  112 kbit/s
-
-    -  .. row 9
-
-       -  ``V4L2_MPEG_AUDIO_L3_BITRATE_128K``
-
-       -  128 kbit/s
-
-    -  .. row 10
-
-       -  ``V4L2_MPEG_AUDIO_L3_BITRATE_160K``
-
-       -  160 kbit/s
-
-    -  .. row 11
-
-       -  ``V4L2_MPEG_AUDIO_L3_BITRATE_192K``
-
-       -  192 kbit/s
-
-    -  .. row 12
-
-       -  ``V4L2_MPEG_AUDIO_L3_BITRATE_224K``
-
-       -  224 kbit/s
-
-    -  .. row 13
-
-       -  ``V4L2_MPEG_AUDIO_L3_BITRATE_256K``
-
-       -  256 kbit/s
-
-    -  .. row 14
-
-       -  ``V4L2_MPEG_AUDIO_L3_BITRATE_320K``
-
-       -  320 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L3_BITRATE_32K``
+      - 32 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L3_BITRATE_40K``
+      - 40 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L3_BITRATE_48K``
+      - 48 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L3_BITRATE_56K``
+      - 56 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L3_BITRATE_64K``
+      - 64 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L3_BITRATE_80K``
+      - 80 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L3_BITRATE_96K``
+      - 96 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L3_BITRATE_112K``
+      - 112 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L3_BITRATE_128K``
+      - 128 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L3_BITRATE_160K``
+      - 160 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L3_BITRATE_192K``
+      - 192 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L3_BITRATE_224K``
+      - 224 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L3_BITRATE_256K``
+      - 256 kbit/s
+    * - ``V4L2_MPEG_AUDIO_L3_BITRATE_320K``
+      - 320 kbit/s
 
 
 
@@ -723,120 +491,44 @@ enum v4l2_mpeg_audio_ac3_bitrate -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_AUDIO_AC3_BITRATE_32K``
-
-       -  32 kbit/s
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_AUDIO_AC3_BITRATE_40K``
-
-       -  40 kbit/s
-
-    -  .. row 3
-
-       -  ``V4L2_MPEG_AUDIO_AC3_BITRATE_48K``
-
-       -  48 kbit/s
-
-    -  .. row 4
-
-       -  ``V4L2_MPEG_AUDIO_AC3_BITRATE_56K``
-
-       -  56 kbit/s
-
-    -  .. row 5
-
-       -  ``V4L2_MPEG_AUDIO_AC3_BITRATE_64K``
-
-       -  64 kbit/s
-
-    -  .. row 6
-
-       -  ``V4L2_MPEG_AUDIO_AC3_BITRATE_80K``
-
-       -  80 kbit/s
-
-    -  .. row 7
-
-       -  ``V4L2_MPEG_AUDIO_AC3_BITRATE_96K``
-
-       -  96 kbit/s
-
-    -  .. row 8
-
-       -  ``V4L2_MPEG_AUDIO_AC3_BITRATE_112K``
-
-       -  112 kbit/s
-
-    -  .. row 9
-
-       -  ``V4L2_MPEG_AUDIO_AC3_BITRATE_128K``
-
-       -  128 kbit/s
-
-    -  .. row 10
-
-       -  ``V4L2_MPEG_AUDIO_AC3_BITRATE_160K``
-
-       -  160 kbit/s
-
-    -  .. row 11
-
-       -  ``V4L2_MPEG_AUDIO_AC3_BITRATE_192K``
-
-       -  192 kbit/s
-
-    -  .. row 12
-
-       -  ``V4L2_MPEG_AUDIO_AC3_BITRATE_224K``
-
-       -  224 kbit/s
-
-    -  .. row 13
-
-       -  ``V4L2_MPEG_AUDIO_AC3_BITRATE_256K``
-
-       -  256 kbit/s
-
-    -  .. row 14
-
-       -  ``V4L2_MPEG_AUDIO_AC3_BITRATE_320K``
-
-       -  320 kbit/s
-
-    -  .. row 15
-
-       -  ``V4L2_MPEG_AUDIO_AC3_BITRATE_384K``
-
-       -  384 kbit/s
-
-    -  .. row 16
-
-       -  ``V4L2_MPEG_AUDIO_AC3_BITRATE_448K``
-
-       -  448 kbit/s
-
-    -  .. row 17
-
-       -  ``V4L2_MPEG_AUDIO_AC3_BITRATE_512K``
-
-       -  512 kbit/s
-
-    -  .. row 18
-
-       -  ``V4L2_MPEG_AUDIO_AC3_BITRATE_576K``
-
-       -  576 kbit/s
-
-    -  .. row 19
-
-       -  ``V4L2_MPEG_AUDIO_AC3_BITRATE_640K``
-
-       -  640 kbit/s
+    * - ``V4L2_MPEG_AUDIO_AC3_BITRATE_32K``
+      - 32 kbit/s
+    * - ``V4L2_MPEG_AUDIO_AC3_BITRATE_40K``
+      - 40 kbit/s
+    * - ``V4L2_MPEG_AUDIO_AC3_BITRATE_48K``
+      - 48 kbit/s
+    * - ``V4L2_MPEG_AUDIO_AC3_BITRATE_56K``
+      - 56 kbit/s
+    * - ``V4L2_MPEG_AUDIO_AC3_BITRATE_64K``
+      - 64 kbit/s
+    * - ``V4L2_MPEG_AUDIO_AC3_BITRATE_80K``
+      - 80 kbit/s
+    * - ``V4L2_MPEG_AUDIO_AC3_BITRATE_96K``
+      - 96 kbit/s
+    * - ``V4L2_MPEG_AUDIO_AC3_BITRATE_112K``
+      - 112 kbit/s
+    * - ``V4L2_MPEG_AUDIO_AC3_BITRATE_128K``
+      - 128 kbit/s
+    * - ``V4L2_MPEG_AUDIO_AC3_BITRATE_160K``
+      - 160 kbit/s
+    * - ``V4L2_MPEG_AUDIO_AC3_BITRATE_192K``
+      - 192 kbit/s
+    * - ``V4L2_MPEG_AUDIO_AC3_BITRATE_224K``
+      - 224 kbit/s
+    * - ``V4L2_MPEG_AUDIO_AC3_BITRATE_256K``
+      - 256 kbit/s
+    * - ``V4L2_MPEG_AUDIO_AC3_BITRATE_320K``
+      - 320 kbit/s
+    * - ``V4L2_MPEG_AUDIO_AC3_BITRATE_384K``
+      - 384 kbit/s
+    * - ``V4L2_MPEG_AUDIO_AC3_BITRATE_448K``
+      - 448 kbit/s
+    * - ``V4L2_MPEG_AUDIO_AC3_BITRATE_512K``
+      - 512 kbit/s
+    * - ``V4L2_MPEG_AUDIO_AC3_BITRATE_576K``
+      - 576 kbit/s
+    * - ``V4L2_MPEG_AUDIO_AC3_BITRATE_640K``
+      - 640 kbit/s
 
 
 
@@ -854,30 +546,14 @@ enum v4l2_mpeg_audio_mode -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_AUDIO_MODE_STEREO``
-
-       -  Stereo
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_AUDIO_MODE_JOINT_STEREO``
-
-       -  Joint Stereo
-
-    -  .. row 3
-
-       -  ``V4L2_MPEG_AUDIO_MODE_DUAL``
-
-       -  Bilingual
-
-    -  .. row 4
-
-       -  ``V4L2_MPEG_AUDIO_MODE_MONO``
-
-       -  Mono
+    * - ``V4L2_MPEG_AUDIO_MODE_STEREO``
+      - Stereo
+    * - ``V4L2_MPEG_AUDIO_MODE_JOINT_STEREO``
+      - Joint Stereo
+    * - ``V4L2_MPEG_AUDIO_MODE_DUAL``
+      - Bilingual
+    * - ``V4L2_MPEG_AUDIO_MODE_MONO``
+      - Mono
 
 
 
@@ -897,30 +573,14 @@ enum v4l2_mpeg_audio_mode_extension -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_AUDIO_MODE_EXTENSION_BOUND_4``
-
-       -  Subbands 4-31 in intensity stereo
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_AUDIO_MODE_EXTENSION_BOUND_8``
-
-       -  Subbands 8-31 in intensity stereo
-
-    -  .. row 3
-
-       -  ``V4L2_MPEG_AUDIO_MODE_EXTENSION_BOUND_12``
-
-       -  Subbands 12-31 in intensity stereo
-
-    -  .. row 4
-
-       -  ``V4L2_MPEG_AUDIO_MODE_EXTENSION_BOUND_16``
-
-       -  Subbands 16-31 in intensity stereo
+    * - ``V4L2_MPEG_AUDIO_MODE_EXTENSION_BOUND_4``
+      - Subbands 4-31 in intensity stereo
+    * - ``V4L2_MPEG_AUDIO_MODE_EXTENSION_BOUND_8``
+      - Subbands 8-31 in intensity stereo
+    * - ``V4L2_MPEG_AUDIO_MODE_EXTENSION_BOUND_12``
+      - Subbands 12-31 in intensity stereo
+    * - ``V4L2_MPEG_AUDIO_MODE_EXTENSION_BOUND_16``
+      - Subbands 16-31 in intensity stereo
 
 
 
@@ -938,24 +598,12 @@ enum v4l2_mpeg_audio_emphasis -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_AUDIO_EMPHASIS_NONE``
-
-       -  None
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_AUDIO_EMPHASIS_50_DIV_15_uS``
-
-       -  50/15 microsecond emphasis
-
-    -  .. row 3
-
-       -  ``V4L2_MPEG_AUDIO_EMPHASIS_CCITT_J17``
-
-       -  CCITT J.17
+    * - ``V4L2_MPEG_AUDIO_EMPHASIS_NONE``
+      - None
+    * - ``V4L2_MPEG_AUDIO_EMPHASIS_50_DIV_15_uS``
+      - 50/15 microsecond emphasis
+    * - ``V4L2_MPEG_AUDIO_EMPHASIS_CCITT_J17``
+      - CCITT J.17
 
 
 
@@ -973,18 +621,10 @@ enum v4l2_mpeg_audio_crc -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_AUDIO_CRC_NONE``
-
-       -  None
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_AUDIO_CRC_CRC16``
-
-       -  16 bit parity check
+    * - ``V4L2_MPEG_AUDIO_CRC_NONE``
+      - None
+    * - ``V4L2_MPEG_AUDIO_CRC_CRC16``
+      - 16 bit parity check
 
 
 
@@ -1011,42 +651,18 @@ enum v4l2_mpeg_audio_dec_playback -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_AUDIO_DEC_PLAYBACK_AUTO``
-
-       -  Automatically determines the best playback mode.
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_AUDIO_DEC_PLAYBACK_STEREO``
-
-       -  Stereo playback.
-
-    -  .. row 3
-
-       -  ``V4L2_MPEG_AUDIO_DEC_PLAYBACK_LEFT``
-
-       -  Left channel playback.
-
-    -  .. row 4
-
-       -  ``V4L2_MPEG_AUDIO_DEC_PLAYBACK_RIGHT``
-
-       -  Right channel playback.
-
-    -  .. row 5
-
-       -  ``V4L2_MPEG_AUDIO_DEC_PLAYBACK_MONO``
-
-       -  Mono playback.
-
-    -  .. row 6
-
-       -  ``V4L2_MPEG_AUDIO_DEC_PLAYBACK_SWAPPED_STEREO``
-
-       -  Stereo playback with swapped left and right channels.
+    * - ``V4L2_MPEG_AUDIO_DEC_PLAYBACK_AUTO``
+      - Automatically determines the best playback mode.
+    * - ``V4L2_MPEG_AUDIO_DEC_PLAYBACK_STEREO``
+      - Stereo playback.
+    * - ``V4L2_MPEG_AUDIO_DEC_PLAYBACK_LEFT``
+      - Left channel playback.
+    * - ``V4L2_MPEG_AUDIO_DEC_PLAYBACK_RIGHT``
+      - Right channel playback.
+    * - ``V4L2_MPEG_AUDIO_DEC_PLAYBACK_MONO``
+      - Mono playback.
+    * - ``V4L2_MPEG_AUDIO_DEC_PLAYBACK_SWAPPED_STEREO``
+      - Stereo playback with swapped left and right channels.
 
 
 
@@ -1073,24 +689,12 @@ enum v4l2_mpeg_video_encoding -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_VIDEO_ENCODING_MPEG_1``
-
-       -  MPEG-1 Video encoding
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_VIDEO_ENCODING_MPEG_2``
-
-       -  MPEG-2 Video encoding
-
-    -  .. row 3
-
-       -  ``V4L2_MPEG_VIDEO_ENCODING_MPEG_4_AVC``
-
-       -  MPEG-4 AVC (H.264) Video encoding
+    * - ``V4L2_MPEG_VIDEO_ENCODING_MPEG_1``
+      - MPEG-1 Video encoding
+    * - ``V4L2_MPEG_VIDEO_ENCODING_MPEG_2``
+      - MPEG-2 Video encoding
+    * - ``V4L2_MPEG_VIDEO_ENCODING_MPEG_4_AVC``
+      - MPEG-4 AVC (H.264) Video encoding
 
 
 
@@ -1108,22 +712,10 @@ enum v4l2_mpeg_video_aspect -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_VIDEO_ASPECT_1x1``
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_VIDEO_ASPECT_4x3``
-
-    -  .. row 3
-
-       -  ``V4L2_MPEG_VIDEO_ASPECT_16x9``
-
-    -  .. row 4
-
-       -  ``V4L2_MPEG_VIDEO_ASPECT_221x100``
+    * - ``V4L2_MPEG_VIDEO_ASPECT_1x1``
+    * - ``V4L2_MPEG_VIDEO_ASPECT_4x3``
+    * - ``V4L2_MPEG_VIDEO_ASPECT_16x9``
+    * - ``V4L2_MPEG_VIDEO_ASPECT_221x100``
 
 
 
@@ -1153,18 +745,10 @@ enum v4l2_mpeg_video_bitrate_mode -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_VIDEO_BITRATE_MODE_VBR``
-
-       -  Variable bitrate
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_VIDEO_BITRATE_MODE_CBR``
-
-       -  Constant bitrate
+    * - ``V4L2_MPEG_VIDEO_BITRATE_MODE_VBR``
+      - Variable bitrate
+    * - ``V4L2_MPEG_VIDEO_BITRATE_MODE_CBR``
+      - Constant bitrate
 
 
 
@@ -1195,30 +779,14 @@ enum v4l2_mpeg_video_bitrate_mode -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  Bit 0:7
-
-       -  V chrominance information
-
-    -  .. row 2
-
-       -  Bit 8:15
-
-       -  U chrominance information
-
-    -  .. row 3
-
-       -  Bit 16:23
-
-       -  Y luminance information
-
-    -  .. row 4
-
-       -  Bit 24:31
-
-       -  Must be zero.
+    * - Bit 0:7
+      - V chrominance information
+    * - Bit 8:15
+      - U chrominance information
+    * - Bit 16:23
+      - Y luminance information
+    * - Bit 24:31
+      - Must be zero.
 
 
 
@@ -1262,114 +830,42 @@ enum v4l2_mpeg_video_h264_vui_sar_idc -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_UNSPECIFIED``
-
-       -  Unspecified
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_1x1``
-
-       -  1x1
-
-    -  .. row 3
-
-       -  ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_12x11``
-
-       -  12x11
-
-    -  .. row 4
-
-       -  ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_10x11``
-
-       -  10x11
-
-    -  .. row 5
-
-       -  ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_16x11``
-
-       -  16x11
-
-    -  .. row 6
-
-       -  ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_40x33``
-
-       -  40x33
-
-    -  .. row 7
-
-       -  ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_24x11``
-
-       -  24x11
-
-    -  .. row 8
-
-       -  ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_20x11``
-
-       -  20x11
-
-    -  .. row 9
-
-       -  ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_32x11``
-
-       -  32x11
-
-    -  .. row 10
-
-       -  ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_80x33``
-
-       -  80x33
-
-    -  .. row 11
-
-       -  ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_18x11``
-
-       -  18x11
-
-    -  .. row 12
-
-       -  ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_15x11``
-
-       -  15x11
-
-    -  .. row 13
-
-       -  ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_64x33``
-
-       -  64x33
-
-    -  .. row 14
-
-       -  ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_160x99``
-
-       -  160x99
-
-    -  .. row 15
-
-       -  ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_4x3``
-
-       -  4x3
-
-    -  .. row 16
-
-       -  ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_3x2``
-
-       -  3x2
-
-    -  .. row 17
-
-       -  ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_2x1``
-
-       -  2x1
-
-    -  .. row 18
-
-       -  ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_EXTENDED``
-
-       -  Extended SAR
+    * - ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_UNSPECIFIED``
+      - Unspecified
+    * - ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_1x1``
+      - 1x1
+    * - ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_12x11``
+      - 12x11
+    * - ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_10x11``
+      - 10x11
+    * - ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_16x11``
+      - 16x11
+    * - ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_40x33``
+      - 40x33
+    * - ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_24x11``
+      - 24x11
+    * - ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_20x11``
+      - 20x11
+    * - ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_32x11``
+      - 32x11
+    * - ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_80x33``
+      - 80x33
+    * - ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_18x11``
+      - 18x11
+    * - ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_15x11``
+      - 15x11
+    * - ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_64x33``
+      - 64x33
+    * - ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_160x99``
+      - 160x99
+    * - ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_4x3``
+      - 4x3
+    * - ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_3x2``
+      - 3x2
+    * - ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_2x1``
+      - 2x1
+    * - ``V4L2_MPEG_VIDEO_H264_VUI_SAR_IDC_EXTENDED``
+      - Extended SAR
 
 
 
@@ -1396,102 +892,38 @@ enum v4l2_mpeg_video_h264_level -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_VIDEO_H264_LEVEL_1_0``
-
-       -  Level 1.0
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_VIDEO_H264_LEVEL_1B``
-
-       -  Level 1B
-
-    -  .. row 3
-
-       -  ``V4L2_MPEG_VIDEO_H264_LEVEL_1_1``
-
-       -  Level 1.1
-
-    -  .. row 4
-
-       -  ``V4L2_MPEG_VIDEO_H264_LEVEL_1_2``
-
-       -  Level 1.2
-
-    -  .. row 5
-
-       -  ``V4L2_MPEG_VIDEO_H264_LEVEL_1_3``
-
-       -  Level 1.3
-
-    -  .. row 6
-
-       -  ``V4L2_MPEG_VIDEO_H264_LEVEL_2_0``
-
-       -  Level 2.0
-
-    -  .. row 7
-
-       -  ``V4L2_MPEG_VIDEO_H264_LEVEL_2_1``
-
-       -  Level 2.1
-
-    -  .. row 8
-
-       -  ``V4L2_MPEG_VIDEO_H264_LEVEL_2_2``
-
-       -  Level 2.2
-
-    -  .. row 9
-
-       -  ``V4L2_MPEG_VIDEO_H264_LEVEL_3_0``
-
-       -  Level 3.0
-
-    -  .. row 10
-
-       -  ``V4L2_MPEG_VIDEO_H264_LEVEL_3_1``
-
-       -  Level 3.1
-
-    -  .. row 11
-
-       -  ``V4L2_MPEG_VIDEO_H264_LEVEL_3_2``
-
-       -  Level 3.2
-
-    -  .. row 12
-
-       -  ``V4L2_MPEG_VIDEO_H264_LEVEL_4_0``
-
-       -  Level 4.0
-
-    -  .. row 13
-
-       -  ``V4L2_MPEG_VIDEO_H264_LEVEL_4_1``
-
-       -  Level 4.1
-
-    -  .. row 14
-
-       -  ``V4L2_MPEG_VIDEO_H264_LEVEL_4_2``
-
-       -  Level 4.2
-
-    -  .. row 15
-
-       -  ``V4L2_MPEG_VIDEO_H264_LEVEL_5_0``
-
-       -  Level 5.0
-
-    -  .. row 16
-
-       -  ``V4L2_MPEG_VIDEO_H264_LEVEL_5_1``
-
-       -  Level 5.1
+    * - ``V4L2_MPEG_VIDEO_H264_LEVEL_1_0``
+      - Level 1.0
+    * - ``V4L2_MPEG_VIDEO_H264_LEVEL_1B``
+      - Level 1B
+    * - ``V4L2_MPEG_VIDEO_H264_LEVEL_1_1``
+      - Level 1.1
+    * - ``V4L2_MPEG_VIDEO_H264_LEVEL_1_2``
+      - Level 1.2
+    * - ``V4L2_MPEG_VIDEO_H264_LEVEL_1_3``
+      - Level 1.3
+    * - ``V4L2_MPEG_VIDEO_H264_LEVEL_2_0``
+      - Level 2.0
+    * - ``V4L2_MPEG_VIDEO_H264_LEVEL_2_1``
+      - Level 2.1
+    * - ``V4L2_MPEG_VIDEO_H264_LEVEL_2_2``
+      - Level 2.2
+    * - ``V4L2_MPEG_VIDEO_H264_LEVEL_3_0``
+      - Level 3.0
+    * - ``V4L2_MPEG_VIDEO_H264_LEVEL_3_1``
+      - Level 3.1
+    * - ``V4L2_MPEG_VIDEO_H264_LEVEL_3_2``
+      - Level 3.2
+    * - ``V4L2_MPEG_VIDEO_H264_LEVEL_4_0``
+      - Level 4.0
+    * - ``V4L2_MPEG_VIDEO_H264_LEVEL_4_1``
+      - Level 4.1
+    * - ``V4L2_MPEG_VIDEO_H264_LEVEL_4_2``
+      - Level 4.2
+    * - ``V4L2_MPEG_VIDEO_H264_LEVEL_5_0``
+      - Level 5.0
+    * - ``V4L2_MPEG_VIDEO_H264_LEVEL_5_1``
+      - Level 5.1
 
 
 
@@ -1510,54 +942,22 @@ enum v4l2_mpeg_video_mpeg4_level -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_VIDEO_LEVEL_0``
-
-       -  Level 0
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_VIDEO_LEVEL_0B``
-
-       -  Level 0b
-
-    -  .. row 3
-
-       -  ``V4L2_MPEG_VIDEO_LEVEL_1``
-
-       -  Level 1
-
-    -  .. row 4
-
-       -  ``V4L2_MPEG_VIDEO_LEVEL_2``
-
-       -  Level 2
-
-    -  .. row 5
-
-       -  ``V4L2_MPEG_VIDEO_LEVEL_3``
-
-       -  Level 3
-
-    -  .. row 6
-
-       -  ``V4L2_MPEG_VIDEO_LEVEL_3B``
-
-       -  Level 3b
-
-    -  .. row 7
-
-       -  ``V4L2_MPEG_VIDEO_LEVEL_4``
-
-       -  Level 4
-
-    -  .. row 8
-
-       -  ``V4L2_MPEG_VIDEO_LEVEL_5``
-
-       -  Level 5
+    * - ``V4L2_MPEG_VIDEO_LEVEL_0``
+      - Level 0
+    * - ``V4L2_MPEG_VIDEO_LEVEL_0B``
+      - Level 0b
+    * - ``V4L2_MPEG_VIDEO_LEVEL_1``
+      - Level 1
+    * - ``V4L2_MPEG_VIDEO_LEVEL_2``
+      - Level 2
+    * - ``V4L2_MPEG_VIDEO_LEVEL_3``
+      - Level 3
+    * - ``V4L2_MPEG_VIDEO_LEVEL_3B``
+      - Level 3b
+    * - ``V4L2_MPEG_VIDEO_LEVEL_4``
+      - Level 4
+    * - ``V4L2_MPEG_VIDEO_LEVEL_5``
+      - Level 5
 
 
 
@@ -1576,108 +976,40 @@ enum v4l2_mpeg_video_h264_profile -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE``
-
-       -  Baseline profile
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_VIDEO_H264_PROFILE_CONSTRAINED_BASELINE``
-
-       -  Constrained Baseline profile
-
-    -  .. row 3
-
-       -  ``V4L2_MPEG_VIDEO_H264_PROFILE_MAIN``
-
-       -  Main profile
-
-    -  .. row 4
-
-       -  ``V4L2_MPEG_VIDEO_H264_PROFILE_EXTENDED``
-
-       -  Extended profile
-
-    -  .. row 5
-
-       -  ``V4L2_MPEG_VIDEO_H264_PROFILE_HIGH``
-
-       -  High profile
-
-    -  .. row 6
-
-       -  ``V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_10``
-
-       -  High 10 profile
-
-    -  .. row 7
-
-       -  ``V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_422``
-
-       -  High 422 profile
-
-    -  .. row 8
-
-       -  ``V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_444_PREDICTIVE``
-
-       -  High 444 Predictive profile
-
-    -  .. row 9
-
-       -  ``V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_10_INTRA``
-
-       -  High 10 Intra profile
-
-    -  .. row 10
-
-       -  ``V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_422_INTRA``
-
-       -  High 422 Intra profile
-
-    -  .. row 11
-
-       -  ``V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_444_INTRA``
-
-       -  High 444 Intra profile
-
-    -  .. row 12
-
-       -  ``V4L2_MPEG_VIDEO_H264_PROFILE_CAVLC_444_INTRA``
-
-       -  CAVLC 444 Intra profile
-
-    -  .. row 13
-
-       -  ``V4L2_MPEG_VIDEO_H264_PROFILE_SCALABLE_BASELINE``
-
-       -  Scalable Baseline profile
-
-    -  .. row 14
-
-       -  ``V4L2_MPEG_VIDEO_H264_PROFILE_SCALABLE_HIGH``
-
-       -  Scalable High profile
-
-    -  .. row 15
-
-       -  ``V4L2_MPEG_VIDEO_H264_PROFILE_SCALABLE_HIGH_INTRA``
-
-       -  Scalable High Intra profile
-
-    -  .. row 16
-
-       -  ``V4L2_MPEG_VIDEO_H264_PROFILE_STEREO_HIGH``
-
-       -  Stereo High profile
-
-    -  .. row 17
-
-       -  ``V4L2_MPEG_VIDEO_H264_PROFILE_MULTIVIEW_HIGH``
-
-       -  Multiview High profile
+    * - ``V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE``
+      - Baseline profile
+    * - ``V4L2_MPEG_VIDEO_H264_PROFILE_CONSTRAINED_BASELINE``
+      - Constrained Baseline profile
+    * - ``V4L2_MPEG_VIDEO_H264_PROFILE_MAIN``
+      - Main profile
+    * - ``V4L2_MPEG_VIDEO_H264_PROFILE_EXTENDED``
+      - Extended profile
+    * - ``V4L2_MPEG_VIDEO_H264_PROFILE_HIGH``
+      - High profile
+    * - ``V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_10``
+      - High 10 profile
+    * - ``V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_422``
+      - High 422 profile
+    * - ``V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_444_PREDICTIVE``
+      - High 444 Predictive profile
+    * - ``V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_10_INTRA``
+      - High 10 Intra profile
+    * - ``V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_422_INTRA``
+      - High 422 Intra profile
+    * - ``V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_444_INTRA``
+      - High 444 Intra profile
+    * - ``V4L2_MPEG_VIDEO_H264_PROFILE_CAVLC_444_INTRA``
+      - CAVLC 444 Intra profile
+    * - ``V4L2_MPEG_VIDEO_H264_PROFILE_SCALABLE_BASELINE``
+      - Scalable Baseline profile
+    * - ``V4L2_MPEG_VIDEO_H264_PROFILE_SCALABLE_HIGH``
+      - Scalable High profile
+    * - ``V4L2_MPEG_VIDEO_H264_PROFILE_SCALABLE_HIGH_INTRA``
+      - Scalable High Intra profile
+    * - ``V4L2_MPEG_VIDEO_H264_PROFILE_STEREO_HIGH``
+      - Stereo High profile
+    * - ``V4L2_MPEG_VIDEO_H264_PROFILE_MULTIVIEW_HIGH``
+      - Multiview High profile
 
 
 
@@ -1696,36 +1028,16 @@ enum v4l2_mpeg_video_mpeg4_profile -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_VIDEO_PROFILE_SIMPLE``
-
-       -  Simple profile
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_VIDEO_PROFILE_ADVANCED_SIMPLE``
-
-       -  Advanced Simple profile
-
-    -  .. row 3
-
-       -  ``V4L2_MPEG_VIDEO_PROFILE_CORE``
-
-       -  Core profile
-
-    -  .. row 4
-
-       -  ``V4L2_MPEG_VIDEO_PROFILE_SIMPLE_SCALABLE``
-
-       -  Simple Scalable profile
-
-    -  .. row 5
-
-       -  ``V4L2_MPEG_VIDEO_PROFILE_ADVANCED_CODING_EFFICIENCY``
-
-       -
+    * - ``V4L2_MPEG_VIDEO_PROFILE_SIMPLE``
+      - Simple profile
+    * - ``V4L2_MPEG_VIDEO_PROFILE_ADVANCED_SIMPLE``
+      - Advanced Simple profile
+    * - ``V4L2_MPEG_VIDEO_PROFILE_CORE``
+      - Core profile
+    * - ``V4L2_MPEG_VIDEO_PROFILE_SIMPLE_SCALABLE``
+      - Simple Scalable profile
+    * - ``V4L2_MPEG_VIDEO_PROFILE_ADVANCED_CODING_EFFICIENCY``
+      -
 
 
 
@@ -1750,24 +1062,12 @@ enum v4l2_mpeg_video_multi_slice_mode -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_SINGLE``
-
-       -  Single slice per frame.
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_MB``
-
-       -  Multiple slices with set maximum number of macroblocks per slice.
-
-    -  .. row 3
-
-       -  ``V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_BYTES``
-
-       -  Multiple slice with set maximum size in bytes per slice.
+    * - ``V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_SINGLE``
+      - Single slice per frame.
+    * - ``V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_MB``
+      - Multiple slices with set maximum number of macroblocks per slice.
+    * - ``V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_BYTES``
+      - Multiple slice with set maximum size in bytes per slice.
 
 
 
@@ -1799,23 +1099,12 @@ enum v4l2_mpeg_video_h264_loop_filter_mode -
     :header-rows:  0
     :stub-columns: 0
 
-    -  .. row 1
-
-       -  ``V4L2_MPEG_VIDEO_H264_LOOP_FILTER_MODE_ENABLED``
-
-       -  Loop filter is enabled.
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_VIDEO_H264_LOOP_FILTER_MODE_DISABLED``
-
-       -  Loop filter is disabled.
-
-    -  .. row 3
-
-       -  ``V4L2_MPEG_VIDEO_H264_LOOP_FILTER_MODE_DISABLED_AT_SLICE_BOUNDARY``
-
-       -  Loop filter is disabled at the slice boundary.
+    * - ``V4L2_MPEG_VIDEO_H264_LOOP_FILTER_MODE_ENABLED``
+      - Loop filter is enabled.
+    * - ``V4L2_MPEG_VIDEO_H264_LOOP_FILTER_MODE_DISABLED``
+      - Loop filter is disabled.
+    * - ``V4L2_MPEG_VIDEO_H264_LOOP_FILTER_MODE_DISABLED_AT_SLICE_BOUNDARY``
+      - Loop filter is disabled at the slice boundary.
 
 
 
@@ -1842,18 +1131,10 @@ enum v4l2_mpeg_video_h264_entropy_mode -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_VIDEO_H264_ENTROPY_MODE_CAVLC``
-
-       -  Use CAVLC entropy coding.
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_VIDEO_H264_ENTROPY_MODE_CABAC``
-
-       -  Use CABAC entropy coding.
+    * - ``V4L2_MPEG_VIDEO_H264_ENTROPY_MODE_CAVLC``
+      - Use CAVLC entropy coding.
+    * - ``V4L2_MPEG_VIDEO_H264_ENTROPY_MODE_CABAC``
+      - Use CABAC entropy coding.
 
 
 
@@ -2009,19 +1290,11 @@ enum v4l2_mpeg_video_header_mode -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_VIDEO_HEADER_MODE_SEPARATE``
-
-       -  The stream header is returned separately in the first buffer.
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_VIDEO_HEADER_MODE_JOINED_WITH_1ST_FRAME``
-
-       -  The stream header is returned together with the first encoded
-	  frame.
+    * - ``V4L2_MPEG_VIDEO_HEADER_MODE_SEPARATE``
+      - The stream header is returned separately in the first buffer.
+    * - ``V4L2_MPEG_VIDEO_HEADER_MODE_JOINED_WITH_1ST_FRAME``
+      - The stream header is returned together with the first encoded
+	frame.
 
 
 
@@ -2067,41 +1340,18 @@ enum v4l2_mpeg_video_h264_sei_fp_arrangement_type -
     :header-rows:  0
     :stub-columns: 0
 
-    -  .. row 1
-
-       -  ``V4L2_MPEG_VIDEO_H264_SEI_FP_ARRANGEMENT_TYPE_CHEKERBOARD``
-
-       -  Pixels are alternatively from L and R.
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_VIDEO_H264_SEI_FP_ARRANGEMENT_TYPE_COLUMN``
-
-       -  L and R are interlaced by column.
-
-    -  .. row 3
-
-       -  ``V4L2_MPEG_VIDEO_H264_SEI_FP_ARRANGEMENT_TYPE_ROW``
-
-       -  L and R are interlaced by row.
-
-    -  .. row 4
-
-       -  ``V4L2_MPEG_VIDEO_H264_SEI_FP_ARRANGEMENT_TYPE_SIDE_BY_SIDE``
-
-       -  L is on the left, R on the right.
-
-    -  .. row 5
-
-       -  ``V4L2_MPEG_VIDEO_H264_SEI_FP_ARRANGEMENT_TYPE_TOP_BOTTOM``
-
-       -  L is on top, R on bottom.
-
-    -  .. row 6
-
-       -  ``V4L2_MPEG_VIDEO_H264_SEI_FP_ARRANGEMENT_TYPE_TEMPORAL``
-
-       -  One view per frame.
+    * - ``V4L2_MPEG_VIDEO_H264_SEI_FP_ARRANGEMENT_TYPE_CHEKERBOARD``
+      - Pixels are alternatively from L and R.
+    * - ``V4L2_MPEG_VIDEO_H264_SEI_FP_ARRANGEMENT_TYPE_COLUMN``
+      - L and R are interlaced by column.
+    * - ``V4L2_MPEG_VIDEO_H264_SEI_FP_ARRANGEMENT_TYPE_ROW``
+      - L and R are interlaced by row.
+    * - ``V4L2_MPEG_VIDEO_H264_SEI_FP_ARRANGEMENT_TYPE_SIDE_BY_SIDE``
+      - L is on the left, R on the right.
+    * - ``V4L2_MPEG_VIDEO_H264_SEI_FP_ARRANGEMENT_TYPE_TOP_BOTTOM``
+      - L is on top, R on bottom.
+    * - ``V4L2_MPEG_VIDEO_H264_SEI_FP_ARRANGEMENT_TYPE_TEMPORAL``
+      - One view per frame.
 
 
 
@@ -2126,49 +1376,22 @@ enum v4l2_mpeg_video_h264_fmo_map_type -
     :header-rows:  0
     :stub-columns: 0
 
-    -  .. row 1
-
-       -  ``V4L2_MPEG_VIDEO_H264_FMO_MAP_TYPE_INTERLEAVED_SLICES``
-
-       -  Slices are interleaved one after other with macroblocks in run
-	  length order.
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_VIDEO_H264_FMO_MAP_TYPE_SCATTERED_SLICES``
-
-       -  Scatters the macroblocks based on a mathematical function known to
-	  both encoder and decoder.
-
-    -  .. row 3
-
-       -  ``V4L2_MPEG_VIDEO_H264_FMO_MAP_TYPE_FOREGROUND_WITH_LEFT_OVER``
-
-       -  Macroblocks arranged in rectangular areas or regions of interest.
-
-    -  .. row 4
-
-       -  ``V4L2_MPEG_VIDEO_H264_FMO_MAP_TYPE_BOX_OUT``
-
-       -  Slice groups grow in a cyclic way from centre to outwards.
-
-    -  .. row 5
-
-       -  ``V4L2_MPEG_VIDEO_H264_FMO_MAP_TYPE_RASTER_SCAN``
-
-       -  Slice groups grow in raster scan pattern from left to right.
-
-    -  .. row 6
-
-       -  ``V4L2_MPEG_VIDEO_H264_FMO_MAP_TYPE_WIPE_SCAN``
-
-       -  Slice groups grow in wipe scan pattern from top to bottom.
-
-    -  .. row 7
-
-       -  ``V4L2_MPEG_VIDEO_H264_FMO_MAP_TYPE_EXPLICIT``
-
-       -  User defined map type.
+    * - ``V4L2_MPEG_VIDEO_H264_FMO_MAP_TYPE_INTERLEAVED_SLICES``
+      - Slices are interleaved one after other with macroblocks in run
+	length order.
+    * - ``V4L2_MPEG_VIDEO_H264_FMO_MAP_TYPE_SCATTERED_SLICES``
+      - Scatters the macroblocks based on a mathematical function known to
+	both encoder and decoder.
+    * - ``V4L2_MPEG_VIDEO_H264_FMO_MAP_TYPE_FOREGROUND_WITH_LEFT_OVER``
+      - Macroblocks arranged in rectangular areas or regions of interest.
+    * - ``V4L2_MPEG_VIDEO_H264_FMO_MAP_TYPE_BOX_OUT``
+      - Slice groups grow in a cyclic way from centre to outwards.
+    * - ``V4L2_MPEG_VIDEO_H264_FMO_MAP_TYPE_RASTER_SCAN``
+      - Slice groups grow in raster scan pattern from left to right.
+    * - ``V4L2_MPEG_VIDEO_H264_FMO_MAP_TYPE_WIPE_SCAN``
+      - Slice groups grow in wipe scan pattern from top to bottom.
+    * - ``V4L2_MPEG_VIDEO_H264_FMO_MAP_TYPE_EXPLICIT``
+      - User defined map type.
 
 
 
@@ -2190,18 +1413,10 @@ enum v4l2_mpeg_video_h264_fmo_change_dir -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_VIDEO_H264_FMO_CHANGE_DIR_RIGHT``
-
-       -  Raster scan or wipe right.
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_VIDEO_H264_FMO_CHANGE_DIR_LEFT``
-
-       -  Reverse raster scan or wipe left.
+    * - ``V4L2_MPEG_VIDEO_H264_FMO_CHANGE_DIR_RIGHT``
+      - Raster scan or wipe right.
+    * - ``V4L2_MPEG_VIDEO_H264_FMO_CHANGE_DIR_LEFT``
+      - Reverse raster scan or wipe left.
 
 
 
@@ -2228,18 +1443,10 @@ enum v4l2_mpeg_video_h264_fmo_change_dir -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  Bit 0:15
-
-       -  Slice ID
-
-    -  .. row 2
-
-       -  Bit 16:32
-
-       -  Slice position or order
+    * - Bit 0:15
+      - Slice ID
+    * - Bit 16:32
+      - Slice position or order
 
 
 
@@ -2261,18 +1468,10 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_VIDEO_H264_HIERARCHICAL_CODING_B``
-
-       -  Hierarchical B coding.
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_VIDEO_H264_HIERARCHICAL_CODING_P``
-
-       -  Hierarchical P coding.
+    * - ``V4L2_MPEG_VIDEO_H264_HIERARCHICAL_CODING_B``
+      - Hierarchical B coding.
+    * - ``V4L2_MPEG_VIDEO_H264_HIERARCHICAL_CODING_P``
+      - Hierarchical P coding.
 
 
 
@@ -2291,18 +1490,10 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  Bit 0:15
-
-       -  QP value
-
-    -  .. row 2
-
-       -  Bit 16:32
-
-       -  Layer number
+    * - Bit 0:15
+      - QP value
+    * - Bit 16:32
+      - Layer number
 
 
 
@@ -2354,30 +1545,14 @@ MFC 5.1 Control IDs
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  Bit 0:7
-
-       -  V chrominance information
-
-    -  .. row 2
-
-       -  Bit 8:15
-
-       -  U chrominance information
-
-    -  .. row 3
-
-       -  Bit 16:23
-
-       -  Y luminance information
-
-    -  .. row 4
-
-       -  Bit 24:31
-
-       -  Must be zero.
+    * - Bit 0:7
+      - V chrominance information
+    * - Bit 8:15
+      - U chrominance information
+    * - Bit 16:23
+      - Y luminance information
+    * - Bit 24:31
+      - Must be zero.
 
 
 
@@ -2436,25 +1611,14 @@ enum v4l2_mpeg_mfc51_video_frame_skip_mode -
     :header-rows:  0
     :stub-columns: 0
 
-    -  .. row 1
-
-       -  ``V4L2_MPEG_MFC51_FRAME_SKIP_MODE_DISABLED``
-
-       -  Frame skip mode is disabled.
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_MFC51_FRAME_SKIP_MODE_LEVEL_LIMIT``
-
-       -  Frame skip mode enabled and buffer limit is set by the chosen
-	  level and is defined by the standard.
-
-    -  .. row 3
-
-       -  ``V4L2_MPEG_MFC51_FRAME_SKIP_MODE_BUF_LIMIT``
-
-       -  Frame skip mode enabled and buffer limit is set by the VBV
-	  (MPEG1/2/4) or CPB (H264) buffer size control.
+    * - ``V4L2_MPEG_MFC51_FRAME_SKIP_MODE_DISABLED``
+      - Frame skip mode is disabled.
+    * - ``V4L2_MPEG_MFC51_FRAME_SKIP_MODE_LEVEL_LIMIT``
+      - Frame skip mode enabled and buffer limit is set by the chosen
+	level and is defined by the standard.
+    * - ``V4L2_MPEG_MFC51_FRAME_SKIP_MODE_BUF_LIMIT``
+      - Frame skip mode enabled and buffer limit is set by the VBV
+	(MPEG1/2/4) or CPB (H264) buffer size control.
 
 
 
@@ -2485,24 +1649,12 @@ enum v4l2_mpeg_mfc51_video_force_frame_type -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_MFC51_FORCE_FRAME_TYPE_DISABLED``
-
-       -  Forcing a specific frame type disabled.
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_MFC51_FORCE_FRAME_TYPE_I_FRAME``
-
-       -  Force an I-frame.
-
-    -  .. row 3
-
-       -  ``V4L2_MPEG_MFC51_FORCE_FRAME_TYPE_NOT_CODED``
-
-       -  Force a non-coded frame.
+    * - ``V4L2_MPEG_MFC51_FORCE_FRAME_TYPE_DISABLED``
+      - Forcing a specific frame type disabled.
+    * - ``V4L2_MPEG_MFC51_FORCE_FRAME_TYPE_I_FRAME``
+      - Force an I-frame.
+    * - ``V4L2_MPEG_MFC51_FORCE_FRAME_TYPE_NOT_CODED``
+      - Force a non-coded frame.
 
 
 
@@ -2534,18 +1686,10 @@ enum v4l2_mpeg_cx2341x_video_spatial_filter_mode -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE_MANUAL``
-
-       -  Choose the filter manually
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE_AUTO``
-
-       -  Choose the filter automatically
+    * - ``V4L2_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE_MANUAL``
+      - Choose the filter manually
+    * - ``V4L2_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE_AUTO``
+      - Choose the filter automatically
 
 
 
@@ -2570,36 +1714,16 @@ enum v4l2_mpeg_cx2341x_video_luma_spatial_filter_type -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_OFF``
-
-       -  No filter
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_1D_HOR``
-
-       -  One-dimensional horizontal
-
-    -  .. row 3
-
-       -  ``V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_1D_VERT``
-
-       -  One-dimensional vertical
-
-    -  .. row 4
-
-       -  ``V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_2D_HV_SEPARABLE``
-
-       -  Two-dimensional separable
-
-    -  .. row 5
-
-       -  ``V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_2D_SYM_NON_SEPARABLE``
-
-       -  Two-dimensional symmetrical non-separable
+    * - ``V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_OFF``
+      - No filter
+    * - ``V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_1D_HOR``
+      - One-dimensional horizontal
+    * - ``V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_1D_VERT``
+      - One-dimensional vertical
+    * - ``V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_2D_HV_SEPARABLE``
+      - Two-dimensional separable
+    * - ``V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_2D_SYM_NON_SEPARABLE``
+      - Two-dimensional symmetrical non-separable
 
 
 
@@ -2618,18 +1742,10 @@ enum v4l2_mpeg_cx2341x_video_chroma_spatial_filter_type -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_CX2341X_VIDEO_CHROMA_SPATIAL_FILTER_TYPE_OFF``
-
-       -  No filter
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_CX2341X_VIDEO_CHROMA_SPATIAL_FILTER_TYPE_1D_HOR``
-
-       -  One-dimensional horizontal
+    * - ``V4L2_MPEG_CX2341X_VIDEO_CHROMA_SPATIAL_FILTER_TYPE_OFF``
+      - No filter
+    * - ``V4L2_MPEG_CX2341X_VIDEO_CHROMA_SPATIAL_FILTER_TYPE_1D_HOR``
+      - One-dimensional horizontal
 
 
 
@@ -2648,18 +1764,10 @@ enum v4l2_mpeg_cx2341x_video_temporal_filter_mode -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_CX2341X_VIDEO_TEMPORAL_FILTER_MODE_MANUAL``
-
-       -  Choose the filter manually
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_CX2341X_VIDEO_TEMPORAL_FILTER_MODE_AUTO``
-
-       -  Choose the filter automatically
+    * - ``V4L2_MPEG_CX2341X_VIDEO_TEMPORAL_FILTER_MODE_MANUAL``
+      - Choose the filter manually
+    * - ``V4L2_MPEG_CX2341X_VIDEO_TEMPORAL_FILTER_MODE_AUTO``
+      - Choose the filter automatically
 
 
 
@@ -2681,36 +1789,16 @@ enum v4l2_mpeg_cx2341x_video_median_filter_type -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_OFF``
-
-       -  No filter
-
-    -  .. row 2
-
-       -  ``V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_HOR``
-
-       -  Horizontal filter
-
-    -  .. row 3
-
-       -  ``V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_VERT``
-
-       -  Vertical filter
-
-    -  .. row 4
-
-       -  ``V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_HOR_VERT``
-
-       -  Horizontal and vertical filter
-
-    -  .. row 5
-
-       -  ``V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_DIAG``
-
-       -  Diagonal filter
+    * - ``V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_OFF``
+      - No filter
+    * - ``V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_HOR``
+      - Horizontal filter
+    * - ``V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_VERT``
+      - Vertical filter
+    * - ``V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_HOR_VERT``
+      - Horizontal and vertical filter
+    * - ``V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_DIAG``
+      - Diagonal filter
 
 
 
@@ -2766,30 +1854,14 @@ enum v4l2_vp8_num_partitions -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_CID_MPEG_VIDEO_VPX_1_PARTITION``
-
-       -  1 coefficient partition
-
-    -  .. row 2
-
-       -  ``V4L2_CID_MPEG_VIDEO_VPX_2_PARTITIONS``
-
-       -  2 coefficient partitions
-
-    -  .. row 3
-
-       -  ``V4L2_CID_MPEG_VIDEO_VPX_4_PARTITIONS``
-
-       -  4 coefficient partitions
-
-    -  .. row 4
-
-       -  ``V4L2_CID_MPEG_VIDEO_VPX_8_PARTITIONS``
-
-       -  8 coefficient partitions
+    * - ``V4L2_CID_MPEG_VIDEO_VPX_1_PARTITION``
+      - 1 coefficient partition
+    * - ``V4L2_CID_MPEG_VIDEO_VPX_2_PARTITIONS``
+      - 2 coefficient partitions
+    * - ``V4L2_CID_MPEG_VIDEO_VPX_4_PARTITIONS``
+      - 4 coefficient partitions
+    * - ``V4L2_CID_MPEG_VIDEO_VPX_8_PARTITIONS``
+      - 8 coefficient partitions
 
 
 
@@ -2811,26 +1883,15 @@ enum v4l2_vp8_num_ref_frames -
     :header-rows:  0
     :stub-columns: 0
 
-    -  .. row 1
-
-       -  ``V4L2_CID_MPEG_VIDEO_VPX_1_REF_FRAME``
-
-       -  Last encoded frame will be searched
-
-    -  .. row 2
-
-       -  ``V4L2_CID_MPEG_VIDEO_VPX_2_REF_FRAME``
-
-       -  Two frames will be searched among the last encoded frame, the
-	  golden frame and the alternate reference (altref) frame. The
-	  encoder implementation will decide which two are chosen.
-
-    -  .. row 3
-
-       -  ``V4L2_CID_MPEG_VIDEO_VPX_3_REF_FRAME``
-
-       -  The last encoded frame, the golden frame and the altref frame will
-	  be searched.
+    * - ``V4L2_CID_MPEG_VIDEO_VPX_1_REF_FRAME``
+      - Last encoded frame will be searched
+    * - ``V4L2_CID_MPEG_VIDEO_VPX_2_REF_FRAME``
+      - Two frames will be searched among the last encoded frame, the
+	golden frame and the alternate reference (altref) frame. The
+	encoder implementation will decide which two are chosen.
+    * - ``V4L2_CID_MPEG_VIDEO_VPX_3_REF_FRAME``
+      - The last encoded frame, the golden frame and the altref frame will
+	be searched.
 
 
 
@@ -2869,20 +1930,13 @@ enum v4l2_vp8_golden_frame_sel -
     :header-rows:  0
     :stub-columns: 0
 
-    -  .. row 1
-
-       -  ``V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_USE_PREV``
-
-       -  Use the (n-2)th frame as a golden frame, current frame index being
-	  'n'.
-
-    -  .. row 2
-
-       -  ``V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_USE_REF_PERIOD``
-
-       -  Use the previous specific frame indicated by
-	  ``V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_REF_PERIOD`` as a
-	  golden frame.
+    * - ``V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_USE_PREV``
+      - Use the (n-2)th frame as a golden frame, current frame index being
+	'n'.
+    * - ``V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_USE_REF_PERIOD``
+      - Use the previous specific frame indicated by
+	``V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_REF_PERIOD`` as a
+	golden frame.
 
 .. raw:: latex
 
@@ -2942,30 +1996,14 @@ enum v4l2_exposure_auto_type -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_EXPOSURE_AUTO``
-
-       -  Automatic exposure time, automatic iris aperture.
-
-    -  .. row 2
-
-       -  ``V4L2_EXPOSURE_MANUAL``
-
-       -  Manual exposure time, manual iris.
-
-    -  .. row 3
-
-       -  ``V4L2_EXPOSURE_SHUTTER_PRIORITY``
-
-       -  Manual exposure time, auto iris.
-
-    -  .. row 4
-
-       -  ``V4L2_EXPOSURE_APERTURE_PRIORITY``
-
-       -  Auto exposure time, manual iris.
+    * - ``V4L2_EXPOSURE_AUTO``
+      - Automatic exposure time, automatic iris aperture.
+    * - ``V4L2_EXPOSURE_MANUAL``
+      - Manual exposure time, manual iris.
+    * - ``V4L2_EXPOSURE_SHUTTER_PRIORITY``
+      - Manual exposure time, auto iris.
+    * - ``V4L2_EXPOSURE_APERTURE_PRIORITY``
+      - Auto exposure time, manual iris.
 
 
 
@@ -3008,34 +2046,19 @@ enum v4l2_exposure_metering -
     :header-rows:  0
     :stub-columns: 0
 
-    -  .. row 1
-
-       -  ``V4L2_EXPOSURE_METERING_AVERAGE``
-
-       -  Use the light information coming from the entire frame and average
-	  giving no weighting to any particular portion of the metered area.
-
-    -  .. row 2
-
-       -  ``V4L2_EXPOSURE_METERING_CENTER_WEIGHTED``
-
-       -  Average the light information coming from the entire frame giving
-	  priority to the center of the metered area.
-
-    -  .. row 3
-
-       -  ``V4L2_EXPOSURE_METERING_SPOT``
-
-       -  Measure only very small area at the center of the frame.
-
-    -  .. row 4
-
-       -  ``V4L2_EXPOSURE_METERING_MATRIX``
-
-       -  A multi-zone metering. The light intensity is measured in several
-	  points of the frame and the results are combined. The algorithm of
-	  the zones selection and their significance in calculating the
-	  final value is device dependent.
+    * - ``V4L2_EXPOSURE_METERING_AVERAGE``
+      - Use the light information coming from the entire frame and average
+	giving no weighting to any particular portion of the metered area.
+    * - ``V4L2_EXPOSURE_METERING_CENTER_WEIGHTED``
+      - Average the light information coming from the entire frame giving
+	priority to the center of the metered area.
+    * - ``V4L2_EXPOSURE_METERING_SPOT``
+      - Measure only very small area at the center of the frame.
+    * - ``V4L2_EXPOSURE_METERING_MATRIX``
+      - A multi-zone metering. The light intensity is measured in several
+	points of the frame and the results are combined. The algorithm of
+	the zones selection and their significance in calculating the
+	final value is device dependent.
 
 
 
@@ -3115,30 +2138,15 @@ enum v4l2_exposure_metering -
     :header-rows:  0
     :stub-columns: 0
 
-    -  .. row 1
-
-       -  ``V4L2_AUTO_FOCUS_STATUS_IDLE``
-
-       -  Automatic focus is not active.
-
-    -  .. row 2
-
-       -  ``V4L2_AUTO_FOCUS_STATUS_BUSY``
-
-       -  Automatic focusing is in progress.
-
-    -  .. row 3
-
-       -  ``V4L2_AUTO_FOCUS_STATUS_REACHED``
-
-       -  Focus has been reached.
-
-    -  .. row 4
-
-       -  ``V4L2_AUTO_FOCUS_STATUS_FAILED``
-
-       -  Automatic focus has failed, the driver will not transition from
-	  this state until another action is performed by an application.
+    * - ``V4L2_AUTO_FOCUS_STATUS_IDLE``
+      - Automatic focus is not active.
+    * - ``V4L2_AUTO_FOCUS_STATUS_BUSY``
+      - Automatic focusing is in progress.
+    * - ``V4L2_AUTO_FOCUS_STATUS_REACHED``
+      - Focus has been reached.
+    * - ``V4L2_AUTO_FOCUS_STATUS_FAILED``
+      - Automatic focus has failed, the driver will not transition from
+	this state until another action is performed by an application.
 
 
 
@@ -3156,32 +2164,16 @@ enum v4l2_auto_focus_range -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_AUTO_FOCUS_RANGE_AUTO``
-
-       -  The camera automatically selects the focus range.
-
-    -  .. row 2
-
-       -  ``V4L2_AUTO_FOCUS_RANGE_NORMAL``
-
-       -  Normal distance range, limited for best automatic focus
-	  performance.
-
-    -  .. row 3
-
-       -  ``V4L2_AUTO_FOCUS_RANGE_MACRO``
-
-       -  Macro (close-up) auto focus. The camera will use its minimum
-	  possible distance for auto focus.
-
-    -  .. row 4
-
-       -  ``V4L2_AUTO_FOCUS_RANGE_INFINITY``
-
-       -  The lens is set to focus on an object at infinite distance.
+    * - ``V4L2_AUTO_FOCUS_RANGE_AUTO``
+      - The camera automatically selects the focus range.
+    * - ``V4L2_AUTO_FOCUS_RANGE_NORMAL``
+      - Normal distance range, limited for best automatic focus
+	performance.
+    * - ``V4L2_AUTO_FOCUS_RANGE_MACRO``
+      - Macro (close-up) auto focus. The camera will use its minimum
+	possible distance for auto focus.
+    * - ``V4L2_AUTO_FOCUS_RANGE_INFINITY``
+      - The lens is set to focus on an object at infinite distance.
 
 
 
@@ -3247,76 +2239,37 @@ enum v4l2_auto_n_preset_white_balance -
     :header-rows:  0
     :stub-columns: 0
 
-    -  .. row 1
-
-       -  ``V4L2_WHITE_BALANCE_MANUAL``
-
-       -  Manual white balance.
-
-    -  .. row 2
-
-       -  ``V4L2_WHITE_BALANCE_AUTO``
-
-       -  Automatic white balance adjustments.
-
-    -  .. row 3
-
-       -  ``V4L2_WHITE_BALANCE_INCANDESCENT``
-
-       -  White balance setting for incandescent (tungsten) lighting. It
-	  generally cools down the colors and corresponds approximately to
-	  2500...3500 K color temperature range.
-
-    -  .. row 4
-
-       -  ``V4L2_WHITE_BALANCE_FLUORESCENT``
-
-       -  White balance preset for fluorescent lighting. It corresponds
-	  approximately to 4000...5000 K color temperature.
-
-    -  .. row 5
-
-       -  ``V4L2_WHITE_BALANCE_FLUORESCENT_H``
-
-       -  With this setting the camera will compensate for fluorescent H
-	  lighting.
-
-    -  .. row 6
-
-       -  ``V4L2_WHITE_BALANCE_HORIZON``
-
-       -  White balance setting for horizon daylight. It corresponds
-	  approximately to 5000 K color temperature.
-
-    -  .. row 7
-
-       -  ``V4L2_WHITE_BALANCE_DAYLIGHT``
-
-       -  White balance preset for daylight (with clear sky). It corresponds
-	  approximately to 5000...6500 K color temperature.
-
-    -  .. row 8
-
-       -  ``V4L2_WHITE_BALANCE_FLASH``
-
-       -  With this setting the camera will compensate for the flash light.
-	  It slightly warms up the colors and corresponds roughly to
-	  5000...5500 K color temperature.
-
-    -  .. row 9
-
-       -  ``V4L2_WHITE_BALANCE_CLOUDY``
-
-       -  White balance preset for moderately overcast sky. This option
-	  corresponds approximately to 6500...8000 K color temperature
-	  range.
-
-    -  .. row 10
-
-       -  ``V4L2_WHITE_BALANCE_SHADE``
-
-       -  White balance preset for shade or heavily overcast sky. It
-	  corresponds approximately to 9000...10000 K color temperature.
+    * - ``V4L2_WHITE_BALANCE_MANUAL``
+      - Manual white balance.
+    * - ``V4L2_WHITE_BALANCE_AUTO``
+      - Automatic white balance adjustments.
+    * - ``V4L2_WHITE_BALANCE_INCANDESCENT``
+      - White balance setting for incandescent (tungsten) lighting. It
+	generally cools down the colors and corresponds approximately to
+	2500...3500 K color temperature range.
+    * - ``V4L2_WHITE_BALANCE_FLUORESCENT``
+      - White balance preset for fluorescent lighting. It corresponds
+	approximately to 4000...5000 K color temperature.
+    * - ``V4L2_WHITE_BALANCE_FLUORESCENT_H``
+      - With this setting the camera will compensate for fluorescent H
+	lighting.
+    * - ``V4L2_WHITE_BALANCE_HORIZON``
+      - White balance setting for horizon daylight. It corresponds
+	approximately to 5000 K color temperature.
+    * - ``V4L2_WHITE_BALANCE_DAYLIGHT``
+      - White balance preset for daylight (with clear sky). It corresponds
+	approximately to 5000...6500 K color temperature.
+    * - ``V4L2_WHITE_BALANCE_FLASH``
+      - With this setting the camera will compensate for the flash light.
+	It slightly warms up the colors and corresponds roughly to
+	5000...5500 K color temperature.
+    * - ``V4L2_WHITE_BALANCE_CLOUDY``
+      - White balance preset for moderately overcast sky. This option
+	corresponds approximately to 6500...8000 K color temperature
+	range.
+    * - ``V4L2_WHITE_BALANCE_SHADE``
+      - White balance preset for shade or heavily overcast sky. It
+	corresponds approximately to 9000...10000 K color temperature.
 
 
 
@@ -3362,18 +2315,10 @@ enum v4l2_iso_sensitivity_type -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_CID_ISO_SENSITIVITY_MANUAL``
-
-       -  Manual ISO sensitivity.
-
-    -  .. row 2
-
-       -  ``V4L2_CID_ISO_SENSITIVITY_AUTO``
-
-       -  Automatic ISO sensitivity adjustments.
+    * - ``V4L2_CID_ISO_SENSITIVITY_MANUAL``
+      - Manual ISO sensitivity.
+    * - ``V4L2_CID_ISO_SENSITIVITY_AUTO``
+      - Automatic ISO sensitivity adjustments.
 
 
 
@@ -3400,126 +2345,71 @@ enum v4l2_scene_mode -
     :header-rows:  0
     :stub-columns: 0
 
-    -  .. row 1
-
-       -  ``V4L2_SCENE_MODE_NONE``
-
-       -  The scene mode feature is disabled.
-
-    -  .. row 2
-
-       -  ``V4L2_SCENE_MODE_BACKLIGHT``
-
-       -  Backlight. Compensates for dark shadows when light is coming from
-	  behind a subject, also by automatically turning on the flash.
-
-    -  .. row 3
-
-       -  ``V4L2_SCENE_MODE_BEACH_SNOW``
-
-       -  Beach and snow. This mode compensates for all-white or bright
-	  scenes, which tend to look gray and low contrast, when camera's
-	  automatic exposure is based on an average scene brightness. To
-	  compensate, this mode automatically slightly overexposes the
-	  frames. The white balance may also be adjusted to compensate for
-	  the fact that reflected snow looks bluish rather than white.
-
-    -  .. row 4
-
-       -  ``V4L2_SCENE_MODE_CANDLELIGHT``
-
-       -  Candle light. The camera generally raises the ISO sensitivity and
-	  lowers the shutter speed. This mode compensates for relatively
-	  close subject in the scene. The flash is disabled in order to
-	  preserve the ambiance of the light.
-
-    -  .. row 5
-
-       -  ``V4L2_SCENE_MODE_DAWN_DUSK``
-
-       -  Dawn and dusk. Preserves the colors seen in low natural light
-	  before dusk and after down. The camera may turn off the flash, and
-	  automatically focus at infinity. It will usually boost saturation
-	  and lower the shutter speed.
-
-    -  .. row 6
-
-       -  ``V4L2_SCENE_MODE_FALL_COLORS``
-
-       -  Fall colors. Increases saturation and adjusts white balance for
-	  color enhancement. Pictures of autumn leaves get saturated reds
-	  and yellows.
-
-    -  .. row 7
-
-       -  ``V4L2_SCENE_MODE_FIREWORKS``
-
-       -  Fireworks. Long exposure times are used to capture the expanding
-	  burst of light from a firework. The camera may invoke image
-	  stabilization.
-
-    -  .. row 8
-
-       -  ``V4L2_SCENE_MODE_LANDSCAPE``
-
-       -  Landscape. The camera may choose a small aperture to provide deep
-	  depth of field and long exposure duration to help capture detail
-	  in dim light conditions. The focus is fixed at infinity. Suitable
-	  for distant and wide scenery.
-
-    -  .. row 9
-
-       -  ``V4L2_SCENE_MODE_NIGHT``
-
-       -  Night, also known as Night Landscape. Designed for low light
-	  conditions, it preserves detail in the dark areas without blowing
-	  out bright objects. The camera generally sets itself to a
-	  medium-to-high ISO sensitivity, with a relatively long exposure
-	  time, and turns flash off. As such, there will be increased image
-	  noise and the possibility of blurred image.
-
-    -  .. row 10
-
-       -  ``V4L2_SCENE_MODE_PARTY_INDOOR``
-
-       -  Party and indoor. Designed to capture indoor scenes that are lit
-	  by indoor background lighting as well as the flash. The camera
-	  usually increases ISO sensitivity, and adjusts exposure for the
-	  low light conditions.
-
-    -  .. row 11
-
-       -  ``V4L2_SCENE_MODE_PORTRAIT``
-
-       -  Portrait. The camera adjusts the aperture so that the depth of
-	  field is reduced, which helps to isolate the subject against a
-	  smooth background. Most cameras recognize the presence of faces in
-	  the scene and focus on them. The color hue is adjusted to enhance
-	  skin tones. The intensity of the flash is often reduced.
-
-    -  .. row 12
-
-       -  ``V4L2_SCENE_MODE_SPORTS``
-
-       -  Sports. Significantly increases ISO and uses a fast shutter speed
-	  to freeze motion of rapidly-moving subjects. Increased image noise
-	  may be seen in this mode.
-
-    -  .. row 13
-
-       -  ``V4L2_SCENE_MODE_SUNSET``
-
-       -  Sunset. Preserves deep hues seen in sunsets and sunrises. It bumps
-	  up the saturation.
-
-    -  .. row 14
-
-       -  ``V4L2_SCENE_MODE_TEXT``
-
-       -  Text. It applies extra contrast and sharpness, it is typically a
-	  black-and-white mode optimized for readability. Automatic focus
-	  may be switched to close-up mode and this setting may also involve
-	  some lens-distortion correction.
+    * - ``V4L2_SCENE_MODE_NONE``
+      - The scene mode feature is disabled.
+    * - ``V4L2_SCENE_MODE_BACKLIGHT``
+      - Backlight. Compensates for dark shadows when light is coming from
+	behind a subject, also by automatically turning on the flash.
+    * - ``V4L2_SCENE_MODE_BEACH_SNOW``
+      - Beach and snow. This mode compensates for all-white or bright
+	scenes, which tend to look gray and low contrast, when camera's
+	automatic exposure is based on an average scene brightness. To
+	compensate, this mode automatically slightly overexposes the
+	frames. The white balance may also be adjusted to compensate for
+	the fact that reflected snow looks bluish rather than white.
+    * - ``V4L2_SCENE_MODE_CANDLELIGHT``
+      - Candle light. The camera generally raises the ISO sensitivity and
+	lowers the shutter speed. This mode compensates for relatively
+	close subject in the scene. The flash is disabled in order to
+	preserve the ambiance of the light.
+    * - ``V4L2_SCENE_MODE_DAWN_DUSK``
+      - Dawn and dusk. Preserves the colors seen in low natural light
+	before dusk and after down. The camera may turn off the flash, and
+	automatically focus at infinity. It will usually boost saturation
+	and lower the shutter speed.
+    * - ``V4L2_SCENE_MODE_FALL_COLORS``
+      - Fall colors. Increases saturation and adjusts white balance for
+	color enhancement. Pictures of autumn leaves get saturated reds
+	and yellows.
+    * - ``V4L2_SCENE_MODE_FIREWORKS``
+      - Fireworks. Long exposure times are used to capture the expanding
+	burst of light from a firework. The camera may invoke image
+	stabilization.
+    * - ``V4L2_SCENE_MODE_LANDSCAPE``
+      - Landscape. The camera may choose a small aperture to provide deep
+	depth of field and long exposure duration to help capture detail
+	in dim light conditions. The focus is fixed at infinity. Suitable
+	for distant and wide scenery.
+    * - ``V4L2_SCENE_MODE_NIGHT``
+      - Night, also known as Night Landscape. Designed for low light
+	conditions, it preserves detail in the dark areas without blowing
+	out bright objects. The camera generally sets itself to a
+	medium-to-high ISO sensitivity, with a relatively long exposure
+	time, and turns flash off. As such, there will be increased image
+	noise and the possibility of blurred image.
+    * - ``V4L2_SCENE_MODE_PARTY_INDOOR``
+      - Party and indoor. Designed to capture indoor scenes that are lit
+	by indoor background lighting as well as the flash. The camera
+	usually increases ISO sensitivity, and adjusts exposure for the
+	low light conditions.
+    * - ``V4L2_SCENE_MODE_PORTRAIT``
+      - Portrait. The camera adjusts the aperture so that the depth of
+	field is reduced, which helps to isolate the subject against a
+	smooth background. Most cameras recognize the presence of faces in
+	the scene and focus on them. The color hue is adjusted to enhance
+	skin tones. The intensity of the flash is often reduced.
+    * - ``V4L2_SCENE_MODE_SPORTS``
+      - Sports. Significantly increases ISO and uses a fast shutter speed
+	to freeze motion of rapidly-moving subjects. Increased image noise
+	may be seen in this mode.
+    * - ``V4L2_SCENE_MODE_SUNSET``
+      - Sunset. Preserves deep hues seen in sunsets and sunrises. It bumps
+	up the saturation.
+    * - ``V4L2_SCENE_MODE_TEXT``
+      - Text. It applies extra contrast and sharpness, it is typically a
+	black-and-white mode optimized for readability. Automatic focus
+	may be switched to close-up mode and this setting may also involve
+	some lens-distortion correction.
 
 
 
@@ -3543,24 +2433,12 @@ enum v4l2_scene_mode -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_LOCK_EXPOSURE``
-
-       -  Automatic exposure adjustments lock.
-
-    -  .. row 2
-
-       -  ``V4L2_LOCK_WHITE_BALANCE``
-
-       -  Automatic white balance adjustments lock.
-
-    -  .. row 3
-
-       -  ``V4L2_LOCK_FOCUS``
-
-       -  Automatic focus lock.
+    * - ``V4L2_LOCK_EXPOSURE``
+      - Automatic exposure adjustments lock.
+    * - ``V4L2_LOCK_WHITE_BALANCE``
+      - Automatic white balance adjustments lock.
+    * - ``V4L2_LOCK_FOCUS``
+      - Automatic focus lock.
 
 
 
@@ -3736,24 +2614,12 @@ enum v4l2_preemphasis -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_PREEMPHASIS_DISABLED``
-
-       -  No pre-emphasis is applied.
-
-    -  .. row 2
-
-       -  ``V4L2_PREEMPHASIS_50_uS``
-
-       -  A pre-emphasis of 50 uS is used.
-
-    -  .. row 3
-
-       -  ``V4L2_PREEMPHASIS_75_uS``
-
-       -  A pre-emphasis of 75 uS is used.
+    * - ``V4L2_PREEMPHASIS_DISABLED``
+      - No pre-emphasis is applied.
+    * - ``V4L2_PREEMPHASIS_50_uS``
+      - A pre-emphasis of 50 uS is used.
+    * - ``V4L2_PREEMPHASIS_75_uS``
+      - A pre-emphasis of 75 uS is used.
 
 
 
@@ -3837,24 +2703,12 @@ Flash Control IDs
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_FLASH_LED_MODE_NONE``
-
-       -  Off.
-
-    -  .. row 2
-
-       -  ``V4L2_FLASH_LED_MODE_FLASH``
-
-       -  Flash mode.
-
-    -  .. row 3
-
-       -  ``V4L2_FLASH_LED_MODE_TORCH``
-
-       -  Torch mode. See V4L2_CID_FLASH_TORCH_INTENSITY.
+    * - ``V4L2_FLASH_LED_MODE_NONE``
+      - Off.
+    * - ``V4L2_FLASH_LED_MODE_FLASH``
+      - Flash mode.
+    * - ``V4L2_FLASH_LED_MODE_TORCH``
+      - Torch mode. See V4L2_CID_FLASH_TORCH_INTENSITY.
 
 
 
@@ -3867,20 +2721,13 @@ Flash Control IDs
     :header-rows:  0
     :stub-columns: 0
 
-    -  .. row 1
-
-       -  ``V4L2_FLASH_STROBE_SOURCE_SOFTWARE``
-
-       -  The flash strobe is triggered by using the
-	  V4L2_CID_FLASH_STROBE control.
-
-    -  .. row 2
-
-       -  ``V4L2_FLASH_STROBE_SOURCE_EXTERNAL``
-
-       -  The flash strobe is triggered by an external source. Typically
-	  this is a sensor, which makes it possible to synchronises the
-	  flash strobe start to exposure start.
+    * - ``V4L2_FLASH_STROBE_SOURCE_SOFTWARE``
+      - The flash strobe is triggered by using the
+	V4L2_CID_FLASH_STROBE control.
+    * - ``V4L2_FLASH_STROBE_SOURCE_EXTERNAL``
+      - The flash strobe is triggered by an external source. Typically
+	this is a sensor, which makes it possible to synchronises the
+	flash strobe start to exposure start.
 
 
 
@@ -3933,69 +2780,33 @@ Flash Control IDs
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_FLASH_FAULT_OVER_VOLTAGE``
-
-       -  Flash controller voltage to the flash LED has exceeded the limit
-	  specific to the flash controller.
-
-    -  .. row 2
-
-       -  ``V4L2_FLASH_FAULT_TIMEOUT``
-
-       -  The flash strobe was still on when the timeout set by the user ---
-	  V4L2_CID_FLASH_TIMEOUT control --- has expired. Not all flash
-	  controllers may set this in all such conditions.
-
-    -  .. row 3
-
-       -  ``V4L2_FLASH_FAULT_OVER_TEMPERATURE``
-
-       -  The flash controller has overheated.
-
-    -  .. row 4
-
-       -  ``V4L2_FLASH_FAULT_SHORT_CIRCUIT``
-
-       -  The short circuit protection of the flash controller has been
-	  triggered.
-
-    -  .. row 5
-
-       -  ``V4L2_FLASH_FAULT_OVER_CURRENT``
-
-       -  Current in the LED power supply has exceeded the limit specific to
-	  the flash controller.
-
-    -  .. row 6
-
-       -  ``V4L2_FLASH_FAULT_INDICATOR``
-
-       -  The flash controller has detected a short or open circuit
-	  condition on the indicator LED.
-
-    -  .. row 7
-
-       -  ``V4L2_FLASH_FAULT_UNDER_VOLTAGE``
-
-       -  Flash controller voltage to the flash LED has been below the
-	  minimum limit specific to the flash controller.
-
-    -  .. row 8
-
-       -  ``V4L2_FLASH_FAULT_INPUT_VOLTAGE``
-
-       -  The input voltage of the flash controller is below the limit under
-	  which strobing the flash at full current will not be possible.The
-	  condition persists until this flag is no longer set.
-
-    -  .. row 9
-
-       -  ``V4L2_FLASH_FAULT_LED_OVER_TEMPERATURE``
-
-       -  The temperature of the LED has exceeded its allowed upper limit.
+    * - ``V4L2_FLASH_FAULT_OVER_VOLTAGE``
+      - Flash controller voltage to the flash LED has exceeded the limit
+	specific to the flash controller.
+    * - ``V4L2_FLASH_FAULT_TIMEOUT``
+      - The flash strobe was still on when the timeout set by the user ---
+	V4L2_CID_FLASH_TIMEOUT control --- has expired. Not all flash
+	controllers may set this in all such conditions.
+    * - ``V4L2_FLASH_FAULT_OVER_TEMPERATURE``
+      - The flash controller has overheated.
+    * - ``V4L2_FLASH_FAULT_SHORT_CIRCUIT``
+      - The short circuit protection of the flash controller has been
+	triggered.
+    * - ``V4L2_FLASH_FAULT_OVER_CURRENT``
+      - Current in the LED power supply has exceeded the limit specific to
+	the flash controller.
+    * - ``V4L2_FLASH_FAULT_INDICATOR``
+      - The flash controller has detected a short or open circuit
+	condition on the indicator LED.
+    * - ``V4L2_FLASH_FAULT_UNDER_VOLTAGE``
+      - Flash controller voltage to the flash LED has been below the
+	minimum limit specific to the flash controller.
+    * - ``V4L2_FLASH_FAULT_INPUT_VOLTAGE``
+      - The input voltage of the flash controller is below the limit under
+	which strobing the flash at full current will not be possible.The
+	condition persists until this flag is no longer set.
+    * - ``V4L2_FLASH_FAULT_LED_OVER_TEMPERATURE``
+      - The temperature of the LED has exceeded its allowed upper limit.
 
 
 
@@ -4044,42 +2855,18 @@ JPEG Control IDs
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_JPEG_CHROMA_SUBSAMPLING_444``
-
-       -  No chroma subsampling, each pixel has Y, Cr and Cb values.
-
-    -  .. row 2
-
-       -  ``V4L2_JPEG_CHROMA_SUBSAMPLING_422``
-
-       -  Horizontally subsample Cr, Cb components by a factor of 2.
-
-    -  .. row 3
-
-       -  ``V4L2_JPEG_CHROMA_SUBSAMPLING_420``
-
-       -  Subsample Cr, Cb components horizontally and vertically by 2.
-
-    -  .. row 4
-
-       -  ``V4L2_JPEG_CHROMA_SUBSAMPLING_411``
-
-       -  Horizontally subsample Cr, Cb components by a factor of 4.
-
-    -  .. row 5
-
-       -  ``V4L2_JPEG_CHROMA_SUBSAMPLING_410``
-
-       -  Subsample Cr, Cb components horizontally by 4 and vertically by 2.
-
-    -  .. row 6
-
-       -  ``V4L2_JPEG_CHROMA_SUBSAMPLING_GRAY``
-
-       -  Use only luminance component.
+    * - ``V4L2_JPEG_CHROMA_SUBSAMPLING_444``
+      - No chroma subsampling, each pixel has Y, Cr and Cb values.
+    * - ``V4L2_JPEG_CHROMA_SUBSAMPLING_422``
+      - Horizontally subsample Cr, Cb components by a factor of 2.
+    * - ``V4L2_JPEG_CHROMA_SUBSAMPLING_420``
+      - Subsample Cr, Cb components horizontally and vertically by 2.
+    * - ``V4L2_JPEG_CHROMA_SUBSAMPLING_411``
+      - Horizontally subsample Cr, Cb components by a factor of 4.
+    * - ``V4L2_JPEG_CHROMA_SUBSAMPLING_410``
+      - Subsample Cr, Cb components horizontally by 4 and vertically by 2.
+    * - ``V4L2_JPEG_CHROMA_SUBSAMPLING_GRAY``
+      - Use only luminance component.
 
 
 
@@ -4121,36 +2908,16 @@ JPEG Control IDs
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_JPEG_ACTIVE_MARKER_APP0``
-
-       -  Application data segment APP\ :sub:`0`.
-
-    -  .. row 2
-
-       -  ``V4L2_JPEG_ACTIVE_MARKER_APP1``
-
-       -  Application data segment APP\ :sub:`1`.
-
-    -  .. row 3
-
-       -  ``V4L2_JPEG_ACTIVE_MARKER_COM``
-
-       -  Comment segment.
-
-    -  .. row 4
-
-       -  ``V4L2_JPEG_ACTIVE_MARKER_DQT``
-
-       -  Quantization tables segment.
-
-    -  .. row 5
-
-       -  ``V4L2_JPEG_ACTIVE_MARKER_DHT``
-
-       -  Huffman tables segment.
+    * - ``V4L2_JPEG_ACTIVE_MARKER_APP0``
+      - Application data segment APP\ :sub:`0`.
+    * - ``V4L2_JPEG_ACTIVE_MARKER_APP1``
+      - Application data segment APP\ :sub:`1`.
+    * - ``V4L2_JPEG_ACTIVE_MARKER_COM``
+      - Comment segment.
+    * - ``V4L2_JPEG_ACTIVE_MARKER_DQT``
+      - Quantization tables segment.
+    * - ``V4L2_JPEG_ACTIVE_MARKER_DHT``
+      - Huffman tables segment.
 
 
 
@@ -4355,40 +3122,20 @@ enum v4l2_dv_it_content_type -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_DV_IT_CONTENT_TYPE_GRAPHICS``
-
-       -  Graphics content. Pixel data should be passed unfiltered and
-	  without analog reconstruction.
-
-    -  .. row 2
-
-       -  ``V4L2_DV_IT_CONTENT_TYPE_PHOTO``
-
-       -  Photo content. The content is derived from digital still pictures.
-	  The content should be passed through with minimal scaling and
-	  picture enhancements.
-
-    -  .. row 3
-
-       -  ``V4L2_DV_IT_CONTENT_TYPE_CINEMA``
-
-       -  Cinema content.
-
-    -  .. row 4
-
-       -  ``V4L2_DV_IT_CONTENT_TYPE_GAME``
-
-       -  Game content. Audio and video latency should be minimized.
-
-    -  .. row 5
-
-       -  ``V4L2_DV_IT_CONTENT_TYPE_NO_ITC``
-
-       -  No IT Content information is available and the ITC bit in the AVI
-	  InfoFrame is set to 0.
+    * - ``V4L2_DV_IT_CONTENT_TYPE_GRAPHICS``
+      - Graphics content. Pixel data should be passed unfiltered and
+	without analog reconstruction.
+    * - ``V4L2_DV_IT_CONTENT_TYPE_PHOTO``
+      - Photo content. The content is derived from digital still pictures.
+	The content should be passed through with minimal scaling and
+	picture enhancements.
+    * - ``V4L2_DV_IT_CONTENT_TYPE_CINEMA``
+      - Cinema content.
+    * - ``V4L2_DV_IT_CONTENT_TYPE_GAME``
+      - Game content. Audio and video latency should be minimized.
+    * - ``V4L2_DV_IT_CONTENT_TYPE_NO_ITC``
+      - No IT Content information is available and the ITC bit in the AVI
+	InfoFrame is set to 0.
 
 
 
@@ -4508,24 +3255,12 @@ enum v4l2_deemphasis -
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_DEEMPHASIS_DISABLED``
-
-       -  No de-emphasis is applied.
-
-    -  .. row 2
-
-       -  ``V4L2_DEEMPHASIS_50_uS``
-
-       -  A de-emphasis of 50 uS is used.
-
-    -  .. row 3
-
-       -  ``V4L2_DEEMPHASIS_75_uS``
-
-       -  A de-emphasis of 75 uS is used.
+    * - ``V4L2_DEEMPHASIS_DISABLED``
+      - No de-emphasis is applied.
+    * - ``V4L2_DEEMPHASIS_50_uS``
+      - A de-emphasis of 50 uS is used.
+    * - ``V4L2_DEEMPHASIS_75_uS``
+      - A de-emphasis of 75 uS is used.
 
 
 
@@ -4558,37 +3293,21 @@ Detect Control IDs
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  ``V4L2_DETECT_MD_MODE_DISABLED``
-
-       -  Disable motion detection.
-
-    -  .. row 2
-
-       -  ``V4L2_DETECT_MD_MODE_GLOBAL``
-
-       -  Use a single motion detection threshold.
-
-    -  .. row 3
-
-       -  ``V4L2_DETECT_MD_MODE_THRESHOLD_GRID``
-
-       -  The image is divided into a grid, each cell with its own motion
-	  detection threshold. These thresholds are set through the
-	  ``V4L2_CID_DETECT_MD_THRESHOLD_GRID`` matrix control.
-
-    -  .. row 4
-
-       -  ``V4L2_DETECT_MD_MODE_REGION_GRID``
-
-       -  The image is divided into a grid, each cell with its own region
-	  value that specifies which per-region motion detection thresholds
-	  should be used. Each region has its own thresholds. How these
-	  per-region thresholds are set up is driver-specific. The region
-	  values for the grid are set through the
-	  ``V4L2_CID_DETECT_MD_REGION_GRID`` matrix control.
+    * - ``V4L2_DETECT_MD_MODE_DISABLED``
+      - Disable motion detection.
+    * - ``V4L2_DETECT_MD_MODE_GLOBAL``
+      - Use a single motion detection threshold.
+    * - ``V4L2_DETECT_MD_MODE_THRESHOLD_GRID``
+      - The image is divided into a grid, each cell with its own motion
+	detection threshold. These thresholds are set through the
+	``V4L2_CID_DETECT_MD_THRESHOLD_GRID`` matrix control.
+    * - ``V4L2_DETECT_MD_MODE_REGION_GRID``
+      - The image is divided into a grid, each cell with its own region
+	value that specifies which per-region motion detection thresholds
+	should be used. Each region has its own thresholds. How these
+	per-region thresholds are set up is driver-specific. The region
+	values for the grid are set through the
+	``V4L2_CID_DETECT_MD_REGION_GRID`` matrix control.
 
 
 

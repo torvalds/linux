@@ -24,14 +24,7 @@ Each cell is one byte.
     :header-rows:  0
     :stub-columns: 0
 
-    -  .. row 1
-
-       -  start + 0:
-
-       -  I'\ :sub:`0`
-
-    -  .. row 2
-
-       -  start + 1:
-
-       -  Q'\ :sub:`0`
+    * - start + 0:
+      - I'\ :sub:`0`
+    * - start + 1:
+      - Q'\ :sub:`0`

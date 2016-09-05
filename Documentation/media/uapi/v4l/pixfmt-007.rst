@@ -26,46 +26,21 @@ are:
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  Color
-
-       -  x
-
-       -  y
-
-    -  .. row 2
-
-       -  Red
-
-       -  0.630
-
-       -  0.340
-
-    -  .. row 3
-
-       -  Green
-
-       -  0.310
-
-       -  0.595
-
-    -  .. row 4
-
-       -  Blue
-
-       -  0.155
-
-       -  0.070
-
-    -  .. row 5
-
-       -  White Reference (D65)
-
-       -  0.3127
-
-       -  0.3290
+    * - Color
+      - x
+      - y
+    * - Red
+      - 0.630
+      - 0.340
+    * - Green
+      - 0.310
+      - 0.595
+    * - Blue
+      - 0.155
+      - 0.070
+    * - White Reference (D65)
+      - 0.3127
+      - 0.3290
 
 
 The red, green and blue chromaticities are also often referred to as the
@@ -132,46 +107,21 @@ and the white reference are:
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  Color
-
-       -  x
-
-       -  y
-
-    -  .. row 2
-
-       -  Red
-
-       -  0.640
-
-       -  0.330
-
-    -  .. row 3
-
-       -  Green
-
-       -  0.300
-
-       -  0.600
-
-    -  .. row 4
-
-       -  Blue
-
-       -  0.150
-
-       -  0.060
-
-    -  .. row 5
-
-       -  White Reference (D65)
-
-       -  0.3127
-
-       -  0.3290
+    * - Color
+      - x
+      - y
+    * - Red
+      - 0.640
+      - 0.330
+    * - Green
+      - 0.300
+      - 0.600
+    * - Blue
+      - 0.150
+      - 0.060
+    * - White Reference (D65)
+      - 0.3127
+      - 0.3290
 
 
 The full name of this standard is Rec. ITU-R BT.709-5.
@@ -273,46 +223,21 @@ The chromaticities of the primary colors and the white reference are:
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  Color
-
-       -  x
-
-       -  y
-
-    -  .. row 2
-
-       -  Red
-
-       -  0.640
-
-       -  0.330
-
-    -  .. row 3
-
-       -  Green
-
-       -  0.300
-
-       -  0.600
-
-    -  .. row 4
-
-       -  Blue
-
-       -  0.150
-
-       -  0.060
-
-    -  .. row 5
-
-       -  White Reference (D65)
-
-       -  0.3127
-
-       -  0.3290
+    * - Color
+      - x
+      - y
+    * - Red
+      - 0.640
+      - 0.330
+    * - Green
+      - 0.300
+      - 0.600
+    * - Blue
+      - 0.150
+      - 0.060
+    * - White Reference (D65)
+      - 0.3127
+      - 0.3290
 
 
 These chromaticities are identical to the Rec. 709 colorspace.
@@ -376,46 +301,21 @@ are:
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  Color
-
-       -  x
-
-       -  y
-
-    -  .. row 2
-
-       -  Red
-
-       -  0.6400
-
-       -  0.3300
-
-    -  .. row 3
-
-       -  Green
-
-       -  0.2100
-
-       -  0.7100
-
-    -  .. row 4
-
-       -  Blue
-
-       -  0.1500
-
-       -  0.0600
-
-    -  .. row 5
-
-       -  White Reference (D65)
-
-       -  0.3127
-
-       -  0.3290
+    * - Color
+      - x
+      - y
+    * - Red
+      - 0.6400
+      - 0.3300
+    * - Green
+      - 0.2100
+      - 0.7100
+    * - Blue
+      - 0.1500
+      - 0.0600
+    * - White Reference (D65)
+      - 0.3127
+      - 0.3290
 
 
 
@@ -468,46 +368,21 @@ of the primary colors and the white reference are:
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  Color
-
-       -  x
-
-       -  y
-
-    -  .. row 2
-
-       -  Red
-
-       -  0.708
-
-       -  0.292
-
-    -  .. row 3
-
-       -  Green
-
-       -  0.170
-
-       -  0.797
-
-    -  .. row 4
-
-       -  Blue
-
-       -  0.131
-
-       -  0.046
-
-    -  .. row 5
-
-       -  White Reference (D65)
-
-       -  0.3127
-
-       -  0.3290
+    * - Color
+      - x
+      - y
+    * - Red
+      - 0.708
+      - 0.292
+    * - Green
+      - 0.170
+      - 0.797
+    * - Blue
+      - 0.131
+      - 0.046
+    * - White Reference (D65)
+      - 0.3127
+      - 0.3290
 
 
 
@@ -592,46 +467,21 @@ The chromaticities of the primary colors and the white reference are:
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  Color
-
-       -  x
-
-       -  y
-
-    -  .. row 2
-
-       -  Red
-
-       -  0.6800
-
-       -  0.3200
-
-    -  .. row 3
-
-       -  Green
-
-       -  0.2650
-
-       -  0.6900
-
-    -  .. row 4
-
-       -  Blue
-
-       -  0.1500
-
-       -  0.0600
-
-    -  .. row 5
-
-       -  White Reference
-
-       -  0.3140
-
-       -  0.3510
+    * - Color
+      - x
+      - y
+    * - Red
+      - 0.6800
+      - 0.3200
+    * - Green
+      - 0.2650
+      - 0.6900
+    * - Blue
+      - 0.1500
+      - 0.0600
+    * - White Reference
+      - 0.3140
+      - 0.3510
 
 
 
@@ -671,46 +521,21 @@ and the white reference are:
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  Color
-
-       -  x
-
-       -  y
-
-    -  .. row 2
-
-       -  Red
-
-       -  0.630
-
-       -  0.340
-
-    -  .. row 3
-
-       -  Green
-
-       -  0.310
-
-       -  0.595
-
-    -  .. row 4
-
-       -  Blue
-
-       -  0.155
-
-       -  0.070
-
-    -  .. row 5
-
-       -  White Reference (D65)
-
-       -  0.3127
-
-       -  0.3290
+    * - Color
+      - x
+      - y
+    * - Red
+      - 0.630
+      - 0.340
+    * - Green
+      - 0.310
+      - 0.595
+    * - Blue
+      - 0.155
+      - 0.070
+    * - White Reference (D65)
+      - 0.3127
+      - 0.3290
 
 
 These chromaticities are identical to the SMPTE 170M colorspace.
@@ -767,46 +592,21 @@ reference are:
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  Color
-
-       -  x
-
-       -  y
-
-    -  .. row 2
-
-       -  Red
-
-       -  0.67
-
-       -  0.33
-
-    -  .. row 3
-
-       -  Green
-
-       -  0.21
-
-       -  0.71
-
-    -  .. row 4
-
-       -  Blue
-
-       -  0.14
-
-       -  0.08
-
-    -  .. row 5
-
-       -  White Reference (C)
-
-       -  0.310
-
-       -  0.316
+    * - Color
+      - x
+      - y
+    * - Red
+      - 0.67
+      - 0.33
+    * - Green
+      - 0.21
+      - 0.71
+    * - Blue
+      - 0.14
+      - 0.08
+    * - White Reference (C)
+      - 0.310
+      - 0.316
 
 
 .. note::
@@ -871,46 +671,21 @@ are:
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  Color
-
-       -  x
-
-       -  y
-
-    -  .. row 2
-
-       -  Red
-
-       -  0.64
-
-       -  0.33
-
-    -  .. row 3
-
-       -  Green
-
-       -  0.29
-
-       -  0.60
-
-    -  .. row 4
-
-       -  Blue
-
-       -  0.15
-
-       -  0.06
-
-    -  .. row 5
-
-       -  White Reference (D65)
-
-       -  0.3127
-
-       -  0.3290
+    * - Color
+      - x
+      - y
+    * - Red
+      - 0.64
+      - 0.33
+    * - Green
+      - 0.29
+      - 0.60
+    * - Blue
+      - 0.15
+      - 0.06
+    * - White Reference (D65)
+      - 0.3127
+      - 0.3290
 
 
 

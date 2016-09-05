@@ -31,11 +31,6 @@ interleaved pixel.
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  Y'\ :sub:`0left[7:0]`
-
-       -  Y'\ :sub:`0right[3:0]`\ Y'\ :sub:`0left[11:8]`
-
-       -  Y'\ :sub:`0right[11:4]`
+    * - Y'\ :sub:`0left[7:0]`
+      - Y'\ :sub:`0right[3:0]`\ Y'\ :sub:`0left[11:8]`
+      - Y'\ :sub:`0right[11:4]`

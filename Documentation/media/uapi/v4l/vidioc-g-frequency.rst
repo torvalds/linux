@@ -60,53 +60,33 @@ write-only ioctl, it does not return the actual new frequency.
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``tuner``
-
-       -  The tuner or modulator index number. This is the same value as in
-	  the struct :c:type:`v4l2_input` ``tuner`` field and
-	  the struct :c:type:`v4l2_tuner` ``index`` field, or
-	  the struct :c:type:`v4l2_output` ``modulator`` field
-	  and the struct :c:type:`v4l2_modulator` ``index``
-	  field.
-
-    -  .. row 2
-
-       -  __u32
-
-       -  ``type``
-
-       -  The tuner type. This is the same value as in the struct
-	  :c:type:`v4l2_tuner` ``type`` field. The type must be
-	  set to ``V4L2_TUNER_RADIO`` for ``/dev/radioX`` device nodes, and
-	  to ``V4L2_TUNER_ANALOG_TV`` for all others. Set this field to
-	  ``V4L2_TUNER_RADIO`` for modulators (currently only radio
-	  modulators are supported). See :c:type:`v4l2_tuner_type`
-
-    -  .. row 3
-
-       -  __u32
-
-       -  ``frequency``
-
-       -  Tuning frequency in units of 62.5 kHz, or if the struct
-	  :c:type:`v4l2_tuner` or struct
-	  :c:type:`v4l2_modulator` ``capability`` flag
-	  ``V4L2_TUNER_CAP_LOW`` is set, in units of 62.5 Hz. A 1 Hz unit is
-	  used when the ``capability`` flag ``V4L2_TUNER_CAP_1HZ`` is set.
-
-    -  .. row 4
-
-       -  __u32
-
-       -  ``reserved``\ [8]
-
-       -  Reserved for future extensions. Drivers and applications must set
-	  the array to zero.
+    * - __u32
+      - ``tuner``
+      - The tuner or modulator index number. This is the same value as in
+	the struct :c:type:`v4l2_input` ``tuner`` field and
+	the struct :c:type:`v4l2_tuner` ``index`` field, or
+	the struct :c:type:`v4l2_output` ``modulator`` field
+	and the struct :c:type:`v4l2_modulator` ``index``
+	field.
+    * - __u32
+      - ``type``
+      - The tuner type. This is the same value as in the struct
+	:c:type:`v4l2_tuner` ``type`` field. The type must be
+	set to ``V4L2_TUNER_RADIO`` for ``/dev/radioX`` device nodes, and
+	to ``V4L2_TUNER_ANALOG_TV`` for all others. Set this field to
+	``V4L2_TUNER_RADIO`` for modulators (currently only radio
+	modulators are supported). See :c:type:`v4l2_tuner_type`
+    * - __u32
+      - ``frequency``
+      - Tuning frequency in units of 62.5 kHz, or if the struct
+	:c:type:`v4l2_tuner` or struct
+	:c:type:`v4l2_modulator` ``capability`` flag
+	``V4L2_TUNER_CAP_LOW`` is set, in units of 62.5 Hz. A 1 Hz unit is
+	used when the ``capability`` flag ``V4L2_TUNER_CAP_1HZ`` is set.
+    * - __u32
+      - ``reserved``\ [8]
+      - Reserved for future extensions. Drivers and applications must set
+	the array to zero.
 
 
 Return Value

@@ -58,50 +58,25 @@ return the actual new audio mode.
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``index``
-
-       -  Identifies the audio input, set by the driver or application.
-
-    -  .. row 2
-
-       -  __u8
-
-       -  ``name``\ [32]
-
-       -  Name of the audio input, a NUL-terminated ASCII string, for
-	  example: "Line In". This information is intended for the user,
-	  preferably the connector label on the device itself.
-
-    -  .. row 3
-
-       -  __u32
-
-       -  ``capability``
-
-       -  Audio capability flags, see :ref:`audio-capability`.
-
-    -  .. row 4
-
-       -  __u32
-
-       -  ``mode``
-
-       -  Audio mode flags set by drivers and applications (on
-	  :ref:`VIDIOC_S_AUDIO <VIDIOC_G_AUDIO>` ioctl), see :ref:`audio-mode`.
-
-    -  .. row 5
-
-       -  __u32
-
-       -  ``reserved``\ [2]
-
-       -  Reserved for future extensions. Drivers and applications must set
-	  the array to zero.
+    * - __u32
+      - ``index``
+      - Identifies the audio input, set by the driver or application.
+    * - __u8
+      - ``name``\ [32]
+      - Name of the audio input, a NUL-terminated ASCII string, for
+	example: "Line In". This information is intended for the user,
+	preferably the connector label on the device itself.
+    * - __u32
+      - ``capability``
+      - Audio capability flags, see :ref:`audio-capability`.
+    * - __u32
+      - ``mode``
+      - Audio mode flags set by drivers and applications (on
+	:ref:`VIDIOC_S_AUDIO <VIDIOC_G_AUDIO>` ioctl), see :ref:`audio-mode`.
+    * - __u32
+      - ``reserved``\ [2]
+      - Reserved for future extensions. Drivers and applications must set
+	the array to zero.
 
 
 
@@ -114,25 +89,15 @@ return the actual new audio mode.
     :stub-columns: 0
     :widths:       3 1 4
 
-
-    -  .. row 1
-
-       -  ``V4L2_AUDCAP_STEREO``
-
-       -  0x00001
-
-       -  This is a stereo input. The flag is intended to automatically
-	  disable stereo recording etc. when the signal is always monaural.
-	  The API provides no means to detect if stereo is *received*,
-	  unless the audio input belongs to a tuner.
-
-    -  .. row 2
-
-       -  ``V4L2_AUDCAP_AVL``
-
-       -  0x00002
-
-       -  Automatic Volume Level mode is supported.
+    * - ``V4L2_AUDCAP_STEREO``
+      - 0x00001
+      - This is a stereo input. The flag is intended to automatically
+	disable stereo recording etc. when the signal is always monaural.
+	The API provides no means to detect if stereo is *received*,
+	unless the audio input belongs to a tuner.
+    * - ``V4L2_AUDCAP_AVL``
+      - 0x00002
+      - Automatic Volume Level mode is supported.
 
 
 
@@ -145,14 +110,9 @@ return the actual new audio mode.
     :stub-columns: 0
     :widths:       3 1 4
 
-
-    -  .. row 1
-
-       -  ``V4L2_AUDMODE_AVL``
-
-       -  0x00001
-
-       -  AVL mode is on.
+    * - ``V4L2_AUDMODE_AVL``
+      - 0x00001
+      - AVL mode is on.
 
 
 Return Value

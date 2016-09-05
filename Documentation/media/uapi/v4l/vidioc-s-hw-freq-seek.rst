@@ -68,92 +68,52 @@ error code is returned and no seek takes place.
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``tuner``
-
-       -  The tuner index number. This is the same value as in the struct
-	  :c:type:`v4l2_input` ``tuner`` field and the struct
-	  :c:type:`v4l2_tuner` ``index`` field.
-
-    -  .. row 2
-
-       -  __u32
-
-       -  ``type``
-
-       -  The tuner type. This is the same value as in the struct
-	  :c:type:`v4l2_tuner` ``type`` field. See
-	  :c:type:`v4l2_tuner_type`
-
-    -  .. row 3
-
-       -  __u32
-
-       -  ``seek_upward``
-
-       -  If non-zero, seek upward from the current frequency, else seek
-	  downward.
-
-    -  .. row 4
-
-       -  __u32
-
-       -  ``wrap_around``
-
-       -  If non-zero, wrap around when at the end of the frequency range,
-	  else stop seeking. The struct :c:type:`v4l2_tuner`
-	  ``capability`` field will tell you what the hardware supports.
-
-    -  .. row 5
-
-       -  __u32
-
-       -  ``spacing``
-
-       -  If non-zero, defines the hardware seek resolution in Hz. The
-	  driver selects the nearest value that is supported by the device.
-	  If spacing is zero a reasonable default value is used.
-
-    -  .. row 6
-
-       -  __u32
-
-       -  ``rangelow``
-
-       -  If non-zero, the lowest tunable frequency of the band to search in
-	  units of 62.5 kHz, or if the struct
-	  :c:type:`v4l2_tuner` ``capability`` field has the
-	  ``V4L2_TUNER_CAP_LOW`` flag set, in units of 62.5 Hz or if the
-	  struct :c:type:`v4l2_tuner` ``capability`` field has
-	  the ``V4L2_TUNER_CAP_1HZ`` flag set, in units of 1 Hz. If
-	  ``rangelow`` is zero a reasonable default value is used.
-
-    -  .. row 7
-
-       -  __u32
-
-       -  ``rangehigh``
-
-       -  If non-zero, the highest tunable frequency of the band to search
-	  in units of 62.5 kHz, or if the struct
-	  :c:type:`v4l2_tuner` ``capability`` field has the
-	  ``V4L2_TUNER_CAP_LOW`` flag set, in units of 62.5 Hz or if the
-	  struct :c:type:`v4l2_tuner` ``capability`` field has
-	  the ``V4L2_TUNER_CAP_1HZ`` flag set, in units of 1 Hz. If
-	  ``rangehigh`` is zero a reasonable default value is used.
-
-    -  .. row 8
-
-       -  __u32
-
-       -  ``reserved``\ [5]
-
-       -  Reserved for future extensions. Applications must set the array to
-	  zero.
+    * - __u32
+      - ``tuner``
+      - The tuner index number. This is the same value as in the struct
+	:c:type:`v4l2_input` ``tuner`` field and the struct
+	:c:type:`v4l2_tuner` ``index`` field.
+    * - __u32
+      - ``type``
+      - The tuner type. This is the same value as in the struct
+	:c:type:`v4l2_tuner` ``type`` field. See
+	:c:type:`v4l2_tuner_type`
+    * - __u32
+      - ``seek_upward``
+      - If non-zero, seek upward from the current frequency, else seek
+	downward.
+    * - __u32
+      - ``wrap_around``
+      - If non-zero, wrap around when at the end of the frequency range,
+	else stop seeking. The struct :c:type:`v4l2_tuner`
+	``capability`` field will tell you what the hardware supports.
+    * - __u32
+      - ``spacing``
+      - If non-zero, defines the hardware seek resolution in Hz. The
+	driver selects the nearest value that is supported by the device.
+	If spacing is zero a reasonable default value is used.
+    * - __u32
+      - ``rangelow``
+      - If non-zero, the lowest tunable frequency of the band to search in
+	units of 62.5 kHz, or if the struct
+	:c:type:`v4l2_tuner` ``capability`` field has the
+	``V4L2_TUNER_CAP_LOW`` flag set, in units of 62.5 Hz or if the
+	struct :c:type:`v4l2_tuner` ``capability`` field has
+	the ``V4L2_TUNER_CAP_1HZ`` flag set, in units of 1 Hz. If
+	``rangelow`` is zero a reasonable default value is used.
+    * - __u32
+      - ``rangehigh``
+      - If non-zero, the highest tunable frequency of the band to search
+	in units of 62.5 kHz, or if the struct
+	:c:type:`v4l2_tuner` ``capability`` field has the
+	``V4L2_TUNER_CAP_LOW`` flag set, in units of 62.5 Hz or if the
+	struct :c:type:`v4l2_tuner` ``capability`` field has
+	the ``V4L2_TUNER_CAP_1HZ`` flag set, in units of 1 Hz. If
+	``rangehigh`` is zero a reasonable default value is used.
+    * - __u32
+      - ``reserved``\ [5]
+      - Reserved for future extensions. Applications must set the array to
+	zero.
 
 
 Return Value

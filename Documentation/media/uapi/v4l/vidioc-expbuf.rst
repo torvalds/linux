@@ -123,66 +123,36 @@ Examples
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``type``
-
-       -  Type of the buffer, same as struct
-	  :c:type:`v4l2_format` ``type`` or struct
-	  :c:type:`v4l2_requestbuffers` ``type``, set
-	  by the application. See :c:type:`v4l2_buf_type`
-
-    -  .. row 2
-
-       -  __u32
-
-       -  ``index``
-
-       -  Number of the buffer, set by the application. This field is only
-	  used for :ref:`memory mapping <mmap>` I/O and can range from
-	  zero to the number of buffers allocated with the
-	  :ref:`VIDIOC_REQBUFS` and/or
-	  :ref:`VIDIOC_CREATE_BUFS` ioctls.
-
-    -  .. row 3
-
-       -  __u32
-
-       -  ``plane``
-
-       -  Index of the plane to be exported when using the multi-planar API.
-	  Otherwise this value must be set to zero.
-
-    -  .. row 4
-
-       -  __u32
-
-       -  ``flags``
-
-       -  Flags for the newly created file, currently only ``O_CLOEXEC``,
-	  ``O_RDONLY``, ``O_WRONLY``, and ``O_RDWR`` are supported, refer to
-	  the manual of open() for more details.
-
-    -  .. row 5
-
-       -  __s32
-
-       -  ``fd``
-
-       -  The DMABUF file descriptor associated with a buffer. Set by the
-	  driver.
-
-    -  .. row 6
-
-       -  __u32
-
-       -  ``reserved[11]``
-
-       -  Reserved field for future use. Drivers and applications must set
-	  the array to zero.
+    * - __u32
+      - ``type``
+      - Type of the buffer, same as struct
+	:c:type:`v4l2_format` ``type`` or struct
+	:c:type:`v4l2_requestbuffers` ``type``, set
+	by the application. See :c:type:`v4l2_buf_type`
+    * - __u32
+      - ``index``
+      - Number of the buffer, set by the application. This field is only
+	used for :ref:`memory mapping <mmap>` I/O and can range from
+	zero to the number of buffers allocated with the
+	:ref:`VIDIOC_REQBUFS` and/or
+	:ref:`VIDIOC_CREATE_BUFS` ioctls.
+    * - __u32
+      - ``plane``
+      - Index of the plane to be exported when using the multi-planar API.
+	Otherwise this value must be set to zero.
+    * - __u32
+      - ``flags``
+      - Flags for the newly created file, currently only ``O_CLOEXEC``,
+	``O_RDONLY``, ``O_WRONLY``, and ``O_RDWR`` are supported, refer to
+	the manual of open() for more details.
+    * - __s32
+      - ``fd``
+      - The DMABUF file descriptor associated with a buffer. Set by the
+	driver.
+    * - __u32
+      - ``reserved[11]``
+      - Reserved field for future use. Drivers and applications must set
+	the array to zero.
 
 
 Return Value

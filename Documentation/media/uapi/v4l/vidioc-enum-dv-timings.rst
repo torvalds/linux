@@ -74,41 +74,21 @@ return an ``EINVAL`` error code.
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``index``
-
-       -  Number of the DV timings, set by the application.
-
-    -  .. row 2
-
-       -  __u32
-
-       -  ``pad``
-
-       -  Pad number as reported by the media controller API. This field is
-	  only used when operating on a subdevice node. When operating on a
-	  video node applications must set this field to zero.
-
-    -  .. row 3
-
-       -  __u32
-
-       -  ``reserved``\ [2]
-
-       -  Reserved for future extensions. Drivers and applications must set
-	  the array to zero.
-
-    -  .. row 4
-
-       -  struct :c:type:`v4l2_dv_timings`
-
-       -  ``timings``
-
-       -  The timings.
+    * - __u32
+      - ``index``
+      - Number of the DV timings, set by the application.
+    * - __u32
+      - ``pad``
+      - Pad number as reported by the media controller API. This field is
+	only used when operating on a subdevice node. When operating on a
+	video node applications must set this field to zero.
+    * - __u32
+      - ``reserved``\ [2]
+      - Reserved for future extensions. Drivers and applications must set
+	the array to zero.
+    * - struct :c:type:`v4l2_dv_timings`
+      - ``timings``
+      - The timings.
 
 
 Return Value

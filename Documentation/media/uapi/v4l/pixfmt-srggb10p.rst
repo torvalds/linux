@@ -44,65 +44,34 @@ Each cell is one byte.
     :stub-columns: 0
     :widths: 12 8 8 8 8 68
 
-    -  .. row 1
-
-       -  start + 0:
-
-       -  B\ :sub:`00high`
-
-       -  G\ :sub:`01high`
-
-       -  B\ :sub:`02high`
-
-       -  G\ :sub:`03high`
-
-       -  G\ :sub:`03low`\ (bits 7--6) B\ :sub:`02low`\ (bits 5--4)
-	  G\ :sub:`01low`\ (bits 3--2) B\ :sub:`00low`\ (bits 1--0)
-
-    -  .. row 2
-
-       -  start + 5:
-
-       -  G\ :sub:`10high`
-
-       -  R\ :sub:`11high`
-
-       -  G\ :sub:`12high`
-
-       -  R\ :sub:`13high`
-
-       -  R\ :sub:`13low`\ (bits 7--6) G\ :sub:`12low`\ (bits 5--4)
-	  R\ :sub:`11low`\ (bits 3--2) G\ :sub:`10low`\ (bits 1--0)
-
-    -  .. row 3
-
-       -  start + 10:
-
-       -  B\ :sub:`20high`
-
-       -  G\ :sub:`21high`
-
-       -  B\ :sub:`22high`
-
-       -  G\ :sub:`23high`
-
-       -  G\ :sub:`23low`\ (bits 7--6) B\ :sub:`22low`\ (bits 5--4)
-	  G\ :sub:`21low`\ (bits 3--2) B\ :sub:`20low`\ (bits 1--0)
-
-    -  .. row 4
-
-       -  start + 15:
-
-       -  G\ :sub:`30high`
-
-       -  R\ :sub:`31high`
-
-       -  G\ :sub:`32high`
-
-       -  R\ :sub:`33high`
-
-       -  R\ :sub:`33low`\ (bits 7--6) G\ :sub:`32low`\ (bits 5--4)
-	  R\ :sub:`31low`\ (bits 3--2) G\ :sub:`30low`\ (bits 1--0)
+    * - start + 0:
+      - B\ :sub:`00high`
+      - G\ :sub:`01high`
+      - B\ :sub:`02high`
+      - G\ :sub:`03high`
+      - G\ :sub:`03low`\ (bits 7--6) B\ :sub:`02low`\ (bits 5--4)
+	G\ :sub:`01low`\ (bits 3--2) B\ :sub:`00low`\ (bits 1--0)
+    * - start + 5:
+      - G\ :sub:`10high`
+      - R\ :sub:`11high`
+      - G\ :sub:`12high`
+      - R\ :sub:`13high`
+      - R\ :sub:`13low`\ (bits 7--6) G\ :sub:`12low`\ (bits 5--4)
+	R\ :sub:`11low`\ (bits 3--2) G\ :sub:`10low`\ (bits 1--0)
+    * - start + 10:
+      - B\ :sub:`20high`
+      - G\ :sub:`21high`
+      - B\ :sub:`22high`
+      - G\ :sub:`23high`
+      - G\ :sub:`23low`\ (bits 7--6) B\ :sub:`22low`\ (bits 5--4)
+	G\ :sub:`21low`\ (bits 3--2) B\ :sub:`20low`\ (bits 1--0)
+    * - start + 15:
+      - G\ :sub:`30high`
+      - R\ :sub:`31high`
+      - G\ :sub:`32high`
+      - R\ :sub:`33high`
+      - R\ :sub:`33low`\ (bits 7--6) G\ :sub:`32low`\ (bits 5--4)
+	R\ :sub:`31low`\ (bits 3--2) G\ :sub:`30low`\ (bits 1--0)
 
 .. raw:: latex
 

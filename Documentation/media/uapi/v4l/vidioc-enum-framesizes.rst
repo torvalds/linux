@@ -99,22 +99,12 @@ application should zero out all members except for the *IN* fields.
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``width``
-
-       -  Width of the frame [pixel].
-
-    -  .. row 2
-
-       -  __u32
-
-       -  ``height``
-
-       -  Height of the frame [pixel].
+    * - __u32
+      - ``width``
+      - Width of the frame [pixel].
+    * - __u32
+      - ``height``
+      - Height of the frame [pixel].
 
 
 
@@ -127,54 +117,24 @@ application should zero out all members except for the *IN* fields.
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``min_width``
-
-       -  Minimum frame width [pixel].
-
-    -  .. row 2
-
-       -  __u32
-
-       -  ``max_width``
-
-       -  Maximum frame width [pixel].
-
-    -  .. row 3
-
-       -  __u32
-
-       -  ``step_width``
-
-       -  Frame width step size [pixel].
-
-    -  .. row 4
-
-       -  __u32
-
-       -  ``min_height``
-
-       -  Minimum frame height [pixel].
-
-    -  .. row 5
-
-       -  __u32
-
-       -  ``max_height``
-
-       -  Maximum frame height [pixel].
-
-    -  .. row 6
-
-       -  __u32
-
-       -  ``step_height``
-
-       -  Frame height step size [pixel].
+    * - __u32
+      - ``min_width``
+      - Minimum frame width [pixel].
+    * - __u32
+      - ``max_width``
+      - Maximum frame width [pixel].
+    * - __u32
+      - ``step_width``
+      - Frame width step size [pixel].
+    * - __u32
+      - ``min_height``
+      - Minimum frame height [pixel].
+    * - __u32
+      - ``max_height``
+      - Maximum frame height [pixel].
+    * - __u32
+      - ``step_height``
+      - Frame height step size [pixel].
 
 
 
@@ -184,69 +144,35 @@ application should zero out all members except for the *IN* fields.
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``index``
-
-       -
-       -  IN: Index of the given frame size in the enumeration.
-
-    -  .. row 2
-
-       -  __u32
-
-       -  ``pixel_format``
-
-       -
-       -  IN: Pixel format for which the frame sizes are enumerated.
-
-    -  .. row 3
-
-       -  __u32
-
-       -  ``type``
-
-       -
-       -  OUT: Frame size type the device supports.
-
-    -  .. row 4
-
-       -  union
-
-       -
-       -
-       -  OUT: Frame size with the given index.
-
-    -  .. row 5
-
-       -
-       -  struct :c:type:`v4l2_frmsize_discrete`
-
-       -  ``discrete``
-
-       -
-
-    -  .. row 6
-
-       -
-       -  struct :c:type:`v4l2_frmsize_stepwise`
-
-       -  ``stepwise``
-
-       -
-
-    -  .. row 7
-
-       -  __u32
-
-       -  ``reserved[2]``
-
-       -
-       -  Reserved space for future use. Must be zeroed by drivers and
-	  applications.
+    * - __u32
+      - ``index``
+      -
+      - IN: Index of the given frame size in the enumeration.
+    * - __u32
+      - ``pixel_format``
+      -
+      - IN: Pixel format for which the frame sizes are enumerated.
+    * - __u32
+      - ``type``
+      -
+      - OUT: Frame size type the device supports.
+    * - union
+      -
+      -
+      - OUT: Frame size with the given index.
+    * -
+      - struct :c:type:`v4l2_frmsize_discrete`
+      - ``discrete``
+      -
+    * -
+      - struct :c:type:`v4l2_frmsize_stepwise`
+      - ``stepwise``
+      -
+    * - __u32
+      - ``reserved[2]``
+      -
+      - Reserved space for future use. Must be zeroed by drivers and
+	applications.
 
 
 
@@ -263,30 +189,15 @@ Enums
     :stub-columns: 0
     :widths:       3 1 4
 
-
-    -  .. row 1
-
-       -  ``V4L2_FRMSIZE_TYPE_DISCRETE``
-
-       -  1
-
-       -  Discrete frame size.
-
-    -  .. row 2
-
-       -  ``V4L2_FRMSIZE_TYPE_CONTINUOUS``
-
-       -  2
-
-       -  Continuous frame size.
-
-    -  .. row 3
-
-       -  ``V4L2_FRMSIZE_TYPE_STEPWISE``
-
-       -  3
-
-       -  Step-wise defined frame size.
+    * - ``V4L2_FRMSIZE_TYPE_DISCRETE``
+      - 1
+      - Discrete frame size.
+    * - ``V4L2_FRMSIZE_TYPE_CONTINUOUS``
+      - 2
+      - Continuous frame size.
+    * - ``V4L2_FRMSIZE_TYPE_STEPWISE``
+      - 3
+      - Step-wise defined frame size.
 
 
 Return Value
