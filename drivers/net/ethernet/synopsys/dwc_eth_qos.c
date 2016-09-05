@@ -1622,13 +1622,7 @@ static void dwceqos_init_hw(struct net_local *lp)
 		DWCEQOS_MMC_CTRL_RSTONRD);
 	dwceqos_enable_mmc_interrupt(lp);
 
-	/* Enable Interrupts */
-	dwceqos_write(lp, REG_DWCEQOS_DMA_CH0_IE,
-		      DWCEQOS_DMA_CH0_IE_NIE |
-		      DWCEQOS_DMA_CH0_IE_RIE | DWCEQOS_DMA_CH0_IE_TIE |
-		      DWCEQOS_DMA_CH0_IE_AIE |
-		      DWCEQOS_DMA_CH0_IE_FBEE);
-
+	dwceqos_write(lp, REG_DWCEQOS_DMA_CH0_IE, 0);
 	dwceqos_write(lp, REG_DWCEQOS_MAC_IE, 0);
 
 	dwceqos_write(lp, REG_DWCEQOS_MAC_CFG, DWCEQOS_MAC_CFG_IPC |
@@ -1904,6 +1898,15 @@ static int dwceqos_open(struct net_device *ndev)
 
 	netif_start_queue(ndev);
 	tasklet_enable(&lp->tx_bdreclaim_tasklet);
+
+	/* Enable Interrupts -- do this only after we enable NAPI and the
+	 * tasklet.
+	 */
+	dwceqos_write(lp, REG_DWCEQOS_DMA_CH0_IE,
+		      DWCEQOS_DMA_CH0_IE_NIE |
+		      DWCEQOS_DMA_CH0_IE_RIE | DWCEQOS_DMA_CH0_IE_TIE |
+		      DWCEQOS_DMA_CH0_IE_AIE |
+		      DWCEQOS_DMA_CH0_IE_FBEE);
 
 	return 0;
 }

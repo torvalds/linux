@@ -368,13 +368,13 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 tabort_syscall:
 	/* Firstly we need to enable TM in the kernel */
 	mfmsr	r10
-	li	r13, 1
-	rldimi	r10, r13, MSR_TM_LG, 63-MSR_TM_LG
+	li	r9, 1
+	rldimi	r10, r9, MSR_TM_LG, 63-MSR_TM_LG
 	mtmsrd	r10, 0
 
 	/* tabort, this dooms the transaction, nothing else */
-	li	r13, (TM_CAUSE_SYSCALL|TM_CAUSE_PERSISTENT)
-	TABORT(R13)
+	li	r9, (TM_CAUSE_SYSCALL|TM_CAUSE_PERSISTENT)
+	TABORT(R9)
 
 	/*
 	 * Return directly to userspace. We have corrupted user register state,
@@ -382,8 +382,8 @@ tabort_syscall:
 	 * resume after the tbegin of the aborted transaction with the
 	 * checkpointed register state.
 	 */
-	li	r13, MSR_RI
-	andc	r10, r10, r13
+	li	r9, MSR_RI
+	andc	r10, r10, r9
 	mtmsrd	r10, 1
 	mtspr	SPRN_SRR0, r11
 	mtspr	SPRN_SRR1, r12

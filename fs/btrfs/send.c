@@ -4268,10 +4268,12 @@ static int process_all_refs(struct send_ctx *sctx,
 	}
 	btrfs_release_path(path);
 
+	/*
+	 * We don't actually care about pending_move as we are simply
+	 * re-creating this inode and will be rename'ing it into place once we
+	 * rename the parent directory.
+	 */
 	ret = process_recorded_refs(sctx, &pending_move);
-	/* Only applicable to an incremental send. */
-	ASSERT(pending_move == 0);
-
 out:
 	btrfs_free_path(path);
 	return ret;

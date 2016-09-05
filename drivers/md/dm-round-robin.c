@@ -210,14 +210,17 @@ static struct dm_path *rr_select_path(struct path_selector *ps, size_t nr_bytes)
 	struct path_info *pi = NULL;
 	struct dm_path *current_path = NULL;
 
+	local_irq_save(flags);
 	current_path = *this_cpu_ptr(s->current_path);
 	if (current_path) {
 		percpu_counter_dec(&s->repeat_count);
-		if (percpu_counter_read_positive(&s->repeat_count) > 0)
+		if (percpu_counter_read_positive(&s->repeat_count) > 0) {
+			local_irq_restore(flags);
 			return current_path;
+		}
 	}
 
-	spin_lock_irqsave(&s->lock, flags);
+	spin_lock(&s->lock);
 	if (!list_empty(&s->valid_paths)) {
 		pi = list_entry(s->valid_paths.next, struct path_info, list);
 		list_move_tail(&pi->list, &s->valid_paths);

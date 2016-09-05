@@ -794,7 +794,7 @@ struct nvmf_connect_command {
 };
 
 struct nvmf_connect_data {
-	uuid_le		hostid;
+	uuid_be		hostid;
 	__le16		cntlid;
 	char		resv4[238];
 	char		subsysnqn[NVMF_NQN_FIELD_LEN];
