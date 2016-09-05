@@ -203,6 +203,7 @@ uint8_t tonga_get_voltage_id(pp_atomctrl_voltage_table *voltage_table,
 	return i - 1;
 }
 
+
 /**
  * @brief PhwTonga_GetVoltageOrder
  *  Returns index of requested voltage record in lookup(table)
@@ -4327,6 +4328,79 @@ int tonga_program_voting_clients(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+static void tonga_set_dpm_event_sources(struct pp_hwmgr *hwmgr, uint32_t sources)
+{
+	bool protection;
+	enum DPM_EVENT_SRC src;
+
+	switch (sources) {
+	default:
+		printk(KERN_ERR "Unknown throttling event sources.");
+		/* fall through */
+	case 0:
+		protection = false;
+		/* src is unused */
+		break;
+	case (1 << PHM_AutoThrottleSource_Thermal):
+		protection = true;
+		src = DPM_EVENT_SRC_DIGITAL;
+		break;
+	case (1 << PHM_AutoThrottleSource_External):
+		protection = true;
+		src = DPM_EVENT_SRC_EXTERNAL;
+		break;
+	case (1 << PHM_AutoThrottleSource_External) |
+			(1 << PHM_AutoThrottleSource_Thermal):
+		protection = true;
+		src = DPM_EVENT_SRC_DIGITAL_OR_EXTERNAL;
+		break;
+	}
+	/* Order matters - don't enable thermal protection for the wrong source. */
+	if (protection) {
+		PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, CG_THERMAL_CTRL,
+				DPM_EVENT_SRC, src);
+		PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, GENERAL_PWRMGT,
+				THERMAL_PROTECTION_DIS,
+				!phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+						PHM_PlatformCaps_ThermalController));
+	} else
+		PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, GENERAL_PWRMGT,
+				THERMAL_PROTECTION_DIS, 1);
+}
+
+static int tonga_enable_auto_throttle_source(struct pp_hwmgr *hwmgr,
+		PHM_AutoThrottleSource source)
+{
+	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
+
+	if (!(data->active_auto_throttle_sources & (1 << source))) {
+		data->active_auto_throttle_sources |= 1 << source;
+		tonga_set_dpm_event_sources(hwmgr, data->active_auto_throttle_sources);
+	}
+	return 0;
+}
+
+static int tonga_enable_thermal_auto_throttle(struct pp_hwmgr *hwmgr)
+{
+	return tonga_enable_auto_throttle_source(hwmgr, PHM_AutoThrottleSource_Thermal);
+}
+
+static int tonga_disable_auto_throttle_source(struct pp_hwmgr *hwmgr,
+		PHM_AutoThrottleSource source)
+{
+	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
+
+	if (data->active_auto_throttle_sources & (1 << source)) {
+		data->active_auto_throttle_sources &= ~(1 << source);
+		tonga_set_dpm_event_sources(hwmgr, data->active_auto_throttle_sources);
+	}
+	return 0;
+}
+
+static int tonga_disable_thermal_auto_throttle(struct pp_hwmgr *hwmgr)
+{
+	return tonga_disable_auto_throttle_source(hwmgr, PHM_AutoThrottleSource_Thermal);
+}
 
 int tonga_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
@@ -4410,6 +4484,10 @@ int tonga_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE((tmp_result == 0),
 			"Failed to power control set level!", result = tmp_result);
 
+	tmp_result = tonga_enable_thermal_auto_throttle(hwmgr);
+	PP_ASSERT_WITH_CODE((0 == tmp_result),
+			"Failed to enable thermal auto throttle!", result = tmp_result);
+
 	return result;
 }
 
@@ -4420,6 +4498,10 @@ int tonga_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	tmp_result = tonga_check_for_dpm_running(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 		"SMC is still running!", return 0);
+
+	tmp_result = tonga_disable_thermal_auto_throttle(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to disable thermal auto throttle!", result = tmp_result);
 
 	tmp_result = tonga_stop_dpm(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
