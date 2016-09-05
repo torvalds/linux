@@ -162,7 +162,7 @@ void __init config_mac(void)
 	mach_halt = mac_poweroff;
 	mach_power_off = mac_poweroff;
 	mach_max_dma_address = 0xffffffff;
-#if defined(CONFIG_INPUT_M68K_BEEP) || defined(CONFIG_INPUT_M68K_BEEP_MODULE)
+#if IS_ENABLED(CONFIG_INPUT_M68K_BEEP)
 	mach_beep = mac_mksound;
 #endif
 
