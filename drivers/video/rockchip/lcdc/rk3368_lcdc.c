@@ -1564,7 +1564,11 @@ static int rk3368_lcdc_layer_update_regs(struct lcdc_device *lcdc_dev,
 
 static int rk3368_lcdc_reg_restore(struct lcdc_device *lcdc_dev)
 {
-	memcpy((u8 *)lcdc_dev->regs, (u8 *)lcdc_dev->regsbak, 0x270);
+	if (lcdc_dev->soc_type == VOP_FULL_RK3366)
+		memcpy((u8 *)lcdc_dev->regs, (u8 *)lcdc_dev->regsbak, 0x2a4);
+	else
+		memcpy((u8 *)lcdc_dev->regs, (u8 *)lcdc_dev->regsbak, 0x270);
+
 	return 0;
 }
 
