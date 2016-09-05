@@ -1,0 +1,24 @@
+st-hva: multi-format video encoder for STMicroelectronics SoC.
+
+Required properties:
+- compatible: should be "st,st-hva".
+- reg: HVA physical address location and length, esram address location and
+  length.
+- reg-names: names of the registers listed in registers property in the same
+  order.
+- interrupts: HVA interrupt number.
+- clocks: from common clock binding: handle hardware IP needed clocks, the
+  number of clocks may depend on the SoC type.
+  See ../clock/clock-bindings.txt for details.
+- clock-names: names of the clocks listed in clocks property in the same order.
+
+Example:
+	hva@8c85000{
+		compatible = "st,st-hva";
+		reg = <0x8c85000 0x400>, <0x6000000 0x40000>;
+		reg-names = "hva_registers", "hva_esram";
+		interrupts = <GIC_SPI 58 IRQ_TYPE_NONE>,
+			     <GIC_SPI 59 IRQ_TYPE_NONE>;
+		clock-names = "clk_hva";
+		clocks = <&clk_s_c0_flexgen CLK_HVA>;
+	};
