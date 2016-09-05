@@ -34,6 +34,7 @@
 #include <linux/rtc.h>
 
 #include <asm/setup.h>
+#include <asm/bootinfo.h>
 #include <asm/irq.h>
 #include <asm/machdep.h>
 #include <asm/pgtable.h>
@@ -82,69 +83,6 @@ void (*mach_power_off)(void);
 #define	CPU_INSTR_PER_JIFFY	16
 #endif
 
-#if defined(CONFIG_UBOOT)
-/*
- * parse_uboot_commandline
- *
- * Copies u-boot commandline arguments and store them in the proper linux
- * variables.
- *
- * Assumes:
- *	_init_sp global contains the address in the stack pointer when the
- *	kernel starts (see head.S::_start)
- *
- *	U-Boot calling convention:
- *	(*kernel) (kbd, initrd_start, initrd_end, cmd_start, cmd_end);
- *
- *	_init_sp can be parsed as such
- *
- *	_init_sp+00 = u-boot cmd after jsr into kernel (skip)
- *	_init_sp+04 = &kernel board_info (residual data)
- *	_init_sp+08 = &initrd_start
- *	_init_sp+12 = &initrd_end
- *	_init_sp+16 = &cmd_start
- *	_init_sp+20 = &cmd_end
- *
- *	This also assumes that the memory locations pointed to are still
- *	unmodified. U-boot places them near the end of external SDRAM.
- *
- * Argument(s):
- *	commandp = the linux commandline arg container to fill.
- *	size     = the sizeof commandp.
- *
- * Returns:
- */
-static void __init parse_uboot_commandline(char *commandp, int size)
-{
-	extern unsigned long _init_sp;
-	unsigned long *sp;
-	unsigned long uboot_kbd;
-	unsigned long uboot_initrd_start, uboot_initrd_end;
-	unsigned long uboot_cmd_start, uboot_cmd_end;
-
-
-	sp = (unsigned long *)_init_sp;
-	uboot_kbd = sp[1];
-	uboot_initrd_start = sp[2];
-	uboot_initrd_end = sp[3];
-	uboot_cmd_start = sp[4];
-	uboot_cmd_end = sp[5];
-
-	if (uboot_cmd_start && uboot_cmd_end)
-		strncpy(commandp, (const char *)uboot_cmd_start, size);
-#if defined(CONFIG_BLK_DEV_INITRD)
-	if (uboot_initrd_start && uboot_initrd_end &&
-		(uboot_initrd_end > uboot_initrd_start)) {
-		initrd_start = uboot_initrd_start;
-		initrd_end = uboot_initrd_end;
-		ROOT_DEV = Root_RAM0;
-		printk(KERN_INFO "initrd at 0x%lx:0x%lx\n",
-			initrd_start, initrd_end);
-	}
-#endif /* if defined(CONFIG_BLK_DEV_INITRD) */
-}
-#endif /* #if defined(CONFIG_UBOOT) */
-
 void __init setup_arch(char **cmdline_p)
 {
 	int bootmap_size;
@@ -164,22 +102,7 @@ void __init setup_arch(char **cmdline_p)
 	command_line[sizeof(command_line) - 1] = 0;
 #endif /* CONFIG_BOOTPARAM */
 
-#if defined(CONFIG_UBOOT)
-	/* CONFIG_UBOOT and CONFIG_BOOTPARAM defined, concatenate cmdline */
-	#if defined(CONFIG_BOOTPARAM)
-		/* Add the whitespace separator */
-		command_line[strlen(CONFIG_BOOTPARAM_STRING)] = ' ';
-		/* Parse uboot command line into the rest of the buffer */
-		parse_uboot_commandline(
-			&command_line[(strlen(CONFIG_BOOTPARAM_STRING)+1)],
-			(sizeof(command_line) -
-			(strlen(CONFIG_BOOTPARAM_STRING)+1)));
-	/* Only CONFIG_UBOOT defined, create cmdline */
-	#else
-		parse_uboot_commandline(&command_line[0], sizeof(command_line));
-	#endif /* CONFIG_BOOTPARAM */
-	command_line[sizeof(command_line) - 1] = 0;
-#endif /* CONFIG_UBOOT */
+	process_uboot_commandline(&command_line[0], sizeof(command_line));
 
 	printk(KERN_INFO "\x0F\r\n\nuClinux/" CPU_NAME "\n");
 
