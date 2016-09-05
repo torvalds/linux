@@ -527,4 +527,10 @@
 
 #define QM_REG_WFQPFWEIGHT	0x2f4e80UL
 #define QM_REG_WFQVPWEIGHT	0x2fa000UL
+
+#define MCP_REG_CPU_MODE \
+	0xe05000UL
+#define MCP_REG_CPU_MODE_SOFT_HALT \
+		(0x1 << 10)
+
 #endif

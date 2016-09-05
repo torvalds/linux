@@ -7638,12 +7638,15 @@ struct public_drv_mb {
 #define DRV_MSG_CODE_CFG_VF_MSIX		0xc0010000
 #define DRV_MSG_CODE_MCP_RESET			0x00090000
 #define DRV_MSG_CODE_SET_VERSION		0x000f0000
+#define DRV_MSG_CODE_MCP_HALT                   0x00100000
 
 #define DRV_MSG_CODE_GET_STATS                  0x00130000
 #define DRV_MSG_CODE_STATS_TYPE_LAN             1
 #define DRV_MSG_CODE_STATS_TYPE_FCOE            2
 #define DRV_MSG_CODE_STATS_TYPE_ISCSI           3
 #define DRV_MSG_CODE_STATS_TYPE_RDMA            4
+
+#define DRV_MSG_CODE_MASK_PARITIES              0x001a0000
 
 #define DRV_MSG_CODE_BIST_TEST			0x001e0000
 #define DRV_MSG_CODE_SET_LED_MODE		0x00200000
