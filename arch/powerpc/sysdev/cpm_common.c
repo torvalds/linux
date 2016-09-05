@@ -94,7 +94,8 @@ struct cpm2_gpio32_chip {
 
 static void cpm2_gpio32_save_regs(struct of_mm_gpio_chip *mm_gc)
 {
-	struct cpm2_gpio32_chip *cpm2_gc = gpiochip_get_data(&mm_gc->gc);
+	struct cpm2_gpio32_chip *cpm2_gc =
+		container_of(mm_gc, struct cpm2_gpio32_chip, mm_gc);
 	struct cpm2_ioports __iomem *iop = mm_gc->regs;
 
 	cpm2_gc->cpdata = in_be32(&iop->dat);

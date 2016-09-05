@@ -534,7 +534,8 @@ struct cpm1_gpio16_chip {
 
 static void cpm1_gpio16_save_regs(struct of_mm_gpio_chip *mm_gc)
 {
-	struct cpm1_gpio16_chip *cpm1_gc = gpiochip_get_data(&mm_gc->gc);
+	struct cpm1_gpio16_chip *cpm1_gc =
+		container_of(mm_gc, struct cpm1_gpio16_chip, mm_gc);
 	struct cpm_ioport16 __iomem *iop = mm_gc->regs;
 
 	cpm1_gc->cpdata = in_be16(&iop->dat);
@@ -649,7 +650,8 @@ struct cpm1_gpio32_chip {
 
 static void cpm1_gpio32_save_regs(struct of_mm_gpio_chip *mm_gc)
 {
-	struct cpm1_gpio32_chip *cpm1_gc = gpiochip_get_data(&mm_gc->gc);
+	struct cpm1_gpio32_chip *cpm1_gc =
+		container_of(mm_gc, struct cpm1_gpio32_chip, mm_gc);
 	struct cpm_ioport32b __iomem *iop = mm_gc->regs;
 
 	cpm1_gc->cpdata = in_be32(&iop->dat);

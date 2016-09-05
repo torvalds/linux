@@ -24,8 +24,8 @@ enum ovl_path_type {
 	(OVL_TYPE_MERGE(type) || !OVL_TYPE_UPPER(type))
 
 
-#define OVL_XATTR_PREFIX XATTR_TRUSTED_PREFIX "overlay"
-#define OVL_XATTR_OPAQUE OVL_XATTR_PREFIX ".opaque"
+#define OVL_XATTR_PREFIX XATTR_TRUSTED_PREFIX "overlay."
+#define OVL_XATTR_OPAQUE OVL_XATTR_PREFIX "opaque"
 
 #define OVL_ISUPPER_MASK 1UL
 
@@ -179,20 +179,21 @@ int ovl_check_empty_dir(struct dentry *dentry, struct list_head *list);
 void ovl_cleanup_whiteouts(struct dentry *upper, struct list_head *list);
 void ovl_cache_free(struct list_head *list);
 int ovl_check_d_type_supported(struct path *realpath);
+void ovl_workdir_cleanup(struct inode *dir, struct vfsmount *mnt,
+			 struct dentry *dentry, int level);
 
 /* inode.c */
 int ovl_setattr(struct dentry *dentry, struct iattr *attr);
 int ovl_permission(struct inode *inode, int mask);
-int ovl_setxattr(struct dentry *dentry, struct inode *inode,
-		 const char *name, const void *value,
-		 size_t size, int flags);
-ssize_t ovl_getxattr(struct dentry *dentry, struct inode *inode,
-		     const char *name, void *value, size_t size);
+int ovl_xattr_set(struct dentry *dentry, const char *name, const void *value,
+		  size_t size, int flags);
+int ovl_xattr_get(struct dentry *dentry, const char *name,
+		  void *value, size_t size);
 ssize_t ovl_listxattr(struct dentry *dentry, char *list, size_t size);
-int ovl_removexattr(struct dentry *dentry, const char *name);
 struct posix_acl *ovl_get_acl(struct inode *inode, int type);
 int ovl_open_maybe_copy_up(struct dentry *dentry, unsigned int file_flags);
 int ovl_update_time(struct inode *inode, struct timespec *ts, int flags);
+bool ovl_is_private_xattr(const char *name);
 
 struct inode *ovl_new_inode(struct super_block *sb, umode_t mode);
 struct inode *ovl_get_inode(struct super_block *sb, struct inode *realinode);

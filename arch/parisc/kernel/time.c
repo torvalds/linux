@@ -221,18 +221,6 @@ static struct clocksource clocksource_cr16 = {
 	.flags			= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-int update_cr16_clocksource(void)
-{
-	/* since the cr16 cycle counters are not synchronized across CPUs,
-	   we'll check if we should switch to a safe clocksource: */
-	if (clocksource_cr16.rating != 0 && num_online_cpus() > 1) {
-		clocksource_change_rating(&clocksource_cr16, 0);
-		return 1;
-	}
-
-	return 0;
-}
-
 void __init start_cpu_itimer(void)
 {
 	unsigned int cpu = smp_processor_id();

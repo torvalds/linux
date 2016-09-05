@@ -1612,8 +1612,6 @@ static void serial8250_disable_ms(struct uart_port *port)
 	if (up->bugs & UART_BUG_NOMSR)
 		return;
 
-	mctrl_gpio_disable_ms(up->gpios);
-
 	up->ier &= ~UART_IER_MSI;
 	serial_port_out(port, UART_IER, up->ier);
 }
@@ -1625,8 +1623,6 @@ static void serial8250_enable_ms(struct uart_port *port)
 	/* no MSR capabilities */
 	if (up->bugs & UART_BUG_NOMSR)
 		return;
-
-	mctrl_gpio_enable_ms(up->gpios);
 
 	up->ier |= UART_IER_MSI;
 
@@ -1911,8 +1907,7 @@ unsigned int serial8250_do_get_mctrl(struct uart_port *port)
 		ret |= TIOCM_DSR;
 	if (status & UART_MSR_CTS)
 		ret |= TIOCM_CTS;
-
-	return mctrl_gpio_get(up->gpios, &ret);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(serial8250_do_get_mctrl);
 
