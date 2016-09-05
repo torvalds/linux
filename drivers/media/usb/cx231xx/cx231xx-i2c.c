@@ -608,7 +608,7 @@ struct i2c_adapter *cx231xx_get_i2c_adap(struct cx231xx *dev, int i2c_port)
 	case I2C_1_MUX_3:
 		return dev->muxc->adapter[1];
 	default:
-		return NULL;
+		BUG();
 	}
 }
 EXPORT_SYMBOL_GPL(cx231xx_get_i2c_adap);
