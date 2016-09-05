@@ -713,19 +713,15 @@ static void queue_inc_prod(struct arm_smmu_queue *q)
 	writel(q->prod, q->prod_reg);
 }
 
-static bool __queue_cons_before(struct arm_smmu_queue *q, u32 until)
-{
-	if (Q_WRP(q, q->cons) == Q_WRP(q, until))
-		return Q_IDX(q, q->cons) < Q_IDX(q, until);
-
-	return Q_IDX(q, q->cons) >= Q_IDX(q, until);
-}
-
-static int queue_poll_cons(struct arm_smmu_queue *q, u32 until, bool wfe)
+/*
+ * Wait for the SMMU to consume items. If drain is true, wait until the queue
+ * is empty. Otherwise, wait until there is at least one free slot.
+ */
+static int queue_poll_cons(struct arm_smmu_queue *q, bool drain, bool wfe)
 {
 	ktime_t timeout = ktime_add_us(ktime_get(), ARM_SMMU_POLL_TIMEOUT_US);
 
-	while (queue_sync_cons(q), __queue_cons_before(q, until)) {
+	while (queue_sync_cons(q), (drain ? !queue_empty(q) : queue_full(q))) {
 		if (ktime_compare(ktime_get(), timeout) > 0)
 			return -ETIMEDOUT;
 
@@ -896,7 +892,6 @@ static void arm_smmu_cmdq_skip_err(struct arm_smmu_device *smmu)
 static void arm_smmu_cmdq_issue_cmd(struct arm_smmu_device *smmu,
 				    struct arm_smmu_cmdq_ent *ent)
 {
-	u32 until;
 	u64 cmd[CMDQ_ENT_DWORDS];
 	bool wfe = !!(smmu->features & ARM_SMMU_FEAT_SEV);
 	struct arm_smmu_queue *q = &smmu->cmdq.q;
@@ -908,17 +903,12 @@ static void arm_smmu_cmdq_issue_cmd(struct arm_smmu_device *smmu,
 	}
 
 	spin_lock(&smmu->cmdq.lock);
-	while (until = q->prod + 1, queue_insert_raw(q, cmd) == -ENOSPC) {
-		/*
-		 * Keep the queue locked, otherwise the producer could wrap
-		 * twice and we could see a future consumer pointer that looks
-		 * like it's behind us.
-		 */
-		if (queue_poll_cons(q, until, wfe))
+	while (queue_insert_raw(q, cmd) == -ENOSPC) {
+		if (queue_poll_cons(q, false, wfe))
 			dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
 	}
 
-	if (ent->opcode == CMDQ_OP_CMD_SYNC && queue_poll_cons(q, until, wfe))
+	if (ent->opcode == CMDQ_OP_CMD_SYNC && queue_poll_cons(q, true, wfe))
 		dev_err_ratelimited(smmu->dev, "CMD_SYNC timeout\n");
 	spin_unlock(&smmu->cmdq.lock);
 }
