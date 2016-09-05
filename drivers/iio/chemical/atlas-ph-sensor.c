@@ -434,7 +434,7 @@ static int atlas_read_raw(struct iio_dev *indio_dev,
 			break;
 		case IIO_ELECTRICALCONDUCTIVITY:
 			*val = 1; /* 0.00001 */
-			*val = 100000;
+			*val2 = 100000;
 			break;
 		case IIO_CONCENTRATION:
 			*val = 0; /* 0.000000001 */

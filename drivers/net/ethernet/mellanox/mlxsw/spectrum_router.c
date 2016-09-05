@@ -657,7 +657,7 @@ int mlxsw_sp_router_neigh_construct(struct net_device *dev,
 		return 0;
 	}
 
-	r = mlxsw_sp_rif_find_by_dev(mlxsw_sp, dev);
+	r = mlxsw_sp_rif_find_by_dev(mlxsw_sp, n->dev);
 	if (WARN_ON(!r))
 		return -EINVAL;
 
@@ -1651,9 +1651,10 @@ static void mlxsw_sp_router_fib4_add_info_destroy(void const *data)
 	const struct mlxsw_sp_router_fib4_add_info *info = data;
 	struct mlxsw_sp_fib_entry *fib_entry = info->fib_entry;
 	struct mlxsw_sp *mlxsw_sp = info->mlxsw_sp;
+	struct mlxsw_sp_vr *vr = fib_entry->vr;
 
 	mlxsw_sp_fib_entry_destroy(fib_entry);
-	mlxsw_sp_vr_put(mlxsw_sp, fib_entry->vr);
+	mlxsw_sp_vr_put(mlxsw_sp, vr);
 	kfree(info);
 }
 

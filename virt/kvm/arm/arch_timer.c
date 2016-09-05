@@ -33,6 +33,7 @@
 static struct timecounter *timecounter;
 static struct workqueue_struct *wqueue;
 static unsigned int host_vtimer_irq;
+static u32 host_vtimer_irq_flags;
 
 void kvm_timer_vcpu_put(struct kvm_vcpu *vcpu)
 {
@@ -365,7 +366,7 @@ void kvm_timer_vcpu_init(struct kvm_vcpu *vcpu)
 
 static void kvm_timer_init_interrupt(void *info)
 {
-	enable_percpu_irq(host_vtimer_irq, 0);
+	enable_percpu_irq(host_vtimer_irq, host_vtimer_irq_flags);
 }
 
 int kvm_arm_timer_set_reg(struct kvm_vcpu *vcpu, u64 regid, u64 value)
@@ -431,6 +432,14 @@ int kvm_timer_hyp_init(void)
 		return -ENODEV;
 	}
 	host_vtimer_irq = info->virtual_irq;
+
+	host_vtimer_irq_flags = irq_get_trigger_type(host_vtimer_irq);
+	if (host_vtimer_irq_flags != IRQF_TRIGGER_HIGH &&
+	    host_vtimer_irq_flags != IRQF_TRIGGER_LOW) {
+		kvm_err("Invalid trigger for IRQ%d, assuming level low\n",
+			host_vtimer_irq);
+		host_vtimer_irq_flags = IRQF_TRIGGER_LOW;
+	}
 
 	err = request_percpu_irq(host_vtimer_irq, kvm_arch_timer_handler,
 				 "kvm guest timer", kvm_get_running_vcpus());

@@ -115,7 +115,6 @@ xfs_buf_ioacct_dec(
 	if (!(bp->b_flags & _XBF_IN_FLIGHT))
 		return;
 
-	ASSERT(bp->b_flags & XBF_ASYNC);
 	bp->b_flags &= ~_XBF_IN_FLIGHT;
 	percpu_counter_dec(&bp->b_target->bt_io_count);
 }
@@ -1612,7 +1611,7 @@ xfs_wait_buftarg(
 	 */
 	while (percpu_counter_sum(&btp->bt_io_count))
 		delay(100);
-	drain_workqueue(btp->bt_mount->m_buf_workqueue);
+	flush_workqueue(btp->bt_mount->m_buf_workqueue);
 
 	/* loop until there is nothing left on the lru list. */
 	while (list_lru_count(&btp->bt_lru)) {

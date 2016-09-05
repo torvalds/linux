@@ -3578,10 +3578,18 @@ static int perf_event_read(struct perf_event *event, bool group)
 		cpu_to_read = find_cpu_to_read(event, local_cpu);
 		put_cpu();
 
-		ret = smp_call_function_single(cpu_to_read, __perf_event_read, &data, 1);
-		/* The event must have been read from an online CPU: */
-		WARN_ON_ONCE(ret);
-		ret = ret ? : data.ret;
+		/*
+		 * Purposely ignore the smp_call_function_single() return
+		 * value.
+		 *
+		 * If event->oncpu isn't a valid CPU it means the event got
+		 * scheduled out and that will have updated the event count.
+		 *
+		 * Therefore, either way, we'll have an up-to-date event count
+		 * after this.
+		 */
+		(void)smp_call_function_single(cpu_to_read, __perf_event_read, &data, 1);
+		ret = data.ret;
 	} else if (event->state == PERF_EVENT_STATE_INACTIVE) {
 		struct perf_event_context *ctx = event->ctx;
 		unsigned long flags;
@@ -6196,7 +6204,7 @@ static int __perf_pmu_output_stop(void *info)
 {
 	struct perf_event *event = info;
 	struct pmu *pmu = event->pmu;
-	struct perf_cpu_context *cpuctx = get_cpu_ptr(pmu->pmu_cpu_context);
+	struct perf_cpu_context *cpuctx = this_cpu_ptr(pmu->pmu_cpu_context);
 	struct remote_output ro = {
 		.rb	= event->rb,
 	};

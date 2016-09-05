@@ -475,7 +475,7 @@ int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 					val,
 					-1,
 					&replaced);
-		state->color_mgmt_changed = replaced;
+		state->color_mgmt_changed |= replaced;
 		return ret;
 	} else if (property == config->ctm_property) {
 		ret = drm_atomic_replace_property_blob_from_id(crtc,
@@ -483,7 +483,7 @@ int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 					val,
 					sizeof(struct drm_color_ctm),
 					&replaced);
-		state->color_mgmt_changed = replaced;
+		state->color_mgmt_changed |= replaced;
 		return ret;
 	} else if (property == config->gamma_lut_property) {
 		ret = drm_atomic_replace_property_blob_from_id(crtc,
@@ -491,7 +491,7 @@ int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 					val,
 					-1,
 					&replaced);
-		state->color_mgmt_changed = replaced;
+		state->color_mgmt_changed |= replaced;
 		return ret;
 	} else if (crtc->funcs->atomic_set_property)
 		return crtc->funcs->atomic_set_property(crtc, state, property, val);
