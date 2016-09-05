@@ -2879,18 +2879,6 @@ static inline int ib_req_ncomp_notif(struct ib_cq *cq, int wc_cnt)
 }
 
 /**
- * ib_get_dma_mr - Returns a memory region for system memory that is
- *   usable for DMA.
- * @pd: The protection domain associated with the memory region.
- * @mr_access_flags: Specifies the memory access rights.
- *
- * Note that the ib_dma_*() functions defined below must be used
- * to create/destroy addresses used with the Lkey or Rkey returned
- * by ib_get_dma_mr().
- */
-struct ib_mr *ib_get_dma_mr(struct ib_pd *pd, int mr_access_flags);
-
-/**
  * ib_dma_mapping_error - check a DMA addr for error
  * @dev: The device for which the dma_addr was created
  * @dma_addr: The DMA address to check

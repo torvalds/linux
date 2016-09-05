@@ -256,11 +256,16 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 	if (mr_access_flags) {
 		struct ib_mr *mr;
 
-		mr = ib_get_dma_mr(pd, mr_access_flags);
+		mr = pd->device->get_dma_mr(pd, mr_access_flags);
 		if (IS_ERR(mr)) {
 			ib_dealloc_pd(pd);
-			return (struct ib_pd *)mr;
+			return ERR_CAST(mr);
 		}
+
+		mr->device	= pd->device;
+		mr->pd		= pd;
+		mr->uobject	= NULL;
+		mr->need_inval	= false;
 
 		pd->__internal_mr = mr;
 
@@ -288,7 +293,7 @@ void ib_dealloc_pd(struct ib_pd *pd)
 	int ret;
 
 	if (pd->__internal_mr) {
-		ret = ib_dereg_mr(pd->__internal_mr);
+		ret = pd->device->dereg_mr(pd->__internal_mr);
 		WARN_ON(ret);
 		pd->__internal_mr = NULL;
 	}
@@ -1407,29 +1412,6 @@ int ib_resize_cq(struct ib_cq *cq, int cqe)
 EXPORT_SYMBOL(ib_resize_cq);
 
 /* Memory regions */
-
-struct ib_mr *ib_get_dma_mr(struct ib_pd *pd, int mr_access_flags)
-{
-	struct ib_mr *mr;
-	int err;
-
-	err = ib_check_mr_access(mr_access_flags);
-	if (err)
-		return ERR_PTR(err);
-
-	mr = pd->device->get_dma_mr(pd, mr_access_flags);
-
-	if (!IS_ERR(mr)) {
-		mr->device  = pd->device;
-		mr->pd      = pd;
-		mr->uobject = NULL;
-		atomic_inc(&pd->usecnt);
-		mr->need_inval = false;
-	}
-
-	return mr;
-}
-EXPORT_SYMBOL(ib_get_dma_mr);
 
 int ib_dereg_mr(struct ib_mr *mr)
 {
