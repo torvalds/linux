@@ -2161,10 +2161,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			than or equal to this physical address is ignored.
 
 	maxcpus=	[SMP] Maximum number of processors that	an SMP kernel
-			should make use of.  maxcpus=n : n >= 0 limits the
-			kernel to using 'n' processors.  n=0 is a special case,
-			it is equivalent to "nosmp", which also disables
-			the IO APIC.
+			will bring up during bootup.  maxcpus=n : n >= 0 limits
+			the kernel to bring up 'n' processors. Surely after
+			bootup you can bring up the other plugged cpu by executing
+			"echo 1 > /sys/devices/system/cpu/cpuX/online". So maxcpus
+			only takes effect during system bootup.
+			While n=0 is a special case, it is equivalent to "nosmp",
+			which also disables the IO APIC.
 
 	max_loop=	[LOOP] The number of loop block devices that get
 	(loop.max_loop)	unconditionally pre-created at init time. The default
@@ -2773,9 +2776,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	nr_cpus=	[SMP] Maximum number of processors that	an SMP kernel
 			could support.  nr_cpus=n : n >= 1 limits the kernel to
-			supporting 'n' processors. Later in runtime you can not
-			use hotplug cpu feature to put more cpu back to online.
-			just like you compile the kernel NR_CPUS=n
+			support 'n' processors. It could be larger than the
+			number of already plugged CPU during bootup, later in
+			runtime you can physically add extra cpu until it reaches
+			n. So during boot up some boot time memory for per-cpu
+			variables need be pre-allocated for later physical cpu
+			hot plugging.
 
 	nr_uarts=	[SERIAL] maximum number of UARTs to be registered.
 

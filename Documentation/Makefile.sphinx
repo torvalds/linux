@@ -71,12 +71,12 @@ ifeq ($(HAVE_PDFLATEX),0)
 	$(warning The 'xelatex' command was not found. Make sure you have it installed and in PATH to produce PDF output.)
 	@echo "  SKIP    Sphinx $@ target."
 else # HAVE_PDFLATEX
-	@$(call loop_cmd,sphinx,latex,.,latex,.)
+	@$(foreach var,$(SPHINXDIRS),$(call loop_cmd,sphinx,latex,$(var),latex,$(var)))
 endif # HAVE_PDFLATEX
 
 pdfdocs: latexdocs
 ifneq ($(HAVE_PDFLATEX),0)
-	$(Q)$(MAKE) PDFLATEX=xelatex LATEXOPTS="-interaction=nonstopmode" -C $(BUILDDIR)/latex
+	$(foreach var,$(SPHINXDIRS), $(MAKE) PDFLATEX=xelatex LATEXOPTS="-interaction=nonstopmode" -C $(BUILDDIR)/$(var)/latex)
 endif # HAVE_PDFLATEX
 
 epubdocs:
