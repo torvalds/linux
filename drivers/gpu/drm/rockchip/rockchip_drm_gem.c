@@ -218,12 +218,16 @@ static int rockchip_drm_gem_object_mmap_iommu(struct drm_gem_object *obj,
 	unsigned int i, count = obj->size >> PAGE_SHIFT;
 	unsigned long user_count = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
 	unsigned long uaddr = vma->vm_start;
+	unsigned long offset = vma->vm_pgoff;
+	unsigned long end = user_count + offset;
 	int ret;
 
-	if (user_count == 0 || user_count > count)
+	if (user_count == 0)
+		return -ENXIO;
+	if (end > count)
 		return -ENXIO;
 
-	for (i = 0; i < user_count; i++) {
+	for (i = offset; i < end; i++) {
 		ret = vm_insert_page(vma, uaddr, rk_obj->pages[i]);
 		if (ret)
 			return ret;
