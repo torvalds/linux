@@ -50,7 +50,7 @@ DEFINE_PER_CPU(struct vcpu_info *, xen_vcpu);
 static struct vcpu_info __percpu *xen_vcpu_info;
 
 /* Linux <-> Xen vCPU id mapping */
-DEFINE_PER_CPU(int, xen_vcpu_id) = -1;
+DEFINE_PER_CPU(uint32_t, xen_vcpu_id);
 EXPORT_PER_CPU_SYMBOL(xen_vcpu_id);
 
 /* These are unused until we support booting "pre-ballooned" */

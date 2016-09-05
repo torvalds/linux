@@ -882,7 +882,7 @@ static inline unsigned int blk_rq_cur_sectors(const struct request *rq)
 static inline unsigned int blk_queue_get_max_sectors(struct request_queue *q,
 						     int op)
 {
-	if (unlikely(op == REQ_OP_DISCARD))
+	if (unlikely(op == REQ_OP_DISCARD || op == REQ_OP_SECURE_ERASE))
 		return min(q->limits.max_discard_sectors, UINT_MAX >> 9);
 
 	if (unlikely(op == REQ_OP_WRITE_SAME))
@@ -913,7 +913,9 @@ static inline unsigned int blk_rq_get_max_sectors(struct request *rq,
 	if (unlikely(rq->cmd_type != REQ_TYPE_FS))
 		return q->limits.max_hw_sectors;
 
-	if (!q->limits.chunk_sectors || (req_op(rq) == REQ_OP_DISCARD))
+	if (!q->limits.chunk_sectors ||
+	    req_op(rq) == REQ_OP_DISCARD ||
+	    req_op(rq) == REQ_OP_SECURE_ERASE)
 		return blk_queue_get_max_sectors(q, req_op(rq));
 
 	return min(blk_max_size_offset(q, offset),

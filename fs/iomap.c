@@ -428,9 +428,12 @@ static int iomap_to_fiemap(struct fiemap_extent_info *fi,
 		break;
 	}
 
+	if (iomap->flags & IOMAP_F_MERGED)
+		flags |= FIEMAP_EXTENT_MERGED;
+
 	return fiemap_fill_next_extent(fi, iomap->offset,
 			iomap->blkno != IOMAP_NULL_BLOCK ? iomap->blkno << 9: 0,
-			iomap->length, flags | FIEMAP_EXTENT_MERGED);
+			iomap->length, flags);
 
 }
 

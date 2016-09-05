@@ -1611,7 +1611,7 @@ xfs_wait_buftarg(
 	 */
 	while (percpu_counter_sum(&btp->bt_io_count))
 		delay(100);
-	drain_workqueue(btp->bt_mount->m_buf_workqueue);
+	flush_workqueue(btp->bt_mount->m_buf_workqueue);
 
 	/* loop until there is nothing left on the lru list. */
 	while (list_lru_count(&btp->bt_lru)) {
