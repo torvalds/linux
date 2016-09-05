@@ -111,6 +111,13 @@
 		regulator-boot-on;
 	};
 
+	io_domains: io-domains {
+		compatible = "rockchip,rk3288-io-voltage-domain";
+		rockchip,grf = <&grf>;
+
+		sdcard-supply = <&vccio_sd>;
+	};
+
 	/*
 	 * NOTE: vcc_sd isn't hooked up on v1.0 boards where power comes from
 	 * vcc_io directly.  Those boards won't be able to power cycle SD cards
