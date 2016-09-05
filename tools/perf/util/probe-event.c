@@ -674,6 +674,10 @@ post_process_kernel_probe_trace_events(struct probe_trace_event *tevs,
 	char *tmp;
 	int i, skipped = 0;
 
+	/* Skip post process if the target is an offline kernel */
+	if (symbol_conf.ignore_vmlinux_buildid)
+		return 0;
+
 	reloc_sym = kernel_get_ref_reloc_sym();
 	if (!reloc_sym) {
 		pr_warning("Relocated base symbol is not found!\n");
@@ -1614,19 +1618,27 @@ out:
 	return ret;
 }
 
+/* Returns true if *any* ARG is either C variable, $params or $vars. */
+bool perf_probe_with_var(struct perf_probe_event *pev)
+{
+	int i = 0;
+
+	for (i = 0; i < pev->nargs; i++)
+		if (is_c_varname(pev->args[i].var)              ||
+		    !strcmp(pev->args[i].var, PROBE_ARG_PARAMS) ||
+		    !strcmp(pev->args[i].var, PROBE_ARG_VARS))
+			return true;
+	return false;
+}
+
 /* Return true if this perf_probe_event requires debuginfo */
 bool perf_probe_event_need_dwarf(struct perf_probe_event *pev)
 {
-	int i;
-
 	if (pev->point.file || pev->point.line || pev->point.lazy_line)
 		return true;
 
-	for (i = 0; i < pev->nargs; i++)
-		if (is_c_varname(pev->args[i].var) ||
-		    !strcmp(pev->args[i].var, "$params") ||
-		    !strcmp(pev->args[i].var, "$vars"))
-			return true;
+	if (perf_probe_with_var(pev))
+		return true;
 
 	return false;
 }
@@ -3207,6 +3219,52 @@ int convert_perf_probe_events(struct perf_probe_event *pevs, int npevs)
 	return 0;
 }
 
+static int show_probe_trace_event(struct probe_trace_event *tev)
+{
+	char *buf = synthesize_probe_trace_command(tev);
+
+	if (!buf) {
+		pr_debug("Failed to synthesize probe trace event.\n");
+		return -EINVAL;
+	}
+
+	/* Showing definition always go stdout */
+	printf("%s\n", buf);
+	free(buf);
+
+	return 0;
+}
+
+int show_probe_trace_events(struct perf_probe_event *pevs, int npevs)
+{
+	struct strlist *namelist = strlist__new(NULL, NULL);
+	struct probe_trace_event *tev;
+	struct perf_probe_event *pev;
+	int i, j, ret = 0;
+
+	if (!namelist)
+		return -ENOMEM;
+
+	for (j = 0; j < npevs && !ret; j++) {
+		pev = &pevs[j];
+		for (i = 0; i < pev->ntevs && !ret; i++) {
+			tev = &pev->tevs[i];
+			/* Skip if the symbol is out of .text or blacklisted */
+			if (!tev->point.symbol && !pev->uprobes)
+				continue;
+
+			/* Set new name for tev (and update namelist) */
+			ret = probe_trace_event__set_name(tev, pev,
+							  namelist, true);
+			if (!ret)
+				ret = show_probe_trace_event(tev);
+		}
+	}
+	strlist__delete(namelist);
+
+	return ret;
+}
+
 int apply_perf_probe_events(struct perf_probe_event *pevs, int npevs)
 {
 	int i, ret = 0;
@@ -3289,24 +3347,10 @@ out:
 	return ret;
 }
 
-/* TODO: don't use a global variable for filter ... */
-static struct strfilter *available_func_filter;
-
-/*
- * If a symbol corresponds to a function with global binding and
- * matches filter return 0. For all others return 1.
- */
-static int filter_available_functions(struct map *map __maybe_unused,
-				      struct symbol *sym)
-{
-	if (strfilter__compare(available_func_filter, sym->name))
-		return 0;
-	return 1;
-}
-
 int show_available_funcs(const char *target, struct strfilter *_filter,
 					bool user)
 {
+        struct rb_node *nd;
 	struct map *map;
 	int ret;
 
@@ -3324,9 +3368,7 @@ int show_available_funcs(const char *target, struct strfilter *_filter,
 		return -EINVAL;
 	}
 
-	/* Load symbols with given filter */
-	available_func_filter = _filter;
-	ret = map__load(map, filter_available_functions);
+	ret = map__load(map, NULL);
 	if (ret) {
 		if (ret == -2) {
 			char *str = strfilter__string(_filter);
@@ -3343,7 +3385,14 @@ int show_available_funcs(const char *target, struct strfilter *_filter,
 
 	/* Show all (filtered) symbols */
 	setup_pager();
-	dso__fprintf_symbols_by_name(map->dso, map->type, stdout);
+
+        for (nd = rb_first(&map->dso->symbol_names[map->type]); nd; nd = rb_next(nd)) {
+		struct symbol_name_rb_node *pos = rb_entry(nd, struct symbol_name_rb_node, rb_node);
+
+		if (strfilter__compare(_filter, pos->sym.name))
+			printf("%s\n", pos->sym.name);
+        }
+
 end:
 	if (user) {
 		map__put(map);

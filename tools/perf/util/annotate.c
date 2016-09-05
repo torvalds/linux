@@ -491,13 +491,6 @@ static struct ins *ins__find(const char *name)
 	return bsearch(name, instructions, nmemb, sizeof(struct ins), ins__key_cmp);
 }
 
-int symbol__annotate_init(struct map *map __maybe_unused, struct symbol *sym)
-{
-	struct annotation *notes = symbol__annotation(sym);
-	pthread_mutex_init(&notes->lock, NULL);
-	return 0;
-}
-
 int symbol__alloc_hist(struct symbol *sym)
 {
 	struct annotation *notes = symbol__annotation(sym);

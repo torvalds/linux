@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <inttypes.h>
+#include "annotate.h"
 #include "build-id.h"
 #include "util.h"
 #include "debug.h"
@@ -152,6 +153,9 @@ void symbols__fixup_duplicate(struct rb_root *symbols)
 	struct rb_node *nd;
 	struct symbol *curr, *next;
 
+	if (symbol_conf.allow_aliases)
+		return;
+
 	nd = rb_first(symbols);
 
 	while (nd) {
@@ -235,8 +239,13 @@ struct symbol *symbol__new(u64 start, u64 len, u8 binding, const char *name)
 	if (sym == NULL)
 		return NULL;
 
-	if (symbol_conf.priv_size)
+	if (symbol_conf.priv_size) {
+		if (symbol_conf.init_annotation) {
+			struct annotation *notes = (void *)sym;
+			pthread_mutex_init(&notes->lock, NULL);
+		}
 		sym = ((void *)sym) + symbol_conf.priv_size;
+	}
 
 	sym->start   = start;
 	sym->end     = len ? start + len : start;
@@ -1234,8 +1243,8 @@ int __dso__load_kallsyms(struct dso *dso, const char *filename,
 	if (kallsyms__delta(map, filename, &delta))
 		return -1;
 
-	symbols__fixup_duplicate(&dso->symbols[map->type]);
 	symbols__fixup_end(&dso->symbols[map->type]);
+	symbols__fixup_duplicate(&dso->symbols[map->type]);
 
 	if (dso->kernel == DSO_TYPE_GUEST_KERNEL)
 		dso->symtab_type = DSO_BINARY_TYPE__GUEST_KALLSYMS;
@@ -1946,6 +1955,23 @@ static bool symbol__read_kptr_restrict(void)
 	}
 
 	return value;
+}
+
+int symbol__annotation_init(void)
+{
+	if (symbol_conf.initialized) {
+		pr_err("Annotation needs to be init before symbol__init()\n");
+		return -1;
+	}
+
+	if (symbol_conf.init_annotation) {
+		pr_warning("Annotation being initialized multiple times\n");
+		return 0;
+	}
+
+	symbol_conf.priv_size += sizeof(struct annotation);
+	symbol_conf.init_annotation = true;
+	return 0;
 }
 
 int symbol__init(struct perf_env *env)

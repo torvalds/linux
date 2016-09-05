@@ -98,6 +98,7 @@ endif
 
 libperf-$(CONFIG_DWARF) += probe-finder.o
 libperf-$(CONFIG_DWARF) += dwarf-aux.o
+libperf-$(CONFIG_DWARF) += dwarf-regs.o
 
 libperf-$(CONFIG_LIBDW_DWARF_UNWIND) += unwind-libdw.o
 libperf-$(CONFIG_LOCAL_LIBUNWIND)    += unwind-libunwind-local.o

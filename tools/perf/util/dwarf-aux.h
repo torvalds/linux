@@ -125,4 +125,12 @@ int die_get_typename(Dwarf_Die *vr_die, struct strbuf *buf);
 /* Get the name and type of given variable DIE, stored as "type\tname" */
 int die_get_varname(Dwarf_Die *vr_die, struct strbuf *buf);
 int die_get_var_range(Dwarf_Die *sp_die, Dwarf_Die *vr_die, struct strbuf *buf);
+
+/* Check if target program is compiled with optimization */
+bool die_is_optimized_target(Dwarf_Die *cu_die);
+
+/* Use next address after prologue as probe location */
+void die_skip_prologue(Dwarf_Die *sp_die, Dwarf_Die *cu_die,
+		       Dwarf_Addr *entrypc);
+
 #endif

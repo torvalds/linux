@@ -984,9 +984,9 @@ repeat:
 	 * implementation.
 	 */
 	if (ui__has_annotation()) {
-		symbol_conf.priv_size = sizeof(struct annotation);
-		machines__set_symbol_filter(&session->machines,
-					    symbol__annotate_init);
+		ret = symbol__annotation_init();
+		if (ret < 0)
+			goto error;
 		/*
  		 * For searching by name on the "Browse map details".
  		 * providing it only in verbose mode not to bloat too

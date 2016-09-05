@@ -680,7 +680,7 @@ static int symbol_filter(struct map *map, struct symbol *sym)
 		return 1;
 
 	if (symbol__is_idle(sym))
-		sym->ignore = true;
+		sym->idle = 1;
 
 	return 0;
 }
@@ -783,7 +783,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 		}
 	}
 
-	if (al.sym == NULL || !al.sym->ignore) {
+	if (al.sym == NULL || !al.sym->idle) {
 		struct hists *hists = evsel__hists(evsel);
 		struct hist_entry_iter iter = {
 			.evsel		= evsel,
@@ -1324,7 +1324,9 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (symbol_conf.cumulate_callchain && !callchain_param.order_set)
 		callchain_param.order = ORDER_CALLER;
 
-	symbol_conf.priv_size = sizeof(struct annotation);
+	status = symbol__annotation_init();
+	if (status < 0)
+		goto out_delete_evlist;
 
 	symbol_conf.try_vmlinux_path = (symbol_conf.vmlinux_name == NULL);
 	if (symbol__init(NULL) < 0)
