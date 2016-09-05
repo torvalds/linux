@@ -321,6 +321,15 @@ vc4_first_render_job(struct vc4_dev *vc4)
 				struct vc4_exec_info, head);
 }
 
+static inline struct vc4_exec_info *
+vc4_last_render_job(struct vc4_dev *vc4)
+{
+	if (list_empty(&vc4->render_job_list))
+		return NULL;
+	return list_last_entry(&vc4->render_job_list,
+			       struct vc4_exec_info, head);
+}
+
 /**
  * struct vc4_texture_sample_info - saves the offsets into the UBO for texture
  * setup parameters.

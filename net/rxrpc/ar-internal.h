@@ -425,6 +425,7 @@ struct rxrpc_call {
 	spinlock_t		lock;
 	rwlock_t		state_lock;	/* lock for state transition */
 	atomic_t		usage;
+	atomic_t		skb_count;	/* Outstanding packets on this call */
 	atomic_t		sequence;	/* Tx data packet sequence counter */
 	u32			local_abort;	/* local abort code */
 	u32			remote_abort;	/* remote abort code */

@@ -139,7 +139,7 @@ int mlx5e_refresh_tirs_self_loopback_enable(struct mlx5_core_dev *mdev)
 	struct mlx5e_tir *tir;
 	void *in;
 	int inlen;
-	int err;
+	int err = 0;
 
 	inlen = MLX5_ST_SZ_BYTES(modify_tir_in);
 	in = mlx5_vzalloc(inlen);
@@ -151,10 +151,11 @@ int mlx5e_refresh_tirs_self_loopback_enable(struct mlx5_core_dev *mdev)
 	list_for_each_entry(tir, &mdev->mlx5e_res.td.tirs_list, list) {
 		err = mlx5_core_modify_tir(mdev, tir->tirn, in, inlen);
 		if (err)
-			return err;
+			goto out;
 	}
 
+out:
 	kvfree(in);
 
-	return 0;
+	return err;
 }

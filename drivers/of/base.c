@@ -1631,8 +1631,7 @@ static int __of_parse_phandle_with_args(const struct device_node *np,
 	 */
 
  err:
-	if (it.node)
-		of_node_put(it.node);
+	of_node_put(it.node);
 	return rc;
 }
 
@@ -2343,20 +2342,13 @@ struct device_node *of_graph_get_endpoint_by_regs(
 	const struct device_node *parent, int port_reg, int reg)
 {
 	struct of_endpoint endpoint;
-	struct device_node *node, *prev_node = NULL;
+	struct device_node *node = NULL;
 
-	while (1) {
-		node = of_graph_get_next_endpoint(parent, prev_node);
-		of_node_put(prev_node);
-		if (!node)
-			break;
-
+	for_each_endpoint_of_node(parent, node) {
 		of_graph_parse_endpoint(node, &endpoint);
 		if (((port_reg == -1) || (endpoint.port == port_reg)) &&
 			((reg == -1) || (endpoint.id == reg)))
 			return node;
-
-		prev_node = node;
 	}
 
 	return NULL;

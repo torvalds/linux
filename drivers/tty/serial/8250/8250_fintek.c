@@ -31,7 +31,7 @@
 #define IO_ADDR2 0x60
 #define LDN 0x7
 
-#define IRQ_MODE	0x70
+#define FINTEK_IRQ_MODE	0x70
 #define IRQ_SHARE	BIT(4)
 #define IRQ_MODE_MASK	(BIT(6) | BIT(5))
 #define IRQ_LEVEL_LOW	0
@@ -195,7 +195,7 @@ static int fintek_8250_set_irq_mode(struct fintek_8250 *pdata, bool level_mode)
 	outb(LDN, pdata->base_port + ADDR_PORT);
 	outb(pdata->index, pdata->base_port + DATA_PORT);
 
-	outb(IRQ_MODE, pdata->base_port + ADDR_PORT);
+	outb(FINTEK_IRQ_MODE, pdata->base_port + ADDR_PORT);
 	tmp = inb(pdata->base_port + DATA_PORT);
 
 	tmp &= ~IRQ_MODE_MASK;

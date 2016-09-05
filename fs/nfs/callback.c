@@ -275,6 +275,7 @@ static int nfs_callback_up_net(int minorversion, struct svc_serv *serv,
 err_socks:
 	svc_rpcb_cleanup(serv, net);
 err_bind:
+	nn->cb_users[minorversion]--;
 	dprintk("NFS: Couldn't create callback socket: err = %d; "
 			"net = %p\n", ret, net);
 	return ret;

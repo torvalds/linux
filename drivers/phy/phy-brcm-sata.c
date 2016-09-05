@@ -367,7 +367,7 @@ static int brcm_sata_phy_init(struct phy *phy)
 		rc = -ENODEV;
 	};
 
-	return 0;
+	return rc;
 }
 
 static const struct phy_ops phy_ops = {

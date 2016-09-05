@@ -834,8 +834,10 @@ static int join(struct mddev *mddev, int nodes)
 		goto err;
 	}
 	cinfo->ack_lockres = lockres_init(mddev, "ack", ack_bast, 0);
-	if (!cinfo->ack_lockres)
+	if (!cinfo->ack_lockres) {
+		ret = -ENOMEM;
 		goto err;
+	}
 	/* get sync CR lock on ACK. */
 	if (dlm_lock_sync(cinfo->ack_lockres, DLM_LOCK_CR))
 		pr_err("md-cluster: failed to get a sync CR lock on ACK!(%d)\n",
@@ -849,8 +851,10 @@ static int join(struct mddev *mddev, int nodes)
 	pr_info("md-cluster: Joined cluster %s slot %d\n", str, cinfo->slot_number);
 	snprintf(str, 64, "bitmap%04d", cinfo->slot_number - 1);
 	cinfo->bitmap_lockres = lockres_init(mddev, str, NULL, 1);
-	if (!cinfo->bitmap_lockres)
+	if (!cinfo->bitmap_lockres) {
+		ret = -ENOMEM;
 		goto err;
+	}
 	if (dlm_lock_sync(cinfo->bitmap_lockres, DLM_LOCK_PW)) {
 		pr_err("Failed to get bitmap lock\n");
 		ret = -EINVAL;
@@ -858,8 +862,10 @@ static int join(struct mddev *mddev, int nodes)
 	}
 
 	cinfo->resync_lockres = lockres_init(mddev, "resync", NULL, 0);
-	if (!cinfo->resync_lockres)
+	if (!cinfo->resync_lockres) {
+		ret = -ENOMEM;
 		goto err;
+	}
 
 	return 0;
 err:
