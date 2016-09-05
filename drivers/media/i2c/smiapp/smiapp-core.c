@@ -2536,7 +2536,8 @@ static void smiapp_cleanup(struct smiapp_sensor *sensor)
 }
 
 static void smiapp_create_subdev(struct smiapp_sensor *sensor,
-				 struct smiapp_subdev *ssd, const char *name)
+				 struct smiapp_subdev *ssd, const char *name,
+				 unsigned short num_pads)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 
@@ -2548,12 +2549,8 @@ static void smiapp_create_subdev(struct smiapp_sensor *sensor,
 
 	ssd->sensor = sensor;
 
-	if (ssd == sensor->pixel_array) {
-		ssd->npads = 1;
-	} else {
-		ssd->npads = 2;
-		ssd->source_pad = 1;
-	}
+	ssd->npads = num_pads;
+	ssd->source_pad = num_pads - 1;
 
 	snprintf(ssd->sd.name,
 		 sizeof(ssd->sd.name), "%s %s %d-%4.4x", sensor->minfo.name,
@@ -2747,9 +2744,9 @@ static int smiapp_init(struct smiapp_sensor *sensor)
 	if (sensor->minfo.smiapp_profile == SMIAPP_PROFILE_0)
 		pll->flags |= SMIAPP_PLL_FLAG_NO_OP_CLOCKS;
 
-	smiapp_create_subdev(sensor, sensor->scaler, "scaler");
-	smiapp_create_subdev(sensor, sensor->binner, "binner");
-	smiapp_create_subdev(sensor, sensor->pixel_array, "pixel_array");
+	smiapp_create_subdev(sensor, sensor->scaler, "scaler", 2);
+	smiapp_create_subdev(sensor, sensor->binner, "binner", 2);
+	smiapp_create_subdev(sensor, sensor->pixel_array, "pixel_array", 1);
 
 	dev_dbg(&client->dev, "profile %d\n", sensor->minfo.smiapp_profile);
 
