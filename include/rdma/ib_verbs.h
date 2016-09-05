@@ -1373,7 +1373,11 @@ struct ib_pd {
 	struct ib_device       *device;
 	struct ib_uobject      *uobject;
 	atomic_t          	usecnt; /* count all resources */
-	struct ib_mr	       *local_mr;
+
+	/*
+	 * Implementation details of the RDMA core, don't use in drivers:
+	 */
+	struct ib_mr	       *__internal_mr;
 };
 
 struct ib_xrcd {

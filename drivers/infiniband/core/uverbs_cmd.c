@@ -571,7 +571,7 @@ ssize_t ib_uverbs_alloc_pd(struct ib_uverbs_file *file,
 
 	pd->device  = ib_dev;
 	pd->uobject = uobj;
-	pd->local_mr = NULL;
+	pd->__internal_mr = NULL;
 	atomic_set(&pd->usecnt, 0);
 
 	uobj->object = pd;

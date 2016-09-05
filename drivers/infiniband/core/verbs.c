@@ -237,7 +237,7 @@ struct ib_pd *ib_alloc_pd(struct ib_device *device)
 
 	pd->device = device;
 	pd->uobject = NULL;
-	pd->local_mr = NULL;
+	pd->__internal_mr = NULL;
 	atomic_set(&pd->usecnt, 0);
 
 	if (device->attrs.device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY)
@@ -251,8 +251,8 @@ struct ib_pd *ib_alloc_pd(struct ib_device *device)
 			return (struct ib_pd *)mr;
 		}
 
-		pd->local_mr = mr;
-		pd->local_dma_lkey = pd->local_mr->lkey;
+		pd->__internal_mr = mr;
+		pd->local_dma_lkey = pd->__internal_mr->lkey;
 	}
 	return pd;
 }
@@ -270,10 +270,10 @@ void ib_dealloc_pd(struct ib_pd *pd)
 {
 	int ret;
 
-	if (pd->local_mr) {
-		ret = ib_dereg_mr(pd->local_mr);
+	if (pd->__internal_mr) {
+		ret = ib_dereg_mr(pd->__internal_mr);
 		WARN_ON(ret);
-		pd->local_mr = NULL;
+		pd->__internal_mr = NULL;
 	}
 
 	/* uverbs manipulates usecnt with proper locking, while the kabi
