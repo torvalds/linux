@@ -38,6 +38,9 @@
  * Besides, if an arch has a special barrier for acquire/release, it could
  * implement its own __atomic_op_* and use the same framework for building
  * variants
+ *
+ * If an architecture overrides __atomic_op_acquire() it will probably want
+ * to define smp_mb__after_spinlock().
  */
 #ifndef __atomic_op_acquire
 #define __atomic_op_acquire(op, args...)				\
