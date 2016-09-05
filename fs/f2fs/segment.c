@@ -2678,7 +2678,7 @@ int __init create_segment_manager_caches(void)
 	bio_entry_slab = f2fs_kmem_cache_create("bio_entry",
 			sizeof(struct bio_entry));
 	if (!bio_entry_slab)
-		goto destory_discard_entry;
+		goto destroy_discard_entry;
 
 	sit_entry_set_slab = f2fs_kmem_cache_create("sit_entry_set",
 			sizeof(struct sit_entry_set));
@@ -2695,7 +2695,7 @@ destroy_sit_entry_set:
 	kmem_cache_destroy(sit_entry_set_slab);
 destroy_bio_entry:
 	kmem_cache_destroy(bio_entry_slab);
-destory_discard_entry:
+destroy_discard_entry:
 	kmem_cache_destroy(discard_entry_slab);
 fail:
 	return -ENOMEM;
