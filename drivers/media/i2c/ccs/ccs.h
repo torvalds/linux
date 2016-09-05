@@ -48,6 +48,8 @@
 
 #define CCS_COLOUR_COMPONENTS		4
 
+#define CCS_DEFAULT_COMPRESSED_DT	MIPI_CSI2_DT_USER_DEFINED(0)
+
 #define SMIAPP_NAME			"smiapp"
 #define CCS_NAME			"ccs"
 
@@ -176,6 +178,8 @@ struct ccs_csi_data_format {
 #define CCS_PAD_SINK			0
 #define CCS_PAD_SRC			1
 #define CCS_PADS			2
+
+#define CCS_STREAM_PIXEL		0
 
 struct ccs_binning_subtype {
 	u8 horizontal:4;
