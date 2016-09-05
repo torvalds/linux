@@ -48,10 +48,10 @@
 			                <0 0 0 2 &intc 0 122 IRQ_TYPE_LEVEL_HIGH>,
 			                <0 0 0 3 &intc 0 121 IRQ_TYPE_LEVEL_HIGH>,
 			                <0 0 0 4 &intc 0 120 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clks IMX6QDL_CLK_PCIE_REF_125M>,
-				 <&clks IMX6QDL_CLK_SATA_REF_100M>,
+			clocks = <&clks IMX6QDL_CLK_PCIE_REF_125M>, <&clks IMX6QDL_PLL6_BYPASS>,
+				 <&clks IMX6QDL_PLL6_BYPASS_SRC>,
 				 <&clks IMX6QDL_CLK_LVDS1_GATE>, <&clks IMX6QDL_CLK_PCIE_AXI>;
-			clock-names = "pcie_phy", "ref_100m", "pcie_bus", "pcie";
+			clock-names = "pcie_phy", "pcie_ext", "pcie_ext_src", "pcie_bus", "pcie";
 			status = "disabled";
 		};
 
