@@ -964,5 +964,33 @@
 
 			status = "disabled";
 		};
+
+		sti_uni_reader0: sti-uni-reader@8d83000 {
+			compatible = "st,sti-uni-reader";
+			#sound-dai-cells = <0>;
+			st,syscfg = <&syscfg_core>;
+			reg = <0x8d83000 0x158>;
+			interrupts = <GIC_SPI 87 IRQ_TYPE_NONE>;
+			dmas = <&fdma0 5 0 1>;
+			dma-names = "rx";
+			dai-name = "Uni Reader #0 (PCM IN)";
+			st,version = <3>;
+
+			status = "disabled";
+		};
+
+		sti_uni_reader1: sti-uni-reader@8d84000 {
+			compatible = "st,sti-uni-reader";
+			#sound-dai-cells = <0>;
+			st,syscfg = <&syscfg_core>;
+			reg = <0x8d84000 0x158>;
+			interrupts = <GIC_SPI 88 IRQ_TYPE_NONE>;
+			dmas = <&fdma0 6 0 1>;
+			dma-names = "rx";
+			dai-name = "Uni Reader #1 (HDMI RX)";
+			st,version = <3>;
+
+			status = "disabled";
+		};
 	};
 };
