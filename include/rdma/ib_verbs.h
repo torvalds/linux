@@ -1370,9 +1370,12 @@ struct ib_udata {
 
 struct ib_pd {
 	u32			local_dma_lkey;
+	u32			flags;
 	struct ib_device       *device;
 	struct ib_uobject      *uobject;
 	atomic_t          	usecnt; /* count all resources */
+
+	u32			unsafe_global_rkey;
 
 	/*
 	 * Implementation details of the RDMA core, don't use in drivers:
@@ -2506,8 +2509,23 @@ int ib_find_gid(struct ib_device *device, union ib_gid *gid,
 int ib_find_pkey(struct ib_device *device,
 		 u8 port_num, u16 pkey, u16 *index);
 
-struct ib_pd *ib_alloc_pd(struct ib_device *device);
+enum ib_pd_flags {
+	/*
+	 * Create a memory registration for all memory in the system and place
+	 * the rkey for it into pd->unsafe_global_rkey.  This can be used by
+	 * ULPs to avoid the overhead of dynamic MRs.
+	 *
+	 * This flag is generally considered unsafe and must only be used in
+	 * extremly trusted environments.  Every use of it will log a warning
+	 * in the kernel log.
+	 */
+	IB_PD_UNSAFE_GLOBAL_RKEY	= 0x01,
+};
 
+struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
+		const char *caller);
+#define ib_alloc_pd(device, flags) \
+	__ib_alloc_pd((device), (flags), __func__)
 void ib_dealloc_pd(struct ib_pd *pd);
 
 /**

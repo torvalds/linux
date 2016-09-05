@@ -3573,7 +3573,7 @@ static void srp_add_one(struct ib_device *device)
 	INIT_LIST_HEAD(&srp_dev->dev_list);
 
 	srp_dev->dev = device;
-	srp_dev->pd  = ib_alloc_pd(device);
+	srp_dev->pd  = ib_alloc_pd(device, 0);
 	if (IS_ERR(srp_dev->pd))
 		goto free_dev;
 

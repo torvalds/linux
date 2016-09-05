@@ -88,7 +88,7 @@ static int iser_create_device_ib_res(struct iser_device *device)
 		  device->comps_used, ib_dev->name,
 		  ib_dev->num_comp_vectors, max_cqe);
 
-	device->pd = ib_alloc_pd(ib_dev);
+	device->pd = ib_alloc_pd(ib_dev, 0);
 	if (IS_ERR(device->pd))
 		goto pd_err;
 

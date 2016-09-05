@@ -3160,7 +3160,7 @@ static int ib_mad_port_open(struct ib_device *device,
 		goto error3;
 	}
 
-	port_priv->pd = ib_alloc_pd(device);
+	port_priv->pd = ib_alloc_pd(device, 0);
 	if (IS_ERR(port_priv->pd)) {
 		dev_err(&device->dev, "Couldn't create ib_mad PD\n");
 		ret = PTR_ERR(port_priv->pd);

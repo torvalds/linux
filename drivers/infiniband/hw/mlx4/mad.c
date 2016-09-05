@@ -1897,7 +1897,7 @@ static int create_pv_resources(struct ib_device *ibdev, int slave, int port,
 		goto err_buf;
 	}
 
-	ctx->pd = ib_alloc_pd(ctx->ib_dev);
+	ctx->pd = ib_alloc_pd(ctx->ib_dev, 0);
 	if (IS_ERR(ctx->pd)) {
 		ret = PTR_ERR(ctx->pd);
 		pr_err("Couldn't create tunnel PD (%d)\n", ret);
