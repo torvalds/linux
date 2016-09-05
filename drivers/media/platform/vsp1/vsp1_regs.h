@@ -699,9 +699,20 @@
 #define VI6_IP_VERSION_MODEL_VSPBD_GEN3	(0x15 << 8)
 #define VI6_IP_VERSION_MODEL_VSPBC_GEN3	(0x16 << 8)
 #define VI6_IP_VERSION_MODEL_VSPD_GEN3	(0x17 << 8)
+#define VI6_IP_VERSION_MODEL_VSPD_V3	(0x18 << 8)
+#define VI6_IP_VERSION_MODEL_VSPDL_GEN3	(0x19 << 8)
+#define VI6_IP_VERSION_MODEL_VSPBS_GEN3	(0x1a << 8)
 #define VI6_IP_VERSION_SOC_MASK		(0xff << 0)
-#define VI6_IP_VERSION_SOC_H		(0x01 << 0)
-#define VI6_IP_VERSION_SOC_M		(0x02 << 0)
+#define VI6_IP_VERSION_SOC_H2		(0x01 << 0)
+#define VI6_IP_VERSION_SOC_V2H		(0x01 << 0)
+#define VI6_IP_VERSION_SOC_V3M		(0x01 << 0)
+#define VI6_IP_VERSION_SOC_M2		(0x02 << 0)
+#define VI6_IP_VERSION_SOC_M3W		(0x02 << 0)
+#define VI6_IP_VERSION_SOC_V3H		(0x02 << 0)
+#define VI6_IP_VERSION_SOC_H3		(0x03 << 0)
+#define VI6_IP_VERSION_SOC_D3		(0x04 << 0)
+#define VI6_IP_VERSION_SOC_M3N		(0x04 << 0)
+#define VI6_IP_VERSION_SOC_E3		(0x04 << 0)
 
 /* -----------------------------------------------------------------------------
  * RPF CLUT Registers
