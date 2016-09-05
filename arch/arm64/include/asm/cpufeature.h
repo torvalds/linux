@@ -9,6 +9,8 @@
 #ifndef __ASM_CPUFEATURE_H
 #define __ASM_CPUFEATURE_H
 
+#include <linux/jump_label.h>
+
 #include <asm/hwcap.h>
 #include <asm/sysreg.h>
 
@@ -110,6 +112,7 @@ struct arm64_cpu_capabilities {
 };
 
 extern DECLARE_BITMAP(cpu_hwcaps, ARM64_NCAPS);
+extern struct static_key_false cpu_hwcap_keys[ARM64_NCAPS];
 
 bool this_cpu_has_cap(unsigned int cap);
 
@@ -122,16 +125,21 @@ static inline bool cpus_have_cap(unsigned int num)
 {
 	if (num >= ARM64_NCAPS)
 		return false;
-	return test_bit(num, cpu_hwcaps);
+	if (__builtin_constant_p(num))
+		return static_branch_unlikely(&cpu_hwcap_keys[num]);
+	else
+		return test_bit(num, cpu_hwcaps);
 }
 
 static inline void cpus_set_cap(unsigned int num)
 {
-	if (num >= ARM64_NCAPS)
+	if (num >= ARM64_NCAPS) {
 		pr_warn("Attempt to set an illegal CPU capability (%d >= %d)\n",
 			num, ARM64_NCAPS);
-	else
+	} else {
 		__set_bit(num, cpu_hwcaps);
+		static_branch_enable(&cpu_hwcap_keys[num]);
+	}
 }
 
 static inline int __attribute_const__
