@@ -1357,6 +1357,14 @@ void sa1111_disable_device(struct sa1111_dev *sadev)
 }
 EXPORT_SYMBOL(sa1111_disable_device);
 
+int sa1111_get_irq(struct sa1111_dev *sadev, unsigned num)
+{
+	if (num >= ARRAY_SIZE(sadev->irq))
+		return -EINVAL;
+	return sadev->irq[num];
+}
+EXPORT_SYMBOL_GPL(sa1111_get_irq);
+
 /*
  *	SA1111 "Register Access Bus."
  *

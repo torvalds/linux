@@ -446,6 +446,8 @@ struct sa1111_driver {
 int sa1111_enable_device(struct sa1111_dev *);
 void sa1111_disable_device(struct sa1111_dev *);
 
+int sa1111_get_irq(struct sa1111_dev *, unsigned num);
+
 unsigned int sa1111_pll_clock(struct sa1111_dev *);
 
 #define SA1111_AUDIO_ACLINK	0
