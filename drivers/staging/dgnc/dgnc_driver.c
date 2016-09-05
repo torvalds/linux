@@ -602,31 +602,31 @@ static void dgnc_do_remap(struct dgnc_board *brd)
 	brd->re_map_membase = ioremap(brd->membase, 0x1000);
 }
 
-/*****************************************************************************
-*
-* Function:
-*
-*    dgnc_poll_handler
-*
-* Author:
-*
-*    Scott H Kilau
-*
-* Parameters:
-*
-*    dummy -- ignored
-*
-* Return Values:
-*
-*    none
-*
-* Description:
-*
-*    As each timer expires, it determines (a) whether the "transmit"
-*    waiter needs to be woken up, and (b) whether the poller needs to
-*    be rescheduled.
-*
-******************************************************************************/
+/*
+ *
+ * Function:
+ *
+ *    dgnc_poll_handler
+ *
+ * Author:
+ *
+ *    Scott H Kilau
+ *
+ * Parameters:
+ *
+ *    dummy -- ignored
+ *
+ * Return Values:
+ *
+ *    none
+ *
+ * Description:
+ *
+ *    As each timer expires, it determines (a) whether the "transmit"
+ *    waiter needs to be woken up, and (b) whether the poller needs to
+ *    be rescheduled.
+ *
+ */
 
 static void dgnc_poll_handler(ulong dummy)
 {
