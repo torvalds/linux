@@ -1609,7 +1609,7 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
 	struct drm_crtc_state *crtc_state;
 	unsigned plane_mask;
 	int ret = 0;
-	unsigned int i, j;
+	unsigned int i, j, k;
 
 	/* disallow for drivers not supporting atomic: */
 	if (!drm_core_check_feature(dev, DRIVER_ATOMIC))
@@ -1688,6 +1688,15 @@ retry:
 			if (get_user(prop_id, props_ptr + copied_props)) {
 				drm_mode_object_unreference(obj);
 				ret = -EFAULT;
+				goto out;
+			}
+
+			for (k = 0; k < obj->properties->count; k++)
+				if (obj->properties->properties[k]->base.id == prop_id)
+					break;
+
+			if (k == obj->properties->count) {
+				ret = -EINVAL;
 				goto out;
 			}
 
