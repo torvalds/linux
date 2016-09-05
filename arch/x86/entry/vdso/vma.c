@@ -238,12 +238,14 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
 
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
-		goto up_fail;
+		do_munmap(mm, text_start, image->size);
 	}
 
 up_fail:
-	if (ret)
+	if (ret) {
 		current->mm->context.vdso = NULL;
+		current->mm->context.vdso_image = NULL;
+	}
 
 	up_write(&mm->mmap_sem);
 	return ret;
