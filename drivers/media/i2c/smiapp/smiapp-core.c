@@ -68,10 +68,9 @@ static int smiapp_read_frame_fmt(struct smiapp_sensor *sensor)
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 	u32 fmt_model_type, fmt_model_subtype, ncol_desc, nrow_desc;
 	unsigned int i;
-	int rval;
+	int pixel_count = 0;
 	int line_count = 0;
-	int embedded_start = -1, embedded_end = -1;
-	int image_start = 0;
+	int rval;
 
 	rval = smiapp_read(sensor, SMIAPP_REG_U8_FRAME_FORMAT_MODEL_TYPE,
 			   &fmt_model_type);
@@ -166,33 +165,40 @@ static int smiapp_read_frame_fmt(struct smiapp_sensor *sensor)
 		dev_dbg(&client->dev, "%s pixels: %d %s\n",
 			what, pixels, which);
 
-		if (i < ncol_desc)
+		if (i < ncol_desc) {
+			if (pixelcode ==
+			    SMIAPP_FRAME_FORMAT_DESC_PIXELCODE_VISIBLE)
+				sensor->visible_pixel_start = pixel_count;
+			pixel_count += pixels;
 			continue;
+		}
 
 		/* Handle row descriptors */
-		if (pixelcode
-		    == SMIAPP_FRAME_FORMAT_DESC_PIXELCODE_EMBEDDED) {
-			embedded_start = line_count;
-		} else {
-			if (pixelcode == SMIAPP_FRAME_FORMAT_DESC_PIXELCODE_VISIBLE
-			    || pixels >= sensor->limits[SMIAPP_LIMIT_MIN_FRAME_LENGTH_LINES] / 2)
-				image_start = line_count;
-			if (embedded_start != -1 && embedded_end == -1)
-				embedded_end = line_count;
+		switch (pixelcode) {
+		case SMIAPP_FRAME_FORMAT_DESC_PIXELCODE_EMBEDDED:
+			if (sensor->embedded_end)
+				break;
+			sensor->embedded_start = line_count;
+			sensor->embedded_end = line_count + pixels;
+			break;
+		case SMIAPP_FRAME_FORMAT_DESC_PIXELCODE_VISIBLE:
+			sensor->image_start = line_count;
+			break;
 		}
 		line_count += pixels;
 	}
 
-	if (embedded_start == -1 || embedded_end == -1) {
-		embedded_start = 0;
-		embedded_end = 0;
+	if (sensor->embedded_end > sensor->image_start) {
+		dev_dbg(&client->dev,
+			"adjusting image start line to %u (was %u)\n",
+			sensor->embedded_end, sensor->image_start);
+		sensor->image_start = sensor->embedded_end;
 	}
 
-	sensor->image_start = image_start;
-
 	dev_dbg(&client->dev, "embedded data from lines %d to %d\n",
-		embedded_start, embedded_end);
-	dev_dbg(&client->dev, "image data starts at line %d\n", image_start);
+		sensor->embedded_start, sensor->embedded_end);
+	dev_dbg(&client->dev, "image data starts at line %d\n",
+		sensor->image_start);
 
 	return 0;
 }

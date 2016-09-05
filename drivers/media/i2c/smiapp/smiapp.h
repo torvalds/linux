@@ -213,7 +213,10 @@ struct smiapp_sensor {
 
 	u8 hvflip_inv_mask; /* H/VFLIP inversion due to sensor orientation */
 	u8 frame_skip;
-	u16 image_start;	/* Offset to first line after metadata lines */
+	u16 embedded_start; /* embedded data start line */
+	u16 embedded_end;
+	u16 image_start; /* image data start line */
+	u16 visible_pixel_start; /* start pixel of the visible image */
 
 	int power_count;
 
