@@ -23,7 +23,7 @@
 #include <asm/unaligned.h>
 
 #define WDT87XX_NAME		"wdt87xx_i2c"
-#define WDT87XX_DRV_VER		"0.9.7"
+#define WDT87XX_DRV_VER		"0.9.8"
 #define WDT87XX_FW_NAME		"wdt87xx_fw.bin"
 #define WDT87XX_CFG_NAME	"wdt87xx_cfg.bin"
 
@@ -157,6 +157,7 @@
 /* Controller requires minimum 300us between commands */
 #define WDT_COMMAND_DELAY_MS		2
 #define WDT_FLASH_WRITE_DELAY_MS	4
+#define WDT_FLASH_ERASE_DELAY_MS	200
 #define WDT_FW_RESET_TIME		2500
 
 struct wdt87xx_sys_param {
@@ -726,7 +727,7 @@ static int wdt87xx_write_firmware(struct i2c_client *client, const void *chunk)
 				break;
 			}
 
-			msleep(50);
+			msleep(WDT_FLASH_ERASE_DELAY_MS);
 
 			error = wdt87xx_write_data(client, data, start_addr,
 						   page_size);
