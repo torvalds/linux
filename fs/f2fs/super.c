@@ -706,8 +706,6 @@ static void destroy_percpu_info(struct f2fs_sb_info *sbi)
 		percpu_counter_destroy(&sbi->nr_pages[i]);
 	percpu_counter_destroy(&sbi->alloc_valid_block_count);
 	percpu_counter_destroy(&sbi->total_valid_inode_count);
-
-	percpu_free_rwsem(&sbi->cp_rwsem);
 }
 
 static void f2fs_put_super(struct super_block *sb)
@@ -1483,9 +1481,6 @@ static int init_percpu_info(struct f2fs_sb_info *sbi)
 {
 	int i, err;
 
-	if (percpu_init_rwsem(&sbi->cp_rwsem))
-		return -ENOMEM;
-
 	for (i = 0; i < NR_COUNT_TYPE; i++) {
 		err = percpu_counter_init(&sbi->nr_pages[i], 0, GFP_KERNEL);
 		if (err)
@@ -1686,6 +1681,7 @@ try_onemore:
 		sbi->write_io[i].bio = NULL;
 	}
 
+	init_rwsem(&sbi->cp_rwsem);
 	init_waitqueue_head(&sbi->cp_wait);
 	init_sb_info(sbi);
 

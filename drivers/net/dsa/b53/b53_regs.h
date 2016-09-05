@@ -258,7 +258,7 @@
  * BCM5325 and BCM5365 share most definitions below
  */
 #define B53_ARLTBL_MAC_VID_ENTRY(n)	(0x10 * (n))
-#define   ARLTBL_MAC_MASK		0xffffffffffff
+#define   ARLTBL_MAC_MASK		0xffffffffffffULL
 #define   ARLTBL_VID_S			48
 #define   ARLTBL_VID_MASK_25		0xff
 #define   ARLTBL_VID_MASK		0xfff

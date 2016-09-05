@@ -544,12 +544,15 @@ void __init of_irq_init(const struct of_device_id *matches)
 
 			list_del(&desc->list);
 
+			of_node_set_flag(desc->dev, OF_POPULATED);
+
 			pr_debug("of_irq_init: init %s (%p), parent %p\n",
 				 desc->dev->full_name,
 				 desc->dev, desc->interrupt_parent);
 			ret = desc->irq_init_cb(desc->dev,
 						desc->interrupt_parent);
 			if (ret) {
+				of_node_clear_flag(desc->dev, OF_POPULATED);
 				kfree(desc);
 				continue;
 			}
@@ -559,8 +562,6 @@ void __init of_irq_init(const struct of_device_id *matches)
 			 * its children can get processed in a subsequent pass.
 			 */
 			list_add_tail(&desc->list, &intc_parent_list);
-
-			of_node_set_flag(desc->dev, OF_POPULATED);
 		}
 
 		/* Get the next pending parent that might have children */

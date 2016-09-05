@@ -196,10 +196,19 @@ int msm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct drm_gem_object *obj = vma->vm_private_data;
 	struct drm_device *dev = obj->dev;
+	struct msm_drm_private *priv = dev->dev_private;
 	struct page **pages;
 	unsigned long pfn;
 	pgoff_t pgoff;
 	int ret;
+
+	/* This should only happen if userspace tries to pass a mmap'd
+	 * but unfaulted gem bo vaddr into submit ioctl, triggering
+	 * a page fault while struct_mutex is already held.  This is
+	 * not a valid use-case so just bail.
+	 */
+	if (priv->struct_mutex_task == current)
+		return VM_FAULT_SIGBUS;
 
 	/* Make sure we don't parallel update on a fault, nor move or remove
 	 * something from beneath our feet

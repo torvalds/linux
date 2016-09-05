@@ -68,7 +68,7 @@ static int i2c_demux_activate_master(struct i2c_demux_pinctrl_priv *priv, u32 ne
 	adap = of_find_i2c_adapter_by_node(priv->chan[new_chan].parent_np);
 	if (!adap) {
 		ret = -ENODEV;
-		goto err;
+		goto err_with_revert;
 	}
 
 	p = devm_pinctrl_get_select(adap->dev.parent, priv->bus_name);
@@ -103,6 +103,8 @@ static int i2c_demux_activate_master(struct i2c_demux_pinctrl_priv *priv, u32 ne
 
  err_with_put:
 	i2c_put_adapter(adap);
+ err_with_revert:
+	of_changeset_revert(&priv->chan[new_chan].chgset);
  err:
 	dev_err(priv->dev, "failed to setup demux-adapter %d (%d)\n", new_chan, ret);
 	return ret;

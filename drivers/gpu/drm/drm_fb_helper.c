@@ -464,7 +464,7 @@ static bool drm_fb_helper_is_bound(struct drm_fb_helper *fb_helper)
 
 	/* Sometimes user space wants everything disabled, so don't steal the
 	 * display if there's a master. */
-	if (lockless_dereference(dev->master))
+	if (READ_ONCE(dev->master))
 		return false;
 
 	drm_for_each_crtc(crtc, dev) {
