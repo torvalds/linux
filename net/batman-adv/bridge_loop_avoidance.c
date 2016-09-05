@@ -2449,3 +2449,52 @@ out:
 
 	return ret;
 }
+
+#ifdef CONFIG_BATMAN_ADV_DAT
+/**
+ * batadv_bla_check_claim - check if address is claimed
+ *
+ * @bat_priv: the bat priv with all the soft interface information
+ * @addr: mac address of which the claim status is checked
+ * @vid: the VLAN ID
+ *
+ * addr is checked if this address is claimed by the local device itself.
+ *
+ * Return: true if bla is disabled or the mac is claimed by the device,
+ * false if the device addr is already claimed by another gateway
+ */
+bool batadv_bla_check_claim(struct batadv_priv *bat_priv,
+			    u8 *addr, unsigned short vid)
+{
+	struct batadv_bla_claim search_claim;
+	struct batadv_bla_claim *claim = NULL;
+	struct batadv_hard_iface *primary_if = NULL;
+	bool ret = true;
+
+	if (!atomic_read(&bat_priv->bridge_loop_avoidance))
+		return ret;
+
+	primary_if = batadv_primary_if_get_selected(bat_priv);
+	if (!primary_if)
+		return ret;
+
+	/* First look if the mac address is claimed */
+	ether_addr_copy(search_claim.addr, addr);
+	search_claim.vid = vid;
+
+	claim = batadv_claim_hash_find(bat_priv, &search_claim);
+
+	/* If there is a claim and we are not owner of the claim,
+	 * return false.
+	 */
+	if (claim) {
+		if (!batadv_compare_eth(claim->backbone_gw->orig,
+					primary_if->net_dev->dev_addr))
+			ret = false;
+		batadv_claim_put(claim);
+	}
+
+	batadv_hardif_put(primary_if);
+	return ret;
+}
+#endif

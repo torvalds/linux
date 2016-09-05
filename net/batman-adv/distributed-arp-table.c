@@ -43,6 +43,7 @@
 #include <linux/workqueue.h>
 #include <net/arp.h>
 
+#include "bridge_loop_avoidance.h"
 #include "hard-interface.h"
 #include "hash.h"
 #include "log.h"
@@ -1036,6 +1037,20 @@ bool batadv_dat_snoop_outgoing_arp_request(struct batadv_priv *bat_priv,
 		 * a packet coming from the wrong port.
 		 */
 		if (batadv_is_my_client(bat_priv, dat_entry->mac_addr, vid)) {
+			ret = true;
+			goto out;
+		}
+
+		/* If BLA is enabled, only send ARP replies if we have claimed
+		 * the destination for the ARP request or if no one else of
+		 * the backbone gws belonging to our backbone has claimed the
+		 * destination.
+		 */
+		if (!batadv_bla_check_claim(bat_priv,
+					    dat_entry->mac_addr, vid)) {
+			batadv_dbg(BATADV_DBG_DAT, bat_priv,
+				   "Device %pM claimed by another backbone gw. Don't send ARP reply!",
+				   dat_entry->mac_addr);
 			ret = true;
 			goto out;
 		}
