@@ -16,6 +16,7 @@
 #include <linux/thread_info.h>
 #include <linux/string.h>
 #include <asm/asm-eva.h>
+#include <asm/extable.h>
 
 /*
  * The fs value determines whether argument validity checking should be
@@ -1484,13 +1485,5 @@ static inline long strnlen_user(const char __user *s, long n)
 
 	return res;
 }
-
-struct exception_table_entry
-{
-	unsigned long insn;
-	unsigned long nextinsn;
-};
-
-extern int fixup_exception(struct pt_regs *regs);
 
 #endif /* _ASM_UACCESS_H */
