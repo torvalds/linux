@@ -134,5 +134,50 @@
 				dvb-card	= <STV0367_TDA18212_NIMA_1>;
 			};
 		};
+
+		sti_uni_player2: sti-uni-player@8d82000 {
+			status = "okay";
+		};
+
+		sti_uni_player3: sti-uni-player@8d85000 {
+			status = "okay";
+		};
+
+		sti_sasg_codec: sti-sasg-codec {
+			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_spdif_out>;
+		};
+
+		sound {
+			compatible = "simple-audio-card";
+			simple-audio-card,name = "sti audio card";
+			status = "okay";
+
+			simple-audio-card,dai-link@0 {
+				/* DAC */
+				format = "i2s";
+				mclk-fs = <256>;
+				cpu {
+					sound-dai = <&sti_uni_player2>;
+				};
+
+				codec {
+					sound-dai = <&sti_sasg_codec 1>;
+				};
+			};
+			simple-audio-card,dai-link@1 {
+				/* SPDIF */
+				format = "left_j";
+				mclk-fs = <128>;
+				cpu {
+					sound-dai = <&sti_uni_player3>;
+				};
+
+				codec {
+					sound-dai = <&sti_sasg_codec 0>;
+				};
+			};
+		};
 	};
 };
