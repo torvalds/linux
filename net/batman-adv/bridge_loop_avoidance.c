@@ -739,8 +739,8 @@ static void batadv_bla_add_claim(struct batadv_priv *bat_priv,
 			goto claim_free_ref;
 
 		batadv_dbg(BATADV_DBG_BLA, bat_priv,
-			   "bla_add_claim(): changing ownership for %pM, vid %d\n",
-			   mac, batadv_print_vid(vid));
+			   "bla_add_claim(): changing ownership for %pM, vid %d to gw %pM\n",
+			   mac, batadv_print_vid(vid), backbone_gw->orig);
 
 		remove_crc = true;
 	}
@@ -1295,10 +1295,13 @@ static void batadv_bla_purge_claims(struct batadv_priv *bat_priv,
 				goto skip;
 
 			batadv_dbg(BATADV_DBG_BLA, bat_priv,
-				   "bla_purge_claims(): %pM, vid %d, time out\n",
-				   claim->addr, claim->vid);
+				   "bla_purge_claims(): timed out.\n");
 
 purge_now:
+			batadv_dbg(BATADV_DBG_BLA, bat_priv,
+				   "bla_purge_claims(): %pM, vid %d\n",
+				   claim->addr, claim->vid);
+
 			batadv_handle_unclaim(bat_priv, primary_if,
 					      backbone_gw->orig,
 					      claim->addr, claim->vid);
@@ -1846,6 +1849,13 @@ bool batadv_bla_rx(struct batadv_priv *bat_priv, struct sk_buff *skb,
 		/* possible optimization: race for a claim */
 		/* No claim exists yet, claim it for us!
 		 */
+
+		batadv_dbg(BATADV_DBG_BLA, bat_priv,
+			   "bla_rx(): Unclaimed MAC %pM found. Claim it. Local: %s\n",
+			   ethhdr->h_source,
+			   batadv_is_my_client(bat_priv,
+					       ethhdr->h_source, vid) ?
+			   "yes" : "no");
 		batadv_handle_claim(bat_priv, primary_if,
 				    primary_if->net_dev->dev_addr,
 				    ethhdr->h_source, vid);
