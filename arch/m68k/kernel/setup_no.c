@@ -104,7 +104,7 @@ void __init setup_arch(char **cmdline_p)
 
 	process_uboot_commandline(&command_line[0], sizeof(command_line));
 
-	printk(KERN_INFO "\x0F\r\n\nuClinux/" CPU_NAME "\n");
+	printk(KERN_INFO "uClinux with CPU " CPU_NAME "\n");
 
 #ifdef CONFIG_UCDIMM
 	printk(KERN_INFO "uCdimm by Lineo, Inc. <www.lineo.com>\n");
