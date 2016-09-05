@@ -56,9 +56,6 @@ void tonga_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 	else
 		tonga_hwmgr->power_tune_defaults = &tonga_power_tune_data_set_array[0];
 
-	/* Assume disabled */
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_PowerContainment);
 	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_CAC);
 	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
