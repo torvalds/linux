@@ -392,8 +392,7 @@ extern int CIFSSMBRead(const unsigned int xid, struct cifs_io_parms *io_parms,
 			unsigned int *nbytes, char **buf,
 			int *return_buf_type);
 extern int CIFSSMBWrite(const unsigned int xid, struct cifs_io_parms *io_parms,
-			unsigned int *nbytes, const char *buf,
-			const char __user *ubuf, const int long_op);
+			unsigned int *nbytes, const char *buf);
 extern int CIFSSMBWrite2(const unsigned int xid, struct cifs_io_parms *io_parms,
 			unsigned int *nbytes, struct kvec *iov, const int nvec);
 extern int CIFSGetSrvInodeNumber(const unsigned int xid, struct cifs_tcon *tcon,
