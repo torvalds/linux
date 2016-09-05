@@ -176,11 +176,16 @@ static int vvar_fault(const struct vm_special_mapping *sm,
 	return VM_FAULT_SIGBUS;
 }
 
-static int map_vdso(const struct vdso_image *image, bool calculate_addr)
+/*
+ * Add vdso and vvar mappings to current process.
+ * @image          - blob to map
+ * @addr           - request a specific address (zero to map at free addr)
+ */
+static int map_vdso(const struct vdso_image *image, unsigned long addr)
 {
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
-	unsigned long addr, text_start;
+	unsigned long text_start;
 	int ret = 0;
 
 	static const struct vm_special_mapping vdso_mapping = {
@@ -192,13 +197,6 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
 		.name = "[vvar]",
 		.fault = vvar_fault,
 	};
-
-	if (calculate_addr) {
-		addr = vdso_addr(current->mm->start_stack,
-				 image->size - image->sym_vvar_start);
-	} else {
-		addr = 0;
-	}
 
 	if (down_write_killable(&mm->mmap_sem))
 		return -EINTR;
@@ -251,13 +249,20 @@ up_fail:
 	return ret;
 }
 
+static int map_vdso_randomized(const struct vdso_image *image)
+{
+	unsigned long addr = vdso_addr(current->mm->start_stack,
+				 image->size - image->sym_vvar_start);
+	return map_vdso(image, addr);
+}
+
 #if defined(CONFIG_X86_32) || defined(CONFIG_IA32_EMULATION)
 static int load_vdso32(void)
 {
 	if (vdso32_enabled != 1)  /* Other values all mean "disabled" */
 		return 0;
 
-	return map_vdso(&vdso_image_32, false);
+	return map_vdso(&vdso_image_32, 0);
 }
 #endif
 
@@ -267,7 +272,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	if (!vdso64_enabled)
 		return 0;
 
-	return map_vdso(&vdso_image_64, true);
+	return map_vdso_randomized(&vdso_image_64);
 }
 
 #ifdef CONFIG_COMPAT
@@ -278,8 +283,7 @@ int compat_arch_setup_additional_pages(struct linux_binprm *bprm,
 	if (test_thread_flag(TIF_X32)) {
 		if (!vdso64_enabled)
 			return 0;
-
-		return map_vdso(&vdso_image_x32, true);
+		return map_vdso_randomized(&vdso_image_x32);
 	}
 #endif
 #ifdef CONFIG_IA32_EMULATION
