@@ -184,10 +184,13 @@ static int cpufreq_transition(struct notifier_block *nb,
 {
 	struct tilcdc_drm_private *priv = container_of(nb,
 			struct tilcdc_drm_private, freq_transition);
+
 	if (val == CPUFREQ_POSTCHANGE) {
 		if (priv->lcd_fck_rate != clk_get_rate(priv->clk)) {
+			drm_modeset_lock_crtc(priv->crtc, NULL);
 			priv->lcd_fck_rate = clk_get_rate(priv->clk);
 			tilcdc_crtc_update_clk(priv->crtc);
+			drm_modeset_unlock_crtc(priv->crtc);
 		}
 	}
 
