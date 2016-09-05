@@ -411,11 +411,13 @@ static ssize_t synth_direct_store(struct kobject *kobj,
 	int len;
 	int bytes;
 	const char *ptr = buf;
+	unsigned long flags;
 
 	if (!synth)
 		return -EPERM;
 
 	len = strlen(buf);
+	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	while (len > 0) {
 		bytes = min_t(size_t, len, 250);
 		strncpy(tmp, ptr, bytes);
@@ -425,6 +427,7 @@ static ssize_t synth_direct_store(struct kobject *kobj,
 		ptr += bytes;
 		len -= bytes;
 	}
+	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 	return count;
 }
 
