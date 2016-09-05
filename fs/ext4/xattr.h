@@ -24,6 +24,7 @@
 #define EXT4_XATTR_INDEX_SYSTEM			7
 #define EXT4_XATTR_INDEX_RICHACL		8
 #define EXT4_XATTR_INDEX_ENCRYPTION		9
+#define EXT4_XATTR_INDEX_HURD			10 /* Reserved for Hurd */
 
 struct ext4_xattr_header {
 	__le32	h_magic;	/* magic number for identification */
