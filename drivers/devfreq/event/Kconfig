@@ -30,4 +30,11 @@ config DEVFREQ_EVENT_EXYNOS_PPMU
 	  (Platform Performance Monitoring Unit) counters to estimate the
 	  utilization of each module.
 
+config DEVFREQ_EVENT_ROCKCHIP_DFI
+	tristate "ROCKCHIP DFI DEVFREQ event Driver"
+	depends on ARCH_ROCKCHIP
+	help
+	  This add the devfreq-event driver for Rockchip SoC. It provides DFI
+	  (DDR Monitor Module) driver to count ddr load.
+
 endif # PM_DEVFREQ_EVENT
