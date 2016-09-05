@@ -10,7 +10,7 @@ Required properties:
 Example:
 
 dcp@80028000 {
-	compatible = "fsl,imx28-dcp", "fsl,imx23-dcp";
+	compatible = "fsl,imx6sl-dcp", "fsl,imx28-dcp", "fsl,imx23-dcp";
 	reg = <0x80028000 0x2000>;
 	interrupts = <52 53>;
 	status = "okay";
