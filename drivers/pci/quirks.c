@@ -834,7 +834,7 @@ static void quirk_amd_ioapic(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD,	PCI_DEVICE_ID_AMD_VIPER_7410,	quirk_amd_ioapic);
 #endif /* CONFIG_X86_IO_APIC */
 
-#ifdef CONFIG_ARM64
+#if defined(CONFIG_ARM64) && defined(CONFIG_PCI_ATS)
 
 static void quirk_cavium_sriov_rnm_link(struct pci_dev *dev)
 {
