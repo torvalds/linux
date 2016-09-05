@@ -3058,18 +3058,18 @@ static int smiapp_probe(struct i2c_client *client,
 	sensor->src->sd.internal_ops = &smiapp_internal_src_ops;
 	sensor->src->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	sensor->src->sensor = sensor;
-
 	sensor->src->pads[0].flags = MEDIA_PAD_FL_SOURCE;
-	rval = media_entity_pads_init(&sensor->src->sd.entity, 2,
-				 sensor->src->pads);
-	if (rval < 0)
-		return rval;
 
 	if (client->dev.of_node) {
 		rval = smiapp_init(sensor);
 		if (rval)
 			goto out_media_entity_cleanup;
 	}
+
+	rval = media_entity_pads_init(&sensor->src->sd.entity, 2,
+				 sensor->src->pads);
+	if (rval < 0)
+		goto out_media_entity_cleanup;
 
 	rval = v4l2_async_register_subdev(&sensor->src->sd);
 	if (rval < 0)
