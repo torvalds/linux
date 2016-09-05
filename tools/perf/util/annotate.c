@@ -17,6 +17,7 @@
 #include "debug.h"
 #include "annotate.h"
 #include "evsel.h"
+#include "block-range.h"
 #include <regex.h>
 #include <pthread.h>
 #include <linux/bitops.h>
@@ -859,6 +860,89 @@ double disasm__calc_percent(struct annotation *notes, int evidx, s64 offset,
 	return percent;
 }
 
+static const char *annotate__address_color(struct block_range *br)
+{
+	double cov = block_range__coverage(br);
+
+	if (cov >= 0) {
+		/* mark red for >75% coverage */
+		if (cov > 0.75)
+			return PERF_COLOR_RED;
+
+		/* mark dull for <1% coverage */
+		if (cov < 0.01)
+			return PERF_COLOR_NORMAL;
+	}
+
+	return PERF_COLOR_MAGENTA;
+}
+
+static const char *annotate__asm_color(struct block_range *br)
+{
+	double cov = block_range__coverage(br);
+
+	if (cov >= 0) {
+		/* mark dull for <1% coverage */
+		if (cov < 0.01)
+			return PERF_COLOR_NORMAL;
+	}
+
+	return PERF_COLOR_BLUE;
+}
+
+static void annotate__branch_printf(struct block_range *br, u64 addr)
+{
+	bool emit_comment = true;
+
+	if (!br)
+		return;
+
+#if 1
+	if (br->is_target && br->start == addr) {
+		struct block_range *branch = br;
+		double p;
+
+		/*
+		 * Find matching branch to our target.
+		 */
+		while (!branch->is_branch)
+			branch = block_range__next(branch);
+
+		p = 100 *(double)br->entry / branch->coverage;
+
+		if (p > 0.1) {
+			if (emit_comment) {
+				emit_comment = false;
+				printf("\t#");
+			}
+
+			/*
+			 * The percentage of coverage joined at this target in relation
+			 * to the next branch.
+			 */
+			printf(" +%.2f%%", p);
+		}
+	}
+#endif
+	if (br->is_branch && br->end == addr) {
+		double p = 100*(double)br->taken / br->coverage;
+
+		if (p > 0.1) {
+			if (emit_comment) {
+				emit_comment = false;
+				printf("\t#");
+			}
+
+			/*
+			 * The percentage of coverage leaving at this branch, and
+			 * its prediction ratio.
+			 */
+			printf(" -%.2f%% (p:%.2f%%)", p, 100*(double)br->pred  / br->taken);
+		}
+	}
+}
+
+
 static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 start,
 		      struct perf_evsel *evsel, u64 len, int min_pcnt, int printed,
 		      int max_lines, struct disasm_line *queue)
@@ -878,6 +962,7 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 		s64 offset = dl->offset;
 		const u64 addr = start + offset;
 		struct disasm_line *next;
+		struct block_range *br;
 
 		next = disasm__get_next_ip_line(&notes->src->source, dl);
 
@@ -947,8 +1032,12 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 		}
 
 		printf(" :	");
-		color_fprintf(stdout, PERF_COLOR_MAGENTA, "  %" PRIx64 ":", addr);
-		color_fprintf(stdout, PERF_COLOR_BLUE, "%s\n", dl->line);
+
+		br = block_range__find(addr);
+		color_fprintf(stdout, annotate__address_color(br), "  %" PRIx64 ":", addr);
+		color_fprintf(stdout, annotate__asm_color(br), "%s", dl->line);
+		annotate__branch_printf(br, addr);
+		printf("\n");
 
 		if (ppercents != &percent)
 			free(ppercents);

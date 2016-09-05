@@ -1,5 +1,6 @@
 libperf-y += alias.o
 libperf-y += annotate.o
+libperf-y += block-range.o
 libperf-y += build-id.o
 libperf-y += config.o
 libperf-y += ctype.o

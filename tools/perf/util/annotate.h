@@ -130,6 +130,7 @@ struct annotated_source {
 
 struct annotation {
 	pthread_mutex_t		lock;
+	u64			max_coverage;
 	struct annotated_source *src;
 };
 
