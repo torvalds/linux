@@ -1186,11 +1186,11 @@ static void cx231xx_unregister_media_device(struct cx231xx *dev)
 */
 void cx231xx_release_resources(struct cx231xx *dev)
 {
+	cx231xx_ir_exit(dev);
+
 	cx231xx_release_analog_resources(dev);
 
 	cx231xx_remove_from_devlist(dev);
-
-	cx231xx_ir_exit(dev);
 
 	/* Release I2C buses */
 	cx231xx_dev_uninit(dev);
