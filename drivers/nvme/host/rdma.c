@@ -293,6 +293,7 @@ static int nvme_rdma_reinit_request(void *data, struct request *rq)
 	if (IS_ERR(req->mr)) {
 		ret = PTR_ERR(req->mr);
 		req->mr = NULL;
+		goto out;
 	}
 
 	req->mr->need_inval = false;
