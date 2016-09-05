@@ -115,7 +115,6 @@ void ks_wlan_hw_sleep_doze_request(struct ks_wlan_private *priv)
 
  out:
 	priv->sleep_mode = atomic_read(&priv->sleepstatus.status);
-	return;
 }
 
 void ks_wlan_hw_sleep_wakeup_request(struct ks_wlan_private *priv)
@@ -146,7 +145,6 @@ void ks_wlan_hw_sleep_wakeup_request(struct ks_wlan_private *priv)
 
  out:
 	priv->sleep_mode = atomic_read(&priv->sleepstatus.status);
-	return;
 }
 
 void ks_wlan_hw_wakeup_request(struct ks_wlan_private *priv)
@@ -357,7 +355,6 @@ static void tx_device_task(void *dev)
 					   &priv->ks_wlan_hw.rw_wq, 0);
 		}
 	}
-	return;
 }
 
 int ks_wlan_hw_tx(struct ks_wlan_private *priv, void *p, unsigned long size,
@@ -405,8 +402,6 @@ static void rx_event_task(unsigned long dev)
 			tasklet_schedule(&priv->ks_wlan_hw.rx_bh_task);
 		}
 	}
-
-	return;
 }
 
 static void ks_wlan_hw_rx(void *dev, uint16_t size)
@@ -557,8 +552,6 @@ static void ks7010_rw_function(struct work_struct *work)
 
  err_out:
 	sdio_release_host(priv->ks_wlan_hw.sdio_card->func);
-
-	return;
 }
 
 static void ks_sdio_interrupt(struct sdio_func *func)
@@ -666,7 +659,6 @@ static void ks_sdio_interrupt(struct sdio_func *func)
  intr_out:
 	queue_delayed_work(priv->ks_wlan_hw.ks7010sdio_wq,
 			   &priv->ks_wlan_hw.rw_wq, 0);
-	return;
 }
 
 static int trx_device_init(struct ks_wlan_private *priv)
@@ -701,8 +693,6 @@ static void trx_device_exit(struct ks_wlan_private *priv)
 	}
 
 	tasklet_kill(&priv->ks_wlan_hw.rx_bh_task);
-
-	return;
 }
 
 static int ks7010_sdio_update_index(struct ks_wlan_private *priv, u32 index)
@@ -1208,7 +1198,6 @@ static void ks7010_sdio_remove(struct sdio_func *func)
 	DPRINTK(1, "kfree()\n");
 
 	DPRINTK(5, " Bye !!\n");
-	return;
 }
 
 static struct sdio_driver ks7010_sdio_driver = {
