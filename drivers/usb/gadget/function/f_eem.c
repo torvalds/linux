@@ -342,7 +342,7 @@ static struct sk_buff *eem_wrap(struct gether *port, struct sk_buff *skb)
 	struct sk_buff	*skb2 = NULL;
 	struct usb_ep	*in = port->in_ep;
 	int		headroom, tailroom, padlen = 0;
-	u16		len = skb->len;
+	u16		len;
 
 	if (!skb)
 		return NULL;
