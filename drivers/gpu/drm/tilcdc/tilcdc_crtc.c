@@ -18,6 +18,7 @@
 #include "drm_flip_work.h"
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_atomic_helper.h>
+#include <linux/workqueue.h>
 
 #include "tilcdc_drv.h"
 #include "tilcdc_regs.h"
@@ -227,8 +228,11 @@ static bool tilcdc_crtc_is_on(struct drm_crtc *crtc)
 static void tilcdc_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
+	struct tilcdc_drm_private *priv = crtc->dev->dev_private;
 
 	tilcdc_crtc_disable(crtc);
+
+	flush_workqueue(priv->wq);
 
 	of_node_put(crtc->port);
 	drm_crtc_cleanup(crtc);
