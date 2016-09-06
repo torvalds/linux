@@ -95,6 +95,7 @@ extern unsigned amdgpu_pg_mask;
 extern char *amdgpu_disable_cu;
 extern int amdgpu_sclk_deep_sleep_en;
 extern char *amdgpu_virtual_display;
+extern unsigned amdgpu_pp_feature_mask;
 
 #define AMDGPU_WAIT_IDLE_TIMEOUT_IN_MS	        3000
 #define AMDGPU_MAX_USEC_TIMEOUT			100000	/* 100 ms */

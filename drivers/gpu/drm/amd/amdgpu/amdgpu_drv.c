@@ -95,6 +95,7 @@ unsigned amdgpu_cg_mask = 0xffffffff;
 unsigned amdgpu_pg_mask = 0xffffffff;
 char *amdgpu_disable_cu = NULL;
 char *amdgpu_virtual_display = NULL;
+unsigned amdgpu_pp_feature_mask = 0xffffffff;
 
 MODULE_PARM_DESC(vramlimit, "Restrict VRAM for testing, in megabytes");
 module_param_named(vramlimit, amdgpu_vram_limit, int, 0600);
@@ -177,6 +178,9 @@ module_param_named(powerplay, amdgpu_powerplay, int, 0444);
 
 MODULE_PARM_DESC(powercontainment, "Power Containment (1 = enable (default), 0 = disable)");
 module_param_named(powercontainment, amdgpu_powercontainment, int, 0444);
+
+MODULE_PARM_DESC(ppfeaturemask, "all power features enabled (default))");
+module_param_named(ppfeaturemask, amdgpu_pp_feature_mask, int, 0444);
 #endif
 
 MODULE_PARM_DESC(sclkdeepsleep, "SCLK Deep Sleep (1 = enable (default), 0 = disable)");
