@@ -50,6 +50,19 @@ void vsp1_entity_route_setup(struct vsp1_entity *entity,
 
 		vsp1_dl_list_write(dl, VI6_DPR_HGO_SMPPT, smppt);
 		return;
+	} else if (entity->type == VSP1_ENTITY_HGT) {
+		u32 smppt;
+
+		/*
+		 * The HGT is a special case, its routing is configured on the
+		 * sink pad.
+		 */
+		source = media_entity_to_vsp1_entity(entity->sources[0]);
+		smppt = (pipe->output->entity.index << VI6_DPR_SMPPT_TGW_SHIFT)
+		      | (source->route->output << VI6_DPR_SMPPT_PT_SHIFT);
+
+		vsp1_dl_list_write(dl, VI6_DPR_HGT_SMPPT, smppt);
+		return;
 	}
 
 	source = entity;
@@ -443,6 +456,7 @@ static const struct vsp1_route vsp1_routes[] = {
 	    VI6_DPR_NODE_BRU_IN(4) }, VI6_DPR_NODE_BRU_OUT },
 	VSP1_ENTITY_ROUTE(CLU),
 	{ VSP1_ENTITY_HGO, 0, 0, { 0, }, 0 },
+	{ VSP1_ENTITY_HGT, 0, 0, { 0, }, 0 },
 	VSP1_ENTITY_ROUTE(HSI),
 	VSP1_ENTITY_ROUTE(HST),
 	{ VSP1_ENTITY_LIF, 0, 0, { VI6_DPR_NODE_LIF, }, VI6_DPR_NODE_LIF },

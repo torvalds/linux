@@ -628,9 +628,17 @@
  */
 
 #define VI6_HGT_OFFSET			0x3400
+#define VI6_HGT_OFFSET_HOFFSET_SHIFT	16
+#define VI6_HGT_OFFSET_VOFFSET_SHIFT	0
 #define VI6_HGT_SIZE			0x3404
+#define VI6_HGT_SIZE_HSIZE_SHIFT	16
+#define VI6_HGT_SIZE_VSIZE_SHIFT	0
 #define VI6_HGT_MODE			0x3408
+#define VI6_HGT_MODE_HRATIO_SHIFT	2
+#define VI6_HGT_MODE_VRATIO_SHIFT	0
 #define VI6_HGT_HUE_AREA(n)		(0x340c + (n) * 4)
+#define VI6_HGT_HUE_AREA_LOWER_SHIFT	16
+#define VI6_HGT_HUE_AREA_UPPER_SHIFT	0
 #define VI6_HGT_LB_TH			0x3424
 #define VI6_HGT_LBn_H(n)		(0x3438 + (n) * 8)
 #define VI6_HGT_LBn_V(n)		(0x342c + (n) * 8)
@@ -639,6 +647,7 @@
 #define VI6_HGT_SUM			0x3754
 #define VI6_HGT_LB_DET			0x3758
 #define VI6_HGT_REGRST			0x37fc
+#define VI6_HGT_REGRST_RCLEA		(1 << 0)
 
 /* -----------------------------------------------------------------------------
  * LIF Control Registers
