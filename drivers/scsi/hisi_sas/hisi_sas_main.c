@@ -97,7 +97,7 @@ void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 	slot->task = NULL;
 	slot->port = NULL;
 	hisi_sas_slot_index_free(hisi_hba, slot->idx);
-	memset(slot, 0, sizeof(*slot));
+	/* slot memory is fully zeroed when it is reused */
 }
 EXPORT_SYMBOL_GPL(hisi_sas_slot_task_free);
 
