@@ -3944,13 +3944,13 @@ static void si_dpm_start_smc(struct amdgpu_device *adev)
 {
 	si_program_jump_on_start(adev);
 	si_start_smc(adev);
-	si_start_smc_clock(adev);
+	si_smc_clock(adev, true);
 }
 
 static void si_dpm_stop_smc(struct amdgpu_device *adev)
 {
 	si_reset_smc(adev);
-	si_stop_smc_clock(adev);
+	si_smc_clock(adev, false);
 }
 
 static int si_process_firmware_header(struct amdgpu_device *adev)
@@ -4366,7 +4366,7 @@ static int si_upload_firmware(struct amdgpu_device *adev)
 	struct si_power_info *si_pi = si_get_pi(adev);
 
 	si_reset_smc(adev);
-	si_stop_smc_clock(adev);
+	si_smc_clock(adev, false);
 
 	return si_load_smc_ucode(adev, si_pi->sram_end);
 }

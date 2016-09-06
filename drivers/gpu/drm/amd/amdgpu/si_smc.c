@@ -84,7 +84,6 @@ int si_copy_bytes_to_smc(struct amdgpu_device *adev,
 			goto done;
 
 		original_data = RREG32(SMC_IND_DATA_0);
-
 		extra_shift = 8 * (4 - byte_count);
 
 		while (byte_count > 0) {
@@ -94,7 +93,6 @@ int si_copy_bytes_to_smc(struct amdgpu_device *adev,
 		}
 
 		data <<= extra_shift;
-
 		data |= (original_data & ~((~0UL) << extra_shift));
 
 		ret = si_set_smc_sram_address(adev, addr, limit);
@@ -128,8 +126,8 @@ void si_reset_smc(struct amdgpu_device *adev)
 	RREG32(CB_CGTT_SCLK_CTRL);
 	RREG32(CB_CGTT_SCLK_CTRL);
 
-	tmp = RREG32_SMC(SMC_SYSCON_RESET_CNTL);
-	tmp |= RST_REG;
+	tmp = RREG32_SMC(SMC_SYSCON_RESET_CNTL) |
+	      RST_REG;
 	WREG32_SMC(SMC_SYSCON_RESET_CNTL, tmp);
 }
 
@@ -140,20 +138,14 @@ int si_program_jump_on_start(struct amdgpu_device *adev)
 	return si_copy_bytes_to_smc(adev, 0x0, data, 4, sizeof(data)+1);
 }
 
-void si_stop_smc_clock(struct amdgpu_device *adev)
+void si_smc_clock(struct amdgpu_device *adev, bool enable)
 {
 	u32 tmp = RREG32_SMC(SMC_SYSCON_CLOCK_CNTL_0);
 
-	tmp |= CK_DISABLE;
-
-	WREG32_SMC(SMC_SYSCON_CLOCK_CNTL_0, tmp);
-}
-
-void si_start_smc_clock(struct amdgpu_device *adev)
-{
-	u32 tmp = RREG32_SMC(SMC_SYSCON_CLOCK_CNTL_0);
-
-	tmp &= ~CK_DISABLE;
+	if (enable)
+		tmp &= ~CK_DISABLE;
+	else
+		tmp |= CK_DISABLE;
 
 	WREG32_SMC(SMC_SYSCON_CLOCK_CNTL_0, tmp);
 }
@@ -185,9 +177,8 @@ PPSMC_Result si_send_msg_to_smc(struct amdgpu_device *adev, PPSMC_Msg msg)
 			break;
 		udelay(1);
 	}
-	tmp = RREG32(SMC_RESP_0);
 
-	return (PPSMC_Result)tmp;
+	return (PPSMC_Result)RREG32(SMC_RESP_0);
 }
 
 PPSMC_Result si_wait_for_smc_inactive(struct amdgpu_device *adev)
