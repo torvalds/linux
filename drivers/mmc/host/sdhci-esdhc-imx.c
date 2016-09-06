@@ -145,6 +145,12 @@
 /* The IP state got lost in low power mode */
 #define ESDHC_FLAG_STATE_LOST_IN_LPMODE	BIT(10)
 
+/* The IP has errata ERR010450
+ * uSDHC: Due to the I/O timing limit, for SDR mode, SD card clock can't
+ * exceed 150MHz, for DDR mode, SD card clock can't exceed 45MHz.
+ */
+#define ESDHC_FLAG_ERR010450		BIT(11)
+
 /* A higher clock ferquency than this rate requires strobell dll control */
 #define ESDHC_STROBE_DLL_CLK_FREQ	100000000
 
@@ -197,6 +203,13 @@ static struct esdhc_soc_data usdhc_imx6sx_data = {
 			| ESDHC_FLAG_STATE_LOST_IN_LPMODE,
 };
 
+static struct esdhc_soc_data usdhc_imx6ull_data = {
+	.flags = ESDHC_FLAG_USDHC | ESDHC_FLAG_STD_TUNING
+			| ESDHC_FLAG_HAVE_CAP1 | ESDHC_FLAG_HS200
+			| ESDHC_FLAG_STATE_LOST_IN_LPMODE
+			| ESDHC_FLAG_ERR010450,
+};
+
 static struct esdhc_soc_data usdhc_imx7d_data = {
 	.flags = ESDHC_FLAG_USDHC | ESDHC_FLAG_STD_TUNING
 			| ESDHC_FLAG_HAVE_CAP1 | ESDHC_FLAG_HS200
@@ -246,6 +259,7 @@ static const struct of_device_id imx_esdhc_dt_ids[] = {
 	{ .compatible = "fsl,imx6sx-usdhc", .data = &usdhc_imx6sx_data, },
 	{ .compatible = "fsl,imx6sl-usdhc", .data = &usdhc_imx6sl_data, },
 	{ .compatible = "fsl,imx6q-usdhc", .data = &usdhc_imx6q_data, },
+	{ .compatible = "fsl,imx6ull-usdhc", .data = &usdhc_imx6ull_data, },
 	{ .compatible = "fsl,imx7d-usdhc", .data = &usdhc_imx7d_data, },
 	{ /* sentinel */ }
 };
@@ -697,6 +711,13 @@ static inline void esdhc_pltfm_set_clock(struct sdhci_host *host,
 	temp &= ~(ESDHC_CLOCK_IPGEN | ESDHC_CLOCK_HCKEN | ESDHC_CLOCK_PEREN
 		| ESDHC_CLOCK_MASK);
 	sdhci_writel(host, temp, ESDHC_SYSTEM_CONTROL);
+
+	if (imx_data->socdata->flags & ESDHC_FLAG_ERR010450) {
+		if (imx_data->is_ddr)
+			clock = clock > 45000000 ? 45000000 : clock;
+		else
+			clock = clock > 150000000 ? 150000000 : clock;
+	}
 
 	while (host_clock / pre_div / 16 > clock && pre_div < 256)
 		pre_div *= 2;
