@@ -1693,7 +1693,12 @@ static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown)
 		nvme_suspend_queue(dev->queues[i]);
 
 	if (csts & NVME_CSTS_CFS || !(csts & NVME_CSTS_RDY)) {
-		nvme_suspend_queue(dev->queues[0]);
+		/* A device might become IO incapable very soon during
+		 * probe, before the admin queue is configured. Thus,
+		 * queue_count can be 0 here.
+		 */
+		if (dev->queue_count)
+			nvme_suspend_queue(dev->queues[0]);
 	} else {
 		nvme_disable_io_queues(dev);
 		nvme_disable_admin_queue(dev, shutdown);
