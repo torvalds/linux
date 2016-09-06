@@ -1,0 +1,91 @@
+/*
+ * Copyright (C) 2016 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/ {
+	regulators {
+		wlreg_on: fixedregulator@100 {
+			compatible = "regulator-fixed";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-name = "wlreg_on";
+			gpio = <&gpio4 30 0>;
+			startup-delay-us = <100>;
+			enable-active-high;
+		};
+	};
+
+	bcmdhd_wlan_0: bcmdhd_wlan@0 {
+		compatible = "android,bcmdhd_wlan";
+		wlreg_on-supply = <&wlreg_on>;
+	};
+};
+
+&iomuxc {
+	imx6qdl-sabresd-murata-v2 {
+		/* add MUXing entry for SD2 4-bit interface
+		 * and configure control pins
+		 */
+		pinctrl_wifi: wifigrp {
+			fsl,pins = <
+				MX6QDL_PAD_SD2_CMD__SD2_CMD		0x17059
+				MX6QDL_PAD_SD2_CLK__SD2_CLK		0x10059
+				MX6QDL_PAD_SD2_DAT0__SD2_DATA0		0x17059
+				MX6QDL_PAD_SD2_DAT1__SD2_DATA1		0x17059
+				MX6QDL_PAD_SD2_DAT2__SD2_DATA2		0x17059
+				MX6QDL_PAD_SD2_DAT3__SD2_DATA3		0x17059
+				MX6QDL_PAD_DISP0_DAT9__GPIO4_IO30	0x13069
+			>;
+		};
+		pinctrl_uart2: uart2grp {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_D26__UART2_TX_DATA	0x1f0b1
+				MX6QDL_PAD_EIM_D27__UART2_RX_DATA	0x1f0b1
+				MX6QDL_PAD_EIM_D28__UART2_CTS_B		0x1b0b1
+				MX6QDL_PAD_EIM_D29__UART2_RTS_B		0x1b0b1
+				MX6QDL_PAD_ENET_REF_CLK__GPIO1_IO23	0x13069
+			>;
+		};
+		pinctrl_uart5_1: uart5grp-1 {
+			fsl,pins = <
+				MX6QDL_PAD_KEY_COL1__UART5_TX_DATA	0x1b0b1
+				MX6QDL_PAD_KEY_ROW1__UART5_RX_DATA	0x1b0b1
+				MX6QDL_PAD_KEY_COL4__UART5_RTS_B	0x1b0b1
+				MX6QDL_PAD_KEY_ROW4__UART5_CTS_B	0x1b0b1
+			>;
+		};
+
+	};
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2>;
+	fsl,uart-has-rtscts;
+	status = "okay";
+	/* for DTE mode, add below change */
+	/* fsl,dte-mode; */
+	/*pinctrl-0 = <&pinctrl_uart2dte>; */
+};
+
+&uart5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart5_1>;
+	fsl,uart-has-rtscts;
+	status = "okay";
+	/* for DTE mode, add below change */
+	/* fsl,dte-mode; */
+	/* pinctrl-0 = <&pinctrl_uart5dte_1>; */
+};
+
+&usdhc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_wifi>;
+	bus-width = <4>;
+	no-1-8-v;
+	wifi-host;
+};
