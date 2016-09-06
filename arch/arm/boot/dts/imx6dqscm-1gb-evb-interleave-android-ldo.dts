@@ -1,0 +1,191 @@
+/*
+ * Copyright (C) 2016 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "imx6q-sabresd-ldo.dts"
+
+/ {
+	model = "Freescale i.MX6D SCM EVB";
+	compatible = "fsl,imx6q-sabresd", "fsl,imx6q";
+	soc {
+		busfreq {
+			fsl,max_ddr_freq = <400000000>;
+			status = "okay";
+		};
+	};
+};
+
+&ecspi1 {
+	cs-gpios = <&gpio2 30 0>;
+	internal_scm_flash: m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "micron,n25q128a13";
+		spi-max-frequency = <20000000>;
+		reg = <0>;
+	};
+};
+
+&i2c1 {
+	ov564x: ov564x@3c {
+		DOVDD-supply = <&sw4_reg>; /* 1.8v */
+	};
+};
+
+&i2c2 {
+	pmic: pfuze100@08 {
+		regulators {
+			sw1a_reg: sw1ab {
+				regulator-min-microvolt = <300000>;
+				regulator-max-microvolt = <1875000>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-ramp-delay = <6250>;
+			};
+
+			sw1c_reg: sw1c {
+				regulator-min-microvolt = <300000>;
+				regulator-max-microvolt = <1875000>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-ramp-delay = <6250>;
+			};
+
+			sw2_reg: sw2 {
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			sw3a_reg: sw3a {
+				regulator-min-microvolt = <400000>;
+				regulator-max-microvolt = <1200000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			sw3b_reg: sw3b {
+				regulator-min-microvolt = <400000>;
+				regulator-max-microvolt = <1200000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			sw4_reg: sw4 {
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-boot-on;
+				regulator-always-on;
+
+			};
+
+			swbst_reg: swbst {
+				regulator-min-microvolt = <5000000>;
+				regulator-max-microvolt = <5150000>;
+				regulator-boot-on;
+				regulator-always-on;
+
+			};
+
+			snvs_reg: vsnvs {
+				regulator-min-microvolt = <1000000>;
+				regulator-max-microvolt = <3000000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			vref_reg: vrefddr {
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			vgen1_reg: vgen1 {
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <1550000>;
+				regulator-always-on;
+			};
+
+			vgen2_reg: vgen2 {
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <1550000>;
+				regulator-always-on;
+			};
+
+			vgen3_reg: vgen3 {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <2800000>;
+				regulator-always-on;
+			};
+
+			vgen4_reg: vgen4 {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <2500000>;
+				regulator-always-on;
+			};
+
+			vgen5_reg: vgen5 {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+			};
+
+			vgen6_reg: vgen6 {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3150000>;
+				regulator-always-on;
+			};
+		};
+	};
+
+	ov564x_mipi: ov564x_mipi@3c {
+		DOVDD-supply = <&sw4_reg>; /* 1.8v */
+	};
+
+};
+&iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hog>;
+
+	imx6qdl-sabresd {
+		pinctrl_hog: hoggrp {
+			fsl,pins = <
+				MX6QDL_PAD_NANDF_D0__GPIO2_IO00 0x80000000
+				MX6QDL_PAD_NANDF_D1__GPIO2_IO01 0x80000000
+				MX6QDL_PAD_NANDF_D2__GPIO2_IO02 0x80000000
+				MX6QDL_PAD_NANDF_D3__GPIO2_IO03 0x80000000
+				MX6QDL_PAD_GPIO_0__CCM_CLKO1    0x130b0
+				MX6QDL_PAD_NANDF_CLE__GPIO6_IO07 0x80000000
+				MX6QDL_PAD_NANDF_ALE__GPIO6_IO08 0x80000000
+				MX6QDL_PAD_ENET_TXD1__GPIO1_IO29 0x80000000
+				MX6QDL_PAD_EIM_D22__GPIO3_IO22  0x80000000
+				MX6QDL_PAD_ENET_CRS_DV__GPIO1_IO25 0x80000000
+				MX6QDL_PAD_EIM_D26__GPIO3_IO26 0x80000000
+				MX6QDL_PAD_EIM_CS1__GPIO2_IO24 0x80000000
+				MX6QDL_PAD_ENET_RXD0__GPIO1_IO27 0x80000000
+				MX6QDL_PAD_EIM_A25__GPIO5_IO02 0x80000000
+				MX6QDL_PAD_EIM_D23__GPIO3_IO23 0x80000000
+				MX6QDL_PAD_EIM_EB3__GPIO2_IO31 0x80000000
+				MX6QDL_PAD_SD1_CMD__GPIO1_IO18 0x80000000
+				MX6QDL_PAD_SD3_RST__GPIO7_IO08 0x80000000
+				MX6QDL_PAD_GPIO_9__GPIO1_IO09  0x80000000
+				MX6QDL_PAD_EIM_DA9__GPIO3_IO09 0x80000000
+				MX6QDL_PAD_GPIO_1__WDOG2_B 0x80000000
+				MX6QDL_PAD_NANDF_CS0__GPIO6_IO11 0x80000000
+				MX6QDL_PAD_NANDF_CS1__GPIO6_IO14 0x80000000
+			>;
+		};
+		pinctrl_ecspi1: ecspi1grp {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_D17__ECSPI1_MISO 0x100b1
+				MX6QDL_PAD_EIM_D18__ECSPI1_MOSI 0x100b1
+				MX6QDL_PAD_EIM_D16__ECSPI1_SCLK 0x100b1
+			>;
+		};
+	};
+};
+
