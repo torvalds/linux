@@ -221,9 +221,7 @@ static void kvm_adjust_itstate(struct kvm_vcpu *vcpu)
 	unsigned long cpsr = *vcpu_cpsr(vcpu);
 	bool is_arm = !(cpsr & PSR_T_BIT);
 
-	BUG_ON(is_arm && (cpsr & PSR_IT_MASK));
-
-	if (!(cpsr & PSR_IT_MASK))
+	if (is_arm || !(cpsr & PSR_IT_MASK))
 		return;
 
 	cond = (cpsr & 0xe000) >> 13;
