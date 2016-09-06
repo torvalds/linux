@@ -52,6 +52,7 @@ static const struct of_device_id machines[] __initconst = {
 	{ .compatible = "renesas,r8a7779", },
 	{ .compatible = "renesas,r8a7790", },
 	{ .compatible = "renesas,r8a7791", },
+	{ .compatible = "renesas,r8a7792", },
 	{ .compatible = "renesas,r8a7793", },
 	{ .compatible = "renesas,r8a7794", },
 	{ .compatible = "renesas,sh73a0", },
