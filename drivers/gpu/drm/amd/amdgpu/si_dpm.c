@@ -340,6 +340,7 @@ static const struct si_dte_data dte_data_tahiti =
 	false
 };
 
+#if 0
 static const struct si_dte_data dte_data_tahiti_le =
 {
 	{ 0x1E8480, 0x7A1200, 0x2160EC0, 0x3938700, 0 },
@@ -357,6 +358,7 @@ static const struct si_dte_data dte_data_tahiti_le =
 	85,
 	true
 };
+#endif
 
 static const struct si_dte_data dte_data_tahiti_pro =
 {
