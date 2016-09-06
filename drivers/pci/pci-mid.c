@@ -61,7 +61,7 @@ static struct pci_platform_pm_ops mid_pci_platform_pm = {
 #define ICPU(model)	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, }
 
 static const struct x86_cpu_id lpss_cpu_ids[] = {
-	ICPU(INTEL_FAM6_ATOM_MERRIFIELD1),
+	ICPU(INTEL_FAM6_ATOM_MERRIFIELD),
 	{}
 };
 
