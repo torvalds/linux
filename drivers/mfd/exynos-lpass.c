@@ -144,8 +144,7 @@ static int exynos_lpass_probe(struct platform_device *pdev)
 	return of_platform_populate(dev->of_node, NULL, NULL, dev);
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int exynos_lpass_suspend(struct device *dev)
+static int __maybe_unused exynos_lpass_suspend(struct device *dev)
 {
 	struct exynos_lpass *lpass = dev_get_drvdata(dev);
 
@@ -154,7 +153,7 @@ static int exynos_lpass_suspend(struct device *dev)
 	return 0;
 }
 
-static int exynos_lpass_resume(struct device *dev)
+static int __maybe_unused exynos_lpass_resume(struct device *dev)
 {
 	struct exynos_lpass *lpass = dev_get_drvdata(dev);
 
@@ -162,7 +161,6 @@ static int exynos_lpass_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(lpass_pm_ops, exynos_lpass_suspend,
 					exynos_lpass_resume);
