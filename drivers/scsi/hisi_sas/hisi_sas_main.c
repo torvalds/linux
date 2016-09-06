@@ -1439,6 +1439,12 @@ static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
 				     &hisi_hba->queue_count))
 		goto err_out;
 
+	if (dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64)) &&
+	    dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32))) {
+		dev_err(dev, "No usable DMA addressing method\n");
+		goto err_out;
+	}
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	hisi_hba->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(hisi_hba->regs))
@@ -1485,13 +1491,6 @@ int hisi_sas_probe(struct platform_device *pdev,
 	sha = SHOST_TO_SAS_HA(shost);
 	hisi_hba = shost_priv(shost);
 	platform_set_drvdata(pdev, sha);
-
-	if (dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64)) &&
-	    dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32))) {
-		dev_err(dev, "No usable DMA addressing method\n");
-		rc = -EIO;
-		goto err_out_ha;
-	}
 
 	phy_nr = port_nr = hisi_hba->n_phy;
 
