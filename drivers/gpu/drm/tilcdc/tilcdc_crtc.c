@@ -35,6 +35,8 @@ struct tilcdc_crtc {
 	bool frame_done;
 	spinlock_t irq_lock;
 
+	unsigned int lcd_fck_rate;
+
 	ktime_t last_vblank;
 
 	struct drm_framebuffer *curr_fb;
@@ -304,6 +306,37 @@ static bool tilcdc_crtc_mode_fixup(struct drm_crtc *crtc,
 	return true;
 }
 
+static void tilcdc_crtc_set_clk(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct tilcdc_drm_private *priv = dev->dev_private;
+	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
+	const unsigned clkdiv = 2; /* using a fixed divider of 2 */
+	int ret;
+
+	/* mode.clock is in KHz, set_rate wants parameter in Hz */
+	ret = clk_set_rate(priv->clk, crtc->mode.clock * 1000 * clkdiv);
+	if (ret < 0) {
+		dev_err(dev->dev, "failed to set display clock rate to: %d\n",
+			crtc->mode.clock);
+		return;
+	}
+
+	tilcdc_crtc->lcd_fck_rate = clk_get_rate(priv->clk);
+
+	DBG("lcd_clk=%u, mode clock=%d, div=%u",
+	    tilcdc_crtc->lcd_fck_rate, crtc->mode.clock, clkdiv);
+
+	/* Configure the LCD clock divisor. */
+	tilcdc_write(dev, LCDC_CTRL_REG, LCDC_CLK_DIVISOR(clkdiv) |
+		     LCDC_RASTER_MODE);
+
+	if (priv->rev == 2)
+		tilcdc_set(dev, LCDC_CLK_ENABLE_REG,
+				LCDC_V2_DMA_CLK_EN | LCDC_V2_LIDD_CLK_EN |
+				LCDC_V2_CORE_CLK_EN);
+}
+
 static void tilcdc_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
@@ -466,7 +499,7 @@ static void tilcdc_crtc_mode_set_nofb(struct drm_crtc *crtc)
 
 	set_scanout(crtc, fb);
 
-	tilcdc_crtc_update_clk(crtc);
+	tilcdc_crtc_set_clk(crtc);
 
 	crtc->hwmode = crtc->state->adjusted_mode;
 }
@@ -635,41 +668,21 @@ void tilcdc_crtc_update_clk(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct tilcdc_drm_private *priv = dev->dev_private;
-	unsigned long lcd_clk;
-	const unsigned clkdiv = 2; /* using a fixed divider of 2 */
-	int ret;
+	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 
-	pm_runtime_get_sync(dev->dev);
+	drm_modeset_lock_crtc(crtc, NULL);
+	if (tilcdc_crtc->lcd_fck_rate != clk_get_rate(priv->clk)) {
+		if (tilcdc_crtc_is_on(crtc)) {
+			pm_runtime_get_sync(dev->dev);
+			tilcdc_crtc_disable(crtc);
 
-	tilcdc_crtc_disable(crtc);
+			tilcdc_crtc_set_clk(crtc);
 
-	/* mode.clock is in KHz, set_rate wants parameter in Hz */
-	ret = clk_set_rate(priv->clk, crtc->mode.clock * 1000 * clkdiv);
-	if (ret < 0) {
-		dev_err(dev->dev, "failed to set display clock rate to: %d\n",
-				crtc->mode.clock);
-		goto out;
+			tilcdc_crtc_enable(crtc);
+			pm_runtime_put_sync(dev->dev);
+		}
 	}
-
-	lcd_clk = clk_get_rate(priv->clk);
-
-	DBG("lcd_clk=%lu, mode clock=%d, div=%u",
-		lcd_clk, crtc->mode.clock, clkdiv);
-
-	/* Configure the LCD clock divisor. */
-	tilcdc_write(dev, LCDC_CTRL_REG, LCDC_CLK_DIVISOR(clkdiv) |
-			LCDC_RASTER_MODE);
-
-	if (priv->rev == 2)
-		tilcdc_set(dev, LCDC_CLK_ENABLE_REG,
-				LCDC_V2_DMA_CLK_EN | LCDC_V2_LIDD_CLK_EN |
-				LCDC_V2_CORE_CLK_EN);
-
-	if (tilcdc_crtc_is_on(crtc))
-		tilcdc_crtc_enable(crtc);
-
-out:
-	pm_runtime_put_sync(dev->dev);
+	drm_modeset_unlock_crtc(crtc);
 }
 
 #define SYNC_LOST_COUNT_LIMIT 50

@@ -185,14 +185,8 @@ static int cpufreq_transition(struct notifier_block *nb,
 	struct tilcdc_drm_private *priv = container_of(nb,
 			struct tilcdc_drm_private, freq_transition);
 
-	if (val == CPUFREQ_POSTCHANGE) {
-		if (priv->lcd_fck_rate != clk_get_rate(priv->clk)) {
-			drm_modeset_lock_crtc(priv->crtc, NULL);
-			priv->lcd_fck_rate = clk_get_rate(priv->clk);
-			tilcdc_crtc_update_clk(priv->crtc);
-			drm_modeset_unlock_crtc(priv->crtc);
-		}
-	}
+	if (val == CPUFREQ_POSTCHANGE)
+		tilcdc_crtc_update_clk(priv->crtc);
 
 	return 0;
 }
@@ -286,7 +280,6 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 	}
 
 #ifdef CONFIG_CPU_FREQ
-	priv->lcd_fck_rate = clk_get_rate(priv->clk);
 	priv->freq_transition.notifier_call = cpufreq_transition;
 	ret = cpufreq_register_notifier(&priv->freq_transition,
 			CPUFREQ_TRANSITION_NOTIFIER);
