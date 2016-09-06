@@ -126,7 +126,7 @@ static int gmc_v6_0_init_microcode(struct amdgpu_device *adev)
 
 out:
 	if (err) {
-		printk(KERN_ERR
+		dev_err(adev->dev,
 		       "si_mc: Failed to load firmware \"%s\"\n",
 		       fw_name);
 		release_firmware(adev->mc.fw);
@@ -452,7 +452,7 @@ static int gmc_v6_0_gart_enable(struct amdgpu_device *adev)
 				WRITE_PROTECTION_FAULT_ENABLE_DEFAULT);
 
 	gmc_v6_0_gart_flush_gpu_tlb(adev, 0);
-	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
+	dev_info(adev->dev, "PCIE GART of %uM enabled (table at 0x%016llX).\n",
 		 (unsigned)(adev->mc.gtt_size >> 20),
 		 (unsigned long long)adev->gart.table_addr);
 	adev->gart.ready = true;
@@ -464,7 +464,7 @@ static int gmc_v6_0_gart_init(struct amdgpu_device *adev)
 	int r;
 
 	if (adev->gart.robj) {
-		WARN(1, "gmc_v6_0 PCIE GART already initialized\n");
+		dev_warn(adev->dev, "gmc_v6_0 PCIE GART already initialized\n");
 		return 0;
 	}
 	r = amdgpu_gart_init(adev);
@@ -549,7 +549,7 @@ static void gmc_v6_0_vm_decode_fault(struct amdgpu_device *adev,
 	mc_id = REG_GET_FIELD(status, mmVM_CONTEXT1_PROTECTION_FAULT_STATUS,
 			      xxMEMORY_CLIENT_ID);
 
-	printk("VM fault (0x%02x, vmid %d) at page %u, %s from '%s' (0x%08x) (%d)\n",
+	dev_err(adev->dev, "VM fault (0x%02x, vmid %d) at page %u, %s from '%s' (0x%08x) (%d)\n",
 	       protections, vmid, addr,
 	       REG_GET_FIELD(status, mmVM_CONTEXT1_PROTECTION_FAULT_STATUS,
 			     xxMEMORY_CLIENT_RW) ?
@@ -752,17 +752,17 @@ static int gmc_v6_0_sw_init(void *handle)
 	if (r) {
 		adev->need_dma32 = true;
 		dma_bits = 32;
-		printk(KERN_WARNING "amdgpu: No suitable DMA available.\n");
+		dev_warn(adev->dev, "amdgpu: No suitable DMA available.\n");
 	}
 	r = pci_set_consistent_dma_mask(adev->pdev, DMA_BIT_MASK(dma_bits));
 	if (r) {
 		pci_set_consistent_dma_mask(adev->pdev, DMA_BIT_MASK(32));
-		printk(KERN_WARNING "amdgpu: No coherent DMA available.\n");
+		dev_warn(adev->dev, "amdgpu: No coherent DMA available.\n");
 	}
 
 	r = gmc_v6_0_init_microcode(adev);
 	if (r) {
-		DRM_ERROR("Failed to load mc firmware!\n");
+		dev_err(adev->dev, "Failed to load mc firmware!\n");
 		return r;
 	}
 
@@ -820,7 +820,7 @@ static int gmc_v6_0_hw_init(void *handle)
 	if (!(adev->flags & AMD_IS_APU)) {
 		r = gmc_v6_0_mc_load_microcode(adev);
 		if (r) {
-			DRM_ERROR("Failed to load MC firmware!\n");
+			dev_err(adev->dev, "Failed to load MC firmware!\n");
 			return r;
 		}
 	}
