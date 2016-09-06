@@ -3452,7 +3452,17 @@ static void pnv_pci_release_device(struct pci_dev *pdev)
 	if (!pdn || pdn->pe_number == IODA_INVALID_PE)
 		return;
 
+	/*
+	 * PCI hotplug can happen as part of EEH error recovery. The @pdn
+	 * isn't removed and added afterwards in this scenario. We should
+	 * set the PE number in @pdn to an invalid one. Otherwise, the PE's
+	 * device count is decreased on removing devices while failing to
+	 * be increased on adding devices. It leads to unbalanced PE's device
+	 * count and eventually make normal PCI hotplug path broken.
+	 */
 	pe = &phb->ioda.pe_array[pdn->pe_number];
+	pdn->pe_number = IODA_INVALID_PE;
+
 	WARN_ON(--pe->device_count < 0);
 	if (pe->device_count == 0)
 		pnv_ioda_release_pe(pe);
