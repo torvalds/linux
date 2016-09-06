@@ -84,11 +84,11 @@ union fan_info {
 };
 
 union pplib_clock_info {
-        struct _ATOM_PPLIB_R600_CLOCK_INFO r600;
-        struct _ATOM_PPLIB_RS780_CLOCK_INFO rs780;
-        struct _ATOM_PPLIB_EVERGREEN_CLOCK_INFO evergreen;
-        struct _ATOM_PPLIB_SUMO_CLOCK_INFO sumo;
-        struct _ATOM_PPLIB_SI_CLOCK_INFO si;
+	struct _ATOM_PPLIB_R600_CLOCK_INFO r600;
+	struct _ATOM_PPLIB_RS780_CLOCK_INFO rs780;
+	struct _ATOM_PPLIB_EVERGREEN_CLOCK_INFO evergreen;
+	struct _ATOM_PPLIB_SUMO_CLOCK_INFO sumo;
+	struct _ATOM_PPLIB_SI_CLOCK_INFO si;
 };
 
 const u32 r600_utc[R600_PM_NUMBER_OF_TC] =
@@ -1852,8 +1852,8 @@ extern u32 si_pciep_rreg(struct amdgpu_device *adev, u32 reg);
 
 static struct si_power_info *si_get_pi(struct amdgpu_device *adev)
 {
-        struct si_power_info *pi = adev->pm.dpm.priv;
-        return pi;
+	struct si_power_info *pi = adev->pm.dpm.priv;
+	return pi;
 }
 
 static void si_calculate_leakage_for_v_and_t_formula(const struct ni_leakage_coeffients *coeff,
@@ -1954,23 +1954,23 @@ static void si_update_dte_from_pl2(struct amdgpu_device *adev,
 
 struct rv7xx_power_info *rv770_get_pi(struct amdgpu_device *adev)
 {
-        struct rv7xx_power_info *pi = adev->pm.dpm.priv;
+	struct rv7xx_power_info *pi = adev->pm.dpm.priv;
 
-        return pi;
+	return pi;
 }
 
 struct ni_power_info *ni_get_pi(struct amdgpu_device *adev)
 {
-        struct ni_power_info *pi = adev->pm.dpm.priv;
+	struct ni_power_info *pi = adev->pm.dpm.priv;
 
-        return pi;
+	return pi;
 }
 
 struct  si_ps *si_get_ps(struct amdgpu_ps *aps)
 {
-        struct  si_ps *ps = aps->ps_priv;
+	struct  si_ps *ps = aps->ps_priv;
 
-        return ps;
+	return ps;
 }
 
 static void si_initialize_powertune_defaults(struct amdgpu_device *adev)
@@ -2147,7 +2147,7 @@ static void si_initialize_powertune_defaults(struct amdgpu_device *adev)
 	si_pi->enable_dte = false;
 
 	if (si_pi->powertune_data->enable_powertune_by_default) {
-		ni_pi->enable_power_containment= true;
+		ni_pi->enable_power_containment = true;
 		ni_pi->enable_cac = true;
 		if (si_pi->dte_data.enable_dte_by_default) {
 			si_pi->enable_dte = true;
@@ -2426,13 +2426,12 @@ static int si_populate_power_containment_values(struct amdgpu_device *adev,
 
 		if ((max_ps_percent == 0) ||
 		    (prev_sclk == max_sclk) ||
-		    disable_uvd_power_tune) {
+		    disable_uvd_power_tune)
 			min_sclk = max_sclk;
-		} else if (i == 1) {
+		else if (i == 1)
 			min_sclk = prev_sclk;
-		} else {
+		else
 			min_sclk = (prev_sclk * (u32)max_ps_percent) / 100;
-		}
 
 		if (min_sclk < state->performance_levels[0].sclk)
 			min_sclk = state->performance_levels[0].sclk;
@@ -2631,7 +2630,6 @@ static int si_get_cac_std_voltage_max_min(struct amdgpu_device *adev,
 		&adev->pm.dpm.dyn_state.cac_leakage_table;
 	u32 i;
 	u32 v0_loadline;
-
 
 	if (table == NULL)
 		return -EINVAL;
@@ -3079,14 +3077,14 @@ static int si_get_vce_clock_voltage(struct amdgpu_device *adev,
 static bool si_dpm_vblank_too_short(struct amdgpu_device *adev)
 {
 
-        u32 vblank_time = amdgpu_dpm_get_vblank_time(adev);
-        /* we never hit the non-gddr5 limit so disable it */
-        u32 switch_limit = adev->mc.vram_type == AMDGPU_VRAM_TYPE_GDDR5 ? 450 : 0;
+	u32 vblank_time = amdgpu_dpm_get_vblank_time(adev);
+	/* we never hit the non-gddr5 limit so disable it */
+	u32 switch_limit = adev->mc.vram_type == AMDGPU_VRAM_TYPE_GDDR5 ? 450 : 0;
 
-        if (vblank_time < switch_limit)
-                return true;
-        else
-                return false;
+	if (vblank_time < switch_limit)
+		return true;
+	else
+		return false;
 
 }
 
@@ -3099,47 +3097,47 @@ static int ni_copy_and_switch_arb_sets(struct amdgpu_device *adev,
 	u32 mc_cg_config;
 
 	switch (arb_freq_src) {
-        case MC_CG_ARB_FREQ_F0:
+	case MC_CG_ARB_FREQ_F0:
 		mc_arb_dram_timing  = RREG32(MC_ARB_DRAM_TIMING);
 		mc_arb_dram_timing2 = RREG32(MC_ARB_DRAM_TIMING2);
 		burst_time = (RREG32(MC_ARB_BURST_TIME) & STATE0_MASK) >> STATE0_SHIFT;
 		break;
-        case MC_CG_ARB_FREQ_F1:
+	case MC_CG_ARB_FREQ_F1:
 		mc_arb_dram_timing  = RREG32(MC_ARB_DRAM_TIMING_1);
 		mc_arb_dram_timing2 = RREG32(MC_ARB_DRAM_TIMING2_1);
 		burst_time = (RREG32(MC_ARB_BURST_TIME) & STATE1_MASK) >> STATE1_SHIFT;
 		break;
-        case MC_CG_ARB_FREQ_F2:
+	case MC_CG_ARB_FREQ_F2:
 		mc_arb_dram_timing  = RREG32(MC_ARB_DRAM_TIMING_2);
 		mc_arb_dram_timing2 = RREG32(MC_ARB_DRAM_TIMING2_2);
 		burst_time = (RREG32(MC_ARB_BURST_TIME) & STATE2_MASK) >> STATE2_SHIFT;
 		break;
-        case MC_CG_ARB_FREQ_F3:
+	case MC_CG_ARB_FREQ_F3:
 		mc_arb_dram_timing  = RREG32(MC_ARB_DRAM_TIMING_3);
 		mc_arb_dram_timing2 = RREG32(MC_ARB_DRAM_TIMING2_3);
 		burst_time = (RREG32(MC_ARB_BURST_TIME) & STATE3_MASK) >> STATE3_SHIFT;
 		break;
-        default:
+	default:
 		return -EINVAL;
 	}
 
 	switch (arb_freq_dest) {
-        case MC_CG_ARB_FREQ_F0:
+	case MC_CG_ARB_FREQ_F0:
 		WREG32(MC_ARB_DRAM_TIMING, mc_arb_dram_timing);
 		WREG32(MC_ARB_DRAM_TIMING2, mc_arb_dram_timing2);
 		WREG32_P(MC_ARB_BURST_TIME, STATE0(burst_time), ~STATE0_MASK);
 		break;
-        case MC_CG_ARB_FREQ_F1:
+	case MC_CG_ARB_FREQ_F1:
 		WREG32(MC_ARB_DRAM_TIMING_1, mc_arb_dram_timing);
 		WREG32(MC_ARB_DRAM_TIMING2_1, mc_arb_dram_timing2);
 		WREG32_P(MC_ARB_BURST_TIME, STATE1(burst_time), ~STATE1_MASK);
 		break;
-        case MC_CG_ARB_FREQ_F2:
+	case MC_CG_ARB_FREQ_F2:
 		WREG32(MC_ARB_DRAM_TIMING_2, mc_arb_dram_timing);
 		WREG32(MC_ARB_DRAM_TIMING2_2, mc_arb_dram_timing2);
 		WREG32_P(MC_ARB_BURST_TIME, STATE2(burst_time), ~STATE2_MASK);
 		break;
-        case MC_CG_ARB_FREQ_F3:
+	case MC_CG_ARB_FREQ_F3:
 		WREG32(MC_ARB_DRAM_TIMING_3, mc_arb_dram_timing);
 		WREG32(MC_ARB_DRAM_TIMING2_3, mc_arb_dram_timing2);
 		WREG32_P(MC_ARB_BURST_TIME, STATE3(burst_time), ~STATE3_MASK);
@@ -3158,9 +3156,9 @@ static int ni_copy_and_switch_arb_sets(struct amdgpu_device *adev,
 static void ni_update_current_ps(struct amdgpu_device *adev,
 			  struct amdgpu_ps *rps)
 {
-	struct  si_ps *new_ps = si_get_ps(rps);
+	struct si_ps *new_ps = si_get_ps(rps);
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(adev);
-        struct ni_power_info *ni_pi = ni_get_pi(adev);
+	struct ni_power_info *ni_pi = ni_get_pi(adev);
 
 	eg_pi->current_rps = *rps;
 	ni_pi->current_ps = *new_ps;
@@ -3170,9 +3168,9 @@ static void ni_update_current_ps(struct amdgpu_device *adev,
 static void ni_update_requested_ps(struct amdgpu_device *adev,
 			    struct amdgpu_ps *rps)
 {
-	struct  si_ps *new_ps = si_get_ps(rps);
+	struct si_ps *new_ps = si_get_ps(rps);
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(adev);
-        struct ni_power_info *ni_pi = ni_get_pi(adev);
+	struct ni_power_info *ni_pi = ni_get_pi(adev);
 
 	eg_pi->requested_rps = *rps;
 	ni_pi->requested_ps = *new_ps;
@@ -3183,8 +3181,8 @@ static void ni_set_uvd_clock_before_set_eng_clock(struct amdgpu_device *adev,
 					   struct amdgpu_ps *new_ps,
 					   struct amdgpu_ps *old_ps)
 {
-	struct  si_ps *new_state = si_get_ps(new_ps);
-	struct  si_ps *current_state = si_get_ps(old_ps);
+	struct si_ps *new_state = si_get_ps(new_ps);
+	struct si_ps *current_state = si_get_ps(old_ps);
 
 	if ((new_ps->vclk == old_ps->vclk) &&
 	    (new_ps->dclk == old_ps->dclk))
@@ -3201,8 +3199,8 @@ static void ni_set_uvd_clock_after_set_eng_clock(struct amdgpu_device *adev,
 					  struct amdgpu_ps *new_ps,
 					  struct amdgpu_ps *old_ps)
 {
-	struct  si_ps *new_state = si_get_ps(new_ps);
-	struct  si_ps *current_state = si_get_ps(old_ps);
+	struct si_ps *new_state = si_get_ps(new_ps);
+	struct si_ps *current_state = si_get_ps(old_ps);
 
 	if ((new_ps->vclk == old_ps->vclk) &&
 	    (new_ps->dclk == old_ps->dclk))
@@ -3217,134 +3215,133 @@ static void ni_set_uvd_clock_after_set_eng_clock(struct amdgpu_device *adev,
 
 static u16 btc_find_voltage(struct atom_voltage_table *table, u16 voltage)
 {
-        unsigned int i;
+	unsigned int i;
 
-        for (i = 0; i < table->count; i++) {
-                if (voltage <= table->entries[i].value)
-                        return table->entries[i].value;
-        }
+	for (i = 0; i < table->count; i++)
+		if (voltage <= table->entries[i].value)
+			return table->entries[i].value;
 
-        return table->entries[table->count - 1].value;
+	return table->entries[table->count - 1].value;
 }
 
 static u32 btc_find_valid_clock(struct amdgpu_clock_array *clocks,
-                                u32 max_clock, u32 requested_clock)
+		                u32 max_clock, u32 requested_clock)
 {
-        unsigned int i;
+	unsigned int i;
 
-        if ((clocks == NULL) || (clocks->count == 0))
-                return (requested_clock < max_clock) ? requested_clock : max_clock;
+	if ((clocks == NULL) || (clocks->count == 0))
+		return (requested_clock < max_clock) ? requested_clock : max_clock;
 
-        for (i = 0; i < clocks->count; i++) {
-                if (clocks->values[i] >= requested_clock)
-                        return (clocks->values[i] < max_clock) ? clocks->values[i] : max_clock;
-        }
+	for (i = 0; i < clocks->count; i++) {
+		if (clocks->values[i] >= requested_clock)
+			return (clocks->values[i] < max_clock) ? clocks->values[i] : max_clock;
+	}
 
-        return (clocks->values[clocks->count - 1] < max_clock) ?
-                clocks->values[clocks->count - 1] : max_clock;
+	return (clocks->values[clocks->count - 1] < max_clock) ?
+		clocks->values[clocks->count - 1] : max_clock;
 }
 
 static u32 btc_get_valid_mclk(struct amdgpu_device *adev,
-                              u32 max_mclk, u32 requested_mclk)
+			      u32 max_mclk, u32 requested_mclk)
 {
-        return btc_find_valid_clock(&adev->pm.dpm.dyn_state.valid_mclk_values,
-                                    max_mclk, requested_mclk);
+	return btc_find_valid_clock(&adev->pm.dpm.dyn_state.valid_mclk_values,
+				    max_mclk, requested_mclk);
 }
 
 static u32 btc_get_valid_sclk(struct amdgpu_device *adev,
-                              u32 max_sclk, u32 requested_sclk)
+		              u32 max_sclk, u32 requested_sclk)
 {
-        return btc_find_valid_clock(&adev->pm.dpm.dyn_state.valid_sclk_values,
-                                    max_sclk, requested_sclk);
+	return btc_find_valid_clock(&adev->pm.dpm.dyn_state.valid_sclk_values,
+				    max_sclk, requested_sclk);
 }
 
 void btc_get_max_clock_from_voltage_dependency_table(struct amdgpu_clock_voltage_dependency_table *table,
-                                                     u32 *max_clock)
+						     u32 *max_clock)
 {
-        u32 i, clock = 0;
+	u32 i, clock = 0;
 
-        if ((table == NULL) || (table->count == 0)) {
-                *max_clock = clock;
-                return;
-        }
+	if ((table == NULL) || (table->count == 0)) {
+		*max_clock = clock;
+		return;
+	}
 
-        for (i = 0; i < table->count; i++) {
-                if (clock < table->entries[i].clk)
-                        clock = table->entries[i].clk;
-        }
-        *max_clock = clock;
+	for (i = 0; i < table->count; i++) {
+		if (clock < table->entries[i].clk)
+			clock = table->entries[i].clk;
+	}
+	*max_clock = clock;
 }
 
 static void btc_apply_voltage_dependency_rules(struct amdgpu_clock_voltage_dependency_table *table,
-                                        u32 clock, u16 max_voltage, u16 *voltage)
+					       u32 clock, u16 max_voltage, u16 *voltage)
 {
-        u32 i;
+	u32 i;
 
-        if ((table == NULL) || (table->count == 0))
-                return;
+	if ((table == NULL) || (table->count == 0))
+		return;
 
-        for (i= 0; i < table->count; i++) {
-                if (clock <= table->entries[i].clk) {
-                        if (*voltage < table->entries[i].v)
-                                *voltage = (u16)((table->entries[i].v < max_voltage) ?
-                                                  table->entries[i].v : max_voltage);
-                        return;
-                }
-        }
+	for (i= 0; i < table->count; i++) {
+		if (clock <= table->entries[i].clk) {
+			if (*voltage < table->entries[i].v)
+				*voltage = (u16)((table->entries[i].v < max_voltage) ?
+					   table->entries[i].v : max_voltage);
+			return;
+		}
+	}
 
-        *voltage = (*voltage > max_voltage) ? *voltage : max_voltage;
+	*voltage = (*voltage > max_voltage) ? *voltage : max_voltage;
 }
 
 static void btc_adjust_clock_combinations(struct amdgpu_device *adev,
-                                   const struct amdgpu_clock_and_voltage_limits *max_limits,
-                                   struct rv7xx_pl *pl)
+					  const struct amdgpu_clock_and_voltage_limits *max_limits,
+					  struct rv7xx_pl *pl)
 {
 
-        if ((pl->mclk == 0) || (pl->sclk == 0))
-                return;
+	if ((pl->mclk == 0) || (pl->sclk == 0))
+		return;
 
-        if (pl->mclk == pl->sclk)
-                return;
+	if (pl->mclk == pl->sclk)
+		return;
 
-        if (pl->mclk > pl->sclk) {
-                if (((pl->mclk + (pl->sclk - 1)) / pl->sclk) > adev->pm.dpm.dyn_state.mclk_sclk_ratio)
-                        pl->sclk = btc_get_valid_sclk(adev,
-                                                      max_limits->sclk,
-                                                      (pl->mclk +
-                                                       (adev->pm.dpm.dyn_state.mclk_sclk_ratio - 1)) /
-                                                      adev->pm.dpm.dyn_state.mclk_sclk_ratio);
-        } else {
-                if ((pl->sclk - pl->mclk) > adev->pm.dpm.dyn_state.sclk_mclk_delta)
-                        pl->mclk = btc_get_valid_mclk(adev,
-                                                      max_limits->mclk,
-                                                      pl->sclk -
-                                                      adev->pm.dpm.dyn_state.sclk_mclk_delta);
-        }
+	if (pl->mclk > pl->sclk) {
+		if (((pl->mclk + (pl->sclk - 1)) / pl->sclk) > adev->pm.dpm.dyn_state.mclk_sclk_ratio)
+			pl->sclk = btc_get_valid_sclk(adev,
+						      max_limits->sclk,
+						      (pl->mclk +
+						      (adev->pm.dpm.dyn_state.mclk_sclk_ratio - 1)) /
+						      adev->pm.dpm.dyn_state.mclk_sclk_ratio);
+	} else {
+		if ((pl->sclk - pl->mclk) > adev->pm.dpm.dyn_state.sclk_mclk_delta)
+			pl->mclk = btc_get_valid_mclk(adev,
+						      max_limits->mclk,
+						      pl->sclk -
+						      adev->pm.dpm.dyn_state.sclk_mclk_delta);
+	}
 }
 
 static void btc_apply_voltage_delta_rules(struct amdgpu_device *adev,
-                                   u16 max_vddc, u16 max_vddci,
-                                   u16 *vddc, u16 *vddci)
+					  u16 max_vddc, u16 max_vddci,
+					  u16 *vddc, u16 *vddci)
 {
-        struct evergreen_power_info *eg_pi = evergreen_get_pi(adev);
-        u16 new_voltage;
+	struct evergreen_power_info *eg_pi = evergreen_get_pi(adev);
+	u16 new_voltage;
 
-        if ((0 == *vddc) || (0 == *vddci))
-                return;
+	if ((0 == *vddc) || (0 == *vddci))
+		return;
 
-        if (*vddc > *vddci) {
-                if ((*vddc - *vddci) > adev->pm.dpm.dyn_state.vddc_vddci_delta) {
-                        new_voltage = btc_find_voltage(&eg_pi->vddci_voltage_table,
-                                                       (*vddc - adev->pm.dpm.dyn_state.vddc_vddci_delta));
-                        *vddci = (new_voltage < max_vddci) ? new_voltage : max_vddci;
-                }
-        } else {
-                if ((*vddci - *vddc) > adev->pm.dpm.dyn_state.vddc_vddci_delta) {
-                        new_voltage = btc_find_voltage(&eg_pi->vddc_voltage_table,
-                                                       (*vddci - adev->pm.dpm.dyn_state.vddc_vddci_delta));
-                        *vddc = (new_voltage < max_vddc) ? new_voltage : max_vddc;
-                }
-        }
+	if (*vddc > *vddci) {
+		if ((*vddc - *vddci) > adev->pm.dpm.dyn_state.vddc_vddci_delta) {
+			new_voltage = btc_find_voltage(&eg_pi->vddci_voltage_table,
+						       (*vddc - adev->pm.dpm.dyn_state.vddc_vddci_delta));
+			*vddci = (new_voltage < max_vddci) ? new_voltage : max_vddci;
+		}
+	} else {
+		if ((*vddci - *vddc) > adev->pm.dpm.dyn_state.vddc_vddci_delta) {
+			new_voltage = btc_find_voltage(&eg_pi->vddc_voltage_table,
+						       (*vddci - adev->pm.dpm.dyn_state.vddc_vddci_delta));
+			*vddc = (new_voltage < max_vddc) ? new_voltage : max_vddc;
+		}
+	}
 }
 
 static enum amdgpu_pcie_gen r600_get_pcie_gen_support(struct amdgpu_device *adev,
@@ -3626,9 +3623,9 @@ static void si_apply_state_adjust_rules(struct amdgpu_device *adev,
 		}
 	}
 
-        for (i = 0; i < ps->performance_level_count; i++)
-                btc_adjust_clock_combinations(adev, max_limits,
-                                              &ps->performance_levels[i]);
+	for (i = 0; i < ps->performance_level_count; i++)
+		btc_adjust_clock_combinations(adev, max_limits,
+					      &ps->performance_levels[i]);
 
 	for (i = 0; i < ps->performance_level_count; i++) {
 		if (ps->performance_levels[i].vddc < min_vce_voltage)
@@ -3767,7 +3764,7 @@ static void si_set_dpm_event_sources(struct amdgpu_device *adev, u32 sources)
 	case 0:
 	default:
 		want_thermal_protection = false;
-                break;
+		break;
 	case (1 << AMDGPU_DPM_AUTO_THROTTLE_SRC_THERMAL):
 		want_thermal_protection = true;
 		dpm_event_src = AMDGPU_DPM_EVENT_SRC_DIGITAL;
@@ -3969,7 +3966,7 @@ static int si_process_firmware_header(struct amdgpu_device *adev)
 	if (ret)
 		return ret;
 
-        si_pi->state_table_start = tmp;
+	si_pi->state_table_start = tmp;
 
 	ret = si_read_smc_sram_dword(adev,
 				     SISLANDS_SMC_FIRMWARE_HEADER_LOCATION +
@@ -4128,7 +4125,7 @@ static void si_program_response_times(struct amdgpu_device *adev)
 	si_write_smc_soft_register(adev, SI_SMC_SOFT_REGISTER_mvdd_chg_time, 1);
 
 	voltage_response_time = (u32)adev->pm.dpm.voltage_response_time;
-        backbias_response_time = (u32)adev->pm.dpm.backbias_response_time;
+	backbias_response_time = (u32)adev->pm.dpm.backbias_response_time;
 
 	if (voltage_response_time == 0)
 		voltage_response_time = 1000;
@@ -4367,14 +4364,11 @@ static u8 si_get_strobe_mode_settings(struct amdgpu_device *adev, u32 mclk)
 static int si_upload_firmware(struct amdgpu_device *adev)
 {
 	struct si_power_info *si_pi = si_get_pi(adev);
-	int ret;
 
 	si_reset_smc(adev);
 	si_stop_smc_clock(adev);
 
-	ret = si_load_smc_ucode(adev, si_pi->sram_end);
-
-	return ret;
+	return si_load_smc_ucode(adev, si_pi->sram_end);
 }
 
 static bool si_validate_phase_shedding_tables(struct amdgpu_device *adev,
@@ -4790,7 +4784,7 @@ static int si_populate_memory_timing_parameters(struct amdgpu_device *adev,
 
 	amdgpu_atombios_set_engine_dram_timings(adev,
 					    pl->sclk,
-                                            pl->mclk);
+		                            pl->mclk);
 
 	dram_timing  = RREG32(MC_ARB_DRAM_TIMING);
 	dram_timing2 = RREG32(MC_ARB_DRAM_TIMING2);
@@ -4825,7 +4819,7 @@ static int si_do_program_memory_timing_parameters(struct amdgpu_device *adev,
 					   si_pi->sram_end);
 		if (ret)
 			break;
-        }
+	}
 
 	return ret;
 }
@@ -4938,9 +4932,7 @@ static int si_populate_smc_initial_state(struct amdgpu_device *adev,
 
 	reg = CG_R(0xffff) | CG_L(0);
 	table->initialState.levels[0].aT = cpu_to_be32(reg);
-
 	table->initialState.levels[0].bSP = cpu_to_be32(pi->dsp);
-
 	table->initialState.levels[0].gen2PCIE = (u8)si_pi->boot_pcie_gen;
 
 	if (adev->mc.vram_type == AMDGPU_VRAM_TYPE_GDDR5) {
@@ -5302,9 +5294,9 @@ static int si_calculate_sclk_params(struct amdgpu_device *adev,
 	spll_func_cntl_2 &= ~SCLK_MUX_SEL_MASK;
 	spll_func_cntl_2 |= SCLK_MUX_SEL(2);
 
-        spll_func_cntl_3 &= ~SPLL_FB_DIV_MASK;
-        spll_func_cntl_3 |= SPLL_FB_DIV(fbdiv);
-        spll_func_cntl_3 |= SPLL_DITHEN;
+	spll_func_cntl_3 &= ~SPLL_FB_DIV_MASK;
+	spll_func_cntl_3 |= SPLL_FB_DIV(fbdiv);
+	spll_func_cntl_3 |= SPLL_DITHEN;
 
 	if (pi->sclk_ss) {
 		struct amdgpu_atom_ss ss;
@@ -5411,15 +5403,15 @@ static int si_populate_mclk_value(struct amdgpu_device *adev,
 		tmp = freq_nom / reference_clock;
 		tmp = tmp * tmp;
 		if (amdgpu_atombios_get_asic_ss_info(adev, &ss,
-                                                     ASIC_INTERNAL_MEMORY_SS, freq_nom)) {
+		                                     ASIC_INTERNAL_MEMORY_SS, freq_nom)) {
 			u32 clks = reference_clock * 5 / ss.rate;
 			u32 clkv = (u32)((((131 * ss.percentage * ss.rate) / 100) * tmp) / freq_nom);
 
-                        mpll_ss1 &= ~CLKV_MASK;
-                        mpll_ss1 |= CLKV(clkv);
+		        mpll_ss1 &= ~CLKV_MASK;
+		        mpll_ss1 |= CLKV(clkv);
 
-                        mpll_ss2 &= ~CLKS_MASK;
-                        mpll_ss2 |= CLKS(clks);
+		        mpll_ss2 &= ~CLKS_MASK;
+		        mpll_ss2 |= CLKS(clks);
 		}
 	}
 
@@ -5746,7 +5738,7 @@ static int si_convert_power_state_to_smc(struct amdgpu_device *adev,
 		ni_pi->enable_power_containment = false;
 
 	ret = si_populate_sq_ramping_values(adev, amdgpu_state, smc_state);
-        if (ret)
+	if (ret)
 		ni_pi->enable_sq_ramping = false;
 
 	return si_populate_smc_t(adev, amdgpu_state, smc_state);
@@ -5771,10 +5763,8 @@ static int si_upload_sw_state(struct amdgpu_device *adev,
 	if (ret)
 		return ret;
 
-	ret = si_copy_bytes_to_smc(adev, address, (u8 *)smc_state,
-				   state_size, si_pi->sram_end);
-
-	return ret;
+	return si_copy_bytes_to_smc(adev, address, (u8 *)smc_state,
+				    state_size, si_pi->sram_end);
 }
 
 static int si_upload_ulv_state(struct amdgpu_device *adev)
@@ -5915,46 +5905,46 @@ static bool si_check_s0_mc_reg_index(u16 in_reg, u16 *out_reg)
 	case  MC_SEQ_RAS_TIMING:
 		*out_reg = MC_SEQ_RAS_TIMING_LP;
 		break;
-        case MC_SEQ_CAS_TIMING:
+	case MC_SEQ_CAS_TIMING:
 		*out_reg = MC_SEQ_CAS_TIMING_LP;
 		break;
-        case MC_SEQ_MISC_TIMING:
+	case MC_SEQ_MISC_TIMING:
 		*out_reg = MC_SEQ_MISC_TIMING_LP;
 		break;
-        case MC_SEQ_MISC_TIMING2:
+	case MC_SEQ_MISC_TIMING2:
 		*out_reg = MC_SEQ_MISC_TIMING2_LP;
 		break;
-        case MC_SEQ_RD_CTL_D0:
+	case MC_SEQ_RD_CTL_D0:
 		*out_reg = MC_SEQ_RD_CTL_D0_LP;
 		break;
-        case MC_SEQ_RD_CTL_D1:
+	case MC_SEQ_RD_CTL_D1:
 		*out_reg = MC_SEQ_RD_CTL_D1_LP;
 		break;
-        case MC_SEQ_WR_CTL_D0:
+	case MC_SEQ_WR_CTL_D0:
 		*out_reg = MC_SEQ_WR_CTL_D0_LP;
 		break;
-        case MC_SEQ_WR_CTL_D1:
+	case MC_SEQ_WR_CTL_D1:
 		*out_reg = MC_SEQ_WR_CTL_D1_LP;
 		break;
-        case MC_PMG_CMD_EMRS:
+	case MC_PMG_CMD_EMRS:
 		*out_reg = MC_SEQ_PMG_CMD_EMRS_LP;
 		break;
-        case MC_PMG_CMD_MRS:
+	case MC_PMG_CMD_MRS:
 		*out_reg = MC_SEQ_PMG_CMD_MRS_LP;
 		break;
-        case MC_PMG_CMD_MRS1:
+	case MC_PMG_CMD_MRS1:
 		*out_reg = MC_SEQ_PMG_CMD_MRS1_LP;
 		break;
-        case MC_SEQ_PMG_TIMING:
+	case MC_SEQ_PMG_TIMING:
 		*out_reg = MC_SEQ_PMG_TIMING_LP;
 		break;
-        case MC_PMG_CMD_MRS2:
+	case MC_PMG_CMD_MRS2:
 		*out_reg = MC_SEQ_PMG_CMD_MRS2_LP;
 		break;
-        case MC_SEQ_WR_CTL_2:
+	case MC_SEQ_WR_CTL_2:
 		*out_reg = MC_SEQ_WR_CTL_2_LP;
 		break;
-        default:
+	default:
 		result = false;
 		break;
 	}
@@ -6041,19 +6031,19 @@ static int si_initialize_mc_reg_table(struct amdgpu_device *adev)
 	WREG32(MC_SEQ_PMG_CMD_MRS2_LP, RREG32(MC_PMG_CMD_MRS2));
 	WREG32(MC_SEQ_WR_CTL_2_LP, RREG32(MC_SEQ_WR_CTL_2));
 
-        ret = amdgpu_atombios_init_mc_reg_table(adev, module_index, table);
-        if (ret)
-                goto init_mc_done;
+	ret = amdgpu_atombios_init_mc_reg_table(adev, module_index, table);
+	if (ret)
+		goto init_mc_done;
 
-        ret = si_copy_vbios_mc_reg_table(table, si_table);
-        if (ret)
-                goto init_mc_done;
+	ret = si_copy_vbios_mc_reg_table(table, si_table);
+	if (ret)
+		goto init_mc_done;
 
 	si_set_s0_mc_reg_index(si_table);
 
 	ret = si_set_mc_special_registers(adev, si_table);
-        if (ret)
-                goto init_mc_done;
+	if (ret)
+		goto init_mc_done;
 
 	si_set_valid_flag(si_table);
 
@@ -6122,7 +6112,7 @@ static void si_convert_mc_reg_table_to_smc(struct amdgpu_device *adev,
 					   struct amdgpu_ps *amdgpu_state,
 					   SMC_SIslands_MCRegisters *mc_reg_table)
 {
-	struct  si_ps *state = si_get_ps(amdgpu_state);
+	struct si_ps *state = si_get_ps(amdgpu_state);
 	int i;
 
 	for (i = 0; i < state->performance_level_count; i++) {
@@ -6173,7 +6163,7 @@ static int si_populate_mc_reg_table(struct amdgpu_device *adev,
 static int si_upload_mc_reg_table(struct amdgpu_device *adev,
 				  struct amdgpu_ps *amdgpu_new_state)
 {
-	struct  si_ps *new_state = si_get_ps(amdgpu_new_state);
+	struct si_ps *new_state = si_get_ps(amdgpu_new_state);
 	struct si_power_info *si_pi = si_get_pi(adev);
 	u32 address = si_pi->mc_reg_table_start +
 		offsetof(SMC_SIslands_MCRegisters,
@@ -6184,26 +6174,24 @@ static int si_upload_mc_reg_table(struct amdgpu_device *adev,
 
 	si_convert_mc_reg_table_to_smc(adev, amdgpu_new_state, smc_mc_reg_table);
 
-
 	return si_copy_bytes_to_smc(adev, address,
 				    (u8 *)&smc_mc_reg_table->data[SISLANDS_MCREGISTERTABLE_FIRST_DRIVERSTATE_SLOT],
 				    sizeof(SMC_SIslands_MCRegisterSet) * new_state->performance_level_count,
 				    si_pi->sram_end);
-
 }
 
 static void si_enable_voltage_control(struct amdgpu_device *adev, bool enable)
 {
-        if (enable)
-                WREG32_P(GENERAL_PWRMGT, VOLT_PWRMGT_EN, ~VOLT_PWRMGT_EN);
-        else
-                WREG32_P(GENERAL_PWRMGT, 0, ~VOLT_PWRMGT_EN);
+	if (enable)
+		WREG32_P(GENERAL_PWRMGT, VOLT_PWRMGT_EN, ~VOLT_PWRMGT_EN);
+	else
+		WREG32_P(GENERAL_PWRMGT, 0, ~VOLT_PWRMGT_EN);
 }
 
 static enum amdgpu_pcie_gen si_get_maximum_link_speed(struct amdgpu_device *adev,
 						      struct amdgpu_ps *amdgpu_state)
 {
-	struct  si_ps *state = si_get_ps(amdgpu_state);
+	struct si_ps *state = si_get_ps(amdgpu_state);
 	int i;
 	u16 pcie_speed, max_speed = 0;
 
@@ -6525,25 +6513,17 @@ static int si_thermal_setup_fan_table(struct amdgpu_device *adev)
 	fan_table.temp_min = cpu_to_be16((50 + adev->pm.dpm.fan.t_min) / 100);
 	fan_table.temp_med = cpu_to_be16((50 + adev->pm.dpm.fan.t_med) / 100);
 	fan_table.temp_max = cpu_to_be16((50 + adev->pm.dpm.fan.t_max) / 100);
-
 	fan_table.slope1 = cpu_to_be16(slope1);
 	fan_table.slope2 = cpu_to_be16(slope2);
-
 	fan_table.fdo_min = cpu_to_be16(fdo_min);
-
 	fan_table.hys_down = cpu_to_be16(adev->pm.dpm.fan.t_hyst);
-
 	fan_table.hys_up = cpu_to_be16(1);
-
 	fan_table.hys_slope = cpu_to_be16(1);
-
 	fan_table.temp_resp_lim = cpu_to_be16(5);
-
 	reference_clock = amdgpu_asic_get_xclk(adev);
 
 	fan_table.refresh_period = cpu_to_be32((adev->pm.dpm.fan.cycle_delay *
 						reference_clock) / 1600);
-
 	fan_table.fdo_max = cpu_to_be16((u16)duty100);
 
 	tmp = (RREG32(CG_MULT_THERMAL_CTRL) & TEMP_SEL_MASK) >> TEMP_SEL_SHIFT;
@@ -6916,9 +6896,7 @@ static int si_dpm_enable(struct amdgpu_device *adev)
 	si_start_dpm(adev);
 
 	si_enable_auto_throttle_source(adev, AMDGPU_DPM_AUTO_THROTTLE_SRC_THERMAL, true);
-
 	si_thermal_start_thermal_controller(adev);
-
 	ni_update_current_ps(adev, boot_ps);
 
 	return 0;
@@ -6972,7 +6950,6 @@ static int si_dpm_pre_set_power_state(struct amdgpu_device *adev)
 	struct amdgpu_ps *new_ps = &requested_ps;
 
 	ni_update_requested_ps(adev, new_ps);
-
 	si_apply_state_adjust_rules(adev, &eg_pi->requested_rps);
 
 	return 0;
@@ -7232,8 +7209,8 @@ static void si_parse_pplib_clock_info(struct amdgpu_device *adev,
 }
 
 union pplib_power_state {
-        struct _ATOM_PPLIB_STATE v1;
-        struct _ATOM_PPLIB_STATE_V2 v2;
+	struct _ATOM_PPLIB_STATE v1;
+	struct _ATOM_PPLIB_STATE_V2 v2;
 };
 
 static int si_parse_power_table(struct amdgpu_device *adev)
@@ -7248,7 +7225,7 @@ static int si_parse_power_table(struct amdgpu_device *adev)
 	struct _NonClockInfoArray *non_clock_info_array;
 	union power_info *power_info;
 	int index = GetIndexIntoMasterTable(DATA, PowerPlayInfo);
-        u16 data_offset;
+	u16 data_offset;
 	u8 frev, crev;
 	u8 *power_state_offset;
 	struct  si_ps *ps;
@@ -7896,46 +7873,46 @@ static int si_dpm_get_temp(struct amdgpu_device *adev)
 
 static u32 si_dpm_get_sclk(struct amdgpu_device *adev, bool low)
 {
-        struct evergreen_power_info *eg_pi = evergreen_get_pi(adev);
-        struct  si_ps *requested_state = si_get_ps(&eg_pi->requested_rps);
+	struct evergreen_power_info *eg_pi = evergreen_get_pi(adev);
+	struct  si_ps *requested_state = si_get_ps(&eg_pi->requested_rps);
 
-        if (low)
-                return requested_state->performance_levels[0].sclk;
-        else
-                return requested_state->performance_levels[requested_state->performance_level_count - 1].sclk;
+	if (low)
+		return requested_state->performance_levels[0].sclk;
+	else
+		return requested_state->performance_levels[requested_state->performance_level_count - 1].sclk;
 }
 
 static u32 si_dpm_get_mclk(struct amdgpu_device *adev, bool low)
 {
-        struct evergreen_power_info *eg_pi = evergreen_get_pi(adev);
-        struct  si_ps *requested_state = si_get_ps(&eg_pi->requested_rps);
+	struct evergreen_power_info *eg_pi = evergreen_get_pi(adev);
+	struct  si_ps *requested_state = si_get_ps(&eg_pi->requested_rps);
 
-        if (low)
-                return requested_state->performance_levels[0].mclk;
-        else
-                return requested_state->performance_levels[requested_state->performance_level_count - 1].mclk;
+	if (low)
+		return requested_state->performance_levels[0].mclk;
+	else
+		return requested_state->performance_levels[requested_state->performance_level_count - 1].mclk;
 }
 
 static void si_dpm_print_power_state(struct amdgpu_device *adev,
-                              struct amdgpu_ps *rps)
+				     struct amdgpu_ps *rps)
 {
-        struct  si_ps *ps = si_get_ps(rps);
-        struct rv7xx_pl *pl;
-        int i;          
-                               
-        amdgpu_dpm_print_class_info(rps->class, rps->class2);
-        amdgpu_dpm_print_cap_info(rps->caps);
-        DRM_INFO("\tuvd    vclk: %d dclk: %d\n", rps->vclk, rps->dclk);
-        for (i = 0; i < ps->performance_level_count; i++) {
-                pl = &ps->performance_levels[i];
-                if (adev->asic_type >= CHIP_TAHITI)
-                        DRM_INFO("\t\tpower level %d    sclk: %u mclk: %u vddc: %u vddci: %u pcie gen: %u\n",
+	struct  si_ps *ps = si_get_ps(rps);
+	struct rv7xx_pl *pl;
+	int i;
+
+	amdgpu_dpm_print_class_info(rps->class, rps->class2);
+	amdgpu_dpm_print_cap_info(rps->caps);
+	DRM_INFO("\tuvd    vclk: %d dclk: %d\n", rps->vclk, rps->dclk);
+	for (i = 0; i < ps->performance_level_count; i++) {
+		pl = &ps->performance_levels[i];
+		if (adev->asic_type >= CHIP_TAHITI)
+			DRM_INFO("\t\tpower level %d    sclk: %u mclk: %u vddc: %u vddci: %u pcie gen: %u\n",
 				 i, pl->sclk, pl->mclk, pl->vddc, pl->vddci, pl->pcie_gen + 1);
-                else
-                        DRM_INFO("\t\tpower level %d    sclk: %u mclk: %u vddc: %u vddci: %u\n",
+		else
+			DRM_INFO("\t\tpower level %d    sclk: %u mclk: %u vddc: %u vddci: %u\n",
 				 i, pl->sclk, pl->mclk, pl->vddc, pl->vddci);
-        }
-        amdgpu_dpm_print_ps_status(adev, rps);
+	}
+	amdgpu_dpm_print_ps_status(adev, rps);
 }
 
 static int si_dpm_early_init(void *handle)
