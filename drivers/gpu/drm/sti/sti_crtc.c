@@ -165,6 +165,10 @@ static void sti_crtc_atomic_flush(struct drm_crtc *crtc,
 
 		switch (plane->status) {
 		case STI_PLANE_UPDATED:
+			/* ignore update for other CRTC */
+			if (p->state->crtc != crtc)
+				continue;
+
 			/* update planes tag as updated */
 			DRM_DEBUG_DRIVER("update plane %s\n",
 					 sti_plane_to_str(plane));
