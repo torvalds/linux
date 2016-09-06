@@ -718,4 +718,10 @@ static inline bool mv88e6xxx_has(struct mv88e6xxx_chip *chip,
 	return (chip->info->flags & flags) == flags;
 }
 
+int mv88e6xxx_read(struct mv88e6xxx_chip *chip, int addr, int reg, u16 *val);
+int mv88e6xxx_write(struct mv88e6xxx_chip *chip, int addr, int reg, u16 val);
+int mv88e6xxx_update(struct mv88e6xxx_chip *chip, int addr, int reg,
+		     u16 update);
+int mv88e6xxx_wait(struct mv88e6xxx_chip *chip, int addr, int reg, u16 mask);
+
 #endif
