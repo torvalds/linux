@@ -2380,10 +2380,13 @@ dhd_conf_preinit(dhd_pub_t *dhd)
 	conf->txctl_tmo_fix = FALSE;
 	conf->tx_in_rx = TRUE;
 	conf->rsdb_mode = -2;
-	conf->txglom_mode = SDPCM_TXGLOM_MDESC;
+	conf->txglom_mode = SDPCM_TXGLOM_CPY;
 	if ((conf->chip == BCM43362_CHIP_ID) || (conf->chip == BCM4330_CHIP_ID)) {
 		conf->disable_proptx = 1;
 		conf->use_rxchain = 0;
+	}
+	if (conf->chip == BCM4354_CHIP_ID) {
+		conf->disable_proptx = 1;
 	}
 	if (conf->chip == BCM43430_CHIP_ID) {
 		conf->bus_rxglom = FALSE;
