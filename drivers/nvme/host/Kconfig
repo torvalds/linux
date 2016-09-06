@@ -31,6 +31,7 @@ config NVME_FABRICS
 config NVME_RDMA
 	tristate "NVM Express over Fabrics RDMA host driver"
 	depends on INFINIBAND
+	depends on BLOCK
 	select NVME_CORE
 	select NVME_FABRICS
 	select SG_POOL
