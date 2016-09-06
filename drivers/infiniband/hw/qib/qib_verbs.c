@@ -313,7 +313,7 @@ static void qib_copy_from_sge(void *data, struct rvt_sge_state *ss, u32 length)
  * for the given QP.
  * Called at interrupt level.
  */
-static void qib_qp_rcv(struct qib_ctxtdata *rcd, struct qib_ib_header *hdr,
+static void qib_qp_rcv(struct qib_ctxtdata *rcd, struct ib_header *hdr,
 		       int has_grh, void *data, u32 tlen, struct rvt_qp *qp)
 {
 	struct qib_ibport *ibp = &rcd->ppd->ibport_data;
@@ -366,10 +366,10 @@ void qib_ib_rcv(struct qib_ctxtdata *rcd, void *rhdr, void *data, u32 tlen)
 {
 	struct qib_pportdata *ppd = rcd->ppd;
 	struct qib_ibport *ibp = &ppd->ibport_data;
-	struct qib_ib_header *hdr = rhdr;
+	struct ib_header *hdr = rhdr;
 	struct qib_devdata *dd = ppd->dd;
 	struct rvt_dev_info *rdi = &dd->verbs_dev.rdi;
-	struct qib_other_headers *ohdr;
+	struct ib_other_headers *ohdr;
 	struct rvt_qp *qp;
 	u32 qp_num;
 	int lnh;
@@ -841,7 +841,7 @@ static void sdma_complete(struct qib_sdma_txreq *cookie, int status)
 	if (tx->wqe)
 		qib_send_complete(qp, tx->wqe, IB_WC_SUCCESS);
 	else if (qp->ibqp.qp_type == IB_QPT_RC) {
-		struct qib_ib_header *hdr;
+		struct ib_header *hdr;
 
 		if (tx->txreq.flags & QIB_SDMA_TXREQ_F_FREEBUF)
 			hdr = &tx->align_buf->hdr;
@@ -889,7 +889,7 @@ static int wait_kmem(struct qib_ibdev *dev, struct rvt_qp *qp)
 	return ret;
 }
 
-static int qib_verbs_send_dma(struct rvt_qp *qp, struct qib_ib_header *hdr,
+static int qib_verbs_send_dma(struct rvt_qp *qp, struct ib_header *hdr,
 			      u32 hdrwords, struct rvt_sge_state *ss, u32 len,
 			      u32 plen, u32 dwords)
 {
@@ -1025,7 +1025,7 @@ static int no_bufs_available(struct rvt_qp *qp)
 	return ret;
 }
 
-static int qib_verbs_send_pio(struct rvt_qp *qp, struct qib_ib_header *ibhdr,
+static int qib_verbs_send_pio(struct rvt_qp *qp, struct ib_header *ibhdr,
 			      u32 hdrwords, struct rvt_sge_state *ss, u32 len,
 			      u32 plen, u32 dwords)
 {
@@ -1133,7 +1133,7 @@ done:
  * Return zero if packet is sent or queued OK.
  * Return non-zero and clear qp->s_flags RVT_S_BUSY otherwise.
  */
-int qib_verbs_send(struct rvt_qp *qp, struct qib_ib_header *hdr,
+int qib_verbs_send(struct rvt_qp *qp, struct ib_header *hdr,
 		   u32 hdrwords, struct rvt_sge_state *ss, u32 len)
 {
 	struct qib_devdata *dd = dd_from_ibdev(qp->ibqp.device);

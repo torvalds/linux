@@ -64,6 +64,7 @@
 #include <linux/kthread.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
+#include <rdma/ib_hdrs.h>
 #include <rdma/rdma_vt.h>
 
 #include "chip_registers.h"
@@ -350,7 +351,7 @@ struct hfi1_packet {
 	struct hfi1_ctxtdata *rcd;
 	__le32 *rhf_addr;
 	struct rvt_qp *qp;
-	struct hfi1_other_headers *ohdr;
+	struct ib_other_headers *ohdr;
 	u64 rhf;
 	u32 maxcnt;
 	u32 rhqoff;
@@ -1268,7 +1269,7 @@ static inline u32 driver_lstate(struct hfi1_pportdata *ppd)
 void receive_interrupt_work(struct work_struct *work);
 
 /* extract service channel from header and rhf */
-static inline int hdr2sc(struct hfi1_message_header *hdr, u64 rhf)
+static inline int hdr2sc(struct ib_header *hdr, u64 rhf)
 {
 	return ((be16_to_cpu(hdr->lrh[0]) >> 12) & 0xf) |
 	       ((!!(rhf_dc_info(rhf))) << 4);
@@ -1603,7 +1604,7 @@ void hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 static inline bool process_ecn(struct rvt_qp *qp, struct hfi1_packet *pkt,
 			       bool do_cnp)
 {
-	struct hfi1_other_headers *ohdr = pkt->ohdr;
+	struct ib_other_headers *ohdr = pkt->ohdr;
 	u32 bth1;
 
 	bth1 = be32_to_cpu(ohdr->bth[1]);

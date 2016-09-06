@@ -70,7 +70,7 @@ const u32 uc_only_opcode =
 int hfi1_make_uc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
-	struct hfi1_other_headers *ohdr;
+	struct ib_other_headers *ohdr;
 	struct rvt_swqe *wqe;
 	u32 hwords = 5;
 	u32 bth0 = 0;
@@ -304,12 +304,12 @@ bail_no_tx:
 void hfi1_uc_rcv(struct hfi1_packet *packet)
 {
 	struct hfi1_ibport *ibp = &packet->rcd->ppd->ibport_data;
-	struct hfi1_ib_header *hdr = packet->hdr;
+	struct ib_header *hdr = packet->hdr;
 	u32 rcv_flags = packet->rcv_flags;
 	void *data = packet->ebuf;
 	u32 tlen = packet->tlen;
 	struct rvt_qp *qp = packet->qp;
-	struct hfi1_other_headers *ohdr = packet->ohdr;
+	struct ib_other_headers *ohdr = packet->ohdr;
 	u32 bth0, opcode;
 	u32 hdrsize = packet->hlen;
 	u32 psn;

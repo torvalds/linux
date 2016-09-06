@@ -262,7 +262,7 @@ static int gid_ok(union ib_gid *gid, __be64 gid_prefix, __be64 id)
  *
  * The s_lock will be acquired around the hfi1_migrate_qp() call.
  */
-int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct hfi1_ib_header *hdr,
+int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct ib_header *hdr,
 		       int has_grh, struct rvt_qp *qp, u32 bth0)
 {
 	__be64 guid;
@@ -765,7 +765,7 @@ static inline void build_ahg(struct rvt_qp *qp, u32 npsn)
 	}
 }
 
-void hfi1_make_ruc_header(struct rvt_qp *qp, struct hfi1_other_headers *ohdr,
+void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 			  u32 bth0, u32 bth2, int middle,
 			  struct hfi1_pkt_state *ps)
 {

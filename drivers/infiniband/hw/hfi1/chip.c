@@ -9718,12 +9718,12 @@ void hfi1_clear_tids(struct hfi1_ctxtdata *rcd)
 		hfi1_put_tid(dd, i, PT_INVALID, 0, 0);
 }
 
-struct hfi1_message_header *hfi1_get_msgheader(
-				struct hfi1_devdata *dd, __le32 *rhf_addr)
+struct ib_header *hfi1_get_msgheader(
+	struct hfi1_devdata *dd, __le32 *rhf_addr)
 {
 	u32 offset = rhf_hdrq_offset(rhf_to_cpu(rhf_addr));
 
-	return (struct hfi1_message_header *)
+	return (struct ib_header *)
 		(rhf_addr - dd->rhf_offset + offset);
 }
 
