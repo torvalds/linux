@@ -371,17 +371,116 @@ static const struct vop_data rk3366_vop = {
 	.win_size = ARRAY_SIZE(rk3368_vop_win_data),
 };
 
+static const uint32_t vop_csc_y2r_bt601[] = {
+	0x00000400, 0x0400059c, 0xfd25fea0, 0x07170400,
+	0x00000000, 0xfffecab4, 0x00087932, 0xfff1d4f2,
+};
+
+static const uint32_t vop_csc_y2r_bt601_12_235[] = {
+	0x000004a8, 0x04a80662, 0xfcbffe6f, 0x081204a8,
+	0x00000000, 0xfff2134e, 0x00087b58, 0xffeeb4b0,
+};
+
+static const uint32_t vop_csc_r2y_bt601[] = {
+	0x02590132, 0xff530075, 0x0200fead, 0xfe530200,
+	0x0000ffad, 0x00000200, 0x00080200, 0x00080200,
+};
+
+static const uint32_t vop_csc_r2y_bt601_12_235[] = {
+	0x02040107, 0xff680064, 0x01c2fed6, 0xffb7fe87,
+	0x0000ffb7, 0x00010200, 0x00080200, 0x00080200,
+};
+
+static const uint32_t vop_csc_y2r_bt709[] = {
+	0x000004a8, 0x04a8072c, 0xfddeff26, 0x087304a8,
+	0x00000000, 0xfff08077, 0x0004cfed, 0xffedf1b8,
+};
+
+static const uint32_t vop_csc_r2y_bt709[] = {
+	0x027500bb, 0xff99003f, 0x01c2fea5, 0xfe6801c2,
+	0xffd7fe68, 0x00010200, 0x00080200, 0x00080200,
+};
+
+static const uint32_t vop_csc_y2r_bt2020[] = {
+	0x000004a8, 0x04a806b6, 0xfd66ff40, 0x089004a8,
+	0x00000000, 0xfff16bfc, 0x00058ae9, 0xffedb828,
+};
+
+static const uint32_t vop_csc_r2y_bt2020[] = {
+	0x025300e6, 0xff830034, 0x01c1febd, 0xfe6401c1,
+	0x0000ffdc, 0x00010200, 0x00080200, 0x00080200,
+};
+
+static const uint32_t vop_csc_r2r_bt709_to_bt2020[] = {
+	0xfda606a4, 0xff80ffb5, 0xfff80488, 0xff99ffed,
+	0x0000047a, 0x00000200, 0x00000200, 0x00000200,
+};
+
+static const uint32_t vop_csc_r2r_bt2020_to_bt709[] = {
+	0x01510282, 0x0047002c, 0x000c03ae, 0x005a0011,
+	0x00000394, 0x00000200, 0x00000200, 0x00000200,
+};
+
+static const struct vop_csc_table rk3399_csc_table = {
+	.y2r_bt601		= vop_csc_y2r_bt601,
+	.y2r_bt601_12_235	= vop_csc_y2r_bt601_12_235,
+	.r2y_bt601		= vop_csc_r2y_bt601,
+	.r2y_bt601_12_235	= vop_csc_r2y_bt601_12_235,
+
+	.y2r_bt709		= vop_csc_y2r_bt709,
+	.r2y_bt709		= vop_csc_r2y_bt709,
+
+	.y2r_bt2020		= vop_csc_y2r_bt2020,
+	.r2y_bt2020		= vop_csc_r2y_bt2020,
+
+	.r2r_bt709_to_bt2020	= vop_csc_r2r_bt709_to_bt2020,
+	.r2r_bt2020_to_bt709	= vop_csc_r2r_bt2020_to_bt709,
+};
+
+static const struct vop_csc rk3399_win0_csc = {
+	.r2r_en = VOP_REG(RK3399_YUV2YUV_WIN, 0x1, 0),
+	.y2r_en = VOP_REG(RK3399_YUV2YUV_WIN, 0x1, 1),
+	.r2y_en = VOP_REG(RK3399_YUV2YUV_WIN, 0x1, 2),
+	.y2r_offset = RK3399_WIN0_YUV2YUV_Y2R,
+	.r2r_offset = RK3399_WIN0_YUV2YUV_3X3,
+	.r2y_offset = RK3399_WIN0_YUV2YUV_R2Y,
+};
+
+static const struct vop_csc rk3399_win1_csc = {
+	.r2r_en = VOP_REG(RK3399_YUV2YUV_WIN, 0x1, 8),
+	.y2r_en = VOP_REG(RK3399_YUV2YUV_WIN, 0x1, 9),
+	.r2y_en = VOP_REG(RK3399_YUV2YUV_WIN, 0x1, 10),
+	.y2r_offset = RK3399_WIN1_YUV2YUV_Y2R,
+	.r2r_offset = RK3399_WIN1_YUV2YUV_3X3,
+	.r2y_offset = RK3399_WIN1_YUV2YUV_R2Y,
+};
+
+static const struct vop_win_data rk3399_vop_win_data[] = {
+	{ .base = 0x00, .phy = &rk3288_win01_data, .csc = &rk3399_win0_csc,
+	  .type = DRM_PLANE_TYPE_PRIMARY },
+	{ .base = 0x40, .phy = &rk3288_win01_data, .csc = &rk3399_win1_csc,
+	  .type = DRM_PLANE_TYPE_OVERLAY },
+	{ .base = 0x00, .phy = &rk3368_win23_data,
+	  .type = DRM_PLANE_TYPE_OVERLAY,
+	  .area = rk3368_area_data,
+	  .area_size = ARRAY_SIZE(rk3368_area_data), },
+	{ .base = 0x50, .phy = &rk3368_win23_data,
+	  .type = DRM_PLANE_TYPE_CURSOR,
+	  .area = rk3368_area_data,
+	  .area_size = ARRAY_SIZE(rk3368_area_data), },
+};
+
 static const struct vop_data rk3399_vop_big = {
 	.version = VOP_VERSION(3, 5),
 	.feature = VOP_FEATURE_OUTPUT_10BIT,
 	.intr = &rk3366_vop_intr,
 	.ctrl = &rk3288_ctrl_data,
-	.win = rk3368_vop_win_data,
-	.win_size = ARRAY_SIZE(rk3368_vop_win_data),
+	.win = rk3399_vop_win_data,
+	.win_size = ARRAY_SIZE(rk3399_vop_win_data),
 };
 
 static const struct vop_win_data rk3399_vop_lit_win_data[] = {
-	{ .base = 0x00, .phy = &rk3288_win01_data,
+	{ .base = 0x00, .phy = &rk3288_win01_data, .csc = &rk3399_win0_csc,
 	  .type = DRM_PLANE_TYPE_PRIMARY },
 	{ .phy = NULL },
 	{ .base = 0x00, .phy = &rk3368_win23_data,
@@ -394,6 +493,7 @@ static const struct vop_win_data rk3399_vop_lit_win_data[] = {
 
 static const struct vop_data rk3399_vop_lit = {
 	.version = VOP_VERSION(3, 6),
+	.csc_table = &rk3399_csc_table,
 	.intr = &rk3366_vop_intr,
 	.ctrl = &rk3288_ctrl_data,
 	.win = rk3399_vop_lit_win_data,

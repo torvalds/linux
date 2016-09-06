@@ -72,6 +72,8 @@
 
 #define VOP_WIN_SET(x, win, name, v) \
 		REG_SET(x, name, win->offset, VOP_WIN_NAME(win, name), v, true)
+#define VOP_WIN_SET_EXT(x, win, ext, name, v) \
+		REG_SET(x, name, win->offset, win->ext->name, v, true)
 #define VOP_SCL_SET(x, win, name, v) \
 		REG_SET(x, name, win->offset, win->phy->scl->name, v, true)
 #define VOP_SCL_SET_EXT(x, win, name, v) \
@@ -130,6 +132,9 @@ struct vop_plane_state {
 	struct drm_rect dest;
 	dma_addr_t yrgb_mst;
 	dma_addr_t uv_mst;
+	const uint32_t *y2r_table;
+	const uint32_t *r2r_table;
+	const uint32_t *r2y_table;
 	bool enable;
 };
 
@@ -142,6 +147,7 @@ struct vop_win {
 	uint32_t offset;
 	enum drm_plane_type type;
 	const struct vop_win_phy *phy;
+	const struct vop_csc *csc;
 	const uint32_t *data_formats;
 	uint32_t nformats;
 	struct vop *vop;
@@ -256,6 +262,17 @@ static inline uint32_t vop_get_intr_type(struct vop *vop,
 	}
 
 	return ret;
+}
+
+static void vop_load_csc_table(struct vop *vop, u32 offset, const u32 *table)
+{
+	int i;
+
+	if (!table)
+		return;
+
+	for (i = 0; i < 8; i++)
+		vop_writel(vop, offset + i * 4, table[i]);
 }
 
 static inline void vop_cfg_done(struct vop *vop)
@@ -481,6 +498,140 @@ static void scl_vop_cal_scl_fac(struct vop *vop, struct vop_win *win,
 		VOP_SCL_SET_EXT(vop, win, cbcr_vsd_mode, SCALE_DOWN_BIL);
 		VOP_SCL_SET_EXT(vop, win, cbcr_vsu_mode, vsu_mode);
 	}
+}
+
+/*
+ * rk3399 colorspace path:
+ *      Input        Win csc                     Output
+ * 1. YUV(2020)  --> Y2R->2020To709->R2Y   --> YUV_OUTPUT(601/709)
+ *    RGB        --> R2Y                  __/
+ *
+ * 2. YUV(2020)  --> bypasss               --> YUV_OUTPUT(2020)
+ *    RGB        --> 709To2020->R2Y       __/
+ *
+ * 3. YUV(2020)  --> Y2R->2020To709        --> RGB_OUTPUT(709)
+ *    RGB        --> R2Y                  __/
+ *
+ * 4. YUV(601/709)-> Y2R->709To2020->R2Y   --> YUV_OUTPUT(2020)
+ *    RGB        --> 709To2020->R2Y       __/
+ *
+ * 5. YUV(601/709)-> bypass                --> YUV_OUTPUT(709)
+ *    RGB        --> R2Y                  __/
+ *
+ * 6. YUV(601/709)-> bypass                --> YUV_OUTPUT(601)
+ *    RGB        --> R2Y(601)             __/
+ *
+ * 7. YUV        --> Y2R(709)              --> RGB_OUTPUT(709)
+ *    RGB        --> bypass               __/
+ *
+ * 8. RGB        --> 709To2020->R2Y        --> YUV_OUTPUT(2020)
+ *
+ * 9. RGB        --> R2Y(709)              --> YUV_OUTPUT(709)
+ *
+ * 10. RGB       --> R2Y(601)              --> YUV_OUTPUT(601)
+ *
+ * 11. RGB       --> bypass                --> RGB_OUTPUT(709)
+ */
+static int vop_csc_setup(const struct vop_csc_table *csc_table,
+			 bool is_input_yuv, bool is_output_yuv,
+			 int input_csc, int output_csc,
+			 const uint32_t **y2r_table,
+			 const uint32_t **r2r_table,
+			 const uint32_t **r2y_table)
+{
+	*y2r_table = NULL;
+	*r2r_table = NULL;
+	*r2y_table = NULL;
+
+	if (is_output_yuv) {
+		if (output_csc == CSC_BT2020) {
+			if (is_input_yuv) {
+				if (input_csc == CSC_BT2020)
+					return 0;
+				*y2r_table = csc_table->y2r_bt709;
+			}
+			if (input_csc != CSC_BT2020)
+				*r2r_table = csc_table->r2r_bt709_to_bt2020;
+			*r2y_table = csc_table->r2y_bt2020;
+		} else {
+			if (is_input_yuv && input_csc == CSC_BT2020)
+				*y2r_table = csc_table->y2r_bt2020;
+			if (input_csc == CSC_BT2020)
+				*r2r_table = csc_table->r2r_bt2020_to_bt709;
+			if (!is_input_yuv || y2r_table) {
+				if (output_csc == CSC_BT709)
+					*r2y_table = csc_table->r2y_bt709;
+				else
+					*r2y_table = csc_table->r2y_bt601;
+			}
+		}
+
+	} else {
+		if (!is_input_yuv)
+			return 0;
+
+		/*
+		 * is possible use bt2020 on rgb mode?
+		 */
+		if (WARN_ON(output_csc == CSC_BT2020))
+			return -EINVAL;
+
+		if (input_csc == CSC_BT2020)
+			*y2r_table = csc_table->y2r_bt2020;
+		else if (input_csc == CSC_BT709)
+			*y2r_table = csc_table->y2r_bt709;
+		else
+			*y2r_table = csc_table->y2r_bt601;
+
+		if (input_csc == CSC_BT2020)
+			/*
+			 * We don't have bt601 to bt709 table, force use bt709.
+			 */
+			*r2r_table = csc_table->r2r_bt2020_to_bt709;
+	}
+
+	return 0;
+}
+
+static int vop_csc_atomic_check(struct drm_crtc *crtc,
+				struct drm_crtc_state *crtc_state)
+{
+	struct vop *vop = to_vop(crtc);
+	struct drm_atomic_state *state = crtc_state->state;
+	const struct vop_csc_table *csc_table = vop->data->csc_table;
+	struct drm_plane_state *pstate;
+	struct drm_plane *plane;
+	bool is_yuv;
+	int ret;
+
+	if (!csc_table)
+		return 0;
+
+	drm_atomic_crtc_state_for_each_plane(plane, crtc_state) {
+		struct vop_plane_state *vop_plane_state;
+
+		pstate = drm_atomic_get_plane_state(state, plane);
+		if (IS_ERR(pstate))
+			return PTR_ERR(pstate);
+		vop_plane_state = to_vop_plane_state(pstate);
+
+		if (!pstate->fb)
+			continue;
+		is_yuv = is_yuv_support(pstate->fb->pixel_format);
+
+		/*
+		 * TODO: force set input and output csc mode.
+		 */
+		ret = vop_csc_setup(csc_table, is_yuv, false,
+				    CSC_BT709, CSC_BT709,
+				    &vop_plane_state->y2r_table,
+				    &vop_plane_state->r2r_table,
+				    &vop_plane_state->r2y_table);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static void vop_dsp_hold_valid_irq_enable(struct vop *vop)
@@ -774,6 +925,9 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	uint32_t act_info, dsp_info, dsp_st;
 	struct drm_rect *src = &vop_plane_state->src;
 	struct drm_rect *dest = &vop_plane_state->dest;
+	const uint32_t *y2r_table = vop_plane_state->y2r_table;
+	const uint32_t *r2r_table = vop_plane_state->r2r_table;
+	const uint32_t *r2y_table = vop_plane_state->r2y_table;
 	int ymirror, xmirror;
 	uint32_t val;
 	bool rb_swap;
@@ -843,6 +997,14 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		VOP_WIN_SET(vop, win, alpha_en, 0);
 	}
 
+	if (win->csc) {
+		vop_load_csc_table(vop, win->csc->y2r_offset, y2r_table);
+		vop_load_csc_table(vop, win->csc->r2r_offset, r2r_table);
+		vop_load_csc_table(vop, win->csc->r2r_offset, r2y_table);
+		VOP_WIN_SET_EXT(vop, win, csc, y2r_en, !!y2r_table);
+		VOP_WIN_SET_EXT(vop, win, csc, r2r_en, !!r2r_table);
+		VOP_WIN_SET_EXT(vop, win, csc, r2y_en, !!r2y_table);
+	}
 	VOP_WIN_SET(vop, win, enable, 1);
 	spin_unlock(&vop->reg_lock);
 	vop->is_iommu_needed = true;
@@ -1163,6 +1325,10 @@ static int vop_crtc_atomic_check(struct drm_crtc *crtc,
 	struct vop_zpos *pzpos;
 	int dsp_layer_sel = 0;
 	int i, j, cnt = 0, ret = 0;
+
+	ret = vop_csc_atomic_check(crtc, crtc_state);
+	if (ret)
+		return ret;
 
 	pzpos = kmalloc_array(vop_data->win_size, sizeof(*pzpos), GFP_KERNEL);
 	if (!pzpos)
@@ -1576,6 +1742,7 @@ static int vop_win_init(struct vop *vop)
 			continue;
 
 		vop_win->phy = win_data->phy;
+		vop_win->csc = win_data->csc;
 		vop_win->offset = win_data->base;
 		vop_win->type = win_data->type;
 		vop_win->data_formats = win_data->phy->data_formats;
