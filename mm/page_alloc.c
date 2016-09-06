@@ -1008,10 +1008,8 @@ static __always_inline bool free_pages_prepare(struct page *page,
 	}
 	if (PageMappingFlags(page))
 		page->mapping = NULL;
-	if (memcg_kmem_enabled() && PageKmemcg(page)) {
+	if (memcg_kmem_enabled() && PageKmemcg(page))
 		memcg_kmem_uncharge(page, order);
-		__ClearPageKmemcg(page);
-	}
 	if (check_free)
 		bad += free_pages_check(page);
 	if (bad)
@@ -3139,54 +3137,6 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
 	return NULL;
 }
 
-static inline bool
-should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
-		     enum compact_result compact_result,
-		     enum compact_priority *compact_priority,
-		     int compaction_retries)
-{
-	int max_retries = MAX_COMPACT_RETRIES;
-
-	if (!order)
-		return false;
-
-	/*
-	 * compaction considers all the zone as desperately out of memory
-	 * so it doesn't really make much sense to retry except when the
-	 * failure could be caused by insufficient priority
-	 */
-	if (compaction_failed(compact_result)) {
-		if (*compact_priority > MIN_COMPACT_PRIORITY) {
-			(*compact_priority)--;
-			return true;
-		}
-		return false;
-	}
-
-	/*
-	 * make sure the compaction wasn't deferred or didn't bail out early
-	 * due to locks contention before we declare that we should give up.
-	 * But do not retry if the given zonelist is not suitable for
-	 * compaction.
-	 */
-	if (compaction_withdrawn(compact_result))
-		return compaction_zonelist_suitable(ac, order, alloc_flags);
-
-	/*
-	 * !costly requests are much more important than __GFP_REPEAT
-	 * costly ones because they are de facto nofail and invoke OOM
-	 * killer to move on while costly can fail and users are ready
-	 * to cope with that. 1/4 retries is rather arbitrary but we
-	 * would need much more detailed feedback from compaction to
-	 * make a better decision.
-	 */
-	if (order > PAGE_ALLOC_COSTLY_ORDER)
-		max_retries /= 4;
-	if (compaction_retries <= max_retries)
-		return true;
-
-	return false;
-}
 #else
 static inline struct page *
 __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
@@ -3196,6 +3146,8 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
 	*compact_result = COMPACT_SKIPPED;
 	return NULL;
 }
+
+#endif /* CONFIG_COMPACTION */
 
 static inline bool
 should_compact_retry(struct alloc_context *ac, unsigned int order, int alloc_flags,
@@ -3223,7 +3175,6 @@ should_compact_retry(struct alloc_context *ac, unsigned int order, int alloc_fla
 	}
 	return false;
 }
-#endif /* CONFIG_COMPACTION */
 
 /* Perform direct synchronous page reclaim */
 static int
@@ -3756,12 +3707,10 @@ no_zone:
 	}
 
 out:
-	if (memcg_kmem_enabled() && (gfp_mask & __GFP_ACCOUNT) && page) {
-		if (unlikely(memcg_kmem_charge(page, gfp_mask, order))) {
-			__free_pages(page, order);
-			page = NULL;
-		} else
-			__SetPageKmemcg(page);
+	if (memcg_kmem_enabled() && (gfp_mask & __GFP_ACCOUNT) && page &&
+	    unlikely(memcg_kmem_charge(page, gfp_mask, order) != 0)) {
+		__free_pages(page, order);
+		page = NULL;
 	}
 
 	if (kmemcheck_enabled && page)
@@ -4064,7 +4013,7 @@ long si_mem_available(void)
 	int lru;
 
 	for (lru = LRU_BASE; lru < NR_LRU_LISTS; lru++)
-		pages[lru] = global_page_state(NR_LRU_BASE + lru);
+		pages[lru] = global_node_page_state(NR_LRU_BASE + lru);
 
 	for_each_zone(zone)
 		wmark_low += zone->watermark[WMARK_LOW];
@@ -4411,7 +4360,7 @@ static int build_zonelists_node(pg_data_t *pgdat, struct zonelist *zonelist,
 	do {
 		zone_type--;
 		zone = pgdat->node_zones + zone_type;
-		if (populated_zone(zone)) {
+		if (managed_zone(zone)) {
 			zoneref_set_zone(zone,
 				&zonelist->_zonerefs[nr_zones++]);
 			check_highest_zone(zone_type);
@@ -4649,7 +4598,7 @@ static void build_zonelists_in_zone_order(pg_data_t *pgdat, int nr_nodes)
 		for (j = 0; j < nr_nodes; j++) {
 			node = node_order[j];
 			z = &NODE_DATA(node)->node_zones[zone_type];
-			if (populated_zone(z)) {
+			if (managed_zone(z)) {
 				zoneref_set_zone(z,
 					&zonelist->_zonerefs[pos++]);
 				check_highest_zone(zone_type);
@@ -4761,6 +4710,8 @@ int local_memory_node(int node)
 }
 #endif
 
+static void setup_min_unmapped_ratio(void);
+static void setup_min_slab_ratio(void);
 #else	/* CONFIG_NUMA */
 
 static void set_zonelist_order(void)
@@ -5882,9 +5833,6 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
 		zone->managed_pages = is_highmem_idx(j) ? realsize : freesize;
 #ifdef CONFIG_NUMA
 		zone->node = nid;
-		pgdat->min_unmapped_pages += (freesize*sysctl_min_unmapped_ratio)
-						/ 100;
-		pgdat->min_slab_pages += (freesize * sysctl_min_slab_ratio) / 100;
 #endif
 		zone->name = zone_names[j];
 		zone->zone_pgdat = pgdat;
@@ -6805,6 +6753,12 @@ int __meminit init_per_zone_wmark_min(void)
 	setup_per_zone_wmarks();
 	refresh_zone_stat_thresholds();
 	setup_per_zone_lowmem_reserve();
+
+#ifdef CONFIG_NUMA
+	setup_min_unmapped_ratio();
+	setup_min_slab_ratio();
+#endif
+
 	return 0;
 }
 core_initcall(init_per_zone_wmark_min)
@@ -6846,36 +6800,38 @@ int watermark_scale_factor_sysctl_handler(struct ctl_table *table, int write,
 }
 
 #ifdef CONFIG_NUMA
-int sysctl_min_unmapped_ratio_sysctl_handler(struct ctl_table *table, int write,
-	void __user *buffer, size_t *length, loff_t *ppos)
+static void setup_min_unmapped_ratio(void)
 {
-	struct pglist_data *pgdat;
+	pg_data_t *pgdat;
 	struct zone *zone;
-	int rc;
-
-	rc = proc_dointvec_minmax(table, write, buffer, length, ppos);
-	if (rc)
-		return rc;
 
 	for_each_online_pgdat(pgdat)
-		pgdat->min_slab_pages = 0;
+		pgdat->min_unmapped_pages = 0;
 
 	for_each_zone(zone)
 		zone->zone_pgdat->min_unmapped_pages += (zone->managed_pages *
 				sysctl_min_unmapped_ratio) / 100;
-	return 0;
 }
 
-int sysctl_min_slab_ratio_sysctl_handler(struct ctl_table *table, int write,
+
+int sysctl_min_unmapped_ratio_sysctl_handler(struct ctl_table *table, int write,
 	void __user *buffer, size_t *length, loff_t *ppos)
 {
-	struct pglist_data *pgdat;
-	struct zone *zone;
 	int rc;
 
 	rc = proc_dointvec_minmax(table, write, buffer, length, ppos);
 	if (rc)
 		return rc;
+
+	setup_min_unmapped_ratio();
+
+	return 0;
+}
+
+static void setup_min_slab_ratio(void)
+{
+	pg_data_t *pgdat;
+	struct zone *zone;
 
 	for_each_online_pgdat(pgdat)
 		pgdat->min_slab_pages = 0;
@@ -6883,6 +6839,19 @@ int sysctl_min_slab_ratio_sysctl_handler(struct ctl_table *table, int write,
 	for_each_zone(zone)
 		zone->zone_pgdat->min_slab_pages += (zone->managed_pages *
 				sysctl_min_slab_ratio) / 100;
+}
+
+int sysctl_min_slab_ratio_sysctl_handler(struct ctl_table *table, int write,
+	void __user *buffer, size_t *length, loff_t *ppos)
+{
+	int rc;
+
+	rc = proc_dointvec_minmax(table, write, buffer, length, ppos);
+	if (rc)
+		return rc;
+
+	setup_min_slab_ratio();
+
 	return 0;
 }
 #endif

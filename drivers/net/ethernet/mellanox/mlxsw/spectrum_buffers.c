@@ -330,7 +330,7 @@ static const struct mlxsw_sp_sb_cm mlxsw_sp_cpu_port_sb_cms[] = {
 	MLXSW_SP_CPU_PORT_SB_CM,
 	MLXSW_SP_CPU_PORT_SB_CM,
 	MLXSW_SP_CPU_PORT_SB_CM,
-	MLXSW_SP_CPU_PORT_SB_CM,
+	MLXSW_SP_SB_CM(MLXSW_SP_BYTES_TO_CELLS(10000), 0, 0),
 	MLXSW_SP_CPU_PORT_SB_CM,
 	MLXSW_SP_CPU_PORT_SB_CM,
 	MLXSW_SP_CPU_PORT_SB_CM,
@@ -717,22 +717,18 @@ int mlxsw_sp_sb_tc_pool_bind_set(struct mlxsw_core_port *mlxsw_core_port,
 	u8 local_port = mlxsw_sp_port->local_port;
 	u8 pg_buff = tc_index;
 	enum mlxsw_reg_sbxx_dir dir = pool_type;
-	u8 pool = pool_index;
+	u8 pool = pool_get(pool_index);
 	u32 max_buff;
 	int err;
+
+	if (dir != dir_get(pool_index))
+		return -EINVAL;
 
 	err = mlxsw_sp_sb_threshold_in(mlxsw_sp, pool, dir,
 				       threshold, &max_buff);
 	if (err)
 		return err;
 
-	if (pool_type == DEVLINK_SB_POOL_TYPE_EGRESS) {
-		if (pool < MLXSW_SP_SB_POOL_COUNT)
-			return -EINVAL;
-		pool -= MLXSW_SP_SB_POOL_COUNT;
-	} else if (pool >= MLXSW_SP_SB_POOL_COUNT) {
-		return -EINVAL;
-	}
 	return mlxsw_sp_sb_cm_write(mlxsw_sp, local_port, pg_buff, dir,
 				    0, max_buff, pool);
 }

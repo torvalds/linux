@@ -171,10 +171,34 @@ static void imx_drm_output_poll_changed(struct drm_device *drm)
 	drm_fbdev_cma_hotplug_event(imxdrm->fbhelper);
 }
 
+static int imx_drm_atomic_check(struct drm_device *dev,
+				struct drm_atomic_state *state)
+{
+	int ret;
+
+	ret = drm_atomic_helper_check_modeset(dev, state);
+	if (ret)
+		return ret;
+
+	ret = drm_atomic_helper_check_planes(dev, state);
+	if (ret)
+		return ret;
+
+	/*
+	 * Check modeset again in case crtc_state->mode_changed is
+	 * updated in plane's ->atomic_check callback.
+	 */
+	ret = drm_atomic_helper_check_modeset(dev, state);
+	if (ret)
+		return ret;
+
+	return ret;
+}
+
 static const struct drm_mode_config_funcs imx_drm_mode_config_funcs = {
 	.fb_create = drm_fb_cma_create,
 	.output_poll_changed = imx_drm_output_poll_changed,
-	.atomic_check = drm_atomic_helper_check,
+	.atomic_check = imx_drm_atomic_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
 

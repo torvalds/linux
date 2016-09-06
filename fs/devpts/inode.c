@@ -585,7 +585,8 @@ struct dentry *devpts_pty_new(struct pts_fs_info *fsi, int index, void *priv)
  */
 void *devpts_get_priv(struct dentry *dentry)
 {
-	WARN_ON_ONCE(dentry->d_sb->s_magic != DEVPTS_SUPER_MAGIC);
+	if (dentry->d_sb->s_magic != DEVPTS_SUPER_MAGIC)
+		return NULL;
 	return dentry->d_fsdata;
 }
 
