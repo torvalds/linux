@@ -117,6 +117,8 @@
 #define SL_CONTROL			(PORT_BASE + 0x94)
 #define SL_CONTROL_NOTIFY_EN_OFF	0
 #define SL_CONTROL_NOTIFY_EN_MSK	(0x1 << SL_CONTROL_NOTIFY_EN_OFF)
+#define SL_CONTROL_CTA_OFF		17
+#define SL_CONTROL_CTA_MSK		(0x1 << SL_CONTROL_CTA_OFF)
 #define TX_ID_DWORD0			(PORT_BASE + 0x9c)
 #define TX_ID_DWORD1			(PORT_BASE + 0xa0)
 #define TX_ID_DWORD2			(PORT_BASE + 0xa4)
@@ -124,6 +126,9 @@
 #define TX_ID_DWORD4			(PORT_BASE + 0xaC)
 #define TX_ID_DWORD5			(PORT_BASE + 0xb0)
 #define TX_ID_DWORD6			(PORT_BASE + 0xb4)
+#define TXID_AUTO			(PORT_BASE + 0xb8)
+#define TXID_AUTO_CT3_OFF		1
+#define TXID_AUTO_CT3_MSK		(0x1 << TXID_AUTO_CT3_OFF)
 #define RX_IDAF_DWORD0			(PORT_BASE + 0xc4)
 #define RX_IDAF_DWORD1			(PORT_BASE + 0xc8)
 #define RX_IDAF_DWORD2			(PORT_BASE + 0xcc)
@@ -814,6 +819,8 @@ static void init_reg_v2_hw(struct hisi_hba *hisi_hba)
 		hisi_sas_phy_write32(hisi_hba, i, PROG_PHY_LINK_RATE, 0x855);
 		hisi_sas_phy_write32(hisi_hba, i, SAS_PHY_CTRL, 0x30b9908);
 		hisi_sas_phy_write32(hisi_hba, i, SL_TOUT_CFG, 0x7d7d7d7d);
+		hisi_sas_phy_write32(hisi_hba, i, SL_CONTROL, 0x0);
+		hisi_sas_phy_write32(hisi_hba, i, TXID_AUTO, 0x2);
 		hisi_sas_phy_write32(hisi_hba, i, DONE_RECEIVED_TIME, 0x10);
 		hisi_sas_phy_write32(hisi_hba, i, CHL_INT0, 0xffffffff);
 		hisi_sas_phy_write32(hisi_hba, i, CHL_INT1, 0xffffffff);
@@ -1901,15 +1908,20 @@ end:
 static int phy_down_v2_hw(int phy_no, struct hisi_hba *hisi_hba)
 {
 	int res = 0;
-	u32 phy_cfg, phy_state;
+	u32 phy_state, sl_ctrl, txid_auto;
 
 	hisi_sas_phy_write32(hisi_hba, phy_no, PHYCTRL_NOT_RDY_MSK, 1);
 
-	phy_cfg = hisi_sas_phy_read32(hisi_hba, phy_no, PHY_CFG);
-
 	phy_state = hisi_sas_read32(hisi_hba, PHY_STATE);
-
 	hisi_sas_phy_down(hisi_hba, phy_no, (phy_state & 1 << phy_no) ? 1 : 0);
+
+	sl_ctrl = hisi_sas_phy_read32(hisi_hba, phy_no, SL_CONTROL);
+	hisi_sas_phy_write32(hisi_hba, phy_no, SL_CONTROL,
+			     sl_ctrl & ~SL_CONTROL_CTA_MSK);
+
+	txid_auto = hisi_sas_phy_read32(hisi_hba, phy_no, TXID_AUTO);
+	hisi_sas_phy_write32(hisi_hba, phy_no, TXID_AUTO,
+			     txid_auto | TXID_AUTO_CT3_MSK);
 
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0, CHL_INT0_NOT_RDY_MSK);
 	hisi_sas_phy_write32(hisi_hba, phy_no, PHYCTRL_NOT_RDY_MSK, 0);
