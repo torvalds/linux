@@ -113,7 +113,7 @@ static const uint8_t fiji_clock_stretch_amount_conversion[2][6] =
 
 static const unsigned long PhwFiji_Magic = (unsigned long)(PHM_VIslands_Magic);
 
-struct fiji_power_state *cast_phw_fiji_power_state(
+static struct fiji_power_state *cast_phw_fiji_power_state(
 				  struct pp_hw_power_state *hw_ps)
 {
 	PP_ASSERT_WITH_CODE((PhwFiji_Magic == hw_ps->magic),
@@ -123,7 +123,8 @@ struct fiji_power_state *cast_phw_fiji_power_state(
 	return (struct fiji_power_state *)hw_ps;
 }
 
-const struct fiji_power_state *cast_const_phw_fiji_power_state(
+static const struct
+fiji_power_state *cast_const_phw_fiji_power_state(
 				 const struct pp_hw_power_state *hw_ps)
 {
 	PP_ASSERT_WITH_CODE((PhwFiji_Magic == hw_ps->magic),
@@ -1627,7 +1628,7 @@ static int fiji_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
  * @param voltage - voltage to look for
  * @return 0 on success
  */
-uint8_t fiji_get_voltage_index(
+static uint8_t fiji_get_voltage_index(
 		struct phm_ppt_v1_voltage_lookup_table *lookup_table, uint16_t voltage)
 {
 	uint8_t count = (uint8_t) (lookup_table->count);
@@ -1691,7 +1692,7 @@ static int fiji_populate_cac_table(struct pp_hwmgr *hwmgr,
 * @return   always  0
 */
 
-int fiji_populate_smc_voltage_tables(struct pp_hwmgr *hwmgr,
+static int fiji_populate_smc_voltage_tables(struct pp_hwmgr *hwmgr,
 		struct SMU73_Discrete_DpmTable *table)
 {
 	int result;
@@ -2302,7 +2303,7 @@ static int fiji_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 * @param    mclk        the MCLK value to be used in the decision if MVDD should be high or low.
 * @param    voltage     the SMC VOLTAGE structure to be populated
 */
-int fiji_populate_mvdd_value(struct pp_hwmgr *hwmgr,
+static int fiji_populate_mvdd_value(struct pp_hwmgr *hwmgr,
 		uint32_t mclk, SMIO_Pattern *smio_pat)
 {
 	const struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
@@ -4623,7 +4624,7 @@ static int fiji_generate_dpm_level_enable_mask(
 	return 0;
 }
 
-int fiji_enable_disable_uvd_dpm(struct pp_hwmgr *hwmgr, bool enable)
+static int fiji_enable_disable_uvd_dpm(struct pp_hwmgr *hwmgr, bool enable)
 {
 	return smum_send_msg_to_smc(hwmgr->smumgr, enable ?
 				  (PPSMC_Msg)PPSMC_MSG_UVDDPM_Enable :
@@ -4637,14 +4638,14 @@ int fiji_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable)
 			PPSMC_MSG_VCEDPM_Disable);
 }
 
-int fiji_enable_disable_samu_dpm(struct pp_hwmgr *hwmgr, bool enable)
+static int fiji_enable_disable_samu_dpm(struct pp_hwmgr *hwmgr, bool enable)
 {
 	return smum_send_msg_to_smc(hwmgr->smumgr, enable?
 			PPSMC_MSG_SAMUDPM_Enable :
 			PPSMC_MSG_SAMUDPM_Disable);
 }
 
-int fiji_enable_disable_acp_dpm(struct pp_hwmgr *hwmgr, bool enable)
+static int fiji_enable_disable_acp_dpm(struct pp_hwmgr *hwmgr, bool enable)
 {
 	return smum_send_msg_to_smc(hwmgr->smumgr, enable?
 			PPSMC_MSG_ACPDPM_Enable :
@@ -4881,7 +4882,7 @@ static void fiji_apply_dal_minimum_voltage_request(struct pp_hwmgr *hwmgr)
 	return;
 }
 
-int fiji_upload_dpm_level_enable_mask(struct pp_hwmgr *hwmgr)
+static int fiji_upload_dpm_level_enable_mask(struct pp_hwmgr *hwmgr)
 {
 	int result;
 	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
@@ -5157,7 +5158,7 @@ static int fiji_program_display_gap(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int fiji_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
+static int fiji_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 {
 	return fiji_program_display_gap(hwmgr);
 }
@@ -5188,7 +5189,7 @@ static int fiji_set_max_fan_rpm_output(struct pp_hwmgr *hwmgr,
 			PPSMC_MSG_SetFanRpmMax, us_max_fan_rpm);
 }
 
-int fiji_dpm_set_interrupt_state(void *private_data,
+static int fiji_dpm_set_interrupt_state(void *private_data,
 					 unsigned src_id, unsigned type,
 					 int enabled)
 {
@@ -5236,7 +5237,7 @@ int fiji_dpm_set_interrupt_state(void *private_data,
 	return 0;
 }
 
-int fiji_register_internal_thermal_interrupt(struct pp_hwmgr *hwmgr,
+static int fiji_register_internal_thermal_interrupt(struct pp_hwmgr *hwmgr,
 					const void *thermal_interrupt_info)
 {
 	int result;
@@ -5406,7 +5407,10 @@ static inline bool fiji_are_power_levels_equal(const struct fiji_performance_lev
 		  (pl1->pcie_lane == pl2->pcie_lane));
 }
 
-int fiji_check_states_equal(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *pstate1, const struct pp_hw_power_state *pstate2, bool *equal)
+static int
+fiji_check_states_equal(struct pp_hwmgr *hwmgr,
+		const struct pp_hw_power_state *pstate1,
+		const struct pp_hw_power_state *pstate2, bool *equal)
 {
 	const struct fiji_power_state *psa = cast_const_phw_fiji_power_state(pstate1);
 	const struct fiji_power_state *psb = cast_const_phw_fiji_power_state(pstate2);
@@ -5438,7 +5442,8 @@ int fiji_check_states_equal(struct pp_hwmgr *hwmgr, const struct pp_hw_power_sta
 	return 0;
 }
 
-bool fiji_check_smc_update_required_for_display_configuration(struct pp_hwmgr *hwmgr)
+static bool
+fiji_check_smc_update_required_for_display_configuration(struct pp_hwmgr *hwmgr)
 {
 	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
 	bool is_update_required = false;
