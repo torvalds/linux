@@ -586,9 +586,9 @@ k3_dma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 	size_t modulo = DMA_CYCLIC_MAX_PERIOD;
 	u32 en_tc2 = 0;
 
-	dev_dbg(chan->device->dev, "%s: buf %p, dst %p, buf len %d, period_len = %d, dir %d\n",
-	       __func__, (void *)buf_addr, (void *)to_k3_chan(chan)->dev_addr,
-	       (int)buf_len, (int)period_len, (int)dir);
+	dev_dbg(chan->device->dev, "%s: buf %pad, dst %pad, buf len %zu, period_len = %zu, dir %d\n",
+	       __func__, &buf_addr, &to_k3_chan(chan)->dev_addr,
+	       buf_len, period_len, (int)dir);
 
 	avail = buf_len;
 	if (avail > modulo)
