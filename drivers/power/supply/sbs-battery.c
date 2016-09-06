@@ -169,6 +169,8 @@ struct sbs_info {
 	bool				enable_detection;
 	int				last_state;
 	int				poll_time;
+	int				i2c_retry_count;
+	int				poll_retry_count;
 	struct delayed_work		work;
 	int				ignore_changes;
 };
@@ -184,7 +186,7 @@ static int sbs_read_word_data(struct i2c_client *client, u8 address)
 	int retries = 1;
 
 	if (chip->pdata)
-		retries = max(chip->pdata->i2c_retry_count + 1, 1);
+		retries = max(chip->i2c_retry_count + 1, 1);
 
 	while (retries > 0) {
 		ret = i2c_smbus_read_word_data(client, address);
@@ -212,8 +214,8 @@ static int sbs_read_string_data(struct i2c_client *client, u8 address,
 	u8 block_buffer[I2C_SMBUS_BLOCK_MAX + 1];
 
 	if (chip->pdata) {
-		retries_length = max(chip->pdata->i2c_retry_count + 1, 1);
-		retries_block = max(chip->pdata->i2c_retry_count + 1, 1);
+		retries_length = max(chip->i2c_retry_count + 1, 1);
+		retries_block = max(chip->i2c_retry_count + 1, 1);
 	}
 
 	/* Adapter needs to support these two functions */
@@ -279,7 +281,7 @@ static int sbs_write_word_data(struct i2c_client *client, u8 address,
 	int retries = 1;
 
 	if (chip->pdata)
-		retries = max(chip->pdata->i2c_retry_count + 1, 1);
+		retries = max(chip->i2c_retry_count + 1, 1);
 
 	while (retries > 0) {
 		ret = i2c_smbus_write_word_data(client, address,
@@ -741,61 +743,6 @@ static void sbs_delayed_work(struct work_struct *work)
 	}
 }
 
-#if defined(CONFIG_OF)
-
-#include <linux/of_device.h>
-#include <linux/of_gpio.h>
-
-static const struct of_device_id sbs_dt_ids[] = {
-	{ .compatible = "sbs,sbs-battery" },
-	{ .compatible = "ti,bq20z75" },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, sbs_dt_ids);
-
-static struct sbs_platform_data *sbs_of_populate_pdata(struct sbs_info *chip)
-{
-	struct i2c_client *client = chip->client;
-	struct device_node *of_node = client->dev.of_node;
-	struct sbs_platform_data *pdata;
-	int rc;
-	u32 prop;
-
-	/* verify this driver matches this device */
-	if (!of_node)
-		return NULL;
-
-	/* first make sure at least one property is set, otherwise
-	 * it won't change behavior from running without pdata.
-	 */
-	if (!of_get_property(of_node, "sbs,i2c-retry-count", NULL) &&
-	    !of_get_property(of_node, "sbs,poll-retry-count", NULL))
-		goto of_out;
-
-	pdata = devm_kzalloc(&client->dev, sizeof(struct sbs_platform_data),
-				GFP_KERNEL);
-	if (!pdata)
-		return ERR_PTR(-ENOMEM);
-
-	rc = of_property_read_u32(of_node, "sbs,i2c-retry-count", &prop);
-	if (!rc)
-		pdata->i2c_retry_count = prop;
-
-	rc = of_property_read_u32(of_node, "sbs,poll-retry-count", &prop);
-	if (!rc)
-		pdata->poll_retry_count = prop;
-
-of_out:
-	return pdata;
-}
-#else
-static struct sbs_platform_data *sbs_of_populate_pdata(
-	struct sbs_info *client)
-{
-	return ERR_PTR(-ENOSYS);
-}
-#endif
-
 static const struct power_supply_desc sbs_default_desc = {
 	.type = POWER_SUPPLY_TYPE_BATTERY,
 	.properties = sbs_properties,
@@ -838,13 +785,23 @@ static int sbs_probe(struct i2c_client *client,
 	chip->ignore_changes = 1;
 	chip->last_state = POWER_SUPPLY_STATUS_UNKNOWN;
 
-	if (!pdata)
-		pdata = sbs_of_populate_pdata(chip);
+	/* use pdata if available, fall back to DT properties,
+	 * or hardcoded defaults if not
+	 */
+	rc = of_property_read_u32(client->dev.of_node, "sbs,i2c-retry-count",
+				  &chip->i2c_retry_count);
+	if (rc)
+		chip->i2c_retry_count = 1;
 
-	if (IS_ERR(pdata))
-		return PTR_ERR(pdata);
+	rc = of_property_read_u32(client->dev.of_node, "sbs,poll-retry-count",
+				  &chip->poll_retry_count);
+	if (rc)
+		chip->poll_retry_count = 0;
 
-	chip->pdata = pdata;
+	if (pdata) {
+		chip->poll_retry_count = pdata->poll_retry_count;
+		chip->i2c_retry_count  = pdata->i2c_retry_count;
+	}
 
 	chip->gpio_detect = devm_gpiod_get_optional(&client->dev,
 			"sbs,battery-detect", GPIOD_IN);
@@ -953,13 +910,20 @@ static const struct i2c_device_id sbs_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, sbs_id);
 
+static const struct of_device_id sbs_dt_ids[] = {
+	{ .compatible = "sbs,sbs-battery" },
+	{ .compatible = "ti,bq20z75" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, sbs_dt_ids);
+
 static struct i2c_driver sbs_battery_driver = {
 	.probe		= sbs_probe,
 	.remove		= sbs_remove,
 	.id_table	= sbs_id,
 	.driver = {
 		.name	= "sbs-battery",
-		.of_match_table = of_match_ptr(sbs_dt_ids),
+		.of_match_table = sbs_dt_ids,
 		.pm	= SBS_PM_OPS,
 	},
 };
