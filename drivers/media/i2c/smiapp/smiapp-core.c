@@ -621,7 +621,7 @@ static int smiapp_init_controls(struct smiapp_sensor *sensor)
 static int smiapp_init_late_controls(struct smiapp_sensor *sensor)
 {
 	unsigned long *valid_link_freqs = &sensor->valid_link_freqs[
-		sensor->csi_format->compressed - SMIAPP_COMPRESSED_BASE];
+		sensor->csi_format->compressed - sensor->compressed_min_bpp];
 	unsigned int max, i;
 
 	for (i = 0; i < ARRAY_SIZE(sensor->test_data); i++) {
@@ -754,6 +754,7 @@ static int smiapp_get_mbus_formats(struct smiapp_sensor *sensor)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 	struct smiapp_pll *pll = &sensor->pll;
+	u8 compressed_max_bpp = 0;
 	unsigned int type, n;
 	unsigned int i, pixel_order;
 	int rval;
@@ -826,15 +827,26 @@ static int smiapp_get_mbus_formats(struct smiapp_sensor *sensor)
 	pll->scale_m = sensor->scale_m;
 
 	for (i = 0; i < ARRAY_SIZE(smiapp_csi_data_formats); i++) {
+		sensor->compressed_min_bpp =
+			min(smiapp_csi_data_formats[i].compressed,
+			    sensor->compressed_min_bpp);
+		compressed_max_bpp =
+			max(smiapp_csi_data_formats[i].compressed,
+			    compressed_max_bpp);
+	}
+
+	sensor->valid_link_freqs = devm_kcalloc(
+		&client->dev,
+		compressed_max_bpp - sensor->compressed_min_bpp + 1,
+		sizeof(*sensor->valid_link_freqs), GFP_KERNEL);
+
+	for (i = 0; i < ARRAY_SIZE(smiapp_csi_data_formats); i++) {
 		const struct smiapp_csi_data_format *f =
 			&smiapp_csi_data_formats[i];
 		unsigned long *valid_link_freqs =
 			&sensor->valid_link_freqs[
-				f->compressed - SMIAPP_COMPRESSED_BASE];
+				f->compressed - sensor->compressed_min_bpp];
 		unsigned int j;
-
-		BUG_ON(f->compressed < SMIAPP_COMPRESSED_BASE);
-		BUG_ON(f->compressed > SMIAPP_COMPRESSED_MAX);
 
 		if (!(sensor->default_mbus_frame_fmts & 1 << i))
 			continue;
@@ -1769,7 +1781,7 @@ static int smiapp_set_format_source(struct v4l2_subdev *subdev,
 
 	valid_link_freqs = 
 		&sensor->valid_link_freqs[sensor->csi_format->compressed
-					  - SMIAPP_COMPRESSED_BASE];
+					  - sensor->compressed_min_bpp];
 
 	__v4l2_ctrl_modify_range(
 		sensor->link_freq, 0,

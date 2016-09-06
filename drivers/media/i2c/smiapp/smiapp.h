@@ -150,11 +150,6 @@ struct smiapp_csi_data_format {
 #define SMIAPP_PAD_SRC			1
 #define SMIAPP_PADS			2
 
-#define SMIAPP_COMPRESSED_BASE		8
-#define SMIAPP_COMPRESSED_MAX		16
-#define SMIAPP_NR_OF_COMPRESSED		(SMIAPP_COMPRESSED_MAX - \
-					 SMIAPP_COMPRESSED_BASE + 1)
-
 struct smiapp_binning_subtype {
 	u8 horizontal:4;
 	u8 vertical:4;
@@ -224,6 +219,7 @@ struct smiapp_sensor {
 
 	bool streaming;
 	bool dev_init_done;
+	u8 compressed_min_bpp;
 
 	u8 *nvm;		/* nvm memory buffer */
 	unsigned int nvm_size;	/* bytes */
@@ -233,7 +229,7 @@ struct smiapp_sensor {
 	struct smiapp_pll pll;
 
 	/* Is a default format supported for a given BPP? */
-	unsigned long valid_link_freqs[SMIAPP_NR_OF_COMPRESSED];
+	unsigned long *valid_link_freqs;
 
 	/* Pixel array controls */
 	struct v4l2_ctrl *analog_gain;
