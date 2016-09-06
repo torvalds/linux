@@ -59,7 +59,7 @@ struct mce_regs {
 
 static struct mce_regs mce_regs[MAX_MCE_REGS];
 static int num_mce_regs;
-static int nmi_virq = NO_IRQ;
+static int nmi_virq = 0;
 
 
 static void __noreturn pas_restart(char *cmd)
@@ -264,7 +264,7 @@ static int pas_machine_check_handler(struct pt_regs *regs)
 	srr0 = regs->nip;
 	srr1 = regs->msr;
 
-	if (nmi_virq != NO_IRQ && mpic_get_mcirq() == nmi_virq) {
+	if (nmi_virq && mpic_get_mcirq() == nmi_virq) {
 		printk(KERN_ERR "NMI delivered\n");
 		debugger(regs);
 		mpic_end_irq(irq_get_irq_data(nmi_virq));

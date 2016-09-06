@@ -131,7 +131,7 @@ static void xics_request_ipi(void)
 	unsigned int ipi;
 
 	ipi = irq_create_mapping(xics_host, XICS_IPI);
-	BUG_ON(ipi == NO_IRQ);
+	BUG_ON(!ipi);
 
 	/*
 	 * IPIs are marked IRQF_PERCPU. The handler was set in map.
