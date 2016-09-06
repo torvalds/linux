@@ -448,11 +448,9 @@ static void rtw_usb_if1_deinit(struct adapter *if1)
 	free_mlme_ap_info(if1);
 #endif
 
-	if (pnetdev) {
-		/* will call netdev_close() */
-		unregister_netdev(pnetdev);
-		rtw_proc_remove_one(pnetdev);
-	}
+	if (pnetdev)
+		unregister_netdev(pnetdev); /* will call netdev_close() */
+
 	rtl88eu_mon_deinit(if1->pmondev);
 	rtw_cancel_all_timer(if1);
 
