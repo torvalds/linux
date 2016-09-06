@@ -37,11 +37,11 @@
 #include <dt-bindings/clock/berlin2q.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
-#include "skeleton.dtsi"
-
 / {
 	model = "Marvell Armada 1500 pro (BG2-Q) SoC";
 	compatible = "marvell,berlin2q", "marvell,berlin";
+	#address-cells = <1>;
+	#size-cells = <1>;
 
 	aliases {
 		serial0 = &uart0;
