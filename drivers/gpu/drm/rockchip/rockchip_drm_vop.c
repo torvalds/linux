@@ -158,6 +158,7 @@ struct vop {
 	struct drm_property *plane_feature_prop;
 	bool is_iommu_enabled;
 	bool is_iommu_needed;
+	bool is_enabled;
 
 	/* mutex vsync_ work */
 	struct mutex vsync_mutex;
@@ -558,6 +559,7 @@ static void vop_enable(struct drm_crtc *crtc)
 
 		VOP_WIN_SET(vop, win, gate, 1);
 	}
+	vop->is_enabled = true;
 
 	spin_lock(&vop->reg_lock);
 
@@ -620,6 +622,7 @@ static void vop_crtc_disable(struct drm_crtc *crtc)
 
 	disable_irq(vop->irq);
 
+	vop->is_enabled = false;
 	if (vop->is_iommu_enabled) {
 		/*
 		 * vop standby complete, so iommu detach is safe.
@@ -978,6 +981,9 @@ static int vop_crtc_enable_vblank(struct drm_crtc *crtc)
 	struct vop *vop = to_vop(crtc);
 	unsigned long flags;
 
+	if (!vop->is_enabled)
+		return -EPERM;
+
 	spin_lock_irqsave(&vop->irq_lock, flags);
 
 	VOP_INTR_SET_TYPE(vop, enable, FS_INTR, 1);
@@ -991,6 +997,9 @@ static void vop_crtc_disable_vblank(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
 	unsigned long flags;
+
+	if (!vop->is_enabled)
+		return;
 
 	spin_lock_irqsave(&vop->irq_lock, flags);
 
