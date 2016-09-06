@@ -205,26 +205,12 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_hba *hisi_hba,
 	}
 	port = device->port->lldd_port;
 	if (port && !port->port_attached) {
-		if (sas_protocol_ata(task->task_proto)) {
-			struct task_status_struct *ts = &task->task_status;
+		dev_info(dev, "task prep: %s port%d not attach device\n",
+			 (sas_protocol_ata(task->task_proto)) ?
+			 "SATA/STP" : "SAS",
+			 device->port->id);
 
-			dev_info(dev,
-				 "task prep: SATA/STP port%d not attach device\n",
-				 device->port->id);
-			ts->resp = SAS_TASK_COMPLETE;
-			ts->stat = SAS_PHY_DOWN;
-			task->task_done(task);
-		} else {
-			struct task_status_struct *ts = &task->task_status;
-
-			dev_info(dev,
-				 "task prep: SAS port%d does not attach device\n",
-				 device->port->id);
-			ts->resp = SAS_TASK_UNDELIVERED;
-			ts->stat = SAS_PHY_DOWN;
-			task->task_done(task);
-		}
-		return 0;
+		return SAS_PHY_DOWN;
 	}
 
 	if (!sas_protocol_ata(task->task_proto)) {
