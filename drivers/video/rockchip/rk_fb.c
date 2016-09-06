@@ -2913,9 +2913,11 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 	case RK_FBIOSET_VSYNC_ENABLE:
 		if (copy_from_user(&enable, argp, sizeof(enable)))
 			return -EFAULT;
-		dev_drv->vsync_info.active = enable;
+		if (enable)
+			dev_drv->vsync_info.active++;
+		else
+			dev_drv->vsync_info.active--;
 		break;
-
 	case RK_FBIOGET_DSP_ADDR:
 		dev_drv->ops->get_dsp_addr(dev_drv, dsp_addr);
 		if (copy_to_user(argp, &dsp_addr, sizeof(dsp_addr)))
@@ -3467,7 +3469,7 @@ static int rk_fb_wait_for_vsync_thread(void *data)
 		ktime_t timestamp = dev_drv->vsync_info.timestamp;
 		int ret = wait_event_interruptible(dev_drv->vsync_info.wait,
 				!ktime_equal(timestamp, dev_drv->vsync_info.timestamp) &&
-				(dev_drv->vsync_info.active || dev_drv->vsync_info.irq_stop));
+				(dev_drv->vsync_info.active > 0 || dev_drv->vsync_info.irq_stop));
 
 		if (!ret)
 			sysfs_notify(&fbi->dev->kobj, NULL, "vsync");

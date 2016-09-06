@@ -327,7 +327,7 @@ struct rk_fb_frame_time {
 struct rk_fb_vsync {
 	wait_queue_head_t wait;
 	ktime_t timestamp;
-	bool active;
+	int active;
 	bool irq_stop;
 	int irq_refcount;
 	struct mutex irq_lock;
