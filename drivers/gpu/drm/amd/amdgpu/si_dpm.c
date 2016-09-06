@@ -7519,9 +7519,9 @@ static void si_dpm_fini(struct amdgpu_device *adev)
 {
 	int i;
 
-	for (i = 0; i < adev->pm.dpm.num_ps; i++) {
-		kfree(adev->pm.dpm.ps[i].ps_priv);
-	}
+	if (adev->pm.dpm.ps)
+		for (i = 0; i < adev->pm.dpm.num_ps; i++)
+			kfree(adev->pm.dpm.ps[i].ps_priv);
 	kfree(adev->pm.dpm.ps);
 	kfree(adev->pm.dpm.priv);
 	kfree(adev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries);
