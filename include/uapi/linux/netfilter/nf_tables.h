@@ -724,6 +724,26 @@ enum nft_meta_keys {
 };
 
 /**
+ * enum nft_hash_attributes - nf_tables hash expression netlink attributes
+ *
+ * @NFTA_HASH_SREG: source register (NLA_U32)
+ * @NFTA_HASH_DREG: destination register (NLA_U32)
+ * @NFTA_HASH_LEN: source data length (NLA_U32)
+ * @NFTA_HASH_MODULUS: modulus value (NLA_U32)
+ * @NFTA_HASH_SEED: seed value (NLA_U32)
+ */
+enum nft_hash_attributes {
+	NFTA_HASH_UNSPEC,
+	NFTA_HASH_SREG,
+	NFTA_HASH_DREG,
+	NFTA_HASH_LEN,
+	NFTA_HASH_MODULUS,
+	NFTA_HASH_SEED,
+	__NFTA_HASH_MAX,
+};
+#define NFTA_HASH_MAX	(__NFTA_HASH_MAX - 1)
+
+/**
  * enum nft_meta_attributes - nf_tables meta expression netlink attributes
  *
  * @NFTA_META_DREG: destination register (NLA_U32)
@@ -879,6 +899,25 @@ enum nft_queue_attributes {
 #define NFT_QUEUE_FLAG_BYPASS		0x01 /* for compatibility with v2 */
 #define NFT_QUEUE_FLAG_CPU_FANOUT	0x02 /* use current CPU (no hashing) */
 #define NFT_QUEUE_FLAG_MASK		0x03
+
+enum nft_quota_flags {
+	NFT_QUOTA_F_INV		= (1 << 0),
+};
+
+/**
+ * enum nft_quota_attributes - nf_tables quota expression netlink attributes
+ *
+ * @NFTA_QUOTA_BYTES: quota in bytes (NLA_U16)
+ * @NFTA_QUOTA_FLAGS: flags (NLA_U32)
+ */
+enum nft_quota_attributes {
+	NFTA_QUOTA_UNSPEC,
+	NFTA_QUOTA_BYTES,
+	NFTA_QUOTA_FLAGS,
+	NFTA_QUOTA_PAD,
+	__NFTA_QUOTA_MAX
+};
+#define NFTA_QUOTA_MAX		(__NFTA_QUOTA_MAX - 1)
 
 /**
  * enum nft_reject_types - nf_tables reject expression reject types
@@ -1051,7 +1090,7 @@ enum nft_gen_attributes {
  * @NFTA_TRACE_NFPROTO: nf protocol processed (NLA_U32)
  * @NFTA_TRACE_POLICY: policy that decided fate of packet (NLA_U32)
  */
-enum nft_trace_attibutes {
+enum nft_trace_attributes {
 	NFTA_TRACE_UNSPEC,
 	NFTA_TRACE_TABLE,
 	NFTA_TRACE_CHAIN,
@@ -1082,4 +1121,28 @@ enum nft_trace_types {
 	__NFT_TRACETYPE_MAX
 };
 #define NFT_TRACETYPE_MAX (__NFT_TRACETYPE_MAX - 1)
+
+/**
+ * enum nft_ng_attributes - nf_tables number generator expression netlink attributes
+ *
+ * @NFTA_NG_DREG: destination register (NLA_U32)
+ * @NFTA_NG_UNTIL: source value to increment the counter until reset (NLA_U32)
+ * @NFTA_NG_TYPE: operation type (NLA_U32)
+ */
+enum nft_ng_attributes {
+	NFTA_NG_UNSPEC,
+	NFTA_NG_DREG,
+	NFTA_NG_UNTIL,
+	NFTA_NG_TYPE,
+	__NFTA_NG_MAX
+};
+#define NFTA_NG_MAX	(__NFTA_NG_MAX - 1)
+
+enum nft_ng_types {
+	NFT_NG_INCREMENTAL,
+	NFT_NG_RANDOM,
+	__NFT_NG_MAX
+};
+#define NFT_NG_MAX	(__NFT_NG_MAX - 1)
+
 #endif /* _LINUX_NF_TABLES_H */

@@ -347,8 +347,7 @@ static struct nf_logger nf_ip_logger __read_mostly = {
 
 static int __net_init nf_log_ipv4_net_init(struct net *net)
 {
-	nf_log_set(net, NFPROTO_IPV4, &nf_ip_logger);
-	return 0;
+	return nf_log_set(net, NFPROTO_IPV4, &nf_ip_logger);
 }
 
 static void __net_exit nf_log_ipv4_net_exit(struct net *net)

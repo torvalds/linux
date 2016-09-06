@@ -228,8 +228,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	seq_printf(s, "%-8s %u %-8s %u %ld ",
 		   l3proto->name, nf_ct_l3num(ct),
 		   l4proto->name, nf_ct_protonum(ct),
-		   timer_pending(&ct->timeout)
-		   ? (long)(ct->timeout.expires - jiffies)/HZ : 0);
+		   nf_ct_expires(ct)  / HZ);
 
 	if (l4proto->print_conntrack)
 		l4proto->print_conntrack(s, ct);
