@@ -390,7 +390,7 @@ struct sa1111_dev {
 	struct resource	res;
 	void __iomem	*mapbase;
 	unsigned int	skpcr_mask;
-	unsigned int	irq[6];
+	unsigned int	hwirq[6];
 	u64		dma_mask;
 };
 
