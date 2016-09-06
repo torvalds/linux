@@ -131,7 +131,7 @@
 				#address-cells = <0x1>;
 				#size-cells = <0x0>;
 				cell-index = <1>;
-				clocks = <&cpm_syscon0 0 3>;
+				clocks = <&cpm_syscon0 1 21>;
 				status = "disabled";
 			};
 
