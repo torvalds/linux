@@ -170,7 +170,18 @@ void __hyp_text __vgic_v2_restore_state(struct kvm_vcpu *vcpu)
 }
 
 #ifdef CONFIG_ARM64
-bool __hyp_text __vgic_v2_perform_cpuif_access(struct kvm_vcpu *vcpu)
+/*
+ * __vgic_v2_perform_cpuif_access -- perform a GICV access on behalf of the
+ *				     guest.
+ *
+ * @vcpu: the offending vcpu
+ *
+ * Returns:
+ *  1: GICV access successfully performed
+ *  0: Not a GICV access
+ * -1: Illegal GICV access
+ */
+int __hyp_text __vgic_v2_perform_cpuif_access(struct kvm_vcpu *vcpu)
 {
 	struct kvm *kvm = kern_hyp_va(vcpu->kvm);
 	struct vgic_dist *vgic = &kvm->arch.vgic;
@@ -185,15 +196,15 @@ bool __hyp_text __vgic_v2_perform_cpuif_access(struct kvm_vcpu *vcpu)
 	/* If not for GICV, move on */
 	if (fault_ipa <  vgic->vgic_cpu_base ||
 	    fault_ipa >= (vgic->vgic_cpu_base + KVM_VGIC_V2_CPU_SIZE))
-		return false;
+		return 0;
 
 	/* Reject anything but a 32bit access */
 	if (kvm_vcpu_dabt_get_as(vcpu) != sizeof(u32))
-		return false;
+		return -1;
 
 	/* Not aligned? Don't bother */
 	if (fault_ipa & 3)
-		return false;
+		return -1;
 
 	rd = kvm_vcpu_dabt_get_rd(vcpu);
 	addr  = kern_hyp_va((kern_hyp_va(&kvm_vgic_global_state))->vcpu_base_va);
@@ -210,6 +221,6 @@ bool __hyp_text __vgic_v2_perform_cpuif_access(struct kvm_vcpu *vcpu)
 							       sizeof(u32)));
 	}
 
-	return true;
+	return 1;
 }
 #endif

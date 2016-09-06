@@ -311,9 +311,21 @@ again:
 			!kvm_vcpu_dabt_isextabt(vcpu) &&
 			!kvm_vcpu_dabt_iss1tw(vcpu);
 
-		if (valid && __vgic_v2_perform_cpuif_access(vcpu)) {
-			__skip_instr(vcpu);
-			goto again;
+		if (valid) {
+			int ret = __vgic_v2_perform_cpuif_access(vcpu);
+
+			if (ret == 1) {
+				__skip_instr(vcpu);
+				goto again;
+			}
+
+			if (ret == -1) {
+				/* Promote an illegal access to an SError */
+				__skip_instr(vcpu);
+				exit_code = ARM_EXCEPTION_EL1_SERROR;
+			}
+
+			/* 0 falls through to be handler out of EL2 */
 		}
 	}
 
