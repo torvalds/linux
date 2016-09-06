@@ -7244,7 +7244,7 @@ void btrfs_free_tree_block(struct btrfs_trans_handle *trans,
 		btrfs_add_free_space(cache, buf->start, buf->len);
 		btrfs_free_reserved_bytes(cache, buf->len, 0);
 		btrfs_put_block_group(cache);
-		trace_btrfs_reserved_extent_free(root, buf->start, buf->len);
+		trace_btrfs_reserved_extent_free(fs_info, buf->start, buf->len);
 		pin = 0;
 	}
 out:
@@ -7493,7 +7493,7 @@ static noinline int find_free_extent(struct btrfs_root *orig_root,
 	ins->objectid = 0;
 	ins->offset = 0;
 
-	trace_find_free_extent(orig_root, num_bytes, empty_size, flags);
+	trace_find_free_extent(fs_info, num_bytes, empty_size, flags);
 
 	space_info = __find_space_info(fs_info, flags);
 	if (!space_info) {
@@ -7652,7 +7652,7 @@ have_block_group:
 			if (offset) {
 				/* we have a block, we're done */
 				spin_unlock(&last_ptr->refill_lock);
-				trace_btrfs_reserve_extent_cluster(root,
+				trace_btrfs_reserve_extent_cluster(fs_info,
 						used_block_group,
 						search_start, num_bytes);
 				if (used_block_group != block_group) {
@@ -7725,7 +7725,7 @@ refill_cluster:
 				if (offset) {
 					/* we found one, proceed */
 					spin_unlock(&last_ptr->refill_lock);
-					trace_btrfs_reserve_extent_cluster(root,
+					trace_btrfs_reserve_extent_cluster(fs_info,
 						block_group, search_start,
 						num_bytes);
 					goto checks;
@@ -7823,7 +7823,7 @@ checks:
 		ins->objectid = search_start;
 		ins->offset = num_bytes;
 
-		trace_btrfs_reserve_extent(orig_root, block_group,
+		trace_btrfs_reserve_extent(fs_info, block_group,
 					   search_start, num_bytes);
 		btrfs_release_block_group(block_group, delalloc);
 		break;
@@ -8048,7 +8048,7 @@ static int __btrfs_free_reserved_extent(struct btrfs_root *root,
 			ret = btrfs_discard_extent(root, start, len, NULL);
 		btrfs_add_free_space(cache, start, len);
 		btrfs_free_reserved_bytes(cache, len, delalloc);
-		trace_btrfs_reserved_extent_free(root, start, len);
+		trace_btrfs_reserved_extent_free(fs_info, start, len);
 	}
 
 	btrfs_put_block_group(cache);
@@ -8139,8 +8139,7 @@ static int alloc_reserved_file_extent(struct btrfs_trans_handle *trans,
 			ins->objectid, ins->offset);
 		BUG();
 	}
-	trace_btrfs_reserved_extent_alloc(fs_info->extent_root,
-					  ins->objectid, ins->offset);
+	trace_btrfs_reserved_extent_alloc(fs_info, ins->objectid, ins->offset);
 	return ret;
 }
 
@@ -8226,7 +8225,7 @@ static int alloc_reserved_tree_block(struct btrfs_trans_handle *trans,
 		BUG();
 	}
 
-	trace_btrfs_reserved_extent_alloc(root, ins->objectid,
+	trace_btrfs_reserved_extent_alloc(fs_info, ins->objectid,
 					  fs_info->nodesize);
 	return ret;
 }

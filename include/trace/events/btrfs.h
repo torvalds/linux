@@ -891,65 +891,61 @@ TRACE_EVENT(btrfs_flush_space,
 
 DECLARE_EVENT_CLASS(btrfs__reserved_extent,
 
-	TP_PROTO(struct btrfs_root *root, u64 start, u64 len),
+	TP_PROTO(struct btrfs_fs_info *fs_info, u64 start, u64 len),
 
-	TP_ARGS(root, start, len),
+	TP_ARGS(fs_info, start, len),
 
 	TP_STRUCT__entry_btrfs(
-		__field(	u64,  root_objectid		)
 		__field(	u64,  start			)
 		__field(	u64,  len			)
 	),
 
-	TP_fast_assign_btrfs(root->fs_info,
-		__entry->root_objectid	= root->root_key.objectid;
+	TP_fast_assign_btrfs(fs_info,
 		__entry->start		= start;
 		__entry->len		= len;
 	),
 
 	TP_printk_btrfs("root = %llu(%s), start = %llu, len = %llu",
-		  show_root_type(__entry->root_objectid),
+		  show_root_type(BTRFS_EXTENT_TREE_OBJECTID),
 		  (unsigned long long)__entry->start,
 		  (unsigned long long)__entry->len)
 );
 
 DEFINE_EVENT(btrfs__reserved_extent,  btrfs_reserved_extent_alloc,
 
-	TP_PROTO(struct btrfs_root *root, u64 start, u64 len),
+	TP_PROTO(struct btrfs_fs_info *fs_info, u64 start, u64 len),
 
-	TP_ARGS(root, start, len)
+	TP_ARGS(fs_info, start, len)
 );
 
 DEFINE_EVENT(btrfs__reserved_extent,  btrfs_reserved_extent_free,
 
-	TP_PROTO(struct btrfs_root *root, u64 start, u64 len),
+	TP_PROTO(struct btrfs_fs_info *fs_info, u64 start, u64 len),
 
-	TP_ARGS(root, start, len)
+	TP_ARGS(fs_info, start, len)
 );
 
 TRACE_EVENT(find_free_extent,
 
-	TP_PROTO(struct btrfs_root *root, u64 num_bytes, u64 empty_size,
+	TP_PROTO(struct btrfs_fs_info *fs_info, u64 num_bytes, u64 empty_size,
 		 u64 data),
 
-	TP_ARGS(root, num_bytes, empty_size, data),
+	TP_ARGS(fs_info, num_bytes, empty_size, data),
 
 	TP_STRUCT__entry_btrfs(
-		__field(	u64,	root_objectid		)
 		__field(	u64,	num_bytes		)
 		__field(	u64,	empty_size		)
 		__field(	u64,	data			)
 	),
 
-	TP_fast_assign_btrfs(root->fs_info,
-		__entry->root_objectid	= root->root_key.objectid;
+	TP_fast_assign_btrfs(fs_info,
 		__entry->num_bytes	= num_bytes;
 		__entry->empty_size	= empty_size;
 		__entry->data		= data;
 	),
 
-	TP_printk_btrfs("root = %Lu(%s), len = %Lu, empty_size = %Lu, "
-		  "flags = %Lu(%s)", show_root_type(__entry->root_objectid),
+	TP_printk_btrfs("root = %Lu(%s), len = %Lu, empty_size = %Lu, flags = %Lu(%s)",
+		  show_root_type(BTRFS_EXTENT_TREE_OBJECTID),
 		  __entry->num_bytes, __entry->empty_size, __entry->data,
 		  __print_flags((unsigned long)__entry->data, "|",
 				 BTRFS_GROUP_FLAGS))
@@ -957,22 +953,20 @@ TRACE_EVENT(find_free_extent,
 
 DECLARE_EVENT_CLASS(btrfs__reserve_extent,
 
-	TP_PROTO(struct btrfs_root *root,
+	TP_PROTO(struct btrfs_fs_info *fs_info,
 		 struct btrfs_block_group_cache *block_group, u64 start,
 		 u64 len),
 
-	TP_ARGS(root, block_group, start, len),
+	TP_ARGS(fs_info, block_group, start, len),
 
 	TP_STRUCT__entry_btrfs(
-		__field(	u64,	root_objectid		)
 		__field(	u64,	bg_objectid		)
 		__field(	u64,	flags			)
 		__field(	u64,	start			)
 		__field(	u64,	len			)
 	),
 
-	TP_fast_assign_btrfs(root->fs_info,
-		__entry->root_objectid	= root->root_key.objectid;
+	TP_fast_assign_btrfs(fs_info,
 		__entry->bg_objectid	= block_group->key.objectid;
 		__entry->flags		= block_group->flags;
 		__entry->start		= start;
@@ -981,7 +975,8 @@ DECLARE_EVENT_CLASS(btrfs__reserve_extent,
 
 	TP_printk_btrfs("root = %Lu(%s), block_group = %Lu, flags = %Lu(%s), "
 		  "start = %Lu, len = %Lu",
-		  show_root_type(__entry->root_objectid), __entry->bg_objectid,
+		  show_root_type(BTRFS_EXTENT_TREE_OBJECTID),
+		  __entry->bg_objectid,
 		  __entry->flags, __print_flags((unsigned long)__entry->flags,
 						"|", BTRFS_GROUP_FLAGS),
 		  __entry->start, __entry->len)
@@ -989,20 +984,20 @@ DECLARE_EVENT_CLASS(btrfs__reserve_extent,
 
 DEFINE_EVENT(btrfs__reserve_extent, btrfs_reserve_extent,
 
-	TP_PROTO(struct btrfs_root *root,
+	TP_PROTO(struct btrfs_fs_info *fs_info,
 		 struct btrfs_block_group_cache *block_group, u64 start,
 		 u64 len),
 
-	TP_ARGS(root, block_group, start, len)
+	TP_ARGS(fs_info, block_group, start, len)
 );
 
 DEFINE_EVENT(btrfs__reserve_extent, btrfs_reserve_extent_cluster,
 
-	TP_PROTO(struct btrfs_root *root,
+	TP_PROTO(struct btrfs_fs_info *fs_info,
 		 struct btrfs_block_group_cache *block_group, u64 start,
 		 u64 len),
 
-	TP_ARGS(root, block_group, start, len)
+	TP_ARGS(fs_info, block_group, start, len)
 );
 
 TRACE_EVENT(btrfs_find_cluster,
