@@ -35,7 +35,8 @@ int rxrpc_kernel_send_data(struct socket *, struct rxrpc_call *,
 			   struct msghdr *, size_t);
 int rxrpc_kernel_recv_data(struct socket *, struct rxrpc_call *,
 			   void *, size_t, size_t *, bool, u32 *);
-void rxrpc_kernel_abort_call(struct socket *, struct rxrpc_call *, u32);
+void rxrpc_kernel_abort_call(struct socket *, struct rxrpc_call *,
+			     u32, int, const char *);
 void rxrpc_kernel_end_call(struct socket *, struct rxrpc_call *);
 struct rxrpc_call *rxrpc_kernel_accept_call(struct socket *, unsigned long,
 					    rxrpc_notify_rx_t);

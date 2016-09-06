@@ -316,12 +316,10 @@ static int rxkad_secure_packet(struct rxrpc_call *call,
 /*
  * decrypt partial encryption on a packet (level 1 security)
  */
-static int rxkad_verify_packet_auth(const struct rxrpc_call *call,
-				    struct sk_buff *skb,
-				    u32 *_abort_code)
+static int rxkad_verify_packet_1(struct rxrpc_call *call, struct sk_buff *skb,
+				 rxrpc_seq_t seq)
 {
 	struct rxkad_level1_hdr sechdr;
-	struct rxrpc_skb_priv *sp;
 	SKCIPHER_REQUEST_ON_STACK(req, call->conn->cipher);
 	struct rxrpc_crypt iv;
 	struct scatterlist sg[16];
@@ -332,7 +330,10 @@ static int rxkad_verify_packet_auth(const struct rxrpc_call *call,
 
 	_enter("");
 
-	sp = rxrpc_skb(skb);
+	if (skb->len < 8) {
+		rxrpc_abort_call("V1H", call, seq, RXKADSEALEDINCON, EPROTO);
+		goto protocol_error;
+	}
 
 	/* we want to decrypt the skbuff in-place */
 	nsg = skb_cow_data(skb, 0, &trailer);
@@ -351,9 +352,11 @@ static int rxkad_verify_packet_auth(const struct rxrpc_call *call,
 	crypto_skcipher_decrypt(req);
 	skcipher_request_zero(req);
 
-	/* remove the decrypted packet length */
-	if (skb_copy_bits(skb, 0, &sechdr, sizeof(sechdr)) < 0)
-		goto datalen_error;
+	/* Extract the decrypted packet length */
+	if (skb_copy_bits(skb, 0, &sechdr, sizeof(sechdr)) < 0) {
+		rxrpc_abort_call("XV1", call, seq, RXKADDATALEN, EPROTO);
+		goto protocol_error;
+	}
 	if (!skb_pull(skb, sizeof(sechdr)))
 		BUG();
 
@@ -361,24 +364,24 @@ static int rxkad_verify_packet_auth(const struct rxrpc_call *call,
 	data_size = buf & 0xffff;
 
 	check = buf >> 16;
-	check ^= sp->hdr.seq ^ sp->hdr.callNumber;
+	check ^= seq ^ call->call_id;
 	check &= 0xffff;
 	if (check != 0) {
-		*_abort_code = RXKADSEALEDINCON;
+		rxrpc_abort_call("V1C", call, seq, RXKADSEALEDINCON, EPROTO);
 		goto protocol_error;
 	}
 
 	/* shorten the packet to remove the padding */
-	if (data_size > skb->len)
-		goto datalen_error;
-	else if (data_size < skb->len)
+	if (data_size > skb->len) {
+		rxrpc_abort_call("V1L", call, seq, RXKADDATALEN, EPROTO);
+		goto protocol_error;
+	}
+	if (data_size < skb->len)
 		skb->len = data_size;
 
 	_leave(" = 0 [dlen=%x]", data_size);
 	return 0;
 
-datalen_error:
-	*_abort_code = RXKADDATALEN;
 protocol_error:
 	_leave(" = -EPROTO");
 	return -EPROTO;
@@ -391,13 +394,11 @@ nomem:
 /*
  * wholly decrypt a packet (level 2 security)
  */
-static int rxkad_verify_packet_encrypt(const struct rxrpc_call *call,
-				       struct sk_buff *skb,
-				       u32 *_abort_code)
+static int rxkad_verify_packet_2(struct rxrpc_call *call, struct sk_buff *skb,
+				 rxrpc_seq_t seq)
 {
 	const struct rxrpc_key_token *token;
 	struct rxkad_level2_hdr sechdr;
-	struct rxrpc_skb_priv *sp;
 	SKCIPHER_REQUEST_ON_STACK(req, call->conn->cipher);
 	struct rxrpc_crypt iv;
 	struct scatterlist _sg[4], *sg;
@@ -408,7 +409,10 @@ static int rxkad_verify_packet_encrypt(const struct rxrpc_call *call,
 
 	_enter(",{%d}", skb->len);
 
-	sp = rxrpc_skb(skb);
+	if (skb->len < 8) {
+		rxrpc_abort_call("V2H", call, seq, RXKADSEALEDINCON, EPROTO);
+		goto protocol_error;
+	}
 
 	/* we want to decrypt the skbuff in-place */
 	nsg = skb_cow_data(skb, 0, &trailer);
@@ -437,9 +441,11 @@ static int rxkad_verify_packet_encrypt(const struct rxrpc_call *call,
 	if (sg != _sg)
 		kfree(sg);
 
-	/* remove the decrypted packet length */
-	if (skb_copy_bits(skb, 0, &sechdr, sizeof(sechdr)) < 0)
-		goto datalen_error;
+	/* Extract the decrypted packet length */
+	if (skb_copy_bits(skb, 0, &sechdr, sizeof(sechdr)) < 0) {
+		rxrpc_abort_call("XV2", call, seq, RXKADDATALEN, EPROTO);
+		goto protocol_error;
+	}
 	if (!skb_pull(skb, sizeof(sechdr)))
 		BUG();
 
@@ -447,24 +453,23 @@ static int rxkad_verify_packet_encrypt(const struct rxrpc_call *call,
 	data_size = buf & 0xffff;
 
 	check = buf >> 16;
-	check ^= sp->hdr.seq ^ sp->hdr.callNumber;
+	check ^= seq ^ call->call_id;
 	check &= 0xffff;
 	if (check != 0) {
-		*_abort_code = RXKADSEALEDINCON;
+		rxrpc_abort_call("V2C", call, seq, RXKADSEALEDINCON, EPROTO);
 		goto protocol_error;
 	}
 
-	/* shorten the packet to remove the padding */
-	if (data_size > skb->len)
-		goto datalen_error;
-	else if (data_size < skb->len)
+	if (data_size > skb->len) {
+		rxrpc_abort_call("V2L", call, seq, RXKADDATALEN, EPROTO);
+		goto protocol_error;
+	}
+	if (data_size < skb->len)
 		skb->len = data_size;
 
 	_leave(" = 0 [dlen=%x]", data_size);
 	return 0;
 
-datalen_error:
-	*_abort_code = RXKADDATALEN;
 protocol_error:
 	_leave(" = -EPROTO");
 	return -EPROTO;
@@ -475,40 +480,30 @@ nomem:
 }
 
 /*
- * verify the security on a received packet
+ * Verify the security on a received packet or subpacket (if part of a
+ * jumbo packet).
  */
-static int rxkad_verify_packet(struct rxrpc_call *call,
-			       struct sk_buff *skb,
-			       u32 *_abort_code)
+static int rxkad_verify_packet(struct rxrpc_call *call, struct sk_buff *skb,
+			       rxrpc_seq_t seq, u16 expected_cksum)
 {
 	SKCIPHER_REQUEST_ON_STACK(req, call->conn->cipher);
-	struct rxrpc_skb_priv *sp;
 	struct rxrpc_crypt iv;
 	struct scatterlist sg;
 	u16 cksum;
 	u32 x, y;
-	int ret;
-
-	sp = rxrpc_skb(skb);
 
 	_enter("{%d{%x}},{#%u}",
-	       call->debug_id, key_serial(call->conn->params.key), sp->hdr.seq);
+	       call->debug_id, key_serial(call->conn->params.key), seq);
 
 	if (!call->conn->cipher)
 		return 0;
-
-	if (sp->hdr.securityIndex != RXRPC_SECURITY_RXKAD) {
-		*_abort_code = RXKADINCONSISTENCY;
-		_leave(" = -EPROTO [not rxkad]");
-		return -EPROTO;
-	}
 
 	/* continue encrypting from where we left off */
 	memcpy(&iv, call->conn->csum_iv.x, sizeof(iv));
 
 	/* validate the security checksum */
 	x = (call->cid & RXRPC_CHANNELMASK) << (32 - RXRPC_CIDSHIFT);
-	x |= sp->hdr.seq & 0x3fffffff;
+	x |= seq & 0x3fffffff;
 	call->crypto_buf[0] = htonl(call->call_id);
 	call->crypto_buf[1] = htonl(x);
 
@@ -524,29 +519,22 @@ static int rxkad_verify_packet(struct rxrpc_call *call,
 	if (cksum == 0)
 		cksum = 1; /* zero checksums are not permitted */
 
-	if (sp->hdr.cksum != cksum) {
-		*_abort_code = RXKADSEALEDINCON;
+	if (cksum != expected_cksum) {
+		rxrpc_abort_call("VCK", call, seq, RXKADSEALEDINCON, EPROTO);
 		_leave(" = -EPROTO [csum failed]");
 		return -EPROTO;
 	}
 
 	switch (call->conn->params.security_level) {
 	case RXRPC_SECURITY_PLAIN:
-		ret = 0;
-		break;
+		return 0;
 	case RXRPC_SECURITY_AUTH:
-		ret = rxkad_verify_packet_auth(call, skb, _abort_code);
-		break;
+		return rxkad_verify_packet_1(call, skb, seq);
 	case RXRPC_SECURITY_ENCRYPT:
-		ret = rxkad_verify_packet_encrypt(call, skb, _abort_code);
-		break;
+		return rxkad_verify_packet_2(call, skb, seq);
 	default:
-		ret = -ENOANO;
-		break;
+		return -ENOANO;
 	}
-
-	_leave(" = %d", ret);
-	return ret;
 }
 
 /*

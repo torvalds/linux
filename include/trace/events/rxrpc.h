@@ -84,6 +84,35 @@ TRACE_EVENT(rxrpc_skb,
 		      __entry->where)
 	    );
 
+TRACE_EVENT(rxrpc_abort,
+	    TP_PROTO(const char *why, u32 cid, u32 call_id, rxrpc_seq_t seq,
+		     int abort_code, int error),
+
+	    TP_ARGS(why, cid, call_id, seq, abort_code, error),
+
+	    TP_STRUCT__entry(
+		    __array(char,			why, 4		)
+		    __field(u32,			cid		)
+		    __field(u32,			call_id		)
+		    __field(rxrpc_seq_t,		seq		)
+		    __field(int,			abort_code	)
+		    __field(int,			error		)
+			     ),
+
+	    TP_fast_assign(
+		    memcpy(__entry->why, why, 4);
+		    __entry->cid = cid;
+		    __entry->call_id = call_id;
+		    __entry->abort_code = abort_code;
+		    __entry->error = error;
+		    __entry->seq = seq;
+			   ),
+
+	    TP_printk("%08x:%08x s=%u a=%d e=%d %s",
+		      __entry->cid, __entry->call_id, __entry->seq,
+		      __entry->abort_code, __entry->error, __entry->why)
+	    );
+
 #endif /* _TRACE_RXRPC_H */
 
 /* This part must be outside protection */

@@ -429,7 +429,7 @@ protocol_error:
 	_debug("protocol error");
 	write_lock_bh(&call->state_lock);
 protocol_error_locked:
-	if (__rxrpc_abort_call(call, RX_PROTOCOL_ERROR, EPROTO))
+	if (__rxrpc_abort_call("FPR", call, 0, RX_PROTOCOL_ERROR, EPROTO))
 		rxrpc_queue_call(call);
 free_packet_unlock:
 	write_unlock_bh(&call->state_lock);
@@ -495,9 +495,10 @@ static void rxrpc_process_jumbo_packet(struct rxrpc_call *call,
 protocol_error:
 	_debug("protocol error");
 	rxrpc_free_skb(part);
-	rxrpc_free_skb(jumbo);
-	if (rxrpc_abort_call(call, RX_PROTOCOL_ERROR, EPROTO))
+	if (rxrpc_abort_call("PJP", call, sp->hdr.seq,
+			     RX_PROTOCOL_ERROR, EPROTO))
 		rxrpc_queue_call(call);
+	rxrpc_free_skb(jumbo);
 	_leave("");
 }
 

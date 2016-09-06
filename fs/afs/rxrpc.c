@@ -377,7 +377,7 @@ int afs_make_call(struct in_addr *addr, struct afs_call *call, gfp_t gfp,
 	return wait_mode->wait(call);
 
 error_do_abort:
-	rxrpc_kernel_abort_call(afs_socket, rxcall, RX_USER_ABORT);
+	rxrpc_kernel_abort_call(afs_socket, rxcall, RX_USER_ABORT, -ret, "KSD");
 error_kill_call:
 	afs_end_call(call);
 	_leave(" = %d", ret);
@@ -425,12 +425,12 @@ static void afs_deliver_to_call(struct afs_call *call)
 		case -ENOTCONN:
 			abort_code = RX_CALL_DEAD;
 			rxrpc_kernel_abort_call(afs_socket, call->rxcall,
-						abort_code);
+						abort_code, -ret, "KNC");
 			goto do_abort;
 		case -ENOTSUPP:
 			abort_code = RX_INVALID_OPERATION;
 			rxrpc_kernel_abort_call(afs_socket, call->rxcall,
-						abort_code);
+						abort_code, -ret, "KIV");
 			goto do_abort;
 		case -ENODATA:
 		case -EBADMSG:
@@ -440,7 +440,7 @@ static void afs_deliver_to_call(struct afs_call *call)
 			if (call->state != AFS_CALL_AWAIT_REPLY)
 				abort_code = RXGEN_SS_UNMARSHAL;
 			rxrpc_kernel_abort_call(afs_socket, call->rxcall,
-						abort_code);
+						abort_code, EBADMSG, "KUM");
 			goto do_abort;
 		}
 	}
@@ -463,6 +463,7 @@ do_abort:
  */
 static int afs_wait_for_call_to_complete(struct afs_call *call)
 {
+	const char *abort_why;
 	int ret;
 
 	DECLARE_WAITQUEUE(myself, current);
@@ -481,9 +482,11 @@ static int afs_wait_for_call_to_complete(struct afs_call *call)
 			continue;
 		}
 
+		abort_why = "KWC";
 		ret = call->error;
 		if (call->state == AFS_CALL_COMPLETE)
 			break;
+		abort_why = "KWI";
 		ret = -EINTR;
 		if (signal_pending(current))
 			break;
@@ -497,7 +500,7 @@ static int afs_wait_for_call_to_complete(struct afs_call *call)
 	if (call->state < AFS_CALL_COMPLETE) {
 		_debug("call incomplete");
 		rxrpc_kernel_abort_call(afs_socket, call->rxcall,
-					RX_CALL_DEAD);
+					RX_CALL_DEAD, -ret, abort_why);
 	}
 
 	_debug("call complete");
@@ -695,7 +698,7 @@ void afs_send_empty_reply(struct afs_call *call)
 	case -ENOMEM:
 		_debug("oom");
 		rxrpc_kernel_abort_call(afs_socket, call->rxcall,
-					RX_USER_ABORT);
+					RX_USER_ABORT, ENOMEM, "KOO");
 	default:
 		afs_end_call(call);
 		_leave(" [error]");
@@ -734,7 +737,7 @@ void afs_send_simple_reply(struct afs_call *call, const void *buf, size_t len)
 	if (n == -ENOMEM) {
 		_debug("oom");
 		rxrpc_kernel_abort_call(afs_socket, call->rxcall,
-					RX_USER_ABORT);
+					RX_USER_ABORT, ENOMEM, "KOO");
 	}
 	afs_end_call(call);
 	_leave(" [error]");
