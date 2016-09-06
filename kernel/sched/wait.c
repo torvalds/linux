@@ -270,37 +270,6 @@ void finish_wait(wait_queue_head_t *q, wait_queue_t *wait)
 }
 EXPORT_SYMBOL(finish_wait);
 
-/**
- * abort_exclusive_wait - abort exclusive waiting in a queue
- * @q: waitqueue waited on
- * @wait: wait descriptor
- * @key: key to identify a wait bit queue or %NULL
- *
- * Sets current thread back to running state and removes
- * the wait descriptor from the given waitqueue if still
- * queued.
- *
- * Wakes up the next waiter if the caller is concurrently
- * woken up through the queue.
- *
- * This prevents waiter starvation where an exclusive waiter
- * aborts and is woken up concurrently and no one wakes up
- * the next waiter.
- */
-void abort_exclusive_wait(wait_queue_head_t *q, wait_queue_t *wait, void *key)
-{
-	unsigned long flags;
-
-	__set_current_state(TASK_RUNNING);
-	spin_lock_irqsave(&q->lock, flags);
-	if (!list_empty(&wait->task_list))
-		list_del_init(&wait->task_list);
-	else if (waitqueue_active(q))
-		__wake_up_locked_key(q, TASK_NORMAL, key);
-	spin_unlock_irqrestore(&q->lock, flags);
-}
-EXPORT_SYMBOL(abort_exclusive_wait);
-
 int autoremove_wake_function(wait_queue_t *wait, unsigned mode, int sync, void *key)
 {
 	int ret = default_wake_function(wait, mode, sync, key);
@@ -438,20 +407,29 @@ int __sched
 __wait_on_bit_lock(wait_queue_head_t *wq, struct wait_bit_queue *q,
 			wait_bit_action_f *action, unsigned mode)
 {
-	do {
-		int ret;
+	int ret = 0;
 
+	for (;;) {
 		prepare_to_wait_exclusive(wq, &q->wait, mode);
-		if (!test_bit(q->key.bit_nr, q->key.flags))
-			continue;
-		ret = action(&q->key, mode);
-		if (!ret)
-			continue;
-		abort_exclusive_wait(wq, &q->wait, &q->key);
-		return ret;
-	} while (test_and_set_bit(q->key.bit_nr, q->key.flags));
-	finish_wait(wq, &q->wait);
-	return 0;
+		if (test_bit(q->key.bit_nr, q->key.flags)) {
+			ret = action(&q->key, mode);
+			/*
+			 * See the comment in prepare_to_wait_event().
+			 * finish_wait() does not necessarily takes wq->lock,
+			 * but test_and_set_bit() implies mb() which pairs with
+			 * smp_mb__after_atomic() before wake_up_page().
+			 */
+			if (ret)
+				finish_wait(wq, &q->wait);
+		}
+		if (!test_and_set_bit(q->key.bit_nr, q->key.flags)) {
+			if (!ret)
+				finish_wait(wq, &q->wait);
+			return 0;
+		} else if (ret) {
+			return ret;
+		}
+	}
 }
 EXPORT_SYMBOL(__wait_on_bit_lock);
 
