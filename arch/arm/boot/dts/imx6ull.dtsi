@@ -888,26 +888,32 @@
                         };
 
 			usdhc1: usdhc@02190000 {
-				compatible = "fsl,imx6ul-usdhc", "fsl,imx6sx-usdhc";
+				compatible = "fsl,imx6ull-usdhc", "fsl,imx6sx-usdhc";
 				reg = <0x02190000 0x4000>;
 				interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6UL_CLK_USDHC1>,
 					 <&clks IMX6UL_CLK_USDHC1>,
 					 <&clks IMX6UL_CLK_USDHC1>;
 				clock-names = "ipg", "ahb", "per";
+				assigned-clocks = <&clks IMX6UL_CLK_USDHC1_SEL>, <&clks IMX6UL_CLK_USDHC1>;
+				assigned-clock-parents = <&clks IMX6UL_CLK_PLL2_PFD2>;
+				assigned-clock-rates = <0>, <132000000>;
 				bus-width = <4>;
 				fsl,tuning-step= <2>;
 				status = "disabled";
 			};
 
 			usdhc2: usdhc@02194000 {
-				compatible = "fsl,imx6ul-usdhc", "fsl,imx6sx-usdhc";
+				compatible = "fsl,imx6ull-usdhc", "fsl,imx6sx-usdhc";
 				reg = <0x02194000 0x4000>;
 				interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6UL_CLK_USDHC2>,
 					 <&clks IMX6UL_CLK_USDHC2>,
 					 <&clks IMX6UL_CLK_USDHC2>;
 				clock-names = "ipg", "ahb", "per";
+				assigned-clocks = <&clks IMX6UL_CLK_USDHC2_SEL>, <&clks IMX6UL_CLK_USDHC2>;
+				assigned-clock-parents = <&clks IMX6UL_CLK_PLL2_PFD2>;
+				assigned-clock-rates = <0>, <132000000>;
 				bus-width = <4>;
 				fsl,tuning-step= <2>;
 				status = "disabled";

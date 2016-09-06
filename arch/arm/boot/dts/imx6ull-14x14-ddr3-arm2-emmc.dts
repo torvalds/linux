@@ -12,9 +12,6 @@
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
-	assigned-clocks = <&clks IMX6UL_CLK_USDHC1_SEL>, <&clks IMX6UL_CLK_USDHC1>;
-	assigned-clock-parents = <&clks IMX6UL_CLK_PLL2_PFD0>;
-	assigned-clock-rates = <0>, <176000000>;
 	cd-gpios = <>;
 	wp-gpios = <>;
 	vmmc-supply = <>;

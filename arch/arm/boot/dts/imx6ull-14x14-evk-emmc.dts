@@ -13,10 +13,6 @@
 	pinctrl-0 = <&pinctrl_usdhc2_8bit>;
 	pinctrl-1 = <&pinctrl_usdhc2_8bit_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc2_8bit_200mhz>;
-	assigned-clocks = <&clks IMX6UL_CLK_USDHC2_SEL>, <&clks IMX6UL_CLK_USDHC2>;
-	assigned-clock-parents = <&clks IMX6UL_CLK_PLL2_PFD2>;
-	assigned-clock-rates = <0>, <396000000>;
-	max-frequency = <132000000>;
 	bus-width = <8>;
 	non-removable;
 	status = "okay";
