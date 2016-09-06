@@ -472,8 +472,8 @@ static int sa1111_setup_irq(struct sa1111 *sachip, unsigned irq_base)
 	 * specifies that S0ReadyInt and S1ReadyInt should be '1'.
 	 */
 	sa1111_writel(0, irqbase + SA1111_INTPOL0);
-	sa1111_writel(SA1111_IRQMASK_HI(IRQ_S0_READY_NINT) |
-		      SA1111_IRQMASK_HI(IRQ_S1_READY_NINT),
+	sa1111_writel(BIT(IRQ_S0_READY_NINT & 31) |
+		      BIT(IRQ_S1_READY_NINT & 31),
 		      irqbase + SA1111_INTPOL1);
 
 	/* clear all IRQs */
