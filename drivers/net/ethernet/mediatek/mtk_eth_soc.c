@@ -895,16 +895,17 @@ release_desc:
 		rxd->rxd2 = RX_DMA_PLEN0(ring->buf_size);
 
 		ring->calc_idx = idx;
+
+		done++;
+	}
+
+	if (done) {
 		/* make sure that all changes to the dma ring are flushed before
 		 * we continue
 		 */
 		wmb();
 		mtk_w32(eth, ring->calc_idx, MTK_PRX_CRX_IDX0);
-		done++;
 	}
-
-	if (done < budget)
-		mtk_w32(eth, MTK_RX_DONE_INT, MTK_PDMA_INT_STATUS);
 
 	return done;
 }
@@ -1024,10 +1025,13 @@ static int mtk_napi_rx(struct napi_struct *napi, int budget)
 	struct mtk_eth *eth = container_of(napi, struct mtk_eth, rx_napi);
 	u32 status, mask;
 	int rx_done = 0;
+	int remain_budget = budget;
 
 	mtk_handle_status_irq(eth);
+
+poll_again:
 	mtk_w32(eth, MTK_RX_DONE_INT, MTK_PDMA_INT_STATUS);
-	rx_done = mtk_poll_rx(napi, budget, eth);
+	rx_done = mtk_poll_rx(napi, remain_budget, eth);
 
 	if (unlikely(netif_msg_intr(eth))) {
 		status = mtk_r32(eth, MTK_PDMA_INT_STATUS);
@@ -1036,18 +1040,18 @@ static int mtk_napi_rx(struct napi_struct *napi, int budget)
 			 "done rx %d, intr 0x%08x/0x%x\n",
 			 rx_done, status, mask);
 	}
-
-	if (rx_done == budget)
+	if (rx_done == remain_budget)
 		return budget;
 
 	status = mtk_r32(eth, MTK_PDMA_INT_STATUS);
-	if (status & MTK_RX_DONE_INT)
-		return budget;
-
+	if (status & MTK_RX_DONE_INT) {
+		remain_budget -= rx_done;
+		goto poll_again;
+	}
 	napi_complete(napi);
 	mtk_irq_enable(eth, MTK_PDMA_INT_MASK, MTK_RX_DONE_INT);
 
-	return rx_done;
+	return rx_done + budget - remain_budget;
 }
 
 static int mtk_tx_alloc(struct mtk_eth *eth)
