@@ -534,7 +534,7 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
 		goto err;
 
 	if (i2c_dev->irq_disabled) {
-		i2c_dev->irq_disabled = 0;
+		i2c_dev->irq_disabled = false;
 		enable_irq(i2c_dev->irq);
 	}
 
@@ -573,7 +573,7 @@ static irqreturn_t tegra_i2c_isr(int irq, void *dev_id)
 
 		if (!i2c_dev->irq_disabled) {
 			disable_irq_nosync(i2c_dev->irq);
-			i2c_dev->irq_disabled = 1;
+			i2c_dev->irq_disabled = true;
 		}
 		goto err;
 	}
