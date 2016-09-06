@@ -21,9 +21,10 @@
 #include <asm/virt.h>
 
 #define ARM_EXCEPTION_IRQ	  0
-#define ARM_EXCEPTION_TRAP	  1
+#define ARM_EXCEPTION_EL1_SERROR  1
+#define ARM_EXCEPTION_TRAP	  2
 /* The hyp-stub will return this for any kvm_call_hyp() call */
-#define ARM_EXCEPTION_HYP_GONE	  2
+#define ARM_EXCEPTION_HYP_GONE	  3
 
 #define KVM_ARM64_DEBUG_DIRTY_SHIFT	0
 #define KVM_ARM64_DEBUG_DIRTY		(1 << KVM_ARM64_DEBUG_DIRTY_SHIFT)
