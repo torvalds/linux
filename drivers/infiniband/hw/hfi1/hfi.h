@@ -172,12 +172,12 @@ struct ctxt_eager_bufs {
 	u32 threshold;           /* head update threshold */
 	struct eager_buffer {
 		void *addr;
-		dma_addr_t phys;
+		dma_addr_t dma;
 		ssize_t len;
 	} *buffers;
 	struct {
 		void *addr;
-		dma_addr_t phys;
+		dma_addr_t dma;
 	} *rcvtids;
 };
 
@@ -208,8 +208,8 @@ struct hfi1_ctxtdata {
 	/* size of each of the rcvhdrq entries */
 	u16 rcvhdrqentsize;
 	/* mmap of hdrq, must fit in 44 bits */
-	dma_addr_t rcvhdrq_phys;
-	dma_addr_t rcvhdrqtailaddr_phys;
+	dma_addr_t rcvhdrq_dma;
+	dma_addr_t rcvhdrqtailaddr_dma;
 	struct ctxt_eager_bufs egrbufs;
 	/* this receive context's assigned PIO ACK send context */
 	struct send_context *sc;
@@ -1165,7 +1165,7 @@ struct hfi1_devdata {
 
 	/* receive context tail dummy address */
 	__le64 *rcvhdrtail_dummy_kvaddr;
-	dma_addr_t rcvhdrtail_dummy_physaddr;
+	dma_addr_t rcvhdrtail_dummy_dma;
 
 	bool eprom_available;	/* true if EPROM is available for this device */
 	bool aspm_supported;	/* Does HW support ASPM */

@@ -11553,10 +11553,10 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, int ctxt)
 	    !(rcvctrl & RCV_CTXT_CTRL_ENABLE_SMASK)) {
 		/* reset the tail and hdr addresses, and sequence count */
 		write_kctxt_csr(dd, ctxt, RCV_HDR_ADDR,
-				rcd->rcvhdrq_phys);
+				rcd->rcvhdrq_dma);
 		if (HFI1_CAP_KGET_MASK(rcd->flags, DMA_RTAIL))
 			write_kctxt_csr(dd, ctxt, RCV_HDR_TAIL_ADDR,
-					rcd->rcvhdrqtailaddr_phys);
+					rcd->rcvhdrqtailaddr_dma);
 		rcd->seq_cnt = 1;
 
 		/* reset the cached receive header queue head value */
@@ -11621,9 +11621,9 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, int ctxt)
 		 * update with a dummy tail address and then disable
 		 * receive context.
 		 */
-		if (dd->rcvhdrtail_dummy_physaddr) {
+		if (dd->rcvhdrtail_dummy_dma) {
 			write_kctxt_csr(dd, ctxt, RCV_HDR_TAIL_ADDR,
-					dd->rcvhdrtail_dummy_physaddr);
+					dd->rcvhdrtail_dummy_dma);
 			/* Enabling RcvCtxtCtrl.TailUpd is intentional. */
 			rcvctrl |= RCV_CTXT_CTRL_TAIL_UPD_SMASK;
 		}
@@ -11634,7 +11634,7 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, int ctxt)
 		rcvctrl |= RCV_CTXT_CTRL_INTR_AVAIL_SMASK;
 	if (op & HFI1_RCVCTRL_INTRAVAIL_DIS)
 		rcvctrl &= ~RCV_CTXT_CTRL_INTR_AVAIL_SMASK;
-	if (op & HFI1_RCVCTRL_TAILUPD_ENB && rcd->rcvhdrqtailaddr_phys)
+	if (op & HFI1_RCVCTRL_TAILUPD_ENB && rcd->rcvhdrqtailaddr_dma)
 		rcvctrl |= RCV_CTXT_CTRL_TAIL_UPD_SMASK;
 	if (op & HFI1_RCVCTRL_TAILUPD_DIS) {
 		/* See comment on RcvCtxtCtrl.TailUpd above */
@@ -11706,7 +11706,7 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, int ctxt)
 		 * so it doesn't contain an address that is invalid.
 		 */
 		write_kctxt_csr(dd, ctxt, RCV_HDR_TAIL_ADDR,
-				dd->rcvhdrtail_dummy_physaddr);
+				dd->rcvhdrtail_dummy_dma);
 }
 
 u32 hfi1_read_cntrs(struct hfi1_devdata *dd, char **namep, u64 **cntrp)
