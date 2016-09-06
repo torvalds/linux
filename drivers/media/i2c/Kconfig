@@ -578,6 +578,13 @@ config VIDEO_MT9M032
 	  This driver supports MT9M032 camera sensors from Aptina, monochrome
 	  models only.
 
+config VIDEO_MT9M111
+	tristate "mt9m111, mt9m112 and mt9m131 support"
+	depends on I2C && VIDEO_V4L2
+	help
+	  This driver supports MT9M111, MT9M112 and MT9M131 cameras from
+	  Micron/Aptina
+
 config VIDEO_MT9P031
 	tristate "Aptina MT9P031 support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
