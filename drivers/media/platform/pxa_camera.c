@@ -1296,6 +1296,7 @@ static int pxa_camera_get_formats(struct v4l2_device *v4l2_dev,
 				"Providing format %s using code %d\n",
 				pxa_camera_formats[0].name, code.code);
 		}
+	/* fall through */
 	case MEDIA_BUS_FMT_VYUY8_2X8:
 	case MEDIA_BUS_FMT_YUYV8_2X8:
 	case MEDIA_BUS_FMT_YVYU8_2X8:
@@ -1313,6 +1314,7 @@ static int pxa_camera_get_formats(struct v4l2_device *v4l2_dev,
 			dev_dbg(pcdev_to_dev(pcdev),
 				"Providing format %s in pass-through mode\n",
 				fmt->name);
+		break;
 	}
 
 	/* Generic pass-through */
