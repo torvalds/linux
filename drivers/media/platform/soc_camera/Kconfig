@@ -19,7 +19,7 @@ config SOC_CAMERA_PLATFORM
 
 config VIDEO_PXA27x
 	tristate "PXA27x Quick Capture Interface driver"
-	depends on VIDEO_DEV && PXA27x && SOC_CAMERA && HAS_DMA
+	depends on VIDEO_DEV && PXA27x && HAS_DMA
 	select VIDEOBUF2_DMA_SG
 	select SG_SPLIT
 	---help---
