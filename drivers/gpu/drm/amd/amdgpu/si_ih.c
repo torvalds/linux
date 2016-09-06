@@ -57,7 +57,6 @@ static void si_ih_disable_interrupts(struct amdgpu_device *adev)
 
 static int si_ih_irq_init(struct amdgpu_device *adev)
 {
-	int ret = 0;
 	int rb_bufsz;
 	u32 interrupt_cntl, ih_cntl, ih_rb_cntl;
 	u64 wptr_off;
@@ -72,18 +71,15 @@ static int si_ih_irq_init(struct amdgpu_device *adev)
 	WREG32(IH_RB_BASE, adev->irq.ih.gpu_addr >> 8);
 	rb_bufsz = order_base_2(adev->irq.ih.ring_size / 4);
 
-	ih_rb_cntl = (IH_WPTR_OVERFLOW_ENABLE |
-		      IH_WPTR_OVERFLOW_CLEAR |
-		      (rb_bufsz << 1));
-
-	ih_rb_cntl |= IH_WPTR_WRITEBACK_ENABLE;
+	ih_rb_cntl = IH_WPTR_OVERFLOW_ENABLE |
+		     IH_WPTR_OVERFLOW_CLEAR |
+		     (rb_bufsz << 1) |
+		     IH_WPTR_WRITEBACK_ENABLE;
 
 	wptr_off = adev->wb.gpu_addr + (adev->irq.ih.wptr_offs * 4);
 	WREG32(IH_RB_WPTR_ADDR_LO, lower_32_bits(wptr_off));
 	WREG32(IH_RB_WPTR_ADDR_HI, upper_32_bits(wptr_off) & 0xFF);
-
 	WREG32(IH_RB_CNTL, ih_rb_cntl);
-
 	WREG32(IH_RB_RPTR, 0);
 	WREG32(IH_RB_WPTR, 0);
 
@@ -93,10 +89,9 @@ static int si_ih_irq_init(struct amdgpu_device *adev)
 	WREG32(IH_CNTL, ih_cntl);
 
 	pci_set_master(adev->pdev);
-
 	si_ih_enable_interrupts(adev);
 
-	return ret;
+	return 0;
 }
 
 static void si_ih_irq_disable(struct amdgpu_device *adev)
@@ -165,9 +160,7 @@ static int si_ih_sw_init(void *handle)
 	if (r)
 		return r;
 
-	r = amdgpu_irq_init(adev);
-
-	return r;
+	return amdgpu_irq_init(adev);
 }
 
 static int si_ih_sw_fini(void *handle)
@@ -182,14 +175,9 @@ static int si_ih_sw_fini(void *handle)
 
 static int si_ih_hw_init(void *handle)
 {
-	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	r = si_ih_irq_init(adev);
-	if (r)
-		return r;
-
-	return 0;
+	return si_ih_irq_init(adev);
 }
 
 static int si_ih_hw_fini(void *handle)
@@ -229,12 +217,10 @@ static bool si_ih_is_idle(void *handle)
 static int si_ih_wait_for_idle(void *handle)
 {
 	unsigned i;
-	u32 tmp;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		tmp = RREG32(SRBM_STATUS) & SRBM_STATUS__IH_BUSY_MASK;
-		if (!tmp)
+		if (si_ih_is_idle(handle))
 			return 0;
 		udelay(1);
 	}
