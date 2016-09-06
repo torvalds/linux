@@ -4414,7 +4414,7 @@ static inline void ext4_iget_extra_inode(struct inode *inode,
 
 int ext4_get_projid(struct inode *inode, kprojid_t *projid)
 {
-	if (!EXT4_HAS_RO_COMPAT_FEATURE(inode->i_sb, EXT4_FEATURE_RO_COMPAT_PROJECT))
+	if (!ext4_has_feature_project(inode->i_sb))
 		return -EOPNOTSUPP;
 	*projid = EXT4_I(inode)->i_projid;
 	return 0;
@@ -4481,7 +4481,7 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 	inode->i_mode = le16_to_cpu(raw_inode->i_mode);
 	i_uid = (uid_t)le16_to_cpu(raw_inode->i_uid_low);
 	i_gid = (gid_t)le16_to_cpu(raw_inode->i_gid_low);
-	if (EXT4_HAS_RO_COMPAT_FEATURE(sb, EXT4_FEATURE_RO_COMPAT_PROJECT) &&
+	if (ext4_has_feature_project(sb) &&
 	    EXT4_INODE_SIZE(sb) > EXT4_GOOD_OLD_INODE_SIZE &&
 	    EXT4_FITS_IN_INODE(raw_inode, ei, i_projid))
 		i_projid = (projid_t)le32_to_cpu(raw_inode->i_projid);
@@ -4885,8 +4885,7 @@ static int ext4_do_update_inode(handle_t *handle,
 		}
 	}
 
-	BUG_ON(!EXT4_HAS_RO_COMPAT_FEATURE(inode->i_sb,
-			EXT4_FEATURE_RO_COMPAT_PROJECT) &&
+	BUG_ON(!ext4_has_feature_project(inode->i_sb) &&
 	       i_projid != EXT4_DEF_PROJID);
 
 	if (EXT4_INODE_SIZE(inode->i_sb) > EXT4_GOOD_OLD_INODE_SIZE &&

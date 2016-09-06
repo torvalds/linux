@@ -310,8 +310,7 @@ static int ext4_ioctl_setproject(struct file *filp, __u32 projid)
 	struct ext4_inode *raw_inode;
 	struct dquot *transfer_to[MAXQUOTAS] = { };
 
-	if (!EXT4_HAS_RO_COMPAT_FEATURE(sb,
-			EXT4_FEATURE_RO_COMPAT_PROJECT)) {
+	if (!ext4_has_feature_project(sb)) {
 		if (projid != EXT4_DEF_PROJID)
 			return -EOPNOTSUPP;
 		else
@@ -842,8 +841,7 @@ resizefs_out:
 		ext4_get_inode_flags(ei);
 		fa.fsx_xflags = ext4_iflags_to_xflags(ei->i_flags & EXT4_FL_USER_VISIBLE);
 
-		if (EXT4_HAS_RO_COMPAT_FEATURE(inode->i_sb,
-				EXT4_FEATURE_RO_COMPAT_PROJECT)) {
+		if (ext4_has_feature_project(inode->i_sb)) {
 			fa.fsx_projid = (__u32)from_kprojid(&init_user_ns,
 				EXT4_I(inode)->i_projid);
 		}
