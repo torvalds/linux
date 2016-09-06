@@ -71,11 +71,13 @@ static void psr_set_state_locked(struct psr_drv *psr, enum psr_state state)
 	if (state == psr->state || !psr->active)
 		return;
 
-	psr->state = state;
-
 	/* Already disabled in flush, change the state, but not the hardware */
-	if (state == PSR_DISABLE && psr->state == PSR_FLUSH)
+	if (state == PSR_DISABLE && psr->state == PSR_FLUSH) {
+		psr->state = state;
 		return;
+	}
+
+	psr->state = state;
 
 	/* Actually commit the state change to hardware */
 	switch (psr->state) {
