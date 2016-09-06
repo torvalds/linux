@@ -259,7 +259,6 @@ EXPORT_SYMBOL(finish_wait);
  * abort_exclusive_wait - abort exclusive waiting in a queue
  * @q: waitqueue waited on
  * @wait: wait descriptor
- * @mode: runstate of the waiter to be woken
  * @key: key to identify a wait bit queue or %NULL
  *
  * Sets current thread back to running state and removes
@@ -273,8 +272,7 @@ EXPORT_SYMBOL(finish_wait);
  * aborts and is woken up concurrently and no one wakes up
  * the next waiter.
  */
-void abort_exclusive_wait(wait_queue_head_t *q, wait_queue_t *wait,
-			unsigned int mode, void *key)
+void abort_exclusive_wait(wait_queue_head_t *q, wait_queue_t *wait, void *key)
 {
 	unsigned long flags;
 
@@ -283,7 +281,7 @@ void abort_exclusive_wait(wait_queue_head_t *q, wait_queue_t *wait,
 	if (!list_empty(&wait->task_list))
 		list_del_init(&wait->task_list);
 	else if (waitqueue_active(q))
-		__wake_up_locked_key(q, mode, key);
+		__wake_up_locked_key(q, TASK_NORMAL, key);
 	spin_unlock_irqrestore(&q->lock, flags);
 }
 EXPORT_SYMBOL(abort_exclusive_wait);
@@ -434,7 +432,7 @@ __wait_on_bit_lock(wait_queue_head_t *wq, struct wait_bit_queue *q,
 		ret = action(&q->key, mode);
 		if (!ret)
 			continue;
-		abort_exclusive_wait(wq, &q->wait, mode, &q->key);
+		abort_exclusive_wait(wq, &q->wait, &q->key);
 		return ret;
 	} while (test_and_set_bit(q->key.bit_nr, q->key.flags));
 	finish_wait(wq, &q->wait);
