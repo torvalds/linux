@@ -378,8 +378,6 @@ bts_buffer_reset(struct bts_buffer *buf, struct perf_output_handle *handle)
 		return 0;
 
 	head = handle->head & ((buf->nr_pages << PAGE_SHIFT) - 1);
-	if (WARN_ON_ONCE(head != local_read(&buf->head)))
-		return -EINVAL;
 
 	phys = &buf->buf[buf->cur_buf];
 	space = phys->offset + phys->displacement + phys->size - head;
