@@ -196,13 +196,19 @@ prepare_to_wait_exclusive(wait_queue_head_t *q, wait_queue_t *wait, int state)
 }
 EXPORT_SYMBOL(prepare_to_wait_exclusive);
 
+void init_wait_entry(wait_queue_t *wait, int flags)
+{
+	wait->flags = flags;
+	wait->private = current;
+	wait->func = autoremove_wake_function;
+	INIT_LIST_HEAD(&wait->task_list);
+}
+EXPORT_SYMBOL(init_wait_entry);
+
 long prepare_to_wait_event(wait_queue_head_t *q, wait_queue_t *wait, int state)
 {
 	unsigned long flags;
 	long ret = 0;
-
-	wait->private = current;
-	wait->func = autoremove_wake_function;
 
 	spin_lock_irqsave(&q->lock, flags);
 	if (unlikely(signal_pending_state(state, current))) {
