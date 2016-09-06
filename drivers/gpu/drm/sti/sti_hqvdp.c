@@ -1027,8 +1027,8 @@ static int sti_hqvdp_atomic_check(struct drm_plane *drm_plane,
 	mode = &crtc_state->mode;
 	dst_x = state->crtc_x;
 	dst_y = state->crtc_y;
-	dst_w = clamp_val(state->crtc_w, 0, mode->crtc_hdisplay - dst_x);
-	dst_h = clamp_val(state->crtc_h, 0, mode->crtc_vdisplay - dst_y);
+	dst_w = clamp_val(state->crtc_w, 0, mode->hdisplay - dst_x);
+	dst_h = clamp_val(state->crtc_h, 0, mode->vdisplay - dst_y);
 	/* src_x are in 16.16 format */
 	src_x = state->src_x >> 16;
 	src_y = state->src_y >> 16;
@@ -1116,8 +1116,8 @@ static void sti_hqvdp_atomic_update(struct drm_plane *drm_plane,
 	mode = &crtc->mode;
 	dst_x = state->crtc_x;
 	dst_y = state->crtc_y;
-	dst_w = clamp_val(state->crtc_w, 0, mode->crtc_hdisplay - dst_x);
-	dst_h = clamp_val(state->crtc_h, 0, mode->crtc_vdisplay - dst_y);
+	dst_w = clamp_val(state->crtc_w, 0, mode->hdisplay - dst_x);
+	dst_h = clamp_val(state->crtc_h, 0, mode->vdisplay - dst_y);
 	/* src_x are in 16.16 format */
 	src_x = state->src_x >> 16;
 	src_y = state->src_y >> 16;
