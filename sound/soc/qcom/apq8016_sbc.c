@@ -85,6 +85,15 @@ static struct apq8016_sbc_data *apq8016_sbc_parse_of(struct snd_soc_card *card)
 		return ERR_PTR(ret);
 	}
 
+	/* DAPM routes */
+	if (of_property_read_bool(node, "qcom,audio-routing")) {
+		ret = snd_soc_of_parse_audio_routing(card,
+					"qcom,audio-routing");
+		if (ret)
+			return ERR_PTR(ret);
+	}
+
+
 	/* Populate links */
 	num_links = of_get_child_count(node);
 
