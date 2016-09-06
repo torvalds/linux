@@ -1090,8 +1090,7 @@ static int cppi41_dma_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int cppi41_suspend(struct device *dev)
+static int __maybe_unused cppi41_suspend(struct device *dev)
 {
 	struct cppi41_dd *cdd = dev_get_drvdata(dev);
 
@@ -1102,7 +1101,7 @@ static int cppi41_suspend(struct device *dev)
 	return 0;
 }
 
-static int cppi41_resume(struct device *dev)
+static int __maybe_unused cppi41_resume(struct device *dev)
 {
 	struct cppi41_dd *cdd = dev_get_drvdata(dev);
 	struct cppi41_channel *c;
@@ -1127,7 +1126,7 @@ static int cppi41_resume(struct device *dev)
 	return 0;
 }
 
-static int cppi41_runtime_suspend(struct device *dev)
+static int __maybe_unused cppi41_runtime_suspend(struct device *dev)
 {
 	struct cppi41_dd *cdd = dev_get_drvdata(dev);
 
@@ -1136,7 +1135,7 @@ static int cppi41_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int cppi41_runtime_resume(struct device *dev)
+static int __maybe_unused cppi41_runtime_resume(struct device *dev)
 {
 	struct cppi41_dd *cdd = dev_get_drvdata(dev);
 	struct cppi41_channel *c, *_c;
@@ -1151,7 +1150,6 @@ static int cppi41_runtime_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops cppi41_pm_ops = {
 	SET_LATE_SYSTEM_SLEEP_PM_OPS(cppi41_suspend, cppi41_resume)
