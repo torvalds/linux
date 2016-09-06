@@ -60,6 +60,18 @@ OPTIONS
 	  Note: If user explicitly sets options which conflict with the params,
 	  the value set by the params will be overridden.
 
+	  Also not defined in .../<pmu>/format/* are PMU driver specific
+	  configuration parameters.  Any configuration parameter preceded by
+	  the letter '@' is not interpreted in user space and sent down directly
+	  to the PMU driver.  For example:
+
+	  perf record -e some_event/@cfg1,@cfg2=config/ ...
+
+	  will see 'cfg1' and 'cfg2=config' pushed to the PMU driver associated
+	  with the event for further processing.  There is no restriction on
+	  what the configuration parameters are, as long as their semantic is
+	  understood and supported by the PMU driver.
+
         - a hardware breakpoint event in the form of '\mem:addr[/len][:access]'
           where addr is the address in memory you want to break in.
           Access is the memory access type (read, write, execute) it can

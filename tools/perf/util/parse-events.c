@@ -904,6 +904,7 @@ static const char *config_term_names[__PARSE_EVENTS__TERM_TYPE_NR] = {
 	[PARSE_EVENTS__TERM_TYPE_MAX_STACK]		= "max-stack",
 	[PARSE_EVENTS__TERM_TYPE_OVERWRITE]		= "overwrite",
 	[PARSE_EVENTS__TERM_TYPE_NOOVERWRITE]		= "no-overwrite",
+	[PARSE_EVENTS__TERM_TYPE_DRV_CFG]		= "driver-config",
 };
 
 static bool config_term_shrinked;
@@ -1034,7 +1035,8 @@ static int config_term_pmu(struct perf_event_attr *attr,
 			   struct parse_events_term *term,
 			   struct parse_events_error *err)
 {
-	if (term->type_term == PARSE_EVENTS__TERM_TYPE_USER)
+	if (term->type_term == PARSE_EVENTS__TERM_TYPE_USER ||
+	    term->type_term == PARSE_EVENTS__TERM_TYPE_DRV_CFG)
 		/*
 		 * Always succeed for sysfs terms, as we dont know
 		 * at this point what type they need to have.
@@ -1133,6 +1135,9 @@ do {								\
 			break;
 		case PARSE_EVENTS__TERM_TYPE_NOOVERWRITE:
 			ADD_CONFIG_TERM(OVERWRITE, overwrite, term->val.num ? 0 : 1);
+			break;
+		case PARSE_EVENTS__TERM_TYPE_DRV_CFG:
+			ADD_CONFIG_TERM(DRV_CFG, drv_cfg, term->val.str);
 			break;
 		default:
 			break;
