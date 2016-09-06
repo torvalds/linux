@@ -6825,7 +6825,6 @@ void handle_link_up(struct work_struct *work)
 		set_link_down_reason(ppd, OPA_LINKDOWN_REASON_SPEED_POLICY, 0,
 				     OPA_LINKDOWN_REASON_SPEED_POLICY);
 		set_link_state(ppd, HLS_DN_OFFLINE);
-		tune_serdes(ppd);
 		start_link(ppd);
 	}
 }
@@ -6998,12 +6997,10 @@ void handle_link_down(struct work_struct *work)
 	 * If there is no cable attached, turn the DC off. Otherwise,
 	 * start the link bring up.
 	 */
-	if (ppd->port_type == PORT_TYPE_QSFP && !qsfp_mod_present(ppd)) {
+	if (ppd->port_type == PORT_TYPE_QSFP && !qsfp_mod_present(ppd))
 		dc_shutdown(ppd->dd);
-	} else {
-		tune_serdes(ppd);
+	else
 		start_link(ppd);
-	}
 }
 
 void handle_link_bounce(struct work_struct *work)
@@ -7016,7 +7013,6 @@ void handle_link_bounce(struct work_struct *work)
 	 */
 	if (ppd->host_link_state & HLS_UP) {
 		set_link_state(ppd, HLS_DN_OFFLINE);
-		tune_serdes(ppd);
 		start_link(ppd);
 	} else {
 		dd_dev_info(ppd->dd, "%s: link not up (%s), nothing to do\n",
@@ -7531,7 +7527,6 @@ done:
 		set_link_down_reason(ppd, OPA_LINKDOWN_REASON_WIDTH_POLICY, 0,
 				     OPA_LINKDOWN_REASON_WIDTH_POLICY);
 		set_link_state(ppd, HLS_DN_OFFLINE);
-		tune_serdes(ppd);
 		start_link(ppd);
 	}
 }
@@ -9161,6 +9156,12 @@ set_local_link_attributes_fail:
  */
 int start_link(struct hfi1_pportdata *ppd)
 {
+	/*
+	 * Tune the SerDes to a ballpark setting for optimal signal and bit
+	 * error rate.  Needs to be done before starting the link.
+	 */
+	tune_serdes(ppd);
+
 	if (!ppd->link_enabled) {
 		dd_dev_info(ppd->dd,
 			    "%s: stopping link start because link is disabled\n",
@@ -9401,8 +9402,6 @@ void qsfp_event(struct work_struct *work)
 		 */
 		set_qsfp_int_n(ppd, 1);
 
-		tune_serdes(ppd);
-
 		start_link(ppd);
 	}
 
@@ -9544,11 +9543,6 @@ static void try_start_link(struct hfi1_pportdata *ppd)
 	}
 	ppd->qsfp_retry_count = 0;
 
-	/*
-	 * Tune the SerDes to a ballpark setting for optimal signal and bit
-	 * error rate.  Needs to be done before starting the link.
-	 */
-	tune_serdes(ppd);
 	start_link(ppd);
 }
 

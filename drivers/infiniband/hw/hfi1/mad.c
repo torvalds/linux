@@ -1013,7 +1013,6 @@ static int set_port_states(struct hfi1_pportdata *ppd, struct opa_smp *smp,
 			 * offline.
 			 */
 			set_link_state(ppd, HLS_DN_OFFLINE);
-			tune_serdes(ppd);
 			start_link(ppd);
 		} else {
 			set_link_state(ppd, link_state);
