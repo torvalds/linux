@@ -71,7 +71,6 @@ static struct spi_board_info __initdata rd88f6183ap_ge_spi_slave_info[] = {
 	{
 		.modalias	= "m25p80",
 		.platform_data	= &rd88f6183ap_ge_spi_slave_data,
-		.irq		= NO_IRQ,
 		.max_speed_hz	= 20000000,
 		.bus_num	= 0,
 		.chip_select	= 0,
