@@ -42,6 +42,7 @@
 #include <asm/sections.h>
 #include <asm/machdep.h>
 #include <asm/opal.h>
+#include <asm/asm-prototypes.h>
 
 #include <linux/linux_logo.h>
 
