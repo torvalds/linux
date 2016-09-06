@@ -847,7 +847,8 @@ int sdma_send_txreq(struct sdma_engine *sde,
 		    struct sdma_txreq *tx);
 int sdma_send_txlist(struct sdma_engine *sde,
 		     struct iowait *wait,
-		     struct list_head *tx_list);
+		     struct list_head *tx_list,
+		     u32 *count);
 
 int sdma_ahg_alloc(struct sdma_engine *sde);
 void sdma_ahg_free(struct sdma_engine *sde, int ahg_index);

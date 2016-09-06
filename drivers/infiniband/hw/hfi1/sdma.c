@@ -2086,6 +2086,11 @@ nodesc:
  * @sde: sdma engine to use
  * @wait: wait structure to use when full (may be NULL)
  * @tx_list: list of sdma_txreqs to submit
+ * @count: pointer to a u32 which, after return will contain the total number of
+ *         sdma_txreqs removed from the tx_list. This will include sdma_txreqs
+ *         whose SDMA descriptors are submitted to the ring and the sdma_txreqs
+ *         which are added to SDMA engine flush list if the SDMA engine state is
+ *         not running.
  *
  * The call submits the list into the ring.
  *
@@ -2100,18 +2105,18 @@ nodesc:
  * side locking.
  *
  * Return:
- * > 0 - Success (value is number of sdma_txreq's submitted),
+ * 0 - Success,
  * -EINVAL - sdma_txreq incomplete, -EBUSY - no space in ring (wait == NULL)
  * -EIOCBQUEUED - tx queued to iowait, -ECOMM bad sdma state
  */
 int sdma_send_txlist(struct sdma_engine *sde, struct iowait *wait,
-		     struct list_head *tx_list)
+		     struct list_head *tx_list, u32 *count_out)
 {
 	struct sdma_txreq *tx, *tx_next;
 	int ret = 0;
 	unsigned long flags;
 	u16 tail = INVALID_TAIL;
-	int count = 0;
+	u32 submit_count = 0, flush_count = 0, total_count;
 
 	spin_lock_irqsave(&sde->tail_lock, flags);
 retry:
@@ -2127,33 +2132,34 @@ retry:
 		}
 		list_del_init(&tx->list);
 		tail = submit_tx(sde, tx);
-		count++;
+		submit_count++;
 		if (tail != INVALID_TAIL &&
-		    (count & SDMA_TAIL_UPDATE_THRESH) == 0) {
+		    (submit_count & SDMA_TAIL_UPDATE_THRESH) == 0) {
 			sdma_update_tail(sde, tail);
 			tail = INVALID_TAIL;
 		}
 	}
 update_tail:
+	total_count = submit_count + flush_count;
 	if (wait)
-		iowait_sdma_add(wait, count);
+		iowait_sdma_add(wait, total_count);
 	if (tail != INVALID_TAIL)
 		sdma_update_tail(sde, tail);
 	spin_unlock_irqrestore(&sde->tail_lock, flags);
-	return ret == 0 ? count : ret;
+	*count_out = total_count;
+	return ret;
 unlock_noconn:
 	spin_lock(&sde->flushlist_lock);
 	list_for_each_entry_safe(tx, tx_next, tx_list, list) {
 		tx->wait = wait;
 		list_del_init(&tx->list);
-		if (wait)
-			iowait_sdma_inc(wait);
 		tx->next_descq_idx = 0;
 #ifdef CONFIG_HFI1_DEBUG_SDMA_ORDER
 		tx->sn = sde->tail_sn++;
 		trace_hfi1_sdma_in_sn(sde, tx->sn);
 #endif
 		list_add_tail(&tx->list, &sde->flushlist);
+		flush_count++;
 		if (wait) {
 			wait->tx_count++;
 			wait->count += tx->num_desc;
