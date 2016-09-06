@@ -556,7 +556,10 @@ skip_enc:
 
 	/* Read and write assoclen bytes */
 	append_math_add(desc, VARSEQINLEN, ZERO, REG3, CAAM_CMD_SZ);
-	append_math_add(desc, VARSEQOUTLEN, ZERO, REG3, CAAM_CMD_SZ);
+	if (alg->caam.geniv)
+		append_math_add_imm_u32(desc, VARSEQOUTLEN, REG3, IMM, ivsize);
+	else
+		append_math_add(desc, VARSEQOUTLEN, ZERO, REG3, CAAM_CMD_SZ);
 
 	/* Skip assoc data */
 	append_seq_fifo_store(desc, 0, FIFOST_TYPE_SKIP | FIFOLDST_VLF);
@@ -564,6 +567,14 @@ skip_enc:
 	/* read assoc before reading payload */
 	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS2 | FIFOLD_TYPE_MSG |
 			     KEY_VLF);
+
+	if (alg->caam.geniv) {
+		append_seq_load(desc, ivsize, LDST_CLASS_1_CCB |
+				LDST_SRCDST_BYTE_CONTEXT |
+				(ctx1_iv_off << LDST_OFFSET_SHIFT));
+		append_move(desc, MOVE_SRC_CLASS1CTX | MOVE_DEST_CLASS2INFIFO |
+			    (ctx1_iv_off << MOVE_OFFSET_SHIFT) | ivsize);
+	}
 
 	/* Load Counter into CONTEXT1 reg */
 	if (is_rfc3686)
@@ -2150,7 +2161,7 @@ static void init_authenc_job(struct aead_request *req,
 
 	init_aead_job(req, edesc, all_contig, encrypt);
 
-	if (ivsize && (is_rfc3686 || !(alg->caam.geniv && encrypt)))
+	if (ivsize && ((is_rfc3686 && encrypt) || !alg->caam.geniv))
 		append_load_as_imm(desc, req->iv, ivsize,
 				   LDST_CLASS_1_CCB |
 				   LDST_SRCDST_BYTE_CONTEXT |
@@ -2535,20 +2546,6 @@ static int aead_decrypt(struct aead_request *req)
 	}
 
 	return ret;
-}
-
-static int aead_givdecrypt(struct aead_request *req)
-{
-	struct crypto_aead *aead = crypto_aead_reqtfm(req);
-	unsigned int ivsize = crypto_aead_ivsize(aead);
-
-	if (req->cryptlen < ivsize)
-		return -EINVAL;
-
-	req->cryptlen -= ivsize;
-	req->assoclen += ivsize;
-
-	return aead_decrypt(req);
 }
 
 /*
@@ -3210,7 +3207,7 @@ static struct caam_aead_alg driver_aeads[] = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
-			.decrypt = aead_givdecrypt,
+			.decrypt = aead_decrypt,
 			.ivsize = AES_BLOCK_SIZE,
 			.maxauthsize = MD5_DIGEST_SIZE,
 		},
@@ -3256,7 +3253,7 @@ static struct caam_aead_alg driver_aeads[] = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
-			.decrypt = aead_givdecrypt,
+			.decrypt = aead_decrypt,
 			.ivsize = AES_BLOCK_SIZE,
 			.maxauthsize = SHA1_DIGEST_SIZE,
 		},
@@ -3302,7 +3299,7 @@ static struct caam_aead_alg driver_aeads[] = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
-			.decrypt = aead_givdecrypt,
+			.decrypt = aead_decrypt,
 			.ivsize = AES_BLOCK_SIZE,
 			.maxauthsize = SHA224_DIGEST_SIZE,
 		},
@@ -3348,7 +3345,7 @@ static struct caam_aead_alg driver_aeads[] = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
-			.decrypt = aead_givdecrypt,
+			.decrypt = aead_decrypt,
 			.ivsize = AES_BLOCK_SIZE,
 			.maxauthsize = SHA256_DIGEST_SIZE,
 		},
@@ -3394,7 +3391,7 @@ static struct caam_aead_alg driver_aeads[] = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
-			.decrypt = aead_givdecrypt,
+			.decrypt = aead_decrypt,
 			.ivsize = AES_BLOCK_SIZE,
 			.maxauthsize = SHA384_DIGEST_SIZE,
 		},
@@ -3440,7 +3437,7 @@ static struct caam_aead_alg driver_aeads[] = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
-			.decrypt = aead_givdecrypt,
+			.decrypt = aead_decrypt,
 			.ivsize = AES_BLOCK_SIZE,
 			.maxauthsize = SHA512_DIGEST_SIZE,
 		},
@@ -3486,7 +3483,7 @@ static struct caam_aead_alg driver_aeads[] = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
-			.decrypt = aead_givdecrypt,
+			.decrypt = aead_decrypt,
 			.ivsize = DES3_EDE_BLOCK_SIZE,
 			.maxauthsize = MD5_DIGEST_SIZE,
 		},
@@ -3534,7 +3531,7 @@ static struct caam_aead_alg driver_aeads[] = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
-			.decrypt = aead_givdecrypt,
+			.decrypt = aead_decrypt,
 			.ivsize = DES3_EDE_BLOCK_SIZE,
 			.maxauthsize = SHA1_DIGEST_SIZE,
 		},
@@ -3582,7 +3579,7 @@ static struct caam_aead_alg driver_aeads[] = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
-			.decrypt = aead_givdecrypt,
+			.decrypt = aead_decrypt,
 			.ivsize = DES3_EDE_BLOCK_SIZE,
 			.maxauthsize = SHA224_DIGEST_SIZE,
 		},
@@ -3630,7 +3627,7 @@ static struct caam_aead_alg driver_aeads[] = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
-			.decrypt = aead_givdecrypt,
+			.decrypt = aead_decrypt,
 			.ivsize = DES3_EDE_BLOCK_SIZE,
 			.maxauthsize = SHA256_DIGEST_SIZE,
 		},
@@ -3678,7 +3675,7 @@ static struct caam_aead_alg driver_aeads[] = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
-			.decrypt = aead_givdecrypt,
+			.decrypt = aead_decrypt,
 			.ivsize = DES3_EDE_BLOCK_SIZE,
 			.maxauthsize = SHA384_DIGEST_SIZE,
 		},
@@ -3726,7 +3723,7 @@ static struct caam_aead_alg driver_aeads[] = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
-			.decrypt = aead_givdecrypt,
+			.decrypt = aead_decrypt,
 			.ivsize = DES3_EDE_BLOCK_SIZE,
 			.maxauthsize = SHA512_DIGEST_SIZE,
 		},
@@ -3772,7 +3769,7 @@ static struct caam_aead_alg driver_aeads[] = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
-			.decrypt = aead_givdecrypt,
+			.decrypt = aead_decrypt,
 			.ivsize = DES_BLOCK_SIZE,
 			.maxauthsize = MD5_DIGEST_SIZE,
 		},
@@ -3818,7 +3815,7 @@ static struct caam_aead_alg driver_aeads[] = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
-			.decrypt = aead_givdecrypt,
+			.decrypt = aead_decrypt,
 			.ivsize = DES_BLOCK_SIZE,
 			.maxauthsize = SHA1_DIGEST_SIZE,
 		},
@@ -3864,7 +3861,7 @@ static struct caam_aead_alg driver_aeads[] = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
-			.decrypt = aead_givdecrypt,
+			.decrypt = aead_decrypt,
 			.ivsize = DES_BLOCK_SIZE,
 			.maxauthsize = SHA224_DIGEST_SIZE,
 		},
@@ -3910,7 +3907,7 @@ static struct caam_aead_alg driver_aeads[] = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
-			.decrypt = aead_givdecrypt,
+			.decrypt = aead_decrypt,
 			.ivsize = DES_BLOCK_SIZE,
 			.maxauthsize = SHA256_DIGEST_SIZE,
 		},
@@ -3956,7 +3953,7 @@ static struct caam_aead_alg driver_aeads[] = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
-			.decrypt = aead_givdecrypt,
+			.decrypt = aead_decrypt,
 			.ivsize = DES_BLOCK_SIZE,
 			.maxauthsize = SHA384_DIGEST_SIZE,
 		},
@@ -4002,7 +3999,7 @@ static struct caam_aead_alg driver_aeads[] = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
-			.decrypt = aead_givdecrypt,
+			.decrypt = aead_decrypt,
 			.ivsize = DES_BLOCK_SIZE,
 			.maxauthsize = SHA512_DIGEST_SIZE,
 		},
@@ -4051,7 +4048,7 @@ static struct caam_aead_alg driver_aeads[] = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
-			.decrypt = aead_givdecrypt,
+			.decrypt = aead_decrypt,
 			.ivsize = CTR_RFC3686_IV_SIZE,
 			.maxauthsize = MD5_DIGEST_SIZE,
 		},
@@ -4102,7 +4099,7 @@ static struct caam_aead_alg driver_aeads[] = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
-			.decrypt = aead_givdecrypt,
+			.decrypt = aead_decrypt,
 			.ivsize = CTR_RFC3686_IV_SIZE,
 			.maxauthsize = SHA1_DIGEST_SIZE,
 		},
@@ -4153,7 +4150,7 @@ static struct caam_aead_alg driver_aeads[] = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
-			.decrypt = aead_givdecrypt,
+			.decrypt = aead_decrypt,
 			.ivsize = CTR_RFC3686_IV_SIZE,
 			.maxauthsize = SHA224_DIGEST_SIZE,
 		},
@@ -4204,7 +4201,7 @@ static struct caam_aead_alg driver_aeads[] = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
-			.decrypt = aead_givdecrypt,
+			.decrypt = aead_decrypt,
 			.ivsize = CTR_RFC3686_IV_SIZE,
 			.maxauthsize = SHA256_DIGEST_SIZE,
 		},
@@ -4255,7 +4252,7 @@ static struct caam_aead_alg driver_aeads[] = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
-			.decrypt = aead_givdecrypt,
+			.decrypt = aead_decrypt,
 			.ivsize = CTR_RFC3686_IV_SIZE,
 			.maxauthsize = SHA384_DIGEST_SIZE,
 		},
@@ -4306,7 +4303,7 @@ static struct caam_aead_alg driver_aeads[] = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
-			.decrypt = aead_givdecrypt,
+			.decrypt = aead_decrypt,
 			.ivsize = CTR_RFC3686_IV_SIZE,
 			.maxauthsize = SHA512_DIGEST_SIZE,
 		},

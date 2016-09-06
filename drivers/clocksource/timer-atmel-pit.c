@@ -240,6 +240,7 @@ static int __init at91sam926x_pit_common_init(struct pit_data *data)
 static int __init at91sam926x_pit_dt_init(struct device_node *node)
 {
 	struct pit_data *data;
+	int ret;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
