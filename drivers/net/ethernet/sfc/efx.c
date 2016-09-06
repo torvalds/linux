@@ -2263,8 +2263,18 @@ static int efx_change_mtu(struct net_device *net_dev, int new_mtu)
 	rc = efx_check_disabled(efx);
 	if (rc)
 		return rc;
-	if (new_mtu > EFX_MAX_MTU)
+	if (new_mtu > EFX_MAX_MTU) {
+		netif_err(efx, drv, efx->net_dev,
+			  "Requested MTU of %d too big (max: %d)\n",
+			  new_mtu, EFX_MAX_MTU);
 		return -EINVAL;
+	}
+	if (new_mtu < EFX_MIN_MTU) {
+		netif_err(efx, drv, efx->net_dev,
+			  "Requested MTU of %d too small (min: %d)\n",
+			  new_mtu, EFX_MIN_MTU);
+		return -EINVAL;
+	}
 
 	netif_dbg(efx, drv, efx->net_dev, "changing MTU to %d\n", new_mtu);
 

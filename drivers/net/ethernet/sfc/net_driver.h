@@ -76,6 +76,9 @@
 /* Maximum possible MTU the driver supports */
 #define EFX_MAX_MTU (9 * 1024)
 
+/* Minimum MTU, from RFC791 (IP) */
+#define EFX_MIN_MTU 68
+
 /* Size of an RX scatter buffer.  Small enough to pack 2 into a 4K page,
  * and should be a multiple of the cache line size.
  */
