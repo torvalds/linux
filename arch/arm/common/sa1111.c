@@ -233,30 +233,44 @@ static void sa1111_irq_handler(struct irq_desc *desc)
 #define SA1111_IRQMASK_LO(x)	(1 << (x - sachip->irq_base))
 #define SA1111_IRQMASK_HI(x)	(1 << (x - sachip->irq_base - 32))
 
+static u32 sa1111_irqmask(struct irq_data *d)
+{
+	struct sa1111 *sachip = irq_data_get_irq_chip_data(d);
+
+	return BIT((d->irq - sachip->irq_base) & 31);
+}
+
+static int sa1111_irqbank(struct irq_data *d)
+{
+	struct sa1111 *sachip = irq_data_get_irq_chip_data(d);
+
+	return ((d->irq - sachip->irq_base) / 32) * 4;
+}
+
 static void sa1111_ack_irq(struct irq_data *d)
 {
 }
 
-static void sa1111_mask_lowirq(struct irq_data *d)
+static void sa1111_mask_irq(struct irq_data *d)
 {
 	struct sa1111 *sachip = irq_data_get_irq_chip_data(d);
-	void __iomem *mapbase = sachip->base + SA1111_INTC;
-	unsigned long ie0;
+	void __iomem *mapbase = sachip->base + SA1111_INTC + sa1111_irqbank(d);
+	u32 ie;
 
-	ie0 = sa1111_readl(mapbase + SA1111_INTEN0);
-	ie0 &= ~SA1111_IRQMASK_LO(d->irq);
-	writel(ie0, mapbase + SA1111_INTEN0);
+	ie = sa1111_readl(mapbase + SA1111_INTEN0);
+	ie &= ~sa1111_irqmask(d);
+	sa1111_writel(ie, mapbase + SA1111_INTEN0);
 }
 
-static void sa1111_unmask_lowirq(struct irq_data *d)
+static void sa1111_unmask_irq(struct irq_data *d)
 {
 	struct sa1111 *sachip = irq_data_get_irq_chip_data(d);
-	void __iomem *mapbase = sachip->base + SA1111_INTC;
-	unsigned long ie0;
+	void __iomem *mapbase = sachip->base + SA1111_INTC + sa1111_irqbank(d);
+	u32 ie;
 
-	ie0 = sa1111_readl(mapbase + SA1111_INTEN0);
-	ie0 |= SA1111_IRQMASK_LO(d->irq);
-	sa1111_writel(ie0, mapbase + SA1111_INTEN0);
+	ie = sa1111_readl(mapbase + SA1111_INTEN0);
+	ie |= sa1111_irqmask(d);
+	sa1111_writel(ie, mapbase + SA1111_INTEN0);
 }
 
 /*
@@ -266,18 +280,17 @@ static void sa1111_unmask_lowirq(struct irq_data *d)
  * be triggered.  In fact, its very difficult, if not impossible to get
  * INTSET to re-trigger the interrupt.
  */
-static int sa1111_retrigger_lowirq(struct irq_data *d)
+static int sa1111_retrigger_irq(struct irq_data *d)
 {
 	struct sa1111 *sachip = irq_data_get_irq_chip_data(d);
-	void __iomem *mapbase = sachip->base + SA1111_INTC;
-	unsigned int mask = SA1111_IRQMASK_LO(d->irq);
-	unsigned long ip0;
+	void __iomem *mapbase = sachip->base + SA1111_INTC + sa1111_irqbank(d);
+	u32 ip, mask = sa1111_irqmask(d);
 	int i;
 
-	ip0 = sa1111_readl(mapbase + SA1111_INTPOL0);
+	ip = sa1111_readl(mapbase + SA1111_INTPOL0);
 	for (i = 0; i < 8; i++) {
-		sa1111_writel(ip0 ^ mask, mapbase + SA1111_INTPOL0);
-		sa1111_writel(ip0, mapbase + SA1111_INTPOL0);
+		sa1111_writel(ip ^ mask, mapbase + SA1111_INTPOL0);
+		sa1111_writel(ip, mapbase + SA1111_INTPOL0);
 		if (sa1111_readl(mapbase + SA1111_INTSTATCLR0) & mask)
 			break;
 	}
@@ -288,12 +301,11 @@ static int sa1111_retrigger_lowirq(struct irq_data *d)
 	return i == 8 ? -1 : 0;
 }
 
-static int sa1111_type_lowirq(struct irq_data *d, unsigned int flags)
+static int sa1111_type_irq(struct irq_data *d, unsigned int flags)
 {
 	struct sa1111 *sachip = irq_data_get_irq_chip_data(d);
-	void __iomem *mapbase = sachip->base + SA1111_INTC;
-	unsigned int mask = SA1111_IRQMASK_LO(d->irq);
-	unsigned long ip0;
+	void __iomem *mapbase = sachip->base + SA1111_INTC + sa1111_irqbank(d);
+	u32 ip, mask = sa1111_irqmask(d);
 
 	if (flags == IRQ_TYPE_PROBE)
 		return 0;
@@ -301,144 +313,41 @@ static int sa1111_type_lowirq(struct irq_data *d, unsigned int flags)
 	if ((!(flags & IRQ_TYPE_EDGE_RISING) ^ !(flags & IRQ_TYPE_EDGE_FALLING)) == 0)
 		return -EINVAL;
 
-	ip0 = sa1111_readl(mapbase + SA1111_INTPOL0);
+	ip = sa1111_readl(mapbase + SA1111_INTPOL0);
 	if (flags & IRQ_TYPE_EDGE_RISING)
-		ip0 &= ~mask;
+		ip &= ~mask;
 	else
-		ip0 |= mask;
-	sa1111_writel(ip0, mapbase + SA1111_INTPOL0);
-	sa1111_writel(ip0, mapbase + SA1111_WAKEPOL0);
+		ip |= mask;
+	sa1111_writel(ip, mapbase + SA1111_INTPOL0);
+	sa1111_writel(ip, mapbase + SA1111_WAKEPOL0);
 
 	return 0;
 }
 
-static int sa1111_wake_lowirq(struct irq_data *d, unsigned int on)
+static int sa1111_wake_irq(struct irq_data *d, unsigned int on)
 {
 	struct sa1111 *sachip = irq_data_get_irq_chip_data(d);
-	void __iomem *mapbase = sachip->base + SA1111_INTC;
-	unsigned int mask = SA1111_IRQMASK_LO(d->irq);
-	unsigned long we0;
+	void __iomem *mapbase = sachip->base + SA1111_INTC + sa1111_irqbank(d);
+	u32 we, mask = sa1111_irqmask(d);
 
-	we0 = sa1111_readl(mapbase + SA1111_WAKEEN0);
+	we = sa1111_readl(mapbase + SA1111_WAKEEN0);
 	if (on)
-		we0 |= mask;
+		we |= mask;
 	else
-		we0 &= ~mask;
-	sa1111_writel(we0, mapbase + SA1111_WAKEEN0);
+		we &= ~mask;
+	sa1111_writel(we, mapbase + SA1111_WAKEEN0);
 
 	return 0;
 }
 
-static struct irq_chip sa1111_low_chip = {
-	.name		= "SA1111-l",
+static struct irq_chip sa1111_irq_chip = {
+	.name		= "SA1111",
 	.irq_ack	= sa1111_ack_irq,
-	.irq_mask	= sa1111_mask_lowirq,
-	.irq_unmask	= sa1111_unmask_lowirq,
-	.irq_retrigger	= sa1111_retrigger_lowirq,
-	.irq_set_type	= sa1111_type_lowirq,
-	.irq_set_wake	= sa1111_wake_lowirq,
-};
-
-static void sa1111_mask_highirq(struct irq_data *d)
-{
-	struct sa1111 *sachip = irq_data_get_irq_chip_data(d);
-	void __iomem *mapbase = sachip->base + SA1111_INTC;
-	unsigned long ie1;
-
-	ie1 = sa1111_readl(mapbase + SA1111_INTEN1);
-	ie1 &= ~SA1111_IRQMASK_HI(d->irq);
-	sa1111_writel(ie1, mapbase + SA1111_INTEN1);
-}
-
-static void sa1111_unmask_highirq(struct irq_data *d)
-{
-	struct sa1111 *sachip = irq_data_get_irq_chip_data(d);
-	void __iomem *mapbase = sachip->base + SA1111_INTC;
-	unsigned long ie1;
-
-	ie1 = sa1111_readl(mapbase + SA1111_INTEN1);
-	ie1 |= SA1111_IRQMASK_HI(d->irq);
-	sa1111_writel(ie1, mapbase + SA1111_INTEN1);
-}
-
-/*
- * Attempt to re-trigger the interrupt.  The SA1111 contains a register
- * (INTSET) which claims to do this.  However, in practice no amount of
- * manipulation of INTEN and INTSET guarantees that the interrupt will
- * be triggered.  In fact, its very difficult, if not impossible to get
- * INTSET to re-trigger the interrupt.
- */
-static int sa1111_retrigger_highirq(struct irq_data *d)
-{
-	struct sa1111 *sachip = irq_data_get_irq_chip_data(d);
-	void __iomem *mapbase = sachip->base + SA1111_INTC;
-	unsigned int mask = SA1111_IRQMASK_HI(d->irq);
-	unsigned long ip1;
-	int i;
-
-	ip1 = sa1111_readl(mapbase + SA1111_INTPOL1);
-	for (i = 0; i < 8; i++) {
-		sa1111_writel(ip1 ^ mask, mapbase + SA1111_INTPOL1);
-		sa1111_writel(ip1, mapbase + SA1111_INTPOL1);
-		if (sa1111_readl(mapbase + SA1111_INTSTATCLR1) & mask)
-			break;
-	}
-
-	if (i == 8)
-		pr_err("Danger Will Robinson: failed to re-trigger IRQ%d\n",
-		       d->irq);
-	return i == 8 ? -1 : 0;
-}
-
-static int sa1111_type_highirq(struct irq_data *d, unsigned int flags)
-{
-	struct sa1111 *sachip = irq_data_get_irq_chip_data(d);
-	void __iomem *mapbase = sachip->base + SA1111_INTC;
-	unsigned int mask = SA1111_IRQMASK_HI(d->irq);
-	unsigned long ip1;
-
-	if (flags == IRQ_TYPE_PROBE)
-		return 0;
-
-	if ((!(flags & IRQ_TYPE_EDGE_RISING) ^ !(flags & IRQ_TYPE_EDGE_FALLING)) == 0)
-		return -EINVAL;
-
-	ip1 = sa1111_readl(mapbase + SA1111_INTPOL1);
-	if (flags & IRQ_TYPE_EDGE_RISING)
-		ip1 &= ~mask;
-	else
-		ip1 |= mask;
-	sa1111_writel(ip1, mapbase + SA1111_INTPOL1);
-	sa1111_writel(ip1, mapbase + SA1111_WAKEPOL1);
-
-	return 0;
-}
-
-static int sa1111_wake_highirq(struct irq_data *d, unsigned int on)
-{
-	struct sa1111 *sachip = irq_data_get_irq_chip_data(d);
-	void __iomem *mapbase = sachip->base + SA1111_INTC;
-	unsigned int mask = SA1111_IRQMASK_HI(d->irq);
-	unsigned long we1;
-
-	we1 = sa1111_readl(mapbase + SA1111_WAKEEN1);
-	if (on)
-		we1 |= mask;
-	else
-		we1 &= ~mask;
-	sa1111_writel(we1, mapbase + SA1111_WAKEEN1);
-
-	return 0;
-}
-
-static struct irq_chip sa1111_high_chip = {
-	.name		= "SA1111-h",
-	.irq_ack	= sa1111_ack_irq,
-	.irq_mask	= sa1111_mask_highirq,
-	.irq_unmask	= sa1111_unmask_highirq,
-	.irq_retrigger	= sa1111_retrigger_highirq,
-	.irq_set_type	= sa1111_type_highirq,
-	.irq_set_wake	= sa1111_wake_highirq,
+	.irq_mask	= sa1111_mask_irq,
+	.irq_unmask	= sa1111_unmask_irq,
+	.irq_retrigger	= sa1111_retrigger_irq,
+	.irq_set_type	= sa1111_type_irq,
+	.irq_set_wake	= sa1111_wake_irq,
 };
 
 static int sa1111_setup_irq(struct sa1111 *sachip, unsigned irq_base)
@@ -484,16 +393,14 @@ static int sa1111_setup_irq(struct sa1111 *sachip, unsigned irq_base)
 
 	for (i = IRQ_GPAIN0; i <= SSPROR; i++) {
 		irq = sachip->irq_base + i;
-		irq_set_chip_and_handler(irq, &sa1111_low_chip,
-					 handle_edge_irq);
+		irq_set_chip_and_handler(irq, &sa1111_irq_chip, handle_edge_irq);
 		irq_set_chip_data(irq, sachip);
 		irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 	}
 
 	for (i = AUDXMTDMADONEA; i <= IRQ_S1_BVD1_STSCHG; i++) {
 		irq = sachip->irq_base + i;
-		irq_set_chip_and_handler(irq, &sa1111_high_chip,
-					 handle_edge_irq);
+		irq_set_chip_and_handler(irq, &sa1111_irq_chip, handle_edge_irq);
 		irq_set_chip_data(irq, sachip);
 		irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 	}
