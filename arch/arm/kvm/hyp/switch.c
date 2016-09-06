@@ -54,6 +54,15 @@ static void __hyp_text __deactivate_traps(struct kvm_vcpu *vcpu)
 {
 	u32 val;
 
+	/*
+	 * If we pended a virtual abort, preserve it until it gets
+	 * cleared. See B1.9.9 (Virtual Abort exception) for details,
+	 * but the crucial bit is the zeroing of HCR.VA in the
+	 * pseudocode.
+	 */
+	if (vcpu->arch.hcr & HCR_VA)
+		vcpu->arch.hcr = read_sysreg(HCR);
+
 	write_sysreg(0, HCR);
 	write_sysreg(0, HSTR);
 	val = read_sysreg(HDCR);
