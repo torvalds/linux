@@ -460,6 +460,7 @@ static void sti_gdp_disable(struct sti_gdp *gdp)
 		clk_disable_unprepare(gdp->clk_pix);
 
 	gdp->plane.status = STI_PLANE_DISABLED;
+	gdp->vtg = NULL;
 }
 
 /**
@@ -611,7 +612,6 @@ static int sti_gdp_atomic_check(struct drm_plane *drm_plane,
 	struct drm_crtc *crtc = state->crtc;
 	struct sti_compositor *compo = dev_get_drvdata(gdp->dev);
 	struct drm_framebuffer *fb =  state->fb;
-	bool first_prepare = plane->status == STI_PLANE_DISABLED ? true : false;
 	struct drm_crtc_state *crtc_state;
 	struct sti_mixer *mixer;
 	struct drm_display_mode *mode;
@@ -648,7 +648,7 @@ static int sti_gdp_atomic_check(struct drm_plane *drm_plane,
 		return -EINVAL;
 	}
 
-	if (first_prepare) {
+	if (!gdp->vtg) {
 		/* Register gdp callback */
 		gdp->vtg = mixer->id == STI_MIXER_MAIN ?
 					compo->vtg_main : compo->vtg_aux;
