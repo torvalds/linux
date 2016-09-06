@@ -38,6 +38,18 @@
 			gpios = <&chipcommon 3 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "default-off";
 		};
+		
+		wan0 {
+			label = "bcm53xx:white:wan0";
+			gpios = <&chipcommon 8 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "default-on";
+		};
+
+		wan1 {
+			label = "bcm53xx:amber:wan1";
+			gpios = <&chipcommon 9 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-off";
+		};
 
 		5ghz-1 {
 			label = "bcm53xx:white:5ghz-1";
@@ -103,6 +115,12 @@
 			label = "Reset";
 			linux,code = <KEY_RESTART>;
 			gpios = <&chipcommon 6 GPIO_ACTIVE_LOW>;
+		};
+		
+		brightness {
+			label = "Backlight";
+			linux,code = <KEY_BRIGHTNESS_ZERO>;
+			gpios = <&chipcommon 19 GPIO_ACTIVE_LOW>;
 		};
 	};
 };
