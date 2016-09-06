@@ -509,6 +509,24 @@ static int sa1111_setup_irq(struct sa1111 *sachip, unsigned irq_base)
 	return 0;
 }
 
+static void sa1111_remove_irq(struct sa1111 *sachip)
+{
+	void __iomem *irqbase = sachip->base + SA1111_INTC;
+
+	/* disable all IRQs */
+	sa1111_writel(0, irqbase + SA1111_INTEN0);
+	sa1111_writel(0, irqbase + SA1111_INTEN1);
+	sa1111_writel(0, irqbase + SA1111_WAKEEN0);
+	sa1111_writel(0, irqbase + SA1111_WAKEEN1);
+
+	if (sachip->irq != NO_IRQ) {
+		irq_set_chained_handler_and_data(sachip->irq, NULL, NULL);
+		irq_free_descs(sachip->irq_base, SA1111_IRQ_NR);
+
+		release_mem_region(sachip->phys + SA1111_INTC, 512);
+	}
+}
+
 /*
  * Bring the SA1111 out of reset.  This requires a set procedure:
  *  1. nRESET asserted (by hardware)
@@ -819,25 +837,12 @@ static int sa1111_remove_one(struct device *dev, void *data)
 
 static void __sa1111_remove(struct sa1111 *sachip)
 {
-	void __iomem *irqbase = sachip->base + SA1111_INTC;
-
 	device_for_each_child(sachip->dev, NULL, sa1111_remove_one);
 
-	/* disable all IRQs */
-	sa1111_writel(0, irqbase + SA1111_INTEN0);
-	sa1111_writel(0, irqbase + SA1111_INTEN1);
-	sa1111_writel(0, irqbase + SA1111_WAKEEN0);
-	sa1111_writel(0, irqbase + SA1111_WAKEEN1);
+	sa1111_remove_irq(sachip);
 
 	clk_disable(sachip->clk);
 	clk_unprepare(sachip->clk);
-
-	if (sachip->irq != NO_IRQ) {
-		irq_set_chained_handler_and_data(sachip->irq, NULL, NULL);
-		irq_free_descs(sachip->irq_base, SA1111_IRQ_NR);
-
-		release_mem_region(sachip->phys + SA1111_INTC, 512);
-	}
 
 	iounmap(sachip->base);
 }
