@@ -38,9 +38,9 @@
 extern int cz_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int tonga_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int fiji_hwmgr_init(struct pp_hwmgr *hwmgr);
-extern int polaris10_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int iceland_hwmgr_init(struct pp_hwmgr *hwmgr);
 
+static int polaris_set_asic_special_caps(struct pp_hwmgr *hwmgr);
 static void hwmgr_init_default_caps(struct pp_hwmgr *hwmgr);
 static int hwmgr_set_user_specify_caps(struct pp_hwmgr *hwmgr);
 
@@ -89,7 +89,9 @@ int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 			break;
 		case CHIP_POLARIS11:
 		case CHIP_POLARIS10:
-			polaris10_hwmgr_init(hwmgr);
+			smu7_hwmgr_init(hwmgr);
+			polaris_set_asic_special_caps(hwmgr);
+			hwmgr->feature_mask &= ~(PP_UVD_HANDSHAKE_MASK);
 			break;
 		default:
 			return -EINVAL;
@@ -204,6 +206,8 @@ int phm_wait_on_register(struct pp_hwmgr *hwmgr, uint32_t index,
 		return -1;
 	return 0;
 }
+
+
 
 
 /**
@@ -708,5 +712,35 @@ int phm_get_voltage_evv_on_sclk(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
 		*voltage = (uint16_t)vol/100;
 	}
 	return ret;
+}
+
+int polaris_set_asic_special_caps(struct pp_hwmgr *hwmgr)
+{
+	/* power tune caps Assume disabled */
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+						PHM_PlatformCaps_SQRamping);
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+						PHM_PlatformCaps_DBRamping);
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+						PHM_PlatformCaps_TDRamping);
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+						PHM_PlatformCaps_TCPRamping);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+							PHM_PlatformCaps_CAC);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+						PHM_PlatformCaps_RegulatorHot);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+					PHM_PlatformCaps_AutomaticDCTransition);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+				PHM_PlatformCaps_TablelessHardwareInterface);
+
+	if (hwmgr->chip_id == CHIP_POLARIS11)
+		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+					PHM_PlatformCaps_SPLLShutdownSupport);
+	return 0;
 }
 

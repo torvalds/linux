@@ -9,8 +9,6 @@ HARDWARE_MGR = hwmgr.o processpptables.o functiontables.o \
 		tonga_hwmgr.o pppcielanes.o  tonga_thermal.o\
 		fiji_powertune.o fiji_hwmgr.o tonga_clockpowergating.o \
 		fiji_clockpowergating.o fiji_thermal.o \
-		polaris10_hwmgr.o polaris10_powertune.o polaris10_thermal.o \
-		polaris10_clockpowergating.o \
 		smu7_hwmgr.o smu7_powertune.o smu7_thermal.o \
 		smu7_clockpowergating.o iceland_hwmgr.o \
 		iceland_clockpowergating.o iceland_thermal.o \
