@@ -2049,7 +2049,7 @@ static irqreturn_t cq_interrupt_v2_hw(int irq_no, void *p)
 	struct hisi_sas_slot *slot;
 	struct hisi_sas_itct *itct;
 	struct hisi_sas_complete_v2_hdr *complete_queue;
-	u32 irq_value, rd_point, wr_point, dev_id;
+	u32 irq_value, rd_point = cq->rd_point, wr_point, dev_id;
 	int queue = cq->id;
 
 	complete_queue = hisi_hba->complete_hdr[queue];
@@ -2057,8 +2057,6 @@ static irqreturn_t cq_interrupt_v2_hw(int irq_no, void *p)
 
 	hisi_sas_write32(hisi_hba, OQ_INT_SRC, 1 << queue);
 
-	rd_point = hisi_sas_read32(hisi_hba, COMPL_Q_0_RD_PTR +
-				   (0x14 * queue));
 	wr_point = hisi_sas_read32(hisi_hba, COMPL_Q_0_WR_PTR +
 				   (0x14 * queue));
 
@@ -2106,6 +2104,7 @@ static irqreturn_t cq_interrupt_v2_hw(int irq_no, void *p)
 	}
 
 	/* update rd_point */
+	cq->rd_point = rd_point;
 	hisi_sas_write32(hisi_hba, COMPL_Q_0_RD_PTR + (0x14 * queue), rd_point);
 	return IRQ_HANDLED;
 }

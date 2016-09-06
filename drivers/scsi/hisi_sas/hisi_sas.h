@@ -94,6 +94,7 @@ struct hisi_sas_port {
 
 struct hisi_sas_cq {
 	struct hisi_hba *hisi_hba;
+	int	rd_point;
 	int	id;
 };
 
