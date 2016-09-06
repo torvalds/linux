@@ -206,13 +206,22 @@ struct efi_config {
 
 __pure const struct efi_config *__efi_early(void);
 
+static inline bool efi_is_64bit(void)
+{
+	if (!IS_ENABLED(CONFIG_X86_64))
+		return false;
+
+	if (!IS_ENABLED(CONFIG_EFI_MIXED))
+		return true;
+
+	return __efi_early()->is64;
+}
+
 #define efi_call_early(f, ...)						\
 	__efi_early()->call(__efi_early()->f, __VA_ARGS__);
 
 #define __efi_call_early(f, ...)					\
 	__efi_early()->call((unsigned long)f, __VA_ARGS__);
-
-#define efi_is_64bit()		__efi_early()->is64
 
 extern bool efi_reboot_required(void);
 
