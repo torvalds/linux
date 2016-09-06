@@ -50,6 +50,9 @@ struct vgic_global {
 	/* Physical address of vgic virtual cpu interface */
 	phys_addr_t		vcpu_base;
 
+	/* GICV mapping */
+	void __iomem		*vcpu_base_va;
+
 	/* virtual control interface mapping */
 	void __iomem		*vctrl_base;
 

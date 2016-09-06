@@ -19,6 +19,7 @@
 #include <linux/irqchip/arm-gic.h>
 #include <linux/kvm_host.h>
 
+#include <asm/kvm_emulate.h>
 #include <asm/kvm_hyp.h>
 
 static void __hyp_text save_maint_int_state(struct kvm_vcpu *vcpu,
@@ -171,6 +172,44 @@ void __hyp_text __vgic_v2_restore_state(struct kvm_vcpu *vcpu)
 #ifdef CONFIG_ARM64
 bool __hyp_text __vgic_v2_perform_cpuif_access(struct kvm_vcpu *vcpu)
 {
+	struct kvm *kvm = kern_hyp_va(vcpu->kvm);
+	struct vgic_dist *vgic = &kvm->arch.vgic;
+	phys_addr_t fault_ipa;
+	void __iomem *addr;
+	int rd;
+
+	/* Build the full address */
+	fault_ipa  = kvm_vcpu_get_fault_ipa(vcpu);
+	fault_ipa |= kvm_vcpu_get_hfar(vcpu) & GENMASK(11, 0);
+
+	/* If not for GICV, move on */
+	if (fault_ipa <  vgic->vgic_cpu_base ||
+	    fault_ipa >= (vgic->vgic_cpu_base + KVM_VGIC_V2_CPU_SIZE))
 		return false;
+
+	/* Reject anything but a 32bit access */
+	if (kvm_vcpu_dabt_get_as(vcpu) != sizeof(u32))
+		return false;
+
+	/* Not aligned? Don't bother */
+	if (fault_ipa & 3)
+		return false;
+
+	rd = kvm_vcpu_dabt_get_rd(vcpu);
+	addr  = kern_hyp_va((kern_hyp_va(&kvm_vgic_global_state))->vcpu_base_va);
+	addr += fault_ipa - vgic->vgic_cpu_base;
+
+	if (kvm_vcpu_dabt_iswrite(vcpu)) {
+		u32 data = vcpu_data_guest_to_host(vcpu,
+						   vcpu_get_reg(vcpu, rd),
+						   sizeof(u32));
+		writel_relaxed(data, addr);
+	} else {
+		u32 data = readl_relaxed(addr);
+		vcpu_set_reg(vcpu, rd, vcpu_data_host_to_guest(vcpu, data,
+							       sizeof(u32)));
+	}
+
+	return true;
 }
 #endif
