@@ -76,6 +76,14 @@ Required properties:
   Documentation/devicetree/bindings/media/video-interfaces.txt. The
   first port should be the input endpoints, the second one the output
 
+On the A33, some additional properties are required:
+  - reg needs to have an additional region corresponding to the SAT
+  - reg-names need to be set, with "be" and "sat"
+  - clocks and clock-names need to have a phandle to the SAT bus
+    clocks, whose name will be "sat"
+  - resets and reset-names need to have a phandle to the SAT bus
+    resets, whose name will be "sat"
+
 Display Engine Frontend
 -----------------------
 
