@@ -241,7 +241,7 @@ struct fw_rsc_trace {
  * @notifyid is a unique rproc-wide notify index for this vring. This notify
  * index is used when kicking a remote processor, to let it know that this
  * vring is triggered.
- * @reserved: reserved (must be zero)
+ * @pa: physical address
  *
  * This descriptor is not a resource entry by itself; it is part of the
  * vdev resource type (see below).
@@ -255,7 +255,7 @@ struct fw_rsc_vdev_vring {
 	u32 align;
 	u32 num;
 	u32 notifyid;
-	u32 reserved;
+	u32 pa;
 } __packed;
 
 /**

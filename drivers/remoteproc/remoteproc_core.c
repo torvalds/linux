@@ -266,12 +266,6 @@ rproc_parse_vring(struct rproc_vdev *rvdev, struct fw_rsc_vdev *rsc, int i)
 	dev_dbg(dev, "vdev rsc: vring%d: da 0x%x, qsz %d, align %d\n",
 		i, vring->da, vring->num, vring->align);
 
-	/* make sure reserved bytes are zeroes */
-	if (vring->reserved) {
-		dev_err(dev, "vring rsc has non zero reserved bytes\n");
-		return -EINVAL;
-	}
-
 	/* verify queue size and vring alignment are sane */
 	if (!vring->num || !vring->align) {
 		dev_err(dev, "invalid qsz (%d) or alignment (%d)\n",
