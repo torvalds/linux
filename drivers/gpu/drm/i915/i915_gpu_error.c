@@ -489,7 +489,10 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			}
 		}
 
-		if (ee->num_waiters) {
+		if (IS_ERR(ee->waiters)) {
+			err_printf(m, "%s --- ? waiters [unable to acquire spinlock]\n",
+				   dev_priv->engine[i].name);
+		} else if (ee->num_waiters) {
 			err_printf(m, "%s --- %d waiters\n",
 				   dev_priv->engine[i].name,
 				   ee->num_waiters);
@@ -648,7 +651,8 @@ static void i915_error_state_free(struct kref *error_ref)
 		i915_error_object_free(ee->wa_ctx);
 
 		kfree(ee->requests);
-		kfree(ee->waiters);
+		if (!IS_ERR_OR_NULL(ee->waiters))
+			kfree(ee->waiters);
 	}
 
 	i915_error_object_free(error->semaphore);
@@ -933,7 +937,14 @@ static void error_record_engine_waiters(struct intel_engine_cs *engine,
 	ee->num_waiters = 0;
 	ee->waiters = NULL;
 
-	spin_lock(&b->lock);
+	if (RB_EMPTY_ROOT(&b->waiters))
+		return;
+
+	if (!spin_trylock(&b->lock)) {
+		ee->waiters = ERR_PTR(-EDEADLK);
+		return;
+	}
+
 	count = 0;
 	for (rb = rb_first(&b->waiters); rb != NULL; rb = rb_next(rb))
 		count++;
@@ -947,9 +958,13 @@ static void error_record_engine_waiters(struct intel_engine_cs *engine,
 	if (!waiter)
 		return;
 
-	ee->waiters = waiter;
+	if (!spin_trylock(&b->lock)) {
+		kfree(waiter);
+		ee->waiters = ERR_PTR(-EDEADLK);
+		return;
+	}
 
-	spin_lock(&b->lock);
+	ee->waiters = waiter;
 	for (rb = rb_first(&b->waiters); rb; rb = rb_next(rb)) {
 		struct intel_wait *w = container_of(rb, typeof(*w), node);
 
