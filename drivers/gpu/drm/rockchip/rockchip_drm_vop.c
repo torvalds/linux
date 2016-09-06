@@ -102,7 +102,7 @@
 		vop_get_intr_type(vop, &vop->data->intr->name, type)
 
 #define VOP_CTRL_GET(x, name) \
-		vop_read_reg(x, 0, vop->data->ctrl->name)
+		vop_read_reg(x, 0, &vop->data->ctrl->name)
 
 #define VOP_WIN_GET(x, win, name) \
 		vop_read_reg(x, win->offset, &VOP_WIN_NAME(win, name))
@@ -277,27 +277,9 @@ static bool vop_is_allwin_disabled(struct vop *vop)
 	return true;
 }
 
-static bool vop_win_pending_is_complete(struct vop *vop)
+static bool vop_is_cfg_done_complete(struct vop *vop)
 {
-	dma_addr_t yrgb_mst;
-	int i;
-
-	for (i = 0; i < vop->num_wins; i++) {
-		struct vop_win *win = &vop->win[i];
-		struct drm_plane *plane = &win->base;
-		struct vop_plane_state *state =
-				to_vop_plane_state(plane->state);
-		if (!state->enable) {
-			if (VOP_WIN_GET(vop, win, enable) != 0)
-				return false;
-			continue;
-		}
-		yrgb_mst = VOP_WIN_GET_YRGBADDR(vop, win);
-		if (yrgb_mst != state->yrgb_mst)
-			return false;
-	}
-
-	return true;
+	return VOP_CTRL_GET(vop, cfg_done) ? false : true;
 }
 
 static bool has_rb_swapped(uint32_t format)
@@ -1261,7 +1243,7 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 		int ret;
 		if (!vop_is_allwin_disabled(vop)) {
 			vop_cfg_update(crtc, old_crtc_state);
-			while(!vop_win_pending_is_complete(vop));
+			while(!vop_is_cfg_done_complete(vop));
 		}
 		ret = rockchip_drm_dma_attach_device(vop->drm_dev, vop->dev);
 		if (ret) {
@@ -1347,7 +1329,7 @@ static void vop_handle_vblank(struct vop *vop)
 	struct drm_crtc *crtc = &vop->crtc;
 	unsigned long flags;
 
-	if (!vop_win_pending_is_complete(vop))
+	if (!vop_is_cfg_done_complete(vop))
 		return;
 
 	if (vop->event) {
