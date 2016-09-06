@@ -523,7 +523,7 @@ static int truncate_partial_data_page(struct inode *inode, u64 from,
 		return 0;
 
 	if (cache_only) {
-		page = f2fs_grab_cache_page(mapping, index, false);
+		page = find_lock_page(mapping, index);
 		if (page && PageUptodate(page))
 			goto truncate_out;
 		f2fs_put_page(page, 1);
