@@ -24,6 +24,11 @@
 #include <linux/kvm_host.h>
 #include <asm/kvm_emulate.h>
 
+#ifndef CONFIG_ARM64
+#define COMPAT_PSR_T_BIT	PSR_T_BIT
+#define COMPAT_PSR_IT_MASK	PSR_IT_MASK
+#endif
+
 /*
  * stolen from arch/arm/kernel/opcodes.c
  *
