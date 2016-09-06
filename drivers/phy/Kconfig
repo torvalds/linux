@@ -267,7 +267,9 @@ config PHY_SUN4I_USB
 	depends on RESET_CONTROLLER
 	depends on EXTCON
 	depends on POWER_SUPPLY
+	depends on USB_SUPPORT
 	select GENERIC_PHY
+	select USB_COMMON
 	help
 	  Enable this to support the transceiver that is part of Allwinner
 	  sunxi SoCs.
