@@ -389,6 +389,34 @@ int qed_mcp_cmd(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
+int qed_mcp_nvm_rd_cmd(struct qed_hwfn *p_hwfn,
+		       struct qed_ptt *p_ptt,
+		       u32 cmd,
+		       u32 param,
+		       u32 *o_mcp_resp,
+		       u32 *o_mcp_param, u32 *o_txn_size, u32 *o_buf)
+{
+	struct qed_mcp_mb_params mb_params;
+	union drv_union_data union_data;
+	int rc;
+
+	memset(&mb_params, 0, sizeof(mb_params));
+	mb_params.cmd = cmd;
+	mb_params.param = param;
+	mb_params.p_data_dst = &union_data;
+	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
+	if (rc)
+		return rc;
+
+	*o_mcp_resp = mb_params.mcp_resp;
+	*o_mcp_param = mb_params.mcp_param;
+
+	*o_txn_size = *o_mcp_param;
+	memcpy(o_buf, &union_data.raw_data, *o_txn_size);
+
+	return 0;
+}
+
 int qed_mcp_load_req(struct qed_hwfn *p_hwfn,
 		     struct qed_ptt *p_ptt, u32 *p_load_code)
 {
@@ -1168,6 +1196,33 @@ qed_mcp_send_drv_version(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
+int qed_mcp_halt(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	u32 resp = 0, param = 0;
+	int rc;
+
+	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_MCP_HALT, 0, &resp,
+			 &param);
+	if (rc)
+		DP_ERR(p_hwfn, "MCP response failure, aborting\n");
+
+	return rc;
+}
+
+int qed_mcp_resume(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	u32 value, cpu_mode;
+
+	qed_wr(p_hwfn, p_ptt, MCP_REG_CPU_STATE, 0xffffffff);
+
+	value = qed_rd(p_hwfn, p_ptt, MCP_REG_CPU_MODE);
+	value &= ~MCP_REG_CPU_MODE_SOFT_HALT;
+	qed_wr(p_hwfn, p_ptt, MCP_REG_CPU_MODE, value);
+	cpu_mode = qed_rd(p_hwfn, p_ptt, MCP_REG_CPU_MODE);
+
+	return (cpu_mode & MCP_REG_CPU_MODE_SOFT_HALT) ? -EAGAIN : 0;
+}
+
 int qed_mcp_set_led(struct qed_hwfn *p_hwfn,
 		    struct qed_ptt *p_ptt, enum qed_led_mode mode)
 {
@@ -1191,6 +1246,27 @@ int qed_mcp_set_led(struct qed_hwfn *p_hwfn,
 
 	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_SET_LED_MODE,
 			 drv_mb_param, &resp, &param);
+
+	return rc;
+}
+
+int qed_mcp_mask_parities(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, u32 mask_parities)
+{
+	u32 resp = 0, param = 0;
+	int rc;
+
+	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_MASK_PARITIES,
+			 mask_parities, &resp, &param);
+
+	if (rc) {
+		DP_ERR(p_hwfn,
+		       "MCP response failure for mask parities, aborting\n");
+	} else if (resp != FW_MSG_CODE_OK) {
+		DP_ERR(p_hwfn,
+		       "MCP did not acknowledge mask parity request. Old MFW?\n");
+		rc = -EINVAL;
+	}
 
 	return rc;
 }

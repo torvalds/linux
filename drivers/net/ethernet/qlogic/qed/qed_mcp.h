@@ -468,6 +468,29 @@ int qed_mcp_reset(struct qed_hwfn *p_hwfn,
 		  struct qed_ptt *p_ptt);
 
 /**
+ * @brief - Sends an NVM read command request to the MFW to get
+ *        a buffer.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param cmd - Command: DRV_MSG_CODE_NVM_GET_FILE_DATA or
+ *            DRV_MSG_CODE_NVM_READ_NVRAM commands
+ * @param param - [0:23] - Offset [24:31] - Size
+ * @param o_mcp_resp - MCP response
+ * @param o_mcp_param - MCP response param
+ * @param o_txn_size -  Buffer size output
+ * @param o_buf - Pointer to the buffer returned by the MFW.
+ *
+ * @param return 0 upon success.
+ */
+int qed_mcp_nvm_rd_cmd(struct qed_hwfn *p_hwfn,
+		       struct qed_ptt *p_ptt,
+		       u32 cmd,
+		       u32 param,
+		       u32 *o_mcp_resp,
+		       u32 *o_mcp_param, u32 *o_txn_size, u32 *o_buf);
+
+/**
  * @brief indicates whether the MFW objects [under mcp_info] are accessible
  *
  * @param p_hwfn
@@ -489,6 +512,26 @@ bool qed_mcp_is_init(struct qed_hwfn *p_hwfn);
 int qed_mcp_config_vf_msix(struct qed_hwfn *p_hwfn,
 			   struct qed_ptt *p_ptt, u8 vf_id, u8 num);
 
+/**
+ * @brief - Halt the MCP.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ *
+ * @param return 0 upon success.
+ */
+int qed_mcp_halt(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+
+/**
+ * @brief - Wake up the MCP.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ *
+ * @param return 0 upon success.
+ */
+int qed_mcp_resume(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+
 int qed_configure_pf_min_bandwidth(struct qed_dev *cdev, u8 min_bw);
 int qed_configure_pf_max_bandwidth(struct qed_dev *cdev, u8 max_bw);
 int __qed_configure_pf_max_bandwidth(struct qed_hwfn *p_hwfn,
@@ -499,5 +542,8 @@ int __qed_configure_pf_min_bandwidth(struct qed_hwfn *p_hwfn,
 				     struct qed_ptt *p_ptt,
 				     struct qed_mcp_link_state *p_link,
 				     u8 min_bw);
+
+int qed_mcp_mask_parities(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, u32 mask_parities);
 
 #endif
