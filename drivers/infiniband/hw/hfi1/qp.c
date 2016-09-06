@@ -806,6 +806,13 @@ void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 		kfree(priv);
 		return ERR_PTR(-ENOMEM);
 	}
+	iowait_init(
+		&priv->s_iowait,
+		1,
+		_hfi1_do_send,
+		iowait_sleep,
+		iowait_wakeup,
+		iowait_sdma_drained);
 	setup_timer(&priv->s_rnr_timer, hfi1_rc_rnr_retry, (unsigned long)qp);
 	qp->s_timer.function = hfi1_rc_timeout;
 	return priv;
@@ -871,13 +878,6 @@ void notify_qp_reset(struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 
-	iowait_init(
-		&priv->s_iowait,
-		1,
-		_hfi1_do_send,
-		iowait_sleep,
-		iowait_wakeup,
-		iowait_sdma_drained);
 	priv->r_adefered = 0;
 	clear_ahg(qp);
 }
