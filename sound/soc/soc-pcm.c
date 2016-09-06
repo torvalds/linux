@@ -1694,6 +1694,9 @@ static int dpcm_apply_symmetry(struct snd_pcm_substream *fe_substream,
 		struct snd_soc_pcm_runtime *rtd = be_substream->private_data;
 		int i;
 
+		if (rtd->dai_link->be_hw_params_fixup)
+			continue;
+
 		if (soc_pcm_has_symmetry(be_substream))
 			be_substream->runtime->hw.info |= SNDRV_PCM_INFO_JOINT_DUPLEX;
 
