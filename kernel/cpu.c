@@ -1261,7 +1261,7 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 	},
 #ifdef CONFIG_SMP
 	[CPUHP_CREATE_THREADS]= {
-		.name			= "threads:create",
+		.name			= "threads:prepare",
 		.startup.single		= smpboot_create_threads,
 		.teardown.single	= NULL,
 		.cant_stop		= true,
@@ -1282,12 +1282,12 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 		.teardown.single	= hrtimers_dead_cpu,
 	},
 	[CPUHP_SMPCFD_PREPARE] = {
-		.name			= "SMPCFD:prepare",
+		.name			= "smpcfd:prepare",
 		.startup.single		= smpcfd_prepare_cpu,
 		.teardown.single	= smpcfd_dead_cpu,
 	},
 	[CPUHP_RCUTREE_PREP] = {
-		.name			= "RCU-tree:prepare",
+		.name			= "RCU/tree:prepare",
 		.startup.single		= rcutree_prepare_cpu,
 		.teardown.single	= rcutree_dead_cpu,
 	},
@@ -1320,7 +1320,7 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 		.cant_stop		= true,
 	},
 	[CPUHP_AP_SMPCFD_DYING] = {
-		.name			= "SMPCFD:dying",
+		.name			= "smpcfd:dying",
 		.startup.single		= NULL,
 		.teardown.single	= smpcfd_dying_cpu,
 	},
@@ -1361,7 +1361,7 @@ static struct cpuhp_step cpuhp_ap_states[] = {
 		.teardown.single	= sched_cpu_dying,
 	},
 	[CPUHP_AP_RCUTREE_DYING] = {
-		.name			= "RCU-tree:dying",
+		.name			= "RCU/tree:dying",
 		.startup.single		= NULL,
 		.teardown.single	= rcutree_dying_cpu,
 	},
@@ -1384,7 +1384,7 @@ static struct cpuhp_step cpuhp_ap_states[] = {
 	},
 	/* Handle smpboot threads park/unpark */
 	[CPUHP_AP_SMPBOOT_THREADS] = {
-		.name			= "smpboot:threads",
+		.name			= "smpboot/threads:online",
 		.startup.single		= smpboot_unpark_threads,
 		.teardown.single	= NULL,
 	},
@@ -1399,7 +1399,7 @@ static struct cpuhp_step cpuhp_ap_states[] = {
 		.teardown.single	= workqueue_offline_cpu,
 	},
 	[CPUHP_AP_RCUTREE_ONLINE] = {
-		.name			= "RCU-tree:online",
+		.name			= "RCU/tree:online",
 		.startup.single		= rcutree_online_cpu,
 		.teardown.single	= rcutree_offline_cpu,
 	},
