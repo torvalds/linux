@@ -537,7 +537,7 @@ static int ucb1x00_probe(struct mcp *mcp)
 	ucb1x00_enable(ucb);
 	ucb->irq = ucb1x00_detect_irq(ucb);
 	ucb1x00_disable(ucb);
-	if (ucb->irq == NO_IRQ) {
+	if (!ucb->irq) {
 		dev_err(&ucb->dev, "IRQ probe failed\n");
 		ret = -ENODEV;
 		goto err_no_irq;
