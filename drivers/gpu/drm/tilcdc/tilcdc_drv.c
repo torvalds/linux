@@ -200,8 +200,6 @@ static int tilcdc_unload(struct drm_device *dev)
 {
 	struct tilcdc_drm_private *priv = dev->dev_private;
 
-	tilcdc_crtc_disable(priv->crtc);
-
 	tilcdc_remove_external_encoders(dev);
 
 	drm_fbdev_cma_fini(priv->fbdev);
