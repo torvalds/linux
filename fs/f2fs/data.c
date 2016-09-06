@@ -1642,13 +1642,12 @@ repeat:
 	if (f2fs_encrypted_inode(inode) && S_ISREG(inode->i_mode))
 		f2fs_wait_on_encrypted_page_writeback(sbi, blkaddr);
 
-	if (len == PAGE_SIZE)
-		goto out_update;
-	if (PageUptodate(page))
-		goto out_clear;
+	if (len == PAGE_SIZE || PageUptodate(page))
+		return 0;
 
 	if (blkaddr == NEW_ADDR) {
 		zero_user_segment(page, 0, PAGE_SIZE);
+		SetPageUptodate(page);
 	} else {
 		struct bio *bio;
 
@@ -1676,11 +1675,6 @@ repeat:
 			goto fail;
 		}
 	}
-out_update:
-	if (!PageUptodate(page))
-		SetPageUptodate(page);
-out_clear:
-	clear_cold_data(page);
 	return 0;
 
 fail:
@@ -1698,11 +1692,26 @@ static int f2fs_write_end(struct file *file,
 
 	trace_f2fs_write_end(inode, pos, len, copied);
 
+	/*
+	 * This should be come from len == PAGE_SIZE, and we expect copied
+	 * should be PAGE_SIZE. Otherwise, we treat it with zero copied and
+	 * let generic_perform_write() try to copy data again through copied=0.
+	 */
+	if (!PageUptodate(page)) {
+		if (unlikely(copied != PAGE_SIZE))
+			copied = 0;
+		else
+			SetPageUptodate(page);
+	}
+	if (!copied)
+		goto unlock_out;
+
 	set_page_dirty(page);
+	clear_cold_data(page);
 
 	if (pos + copied > i_size_read(inode))
 		f2fs_i_size_write(inode, pos + copied);
-
+unlock_out:
 	f2fs_put_page(page, 1);
 	f2fs_update_time(F2FS_I_SB(inode), REQ_TIME);
 	return copied;
