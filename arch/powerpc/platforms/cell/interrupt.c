@@ -187,12 +187,6 @@ void iic_message_pass(int cpu, int msg)
 	out_be64(&per_cpu(cpu_iic, cpu).regs->generate, (0xf - msg) << 4);
 }
 
-struct irq_domain *iic_get_irq_host(int node)
-{
-	return iic_host;
-}
-EXPORT_SYMBOL_GPL(iic_get_irq_host);
-
 static void iic_request_ipi(int msg)
 {
 	int virq;
