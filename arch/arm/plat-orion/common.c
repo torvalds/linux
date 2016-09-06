@@ -354,7 +354,6 @@ static struct platform_device orion_ge01 = {
 void __init orion_ge01_init(struct mv643xx_eth_platform_data *eth_data,
 			    unsigned long mapbase,
 			    unsigned long irq,
-			    unsigned long irq_err,
 			    unsigned int tx_csum_limit)
 {
 	fill_resources(&orion_ge01_shared, orion_ge01_shared_resources,
@@ -404,8 +403,7 @@ static struct platform_device orion_ge10 = {
 
 void __init orion_ge10_init(struct mv643xx_eth_platform_data *eth_data,
 			    unsigned long mapbase,
-			    unsigned long irq,
-			    unsigned long irq_err)
+			    unsigned long irq)
 {
 	fill_resources(&orion_ge10_shared, orion_ge10_shared_resources,
 		       mapbase + 0x2000, SZ_16K - 1, NO_IRQ);
@@ -453,8 +451,7 @@ static struct platform_device orion_ge11 = {
 
 void __init orion_ge11_init(struct mv643xx_eth_platform_data *eth_data,
 			    unsigned long mapbase,
-			    unsigned long irq,
-			    unsigned long irq_err)
+			    unsigned long irq)
 {
 	fill_resources(&orion_ge11_shared, orion_ge11_shared_resources,
 		       mapbase + 0x2000, SZ_16K - 1, NO_IRQ);
