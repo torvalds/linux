@@ -243,6 +243,8 @@ static int vidioc_venc_s_parm(struct file *file, void *priv,
 			a->parm.output.timeperframe.numerator;
 	ctx->param_change |= MTK_ENCODE_PARAM_FRAMERATE;
 
+	a->parm.output.capability = V4L2_CAP_TIMEPERFRAME;
+
 	return 0;
 }
 
@@ -254,6 +256,7 @@ static int vidioc_venc_g_parm(struct file *file, void *priv,
 	if (a->type != V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
 		return -EINVAL;
 
+	a->parm.output.capability = V4L2_CAP_TIMEPERFRAME;
 	a->parm.output.timeperframe.denominator =
 			ctx->enc_params.framerate_num;
 	a->parm.output.timeperframe.numerator =
