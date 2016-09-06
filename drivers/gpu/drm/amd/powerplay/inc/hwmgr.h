@@ -40,6 +40,7 @@ struct pp_atomctrl_voltage_table;
 
 extern int amdgpu_powercontainment;
 extern int amdgpu_sclk_deep_sleep_en;
+extern unsigned amdgpu_pp_feature_mask;
 
 enum DISPLAY_GAP {
 	DISPLAY_GAP_VBLANK_OR_WM = 0,   /* Wait for vblank or MCHG watermark. */

@@ -32,6 +32,8 @@
 #include "pp_debug.h"
 #include "ppatomctrl.h"
 #include "ppsmc.h"
+#include "pp_acpi.h"
+#include "amd_acpi.h"
 
 #define VOLTAGE_SCALE               4
 
@@ -41,24 +43,8 @@ extern int fiji_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int polaris10_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int iceland_hwmgr_init(struct pp_hwmgr *hwmgr);
 
-static int hwmgr_set_features_platform_caps(struct pp_hwmgr *hwmgr)
-{
-	if (amdgpu_sclk_deep_sleep_en)
-		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_SclkDeepSleep);
-	else
-		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_SclkDeepSleep);
-
-	if (amdgpu_powercontainment)
-		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-			    PHM_PlatformCaps_PowerContainment);
-	else
-		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
-			    PHM_PlatformCaps_PowerContainment);
-
-	return 0;
-}
+static void hwmgr_init_default_caps(struct pp_hwmgr *hwmgr);
+static int hwmgr_set_user_specify_caps(struct pp_hwmgr *hwmgr);
 
 int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 {
@@ -79,7 +65,8 @@ int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 	hwmgr->usec_timeout = AMD_MAX_USEC_TIMEOUT;
 	hwmgr->power_source = PP_PowerSource_AC;
 
-	hwmgr_set_features_platform_caps(hwmgr);
+	hwmgr_init_default_caps(hwmgr);
+	hwmgr_set_user_specify_caps(hwmgr);
 
 	switch (hwmgr->chip_family) {
 	case AMDGPU_FAMILY_CZ:
@@ -107,8 +94,6 @@ int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 	default:
 		return -EINVAL;
 	}
-
-	phm_init_dynamic_caps(hwmgr);
 
 	return 0;
 }
@@ -215,8 +200,6 @@ int phm_wait_on_register(struct pp_hwmgr *hwmgr, uint32_t index,
 		return -1;
 	return 0;
 }
-
-
 
 
 /**
@@ -613,3 +596,83 @@ void phm_apply_dal_min_voltage_request(struct pp_hwmgr *hwmgr)
 	printk(KERN_ERR "DAL requested level can not"
 			" found a available voltage in VDDC DPM Table \n");
 }
+
+void hwmgr_init_default_caps(struct pp_hwmgr *hwmgr)
+{
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableVoltageTransition);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableEngineTransition);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableMemoryTransition);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableMGClockGating);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableMGCGTSSM);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableLSClockGating);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_Force3DClockSupport);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableLightSleep);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableMCLS);
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisablePowerGating);
+
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableDPM);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableSMUUVDHandshake);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_ThermalAutoThrottling);
+
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_PCIEPerformanceRequest);
+
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_NoOD5Support);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_UserMaxClockForMultiDisplays);
+
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_VpuRecoveryInProgress);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_UVDDPM);
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_VCEDPM);
+
+	if (acpi_atcs_functions_supported(hwmgr->device, ATCS_FUNCTION_PCIE_PERFORMANCE_REQUEST) &&
+		acpi_atcs_functions_supported(hwmgr->device, ATCS_FUNCTION_PCIE_DEVICE_READY_NOTIFICATION))
+		phm_cap_set(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_PCIEPerformanceRequest);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+		PHM_PlatformCaps_DynamicPatchPowerState);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			 PHM_PlatformCaps_TablelessHardwareInterface);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+		PHM_PlatformCaps_EnableSMU7ThermalManagement);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_DynamicPowerManagement);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_UnTabledHardwareInterface);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+					PHM_PlatformCaps_SMC);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+					PHM_PlatformCaps_DynamicUVDState);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+						PHM_PlatformCaps_FanSpeedInTableIsRPM);
+
+	return;
+}
+
+int hwmgr_set_user_specify_caps(struct pp_hwmgr *hwmgr)
+{
+	if (amdgpu_sclk_deep_sleep_en)
+		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_SclkDeepSleep);
+	else
+		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_SclkDeepSleep);
+
+	if (amdgpu_powercontainment)
+		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			    PHM_PlatformCaps_PowerContainment);
+	else
+		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			    PHM_PlatformCaps_PowerContainment);
+
+	hwmgr->feature_mask = amdgpu_pp_feature_mask;
+
+	return 0;
+}
+
