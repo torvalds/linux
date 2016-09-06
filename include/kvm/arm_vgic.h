@@ -20,6 +20,7 @@
 #include <linux/kvm.h>
 #include <linux/irqreturn.h>
 #include <linux/spinlock.h>
+#include <linux/static_key.h>
 #include <linux/types.h>
 #include <kvm/iodev.h>
 #include <linux/list.h>
@@ -264,6 +265,8 @@ struct vgic_cpu {
 
 	bool lpis_enabled;
 };
+
+extern struct static_key_false vgic_v2_cpuif_trap;
 
 int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write);
 void kvm_vgic_early_init(struct kvm *kvm);

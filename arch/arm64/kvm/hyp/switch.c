@@ -17,6 +17,7 @@
 
 #include <linux/types.h>
 #include <asm/kvm_asm.h>
+#include <asm/kvm_emulate.h>
 #include <asm/kvm_hyp.h>
 
 static bool __hyp_text __fpsimd_enabled_nvhe(void)
@@ -232,6 +233,21 @@ static bool __hyp_text __populate_fault_info(struct kvm_vcpu *vcpu)
 	return true;
 }
 
+static void __hyp_text __skip_instr(struct kvm_vcpu *vcpu)
+{
+	*vcpu_pc(vcpu) = read_sysreg_el2(elr);
+
+	if (vcpu_mode_is_32bit(vcpu)) {
+		vcpu->arch.ctxt.gp_regs.regs.pstate = read_sysreg_el2(spsr);
+		kvm_skip_instr32(vcpu, kvm_vcpu_trap_il_is32bit(vcpu));
+		write_sysreg_el2(vcpu->arch.ctxt.gp_regs.regs.pstate, spsr);
+	} else {
+		*vcpu_pc(vcpu) += 4;
+	}
+
+	write_sysreg_el2(*vcpu_pc(vcpu), elr);
+}
+
 int __hyp_text __kvm_vcpu_run(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpu_context *host_ctxt;
@@ -269,6 +285,22 @@ again:
 
 	if (exit_code == ARM_EXCEPTION_TRAP && !__populate_fault_info(vcpu))
 		goto again;
+
+	if (static_branch_unlikely(&vgic_v2_cpuif_trap) &&
+	    exit_code == ARM_EXCEPTION_TRAP) {
+		bool valid;
+
+		valid = kvm_vcpu_trap_get_class(vcpu) == ESR_ELx_EC_DABT_LOW &&
+			kvm_vcpu_trap_get_fault_type(vcpu) == FSC_FAULT &&
+			kvm_vcpu_dabt_isvalid(vcpu) &&
+			!kvm_vcpu_dabt_isextabt(vcpu) &&
+			!kvm_vcpu_dabt_iss1tw(vcpu);
+
+		if (valid && __vgic_v2_perform_cpuif_access(vcpu)) {
+			__skip_instr(vcpu);
+			goto again;
+		}
+	}
 
 	fp_enabled = __fpsimd_enabled();
 

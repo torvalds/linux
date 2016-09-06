@@ -167,3 +167,10 @@ void __hyp_text __vgic_v2_restore_state(struct kvm_vcpu *vcpu)
 	writel_relaxed(cpu_if->vgic_vmcr, base + GICH_VMCR);
 	vcpu->arch.vgic_cpu.live_lrs = live_lrs;
 }
+
+#ifdef CONFIG_ARM64
+bool __hyp_text __vgic_v2_perform_cpuif_access(struct kvm_vcpu *vcpu)
+{
+		return false;
+}
+#endif
