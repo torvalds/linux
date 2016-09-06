@@ -75,6 +75,7 @@ struct vop_ctrl {
 	struct vop_reg vtotal_pw;
 	struct vop_reg vact_st_end;
 	struct vop_reg vact_st_end_f1;
+	struct vop_reg vs_st_end_f1;
 	struct vop_reg hpost_st_end;
 	struct vop_reg vpost_st_end;
 	struct vop_reg vpost_st_end_f1;

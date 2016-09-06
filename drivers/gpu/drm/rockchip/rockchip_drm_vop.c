@@ -1207,15 +1207,15 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	const struct vop_data *vop_data = vop->data;
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc->state);
 	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
-	u16 hsync_len = adjusted_mode->hsync_end - adjusted_mode->hsync_start;
-	u16 hdisplay = adjusted_mode->hdisplay;
-	u16 htotal = adjusted_mode->htotal;
-	u16 hact_st = adjusted_mode->htotal - adjusted_mode->hsync_start;
+	u16 hsync_len = adjusted_mode->crtc_hsync_end - adjusted_mode->crtc_hsync_start;
+	u16 hdisplay = adjusted_mode->crtc_hdisplay;
+	u16 htotal = adjusted_mode->crtc_htotal;
+	u16 hact_st = adjusted_mode->crtc_htotal - adjusted_mode->crtc_hsync_start;
 	u16 hact_end = hact_st + hdisplay;
-	u16 vdisplay = adjusted_mode->vdisplay;
-	u16 vtotal = adjusted_mode->vtotal;
-	u16 vsync_len = adjusted_mode->vsync_end - adjusted_mode->vsync_start;
-	u16 vact_st = adjusted_mode->vtotal - adjusted_mode->vsync_start;
+	u16 vdisplay = adjusted_mode->crtc_vdisplay;
+	u16 vtotal = adjusted_mode->crtc_vtotal;
+	u16 vsync_len = adjusted_mode->crtc_vsync_end - adjusted_mode->crtc_vsync_start;
+	u16 vact_st = adjusted_mode->crtc_vtotal - adjusted_mode->crtc_vsync_start;
 	u16 vact_end = vact_st + vdisplay;
 	uint32_t val;
 
@@ -1293,11 +1293,27 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	VOP_CTRL_SET(vop, hact_st_end, val);
 	VOP_CTRL_SET(vop, hpost_st_end, val);
 
-	VOP_CTRL_SET(vop, vtotal_pw, (vtotal << 16) | vsync_len);
+	VOP_CTRL_SET(vop, vtotal_pw, (adjusted_mode->vtotal << 16) | vsync_len);
 	val = vact_st << 16;
 	val |= vact_end;
 	VOP_CTRL_SET(vop, vact_st_end, val);
 	VOP_CTRL_SET(vop, vpost_st_end, val);
+	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
+		u16 vact_st_f1 = vtotal + vact_st + 1;
+		u16 vact_end_f1 = vact_st_f1 + vdisplay;
+
+		val = vact_st_f1 << 16 | vact_end_f1;
+		VOP_CTRL_SET(vop, vact_st_end_f1, val);
+		VOP_CTRL_SET(vop, vpost_st_end_f1, val);
+
+		val = vtotal << 16 | (vtotal + vsync_len);
+		VOP_CTRL_SET(vop, vs_st_end_f1, val);
+		VOP_CTRL_SET(vop, dsp_interlace, 1);
+		VOP_CTRL_SET(vop, p2i_en, 1);
+	} else {
+		VOP_CTRL_SET(vop, dsp_interlace, 0);
+		VOP_CTRL_SET(vop, p2i_en, 0);
+	}
 
 	clk_set_rate(vop->dclk, adjusted_mode->clock * 1000);
 
