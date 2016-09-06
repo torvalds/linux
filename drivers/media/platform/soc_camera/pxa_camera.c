@@ -523,7 +523,8 @@ static void pxa_camera_stop_capture(struct pxa_camera_dev *pcdev)
 }
 
 static void pxa_camera_wakeup(struct pxa_camera_dev *pcdev,
-			      struct pxa_buffer *buf)
+			      struct pxa_buffer *buf,
+			      enum vb2_buffer_state state)
 {
 	struct vb2_buffer *vb = &buf->vbuf.vb2_buf;
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
@@ -645,7 +646,7 @@ static void pxa_camera_dma_irq(struct pxa_camera_dev *pcdev,
 	}
 	buf->active_dma &= ~act_dma;
 	if (!buf->active_dma) {
-		pxa_camera_wakeup(pcdev, buf);
+		pxa_camera_wakeup(pcdev, buf, VB2_BUF_STATE_DONE);
 		pxa_camera_check_link_miss(pcdev, last_buf->cookie[chan],
 					   last_issued);
 	}
@@ -1087,7 +1088,15 @@ static int pxac_vb2_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 static void pxac_vb2_stop_streaming(struct vb2_queue *vq)
 {
-	vb2_wait_for_all_buffers(vq);
+	struct pxa_camera_dev *pcdev = vb2_get_drv_priv(vq);
+	struct pxa_buffer *buf, *tmp;
+
+	dev_dbg(pcdev_to_dev(pcdev), "%s active=%p\n",
+		__func__, pcdev->active);
+	pxa_camera_stop_capture(pcdev);
+
+	list_for_each_entry_safe(buf, tmp, &pcdev->capture, queue)
+		pxa_camera_wakeup(pcdev, buf, VB2_BUF_STATE_ERROR);
 }
 
 static struct vb2_ops pxac_vb2_ops = {
