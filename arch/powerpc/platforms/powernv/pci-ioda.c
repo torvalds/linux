@@ -162,11 +162,12 @@ static struct pnv_ioda_pe *pnv_ioda_alloc_pe(struct pnv_phb *phb)
 static void pnv_ioda_free_pe(struct pnv_ioda_pe *pe)
 {
 	struct pnv_phb *phb = pe->phb;
+	unsigned int pe_num = pe->pe_number;
 
 	WARN_ON(pe->pdev);
 
 	memset(pe, 0, sizeof(struct pnv_ioda_pe));
-	clear_bit(pe->pe_number, phb->ioda.pe_alloc);
+	clear_bit(pe_num, phb->ioda.pe_alloc);
 }
 
 /* The default M64 BAR is shared by all PEs */
