@@ -65,6 +65,7 @@ static int nft_queue_init(const struct nft_ctx *ctx,
 			   const struct nlattr * const tb[])
 {
 	struct nft_queue *priv = nft_expr_priv(expr);
+	u32 maxid;
 
 	if (tb[NFTA_QUEUE_NUM] == NULL)
 		return -EINVAL;
@@ -74,6 +75,16 @@ static int nft_queue_init(const struct nft_ctx *ctx,
 
 	if (tb[NFTA_QUEUE_TOTAL] != NULL)
 		priv->queues_total = ntohs(nla_get_be16(tb[NFTA_QUEUE_TOTAL]));
+	else
+		priv->queues_total = 1;
+
+	if (priv->queues_total == 0)
+		return -EINVAL;
+
+	maxid = priv->queues_total - 1 + priv->queuenum;
+	if (maxid > U16_MAX)
+		return -ERANGE;
+
 	if (tb[NFTA_QUEUE_FLAGS] != NULL) {
 		priv->flags = ntohs(nla_get_be16(tb[NFTA_QUEUE_FLAGS]));
 		if (priv->flags & ~NFT_QUEUE_FLAG_MASK)
