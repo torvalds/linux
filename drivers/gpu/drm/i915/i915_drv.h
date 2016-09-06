@@ -579,8 +579,6 @@ struct intel_uncore_funcs {
 				uint16_t val, bool trace);
 	void (*mmio_writel)(struct drm_i915_private *dev_priv, i915_reg_t r,
 				uint32_t val, bool trace);
-	void (*mmio_writeq)(struct drm_i915_private *dev_priv, i915_reg_t r,
-				uint64_t val, bool trace);
 };
 
 struct intel_uncore {
@@ -3758,9 +3756,16 @@ int intel_freq_opcode(struct drm_i915_private *dev_priv, int val);
  * will be implemented using 2 32-bit writes in an arbitrary order with
  * an arbitrary delay between them. This can cause the hardware to
  * act upon the intermediate value, possibly leading to corruption and
- * machine death. You have been warned.
+ * machine death. For this reason we do not support I915_WRITE64, or
+ * dev_priv->uncore.funcs.mmio_writeq.
+ *
+ * When reading a 64-bit value as two 32-bit values, the delay may cause
+ * the two reads to mismatch, e.g. a timestamp overflowing. Also note that
+ * occasionally a 64-bit register does not actualy support a full readq
+ * and must be read using two 32-bit reads.
+ *
+ * You have been warned.
  */
-#define I915_WRITE64(reg, val)	dev_priv->uncore.funcs.mmio_writeq(dev_priv, (reg), (val), true)
 #define I915_READ64(reg)	dev_priv->uncore.funcs.mmio_readq(dev_priv, (reg), true)
 
 #define I915_READ64_2x32(lower_reg, upper_reg) ({			\
