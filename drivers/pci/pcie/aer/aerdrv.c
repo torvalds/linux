@@ -70,7 +70,7 @@ static int pcie_aer_disable;
 
 void pci_no_aer(void)
 {
-	pcie_aer_disable = 1;	/* has priority over 'forceload' */
+	pcie_aer_disable = 1;
 }
 
 bool pci_aer_available(void)
@@ -303,11 +303,6 @@ static int aer_probe(struct pcie_device *dev)
 	int status;
 	struct aer_rpc *rpc;
 	struct device *device = &dev->device;
-
-	/* Init */
-	status = aer_init(dev);
-	if (status)
-		return status;
 
 	/* Alloc rpc data structure */
 	rpc = aer_alloc_rpc(dev);
