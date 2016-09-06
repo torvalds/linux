@@ -1,0 +1,19 @@
+/*
+ * Copyright (C) 2016 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "imx6dqscm-1gb-qwks-rev2-fix-ldo.dts"
+
+&hdmi_video {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hdmi_hdcp>;
+	fsl,hdcp;
+};
+
+&i2c2 {
+	status = "disable";
+};
