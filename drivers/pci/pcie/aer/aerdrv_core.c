@@ -28,9 +28,7 @@
 #include "aerdrv.h"
 
 static bool forceload;
-static bool nosourceid;
 module_param(forceload, bool, 0);
-module_param(nosourceid, bool, 0);
 
 #define	PCI_EXP_AER_FLAGS	(PCI_EXP_DEVCTL_CERE | PCI_EXP_DEVCTL_NFERE | \
 				 PCI_EXP_DEVCTL_FERE | PCI_EXP_DEVCTL_URRE)
@@ -132,8 +130,7 @@ static bool is_error_source(struct pci_dev *dev, struct aer_err_info *e_info)
 	 * When bus id is equal to 0, it might be a bad id
 	 * reported by root port.
 	 */
-	if (!nosourceid &&
-	    (PCI_BUS_NUM(e_info->id) != 0) &&
+	if ((PCI_BUS_NUM(e_info->id) != 0) &&
 	    !(dev->bus->bus_flags & PCI_BUS_FLAGS_NO_AERSID)) {
 		/* Device ID match? */
 		if (e_info->id == ((dev->bus->number << 8) | dev->devfn))
@@ -146,11 +143,10 @@ static bool is_error_source(struct pci_dev *dev, struct aer_err_info *e_info)
 
 	/*
 	 * When either
-	 *      1) nosourceid==y;
-	 *      2) bus id is equal to 0. Some ports might lose the bus
+	 *      1) bus id is equal to 0. Some ports might lose the bus
 	 *              id of error source id;
-	 *      3) bus flag PCI_BUS_FLAGS_NO_AERSID is set
-	 *      4) There are multiple errors and prior ID comparing fails;
+	 *      2) bus flag PCI_BUS_FLAGS_NO_AERSID is set
+	 *      3) There are multiple errors and prior ID comparing fails;
 	 * We check AER status registers to find possible reporter.
 	 */
 	if (atomic_read(&dev->enable_cnt) == 0)
