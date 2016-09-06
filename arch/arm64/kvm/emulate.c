@@ -22,7 +22,6 @@
  */
 
 #include <linux/kvm_host.h>
-#include <asm/esr.h>
 #include <asm/kvm_emulate.h>
 
 /*
@@ -51,16 +50,6 @@ static const unsigned short cc_map[16] = {
 	0xFFFF,			/* AL always              */
 	0			/* NV                     */
 };
-
-static int kvm_vcpu_get_condition(const struct kvm_vcpu *vcpu)
-{
-	u32 esr = kvm_vcpu_get_hsr(vcpu);
-
-	if (esr & ESR_ELx_CV)
-		return (esr & ESR_ELx_COND_MASK) >> ESR_ELx_COND_SHIFT;
-
-	return -1;
-}
 
 /*
  * Check if a trapped instruction should have been executed or not.

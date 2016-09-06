@@ -147,6 +147,16 @@ static inline u32 kvm_vcpu_get_hsr(const struct kvm_vcpu *vcpu)
 	return vcpu->arch.fault.esr_el2;
 }
 
+static inline int kvm_vcpu_get_condition(const struct kvm_vcpu *vcpu)
+{
+	u32 esr = kvm_vcpu_get_hsr(vcpu);
+
+	if (esr & ESR_ELx_CV)
+		return (esr & ESR_ELx_COND_MASK) >> ESR_ELx_COND_SHIFT;
+
+	return -1;
+}
+
 static inline unsigned long kvm_vcpu_get_hfar(const struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.fault.far_el2;
