@@ -2145,6 +2145,9 @@ static void ath10k_core_register_work(struct work_struct *work)
 	struct ath10k *ar = container_of(work, struct ath10k, register_work);
 	int status;
 
+	/* peer stats are enabled by default */
+	set_bit(ATH10K_FLAG_PEER_STATS, &ar->dev_flags);
+
 	status = ath10k_core_probe_fw(ar);
 	if (status) {
 		ath10k_err(ar, "could not probe fw (%d)\n", status);
