@@ -573,14 +573,6 @@ static void config_id_frame_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
 			__swab32(identify_buffer[5]));
 }
 
-static void init_id_frame_v2_hw(struct hisi_hba *hisi_hba)
-{
-	int i;
-
-	for (i = 0; i < hisi_hba->n_phy; i++)
-		config_id_frame_v2_hw(hisi_hba, i);
-}
-
 static void setup_itct_v2_hw(struct hisi_hba *hisi_hba,
 			     struct hisi_sas_device *sas_dev)
 {
@@ -911,8 +903,6 @@ static int hw_init_v2_hw(struct hisi_hba *hisi_hba)
 
 	msleep(100);
 	init_reg_v2_hw(hisi_hba);
-
-	init_id_frame_v2_hw(hisi_hba);
 
 	return 0;
 }
