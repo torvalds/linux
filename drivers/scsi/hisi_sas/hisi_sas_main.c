@@ -1309,7 +1309,7 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost)
 	memset(hisi_hba->breakpoint, 0, s);
 
 	hisi_hba->slot_index_count = max_command_entries;
-	s = hisi_hba->slot_index_count / sizeof(unsigned long);
+	s = hisi_hba->slot_index_count / BITS_PER_BYTE;
 	hisi_hba->slot_index_tags = devm_kzalloc(dev, s, GFP_KERNEL);
 	if (!hisi_hba->slot_index_tags)
 		goto err_out;
