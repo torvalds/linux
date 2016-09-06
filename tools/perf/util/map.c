@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <sys/mman.h>
 #include "map.h"
 #include "thread.h"
 #include "strlist.h"
@@ -24,9 +25,15 @@ const char *map_type__name[MAP__NR_TYPES] = {
 	[MAP__VARIABLE] = "Variables",
 };
 
-static inline int is_anon_memory(const char *filename)
+static inline int is_anon_memory(const char *filename, u32 flags)
 {
-	return !strcmp(filename, "//anon") ||
+	u32 anon_flags = 0;
+
+#ifdef MAP_HUGETLB
+	anon_flags |= MAP_HUGETLB;
+#endif
+	return flags & anon_flags ||
+	       !strcmp(filename, "//anon") ||
 	       !strncmp(filename, "/dev/zero", sizeof("/dev/zero") - 1) ||
 	       !strncmp(filename, "/anon_hugepage", sizeof("/anon_hugepage") - 1);
 }
@@ -155,7 +162,7 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 		int anon, no_dso, vdso, android;
 
 		android = is_android_lib(filename);
-		anon = is_anon_memory(filename);
+		anon = is_anon_memory(filename, flags);
 		vdso = is_vdso_map(filename);
 		no_dso = is_no_dso_memory(filename);
 
