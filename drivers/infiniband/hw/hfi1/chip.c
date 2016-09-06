@@ -9490,6 +9490,78 @@ static void init_lcb(struct hfi1_devdata *dd)
 	write_csr(dd, DC_LCB_CFG_TX_FIFOS_RESET, 0x00);
 }
 
+/*
+ * Perform a test read on the QSFP.  Return 0 on success, -ERRNO
+ * on error.
+ */
+static int test_qsfp_read(struct hfi1_pportdata *ppd)
+{
+	int ret;
+	u8 status;
+
+	/* report success if not a QSFP */
+	if (ppd->port_type != PORT_TYPE_QSFP)
+		return 0;
+
+	/* read byte 2, the status byte */
+	ret = one_qsfp_read(ppd, ppd->dd->hfi1_id, 2, &status, 1);
+	if (ret < 0)
+		return ret;
+	if (ret != 1)
+		return -EIO;
+
+	return 0; /* success */
+}
+
+/*
+ * Values for QSFP retry.
+ *
+ * Give up after 10s (20 x 500ms).  The overall timeout was empirically
+ * arrived at from experience on a large cluster.
+ */
+#define MAX_QSFP_RETRIES 20
+#define QSFP_RETRY_WAIT 500 /* msec */
+
+/*
+ * Try a QSFP read.  If it fails, schedule a retry for later.
+ * Called on first link activation after driver load.
+ */
+static void try_start_link(struct hfi1_pportdata *ppd)
+{
+	if (test_qsfp_read(ppd)) {
+		/* read failed */
+		if (ppd->qsfp_retry_count >= MAX_QSFP_RETRIES) {
+			dd_dev_err(ppd->dd, "QSFP not responding, giving up\n");
+			return;
+		}
+		dd_dev_info(ppd->dd,
+			    "QSFP not responding, waiting and retrying %d\n",
+			    (int)ppd->qsfp_retry_count);
+		ppd->qsfp_retry_count++;
+		queue_delayed_work(ppd->hfi1_wq, &ppd->start_link_work,
+				   msecs_to_jiffies(QSFP_RETRY_WAIT));
+		return;
+	}
+	ppd->qsfp_retry_count = 0;
+
+	/*
+	 * Tune the SerDes to a ballpark setting for optimal signal and bit
+	 * error rate.  Needs to be done before starting the link.
+	 */
+	tune_serdes(ppd);
+	start_link(ppd);
+}
+
+/*
+ * Workqueue function to start the link after a delay.
+ */
+void handle_start_link(struct work_struct *work)
+{
+	struct hfi1_pportdata *ppd = container_of(work, struct hfi1_pportdata,
+						  start_link_work.work);
+	try_start_link(ppd);
+}
+
 int bringup_serdes(struct hfi1_pportdata *ppd)
 {
 	struct hfi1_devdata *dd = ppd->dd;
@@ -9525,14 +9597,8 @@ int bringup_serdes(struct hfi1_pportdata *ppd)
 		set_qsfp_int_n(ppd, 1);
 	}
 
-	/*
-	 * Tune the SerDes to a ballpark setting for
-	 * optimal signal and bit error rate
-	 * Needs to be done before starting the link
-	 */
-	tune_serdes(ppd);
-
-	return start_link(ppd);
+	try_start_link(ppd);
+	return 0;
 }
 
 void hfi1_quiet_serdes(struct hfi1_pportdata *ppd)
@@ -9548,6 +9614,10 @@ void hfi1_quiet_serdes(struct hfi1_pportdata *ppd)
 	 */
 	ppd->driver_link_ready = 0;
 	ppd->link_enabled = 0;
+
+	ppd->qsfp_retry_count = MAX_QSFP_RETRIES; /* prevent more retries */
+	flush_delayed_work(&ppd->start_link_work);
+	cancel_delayed_work_sync(&ppd->start_link_work);
 
 	ppd->offline_disabled_reason =
 			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_SMA_DISABLED);
@@ -12865,7 +12935,7 @@ fail:
  */
 static int set_up_context_variables(struct hfi1_devdata *dd)
 {
-	int num_kernel_contexts;
+	unsigned long num_kernel_contexts;
 	int total_contexts;
 	int ret;
 	unsigned ngroups;
@@ -12894,9 +12964,9 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	 */
 	if (num_kernel_contexts > (dd->chip_send_contexts - num_vls - 1)) {
 		dd_dev_err(dd,
-			   "Reducing # kernel rcv contexts to: %d, from %d\n",
+			   "Reducing # kernel rcv contexts to: %d, from %lu\n",
 			   (int)(dd->chip_send_contexts - num_vls - 1),
-			   (int)num_kernel_contexts);
+			   num_kernel_contexts);
 		num_kernel_contexts = dd->chip_send_contexts - num_vls - 1;
 	}
 	/*
