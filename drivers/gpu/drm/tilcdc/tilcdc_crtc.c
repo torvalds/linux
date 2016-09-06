@@ -153,6 +153,8 @@ static void tilcdc_crtc_enable(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 
+	WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
+
 	if (tilcdc_crtc->enabled)
 		return;
 
@@ -176,6 +178,8 @@ void tilcdc_crtc_disable(struct drm_crtc *crtc)
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct tilcdc_drm_private *priv = dev->dev_private;
+
+	WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
 
 	if (!tilcdc_crtc->enabled)
 		return;
@@ -248,6 +252,8 @@ int tilcdc_crtc_update_fb(struct drm_crtc *crtc,
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	unsigned long flags;
+
+	WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
 
 	if (tilcdc_crtc->event) {
 		dev_err(dev->dev, "already pending page flip!\n");
@@ -352,6 +358,8 @@ static void tilcdc_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	uint32_t reg, hbp, hfp, hsw, vbp, vfp, vsw;
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
 	struct drm_framebuffer *fb = crtc->primary->state->fb;
+
+	WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
 
 	if (WARN_ON(!info))
 		return;
