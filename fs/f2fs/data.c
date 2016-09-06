@@ -1647,15 +1647,6 @@ repeat:
 	if (PageUptodate(page))
 		goto out_clear;
 
-	if ((pos & PAGE_MASK) >= i_size_read(inode)) {
-		unsigned start = pos & (PAGE_SIZE - 1);
-		unsigned end = start + len;
-
-		/* Reading beyond i_size is simple: memset to zero */
-		zero_user_segments(page, 0, start, end, PAGE_SIZE);
-		goto out_update;
-	}
-
 	if (blkaddr == NEW_ADDR) {
 		zero_user_segment(page, 0, PAGE_SIZE);
 	} else {
