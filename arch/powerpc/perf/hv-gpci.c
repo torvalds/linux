@@ -131,7 +131,7 @@ static const struct attribute_group *attr_groups[] = {
 #define HGPCI_MAX_DATA_BYTES \
 	(HGPCI_REQ_BUFFER_SIZE - sizeof(struct hv_get_perf_counter_info_params))
 
-DEFINE_PER_CPU(char, hv_gpci_reqb[HGPCI_REQ_BUFFER_SIZE]) __aligned(sizeof(uint64_t));
+static DEFINE_PER_CPU(char, hv_gpci_reqb[HGPCI_REQ_BUFFER_SIZE]) __aligned(sizeof(uint64_t));
 
 struct hv_gpci_request_buffer {
 	struct hv_get_perf_counter_info_params params;

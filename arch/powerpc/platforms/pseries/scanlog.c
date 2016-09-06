@@ -156,7 +156,7 @@ static int scanlog_release(struct inode * inode, struct file * file)
 	return 0;
 }
 
-const struct file_operations scanlog_fops = {
+static const struct file_operations scanlog_fops = {
 	.owner		= THIS_MODULE,
 	.read		= scanlog_read,
 	.write		= scanlog_write,

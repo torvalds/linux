@@ -105,7 +105,7 @@ static void pas_take_timebase(void)
 	arch_spin_unlock(&timebase_lock);
 }
 
-struct smp_ops_t pas_smp_ops = {
+static struct smp_ops_t pas_smp_ops = {
 	.probe		= smp_mpic_probe,
 	.message_pass	= smp_mpic_message_pass,
 	.kick_cpu	= smp_generic_kick_cpu,
@@ -115,7 +115,7 @@ struct smp_ops_t pas_smp_ops = {
 };
 #endif /* CONFIG_SMP */
 
-void __init pas_setup_arch(void)
+static void __init pas_setup_arch(void)
 {
 #ifdef CONFIG_SMP
 	/* Setup SMP callback */

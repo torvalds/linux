@@ -979,7 +979,7 @@ static void pmac_cpu_die(void)
 #endif /* CONFIG_HOTPLUG_CPU */
 
 /* Core99 Macs (dual G4s and G5s) */
-struct smp_ops_t core99_smp_ops = {
+static struct smp_ops_t core99_smp_ops = {
 	.message_pass	= smp_mpic_message_pass,
 	.probe		= smp_core99_probe,
 #ifdef CONFIG_PPC64

@@ -851,7 +851,7 @@ static long dev_nvram_ioctl(struct file *file, unsigned int cmd,
 	}
 }
 
-const struct file_operations nvram_fops = {
+static const struct file_operations nvram_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= dev_nvram_llseek,
 	.read		= dev_nvram_read,
