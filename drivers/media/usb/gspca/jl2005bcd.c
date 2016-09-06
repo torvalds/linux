@@ -299,10 +299,7 @@ static int jl2005c_stream_start_cif_small(struct gspca_dev *gspca_dev)
 
 static int jl2005c_stop(struct gspca_dev *gspca_dev)
 {
-	int retval;
-
-	retval = jl2005c_write_reg(gspca_dev, 0x07, 0x00);
-	return retval;
+	return jl2005c_write_reg(gspca_dev, 0x07, 0x00);
 }
 
 /*

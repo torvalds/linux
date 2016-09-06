@@ -483,11 +483,7 @@ static void cal_get_hwinfo(struct cal_dev *dev)
 
 static inline int cal_runtime_get(struct cal_dev *dev)
 {
-	int r;
-
-	r = pm_runtime_get_sync(&dev->pdev->dev);
-
-	return r;
+	return pm_runtime_get_sync(&dev->pdev->dev);
 }
 
 static inline void cal_runtime_put(struct cal_dev *dev)

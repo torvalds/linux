@@ -1520,12 +1520,8 @@ static int dtv_set_frontend(struct dvb_frontend *fe);
 
 static bool is_dvbv3_delsys(u32 delsys)
 {
-	bool status;
-
-	status = (delsys == SYS_DVBT) || (delsys == SYS_DVBC_ANNEX_A) ||
-		 (delsys == SYS_DVBS) || (delsys == SYS_ATSC);
-
-	return status;
+	return (delsys == SYS_DVBT) || (delsys == SYS_DVBC_ANNEX_A) ||
+	       (delsys == SYS_DVBS) || (delsys == SYS_ATSC);
 }
 
 /**

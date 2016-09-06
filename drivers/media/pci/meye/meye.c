@@ -586,10 +586,7 @@ static void mchip_hic_stop(void)
 /* get the next ready frame from the dma engine */
 static u32 mchip_get_frame(void)
 {
-	u32 v;
-
-	v = mchip_read(MCHIP_MM_FIR(meye.mchip_fnum));
-	return v;
+	return mchip_read(MCHIP_MM_FIR(meye.mchip_fnum));
 }
 
 /* frees the current frame from the dma engine */

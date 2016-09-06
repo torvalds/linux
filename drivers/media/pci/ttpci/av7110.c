@@ -2925,9 +2925,7 @@ static struct saa7146_extension av7110_extension_driver = {
 
 static int __init av7110_init(void)
 {
-	int retval;
-	retval = saa7146_register_extension(&av7110_extension_driver);
-	return retval;
+	return saa7146_register_extension(&av7110_extension_driver);
 }
 
 

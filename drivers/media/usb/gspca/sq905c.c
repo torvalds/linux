@@ -257,11 +257,8 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 /* this function is called at probe and resume time */
 static int sd_init(struct gspca_dev *gspca_dev)
 {
-	int ret;
-
 	/* connect to the camera and reset it. */
-	ret = sq905c_command(gspca_dev, SQ905C_CLEAR, 0);
-	return ret;
+	return sq905c_command(gspca_dev, SQ905C_CLEAR, 0);
 }
 
 /* Set up for getting frames. */
