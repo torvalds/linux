@@ -965,13 +965,7 @@ static void start_phys_v2_hw(unsigned long data)
 
 static void phys_init_v2_hw(struct hisi_hba *hisi_hba)
 {
-	int i;
 	struct timer_list *timer = &hisi_hba->timer;
-
-	for (i = 0; i < hisi_hba->n_phy; i++) {
-		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_MSK, 0x6a);
-		hisi_sas_phy_read32(hisi_hba, i, CHL_INT2_MSK);
-	}
 
 	setup_timer(timer, start_phys_v2_hw, (unsigned long)hisi_hba);
 	mod_timer(timer, jiffies + HZ);
