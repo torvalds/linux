@@ -126,6 +126,28 @@ el1_error:
 	mov	x0, #ARM_EXCEPTION_EL1_SERROR
 	b	__guest_exit
 
+el2_error:
+	/*
+	 * Only two possibilities:
+	 * 1) Either we come from the exit path, having just unmasked
+	 *    PSTATE.A: change the return code to an EL2 fault, and
+	 *    carry on, as we're already in a sane state to handle it.
+	 * 2) Or we come from anywhere else, and that's a bug: we panic.
+	 *
+	 * For (1), x0 contains the original return code and x1 doesn't
+	 * contain anything meaningful at that stage. We can reuse them
+	 * as temp registers.
+	 * For (2), who cares?
+	 */
+	mrs	x0, elr_el2
+	adr	x1, abort_guest_exit_start
+	cmp	x0, x1
+	adr	x1, abort_guest_exit_end
+	ccmp	x0, x1, #4, ne
+	b.ne	__hyp_panic
+	mov	x0, #(1 << ARM_EXIT_WITH_SERROR_BIT)
+	eret
+
 ENTRY(__hyp_do_panic)
 	mov	lr, #(PSR_F_BIT | PSR_I_BIT | PSR_A_BIT | PSR_D_BIT |\
 		      PSR_MODE_EL1h)
@@ -150,7 +172,6 @@ ENDPROC(\label)
 	invalid_vector	el2h_sync_invalid
 	invalid_vector	el2h_irq_invalid
 	invalid_vector	el2h_fiq_invalid
-	invalid_vector	el2h_error_invalid
 	invalid_vector	el1_sync_invalid
 	invalid_vector	el1_irq_invalid
 	invalid_vector	el1_fiq_invalid
@@ -168,7 +189,7 @@ ENTRY(__kvm_hyp_vector)
 	ventry	el2h_sync_invalid		// Synchronous EL2h
 	ventry	el2h_irq_invalid		// IRQ EL2h
 	ventry	el2h_fiq_invalid		// FIQ EL2h
-	ventry	el2h_error_invalid		// Error EL2h
+	ventry	el2_error			// Error EL2h
 
 	ventry	el1_sync			// Synchronous 64-bit EL1
 	ventry	el1_irq				// IRQ 64-bit EL1

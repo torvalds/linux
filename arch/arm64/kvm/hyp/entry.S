@@ -124,7 +124,38 @@ ENTRY(__guest_exit)
 	// Now restore the host regs
 	restore_callee_saved_regs x2
 
-	ret
+	// If we have a pending asynchronous abort, now is the
+	// time to find out. From your VAXorcist book, page 666:
+	// "Threaten me not, oh Evil one!  For I speak with
+	// the power of DEC, and I command thee to show thyself!"
+	mrs	x2, elr_el2
+	mrs	x3, esr_el2
+	mrs	x4, spsr_el2
+	mov	x5, x0
+
+	dsb	sy		// Synchronize against in-flight ld/st
+	msr	daifclr, #4	// Unmask aborts
+
+	// This is our single instruction exception window. A pending
+	// SError is guaranteed to occur at the earliest when we unmask
+	// it, and at the latest just after the ISB.
+	.global	abort_guest_exit_start
+abort_guest_exit_start:
+
+	isb
+
+	.global	abort_guest_exit_end
+abort_guest_exit_end:
+
+	// If the exception took place, restore the EL1 exception
+	// context so that we can report some information.
+	// Merge the exception code with the SError pending bit.
+	tbz	x0, #ARM_EXIT_WITH_SERROR_BIT, 1f
+	msr	elr_el2, x2
+	msr	esr_el2, x3
+	msr	spsr_el2, x4
+	orr	x0, x0, x5
+1:	ret
 ENDPROC(__guest_exit)
 
 ENTRY(__fpsimd_guest_restore)
