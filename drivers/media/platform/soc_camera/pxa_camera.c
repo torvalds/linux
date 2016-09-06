@@ -1342,6 +1342,34 @@ static int pxa_camera_check_frame(u32 width, u32 height)
 		(width & 0x01);
 }
 
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+static int pxac_vidioc_g_register(struct file *file, void *priv,
+				  struct v4l2_dbg_register *reg)
+{
+	struct pxa_camera_dev *pcdev = video_drvdata(file);
+
+	if (reg->reg > CIBR2)
+		return -ERANGE;
+
+	reg->val = __raw_readl(pcdev->base + reg->reg);
+	reg->size = sizeof(__u32);
+	return 0;
+}
+
+static int pxac_vidioc_s_register(struct file *file, void *priv,
+				  const struct v4l2_dbg_register *reg)
+{
+	struct pxa_camera_dev *pcdev = video_drvdata(file);
+
+	if (reg->reg > CIBR2)
+		return -ERANGE;
+	if (reg->size != sizeof(__u32))
+		return -EINVAL;
+	__raw_writel(reg->val, pcdev->base + reg->reg);
+	return 0;
+}
+#endif
+
 static int pxac_vidioc_enum_fmt_vid_cap(struct file *filp, void  *priv,
 					struct v4l2_fmtdesc *f)
 {
@@ -1592,6 +1620,10 @@ static const struct v4l2_ioctl_ops pxa_camera_ioctl_ops = {
 	.vidioc_expbuf			= vb2_ioctl_expbuf,
 	.vidioc_streamon		= vb2_ioctl_streamon,
 	.vidioc_streamoff		= vb2_ioctl_streamoff,
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	.vidioc_g_register		= pxac_vidioc_g_register,
+	.vidioc_s_register		= pxac_vidioc_s_register,
+#endif
 };
 
 static struct v4l2_clk_ops pxa_camera_mclk_ops = {
