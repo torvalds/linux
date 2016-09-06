@@ -19,6 +19,7 @@ static int ovl_copy_up_truncate(struct dentry *dentry)
 	struct dentry *parent;
 	struct kstat stat;
 	struct path lowerpath;
+	const struct cred *old_cred;
 
 	parent = dget_parent(dentry);
 	err = ovl_copy_up(parent);
@@ -26,12 +27,14 @@ static int ovl_copy_up_truncate(struct dentry *dentry)
 		goto out_dput_parent;
 
 	ovl_path_lower(dentry, &lowerpath);
-	err = vfs_getattr(&lowerpath, &stat);
-	if (err)
-		goto out_dput_parent;
 
-	stat.size = 0;
-	err = ovl_copy_up_one(parent, dentry, &lowerpath, &stat);
+	old_cred = ovl_override_creds(dentry->d_sb);
+	err = vfs_getattr(&lowerpath, &stat);
+	if (!err) {
+		stat.size = 0;
+		err = ovl_copy_up_one(parent, dentry, &lowerpath, &stat);
+	}
+	revert_creds(old_cred);
 
 out_dput_parent:
 	dput(parent);
