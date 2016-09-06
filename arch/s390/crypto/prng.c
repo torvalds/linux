@@ -434,7 +434,7 @@ static int prng_sha512_generate(u8 *buf, size_t nbytes)
 		memcpy(prng_data->prev, buf, nbytes);
 	}
 
-	return ret;
+	return nbytes;
 }
 
 
