@@ -650,8 +650,7 @@ static int sti_gdp_atomic_check(struct drm_plane *drm_plane,
 
 	if (!gdp->vtg) {
 		/* Register gdp callback */
-		gdp->vtg = mixer->id == STI_MIXER_MAIN ?
-					compo->vtg_main : compo->vtg_aux;
+		gdp->vtg = compo->vtg[mixer->id];
 		if (sti_vtg_register_client(gdp->vtg,
 					    &gdp->vtg_field_nb, crtc)) {
 			DRM_ERROR("Cannot register VTG notifier\n");
