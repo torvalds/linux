@@ -68,6 +68,7 @@ static inline void hfi1_add_retry_timer(struct rvt_qp *qp)
 	struct ib_qp *ibqp = &qp->ibqp;
 	struct rvt_dev_info *rdi = ib_to_rvt(ibqp->device);
 
+	lockdep_assert_held(&qp->s_lock);
 	qp->s_flags |= RVT_S_TIMER;
 	/* 4.096 usec. * (1 << qp->timeout) */
 	qp->s_timer.expires = jiffies + qp->timeout_jiffies +
@@ -86,6 +87,7 @@ void hfi1_add_rnr_timer(struct rvt_qp *qp, u32 to)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 
+	lockdep_assert_held(&qp->s_lock);
 	qp->s_flags |= RVT_S_WAIT_RNR;
 	qp->s_timer.expires = jiffies + usecs_to_jiffies(to);
 	add_timer(&priv->s_rnr_timer);
@@ -103,6 +105,7 @@ static inline void hfi1_mod_retry_timer(struct rvt_qp *qp)
 	struct ib_qp *ibqp = &qp->ibqp;
 	struct rvt_dev_info *rdi = ib_to_rvt(ibqp->device);
 
+	lockdep_assert_held(&qp->s_lock);
 	qp->s_flags |= RVT_S_TIMER;
 	/* 4.096 usec. * (1 << qp->timeout) */
 	mod_timer(&qp->s_timer, jiffies + qp->timeout_jiffies +
@@ -120,6 +123,7 @@ static inline int hfi1_stop_retry_timer(struct rvt_qp *qp)
 {
 	int rval = 0;
 
+	lockdep_assert_held(&qp->s_lock);
 	/* Remove QP from retry */
 	if (qp->s_flags & RVT_S_TIMER) {
 		qp->s_flags &= ~RVT_S_TIMER;
@@ -138,6 +142,7 @@ void hfi1_stop_rc_timers(struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 
+	lockdep_assert_held(&qp->s_lock);
 	/* Remove QP from all timers */
 	if (qp->s_flags & (RVT_S_TIMER | RVT_S_WAIT_RNR)) {
 		qp->s_flags &= ~(RVT_S_TIMER | RVT_S_WAIT_RNR);
@@ -158,6 +163,7 @@ static inline int hfi1_stop_rnr_timer(struct rvt_qp *qp)
 	int rval = 0;
 	struct hfi1_qp_priv *priv = qp->priv;
 
+	lockdep_assert_held(&qp->s_lock);
 	/* Remove QP from rnr timer */
 	if (qp->s_flags & RVT_S_WAIT_RNR) {
 		qp->s_flags &= ~RVT_S_WAIT_RNR;
@@ -228,6 +234,7 @@ static int make_rc_ack(struct hfi1_ibdev *dev, struct rvt_qp *qp,
 	u32 pmtu = qp->pmtu;
 	struct hfi1_qp_priv *priv = qp->priv;
 
+	lockdep_assert_held(&qp->s_lock);
 	/* Don't send an ACK if we aren't supposed to. */
 	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK))
 		goto bail;
@@ -400,6 +407,7 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	int middle = 0;
 	int delta;
 
+	lockdep_assert_held(&qp->s_lock);
 	ps->s_txreq = get_txreq(ps->dev, qp);
 	if (IS_ERR(ps->s_txreq))
 		goto bail_no_tx;
@@ -958,6 +966,7 @@ static void reset_psn(struct rvt_qp *qp, u32 psn)
 	struct rvt_swqe *wqe = rvt_get_swqe_ptr(qp, n);
 	u32 opcode;
 
+	lockdep_assert_held(&qp->s_lock);
 	qp->s_cur = n;
 
 	/*
@@ -1043,6 +1052,8 @@ static void restart_rc(struct rvt_qp *qp, u32 psn, int wait)
 	struct rvt_swqe *wqe = rvt_get_swqe_ptr(qp, qp->s_acked);
 	struct hfi1_ibport *ibp;
 
+	lockdep_assert_held(&qp->r_lock);
+	lockdep_assert_held(&qp->s_lock);
 	if (qp->s_retry == 0) {
 		if (qp->s_mig_state == IB_MIG_ARMED) {
 			hfi1_migrate_qp(qp);
@@ -1119,6 +1130,7 @@ static void reset_sending_psn(struct rvt_qp *qp, u32 psn)
 	struct rvt_swqe *wqe;
 	u32 n = qp->s_last;
 
+	lockdep_assert_held(&qp->s_lock);
 	/* Find the work request corresponding to the given PSN. */
 	for (;;) {
 		wqe = rvt_get_swqe_ptr(qp, n);
@@ -1148,6 +1160,7 @@ void hfi1_rc_send_complete(struct rvt_qp *qp, struct ib_header *hdr)
 	u32 opcode;
 	u32 psn;
 
+	lockdep_assert_held(&qp->s_lock);
 	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_OR_FLUSH_SEND))
 		return;
 
@@ -1239,6 +1252,7 @@ static struct rvt_swqe *do_rc_completion(struct rvt_qp *qp,
 	struct ib_wc wc;
 	unsigned i;
 
+	lockdep_assert_held(&qp->s_lock);
 	/*
 	 * Don't decrement refcount and don't generate a
 	 * completion if the SWQE is being resent until the send
@@ -1338,6 +1352,7 @@ static int do_rc_ack(struct rvt_qp *qp, u32 aeth, u32 psn, int opcode,
 	int diff;
 	unsigned long to;
 
+	lockdep_assert_held(&qp->s_lock);
 	/*
 	 * Note that NAKs implicitly ACK outstanding SEND and RDMA write
 	 * requests and implicitly NAK RDMA read and atomic requests issued
@@ -1553,6 +1568,7 @@ static void rdma_seq_err(struct rvt_qp *qp, struct hfi1_ibport *ibp, u32 psn,
 {
 	struct rvt_swqe *wqe;
 
+	lockdep_assert_held(&qp->s_lock);
 	/* Remove QP from retry timer */
 	hfi1_stop_rc_timers(qp);
 
@@ -2136,6 +2152,7 @@ void hfi1_rc_rcv(struct hfi1_packet *packet)
 	int copy_last = 0;
 	u32 rkey;
 
+	lockdep_assert_held(&qp->r_lock);
 	bth0 = be32_to_cpu(ohdr->bth[0]);
 	if (hfi1_ruc_check_hdr(ibp, hdr, rcv_flags & HFI1_HAS_GRH, qp, bth0))
 		return;

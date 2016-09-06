@@ -449,13 +449,14 @@ static void qp_pio_drain(struct rvt_qp *qp)
  */
 void hfi1_schedule_send(struct rvt_qp *qp)
 {
+	lockdep_assert_held(&qp->s_lock);
 	if (hfi1_send_ok(qp))
 		_hfi1_schedule_send(qp);
 }
 
 /**
- * hfi1_get_credit - flush the send work queue of a QP
- * @qp: the qp who's send work queue to flush
+ * hfi1_get_credit - handle credit in aeth
+ * @qp: the qp
  * @aeth: the Acknowledge Extended Transport Header
  *
  * The QP s_lock should be held.
@@ -464,6 +465,7 @@ void hfi1_get_credit(struct rvt_qp *qp, u32 aeth)
 {
 	u32 credit = (aeth >> HFI1_AETH_CREDIT_SHIFT) & HFI1_AETH_CREDIT_MASK;
 
+	lockdep_assert_held(&qp->s_lock);
 	/*
 	 * If the credit is invalid, we can send
 	 * as many packets as we like.  Otherwise, we have to
@@ -853,6 +855,7 @@ unsigned free_all_qps(struct rvt_dev_info *rdi)
 
 void flush_qp_waiters(struct rvt_qp *qp)
 {
+	lockdep_assert_held(&qp->s_lock);
 	flush_iowait(qp);
 	hfi1_stop_rc_timers(qp);
 }

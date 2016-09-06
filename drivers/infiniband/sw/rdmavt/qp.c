@@ -562,6 +562,9 @@ static void rvt_reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 	__must_hold(&qp->s_hlock)
 	__must_hold(&qp->r_lock)
 {
+	lockdep_assert_held(&qp->r_lock);
+	lockdep_assert_held(&qp->s_hlock);
+	lockdep_assert_held(&qp->s_lock);
 	if (qp->state != IB_QPS_RESET) {
 		qp->state = IB_QPS_RESET;
 
@@ -595,6 +598,9 @@ static void rvt_reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 		rdi->driver_f.notify_qp_reset(qp);
 	}
 	rvt_init_qp(rdi, qp, type);
+	lockdep_assert_held(&qp->r_lock);
+	lockdep_assert_held(&qp->s_hlock);
+	lockdep_assert_held(&qp->s_lock);
 }
 
 /**
@@ -917,6 +923,8 @@ int rvt_error_qp(struct rvt_qp *qp, enum ib_wc_status err)
 	int ret = 0;
 	struct rvt_dev_info *rdi = ib_to_rvt(qp->ibqp.device);
 
+	lockdep_assert_held(&qp->r_lock);
+	lockdep_assert_held(&qp->s_lock);
 	if (qp->state == IB_QPS_ERR || qp->state == IB_QPS_RESET)
 		goto bail;
 
