@@ -20,5 +20,7 @@ available subsections can be seen below.
    sound
    frame-buffer
    input
-   serial-interfaces
+   spi
+   i2c
+   hsi
    miscellaneous
