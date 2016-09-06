@@ -24,6 +24,8 @@ struct clk_zx_pll {
 	const struct zx_pll_config *lookup_table; /* order by rate asc */
 	int count;
 	spinlock_t *lock;
+	u8 pd_bit;		/* power down bit */
+	u8 lock_bit;		/* pll lock flag bit */
 };
 
 struct clk *clk_register_zx_pll(const char *name, const char *parent_name,
@@ -38,4 +40,6 @@ struct clk_zx_audio {
 struct clk *clk_register_zx_audio(const char *name,
 				  const char * const parent_name,
 				  unsigned long flags, void __iomem *reg_base);
+
+extern const struct clk_ops zx_pll_ops;
 #endif
