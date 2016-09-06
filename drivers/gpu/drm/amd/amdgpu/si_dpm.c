@@ -2014,39 +2014,28 @@ static void si_initialize_powertune_defaults(struct amdgpu_device *adev)
 			break;
 		}
 	} else if (adev->asic_type == CHIP_PITCAIRN) {
+		si_pi->cac_weights = cac_weights_pitcairn;
+		si_pi->lcac_config = lcac_pitcairn;
+		si_pi->cac_override = cac_override_pitcairn;
+		si_pi->powertune_data = &powertune_data_pitcairn;
+
 		switch (adev->pdev->device) {
 		case 0x6810:
 		case 0x6818:
-			si_pi->cac_weights = cac_weights_pitcairn;
-			si_pi->lcac_config = lcac_pitcairn;
-			si_pi->cac_override = cac_override_pitcairn;
-			si_pi->powertune_data = &powertune_data_pitcairn;
 			si_pi->dte_data = dte_data_curacao_xt;
 			update_dte_from_pl2 = true;
 			break;
 		case 0x6819:
 		case 0x6811:
-			si_pi->cac_weights = cac_weights_pitcairn;
-			si_pi->lcac_config = lcac_pitcairn;
-			si_pi->cac_override = cac_override_pitcairn;
-			si_pi->powertune_data = &powertune_data_pitcairn;
 			si_pi->dte_data = dte_data_curacao_pro;
 			update_dte_from_pl2 = true;
 			break;
 		case 0x6800:
 		case 0x6806:
-			si_pi->cac_weights = cac_weights_pitcairn;
-			si_pi->lcac_config = lcac_pitcairn;
-			si_pi->cac_override = cac_override_pitcairn;
-			si_pi->powertune_data = &powertune_data_pitcairn;
 			si_pi->dte_data = dte_data_neptune_xt;
 			update_dte_from_pl2 = true;
 			break;
 		default:
-			si_pi->cac_weights = cac_weights_pitcairn;
-			si_pi->lcac_config = lcac_pitcairn;
-			si_pi->cac_override = cac_override_pitcairn;
-			si_pi->powertune_data = &powertune_data_pitcairn;
 			si_pi->dte_data = dte_data_pitcairn;
 			break;
 		}
@@ -2102,16 +2091,17 @@ static void si_initialize_powertune_defaults(struct amdgpu_device *adev)
 			break;
 		}
 	} else if (adev->asic_type == CHIP_OLAND) {
+		si_pi->lcac_config = lcac_mars_pro;
+		si_pi->cac_override = cac_override_oland;
+		si_pi->powertune_data = &powertune_data_mars_pro;
+		si_pi->dte_data = dte_data_mars_pro;
+
 		switch (adev->pdev->device) {
 		case 0x6601:
 		case 0x6621:
 		case 0x6603:
 		case 0x6605:
 			si_pi->cac_weights = cac_weights_mars_pro;
-			si_pi->lcac_config = lcac_mars_pro;
-			si_pi->cac_override = cac_override_oland;
-			si_pi->powertune_data = &powertune_data_mars_pro;
-			si_pi->dte_data = dte_data_mars_pro;
 			update_dte_from_pl2 = true;
 			break;
 		case 0x6600:
@@ -2119,28 +2109,16 @@ static void si_initialize_powertune_defaults(struct amdgpu_device *adev)
 		case 0x6620:
 		case 0x6604:
 			si_pi->cac_weights = cac_weights_mars_xt;
-			si_pi->lcac_config = lcac_mars_pro;
-			si_pi->cac_override = cac_override_oland;
-			si_pi->powertune_data = &powertune_data_mars_pro;
-			si_pi->dte_data = dte_data_mars_pro;
 			update_dte_from_pl2 = true;
 			break;
 		case 0x6611:
 		case 0x6613:
 		case 0x6608:
 			si_pi->cac_weights = cac_weights_oland_pro;
-			si_pi->lcac_config = lcac_mars_pro;
-			si_pi->cac_override = cac_override_oland;
-			si_pi->powertune_data = &powertune_data_mars_pro;
-			si_pi->dte_data = dte_data_mars_pro;
 			update_dte_from_pl2 = true;
 			break;
 		case 0x6610:
 			si_pi->cac_weights = cac_weights_oland_xt;
-			si_pi->lcac_config = lcac_mars_pro;
-			si_pi->cac_override = cac_override_oland;
-			si_pi->powertune_data = &powertune_data_mars_pro;
-			si_pi->dte_data = dte_data_mars_pro;
 			update_dte_from_pl2 = true;
 			break;
 		default:
