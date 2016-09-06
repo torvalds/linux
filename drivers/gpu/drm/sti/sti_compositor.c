@@ -201,6 +201,7 @@ static int sti_compositor_probe(struct platform_device *pdev)
 	struct device_node *vtg_np;
 	struct sti_compositor *compo;
 	struct resource *res;
+	unsigned int i;
 
 	compo = devm_kzalloc(dev, sizeof(*compo), GFP_KERNEL);
 	if (!compo) {
@@ -208,7 +209,8 @@ static int sti_compositor_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	compo->dev = dev;
-	compo->vtg_vblank_nb.notifier_call = sti_crtc_vblank_cb;
+	for (i = 0; i < STI_MAX_MIXER; i++)
+		compo->vtg_vblank_nb[i].notifier_call = sti_crtc_vblank_cb;
 
 	/* populate data structure depending on compatibility */
 	BUG_ON(!of_match_node(compositor_of_match, np)->data);

@@ -62,7 +62,7 @@ struct sti_compositor_data {
  * @vid: array of vids
  * @vtg_main: vtg for main data path
  * @vtg_aux: vtg for auxillary data path
- * @vtg_vblank_nb: callback for VTG VSYNC notification
+ * @vtg_vblank_nb: array of callbacks for VTG VSYNC notification
  */
 struct sti_compositor {
 	struct device *dev;
@@ -78,7 +78,7 @@ struct sti_compositor {
 	struct sti_vid *vid[STI_MAX_VID];
 	struct sti_vtg *vtg_main;
 	struct sti_vtg *vtg_aux;
-	struct notifier_block vtg_vblank_nb;
+	struct notifier_block vtg_vblank_nb[STI_MAX_MIXER];
 };
 
 int sti_compositor_debufs_init(struct sti_compositor *compo,

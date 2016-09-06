@@ -244,8 +244,7 @@ static int sti_crtc_set_property(struct drm_crtc *crtc,
 int sti_crtc_vblank_cb(struct notifier_block *nb,
 		       unsigned long event, void *data)
 {
-	struct sti_compositor *compo =
-		container_of(nb, struct sti_compositor, vtg_vblank_nb);
+	struct sti_compositor *compo;
 	struct drm_crtc *crtc = data;
 	struct sti_mixer *mixer;
 	unsigned long flags;
@@ -254,6 +253,7 @@ int sti_crtc_vblank_cb(struct notifier_block *nb,
 
 	priv = crtc->dev->dev_private;
 	pipe = drm_crtc_index(crtc);
+	compo = container_of(nb, struct sti_compositor, vtg_vblank_nb[pipe]);
 	mixer = compo->mixer[pipe];
 
 	if ((event != VTG_TOP_FIELD_EVENT) &&
@@ -295,7 +295,7 @@ int sti_crtc_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct sti_private *dev_priv = dev->dev_private;
 	struct sti_compositor *compo = dev_priv->compo;
-	struct notifier_block *vtg_vblank_nb = &compo->vtg_vblank_nb;
+	struct notifier_block *vtg_vblank_nb = &compo->vtg_vblank_nb[pipe];
 	struct drm_crtc *crtc = &compo->mixer[pipe]->drm_crtc;
 
 	DRM_DEBUG_DRIVER("\n");
@@ -314,7 +314,7 @@ void sti_crtc_disable_vblank(struct drm_device *drm_dev, unsigned int pipe)
 {
 	struct sti_private *priv = drm_dev->dev_private;
 	struct sti_compositor *compo = priv->compo;
-	struct notifier_block *vtg_vblank_nb = &compo->vtg_vblank_nb;
+	struct notifier_block *vtg_vblank_nb = &compo->vtg_vblank_nb[pipe];
 	struct drm_crtc *crtc = &compo->mixer[pipe]->drm_crtc;
 
 	DRM_DEBUG_DRIVER("\n");
