@@ -94,7 +94,7 @@ static int udf_adinicb_write_begin(struct file *file,
 		return -ENOMEM;
 	*pagep = page;
 
-	if (!PageUptodate(page) && len != PAGE_SIZE)
+	if (!PageUptodate(page))
 		__udf_adinicb_readpage(page);
 	return 0;
 }
