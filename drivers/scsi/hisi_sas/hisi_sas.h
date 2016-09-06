@@ -98,6 +98,12 @@ struct hisi_sas_cq {
 	int	id;
 };
 
+struct hisi_sas_dq {
+	struct hisi_hba *hisi_hba;
+	int	wr_point;
+	int	id;
+};
+
 struct hisi_sas_device {
 	enum sas_device_type	dev_type;
 	struct hisi_hba		*hisi_hba;
@@ -194,6 +200,7 @@ struct hisi_hba {
 	struct Scsi_Host *shost;
 
 	struct hisi_sas_cq cq[HISI_SAS_MAX_QUEUES];
+	struct hisi_sas_dq dq[HISI_SAS_MAX_QUEUES];
 	struct hisi_sas_phy phy[HISI_SAS_MAX_PHYS];
 	struct hisi_sas_port port[HISI_SAS_MAX_PHYS];
 

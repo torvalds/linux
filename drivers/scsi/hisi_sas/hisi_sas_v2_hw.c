@@ -1023,12 +1023,13 @@ static int get_wideport_bitmap_v2_hw(struct hisi_hba *hisi_hba, int port_id)
 static int get_free_slot_v2_hw(struct hisi_hba *hisi_hba, int *q, int *s)
 {
 	struct device *dev = &hisi_hba->pdev->dev;
+	struct hisi_sas_dq *dq;
 	u32 r, w;
 	int queue = hisi_hba->queue;
 
 	while (1) {
-		w = hisi_sas_read32_relaxed(hisi_hba,
-					    DLVRY_Q_0_WR_PTR + (queue * 0x14));
+		dq = &hisi_hba->dq[queue];
+		w = dq->wr_point;
 		r = hisi_sas_read32_relaxed(hisi_hba,
 					    DLVRY_Q_0_RD_PTR + (queue * 0x14));
 		if (r == (w+1) % HISI_SAS_QUEUE_SLOTS) {
@@ -1051,9 +1052,11 @@ static void start_delivery_v2_hw(struct hisi_hba *hisi_hba)
 {
 	int dlvry_queue = hisi_hba->slot_prep->dlvry_queue;
 	int dlvry_queue_slot = hisi_hba->slot_prep->dlvry_queue_slot;
+	struct hisi_sas_dq *dq = &hisi_hba->dq[dlvry_queue];
 
+	dq->wr_point = ++dlvry_queue_slot % HISI_SAS_QUEUE_SLOTS;
 	hisi_sas_write32(hisi_hba, DLVRY_Q_0_WR_PTR + (dlvry_queue * 0x14),
-			 ++dlvry_queue_slot % HISI_SAS_QUEUE_SLOTS);
+			 dq->wr_point);
 }
 
 static int prep_prd_sge_v2_hw(struct hisi_hba *hisi_hba,
