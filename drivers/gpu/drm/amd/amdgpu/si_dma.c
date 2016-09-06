@@ -39,16 +39,11 @@ static void si_dma_set_irq_funcs(struct amdgpu_device *adev);
 
 static uint32_t si_dma_ring_get_rptr(struct amdgpu_ring *ring)
 {
-	u32 rptr;
-
-	rptr = ring->adev->wb.wb[ring->rptr_offs/4];
-
-	return rptr;
+	return ring->adev->wb.wb[ring->rptr_offs>>2];
 }
 
 static uint32_t si_dma_ring_get_wptr(struct amdgpu_ring *ring)
 {
-
 	struct amdgpu_device *adev = ring->adev;
 	u32 me = (ring == &adev->sdma.instance[0].ring) ? 0 : 1;
 
@@ -188,7 +183,6 @@ static int si_dma_start(struct amdgpu_device *adev)
 
 		ring->wptr = 0;
 		WREG32(DMA_RB_WPTR + sdma_offsets[i], ring->wptr << 2);
-
 		WREG32(DMA_RB_CNTL + sdma_offsets[i], rb_cntl | DMA_RB_ENABLE);
 
 		ring->ready = true;
@@ -476,11 +470,10 @@ static void si_dma_ring_emit_vm_flush(struct amdgpu_ring *ring,
 				      unsigned vm_id, uint64_t pd_addr)
 {
 	amdgpu_ring_write(ring, DMA_PACKET(DMA_PACKET_SRBM_WRITE, 0, 0, 0, 0));
-	if (vm_id < 8) {
+	if (vm_id < 8)
 		amdgpu_ring_write(ring, (0xf << 16) | (VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + vm_id));
-	} else {
+	else
 		amdgpu_ring_write(ring, (0xf << 16) | (VM_CONTEXT8_PAGE_TABLE_BASE_ADDR + (vm_id - 8)));
-	}
 	amdgpu_ring_write(ring, pd_addr >> 12);
 
 	/* bits 0-7 are the VM contexts0-7 */
@@ -558,14 +551,9 @@ static int si_dma_sw_fini(void *handle)
 
 static int si_dma_hw_init(void *handle)
 {
-	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	r = si_dma_start(adev);
-	if (r)
-		return r;
-
-	return r;
+	return si_dma_start(adev);
 }
 
 static int si_dma_hw_fini(void *handle)
@@ -605,13 +593,10 @@ static bool si_dma_is_idle(void *handle)
 static int si_dma_wait_for_idle(void *handle)
 {
 	unsigned i;
-	u32 tmp;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		tmp = RREG32(SRBM_STATUS2) & (DMA_BUSY_MASK | DMA1_BUSY_MASK);
-
-		if (!tmp)
+		if (si_dma_is_idle(handle))
 			return 0;
 		udelay(1);
 	}
@@ -674,11 +659,6 @@ static int si_dma_process_trap_irq(struct amdgpu_device *adev,
 				      struct amdgpu_irq_src *source,
 				      struct amdgpu_iv_entry *entry)
 {
-	u8 instance_id, queue_id;
-
-	instance_id = (entry->ring_id & 0x3) >> 0;
-	queue_id = (entry->ring_id & 0xc) >> 2;
-
 	amdgpu_fence_process(&adev->sdma.instance[0].ring);
 
 	return 0;
@@ -688,11 +668,6 @@ static int si_dma_process_trap_irq_1(struct amdgpu_device *adev,
 				      struct amdgpu_irq_src *source,
 				      struct amdgpu_iv_entry *entry)
 {
-	u8 instance_id, queue_id;
-
-	instance_id = (entry->ring_id & 0x3) >> 0;
-	queue_id = (entry->ring_id & 0xc) >> 2;
-
 	amdgpu_fence_process(&adev->sdma.instance[1].ring);
 
 	return 0;
