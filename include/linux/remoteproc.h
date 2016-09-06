@@ -118,7 +118,7 @@ enum fw_resource_type {
 	RSC_LAST	= 4,
 };
 
-#define FW_RSC_ADDR_ANY (0xFFFFFFFFFFFFFFFF)
+#define FW_RSC_ADDR_ANY (-1)
 
 /**
  * struct fw_rsc_carveout - physically contiguous memory request
