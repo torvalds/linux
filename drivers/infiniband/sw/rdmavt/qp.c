@@ -488,8 +488,7 @@ static void rvt_remove_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp)
 	spin_unlock_irqrestore(&rdi->qp_dev->qpt_lock, flags);
 	if (removed) {
 		synchronize_rcu();
-		if (atomic_dec_and_test(&qp->refcount))
-			wake_up(&qp->wait);
+		rvt_put_qp(qp);
 	}
 }
 
@@ -980,7 +979,7 @@ static void rvt_insert_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp)
 	struct rvt_ibport *rvp = rdi->ports[qp->port_num - 1];
 	unsigned long flags;
 
-	atomic_inc(&qp->refcount);
+	rvt_get_qp(qp);
 	spin_lock_irqsave(&rdi->qp_dev->qpt_lock, flags);
 
 	if (qp->ibqp.qp_num <= 1) {

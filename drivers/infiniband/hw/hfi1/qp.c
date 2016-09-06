@@ -202,8 +202,7 @@ static void flush_iowait(struct rvt_qp *qp)
 	write_seqlock_irqsave(&dev->iowait_lock, flags);
 	if (!list_empty(&priv->s_iowait.list)) {
 		list_del_init(&priv->s_iowait.list);
-		if (atomic_dec_and_test(&qp->refcount))
-			wake_up(&qp->wait);
+		rvt_put_qp(qp);
 	}
 	write_sequnlock_irqrestore(&dev->iowait_lock, flags);
 }
@@ -503,8 +502,7 @@ void hfi1_qp_wakeup(struct rvt_qp *qp, u32 flag)
 	}
 	spin_unlock_irqrestore(&qp->s_lock, flags);
 	/* Notify hfi1_destroy_qp() if it is waiting. */
-	if (atomic_dec_and_test(&qp->refcount))
-		wake_up(&qp->wait);
+	rvt_put_qp(qp);
 }
 
 static int iowait_sleep(
@@ -544,7 +542,7 @@ static int iowait_sleep(
 			qp->s_flags |= RVT_S_WAIT_DMA_DESC;
 			list_add_tail(&priv->s_iowait.list, &sde->dmawait);
 			trace_hfi1_qpsleep(qp, RVT_S_WAIT_DMA_DESC);
-			atomic_inc(&qp->refcount);
+			rvt_get_qp(qp);
 		}
 		write_sequnlock(&dev->iowait_lock);
 		qp->s_flags &= ~RVT_S_BUSY;
@@ -963,8 +961,7 @@ void notify_error_qp(struct rvt_qp *qp)
 	if (!list_empty(&priv->s_iowait.list) && !(qp->s_flags & RVT_S_BUSY)) {
 		qp->s_flags &= ~RVT_S_ANY_WAIT_IO;
 		list_del_init(&priv->s_iowait.list);
-		if (atomic_dec_and_test(&qp->refcount))
-			wake_up(&qp->wait);
+		rvt_put_qp(qp);
 	}
 	write_sequnlock(&dev->iowait_lock);
 
