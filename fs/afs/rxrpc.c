@@ -76,7 +76,7 @@ int afs_open_socket(void)
 	_enter("");
 
 	ret = -ENOMEM;
-	afs_async_calls = create_singlethread_workqueue("kafsd");
+	afs_async_calls = alloc_workqueue("kafsd", WQ_MEM_RECLAIM, 0);
 	if (!afs_async_calls)
 		goto error_0;
 

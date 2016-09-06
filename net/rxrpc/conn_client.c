@@ -108,12 +108,12 @@ static DECLARE_DELAYED_WORK(rxrpc_client_conn_reap,
 /*
  * Get a connection ID and epoch for a client connection from the global pool.
  * The connection struct pointer is then recorded in the idr radix tree.  The
- * epoch is changed if this wraps.
+ * epoch doesn't change until the client is rebooted (or, at least, unless the
+ * module is unloaded).
  */
 static int rxrpc_get_client_connection_id(struct rxrpc_connection *conn,
 					  gfp_t gfp)
 {
-	u32 epoch;
 	int id;
 
 	_enter("");
@@ -121,34 +121,18 @@ static int rxrpc_get_client_connection_id(struct rxrpc_connection *conn,
 	idr_preload(gfp);
 	spin_lock(&rxrpc_conn_id_lock);
 
-	epoch = rxrpc_epoch;
-
-	/* We could use idr_alloc_cyclic() here, but we really need to know
-	 * when the thing wraps so that we can advance the epoch.
-	 */
-	if (rxrpc_client_conn_ids.cur == 0)
-		rxrpc_client_conn_ids.cur = 1;
-	id = idr_alloc(&rxrpc_client_conn_ids, conn,
-		       rxrpc_client_conn_ids.cur, 0x40000000, GFP_NOWAIT);
-	if (id < 0) {
-		if (id != -ENOSPC)
-			goto error;
-		id = idr_alloc(&rxrpc_client_conn_ids, conn,
-			       1, 0x40000000, GFP_NOWAIT);
-		if (id < 0)
-			goto error;
-		epoch++;
-		rxrpc_epoch = epoch;
-	}
-	rxrpc_client_conn_ids.cur = id + 1;
+	id = idr_alloc_cyclic(&rxrpc_client_conn_ids, conn,
+			      1, 0x40000000, GFP_NOWAIT);
+	if (id < 0)
+		goto error;
 
 	spin_unlock(&rxrpc_conn_id_lock);
 	idr_preload_end();
 
-	conn->proto.epoch = epoch;
+	conn->proto.epoch = rxrpc_epoch;
 	conn->proto.cid = id << RXRPC_CIDSHIFT;
 	set_bit(RXRPC_CONN_HAS_IDR, &conn->flags);
-	_leave(" [CID %x:%x]", epoch, conn->proto.cid);
+	_leave(" [CID %x]", conn->proto.cid);
 	return 0;
 
 error:
@@ -536,6 +520,10 @@ static void rxrpc_activate_one_channel(struct rxrpc_connection *conn,
 	struct rxrpc_call *call = list_entry(conn->waiting_calls.next,
 					     struct rxrpc_call, chan_wait_link);
 	u32 call_id = chan->call_counter + 1;
+
+	write_lock_bh(&call->state_lock);
+	call->state = RXRPC_CALL_CLIENT_SEND_REQUEST;
+	write_unlock_bh(&call->state_lock);
 
 	rxrpc_see_call(call);
 	list_del_init(&call->chan_wait_link);

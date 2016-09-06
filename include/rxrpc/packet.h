@@ -24,6 +24,7 @@ typedef __be32	rxrpc_serial_net_t; /* on-the-wire Rx message serial number */
  */
 struct rxrpc_wire_header {
 	__be32		epoch;		/* client boot timestamp */
+#define RXRPC_RANDOM_EPOCH	0x80000000	/* Random if set, date-based if not */
 
 	__be32		cid;		/* connection and channel ID */
 #define RXRPC_MAXCALLS		4			/* max active calls per conn */

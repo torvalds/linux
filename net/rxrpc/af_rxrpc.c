@@ -16,6 +16,7 @@
 #include <linux/net.h>
 #include <linux/slab.h>
 #include <linux/skbuff.h>
+#include <linux/random.h>
 #include <linux/poll.h>
 #include <linux/proc_fs.h>
 #include <linux/key-type.h>
@@ -700,7 +701,13 @@ static int __init af_rxrpc_init(void)
 
 	BUILD_BUG_ON(sizeof(struct rxrpc_skb_priv) > FIELD_SIZEOF(struct sk_buff, cb));
 
-	rxrpc_epoch = get_seconds();
+	get_random_bytes(&rxrpc_epoch, sizeof(rxrpc_epoch));
+	rxrpc_epoch |= RXRPC_RANDOM_EPOCH;
+	get_random_bytes(&rxrpc_client_conn_ids.cur,
+			 sizeof(rxrpc_client_conn_ids.cur));
+	rxrpc_client_conn_ids.cur &= 0x3fffffff;
+	if (rxrpc_client_conn_ids.cur == 0)
+		rxrpc_client_conn_ids.cur = 1;
 
 	ret = -ENOMEM;
 	rxrpc_call_jar = kmem_cache_create(

@@ -868,7 +868,6 @@ skip_msg_init:
 	/* deal with events of a final nature */
 	if (test_bit(RXRPC_CALL_EV_RCVD_ERROR, &call->events)) {
 		enum rxrpc_skb_mark mark;
-		int error;
 
 		clear_bit(RXRPC_CALL_EV_CONN_ABORT, &call->events);
 		clear_bit(RXRPC_CALL_EV_REJECT_BUSY, &call->events);
@@ -876,10 +875,10 @@ skip_msg_init:
 
 		if (call->completion == RXRPC_CALL_NETWORK_ERROR) {
 			mark = RXRPC_SKB_MARK_NET_ERROR;
-			_debug("post net error %d", error);
+			_debug("post net error %d", call->error);
 		} else {
 			mark = RXRPC_SKB_MARK_LOCAL_ERROR;
-			_debug("post net local error %d", error);
+			_debug("post net local error %d", call->error);
 		}
 
 		if (rxrpc_post_message(call, mark, call->error, true) < 0)
