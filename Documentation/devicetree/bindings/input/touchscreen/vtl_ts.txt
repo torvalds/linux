@@ -1,0 +1,18 @@
+* VTL Touchscreen Controller
+
+Required properties:
+- compatible: must be "vtl,ct365"
+- reg: i2c slave address
+- interrupt-parent: the phandle for the interrupt controller
+- interrupts: touch controller interrupt
+- gpios: the gpio pin to be used for reset
+
+Example:
+
+        touchscreen@01 {
+                compatible = "vtl,ct365";
+                reg = <0x01>;
+                interrupt-parent = <&gpio6>;
+                interrupts = <14 0>;
+                gpios = <&gpio4 10 0>;
+        };
