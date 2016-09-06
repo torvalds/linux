@@ -696,7 +696,7 @@ static int __sa1111_probe(struct device *me, struct resource *mem, int irq)
 	if (!pd)
 		return -EINVAL;
 
-	sachip = kzalloc(sizeof(struct sa1111), GFP_KERNEL);
+	sachip = devm_kzalloc(me, sizeof(struct sa1111), GFP_KERNEL);
 	if (!sachip)
 		return -ENOMEM;
 
@@ -808,7 +808,6 @@ static int __sa1111_probe(struct device *me, struct resource *mem, int irq)
  err_clkput:
 	clk_put(sachip->clk);
  err_free:
-	kfree(sachip);
 	return ret;
 }
 
@@ -847,7 +846,6 @@ static void __sa1111_remove(struct sa1111 *sachip)
 
 	iounmap(sachip->base);
 	clk_put(sachip->clk);
-	kfree(sachip);
 }
 
 struct sa1111_save_data {
