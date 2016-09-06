@@ -691,7 +691,7 @@ sa1111_configure_smc(struct sa1111 *sachip, int sdram, unsigned int drac,
 
 static void sa1111_dev_release(struct device *_dev)
 {
-	struct sa1111_dev *dev = SA1111_DEV(_dev);
+	struct sa1111_dev *dev = to_sa1111_device(_dev);
 
 	kfree(dev);
 }
@@ -899,7 +899,7 @@ static int __sa1111_probe(struct device *me, struct resource *mem, int irq)
 
 static int sa1111_remove_one(struct device *dev, void *data)
 {
-	struct sa1111_dev *sadev = SA1111_DEV(dev);
+	struct sa1111_dev *sadev = to_sa1111_device(dev);
 	if (dev->bus != &sa1111_bus_type)
 		return 0;
 	device_del(&sadev->dev);
@@ -1373,7 +1373,7 @@ EXPORT_SYMBOL_GPL(sa1111_get_irq);
  */
 static int sa1111_match(struct device *_dev, struct device_driver *_drv)
 {
-	struct sa1111_dev *dev = SA1111_DEV(_dev);
+	struct sa1111_dev *dev = to_sa1111_device(_dev);
 	struct sa1111_driver *drv = SA1111_DRV(_drv);
 
 	return !!(dev->devid & drv->devid);
@@ -1381,7 +1381,7 @@ static int sa1111_match(struct device *_dev, struct device_driver *_drv)
 
 static int sa1111_bus_suspend(struct device *dev, pm_message_t state)
 {
-	struct sa1111_dev *sadev = SA1111_DEV(dev);
+	struct sa1111_dev *sadev = to_sa1111_device(dev);
 	struct sa1111_driver *drv = SA1111_DRV(dev->driver);
 	int ret = 0;
 
@@ -1392,7 +1392,7 @@ static int sa1111_bus_suspend(struct device *dev, pm_message_t state)
 
 static int sa1111_bus_resume(struct device *dev)
 {
-	struct sa1111_dev *sadev = SA1111_DEV(dev);
+	struct sa1111_dev *sadev = to_sa1111_device(dev);
 	struct sa1111_driver *drv = SA1111_DRV(dev->driver);
 	int ret = 0;
 
@@ -1406,12 +1406,12 @@ static void sa1111_bus_shutdown(struct device *dev)
 	struct sa1111_driver *drv = SA1111_DRV(dev->driver);
 
 	if (drv && drv->shutdown)
-		drv->shutdown(SA1111_DEV(dev));
+		drv->shutdown(to_sa1111_device(dev));
 }
 
 static int sa1111_bus_probe(struct device *dev)
 {
-	struct sa1111_dev *sadev = SA1111_DEV(dev);
+	struct sa1111_dev *sadev = to_sa1111_device(dev);
 	struct sa1111_driver *drv = SA1111_DRV(dev->driver);
 	int ret = -ENODEV;
 
@@ -1422,7 +1422,7 @@ static int sa1111_bus_probe(struct device *dev)
 
 static int sa1111_bus_remove(struct device *dev)
 {
-	struct sa1111_dev *sadev = SA1111_DEV(dev);
+	struct sa1111_dev *sadev = to_sa1111_device(dev);
 	struct sa1111_driver *drv = SA1111_DRV(dev->driver);
 	int ret = 0;
 
@@ -1487,7 +1487,7 @@ static int sa1111_needs_bounce(struct device *dev, dma_addr_t addr, size_t size)
 static int sa1111_notifier_call(struct notifier_block *n, unsigned long action,
 	void *data)
 {
-	struct sa1111_dev *dev = SA1111_DEV(data);
+	struct sa1111_dev *dev = to_sa1111_device(data);
 
 	switch (action) {
 	case BUS_NOTIFY_ADD_DEVICE:
