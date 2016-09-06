@@ -99,7 +99,7 @@
 		clock-frequency = <25000000>;
 	};
 
-	soc {
+	soc@f7000000 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
