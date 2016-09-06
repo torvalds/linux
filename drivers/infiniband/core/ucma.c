@@ -43,6 +43,7 @@
 #include <linux/sysctl.h>
 #include <linux/module.h>
 
+#include <rdma/ib.h>
 #include <rdma/rdma_user_cm.h>
 #include <rdma/ib_marshall.h>
 #include <rdma/rdma_cm.h>
@@ -1248,6 +1249,9 @@ static ssize_t ucma_write(struct file *filp, const char __user *buf,
 	struct ucma_file *file = filp->private_data;
 	struct rdma_ucm_cmd_hdr hdr;
 	ssize_t ret;
+
+	if (WARN_ON_ONCE(!ib_safe_file_access(filp)))
+		return -EACCES;
 
 	if (len < sizeof(hdr))
 		return -EINVAL;

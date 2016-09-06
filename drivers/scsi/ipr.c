@@ -3908,13 +3908,17 @@ static ssize_t ipr_store_update_fw(struct device *dev,
 	struct ipr_sglist *sglist;
 	char fname[100];
 	char *src;
-	int len, result, dnld_size;
+	char *endline;
+	int result, dnld_size;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
-	len = snprintf(fname, 99, "%s", buf);
-	fname[len-1] = '\0';
+	snprintf(fname, sizeof(fname), "%s", buf);
+
+	endline = strchr(fname, '\n');
+	if (endline)
+		*endline = '\0';
 
 	if (request_firmware(&fw_entry, fname, &ioa_cfg->pdev->dev)) {
 		dev_err(&ioa_cfg->pdev->dev, "Firmware file %s not found\n", fname);
@@ -9603,6 +9607,7 @@ static int ipr_probe_ioa(struct pci_dev *pdev,
 		ioa_cfg->intr_flag = IPR_USE_MSI;
 	else {
 		ioa_cfg->intr_flag = IPR_USE_LSI;
+		ioa_cfg->clear_isr = 1;
 		ioa_cfg->nvectors = 1;
 		dev_info(&pdev->dev, "Cannot enable MSI.\n");
 	}

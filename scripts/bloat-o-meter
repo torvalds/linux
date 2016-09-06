@@ -55,8 +55,8 @@ for name in common:
 delta.sort()
 delta.reverse()
 
-print "add/remove: %s/%s grow/shrink: %s/%s up/down: %s/%s (%s)" % \
-      (add, remove, grow, shrink, up, -down, up-down)
-print "%-40s %7s %7s %+7s" % ("function", "old", "new", "delta")
+print("add/remove: %s/%s grow/shrink: %s/%s up/down: %s/%s (%s)" % \
+      (add, remove, grow, shrink, up, -down, up-down))
+print("%-40s %7s %7s %+7s" % ("function", "old", "new", "delta"))
 for d, n in delta:
-    if d: print "%-40s %7s %7s %+7d" % (n, old.get(n,"-"), new.get(n,"-"), d)
+    if d: print("%-40s %7s %7s %+7d" % (n, old.get(n,"-"), new.get(n,"-"), d))

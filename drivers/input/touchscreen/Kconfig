@@ -901,4 +901,10 @@ config TOUCHSCREEN_DWAV_USB_MT
 	  To compile this driver as a module, choose M here: the
 	  module will be called dwav-usb-mt.
 
+config TOUCHSCREEN_SX865X
+	tristate "Semtech multitouch resistive touchscreen"
+	depends on I2C
+	help
+	  This enables support for Semtech multitouch resistive touchscreen.
+
 endif
