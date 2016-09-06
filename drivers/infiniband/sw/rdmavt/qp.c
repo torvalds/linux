@@ -500,12 +500,9 @@ static void rvt_remove_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp)
  */
 static void rvt_reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 		  enum ib_qp_type type)
-	__releases(&qp->s_lock)
-	__releases(&qp->s_hlock)
-	__releases(&qp->r_lock)
-	__acquires(&qp->r_lock)
-	__acquires(&qp->s_hlock)
-	__acquires(&qp->s_lock)
+	__must_hold(&qp->r_lock)
+	__must_hold(&qp->s_hlock)
+	__must_hold(&qp->s_lock)
 {
 	if (qp->state != IB_QPS_RESET) {
 		qp->state = IB_QPS_RESET;
