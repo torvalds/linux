@@ -25,7 +25,12 @@
 static void fsl_dcu_drm_crtc_atomic_flush(struct drm_crtc *crtc,
 					  struct drm_crtc_state *old_crtc_state)
 {
+	struct drm_device *dev = crtc->dev;
+	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
 	struct drm_pending_vblank_event *event = crtc->state->event;
+
+	regmap_write(fsl_dev->regmap,
+		     DCU_UPDATE_MODE, DCU_UPDATE_MODE_READREG);
 
 	if (event) {
 		crtc->state->event = NULL;
