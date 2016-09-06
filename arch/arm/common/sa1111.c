@@ -754,7 +754,7 @@ static int __sa1111_probe(struct device *me, struct resource *mem, int irq)
 	if (sachip->irq != NO_IRQ) {
 		ret = sa1111_setup_irq(sachip, pd->irq_base);
 		if (ret)
-			goto err_unmap;
+			goto err_clk;
 	}
 
 #ifdef CONFIG_ARCH_SA1100
@@ -799,6 +799,8 @@ static int __sa1111_probe(struct device *me, struct resource *mem, int irq)
 
 	return 0;
 
+ err_clk:
+	clk_disable(sachip->clk);
  err_unmap:
 	iounmap(sachip->base);
  err_clk_unprep:
