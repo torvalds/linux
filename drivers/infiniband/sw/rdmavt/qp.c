@@ -530,13 +530,12 @@ static void rvt_reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 		spin_lock(&qp->s_lock);
 
 		rvt_clear_mr_refs(qp, 1);
+		/*
+		 * Let the driver do any tear down it needs to for a qp
+		 * that has been reset
+		 */
+		rdi->driver_f.notify_qp_reset(qp);
 	}
-
-	/*
-	 * Let the driver do any tear down it needs to for a qp
-	 * that has been reset
-	 */
-	rdi->driver_f.notify_qp_reset(qp);
 
 	qp->remote_qpn = 0;
 	qp->qkey = 0;
