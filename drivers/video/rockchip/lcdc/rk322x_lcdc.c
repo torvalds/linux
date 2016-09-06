@@ -1947,6 +1947,18 @@ static int vop_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 				| V_PRE_DITHER_DOWN_EN(1) |
 				V_DITHER_DOWN_SEL(0) | V_DITHER_DOWN_MODE(0);
 			break;
+		case OUT_S888x:
+			face = OUT_S888x;
+			val = V_DITHER_DOWN_EN(0) | V_DITHER_UP_EN(1)
+				| V_PRE_DITHER_DOWN_EN(1) |
+				V_DITHER_DOWN_SEL(0) | V_DITHER_DOWN_MODE(0);
+			break;
+		case OUT_S888:
+			face = OUT_S888;
+			val = V_DITHER_DOWN_EN(0) | V_DITHER_UP_EN(1)
+				| V_PRE_DITHER_DOWN_EN(1) |
+				V_DITHER_DOWN_SEL(0) | V_DITHER_DOWN_MODE(0);
+			break;
 		case OUT_YUV_420:
 			face = OUT_YUV_420;
 			dclk_ddr = 1;
