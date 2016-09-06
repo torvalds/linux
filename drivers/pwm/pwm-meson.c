@@ -245,6 +245,9 @@ static void meson_pwm_enable(struct meson_pwm *meson,
 		enable = MISC_B_EN;
 		offset = REG_PWM_B;
 		break;
+
+	default:
+		return;
 	}
 
 	value = readl(meson->base + REG_MISC_AB);
@@ -273,6 +276,9 @@ static void meson_pwm_disable(struct meson_pwm *meson, unsigned int id)
 	case 1:
 		enable = MISC_B_EN;
 		break;
+
+	default:
+		return;
 	}
 
 	value = readl(meson->base + REG_MISC_AB);
@@ -352,6 +358,9 @@ static void meson_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	case 1:
 		mask = MISC_B_EN;
 		break;
+
+	default:
+		return;
 	}
 
 	value = readl(meson->base + REG_MISC_AB);
