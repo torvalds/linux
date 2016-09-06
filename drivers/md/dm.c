@@ -3250,10 +3250,11 @@ static int __dm_resume(struct mapped_device *md, struct dm_table *map)
 
 int dm_resume(struct mapped_device *md)
 {
-	int r = -EINVAL;
+	int r;
 	struct dm_table *map = NULL;
 
 retry:
+	r = -EINVAL;
 	mutex_lock_nested(&md->suspend_lock, SINGLE_DEPTH_NESTING);
 
 	if (!dm_suspended_md(md))
@@ -3277,8 +3278,6 @@ retry:
 		goto out;
 
 	clear_bit(DMF_SUSPENDED, &md->flags);
-
-	r = 0;
 out:
 	mutex_unlock(&md->suspend_lock);
 
