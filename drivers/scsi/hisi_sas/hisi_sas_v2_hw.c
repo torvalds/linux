@@ -685,9 +685,7 @@ static int reset_hw_v2_hw(struct hisi_hba *hisi_hba)
 	else
 		reset_val = 0x7ffff;
 
-	/* Disable all of the DQ */
-	for (i = 0; i < HISI_SAS_MAX_QUEUES; i++)
-		hisi_sas_write32(hisi_hba, DLVRY_QUEUE_ENABLE, 0);
+	hisi_sas_write32(hisi_hba, DLVRY_QUEUE_ENABLE, 0);
 
 	/* Disable all of the PHYs */
 	for (i = 0; i < hisi_hba->n_phy; i++) {
