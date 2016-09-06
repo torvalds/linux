@@ -361,31 +361,6 @@
 
 &i2c2 {
 	status = "okay";
-
-	headset: nau8825@1a {
-		compatible = "nuvoton,nau8825";
-		#sound-dai-cells = <0>;
-		reg = <0x1a>;
-		interrupt-parent = <&gpio6>;
-		interrupts = <5 IRQ_TYPE_LEVEL_LOW>;
-		nuvoton,jkdet-enable = <1>;
-		nuvoton,jkdet-pull-enable = <1>;
-		nuvoton,jkdet-pull-up = <0>;
-		nuvoton,jkdet-polarity = <1>;
-		nuvoton,vref-impedance = <2>;
-		nuvoton,micbias-voltage = <6>;
-		nuvoton,sar-threshold-num = <4>;
-		nuvoton,sar-threshold = <0xa 0x14 0x26 0x73>;
-		nuvoton,sar-hysteresis = <0>;
-		nuvoton,sar-voltage = <6>;
-		nuvoton,sar-compare-time = <0>;
-		nuvoton,sar-sampling-time = <0>;
-		nuvoton,short-key-debounce = <3>;
-		nuvoton,jack-insert-debounce = <7>;
-		nuvoton,jack-eject-debounce = <7>;
-		clock-names = "mclk";
-		clocks = <&cru SCLK_I2S0_OUT>;
-	};
 };
 
 &i2c5 {
