@@ -160,6 +160,9 @@ int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		exit_handler = kvm_get_exit_handler(vcpu);
 
 		return exit_handler(vcpu, run);
+	case ARM_EXCEPTION_DATA_ABORT:
+		kvm_inject_vabt(vcpu);
+		return 1;
 	default:
 		kvm_pr_unimpl("Unsupported exception type: %d",
 			      exception_index);
