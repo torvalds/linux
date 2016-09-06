@@ -87,6 +87,15 @@
 	.endm
 
 /*
+ * NOP sequence
+ */
+	.macro	nops, num
+	.rept	\num
+	nop
+	.endr
+	.endm
+
+/*
  * Emit an entry into the exception table
  */
 	.macro		_asm_extable, from, to
