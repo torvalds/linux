@@ -474,6 +474,7 @@ static const struct vop_intr rk3036_intr = {
 static const struct vop_ctrl rk3036_ctrl_data = {
 	.standby = VOP_REG(RK3036_SYS_CTRL, 0x1, 30),
 	.out_mode = VOP_REG(RK3036_DSP_CTRL0, 0xf, 0),
+	.dsp_blank = VOP_REG(RK3036_DSP_CTRL1, 0x1, 24),
 	.pin_pol = VOP_REG(RK3036_DSP_CTRL0, 0xf, 4),
 	.dsp_layer_sel = VOP_REG(RK3036_DSP_CTRL0, 0x1, 8),
 	.htotal_pw = VOP_REG(RK3036_DSP_HTOTAL_HS_END, 0x1fff1fff, 0),

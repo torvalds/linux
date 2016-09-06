@@ -553,6 +553,7 @@ static void vop_enable(struct drm_crtc *crtc)
 	memcpy(vop->regsbak, vop->regs, vop->len);
 
 	VOP_CTRL_SET(vop, global_regdone_en, 1);
+	VOP_CTRL_SET(vop, dsp_blank, 0);
 
 	for (i = 0; i < vop->num_wins; i++) {
 		struct vop_win *win = &vop->win[i];
