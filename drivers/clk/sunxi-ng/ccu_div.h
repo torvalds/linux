@@ -23,6 +23,9 @@
  * struct _ccu_div - Internal divider description
  * @shift: Bit offset of the divider in its register
  * @width: Width of the divider field in its register
+ * @max: Maximum value allowed for that divider. This is the
+ *       arithmetic value, not the maximum value to be set in the
+ *       register.
  * @flags: clk_divider flags to apply on this divider
  * @table: Divider table pointer (if applicable)
  *
@@ -37,6 +40,8 @@ struct _ccu_div {
 	u8			shift;
 	u8			width;
 
+	u32			max;
+
 	u32			flags;
 
 	struct clk_div_table	*table;
@@ -50,14 +55,25 @@ struct _ccu_div {
 		.table	= _table,					\
 	}
 
-#define _SUNXI_CCU_DIV_FLAGS(_shift, _width, _flags)			\
-	_SUNXI_CCU_DIV_TABLE_FLAGS(_shift, _width, NULL, _flags)
-
 #define _SUNXI_CCU_DIV_TABLE(_shift, _width, _table)			\
 	_SUNXI_CCU_DIV_TABLE_FLAGS(_shift, _width, _table, 0)
 
+#define _SUNXI_CCU_DIV_MAX_FLAGS(_shift, _width, _max, _flags) \
+	{								\
+		.shift	= _shift,					\
+		.width	= _width,					\
+		.flags	= _flags,					\
+		.max	= _max,						\
+	}
+
+#define _SUNXI_CCU_DIV_FLAGS(_shift, _width, _flags)			\
+	_SUNXI_CCU_DIV_MAX_FLAGS(_shift, _width, 0, _flags)
+
+#define _SUNXI_CCU_DIV_MAX(_shift, _width, _max)			\
+	_SUNXI_CCU_DIV_MAX_FLAGS(_shift, _width, _max, 0)
+
 #define _SUNXI_CCU_DIV(_shift, _width)					\
-	_SUNXI_CCU_DIV_TABLE_FLAGS(_shift, _width, NULL, 0)
+	_SUNXI_CCU_DIV_FLAGS(_shift, _width, 0)
 
 struct ccu_div {
 	u32			enable;
