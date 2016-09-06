@@ -122,32 +122,16 @@ static void shx3_update_boot_vector(unsigned int cpu)
 	__raw_writel(STBCR_RESET, STBCR_REG(cpu));
 }
 
-static int
-shx3_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
+static int shx3_cpu_prepare(unsigned int cpu)
 {
-	unsigned int cpu = (unsigned int)hcpu;
-
-	switch (action) {
-	case CPU_UP_PREPARE:
-		shx3_update_boot_vector(cpu);
-		break;
-	case CPU_ONLINE:
-		pr_info("CPU %u is now online\n", cpu);
-		break;
-	case CPU_DEAD:
-		break;
-	}
-
-	return NOTIFY_OK;
+	shx3_update_boot_vector(cpu);
+	return 0;
 }
-
-static struct notifier_block shx3_cpu_notifier = {
-	.notifier_call		= shx3_cpu_callback,
-};
 
 static int register_shx3_cpu_notifier(void)
 {
-	register_hotcpu_notifier(&shx3_cpu_notifier);
+	cpuhp_setup_state_nocalls(CPUHP_SH_SH3X_PREPARE, "sh/shx3:prepare",
+				  shx3_cpu_prepare, NULL);
 	return 0;
 }
 late_initcall(register_shx3_cpu_notifier);
