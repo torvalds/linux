@@ -1215,15 +1215,15 @@ static void sti_hqvdp_atomic_disable(struct drm_plane *drm_plane,
 {
 	struct sti_plane *plane = to_sti_plane(drm_plane);
 
-	if (!drm_plane->crtc) {
+	if (!oldstate->crtc) {
 		DRM_DEBUG_DRIVER("drm plane:%d not enabled\n",
 				 drm_plane->base.id);
 		return;
 	}
 
 	DRM_DEBUG_DRIVER("CRTC:%d (%s) drm plane:%d (%s)\n",
-			 drm_plane->crtc->base.id,
-			 sti_mixer_to_str(to_sti_mixer(drm_plane->crtc)),
+			 oldstate->crtc->base.id,
+			 sti_mixer_to_str(to_sti_mixer(oldstate->crtc)),
 			 drm_plane->base.id, sti_plane_to_str(plane));
 
 	plane->status = STI_PLANE_DISABLING;
