@@ -594,6 +594,7 @@ static void setup_itct_v2_hw(struct hisi_hba *hisi_hba,
 		qw0 = HISI_SAS_DEV_TYPE_SSP << ITCT_HDR_DEV_TYPE_OFF;
 		break;
 	case SAS_SATA_DEV:
+	case SAS_SATA_PENDING:
 		if (parent_dev && DEV_IS_EXPANDER(parent_dev->dev_type))
 			qw0 = HISI_SAS_DEV_TYPE_STP << ITCT_HDR_DEV_TYPE_OFF;
 		else
