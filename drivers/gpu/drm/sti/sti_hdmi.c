@@ -203,7 +203,7 @@ static irqreturn_t hdmi_irq_thread(int irq, void *arg)
 
 	/* Audio FIFO underrun IRQ */
 	if (hdmi->irq_status & HDMI_INT_AUDIO_FIFO_XRUN)
-		DRM_INFO("Warning: audio FIFO underrun occurs!");
+		DRM_INFO("Warning: audio FIFO underrun occurs!\n");
 
 	return IRQ_HANDLED;
 }

@@ -313,7 +313,7 @@ static void hda_enable_hd_dacs(struct sti_hda *hda, bool enable)
 			mask = DAC_CFG_HD_HZUVW_OFF_MASK;
 			break;
 		default:
-			DRM_INFO("Video DACS control register not supported!");
+			DRM_INFO("Video DACS control register not supported\n");
 			return;
 		}
 
@@ -362,7 +362,7 @@ static void hda_dbg_video_dacs_ctrl(struct seq_file *s, void __iomem *reg)
 		mask = DAC_CFG_HD_HZUVW_OFF_MASK;
 		break;
 	default:
-		DRM_DEBUG_DRIVER("Warning: DACS ctrl register not supported!");
+		DRM_DEBUG_DRIVER("Warning: DACS ctrl register not supported\n");
 		return;
 	}
 

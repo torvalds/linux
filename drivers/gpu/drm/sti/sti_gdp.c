@@ -810,7 +810,7 @@ static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
 	if (!curr_list) {
 		/* First update or invalid node should directly write in the
 		 * hw register */
-		DRM_DEBUG_DRIVER("%s first update (or invalid node)",
+		DRM_DEBUG_DRIVER("%s first update (or invalid node)\n",
 				 sti_plane_to_str(plane));
 
 		writel(gdp->is_curr_top ?
