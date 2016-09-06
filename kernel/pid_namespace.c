@@ -388,6 +388,24 @@ static int pidns_install(struct nsproxy *nsproxy, struct ns_common *ns)
 	return 0;
 }
 
+static struct ns_common *pidns_get_parent(struct ns_common *ns)
+{
+	struct pid_namespace *active = task_active_pid_ns(current);
+	struct pid_namespace *pid_ns, *p;
+
+	/* See if the parent is in the current namespace */
+	pid_ns = p = to_pid_ns(ns)->parent;
+	for (;;) {
+		if (!p)
+			return ERR_PTR(-EPERM);
+		if (p == active)
+			break;
+		p = p->parent;
+	}
+
+	return &get_pid_ns(pid_ns)->ns;
+}
+
 static struct user_namespace *pidns_owner(struct ns_common *ns)
 {
 	return to_pid_ns(ns)->user_ns;
@@ -400,6 +418,7 @@ const struct proc_ns_operations pidns_operations = {
 	.put		= pidns_put,
 	.install	= pidns_install,
 	.owner		= pidns_owner,
+	.get_parent	= pidns_get_parent,
 };
 
 static __init int pid_namespaces_init(void)

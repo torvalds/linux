@@ -171,6 +171,10 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 	switch (ioctl) {
 	case NS_GET_USERNS:
 		return open_related_ns(ns, ns_get_owner);
+	case NS_GET_PARENT:
+		if (!ns->ops->get_parent)
+			return -EINVAL;
+		return open_related_ns(ns, ns->ops->get_parent);
 	default:
 		return -ENOTTY;
 	}
