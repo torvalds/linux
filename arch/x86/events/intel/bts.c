@@ -446,26 +446,37 @@ bts_buffer_reset(struct bts_buffer *buf, struct perf_output_handle *handle)
 
 int intel_bts_interrupt(void)
 {
+	struct debug_store *ds = this_cpu_ptr(&cpu_hw_events)->ds;
 	struct bts_ctx *bts = this_cpu_ptr(&bts_ctx);
 	struct perf_event *event = bts->handle.event;
 	struct bts_buffer *buf;
 	s64 old_head;
-	int err = -ENOSPC;
+	int err = -ENOSPC, handled = 0;
+
+	/*
+	 * The only surefire way of knowing if this NMI is ours is by checking
+	 * the write ptr against the PMI threshold.
+	 */
+	if (ds->bts_index >= ds->bts_interrupt_threshold)
+		handled = 1;
 
 	/*
 	 * this is wrapped in intel_bts_enable_local/intel_bts_disable_local,
 	 * so we can only be INACTIVE or STOPPED
 	 */
 	if (READ_ONCE(bts->state) == BTS_STATE_STOPPED)
-		return 0;
+		return handled;
 
 	buf = perf_get_aux(&bts->handle);
+	if (!buf)
+		return handled;
+
 	/*
 	 * Skip snapshot counters: they don't use the interrupt, but
 	 * there's no other way of telling, because the pointer will
 	 * keep moving
 	 */
-	if (!buf || buf->snapshot)
+	if (buf->snapshot)
 		return 0;
 
 	old_head = local_read(&buf->head);
@@ -473,7 +484,7 @@ int intel_bts_interrupt(void)
 
 	/* no new data */
 	if (old_head == local_read(&buf->head))
-		return 0;
+		return handled;
 
 	perf_aux_output_end(&bts->handle, local_xchg(&buf->data_size, 0),
 			    !!local_xchg(&buf->lost, 0));
