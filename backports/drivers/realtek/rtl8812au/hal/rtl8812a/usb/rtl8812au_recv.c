@@ -135,7 +135,12 @@ int	rtl8812au_init_recv_priv(_adapter *padapter)
 
 		for(i=0; i<NR_PREALLOC_RECV_SKB; i++)
 		{
-			pskb = rtw_skb_alloc(MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
+
+	#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)) // http://www.mail-archive.com/netdev@vger.kernel.org/msg17214.html
+			pskb = __dev_alloc_skb(MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ, GFP_KERNEL);
+	#else
+			pskb = __netdev_alloc_skb(padapter->pnetdev, MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ, GFP_KERNEL);
+	#endif
 
 			if(pskb)
 			{
@@ -197,7 +202,7 @@ void rtl8812au_free_recv_priv (_adapter *padapter)
 		DBG_8192C(KERN_WARNING "rx_skb_queue not empty\n");
 	}
 
-	rtw_skb_queue_purge(&precvpriv->rx_skb_queue);
+	skb_queue_purge(&precvpriv->rx_skb_queue);
 
 #ifdef CONFIG_PREALLOC_RECV_SKB
 
@@ -205,7 +210,7 @@ void rtl8812au_free_recv_priv (_adapter *padapter)
 		DBG_8192C(KERN_WARNING "free_recv_skb_queue not empty, %d\n", skb_queue_len(&precvpriv->free_recv_skb_queue));
 	}
 
-	rtw_skb_queue_purge(&precvpriv->free_recv_skb_queue);
+	skb_queue_purge(&precvpriv->free_recv_skb_queue);
 
 #endif
 

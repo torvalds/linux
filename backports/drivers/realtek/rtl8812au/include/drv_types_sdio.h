@@ -25,7 +25,7 @@
 	#include <linux/mmc/sdio_func.h> 
 	#include <linux/mmc/sdio_ids.h>
 
-#if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN) || defined(CONFIG_PLATFORM_SPRD)
+#if defined(CONFIG_WOWLAN) || defined(CONFIG_PLATFORM_SPRD)
 	#include <linux/mmc/host.h>
 	#include <linux/mmc/card.h>
 #endif
@@ -33,6 +33,9 @@
 #ifdef CONFIG_PLATFORM_SPRD
 	#include <linux/gpio.h>
 	#include <custom_gpio.h>
+#ifdef CONFIG_RTL8188E
+	#include <mach/ldo.h>
+#endif
 #endif // CONFIG_PLATFORM_SPRD
 #endif
 

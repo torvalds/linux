@@ -84,17 +84,6 @@
 #define LED_CM12_BLINK_INTERVAL_80Mbps		30
 #define LED_CM12_BLINK_INTERVAL_MAXMbps		25
 
-//Dlink
-#define	LED_BLINK_NO_LINK_INTERVAL		1000
-#define	LED_BLINK_LINK_IDEL_INTERVAL		100
-
-#define	LED_BLINK_SCAN_ON_INTERVAL		30
-#define	LED_BLINK_SCAN_OFF_INTERVAL		300
-
-#define LED_WPS_BLINK_ON_INTERVAL_DLINK		30
-#define LED_WPS_BLINK_OFF_INTERVAL_DLINK			300
-#define LED_WPS_BLINK_LINKED_ON_INTERVAL_DLINK			5000
-
 //================================================================================
 // LED object.
 //================================================================================
@@ -142,8 +131,6 @@ typedef	enum _LED_STATE{
 	LED_BLINK_Azurewave_40Mbps = 22,
 	LED_BLINK_Azurewave_80Mbps = 23,
 	LED_BLINK_Azurewave_MAXMbps = 24,
-	LED_BLINK_LINK_IDEL = 25,
-	LED_BLINK_WPS_LINKED = 26,
 }LED_STATE;
 
 typedef enum _LED_PIN{
@@ -234,8 +221,6 @@ typedef	enum _LED_STRATEGY_USB{
 	SW_LED_MODE11, //for Edimax / ASUS
 	SW_LED_MODE12, //for WNC/NEC
 	SW_LED_MODE13, //for Netgear A6100, 8811Au
-	SW_LED_MODE14, //for Buffalo, DNI, 8811Au
-	SW_LED_MODE15, //for DLINK,  8811Au/8812AU	
 	HW_LED, // HW control 2 LEDs, LED0 and LED1 (there are 4 different control modes, see MAC.CONFIG1 for details.)
 }LED_STRATEGY_USB, *PLED_STRATEGY_USB;
 

@@ -165,7 +165,6 @@
 #define REG_TXDMA_OFFSET_CHK			0x020C
 #define REG_TXDMA_STATUS				0x0210
 #define REG_RQPN_NPQ					0x0214
-#define REG_AUTO_LLT					0x0224
 
 
 //-----------------------------------------------------
@@ -268,7 +267,6 @@
 #define REG_BAR_MODE_CTRL				0x04CC
 #define REG_RA_TRY_RATE_AGG_LMT		0x04CF
 #define REG_EARLY_MODE_CONTROL		0x04D0
-#define REG_MACID_SLEEP				0x04D4
 #define REG_NQOS_SEQ					0x04DC
 #define REG_QOS_SEQ					0x04DE
 #define REG_NEED_CPU_HANDLE			0x04E0
@@ -368,7 +366,6 @@
 #define REG_MAR							0x0620
 #define REG_MBIDCAMCFG					0x0628
 
-#define REG_PNO_STATUS					0x0631
 #define REG_USTIME_EDCA				0x0638
 #define REG_MAC_SPEC_SIFS				0x063A
 // 20100719 Joseph: Hardware register definition change. (HW datasheet v54)
@@ -1351,19 +1348,6 @@ Current IOREG MAP
 //2 TXDMA_OFFSET_CHK
 #define DROP_DATA_EN				BIT(9)
 
-//2 AUTO_LLT
-#define BIT_SHIFT_TXPKTNUM 24
-#define BIT_MASK_TXPKTNUM 0xff
-#define BIT_TXPKTNUM(x) (((x) & BIT_MASK_TXPKTNUM) << BIT_SHIFT_TXPKTNUM)
-
-#define BIT_TDE_DBG_SEL BIT(23)
-#define BIT_AUTO_INIT_LLT BIT(16)
-
-#define BIT_SHIFT_Tx_OQT_free_space 8
-#define BIT_MASK_Tx_OQT_free_space 0xff
-#define BIT_Tx_OQT_free_space(x) (((x) & BIT_MASK_Tx_OQT_free_space) << BIT_SHIFT_Tx_OQT_free_space)
-
-
 //-----------------------------------------------------
 //
 //	0x0280h ~ 0x028Bh	RX DMA Configuration
@@ -1512,7 +1496,7 @@ Current IOREG MAP
 
 //-----------------------------------------------------
 //
-//	SDIO Bus Specification
+//	0xFE00h ~ 0xFE55h	RTL8723 SDIO Configuration
 //
 //-----------------------------------------------------
 
@@ -1523,7 +1507,6 @@ Current IOREG MAP
 #define TX_HIQ_BASE				0x10310000
 #define TX_MIQ_BASE				0x10320000
 #define TX_LOQ_BASE				0x10330000
-#define TX_EPQ_BASE				0x10350000
 #define RX_RX0FF_BASE			0x10340000
 
 //SDIO host local register space mapping.
@@ -1537,7 +1520,6 @@ Current IOREG MAP
 #define WLAN_TX_HIQ_DEVICE_ID			4	// 0b[16], 100b[15:13]
 #define WLAN_TX_MIQ_DEVICE_ID 		5	// 0b[16], 101b[15:13]
 #define WLAN_TX_LOQ_DEVICE_ID 		6	// 0b[16], 110b[15:13]
-#define WLAN_TX_EXQ_DEVICE_ID		3	// 0b[16], 011b[15:13]
 #define WLAN_RX0FF_DEVICE_ID 			7	// 0b[16], 111b[15:13]
 #define WLAN_IOREG_DEVICE_ID 			8	// 1b[16]
 
@@ -1555,11 +1537,9 @@ Current IOREG MAP
 #define SDIO_REG_HISR				0x0018 // SDIO Host Interrupt Service Routine
 #define SDIO_REG_HCPWM			0x0019 // HCI Current Power Mode
 #define SDIO_REG_RX0_REQ_LEN		0x001C // RXDMA Request Length
-#define SDIO_REG_OQT_FREE_PG		0x001E // OQT Free Page
 #define SDIO_REG_FREE_TXPG			0x0020 // Free Tx Buffer Page
 #define SDIO_REG_HCPWM1			0x0024 // HCI Current Power Mode 1
 #define SDIO_REG_HCPWM2			0x0026 // HCI Current Power Mode 2
-#define SDIO_REG_FREE_TXPG_SEQ	0x0028 // Free Tx Page Sequence
 #define SDIO_REG_HTSFR_INFO		0x0030 // HTSF Informaion
 #define SDIO_REG_HRPWM1			0x0080 // HCI Request Power Mode 1
 #define SDIO_REG_HRPWM2			0x0082 // HCI Request Power Mode 2

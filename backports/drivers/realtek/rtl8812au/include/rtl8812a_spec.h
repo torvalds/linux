@@ -35,10 +35,7 @@
 //	0x0000h ~ 0x00FFh	System Configuration
 //
 //-----------------------------------------------------
-#define REG_HSIMR_8812					0x0058
-#define REG_HSISR_8812					0x005c
-#define REG_GPIO_EXT_CTRL				0x0060
-#define REG_GPIO_STATUS_8812			0x006C
+
 #define REG_SDIO_CTRL_8812				0x0070
 #define REG_OPT_CTRL_8812				0x0074
 #define REG_RF_B_CTRL_8812				0x0076
@@ -82,7 +79,6 @@
 //	0x0280h ~ 0x02FFh	RXDMA Configuration
 //
 //-----------------------------------------------------
-#define REG_RXDMA_CONTROL_8812		0x0286 // Control the RX DMA.
 #define REG_RXDMA_PRO_8812			0x0290
 #define REG_EARLY_MODE_CONTROL_8812	0x02BC
 #define REG_RSVD5_8812					0x02F0
@@ -96,13 +92,6 @@
 //	0x0300h ~ 0x03FFh	PCIe
 //
 //-----------------------------------------------------
-#define	REG_DBI_WDATA_8812			0x0348	// DBI Write Data
-#define	REG_DBI_RDATA_8812			0x034C	// DBI Read Data
-#define	REG_DBI_ADDR_8812				0x0350	// DBI Address
-#define	REG_DBI_FLAG_8812				0x0352	// DBI Read/Write Flag
-#define	REG_MDIO_WDATA_8812			0x0354	// MDIO for Write PCIE PHY
-#define	REG_MDIO_RDATA_8812			0x0356	// MDIO for Reads PCIE PHY
-#define	REG_MDIO_CTL_8812				0x0358	// MDIO for Control 
 #define	REG_PCIE_MULTIFET_CTRL_8812	0x036A	//PCIE Multi-Fethc Control
 
 //-----------------------------------------------------
@@ -111,7 +100,6 @@
 //
 //-----------------------------------------------------
 #define REG_TXBF_CTRL_8812				0x042C
-#define REG_ARFR0_8812					0x0444
 #define REG_ARFR1_8812					0x044C
 #define REG_CCK_CHECK_8812				0x0454
 #define REG_AMPDU_MAX_TIME_8812		0x0456
@@ -220,16 +208,6 @@
 #define	IMR_RXFOVW_8812					BIT8			// Receive FIFO Overflow
 
 
-#ifdef CONFIG_PCI_HCI
-//#define IMR_RX_MASK		(IMR_ROK_8812|IMR_RDU_8812|IMR_RXFOVW_8812)
-#define IMR_TX_MASK			(IMR_VODOK_8812|IMR_VIDOK_8812|IMR_BEDOK_8812|IMR_BKDOK_8812|IMR_MGNTDOK_8812|IMR_HIGHDOK_8812)
-
-#define RT_BCN_INT_MASKS	(IMR_BCNDMAINT0_8812 | IMR_TXBCN0OK_8812 | IMR_TXBCN0ERR_8812 | IMR_BCNDERR0_8812)
-
-#define RT_AC_INT_MASKS	(IMR_VIDOK_8812 | IMR_VODOK_8812 | IMR_BEDOK_8812|IMR_BKDOK_8812)
-#endif
-
-
 //============================================================================
 //       Regsiter Bit and Content definition 
 //============================================================================
@@ -244,8 +222,4 @@
 #define	AcmHw_BeqStatus_8812			BIT(7)
 
 #endif //__RTL8188E_SPEC_H__
-
-#ifdef CONFIG_RTL8821A
-#include "rtl8821a_spec.h"
-#endif // CONFIG_RTL8821A
 

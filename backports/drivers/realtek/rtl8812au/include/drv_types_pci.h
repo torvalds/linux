@@ -98,124 +98,12 @@ enum pci_bridge_vendor {
 	PCI_BRIDGE_VENDOR_MAX ,//= 0x80
 } ;
 
-// copy this data structor defination from MSDN SDK
-typedef struct _PCI_COMMON_CONFIG {
-	u16	VendorID;
-	u16	DeviceID;
-	u16	Command;
-	u16	Status;
-	u8	RevisionID;
-	u8	ProgIf;
-	u8	SubClass;
-	u8	BaseClass;
-	u8	CacheLineSize;
-	u8	LatencyTimer;
-	u8	HeaderType;
-	u8	BIST;
-
-	union {
-	struct _PCI_HEADER_TYPE_0 {
-		u32	BaseAddresses[6];
-		u32	CIS;
-		u16	SubVendorID;
-		u16	SubSystemID;
-		u32	ROMBaseAddress;
-		u8	CapabilitiesPtr;
-		u8	Reserved1[3];
-		u32	Reserved2;
-
-		u8	InterruptLine;
-		u8	InterruptPin;
-		u8	MinimumGrant;
-		u8	MaximumLatency;
-	} type0;
-#if 0
-	struct _PCI_HEADER_TYPE_1 {
-		ULONG BaseAddresses[PCI_TYPE1_ADDRESSES];
-		UCHAR PrimaryBusNumber;
-		UCHAR SecondaryBusNumber;
-		UCHAR SubordinateBusNumber;
-		UCHAR SecondaryLatencyTimer;
-		UCHAR IOBase;
-		UCHAR IOLimit;
-		USHORT SecondaryStatus;
-		USHORT MemoryBase;
-		USHORT MemoryLimit;
-		USHORT PrefetchableMemoryBase;
-		USHORT PrefetchableMemoryLimit;
-		ULONG PrefetchableMemoryBaseUpper32;
-		ULONG PrefetchableMemoryLimitUpper32;
-		USHORT IOBaseUpper;
-		USHORT IOLimitUpper;
-		ULONG Reserved2;
-		ULONG ExpansionROMBase;
-		UCHAR InterruptLine;
-		UCHAR InterruptPin;
-		USHORT BridgeControl;
-	} type1;
-
-	struct _PCI_HEADER_TYPE_2 {
-		ULONG BaseAddress;
-		UCHAR CapabilitiesPtr;
-		UCHAR Reserved2;
-		USHORT SecondaryStatus;
-		UCHAR PrimaryBusNumber;
-		UCHAR CardbusBusNumber;
-		UCHAR SubordinateBusNumber;
-		UCHAR CardbusLatencyTimer;
-		ULONG MemoryBase0;
-		ULONG MemoryLimit0;
-		ULONG MemoryBase1;
-		ULONG MemoryLimit1;
-		USHORT IOBase0_LO;
-		USHORT IOBase0_HI;
-		USHORT IOLimit0_LO;
-		USHORT IOLimit0_HI;
-		USHORT IOBase1_LO;
-		USHORT IOBase1_HI;
-		USHORT IOLimit1_LO;
-		USHORT IOLimit1_HI;
-		UCHAR InterruptLine;
-		UCHAR InterruptPin;
-		USHORT BridgeControl;
-		USHORT SubVendorID;
-		USHORT SubSystemID;
-		ULONG LegacyBaseAddress;
-		UCHAR Reserved3[56];
-		ULONG SystemControl;
-		UCHAR MultiMediaControl;
-		UCHAR GeneralStatus;
-		UCHAR Reserved4[2];
-		UCHAR GPIO0Control;
-		UCHAR GPIO1Control;
-		UCHAR GPIO2Control;
-		UCHAR GPIO3Control;
-		ULONG IRQMuxRouting;
-		UCHAR RetryStatus;
-		UCHAR CardControl;
-		UCHAR DeviceControl;
-		UCHAR Diagnostic;
-	} type2;
-#endif
-	} u;
-
-	u8	DeviceSpecific[108];
-} PCI_COMMON_CONFIG , *PPCI_COMMON_CONFIG;
-
-typedef struct _RT_PCI_CAPABILITIES_HEADER {
-    u8   CapabilityID;
-    u8   Next;
-} RT_PCI_CAPABILITIES_HEADER, *PRT_PCI_CAPABILITIES_HEADER;
+struct rt_pci_capabilities_header {
+	u8	capability_id;
+	u8	next;
+};
 
 struct pci_priv{
-	BOOLEAN		pci_clk_req;
-	
-	u8	pciehdr_offset;
-	//  PCIeCap is only differece between B-cut and C-cut.
-	//  Configuration Space offset 72[7:4] 
-	//  0: A/B cut 
-	//  1: C cut and later.
-	u8	pcie_cap;
 	u8	linkctrl_reg;
 	
 	u8	busnumber;

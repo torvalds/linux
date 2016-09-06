@@ -168,85 +168,38 @@ extern void rtl871x_cedbg(const char *fmt, ...);
 	#define DBG_871X_LEVEL(x,...) do {} while(0)
 #endif
 
-#undef _dbgdump
-#undef _seqdump
+#undef	_dbgdump
+#ifdef PLATFORM_WINDOWS
 
-#ifndef _RTL871X_DEBUG_C_
-	extern u32 GlobalDebugLevel;
-	extern u64 GlobalDebugComponents;
-#endif
+	#ifdef PLATFORM_OS_XP
+		#define _dbgdump	DbgPrint
+	#elif defined PLATFORM_OS_CE
+		#define _dbgdump	rtl871x_cedbg
+	#endif
 
-#if defined(PLATFORM_WINDOWS) && defined(PLATFORM_OS_XP)
-	#define _dbgdump DbgPrint
-	#define _seqdump(sel, fmt, arg...) _dbgdump(fmt, ##arg)
-#elif defined(PLATFORM_WINDOWS) && defined(PLATFORM_OS_CE)
-	#define _dbgdump rtl871x_cedbg
-	#define _seqdump(sel, fmt, arg...) _dbgdump(fmt, ##arg)
 #elif defined PLATFORM_LINUX
-	#define _dbgdump printk
-	#define _seqdump seq_printf
+	#define _dbgdump	printk
 #elif defined PLATFORM_FREEBSD
-	#define _dbgdump printf
-	#define _seqdump(sel, fmt, arg...) _dbgdump(fmt, ##arg)
+	#define _dbgdump	printf
 #endif
 
-#define DRIVER_PREFIX "RTL871X: "
-
-#if defined(_dbgdump)
-
-/* with driver-defined prefix */
-#undef DBG_871X_LEVEL
-#define DBG_871X_LEVEL(level, fmt, arg...)     \
+#define DRIVER_PREFIX	"RTL871X: "
+#define DEBUG_LEVEL	(_drv_err_)
+#if 	defined (_dbgdump)
+	#undef DBG_871X_LEVEL
+	#define DBG_871X_LEVEL(level, fmt, arg...)     \
 	do {\
-		if (level <= GlobalDebugLevel) {\
+		if (level <= DEBUG_LEVEL) {\
 			if (level <= _drv_err_ && level > _drv_always_) \
 				_dbgdump(DRIVER_PREFIX"ERROR " fmt, ##arg);\
 			else \
 				_dbgdump(DRIVER_PREFIX fmt, ##arg);\
 		}\
 	}while(0)
-
-/* without driver-defined prefix */
-#undef _DBG_871X_LEVEL
-#define _DBG_871X_LEVEL(level, fmt, arg...)	   \
-	do {\
-		if (level <= GlobalDebugLevel) {\
-			if (level <= _drv_err_ && level > _drv_always_) \
-				_dbgdump("ERROR " fmt, ##arg);\
-			else \
-				_dbgdump(fmt, ##arg);\
-		}\
-	}while(0)
-
-#if defined(_seqdump)
-#define RTW_DBGDUMP 0 /* 'stream' for _dbgdump */
-
-/* dump message to selected 'stream' */
-#define DBG_871X_SEL(sel, fmt, arg...) \
-	do {\
-		if (sel == RTW_DBGDUMP)\
-			_DBG_871X_LEVEL(_drv_always_, fmt, ##arg); \
-		else {\
-			if(_seqdump(sel, fmt, ##arg)) /*rtw_warn_on(1)*/; \
-		} \
-	}while(0)
-
-/* dump message to selected 'stream' with driver-defined prefix */
-#define DBG_871X_SEL_NL(sel, fmt, arg...) \
-	do {\
-		if (sel == RTW_DBGDUMP)\
-			DBG_871X_LEVEL(_drv_always_, fmt, ##arg); \
-		else {\
-			if(_seqdump(sel, fmt, ##arg)) /*rtw_warn_on(1)*/; \
-		} \
-	}while(0)
-
-#endif /* defined(_seqdump) */
-
-#endif /* defined(_dbgdump) */
+#endif
 
 #ifdef CONFIG_DEBUG
-#if	defined(_dbgdump)
+#if	defined (_dbgdump)
 	#undef DBG_871X
 	#define DBG_871X(...)     do {\
 		_dbgdump(DRIVER_PREFIX __VA_ARGS__);\
@@ -261,160 +214,373 @@ extern void rtl871x_cedbg(const char *fmt, ...);
 	#define DBG_8192C(...)     do {\
 		_dbgdump(DRIVER_PREFIX __VA_ARGS__);\
 	}while(0)
-#endif /* defined(_dbgdump) */
+#endif
 #endif /* CONFIG_DEBUG */
 
 #ifdef CONFIG_DEBUG_RTL871X
+#ifndef _RTL871X_DEBUG_C_
+	extern u32 GlobalDebugLevel;
+	extern u64 GlobalDebugComponents;
+#endif
 
-#if	defined(_dbgdump) && defined(_MODULE_DEFINE_)
+#if	defined (_dbgdump) && defined (_MODULE_DEFINE_)
 
-	#undef RT_TRACE
-	#define RT_TRACE(_Comp, _Level, Fmt)\
-	do {\
-		if((_Comp & GlobalDebugComponents) && (_Level <= GlobalDebugLevel)) {\
-			_dbgdump("%s [0x%08x,%d]", DRIVER_PREFIX, (unsigned int)_Comp, _Level);\
-			_dbgdump Fmt;\
-		}\
-	}while(0)
+		#undef RT_TRACE
+		#define RT_TRACE(_Comp, _Level, Fmt)\
+		do {\
+			if((_Comp & GlobalDebugComponents) && (_Level <= GlobalDebugLevel)) {\
+				_dbgdump("%s [0x%08x,%d]", DRIVER_PREFIX, (unsigned int)_Comp, _Level);\
+				_dbgdump Fmt;\
+			}\
+		}while(0)
 
-#endif /* defined(_dbgdump) && defined(_MODULE_DEFINE_) */
+#endif
 
 
-#if	defined(_dbgdump)
-	#undef  _func_enter_
-	#define _func_enter_ \
-	do {	\
-		if (GlobalDebugLevel >= _drv_debug_) \
-		{																	\
-			_dbgdump("\n %s : %s enters at %d\n", DRIVER_PREFIX, __FUNCTION__, __LINE__);\
-		}		\
-	} while(0)
+#if	defined (_dbgdump)
 
-	#undef  _func_exit_
-	#define _func_exit_ \
-	do {	\
-		if (GlobalDebugLevel >= _drv_debug_) \
-		{																	\
-			_dbgdump("\n %s : %s exits at %d\n", DRIVER_PREFIX, __FUNCTION__, __LINE__); \
-		}	\
-	} while(0)
+		#undef  _func_enter_
+		#define _func_enter_ \
+		do {	\
+			if (GlobalDebugLevel >= _drv_debug_) \
+			{																	\
+				_dbgdump("\n %s : %s enters at %d\n", DRIVER_PREFIX, __FUNCTION__, __LINE__);\
+			}		\
+		} while(0)
 
-	#undef RT_PRINT_DATA
-	#define RT_PRINT_DATA(_Comp, _Level, _TitleString, _HexData, _HexDataLen)			\
-		if(((_Comp) & GlobalDebugComponents) && (_Level <= GlobalDebugLevel))	\
-		{									\
-			int __i;								\
-			u8	*ptr = (u8 *)_HexData;				\
-			_dbgdump("%s", DRIVER_PREFIX);						\
-			_dbgdump(_TitleString);						\
-			for( __i=0; __i<(int)_HexDataLen; __i++ )				\
-			{								\
-				_dbgdump("%02X%s", ptr[__i], (((__i + 1) % 4) == 0)?"  ":" ");	\
-				if (((__i + 1) % 16) == 0)	_dbgdump("\n");			\
-			}								\
-			_dbgdump("\n");							\
-		}
-#endif /* defined(_dbgdump) */
+		#undef  _func_exit_
+		#define _func_exit_ \
+		do {	\
+			if (GlobalDebugLevel >= _drv_debug_) \
+			{																	\
+				_dbgdump("\n %s : %s exits at %d\n", DRIVER_PREFIX, __FUNCTION__, __LINE__); \
+			}	\
+		} while(0)
+
+		#undef RT_PRINT_DATA
+		#define RT_PRINT_DATA(_Comp, _Level, _TitleString, _HexData, _HexDataLen)			\
+			if(((_Comp) & GlobalDebugComponents) && (_Level <= GlobalDebugLevel))	\
+			{									\
+				int __i;								\
+				u8	*ptr = (u8 *)_HexData;				\
+				_dbgdump("%s", DRIVER_PREFIX);						\
+				_dbgdump(_TitleString);						\
+				for( __i=0; __i<(int)_HexDataLen; __i++ )				\
+				{								\
+					_dbgdump("%02X%s", ptr[__i], (((__i + 1) % 4) == 0)?"  ":" ");	\
+					if (((__i + 1) % 16) == 0)	_dbgdump("\n");			\
+				}								\
+				_dbgdump("\n");							\
+			}
+#endif
 #endif /* CONFIG_DEBUG_RTL871X */
 
-void dump_drv_version(void *sel);
-void dump_log_level(void *sel);
-
-#ifdef CONFIG_SDIO_HCI
-void sd_f0_reg_dump(void *sel, _adapter *adapter);
-#endif /* CONFIG_SDIO_HCI */
-
-void mac_reg_dump(void *sel, _adapter *adapter);
-void bb_reg_dump(void *sel, _adapter *adapter);
-void rf_reg_dump(void *sel, _adapter *adapter);
 
 #ifdef CONFIG_PROC_DEBUG
-ssize_t proc_set_write_reg(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-int proc_get_read_reg(struct seq_file *m, void *v);
-ssize_t proc_set_read_reg(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
 
-int proc_get_fwstate(struct seq_file *m, void *v);
-int proc_get_sec_info(struct seq_file *m, void *v);
-int proc_get_mlmext_state(struct seq_file *m, void *v);
-#ifdef CONFIG_LAYER2_ROAMING
-int proc_get_roam_flags(struct seq_file *m, void *v);
-ssize_t proc_set_roam_flags(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-int proc_get_roam_param(struct seq_file *m, void *v);
-ssize_t proc_set_roam_param(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-ssize_t proc_set_roam_tgt_addr(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-#endif /* CONFIG_LAYER2_ROAMING */
-int proc_get_qos_option(struct seq_file *m, void *v);
-int proc_get_ht_option(struct seq_file *m, void *v);
-int proc_get_rf_info(struct seq_file *m, void *v);
-int proc_get_ap_info(struct seq_file *m, void *v);
-int proc_get_adapter_state(struct seq_file *m, void *v);
-int proc_get_trx_info(struct seq_file *m, void *v);
-int proc_get_rate_ctl(struct seq_file *m, void *v);
-ssize_t proc_set_rate_ctl(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-int proc_get_suspend_resume_info(struct seq_file *m, void *v);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
+	int proc_get_drv_version(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
 
-ssize_t proc_set_fwdl_test_case(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
+	int proc_get_write_reg(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+
+ 	int proc_set_write_reg(struct file *file, const char *buffer,
+		unsigned long count, void *data);
+
+	int proc_get_read_reg(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+
+	int proc_set_read_reg(struct file *file, const char *buffer,
+		unsigned long count, void *data);
+
+
+	int proc_get_fwstate(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+
+	int proc_get_sec_info(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+
+	int proc_get_mlmext_state(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+
+	int proc_get_qos_option(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+
+	int proc_get_ht_option(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+
+	int proc_get_rf_info(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+
+	int proc_get_ap_info(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+
+	int proc_get_adapter_state(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+
+	int proc_get_trx_info(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+
+	int proc_get_mac_reg_dump1(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+
+	int proc_get_mac_reg_dump2(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+
+	int proc_get_mac_reg_dump3(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+
+	int proc_get_bb_reg_dump1(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+
+	int proc_get_bb_reg_dump2(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+
+	int proc_get_bb_reg_dump3(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+
+	int proc_get_rf_reg_dump1(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+
+	int proc_get_rf_reg_dump2(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+
+	int proc_get_rf_reg_dump3(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+
+	int proc_get_rf_reg_dump4(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+#else
+        int proc_get_drv_version(struct seq_file *m, void *data);
+
+	int proc_get_write_reg(struct seq_file *m, void *data);
+
+ 	ssize_t proc_set_write_reg(struct file *file, const char *buffer,
+				   size_t count, loff_t *pos);
+
+        int proc_get_read_reg(struct seq_file *m, void *data);
+
+	ssize_t proc_set_read_reg(struct file *file, const char *buffer,
+				  size_t count, loff_t *pos);
+
+        int proc_get_fwstate(struct seq_file *m, void *data);
+
+	int proc_get_sec_info(struct seq_file *m, void *data);
+
+	int proc_get_mlmext_state(struct seq_file *m, void *data);
+
+	int proc_get_qos_option(struct seq_file *m, void *data);
+
+	int proc_get_ht_option(struct seq_file *m, void *data);
+
+	int proc_get_rf_info(struct seq_file *m, void *data);
+
+	int proc_get_ap_info(struct seq_file *m, void *data);
+
+	int proc_get_adapter_state(struct seq_file *m, void *data);
+
+	int proc_get_trx_info(struct seq_file *m, void *data);
+
+	int proc_get_mac_reg_dump1(struct seq_file *m, void *data);
+
+	int proc_get_mac_reg_dump2(struct seq_file *m, void *data);
+
+	int proc_get_mac_reg_dump3(struct seq_file *m, void *data);
+
+	int proc_get_bb_reg_dump1(struct seq_file *m, void *data);
+
+	int proc_get_bb_reg_dump2(struct seq_file *m, void *data);
+
+	int proc_get_bb_reg_dump3(struct seq_file *m, void *data);
+
+	int proc_get_rf_reg_dump1(struct seq_file *m, void *data);
+
+	int proc_get_rf_reg_dump2(struct seq_file *m, void *data);
+
+	int proc_get_rf_reg_dump3(struct seq_file *m, void *data);
+
+	int proc_get_rf_reg_dump4(struct seq_file *m, void *data);
+
+#endif
 
 #ifdef CONFIG_AP_MODE
-int proc_get_all_sta_info(struct seq_file *m, void *v);
-#endif /* CONFIG_AP_MODE */
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
+	int proc_get_all_sta_info(char *page, char **start,
+				  off_t offset, int count,
+				  int *eof, void *data);
+#else
+	int proc_get_all_sta_info(struct seq_file *m, void *data);
+#endif
+
+#endif
 
 #ifdef DBG_MEMORY_LEAK
-int proc_get_malloc_cnt(struct seq_file *m, void *v);
-#endif /* DBG_MEMORY_LEAK */
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
+	int proc_get_malloc_cnt(char *page, char **start,
+				off_t offset, int count,
+				int *eof, void *data);
+#else
+	int proc_get_malloc_cnt(struct seq_file *m, void *data);
+#endif
+
+#endif
 
 #ifdef CONFIG_FIND_BEST_CHANNEL
-int proc_get_best_channel(struct seq_file *m, void *v);
-ssize_t proc_set_best_channel(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-#endif /* CONFIG_FIND_BEST_CHANNEL */
 
-int proc_get_rx_signal(struct seq_file *m, void *v);
-ssize_t proc_set_rx_signal(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
+	int proc_get_best_channel(char *page, char **start,
+				  off_t offset, int count,
+				  int *eof, void *data);
+#else
+	int proc_get_best_channel(struct seq_file *m, void *data);
+#endif
+
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
+	int proc_get_rx_signal(char *page, char **start,
+			       off_t offset, int count,
+			       int *eof, void *data);
+
+	int proc_set_rx_signal(struct file *file, const char *buffer,
+			       unsigned long count, void *data);
+#else
+	int proc_get_rx_signal(struct seq_file *m, void *data);
+
+        ssize_t proc_set_rx_signal(struct file *file, const char *buffer,
+				   size_t count, loff_t *pos);
+#endif
 
 #ifdef CONFIG_80211N_HT
-int proc_get_ht_enable(struct seq_file *m, void *v);
-ssize_t proc_set_ht_enable(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
 
-int proc_get_bw_mode(struct seq_file *m, void *v);
-ssize_t proc_set_bw_mode(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
+	int proc_get_ht_enable(char *page, char **start,
+			       off_t offset, int count,
+			       int *eof, void *data);
+			  
+	int proc_set_ht_enable(struct file *file, const char *buffer,
+			       unsigned long count, void *data);
 
-int proc_get_ampdu_enable(struct seq_file *m, void *v);
-ssize_t proc_set_ampdu_enable(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
+	int proc_get_bw_mode(char *page, char **start,
+			     off_t offset, int count,
+			     int *eof, void *data);
 
-int proc_get_rx_ampdu(struct seq_file *m, void *v);
-ssize_t proc_set_rx_ampdu(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
+	int proc_set_bw_mode(struct file *file, const char *buffer,
+			     unsigned long count, void *data);
+	
+	int proc_get_ampdu_enable(char *page, char **start,
+				  off_t offset, int count,
+				  int *eof, void *data);
+			  
+	int proc_set_ampdu_enable(struct file *file, const char *buffer,
+				  unsigned long count, void *data);
+	
+	int proc_get_rx_stbc(char *page, char **start,
+			     off_t offset, int count,
+			     int *eof, void *data);
+		
+	int proc_set_rx_stbc(struct file *file, const char *buffer,
+			     unsigned long count, void *data);
+#else
+	int proc_get_ht_enable(struct seq_file *m, void *data);
+			  
+        ssize_t proc_set_ht_enable(struct file *file, const char *buffer,
+				   size_t count, loff_t *pos);
 
-int proc_get_rx_stbc(struct seq_file *m, void *v);
-ssize_t proc_set_rx_stbc(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-#endif /* CONFIG_80211N_HT */
+	int proc_get_bw_mode(struct seq_file *m, void *data);
 
-int proc_get_en_fwps(struct seq_file *m, void *v);
-ssize_t proc_set_en_fwps(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
+        ssize_t proc_set_bw_mode(struct file *file, const char *buffer,
+					 size_t count, loff_t *pos);
 
-int proc_get_two_path_rssi(struct seq_file *m, void *v);
-int proc_get_rssi_disp(struct seq_file *m, void *v);
-ssize_t proc_set_rssi_disp(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
+	int proc_get_ampdu_enable(struct seq_file *m, void *data);
+			  
+	ssize_t proc_set_ampdu_enable(struct file *file, const char *buffer,
+				      size_t count, loff_t *pos);
+	
+	int proc_get_rx_stbc(struct seq_file *m, void *data);
+		
+        ssize_t proc_set_rx_stbc(struct file *file, const char *buffer,
+				 size_t count, loff_t *pos);
+#endif
+
+#endif //CONFIG_80211N_HT
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
+	int proc_get_two_path_rssi(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+
+	int proc_get_rssi_disp(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data);
+
+	int proc_set_rssi_disp(struct file *file, const char *buffer,
+			       unsigned long count, void *data);
+#else
+	int proc_get_two_path_rssi(struct seq_file *m, void *data);
+
+	int proc_get_rssi_disp(struct seq_file *m, void *data);
+
+	ssize_t proc_set_rssi_disp(struct file *file, const char *buffer,
+				   size_t count, loff_t *pos);
+#endif
 
 #ifdef CONFIG_BT_COEXIST
-int proc_get_btcoex_dbg(struct seq_file *m, void *v);
-ssize_t proc_set_btcoex_dbg(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-int proc_get_btcoex_info(struct seq_file *m, void *v);
-#endif /* CONFIG_BT_COEXIST */
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
+	int proc_get_btcoex_dbg(char *page, char **start,
+				off_t offset, int count,
+				int *eof, void *data);
+
+	int proc_set_btcoex_dbg(struct file *file, const char *buffer,
+				unsigned long count, void *data);
+#else
+	int proc_get_btcoex_dbg(struct seq_file *m, void *data);
+
+	ssize_t proc_set_btcoex_dbg(struct file *file, const char *buffer,
+				    size_t count, loff_t *pos);
+#endif
+
+#endif //CONFIG_BT_COEXIST
 
 #if defined(DBG_CONFIG_ERROR_DETECT)
-int proc_get_sreset(struct seq_file *m, void *v);
-ssize_t proc_set_sreset(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
+int proc_get_sreset(char *page, char **start, off_t offset, int count, int *eof, void *data);
+int proc_set_sreset(struct file *file, const char *buffer, unsigned long count, void *data);
+#else
+int proc_get_sreset(struct seq_file *m, void *data);
+ssize_t proc_set_sreset(struct file *file, const char *buffer, size_t count, loff_t *pos);
+#endif
+
 #endif /* DBG_CONFIG_ERROR_DETECT */
 
-int proc_get_odm_dbg_comp(struct seq_file *m, void *v);
-ssize_t proc_set_odm_dbg_comp(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-int proc_get_odm_dbg_level(struct seq_file *m, void *v);
-ssize_t proc_set_odm_dbg_level(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-
-int proc_get_odm_adaptivity(struct seq_file *m, void *v);
-ssize_t proc_set_odm_adaptivity(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-
-#endif /* CONFIG_PROC_DEBUG */
+#endif //CONFIG_PROC_DEBUG
 
 #endif	//__RTW_DEBUG_H__
 

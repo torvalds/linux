@@ -63,9 +63,6 @@ odm_ConfigBB_AGC_8812A(
 void
 odm_ConfigBB_PHY_REG_PG_8812A(
 	IN 	PDM_ODM_T 	pDM_Odm,
-	IN	u4Byte		Band,
-	IN	u4Byte		RfPath,
-	IN	u4Byte		TxNum,
     IN 	u4Byte 		Addr,
     IN 	u4Byte 		Bitmask,
     IN 	u4Byte 		Data

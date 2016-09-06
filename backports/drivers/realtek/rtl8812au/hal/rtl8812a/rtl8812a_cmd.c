@@ -21,7 +21,6 @@
 
 //#include <drv_types.h>
 #include <rtl8812a_hal.h>
-#include "hal_com_h2c.h"
 
 #define CONFIG_H2C_EF
 
@@ -65,7 +64,7 @@ static u8 _is_fw_read_cmd_down(_adapter* padapter, u8 msgbox_num)
 *|31 - 0	  |
 *|ext_msg|
 ******************************************/
-s32 FillH2CCmd_8812(PADAPTER padapter, u8 ElementID, u32 CmdLen, u8 *pCmdBuffer)
+static s32 FillH2CCmd_8812(PADAPTER padapter, u8 ElementID, u32 CmdLen, u8 *pCmdBuffer)
 {
 	u8 bcmd_down = _FALSE;
 	s32 retry_cnts = 100;
@@ -164,6 +163,25 @@ _func_exit_;
 	return ret;
 }
 
+u8 rtl8812_h2c_msg_hdl(_adapter *padapter, unsigned char *pbuf)
+{
+	u8 ElementID, CmdLen;
+	u8 *pCmdBuffer;
+	struct cmd_msg_parm  *pcmdmsg;
+
+	if(!pbuf)
+		return H2C_PARAMETERS_ERROR;
+
+	pcmdmsg = (struct cmd_msg_parm*)pbuf;
+	ElementID = pcmdmsg->eid;
+	CmdLen = pcmdmsg->sz;
+	pCmdBuffer = pcmdmsg->buf;
+
+	FillH2CCmd_8812(padapter, ElementID, CmdLen, pCmdBuffer);
+
+	return H2C_SUCCESS;
+}
+
 u8 rtl8812_set_rssi_cmd(_adapter*padapter, u8 *param)
 {
 	u8	res=_SUCCESS;
@@ -203,11 +221,10 @@ u8	Get_VHT_ENI(
 }
 
 BOOLEAN 
-Get_RA_ShortGI_8812(	
+Get_RA_ShortGI(	
 	PADAPTER			Adapter,
 	struct sta_info		*psta,
-	u8					shortGIrate,
-	u32					ratr_bitmap
+	u8					shortGIrate
 )
 {	
 	BOOLEAN		bShortGI;
@@ -223,7 +240,7 @@ Get_RA_ShortGI_8812(
 		TEST_FLAG(psta->vhtpriv.ldpc_cap, LDPC_VHT_ENABLE_TX)
 		)
 	{
-		if(ratr_bitmap & 0xC0000000)
+		if(psta->vhtpriv.vht_highest_rate >= MGN_VHT2SS_MCS8)
 			bShortGI = _FALSE;
 	}
 #endif
@@ -248,7 +265,7 @@ Set_RA_LDPC_8812(
 		else
 			CLEAR_FLAG(psta->vhtpriv.ldpc_cap, LDPC_VHT_ENABLE_TX);
 	}
-	else if(IsSupportedHT(psta->wireless_mode) || IsSupportedVHT(psta->wireless_mode))
+	else if(IsSupportedTxHT(psta->wireless_mode) || IsSupportedVHT(psta->wireless_mode))
 	{
 		if(bLDPC && TEST_FLAG(psta->htpriv.ldpc_cap, LDPC_HT_CAP_TX))
 			SET_FLAG(psta->htpriv.ldpc_cap, LDPC_HT_ENABLE_TX);
@@ -280,7 +297,7 @@ Get_RA_LDPC_8812(
 			else
 				bLDPC = 0;
  		}			
-		else if(IsSupportedHT(psta->wireless_mode))
+		else if(IsSupportedTxHT(psta->wireless_mode))
 		{
 			if(TEST_FLAG(psta->htpriv.ldpc_cap, LDPC_HT_CAP_TX))
 				bLDPC =1;
@@ -321,18 +338,18 @@ _func_enter_;
 	{
 		u8	H2CCommand[7] ={0};
 
-		shortGIrate = Get_RA_ShortGI_8812(padapter, psta, shortGIrate, bitmap);
+		shortGIrate = Get_RA_ShortGI(padapter, psta, shortGIrate);
 	
 		H2CCommand[0] = macid;
 		H2CCommand[1] = (raid & 0x1F) | (shortGIrate?0x80:0x00) ;
-		H2CCommand[2] = (psta->bw_mode & 0x3) |Get_RA_LDPC_8812(psta) |Get_VHT_ENI(0, psta->wireless_mode, bitmap);
+		H2CCommand[2] = (pmlmeext->cur_bwmode & 0x3) |Get_RA_LDPC_8812(psta) |Get_VHT_ENI(0, psta->wireless_mode, bitmap);
 
 		H2CCommand[3] = (u8)(bitmap & 0x000000ff);
 		H2CCommand[4] = (u8)((bitmap & 0x0000ff00) >>8);
 		H2CCommand[5] = (u8)((bitmap & 0x00ff0000) >> 16);
 		H2CCommand[6] = (u8)((bitmap & 0xff000000) >> 24);
 
-		//DBG_871X("rtl8812_set_raid_cmd, bitmap=0x%x, mac_id=0x%x, raid=0x%x, shortGIrate=%x\n", bitmap, macid, raid, shortGIrate);
+		DBG_871X("rtl8812_set_raid_cmd, bitmap=0x%x, mac_id=0x%x, raid=0x%x, shortGIrate=%x\n", bitmap, macid, raid, shortGIrate);
 
 		FillH2CCmd_8812(padapter, H2C_8812_RA_MASK, 7, H2CCommand);
 	}
@@ -353,17 +370,19 @@ void rtl8812_Add_RateATid(PADAPTER pAdapter, u32 bitmap, u8* arg, u8 rssi_level)
 
 	macid = arg[0];
 
+#ifdef CONFIG_ODM_REFRESH_RAMASK
 	if(rssi_level != DM_RATR_STA_INIT)
 		bitmap = ODM_Get_Rate_Bitmap(&pHalData->odmpriv, macid, bitmap, rssi_level);
+#endif //CONFIG_ODM_REFRESH_RAMASK
 
 	rtl8812_set_raid_cmd(pAdapter, bitmap, arg);
 }
 
 void rtl8812_set_FwPwrMode_cmd(PADAPTER padapter, u8 PSMode)
 {
-	u8	u1H2CSetPwrMode[6]={0};
-	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
-	u8	Mode = 0, RLBM = 0, PowerState = 0, LPSAwakeIntvl = 1, pwrModeByte5 = 0;
+	u8	u1H2CSetPwrMode[5]={0};
+	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
+	u8	Mode = 0, RLBM = 0, PowerState = 0, LPSAwakeIntvl = 1;
 
 _func_enter_;
 
@@ -394,29 +413,13 @@ _func_enter_;
 			break;
 	}
 
-	if (Mode > PS_MODE_ACTIVE)
-	{
-#ifdef CONFIG_BT_COEXIST
-		if ((rtw_btcoex_IsBtControlLps(padapter) == _TRUE))
-		{
-			PowerState = rtw_btcoex_RpwmVal(padapter);
-			pwrModeByte5 = rtw_btcoex_LpsVal(padapter);
-		}
-		else
-#endif // CONFIG_BT_COEXIST
-		{
-			PowerState = 0x00;// AllON(0x0C), RFON(0x04), RFOFF(0x00)
-			pwrModeByte5 = 0x40;
-		}
-
+	if (Mode > PS_MODE_ACTIVE) {
+		PowerState = 0x00;// AllON(0x0C), RFON(0x04), RFOFF(0x00)
 #ifdef CONFIG_EXT_CLK
 		Mode |= BIT(7);//supporting 26M XTAL CLK_Request feature.
 #endif //CONFIG_EXT_CLK
-	}
-	else
-	{
+	} else {
 		PowerState = 0x0C;// AllON(0x0C), RFON(0x04), RFOFF(0x00)
-		pwrModeByte5 = 0x40;
 	}
 
 	// 0: Active, 1: LPS, 2: WMMPS
@@ -438,13 +441,7 @@ _func_enter_;
 	// AllON(0x0C), RFON(0x04), RFOFF(0x00)
 	SET_8812_H2CCMD_PWRMODE_PARM_PWR_STATE(u1H2CSetPwrMode, PowerState);
 
-	SET_8812_H2CCMD_PWRMODE_PARM_BYTE5(u1H2CSetPwrMode, pwrModeByte5);
-
-#ifdef CONFIG_BT_COEXIST
-	rtw_btcoex_RecordPwrMode(padapter, u1H2CSetPwrMode, sizeof(u1H2CSetPwrMode));
-#endif // CONFIG_BT_COEXIST
-
-	FillH2CCmd_8812(padapter, H2C_8812_SETPWRMODE, sizeof(u1H2CSetPwrMode), u1H2CSetPwrMode);
+	FillH2CCmd_8812(padapter, H2C_8812_SETPWRMODE, sizeof(u1H2CSetPwrMode), (u8 *)&u1H2CSetPwrMode);
 
 _func_exit_;
 }
@@ -806,7 +803,7 @@ static void SetFwRsvdPagePkt_8812(PADAPTER padapter, BOOLEAN bDLFinished)
 	RsvdPageNum = GetTxBufferRsvdPageNum8812(padapter, _FALSE);
 	MaxRsvdPageBufSize = RsvdPageNum*PageSize;
 
-	pcmdframe = rtw_alloc_cmdxmitframe(pxmitpriv);
+	pcmdframe = rtw_alloc_cmdxmitframe(pxmitpriv, MaxRsvdPageBufSize);
 	if (pcmdframe == NULL) {
 		return;
 	}
@@ -930,11 +927,8 @@ static void SetFwRsvdPagePkt_8812(PADAPTER padapter, BOOLEAN bDLFinished)
 		update_mgntframe_attrib(padapter, pattrib);
 		pattrib->qsel = 0x10;
 		pattrib->pktlen = pattrib->last_txcmdsz = TotalPacketLen - TxDescLen;
-#ifdef CONFIG_PCI_HCI
-		dump_mgntframe(padapter, pcmdframe);
-#else
+
 		dump_mgntframe_and_wait(padapter, pcmdframe, 100);
-#endif
 	}
 
 	if(!bDLFinished)
@@ -943,10 +937,12 @@ static void SetFwRsvdPagePkt_8812(PADAPTER padapter, BOOLEAN bDLFinished)
 		FillH2CCmd_8812(padapter, H2C_8812_RSVDPAGE, 5, RsvdPageLoc);
 	}
 
+	rtw_free_cmd_xmitbuf(pxmitpriv);
+
 	return;
 
 error:
-	rtw_free_xmitframe(pxmitpriv, pcmdframe);
+	rtw_free_cmdxmitframe(pxmitpriv, pcmdframe);
 }
 
 void rtl8812_set_FwJoinBssReport_cmd(PADAPTER padapter, u8 mstatus)
@@ -1021,14 +1017,9 @@ _func_enter_;
 		{
 		}
 		else if(!bcn_valid)
-			DBG_871X(ADPT_FMT": 1 DL RSVD page failed! DLBcnCount:%u, poll:%u\n",
-				ADPT_ARG(padapter) ,DLBcnCount, poll);
-		else {
-			struct pwrctrl_priv *pwrctl = adapter_to_pwrctl(padapter);
-			pwrctl->fw_psmode_iface_id = padapter->iface_id;
-			DBG_871X(ADPT_FMT": 1 DL RSVD page success! DLBcnCount:%u, poll:%u\n",
-				ADPT_ARG(padapter), DLBcnCount, poll);
-		}
+			DBG_871X("%s: 1 Download RSVD page failed! DLBcnCount:%u, poll:%u\n", __FUNCTION__ ,DLBcnCount, poll);
+		else
+			DBG_871X("%s: 1 Download RSVD success! DLBcnCount:%u, poll:%u\n", __FUNCTION__, DLBcnCount, poll);
 		//
 		// We just can send the reserved page twice during the time that Tx thread is stopped (e.g. pnpsetpower)
 		// becuase we need to free the Tx BCN Desc which is used by the first reserved page packet.
@@ -1105,7 +1096,7 @@ _func_enter_;
 		}
 	}
 #ifdef CONFIG_WOWLAN
-	if (adapter_to_pwrctl(padapter)->wowlan_mode){
+	if (padapter->pwrctrlpriv.wowlan_mode){
 		u16	media_status;
 
 		media_status = mstatus;
@@ -1122,7 +1113,7 @@ _func_exit_;
 void rtl8812_set_p2p_ps_offload_cmd(_adapter* padapter, u8 p2p_ps_state)
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
-	struct pwrctrl_priv		*pwrpriv = adapter_to_pwrctl(padapter);
+	struct pwrctrl_priv		*pwrpriv = &padapter->pwrctrlpriv;
 	struct wifidirect_info	*pwdinfo = &( padapter->wdinfo );
 	u8	*p2p_ps_offload = (u8 *)&pHalData->p2p_ps_offload;
 	u8	i;
@@ -1269,7 +1260,7 @@ void rtl8812_set_wowlan_cmd(_adapter* padapter, u8 enable)
 	u32		test=0;
 	struct recv_priv	*precvpriv = &padapter->recvpriv;
 	SETWOWLAN_PARM		pwowlan_parm;
-	struct pwrctrl_priv	*pwrpriv = adapter_to_pwrctl(padapter);
+	struct pwrctrl_priv	*pwrpriv=&padapter->pwrctrlpriv;
 
 _func_enter_;
 		DBG_871X_LEVEL(_drv_always_, "+%s+\n", __func__);
@@ -1299,7 +1290,7 @@ _func_enter_;
 				DBG_871X_LEVEL(_drv_info_, "%s 4.pwowlan_parm.mode=0x%x \n",__FUNCTION__,pwowlan_parm.mode );
 			}
 
-			if(!(pwrpriv->wowlan_wake_reason & FWDecisionDisconnect))
+			if(!(padapter->pwrctrlpriv.wowlan_wake_reason & FWDecisionDisconnect))
 				rtl8812a_set_FwJoinBssReport_cmd(padapter, 1);
 			else
 				DBG_871X_LEVEL(_drv_always_, "%s, disconnected, no FwJoinBssReport\n",__FUNCTION__);	
@@ -1351,174 +1342,4 @@ _func_exit_;
 		return ;
 }
 #endif  //CONFIG_WOWLAN
-
-int rtl8812_iqk_wait(_adapter* padapter, u32 timeout_ms)
-{
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
-	struct submit_ctx	*iqk_sctx = &pHalData->iqk_sctx;
-
-	iqk_sctx->submit_time = rtw_get_current_time();
-	iqk_sctx->timeout_ms = timeout_ms;
-	iqk_sctx->status = RTW_SCTX_SUBMITTED;
-
-	return rtw_sctx_wait(iqk_sctx, __func__);
-}
-
-void rtl8812_iqk_done(_adapter* padapter)
-{
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
-	struct submit_ctx	*iqk_sctx = &pHalData->iqk_sctx;
-	
-	rtw_sctx_done(&iqk_sctx);
-}
-
-static VOID
-C2HTxFeedbackHandler_8812(
-	IN	PADAPTER	Adapter,
-	IN	u8			*CmdBuf,
-	IN	u8			CmdLen
-)
-{
-#ifdef CONFIG_XMIT_ACK
-	if (GET_8812_C2H_TX_RPT_RETRY_OVER(CmdBuf) | GET_8812_C2H_TX_RPT_LIFE_TIME_OVER(CmdBuf)) {
-		rtw_ack_tx_done(&Adapter->xmitpriv, RTW_SCTX_DONE_CCX_PKT_FAIL);
-	} else {
-		rtw_ack_tx_done(&Adapter->xmitpriv, RTW_SCTX_DONE_SUCCESS);
-	}
-#endif
-}
-
-static VOID
-C2HRaReportHandler_8812(
-	IN	PADAPTER	Adapter,
-	IN	u8*			CmdBuf,
-	IN	u8			CmdLen
-)
-{
-	u8 	Rate = CmdBuf[0] & 0x3F;
-	u8	MacId = CmdBuf[1];
-	BOOLEAN	bLDPC = CmdBuf[2] & BIT0;
-	BOOLEAN	bTxBF = (CmdBuf[2] & BIT1) >> 1;
-	BOOLEAN	bNoisyStateFromC2H = (CmdBuf[2] & BIT2) >> 2;
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
-
-	//pHalData->CurrentRARate = MRateToHwRate(Rate);
-
-	ODM_UpdateInitRate(&pHalData->odmpriv, Rate);
-	//ODM_UpdateNoisyState(&pHalData->odmpriv, bNoisyStateFromC2H);
-}
-
-s32
-_C2HContentParsing8812(
-	IN	PADAPTER	Adapter,
-	IN	u8			c2hCmdId, 
-	IN	u8			c2hCmdLen,
-	IN	u8 			*tmpBuf
-)
-{
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
-	PDM_ODM_T		pDM_Odm = &pHalData->odmpriv;
-	s32 ret = _SUCCESS;
-
-	switch(c2hCmdId)
-	{
-		case C2H_8812_DBG:
-			DBG_871X("[C2H], C2H_8812_DBG!!\n");
-			break;
-
-		case C2H_8812_TXBF:
-			DBG_871X("[C2H], C2H_8812_TXBF!!\n");
-			//C2HTxBeamformingHandler_8812(Adapter, tmpBuf, c2hCmdLen);
-			break;
-
-		case C2H_8812_TX_REPORT:
-			//DBG_871X("[C2H], C2H_8812_TX_REPORT!!\n");
-			C2HTxFeedbackHandler_8812(Adapter, tmpBuf, c2hCmdLen);
-			break;
-
-#ifdef CONFIG_BT_COEXIST
-		case C2H_8812_BT_INFO:
-			//DBG_871X("[C2H], C2H_8812_BT_INFO!!\n");
-			rtw_btcoex_BtInfoNotify(Adapter, c2hCmdLen, tmpBuf);
-			break;
-#endif
-
-		case C2H_8812_BT_MP:
-			DBG_871X("[C2H], C2H_8812_BT_MP!!\n");
-#ifdef CONFIG_MP_INCLUDED
-//			MPTBT_FwC2hBtMpCtrl(Adapter, tmpBuf, c2hCmdLen);
-#else
-			//NDBG_FwC2hBtControl(Adapter, tmpBuf, c2hCmdLen);
-#endif
-			break;
-
-		case C2H_8812_RA_RPT:
-			C2HRaReportHandler_8812(Adapter, tmpBuf, c2hCmdLen);
-			break;
-
-		case C2H_8812_FW_SWCHNL:
-			//DBG_871X("channel to %d\n", *tmpBuf);
-			break;
-
-		case C2H_8812_IQK_FINISH: 
-			DBG_871X("== IQK Finish ==\n");
-			rtl8812_iqk_done(Adapter);
-			break;
-
-		case C2H_8812_MAILBOX_STATUS:
-			DBG_871X("[C2H], mailbox status:%u\n", *tmpBuf);
-			break;
-
-		default:
-			DBG_871X("%s: [WARNING] unknown C2H(0x%02x)\n", __FUNCTION__, c2hCmdId);
-			ret = _FAIL;
-			break;
-	}
-
-	return ret;
-}
-
-
-VOID
-C2HPacketHandler_8812(
-	IN	PADAPTER	Adapter,
-	IN	u8			*Buffer,
-	IN	u8			Length
-	)
-{
-	struct c2h_evt_hdr_88xx *c2h_evt = (struct c2h_evt_hdr_88xx *)Buffer;
-	u8	c2hCmdId=0, c2hCmdSeq=0, c2hCmdLen=0;
-	u8	*tmpBuf=NULL;
-
-	//PRINT_DATA(("C2HPacketHandler_8812"), Buffer, Length);
-	c2hCmdId = Buffer[0];
-	c2hCmdSeq = Buffer[1];
-	c2hCmdLen = Length -2;
-	tmpBuf = Buffer+2;
-	
-	//DBG_871X("[C2H packet], c2hCmdId=0x%x, c2hCmdSeq=0x%x, c2hCmdLen=%d\n", c2hCmdId, c2hCmdSeq, c2hCmdLen);
-
-#ifdef CONFIG_BT_COEXIST
-	if (Length>16) {
-		DBG_871X("[C2H packet], c2hCmdId=0x%x, c2hCmdSeq=0x%x, c2hCmdLen=%d\n", c2hCmdId, c2hCmdSeq, c2hCmdLen);
-		rtw_warn_on(1);
-	}
-
-	if (c2hCmdId == C2H_8812_BT_INFO) {
-		/* enqueue */
-		if ((c2h_evt = (struct c2h_evt_hdr_88xx *)rtw_zmalloc(16)) != NULL) {
-			_rtw_memcpy(c2h_evt, Buffer, Length);
-			c2h_evt->plen = Length - 2;
-			//DBG_871X("-[C2H packet], id=0x%x, seq=0x%x, plen=%d\n", c2h_evt->id, c2h_evt->seq, c2h_evt->plen);
-			rtw_c2h_wk_cmd(Adapter, (u8 *)c2h_evt);
-		}
-	}
-	else
-#endif /* CONFIG_BT_COEXIST */
-	{
-		/* handle directly */
-		_C2HContentParsing8812(Adapter, c2hCmdId, c2hCmdLen, tmpBuf);
-	}
-}
-
 

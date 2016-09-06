@@ -51,8 +51,11 @@ typedef enum _HAL_STATUS{
 	RT_STATUS_OS_API_FAILED,*/
 }HAL_STATUS,*PHAL_STATUS;
 
-
-#if( (DM_ODM_SUPPORT_TYPE == ODM_AP) ||(DM_ODM_SUPPORT_TYPE == ODM_ADSL) || (DM_ODM_SUPPORT_TYPE == ODM_CE))
+#if (DM_ODM_SUPPORT_TYPE == ODM_CE)
+typedef enum _RT_SPINLOCK_TYPE{
+	RT_TEMP =1,
+}RT_SPINLOCK_TYPE;
+#elif( (DM_ODM_SUPPORT_TYPE == ODM_AP) ||(DM_ODM_SUPPORT_TYPE == ODM_ADSL))
 
 #define		VISTA_USB_RX_REVISE			0
 
@@ -76,7 +79,7 @@ typedef enum _RT_SPINLOCK_TYPE{
 	RT_USBRX_POSTPROC_SPINLOCK = 14, // protect data of Adapter->IndicateW/ IndicateR
 #endif
 	//Shall we define Ndis 6.2 SpinLock Here ?
-	RT_PORT_SPINLOCK=16,
+	RT_PORT_SPINLOCK=16,	
 	RT_H2C_SPINLOCK = 20, // For H2C cmd. Added by tynli. 2009.11.09.
 
 	RT_BTData_SPINLOCK=25,
@@ -92,13 +95,7 @@ typedef enum _RT_SPINLOCK_TYPE{
 	RT_AWB_SPINLOCK = 32,
 	RT_FW_PS_SPINLOCK = 33,
 	RT_HW_TIMER_SPIN_LOCK = 34,
-	RT_MPT_WI_SPINLOCK = 35,
-	RT_P2P_SPIN_LOCK = 36,	// Protect P2P context
-	RT_DBG_SPIN_LOCK = 37,
-	RT_IQK_SPINLOCK = 38,
-	RT_PENDED_OID_SPINLOCK = 39,
-	RT_CHNLLIST_SPINLOCK = 40,	
-	RT_INDIC_SPINLOCK = 41,	//protect indication	
+	RT_MPT_WI_SPINLOCK = 35
 }RT_SPINLOCK_TYPE;
 
 #endif
@@ -118,18 +115,6 @@ typedef enum _RT_SPINLOCK_TYPE{
 	#define ADSL_AP_BUILD_WORKAROUND
 	#define AP_BUILD_WORKAROUND
 	//
-#ifdef CONFIG_ANT_SWITCH
-	#define CONFIG_HW_ANTENNA_DIVERSITY 
-	#if ( defined(CONFIG_NO_2G_DIVERSITY) && defined(CONFIG_NO_5G_DIVERSITY) )
-		#define CONFIG_NOT_SUPPORT_ANTDIV 
-	#elif( !defined(CONFIG_NO_2G_DIVERSITY) && defined(CONFIG_NO_5G_DIVERSITY) )
-		#define CONFIG_2G_SUPPORT_ANTDIV
-	#elif( defined(CONFIG_NO_2G_DIVERSITY) && !defined(CONFIG_NO_5G_DIVERSITY) )
-		#define CONFIG_5G_SUPPORT_ANTDIV
-	#elif( !defined(CONFIG_NO_2G_DIVERSITY) && !defined(CONFIG_NO_5G_DIVERSITY) )
-		#define CONFIG_2G5G_SUPPORT_ANTDIV 
-	#endif
-#endif
 
 	#ifdef AP_BUILD_WORKAROUND
 	#include "../typedef.h"
@@ -256,8 +241,8 @@ typedef enum _RT_SPINLOCK_TYPE{
 	//define useless flag to avoid compile warning
 	#define	USE_WORKITEM 0
 	#define 	FOR_BRAZIL_PRETEST 0
+	#define	BT_30_SUPPORT			0
 	#define   FPGA_TWO_MAC_VERIFICATION	0
-	#define	RTL8881A_SUPPORT	0
 #endif
 
 

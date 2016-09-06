@@ -549,10 +549,13 @@ struct urb *rtw_usb_alloc_urb(uint16_t iso_packets, uint16_t mem_flags);
 struct usb_host_endpoint *rtw_usb_find_host_endpoint(struct usb_device *dev, uint8_t type, uint8_t ep);
 struct usb_host_interface *rtw_usb_altnum_to_altsetting(const struct usb_interface *intf, uint8_t alt_index);
 struct usb_interface *rtw_usb_ifnum_to_if(struct usb_device *dev, uint8_t iface_no);
+void *rtw_usb_buffer_alloc(struct usb_device *dev, usb_size_t size, uint8_t *dma_addr);
 void *rtw_usbd_get_intfdata(struct usb_interface *intf);
 void rtw_usb_linux_register(void *arg);
 void rtw_usb_linux_deregister(void *arg);
 void rtw_usb_linux_free_device(struct usb_device *dev);
+void rtw_usb_buffer_free(struct usb_device *dev, usb_size_t size,
+    void *addr, uint8_t dma_addr);
 void rtw_usb_free_urb(struct urb *urb);
 void rtw_usb_init_urb(struct urb *urb);
 void rtw_usb_kill_urb(struct urb *urb);

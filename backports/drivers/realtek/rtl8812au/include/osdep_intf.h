@@ -90,17 +90,13 @@ int rtw_start_pseudo_adhoc(_adapter *padapter);
 int rtw_stop_pseudo_adhoc(_adapter *padapter);
 #endif
 
-struct dvobj_priv *devobj_init(void);
-void devobj_deinit(struct dvobj_priv *pdvobj);
-
 u8 rtw_init_drv_sw(_adapter *padapter);
 u8 rtw_free_drv_sw(_adapter *padapter);
 u8 rtw_reset_drv_sw(_adapter *padapter);
-void rtw_dev_unload(PADAPTER padapter);
 
 u32 rtw_start_drv_threads(_adapter *padapter);
 void rtw_stop_drv_threads (_adapter *padapter);
-#if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
+#ifdef CONFIG_WOWLAN
 void rtw_cancel_dynamic_chk_timer(_adapter *padapter);
 #endif
 void rtw_cancel_all_timer(_adapter *padapter);
@@ -110,16 +106,18 @@ int rtw_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 
 int rtw_init_netdev_name(struct net_device *pnetdev, const char *ifname);
 struct net_device *rtw_init_netdev(_adapter *padapter);
-void rtw_unregister_netdevs(struct dvobj_priv *dvobj);
 
 #if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,35))
 u16 rtw_recv_select_queue(struct sk_buff *skb);
 #endif //LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,35)
 
-int rtw_ndev_notifier_register(void);
-void rtw_ndev_notifier_unregister(void);
-
-#include "../os_dep/linux/rtw_proc.h"
+#ifdef CONFIG_PROC_DEBUG
+void rtw_proc_init_one(struct net_device *dev);
+void rtw_proc_remove_one(struct net_device *dev);
+#else //!CONFIG_PROC_DEBUG
+static void rtw_proc_init_one(struct net_device *dev){}
+static void rtw_proc_remove_one(struct net_device *dev){}
+#endif //!CONFIG_PROC_DEBUG
 #endif //PLATFORM_LINUX
 
 
@@ -128,12 +126,6 @@ extern int rtw_ioctl(struct ifnet * ifp, u_long cmd, caddr_t data);
 #endif
 
 void rtw_ips_dev_unload(_adapter *padapter);
-
-#ifdef CONFIG_RF_GAIN_OFFSET
-void rtw_bb_rf_gain_offset(_adapter *padapter);
-#endif //CONFIG_RF_GAIN_OFFSET
-
-
 #ifdef CONFIG_IPS
 int rtw_ips_pwr_up(_adapter *padapter);
 void rtw_ips_pwr_down(_adapter *padapter);
@@ -154,12 +146,6 @@ void rtw_drv_free_vir_ifaces(struct dvobj_priv *dvobj);
 
 int rtw_drv_register_netdev(_adapter *padapter);
 void rtw_ndev_destructor(_nic_hdl ndev);
-
-#ifdef CONFIG_SUSPEND_REFINE
-int rtw_suspend_common(_adapter *padapter);
-int rtw_resume_common(_adapter *padapter);
-#endif
-
 
 #endif	//_OSDEP_INTF_H_
 

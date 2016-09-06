@@ -391,6 +391,8 @@ void InterruptRecognized8192CE(PADAPTER Adapter, PRT_ISR_CONTENT pIsrContent);
 VOID UpdateInterruptMask8192CE(PADAPTER Adapter, u32 AddMSR, u32 AddMSR1, u32 RemoveMSR, u32 RemoveMSR1);
 #endif
 
+#define GET_RF_TYPE(priv)	(GET_HAL_DATA(priv)->rf_type)
+
 #define INCLUDE_MULTI_FUNC_BT(_Adapter)	(GET_HAL_DATA(_Adapter)->MultiFunc & RT_MULTI_FUNC_BT)
 #define INCLUDE_MULTI_FUNC_GPS(_Adapter)	(GET_HAL_DATA(_Adapter)->MultiFunc & RT_MULTI_FUNC_GPS)
 
@@ -405,11 +407,8 @@ void rtl8192c_ReadBluetoothCoexistInfo(PADAPTER Adapter, u8 *PROMContent, BOOLEA
 //void rtl8192c_free_hal_data(_adapter * padapter);
 VOID rtl8192c_EfuseParseIDCode(PADAPTER pAdapter, u8 *hwinfo);
 void rtl8192c_set_hal_ops(struct hal_ops *pHalFunc);
+void	rtl8192c_clone_haldata(_adapter* dst_adapter, _adapter* src_adapter);
 
-s32 c2h_id_filter_ccx_8192c(u8 *buf);
-
-void SetHwReg8192C(PADAPTER padapter, u8 variable, u8 *val);
-void GetHwReg8192C(PADAPTER padapter, u8 variable, u8 *val);
-
+s32 c2h_id_filter_ccx_8192c(u8 id);
 #endif
 

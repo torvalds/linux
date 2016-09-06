@@ -169,7 +169,6 @@
 #define		rFPGA1_TxBlock				0x904	// Useless now
 #define		rFPGA1_DebugSelect			0x908	// Useless now
 #define		rFPGA1_TxInfo				0x90c	// Useless now // Status report??
-#define 	rS0S1_PathSwitch			0x948
 
 //
 // 5. PageA(0xA00)
@@ -464,18 +463,6 @@
 #define		RF_TXPA_G1					0x31	// RF TX PA control
 #define		RF_TXPA_G2					0x32	// RF TX PA control
 #define		RF_TXPA_G3					0x33	// RF TX PA control
-#define 	RF_TX_BIAS_A				0x35
-#define 	RF_TX_BIAS_D				0x36
-#define 	RF_LOBF_9					0x38
-#define 	RF_RXRF_A3					0x3C	//	
-#define 	RF_TRSW 					0x3F
-
-#define 	RF_TXRF_A2					0x41
-#define 	RF_TXPA_G4					0x46	
-#define 	RF_TXPA_A4					0x4B	
-#define 	RF_0x52 					0x52
-#define 	RF_WE_LUT					0xEF	
-#define 	RF_S0S1 					0xB0
 
 //
 //Bit Mask

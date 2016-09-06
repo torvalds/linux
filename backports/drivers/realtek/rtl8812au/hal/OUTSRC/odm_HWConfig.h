@@ -22,8 +22,120 @@
 #ifndef	__HALHWOUTSRC_H__
 #define __HALHWOUTSRC_H__
 
+//============================================================
+// 	C Series Rate
+//============================================================
+//
+//-----------------------------------------------------------
+// CCK Rates, TxHT = 0
+#define DESC92C_RATE1M					0x00
+#define DESC92C_RATE2M					0x01
+#define DESC92C_RATE5_5M				0x02
+#define DESC92C_RATE11M				0x03
 
-/*--------------------------Define -------------------------------------------*/ 
+// OFDM Rates, TxHT = 0
+#define DESC92C_RATE6M					0x04
+#define DESC92C_RATE9M					0x05
+#define DESC92C_RATE12M				0x06
+#define DESC92C_RATE18M				0x07
+#define DESC92C_RATE24M				0x08
+#define DESC92C_RATE36M				0x09
+#define DESC92C_RATE48M				0x0a
+#define DESC92C_RATE54M				0x0b
+
+// MCS Rates, TxHT = 1
+#define DESC92C_RATEMCS0				0x0c
+#define DESC92C_RATEMCS1				0x0d
+#define DESC92C_RATEMCS2				0x0e
+#define DESC92C_RATEMCS3				0x0f
+#define DESC92C_RATEMCS4				0x10
+#define DESC92C_RATEMCS5				0x11
+#define DESC92C_RATEMCS6				0x12
+#define DESC92C_RATEMCS7				0x13
+#define DESC92C_RATEMCS8				0x14
+#define DESC92C_RATEMCS9				0x15
+#define DESC92C_RATEMCS10				0x16
+#define DESC92C_RATEMCS11				0x17
+#define DESC92C_RATEMCS12				0x18
+#define DESC92C_RATEMCS13				0x19
+#define DESC92C_RATEMCS14				0x1a
+#define DESC92C_RATEMCS15				0x1b
+#define DESC92C_RATEMCS15_SG			0x1c
+#define DESC92C_RATEMCS32				0x20
+
+
+/*--------------------------Define -------------------------------------------*/
+/* BIT 7 HT Rate*/
+// TxHT = 0
+#define	MGN_1M				0x02
+#define	MGN_2M				0x04
+#define	MGN_5_5M			0x0b
+#define	MGN_11M				0x16
+
+#define	MGN_6M				0x0c
+#define	MGN_9M				0x12
+#define	MGN_12M				0x18
+#define	MGN_18M				0x24
+#define	MGN_24M				0x30
+#define	MGN_36M				0x48
+#define	MGN_48M				0x60
+#define	MGN_54M				0x6c
+
+// TxHT = 1
+#define	MGN_MCS0			0x80
+#define	MGN_MCS1			0x81
+#define	MGN_MCS2			0x82
+#define	MGN_MCS3			0x83
+#define	MGN_MCS4			0x84
+#define	MGN_MCS5			0x85
+#define	MGN_MCS6			0x86
+#define	MGN_MCS7			0x87
+#define	MGN_MCS8			0x88
+#define	MGN_MCS9			0x89
+#define	MGN_MCS10			0x8a
+#define	MGN_MCS11			0x8b
+#define	MGN_MCS12			0x8c
+#define	MGN_MCS13			0x8d
+#define	MGN_MCS14			0x8e
+#define	MGN_MCS15			0x8f
+#define	MGN_VHT1SS_MCS0		0x90
+#define	MGN_VHT1SS_MCS1		0x91
+#define	MGN_VHT1SS_MCS2		0x92
+#define	MGN_VHT1SS_MCS3		0x93
+#define	MGN_VHT1SS_MCS4		0x94
+#define	MGN_VHT1SS_MCS5		0x95
+#define	MGN_VHT1SS_MCS6		0x96
+#define	MGN_VHT1SS_MCS7		0x97
+#define	MGN_VHT1SS_MCS8		0x98
+#define	MGN_VHT1SS_MCS9		0x99
+#define	MGN_VHT2SS_MCS0		0x9a
+#define	MGN_VHT2SS_MCS1		0x9b
+#define	MGN_VHT2SS_MCS2		0x9c
+#define	MGN_VHT2SS_MCS3		0x9d
+#define	MGN_VHT2SS_MCS4		0x9e
+#define	MGN_VHT2SS_MCS5		0x9f
+#define	MGN_VHT2SS_MCS6		0xa0
+#define	MGN_VHT2SS_MCS7		0xa1
+#define	MGN_VHT2SS_MCS8		0xa2
+#define	MGN_VHT2SS_MCS9		0xa3
+
+#define	MGN_MCS0_SG			0xc0
+#define	MGN_MCS1_SG			0xc1
+#define	MGN_MCS2_SG			0xc2
+#define	MGN_MCS3_SG			0xc3
+#define	MGN_MCS4_SG			0xc4
+#define	MGN_MCS5_SG			0xc5
+#define	MGN_MCS6_SG			0xc6
+#define	MGN_MCS7_SG			0xc7
+#define	MGN_MCS8_SG			0xc8
+#define	MGN_MCS9_SG			0xc9
+#define	MGN_MCS10_SG		0xca
+#define	MGN_MCS11_SG		0xcb
+#define	MGN_MCS12_SG		0xcc
+#define	MGN_MCS13_SG		0xcd
+#define	MGN_MCS14_SG		0xce
+#define	MGN_MCS15_SG		0xcf
+
 #define READ_NEXT_PAIR(v1, v2, i) do { i += 2; v1 = Array[i]; v2 = Array[i+1]; } while(0)
 #define AGC_DIFF_CONFIG_MP(ic, band) (ODM_ReadAndConfig_MP_##ic##_AGC_TAB_DIFF(pDM_Odm, Array_MP_##ic##_AGC_TAB_DIFF_##band, \
                                                                               sizeof(Array_MP_##ic##_AGC_TAB_DIFF_##band)/sizeof(u4Byte)))
@@ -126,15 +238,9 @@ typedef struct _Phy_Status_Rpt_8812
 	
 	//DWORD 0
 	u1Byte			gain_trsw[2];
-#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)	
 	u2Byte			chl_num:10;
 	u2Byte			sub_chnl:4;
 	u2Byte			r_RFMOD:2;
-#else	// _BIG_ENDIAN_	
-	u2Byte			r_RFMOD:2;
-	u2Byte			sub_chnl:4;
-	u2Byte			chl_num:10;
-#endif
 
 	//DWORD 1
 	u1Byte			pwdb_all;
@@ -157,7 +263,7 @@ typedef struct _Phy_Status_Rpt_8812
 
 	//DWORD 6
 	u1Byte			rx_gain_d;
-	s1Byte			sigevm;
+	u1Byte			sigevm;
 	u1Byte			resvd_0;
 	u1Byte			antidx_anta:3;
 	u1Byte			antidx_antb:3;
@@ -219,13 +325,8 @@ ODM_ConfigFWWithHeaderFile(
 	OUT u1Byte				*pFirmware,
 	OUT u4Byte				*pSize
 	);
-
-u4Byte 
-ODM_GetHWImgVersion(
-	IN	PDM_ODM_T	pDM_Odm
-	);
-
 #endif
+
 
 #endif
 

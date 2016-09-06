@@ -20,7 +20,7 @@
 #define _RTW_EFUSE_C_
 
 #include <drv_types.h>
-#include <hal_data.h>
+
 
 
 /*------------------------Define local variable------------------------------*/
@@ -120,15 +120,6 @@ Efuse_PowerSwitch(
 	pAdapter->HalFunc.EfusePowerSwitch(pAdapter, bWrite, PwrState);
 }
 
-VOID
-BTEfuse_PowerSwitch(
-	IN	PADAPTER	pAdapter,
-	IN	u8		bWrite,
-	IN	u8		PwrState)
-{
-	if(pAdapter->HalFunc.BTEfusePowerSwitch)
-		pAdapter->HalFunc.BTEfusePowerSwitch(pAdapter, bWrite, PwrState);
-}
 
 /*-----------------------------------------------------------------------------
  * Function:	efuse_GetCurrentSize
@@ -199,12 +190,7 @@ ReadEFuseByte(
 		Efuse_Read1ByteFromFakeContent(Adapter, _offset, pbuf);
 		return;
 	}
-	if (IS_HARDWARE_TYPE_8723B(Adapter))
-	{
-		// <20130121, Kordan> For SMIC S55 EFUSE specificatoin.
-		//0x34[11]: SW force PGMEN input of efuse to high. (for the bank selected by 0x34[9:8])
-		PHY_SetMacReg(Adapter, EFUSE_TEST, BIT11, 0);
-	}
+
 	//Write Address
 	rtw_write8(Adapter, EFUSE_CTRL+1, (_offset & 0xff));  		
 	readbyte = rtw_read8(Adapter, EFUSE_CTRL+2);
@@ -235,6 +221,7 @@ ReadEFuseByte(
 	//DBG_871X("ReadEFuseByte _offset:%08u, in %d ms\n",_offset ,rtw_get_passing_time_ms(start));
 	
 }
+
 
 //
 //	Description:
@@ -432,7 +419,6 @@ efuse_OneByteRead(
 {
 	u8	tmpidx = 0;
 	u8	bResult;
-	u8	readbyte;
 
 	//DBG_871X("===> EFUSE_OneByteRead(), addr = %x\n", addr);
 	//DBG_871X("===> EFUSE_OneByteRead() start, 0x34 = 0x%X\n", rtw_read32(pAdapter, EFUSE_TEST));
@@ -443,32 +429,30 @@ efuse_OneByteRead(
 		return bResult;
 	}
 
-	if(	IS_HARDWARE_TYPE_8723B(pAdapter) ||
-		(IS_HARDWARE_TYPE_8192E(pAdapter) && IS_VENDOR_8192E_B_CUT(pAdapter)))
+	// <20130227, Kordan> 8192E MP chip A-cut had better not set 0x34[11] until B-Cut.	
+/*
+	if ( IS_HARDWARE_TYPE_8723B(pAdapter))
 	{
 		// <20130121, Kordan> For SMIC EFUSE specificatoin.
 		//0x34[11]: SW force PGMEN input of efuse to high. (for the bank selected by 0x34[9:8])	
 		//PHY_SetMacReg(pAdapter, 0x34, BIT11, 0);
 		rtw_write16(pAdapter, 0x34, rtw_read16(pAdapter,0x34)& (~BIT11) ); 
 	}
-
+*/
 	// -----------------e-fuse reg ctrl ---------------------------------
 	//address			
 	rtw_write8(pAdapter, EFUSE_CTRL+1, (u8)(addr&0xff));		
 	rtw_write8(pAdapter, EFUSE_CTRL+2, ((u8)((addr>>8) &0x03) ) |
 	(rtw_read8(pAdapter, EFUSE_CTRL+2)&0xFC ));	
 
-	//rtw_write8(pAdapter, EFUSE_CTRL+3,  0x72);//read cmd	
-	//Write bit 32 0
-	readbyte = rtw_read8(pAdapter, EFUSE_CTRL+3);		
-	rtw_write8(pAdapter, EFUSE_CTRL+3, (readbyte & 0x7f));
+	rtw_write8(pAdapter, EFUSE_CTRL+3,  0x72);//read cmd	
 
 	while(!(0x80 &rtw_read8(pAdapter, EFUSE_CTRL+3))&&(tmpidx<1000))
 	{
 		rtw_mdelay_os(1);
 		tmpidx++;
 	}
-	if(tmpidx<100)
+	if(tmpidx<1000)
 	{			
 		*data=rtw_read8(pAdapter, EFUSE_CTRL);		
 		bResult = _TRUE;
@@ -477,8 +461,6 @@ efuse_OneByteRead(
 	{
 		*data = 0xff;	
 		bResult = _FALSE;
-		DBG_871X("%s: [ERROR] addr=0x%x bResult=%d time out 1s !!!\n", __FUNCTION__, addr, bResult);
-		DBG_871X("%s: [ERROR] EFUSE_CTRL =0x%08x !!!\n", __FUNCTION__, rtw_read32(pAdapter, EFUSE_CTRL));
 	}
 
 	return bResult;
@@ -509,23 +491,33 @@ efuse_OneByteWrite(
 	// -----------------e-fuse reg ctrl ---------------------------------	
 	//address			
 
+	// <20121213, Kordan> 8723BE SMIC TestChip workaround.
+/*
+	if (IS_HARDWARE_TYPE_8723B(pAdapter) && ! pHalData->bIsMPChip)
+	{	
+		//PlatformEFIOWrite1Byte(pAdapter, REG_MULTI_FUNC_CTRL+1, 0x69); // Turn off EFUSE protection.
+		rtw_write16(pAdapter, REG_SYS_ISO_CTRL, rtw_read16(pAdapter, REG_SYS_ISO_CTRL)| BIT14); // Turn on power cut
+		
+		EFUSE_PowerSwitch(pAdapter,TRUE, TRUE); // LDO 2.6V, this must follows after power cut.
+	}
+*/
 	
 	efuseValue = rtw_read32(pAdapter, EFUSE_CTRL);
 	efuseValue |= (BIT21|BIT31);
 	efuseValue &= ~(0x3FFFF);
 	efuseValue |= ((addr<<8 | data) & 0x3FFFF);
 
-
+/*
 	// <20130227, Kordan> 8192E MP chip A-cut had better not set 0x34[11] until B-Cut.
-	if (IS_HARDWARE_TYPE_8723B(pAdapter)||(IS_HARDWARE_TYPE_8192E(pAdapter) && IS_VENDOR_8192E_B_CUT(pAdapter)))
+	if (IS_HARDWARE_TYPE_8723B(pAdapter) && pHalData->bIsMPChip)
 	{
 		// <20130121, Kordan> For SMIC EFUSE specificatoin.
 		//0x34[11]: SW force PGMEN input of efuse to high. (for the bank selected by 0x34[9:8])
-		//PHY_SetMacReg(pAdapter, 0x34, BIT11, 1);
-		rtw_write16(pAdapter, 0x34, rtw_read16(pAdapter,0x34)| (BIT11) );
-		rtw_write32(pAdapter, EFUSE_CTRL, 0x90600000|((addr<<8 | data)) );
+		PHY_SetMacReg(pAdapter, 0x34, BIT11, 1);
+		PlatformEFIOWrite4Byte(pAdapter, EFUSE_CTRL, 0x90600000|((addr<<8 | data)) );
 	}
 	else
+*/	
 	{
 		rtw_write32(pAdapter, EFUSE_CTRL, efuseValue);
 	}
@@ -542,15 +534,6 @@ efuse_OneByteWrite(
 	else
 	{
 		bResult = _FALSE;
-		DBG_871X("%s: [ERROR] addr=0x%x ,efuseValue=0x%x ,bResult=%d time out 1s !!! \n",
-					__FUNCTION__, addr, efuseValue, bResult);
-		DBG_871X("%s: [ERROR] EFUSE_CTRL =0x%08x !!!\n", __FUNCTION__, rtw_read32(pAdapter, EFUSE_CTRL));
-	}
-
-	// disable Efuse program enable
-	if (IS_HARDWARE_TYPE_8723B(pAdapter))
-	{
-		PHY_SetMacReg(pAdapter, EFUSE_TEST, BIT(11), 0);
 	}
 
 	return bResult;
@@ -762,13 +745,6 @@ u8 rtw_BT_efuse_map_read(PADAPTER padapter, u16 addr, u16 cnts, u8 *data)
 //------------------------------------------------------------------------------
 u8 rtw_efuse_map_write(PADAPTER padapter, u16 addr, u16 cnts, u8 *data)
 {
-#define RT_ASSERT_RET(expr)												\
-	if(!(expr)) {															\
-		printk( "Assertion failed! %s at ......\n", #expr);							\
-		printk( "      ......%s,%s,line=%d\n",__FILE__,__FUNCTION__,__LINE__);	\
-		return _FAIL;	\
-	}
-
 	u8	offset, word_en;
 	u8	*map;
 	u8	newdata[PGPKT_DATA_SIZE];
@@ -781,35 +757,56 @@ u8 rtw_efuse_map_write(PADAPTER padapter, u16 addr, u16 cnts, u8 *data)
 	if ((addr + cnts) > mapLen)
 		return _FAIL;
 
-	RT_ASSERT_RET(PGPKT_DATA_SIZE == 8); // have to be 8 byte alignment
-	RT_ASSERT_RET((mapLen & 0x7) == 0); // have to be PGPKT_DATA_SIZE alignment for memcpy
-
 	map = rtw_zmalloc(mapLen);
 	if(map == NULL){
 		return _FAIL;
 	}
-	
-	_rtw_memset(map, 0xFF, mapLen);
-	
+
 	ret = rtw_efuse_map_read(padapter, 0, mapLen, map);
 	if (ret == _FAIL) goto exit;
 
 	Efuse_PowerSwitch(padapter, _TRUE, _TRUE);
 
-	idx = 0;
 	offset = (addr >> 3);
-	while (idx < cnts)
-	{
-		word_en = 0xF;
-		j = (addr + idx) & 0x7;
-		_rtw_memcpy(newdata, &map[offset << 3], PGPKT_DATA_SIZE);
-		for (i = j; i<PGPKT_DATA_SIZE && idx < cnts; i++, idx++)
+	word_en = 0xF;
+	_rtw_memset(newdata, 0xFF, PGPKT_DATA_SIZE);
+	i = addr & 0x7;	// index of one package
+	j = 0;		// index of new package
+	idx = 0;	// data index
+
+	if (i & 0x1) {
+		// odd start
+		if (data[idx] != map[addr+idx]) {
+			word_en &= ~BIT(i >> 1);
+			newdata[i-1] = map[addr+idx-1];
+			newdata[i] = data[idx];
+		}
+		i++;
+		idx++;
+	}
+	do {
+		for (; i < PGPKT_DATA_SIZE; i += 2)
 		{
-			if (data[idx] != map[addr + idx])
-			{
-				word_en &= ~BIT(i >> 1);
-				newdata[i] = data[idx];
+			if (cnts == idx) break;
+			if ((cnts - idx) == 1) {
+				if (data[idx] != map[addr+idx]) {
+					word_en &= ~BIT(i >> 1);
+					newdata[i] = data[idx];
+					newdata[i+1] = map[addr+idx+1];
+				}
+				idx++;
+				break;
+			} else {
+				if ((data[idx] != map[addr+idx]) ||
+				    (data[idx+1] != map[addr+idx+1]))
+				{
+					word_en &= ~BIT(i >> 1);
+					newdata[i] = data[idx];
+					newdata[i+1] = data[idx + 1];
+				}
+				idx += 2;
 			}
+			if (idx == cnts) break;
 		}
 
 		if (word_en != 0xF) {
@@ -824,8 +821,14 @@ u8 rtw_efuse_map_write(PADAPTER padapter, u16 addr, u16 cnts, u8 *data)
 			if (ret == _FAIL) break;
 		}
 
+		if (idx == cnts) break;
+
 		offset++;
-	}
+		i = 0;
+		j = 0;
+		word_en = 0xF;
+		_rtw_memset(newdata, 0xFF, PGPKT_DATA_SIZE);
+	} while (1);
 
 	Efuse_PowerSwitch(padapter, _TRUE, _FALSE);
 
@@ -840,17 +843,10 @@ exit:
 //------------------------------------------------------------------------------
 u8 rtw_BT_efuse_map_write(PADAPTER padapter, u16 addr, u16 cnts, u8 *data)
 {
-#define RT_ASSERT_RET(expr)												\
-	if(!(expr)) {															\
-		printk( "Assertion failed! %s at ......\n", #expr);							\
-		printk( "      ......%s,%s,line=%d\n",__FILE__,__FUNCTION__,__LINE__);	\
-		return _FAIL;	\
-	}
-
 	u8	offset, word_en;
 	u8	*map;
 	u8	newdata[PGPKT_DATA_SIZE];
-	s32	i=0, j=0, idx;
+	s32	i, j, idx;
 	u8	ret = _SUCCESS;
 	u16	mapLen=0;
 
@@ -859,9 +855,6 @@ u8 rtw_BT_efuse_map_write(PADAPTER padapter, u16 addr, u16 cnts, u8 *data)
 	if ((addr + cnts) > mapLen)
 		return _FAIL;
 
-	RT_ASSERT_RET(PGPKT_DATA_SIZE == 8); // have to be 8 byte alignment
-	RT_ASSERT_RET((mapLen & 0x7) == 0); // have to be PGPKT_DATA_SIZE alignment for memcpy
-
 	map = rtw_zmalloc(mapLen);
 	if(map == NULL){
 		return _FAIL;
@@ -869,53 +862,74 @@ u8 rtw_BT_efuse_map_write(PADAPTER padapter, u16 addr, u16 cnts, u8 *data)
 
 	ret = rtw_BT_efuse_map_read(padapter, 0, mapLen, map);
 	if (ret == _FAIL) goto exit;
-	DBG_871X("OFFSET\tVALUE(hex)\n");
-	for (i=0; i<1024; i+=16) // set 512 because the iwpriv's extra size have limit 0x7FF
-	{
-			DBG_871X("0x%03x\t", i);
-			for (j=0; j<8; j++) {
-				DBG_871X("%02X ", map[i+j]);
-			}
-			DBG_871X("\t");
-			for (; j<16; j++) {
-				DBG_871X("%02X ", map[i+j]);
-			}
-			DBG_871X("\n");
-	}
-	DBG_871X("\n");
+
 	Efuse_PowerSwitch(padapter, _TRUE, _TRUE);
 
-	idx = 0;
 	offset = (addr >> 3);
-	while (idx < cnts)
-	{
-		word_en = 0xF;
-		j = (addr + idx) & 0x7;
-		_rtw_memcpy(newdata, &map[offset << 3], PGPKT_DATA_SIZE);
-		for (i = j; i<PGPKT_DATA_SIZE && idx < cnts; i++, idx++)
+	word_en = 0xF;
+	_rtw_memset(newdata, 0xFF, PGPKT_DATA_SIZE);
+	i = addr & 0x7;	// index of one package
+	j = 0;		// index of new package
+	idx = 0;	// data index
+
+	if (i & 0x1) {
+		// odd start
+		if (data[idx] != map[addr+idx]) {
+			word_en &= ~BIT(i >> 1);
+			newdata[i-1] = map[addr+idx-1];
+			newdata[i] = data[idx];
+		}
+		i++;
+		idx++;
+	}
+	do {
+		for (; i < PGPKT_DATA_SIZE; i += 2)
 		{
-			if (data[idx] != map[addr + idx])
-			{
-				word_en &= ~BIT(i >> 1);
-				newdata[i] = data[idx];
+			if (cnts == idx) break;
+			if ((cnts - idx) == 1) {
+				if (data[idx] != map[addr+idx]) {
+					word_en &= ~BIT(i >> 1);
+					newdata[i] = data[idx];
+					newdata[i+1] = map[addr+idx+1];
+				}
+				idx++;
+				break;
+			} else {
+				if ((data[idx] != map[addr+idx]) ||
+				    (data[idx+1] != map[addr+idx+1]))
+				{
+					word_en &= ~BIT(i >> 1);
+					newdata[i] = data[idx];
+					newdata[i+1] = data[idx + 1];
+				}
+				idx += 2;
 			}
+			if (idx == cnts) break;
 		}
 
-		if (word_en != 0xF) {
-			DBG_871X("offset=%x \n",offset);
-			DBG_871X("word_en=%x \n",word_en);
+		if (word_en != 0xF)
+		{
+			DBG_871X("%s: offset=%#X\n", __FUNCTION__, offset);
+			DBG_871X("%s: word_en=%#X\n", __FUNCTION__, word_en);
 			DBG_871X("%s: data=", __FUNCTION__);
-			for(i=0;i<PGPKT_DATA_SIZE;i++)
+			for (i=0; i<PGPKT_DATA_SIZE; i++)
 			{
 				DBG_871X("0x%02X ", newdata[i]);
 			}
 			DBG_871X("\n");
+
 			ret = Efuse_PgPacketWrite_BT(padapter, offset, word_en, newdata, _FALSE);
 			if (ret == _FAIL) break;
 		}
 
+		if (idx == cnts) break;
+
 		offset++;
-	}
+		i = 0;
+		j = 0;
+		word_en = 0xF;
+		_rtw_memset(newdata, 0xFF, PGPKT_DATA_SIZE);
+	} while (1);
 
 	Efuse_PowerSwitch(padapter, _TRUE, _FALSE);
 
@@ -1308,114 +1322,4 @@ int retriveAdaptorInfoFile(char *path, struct eeprom_priv * eeprom_priv)
 #endif //CONFIG_ADAPTOR_INFO_CACHING_FILE
 #endif //PLATFORM_LINUX
 
-#ifdef CONFIG_EFUSE_CONFIG_FILE
 
-void Rtw_Hal_ReadMACAddrFromFile(PADAPTER padapter)
-{
-	u32 i;
-	struct file *fp;
-	mm_segment_t fs;
-	u8 source_addr[18];
-	loff_t pos = 0;
-	u32 curtime = rtw_get_current_time();
-	EEPROM_EFUSE_PRIV *pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
-	u8 *head, *end;
-
-	u8 null_mac_addr[ETH_ALEN] = {0, 0, 0,0, 0, 0};
-	u8 multi_mac_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-	
-	_rtw_memset(source_addr, 0, 18);
-	_rtw_memset(pEEPROM->mac_addr, 0, ETH_ALEN);
-
-	fp = filp_open("/data/wifimac.txt", O_RDWR,  0644);
-	if (IS_ERR(fp)) {
-		pEEPROM->bloadmac_fail_flag = _TRUE;
-		DBG_871X("Error, wifi mac address file doesn't exist.\n");
-	} else {
-		fs = get_fs();
-		set_fs(KERNEL_DS);
-
-		DBG_871X("wifi mac address:\n");
-		vfs_read(fp, source_addr, 18, &pos);
-		source_addr[17] = ':';
-
-		head = end = source_addr;
-		for (i=0; i<ETH_ALEN; i++) {
-			while (end && (*end != ':') )
-				end++;
-
-			if (end && (*end == ':') )
-				*end = '\0';
-
-			pEEPROM->mac_addr[i] = simple_strtoul(head, NULL, 16 );
-
-			if (end) {
-				end++;
-				head = end;
-			}
-			DBG_871X("%02x \n", pEEPROM->mac_addr[i]);
-		}
-		DBG_871X("\n");
-		set_fs(fs);
-		pEEPROM->bloadmac_fail_flag = _FALSE;
-		filp_close(fp, NULL);
-	}
-
-	if ( (_rtw_memcmp(pEEPROM->mac_addr, null_mac_addr, ETH_ALEN)) ||
-		(_rtw_memcmp(pEEPROM->mac_addr, multi_mac_addr, ETH_ALEN)) ) {
-		pEEPROM->mac_addr[0] = 0x00;
-		pEEPROM->mac_addr[1] = 0xe0;
-		pEEPROM->mac_addr[2] = 0x4c;
-		pEEPROM->mac_addr[3] = (u8)(curtime & 0xff) ;
-		pEEPROM->mac_addr[4] = (u8)((curtime>>8) & 0xff) ;
-		pEEPROM->mac_addr[5] = (u8)((curtime>>16) & 0xff) ;
-	}
-
-	DBG_871X("Hal_ReadMACAddrFromFile: Permanent Address = %02x-%02x-%02x-%02x-%02x-%02x !!!\n",
-		  pEEPROM->mac_addr[0], pEEPROM->mac_addr[1],
-		  pEEPROM->mac_addr[2], pEEPROM->mac_addr[3],
-		  pEEPROM->mac_addr[4], pEEPROM->mac_addr[5]);
-}
-
-
-u32 Rtw_Hal_readPGDataFromConfigFile(PADAPTER	padapter)
-{
-	u32 i;
-	struct file *fp;
-	mm_segment_t fs;
-	u8 temp[3];
-	loff_t pos = 0;
-	EEPROM_EFUSE_PRIV *pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
-	u8	*PROMContent = pEEPROM->efuse_eeprom_data;
-
-
-	temp[2] = 0; // add end of string '\0'
-
-	fp = filp_open("/system/etc/wifi/wifi_efuse.map", O_RDWR,  0644);
-	if (IS_ERR(fp)) {
-		pEEPROM->bloadfile_fail_flag = _TRUE;
-		DBG_871X("Error, Efuse configure file doesn't exist.\n");
-		return _FAIL;
-	}
-
-	fs = get_fs();
-	set_fs(KERNEL_DS);
-
-	DBG_871X("Efuse configure file:\n");
-	for (i=0; i< EFUSE_MAP_SIZE  ; i++) {
-		vfs_read(fp, temp, 2, &pos);
-		PROMContent[i] = simple_strtoul(temp, NULL, 16 );
-		pos += 1; // Filter the space character
-		DBG_871X("%02X \n", PROMContent[i]);
-	}
-	DBG_871X("\n");
-	set_fs(fs);
-
-	filp_close(fp, NULL);
-	
-	pEEPROM->bloadfile_fail_flag = _FALSE;
-	
-	return _SUCCESS;
-}
-
-#endif //#CONFIG_EFUSE_CONFIG_FILE

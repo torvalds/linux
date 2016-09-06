@@ -147,7 +147,7 @@ void	rtl8192c_PHY_GetHWRegOriginalValue(	IN	PADAPTER		Adapter	);
 // BB TX Power R/W
 //
 void	PHY_GetTxPowerLevel8192C(	IN	PADAPTER		Adapter,
-											OUT s32*    		powerlevel	);
+											OUT u32*    		powerlevel	);
 void	PHY_SetTxPowerLevel8192C(	IN	PADAPTER		Adapter,
 											IN	u8			channel	);
 BOOLEAN	PHY_UpdateTxPowerDbm8192C(	IN	PADAPTER	Adapter,

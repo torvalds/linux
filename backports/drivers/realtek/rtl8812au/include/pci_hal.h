@@ -32,10 +32,6 @@ void rtl8192de_set_hal_ops(_adapter * padapter);
 void rtl8188ee_set_hal_ops(_adapter * padapter);
 #endif
 
-#if defined(CONFIG_RTL8812A) || defined(CONFIG_RTL8821A)
-void rtl8812ae_set_hal_ops(_adapter * padapter);
-#endif
-
 void rtw_set_hal_ops(_adapter *padapter);
 
 #endif //__PCIE_HAL_H__

@@ -81,32 +81,49 @@ int	PHY_MACConfig8192E(IN PADAPTER	Adapter	);
 int	PHY_BBConfig8192E(IN PADAPTER	Adapter	);
 int	PHY_RFConfig8192E(IN PADAPTER	Adapter	);
 
+VOID
+PHY_InitPowerLimitTable(
+	IN	PDM_ODM_T	pDM_Odm
+	);
+
+VOID 
+PHY_ConvertPowerLimitToPowerIndex(
+	IN	PADAPTER			Adapter
+	);
+
+VOID
+PHY_SetPowerLimitTableValue(
+	IN	PDM_ODM_T		pDM_Odm,
+	IN	s8*				Regulation,
+	IN	s8*				Band,
+	IN	s8*				Bandwidth,
+	IN	s8*				RateSection,
+	IN	s8*				RfPath,
+	IN	s8* 				Channel,
+	IN	s8*				PowerLimit
+	);
+
+u8
+PHY_GetPowerLimitValue(
+	IN	PADAPTER			Adapter,
+	IN	u32					RegPwrTblSel,
+	IN	BAND_TYPE			Band,
+	IN	CHANNEL_WIDTH	Bandwidth,
+	IN	RF_PATH				RfPath,
+	IN	u8					DataRate,
+	IN	u8					Channel
+	);
+
 /* RF config */
 
 
 //
 // BB TX Power R/W
 //
-void	PHY_GetTxPowerLevel8192E(	IN PADAPTER	Adapter, OUT s32*	powerlevel	);
+void	PHY_GetTxPowerLevel8192E(	IN PADAPTER	Adapter, OUT u32*	powerlevel	);
 void	PHY_SetTxPowerLevel8192E(	IN PADAPTER	Adapter, IN u8	channel	);
 BOOLEAN	PHY_UpdateTxPowerDbm8192E( IN PADAPTER	Adapter, IN int	powerInDbm	);
 
-VOID
-PHY_SetTxPowerIndex_8192E(
-	IN	PADAPTER			Adapter,
-	IN	u32					PowerIndex,
-	IN	u8					RFPath,	
-	IN	u8					Rate
-	);
-
-u8
-PHY_GetTxPowerIndex_8192E(
-	IN	PADAPTER			pAdapter,
-	IN	u8					RFPath,
-	IN	u8					Rate,	
-	IN	CHANNEL_WIDTH		BandWidth,	
-	IN	u8					Channel
-	);
 
 //
 // Switch bandwidth for 8192S
@@ -137,11 +154,6 @@ PHY_SetSwChnlBWMode8192E(
 	IN	u8					Offset80
 );
 
-void 
-phy_SpurCalibration_8192E(
-	IN	PADAPTER			Adapter,
-	IN	SPUR_CAL_METHOD	Method
-);
 //
 // BB/MAC/RF other monitor API
 //

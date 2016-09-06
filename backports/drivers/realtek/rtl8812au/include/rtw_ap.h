@@ -37,7 +37,6 @@ void update_beacon(_adapter *padapter, u8 ie_id, u8 *oui, u8 tx);
 void add_RATid(_adapter *padapter, struct sta_info *psta, u8 rssi_level);
 void expire_timeout_chk(_adapter *padapter);
 void update_sta_info_apmode(_adapter *padapter, struct sta_info *psta);
-void start_bss_network(_adapter *padapter, u8 *pbuf);
 int rtw_check_beacon_data(_adapter *padapter, u8 *pbuf,  int len);
 void rtw_ap_restore_network(_adapter *padapter);
 void rtw_set_macaddr_acl(_adapter *padapter, int mode);
@@ -61,11 +60,6 @@ void start_ap_mode(_adapter *padapter);
 void stop_ap_mode(_adapter *padapter);
 #endif
 
-#ifdef CONFIG_CONCURRENT_MODE
-void concurrent_set_ap_chbw(_adapter *padapter, u8 channel, u8 channel_offset, u8 bwmode);
-#endif //CONFIG_CONCURRENT_MODE
-
-
 #ifdef CONFIG_AUTO_AP_MODE
 extern void rtw_start_auto_ap(_adapter *adapter);
 #endif //CONFIG_AUTO_AP_MODE
@@ -73,4 +67,4 @@ extern void rtw_start_auto_ap(_adapter *adapter);
 #endif //end of CONFIG_AP_MODE
 
 #endif
-void update_bmc_sta(_adapter *padapter);
+

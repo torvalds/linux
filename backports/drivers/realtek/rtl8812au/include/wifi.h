@@ -83,7 +83,6 @@ enum WIFI_FRAME_SUBTYPE {
     WIFI_ACTION         = (BIT(7) | BIT(6) | BIT(4) | WIFI_MGT_TYPE),
 
     // below is for control frame
-    WIFI_NDPA         = (BIT(6) | BIT(4) | WIFI_CTRL_TYPE),
     WIFI_PSPOLL         = (BIT(7) | BIT(5) | WIFI_CTRL_TYPE),
     WIFI_RTS            = (BIT(7) | BIT(5) | BIT(4) | WIFI_CTRL_TYPE),
     WIFI_CTS            = (BIT(7) | BIT(6) | WIFI_CTRL_TYPE),
@@ -429,7 +428,7 @@ enum WIFI_REG_DOMAIN {
 		(addr[4] == 0xff) && (addr[5] == 0xff) )  ? _TRUE : _FALSE \
 )
 
-__inline static int IS_MCAST(unsigned char *da)
+__inline static int IS_MCAST(const unsigned char *da)
 {
 	if ((*da) & 0x01)
 		return _TRUE;
@@ -437,18 +436,6 @@ __inline static int IS_MCAST(unsigned char *da)
 		return _FALSE;
 }
 
-__inline static unsigned char * get_ra(unsigned char *pframe)
-{
-	unsigned char 	*ra;
-	ra = GetAddr1Ptr(pframe);
-	return ra;
-}
-__inline static unsigned char * get_ta(unsigned char *pframe)
-{
-	unsigned char 	*ta;
-	ta = GetAddr2Ptr(pframe);
-	return ta;
-}
 
 __inline static unsigned char * get_da(unsigned char *pframe)
 {
@@ -585,9 +572,7 @@ __inline static int IsFrameTypeCtrl(unsigned char *pframe)
 //#define EID_BSSCoexistence			72 // 20/40 BSS Coexistence
 //#define EID_BSSIntolerantChlReport	73
 #define _RIC_Descriptor_IE_			75
-#ifdef CONFIG_IEEE80211W
-#define _MME_IE_					76 //802.11w Management MIC element
-#endif //CONFIG_IEEE80211W
+
 #define _LINK_ID_IE_					101
 #define _CH_SWITCH_TIMING_		104
 #define _PTI_BUFFER_STATUS_		106
@@ -720,10 +705,7 @@ typedef	enum _ELEMENT_ID{
 #define _WEP_104_PRIVACY_		5
 #define _WEP_WPA_MIXED_PRIVACY_ 6	// WEP + WPA
 */
-
-#ifdef CONFIG_IEEE80211W
-#define _MME_IE_LENGTH_  18
-#endif //CONFIG_IEEE80211W				
+				
 /*-----------------------------------------------------------------------------
 				Below is the definition for WMM
 ------------------------------------------------------------------------------*/
@@ -940,9 +922,7 @@ typedef enum _HT_CAP_AMPDU_FACTOR {
 #define IEEE80211_HT_CAP_SGI_20			0x0020
 #define IEEE80211_HT_CAP_SGI_40			0x0040
 #define IEEE80211_HT_CAP_TX_STBC			0x0080
-#define IEEE80211_HT_CAP_RX_STBC_1R		0x0100
-#define IEEE80211_HT_CAP_RX_STBC_2R		0x0200
-#define IEEE80211_HT_CAP_RX_STBC_3R		0x0300
+#define IEEE80211_HT_CAP_RX_STBC		0x0300
 #define IEEE80211_HT_CAP_DELAY_BA		0x0400
 #define IEEE80211_HT_CAP_MAX_AMSDU		0x0800
 #define IEEE80211_HT_CAP_DSSSCCK40		0x1000
@@ -1332,25 +1312,7 @@ enum P2P_PS_MODE
 #define ICMPV6_MCAST_MAC(mac)	((mac[0]==0x33)&&(mac[1]==0x33)&&(mac[2]!=0xff))
 #endif	// CONFIG_TX_MCAST2UNI
 
-#ifdef CONFIG_IOCTL_CFG80211
-/* Regulatroy Domain */
-struct regd_pair_mapping {
-	u16 reg_dmnenum;
-	u16 reg_5ghz_ctl;
-	u16 reg_2ghz_ctl;
-};
 
-struct rtw_regulatory {
-	char alpha2[2];
-	u16 country_code;
-	u16 max_power_level;
-	u32 tp_scale;
-	u16 current_rd;
-	u16 current_rd_ext;
-	int16_t power_limit;
-	struct regd_pair_mapping *regpair;
-};
-#endif
 
 #ifdef CONFIG_WAPI_SUPPORT
 #ifndef IW_AUTH_WAPI_VERSION_1

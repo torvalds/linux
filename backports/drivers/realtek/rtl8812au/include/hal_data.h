@@ -23,13 +23,6 @@
 #if 1//def  CONFIG_SINGLE_IMG
 
 #include "../hal/OUTSRC/odm_precomp.h"
-#ifdef CONFIG_BT_COEXIST
-#include <hal_btcoex.h>
-#endif
-
-#ifdef CONFIG_SDIO_HCI
-#include <hal_sdio.h>
-#endif
 
 //
 // <Roger_Notes> For RTL8723 WiFi/BT/GPS multi-function configuration. 2010.10.06.
@@ -91,32 +84,34 @@ typedef enum _RT_AMPDU_BRUST_MODE{
 #define CHANNEL_GROUP_MAX				3+9	// ch1~3, ch4~9, ch10~14 total three groups
 #define MAX_PG_GROUP					13
 
-// Tx Power Limit Table Size
-#define MAX_REGULATION_NUM						4
+#define MAX_REGULATION_NUM						3
 #define MAX_RF_PATH_NUM_IN_POWER_LIMIT_TABLE	4
 #define MAX_2_4G_BANDWITH_NUM					2
-#define MAX_RATE_SECTION_NUM						10
+#define MAX_2_4G_RATE_SECTION_NUM				3
+#define MAX_2_4G_CHANNEL_NUM						5 // adopt channel group instead of individual channel 
 #define MAX_5G_BANDWITH_NUM						4
+#define MAX_5G_RATE_SECTION_NUM					4
+#define MAX_5G_CHANNEL_NUM						14 // adopt channel group instead of individual channel 
 
-#define MAX_BASE_NUM_IN_PHY_REG_PG_2_4G			10 //  CCK:1,OFDM:1, HT:4, VHT:4
-#define MAX_BASE_NUM_IN_PHY_REG_PG_5G			9 // OFDM:1, HT:4, VHT:4
+#define MAX_BASE_NUM_IN_PHY_REG_PG_2_4G			4 //  CCK:1,OFDM:2, HT:2
+#define MAX_BASE_NUM_IN_PHY_REG_PG_5G			5 // OFDM:1, HT:2, VHT:2
 
 
 //###### duplicate code,will move to ODM #########
-//#define IQK_MAC_REG_NUM		4
-//#define IQK_ADDA_REG_NUM		16
+#define IQK_MAC_REG_NUM		4
+#define IQK_ADDA_REG_NUM		16
 
-//#define IQK_BB_REG_NUM			10
+#define IQK_BB_REG_NUM			10
 #define IQK_BB_REG_NUM_92C	9
 #define IQK_BB_REG_NUM_92D	10
 #define IQK_BB_REG_NUM_test	6
 
 #define IQK_Matrix_Settings_NUM_92D	1+24+21
 
-//#define HP_THERMAL_NUM		8
+#define HP_THERMAL_NUM		8
 //###### duplicate code,will move to ODM #########
 
-#if defined(CONFIG_RTL8192D) || defined(CONFIG_BT_COEXIST)
+#ifdef CONFIG_RTL8192D
 typedef enum _MACPHY_MODE_8192D{
 	SINGLEMAC_SINGLEPHY,	//SMSP
 	DUALMAC_DUALPHY,		//DMDP
@@ -136,16 +131,9 @@ typedef enum _USB_RX_AGG_MODE{
 
 #endif
 
-#define PAGE_SIZE_128	128
-#define PAGE_SIZE_256	256
-#define PAGE_SIZE_512	512
-
 struct dm_priv
 {
 	u8	DM_Type;
-
-#define DYNAMIC_FUNC_BT BIT0
-
 	u8	DMFlag;
 	u8	InitDMFlag;
 	//u8   RSVD_1;   
@@ -160,6 +148,10 @@ struct dm_priv
 	int	LastMinUndecoratedPWDBForDM;
 
 	s32	UndecoratedSmoothedBeacon;
+	#ifdef CONFIG_BT_COEXIST
+	s32 	BT_EntryMinUndecoratedSmoothedPWDB;
+	s32 	BT_EntryMaxUndecoratedSmoothedPWDB;
+	#endif
 
 //###### duplicate code,will move to ODM #########
 	//for High Power
@@ -278,7 +270,6 @@ typedef struct hal_com_data
 	//rf_ctrl
 	u8	rf_chip;
 	u8	rf_type;
-	u8	PackageType;
 	u8	NumTotalRFPath;
 
 	u8	InterfaceSel;
@@ -312,7 +303,6 @@ typedef struct hal_com_data
 	u8	EEPROMBluetoothRadioShared;
 	u8	bTXPowerDataReadFromEEPORM;
 	u8	bAPKThermalMeterIgnore;
-	u8	bDisableSWChannelPlan; // flag of disable software change channel plan
 
 	BOOLEAN 		EepromOrEfuse;
 	u8				EfuseUsedPercentage;
@@ -354,10 +344,9 @@ typedef struct hal_com_data
 	//
 	u8	TxPwrByRateTable;
 	u8	TxPwrByRateBand;
-	s8	TxPwrByRateOffset[TX_PWR_BY_RATE_NUM_BAND]
-						 [TX_PWR_BY_RATE_NUM_RF]
-						 [TX_PWR_BY_RATE_NUM_RF]
-						 [TX_PWR_BY_RATE_NUM_RATE];
+	u32	TxPwrByRateOffset[TX_PWR_BY_RATE_NUM_BAND]
+						[TX_PWR_BY_RATE_NUM_RF]
+						[TX_PWR_BY_RATE_NUM_SECTION];
 	//---------------------------------------------------------------------------------//
 
 	//2 Power Limit Table 
@@ -370,24 +359,22 @@ typedef struct hal_com_data
 	// Power Limit Table for 2.4G
 	u8	TxPwrLimit_2_4G[MAX_REGULATION_NUM]
 						[MAX_2_4G_BANDWITH_NUM]
-	                                [MAX_RATE_SECTION_NUM]
-	                                [CHANNEL_MAX_NUMBER_2G]
+	                                [MAX_2_4G_RATE_SECTION_NUM]
+	                                [MAX_2_4G_CHANNEL_NUM]
 						[MAX_RF_PATH_NUM];
 
 	// Power Limit Table for 5G
 	u8	TxPwrLimit_5G[MAX_REGULATION_NUM]
 						[MAX_5G_BANDWITH_NUM]
-						[MAX_RATE_SECTION_NUM]
-						[CHANNEL_MAX_NUMBER_5G]
+						[MAX_5G_RATE_SECTION_NUM]
+						[MAX_5G_CHANNEL_NUM]
 						[MAX_RF_PATH_NUM];
 
 	
 	// Store the original power by rate value of the base of each rate section of rf path A & B
-	u8	TxPwrByRateBase2_4G[TX_PWR_BY_RATE_NUM_RF]
-						[TX_PWR_BY_RATE_NUM_RF]
+	u8	TxPwrByRateBase2_4G[MAX_RF_PATH_NUM_IN_POWER_LIMIT_TABLE]
 						[MAX_BASE_NUM_IN_PHY_REG_PG_2_4G];
-	u8	TxPwrByRateBase5G[TX_PWR_BY_RATE_NUM_RF]
-						[TX_PWR_BY_RATE_NUM_RF]
+	u8	TxPwrByRateBase5G[MAX_RF_PATH_NUM_IN_POWER_LIMIT_TABLE]
 						[MAX_BASE_NUM_IN_PHY_REG_PG_5G];
 
 	// For power group
@@ -421,11 +408,7 @@ typedef struct hal_com_data
 	u8	ExternalPA_2G;
 	u8	ExternalLNA_2G;
 	u8	ExternalPA_5G;
-	u8	ExternalLNA_5G;
-	u8	TypeGLNA;
-	u8	TypeGPA;
-	u8	TypeALNA;
-	u8	TypeAPA;
+	u8	ExternalLNA_5G;	
 	u8	RFEType;
 	u8	BoardType;
 	u8	ExternalPA;
@@ -434,7 +417,7 @@ typedef struct hal_com_data
 
 	BOOLEAN		bSwChnl;
 	BOOLEAN		bSetChnlBW;
-	BOOLEAN		bChnlBWInitialized;
+	BOOLEAN		bChnlBWInitialzed;
 	BOOLEAN		bNeedIQK;
 
 	u8	bLedOpenDrain; // Support Open-drain arrangement for controlling the LED. Added by Roger, 2009.10.16.
@@ -466,10 +449,7 @@ typedef struct hal_com_data
 
 	u8	CurAntenna;
 	u8	AntDivCfg;
-	u8	AntDetection;
 	u8	TRxAntDivType;
-
-	u8	u1ForcedIgiLb;			// forced IGI lower bound
 
 	u8	bDumpRxPkt;//for debug
 	u8	bDumpTxPkt;//for debug
@@ -500,9 +480,6 @@ typedef struct hal_com_data
 	// Auto FSM to Turn On, include clock, isolation, power control for MAC only
 	u8	bMacPwrCtrlOn;
 
-	u8	RegIQKFWOffload;
-	struct submit_ctx 	iqk_sctx;
-
 	RT_AMPDU_BRUST		AMPDUBurstMode; //92C maybe not use, but for compile successfully
 
 #ifdef CONFIG_SDIO_HCI
@@ -525,14 +502,16 @@ typedef struct hal_com_data
 	// HIQ, MID, LOW, PUB free pages; padapter->xmitpriv.free_txpg
 	u8			SdioTxFIFOFreePage[SDIO_TX_FREE_PG_QUEUE];
 	_lock		SdioTxFIFOFreePageLock;
-
+	#ifndef CONFIG_SDIO_TX_TASKLET
+	_thread_hdl_	SdioXmitThread;
+	_sema		SdioXmitSema;
+	_sema		SdioXmitTerminateSema;
+	#endif//CONFIG_SDIO_TX_TASKLET
 	//
 	// SDIO Rx FIFO related.
 	//
 	u8			SdioRxFIFOCnt;
 	u16			SdioRxFIFOSize;
-
-	u32			sdio_tx_max_len[SDIO_MAX_TX_QUEUE];// H, N, L, used for sdio tx aggregation max length per queue
 #endif //CONFIG_SDIO_HCI
 
 #ifdef CONFIG_USB_HCI
@@ -553,9 +532,9 @@ typedef struct hal_com_data
 	u32	MaxUsbRxAggBlock;
 
 	USB_RX_AGG_MODE	UsbRxAggMode;
-	u8	UsbRxAggBlockCount;		//FOR USB Mode, USB Block count. Block size is 512-byte in hight speed and 64-byte in full speed
+	u8	UsbRxAggBlockCount;			// USB Block count. Block size is 512-byte in hight speed and 64-byte in full speed
 	u8	UsbRxAggBlockTimeout;
-	u8	UsbRxAggPageCount;			//FOR DMA Mode, 8192C DMA page count
+	u8	UsbRxAggPageCount;			// 8192C DMA page count
 	u8	UsbRxAggPageTimeout;
 
 	u8	RegAcUsbDmaSize;
@@ -574,17 +553,9 @@ typedef struct hal_com_data
 	u8	EEPROMBoardType;
 	u32	TransmitConfig;	
 
-	u32	IntrMaskToSet[2];
-	u32	IntArray[2];
 	u32	IntrMask[2];
-	u32	SysIntArray[1];
-	u32	SysIntrMask[1];
-	u32	IntrMaskReg[2];
-	u32	IntrMaskDefault[2];
-
-	BOOLEAN	 bL1OffSupport;
-	BOOLEAN bSupportBackDoor;
-
+	u32	IntrMaskToSet[2];
+	
 	u8	bDefaultAntenna;
 	//u8	bIQKInitialized;
 	
@@ -595,17 +566,14 @@ typedef struct hal_com_data
 
 	struct dm_priv	dmpriv;
 	DM_ODM_T 		odmpriv;
+
 #ifdef DBG_CONFIG_ERROR_DETECT
 	struct sreset_priv srestpriv;
-#endif //#ifdef DBG_CONFIG_ERROR_DETECT
+#endif
 
 #ifdef CONFIG_BT_COEXIST
-	// For bluetooth co-existance
-	BT_COEXIST		bt_coexist;
-#ifdef CONFIG_RTL8723A
-	u8				bAntennaDetected;
-#endif // CONFIG_RTL8723A
-#endif // CONFIG_BT_COEXIST
+	struct btcoexist_priv	bt_coexist;
+#endif
 
 #if defined(CONFIG_RTL8723A) || defined(CONFIG_RTL8723B)
 	// Interrupt relatd register information.
@@ -652,28 +620,6 @@ typedef struct hal_com_data
 	#endif //CONFIG_RTL8192D 
 
 #endif //defined(CONFIG_RTL8192C) ||defined(CONFIG_RTL8192D)
-
-#ifdef CONFIG_LOAD_PHY_PARA_FROM_FILE
-	char	para_file_buf[MAX_PARA_FILE_BUF_LEN];
-	char *mac_reg;
-	u32	mac_reg_len;
-	char *bb_phy_reg;
-	u32	bb_phy_reg_len;
-	char *bb_agc_tab;
-	u32	bb_agc_tab_len;
-	char *bb_phy_reg_pg;
-	u32	bb_phy_reg_pg_len;
-	char *bb_phy_reg_mp;
-	u32	bb_phy_reg_mp_len;
-	char *rf_radio_a;
-	u32	rf_radio_a_len;
-	char *rf_radio_b;
-	u32	rf_radio_b_len;
-	char *rf_tx_pwr_track;
-	u32	rf_tx_pwr_track_len;
-	char *rf_tx_pwr_lmt;
-	u32	rf_tx_pwr_lmt_len;
-#endif
 } HAL_DATA_COMMON, *PHAL_DATA_COMMON;
 
 
@@ -681,7 +627,6 @@ typedef struct hal_com_data HAL_DATA_TYPE, *PHAL_DATA_TYPE;
 #define GET_HAL_DATA(__pAdapter)	((HAL_DATA_TYPE *)((__pAdapter)->HalData))
 #define GET_HAL_RFPATH_NUM(__pAdapter) (((HAL_DATA_TYPE *)((__pAdapter)->HalData))->NumTotalRFPath )
 #define RT_GetInterfaceSelection(_Adapter) 	(GET_HAL_DATA(_Adapter)->InterfaceSel)
-#define GET_RF_TYPE(__pAdapter)		(GET_HAL_DATA(__pAdapter)->rf_type)
 #endif
 
 

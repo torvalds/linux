@@ -45,16 +45,6 @@
 
 #define	RF6052_MAX_PATH				2
 
-//
-// Antenna detection method, i.e., using single tone detection or RSSI reported from each antenna detected. 
-// Added by Roger, 2013.05.22.
-//
-#define ANT_DETECT_BY_SINGLE_TONE	BIT0
-#define ANT_DETECT_BY_RSSI				BIT1
-#define IS_ANT_DETECT_SUPPORT_SINGLE_TONE(__Adapter)		((GET_HAL_DATA(__Adapter)->AntDetection) & ANT_DETECT_BY_SINGLE_TONE)
-#define IS_ANT_DETECT_SUPPORT_RSSI(__Adapter)		((GET_HAL_DATA(__Adapter)->AntDetection) & ANT_DETECT_BY_RSSI)
-
-
 /*--------------------------Define Parameters-------------------------------*/
 typedef enum _BAND_TYPE{
 	BAND_ON_2_4G = 0,
@@ -138,9 +128,7 @@ typedef enum _WIRELESS_MODE {
 	WIRELESS_MODE_AUTO = 0x08,
 	WIRELESS_MODE_N_24G = 0x10,
 	WIRELESS_MODE_N_5G = 0x20,
-	WIRELESS_MODE_AC_5G = 0x40,
-	WIRELESS_MODE_AC_24G  = 0x80,
-	WIRELESS_MODE_AC_ONLY  = 0x100,
+	WIRELESS_MODE_AC_5G = 0x40
 } WIRELESS_MODE;
 
 typedef enum _SwChnlCmdID{

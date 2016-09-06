@@ -87,29 +87,27 @@ PHY_ConfigRFWithParaFile_8723B(
 	IN	u8* 				pFileName,
 	RF_PATH				eRFPath
 );
+int
+PHY_ConfigRFWithHeaderFile_8723B(
+	IN	PADAPTER			Adapter,
+	RF_PATH				eRFPath
+);
+
+int
+PHY_ConfigRFWithTxPwrTrackParaFile(
+	IN	PADAPTER			Adapter,
+	IN	s8 			* pFileName
+);
 
 VOID
-PHY_SetTxPowerIndex_8723B(
-	IN	PADAPTER			Adapter,
-	IN	u32					PowerIndex,
-	IN	u8					RFPath,	
-	IN	u8					Rate
+storePwrIndexDiffRateOffset(
+	IN	PADAPTER	Adapter,
+	IN	u32		RegAddr,
+	IN	u32		BitMask,
+	IN	u32		Data
 	);
 
-u8
-PHY_GetTxPowerIndex_8723B(
-	IN	PADAPTER			pAdapter,
-	IN	u8					RFPath,
-	IN	u8					Rate,	
-	IN	CHANNEL_WIDTH		BandWidth,	
-	IN	u8					Channel
-	);
-
-VOID	
-PHY_GetTxPowerLevel8723B(			
-	IN	PADAPTER		Adapter,
-	OUT s32*		    		powerlevel	
-	);
+void PHY_SetTxPowerLevel8723B(PADAPTER	 Adapter, u8 channel);
 
 VOID
 PHY_SetTxPowerLevel8723B(
@@ -138,11 +136,6 @@ PHY_SetSwChnlBWMode8723B(
 	IN	u8					Offset40,
 	IN	u8					Offset80
 );
-
-VOID PHY_SetRFPathSwitch_8723B(
-	IN	PADAPTER	pAdapter,
-	IN	BOOLEAN		bMain
-	);
 /*--------------------------Exported Function prototype End---------------------*/
 
 #endif

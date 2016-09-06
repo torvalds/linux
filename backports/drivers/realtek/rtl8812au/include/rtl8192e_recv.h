@@ -28,10 +28,10 @@
 	#ifdef CONFIG_MINIMAL_MEMORY_USAGE
 		#define MAX_RECVBUF_SZ (4000) // about 4K
 	#else
-		#define MAX_RECVBUF_SZ (32768) // 32k
+		//#define MAX_RECVBUF_SZ (32768) // 32k
 		//#define MAX_RECVBUF_SZ (20480) //20K
-		//#define MAX_RECVBUF_SZ (10240) //10K 
-		//#define MAX_RECVBUF_SZ (16384) //  16k - 92E RX BUF :16K
+		#define MAX_RECVBUF_SZ (10240) //10K  - 92E RX BUF :16K
+		//#define MAX_RECVBUF_SZ (15360) // 15k < 16k
 		//#define MAX_RECVBUF_SZ (8192+1024) // 8K+1k		
 	#endif
 #endif

@@ -23,18 +23,16 @@
 
 struct ht_priv
 {
-	u8	ht_option;
-	u8	ampdu_enable;//for enable Tx A-MPDU
-	u8	tx_amsdu_enable;//for enable Tx A-MSDU
-	u8	bss_coexist;//for 20/40 Bss coexist
-
+	u32	ht_option;	
+	u32	ampdu_enable;//for enable Tx A-MPDU
 	//u8	baddbareq_issued[16];
+	u32	tx_amsdu_enable;//for enable Tx A-MSDU
 	u32	tx_amsdu_maxlen; // 1: 8k, 0:4k ; default:8k, for tx
 	u32	rx_ampdu_maxlen; //for rx reordering ctrl win_sz, updated when join_callback.
 	
+	u8	bwmode;//
 	u8	ch_offset;//PRIME_CHNL_OFFSET
-	u8	sgi_20m;
-	u8	sgi_40m;
+	u8	sgi;//short GI
 
 	//for processing Tx A-MPDU
 	u8	agg_enable_bitmap;
@@ -90,9 +88,6 @@ typedef enum _RT_HT_INF1_CAP{
 #define	BEAMFORMING_HT_BEAMFORMER_ENABLE	BIT0	// Declare our NIC supports beamformer
 #define	BEAMFORMING_HT_BEAMFORMEE_ENABLE	BIT1	// Declare our NIC supports beamformee
 #define	BEAMFORMING_HT_BEAMFORMER_TEST		BIT2	// Transmiting Beamforming no matter the target supports it or not
-
-#define SET_EXT_CAPABILITY_ELE_BSS_COEXIST(_pEleStart, _val)			SET_BITS_TO_LE_1BYTE((_pEleStart), 0, 1, _val)
-#define GET_EXT_CAPABILITY_ELE_BSS_COEXIST(_pEleStart)				LE_BITS_TO_1BYTE((_pEleStart), 0, 1)
 
 #endif	//_RTL871X_HT_H_
 

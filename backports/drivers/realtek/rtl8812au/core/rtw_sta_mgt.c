@@ -146,9 +146,6 @@ _func_enter_;
 #else
 	pstapriv->expire_to = 60;// 60*2 = 120 sec = 2 min, expire after no any traffic.
 #endif	
-#ifdef CONFIG_ATMEL_RC_PATCH
-	_rtw_memset(  pstapriv->atmel_rc_pattern, 0, ETH_ALEN);
-#endif	
 	pstapriv->max_num_sta = NUM_STA;
 		
 #endif
@@ -332,9 +329,10 @@ struct	sta_info *rtw_alloc_stainfo(struct	sta_priv *pstapriv, u8 *hwaddr)
 _func_enter_;	
 
 	pfree_sta_queue = &pstapriv->free_sta_queue;
-
+	
 	//_enter_critical_bh(&(pfree_sta_queue->lock), &irqL);
 	_enter_critical_bh(&(pstapriv->sta_hash_lock), &irqL2);
+
 	if (_rtw_queue_empty(pfree_sta_queue) == _TRUE)
 	{
 		//_exit_critical_bh(&(pfree_sta_queue->lock), &irqL);
@@ -392,7 +390,13 @@ _func_enter_;
 		init_addba_retry_timer(pstapriv->padapter, psta);
 
 #ifdef CONFIG_TDLS
-		rtw_init_tdls_timer(pstapriv->padapter, psta);
+		psta->padapter = pstapriv->padapter;
+		init_TPK_timer(pstapriv->padapter, psta);
+		init_ch_switch_timer(pstapriv->padapter, psta);
+		init_base_ch_timer(pstapriv->padapter, psta);
+		init_off_ch_timer(pstapriv->padapter, psta);
+		init_handshake_timer(pstapriv->padapter, psta);
+		init_tdls_alive_timer(pstapriv->padapter, psta);
 #endif //CONFIG_TDLS
 
 		//for A-MPDU Rx reordering buffer control
@@ -422,9 +426,7 @@ _func_enter_;
 		//init for DM
 		psta->rssi_stat.UndecoratedSmoothedPWDB = (-1);
 		psta->rssi_stat.UndecoratedSmoothedCCK = (-1);
-#ifdef CONFIG_ATMEL_RC_PATCH
-		psta->flag_atmel_rc = 0;
-#endif
+		
 		/* init for the sequence number of received management frame */
 		psta->RxMgmtFrameSeqNum = 0xffff;
 
@@ -532,7 +534,12 @@ _func_enter_;
 	_cancel_timer_ex(&psta->addba_retry_timer);
 
 #ifdef CONFIG_TDLS
-	rtw_free_tdls_timer(psta);
+	_cancel_timer_ex(&psta->TPK_timer);
+	_cancel_timer_ex(&psta->option_timer);
+	_cancel_timer_ex(&psta->base_ch_timer);
+	_cancel_timer_ex(&psta->off_ch_timer);
+	_cancel_timer_ex(&psta->alive_timer1);
+	_cancel_timer_ex(&psta->alive_timer2);
 #endif //CONFIG_TDLS
 
 	//for A-MPDU Rx reordering buffer control, cancel reordering_ctrl_timer
@@ -593,9 +600,7 @@ _func_enter_;
 	_exit_critical_bh(&pstapriv->auth_list_lock, &irqL0);
 	
 	psta->expire_to = 0;
-#ifdef CONFIG_ATMEL_RC_PATCH
-	psta->flag_atmel_rc = 0;
-#endif
+	
 	psta->sleepq_ac_len = 0;
 	psta->qos_info = 0;
 
@@ -685,7 +690,7 @@ _func_exit_;
 }
 
 /* any station allocated can be searched by hash list */
-struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
+struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, const u8 *hwaddr)
 {
 
 	_irqL	 irqL;
@@ -696,9 +701,9 @@ struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 	
 	u32	index;
 
-	u8 *addr;
+	const u8 *addr;
 
-	u8 bc_addr[ETH_ALEN] = {0xff,0xff,0xff,0xff,0xff,0xff};
+	const u8 bc_addr[ETH_ALEN] = {0xff,0xff,0xff,0xff,0xff,0xff};
 
 _func_enter_;
 

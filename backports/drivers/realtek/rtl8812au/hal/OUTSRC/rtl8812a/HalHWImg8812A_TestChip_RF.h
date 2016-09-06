@@ -22,7 +22,7 @@
 #ifndef __INC_TC_RF_HW_IMG_8812A_H
 #define __INC_TC_RF_HW_IMG_8812A_H
 
-//static BOOLEAN CheckCondition(const u4Byte Condition, const u4Byte Hex);
+static BOOLEAN CheckCondition(const u4Byte Condition, const u4Byte Hex);
 
 /******************************************************************************
 *                           RadioA.TXT

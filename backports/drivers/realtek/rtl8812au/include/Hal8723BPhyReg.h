@@ -24,14 +24,6 @@
 
 // BB Register Definition
 //
-// 4. Page9(0x900)
-//
-#define rDPDT_control				0x92c
-#define rfe_ctrl_anta_src				0x930
-#define rS0S1_PathSwitch   			0x948
-#define AGC_table_select				0xb2c
-
-//
 // PageB(0xB00)
 //
 #define rPdp_AntA						0xb00

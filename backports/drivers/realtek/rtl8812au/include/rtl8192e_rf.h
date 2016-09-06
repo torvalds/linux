@@ -30,5 +30,18 @@ int
 PHY_RF6052_Config_8192E(
 	IN	PADAPTER	Adapter	);
 
+VOID
+PHY_RF6052SetCckTxPower8192E(
+	IN	PADAPTER	Adapter,
+	IN	u8*			pPowerlevel);
+
+VOID
+PHY_RF6052SetOFDMTxPower8192E(
+	IN	PADAPTER	Adapter,
+	IN	u8*			pPowerLevelOFDM,
+	IN	u8*			pPowerLevelBW20,
+	IN	u8*			pPowerLevelBW40,
+	IN	u8			Channel);
+
 #endif//__RTL8192E_RF_H__
 

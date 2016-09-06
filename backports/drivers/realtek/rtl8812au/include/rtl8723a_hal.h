@@ -33,6 +33,9 @@
 #include "Hal8723APhyReg.h"
 #include "Hal8723APhyCfg.h"
 #include "rtl8723a_rf.h"
+#ifdef CONFIG_BT_COEXIST
+#include "rtl8723a_bt-coexist.h"
+#endif
 #include "rtl8723a_dm.h"
 #include "rtl8723a_recv.h"
 #include "rtl8723a_xmit.h"
@@ -89,6 +92,26 @@
 	#define Rtl8723_PHY_REG_Array_MPLength		Rtl8723SPHY_REG_Array_MPLength
 #endif
 
+#ifndef CONFIG_PHY_SETTING_WITH_ODM
+	// MAC/BB/PHY Array
+	#define Rtl8723_MAC_Array					Rtl8723SMAC_2T_Array
+	//#define Rtl8723_AGCTAB_2TArray				Rtl8723SAGCTAB_2TArray
+	#define Rtl8723_AGCTAB_1TArray				Rtl8723SAGCTAB_1TArray
+	//#define Rtl8723_PHY_REG_2TArray				Rtl8723SPHY_REG_2TArray
+	#define Rtl8723_PHY_REG_1TArray				Rtl8723SPHY_REG_1TArray
+	//#define Rtl8723_RadioA_2TArray				Rtl8723SRadioA_2TArray
+	#define Rtl8723_RadioA_1TArray				Rtl8723SRadioA_1TArray
+	//#define Rtl8723_RadioB_2TArray				Rtl8723SRadioB_2TArray
+	#define Rtl8723_RadioB_1TArray				Rtl8723SRadioB_1TArray
+
+	// Array length
+	#define Rtl8723_MAC_ArrayLength				Rtl8723SMAC_2T_ArrayLength
+	#define Rtl8723_AGCTAB_1TArrayLength		Rtl8723SAGCTAB_1TArrayLength
+	#define Rtl8723_PHY_REG_1TArrayLength 		Rtl8723SPHY_REG_1TArrayLength
+
+	#define Rtl8723_RadioA_1TArrayLength			Rtl8723SRadioA_1TArrayLength
+	#define Rtl8723_RadioB_1TArrayLength			Rtl8723SRadioB_1TArrayLength
+#endif // CONFIG_PHY_SETTING_WITH_ODM
 #endif // CONFIG_SDIO_HCI
 
 #ifdef CONFIG_USB_HCI
@@ -133,6 +156,30 @@
 
 	#define Rtl8723_PHY_REG_Array_MP			Rtl8723UPHY_REG_Array_MP
 	#define Rtl8723_PHY_REG_Array_MPLength		Rtl8723UPHY_REG_Array_MPLength
+#endif
+#ifndef CONFIG_PHY_SETTING_WITH_ODM
+	// MAC/BB/PHY Array
+	#define Rtl8723_MAC_Array					Rtl8723UMAC_2T_Array
+	//#define Rtl8723_AGCTAB_2TArray				Rtl8723UAGCTAB_2TArray
+	#define Rtl8723_AGCTAB_1TArray				Rtl8723UAGCTAB_1TArray
+	//#define Rtl8723_PHY_REG_2TArray				Rtl8723UPHY_REG_2TArray
+	#define Rtl8723_PHY_REG_1TArray				Rtl8723UPHY_REG_1TArray
+	//#define Rtl8723_RadioA_2TArray				Rtl8723URadioA_2TArray
+	#define Rtl8723_RadioA_1TArray				Rtl8723URadioA_1TArray
+	//#define Rtl8723_RadioB_2TArray				Rtl8723URadioB_2TArray
+	#define Rtl8723_RadioB_1TArray				Rtl8723URadioB_1TArray
+
+
+
+	// Array length
+
+	#define Rtl8723_MAC_ArrayLength				Rtl8723UMAC_2T_ArrayLength
+	#define Rtl8723_AGCTAB_1TArrayLength			Rtl8723UAGCTAB_1TArrayLength
+	#define Rtl8723_PHY_REG_1TArrayLength 			Rtl8723UPHY_REG_1TArrayLength
+
+
+	#define Rtl8723_RadioA_1TArrayLength			Rtl8723URadioA_1TArrayLength
+	#define Rtl8723_RadioB_1TArrayLength			Rtl8723URadioB_1TArrayLength
 #endif
 #endif
 
@@ -201,26 +248,37 @@ typedef struct _RT_8723A_FIRMWARE_HDR
 #define DRIVER_EARLY_INT_TIME_8723A		0x05
 #define BCN_DMA_ATIME_INT_TIME_8723A		0x02
 
-//For General Reserved Page Number(Beacon Queue is reserved page)
-//Beacon:2, PS-Poll:1, Null Data:1,Qos Null Data:1,BT Qos Null Data:1
-#define BCNQ_PAGE_NUM_8723A		0x08
-
-#define TX_TOTAL_PAGE_NUMBER_8723A	(0xFF - BCNQ_PAGE_NUM_8723A)
-#define TX_PAGE_BOUNDARY_8723A		(TX_TOTAL_PAGE_NUMBER_8723A + 1)
-
-#define WMM_NORMAL_TX_TOTAL_PAGE_NUMBER_8723A	TX_TOTAL_PAGE_NUMBER_8723A
-#define WMM_NORMAL_TX_PAGE_BOUNDARY_8723A		(WMM_NORMAL_TX_TOTAL_PAGE_NUMBER_8723A + 1)
+// Note: We will divide number of page equally for each queue other than public queue!
+#define TX_TOTAL_PAGE_NUMBER_8723A	0xF8
+#define TX_PAGE_BOUNDARY		(TX_TOTAL_PAGE_NUMBER_8723A + 1)
 
 // For Normal Chip Setting
 // (HPQ + LPQ + NPQ + PUBQ) shall be TX_TOTAL_PAGE_NUMBER_8723A
-#define NORMAL_PAGE_NUM_HPQ_8723A		0x0C
-#define NORMAL_PAGE_NUM_LPQ_8723A		0x02
-#define NORMAL_PAGE_NUM_NPQ_8723A		0x02
+#define NORMAL_PAGE_NUM_PUBQ	0xE7
+#define NORMAL_PAGE_NUM_HPQ		0x0C
+#define NORMAL_PAGE_NUM_LPQ		0x02
+#define NORMAL_PAGE_NUM_NPQ		0x02
+
+// For Test Chip Setting
+// (HPQ + LPQ + PUBQ) shall be TX_TOTAL_PAGE_NUMBER_8723A
+#define TEST_PAGE_NUM_PUBQ		0x7E
+
+// For Test Chip Setting
+#define WMM_TEST_TX_TOTAL_PAGE_NUMBER	0xF5
+#define WMM_TEST_TX_PAGE_BOUNDARY		(WMM_TEST_TX_TOTAL_PAGE_NUMBER + 1) //F6
+
+#define WMM_TEST_PAGE_NUM_PUBQ		0xA3
+#define WMM_TEST_PAGE_NUM_HPQ		0x29
+#define WMM_TEST_PAGE_NUM_LPQ		0x29
 
 // Note: For Normal Chip Setting, modify later
-#define WMM_NORMAL_PAGE_NUM_HPQ_8723A		0x29
-#define WMM_NORMAL_PAGE_NUM_LPQ_8723A		0x1C
-#define WMM_NORMAL_PAGE_NUM_NPQ_8723A		0x1C
+#define WMM_NORMAL_TX_TOTAL_PAGE_NUMBER	0xF5
+#define WMM_NORMAL_TX_PAGE_BOUNDARY		(WMM_TEST_TX_TOTAL_PAGE_NUMBER + 1) //F6
+
+#define WMM_NORMAL_PAGE_NUM_PUBQ	0xB0
+#define WMM_NORMAL_PAGE_NUM_HPQ		0x29
+#define WMM_NORMAL_PAGE_NUM_LPQ		0x1C
+#define WMM_NORMAL_PAGE_NUM_NPQ		0x1C
 
 
 //-------------------------------------------------------------------------
@@ -289,6 +347,8 @@ typedef enum _RTL8192C_C2H_EVT
 	MAX_C2HEVENT
 } RTL8192C_C2H_EVT;
 
+
+#define GET_RF_TYPE(priv)			(GET_HAL_DATA(priv)->rf_type)
 
 #define INCLUDE_MULTI_FUNC_BT(_Adapter)		(GET_HAL_DATA(_Adapter)->MultiFunc & RT_MULTI_FUNC_BT)
 #define INCLUDE_MULTI_FUNC_GPS(_Adapter)	(GET_HAL_DATA(_Adapter)->MultiFunc & RT_MULTI_FUNC_GPS)
@@ -451,17 +511,17 @@ void GetHwReg8723A(PADAPTER padapter, u8 variable, u8 *val);
 #ifdef CONFIG_BT_COEXIST
 void rtl8723a_SingleDualAntennaDetection(PADAPTER padapter);
 #endif
-int 	FirmwareDownloadBT(PADAPTER Adapter, PRT_MP_FIRMWARE pFirmware);
 
 // register
 void SetBcnCtrlReg(PADAPTER padapter, u8 SetBits, u8 ClearBits);
 void rtl8723a_InitBeaconParameters(PADAPTER padapter);
 void rtl8723a_InitBeaconMaxError(PADAPTER padapter, u8 InfraMode);
 
+void rtl8723a_clone_haldata(_adapter *dst_adapter, _adapter *src_adapter);
 void rtl8723a_start_thread(_adapter *padapter);
 void rtl8723a_stop_thread(_adapter *padapter);
 
-s32 c2h_id_filter_ccx_8723a(u8 *buf);
+s32 c2h_id_filter_ccx_8723a(u8 id);
 void _InitTransferPageSize(PADAPTER padapter);
 #endif// __RTL8723A_HAL_H__
 

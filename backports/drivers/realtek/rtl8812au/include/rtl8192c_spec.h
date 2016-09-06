@@ -97,8 +97,9 @@
 #define IMR_RX_MASK		(IMR_ROK|IMR_RDU|IMR_RXFOVW)
 #define IMR_TX_MASK		(IMR_VODOK|IMR_VIDOK|IMR_BEDOK|IMR_BKDOK|IMR_MGNTDOK|IMR_HIGHDOK|IMR_BDOK)
 
-#define RT_BCN_INT_MASKS				(IMR_BcnInt | IMR_TBDOK | IMR_TBDER)
+#define RT_IBSS_INT_MASKS				(IMR_BcnInt | IMR_TBDOK | IMR_TBDER)
 #define RT_AC_INT_MASKS				(IMR_VIDOK | IMR_VODOK | IMR_BEDOK|IMR_BKDOK)
+#define RT_BSS_INT_MASKS				(RT_IBSS_INT_MASKS)
 #endif
 
 //----------------------------------------------------------------------------

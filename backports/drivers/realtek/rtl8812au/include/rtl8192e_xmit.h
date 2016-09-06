@@ -399,6 +399,12 @@ struct txrpt_ccx_92e {
 	u8 sw0;
 };
 
+#ifdef CONFIG_XMIT_ACK
+void dump_txrpt_ccx_92e(void *buf);
+void handle_txrpt_ccx_92e(_adapter *adapter, u8 *buf);
+#endif //CONFIG_XMIT_ACK
+
+
 #ifdef CONFIG_TX_EARLY_MODE
 void UpdateEarlyModeInfo8192E(struct xmit_priv *pxmitpriv,struct xmit_buf *pxmitbuf );
 #endif

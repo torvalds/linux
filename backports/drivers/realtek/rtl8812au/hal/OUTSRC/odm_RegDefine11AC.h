@@ -44,7 +44,7 @@
 
 
 //2 MAC REG LIST
-#define	ODM_REG_RESP_TX_11AC				0x6D8
+
 
 
 

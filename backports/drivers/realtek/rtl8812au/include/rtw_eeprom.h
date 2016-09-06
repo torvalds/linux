@@ -105,7 +105,6 @@ typedef enum _RT_CUSTOMER_ID
 	RT_CID_819x_Sercomm_Netgear = 43,
 	RT_CID_819x_ALPHA_Dlink = 44,//add by ylb 20121012 for customer led for alpha
 	RT_CID_WNC_NEC = 45,//add by page for NEC
-	RT_CID_DNI_BUFFALO = 46,//add by page for NEC
 }RT_CUSTOMER_ID, *PRT_CUSTOMER_ID;
 
 struct eeprom_priv 
@@ -121,11 +120,6 @@ struct eeprom_priv
 	u16		CustomerID;
 
 	u8		efuse_eeprom_data[EEPROM_MAX_SIZE]; //92C:256bytes, 88E:512bytes, we use union set (512bytes)
-
-#ifdef CONFIG_RF_GAIN_OFFSET
-		u8		EEPROMRFGainOffset;
-		u8		EEPROMRFGainVal;
-#endif //CONFIG_RF_GAIN_OFFSET
 
 #ifdef CONFIG_SDIO_HCI
 	u8		sdio_setting;	

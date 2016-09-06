@@ -33,7 +33,6 @@
 // BB Register Definition
 
 #define rCCAonSec_Jaguar		0x838
-#define rPwed_TH_Jaguar			0x830
 
 // BW and sideband setting
 #define rBWIndication_Jaguar		0x834
@@ -280,19 +279,14 @@
 #define RF_TXLOK_Jaguar				0x08	// 
 #define RF_TXAPK_Jaguar				0x0B
 #define RF_CHNLBW_Jaguar 			0x18	// RF channel and BW switch
+#define RF_TxLCTank_Jaguar          	0x54
+#define RF_APK_Jaguar				0x63
+#define bRF_CHNLBW_MOD_AG_Jaguar	0x70300
+#define bRF_CHNLBW_BW 				0xc00
 #define RF_RCK1_Jaguar				0x1c	// 
 #define RF_RCK2_Jaguar				0x1d
 #define RF_RCK3_Jaguar   			0x1e
-#define RF_ModeTableAddr			0x30
-#define RF_ModeTableData0			0x31
-#define RF_ModeTableData1			0x32
-#define RF_TxLCTank_Jaguar          	0x54
-#define RF_APK_Jaguar				0x63
 #define RF_LCK						0xB4
-#define RF_WeLut_Jaguar				0xEF
-
-#define bRF_CHNLBW_MOD_AG_Jaguar	0x70300
-#define bRF_CHNLBW_BW 				0xc00
 
 
 //

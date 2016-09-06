@@ -57,12 +57,10 @@ enum _NIC_VERSION {
 
 };
 
-#define CONFIG_SUSPEND_REFINE	
 
 typedef struct _ADAPTER _adapter, ADAPTER,*PADAPTER;
 
 #include <rtw_debug.h>
-#include <rtw_rf.h>
 
 #ifdef CONFIG_80211N_HT
 #include <rtw_ht.h>
@@ -76,10 +74,7 @@ typedef struct _ADAPTER _adapter, ADAPTER,*PADAPTER;
 #include <rtw_intel_widi.h>
 #endif
 
-#ifdef CONFIG_BEAMFORMING
-#include <rtw_beamforming.h>
-#endif
-
+#include <rtw_rf.h>
 #include <rtw_cmd.h>
 #include <cmd_osdep.h>
 #include <rtw_security.h>
@@ -109,7 +104,6 @@ typedef struct _ADAPTER _adapter, ADAPTER,*PADAPTER;
 #include <rtw_ap.h>
 #include <rtw_efuse.h>
 #include <rtw_version.h>
-#include <rtw_odm.h>
 
 #ifdef CONFIG_P2P
 #include <rtw_p2p.h>
@@ -138,6 +132,10 @@ typedef struct _ADAPTER _adapter, ADAPTER,*PADAPTER;
 #ifdef CONFIG_IOL
 #include <rtw_iol.h>
 #endif // CONFIG_IOL
+
+#ifdef CONFIG_BT_COEXIST
+#include <rtl8723a_hal.h>
+#endif // CONFIG_BT_COEXIST
 
 #ifdef CONFIG_IOCTL_CFG80211
 #include "ioctl_cfg80211.h"
@@ -188,13 +186,11 @@ struct registry_priv
 	u8	power_mgnt;
 	u8	ips_mode;
 	u8	smart_ps;
-	u8   usb_rxagg_mode;
 	u8	long_retry_lmt;
 	u8	short_retry_lmt;
 	u16	busy_thresh;
 	u8	ack_policy;
 	u8	mp_mode;
-	u8  mp_dm;
 	u8	software_encrypt;
 	u8	software_decrypt;
 	#ifdef CONFIG_TX_EARLY_MODE
@@ -227,18 +223,18 @@ struct registry_priv
 	// BIT2 - 80MHz, 1: support, 0: non-support
 	// BIT3 - 160MHz, 1: support, 0: non-support
 	u8	short_gi;
+#endif //CONFIG_80211N_HT
+
+#ifdef CONFIG_80211AC_VHT
+	u8	vht_enable;
+	u8	ampdu_factor;
+	u8	vht_rate_sel;
 	// BIT0: Enable VHT LDPC Rx, BIT1: Enable VHT LDPC Tx, BIT4: Enable HT LDPC Rx, BIT5: Enable HT LDPC Tx
 	u8	ldpc_cap;
 	// BIT0: Enable VHT STBC Rx, BIT1: Enable VHT STBC Tx, BIT4: Enable HT STBC Rx, BIT5: Enable HT STBC Tx
 	u8	stbc_cap;
 	// BIT0: Enable VHT Beamformer, BIT1: Enable VHT Beamformee, BIT4: Enable HT Beamformer, BIT5: Enable HT Beamformee
 	u8	beamform_cap;
-#endif //CONFIG_80211N_HT
-
-#ifdef CONFIG_80211AC_VHT
-	u8	vht_enable; //0:disable, 1:enable, 2:auto
-	u8	ampdu_factor;
-	u8	vht_rate_sel;
 #endif //CONFIG_80211AC_VHT
 
 	u8	lowrate_two_xmit;
@@ -298,22 +294,17 @@ struct registry_priv
 	u8 regulatory_tid;
 
 	//define for tx power adjust
+	u32	RegTxPwrLimit;
 	u8	RegEnableTxPowerLimit;
-	u8	RegEnableTxPowerByRate;
 	u8	RegPowerBase;
 	u8	RegPwrTblSel;
+	u8	RegPwrByRate;
 	s8	TxBBSwing_2G;
 	s8	TxBBSwing_5G;
 	u8	AmplifierType_2G;
 	u8	AmplifierType_5G;
 	u8	bEn_RFE;
 	u8	RFE_Type;
-	u8  check_fw_ps;
-
-#ifdef CONFIG_LOAD_PHY_PARA_FROM_FILE
-	u8	load_phy_file;
-	u8	RegDecryptCustomFile;
-#endif
 
 #ifdef CONFIG_MULTI_VIR_IFACES
 	u8 ext_iface_num;//primary/secondary iface is excluded
@@ -327,7 +318,7 @@ struct registry_priv
 #define BSSID_OFT(field) ((ULONG)FIELD_OFFSET(WLAN_BSSID_EX,field))
 #define BSSID_SZ(field)   sizeof(((PWLAN_BSSID_EX) 0)->field)
 
-
+#define MAX_CONTINUAL_URB_ERR 4
 
 #ifdef CONFIG_SDIO_HCI
 #include <drv_types_sdio.h>
@@ -339,13 +330,6 @@ struct registry_priv
 #include <drv_types_pci.h>
 #endif
 
-#ifdef CONFIG_CONCURRENT_MODE
-#define is_primary_adapter(adapter) (adapter->adapter_type == PRIMARY_ADAPTER)
-#define get_iface_type(adapter) (adapter->iface_type)
-#else
-#define is_primary_adapter(adapter) (1)
-#define get_iface_type(adapter) (IFACE_PORT0)
-#endif
 #define GET_PRIMARY_ADAPTER(padapter) (((_adapter *)padapter)->dvobj->if1)
 #define GET_IFACE_NUMS(padapter) (((_adapter *)padapter)->dvobj->iface_nums)
 #define GET_ADAPTER(padapter, iface_id) (((_adapter *)padapter)->dvobj->padapters[iface_id])
@@ -358,65 +342,10 @@ enum _IFACE_ID {
 	IFACE_ID_MAX,
 };
 
-struct debug_priv {
-	u32 dbg_sdio_free_irq_error_cnt;
-	u32 dbg_sdio_alloc_irq_error_cnt;
-	u32 dbg_sdio_free_irq_cnt;
-	u32 dbg_sdio_alloc_irq_cnt;
-	u32 dbg_sdio_deinit_error_cnt;
-	u32 dbg_sdio_init_error_cnt;
-	u32 dbg_suspend_error_cnt;
-	u32 dbg_suspend_cnt;
-	u32 dbg_resume_cnt;
-	u32 dbg_resume_error_cnt;
-	u32 dbg_deinit_fail_cnt;
-	u32 dbg_carddisable_cnt;
-	u32 dbg_carddisable_error_cnt;
-	u32 dbg_ps_insuspend_cnt;
-	u32	dbg_dev_unload_inIPS_cnt;
-	u32 dbg_wow_leave_ps_fail_cnt;
-	u32 dbg_scan_pwr_state_cnt;
-	u32 dbg_downloadfw_pwr_state_cnt;
-	u32 dbg_fw_read_ps_state_fail_cnt;
-	u32 dbg_leave_ips_fail_cnt;
-	u32 dbg_leave_lps_fail_cnt;
-	u32 dbg_h2c_leave32k_fail_cnt;
-	u32 dbg_diswow_dload_fw_fail_cnt;
-	u32 dbg_enwow_dload_fw_fail_cnt;
-	u32 dbg_ips_drvopen_fail_cnt;
-	u32 dbg_poll_fail_cnt;
-	u32 dbg_rpwm_toogle_cnt;
-	u32 dbg_rpwm_timeout_fail_cnt;
-	u32 dbg_sreset_cnt;
-};
-
-struct rtw_traffic_statistics {
-	// tx statistics
-	u64	tx_bytes;
-	u64	tx_pkts;
-	u64	tx_drop;
-	u64	cur_tx_bytes;
-	u64	last_tx_bytes;
-	u32	cur_tx_tp; // Tx throughput in MBps.
-
-	// rx statistics
-	u64	rx_bytes;
-	u64	rx_pkts;
-	u64	rx_drop;
-	u64	cur_rx_bytes;
-	u64	last_rx_bytes;
-	u32	cur_rx_tp; // Rx throughput in MBps.
-};
-
 struct dvobj_priv
 {
-	/*-------- below is common data --------*/	
         _adapter *if1; //PRIMARY_ADAPTER
 	_adapter *if2; //SECONDARY_ADAPTER
-
-	s32	processing_dev_remove;
-
-        struct debug_priv drv_dbg;
 
 	//for local/global synchronization
 	//
@@ -431,7 +360,6 @@ struct dvobj_priv
 	unsigned char	oper_channel; //saved channel info when call set_channel_bw
 	unsigned char	oper_bwmode;
 	unsigned char	oper_ch_offset;//PRIME_CHNL_OFFSET
-	u32 on_oper_ch_time;
 
 	//extend to support mulitu interface
 	//padapters[IFACE_ID0] == if1
@@ -450,11 +378,6 @@ struct dvobj_priv
 	u8	Queue2Pipe[HW_QUEUE_ENTRY];//for out pipe mapping
 
 	u8	irq_alloc;
-	ATOMIC_T continual_io_error;
-
-	struct pwrctrl_priv pwrctl_priv;
-
-	struct rtw_traffic_statistics	traffic_stat;
 
 /*-------- below is for SDIO INTERFACE --------*/
 
@@ -519,7 +442,7 @@ struct dvobj_priv
 	struct usb_interface *pusbintf;
 	struct usb_device *pusbdev;
 #endif//PLATFORM_FREEBSD
-	
+	ATOMIC_T continual_urb_error;
 #endif//CONFIG_USB_HCI
 
 /*-------- below is for PCIE INTERFACE --------*/
@@ -555,14 +478,11 @@ struct dvobj_priv
 	u8 	const_devicepci_aspm_setting;
 	u8 	b_support_aspm; // If it supports ASPM, Offset[560h] = 0x40, otherwise Offset[560h] = 0x00.
 	u8	b_support_backdoor;
-	u8	bdma64;
+	u8 bdma64;
 #endif//PLATFORM_LINUX
 
 #endif//CONFIG_PCI_HCI
 };
-
-#define dvobj_to_pwrctl(dvobj) (&(dvobj->pwrctl_priv))
-#define pwrctl_to_dvobj(pwrctl) container_of(pwrctl, struct dvobj_priv, pwrctl_priv)
 
 #ifdef PLATFORM_LINUX
 static struct device *dvobj_to_dev(struct dvobj_priv *dvobj)
@@ -585,8 +505,6 @@ static struct device *dvobj_to_dev(struct dvobj_priv *dvobj)
 #endif
 }
 #endif
-
-_adapter *dvobj_get_port0_adapter(struct dvobj_priv *dvobj);
 
 enum _IFACE_TYPE {
 	IFACE_PORT0, //mapping to port0 for C/D series chips
@@ -654,8 +572,8 @@ struct _ADAPTER{
 	struct	recv_priv	recvpriv;
 	struct	sta_priv	stapriv;
 	struct	security_priv	securitypriv;
-	_lock   security_key_mutex; // add for CONFIG_IEEE80211W, none 11w also can use
 	struct	registry_priv	registrypriv;
+	struct	pwrctrl_priv	pwrctrlpriv;
 	struct 	eeprom_priv eeprompriv;
 	struct	led_priv	ledpriv;
 
@@ -722,12 +640,6 @@ struct _ADAPTER{
 	void (*dvobj_deinit)(struct dvobj_priv *dvobj);
 #endif
 
- 	u32 (*intf_init)(struct dvobj_priv *dvobj);
-	void (*intf_deinit)(struct dvobj_priv *dvobj);
-	int (*intf_alloc_irq)(struct dvobj_priv *dvobj);
-	void (*intf_free_irq)(struct dvobj_priv *dvobj);
-	
-
 	void (*intf_start)(_adapter * adapter);
 	void (*intf_stop)(_adapter * adapter);
 
@@ -744,7 +656,6 @@ struct _ADAPTER{
 
 #ifdef PLATFORM_LINUX
 	_nic_hdl pnetdev;
-	char old_ifname[IFNAMSIZ];
 
 	// used by rtw_rereg_nd_name related function
 	struct rereg_nd_name_data {
@@ -758,11 +669,9 @@ struct _ADAPTER{
 	struct net_device_stats stats;
 	struct iw_statistics iwstats;
 	struct proc_dir_entry *dir_dev;// for proc directory
-	struct proc_dir_entry *dir_odm;
 
 #ifdef CONFIG_IOCTL_CFG80211
 	struct wireless_dev *rtw_wdev;
-	struct rtw_wdev_priv wdev_data;
 #endif //CONFIG_IOCTL_CFG80211
 
 #endif //end of PLATFORM_LINUX
@@ -779,7 +688,6 @@ struct _ADAPTER{
 	u8 bReadPortCancel;
 	u8 bWritePortCancel;
 	u8 bLinkInfoDump;
-	u8 bRxRSSIDisplay;
 	//	Added by Albert 2012/10/26
 	//	The driver will show up the desired channel number when this flag is 1.
 	u8 bNotifyChannelChange;
@@ -845,25 +753,15 @@ struct _ADAPTER{
 	PLOOPBACKDATA ploopback;
 #endif
 
-	u8 fix_rate;
+        u8    fix_rate;
 
 	unsigned char     in_cta_test;
+
 };
 
 #define adapter_to_dvobj(adapter) (adapter->dvobj)
-#define adapter_to_pwrctl(adapter) (dvobj_to_pwrctl(adapter->dvobj))
-#define adapter_wdev_data(adapter) (&((adapter)->wdev_data))
 
 int rtw_handle_dualmac(_adapter *adapter, bool init);
-
-#ifdef CONFIG_PNO_SUPPORT
-int rtw_parse_ssid_list_tlv(char** list_str, pno_ssid_t* ssid, int max, int *bytes_left);
-int rtw_dev_pno_set(struct net_device *net, pno_ssid_t* ssid, int num, 
-					int pno_time, int pno_repeat, int pno_freq_expo_max);
-#ifdef CONFIG_PNO_SET_DEBUG
-void rtw_dev_pno_debug(struct net_device *net);
-#endif //CONFIG_PNO_SET_DEBUG
-#endif //CONFIG_PNO_SUPPORT
 
 __inline static u8 *myid(struct eeprom_priv *peepriv)
 {
@@ -895,9 +793,6 @@ __inline static u8 *myid(struct eeprom_priv *peepriv)
 #include <pci_hal.h>
 #endif
 
-#ifdef CONFIG_BT_COEXIST
-#include <rtw_btcoex.h>
-#endif // CONFIG_BT_COEXIST
 
 #endif //__DRV_TYPES_H__
 

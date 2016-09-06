@@ -22,7 +22,7 @@
 #ifndef __INC_TC_BB_HW_IMG_8812A_H
 #define __INC_TC_BB_HW_IMG_8812A_H
 
-//static BOOLEAN CheckCondition(const u4Byte Condition, const u4Byte Hex);
+static BOOLEAN CheckCondition(const u4Byte Condition, const u4Byte Hex);
 
 /******************************************************************************
 *                           AGC_TAB.TXT
@@ -37,8 +37,9 @@ ODM_ReadAndConfig_TC_8812A_AGC_TAB( // TC: Test Chip, MP: MP Chip
 *                           AGC_TAB_DIFF.TXT
 ******************************************************************************/
 
-extern u4Byte Array_TC_8812A_AGC_TAB_DIFF_LB[116];
-extern u4Byte Array_TC_8812A_AGC_TAB_DIFF_HB[116];
+extern u4Byte Array_TC_8812A_AGC_TAB_DIFF_MB[26];
+extern u4Byte Array_TC_8812A_AGC_TAB_DIFF_HB[26];
+extern u4Byte Array_TC_8812A_AGC_TAB_DIFF_LB[32];
 void
 ODM_ReadAndConfig_TC_8812A_AGC_TAB_DIFF(
      IN   PDM_ODM_T    pDM_Odm,

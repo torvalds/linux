@@ -45,15 +45,8 @@
 		u32	cmdsz;
 		u8	*rsp;
 		u32	rspsz;
-		struct submit_ctx *sctx;
 		//_sema 	cmd_sem;
 		_list	list;
-	};
-
-	/* cmd flags */
-	enum {
-		RTW_CMDF_DIRECTLY = BIT0,
-		RTW_CMDF_WAIT_ACK = BIT1,
 	};
 
 	struct cmd_priv {
@@ -70,9 +63,7 @@
 		u32	cmd_done_cnt;
 		u32	rsp_cnt;
 		u8 cmdthd_running;
-		u8 stop_req;
 		_adapter *padapter;
-		_mutex sctx_mutex;
 	};
 
 #ifdef CONFIG_EVENT_THREAD_MODE
@@ -137,16 +128,6 @@ struct c2h_evt_hdr {
 	u8 payload[0];
 };
 
-struct c2h_evt_hdr_88xx {
-	u8 id;
-	u8 seq;
-	u8 payload[12];
-	u8 plen;
-	u8 trigger;
-};
-
-#define c2h_evt_valid(c2h_evt) ((c2h_evt)->id || (c2h_evt)->plen)
-
 struct P2P_PS_Offload_t {
 	u8 Offload_En:1;
 	u8 role:1; // 1: Owner, 0: Client
@@ -162,6 +143,8 @@ struct P2P_PS_CTWPeriod_t {
 	u8 CTWPeriod;	//TU
 };
 
+#define c2h_evt_exist(c2h_evt) ((c2h_evt)->id || (c2h_evt)->plen)
+
 extern u32 rtw_enqueue_cmd(struct cmd_priv *pcmdpriv, struct cmd_obj *obj);
 extern struct cmd_obj *rtw_dequeue_cmd(struct cmd_priv *pcmdpriv);
 extern void rtw_free_cmd_obj(struct cmd_obj *pcmd);
@@ -172,7 +155,6 @@ extern struct evt_obj *rtw_dequeue_evt(_queue *queue);
 extern void rtw_free_evt_obj(struct evt_obj *pcmd);
 #endif
 
-void rtw_stop_cmd_thread(_adapter *adapter);
 thread_return rtw_cmd_thread(thread_context context);
 
 extern u32 rtw_init_cmd_priv (struct cmd_priv *pcmdpriv);
@@ -205,13 +187,8 @@ enum rtw_drvextra_cmd_id
 	INTEl_WIDI_WK_CID,
 	C2H_WK_CID,
 	RTP_TIMER_CFG_WK_CID,
-	RESET_SECURITYPRIV, // add for CONFIG_IEEE80211W, none 11w also can use
-	FREE_ASSOC_RESOURCES, // add for CONFIG_IEEE80211W, none 11w also can use
-	DM_IN_LPS_WK_CID,
-	DM_RA_MSK_WK_CID, //add for STA update RAMask when bandwith change.
-	BEAMFORMING_WK_CID,
-	LPS_CHANGE_DTIM_CID,
-	MAX_WK_CID};
+	MAX_WK_CID
+};
 
 enum LPS_CTRL_TYPE
 {
@@ -221,7 +198,6 @@ enum LPS_CTRL_TYPE
 	LPS_CTRL_DISCONNECT=3,
 	LPS_CTRL_SPECIAL_PACKET=4,
 	LPS_CTRL_LEAVE=5,
-	LPS_CTRL_TRAFFIC_BUSY = 6,
 };
 
 enum RFINTFS {
@@ -681,8 +657,7 @@ struct geth2clbk_rsp {
 // CMD param Formart for driver extra cmd handler
 struct drvextra_cmd_parm {
 	int ec_id; //extra cmd id
-	int type; // Can use this field as the type id or command size
-	int size; //buffer size
+	int type_size; // Can use this field as the type id or command size
 	unsigned char *pbuf;
 };
 
@@ -969,13 +944,12 @@ extern u8 rtw_setstandby_cmd(_adapter *padapter, uint action);
 u8 rtw_sitesurvey_cmd(_adapter  *padapter, NDIS_802_11_SSID *ssid, int ssid_num, struct rtw_ieee80211_channel *ch, int ch_num);
 extern u8 rtw_createbss_cmd(_adapter  *padapter);
 extern u8 rtw_createbss_cmd_ex(_adapter  *padapter, unsigned char *pbss, unsigned int sz);
-u8 rtw_startbss_cmd(_adapter  *padapter, int flags);
 extern u8 rtw_setphy_cmd(_adapter  *padapter, u8 modem, u8 ch);
-extern u8 rtw_setstakey_cmd(_adapter  *padapter, u8 *psta, u8 unicast_key, bool enqueue);
+extern u8 rtw_setstakey_cmd(_adapter  *padapter, u8 *psta, u8 unicast_key);
 extern u8 rtw_clearstakey_cmd(_adapter *padapter, u8 *psta, u8 entry, u8 enqueue);
 extern u8 rtw_joinbss_cmd(_adapter  *padapter, struct wlan_network* pnetwork);
 u8 rtw_disassoc_cmd(_adapter *padapter, u32 deauth_timeout_ms, bool enqueue);
-extern u8 rtw_setopmode_cmd(_adapter  *padapter, NDIS_802_11_NETWORK_INFRASTRUCTURE networktype, bool enqueue);
+extern u8 rtw_setopmode_cmd(_adapter  *padapter, NDIS_802_11_NETWORK_INFRASTRUCTURE networktype);
 extern u8 rtw_setdatarate_cmd(_adapter  *padapter, u8 *rateset);
 extern u8 rtw_setbasicrate_cmd(_adapter  *padapter, u8 *rateset);
 extern u8 rtw_setbbreg_cmd(_adapter * padapter, u8 offset, u8 val);
@@ -991,15 +965,10 @@ extern u8 rtw_setfwdig_cmd(_adapter*padapter, u8 type);
 extern u8 rtw_setfwra_cmd(_adapter*padapter, u8 type);
 
 extern u8 rtw_addbareq_cmd(_adapter*padapter, u8 tid, u8 *addr);
-// add for CONFIG_IEEE80211W, none 11w also can use
-extern u8 rtw_reset_securitypriv_cmd(_adapter*padapter);
-extern u8 rtw_free_assoc_resources_cmd(_adapter *padapter);
+
 extern u8 rtw_dynamic_chk_wk_cmd(_adapter *adapter);
 
 u8 rtw_lps_ctrl_wk_cmd(_adapter*padapter, u8 lps_ctrl_type, u8 enqueue);
-u8 rtw_dm_in_lps_wk_cmd(_adapter*padapter);
-u8 rtw_lps_change_dtim_cmd(_adapter*padapter, u8 dtim);
-
 #if (RATE_ADAPTIVE_SUPPORT==1)
 u8 rtw_rpt_timer_cfg_cmd(_adapter*padapter, u16 minRptTime);
 #endif
@@ -1008,8 +977,6 @@ u8 rtw_rpt_timer_cfg_cmd(_adapter*padapter, u16 minRptTime);
 extern  u8 rtw_antenna_select_cmd(_adapter*padapter, u8 antenna,u8 enqueue);
 #endif
 
-u8 rtw_dm_ra_mask_wk_cmd(_adapter*padapter, u8 *psta);
-
 extern u8 rtw_ps_cmd(_adapter*padapter);
 
 #ifdef CONFIG_AP_MODE
@@ -1017,16 +984,12 @@ u8 rtw_chk_hi_queue_cmd(_adapter*padapter);
 #endif
 
 u8 rtw_set_ch_cmd(_adapter*padapter, u8 ch, u8 bw, u8 ch_offset, u8 enqueue);
-extern u8 rtw_set_chplan_cmd(_adapter*padapter, u8 chplan, u8 enqueue, u8 swconfig);
+extern u8 rtw_set_chplan_cmd(_adapter*padapter, u8 chplan, u8 enqueue);
 extern u8 rtw_led_blink_cmd(_adapter*padapter, PVOID pLed);
 extern u8 rtw_set_csa_cmd(_adapter*padapter, u8 new_ch_no);
 extern u8 rtw_tdls_cmd(_adapter*padapter, u8 *addr, u8 option);
 
-//#ifdef CONFIG_C2H_PACKET_EN
-extern u8 rtw_c2h_packet_wk_cmd(PADAPTER padapter, u8 *pbuf, u16 length);
-//#else
 extern u8 rtw_c2h_wk_cmd(PADAPTER padapter, u8 *c2h_evt);
-//#endif
 
 u8 rtw_drvextra_cmd_hdl(_adapter *padapter, unsigned char *pbuf);
 

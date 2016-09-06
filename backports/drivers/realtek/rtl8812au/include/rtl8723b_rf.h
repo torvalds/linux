@@ -29,5 +29,18 @@ PHY_RF6052SetBandwidth8723B(
 	IN	PADAPTER				Adapter,
 	IN	CHANNEL_WIDTH		Bandwidth);
 
+VOID
+PHY_RF6052SetCckTxPower8723B(
+	IN	PADAPTER		Adapter,
+	IN	u8*			pPowerlevel);
+
+VOID 
+PHY_RF6052SetOFDMTxPower8723B(
+	IN	PADAPTER	Adapter,
+	IN	u8		*pPowerLevelOFDM,
+	IN	u8		*pPowerLevelBW20,
+	IN	u8		*pPowerLevelBW40,	
+	IN	u8		Channel);
+
 #endif
 

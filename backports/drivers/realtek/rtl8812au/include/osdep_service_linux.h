@@ -52,6 +52,7 @@
 	#include <linux/if_arp.h>
 	#include <linux/rtnetlink.h>
 	#include <linux/delay.h>
+	#include <linux/proc_fs.h>	// Necessary because we use the proc fs
 	#include <linux/interrupt.h>	// for struct tasklet_struct
 	#include <linux/ip.h>
 	#include <linux/kthread.h>
@@ -351,13 +352,6 @@ static inline void rtw_netif_stop_queue(struct net_device *pnetdev)
 #else
 	netif_stop_queue(pnetdev);
 #endif
-}
-
-static inline void rtw_merge_string(char *dst, int dst_len, char *src1, char *src2)
-{
-	int	len = 0;
-	len += snprintf(dst+len, dst_len - len, "%s", src1);
-	len += snprintf(dst+len, dst_len - len, "%s", src2);
 }
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))

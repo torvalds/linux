@@ -58,10 +58,6 @@
 #define BOARD_TYPE_TEST_MASK					0xF
 #define EEPROM_TYPE_ID							0x7E
 
-// PCIe related
-#define	EEPROM_PCIE_DEV_CAP_01				0xE0 // Express device capability in PCIe configuration space, i.e., map to offset 0x74
-#define	EEPROM_PCIE_DEV_CAP_02				0xE1 // Express device capability in PCIe configuration space, i.e., map to offset 0x75
-
 // EEPROM address for Test chip
 #define EEPROM_TEST_USB_OPT					0x0E
 
@@ -236,7 +232,7 @@
 #define EEPROM_MAC_ADDR_88EU					0xD7
 #define EEPROM_VID_88EU						0xD0
 #define EEPROM_PID_88EU						0xD2
-#define EEPROM_USB_OPTIONAL_FUNCTION0		0xD4 //92EU is the same
+#define EEPROM_USB_OPTIONAL_FUNCTION0		0xD4
 
 // RTL88ES
 #define EEPROM_MAC_ADDR_88ES					0x11A
@@ -415,9 +411,9 @@
 #define EEPROM_SMID_8723BE						0xDC
 
 //RTL8723BU
-#define EEPROM_MAC_ADDR_8723BU				0x107
-#define EEPROM_VID_8723BU						0x100
-#define EEPROM_PID_8723BU						0x102
+#define EEPROM_MAC_ADDR_8723BU				0xD7
+#define EEPROM_VID_8723BU						0xD0
+#define EEPROM_PID_8723BU						0xD2
 #define EEPROM_PA_TYPE_8723BU					0xBC
 #define EEPROM_LNA_TYPE_2G_8723BU				0xBD
 
@@ -515,9 +511,9 @@
 #define EEPROM_Default_LNAType						0
 
 //New EFUSE deafult value
-#define EEPROM_DEFAULT_24G_INDEX			0x2D
+#define EEPROM_DEFAULT_24G_INDEX			0x2A
 #define EEPROM_DEFAULT_24G_HT20_DIFF		0X02
-#define EEPROM_DEFAULT_24G_OFDM_DIFF	0X04
+#define EEPROM_DEFAULT_24G_OFDM_DIFF		0X04
 
 #define EEPROM_DEFAULT_5G_INDEX			0X2A
 #define EEPROM_DEFAULT_5G_HT20_DIFF		0X00
@@ -542,9 +538,7 @@
 //
 #define TX_PWR_BY_RATE_NUM_BAND			2
 #define TX_PWR_BY_RATE_NUM_RF			4
-#define TX_PWR_BY_RATE_NUM_RATE			84
-
-#define TXPWR_LMT_MAX_RF				4
+#define TX_PWR_BY_RATE_NUM_SECTION		12
 
 //----------------------------------------------------------------------------
 //       EEPROM/EFUSE data structure definition.
@@ -631,8 +625,8 @@ typedef	enum _BT_Ant_NUM{
 } BT_Ant_NUM, *PBT_Ant_NUM;
 
 typedef	enum _BT_CoType{
-	BT_2WIRE		= 0,		
-	BT_ISSC_3WIRE	= 1,
+	BT_2Wire		= 0,		
+	BT_ISSC_3Wire	= 1,
 	BT_ACCEL		= 2,
 	BT_CSR_BC4		= 3,
 	BT_CSR_BC8		= 4,
@@ -640,9 +634,6 @@ typedef	enum _BT_CoType{
 	BT_RTL8723A		= 6,
 	BT_RTL8821		= 7,
 	BT_RTL8723B		= 8,
-	BT_RTL8192E		= 9,
-	BT_RTL8813A		= 10,
-	BT_RTL8812A		= 11
 } BT_CoType, *PBT_CoType;
 
 typedef	enum _BT_RadioShared{

@@ -49,7 +49,7 @@ pDM_Odm->DebugComponents			=
 //									ODM_COMP_PATH_DIV				|
 //									ODM_COMP_DYNAMIC_PRICCA		|
 //									ODM_COMP_RXHP					|
-//									ODM_COMP_MP 					|
+// 									ODM_COMP_MP 				|
 //									ODM_COMP_DYNAMIC_ATC		|
 
 //MAC Functions

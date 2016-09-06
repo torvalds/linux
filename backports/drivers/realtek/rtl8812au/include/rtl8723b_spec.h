@@ -44,9 +44,7 @@
 //-----------------------------------------------------
 #define REG_C2HEVT_CMD_ID_8723B	0x01A0
 #define REG_C2HEVT_CMD_LEN_8723B	0x01AE
-#define REG_WOWLAN_WAKE_REASON 0x01C7
-#define REG_WOWLAN_GTK_DBG1	0x630
-#define REG_WOWLAN_GTK_DBG2	0x634
+#define REG_WOWLAN_WAKE_REASON_8723B 0x01C7
 
 #define REG_HMEBOX_EXT0_8723B			0x01F0
 #define REG_HMEBOX_EXT1_8723B			0x01F4
@@ -80,10 +78,6 @@
 #define REG_TXPKTBUF_BCNQ_BDNY_8723B	0x0424
 #define REG_TXPKTBUF_MGQ_BDNY_8723B	0x0425
 #define REG_TXPKTBUF_WMAC_LBK_BF_HD_8723B	0x045D
-#ifdef CONFIG_WOWLAN
-#define REG_TXPKTBUF_IV_LOW             0x0484
-#define REG_TXPKTBUF_IV_HIGH            0x0488
-#endif
 
 //-----------------------------------------------------
 //
@@ -97,25 +91,6 @@
 //	0x0600h ~ 0x07FFh	WMAC Configuration
 //
 //-----------------------------------------------------
-
-
-//============================================================
-// SDIO Bus Specification
-//============================================================
-
-//-----------------------------------------------------
-// SDIO CMD Address Mapping
-//-----------------------------------------------------
-
-//-----------------------------------------------------
-// I/O bus domain (Host)
-//-----------------------------------------------------
-
-//-----------------------------------------------------
-// SDIO register
-//-----------------------------------------------------
-#define SDIO_REG_HCPWM1_8723B	0x025 // HCI Current Power Mode 1
-
 
 //============================================================================
 //	8723 Regsiter Bit and Content definition
@@ -135,7 +110,7 @@
 //
 //-----------------------------------------------------
 
-
+#define RXDMA_AGG_MODE_EN		BIT(1)
 //-----------------------------------------------------
 //
 //	0x0200h ~ 0x027Fh	TXDMA Configuration
@@ -147,10 +122,7 @@
 //	0x0280h ~ 0x02FFh	RXDMA Configuration
 //
 //-----------------------------------------------------
-#define BIT_USB_RXDMA_AGG_EN	BIT(31)
-#define RXDMA_AGG_MODE_EN		BIT(1)
-
-#ifdef CONFIG_WOWLAN
+#ifdef CONFIG_WOWLAN_8723
 #define RXPKT_RELEASE_POLL		BIT(16)
 #define RXDMA_IDLE				BIT(17)
 #define RW_RELEASE_EN			BIT(18)
@@ -161,11 +133,6 @@
 //	0x0400h ~ 0x047Fh	Protocol Configuration
 //
 //-----------------------------------------------------
-
-//----------------------------------------------------------------------------
-//       8723B REG_CCK_CHECK						(offset 0x454)
-//----------------------------------------------------------------------------
-#define BIT_BCN_PORT_SEL		BIT5
 
 //-----------------------------------------------------
 //
@@ -178,25 +145,6 @@
 //	0x0600h ~ 0x07FFh	WMAC Configuration
 //
 //-----------------------------------------------------
-#ifdef CONFIG_RF_GAIN_OFFSET
-
-#ifdef CONFIG_RTL8723B
-#define EEPROM_RF_GAIN_OFFSET			0xC1
-#endif
-
-#define EEPROM_RF_GAIN_VAL				0x1F6
-#endif //CONFIG_RF_GAIN_OFFSET
 
 #endif
 
-#ifdef CONFIG_USB_HCI
-//should be renamed and moved to another file
-typedef	enum _BOARD_TYPE_8192CUSB{
-	BOARD_USB_DONGLE 			= 0,		// USB dongle
-	BOARD_USB_High_PA 		= 1,		// USB dongle with high power PA
-	BOARD_MINICARD		  	= 2,		// Minicard
-	BOARD_USB_SOLO 		 	= 3,		// USB solo-Slim module
-	BOARD_USB_COMBO			= 4,		// USB Combo-Slim module
-} BOARD_TYPE_8723BUSB, *PBOARD_TYPE_8723BUSB;
-
-#endif

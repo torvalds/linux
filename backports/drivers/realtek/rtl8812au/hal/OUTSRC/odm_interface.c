@@ -22,9 +22,7 @@
 // include files
 //============================================================
 
-
 #include "odm_precomp.h"
-
 //
 // ODM IO Relative API.
 //
@@ -177,12 +175,10 @@ ODM_GetMACReg(
 	)
 {
 #if(DM_ODM_SUPPORT_TYPE & (ODM_AP|ODM_ADSL))
-	return PHY_QueryMacReg(pDM_Odm->priv, RegAddr, BitMask);
-#elif(DM_ODM_SUPPORT_TYPE & (ODM_WIN))
+	return PHY_QueryBBReg(pDM_Odm->priv, RegAddr, BitMask);
+#elif(DM_ODM_SUPPORT_TYPE & (ODM_CE|ODM_WIN))
 	PADAPTER		Adapter = pDM_Odm->Adapter;
-	return PHY_QueryMacReg(Adapter, RegAddr, BitMask);
-#elif(DM_ODM_SUPPORT_TYPE & (ODM_CE))
-	return PHY_QueryBBReg(pDM_Odm->Adapter, RegAddr, BitMask);
+	return PHY_QueryBBReg(Adapter, RegAddr, BitMask);
 #endif	
 }
 
@@ -313,10 +309,10 @@ ODM_MoveMemory(
 }
 
 s4Byte ODM_CompareMemory(
-	IN 	PDM_ODM_T		pDM_Odm,
+	IN 	PDM_ODM_T	pDM_Odm,
 	IN	PVOID           pBuf1,
-	IN	PVOID           pBuf2,
-	IN	u4Byte          length
+      IN	PVOID           pBuf2,
+      IN	u4Byte          length
        )
 {
 #if(DM_ODM_SUPPORT_TYPE & (ODM_AP|ODM_ADSL))
@@ -340,9 +336,9 @@ ODM_AcquireSpinLock(
 	)
 {
 #if(DM_ODM_SUPPORT_TYPE & (ODM_AP|ODM_ADSL))
-	
-#elif(DM_ODM_SUPPORT_TYPE & ODM_CE)
 
+#elif (DM_ODM_SUPPORT_TYPE & ODM_CE )
+	
 #elif(DM_ODM_SUPPORT_TYPE & ODM_WIN)
 	PADAPTER		Adapter = pDM_Odm->Adapter;
 	PlatformAcquireSpinLock(Adapter, type);
@@ -671,10 +667,22 @@ ODM_FillH2CCmd(
 			break;
 		case ODM_H2C_RSSI_REPORT:
 			if(IS_VENDOR_8188E_I_CUT_SERIES(Adapter))
-				FillH2CCmd88E(Adapter, H2C_88E_RSSI_REPORT, CmdLen, pCmdBuffer);
+				FillH2CCmd8812(Adapter, H2C_88E_RSSI_REPORT, CmdLen, pCmdBuffer);
 			break;
 		default:
 			break;
+		}
+	}
+	else if(IS_HARDWARE_TYPE_8192E(Adapter))
+	{
+		switch(ElementID)
+		{
+			case ODM_H2C_RSSI_REPORT:
+			   FillH2CCmd8192E(Adapter, H2C_8192E_RSSI_REPORT, CmdLen, pCmdBuffer);
+			   break;
+			   
+			default:
+			   break;			   
 		}
 	}
 	else

@@ -49,17 +49,17 @@
 //---------------------------------------------------------------------
 //		RTL8192E From header
 //---------------------------------------------------------------------
-	#define RTL8192E_FW_IMG					"rtl8192E/FW_NIC.bin"
-	#define RTL8192E_FW_WW_IMG				"rtl8192E/FW_WoWLAN.bin"
-	#define RTL8192E_PHY_REG					"rtl8192E/PHY_REG.txt" 
-	#define RTL8192E_PHY_RADIO_A				"rtl8192E/RadioA.txt"
-	#define RTL8192E_PHY_RADIO_B				"rtl8192E/RadioB.txt"
-	#define RTL8192E_TXPWR_TRACK				"rtl8192E/TxPowerTrack.txt"
-	#define RTL8192E_AGC_TAB					"rtl8192E/AGC_TAB.txt"
-	#define RTL8192E_PHY_MACREG 				"rtl8192E/MAC_REG.txt"
-	#define RTL8192E_PHY_REG_PG				"rtl8192E/PHY_REG_PG.txt"
-	#define RTL8192E_PHY_REG_MP 				"rtl8192E/PHY_REG_MP.txt" 
-	#define RTL8192E_TXPWR_LMT					"rtl8192E/TXPWR_LMT.txt" 
+		#define RTL8192E_FW_IMG					"rtl192E\\rtl8192Efw.bin"
+		#define RTL8192E_FW_WW_IMG				"rtl192E\\rtl8192Efwww.bin"
+		#define RTL8192E_PHY_REG					"rtl192E\\PHY_REG.txt" 
+		#define RTL8192E_PHY_RADIO_A				"rtl192E\\RadioA.txt"
+		#define RTL8192E_PHY_RADIO_B				"rtl192E\\RadioB.txt"
+		#define RTL8192E_TXPWR_TRACK				"rtl192E\\TxPowerTrack.txt"			
+		#define RTL8192E_AGC_TAB					"rtl192E\\AGC_TAB.txt"
+		#define RTL8192E_PHY_MACREG 				"rtl192E\\MAC_REG.txt"
+		#define RTL8192E_PHY_REG_PG				"rtl192E\\PHY_REG_PG.txt"
+		#define RTL8192E_PHY_REG_MP 				"rtl192E\\PHY_REG_MP.txt" 
+		#define RTL8192E_TXPWR_LMT					"rtl192E\\TXPWR_LMT.txt" 
 
 //---------------------------------------------------------------------
 //		RTL8192E Power Configuration CMDs for PCIe interface
@@ -93,6 +93,11 @@ typedef struct _RT_FIRMWARE_8192E {
 	u8			szFwBuffer[FW_SIZE_8192E];
 #endif
 	u32			ulFwLength;
+
+#ifdef CONFIG_WOWLAN
+	u8*			szWoWLANFwBuffer;
+	u32			ulWoWLANFwLength;
+#endif //CONFIG_WOWLAN
 } RT_FIRMWARE_8192E, *PRT_FIRMWARE_8192E;
 
 //
@@ -144,9 +149,9 @@ typedef struct _RT_FIRMWARE_8192E {
 // For Normal Chip Setting
 // (HPQ + LPQ + NPQ + PUBQ) shall be TX_TOTAL_PAGE_NUMBER_92C
 #define NORMAL_PAGE_NUM_PUBQ_8192E			0xE0
-#define NORMAL_PAGE_NUM_LPQ_8192E			0x0C
+#define NORMAL_PAGE_NUM_LPQ_8192E			0x00
 #define NORMAL_PAGE_NUM_HPQ_8192E			0x08
-#define NORMAL_PAGE_NUM_NPQ_8192E			0x00
+#define NORMAL_PAGE_NUM_NPQ_8192E			0x0C
 #define NORMAL_PAGE_NUM_EPQ_8192E			0x00
 
 
@@ -206,6 +211,8 @@ typedef struct _RT_FIRMWARE_8192E {
 #define 	EFUSE_MAX_BANK_8192E					3
 //===========================================================
 
+#define GET_RF_TYPE(priv)			(GET_HAL_DATA(priv)->rf_type)
+
 #define INCLUDE_MULTI_FUNC_BT(_Adapter)	(GET_HAL_DATA(_Adapter)->MultiFunc & RT_MULTI_FUNC_BT)
 #define INCLUDE_MULTI_FUNC_GPS(_Adapter)	(GET_HAL_DATA(_Adapter)->MultiFunc & RT_MULTI_FUNC_GPS)
 
@@ -227,7 +234,6 @@ u8	GetEEPROMSize8192E(PADAPTER padapter);
 void	hal_InitPGData_8192E(PADAPTER padapter, u8* PROMContent);
 void	Hal_EfuseParseIDCode8192E(PADAPTER padapter, u8 *hwinfo);
 void	Hal_ReadPROMVersion8192E(PADAPTER padapter, u8 *hwinfo, BOOLEAN AutoLoadFail);
-void	Hal_ReadPowerSavingMode8192E(PADAPTER padapter, u8*	hwinfo, BOOLEAN	AutoLoadFail);
 void	Hal_ReadTxPowerInfo8192E(PADAPTER padapter,u8* hwinfo,BOOLEAN	AutoLoadFail);
 void	Hal_ReadBoardType8192E(PADAPTER pAdapter,u8* hwinfo,BOOLEAN AutoLoadFail);
 void	Hal_ReadThermalMeter_8192E(PADAPTER	Adapter,u8* PROMContent,BOOLEAN 	AutoloadFail);
@@ -289,6 +295,7 @@ void rtl8192e_init_default_value(_adapter * padapter);
 // register
 void SetBcnCtrlReg(PADAPTER padapter, u8 SetBits, u8 ClearBits);
 
+void rtl8192e_clone_haldata(_adapter *dst_adapter, _adapter *src_adapter);
 void rtl8192e_start_thread(_adapter *padapter);
 void rtl8192e_stop_thread(_adapter *padapter);
 #endif //__RTL8192E_HAL_H__

@@ -20,7 +20,7 @@
 #ifndef _LINUX_BYTEORDER_SWAB_H
 #define _LINUX_BYTEORDER_SWAB_H
 
-#if !defined(CONFIG_PLATFORM_MSTAR)
+#if !defined(CONFIG_PLATFORM_MSTAR_TITANIA12)
 #ifndef __u16
 typedef unsigned short __u16;
 #endif
@@ -73,7 +73,7 @@ __inline static __u64  ___swab64(__u64 x)
 		(__u64)(((__u64)(__x) & (__u64)0x00ff000000000000ULL) >> 40) | \
 		(__u64)(((__u64)(__x) & (__u64)0xff00000000000000ULL) >> 56) )); \
 }
-#endif // CONFIG_PLATFORM_MSTAR
+#endif // CONFIG_PLATFORM_MSTAR_TITANIA12
 
 #ifndef __arch__swab16
 __inline static __u16 __arch__swab16(__u16 x)

@@ -42,7 +42,7 @@
 		#elif defined(CONFIG_SDIO_HCI)
 			#define NR_RECVBUFF (8)	
 		#else
-			#define NR_RECVBUFF (8)
+			#define NR_RECVBUFF (4)
 		#endif	
 	#endif //CONFIG_SINGLE_RECV_BUF
 
@@ -136,41 +136,6 @@ struct signal_stat {
 	u32	total_num;		//num of valid elements
 	u32	total_val;		//sum of valid elements	
 };
-/*
-typedef struct _ODM_Phy_Status_Info_
-{
-	//
-	// Be care, if you want to add any element please insert between 
-	// RxPWDBAll & SignalStrength.
-	//
-#if (DM_ODM_SUPPORT_TYPE &  (ODM_WIN))
-	u4Byte		RxPWDBAll;	
-#else
-	u1Byte		RxPWDBAll;	
-#endif
-
-	u1Byte		SignalQuality;	 		// in 0-100 index. 
-	s1Byte		RxMIMOSignalQuality[4];	//per-path's EVM
-	u1Byte		RxMIMOEVMdbm[4]; 		//per-path's EVM dbm
-
-	u1Byte		RxMIMOSignalStrength[4];// in 0~100 index
-
-	u2Byte		Cfo_short[4]; 			// per-path's Cfo_short
-	u2Byte		Cfo_tail[4];			// per-path's Cfo_tail
-	
-#if (DM_ODM_SUPPORT_TYPE &  (ODM_WIN|ODM_CE))
-	s1Byte		RxPower;				// in dBm Translate from PWdB
-	s1Byte		RecvSignalPower;		// Real power in dBm for this packet, no beautification and aggregation. Keep this raw info to be used for the other procedures.
-	u1Byte		BTRxRSSIPercentage;	
-	u1Byte		SignalStrength; 		// in 0-100 index.
- 
-	u1Byte		RxPwr[4];				//per-path's pwdb
-#endif
-	u1Byte		RxSNR[4];				//per-path's SNR	
-	u1Byte		BandWidth;
-	u1Byte		btCoexPwrAdjust;
-}ODM_PHY_INFO_T,*PODM_PHY_INFO_T;
-*/
 
 struct phy_info
 {		
@@ -344,6 +309,7 @@ struct recv_priv
 	u64	rx_bytes;
 	u64	rx_pkts;
 	u64	rx_drop;
+	u64	last_rx_bytes;
 
 	uint  rx_icv_err;
 	uint  rx_largepacket_crcerr;

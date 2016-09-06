@@ -62,7 +62,6 @@
 #define REG_PKTBUF_DBG_ADDR 			(REG_PKTBUF_DBG_CTRL)
 #define REG_RXPKTBUF_DBG				(REG_PKTBUF_DBG_CTRL+2)
 #define REG_TXPKTBUF_DBG				(REG_PKTBUF_DBG_CTRL+3)
-#define REG_WOWLAN_WAKE_REASON		REG_MCUTST_WOWLAN
 
 #define REG_RSVD3_8192E					0x0168
 #define REG_C2HEVT_CMD_SEQ_88XX		0x01A1
@@ -80,6 +79,7 @@
 //
 //-----------------------------------------------------
 #define REG_DWBCN0_CTRL				0x0208
+#define REG_AUTO_LLT					0x0224
 #define REG_DWBCN1_CTRL				0x0228
 
 
@@ -217,7 +217,16 @@
 //       8192E Auto LLT bits						(offset 0x224,  8bits)
 //----------------------------------------------------------------------------
 //224 REG_AUTO_LLT
-// move to hal_com_reg.h
+#define BIT_SHIFT_TXPKTNUM 24
+#define BIT_MASK_TXPKTNUM 0xff
+#define BIT_TXPKTNUM(x) (((x) & BIT_MASK_TXPKTNUM) << BIT_SHIFT_TXPKTNUM)
+
+#define BIT_TDE_DBG_SEL BIT(23)
+#define BIT_AUTO_INIT_LLT BIT(16)
+
+#define BIT_SHIFT_Tx_OQT_free_space 8
+#define BIT_MASK_Tx_OQT_free_space 0xff
+#define BIT_Tx_OQT_free_space(x) (((x) & BIT_MASK_Tx_OQT_free_space) << BIT_SHIFT_Tx_OQT_free_space)
 
 //----------------------------------------------------------------------------
 //       8192E Auto LLT bits						(offset 0x290,  32bits)

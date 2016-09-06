@@ -84,6 +84,39 @@ int	PHY_BBConfig8812(IN PADAPTER	Adapter	);
 void	PHY_BB8812_Config_1T(IN PADAPTER	Adapter );
 int	PHY_RFConfig8812(IN PADAPTER	Adapter	);
 
+VOID
+PHY_InitPowerLimitTable(
+	IN	PDM_ODM_T	pDM_Odm
+	);
+
+VOID 
+PHY_ConvertPowerLimitToPowerIndex(
+	IN	PADAPTER			Adapter
+	);
+
+VOID
+PHY_SetPowerLimitTableValue(
+	IN	PDM_ODM_T		pDM_Odm,
+	IN	s8*				Regulation,
+	IN	s8*				Band,
+	IN	s8*				Bandwidth,
+	IN	s8*				RateSection,
+	IN	s8*				RfPath,
+	IN	s8* 				Channel,
+	IN	s8*				PowerLimit
+	);
+
+u8
+PHY_GetPowerLimitValue(
+	IN	PADAPTER			Adapter,
+	IN	u32					RegPwrTblSel,
+	IN	BAND_TYPE			Band,
+	IN	CHANNEL_WIDTH		Bandwidth,
+	IN	RF_PATH				RfPath,
+	IN	u8					DataRate,
+	IN	u8					Channel
+	);
+
 /* RF config */
 
 s32
@@ -95,11 +128,10 @@ PHY_SwitchWirelessBand8812(
 //
 // BB TX Power R/W
 //
-void	PHY_GetTxPowerLevel8812(	IN PADAPTER	Adapter, OUT s32*	powerlevel	);
+void	PHY_GetTxPowerLevel8812(	IN PADAPTER	Adapter, OUT u32*	powerlevel	);
 void	PHY_SetTxPowerLevel8812(	IN PADAPTER	Adapter, IN u8	Channel	);
-
 BOOLEAN	PHY_UpdateTxPowerDbm8812( IN PADAPTER	Adapter, IN int	powerInDbm	);
-u8 PHY_GetTxPowerIndex_8812A(
+u32 PHY_GetTxPowerIndex_8812A(
 	IN	PADAPTER			pAdapter,
 	IN	u8					RFPath,
 	IN	u8					Rate,	
@@ -120,7 +152,6 @@ PHY_SetTxPowerIndex_8812A(
 	IN	u1Byte				RFPath, 
 	IN	u1Byte				Rate
 	);
-
 //
 // Switch bandwidth for 8192S
 //
@@ -159,6 +190,14 @@ PHY_SetRFPathSwitch_8812A(
 	IN	PADAPTER	pAdapter,
 	IN	BOOLEAN		bMain
 );
+
+VOID
+storePwrIndexDiffRateOffset(
+	IN	PADAPTER	Adapter,
+	IN	u32		RegAddr,
+	IN	u32		BitMask,
+	IN	u32		Data
+	);
 
 /*--------------------------Exported Function prototype---------------------*/
 #endif	// __INC_HAL8192CPHYCFG_H

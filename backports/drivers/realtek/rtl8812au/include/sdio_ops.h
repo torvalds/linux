@@ -60,7 +60,6 @@ u32 _sdio_read32(PADAPTER padapter, u32 addr);
 s32 _sdio_write32(PADAPTER padapter, u32 addr, u32 val);
 
 extern void sd_int_hdl(PADAPTER padapter);
-extern u8 CheckIPSStatus(PADAPTER padapter);
 
 #ifdef CONFIG_RTL8723A
 extern void InitInterrupt8723ASdio(PADAPTER padapter);
@@ -76,7 +75,6 @@ extern void EnableInterrupt8188ESdio(PADAPTER padapter);
 extern void DisableInterrupt8188ESdio(PADAPTER padapter);
 extern void UpdateInterruptMask8188ESdio(PADAPTER padapter, u32 AddMSR, u32 RemoveMSR);
 extern u8 HalQueryTxBufferStatus8189ESdio(PADAPTER padapter);
-extern void ClearInterrupt8188ESdio(PADAPTER padapter);
 #endif // CONFIG_RTL8188E
 
 #ifdef CONFIG_RTL8821A
@@ -86,7 +84,7 @@ extern void DisableInterrupt8821AS(PADAPTER padapter);
 extern u8 HalQueryTxBufferStatus8821AS(PADAPTER padapter);
 #endif // CONFIG_RTL8188E
 
-#if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
+#ifdef CONFIG_WOWLAN
 extern u8 RecvOnePkt(PADAPTER padapter, u32 size);
 #endif // CONFIG_WOWLAN
 #ifdef CONFIG_RTL8723B
@@ -95,7 +93,7 @@ extern void InitSysInterrupt8723BSdio(PADAPTER padapter);
 extern void EnableInterrupt8723BSdio(PADAPTER padapter);
 extern void DisableInterrupt8723BSdio(PADAPTER padapter);
 extern u8 HalQueryTxBufferStatus8723BSdio(PADAPTER padapter);
-#if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
+#ifdef CONFIG_WOWLAN
 extern void DisableInterruptButCpwm28723BSdio(PADAPTER padapter);
 extern void ClearInterrupt8723BSdio(PADAPTER padapter);
 #endif //CONFIG_WOWLAN

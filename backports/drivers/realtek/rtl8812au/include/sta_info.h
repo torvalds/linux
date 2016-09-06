@@ -78,6 +78,7 @@ struct	stainfo_stats	{
 	u64	tx_pkts;
 	u64	tx_bytes;
 	u64  tx_drops;
+
 };
 
 #ifdef CONFIG_TDLS
@@ -114,15 +115,7 @@ struct sta_info {
 	union Keytype	dot11tkiptxmickey;
 	union Keytype	dot11tkiprxmickey;
 	union Keytype	dot118021x_UncstKey;	
-	union pn48		dot11txpn;			// PN48 used for Unicast xmit
-#ifdef CONFIG_GTK_OL
-	u8 kek[RTW_KEK_LEN];
-	u8 kck[RTW_KCK_LEN];
-	u8 replay_ctr[RTW_REPLAY_CTR_LEN];
-#endif //CONFIG_GTK_OL
-#ifdef CONFIG_IEEE80211W
-	union pn48		dot11wtxpn;			// PN48 used for Unicast mgmt xmit.
-#endif //CONFIG_IEEE80211W
+	union pn48		dot11txpn;			// PN48 used for Unicast xmit.
 	union pn48		dot11rxpn;			// PN48 used for Unicast recv.
 
 
@@ -138,7 +131,6 @@ struct sta_info {
 	u8 	init_rate;
 	u32	ra_mask;
 	u8	wireless_mode;	// NETWORK_TYPE
-	u8	bw_mode;
 
 	struct stainfo_stats sta_stats;
 
@@ -159,11 +151,12 @@ struct sta_info {
 	_timer	option_timer;
 	_timer	base_ch_timer;
 	_timer	off_ch_timer;
+
 	_timer handshake_timer;
+	_timer alive_timer1;
+	_timer alive_timer2;
 	u8 timer_flag;
 	u8 alive_count;
-	_timer	pti_timer;
-	u8	TDLS_RSNIE[20];	//Save peer's RSNIE, use for sending TDLS_SETUP_RSP
 #endif //CONFIG_TDLS
 
 	//for A-MPDU TX, ADDBA timeout check	
@@ -227,10 +220,6 @@ struct sta_info {
 	u8 ht_20mhz_set;
 #endif	// CONFIG_NATIVEAP_MLME
 
-#ifdef CONFIG_ATMEL_RC_PATCH
-	u8 flag_atmel_rc;
-#endif
-
 	unsigned int tx_ra_bitmap;
 	u8 qos_info;
 
@@ -281,7 +270,7 @@ struct sta_info {
 	//for DM
 	RSSI_STA	 rssi_stat;
 	
-	//ODM_STA_INFO_T
+	//
 	// ================ODM Relative Info=======================
 	// Please be care, dont declare too much structure here. It will cost memory * STA support num.
 	//
@@ -292,6 +281,7 @@ struct sta_info {
 	u8		bValid;				// record the sta status link or not?
 	//u8		WirelessMode;		// 
 	u8		IOTPeer;			// Enum value.	HT_IOT_PEER_E
+	u8		rssi_level;			//for Refresh RA mask
 	// ODM Write
 	//1 PHY_STATUS_INFO
 	u8		RSSI_Path[4];		// 
@@ -299,7 +289,6 @@ struct sta_info {
 	u8		RXEVM[4];
 	u8		RXSNR[4];
 
-	u8		rssi_level;			//for Refresh RA mask
 	// ODM Write
 	//1 TX_INFO (may changed by IC)
 	//TX_INFO_T		pTxInfo;				// Define in IC folder. Move lower layer.
@@ -431,16 +420,12 @@ struct	sta_priv {
 	u16 max_num_sta;
 
 	struct wlan_acl_pool acl_list;
-#endif
-
-#ifdef CONFIG_ATMEL_RC_PATCH
-	u8 atmel_rc_pattern [6];
-#endif
-
+#endif		
+	
 };
 
 
-__inline static u32 wifi_mac_hash(u8 *mac)
+__inline static u32 wifi_mac_hash(const u8 *mac)
 {
         u32 x;
 
@@ -468,7 +453,7 @@ struct sta_info *rtw_get_stainfo_by_offset(struct sta_priv *stapriv, int offset)
 extern struct sta_info *rtw_alloc_stainfo(struct	sta_priv *pstapriv, u8 *hwaddr);
 extern u32	rtw_free_stainfo(_adapter *padapter , struct sta_info *psta);
 extern void rtw_free_all_stainfo(_adapter *padapter);
-extern struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr);
+extern struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, const u8 *hwaddr);
 extern u32 rtw_init_bcmc_stainfo(_adapter* padapter);
 extern struct sta_info* rtw_get_bcmc_stainfo(_adapter* padapter);
 extern u8 rtw_access_ctrl(_adapter *padapter, u8 *mac_addr);

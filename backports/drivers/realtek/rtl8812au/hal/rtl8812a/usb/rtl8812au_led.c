@@ -288,7 +288,7 @@ SwLedOn_8821AU(
 				if(IS_HARDWARE_TYPE_8821U(Adapter))
 				{
 					LedCfg = rtw_read8(Adapter, REG_LEDCFG2);
-					rtw_write8(Adapter, REG_LEDCFG2, ((LedCfg&0x20) & ~(BIT3))|BIT5); // SW control led0 on.
+					rtw_write8(Adapter, REG_LEDCFG2, ((LedCfg&0x20) & (~BIT3))|BIT5); // SW control led0 on.
 					RT_TRACE(_module_rtl8712_led_c_,_drv_info_,("8821 SwLedOn LED2 0x%x\n", rtw_read32(Adapter, REG_LEDCFG0)));
 				}
 

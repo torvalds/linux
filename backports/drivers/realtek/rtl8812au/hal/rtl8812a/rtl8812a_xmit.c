@@ -396,8 +396,7 @@ void rtl8812a_fill_txdesc_vcs(PADAPTER padapter, struct pkt_attrib *pattrib, u8 
 		SET_TX_DESC_RTS_RATE_FB_LIMIT_8812(ptxdesc, 0xf);
 
 		//Enable HW RTS
-		if(IS_HARDWARE_TYPE_8821(padapter))
-			SET_TX_DESC_HW_RTS_ENABLE_8812(ptxdesc, 1);		
+		//SET_TX_DESC_HW_RTS_ENABLE_8812(ptxdesc, 1);
 	}
 }
 
@@ -410,7 +409,7 @@ void rtl8812a_fill_txdesc_phy(PADAPTER padapter, struct pkt_attrib *pattrib, u8 
 		// Set Bandwidth and sub-channel settings.
 		SET_TX_DESC_DATA_BW_8812(ptxdesc, BWMapping_8812(padapter,pattrib));
 
-		SET_TX_DESC_DATA_SC_8812(ptxdesc, SCMapping_8812(padapter,pattrib));
+		//SET_TX_DESC_DATA_SC_8812(ptxdesc, SCMapping_8812(padapter,pattrib));
 	}
 }
 

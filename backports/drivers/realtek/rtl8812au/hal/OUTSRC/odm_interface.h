@@ -42,7 +42,7 @@
 // _cat: implemented by Token-Pasting Operator.
 #if 0
 #define _cat(_name, _ic_type, _func)								\
-	( 															\
+	( 																		\
 		_func##_all(_name)										\
 	)
 #endif
@@ -105,7 +105,7 @@ typedef VOID (*RT_WORKITEM_CALL_BACK)(PVOID pContext);
 
 #if 0
 typedef struct tasklet_struct RT_WORKITEM_HANDLE, *PRT_WORKITEM_HANDLE;
-
+	
 typedef struct _RT_WORK_ITEM
 {
 	
@@ -205,19 +205,19 @@ ODM_GetBBReg(
 
 VOID
 ODM_SetRFReg(	
-	IN 	PDM_ODM_T			pDM_Odm,
+	IN 	PDM_ODM_T				pDM_Odm,
 	IN	ODM_RF_RADIO_PATH_E	eRFPath,
-	IN	u4Byte				RegAddr,
-	IN	u4Byte				BitMask,
-	IN	u4Byte				Data
+	IN	u4Byte					RegAddr,
+	IN	u4Byte					BitMask,
+	IN	u4Byte					Data
 	);
 
 u4Byte 
 ODM_GetRFReg(	
-	IN 	PDM_ODM_T			pDM_Odm,
+	IN 	PDM_ODM_T				pDM_Odm,
 	IN	ODM_RF_RADIO_PATH_E	eRFPath,
-	IN	u4Byte				RegAddr,
-	IN	u4Byte				BitMask
+	IN	u4Byte					RegAddr,
+	IN	u4Byte					BitMask
 	);
 
 
@@ -315,8 +315,7 @@ ODM_StallExecution(
 
 VOID
 ODM_delay_ms(IN u4Byte	ms);
-
-
+
 
 VOID
 ODM_delay_us(IN u4Byte	us);

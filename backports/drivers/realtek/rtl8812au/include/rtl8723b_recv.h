@@ -22,13 +22,6 @@
 
 #include <rtl8192c_recv.h>
 
-#ifdef CONFIG_SDIO_HCI
-#ifndef CONFIG_SDIO_RX_COPY
-#undef MAX_RECVBUF_SZ
-#define MAX_RECVBUF_SZ	(RX_DMA_SIZE_8723B - RX_DMA_RESERVED_SIZE_8723B)
-#endif // !CONFIG_SDIO_RX_COPY
-#endif // CONFIG_SDIO_HCI
-
 typedef struct rxreport_8723b
 {
 	//DWORD 0
@@ -41,23 +34,24 @@ typedef struct rxreport_8723b
 	u32 shift:2;
 	u32 physt:1;
 	u32 swdec:1;
-	u32 rsvd0028:2;
+	u32 ls:1;
+	u32 fs:1;
 	u32 eor:1;
-	u32 rsvd0031:1;
+	u32 own:1;
 
 	//DWORD 1
 	u32 macid:7;
-	u32 rsvd0407:1;
+	u32 hwrsvd10:1;
 	u32 tid:4;
-	u32 macid_vld:1;
+	u32 hwrsvd11:1;
 	u32 amsdu:1;
-	u32 rxid_match:1;
+	u32 rxidmatch:1;
 	u32 paggr:1;
 	u32 a1fit:4;
 	u32 chkerr:1;  //20
-	u32 rx_ipv:1;
-	u32 rx_is_tcp_udp:1;
-	u32 chk_vld:1;   //23
+	u32 ipver:1;
+	u32 istcpudp:1;
+	u32 chkvld:1;   //23
 	u32 pam:1;
 	u32 pwr:1;
 	u32 md:1;
@@ -69,37 +63,43 @@ typedef struct rxreport_8723b
 	//DWORD 2
 	u32 seq:12;
 	u32 frag:4;
-	u32 rx_is_qos:1;
-	u32 rsvd0817:1;
-	u32 wlanhd_iv_len:6;
-	u32 hwrsvd0824:4;
-	u32 c2h_ind:1;
-	u32 rsvd0829:2;
-	u32 fcs_ok:1;
+	u32 rxisqos:1;
+	u32 hwrsvd20:1;
+	u32 ivlen:6;
+	u32 hwrsvd21:4;
+	u32 rptsel:1;
+	u32 hwrsvd22:3;
 
 	//DWORD 3
-	u32 rx_rate:7;
-	u32 rsvd1207:3;
+	u32 rxrate:7;
+	u32 hwrsvd30:3;
 	u32 htc:1;
 	u32 esop:1;
-	u32 bssid_fit:2;
-	u32 rsvd1214:2;
-	u32 dma_agg_num:8;
-	u32 rsvd1224:5;
-	u32 patternmatch:1;
+	u32 bssidfit:2;
+	u32 hwrsvd31:2;
+	u32 usbaggpktnum:8;
+	u32 hwrsvd32:5;
+	u32 eosp:1;
+	u32 patternwake:1;
 	u32 unicastwake:1;
 	u32 magicwake:1;
 	
 	//DWORD 4
-	u32 splcp:1;	//Ofdm sgi or cck_splcp
+	u32 splcp:1;
 	u32 ldpc:1;
 	u32 stbc:1;
-	u32 not_sounding:1;
+	u32 hwrsvd40:1;
 	u32 bw:2;
-	u32 rsvd1606:26;
+	u32 hwrsvd41:26;
 
 	//DWORD 5
 	u32 tsfl;
+
+	//DWORD 6
+	u32 bufaddr;
+
+	//DWORD 7
+	u32 bufaddr64;
 } RXREPORT, *PRXREPORT;
 
 typedef struct phystatus_8723b
@@ -157,9 +157,6 @@ void rtl8723b_process_phy_info(PADAPTER padapter, void *prframe);
 #ifdef CONFIG_USB_HCI
 void update_recvframe_attrib(PADAPTER padapter, union recv_frame *precvframe, struct recv_stat *prxstat);
 void update_recvframe_phyinfo(union recv_frame *precvframe, struct phy_stat *pphy_info);
-int	rtl8723bu_init_recv_priv(_adapter *padapter);
-void rtl8723bu_free_recv_priv (_adapter *padapter);
-void rtl8723bu_init_recvbuf(_adapter *padapter, struct recv_buf *precvbuf);
 #endif
 #endif
 

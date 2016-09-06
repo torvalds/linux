@@ -283,14 +283,8 @@ typedef struct txdescriptor_8812
 #define SET_TX_DESC_CTROL_STBC_8812(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc+20, 10, 2, __Value)
 #define SET_TX_DESC_RTS_SHORT_8812(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc+20, 12, 1, __Value)
 #define SET_TX_DESC_RTS_SC_8812(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc+20, 13, 4, __Value)
-#define SET_TX_DESC_TX_ANT_8812(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc+20, 24, 4, __Value)
 
 // Dword 6
-#define SET_TX_DESC_SW_DEFINE_8812(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc+24, 0, 12, __Value)
-#define SET_TX_DESC_ANTSEL_A_8812(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc+24, 16, 3, __Value)
-#define SET_TX_DESC_ANTSEL_B_8812(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc+24, 19, 3, __Value)
-#define SET_TX_DESC_ANTSEL_C_8812(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc+24, 22, 3, __Value)
-#define SET_TX_DESC_ANTSEL_D_8812(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc+24, 25, 3, __Value)
 #define SET_TX_DESC_MBSSID_8821(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc+24, 12, 4, __Value)
 
 // Dword 7 
@@ -309,7 +303,6 @@ typedef struct txdescriptor_8812
 
 // Dword 10
 #define SET_TX_DESC_TX_BUFFER_ADDRESS_8812(__pTxDesc, __Value) 	SET_BITS_TO_LE_4BYTE(__pTxDesc+40, 0, 32, __Value)
-#define GET_TX_DESC_TX_BUFFER_ADDRESS_8812(__pTxDesc) 	LE_BITS_TO_4BYTE(__pTxDesc+40, 0, 32)
 
 // Dword 11
 #define SET_TX_DESC_NEXT_DESC_ADDRESS_8812(__pTxDesc, __Value) 	SET_BITS_TO_LE_4BYTE(__pTxDesc+48, 0, 32, __Value)
@@ -348,14 +341,13 @@ s32 rtl8812au_xmitframe_complete(_adapter *padapter, struct xmit_priv *pxmitpriv
 #endif
 
 #ifdef CONFIG_PCI_HCI
-s32 rtl8812ae_init_xmit_priv(PADAPTER padapter);
-void rtl8812ae_free_xmit_priv(PADAPTER padapter);
-struct xmit_buf *rtl8812ae_dequeue_xmitbuf(struct rtw_tx_ring *ring);
-void	rtl8812ae_xmitframe_resume(_adapter *padapter);
-s32 rtl8812ae_hal_xmit(PADAPTER padapter, struct xmit_frame *pxmitframe);
-s32 rtl8812ae_mgnt_xmit(PADAPTER padapter, struct xmit_frame *pmgntframe);
-s32	rtl8812ae_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
-void rtl8812ae_xmit_tasklet(void *priv);
+s32 rtl8812e_init_xmit_priv(PADAPTER padapter);
+void rtl8812e_free_xmit_priv(PADAPTER padapter);
+struct xmit_buf *rtl8812e_dequeue_xmitbuf(struct rtw_tx_ring *ring);
+void	rtl8812e_xmitframe_resume(_adapter *padapter);
+s32 rtl8812e_hal_xmit(PADAPTER padapter, struct xmit_frame *pxmitframe);
+s32 rtl8812e_mgnt_xmit(PADAPTER padapter, struct xmit_frame *pmgntframe);
+void rtl8812e_xmit_tasklet(void *priv);
 #endif
 
 #ifdef CONFIG_TX_EARLY_MODE

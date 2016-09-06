@@ -254,7 +254,16 @@ dm_InitGPIOSetting(
 	tmp1byte = rtw_read8(Adapter, REG_GPIO_MUXCFG);
 	tmp1byte &= (GPIOSEL_GPIO | ~GPIOSEL_ENBT);
 
+#ifdef CONFIG_BT_COEXIST
+	// UMB-B cut bug. We need to support the modification.
+	if (IS_81xxC_VENDOR_UMC_B_CUT(pHalData->VersionID) &&
+		pHalData->bt_coexist.BT_Coexist)
+	{
+		tmp1byte |= (BIT5);
+	}
+#endif
 	rtw_write8(Adapter, REG_GPIO_MUXCFG, tmp1byte);
+
 }
 
 // A mapping from HalData to ODM.
@@ -342,18 +351,10 @@ static void Init_ODM_ComInfo_8812(PADAPTER	Adapter)
 
 
 	fab_ver = ODM_TSMC;
-	if(IS_A_CUT(pHalData->VersionID))
-		cut_ver = ODM_CUT_A;
-	else if(IS_B_CUT(pHalData->VersionID))
-		cut_ver = ODM_CUT_B;
-	else if(IS_C_CUT(pHalData->VersionID)) 
+	if (IS_VENDOR_8812A_C_CUT(Adapter))
 		cut_ver = ODM_CUT_C;
-	else if(IS_D_CUT(pHalData->VersionID))
-		cut_ver = ODM_CUT_D;
-	else if(IS_E_CUT(pHalData->VersionID))
-		cut_ver = ODM_CUT_E;
 	else
-		cut_ver = ODM_CUT_A;
+		cut_ver = ODM_CUT_A;	
 
 	ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_FAB_VER,fab_ver);		
 	ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_CUT_VER,cut_ver);
@@ -399,11 +400,6 @@ static void Init_ODM_ComInfo_8812(PADAPTER	Adapter)
 
 	//1 ============== End of BoardType ==============
 
-	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_GPA, pHalData->TypeGPA);
-	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_APA, pHalData->TypeAPA);
-	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_GLNA, pHalData->TypeGLNA);
-	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_ALNA, pHalData->TypeALNA);
-
 	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_RFE_TYPE, pHalData->RFEType);
 
 	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_EXT_TRSW, 0);
@@ -444,40 +440,36 @@ static void Update_ODM_ComInfo_8812(PADAPTER	Adapter)
 {
 	struct mlme_ext_priv	*pmlmeext = &Adapter->mlmeextpriv;
 	struct mlme_priv	*pmlmepriv = &Adapter->mlmepriv;
-	struct pwrctrl_priv *pwrctrlpriv = adapter_to_pwrctl(Adapter);
+	struct pwrctrl_priv *pwrctrlpriv = &Adapter->pwrctrlpriv;
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
 	PDM_ODM_T		pDM_Odm = &(pHalData->odmpriv);
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;	
-	int i;
-
-	pdmpriv->InitODMFlag = 0
-		| ODM_BB_DIG
-		| ODM_BB_RA_MASK
-		| ODM_BB_FA_CNT
-		| ODM_BB_RSSI_MONITOR
-		| ODM_RF_TX_PWR_TRACK
-		| ODM_MAC_EDCA_TURBO
-#ifdef CONFIG_ODM_ADAPTIVITY
-		| ODM_BB_ADAPTIVITY
+	int i;	
+	#ifdef CONFIG_DISABLE_ODM
+	pdmpriv->InitODMFlag = 0;
+	#else //CONFIG_DISABLE_ODM
+	
+	pdmpriv->InitODMFlag =	ODM_BB_DIG				|
+#ifdef	CONFIG_ODM_REFRESH_RAMASK
+							ODM_BB_RA_MASK		|
 #endif
-		;
-
+							ODM_BB_FA_CNT			|
+							ODM_BB_RSSI_MONITOR	|
+							ODM_RF_TX_PWR_TRACK	|	// For RF
+							ODM_MAC_EDCA_TURBO
+							;	
 	if(pHalData->AntDivCfg)
 		pdmpriv->InitODMFlag |= ODM_BB_ANT_DIV;
 
-#if (MP_DRIVER==1)
-	if (Adapter->registrypriv.mp_mode == 1) {
-		pdmpriv->InitODMFlag = 0
-			| ODM_RF_CALIBRATION
-			| ODM_RF_TX_PWR_TRACK
-			;
-	}
-#endif//(MP_DRIVER==1)
-
-#ifdef CONFIG_DISABLE_ODM
-	pdmpriv->InitODMFlag = 0;
-#endif//CONFIG_DISABLE_ODM
-
+	#if (MP_DRIVER==1)
+		if (Adapter->registrypriv.mp_mode == 1)
+		{
+		pdmpriv->InitODMFlag = 	ODM_RF_CALIBRATION	|
+								ODM_RF_TX_PWR_TRACK;	
+		}
+	#endif//(MP_DRIVER==1)
+	
+	#endif//CONFIG_DISABLE_ODM	
 	ODM_CmnInfoUpdate(pDM_Odm,ODM_CMNINFO_ABILITY,pdmpriv->InitODMFlag);
 	
 	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_TX_UNI,&(Adapter->xmitpriv.tx_bytes));
@@ -492,7 +484,6 @@ static void Update_ODM_ComInfo_8812(PADAPTER	Adapter)
 	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_CHNL,&( pHalData->CurrentChannel));	
 	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_NET_CLOSED,&( Adapter->net_closed));
 	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_MP_MODE,&(Adapter->registrypriv.mp_mode));
-	ODM_CmnInfoHook(pDM_Odm,ODM_CMNINFO_FORCED_IGI_LB,&(pHalData->u1ForcedIgiLb));
 	//================= only for 8192D   =================
 	/*
 	//pHalData->CurrentBandType92D
@@ -536,7 +527,7 @@ rtl8812_InitHalDm(
 	Update_ODM_ComInfo_8812(Adapter);
 	ODM_DMInit(pDM_Odm);
 
-	//Adapter->fix_rate = 0xFF;
+	Adapter->fix_rate = 0xFF;
 
 }
 
@@ -564,8 +555,16 @@ rtl8812_HalDmWatchDog(
 		goto skip_dm;
 
 #ifdef CONFIG_LPS
-	bFwCurrentInPSMode = adapter_to_pwrctl(Adapter)->bFwCurrentInPSMode;
-	rtw_hal_get_hwreg(Adapter, HW_VAR_FWLPS_RF_ON, (u8 *)(&bFwPSAwake));
+	#ifdef CONFIG_CONCURRENT_MODE
+	if (Adapter->iface_type != IFACE_PORT0 && pbuddy_adapter) {
+		bFwCurrentInPSMode = pbuddy_adapter->pwrctrlpriv.bFwCurrentInPSMode;
+		rtw_hal_get_hwreg(pbuddy_adapter, HW_VAR_FWLPS_RF_ON, (u8 *)(&bFwPSAwake));
+	} else
+	#endif //CONFIG_CONCURRENT_MODE
+	{
+		bFwCurrentInPSMode = Adapter->pwrctrlpriv.bFwCurrentInPSMode;
+		rtw_hal_get_hwreg(Adapter, HW_VAR_FWLPS_RF_ON, (u8 *)(&bFwPSAwake));
+	}
 #endif
 
 #ifdef CONFIG_P2P_PS
@@ -603,7 +602,6 @@ rtl8812_HalDmWatchDog(
 	if (hw_init_completed == _TRUE)
 	{
 		u8	bLinked=_FALSE;
-		u8	bsta_state=_FALSE;
 
 		#ifdef CONFIG_DISABLE_ODM
 		pHalData->odmpriv.SupportAbility = 0;
@@ -616,16 +614,8 @@ rtl8812_HalDmWatchDog(
 		if(pbuddy_adapter && rtw_linked_check(pbuddy_adapter))
 			bLinked = _TRUE;
 #endif //CONFIG_CONCURRENT_MODE
+
 		ODM_CmnInfoUpdate(&pHalData->odmpriv ,ODM_CMNINFO_LINK, bLinked);
-
-		if (check_fwstate(&Adapter->mlmepriv, WIFI_STATION_STATE))
-			bsta_state = _TRUE;
-#ifdef CONFIG_CONCURRENT_MODE
-		if(pbuddy_adapter && check_fwstate(&pbuddy_adapter->mlmepriv, WIFI_STATION_STATE))
-			bsta_state = _TRUE;
-#endif //CONFIG_CONCURRENT_MODE	
-		ODM_CmnInfoUpdate(&pHalData->odmpriv ,ODM_CMNINFO_STATION_STATE, bsta_state);
-
 		ODM_DMWatchdog(&pHalData->odmpriv);
 			
 	}
@@ -658,17 +648,15 @@ void rtl8812_init_dm_priv(IN PADAPTER Adapter)
 #endif
 	ODM_InitDebugSetting(podmpriv);
 
+	Adapter->registrypriv.RegEnableTxPowerLimit = 0;
+	Adapter->registrypriv.RegPowerBase = 14;
+	Adapter->registrypriv.RegTxPwrLimit = 0xFFFFFFFF;
+	Adapter->registrypriv.TxBBSwing_2G = 0xFF;
+	Adapter->registrypriv.TxBBSwing_5G = 0xFF;
+	Adapter->registrypriv.bEn_RFE = 0;
+	Adapter->registrypriv.RFE_Type = 64;
 	pHalData->RegRFPathS1 = 0;
 	pHalData->TxPwrInPercentage = TX_PWR_PERCENTAGE_3;
-
-#ifdef CONFIG_BT_COEXIST
-	/* firmware size issue, btcoex fw doesn't support IQK offload */
-	if (pHalData->EEPROMBluetoothCoexist == _FALSE)
-#endif
-	{
-		pHalData->RegIQKFWOffload = 1;
-		rtw_sctx_init(&pHalData->iqk_sctx, 0);
-	}
 }
 
 void rtl8812_deinit_dm_priv(IN PADAPTER Adapter)

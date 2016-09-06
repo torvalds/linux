@@ -35,26 +35,40 @@
 #ifdef DBG_CONFIG_ERROR_DETECT
 #include "rtl8723b_sreset.h"
 #endif
+#ifdef CONFIG_BT_COEXIST
+#include "rtl8723b_bt-coexist.h"
+#endif
 
+#if defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
 
-//---------------------------------------------------------------------
-//		RTL8723B From file
-//---------------------------------------------------------------------
-	#define RTL8723B_FW_IMG					"rtl8723B/FW_NIC.bin"
-	#define RTL8723B_FW_WW_IMG				"rtl8723B/FW_WoWLAN.bin"
-	#define RTL8723B_PHY_REG					"rtl8723B/PHY_REG.txt"
-	#define RTL8723B_PHY_RADIO_A				"rtl8723B/RadioA.txt"
-	#define RTL8723B_PHY_RADIO_B				"rtl8723B/RadioB.txt"
-	#define RTL8723B_TXPWR_TRACK				"rtl8723B/TxPowerTrack.txt" 
-	#define RTL8723B_AGC_TAB					"rtl8723B/AGC_TAB.txt"
-	#define RTL8723B_PHY_MACREG 				"rtl8723B/MAC_REG.txt"
-	#define RTL8723B_PHY_REG_PG				"rtl8723B/PHY_REG_PG.txt"
-	#define RTL8723B_PHY_REG_MP				"rtl8723B/PHY_REG_MP.txt"
-	#define RTL8723B_TXPWR_LMT 				"rtl8723B/TXPWR_LMT.txt"
+	//2TODO: We should define 8192S firmware related macro settings here!!
+	#define RTL819X_DEFAULT_RF_TYPE			RF_1T2R
+	#define RTL819X_TOTAL_RF_PATH				2
 
 //---------------------------------------------------------------------
-//		RTL8723B From header
+//		RTL8723BS From file
 //---------------------------------------------------------------------
+	#define RTL8723B_FW_IMG					"rtl8723B\\rtl8723bfw.bin"
+	#define RTL8723B_PHY_REG					"rtl8723B\\PHY_REG_1T.txt"
+	#define RTL8723B_PHY_RADIO_A				"rtl8723B\\radio_a_1T.txt"
+	#define RTL8723B_PHY_RADIO_B				"rtl8723B\\radio_b_1T.txt"
+	#define RTL8723B_TXPWR_TRACK				"rtl8723B\\TxPowerTrack.txt" 
+	#define RTL8723B_AGC_TAB					"rtl8723B\\AGC_TAB_1T.txt"
+	#define RTL8723B_PHY_MACREG 				"rtl8723B\\MAC_REG.txt"
+	#define RTL8723B_PHY_REG_PG				"rtl8723B\\PHY_REG_PG.txt"
+	#define RTL8723B_PHY_REG_MP				"rtl8723B\\PHY_REG_MP.txt"
+
+//---------------------------------------------------------------------
+//		RTL8723BS From header
+//---------------------------------------------------------------------
+
+	//#define Rtl8723B_FwImageArray				Array_MP_8723B_FW_NIC
+	//#define Rtl8723B_FwImgArrayLength			ArrayLength_MP_8723B_FW_NIC
+	//#define Rtl8723B_FwWoWImageArray			Array_MP_8723B_FW_WoWLAN
+	//#define Rtl8723B_FwWoWImgArrayLength		ArrayLength_MP_8723B_FW_WoWLAN
+
+	#define Rtl8723B_PHY_REG_Array_PG 			Rtl8723SPHY_REG_Array_PG
+	#define Rtl8723B_PHY_REG_Array_PGLength	Rtl8723SPHY_REG_Array_PGLength
 
 #if MP_DRIVER == 1
 	#define Rtl8723B_FwBTImgArray				Rtl8723BFwBTImgArray
@@ -67,6 +81,50 @@
 	#define Rtl8723B_PHY_REG_Array_MPLength	Rtl8723B_PHYREG_Array_MPLength
 #endif
 
+#endif // CONFIG_SDIO_HCI
+
+#ifdef CONFIG_USB_HCI
+
+	//2TODO: We should define 8192S firmware related macro settings here!!
+	#define RTL819X_DEFAULT_RF_TYPE			RF_1T2R
+	#define RTL819X_TOTAL_RF_PATH				2
+
+	//TODO:  The following need to check!!
+	#define RTL8723B_FW_IMG					"rtl8192CU\\rtl8723bfw.bin"
+	#define RTL8723B_PHY_REG					"rtl8723B\\PHY_REG_1T.txt"
+	#define RTL8723B_PHY_RADIO_A				"rtl8723B\\radio_a_1T.txt"
+	#define RTL8723B_PHY_RADIO_B				"rtl8723B\\radio_b_1T.txt"
+	#define RTL8723B_TXPWR_TRACK				"rtl8723B\\TxPowerTrack.txt" 
+	#define RTL8723B_AGC_TAB					"rtl8723B\\AGC_TAB_1T.txt"
+	#define RTL8723B_PHY_MACREG 				"rtl8723B\\MAC_REG.txt"
+	#define RTL8723B_PHY_REG_PG				"rtl8723B\\PHY_REG_PG.txt"
+	#define RTL8723B_PHY_REG_MP				"rtl8723B\\PHY_REG_MP.txt"
+
+//---------------------------------------------------------------------
+//		RTL8723S From header
+//---------------------------------------------------------------------
+
+	// Fw Array
+	//#define Rtl8723B_FwImageArray				Rtl8723UFwImgArray
+	//#define Rtl8723_FwUMCBCutImageArray		Rtl8723UFwUMCBCutImgArray
+
+	//#define Rtl8723B_ImgArrayLength				Rtl8723UImgArrayLength
+	//#define Rtl8723B_UMCBCutImgArrayLength		Rtl8723UUMCBCutImgArrayLength
+
+	//#define Rtl8723B_PHY_REG_Array_PG 			Rtl8723UPHY_REG_Array_PG
+	//#define Rtl8723B_PHY_REG_Array_PGLength	Rtl8723UPHY_REG_Array_PGLength
+
+#if MP_DRIVER == 1
+	#define Rtl8723B_FwBTImgArray				Rtl8723BFwBTImgArray
+	#define Rtl8723B_FwBTImgArrayLength		Rtl8723BFwBTImgArrayLength
+
+	#define Rtl8723B_FwMPImageArray			Rtl8723BFwMPImgArray
+	#define Rtl8723B_FwMPImgArrayLength		Rtl8723BMPImgArrayLength
+
+	#define Rtl8723B_PHY_REG_Array_MP			Rtl8723B_PHY_REG_Array_MP
+	#define Rtl8723B_PHY_REG_Array_MPLength	Rtl8723B_PHY_REG_Array_MPLength
+#endif
+#endif
 
 #define FW_8723B_SIZE			0x8000
 #define FW_8723B_START_ADDRESS	0x1000
@@ -85,11 +143,15 @@ typedef struct _RT_FIRMWARE {
 
 #ifdef CONFIG_EMBEDDED_FWIMG
 	u8*			szBTFwBuffer;
-	u8			myBTFwBuffer[FW_8723B_SIZE];
 #else
 	u8			szBTFwBuffer[FW_8723B_SIZE];
 #endif
 	u32			ulBTFwLength;
+
+#ifdef CONFIG_WOWLAN_8723
+	u8*			szWoWLANFwBuffer;
+	u32			ulWoWLANFwLength;
+#endif //CONFIG_WOWLAN_8723
 } RT_FIRMWARE_8723B, *PRT_FIRMWARE_8723B;
 
 //
@@ -105,7 +167,9 @@ typedef struct _RT_8723B_FIRMWARE_HDR
 	u8		Category;	// AP/NIC and USB/PCI
 	u8		Function;	// Reserved for different FW function indcation, for further use when driver needs to download different FW in different conditions
 	u16		Version;		// FW Version
-	u16		Subversion;	// FW Subversion, default 0x00
+	u8		Subversion;	// FW Subversion, default 0x00
+	u16		Rsvd1;
+
 
 	//--- LONG WORD 1 ----
 	u8		Month;	// Release time Month field
@@ -127,65 +191,60 @@ typedef struct _RT_8723B_FIRMWARE_HDR
 #define DRIVER_EARLY_INT_TIME_8723B		0x05
 #define BCN_DMA_ATIME_INT_TIME_8723B		0x02
 
-// for 8723B
-// TX 32K, RX 16K, Page size 128B for TX, 8B for RX
-#define PAGE_SIZE_TX_8723B			128
-#define PAGE_SIZE_RX_8723B			8
-
-#define RX_DMA_SIZE_8723B			0x4000	// 16K
-#define RX_DMA_RESERVED_SIZE_8723B	0x80	// 128B, reserved for tx report
-#define RX_DMA_BOUNDARY_8723B		(RX_DMA_SIZE_8723B - RX_DMA_RESERVED_SIZE_8723B - 1)
-
-
 // Note: We will divide number of page equally for each queue other than public queue!
-
-//For General Reserved Page Number(Beacon Queue is reserved page)
-//Beacon:2, PS-Poll:1, Null Data:1,Qos Null Data:1,BT Qos Null Data:1
-#define BCNQ_PAGE_NUM_8723B		0x08
-#ifdef CONFIG_CONCURRENT_MODE
-#define BCNQ1_PAGE_NUM_8723B		0x08 // 0x04
+#ifdef CONFIG_WOWLAN_8723
+#define TX_TOTAL_PAGE_NUMBER_8723B	0xF3
 #else
-#define BCNQ1_PAGE_NUM_8723B		0x00
-#endif
-
-#ifdef CONFIG_PNO_SUPPORT
-#undef BCNQ1_PAGE_NUM_8723B
-#define BCNQ1_PAGE_NUM_8723B		0x00 // 0x04
-#endif
-
-//For WoWLan , more reserved page
-//ARP Rsp:1, RWC:1, GTK Info:1,GTK RSP:2,GTK EXT MEM:2, PNO: 6
-#ifdef CONFIG_WOWLAN
-#define WOWLAN_PAGE_NUM_8723B	0x07
-#else
-#define WOWLAN_PAGE_NUM_8723B	0x00
-#endif
-
-#ifdef CONFIG_PNO_SUPPORT
-#undef WOWLAN_PAGE_NUM_8723B
-#define WOWLAN_PAGE_NUM_8723B	0x0d
-#endif
-
-#ifdef CONFIG_AP_WOWLAN
-#define AP_WOWLAN_PAGE_NUM_8723B	0x02
-#endif
-
-#define TX_TOTAL_PAGE_NUMBER_8723B	(0xFF - BCNQ_PAGE_NUM_8723B - BCNQ1_PAGE_NUM_8723B - WOWLAN_PAGE_NUM_8723B)
+#define TX_TOTAL_PAGE_NUMBER_8723B	0xF8
+#endif //CONFIG_WOWLAN_8723
 #define TX_PAGE_BOUNDARY_8723B		(TX_TOTAL_PAGE_NUMBER_8723B + 1)
 
-#define WMM_NORMAL_TX_TOTAL_PAGE_NUMBER_8723B	TX_TOTAL_PAGE_NUMBER_8723B
-#define WMM_NORMAL_TX_PAGE_BOUNDARY_8723B		(WMM_NORMAL_TX_TOTAL_PAGE_NUMBER_8723B + 1)
-
+#ifdef CONFIG_WOWLAN_8723
 // For Normal Chip Setting
 // (HPQ + LPQ + NPQ + PUBQ) shall be TX_TOTAL_PAGE_NUMBER_8723B
+#define NORMAL_PAGE_NUM_PUBQ_8723B	0xE2
 #define NORMAL_PAGE_NUM_HPQ_8723B		0x0C
 #define NORMAL_PAGE_NUM_LPQ_8723B		0x02
 #define NORMAL_PAGE_NUM_NPQ_8723B		0x02
+#else
+// For Normal Chip Setting
+// (HPQ + LPQ + NPQ + PUBQ) shall be TX_TOTAL_PAGE_NUMBER_8723B
+#define NORMAL_PAGE_NUM_PUBQ_8723B	0xE7
+#define NORMAL_PAGE_NUM_HPQ_8723B		0x0C
+#define NORMAL_PAGE_NUM_LPQ_8723B		0x02
+#define NORMAL_PAGE_NUM_NPQ_8723B		0x02
+#endif //CONFIG_WOWLAN_8723
+// For Test Chip Setting
+// (HPQ + LPQ + PUBQ) shall be TX_TOTAL_PAGE_NUMBER_8723B
+#define TEST_PAGE_NUM_PUBQ		0x7E
 
+// For Test Chip Setting
+#define WMM_TEST_TX_TOTAL_PAGE_NUMBER	0xF5
+#define WMM_TEST_TX_PAGE_BOUNDARY		(WMM_TEST_TX_TOTAL_PAGE_NUMBER + 1) //F6
+
+#define WMM_TEST_PAGE_NUM_PUBQ		0xA3
+#define WMM_TEST_PAGE_NUM_HPQ		0x29
+#define WMM_TEST_PAGE_NUM_LPQ		0x29
+
+#ifdef CONFIG_WOWLAN_8723
 // Note: For Normal Chip Setting, modify later
-#define WMM_NORMAL_PAGE_NUM_HPQ_8723B		0x30
-#define WMM_NORMAL_PAGE_NUM_LPQ_8723B		0x20
-#define WMM_NORMAL_PAGE_NUM_NPQ_8723B		0x20
+#define WMM_NORMAL_TX_TOTAL_PAGE_NUMBER	0xF3
+#define WMM_NORMAL_TX_PAGE_BOUNDARY		(WMM_TEST_TX_TOTAL_PAGE_NUMBER + 1) //F6
+
+#define WMM_NORMAL_PAGE_NUM_PUBQ_8723B	0xAE
+#define WMM_NORMAL_PAGE_NUM_HPQ_8723B		0x29
+#define WMM_NORMAL_PAGE_NUM_LPQ_8723B		0x1C
+#define WMM_NORMAL_PAGE_NUM_NPQ_8723B		0x1C
+#else
+// Note: For Normal Chip Setting, modify later
+#define WMM_NORMAL_TX_TOTAL_PAGE_NUMBER	0xF5
+#define WMM_NORMAL_TX_PAGE_BOUNDARY		(WMM_TEST_TX_TOTAL_PAGE_NUMBER + 1) //F6
+
+#define WMM_NORMAL_PAGE_NUM_PUBQ_8723B	0xB0
+#define WMM_NORMAL_PAGE_NUM_HPQ_8723B		0x29
+#define WMM_NORMAL_PAGE_NUM_LPQ_8723B		0x1C
+#define WMM_NORMAL_PAGE_NUM_NPQ_8723B		0x1C
+#endif //CONFIG_WOWLAN_8723
 
 
 #include "HalVerDef.h"
@@ -233,20 +292,8 @@ typedef enum _C2H_EVT
 	MAX_C2HEVENT
 } C2H_EVT;
 
-typedef struct _C2H_EVT_HDR
-{
-	u8	CmdID;
-	u8	CmdLen;
-	u8	CmdSeq;
-} __attribute__((__packed__)) C2H_EVT_HDR, *PC2H_EVT_HDR;
 
-typedef enum tag_Package_Definition
-{
-	PACKAGE_DEFAULT		= 0,
-	PACKAGE_QFN68		= BIT(0),
-	PACKAGE_TFBGA90		= BIT(1),
-	PACKAGE_TFBGA79		= BIT(2),
-}PACKAGE_TYPE_E;
+#define GET_RF_TYPE(priv)			(GET_HAL_DATA(priv)->rf_type)
 
 #define INCLUDE_MULTI_FUNC_BT(_Adapter)		(GET_HAL_DATA(_Adapter)->MultiFunc & RT_MULTI_FUNC_BT)
 #define INCLUDE_MULTI_FUNC_GPS(_Adapter)	(GET_HAL_DATA(_Adapter)->MultiFunc & RT_MULTI_FUNC_GPS)
@@ -261,7 +308,7 @@ void rtl8723b_DeinitAntenna_Selection(PADAPTER padapter);
 void rtl8723b_CheckAntenna_Selection(PADAPTER padapter);
 void rtl8723b_init_default_value(PADAPTER padapter);
 
-s32 rtl8723b_InitLLTTable(PADAPTER padapter);
+s32 InitLLTTable(PADAPTER padapter, u32 boundary);
 
 s32 CardDisableHWSM(PADAPTER padapter, u8 resetMCU);
 s32 CardDisableWithoutHWSM(PADAPTER padapter);
@@ -278,28 +325,24 @@ void Hal_EfuseParseCustomerID_8723B(PADAPTER padapter, u8 *hwinfo, BOOLEAN AutoL
 void Hal_EfuseParseAntennaDiversity_8723B(PADAPTER padapter, u8 *hwinfo, BOOLEAN AutoLoadFail);
 void Hal_EfuseParseXtal_8723B(PADAPTER pAdapter, u8 *hwinfo, u8 AutoLoadFail);
 void Hal_EfuseParseThermalMeter_8723B(PADAPTER padapter, u8 *hwinfo, u8 AutoLoadFail);
-VOID Hal_EfuseParsePackageType_8723B(PADAPTER pAdapter,u8* hwinfo,BOOLEAN AutoLoadFail);
-
-#ifdef CONFIG_C2H_PACKET_EN
-void C2HPacketHandler_8723B(PADAPTER padapter, u8 *pbuffer, u16 length);
-#endif
-
 
 void rtl8723b_set_hal_ops(struct hal_ops *pHalFunc);
 void SetHwReg8723B(PADAPTER padapter, u8 variable, u8 *val);
 void GetHwReg8723B(PADAPTER padapter, u8 variable, u8 *val);
-u8 SetHalDefVar8723B(PADAPTER padapter, HAL_DEF_VARIABLE variable, void *pval);
-u8 GetHalDefVar8723B(PADAPTER padapter, HAL_DEF_VARIABLE variable, void *pval);
+#ifdef CONFIG_BT_COEXIST
+void rtl8723b_SingleDualAntennaDetection(PADAPTER padapter);
+#endif
 
 // register
+void SetBcnCtrlReg(PADAPTER padapter, u8 SetBits, u8 ClearBits);
 void rtl8723b_InitBeaconParameters(PADAPTER padapter);
 void rtl8723b_InitBeaconMaxError(PADAPTER padapter, u8 InfraMode);
-void	_InitBurstPktLen_8723BS(PADAPTER Adapter);
-#ifdef CONFIG_WOWLAN
+#ifdef CONFIG_WOWLAN_8723
 void _8051Reset8723(PADAPTER padapter);
 void Hal_DetectWoWMode(PADAPTER pAdapter);
-#endif //CONFIG_WOWLAN
+#endif //CONFIG_WOWLAN_8723
 
+void rtl8723b_clone_haldata(_adapter *dst_adapter, _adapter *src_adapter);
 void rtl8723b_start_thread(_adapter *padapter);
 void rtl8723b_stop_thread(_adapter *padapter);
 
@@ -310,21 +353,13 @@ void rtl8723bs_cancle_checkbthang_workqueue(_adapter * adapter);
 void rtl8723bs_hal_check_bt_hang(_adapter * adapter);
 #endif
 
-#ifdef CONFIG_GPIO_WAKEUP
-void HalSetOutPutGPIO(PADAPTER padapter, u8 index, u8 OutPutValue);
+#ifdef CONFIG_WOWLAN_8723
+void rtw_get_current_ip_address(PADAPTER padapter, u8 *pcurrentip);
+void rtw_get_sec_iv(PADAPTER padapter, u8*pcur_dot11txpn, u8 *StaAddr);
 #endif
 
-int FirmwareDownloadBT(IN PADAPTER Adapter, PRT_MP_FIRMWARE pFirmware);
-
-void CCX_FwC2HTxRpt_8723b(PADAPTER padapter, u8 *pdata, u8 len);
-s32 c2h_id_filter_ccx_8723b(u8 *buf);
-s32 c2h_handler_8723b(PADAPTER padapter, u8 *pC2hEvent);
-u8 MRateToHwRate8723B(u8  rate);
-u8 HwRateToMRate8723B(u8	 rate);
-
-#ifdef CONFIG_RF_GAIN_OFFSET
-void Hal_ReadRFGainOffset(PADAPTER pAdapter,u8* hwinfo,BOOLEAN AutoLoadFail);
-#endif //CONFIG_RF_GAIN_OFFSET
+s32 c2h_id_filter_ccx_8723b(u8 id);
+s32 c2h_handler_8723b(PADAPTER padapter, struct c2h_evt_hdr *pC2hEvent);
 
 #endif
 

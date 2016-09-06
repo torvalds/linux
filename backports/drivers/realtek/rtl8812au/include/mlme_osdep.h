@@ -33,5 +33,7 @@ extern void rtw_report_sec_ie(_adapter *adapter,u8 authmode,u8 *sec_ie);
 
 void rtw_reset_securitypriv( _adapter *adapter );
 
+u8 rtw_handle_tkip_countermeasure(_adapter* padapter);
+
 #endif	//_MLME_OSDEP_H_
 

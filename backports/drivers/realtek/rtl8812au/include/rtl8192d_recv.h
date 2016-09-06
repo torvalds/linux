@@ -34,7 +34,7 @@
 		//#define MAX_RECVBUF_SZ (32768) // 32k
 		//#define MAX_RECVBUF_SZ (16384) //16K
 		//#define MAX_RECVBUF_SZ (10240) //10K
-		#ifdef CONFIG_PLATFORM_MSTAR
+		#ifdef CONFIG_PLATFORM_MSTAR_TITANIA12
 			#define MAX_RECVBUF_SZ (8192) // 8K
 		#else
 		        #define MAX_RECVBUF_SZ (15360) // 15k < 16k
