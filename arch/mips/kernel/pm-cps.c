@@ -272,14 +272,9 @@ static int __init cps_gen_flush_fsb(u32 **pp, struct uasm_label **pl,
 		/* On older ones it's unavailable */
 		return -1;
 
-	/* CPUs which do not require the workaround */
-	case CPU_P5600:
-	case CPU_I6400:
-		return 0;
-
 	default:
-		WARN_ONCE(1, "pm-cps: FSB flush unsupported for this CPU\n");
-		return -1;
+		/* Assume that the CPU does not need this workaround */
+		return 0;
 	}
 
 	/*
