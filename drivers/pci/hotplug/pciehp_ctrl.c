@@ -389,7 +389,6 @@ static void interrupt_event_handler(struct work_struct *work)
 int pciehp_enable_slot(struct slot *p_slot)
 {
 	u8 getstatus = 0;
-	int rc;
 	struct controller *ctrl = p_slot->ctrl;
 
 	pciehp_get_adapter_status(p_slot, &getstatus);
@@ -415,13 +414,7 @@ int pciehp_enable_slot(struct slot *p_slot)
 		}
 	}
 
-	pciehp_get_latch_status(p_slot, &getstatus);
-
-	rc = board_added(p_slot);
-	if (rc)
-		pciehp_get_latch_status(p_slot, &getstatus);
-
-	return rc;
+	return board_added(p_slot);
 }
 
 /*
