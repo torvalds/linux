@@ -124,6 +124,11 @@ static int __vsp1_video_try_format(struct vsp1_video *video,
 	pix->pixelformat = info->fourcc;
 	pix->colorspace = V4L2_COLORSPACE_SRGB;
 	pix->field = V4L2_FIELD_NONE;
+
+	if (info->fourcc == V4L2_PIX_FMT_HSV24 ||
+	    info->fourcc == V4L2_PIX_FMT_HSV32)
+		pix->hsv_enc = V4L2_HSV_ENC_256;
+
 	memset(pix->reserved, 0, sizeof(pix->reserved));
 
 	/* Align the width and height for YUV 4:2:2 and 4:2:0 formats. */
