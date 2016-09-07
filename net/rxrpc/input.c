@@ -497,7 +497,8 @@ protocol_error:
  * post an incoming packet to the appropriate call/socket to deal with
  * - must get rid of the sk_buff, either by freeing it or by queuing it
  */
-static void rxrpc_post_packet_to_call(struct rxrpc_call *call,
+static void rxrpc_post_packet_to_call(struct rxrpc_connection *conn,
+				      struct rxrpc_call *call,
 				      struct sk_buff *skb)
 {
 	struct rxrpc_skb_priv *sp;
@@ -558,7 +559,7 @@ resend_final_ack:
 dead_call:
 	if (sp->hdr.type != RXRPC_PACKET_TYPE_ABORT) {
 		skb->priority = RX_CALL_DEAD;
-		rxrpc_reject_packet(call->conn->params.local, skb);
+		rxrpc_reject_packet(conn->params.local, skb);
 		goto unlock;
 	}
 free_unlock:
@@ -754,7 +755,7 @@ void rxrpc_data_ready(struct sock *sk)
 			goto cant_route_call;
 
 		rxrpc_see_call(call);
-		rxrpc_post_packet_to_call(call, skb);
+		rxrpc_post_packet_to_call(conn, call, skb);
 		goto out_unlock;
 	}
 
