@@ -2212,19 +2212,37 @@ static unsigned int mmc_align_erase_size(struct mmc_card *card,
 {
 	unsigned int from_new = *from, nr_new = nr, rem;
 
-	rem = from_new % card->erase_size;
-	if (rem) {
-		rem = card->erase_size - rem;
-		from_new += rem;
+	/*
+	 * When the 'card->erase_size' is power of 2, we can use round_up/down()
+	 * to align the erase size efficiently.
+	 */
+	if (is_power_of_2(card->erase_size)) {
+		unsigned int temp = from_new;
+
+		from_new = round_up(temp, card->erase_size);
+		rem = from_new - temp;
+
 		if (nr_new > rem)
 			nr_new -= rem;
 		else
 			return 0;
-	}
 
-	rem = nr_new % card->erase_size;
-	if (rem)
-		nr_new -= rem;
+		nr_new = round_down(nr_new, card->erase_size);
+	} else {
+		rem = from_new % card->erase_size;
+		if (rem) {
+			rem = card->erase_size - rem;
+			from_new += rem;
+			if (nr_new > rem)
+				nr_new -= rem;
+			else
+				return 0;
+		}
+
+		rem = nr_new % card->erase_size;
+		if (rem)
+			nr_new -= rem;
+	}
 
 	if (nr_new == 0)
 		return 0;
