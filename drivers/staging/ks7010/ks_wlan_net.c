@@ -3396,13 +3396,13 @@ void send_packet_complete(void *arg1, void *arg2)
 
 	DPRINTK(3, "\n");
 
-	priv->nstats.tx_bytes += packet->len;
 	priv->nstats.tx_packets++;
 
 	if (netif_queue_stopped(priv->net_dev))
 		netif_wake_queue(priv->net_dev);
 
 	if (packet) {
+		priv->nstats.tx_bytes += packet->len;
 		dev_kfree_skb(packet);
 		packet = NULL;
 	}
