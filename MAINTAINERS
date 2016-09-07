@@ -4850,6 +4850,7 @@ F:	tools/firewire/
 
 FIRMWARE LOADER (request_firmware)
 M:	Ming Lei <ming.lei@canonical.com>
+M:	Luis R. Rodriguez <mcgrof@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	Documentation/firmware_class/
