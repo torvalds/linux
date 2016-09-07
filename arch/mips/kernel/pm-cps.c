@@ -129,7 +129,7 @@ int cps_pm_enter_state(enum cps_pm_state state)
 		return -EINVAL;
 
 	/* Calculate which coupled CPUs (VPEs) are online */
-#ifdef CONFIG_MIPS_MT
+#if defined(CONFIG_MIPS_MT) || defined(CONFIG_CPU_MIPSR6)
 	if (cpu_online(cpu)) {
 		cpumask_and(coupled_mask, cpu_online_mask,
 			    &cpu_sibling_map[cpu]);
@@ -431,7 +431,8 @@ static void * __init cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 			uasm_i_lw(&p, t0, 0, r_nc_count);
 			uasm_il_bltz(&p, &r, t0, lbl_secondary_cont);
 			uasm_i_ehb(&p);
-			uasm_i_yield(&p, zero, t1);
+			if (cpu_has_mipsmt)
+				uasm_i_yield(&p, zero, t1);
 			uasm_il_b(&p, &r, lbl_poll_cont);
 			uasm_i_nop(&p);
 		} else {
@@ -439,8 +440,21 @@ static void * __init cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 			 * The core will lose power & this VPE will not continue
 			 * so it can simply halt here.
 			 */
-			uasm_i_addiu(&p, t0, zero, TCHALT_H);
-			uasm_i_mtc0(&p, t0, 2, 4);
+			if (cpu_has_mipsmt) {
+				/* Halt the VPE via C0 tchalt register */
+				uasm_i_addiu(&p, t0, zero, TCHALT_H);
+				uasm_i_mtc0(&p, t0, 2, 4);
+			} else if (cpu_has_vp) {
+				/* Halt the VP via the CPC VP_STOP register */
+				unsigned int vpe_id;
+
+				vpe_id = cpu_vpe_id(&cpu_data[cpu]);
+				uasm_i_addiu(&p, t0, zero, 1 << vpe_id);
+				UASM_i_LA(&p, t1, (long)addr_cpc_cl_vp_stop());
+				uasm_i_sw(&p, t0, 0, t1);
+			} else {
+				BUG();
+			}
 			uasm_build_label(&l, p, lbl_secondary_hang);
 			uasm_il_b(&p, &r, lbl_secondary_hang);
 			uasm_i_nop(&p);
