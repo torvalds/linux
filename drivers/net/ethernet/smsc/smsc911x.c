@@ -62,6 +62,7 @@
 #include <linux/acpi.h>
 #include <linux/pm_runtime.h>
 #include <linux/property.h>
+#include <linux/gpio/consumer.h>
 
 #include "smsc911x.h"
 
@@ -146,6 +147,9 @@ struct smsc911x_data {
 
 	/* regulators */
 	struct regulator_bulk_data supplies[SMSC911X_NUM_SUPPLIES];
+
+	/* Reset GPIO */
+	struct gpio_desc *reset_gpiod;
 
 	/* clock */
 	struct clk *clk;
@@ -437,6 +441,11 @@ static int smsc911x_request_resources(struct platform_device *pdev)
 	if (ret)
 		netdev_err(ndev, "couldn't get regulators %d\n",
 				ret);
+
+	/* Request optional RESET GPIO */
+	pdata->reset_gpiod = devm_gpiod_get_optional(&pdev->dev,
+						     "reset",
+						     GPIOD_OUT_LOW);
 
 	/* Request clock */
 	pdata->clk = clk_get(&pdev->dev, NULL);
