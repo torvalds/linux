@@ -3021,6 +3021,9 @@ static int i40e_set_priv_flags(struct net_device *dev, u32 flags)
 	} else {
 		pf->flags &= ~I40E_FLAG_FD_ATR_ENABLED;
 		pf->auto_disable_flags |= I40E_FLAG_FD_ATR_ENABLED;
+
+		/* flush current ATR settings */
+		set_bit(__I40E_FD_FLUSH_REQUESTED, &pf->state);
 	}
 
 	if ((flags & I40E_PRIV_FLAGS_VEB_STATS) &&
