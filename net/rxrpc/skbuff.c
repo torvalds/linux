@@ -148,19 +148,6 @@ void rxrpc_packet_destructor(struct sk_buff *skb)
 	_leave("");
 }
 
-/**
- * rxrpc_kernel_free_skb - Free an RxRPC socket buffer
- * @skb: The socket buffer to be freed
- *
- * Let RxRPC free its own socket buffer, permitting it to maintain debug
- * accounting.
- */
-void rxrpc_kernel_free_skb(struct sk_buff *skb)
-{
-	rxrpc_free_skb(skb);
-}
-EXPORT_SYMBOL(rxrpc_kernel_free_skb);
-
 /*
  * Note the existence of a new-to-us socket buffer (allocated or dequeued).
  */
