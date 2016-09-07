@@ -147,6 +147,10 @@
 			status = "okay";
 		};
 
+		st_dwc3: dwc3@8f94000 {
+			status = "okay";
+		};
+
 		ethernet0: dwmac@9630000 {
 			phy-mode = "rgmii";
 			pinctrl-0 = <&pinctrl_rgmii1 &pinctrl_rgmii1_mdio_1>;
