@@ -54,7 +54,6 @@ struct driver_data {
 
 	/* Current message transfer state info */
 	struct spi_transfer *cur_transfer;
-	struct chip_data *cur_chip;
 	size_t len;
 	void *tx;
 	void *tx_end;

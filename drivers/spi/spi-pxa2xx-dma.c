@@ -76,7 +76,8 @@ static struct dma_async_tx_descriptor *
 pxa2xx_spi_dma_prepare_one(struct driver_data *drv_data,
 			   enum dma_transfer_direction dir)
 {
-	struct chip_data *chip = drv_data->cur_chip;
+	struct chip_data *chip =
+		spi_get_ctldata(drv_data->master->cur_msg->spi);
 	struct spi_transfer *xfer = drv_data->cur_transfer;
 	enum dma_slave_buswidth width;
 	struct dma_slave_config cfg;

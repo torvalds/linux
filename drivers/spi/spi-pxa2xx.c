@@ -355,10 +355,11 @@ static void lpss_ssp_cs_control(struct driver_data *drv_data, bool enable)
 
 static void cs_assert(struct driver_data *drv_data)
 {
-	struct chip_data *chip = drv_data->cur_chip;
+	struct chip_data *chip =
+		spi_get_ctldata(drv_data->master->cur_msg->spi);
 
 	if (drv_data->ssp_type == CE4100_SSP) {
-		pxa2xx_spi_write(drv_data, SSSR, drv_data->cur_chip->frm);
+		pxa2xx_spi_write(drv_data, SSSR, chip->frm);
 		return;
 	}
 
@@ -378,7 +379,8 @@ static void cs_assert(struct driver_data *drv_data)
 
 static void cs_deassert(struct driver_data *drv_data)
 {
-	struct chip_data *chip = drv_data->cur_chip;
+	struct chip_data *chip =
+		spi_get_ctldata(drv_data->master->cur_msg->spi);
 
 	if (drv_data->ssp_type == CE4100_SSP)
 		return;
@@ -574,13 +576,13 @@ static void giveback(struct driver_data *drv_data)
 			cs_deassert(drv_data);
 	}
 
-	drv_data->cur_chip = NULL;
 	spi_finalize_current_message(drv_data->master);
 }
 
 static void reset_sccr1(struct driver_data *drv_data)
 {
-	struct chip_data *chip = drv_data->cur_chip;
+	struct chip_data *chip =
+		spi_get_ctldata(drv_data->master->cur_msg->spi);
 	u32 sccr1_reg;
 
 	sccr1_reg = pxa2xx_spi_read(drv_data, SSCR1) & ~drv_data->int_cr1;
@@ -904,7 +906,8 @@ static unsigned int ssp_get_clk_div(struct driver_data *drv_data, int rate)
 static unsigned int pxa2xx_ssp_get_clk_div(struct driver_data *drv_data,
 					   int rate)
 {
-	struct chip_data *chip = drv_data->cur_chip;
+	struct chip_data *chip =
+		spi_get_ctldata(drv_data->master->cur_msg->spi);
 	unsigned int clk_div;
 
 	switch (drv_data->ssp_type) {
@@ -934,23 +937,22 @@ static void pump_transfers(unsigned long data)
 	struct driver_data *drv_data = (struct driver_data *)data;
 	struct spi_master *master = drv_data->master;
 	struct spi_message *message = master->cur_msg;
+	struct chip_data *chip = spi_get_ctldata(message->spi);
+	u32 dma_thresh = chip->dma_threshold;
+	u32 dma_burst = chip->dma_burst_size;
+	u32 change_mask = pxa2xx_spi_get_ssrc1_change_mask(drv_data);
 	struct spi_transfer *transfer;
 	struct spi_transfer *previous;
-	struct chip_data *chip;
 	u32 clk_div;
 	u8 bits;
 	u32 speed;
 	u32 cr0;
 	u32 cr1;
-	u32 dma_thresh = drv_data->cur_chip->dma_threshold;
-	u32 dma_burst = drv_data->cur_chip->dma_burst_size;
-	u32 change_mask = pxa2xx_spi_get_ssrc1_change_mask(drv_data);
 	int err;
 	int dma_mapped;
 
 	/* Get current state information */
 	transfer = drv_data->cur_transfer;
-	chip = drv_data->cur_chip;
 
 	/* Handle for abort */
 	if (message->state == ERROR_STATE) {
@@ -1149,10 +1151,6 @@ static int pxa2xx_spi_transfer_one_message(struct spi_master *master,
 	drv_data->cur_transfer = list_entry(msg->transfers.next,
 						struct spi_transfer,
 						transfer_list);
-
-	/* prepare to setup the SSP, in pump_transfers, using the per
-	 * chip configuration */
-	drv_data->cur_chip = spi_get_ctldata(msg->spi);
 
 	/* Mark as busy and launch transfers */
 	tasklet_schedule(&drv_data->pump_transfers);
