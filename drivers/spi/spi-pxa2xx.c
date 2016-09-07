@@ -934,13 +934,13 @@ static void pump_transfers(unsigned long data)
 {
 	struct driver_data *drv_data = (struct driver_data *)data;
 	struct spi_master *master = drv_data->master;
-	struct spi_message *message = NULL;
-	struct spi_transfer *transfer = NULL;
-	struct spi_transfer *previous = NULL;
-	struct chip_data *chip = NULL;
-	u32 clk_div = 0;
-	u8 bits = 0;
-	u32 speed = 0;
+	struct spi_message *message;
+	struct spi_transfer *transfer;
+	struct spi_transfer *previous;
+	struct chip_data *chip;
+	u32 clk_div;
+	u8 bits;
+	u32 speed;
 	u32 cr0;
 	u32 cr1;
 	u32 dma_thresh = drv_data->cur_chip->dma_threshold;
@@ -1213,7 +1213,7 @@ static int setup_cs(struct spi_device *spi, struct chip_data *chip,
 
 static int setup(struct spi_device *spi)
 {
-	struct pxa2xx_spi_chip *chip_info = NULL;
+	struct pxa2xx_spi_chip *chip_info;
 	struct chip_data *chip;
 	const struct lpss_config *config;
 	struct driver_data *drv_data = spi_master_get_devdata(spi->master);
@@ -1742,7 +1742,7 @@ static int pxa2xx_spi_suspend(struct device *dev)
 {
 	struct driver_data *drv_data = dev_get_drvdata(dev);
 	struct ssp_device *ssp = drv_data->ssp;
-	int status = 0;
+	int status;
 
 	status = spi_master_suspend(drv_data->master);
 	if (status != 0)
@@ -1759,7 +1759,7 @@ static int pxa2xx_spi_resume(struct device *dev)
 {
 	struct driver_data *drv_data = dev_get_drvdata(dev);
 	struct ssp_device *ssp = drv_data->ssp;
-	int status = 0;
+	int status;
 
 	/* Enable the SSP clock */
 	if (!pm_runtime_suspended(dev))
