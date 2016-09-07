@@ -23,7 +23,7 @@
 static void pxa2xx_spi_dma_transfer_complete(struct driver_data *drv_data,
 					     bool error)
 {
-	struct spi_message *msg = drv_data->cur_msg;
+	struct spi_message *msg = drv_data->master->cur_msg;
 
 	/*
 	 * It is possible that one CPU is handling ROR interrupt and other
