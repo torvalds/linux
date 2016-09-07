@@ -480,18 +480,20 @@ static void * __init cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 	uasm_i_sync(&p, STYPE_SYNC);
 	uasm_i_ehb(&p);
 
-	/*
-	 * Disable all but self interventions. The load from COHCTL is defined
-	 * by the interAptiv & proAptiv SUMs as ensuring that the operation
-	 * resulting from the preceding store is complete.
-	 */
-	uasm_i_addiu(&p, t0, zero, 1 << cpu_data[cpu].core);
-	uasm_i_sw(&p, t0, 0, r_pcohctl);
-	uasm_i_lw(&p, t0, 0, r_pcohctl);
+	if (mips_cm_revision() < CM_REV_CM3) {
+		/*
+		* Disable all but self interventions. The load from COHCTL is
+		* defined by the interAptiv & proAptiv SUMs as ensuring that the
+		*  operation resulting from the preceding store is complete.
+		*/
+		uasm_i_addiu(&p, t0, zero, 1 << cpu_data[cpu].core);
+		uasm_i_sw(&p, t0, 0, r_pcohctl);
+		uasm_i_lw(&p, t0, 0, r_pcohctl);
 
-	/* Barrier to ensure write to coherence control is complete */
-	uasm_i_sync(&p, STYPE_SYNC);
-	uasm_i_ehb(&p);
+		/* Barrier to ensure write to coherence control is complete */
+		uasm_i_sync(&p, STYPE_SYNC);
+		uasm_i_ehb(&p);
+	}
 
 	/* Disable coherence */
 	uasm_i_sw(&p, zero, 0, r_pcohctl);
@@ -566,7 +568,10 @@ static void * __init cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 	 * will run this. The first will actually re-enable coherence & the
 	 * rest will just be performing a rather unusual nop.
 	 */
-	uasm_i_addiu(&p, t0, zero, CM_GCR_Cx_COHERENCE_COHDOMAINEN_MSK);
+	uasm_i_addiu(&p, t0, zero, mips_cm_revision() < CM_REV_CM3
+				? CM_GCR_Cx_COHERENCE_COHDOMAINEN_MSK
+				: CM3_GCR_Cx_COHERENCE_COHEN_MSK);
+
 	uasm_i_sw(&p, t0, 0, r_pcohctl);
 	uasm_i_lw(&p, t0, 0, r_pcohctl);
 
