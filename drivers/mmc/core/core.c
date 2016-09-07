@@ -2205,6 +2205,36 @@ out:
 	return err;
 }
 
+static unsigned int mmc_align_erase_size(struct mmc_card *card,
+					 unsigned int *from,
+					 unsigned int *to,
+					 unsigned int nr)
+{
+	unsigned int from_new = *from, nr_new = nr, rem;
+
+	rem = from_new % card->erase_size;
+	if (rem) {
+		rem = card->erase_size - rem;
+		from_new += rem;
+		if (nr_new > rem)
+			nr_new -= rem;
+		else
+			return 0;
+	}
+
+	rem = nr_new % card->erase_size;
+	if (rem)
+		nr_new -= rem;
+
+	if (nr_new == 0)
+		return 0;
+
+	*to = from_new + nr_new;
+	*from = from_new;
+
+	return nr_new;
+}
+
 /**
  * mmc_erase - erase sectors.
  * @card: card to erase
@@ -2243,25 +2273,11 @@ int mmc_erase(struct mmc_card *card, unsigned int from, unsigned int nr,
 			return -EINVAL;
 	}
 
-	if (arg == MMC_ERASE_ARG) {
-		rem = from % card->erase_size;
-		if (rem) {
-			rem = card->erase_size - rem;
-			from += rem;
-			if (nr > rem)
-				nr -= rem;
-			else
-				return 0;
-		}
-		rem = nr % card->erase_size;
-		if (rem)
-			nr -= rem;
-	}
+	if (arg == MMC_ERASE_ARG)
+		nr = mmc_align_erase_size(card, &from, &to, nr);
 
 	if (nr == 0)
 		return 0;
-
-	to = from + nr;
 
 	if (to <= from)
 		return -EINVAL;
