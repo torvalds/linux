@@ -276,11 +276,13 @@ static int fsl_espi_bufs(struct spi_device *spi, struct spi_transfer *t)
 	return mpc8xxx_spi->count > 0 ? -EMSGSIZE : 0;
 }
 
-static int fsl_espi_do_trans(struct spi_message *m, struct spi_transfer *trans)
+static int fsl_espi_trans(struct spi_message *m, struct spi_transfer *trans)
 {
+	struct mpc8xxx_spi *mspi = spi_master_get_devdata(m->spi->master);
 	struct spi_device *spi = m->spi;
-	int ret = 0;
+	int ret;
 
+	fsl_espi_copy_to_buf(m, mspi);
 	fsl_espi_setup_transfer(spi, trans);
 
 	ret = fsl_espi_bufs(spi, trans);
@@ -289,18 +291,6 @@ static int fsl_espi_do_trans(struct spi_message *m, struct spi_transfer *trans)
 		udelay(trans->delay_usecs);
 
 	fsl_espi_setup_transfer(spi, NULL);
-
-	return ret;
-}
-
-static int fsl_espi_trans(struct spi_message *m, struct spi_transfer *trans)
-{
-	struct mpc8xxx_spi *mspi = spi_master_get_devdata(m->spi->master);
-	int ret;
-
-	fsl_espi_copy_to_buf(m, mspi);
-
-	ret = fsl_espi_do_trans(m, trans);
 
 	if (!ret)
 		fsl_espi_copy_from_buf(m, mspi);
