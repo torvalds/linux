@@ -16,30 +16,6 @@
 #include <mach/bitfield.h>
 
 /*
- * The SA1111 is always located at virtual 0xf4000000, and is always
- * "native" endian.
- */
-
-#define SA1111_VBASE		0xf4000000
-
-/* Don't use these! */
-#define SA1111_p2v( x )         ((x) - SA1111_BASE + SA1111_VBASE)
-#define SA1111_v2p( x )         ((x) - SA1111_VBASE + SA1111_BASE)
-
-#ifndef __ASSEMBLY__
-#define _SA1111(x)	((x) + sa1111->resource.start)
-#endif
-
-/*
- * 26 bits of the SA-1110 address bus are available to the SA-1111.
- * Use these when feeding target addresses to the DMA engines.
- */
-
-#define SA1111_ADDR_WIDTH	(26)
-#define SA1111_ADDR_MASK	((1<<SA1111_ADDR_WIDTH)-1)
-#define SA1111_DMA_ADDR(x)	((x)&SA1111_ADDR_MASK)
-
-/*
  * Don't ask the (SAC) DMA engines to move less than this amount.
  */
 
