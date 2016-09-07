@@ -252,6 +252,7 @@ bool vsp1_pipeline_stopped(struct vsp1_pipeline *pipe)
 
 int vsp1_pipeline_stop(struct vsp1_pipeline *pipe)
 {
+	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
 	struct vsp1_entity *entity;
 	unsigned long flags;
 	int ret;
@@ -261,8 +262,7 @@ int vsp1_pipeline_stop(struct vsp1_pipeline *pipe)
 		 * When using display lists in continuous frame mode the only
 		 * way to stop the pipeline is to reset the hardware.
 		 */
-		ret = vsp1_reset_wpf(pipe->output->entity.vsp1,
-				     pipe->output->entity.index);
+		ret = vsp1_reset_wpf(vsp1, pipe->output->entity.index);
 		if (ret == 0) {
 			spin_lock_irqsave(&pipe->irqlock, flags);
 			pipe->state = VSP1_PIPELINE_STOPPED;
@@ -282,7 +282,7 @@ int vsp1_pipeline_stop(struct vsp1_pipeline *pipe)
 
 	list_for_each_entry(entity, &pipe->entities, list_pipe) {
 		if (entity->route && entity->route->reg)
-			vsp1_write(entity->vsp1, entity->route->reg,
+			vsp1_write(vsp1, entity->route->reg,
 				   VI6_DPR_NODE_UNUSED);
 	}
 

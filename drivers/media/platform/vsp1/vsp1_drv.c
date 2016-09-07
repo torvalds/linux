@@ -105,7 +105,9 @@ static int vsp1_create_sink_links(struct vsp1_device *vsp1,
 		if (source->type == sink->type)
 			continue;
 
-		if (source->type == VSP1_ENTITY_LIF ||
+		if (source->type == VSP1_ENTITY_HGO ||
+		    source->type == VSP1_ENTITY_HGT ||
+		    source->type == VSP1_ENTITY_LIF ||
 		    source->type == VSP1_ENTITY_WPF)
 			continue;
 
