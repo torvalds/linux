@@ -63,6 +63,7 @@
 #define IDX_IRQ_S1_READY_NINT	(3)
 #define IDX_IRQ_S1_CD_VALID	(4)
 #define IDX_IRQ_S1_BVD1_STSCHG	(5)
+#define NUM_IRQS		(6)
 
 void sa1111_pcmcia_socket_state(struct soc_pcmcia_socket *skt, struct pcmcia_state *state)
 {
@@ -137,11 +138,17 @@ int sa1111_pcmcia_add(struct sa1111_dev *dev, struct pcmcia_low_level *ops,
 {
 	struct sa1111_pcmcia_socket *s;
 	struct clk *clk;
-	int i, ret = 0;
+	int i, ret = 0, irqs[NUM_IRQS];
 
 	clk = devm_clk_get(&dev->dev, NULL);
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
+
+	for (i = 0; i < NUM_IRQS; i++) {
+		irqs[i] = sa1111_get_irq(dev, i);
+		if (irqs[i] <= 0)
+			return irqs[i] ? : -ENXIO;
+	}
 
 	ops->socket_state = sa1111_pcmcia_socket_state;
 
@@ -156,16 +163,16 @@ int sa1111_pcmcia_add(struct sa1111_dev *dev, struct pcmcia_low_level *ops,
 		soc_pcmcia_init_one(&s->soc, ops, &dev->dev);
 		s->dev = dev;
 		if (s->soc.nr) {
-			s->soc.socket.pci_irq = dev->irq[IDX_IRQ_S1_READY_NINT];
-			s->soc.stat[SOC_STAT_CD].irq = dev->irq[IDX_IRQ_S1_CD_VALID];
+			s->soc.socket.pci_irq = irqs[IDX_IRQ_S1_READY_NINT];
+			s->soc.stat[SOC_STAT_CD].irq = irqs[IDX_IRQ_S1_CD_VALID];
 			s->soc.stat[SOC_STAT_CD].name = "SA1111 CF card detect";
-			s->soc.stat[SOC_STAT_BVD1].irq = dev->irq[IDX_IRQ_S1_BVD1_STSCHG];
+			s->soc.stat[SOC_STAT_BVD1].irq = irqs[IDX_IRQ_S1_BVD1_STSCHG];
 			s->soc.stat[SOC_STAT_BVD1].name = "SA1111 CF BVD1";
 		} else {
-			s->soc.socket.pci_irq = dev->irq[IDX_IRQ_S0_READY_NINT];
-			s->soc.stat[SOC_STAT_CD].irq = dev->irq[IDX_IRQ_S0_CD_VALID];
+			s->soc.socket.pci_irq = irqs[IDX_IRQ_S0_READY_NINT];
+			s->soc.stat[SOC_STAT_CD].irq = irqs[IDX_IRQ_S0_CD_VALID];
 			s->soc.stat[SOC_STAT_CD].name = "SA1111 PCMCIA card detect";
-			s->soc.stat[SOC_STAT_BVD1].irq = dev->irq[IDX_IRQ_S0_BVD1_STSCHG];
+			s->soc.stat[SOC_STAT_BVD1].irq = irqs[IDX_IRQ_S0_BVD1_STSCHG];
 			s->soc.stat[SOC_STAT_BVD1].name = "SA1111 PCMCIA BVD1";
 		}
 
