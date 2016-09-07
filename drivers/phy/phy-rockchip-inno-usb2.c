@@ -273,7 +273,7 @@ static int rockchip_usb2phy_clk480m_enable(struct clk_hw *hw)
 			return ret;
 
 		/* waitting for the clk become stable */
-		mdelay(1);
+		udelay(1200);
 	}
 
 	return 0;
