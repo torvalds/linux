@@ -1513,13 +1513,17 @@ static int acpi_ec_add(struct acpi_device *device)
 		return -ENOMEM;
 	if (ec_parse_device(device->handle, 0, ec, NULL) !=
 		AE_CTRL_TERMINATE) {
-			acpi_ec_free(ec);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto err_alloc;
 	}
 
 	/* Find and register all query methods */
 	acpi_walk_namespace(ACPI_TYPE_METHOD, ec->handle, 1,
 			    acpi_ec_register_query_methods, NULL, ec, NULL);
+
+	ret = acpi_config_boot_ec(ec, false);
+	if (ret)
+		goto err_query;
 
 	device->driver_data = ec;
 
@@ -1528,13 +1532,17 @@ static int acpi_ec_add(struct acpi_device *device)
 	ret = !!request_region(ec->command_addr, 1, "EC cmd");
 	WARN(!ret, "Could not request EC cmd io port 0x%lx", ec->command_addr);
 
-	ret = acpi_config_boot_ec(ec, false);
-
 	/* Reprobe devices depending on the EC */
 	acpi_walk_dep_device_list(ec->handle);
 
 	/* EC is fully operational, allow queries */
 	acpi_ec_enable_event(ec);
+	return 0;
+
+err_query:
+	acpi_ec_remove_query_handlers(ec, true, 0);
+err_alloc:
+	acpi_ec_free(ec);
 	return ret;
 }
 
