@@ -381,9 +381,12 @@ static int fsl_espi_do_one_msg(struct spi_master *master,
 		ret = fsl_espi_rw_trans(m, &espi_trans, rx_buf);
 
 	m->actual_length = espi_trans.actual_length;
-	m->status = ret;
+	if (m->status == -EINPROGRESS)
+		m->status = ret;
+
 	spi_finalize_current_message(master);
-	return 0;
+
+	return ret;
 }
 
 static int fsl_espi_setup(struct spi_device *spi)
