@@ -956,6 +956,7 @@ u64 amdgpu_bo_gpu_offset(struct amdgpu_bo *bo)
 		     !amdgpu_ttm_is_bound(bo->tbo.ttm));
 	WARN_ON_ONCE(!ww_mutex_is_locked(&bo->tbo.resv->lock) &&
 		     !bo->pin_count);
+	WARN_ON_ONCE(bo->tbo.mem.start == AMDGPU_BO_INVALID_OFFSET);
 
 	return bo->tbo.offset;
 }
