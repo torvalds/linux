@@ -2044,6 +2044,7 @@ int __init acpi_scan_init(void)
 	}
 
 	acpi_update_all_gpes();
+	acpi_ec_ecdt_start();
 
 	acpi_scan_initialized = true;
 
