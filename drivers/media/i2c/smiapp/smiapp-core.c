@@ -2591,6 +2591,7 @@ static void smiapp_create_subdev(struct smiapp_sensor *sensor,
 	if (ssd != sensor->src)
 		v4l2_subdev_init(&ssd->sd, &smiapp_ops);
 
+	ssd->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	ssd->sensor = sensor;
 
 	ssd->npads = num_pads;
@@ -2616,7 +2617,6 @@ static void smiapp_create_subdev(struct smiapp_sensor *sensor,
 	if (ssd == sensor->src)
 		return;
 
-	ssd->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	ssd->sd.internal_ops = &smiapp_internal_ops;
 	ssd->sd.owner = THIS_MODULE;
 	v4l2_set_subdevdata(&ssd->sd, client);
@@ -2861,9 +2861,6 @@ static int smiapp_probe(struct i2c_client *client,
 
 	v4l2_i2c_subdev_init(&sensor->src->sd, client, &smiapp_ops);
 	sensor->src->sd.internal_ops = &smiapp_internal_src_ops;
-	sensor->src->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	sensor->src->sensor = sensor;
-	sensor->src->pads[0].flags = MEDIA_PAD_FL_SOURCE;
 
 	sensor->vana = devm_regulator_get(&client->dev, "vana");
 	if (IS_ERR(sensor->vana)) {
