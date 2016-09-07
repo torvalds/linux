@@ -157,9 +157,9 @@ struct smiapp_binning_subtype {
 
 struct smiapp_subdev {
 	struct v4l2_subdev sd;
-	struct media_pad pads[2];
+	struct media_pad pads[SMIAPP_PADS];
 	struct v4l2_rect sink_fmt;
-	struct v4l2_rect crop[2];
+	struct v4l2_rect crop[SMIAPP_PADS];
 	struct v4l2_rect compose; /* compose on sink */
 	unsigned short sink_pad;
 	unsigned short source_pad;
