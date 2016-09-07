@@ -537,9 +537,11 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 
 			/* Either the method parse or actual execution failed */
 
+			acpi_ex_exit_interpreter();
 			ACPI_ERROR_METHOD("Method parse/execution failed",
 					  walk_state->method_node, NULL,
 					  status);
+			acpi_ex_enter_interpreter();
 
 			/* Check for possible multi-thread reentrancy problem */
 

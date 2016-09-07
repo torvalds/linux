@@ -99,11 +99,14 @@ acpi_ds_auto_serialize_method(struct acpi_namespace_node *node,
 			  "Method auto-serialization parse [%4.4s] %p\n",
 			  acpi_ut_get_node_name(node), node));
 
+	acpi_ex_enter_interpreter();
+
 	/* Create/Init a root op for the method parse tree */
 
 	op = acpi_ps_alloc_op(AML_METHOD_OP, obj_desc->method.aml_start);
 	if (!op) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		status = AE_NO_MEMORY;
+		goto unlock;
 	}
 
 	acpi_ps_set_name(op, node->name.integer);
@@ -115,7 +118,8 @@ acpi_ds_auto_serialize_method(struct acpi_namespace_node *node,
 	    acpi_ds_create_walk_state(node->owner_id, NULL, NULL, NULL);
 	if (!walk_state) {
 		acpi_ps_free_op(op);
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		status = AE_NO_MEMORY;
+		goto unlock;
 	}
 
 	status = acpi_ds_init_aml_walk(walk_state, op, node,
@@ -134,6 +138,8 @@ acpi_ds_auto_serialize_method(struct acpi_namespace_node *node,
 	status = acpi_ps_parse_aml(walk_state);
 
 	acpi_ps_delete_parse_tree(op);
+unlock:
+	acpi_ex_exit_interpreter();
 	return_ACPI_STATUS(status);
 }
 
