@@ -514,9 +514,11 @@ void rxrpc_release_call(struct rxrpc_call *call)
 	 */
 	_debug("RELEASE CALL %p (%d CONN %p)", call, call->debug_id, conn);
 
-	spin_lock(&conn->params.peer->lock);
-	hlist_del_init(&call->error_link);
-	spin_unlock(&conn->params.peer->lock);
+	if (call->peer) {
+		spin_lock(&call->peer->lock);
+		hlist_del_init(&call->error_link);
+		spin_unlock(&call->peer->lock);
+	}
 
 	write_lock_bh(&rx->call_lock);
 	if (!list_empty(&call->accept_link)) {
