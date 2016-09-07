@@ -588,6 +588,8 @@ static int qed_nic_stop(struct qed_dev *cdev)
 		}
 	}
 
+	qed_dbg_pf_exit(cdev);
+
 	return rc;
 }
 
@@ -846,6 +848,8 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 
 		/* First Dword used to diffrentiate between various sources */
 		data = cdev->firmware->data + sizeof(u32);
+
+		qed_dbg_pf_init(cdev);
 	}
 
 	memset(&tunn_info, 0, sizeof(tunn_info));
