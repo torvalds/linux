@@ -1007,7 +1007,7 @@ static void i40evf_configure(struct i40evf_adapter *adapter)
  * i40evf_up_complete - Finish the last steps of bringing up a connection
  * @adapter: board private structure
  **/
-static int i40evf_up_complete(struct i40evf_adapter *adapter)
+static void i40evf_up_complete(struct i40evf_adapter *adapter)
 {
 	adapter->state = __I40EVF_RUNNING;
 	clear_bit(__I40E_DOWN, &adapter->vsi.state);
@@ -1016,7 +1016,6 @@ static int i40evf_up_complete(struct i40evf_adapter *adapter)
 
 	adapter->aq_required |= I40EVF_FLAG_AQ_ENABLE_QUEUES;
 	mod_timer_pending(&adapter->watchdog_timer, jiffies + 1);
-	return 0;
 }
 
 /**
@@ -1827,9 +1826,7 @@ continue_reset:
 
 		i40evf_configure(adapter);
 
-		err = i40evf_up_complete(adapter);
-		if (err)
-			goto reset_err;
+		i40evf_up_complete(adapter);
 
 		i40evf_irq_enable(adapter, true);
 	} else {
@@ -2059,9 +2056,7 @@ static int i40evf_open(struct net_device *netdev)
 	i40evf_add_filter(adapter, adapter->hw.mac.addr);
 	i40evf_configure(adapter);
 
-	err = i40evf_up_complete(adapter);
-	if (err)
-		goto err_req_irq;
+	i40evf_up_complete(adapter);
 
 	i40evf_irq_enable(adapter, true);
 
