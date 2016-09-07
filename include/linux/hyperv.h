@@ -1315,6 +1315,27 @@ u64 hv_do_hypercall(u64 control, void *input, void *output);
 			0x80, 0x2e, 0x27, 0xed, 0xe1, 0x9f)
 
 /*
+ * Linux doesn't support the 3 devices: the first two are for
+ * Automatic Virtual Machine Activation, and the third is for
+ * Remote Desktop Virtualization.
+ * {f8e65716-3cb3-4a06-9a60-1889c5cccab5}
+ * {3375baf4-9e15-4b30-b765-67acb10d607b}
+ * {276aacf4-ac15-426c-98dd-7521ad3f01fe}
+ */
+
+#define HV_AVMA1_GUID \
+	.guid = UUID_LE(0xf8e65716, 0x3cb3, 0x4a06, 0x9a, 0x60, \
+			0x18, 0x89, 0xc5, 0xcc, 0xca, 0xb5)
+
+#define HV_AVMA2_GUID \
+	.guid = UUID_LE(0x3375baf4, 0x9e15, 0x4b30, 0xb7, 0x65, \
+			0x67, 0xac, 0xb1, 0x0d, 0x60, 0x7b)
+
+#define HV_RDV_GUID \
+	.guid = UUID_LE(0x276aacf4, 0xac15, 0x426c, 0x98, 0xdd, \
+			0x75, 0x21, 0xad, 0x3f, 0x01, 0xfe)
+
+/*
  * Common header for Hyper-V ICs
  */
 
