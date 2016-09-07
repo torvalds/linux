@@ -287,8 +287,8 @@ int ap_dump_table_by_address(char *ascii_address)
 
 	/* Convert argument to an integer physical address */
 
-	status = acpi_ut_strtoul64(ascii_address, ACPI_ANY_BASE,
-				   ACPI_MAX64_BYTE_WIDTH, &long_address);
+	status = acpi_ut_strtoul64(ascii_address, ACPI_STRTOUL_64BIT,
+				   &long_address);
 	if (ACPI_FAILURE(status)) {
 		fprintf(stderr, "%s: Could not convert to a physical address\n",
 			ascii_address);

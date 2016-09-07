@@ -36,10 +36,12 @@ TOOL_OBJS = \
 	utdebug.o\
 	utexcep.o\
 	utglobal.o\
+	uthex.o\
 	utmath.o\
 	utnonansi.o\
 	utprint.o\
 	utstring.o\
+	utstrtoul64.o\
 	utxferror.o\
 	oslinuxtbl.o\
 	cmfsize.o\

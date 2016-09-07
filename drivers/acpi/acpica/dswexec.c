@@ -133,7 +133,8 @@ acpi_ds_get_predicate_value(struct acpi_walk_state *walk_state,
 	 * Result of predicate evaluation must be an Integer
 	 * object. Implicitly convert the argument if necessary.
 	 */
-	status = acpi_ex_convert_to_integer(obj_desc, &local_obj_desc, 16);
+	status = acpi_ex_convert_to_integer(obj_desc, &local_obj_desc,
+					    ACPI_STRTOUL_BASE16);
 	if (ACPI_FAILURE(status)) {
 		goto cleanup;
 	}

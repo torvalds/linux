@@ -521,9 +521,10 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 
 	case AML_TO_INTEGER_OP:	/* to_integer (Data, Result) */
 
+		/* Perform "explicit" conversion */
+
 		status =
-		    acpi_ex_convert_to_integer(operand[0], &return_desc,
-					       ACPI_ANY_BASE);
+		    acpi_ex_convert_to_integer(operand[0], &return_desc, 0);
 		if (return_desc == operand[0]) {
 
 			/* No conversion performed, add ref to handle return value */
