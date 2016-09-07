@@ -100,12 +100,11 @@ static int smiapp_read_frame_fmt(struct smiapp_sensor *sensor)
 		u32 pixels;
 		char *which;
 		char *what;
+		u32 reg;
 
 		if (fmt_model_type == SMIAPP_FRAME_FORMAT_MODEL_TYPE_2BYTE) {
-			rval = smiapp_read(
-				sensor,
-				SMIAPP_REG_U16_FRAME_FORMAT_DESCRIPTOR_2(i),
-				&desc);
+			reg = SMIAPP_REG_U16_FRAME_FORMAT_DESCRIPTOR_2(i);
+			rval = smiapp_read(sensor, reg,	&desc);
 			if (rval)
 				return rval;
 
@@ -116,10 +115,8 @@ static int smiapp_read_frame_fmt(struct smiapp_sensor *sensor)
 			pixels = desc & SMIAPP_FRAME_FORMAT_DESC_2_PIXELS_MASK;
 		} else if (fmt_model_type
 			   == SMIAPP_FRAME_FORMAT_MODEL_TYPE_4BYTE) {
-			rval = smiapp_read(
-				sensor,
-				SMIAPP_REG_U32_FRAME_FORMAT_DESCRIPTOR_4(i),
-				&desc);
+			reg = SMIAPP_REG_U32_FRAME_FORMAT_DESCRIPTOR_4(i);
+			rval = smiapp_read(sensor, reg, &desc);
 			if (rval)
 				return rval;
 
@@ -158,12 +155,12 @@ static int smiapp_read_frame_fmt(struct smiapp_sensor *sensor)
 			break;
 		default:
 			what = "invalid";
-			dev_dbg(&client->dev, "pixelcode %d\n", pixelcode);
 			break;
 		}
 
-		dev_dbg(&client->dev, "%s pixels: %d %s\n",
-			what, pixels, which);
+		dev_dbg(&client->dev,
+			"0x%8.8x %s pixels: %d %s (pixelcode %u)\n", reg,
+			what, pixels, which, pixelcode);
 
 		if (i < ncol_desc) {
 			if (pixelcode ==
