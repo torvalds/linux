@@ -315,7 +315,7 @@ static int __init cps_gen_flush_fsb(u32 **pp, struct uasm_label **pl,
 			     i * line_size * line_stride, t0);
 	}
 
-	/* Completion barrier */
+	/* Barrier ensuring previous cache invalidates are complete */
 	uasm_i_sync(pp, stype_memory);
 	uasm_i_ehb(pp);
 
@@ -414,7 +414,7 @@ static void * __init cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 		uasm_il_beqz(&p, &r, t2, lbl_incready);
 		uasm_i_addiu(&p, t1, t1, 1);
 
-		/* Ordering barrier */
+		/* Barrier ensuring all CPUs see the updated r_nc_count value */
 		uasm_i_sync(&p, stype_ordering);
 
 		/*
@@ -467,7 +467,7 @@ static void * __init cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 	cps_gen_cache_routine(&p, &l, &r, &cpu_data[cpu].dcache,
 			      Index_Writeback_Inv_D, lbl_flushdcache);
 
-	/* Completion barrier */
+	/* Barrier ensuring previous cache invalidates are complete */
 	uasm_i_sync(&p, stype_memory);
 	uasm_i_ehb(&p);
 
@@ -480,7 +480,7 @@ static void * __init cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 	uasm_i_sw(&p, t0, 0, r_pcohctl);
 	uasm_i_lw(&p, t0, 0, r_pcohctl);
 
-	/* Sync to ensure previous interventions are complete */
+	/* Barrier to ensure write to coherence control is complete */
 	uasm_i_sync(&p, stype_intervention);
 	uasm_i_ehb(&p);
 
@@ -526,7 +526,7 @@ static void * __init cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 			goto gen_done;
 		}
 
-		/* Completion barrier */
+		/* Barrier to ensure write to CPC command is complete */
 		uasm_i_sync(&p, stype_memory);
 		uasm_i_ehb(&p);
 	}
@@ -561,7 +561,7 @@ static void * __init cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 	uasm_i_sw(&p, t0, 0, r_pcohctl);
 	uasm_i_lw(&p, t0, 0, r_pcohctl);
 
-	/* Completion barrier */
+	/* Barrier to ensure write to coherence control is complete */
 	uasm_i_sync(&p, stype_memory);
 	uasm_i_ehb(&p);
 
@@ -575,7 +575,7 @@ static void * __init cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 		uasm_il_beqz(&p, &r, t2, lbl_decready);
 		uasm_i_andi(&p, v0, t1, (1 << fls(smp_num_siblings)) - 1);
 
-		/* Ordering barrier */
+		/* Barrier ensuring all CPUs see the updated r_nc_count value */
 		uasm_i_sync(&p, stype_ordering);
 	}
 
@@ -597,7 +597,7 @@ static void * __init cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 		 */
 		uasm_build_label(&l, p, lbl_secondary_cont);
 
-		/* Ordering barrier */
+		/* Barrier ensuring all CPUs see the updated r_nc_count value */
 		uasm_i_sync(&p, stype_ordering);
 	}
 
