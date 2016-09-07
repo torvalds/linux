@@ -48,7 +48,15 @@
 #define PM_CMD_CM_IMMEDIATE	(1 << 9)
 #define PM_CMD_CM_DELAY		(2 << 9)
 #define PM_CMD_CM_TRIGGER	(3 << 9)
-#define PM_CMD_D3cold		(1 << 21)
+
+/* System states */
+#define PM_CMD_SYS_STATE_S5	(5 << 16)
+
+/* Trigger variants */
+#define PM_CMD_CFG_TRIGGER_NC	(3 << 19)
+
+/* Message to wait for TRIGGER_NC case */
+#define TRIGGER_NC_MSG_2	(2 << 22)
 
 /* List of commands */
 #define CMD_SET_CFG		0x01
@@ -263,6 +271,20 @@ int intel_mid_pci_set_power_state(struct pci_dev *pdev, pci_power_t state)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(intel_mid_pci_set_power_state);
+
+void intel_mid_pwr_power_off(void)
+{
+	struct mid_pwr *pwr = midpwr;
+	u32 cmd = PM_CMD_SYS_STATE_S5 |
+		  PM_CMD_CMD(CMD_SET_CFG) |
+		  PM_CMD_CM_TRIGGER |
+		  PM_CMD_CFG_TRIGGER_NC |
+		  TRIGGER_NC_MSG_2;
+
+	/* Send command to SCU */
+	writel(cmd, pwr->regs + PM_CMD);
+	mid_pwr_wait(pwr);
+}
 
 int intel_mid_pwr_get_lss_id(struct pci_dev *pdev)
 {
