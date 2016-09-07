@@ -168,9 +168,13 @@ static int toshiba_haps_available(acpi_handle handle)
 	 * A non existent device as well as having (only)
 	 * Solid State Drives can cause the call to fail.
 	 */
-	status = acpi_evaluate_integer(handle, "_STA", NULL,
-				       &hdd_present);
-	if (ACPI_FAILURE(status) || !hdd_present) {
+	status = acpi_evaluate_integer(handle, "_STA", NULL, &hdd_present);
+	if (ACPI_FAILURE(status)) {
+		pr_err("ACPI call to query HDD protection failed\n");
+		return 0;
+	}
+
+	if (!hdd_present) {
 		pr_info("HDD protection not available or using SSD\n");
 		return 0;
 	}
