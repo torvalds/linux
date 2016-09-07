@@ -534,9 +534,9 @@ static int load_requested_vpu(struct mtk_vpu *vpu,
 
 int vpu_load_firmware(struct platform_device *pdev)
 {
-	struct mtk_vpu *vpu = platform_get_drvdata(pdev);
+	struct mtk_vpu *vpu;
 	struct device *dev = &pdev->dev;
-	struct vpu_run *run = &vpu->run;
+	struct vpu_run *run;
 	const struct firmware *vpu_fw = NULL;
 	int ret;
 
@@ -544,6 +544,9 @@ int vpu_load_firmware(struct platform_device *pdev)
 		dev_err(dev, "VPU platform device is invalid\n");
 		return -EINVAL;
 	}
+
+	vpu = platform_get_drvdata(pdev);
+	run = &vpu->run;
 
 	mutex_lock(&vpu->vpu_mutex);
 	if (vpu->fw_loaded) {
