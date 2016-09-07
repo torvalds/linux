@@ -30,6 +30,7 @@ struct mpc8xxx_spi {
 	void *rx;
 #if IS_ENABLED(CONFIG_SPI_FSL_ESPI)
 	int len;
+	u8 *local_buf;
 #endif
 
 	int subblock;

@@ -297,57 +297,44 @@ static void fsl_espi_do_trans(struct spi_message *m,
 static void fsl_espi_cmd_trans(struct spi_message *m,
 				struct fsl_espi_transfer *trans, u8 *rx_buff)
 {
+	struct mpc8xxx_spi *mspi = spi_master_get_devdata(m->spi->master);
 	struct spi_transfer *t;
-	u8 *local_buf;
 	int i = 0;
 	struct fsl_espi_transfer *espi_trans = trans;
 
-	local_buf = kzalloc(SPCOM_TRANLEN_MAX, GFP_KERNEL);
-	if (!local_buf) {
-		espi_trans->status = -ENOMEM;
-		return;
-	}
-
 	list_for_each_entry(t, &m->transfers, transfer_list) {
 		if (t->tx_buf) {
-			memcpy(local_buf + i, t->tx_buf, t->len);
+			memcpy(mspi->local_buf + i, t->tx_buf, t->len);
 			i += t->len;
 		}
 	}
 
-	espi_trans->tx_buf = local_buf;
-	espi_trans->rx_buf = local_buf;
+	espi_trans->tx_buf = mspi->local_buf;
+	espi_trans->rx_buf = mspi->local_buf;
 	fsl_espi_do_trans(m, espi_trans);
 
 	espi_trans->actual_length = espi_trans->len;
-	kfree(local_buf);
 }
 
 static void fsl_espi_rw_trans(struct spi_message *m,
 				struct fsl_espi_transfer *trans, u8 *rx_buff)
 {
+	struct mpc8xxx_spi *mspi = spi_master_get_devdata(m->spi->master);
 	struct spi_transfer *t;
-	u8 *local_buf;
 	unsigned int tx_only = 0;
 	int i = 0;
 
-	local_buf = kzalloc(SPCOM_TRANLEN_MAX, GFP_KERNEL);
-	if (!local_buf) {
-		trans->status = -ENOMEM;
-		return;
-	}
-
 	list_for_each_entry(t, &m->transfers, transfer_list) {
 		if (t->tx_buf) {
-			memcpy(local_buf + i, t->tx_buf, t->len);
+			memcpy(mspi->local_buf + i, t->tx_buf, t->len);
 			i += t->len;
 			if (!t->rx_buf)
 				tx_only += t->len;
 		}
 	}
 
-	trans->tx_buf = local_buf;
-	trans->rx_buf = local_buf;
+	trans->tx_buf = mspi->local_buf;
+	trans->rx_buf = mspi->local_buf;
 	fsl_espi_do_trans(m, trans);
 
 	if (!trans->status) {
@@ -357,17 +344,18 @@ static void fsl_espi_rw_trans(struct spi_message *m,
 			       trans->len - tx_only);
 		trans->actual_length += trans->len;
 	}
-
-	kfree(local_buf);
 }
 
 static int fsl_espi_do_one_msg(struct spi_master *master,
 			       struct spi_message *m)
 {
+	struct mpc8xxx_spi *mspi = spi_master_get_devdata(master);
 	struct spi_transfer *t;
 	u8 *rx_buf = NULL;
 	unsigned int xfer_len = 0;
 	struct fsl_espi_transfer espi_trans;
+
+	memset(mspi->local_buf, 0, SPCOM_TRANLEN_MAX);
 
 	list_for_each_entry(t, &m->transfers, transfer_list) {
 		if (t->rx_buf)
@@ -613,6 +601,13 @@ static struct spi_master * fsl_espi_probe(struct device *dev,
 	master->max_message_size = fsl_espi_max_message_size;
 
 	mpc8xxx_spi = spi_master_get_devdata(master);
+
+	mpc8xxx_spi->local_buf =
+		devm_kmalloc(dev, SPCOM_TRANLEN_MAX, GFP_KERNEL);
+	if (!mpc8xxx_spi->local_buf) {
+		ret = -ENOMEM;
+		goto err_probe;
+	}
 
 	mpc8xxx_spi->reg_base = devm_ioremap_resource(dev, mem);
 	if (IS_ERR(mpc8xxx_spi->reg_base)) {
