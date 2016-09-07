@@ -115,7 +115,7 @@ static int rxrpc_accept_incoming_call(struct rxrpc_local *local,
 
 	write_lock(&rx->call_lock);
 	if (!test_and_set_bit(RXRPC_CALL_INIT_ACCEPT, &call->flags)) {
-		rxrpc_get_call(call);
+		rxrpc_get_call(call, rxrpc_call_got);
 
 		spin_lock(&call->conn->state_lock);
 		if (sp->hdr.securityIndex > 0 &&
@@ -155,7 +155,7 @@ static int rxrpc_accept_incoming_call(struct rxrpc_local *local,
 	_debug("done");
 	read_unlock_bh(&local->services_lock);
 	rxrpc_free_skb(notification);
-	rxrpc_put_call(call);
+	rxrpc_put_call(call, rxrpc_call_put);
 	_leave(" = 0");
 	return 0;
 
@@ -166,11 +166,11 @@ invalid_service:
 	read_lock_bh(&call->state_lock);
 	if (!test_bit(RXRPC_CALL_RELEASED, &call->flags) &&
 	    !test_and_set_bit(RXRPC_CALL_EV_RELEASE, &call->events)) {
-		rxrpc_get_call(call);
+		rxrpc_get_call(call, rxrpc_call_got);
 		rxrpc_queue_call(call);
 	}
 	read_unlock_bh(&call->state_lock);
-	rxrpc_put_call(call);
+	rxrpc_put_call(call, rxrpc_call_put);
 	ret = -ECONNREFUSED;
 error:
 	rxrpc_free_skb(notification);
@@ -341,6 +341,7 @@ struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *rx,
 	}
 
 	/* formalise the acceptance */
+	rxrpc_get_call(call, rxrpc_call_got_userid);
 	call->notify_rx = notify_rx;
 	call->user_call_ID = user_call_ID;
 	rb_link_node(&call->sock_node, parent, pp);
@@ -351,7 +352,6 @@ struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *rx,
 		BUG();
 	rxrpc_queue_call(call);
 
-	rxrpc_get_call(call);
 	write_unlock_bh(&call->state_lock);
 	write_unlock(&rx->call_lock);
 	_leave(" = %p{%d}", call, call->debug_id);

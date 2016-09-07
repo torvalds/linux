@@ -534,7 +534,7 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 		call = rxrpc_accept_call(rx, user_call_ID, NULL);
 		if (IS_ERR(call))
 			return PTR_ERR(call);
-		rxrpc_put_call(call);
+		rxrpc_put_call(call, rxrpc_call_put);
 		return 0;
 	}
 
@@ -573,7 +573,7 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 		ret = rxrpc_send_data(rx, call, msg, len);
 	}
 
-	rxrpc_put_call(call);
+	rxrpc_put_call(call, rxrpc_call_put);
 	_leave(" = %d", ret);
 	return ret;
 }

@@ -508,6 +508,24 @@ struct rxrpc_call {
 	unsigned long		ackr_window[RXRPC_ACKR_WINDOW_ASZ + 1];
 };
 
+enum rxrpc_call_trace {
+	rxrpc_call_new_client,
+	rxrpc_call_new_service,
+	rxrpc_call_queued,
+	rxrpc_call_queued_ref,
+	rxrpc_call_seen,
+	rxrpc_call_got,
+	rxrpc_call_got_skb,
+	rxrpc_call_got_userid,
+	rxrpc_call_put,
+	rxrpc_call_put_skb,
+	rxrpc_call_put_userid,
+	rxrpc_call_put_noqueue,
+	rxrpc_call__nr_trace
+};
+
+extern const char rxrpc_call_traces[rxrpc_call__nr_trace][4];
+
 #include <trace/events/rxrpc.h>
 
 /*
@@ -555,8 +573,8 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *,
 void rxrpc_release_call(struct rxrpc_call *);
 void rxrpc_release_calls_on_socket(struct rxrpc_sock *);
 void rxrpc_see_call(struct rxrpc_call *);
-void rxrpc_get_call(struct rxrpc_call *);
-void rxrpc_put_call(struct rxrpc_call *);
+void rxrpc_get_call(struct rxrpc_call *, enum rxrpc_call_trace);
+void rxrpc_put_call(struct rxrpc_call *, enum rxrpc_call_trace);
 void rxrpc_get_call_for_skb(struct rxrpc_call *, struct sk_buff *);
 void rxrpc_put_call_for_skb(struct rxrpc_call *, struct sk_buff *);
 void __exit rxrpc_destroy_all_calls(void);

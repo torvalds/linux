@@ -79,7 +79,8 @@ int rxrpc_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 			if (rx->sk.sk_state != RXRPC_SERVER_LISTENING) {
 				release_sock(&rx->sk);
 				if (continue_call)
-					rxrpc_put_call(continue_call);
+					rxrpc_put_call(continue_call,
+						       rxrpc_call_put);
 				return -ENODATA;
 			}
 		}
@@ -137,13 +138,13 @@ int rxrpc_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 			if (call != continue_call ||
 			    skb->mark != RXRPC_SKB_MARK_DATA) {
 				release_sock(&rx->sk);
-				rxrpc_put_call(continue_call);
+				rxrpc_put_call(continue_call, rxrpc_call_put);
 				_leave(" = %d [noncont]", copied);
 				return copied;
 			}
 		}
 
-		rxrpc_get_call(call);
+		rxrpc_get_call(call, rxrpc_call_got);
 
 		/* copy the peer address and timestamp */
 		if (!continue_call) {
@@ -233,7 +234,7 @@ int rxrpc_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 		if (!continue_call)
 			continue_call = sp->call;
 		else
-			rxrpc_put_call(call);
+			rxrpc_put_call(call, rxrpc_call_put);
 		call = NULL;
 
 		if (flags & MSG_PEEK) {
@@ -255,9 +256,9 @@ int rxrpc_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 out:
 	release_sock(&rx->sk);
 	if (call)
-		rxrpc_put_call(call);
+		rxrpc_put_call(call, rxrpc_call_put);
 	if (continue_call)
-		rxrpc_put_call(continue_call);
+		rxrpc_put_call(continue_call, rxrpc_call_put);
 	_leave(" = %d [data]", copied);
 	return copied;
 
@@ -341,18 +342,18 @@ terminal_message:
 	}
 
 	release_sock(&rx->sk);
-	rxrpc_put_call(call);
+	rxrpc_put_call(call, rxrpc_call_put);
 	if (continue_call)
-		rxrpc_put_call(continue_call);
+		rxrpc_put_call(continue_call, rxrpc_call_put);
 	_leave(" = %d", ret);
 	return ret;
 
 copy_error:
 	_debug("copy error");
 	release_sock(&rx->sk);
-	rxrpc_put_call(call);
+	rxrpc_put_call(call, rxrpc_call_put);
 	if (continue_call)
-		rxrpc_put_call(continue_call);
+		rxrpc_put_call(continue_call, rxrpc_call_put);
 	_leave(" = %d", ret);
 	return ret;
 
@@ -361,7 +362,7 @@ wait_interrupted:
 wait_error:
 	finish_wait(sk_sleep(&rx->sk), &wait);
 	if (continue_call)
-		rxrpc_put_call(continue_call);
+		rxrpc_put_call(continue_call, rxrpc_call_put);
 	if (copied)
 		copied = ret;
 	_leave(" = %d [waitfail %d]", copied, ret);

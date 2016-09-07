@@ -537,7 +537,7 @@ static void rxrpc_post_packet_to_call(struct rxrpc_call *call,
 	}
 
 	read_unlock(&call->state_lock);
-	rxrpc_get_call(call);
+	rxrpc_get_call(call, rxrpc_call_got);
 
 	if (sp->hdr.type == RXRPC_PACKET_TYPE_DATA &&
 	    sp->hdr.flags & RXRPC_JUMBO_PACKET)
@@ -545,12 +545,12 @@ static void rxrpc_post_packet_to_call(struct rxrpc_call *call,
 	else
 		rxrpc_fast_process_packet(call, skb);
 
-	rxrpc_put_call(call);
+	rxrpc_put_call(call, rxrpc_call_put);
 	goto done;
 
 resend_final_ack:
 	_debug("final ack again");
-	rxrpc_get_call(call);
+	rxrpc_get_call(call, rxrpc_call_got);
 	set_bit(RXRPC_CALL_EV_ACK_FINAL, &call->events);
 	rxrpc_queue_call(call);
 	goto free_unlock;

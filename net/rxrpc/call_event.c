@@ -1246,7 +1246,7 @@ send_message_2:
 kill_ACKs:
 	del_timer_sync(&call->ack_timer);
 	if (test_and_clear_bit(RXRPC_CALL_EV_ACK_FINAL, &call->events))
-		rxrpc_put_call(call);
+		rxrpc_put_call(call, rxrpc_call_put);
 	clear_bit(RXRPC_CALL_EV_ACK, &call->events);
 
 maybe_reschedule:
