@@ -41,7 +41,6 @@ struct fsl_espi_transfer {
 	const void *tx_buf;
 	void *rx_buf;
 	unsigned len;
-	unsigned actual_length;
 };
 
 /* eSPI Controller mode register definitions */
@@ -327,8 +326,6 @@ static int fsl_espi_cmd_trans(struct spi_message *m,
 	espi_trans->rx_buf = mspi->local_buf;
 	ret = fsl_espi_do_trans(m, espi_trans);
 
-	espi_trans->actual_length = espi_trans->len;
-
 	return ret;
 }
 
@@ -350,7 +347,6 @@ static int fsl_espi_rw_trans(struct spi_message *m,
 		if (trans->len > tx_only)
 			memcpy(rx_buff, trans->rx_buf + tx_only,
 			       trans->len - tx_only);
-		trans->actual_length += trans->len;
 	}
 
 	return ret;
@@ -373,14 +369,14 @@ static int fsl_espi_do_one_msg(struct spi_master *master,
 	}
 
 	espi_trans.len = xfer_len;
-	espi_trans.actual_length = 0;
 
 	if (!rx_buf)
 		ret = fsl_espi_cmd_trans(m, &espi_trans, NULL);
 	else
 		ret = fsl_espi_rw_trans(m, &espi_trans, rx_buf);
 
-	m->actual_length = espi_trans.actual_length;
+	m->actual_length = ret ? 0 : espi_trans.len;
+
 	if (m->status == -EINPROGRESS)
 		m->status = ret;
 
