@@ -344,23 +344,27 @@ void acpi_tb_parse_fadt(void)
 
 	/* Obtain the DSDT and FACS tables via their addresses within the FADT */
 
-	acpi_tb_install_fixed_table((acpi_physical_address)acpi_gbl_FADT.Xdsdt,
-				    ACPI_SIG_DSDT, &acpi_gbl_dsdt_index);
+	acpi_tb_install_standard_table((acpi_physical_address)acpi_gbl_FADT.
+				       Xdsdt,
+				       ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL,
+				       FALSE, TRUE, &acpi_gbl_dsdt_index);
 
 	/* If Hardware Reduced flag is set, there is no FACS */
 
 	if (!acpi_gbl_reduced_hardware) {
 		if (acpi_gbl_FADT.facs) {
-			acpi_tb_install_fixed_table((acpi_physical_address)
-						    acpi_gbl_FADT.facs,
-						    ACPI_SIG_FACS,
-						    &acpi_gbl_facs_index);
+			acpi_tb_install_standard_table((acpi_physical_address)
+						       acpi_gbl_FADT.facs,
+						       ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL,
+						       FALSE, TRUE,
+						       &acpi_gbl_facs_index);
 		}
 		if (acpi_gbl_FADT.Xfacs) {
-			acpi_tb_install_fixed_table((acpi_physical_address)
-						    acpi_gbl_FADT.Xfacs,
-						    ACPI_SIG_FACS,
-						    &acpi_gbl_xfacs_index);
+			acpi_tb_install_standard_table((acpi_physical_address)
+						       acpi_gbl_FADT.Xfacs,
+						       ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL,
+						       FALSE, TRUE,
+						       &acpi_gbl_xfacs_index);
 		}
 	}
 }
