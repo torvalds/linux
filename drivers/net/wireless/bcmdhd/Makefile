@@ -96,7 +96,7 @@ DHDCFLAGS += -DWL_IFACE_COMB_NUM_CHANNELS
 # m: module type driver
 # y: built-in type driver
 ##########################
-DRIVER_TYPE ?= y
+#DRIVER_TYPE ?= y
 
 #########################
 # Chip dependent feature
@@ -184,7 +184,7 @@ ifneq ($(CONFIG_BCMDHD_PCIE),)
 endif
 
 bcmdhd-objs := $(DHDOFILES)
-obj-$(DRIVER_TYPE)   += bcmdhd.o
+obj-$(CONFIG_BCMDHD_SDIO)   += bcmdhd.o
 
 all:
 	@echo "$(MAKE) --no-print-directory -C $(KDIR) SUBDIRS=$(CURDIR) modules"

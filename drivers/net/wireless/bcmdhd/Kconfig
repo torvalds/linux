@@ -8,7 +8,7 @@ config BCMDHD
 	  unsure.
 
 config BCMDHD_SDIO
-	bool "SDIO bus interface support"
+	tristate "SDIO bus interface support"
 	depends on BCMDHD && MMC
 
 config BCMDHD_PCIE
