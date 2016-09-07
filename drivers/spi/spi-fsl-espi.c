@@ -206,31 +206,15 @@ static void fsl_espi_setup_transfer(struct spi_device *spi,
 	fsl_espi_change_mode(spi);
 }
 
-static void fsl_espi_cpu_bufs(struct mpc8xxx_spi *mspi, struct spi_transfer *t,
-		unsigned int len)
-{
-	u32 word;
-	struct fsl_espi_reg *reg_base = mspi->reg_base;
-
-	mspi->count = len;
-
-	/* enable rx ints */
-	mpc8xxx_spi_write_reg(&reg_base->mask, SPIM_NE);
-
-	/* transmit word */
-	word = mspi->get_tx(mspi);
-	mpc8xxx_spi_write_reg(&reg_base->transmit, word);
-}
-
 static int fsl_espi_bufs(struct spi_device *spi, struct spi_transfer *t)
 {
 	struct mpc8xxx_spi *mpc8xxx_spi = spi_master_get_devdata(spi->master);
 	struct fsl_espi_reg *reg_base = mpc8xxx_spi->reg_base;
-	unsigned int len = t->len;
+	u32 word;
 	int ret;
 
 	mpc8xxx_spi->len = t->len;
-	len = roundup(len, 4) / 4;
+	mpc8xxx_spi->count = roundup(t->len, 4) / 4;
 
 	mpc8xxx_spi->tx = t->tx_buf;
 	mpc8xxx_spi->rx = t->rx_buf;
@@ -246,7 +230,12 @@ static int fsl_espi_bufs(struct spi_device *spi, struct spi_transfer *t)
 	mpc8xxx_spi_write_reg(&reg_base->command,
 		(SPCOM_CS(spi->chip_select) | SPCOM_TRANLEN(t->len - 1)));
 
-	fsl_espi_cpu_bufs(mpc8xxx_spi, t, len);
+	/* enable rx ints */
+	mpc8xxx_spi_write_reg(&reg_base->mask, SPIM_NE);
+
+	/* transmit word */
+	word = mpc8xxx_spi->get_tx(mpc8xxx_spi);
+	mpc8xxx_spi_write_reg(&reg_base->transmit, word);
 
 	/* Won't hang up forever, SPI bus sometimes got lost interrupts... */
 	ret = wait_for_completion_timeout(&mpc8xxx_spi->done, 2 * HZ);
