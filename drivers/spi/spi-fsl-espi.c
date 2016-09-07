@@ -258,7 +258,7 @@ static int fsl_espi_bufs(struct spi_device *spi, struct spi_transfer *t)
 	/* disable rx ints */
 	mpc8xxx_spi_write_reg(&reg_base->mask, 0);
 
-	return mpc8xxx_spi->count;
+	return mpc8xxx_spi->count > 0 ? -EMSGSIZE : 0;
 }
 
 static int fsl_espi_do_trans(struct spi_message *m, struct spi_transfer *trans)
@@ -287,9 +287,6 @@ static int fsl_espi_do_trans(struct spi_message *m, struct spi_transfer *trans)
 
 	if (trans->len)
 		ret = fsl_espi_bufs(spi, trans);
-
-	if (ret)
-		ret = -EMSGSIZE;
 
 	if (trans->delay_usecs)
 		udelay(trans->delay_usecs);
