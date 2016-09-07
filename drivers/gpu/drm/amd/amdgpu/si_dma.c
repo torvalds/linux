@@ -132,6 +132,8 @@ static void si_dma_stop(struct amdgpu_device *adev)
 		rb_cntl &= ~DMA_RB_ENABLE;
 		WREG32(DMA_RB_CNTL + sdma_offsets[i], rb_cntl);
 
+		if (adev->mman.buffer_funcs_ring == ring)
+			amdgpu_ttm_set_active_vram_size(adev, adev->mc.visible_vram_size);
 		ring->ready = false;
 	}
 }
@@ -192,6 +194,9 @@ static int si_dma_start(struct amdgpu_device *adev)
 			ring->ready = false;
 			return r;
 		}
+
+		if (adev->mman.buffer_funcs_ring == ring)
+			amdgpu_ttm_set_active_vram_size(adev, adev->mc.real_vram_size);
 	}
 
 	return 0;
