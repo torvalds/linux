@@ -92,7 +92,8 @@ acpi_status acpi_ut_ascii_to_hex_byte(char *two_ascii_chars, u8 *return_byte)
 
 	/* Both ASCII characters must be valid hex digits */
 
-	if (!isxdigit(two_ascii_chars[0]) || !isxdigit(two_ascii_chars[1])) {
+	if (!isxdigit((int)two_ascii_chars[0]) ||
+	    !isxdigit((int)two_ascii_chars[1])) {
 		return (AE_BAD_HEX_CONSTANT);
 	}
 
