@@ -331,7 +331,7 @@ static void mlx5e_get_ethtool_stats(struct net_device *dev,
 	if (mlx5e_query_global_pause_combined(priv)) {
 		for (i = 0; i < NUM_PPORT_PER_PRIO_PFC_COUNTERS; i++) {
 			data[idx++] = MLX5E_READ_CTR64_BE(&priv->stats.pport.per_prio_counters[0],
-							  pport_per_prio_pfc_stats_desc, 0);
+							  pport_per_prio_pfc_stats_desc, i);
 		}
 	}
 
