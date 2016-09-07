@@ -445,7 +445,8 @@ static void sun4i_usb_phy0_id_vbus_det_scan(struct work_struct *work)
 	struct sun4i_usb_phy_data *data =
 		container_of(work, struct sun4i_usb_phy_data, detect.work);
 	struct phy *phy0 = data->phys[0].phy;
-	int id_det, vbus_det, id_notify = 0, vbus_notify = 0;
+	bool id_notify = false, vbus_notify = false;
+	int id_det, vbus_det;
 
 	if (phy0 == NULL)
 		return;
@@ -474,13 +475,13 @@ static void sun4i_usb_phy0_id_vbus_det_scan(struct work_struct *work)
 		}
 		sun4i_usb_phy0_set_id_detect(phy0, id_det);
 		data->id_det = id_det;
-		id_notify = 1;
+		id_notify = true;
 	}
 
 	if (vbus_det != data->vbus_det) {
 		sun4i_usb_phy0_set_vbus_detect(phy0, vbus_det);
 		data->vbus_det = vbus_det;
-		vbus_notify = 1;
+		vbus_notify = true;
 	}
 
 	mutex_unlock(&phy0->mutex);
