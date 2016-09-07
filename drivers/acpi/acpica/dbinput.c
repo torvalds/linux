@@ -286,6 +286,8 @@ static const struct acpi_db_command_help acpi_gbl_db_command_help[] = {
 	{1, "     \"Ascii String\"", "String method argument\n"},
 	{1, "     (Hex Byte List)", "Buffer method argument\n"},
 	{1, "     [Package Element List]", "Package method argument\n"},
+	{5, "  Execute predefined",
+	 "Execute all predefined (public) methods\n"},
 	{1, "  Go", "Allow method to run to completion\n"},
 	{1, "  Information", "Display info about the current method\n"},
 	{1, "  Into", "Step into (not over) a method call\n"},
