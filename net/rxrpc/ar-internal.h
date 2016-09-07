@@ -35,8 +35,6 @@ struct rxrpc_crypt {
 #define rxrpc_queue_delayed_work(WS,D)	\
 	queue_delayed_work(rxrpc_workqueue, (WS), (D))
 
-#define rxrpc_queue_call(CALL)	rxrpc_queue_work(&(CALL)->processor)
-
 struct rxrpc_connection;
 
 /*
@@ -397,7 +395,6 @@ enum rxrpc_call_event {
 	RXRPC_CALL_EV_ACCEPTED,		/* incoming call accepted by userspace app */
 	RXRPC_CALL_EV_SECURED,		/* incoming call's connection is now secure */
 	RXRPC_CALL_EV_POST_ACCEPT,	/* need to post an "accept?" message to the app */
-	RXRPC_CALL_EV_RELEASE,		/* need to release the call's resources */
 };
 
 /*
@@ -417,7 +414,6 @@ enum rxrpc_call_state {
 	RXRPC_CALL_SERVER_SEND_REPLY,	/* - server sending reply */
 	RXRPC_CALL_SERVER_AWAIT_ACK,	/* - server awaiting final ACK */
 	RXRPC_CALL_COMPLETE,		/* - call complete */
-	RXRPC_CALL_DEAD,		/* - call is dead */
 	NR__RXRPC_CALL_STATES
 };
 
@@ -442,12 +438,10 @@ struct rxrpc_call {
 	struct rcu_head		rcu;
 	struct rxrpc_connection	*conn;		/* connection carrying call */
 	struct rxrpc_peer	*peer;		/* Peer record for remote address */
-	struct rxrpc_sock	*socket;	/* socket responsible */
+	struct rxrpc_sock __rcu	*socket;	/* socket responsible */
 	struct timer_list	lifetimer;	/* lifetime remaining on call */
-	struct timer_list	deadspan;	/* reap timer for re-ACK'ing, etc  */
 	struct timer_list	ack_timer;	/* ACK generation timer */
 	struct timer_list	resend_timer;	/* Tx resend timer */
-	struct work_struct	destroyer;	/* call destroyer */
 	struct work_struct	processor;	/* packet processor and ACK generator */
 	rxrpc_notify_rx_t	notify_rx;	/* kernel service Rx notification function */
 	struct list_head	link;		/* link in master call list */
@@ -558,7 +552,6 @@ void rxrpc_process_call(struct work_struct *);
 extern const char *const rxrpc_call_states[];
 extern const char *const rxrpc_call_completions[];
 extern unsigned int rxrpc_max_call_lifetime;
-extern unsigned int rxrpc_dead_call_expiry;
 extern struct kmem_cache *rxrpc_call_jar;
 extern struct list_head rxrpc_calls;
 extern rwlock_t rxrpc_call_lock;
@@ -571,8 +564,10 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *,
 struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *,
 				       struct rxrpc_connection *,
 				       struct sk_buff *);
-void rxrpc_release_call(struct rxrpc_call *);
+void rxrpc_release_call(struct rxrpc_sock *, struct rxrpc_call *);
 void rxrpc_release_calls_on_socket(struct rxrpc_sock *);
+bool __rxrpc_queue_call(struct rxrpc_call *);
+bool rxrpc_queue_call(struct rxrpc_call *);
 void rxrpc_see_call(struct rxrpc_call *);
 void rxrpc_get_call(struct rxrpc_call *, enum rxrpc_call_trace);
 void rxrpc_put_call(struct rxrpc_call *, enum rxrpc_call_trace);
@@ -835,6 +830,7 @@ extern const char *rxrpc_acks(u8 reason);
 /*
  * output.c
  */
+int rxrpc_send_call_packet(struct rxrpc_call *, u8);
 int rxrpc_send_data_packet(struct rxrpc_connection *, struct sk_buff *);
 
 /*
@@ -880,7 +876,6 @@ extern const struct file_operations rxrpc_connection_seq_fops;
 /*
  * recvmsg.c
  */
-void rxrpc_remove_user_ID(struct rxrpc_sock *, struct rxrpc_call *);
 int rxrpc_recvmsg(struct socket *, struct msghdr *, size_t, int);
 
 /*

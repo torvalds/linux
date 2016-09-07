@@ -29,6 +29,7 @@ static const char *const rxrpc_conn_states[RXRPC_CONN__NR_STATES] = {
  */
 static void *rxrpc_call_seq_start(struct seq_file *seq, loff_t *_pos)
 {
+	rcu_read_lock();
 	read_lock(&rxrpc_call_lock);
 	return seq_list_start_head(&rxrpc_calls, *_pos);
 }
@@ -41,6 +42,7 @@ static void *rxrpc_call_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 static void rxrpc_call_seq_stop(struct seq_file *seq, void *v)
 {
 	read_unlock(&rxrpc_call_lock);
+	rcu_read_unlock();
 }
 
 static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
@@ -61,7 +63,7 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 
 	call = list_entry(v, struct rxrpc_call, link);
 
-	rx = READ_ONCE(call->socket);
+	rx = rcu_dereference(call->socket);
 	if (rx) {
 		local = READ_ONCE(rx->local);
 		if (local)

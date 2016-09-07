@@ -88,14 +88,6 @@ static struct ctl_table rxrpc_sysctl_table[] = {
 		.proc_handler	= proc_dointvec_jiffies,
 		.extra1		= (void *)&one,
 	},
-	{
-		.procname	= "dead_call_expiry",
-		.data		= &rxrpc_dead_call_expiry,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-		.extra1		= (void *)&one,
-	},
 
 	/* Non-time values */
 	{

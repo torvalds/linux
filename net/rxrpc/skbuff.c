@@ -33,9 +33,6 @@ static void rxrpc_request_final_ACK(struct rxrpc_call *call)
 		call->state = RXRPC_CALL_CLIENT_FINAL_ACK;
 		_debug("request final ACK");
 
-		/* get an extra ref on the call for the final-ACK generator to
-		 * release */
-		rxrpc_get_call(call, rxrpc_call_got);
 		set_bit(RXRPC_CALL_EV_ACK_FINAL, &call->events);
 		if (try_to_del_timer_sync(&call->ack_timer) >= 0)
 			rxrpc_queue_call(call);

@@ -19,28 +19,6 @@
 #include "ar-internal.h"
 
 /*
- * removal a call's user ID from the socket tree to make the user ID available
- * again and so that it won't be seen again in association with that call
- */
-void rxrpc_remove_user_ID(struct rxrpc_sock *rx, struct rxrpc_call *call)
-{
-	_debug("RELEASE CALL %d", call->debug_id);
-
-	if (test_bit(RXRPC_CALL_HAS_USERID, &call->flags)) {
-		write_lock_bh(&rx->call_lock);
-		rb_erase(&call->sock_node, &call->socket->calls);
-		clear_bit(RXRPC_CALL_HAS_USERID, &call->flags);
-		write_unlock_bh(&rx->call_lock);
-	}
-
-	read_lock_bh(&call->state_lock);
-	if (!test_bit(RXRPC_CALL_RELEASED, &call->flags) &&
-	    !test_and_set_bit(RXRPC_CALL_EV_RELEASE, &call->events))
-		rxrpc_queue_call(call);
-	read_unlock_bh(&call->state_lock);
-}
-
-/*
  * receive a message from an RxRPC socket
  * - we need to be careful about two or more threads calling recvmsg
  *   simultaneously
@@ -338,7 +316,7 @@ terminal_message:
 		if (skb_dequeue(&rx->sk.sk_receive_queue) != skb)
 			BUG();
 		rxrpc_free_skb(skb);
-		rxrpc_remove_user_ID(rx, call);
+		rxrpc_release_call(rx, call);
 	}
 
 	release_sock(&rx->sk);

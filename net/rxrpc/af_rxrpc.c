@@ -294,8 +294,7 @@ EXPORT_SYMBOL(rxrpc_kernel_begin_call);
 void rxrpc_kernel_end_call(struct socket *sock, struct rxrpc_call *call)
 {
 	_enter("%d{%d}", call->debug_id, atomic_read(&call->usage));
-	rxrpc_remove_user_ID(rxrpc_sk(sock->sk), call);
-	rxrpc_purge_queue(&call->knlrecv_queue);
+	rxrpc_release_call(rxrpc_sk(sock->sk), call);
 	rxrpc_put_call(call, rxrpc_call_put);
 }
 EXPORT_SYMBOL(rxrpc_kernel_end_call);
@@ -558,6 +557,7 @@ static int rxrpc_create(struct net *net, struct socket *sock, int protocol,
 		return -ENOMEM;
 
 	sock_init_data(sock, sk);
+	sock_set_flag(sk, SOCK_RCU_FREE);
 	sk->sk_state		= RXRPC_UNBOUND;
 	sk->sk_write_space	= rxrpc_write_space;
 	sk->sk_max_ack_backlog	= 0;
