@@ -492,8 +492,6 @@ static int acm_tty_install(struct tty_driver *driver, struct tty_struct *tty)
 	struct acm *acm;
 	int retval;
 
-	dev_dbg(tty->dev, "%s\n", __func__);
-
 	acm = acm_get_by_minor(tty->index);
 	if (!acm)
 		return -ENODEV;
@@ -514,8 +512,6 @@ error_init_termios:
 static int acm_tty_open(struct tty_struct *tty, struct file *filp)
 {
 	struct acm *acm = tty->driver_data;
-
-	dev_dbg(tty->dev, "%s\n", __func__);
 
 	return tty_port_open(&acm->port, tty, filp);
 }
@@ -544,8 +540,6 @@ static int acm_port_activate(struct tty_port *port, struct tty_struct *tty)
 	struct acm *acm = container_of(port, struct acm, port);
 	int retval = -ENODEV;
 	int i;
-
-	dev_dbg(&acm->control->dev, "%s\n", __func__);
 
 	mutex_lock(&acm->mutex);
 	if (acm->disconnected)
@@ -607,8 +601,6 @@ static void acm_port_destruct(struct tty_port *port)
 {
 	struct acm *acm = container_of(port, struct acm, port);
 
-	dev_dbg(&acm->control->dev, "%s\n", __func__);
-
 	acm_release_minor(acm);
 	usb_put_intf(acm->control);
 	kfree(acm->country_codes);
@@ -621,8 +613,6 @@ static void acm_port_shutdown(struct tty_port *port)
 	struct urb *urb;
 	struct acm_wb *wb;
 	int i;
-
-	dev_dbg(&acm->control->dev, "%s\n", __func__);
 
 	/*
 	 * Need to grab write_lock to prevent race with resume, but no need to
@@ -654,21 +644,21 @@ static void acm_port_shutdown(struct tty_port *port)
 static void acm_tty_cleanup(struct tty_struct *tty)
 {
 	struct acm *acm = tty->driver_data;
-	dev_dbg(&acm->control->dev, "%s\n", __func__);
+
 	tty_port_put(&acm->port);
 }
 
 static void acm_tty_hangup(struct tty_struct *tty)
 {
 	struct acm *acm = tty->driver_data;
-	dev_dbg(&acm->control->dev, "%s\n", __func__);
+
 	tty_port_hangup(&acm->port);
 }
 
 static void acm_tty_close(struct tty_struct *tty, struct file *filp)
 {
 	struct acm *acm = tty->driver_data;
-	dev_dbg(&acm->control->dev, "%s\n", __func__);
+
 	tty_port_close(&acm->port, tty, filp);
 }
 
@@ -1533,8 +1523,6 @@ static void stop_data_traffic(struct acm *acm)
 {
 	int i;
 
-	dev_dbg(&acm->control->dev, "%s\n", __func__);
-
 	usb_kill_urb(acm->ctrlurb);
 	for (i = 0; i < ACM_NW; i++)
 		usb_kill_urb(acm->wb[i].urb);
@@ -1550,8 +1538,6 @@ static void acm_disconnect(struct usb_interface *intf)
 	struct usb_device *usb_dev = interface_to_usbdev(intf);
 	struct tty_struct *tty;
 	int i;
-
-	dev_dbg(&intf->dev, "%s\n", __func__);
 
 	/* sibling interface is already cleaning up */
 	if (!acm)
