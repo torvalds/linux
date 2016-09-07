@@ -98,6 +98,30 @@ static unsigned int fsl_espi_copy_to_buf(struct spi_message *m,
 	return tx_only;
 }
 
+static int fsl_espi_check_message(struct spi_message *m)
+{
+	struct mpc8xxx_spi *mspi = spi_master_get_devdata(m->spi->master);
+	struct spi_transfer *t, *first;
+
+	if (m->frame_length > SPCOM_TRANLEN_MAX) {
+		dev_err(mspi->dev, "message too long, size is %u bytes\n",
+			m->frame_length);
+		return -EMSGSIZE;
+	}
+
+	first = list_first_entry(&m->transfers, struct spi_transfer,
+				 transfer_list);
+	list_for_each_entry(t, &m->transfers, transfer_list) {
+		if (first->bits_per_word != t->bits_per_word ||
+		    first->speed_hz != t->speed_hz) {
+			dev_err(mspi->dev, "bits_per_word/speed_hz should be the same for all transfers\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static void fsl_espi_change_mode(struct spi_device *spi)
 {
 	struct mpc8xxx_spi *mspi = spi_master_get_devdata(spi->master);
@@ -222,11 +246,6 @@ static int fsl_espi_bufs(struct spi_device *spi, struct spi_transfer *t)
 	reinit_completion(&mpc8xxx_spi->done);
 
 	/* Set SPCOM[CS] and SPCOM[TRANLEN] field */
-	if (t->len > SPCOM_TRANLEN_MAX) {
-		dev_err(mpc8xxx_spi->dev, "Transaction length (%d)"
-				" beyond the SPCOM[TRANLEN] field\n", t->len);
-		return -EINVAL;
-	}
 	mpc8xxx_spi_write_reg(&reg_base->command,
 		(SPCOM_CS(spi->chip_select) | SPCOM_TRANLEN(t->len - 1)));
 
@@ -253,20 +272,12 @@ static int fsl_espi_bufs(struct spi_device *spi, struct spi_transfer *t)
 static int fsl_espi_do_trans(struct spi_message *m, struct spi_transfer *trans)
 {
 	struct spi_device *spi = m->spi;
-	struct mpc8xxx_spi *mspi = spi_master_get_devdata(spi->master);
 	struct spi_transfer *t, *first;
 	int ret = 0;
 
 	first = list_first_entry(&m->transfers, struct spi_transfer,
 			transfer_list);
 	list_for_each_entry(t, &m->transfers, transfer_list) {
-		if ((first->bits_per_word != t->bits_per_word) ||
-			(first->speed_hz != t->speed_hz)) {
-			dev_err(mspi->dev,
-				"bits_per_word/speed_hz should be same for the same SPI transfer\n");
-			return -EINVAL;
-		}
-
 		trans->speed_hz = t->speed_hz;
 		trans->bits_per_word = t->bits_per_word;
 		trans->delay_usecs = max(first->delay_usecs, t->delay_usecs);
@@ -313,6 +324,10 @@ static int fsl_espi_do_one_msg(struct spi_master *master,
 	struct spi_transfer *t, trans = {};
 	int ret;
 
+	ret = fsl_espi_check_message(m);
+	if (ret)
+		goto out;
+
 	list_for_each_entry(t, &m->transfers, transfer_list) {
 		if (t->rx_buf)
 			rx_buf = t->rx_buf;
@@ -325,7 +340,7 @@ static int fsl_espi_do_one_msg(struct spi_master *master,
 	ret = fsl_espi_trans(m, &trans, rx_buf);
 
 	m->actual_length = ret ? 0 : trans.len;
-
+out:
 	if (m->status == -EINPROGRESS)
 		m->status = ret;
 
