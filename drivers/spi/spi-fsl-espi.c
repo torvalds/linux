@@ -77,25 +77,32 @@ struct fsl_espi_reg {
 
 #define AUTOSUSPEND_TIMEOUT 2000
 
-static unsigned int fsl_espi_copy_to_buf(struct spi_message *m,
-					 struct mpc8xxx_spi *mspi)
+static void fsl_espi_copy_to_buf(struct spi_message *m,
+				 struct mpc8xxx_spi *mspi)
 {
-	unsigned int tx_only = 0;
 	struct spi_transfer *t;
 	u8 *buf = mspi->local_buf;
 
 	list_for_each_entry(t, &m->transfers, transfer_list) {
-		if (t->tx_buf) {
+		if (t->tx_buf)
 			memcpy(buf, t->tx_buf, t->len);
-			if (!t->rx_buf)
-				tx_only += t->len;
-		} else {
+		else
 			memset(buf, 0, t->len);
-		}
 		buf += t->len;
 	}
+}
 
-	return tx_only;
+static void fsl_espi_copy_from_buf(struct spi_message *m,
+				   struct mpc8xxx_spi *mspi)
+{
+	struct spi_transfer *t;
+	u8 *buf = mspi->local_buf;
+
+	list_for_each_entry(t, &m->transfers, transfer_list) {
+		if (t->rx_buf)
+			memcpy(t->rx_buf, buf, t->len);
+		buf += t->len;
+	}
 }
 
 static int fsl_espi_check_message(struct spi_message *m)
@@ -287,20 +294,17 @@ static int fsl_espi_do_trans(struct spi_message *m, struct spi_transfer *trans)
 	return ret;
 }
 
-static int fsl_espi_trans(struct spi_message *m, struct spi_transfer *trans,
-			  u8 *rx_buff)
+static int fsl_espi_trans(struct spi_message *m, struct spi_transfer *trans)
 {
 	struct mpc8xxx_spi *mspi = spi_master_get_devdata(m->spi->master);
-	unsigned int tx_only;
 	int ret;
 
-	tx_only = fsl_espi_copy_to_buf(m, mspi);
+	fsl_espi_copy_to_buf(m, mspi);
 
 	ret = fsl_espi_do_trans(m, trans);
 
-	/* If there is at least one RX byte then copy it to rx_buff */
-	if (!ret && rx_buff && trans->len > tx_only)
-		memcpy(rx_buff, trans->rx_buf + tx_only, trans->len - tx_only);
+	if (!ret)
+		fsl_espi_copy_from_buf(m, mspi);
 
 	return ret;
 }
@@ -309,7 +313,6 @@ static int fsl_espi_do_one_msg(struct spi_master *master,
 			       struct spi_message *m)
 {
 	struct mpc8xxx_spi *mspi = spi_master_get_devdata(m->spi->master);
-	u8 *rx_buf = NULL;
 	unsigned int delay_usecs = 0, xfer_len = 0;
 	struct spi_transfer *t, trans = {};
 	int ret;
@@ -319,8 +322,6 @@ static int fsl_espi_do_one_msg(struct spi_master *master,
 		goto out;
 
 	list_for_each_entry(t, &m->transfers, transfer_list) {
-		if (t->rx_buf)
-			rx_buf = t->rx_buf;
 		if ((t->tx_buf) || (t->rx_buf))
 			xfer_len += t->len;
 		if (t->delay_usecs > delay_usecs)
@@ -337,7 +338,7 @@ static int fsl_espi_do_one_msg(struct spi_master *master,
 	trans.tx_buf = mspi->local_buf;
 	trans.rx_buf = mspi->local_buf;
 
-	ret = fsl_espi_trans(m, &trans, rx_buf);
+	ret = fsl_espi_trans(m, &trans);
 
 	m->actual_length = ret ? 0 : trans.len;
 out:
