@@ -283,8 +283,7 @@ static int fsl_espi_do_trans(struct spi_message *m, struct spi_transfer *trans)
 
 	fsl_espi_setup_transfer(spi, trans);
 
-	if (trans->len)
-		ret = fsl_espi_bufs(spi, trans);
+	ret = fsl_espi_bufs(spi, trans);
 
 	if (trans->delay_usecs)
 		udelay(trans->delay_usecs);
@@ -313,7 +312,7 @@ static int fsl_espi_do_one_msg(struct spi_master *master,
 			       struct spi_message *m)
 {
 	struct mpc8xxx_spi *mspi = spi_master_get_devdata(m->spi->master);
-	unsigned int delay_usecs = 0, xfer_len = 0;
+	unsigned int delay_usecs = 0;
 	struct spi_transfer *t, trans = {};
 	int ret;
 
@@ -322,8 +321,6 @@ static int fsl_espi_do_one_msg(struct spi_master *master,
 		goto out;
 
 	list_for_each_entry(t, &m->transfers, transfer_list) {
-		if ((t->tx_buf) || (t->rx_buf))
-			xfer_len += t->len;
 		if (t->delay_usecs > delay_usecs)
 			delay_usecs = t->delay_usecs;
 	}
@@ -331,14 +328,15 @@ static int fsl_espi_do_one_msg(struct spi_master *master,
 	t = list_first_entry(&m->transfers, struct spi_transfer,
 			     transfer_list);
 
-	trans.len = xfer_len;
+	trans.len = m->frame_length;
 	trans.speed_hz = t->speed_hz;
 	trans.bits_per_word = t->bits_per_word;
 	trans.delay_usecs = delay_usecs;
 	trans.tx_buf = mspi->local_buf;
 	trans.rx_buf = mspi->local_buf;
 
-	ret = fsl_espi_trans(m, &trans);
+	if (trans.len)
+		ret = fsl_espi_trans(m, &trans);
 
 	m->actual_length = ret ? 0 : trans.len;
 out:
