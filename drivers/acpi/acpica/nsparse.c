@@ -47,6 +47,7 @@
 #include "acparser.h"
 #include "acdispat.h"
 #include "actables.h"
+#include "acinterp.h"
 
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nsparse")
@@ -234,7 +235,9 @@ acpi_ns_one_complete_parse(u32 pass_number,
 
 	ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
 			  "*PARSE* pass %u parse\n", pass_number));
+	acpi_ex_enter_interpreter();
 	status = acpi_ps_parse_aml(walk_state);
+	acpi_ex_exit_interpreter();
 
 cleanup:
 	acpi_ps_delete_parse_tree(parse_root);

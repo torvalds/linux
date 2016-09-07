@@ -891,14 +891,16 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 				 *    Field, so we need to resolve the node to a value.
 				 */
 				status =
-				    acpi_ns_get_node(walk_state->scope_info->
-						     scope.node,
-						     operand[0]->string.pointer,
-						     ACPI_NS_SEARCH_PARENT,
-						     ACPI_CAST_INDIRECT_PTR
-						     (struct
-						      acpi_namespace_node,
-						      &return_desc));
+				    acpi_ns_get_node_unlocked(walk_state->
+							      scope_info->scope.
+							      node,
+							      operand[0]->
+							      string.pointer,
+							      ACPI_NS_SEARCH_PARENT,
+							      ACPI_CAST_INDIRECT_PTR
+							      (struct
+							       acpi_namespace_node,
+							       &return_desc));
 				if (ACPI_FAILURE(status)) {
 					goto cleanup;
 				}

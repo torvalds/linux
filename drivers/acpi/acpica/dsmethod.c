@@ -757,8 +757,10 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 
 			/* Delete any direct children of (created by) this method */
 
+			(void)acpi_ex_exit_interpreter();
 			acpi_ns_delete_namespace_subtree(walk_state->
 							 method_node);
+			(void)acpi_ex_enter_interpreter();
 
 			/*
 			 * Delete any objects that were created by this method
@@ -769,9 +771,11 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 			 */
 			if (method_desc->method.
 			    info_flags & ACPI_METHOD_MODIFIED_NAMESPACE) {
+				(void)acpi_ex_exit_interpreter();
 				acpi_ns_delete_namespace_by_owner(method_desc->
 								  method.
 								  owner_id);
+				(void)acpi_ex_enter_interpreter();
 				method_desc->method.info_flags &=
 				    ~ACPI_METHOD_MODIFIED_NAMESPACE;
 			}

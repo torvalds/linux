@@ -308,7 +308,9 @@ acpi_status acpi_ps_execute_table(struct acpi_evaluate_info *info)
 	/*
 	 * Parse the AML, walk_state will be deleted by parse_aml
 	 */
+	acpi_ex_enter_interpreter();
 	status = acpi_ps_parse_aml(walk_state);
+	acpi_ex_exit_interpreter();
 	walk_state = NULL;
 
 cleanup:
