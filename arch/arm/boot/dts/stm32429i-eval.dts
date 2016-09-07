@@ -121,7 +121,7 @@
 	pinctrl-0	= <&ethernet_mii>;
 	pinctrl-names	= "default";
 	phy-mode	= "mii";
-
+	phy-handle	= <&phy1>;
 	mdio0 {
 		#address-cells = <1>;
 		#size-cells = <0>;
