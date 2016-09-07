@@ -85,6 +85,27 @@ struct fsl_espi_transfer {
 
 #define AUTOSUSPEND_TIMEOUT 2000
 
+static unsigned int fsl_espi_copy_to_buf(struct spi_message *m,
+					 struct mpc8xxx_spi *mspi)
+{
+	unsigned int tx_only = 0;
+	struct spi_transfer *t;
+	u8 *buf = mspi->local_buf;
+
+	list_for_each_entry(t, &m->transfers, transfer_list) {
+		if (t->tx_buf) {
+			memcpy(buf, t->tx_buf, t->len);
+			if (!t->rx_buf)
+				tx_only += t->len;
+		} else {
+			memset(buf, 0, t->len);
+		}
+		buf += t->len;
+	}
+
+	return tx_only;
+}
+
 static void fsl_espi_change_mode(struct spi_device *spi)
 {
 	struct mpc8xxx_spi *mspi = spi_master_get_devdata(spi->master);
@@ -298,16 +319,9 @@ static void fsl_espi_cmd_trans(struct spi_message *m,
 				struct fsl_espi_transfer *trans, u8 *rx_buff)
 {
 	struct mpc8xxx_spi *mspi = spi_master_get_devdata(m->spi->master);
-	struct spi_transfer *t;
-	int i = 0;
 	struct fsl_espi_transfer *espi_trans = trans;
 
-	list_for_each_entry(t, &m->transfers, transfer_list) {
-		if (t->tx_buf) {
-			memcpy(mspi->local_buf + i, t->tx_buf, t->len);
-			i += t->len;
-		}
-	}
+	fsl_espi_copy_to_buf(m, mspi);
 
 	espi_trans->tx_buf = mspi->local_buf;
 	espi_trans->rx_buf = mspi->local_buf;
@@ -320,18 +334,9 @@ static void fsl_espi_rw_trans(struct spi_message *m,
 				struct fsl_espi_transfer *trans, u8 *rx_buff)
 {
 	struct mpc8xxx_spi *mspi = spi_master_get_devdata(m->spi->master);
-	struct spi_transfer *t;
-	unsigned int tx_only = 0;
-	int i = 0;
+	unsigned int tx_only;
 
-	list_for_each_entry(t, &m->transfers, transfer_list) {
-		if (t->tx_buf) {
-			memcpy(mspi->local_buf + i, t->tx_buf, t->len);
-			i += t->len;
-			if (!t->rx_buf)
-				tx_only += t->len;
-		}
-	}
+	tx_only = fsl_espi_copy_to_buf(m, mspi);
 
 	trans->tx_buf = mspi->local_buf;
 	trans->rx_buf = mspi->local_buf;
@@ -349,13 +354,10 @@ static void fsl_espi_rw_trans(struct spi_message *m,
 static int fsl_espi_do_one_msg(struct spi_master *master,
 			       struct spi_message *m)
 {
-	struct mpc8xxx_spi *mspi = spi_master_get_devdata(master);
 	struct spi_transfer *t;
 	u8 *rx_buf = NULL;
 	unsigned int xfer_len = 0;
 	struct fsl_espi_transfer espi_trans;
-
-	memset(mspi->local_buf, 0, SPCOM_TRANLEN_MAX);
 
 	list_for_each_entry(t, &m->transfers, transfer_list) {
 		if (t->rx_buf)
