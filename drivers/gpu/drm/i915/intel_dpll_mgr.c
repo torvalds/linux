@@ -24,6 +24,44 @@
 #include "intel_drv.h"
 
 struct intel_shared_dpll *
+skl_find_link_pll(struct drm_i915_private *dev_priv, int clock)
+{
+	struct intel_shared_dpll *pll = NULL;
+	struct intel_dpll_hw_state dpll_hw_state;
+	enum intel_dpll_id i;
+	bool found = false;
+
+	if (!skl_ddi_dp_set_dpll_hw_state(clock, &dpll_hw_state))
+		return pll;
+
+	for (i = DPLL_ID_SKL_DPLL1; i <= DPLL_ID_SKL_DPLL3; i++) {
+		pll = &dev_priv->shared_dplls[i];
+
+		/* Only want to check enabled timings first */
+		if (pll->config.crtc_mask == 0)
+			continue;
+
+		if (memcmp(&dpll_hw_state, &pll->config.hw_state,
+			   sizeof(pll->config.hw_state)) == 0) {
+			found = true;
+			break;
+		}
+	}
+
+	/* Ok no matching timings, maybe there's a free one? */
+	for (i = DPLL_ID_SKL_DPLL1;
+	     ((found == false) && (i <= DPLL_ID_SKL_DPLL3)); i++) {
+		pll = &dev_priv->shared_dplls[i];
+		if (pll->config.crtc_mask == 0) {
+			pll->config.hw_state = dpll_hw_state;
+			break;
+		}
+	}
+
+	return pll;
+}
+
+struct intel_shared_dpll *
 intel_get_shared_dpll_by_id(struct drm_i915_private *dev_priv,
 			    enum intel_dpll_id id)
 {

@@ -168,6 +168,8 @@ bool bxt_ddi_dp_set_dpll_hw_state(int clock,
 /* SKL dpll related functions */
 bool skl_ddi_dp_set_dpll_hw_state(int clock,
 				  struct intel_dpll_hw_state *dpll_hw_state);
+struct intel_shared_dpll *skl_find_link_pll(struct drm_i915_private *dev_priv,
+					    int clock);
 
 
 /* HSW dpll related functions */
