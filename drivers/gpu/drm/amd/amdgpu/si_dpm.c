@@ -2824,7 +2824,7 @@ done_free:
 
 	kfree(cac_tables);
 
-	return 0;
+	return ret;
 }
 
 static int si_program_cac_config_registers(struct amdgpu_device *adev,
@@ -6376,10 +6376,16 @@ static int si_patch_dependency_tables_based_on_leakage(struct amdgpu_device *ade
 
 	ret = si_patch_single_dependency_table_based_on_leakage(adev,
 								&adev->pm.dpm.dyn_state.vddc_dependency_on_sclk);
+	if (ret)
+		DRM_ERROR("Could not patch vddc_on_sclk leakage table\n");
 	ret = si_patch_single_dependency_table_based_on_leakage(adev,
 								&adev->pm.dpm.dyn_state.vddc_dependency_on_mclk);
+	if (ret)
+		DRM_ERROR("Could not patch vddc_on_mclk leakage table\n");
 	ret = si_patch_single_dependency_table_based_on_leakage(adev,
 								&adev->pm.dpm.dyn_state.vddci_dependency_on_mclk);
+	if (ret)
+		DRM_ERROR("Could not patch vddci_on_mclk leakage table\n");
 	return ret;
 }
 
@@ -6542,7 +6548,7 @@ static int si_thermal_setup_fan_table(struct amdgpu_device *adev)
 		adev->pm.dpm.fan.ucode_fan_control = false;
 	}
 
-	return 0;
+	return ret;
 }
 
 static int si_fan_ctrl_start_smc_fan_control(struct amdgpu_device *adev)
