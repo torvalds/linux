@@ -69,4 +69,10 @@ extern int platform_pcibios_fixup (void);
  */
 extern void platform_calibrate_ccount (void);
 
+/*
+ * Flush and reset the mmu, simulate a processor reset, and
+ * jump to the reset vector.
+ */
+void cpu_reset(void) __attribute__((noreturn));
+
 #endif	/* _XTENSA_PLATFORM_H */
