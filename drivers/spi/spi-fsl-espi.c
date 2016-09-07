@@ -299,23 +299,8 @@ static int fsl_espi_do_trans(struct spi_message *m, struct spi_transfer *trans)
 	return ret;
 }
 
-static int fsl_espi_cmd_trans(struct spi_message *m,
-			      struct spi_transfer *trans, u8 *rx_buff)
-{
-	struct mpc8xxx_spi *mspi = spi_master_get_devdata(m->spi->master);
-	int ret;
-
-	fsl_espi_copy_to_buf(m, mspi);
-
-	trans->tx_buf = mspi->local_buf;
-	trans->rx_buf = mspi->local_buf;
-	ret = fsl_espi_do_trans(m, trans);
-
-	return ret;
-}
-
-static int fsl_espi_rw_trans(struct spi_message *m,
-			     struct spi_transfer *trans, u8 *rx_buff)
+static int fsl_espi_trans(struct spi_message *m, struct spi_transfer *trans,
+			  u8 *rx_buff)
 {
 	struct mpc8xxx_spi *mspi = spi_master_get_devdata(m->spi->master);
 	unsigned int tx_only;
@@ -327,12 +312,9 @@ static int fsl_espi_rw_trans(struct spi_message *m,
 	trans->rx_buf = mspi->local_buf;
 	ret = fsl_espi_do_trans(m, trans);
 
-	if (!ret) {
-		/* If there is at least one RX byte then copy it to rx_buff */
-		if (trans->len > tx_only)
-			memcpy(rx_buff, trans->rx_buf + tx_only,
-			       trans->len - tx_only);
-	}
+	/* If there is at least one RX byte then copy it to rx_buff */
+	if (!ret && rx_buff && trans->len > tx_only)
+		memcpy(rx_buff, trans->rx_buf + tx_only, trans->len - tx_only);
 
 	return ret;
 }
@@ -354,10 +336,7 @@ static int fsl_espi_do_one_msg(struct spi_master *master,
 
 	trans.len = xfer_len;
 
-	if (!rx_buf)
-		ret = fsl_espi_cmd_trans(m, &trans, NULL);
-	else
-		ret = fsl_espi_rw_trans(m, &trans, rx_buf);
+	ret = fsl_espi_trans(m, &trans, rx_buf);
 
 	m->actual_length = ret ? 0 : trans.len;
 
