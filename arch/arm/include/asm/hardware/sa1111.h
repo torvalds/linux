@@ -30,9 +30,6 @@
 #define _SA1111(x)	((x) + sa1111->resource.start)
 #endif
 
-#define sa1111_writel(val,addr)	__raw_writel(val, addr)
-#define sa1111_readl(addr)	__raw_readl(addr)
-
 /*
  * 26 bits of the SA-1110 address bus are available to the SA-1111.
  * Use these when feeding target addresses to the DMA engines.
