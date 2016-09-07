@@ -89,10 +89,10 @@ int amdgpu_ttm_global_init(struct amdgpu_device *adev)
 	global_ref->init = &amdgpu_ttm_mem_global_init;
 	global_ref->release = &amdgpu_ttm_mem_global_release;
 	r = drm_global_item_ref(global_ref);
-	if (r != 0) {
+	if (r) {
 		DRM_ERROR("Failed setting up TTM memory accounting "
 			  "subsystem.\n");
-		return r;
+		goto error_mem;
 	}
 
 	adev->mman.bo_global_ref.mem_glob =
@@ -103,26 +103,30 @@ int amdgpu_ttm_global_init(struct amdgpu_device *adev)
 	global_ref->init = &ttm_bo_global_init;
 	global_ref->release = &ttm_bo_global_release;
 	r = drm_global_item_ref(global_ref);
-	if (r != 0) {
+	if (r) {
 		DRM_ERROR("Failed setting up TTM BO subsystem.\n");
-		drm_global_item_unref(&adev->mman.mem_global_ref);
-		return r;
+		goto error_bo;
 	}
 
 	ring = adev->mman.buffer_funcs_ring;
 	rq = &ring->sched.sched_rq[AMD_SCHED_PRIORITY_KERNEL];
 	r = amd_sched_entity_init(&ring->sched, &adev->mman.entity,
 				  rq, amdgpu_sched_jobs);
-	if (r != 0) {
+	if (r) {
 		DRM_ERROR("Failed setting up TTM BO move run queue.\n");
-		drm_global_item_unref(&adev->mman.mem_global_ref);
-		drm_global_item_unref(&adev->mman.bo_global_ref.ref);
-		return r;
+		goto error_entity;
 	}
 
 	adev->mman.mem_global_referenced = true;
 
 	return 0;
+
+error_entity:
+	drm_global_item_unref(&adev->mman.bo_global_ref.ref);
+error_bo:
+	drm_global_item_unref(&adev->mman.mem_global_ref);
+error_mem:
+	return r;
 }
 
 static void amdgpu_ttm_global_fini(struct amdgpu_device *adev)
