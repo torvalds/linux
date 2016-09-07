@@ -4311,7 +4311,11 @@ again:
 			if (path->slots[1] == 0)
 				fixup_low_keys(fs_info, path, &disk_key, 1);
 		}
-		btrfs_mark_buffer_dirty(right);
+		/*
+		 * We create a new leaf 'right' for the required ins_len and
+		 * we'll do btrfs_mark_buffer_dirty() on this leaf after copying
+		 * the content of ins_len to 'right'.
+		 */
 		return ret;
 	}
 
