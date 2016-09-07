@@ -5706,6 +5706,9 @@ static void be_remove(struct pci_dev *pdev)
 
 	be_clear(adapter);
 
+	if (!pci_vfs_assigned(adapter->pdev))
+		be_cmd_reset_function(adapter);
+
 	/* tell fw we're done with firing cmds */
 	be_cmd_fw_clean(adapter);
 
