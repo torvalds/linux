@@ -315,7 +315,7 @@ static int __init cps_gen_flush_fsb(u32 **pp, struct uasm_label **pl,
 	}
 
 	/* Barrier ensuring previous cache invalidates are complete */
-	uasm_i_sync(pp, stype_memory);
+	uasm_i_sync(pp, STYPE_SYNC);
 	uasm_i_ehb(pp);
 
 	/* Check whether the pipeline stalled due to the FSB being full */
@@ -467,7 +467,7 @@ static void * __init cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 			      Index_Writeback_Inv_D, lbl_flushdcache);
 
 	/* Barrier ensuring previous cache invalidates are complete */
-	uasm_i_sync(&p, stype_memory);
+	uasm_i_sync(&p, STYPE_SYNC);
 	uasm_i_ehb(&p);
 
 	/*
@@ -480,7 +480,7 @@ static void * __init cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 	uasm_i_lw(&p, t0, 0, r_pcohctl);
 
 	/* Barrier to ensure write to coherence control is complete */
-	uasm_i_sync(&p, stype_intervention);
+	uasm_i_sync(&p, STYPE_SYNC);
 	uasm_i_ehb(&p);
 
 	/* Disable coherence */
@@ -526,7 +526,7 @@ static void * __init cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 		}
 
 		/* Barrier to ensure write to CPC command is complete */
-		uasm_i_sync(&p, stype_memory);
+		uasm_i_sync(&p, STYPE_SYNC);
 		uasm_i_ehb(&p);
 	}
 
@@ -561,7 +561,7 @@ static void * __init cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 	uasm_i_lw(&p, t0, 0, r_pcohctl);
 
 	/* Barrier to ensure write to coherence control is complete */
-	uasm_i_sync(&p, stype_memory);
+	uasm_i_sync(&p, STYPE_SYNC);
 	uasm_i_ehb(&p);
 
 	if (coupled_coherence && (state == CPS_PM_NC_WAIT)) {
