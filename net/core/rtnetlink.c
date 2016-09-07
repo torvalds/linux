@@ -3669,10 +3669,6 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static const struct nla_policy ifla_stats_policy[IFLA_STATS_MAX + 1] = {
-	[IFLA_STATS_LINK_64]	= { .len = sizeof(struct rtnl_link_stats64) },
-};
-
 static size_t if_nlmsg_stats_size(const struct net_device *dev,
 				  u32 filter_mask)
 {
