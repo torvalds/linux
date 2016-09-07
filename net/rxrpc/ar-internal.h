@@ -608,7 +608,7 @@ static inline bool rxrpc_set_call_completion(struct rxrpc_call *call,
 					     u32 abort_code,
 					     int error)
 {
-	int ret;
+	bool ret;
 
 	write_lock_bh(&call->state_lock);
 	ret = __rxrpc_set_call_completion(call, compl, abort_code, error);
@@ -619,16 +619,19 @@ static inline bool rxrpc_set_call_completion(struct rxrpc_call *call,
 /*
  * Record that a call successfully completed.
  */
-static inline void __rxrpc_call_completed(struct rxrpc_call *call)
+static inline bool __rxrpc_call_completed(struct rxrpc_call *call)
 {
-	__rxrpc_set_call_completion(call, RXRPC_CALL_SUCCEEDED, 0, 0);
+	return __rxrpc_set_call_completion(call, RXRPC_CALL_SUCCEEDED, 0, 0);
 }
 
-static inline void rxrpc_call_completed(struct rxrpc_call *call)
+static inline bool rxrpc_call_completed(struct rxrpc_call *call)
 {
+	bool ret;
+
 	write_lock_bh(&call->state_lock);
-	__rxrpc_call_completed(call);
+	ret = __rxrpc_call_completed(call);
 	write_unlock_bh(&call->state_lock);
+	return ret;
 }
 
 /*
