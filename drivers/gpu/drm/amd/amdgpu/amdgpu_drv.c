@@ -487,6 +487,7 @@ amdgpu_pci_shutdown(struct pci_dev *pdev)
 static int amdgpu_pmops_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
+
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	return amdgpu_device_suspend(drm_dev, true, true);
 }
@@ -509,6 +510,7 @@ static int amdgpu_pmops_resume(struct device *dev)
 static int amdgpu_pmops_freeze(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
+
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	return amdgpu_device_suspend(drm_dev, false, true);
 }
@@ -516,6 +518,23 @@ static int amdgpu_pmops_freeze(struct device *dev)
 static int amdgpu_pmops_thaw(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
+
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	return amdgpu_device_resume(drm_dev, false, true);
+}
+
+static int amdgpu_pmops_poweroff(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	return amdgpu_device_suspend(drm_dev, true, true);
+}
+
+static int amdgpu_pmops_restore(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	return amdgpu_device_resume(drm_dev, false, true);
 }
@@ -622,8 +641,8 @@ static const struct dev_pm_ops amdgpu_pm_ops = {
 	.resume = amdgpu_pmops_resume,
 	.freeze = amdgpu_pmops_freeze,
 	.thaw = amdgpu_pmops_thaw,
-	.poweroff = amdgpu_pmops_freeze,
-	.restore = amdgpu_pmops_resume,
+	.poweroff = amdgpu_pmops_poweroff,
+	.restore = amdgpu_pmops_restore,
 	.runtime_suspend = amdgpu_pmops_runtime_suspend,
 	.runtime_resume = amdgpu_pmops_runtime_resume,
 	.runtime_idle = amdgpu_pmops_runtime_idle,

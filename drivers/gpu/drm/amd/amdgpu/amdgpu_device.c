@@ -1895,6 +1895,10 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 		/* Shut down the device */
 		pci_disable_device(dev->pdev);
 		pci_set_power_state(dev->pdev, PCI_D3hot);
+	} else {
+		r = amdgpu_asic_reset(adev);
+		if (r)
+			DRM_ERROR("amdgpu asic reset failed\n");
 	}
 
 	if (fbcon) {
@@ -1925,22 +1929,26 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 	    dev->switch_power_state == DRM_SWITCH_POWER_DYNAMIC_OFF)
 		return 0;
 
-	if (fbcon) {
+	if (fbcon)
 		console_lock();
-	}
+
 	if (resume) {
 		pci_set_power_state(dev->pdev, PCI_D0);
 		pci_restore_state(dev->pdev);
-		if (pci_enable_device(dev->pdev)) {
+		r = pci_enable_device(dev->pdev);
+		if (r) {
 			if (fbcon)
 				console_unlock();
-			return -1;
+			return r;
 		}
 	}
 
 	/* post card */
-	if (!amdgpu_card_posted(adev))
-		amdgpu_atom_asic_init(adev->mode_info.atom_context);
+	if (!amdgpu_card_posted(adev) || !resume) {
+		r = amdgpu_atom_asic_init(adev->mode_info.atom_context);
+		if (r)
+			DRM_ERROR("amdgpu asic init failed\n");
+	}
 
 	r = amdgpu_resume(adev);
 	if (r)
