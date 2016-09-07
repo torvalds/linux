@@ -73,10 +73,6 @@ DEFINE_PER_CPU_ALIGNED(struct mips_static_suspend_state, cps_cpu_state);
 static struct uasm_label labels[32] __initdata;
 static struct uasm_reloc relocs[32] __initdata;
 
-/* CPU dependant sync types */
-static unsigned stype_intervention;
-static unsigned stype_memory;
-
 enum mips_reg {
 	zero, at, v0, v1, a0, a1, a2, a3,
 	t0, t1, t2, t3, t4, t5, t6, t7,
@@ -666,21 +662,6 @@ static int __init cps_pm_init(void)
 {
 	unsigned cpu;
 	int err;
-
-	/* Detect appropriate sync types for the system */
-	switch (current_cpu_data.cputype) {
-	case CPU_INTERAPTIV:
-	case CPU_PROAPTIV:
-	case CPU_M5150:
-	case CPU_P5600:
-	case CPU_I6400:
-		stype_intervention = 0x2;
-		stype_memory = 0x3;
-		break;
-
-	default:
-		pr_warn("Power management is using heavyweight sync 0\n");
-	}
 
 	/* A CM is required for all non-coherent states */
 	if (!mips_cm_present()) {
