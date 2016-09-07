@@ -575,6 +575,10 @@ enum nft_dynset_ops {
 	NFT_DYNSET_OP_UPDATE,
 };
 
+enum nft_dynset_flags {
+	NFT_DYNSET_F_INV	= (1 << 0),
+};
+
 /**
  * enum nft_dynset_attributes - dynset expression attributes
  *
@@ -585,6 +589,7 @@ enum nft_dynset_ops {
  * @NFTA_DYNSET_SREG_DATA: source register of the data (NLA_U32)
  * @NFTA_DYNSET_TIMEOUT: timeout value for the new element (NLA_U64)
  * @NFTA_DYNSET_EXPR: expression (NLA_NESTED: nft_expr_attributes)
+ * @NFTA_DYNSET_FLAGS: flags (NLA_U32)
  */
 enum nft_dynset_attributes {
 	NFTA_DYNSET_UNSPEC,
@@ -596,6 +601,7 @@ enum nft_dynset_attributes {
 	NFTA_DYNSET_TIMEOUT,
 	NFTA_DYNSET_EXPR,
 	NFTA_DYNSET_PAD,
+	NFTA_DYNSET_FLAGS,
 	__NFTA_DYNSET_MAX,
 };
 #define NFTA_DYNSET_MAX		(__NFTA_DYNSET_MAX - 1)
