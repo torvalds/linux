@@ -1159,6 +1159,48 @@ int ion_sync_for_device(struct ion_client *client, int fd)
 	return 0;
 }
 
+int ion_query_heaps(struct ion_client *client, struct ion_heap_query *query)
+{
+	struct ion_device *dev = client->dev;
+	struct ion_heap_data __user *buffer = u64_to_user_ptr(query->heaps);
+	int ret = -EINVAL, cnt = 0, max_cnt;
+	struct ion_heap *heap;
+	struct ion_heap_data hdata;
+
+	memset(&hdata, 0, sizeof(hdata));
+
+	down_read(&dev->lock);
+	if (!buffer) {
+		query->cnt = dev->heap_cnt;
+		ret = 0;
+		goto out;
+	}
+
+	if (query->cnt <= 0)
+		goto out;
+
+	max_cnt = query->cnt;
+
+	plist_for_each_entry(heap, &dev->heaps, node) {
+		strncpy(hdata.name, heap->name, MAX_HEAP_NAME);
+		hdata.name[sizeof(hdata.name) - 1] = '\0';
+		hdata.type = heap->type;
+		hdata.heap_id = heap->id;
+
+		ret = copy_to_user(&buffer[cnt],
+				   &hdata, sizeof(hdata));
+
+		cnt++;
+		if (cnt >= max_cnt)
+			break;
+	}
+
+	query->cnt = cnt;
+out:
+	up_read(&dev->lock);
+	return ret;
+}
+
 static int ion_release(struct inode *inode, struct file *file)
 {
 	struct ion_client *client = file->private_data;
@@ -1376,6 +1418,7 @@ void ion_device_add_heap(struct ion_device *dev, struct ion_heap *heap)
 		}
 	}
 
+	dev->heap_cnt++;
 	up_write(&dev->lock);
 }
 EXPORT_SYMBOL(ion_device_add_heap);

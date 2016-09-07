@@ -22,6 +22,31 @@
 #include "ion_priv.h"
 #include "compat_ion.h"
 
+union ion_ioctl_arg {
+	struct ion_fd_data fd;
+	struct ion_allocation_data allocation;
+	struct ion_handle_data handle;
+	struct ion_custom_data custom;
+	struct ion_heap_query query;
+};
+
+static int validate_ioctl_arg(unsigned int cmd, union ion_ioctl_arg *arg)
+{
+	int ret = 0;
+
+	switch (cmd) {
+	case ION_IOC_HEAP_QUERY:
+		ret = arg->query.reserved0 != 0;
+		ret |= arg->query.reserved1 != 0;
+		ret |= arg->query.reserved2 != 0;
+		break;
+	default:
+		break;
+	}
+
+	return ret ? -EINVAL : 0;
+}
+
 /* fix up the cases where the ioctl direction bits are incorrect */
 static unsigned int ion_ioctl_dir(unsigned int cmd)
 {
@@ -42,22 +67,27 @@ long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	struct ion_handle *cleanup_handle = NULL;
 	int ret = 0;
 	unsigned int dir;
-
-	union {
-		struct ion_fd_data fd;
-		struct ion_allocation_data allocation;
-		struct ion_handle_data handle;
-		struct ion_custom_data custom;
-	} data;
+	union ion_ioctl_arg data;
 
 	dir = ion_ioctl_dir(cmd);
 
 	if (_IOC_SIZE(cmd) > sizeof(data))
 		return -EINVAL;
 
-	if (dir & _IOC_WRITE)
-		if (copy_from_user(&data, (void __user *)arg, _IOC_SIZE(cmd)))
-			return -EFAULT;
+	/*
+	 * The copy_from_user is unconditional here for both read and write
+	 * to do the validate. If there is no write for the ioctl, the
+	 * buffer is cleared
+	 */
+	if (copy_from_user(&data, (void __user *)arg, _IOC_SIZE(cmd)))
+		return -EFAULT;
+
+	ret = validate_ioctl_arg(cmd, &data);
+	if (WARN_ON_ONCE(ret))
+		return ret;
+
+	if (!(dir & _IOC_WRITE))
+		memset(&data, 0, sizeof(data));
 
 	switch (cmd) {
 	case ION_IOC_ALLOC:
@@ -129,6 +159,9 @@ long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 						data.custom.arg);
 		break;
 	}
+	case ION_IOC_HEAP_QUERY:
+		ret = ion_query_heaps(client, &data.query);
+		break;
 	default:
 		return -ENOTTY;
 	}

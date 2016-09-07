@@ -128,6 +128,36 @@ struct ion_custom_data {
 	unsigned long arg;
 };
 
+#define MAX_HEAP_NAME			32
+
+/**
+ * struct ion_heap_data - data about a heap
+ * @name - first 32 characters of the heap name
+ * @type - heap type
+ * @heap_id - heap id for the heap
+ */
+struct ion_heap_data {
+	char name[MAX_HEAP_NAME];
+	__u32 type;
+	__u32 heap_id;
+	__u32 reserved0;
+	__u32 reserved1;
+	__u32 reserved2;
+};
+
+/**
+ * struct ion_heap_query - collection of data about all heaps
+ * @cnt - total number of heaps to be copied
+ * @heaps - buffer to copy heap data
+ */
+struct ion_heap_query {
+	__u32 cnt; /* Total number of heaps to be copied */
+	__u32 reserved0; /* align to 64bits */
+	__u64 heaps; /* buffer to be populated */
+	__u32 reserved1;
+	__u32 reserved2;
+};
+
 #define ION_IOC_MAGIC		'I'
 
 /**
@@ -193,5 +223,14 @@ struct ion_custom_data {
  * passes appropriate userdata for that ioctl
  */
 #define ION_IOC_CUSTOM		_IOWR(ION_IOC_MAGIC, 6, struct ion_custom_data)
+
+/**
+ * DOC: ION_IOC_HEAP_QUERY - information about available heaps
+ *
+ * Takes an ion_heap_query structure and populates information about
+ * available Ion heaps.
+ */
+#define ION_IOC_HEAP_QUERY     _IOWR(ION_IOC_MAGIC, 8, \
+					struct ion_heap_query)
 
 #endif /* _UAPI_LINUX_ION_H */
