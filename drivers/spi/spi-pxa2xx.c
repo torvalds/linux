@@ -62,6 +62,13 @@ MODULE_ALIAS("platform:pxa2xx-spi");
 				| QUARK_X1000_SSCR1_TFT		\
 				| SSCR1_SPH | SSCR1_SPO | SSCR1_LBM)
 
+#define CE4100_SSCR1_CHANGE_MASK (SSCR1_TTELP | SSCR1_TTE | SSCR1_SCFR \
+				| SSCR1_ECRA | SSCR1_ECRB | SSCR1_SCLKDIR \
+				| SSCR1_SFRMDIR | SSCR1_RWOT | SSCR1_TRAIL \
+				| SSCR1_IFS | SSCR1_STRF | SSCR1_EFWR \
+				| CE4100_SSCR1_RFT | CE4100_SSCR1_TFT | SSCR1_MWDS \
+				| SSCR1_SPH | SSCR1_SPO | SSCR1_LBM)
+
 #define LPSS_GENERAL_REG_RXTO_HOLDOFF_DISABLE	BIT(24)
 #define LPSS_CS_CONTROL_SW_MODE			BIT(0)
 #define LPSS_CS_CONTROL_CS_HIGH			BIT(1)
@@ -175,6 +182,8 @@ static u32 pxa2xx_spi_get_ssrc1_change_mask(const struct driver_data *drv_data)
 	switch (drv_data->ssp_type) {
 	case QUARK_X1000_SSP:
 		return QUARK_X1000_SSCR1_CHANGE_MASK;
+	case CE4100_SSP:
+		return CE4100_SSCR1_CHANGE_MASK;
 	default:
 		return SSCR1_CHANGE_MASK;
 	}
@@ -186,6 +195,8 @@ pxa2xx_spi_get_rx_default_thre(const struct driver_data *drv_data)
 	switch (drv_data->ssp_type) {
 	case QUARK_X1000_SSP:
 		return RX_THRESH_QUARK_X1000_DFLT;
+	case CE4100_SSP:
+		return RX_THRESH_CE4100_DFLT;
 	default:
 		return RX_THRESH_DFLT;
 	}
@@ -198,6 +209,9 @@ static bool pxa2xx_spi_txfifo_full(const struct driver_data *drv_data)
 	switch (drv_data->ssp_type) {
 	case QUARK_X1000_SSP:
 		mask = QUARK_X1000_SSSR_TFL_MASK;
+		break;
+	case CE4100_SSP:
+		mask = CE4100_SSSR_TFL_MASK;
 		break;
 	default:
 		mask = SSSR_TFL_MASK;
@@ -216,6 +230,9 @@ static void pxa2xx_spi_clear_rx_thre(const struct driver_data *drv_data,
 	case QUARK_X1000_SSP:
 		mask = QUARK_X1000_SSCR1_RFT;
 		break;
+	case CE4100_SSP:
+		mask = CE4100_SSCR1_RFT;
+		break;
 	default:
 		mask = SSCR1_RFT;
 		break;
@@ -229,6 +246,9 @@ static void pxa2xx_spi_set_rx_thre(const struct driver_data *drv_data,
 	switch (drv_data->ssp_type) {
 	case QUARK_X1000_SSP:
 		*sccr1_reg |= QUARK_X1000_SSCR1_RxTresh(threshold);
+		break;
+	case CE4100_SSP:
+		*sccr1_reg |= CE4100_SSCR1_RxTresh(threshold);
 		break;
 	default:
 		*sccr1_reg |= SSCR1_RxTresh(threshold);
@@ -589,6 +609,9 @@ static void reset_sccr1(struct driver_data *drv_data)
 	switch (drv_data->ssp_type) {
 	case QUARK_X1000_SSP:
 		sccr1_reg &= ~QUARK_X1000_SSCR1_RFT;
+		break;
+	case CE4100_SSP:
+		sccr1_reg &= ~CE4100_SSCR1_RFT;
 		break;
 	default:
 		sccr1_reg &= ~SSCR1_RFT;
@@ -1220,6 +1243,11 @@ static int setup(struct spi_device *spi)
 		tx_hi_thres = 0;
 		rx_thres = RX_THRESH_QUARK_X1000_DFLT;
 		break;
+	case CE4100_SSP:
+		tx_thres = TX_THRESH_CE4100_DFLT;
+		tx_hi_thres = 0;
+		rx_thres = RX_THRESH_CE4100_DFLT;
+		break;
 	case LPSS_LPT_SSP:
 	case LPSS_BYT_SSP:
 	case LPSS_BSW_SSP:
@@ -1303,6 +1331,10 @@ static int setup(struct spi_device *spi)
 				   & QUARK_X1000_SSCR1_RFT)
 				   | (QUARK_X1000_SSCR1_TxTresh(tx_thres)
 				   & QUARK_X1000_SSCR1_TFT);
+		break;
+	case CE4100_SSP:
+		chip->threshold = (CE4100_SSCR1_RxTresh(rx_thres) & CE4100_SSCR1_RFT) |
+			(CE4100_SSCR1_TxTresh(tx_thres) & CE4100_SSCR1_TFT);
 		break;
 	default:
 		chip->threshold = (SSCR1_RxTresh(rx_thres) & SSCR1_RFT) |
@@ -1625,15 +1657,20 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	pxa2xx_spi_write(drv_data, SSCR0, 0);
 	switch (drv_data->ssp_type) {
 	case QUARK_X1000_SSP:
-		tmp = QUARK_X1000_SSCR1_RxTresh(RX_THRESH_QUARK_X1000_DFLT)
-		      | QUARK_X1000_SSCR1_TxTresh(TX_THRESH_QUARK_X1000_DFLT);
+		tmp = QUARK_X1000_SSCR1_RxTresh(RX_THRESH_QUARK_X1000_DFLT) |
+		      QUARK_X1000_SSCR1_TxTresh(TX_THRESH_QUARK_X1000_DFLT);
 		pxa2xx_spi_write(drv_data, SSCR1, tmp);
 
 		/* using the Motorola SPI protocol and use 8 bit frame */
-		pxa2xx_spi_write(drv_data, SSCR0,
-				 QUARK_X1000_SSCR0_Motorola
-				 | QUARK_X1000_SSCR0_DataSize(8));
+		tmp = QUARK_X1000_SSCR0_Motorola | QUARK_X1000_SSCR0_DataSize(8);
+		pxa2xx_spi_write(drv_data, SSCR0, tmp);
 		break;
+	case CE4100_SSP:
+		tmp = CE4100_SSCR1_RxTresh(RX_THRESH_CE4100_DFLT) |
+		      CE4100_SSCR1_TxTresh(TX_THRESH_CE4100_DFLT);
+		pxa2xx_spi_write(drv_data, SSCR1, tmp);
+		tmp = SSCR0_SCR(2) | SSCR0_Motorola | SSCR0_DataSize(8);
+		pxa2xx_spi_write(drv_data, SSCR0, tmp);
 	default:
 		tmp = SSCR1_RxTresh(RX_THRESH_DFLT) |
 		      SSCR1_TxTresh(TX_THRESH_DFLT);
