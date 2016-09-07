@@ -705,7 +705,7 @@ static int be_mbox_notify_wait(struct be_adapter *adapter)
 	return 0;
 }
 
-static u16 be_POST_stage_get(struct be_adapter *adapter)
+u16 be_POST_stage_get(struct be_adapter *adapter)
 {
 	u32 sem;
 
@@ -4954,6 +4954,57 @@ int be_cmd_set_logical_link_config(struct be_adapter *adapter,
 							  1, domain);
 	return status;
 }
+
+int be_cmd_set_features(struct be_adapter *adapter)
+{
+	struct be_cmd_resp_set_features *resp;
+	struct be_cmd_req_set_features *req;
+	struct be_mcc_wrb *wrb;
+	int status;
+
+	if (mutex_lock_interruptible(&adapter->mcc_lock))
+		return -1;
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+
+	req = embedded_payload(wrb);
+
+	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			       OPCODE_COMMON_SET_FEATURES,
+			       sizeof(*req), wrb, NULL);
+
+	req->features = cpu_to_le32(BE_FEATURE_UE_RECOVERY);
+	req->parameter_len = cpu_to_le32(sizeof(struct be_req_ue_recovery));
+	req->parameter.req.uer = cpu_to_le32(BE_UE_RECOVERY_UER_MASK);
+
+	status = be_mcc_notify_wait(adapter);
+	if (status)
+		goto err;
+
+	resp = embedded_payload(wrb);
+
+	adapter->error_recovery.ue_to_poll_time =
+		le16_to_cpu(resp->parameter.resp.ue2rp);
+	adapter->error_recovery.ue_to_reset_time =
+		le16_to_cpu(resp->parameter.resp.ue2sr);
+	adapter->error_recovery.recovery_supported = true;
+err:
+	/* Checking "MCC_STATUS_INVALID_LENGTH" for SKH as FW
+	 * returns this error in older firmware versions
+	 */
+	if (base_status(status) == MCC_STATUS_ILLEGAL_REQUEST ||
+	    base_status(status) == MCC_STATUS_INVALID_LENGTH)
+		dev_info(&adapter->pdev->dev,
+			 "Adapter does not support HW error recovery\n");
+
+	mutex_unlock(&adapter->mcc_lock);
+	return status;
+}
+
 int be_roce_mcc_cmd(void *netdev_handle, void *wrb_payload,
 		    int wrb_payload_size, u16 *cmd_status, u16 *ext_status)
 {

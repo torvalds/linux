@@ -32,18 +32,23 @@
 #define MPU_EP_CONTROL 		0
 
 /********** MPU semphore: used for SH & BE  *************/
+#define SLIPORT_SOFTRESET_OFFSET		0x5c	/* CSR BAR offset */
 #define SLIPORT_SEMAPHORE_OFFSET_BEx		0xac  /* CSR BAR offset */
 #define SLIPORT_SEMAPHORE_OFFSET_SH		0x94  /* PCI-CFG offset */
 #define POST_STAGE_MASK				0x0000FFFF
 #define POST_ERR_MASK				0x1
 #define POST_ERR_SHIFT				31
+#define POST_ERR_RECOVERY_CODE_MASK		0xFFF
+
+/* Soft Reset register masks */
+#define SLIPORT_SOFTRESET_SR_MASK		0x00000080	/* SR bit */
 
 /* MPU semphore POST stage values */
 #define POST_STAGE_AWAITING_HOST_RDY 	0x1 /* FW awaiting goahead from host */
 #define POST_STAGE_HOST_RDY 		0x2 /* Host has given go-ahed to FW */
 #define POST_STAGE_BE_RESET		0x3 /* Host wants to reset chip */
 #define POST_STAGE_ARMFW_RDY		0xc000	/* FW is done with POST */
-
+#define POST_STAGE_RECOVERABLE_ERR	0xE000	/* Recoverable err detected */
 
 /* Lancer SLIPORT registers */
 #define SLIPORT_STATUS_OFFSET		0x404

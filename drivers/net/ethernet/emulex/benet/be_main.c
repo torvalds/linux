@@ -41,6 +41,11 @@ static ushort rx_frag_size = 2048;
 module_param(rx_frag_size, ushort, S_IRUGO);
 MODULE_PARM_DESC(rx_frag_size, "Size of a fragment that holds rcvd data.");
 
+/* Per-module error detection/recovery workq shared across all functions.
+ * Each function schedules its own work request on this shared workq.
+ */
+struct workqueue_struct *be_err_recovery_workq;
+
 static const struct pci_device_id be_dev_ids[] = {
 	{ PCI_DEVICE(BE_VENDOR_ID, BE_DEVICE_ID1) },
 	{ PCI_DEVICE(BE_VENDOR_ID, BE_DEVICE_ID2) },
@@ -3358,9 +3363,7 @@ void be_detect_error(struct be_adapter *adapter)
 		 */
 
 		if (ue_lo || ue_hi) {
-			dev_err(dev,
-				"Unrecoverable Error detected in the adapter");
-			dev_err(dev, "Please reboot server to recover");
+			dev_err(dev, "Error detected in the adapter");
 			if (skyhawk_chip(adapter))
 				be_set_error(adapter, BE_ERROR_UE);
 
@@ -3903,8 +3906,13 @@ static void be_cancel_worker(struct be_adapter *adapter)
 
 static void be_cancel_err_detection(struct be_adapter *adapter)
 {
+	struct be_error_recovery *err_rec = &adapter->error_recovery;
+
+	if (!be_err_recovery_workq)
+		return;
+
 	if (adapter->flags & BE_FLAGS_ERR_DETECTION_SCHEDULED) {
-		cancel_delayed_work_sync(&adapter->be_err_detection_work);
+		cancel_delayed_work_sync(&err_rec->err_detection_work);
 		adapter->flags &= ~BE_FLAGS_ERR_DETECTION_SCHEDULED;
 	}
 }
@@ -4503,10 +4511,25 @@ static void be_schedule_worker(struct be_adapter *adapter)
 	adapter->flags |= BE_FLAGS_WORKER_SCHEDULED;
 }
 
+static void be_destroy_err_recovery_workq(void)
+{
+	if (!be_err_recovery_workq)
+		return;
+
+	flush_workqueue(be_err_recovery_workq);
+	destroy_workqueue(be_err_recovery_workq);
+	be_err_recovery_workq = NULL;
+}
+
 static void be_schedule_err_detection(struct be_adapter *adapter, u32 delay)
 {
-	schedule_delayed_work(&adapter->be_err_detection_work,
-			      msecs_to_jiffies(delay));
+	struct be_error_recovery *err_rec = &adapter->error_recovery;
+
+	if (!be_err_recovery_workq)
+		return;
+
+	queue_delayed_work(be_err_recovery_workq, &err_rec->err_detection_work,
+			   msecs_to_jiffies(delay));
 	adapter->flags |= BE_FLAGS_ERR_DETECTION_SCHEDULED;
 }
 
@@ -4635,10 +4658,15 @@ static inline int fw_major_num(const char *fw_ver)
 	return fw_major;
 }
 
-/* If any VFs are already enabled don't FLR the PF */
+/* If it is error recovery, FLR the PF
+ * Else if any VFs are already enabled don't FLR the PF
+ */
 static bool be_reset_required(struct be_adapter *adapter)
 {
-	return pci_num_vf(adapter->pdev) ? false : true;
+	if (be_error_recovering(adapter))
+		return true;
+	else
+		return pci_num_vf(adapter->pdev) == 0;
 }
 
 /* Wait for the FW to be ready and perform the required initialization */
@@ -4650,6 +4678,9 @@ static int be_func_init(struct be_adapter *adapter)
 	if (status)
 		return status;
 
+	/* FW is now ready; clear errors to allow cmds/doorbell */
+	be_clear_error(adapter, BE_CLEAR_ALL);
+
 	if (be_reset_required(adapter)) {
 		status = be_cmd_reset_function(adapter);
 		if (status)
@@ -4657,9 +4688,6 @@ static int be_func_init(struct be_adapter *adapter)
 
 		/* Wait for interrupts to quiesce after an FLR */
 		msleep(100);
-
-		/* We can clear all errors when function reset succeeds */
-		be_clear_error(adapter, BE_CLEAR_ALL);
 	}
 
 	/* Tell FW we're ready to fire cmds */
@@ -4766,6 +4794,9 @@ static int be_setup(struct be_adapter *adapter)
 	status = be_cmd_get_phy_info(adapter);
 	if (!status && be_pause_supported(adapter))
 		adapter->phy.fc_autoneg = 1;
+
+	if (be_physfn(adapter) && !lancer_chip(adapter))
+		be_cmd_set_features(adapter);
 
 	be_schedule_worker(adapter);
 	adapter->flags |= BE_FLAGS_SETUP_DONE;
@@ -5210,13 +5241,145 @@ static int be_resume(struct be_adapter *adapter)
 	return 0;
 }
 
+static void be_soft_reset(struct be_adapter *adapter)
+{
+	u32 val;
+
+	dev_info(&adapter->pdev->dev, "Initiating chip soft reset\n");
+	val = ioread32(adapter->pcicfg + SLIPORT_SOFTRESET_OFFSET);
+	val |= SLIPORT_SOFTRESET_SR_MASK;
+	iowrite32(val, adapter->pcicfg + SLIPORT_SOFTRESET_OFFSET);
+}
+
+static bool be_err_is_recoverable(struct be_adapter *adapter)
+{
+	struct be_error_recovery *err_rec = &adapter->error_recovery;
+	unsigned long initial_idle_time =
+		msecs_to_jiffies(ERR_RECOVERY_IDLE_TIME);
+	unsigned long recovery_interval =
+		msecs_to_jiffies(ERR_RECOVERY_INTERVAL);
+	u16 ue_err_code;
+	u32 val;
+
+	val = be_POST_stage_get(adapter);
+	if ((val & POST_STAGE_RECOVERABLE_ERR) != POST_STAGE_RECOVERABLE_ERR)
+		return false;
+	ue_err_code = val & POST_ERR_RECOVERY_CODE_MASK;
+	if (ue_err_code == 0)
+		return false;
+
+	dev_err(&adapter->pdev->dev, "Recoverable HW error code: 0x%x\n",
+		ue_err_code);
+
+	if (jiffies - err_rec->probe_time <= initial_idle_time) {
+		dev_err(&adapter->pdev->dev,
+			"Cannot recover within %lu sec from driver load\n",
+			jiffies_to_msecs(initial_idle_time) / MSEC_PER_SEC);
+		return false;
+	}
+
+	if (err_rec->last_recovery_time &&
+	    (jiffies - err_rec->last_recovery_time <= recovery_interval)) {
+		dev_err(&adapter->pdev->dev,
+			"Cannot recover within %lu sec from last recovery\n",
+			jiffies_to_msecs(recovery_interval) / MSEC_PER_SEC);
+		return false;
+	}
+
+	if (ue_err_code == err_rec->last_err_code) {
+		dev_err(&adapter->pdev->dev,
+			"Cannot recover from a consecutive TPE error\n");
+		return false;
+	}
+
+	err_rec->last_recovery_time = jiffies;
+	err_rec->last_err_code = ue_err_code;
+	return true;
+}
+
+static int be_tpe_recover(struct be_adapter *adapter)
+{
+	struct be_error_recovery *err_rec = &adapter->error_recovery;
+	int status = -EAGAIN;
+	u32 val;
+
+	switch (err_rec->recovery_state) {
+	case ERR_RECOVERY_ST_NONE:
+		err_rec->recovery_state = ERR_RECOVERY_ST_DETECT;
+		err_rec->resched_delay = ERR_RECOVERY_UE_DETECT_DURATION;
+		break;
+
+	case ERR_RECOVERY_ST_DETECT:
+		val = be_POST_stage_get(adapter);
+		if ((val & POST_STAGE_RECOVERABLE_ERR) !=
+		    POST_STAGE_RECOVERABLE_ERR) {
+			dev_err(&adapter->pdev->dev,
+				"Unrecoverable HW error detected: 0x%x\n", val);
+			status = -EINVAL;
+			err_rec->resched_delay = 0;
+			break;
+		}
+
+		dev_err(&adapter->pdev->dev, "Recoverable HW error detected\n");
+
+		/* Only PF0 initiates Chip Soft Reset. But PF0 must wait UE2SR
+		 * milliseconds before it checks for final error status in
+		 * SLIPORT_SEMAPHORE to determine if recovery criteria is met.
+		 * If it does, then PF0 initiates a Soft Reset.
+		 */
+		if (adapter->pf_num == 0) {
+			err_rec->recovery_state = ERR_RECOVERY_ST_RESET;
+			err_rec->resched_delay = err_rec->ue_to_reset_time -
+					ERR_RECOVERY_UE_DETECT_DURATION;
+			break;
+		}
+
+		err_rec->recovery_state = ERR_RECOVERY_ST_PRE_POLL;
+		err_rec->resched_delay = err_rec->ue_to_poll_time -
+					ERR_RECOVERY_UE_DETECT_DURATION;
+		break;
+
+	case ERR_RECOVERY_ST_RESET:
+		if (!be_err_is_recoverable(adapter)) {
+			dev_err(&adapter->pdev->dev,
+				"Failed to meet recovery criteria\n");
+			status = -EIO;
+			err_rec->resched_delay = 0;
+			break;
+		}
+		be_soft_reset(adapter);
+		err_rec->recovery_state = ERR_RECOVERY_ST_PRE_POLL;
+		err_rec->resched_delay = err_rec->ue_to_poll_time -
+					err_rec->ue_to_reset_time;
+		break;
+
+	case ERR_RECOVERY_ST_PRE_POLL:
+		err_rec->recovery_state = ERR_RECOVERY_ST_REINIT;
+		err_rec->resched_delay = 0;
+		status = 0;			/* done */
+		break;
+
+	default:
+		status = -EINVAL;
+		err_rec->resched_delay = 0;
+		break;
+	}
+
+	return status;
+}
+
 static int be_err_recover(struct be_adapter *adapter)
 {
 	int status;
 
-	/* Error recovery is supported only Lancer as of now */
-	if (!lancer_chip(adapter))
-		return -EIO;
+	if (!lancer_chip(adapter)) {
+		if (!adapter->error_recovery.recovery_supported ||
+		    adapter->priv_flags & BE_DISABLE_TPE_RECOVERY)
+			return -EIO;
+		status = be_tpe_recover(adapter);
+		if (status)
+			goto err;
+	}
 
 	/* Wait for adapter to reach quiescent state before
 	 * destroying queues
@@ -5225,59 +5388,74 @@ static int be_err_recover(struct be_adapter *adapter)
 	if (status)
 		goto err;
 
+	adapter->flags |= BE_FLAGS_TRY_RECOVERY;
+
 	be_cleanup(adapter);
 
 	status = be_resume(adapter);
 	if (status)
 		goto err;
 
-	return 0;
+	adapter->flags &= ~BE_FLAGS_TRY_RECOVERY;
+
 err:
 	return status;
 }
 
 static void be_err_detection_task(struct work_struct *work)
 {
+	struct be_error_recovery *err_rec =
+			container_of(work, struct be_error_recovery,
+				     err_detection_work.work);
 	struct be_adapter *adapter =
-				container_of(work, struct be_adapter,
-					     be_err_detection_work.work);
+			container_of(err_rec, struct be_adapter,
+				     error_recovery);
+	u32 resched_delay = ERR_RECOVERY_DETECTION_DELAY;
 	struct device *dev = &adapter->pdev->dev;
 	int recovery_status;
-	int delay = ERR_DETECTION_DELAY;
 
 	be_detect_error(adapter);
-
-	if (be_check_error(adapter, BE_ERROR_HW))
-		recovery_status = be_err_recover(adapter);
-	else
+	if (!be_check_error(adapter, BE_ERROR_HW))
 		goto reschedule_task;
 
+	recovery_status = be_err_recover(adapter);
 	if (!recovery_status) {
-		adapter->recovery_retries = 0;
+		err_rec->recovery_retries = 0;
+		err_rec->recovery_state = ERR_RECOVERY_ST_NONE;
 		dev_info(dev, "Adapter recovery successful\n");
 		goto reschedule_task;
-	} else if (be_virtfn(adapter)) {
+	} else if (!lancer_chip(adapter) && err_rec->resched_delay) {
+		/* BEx/SH recovery state machine */
+		if (adapter->pf_num == 0 &&
+		    err_rec->recovery_state > ERR_RECOVERY_ST_DETECT)
+			dev_err(&adapter->pdev->dev,
+				"Adapter recovery in progress\n");
+		resched_delay = err_rec->resched_delay;
+		goto reschedule_task;
+	} else if (lancer_chip(adapter) && be_virtfn(adapter)) {
 		/* For VFs, check if PF have allocated resources
 		 * every second.
 		 */
 		dev_err(dev, "Re-trying adapter recovery\n");
 		goto reschedule_task;
-	} else if (adapter->recovery_retries++ <
-		   MAX_ERR_RECOVERY_RETRY_COUNT) {
+	} else if (lancer_chip(adapter) && err_rec->recovery_retries++ <
+		   ERR_RECOVERY_MAX_RETRY_COUNT) {
 		/* In case of another error during recovery, it takes 30 sec
 		 * for adapter to come out of error. Retry error recovery after
 		 * this time interval.
 		 */
 		dev_err(&adapter->pdev->dev, "Re-trying adapter recovery\n");
-		delay = ERR_RECOVERY_RETRY_DELAY;
+		resched_delay = ERR_RECOVERY_RETRY_DELAY;
 		goto reschedule_task;
 	} else {
 		dev_err(dev, "Adapter recovery failed\n");
+		dev_err(dev, "Please reboot server to recover\n");
 	}
 
 	return;
+
 reschedule_task:
-	be_schedule_err_detection(adapter, delay);
+	be_schedule_err_detection(adapter, resched_delay);
 }
 
 static void be_log_sfp_info(struct be_adapter *adapter)
@@ -5490,7 +5668,10 @@ static int be_drv_init(struct be_adapter *adapter)
 	pci_save_state(adapter->pdev);
 
 	INIT_DELAYED_WORK(&adapter->work, be_worker);
-	INIT_DELAYED_WORK(&adapter->be_err_detection_work,
+
+	adapter->error_recovery.recovery_state = ERR_RECOVERY_ST_NONE;
+	adapter->error_recovery.resched_delay = 0;
+	INIT_DELAYED_WORK(&adapter->error_recovery.err_detection_work,
 			  be_err_detection_task);
 
 	adapter->rx_fc = true;
@@ -5681,6 +5862,7 @@ static int be_probe(struct pci_dev *pdev, const struct pci_device_id *pdev_id)
 	be_roce_dev_add(adapter);
 
 	be_schedule_err_detection(adapter, ERR_DETECTION_DELAY);
+	adapter->error_recovery.probe_time = jiffies;
 
 	/* On Die temperature not supported for VF. */
 	if (be_physfn(adapter) && IS_ENABLED(CONFIG_BE2NET_HWMON)) {
@@ -5926,6 +6108,8 @@ static struct pci_driver be_driver = {
 
 static int __init be_init_module(void)
 {
+	int status;
+
 	if (rx_frag_size != 8192 && rx_frag_size != 4096 &&
 	    rx_frag_size != 2048) {
 		printk(KERN_WARNING DRV_NAME
@@ -5945,13 +6129,25 @@ static int __init be_init_module(void)
 		return -1;
 	}
 
-	return pci_register_driver(&be_driver);
+	be_err_recovery_workq =
+		create_singlethread_workqueue("be_err_recover");
+	if (!be_err_recovery_workq)
+		pr_warn(DRV_NAME "Could not create error recovery workqueue\n");
+
+	status = pci_register_driver(&be_driver);
+	if (status) {
+		destroy_workqueue(be_wq);
+		be_destroy_err_recovery_workq();
+	}
+	return status;
 }
 module_init(be_init_module);
 
 static void __exit be_exit_module(void)
 {
 	pci_unregister_driver(&be_driver);
+
+	be_destroy_err_recovery_workq();
 
 	if (be_wq)
 		destroy_workqueue(be_wq);
