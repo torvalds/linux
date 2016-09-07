@@ -214,6 +214,8 @@ struct trace_array {
 	 */
 	struct trace_buffer	max_buffer;
 	bool			allocated_snapshot;
+#endif
+#if defined(CONFIG_TRACER_MAX_TRACE) || defined(CONFIG_HWLAT_TRACER)
 	unsigned long		max_latency;
 #endif
 	struct trace_pid_list	__rcu *filtered_pids;
