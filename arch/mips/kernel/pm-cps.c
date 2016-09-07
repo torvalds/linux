@@ -76,7 +76,6 @@ static struct uasm_reloc relocs[32] __initdata;
 /* CPU dependant sync types */
 static unsigned stype_intervention;
 static unsigned stype_memory;
-static unsigned stype_ordering;
 
 enum mips_reg {
 	zero, at, v0, v1, a0, a1, a2, a3,
@@ -406,7 +405,7 @@ static void * __init cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 
 	if (coupled_coherence) {
 		/* Increment ready_count */
-		uasm_i_sync(&p, stype_ordering);
+		uasm_i_sync(&p, STYPE_SYNC_MB);
 		uasm_build_label(&l, p, lbl_incready);
 		uasm_i_ll(&p, t1, 0, r_nc_count);
 		uasm_i_addiu(&p, t2, t1, 1);
@@ -415,7 +414,7 @@ static void * __init cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 		uasm_i_addiu(&p, t1, t1, 1);
 
 		/* Barrier ensuring all CPUs see the updated r_nc_count value */
-		uasm_i_sync(&p, stype_ordering);
+		uasm_i_sync(&p, STYPE_SYNC_MB);
 
 		/*
 		 * If this is the last VPE to become ready for non-coherence
@@ -568,7 +567,7 @@ static void * __init cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 	if (coupled_coherence && (state == CPS_PM_NC_WAIT)) {
 		/* Decrement ready_count */
 		uasm_build_label(&l, p, lbl_decready);
-		uasm_i_sync(&p, stype_ordering);
+		uasm_i_sync(&p, STYPE_SYNC_MB);
 		uasm_i_ll(&p, t1, 0, r_nc_count);
 		uasm_i_addiu(&p, t2, t1, -1);
 		uasm_i_sc(&p, t2, 0, r_nc_count);
@@ -576,7 +575,7 @@ static void * __init cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 		uasm_i_andi(&p, v0, t1, (1 << fls(smp_num_siblings)) - 1);
 
 		/* Barrier ensuring all CPUs see the updated r_nc_count value */
-		uasm_i_sync(&p, stype_ordering);
+		uasm_i_sync(&p, STYPE_SYNC_MB);
 	}
 
 	if (coupled_coherence && (state == CPS_PM_CLOCK_GATED)) {
@@ -598,7 +597,7 @@ static void * __init cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 		uasm_build_label(&l, p, lbl_secondary_cont);
 
 		/* Barrier ensuring all CPUs see the updated r_nc_count value */
-		uasm_i_sync(&p, stype_ordering);
+		uasm_i_sync(&p, STYPE_SYNC_MB);
 	}
 
 	/* The core is coherent, time to return to C code */
@@ -677,7 +676,6 @@ static int __init cps_pm_init(void)
 	case CPU_I6400:
 		stype_intervention = 0x2;
 		stype_memory = 0x3;
-		stype_ordering = 0x10;
 		break;
 
 	default:
