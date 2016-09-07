@@ -720,7 +720,6 @@ static inline void rxrpc_put_connection(struct rxrpc_connection *conn)
 	}
 }
 
-
 static inline bool rxrpc_queue_conn(struct rxrpc_connection *conn)
 {
 	if (!rxrpc_get_connection_maybe(conn))
@@ -879,7 +878,7 @@ int __init rxrpc_init_security(void);
 void rxrpc_exit_security(void);
 int rxrpc_init_client_conn_security(struct rxrpc_connection *);
 int rxrpc_init_server_conn_security(struct rxrpc_connection *);
- 
+
 /*
  * sendmsg.c
  */
