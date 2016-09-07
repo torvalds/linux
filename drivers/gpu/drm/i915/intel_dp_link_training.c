@@ -112,6 +112,18 @@ intel_dp_update_link_train(struct intel_dp *intel_dp)
 	return ret == intel_dp->lane_count;
 }
 
+static bool intel_dp_link_max_vswing_reached(struct intel_dp *intel_dp)
+{
+	int lane;
+
+	for (lane = 0; lane < intel_dp->lane_count; lane++)
+		if ((intel_dp->train_set[lane] &
+		     DP_TRAIN_MAX_SWING_REACHED) == 0)
+			return false;
+
+	return true;
+}
+
 /* Enable corresponding port and start training pattern 1 */
 static void
 intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
@@ -170,10 +182,7 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 		}
 
 		/* Check to see if we've tried the max voltage */
-		for (i = 0; i < intel_dp->lane_count; i++)
-			if ((intel_dp->train_set[i] & DP_TRAIN_MAX_SWING_REACHED) == 0)
-				break;
-		if (i == intel_dp->lane_count) {
+		if (intel_dp_link_max_vswing_reached(intel_dp)) {
 			++loop_tries;
 			if (loop_tries == 5) {
 				DRM_ERROR("too many full retries, give up\n");
