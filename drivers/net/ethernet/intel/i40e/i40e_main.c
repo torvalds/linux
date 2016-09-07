@@ -1315,7 +1315,7 @@ static void i40e_rm_default_mac_filter(struct i40e_vsi *vsi, u8 *macaddr)
 	element.vlan_tag = 0;
 	/* ...and some firmware does it this way. */
 	element.flags = I40E_AQC_MACVLAN_DEL_PERFECT_MATCH |
-			I40E_AQC_MACVLAN_ADD_IGNORE_VLAN;
+			I40E_AQC_MACVLAN_DEL_IGNORE_VLAN;
 	i40e_aq_remove_macvlan(&pf->hw, vsi->seid, &element, 1, NULL);
 }
 
@@ -1908,7 +1908,7 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 			ether_addr_copy(del_list[num_del].mac_addr, f->macaddr);
 			if (f->vlan == I40E_VLAN_ANY) {
 				del_list[num_del].vlan_tag = 0;
-				cmd_flags |= I40E_AQC_MACVLAN_ADD_IGNORE_VLAN;
+				cmd_flags |= I40E_AQC_MACVLAN_DEL_IGNORE_VLAN;
 			} else {
 				del_list[num_del].vlan_tag =
 					cpu_to_le16((u16)(f->vlan));
