@@ -43,5 +43,8 @@
 	} while (0)
 
 
+#define GET_FLEXIBLE_ARRAY_MEMBER_ADDR(type, member, ptr, n)	\
+	(type *)((char *)&(ptr)->member + (sizeof(type) * (n)))
+
 #endif /* PP_DEBUG_H */
 
