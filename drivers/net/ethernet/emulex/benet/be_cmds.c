@@ -92,6 +92,11 @@ static struct be_cmd_priv_map cmd_priv_map[] = {
 		CMD_SUBSYSTEM_COMMON,
 		BE_PRIV_DEVCFG | BE_PRIV_VHADM
 	},
+	{
+		OPCODE_COMMON_GET_EXT_FAT_CAPABILITIES,
+		CMD_SUBSYSTEM_COMMON,
+		BE_PRIV_DEVCFG
+	}
 };
 
 static bool be_cmd_allowed(struct be_adapter *adapter, u8 opcode, u8 subsystem)
@@ -4127,6 +4132,10 @@ int be_cmd_get_ext_fat_capabilites(struct be_adapter *adapter,
 	struct be_cmd_req_get_ext_fat_caps *req;
 	int status;
 
+	if (!be_cmd_allowed(adapter, OPCODE_COMMON_GET_EXT_FAT_CAPABILITIES,
+			    CMD_SUBSYSTEM_COMMON))
+		return -EPERM;
+
 	if (mutex_lock_interruptible(&adapter->mbox_lock))
 		return -1;
 
@@ -4138,7 +4147,7 @@ int be_cmd_get_ext_fat_capabilites(struct be_adapter *adapter,
 
 	req = cmd->va;
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
-			       OPCODE_COMMON_GET_EXT_FAT_CAPABILITES,
+			       OPCODE_COMMON_GET_EXT_FAT_CAPABILITIES,
 			       cmd->size, wrb, cmd);
 	req->parameter_type = cpu_to_le32(1);
 
@@ -4167,7 +4176,7 @@ int be_cmd_set_ext_fat_capabilites(struct be_adapter *adapter,
 	req = cmd->va;
 	memcpy(&req->set_params, configs, sizeof(struct be_fat_conf_params));
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
-			       OPCODE_COMMON_SET_EXT_FAT_CAPABILITES,
+			       OPCODE_COMMON_SET_EXT_FAT_CAPABILITIES,
 			       cmd->size, wrb, cmd);
 
 	status = be_mcc_notify_wait(adapter);
