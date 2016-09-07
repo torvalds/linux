@@ -1832,9 +1832,7 @@ bool __i40evf_chk_linearize(struct sk_buff *skb)
 		return false;
 
 	/* We need to walk through the list and validate that each group
-	 * of 6 fragments totals at least gso_size.  However we don't need
-	 * to perform such validation on the last 6 since the last 6 cannot
-	 * inherit any data from a descriptor after them.
+	 * of 6 fragments totals at least gso_size.
 	 */
 	nr_frags -= I40E_MAX_BUFFER_TXD - 2;
 	frag = &skb_shinfo(skb)->frags[0];
@@ -1865,8 +1863,7 @@ bool __i40evf_chk_linearize(struct sk_buff *skb)
 		if (sum < 0)
 			return true;
 
-		/* use pre-decrement to avoid processing last fragment */
-		if (!--nr_frags)
+		if (!nr_frags--)
 			break;
 
 		sum -= skb_frag_size(stale++);
