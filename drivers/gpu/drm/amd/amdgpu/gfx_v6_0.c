@@ -3193,13 +3193,11 @@ static void gfx_v6_0_get_cu_info(struct amdgpu_device *adev)
 
 	memset(cu_info, 0, sizeof(*cu_info));
 
-	mutex_lock(&adev->grbm_idx_mutex);
 	for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
 		for (j = 0; j < adev->gfx.config.max_sh_per_se; j++) {
 			mask = 1;
 			ao_bitmap = 0;
 			counter = 0;
-			gfx_v6_0_select_se_sh(adev, i, j, 0xffffffff);
 			bitmap = gfx_v6_0_get_cu_active_bitmap(adev, i, j);
 			cu_info->bitmap[i][j] = bitmap;
 
@@ -3215,8 +3213,6 @@ static void gfx_v6_0_get_cu_info(struct amdgpu_device *adev)
 			ao_cu_mask |= (ao_bitmap << (i * 16 + j * 8));
 		}
 	}
-	gfx_v6_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
-	mutex_unlock(&adev->grbm_idx_mutex);
 
 	cu_info->number = active_cu_number;
 	cu_info->ao_cu_mask = ao_cu_mask;
