@@ -584,6 +584,7 @@ static int mtk_thermal_probe(struct platform_device *pdev)
 	struct resource *res;
 	const struct of_device_id *of_id;
 	u64 auxadc_phys_base, apmixed_phys_base;
+	struct thermal_zone_device *tzdev;
 
 	mt = devm_kzalloc(&pdev->dev, sizeof(*mt), GFP_KERNEL);
 	if (!mt)
@@ -666,11 +667,17 @@ static int mtk_thermal_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, mt);
 
-	devm_thermal_zone_of_sensor_register(&pdev->dev, 0, mt,
-					     &mtk_thermal_ops);
+	tzdev = devm_thermal_zone_of_sensor_register(&pdev->dev, 0, mt,
+						     &mtk_thermal_ops);
+	if (IS_ERR(tzdev)) {
+		ret = PTR_ERR(tzdev);
+		goto err_disable_clk_peri_therm;
+	}
 
 	return 0;
 
+err_disable_clk_peri_therm:
+	clk_disable_unprepare(mt->clk_peri_therm);
 err_disable_clk_auxadc:
 	clk_disable_unprepare(mt->clk_auxadc);
 
