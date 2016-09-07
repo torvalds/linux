@@ -427,6 +427,35 @@ static int sun4i_usb_phy_power_off(struct phy *_phy)
 	return 0;
 }
 
+static int sun4i_usb_phy_set_mode(struct phy *_phy, enum phy_mode mode)
+{
+	struct sun4i_usb_phy *phy = phy_get_drvdata(_phy);
+	struct sun4i_usb_phy_data *data = to_sun4i_usb_phy_data(phy);
+
+	if (phy->index != 0)
+		return -EINVAL;
+
+	switch (mode) {
+	case PHY_MODE_USB_HOST:
+		data->dr_mode = USB_DR_MODE_HOST;
+		break;
+	case PHY_MODE_USB_DEVICE:
+		data->dr_mode = USB_DR_MODE_PERIPHERAL;
+		break;
+	case PHY_MODE_USB_OTG:
+		data->dr_mode = USB_DR_MODE_OTG;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	dev_info(&_phy->dev, "Changing dr_mode to %d\n", (int)data->dr_mode);
+	data->force_session_end = true;
+	queue_delayed_work(system_wq, &data->detect, 0);
+
+	return 0;
+}
+
 void sun4i_usb_phy_set_squelch_detect(struct phy *_phy, bool enabled)
 {
 	struct sun4i_usb_phy *phy = phy_get_drvdata(_phy);
@@ -440,6 +469,7 @@ static const struct phy_ops sun4i_usb_phy_ops = {
 	.exit		= sun4i_usb_phy_exit,
 	.power_on	= sun4i_usb_phy_power_on,
 	.power_off	= sun4i_usb_phy_power_off,
+	.set_mode	= sun4i_usb_phy_set_mode,
 	.owner		= THIS_MODULE,
 };
 
