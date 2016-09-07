@@ -50,6 +50,11 @@ struct ovs_tunnel_info {
 	struct metadata_dst	*tun_dst;
 };
 
+struct vlan_head {
+	__be16 tpid; /* Vlan type. Generally 802.1q or 802.1ad.*/
+	__be16 tci;  /* 0 if no VLAN, VLAN_TAG_PRESENT set otherwise. */
+};
+
 #define OVS_SW_FLOW_KEY_METADATA_SIZE			\
 	(offsetof(struct sw_flow_key, recirc_id) +	\
 	FIELD_SIZEOF(struct sw_flow_key, recirc_id))
@@ -69,7 +74,8 @@ struct sw_flow_key {
 	struct {
 		u8     src[ETH_ALEN];	/* Ethernet source address. */
 		u8     dst[ETH_ALEN];	/* Ethernet destination address. */
-		__be16 tci;		/* 0 if no VLAN, VLAN_TAG_PRESENT set otherwise. */
+		struct vlan_head vlan;
+		struct vlan_head cvlan;
 		__be16 type;		/* Ethernet frame type. */
 	} eth;
 	union {
