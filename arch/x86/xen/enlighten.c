@@ -140,7 +140,9 @@ RESERVE_BRK(shared_info_page_brk, PAGE_SIZE);
 __read_mostly int xen_have_vector_callback;
 EXPORT_SYMBOL_GPL(xen_have_vector_callback);
 
-static struct notifier_block xen_cpu_notifier;
+static int xen_cpu_up_prepare(unsigned int cpu);
+static int xen_cpu_up_online(unsigned int cpu);
+static int xen_cpu_dead(unsigned int cpu);
 
 /*
  * Point at some empty memory to start with. We map the real shared_info
@@ -1541,6 +1543,24 @@ static void __init xen_dom0_set_legacy_features(void)
 	x86_platform.legacy.rtc = 1;
 }
 
+static int xen_cpuhp_setup(void)
+{
+	int rc;
+
+	rc = cpuhp_setup_state_nocalls(CPUHP_XEN_PREPARE,
+				       "XEN_HVM_GUEST_PREPARE",
+				       xen_cpu_up_prepare, xen_cpu_dead);
+	if (rc >= 0) {
+		rc = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+					       "XEN_HVM_GUEST_ONLINE",
+					       xen_cpu_up_online, NULL);
+		if (rc < 0)
+			cpuhp_remove_state_nocalls(CPUHP_XEN_PREPARE);
+	}
+
+	return rc >= 0 ? 0 : rc;
+}
+
 /* First C function to be called on Xen boot */
 asmlinkage __visible void __init xen_start_kernel(void)
 {
@@ -1629,7 +1649,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	xen_initial_gdt = &per_cpu(gdt_page, 0);
 
 	xen_smp_init();
-	register_cpu_notifier(&xen_cpu_notifier);
+	WARN_ON(xen_cpuhp_setup());
 
 #ifdef CONFIG_ACPI_NUMA
 	/*
@@ -1823,63 +1843,58 @@ static void __init init_hvm_pv_info(void)
 	xen_domain_type = XEN_HVM_DOMAIN;
 }
 
-static int xen_cpu_notify(struct notifier_block *self, unsigned long action,
-			 void *hcpu)
+static int xen_cpu_up_prepare(unsigned int cpu)
 {
-	int cpu = (long)hcpu;
 	int rc;
 
-	switch (action) {
-	case CPU_UP_PREPARE:
-		if (xen_hvm_domain()) {
-			/*
-			 * This can happen if CPU was offlined earlier and
-			 * offlining timed out in common_cpu_die().
-			 */
-			if (cpu_report_state(cpu) == CPU_DEAD_FROZEN) {
-				xen_smp_intr_free(cpu);
-				xen_uninit_lock_cpu(cpu);
-			}
-
-			if (cpu_acpi_id(cpu) != U32_MAX)
-				per_cpu(xen_vcpu_id, cpu) = cpu_acpi_id(cpu);
-			else
-				per_cpu(xen_vcpu_id, cpu) = cpu;
-			xen_vcpu_setup(cpu);
+	if (xen_hvm_domain()) {
+		/*
+		 * This can happen if CPU was offlined earlier and
+		 * offlining timed out in common_cpu_die().
+		 */
+		if (cpu_report_state(cpu) == CPU_DEAD_FROZEN) {
+			xen_smp_intr_free(cpu);
+			xen_uninit_lock_cpu(cpu);
 		}
 
-		if (xen_pv_domain() ||
-		    (xen_have_vector_callback &&
-		     xen_feature(XENFEAT_hvm_safe_pvclock)))
-			xen_setup_timer(cpu);
-
-		rc = xen_smp_intr_init(cpu);
-		if (rc) {
-			WARN(1, "xen_smp_intr_init() for CPU %d failed: %d\n",
-			     cpu, rc);
-			return NOTIFY_BAD;
-		}
-
-		break;
-	case CPU_ONLINE:
-		xen_init_lock_cpu(cpu);
-		break;
-	case CPU_UP_CANCELED:
-		xen_smp_intr_free(cpu);
-		if (xen_pv_domain() ||
-		    (xen_have_vector_callback &&
-		     xen_feature(XENFEAT_hvm_safe_pvclock)))
-			xen_teardown_timer(cpu);
-		break;
-	default:
-		break;
+		if (cpu_acpi_id(cpu) != U32_MAX)
+			per_cpu(xen_vcpu_id, cpu) = cpu_acpi_id(cpu);
+		else
+			per_cpu(xen_vcpu_id, cpu) = cpu;
+		xen_vcpu_setup(cpu);
 	}
-	return NOTIFY_OK;
+
+	if (xen_pv_domain() ||
+	    (xen_have_vector_callback &&
+	     xen_feature(XENFEAT_hvm_safe_pvclock)))
+		xen_setup_timer(cpu);
+
+	rc = xen_smp_intr_init(cpu);
+	if (rc) {
+		WARN(1, "xen_smp_intr_init() for CPU %d failed: %d\n",
+		     cpu, rc);
+		return rc;
+	}
+	return 0;
 }
 
-static struct notifier_block xen_cpu_notifier = {
-	.notifier_call	= xen_cpu_notify,
-};
+static int xen_cpu_dead(unsigned int cpu)
+{
+	xen_smp_intr_free(cpu);
+
+	if (xen_pv_domain() ||
+	    (xen_have_vector_callback &&
+	     xen_feature(XENFEAT_hvm_safe_pvclock)))
+		xen_teardown_timer(cpu);
+
+	return 0;
+}
+
+static int xen_cpu_up_online(unsigned int cpu)
+{
+	xen_init_lock_cpu(cpu);
+	return 0;
+}
 
 #ifdef CONFIG_KEXEC_CORE
 static void xen_hvm_shutdown(void)
@@ -1910,7 +1925,7 @@ static void __init xen_hvm_guest_init(void)
 	if (xen_feature(XENFEAT_hvm_callback_vector))
 		xen_have_vector_callback = 1;
 	xen_hvm_smp_init();
-	register_cpu_notifier(&xen_cpu_notifier);
+	WARN_ON(xen_cpuhp_setup());
 	xen_unplug_emulated_devices();
 	x86_init.irqs.intr_init = xen_init_IRQ;
 	xen_hvm_init_time_ops();
