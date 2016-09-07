@@ -300,7 +300,7 @@ static int dw_spi_transfer_one(struct spi_master *master,
 	if (transfer->speed_hz != dws->current_freq) {
 		if (transfer->speed_hz != chip->speed_hz) {
 			/* clk_div doesn't support odd number */
-			chip->clk_div = (dws->max_freq / transfer->speed_hz + 1) & 0xfffe;
+			chip->clk_div = (DIV_ROUND_UP(dws->max_freq, transfer->speed_hz) + 1) & 0xfffe;
 			chip->speed_hz = transfer->speed_hz;
 		}
 		dws->current_freq = transfer->speed_hz;
