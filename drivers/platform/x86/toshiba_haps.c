@@ -59,7 +59,7 @@ static int toshiba_haps_protection_level(acpi_handle handle, int level)
 		return -EIO;
 	}
 
-	pr_info("HDD protection level set to: %d\n", level);
+	pr_debug("HDD protection level set to: %d\n", level);
 
 	return 0;
 }
@@ -141,7 +141,7 @@ static struct attribute_group haps_attr_group = {
  */
 static void toshiba_haps_notify(struct acpi_device *device, u32 event)
 {
-	pr_info("Received event: 0x%x", event);
+	pr_debug("Received event: 0x%x", event);
 
 	acpi_bus_generate_netlink_event(device->pnp.device_class,
 					dev_name(&device->dev),
