@@ -345,6 +345,7 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 	candidate->peer		= conn->params.peer;
 	candidate->cid		= sp->hdr.cid;
 	candidate->call_id	= sp->hdr.callNumber;
+	candidate->security_ix	= sp->hdr.securityIndex;
 	candidate->rx_data_post	= 0;
 	candidate->state	= RXRPC_CALL_SERVER_ACCEPTING;
 	candidate->flags	|= (1 << RXRPC_CALL_IS_SERVICE);

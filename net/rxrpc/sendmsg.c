@@ -322,7 +322,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 			sp->hdr.serial	= atomic_inc_return(&conn->serial);
 			sp->hdr.type	= RXRPC_PACKET_TYPE_DATA;
 			sp->hdr.userStatus = 0;
-			sp->hdr.securityIndex = conn->security_ix;
+			sp->hdr.securityIndex = call->security_ix;
 			sp->hdr._rsvd	= 0;
 			sp->hdr.serviceId = call->service_id;
 

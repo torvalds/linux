@@ -198,7 +198,7 @@ static int rxrpc_fast_process_data(struct rxrpc_call *call,
 
 	/* if the packet need security things doing to it, then it goes down
 	 * the slow path */
-	if (call->conn->security_ix)
+	if (call->security_ix)
 		goto enqueue_packet;
 
 	sp->call = call;
