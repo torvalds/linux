@@ -125,12 +125,11 @@ static bool intel_dp_link_max_vswing_reached(struct intel_dp *intel_dp)
 }
 
 /* Enable corresponding port and start training pattern 1 */
-static void
+static bool
 intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 {
-	int i;
 	uint8_t voltage;
-	int voltage_tries, loop_tries;
+	int voltage_tries, max_vswing_tries;
 	uint8_t link_config[2];
 	uint8_t link_bw, rate_select;
 
@@ -146,6 +145,7 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 	if (drm_dp_enhanced_frame_cap(intel_dp->dpcd))
 		link_config[1] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
 	drm_dp_dpcd_write(&intel_dp->aux, DP_LINK_BW_SET, link_config, 2);
+
 	if (intel_dp->num_sink_rates)
 		drm_dp_dpcd_write(&intel_dp->aux, DP_LINK_RATE_SET,
 				  &rate_select, 1);
@@ -161,58 +161,54 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 				       DP_TRAINING_PATTERN_1 |
 				       DP_LINK_SCRAMBLING_DISABLE)) {
 		DRM_ERROR("failed to enable link training\n");
-		return;
+		return false;
 	}
 
-	voltage = 0xff;
-	voltage_tries = 0;
-	loop_tries = 0;
+	voltage_tries = 1;
+	max_vswing_tries = 0;
 	for (;;) {
 		uint8_t link_status[DP_LINK_STATUS_SIZE];
 
 		drm_dp_link_train_clock_recovery_delay(intel_dp->dpcd);
+
 		if (!intel_dp_get_link_status(intel_dp, link_status)) {
 			DRM_ERROR("failed to get link status\n");
-			break;
+			return false;
 		}
 
 		if (drm_dp_clock_recovery_ok(link_status, intel_dp->lane_count)) {
 			DRM_DEBUG_KMS("clock recovery OK\n");
-			break;
+			return true;
 		}
 
-		/* Check to see if we've tried the max voltage */
-		if (intel_dp_link_max_vswing_reached(intel_dp)) {
-			++loop_tries;
-			if (loop_tries == 5) {
-				DRM_ERROR("too many full retries, give up\n");
-				intel_dp_dump_link_status(link_status);
-				break;
-			}
-			intel_dp_reset_link_train(intel_dp,
-						  DP_TRAINING_PATTERN_1 |
-						  DP_LINK_SCRAMBLING_DISABLE);
-			voltage_tries = 0;
-			continue;
+		if (voltage_tries == 5) {
+			DRM_DEBUG_KMS("Same voltage tried 5 times\n");
+			return false;
 		}
 
-		/* Check to see if we've tried the same voltage 5 times */
-		if ((intel_dp->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK) == voltage) {
-			++voltage_tries;
-			if (voltage_tries == 5) {
-				DRM_ERROR("too many voltage retries, give up\n");
-				break;
-			}
-		} else
-			voltage_tries = 0;
+		if (max_vswing_tries == 1) {
+			DRM_DEBUG_KMS("Max Voltage Swing reached\n");
+			return false;
+		}
+
 		voltage = intel_dp->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK;
 
 		/* Update training set as requested by target */
 		intel_get_adjust_train(intel_dp, link_status);
 		if (!intel_dp_update_link_train(intel_dp)) {
 			DRM_ERROR("failed to update link training\n");
-			break;
+			return false;
 		}
+
+		if ((intel_dp->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK) ==
+		    voltage)
+			++voltage_tries;
+		else
+			voltage_tries = 1;
+
+		if (intel_dp_link_max_vswing_reached(intel_dp))
+			++max_vswing_tries;
+
 	}
 }
 
