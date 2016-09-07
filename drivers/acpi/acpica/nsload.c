@@ -162,7 +162,8 @@ unlock:
 	 * other ACPI implementations. Optionally, the execution can be deferred
 	 * until later, see acpi_initialize_objects.
 	 */
-	if (!acpi_gbl_group_module_level_code) {
+	if (!acpi_gbl_parse_table_as_term_list
+	    && !acpi_gbl_group_module_level_code) {
 		acpi_ns_exec_module_code_list();
 	}
 
