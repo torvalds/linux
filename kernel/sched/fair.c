@@ -464,16 +464,19 @@ static void update_min_vruntime(struct cfs_rq *cfs_rq)
 {
 	u64 vruntime = cfs_rq->min_vruntime;
 
+	if (cfs_rq->curr)
+		vruntime = cfs_rq->curr->vruntime;
+
 	if (cfs_rq->rb_leftmost) {
 		struct sched_entity *se = rb_entry(cfs_rq->rb_leftmost,
 						   struct sched_entity,
 						   run_node);
 
-		vruntime = se->vruntime;
+		if (!cfs_rq->curr)
+			vruntime = se->vruntime;
+		else
+			vruntime = min_vruntime(vruntime, se->vruntime);
 	}
-
-	if (cfs_rq->curr)
-		vruntime = min_vruntime(vruntime, cfs_rq->curr->vruntime);
 
 	/* ensure we never gain time by being placed backwards. */
 	cfs_rq->min_vruntime = max_vruntime(cfs_rq->min_vruntime, vruntime);
