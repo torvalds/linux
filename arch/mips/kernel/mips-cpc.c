@@ -52,7 +52,7 @@ static phys_addr_t mips_cpc_phys_base(void)
 int mips_cpc_probe(void)
 {
 	phys_addr_t addr;
-	unsigned cpu;
+	unsigned int cpu;
 
 	for_each_possible_cpu(cpu)
 		spin_lock_init(&per_cpu(cpc_core_lock, cpu));
@@ -70,7 +70,7 @@ int mips_cpc_probe(void)
 
 void mips_cpc_lock_other(unsigned int core)
 {
-	unsigned curr_core;
+	unsigned int curr_core;
 	preempt_disable();
 	curr_core = current_cpu_data.core;
 	spin_lock_irqsave(&per_cpu(cpc_core_lock, curr_core),
@@ -86,7 +86,7 @@ void mips_cpc_lock_other(unsigned int core)
 
 void mips_cpc_unlock_other(void)
 {
-	unsigned curr_core = current_cpu_data.core;
+	unsigned int curr_core = current_cpu_data.core;
 	spin_unlock_irqrestore(&per_cpu(cpc_core_lock, curr_core),
 			       per_cpu(cpc_core_lock_flags, curr_core));
 	preempt_enable();
