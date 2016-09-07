@@ -316,7 +316,7 @@ static int be_mac_addr_set(struct net_device *netdev, void *p)
 	/* Proceed further only if, User provided MAC is different
 	 * from active MAC
 	 */
-	if (ether_addr_equal(addr->sa_data, netdev->dev_addr))
+	if (ether_addr_equal(addr->sa_data, adapter->dev_mac))
 		return 0;
 
 	/* if device is not running, copy MAC to netdev->dev_addr */
@@ -357,6 +357,7 @@ static int be_mac_addr_set(struct net_device *netdev, void *p)
 		goto err;
 	}
 done:
+	ether_addr_copy(adapter->dev_mac, addr->sa_data);
 	ether_addr_copy(netdev->dev_addr, addr->sa_data);
 	dev_info(dev, "MAC address changed to %pM\n", addr->sa_data);
 	return 0;
@@ -1662,7 +1663,7 @@ static void be_clear_mc_list(struct be_adapter *adapter)
 static int be_uc_mac_add(struct be_adapter *adapter, int uc_idx)
 {
 	if (ether_addr_equal((u8 *)&adapter->uc_list[uc_idx * ETH_ALEN],
-			     adapter->netdev->dev_addr)) {
+			     adapter->dev_mac)) {
 		adapter->pmac_id[uc_idx + 1] = adapter->pmac_id[0];
 		return 0;
 	}
@@ -3774,6 +3775,7 @@ static int be_enable_if_filters(struct be_adapter *adapter)
 		status = be_dev_mac_add(adapter, adapter->netdev->dev_addr);
 		if (status)
 			return status;
+		ether_addr_copy(adapter->dev_mac, adapter->netdev->dev_addr);
 	}
 
 	if (adapter->vlans_added)

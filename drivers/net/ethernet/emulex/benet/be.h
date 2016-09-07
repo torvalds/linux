@@ -693,6 +693,7 @@ struct be_adapter {
 	u32 fat_dump_len;
 	u16 serial_num[CNTL_SERIAL_NUM_WORDS];
 	u8 phy_state; /* state of sfp optics (functional, faulted, etc.,) */
+	u8 dev_mac[ETH_ALEN];
 	u32 priv_flags; /* ethtool get/set_priv_flags() */
 	struct be_error_recovery error_recovery;
 };
