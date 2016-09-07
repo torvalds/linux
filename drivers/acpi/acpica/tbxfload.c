@@ -189,11 +189,11 @@ acpi_status acpi_tb_load_namespace(void)
 	memcpy(&acpi_gbl_original_dsdt_header, acpi_gbl_DSDT,
 	       sizeof(struct acpi_table_header));
 
-	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
-
 	/* Load and parse tables */
 
+	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 	status = acpi_ns_load_table(acpi_gbl_dsdt_index, acpi_gbl_root_node);
+	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status, "[DSDT] table load failed"));
 		tables_failed++;
@@ -203,7 +203,6 @@ acpi_status acpi_tb_load_namespace(void)
 
 	/* Load any SSDT or PSDT tables. Note: Loop leaves tables locked */
 
-	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 	for (i = 0; i < acpi_gbl_root_table_list.current_table_count; ++i) {
 		table = &acpi_gbl_root_table_list.tables[i];
 
@@ -221,6 +220,7 @@ acpi_status acpi_tb_load_namespace(void)
 
 		(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 		status = acpi_ns_load_table(i, acpi_gbl_root_node);
+		(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
 					"(%4.4s:%8.8s) while loading table",
@@ -236,8 +236,6 @@ acpi_status acpi_tb_load_namespace(void)
 		} else {
 			tables_loaded++;
 		}
-
-		(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 	}
 
 	if (!tables_failed) {
@@ -325,49 +323,13 @@ acpi_status acpi_load_table(struct acpi_table_header *table)
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	/* Must acquire the interpreter lock during this operation */
-
-	status = acpi_ut_acquire_mutex(ACPI_MTX_INTERPRETER);
-	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
-	}
-
 	/* Install the table and load it into the namespace */
 
 	ACPI_INFO(("Host-directed Dynamic ACPI Table Load:"));
-	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
-
-	status = acpi_tb_install_standard_table(ACPI_PTR_TO_PHYSADDR(table),
-						ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL,
-						TRUE, FALSE, &table_index);
-
-	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
-	if (ACPI_FAILURE(status)) {
-		goto unlock_and_exit;
-	}
-
-	/*
-	 * Note: Now table is "INSTALLED", it must be validated before
-	 * using.
-	 */
 	status =
-	    acpi_tb_validate_table(&acpi_gbl_root_table_list.
-				   tables[table_index]);
-	if (ACPI_FAILURE(status)) {
-		goto unlock_and_exit;
-	}
-
-	status = acpi_ns_load_table(table_index, acpi_gbl_root_node);
-
-	/* Invoke table handler if present */
-
-	if (acpi_gbl_table_handler) {
-		(void)acpi_gbl_table_handler(ACPI_TABLE_EVENT_LOAD, table,
-					     acpi_gbl_table_handler_context);
-	}
-
-unlock_and_exit:
-	(void)acpi_ut_release_mutex(ACPI_MTX_INTERPRETER);
+	    acpi_tb_install_and_load_table(table, ACPI_PTR_TO_PHYSADDR(table),
+					   ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL,
+					   FALSE, &table_index);
 	return_ACPI_STATUS(status);
 }
 

@@ -55,9 +55,7 @@ ACPI_MODULE_NAME("exconfig")
 
 /* Local prototypes */
 static acpi_status
-acpi_ex_add_table(u32 table_index,
-		  struct acpi_namespace_node *parent_node,
-		  union acpi_operand_object **ddb_handle);
+acpi_ex_add_table(u32 table_index, union acpi_operand_object **ddb_handle);
 
 static acpi_status
 acpi_ex_region_read(union acpi_operand_object *obj_desc,
@@ -79,13 +77,9 @@ acpi_ex_region_read(union acpi_operand_object *obj_desc,
  ******************************************************************************/
 
 static acpi_status
-acpi_ex_add_table(u32 table_index,
-		  struct acpi_namespace_node *parent_node,
-		  union acpi_operand_object **ddb_handle)
+acpi_ex_add_table(u32 table_index, union acpi_operand_object **ddb_handle)
 {
 	union acpi_operand_object *obj_desc;
-	acpi_status status;
-	acpi_owner_id owner_id;
 
 	ACPI_FUNCTION_TRACE(ex_add_table);
 
@@ -100,40 +94,8 @@ acpi_ex_add_table(u32 table_index,
 
 	obj_desc->common.flags |= AOPOBJ_DATA_VALID;
 	obj_desc->reference.class = ACPI_REFCLASS_TABLE;
-	*ddb_handle = obj_desc;
-
-	/* Install the new table into the local data structures */
-
 	obj_desc->reference.value = table_index;
-
-	/* Add the table to the namespace */
-
-	status = acpi_ns_load_table(table_index, parent_node);
-	if (ACPI_FAILURE(status)) {
-		acpi_ut_remove_reference(obj_desc);
-		*ddb_handle = NULL;
-		return_ACPI_STATUS(status);
-	}
-
-	/* Execute any module-level code that was found in the table */
-
-	acpi_ex_exit_interpreter();
-	if (!acpi_gbl_parse_table_as_term_list
-	    && acpi_gbl_group_module_level_code) {
-		acpi_ns_exec_module_code_list();
-	}
-	acpi_ex_enter_interpreter();
-
-	/*
-	 * Update GPEs for any new _Lxx/_Exx methods. Ignore errors. The host is
-	 * responsible for discovering any new wake GPEs by running _PRW methods
-	 * that may have been loaded by this table.
-	 */
-	status = acpi_tb_get_owner_id(table_index, &owner_id);
-	if (ACPI_SUCCESS(status)) {
-		acpi_ev_update_gpes(owner_id);
-	}
-
+	*ddb_handle = obj_desc;
 	return_ACPI_STATUS(AE_OK);
 }
 
@@ -160,16 +122,17 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 	struct acpi_namespace_node *start_node;
 	struct acpi_namespace_node *parameter_node = NULL;
 	union acpi_operand_object *ddb_handle;
-	struct acpi_table_header *table;
 	u32 table_index;
 
 	ACPI_FUNCTION_TRACE(ex_load_table_op);
 
 	/* Find the ACPI table in the RSDT/XSDT */
 
+	acpi_ex_exit_interpreter();
 	status = acpi_tb_find_table(operand[0]->string.pointer,
 				    operand[1]->string.pointer,
 				    operand[2]->string.pointer, &table_index);
+	acpi_ex_enter_interpreter();
 	if (ACPI_FAILURE(status)) {
 		if (status != AE_NOT_FOUND) {
 			return_ACPI_STATUS(status);
@@ -232,7 +195,15 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 
 	/* Load the table into the namespace */
 
-	status = acpi_ex_add_table(table_index, parent_node, &ddb_handle);
+	ACPI_INFO(("Dynamic OEM Table Load:"));
+	acpi_ex_exit_interpreter();
+	status = acpi_tb_load_table(table_index, parent_node);
+	acpi_ex_enter_interpreter();
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	status = acpi_ex_add_table(table_index, &ddb_handle);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -253,19 +224,6 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 			acpi_ut_remove_reference(ddb_handle);
 			return_ACPI_STATUS(status);
 		}
-	}
-
-	status = acpi_get_table_by_index(table_index, &table);
-	if (ACPI_SUCCESS(status)) {
-		ACPI_INFO(("Dynamic OEM Table Load:"));
-		acpi_tb_print_table_header(0, table);
-	}
-
-	/* Invoke table handler if present */
-
-	if (acpi_gbl_table_handler) {
-		(void)acpi_gbl_table_handler(ACPI_TABLE_EVENT_LOAD, table,
-					     acpi_gbl_table_handler_context);
 	}
 
 	*return_desc = ddb_handle;
@@ -478,29 +436,17 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 	/* Install the new table into the local data structures */
 
 	ACPI_INFO(("Dynamic OEM Table Load:"));
-	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
-
-	status = acpi_tb_install_standard_table(ACPI_PTR_TO_PHYSADDR(table),
-						ACPI_TABLE_ORIGIN_INTERNAL_VIRTUAL,
-						TRUE, TRUE, &table_index);
-
-	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
+	acpi_ex_exit_interpreter();
+	status =
+	    acpi_tb_install_and_load_table(table, ACPI_PTR_TO_PHYSADDR(table),
+					   ACPI_TABLE_ORIGIN_INTERNAL_VIRTUAL,
+					   TRUE, &table_index);
+	acpi_ex_enter_interpreter();
 	if (ACPI_FAILURE(status)) {
 
 		/* Delete allocated table buffer */
 
 		ACPI_FREE(table);
-		return_ACPI_STATUS(status);
-	}
-
-	/*
-	 * Note: Now table is "INSTALLED", it must be validated before
-	 * loading.
-	 */
-	status =
-	    acpi_tb_validate_table(&acpi_gbl_root_table_list.
-				   tables[table_index]);
-	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
 
@@ -511,8 +457,7 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 	 * This appears to go against the ACPI specification, but we do it for
 	 * compatibility with other ACPI implementations.
 	 */
-	status =
-	    acpi_ex_add_table(table_index, acpi_gbl_root_node, &ddb_handle);
+	status = acpi_ex_add_table(table_index, &ddb_handle);
 	if (ACPI_FAILURE(status)) {
 
 		/* On error, table_ptr was deallocated above */
@@ -535,14 +480,6 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 	/* Remove the reference by added by acpi_ex_store above */
 
 	acpi_ut_remove_reference(ddb_handle);
-
-	/* Invoke table handler if present */
-
-	if (acpi_gbl_table_handler) {
-		(void)acpi_gbl_table_handler(ACPI_TABLE_EVENT_LOAD, table,
-					     acpi_gbl_table_handler_context);
-	}
-
 	return_ACPI_STATUS(status);
 }
 
