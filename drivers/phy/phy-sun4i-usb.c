@@ -124,7 +124,6 @@ struct sun4i_usb_phy_data {
 		bool regulator_on;
 		int index;
 	} phys[MAX_PHYS];
-	int first_phy;
 	/* phy0 / otg related variables */
 	struct extcon_dev *extcon;
 	bool phy0_init;
@@ -326,7 +325,10 @@ static int sun4i_usb_phy0_get_id_det(struct sun4i_usb_phy_data *data)
 {
 	switch (data->dr_mode) {
 	case USB_DR_MODE_OTG:
-		return gpiod_get_value_cansleep(data->id_det_gpio);
+		if (data->id_det_gpio)
+			return gpiod_get_value_cansleep(data->id_det_gpio);
+		else
+			return 1; /* Fallback to peripheral mode */
 	case USB_DR_MODE_HOST:
 		return 0;
 	case USB_DR_MODE_PERIPHERAL:
@@ -539,8 +541,7 @@ static struct phy *sun4i_usb_phy_xlate(struct device *dev,
 {
 	struct sun4i_usb_phy_data *data = dev_get_drvdata(dev);
 
-	if (args->args[0] < data->first_phy ||
-	    args->args[0] >= data->cfg->num_phys)
+	if (args->args[0] >= data->cfg->num_phys)
 		return ERR_PTR(-ENODEV);
 
 	return data->phys[args->args[0]].phy;
@@ -615,33 +616,18 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 	}
 
 	data->dr_mode = of_usb_get_dr_mode_by_phy(np, 0);
-	switch (data->dr_mode) {
-	case USB_DR_MODE_OTG:
-		/* otg without id_det makes no sense, and is not supported */
-		if (!data->id_det_gpio) {
-			dev_err(dev, "usb0_id_det missing or invalid\n");
-			return -ENODEV;
-		}
-		/* fall through */
-	case USB_DR_MODE_HOST:
-	case USB_DR_MODE_PERIPHERAL:
-		data->extcon = devm_extcon_dev_allocate(dev,
-							sun4i_usb_phy0_cable);
-		if (IS_ERR(data->extcon))
-			return PTR_ERR(data->extcon);
 
-		ret = devm_extcon_dev_register(dev, data->extcon);
-		if (ret) {
-			dev_err(dev, "failed to register extcon: %d\n", ret);
-			return ret;
-		}
-		break;
-	default:
-		dev_info(dev, "dr_mode unknown, not registering usb phy0\n");
-		data->first_phy = 1;
+	data->extcon = devm_extcon_dev_allocate(dev, sun4i_usb_phy0_cable);
+	if (IS_ERR(data->extcon))
+		return PTR_ERR(data->extcon);
+
+	ret = devm_extcon_dev_register(dev, data->extcon);
+	if (ret) {
+		dev_err(dev, "failed to register extcon: %d\n", ret);
+		return ret;
 	}
 
-	for (i = data->first_phy; i < data->cfg->num_phys; i++) {
+	for (i = 0; i < data->cfg->num_phys; i++) {
 		struct sun4i_usb_phy *phy = data->phys + i;
 		char name[16];
 
