@@ -127,7 +127,6 @@ stop:
 		goto done;
 
 	rhashtable_walk_exit(hti);
-	cb->args[2] = 0;
 	num++;
 
 mc_list:
