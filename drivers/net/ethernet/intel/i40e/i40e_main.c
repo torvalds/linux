@@ -5939,13 +5939,17 @@ void i40e_fdir_check_and_reenable(struct i40e_pf *pf)
 				dev_info(&pf->pdev->dev, "FD Sideband/ntuple is being enabled since we have space in the table now\n");
 		}
 	}
-	/* Wait for some more space to be available to turn on ATR */
+
+	/* Wait for some more space to be available to turn on ATR. We also
+	 * must check that no existing ntuple rules for TCP are in effect
+	 */
 	if (fcnt_prog < (fcnt_avail - I40E_FDIR_BUFFER_HEAD_ROOM * 2)) {
 		if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
-		    (pf->auto_disable_flags & I40E_FLAG_FD_ATR_ENABLED)) {
+		    (pf->auto_disable_flags & I40E_FLAG_FD_ATR_ENABLED) &&
+		    (pf->fd_tcp_rule == 0)) {
 			pf->auto_disable_flags &= ~I40E_FLAG_FD_ATR_ENABLED;
 			if (I40E_DEBUG_FD & pf->hw.debug_mask)
-				dev_info(&pf->pdev->dev, "ATR is being enabled since we have space in the table now\n");
+				dev_info(&pf->pdev->dev, "ATR is being enabled since we have space in the table and there are no conflicting ntuple rules\n");
 		}
 	}
 
