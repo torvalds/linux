@@ -68,7 +68,7 @@
 void sa1111_pcmcia_socket_state(struct soc_pcmcia_socket *skt, struct pcmcia_state *state)
 {
 	struct sa1111_pcmcia_socket *s = to_skt(skt);
-	unsigned long status = sa1111_readl(s->dev->mapbase + PCSR);
+	u32 status = readl_relaxed(s->dev->mapbase + PCSR);
 
 	switch (skt->nr) {
 	case 0:
@@ -96,7 +96,7 @@ void sa1111_pcmcia_socket_state(struct soc_pcmcia_socket *skt, struct pcmcia_sta
 int sa1111_pcmcia_configure_socket(struct soc_pcmcia_socket *skt, const socket_state_t *state)
 {
 	struct sa1111_pcmcia_socket *s = to_skt(skt);
-	unsigned int pccr_skt_mask, pccr_set_mask, val;
+	u32 pccr_skt_mask, pccr_set_mask, val;
 	unsigned long flags;
 
 	switch (skt->nr) {
@@ -124,10 +124,10 @@ int sa1111_pcmcia_configure_socket(struct soc_pcmcia_socket *skt, const socket_s
 		pccr_set_mask |= PCCR_S0_FLT|PCCR_S1_FLT;
 
 	local_irq_save(flags);
-	val = sa1111_readl(s->dev->mapbase + PCCR);
+	val = readl_relaxed(s->dev->mapbase + PCCR);
 	val &= ~pccr_skt_mask;
 	val |= pccr_set_mask & pccr_skt_mask;
-	sa1111_writel(val, s->dev->mapbase + PCCR);
+	writel_relaxed(val, s->dev->mapbase + PCCR);
 	local_irq_restore(flags);
 
 	return 0;
@@ -208,8 +208,8 @@ static int pcmcia_probe(struct sa1111_dev *dev)
 	/*
 	 * Initialise the suspend state.
 	 */
-	sa1111_writel(PCSSR_S0_SLEEP | PCSSR_S1_SLEEP, base + PCSSR);
-	sa1111_writel(PCCR_S0_FLT | PCCR_S1_FLT, base + PCCR);
+	writel_relaxed(PCSSR_S0_SLEEP | PCSSR_S1_SLEEP, base + PCSSR);
+	writel_relaxed(PCCR_S0_FLT | PCCR_S1_FLT, base + PCCR);
 
 	ret = -ENODEV;
 #ifdef CONFIG_SA1100_BADGE4
