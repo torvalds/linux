@@ -939,7 +939,7 @@ unsigned long gic_get_sgir_physaddr(void)
 	return gic_dist_physaddr + GIC_DIST_SOFTINT;
 }
 
-void __init gic_init_physaddr(struct device_node *node)
+static void __init gic_init_physaddr(struct device_node *node)
 {
 	struct resource res;
 	if (of_address_to_resource(node, 0, &res) == 0) {
