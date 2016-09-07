@@ -192,9 +192,11 @@ void mips_smp_send_ipi_mask(const struct cpumask *mask, unsigned int action)
 				continue;
 
 			while (!cpumask_test_cpu(cpu, &cpu_coherent_mask)) {
+				mips_cm_lock_other(core, 0);
 				mips_cpc_lock_other(core);
 				write_cpc_co_cmd(CPC_Cx_CMD_PWRUP);
 				mips_cpc_unlock_other();
+				mips_cm_unlock_other();
 			}
 		}
 	}
