@@ -74,8 +74,14 @@ static int simplefb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	return 0;
 }
 
+struct simplefb_par;
+static void simplefb_clocks_destroy(struct simplefb_par *par);
+static void simplefb_regulators_destroy(struct simplefb_par *par);
+
 static void simplefb_destroy(struct fb_info *info)
 {
+	simplefb_regulators_destroy(info->par);
+	simplefb_clocks_destroy(info->par);
 	if (info->screen_base)
 		iounmap(info->screen_base);
 }
@@ -487,11 +493,8 @@ error_fb_release:
 static int simplefb_remove(struct platform_device *pdev)
 {
 	struct fb_info *info = platform_get_drvdata(pdev);
-	struct simplefb_par *par = info->par;
 
 	unregister_framebuffer(info);
-	simplefb_regulators_destroy(par);
-	simplefb_clocks_destroy(par);
 	framebuffer_release(info);
 
 	return 0;
