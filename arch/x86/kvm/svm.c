@@ -1119,13 +1119,6 @@ static void init_sys_seg(struct vmcb_seg *seg, uint32_t type)
 	seg->base = 0;
 }
 
-static u64 svm_read_tsc_offset(struct kvm_vcpu *vcpu)
-{
-	struct vcpu_svm *svm = to_svm(vcpu);
-
-	return svm->vmcb->control.tsc_offset;
-}
-
 static void svm_write_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -5427,7 +5420,6 @@ static struct kvm_x86_ops svm_x86_ops = {
 
 	.has_wbinvd_exit = svm_has_wbinvd_exit,
 
-	.read_tsc_offset = svm_read_tsc_offset,
 	.write_tsc_offset = svm_write_tsc_offset,
 	.adjust_tsc_offset_guest = svm_adjust_tsc_offset_guest,
 	.read_l1_tsc = svm_read_l1_tsc,

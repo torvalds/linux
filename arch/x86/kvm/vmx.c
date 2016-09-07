@@ -2609,11 +2609,6 @@ static u64 vmx_read_l1_tsc(struct kvm_vcpu *vcpu, u64 host_tsc)
 	return host_tsc + tsc_offset;
 }
 
-static u64 vmx_read_tsc_offset(struct kvm_vcpu *vcpu)
-{
-	return vmcs_read64(TSC_OFFSET);
-}
-
 /*
  * writes 'offset' into guest's timestamp counter offset register
  */
@@ -11286,7 +11281,6 @@ static struct kvm_x86_ops vmx_x86_ops = {
 
 	.has_wbinvd_exit = cpu_has_vmx_wbinvd_exit,
 
-	.read_tsc_offset = vmx_read_tsc_offset,
 	.write_tsc_offset = vmx_write_tsc_offset,
 	.adjust_tsc_offset_guest = vmx_adjust_tsc_offset_guest,
 	.read_l1_tsc = vmx_read_l1_tsc,
