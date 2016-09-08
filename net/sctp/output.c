@@ -878,7 +878,7 @@ static sctp_xmit_t sctp_packet_will_fit(struct sctp_packet *packet,
 					struct sctp_chunk *chunk,
 					u16 chunk_len)
 {
-	size_t psize, pmtu;
+	size_t psize, pmtu, maxsize;
 	sctp_xmit_t retval = SCTP_XMIT_OK;
 
 	psize = packet->size;
@@ -905,6 +905,17 @@ static sctp_xmit_t sctp_packet_will_fit(struct sctp_packet *packet,
 			packet->ipfragok = 1;
 			goto out;
 		}
+
+		/* Similarly, if this chunk was built before a PMTU
+		 * reduction, we have to fragment it at IP level now. So
+		 * if the packet already contains something, we need to
+		 * flush.
+		 */
+		maxsize = pmtu - packet->overhead;
+		if (packet->auth)
+			maxsize -= WORD_ROUND(packet->auth->skb->len);
+		if (chunk_len > maxsize)
+			retval = SCTP_XMIT_PMTU_FULL;
 
 		/* It is also okay to fragment if the chunk we are
 		 * adding is a control chunk, but only if current packet
