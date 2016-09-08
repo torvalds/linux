@@ -100,8 +100,8 @@ static inline void gbphy_runtime_put_noidle(struct gbphy_device *gbphy_dev)
 	pm_runtime_put_noidle(&gbphy_dev->dev);
 }
 #else
-static inline int gbphy_runtime_get_sync(struct device *dev) { return 0; }
-static inline void gbphy_runtime_put_autosuspend(struct device *dev) {}
+static inline int gbphy_runtime_get_sync(struct gbphy_device *gbphy_dev) { return 0; }
+static inline void gbphy_runtime_put_autosuspend(struct gbphy_device *gbphy_dev) {}
 static inline void gbphy_runtime_get_noresume(struct gbphy_device *gbphy_dev) {}
 static inline void gbphy_runtime_put_noidle(struct gbphy_device *gbphy_dev) {}
 #endif
