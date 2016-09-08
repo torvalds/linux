@@ -13,6 +13,12 @@
 #define ONE_DUAL	1
 #define DUAL		2
 #define DUAL_LCD	3
+
+#define DEFAULT_MODE			0
+#define ONE_VOP_DUAL_MIPI_HOR_SCAN	1
+#define ONE_VOP_DUAL_MIPI_VER_SCAN	2
+#define TWO_VOP_TWO_SCREEN		3
+
 /********************************************************************
 **          display output interface supported by rockchip	   **
 ********************************************************************/

@@ -1194,6 +1194,17 @@ static ssize_t show_lcdc_id(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", dev_drv->id);
 }
 
+static ssize_t show_dsp_mode(struct device *dev,
+			    struct device_attribute *attr,
+			    char *buf)
+{
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct rk_fb_par *fb_par = (struct rk_fb_par *)fbi->par;
+	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", dev_drv->dsp_mode);
+}
+
 static ssize_t show_win_property(struct device *dev,
 			    struct device_attribute *attr,
 			    char *buf)
@@ -1250,6 +1261,7 @@ static struct device_attribute rkfb_attrs[] = {
 	__ATTR(lcdcid, S_IRUGO, show_lcdc_id, NULL),
 	__ATTR(win_property, S_IRUGO, show_win_property, NULL),
 	__ATTR(car_reverse, S_IWUSR, NULL, set_car_reverse),
+	__ATTR(dsp_mode, S_IRUGO, show_dsp_mode, NULL),
 };
 
 int rkfb_create_sysfs(struct fb_info *fbi)
