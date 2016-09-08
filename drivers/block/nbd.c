@@ -41,8 +41,12 @@
 
 #include <linux/nbd.h>
 
+#define NBD_TIMEDOUT			0
+#define NBD_DISCONNECT_REQUESTED	1
+
 struct nbd_device {
 	u32 flags;
+	unsigned long runtime_flags;
 	struct socket * sock;	/* If == NULL, device is not ready, yet	*/
 	int magic;
 
@@ -54,8 +58,6 @@ struct nbd_device {
 	int blksize;
 	loff_t bytesize;
 	int xmit_timeout;
-	bool timedout;
-	bool disconnect; /* a disconnect has been requested by user */
 
 	struct timer_list timeout_timer;
 	/* protects initialization and shutdown of the socket */
@@ -192,7 +194,7 @@ static void nbd_xmit_timeout(unsigned long arg)
 
 	spin_lock_irqsave(&nbd->sock_lock, flags);
 
-	nbd->timedout = true;
+	set_bit(NBD_TIMEDOUT, &nbd->runtime_flags);
 
 	if (nbd->sock) {
 		sock = nbd->sock;
@@ -562,8 +564,7 @@ out:
 /* Reset all properties of an NBD device */
 static void nbd_reset(struct nbd_device *nbd)
 {
-	nbd->disconnect = false;
-	nbd->timedout = false;
+	nbd->runtime_flags = 0;
 	nbd->blksize = 1024;
 	nbd->bytesize = 0;
 	set_capacity(nbd->disk, 0);
@@ -626,7 +627,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 			return -EINVAL;
 		}
 
-		nbd->disconnect = true;
+		set_bit(NBD_DISCONNECT_REQUESTED, &nbd->runtime_flags);
 
 		nbd_send_cmd(nbd, blk_mq_rq_to_pdu(sreq));
 		blk_mq_free_request(sreq);
@@ -706,9 +707,10 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 		kill_bdev(bdev);
 		nbd_bdev_reset(bdev);
 
-		if (nbd->disconnect) /* user requested, ignore socket errors */
+		/* user requested, ignore socket errors */
+		if (test_bit(NBD_DISCONNECT_REQUESTED, &nbd->runtime_flags))
 			error = 0;
-		if (nbd->timedout)
+		if (test_bit(NBD_TIMEDOUT, &nbd->runtime_flags))
 			error = -ETIMEDOUT;
 
 		nbd_reset(nbd);
