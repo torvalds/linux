@@ -198,29 +198,23 @@ static void hv_set_host_time(struct work_struct *work)
  * ICTIMESYNCFLAG_SYNC flag bit indicates reboot, restore events of the VM.
  * After reboot the flag ICTIMESYNCFLAG_SYNC is included in the first time
  * message after the timesync channel is opened. Since the hv_utils module is
- * loaded after hv_vmbus, the first message is usually missed. The other
- * thing is, systime is automatically set to emulated hardware clock which may
- * not be UTC time or in the same time zone. So, to override these effects, we
- * use the first 50 time samples for initial system time setting.
+ * loaded after hv_vmbus, the first message is usually missed. This bit is
+ * considered a hard request to discipline the clock.
+ *
+ * ICTIMESYNCFLAG_SAMPLE bit indicates a time sample from host. This is
+ * typically used as a hint to the guest. The guest is under no obligation
+ * to discipline the clock.
  */
 static inline void adj_guesttime(u64 hosttime, u8 flags)
 {
 	struct adj_time_work    *wrk;
-	static s32 scnt = 50;
 
 	wrk = kmalloc(sizeof(struct adj_time_work), GFP_ATOMIC);
 	if (wrk == NULL)
 		return;
 
 	wrk->host_time = hosttime;
-	if ((flags & ICTIMESYNCFLAG_SYNC) != 0) {
-		INIT_WORK(&wrk->work, hv_set_host_time);
-		schedule_work(&wrk->work);
-		return;
-	}
-
-	if ((flags & ICTIMESYNCFLAG_SAMPLE) != 0 && scnt > 0) {
-		scnt--;
+	if ((flags & (ICTIMESYNCFLAG_SYNC | ICTIMESYNCFLAG_SAMPLE)) != 0) {
 		INIT_WORK(&wrk->work, hv_set_host_time);
 		schedule_work(&wrk->work);
 	} else
