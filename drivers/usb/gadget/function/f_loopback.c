@@ -591,13 +591,9 @@ DECLARE_USB_FUNCTION(Loopback, loopback_alloc_instance, loopback_alloc);
 
 int __init lb_modinit(void)
 {
-	int ret;
-
-	ret = usb_function_register(&Loopbackusb_func);
-	if (ret)
-		return ret;
-	return ret;
+	return usb_function_register(&Loopbackusb_func);
 }
+
 void __exit lb_modexit(void)
 {
 	usb_function_unregister(&Loopbackusb_func);
