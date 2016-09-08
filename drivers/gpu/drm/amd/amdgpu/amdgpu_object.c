@@ -287,6 +287,35 @@ error_free:
 	return r;
 }
 
+/**
+ * amdgpu_bo_free_kernel - free BO for kernel use
+ *
+ * @bo: amdgpu BO to free
+ *
+ * unmaps and unpin a BO for kernel internal use.
+ */
+void amdgpu_bo_free_kernel(struct amdgpu_bo **bo, u64 *gpu_addr,
+			   void **cpu_addr)
+{
+	if (*bo == NULL)
+		return;
+
+	if (likely(amdgpu_bo_reserve(*bo, false) == 0)) {
+		if (cpu_addr)
+			amdgpu_bo_kunmap(*bo);
+
+		amdgpu_bo_unpin(*bo);
+		amdgpu_bo_unreserve(*bo);
+	}
+	amdgpu_bo_unref(bo);
+
+	if (gpu_addr)
+		*gpu_addr = 0;
+
+	if (cpu_addr)
+		*cpu_addr = NULL;
+}
+
 int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 				unsigned long size, int byte_align,
 				bool kernel, u32 domain, u64 flags,
