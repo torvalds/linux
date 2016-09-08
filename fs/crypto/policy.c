@@ -95,6 +95,9 @@ static int create_encryption_context_from_policy(struct inode *inode,
 int fscrypt_process_policy(struct inode *inode,
 				const struct fscrypt_policy *policy)
 {
+	if (!inode_owner_or_capable(inode))
+		return -EACCES;
+
 	if (policy->version != 0)
 		return -EINVAL;
 
