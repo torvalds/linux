@@ -350,8 +350,7 @@ static int add_td_to_list(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq,
 	if (node == NULL)
 		return -ENOMEM;
 
-	node->ptr = dma_pool_zalloc(hwep->td_pool, GFP_ATOMIC,
-				   &node->dma);
+	node->ptr = dma_pool_zalloc(hwep->td_pool, GFP_ATOMIC, &node->dma);
 	if (node->ptr == NULL) {
 		kfree(node);
 		return -ENOMEM;
