@@ -88,7 +88,7 @@ module_param_named(log_level, log_level, uint, 0);
 MODULE_PARM_DESC(log_level, "Set to 0 - 4 for increasing verbosity of device driver. "
 		 "[Default=" __stringify(IBMVFC_DEFAULT_LOG_LEVEL) "]");
 module_param_named(cls3_error, cls3_error, uint, 0);
-MODULE_PARM_DESC(log_level, "Enable FC Class 3 Error Recovery. "
+MODULE_PARM_DESC(cls3_error, "Enable FC Class 3 Error Recovery. "
 		 "[Default=" __stringify(IBMVFC_CLS3_ERROR) "]");
 
 static const struct {
