@@ -115,7 +115,7 @@ static void rockchip_gem_put_pages(struct rockchip_gem_object *rk_obj)
 {
 	sg_free_table(rk_obj->sgt);
 	kfree(rk_obj->sgt);
-	drm_gem_put_pages(&rk_obj->base, rk_obj->pages, false, false);
+	drm_gem_put_pages(&rk_obj->base, rk_obj->pages, true, true);
 }
 
 static int rockchip_gem_alloc_iommu(struct rockchip_gem_object *rk_obj,
