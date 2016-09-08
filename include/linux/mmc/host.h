@@ -380,8 +380,10 @@ struct mmc_host {
 	} embedded_sdio_data;
 #endif
 
+#ifdef CONFIG_BLOCK
 	int			latency_hist_enabled;
 	struct io_latency_state io_lat_s;
+#endif
 
 	unsigned long		private[0] ____cacheline_aligned;
 };
