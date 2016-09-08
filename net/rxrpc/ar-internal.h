@@ -155,7 +155,8 @@ struct rxrpc_security {
 			     void *);
 
 	/* verify the security on a received packet */
-	int (*verify_packet)(struct rxrpc_call *, struct sk_buff *, u32 *);
+	int (*verify_packet)(struct rxrpc_call *, struct sk_buff *,
+			     rxrpc_seq_t, u16);
 
 	/* issue a challenge */
 	int (*issue_challenge)(struct rxrpc_connection *);
@@ -608,7 +609,7 @@ static inline bool rxrpc_set_call_completion(struct rxrpc_call *call,
 					     u32 abort_code,
 					     int error)
 {
-	int ret;
+	bool ret;
 
 	write_lock_bh(&call->state_lock);
 	ret = __rxrpc_set_call_completion(call, compl, abort_code, error);
@@ -619,24 +620,30 @@ static inline bool rxrpc_set_call_completion(struct rxrpc_call *call,
 /*
  * Record that a call successfully completed.
  */
-static inline void __rxrpc_call_completed(struct rxrpc_call *call)
+static inline bool __rxrpc_call_completed(struct rxrpc_call *call)
 {
-	__rxrpc_set_call_completion(call, RXRPC_CALL_SUCCEEDED, 0, 0);
+	return __rxrpc_set_call_completion(call, RXRPC_CALL_SUCCEEDED, 0, 0);
 }
 
-static inline void rxrpc_call_completed(struct rxrpc_call *call)
+static inline bool rxrpc_call_completed(struct rxrpc_call *call)
 {
+	bool ret;
+
 	write_lock_bh(&call->state_lock);
-	__rxrpc_call_completed(call);
+	ret = __rxrpc_call_completed(call);
 	write_unlock_bh(&call->state_lock);
+	return ret;
 }
 
 /*
  * Record that a call is locally aborted.
  */
-static inline bool __rxrpc_abort_call(struct rxrpc_call *call,
+static inline bool __rxrpc_abort_call(const char *why, struct rxrpc_call *call,
+				      rxrpc_seq_t seq,
 				      u32 abort_code, int error)
 {
+	trace_rxrpc_abort(why, call->cid, call->call_id, seq,
+			  abort_code, error);
 	if (__rxrpc_set_call_completion(call,
 					RXRPC_CALL_LOCALLY_ABORTED,
 					abort_code, error)) {
@@ -646,13 +653,13 @@ static inline bool __rxrpc_abort_call(struct rxrpc_call *call,
 	return false;
 }
 
-static inline bool rxrpc_abort_call(struct rxrpc_call *call,
-				    u32 abort_code, int error)
+static inline bool rxrpc_abort_call(const char *why, struct rxrpc_call *call,
+				    rxrpc_seq_t seq, u32 abort_code, int error)
 {
 	bool ret;
 
 	write_lock_bh(&call->state_lock);
-	ret = __rxrpc_abort_call(call, abort_code, error);
+	ret = __rxrpc_abort_call(why, call, seq, abort_code, error);
 	write_unlock_bh(&call->state_lock);
 	return ret;
 }

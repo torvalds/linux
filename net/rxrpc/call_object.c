@@ -563,7 +563,7 @@ void rxrpc_release_call(struct rxrpc_sock *rx, struct rxrpc_call *call)
 
 		if (call->state < RXRPC_CALL_COMPLETE) {
 			_debug("+++ ABORTING STATE %d +++\n", call->state);
-			__rxrpc_abort_call(call, RX_CALL_DEAD, ECONNRESET);
+			__rxrpc_abort_call("SKT", call, 0, RX_CALL_DEAD, ECONNRESET);
 			clear_bit(RXRPC_CALL_EV_ACK_FINAL, &call->events);
 			rxrpc_send_call_packet(call, RXRPC_PACKET_TYPE_ABORT);
 		}

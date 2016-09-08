@@ -454,14 +454,15 @@ static int rxrpc_sendmsg_cmsg(struct msghdr *msg,
 /*
  * abort a call, sending an ABORT packet to the peer
  */
-static void rxrpc_send_abort(struct rxrpc_call *call, u32 abort_code)
+static void rxrpc_send_abort(struct rxrpc_call *call, const char *why,
+			     u32 abort_code, int error)
 {
 	if (call->state >= RXRPC_CALL_COMPLETE)
 		return;
 
 	write_lock_bh(&call->state_lock);
 
-	if (__rxrpc_abort_call(call, abort_code, ECONNABORTED)) {
+	if (__rxrpc_abort_call(why, call, 0, abort_code, error)) {
 		del_timer_sync(&call->resend_timer);
 		del_timer_sync(&call->ack_timer);
 		clear_bit(RXRPC_CALL_EV_RESEND_TIMER, &call->events);
@@ -556,7 +557,7 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 		/* it's too late for this call */
 		ret = -ESHUTDOWN;
 	} else if (cmd == RXRPC_CMD_SEND_ABORT) {
-		rxrpc_send_abort(call, abort_code);
+		rxrpc_send_abort(call, "CMD", abort_code, ECONNABORTED);
 		ret = 0;
 	} else if (cmd != RXRPC_CMD_SEND_DATA) {
 		ret = -EINVAL;
@@ -626,20 +627,19 @@ EXPORT_SYMBOL(rxrpc_kernel_send_data);
  * @sock: The socket the call is on
  * @call: The call to be aborted
  * @abort_code: The abort code to stick into the ABORT packet
+ * @error: Local error value
+ * @why: 3-char string indicating why.
  *
  * Allow a kernel service to abort a call, if it's still in an abortable state.
  */
 void rxrpc_kernel_abort_call(struct socket *sock, struct rxrpc_call *call,
-			     u32 abort_code)
+			     u32 abort_code, int error, const char *why)
 {
-	_enter("{%d},%d", call->debug_id, abort_code);
+	_enter("{%d},%d,%d,%s", call->debug_id, abort_code, error, why);
 
 	lock_sock(sock->sk);
 
-	_debug("CALL %d USR %lx ST %d on CONN %p",
-	       call->debug_id, call->user_call_ID, call->state, call->conn);
-
-	rxrpc_send_abort(call, abort_code);
+	rxrpc_send_abort(call, why, abort_code, error);
 
 	release_sock(sock->sk);
 	_leave("");

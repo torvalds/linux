@@ -598,7 +598,8 @@ process_further:
 
 		/* secured packets must be verified and possibly decrypted */
 		if (call->conn->security->verify_packet(call, skb,
-							_abort_code) < 0)
+							sp->hdr.seq,
+							sp->hdr.cksum) < 0)
 			goto protocol_error;
 
 		rxrpc_insert_oos_packet(call, skb);
@@ -982,7 +983,7 @@ skip_msg_init:
 	}
 
 	if (test_bit(RXRPC_CALL_EV_LIFE_TIMER, &call->events)) {
-		rxrpc_abort_call(call, RX_CALL_TIMEOUT, ETIME);
+		rxrpc_abort_call("EXP", call, 0, RX_CALL_TIMEOUT, ETIME);
 
 		_debug("post timeout");
 		if (rxrpc_post_message(call, RXRPC_SKB_MARK_LOCAL_ERROR,
@@ -1005,7 +1006,7 @@ skip_msg_init:
 		case -EKEYEXPIRED:
 		case -EKEYREJECTED:
 		case -EPROTO:
-			rxrpc_abort_call(call, abort_code, -ret);
+			rxrpc_abort_call("PRO", call, 0, abort_code, -ret);
 			goto kill_ACKs;
 		}
 	}
