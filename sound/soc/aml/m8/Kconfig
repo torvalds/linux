@@ -13,6 +13,11 @@ config SND_ODROID_HIFI1
 	depends on SND_AML_M8_SOC && MACH_MESON8B_ODROIDC
 	select SND_SOC_PCM5102
 
+config SND_ODROID_HIFI2
+	tristate "ODROID HiFi-Shield2(pcm5242) Support"
+	depends on SND_AML_M8_SOC && MACH_MESON8B_ODROIDC
+	select SND_SOC_PCM512X
+
 config SND_AML_M8_PCM
 	tristate "M8 evaluation board with PCM2BT"
 	depends on SND_AML_M8_SOC

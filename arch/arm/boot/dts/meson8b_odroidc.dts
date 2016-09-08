@@ -510,6 +510,14 @@
         status = "okay";
     };
 
+    odroid_hifi2{
+        compatible = "sound_card, odroid_dac2";
+        aml,sound_card = "ODROID-DAC2";
+        pinctrl-names = "odroid_i2s";
+        pinctrl-0 = <&audio_pins>;
+        status = "okay";
+    };
+
         saradc{
                 compatible = "amlogic,saradc";
                 status = "okay";
