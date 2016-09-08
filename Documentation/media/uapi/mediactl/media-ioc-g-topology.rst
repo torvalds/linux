@@ -234,7 +234,7 @@ desired arrays with the media graph elements.
        -  ``devnode``
 
        -  Used only for device node interfaces. See
-	  :ref:`media-v2-intf-devnode` for details..
+	  :c:type:`media_v2_intf_devnode` for details..
 
 
 .. tabularcolumns:: |p{1.6cm}|p{3.2cm}|p{12.7cm}|
