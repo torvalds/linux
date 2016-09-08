@@ -30,14 +30,14 @@ aliases ``O_NONCAP`` and ``O_NOIO`` were defined. Applications can set
 this flag if they intend to access controls only, as opposed to capture
 applications which need exclusive access. The ``VIDEO_STD_XXX``
 identifiers are now ordinals instead of flags, and the
-:c:func:`video_std_construct()` helper function takes id and
+``video_std_construct()`` helper function takes id and
 transmission arguments.
 
 1998-09-28: Revamped video standard. Made video controls individually
 enumerable.
 
 1998-10-02: The ``id`` field was removed from struct
-struct :c:type:`video_standard` and the color subcarrier fields were
+struct ``video_standard`` and the color subcarrier fields were
 renamed. The :ref:`VIDIOC_QUERYSTD` ioctl was
 renamed to :ref:`VIDIOC_ENUMSTD`,
 :ref:`VIDIOC_G_INPUT <VIDIOC_G_INPUT>` to
@@ -254,7 +254,7 @@ multiple tuners into account.)
 2000-09-18: ``V4L2_BUF_TYPE_VBI`` was added. This may *break
 compatibility* as the :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` and
 :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctls may fail now if the struct
-struct :c:type:`v4l2_fmt` ``type`` field does not contain
+struct ``v4l2_fmt`` ``type`` field does not contain
 ``V4L2_BUF_TYPE_VBI``. In the documentation of the struct
 :c:type:`v4l2_vbi_format` ``offset`` field the
 ambiguous phrase "rising edge" was changed to "leading edge".
@@ -415,7 +415,7 @@ This unnamed version was finally merged into Linux 2.5.46.
     originally needed to distguish between variations of standards, were
     removed.
 
-    Struct struct :c:type:`v4l2_enumstd` ceased to be.
+    Struct ``v4l2_enumstd`` ceased to be.
     :ref:`VIDIOC_ENUMSTD` now takes a pointer to a
     struct :c:type:`v4l2_standard` directly. The
     information which standards are supported by a particular video
@@ -671,11 +671,11 @@ This unnamed version was finally merged into Linux 2.5.46.
     distinguish between field and frame (interlaced) overlay.
 
 17. The digital zoom interface, including struct
-    struct :c:type:`v4l2_zoomcap`, struct
-    struct :c:type:`v4l2_zoom`, ``V4L2_ZOOM_NONCAP`` and
+    struct ``v4l2_zoomcap``, struct
+    struct ``v4l2_zoom``, ``V4L2_ZOOM_NONCAP`` and
     ``V4L2_ZOOM_WHILESTREAMING`` was replaced by a new cropping and
     scaling interface. The previously unused struct
-    struct :c:type:`v4l2_cropcap` and :c:type:`struct v4l2_crop`
+    struct :c:type:`v4l2_cropcap` and struct :c:type:`v4l2_crop`
     where redefined for this purpose. See :ref:`crop` for details.
 
 18. In struct :c:type:`v4l2_vbi_format` the
@@ -694,7 +694,7 @@ This unnamed version was finally merged into Linux 2.5.46.
     Similar changes were made to struct
     :c:type:`v4l2_outputparm`.
 
-20. The struct :c:type:`v4l2_performance` and
+20. The struct ``v4l2_performance`` and
     ``VIDIOC_G_PERF`` ioctl were dropped. Except when using the
     :ref:`read/write I/O method <rw>`, which is limited anyway, this
     information is already available to applications.
@@ -882,7 +882,7 @@ V4L2 in Linux 2.6.15
 3. The ``VIDIOC_G_COMP`` and ``VIDIOC_S_COMP`` ioctl were renamed to
    ``VIDIOC_G_MPEGCOMP`` and ``VIDIOC_S_MPEGCOMP`` respectively. Their
    argument was replaced by a struct
-   struct :c:type:`v4l2_mpeg_compression` pointer. (The
+   ``v4l2_mpeg_compression`` pointer. (The
    ``VIDIOC_G_MPEGCOMP`` and ``VIDIOC_S_MPEGCOMP`` ioctls where removed
    in Linux 2.6.25.)
 
@@ -982,7 +982,7 @@ V4L2 in Linux 2.6.18
    flag to skip unsupported controls with
    :ref:`VIDIOC_QUERYCTRL`, new control types
    ``V4L2_CTRL_TYPE_INTEGER64`` and ``V4L2_CTRL_TYPE_CTRL_CLASS``
-   (:ref:`v4l2-ctrl-type`), and new control flags
+   (:c:type:`v4l2_ctrl_type`), and new control flags
    ``V4L2_CTRL_FLAG_READ_ONLY``, ``V4L2_CTRL_FLAG_UPDATE``,
    ``V4L2_CTRL_FLAG_INACTIVE`` and ``V4L2_CTRL_FLAG_SLIDER``
    (:ref:`control-flags`). See :ref:`extended-controls` for details.
@@ -1127,8 +1127,8 @@ V4L2 in Linux 2.6.29
 1. The ``VIDIOC_G_CHIP_IDENT`` ioctl was renamed to
    ``VIDIOC_G_CHIP_IDENT_OLD`` and ``VIDIOC_DBG_G_CHIP_IDENT`` was
    introduced in its place. The old struct
-   struct :c:type:`v4l2_chip_ident` was renamed to
-   struct :c:type:`v4l2_chip_ident_old`.
+   struct ``v4l2_chip_ident`` was renamed to
+   struct ``v4l2_chip_ident_old``.
 
 2. The pixel formats ``V4L2_PIX_FMT_VYUY``, ``V4L2_PIX_FMT_NV16`` and
    ``V4L2_PIX_FMT_NV61`` were added.
