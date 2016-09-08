@@ -1878,7 +1878,7 @@ static void vpe_stop_streaming(struct vb2_queue *q)
 	vpdma_dump_regs(ctx->dev->vpdma);
 }
 
-static struct vb2_ops vpe_qops = {
+static const struct vb2_ops vpe_qops = {
 	.queue_setup	 = vpe_queue_setup,
 	.buf_prepare	 = vpe_buf_prepare,
 	.buf_queue	 = vpe_buf_queue,

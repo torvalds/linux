@@ -2545,7 +2545,7 @@ static void s5p_jpeg_stop_streaming(struct vb2_queue *q)
 	pm_runtime_put(ctx->jpeg->dev);
 }
 
-static struct vb2_ops s5p_jpeg_qops = {
+static const struct vb2_ops s5p_jpeg_qops = {
 	.queue_setup		= s5p_jpeg_queue_setup,
 	.buf_prepare		= s5p_jpeg_buf_prepare,
 	.buf_queue		= s5p_jpeg_buf_queue,

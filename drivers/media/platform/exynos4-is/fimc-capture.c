@@ -452,7 +452,7 @@ static void buffer_queue(struct vb2_buffer *vb)
 	spin_unlock_irqrestore(&fimc->slock, flags);
 }
 
-static struct vb2_ops fimc_capture_qops = {
+static const struct vb2_ops fimc_capture_qops = {
 	.queue_setup		= queue_setup,
 	.buf_prepare		= buffer_prepare,
 	.buf_queue		= buffer_queue,

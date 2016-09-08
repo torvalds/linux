@@ -1114,7 +1114,7 @@ static void rvin_stop_streaming(struct vb2_queue *vq)
 	rvin_disable_interrupts(vin);
 }
 
-static struct vb2_ops rvin_qops = {
+static const struct vb2_ops rvin_qops = {
 	.queue_setup		= rvin_queue_setup,
 	.buf_prepare		= rvin_buffer_prepare,
 	.buf_queue		= rvin_buffer_queue,

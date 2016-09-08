@@ -464,7 +464,7 @@ static void sh_mobile_ceu_stop_streaming(struct vb2_queue *q)
 	sh_mobile_ceu_soft_reset(pcdev);
 }
 
-static struct vb2_ops sh_mobile_ceu_videobuf_ops = {
+static const struct vb2_ops sh_mobile_ceu_videobuf_ops = {
 	.queue_setup	= sh_mobile_ceu_videobuf_setup,
 	.buf_prepare	= sh_mobile_ceu_videobuf_prepare,
 	.buf_queue	= sh_mobile_ceu_videobuf_queue,

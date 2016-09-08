@@ -362,7 +362,7 @@ static void sh_vou_stop_streaming(struct vb2_queue *vq)
 	spin_unlock_irqrestore(&vou_dev->lock, flags);
 }
 
-static struct vb2_ops sh_vou_qops = {
+static const struct vb2_ops sh_vou_qops = {
 	.queue_setup		= sh_vou_queue_setup,
 	.buf_prepare		= sh_vou_buf_prepare,
 	.buf_queue		= sh_vou_buf_queue,
