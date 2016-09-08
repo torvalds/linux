@@ -1536,6 +1536,7 @@ enum skl_disp_power_wells {
 #define BALANCE_LEG_MASK(port)		(7<<(8+3*(port)))
 /* Balance leg disable bits */
 #define BALANCE_LEG_DISABLE_SHIFT	23
+#define BALANCE_LEG_DISABLE(port)	(1 << (23 + (port)))
 
 /*
  * Fence registers

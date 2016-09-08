@@ -242,18 +242,6 @@ unlock:
 	return ret;
 }
 
-static void event_function_local(struct perf_event *event, event_f func, void *data)
-{
-	struct event_function_struct efs = {
-		.event = event,
-		.func = func,
-		.data = data,
-	};
-
-	int ret = event_function(&efs);
-	WARN_ON_ONCE(ret);
-}
-
 static void event_function_call(struct perf_event *event, event_f func, void *data)
 {
 	struct perf_event_context *ctx = event->ctx;
@@ -301,6 +289,54 @@ again:
 	}
 	func(event, NULL, ctx, data);
 	raw_spin_unlock_irq(&ctx->lock);
+}
+
+/*
+ * Similar to event_function_call() + event_function(), but hard assumes IRQs
+ * are already disabled and we're on the right CPU.
+ */
+static void event_function_local(struct perf_event *event, event_f func, void *data)
+{
+	struct perf_event_context *ctx = event->ctx;
+	struct perf_cpu_context *cpuctx = __get_cpu_context(ctx);
+	struct task_struct *task = READ_ONCE(ctx->task);
+	struct perf_event_context *task_ctx = NULL;
+
+	WARN_ON_ONCE(!irqs_disabled());
+
+	if (task) {
+		if (task == TASK_TOMBSTONE)
+			return;
+
+		task_ctx = ctx;
+	}
+
+	perf_ctx_lock(cpuctx, task_ctx);
+
+	task = ctx->task;
+	if (task == TASK_TOMBSTONE)
+		goto unlock;
+
+	if (task) {
+		/*
+		 * We must be either inactive or active and the right task,
+		 * otherwise we're screwed, since we cannot IPI to somewhere
+		 * else.
+		 */
+		if (ctx->is_active) {
+			if (WARN_ON_ONCE(task != current))
+				goto unlock;
+
+			if (WARN_ON_ONCE(cpuctx->task_ctx != ctx))
+				goto unlock;
+		}
+	} else {
+		WARN_ON_ONCE(&cpuctx->ctx != ctx);
+	}
+
+	func(event, cpuctx, ctx, data);
+unlock:
+	perf_ctx_unlock(cpuctx, task_ctx);
 }
 
 #define PERF_FLAG_ALL (PERF_FLAG_FD_NO_GROUP |\
@@ -3513,9 +3549,10 @@ static int perf_event_read(struct perf_event *event, bool group)
 			.group = group,
 			.ret = 0,
 		};
-		smp_call_function_single(event->oncpu,
-					 __perf_event_read, &data, 1);
-		ret = data.ret;
+		ret = smp_call_function_single(event->oncpu, __perf_event_read, &data, 1);
+		/* The event must have been read from an online CPU: */
+		WARN_ON_ONCE(ret);
+		ret = ret ? : data.ret;
 	} else if (event->state == PERF_EVENT_STATE_INACTIVE) {
 		struct perf_event_context *ctx = event->ctx;
 		unsigned long flags;
@@ -6584,15 +6621,6 @@ got_name:
 }
 
 /*
- * Whether this @filter depends on a dynamic object which is not loaded
- * yet or its load addresses are not known.
- */
-static bool perf_addr_filter_needs_mmap(struct perf_addr_filter *filter)
-{
-	return filter->filter && filter->inode;
-}
-
-/*
  * Check whether inode and address range match filter criteria.
  */
 static bool perf_addr_filter_match(struct perf_addr_filter *filter,
@@ -6652,6 +6680,13 @@ static void perf_addr_filters_adjust(struct vm_area_struct *vma)
 {
 	struct perf_event_context *ctx;
 	int ctxn;
+
+	/*
+	 * Data tracing isn't supported yet and as such there is no need
+	 * to keep track of anything that isn't related to executable code:
+	 */
+	if (!(vma->vm_flags & VM_EXEC))
+		return;
 
 	rcu_read_lock();
 	for_each_task_context_nr(ctxn) {
@@ -7805,7 +7840,11 @@ static void perf_event_addr_filters_apply(struct perf_event *event)
 	list_for_each_entry(filter, &ifh->list, entry) {
 		event->addr_filters_offs[count] = 0;
 
-		if (perf_addr_filter_needs_mmap(filter))
+		/*
+		 * Adjust base offset if the filter is associated to a binary
+		 * that needs to be mapped:
+		 */
+		if (filter->inode)
 			event->addr_filters_offs[count] =
 				perf_addr_filter_apply(filter, mm);
 
@@ -7936,8 +7975,10 @@ perf_event_parse_addr_filter(struct perf_event *event, char *fstr,
 					goto fail;
 			}
 
-			if (token == IF_SRC_FILE) {
-				filename = match_strdup(&args[2]);
+			if (token == IF_SRC_FILE || token == IF_SRC_FILEADDR) {
+				int fpos = filter->range ? 2 : 1;
+
+				filename = match_strdup(&args[fpos]);
 				if (!filename) {
 					ret = -ENOMEM;
 					goto fail;

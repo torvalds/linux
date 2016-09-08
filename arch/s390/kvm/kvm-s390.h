@@ -20,6 +20,7 @@
 #include <linux/kvm_host.h>
 #include <asm/facility.h>
 #include <asm/processor.h>
+#include <asm/sclp.h>
 
 typedef int (*intercept_handler_t)(struct kvm_vcpu *vcpu);
 
@@ -245,6 +246,7 @@ static inline void kvm_s390_retry_instr(struct kvm_vcpu *vcpu)
 
 /* implemented in priv.c */
 int is_valid_psw(psw_t *psw);
+int kvm_s390_handle_aa(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_b2(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_e5(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_01(struct kvm_vcpu *vcpu);
@@ -273,10 +275,7 @@ int handle_sthyi(struct kvm_vcpu *vcpu);
 void kvm_s390_set_tod_clock(struct kvm *kvm, u64 tod);
 long kvm_arch_fault_in_page(struct kvm_vcpu *vcpu, gpa_t gpa, int writable);
 int kvm_s390_store_status_unloaded(struct kvm_vcpu *vcpu, unsigned long addr);
-int kvm_s390_store_adtl_status_unloaded(struct kvm_vcpu *vcpu,
-					unsigned long addr);
 int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr);
-int kvm_s390_vcpu_store_adtl_status(struct kvm_vcpu *vcpu, unsigned long addr);
 void kvm_s390_vcpu_start(struct kvm_vcpu *vcpu);
 void kvm_s390_vcpu_stop(struct kvm_vcpu *vcpu);
 void kvm_s390_vcpu_block(struct kvm_vcpu *vcpu);
@@ -388,5 +387,14 @@ static inline union ipte_control *kvm_s390_get_ipte_control(struct kvm *kvm)
 	struct bsca_block *sca = kvm->arch.sca; /* SCA version doesn't matter */
 
 	return &sca->ipte_control;
+}
+static inline int kvm_s390_use_sca_entries(void)
+{
+	/*
+	 * Without SIGP interpretation, only SRS interpretation (if available)
+	 * might use the entries. By not setting the entries and keeping them
+	 * invalid, hardware will not access them but intercept.
+	 */
+	return sclp.has_sigpif;
 }
 #endif
