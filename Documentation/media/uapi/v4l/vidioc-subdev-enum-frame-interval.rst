@@ -43,7 +43,7 @@ when enumerating frame intervals.
 
 To enumerate frame intervals applications initialize the ``index``,
 ``pad``, ``which``, ``code``, ``width`` and ``height`` fields of struct
-:ref:`v4l2_subdev_frame_interval_enum <v4l2-subdev-frame-interval-enum>`
+:c:type:`v4l2_subdev_frame_interval_enum`
 and call the :ref:`VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL` ioctl with a pointer
 to this structure. Drivers fill the rest of the structure or return an
 EINVAL error code if one of the input fields is invalid. All frame
@@ -59,8 +59,7 @@ Sub-devices that support the frame interval enumeration ioctl should
 implemented it on a single pad only. Its behaviour when supported on
 multiple pads of the same sub-device is not defined.
 
-
-.. _v4l2-subdev-frame-interval-enum:
+.. c:type:: v4l2_subdev_frame_interval_enum
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
@@ -147,7 +146,7 @@ appropriately. The generic error codes are described at the
 
 EINVAL
     The struct
-    :ref:`v4l2_subdev_frame_interval_enum <v4l2-subdev-frame-interval-enum>`
+    :c:type:`v4l2_subdev_frame_interval_enum`
     ``pad`` references a non-existing pad, one of the ``code``,
     ``width`` or ``height`` fields are invalid for the given pad or the
     ``index`` field is out of bounds.

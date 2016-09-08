@@ -200,7 +200,7 @@ destructive video overlay.
     -  .. row 12
 
        -
-       -  enum :ref:`v4l2_field <v4l2-field>`
+       -  enum :c:type:`v4l2_field`
 
        -  ``field``
 
@@ -266,7 +266,7 @@ destructive video overlay.
     -  .. row 16
 
        -
-       -  enum :ref:`v4l2_colorspace <v4l2-colorspace>`
+       -  enum :c:type:`v4l2_colorspace`
 
        -  ``colorspace``
 

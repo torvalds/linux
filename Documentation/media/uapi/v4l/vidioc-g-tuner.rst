@@ -96,7 +96,7 @@ To change the radio frequency the
 
        -  ``type``
 
-       -  :cspan:`1` Type of the tuner, see :ref:`v4l2-tuner-type`.
+       -  :cspan:`1` Type of the tuner, see :c:type:`v4l2_tuner_type`.
 
     -  .. row 4
 
@@ -263,7 +263,7 @@ To change the radio frequency the
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
-.. _v4l2-tuner-type:
+.. c:type:: v4l2_tuner_type
 
 .. flat-table:: enum v4l2_tuner_type
     :header-rows:  0

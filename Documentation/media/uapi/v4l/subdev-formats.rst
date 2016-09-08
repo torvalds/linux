@@ -46,7 +46,7 @@ Media Bus Formats
 
        -  ``field``
 
-       -  Field order, from enum :ref:`v4l2_field <v4l2-field>`. See
+       -  Field order, from enum :c:type:`v4l2_field`. See
 	  :ref:`field-order` for details.
 
     -  .. row 5
@@ -56,12 +56,12 @@ Media Bus Formats
        -  ``colorspace``
 
        -  Image colorspace, from enum
-	  :ref:`v4l2_colorspace <v4l2-colorspace>`. See
+	  :c:type:`v4l2_colorspace`. See
 	  :ref:`colorspaces` for details.
 
     -  .. row 6
 
-       -  enum :ref:`v4l2_ycbcr_encoding <v4l2-ycbcr-encoding>`
+       -  enum :c:type:`v4l2_ycbcr_encoding`
 
        -  ``ycbcr_enc``
 
@@ -71,7 +71,7 @@ Media Bus Formats
 
     -  .. row 7
 
-       -  enum :ref:`v4l2_quantization <v4l2-quantization>`
+       -  enum :c:type:`v4l2_quantization`
 
        -  ``quantization``
 
@@ -81,7 +81,7 @@ Media Bus Formats
 
     -  .. row 8
 
-       -  enum :ref:`v4l2_xfer_func <v4l2-xfer-func>`
+       -  enum :c:type:`v4l2_xfer_func`
 
        -  ``xfer_func``
 

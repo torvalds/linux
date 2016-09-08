@@ -157,7 +157,7 @@ Selection targets and flags are documented in
        -  ``type``
 
        -  Type of the buffer (from enum
-	  :ref:`v4l2_buf_type <v4l2-buf-type>`).
+	  :c:type:`v4l2_buf_type`).
 
     -  .. row 2
 

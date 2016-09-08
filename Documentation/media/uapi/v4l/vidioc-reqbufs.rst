@@ -91,7 +91,7 @@ any DMA in progress, an implicit
 
        -  Type of the stream or buffers, this is the same as the struct
 	  :c:type:`v4l2_format` ``type`` field. See
-	  :ref:`v4l2-buf-type` for valid values.
+	  :c:type:`v4l2_buf_type` for valid values.
 
     -  .. row 3
 
@@ -101,7 +101,7 @@ any DMA in progress, an implicit
 
        -  Applications set this field to ``V4L2_MEMORY_MMAP``,
 	  ``V4L2_MEMORY_DMABUF`` or ``V4L2_MEMORY_USERPTR``. See
-	  :ref:`v4l2-memory`.
+	  :c:type:`v4l2_memory`.
 
     -  .. row 4
 

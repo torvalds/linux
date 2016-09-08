@@ -33,8 +33,8 @@ current video or radio input is queried.
    :ref:`VIDIOC_S_TUNER <VIDIOC_G_TUNER>` does not switch the
    current tuner, when there is more than one at all. The tuner is solely
    determined by the current video input. Drivers must support both ioctls
-   and set the ``V4L2_CAP_TUNER`` flag in the struct :ref:`v4l2_capability
-   <v4l2-capability>` returned by the :ref:`VIDIOC_QUERYCAP` ioctl when the
+   and set the ``V4L2_CAP_TUNER`` flag in the struct :c:type:`v4l2_capability`
+   returned by the :ref:`VIDIOC_QUERYCAP` ioctl when the
    device has one or more tuners.
 
 

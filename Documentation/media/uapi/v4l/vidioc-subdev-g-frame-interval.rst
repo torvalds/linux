@@ -42,7 +42,7 @@ don't support frame intervals must not implement these ioctls.
 
 To retrieve the current frame interval applications set the ``pad``
 field of a struct
-:ref:`v4l2_subdev_frame_interval <v4l2-subdev-frame-interval>` to
+:c:type:`v4l2_subdev_frame_interval` to
 the desired pad number as reported by the media controller API. When
 they call the ``VIDIOC_SUBDEV_G_FRAME_INTERVAL`` ioctl with a pointer to
 this structure the driver fills the members of the ``interval`` field.
@@ -53,7 +53,7 @@ field and all members of the ``interval`` field. When they call the
 structure the driver verifies the requested interval, adjusts it based
 on the hardware capabilities and configures the device. Upon return the
 struct
-:ref:`v4l2_subdev_frame_interval <v4l2-subdev-frame-interval>`
+:c:type:`v4l2_subdev_frame_interval`
 contains the current frame interval as would be returned by a
 ``VIDIOC_SUBDEV_G_FRAME_INTERVAL`` call.
 
@@ -67,7 +67,7 @@ on a single pad only. Their behaviour when supported on multiple pads of
 the same sub-device is not defined.
 
 
-.. _v4l2-subdev-frame-interval:
+.. c:type:: v4l2_subdev_frame_interval
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
@@ -119,6 +119,6 @@ EBUSY
 
 EINVAL
     The struct
-    :ref:`v4l2_subdev_frame_interval <v4l2-subdev-frame-interval>`
+    :c:type:`v4l2_subdev_frame_interval`
     ``pad`` references a non-existing pad, or the pad doesn't support
     frame intervals.

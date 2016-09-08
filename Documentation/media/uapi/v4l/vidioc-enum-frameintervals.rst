@@ -231,7 +231,7 @@ Enums
 =====
 
 
-.. _v4l2-frmivaltypes:
+.. c:type:: v4l2_frmivaltypes
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 

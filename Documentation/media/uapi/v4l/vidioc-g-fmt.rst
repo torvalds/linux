@@ -101,7 +101,7 @@ The format as returned by :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` must be identical
        -  ``type``
 
        -
-       -  Type of the data stream, see :ref:`v4l2-buf-type`.
+       -  Type of the data stream, see :c:type:`v4l2_buf_type`.
 
     -  .. row 2
 

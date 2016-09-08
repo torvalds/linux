@@ -158,7 +158,7 @@ the sliced VBI API is unsupported or ``type`` is invalid.
 
        -  ``type``
 
-       -  Type of the data stream, see :ref:`v4l2-buf-type`. Should be
+       -  Type of the data stream, see :c:type:`v4l2_buf_type`. Should be
 	  ``V4L2_BUF_TYPE_SLICED_VBI_CAPTURE`` or
 	  ``V4L2_BUF_TYPE_SLICED_VBI_OUTPUT``.
 

@@ -97,7 +97,7 @@ the EDID data in some way. In any case, the end result is the same: the
 EDID is no longer available.
 
 
-.. _v4l2-edid:
+.. c:type:: v4l2_edid
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 

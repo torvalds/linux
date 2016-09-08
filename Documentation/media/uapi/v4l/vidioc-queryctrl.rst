@@ -124,7 +124,7 @@ See also the examples in :ref:`control`.
 
        -  ``type``
 
-       -  Type of control, see :ref:`v4l2-ctrl-type`.
+       -  Type of control, see :c:type:`v4l2_ctrl_type`.
 
     -  .. row 3
 
@@ -251,7 +251,7 @@ See also the examples in :ref:`control`.
 
        -  ``type``
 
-       -  Type of control, see :ref:`v4l2-ctrl-type`.
+       -  Type of control, see :c:type:`v4l2_ctrl_type`.
 
     -  .. row 3
 

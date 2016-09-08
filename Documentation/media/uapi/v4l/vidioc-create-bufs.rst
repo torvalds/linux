@@ -111,7 +111,7 @@ than the number requested.
 
        -  Applications set this field to ``V4L2_MEMORY_MMAP``,
 	  ``V4L2_MEMORY_DMABUF`` or ``V4L2_MEMORY_USERPTR``. See
-	  :ref:`v4l2-memory`
+	  :c:type:`v4l2_memory`
 
     -  .. row 4
 

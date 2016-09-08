@@ -85,7 +85,7 @@ write-only ioctl, it does not return the actual new frequency.
 	  set to ``V4L2_TUNER_RADIO`` for ``/dev/radioX`` device nodes, and
 	  to ``V4L2_TUNER_ANALOG_TV`` for all others. Set this field to
 	  ``V4L2_TUNER_RADIO`` for modulators (currently only radio
-	  modulators are supported). See :ref:`v4l2-tuner-type`
+	  modulators are supported). See :c:type:`v4l2_tuner_type`
 
     -  .. row 3
 

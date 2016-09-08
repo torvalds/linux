@@ -65,7 +65,7 @@ Selection targets and flags are documented in
 :ref:`v4l2-selections-common`.
 
 
-.. _v4l2-subdev-selection:
+.. c:type:: v4l2_subdev_selection
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
@@ -141,7 +141,7 @@ EBUSY
     ``VIDIOC_SUBDEV_S_SELECTION``
 
 EINVAL
-    The struct :ref:`v4l2_subdev_selection <v4l2-subdev-selection>`
+    The struct :c:type:`v4l2_subdev_selection`
     ``pad`` references a non-existing pad, the ``which`` field
     references a non-existing format, or the selection target is not
     supported on the given subdev pad.

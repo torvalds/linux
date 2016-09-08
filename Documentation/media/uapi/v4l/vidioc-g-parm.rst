@@ -70,7 +70,7 @@ union holding separate parameters for input and output devices.
        -
        -  The buffer (stream) type, same as struct
 	  :c:type:`v4l2_format` ``type``, set by the
-	  application. See :ref:`v4l2-buf-type`
+	  application. See :c:type:`v4l2_buf_type`
 
     -  .. row 2
 

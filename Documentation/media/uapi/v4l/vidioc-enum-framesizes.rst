@@ -254,7 +254,7 @@ Enums
 =====
 
 
-.. _v4l2-frmsizetypes:
+.. c:type:: v4l2_frmsizetypes
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 

@@ -94,7 +94,7 @@ When cropping is not supported then no parameters are changed and
        -  Type of the data stream, set by the application. Only these types
 	  are valid here: ``V4L2_BUF_TYPE_VIDEO_CAPTURE``,
 	  ``V4L2_BUF_TYPE_VIDEO_OUTPUT`` and
-	  ``V4L2_BUF_TYPE_VIDEO_OVERLAY``. See :ref:`v4l2-buf-type`.
+	  ``V4L2_BUF_TYPE_VIDEO_OVERLAY``. See :c:type:`v4l2_buf_type`.
 
     -  .. row 2
 

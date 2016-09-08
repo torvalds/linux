@@ -52,10 +52,10 @@ this end applications initialize the ``field`` field of struct
 should have the value ``V4L2_FIELD_ANY`` (0).
 
 
-.. _v4l2-field:
-
 enum v4l2_field
 ===============
+
+.. c:type:: v4l2_field
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 

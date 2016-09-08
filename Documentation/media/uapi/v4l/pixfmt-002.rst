@@ -61,7 +61,7 @@ Single-planar format structure
 
     -  .. row 5
 
-       -  enum :ref:`v4l2_field <v4l2-field>`
+       -  enum :c:type::`v4l2_field`
 
        -  ``field``
 
@@ -121,7 +121,7 @@ Single-planar format structure
 
     -  .. row 9
 
-       -  enum :ref:`v4l2_colorspace <v4l2-colorspace>`
+       -  enum :c:type:`v4l2_colorspace`
 
        -  ``colorspace``
 
@@ -170,7 +170,7 @@ Single-planar format structure
 
     -  .. row 12
 
-       -  enum :ref:`v4l2_ycbcr_encoding <v4l2-ycbcr-encoding>`
+       -  enum :c:type:`v4l2_ycbcr_encoding`
 
        -  ``ycbcr_enc``
 
@@ -180,7 +180,7 @@ Single-planar format structure
 
     -  .. row 13
 
-       -  enum :ref:`v4l2_quantization <v4l2-quantization>`
+       -  enum :c:type:`v4l2_quantization`
 
        -  ``quantization``
 
@@ -190,7 +190,7 @@ Single-planar format structure
 
     -  .. row 14
 
-       -  enum :ref:`v4l2_xfer_func <v4l2-xfer-func>`
+       -  enum :c:type:`v4l2_xfer_func`
 
        -  ``xfer_func``
 

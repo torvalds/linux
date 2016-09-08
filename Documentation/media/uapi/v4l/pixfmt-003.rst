@@ -88,7 +88,7 @@ describing all planes of that format.
 
     -  .. row 4
 
-       -  enum :ref:`v4l2_field <v4l2-field>`
+       -  enum :c:type:`v4l2_field`
 
        -  ``field``
 
@@ -96,7 +96,7 @@ describing all planes of that format.
 
     -  .. row 5
 
-       -  enum :ref:`v4l2_colorspace <v4l2-colorspace>`
+       -  enum :c:type:`v4l2_colorspace`
 
        -  ``colorspace``
 
@@ -131,7 +131,7 @@ describing all planes of that format.
 
     -  .. row 9
 
-       -  enum :ref:`v4l2_ycbcr_encoding <v4l2-ycbcr-encoding>`
+       -  enum :c:type:`v4l2_ycbcr_encoding`
 
        -  ``ycbcr_enc``
 
@@ -141,7 +141,7 @@ describing all planes of that format.
 
     -  .. row 10
 
-       -  enum :ref:`v4l2_quantization <v4l2-quantization>`
+       -  enum :c:type:`v4l2_quantization`
 
        -  ``quantization``
 
@@ -151,7 +151,7 @@ describing all planes of that format.
 
     -  .. row 11
 
-       -  enum :ref:`v4l2_xfer_func <v4l2-xfer-func>`
+       -  enum :c:type:`v4l2_xfer_func`
 
        -  ``xfer_func``
 

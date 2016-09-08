@@ -73,7 +73,7 @@ one until ``EINVAL`` is returned.
 	  ``V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE``,
 	  ``V4L2_BUF_TYPE_VIDEO_OUTPUT``,
 	  ``V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE`` and
-	  ``V4L2_BUF_TYPE_VIDEO_OVERLAY``. See :ref:`v4l2-buf-type`.
+	  ``V4L2_BUF_TYPE_VIDEO_OVERLAY``. See :c:type:`v4l2_buf_type`.
 
     -  .. row 3
 

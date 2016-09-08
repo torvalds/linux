@@ -436,5 +436,5 @@ appropriately. The generic error codes are described at the
 
 .. [#f1]
    The struct :c:type:`v4l2_framebuffer` lacks an
-   enum :ref:`v4l2_buf_type <v4l2-buf-type>` field, therefore the
+   enum :c:type:`v4l2_buf_type` field, therefore the
    type of overlay is implied by the driver capabilities.

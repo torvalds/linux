@@ -324,7 +324,7 @@ call.
 
        -  ``field``
 
-       -  The upcoming field. See enum :ref:`v4l2_field <v4l2-field>`.
+       -  The upcoming field. See enum :c:type:`v4l2_field`.
 
 
 

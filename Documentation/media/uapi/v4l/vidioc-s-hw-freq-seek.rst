@@ -87,7 +87,7 @@ error code is returned and no seek takes place.
 
        -  The tuner type. This is the same value as in the struct
 	  :c:type:`v4l2_tuner` ``type`` field. See
-	  :ref:`v4l2-tuner-type`
+	  :c:type:`v4l2_tuner_type`
 
     -  .. row 3
 

@@ -109,7 +109,7 @@ should be as close as possible to the original request.
 
        -  ``format``
 
-       -  Definition of an image format, see :ref:`v4l2-mbus-framefmt` for
+       -  Definition of an image format, see :c:type:`v4l2_mbus_framefmt` for
 	  details.
 
     -  .. row 4

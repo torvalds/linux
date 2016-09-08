@@ -147,7 +147,7 @@ To change the radio frequency the
 
        -  ``type``
 
-       -  :cspan:`2` Type of the modulator, see :ref:`v4l2-tuner-type`.
+       -  :cspan:`2` Type of the modulator, see :c:type:`v4l2_tuner_type`.
 
     -  .. row 8
 

@@ -144,7 +144,7 @@ instructions.
 
        -  ``match``
 
-       -  How to match the chip, see :ref:`v4l2-dbg-match`.
+       -  How to match the chip, see :c:type:`v4l2_dbg_match`.
 
     -  .. row 2
 

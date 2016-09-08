@@ -133,7 +133,7 @@ Examples
        -  Type of the buffer, same as struct
 	  :c:type:`v4l2_format` ``type`` or struct
 	  :c:type:`v4l2_requestbuffers` ``type``, set
-	  by the application. See :ref:`v4l2-buf-type`
+	  by the application. See :c:type:`v4l2_buf_type`
 
     -  .. row 2
 

@@ -41,7 +41,7 @@ Description
     :ref:`the selection API <VIDIOC_SUBDEV_G_SELECTION>`.
 
 To retrieve the current crop rectangle applications set the ``pad``
-field of a struct :ref:`v4l2_subdev_crop <v4l2-subdev-crop>` to the
+field of a struct :c:type:`v4l2_subdev_crop` to the
 desired pad number as reported by the media API and the ``which`` field
 to ``V4L2_SUBDEV_FORMAT_ACTIVE``. They then call the
 ``VIDIOC_SUBDEV_G_CROP`` ioctl with a pointer to this structure. The
@@ -54,7 +54,7 @@ and ``which`` fields and all members of the ``rect`` field. They then
 call the ``VIDIOC_SUBDEV_S_CROP`` ioctl with a pointer to this
 structure. The driver verifies the requested crop rectangle, adjusts it
 based on the hardware capabilities and configures the device. Upon
-return the struct :ref:`v4l2_subdev_crop <v4l2-subdev-crop>`
+return the struct :c:type:`v4l2_subdev_crop`
 contains the current format as would be returned by a
 ``VIDIOC_SUBDEV_G_CROP`` call.
 
@@ -71,7 +71,7 @@ modify the rectangle to match what the hardware can provide. The
 modified format should be as close as possible to the original request.
 
 
-.. _v4l2-subdev-crop:
+.. c:type:: v4l2_subdev_crop
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
@@ -131,7 +131,7 @@ EBUSY
     ``VIDIOC_SUBDEV_S_CROP``
 
 EINVAL
-    The struct :ref:`v4l2_subdev_crop <v4l2-subdev-crop>` ``pad``
+    The struct :c:type:`v4l2_subdev_crop` ``pad``
     references a non-existing pad, the ``which`` field references a
     non-existing format, or cropping is not supported on the given
     subdev pad.

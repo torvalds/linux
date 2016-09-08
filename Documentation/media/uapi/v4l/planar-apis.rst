@@ -22,7 +22,7 @@ application can choose whether to use one or the other by passing a
 corresponding buffer type to its ioctl calls. Multi-planar versions of
 buffer types are suffixed with an ``_MPLANE`` string. For a list of
 available multi-planar buffer types see enum
-:ref:`v4l2_buf_type <v4l2-buf-type>`.
+:c:type:`v4l2_buf_type`.
 
 
 Multi-planar formats

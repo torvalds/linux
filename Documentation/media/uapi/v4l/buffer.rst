@@ -74,7 +74,7 @@ struct v4l2_buffer
        -  Type of the buffer, same as struct
 	  :c:type:`v4l2_format` ``type`` or struct
 	  :c:type:`v4l2_requestbuffers` ``type``, set
-	  by the application. See :ref:`v4l2-buf-type`
+	  by the application. See :c:type:`v4l2_buf_type`
 
     -  .. row 3
 
@@ -110,7 +110,7 @@ struct v4l2_buffer
 
        -
        -  Indicates the field order of the image in the buffer, see
-	  :ref:`v4l2-field`. This field is not used when the buffer
+	  :c:type:`v4l2_field`. This field is not used when the buffer
 	  contains VBI data. Drivers must set it when ``type`` refers to a
 	  capture stream, applications when it refers to an output stream.
 
@@ -142,7 +142,7 @@ struct v4l2_buffer
        -  When ``type`` is ``V4L2_BUF_TYPE_VIDEO_CAPTURE`` and the
 	  ``V4L2_BUF_FLAG_TIMECODE`` flag is set in ``flags``, this
 	  structure contains a frame timecode. In
-	  :ref:`V4L2_FIELD_ALTERNATE <v4l2-field>` mode the top and
+	  :c:type:`V4L2_FIELD_ALTERNATE <v4l2_field>` mode the top and
 	  bottom field contain the same timecode. Timecodes are intended to
 	  help video editing and are typically recorded on video tapes, but
 	  also embedded in compressed formats like MPEG. This field is
@@ -162,7 +162,7 @@ struct v4l2_buffer
 
        -  :cspan:`3`
 
-	  In :ref:`V4L2_FIELD_ALTERNATE <v4l2-field>` mode the top and
+	  In :c:type:`V4L2_FIELD_ALTERNATE <v4l2_field>` mode the top and
 	  bottom field have the same sequence number. The count starts at
 	  zero and includes dropped or repeated frames. A dropped frame was
 	  received by an input device but could not be stored due to lack of
@@ -187,7 +187,7 @@ struct v4l2_buffer
 
        -
        -  This field must be set by applications and/or drivers in
-	  accordance with the selected I/O method. See :ref:`v4l2-memory`
+	  accordance with the selected I/O method. See :c:type:`v4l2_memory`
 
     -  .. row 11
 
@@ -402,7 +402,7 @@ struct v4l2_plane
 
 
 
-.. _v4l2-buf-type:
+.. c:type:: v4l2_buf_type
 
 enum v4l2_buf_type
 ==================
@@ -773,7 +773,7 @@ Buffer Flags
 
 
 
-.. _v4l2-memory:
+.. c:type:: v4l2_memory
 
 enum v4l2_memory
 ================

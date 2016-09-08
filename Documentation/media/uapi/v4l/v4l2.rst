@@ -112,8 +112,8 @@ DVB device nodes. Add support for Tuner sub-device.
 :revision: 3.19 / 2014-12-05 (*hv*)
 
 Rewrote Colorspace chapter, added new enum
-:ref:`v4l2_ycbcr_encoding <v4l2-ycbcr-encoding>` and enum
-:ref:`v4l2_quantization <v4l2-quantization>` fields to struct
+:c:type:`v4l2_ycbcr_encoding` and enum
+:c:type:`v4l2_quantization` fields to struct
 :c:type:`v4l2_pix_format`, struct
 :c:type:`v4l2_pix_format_mplane` and struct
 :c:type:`v4l2_mbus_framefmt`.
