@@ -1717,7 +1717,7 @@ void __hci_abort_conn(struct hci_request *req, struct hci_conn *conn,
 			 * function. To be safe hard-code one of the
 			 * values that's suitable for SCO.
 			 */
-			rej.reason = HCI_ERROR_REMOTE_LOW_RESOURCES;
+			rej.reason = HCI_ERROR_REJ_LIMITED_RESOURCES;
 
 			hci_req_add(req, HCI_OP_REJECT_SYNC_CONN_REQ,
 				    sizeof(rej), &rej);
