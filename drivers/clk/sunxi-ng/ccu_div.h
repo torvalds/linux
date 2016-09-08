@@ -19,6 +19,20 @@
 #include "ccu_common.h"
 #include "ccu_mux.h"
 
+/**
+ * struct _ccu_div - Internal divider description
+ * @shift: Bit offset of the divider in its register
+ * @width: Width of the divider field in its register
+ * @flags: clk_divider flags to apply on this divider
+ * @table: Divider table pointer (if applicable)
+ *
+ * That structure represents a single divider, and is meant to be
+ * embedded in other structures representing the various clock
+ * classes.
+ *
+ * It is basically a wrapper around the clk_divider functions
+ * arguments.
+ */
 struct _ccu_div {
 	u8			shift;
 	u8			width;
