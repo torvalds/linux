@@ -9,9 +9,11 @@
 
 #include <linux/kernel.h>
 #include <linux/leds.h>
+#include <linux/led-class-flash.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/version.h>
+#include <media/v4l2-flash-led-class.h>
 
 #include "greybus.h"
 #include "greybus_protocols.h"
@@ -30,11 +32,8 @@ struct gb_channel {
 	struct attribute		**attrs;
 	struct attribute_group		*attr_group;
 	const struct attribute_group	**attr_groups;
-#ifndef LED_HAVE_SET_BLOCKING
-	struct work_struct		work_brightness_set;
-#endif
 	struct led_classdev		*led;
-#ifdef LED_HAVE_FLASH
+#if IS_REACHABLE(CONFIG_LEDS_CLASS_FLASH)
 	struct led_classdev_flash	fled;
 	struct led_flash_setting	intensity_uA;
 	struct led_flash_setting	timeout_us;
@@ -58,7 +57,7 @@ struct gb_light {
 	struct gb_channel	*channels;
 	bool			has_flash;
 	bool			ready;
-#ifdef V4L2_HAVE_FLASH
+#if IS_REACHABLE(CONFIG_V4L2_FLASH_LED_CLASS)
 	struct v4l2_flash	*v4l2_flash;
 #endif
 };
@@ -88,7 +87,7 @@ static bool is_channel_flash(struct gb_channel *channel)
 				   | GB_CHANNEL_MODE_INDICATOR));
 }
 
-#ifdef LED_HAVE_FLASH
+#if IS_REACHABLE(CONFIG_LEDS_CLASS_FLASH)
 static struct gb_channel *get_channel_from_cdev(struct led_classdev *cdev)
 {
 	struct led_classdev_flash *fled_cdev = lcdev_to_flcdev(cdev);
@@ -157,7 +156,7 @@ static int __gb_lights_flash_brightness_set(struct gb_channel *channel)
 
 	return __gb_lights_flash_intensity_set(channel, intensity);
 }
-#else /* LED_HAVE_FLASH */
+#else
 static struct gb_channel *get_channel_from_cdev(struct led_classdev *cdev)
 {
 	return container_of(cdev, struct gb_channel, cled);
@@ -172,12 +171,11 @@ static int __gb_lights_flash_brightness_set(struct gb_channel *channel)
 {
 	return 0;
 }
-#endif /* !LED_HAVE_FLASH */
+#endif
 
 static int gb_lights_color_set(struct gb_channel *channel, u32 color);
 static int gb_lights_fade_set(struct gb_channel *channel);
 
-#ifdef LED_HAVE_LOCK
 static void led_lock(struct led_classdev *cdev)
 {
 	mutex_lock(&cdev->led_access);
@@ -187,15 +185,6 @@ static void led_unlock(struct led_classdev *cdev)
 {
 	mutex_unlock(&cdev->led_access);
 }
-#else
-static void led_lock(struct led_classdev *cdev)
-{
-}
-
-static void led_unlock(struct led_classdev *cdev)
-{
-}
-#endif /* !LED_HAVE_LOCK */
 
 #define gb_lights_fade_attr(__dir)					\
 static ssize_t fade_##__dir##_show(struct device *dev,			\
@@ -444,39 +433,6 @@ static int __gb_lights_brightness_set(struct gb_channel *channel)
 	return ret;
 }
 
-#ifndef LED_HAVE_SET_BLOCKING
-static void gb_brightness_set_work(struct work_struct *work)
-{
-	struct gb_channel *channel = container_of(work, struct gb_channel,
-						  work_brightness_set);
-
-	__gb_lights_brightness_set(channel);
-}
-
-#ifdef LED_HAVE_SET_SYNC
-static int gb_brightness_set_sync(struct led_classdev *cdev,
-				  enum led_brightness value)
-{
-	struct gb_channel *channel = get_channel_from_cdev(cdev);
-
-	channel->led->brightness = value;
-
-	return __gb_lights_brightness_set(channel);
-}
-#endif
-
-static void gb_brightness_set(struct led_classdev *cdev,
-			      enum led_brightness value)
-{
-	struct gb_channel *channel = get_channel_from_cdev(cdev);
-
-	if (channel->releasing)
-		return;
-
-	cdev->brightness = value;
-	schedule_work(&channel->work_brightness_set);
-}
-#else /* LED_HAVE_SET_BLOCKING */
 static int gb_brightness_set(struct led_classdev *cdev,
 			     enum led_brightness value)
 {
@@ -486,7 +442,6 @@ static int gb_brightness_set(struct led_classdev *cdev,
 
 	return __gb_lights_brightness_set(channel);
 }
-#endif
 
 static enum led_brightness gb_brightness_get(struct led_classdev *cdev)
 
@@ -554,22 +509,13 @@ static void gb_lights_led_operations_set(struct gb_channel *channel,
 					 struct led_classdev *cdev)
 {
 	cdev->brightness_get = gb_brightness_get;
-#ifdef LED_HAVE_SET_SYNC
-	cdev->brightness_set_sync = gb_brightness_set_sync;
-#endif
-#ifdef LED_HAVE_SET_BLOCKING
 	cdev->brightness_set_blocking = gb_brightness_set;
-#endif
-#ifndef LED_HAVE_SET_BLOCKING
-	cdev->brightness_set = gb_brightness_set;
-	INIT_WORK(&channel->work_brightness_set, gb_brightness_set_work);
-#endif
 
 	if (channel->flags & GB_LIGHT_CHANNEL_BLINK)
 		cdev->blink_set = gb_blink_set;
 }
 
-#ifdef V4L2_HAVE_FLASH
+#if IS_REACHABLE(CONFIG_V4L2_FLASH_LED_CLASS)
 /* V4L2 specific helpers */
 static const struct v4l2_flash_ops v4l2_flash_ops;
 
@@ -655,7 +601,7 @@ static void gb_lights_light_v4l2_unregister(struct gb_light *light)
 }
 #endif
 
-#ifdef LED_HAVE_FLASH
+#if IS_REACHABLE(CONFIG_LEDS_CLASS_FLASH)
 /* Flash specific operations */
 static int gb_lights_flash_intensity_set(struct led_classdev_flash *fcdev,
 					 u32 brightness)
@@ -936,7 +882,7 @@ static void __gb_lights_flash_led_unregister(struct gb_channel *channel)
 {
 }
 
-#endif /* LED_HAVE_FLASH */
+#endif
 
 static int __gb_lights_led_register(struct gb_channel *channel)
 {
@@ -1132,9 +1078,6 @@ static int gb_lights_light_register(struct gb_light *light)
 
 static void gb_lights_channel_free(struct gb_channel *channel)
 {
-#ifndef LED_HAVE_SET_BLOCKING
-	flush_work(&channel->work_brightness_set);
-#endif
 	kfree(channel->attrs);
 	kfree(channel->attr_group);
 	kfree(channel->attr_groups);

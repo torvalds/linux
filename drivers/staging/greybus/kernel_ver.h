@@ -35,36 +35,6 @@
 #define MMC_POWER_UNDEFINED_SUPPORTED
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)
-/*
- * At this time the internal API for the set brightness was changed to the async
- * version, and one sync API was added to handle cases that need immediate
- * effect. Also, the led class flash and lock for sysfs access was introduced.
- */
-#define LED_HAVE_SET_SYNC
-#define LED_HAVE_FLASH
-#define LED_HAVE_LOCK
-#include <linux/led-class-flash.h>
-#endif
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)
-/*
- * New change in LED api, the set_sync operation was renamed to set_blocking and
- * the workqueue is now handle by core. So, only one set operation is need.
- */
-#undef LED_HAVE_SET_SYNC
-#define LED_HAVE_SET_BLOCKING
-#endif
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)
-/*
- * New helper functions for registering/unregistering flash led devices as v4l2
- * subdevices were added.
- */
-#define V4L2_HAVE_FLASH
-#include <media/v4l2-flash-led-class.h>
-#endif
-
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
 /*
  * Power supply get by name need to drop reference after call
