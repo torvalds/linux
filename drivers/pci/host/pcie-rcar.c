@@ -931,12 +931,16 @@ static int rcar_pcie_inbound_ranges(struct rcar_pcie *pcie,
 		 * Set up 64-bit inbound regions as the range parser doesn't
 		 * distinguish between 32 and 64-bit types.
 		 */
-		rcar_pci_write_reg(pcie, lower_32_bits(pci_addr), PCIEPRAR(idx));
+		rcar_pci_write_reg(pcie, lower_32_bits(pci_addr),
+				   PCIEPRAR(idx));
 		rcar_pci_write_reg(pcie, lower_32_bits(cpu_addr), PCIELAR(idx));
-		rcar_pci_write_reg(pcie, lower_32_bits(mask) | flags, PCIELAMR(idx));
+		rcar_pci_write_reg(pcie, lower_32_bits(mask) | flags,
+				   PCIELAMR(idx));
 
-		rcar_pci_write_reg(pcie, upper_32_bits(pci_addr), PCIEPRAR(idx+1));
-		rcar_pci_write_reg(pcie, upper_32_bits(cpu_addr), PCIELAR(idx+1));
+		rcar_pci_write_reg(pcie, upper_32_bits(pci_addr),
+				   PCIEPRAR(idx + 1));
+		rcar_pci_write_reg(pcie, upper_32_bits(cpu_addr),
+				   PCIELAR(idx + 1));
 		rcar_pci_write_reg(pcie, 0, PCIELAMR(idx + 1));
 
 		pci_addr += size;
@@ -985,6 +989,7 @@ static int rcar_pcie_parse_map_dma_ranges(struct rcar_pcie *pcie,
 	/* Get the dma-ranges from DT */
 	for_each_of_pci_range(&parser, &range) {
 		u64 end = range.cpu_addr + range.size - 1;
+
 		dev_dbg(pcie->dev, "0x%08x 0x%016llx..0x%016llx -> 0x%016llx\n",
 			range.flags, range.cpu_addr, end, range.pci_addr);
 
@@ -998,9 +1003,12 @@ static int rcar_pcie_parse_map_dma_ranges(struct rcar_pcie *pcie,
 
 static const struct of_device_id rcar_pcie_of_match[] = {
 	{ .compatible = "renesas,pcie-r8a7779", .data = rcar_pcie_hw_init_h1 },
-	{ .compatible = "renesas,pcie-rcar-gen2", .data = rcar_pcie_hw_init_gen2 },
-	{ .compatible = "renesas,pcie-r8a7790", .data = rcar_pcie_hw_init_gen2 },
-	{ .compatible = "renesas,pcie-r8a7791", .data = rcar_pcie_hw_init_gen2 },
+	{ .compatible = "renesas,pcie-rcar-gen2",
+	  .data = rcar_pcie_hw_init_gen2 },
+	{ .compatible = "renesas,pcie-r8a7790",
+	  .data = rcar_pcie_hw_init_gen2 },
+	{ .compatible = "renesas,pcie-r8a7791",
+	  .data = rcar_pcie_hw_init_gen2 },
 	{ .compatible = "renesas,pcie-r8a7795", .data = rcar_pcie_hw_init },
 	{},
 };
@@ -1013,7 +1021,8 @@ static int rcar_pcie_parse_request_of_pci_ranges(struct rcar_pcie *pci)
 	resource_size_t iobase;
 	struct resource_entry *win;
 
-	err = of_pci_get_host_bridge_resources(np, 0, 0xff, &pci->resources, &iobase);
+	err = of_pci_get_host_bridge_resources(np, 0, 0xff, &pci->resources,
+					       &iobase);
 	if (err)
 		return err;
 
@@ -1064,8 +1073,8 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	 err = rcar_pcie_parse_map_dma_ranges(pcie, pdev->dev.of_node);
-	 if (err)
+	err = rcar_pcie_parse_map_dma_ranges(pcie, pdev->dev.of_node);
+	if (err)
 		return err;
 
 	of_id = of_match_device(rcar_pcie_of_match, pcie->dev);
