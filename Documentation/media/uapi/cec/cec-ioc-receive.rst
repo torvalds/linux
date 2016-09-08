@@ -95,7 +95,7 @@ result.
 
        -  Timestamp in ns of when the last byte of the message was transmitted.
 	  The timestamp has been taken from the ``CLOCK_MONOTONIC`` clock. To access
-	  the same clock from userspace use :c:func:`clock_gettime(2)`.
+	  the same clock from userspace use :c:func:`clock_gettime`.
 
     -  .. row 2
 
@@ -105,7 +105,7 @@ result.
 
        -  Timestamp in ns of when the last byte of the message was received.
 	  The timestamp has been taken from the ``CLOCK_MONOTONIC`` clock. To access
-	  the same clock from userspace use :c:func:`clock_gettime(2)`.
+	  the same clock from userspace use :c:func:`clock_gettime`.
 
     -  .. row 3
 

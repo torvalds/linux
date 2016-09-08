@@ -712,7 +712,7 @@ Buffer Flags
 	  clock). Monotonic clock has been favoured in embedded systems
 	  whereas most of the drivers use the realtime clock. Either kinds
 	  of timestamps are available in user space via
-	  :c:func:`clock_gettime(2)` using clock IDs ``CLOCK_MONOTONIC``
+	  :c:func:`clock_gettime` using clock IDs ``CLOCK_MONOTONIC``
 	  and ``CLOCK_REALTIME``, respectively.
 
     -  .. _`V4L2-BUF-FLAG-TIMESTAMP-MONOTONIC`:
@@ -723,7 +723,7 @@ Buffer Flags
 
        -  The buffer timestamp has been taken from the ``CLOCK_MONOTONIC``
 	  clock. To access the same clock outside V4L2, use
-	  :c:func:`clock_gettime(2)`.
+	  :c:func:`clock_gettime`.
 
     -  .. _`V4L2-BUF-FLAG-TIMESTAMP-COPY`:
 

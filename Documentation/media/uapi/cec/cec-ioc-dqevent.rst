@@ -122,7 +122,7 @@ it is guaranteed that the state did change in between the two events.
        -  :cspan:`1` Timestamp of the event in ns.
 
 	  The timestamp has been taken from the ``CLOCK_MONOTONIC`` clock. To access
-	  the same clock from userspace use :c:func:`clock_gettime(2)`.
+	  the same clock from userspace use :c:func:`clock_gettime`.
 
     -  .. row 2
 
