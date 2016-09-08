@@ -23,8 +23,12 @@
 	PORT_GP_16(0, fn, sfx),						\
 	PORT_GP_29(1, fn, sfx),						\
 	PORT_GP_15(2, fn, sfx),						\
-	PORT_GP_16(3, fn, sfx),						\
-	PORT_GP_18(4, fn, sfx),						\
+	PORT_GP_CFG_12(3, fn, sfx, SH_PFC_PIN_CFG_IO_VOLTAGE),		\
+	PORT_GP_1(3, 12, fn, sfx),					\
+	PORT_GP_1(3, 13, fn, sfx),					\
+	PORT_GP_1(3, 14, fn, sfx),					\
+	PORT_GP_1(3, 15, fn, sfx),					\
+	PORT_GP_CFG_18(4, fn, sfx, SH_PFC_PIN_CFG_IO_VOLTAGE),		\
 	PORT_GP_26(5, fn, sfx),						\
 	PORT_GP_32(6, fn, sfx),						\
 	PORT_GP_4(7, fn, sfx)
@@ -2627,8 +2631,28 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	{ },
 };
 
+static int r8a7796_pin_to_pocctrl(struct sh_pfc *pfc, unsigned int pin, u32 *pocctrl)
+{
+	int bit = -EINVAL;
+
+	*pocctrl = 0xe6060380;
+
+	if (pin >= RCAR_GP_PIN(3, 0) && pin <= RCAR_GP_PIN(3, 11))
+		bit = pin & 0x1f;
+
+	if (pin >= RCAR_GP_PIN(4, 0) && pin <= RCAR_GP_PIN(4, 17))
+		bit = (pin & 0x1f) + 12;
+
+	return bit;
+}
+
+static const struct sh_pfc_soc_operations r8a7796_pinmux_ops = {
+	.pin_to_pocctrl = r8a7796_pin_to_pocctrl,
+};
+
 const struct sh_pfc_soc_info r8a7796_pinmux_info = {
 	.name = "r8a77960_pfc",
+	.ops = &r8a7796_pinmux_ops,
 	.unlock_reg = 0xe6060000, /* PMMR */
 
 	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },
