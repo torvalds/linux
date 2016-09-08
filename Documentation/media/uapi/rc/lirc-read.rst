@@ -21,7 +21,7 @@ Synopsis
 
 
 .. c:function:: ssize_t read( int fd, void *buf, size_t count )
-    :name lirc-read
+    :name: lirc-read
 
 
 Arguments
