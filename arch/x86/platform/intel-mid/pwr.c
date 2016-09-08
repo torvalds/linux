@@ -427,6 +427,7 @@ static const struct mid_pwr_device_info mid_info = {
 	.set_initial_state = mid_set_initial_state,
 };
 
+/* This table should be in sync with the one in drivers/pci/pci-mid.c */
 static const struct pci_device_id mid_pwr_pci_ids[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_PENWELL), (kernel_ulong_t)&mid_info },
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_TANGIER), (kernel_ulong_t)&mid_info },
