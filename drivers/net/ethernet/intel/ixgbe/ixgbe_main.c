@@ -3248,7 +3248,8 @@ static void ixgbe_setup_mtqc(struct ixgbe_adapter *adapter)
 			mtqc |= IXGBE_MTQC_RT_ENA | IXGBE_MTQC_8TC_8TQ;
 		else if (tcs > 1)
 			mtqc |= IXGBE_MTQC_RT_ENA | IXGBE_MTQC_4TC_4TQ;
-		else if (adapter->ring_feature[RING_F_RSS].indices == 4)
+		else if (adapter->ring_feature[RING_F_VMDQ].mask ==
+			 IXGBE_82599_VMDQ_4Q_MASK)
 			mtqc |= IXGBE_MTQC_32VF;
 		else
 			mtqc |= IXGBE_MTQC_64VF;
@@ -3475,12 +3476,12 @@ static void ixgbe_setup_reta(struct ixgbe_adapter *adapter)
 	u32 reta_entries = ixgbe_rss_indir_tbl_entries(adapter);
 	u16 rss_i = adapter->ring_feature[RING_F_RSS].indices;
 
-	/* Program table for at least 2 queues w/ SR-IOV so that VFs can
+	/* Program table for at least 4 queues w/ SR-IOV so that VFs can
 	 * make full use of any rings they may have.  We will use the
 	 * PSRTYPE register to control how many rings we use within the PF.
 	 */
-	if ((adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) && (rss_i < 2))
-		rss_i = 2;
+	if ((adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) && (rss_i < 4))
+		rss_i = 4;
 
 	/* Fill out hash function seeds */
 	for (i = 0; i < 10; i++)
@@ -3544,7 +3545,8 @@ static void ixgbe_setup_mrqc(struct ixgbe_adapter *adapter)
 				mrqc = IXGBE_MRQC_VMDQRT8TCEN;	/* 8 TCs */
 			else if (tcs > 1)
 				mrqc = IXGBE_MRQC_VMDQRT4TCEN;	/* 4 TCs */
-			else if (adapter->ring_feature[RING_F_RSS].indices == 4)
+			else if (adapter->ring_feature[RING_F_VMDQ].mask ==
+				 IXGBE_82599_VMDQ_4Q_MASK)
 				mrqc = IXGBE_MRQC_VMDQRSS32EN;
 			else
 				mrqc = IXGBE_MRQC_VMDQRSS64EN;
