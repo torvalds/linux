@@ -24,16 +24,16 @@ static void *is_irq_stack(void *p, void *irq)
 }
 
 
-static void *is_hardirq_stack(unsigned long *stack, int cpu)
+static void *is_hardirq_stack(unsigned long *stack)
 {
-	void *irq = per_cpu(hardirq_stack, cpu);
+	void *irq = this_cpu_read(hardirq_stack);
 
 	return is_irq_stack(stack, irq);
 }
 
-static void *is_softirq_stack(unsigned long *stack, int cpu)
+static void *is_softirq_stack(unsigned long *stack)
 {
-	void *irq = per_cpu(softirq_stack, cpu);
+	void *irq = this_cpu_read(softirq_stack);
 
 	return is_irq_stack(stack, irq);
 }
@@ -42,7 +42,6 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 		unsigned long *stack, unsigned long bp,
 		const struct stacktrace_ops *ops, void *data)
 {
-	const unsigned cpu = get_cpu();
 	int graph = 0;
 	u32 *prev_esp;
 
@@ -53,9 +52,9 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 	for (;;) {
 		void *end_stack;
 
-		end_stack = is_hardirq_stack(stack, cpu);
+		end_stack = is_hardirq_stack(stack);
 		if (!end_stack)
-			end_stack = is_softirq_stack(stack, cpu);
+			end_stack = is_softirq_stack(stack);
 
 		bp = ops->walk_stack(task, stack, bp, ops, data,
 				     end_stack, &graph);
@@ -74,7 +73,6 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 			break;
 		touch_nmi_watchdog();
 	}
-	put_cpu();
 }
 EXPORT_SYMBOL(dump_trace);
 
