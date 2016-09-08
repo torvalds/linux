@@ -672,8 +672,10 @@ Magic Constants for struct v4l2_mpeg_vbi_fmt_ivtv magic field
 
 .. c:type:: v4l2_mpeg_vbi_itv0
 
-struct v4l2_mpeg_vbi_itv0
--------------------------
+.. c:type:: v4l2_mpeg_vbi_ITV0
+
+structs v4l2_mpeg_vbi_itv0 and v4l2_mpeg_vbi_ITV0
+-------------------------------------------------
 
 .. tabularcolumns:: |p{4.4cm}|p{2.4cm}|p{10.7cm}|
 
