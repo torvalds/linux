@@ -651,6 +651,14 @@ config LEDS_PM8058
 	  Choose this option if you want to use the LED drivers in
 	  the Qualcomm PM8058 PMIC.
 
+config LEDS_MLXCPLD
+	tristate "LED support for the Mellanox boards"
+	depends on X86_64 && DMI
+	depends on LEDS_CLASS
+	help
+	  This option enabled support for the LEDs on the Mellanox
+	  boards. Say Y to enabled these.
+
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"
 
