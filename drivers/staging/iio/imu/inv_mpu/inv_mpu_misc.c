@@ -968,6 +968,27 @@ void inv_recover_setting(struct inv_mpu_iio_s *st)
 	st->set_power_state(st, false);
 }
 
+/*
+ *  inv_resume_recover_setting() recover the old settings after from hw powerdown
+ */
+void inv_resume_recover_setting(struct inv_mpu_iio_s *st)
+{
+	struct inv_reg_map_s *reg;
+	int data;
+
+	reg = &st->reg;
+	inv_plat_single_write(st, reg->gyro_config,
+				st->chip_config.fsr << GYRO_CONFIG_FSR_SHIFT);
+	inv_plat_single_write(st, reg->lpf, st->chip_config.lpf);
+	data = ONE_K_HZ / st->chip_config.new_fifo_rate - 1;
+	inv_plat_single_write(st, reg->sample_rate_div, data);
+	if (INV_ITG3500 != st->chip_type) {
+		inv_plat_single_write(st, reg->accl_config,
+					(st->chip_config.accl_fs <<
+					ACCL_CONFIG_FSR_SHIFT));
+	}
+}
+
 static int inv_check_compass_self_test(struct inv_mpu_iio_s *st)
 {
 	int result;

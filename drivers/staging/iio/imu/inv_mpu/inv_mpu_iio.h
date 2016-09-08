@@ -893,6 +893,7 @@ int inv_do_test(struct inv_mpu_iio_s *st, int self_test_flag,
 		int *gyro_result, int *accl_result);
 int inv_hw_self_test(struct inv_mpu_iio_s *st);
 void inv_recover_setting(struct inv_mpu_iio_s *st);
+void inv_resume_recover_setting(struct inv_mpu_iio_s *st);
 int inv_power_up_self_test(struct inv_mpu_iio_s *st);
 s64 get_time_ns(void);
 int write_be32_key_to_mem(struct inv_mpu_iio_s *st,

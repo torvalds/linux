@@ -476,8 +476,8 @@ static int inv_mpu_resume(struct device *dev)
 
 	pr_debug("%s inv_mpu_resume\n", st->hw->name);
 
+	mutex_lock(&indio_dev->mlock);
 	if (st->support_hw_poweroff) {
-		mutex_lock(&indio_dev->mlock);
 		/* reset to make sure previous state are not there */
 		result = inv_plat_single_write(st, st->reg.pwr_mgmt_1, BIT_H_RESET);
 		if (result) {
@@ -501,12 +501,10 @@ static int inv_mpu_resume(struct device *dev)
 			pr_err("%s, set user_ctrl failed\n", __func__);
 			goto rw_err;
 		}
-		inv_reg_recover(st);
-		mutex_unlock(&indio_dev->mlock);
+		inv_resume_recover_setting(st);
 	} else {
 		result = st->set_power_state(st, true);
 	}
-	return result;
 
 rw_err:
 	mutex_unlock(&indio_dev->mlock);
@@ -522,8 +520,6 @@ static int inv_mpu_suspend(struct device *dev)
 	pr_debug("%s inv_mpu_suspend\n", st->hw->name);
 
 	mutex_lock(&indio_dev->mlock);
-	if (st->support_hw_poweroff)
-		inv_reg_store(st);
 	if ((!st->chip_config.dmp_on) ||
 		(!st->chip_config.enable) ||
 		(!st->chip_config.dmp_event_int_on))
