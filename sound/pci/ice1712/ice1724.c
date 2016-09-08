@@ -620,9 +620,7 @@ static const unsigned int stdclock_rate_list[16] = {
 
 static unsigned int stdclock_get_rate(struct snd_ice1712 *ice)
 {
-	unsigned int rate;
-	rate = stdclock_rate_list[inb(ICEMT1724(ice, RATE)) & 15];
-	return rate;
+	return stdclock_rate_list[inb(ICEMT1724(ice, RATE)) & 15];
 }
 
 static void stdclock_set_rate(struct snd_ice1712 *ice, unsigned int rate)

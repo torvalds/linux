@@ -300,37 +300,29 @@ static int snd_p16v_pcm_open_capture(struct snd_pcm_substream *substream)
 static int snd_p16v_pcm_hw_params_playback(struct snd_pcm_substream *substream,
 				      struct snd_pcm_hw_params *hw_params)
 {
-	int result;
-	result = snd_pcm_lib_malloc_pages(substream,
+	return snd_pcm_lib_malloc_pages(substream,
 					params_buffer_bytes(hw_params));
-	return result;
 }
 
 /* hw_params callback */
 static int snd_p16v_pcm_hw_params_capture(struct snd_pcm_substream *substream,
 				      struct snd_pcm_hw_params *hw_params)
 {
-	int result;
-	result = snd_pcm_lib_malloc_pages(substream,
+	return snd_pcm_lib_malloc_pages(substream,
 					params_buffer_bytes(hw_params));
-	return result;
 }
 
 
 /* hw_free callback */
 static int snd_p16v_pcm_hw_free_playback(struct snd_pcm_substream *substream)
 {
-	int result;
-	result = snd_pcm_lib_free_pages(substream);
-	return result;
+	return snd_pcm_lib_free_pages(substream);
 }
 
 /* hw_free callback */
 static int snd_p16v_pcm_hw_free_capture(struct snd_pcm_substream *substream)
 {
-	int result;
-	result = snd_pcm_lib_free_pages(substream);
-	return result;
+	return snd_pcm_lib_free_pages(substream);
 }
 
 
