@@ -2116,7 +2116,7 @@ static void qede_vlan_mark_nonconfigured(struct qede_dev *edev)
 	edev->accept_any_vlan = false;
 }
 
-int qede_set_features(struct net_device *dev, netdev_features_t features)
+static int qede_set_features(struct net_device *dev, netdev_features_t features)
 {
 	struct qede_dev *edev = netdev_priv(dev);
 	netdev_features_t changes = features ^ dev->features;
