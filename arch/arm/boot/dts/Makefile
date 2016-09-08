@@ -610,7 +610,9 @@ dtb-$(CONFIG_ARCH_REALVIEW) += \
 	arm-realview-eb.dtb \
 	arm-realview-eb-bbrevd.dtb \
 	arm-realview-eb-11mp.dtb \
-	arm-realview-eb-11mp-revb.dtb \
+	arm-realview-eb-11mp-bbrevd.dtb \
+	arm-realview-eb-11mp-ctrevb.dtb \
+	arm-realview-eb-11mp-bbrevd-ctrevb.dtb \
 	arm-realview-eb-a9mp.dtb \
 	arm-realview-pba8.dtb \
 	arm-realview-pbx-a9.dtb
