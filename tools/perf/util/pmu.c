@@ -445,14 +445,23 @@ static struct cpu_map *pmu_cpumask(const char *name)
 	FILE *file;
 	struct cpu_map *cpus;
 	const char *sysfs = sysfs__mountpoint();
+	const char *templates[] = {
+		 "%s/bus/event_source/devices/%s/cpumask",
+		 "%s/bus/event_source/devices/%s/cpus",
+		 NULL
+	};
+	const char **template;
 
 	if (!sysfs)
 		return NULL;
 
-	snprintf(path, PATH_MAX,
-		 "%s/bus/event_source/devices/%s/cpumask", sysfs, name);
+	for (template = templates; *template; template++) {
+		snprintf(path, PATH_MAX, *template, sysfs, name);
+		if (stat(path, &st) == 0)
+			break;
+	}
 
-	if (stat(path, &st) < 0)
+	if (!*template)
 		return NULL;
 
 	file = fopen(path, "r");
