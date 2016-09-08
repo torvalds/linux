@@ -505,7 +505,7 @@ static int dmatest_func(void *data)
 		total_tests++;
 
 		/* honor alignment restrictions */
-		if (thread->type == DMA_MEMCPY)
+		if (thread->type == DMA_MEMCPY || thread->type == DMA_SG)
 			align = dev->copy_align;
 		else if (thread->type == DMA_XOR)
 			align = dev->xor_align;
