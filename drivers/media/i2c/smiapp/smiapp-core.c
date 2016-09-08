@@ -2623,8 +2623,6 @@ static int smiapp_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct smiapp_subdev *ssd = to_smiapp_subdev(sd);
 	struct smiapp_sensor *sensor = ssd->sensor;
-	u32 mbus_code =
-		smiapp_csi_data_formats[smiapp_pixel_order(sensor)].code;
 	unsigned int i;
 
 	mutex_lock(&sensor->mutex);
@@ -2640,7 +2638,7 @@ static int smiapp_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 		try_fmt->width = try_crop->width;
 		try_fmt->height = try_crop->height;
-		try_fmt->code = mbus_code;
+		try_fmt->code = sensor->internal_csi_format->code;
 		try_fmt->field = V4L2_FIELD_NONE;
 
 		if (ssd != sensor->pixel_array)
