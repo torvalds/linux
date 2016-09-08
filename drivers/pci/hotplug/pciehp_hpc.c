@@ -592,7 +592,7 @@ static irqreturn_t pciehp_isr(int irq, void *dev_id)
 
 	/* Check Attention Button Pressed */
 	if (events & PCI_EXP_SLTSTA_ABP) {
-		ctrl_info(ctrl, "Button pressed on Slot(%s)\n",
+		ctrl_info(ctrl, "Slot(%s): Attention button pressed\n",
 			  slot_name(slot));
 		pciehp_queue_interrupt_event(slot, INT_BUTTON_PRESS);
 	}
@@ -600,8 +600,8 @@ static irqreturn_t pciehp_isr(int irq, void *dev_id)
 	/* Check Presence Detect Changed */
 	if (events & PCI_EXP_SLTSTA_PDC) {
 		present = !!(status & PCI_EXP_SLTSTA_PDS);
-		ctrl_info(ctrl, "Card %spresent on Slot(%s)\n",
-			  present ? "" : "not ", slot_name(slot));
+		ctrl_info(ctrl, "Slot(%s): Card %spresent\n", slot_name(slot),
+			  present ? "" : "not ");
 		pciehp_queue_interrupt_event(slot, present ? INT_PRESENCE_ON :
 					     INT_PRESENCE_OFF);
 	}
@@ -609,13 +609,13 @@ static irqreturn_t pciehp_isr(int irq, void *dev_id)
 	/* Check Power Fault Detected */
 	if ((events & PCI_EXP_SLTSTA_PFD) && !ctrl->power_fault_detected) {
 		ctrl->power_fault_detected = 1;
-		ctrl_err(ctrl, "Power fault on slot %s\n", slot_name(slot));
+		ctrl_err(ctrl, "Slot(%s): Power fault\n", slot_name(slot));
 		pciehp_queue_interrupt_event(slot, INT_POWER_FAULT);
 	}
 
 	if (events & PCI_EXP_SLTSTA_DLLSC) {
-		ctrl_info(ctrl, "slot(%s): Link %s event\n",
-			  slot_name(slot), link ? "Up" : "Down");
+		ctrl_info(ctrl, "Slot(%s): Link %s\n", slot_name(slot),
+			  link ? "Up" : "Down");
 		pciehp_queue_interrupt_event(slot, link ? INT_LINK_UP :
 					     INT_LINK_DOWN);
 	}
