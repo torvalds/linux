@@ -280,12 +280,7 @@ wait_queue_head_t *bit_waitqueue(void *, int);
 									\
 		if (___wait_is_interruptible(state) && __int) {		\
 			__ret = __int;					\
-			if (exclusive) {				\
-				abort_exclusive_wait(&wq, &__wait, 	\
-						     NULL);		\
-				goto __out;				\
-			}						\
-			break;						\
+			goto __out;					\
 		}							\
 									\
 		cmd;							\

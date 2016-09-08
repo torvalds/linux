@@ -199,24 +199,39 @@ EXPORT_SYMBOL(prepare_to_wait_exclusive);
 long prepare_to_wait_event(wait_queue_head_t *q, wait_queue_t *wait, int state)
 {
 	unsigned long flags;
-
-	if (signal_pending_state(state, current))
-		return -ERESTARTSYS;
+	long ret = 0;
 
 	wait->private = current;
 	wait->func = autoremove_wake_function;
 
 	spin_lock_irqsave(&q->lock, flags);
-	if (list_empty(&wait->task_list)) {
-		if (wait->flags & WQ_FLAG_EXCLUSIVE)
-			__add_wait_queue_tail(q, wait);
-		else
-			__add_wait_queue(q, wait);
+	if (unlikely(signal_pending_state(state, current))) {
+		/*
+		 * Exclusive waiter must not fail if it was selected by wakeup,
+		 * it should "consume" the condition we were waiting for.
+		 *
+		 * The caller will recheck the condition and return success if
+		 * we were already woken up, we can not miss the event because
+		 * wakeup locks/unlocks the same q->lock.
+		 *
+		 * But we need to ensure that set-condition + wakeup after that
+		 * can't see us, it should wake up another exclusive waiter if
+		 * we fail.
+		 */
+		list_del_init(&wait->task_list);
+		ret = -ERESTARTSYS;
+	} else {
+		if (list_empty(&wait->task_list)) {
+			if (wait->flags & WQ_FLAG_EXCLUSIVE)
+				__add_wait_queue_tail(q, wait);
+			else
+				__add_wait_queue(q, wait);
+		}
+		set_current_state(state);
 	}
-	set_current_state(state);
 	spin_unlock_irqrestore(&q->lock, flags);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(prepare_to_wait_event);
 
