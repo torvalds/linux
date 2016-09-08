@@ -2947,9 +2947,13 @@ static u32 ixgbe_rss_indir_size(struct net_device *netdev)
 static void ixgbe_get_reta(struct ixgbe_adapter *adapter, u32 *indir)
 {
 	int i, reta_size = ixgbe_rss_indir_tbl_entries(adapter);
+	u16 rss_m = adapter->ring_feature[RING_F_RSS].mask;
+
+	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)
+		rss_m = adapter->ring_feature[RING_F_RSS].indices - 1;
 
 	for (i = 0; i < reta_size; i++)
-		indir[i] = adapter->rss_indir_tbl[i];
+		indir[i] = adapter->rss_indir_tbl[i] & rss_m;
 }
 
 static int ixgbe_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
