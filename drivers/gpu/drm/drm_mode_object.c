@@ -372,14 +372,25 @@ out:
 	return ret;
 }
 
+struct drm_property *drm_mode_obj_find_prop_id(struct drm_mode_object *obj,
+					       uint32_t prop_id)
+{
+	int i;
+
+	for (i = 0; i < obj->properties->count; i++)
+		if (obj->properties->properties[i]->base.id == prop_id)
+			return obj->properties->properties[i];
+
+	return NULL;
+}
+
 int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
 				    struct drm_file *file_priv)
 {
 	struct drm_mode_obj_set_property *arg = data;
 	struct drm_mode_object *arg_obj;
-	struct drm_mode_object *prop_obj;
 	struct drm_property *property;
-	int i, ret = -EINVAL;
+	int ret = -EINVAL;
 	struct drm_mode_object *ref;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
@@ -392,23 +403,13 @@ int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
 		ret = -ENOENT;
 		goto out;
 	}
+
 	if (!arg_obj->properties)
 		goto out_unref;
 
-	for (i = 0; i < arg_obj->properties->count; i++)
-		if (arg_obj->properties->properties[i]->base.id == arg->prop_id)
-			break;
-
-	if (i == arg_obj->properties->count)
+	property = drm_mode_obj_find_prop_id(arg_obj, arg->prop_id);
+	if (!property)
 		goto out_unref;
-
-	prop_obj = drm_mode_object_find(dev, arg->prop_id,
-					DRM_MODE_OBJECT_PROPERTY);
-	if (!prop_obj) {
-		ret = -ENOENT;
-		goto out_unref;
-	}
-	property = obj_to_property(prop_obj);
 
 	if (!drm_property_change_valid_get(property, arg->value, &ref))
 		goto out_unref;
