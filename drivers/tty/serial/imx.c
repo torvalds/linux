@@ -2137,8 +2137,10 @@ static int serial_imx_probe(struct platform_device *pdev)
 
 	/* For register access, we only need to enable the ipg clock. */
 	ret = clk_prepare_enable(sport->clk_ipg);
-	if (ret)
+	if (ret) {
+		dev_err(&pdev->dev, "failed to enable per clk: %d\n", ret);
 		return ret;
+	}
 
 	/* Disable interrupts before requesting them */
 	reg = readl_relaxed(sport->port.membase + UCR1);
@@ -2155,18 +2157,26 @@ static int serial_imx_probe(struct platform_device *pdev)
 	if (txirq > 0) {
 		ret = devm_request_irq(&pdev->dev, rxirq, imx_rxint, 0,
 				       dev_name(&pdev->dev), sport);
-		if (ret)
+		if (ret) {
+			dev_err(&pdev->dev, "failed to request rx irq: %d\n",
+				ret);
 			return ret;
+		}
 
 		ret = devm_request_irq(&pdev->dev, txirq, imx_txint, 0,
 				       dev_name(&pdev->dev), sport);
-		if (ret)
+		if (ret) {
+			dev_err(&pdev->dev, "failed to request tx irq: %d\n",
+				ret);
 			return ret;
+		}
 	} else {
 		ret = devm_request_irq(&pdev->dev, rxirq, imx_int, 0,
 				       dev_name(&pdev->dev), sport);
-		if (ret)
+		if (ret) {
+			dev_err(&pdev->dev, "failed to request irq: %d\n", ret);
 			return ret;
+		}
 	}
 
 	imx_ports[sport->port.line] = sport;
