@@ -430,6 +430,7 @@ static void elf_kcore_store_hdr(char *bufp, int nphdr, int dataoff)
 static ssize_t
 read_kcore(struct file *file, char __user *buffer, size_t buflen, loff_t *fpos)
 {
+	char *buf = file->private_data;
 	ssize_t acc = 0;
 	size_t size, tsz;
 	size_t elf_buflen;
@@ -500,18 +501,10 @@ read_kcore(struct file *file, char __user *buffer, size_t buflen, loff_t *fpos)
 			if (clear_user(buffer, tsz))
 				return -EFAULT;
 		} else if (is_vmalloc_or_module_addr((void *)start)) {
-			char * elf_buf;
-
-			elf_buf = kzalloc(tsz, GFP_KERNEL);
-			if (!elf_buf)
-				return -ENOMEM;
-			vread(elf_buf, (char *)start, tsz);
+			vread(buf, (char *)start, tsz);
 			/* we have to zero-fill user buffer even if no read */
-			if (copy_to_user(buffer, elf_buf, tsz)) {
-				kfree(elf_buf);
+			if (copy_to_user(buffer, buf, tsz))
 				return -EFAULT;
-			}
-			kfree(elf_buf);
 		} else {
 			if (kern_addr_valid(start)) {
 				unsigned long n;
@@ -549,6 +542,11 @@ static int open_kcore(struct inode *inode, struct file *filp)
 {
 	if (!capable(CAP_SYS_RAWIO))
 		return -EPERM;
+
+	filp->private_data = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!filp->private_data)
+		return -ENOMEM;
+
 	if (kcore_need_update)
 		kcore_update_ram();
 	if (i_size_read(inode) != proc_root_kcore->size) {
@@ -559,10 +557,16 @@ static int open_kcore(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+static int release_kcore(struct inode *inode, struct file *file)
+{
+	kfree(file->private_data);
+	return 0;
+}
 
 static const struct file_operations proc_kcore_operations = {
 	.read		= read_kcore,
 	.open		= open_kcore,
+	.release	= release_kcore,
 	.llseek		= default_llseek,
 };
 
