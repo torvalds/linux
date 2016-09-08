@@ -131,7 +131,7 @@ int rxrpc_init_server_conn_security(struct rxrpc_connection *conn)
 
 	/* find the service */
 	read_lock_bh(&local->services_lock);
-	list_for_each_entry(rx, &local->services, listen_link) {
+	hlist_for_each_entry(rx, &local->services, listen_link) {
 		if (rx->srx.srx_service == conn->params.service_id)
 			goto found_service;
 	}

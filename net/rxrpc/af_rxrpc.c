@@ -156,13 +156,13 @@ static int rxrpc_bind(struct socket *sock, struct sockaddr *saddr, int len)
 
 	if (rx->srx.srx_service) {
 		write_lock_bh(&local->services_lock);
-		list_for_each_entry(prx, &local->services, listen_link) {
+		hlist_for_each_entry(prx, &local->services, listen_link) {
 			if (prx->srx.srx_service == rx->srx.srx_service)
 				goto service_in_use;
 		}
 
 		rx->local = local;
-		list_add_tail(&rx->listen_link, &local->services);
+		hlist_add_head_rcu(&rx->listen_link, &local->services);
 		write_unlock_bh(&local->services_lock);
 
 		rx->sk.sk_state = RXRPC_SERVER_BOUND;
@@ -567,7 +567,7 @@ static int rxrpc_create(struct net *net, struct socket *sock, int protocol,
 	rx->family = protocol;
 	rx->calls = RB_ROOT;
 
-	INIT_LIST_HEAD(&rx->listen_link);
+	INIT_HLIST_NODE(&rx->listen_link);
 	INIT_LIST_HEAD(&rx->secureq);
 	INIT_LIST_HEAD(&rx->acceptq);
 	rwlock_init(&rx->call_lock);
@@ -615,9 +615,9 @@ static int rxrpc_release_sock(struct sock *sk)
 
 	ASSERTCMP(rx->listen_link.next, !=, LIST_POISON1);
 
-	if (!list_empty(&rx->listen_link)) {
+	if (!hlist_unhashed(&rx->listen_link)) {
 		write_lock_bh(&rx->local->services_lock);
-		list_del(&rx->listen_link);
+		hlist_del_rcu(&rx->listen_link);
 		write_unlock_bh(&rx->local->services_lock);
 	}
 

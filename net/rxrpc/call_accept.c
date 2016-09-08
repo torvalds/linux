@@ -217,7 +217,7 @@ void rxrpc_accept_incoming_calls(struct rxrpc_local *local)
 
 	/* get the socket providing the service */
 	read_lock_bh(&local->services_lock);
-	list_for_each_entry(rx, &local->services, listen_link) {
+	hlist_for_each_entry(rx, &local->services, listen_link) {
 		if (rx->srx.srx_service == sp->hdr.serviceId &&
 		    rx->sk.sk_state != RXRPC_CLOSE)
 			goto found_service;

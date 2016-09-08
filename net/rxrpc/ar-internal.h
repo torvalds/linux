@@ -71,7 +71,7 @@ struct rxrpc_sock {
 	struct sock		sk;
 	rxrpc_notify_new_call_t	notify_new_call; /* Func to notify of new call */
 	struct rxrpc_local	*local;		/* local endpoint */
-	struct list_head	listen_link;	/* link in the local endpoint's listen list */
+	struct hlist_node	listen_link;	/* link in the local endpoint's listen list */
 	struct list_head	secureq;	/* calls awaiting connection security clearance */
 	struct list_head	acceptq;	/* calls awaiting acceptance */
 	struct key		*key;		/* security for this socket */
@@ -186,7 +186,7 @@ struct rxrpc_local {
 	struct list_head	link;
 	struct socket		*socket;	/* my UDP socket */
 	struct work_struct	processor;
-	struct list_head	services;	/* services listening on this endpoint */
+	struct hlist_head	services;	/* services listening on this endpoint */
 	struct rw_semaphore	defrag_sem;	/* control re-enablement of IP DF bit */
 	struct sk_buff_head	accept_queue;	/* incoming calls awaiting acceptance */
 	struct sk_buff_head	reject_queue;	/* packets awaiting rejection */
