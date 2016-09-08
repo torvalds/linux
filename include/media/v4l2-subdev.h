@@ -764,7 +764,7 @@ struct v4l2_subdev_platform_data {
  * @entity: pointer to &struct media_entity
  * @list: List of sub-devices
  * @owner: The owner is the same as the driver's &struct device owner.
- * @owner_v4l2_dev: true if the &sd->owner matches the owner of &v4l2_dev->dev
+ * @owner_v4l2_dev: true if the &sd->owner matches the owner of @v4l2_dev->dev
  *	ownner. Initialized by v4l2_device_register_subdev().
  * @flags: subdev flags. Can be:
  *   %V4L2_SUBDEV_FL_IS_I2C - Set this flag if this subdev is a i2c device;
@@ -774,9 +774,9 @@ struct v4l2_subdev_platform_data {
  *   %V4L2_SUBDEV_FL_HAS_EVENTS -  Set this flag if this subdev generates
  *   events.
  *
- * @v4l2_dev: pointer to &struct v4l2_device
- * @ops: pointer to &struct v4l2_subdev_ops
- * @internal_ops: pointer to &struct v4l2_subdev_internal_ops.
+ * @v4l2_dev: pointer to struct &v4l2_device
+ * @ops: pointer to struct &v4l2_subdev_ops
+ * @internal_ops: pointer to struct &v4l2_subdev_internal_ops.
  *	Never call these internal ops from within a driver!
  * @ctrl_handler: The control handler of this subdev. May be NULL.
  * @name: Name of the sub-device. Please notice that the name must be unique.
