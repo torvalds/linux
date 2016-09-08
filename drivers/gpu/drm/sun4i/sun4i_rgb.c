@@ -19,6 +19,7 @@
 
 #include "sun4i_drv.h"
 #include "sun4i_tcon.h"
+#include "sun4i_rgb.h"
 
 struct sun4i_rgb {
 	struct drm_connector	connector;

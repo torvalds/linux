@@ -15,6 +15,7 @@
 #include <drm/drmP.h>
 
 #include "sun4i_drv.h"
+#include "sun4i_framebuffer.h"
 
 static void sun4i_de_output_poll_changed(struct drm_device *drm)
 {
