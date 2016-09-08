@@ -34,22 +34,22 @@
 #define SD_MINOR	0
 #define SD_VERSION	(SD_MAJOR << 16 | SD_MINOR)
 
-#define SD_WS2008_MAJOR		1
-#define SD_WS2008_VERSION	(SD_WS2008_MAJOR << 16 | SD_MINOR)
+#define SD_MAJOR_1	1
+#define SD_VERSION_1	(SD_MAJOR_1 << 16 | SD_MINOR)
 
 #define TS_MAJOR	3
 #define TS_MINOR	0
 #define TS_VERSION	(TS_MAJOR << 16 | TS_MINOR)
 
-#define TS_WS2008_MAJOR		1
-#define TS_WS2008_VERSION	(TS_WS2008_MAJOR << 16 | TS_MINOR)
+#define TS_MAJOR_1	1
+#define TS_VERSION_1	(TS_MAJOR_1 << 16 | TS_MINOR)
 
 #define HB_MAJOR	3
-#define HB_MINOR 0
+#define HB_MINOR	0
 #define HB_VERSION	(HB_MAJOR << 16 | HB_MINOR)
 
-#define HB_WS2008_MAJOR	1
-#define HB_WS2008_VERSION	(HB_WS2008_MAJOR << 16 | HB_MINOR)
+#define HB_MAJOR_1	1
+#define HB_VERSION_1	(HB_MAJOR_1 << 16 | HB_MINOR)
 
 static int sd_srv_version;
 static int ts_srv_version;
@@ -350,9 +350,9 @@ static int util_probe(struct hv_device *dev,
 	switch (vmbus_proto_version) {
 	case (VERSION_WS2008):
 		util_fw_version = UTIL_WS2K8_FW_VERSION;
-		sd_srv_version = SD_WS2008_VERSION;
-		ts_srv_version = TS_WS2008_VERSION;
-		hb_srv_version = HB_WS2008_VERSION;
+		sd_srv_version = SD_VERSION_1;
+		ts_srv_version = TS_VERSION_1;
+		hb_srv_version = HB_VERSION_1;
 		break;
 
 	default:
