@@ -35,7 +35,6 @@
 #include <linux/earlycpio.h>
 #include <linux/memblock.h>
 #include <linux/initrd.h>
-#include <linux/acpi.h>
 #include "internal.h"
 
 #ifdef CONFIG_ACPI_CUSTOM_DSDT
