@@ -4065,6 +4065,12 @@ static int rk3288_lcdc_parse_dt(struct lcdc_device *lcdc_dev)
 		dev_drv->iommu_enabled = 0;
 	else
 		dev_drv->iommu_enabled = val;
+
+	if (of_property_read_u32(np, "rockchip,dsp_mode", &val))
+		dev_drv->dsp_mode = DEFAULT_MODE;
+	else
+		dev_drv->dsp_mode = val;
+
 	return 0;
 }
 
