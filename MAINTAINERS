@@ -7827,6 +7827,15 @@ F:	drivers/media/platform/mtk-vpu/
 F:	Documentation/devicetree/bindings/media/mediatek-vcodec.txt
 F:	Documentation/devicetree/bindings/media/mediatek-vpu.txt
 
+MEDIATEK MDP DRIVER
+M:	Minghsiu Tsai <minghsiu.tsai@mediatek.com>
+M:	Houlong Wei <houlong.wei@mediatek.com>
+M:	Andrew-CT Chen <andrew-ct.chen@mediatek.com>
+S:	Supported
+F:	drivers/media/platform/mtk-mdp/
+F:	drivers/media/platform/mtk-vpu/
+F:	Documentation/devicetree/bindings/media/mediatek-mdp.txt
+
 MEDIATEK MT7601U WIRELESS LAN DRIVER
 M:	Jakub Kicinski <kubakici@wp.pl>
 L:	linux-wireless@vger.kernel.org
