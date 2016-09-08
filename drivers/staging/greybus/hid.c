@@ -277,23 +277,6 @@ static int gb_hid_raw_request(struct hid_device *hid, unsigned char reportnum,
 	}
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,15,0)
-static int gb_hid_get_raw_report(struct hid_device *hid,
-				   unsigned char reportnum, __u8 *buf,
-				   size_t len, unsigned char rtype)
-{
-	return gb_hid_raw_request(hid, reportnum, buf, len, rtype,
-				  HID_REQ_GET_REPORT);
-}
-
-static int gb_hid_output_raw_report(struct hid_device *hid, __u8 *buf,
-				    size_t len, unsigned char rtype)
-{
-	return gb_hid_raw_request(hid, buf[0], buf, len, rtype,
-				  HID_REQ_SET_REPORT);
-}
-#endif
-
 /* HID Callbacks */
 static int gb_hid_parse(struct hid_device *hid)
 {
@@ -422,9 +405,7 @@ static struct hid_ll_driver gb_hid_ll_driver = {
 	.open = gb_hid_open,
 	.close = gb_hid_close,
 	.power = gb_hid_power,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
 	.raw_request = gb_hid_raw_request,
-#endif
 };
 
 static int gb_hid_init(struct gb_hid *ghid)
@@ -444,10 +425,6 @@ static int gb_hid_init(struct gb_hid *ghid)
 	hid->driver_data = ghid;
 	hid->ll_driver = &gb_hid_ll_driver;
 	hid->dev.parent = &ghid->connection->bundle->dev;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,15,0)
-	hid->hid_get_raw_report = gb_hid_get_raw_report;
-	hid->hid_output_raw_report = gb_hid_output_raw_report;
-#endif
 //	hid->bus = BUS_GREYBUS; /* Need a bustype for GREYBUS in <linux/input.h> */
 
 	/* Set HID device's name */
