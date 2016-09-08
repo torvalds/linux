@@ -3502,6 +3502,11 @@ static void _ffs_free_dev(struct ffs_dev *dev)
 	list_del(&dev->entry);
 	if (dev->name_allocated)
 		kfree(dev->name);
+
+	/* Clear the private_data pointer to stop incorrect dev access */
+	if (dev->ffs_data)
+		dev->ffs_data->private_data = NULL;
+
 	kfree(dev);
 	if (list_empty(&ffs_devices))
 		functionfs_cleanup();
