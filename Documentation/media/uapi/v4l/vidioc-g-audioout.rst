@@ -44,7 +44,7 @@ output.
 Audio outputs have no writable properties. Nevertheless, to select the
 current audio output applications can initialize the ``index`` field and
 ``reserved`` array (which in the future may contain writable properties)
-of a :c:type:`struct v4l2_audioout <v4l2_audioout>` structure and call the
+of a struct :c:type:`v4l2_audioout` structure and call the
 ``VIDIOC_S_AUDOUT`` ioctl. Drivers switch to the requested output or
 return the ``EINVAL`` error code when the index is out of bounds. This is a
 write-only ioctl, it does not return the current audio output attributes

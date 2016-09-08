@@ -71,7 +71,7 @@ or output. [#f1]_
 	  set as custom standards. Multiple bits can be set if the hardware
 	  does not distinguish between these standards, however separate
 	  indices do not indicate the opposite. The ``id`` must be unique.
-	  No other enumerated :c:type:`struct v4l2_standard <v4l2_standard>` structure,
+	  No other enumerated struct :c:type:`v4l2_standard` structure,
 	  for this input or output anyway, can contain the same set of bits.
 
     -  .. row 3

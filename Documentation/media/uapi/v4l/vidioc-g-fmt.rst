@@ -40,7 +40,7 @@ These ioctls are used to negotiate the format of data (typically image
 format) exchanged between driver and application.
 
 To query the current parameters applications set the ``type`` field of a
-struct :c:type:`struct v4l2_format <v4l2_format>` to the respective buffer (stream)
+struct :c:type:`v4l2_format` to the respective buffer (stream)
 type. For example video capture devices use
 ``V4L2_BUF_TYPE_VIDEO_CAPTURE`` or
 ``V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE``. When the application calls the
@@ -58,7 +58,7 @@ For details see the documentation of the various devices types in
 :ref:`devices`. Good practice is to query the current parameters
 first, and to modify only those parameters not suitable for the
 application. When the application calls the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl with
-a pointer to a :c:type:`struct v4l2_format <v4l2_format>` structure the driver
+a pointer to a struct :c:type:`v4l2_format` structure the driver
 checks and adjusts the parameters against hardware abilities. Drivers
 should not return an error code unless the ``type`` field is invalid,
 this is a mechanism to fathom device capabilities and to approach

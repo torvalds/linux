@@ -226,7 +226,7 @@ To change the radio frequency the
 	  received audio programs do not match.
 
 	  Currently this is the only field of struct
-	  :c:type:`struct v4l2_tuner <v4l2_tuner>` applications can change.
+	  struct :c:type:`v4l2_tuner` applications can change.
 
     -  .. row 15
 
