@@ -1677,12 +1677,10 @@ static int init_eps(struct ci_hdrc *ci)
 			usb_ep_set_maxpacket_limit(&hwep->ep, (unsigned short)~0);
 
 			INIT_LIST_HEAD(&hwep->qh.queue);
-			hwep->qh.ptr = dma_pool_alloc(ci->qh_pool, GFP_KERNEL,
-						     &hwep->qh.dma);
+			hwep->qh.ptr = dma_pool_zalloc(ci->qh_pool, GFP_KERNEL,
+						       &hwep->qh.dma);
 			if (hwep->qh.ptr == NULL)
 				retval = -ENOMEM;
-			else
-				memset(hwep->qh.ptr, 0, sizeof(*hwep->qh.ptr));
 
 			/*
 			 * set up shorthands for ep0 out and in endpoints,
