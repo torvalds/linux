@@ -960,6 +960,8 @@ static int rockchip_typec_phy_probe(struct platform_device *pdev)
 		return PTR_ERR(tcphy->extcon);
 	}
 
+	pm_runtime_enable(dev);
+
 	for_each_available_child_of_node(np, child_np) {
 		struct phy *phy;
 
@@ -990,6 +992,13 @@ static int rockchip_typec_phy_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int rockchip_typec_phy_remove(struct platform_device *pdev)
+{
+	pm_runtime_disable(&pdev->dev);
+
+	return 0;
+}
+
 static const struct of_device_id rockchip_typec_phy_dt_ids[] = {
 	{ .compatible = "rockchip,rk3399-typec-phy" },
 	{}
@@ -999,6 +1008,7 @@ MODULE_DEVICE_TABLE(of, rockchip_typec_phy_dt_ids);
 
 static struct platform_driver rockchip_typec_phy_driver = {
 	.probe		= rockchip_typec_phy_probe,
+	.remove		= rockchip_typec_phy_remove,
 	.driver		= {
 		.name	= "rockchip-typec-phy",
 		.of_match_table = rockchip_typec_phy_dt_ids,
