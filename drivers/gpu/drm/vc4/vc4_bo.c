@@ -144,7 +144,7 @@ static struct list_head *vc4_get_cache_list_for_size(struct drm_device *dev,
 	return &vc4->bo_cache.size_list[page_index];
 }
 
-void vc4_bo_cache_purge(struct drm_device *dev)
+static void vc4_bo_cache_purge(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
