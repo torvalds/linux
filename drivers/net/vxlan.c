@@ -1291,7 +1291,7 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 		struct metadata_dst *tun_dst;
 
 		tun_dst = udp_tun_rx_dst(skb, vxlan_get_sk_family(vs), TUNNEL_KEY,
-					 vxlan_vni_to_tun_id(vni), sizeof(*md));
+					 key32_to_tunnel_id(vni), sizeof(*md));
 
 		if (!tun_dst)
 			goto drop;
@@ -1945,7 +1945,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 			goto drop;
 		}
 		dst_port = info->key.tp_dst ? : vxlan->cfg.dst_port;
-		vni = vxlan_tun_id_to_vni(info->key.tun_id);
+		vni = tunnel_id_to_key32(info->key.tun_id);
 		remote_ip.sa.sa_family = ip_tunnel_info_af(info);
 		if (remote_ip.sa.sa_family == AF_INET) {
 			remote_ip.sin.sin_addr.s_addr = info->key.u.ipv4.dst;
