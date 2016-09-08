@@ -2295,7 +2295,7 @@ DECLARE_EVENT_CLASS(xfs_defer_pending_class,
 		__entry->dev = mp ? mp->m_super->s_dev : 0;
 		__entry->type = dfp->dfp_type->type;
 		__entry->intent = dfp->dfp_intent;
-		__entry->committed = dfp->dfp_committed;
+		__entry->committed = dfp->dfp_done != NULL;
 		__entry->nr = dfp->dfp_count;
 	),
 	TP_printk("dev %d:%d optype %d intent %p committed %d nr %d\n",

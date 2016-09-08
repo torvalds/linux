@@ -884,11 +884,8 @@ static u32 dwc3_calc_trbs_left(struct dwc3_ep *dep)
 		return DWC3_TRB_NUM - 1;
 	}
 
-	trbs_left = dep->trb_dequeue - dep->trb_enqueue;
+	trbs_left = dep->trb_dequeue - dep->trb_enqueue - 1;
 	trbs_left &= (DWC3_TRB_NUM - 1);
-
-	if (dep->trb_dequeue < dep->trb_enqueue)
-		trbs_left--;
 
 	return trbs_left;
 }
@@ -1433,7 +1430,7 @@ static int dwc3_gadget_get_frame(struct usb_gadget *g)
 
 static int __dwc3_gadget_wakeup(struct dwc3 *dwc)
 {
-	unsigned long		timeout;
+	int			retries;
 
 	int			ret;
 	u32			reg;
@@ -1484,9 +1481,9 @@ static int __dwc3_gadget_wakeup(struct dwc3 *dwc)
 	}
 
 	/* poll until Link State changes to ON */
-	timeout = jiffies + msecs_to_jiffies(100);
+	retries = 20000;
 
-	while (!time_after(jiffies, timeout)) {
+	while (retries--) {
 		reg = dwc3_readl(dwc->regs, DWC3_DSTS);
 
 		/* in HS, means ON */

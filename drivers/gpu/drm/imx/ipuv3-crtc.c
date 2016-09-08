@@ -76,6 +76,8 @@ static void ipu_crtc_disable(struct drm_crtc *crtc)
 		crtc->state->event = NULL;
 	}
 	spin_unlock_irq(&crtc->dev->event_lock);
+
+	drm_crtc_vblank_off(crtc);
 }
 
 static void imx_drm_crtc_reset(struct drm_crtc *crtc)
@@ -175,6 +177,8 @@ static int ipu_crtc_atomic_check(struct drm_crtc *crtc,
 static void ipu_crtc_atomic_begin(struct drm_crtc *crtc,
 				  struct drm_crtc_state *old_crtc_state)
 {
+	drm_crtc_vblank_on(crtc);
+
 	spin_lock_irq(&crtc->dev->event_lock);
 	if (crtc->state->event) {
 		WARN_ON(drm_crtc_vblank_get(crtc));
