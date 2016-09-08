@@ -1517,7 +1517,14 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 		return err;
 	mlxsw_sp_lpm_init(mlxsw_sp);
 	mlxsw_sp_vrs_init(mlxsw_sp);
-	return mlxsw_sp_neigh_init(mlxsw_sp);
+	err = mlxsw_sp_neigh_init(mlxsw_sp);
+	if (err)
+		goto err_neigh_init;
+	return 0;
+
+err_neigh_init:
+	__mlxsw_sp_router_fini(mlxsw_sp);
+	return err;
 }
 
 void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
