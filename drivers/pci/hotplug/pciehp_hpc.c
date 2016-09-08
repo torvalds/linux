@@ -590,9 +590,6 @@ static irqreturn_t pciehp_isr(int irq, void *dev_id)
 		}
 	}
 
-	if (!(events & ~PCI_EXP_SLTSTA_CC))
-		return IRQ_HANDLED;
-
 	/* Check Attention Button Pressed */
 	if (events & PCI_EXP_SLTSTA_ABP) {
 		ctrl_info(ctrl, "Button pressed on Slot(%s)\n",
