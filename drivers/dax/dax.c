@@ -598,6 +598,8 @@ struct dax_dev *devm_create_dax_dev(struct dax_region *dax_region,
 		goto err_minor;
 	}
 
+	dev_t = MKDEV(MAJOR(dax_devt), minor);
+	dev = &dax_dev->dev;
 	dax_dev->inode = dax_inode_get(&dax_dev->cdev, dev_t);
 	if (!dax_dev->inode) {
 		rc = -ENOMEM;
@@ -605,8 +607,6 @@ struct dax_dev *devm_create_dax_dev(struct dax_region *dax_region,
 	}
 
 	/* device_initialize() so cdev can reference kobj parent */
-	dev_t = MKDEV(MAJOR(dax_devt), minor);
-	dev = &dax_dev->dev;
 	device_initialize(dev);
 
 	cdev = &dax_dev->cdev;
