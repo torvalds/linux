@@ -53,6 +53,8 @@ typedef void (*ipi_handler_t) (void *data,
  *			 handle H264 video encoder job, and vice versa.
  * @IPI_VENC_VP8:	 The interrupt fro vpu is to notify kernel to
  *			 handle VP8 video encoder job,, and vice versa.
+ * @IPI_MDP:		 The interrupt from vpu is to notify kernel to
+ *			 handle MDP (Media Data Path) job, and vice versa.
  * @IPI_MAX:		 The maximum IPI number
  */
 
@@ -63,6 +65,7 @@ enum ipi_id {
 	IPI_VDEC_VP9,
 	IPI_VENC_H264,
 	IPI_VENC_VP8,
+	IPI_MDP,
 	IPI_MAX,
 };
 
@@ -71,11 +74,13 @@ enum ipi_id {
  *
  * @VPU_RST_ENC: encoder reset id
  * @VPU_RST_DEC: decoder reset id
+ * @VPU_RST_MDP: MDP (Media Data Path) reset id
  * @VPU_RST_MAX: maximum reset id
  */
 enum rst_id {
 	VPU_RST_ENC,
 	VPU_RST_DEC,
+	VPU_RST_MDP,
 	VPU_RST_MAX,
 };
 
