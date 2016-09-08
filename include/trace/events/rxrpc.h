@@ -80,6 +80,44 @@ TRACE_EVENT(rxrpc_skb,
 		      __entry->where)
 	    );
 
+TRACE_EVENT(rxrpc_rx_packet,
+	    TP_PROTO(struct rxrpc_skb_priv *sp),
+
+	    TP_ARGS(sp),
+
+	    TP_STRUCT__entry(
+		    __field_struct(struct rxrpc_host_header,	hdr		)
+			     ),
+
+	    TP_fast_assign(
+		    memcpy(&__entry->hdr, &sp->hdr, sizeof(__entry->hdr));
+			   ),
+
+	    TP_printk("%08x:%08x:%08x:%04x %08x %08x %02x %02x",
+		      __entry->hdr.epoch, __entry->hdr.cid,
+		      __entry->hdr.callNumber, __entry->hdr.serviceId,
+		      __entry->hdr.serial, __entry->hdr.seq,
+		      __entry->hdr.type, __entry->hdr.flags)
+	    );
+
+TRACE_EVENT(rxrpc_rx_done,
+	    TP_PROTO(int result, int abort_code),
+
+	    TP_ARGS(result, abort_code),
+
+	    TP_STRUCT__entry(
+		    __field(int,			result		)
+		    __field(int,			abort_code	)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->result = result;
+		    __entry->abort_code = abort_code;
+			   ),
+
+	    TP_printk("r=%d a=%d", __entry->result, __entry->abort_code)
+	    );
+
 TRACE_EVENT(rxrpc_abort,
 	    TP_PROTO(const char *why, u32 cid, u32 call_id, rxrpc_seq_t seq,
 		     int abort_code, int error),

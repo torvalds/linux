@@ -683,6 +683,7 @@ void rxrpc_data_ready(struct sock *sk)
 	/* dig out the RxRPC connection details */
 	if (rxrpc_extract_header(sp, skb) < 0)
 		goto bad_message;
+	trace_rxrpc_rx_packet(sp);
 
 	_net("Rx RxRPC %s ep=%x call=%x:%x",
 	     sp->hdr.flags & RXRPC_CLIENT_INITIATED ? "ToServer" : "ToClient",
@@ -767,6 +768,7 @@ discard_unlock:
 out_unlock:
 	rcu_read_unlock();
 out:
+	trace_rxrpc_rx_done(0, 0);
 	return;
 
 cant_route_call:
@@ -780,7 +782,7 @@ cant_route_call:
 			skb_queue_tail(&local->accept_queue, skb);
 			rxrpc_queue_work(&local->processor);
 			_leave(" [incoming]");
-			return;
+			goto out;
 		}
 		skb->priority = RX_INVALID_OPERATION;
 	} else {
@@ -789,7 +791,7 @@ cant_route_call:
 
 	if (sp->hdr.type != RXRPC_PACKET_TYPE_ABORT) {
 		_debug("reject type %d",sp->hdr.type);
-		rxrpc_reject_packet(local, skb);
+		goto reject_packet;
 	} else {
 		rxrpc_free_skb(skb);
 	}
@@ -798,6 +800,8 @@ cant_route_call:
 
 bad_message:
 	skb->priority = RX_PROTOCOL_ERROR;
+reject_packet:
+	trace_rxrpc_rx_done(skb->mark, skb->priority);
 	rxrpc_reject_packet(local, skb);
 	_leave(" [badmsg]");
 }
