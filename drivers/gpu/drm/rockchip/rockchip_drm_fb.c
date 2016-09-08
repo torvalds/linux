@@ -71,7 +71,7 @@ static void rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
 		}
 	}
 #else
-	WARN_ON(rockchip_fb->sgt);
+	WARN_ON(rockchip_fb->logo);
 #endif
 
 	drm_framebuffer_cleanup(fb);
