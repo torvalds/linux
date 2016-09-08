@@ -238,6 +238,77 @@ int dwc2_enter_hibernation(struct dwc2_hsotg *hsotg)
 	return ret;
 }
 
+/**
+ * dwc2_wait_for_mode() - Waits for the controller mode.
+ * @hsotg:	Programming view of the DWC_otg controller.
+ * @host_mode:	If true, waits for host mode, otherwise device mode.
+ */
+static void dwc2_wait_for_mode(struct dwc2_hsotg *hsotg,
+			       bool host_mode)
+{
+	ktime_t start;
+	ktime_t end;
+	unsigned int timeout = 110;
+
+	dev_vdbg(hsotg->dev, "Waiting for %s mode\n",
+		 host_mode ? "host" : "device");
+
+	start = ktime_get();
+
+	while (1) {
+		s64 ms;
+
+		if (dwc2_is_host_mode(hsotg) == host_mode) {
+			dev_vdbg(hsotg->dev, "%s mode set\n",
+				 host_mode ? "Host" : "Device");
+			break;
+		}
+
+		end = ktime_get();
+		ms = ktime_to_ms(ktime_sub(end, start));
+
+		if (ms >= (s64)timeout) {
+			dev_warn(hsotg->dev, "%s: Couldn't set %s mode\n",
+				 __func__, host_mode ? "host" : "device");
+			break;
+		}
+
+		usleep_range(1000, 2000);
+	}
+}
+
+/**
+ * dwc2_iddig_filter_enabled() - Returns true if the IDDIG debounce
+ * filter is enabled.
+ */
+static bool dwc2_iddig_filter_enabled(struct dwc2_hsotg *hsotg)
+{
+	u32 gsnpsid;
+	u32 ghwcfg4;
+
+	if (!dwc2_hw_is_otg(hsotg))
+		return false;
+
+	/* Check if core configuration includes the IDDIG filter. */
+	ghwcfg4 = dwc2_readl(hsotg->regs + GHWCFG4);
+	if (!(ghwcfg4 & GHWCFG4_IDDIG_FILT_EN))
+		return false;
+
+	/*
+	 * Check if the IDDIG debounce filter is bypassed. Available
+	 * in core version >= 3.10a.
+	 */
+	gsnpsid = dwc2_readl(hsotg->regs + GSNPSID);
+	if (gsnpsid >= DWC2_CORE_REV_3_10a) {
+		u32 gotgctl = dwc2_readl(hsotg->regs + GOTGCTL);
+
+		if (gotgctl & GOTGCTL_DBNCE_FLTR_BYPASS)
+			return false;
+	}
+
+	return true;
+}
+
 /*
  * Do core a soft reset of the core.  Be careful with this because it
  * resets all the internal state machines of the core.
@@ -246,8 +317,29 @@ int dwc2_core_reset(struct dwc2_hsotg *hsotg)
 {
 	u32 greset;
 	int count = 0;
+	bool wait_for_host_mode = false;
 
 	dev_vdbg(hsotg->dev, "%s()\n", __func__);
+
+	/*
+	 * If the current mode is host, either due to the force mode
+	 * bit being set (which persists after core reset) or the
+	 * connector id pin, a core soft reset will temporarily reset
+	 * the mode to device. A delay from the IDDIG debounce filter
+	 * will occur before going back to host mode.
+	 *
+	 * Determine whether we will go back into host mode after a
+	 * reset and account for this delay after the reset.
+	 */
+	if (dwc2_iddig_filter_enabled(hsotg)) {
+		u32 gotgctl = dwc2_readl(hsotg->regs + GOTGCTL);
+		u32 gusbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
+
+		if (!(gotgctl & GOTGCTL_CONID_B) ||
+		    (gusbcfg & GUSBCFG_FORCEHOSTMODE)) {
+			wait_for_host_mode = true;
+		}
+	}
 
 	/* Core Soft Reset */
 	greset = dwc2_readl(hsotg->regs + GRSTCTL);
@@ -276,6 +368,9 @@ int dwc2_core_reset(struct dwc2_hsotg *hsotg)
 			return -EBUSY;
 		}
 	} while (!(greset & GRSTCTL_AHBIDLE));
+
+	if (wait_for_host_mode)
+		dwc2_wait_for_mode(hsotg, true);
 
 	return 0;
 }
