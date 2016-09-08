@@ -456,10 +456,10 @@ static int gb_spi_setup_device(struct gb_spilib *spi, u8 cs)
 	dev_type = response.device_type;
 
 	if (dev_type == GB_SPI_SPI_DEV)
-		strlcpy(spi_board.modalias, SPI_DEV_MODALIAS,
+		strlcpy(spi_board.modalias, "spidev",
 			sizeof(spi_board.modalias));
 	else if (dev_type == GB_SPI_SPI_NOR)
-		strlcpy(spi_board.modalias, SPI_NOR_MODALIAS,
+		strlcpy(spi_board.modalias, "spi-nor",
 			sizeof(spi_board.modalias));
 	else if (dev_type == GB_SPI_SPI_MODALIAS)
 		memcpy(spi_board.modalias, response.name,
@@ -526,9 +526,7 @@ int gb_spilib_master_init(struct gb_connection *connection, struct device *dev,
 			gb_spi_unprepare_transfer_hardware;
 	}
 
-#ifdef SPI_CORE_SUPPORT_PM
 	master->auto_runtime_pm = true;
-#endif
 
 	ret = spi_register_master(master);
 	if (ret < 0)

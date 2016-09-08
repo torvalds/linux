@@ -20,26 +20,7 @@ struct gb_fw_core {
 	struct gb_connection	*cap_connection;
 };
 
-#ifndef SPI_CORE_SUPPORT_PM
-static int fw_spi_prepare_transfer_hardware(struct device *dev)
-{
-	return gb_pm_runtime_get_sync(to_gb_bundle(dev));
-}
-
-static void fw_spi_unprepare_transfer_hardware(struct device *dev)
-{
-	gb_pm_runtime_put_autosuspend(to_gb_bundle(dev));
-}
-
-static struct spilib_ops __spilib_ops = {
-	.prepare_transfer_hardware = fw_spi_prepare_transfer_hardware,
-	.unprepare_transfer_hardware = fw_spi_unprepare_transfer_hardware,
-};
-
-static struct spilib_ops *spilib_ops = &__spilib_ops;
-#else
-static struct spilib_ops *spilib_ops = NULL;
-#endif
+static struct spilib_ops *spilib_ops;
 
 struct gb_connection *to_fw_mgmt_connection(struct device *dev)
 {

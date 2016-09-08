@@ -86,19 +86,6 @@
 	#define POWER_SUPPLY_PROP_CALIBRATE	-1
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
-#define SPI_DEV_MODALIAS "spidev"
-#define SPI_NOR_MODALIAS "spi-nor"
-#else
-#define SPI_DEV_MODALIAS "spidev"
-#define SPI_NOR_MODALIAS "m25p80"
-#endif
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 12, 0)
-/* Starting from this version, the spi core handles runtime pm automatically */
-#define SPI_CORE_SUPPORT_PM
-#endif
-
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)
 /*
  * After commit b2b49ccbdd54 (PM: Kconfig: Set PM_RUNTIME if PM_SLEEP is
