@@ -76,7 +76,8 @@ struct media_file_operations {
  * @parent:	parent device
  * @minor:	device node minor number
  * @flags:	flags, combination of the ``MEDIA_FLAG_*`` constants
- * @release:	release callback called at the end of media_devnode_release()
+ * @release:	release callback called at the end of ``media_devnode_release()``
+ *		routine at media-device.c.
  *
  * This structure represents a media-related device node.
  *
