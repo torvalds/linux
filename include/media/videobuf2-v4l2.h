@@ -268,9 +268,22 @@ unsigned long vb2_fop_get_unmapped_area(struct file *file, unsigned long addr,
 		unsigned long len, unsigned long pgoff, unsigned long flags);
 #endif
 
-/* struct vb2_ops helpers, only use if vq->lock is non-NULL. */
-
+/**
+ * vb2_ops_wait_prepare - helper function to lock a struct &vb2_queue
+ *
+ * @vq: pointer to struct vb2_queue
+ *
+ * ..note:: only use if vq->lock is non-NULL.
+ */
 void vb2_ops_wait_prepare(struct vb2_queue *vq);
+
+/**
+ * vb2_ops_wait_finish - helper function to unlock a struct &vb2_queue
+ *
+ * @vq: pointer to struct vb2_queue
+ *
+ * ..note:: only use if vq->lock is non-NULL.
+ */
 void vb2_ops_wait_finish(struct vb2_queue *vq);
 
 #endif /* _MEDIA_VIDEOBUF2_V4L2_H */
