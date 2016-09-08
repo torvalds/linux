@@ -17,32 +17,6 @@
 #include <linux/kernel.h>
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
-/* Commit: 297d716 power_supply: Change ownership from driver to core */
-#define CORE_OWNS_PSY_STRUCT
-#endif
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
-/*
- * Power supply get by name need to drop reference after call
- */
-#define PSY_HAVE_PUT
-#endif
-
-/*
- * General power supply properties that could be absent from various reasons,
- * like kernel versions or vendor specific versions
- */
-#ifndef POWER_SUPPLY_PROP_VOLTAGE_BOOT
-	#define POWER_SUPPLY_PROP_VOLTAGE_BOOT	-1
-#endif
-#ifndef POWER_SUPPLY_PROP_CURRENT_BOOT
-	#define POWER_SUPPLY_PROP_CURRENT_BOOT	-1
-#endif
-#ifndef POWER_SUPPLY_PROP_CALIBRATE
-	#define POWER_SUPPLY_PROP_CALIBRATE	-1
-#endif
-
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)
 /*
  * After commit b2b49ccbdd54 (PM: Kconfig: Set PM_RUNTIME if PM_SLEEP is

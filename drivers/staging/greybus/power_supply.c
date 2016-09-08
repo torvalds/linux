@@ -27,14 +27,8 @@ struct gb_power_supply_prop {
 struct gb_power_supply {
 	u8				id;
 	bool				registered;
-#ifndef CORE_OWNS_PSY_STRUCT
-	struct power_supply		psy;
-#define to_gb_power_supply(x) container_of(x, struct gb_power_supply, psy)
-#else
 	struct power_supply		*psy;
 	struct power_supply_desc	desc;
-#define to_gb_power_supply(x) power_supply_get_drvdata(x)
-#endif
 	char				name[64];
 	struct gb_power_supplies	*supplies;
 	struct delayed_work		work;
@@ -60,6 +54,22 @@ struct gb_power_supplies {
 	struct gb_power_supply	*supply;
 	struct mutex		supplies_lock;
 };
+
+#define to_gb_power_supply(x) power_supply_get_drvdata(x)
+
+/*
+ * General power supply properties that could be absent from various reasons,
+ * like kernel versions or vendor specific versions
+ */
+#ifndef POWER_SUPPLY_PROP_VOLTAGE_BOOT
+	#define POWER_SUPPLY_PROP_VOLTAGE_BOOT	-1
+#endif
+#ifndef POWER_SUPPLY_PROP_CURRENT_BOOT
+	#define POWER_SUPPLY_PROP_CURRENT_BOOT	-1
+#endif
+#ifndef POWER_SUPPLY_PROP_CALIBRATE
+	#define POWER_SUPPLY_PROP_CALIBRATE	-1
+#endif
 
 /* cache time in milliseconds, if cache_time is set to 0 cache is disable */
 static unsigned int cache_time = 1000;
@@ -342,17 +352,10 @@ static void next_interval(struct gb_power_supply *gbpsy)
 		gbpsy->update_interval = update_interval_max;
 }
 
-#ifndef CORE_OWNS_PSY_STRUCT
-static void __gb_power_supply_changed(struct gb_power_supply *gbpsy)
-{
-	power_supply_changed(&gbpsy->psy);
-}
-#else
 static void __gb_power_supply_changed(struct gb_power_supply *gbpsy)
 {
 	power_supply_changed(gbpsy->psy);
 }
-#endif
 
 static void gb_power_supply_state_change(struct gb_power_supply *gbpsy,
 					 struct gb_power_supply_prop *prop)
@@ -451,9 +454,8 @@ static int __gb_power_supply_set_name(char *init_name, char *name, size_t len)
 	strlcpy(name, init_name, len);
 
 	while ((ret < len) && (psy = power_supply_get_by_name(name))) {
-#ifdef PSY_HAVE_PUT
 		power_supply_put(psy);
-#endif
+
 		ret = snprintf(name, len, "%s_%u", init_name, ++i);
 	}
 	if (ret >= len)
@@ -814,23 +816,6 @@ static int property_is_writeable(struct power_supply *b,
 	return is_psy_prop_writeable(gbpsy, psp);
 }
 
-#ifndef CORE_OWNS_PSY_STRUCT
-static int gb_power_supply_register(struct gb_power_supply *gbpsy)
-{
-	struct gb_connection *connection = get_conn_from_psy(gbpsy);
-
-	gbpsy->psy.name			= gbpsy->name;
-	gbpsy->psy.type			= gbpsy->type;
-	gbpsy->psy.properties		= gbpsy->props_raw;
-	gbpsy->psy.num_properties	= total_props(gbpsy);
-	gbpsy->psy.get_property		= get_property;
-	gbpsy->psy.set_property		= set_property;
-	gbpsy->psy.property_is_writeable = property_is_writeable;
-
-	return power_supply_register(&connection->bundle->dev,
-				     &gbpsy->psy);
-}
-#else
 static int gb_power_supply_register(struct gb_power_supply *gbpsy)
 {
 	struct gb_connection *connection = get_conn_from_psy(gbpsy);
@@ -850,7 +835,6 @@ static int gb_power_supply_register(struct gb_power_supply *gbpsy)
 					   &gbpsy->desc, &cfg);
 	return PTR_ERR_OR_ZERO(gbpsy->psy);
 }
-#endif
 
 static void _gb_power_supply_free(struct gb_power_supply *gbpsy)
 {
@@ -866,13 +850,9 @@ static void _gb_power_supply_release(struct gb_power_supply *gbpsy)
 	gbpsy->update_interval = 0;
 
 	cancel_delayed_work_sync(&gbpsy->work);
-#ifndef CORE_OWNS_PSY_STRUCT
-	if (gbpsy->registered)
-		power_supply_unregister(&gbpsy->psy);
-#else
+
 	if (gbpsy->registered)
 		power_supply_unregister(gbpsy->psy);
-#endif
 
 	_gb_power_supply_free(gbpsy);
 }
