@@ -404,11 +404,7 @@ static int gb_gpio_request_handler(struct gb_operation *op)
 	}
 
 	local_irq_disable();
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 0)
-	generic_handle_irq_desc(irq, desc);
-#else
 	generic_handle_irq_desc(desc);
-#endif
 	local_irq_enable();
 
 	return 0;
@@ -684,11 +680,7 @@ static int gb_gpio_probe(struct gbphy_device *gbphy_dev,
 	gpio = &ggc->chip;
 
 	gpio->label = "greybus_gpio";
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)
 	gpio->parent = &gbphy_dev->dev;
-#else
-	gpio->dev = &gbphy_dev->dev;
-#endif
 	gpio->owner = THIS_MODULE;
 
 	gpio->request = gb_gpio_request;
@@ -750,7 +742,7 @@ static void gb_gpio_remove(struct gbphy_device *gbphy_dev)
 		gbphy_runtime_get_noresume(gbphy_dev);
 
 	gb_connection_disable_rx(connection);
-	gb_gpiochip_remove(&ggc->chip);
+	gpiochip_remove(&ggc->chip);
 	gb_gpio_irqchip_remove(ggc);
 	gb_connection_disable(connection);
 	gb_connection_destroy(connection);

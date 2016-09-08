@@ -22,28 +22,6 @@
 #define CORE_OWNS_PSY_STRUCT
 #endif
 
-/*
- * The GPIO api sucks rocks in places, like removal, so work around their
- * explicit requirements of catching the return value for kernels older than
- * 3.17, which they explicitly changed in the 3.17 kernel.  Consistency is
- * overrated.
- */
-#include <linux/gpio.h>
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
-static inline void gb_gpiochip_remove(struct gpio_chip *chip)
-{
-	gpiochip_remove(chip);
-}
-#else
-static inline void gb_gpiochip_remove(struct gpio_chip *chip)
-{
-	int ret;
-
-	ret = gpiochip_remove(chip);
-}
-#endif
-
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0)
 #define MMC_HS400_SUPPORTED
 #define MMC_DDR52_DEFINED
