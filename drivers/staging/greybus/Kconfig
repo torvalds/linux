@@ -78,13 +78,13 @@ config GREYBUS_HID
 
 config GREYBUS_LIGHT
 	tristate "Greybus LED Class driver"
-	depends on LEDS_CLASS && BROKEN
+	depends on LEDS_CLASS
 	---help---
 	  Select this option if you have a device that follows the
 	  Greybus LED Class specification.
 
 	  To compile this code as a module, chose M here: the module
-	  will be called gb-led.ko
+	  will be called gb-light.ko
 
 config GREYBUS_LOG
 	tristate "Greybus Debug Log Class driver"
