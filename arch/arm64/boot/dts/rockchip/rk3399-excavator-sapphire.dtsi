@@ -48,7 +48,7 @@
 	rt5651-sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,format = "i2s";
-		simple-audio-card,name = "rockchip,rt5651-codec";
+		simple-audio-card,name = "realtek,rt5651-codec";
 		simple-audio-card,mclk-fs = <256>;
 		simple-audio-card,widgets =
 			"Microphone", "Mic Jack",
