@@ -561,7 +561,7 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 		if (status == (u16) ~0) {
 			ctrl_info(ctrl, "%s: no response from device\n",
 				  __func__);
-			return IRQ_HANDLED;
+			return IRQ_NONE;
 		}
 
 		/*
