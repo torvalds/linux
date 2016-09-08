@@ -390,9 +390,10 @@ static void silead_ts_read_props(struct i2c_client *client)
 		data->max_fingers = 5; /* Most devices handle up-to 5 fingers */
 	}
 
-	error = device_property_read_string(dev, "touchscreen-fw-name", &str);
+	error = device_property_read_string(dev, "firmware-name", &str);
 	if (!error)
-		snprintf(data->fw_name, sizeof(data->fw_name), "%s", str);
+		snprintf(data->fw_name, sizeof(data->fw_name),
+			 "silead/%s", str);
 	else
 		dev_dbg(dev, "Firmware file name read error. Using default.");
 }
