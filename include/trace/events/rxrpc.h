@@ -18,16 +18,14 @@
 
 TRACE_EVENT(rxrpc_call,
 	    TP_PROTO(struct rxrpc_call *call, enum rxrpc_call_trace op,
-		     int usage, int nskb,
-		     const void *where, const void *aux),
+		     int usage, const void *where, const void *aux),
 
-	    TP_ARGS(call, op, usage, nskb, where, aux),
+	    TP_ARGS(call, op, usage, where, aux),
 
 	    TP_STRUCT__entry(
 		    __field(struct rxrpc_call *,	call		)
 		    __field(int,			op		)
 		    __field(int,			usage		)
-		    __field(int,			nskb		)
 		    __field(const void *,		where		)
 		    __field(const void *,		aux		)
 			     ),
@@ -36,16 +34,14 @@ TRACE_EVENT(rxrpc_call,
 		    __entry->call = call;
 		    __entry->op = op;
 		    __entry->usage = usage;
-		    __entry->nskb = nskb;
 		    __entry->where = where;
 		    __entry->aux = aux;
 			   ),
 
-	    TP_printk("c=%p %s u=%d s=%d p=%pSR a=%p",
+	    TP_printk("c=%p %s u=%d sp=%pSR a=%p",
 		      __entry->call,
 		      rxrpc_call_traces[__entry->op],
 		      __entry->usage,
-		      __entry->nskb,
 		      __entry->where,
 		      __entry->aux)
 	    );

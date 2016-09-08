@@ -467,7 +467,6 @@ struct rxrpc_call {
 	enum rxrpc_call_state	state;		/* current state of call */
 	enum rxrpc_call_completion completion;	/* Call completion condition */
 	atomic_t		usage;
-	atomic_t		skb_count;	/* Outstanding packets on this call */
 	atomic_t		sequence;	/* Tx data packet sequence counter */
 	u16			service_id;	/* service ID */
 	u8			security_ix;	/* Security type */

@@ -232,9 +232,8 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 		return call;
 	}
 
-	trace_rxrpc_call(call, rxrpc_call_new_client,
-			 atomic_read(&call->usage), 0,
-			 here, (const void *)user_call_ID);
+	trace_rxrpc_call(call, 0, atomic_read(&call->usage), here,
+			 (const void *)user_call_ID);
 
 	/* Publish the call, even though it is incompletely set up as yet */
 	call->user_call_ID = user_call_ID;
@@ -325,7 +324,7 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 		return ERR_PTR(-EBUSY);
 
 	trace_rxrpc_call(candidate, rxrpc_call_new_service,
-			 atomic_read(&candidate->usage), 0, here, NULL);
+			 atomic_read(&candidate->usage), here, NULL);
 
 	chan = sp->hdr.cid & RXRPC_CHANNELMASK;
 	candidate->conn		= conn;
@@ -446,11 +445,10 @@ bool rxrpc_queue_call(struct rxrpc_call *call)
 {
 	const void *here = __builtin_return_address(0);
 	int n = __atomic_add_unless(&call->usage, 1, 0);
-	int m = atomic_read(&call->skb_count);
 	if (n == 0)
 		return false;
 	if (rxrpc_queue_work(&call->processor))
-		trace_rxrpc_call(call, rxrpc_call_queued, n + 1, m, here, NULL);
+		trace_rxrpc_call(call, rxrpc_call_queued, n + 1, here, NULL);
 	else
 		rxrpc_put_call(call, rxrpc_call_put_noqueue);
 	return true;
@@ -463,10 +461,9 @@ bool __rxrpc_queue_call(struct rxrpc_call *call)
 {
 	const void *here = __builtin_return_address(0);
 	int n = atomic_read(&call->usage);
-	int m = atomic_read(&call->skb_count);
 	ASSERTCMP(n, >=, 1);
 	if (rxrpc_queue_work(&call->processor))
-		trace_rxrpc_call(call, rxrpc_call_queued_ref, n, m, here, NULL);
+		trace_rxrpc_call(call, rxrpc_call_queued_ref, n, here, NULL);
 	else
 		rxrpc_put_call(call, rxrpc_call_put_noqueue);
 	return true;
@@ -480,9 +477,8 @@ void rxrpc_see_call(struct rxrpc_call *call)
 	const void *here = __builtin_return_address(0);
 	if (call) {
 		int n = atomic_read(&call->usage);
-		int m = atomic_read(&call->skb_count);
 
-		trace_rxrpc_call(call, rxrpc_call_seen, n, m, here, NULL);
+		trace_rxrpc_call(call, rxrpc_call_seen, n, here, NULL);
 	}
 }
 
@@ -493,9 +489,8 @@ void rxrpc_get_call(struct rxrpc_call *call, enum rxrpc_call_trace op)
 {
 	const void *here = __builtin_return_address(0);
 	int n = atomic_inc_return(&call->usage);
-	int m = atomic_read(&call->skb_count);
 
-	trace_rxrpc_call(call, op, n, m, here, NULL);
+	trace_rxrpc_call(call, op, n, here, NULL);
 }
 
 /*
@@ -505,9 +500,8 @@ void rxrpc_get_call_for_skb(struct rxrpc_call *call, struct sk_buff *skb)
 {
 	const void *here = __builtin_return_address(0);
 	int n = atomic_inc_return(&call->usage);
-	int m = atomic_inc_return(&call->skb_count);
 
-	trace_rxrpc_call(call, rxrpc_call_got_skb, n, m, here, skb);
+	trace_rxrpc_call(call, rxrpc_call_got_skb, n, here, skb);
 }
 
 /*
@@ -642,17 +636,15 @@ void rxrpc_release_calls_on_socket(struct rxrpc_sock *rx)
 void rxrpc_put_call(struct rxrpc_call *call, enum rxrpc_call_trace op)
 {
 	const void *here = __builtin_return_address(0);
-	int n, m;
+	int n;
 
 	ASSERT(call != NULL);
 
 	n = atomic_dec_return(&call->usage);
-	m = atomic_read(&call->skb_count);
-	trace_rxrpc_call(call, op, n, m, here, NULL);
+	trace_rxrpc_call(call, op, n, here, NULL);
 	ASSERTCMP(n, >=, 0);
 	if (n == 0) {
 		_debug("call %d dead", call->debug_id);
-		WARN_ON(m != 0);
 		rxrpc_cleanup_call(call);
 	}
 }
@@ -663,15 +655,13 @@ void rxrpc_put_call(struct rxrpc_call *call, enum rxrpc_call_trace op)
 void rxrpc_put_call_for_skb(struct rxrpc_call *call, struct sk_buff *skb)
 {
 	const void *here = __builtin_return_address(0);
-	int n, m;
+	int n;
 
 	n = atomic_dec_return(&call->usage);
-	m = atomic_dec_return(&call->skb_count);
-	trace_rxrpc_call(call, rxrpc_call_put_skb, n, m, here, skb);
+	trace_rxrpc_call(call, rxrpc_call_put_skb, n, here, skb);
 	ASSERTCMP(n, >=, 0);
 	if (n == 0) {
 		_debug("call %d dead", call->debug_id);
-		WARN_ON(m != 0);
 		rxrpc_cleanup_call(call);
 	}
 }
