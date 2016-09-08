@@ -1218,6 +1218,19 @@ static inline bool iwl_mvm_has_new_tx_api(struct iwl_mvm *mvm)
 	return mvm->trans->cfg->use_tfh;
 }
 
+static inline bool iwl_mvm_is_cdb_supported(struct iwl_mvm *mvm)
+{
+	/*
+	 * TODO:
+	 * The issue of how to determine CDB support is still not well defined.
+	 * It may be that it will be for all next HW devices and it may be per
+	 * FW compilation and it may also differ between different devices.
+	 * For now take a ride on the new TX API and get back to it when
+	 * it is well defined.
+	 */
+	return iwl_mvm_has_new_tx_api(mvm);
+}
+
 static inline bool iwl_mvm_is_tt_in_fw(struct iwl_mvm *mvm)
 {
 #ifdef CONFIG_THERMAL
