@@ -37,12 +37,15 @@
 #define SD_MAJOR_1	1
 #define SD_VERSION_1	(SD_MAJOR_1 << 16 | SD_MINOR)
 
-#define TS_MAJOR	3
+#define TS_MAJOR	4
 #define TS_MINOR	0
 #define TS_VERSION	(TS_MAJOR << 16 | TS_MINOR)
 
 #define TS_MAJOR_1	1
 #define TS_VERSION_1	(TS_MAJOR_1 << 16 | TS_MINOR)
+
+#define TS_MAJOR_3	3
+#define TS_VERSION_3	(TS_MAJOR_3 << 16 | TS_MINOR)
 
 #define HB_MAJOR	3
 #define HB_MINOR	0
@@ -161,34 +164,43 @@ static void shutdown_onchannelcallback(void *context)
 }
 
 /*
- * Set guest time to host UTC time.
- */
-static inline void do_adj_guesttime(u64 hosttime)
-{
-	s64 host_tns;
-	struct timespec host_ts;
-
-	host_tns = (hosttime - WLTIMEDELTA) * 100;
-	host_ts = ns_to_timespec(host_tns);
-
-	do_settimeofday(&host_ts);
-}
-
-/*
  * Set the host time in a process context.
  */
 
 struct adj_time_work {
 	struct work_struct work;
 	u64	host_time;
+	u64	ref_time;
+	u8	flags;
 };
 
 static void hv_set_host_time(struct work_struct *work)
 {
 	struct adj_time_work	*wrk;
+	s64 host_tns;
+	u64 newtime;
+	struct timespec host_ts;
 
 	wrk = container_of(work, struct adj_time_work, work);
-	do_adj_guesttime(wrk->host_time);
+
+	newtime = wrk->host_time;
+	if (ts_srv_version > TS_VERSION_3) {
+		/*
+		 * Some latency has been introduced since Hyper-V generated
+		 * its time sample. Take that latency into account before
+		 * using TSC reference time sample from Hyper-V.
+		 *
+		 * This sample is given by TimeSync v4 and above hosts.
+		 */
+		u64 current_tick;
+
+		rdmsrl(HV_X64_MSR_TIME_REF_COUNT, current_tick);
+		newtime += (current_tick - wrk->ref_time);
+	}
+	host_tns = (newtime - WLTIMEDELTA) * 100;
+	host_ts = ns_to_timespec(host_tns);
+
+	do_settimeofday(&host_ts);
 	kfree(wrk);
 }
 
@@ -205,7 +217,7 @@ static void hv_set_host_time(struct work_struct *work)
  * typically used as a hint to the guest. The guest is under no obligation
  * to discipline the clock.
  */
-static inline void adj_guesttime(u64 hosttime, u8 flags)
+static inline void adj_guesttime(u64 hosttime, u64 reftime, u8 flags)
 {
 	struct adj_time_work    *wrk;
 
@@ -214,6 +226,8 @@ static inline void adj_guesttime(u64 hosttime, u8 flags)
 		return;
 
 	wrk->host_time = hosttime;
+	wrk->ref_time = reftime;
+	wrk->flags = flags;
 	if ((flags & (ICTIMESYNCFLAG_SYNC | ICTIMESYNCFLAG_SAMPLE)) != 0) {
 		INIT_WORK(&wrk->work, hv_set_host_time);
 		schedule_work(&wrk->work);
@@ -231,6 +245,7 @@ static void timesync_onchannelcallback(void *context)
 	u64 requestid;
 	struct icmsg_hdr *icmsghdrp;
 	struct ictimesync_data *timedatap;
+	struct ictimesync_ref_data *refdata;
 	u8 *time_txf_buf = util_timesynch.recv_buffer;
 	struct icmsg_negotiate *negop = NULL;
 
@@ -246,11 +261,27 @@ static void timesync_onchannelcallback(void *context)
 						time_txf_buf,
 						util_fw_version,
 						ts_srv_version);
+			pr_info("Using TimeSync version %d.%d\n",
+				ts_srv_version >> 16, ts_srv_version & 0xFFFF);
 		} else {
-			timedatap = (struct ictimesync_data *)&time_txf_buf[
-				sizeof(struct vmbuspipe_hdr) +
-				sizeof(struct icmsg_hdr)];
-			adj_guesttime(timedatap->parenttime, timedatap->flags);
+			if (ts_srv_version > TS_VERSION_3) {
+				refdata = (struct ictimesync_ref_data *)
+					&time_txf_buf[
+					sizeof(struct vmbuspipe_hdr) +
+					sizeof(struct icmsg_hdr)];
+
+				adj_guesttime(refdata->parenttime,
+						refdata->vmreferencetime,
+						refdata->flags);
+			} else {
+				timedatap = (struct ictimesync_data *)
+					&time_txf_buf[
+					sizeof(struct vmbuspipe_hdr) +
+					sizeof(struct icmsg_hdr)];
+				adj_guesttime(timedatap->parenttime,
+						0,
+						timedatap->flags);
+			}
 		}
 
 		icmsghdrp->icflags = ICMSGHDRFLAG_TRANSACTION
@@ -348,11 +379,16 @@ static int util_probe(struct hv_device *dev,
 		ts_srv_version = TS_VERSION_1;
 		hb_srv_version = HB_VERSION_1;
 		break;
-
-	default:
+	case(VERSION_WIN10):
 		util_fw_version = UTIL_FW_VERSION;
 		sd_srv_version = SD_VERSION;
 		ts_srv_version = TS_VERSION;
+		hb_srv_version = HB_VERSION;
+		break;
+	default:
+		util_fw_version = UTIL_FW_VERSION;
+		sd_srv_version = SD_VERSION;
+		ts_srv_version = TS_VERSION_3;
 		hb_srv_version = HB_VERSION;
 	}
 
