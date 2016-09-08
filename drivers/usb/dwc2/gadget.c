@@ -3466,8 +3466,11 @@ static int dwc2_hsotg_udc_start(struct usb_gadget *gadget,
 		otg_set_peripheral(hsotg->uphy->otg, &hsotg->gadget);
 
 	spin_lock_irqsave(&hsotg->lock, flags);
-	dwc2_hsotg_init(hsotg);
-	dwc2_hsotg_core_init_disconnected(hsotg, false);
+	if (dwc2_hw_is_device(hsotg)) {
+		dwc2_hsotg_init(hsotg);
+		dwc2_hsotg_core_init_disconnected(hsotg, false);
+	}
+
 	hsotg->enabled = 0;
 	spin_unlock_irqrestore(&hsotg->lock, flags);
 
