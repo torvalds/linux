@@ -85,7 +85,7 @@ obj-$(CONFIG_GREYBUS_GPIO)		+= gb-gpio.o
 obj-$(CONFIG_GREYBUS_I2C)		+= gb-i2c.o
 obj-$(CONFIG_GREYBUS_PWM)		+= gb-pwm.o
 obj-$(CONFIG_GREYBUS_SDIO)		+= gb-sdio.o
-obj-$(CONFIG_GREYBUS_SPI)		+= gb-spi.o
+obj-$(CONFIG_GREYBUS_SPI)		+= gb-spi.o gb-spilib.o
 obj-$(CONFIG_GREYBUS_UART)		+= gb-uart.o
 obj-$(CONFIG_GREYBUS_USB)		+= gb-usb.o
 
