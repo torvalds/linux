@@ -118,6 +118,7 @@ struct zpci_dev {
 
 	spinlock_t	iommu_bitmap_lock;
 	unsigned long	*iommu_bitmap;
+	unsigned long	*lazy_bitmap;
 	unsigned long	iommu_size;
 	unsigned long	iommu_pages;
 	unsigned int	next_bit;

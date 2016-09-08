@@ -257,20 +257,28 @@ static dma_addr_t dma_alloc_address(struct device *dev, int size)
 	spin_lock_irqsave(&zdev->iommu_bitmap_lock, flags);
 	offset = __dma_alloc_iommu(dev, zdev->next_bit, size);
 	if (offset == -1) {
+		if (!zdev->tlb_refresh && !s390_iommu_strict) {
+			/* global flush before DMA addresses are reused */
+			if (zpci_refresh_global(zdev))
+				goto out_error;
+
+			bitmap_andnot(zdev->iommu_bitmap, zdev->iommu_bitmap,
+				      zdev->lazy_bitmap, zdev->iommu_pages);
+			bitmap_zero(zdev->lazy_bitmap, zdev->iommu_pages);
+		}
 		/* wrap-around */
 		offset = __dma_alloc_iommu(dev, 0, size);
-		if (offset == -1) {
-			spin_unlock_irqrestore(&zdev->iommu_bitmap_lock, flags);
-			return DMA_ERROR_CODE;
-		}
-		if (!zdev->tlb_refresh && !s390_iommu_strict)
-			/* global flush after wrap-around with lazy unmap */
-			zpci_refresh_global(zdev);
+		if (offset == -1)
+			goto out_error;
 	}
 	zdev->next_bit = offset + size;
 	spin_unlock_irqrestore(&zdev->iommu_bitmap_lock, flags);
 
 	return zdev->start_dma + offset * PAGE_SIZE;
+
+out_error:
+	spin_unlock_irqrestore(&zdev->iommu_bitmap_lock, flags);
+	return DMA_ERROR_CODE;
 }
 
 static void dma_free_address(struct device *dev, dma_addr_t dma_addr, int size)
@@ -283,13 +291,12 @@ static void dma_free_address(struct device *dev, dma_addr_t dma_addr, int size)
 	spin_lock_irqsave(&zdev->iommu_bitmap_lock, flags);
 	if (!zdev->iommu_bitmap)
 		goto out;
-	bitmap_clear(zdev->iommu_bitmap, offset, size);
-	/*
-	 * Lazy flush for unmap: need to move next_bit to avoid address re-use
-	 * until wrap-around.
-	 */
-	if (!s390_iommu_strict && offset >= zdev->next_bit)
-		zdev->next_bit = offset + size;
+
+	if (zdev->tlb_refresh || s390_iommu_strict)
+		bitmap_clear(zdev->iommu_bitmap, offset, size);
+	else
+		bitmap_set(zdev->lazy_bitmap, offset, size);
+
 out:
 	spin_unlock_irqrestore(&zdev->iommu_bitmap_lock, flags);
 }
@@ -557,7 +564,14 @@ int zpci_dma_init_device(struct zpci_dev *zdev)
 		rc = -ENOMEM;
 		goto free_dma_table;
 	}
+	if (!zdev->tlb_refresh && !s390_iommu_strict) {
+		zdev->lazy_bitmap = vzalloc(zdev->iommu_pages / 8);
+		if (!zdev->lazy_bitmap) {
+			rc = -ENOMEM;
+			goto free_bitmap;
+		}
 
+	}
 	rc = zpci_register_ioat(zdev, 0, zdev->start_dma, zdev->end_dma,
 				(u64) zdev->dma_table);
 	if (rc)
@@ -567,6 +581,8 @@ int zpci_dma_init_device(struct zpci_dev *zdev)
 free_bitmap:
 	vfree(zdev->iommu_bitmap);
 	zdev->iommu_bitmap = NULL;
+	vfree(zdev->lazy_bitmap);
+	zdev->lazy_bitmap = NULL;
 free_dma_table:
 	dma_free_cpu_table(zdev->dma_table);
 	zdev->dma_table = NULL;
@@ -588,6 +604,9 @@ void zpci_dma_exit_device(struct zpci_dev *zdev)
 	zdev->dma_table = NULL;
 	vfree(zdev->iommu_bitmap);
 	zdev->iommu_bitmap = NULL;
+	vfree(zdev->lazy_bitmap);
+	zdev->lazy_bitmap = NULL;
+
 	zdev->next_bit = 0;
 }
 
