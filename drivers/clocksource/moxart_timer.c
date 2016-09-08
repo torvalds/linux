@@ -79,7 +79,6 @@ struct moxart_timer {
 	unsigned int t1_enable_val;
 	unsigned int count_per_tick;
 	struct clock_event_device clkevt;
-	struct irqaction act;
 };
 
 static inline struct moxart_timer *to_moxart(struct clock_event_device *evt)
@@ -201,10 +200,6 @@ static int __init moxart_timer_init(struct device_node *node)
 	timer->clkevt.set_next_event = moxart_clkevt_next_event;
 	timer->clkevt.cpumask = cpumask_of(0);
 	timer->clkevt.irq = irq;
-	timer->act.name = node->name;
-	timer->act.flags = IRQF_TIMER;
-	timer->act.handler = moxart_timer_interrupt;
-	timer->act.dev_id = &timer->clkevt;
 
 	ret = clocksource_mmio_init(timer->base + TIMER2_BASE + REG_COUNT,
 				    "moxart_timer", pclk, 200, 32,
@@ -214,7 +209,8 @@ static int __init moxart_timer_init(struct device_node *node)
 		return ret;
 	}
 
-	ret = setup_irq(irq, &timer->act);
+	ret = request_irq(irq, moxart_timer_interrupt, IRQF_TIMER,
+			  node->name, &timer->clkevt);
 	if (ret) {
 		pr_err("%s: setup_irq failed\n", node->full_name);
 		return ret;
