@@ -509,7 +509,12 @@ read_kcore(struct file *file, char __user *buffer, size_t buflen, loff_t *fpos)
 			if (kern_addr_valid(start)) {
 				unsigned long n;
 
-				n = copy_to_user(buffer, (char *)start, tsz);
+				/*
+				 * Using bounce buffer to bypass the
+				 * hardened user copy kernel text checks.
+				 */
+				memcpy(buf, (char *) start, tsz);
+				n = copy_to_user(buffer, buf, tsz);
 				/*
 				 * We cannot distinguish between fault on source
 				 * and fault on destination. When this happens
