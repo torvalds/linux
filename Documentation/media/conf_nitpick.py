@@ -40,6 +40,8 @@ nitpick_ignore = [
     ("c:func", "struct fd_set"),
     ("c:func", "struct pollfd"),
     ("c:func", "usb_make_path"),
+    ("c:func", "wait_finish"),
+    ("c:func", "wait_prepare"),
     ("c:func", "write"),
 
     ("c:type", "atomic_t"),
@@ -67,6 +69,7 @@ nitpick_ignore = [
     ("c:type", "off_t"),
     ("c:type", "pci_dev"),
     ("c:type", "pdvbdev"),
+    ("c:type", "poll_table"),
     ("c:type", "platform_device"),
     ("c:type", "pollfd"),
     ("c:type", "poll_table_struct"),
@@ -98,6 +101,7 @@ nitpick_ignore = [
     ("c:type", "usb_interface"),
     ("c:type", "v4l2_std_id"),
     ("c:type", "video_system_t"),
+    ("c:type", "vm_area_struct"),
 
     # Opaque structures
 
