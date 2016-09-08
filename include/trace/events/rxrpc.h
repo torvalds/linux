@@ -17,7 +17,8 @@
 #include <linux/tracepoint.h>
 
 TRACE_EVENT(rxrpc_call,
-	    TP_PROTO(struct rxrpc_call *call, int op, int usage, int nskb,
+	    TP_PROTO(struct rxrpc_call *call, enum rxrpc_call_trace op,
+		     int usage, int nskb,
 		     const void *where, const void *aux),
 
 	    TP_ARGS(call, op, usage, nskb, where, aux),
@@ -42,13 +43,7 @@ TRACE_EVENT(rxrpc_call,
 
 	    TP_printk("c=%p %s u=%d s=%d p=%pSR a=%p",
 		      __entry->call,
-		      (__entry->op == 0 ? "NWc" :
-		       __entry->op == 1 ? "NWs" :
-		       __entry->op == 2 ? "SEE" :
-		       __entry->op == 3 ? "GET" :
-		       __entry->op == 4 ? "Gsb" :
-		       __entry->op == 5 ? "PUT" :
-		       "Psb"),
+		      rxrpc_call_traces[__entry->op],
 		      __entry->usage,
 		      __entry->nskb,
 		      __entry->where,

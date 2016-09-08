@@ -322,7 +322,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 			sp->hdr.serial	= atomic_inc_return(&conn->serial);
 			sp->hdr.type	= RXRPC_PACKET_TYPE_DATA;
 			sp->hdr.userStatus = 0;
-			sp->hdr.securityIndex = conn->security_ix;
+			sp->hdr.securityIndex = call->security_ix;
 			sp->hdr._rsvd	= 0;
 			sp->hdr.serviceId = call->service_id;
 
@@ -534,7 +534,7 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 		call = rxrpc_accept_call(rx, user_call_ID, NULL);
 		if (IS_ERR(call))
 			return PTR_ERR(call);
-		rxrpc_put_call(call);
+		rxrpc_put_call(call, rxrpc_call_put);
 		return 0;
 	}
 
@@ -573,7 +573,7 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 		ret = rxrpc_send_data(rx, call, msg, len);
 	}
 
-	rxrpc_put_call(call);
+	rxrpc_put_call(call, rxrpc_call_put);
 	_leave(" = %d", ret);
 	return ret;
 }

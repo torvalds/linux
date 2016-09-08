@@ -33,9 +33,6 @@ static void rxrpc_request_final_ACK(struct rxrpc_call *call)
 		call->state = RXRPC_CALL_CLIENT_FINAL_ACK;
 		_debug("request final ACK");
 
-		/* get an extra ref on the call for the final-ACK generator to
-		 * release */
-		rxrpc_get_call(call);
 		set_bit(RXRPC_CALL_EV_ACK_FINAL, &call->events);
 		if (try_to_del_timer_sync(&call->ack_timer) >= 0)
 			rxrpc_queue_call(call);
@@ -147,19 +144,6 @@ void rxrpc_packet_destructor(struct sk_buff *skb)
 		sock_rfree(skb);
 	_leave("");
 }
-
-/**
- * rxrpc_kernel_free_skb - Free an RxRPC socket buffer
- * @skb: The socket buffer to be freed
- *
- * Let RxRPC free its own socket buffer, permitting it to maintain debug
- * accounting.
- */
-void rxrpc_kernel_free_skb(struct sk_buff *skb)
-{
-	rxrpc_free_skb(skb);
-}
-EXPORT_SYMBOL(rxrpc_kernel_free_skb);
 
 /*
  * Note the existence of a new-to-us socket buffer (allocated or dequeued).

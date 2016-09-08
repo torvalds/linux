@@ -115,7 +115,7 @@ static int rxrpc_accept_incoming_call(struct rxrpc_local *local,
 
 	write_lock(&rx->call_lock);
 	if (!test_and_set_bit(RXRPC_CALL_INIT_ACCEPT, &call->flags)) {
-		rxrpc_get_call(call);
+		rxrpc_get_call(call, rxrpc_call_got);
 
 		spin_lock(&call->conn->state_lock);
 		if (sp->hdr.securityIndex > 0 &&
@@ -155,7 +155,7 @@ static int rxrpc_accept_incoming_call(struct rxrpc_local *local,
 	_debug("done");
 	read_unlock_bh(&local->services_lock);
 	rxrpc_free_skb(notification);
-	rxrpc_put_call(call);
+	rxrpc_put_call(call, rxrpc_call_put);
 	_leave(" = 0");
 	return 0;
 
@@ -163,14 +163,8 @@ invalid_service:
 	_debug("invalid");
 	read_unlock_bh(&local->services_lock);
 
-	read_lock_bh(&call->state_lock);
-	if (!test_bit(RXRPC_CALL_RELEASED, &call->flags) &&
-	    !test_and_set_bit(RXRPC_CALL_EV_RELEASE, &call->events)) {
-		rxrpc_get_call(call);
-		rxrpc_queue_call(call);
-	}
-	read_unlock_bh(&call->state_lock);
-	rxrpc_put_call(call);
+	rxrpc_release_call(rx, call);
+	rxrpc_put_call(call, rxrpc_call_put);
 	ret = -ECONNREFUSED;
 error:
 	rxrpc_free_skb(notification);
@@ -236,13 +230,11 @@ found_service:
 	if (sk_acceptq_is_full(&rx->sk))
 		goto backlog_full;
 	sk_acceptq_added(&rx->sk);
-	sock_hold(&rx->sk);
 	read_unlock_bh(&local->services_lock);
 
 	ret = rxrpc_accept_incoming_call(local, rx, skb, &srx);
 	if (ret < 0)
 		sk_acceptq_removed(&rx->sk);
-	sock_put(&rx->sk);
 	switch (ret) {
 	case -ECONNRESET: /* old calls are ignored */
 	case -ECONNABORTED: /* aborted calls are reaborted or ignored */
@@ -333,14 +325,12 @@ struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *rx,
 	case RXRPC_CALL_COMPLETE:
 		ret = call->error;
 		goto out_release;
-	case RXRPC_CALL_DEAD:
-		ret = -ETIME;
-		goto out_discard;
 	default:
 		BUG();
 	}
 
 	/* formalise the acceptance */
+	rxrpc_get_call(call, rxrpc_call_got_userid);
 	call->notify_rx = notify_rx;
 	call->user_call_ID = user_call_ID;
 	rb_link_node(&call->sock_node, parent, pp);
@@ -349,25 +339,20 @@ struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *rx,
 		BUG();
 	if (test_and_set_bit(RXRPC_CALL_EV_ACCEPTED, &call->events))
 		BUG();
-	rxrpc_queue_call(call);
 
-	rxrpc_get_call(call);
 	write_unlock_bh(&call->state_lock);
 	write_unlock(&rx->call_lock);
+	rxrpc_queue_call(call);
 	_leave(" = %p{%d}", call, call->debug_id);
 	return call;
 
-	/* if the call is already dying or dead, then we leave the socket's ref
-	 * on it to be released by rxrpc_dead_call_expired() as induced by
-	 * rxrpc_release_call() */
 out_release:
-	_debug("release %p", call);
-	if (!test_bit(RXRPC_CALL_RELEASED, &call->flags) &&
-	    !test_and_set_bit(RXRPC_CALL_EV_RELEASE, &call->events))
-		rxrpc_queue_call(call);
-out_discard:
 	write_unlock_bh(&call->state_lock);
-	_debug("discard %p", call);
+	write_unlock(&rx->call_lock);
+	_debug("release %p", call);
+	rxrpc_release_call(rx, call);
+	_leave(" = %d", ret);
+	return ERR_PTR(ret);
 out:
 	write_unlock(&rx->call_lock);
 	_leave(" = %d", ret);
@@ -390,8 +375,11 @@ int rxrpc_reject_call(struct rxrpc_sock *rx)
 	write_lock(&rx->call_lock);
 
 	ret = -ENODATA;
-	if (list_empty(&rx->acceptq))
-		goto out;
+	if (list_empty(&rx->acceptq)) {
+		write_unlock(&rx->call_lock);
+		_leave(" = -ENODATA");
+		return -ENODATA;
+	}
 
 	/* dequeue the first call and check it's still valid */
 	call = list_entry(rx->acceptq.next, struct rxrpc_call, accept_link);
@@ -407,30 +395,17 @@ int rxrpc_reject_call(struct rxrpc_sock *rx)
 		if (test_and_set_bit(RXRPC_CALL_EV_REJECT_BUSY, &call->events))
 			rxrpc_queue_call(call);
 		ret = 0;
-		goto out_release;
+		break;
 	case RXRPC_CALL_COMPLETE:
 		ret = call->error;
-		goto out_release;
-	case RXRPC_CALL_DEAD:
-		ret = -ETIME;
-		goto out_discard;
+		break;
 	default:
 		BUG();
 	}
 
-	/* if the call is already dying or dead, then we leave the socket's ref
-	 * on it to be released by rxrpc_dead_call_expired() as induced by
-	 * rxrpc_release_call() */
-out_release:
-	_debug("release %p", call);
-	if (!test_bit(RXRPC_CALL_RELEASED, &call->flags) &&
-	    !test_and_set_bit(RXRPC_CALL_EV_RELEASE, &call->events))
-		rxrpc_queue_call(call);
-out_discard:
 	write_unlock_bh(&call->state_lock);
-	_debug("discard %p", call);
-out:
 	write_unlock(&rx->call_lock);
+	rxrpc_release_call(rx, call);
 	_leave(" = %d", ret);
 	return ret;
 }
