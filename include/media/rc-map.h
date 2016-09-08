@@ -117,7 +117,7 @@ struct rc_map_table {
  * @scan: pointer to struct &rc_map_table
  * @size: Max number of entries
  * @len: Number of entries that are in use
- * @alloc: size of *scan, in bytes
+ * @alloc: size of \*scan, in bytes
  * @rc_type: type of the remote controller protocol, as defined at
  *	     enum &rc_type
  * @name: name of the key map table
