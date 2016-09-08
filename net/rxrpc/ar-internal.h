@@ -344,8 +344,8 @@ struct rxrpc_connection {
 	unsigned long		events;
 	unsigned long		idle_timestamp;	/* Time at which last became idle */
 	spinlock_t		state_lock;	/* state-change lock */
-	enum rxrpc_conn_cache_state cache_state : 8;
-	enum rxrpc_conn_proto_state state : 8;	/* current state of connection */
+	enum rxrpc_conn_cache_state cache_state;
+	enum rxrpc_conn_proto_state state;	/* current state of connection */
 	u32			local_abort;	/* local abort code */
 	u32			remote_abort;	/* remote abort code */
 	int			debug_id;	/* debug ID for printks */
@@ -464,8 +464,8 @@ struct rxrpc_call {
 	rwlock_t		state_lock;	/* lock for state transition */
 	u32			abort_code;	/* Local/remote abort code */
 	int			error;		/* Local error incurred */
-	enum rxrpc_call_state	state : 8;	/* current state of call */
-	enum rxrpc_call_completion completion : 8; /* Call completion condition */
+	enum rxrpc_call_state	state;		/* current state of call */
+	enum rxrpc_call_completion completion;	/* Call completion condition */
 	atomic_t		usage;
 	atomic_t		skb_count;	/* Outstanding packets on this call */
 	atomic_t		sequence;	/* Tx data packet sequence counter */
@@ -1014,11 +1014,12 @@ do {								\
 
 #define ASSERTCMP(X, OP, Y)						\
 do {									\
-	unsigned long _x = (unsigned long)(X);				\
-	unsigned long _y = (unsigned long)(Y);				\
+	__typeof__(X) _x = (X);						\
+	__typeof__(Y) _y = (__typeof__(X))(Y);				\
 	if (unlikely(!(_x OP _y))) {					\
-		pr_err("Assertion failed - %lu(0x%lx) %s %lu(0x%lx) is false\n",			\
-		       _x, _x, #OP, _y, _y);				\
+		pr_err("Assertion failed - %lu(0x%lx) %s %lu(0x%lx) is false\n", \
+		       (unsigned long)_x, (unsigned long)_x, #OP,	\
+		       (unsigned long)_y, (unsigned long)_y);		\
 		BUG();							\
 	}								\
 } while (0)
@@ -1033,11 +1034,12 @@ do {								\
 
 #define ASSERTIFCMP(C, X, OP, Y)					\
 do {									\
-	unsigned long _x = (unsigned long)(X);				\
-	unsigned long _y = (unsigned long)(Y);				\
+	__typeof__(X) _x = (X);						\
+	__typeof__(Y) _y = (__typeof__(X))(Y);				\
 	if (unlikely((C) && !(_x OP _y))) {				\
 		pr_err("Assertion failed - %lu(0x%lx) %s %lu(0x%lx) is false\n", \
-		       _x, _x, #OP, _y, _y);				\
+		       (unsigned long)_x, (unsigned long)_x, #OP,	\
+		       (unsigned long)_y, (unsigned long)_y);		\
 		BUG();							\
 	}								\
 } while (0)
