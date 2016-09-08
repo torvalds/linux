@@ -440,6 +440,10 @@ static int kvm_trap_emul_vcpu_init(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+static void kvm_trap_emul_vcpu_uninit(struct kvm_vcpu *vcpu)
+{
+}
+
 static int kvm_trap_emul_vcpu_setup(struct kvm_vcpu *vcpu)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
@@ -779,6 +783,7 @@ static struct kvm_mips_callbacks kvm_trap_emul_callbacks = {
 
 	.vm_init = kvm_trap_emul_vm_init,
 	.vcpu_init = kvm_trap_emul_vcpu_init,
+	.vcpu_uninit = kvm_trap_emul_vcpu_uninit,
 	.vcpu_setup = kvm_trap_emul_vcpu_setup,
 	.gva_to_gpa = kvm_trap_emul_gva_to_gpa_cb,
 	.queue_timer_int = kvm_mips_queue_timer_int_cb,
