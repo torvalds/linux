@@ -136,7 +136,7 @@ static int gb_sdio_get_caps(struct gb_sdio_host *host)
 	data_max = min(data_max - sizeof(struct gb_sdio_transfer_request),
 		       data_max - sizeof(struct gb_sdio_transfer_response));
 
-	blksz = min(le16_to_cpu(response.max_blk_size), data_max);
+	blksz = min_t(u16, le16_to_cpu(response.max_blk_size), data_max);
 	blksz = max_t(u32, 512, blksz);
 
 	mmc->max_blk_size = rounddown_pow_of_two(blksz);
