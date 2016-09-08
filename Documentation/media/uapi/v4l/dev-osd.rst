@@ -44,8 +44,8 @@ other information, the physical address of the framebuffer in the
 ``base`` field of struct :c:type:`v4l2_framebuffer`.
 The framebuffer device ioctl ``FBIOGET_FSCREENINFO`` returns the same
 address in the ``smem_start`` field of struct
-:c:type:`struct fb_fix_screeninfo`. The ``FBIOGET_FSCREENINFO``
-ioctl and struct :c:type:`struct fb_fix_screeninfo` are defined in
+struct :c:type:`fb_fix_screeninfo`. The ``FBIOGET_FSCREENINFO``
+ioctl and struct :c:type:`fb_fix_screeninfo` are defined in
 the ``linux/fb.h`` header file.
 
 The width and height of the framebuffer depends on the current video

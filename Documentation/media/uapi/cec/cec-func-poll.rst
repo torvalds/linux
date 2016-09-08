@@ -49,7 +49,7 @@ events.
 
 On success :c:func:`poll()` returns the number of file descriptors
 that have been selected (that is, file descriptors for which the
-``revents`` field of the respective :c:type:`struct pollfd` structure
+``revents`` field of the respective struct :c:type:`pollfd`
 is non-zero). CEC devices set the ``POLLIN`` and ``POLLRDNORM`` flags in
 the ``revents`` field if there are messages in the receive queue. If the
 transmit queue has room for new messages, the ``POLLOUT`` and

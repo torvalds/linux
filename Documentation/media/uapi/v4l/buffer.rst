@@ -825,7 +825,7 @@ Timecodes
 
 The struct :c:type:`v4l2_timecode` structure is designed to hold a
 :ref:`smpte12m` or similar timecode. (struct
-:c:type:`struct timeval` timestamps are stored in struct
+struct :c:type:`timeval` timestamps are stored in struct
 :c:type:`v4l2_buffer` field ``timestamp``.)
 
 
