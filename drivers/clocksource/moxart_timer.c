@@ -184,8 +184,10 @@ static int __init moxart_timer_init(struct device_node *node)
 	} else if (of_device_is_compatible(node, "aspeed,ast2400-timer")) {
 		timer->t1_enable_val = ASPEED_TIMER1_ENABLE;
 		timer->t1_disable_val = ASPEED_TIMER1_DISABLE;
-	} else
-		panic("%s: unknown platform\n", node->full_name);
+	} else {
+		pr_err("%s: unknown platform\n", node->full_name);
+		return -EINVAL;
+	}
 
 	timer->count_per_tick = DIV_ROUND_CLOSEST(pclk, HZ);
 
