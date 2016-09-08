@@ -577,7 +577,7 @@ static int tw686x_buf_prepare(struct vb2_buffer *vb)
 	return 0;
 }
 
-static struct vb2_ops tw686x_video_qops = {
+static const struct vb2_ops tw686x_video_qops = {
 	.queue_setup		= tw686x_queue_setup,
 	.buf_queue		= tw686x_buf_queue,
 	.buf_prepare		= tw686x_buf_prepare,

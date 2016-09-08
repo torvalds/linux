@@ -517,7 +517,7 @@ static void cx23885_stop_streaming(struct vb2_queue *q)
 	spin_unlock_irqrestore(&dev->slock, flags);
 }
 
-static struct vb2_ops cx23885_video_qops = {
+static const struct vb2_ops cx23885_video_qops = {
 	.queue_setup    = queue_setup,
 	.buf_prepare  = buffer_prepare,
 	.buf_finish = buffer_finish,

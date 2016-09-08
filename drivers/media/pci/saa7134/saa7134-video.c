@@ -1054,7 +1054,7 @@ void saa7134_vb2_stop_streaming(struct vb2_queue *vq)
 		pm_qos_remove_request(&dev->qos_request);
 }
 
-static struct vb2_ops vb2_qops = {
+static const struct vb2_ops vb2_qops = {
 	.queue_setup	= queue_setup,
 	.buf_init	= buffer_init,
 	.buf_prepare	= buffer_prepare,
