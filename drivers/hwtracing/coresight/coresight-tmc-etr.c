@@ -20,7 +20,7 @@
 #include "coresight-priv.h"
 #include "coresight-tmc.h"
 
-void tmc_etr_enable_hw(struct tmc_drvdata *drvdata)
+static void tmc_etr_enable_hw(struct tmc_drvdata *drvdata)
 {
 	u32 axictl;
 

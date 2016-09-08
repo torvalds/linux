@@ -247,8 +247,8 @@ static struct attribute *coresight_tmc_mgmt_attrs[] = {
 	NULL,
 };
 
-ssize_t trigger_cntr_show(struct device *dev,
-			  struct device_attribute *attr, char *buf)
+static ssize_t trigger_cntr_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
 {
 	struct tmc_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	unsigned long val = drvdata->trigger_cntr;

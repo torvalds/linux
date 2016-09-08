@@ -22,7 +22,7 @@
 #include "coresight-priv.h"
 #include "coresight-tmc.h"
 
-void tmc_etb_enable_hw(struct tmc_drvdata *drvdata)
+static void tmc_etb_enable_hw(struct tmc_drvdata *drvdata)
 {
 	CS_UNLOCK(drvdata->base);
 
