@@ -535,7 +535,7 @@ void pciehp_power_off_slot(struct slot *slot)
 		 PCI_EXP_SLTCTL_PWR_OFF);
 }
 
-static irqreturn_t pcie_isr(int irq, void *dev_id)
+static irqreturn_t pciehp_isr(int irq, void *dev_id)
 {
 	struct controller *ctrl = (struct controller *)dev_id;
 	struct pci_dev *pdev = ctrl_dev(ctrl);
@@ -550,36 +550,23 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 	if (pdev->current_state == PCI_D3cold)
 		return IRQ_NONE;
 
-	/*
-	 * In order to guarantee that all interrupt events are
-	 * serviced, we need to re-inspect Slot Status register after
-	 * clearing what is presumed to be the last pending interrupt.
-	 */
-	events = 0;
-	do {
-		pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &status);
-		if (status == (u16) ~0) {
-			ctrl_info(ctrl, "%s: no response from device\n",
-				  __func__);
-			return IRQ_NONE;
-		}
+	pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &status);
+	if (status == (u16) ~0) {
+		ctrl_info(ctrl, "%s: no response from device\n", __func__);
+		return IRQ_NONE;
+	}
 
-		/*
-		 * Slot Status contains plain status bits as well as event
-		 * notification bits; right now we only want the event bits.
-		 */
-		status &= (PCI_EXP_SLTSTA_ABP | PCI_EXP_SLTSTA_PFD |
+	/*
+	 * Slot Status contains plain status bits as well as event
+	 * notification bits; right now we only want the event bits.
+	 */
+	events = status & (PCI_EXP_SLTSTA_ABP | PCI_EXP_SLTSTA_PFD |
 			   PCI_EXP_SLTSTA_PDC | PCI_EXP_SLTSTA_CC |
 			   PCI_EXP_SLTSTA_DLLSC);
-		status &= ~events;
-		events |= status;
-		if (!events)
-			return IRQ_NONE;
-		if (status)
-			pcie_capability_write_word(pdev, PCI_EXP_SLTSTA,
-						   events);
-	} while (status);
+	if (!events)
+		return IRQ_NONE;
 
+	pcie_capability_write_word(pdev, PCI_EXP_SLTSTA, events);
 	ctrl_dbg(ctrl, "pending interrupts %#06x from Slot Status\n", events);
 
 	/* Check Command Complete Interrupt Pending */
@@ -634,6 +621,25 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 	}
 
 	return IRQ_HANDLED;
+}
+
+static irqreturn_t pcie_isr(int irq, void *dev_id)
+{
+	irqreturn_t rc, handled = IRQ_NONE;
+
+	/*
+	 * To guarantee that all interrupt events are serviced, we need to
+	 * re-inspect Slot Status register after clearing what is presumed
+	 * to be the last pending interrupt.
+	 */
+	do {
+		rc = pciehp_isr(irq, dev_id);
+		if (rc == IRQ_HANDLED)
+			handled = IRQ_HANDLED;
+	} while (rc == IRQ_HANDLED);
+
+	/* Return IRQ_HANDLED if we handled one or more events */
+	return handled;
 }
 
 void pcie_enable_notification(struct controller *ctrl)
