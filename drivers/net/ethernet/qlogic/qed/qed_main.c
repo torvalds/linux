@@ -588,6 +588,8 @@ static int qed_nic_stop(struct qed_dev *cdev)
 		}
 	}
 
+	qed_dbg_pf_exit(cdev);
+
 	return rc;
 }
 
@@ -846,6 +848,8 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 
 		/* First Dword used to diffrentiate between various sources */
 		data = cdev->firmware->data + sizeof(u32);
+
+		qed_dbg_pf_init(cdev);
 	}
 
 	memset(&tunn_info, 0, sizeof(tunn_info));
@@ -1394,6 +1398,8 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.get_link = &qed_get_current_link,
 	.drain = &qed_drain,
 	.update_msglvl = &qed_init_dp,
+	.dbg_all_data = &qed_dbg_all_data,
+	.dbg_all_data_size = &qed_dbg_all_data_size,
 	.chain_alloc = &qed_chain_alloc,
 	.chain_free = &qed_chain_free,
 	.get_coalesce = &qed_get_coalesce,
