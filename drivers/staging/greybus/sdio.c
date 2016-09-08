@@ -46,6 +46,10 @@ struct gb_sdio_host {
 /* kernel vdd starts at 0x80 and we need to translate to greybus ones 0x01 */
 #define GB_SDIO_VDD_SHIFT	8
 
+#ifndef MMC_CAP2_CORE_RUNTIME_PM
+#define MMC_CAP2_CORE_RUNTIME_PM	0
+#endif
+
 static inline bool single_op(struct mmc_command *cmd)
 {
 	uint32_t opcode = cmd->opcode;
@@ -78,10 +82,8 @@ static void _gb_sdio_set_host_caps(struct gb_sdio_host *host, u32 r)
 		((r & GB_SDIO_CAP_DRIVER_TYPE_D) ? MMC_CAP_DRIVER_TYPE_D : 0);
 
 	caps2 = ((r & GB_SDIO_CAP_HS200_1_2V) ? MMC_CAP2_HS200_1_2V_SDR : 0) |
-#ifdef MMC_HS400_SUPPORTED
 		((r & GB_SDIO_CAP_HS400_1_2V) ? MMC_CAP2_HS400_1_2V : 0) |
 		((r & GB_SDIO_CAP_HS400_1_8V) ? MMC_CAP2_HS400_1_8V : 0) |
-#endif
 		((r & GB_SDIO_CAP_HS200_1_8V) ? MMC_CAP2_HS200_1_8V_SDR : 0);
 
 	host->mmc->caps = caps;
@@ -617,11 +619,9 @@ static void gb_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	case MMC_POWER_ON:
 		power_mode = GB_SDIO_POWER_ON;
 		break;
-#ifdef MMC_POWER_UNDEFINED_SUPPORTED
 	case MMC_POWER_UNDEFINED:
 		power_mode = GB_SDIO_POWER_UNDEFINED;
 		break;
-#endif
 	}
 	request.power_mode = power_mode;
 
@@ -665,19 +665,15 @@ static void gb_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	case MMC_TIMING_UHS_DDR50:
 		timing = GB_SDIO_TIMING_UHS_DDR50;
 		break;
-#ifdef MMC_DDR52_DEFINED
 	case MMC_TIMING_MMC_DDR52:
 		timing = GB_SDIO_TIMING_MMC_DDR52;
 		break;
-#endif
 	case MMC_TIMING_MMC_HS200:
 		timing = GB_SDIO_TIMING_MMC_HS200;
 		break;
-#ifdef MMC_HS400_SUPPORTED
 	case MMC_TIMING_MMC_HS400:
 		timing = GB_SDIO_TIMING_MMC_HS400;
 		break;
-#endif
 	}
 	request.timing = timing;
 
