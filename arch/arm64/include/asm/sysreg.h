@@ -273,10 +273,14 @@ static inline void config_sctlr_el1(u32 clear, u32 set)
 	__val;							\
 })
 
+/*
+ * The "Z" constraint normally means a zero immediate, but when combined with
+ * the "%x0" template means XZR.
+ */
 #define write_sysreg(v, r) do {					\
 	u64 __val = (u64)v;					\
-	asm volatile("msr " __stringify(r) ", %0"		\
-		     : : "r" (__val));				\
+	asm volatile("msr " __stringify(r) ", %x0"		\
+		     : : "rZ" (__val));				\
 } while (0)
 
 #endif
