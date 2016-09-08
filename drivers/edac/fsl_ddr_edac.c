@@ -564,7 +564,8 @@ int fsl_mc_err_probe(struct platform_device *op)
 	/* clear all error bits */
 	ddr_out32(pdata->mc_vbase + FSL_MC_ERR_DETECT, ~0);
 
-	if (edac_mc_add_mc_with_groups(mci, fsl_ddr_dev_groups)) {
+	res = edac_mc_add_mc_with_groups(mci, fsl_ddr_dev_groups);
+	if (res) {
 		edac_dbg(3, "failed edac_mc_add_mc()\n");
 		goto err;
 	}
