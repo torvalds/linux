@@ -429,7 +429,7 @@ struct list_head *coresight_build_path(struct coresight_device *csdev)
 
 	path = kzalloc(sizeof(struct list_head), GFP_KERNEL);
 	if (!path)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	INIT_LIST_HEAD(path);
 

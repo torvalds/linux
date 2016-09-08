@@ -135,7 +135,7 @@ static void free_event_data(struct work_struct *work)
 	}
 
 	for_each_cpu(cpu, mask) {
-		if (event_data->path[cpu])
+		if (!(IS_ERR_OR_NULL(event_data->path[cpu])))
 			coresight_release_path(event_data->path[cpu]);
 	}
 
@@ -220,7 +220,7 @@ static void *etm_setup_aux(int event_cpu, void **pages,
 		 * referenced later when the path is actually needed.
 		 */
 		event_data->path[cpu] = coresight_build_path(csdev);
-		if (!event_data->path[cpu])
+		if (IS_ERR(event_data->path[cpu]))
 			goto err;
 	}
 
