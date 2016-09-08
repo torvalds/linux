@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/tty.h>
 #include <linux/delay.h>
+#include <linux/gpio/machine.h>
 #include <linux/platform_data/sa11x0-serial.h>
 #include <linux/platform_device.h>
 #include <linux/ioport.h>
@@ -228,6 +229,13 @@ static struct platform_device jornada_kbd_device = {
 	.resource	= jornada_kbd_resources,
 };
 
+static struct gpiod_lookup_table jornada_ts_gpiod_table = {
+	.dev_id		= "jornada_ts",
+	.table		= {
+		GPIO_LOOKUP("gpio", 9, "penup", GPIO_ACTIVE_HIGH),
+	},
+};
+
 static struct platform_device jornada_ts_device = {
 	.name		= "jornada_ts",
 	.id		= -1,
@@ -255,6 +263,8 @@ static int __init jornada720_init(void)
 		udelay(1);
 		GPSR = GPIO_GPIO20;	/* restart gpio20 */
 		udelay(20);		/* give it some time to restart */
+
+		gpiod_add_lookup_table(&jornada_ts_gpiod_table);
 
 		ret = platform_add_devices(devices, ARRAY_SIZE(devices));
 	}
