@@ -42,9 +42,6 @@ int rxrpc_kernel_recv_data(struct socket *, struct rxrpc_call *,
 void rxrpc_kernel_abort_call(struct socket *, struct rxrpc_call *,
 			     u32, int, const char *);
 void rxrpc_kernel_end_call(struct socket *, struct rxrpc_call *);
-struct rxrpc_call *rxrpc_kernel_accept_call(struct socket *, unsigned long,
-					    rxrpc_notify_rx_t);
-int rxrpc_kernel_reject_call(struct socket *);
 void rxrpc_kernel_get_peer(struct socket *, struct rxrpc_call *,
 			   struct sockaddr_rxrpc *);
 int rxrpc_kernel_charge_accept(struct socket *, rxrpc_notify_rx_t,

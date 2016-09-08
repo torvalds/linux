@@ -169,7 +169,7 @@ void __rxrpc_disconnect_call(struct rxrpc_connection *conn,
 			chan->last_abort = call->abort_code;
 			chan->last_type = RXRPC_PACKET_TYPE_ABORT;
 		} else {
-			chan->last_seq = call->rx_data_eaten;
+			chan->last_seq = call->rx_hard_ack;
 			chan->last_type = RXRPC_PACKET_TYPE_ACK;
 		}
 		/* Sync with rxrpc_conn_retransmit(). */
@@ -190,6 +190,10 @@ void __rxrpc_disconnect_call(struct rxrpc_connection *conn,
 void rxrpc_disconnect_call(struct rxrpc_call *call)
 {
 	struct rxrpc_connection *conn = call->conn;
+
+	spin_lock_bh(&conn->params.peer->lock);
+	hlist_del_init(&call->error_link);
+	spin_unlock_bh(&conn->params.peer->lock);
 
 	if (rxrpc_is_client_call(call))
 		return rxrpc_disconnect_client_call(call);

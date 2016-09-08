@@ -199,6 +199,32 @@ struct rxrpc_peer *rxrpc_alloc_peer(struct rxrpc_local *local, gfp_t gfp)
 }
 
 /*
+ * Initialise peer record.
+ */
+static void rxrpc_init_peer(struct rxrpc_peer *peer, unsigned long hash_key)
+{
+	rxrpc_assess_MTU_size(peer);
+	peer->mtu = peer->if_mtu;
+
+	if (peer->srx.transport.family == AF_INET) {
+		peer->hdrsize = sizeof(struct iphdr);
+		switch (peer->srx.transport_type) {
+		case SOCK_DGRAM:
+			peer->hdrsize += sizeof(struct udphdr);
+			break;
+		default:
+			BUG();
+			break;
+		}
+	} else {
+		BUG();
+	}
+
+	peer->hdrsize += sizeof(struct rxrpc_wire_header);
+	peer->maxdata = peer->mtu - peer->hdrsize;
+}
+
+/*
  * Set up a new peer.
  */
 static struct rxrpc_peer *rxrpc_create_peer(struct rxrpc_local *local,
@@ -214,29 +240,39 @@ static struct rxrpc_peer *rxrpc_create_peer(struct rxrpc_local *local,
 	if (peer) {
 		peer->hash_key = hash_key;
 		memcpy(&peer->srx, srx, sizeof(*srx));
-
-		rxrpc_assess_MTU_size(peer);
-		peer->mtu = peer->if_mtu;
-
-		if (srx->transport.family == AF_INET) {
-			peer->hdrsize = sizeof(struct iphdr);
-			switch (srx->transport_type) {
-			case SOCK_DGRAM:
-				peer->hdrsize += sizeof(struct udphdr);
-				break;
-			default:
-				BUG();
-				break;
-			}
-		} else {
-			BUG();
-		}
-
-		peer->hdrsize += sizeof(struct rxrpc_wire_header);
-		peer->maxdata = peer->mtu - peer->hdrsize;
+		rxrpc_init_peer(peer, hash_key);
 	}
 
 	_leave(" = %p", peer);
+	return peer;
+}
+
+/*
+ * Set up a new incoming peer.  The address is prestored in the preallocated
+ * peer.
+ */
+struct rxrpc_peer *rxrpc_lookup_incoming_peer(struct rxrpc_local *local,
+					      struct rxrpc_peer *prealloc)
+{
+	struct rxrpc_peer *peer;
+	unsigned long hash_key;
+
+	hash_key = rxrpc_peer_hash_key(local, &prealloc->srx);
+	prealloc->local = local;
+	rxrpc_init_peer(prealloc, hash_key);
+
+	spin_lock(&rxrpc_peer_hash_lock);
+
+	/* Need to check that we aren't racing with someone else */
+	peer = __rxrpc_lookup_peer_rcu(local, &prealloc->srx, hash_key);
+	if (peer && !rxrpc_get_peer_maybe(peer))
+		peer = NULL;
+	if (!peer) {
+		peer = prealloc;
+		hash_add_rcu(rxrpc_peer_hash, &peer->hash_link, hash_key);
+	}
+
+	spin_unlock(&rxrpc_peer_hash_lock);
 	return peer;
 }
 
@@ -272,7 +308,7 @@ struct rxrpc_peer *rxrpc_lookup_peer(struct rxrpc_local *local,
 			return NULL;
 		}
 
-		spin_lock(&rxrpc_peer_hash_lock);
+		spin_lock_bh(&rxrpc_peer_hash_lock);
 
 		/* Need to check that we aren't racing with someone else */
 		peer = __rxrpc_lookup_peer_rcu(local, srx, hash_key);
@@ -282,7 +318,7 @@ struct rxrpc_peer *rxrpc_lookup_peer(struct rxrpc_local *local,
 			hash_add_rcu(rxrpc_peer_hash,
 				     &candidate->hash_link, hash_key);
 
-		spin_unlock(&rxrpc_peer_hash_lock);
+		spin_unlock_bh(&rxrpc_peer_hash_lock);
 
 		if (peer)
 			kfree(candidate);
@@ -307,9 +343,9 @@ void __rxrpc_put_peer(struct rxrpc_peer *peer)
 {
 	ASSERT(hlist_empty(&peer->error_targets));
 
-	spin_lock(&rxrpc_peer_hash_lock);
+	spin_lock_bh(&rxrpc_peer_hash_lock);
 	hash_del_rcu(&peer->hash_link);
-	spin_unlock(&rxrpc_peer_hash_lock);
+	spin_unlock_bh(&rxrpc_peer_hash_lock);
 
 	kfree_rcu(peer, rcu);
 }

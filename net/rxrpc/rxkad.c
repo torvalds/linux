@@ -317,6 +317,7 @@ static int rxkad_secure_packet(struct rxrpc_call *call,
  * decrypt partial encryption on a packet (level 1 security)
  */
 static int rxkad_verify_packet_1(struct rxrpc_call *call, struct sk_buff *skb,
+				 unsigned int offset, unsigned int len,
 				 rxrpc_seq_t seq)
 {
 	struct rxkad_level1_hdr sechdr;
@@ -330,18 +331,20 @@ static int rxkad_verify_packet_1(struct rxrpc_call *call, struct sk_buff *skb,
 
 	_enter("");
 
-	if (skb->len < 8) {
+	if (len < 8) {
 		rxrpc_abort_call("V1H", call, seq, RXKADSEALEDINCON, EPROTO);
 		goto protocol_error;
 	}
 
-	/* we want to decrypt the skbuff in-place */
+	/* Decrypt the skbuff in-place.  TODO: We really want to decrypt
+	 * directly into the target buffer.
+	 */
 	nsg = skb_cow_data(skb, 0, &trailer);
 	if (nsg < 0 || nsg > 16)
 		goto nomem;
 
 	sg_init_table(sg, nsg);
-	skb_to_sgvec(skb, sg, 0, 8);
+	skb_to_sgvec(skb, sg, offset, 8);
 
 	/* start the decryption afresh */
 	memset(&iv, 0, sizeof(iv));
@@ -353,12 +356,12 @@ static int rxkad_verify_packet_1(struct rxrpc_call *call, struct sk_buff *skb,
 	skcipher_request_zero(req);
 
 	/* Extract the decrypted packet length */
-	if (skb_copy_bits(skb, 0, &sechdr, sizeof(sechdr)) < 0) {
+	if (skb_copy_bits(skb, offset, &sechdr, sizeof(sechdr)) < 0) {
 		rxrpc_abort_call("XV1", call, seq, RXKADDATALEN, EPROTO);
 		goto protocol_error;
 	}
-	if (!skb_pull(skb, sizeof(sechdr)))
-		BUG();
+	offset += sizeof(sechdr);
+	len -= sizeof(sechdr);
 
 	buf = ntohl(sechdr.data_size);
 	data_size = buf & 0xffff;
@@ -371,18 +374,16 @@ static int rxkad_verify_packet_1(struct rxrpc_call *call, struct sk_buff *skb,
 		goto protocol_error;
 	}
 
-	/* shorten the packet to remove the padding */
-	if (data_size > skb->len) {
+	if (data_size > len) {
 		rxrpc_abort_call("V1L", call, seq, RXKADDATALEN, EPROTO);
 		goto protocol_error;
 	}
-	if (data_size < skb->len)
-		skb->len = data_size;
 
 	_leave(" = 0 [dlen=%x]", data_size);
 	return 0;
 
 protocol_error:
+	rxrpc_send_call_packet(call, RXRPC_PACKET_TYPE_ABORT);
 	_leave(" = -EPROTO");
 	return -EPROTO;
 
@@ -395,6 +396,7 @@ nomem:
  * wholly decrypt a packet (level 2 security)
  */
 static int rxkad_verify_packet_2(struct rxrpc_call *call, struct sk_buff *skb,
+				 unsigned int offset, unsigned int len,
 				 rxrpc_seq_t seq)
 {
 	const struct rxrpc_key_token *token;
@@ -409,12 +411,14 @@ static int rxkad_verify_packet_2(struct rxrpc_call *call, struct sk_buff *skb,
 
 	_enter(",{%d}", skb->len);
 
-	if (skb->len < 8) {
+	if (len < 8) {
 		rxrpc_abort_call("V2H", call, seq, RXKADSEALEDINCON, EPROTO);
 		goto protocol_error;
 	}
 
-	/* we want to decrypt the skbuff in-place */
+	/* Decrypt the skbuff in-place.  TODO: We really want to decrypt
+	 * directly into the target buffer.
+	 */
 	nsg = skb_cow_data(skb, 0, &trailer);
 	if (nsg < 0)
 		goto nomem;
@@ -427,7 +431,7 @@ static int rxkad_verify_packet_2(struct rxrpc_call *call, struct sk_buff *skb,
 	}
 
 	sg_init_table(sg, nsg);
-	skb_to_sgvec(skb, sg, 0, skb->len);
+	skb_to_sgvec(skb, sg, offset, len);
 
 	/* decrypt from the session key */
 	token = call->conn->params.key->payload.data[0];
@@ -435,19 +439,19 @@ static int rxkad_verify_packet_2(struct rxrpc_call *call, struct sk_buff *skb,
 
 	skcipher_request_set_tfm(req, call->conn->cipher);
 	skcipher_request_set_callback(req, 0, NULL, NULL);
-	skcipher_request_set_crypt(req, sg, sg, skb->len, iv.x);
+	skcipher_request_set_crypt(req, sg, sg, len, iv.x);
 	crypto_skcipher_decrypt(req);
 	skcipher_request_zero(req);
 	if (sg != _sg)
 		kfree(sg);
 
 	/* Extract the decrypted packet length */
-	if (skb_copy_bits(skb, 0, &sechdr, sizeof(sechdr)) < 0) {
+	if (skb_copy_bits(skb, offset, &sechdr, sizeof(sechdr)) < 0) {
 		rxrpc_abort_call("XV2", call, seq, RXKADDATALEN, EPROTO);
 		goto protocol_error;
 	}
-	if (!skb_pull(skb, sizeof(sechdr)))
-		BUG();
+	offset += sizeof(sechdr);
+	len -= sizeof(sechdr);
 
 	buf = ntohl(sechdr.data_size);
 	data_size = buf & 0xffff;
@@ -460,17 +464,16 @@ static int rxkad_verify_packet_2(struct rxrpc_call *call, struct sk_buff *skb,
 		goto protocol_error;
 	}
 
-	if (data_size > skb->len) {
+	if (data_size > len) {
 		rxrpc_abort_call("V2L", call, seq, RXKADDATALEN, EPROTO);
 		goto protocol_error;
 	}
-	if (data_size < skb->len)
-		skb->len = data_size;
 
 	_leave(" = 0 [dlen=%x]", data_size);
 	return 0;
 
 protocol_error:
+	rxrpc_send_call_packet(call, RXRPC_PACKET_TYPE_ABORT);
 	_leave(" = -EPROTO");
 	return -EPROTO;
 
@@ -484,6 +487,7 @@ nomem:
  * jumbo packet).
  */
 static int rxkad_verify_packet(struct rxrpc_call *call, struct sk_buff *skb,
+			       unsigned int offset, unsigned int len,
 			       rxrpc_seq_t seq, u16 expected_cksum)
 {
 	SKCIPHER_REQUEST_ON_STACK(req, call->conn->cipher);
@@ -521,6 +525,7 @@ static int rxkad_verify_packet(struct rxrpc_call *call, struct sk_buff *skb,
 
 	if (cksum != expected_cksum) {
 		rxrpc_abort_call("VCK", call, seq, RXKADSEALEDINCON, EPROTO);
+		rxrpc_send_call_packet(call, RXRPC_PACKET_TYPE_ABORT);
 		_leave(" = -EPROTO [csum failed]");
 		return -EPROTO;
 	}
@@ -529,11 +534,57 @@ static int rxkad_verify_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	case RXRPC_SECURITY_PLAIN:
 		return 0;
 	case RXRPC_SECURITY_AUTH:
-		return rxkad_verify_packet_1(call, skb, seq);
+		return rxkad_verify_packet_1(call, skb, offset, len, seq);
 	case RXRPC_SECURITY_ENCRYPT:
-		return rxkad_verify_packet_2(call, skb, seq);
+		return rxkad_verify_packet_2(call, skb, offset, len, seq);
 	default:
 		return -ENOANO;
+	}
+}
+
+/*
+ * Locate the data contained in a packet that was partially encrypted.
+ */
+static void rxkad_locate_data_1(struct rxrpc_call *call, struct sk_buff *skb,
+				unsigned int *_offset, unsigned int *_len)
+{
+	struct rxkad_level1_hdr sechdr;
+
+	if (skb_copy_bits(skb, *_offset, &sechdr, sizeof(sechdr)) < 0)
+		BUG();
+	*_offset += sizeof(sechdr);
+	*_len = ntohl(sechdr.data_size) & 0xffff;
+}
+
+/*
+ * Locate the data contained in a packet that was completely encrypted.
+ */
+static void rxkad_locate_data_2(struct rxrpc_call *call, struct sk_buff *skb,
+				unsigned int *_offset, unsigned int *_len)
+{
+	struct rxkad_level2_hdr sechdr;
+
+	if (skb_copy_bits(skb, *_offset, &sechdr, sizeof(sechdr)) < 0)
+		BUG();
+	*_offset += sizeof(sechdr);
+	*_len = ntohl(sechdr.data_size) & 0xffff;
+}
+
+/*
+ * Locate the data contained in an already decrypted packet.
+ */
+static void rxkad_locate_data(struct rxrpc_call *call, struct sk_buff *skb,
+			      unsigned int *_offset, unsigned int *_len)
+{
+	switch (call->conn->params.security_level) {
+	case RXRPC_SECURITY_AUTH:
+		rxkad_locate_data_1(call, skb, _offset, _len);
+		return;
+	case RXRPC_SECURITY_ENCRYPT:
+		rxkad_locate_data_2(call, skb, _offset, _len);
+		return;
+	default:
+		return;
 	}
 }
 
@@ -704,7 +755,7 @@ static int rxkad_respond_to_challenge(struct rxrpc_connection *conn,
 	struct rxkad_challenge challenge;
 	struct rxkad_response resp
 		__attribute__((aligned(8))); /* must be aligned for crypto */
-	struct rxrpc_skb_priv *sp;
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	u32 version, nonce, min_level, abort_code;
 	int ret;
 
@@ -722,8 +773,7 @@ static int rxkad_respond_to_challenge(struct rxrpc_connection *conn,
 	}
 
 	abort_code = RXKADPACKETSHORT;
-	sp = rxrpc_skb(skb);
-	if (skb_copy_bits(skb, 0, &challenge, sizeof(challenge)) < 0)
+	if (skb_copy_bits(skb, sp->offset, &challenge, sizeof(challenge)) < 0)
 		goto protocol_error;
 
 	version = ntohl(challenge.version);
@@ -969,7 +1019,7 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 {
 	struct rxkad_response response
 		__attribute__((aligned(8))); /* must be aligned for crypto */
-	struct rxrpc_skb_priv *sp;
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	struct rxrpc_crypt session_key;
 	time_t expiry;
 	void *ticket;
@@ -980,7 +1030,7 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 	_enter("{%d,%x}", conn->debug_id, key_serial(conn->server_key));
 
 	abort_code = RXKADPACKETSHORT;
-	if (skb_copy_bits(skb, 0, &response, sizeof(response)) < 0)
+	if (skb_copy_bits(skb, sp->offset, &response, sizeof(response)) < 0)
 		goto protocol_error;
 	if (!pskb_pull(skb, sizeof(response)))
 		BUG();
@@ -988,7 +1038,6 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 	version = ntohl(response.version);
 	ticket_len = ntohl(response.ticket_len);
 	kvno = ntohl(response.kvno);
-	sp = rxrpc_skb(skb);
 	_proto("Rx RESPONSE %%%u { v=%u kv=%u tl=%u }",
 	       sp->hdr.serial, version, kvno, ticket_len);
 
@@ -1010,7 +1059,7 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 		return -ENOMEM;
 
 	abort_code = RXKADPACKETSHORT;
-	if (skb_copy_bits(skb, 0, ticket, ticket_len) < 0)
+	if (skb_copy_bits(skb, sp->offset, ticket, ticket_len) < 0)
 		goto protocol_error_free;
 
 	ret = rxkad_decrypt_ticket(conn, ticket, ticket_len, &session_key,
@@ -1135,6 +1184,7 @@ const struct rxrpc_security rxkad = {
 	.prime_packet_security		= rxkad_prime_packet_security,
 	.secure_packet			= rxkad_secure_packet,
 	.verify_packet			= rxkad_verify_packet,
+	.locate_data			= rxkad_locate_data,
 	.issue_challenge		= rxkad_issue_challenge,
 	.respond_to_challenge		= rxkad_respond_to_challenge,
 	.verify_response		= rxkad_verify_response,

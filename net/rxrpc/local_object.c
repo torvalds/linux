@@ -77,7 +77,6 @@ static struct rxrpc_local *rxrpc_alloc_local(const struct sockaddr_rxrpc *srx)
 		INIT_WORK(&local->processor, rxrpc_local_processor);
 		INIT_HLIST_HEAD(&local->services);
 		init_rwsem(&local->defrag_sem);
-		skb_queue_head_init(&local->accept_queue);
 		skb_queue_head_init(&local->reject_queue);
 		skb_queue_head_init(&local->event_queue);
 		local->client_conns = RB_ROOT;
@@ -308,7 +307,6 @@ static void rxrpc_local_destroyer(struct rxrpc_local *local)
 	/* At this point, there should be no more packets coming in to the
 	 * local endpoint.
 	 */
-	rxrpc_purge_queue(&local->accept_queue);
 	rxrpc_purge_queue(&local->reject_queue);
 	rxrpc_purge_queue(&local->event_queue);
 
@@ -331,11 +329,6 @@ static void rxrpc_local_processor(struct work_struct *work)
 		again = false;
 		if (atomic_read(&local->usage) == 0)
 			return rxrpc_local_destroyer(local);
-
-		if (!skb_queue_empty(&local->accept_queue)) {
-			rxrpc_accept_incoming_calls(local);
-			again = true;
-		}
 
 		if (!skb_queue_empty(&local->reject_queue)) {
 			rxrpc_reject_packets(local);

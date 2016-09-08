@@ -133,6 +133,13 @@ struct rxrpc_ackpacket {
 
 } __packed;
 
+/* Some ACKs refer to specific packets and some are general and can be updated. */
+#define RXRPC_ACK_UPDATEABLE ((1 << RXRPC_ACK_REQUESTED)	|	\
+			      (1 << RXRPC_ACK_PING_RESPONSE)	|	\
+			      (1 << RXRPC_ACK_DELAY)		|	\
+			      (1 << RXRPC_ACK_IDLE))
+
+
 /*
  * ACK packets can have a further piece of information tagged on the end
  */

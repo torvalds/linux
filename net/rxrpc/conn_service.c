@@ -65,9 +65,8 @@ done:
  * Insert a service connection into a peer's tree, thereby making it a target
  * for incoming packets.
  */
-static struct rxrpc_connection *
-rxrpc_publish_service_conn(struct rxrpc_peer *peer,
-			   struct rxrpc_connection *conn)
+static void rxrpc_publish_service_conn(struct rxrpc_peer *peer,
+				       struct rxrpc_connection *conn)
 {
 	struct rxrpc_connection *cursor = NULL;
 	struct rxrpc_conn_proto k = conn->proto;
@@ -96,7 +95,7 @@ conn_published:
 	set_bit(RXRPC_CONN_IN_SERVICE_CONNS, &conn->flags);
 	write_sequnlock_bh(&peer->service_conn_lock);
 	_leave(" = %d [new]", conn->debug_id);
-	return conn;
+	return;
 
 found_extant_conn:
 	if (atomic_read(&cursor->usage) == 0)
@@ -143,106 +142,30 @@ struct rxrpc_connection *rxrpc_prealloc_service_connection(gfp_t gfp)
 }
 
 /*
- * get a record of an incoming connection
+ * Set up an incoming connection.  This is called in BH context with the RCU
+ * read lock held.
  */
-struct rxrpc_connection *rxrpc_incoming_connection(struct rxrpc_local *local,
-						   struct sockaddr_rxrpc *srx,
-						   struct sk_buff *skb)
+void rxrpc_new_incoming_connection(struct rxrpc_connection *conn,
+				   struct sk_buff *skb)
 {
-	struct rxrpc_connection *conn;
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-	struct rxrpc_peer *peer;
-	const char *new = "old";
 
 	_enter("");
 
-	peer = rxrpc_lookup_peer(local, srx, GFP_NOIO);
-	if (!peer) {
-		_debug("no peer");
-		return ERR_PTR(-EBUSY);
-	}
-
-	ASSERT(sp->hdr.flags & RXRPC_CLIENT_INITIATED);
-
-	rcu_read_lock();
-	peer = rxrpc_lookup_peer_rcu(local, srx);
-	if (peer) {
-		conn = rxrpc_find_service_conn_rcu(peer, skb);
-		if (conn) {
-			if (sp->hdr.securityIndex != conn->security_ix)
-				goto security_mismatch_rcu;
-			if (rxrpc_get_connection_maybe(conn))
-				goto found_extant_connection_rcu;
-
-			/* The conn has expired but we can't remove it without
-			 * the appropriate lock, so we attempt to replace it
-			 * when we have a new candidate.
-			 */
-		}
-
-		if (!rxrpc_get_peer_maybe(peer))
-			peer = NULL;
-	}
-	rcu_read_unlock();
-
-	if (!peer) {
-		peer = rxrpc_lookup_peer(local, srx, GFP_NOIO);
-		if (!peer)
-			goto enomem;
-	}
-
-	/* We don't have a matching record yet. */
-	conn = rxrpc_alloc_connection(GFP_NOIO);
-	if (!conn)
-		goto enomem_peer;
-
 	conn->proto.epoch	= sp->hdr.epoch;
 	conn->proto.cid		= sp->hdr.cid & RXRPC_CIDMASK;
-	conn->params.local	= local;
-	conn->params.peer	= peer;
 	conn->params.service_id	= sp->hdr.serviceId;
 	conn->security_ix	= sp->hdr.securityIndex;
 	conn->out_clientflag	= 0;
-	conn->state		= RXRPC_CONN_SERVICE;
-	if (conn->params.service_id)
+	if (conn->security_ix)
 		conn->state	= RXRPC_CONN_SERVICE_UNSECURED;
-
-	rxrpc_get_local(local);
-
-	/* We maintain an extra ref on the connection whilst it is on
-	 * the rxrpc_connections list.
-	 */
-	atomic_set(&conn->usage, 2);
-
-	write_lock(&rxrpc_connection_lock);
-	list_add_tail(&conn->link, &rxrpc_connections);
-	list_add_tail(&conn->proc_link, &rxrpc_connection_proc_list);
-	write_unlock(&rxrpc_connection_lock);
+	else
+		conn->state	= RXRPC_CONN_SERVICE;
 
 	/* Make the connection a target for incoming packets. */
-	rxrpc_publish_service_conn(peer, conn);
+	rxrpc_publish_service_conn(conn->params.peer, conn);
 
-	new = "new";
-
-success:
-	_net("CONNECTION %s %d {%x}", new, conn->debug_id, conn->proto.cid);
-	_leave(" = %p {u=%d}", conn, atomic_read(&conn->usage));
-	return conn;
-
-found_extant_connection_rcu:
-	rcu_read_unlock();
-	goto success;
-
-security_mismatch_rcu:
-	rcu_read_unlock();
-	_leave(" = -EKEYREJECTED");
-	return ERR_PTR(-EKEYREJECTED);
-
-enomem_peer:
-	rxrpc_put_peer(peer);
-enomem:
-	_leave(" = -ENOMEM");
-	return ERR_PTR(-ENOMEM);
+	_net("CONNECTION new %d {%x}", conn->debug_id, conn->proto.cid);
 }
 
 /*

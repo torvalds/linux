@@ -15,6 +15,8 @@
 #include <linux/gfp.h>
 #include <linux/skbuff.h>
 #include <linux/export.h>
+#include <linux/udp.h>
+#include <linux/ip.h>
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
 #include "ar-internal.h"
@@ -38,20 +40,38 @@ struct rxrpc_pkt_buffer {
 static size_t rxrpc_fill_out_ack(struct rxrpc_call *call,
 				 struct rxrpc_pkt_buffer *pkt)
 {
+	rxrpc_seq_t hard_ack, top, seq;
+	int ix;
 	u32 mtu, jmax;
 	u8 *ackp = pkt->acks;
 
+	/* Barrier against rxrpc_input_data(). */
+	hard_ack = READ_ONCE(call->rx_hard_ack);
+	top = smp_load_acquire(&call->rx_top);
+
 	pkt->ack.bufferSpace	= htons(8);
-	pkt->ack.maxSkew	= htons(0);
-	pkt->ack.firstPacket	= htonl(call->rx_data_eaten + 1);
+	pkt->ack.maxSkew	= htons(call->ackr_skew);
+	pkt->ack.firstPacket	= htonl(hard_ack + 1);
 	pkt->ack.previousPacket	= htonl(call->ackr_prev_seq);
 	pkt->ack.serial		= htonl(call->ackr_serial);
-	pkt->ack.reason		= RXRPC_ACK_IDLE;
-	pkt->ack.nAcks		= 0;
+	pkt->ack.reason		= call->ackr_reason;
+	pkt->ack.nAcks		= top - hard_ack;
 
-	mtu = call->peer->if_mtu;
-	mtu -= call->peer->hdrsize;
-	jmax = rxrpc_rx_jumbo_max;
+	if (after(top, hard_ack)) {
+		seq = hard_ack + 1;
+		do {
+			ix = seq & RXRPC_RXTX_BUFF_MASK;
+			if (call->rxtx_buffer[ix])
+				*ackp++ = RXRPC_ACK_TYPE_ACK;
+			else
+				*ackp++ = RXRPC_ACK_TYPE_NACK;
+			seq++;
+		} while (before_eq(seq, top));
+	}
+
+	mtu = call->conn->params.peer->if_mtu;
+	mtu -= call->conn->params.peer->hdrsize;
+	jmax = (call->nr_jumbo_dup > 3) ? 1 : rxrpc_rx_jumbo_max;
 	pkt->ackinfo.rxMTU	= htonl(rxrpc_rx_mtu);
 	pkt->ackinfo.maxMTU	= htonl(mtu);
 	pkt->ackinfo.rwind	= htonl(rxrpc_rx_window_size);
@@ -60,11 +80,11 @@ static size_t rxrpc_fill_out_ack(struct rxrpc_call *call,
 	*ackp++ = 0;
 	*ackp++ = 0;
 	*ackp++ = 0;
-	return 3;
+	return top - hard_ack + 3;
 }
 
 /*
- * Send a final ACK or ABORT call packet.
+ * Send an ACK or ABORT call packet.
  */
 int rxrpc_send_call_packet(struct rxrpc_call *call, u8 type)
 {
@@ -158,6 +178,19 @@ int rxrpc_send_call_packet(struct rxrpc_call *call, u8 type)
 	ret = kernel_sendmsg(conn->params.local->socket,
 			     &msg, iov, ioc, len);
 
+	if (ret < 0 && call->state < RXRPC_CALL_COMPLETE) {
+		switch (pkt->whdr.type) {
+		case RXRPC_PACKET_TYPE_ACK:
+			rxrpc_propose_ACK(call, pkt->ack.reason,
+					  ntohs(pkt->ack.maxSkew),
+					  ntohl(pkt->ack.serial),
+					  true, true);
+			break;
+		case RXRPC_PACKET_TYPE_ABORT:
+			break;
+		}
+	}
+
 out:
 	rxrpc_put_connection(conn);
 	kfree(pkt);
@@ -232,4 +265,78 @@ send_fragmentable:
 	up_write(&conn->params.local->defrag_sem);
 	_leave(" = %d [frag %u]", ret, conn->params.peer->maxdata);
 	return ret;
+}
+
+/*
+ * reject packets through the local endpoint
+ */
+void rxrpc_reject_packets(struct rxrpc_local *local)
+{
+	union {
+		struct sockaddr sa;
+		struct sockaddr_in sin;
+	} sa;
+	struct rxrpc_skb_priv *sp;
+	struct rxrpc_wire_header whdr;
+	struct sk_buff *skb;
+	struct msghdr msg;
+	struct kvec iov[2];
+	size_t size;
+	__be32 code;
+
+	_enter("%d", local->debug_id);
+
+	iov[0].iov_base = &whdr;
+	iov[0].iov_len = sizeof(whdr);
+	iov[1].iov_base = &code;
+	iov[1].iov_len = sizeof(code);
+	size = sizeof(whdr) + sizeof(code);
+
+	msg.msg_name = &sa;
+	msg.msg_control = NULL;
+	msg.msg_controllen = 0;
+	msg.msg_flags = 0;
+
+	memset(&sa, 0, sizeof(sa));
+	sa.sa.sa_family = local->srx.transport.family;
+	switch (sa.sa.sa_family) {
+	case AF_INET:
+		msg.msg_namelen = sizeof(sa.sin);
+		break;
+	default:
+		msg.msg_namelen = 0;
+		break;
+	}
+
+	memset(&whdr, 0, sizeof(whdr));
+	whdr.type = RXRPC_PACKET_TYPE_ABORT;
+
+	while ((skb = skb_dequeue(&local->reject_queue))) {
+		rxrpc_see_skb(skb);
+		sp = rxrpc_skb(skb);
+		switch (sa.sa.sa_family) {
+		case AF_INET:
+			sa.sin.sin_port = udp_hdr(skb)->source;
+			sa.sin.sin_addr.s_addr = ip_hdr(skb)->saddr;
+			code = htonl(skb->priority);
+
+			whdr.epoch	= htonl(sp->hdr.epoch);
+			whdr.cid	= htonl(sp->hdr.cid);
+			whdr.callNumber	= htonl(sp->hdr.callNumber);
+			whdr.serviceId	= htons(sp->hdr.serviceId);
+			whdr.flags	= sp->hdr.flags;
+			whdr.flags	^= RXRPC_CLIENT_INITIATED;
+			whdr.flags	&= RXRPC_CLIENT_INITIATED;
+
+			kernel_sendmsg(local->socket, &msg, iov, 2, size);
+			break;
+
+		default:
+			break;
+		}
+
+		rxrpc_free_skb(skb);
+	}
+
+	_leave("");
 }

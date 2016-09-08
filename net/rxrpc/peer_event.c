@@ -129,14 +129,13 @@ void rxrpc_error_report(struct sock *sk)
 		_leave("UDP socket errqueue empty");
 		return;
 	}
+	rxrpc_new_skb(skb);
 	serr = SKB_EXT_ERR(skb);
 	if (!skb->len && serr->ee.ee_origin == SO_EE_ORIGIN_TIMESTAMPING) {
 		_leave("UDP empty message");
-		kfree_skb(skb);
+		rxrpc_free_skb(skb);
 		return;
 	}
-
-	rxrpc_new_skb(skb);
 
 	rcu_read_lock();
 	peer = rxrpc_lookup_peer_icmp_rcu(local, skb);
@@ -249,7 +248,6 @@ void rxrpc_peer_error_distributor(struct work_struct *work)
 		container_of(work, struct rxrpc_peer, error_distributor);
 	struct rxrpc_call *call;
 	enum rxrpc_call_completion compl;
-	bool queue;
 	int error;
 
 	_enter("");
@@ -272,15 +270,8 @@ void rxrpc_peer_error_distributor(struct work_struct *work)
 		hlist_del_init(&call->error_link);
 		rxrpc_see_call(call);
 
-		queue = false;
-		write_lock(&call->state_lock);
-		if (__rxrpc_set_call_completion(call, compl, 0, error)) {
-			set_bit(RXRPC_CALL_EV_RCVD_ERROR, &call->events);
-			queue = true;
-		}
-		write_unlock(&call->state_lock);
-		if (queue)
-			rxrpc_queue_call(call);
+		if (rxrpc_set_call_completion(call, compl, 0, error))
+			rxrpc_notify_socket(call);
 	}
 
 	spin_unlock_bh(&peer->lock);
