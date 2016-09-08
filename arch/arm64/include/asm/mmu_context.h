@@ -30,17 +30,14 @@
 #include <asm/sysreg.h>
 #include <asm/tlbflush.h>
 
-#ifdef CONFIG_PID_IN_CONTEXTIDR
 static inline void contextidr_thread_switch(struct task_struct *next)
 {
+	if (!IS_ENABLED(CONFIG_PID_IN_CONTEXTIDR))
+		return;
+
 	write_sysreg(task_pid_nr(next), contextidr_el1);
 	isb();
 }
-#else
-static inline void contextidr_thread_switch(struct task_struct *next)
-{
-}
-#endif
 
 /*
  * Set TTBR0 to empty_zero_page. No translations will be possible via TTBR0.
