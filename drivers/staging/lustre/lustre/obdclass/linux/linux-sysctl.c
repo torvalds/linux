@@ -45,6 +45,7 @@
 
 #include "../../include/obd_support.h"
 #include "../../include/lprocfs_status.h"
+#include "../../include/obd_class.h"
 
 struct static_lustre_uintvalue_attr {
 	struct {
