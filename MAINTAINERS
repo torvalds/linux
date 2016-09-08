@@ -4435,6 +4435,12 @@ L:	linux-edac@vger.kernel.org
 S:	Maintained
 F:	drivers/edac/e7xxx_edac.c
 
+EDAC-FSL_DDR
+M:	York Sun <york.sun@nxp.com>
+L:	linux-edac@vger.kernel.org
+S:	Maintained
+F:	drivers/edac/fsl_ddr_edac.*
+
 EDAC-GHES
 M:	Mauro Carvalho Chehab <mchehab@s-opensource.com>
 M:	Mauro Carvalho Chehab <mchehab@kernel.org>
