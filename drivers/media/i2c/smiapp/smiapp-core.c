@@ -926,12 +926,6 @@ static int smiapp_update_mode(struct smiapp_sensor *sensor)
 	unsigned int binning_mode;
 	int rval;
 
-	dev_dbg(&client->dev, "frame size: %dx%d\n",
-		sensor->src->crop[SMIAPP_PAD_SRC].width,
-		sensor->src->crop[SMIAPP_PAD_SRC].height);
-	dev_dbg(&client->dev, "csi format width: %d\n",
-		sensor->csi_format->width);
-
 	/* Binning has to be set up here; it affects limits */
 	if (sensor->binning_horizontal == 1 &&
 	    sensor->binning_vertical == 1) {
