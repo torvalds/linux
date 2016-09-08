@@ -14,6 +14,7 @@
 #include <linux/kvm_host.h>
 #include <linux/vmalloc.h>
 #include <asm/mmu_context.h>
+#include <asm/pgalloc.h>
 
 #include "interrupt.h"
 
@@ -435,13 +436,75 @@ static int kvm_trap_emul_vm_init(struct kvm *kvm)
 
 static int kvm_trap_emul_vcpu_init(struct kvm_vcpu *vcpu)
 {
+	struct mm_struct *kern_mm = &vcpu->arch.guest_kernel_mm;
+	struct mm_struct *user_mm = &vcpu->arch.guest_user_mm;
+
 	vcpu->arch.kscratch_enabled = 0xfc;
+
+	/*
+	 * Allocate GVA -> HPA page tables.
+	 * MIPS doesn't use the mm_struct pointer argument.
+	 */
+	kern_mm->pgd = pgd_alloc(kern_mm);
+	if (!kern_mm->pgd)
+		return -ENOMEM;
+
+	user_mm->pgd = pgd_alloc(user_mm);
+	if (!user_mm->pgd) {
+		pgd_free(kern_mm, kern_mm->pgd);
+		return -ENOMEM;
+	}
 
 	return 0;
 }
 
+static void kvm_mips_emul_free_gva_pt(pgd_t *pgd)
+{
+	/* Don't free host kernel page tables copied from init_mm.pgd */
+	const unsigned long end = 0x80000000;
+	unsigned long pgd_va, pud_va, pmd_va;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
+	int i, j, k;
+
+	for (i = 0; i < USER_PTRS_PER_PGD; i++) {
+		if (pgd_none(pgd[i]))
+			continue;
+
+		pgd_va = (unsigned long)i << PGDIR_SHIFT;
+		if (pgd_va >= end)
+			break;
+		pud = pud_offset(pgd + i, 0);
+		for (j = 0; j < PTRS_PER_PUD; j++) {
+			if (pud_none(pud[j]))
+				continue;
+
+			pud_va = pgd_va | ((unsigned long)j << PUD_SHIFT);
+			if (pud_va >= end)
+				break;
+			pmd = pmd_offset(pud + j, 0);
+			for (k = 0; k < PTRS_PER_PMD; k++) {
+				if (pmd_none(pmd[k]))
+					continue;
+
+				pmd_va = pud_va | (k << PMD_SHIFT);
+				if (pmd_va >= end)
+					break;
+				pte = pte_offset(pmd + k, 0);
+				pte_free_kernel(NULL, pte);
+			}
+			pmd_free(NULL, pmd);
+		}
+		pud_free(NULL, pud);
+	}
+	pgd_free(NULL, pgd);
+}
+
 static void kvm_trap_emul_vcpu_uninit(struct kvm_vcpu *vcpu)
 {
+	kvm_mips_emul_free_gva_pt(vcpu->arch.guest_kernel_mm.pgd);
+	kvm_mips_emul_free_gva_pt(vcpu->arch.guest_user_mm.pgd);
 }
 
 static int kvm_trap_emul_vcpu_setup(struct kvm_vcpu *vcpu)
