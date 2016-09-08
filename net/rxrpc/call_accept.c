@@ -20,10 +20,208 @@
 #include <linux/in6.h>
 #include <linux/icmp.h>
 #include <linux/gfp.h>
+#include <linux/circ_buf.h>
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
 #include <net/ip.h>
 #include "ar-internal.h"
+
+/*
+ * Preallocate a single service call, connection and peer and, if possible,
+ * give them a user ID and attach the user's side of the ID to them.
+ */
+static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
+				      struct rxrpc_backlog *b,
+				      rxrpc_notify_rx_t notify_rx,
+				      rxrpc_user_attach_call_t user_attach_call,
+				      unsigned long user_call_ID, gfp_t gfp)
+{
+	const void *here = __builtin_return_address(0);
+	struct rxrpc_call *call;
+	int max, tmp;
+	unsigned int size = RXRPC_BACKLOG_MAX;
+	unsigned int head, tail, call_head, call_tail;
+
+	max = rx->sk.sk_max_ack_backlog;
+	tmp = rx->sk.sk_ack_backlog;
+	if (tmp >= max) {
+		_leave(" = -ENOBUFS [full %u]", max);
+		return -ENOBUFS;
+	}
+	max -= tmp;
+
+	/* We don't need more conns and peers than we have calls, but on the
+	 * other hand, we shouldn't ever use more peers than conns or conns
+	 * than calls.
+	 */
+	call_head = b->call_backlog_head;
+	call_tail = READ_ONCE(b->call_backlog_tail);
+	tmp = CIRC_CNT(call_head, call_tail, size);
+	if (tmp >= max) {
+		_leave(" = -ENOBUFS [enough %u]", tmp);
+		return -ENOBUFS;
+	}
+	max = tmp + 1;
+
+	head = b->peer_backlog_head;
+	tail = READ_ONCE(b->peer_backlog_tail);
+	if (CIRC_CNT(head, tail, size) < max) {
+		struct rxrpc_peer *peer = rxrpc_alloc_peer(rx->local, gfp);
+		if (!peer)
+			return -ENOMEM;
+		b->peer_backlog[head] = peer;
+		smp_store_release(&b->peer_backlog_head,
+				  (head + 1) & (size - 1));
+	}
+
+	head = b->conn_backlog_head;
+	tail = READ_ONCE(b->conn_backlog_tail);
+	if (CIRC_CNT(head, tail, size) < max) {
+		struct rxrpc_connection *conn;
+
+		conn = rxrpc_prealloc_service_connection(gfp);
+		if (!conn)
+			return -ENOMEM;
+		b->conn_backlog[head] = conn;
+		smp_store_release(&b->conn_backlog_head,
+				  (head + 1) & (size - 1));
+	}
+
+	/* Now it gets complicated, because calls get registered with the
+	 * socket here, particularly if a user ID is preassigned by the user.
+	 */
+	call = rxrpc_alloc_call(gfp);
+	if (!call)
+		return -ENOMEM;
+	call->flags |= (1 << RXRPC_CALL_IS_SERVICE);
+	call->state = RXRPC_CALL_SERVER_PREALLOC;
+
+	trace_rxrpc_call(call, rxrpc_call_new_service,
+			 atomic_read(&call->usage),
+			 here, (const void *)user_call_ID);
+
+	write_lock(&rx->call_lock);
+	if (user_attach_call) {
+		struct rxrpc_call *xcall;
+		struct rb_node *parent, **pp;
+
+		/* Check the user ID isn't already in use */
+		pp = &rx->calls.rb_node;
+		parent = NULL;
+		while (*pp) {
+			parent = *pp;
+			xcall = rb_entry(parent, struct rxrpc_call, sock_node);
+			if (user_call_ID < call->user_call_ID)
+				pp = &(*pp)->rb_left;
+			else if (user_call_ID > call->user_call_ID)
+				pp = &(*pp)->rb_right;
+			else
+				goto id_in_use;
+		}
+
+		call->user_call_ID = user_call_ID;
+		call->notify_rx = notify_rx;
+		rxrpc_get_call(call, rxrpc_call_got);
+		user_attach_call(call, user_call_ID);
+		rxrpc_get_call(call, rxrpc_call_got_userid);
+		rb_link_node(&call->sock_node, parent, pp);
+		rb_insert_color(&call->sock_node, &rx->calls);
+		set_bit(RXRPC_CALL_HAS_USERID, &call->flags);
+	}
+
+	write_unlock(&rx->call_lock);
+
+	write_lock(&rxrpc_call_lock);
+	list_add_tail(&call->link, &rxrpc_calls);
+	write_unlock(&rxrpc_call_lock);
+
+	b->call_backlog[call_head] = call;
+	smp_store_release(&b->call_backlog_head, (call_head + 1) & (size - 1));
+	_leave(" = 0 [%d -> %lx]", call->debug_id, user_call_ID);
+	return 0;
+
+id_in_use:
+	write_unlock(&rx->call_lock);
+	rxrpc_cleanup_call(call);
+	_leave(" = -EBADSLT");
+	return -EBADSLT;
+}
+
+/*
+ * Preallocate sufficient service connections, calls and peers to cover the
+ * entire backlog of a socket.  When a new call comes in, if we don't have
+ * sufficient of each available, the call gets rejected as busy or ignored.
+ *
+ * The backlog is replenished when a connection is accepted or rejected.
+ */
+int rxrpc_service_prealloc(struct rxrpc_sock *rx, gfp_t gfp)
+{
+	struct rxrpc_backlog *b = rx->backlog;
+
+	if (!b) {
+		b = kzalloc(sizeof(struct rxrpc_backlog), gfp);
+		if (!b)
+			return -ENOMEM;
+		rx->backlog = b;
+	}
+
+	if (rx->discard_new_call)
+		return 0;
+
+	while (rxrpc_service_prealloc_one(rx, b, NULL, NULL, 0, gfp) == 0)
+		;
+
+	return 0;
+}
+
+/*
+ * Discard the preallocation on a service.
+ */
+void rxrpc_discard_prealloc(struct rxrpc_sock *rx)
+{
+	struct rxrpc_backlog *b = rx->backlog;
+	unsigned int size = RXRPC_BACKLOG_MAX, head, tail;
+
+	if (!b)
+		return;
+	rx->backlog = NULL;
+
+	head = b->peer_backlog_head;
+	tail = b->peer_backlog_tail;
+	while (CIRC_CNT(head, tail, size) > 0) {
+		struct rxrpc_peer *peer = b->peer_backlog[tail];
+		kfree(peer);
+		tail = (tail + 1) & (size - 1);
+	}
+
+	head = b->conn_backlog_head;
+	tail = b->conn_backlog_tail;
+	while (CIRC_CNT(head, tail, size) > 0) {
+		struct rxrpc_connection *conn = b->conn_backlog[tail];
+		write_lock(&rxrpc_connection_lock);
+		list_del(&conn->link);
+		list_del(&conn->proc_link);
+		write_unlock(&rxrpc_connection_lock);
+		kfree(conn);
+		tail = (tail + 1) & (size - 1);
+	}
+
+	head = b->call_backlog_head;
+	tail = b->call_backlog_tail;
+	while (CIRC_CNT(head, tail, size) > 0) {
+		struct rxrpc_call *call = b->call_backlog[tail];
+		if (rx->discard_new_call) {
+			_debug("discard %lx", call->user_call_ID);
+			rx->discard_new_call(call, call->user_call_ID);
+		}
+		rxrpc_call_completed(call);
+		rxrpc_release_call(rx, call);
+		rxrpc_put_call(call, rxrpc_call_put);
+		tail = (tail + 1) & (size - 1);
+	}
+
+	kfree(b);
+}
 
 /*
  * generate a connection-level abort
@@ -450,3 +648,34 @@ int rxrpc_kernel_reject_call(struct socket *sock)
 	return ret;
 }
 EXPORT_SYMBOL(rxrpc_kernel_reject_call);
+
+/*
+ * rxrpc_kernel_charge_accept - Charge up socket with preallocated calls
+ * @sock: The socket on which to preallocate
+ * @notify_rx: Event notification function for the call
+ * @user_attach_call: Func to attach call to user_call_ID
+ * @user_call_ID: The tag to attach to the preallocated call
+ * @gfp: The allocation conditions.
+ *
+ * Charge up the socket with preallocated calls, each with a user ID.  A
+ * function should be provided to effect the attachment from the user's side.
+ * The user is given a ref to hold on the call.
+ *
+ * Note that the call may be come connected before this function returns.
+ */
+int rxrpc_kernel_charge_accept(struct socket *sock,
+			       rxrpc_notify_rx_t notify_rx,
+			       rxrpc_user_attach_call_t user_attach_call,
+			       unsigned long user_call_ID, gfp_t gfp)
+{
+	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
+	struct rxrpc_backlog *b = rx->backlog;
+
+	if (sock->sk->sk_state == RXRPC_CLOSE)
+		return -ESHUTDOWN;
+
+	return rxrpc_service_prealloc_one(rx, b, notify_rx,
+					  user_attach_call, user_call_ID,
+					  gfp);
+}
+EXPORT_SYMBOL(rxrpc_kernel_charge_accept);

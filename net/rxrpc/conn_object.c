@@ -286,6 +286,8 @@ static void rxrpc_connection_reaper(struct work_struct *work)
 		ASSERTCMP(atomic_read(&conn->usage), >, 0);
 		if (likely(atomic_read(&conn->usage) > 1))
 			continue;
+		if (conn->state == RXRPC_CONN_SERVICE_PREALLOC)
+			continue;
 
 		idle_timestamp = READ_ONCE(conn->idle_timestamp);
 		_debug("reap CONN %d { u=%d,t=%ld }",

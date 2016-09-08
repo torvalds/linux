@@ -193,7 +193,7 @@ static int rxrpc_listen(struct socket *sock, int backlog)
 {
 	struct sock *sk = sock->sk;
 	struct rxrpc_sock *rx = rxrpc_sk(sk);
-	unsigned int max;
+	unsigned int max, old;
 	int ret;
 
 	_enter("%p,%d", rx, backlog);
@@ -212,9 +212,13 @@ static int rxrpc_listen(struct socket *sock, int backlog)
 			backlog = max;
 		else if (backlog < 0 || backlog > max)
 			break;
+		old = sk->sk_max_ack_backlog;
 		sk->sk_max_ack_backlog = backlog;
-		rx->sk.sk_state = RXRPC_SERVER_LISTENING;
-		ret = 0;
+		ret = rxrpc_service_prealloc(rx, GFP_KERNEL);
+		if (ret == 0)
+			rx->sk.sk_state = RXRPC_SERVER_LISTENING;
+		else
+			sk->sk_max_ack_backlog = old;
 		break;
 	default:
 		ret = -EBUSY;
@@ -303,16 +307,19 @@ EXPORT_SYMBOL(rxrpc_kernel_end_call);
  * rxrpc_kernel_new_call_notification - Get notifications of new calls
  * @sock: The socket to intercept received messages on
  * @notify_new_call: Function to be called when new calls appear
+ * @discard_new_call: Function to discard preallocated calls
  *
  * Allow a kernel service to be given notifications about new calls.
  */
 void rxrpc_kernel_new_call_notification(
 	struct socket *sock,
-	rxrpc_notify_new_call_t notify_new_call)
+	rxrpc_notify_new_call_t notify_new_call,
+	rxrpc_discard_new_call_t discard_new_call)
 {
 	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
 
 	rx->notify_new_call = notify_new_call;
+	rx->discard_new_call = discard_new_call;
 }
 EXPORT_SYMBOL(rxrpc_kernel_new_call_notification);
 
@@ -622,6 +629,7 @@ static int rxrpc_release_sock(struct sock *sk)
 	}
 
 	/* try to flush out this socket */
+	rxrpc_discard_prealloc(rx);
 	rxrpc_release_calls_on_socket(rx);
 	flush_workqueue(rxrpc_workqueue);
 	rxrpc_purge_queue(&sk->sk_receive_queue);

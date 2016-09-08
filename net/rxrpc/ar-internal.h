@@ -64,19 +64,42 @@ enum {
 };
 
 /*
+ * Service backlog preallocation.
+ *
+ * This contains circular buffers of preallocated peers, connections and calls
+ * for incoming service calls and their head and tail pointers.  This allows
+ * calls to be set up in the data_ready handler, thereby avoiding the need to
+ * shuffle packets around so much.
+ */
+struct rxrpc_backlog {
+	unsigned short		peer_backlog_head;
+	unsigned short		peer_backlog_tail;
+	unsigned short		conn_backlog_head;
+	unsigned short		conn_backlog_tail;
+	unsigned short		call_backlog_head;
+	unsigned short		call_backlog_tail;
+#define RXRPC_BACKLOG_MAX	32
+	struct rxrpc_peer	*peer_backlog[RXRPC_BACKLOG_MAX];
+	struct rxrpc_connection	*conn_backlog[RXRPC_BACKLOG_MAX];
+	struct rxrpc_call	*call_backlog[RXRPC_BACKLOG_MAX];
+};
+
+/*
  * RxRPC socket definition
  */
 struct rxrpc_sock {
 	/* WARNING: sk has to be the first member */
 	struct sock		sk;
 	rxrpc_notify_new_call_t	notify_new_call; /* Func to notify of new call */
+	rxrpc_discard_new_call_t discard_new_call; /* Func to discard a new call */
 	struct rxrpc_local	*local;		/* local endpoint */
 	struct hlist_node	listen_link;	/* link in the local endpoint's listen list */
 	struct list_head	secureq;	/* calls awaiting connection security clearance */
 	struct list_head	acceptq;	/* calls awaiting acceptance */
+	struct rxrpc_backlog	*backlog;	/* Preallocation for services */
 	struct key		*key;		/* security for this socket */
 	struct key		*securities;	/* list of server security descriptors */
-	struct rb_root		calls;		/* outstanding calls on this socket */
+	struct rb_root		calls;		/* User ID -> call mapping */
 	unsigned long		flags;
 #define RXRPC_SOCK_CONNECTED		0	/* connect_srx is set */
 	rwlock_t		call_lock;	/* lock for calls */
@@ -290,6 +313,7 @@ enum rxrpc_conn_cache_state {
 enum rxrpc_conn_proto_state {
 	RXRPC_CONN_UNUSED,		/* Connection not yet attempted */
 	RXRPC_CONN_CLIENT,		/* Client connection */
+	RXRPC_CONN_SERVICE_PREALLOC,	/* Service connection preallocation */
 	RXRPC_CONN_SERVICE_UNSECURED,	/* Service unsecured connection */
 	RXRPC_CONN_SERVICE_CHALLENGING,	/* Service challenging for security */
 	RXRPC_CONN_SERVICE,		/* Service secured connection */
@@ -408,6 +432,7 @@ enum rxrpc_call_state {
 	RXRPC_CALL_CLIENT_AWAIT_REPLY,	/* - client awaiting reply */
 	RXRPC_CALL_CLIENT_RECV_REPLY,	/* - client receiving reply phase */
 	RXRPC_CALL_CLIENT_FINAL_ACK,	/* - client sending final ACK phase */
+	RXRPC_CALL_SERVER_PREALLOC,	/* - service preallocation */
 	RXRPC_CALL_SERVER_SECURING,	/* - server securing request connection */
 	RXRPC_CALL_SERVER_ACCEPTING,	/* - server accepting request */
 	RXRPC_CALL_SERVER_RECV_REQUEST,	/* - server receiving request */
@@ -534,6 +559,8 @@ extern struct workqueue_struct *rxrpc_workqueue;
 /*
  * call_accept.c
  */
+int rxrpc_service_prealloc(struct rxrpc_sock *, gfp_t);
+void rxrpc_discard_prealloc(struct rxrpc_sock *);
 void rxrpc_accept_incoming_calls(struct rxrpc_local *);
 struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *, unsigned long,
 				     rxrpc_notify_rx_t);
@@ -557,6 +584,7 @@ extern struct list_head rxrpc_calls;
 extern rwlock_t rxrpc_call_lock;
 
 struct rxrpc_call *rxrpc_find_call_by_user_ID(struct rxrpc_sock *, unsigned long);
+struct rxrpc_call *rxrpc_alloc_call(gfp_t);
 struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *,
 					 struct rxrpc_conn_parameters *,
 					 struct sockaddr_rxrpc *,
@@ -573,6 +601,7 @@ void rxrpc_get_call(struct rxrpc_call *, enum rxrpc_call_trace);
 void rxrpc_put_call(struct rxrpc_call *, enum rxrpc_call_trace);
 void rxrpc_get_call_for_skb(struct rxrpc_call *, struct sk_buff *);
 void rxrpc_put_call_for_skb(struct rxrpc_call *, struct sk_buff *);
+void rxrpc_cleanup_call(struct rxrpc_call *);
 void __exit rxrpc_destroy_all_calls(void);
 
 static inline bool rxrpc_is_service_call(const struct rxrpc_call *call)
@@ -757,6 +786,7 @@ struct rxrpc_connection *rxrpc_find_service_conn_rcu(struct rxrpc_peer *,
 struct rxrpc_connection *rxrpc_incoming_connection(struct rxrpc_local *,
 						   struct sockaddr_rxrpc *,
 						   struct sk_buff *);
+struct rxrpc_connection *rxrpc_prealloc_service_connection(gfp_t);
 void rxrpc_unpublish_service_conn(struct rxrpc_connection *);
 
 /*

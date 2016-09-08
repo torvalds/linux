@@ -102,7 +102,7 @@ int rxrpc_queue_rcv_skb(struct rxrpc_call *call, struct sk_buff *skb,
 		    rx->notify_new_call) {
 			spin_unlock_bh(&sk->sk_receive_queue.lock);
 			skb_queue_tail(&call->knlrecv_queue, skb);
-			rx->notify_new_call(&rx->sk);
+			rx->notify_new_call(&rx->sk, NULL, 0);
 		} else if (call->notify_rx) {
 			spin_unlock_bh(&sk->sk_receive_queue.lock);
 			skb_queue_tail(&call->knlrecv_queue, skb);

@@ -18,6 +18,7 @@
 
 struct socket *afs_socket; /* my RxRPC socket */
 static struct workqueue_struct *afs_async_calls;
+static struct afs_call *afs_spare_incoming_call;
 static atomic_t afs_outstanding_calls;
 
 static void afs_free_call(struct afs_call *);
@@ -26,7 +27,8 @@ static int afs_wait_for_call_to_complete(struct afs_call *);
 static void afs_wake_up_async_call(struct sock *, struct rxrpc_call *, unsigned long);
 static int afs_dont_wait_for_call_to_complete(struct afs_call *);
 static void afs_process_async_call(struct work_struct *);
-static void afs_rx_new_call(struct sock *);
+static void afs_rx_new_call(struct sock *, struct rxrpc_call *, unsigned long);
+static void afs_rx_discard_new_call(struct rxrpc_call *, unsigned long);
 static int afs_deliver_cm_op_id(struct afs_call *);
 
 /* synchronous call management */
@@ -54,8 +56,10 @@ static const struct afs_call_type afs_RXCMxxxx = {
 };
 
 static void afs_collect_incoming_call(struct work_struct *);
+static void afs_charge_preallocation(struct work_struct *);
 
 static DECLARE_WORK(afs_collect_incoming_call_work, afs_collect_incoming_call);
+static DECLARE_WORK(afs_charge_preallocation_work, afs_charge_preallocation);
 
 static int afs_wait_atomic_t(atomic_t *p)
 {
@@ -100,13 +104,15 @@ int afs_open_socket(void)
 	if (ret < 0)
 		goto error_2;
 
-	rxrpc_kernel_new_call_notification(socket, afs_rx_new_call);
+	rxrpc_kernel_new_call_notification(socket, afs_rx_new_call,
+					   afs_rx_discard_new_call);
 
 	ret = kernel_listen(socket, INT_MAX);
 	if (ret < 0)
 		goto error_2;
 
 	afs_socket = socket;
+	afs_charge_preallocation(NULL);
 	_leave(" = 0");
 	return 0;
 
@@ -125,6 +131,12 @@ error_0:
 void afs_close_socket(void)
 {
 	_enter("");
+
+	if (afs_spare_incoming_call) {
+		atomic_inc(&afs_outstanding_calls);
+		afs_free_call(afs_spare_incoming_call);
+		afs_spare_incoming_call = NULL;
+	}
 
 	_debug("outstanding %u", atomic_read(&afs_outstanding_calls));
 	wait_on_atomic_t(&afs_outstanding_calls, afs_wait_atomic_t,
@@ -635,12 +647,65 @@ static void afs_collect_incoming_call(struct work_struct *work)
 		afs_free_call(call);
 }
 
+static void afs_rx_attach(struct rxrpc_call *rxcall, unsigned long user_call_ID)
+{
+	struct afs_call *call = (struct afs_call *)user_call_ID;
+
+	call->rxcall = rxcall;
+}
+
+/*
+ * Charge the incoming call preallocation.
+ */
+static void afs_charge_preallocation(struct work_struct *work)
+{
+	struct afs_call *call = afs_spare_incoming_call;
+
+	for (;;) {
+		if (!call) {
+			call = kzalloc(sizeof(struct afs_call), GFP_KERNEL);
+			if (!call)
+				break;
+
+			INIT_WORK(&call->async_work, afs_process_async_call);
+			call->wait_mode = &afs_async_incoming_call;
+			call->type = &afs_RXCMxxxx;
+			init_waitqueue_head(&call->waitq);
+			call->state = AFS_CALL_AWAIT_OP_ID;
+		}
+
+		if (rxrpc_kernel_charge_accept(afs_socket,
+					       afs_wake_up_async_call,
+					       afs_rx_attach,
+					       (unsigned long)call,
+					       GFP_KERNEL) < 0)
+			break;
+		call = NULL;
+	}
+	afs_spare_incoming_call = call;
+}
+
+/*
+ * Discard a preallocated call when a socket is shut down.
+ */
+static void afs_rx_discard_new_call(struct rxrpc_call *rxcall,
+				    unsigned long user_call_ID)
+{
+	struct afs_call *call = (struct afs_call *)user_call_ID;
+
+	atomic_inc(&afs_outstanding_calls);
+	call->rxcall = NULL;
+	afs_free_call(call);
+}
+
 /*
  * Notification of an incoming call.
  */
-static void afs_rx_new_call(struct sock *sk)
+static void afs_rx_new_call(struct sock *sk, struct rxrpc_call *rxcall,
+			    unsigned long user_call_ID)
 {
 	queue_work(afs_wq, &afs_collect_incoming_call_work);
+	queue_work(afs_wq, &afs_charge_preallocation_work);
 }
 
 /*

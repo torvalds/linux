@@ -31,6 +31,7 @@ const char *const rxrpc_call_states[NR__RXRPC_CALL_STATES] = {
 	[RXRPC_CALL_CLIENT_AWAIT_REPLY]		= "ClAwtRpl",
 	[RXRPC_CALL_CLIENT_RECV_REPLY]		= "ClRcvRpl",
 	[RXRPC_CALL_CLIENT_FINAL_ACK]		= "ClFnlACK",
+	[RXRPC_CALL_SERVER_PREALLOC]		= "SvPrealc",
 	[RXRPC_CALL_SERVER_SECURING]		= "SvSecure",
 	[RXRPC_CALL_SERVER_ACCEPTING]		= "SvAccept",
 	[RXRPC_CALL_SERVER_RECV_REQUEST]	= "SvRcvReq",
@@ -71,7 +72,6 @@ DEFINE_RWLOCK(rxrpc_call_lock);
 static void rxrpc_call_life_expired(unsigned long _call);
 static void rxrpc_ack_time_expired(unsigned long _call);
 static void rxrpc_resend_time_expired(unsigned long _call);
-static void rxrpc_cleanup_call(struct rxrpc_call *call);
 
 /*
  * find an extant server call
@@ -113,7 +113,7 @@ found_extant_call:
 /*
  * allocate a new call
  */
-static struct rxrpc_call *rxrpc_alloc_call(gfp_t gfp)
+struct rxrpc_call *rxrpc_alloc_call(gfp_t gfp)
 {
 	struct rxrpc_call *call;
 
@@ -392,6 +392,9 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 	if (call_id <= conn->channels[chan].call_counter)
 		goto old_call; /* TODO: Just drop packet */
 
+	/* Temporary: Mirror the backlog prealloc ref (TODO: use prealloc) */
+	rxrpc_get_call(candidate, rxrpc_call_got);
+
 	/* make the call available */
 	_debug("new call");
 	call = candidate;
@@ -596,6 +599,9 @@ void rxrpc_release_call(struct rxrpc_sock *rx, struct rxrpc_call *call)
 	del_timer_sync(&call->ack_timer);
 	del_timer_sync(&call->lifetimer);
 
+	/* We have to release the prealloc backlog ref */
+	if (rxrpc_is_service_call(call))
+		rxrpc_put_call(call, rxrpc_call_put);
 	_leave("");
 }
 
@@ -682,7 +688,7 @@ static void rxrpc_rcu_destroy_call(struct rcu_head *rcu)
 /*
  * clean up a call
  */
-static void rxrpc_cleanup_call(struct rxrpc_call *call)
+void rxrpc_cleanup_call(struct rxrpc_call *call)
 {
 	_net("DESTROY CALL %d", call->debug_id);
 

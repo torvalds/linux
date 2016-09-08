@@ -119,6 +119,30 @@ replace_old_connection:
 }
 
 /*
+ * Preallocate a service connection.  The connection is placed on the proc and
+ * reap lists so that we don't have to get the lock from BH context.
+ */
+struct rxrpc_connection *rxrpc_prealloc_service_connection(gfp_t gfp)
+{
+	struct rxrpc_connection *conn = rxrpc_alloc_connection(gfp);
+
+	if (conn) {
+		/* We maintain an extra ref on the connection whilst it is on
+		 * the rxrpc_connections list.
+		 */
+		conn->state = RXRPC_CONN_SERVICE_PREALLOC;
+		atomic_set(&conn->usage, 2);
+
+		write_lock(&rxrpc_connection_lock);
+		list_add_tail(&conn->link, &rxrpc_connections);
+		list_add_tail(&conn->proc_link, &rxrpc_connection_proc_list);
+		write_unlock(&rxrpc_connection_lock);
+	}
+
+	return conn;
+}
+
+/*
  * get a record of an incoming connection
  */
 struct rxrpc_connection *rxrpc_incoming_connection(struct rxrpc_local *local,
