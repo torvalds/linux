@@ -608,6 +608,18 @@ static int rcar_msi_alloc(struct rcar_msi *chip)
 	return msi;
 }
 
+static int rcar_msi_alloc_region(struct rcar_msi *chip, int no_irqs)
+{
+	int msi;
+
+	mutex_lock(&chip->lock);
+	msi = bitmap_find_free_region(chip->used, INT_PCI_MSI_NR,
+				      order_base_2(no_irqs));
+	mutex_unlock(&chip->lock);
+
+	return msi;
+}
+
 static void rcar_msi_free(struct rcar_msi *chip, unsigned long irq)
 {
 	mutex_lock(&chip->lock);
@@ -665,13 +677,65 @@ static int rcar_msi_setup_irq(struct msi_controller *chip, struct pci_dev *pdev,
 	if (hwirq < 0)
 		return hwirq;
 
-	irq = irq_create_mapping(msi->domain, hwirq);
+	irq = irq_find_mapping(msi->domain, hwirq);
 	if (!irq) {
 		rcar_msi_free(msi, hwirq);
 		return -EINVAL;
 	}
 
 	irq_set_msi_desc(irq, desc);
+
+	msg.address_lo = rcar_pci_read_reg(pcie, PCIEMSIALR) & ~MSIFE;
+	msg.address_hi = rcar_pci_read_reg(pcie, PCIEMSIAUR);
+	msg.data = hwirq;
+
+	pci_write_msi_msg(irq, &msg);
+
+	return 0;
+}
+
+static int rcar_msi_setup_irqs(struct msi_controller *chip,
+			       struct pci_dev *pdev, int nvec, int type)
+{
+	struct rcar_pcie *pcie = container_of(chip, struct rcar_pcie, msi.chip);
+	struct rcar_msi *msi = to_rcar_msi(chip);
+	struct msi_desc *desc;
+	struct msi_msg msg;
+	unsigned int irq;
+	int hwirq;
+	int i;
+
+	/* MSI-X interrupts are not supported */
+	if (type == PCI_CAP_ID_MSIX)
+		return -EINVAL;
+
+	WARN_ON(!list_is_singular(&pdev->dev.msi_list));
+	desc = list_entry(pdev->dev.msi_list.next, struct msi_desc, list);
+
+	hwirq = rcar_msi_alloc_region(msi, nvec);
+	if (hwirq < 0)
+		return -ENOSPC;
+
+	irq = irq_find_mapping(msi->domain, hwirq);
+	if (!irq)
+		return -ENOSPC;
+
+	for (i = 0; i < nvec; i++) {
+		/*
+		 * irq_create_mapping() called from rcar_pcie_probe() pre-
+		 * allocates descs,  so there is no need to allocate descs here.
+		 * We can therefore assume that if irq_find_mapping() above
+		 * returns non-zero, then the descs are also successfully
+		 * allocated.
+		 */
+		if (irq_set_msi_desc_off(irq, i, desc)) {
+			/* TODO: clear */
+			return -EINVAL;
+		}
+	}
+
+	desc->nvec_used = nvec;
+	desc->msi_attrib.multiple = order_base_2(nvec);
 
 	msg.address_lo = rcar_pci_read_reg(pcie, PCIEMSIALR) & ~MSIFE;
 	msg.address_hi = rcar_pci_read_reg(pcie, PCIEMSIAUR);
@@ -716,12 +780,13 @@ static int rcar_pcie_enable_msi(struct rcar_pcie *pcie)
 	struct platform_device *pdev = to_platform_device(pcie->dev);
 	struct rcar_msi *msi = &pcie->msi;
 	unsigned long base;
-	int err;
+	int err, i;
 
 	mutex_init(&msi->lock);
 
 	msi->chip.dev = pcie->dev;
 	msi->chip.setup_irq = rcar_msi_setup_irq;
+	msi->chip.setup_irqs = rcar_msi_setup_irqs;
 	msi->chip.teardown_irq = rcar_msi_teardown_irq;
 
 	msi->domain = irq_domain_add_linear(pcie->dev->of_node, INT_PCI_MSI_NR,
@@ -730,6 +795,9 @@ static int rcar_pcie_enable_msi(struct rcar_pcie *pcie)
 		dev_err(&pdev->dev, "failed to create IRQ domain\n");
 		return -ENOMEM;
 	}
+
+	for (i = 0; i < INT_PCI_MSI_NR; i++)
+		irq_create_mapping(msi->domain, i);
 
 	/* Two irqs are for MSI, but they are also used for non-MSI irqs */
 	err = devm_request_irq(&pdev->dev, msi->irq1, rcar_pcie_msi_irq,
