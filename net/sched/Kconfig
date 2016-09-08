@@ -761,6 +761,17 @@ config NET_ACT_IFE
 	  To compile this code as a module, choose M here: the
 	  module will be called act_ife.
 
+config NET_ACT_TUNNEL_KEY
+        tristate "IP tunnel metadata manipulation"
+        depends on NET_CLS_ACT
+        ---help---
+	  Say Y here to set/release ip tunnel metadata.
+
+	  If unsure, say N.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called act_tunnel_key.
+
 config NET_IFE_SKBMARK
         tristate "Support to encoding decoding skb mark on IFE action"
         depends on NET_ACT_IFE
