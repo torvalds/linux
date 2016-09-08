@@ -60,11 +60,12 @@ static struct addr_range percpu_range = {
 
 static struct sym_entry *table;
 static unsigned int table_size, table_cnt;
-static int all_symbols = 0;
-static int absolute_percpu = 0;
+static int all_symbols;
+static int use_data_section;
+static int absolute_percpu;
 static char symbol_prefix_char = '\0';
-static unsigned long long kernel_start_addr = 0;
-static int base_relative = 0;
+static unsigned long long kernel_start_addr;
+static int base_relative;
 
 int token_profit[0x10000];
 
@@ -76,6 +77,7 @@ unsigned char best_table_len[256];
 static void usage(void)
 {
 	fprintf(stderr, "Usage: kallsyms [--all-symbols] "
+			"[--use-data-section] "
 			"[--symbol-prefix=<prefix char>] "
 			"[--page-offset=<CONFIG_PAGE_OFFSET>] "
 			"[--base-relative] < in.map > out.S\n");
@@ -352,7 +354,10 @@ static void write_src(void)
 	printf("#define ALGN .align 4\n");
 	printf("#endif\n");
 
-	printf("\t.section .rodata, \"a\"\n");
+	if (use_data_section)
+		printf("\t.section .data\n");
+	else
+		printf("\t.section .rodata, \"a\"\n");
 
 	/* Provide proper symbols relocatability by their relativeness
 	 * to a fixed anchor point in the runtime image, either '_text'
@@ -759,6 +764,8 @@ int main(int argc, char **argv)
 				all_symbols = 1;
 			else if (strcmp(argv[i], "--absolute-percpu") == 0)
 				absolute_percpu = 1;
+			else if (strcmp(argv[i], "--use-data-section") == 0)
+				use_data_section = 1;
 			else if (strncmp(argv[i], "--symbol-prefix=", 16) == 0) {
 				char *p = &argv[i][16];
 				/* skip quote */
