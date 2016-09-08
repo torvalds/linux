@@ -29,6 +29,8 @@ enum MDP_COLOR_ENUM {
 	MDP_COLOR_NV12 = MDP_COLORFMT_PACK(0, 2, 1, 1, 1, 8, 1, 0, 12),
 	MDP_COLOR_I420 = MDP_COLORFMT_PACK(0, 3, 0, 1, 1, 8, 1, 0, 8),
 	MDP_COLOR_YV12 = MDP_COLORFMT_PACK(0, 3, 0, 1, 1, 8, 1, 1, 8),
+	/* Mediatek proprietary format */
+	MDP_COLOR_420_MT21 = MDP_COLORFMT_PACK(5, 2, 1, 1, 1, 256, 1, 0, 12),
 };
 
 static int32_t mtk_mdp_map_color_format(int v4l2_format)
@@ -37,6 +39,8 @@ static int32_t mtk_mdp_map_color_format(int v4l2_format)
 	case V4L2_PIX_FMT_NV12M:
 	case V4L2_PIX_FMT_NV12:
 		return MDP_COLOR_NV12;
+	case V4L2_PIX_FMT_MT21C:
+		return MDP_COLOR_420_MT21;
 	case V4L2_PIX_FMT_YUV420M:
 	case V4L2_PIX_FMT_YUV420:
 		return MDP_COLOR_I420;

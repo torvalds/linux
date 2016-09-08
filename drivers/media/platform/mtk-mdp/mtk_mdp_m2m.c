@@ -54,6 +54,14 @@ static struct mtk_mdp_pix_align mtk_mdp_size_align = {
 
 static const struct mtk_mdp_fmt mtk_mdp_formats[] = {
 	{
+		.pixelformat	= V4L2_PIX_FMT_MT21C,
+		.depth		= { 8, 4 },
+		.row_depth	= { 8, 8 },
+		.num_planes	= 2,
+		.num_comp	= 2,
+		.align		= &mtk_mdp_size_align,
+		.flags		= MTK_MDP_FMT_FLAG_OUTPUT,
+	}, {
 		.pixelformat	= V4L2_PIX_FMT_NV12M,
 		.depth		= { 8, 4 },
 		.row_depth	= { 8, 8 },
