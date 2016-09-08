@@ -60,7 +60,6 @@
 #define TTM_PL_FLAG_CACHED      (1 << 16)
 #define TTM_PL_FLAG_UNCACHED    (1 << 17)
 #define TTM_PL_FLAG_WC          (1 << 18)
-#define TTM_PL_FLAG_SHARED      (1 << 20)
 #define TTM_PL_FLAG_NO_EVICT    (1 << 21)
 #define TTM_PL_FLAG_TOPDOWN     (1 << 22)
 
@@ -69,15 +68,5 @@
 				 TTM_PL_FLAG_WC)
 
 #define TTM_PL_MASK_MEMTYPE     (TTM_PL_MASK_MEM | TTM_PL_MASK_CACHING)
-
-/*
- * Access flags to be used for CPU- and GPU- mappings.
- * The idea is that the TTM synchronization mechanism will
- * allow concurrent READ access and exclusive write access.
- * Currently GPU- and CPU accesses are exclusive.
- */
-
-#define TTM_ACCESS_READ         (1 << 0)
-#define TTM_ACCESS_WRITE        (1 << 1)
 
 #endif
