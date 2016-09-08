@@ -72,7 +72,7 @@ static int probe_default(void)
 	return 1;
 }
 
-static struct apic apic_default = {
+static struct apic apic_default __ro_after_init = {
 
 	.name				= "default",
 	.probe				= probe_default,
@@ -126,7 +126,7 @@ static struct apic apic_default = {
 
 apic_driver(apic_default);
 
-struct apic *apic = &apic_default;
+struct apic *apic __ro_after_init = &apic_default;
 EXPORT_SYMBOL_GPL(apic);
 
 static int cmdline_apic __initdata;
