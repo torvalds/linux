@@ -2304,12 +2304,7 @@ int i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj)
 
 static void gen8_set_pte(void __iomem *addr, gen8_pte_t pte)
 {
-#ifdef writeq
 	writeq(pte, addr);
-#else
-	iowrite32((u32)pte, addr);
-	iowrite32(pte >> 32, addr + 4);
-#endif
 }
 
 static void gen8_ggtt_insert_page(struct i915_address_space *vm,
