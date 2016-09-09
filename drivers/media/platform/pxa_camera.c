@@ -455,9 +455,6 @@ static void pxa_videobuf_set_actdma(struct pxa_camera_dev *pcdev,
 static void pxa_dma_start_channels(struct pxa_camera_dev *pcdev)
 {
 	int i;
-	struct pxa_buffer *active;
-
-	active = pcdev->active;
 
 	for (i = 0; i < pcdev->channels; i++) {
 		dev_dbg(pcdev_to_dev(pcdev),
