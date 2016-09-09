@@ -1443,6 +1443,18 @@ config KALLSYMS_BASE_RELATIVE
 	  time constants, and no relocation pass is required at runtime to fix
 	  up the entries based on the runtime load address of the kernel.
 
+config KALLSYMS_USE_DATA_SECTION
+	bool "Use .data instead of .rodata section for kallsyms"
+	depends on KALLSYMS
+	default n
+	help
+	  Enabling this option will put the kallsyms data in the .data section
+	  instead of the .rodata section.
+
+	  This is useful when building the kernel as a library, as it avoids
+	  relocations in the text segment that could otherwise occur if the
+	  .rodata section is in the same segment as the .text section.
+
 config PRINTK
 	default y
 	bool "Enable support for printk" if EXPERT
