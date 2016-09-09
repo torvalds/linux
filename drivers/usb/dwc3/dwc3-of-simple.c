@@ -112,7 +112,7 @@ static int dwc3_of_simple_remove(struct platform_device *pdev)
 	int			i;
 
 	for (i = 0; i < simple->num_clocks; i++) {
-		clk_unprepare(simple->clks[i]);
+		clk_disable_unprepare(simple->clks[i]);
 		clk_put(simple->clks[i]);
 	}
 
