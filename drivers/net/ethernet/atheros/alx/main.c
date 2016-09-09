@@ -51,6 +51,9 @@
 
 const char alx_drv_name[] = "alx";
 
+static bool msix = false;
+module_param(msix, bool, 0);
+MODULE_PARM_DESC(msix, "Enable msi-x interrupt support");
 
 static void alx_free_txbuf(struct alx_priv *alx, int entry)
 {
@@ -1018,7 +1021,7 @@ static int __alx_open(struct alx_priv *alx, bool resume)
 {
 	int err;
 
-	alx_init_intr(alx, false);
+	alx_init_intr(alx, msix);
 
 	if (!resume)
 		netif_carrier_off(alx->dev);
