@@ -1196,6 +1196,8 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *packet)
 		DPRINTK(1, "ethernet->h_source=%02X:%02X:%02X:%02X:%02X:%02X\n",
 			eth->h_source[0], eth->h_source[1], eth->h_source[2],
 			eth->h_source[3], eth->h_source[4], eth->h_source[5]);
+		dev_kfree_skb(packet);
+		kfree(pp);
 		return -3;
 	}
 
