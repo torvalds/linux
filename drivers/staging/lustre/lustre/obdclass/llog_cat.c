@@ -123,7 +123,6 @@ out:
 int llog_cat_close(const struct lu_env *env, struct llog_handle *cathandle)
 {
 	struct llog_handle	*loghandle, *n;
-	int			 rc;
 
 	list_for_each_entry_safe(loghandle, n, &cathandle->u.chd.chd_head,
 				 u.phd.phd_entry) {
@@ -134,8 +133,7 @@ int llog_cat_close(const struct lu_env *env, struct llog_handle *cathandle)
 	/* if handle was stored in ctxt, remove it too */
 	if (cathandle->lgh_ctxt->loc_handle == cathandle)
 		cathandle->lgh_ctxt->loc_handle = NULL;
-	rc = llog_close(env, cathandle);
-	return rc;
+	return llog_close(env, cathandle);
 }
 EXPORT_SYMBOL(llog_cat_close);
 
