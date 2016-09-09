@@ -11,6 +11,7 @@
 #include <linux/fs.h>
 #include <linux/f2fs_fs.h>
 #include <linux/buffer_head.h>
+#include <linux/backing-dev.h>
 #include <linux/writeback.h>
 
 #include "f2fs.h"
@@ -232,6 +233,20 @@ bad_inode:
 	iget_failed(inode);
 	trace_f2fs_iget_exit(inode, ret);
 	return ERR_PTR(ret);
+}
+
+struct inode *f2fs_iget_retry(struct super_block *sb, unsigned long ino)
+{
+	struct inode *inode;
+retry:
+	inode = f2fs_iget(sb, ino);
+	if (IS_ERR(inode)) {
+		if (PTR_ERR(inode) == -ENOMEM) {
+			congestion_wait(BLK_RW_ASYNC, HZ/50);
+			goto retry;
+		}
+	}
+	return inode;
 }
 
 int update_inode(struct inode *inode, struct page *node_page)
