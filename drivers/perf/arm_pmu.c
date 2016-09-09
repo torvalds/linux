@@ -549,6 +549,7 @@ static void armpmu_init(struct arm_pmu *armpmu)
 		.stop		= armpmu_stop,
 		.read		= armpmu_read,
 		.filter_match	= armpmu_filter_match,
+		.attr_groups	= armpmu->attr_groups,
 	};
 }
 
@@ -1037,8 +1038,6 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 		goto out_free;
 	}
 
-	if (!pmu->pmu.attr_groups)
-		pmu->pmu.attr_groups = pmu->attr_groups;
 
 	ret = cpu_pmu_init(pmu);
 	if (ret)
