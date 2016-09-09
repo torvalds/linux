@@ -609,35 +609,15 @@ static void intel_lrc_irq_handler(unsigned long data)
 static void execlists_submit_request(struct drm_i915_gem_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
-	struct drm_i915_gem_request *cursor;
-	int num_elements = 0;
 
 	spin_lock_bh(&engine->execlist_lock);
 
-	list_for_each_entry(cursor, &engine->execlist_queue, execlist_link)
-		if (++num_elements > 2)
-			break;
-
-	if (num_elements > 2) {
-		struct drm_i915_gem_request *tail_req;
-
-		tail_req = list_last_entry(&engine->execlist_queue,
-					   struct drm_i915_gem_request,
-					   execlist_link);
-
-		if (request->ctx == tail_req->ctx) {
-			WARN(tail_req->elsp_submitted != 0,
-				"More than 2 already-submitted reqs queued\n");
-			list_del(&tail_req->execlist_link);
-			i915_gem_request_put(tail_req);
-		}
-	}
-
 	i915_gem_request_get(request);
-	list_add_tail(&request->execlist_link, &engine->execlist_queue);
 	request->ctx_hw_id = request->ctx->hw_id;
-	if (num_elements == 0)
-		execlists_unqueue(engine);
+
+	if (list_empty(&engine->execlist_queue))
+		tasklet_hi_schedule(&engine->irq_tasklet);
+	list_add_tail(&request->execlist_link, &engine->execlist_queue);
 
 	spin_unlock_bh(&engine->execlist_lock);
 }
