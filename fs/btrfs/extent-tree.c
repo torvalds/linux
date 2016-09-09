@@ -3610,9 +3610,7 @@ again:
 		 */
 		if (!list_empty(&cache->io_list)) {
 			list_del_init(&cache->io_list);
-			btrfs_wait_cache_io(root, trans, cache,
-					    &cache->io_ctl, path,
-					    cache->key.objectid);
+			btrfs_wait_cache_io(trans, cache, path);
 			btrfs_put_block_group(cache);
 		}
 
@@ -3767,9 +3765,7 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 		if (!list_empty(&cache->io_list)) {
 			spin_unlock(&cur_trans->dirty_bgs_lock);
 			list_del_init(&cache->io_list);
-			btrfs_wait_cache_io(root, trans, cache,
-					    &cache->io_ctl, path,
-					    cache->key.objectid);
+			btrfs_wait_cache_io(trans, cache, path);
 			btrfs_put_block_group(cache);
 			spin_lock(&cur_trans->dirty_bgs_lock);
 		}
@@ -3839,8 +3835,7 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 		cache = list_first_entry(io, struct btrfs_block_group_cache,
 					 io_list);
 		list_del_init(&cache->io_list);
-		btrfs_wait_cache_io(root, trans, cache,
-				    &cache->io_ctl, path, cache->key.objectid);
+		btrfs_wait_cache_io(trans, cache, path);
 		btrfs_put_block_group(cache);
 	}
 
@@ -10383,9 +10378,7 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 		WARN_ON(!IS_ERR(inode) && inode != block_group->io_ctl.inode);
 
 		spin_unlock(&trans->transaction->dirty_bgs_lock);
-		btrfs_wait_cache_io(root, trans, block_group,
-				    &block_group->io_ctl, path,
-				    block_group->key.objectid);
+		btrfs_wait_cache_io(trans, block_group, path);
 		btrfs_put_block_group(block_group);
 		spin_lock(&trans->transaction->dirty_bgs_lock);
 	}

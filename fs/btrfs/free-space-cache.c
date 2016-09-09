@@ -42,6 +42,10 @@ static int link_free_space(struct btrfs_free_space_ctl *ctl,
 			   struct btrfs_free_space *info);
 static void unlink_free_space(struct btrfs_free_space_ctl *ctl,
 			      struct btrfs_free_space *info);
+static int btrfs_wait_cache_io_root(struct btrfs_root *root,
+			     struct btrfs_trans_handle *trans,
+			     struct btrfs_io_ctl *io_ctl,
+			     struct btrfs_path *path);
 
 static struct inode *__lookup_free_space_inode(struct btrfs_root *root,
 					       struct btrfs_path *path,
@@ -244,9 +248,7 @@ int btrfs_truncate_free_space_cache(struct btrfs_root *root,
 		if (!list_empty(&block_group->io_list)) {
 			list_del_init(&block_group->io_list);
 
-			btrfs_wait_cache_io(root, trans, block_group,
-					    &block_group->io_ctl, path,
-					    block_group->key.objectid);
+			btrfs_wait_cache_io(trans, block_group, path);
 			btrfs_put_block_group(block_group);
 		}
 
@@ -1139,11 +1141,11 @@ cleanup_write_cache_enospc(struct inode *inode,
 			     GFP_NOFS);
 }
 
-int btrfs_wait_cache_io(struct btrfs_root *root,
-			struct btrfs_trans_handle *trans,
-			struct btrfs_block_group_cache *block_group,
-			struct btrfs_io_ctl *io_ctl,
-			struct btrfs_path *path, u64 offset)
+static int __btrfs_wait_cache_io(struct btrfs_root *root,
+				 struct btrfs_trans_handle *trans,
+				 struct btrfs_block_group_cache *block_group,
+				 struct btrfs_io_ctl *io_ctl,
+				 struct btrfs_path *path, u64 offset)
 {
 	int ret;
 	struct inode *inode = io_ctl->inode;
@@ -1153,9 +1155,6 @@ int btrfs_wait_cache_io(struct btrfs_root *root,
 		return 0;
 
 	fs_info = btrfs_sb(inode->i_sb);
-
-	if (block_group)
-		root = fs_info->tree_root;
 
 	/* Flush the dirty pages in the cache file. */
 	ret = flush_dirty_cache(inode);
@@ -1205,6 +1204,23 @@ out:
 
 	return ret;
 
+}
+
+static int btrfs_wait_cache_io_root(struct btrfs_root *root,
+				    struct btrfs_trans_handle *trans,
+				    struct btrfs_io_ctl *io_ctl,
+				    struct btrfs_path *path)
+{
+	return __btrfs_wait_cache_io(root, trans, NULL, io_ctl, path, 0);
+}
+
+int btrfs_wait_cache_io(struct btrfs_trans_handle *trans,
+			struct btrfs_block_group_cache *block_group,
+			struct btrfs_path *path)
+{
+	return __btrfs_wait_cache_io(block_group->fs_info->tree_root, trans,
+				     block_group, &block_group->io_ctl,
+				     path, block_group->key.objectid);
 }
 
 /**
@@ -3541,7 +3557,7 @@ int btrfs_write_out_ino_cache(struct btrfs_root *root,
 		 * with or without an error.
 		 */
 		release_metadata = false;
-		ret = btrfs_wait_cache_io(root, trans, NULL, &io_ctl, path, 0);
+		ret = btrfs_wait_cache_io_root(root, trans, &io_ctl, path);
 	}
 
 	if (ret) {
