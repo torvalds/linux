@@ -5264,6 +5264,8 @@ static const struct hda_fixup alc269_fixups[] = {
 	[ALC269_FIXUP_THINKPAD_ACPI] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = hda_fixup_thinkpad_acpi,
+		.chained = true,
+		.chain_id = ALC269_FIXUP_SKU_IGNORE,
 	},
 	[ALC269_FIXUP_DMIC_THINKPAD_ACPI] = {
 		.type = HDA_FIXUP_FUNC,
