@@ -88,20 +88,23 @@ struct drm_i915_gem_request {
 	 */
 	u32 previous_seqno;
 
-	/** Position in the ringbuffer of the start of the request */
+	/** Position in the ring of the start of the request */
 	u32 head;
 
 	/**
-	 * Position in the ringbuffer of the start of the postfix.
-	 * This is required to calculate the maximum available ringbuffer
-	 * space without overwriting the postfix.
+	 * Position in the ring of the start of the postfix.
+	 * This is required to calculate the maximum available ring space
+	 * without overwriting the postfix.
 	 */
 	u32 postfix;
 
-	/** Position in the ringbuffer of the end of the whole request */
+	/** Position in the ring of the end of the whole request */
 	u32 tail;
 
-	/** Preallocate space in the ringbuffer for the emitting the request */
+	/** Position in the ring of the end of any workarounds after the tail */
+	u32 wa_tail;
+
+	/** Preallocate space in the ring for the emitting the request */
 	u32 reserved_space;
 
 	/**

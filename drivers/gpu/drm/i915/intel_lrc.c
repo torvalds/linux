@@ -482,8 +482,7 @@ static void execlists_unqueue(struct intel_engine_cs *engine)
 		 * resubmit the request. See gen8_emit_request() for where we
 		 * prepare the padding after the end of the request.
 		 */
-		req0->tail += 8;
-		req0->tail &= req0->ring->size - 1;
+		req0->tail = req0->wa_tail;
 	}
 
 	execlists_elsp_submit_contexts(req0, req1);
@@ -711,6 +710,7 @@ intel_logical_ring_advance(struct drm_i915_gem_request *request)
 	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_advance(ring);
+	request->wa_tail = ring->tail;
 
 	/* We keep the previous context alive until we retire the following
 	 * request. This ensures that any the context object is still pinned
