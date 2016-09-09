@@ -14,6 +14,9 @@ Required properies:
  - #size-cells	: The value of this property must be 1
  - ranges	: defines mapping between pin controller node (parent) to
    gpio-bank node (children).
+ - interrupt-parent: phandle of the interrupt parent to which the external
+   GPIO interrupts are forwarded to.
+ - st,syscfg: phandle of the syscfg node used for IRQ mux selection.
  - pins-are-numbered: Specify the subnodes are using numbered pinmux to
    specify pins.
 
