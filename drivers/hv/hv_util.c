@@ -64,9 +64,14 @@ static struct hv_util_service util_shutdown = {
 	.util_cb = shutdown_onchannelcallback,
 };
 
+static int hv_timesync_init(struct hv_util_service *srv);
+static void hv_timesync_deinit(void);
+
 static void timesync_onchannelcallback(void *context);
 static struct hv_util_service util_timesynch = {
 	.util_cb = timesync_onchannelcallback,
+	.util_init = hv_timesync_init,
+	.util_deinit = hv_timesync_deinit,
 };
 
 static void heartbeat_onchannelcallback(void *context);
@@ -201,7 +206,6 @@ static void hv_set_host_time(struct work_struct *work)
 	host_ts = ns_to_timespec(host_tns);
 
 	do_settimeofday(&host_ts);
-	kfree(wrk);
 }
 
 /*
@@ -217,22 +221,24 @@ static void hv_set_host_time(struct work_struct *work)
  * typically used as a hint to the guest. The guest is under no obligation
  * to discipline the clock.
  */
+static struct adj_time_work  wrk;
 static inline void adj_guesttime(u64 hosttime, u64 reftime, u8 flags)
 {
-	struct adj_time_work    *wrk;
 
-	wrk = kmalloc(sizeof(struct adj_time_work), GFP_ATOMIC);
-	if (wrk == NULL)
+	/*
+	 * This check is safe since we are executing in the
+	 * interrupt context and time synch messages arre always
+	 * delivered on the same CPU.
+	 */
+	if (work_pending(&wrk.work))
 		return;
 
-	wrk->host_time = hosttime;
-	wrk->ref_time = reftime;
-	wrk->flags = flags;
+	wrk.host_time = hosttime;
+	wrk.ref_time = reftime;
+	wrk.flags = flags;
 	if ((flags & (ICTIMESYNCFLAG_SYNC | ICTIMESYNCFLAG_SAMPLE)) != 0) {
-		INIT_WORK(&wrk->work, hv_set_host_time);
-		schedule_work(&wrk->work);
-	} else
-		kfree(wrk);
+		schedule_work(&wrk.work);
+	}
 }
 
 /*
@@ -456,6 +462,17 @@ static  struct hv_driver util_drv = {
 	.probe =  util_probe,
 	.remove =  util_remove,
 };
+
+static int hv_timesync_init(struct hv_util_service *srv)
+{
+	INIT_WORK(&wrk.work, hv_set_host_time);
+	return 0;
+}
+
+static void hv_timesync_deinit(void)
+{
+	cancel_work_sync(&wrk.work);
+}
 
 static int __init init_hyperv_utils(void)
 {
