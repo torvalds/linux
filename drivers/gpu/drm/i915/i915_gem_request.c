@@ -460,6 +460,93 @@ err:
 	return ERR_PTR(ret);
 }
 
+static int
+i915_gem_request_await_request(struct drm_i915_gem_request *to,
+			       struct drm_i915_gem_request *from)
+{
+	int idx, ret;
+
+	GEM_BUG_ON(to == from);
+
+	if (to->engine == from->engine)
+		return 0;
+
+	idx = intel_engine_sync_index(from->engine, to->engine);
+	if (from->fence.seqno <= from->engine->semaphore.sync_seqno[idx])
+		return 0;
+
+	trace_i915_gem_ring_sync_to(to, from);
+	if (!i915.semaphores) {
+		ret = i915_wait_request(from,
+					I915_WAIT_INTERRUPTIBLE |
+					I915_WAIT_LOCKED,
+					NULL, NO_WAITBOOST);
+		if (ret)
+			return ret;
+	} else {
+		ret = to->engine->semaphore.sync_to(to, from);
+		if (ret)
+			return ret;
+	}
+
+	from->engine->semaphore.sync_seqno[idx] = from->fence.seqno;
+	return 0;
+}
+
+/**
+ * i915_gem_request_await_object - set this request to (async) wait upon a bo
+ *
+ * @to: request we are wishing to use
+ * @obj: object which may be in use on another ring.
+ *
+ * This code is meant to abstract object synchronization with the GPU.
+ * Conceptually we serialise writes between engines inside the GPU.
+ * We only allow one engine to write into a buffer at any time, but
+ * multiple readers. To ensure each has a coherent view of memory, we must:
+ *
+ * - If there is an outstanding write request to the object, the new
+ *   request must wait for it to complete (either CPU or in hw, requests
+ *   on the same ring will be naturally ordered).
+ *
+ * - If we are a write request (pending_write_domain is set), the new
+ *   request must wait for outstanding read requests to complete.
+ *
+ * Returns 0 if successful, else propagates up the lower layer error.
+ */
+int
+i915_gem_request_await_object(struct drm_i915_gem_request *to,
+			      struct drm_i915_gem_object *obj,
+			      bool write)
+{
+	struct i915_gem_active *active;
+	unsigned long active_mask;
+	int idx;
+
+	if (write) {
+		active_mask = i915_gem_object_get_active(obj);
+		active = obj->last_read;
+	} else {
+		active_mask = 1;
+		active = &obj->last_write;
+	}
+
+	for_each_active(active_mask, idx) {
+		struct drm_i915_gem_request *request;
+		int ret;
+
+		request = i915_gem_active_peek(&active[idx],
+					       &obj->base.dev->struct_mutex);
+		if (!request)
+			continue;
+
+		ret = i915_gem_request_await_request(to, request);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static void i915_gem_mark_busy(const struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;

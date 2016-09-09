@@ -12273,7 +12273,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 			goto cleanup_unpin;
 		}
 
-		ret = i915_gem_object_sync(obj, request);
+		ret = i915_gem_request_await_object(request, obj, false);
 		if (ret)
 			goto cleanup_request;
 

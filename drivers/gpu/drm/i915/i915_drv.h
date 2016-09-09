@@ -3221,8 +3221,6 @@ i915_gem_obj_finish_shmem_access(struct drm_i915_gem_object *obj)
 }
 
 int __must_check i915_mutex_lock_interruptible(struct drm_device *dev);
-int i915_gem_object_sync(struct drm_i915_gem_object *obj,
-			 struct drm_i915_gem_request *to);
 void i915_vma_move_to_active(struct i915_vma *vma,
 			     struct drm_i915_gem_request *req,
 			     unsigned int flags);

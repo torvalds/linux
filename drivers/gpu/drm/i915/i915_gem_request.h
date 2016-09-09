@@ -209,6 +209,11 @@ static inline void i915_gem_request_assign(struct drm_i915_gem_request **pdst,
 	*pdst = src;
 }
 
+int
+i915_gem_request_await_object(struct drm_i915_gem_request *to,
+			      struct drm_i915_gem_object *obj,
+			      bool write);
+
 void __i915_add_request(struct drm_i915_gem_request *req, bool flush_caches);
 #define i915_add_request(req) \
 	__i915_add_request(req, true)
