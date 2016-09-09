@@ -313,7 +313,10 @@ static struct nfs_client *nfs_match_client(const struct nfs_client_initdata *dat
 			continue;
 		/* Match the full socket address */
 		if (!rpc_cmp_addr_port(sap, clap))
-			continue;
+			/* Match all xprt_switch full socket addresses */
+			if (!rpc_clnt_xprt_switch_has_addr(clp->cl_rpcclient,
+							   sap))
+				continue;
 
 		atomic_inc(&clp->cl_count);
 		return clp;
