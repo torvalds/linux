@@ -3099,10 +3099,6 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 		if (engine->hangcheck.seqno == seqno) {
 			if (i915_seqno_passed(seqno, submit)) {
 				engine->hangcheck.action = HANGCHECK_IDLE;
-				if (busy) {
-					/* Safeguard against driver failure */
-					engine->hangcheck.score += BUSY;
-				}
 			} else {
 				/* We always increment the hangcheck score
 				 * if the engine is busy and still processing
