@@ -1543,10 +1543,14 @@ static int mxs_get_clks(struct mxs_auart_port *s,
 	err = clk_prepare_enable(s->clk);
 	if (err) {
 		dev_err(s->dev, "Failed to enable clk!\n");
-		return err;
+		goto disable_clk_ahb;
 	}
 
 	return 0;
+
+disable_clk_ahb:
+	clk_disable_unprepare(s->clk_ahb);
+	return err;
 }
 
 /*
