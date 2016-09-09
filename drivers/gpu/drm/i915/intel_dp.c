@@ -1243,7 +1243,7 @@ intel_dp_aux_fini(struct intel_dp *intel_dp)
 }
 
 static void
-intel_dp_aux_init(struct intel_dp *intel_dp, struct intel_connector *connector)
+intel_dp_aux_init(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	enum port port = intel_dig_port->port;
@@ -5624,7 +5624,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	connector->interlace_allowed = true;
 	connector->doublescan_allowed = 0;
 
-	intel_dp_aux_init(intel_dp, intel_connector);
+	intel_dp_aux_init(intel_dp);
 
 	INIT_DELAYED_WORK(&intel_dp->panel_vdd_work,
 			  edp_panel_vdd_work);
