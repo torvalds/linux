@@ -280,8 +280,9 @@ static const char *pxa_cam_driver_description = "PXA_Camera";
 /*
  * Format translation functions
  */
-const struct soc_camera_format_xlate *soc_mbus_xlate_by_fourcc(
-	struct soc_camera_format_xlate *user_formats, unsigned int fourcc)
+static const struct soc_camera_format_xlate
+*soc_mbus_xlate_by_fourcc(struct soc_camera_format_xlate *user_formats,
+			  unsigned int fourcc)
 {
 	unsigned int i;
 
