@@ -76,6 +76,9 @@ enum alx_device_quirks {
 	ALX_DEV_QUIRK_MSI_INTX_DISABLE_BUG = BIT(0),
 };
 
+#define ALX_FLAG_USING_MSIX	BIT(0)
+#define ALX_FLAG_USING_MSI	BIT(1)
+
 struct alx_priv {
 	struct net_device *dev;
 
@@ -105,7 +108,7 @@ struct alx_priv {
 
 	u16 msg_enable;
 
-	bool msi;
+	int flags;
 
 	/* protects hw.stats */
 	spinlock_t stats_lock;
