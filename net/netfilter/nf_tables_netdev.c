@@ -15,81 +15,6 @@
 #include <net/netfilter/nf_tables_ipv4.h>
 #include <net/netfilter/nf_tables_ipv6.h>
 
-static inline void
-nft_netdev_set_pktinfo_ipv4(struct nft_pktinfo *pkt,
-			    struct sk_buff *skb,
-			    const struct nf_hook_state *state)
-{
-	struct iphdr *iph, _iph;
-	u32 len, thoff;
-
-	nft_set_pktinfo(pkt, skb, state);
-
-	iph = skb_header_pointer(skb, skb_network_offset(skb), sizeof(*iph),
-				 &_iph);
-	if (!iph)
-		return;
-
-	iph = ip_hdr(skb);
-	if (iph->ihl < 5 || iph->version != 4)
-		return;
-
-	len = ntohs(iph->tot_len);
-	thoff = iph->ihl * 4;
-	if (skb->len < len)
-		return;
-	else if (len < thoff)
-		return;
-
-	pkt->tprot_set = true;
-	pkt->tprot = iph->protocol;
-	pkt->xt.thoff = thoff;
-	pkt->xt.fragoff = ntohs(iph->frag_off) & IP_OFFSET;
-}
-
-static inline void
-__nft_netdev_set_pktinfo_ipv6(struct nft_pktinfo *pkt,
-			      struct sk_buff *skb,
-			      const struct nf_hook_state *state)
-{
-#if IS_ENABLED(CONFIG_IPV6)
-	struct ipv6hdr *ip6h, _ip6h;
-	unsigned int thoff = 0;
-	unsigned short frag_off;
-	int protohdr;
-	u32 pkt_len;
-
-	ip6h = skb_header_pointer(skb, skb_network_offset(skb), sizeof(*ip6h),
-				  &_ip6h);
-	if (!ip6h)
-		return;
-
-	if (ip6h->version != 6)
-		return;
-
-	pkt_len = ntohs(ip6h->payload_len);
-	if (pkt_len + sizeof(*ip6h) > skb->len)
-		return;
-
-	protohdr = ipv6_find_hdr(pkt->skb, &thoff, -1, &frag_off, NULL);
-	if (protohdr < 0)
-                return;
-
-	pkt->tprot_set = true;
-	pkt->tprot = protohdr;
-	pkt->xt.thoff = thoff;
-	pkt->xt.fragoff = frag_off;
-#endif
-}
-
-static inline void nft_netdev_set_pktinfo_ipv6(struct nft_pktinfo *pkt,
-					       struct sk_buff *skb,
-					       const struct nf_hook_state *state)
-{
-	nft_set_pktinfo(pkt, skb, state);
-	__nft_netdev_set_pktinfo_ipv6(pkt, skb, state);
-}
-
 static unsigned int
 nft_do_chain_netdev(void *priv, struct sk_buff *skb,
 		    const struct nf_hook_state *state)
@@ -98,10 +23,10 @@ nft_do_chain_netdev(void *priv, struct sk_buff *skb,
 
 	switch (skb->protocol) {
 	case htons(ETH_P_IP):
-		nft_netdev_set_pktinfo_ipv4(&pkt, skb, state);
+		nft_set_pktinfo_ipv4_validate(&pkt, skb, state);
 		break;
 	case htons(ETH_P_IPV6):
-		nft_netdev_set_pktinfo_ipv6(&pkt, skb, state);
+		nft_set_pktinfo_ipv6_validate(&pkt, skb, state);
 		break;
 	default:
 		nft_set_pktinfo_unspec(&pkt, skb, state);
