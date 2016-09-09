@@ -550,9 +550,9 @@ static int __multipath_map(struct dm_target *ti, struct request *clone,
 		pgpath = choose_pgpath(m, nr_bytes);
 
 	if (!pgpath) {
-		if (!must_push_back_rq(m))
-			r = -EIO;	/* Failed */
-		return r;
+		if (must_push_back_rq(m))
+			return DM_MAPIO_DELAY_REQUEUE;
+		return -EIO;	/* Failed */
 	} else if (test_bit(MPATHF_QUEUE_IO, &m->flags) ||
 		   test_bit(MPATHF_PG_INIT_REQUIRED, &m->flags)) {
 		pg_init_all_paths(m);
@@ -1992,10 +1992,13 @@ static int multipath_busy(struct dm_target *ti)
 	struct priority_group *pg, *next_pg;
 	struct pgpath *pgpath;
 
-	/* pg_init in progress or no paths available */
-	if (atomic_read(&m->pg_init_in_progress) ||
-	    (!atomic_read(&m->nr_valid_paths) && test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags)))
+	/* pg_init in progress */
+	if (atomic_read(&m->pg_init_in_progress))
 		return true;
+
+	/* no paths available, for blk-mq: rely on IO mapping to delay requeue */
+	if (!atomic_read(&m->nr_valid_paths) && test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags))
+		return (m->queue_mode != DM_TYPE_MQ_REQUEST_BASED);
 
 	/* Guess which priority_group will be used at next mapping time */
 	pg = lockless_dereference(m->current_pg);
