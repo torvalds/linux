@@ -726,7 +726,7 @@ int amdgpu_bo_unpin(struct amdgpu_bo *bo)
 		bo->adev->vram_pin_size -= amdgpu_bo_size(bo);
 		if (bo->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
 			bo->adev->invisible_pin_size -= amdgpu_bo_size(bo);
-	} else {
+	} else if (bo->tbo.mem.mem_type == TTM_PL_TT) {
 		bo->adev->gart_pin_size -= amdgpu_bo_size(bo);
 	}
 
