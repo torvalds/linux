@@ -1051,9 +1051,11 @@ static void ath10k_htt_rx_h_undecap_nwifi(struct ath10k *ar,
 					  const u8 first_hdr[64])
 {
 	struct ieee80211_hdr *hdr;
+	struct htt_rx_desc *rxd;
 	size_t hdr_len;
 	u8 da[ETH_ALEN];
 	u8 sa[ETH_ALEN];
+	int l3_pad_bytes;
 
 	/* Delivered decapped frame:
 	 * [nwifi 802.11 header] <-- replaced with 802.11 hdr
@@ -1067,19 +1069,12 @@ static void ath10k_htt_rx_h_undecap_nwifi(struct ath10k *ar,
 	 */
 
 	/* pull decapped header and copy SA & DA */
-	if ((ar->hw_params.hw_4addr_pad == ATH10K_HW_4ADDR_PAD_BEFORE) &&
-	    ieee80211_has_a4(((struct ieee80211_hdr *)first_hdr)->frame_control)) {
-		/* The QCA99X0 4 address mode pad 2 bytes at the
-		 * beginning of MSDU
-		 */
-		hdr = (struct ieee80211_hdr *)(msdu->data + 2);
-		/* The skb length need be extended 2 as the 2 bytes at the tail
-		 * be excluded due to the padding
-		 */
-		skb_put(msdu, 2);
-	} else {
-		hdr = (struct ieee80211_hdr *)(msdu->data);
-	}
+	rxd = (void *)msdu->data - sizeof(*rxd);
+
+	l3_pad_bytes = ath10k_rx_desc_get_l3_pad_bytes(&ar->hw_params, rxd);
+	skb_put(msdu, l3_pad_bytes);
+
+	hdr = (struct ieee80211_hdr *)(msdu->data + l3_pad_bytes);
 
 	hdr_len = ath10k_htt_rx_nwifi_hdrlen(ar, hdr);
 	ether_addr_copy(da, ieee80211_get_DA(hdr));
@@ -1146,6 +1141,8 @@ static void ath10k_htt_rx_h_undecap_eth(struct ath10k *ar,
 	void *rfc1042;
 	u8 da[ETH_ALEN];
 	u8 sa[ETH_ALEN];
+	int l3_pad_bytes;
+	struct htt_rx_desc *rxd;
 
 	/* Delivered decapped frame:
 	 * [eth header] <-- replaced with 802.11 hdr & rfc1042/llc
@@ -1155,6 +1152,11 @@ static void ath10k_htt_rx_h_undecap_eth(struct ath10k *ar,
 	rfc1042 = ath10k_htt_rx_h_find_rfc1042(ar, msdu, enctype);
 	if (WARN_ON_ONCE(!rfc1042))
 		return;
+
+	rxd = (void *)msdu->data - sizeof(*rxd);
+	l3_pad_bytes = ath10k_rx_desc_get_l3_pad_bytes(&ar->hw_params, rxd);
+	skb_put(msdu, l3_pad_bytes);
+	skb_pull(msdu, l3_pad_bytes);
 
 	/* pull decapped header and copy SA & DA */
 	eth = (struct ethhdr *)msdu->data;
@@ -1186,6 +1188,8 @@ static void ath10k_htt_rx_h_undecap_snap(struct ath10k *ar,
 {
 	struct ieee80211_hdr *hdr;
 	size_t hdr_len;
+	int l3_pad_bytes;
+	struct htt_rx_desc *rxd;
 
 	/* Delivered decapped frame:
 	 * [amsdu header] <-- replaced with 802.11 hdr
@@ -1193,7 +1197,11 @@ static void ath10k_htt_rx_h_undecap_snap(struct ath10k *ar,
 	 * [payload]
 	 */
 
-	skb_pull(msdu, sizeof(struct amsdu_subframe_hdr));
+	rxd = (void *)msdu->data - sizeof(*rxd);
+	l3_pad_bytes = ath10k_rx_desc_get_l3_pad_bytes(&ar->hw_params, rxd);
+
+	skb_put(msdu, l3_pad_bytes);
+	skb_pull(msdu, sizeof(struct amsdu_subframe_hdr) + l3_pad_bytes);
 
 	hdr = (struct ieee80211_hdr *)first_hdr;
 	hdr_len = ieee80211_hdrlen(hdr->frame_control);

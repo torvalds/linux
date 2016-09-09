@@ -428,6 +428,15 @@ struct ath10k_hw_ops {
 extern const struct ath10k_hw_ops qca988x_ops;
 extern const struct ath10k_hw_ops qca99x0_ops;
 
+static inline int
+ath10k_rx_desc_get_l3_pad_bytes(struct ath10k_hw_params *hw,
+				struct htt_rx_desc *rxd)
+{
+	if (hw->hw_ops->rx_desc_get_l3_pad_bytes)
+		return hw->hw_ops->rx_desc_get_l3_pad_bytes(rxd);
+	return 0;
+}
+
 /* Target specific defines for MAIN firmware */
 #define TARGET_NUM_VDEVS			8
 #define TARGET_NUM_PEER_AST			2
