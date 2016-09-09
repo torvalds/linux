@@ -1726,8 +1726,8 @@ int i915_resume_switcheroo(struct drm_device *dev)
  * i915_reset - reset chip after a hang
  * @dev: drm device to reset
  *
- * Reset the chip.  Useful if a hang is detected. Returns zero on successful
- * reset or otherwise an error code.
+ * Reset the chip.  Useful if a hang is detected. Marks the device as wedged
+ * on failure.
  *
  * Caller must hold the struct_mutex.
  *
@@ -1739,7 +1739,7 @@ int i915_resume_switcheroo(struct drm_device *dev)
  *   - re-init interrupt state
  *   - re-init display
  */
-int i915_reset(struct drm_i915_private *dev_priv)
+void i915_reset(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = &dev_priv->drm;
 	struct i915_gpu_error *error = &dev_priv->gpu_error;
@@ -1748,7 +1748,7 @@ int i915_reset(struct drm_i915_private *dev_priv)
 	lockdep_assert_held(&dev->struct_mutex);
 
 	if (!test_and_clear_bit(I915_RESET_IN_PROGRESS, &error->flags))
-		return test_bit(I915_WEDGED, &error->flags) ? -EIO : 0;
+		return;
 
 	/* Clear any previous failed attempts at recovery. Time to try again. */
 	__clear_bit(I915_WEDGED, &error->flags);
@@ -1798,11 +1798,13 @@ int i915_reset(struct drm_i915_private *dev_priv)
 	intel_sanitize_gt_powersave(dev_priv);
 	intel_autoenable_gt_powersave(dev_priv);
 
-	return 0;
+wakeup:
+	wake_up_bit(&error->flags, I915_RESET_IN_PROGRESS);
+	return;
 
 error:
 	set_bit(I915_WEDGED, &error->flags);
-	return ret;
+	goto wakeup;
 }
 
 static int i915_pm_suspend(struct device *kdev)

@@ -2497,7 +2497,6 @@ static void i915_reset_and_wakeup(struct drm_i915_private *dev_priv)
 	char *error_event[] = { I915_ERROR_UEVENT "=1", NULL };
 	char *reset_event[] = { I915_RESET_UEVENT "=1", NULL };
 	char *reset_done_event[] = { I915_ERROR_UEVENT "=0", NULL };
-	int ret;
 
 	kobject_uevent_env(kobj, KOBJ_CHANGE, error_event);
 
@@ -2512,24 +2511,30 @@ static void i915_reset_and_wakeup(struct drm_i915_private *dev_priv)
 	 * simulated reset via debugs, so get an RPM reference.
 	 */
 	intel_runtime_pm_get(dev_priv);
-
 	intel_prepare_reset(dev_priv);
 
-	/*
-	 * All state reset _must_ be completed before we update the
-	 * reset counter, for otherwise waiters might miss the reset
-	 * pending state and not properly drop locks, resulting in
-	 * deadlocks with the reset work.
-	 */
-	mutex_lock(&dev_priv->drm.struct_mutex);
-	ret = i915_reset(dev_priv);
-	mutex_unlock(&dev_priv->drm.struct_mutex);
+	do {
+		/*
+		 * All state reset _must_ be completed before we update the
+		 * reset counter, for otherwise waiters might miss the reset
+		 * pending state and not properly drop locks, resulting in
+		 * deadlocks with the reset work.
+		 */
+		if (mutex_trylock(&dev_priv->drm.struct_mutex)) {
+			i915_reset(dev_priv);
+			mutex_unlock(&dev_priv->drm.struct_mutex);
+		}
+
+		/* We need to wait for anyone holding the lock to wakeup */
+	} while (wait_on_bit_timeout(&dev_priv->gpu_error.flags,
+				     I915_RESET_IN_PROGRESS,
+				     TASK_UNINTERRUPTIBLE,
+				     HZ));
 
 	intel_finish_reset(dev_priv);
-
 	intel_runtime_pm_put(dev_priv);
 
-	if (ret == 0)
+	if (!test_bit(I915_WEDGED, &dev_priv->gpu_error.flags))
 		kobject_uevent_env(kobj,
 				   KOBJ_CHANGE, reset_done_event);
 
