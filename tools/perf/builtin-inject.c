@@ -429,7 +429,7 @@ static int perf_event__inject_buildid(struct perf_tool *tool,
 	if (al.map != NULL) {
 		if (!al.map->dso->hit) {
 			al.map->dso->hit = 1;
-			if (map__load(al.map, NULL) >= 0) {
+			if (map__load(al.map) >= 0) {
 				dso__inject_build_id(al.map->dso, tool, machine);
 				/*
 				 * If this fails, too bad, let the other side
