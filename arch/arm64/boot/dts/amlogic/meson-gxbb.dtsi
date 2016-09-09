@@ -214,6 +214,15 @@
 				reg = <0x0 0x098d0 0x0 0x10>;
 				clocks = <&xtal>;
 			};
+
+			spifc: spi@8c80 {
+				compatible = "amlogic,meson-gxbb-spifc";
+				reg = <0x0 0x08c80 0x0 0x80>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				clocks = <&clkc CLKID_SPI>;
+				status = "disabled";
+			};
 		};
 
 		gic: interrupt-controller@c4301000 {
