@@ -781,7 +781,7 @@ static int iceland_upload_firmware(struct pp_hwmgr *hwmgr)
  * @param    hwmgr  the address of the powerplay hardware manager.
  * @return   always 0
  */
-int iceland_process_firmware_header(struct pp_hwmgr *hwmgr)
+static int iceland_process_firmware_header(struct pp_hwmgr *hwmgr)
 {
 	iceland_hwmgr *data = (iceland_hwmgr *)(hwmgr->backend);
 
@@ -2606,7 +2606,7 @@ static int iceland_populate_smc_initial_state(struct pp_hwmgr *hwmgr)
  * @param    pInput  the pointer to input data (PowerState)
  * @return   always 0
  */
-int iceland_init_smc_table(struct pp_hwmgr *hwmgr)
+static int iceland_init_smc_table(struct pp_hwmgr *hwmgr)
 {
 	int result;
 	iceland_hwmgr *data = (iceland_hwmgr *)(hwmgr->backend);
@@ -4629,7 +4629,7 @@ static int iceland_update_vce_dpm(struct pp_hwmgr *hwmgr, const void *input)
 	return 0;
 }
 
-int iceland_update_sclk_threshold(struct pp_hwmgr *hwmgr)
+static int iceland_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 {
 	iceland_hwmgr *data = (iceland_hwmgr *)(hwmgr->backend);
 

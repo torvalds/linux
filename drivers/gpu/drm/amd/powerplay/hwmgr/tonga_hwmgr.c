@@ -231,7 +231,7 @@ uint8_t tonga_get_voltage_index(phm_ppt_v1_voltage_lookup_table *look_up_table,
 	return i-1;
 }
 
-bool tonga_is_dpm_running(struct pp_hwmgr *hwmgr)
+static bool tonga_is_dpm_running(struct pp_hwmgr *hwmgr)
 {
 	/*
 	 * We return the status of Voltage Control instead of checking SCLK/MCLK DPM
@@ -336,7 +336,7 @@ void tonga_initialize_dpm_defaults(struct pp_hwmgr *hwmgr)
 
 }
 
-int tonga_update_sclk_threshold(struct pp_hwmgr *hwmgr)
+static int tonga_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 {
 	tonga_hwmgr *data = (tonga_hwmgr *)(hwmgr->backend);
 
@@ -773,7 +773,7 @@ int tonga_set_boot_state(struct pp_hwmgr *hwmgr)
  * @param    hwmgr  the address of the powerplay hardware manager.
  * @return   always 0
  */
-int tonga_process_firmware_header(struct pp_hwmgr *hwmgr)
+static int tonga_process_firmware_header(struct pp_hwmgr *hwmgr)
 {
 	tonga_hwmgr *data = (tonga_hwmgr *)(hwmgr->backend);
 	struct tonga_smumgr *tonga_smu = (struct tonga_smumgr *)(hwmgr->smumgr->backend);
@@ -2896,7 +2896,7 @@ int tonga_populate_smc_initial_state(struct pp_hwmgr *hwmgr,
  * @param    pInput  the pointer to input data (PowerState)
  * @return   always 0
  */
-int tonga_init_smc_table(struct pp_hwmgr *hwmgr)
+static int tonga_init_smc_table(struct pp_hwmgr *hwmgr)
 {
 	int result;
 	tonga_hwmgr *data = (tonga_hwmgr *)(hwmgr->backend);
@@ -3991,7 +3991,7 @@ int tonga_set_valid_flag(phw_tonga_mc_reg_table *table)
 	return 0;
 }
 
-int tonga_initialize_mc_reg_table(struct pp_hwmgr *hwmgr)
+static int tonga_initialize_mc_reg_table(struct pp_hwmgr *hwmgr)
 {
 	int result;
 	tonga_hwmgr *data = (tonga_hwmgr *)(hwmgr->backend);
