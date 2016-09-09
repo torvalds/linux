@@ -46,7 +46,7 @@
 	model = "Rockchip RK3036 Evaluation board";
 	compatible = "rockchip,rk3036-evb", "rockchip,rk3036";
 
-	memory {
+	memory@60000000 {
 		device_type = "memory";
 		reg = <0x60000000 0x40000000>;
 	};
