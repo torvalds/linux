@@ -421,7 +421,7 @@ static const struct greybus_bundle_id gb_audio_id_table[] = {
 };
 MODULE_DEVICE_TABLE(greybus, gb_audio_id_table);
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int gb_audio_suspend(struct device *dev)
 {
 	struct gb_bundle *bundle = to_gb_bundle(dev);

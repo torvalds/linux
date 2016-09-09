@@ -1344,7 +1344,7 @@ static const struct greybus_bundle_id gb_camera_id_table[] = {
 	{ },
 };
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int gb_camera_suspend(struct device *dev)
 {
 	struct gb_bundle *bundle = to_gb_bundle(dev);

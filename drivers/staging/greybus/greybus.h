@@ -21,7 +21,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/idr.h>
 
-#include "kernel_ver.h"
 #include "greybus_id.h"
 #include "greybus_manifest.h"
 #include "greybus_protocols.h"

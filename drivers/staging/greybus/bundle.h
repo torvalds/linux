@@ -41,7 +41,7 @@ int gb_bundle_add(struct gb_bundle *bundle);
 void gb_bundle_destroy(struct gb_bundle *bundle);
 
 /* Bundle Runtime PM wrappers */
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static inline int gb_pm_runtime_get_sync(struct gb_bundle *bundle)
 {
 	int retval;

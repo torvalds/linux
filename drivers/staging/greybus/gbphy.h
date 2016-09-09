@@ -66,7 +66,7 @@ void gb_gbphy_deregister_driver(struct gbphy_driver *driver);
 #define module_gbphy_driver(__gbphy_driver)	\
 	module_driver(__gbphy_driver, gb_gbphy_register, gb_gbphy_deregister)
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static inline int gbphy_runtime_get_sync(struct gbphy_device *gbphy_dev)
 {
 	struct device *dev = &gbphy_dev->dev;

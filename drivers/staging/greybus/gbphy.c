@@ -52,7 +52,7 @@ static void gbphy_dev_release(struct device *dev)
 	kfree(gbphy_dev);
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int gb_gbphy_idle(struct device *dev)
 {
 	pm_runtime_mark_last_busy(dev);

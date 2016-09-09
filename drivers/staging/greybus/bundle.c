@@ -89,8 +89,7 @@ static void gb_bundle_release(struct device *dev)
 	kfree(bundle);
 }
 
-#ifdef CONFIG_PM_RUNTIME
-
+#ifdef CONFIG_PM
 static void gb_bundle_disable_all_connections(struct gb_bundle *bundle)
 {
 	struct gb_connection *connection;

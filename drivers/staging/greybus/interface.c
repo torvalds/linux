@@ -698,7 +698,7 @@ static void gb_interface_release(struct device *dev)
 	kfree(intf);
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int gb_interface_suspend(struct device *dev)
 {
 	struct gb_interface *intf = to_gb_interface(dev);

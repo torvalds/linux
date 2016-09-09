@@ -17,7 +17,6 @@
 #include "arpc.h"
 #include "greybus.h"
 #include "greybus_trace.h"
-#include "kernel_ver.h"
 #include "connection.h"
 
 
