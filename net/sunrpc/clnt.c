@@ -2695,6 +2695,12 @@ rpc_cap_max_reconnect_timeout(struct rpc_clnt *clnt, unsigned long timeo)
 }
 EXPORT_SYMBOL_GPL(rpc_cap_max_reconnect_timeout);
 
+void rpc_clnt_xprt_switch_put(struct rpc_clnt *clnt)
+{
+	xprt_switch_put(rcu_dereference(clnt->cl_xpi.xpi_xpswitch));
+}
+EXPORT_SYMBOL_GPL(rpc_clnt_xprt_switch_put);
+
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 static void rpc_show_header(void)
 {
