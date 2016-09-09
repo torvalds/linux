@@ -3562,9 +3562,9 @@ static unsigned int ata_scsiop_maint_in(struct ata_scsi_args *args, u8 *rbuf)
 		supported = 3;
 		break;
 	case WRITE_SAME_16:
-		if (ata_id_sct_write_same(dev->id))
-			supported = 3;
-		break;
+		if (!ata_id_sct_write_same(dev->id))
+			break;
+		/* fallthrough: if SCT ... only enable for ZBC */
 	case ZBC_IN:
 	case ZBC_OUT:
 		if (ata_id_zoned_cap(dev->id) ||
