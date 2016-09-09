@@ -328,32 +328,18 @@ uint64_t intel_lr_context_descriptor(struct i915_gem_context *ctx,
 	return ctx->engine[engine->id].lrc_desc;
 }
 
-static void execlists_elsp_write(struct drm_i915_gem_request *rq0,
-				 struct drm_i915_gem_request *rq1)
+static inline void
+execlists_context_status_change(struct drm_i915_gem_request *rq,
+				unsigned long status)
 {
-	struct intel_engine_cs *engine = rq0->engine;
-	struct drm_i915_private *dev_priv = rq0->i915;
-	u32 __iomem *elsp =
-		dev_priv->regs + i915_mmio_reg_offset(RING_ELSP(engine));
-	u64 desc[2];
+	/*
+	 * Only used when GVT-g is enabled now. When GVT-g is disabled,
+	 * The compiler should eliminate this function as dead-code.
+	 */
+	if (!IS_ENABLED(CONFIG_DRM_I915_GVT))
+		return;
 
-	if (rq1) {
-		desc[1] = intel_lr_context_descriptor(rq1->ctx, rq1->engine);
-		rq1->elsp_submitted++;
-	} else {
-		desc[1] = 0;
-	}
-
-	desc[0] = intel_lr_context_descriptor(rq0->ctx, rq0->engine);
-	rq0->elsp_submitted++;
-
-	/* You must always write both descriptors in the order below. */
-	writel(upper_32_bits(desc[1]), elsp);
-	writel(lower_32_bits(desc[1]), elsp);
-
-	writel(upper_32_bits(desc[0]), elsp);
-	/* The context is automatically loaded after the following */
-	writel(lower_32_bits(desc[0]), elsp);
+	atomic_notifier_call_chain(&rq->ctx->status_notifier, status, rq);
 }
 
 static void
@@ -382,6 +368,34 @@ static void execlists_update_context(struct drm_i915_gem_request *rq)
 		execlists_update_context_pdps(ppgtt, reg_state);
 }
 
+static void execlists_elsp_write(struct drm_i915_gem_request *rq0,
+				 struct drm_i915_gem_request *rq1)
+{
+	struct intel_engine_cs *engine = rq0->engine;
+	struct drm_i915_private *dev_priv = rq0->i915;
+	u32 __iomem *elsp =
+		dev_priv->regs + i915_mmio_reg_offset(RING_ELSP(engine));
+	u64 desc[2];
+
+	if (rq1) {
+		desc[1] = intel_lr_context_descriptor(rq1->ctx, rq1->engine);
+		rq1->elsp_submitted++;
+	} else {
+		desc[1] = 0;
+	}
+
+	desc[0] = intel_lr_context_descriptor(rq0->ctx, rq0->engine);
+	rq0->elsp_submitted++;
+
+	/* You must always write both descriptors in the order below. */
+	writel(upper_32_bits(desc[1]), elsp);
+	writel(lower_32_bits(desc[1]), elsp);
+
+	writel(upper_32_bits(desc[0]), elsp);
+	/* The context is automatically loaded after the following */
+	writel(lower_32_bits(desc[0]), elsp);
+}
+
 static void execlists_elsp_submit_contexts(struct drm_i915_gem_request *rq0,
 					   struct drm_i915_gem_request *rq1)
 {
@@ -400,20 +414,6 @@ static void execlists_elsp_submit_contexts(struct drm_i915_gem_request *rq0,
 
 	intel_uncore_forcewake_put__locked(dev_priv, fw_domains);
 	spin_unlock_irq(&dev_priv->uncore.lock);
-}
-
-static inline void execlists_context_status_change(
-		struct drm_i915_gem_request *rq,
-		unsigned long status)
-{
-	/*
-	 * Only used when GVT-g is enabled now. When GVT-g is disabled,
-	 * The compiler should eliminate this function as dead-code.
-	 */
-	if (!IS_ENABLED(CONFIG_DRM_I915_GVT))
-		return;
-
-	atomic_notifier_call_chain(&rq->ctx->status_notifier, status, rq);
 }
 
 static void execlists_unqueue(struct intel_engine_cs *engine)
