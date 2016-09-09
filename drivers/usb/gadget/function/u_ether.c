@@ -553,14 +553,16 @@ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
 		spin_lock_irqsave(&dev->lock, flags);
 		if (dev->port_usb)
 			skb = dev->wrap(dev->port_usb, skb);
-		spin_unlock_irqrestore(&dev->lock, flags);
 		if (!skb) {
 			/* Multi frame CDC protocols may store the frame for
 			 * later which is not a dropped frame.
 			 */
 			if (dev->port_usb &&
-					dev->port_usb->supports_multi_frame)
+					dev->port_usb->supports_multi_frame) {
+				spin_unlock_irqrestore(&dev->lock, flags);
 				goto multiframe;
+			}
+			spin_unlock_irqrestore(&dev->lock, flags);
 			goto drop;
 		}
 	}
@@ -578,6 +580,7 @@ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
 		req->zero = 0;
 	else
 		req->zero = 1;
+	spin_unlock_irqrestore(&dev->lock, flags);
 
 	/* use zlp framing on tx for strict CDC-Ether conformance,
 	 * though any robust network rx path ignores extra padding.
