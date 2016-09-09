@@ -25,7 +25,7 @@
 #include "mtk_vcodec_dec_pm.h"
 
 #define OUT_FMT_IDX	0
-#define CAP_FMT_IDX	0
+#define CAP_FMT_IDX	3
 
 #define MTK_VDEC_MIN_W	64U
 #define MTK_VDEC_MIN_H	64U
@@ -47,6 +47,11 @@ static struct mtk_video_fmt mtk_video_formats[] = {
 		.fourcc = V4L2_PIX_FMT_VP9,
 		.type = MTK_FMT_DEC,
 		.num_planes = 1,
+	},
+	{
+		.fourcc = V4L2_PIX_FMT_MT21C,
+		.type = MTK_FMT_FRAME,
+		.num_planes = 2,
 	},
 };
 
