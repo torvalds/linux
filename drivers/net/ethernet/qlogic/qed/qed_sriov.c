@@ -108,8 +108,8 @@ static int qed_sp_vf_stop(struct qed_hwfn *p_hwfn,
 	return qed_spq_post(p_hwfn, p_ent, NULL);
 }
 
-bool qed_iov_is_valid_vfid(struct qed_hwfn *p_hwfn,
-			   int rel_vf_id, bool b_enabled_only)
+static bool qed_iov_is_valid_vfid(struct qed_hwfn *p_hwfn,
+				  int rel_vf_id, bool b_enabled_only)
 {
 	if (!p_hwfn->pf_iov_info) {
 		DP_NOTICE(p_hwfn->cdev, "No iov info\n");
@@ -186,8 +186,8 @@ static bool qed_iov_validate_sb(struct qed_hwfn *p_hwfn,
 	return false;
 }
 
-int qed_iov_post_vf_bulletin(struct qed_hwfn *p_hwfn,
-			     int vfid, struct qed_ptt *p_ptt)
+static int qed_iov_post_vf_bulletin(struct qed_hwfn *p_hwfn,
+				    int vfid, struct qed_ptt *p_ptt)
 {
 	struct qed_bulletin_content *p_bulletin;
 	int crc_size = sizeof(p_bulletin->crc);
@@ -573,7 +573,7 @@ static void qed_iov_set_vf_to_disable(struct qed_dev *cdev,
 	}
 }
 
-void qed_iov_set_vfs_to_disable(struct qed_dev *cdev, u8 to_disable)
+static void qed_iov_set_vfs_to_disable(struct qed_dev *cdev, u8 to_disable)
 {
 	u16 i;
 
@@ -1130,9 +1130,10 @@ static void qed_iov_prepare_resp(struct qed_hwfn *p_hwfn,
 	qed_iov_send_response(p_hwfn, p_ptt, vf_info, length, status);
 }
 
-struct qed_public_vf_info *qed_iov_get_public_vf_info(struct qed_hwfn *p_hwfn,
-						      u16 relative_vf_id,
-						      bool b_enabled_only)
+static struct
+qed_public_vf_info *qed_iov_get_public_vf_info(struct qed_hwfn *p_hwfn,
+					       u16 relative_vf_id,
+					       bool b_enabled_only)
 {
 	struct qed_vf_info *vf = NULL;
 
@@ -1143,7 +1144,7 @@ struct qed_public_vf_info *qed_iov_get_public_vf_info(struct qed_hwfn *p_hwfn,
 	return &vf->p_vf_info;
 }
 
-void qed_iov_clean_vf(struct qed_hwfn *p_hwfn, u8 vfid)
+static void qed_iov_clean_vf(struct qed_hwfn *p_hwfn, u8 vfid)
 {
 	struct qed_public_vf_info *vf_info;
 
@@ -2510,8 +2511,8 @@ qed_iov_vf_update_unicast_shadow(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
-int qed_iov_chk_ucast(struct qed_hwfn *hwfn,
-		      int vfid, struct qed_filter_ucast *params)
+static int qed_iov_chk_ucast(struct qed_hwfn *hwfn,
+			     int vfid, struct qed_filter_ucast *params)
 {
 	struct qed_public_vf_info *vf;
 
@@ -2828,7 +2829,8 @@ cleanup:
 	return rc;
 }
 
-int qed_iov_vf_flr_cleanup(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+static int
+qed_iov_vf_flr_cleanup(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	u32 ack_vfs[VF_MAX_STATIC / 32];
 	int rc = 0;
@@ -3015,7 +3017,7 @@ static void qed_iov_process_mbx_req(struct qed_hwfn *p_hwfn,
 	}
 }
 
-void qed_iov_pf_add_pending_events(struct qed_hwfn *p_hwfn, u8 vfid)
+static void qed_iov_pf_add_pending_events(struct qed_hwfn *p_hwfn, u8 vfid)
 {
 	u64 add_bit = 1ULL << (vfid % 64);
 
@@ -3138,8 +3140,8 @@ static void qed_iov_bulletin_set_forced_mac(struct qed_hwfn *p_hwfn,
 	qed_iov_configure_vport_forced(p_hwfn, vf_info, feature);
 }
 
-void qed_iov_bulletin_set_forced_vlan(struct qed_hwfn *p_hwfn,
-				      u16 pvid, int vfid)
+static void qed_iov_bulletin_set_forced_vlan(struct qed_hwfn *p_hwfn,
+					     u16 pvid, int vfid)
 {
 	struct qed_vf_info *vf_info;
 	u64 feature;
@@ -3172,7 +3174,7 @@ static bool qed_iov_vf_has_vport_instance(struct qed_hwfn *p_hwfn, int vfid)
 	return !!p_vf_info->vport_instance;
 }
 
-bool qed_iov_is_vf_stopped(struct qed_hwfn *p_hwfn, int vfid)
+static bool qed_iov_is_vf_stopped(struct qed_hwfn *p_hwfn, int vfid)
 {
 	struct qed_vf_info *p_vf_info;
 
@@ -3194,7 +3196,7 @@ static bool qed_iov_spoofchk_get(struct qed_hwfn *p_hwfn, int vfid)
 	return vf_info->spoof_chk;
 }
 
-int qed_iov_spoofchk_set(struct qed_hwfn *p_hwfn, int vfid, bool val)
+static int qed_iov_spoofchk_set(struct qed_hwfn *p_hwfn, int vfid, bool val)
 {
 	struct qed_vf_info *vf;
 	int rc = -EINVAL;
@@ -3237,7 +3239,8 @@ static u8 *qed_iov_bulletin_get_forced_mac(struct qed_hwfn *p_hwfn,
 	return p_vf->bulletin.p_virt->mac;
 }
 
-u16 qed_iov_bulletin_get_forced_vlan(struct qed_hwfn *p_hwfn, u16 rel_vf_id)
+static u16
+qed_iov_bulletin_get_forced_vlan(struct qed_hwfn *p_hwfn, u16 rel_vf_id)
 {
 	struct qed_vf_info *p_vf;
 
@@ -3269,7 +3272,8 @@ static int qed_iov_configure_tx_rate(struct qed_hwfn *p_hwfn,
 	return qed_init_vport_rl(p_hwfn, p_ptt, abs_vp_id, (u32)val);
 }
 
-int qed_iov_configure_min_tx_rate(struct qed_dev *cdev, int vfid, u32 rate)
+static int
+qed_iov_configure_min_tx_rate(struct qed_dev *cdev, int vfid, u32 rate)
 {
 	struct qed_vf_info *vf;
 	u8 vport_id;
@@ -3828,7 +3832,8 @@ static void qed_handle_bulletin_post(struct qed_hwfn *hwfn)
 	qed_ptt_release(hwfn, ptt);
 }
 
-void qed_iov_pf_task(struct work_struct *work)
+static void qed_iov_pf_task(struct work_struct *work)
+
 {
 	struct qed_hwfn *hwfn = container_of(work, struct qed_hwfn,
 					     iov_task.work);
