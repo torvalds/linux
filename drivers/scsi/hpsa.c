@@ -2499,6 +2499,10 @@ static void complete_scsi_command(struct CommandList *cp)
 	}
 
 	dev = cmd->device->hostdata;
+	if (!dev) {
+		cmd->result = DID_NO_CONNECT << 16;
+		return hpsa_cmd_free_and_done(h, cp, cmd);
+	}
 	c2 = &h->ioaccel2_cmd_pool[cp->cmdindex];
 
 	scsi_dma_unmap(cmd); /* undo the DMA mappings */
@@ -4686,6 +4690,9 @@ static int hpsa_scsi_ioaccel_direct_map(struct ctlr_info *h,
 	struct scsi_cmnd *cmd = c->scsi_cmd;
 	struct hpsa_scsi_dev_t *dev = cmd->device->hostdata;
 
+	if (!dev)
+		return -1;
+
 	c->phys_disk = dev;
 
 	return hpsa_scsi_ioaccel_queue_command(h, c, dev->ioaccel_handle,
@@ -4761,6 +4768,12 @@ static int hpsa_scsi_ioaccel2_queue_command(struct ctlr_info *h,
 	u64 addr64;
 	u32 len;
 	u32 total_len = 0;
+
+	if (!cmd->device)
+		return -1;
+
+	if (!cmd->device->hostdata)
+		return -1;
 
 	BUG_ON(scsi_sg_count(cmd) > h->maxsgentries);
 
@@ -4870,6 +4883,12 @@ static int hpsa_scsi_ioaccel_queue_command(struct ctlr_info *h,
 	struct CommandList *c, u32 ioaccel_handle, u8 *cdb, int cdb_len,
 	u8 *scsi3addr, struct hpsa_scsi_dev_t *phys_disk)
 {
+	if (!c->scsi_cmd->device)
+		return -1;
+
+	if (!c->scsi_cmd->device->hostdata)
+		return -1;
+
 	/* Try to honor the device's queue depth */
 	if (atomic_inc_return(&phys_disk->ioaccel_cmds_out) >
 					phys_disk->queue_depth) {
@@ -4949,6 +4968,9 @@ static int hpsa_scsi_ioaccel_raid_map(struct ctlr_info *h,
 	u64 tmpdiv;
 #endif
 	int offload_to_mirror;
+
+	if (!dev)
+		return -1;
 
 	/* check for valid opcode, get LBA and block count */
 	switch (cmd->cmnd[0]) {
@@ -5361,6 +5383,9 @@ static int hpsa_ioaccel_submit(struct ctlr_info *h,
 {
 	struct hpsa_scsi_dev_t *dev = cmd->device->hostdata;
 	int rc = IO_ACCEL_INELIGIBLE;
+
+	if (!dev)
+		return SCSI_MLQUEUE_HOST_BUSY;
 
 	cmd->host_scribble = (unsigned char *) c;
 
@@ -5900,6 +5925,9 @@ static void setup_ioaccel2_abort_cmd(struct CommandList *c, struct ctlr_info *h,
 	struct scsi_cmnd *scmd = command_to_abort->scsi_cmd;
 	struct hpsa_scsi_dev_t *dev = scmd->device->hostdata;
 
+	if (!dev)
+		return;
+
 	/*
 	 * We're overlaying struct hpsa_tmf_struct on top of something which
 	 * was allocated as a struct io_accel2_cmd, so we better be sure it
@@ -6020,6 +6048,9 @@ static int hpsa_send_abort_ioaccel2(struct ctlr_info *h,
 	struct io_accel2_cmd *c2;
 
 	dev = abort->scsi_cmd->device->hostdata;
+	if (!dev)
+		return -1;
+
 	if (!dev->offload_enabled && !dev->hba_ioaccel_enabled)
 		return -1;
 
