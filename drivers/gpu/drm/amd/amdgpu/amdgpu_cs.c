@@ -91,6 +91,7 @@ static int amdgpu_cs_user_fence_chunk(struct amdgpu_cs_parser *p,
 				      uint32_t *offset)
 {
 	struct drm_gem_object *gobj;
+	unsigned long size;
 
 	gobj = drm_gem_object_lookup(p->filp, data->handle);
 	if (gobj == NULL)
@@ -101,6 +102,11 @@ static int amdgpu_cs_user_fence_chunk(struct amdgpu_cs_parser *p,
 	p->uf_entry.tv.bo = &p->uf_entry.robj->tbo;
 	p->uf_entry.tv.shared = true;
 	p->uf_entry.user_pages = NULL;
+
+	size = amdgpu_bo_size(p->uf_entry.robj);
+	if (size != PAGE_SIZE || (data->offset + 8) > size)
+		return -EINVAL;
+
 	*offset = data->offset;
 
 	drm_gem_object_unreference_unlocked(gobj);
