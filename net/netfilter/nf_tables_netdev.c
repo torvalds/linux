@@ -151,12 +151,20 @@ static int __init nf_tables_netdev_init(void)
 
 	nft_register_chain_type(&nft_filter_chain_netdev);
 	ret = register_pernet_subsys(&nf_tables_netdev_net_ops);
-	if (ret < 0) {
-		nft_unregister_chain_type(&nft_filter_chain_netdev);
-		return ret;
-	}
-	register_netdevice_notifier(&nf_tables_netdev_notifier);
+	if (ret)
+		goto err1;
+
+	ret = register_netdevice_notifier(&nf_tables_netdev_notifier);
+	if (ret)
+		goto err2;
+
 	return 0;
+
+err2:
+	unregister_pernet_subsys(&nf_tables_netdev_net_ops);
+err1:
+	nft_unregister_chain_type(&nft_filter_chain_netdev);
+	return ret;
 }
 
 static void __exit nf_tables_netdev_exit(void)

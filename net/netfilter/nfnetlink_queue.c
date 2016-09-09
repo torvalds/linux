@@ -1522,9 +1522,16 @@ static int __init nfnetlink_queue_init(void)
 		goto cleanup_netlink_notifier;
 	}
 
-	register_netdevice_notifier(&nfqnl_dev_notifier);
+	status = register_netdevice_notifier(&nfqnl_dev_notifier);
+	if (status < 0) {
+		pr_err("nf_queue: failed to register netdevice notifier\n");
+		goto cleanup_netlink_subsys;
+	}
+
 	return status;
 
+cleanup_netlink_subsys:
+	nfnetlink_subsys_unregister(&nfqnl_subsys);
 cleanup_netlink_notifier:
 	netlink_unregister_notifier(&nfqnl_rtnl_notifier);
 	unregister_pernet_subsys(&nfnl_queue_net_ops);
