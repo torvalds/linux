@@ -336,20 +336,21 @@ static void dm_old_requeue_request(struct request *rq)
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 
-static void dm_mq_requeue_request(struct request *rq)
+static void dm_mq_delay_requeue_request(struct request *rq, unsigned long msecs)
 {
 	struct request_queue *q = rq->q;
 	unsigned long flags;
 
 	blk_mq_requeue_request(rq);
+
 	spin_lock_irqsave(q->queue_lock, flags);
 	if (!blk_queue_stopped(q))
-		blk_mq_kick_requeue_list(q);
+		blk_mq_delay_kick_requeue_list(q, msecs);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 
 static void dm_requeue_original_request(struct mapped_device *md,
-					struct request *rq)
+					struct request *rq, bool delay_requeue)
 {
 	int rw = rq_data_dir(rq);
 
@@ -359,7 +360,7 @@ static void dm_requeue_original_request(struct mapped_device *md,
 	if (!rq->q->mq_ops)
 		dm_old_requeue_request(rq);
 	else
-		dm_mq_requeue_request(rq);
+		dm_mq_delay_requeue_request(rq, delay_requeue ? 5000 : 0);
 
 	rq_completed(md, rw, false);
 }
@@ -389,7 +390,7 @@ static void dm_done(struct request *clone, int error, bool mapped)
 		return;
 	else if (r == DM_ENDIO_REQUEUE)
 		/* The target wants to requeue the I/O */
-		dm_requeue_original_request(tio->md, tio->orig);
+		dm_requeue_original_request(tio->md, tio->orig, false);
 	else {
 		DMWARN("unimplemented target endio return value: %d", r);
 		BUG();
@@ -629,8 +630,8 @@ static int dm_old_prep_fn(struct request_queue *q, struct request *rq)
 
 /*
  * Returns:
- * 0                : the request has been processed
- * DM_MAPIO_REQUEUE : the original request needs to be requeued
+ * DM_MAPIO_*       : the request has been processed as indicated
+ * DM_MAPIO_REQUEUE : the original request needs to be immediately requeued
  * < 0              : the request was completed due to failure
  */
 static int map_request(struct dm_rq_target_io *tio, struct request *rq,
@@ -643,6 +644,8 @@ static int map_request(struct dm_rq_target_io *tio, struct request *rq,
 	if (tio->clone) {
 		clone = tio->clone;
 		r = ti->type->map_rq(ti, clone, &tio->info);
+		if (r == DM_MAPIO_DELAY_REQUEUE)
+			return DM_MAPIO_REQUEUE; /* .request_fn requeue is always immediate */
 	} else {
 		r = ti->type->clone_and_map_rq(ti, rq, &tio->info, &clone);
 		if (r < 0) {
@@ -650,9 +653,8 @@ static int map_request(struct dm_rq_target_io *tio, struct request *rq,
 			dm_kill_unmapped_request(rq, r);
 			return r;
 		}
-		if (r != DM_MAPIO_REMAPPED)
-			return r;
-		if (setup_clone(clone, rq, tio, GFP_ATOMIC)) {
+		if (r == DM_MAPIO_REMAPPED &&
+		    setup_clone(clone, rq, tio, GFP_ATOMIC)) {
 			/* -ENOMEM */
 			ti->type->release_clone_rq(clone);
 			return DM_MAPIO_REQUEUE;
@@ -671,7 +673,10 @@ static int map_request(struct dm_rq_target_io *tio, struct request *rq,
 		break;
 	case DM_MAPIO_REQUEUE:
 		/* The target wants to requeue the I/O */
-		dm_requeue_original_request(md, tio->orig);
+		break;
+	case DM_MAPIO_DELAY_REQUEUE:
+		/* The target wants to requeue the I/O after a delay */
+		dm_requeue_original_request(md, tio->orig, true);
 		break;
 	default:
 		if (r > 0) {
@@ -681,10 +686,9 @@ static int map_request(struct dm_rq_target_io *tio, struct request *rq,
 
 		/* The target wants to complete the I/O */
 		dm_kill_unmapped_request(rq, r);
-		return r;
 	}
 
-	return 0;
+	return r;
 }
 
 static void dm_start_request(struct mapped_device *md, struct request *orig)
@@ -727,7 +731,7 @@ static void map_tio_request(struct kthread_work *work)
 	struct mapped_device *md = tio->md;
 
 	if (map_request(tio, rq, md) == DM_MAPIO_REQUEUE)
-		dm_requeue_original_request(md, rq);
+		dm_requeue_original_request(md, rq, false);
 }
 
 ssize_t dm_attr_rq_based_seq_io_merge_deadline_show(struct mapped_device *md, char *buf)
