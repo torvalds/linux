@@ -234,7 +234,15 @@ please make a proposal on the linux-media mailing list.
 	repeated for each line, i.e. the number of entries in the pointer
 	array. Anything what's in between the UYVY lines is JPEG data and
 	should be concatenated to form the JPEG stream.
+    * .. _V4L2-PIX-FMT-MT21C:
 
+      - ``V4L2_PIX_FMT_MT21C``
+      - 'MT21C'
+      - Compressed two-planar YVU420 format used by Mediatek MT8173.
+        The compression is lossless.
+        It is an opaque intermediate format, and MDP HW could convert
+        V4L2_PIX_FMT_MT21C to V4L2_PIX_FMT_NV12M,
+        V4L2_PIX_FMT_YUV420M and V4L2_PIX_FMT_YVU420.
 
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
