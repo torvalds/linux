@@ -1083,7 +1083,7 @@ static ssize_t show_value(struct most_dci_obj *dci_obj,
 		reg_addr = dci_obj->reg_addr;
 	else if (get_static_reg_addr(ro_regs, attr->attr.name, &reg_addr) &&
 		 get_static_reg_addr(rw_regs, attr->attr.name, &reg_addr))
-		return -EIO;
+		return -EFAULT;
 
 	err = drci_rd_reg(dci_obj->usb_device, reg_addr, &tmp_val);
 	if (err < 0)
