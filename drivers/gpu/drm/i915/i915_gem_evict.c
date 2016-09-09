@@ -170,7 +170,7 @@ search_again:
 	if (ret)
 		return ret;
 
-	ret = i915_gem_wait_for_idle(dev_priv, true);
+	ret = i915_gem_wait_for_idle(dev_priv, I915_WAIT_INTERRUPTIBLE);
 	if (ret)
 		return ret;
 
@@ -275,7 +275,7 @@ int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle)
 				return ret;
 		}
 
-		ret = i915_gem_wait_for_idle(dev_priv, true);
+		ret = i915_gem_wait_for_idle(dev_priv, I915_WAIT_INTERRUPTIBLE);
 		if (ret)
 			return ret;
 

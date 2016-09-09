@@ -489,11 +489,11 @@ int intel_engine_create_scratch(struct intel_engine_cs *engine, int size);
 void intel_engine_cleanup_common(struct intel_engine_cs *engine);
 
 static inline int intel_engine_idle(struct intel_engine_cs *engine,
-				    bool interruptible)
+				    unsigned int flags)
 {
 	/* Wait upon the last request to be completed */
 	return i915_gem_active_wait_unlocked(&engine->last_request,
-					     interruptible, NULL, NULL);
+					     flags, NULL, NULL);
 }
 
 int intel_init_render_ring_buffer(struct intel_engine_cs *engine);

@@ -68,7 +68,7 @@ static void wait_rendering(struct drm_i915_gem_object *obj)
 
 	for_each_active(active, idx)
 		i915_gem_active_wait_unlocked(&obj->last_read[idx],
-					      false, NULL, NULL);
+					      0, NULL, NULL);
 }
 
 static void cancel_userptr(struct work_struct *work)

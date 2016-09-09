@@ -260,7 +260,7 @@ static int i915_gem_init_seqno(struct drm_i915_private *dev_priv, u32 seqno)
 
 	/* Carefully retire all requests without writing to the rings */
 	for_each_engine(engine, dev_priv) {
-		ret = intel_engine_idle(engine, true);
+		ret = intel_engine_idle(engine, I915_WAIT_INTERRUPTIBLE);
 		if (ret)
 			return ret;
 	}
@@ -598,7 +598,7 @@ bool __i915_spin_request(const struct drm_i915_gem_request *req,
 /**
  * i915_wait_request - wait until execution of request has finished
  * @req: duh!
- * @interruptible: do an interruptible wait (normally yes)
+ * @flags: how to wait
  * @timeout: in - how long to wait (NULL forever); out - how much time remaining
  * @rps: client to charge for RPS boosting
  *
@@ -613,11 +613,12 @@ bool __i915_spin_request(const struct drm_i915_gem_request *req,
  * errno with remaining time filled in timeout argument.
  */
 int i915_wait_request(struct drm_i915_gem_request *req,
-		      bool interruptible,
+		      unsigned int flags,
 		      s64 *timeout,
 		      struct intel_rps_client *rps)
 {
-	int state = interruptible ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE;
+	const int state = flags & I915_WAIT_INTERRUPTIBLE ?
+		TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE;
 	DEFINE_WAIT(reset);
 	struct intel_wait wait;
 	unsigned long timeout_remain;

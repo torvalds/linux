@@ -12022,8 +12022,7 @@ static void intel_mmio_flip_work_func(struct work_struct *w)
 
 	if (work->flip_queued_req)
 		WARN_ON(i915_wait_request(work->flip_queued_req,
-					  false, NULL,
-					  NO_WAITBOOST));
+					  0, NULL, NO_WAITBOOST));
 
 	/* For framebuffer backed by dmabuf, wait for fence */
 	resv = i915_gem_object_get_dmabuf_resv(obj);
@@ -14071,7 +14070,8 @@ static int intel_atomic_prepare_commit(struct drm_device *dev,
 				continue;
 
 			ret = i915_wait_request(intel_plane_state->wait_req,
-						true, NULL, NULL);
+						I915_WAIT_INTERRUPTIBLE,
+						NULL, NULL);
 			if (ret) {
 				/* Any hang should be swallowed by the wait */
 				WARN_ON(ret == -EIO);
@@ -14289,7 +14289,7 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 			continue;
 
 		ret = i915_wait_request(intel_plane_state->wait_req,
-					true, NULL, NULL);
+					0, NULL, NULL);
 		/* EIO should be eaten, and we can't get interrupted in the
 		 * worker, and blocking commits have waited already. */
 		WARN_ON(ret);

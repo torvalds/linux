@@ -323,7 +323,7 @@ i915_gem_shrinker_lock_uninterruptible(struct drm_i915_private *dev_priv,
 	unsigned long timeout = jiffies + msecs_to_jiffies_timeout(timeout_ms);
 
 	do {
-		if (i915_gem_wait_for_idle(dev_priv, false) == 0 &&
+		if (i915_gem_wait_for_idle(dev_priv, 0) == 0 &&
 		    i915_gem_shrinker_lock(&dev_priv->drm, &slu->unlock))
 			break;
 
@@ -414,7 +414,7 @@ i915_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr
 		return NOTIFY_DONE;
 
 	/* Force everything onto the inactive lists */
-	ret = i915_gem_wait_for_idle(dev_priv, false);
+	ret = i915_gem_wait_for_idle(dev_priv, 0);
 	if (ret)
 		goto out;
 

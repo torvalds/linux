@@ -386,7 +386,8 @@ __unsafe_wait_rendering(struct drm_i915_gem_object *obj,
 		int ret;
 
 		ret = i915_gem_active_wait_unlocked(&active[idx],
-						    true, NULL, rps);
+						    I915_WAIT_INTERRUPTIBLE,
+						    NULL, rps);
 		if (ret)
 			return ret;
 	}
@@ -2026,7 +2027,7 @@ static int i915_gem_object_create_mmap_offset(struct drm_i915_gem_object *obj)
 	 * to claim that space for ourselves, we need to take the big
 	 * struct_mutex to free the requests+objects and allocate our slot.
 	 */
-	err = i915_gem_wait_for_idle(dev_priv, true);
+	err = i915_gem_wait_for_idle(dev_priv, I915_WAIT_INTERRUPTIBLE);
 	if (err)
 		return err;
 
@@ -2779,7 +2780,8 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	active = __I915_BO_ACTIVE(obj);
 	for_each_active(active, idx) {
 		s64 *timeout = args->timeout_ns >= 0 ? &args->timeout_ns : NULL;
-		ret = i915_gem_active_wait_unlocked(&obj->last_read[idx], true,
+		ret = i915_gem_active_wait_unlocked(&obj->last_read[idx],
+						    I915_WAIT_INTERRUPTIBLE,
 						    timeout, rps);
 		if (ret)
 			break;
@@ -2982,7 +2984,7 @@ destroy:
 }
 
 int i915_gem_wait_for_idle(struct drm_i915_private *dev_priv,
-			   bool interruptible)
+			   unsigned int flags)
 {
 	struct intel_engine_cs *engine;
 	int ret;
@@ -2991,7 +2993,7 @@ int i915_gem_wait_for_idle(struct drm_i915_private *dev_priv,
 		if (engine->last_context == NULL)
 			continue;
 
-		ret = intel_engine_idle(engine, interruptible);
+		ret = intel_engine_idle(engine, flags);
 		if (ret)
 			return ret;
 	}
@@ -3746,7 +3748,7 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 	if (target == NULL)
 		return 0;
 
-	ret = i915_wait_request(target, true, NULL, NULL);
+	ret = i915_wait_request(target, I915_WAIT_INTERRUPTIBLE, NULL, NULL);
 	i915_gem_request_put(target);
 
 	return ret;
@@ -4302,7 +4304,7 @@ int i915_gem_suspend(struct drm_device *dev)
 	if (ret)
 		goto err;
 
-	ret = i915_gem_wait_for_idle(dev_priv, true);
+	ret = i915_gem_wait_for_idle(dev_priv, I915_WAIT_INTERRUPTIBLE);
 	if (ret)
 		goto err;
 

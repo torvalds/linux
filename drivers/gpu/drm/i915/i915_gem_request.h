@@ -218,10 +218,11 @@ struct intel_rps_client;
 #define IS_RPS_USER(p) (!IS_ERR_OR_NULL(p))
 
 int i915_wait_request(struct drm_i915_gem_request *req,
-		      bool interruptible,
+		      unsigned int flags,
 		      s64 *timeout,
 		      struct intel_rps_client *rps)
 	__attribute__((nonnull(1)));
+#define I915_WAIT_INTERRUPTIBLE BIT(0)
 
 static inline u32 intel_engine_get_seqno(struct intel_engine_cs *engine);
 
@@ -575,13 +576,13 @@ i915_gem_active_wait(const struct i915_gem_active *active, struct mutex *mutex)
 	if (!request)
 		return 0;
 
-	return i915_wait_request(request, true, NULL, NULL);
+	return i915_wait_request(request, I915_WAIT_INTERRUPTIBLE, NULL, NULL);
 }
 
 /**
  * i915_gem_active_wait_unlocked - waits until the request is completed
  * @active - the active request on which to wait
- * @interruptible - whether the wait can be woken by a userspace signal
+ * @flags - how to wait
  * @timeout - how long to wait at most
  * @rps - userspace client to charge for a waitboost
  *
@@ -602,7 +603,7 @@ i915_gem_active_wait(const struct i915_gem_active *active, struct mutex *mutex)
  */
 static inline int
 i915_gem_active_wait_unlocked(const struct i915_gem_active *active,
-			      bool interruptible,
+			      unsigned int flags,
 			      s64 *timeout,
 			      struct intel_rps_client *rps)
 {
@@ -611,7 +612,7 @@ i915_gem_active_wait_unlocked(const struct i915_gem_active *active,
 
 	request = i915_gem_active_get_unlocked(active);
 	if (request) {
-		ret = i915_wait_request(request, interruptible, timeout, rps);
+		ret = i915_wait_request(request, flags, timeout, rps);
 		i915_gem_request_put(request);
 	}
 
@@ -638,7 +639,7 @@ i915_gem_active_retire(struct i915_gem_active *active,
 	if (!request)
 		return 0;
 
-	ret = i915_wait_request(request, true, NULL, NULL);
+	ret = i915_wait_request(request, I915_WAIT_INTERRUPTIBLE, NULL, NULL);
 	if (ret)
 		return ret;
 
