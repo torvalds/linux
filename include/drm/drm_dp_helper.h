@@ -211,6 +211,8 @@
 # define DP_DS_PORT_TYPE_DVI		    2
 # define DP_DS_PORT_TYPE_HDMI		    3
 # define DP_DS_PORT_TYPE_NON_EDID	    4
+# define DP_DS_PORT_TYPE_DP_DUALMODE        5
+# define DP_DS_PORT_TYPE_WIRELESS           6
 # define DP_DS_PORT_HPD			    (1 << 3)
 /* offset 1 for VGA is maximum megapixels per second / 8 */
 /* offset 2 */
