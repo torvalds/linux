@@ -3237,8 +3237,7 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	struct drm_i915_gem_object *obj;
-	struct i915_vma *vma;
+	struct drm_i915_gem_object *obj, *on;
 
 	i915_check_and_clear_faults(dev_priv);
 
@@ -3246,19 +3245,31 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 	ggtt->base.clear_range(&ggtt->base, ggtt->base.start, ggtt->base.total,
 			       true);
 
-	/* Cache flush objects bound into GGTT and rebind them. */
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
+	ggtt->base.closed = true; /* skip rewriting PTE on VMA unbind */
+
+	/* clflush objects bound into the GGTT and rebind them. */
+	list_for_each_entry_safe(obj, on,
+				 &dev_priv->mm.bound_list, global_list) {
+		bool ggtt_bound = false;
+		struct i915_vma *vma;
+
 		list_for_each_entry(vma, &obj->vma_list, obj_link) {
 			if (vma->vm != &ggtt->base)
 				continue;
 
+			if (!i915_vma_unbind(vma))
+				continue;
+
 			WARN_ON(i915_vma_bind(vma, obj->cache_level,
 					      PIN_UPDATE));
+			ggtt_bound = true;
 		}
 
-		if (obj->pin_display)
+		if (ggtt_bound)
 			WARN_ON(i915_gem_object_set_to_gtt_domain(obj, false));
 	}
+
+	ggtt->base.closed = false;
 
 	if (INTEL_INFO(dev)->gen >= 8) {
 		if (IS_CHERRYVIEW(dev) || IS_BROXTON(dev))
