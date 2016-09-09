@@ -249,7 +249,6 @@ static int is_byt_cr(struct device *dev, bool *bytcr)
 			{ X86_VENDOR_INTEL, 6, 55 }, /* Valleyview, Bay Trail */
 			{}
 		};
-		int status;
 		u32 bios_status;
 
 		if (!x86_match_cpu(cpu_ids) || !iosf_mbi_available()) {
