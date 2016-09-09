@@ -321,6 +321,7 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				gpio-ranges = <&iomuxc_lpsr 0 0 8>, <&iomuxc 8 5 8>;
 			};
 
 			gpio2: gpio@30210000 {
@@ -332,6 +333,7 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				gpio-ranges = <&iomuxc 0 13 32>;
 			};
 
 			gpio3: gpio@30220000 {
@@ -343,6 +345,7 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				gpio-ranges = <&iomuxc 0 45 29>;
 			};
 
 			gpio4: gpio@30230000 {
@@ -354,6 +357,7 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				gpio-ranges = <&iomuxc 0 74 24>;
 			};
 
 			gpio5: gpio@30240000 {
@@ -365,6 +369,7 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				gpio-ranges = <&iomuxc 0 98 18>;
 			};
 
 			gpio6: gpio@30250000 {
@@ -376,6 +381,7 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				gpio-ranges = <&iomuxc 0 116 23>;
 			};
 
 			gpio7: gpio@30260000 {
@@ -387,6 +393,7 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				gpio-ranges = <&iomuxc 0 139 16>;
 			};
 
 			wdog1: wdog@30280000 {
