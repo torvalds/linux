@@ -1232,6 +1232,7 @@ config MFD_TPS65217
 	depends on I2C
 	select MFD_CORE
 	select REGMAP_I2C
+	select IRQ_DOMAIN
 	help
 	  If you say yes here you get support for the TPS65217 series of
 	  Power Management / White LED chips.
