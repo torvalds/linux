@@ -2521,7 +2521,9 @@ static void i915_reset_and_wakeup(struct drm_i915_private *dev_priv)
 	 * pending state and not properly drop locks, resulting in
 	 * deadlocks with the reset work.
 	 */
+	mutex_lock(&dev_priv->drm.struct_mutex);
 	ret = i915_reset(dev_priv);
+	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	intel_finish_reset(dev_priv);
 

@@ -1729,6 +1729,8 @@ int i915_resume_switcheroo(struct drm_device *dev)
  * Reset the chip.  Useful if a hang is detected. Returns zero on successful
  * reset or otherwise an error code.
  *
+ * Caller must hold the struct_mutex.
+ *
  * Procedure is fairly simple:
  *   - reset the chip using the reset reg
  *   - re-init context state
@@ -1743,7 +1745,10 @@ int i915_reset(struct drm_i915_private *dev_priv)
 	struct i915_gpu_error *error = &dev_priv->gpu_error;
 	int ret;
 
-	mutex_lock(&dev->struct_mutex);
+	lockdep_assert_held(&dev->struct_mutex);
+
+	if (!test_and_clear_bit(I915_RESET_IN_PROGRESS, &error->flags))
+		return test_bit(I915_WEDGED, &error->flags) ? -EIO : 0;
 
 	/* Clear any previous failed attempts at recovery. Time to try again. */
 	__clear_bit(I915_WEDGED, &error->flags);
@@ -1784,9 +1789,6 @@ int i915_reset(struct drm_i915_private *dev_priv)
 		goto error;
 	}
 
-	clear_bit(I915_RESET_IN_PROGRESS, &error->flags);
-	mutex_unlock(&dev->struct_mutex);
-
 	/*
 	 * rps/rc6 re-init is necessary to restore state lost after the
 	 * reset and the re-install of gt irqs. Skip for ironlake per
@@ -1800,7 +1802,6 @@ int i915_reset(struct drm_i915_private *dev_priv)
 
 error:
 	set_bit(I915_WEDGED, &error->flags);
-	mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
 

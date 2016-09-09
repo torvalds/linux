@@ -533,6 +533,16 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 	engine->submit_request(request);
 }
 
+static void reset_wait_queue(wait_queue_head_t *q, wait_queue_t *wait)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&q->lock, flags);
+	if (list_empty(&wait->task_list))
+		__add_wait_queue(q, wait);
+	spin_unlock_irqrestore(&q->lock, flags);
+}
+
 static unsigned long local_clock_us(unsigned int *cpu)
 {
 	unsigned long t;
@@ -709,6 +719,25 @@ wakeup:
 		 */
 		if (__i915_request_irq_complete(req))
 			break;
+
+		/* If the GPU is hung, and we hold the lock, reset the GPU
+		 * and then check for completion. On a full reset, the engine's
+		 * HW seqno will be advanced passed us and we are complete.
+		 * If we do a partial reset, we have to wait for the GPU to
+		 * resume and update the breadcrumb.
+		 *
+		 * If we don't hold the mutex, we can just wait for the worker
+		 * to come along and update the breadcrumb (either directly
+		 * itself, or indirectly by recovering the GPU).
+		 */
+		if (flags & I915_WAIT_LOCKED &&
+		    i915_reset_in_progress(&req->i915->gpu_error)) {
+			__set_current_state(TASK_RUNNING);
+			i915_reset(req->i915);
+			reset_wait_queue(&req->i915->gpu_error.wait_queue,
+					 &reset);
+			continue;
+		}
 
 		/* Only spin if we know the GPU is processing this request */
 		if (i915_spin_request(req, state, 2))

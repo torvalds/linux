@@ -3863,7 +3863,9 @@ wait_remaining_ms_from_jiffies(unsigned long timestamp_jiffies, int to_wait_ms)
 			    schedule_timeout_uninterruptible(remaining_jiffies);
 	}
 }
-static inline bool __i915_request_irq_complete(struct drm_i915_gem_request *req)
+
+static inline bool
+__i915_request_irq_complete(struct drm_i915_gem_request *req)
 {
 	struct intel_engine_cs *engine = req->engine;
 
@@ -3924,17 +3926,6 @@ static inline bool __i915_request_irq_complete(struct drm_i915_gem_request *req)
 		if (i915_gem_request_completed(req))
 			return true;
 	}
-
-	/* We need to check whether any gpu reset happened in between
-	 * the request being submitted and now. If a reset has occurred,
-	 * the seqno will have been advance past ours and our request
-	 * is complete. If we are in the process of handling a reset,
-	 * the request is effectively complete as the rendering will
-	 * be discarded, but we need to return in order to drop the
-	 * struct_mutex.
-	 */
-	if (i915_reset_in_progress(&req->i915->gpu_error))
-		return true;
 
 	return false;
 }

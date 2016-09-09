@@ -2229,9 +2229,6 @@ static int wait_for_space(struct drm_i915_gem_request *req, int bytes)
 	if (ret)
 		return ret;
 
-	if (i915_reset_in_progress(&target->i915->gpu_error))
-		return -EAGAIN;
-
 	i915_gem_request_retire_upto(target);
 
 	intel_ring_update_space(ring);
