@@ -190,6 +190,29 @@ intel_dp_max_data_rate(int max_link_clock, int max_lanes)
 	return (max_link_clock * max_lanes * 8) / 10;
 }
 
+static int
+intel_dp_downstream_max_dotclock(struct intel_dp *intel_dp)
+{
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct intel_encoder *encoder = &intel_dig_port->base;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	int max_dotclk = dev_priv->max_dotclk_freq;
+	int ds_max_dotclk;
+
+	int type = intel_dp->downstream_ports[0] & DP_DS_PORT_TYPE_MASK;
+
+	if (type != DP_DS_PORT_TYPE_VGA)
+		return max_dotclk;
+
+	ds_max_dotclk = drm_dp_downstream_max_clock(intel_dp->dpcd,
+						    intel_dp->downstream_ports);
+
+	if (ds_max_dotclk != 0)
+		max_dotclk = min(max_dotclk, ds_max_dotclk);
+
+	return max_dotclk;
+}
+
 static enum drm_mode_status
 intel_dp_mode_valid(struct drm_connector *connector,
 		    struct drm_display_mode *mode)
@@ -199,7 +222,9 @@ intel_dp_mode_valid(struct drm_connector *connector,
 	struct drm_display_mode *fixed_mode = intel_connector->panel.fixed_mode;
 	int target_clock = mode->clock;
 	int max_rate, mode_rate, max_lanes, max_link_clock;
-	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
+	int max_dotclk;
+
+	max_dotclk = intel_dp_downstream_max_dotclock(intel_dp);
 
 	if (is_edp(intel_dp) && fixed_mode) {
 		if (mode->hdisplay > fixed_mode->hdisplay)
