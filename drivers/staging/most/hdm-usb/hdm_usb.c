@@ -1073,16 +1073,18 @@ static int get_stat_reg_addr(const struct regs *regs, int size,
 static ssize_t show_value(struct most_dci_obj *dci_obj,
 			  struct most_dci_attribute *attr, char *buf)
 {
+	const char *name = attr->attr.name;
 	u16 val;
 	u16 reg_addr;
 	int err;
 
-	if (!strcmp(attr->attr.name, "arb_address"))
+	if (!strcmp(name, "arb_address"))
 		return snprintf(buf, PAGE_SIZE, "%04x\n", dci_obj->reg_addr);
-	if (!strcmp(attr->attr.name, "arb_value"))
+
+	if (!strcmp(name, "arb_value"))
 		reg_addr = dci_obj->reg_addr;
-	else if (get_static_reg_addr(ro_regs, attr->attr.name, &reg_addr) &&
-		 get_static_reg_addr(rw_regs, attr->attr.name, &reg_addr))
+	else if (get_static_reg_addr(ro_regs, name, &reg_addr) &&
+		 get_static_reg_addr(rw_regs, name, &reg_addr))
 		return -EFAULT;
 
 	err = drci_rd_reg(dci_obj->usb_device, reg_addr, &val);
@@ -1098,23 +1100,25 @@ static ssize_t store_value(struct most_dci_obj *dci_obj,
 {
 	u16 val;
 	u16 reg_addr;
+	const char *name = attr->attr.name;
 	int err = kstrtou16(buf, 16, &val);
 
 	if (err)
 		return err;
 
-	if (!strcmp(attr->attr.name, "arb_address")) {
+	if (!strcmp(name, "arb_address")) {
 		dci_obj->reg_addr = val;
 		return count;
 	}
-	if (!strcmp(attr->attr.name, "arb_value")) {
+
+	if (!strcmp(name, "arb_value")) {
 		reg_addr = dci_obj->reg_addr;
-	} else if (!strcmp(attr->attr.name, "sync_ep")) {
+	} else if (!strcmp(name, "sync_ep")) {
 		u16 ep = val;
 
 		reg_addr = DRCI_REG_BASE + DRCI_COMMAND + ep * 16;
 		val = 1;
-	} else if (get_static_reg_addr(ro_regs, attr->attr.name, &reg_addr)) {
+	} else if (get_static_reg_addr(ro_regs, name, &reg_addr)) {
 		return -EFAULT;
 	}
 
