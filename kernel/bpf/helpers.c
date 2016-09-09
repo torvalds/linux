@@ -126,7 +126,7 @@ static u64 bpf_get_current_pid_tgid(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 {
 	struct task_struct *task = current;
 
-	if (!task)
+	if (unlikely(!task))
 		return -EINVAL;
 
 	return (u64) task->tgid << 32 | task->pid;
@@ -144,12 +144,12 @@ static u64 bpf_get_current_uid_gid(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 	kuid_t uid;
 	kgid_t gid;
 
-	if (!task)
+	if (unlikely(!task))
 		return -EINVAL;
 
 	current_uid_gid(&uid, &gid);
 	return (u64) from_kgid(&init_user_ns, gid) << 32 |
-		from_kuid(&init_user_ns, uid);
+		     from_kuid(&init_user_ns, uid);
 }
 
 const struct bpf_func_proto bpf_get_current_uid_gid_proto = {
