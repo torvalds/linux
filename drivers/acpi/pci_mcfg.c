@@ -22,6 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/pci-acpi.h>
+#include <linux/pci-ecam.h>
 
 /* Structure to hold entries from the MCFG table */
 struct mcfg_entry {
@@ -35,9 +36,18 @@ struct mcfg_entry {
 /* List to save MCFG entries */
 static LIST_HEAD(pci_mcfg_list);
 
-phys_addr_t pci_mcfg_lookup(u16 seg, struct resource *bus_res)
+int pci_mcfg_lookup(struct acpi_pci_root *root, struct resource *cfgres,
+		    struct pci_ecam_ops **ecam_ops)
 {
+	struct pci_ecam_ops *ops = &pci_generic_ecam_ops;
+	struct resource *bus_res = &root->secondary;
+	u16 seg = root->segment;
 	struct mcfg_entry *e;
+	struct resource res;
+
+	/* Use address from _CBA if present, otherwise lookup MCFG */
+	if (root->mcfg_addr)
+		goto skip_lookup;
 
 	/*
 	 * We expect exact match, unless MCFG entry end bus covers more than
@@ -45,10 +55,22 @@ phys_addr_t pci_mcfg_lookup(u16 seg, struct resource *bus_res)
 	 */
 	list_for_each_entry(e, &pci_mcfg_list, list) {
 		if (e->segment == seg && e->bus_start == bus_res->start &&
-		    e->bus_end >= bus_res->end)
-			return e->addr;
+		    e->bus_end >= bus_res->end) {
+			root->mcfg_addr = e->addr;
+		}
+
 	}
 
+	if (!root->mcfg_addr)
+		return -ENXIO;
+
+skip_lookup:
+	memset(&res, 0, sizeof(res));
+	res.start = root->mcfg_addr + (bus_res->start << 20);
+	res.end = res.start + (resource_size(bus_res) << 20) - 1;
+	res.flags = IORESOURCE_MEM;
+	*cfgres = res;
+	*ecam_ops = ops;
 	return 0;
 }
 
