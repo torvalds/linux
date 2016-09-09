@@ -216,6 +216,20 @@ lr	.req	x30		// link register
 	.macro	mmid, rd, rn
 	ldr	\rd, [\rn, #MM_CONTEXT_ID]
 	.endm
+/*
+ * read_ctr - read CTR_EL0. If the system has mismatched
+ * cache line sizes, provide the system wide safe value
+ * from arm64_ftr_reg_ctrel0.sys_val
+ */
+	.macro	read_ctr, reg
+alternative_if_not ARM64_MISMATCHED_CACHE_LINE_SIZE
+	mrs	\reg, ctr_el0			// read CTR
+	nop
+alternative_else
+	ldr_l	\reg, arm64_ftr_reg_ctrel0 + ARM64_FTR_SYSVAL
+alternative_endif
+	.endm
+
 
 /*
  * raw_dcache_line_size - get the minimum D-cache line size on this CPU
@@ -232,7 +246,10 @@ lr	.req	x30		// link register
  * dcache_line_size - get the safe D-cache line size across all CPUs
  */
 	.macro	dcache_line_size, reg, tmp
-	raw_dcache_line_size	\reg, \tmp
+	read_ctr	\tmp
+	ubfm		\tmp, \tmp, #16, #19	// cache line size encoding
+	mov		\reg, #4		// bytes per word
+	lsl		\reg, \reg, \tmp	// actual cache line size
 	.endm
 
 /*
@@ -250,7 +267,10 @@ lr	.req	x30		// link register
  * icache_line_size - get the safe I-cache line size across all CPUs
  */
 	.macro	icache_line_size, reg, tmp
-	raw_icache_line_size	\reg, \tmp
+	read_ctr	\tmp
+	and		\tmp, \tmp, #0xf	// cache line size encoding
+	mov		\reg, #4		// bytes per word
+	lsl		\reg, \reg, \tmp	// actual cache line size
 	.endm
 
 /*

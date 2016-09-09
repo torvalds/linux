@@ -30,6 +30,21 @@ is_affected_midr_range(const struct arm64_cpu_capabilities *entry, int scope)
 				       entry->midr_range_max);
 }
 
+static bool
+has_mismatched_cache_line_size(const struct arm64_cpu_capabilities *entry,
+				int scope)
+{
+	WARN_ON(scope != SCOPE_LOCAL_CPU || preemptible());
+	return (read_cpuid_cachetype() & arm64_ftr_reg_ctrel0.strict_mask) !=
+		(arm64_ftr_reg_ctrel0.sys_val & arm64_ftr_reg_ctrel0.strict_mask);
+}
+
+static void cpu_enable_trap_ctr_access(void *__unused)
+{
+	/* Clear SCTLR_EL1.UCT */
+	config_sctlr_el1(SCTLR_EL1_UCT, 0);
+}
+
 #define MIDR_RANGE(model, min, max) \
 	.def_scope = SCOPE_LOCAL_CPU, \
 	.matches = is_affected_midr_range, \
@@ -107,6 +122,13 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 		MIDR_RANGE(MIDR_THUNDERX_81XX, 0x00, 0x00),
 	},
 #endif
+	{
+		.desc = "Mismatched cache line size",
+		.capability = ARM64_MISMATCHED_CACHE_LINE_SIZE,
+		.matches = has_mismatched_cache_line_size,
+		.def_scope = SCOPE_LOCAL_CPU,
+		.enable = cpu_enable_trap_ctr_access,
+	},
 	{
 	}
 };
