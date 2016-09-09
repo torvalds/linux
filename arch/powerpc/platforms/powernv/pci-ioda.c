@@ -162,11 +162,12 @@ static struct pnv_ioda_pe *pnv_ioda_alloc_pe(struct pnv_phb *phb)
 static void pnv_ioda_free_pe(struct pnv_ioda_pe *pe)
 {
 	struct pnv_phb *phb = pe->phb;
+	unsigned int pe_num = pe->pe_number;
 
 	WARN_ON(pe->pdev);
 
 	memset(pe, 0, sizeof(struct pnv_ioda_pe));
-	clear_bit(pe->pe_number, phb->ioda.pe_alloc);
+	clear_bit(pe_num, phb->ioda.pe_alloc);
 }
 
 /* The default M64 BAR is shared by all PEs */
@@ -3402,12 +3403,6 @@ static void pnv_ioda_release_pe(struct pnv_ioda_pe *pe)
 	struct pnv_phb *phb = pe->phb;
 	struct pnv_ioda_pe *slave, *tmp;
 
-	/* Release slave PEs in compound PE */
-	if (pe->flags & PNV_IODA_PE_MASTER) {
-		list_for_each_entry_safe(slave, tmp, &pe->slaves, list)
-			pnv_ioda_release_pe(slave);
-	}
-
 	list_del(&pe->list);
 	switch (phb->type) {
 	case PNV_PHB_IODA1:
@@ -3422,6 +3417,15 @@ static void pnv_ioda_release_pe(struct pnv_ioda_pe *pe)
 
 	pnv_ioda_release_pe_seg(pe);
 	pnv_ioda_deconfigure_pe(pe->phb, pe);
+
+	/* Release slave PEs in the compound PE */
+	if (pe->flags & PNV_IODA_PE_MASTER) {
+		list_for_each_entry_safe(slave, tmp, &pe->slaves, list) {
+			list_del(&slave->list);
+			pnv_ioda_free_pe(slave);
+		}
+	}
+
 	pnv_ioda_free_pe(pe);
 }
 
