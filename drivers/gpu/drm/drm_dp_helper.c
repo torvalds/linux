@@ -438,6 +438,39 @@ int drm_dp_link_configure(struct drm_dp_aux *aux, struct drm_dp_link *link)
 }
 EXPORT_SYMBOL(drm_dp_link_configure);
 
+/**
+ * drm_dp_downstream_max_clock() - extract branch device max
+ *                                 pixel rate for legacy VGA
+ *                                 converter or max TMDS clock
+ *                                 rate for others
+ * @dpcd: DisplayPort configuration data
+ * @port_cap: port capabilities
+ *
+ * Returns max clock in kHz on success or 0 if max clock not defined
+ */
+int drm_dp_downstream_max_clock(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+				const u8 port_cap[4])
+{
+	int type = port_cap[0] & DP_DS_PORT_TYPE_MASK;
+	bool detailed_cap_info = dpcd[DP_DOWNSTREAMPORT_PRESENT] &
+		DP_DETAILED_CAP_INFO_AVAILABLE;
+
+	if (!detailed_cap_info)
+		return 0;
+
+	switch (type) {
+	case DP_DS_PORT_TYPE_VGA:
+		return port_cap[1] * 8 * 1000;
+	case DP_DS_PORT_TYPE_DVI:
+	case DP_DS_PORT_TYPE_HDMI:
+	case DP_DS_PORT_TYPE_DP_DUALMODE:
+		return port_cap[1] * 2500;
+	default:
+		return 0;
+	}
+}
+EXPORT_SYMBOL(drm_dp_downstream_max_clock);
+
 /*
  * I2C-over-AUX implementation
  */
