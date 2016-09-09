@@ -15,9 +15,10 @@ nft_set_pktinfo_ipv6(struct nft_pktinfo *pkt,
 	nft_set_pktinfo(pkt, skb, state);
 
 	protohdr = ipv6_find_hdr(pkt->skb, &thoff, -1, &frag_off, NULL);
-	/* If malformed, drop it */
-	if (protohdr < 0)
+	if (protohdr < 0) {
+		nft_set_pktinfo_proto_unspec(pkt, skb);
 		return -1;
+	}
 
 	pkt->tprot_set = true;
 	pkt->tprot = protohdr;
