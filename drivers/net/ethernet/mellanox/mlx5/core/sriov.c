@@ -222,7 +222,7 @@ int mlx5_sriov_init(struct mlx5_core_dev *dev)
 	if (!sriov->vfs_ctx)
 		return -ENOMEM;
 
-	return mlx5_sriov_attach(dev);
+	return 0;
 }
 
 void mlx5_sriov_cleanup(struct mlx5_core_dev *dev)
@@ -231,6 +231,6 @@ void mlx5_sriov_cleanup(struct mlx5_core_dev *dev)
 
 	if (!mlx5_core_is_pf(dev))
 		return;
-	mlx5_sriov_detach(dev);
+
 	kfree(sriov->vfs_ctx);
 }

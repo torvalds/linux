@@ -1654,7 +1654,6 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 	esw->enabled_vports = 0;
 	esw->mode = SRIOV_NONE;
 
-	mlx5_eswitch_attach(esw);
 	dev->priv.eswitch = esw;
 	return 0;
 abort:
@@ -1675,7 +1674,6 @@ void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw)
 
 	esw_info(esw->dev, "cleanup\n");
 
-	mlx5_eswitch_detach(esw);
 	esw->dev->priv.eswitch = NULL;
 	destroy_workqueue(esw->work_queue);
 	kfree(esw->l2_table.bitmap);

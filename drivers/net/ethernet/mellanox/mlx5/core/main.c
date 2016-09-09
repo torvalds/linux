@@ -1136,7 +1136,29 @@ static int mlx5_init_once(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 		goto err_tables_cleanup;
 	}
 
+#ifdef CONFIG_MLX5_CORE_EN
+	err = mlx5_eswitch_init(dev);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to init eswitch %d\n", err);
+		goto err_rl_cleanup;
+	}
+#endif
+
+	err = mlx5_sriov_init(dev);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to init sriov %d\n", err);
+		goto err_eswitch_cleanup;
+	}
+
 	return 0;
+
+err_eswitch_cleanup:
+#ifdef CONFIG_MLX5_CORE_EN
+	mlx5_eswitch_cleanup(dev->priv.eswitch);
+
+err_rl_cleanup:
+#endif
+	mlx5_cleanup_rl_table(dev);
 
 err_tables_cleanup:
 	mlx5_cleanup_mkey_table(dev);
@@ -1153,6 +1175,10 @@ out:
 
 static void mlx5_cleanup_once(struct mlx5_core_dev *dev)
 {
+	mlx5_sriov_cleanup(dev);
+#ifdef CONFIG_MLX5_CORE_EN
+	mlx5_eswitch_cleanup(dev->priv.eswitch);
+#endif
 	mlx5_cleanup_rl_table(dev);
 	mlx5_cleanup_mkey_table(dev);
 	mlx5_cleanup_srq_table(dev);
@@ -1293,14 +1319,10 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	}
 
 #ifdef CONFIG_MLX5_CORE_EN
-	err = mlx5_eswitch_init(dev);
-	if (err) {
-		dev_err(&pdev->dev, "eswitch init failed %d\n", err);
-		goto err_reg_dev;
-	}
+	mlx5_eswitch_attach(dev->priv.eswitch);
 #endif
 
-	err = mlx5_sriov_init(dev);
+	err = mlx5_sriov_attach(dev);
 	if (err) {
 		dev_err(&pdev->dev, "sriov init failed %d\n", err);
 		goto err_sriov;
@@ -1324,11 +1346,11 @@ out:
 	return 0;
 
 err_reg_dev:
-	mlx5_sriov_cleanup(dev);
+	mlx5_sriov_detach(dev);
 
 err_sriov:
 #ifdef CONFIG_MLX5_CORE_EN
-	mlx5_eswitch_cleanup(dev->priv.eswitch);
+	mlx5_eswitch_detach(dev->priv.eswitch);
 #endif
 	mlx5_cleanup_fs(dev);
 
@@ -1394,9 +1416,9 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	if (mlx5_device_registered(dev))
 		mlx5_detach_device(dev);
 
-	mlx5_sriov_cleanup(dev);
+	mlx5_sriov_detach(dev);
 #ifdef CONFIG_MLX5_CORE_EN
-	mlx5_eswitch_cleanup(dev->priv.eswitch);
+	mlx5_eswitch_detach(dev->priv.eswitch);
 #endif
 	mlx5_cleanup_fs(dev);
 	mlx5_irq_clear_affinity_hints(dev);
