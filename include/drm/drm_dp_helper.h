@@ -216,11 +216,11 @@
 # define DP_DS_PORT_HPD			    (1 << 3)
 /* offset 1 for VGA is maximum megapixels per second / 8 */
 /* offset 2 */
-# define DP_DS_VGA_MAX_BPC_MASK		    (3 << 0)
-# define DP_DS_VGA_8BPC			    0
-# define DP_DS_VGA_10BPC		    1
-# define DP_DS_VGA_12BPC		    2
-# define DP_DS_VGA_16BPC		    3
+# define DP_DS_MAX_BPC_MASK	            (3 << 0)
+# define DP_DS_8BPC		            0
+# define DP_DS_10BPC		            1
+# define DP_DS_12BPC		            2
+# define DP_DS_16BPC		            3
 
 /* link configuration */
 #define	DP_LINK_BW_SET		            0x100
