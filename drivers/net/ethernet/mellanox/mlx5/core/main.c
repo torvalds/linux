@@ -81,6 +81,7 @@ struct mlx5_device_context {
 	struct list_head	list;
 	struct mlx5_interface  *intf;
 	void		       *context;
+	unsigned long		state;
 };
 
 enum {
@@ -778,6 +779,11 @@ static int mlx5_core_set_issi(struct mlx5_core_dev *dev)
 	return -ENOTSUPP;
 }
 
+enum {
+	MLX5_INTERFACE_ADDED,
+	MLX5_INTERFACE_ATTACHED,
+};
+
 static void mlx5_add_device(struct mlx5_interface *intf, struct mlx5_priv *priv)
 {
 	struct mlx5_device_context *dev_ctx;
@@ -786,12 +792,15 @@ static void mlx5_add_device(struct mlx5_interface *intf, struct mlx5_priv *priv)
 	if (!mlx5_lag_intf_add(intf, priv))
 		return;
 
-	dev_ctx = kmalloc(sizeof(*dev_ctx), GFP_KERNEL);
+	dev_ctx = kzalloc(sizeof(*dev_ctx), GFP_KERNEL);
 	if (!dev_ctx)
 		return;
 
-	dev_ctx->intf    = intf;
+	dev_ctx->intf = intf;
 	dev_ctx->context = intf->add(dev);
+	set_bit(MLX5_INTERFACE_ADDED, &dev_ctx->state);
+	if (intf->attach)
+		set_bit(MLX5_INTERFACE_ATTACHED, &dev_ctx->state);
 
 	if (dev_ctx->context) {
 		spin_lock_irq(&priv->ctx_lock);
@@ -802,21 +811,114 @@ static void mlx5_add_device(struct mlx5_interface *intf, struct mlx5_priv *priv)
 	}
 }
 
+static struct mlx5_device_context *mlx5_get_device(struct mlx5_interface *intf,
+						   struct mlx5_priv *priv)
+{
+	struct mlx5_device_context *dev_ctx;
+
+	list_for_each_entry(dev_ctx, &priv->ctx_list, list)
+		if (dev_ctx->intf == intf)
+			return dev_ctx;
+	return NULL;
+}
+
 static void mlx5_remove_device(struct mlx5_interface *intf, struct mlx5_priv *priv)
 {
 	struct mlx5_device_context *dev_ctx;
 	struct mlx5_core_dev *dev = container_of(priv, struct mlx5_core_dev, priv);
 
-	list_for_each_entry(dev_ctx, &priv->ctx_list, list)
-		if (dev_ctx->intf == intf) {
-			spin_lock_irq(&priv->ctx_lock);
-			list_del(&dev_ctx->list);
-			spin_unlock_irq(&priv->ctx_lock);
+	dev_ctx = mlx5_get_device(intf, priv);
+	if (!dev_ctx)
+		return;
 
-			intf->remove(dev, dev_ctx->context);
-			kfree(dev_ctx);
+	spin_lock_irq(&priv->ctx_lock);
+	list_del(&dev_ctx->list);
+	spin_unlock_irq(&priv->ctx_lock);
+
+	if (test_bit(MLX5_INTERFACE_ADDED, &dev_ctx->state))
+		intf->remove(dev, dev_ctx->context);
+
+	kfree(dev_ctx);
+}
+
+static void mlx5_attach_interface(struct mlx5_interface *intf, struct mlx5_priv *priv)
+{
+	struct mlx5_device_context *dev_ctx;
+	struct mlx5_core_dev *dev = container_of(priv, struct mlx5_core_dev, priv);
+
+	dev_ctx = mlx5_get_device(intf, priv);
+	if (!dev_ctx)
+		return;
+
+	if (intf->attach) {
+		if (test_bit(MLX5_INTERFACE_ATTACHED, &dev_ctx->state))
 			return;
-		}
+		intf->attach(dev, dev_ctx->context);
+		set_bit(MLX5_INTERFACE_ATTACHED, &dev_ctx->state);
+	} else {
+		if (test_bit(MLX5_INTERFACE_ADDED, &dev_ctx->state))
+			return;
+		dev_ctx->context = intf->add(dev);
+		set_bit(MLX5_INTERFACE_ADDED, &dev_ctx->state);
+	}
+}
+
+static void mlx5_attach_device(struct mlx5_core_dev *dev)
+{
+	struct mlx5_priv *priv = &dev->priv;
+	struct mlx5_interface *intf;
+
+	mutex_lock(&mlx5_intf_mutex);
+	list_for_each_entry(intf, &intf_list, list)
+		mlx5_attach_interface(intf, priv);
+	mutex_unlock(&mlx5_intf_mutex);
+}
+
+static void mlx5_detach_interface(struct mlx5_interface *intf, struct mlx5_priv *priv)
+{
+	struct mlx5_device_context *dev_ctx;
+	struct mlx5_core_dev *dev = container_of(priv, struct mlx5_core_dev, priv);
+
+	dev_ctx = mlx5_get_device(intf, priv);
+	if (!dev_ctx)
+		return;
+
+	if (intf->detach) {
+		if (!test_bit(MLX5_INTERFACE_ATTACHED, &dev_ctx->state))
+			return;
+		intf->detach(dev, dev_ctx->context);
+		clear_bit(MLX5_INTERFACE_ATTACHED, &dev_ctx->state);
+	} else {
+		if (!test_bit(MLX5_INTERFACE_ADDED, &dev_ctx->state))
+			return;
+		intf->remove(dev, dev_ctx->context);
+		clear_bit(MLX5_INTERFACE_ADDED, &dev_ctx->state);
+	}
+}
+
+static void mlx5_detach_device(struct mlx5_core_dev *dev)
+{
+	struct mlx5_priv *priv = &dev->priv;
+	struct mlx5_interface *intf;
+
+	mutex_lock(&mlx5_intf_mutex);
+	list_for_each_entry(intf, &intf_list, list)
+		mlx5_detach_interface(intf, priv);
+	mutex_unlock(&mlx5_intf_mutex);
+}
+
+static bool mlx5_device_registered(struct mlx5_core_dev *dev)
+{
+	struct mlx5_priv *priv;
+	bool found = false;
+
+	mutex_lock(&mlx5_intf_mutex);
+	list_for_each_entry(priv, &mlx5_dev_list, dev_list)
+		if (priv == &dev->priv)
+			found = true;
+	mutex_unlock(&mlx5_intf_mutex);
+
+	return found;
 }
 
 static int mlx5_register_device(struct mlx5_core_dev *dev)
@@ -1162,15 +1264,15 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 		goto err_sriov;
 	}
 
-	err = mlx5_register_device(dev);
-	if (err) {
-		dev_err(&pdev->dev, "mlx5_register_device failed %d\n", err);
-		goto err_reg_dev;
+	if (mlx5_device_registered(dev)) {
+		mlx5_attach_device(dev);
+	} else {
+		err = mlx5_register_device(dev);
+		if (err) {
+			dev_err(&pdev->dev, "mlx5_register_device failed %d\n", err);
+			goto err_reg_dev;
+		}
 	}
-
-	err = request_module_nowait(MLX5_IB_MOD);
-	if (err)
-		pr_info("failed request module on %s\n", MLX5_IB_MOD);
 
 	clear_bit(MLX5_INTERFACE_STATE_DOWN, &dev->intf_state);
 	set_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state);
@@ -1247,12 +1349,13 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 		goto out;
 	}
 
+	if (mlx5_device_registered(dev))
+		mlx5_detach_device(dev);
+
 	mlx5_sriov_cleanup(dev);
-	mlx5_unregister_device(dev);
 #ifdef CONFIG_MLX5_CORE_EN
 	mlx5_eswitch_cleanup(dev->priv.eswitch);
 #endif
-
 	mlx5_cleanup_rl_table(dev);
 	mlx5_cleanup_fs(dev);
 	mlx5_cleanup_mkey_table(dev);
@@ -1364,6 +1467,9 @@ static int init_one(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "mlx5_load_one failed with error code %d\n", err);
 		goto clean_health;
 	}
+	err = request_module_nowait(MLX5_IB_MOD);
+	if (err)
+		pr_info("failed request module on %s\n", MLX5_IB_MOD);
 
 	err = devlink_register(devlink, &pdev->dev);
 	if (err)
@@ -1391,11 +1497,14 @@ static void remove_one(struct pci_dev *pdev)
 	struct mlx5_priv *priv = &dev->priv;
 
 	devlink_unregister(devlink);
+	mlx5_unregister_device(dev);
+
 	if (mlx5_unload_one(dev, priv)) {
 		dev_err(&dev->pdev->dev, "mlx5_unload_one failed\n");
 		mlx5_health_cleanup(dev);
 		return;
 	}
+
 	mlx5_health_cleanup(dev);
 	mlx5_pci_close(dev, priv);
 	pci_set_drvdata(pdev, NULL);
