@@ -331,10 +331,11 @@ uint64_t intel_lr_context_descriptor(struct i915_gem_context *ctx,
 static void execlists_elsp_write(struct drm_i915_gem_request *rq0,
 				 struct drm_i915_gem_request *rq1)
 {
-
 	struct intel_engine_cs *engine = rq0->engine;
 	struct drm_i915_private *dev_priv = rq0->i915;
-	uint64_t desc[2];
+	u32 __iomem *elsp =
+		dev_priv->regs + i915_mmio_reg_offset(RING_ELSP(engine));
+	u64 desc[2];
 
 	if (rq1) {
 		desc[1] = intel_lr_context_descriptor(rq1->ctx, rq1->engine);
@@ -347,15 +348,12 @@ static void execlists_elsp_write(struct drm_i915_gem_request *rq0,
 	rq0->elsp_submitted++;
 
 	/* You must always write both descriptors in the order below. */
-	I915_WRITE_FW(RING_ELSP(engine), upper_32_bits(desc[1]));
-	I915_WRITE_FW(RING_ELSP(engine), lower_32_bits(desc[1]));
+	writel(upper_32_bits(desc[1]), elsp);
+	writel(lower_32_bits(desc[1]), elsp);
 
-	I915_WRITE_FW(RING_ELSP(engine), upper_32_bits(desc[0]));
+	writel(upper_32_bits(desc[0]), elsp);
 	/* The context is automatically loaded after the following */
-	I915_WRITE_FW(RING_ELSP(engine), lower_32_bits(desc[0]));
-
-	/* ELSP is a wo register, use another nearby reg for posting */
-	POSTING_READ_FW(RING_EXECLIST_STATUS_LO(engine));
+	writel(lower_32_bits(desc[0]), elsp);
 }
 
 static void
