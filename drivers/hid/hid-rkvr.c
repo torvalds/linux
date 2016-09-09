@@ -1062,6 +1062,25 @@ static long rkvr_hidraw_ioctl(struct file *file, unsigned int cmd, unsigned long
 				break;
 			}
 
+			if (_IOC_NR(cmd) == _IOC_NR(HIDRKVRHANDSHAKE(0))) {
+				int len = _IOC_SIZE(cmd);
+				char *buf;
+
+				buf = kzalloc(len + 1, GFP_KERNEL);
+				if (!buf) {
+					ret = -ENOMEM;
+					break;
+				}
+				if (copy_from_user(buf, user_arg, len)) {
+					ret = -EFAULT;
+					kfree(buf);
+					break;
+				}
+				ret = hid_report_sync(&hid->dev, buf, len);
+				kfree(buf);
+				break;
+			}
+
 			/* Begin Read-only ioctls. */
 			if (_IOC_DIR(cmd) != _IOC_READ) {
 				ret = -EINVAL;
@@ -1119,41 +1138,6 @@ int rkvr_sensor_register_callback(int (*callback)(char *, size_t, void *), void 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rkvr_sensor_register_callback);
-
-static int rkvr_sync_exec(const char *p, size_t c)
-{
-	int minor;
-	int ret = c;
-	int exist = 0;
-
-	mutex_lock(&minors_lock);
-	pr_info("rkvr_sync_exec %s\n", p);
-	for (minor = 0; minor < RKVR_HIDRAW_MAX_DEVICES; minor++) {
-		if (!rkvr_hidraw_table[minor] || !rkvr_hidraw_table[minor]->exist)
-			continue;
-		if (hid_report_sync(&rkvr_hidraw_table[minor]->hid->dev, p, c)) {
-			hid_err(rkvr_hidraw_table[minor]->hid, "hid_report_sync failed\n");
-			ret = -EIO;
-			goto exit;
-		}
-		exist++;
-	}
-	if (!exist)
-		ret = -ENODEV;
-exit:
-	mutex_unlock(&minors_lock);
-
-	return ret;
-}
-
-int rkvr_sensor_sync_inv(const char *p, size_t c)
-{
-	snprintf(sync_string, sizeof(sync_string), "%s", p);
-
-	return rkvr_sync_exec(sync_string, strlen(sync_string));
-}
-
-EXPORT_SYMBOL_GPL(rkvr_sensor_sync_inv);
 
 static int rkvr_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
