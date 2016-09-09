@@ -6129,6 +6129,11 @@ static void rtl8xxxu_disconnect(struct usb_interface *interface)
 	mutex_destroy(&priv->usb_buf_mutex);
 	mutex_destroy(&priv->h2c_mutex);
 
+	if (priv->udev->state != USB_STATE_NOTATTACHED) {
+		dev_info(&priv->udev->dev,
+			 "Device still attached, trying to reset\n");
+		usb_reset_device(priv->udev);
+	}
 	usb_put_dev(priv->udev);
 	ieee80211_free_hw(hw);
 }
