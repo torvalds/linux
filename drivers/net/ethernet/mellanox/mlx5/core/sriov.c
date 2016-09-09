@@ -188,6 +188,25 @@ int mlx5_core_sriov_configure(struct pci_dev *pdev, int num_vfs)
 	return err ? err : num_vfs;
 }
 
+int mlx5_sriov_attach(struct mlx5_core_dev *dev)
+{
+	struct mlx5_core_sriov *sriov = &dev->priv.sriov;
+
+	if (!mlx5_core_is_pf(dev) || !sriov->num_vfs)
+		return 0;
+
+	/* If sriov VFs exist in PCI level, enable them in device level */
+	return mlx5_device_enable_sriov(dev, sriov->num_vfs);
+}
+
+void mlx5_sriov_detach(struct mlx5_core_dev *dev)
+{
+	if (!mlx5_core_is_pf(dev))
+		return;
+
+	mlx5_device_disable_sriov(dev);
+}
+
 int mlx5_sriov_init(struct mlx5_core_dev *dev)
 {
 	struct mlx5_core_sriov *sriov = &dev->priv.sriov;
@@ -203,12 +222,7 @@ int mlx5_sriov_init(struct mlx5_core_dev *dev)
 	if (!sriov->vfs_ctx)
 		return -ENOMEM;
 
-	/* If sriov VFs exist in PCI level, enable them in device level */
-	if (!sriov->num_vfs)
-		return 0;
-
-	mlx5_device_enable_sriov(dev, sriov->num_vfs);
-	return 0;
+	return mlx5_sriov_attach(dev);
 }
 
 void mlx5_sriov_cleanup(struct mlx5_core_dev *dev)
@@ -217,7 +231,6 @@ void mlx5_sriov_cleanup(struct mlx5_core_dev *dev)
 
 	if (!mlx5_core_is_pf(dev))
 		return;
-
-	mlx5_device_disable_sriov(dev);
+	mlx5_sriov_detach(dev);
 	kfree(sriov->vfs_ctx);
 }
