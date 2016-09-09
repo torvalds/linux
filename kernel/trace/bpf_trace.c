@@ -583,18 +583,18 @@ static u32 pe_prog_convert_ctx_access(enum bpf_access_type type, int dst_reg,
 	switch (ctx_off) {
 	case offsetof(struct bpf_perf_event_data, sample_period):
 		BUILD_BUG_ON(FIELD_SIZEOF(struct perf_sample_data, period) != sizeof(u64));
-		*insn++ = BPF_LDX_MEM(bytes_to_bpf_size(FIELD_SIZEOF(struct bpf_perf_event_data_kern, data)),
-				      dst_reg, src_reg,
+
+		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(struct bpf_perf_event_data_kern,
+						       data), dst_reg, src_reg,
 				      offsetof(struct bpf_perf_event_data_kern, data));
 		*insn++ = BPF_LDX_MEM(BPF_DW, dst_reg, dst_reg,
 				      offsetof(struct perf_sample_data, period));
 		break;
 	default:
-		*insn++ = BPF_LDX_MEM(bytes_to_bpf_size(FIELD_SIZEOF(struct bpf_perf_event_data_kern, regs)),
-				      dst_reg, src_reg,
+		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(struct bpf_perf_event_data_kern,
+						       regs), dst_reg, src_reg,
 				      offsetof(struct bpf_perf_event_data_kern, regs));
-		*insn++ = BPF_LDX_MEM(bytes_to_bpf_size(sizeof(long)),
-				      dst_reg, dst_reg, ctx_off);
+		*insn++ = BPF_LDX_MEM(BPF_SIZEOF(long), dst_reg, dst_reg, ctx_off);
 		break;
 	}
 
