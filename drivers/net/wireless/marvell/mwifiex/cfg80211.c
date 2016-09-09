@@ -2732,7 +2732,7 @@ mwifiex_setup_ht_caps(struct ieee80211_sta_ht_cap *ht_info,
 		ht_info->cap &= ~IEEE80211_HT_CAP_SGI_40;
 
 	if (adapter->user_dev_mcs_support == HT_STREAM_2X2)
-		ht_info->cap |= 3 << IEEE80211_HT_CAP_RX_STBC_SHIFT;
+		ht_info->cap |= 2 << IEEE80211_HT_CAP_RX_STBC_SHIFT;
 	else
 		ht_info->cap |= 1 << IEEE80211_HT_CAP_RX_STBC_SHIFT;
 
