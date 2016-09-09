@@ -109,6 +109,16 @@ struct vport_egress {
 	struct mlx5_flow_rule  *drop_rule;
 };
 
+struct mlx5_vport_info {
+	u8                      mac[ETH_ALEN];
+	u16                     vlan;
+	u8                      qos;
+	u64                     node_guid;
+	int                     link_state;
+	bool                    spoofchk;
+	bool                    trusted;
+};
+
 struct mlx5_vport {
 	struct mlx5_core_dev    *dev;
 	int                     vport;
@@ -121,10 +131,8 @@ struct mlx5_vport {
 	struct vport_ingress    ingress;
 	struct vport_egress     egress;
 
-	u16                     vlan;
-	u8                      qos;
-	bool                    spoofchk;
-	bool                    trusted;
+	struct mlx5_vport_info  info;
+
 	bool                    enabled;
 	u16                     enabled_events;
 };
