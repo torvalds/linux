@@ -1037,6 +1037,9 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 		goto out_free;
 	}
 
+	if (!pmu->pmu.attr_groups)
+		pmu->pmu.attr_groups = pmu->attr_groups;
+
 	ret = cpu_pmu_init(pmu);
 	if (ret)
 		goto out_free;
