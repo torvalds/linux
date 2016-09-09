@@ -187,10 +187,10 @@ static bool aspeed_sig_expr_set(const struct aspeed_sig_expr *expr,
 			continue;
 
 		ret = regmap_update_bits(map, desc->reg, desc->mask,
-				pattern << __ffs(desc->mask));
+				pattern << __ffs(desc->mask)) == 0;
 
-		if (ret < 0)
-			return false;
+		if (!ret)
+			return ret;
 	}
 
 	return aspeed_sig_expr_eval(expr, enable, map);
