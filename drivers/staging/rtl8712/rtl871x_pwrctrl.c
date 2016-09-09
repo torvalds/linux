@@ -52,7 +52,8 @@ void r8712_set_rpwm(struct _adapter *padapter, u8 val8)
 		pwrpriv->cpwm = val8;
 		break;
 	case PS_STATE_S2:/* only for USB normal powersave mode use,
-			  * temp mark some code. */
+			  * temp mark some code.
+			  */
 	case PS_STATE_S3:
 	case PS_STATE_S4:
 		pwrpriv->cpwm = val8;

@@ -376,7 +376,8 @@ void r8712_SwitchBandwidth(struct _adapter *pAdapter)
 		/* Use PHY_REG.txt default value. Do not need to change.
 		 * Correct the tx power for CCK rate in 40M.
 		 * Set Control channel to upper or lower. These settings are
-		 * required only for 40MHz */
+		 * required only for 40MHz
+		 */
 		set_bb_reg(pAdapter, rCCK0_System, bCCKSideBand,
 			   (HAL_PRIME_CHNL_OFFSET_DONT_CARE >> 1));
 		set_bb_reg(pAdapter, rOFDM1_LSTF, 0xC00,

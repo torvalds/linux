@@ -91,7 +91,8 @@ struct	pwrctrl_priv {
 	struct mutex mutex_lock;
 	/*volatile*/ u8 rpwm; /* requested power state for fw */
 	/* fw current power state. updated when 1. read from HCPWM or
-	 * 2. driver lowers power level */
+	 * 2. driver lowers power level
+	 */
 	/*volatile*/ u8 cpwm;
 	/*volatile*/ u8 tog; /* toggling */
 	/*volatile*/ u8 cpwm_tog; /* toggling */

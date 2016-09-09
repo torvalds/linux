@@ -196,7 +196,8 @@ u8 r8712_usb_hal_bus_init(struct _adapter *padapter)
 		msleep(20);
 		/* Revised POS, */
 		/* Enable AFE Macro Block's Bandgap and Enable AFE Macro
-		 * Block's Mbias */
+		 * Block's Mbias
+		 */
 		r8712_write8(padapter, SPS0_CTRL + 1, 0x53);
 		r8712_write8(padapter, SPS0_CTRL, 0x57);
 		val8 = r8712_read8(padapter, AFE_MISC);

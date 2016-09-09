@@ -58,10 +58,12 @@ enum _LED_STATE_871x {
 	LED_POWER_ON_BLINK = 5,
 	LED_SCAN_BLINK = 6, /* LED is blinking during scanning period,
 			     * the # of times to blink is depend on time
-			     * for scanning. */
+			     * for scanning.
+			     */
 	LED_NO_LINK_BLINK = 7, /* LED is blinking during no link state. */
 	LED_BLINK_StartToBlink = 8,/* Customized for Sercomm Printer
-				    * Server case */
+				    * Server case
+				    */
 	LED_BLINK_WPS = 9,	/* LED is blinkg during WPS communication */
 	LED_TXRX_BLINK = 10,
 	LED_BLINK_WPS_STOP = 11,	/*for ALPHA */
@@ -110,7 +112,8 @@ static void DeInitLed871x(struct LED_871x *pLed)
 {
 	del_timer_sync(&pLed->BlinkTimer);
 	/* We should reset bLedBlinkInProgress if we cancel
-	 * the LedControlTimer, */
+	 * the LedControlTimer,
+	 */
 	pLed->bLedBlinkInProgress = false;
 }
 
@@ -827,7 +830,8 @@ static void BlinkTimerCallback(unsigned long data)
 	struct LED_871x  *pLed = (struct LED_871x *)data;
 
 	/* This fixed the crash problem on Fedora 12 when trying to do the
-	 * insmod;ifconfig up;rmmod commands. */
+	 * insmod;ifconfig up;rmmod commands.
+	 */
 	if (pLed->padapter->bSurpriseRemoved || pLed->padapter->bDriverStopped)
 		return;
 	schedule_work(&pLed->BlinkWorkItem);

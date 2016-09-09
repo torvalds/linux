@@ -185,10 +185,12 @@ struct setauth_parm {
  */
 struct setkey_parm {
 	u8	algorithm;	/* encryption algorithm, could be none, wep40,
-				 * TKIP, CCMP, wep104 */
+				 * TKIP, CCMP, wep104
+				 */
 	u8	keyid;
 	u8	grpkey;		/* 1: this is the grpkey for 802.1x.
-				 * 0: this is the unicast key for 802.1x */
+				 * 0: this is the unicast key for 802.1x
+				 */
 	u8	key[16];	/* this could be 40 or 104 */
 };
 
@@ -570,7 +572,8 @@ struct setpwrmode_parm  {
 	u8	bcn_rx_en;
 	u8	bcn_pass_cnt;	  /* fw report one beacon information to
 				   * driver  when it receives bcn_pass_cnt
-				   *  beacons. */
+				   * beacons.
+				   */
 	u8	bcn_to;		  /* beacon TO (ms). ¡§=0¡¨ no limit.*/
 	u16	bcn_itv;
 	u8	app_itv; /* only for VOIP mode. */
