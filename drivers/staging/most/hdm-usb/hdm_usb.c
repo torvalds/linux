@@ -1030,6 +1030,46 @@ static void most_dci_release(struct kobject *kobj)
 	kfree(dci_obj);
 }
 
+struct regs {
+	const char *name;
+	u16 reg;
+};
+
+static const struct regs ro_regs[] = {
+	{ "ni_state", DRCI_REG_NI_STATE },
+	{ "packet_bandwidth", DRCI_REG_PACKET_BW },
+	{ "node_address", DRCI_REG_NODE_ADDR },
+	{ "node_position", DRCI_REG_NODE_POS },
+};
+
+static const struct regs rw_regs[] = {
+	{ "mep_filter", DRCI_REG_MEP_FILTER },
+	{ "mep_hash0", DRCI_REG_HASH_TBL0 },
+	{ "mep_hash1", DRCI_REG_HASH_TBL1 },
+	{ "mep_hash2", DRCI_REG_HASH_TBL2 },
+	{ "mep_hash3", DRCI_REG_HASH_TBL3 },
+	{ "mep_eui48_hi", DRCI_REG_HW_ADDR_HI },
+	{ "mep_eui48_mi", DRCI_REG_HW_ADDR_MI },
+	{ "mep_eui48_lo", DRCI_REG_HW_ADDR_LO },
+};
+
+static int get_stat_reg_addr(const struct regs *regs, int size,
+			     const char *name, u16 *reg_addr)
+{
+	int i;
+
+	for (i = 0; i < size; i++) {
+		if (!strcmp(name, regs[i].name)) {
+			*reg_addr = regs[i].reg;
+			return 0;
+		}
+	}
+	return -EFAULT;
+}
+
+#define get_static_reg_addr(regs, name, reg_addr) \
+	get_stat_reg_addr(regs, ARRAY_SIZE(regs), name, reg_addr)
+
 static ssize_t show_value(struct most_dci_obj *dci_obj,
 			  struct most_dci_attribute *attr, char *buf)
 {
@@ -1039,34 +1079,10 @@ static ssize_t show_value(struct most_dci_obj *dci_obj,
 
 	if (!strcmp(attr->attr.name, "arb_address"))
 		return snprintf(buf, PAGE_SIZE, "%04x\n", dci_obj->reg_addr);
-
-	if (!strcmp(attr->attr.name, "ni_state"))
-		reg_addr = DRCI_REG_NI_STATE;
-	else if (!strcmp(attr->attr.name, "packet_bandwidth"))
-		reg_addr = DRCI_REG_PACKET_BW;
-	else if (!strcmp(attr->attr.name, "node_address"))
-		reg_addr = DRCI_REG_NODE_ADDR;
-	else if (!strcmp(attr->attr.name, "node_position"))
-		reg_addr = DRCI_REG_NODE_POS;
-	else if (!strcmp(attr->attr.name, "mep_filter"))
-		reg_addr = DRCI_REG_MEP_FILTER;
-	else if (!strcmp(attr->attr.name, "mep_hash0"))
-		reg_addr = DRCI_REG_HASH_TBL0;
-	else if (!strcmp(attr->attr.name, "mep_hash1"))
-		reg_addr = DRCI_REG_HASH_TBL1;
-	else if (!strcmp(attr->attr.name, "mep_hash2"))
-		reg_addr = DRCI_REG_HASH_TBL2;
-	else if (!strcmp(attr->attr.name, "mep_hash3"))
-		reg_addr = DRCI_REG_HASH_TBL3;
-	else if (!strcmp(attr->attr.name, "mep_eui48_hi"))
-		reg_addr = DRCI_REG_HW_ADDR_HI;
-	else if (!strcmp(attr->attr.name, "mep_eui48_mi"))
-		reg_addr = DRCI_REG_HW_ADDR_MI;
-	else if (!strcmp(attr->attr.name, "mep_eui48_lo"))
-		reg_addr = DRCI_REG_HW_ADDR_LO;
-	else if (!strcmp(attr->attr.name, "arb_value"))
+	if (!strcmp(attr->attr.name, "arb_value"))
 		reg_addr = dci_obj->reg_addr;
-	else
+	else if (get_static_reg_addr(ro_regs, attr->attr.name, &reg_addr) &&
+		 get_static_reg_addr(rw_regs, attr->attr.name, &reg_addr))
 		return -EIO;
 
 	err = drci_rd_reg(dci_obj->usb_device, reg_addr, &tmp_val);
@@ -1092,31 +1108,16 @@ static ssize_t store_value(struct most_dci_obj *dci_obj,
 		dci_obj->reg_addr = val;
 		return count;
 	}
-	if (!strcmp(attr->attr.name, "mep_filter"))
-		reg_addr = DRCI_REG_MEP_FILTER;
-	else if (!strcmp(attr->attr.name, "mep_hash0"))
-		reg_addr = DRCI_REG_HASH_TBL0;
-	else if (!strcmp(attr->attr.name, "mep_hash1"))
-		reg_addr = DRCI_REG_HASH_TBL1;
-	else if (!strcmp(attr->attr.name, "mep_hash2"))
-		reg_addr = DRCI_REG_HASH_TBL2;
-	else if (!strcmp(attr->attr.name, "mep_hash3"))
-		reg_addr = DRCI_REG_HASH_TBL3;
-	else if (!strcmp(attr->attr.name, "mep_eui48_hi"))
-		reg_addr = DRCI_REG_HW_ADDR_HI;
-	else if (!strcmp(attr->attr.name, "mep_eui48_mi"))
-		reg_addr = DRCI_REG_HW_ADDR_MI;
-	else if (!strcmp(attr->attr.name, "mep_eui48_lo"))
-		reg_addr = DRCI_REG_HW_ADDR_LO;
-	else if (!strcmp(attr->attr.name, "arb_value"))
+	if (!strcmp(attr->attr.name, "arb_value")) {
 		reg_addr = dci_obj->reg_addr;
-	else if (!strcmp(attr->attr.name, "sync_ep")) {
+	} else if (!strcmp(attr->attr.name, "sync_ep")) {
 		u16 ep = val;
 
 		reg_addr = DRCI_REG_BASE + DRCI_COMMAND + ep * 16;
 		val = 1;
-	} else
+	} else if (get_static_reg_addr(ro_regs, attr->attr.name, &reg_addr)) {
 		return -EFAULT;
+	}
 
 	err = drci_wr_reg(dci_obj->usb_device, reg_addr, val);
 	if (err < 0)
