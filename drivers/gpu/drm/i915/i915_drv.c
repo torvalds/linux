@@ -1579,7 +1579,7 @@ static int i915_drm_resume(struct drm_device *dev)
 	mutex_lock(&dev->struct_mutex);
 	if (i915_gem_init_hw(dev)) {
 		DRM_ERROR("failed to re-initialize GPU, declaring wedged!\n");
-		atomic_or(I915_WEDGED, &dev_priv->gpu_error.reset_counter);
+		set_bit(I915_WEDGED, &dev_priv->gpu_error.flags);
 	}
 	mutex_unlock(&dev->struct_mutex);
 
@@ -1741,20 +1741,13 @@ int i915_reset(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = &dev_priv->drm;
 	struct i915_gpu_error *error = &dev_priv->gpu_error;
-	unsigned reset_counter;
 	int ret;
 
 	mutex_lock(&dev->struct_mutex);
 
 	/* Clear any previous failed attempts at recovery. Time to try again. */
-	atomic_andnot(I915_WEDGED, &error->reset_counter);
-
-	/* Clear the reset-in-progress flag and increment the reset epoch. */
-	reset_counter = atomic_inc_return(&error->reset_counter);
-	if (WARN_ON(__i915_reset_in_progress(reset_counter))) {
-		ret = -EIO;
-		goto error;
-	}
+	__clear_bit(I915_WEDGED, &error->flags);
+	error->reset_count++;
 
 	pr_notice("drm/i915: Resetting chip after gpu hang\n");
 
@@ -1791,6 +1784,7 @@ int i915_reset(struct drm_i915_private *dev_priv)
 		goto error;
 	}
 
+	clear_bit(I915_RESET_IN_PROGRESS, &error->flags);
 	mutex_unlock(&dev->struct_mutex);
 
 	/*
@@ -1805,7 +1799,7 @@ int i915_reset(struct drm_i915_private *dev_priv)
 	return 0;
 
 error:
-	atomic_or(I915_WEDGED, &error->reset_counter);
+	set_bit(I915_WEDGED, &error->flags);
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
 }

@@ -1405,9 +1405,10 @@ struct i915_gpu_error {
 	 * State variable controlling the reset flow and count
 	 *
 	 * This is a counter which gets incremented when reset is triggered,
-	 * and again when reset has been handled. So odd values (lowest bit set)
-	 * means that reset is in progress and even values that
-	 * (reset_counter >> 1):th reset was successfully completed.
+	 *
+	 * Before the reset commences, the I915_RESET_IN_PROGRESS bit is set
+	 * meaning that any waiters holding onto the struct_mutex should
+	 * relinquish the lock immediately in order for the reset to start.
 	 *
 	 * If reset is not completed succesfully, the I915_WEDGE bit is
 	 * set meaning that hardware is terminally sour and there is no
@@ -1422,10 +1423,11 @@ struct i915_gpu_error {
 	 * naturally enforces the correct ordering between the bail-out of the
 	 * waiter and the gpu reset work code.
 	 */
-	atomic_t reset_counter;
+	unsigned long reset_count;
 
-#define I915_RESET_IN_PROGRESS_FLAG	1
-#define I915_WEDGED			(1 << 31)
+	unsigned long flags;
+#define I915_RESET_IN_PROGRESS	0
+#define I915_WEDGED		(BITS_PER_LONG - 1)
 
 	/**
 	 * Waitqueue to signal when a hang is detected. Used to for waiters
@@ -3241,44 +3243,24 @@ i915_gem_find_active_request(struct intel_engine_cs *engine);
 
 void i915_gem_retire_requests(struct drm_i915_private *dev_priv);
 
-static inline u32 i915_reset_counter(struct i915_gpu_error *error)
-{
-	return atomic_read(&error->reset_counter);
-}
-
-static inline bool __i915_reset_in_progress(u32 reset)
-{
-	return unlikely(reset & I915_RESET_IN_PROGRESS_FLAG);
-}
-
-static inline bool __i915_reset_in_progress_or_wedged(u32 reset)
-{
-	return unlikely(reset & (I915_RESET_IN_PROGRESS_FLAG | I915_WEDGED));
-}
-
-static inline bool __i915_terminally_wedged(u32 reset)
-{
-	return unlikely(reset & I915_WEDGED);
-}
-
 static inline bool i915_reset_in_progress(struct i915_gpu_error *error)
 {
-	return __i915_reset_in_progress(i915_reset_counter(error));
-}
-
-static inline bool i915_reset_in_progress_or_wedged(struct i915_gpu_error *error)
-{
-	return __i915_reset_in_progress_or_wedged(i915_reset_counter(error));
+	return unlikely(test_bit(I915_RESET_IN_PROGRESS, &error->flags));
 }
 
 static inline bool i915_terminally_wedged(struct i915_gpu_error *error)
 {
-	return __i915_terminally_wedged(i915_reset_counter(error));
+	return unlikely(test_bit(I915_WEDGED, &error->flags));
+}
+
+static inline bool i915_reset_in_progress_or_wedged(struct i915_gpu_error *error)
+{
+	return i915_reset_in_progress(error) | i915_terminally_wedged(error);
 }
 
 static inline u32 i915_reset_count(struct i915_gpu_error *error)
 {
-	return ((i915_reset_counter(error) & ~I915_WEDGED) + 1) / 2;
+	return READ_ONCE(error->reset_count);
 }
 
 void i915_gem_reset(struct drm_device *dev);

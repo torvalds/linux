@@ -3646,15 +3646,26 @@ void intel_finish_reset(struct drm_i915_private *dev_priv)
 	mutex_unlock(&dev->mode_config.mutex);
 }
 
+static bool abort_flip_on_reset(struct intel_crtc *crtc)
+{
+	struct i915_gpu_error *error = &to_i915(crtc->base.dev)->gpu_error;
+
+	if (i915_reset_in_progress(error))
+		return true;
+
+	if (crtc->reset_count != i915_reset_count(error))
+		return true;
+
+	return false;
+}
+
 static bool intel_crtc_has_pending_flip(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	unsigned reset_counter;
 	bool pending;
 
-	reset_counter = i915_reset_counter(&to_i915(dev)->gpu_error);
-	if (intel_crtc->reset_counter != reset_counter)
+	if (abort_flip_on_reset(intel_crtc))
 		return false;
 
 	spin_lock_irq(&dev->event_lock);
@@ -11533,10 +11544,8 @@ static bool __pageflip_finished_cs(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	unsigned reset_counter;
 
-	reset_counter = i915_reset_counter(&dev_priv->gpu_error);
-	if (crtc->reset_counter != reset_counter)
+	if (abort_flip_on_reset(crtc))
 		return true;
 
 	/*
@@ -12202,8 +12211,8 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	if (ret)
 		goto cleanup;
 
-	intel_crtc->reset_counter = i915_reset_counter(&dev_priv->gpu_error);
-	if (__i915_reset_in_progress_or_wedged(intel_crtc->reset_counter)) {
+	intel_crtc->reset_count = i915_reset_count(&dev_priv->gpu_error);
+	if (i915_reset_in_progress_or_wedged(&dev_priv->gpu_error)) {
 		ret = -EIO;
 		goto cleanup;
 	}

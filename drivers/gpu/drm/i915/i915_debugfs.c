@@ -1287,6 +1287,15 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 	enum intel_engine_id id;
 	int j;
 
+	if (test_bit(I915_WEDGED, &dev_priv->gpu_error.flags))
+		seq_printf(m, "Wedged\n");
+	if (test_bit(I915_RESET_IN_PROGRESS, &dev_priv->gpu_error.flags))
+		seq_printf(m, "Reset in progress\n");
+	if (waitqueue_active(&dev_priv->gpu_error.wait_queue))
+		seq_printf(m, "Waiter holding struct mutex\n");
+	if (waitqueue_active(&dev_priv->gpu_error.reset_queue))
+		seq_printf(m, "struct_mutex blocked for reset\n");
+
 	if (!i915.enable_hangcheck) {
 		seq_printf(m, "Hangcheck disabled\n");
 		return 0;

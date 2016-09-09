@@ -233,16 +233,18 @@ void i915_gem_request_retire_upto(struct drm_i915_gem_request *req)
 	} while (tmp != req);
 }
 
-static int i915_gem_check_wedge(unsigned int reset_counter, bool interruptible)
+static int i915_gem_check_wedge(struct drm_i915_private *dev_priv)
 {
-	if (__i915_terminally_wedged(reset_counter))
+	struct i915_gpu_error *error = &dev_priv->gpu_error;
+
+	if (i915_terminally_wedged(error))
 		return -EIO;
 
-	if (__i915_reset_in_progress(reset_counter)) {
+	if (i915_reset_in_progress(error)) {
 		/* Non-interruptible callers can't handle -EAGAIN, hence return
 		 * -EIO unconditionally for these.
 		 */
-		if (!interruptible)
+		if (!dev_priv->mm.interruptible)
 			return -EIO;
 
 		return -EAGAIN;
@@ -331,7 +333,6 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 		       struct i915_gem_context *ctx)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
-	unsigned int reset_counter = i915_reset_counter(&dev_priv->gpu_error);
 	struct drm_i915_gem_request *req;
 	u32 seqno;
 	int ret;
@@ -340,7 +341,7 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	 * EIO if the GPU is already wedged, or EAGAIN to drop the struct_mutex
 	 * and restart.
 	 */
-	ret = i915_gem_check_wedge(reset_counter, dev_priv->mm.interruptible);
+	ret = i915_gem_check_wedge(dev_priv);
 	if (ret)
 		return ERR_PTR(ret);
 
