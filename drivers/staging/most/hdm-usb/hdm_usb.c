@@ -79,10 +79,12 @@ struct buf_anchor {
  * struct most_dci_obj - Direct Communication Interface
  * @kobj:position in sysfs
  * @usb_device: pointer to the usb device
+ * @reg_addr: register address for arbitrary DCI access
  */
 struct most_dci_obj {
 	struct kobject kobj;
 	struct usb_device *usb_device;
+	u16 reg_addr;
 };
 
 #define to_dci_obj(p) container_of(p, struct most_dci_obj, kobj)
@@ -948,6 +950,10 @@ static struct usb_device_id usbid[] = {
 	struct most_dci_attribute most_dci_attr_##_name = \
 		__ATTR(_name, S_IRUGO | S_IWUSR, show_value, store_value)
 
+#define MOST_DCI_WO_ATTR(_name) \
+	struct most_dci_attribute most_dci_attr_##_name = \
+		__ATTR(_name, S_IWUSR, show_value, store_value)
+
 /**
  * struct most_dci_attribute - to access the attributes of a dci object
  * @attr: attributes of a dci object
@@ -1031,6 +1037,9 @@ static ssize_t show_value(struct most_dci_obj *dci_obj,
 	u16 reg_addr;
 	int err;
 
+	if (!strcmp(attr->attr.name, "arb_address"))
+		return snprintf(buf, PAGE_SIZE, "%04x\n", dci_obj->reg_addr);
+
 	if (!strcmp(attr->attr.name, "ni_state"))
 		reg_addr = DRCI_REG_NI_STATE;
 	else if (!strcmp(attr->attr.name, "packet_bandwidth"))
@@ -1055,6 +1064,8 @@ static ssize_t show_value(struct most_dci_obj *dci_obj,
 		reg_addr = DRCI_REG_HW_ADDR_MI;
 	else if (!strcmp(attr->attr.name, "mep_eui48_lo"))
 		reg_addr = DRCI_REG_HW_ADDR_LO;
+	else if (!strcmp(attr->attr.name, "arb_value"))
+		reg_addr = dci_obj->reg_addr;
 	else
 		return -EIO;
 
@@ -1073,6 +1084,14 @@ static ssize_t store_value(struct most_dci_obj *dci_obj,
 	u16 reg_addr;
 	int err;
 
+	err = kstrtou16(buf, 16, &val);
+	if (err)
+		return err;
+
+	if (!strcmp(attr->attr.name, "arb_address")) {
+		dci_obj->reg_addr = val;
+		return count;
+	}
 	if (!strcmp(attr->attr.name, "mep_filter"))
 		reg_addr = DRCI_REG_MEP_FILTER;
 	else if (!strcmp(attr->attr.name, "mep_hash0"))
@@ -1089,12 +1108,15 @@ static ssize_t store_value(struct most_dci_obj *dci_obj,
 		reg_addr = DRCI_REG_HW_ADDR_MI;
 	else if (!strcmp(attr->attr.name, "mep_eui48_lo"))
 		reg_addr = DRCI_REG_HW_ADDR_LO;
-	else
-		return -EIO;
+	else if (!strcmp(attr->attr.name, "arb_value"))
+		reg_addr = dci_obj->reg_addr;
+	else if (!strcmp(attr->attr.name, "sync_ep")) {
+		u16 ep = val;
 
-	err = kstrtou16(buf, 16, &val);
-	if (err)
-		return err;
+		reg_addr = DRCI_REG_BASE + DRCI_COMMAND + ep * 16;
+		val = 1;
+	} else
+		return -EIO;
 
 	err = drci_wr_reg(dci_obj->usb_device, reg_addr, val);
 	if (err < 0)
@@ -1107,6 +1129,7 @@ static MOST_DCI_RO_ATTR(ni_state);
 static MOST_DCI_RO_ATTR(packet_bandwidth);
 static MOST_DCI_RO_ATTR(node_address);
 static MOST_DCI_RO_ATTR(node_position);
+static MOST_DCI_WO_ATTR(sync_ep);
 static MOST_DCI_ATTR(mep_filter);
 static MOST_DCI_ATTR(mep_hash0);
 static MOST_DCI_ATTR(mep_hash1);
@@ -1115,6 +1138,8 @@ static MOST_DCI_ATTR(mep_hash3);
 static MOST_DCI_ATTR(mep_eui48_hi);
 static MOST_DCI_ATTR(mep_eui48_mi);
 static MOST_DCI_ATTR(mep_eui48_lo);
+static MOST_DCI_ATTR(arb_address);
+static MOST_DCI_ATTR(arb_value);
 
 /**
  * most_dci_def_attrs - array of default attribute files of the dci object
@@ -1124,6 +1149,7 @@ static struct attribute *most_dci_def_attrs[] = {
 	&most_dci_attr_packet_bandwidth.attr,
 	&most_dci_attr_node_address.attr,
 	&most_dci_attr_node_position.attr,
+	&most_dci_attr_sync_ep.attr,
 	&most_dci_attr_mep_filter.attr,
 	&most_dci_attr_mep_hash0.attr,
 	&most_dci_attr_mep_hash1.attr,
@@ -1132,6 +1158,8 @@ static struct attribute *most_dci_def_attrs[] = {
 	&most_dci_attr_mep_eui48_hi.attr,
 	&most_dci_attr_mep_eui48_mi.attr,
 	&most_dci_attr_mep_eui48_lo.attr,
+	&most_dci_attr_arb_address.attr,
+	&most_dci_attr_arb_value.attr,
 	NULL,
 };
 
