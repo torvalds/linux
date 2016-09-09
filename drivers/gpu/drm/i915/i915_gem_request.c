@@ -477,12 +477,13 @@ i915_gem_request_await_request(struct drm_i915_gem_request *to,
 
 	trace_i915_gem_ring_sync_to(to, from);
 	if (!i915.semaphores) {
-		ret = i915_wait_request(from,
-					I915_WAIT_INTERRUPTIBLE |
-					I915_WAIT_LOCKED,
-					NULL, NO_WAITBOOST);
-		if (ret)
-			return ret;
+		if (!i915_spin_request(from, TASK_INTERRUPTIBLE, 2)) {
+			ret = i915_sw_fence_await_dma_fence(&to->submit,
+							    &from->fence, 0,
+							    GFP_KERNEL);
+			if (ret < 0)
+				return ret;
+		}
 	} else {
 		ret = to->engine->semaphore.sync_to(to, from);
 		if (ret)
@@ -577,6 +578,7 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 {
 	struct intel_engine_cs *engine = request->engine;
 	struct intel_ring *ring = request->ring;
+	struct drm_i915_gem_request *prev;
 	u32 request_start;
 	u32 reserved_tail;
 	int ret;
@@ -631,6 +633,13 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 	 * hangcheck. Hence we apply the barrier to ensure that we do not
 	 * see a more recent value in the hws than we are tracking.
 	 */
+
+	prev = i915_gem_active_raw(&engine->last_request,
+				   &request->i915->drm.struct_mutex);
+	if (prev)
+		i915_sw_fence_await_sw_fence(&request->submit, &prev->submit,
+					     &request->submitq);
+
 	request->emitted_jiffies = jiffies;
 	request->previous_seqno = engine->last_submitted_seqno;
 	engine->last_submitted_seqno = request->fence.seqno;
