@@ -260,7 +260,9 @@ static int i915_gem_init_seqno(struct drm_i915_private *dev_priv, u32 seqno)
 
 	/* Carefully retire all requests without writing to the rings */
 	for_each_engine(engine, dev_priv) {
-		ret = intel_engine_idle(engine, I915_WAIT_INTERRUPTIBLE);
+		ret = intel_engine_idle(engine,
+					I915_WAIT_INTERRUPTIBLE |
+					I915_WAIT_LOCKED);
 		if (ret)
 			return ret;
 	}
@@ -625,6 +627,10 @@ int i915_wait_request(struct drm_i915_gem_request *req,
 	int ret = 0;
 
 	might_sleep();
+#if IS_ENABLED(CONFIG_LOCKDEP)
+	GEM_BUG_ON(!!lockdep_is_held(&req->i915->drm.struct_mutex) !=
+		   !!(flags & I915_WAIT_LOCKED));
+#endif
 
 	if (i915_gem_request_completed(req))
 		return 0;
@@ -667,7 +673,8 @@ int i915_wait_request(struct drm_i915_gem_request *req,
 		goto complete;
 
 	set_current_state(state);
-	add_wait_queue(&req->i915->gpu_error.wait_queue, &reset);
+	if (flags & I915_WAIT_LOCKED)
+		add_wait_queue(&req->i915->gpu_error.wait_queue, &reset);
 
 	intel_wait_init(&wait, req->fence.seqno);
 	if (intel_engine_add_wait(req->engine, &wait))
@@ -707,10 +714,12 @@ wakeup:
 		if (i915_spin_request(req, state, 2))
 			break;
 	}
-	remove_wait_queue(&req->i915->gpu_error.wait_queue, &reset);
 
 	intel_engine_remove_wait(req->engine, &wait);
+	if (flags & I915_WAIT_LOCKED)
+		remove_wait_queue(&req->i915->gpu_error.wait_queue, &reset);
 	__set_current_state(TASK_RUNNING);
+
 complete:
 	trace_i915_gem_request_wait_end(req);
 

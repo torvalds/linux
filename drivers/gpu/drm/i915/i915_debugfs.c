@@ -4794,7 +4794,9 @@ i915_drop_caches_set(void *data, u64 val)
 		return ret;
 
 	if (val & DROP_ACTIVE) {
-		ret = i915_gem_wait_for_idle(dev_priv, I915_WAIT_INTERRUPTIBLE);
+		ret = i915_gem_wait_for_idle(dev_priv,
+					     I915_WAIT_INTERRUPTIBLE |
+					     I915_WAIT_LOCKED);
 		if (ret)
 			goto unlock;
 	}

@@ -414,7 +414,7 @@ i915_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr
 		return NOTIFY_DONE;
 
 	/* Force everything onto the inactive lists */
-	ret = i915_gem_wait_for_idle(dev_priv, 0);
+	ret = i915_gem_wait_for_idle(dev_priv, I915_WAIT_LOCKED);
 	if (ret)
 		goto out;
 

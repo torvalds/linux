@@ -2802,7 +2802,8 @@ __i915_gem_object_sync(struct drm_i915_gem_request *to,
 
 	if (!i915.semaphores) {
 		ret = i915_wait_request(from,
-					from->i915->mm.interruptible,
+					from->i915->mm.interruptible |
+					I915_WAIT_LOCKED,
 					NULL,
 					NO_WAITBOOST);
 		if (ret)
@@ -4304,7 +4305,9 @@ int i915_gem_suspend(struct drm_device *dev)
 	if (ret)
 		goto err;
 
-	ret = i915_gem_wait_for_idle(dev_priv, I915_WAIT_INTERRUPTIBLE);
+	ret = i915_gem_wait_for_idle(dev_priv,
+				     I915_WAIT_INTERRUPTIBLE |
+				     I915_WAIT_LOCKED);
 	if (ret)
 		goto err;
 
