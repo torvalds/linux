@@ -228,7 +228,8 @@ config GPIO_ICH
 
 config GPIO_IOP
 	tristate "Intel IOP GPIO"
-	depends on ARM && (ARCH_IOP32X || ARCH_IOP33X)
+	depends on ARCH_IOP32X || ARCH_IOP33X || COMPILE_TEST
+	select GPIO_GENERIC
 	help
 	  Say yes here to support the GPIO functionality of a number of Intel
 	  IOP32X or IOP33X.
