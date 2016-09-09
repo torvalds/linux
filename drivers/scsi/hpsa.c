@@ -293,6 +293,8 @@ static int detect_controller_lockup(struct ctlr_info *h);
 static void hpsa_disable_rld_caching(struct ctlr_info *h);
 static inline int hpsa_scsi_do_report_phys_luns(struct ctlr_info *h,
 	struct ReportExtendedLUNdata *buf, int bufsize);
+static bool hpsa_vpd_page_supported(struct ctlr_info *h,
+	unsigned char scsi3addr[], u8 page);
 static int hpsa_luns_changed(struct ctlr_info *h);
 static bool hpsa_cmd_dev_match(struct ctlr_info *h, struct CommandList *c,
 			       struct hpsa_scsi_dev_t *dev,
@@ -3088,11 +3090,19 @@ static void hpsa_get_raid_level(struct ctlr_info *h,
 	buf = kzalloc(64, GFP_KERNEL);
 	if (!buf)
 		return;
-	rc = hpsa_scsi_do_inquiry(h, scsi3addr, VPD_PAGE | 0xC1, buf, 64);
+
+	if (!hpsa_vpd_page_supported(h, scsi3addr,
+		HPSA_VPD_LV_DEVICE_GEOMETRY))
+		goto exit;
+
+	rc = hpsa_scsi_do_inquiry(h, scsi3addr, VPD_PAGE |
+		HPSA_VPD_LV_DEVICE_GEOMETRY, buf, 64);
+
 	if (rc == 0)
 		*raid_level = buf[8];
 	if (*raid_level > RAID_UNKNOWN)
 		*raid_level = RAID_UNKNOWN;
+exit:
 	kfree(buf);
 	return;
 }
@@ -3450,7 +3460,7 @@ static void hpsa_get_sas_address(struct ctlr_info *h, unsigned char *scsi3addr,
 }
 
 /* Get a device id from inquiry page 0x83 */
-static int hpsa_vpd_page_supported(struct ctlr_info *h,
+static bool hpsa_vpd_page_supported(struct ctlr_info *h,
 	unsigned char scsi3addr[], u8 page)
 {
 	int rc;
@@ -3460,7 +3470,7 @@ static int hpsa_vpd_page_supported(struct ctlr_info *h,
 
 	buf = kzalloc(256, GFP_KERNEL);
 	if (!buf)
-		return 0;
+		return false;
 
 	/* Get the size of the page list first */
 	rc = hpsa_scsi_do_inquiry(h, scsi3addr,
@@ -3487,10 +3497,10 @@ static int hpsa_vpd_page_supported(struct ctlr_info *h,
 			goto exit_supported;
 exit_unsupported:
 	kfree(buf);
-	return 0;
+	return false;
 exit_supported:
 	kfree(buf);
-	return 1;
+	return true;
 }
 
 static void hpsa_get_ioaccel_status(struct ctlr_info *h,
@@ -3539,18 +3549,25 @@ static int hpsa_get_device_id(struct ctlr_info *h, unsigned char *scsi3addr,
 	int rc;
 	unsigned char *buf;
 
-	if (buflen > 16)
-		buflen = 16;
+	/* Does controller have VPD for device id? */
+	if (!hpsa_vpd_page_supported(h, scsi3addr, HPSA_VPD_LV_DEVICE_ID))
+		return 1; /* not supported */
+
 	buf = kzalloc(64, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
-	rc = hpsa_scsi_do_inquiry(h, scsi3addr, VPD_PAGE | 0x83, buf, 64);
-	if (rc == 0)
-		memcpy(device_id, &buf[index], buflen);
+
+	rc = hpsa_scsi_do_inquiry(h, scsi3addr, VPD_PAGE |
+					HPSA_VPD_LV_DEVICE_ID, buf, 64);
+	if (rc == 0) {
+		if (buflen > 16)
+			buflen = 16;
+		memcpy(device_id, &buf[8], buflen);
+	}
 
 	kfree(buf);
 
-	return rc != 0;
+	return rc; /*0 - got id,  otherwise, didn't */
 }
 
 static int hpsa_scsi_do_report_luns(struct ctlr_info *h, int logical,
@@ -3821,8 +3838,15 @@ static int hpsa_update_device_info(struct ctlr_info *h,
 		sizeof(this_device->model));
 	memset(this_device->device_id, 0,
 		sizeof(this_device->device_id));
-	hpsa_get_device_id(h, scsi3addr, this_device->device_id, 8,
-		sizeof(this_device->device_id));
+	if (hpsa_get_device_id(h, scsi3addr, this_device->device_id, 8,
+		sizeof(this_device->device_id)))
+		dev_err(&h->pdev->dev,
+			"hpsa%d: %s: can't get device id for host %d:C0:T%d:L%d\t%s\t%.16s\n",
+			h->ctlr, __func__,
+			h->scsi_host->host_no,
+			this_device->target, this_device->lun,
+			scsi_device_type(this_device->devtype),
+			this_device->model);
 
 	if ((this_device->devtype == TYPE_DISK ||
 		this_device->devtype == TYPE_ZBC) &&
