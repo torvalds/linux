@@ -446,6 +446,7 @@
 #define DP_SINK_OUI			    0x400
 #define DP_BRANCH_OUI			    0x500
 #define DP_BRANCH_ID                        0x503
+#define DP_BRANCH_HW_REV                    0x509
 
 #define DP_SET_POWER                        0x600
 # define DP_SET_POWER_D0                    0x1
