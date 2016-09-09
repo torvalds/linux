@@ -138,7 +138,7 @@ static int rk808_clkout_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	return of_clk_add_hw_provider(node, of_clk_rk808_get, &rk808_clkout);
+	return of_clk_add_hw_provider(node, of_clk_rk808_get, rk808_clkout);
 }
 
 static int rk808_clkout_remove(struct platform_device *pdev)
