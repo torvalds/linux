@@ -2634,10 +2634,10 @@ void bpf_warn_invalid_xdp_action(u32 act)
 }
 EXPORT_SYMBOL_GPL(bpf_warn_invalid_xdp_action);
 
-static u32 bpf_net_convert_ctx_access(enum bpf_access_type type, int dst_reg,
-				      int src_reg, int ctx_off,
-				      struct bpf_insn *insn_buf,
-				      struct bpf_prog *prog)
+static u32 sk_filter_convert_ctx_access(enum bpf_access_type type, int dst_reg,
+					int src_reg, int ctx_off,
+					struct bpf_insn *insn_buf,
+					struct bpf_prog *prog)
 {
 	struct bpf_insn *insn = insn_buf;
 
@@ -2785,6 +2785,31 @@ static u32 bpf_net_convert_ctx_access(enum bpf_access_type type, int dst_reg,
 	return insn - insn_buf;
 }
 
+static u32 tc_cls_act_convert_ctx_access(enum bpf_access_type type, int dst_reg,
+					 int src_reg, int ctx_off,
+					 struct bpf_insn *insn_buf,
+					 struct bpf_prog *prog)
+{
+	struct bpf_insn *insn = insn_buf;
+
+	switch (ctx_off) {
+	case offsetof(struct __sk_buff, ifindex):
+		BUILD_BUG_ON(FIELD_SIZEOF(struct net_device, ifindex) != 4);
+
+		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(struct sk_buff, dev),
+				      dst_reg, src_reg,
+				      offsetof(struct sk_buff, dev));
+		*insn++ = BPF_LDX_MEM(BPF_W, dst_reg, dst_reg,
+				      offsetof(struct net_device, ifindex));
+		break;
+	default:
+		return sk_filter_convert_ctx_access(type, dst_reg, src_reg,
+						    ctx_off, insn_buf, prog);
+	}
+
+	return insn - insn_buf;
+}
+
 static u32 xdp_convert_ctx_access(enum bpf_access_type type, int dst_reg,
 				  int src_reg, int ctx_off,
 				  struct bpf_insn *insn_buf,
@@ -2811,13 +2836,13 @@ static u32 xdp_convert_ctx_access(enum bpf_access_type type, int dst_reg,
 static const struct bpf_verifier_ops sk_filter_ops = {
 	.get_func_proto		= sk_filter_func_proto,
 	.is_valid_access	= sk_filter_is_valid_access,
-	.convert_ctx_access	= bpf_net_convert_ctx_access,
+	.convert_ctx_access	= sk_filter_convert_ctx_access,
 };
 
 static const struct bpf_verifier_ops tc_cls_act_ops = {
 	.get_func_proto		= tc_cls_act_func_proto,
 	.is_valid_access	= tc_cls_act_is_valid_access,
-	.convert_ctx_access	= bpf_net_convert_ctx_access,
+	.convert_ctx_access	= tc_cls_act_convert_ctx_access,
 };
 
 static const struct bpf_verifier_ops xdp_ops = {
