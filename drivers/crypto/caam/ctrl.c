@@ -468,27 +468,6 @@ static int caam_probe(struct platform_device *pdev)
 		dev_err(dev, "caam: of_iomap() failed\n");
 		return -ENOMEM;
 	}
-	/* Finding the page size for using the CTPR_MS register */
-	comp_params = rd_reg32(&ctrl->perfmon.comp_parms_ms);
-	pg_size = (comp_params & CTPR_MS_PG_SZ_MASK) >> CTPR_MS_PG_SZ_SHIFT;
-
-	/* Allocating the BLOCK_OFFSET based on the supported page size on
-	 * the platform
-	 */
-	if (pg_size == 0)
-		BLOCK_OFFSET = PG_SIZE_4K;
-	else
-		BLOCK_OFFSET = PG_SIZE_64K;
-
-	ctrlpriv->ctrl = (struct caam_ctrl __force *)ctrl;
-	ctrlpriv->assure = (struct caam_assurance __force *)
-			   ((uint8_t *)ctrl +
-			    BLOCK_OFFSET * ASSURE_BLOCK_NUMBER
-			   );
-	ctrlpriv->deco = (struct caam_deco __force *)
-			 ((uint8_t *)ctrl +
-			 BLOCK_OFFSET * DECO_BLOCK_NUMBER
-			 );
 
 	/* Get CAAM-SM node and of_iomap() and save */
 	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-caam-sm");
@@ -583,6 +562,28 @@ static int caam_probe(struct platform_device *pdev)
 		}
 	}
 #endif
+
+	/* Finding the page size for using the CTPR_MS register */
+        comp_params = rd_reg32(&ctrl->perfmon.comp_parms_ms);
+        pg_size = (comp_params & CTPR_MS_PG_SZ_MASK) >> CTPR_MS_PG_SZ_SHIFT;
+
+        /* Allocating the BLOCK_OFFSET based on the supported page size on
+         * the platform
+         */
+        if (pg_size == 0)
+                BLOCK_OFFSET = PG_SIZE_4K;
+        else
+                BLOCK_OFFSET = PG_SIZE_64K;
+
+        ctrlpriv->ctrl = (struct caam_ctrl __force *)ctrl;
+        ctrlpriv->assure = (struct caam_assurance __force *)
+                           ((uint8_t *)ctrl +
+                            BLOCK_OFFSET * ASSURE_BLOCK_NUMBER
+                           );
+        ctrlpriv->deco = (struct caam_deco __force *)
+                         ((uint8_t *)ctrl +
+                         BLOCK_OFFSET * DECO_BLOCK_NUMBER
+                         );
 
 	/*
 	 * Enable DECO watchdogs and, if this is a PHYS_ADDR_T_64BIT kernel,
