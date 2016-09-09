@@ -1180,8 +1180,7 @@ out:
 	return 0;
 
 err_sriov:
-	if (mlx5_sriov_cleanup(dev))
-		dev_err(&dev->pdev->dev, "sriov cleanup failed\n");
+	mlx5_sriov_cleanup(dev);
 
 #ifdef CONFIG_MLX5_CORE_EN
 	mlx5_eswitch_cleanup(dev->priv.eswitch);
@@ -1241,19 +1240,14 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 {
 	int err = 0;
 
-	err = mlx5_sriov_cleanup(dev);
-	if (err) {
-		dev_warn(&dev->pdev->dev, "%s: sriov cleanup failed - abort\n",
-			 __func__);
-		return err;
-	}
-
 	mutex_lock(&dev->intf_state_mutex);
 	if (test_bit(MLX5_INTERFACE_STATE_DOWN, &dev->intf_state)) {
 		dev_warn(&dev->pdev->dev, "%s: interface is down, NOP\n",
 			 __func__);
 		goto out;
 	}
+
+	mlx5_sriov_cleanup(dev);
 	mlx5_unregister_device(dev);
 #ifdef CONFIG_MLX5_CORE_EN
 	mlx5_eswitch_cleanup(dev->priv.eswitch);
