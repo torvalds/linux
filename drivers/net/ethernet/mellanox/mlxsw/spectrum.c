@@ -2106,6 +2106,13 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 	dev->netdev_ops = &mlxsw_sp_port_netdev_ops;
 	dev->ethtool_ops = &mlxsw_sp_port_ethtool_ops;
 
+	err = mlxsw_sp_port_swid_set(mlxsw_sp_port, 0);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to set SWID\n",
+			mlxsw_sp_port->local_port);
+		goto err_port_swid_set;
+	}
+
 	err = mlxsw_sp_port_dev_addr_init(mlxsw_sp_port);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Unable to init port mac address\n",
@@ -2129,13 +2136,6 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to set system port mapping\n",
 			mlxsw_sp_port->local_port);
 		goto err_port_system_port_mapping_set;
-	}
-
-	err = mlxsw_sp_port_swid_set(mlxsw_sp_port, 0);
-	if (err) {
-		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to set SWID\n",
-			mlxsw_sp_port->local_port);
-		goto err_port_swid_set;
 	}
 
 	err = mlxsw_sp_port_speed_by_width_set(mlxsw_sp_port, width);
@@ -2219,10 +2219,10 @@ err_port_buffers_init:
 err_port_admin_status_set:
 err_port_mtu_set:
 err_port_speed_by_width_set:
-	mlxsw_sp_port_swid_set(mlxsw_sp_port, MLXSW_PORT_SWID_DISABLED_PORT);
-err_port_swid_set:
 err_port_system_port_mapping_set:
 err_dev_addr_init:
+	mlxsw_sp_port_swid_set(mlxsw_sp_port, MLXSW_PORT_SWID_DISABLED_PORT);
+err_port_swid_set:
 	free_percpu(mlxsw_sp_port->pcpu_stats);
 err_alloc_stats:
 	kfree(mlxsw_sp_port->untagged_vlans);
