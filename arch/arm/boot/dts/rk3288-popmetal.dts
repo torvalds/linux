@@ -48,7 +48,7 @@
 	model = "PopMetal-RK3288";
 	compatible = "chipspark,popmetal-rk3288", "rockchip,rk3288";
 
-	memory{
+	memory@0 {
 		device_type = "memory";
 		reg = <0 0x80000000>;
 	};
