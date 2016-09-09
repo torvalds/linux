@@ -928,8 +928,9 @@
 	snps,reset-delays-us = <0 10000 50000>;
 	assigned-clocks = <&cru SCLK_RMII_SRC>;
 	assigned-clock-parents = <&clkin_gmac>;
-	pinctrl-names = "default";
+	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&rgmii_pins>;
+	pinctrl-1 = <&rgmii_sleep_pins>;
 	tx_delay = <0x28>;
 	rx_delay = <0x11>;
 	status = "okay";
@@ -1001,6 +1002,13 @@
 		pmic_int_l: pmic-int-l {
 			rockchip,pins =
 				<1 21 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	gmac {
+		rgmii_sleep_pins: rgmii-sleep-pins {
+			rockchip,pins =
+				<3 15 RK_FUNC_GPIO &pcfg_output_low>;
 		};
 	};
 };
