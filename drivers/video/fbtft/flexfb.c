@@ -147,6 +147,51 @@ static int ili9488_init[] = { \
 -1, 0x11, \
 -1, 0x29, \
 -3 };
+
+static void set_addr_win_odroid(struct fbtft_par *par, int xs, int ys, int xe, int ye)
+{
+	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par,
+		"%s(xs=%d, ys=%d, xe=%d, ye=%d)\n", __func__, xs, ys, xe, ye);
+
+	/* Column address */
+	write_reg(par, 0x2A, xs >> 8, xs & 0xFF, xe >> 8, xe & 0xFF);
+
+	/* Row adress */
+	write_reg(par, 0x2B, ys >> 8, ys & 0xFF, ye >> 8, ye & 0xFF);
+
+	/* Memory write */
+	write_reg(par, 0x2C);
+}
+
+#define ODROID_TFT35_MACTL_MV  0x20
+#define ODROID_TFT35_MACTL_MX  0x40
+#define ODROID_TFT35_MACTL_MY  0x80
+
+static int set_var_odroid(struct fbtft_par *par)
+{
+	u8 val;
+
+	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
+
+	switch (par->info->var.rotate) {
+	case 270:
+		val = ODROID_TFT35_MACTL_MV;
+		break;
+	case 180:
+		val = ODROID_TFT35_MACTL_MY;
+		break;
+	case 90:
+		val = ODROID_TFT35_MACTL_MV | ODROID_TFT35_MACTL_MX | ODROID_TFT35_MACTL_MY;
+		break;
+	default:
+		val = ODROID_TFT35_MACTL_MX;
+		break;
+	}
+	/* Memory Access Control  */
+	write_reg(par, 0x36, val | (par->bgr << 3));
+	return	0;
+}
+
 #endif
 
 /* ili9320, ili9325 */
@@ -356,9 +401,9 @@ static int flexfb_probe_common(struct spi_device *sdev, struct platform_device *
 #if defined(CONFIG_MACH_MESON8B_ODROIDC)
 		} else if (!strcmp(chip, "ili9488")) {
 			if (!width)
-				width = 480;
+				width = 320;
 			if (!height)
-				height = 320;
+				height = 480;
 			setaddrwin = 0;
 			regwidth = 8;
 			buswidth = 8;
@@ -523,8 +568,11 @@ static int flexfb_probe_common(struct spi_device *sdev, struct platform_device *
 	par->reg_gpiox = ioremap(ODROIDC1_GPIOX_START, 64);
 	if (par->reg_gpiox == NULL)
 		pr_err("%s : ioremap gpiox register error!\n", __func__);
-	else
+	else {
 		par->fbtftops.write = fbtft_write_reg_wr;
+		par->fbtftops.set_addr_win = set_addr_win_odroid;
+		par->fbtftops.set_var = set_var_odroid;
+	}
 #endif
 	ret = fbtft_register_framebuffer(info);
 	if (ret < 0)
