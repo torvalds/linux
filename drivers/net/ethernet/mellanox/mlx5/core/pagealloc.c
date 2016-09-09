@@ -326,6 +326,7 @@ static int reclaim_pages_cmd(struct mlx5_core_dev *dev,
 {
 	struct fw_page *fwp;
 	struct rb_node *p;
+	u32 func_id;
 	u32 npages;
 	u32 i = 0;
 
@@ -334,12 +335,16 @@ static int reclaim_pages_cmd(struct mlx5_core_dev *dev,
 
 	/* No hard feelings, we want our pages back! */
 	npages = MLX5_GET(manage_pages_in, in, input_num_entries);
+	func_id = MLX5_GET(manage_pages_in, in, function_id);
 
 	p = rb_first(&dev->priv.page_root);
 	while (p && i < npages) {
 		fwp = rb_entry(p, struct fw_page, rb_node);
-		MLX5_SET64(manage_pages_out, out, pas[i], fwp->addr);
 		p = rb_next(p);
+		if (fwp->func_id != func_id)
+			continue;
+
+		MLX5_SET64(manage_pages_out, out, pas[i], fwp->addr);
 		i++;
 	}
 
@@ -539,6 +544,12 @@ int mlx5_wait_for_vf_pages(struct mlx5_core_dev *dev)
 {
 	unsigned long end = jiffies + msecs_to_jiffies(MAX_RECLAIM_VFS_PAGES_TIME_MSECS);
 	int prev_vfs_pages = dev->priv.vfs_pages;
+
+	/* In case of internal error we will free the pages manually later */
+	if (dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR) {
+		mlx5_core_warn(dev, "Skipping wait for vf pages stage");
+		return 0;
+	}
 
 	mlx5_core_dbg(dev, "Waiting for %d pages from %s\n", prev_vfs_pages,
 		      dev->priv.name);
