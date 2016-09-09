@@ -736,58 +736,7 @@ struct ath10k {
 	struct ath10k_htc htc;
 	struct ath10k_htt htt;
 
-	struct ath10k_hw_params {
-		u32 id;
-		u16 dev_id;
-		const char *name;
-		u32 patch_load_addr;
-		int uart_pin;
-		u32 otp_exe_param;
-
-		/* Type of hw cycle counter wraparound logic, for more info
-		 * refer enum ath10k_hw_cc_wraparound_type.
-		 */
-		enum ath10k_hw_cc_wraparound_type cc_wraparound_type;
-
-		/* Some of chip expects fragment descriptor to be continuous
-		 * memory for any TX operation. Set continuous_frag_desc flag
-		 * for the hardware which have such requirement.
-		 */
-		bool continuous_frag_desc;
-
-		/* CCK hardware rate table mapping for the newer chipsets
-		 * like QCA99X0, QCA4019 got revised. The CCK h/w rate values
-		 * are in a proper order with respect to the rate/preamble
-		 */
-		bool cck_rate_map_rev2;
-
-		u32 channel_counters_freq_hz;
-
-		/* Mgmt tx descriptors threshold for limiting probe response
-		 * frames.
-		 */
-		u32 max_probe_resp_desc_thres;
-
-		/* The padding bytes's location is different on various chips */
-		enum ath10k_hw_4addr_pad hw_4addr_pad;
-
-		u32 tx_chain_mask;
-		u32 rx_chain_mask;
-		u32 max_spatial_stream;
-		u32 cal_data_len;
-
-		struct ath10k_hw_params_fw {
-			const char *dir;
-			const char *board;
-			size_t board_size;
-			size_t board_ext_size;
-		} fw;
-
-		/* qca99x0 family chips deliver broadcast/multicast management
-		 * frames encrypted and expect software do decryption.
-		 */
-		bool sw_decrypt_mcast_mgmt;
-	} hw_params;
+	struct ath10k_hw_params hw_params;
 
 	/* contains the firmware images used with ATH10K_FIRMWARE_MODE_NORMAL */
 	struct ath10k_fw_components normal_mode_fw;
