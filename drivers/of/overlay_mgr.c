@@ -112,12 +112,22 @@ static DEVICE_ATTR(current_overlay, 0644, current_overlay_show,
 
 static int of_overlay_mgr_probe(struct platform_device *pdev)
 {
+	char *cur_entry;
+	char *next_entry;
+
 	if (device_create_file(&pdev->dev, &dev_attr_current_overlay))
 		pr_err("overlay_mgr: fail to register apply entry\n");
 
 	if (!of_overlay_dt_entry)
 		return 0;
-	of_overlay_mgr_apply_dt(&pdev->dev, of_overlay_dt_entry);
+	next_entry = of_overlay_dt_entry;
+	do {
+		cur_entry = next_entry;
+		next_entry = strchr(cur_entry, ',');
+		if (next_entry)
+			*next_entry++ = '\0';
+		of_overlay_mgr_apply_dt(&pdev->dev, cur_entry);
+	} while (next_entry);
 	return 0;
 }
 
