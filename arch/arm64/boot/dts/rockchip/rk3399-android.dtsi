@@ -502,6 +502,7 @@
 		resets = <&cru SRST_P_EDP_CTRL>;
 		reset-names = "edp_apb";
 		status = "disabled";
+		power-domains = <&power RK3399_PD_EDP>;
 	};
 };
 
