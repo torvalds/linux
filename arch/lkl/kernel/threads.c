@@ -5,7 +5,7 @@
 
 static volatile int threads_counter;
 
-struct thread_info *alloc_thread_info_node(struct task_struct *task, int node)
+unsigned long *alloc_thread_stack_node(struct task_struct *task, int node)
 {
 	struct thread_info *ti;
 
@@ -22,7 +22,7 @@ struct thread_info *alloc_thread_info_node(struct task_struct *task, int node)
 		return NULL;
 	}
 
-	return ti;
+	return (unsigned long *)ti;
 }
 
 /*
@@ -48,8 +48,9 @@ static void kill_thread(struct thread_exit_info *ei)
 	lkl_ops->sem_up(ei->sched_sem);
 }
 
-void free_thread_info(struct thread_info *ti)
+void free_thread_stack(unsigned long *stack)
 {
+	struct thread_info *ti = (struct thread_info *)stack;
 	struct thread_exit_info *ei = ti->exit_info;
 
 	kfree(ti);

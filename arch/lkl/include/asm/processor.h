@@ -38,10 +38,6 @@ static inline void flush_thread(void)
 {
 }
 
-static inline void exit_thread(void)
-{
-}
-
 static inline void trap_init(void)
 {
 }
