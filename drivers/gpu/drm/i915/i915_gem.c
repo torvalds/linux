@@ -2549,6 +2549,9 @@ i915_gem_find_active_request(struct intel_engine_cs *engine)
 		if (i915_gem_request_completed(request))
 			continue;
 
+		if (!i915_sw_fence_done(&request->submit))
+			break;
+
 		return request;
 	}
 

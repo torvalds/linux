@@ -28,6 +28,7 @@
 #include <linux/fence.h>
 
 #include "i915_gem.h"
+#include "i915_sw_fence.h"
 
 struct intel_wait {
 	struct rb_node node;
@@ -81,6 +82,8 @@ struct drm_i915_gem_request {
 	struct intel_engine_cs *engine;
 	struct intel_ring *ring;
 	struct intel_signal_node signaling;
+
+	struct i915_sw_fence submit;
 
 	/** GEM sequence number associated with the previous request,
 	 * when the HWS breadcrumb is equal to this the GPU is processing

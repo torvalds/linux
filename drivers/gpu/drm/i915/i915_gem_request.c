@@ -318,6 +318,26 @@ static int i915_gem_get_seqno(struct drm_i915_private *dev_priv, u32 *seqno)
 	return 0;
 }
 
+static int __i915_sw_fence_call
+submit_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
+{
+	struct drm_i915_gem_request *request =
+		container_of(fence, typeof(*request), submit);
+
+	/* Will be called from irq-context when using foreign DMA fences */
+
+	switch (state) {
+	case FENCE_COMPLETE:
+		request->engine->submit_request(request);
+		break;
+
+	case FENCE_FREE:
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
 /**
  * i915_gem_request_alloc - allocate a request structure
  *
@@ -395,6 +415,8 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 		   &req->lock,
 		   engine->fence_context,
 		   seqno);
+
+	i915_sw_fence_init(&req->submit, submit_notify);
 
 	INIT_LIST_HEAD(&req->active_list);
 	req->i915 = dev_priv;
@@ -530,7 +552,10 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 		  reserved_tail, ret);
 
 	i915_gem_mark_busy(engine);
-	engine->submit_request(request);
+
+	local_bh_disable();
+	i915_sw_fence_commit(&request->submit);
+	local_bh_enable(); /* Kick the execlists tasklet if just scheduled */
 }
 
 static void reset_wait_queue(wait_queue_head_t *q, wait_queue_t *wait)

@@ -226,7 +226,15 @@ struct intel_engine_cs {
 #define I915_DISPATCH_PINNED BIT(1)
 #define I915_DISPATCH_RS     BIT(2)
 	int		(*emit_request)(struct drm_i915_gem_request *req);
+
+	/* Pass the request to the hardware queue (e.g. directly into
+	 * the legacy ringbuffer or to the end of an execlist).
+	 *
+	 * This is called from an atomic context with irqs disabled; must
+	 * be irq safe.
+	 */
 	void		(*submit_request)(struct drm_i915_gem_request *req);
+
 	/* Some chipsets are not quite as coherent as advertised and need
 	 * an expensive kick to force a true read of the up-to-date seqno.
 	 * However, the up-to-date seqno is not always required and the last

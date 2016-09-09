@@ -590,14 +590,15 @@ static void intel_lrc_irq_handler(unsigned long data)
 static void execlists_submit_request(struct drm_i915_gem_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
+	unsigned long flags;
 
-	spin_lock_bh(&engine->execlist_lock);
+	spin_lock_irqsave(&engine->execlist_lock, flags);
 
 	list_add_tail(&request->execlist_link, &engine->execlist_queue);
 	if (execlists_elsp_idle(engine))
 		tasklet_hi_schedule(&engine->irq_tasklet);
 
-	spin_unlock_bh(&engine->execlist_lock);
+	spin_unlock_irqrestore(&engine->execlist_lock, flags);
 }
 
 int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request)

@@ -1016,7 +1016,8 @@ int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 
 		/* Replay the current set of previously submitted requests */
 		list_for_each_entry(request, &engine->request_list, link)
-			i915_guc_submit(request);
+			if (i915_sw_fence_done(&request->submit))
+				i915_guc_submit(request);
 	}
 
 	return 0;
