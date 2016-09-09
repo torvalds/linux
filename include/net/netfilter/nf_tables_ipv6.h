@@ -4,7 +4,7 @@
 #include <linux/netfilter_ipv6/ip6_tables.h>
 #include <net/ipv6.h>
 
-static inline int
+static inline void
 nft_set_pktinfo_ipv6(struct nft_pktinfo *pkt,
 		     struct sk_buff *skb,
 		     const struct nf_hook_state *state)
@@ -17,15 +17,13 @@ nft_set_pktinfo_ipv6(struct nft_pktinfo *pkt,
 	protohdr = ipv6_find_hdr(pkt->skb, &thoff, -1, &frag_off, NULL);
 	if (protohdr < 0) {
 		nft_set_pktinfo_proto_unspec(pkt, skb);
-		return -1;
+		return;
 	}
 
 	pkt->tprot_set = true;
 	pkt->tprot = protohdr;
 	pkt->xt.thoff = thoff;
 	pkt->xt.fragoff = frag_off;
-
-	return 0;
 }
 
 static inline int

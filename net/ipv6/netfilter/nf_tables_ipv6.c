@@ -22,9 +22,7 @@ static unsigned int nft_do_chain_ipv6(void *priv,
 {
 	struct nft_pktinfo pkt;
 
-	/* malformed packet, drop it */
-	if (nft_set_pktinfo_ipv6(&pkt, skb, state) < 0)
-		return NF_DROP;
+	nft_set_pktinfo_ipv6(&pkt, skb, state);
 
 	return nft_do_chain(&pkt, priv);
 }
