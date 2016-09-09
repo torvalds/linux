@@ -326,10 +326,10 @@ static int hdm_poison_channel(struct most_interface *iface, int channel)
 static int hdm_add_padding(struct most_dev *mdev, int channel, struct mbo *mbo)
 {
 	struct most_channel_config *conf = &mdev->conf[channel];
-	unsigned int j, num_frames, frame_size;
+	unsigned int frame_size = get_stream_frame_size(conf);
+	unsigned int j, num_frames;
 	u16 rd_addr, wr_addr;
 
-	frame_size = get_stream_frame_size(conf);
 	if (!frame_size)
 		return -EIO;
 	num_frames = mbo->buffer_length / frame_size;
@@ -363,10 +363,10 @@ static int hdm_add_padding(struct most_dev *mdev, int channel, struct mbo *mbo)
 static int hdm_remove_padding(struct most_dev *mdev, int channel,
 			      struct mbo *mbo)
 {
-	unsigned int j, num_frames, frame_size;
 	struct most_channel_config *const conf = &mdev->conf[channel];
+	unsigned int frame_size = get_stream_frame_size(conf);
+	unsigned int j, num_frames;
 
-	frame_size = get_stream_frame_size(conf);
 	if (!frame_size)
 		return -EIO;
 	num_frames = mbo->processed_length / USB_MTU;
@@ -1098,9 +1098,8 @@ static ssize_t store_value(struct most_dci_obj *dci_obj,
 {
 	u16 val;
 	u16 reg_addr;
-	int err;
+	int err = kstrtou16(buf, 16, &val);
 
-	err = kstrtou16(buf, 16, &val);
 	if (err)
 		return err;
 
