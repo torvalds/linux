@@ -562,15 +562,15 @@ out:
 /*
  * Returns true if the client IDs match
  */
-static bool nfs4_match_clientids(struct nfs_client *a, struct nfs_client *b)
+static bool nfs4_match_clientids(u64 a, u64 b)
 {
-	if (a->cl_clientid != b->cl_clientid) {
+	if (a != b) {
 		dprintk("NFS: --> %s client ID %llx does not match %llx\n",
-			__func__, a->cl_clientid, b->cl_clientid);
+			__func__, a, b);
 		return false;
 	}
 	dprintk("NFS: --> %s client ID %llx matches %llx\n",
-		__func__, a->cl_clientid, b->cl_clientid);
+		__func__, a, b);
 	return true;
 }
 
@@ -650,7 +650,7 @@ int nfs41_walk_client_list(struct nfs_client *new,
 		if (pos->cl_cons_state != NFS_CS_READY)
 			continue;
 
-		if (!nfs4_match_clientids(pos, new))
+		if (!nfs4_match_clientids(pos->cl_clientid, new->cl_clientid))
 			continue;
 
 		/*
