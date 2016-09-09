@@ -65,7 +65,7 @@ struct arm64_ftr_bits {
 	enum ftr_type	type;
 	u8		shift;
 	u8		width;
-	s64		safe_val; /* safe value for discrete features */
+	s64		safe_val; /* safe value for FTR_EXACT features */
 };
 
 /*
