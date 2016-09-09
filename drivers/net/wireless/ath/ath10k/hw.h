@@ -338,11 +338,6 @@ enum ath10k_hw_rate_rev2_cck {
 	ATH10K_HW_RATE_REV2_CCK_SP_11M,
 };
 
-enum ath10k_hw_4addr_pad {
-	ATH10K_HW_4ADDR_PAD_AFTER,
-	ATH10K_HW_4ADDR_PAD_BEFORE,
-};
-
 enum ath10k_hw_cc_wraparound_type {
 	ATH10K_HW_CC_WRAP_DISABLED = 0,
 
@@ -394,9 +389,6 @@ struct ath10k_hw_params {
 	 * frames.
 	 */
 	u32 max_probe_resp_desc_thres;
-
-	/* The padding bytes's location is different on various chips */
-	enum ath10k_hw_4addr_pad hw_4addr_pad;
 
 	u32 tx_chain_mask;
 	u32 rx_chain_mask;
