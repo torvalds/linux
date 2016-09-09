@@ -445,6 +445,7 @@
 #define DP_SOURCE_OUI			    0x300
 #define DP_SINK_OUI			    0x400
 #define DP_BRANCH_OUI			    0x500
+#define DP_BRANCH_ID                        0x503
 
 #define DP_SET_POWER                        0x600
 # define DP_SET_POWER_D0                    0x1
@@ -819,6 +820,7 @@ int drm_dp_downstream_max_clock(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 				const u8 port_cap[4]);
 int drm_dp_downstream_max_bpc(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 			      const u8 port_cap[4]);
+int drm_dp_downstream_id(struct drm_dp_aux *aux, char id[6]);
 
 void drm_dp_aux_init(struct drm_dp_aux *aux);
 int drm_dp_aux_register(struct drm_dp_aux *aux);

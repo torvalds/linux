@@ -513,6 +513,18 @@ int drm_dp_downstream_max_bpc(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 }
 EXPORT_SYMBOL(drm_dp_downstream_max_bpc);
 
+/**
+ * drm_dp_downstream_id() - identify branch device
+ * @aux: DisplayPort AUX channel
+ *
+ * Returns branch device id on success or NULL on failure
+ */
+int drm_dp_downstream_id(struct drm_dp_aux *aux, char id[6])
+{
+	return drm_dp_dpcd_read(aux, DP_BRANCH_ID, id, 6);
+}
+EXPORT_SYMBOL(drm_dp_downstream_id);
+
 /*
  * I2C-over-AUX implementation
  */
