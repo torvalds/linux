@@ -58,6 +58,8 @@ static bool branch_insn_requires_update(struct alt_instr *alt, unsigned long pc)
 	BUG();
 }
 
+#define align_down(x, a)	((unsigned long)(x) & ~(((unsigned long)(a)) - 1))
+
 static u32 get_alt_insn(struct alt_instr *alt, u32 *insnptr, u32 *altinsnptr)
 {
 	u32 insn;
@@ -79,6 +81,19 @@ static u32 get_alt_insn(struct alt_instr *alt, u32 *insnptr, u32 *altinsnptr)
 			offset = target - (unsigned long)insnptr;
 			insn = aarch64_set_branch_offset(insn, offset);
 		}
+	} else if (aarch64_insn_is_adrp(insn)) {
+		s32 orig_offset, new_offset;
+		unsigned long target;
+
+		/*
+		 * If we're replacing an adrp instruction, which uses PC-relative
+		 * immediate addressing, adjust the offset to reflect the new
+		 * PC. adrp operates on 4K aligned addresses.
+		 */
+		orig_offset  = aarch64_insn_adrp_get_offset(insn);
+		target = align_down(altinsnptr, SZ_4K) + orig_offset;
+		new_offset = target - align_down(insnptr, SZ_4K);
+		insn = aarch64_insn_adrp_set_offset(insn, new_offset);
 	} else if (aarch64_insn_uses_literal(insn)) {
 		/*
 		 * Disallow patching unhandled instructions using PC relative
