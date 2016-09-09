@@ -177,7 +177,7 @@ nvkm_volt_ctor(const struct nvkm_volt_func *func, struct nvkm_device *device,
 	struct nvkm_bios *bios = device->bios;
 	int i;
 
-	nvkm_subdev_ctor(&nvkm_volt, device, index, 0, &volt->subdev);
+	nvkm_subdev_ctor(&nvkm_volt, device, index, &volt->subdev);
 	volt->func = func;
 
 	/* Assuming the non-bios device should build the voltage table later */

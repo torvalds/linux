@@ -97,6 +97,11 @@ enum mem_cgroup_events_target {
 #define MEM_CGROUP_ID_SHIFT	16
 #define MEM_CGROUP_ID_MAX	USHRT_MAX
 
+struct mem_cgroup_id {
+	int id;
+	atomic_t ref;
+};
+
 struct mem_cgroup_stat_cpu {
 	long count[MEMCG_NR_STAT];
 	unsigned long events[MEMCG_NR_EVENTS];
@@ -171,6 +176,9 @@ enum memcg_kmem_state {
  */
 struct mem_cgroup {
 	struct cgroup_subsys_state css;
+
+	/* Private memcg ID. Used to ID objects that outlive the cgroup */
+	struct mem_cgroup_id id;
 
 	/* Accounted resources */
 	struct page_counter memory;
@@ -330,22 +338,9 @@ static inline unsigned short mem_cgroup_id(struct mem_cgroup *memcg)
 	if (mem_cgroup_disabled())
 		return 0;
 
-	return memcg->css.id;
+	return memcg->id.id;
 }
-
-/**
- * mem_cgroup_from_id - look up a memcg from an id
- * @id: the id to look up
- *
- * Caller must hold rcu_read_lock() and use css_tryget() as necessary.
- */
-static inline struct mem_cgroup *mem_cgroup_from_id(unsigned short id)
-{
-	struct cgroup_subsys_state *css;
-
-	css = css_from_id(id, &memory_cgrp_subsys);
-	return mem_cgroup_from_css(css);
-}
+struct mem_cgroup *mem_cgroup_from_id(unsigned short id);
 
 /**
  * parent_mem_cgroup - find the accounting parent of a memcg
@@ -413,25 +408,6 @@ unsigned long mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list lru)
 
 	mz = container_of(lruvec, struct mem_cgroup_per_zone, lruvec);
 	return mz->lru_size[lru];
-}
-
-static inline bool mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec)
-{
-	unsigned long inactive_ratio;
-	unsigned long inactive;
-	unsigned long active;
-	unsigned long gb;
-
-	inactive = mem_cgroup_get_lru_size(lruvec, LRU_INACTIVE_ANON);
-	active = mem_cgroup_get_lru_size(lruvec, LRU_ACTIVE_ANON);
-
-	gb = (inactive + active) >> (30 - PAGE_SHIFT);
-	if (gb)
-		inactive_ratio = int_sqrt(10 * gb);
-	else
-		inactive_ratio = 1;
-
-	return inactive * inactive_ratio < active;
 }
 
 void mem_cgroup_handle_over_high(void);
@@ -646,22 +622,10 @@ static inline bool mem_cgroup_online(struct mem_cgroup *memcg)
 	return true;
 }
 
-static inline bool
-mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec)
-{
-	return true;
-}
-
 static inline unsigned long
 mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list lru)
 {
 	return 0;
-}
-
-static inline void
-mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
-			      int increment)
-{
 }
 
 static inline unsigned long

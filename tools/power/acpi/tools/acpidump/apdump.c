@@ -68,7 +68,7 @@ u8 ap_is_valid_header(struct acpi_table_header *table)
 
 		/* Make sure signature is all ASCII and a valid ACPI name */
 
-		if (!acpi_ut_valid_acpi_name(table->signature)) {
+		if (!acpi_ut_valid_nameseg(table->signature)) {
 			acpi_log_error("Table signature (0x%8.8X) is invalid\n",
 				       *(u32 *)table->signature);
 			return (FALSE);
@@ -286,14 +286,15 @@ int ap_dump_table_by_address(char *ascii_address)
 
 	/* Convert argument to an integer physical address */
 
-	status = acpi_ut_strtoul64(ascii_address, 0, &long_address);
+	status = acpi_ut_strtoul64(ascii_address, ACPI_ANY_BASE,
+				   ACPI_MAX64_BYTE_WIDTH, &long_address);
 	if (ACPI_FAILURE(status)) {
 		acpi_log_error("%s: Could not convert to a physical address\n",
 			       ascii_address);
 		return (-1);
 	}
 
-	address = (acpi_physical_address) long_address;
+	address = (acpi_physical_address)long_address;
 	status = acpi_os_get_table_by_address(address, &table);
 	if (ACPI_FAILURE(status)) {
 		acpi_log_error("Could not get table at 0x%8.8X%8.8X, %s\n",
@@ -404,6 +405,12 @@ int ap_dump_table_from_file(char *pathname)
 	table = ap_get_table_from_file(pathname, &file_size);
 	if (!table) {
 		return (-1);
+	}
+
+	if (!acpi_ut_valid_nameseg(table->signature)) {
+		acpi_log_error
+		    ("No valid ACPI signature was found in input file %s\n",
+		     pathname);
 	}
 
 	/* File must be at least as long as the table length */

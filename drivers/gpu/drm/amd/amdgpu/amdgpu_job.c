@@ -28,8 +28,25 @@
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
 
+static void amdgpu_job_free_handler(struct work_struct *ws)
+{
+	struct amdgpu_job *job = container_of(ws, struct amdgpu_job, base.work_free_job);
+	amd_sched_job_put(&job->base);
+}
+
+void amdgpu_job_timeout_func(struct work_struct *work)
+{
+	struct amdgpu_job *job = container_of(work, struct amdgpu_job, base.work_tdr.work);
+	DRM_ERROR("ring %s timeout, last signaled seq=%u, last emitted seq=%u\n",
+				job->base.sched->name,
+				(uint32_t)atomic_read(&job->ring->fence_drv.last_seq),
+				job->ring->fence_drv.sync_seq);
+
+	amd_sched_job_put(&job->base);
+}
+
 int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
-		     struct amdgpu_job **job)
+		     struct amdgpu_job **job, struct amdgpu_vm *vm)
 {
 	size_t size = sizeof(struct amdgpu_job);
 
@@ -43,8 +60,10 @@ int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
 		return -ENOMEM;
 
 	(*job)->adev = adev;
+	(*job)->vm = vm;
 	(*job)->ibs = (void *)&(*job)[1];
 	(*job)->num_ibs = num_ibs;
+	INIT_WORK(&(*job)->base.work_free_job, amdgpu_job_free_handler);
 
 	amdgpu_sync_create(&(*job)->sync);
 
@@ -56,7 +75,7 @@ int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev, unsigned size,
 {
 	int r;
 
-	r = amdgpu_job_alloc(adev, 1, job);
+	r = amdgpu_job_alloc(adev, 1, job, NULL);
 	if (r)
 		return r;
 
@@ -78,8 +97,16 @@ void amdgpu_job_free(struct amdgpu_job *job)
 		amdgpu_sa_bo_free(job->adev, &job->ibs[i].sa_bo, f);
 	fence_put(job->fence);
 
-	amdgpu_bo_unref(&job->uf.bo);
+	amdgpu_bo_unref(&job->uf_bo);
 	amdgpu_sync_free(&job->sync);
+
+	if (!job->base.use_sched)
+		kfree(job);
+}
+
+void amdgpu_job_free_func(struct kref *refcount)
+{
+	struct amdgpu_job *job = container_of(refcount, struct amdgpu_job, base.refcount);
 	kfree(job);
 }
 
@@ -87,16 +114,22 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
 		      struct amd_sched_entity *entity, void *owner,
 		      struct fence **f)
 {
+	struct fence *fence;
+	int r;
 	job->ring = ring;
-	job->base.sched = &ring->sched;
-	job->base.s_entity = entity;
-	job->base.s_fence = amd_sched_fence_create(job->base.s_entity, owner);
-	if (!job->base.s_fence)
-		return -ENOMEM;
 
-	*f = fence_get(&job->base.s_fence->base);
+	if (!f)
+		return -EINVAL;
+
+	r = amd_sched_job_init(&job->base, &ring->sched,
+			       entity, amdgpu_job_timeout_func,
+			       amdgpu_job_free_func, owner, &fence);
+	if (r)
+		return r;
 
 	job->owner = owner;
+	job->ctx = entity->fence_context;
+	*f = fence_get(fence);
 	amd_sched_entity_push_job(&job->base);
 
 	return 0;
@@ -105,27 +138,19 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
 static struct fence *amdgpu_job_dependency(struct amd_sched_job *sched_job)
 {
 	struct amdgpu_job *job = to_amdgpu_job(sched_job);
-	struct amdgpu_vm *vm = job->ibs->vm;
+	struct amdgpu_vm *vm = job->vm;
 
 	struct fence *fence = amdgpu_sync_get_fence(&job->sync);
 
-	if (fence == NULL && vm && !job->ibs->vm_id) {
+	if (fence == NULL && vm && !job->vm_id) {
 		struct amdgpu_ring *ring = job->ring;
-		unsigned i, vm_id;
-		uint64_t vm_pd_addr;
 		int r;
 
 		r = amdgpu_vm_grab_id(vm, ring, &job->sync,
 				      &job->base.s_fence->base,
-				      &vm_id, &vm_pd_addr);
+				      &job->vm_id, &job->vm_pd_addr);
 		if (r)
 			DRM_ERROR("Error getting VM ID (%d)\n", r);
-		else {
-			for (i = 0; i < job->num_ibs; ++i) {
-				job->ibs[i].vm_id = vm_id;
-				job->ibs[i].vm_pd_addr = vm_pd_addr;
-			}
-		}
 
 		fence = amdgpu_sync_get_fence(&job->sync);
 	}
@@ -153,7 +178,7 @@ static struct fence *amdgpu_job_run(struct amd_sched_job *sched_job)
 
 	trace_amdgpu_sched_run_job(job);
 	r = amdgpu_ib_schedule(job->ring, job->num_ibs, job->ibs,
-			       job->sync.last_vm_update, &fence);
+			       job->sync.last_vm_update, job, &fence);
 	if (r) {
 		DRM_ERROR("Error scheduling IBs (%d)\n", r);
 		goto err;
@@ -165,7 +190,9 @@ err:
 	return fence;
 }
 
-struct amd_sched_backend_ops amdgpu_sched_ops = {
+const struct amd_sched_backend_ops amdgpu_sched_ops = {
 	.dependency = amdgpu_job_dependency,
 	.run_job = amdgpu_job_run,
+	.begin_job = amd_sched_job_begin,
+	.finish_job = amd_sched_job_finish,
 };

@@ -17,6 +17,7 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/seq_file.h>
 #include <linux/shmem_fs.h>
 #include <linux/spinlock.h>
 #include <linux/pfn_t.h>
@@ -687,7 +688,7 @@ int omap_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
 	int ret = 0;
 
 	/* GEM does all our handle to object mapping */
-	obj = drm_gem_object_lookup(dev, file, handle);
+	obj = drm_gem_object_lookup(file, handle);
 	if (obj == NULL) {
 		ret = -ENOENT;
 		goto fail;

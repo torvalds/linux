@@ -288,7 +288,7 @@
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2180, PIN_INPUT_PULLUP | MUX_MODE1)	/* ssi1_rdy_tx */
 			OMAP3_CORE1_IOPAD(0x217e, PIN_OUTPUT | MUX_MODE1)		/* ssi1_flag_tx */
-			OMAP3_CORE1_IOPAD(0x2182, PIN_INPUT | WAKEUP_EN | MUX_MODE4) /* ssi1_wake_tx (cawake) */
+			OMAP3_CORE1_IOPAD(0x2182, PIN_INPUT | MUX_MODE4)		/* ssi1_wake_tx (cawake) */
 			OMAP3_CORE1_IOPAD(0x217c, PIN_OUTPUT | MUX_MODE1)		/* ssi1_dat_tx */
 			OMAP3_CORE1_IOPAD(0x2184, PIN_INPUT | MUX_MODE1)		/* ssi1_dat_rx */
 			OMAP3_CORE1_IOPAD(0x2186, PIN_INPUT | MUX_MODE1)		/* ssi1_flag_rx */
@@ -300,7 +300,7 @@
 	modem_pins: pinmux_modem {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x20dc, PIN_OUTPUT | MUX_MODE4)		/* gpio 70 => cmt_apeslpx */
-			OMAP3_CORE1_IOPAD(0x20e0, PIN_INPUT | WAKEUP_EN | MUX_MODE4) /* gpio 72 => ape_rst_rq */
+			OMAP3_CORE1_IOPAD(0x20e0, PIN_INPUT | MUX_MODE4)		/* gpio 72 => ape_rst_rq */
 			OMAP3_CORE1_IOPAD(0x20e2, PIN_OUTPUT | MUX_MODE4)		/* gpio 73 => cmt_rst_rq */
 			OMAP3_CORE1_IOPAD(0x20e4, PIN_OUTPUT | MUX_MODE4)		/* gpio 74 => cmt_en */
 			OMAP3_CORE1_IOPAD(0x20e6, PIN_OUTPUT | MUX_MODE4)		/* gpio 75 => cmt_rst */
@@ -329,6 +329,7 @@
 	regulator-name = "V28";
 	regulator-min-microvolt = <2800000>;
 	regulator-max-microvolt = <2800000>;
+	regulator-initial-mode = <0x0e>; /* RES_STATE_ACTIVE */
 	regulator-always-on; /* due to battery cover sensor */
 };
 
@@ -336,30 +337,35 @@
 	regulator-name = "VCSI";
 	regulator-min-microvolt = <1800000>;
 	regulator-max-microvolt = <1800000>;
+	regulator-initial-mode = <0x0e>; /* RES_STATE_ACTIVE */
 };
 
 &vaux3 {
 	regulator-name = "VMMC2_30";
 	regulator-min-microvolt = <2800000>;
 	regulator-max-microvolt = <3000000>;
+	regulator-initial-mode = <0x0e>; /* RES_STATE_ACTIVE */
 };
 
 &vaux4 {
 	regulator-name = "VCAM_ANA_28";
 	regulator-min-microvolt = <2800000>;
 	regulator-max-microvolt = <2800000>;
+	regulator-initial-mode = <0x0e>; /* RES_STATE_ACTIVE */
 };
 
 &vmmc1 {
 	regulator-name = "VMMC1";
 	regulator-min-microvolt = <1850000>;
 	regulator-max-microvolt = <3150000>;
+	regulator-initial-mode = <0x0e>; /* RES_STATE_ACTIVE */
 };
 
 &vmmc2 {
 	regulator-name = "V28_A";
 	regulator-min-microvolt = <2800000>;
 	regulator-max-microvolt = <3000000>;
+	regulator-initial-mode = <0x0e>; /* RES_STATE_ACTIVE */
 	regulator-always-on; /* due VIO leak to AIC34 VDDs */
 };
 
@@ -367,6 +373,7 @@
 	regulator-name = "VPLL";
 	regulator-min-microvolt = <1800000>;
 	regulator-max-microvolt = <1800000>;
+	regulator-initial-mode = <0x0e>; /* RES_STATE_ACTIVE */
 	regulator-always-on;
 };
 
@@ -374,6 +381,7 @@
 	regulator-name = "VSDI_CSI";
 	regulator-min-microvolt = <1800000>;
 	regulator-max-microvolt = <1800000>;
+	regulator-initial-mode = <0x0e>; /* RES_STATE_ACTIVE */
 	regulator-always-on;
 };
 
@@ -381,6 +389,7 @@
 	regulator-name = "VMMC2_IO_18";
 	regulator-min-microvolt = <1800000>;
 	regulator-max-microvolt = <1800000>;
+	regulator-initial-mode = <0x0e>; /* RES_STATE_ACTIVE */
 };
 
 &vio {

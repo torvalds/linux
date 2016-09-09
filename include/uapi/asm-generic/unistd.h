@@ -127,8 +127,11 @@ __SYSCALL(__NR_unlinkat, sys_unlinkat)
 __SYSCALL(__NR_symlinkat, sys_symlinkat)
 #define __NR_linkat 37
 __SYSCALL(__NR_linkat, sys_linkat)
+#ifdef __ARCH_WANT_RENAMEAT
+/* renameat is superseded with flags by renameat2 */
 #define __NR_renameat 38
 __SYSCALL(__NR_renameat, sys_renameat)
+#endif /* __ARCH_WANT_RENAMEAT */
 
 /* fs/namespace.c */
 #define __NR_umount2 39
@@ -718,9 +721,9 @@ __SYSCALL(__NR_mlock2, sys_mlock2)
 #define __NR_copy_file_range 285
 __SYSCALL(__NR_copy_file_range, sys_copy_file_range)
 #define __NR_preadv2 286
-__SYSCALL(__NR_preadv2, sys_preadv2)
+__SC_COMP(__NR_preadv2, sys_preadv2, compat_sys_preadv2)
 #define __NR_pwritev2 287
-__SYSCALL(__NR_pwritev2, sys_pwritev2)
+__SC_COMP(__NR_pwritev2, sys_pwritev2, compat_sys_pwritev2)
 
 #undef __NR_syscalls
 #define __NR_syscalls 288

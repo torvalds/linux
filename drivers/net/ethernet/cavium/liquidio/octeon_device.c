@@ -602,11 +602,9 @@ int octeon_download_firmware(struct octeon_device *oct, const u8 *data,
 	snprintf(oct->fw_info.liquidio_firmware_version, 32, "LIQUIDIO: %s",
 		 h->version);
 
-	buffer = kmalloc(size, GFP_KERNEL);
+	buffer = kmemdup(data, size, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
-
-	memcpy(buffer, data, size);
 
 	p = buffer + sizeof(struct octeon_firmware_file_header);
 

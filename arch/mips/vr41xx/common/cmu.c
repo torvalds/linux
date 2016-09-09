@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 2001-2002  MontaVista Software Inc.
  *    Author: Yoichi Yuasa <source@mvista.com>
- *  Copuright (C) 2003-2005  Yoichi Yuasa <yuasa@linux-mips.org>
+ *  Copyright (C) 2003-2005  Yoichi Yuasa <yuasa@linux-mips.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

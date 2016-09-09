@@ -1,7 +1,7 @@
 /*
  *  BSD LICENSE
  *
- *  Copyright(c) 2015 Broadcom Corporation.  All rights reserved.
+ *  Copyright (c) 2015 Broadcom.  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted provided that the following conditions
@@ -33,8 +33,6 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/bcm-ns2.h>
 
-/memreserve/ 0x84b00000 0x00000008;
-
 / {
 	compatible = "brcm,ns2";
 	interrupt-parent = <&gic>;
@@ -49,8 +47,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0 0>;
-			enable-method = "spin-table";
-			cpu-release-addr = <0 0x84b00000>;
+			enable-method = "psci";
 			next-level-cache = <&CLUSTER0_L2>;
 		};
 
@@ -58,8 +55,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0 1>;
-			enable-method = "spin-table";
-			cpu-release-addr = <0 0x84b00000>;
+			enable-method = "psci";
 			next-level-cache = <&CLUSTER0_L2>;
 		};
 
@@ -67,8 +63,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0 2>;
-			enable-method = "spin-table";
-			cpu-release-addr = <0 0x84b00000>;
+			enable-method = "psci";
 			next-level-cache = <&CLUSTER0_L2>;
 		};
 
@@ -76,14 +71,18 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0 3>;
-			enable-method = "spin-table";
-			cpu-release-addr = <0 0x84b00000>;
+			enable-method = "psci";
 			next-level-cache = <&CLUSTER0_L2>;
 		};
 
 		CLUSTER0_L2: l2-cache@000 {
 			compatible = "cache";
 		};
+	};
+
+	psci {
+		compatible = "arm,psci-1.0";
+		method = "smc";
 	};
 
 	timer {
@@ -108,33 +107,6 @@
 				     <&A57_1>,
 				     <&A57_2>,
 				     <&A57_3>;
-	};
-
-	clocks {
-		#address-cells = <1>;
-		#size-cells = <1>;
-
-		osc: oscillator {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-			clock-frequency = <25000000>;
-		};
-
-		iprocmed: iprocmed {
-			#clock-cells = <0>;
-			compatible = "fixed-factor-clock";
-			clocks = <&genpll_scr BCM_NS2_GENPLL_SCR_SCR_CLK>;
-			clock-div = <2>;
-			clock-mult = <1>;
-		};
-
-		iprocslow: iprocslow {
-			#clock-cells = <0>;
-			compatible = "fixed-factor-clock";
-			clocks = <&genpll_scr BCM_NS2_GENPLL_SCR_SCR_CLK>;
-			clock-div = <4>;
-			clock-mult = <1>;
-		};
 	};
 
 	pcie0: pcie@20020000 {
@@ -217,6 +189,27 @@
 		#size-cells = <1>;
 		ranges = <0 0 0 0xffffffff>;
 
+		#include "ns2-clock.dtsi"
+
+		dma0: dma@61360000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0x61360000 0x1000>;
+			interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 209 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 210 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 211 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 212 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 213 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 214 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 215 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 216 IRQ_TYPE_LEVEL_HIGH>;
+			#dma-cells = <1>;
+			#dma-channels = <8>;
+			#dma-requests = <32>;
+			clocks = <&iprocslow>;
+			clock-names = "apb_pclk";
+		};
+
 		smmu: mmu@64000000 {
 			compatible = "arm,mmu-500";
 			reg = <0x64000000 0x40000>;
@@ -258,68 +251,6 @@
 			mmu-masters;
 		};
 
-		lcpll_ddr: lcpll_ddr@6501d058 {
-			#clock-cells = <1>;
-			compatible = "brcm,ns2-lcpll-ddr";
-			reg = <0x6501d058 0x20>,
-			      <0x6501c020 0x4>,
-			      <0x6501d04c 0x4>;
-			clocks = <&osc>;
-			clock-output-names = "lcpll_ddr", "pcie_sata_usb",
-					     "ddr", "ddr_ch2_unused",
-					     "ddr_ch3_unused", "ddr_ch4_unused",
-					     "ddr_ch5_unused";
-		};
-
-		lcpll_ports: lcpll_ports@6501d078 {
-			#clock-cells = <1>;
-			compatible = "brcm,ns2-lcpll-ports";
-			reg = <0x6501d078 0x20>,
-			      <0x6501c020 0x4>,
-			      <0x6501d054 0x4>;
-			clocks = <&osc>;
-			clock-output-names = "lcpll_ports", "wan", "rgmii",
-					     "ports_ch2_unused",
-					     "ports_ch3_unused",
-					     "ports_ch4_unused",
-					     "ports_ch5_unused";
-		};
-
-		genpll_scr: genpll_scr@6501d098 {
-			#clock-cells = <1>;
-			compatible = "brcm,ns2-genpll-scr";
-			reg = <0x6501d098 0x32>,
-			      <0x6501c020 0x4>,
-			      <0x6501d044 0x4>;
-			clocks = <&osc>;
-			clock-output-names = "genpll_scr", "scr", "fs",
-					     "audio_ref", "scr_ch3_unused",
-					     "scr_ch4_unused", "scr_ch5_unused";
-		};
-
-		genpll_sw: genpll_sw@6501d0c4 {
-			#clock-cells = <1>;
-			compatible = "brcm,ns2-genpll-sw";
-			reg = <0x6501d0c4 0x32>,
-			      <0x6501c020 0x4>,
-			      <0x6501d044 0x4>;
-			clocks = <&osc>;
-			clock-output-names = "genpll_sw", "rpe", "250", "nic",
-					     "chimp", "port", "sdio";
-		};
-
-		crmu: crmu@65024000 {
-			compatible = "syscon";
-			reg = <0x65024000 0x100>;
-		};
-
-		reboot@65024000 {
-			compatible ="syscon-reboot";
-			regmap = <&crmu>;
-			offset = <0x90>;
-			mask = <0xfffffffd>;
-		};
-
 		gic: interrupt-controller@65210000 {
 			compatible = "arm,gic-400";
 			#interrupt-cells = <3>;
@@ -328,6 +259,8 @@
 			      <0x65220000 0x1000>,
 			      <0x65240000 0x2000>,
 			      <0x65260000 0x1000>;
+			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_RAW(0xf) |
+				      IRQ_TYPE_LEVEL_HIGH)>;
 		};
 
 		timer0: timer@66030000 {
@@ -405,6 +338,28 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&osc>;
+			status = "disabled";
+		};
+
+		ssp0: ssp@66180000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x66180000 0x1000>;
+			interrupts = <GIC_SPI 404 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&iprocslow>, <&iprocslow>;
+			clock-names = "spiclk", "apb_pclk";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		ssp1: ssp@66190000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x66190000 0x1000>;
+			interrupts = <GIC_SPI 405 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&iprocslow>, <&iprocslow>;
+			clock-names = "spiclk", "apb_pclk";
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
 		};
 

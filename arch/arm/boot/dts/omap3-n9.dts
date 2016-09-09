@@ -57,3 +57,17 @@
 &modem {
 	compatible = "nokia,n9-modem";
 };
+
+&lis302 {
+	st,axis-x = <1>;    /* LIS3_DEV_X */
+	st,axis-y = <(-2)>; /* LIS3_INV_DEV_Y */
+	st,axis-z = <(-3)>; /* LIS3_INV_DEV_Z */
+
+	st,min-limit-x = <(-46)>;
+	st,min-limit-y = <3>;
+	st,min-limit-z = <3>;
+
+	st,max-limit-x = <(-3)>;
+	st,max-limit-y = <46>;
+	st,max-limit-z = <46>;
+};

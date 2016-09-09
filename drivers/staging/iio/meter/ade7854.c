@@ -421,7 +421,8 @@ static int ade7854_set_irq(struct device *dev, bool enable)
 
 	if (enable)
 		irqen |= BIT(17); /* 1: interrupt enabled when all periodical
-				     (at 8 kHz rate) DSP computations finish. */
+				   * (at 8 kHz rate) DSP computations finish.
+				   */
 	else
 		irqen &= ~BIT(17);
 

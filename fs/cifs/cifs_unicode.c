@@ -101,6 +101,12 @@ convert_sfm_char(const __u16 src_char, char *target)
 	case SFM_SLASH:
 		*target = '\\';
 		break;
+	case SFM_SPACE:
+		*target = ' ';
+		break;
+	case SFM_PERIOD:
+		*target = '.';
+		break;
 	default:
 		return false;
 	}
@@ -404,7 +410,7 @@ static __le16 convert_to_sfu_char(char src_char)
 	return dest_char;
 }
 
-static __le16 convert_to_sfm_char(char src_char)
+static __le16 convert_to_sfm_char(char src_char, bool end_of_string)
 {
 	__le16 dest_char;
 
@@ -426,6 +432,18 @@ static __le16 convert_to_sfm_char(char src_char)
 		break;
 	case '|':
 		dest_char = cpu_to_le16(SFM_PIPE);
+		break;
+	case '.':
+		if (end_of_string)
+			dest_char = cpu_to_le16(SFM_PERIOD);
+		else
+			dest_char = 0;
+		break;
+	case ' ':
+		if (end_of_string)
+			dest_char = cpu_to_le16(SFM_SPACE);
+		else
+			dest_char = 0;
 		break;
 	default:
 		dest_char = 0;
@@ -469,9 +487,16 @@ cifsConvertToUTF16(__le16 *target, const char *source, int srclen,
 		/* see if we must remap this char */
 		if (map_chars == SFU_MAP_UNI_RSVD)
 			dst_char = convert_to_sfu_char(src_char);
-		else if (map_chars == SFM_MAP_UNI_RSVD)
-			dst_char = convert_to_sfm_char(src_char);
-		else
+		else if (map_chars == SFM_MAP_UNI_RSVD) {
+			bool end_of_string;
+
+			if (i == srclen - 1)
+				end_of_string = true;
+			else
+				end_of_string = false;
+
+			dst_char = convert_to_sfm_char(src_char, end_of_string);
+		} else
 			dst_char = 0;
 		/*
 		 * FIXME: We can not handle remapping backslash (UNI_SLASH)

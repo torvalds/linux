@@ -55,7 +55,7 @@ static const struct {
 	},
 	{ /* IIO_HUMIDITYRELATIVE channel */
 		.shift = 8,
-		.mask = 2,
+		.mask = 3,
 	},
 };
 
@@ -164,14 +164,14 @@ static int hdc100x_get_measurement(struct hdc100x_data *data,
 		dev_err(&client->dev, "cannot read high byte measurement");
 		return ret;
 	}
-	val = ret << 6;
+	val = ret << 8;
 
 	ret = i2c_smbus_read_byte(client);
 	if (ret < 0) {
 		dev_err(&client->dev, "cannot read low byte measurement");
 		return ret;
 	}
-	val |= ret >> 2;
+	val |= ret;
 
 	return val;
 }
@@ -211,18 +211,18 @@ static int hdc100x_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_SCALE:
 		if (chan->type == IIO_TEMP) {
-			*val = 165;
-			*val2 = 65536 >> 2;
+			*val = 165000;
+			*val2 = 65536;
 			return IIO_VAL_FRACTIONAL;
 		} else {
-			*val = 0;
-			*val2 = 10000;
-			return IIO_VAL_INT_PLUS_MICRO;
+			*val = 100;
+			*val2 = 65536;
+			return IIO_VAL_FRACTIONAL;
 		}
 		break;
 	case IIO_CHAN_INFO_OFFSET:
-		*val = -3971;
-		*val2 = 879096;
+		*val = -15887;
+		*val2 = 515151;
 		return IIO_VAL_INT_PLUS_MICRO;
 	default:
 		return -EINVAL;

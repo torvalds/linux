@@ -115,7 +115,7 @@ static void *f2fs_acl_to_disk(const struct posix_acl *acl, size_t *size)
 	struct f2fs_acl_entry *entry;
 	int i;
 
-	f2fs_acl = kmalloc(sizeof(struct f2fs_acl_header) + acl->a_count *
+	f2fs_acl = f2fs_kmalloc(sizeof(struct f2fs_acl_header) + acl->a_count *
 			sizeof(struct f2fs_acl_entry), GFP_NOFS);
 	if (!f2fs_acl)
 		return ERR_PTR(-ENOMEM);
@@ -175,7 +175,7 @@ static struct posix_acl *__f2fs_get_acl(struct inode *inode, int type,
 
 	retval = f2fs_getxattr(inode, name_index, "", NULL, 0, dpage);
 	if (retval > 0) {
-		value = kmalloc(retval, GFP_F2FS_ZERO);
+		value = f2fs_kmalloc(retval, GFP_F2FS_ZERO);
 		if (!value)
 			return ERR_PTR(-ENOMEM);
 		retval = f2fs_getxattr(inode, name_index, "", value,
@@ -189,9 +189,6 @@ static struct posix_acl *__f2fs_get_acl(struct inode *inode, int type,
 	else
 		acl = ERR_PTR(retval);
 	kfree(value);
-
-	if (!IS_ERR(acl))
-		set_cached_acl(inode, type, acl);
 
 	return acl;
 }

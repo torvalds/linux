@@ -4,7 +4,7 @@ Contact:	Linux on PowerPC Developer List <linuxppc-dev@lists.ozlabs.org>
 Description:
 		Provides access to the binary "24x7 catalog" provided by the
 		hypervisor on POWER7 and 8 systems. This catalog lists events
-		avaliable from the powerpc "hv_24x7" pmu. Its format is
+		available from the powerpc "hv_24x7" pmu. Its format is
 		documented here:
 		https://raw.githubusercontent.com/jmesmon/catalog-24x7/master/hv-24x7-catalog.h
 

@@ -15,6 +15,39 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		gp0_reserved: rproc@40000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x40000000 0x01000000>;
+			no-map;
+			status = "disabled";
+		};
+
+		gp1_reserved: rproc@41000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x41000000 0x01000000>;
+			no-map;
+			status = "disabled";
+		};
+
+		audio_reserved: rproc@42000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x42000000 0x01000000>;
+			no-map;
+			status = "disabled";
+		};
+
+		dmu_reserved: rproc@43000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x43000000 0x01000000>;
+			no-map;
+		};
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -22,15 +55,35 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <0>;
+
 			/* u-boot puts hpen in SBC dmem at 0xa4 offset */
 			cpu-release-addr = <0x94100A4>;
+
+					 /* kHz     uV   */
+			operating-points = <1500000 0
+					    1200000 0
+					    800000  0
+					    500000  0>;
+
+			clocks = <&clk_m_a9>;
+			clock-names = "cpu";
+			clock-latency = <100000>;
+			cpu0-supply = <&pwm_regulator>;
+			st,syscfg = <&syscfg_core 0x8e0>;
 		};
 		cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <1>;
+
 			/* u-boot puts hpen in SBC dmem at 0xa4 offset */
 			cpu-release-addr = <0x94100A4>;
+
+					 /* kHz     uV   */
+			operating-points = <1500000 0
+					    1200000 0
+					    800000  0
+					    500000  0>;
 		};
 	};
 
@@ -534,7 +587,7 @@
 			reg = <0x8788000 0x1000>;
 			interrupts = <GIC_SPI 130 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&clk_s_d3_flexgen CLK_LPC_1>;
-			st,lpc-mode = <ST_LPC_MODE_RTC>;
+			st,lpc-mode = <ST_LPC_MODE_CLKSRC>;
 		};
 
 		sata0: sata@9b20000 {
@@ -693,6 +746,80 @@
 			reg		= <0x08a8a000 0x1000>;
 			clocks          = <&clk_sysin>;
 			status		= "okay";
+		};
+
+		mailbox0: mailbox@8f00000  {
+			compatible	= "st,stih407-mailbox";
+			reg		= <0x8f00000 0x1000>;
+			interrupts	= <GIC_SPI 1 IRQ_TYPE_NONE>;
+			#mbox-cells	= <2>;
+			mbox-name	= "a9";
+			status		= "okay";
+		};
+
+		mailbox1: mailbox@8f01000 {
+			compatible	= "st,stih407-mailbox";
+			reg		= <0x8f01000 0x1000>;
+			#mbox-cells	= <2>;
+			mbox-name	= "st231_gp_1";
+			status		= "okay";
+		};
+
+		mailbox2: mailbox@8f02000 {
+			compatible	= "st,stih407-mailbox";
+			reg		= <0x8f02000 0x1000>;
+			#mbox-cells	= <2>;
+			mbox-name	= "st231_gp_0";
+			status		= "okay";
+		};
+
+		mailbox3: mailbox@8f03000 {
+			compatible	= "st,stih407-mailbox";
+			reg		= <0x8f03000 0x1000>;
+			#mbox-cells	= <2>;
+			mbox-name	= "st231_audio_video";
+			status		= "okay";
+		};
+
+		st231_gp0: remote-processor {
+			compatible	= "st,st231-rproc";
+			memory-region	= <&gp0_reserved>;
+			resets		= <&softreset STIH407_ST231_GP0_SOFTRESET>;
+			reset-names	= "sw_reset";
+			clocks		= <&clk_s_c0_flexgen CLK_ST231_GP_0>;
+			clock-frequency	= <600000000>;
+			st,syscfg	= <&syscfg_core 0x22c>;
+		};
+
+
+		st231_gp1: remote-processor {
+			compatible	= "st,st231-rproc";
+			memory-region	= <&gp1_reserved>;
+			resets		= <&softreset STIH407_ST231_GP1_SOFTRESET>;
+			reset-names	= "sw_reset";
+			clocks		= <&clk_s_c0_flexgen CLK_ST231_GP_1>;
+			clock-frequency = <600000000>;
+			st,syscfg	= <&syscfg_core 0x220>;
+		};
+
+		st231_audio: remote-processor {
+			compatible	= "st,st231-rproc";
+			memory-region	= <&audio_reserved>;
+			resets		= <&softreset STIH407_ST231_AUD_SOFTRESET>;
+			reset-names	= "sw_reset";
+			clocks		= <&clk_s_c0_flexgen CLK_ST231_AUD_0>;
+			clock-frequency	= <600000000>;
+			st,syscfg	= <&syscfg_core 0x228>;
+		};
+
+		st231_dmu: remote-processor {
+			compatible	= "st,st231-rproc";
+			memory-region	= <&dmu_reserved>;
+			resets		= <&softreset STIH407_ST231_DMU_SOFTRESET>;
+			reset-names	= "sw_reset";
+			clocks		= <&clk_s_c0_flexgen CLK_ST231_DMU>;
+			clock-frequency	= <600000000>;
+			st,syscfg	= <&syscfg_core 0x224>;
 		};
 	};
 };

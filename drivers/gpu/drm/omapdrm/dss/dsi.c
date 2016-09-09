@@ -1167,7 +1167,6 @@ static int dsi_regulator_init(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	struct regulator *vdds_dsi;
-	int r;
 
 	if (dsi->vdds_dsi_reg != NULL)
 		return 0;
@@ -1178,15 +1177,6 @@ static int dsi_regulator_init(struct platform_device *dsidev)
 		if (PTR_ERR(vdds_dsi) != -EPROBE_DEFER)
 			DSSERR("can't get DSI VDD regulator\n");
 		return PTR_ERR(vdds_dsi);
-	}
-
-	if (regulator_can_change_voltage(vdds_dsi)) {
-		r = regulator_set_voltage(vdds_dsi, 1800000, 1800000);
-		if (r) {
-			devm_regulator_put(vdds_dsi);
-			DSSERR("can't set the DSI regulator voltage\n");
-			return r;
-		}
 	}
 
 	dsi->vdds_dsi_reg = vdds_dsi;

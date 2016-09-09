@@ -74,8 +74,8 @@ blink_set() function (see <linux/leds.h>). To set an LED to blinking,
 however, it is better to use the API function led_blink_set(), as it
 will check and implement software fallback if necessary.
 
-To turn off blinking again, use the API function led_brightness_set()
-as that will not just set the LED brightness but also stop any software
+To turn off blinking, use the API function led_brightness_set()
+with brightness value LED_OFF, which should stop any software
 timers that may have been required for blinking.
 
 The blink_set() function should choose a user friendly blinking value

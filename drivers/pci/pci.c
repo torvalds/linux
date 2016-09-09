@@ -2228,7 +2228,7 @@ void pci_pm_init(struct pci_dev *dev)
 
 static unsigned long pci_ea_flags(struct pci_dev *dev, u8 prop)
 {
-	unsigned long flags = IORESOURCE_PCI_FIXED;
+	unsigned long flags = IORESOURCE_PCI_FIXED | IORESOURCE_PCI_EA_BEI;
 
 	switch (prop) {
 	case PCI_EA_P_MEM:
@@ -2389,7 +2389,7 @@ out:
 	return offset + ent_size;
 }
 
-/* Enhanced Allocation Initalization */
+/* Enhanced Allocation Initialization */
 void pci_ea_init(struct pci_dev *dev)
 {
 	int ea;
@@ -2547,7 +2547,7 @@ void pci_request_acs(void)
  * pci_std_enable_acs - enable ACS on devices using standard ACS capabilites
  * @dev: the PCI device
  */
-static int pci_std_enable_acs(struct pci_dev *dev)
+static void pci_std_enable_acs(struct pci_dev *dev)
 {
 	int pos;
 	u16 cap;
@@ -2555,7 +2555,7 @@ static int pci_std_enable_acs(struct pci_dev *dev)
 
 	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ACS);
 	if (!pos)
-		return -ENODEV;
+		return;
 
 	pci_read_config_word(dev, pos + PCI_ACS_CAP, &cap);
 	pci_read_config_word(dev, pos + PCI_ACS_CTRL, &ctrl);
@@ -2573,8 +2573,6 @@ static int pci_std_enable_acs(struct pci_dev *dev)
 	ctrl |= (cap & PCI_ACS_UF);
 
 	pci_write_config_word(dev, pos + PCI_ACS_CTRL, ctrl);
-
-	return 0;
 }
 
 /**
@@ -2586,10 +2584,10 @@ void pci_enable_acs(struct pci_dev *dev)
 	if (!pci_acs_enable)
 		return;
 
-	if (!pci_std_enable_acs(dev))
+	if (!pci_dev_specific_enable_acs(dev))
 		return;
 
-	pci_dev_specific_enable_acs(dev);
+	pci_std_enable_acs(dev);
 }
 
 static bool pci_acs_flags_enabled(struct pci_dev *pdev, u16 acs_flags)
@@ -3020,6 +3018,121 @@ int pci_request_regions_exclusive(struct pci_dev *pdev, const char *res_name)
 					((1 << 6) - 1), res_name);
 }
 EXPORT_SYMBOL(pci_request_regions_exclusive);
+
+#ifdef PCI_IOBASE
+struct io_range {
+	struct list_head list;
+	phys_addr_t start;
+	resource_size_t size;
+};
+
+static LIST_HEAD(io_range_list);
+static DEFINE_SPINLOCK(io_range_lock);
+#endif
+
+/*
+ * Record the PCI IO range (expressed as CPU physical address + size).
+ * Return a negative value if an error has occured, zero otherwise
+ */
+int __weak pci_register_io_range(phys_addr_t addr, resource_size_t size)
+{
+	int err = 0;
+
+#ifdef PCI_IOBASE
+	struct io_range *range;
+	resource_size_t allocated_size = 0;
+
+	/* check if the range hasn't been previously recorded */
+	spin_lock(&io_range_lock);
+	list_for_each_entry(range, &io_range_list, list) {
+		if (addr >= range->start && addr + size <= range->start + size) {
+			/* range already registered, bail out */
+			goto end_register;
+		}
+		allocated_size += range->size;
+	}
+
+	/* range not registed yet, check for available space */
+	if (allocated_size + size - 1 > IO_SPACE_LIMIT) {
+		/* if it's too big check if 64K space can be reserved */
+		if (allocated_size + SZ_64K - 1 > IO_SPACE_LIMIT) {
+			err = -E2BIG;
+			goto end_register;
+		}
+
+		size = SZ_64K;
+		pr_warn("Requested IO range too big, new size set to 64K\n");
+	}
+
+	/* add the range to the list */
+	range = kzalloc(sizeof(*range), GFP_ATOMIC);
+	if (!range) {
+		err = -ENOMEM;
+		goto end_register;
+	}
+
+	range->start = addr;
+	range->size = size;
+
+	list_add_tail(&range->list, &io_range_list);
+
+end_register:
+	spin_unlock(&io_range_lock);
+#endif
+
+	return err;
+}
+
+phys_addr_t pci_pio_to_address(unsigned long pio)
+{
+	phys_addr_t address = (phys_addr_t)OF_BAD_ADDR;
+
+#ifdef PCI_IOBASE
+	struct io_range *range;
+	resource_size_t allocated_size = 0;
+
+	if (pio > IO_SPACE_LIMIT)
+		return address;
+
+	spin_lock(&io_range_lock);
+	list_for_each_entry(range, &io_range_list, list) {
+		if (pio >= allocated_size && pio < allocated_size + range->size) {
+			address = range->start + pio - allocated_size;
+			break;
+		}
+		allocated_size += range->size;
+	}
+	spin_unlock(&io_range_lock);
+#endif
+
+	return address;
+}
+
+unsigned long __weak pci_address_to_pio(phys_addr_t address)
+{
+#ifdef PCI_IOBASE
+	struct io_range *res;
+	resource_size_t offset = 0;
+	unsigned long addr = -1;
+
+	spin_lock(&io_range_lock);
+	list_for_each_entry(res, &io_range_list, list) {
+		if (address >= res->start && address < res->start + res->size) {
+			addr = address - res->start + offset;
+			break;
+		}
+		offset += res->size;
+	}
+	spin_unlock(&io_range_lock);
+
+	return addr;
+#else
+	if (address > IO_SPACE_LIMIT)
+		return (unsigned long)-1;
+
+	return (unsigned long) address;
+#endif
+}
 
 /**
  *	pci_remap_iospace - Remap the memory mapped I/O space
@@ -4576,6 +4689,37 @@ int pci_set_vga_state(struct pci_dev *dev, bool decode,
 		bus = bus->parent;
 	}
 	return 0;
+}
+
+/**
+ * pci_add_dma_alias - Add a DMA devfn alias for a device
+ * @dev: the PCI device for which alias is added
+ * @devfn: alias slot and function
+ *
+ * This helper encodes 8-bit devfn as bit number in dma_alias_mask.
+ * It should be called early, preferably as PCI fixup header quirk.
+ */
+void pci_add_dma_alias(struct pci_dev *dev, u8 devfn)
+{
+	if (!dev->dma_alias_mask)
+		dev->dma_alias_mask = kcalloc(BITS_TO_LONGS(U8_MAX),
+					      sizeof(long), GFP_KERNEL);
+	if (!dev->dma_alias_mask) {
+		dev_warn(&dev->dev, "Unable to allocate DMA alias mask\n");
+		return;
+	}
+
+	set_bit(devfn, dev->dma_alias_mask);
+	dev_info(&dev->dev, "Enabling fixed DMA alias to %02x.%d\n",
+		 PCI_SLOT(devfn), PCI_FUNC(devfn));
+}
+
+bool pci_devs_are_dma_aliases(struct pci_dev *dev1, struct pci_dev *dev2)
+{
+	return (dev1->dma_alias_mask &&
+		test_bit(dev2->devfn, dev1->dma_alias_mask)) ||
+	       (dev2->dma_alias_mask &&
+		test_bit(dev1->devfn, dev2->dma_alias_mask));
 }
 
 bool pci_device_is_present(struct pci_dev *pdev)

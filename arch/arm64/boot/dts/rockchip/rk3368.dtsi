@@ -413,7 +413,71 @@
 	};
 
 	thermal-zones {
-		#include "rk3368-thermal.dtsi"
+		cpu {
+			polling-delay-passive = <100>; /* milliseconds */
+			polling-delay = <5000>; /* milliseconds */
+
+			thermal-sensors = <&tsadc 0>;
+
+			trips {
+				cpu_alert0: cpu_alert0 {
+					temperature = <75000>; /* millicelsius */
+					hysteresis = <2000>; /* millicelsius */
+					type = "passive";
+				};
+				cpu_alert1: cpu_alert1 {
+					temperature = <80000>; /* millicelsius */
+					hysteresis = <2000>; /* millicelsius */
+					type = "passive";
+				};
+				cpu_crit: cpu_crit {
+					temperature = <95000>; /* millicelsius */
+					hysteresis = <2000>; /* millicelsius */
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu_alert0>;
+					cooling-device =
+					<&cpu_b0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+				map1 {
+					trip = <&cpu_alert1>;
+					cooling-device =
+					<&cpu_l0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
+		};
+
+		gpu {
+			polling-delay-passive = <100>; /* milliseconds */
+			polling-delay = <5000>; /* milliseconds */
+
+			thermal-sensors = <&tsadc 1>;
+
+			trips {
+				gpu_alert0: gpu_alert0 {
+					temperature = <80000>; /* millicelsius */
+					hysteresis = <2000>; /* millicelsius */
+					type = "passive";
+				};
+				gpu_crit: gpu_crit {
+					temperature = <115000>; /* millicelsius */
+					hysteresis = <2000>; /* millicelsius */
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&gpu_alert0>;
+					cooling-device =
+					<&cpu_b0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
+		};
 	};
 
 	tsadc: tsadc@ff280000 {
@@ -553,6 +617,18 @@
 		reg-shift = <2>;
 		reg-io-width = <4>;
 		status = "disabled";
+	};
+
+	mbox: mbox@ff6b0000 {
+		compatible = "rockchip,rk3368-mailbox";
+		reg = <0x0 0xff6b0000 0x0 0x1000>;
+		interrupts = <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru PCLK_MAILBOX>;
+		clock-names = "pclk_mailbox";
+		#mbox-cells = <1>;
 	};
 
 	pmugrf: syscon@ff738000 {
@@ -926,11 +1002,11 @@
 
 		tsadc {
 			otp_gpio: otp-gpio {
-				rockchip,pins = <0 10 RK_FUNC_GPIO &pcfg_pull_none>;
+				rockchip,pins = <0 3 RK_FUNC_GPIO &pcfg_pull_none>;
 			};
 
 			otp_out: otp-out {
-				rockchip,pins = <0 10 RK_FUNC_1 &pcfg_pull_none>;
+				rockchip,pins = <0 3 RK_FUNC_1 &pcfg_pull_none>;
 			};
 		};
 

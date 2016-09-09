@@ -1378,6 +1378,7 @@ ia64_handle_unaligned (unsigned long ifa, struct pt_regs *regs)
 	 * extract the instruction from the bundle given the slot number
 	 */
 	switch (ipsr->ri) {
+	      default:
 	      case 0: u.l = (bundle[0] >>  5); break;
 	      case 1: u.l = (bundle[0] >> 46) | (bundle[1] << 18); break;
 	      case 2: u.l = (bundle[1] >> 23); break;

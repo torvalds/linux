@@ -22,7 +22,7 @@ static inline int test_fp_ctl(u32 fpc)
 		"	la	%0,0\n"
 		"1:\n"
 		EX_TABLE(0b,1b)
-		: "=d" (rc), "=d" (orig_fpc)
+		: "=d" (rc), "=&d" (orig_fpc)
 		: "d" (fpc), "0" (-EINVAL));
 	return rc;
 }

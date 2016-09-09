@@ -1220,7 +1220,7 @@ static int msb_read_boot_blocks(struct msb_data *msb)
 		}
 
 		if (extra.management_flag & MEMSTICK_MANAGEMENT_SYSFLG) {
-			dbg("managment flag doesn't indicate boot block %d",
+			dbg("management flag doesn't indicate boot block %d",
 									pba);
 			continue;
 		}
@@ -1367,7 +1367,7 @@ static int msb_ftl_initialize(struct msb_data *msb)
 static int msb_ftl_scan(struct msb_data *msb)
 {
 	u16 pba, lba, other_block;
-	u8 overwrite_flag, managment_flag, other_overwrite_flag;
+	u8 overwrite_flag, management_flag, other_overwrite_flag;
 	int error;
 	struct ms_extra_data_register extra;
 	u8 *overwrite_flags = kzalloc(msb->block_count, GFP_KERNEL);
@@ -1409,7 +1409,7 @@ static int msb_ftl_scan(struct msb_data *msb)
 		}
 
 		lba = be16_to_cpu(extra.logical_address);
-		managment_flag = extra.management_flag;
+		management_flag = extra.management_flag;
 		overwrite_flag = extra.overwrite_flag;
 		overwrite_flags[pba] = overwrite_flag;
 
@@ -1421,16 +1421,16 @@ static int msb_ftl_scan(struct msb_data *msb)
 		}
 
 		/* Skip system/drm blocks */
-		if ((managment_flag & MEMSTICK_MANAGMENT_FLAG_NORMAL) !=
-			MEMSTICK_MANAGMENT_FLAG_NORMAL) {
-			dbg("pba %05d -> [reserved managment flag %02x]",
-							pba, managment_flag);
+		if ((management_flag & MEMSTICK_MANAGEMENT_FLAG_NORMAL) !=
+			MEMSTICK_MANAGEMENT_FLAG_NORMAL) {
+			dbg("pba %05d -> [reserved management flag %02x]",
+							pba, management_flag);
 			msb_mark_block_used(msb, pba);
 			continue;
 		}
 
 		/* Erase temporary tables */
-		if (!(managment_flag & MEMSTICK_MANAGEMENT_ATFLG)) {
+		if (!(management_flag & MEMSTICK_MANAGEMENT_ATFLG)) {
 			dbg("pba %05d -> [temp table] - will erase", pba);
 
 			msb_mark_block_used(msb, pba);

@@ -472,7 +472,7 @@
 	};
 
 	rcpm: global-utilities@e2000 {
-		compatible = "fsl,t1040-rcpm", "fsl,qoriq-rcpm-2.0";
+		compatible = "fsl,t1040-rcpm", "fsl,qoriq-rcpm-2.1";
 		reg = <0xe2000 0x1000>;
 	};
 

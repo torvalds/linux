@@ -1,0 +1,35 @@
+Marvell DSA Switch Device Tree Bindings
+---------------------------------------
+
+WARNING: This binding is currently unstable. Do not program it into a
+FLASH never to be changed again. Once this binding is stable, this
+warning will be removed.
+
+If you need a stable binding, use the old dsa.txt binding.
+
+Marvell Switches are MDIO devices. The following properties should be
+placed as a child node of an mdio device.
+
+The properties described here are those specific to Marvell devices.
+Additional required and optional properties can be found in dsa.txt.
+
+Required properties:
+- compatible           : Should be one of "marvell,mv88e6085",
+- reg                  : Address on the MII bus for the switch.
+
+Optional properties:
+
+- reset-gpios		: Should be a gpio specifier for a reset line
+
+Example:
+
+       mdio {
+               #address-cells = <1>;
+               #size-cells = <0>;
+
+               switch0: switch@0 {
+                       compatible = "marvell,mv88e6085";
+                       reg = <0>;
+		       reset-gpios = <&gpio5 1 GPIO_ACTIVE_LOW>;
+               };
+       };

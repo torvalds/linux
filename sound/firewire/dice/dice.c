@@ -20,8 +20,6 @@ MODULE_LICENSE("GPL v2");
 #define WEISS_CATEGORY_ID	0x00
 #define LOUD_CATEGORY_ID	0x10
 
-#define PROBE_DELAY_MS		(2 * MSEC_PER_SEC)
-
 /*
  * Some models support several isochronous channels, while these streams are not
  * always available. In this case, add the model name to this list.
@@ -201,6 +199,10 @@ static void do_registration(struct work_struct *work)
 
 	dice_card_strings(dice);
 
+	err = snd_dice_stream_init_duplex(dice);
+	if (err < 0)
+		goto error;
+
 	snd_dice_create_proc(dice);
 
 	err = snd_dice_create_pcm(dice);
@@ -229,26 +231,12 @@ static void do_registration(struct work_struct *work)
 
 	return;
 error:
+	snd_dice_stream_destroy_duplex(dice);
 	snd_dice_transaction_destroy(dice);
+	snd_dice_stream_destroy_duplex(dice);
 	snd_card_free(dice->card);
 	dev_info(&dice->unit->device,
 		 "Sound card registration failed: %d\n", err);
-}
-
-static void schedule_registration(struct snd_dice *dice)
-{
-	struct fw_card *fw_card = fw_parent_device(dice->unit)->card;
-	u64 now, delay;
-
-	now = get_jiffies_64();
-	delay = fw_card->reset_jiffies + msecs_to_jiffies(PROBE_DELAY_MS);
-
-	if (time_after64(delay, now))
-		delay -= now;
-	else
-		delay = 0;
-
-	mod_delayed_work(system_wq, &dice->dwork, delay);
 }
 
 static int dice_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
@@ -273,15 +261,9 @@ static int dice_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 	init_completion(&dice->clock_accepted);
 	init_waitqueue_head(&dice->hwdep_wait);
 
-	err = snd_dice_stream_init_duplex(dice);
-	if (err < 0) {
-		dice_free(dice);
-		return err;
-	}
-
 	/* Allocate and register this sound card later. */
 	INIT_DEFERRABLE_WORK(&dice->dwork, do_registration);
-	schedule_registration(dice);
+	snd_fw_schedule_registration(unit, &dice->dwork);
 
 	return 0;
 }
@@ -312,7 +294,7 @@ static void dice_bus_reset(struct fw_unit *unit)
 
 	/* Postpone a workqueue for deferred registration. */
 	if (!dice->registered)
-		schedule_registration(dice);
+		snd_fw_schedule_registration(unit, &dice->dwork);
 
 	/* The handler address register becomes initialized. */
 	snd_dice_transaction_reinit(dice);
@@ -334,6 +316,13 @@ static const struct ieee1394_device_id dice_id_table[] = {
 	{
 		.match_flags = IEEE1394_MATCH_VERSION,
 		.version     = DICE_INTERFACE,
+	},
+	/* M-Audio Profire 610/2626 has a different value in version field. */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_SPECIFIER_ID,
+		.vendor_id	= 0x000d6c,
+		.specifier_id	= 0x000d6c,
 	},
 	{ }
 };

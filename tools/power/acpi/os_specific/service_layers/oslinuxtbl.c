@@ -91,7 +91,7 @@ osl_get_customized_table(char *pathname,
 			 char *signature,
 			 u32 instance,
 			 struct acpi_table_header **table,
-			 acpi_physical_address * address);
+			 acpi_physical_address *address);
 
 static acpi_status osl_list_bios_tables(void);
 
@@ -99,7 +99,7 @@ static acpi_status
 osl_get_bios_table(char *signature,
 		   u32 instance,
 		   struct acpi_table_header **table,
-		   acpi_physical_address * address);
+		   acpi_physical_address *address);
 
 static acpi_status osl_get_last_status(acpi_status default_status);
 
@@ -187,7 +187,7 @@ static acpi_status osl_get_last_status(acpi_status default_status)
 
 acpi_status
 acpi_os_get_table_by_address(acpi_physical_address address,
-			     struct acpi_table_header ** table)
+			     struct acpi_table_header **table)
 {
 	u32 table_length;
 	struct acpi_table_header *mapped_table;
@@ -252,8 +252,8 @@ exit:
 acpi_status
 acpi_os_get_table_by_name(char *signature,
 			  u32 instance,
-			  struct acpi_table_header ** table,
-			  acpi_physical_address * address)
+			  struct acpi_table_header **table,
+			  acpi_physical_address *address)
 {
 	acpi_status status;
 
@@ -380,8 +380,8 @@ static acpi_status osl_add_table_to_list(char *signature, u32 instance)
 
 acpi_status
 acpi_os_get_table_by_index(u32 index,
-			   struct acpi_table_header ** table,
-			   u32 *instance, acpi_physical_address * address)
+			   struct acpi_table_header **table,
+			   u32 *instance, acpi_physical_address *address)
 {
 	struct osl_table_info *info;
 	acpi_status status;
@@ -447,7 +447,7 @@ osl_find_rsdp_via_efi_by_keyword(FILE * file, const char *keyword)
 		}
 	}
 
-	return ((acpi_physical_address) (address));
+	return ((acpi_physical_address)(address));
 }
 
 /******************************************************************************
@@ -751,10 +751,10 @@ static acpi_status osl_list_bios_tables(void)
 	for (i = 0; i < number_of_tables; ++i, table_data += item_size) {
 		if (osl_can_use_xsdt()) {
 			table_address =
-			    (acpi_physical_address) (*ACPI_CAST64(table_data));
+			    (acpi_physical_address)(*ACPI_CAST64(table_data));
 		} else {
 			table_address =
-			    (acpi_physical_address) (*ACPI_CAST32(table_data));
+			    (acpi_physical_address)(*ACPI_CAST32(table_data));
 		}
 
 		/* Skip NULL entries in RSDT/XSDT */
@@ -800,7 +800,7 @@ static acpi_status
 osl_get_bios_table(char *signature,
 		   u32 instance,
 		   struct acpi_table_header **table,
-		   acpi_physical_address * address)
+		   acpi_physical_address *address)
 {
 	struct acpi_table_header *local_table = NULL;
 	struct acpi_table_header *mapped_table = NULL;
@@ -833,38 +833,37 @@ osl_get_bios_table(char *signature,
 			if ((gbl_fadt->header.length >= MIN_FADT_FOR_XDSDT) &&
 			    gbl_fadt->Xdsdt) {
 				table_address =
-				    (acpi_physical_address) gbl_fadt->Xdsdt;
+				    (acpi_physical_address)gbl_fadt->Xdsdt;
 			} else
 			    if ((gbl_fadt->header.length >= MIN_FADT_FOR_DSDT)
 				&& gbl_fadt->dsdt) {
 				table_address =
-				    (acpi_physical_address) gbl_fadt->dsdt;
+				    (acpi_physical_address)gbl_fadt->dsdt;
 			}
 		} else if (ACPI_COMPARE_NAME(signature, ACPI_SIG_FACS)) {
 			if ((gbl_fadt->header.length >= MIN_FADT_FOR_XFACS) &&
 			    gbl_fadt->Xfacs) {
 				table_address =
-				    (acpi_physical_address) gbl_fadt->Xfacs;
+				    (acpi_physical_address)gbl_fadt->Xfacs;
 			} else
 			    if ((gbl_fadt->header.length >= MIN_FADT_FOR_FACS)
 				&& gbl_fadt->facs) {
 				table_address =
-				    (acpi_physical_address) gbl_fadt->facs;
+				    (acpi_physical_address)gbl_fadt->facs;
 			}
 		} else if (ACPI_COMPARE_NAME(signature, ACPI_SIG_XSDT)) {
 			if (!gbl_revision) {
 				return (AE_BAD_SIGNATURE);
 			}
 			table_address =
-			    (acpi_physical_address) gbl_rsdp.
+			    (acpi_physical_address)gbl_rsdp.
 			    xsdt_physical_address;
 		} else if (ACPI_COMPARE_NAME(signature, ACPI_SIG_RSDT)) {
 			table_address =
-			    (acpi_physical_address) gbl_rsdp.
+			    (acpi_physical_address)gbl_rsdp.
 			    rsdt_physical_address;
 		} else {
-			table_address =
-			    (acpi_physical_address) gbl_rsdp_address;
+			table_address = (acpi_physical_address)gbl_rsdp_address;
 			signature = ACPI_SIG_RSDP;
 		}
 
@@ -904,12 +903,12 @@ osl_get_bios_table(char *signature,
 		for (i = 0; i < number_of_tables; ++i, table_data += item_size) {
 			if (osl_can_use_xsdt()) {
 				table_address =
-				    (acpi_physical_address) (*ACPI_CAST64
-							     (table_data));
+				    (acpi_physical_address)(*ACPI_CAST64
+							    (table_data));
 			} else {
 				table_address =
-				    (acpi_physical_address) (*ACPI_CAST32
-							     (table_data));
+				    (acpi_physical_address)(*ACPI_CAST32
+							    (table_data));
 			}
 
 			/* Skip NULL entries in RSDT/XSDT */
@@ -1301,7 +1300,7 @@ osl_get_customized_table(char *pathname,
 			 char *signature,
 			 u32 instance,
 			 struct acpi_table_header **table,
-			 acpi_physical_address * address)
+			 acpi_physical_address *address)
 {
 	void *table_dir;
 	u32 current_instance = 0;

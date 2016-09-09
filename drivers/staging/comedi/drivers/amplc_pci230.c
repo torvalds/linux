@@ -237,47 +237,50 @@
 /*
  * DACCON read-write values.
  */
-#define PCI230_DAC_OR_UNI		(0 << 0) /* Output range unipolar */
-#define PCI230_DAC_OR_BIP		(1 << 0) /* Output range bipolar */
-#define PCI230_DAC_OR_MASK		(1 << 0)
+#define PCI230_DAC_OR(x)		(((x) & 0x1) << 0)
+#define PCI230_DAC_OR_UNI		PCI230_DAC_OR(0) /* Output unipolar */
+#define PCI230_DAC_OR_BIP		PCI230_DAC_OR(1) /* Output bipolar */
+#define PCI230_DAC_OR_MASK		PCI230_DAC_OR(1)
 /*
  * The following applies only if DAC FIFO support is enabled in the EXTFUNC
  * register (and only for PCI230+ hardware version 2 onwards).
  */
-#define PCI230P2_DAC_FIFO_EN		(1 << 8) /* FIFO enable */
+#define PCI230P2_DAC_FIFO_EN		BIT(8) /* FIFO enable */
 /*
  * The following apply only if the DAC FIFO is enabled (and only for PCI230+
  * hardware version 2 onwards).
  */
-#define PCI230P2_DAC_TRIG_NONE		(0 << 2) /* No trigger */
-#define PCI230P2_DAC_TRIG_SW		(1 << 2) /* Software trigger trigger */
-#define PCI230P2_DAC_TRIG_EXTP		(2 << 2) /* EXTTRIG +ve edge trigger */
-#define PCI230P2_DAC_TRIG_EXTN		(3 << 2) /* EXTTRIG -ve edge trigger */
-#define PCI230P2_DAC_TRIG_Z2CT0		(4 << 2) /* CT0-OUT +ve edge trigger */
-#define PCI230P2_DAC_TRIG_Z2CT1		(5 << 2) /* CT1-OUT +ve edge trigger */
-#define PCI230P2_DAC_TRIG_Z2CT2		(6 << 2) /* CT2-OUT +ve edge trigger */
-#define PCI230P2_DAC_TRIG_MASK		(7 << 2)
-#define PCI230P2_DAC_FIFO_WRAP		(1 << 7) /* FIFO wraparound mode */
-#define PCI230P2_DAC_INT_FIFO_EMPTY	(0 << 9) /* FIFO interrupt empty */
-#define PCI230P2_DAC_INT_FIFO_NEMPTY	(1 << 9)
-#define PCI230P2_DAC_INT_FIFO_NHALF	(2 << 9) /* FIFO intr not half full */
-#define PCI230P2_DAC_INT_FIFO_HALF	(3 << 9)
-#define PCI230P2_DAC_INT_FIFO_NFULL	(4 << 9) /* FIFO interrupt not full */
-#define PCI230P2_DAC_INT_FIFO_FULL	(5 << 9)
-#define PCI230P2_DAC_INT_FIFO_MASK	(7 << 9)
+#define PCI230P2_DAC_TRIG(x)		(((x) & 0x7) << 2)
+#define PCI230P2_DAC_TRIG_NONE		PCI230P2_DAC_TRIG(0) /* none */
+#define PCI230P2_DAC_TRIG_SW		PCI230P2_DAC_TRIG(1) /* soft trig */
+#define PCI230P2_DAC_TRIG_EXTP		PCI230P2_DAC_TRIG(2) /* ext + edge */
+#define PCI230P2_DAC_TRIG_EXTN		PCI230P2_DAC_TRIG(3) /* ext - edge */
+#define PCI230P2_DAC_TRIG_Z2CT0		PCI230P2_DAC_TRIG(4) /* Z2 CT0 out */
+#define PCI230P2_DAC_TRIG_Z2CT1		PCI230P2_DAC_TRIG(5) /* Z2 CT1 out */
+#define PCI230P2_DAC_TRIG_Z2CT2		PCI230P2_DAC_TRIG(6) /* Z2 CT2 out */
+#define PCI230P2_DAC_TRIG_MASK		PCI230P2_DAC_TRIG(7)
+#define PCI230P2_DAC_FIFO_WRAP		BIT(7) /* FIFO wraparound mode */
+#define PCI230P2_DAC_INT_FIFO(x)	(((x) & 7) << 9)
+#define PCI230P2_DAC_INT_FIFO_EMPTY	PCI230P2_DAC_INT_FIFO(0) /* empty */
+#define PCI230P2_DAC_INT_FIFO_NEMPTY	PCI230P2_DAC_INT_FIFO(1) /* !empty */
+#define PCI230P2_DAC_INT_FIFO_NHALF	PCI230P2_DAC_INT_FIFO(2) /* !half */
+#define PCI230P2_DAC_INT_FIFO_HALF	PCI230P2_DAC_INT_FIFO(3) /* half */
+#define PCI230P2_DAC_INT_FIFO_NFULL	PCI230P2_DAC_INT_FIFO(4) /* !full */
+#define PCI230P2_DAC_INT_FIFO_FULL	PCI230P2_DAC_INT_FIFO(5) /* full */
+#define PCI230P2_DAC_INT_FIFO_MASK	PCI230P2_DAC_INT_FIFO(7)
 
 /*
  * DACCON read-only values.
  */
-#define PCI230_DAC_BUSY			(1 << 1) /* DAC busy. */
+#define PCI230_DAC_BUSY			BIT(1) /* DAC busy. */
 /*
  * The following apply only if the DAC FIFO is enabled (and only for PCI230+
  * hardware version 2 onwards).
  */
-#define PCI230P2_DAC_FIFO_UNDERRUN_LATCHED	(1 << 5) /* Underrun error */
-#define PCI230P2_DAC_FIFO_EMPTY		(1 << 13) /* FIFO empty */
-#define PCI230P2_DAC_FIFO_FULL		(1 << 14) /* FIFO full */
-#define PCI230P2_DAC_FIFO_HALF		(1 << 15) /* FIFO half full */
+#define PCI230P2_DAC_FIFO_UNDERRUN_LATCHED	BIT(5) /* Underrun error */
+#define PCI230P2_DAC_FIFO_EMPTY		BIT(13) /* FIFO empty */
+#define PCI230P2_DAC_FIFO_FULL		BIT(14) /* FIFO full */
+#define PCI230P2_DAC_FIFO_HALF		BIT(15) /* FIFO half full */
 
 /*
  * DACCON write-only, transient values.
@@ -286,8 +289,8 @@
  * The following apply only if the DAC FIFO is enabled (and only for PCI230+
  * hardware version 2 onwards).
  */
-#define PCI230P2_DAC_FIFO_UNDERRUN_CLEAR	(1 << 5) /* Clear underrun */
-#define PCI230P2_DAC_FIFO_RESET		(1 << 12) /* FIFO reset */
+#define PCI230P2_DAC_FIFO_UNDERRUN_CLEAR	BIT(5) /* Clear underrun */
+#define PCI230P2_DAC_FIFO_RESET		BIT(12) /* FIFO reset */
 
 /*
  * PCI230+ hardware version 2 DAC FIFO levels.
@@ -304,44 +307,48 @@
 /*
  * ADCCON read/write values.
  */
-#define PCI230_ADC_TRIG_NONE		(0 << 0) /* No trigger */
-#define PCI230_ADC_TRIG_SW		(1 << 0) /* Software trigger trigger */
-#define PCI230_ADC_TRIG_EXTP		(2 << 0) /* EXTTRIG +ve edge trigger */
-#define PCI230_ADC_TRIG_EXTN		(3 << 0) /* EXTTRIG -ve edge trigger */
-#define PCI230_ADC_TRIG_Z2CT0		(4 << 0) /* CT0-OUT +ve edge trigger */
-#define PCI230_ADC_TRIG_Z2CT1		(5 << 0) /* CT1-OUT +ve edge trigger */
-#define PCI230_ADC_TRIG_Z2CT2		(6 << 0) /* CT2-OUT +ve edge trigger */
-#define PCI230_ADC_TRIG_MASK		(7 << 0)
-#define PCI230_ADC_IR_UNI		(0 << 3) /* Input range unipolar */
-#define PCI230_ADC_IR_BIP		(1 << 3) /* Input range bipolar */
-#define PCI230_ADC_IR_MASK		(1 << 3)
-#define PCI230_ADC_IM_SE		(0 << 4) /* Input mode single ended */
-#define PCI230_ADC_IM_DIF		(1 << 4) /* Input mode differential */
-#define PCI230_ADC_IM_MASK		(1 << 4)
-#define PCI230_ADC_FIFO_EN		(1 << 8) /* FIFO enable */
-#define PCI230_ADC_INT_FIFO_EMPTY	(0 << 9)
-#define PCI230_ADC_INT_FIFO_NEMPTY	(1 << 9) /* FIFO interrupt not empty */
-#define PCI230_ADC_INT_FIFO_NHALF	(2 << 9)
-#define PCI230_ADC_INT_FIFO_HALF	(3 << 9) /* FIFO interrupt half full */
-#define PCI230_ADC_INT_FIFO_NFULL	(4 << 9)
-#define PCI230_ADC_INT_FIFO_FULL	(5 << 9) /* FIFO interrupt full */
-#define PCI230P_ADC_INT_FIFO_THRESH	(7 << 9) /* FIFO interrupt threshold */
-#define PCI230_ADC_INT_FIFO_MASK	(7 << 9)
+#define PCI230_ADC_TRIG(x)		(((x) & 0x7) << 0)
+#define PCI230_ADC_TRIG_NONE		PCI230_ADC_TRIG(0) /* none */
+#define PCI230_ADC_TRIG_SW		PCI230_ADC_TRIG(1) /* soft trig */
+#define PCI230_ADC_TRIG_EXTP		PCI230_ADC_TRIG(2) /* ext + edge */
+#define PCI230_ADC_TRIG_EXTN		PCI230_ADC_TRIG(3) /* ext - edge */
+#define PCI230_ADC_TRIG_Z2CT0		PCI230_ADC_TRIG(4) /* Z2 CT0 out*/
+#define PCI230_ADC_TRIG_Z2CT1		PCI230_ADC_TRIG(5) /* Z2 CT1 out */
+#define PCI230_ADC_TRIG_Z2CT2		PCI230_ADC_TRIG(6) /* Z2 CT2 out */
+#define PCI230_ADC_TRIG_MASK		PCI230_ADC_TRIG(7)
+#define PCI230_ADC_IR(x)		(((x) & 0x1) << 3)
+#define PCI230_ADC_IR_UNI		PCI230_ADC_IR(0) /* Input unipolar */
+#define PCI230_ADC_IR_BIP		PCI230_ADC_IR(1) /* Input bipolar */
+#define PCI230_ADC_IR_MASK		PCI230_ADC_IR(1)
+#define PCI230_ADC_IM(x)		(((x) & 0x1) << 4)
+#define PCI230_ADC_IM_SE		PCI230_ADC_IM(0) /* single ended */
+#define PCI230_ADC_IM_DIF		PCI230_ADC_IM(1) /* differential */
+#define PCI230_ADC_IM_MASK		PCI230_ADC_IM(1)
+#define PCI230_ADC_FIFO_EN		BIT(8) /* FIFO enable */
+#define PCI230_ADC_INT_FIFO(x)		(((x) & 0x7) << 9)
+#define PCI230_ADC_INT_FIFO_EMPTY	PCI230_ADC_INT_FIFO(0) /* empty */
+#define PCI230_ADC_INT_FIFO_NEMPTY	PCI230_ADC_INT_FIFO(1) /* !empty */
+#define PCI230_ADC_INT_FIFO_NHALF	PCI230_ADC_INT_FIFO(2) /* !half */
+#define PCI230_ADC_INT_FIFO_HALF	PCI230_ADC_INT_FIFO(3) /* half */
+#define PCI230_ADC_INT_FIFO_NFULL	PCI230_ADC_INT_FIFO(4) /* !full */
+#define PCI230_ADC_INT_FIFO_FULL	PCI230_ADC_INT_FIFO(5) /* full */
+#define PCI230P_ADC_INT_FIFO_THRESH	PCI230_ADC_INT_FIFO(7) /* threshold */
+#define PCI230_ADC_INT_FIFO_MASK	PCI230_ADC_INT_FIFO(7)
 
 /*
  * ADCCON write-only, transient values.
  */
-#define PCI230_ADC_FIFO_RESET		(1 << 12) /* FIFO reset */
-#define PCI230_ADC_GLOB_RESET		(1 << 13) /* Global reset */
+#define PCI230_ADC_FIFO_RESET		BIT(12) /* FIFO reset */
+#define PCI230_ADC_GLOB_RESET		BIT(13) /* Global reset */
 
 /*
  * ADCCON read-only values.
  */
-#define PCI230_ADC_BUSY			(1 << 15) /* ADC busy */
-#define PCI230_ADC_FIFO_EMPTY		(1 << 12) /* FIFO empty */
-#define PCI230_ADC_FIFO_FULL		(1 << 13) /* FIFO full */
-#define PCI230_ADC_FIFO_HALF		(1 << 14) /* FIFO half full */
-#define PCI230_ADC_FIFO_FULL_LATCHED	(1 << 5)  /* FIFO overrun occurred */
+#define PCI230_ADC_BUSY			BIT(15) /* ADC busy */
+#define PCI230_ADC_FIFO_EMPTY		BIT(12) /* FIFO empty */
+#define PCI230_ADC_FIFO_FULL		BIT(13) /* FIFO full */
+#define PCI230_ADC_FIFO_HALF		BIT(14) /* FIFO half full */
+#define PCI230_ADC_FIFO_FULL_LATCHED	BIT(5)  /* FIFO overrun occurred */
 
 /*
  * PCI230 ADC FIFO levels.
@@ -353,10 +360,10 @@
  * PCI230+ EXTFUNC values.
  */
 /* Route EXTTRIG pin to external gate inputs. */
-#define PCI230P_EXTFUNC_GAT_EXTTRIG	(1 << 0)
+#define PCI230P_EXTFUNC_GAT_EXTTRIG	BIT(0)
 /* PCI230+ hardware version 2 values. */
 /* Allow DAC FIFO to be enabled. */
-#define PCI230P2_EXTFUNC_DACFIFO	(1 << 1)
+#define PCI230P2_EXTFUNC_DACFIFO	BIT(1)
 
 /*
  * Counter/timer clock input configuration sources.
@@ -379,8 +386,12 @@
 #define GAT_GND		1	/* GND (i.e. disabled) */
 #define GAT_EXT		2	/* external gate input (PPCn on PCI230) */
 #define GAT_NOUTNM2	3	/* inverted output of channel-2 modulo total */
-/* Macro to construct gate input configuration register value. */
-#define GAT_CONFIG(chan, src)	((((chan) & 3) << 3) | ((src) & 7))
+
+static inline unsigned int pci230_gat_config(unsigned int chan,
+					     unsigned int src)
+{
+	return ((chan & 3) << 3) | (src & 7);
+}
 
 /*
  * Summary of CLK_OUTNM1 and GAT_NOUTNM2 connections for PCI230 and PCI260:
@@ -398,20 +409,20 @@
  * Interrupt enables/status register values.
  */
 #define PCI230_INT_DISABLE		0
-#define PCI230_INT_PPI_C0		(1 << 0)
-#define PCI230_INT_PPI_C3		(1 << 1)
-#define PCI230_INT_ADC			(1 << 2)
-#define PCI230_INT_ZCLK_CT1		(1 << 5)
+#define PCI230_INT_PPI_C0		BIT(0)
+#define PCI230_INT_PPI_C3		BIT(1)
+#define PCI230_INT_ADC			BIT(2)
+#define PCI230_INT_ZCLK_CT1		BIT(5)
 /* For PCI230+ hardware version 2 when DAC FIFO enabled. */
-#define PCI230P2_INT_DAC		(1 << 4)
+#define PCI230P2_INT_DAC		BIT(4)
 
 /*
  * (Potentially) shared resources and their owners
  */
 enum {
-	RES_Z2CT0 = (1U << 0),	/* Z2-CT0 */
-	RES_Z2CT1 = (1U << 1),	/* Z2-CT1 */
-	RES_Z2CT2 = (1U << 2)	/* Z2-CT2 */
+	RES_Z2CT0 = BIT(0),	/* Z2-CT0 */
+	RES_Z2CT1 = BIT(1),	/* Z2-CT1 */
+	RES_Z2CT2 = BIT(2)	/* Z2-CT2 */
 };
 
 enum {
@@ -626,10 +637,10 @@ static void pci230_release_all_resources(struct comedi_device *dev,
 	pci230_release_shared(dev, (unsigned char)~0, owner);
 }
 
-static unsigned int pci230_divide_ns(uint64_t ns, unsigned int timebase,
+static unsigned int pci230_divide_ns(u64 ns, unsigned int timebase,
 				     unsigned int flags)
 {
-	uint64_t div;
+	u64 div;
 	unsigned int rem;
 
 	div = ns;
@@ -652,7 +663,7 @@ static unsigned int pci230_divide_ns(uint64_t ns, unsigned int timebase,
  * Given desired period in ns, returns the required internal clock source
  * and gets the initial count.
  */
-static unsigned int pci230_choose_clk_count(uint64_t ns, unsigned int *count,
+static unsigned int pci230_choose_clk_count(u64 ns, unsigned int *count,
 					    unsigned int flags)
 {
 	unsigned int clk_src, cnt;
@@ -676,7 +687,7 @@ static void pci230_ns_to_single_timer(unsigned int *ns, unsigned int flags)
 }
 
 static void pci230_ct_setup_ns_mode(struct comedi_device *dev, unsigned int ct,
-				    unsigned int mode, uint64_t ns,
+				    unsigned int mode, u64 ns,
 				    unsigned int flags)
 {
 	unsigned int clk_src;
@@ -1263,7 +1274,8 @@ static void pci230_ao_start(struct comedi_device *dev,
 					       irqflags);
 		}
 		/* Set CT1 gate high to start counting. */
-		outb(GAT_CONFIG(1, GAT_VCC), dev->iobase + PCI230_ZGAT_SCE);
+		outb(pci230_gat_config(1, GAT_VCC),
+		     dev->iobase + PCI230_ZGAT_SCE);
 		break;
 	case TRIG_INT:
 		async->inttrig = pci230_ao_inttrig_scan_begin;
@@ -1351,7 +1363,8 @@ static int pci230_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		 * cmd->scan_begin_arg is sampling period in ns.
 		 * Gate it off for now.
 		 */
-		outb(GAT_CONFIG(1, GAT_GND), dev->iobase + PCI230_ZGAT_SCE);
+		outb(pci230_gat_config(1, GAT_GND),
+		     dev->iobase + PCI230_ZGAT_SCE);
 		pci230_ct_setup_ns_mode(dev, 1, I8254_MODE3,
 					cmd->scan_begin_arg,
 					cmd->flags);
@@ -1792,9 +1805,9 @@ static int pci230_ai_inttrig_scan_begin(struct comedi_device *dev,
 	spin_lock_irqsave(&devpriv->ai_stop_spinlock, irqflags);
 	if (devpriv->ai_cmd_started) {
 		/* Trigger scan by waggling CT0 gate source. */
-		zgat = GAT_CONFIG(0, GAT_GND);
+		zgat = pci230_gat_config(0, GAT_GND);
 		outb(zgat, dev->iobase + PCI230_ZGAT_SCE);
-		zgat = GAT_CONFIG(0, GAT_VCC);
+		zgat = pci230_gat_config(0, GAT_VCC);
 		outb(zgat, dev->iobase + PCI230_ZGAT_SCE);
 	}
 	spin_unlock_irqrestore(&devpriv->ai_stop_spinlock, irqflags);
@@ -1926,20 +1939,20 @@ static void pci230_ai_start(struct comedi_device *dev,
 			 * Conversion timer CT2 needs to be gated by
 			 * inverted output of monostable CT2.
 			 */
-			zgat = GAT_CONFIG(2, GAT_NOUTNM2);
+			zgat = pci230_gat_config(2, GAT_NOUTNM2);
 		} else {
 			/*
 			 * Conversion timer CT2 needs to be gated on
 			 * continuously.
 			 */
-			zgat = GAT_CONFIG(2, GAT_VCC);
+			zgat = pci230_gat_config(2, GAT_VCC);
 		}
 		outb(zgat, dev->iobase + PCI230_ZGAT_SCE);
 		if (cmd->scan_begin_src != TRIG_FOLLOW) {
 			/* Set monostable CT0 trigger source. */
 			switch (cmd->scan_begin_src) {
 			default:
-				zgat = GAT_CONFIG(0, GAT_VCC);
+				zgat = pci230_gat_config(0, GAT_VCC);
 				break;
 			case TRIG_EXT:
 				/*
@@ -1950,21 +1963,21 @@ static void pci230_ai_start(struct comedi_device *dev,
 				 * input in order to use it as an external scan
 				 * trigger.
 				 */
-				zgat = GAT_CONFIG(0, GAT_EXT);
+				zgat = pci230_gat_config(0, GAT_EXT);
 				break;
 			case TRIG_TIMER:
 				/*
 				 * Monostable CT0 triggered by rising edge on
 				 * inverted output of CT1 (falling edge on CT1).
 				 */
-				zgat = GAT_CONFIG(0, GAT_NOUTNM2);
+				zgat = pci230_gat_config(0, GAT_NOUTNM2);
 				break;
 			case TRIG_INT:
 				/*
 				 * Monostable CT0 is triggered by inttrig
 				 * function waggling the CT0 gate source.
 				 */
-				zgat = GAT_CONFIG(0, GAT_VCC);
+				zgat = pci230_gat_config(0, GAT_VCC);
 				break;
 			}
 			outb(zgat, dev->iobase + PCI230_ZGAT_SCE);
@@ -1974,7 +1987,7 @@ static void pci230_ai_start(struct comedi_device *dev,
 				 * Scan period timer CT1 needs to be
 				 * gated on to start counting.
 				 */
-				zgat = GAT_CONFIG(1, GAT_VCC);
+				zgat = pci230_gat_config(1, GAT_VCC);
 				outb(zgat, dev->iobase + PCI230_ZGAT_SCE);
 				break;
 			case TRIG_INT:
@@ -2216,7 +2229,7 @@ static int pci230_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		 * Note, counter/timer output 2 can be monitored on the
 		 * connector: PCI230 pin 21, PCI260 pin 18.
 		 */
-		zgat = GAT_CONFIG(2, GAT_GND);
+		zgat = pci230_gat_config(2, GAT_GND);
 		outb(zgat, dev->iobase + PCI230_ZGAT_SCE);
 		/* Set counter/timer 2 to the specified conversion period. */
 		pci230_ct_setup_ns_mode(dev, 2, I8254_MODE3, cmd->convert_arg,
@@ -2234,10 +2247,10 @@ static int pci230_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			 * monostable to stop it triggering.  The trigger
 			 * source will be changed later.
 			 */
-			zgat = GAT_CONFIG(0, GAT_VCC);
+			zgat = pci230_gat_config(0, GAT_VCC);
 			outb(zgat, dev->iobase + PCI230_ZGAT_SCE);
 			pci230_ct_setup_ns_mode(dev, 0, I8254_MODE1,
-						((uint64_t)cmd->convert_arg *
+						((u64)cmd->convert_arg *
 						 cmd->scan_end_arg),
 						CMDF_ROUND_UP);
 			if (cmd->scan_begin_src == TRIG_TIMER) {
@@ -2247,7 +2260,7 @@ static int pci230_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 				 *
 				 * Set up CT1 but gate it off for now.
 				 */
-				zgat = GAT_CONFIG(1, GAT_GND);
+				zgat = pci230_gat_config(1, GAT_GND);
 				outb(zgat, dev->iobase + PCI230_ZGAT_SCE);
 				pci230_ct_setup_ns_mode(dev, 1, I8254_MODE3,
 							cmd->scan_begin_arg,

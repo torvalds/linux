@@ -45,10 +45,11 @@
 /* Optional capabilities supported by this code version
  */
 enum {
-	TIPC_BCAST_SYNCH = (1 << 1)
+	TIPC_BCAST_SYNCH   = (1 << 1),
+	TIPC_BLOCK_FLOWCTL = (2 << 1)
 };
 
-#define TIPC_NODE_CAPABILITIES TIPC_BCAST_SYNCH
+#define TIPC_NODE_CAPABILITIES (TIPC_BCAST_SYNCH | TIPC_BLOCK_FLOWCTL)
 #define INVALID_BEARER_ID -1
 
 void tipc_node_stop(struct net *net);
@@ -70,6 +71,7 @@ void tipc_node_broadcast(struct net *net, struct sk_buff *skb);
 int tipc_node_add_conn(struct net *net, u32 dnode, u32 port, u32 peer_port);
 void tipc_node_remove_conn(struct net *net, u32 dnode, u32 port);
 int tipc_node_get_mtu(struct net *net, u32 addr, u32 sel);
+u16 tipc_node_get_capabilities(struct net *net, u32 addr);
 int tipc_nl_node_dump(struct sk_buff *skb, struct netlink_callback *cb);
 int tipc_nl_node_dump_link(struct sk_buff *skb, struct netlink_callback *cb);
 int tipc_nl_node_reset_link_stats(struct sk_buff *skb, struct genl_info *info);

@@ -48,11 +48,6 @@
 
 #include "lov_internal.h"
 
-struct lovea_unpack_args {
-	struct lov_stripe_md *lsm;
-	int		   cursor;
-};
-
 static int lsm_lmm_verify_common(struct lov_mds_md *lmm, int lmm_bytes,
 				 __u16 stripe_count)
 {

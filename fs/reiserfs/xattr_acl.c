@@ -197,10 +197,8 @@ struct posix_acl *reiserfs_get_acl(struct inode *inode, int type)
 
 	size = reiserfs_xattr_get(inode, name, NULL, 0);
 	if (size < 0) {
-		if (size == -ENODATA || size == -ENOSYS) {
-			set_cached_acl(inode, type, NULL);
+		if (size == -ENODATA || size == -ENOSYS)
 			return NULL;
-		}
 		return ERR_PTR(size);
 	}
 
@@ -220,8 +218,6 @@ struct posix_acl *reiserfs_get_acl(struct inode *inode, int type)
 	} else {
 		acl = reiserfs_posix_acl_from_disk(value, retval);
 	}
-	if (!IS_ERR(acl))
-		set_cached_acl(inode, type, acl);
 
 	kfree(value);
 	return acl;
@@ -370,7 +366,7 @@ int reiserfs_cache_default_acl(struct inode *inode)
 	if (IS_PRIVATE(inode))
 		return 0;
 
-	acl = reiserfs_get_acl(inode, ACL_TYPE_DEFAULT);
+	acl = get_acl(inode, ACL_TYPE_DEFAULT);
 
 	if (acl && !IS_ERR(acl)) {
 		int size = reiserfs_acl_size(acl->a_count);

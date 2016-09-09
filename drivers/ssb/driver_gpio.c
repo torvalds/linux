@@ -8,7 +8,7 @@
  * Licensed under the GNU/GPL. See COPYING for details.
  */
 
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
@@ -22,15 +22,10 @@
  * Shared
  **************************************************/
 
-static struct ssb_bus *ssb_gpio_get_bus(struct gpio_chip *chip)
-{
-	return container_of(chip, struct ssb_bus, gpio);
-}
-
 #if IS_ENABLED(CONFIG_SSB_EMBEDDED)
 static int ssb_gpio_to_irq(struct gpio_chip *chip, unsigned gpio)
 {
-	struct ssb_bus *bus = ssb_gpio_get_bus(chip);
+	struct ssb_bus *bus = gpiochip_get_data(chip);
 
 	if (bus->bustype == SSB_BUSTYPE_SSB)
 		return irq_find_mapping(bus->irq_domain, gpio);
@@ -45,7 +40,7 @@ static int ssb_gpio_to_irq(struct gpio_chip *chip, unsigned gpio)
 
 static int ssb_gpio_chipco_get_value(struct gpio_chip *chip, unsigned gpio)
 {
-	struct ssb_bus *bus = ssb_gpio_get_bus(chip);
+	struct ssb_bus *bus = gpiochip_get_data(chip);
 
 	return !!ssb_chipco_gpio_in(&bus->chipco, 1 << gpio);
 }
@@ -53,7 +48,7 @@ static int ssb_gpio_chipco_get_value(struct gpio_chip *chip, unsigned gpio)
 static void ssb_gpio_chipco_set_value(struct gpio_chip *chip, unsigned gpio,
 				      int value)
 {
-	struct ssb_bus *bus = ssb_gpio_get_bus(chip);
+	struct ssb_bus *bus = gpiochip_get_data(chip);
 
 	ssb_chipco_gpio_out(&bus->chipco, 1 << gpio, value ? 1 << gpio : 0);
 }
@@ -61,7 +56,7 @@ static void ssb_gpio_chipco_set_value(struct gpio_chip *chip, unsigned gpio,
 static int ssb_gpio_chipco_direction_input(struct gpio_chip *chip,
 					   unsigned gpio)
 {
-	struct ssb_bus *bus = ssb_gpio_get_bus(chip);
+	struct ssb_bus *bus = gpiochip_get_data(chip);
 
 	ssb_chipco_gpio_outen(&bus->chipco, 1 << gpio, 0);
 	return 0;
@@ -70,7 +65,7 @@ static int ssb_gpio_chipco_direction_input(struct gpio_chip *chip,
 static int ssb_gpio_chipco_direction_output(struct gpio_chip *chip,
 					    unsigned gpio, int value)
 {
-	struct ssb_bus *bus = ssb_gpio_get_bus(chip);
+	struct ssb_bus *bus = gpiochip_get_data(chip);
 
 	ssb_chipco_gpio_outen(&bus->chipco, 1 << gpio, 1 << gpio);
 	ssb_chipco_gpio_out(&bus->chipco, 1 << gpio, value ? 1 << gpio : 0);
@@ -79,7 +74,7 @@ static int ssb_gpio_chipco_direction_output(struct gpio_chip *chip,
 
 static int ssb_gpio_chipco_request(struct gpio_chip *chip, unsigned gpio)
 {
-	struct ssb_bus *bus = ssb_gpio_get_bus(chip);
+	struct ssb_bus *bus = gpiochip_get_data(chip);
 
 	ssb_chipco_gpio_control(&bus->chipco, 1 << gpio, 0);
 	/* clear pulldown */
@@ -92,7 +87,7 @@ static int ssb_gpio_chipco_request(struct gpio_chip *chip, unsigned gpio)
 
 static void ssb_gpio_chipco_free(struct gpio_chip *chip, unsigned gpio)
 {
-	struct ssb_bus *bus = ssb_gpio_get_bus(chip);
+	struct ssb_bus *bus = gpiochip_get_data(chip);
 
 	/* clear pullup */
 	ssb_chipco_gpio_pullup(&bus->chipco, 1 << gpio, 0);
@@ -246,7 +241,7 @@ static int ssb_gpio_chipco_init(struct ssb_bus *bus)
 	if (err)
 		return err;
 
-	err = gpiochip_add(chip);
+	err = gpiochip_add_data(chip, bus);
 	if (err) {
 		ssb_gpio_irq_chipco_domain_exit(bus);
 		return err;
@@ -263,7 +258,7 @@ static int ssb_gpio_chipco_init(struct ssb_bus *bus)
 
 static int ssb_gpio_extif_get_value(struct gpio_chip *chip, unsigned gpio)
 {
-	struct ssb_bus *bus = ssb_gpio_get_bus(chip);
+	struct ssb_bus *bus = gpiochip_get_data(chip);
 
 	return !!ssb_extif_gpio_in(&bus->extif, 1 << gpio);
 }
@@ -271,7 +266,7 @@ static int ssb_gpio_extif_get_value(struct gpio_chip *chip, unsigned gpio)
 static void ssb_gpio_extif_set_value(struct gpio_chip *chip, unsigned gpio,
 				     int value)
 {
-	struct ssb_bus *bus = ssb_gpio_get_bus(chip);
+	struct ssb_bus *bus = gpiochip_get_data(chip);
 
 	ssb_extif_gpio_out(&bus->extif, 1 << gpio, value ? 1 << gpio : 0);
 }
@@ -279,7 +274,7 @@ static void ssb_gpio_extif_set_value(struct gpio_chip *chip, unsigned gpio,
 static int ssb_gpio_extif_direction_input(struct gpio_chip *chip,
 					  unsigned gpio)
 {
-	struct ssb_bus *bus = ssb_gpio_get_bus(chip);
+	struct ssb_bus *bus = gpiochip_get_data(chip);
 
 	ssb_extif_gpio_outen(&bus->extif, 1 << gpio, 0);
 	return 0;
@@ -288,7 +283,7 @@ static int ssb_gpio_extif_direction_input(struct gpio_chip *chip,
 static int ssb_gpio_extif_direction_output(struct gpio_chip *chip,
 					   unsigned gpio, int value)
 {
-	struct ssb_bus *bus = ssb_gpio_get_bus(chip);
+	struct ssb_bus *bus = gpiochip_get_data(chip);
 
 	ssb_extif_gpio_outen(&bus->extif, 1 << gpio, 1 << gpio);
 	ssb_extif_gpio_out(&bus->extif, 1 << gpio, value ? 1 << gpio : 0);
@@ -439,7 +434,7 @@ static int ssb_gpio_extif_init(struct ssb_bus *bus)
 	if (err)
 		return err;
 
-	err = gpiochip_add(chip);
+	err = gpiochip_add_data(chip, bus);
 	if (err) {
 		ssb_gpio_irq_extif_domain_exit(bus);
 		return err;

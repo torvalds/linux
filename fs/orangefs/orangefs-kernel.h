@@ -612,11 +612,11 @@ do {									\
 static inline void orangefs_i_size_write(struct inode *inode, loff_t i_size)
 {
 #if BITS_PER_LONG == 32 && defined(CONFIG_SMP)
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 #endif
 	i_size_write(inode, i_size);
 #if BITS_PER_LONG == 32 && defined(CONFIG_SMP)
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 #endif
 }
 

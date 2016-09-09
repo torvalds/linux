@@ -75,7 +75,7 @@ static int pnv_eeh_init(void)
 		 * and P7IOC separately. So we should regard
 		 * PE#0 as valid for PHB3 and P7IOC.
 		 */
-		if (phb->ioda.reserved_pe != 0)
+		if (phb->ioda.reserved_pe_idx != 0)
 			eeh_add_flag(EEH_VALID_PE_ZERO);
 
 		break;
@@ -1009,8 +1009,9 @@ static int pnv_eeh_reset_vf_pe(struct eeh_pe *pe, int option)
 static int pnv_eeh_reset(struct eeh_pe *pe, int option)
 {
 	struct pci_controller *hose = pe->phb;
+	struct pnv_phb *phb;
 	struct pci_bus *bus;
-	int ret;
+	int64_t rc;
 
 	/*
 	 * For PHB reset, we always have complete reset. For those PEs whose
@@ -1026,45 +1027,39 @@ static int pnv_eeh_reset(struct eeh_pe *pe, int option)
 	 * reset. The side effect is that EEH core has to clear the frozen
 	 * state explicitly after BAR restore.
 	 */
-	if (pe->type & EEH_PE_PHB) {
-		ret = pnv_eeh_phb_reset(hose, option);
-	} else {
-		struct pnv_phb *phb;
-		s64 rc;
+	if (pe->type & EEH_PE_PHB)
+		return pnv_eeh_phb_reset(hose, option);
 
-		/*
-		 * The frozen PE might be caused by PAPR error injection
-		 * registers, which are expected to be cleared after hitting
-		 * frozen PE as stated in the hardware spec. Unfortunately,
-		 * that's not true on P7IOC. So we have to clear it manually
-		 * to avoid recursive EEH errors during recovery.
-		 */
-		phb = hose->private_data;
-		if (phb->model == PNV_PHB_MODEL_P7IOC &&
-		    (option == EEH_RESET_HOT ||
-		    option == EEH_RESET_FUNDAMENTAL)) {
-			rc = opal_pci_reset(phb->opal_id,
-					    OPAL_RESET_PHB_ERROR,
-					    OPAL_ASSERT_RESET);
-			if (rc != OPAL_SUCCESS) {
-				pr_warn("%s: Failure %lld clearing "
-					"error injection registers\n",
-					__func__, rc);
-				return -EIO;
-			}
+	/*
+	 * The frozen PE might be caused by PAPR error injection
+	 * registers, which are expected to be cleared after hitting
+	 * frozen PE as stated in the hardware spec. Unfortunately,
+	 * that's not true on P7IOC. So we have to clear it manually
+	 * to avoid recursive EEH errors during recovery.
+	 */
+	phb = hose->private_data;
+	if (phb->model == PNV_PHB_MODEL_P7IOC &&
+	    (option == EEH_RESET_HOT ||
+	     option == EEH_RESET_FUNDAMENTAL)) {
+		rc = opal_pci_reset(phb->opal_id,
+				    OPAL_RESET_PHB_ERROR,
+				    OPAL_ASSERT_RESET);
+		if (rc != OPAL_SUCCESS) {
+			pr_warn("%s: Failure %lld clearing error injection registers\n",
+				__func__, rc);
+			return -EIO;
 		}
-
-		bus = eeh_pe_bus_get(pe);
-		if (pe->type & EEH_PE_VF)
-			ret = pnv_eeh_reset_vf_pe(pe, option);
-		else if (pci_is_root_bus(bus) ||
-			pci_is_root_bus(bus->parent))
-			ret = pnv_eeh_root_reset(hose, option);
-		else
-			ret = pnv_eeh_bridge_reset(bus->self, option);
 	}
 
-	return ret;
+	bus = eeh_pe_bus_get(pe);
+	if (pe->type & EEH_PE_VF)
+		return pnv_eeh_reset_vf_pe(pe, option);
+
+	if (pci_is_root_bus(bus) ||
+	    pci_is_root_bus(bus->parent))
+		return pnv_eeh_root_reset(hose, option);
+
+	return pnv_eeh_bridge_reset(bus->self, option);
 }
 
 /**

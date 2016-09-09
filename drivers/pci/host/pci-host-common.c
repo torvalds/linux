@@ -22,27 +22,21 @@
 #include <linux/of_pci.h>
 #include <linux/platform_device.h>
 
-#include "pci-host-common.h"
+#include "../ecam.h"
 
-static void gen_pci_release_of_pci_ranges(struct gen_pci *pci)
-{
-	pci_free_resource_list(&pci->resources);
-}
-
-static int gen_pci_parse_request_of_pci_ranges(struct gen_pci *pci)
+static int gen_pci_parse_request_of_pci_ranges(struct device *dev,
+		       struct list_head *resources, struct resource **bus_range)
 {
 	int err, res_valid = 0;
-	struct device *dev = pci->host.dev.parent;
 	struct device_node *np = dev->of_node;
 	resource_size_t iobase;
 	struct resource_entry *win;
 
-	err = of_pci_get_host_bridge_resources(np, 0, 0xff, &pci->resources,
-					       &iobase);
+	err = of_pci_get_host_bridge_resources(np, 0, 0xff, resources, &iobase);
 	if (err)
 		return err;
 
-	resource_list_for_each_entry(win, &pci->resources) {
+	resource_list_for_each_entry(win, resources) {
 		struct resource *parent, *res = win->res;
 
 		switch (resource_type(res)) {
@@ -60,7 +54,7 @@ static int gen_pci_parse_request_of_pci_ranges(struct gen_pci *pci)
 			res_valid |= !(res->flags & IORESOURCE_PREFETCH);
 			break;
 		case IORESOURCE_BUS:
-			pci->cfg.bus_range = res;
+			*bus_range = res;
 		default:
 			continue;
 		}
@@ -79,65 +73,60 @@ static int gen_pci_parse_request_of_pci_ranges(struct gen_pci *pci)
 	return 0;
 
 out_release_res:
-	gen_pci_release_of_pci_ranges(pci);
 	return err;
 }
 
-static int gen_pci_parse_map_cfg_windows(struct gen_pci *pci)
+static void gen_pci_unmap_cfg(void *ptr)
+{
+	pci_ecam_free((struct pci_config_window *)ptr);
+}
+
+static struct pci_config_window *gen_pci_init(struct device *dev,
+		struct list_head *resources, struct pci_ecam_ops *ops)
 {
 	int err;
-	u8 bus_max;
-	resource_size_t busn;
-	struct resource *bus_range;
-	struct device *dev = pci->host.dev.parent;
-	struct device_node *np = dev->of_node;
-	u32 sz = 1 << pci->cfg.ops->bus_shift;
+	struct resource cfgres;
+	struct resource *bus_range = NULL;
+	struct pci_config_window *cfg;
 
-	err = of_address_to_resource(np, 0, &pci->cfg.res);
+	/* Parse our PCI ranges and request their resources */
+	err = gen_pci_parse_request_of_pci_ranges(dev, resources, &bus_range);
+	if (err)
+		goto err_out;
+
+	err = of_address_to_resource(dev->of_node, 0, &cfgres);
 	if (err) {
 		dev_err(dev, "missing \"reg\" property\n");
-		return err;
+		goto err_out;
 	}
 
-	/* Limit the bus-range to fit within reg */
-	bus_max = pci->cfg.bus_range->start +
-		  (resource_size(&pci->cfg.res) >> pci->cfg.ops->bus_shift) - 1;
-	pci->cfg.bus_range->end = min_t(resource_size_t,
-					pci->cfg.bus_range->end, bus_max);
-
-	pci->cfg.win = devm_kcalloc(dev, resource_size(pci->cfg.bus_range),
-				    sizeof(*pci->cfg.win), GFP_KERNEL);
-	if (!pci->cfg.win)
-		return -ENOMEM;
-
-	/* Map our Configuration Space windows */
-	if (!devm_request_mem_region(dev, pci->cfg.res.start,
-				     resource_size(&pci->cfg.res),
-				     "Configuration Space"))
-		return -ENOMEM;
-
-	bus_range = pci->cfg.bus_range;
-	for (busn = bus_range->start; busn <= bus_range->end; ++busn) {
-		u32 idx = busn - bus_range->start;
-
-		pci->cfg.win[idx] = devm_ioremap(dev,
-						 pci->cfg.res.start + idx * sz,
-						 sz);
-		if (!pci->cfg.win[idx])
-			return -ENOMEM;
+	cfg = pci_ecam_create(dev, &cfgres, bus_range, ops);
+	if (IS_ERR(cfg)) {
+		err = PTR_ERR(cfg);
+		goto err_out;
 	}
 
-	return 0;
+	err = devm_add_action(dev, gen_pci_unmap_cfg, cfg);
+	if (err) {
+		gen_pci_unmap_cfg(cfg);
+		goto err_out;
+	}
+	return cfg;
+
+err_out:
+	pci_free_resource_list(resources);
+	return ERR_PTR(err);
 }
 
 int pci_host_common_probe(struct platform_device *pdev,
-			  struct gen_pci *pci)
+			  struct pci_ecam_ops *ops)
 {
-	int err;
 	const char *type;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct pci_bus *bus, *child;
+	struct pci_config_window *cfg;
+	struct list_head resources;
 
 	type = of_get_property(np, "device_type", NULL);
 	if (!type || strcmp(type, "pci")) {
@@ -147,29 +136,18 @@ int pci_host_common_probe(struct platform_device *pdev,
 
 	of_pci_check_probe_only();
 
-	pci->host.dev.parent = dev;
-	INIT_LIST_HEAD(&pci->host.windows);
-	INIT_LIST_HEAD(&pci->resources);
-
-	/* Parse our PCI ranges and request their resources */
-	err = gen_pci_parse_request_of_pci_ranges(pci);
-	if (err)
-		return err;
-
 	/* Parse and map our Configuration Space windows */
-	err = gen_pci_parse_map_cfg_windows(pci);
-	if (err) {
-		gen_pci_release_of_pci_ranges(pci);
-		return err;
-	}
+	INIT_LIST_HEAD(&resources);
+	cfg = gen_pci_init(dev, &resources, ops);
+	if (IS_ERR(cfg))
+		return PTR_ERR(cfg);
 
 	/* Do not reassign resources if probe only */
 	if (!pci_has_flag(PCI_PROBE_ONLY))
 		pci_add_flags(PCI_REASSIGN_ALL_RSRC | PCI_REASSIGN_ALL_BUS);
 
-
-	bus = pci_scan_root_bus(dev, pci->cfg.bus_range->start,
-				&pci->cfg.ops->ops, pci, &pci->resources);
+	bus = pci_scan_root_bus(dev, cfg->busr.start, &ops->pci_ops, cfg,
+				&resources);
 	if (!bus) {
 		dev_err(dev, "Scanning rootbus failed");
 		return -ENODEV;

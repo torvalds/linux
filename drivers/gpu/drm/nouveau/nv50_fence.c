@@ -26,7 +26,7 @@
 #include <nvif/class.h>
 #include <nvif/cl0002.h>
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nv10_fence.h"
 

@@ -45,13 +45,13 @@ Required properties:
 Optional properties:
 - dual_emac_res_vlan	: Specifies VID to be used to segregate the ports
 - mac-address		: See ethernet.txt file in the same directory
-- phy_id		: Specifies slave phy id
+- phy_id		: Specifies slave phy id (deprecated, use phy-handle)
 - phy-handle		: See ethernet.txt file in the same directory
 
 Slave sub-nodes:
 - fixed-link		: See fixed-link.txt file in the same directory
-			  Either the property phy_id, or the sub-node
-			  fixed-link can be specified
+
+Note: Exactly one of phy_id, phy-handle, or fixed-link must be specified.
 
 Note: "ti,hwmods" field is used to fetch the base address and irq
 resources from TI, omap hwmod data base during device registration.

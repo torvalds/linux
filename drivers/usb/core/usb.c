@@ -312,13 +312,7 @@ static int usb_dev_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 static int usb_dev_prepare(struct device *dev)
 {
-	struct usb_device *udev = to_usb_device(dev);
-
-	/* Return 0 if the current wakeup setting is wrong, otherwise 1 */
-	if (udev->do_remote_wakeup != device_may_wakeup(dev))
-		return 0;
-
-	return 1;
+	return 0;		/* Implement eventually? */
 }
 
 static void usb_dev_complete(struct device *dev)
@@ -472,7 +466,6 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 		dev->route = 0;
 
 		dev->dev.parent = bus->controller;
-		dev->dev.of_node = bus->controller->of_node;
 		dev_set_name(&dev->dev, "usb%d", bus->busnum);
 		root_hub = 1;
 	} else {

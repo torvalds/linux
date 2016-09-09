@@ -92,6 +92,11 @@ enum iwl_amsdu_size {
 	IWL_AMSDU_12K = 2,
 };
 
+enum iwl_uapsd_disable {
+	IWL_DISABLE_UAPSD_BSS		= BIT(0),
+	IWL_DISABLE_UAPSD_P2P_CLIENT	= BIT(1),
+};
+
 /**
  * struct iwl_mod_params
  *
@@ -109,7 +114,8 @@ enum iwl_amsdu_size {
  * @debug_level: levels are IWL_DL_*
  * @ant_coupling: antenna coupling in dB, default = 0
  * @nvm_file: specifies a external NVM file
- * @uapsd_disable: disable U-APSD, default = 1
+ * @uapsd_disable: disable U-APSD, see %enum iwl_uapsd_disable, default =
+ *	IWL_DISABLE_UAPSD_BSS | IWL_DISABLE_UAPSD_P2P_CLIENT
  * @d0i3_disable: disable d0i3, default = 1,
  * @d0i3_entry_delay: time to wait after no refs are taken before
  *	entering D0i3 (in msecs)
@@ -131,7 +137,7 @@ struct iwl_mod_params {
 #endif
 	int ant_coupling;
 	char *nvm_file;
-	bool uapsd_disable;
+	u32 uapsd_disable;
 	bool d0i3_disable;
 	unsigned int d0i3_entry_delay;
 	bool lar_disable;

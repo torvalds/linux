@@ -18,12 +18,15 @@
 #include <asm/ftrace.h>
 
 
+#define __hot __attribute__ ((__section__ (".text.hot")))
+
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 /*
  * Hook the return address and push it in the stack of return addrs
  * in current thread info.
  */
-static void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
+static void __hot prepare_ftrace_return(unsigned long *parent,
+					unsigned long self_addr)
 {
 	unsigned long old;
 	struct ftrace_graph_ent trace;
@@ -53,7 +56,7 @@ static void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr
 }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
-void notrace ftrace_function_trampoline(unsigned long parent,
+void notrace __hot ftrace_function_trampoline(unsigned long parent,
 				unsigned long self_addr,
 				unsigned long org_sp_gr3)
 {

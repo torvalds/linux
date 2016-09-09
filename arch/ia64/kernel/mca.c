@@ -1904,13 +1904,10 @@ static int mca_cpu_callback(struct notifier_block *nfb,
 				      unsigned long action,
 				      void *hcpu)
 {
-	int hotcpu = (unsigned long) hcpu;
-
 	switch (action) {
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
-		smp_call_function_single(hotcpu, ia64_mca_cmc_vector_adjust,
-					 NULL, 0);
+		ia64_mca_cmc_vector_adjust(NULL);
 		break;
 	}
 	return NOTIFY_OK;

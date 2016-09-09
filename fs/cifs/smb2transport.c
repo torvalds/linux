@@ -135,11 +135,10 @@ smb2_find_smb_ses(struct smb2_hdr *smb2hdr, struct TCP_Server_Info *server)
 int
 smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 {
-	int i, rc;
+	int rc;
 	unsigned char smb2_signature[SMB2_HMACSHA256_SIZE];
 	unsigned char *sigptr = smb2_signature;
 	struct kvec *iov = rqst->rq_iov;
-	int n_vec = rqst->rq_nvec;
 	struct smb2_hdr *smb2_pdu = (struct smb2_hdr *)iov[0].iov_base;
 	struct cifs_ses *ses;
 
@@ -171,53 +170,11 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 		return rc;
 	}
 
-	for (i = 0; i < n_vec; i++) {
-		if (iov[i].iov_len == 0)
-			continue;
-		if (iov[i].iov_base == NULL) {
-			cifs_dbg(VFS, "null iovec entry\n");
-			return -EIO;
-		}
-		/*
-		 * The first entry includes a length field (which does not get
-		 * signed that occupies the first 4 bytes before the header).
-		 */
-		if (i == 0) {
-			if (iov[0].iov_len <= 8) /* cmd field at offset 9 */
-				break; /* nothing to sign or corrupt header */
-			rc =
-			crypto_shash_update(
-				&server->secmech.sdeschmacsha256->shash,
-				iov[i].iov_base + 4, iov[i].iov_len - 4);
-		} else {
-			rc =
-			crypto_shash_update(
-				&server->secmech.sdeschmacsha256->shash,
-				iov[i].iov_base, iov[i].iov_len);
-		}
-		if (rc) {
-			cifs_dbg(VFS, "%s: Could not update with payload\n",
-				 __func__);
-			return rc;
-		}
-	}
+	rc = __cifs_calc_signature(rqst, server, sigptr,
+		&server->secmech.sdeschmacsha256->shash);
 
-	/* now hash over the rq_pages array */
-	for (i = 0; i < rqst->rq_npages; i++) {
-		struct kvec p_iov;
-
-		cifs_rqst_page_to_kvec(rqst, i, &p_iov);
-		crypto_shash_update(&server->secmech.sdeschmacsha256->shash,
-					p_iov.iov_base, p_iov.iov_len);
-		kunmap(rqst->rq_pages[i]);
-	}
-
-	rc = crypto_shash_final(&server->secmech.sdeschmacsha256->shash,
-				sigptr);
-	if (rc)
-		cifs_dbg(VFS, "%s: Could not generate sha256 hash\n", __func__);
-
-	memcpy(smb2_pdu->Signature, sigptr, SMB2_SIGNATURE_SIZE);
+	if (!rc)
+		memcpy(smb2_pdu->Signature, sigptr, SMB2_SIGNATURE_SIZE);
 
 	return rc;
 }
@@ -395,12 +352,10 @@ generate_smb311signingkey(struct cifs_ses *ses)
 int
 smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 {
-	int i;
 	int rc = 0;
 	unsigned char smb3_signature[SMB2_CMACAES_SIZE];
 	unsigned char *sigptr = smb3_signature;
 	struct kvec *iov = rqst->rq_iov;
-	int n_vec = rqst->rq_nvec;
 	struct smb2_hdr *smb2_pdu = (struct smb2_hdr *)iov[0].iov_base;
 	struct cifs_ses *ses;
 
@@ -431,54 +386,12 @@ smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 		cifs_dbg(VFS, "%s: Could not init cmac aes\n", __func__);
 		return rc;
 	}
+	
+	rc = __cifs_calc_signature(rqst, server, sigptr,
+				   &server->secmech.sdesccmacaes->shash);
 
-	for (i = 0; i < n_vec; i++) {
-		if (iov[i].iov_len == 0)
-			continue;
-		if (iov[i].iov_base == NULL) {
-			cifs_dbg(VFS, "null iovec entry");
-			return -EIO;
-		}
-		/*
-		 * The first entry includes a length field (which does not get
-		 * signed that occupies the first 4 bytes before the header).
-		 */
-		if (i == 0) {
-			if (iov[0].iov_len <= 8) /* cmd field at offset 9 */
-				break; /* nothing to sign or corrupt header */
-			rc =
-			crypto_shash_update(
-				&server->secmech.sdesccmacaes->shash,
-				iov[i].iov_base + 4, iov[i].iov_len - 4);
-		} else {
-			rc =
-			crypto_shash_update(
-				&server->secmech.sdesccmacaes->shash,
-				iov[i].iov_base, iov[i].iov_len);
-		}
-		if (rc) {
-			cifs_dbg(VFS, "%s: Couldn't update cmac aes with payload\n",
-							__func__);
-			return rc;
-		}
-	}
-
-	/* now hash over the rq_pages array */
-	for (i = 0; i < rqst->rq_npages; i++) {
-		struct kvec p_iov;
-
-		cifs_rqst_page_to_kvec(rqst, i, &p_iov);
-		crypto_shash_update(&server->secmech.sdesccmacaes->shash,
-					p_iov.iov_base, p_iov.iov_len);
-		kunmap(rqst->rq_pages[i]);
-	}
-
-	rc = crypto_shash_final(&server->secmech.sdesccmacaes->shash,
-						sigptr);
-	if (rc)
-		cifs_dbg(VFS, "%s: Could not generate cmac aes\n", __func__);
-
-	memcpy(smb2_pdu->Signature, sigptr, SMB2_SIGNATURE_SIZE);
+	if (!rc)
+		memcpy(smb2_pdu->Signature, sigptr, SMB2_SIGNATURE_SIZE);
 
 	return rc;
 }

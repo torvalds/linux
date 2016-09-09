@@ -107,6 +107,7 @@ struct exynos5440_pmx_func {
  * @nr_groups: number of pin groups available.
  * @pmx_functions: list of pin functions parsed from device tree.
  * @nr_functions: number of pin functions available.
+ * @range: gpio range to register with pinctrl
  */
 struct exynos5440_pinctrl_priv_data {
 	void __iomem			*reg_base;
@@ -117,6 +118,7 @@ struct exynos5440_pinctrl_priv_data {
 	unsigned int			nr_groups;
 	const struct exynos5440_pmx_func	*pmx_functions;
 	unsigned int			nr_functions;
+	struct pinctrl_gpio_range	range;
 };
 
 /**
@@ -742,7 +744,6 @@ static int exynos5440_pinctrl_register(struct platform_device *pdev,
 	struct pinctrl_desc *ctrldesc;
 	struct pinctrl_dev *pctl_dev;
 	struct pinctrl_pin_desc *pindesc, *pdesc;
-	struct pinctrl_gpio_range grange;
 	char *pin_names;
 	int pin, ret;
 
@@ -788,18 +789,18 @@ static int exynos5440_pinctrl_register(struct platform_device *pdev,
 	if (ret)
 		return ret;
 
-	pctl_dev = pinctrl_register(ctrldesc, &pdev->dev, priv);
+	pctl_dev = devm_pinctrl_register(&pdev->dev, ctrldesc, priv);
 	if (IS_ERR(pctl_dev)) {
 		dev_err(&pdev->dev, "could not register pinctrl driver\n");
 		return PTR_ERR(pctl_dev);
 	}
 
-	grange.name = "exynos5440-pctrl-gpio-range";
-	grange.id = 0;
-	grange.base = 0;
-	grange.npins = EXYNOS5440_MAX_PINS;
-	grange.gc = priv->gc;
-	pinctrl_add_gpio_range(pctl_dev, &grange);
+	priv->range.name = "exynos5440-pctrl-gpio-range";
+	priv->range.id = 0;
+	priv->range.base = 0;
+	priv->range.npins = EXYNOS5440_MAX_PINS;
+	priv->range.gc = priv->gc;
+	pinctrl_add_gpio_range(pctl_dev, &priv->range);
 	return 0;
 }
 

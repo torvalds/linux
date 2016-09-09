@@ -220,8 +220,11 @@ EXPORT_SYMBOL_GPL(mei_cldev_recv);
 static void mei_cl_bus_event_work(struct work_struct *work)
 {
 	struct mei_cl_device *cldev;
+	struct mei_device *bus;
 
 	cldev = container_of(work, struct mei_cl_device, event_work);
+
+	bus = cldev->bus;
 
 	if (cldev->event_cb)
 		cldev->event_cb(cldev, cldev->events, cldev->event_context);
@@ -229,8 +232,11 @@ static void mei_cl_bus_event_work(struct work_struct *work)
 	cldev->events = 0;
 
 	/* Prepare for the next read */
-	if (cldev->events_mask & BIT(MEI_CL_EVENT_RX))
+	if (cldev->events_mask & BIT(MEI_CL_EVENT_RX)) {
+		mutex_lock(&bus->device_lock);
 		mei_cl_read_start(cldev->cl, 0, NULL);
+		mutex_unlock(&bus->device_lock);
+	}
 }
 
 /**
@@ -304,6 +310,7 @@ int mei_cldev_register_event_cb(struct mei_cl_device *cldev,
 				unsigned long events_mask,
 				mei_cldev_event_cb_t event_cb, void *context)
 {
+	struct mei_device *bus = cldev->bus;
 	int ret;
 
 	if (cldev->event_cb)
@@ -316,15 +323,17 @@ int mei_cldev_register_event_cb(struct mei_cl_device *cldev,
 	INIT_WORK(&cldev->event_work, mei_cl_bus_event_work);
 
 	if (cldev->events_mask & BIT(MEI_CL_EVENT_RX)) {
+		mutex_lock(&bus->device_lock);
 		ret = mei_cl_read_start(cldev->cl, 0, NULL);
+		mutex_unlock(&bus->device_lock);
 		if (ret && ret != -EBUSY)
 			return ret;
 	}
 
 	if (cldev->events_mask & BIT(MEI_CL_EVENT_NOTIF)) {
-		mutex_lock(&cldev->cl->dev->device_lock);
+		mutex_lock(&bus->device_lock);
 		ret = mei_cl_notify_request(cldev->cl, NULL, event_cb ? 1 : 0);
-		mutex_unlock(&cldev->cl->dev->device_lock);
+		mutex_unlock(&bus->device_lock);
 		if (ret)
 			return ret;
 	}
@@ -580,6 +589,7 @@ static int mei_cl_device_probe(struct device *dev)
 	struct mei_cl_device *cldev;
 	struct mei_cl_driver *cldrv;
 	const struct mei_cl_device_id *id;
+	int ret;
 
 	cldev = to_mei_cl_device(dev);
 	cldrv = to_mei_cl_driver(dev->driver);
@@ -594,9 +604,12 @@ static int mei_cl_device_probe(struct device *dev)
 	if (!id)
 		return -ENODEV;
 
-	__module_get(THIS_MODULE);
+	ret = cldrv->probe(cldev, id);
+	if (ret)
+		return ret;
 
-	return cldrv->probe(cldev, id);
+	__module_get(THIS_MODULE);
+	return 0;
 }
 
 /**
@@ -634,11 +647,8 @@ static ssize_t name_show(struct device *dev, struct device_attribute *a,
 			     char *buf)
 {
 	struct mei_cl_device *cldev = to_mei_cl_device(dev);
-	size_t len;
 
-	len = snprintf(buf, PAGE_SIZE, "%s", cldev->name);
-
-	return (len >= PAGE_SIZE) ? (PAGE_SIZE - 1) : len;
+	return scnprintf(buf, PAGE_SIZE, "%s", cldev->name);
 }
 static DEVICE_ATTR_RO(name);
 
@@ -647,11 +657,8 @@ static ssize_t uuid_show(struct device *dev, struct device_attribute *a,
 {
 	struct mei_cl_device *cldev = to_mei_cl_device(dev);
 	const uuid_le *uuid = mei_me_cl_uuid(cldev->me_cl);
-	size_t len;
 
-	len = snprintf(buf, PAGE_SIZE, "%pUl", uuid);
-
-	return (len >= PAGE_SIZE) ? (PAGE_SIZE - 1) : len;
+	return scnprintf(buf, PAGE_SIZE, "%pUl", uuid);
 }
 static DEVICE_ATTR_RO(uuid);
 
@@ -660,11 +667,8 @@ static ssize_t version_show(struct device *dev, struct device_attribute *a,
 {
 	struct mei_cl_device *cldev = to_mei_cl_device(dev);
 	u8 version = mei_me_cl_ver(cldev->me_cl);
-	size_t len;
 
-	len = snprintf(buf, PAGE_SIZE, "%02X", version);
-
-	return (len >= PAGE_SIZE) ? (PAGE_SIZE - 1) : len;
+	return scnprintf(buf, PAGE_SIZE, "%02X", version);
 }
 static DEVICE_ATTR_RO(version);
 
@@ -673,10 +677,8 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *a,
 {
 	struct mei_cl_device *cldev = to_mei_cl_device(dev);
 	const uuid_le *uuid = mei_me_cl_uuid(cldev->me_cl);
-	size_t len;
 
-	len = snprintf(buf, PAGE_SIZE, "mei:%s:%pUl:", cldev->name, uuid);
-	return (len >= PAGE_SIZE) ? (PAGE_SIZE - 1) : len;
+	return scnprintf(buf, PAGE_SIZE, "mei:%s:%pUl:", cldev->name, uuid);
 }
 static DEVICE_ATTR_RO(modalias);
 

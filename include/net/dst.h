@@ -85,12 +85,11 @@ struct dst_entry {
 #endif
 
 #ifdef CONFIG_64BIT
-	struct lwtunnel_state   *lwtstate;
 	/*
 	 * Align __refcnt to a 64 bytes alignment
 	 * (L1_CACHE_SIZE would be too much)
 	 */
-	long			__pad_to_align_refcnt[1];
+	long			__pad_to_align_refcnt[2];
 #endif
 	/*
 	 * __refcnt wants to be on a different cache line from
@@ -99,9 +98,7 @@ struct dst_entry {
 	atomic_t		__refcnt;	/* client references	*/
 	int			__use;
 	unsigned long		lastuse;
-#ifndef CONFIG_64BIT
 	struct lwtunnel_state   *lwtstate;
-#endif
 	union {
 		struct dst_entry	*next;
 		struct rtable __rcu	*rt_next;

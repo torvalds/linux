@@ -278,7 +278,7 @@ static int isdn_x25iface_xmit(struct concap_proto *cprot, struct sk_buff *skb)
 	case X25_IFACE_DATA:
 		if (*state == WAN_CONNECTED) {
 			skb_pull(skb, 1);
-			cprot->net_dev->trans_start = jiffies;
+			netif_trans_update(cprot->net_dev);
 			ret = (cprot->dops->data_req(cprot, skb));
 			/* prepare for future retransmissions */
 			if (ret) skb_push(skb, 1);

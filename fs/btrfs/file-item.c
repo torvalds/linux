@@ -248,7 +248,7 @@ static int __btrfs_lookup_bio_sums(struct btrfs_root *root,
 				    BTRFS_DATA_RELOC_TREE_OBJECTID) {
 					set_extent_bits(io_tree, offset,
 						offset + root->sectorsize - 1,
-						EXTENT_NODATASUM, GFP_NOFS);
+						EXTENT_NODATASUM);
 				} else {
 					btrfs_info(BTRFS_I(inode)->root->fs_info,
 						   "no csum found for inode %llu start %llu",

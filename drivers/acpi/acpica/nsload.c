@@ -123,8 +123,8 @@ acpi_ns_load_table(u32 table_index, struct acpi_namespace_node *node)
 		(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 		acpi_ns_delete_namespace_by_owner(acpi_gbl_root_table_list.
 						  tables[table_index].owner_id);
-		acpi_tb_release_owner_id(table_index);
 
+		acpi_tb_release_owner_id(table_index);
 		return_ACPI_STATUS(status);
 	}
 

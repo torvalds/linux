@@ -394,7 +394,7 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 		clk[IMX6QDL_CLK_LDB_DI1_DIV_3_5] = imx_clk_fixed_factor("ldb_di1_div_3_5", "ldb_di1", 2, 7);
 	} else {
 		clk[IMX6QDL_CLK_ECSPI_ROOT] = imx_clk_divider("ecspi_root", "pll3_60m", base + 0x38, 19, 6);
-		clk[IMX6QDL_CLK_CAN_ROOT] = imx_clk_divider("can_root", "pll3_60", base + 0x20, 2, 6);
+		clk[IMX6QDL_CLK_CAN_ROOT] = imx_clk_divider("can_root", "pll3_60m", base + 0x20, 2, 6);
 		clk[IMX6QDL_CLK_IPG_PER] = imx_clk_fixup_divider("ipg_per", "ipg", base + 0x1c, 0, 6, imx_cscmr1_fixup);
 		clk[IMX6QDL_CLK_UART_SERIAL_PODF] = imx_clk_divider("uart_serial_podf", "pll3_80m",          base + 0x24, 0,  6);
 		clk[IMX6QDL_CLK_LDB_DI0_DIV_3_5] = imx_clk_fixed_factor("ldb_di0_div_3_5", "ldb_di0_sel", 2, 7);

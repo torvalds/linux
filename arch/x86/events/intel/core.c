@@ -115,6 +115,10 @@ static struct event_constraint intel_snb_event_constraints[] __read_mostly =
 	INTEL_UEVENT_CONSTRAINT(0x04a3, 0xf), /* CYCLE_ACTIVITY.CYCLES_NO_DISPATCH */
 	INTEL_UEVENT_CONSTRAINT(0x02a3, 0x4), /* CYCLE_ACTIVITY.CYCLES_L1D_PENDING */
 
+	/*
+	 * When HT is off these events can only run on the bottom 4 counters
+	 * When HT is on, they are impacted by the HT bug and require EXCL access
+	 */
 	INTEL_EXCLEVT_CONSTRAINT(0xd0, 0xf), /* MEM_UOPS_RETIRED.* */
 	INTEL_EXCLEVT_CONSTRAINT(0xd1, 0xf), /* MEM_LOAD_UOPS_RETIRED.* */
 	INTEL_EXCLEVT_CONSTRAINT(0xd2, 0xf), /* MEM_LOAD_UOPS_LLC_HIT_RETIRED.* */
@@ -139,6 +143,10 @@ static struct event_constraint intel_ivb_event_constraints[] __read_mostly =
 	INTEL_UEVENT_CONSTRAINT(0x0ca3, 0x4), /* CYCLE_ACTIVITY.STALLS_L1D_PENDING */
 	INTEL_UEVENT_CONSTRAINT(0x01c0, 0x2), /* INST_RETIRED.PREC_DIST */
 
+	/*
+	 * When HT is off these events can only run on the bottom 4 counters
+	 * When HT is on, they are impacted by the HT bug and require EXCL access
+	 */
 	INTEL_EXCLEVT_CONSTRAINT(0xd0, 0xf), /* MEM_UOPS_RETIRED.* */
 	INTEL_EXCLEVT_CONSTRAINT(0xd1, 0xf), /* MEM_LOAD_UOPS_RETIRED.* */
 	INTEL_EXCLEVT_CONSTRAINT(0xd2, 0xf), /* MEM_LOAD_UOPS_LLC_HIT_RETIRED.* */
@@ -182,6 +190,16 @@ struct event_constraint intel_skl_event_constraints[] = {
 	FIXED_EVENT_CONSTRAINT(0x003c, 1),	/* CPU_CLK_UNHALTED.CORE */
 	FIXED_EVENT_CONSTRAINT(0x0300, 2),	/* CPU_CLK_UNHALTED.REF */
 	INTEL_UEVENT_CONSTRAINT(0x1c0, 0x2),	/* INST_RETIRED.PREC_DIST */
+
+	/*
+	 * when HT is off, these can only run on the bottom 4 counters
+	 */
+	INTEL_EVENT_CONSTRAINT(0xd0, 0xf),	/* MEM_INST_RETIRED.* */
+	INTEL_EVENT_CONSTRAINT(0xd1, 0xf),	/* MEM_LOAD_RETIRED.* */
+	INTEL_EVENT_CONSTRAINT(0xd2, 0xf),	/* MEM_LOAD_L3_HIT_RETIRED.* */
+	INTEL_EVENT_CONSTRAINT(0xcd, 0xf),	/* MEM_TRANS_RETIRED.* */
+	INTEL_EVENT_CONSTRAINT(0xc6, 0xf),	/* FRONTEND_RETIRED.* */
+
 	EVENT_CONSTRAINT_END
 };
 
@@ -250,6 +268,10 @@ static struct event_constraint intel_hsw_event_constraints[] = {
 	/* CYCLE_ACTIVITY.CYCLES_NO_EXECUTE */
 	INTEL_UEVENT_CONSTRAINT(0x04a3, 0xf),
 
+	/*
+	 * When HT is off these events can only run on the bottom 4 counters
+	 * When HT is on, they are impacted by the HT bug and require EXCL access
+	 */
 	INTEL_EXCLEVT_CONSTRAINT(0xd0, 0xf), /* MEM_UOPS_RETIRED.* */
 	INTEL_EXCLEVT_CONSTRAINT(0xd1, 0xf), /* MEM_LOAD_UOPS_RETIRED.* */
 	INTEL_EXCLEVT_CONSTRAINT(0xd2, 0xf), /* MEM_LOAD_UOPS_LLC_HIT_RETIRED.* */
@@ -264,6 +286,13 @@ struct event_constraint intel_bdw_event_constraints[] = {
 	FIXED_EVENT_CONSTRAINT(0x0300, 2),	/* CPU_CLK_UNHALTED.REF */
 	INTEL_UEVENT_CONSTRAINT(0x148, 0x4),	/* L1D_PEND_MISS.PENDING */
 	INTEL_UBIT_EVENT_CONSTRAINT(0x8a3, 0x4),	/* CYCLE_ACTIVITY.CYCLES_L1D_MISS */
+	/*
+	 * when HT is off, these can only run on the bottom 4 counters
+	 */
+	INTEL_EVENT_CONSTRAINT(0xd0, 0xf),	/* MEM_INST_RETIRED.* */
+	INTEL_EVENT_CONSTRAINT(0xd1, 0xf),	/* MEM_LOAD_RETIRED.* */
+	INTEL_EVENT_CONSTRAINT(0xd2, 0xf),	/* MEM_LOAD_L3_HIT_RETIRED.* */
+	INTEL_EVENT_CONSTRAINT(0xcd, 0xf),	/* MEM_TRANS_RETIRED.* */
 	EVENT_CONSTRAINT_END
 };
 
@@ -1463,6 +1492,140 @@ static __initconst const u64 slm_hw_cache_event_ids
 		[ C(RESULT_MISS)   ] = -1,
 	},
  },
+};
+
+static struct extra_reg intel_glm_extra_regs[] __read_mostly = {
+	/* must define OFFCORE_RSP_X first, see intel_fixup_er() */
+	INTEL_UEVENT_EXTRA_REG(0x01b7, MSR_OFFCORE_RSP_0, 0x760005ffbfull, RSP_0),
+	INTEL_UEVENT_EXTRA_REG(0x02b7, MSR_OFFCORE_RSP_1, 0x360005ffbfull, RSP_1),
+	EVENT_EXTRA_END
+};
+
+#define GLM_DEMAND_DATA_RD		BIT_ULL(0)
+#define GLM_DEMAND_RFO			BIT_ULL(1)
+#define GLM_ANY_RESPONSE		BIT_ULL(16)
+#define GLM_SNP_NONE_OR_MISS		BIT_ULL(33)
+#define GLM_DEMAND_READ			GLM_DEMAND_DATA_RD
+#define GLM_DEMAND_WRITE		GLM_DEMAND_RFO
+#define GLM_DEMAND_PREFETCH		(SNB_PF_DATA_RD|SNB_PF_RFO)
+#define GLM_LLC_ACCESS			GLM_ANY_RESPONSE
+#define GLM_SNP_ANY			(GLM_SNP_NONE_OR_MISS|SNB_NO_FWD|SNB_HITM)
+#define GLM_LLC_MISS			(GLM_SNP_ANY|SNB_NON_DRAM)
+
+static __initconst const u64 glm_hw_cache_event_ids
+				[PERF_COUNT_HW_CACHE_MAX]
+				[PERF_COUNT_HW_CACHE_OP_MAX]
+				[PERF_COUNT_HW_CACHE_RESULT_MAX] = {
+	[C(L1D)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)]	= 0x81d0,	/* MEM_UOPS_RETIRED.ALL_LOADS */
+			[C(RESULT_MISS)]	= 0x0,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]	= 0x82d0,	/* MEM_UOPS_RETIRED.ALL_STORES */
+			[C(RESULT_MISS)]	= 0x0,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]	= 0x0,
+			[C(RESULT_MISS)]	= 0x0,
+		},
+	},
+	[C(L1I)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)]	= 0x0380,	/* ICACHE.ACCESSES */
+			[C(RESULT_MISS)]	= 0x0280,	/* ICACHE.MISSES */
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]	= -1,
+			[C(RESULT_MISS)]	= -1,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]	= 0x0,
+			[C(RESULT_MISS)]	= 0x0,
+		},
+	},
+	[C(LL)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)]	= 0x1b7,	/* OFFCORE_RESPONSE */
+			[C(RESULT_MISS)]	= 0x1b7,	/* OFFCORE_RESPONSE */
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]	= 0x1b7,	/* OFFCORE_RESPONSE */
+			[C(RESULT_MISS)]	= 0x1b7,	/* OFFCORE_RESPONSE */
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]	= 0x1b7,	/* OFFCORE_RESPONSE */
+			[C(RESULT_MISS)]	= 0x1b7,	/* OFFCORE_RESPONSE */
+		},
+	},
+	[C(DTLB)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)]	= 0x81d0,	/* MEM_UOPS_RETIRED.ALL_LOADS */
+			[C(RESULT_MISS)]	= 0x0,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]	= 0x82d0,	/* MEM_UOPS_RETIRED.ALL_STORES */
+			[C(RESULT_MISS)]	= 0x0,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]	= 0x0,
+			[C(RESULT_MISS)]	= 0x0,
+		},
+	},
+	[C(ITLB)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)]	= 0x00c0,	/* INST_RETIRED.ANY_P */
+			[C(RESULT_MISS)]	= 0x0481,	/* ITLB.MISS */
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]	= -1,
+			[C(RESULT_MISS)]	= -1,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]	= -1,
+			[C(RESULT_MISS)]	= -1,
+		},
+	},
+	[C(BPU)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)]	= 0x00c4,	/* BR_INST_RETIRED.ALL_BRANCHES */
+			[C(RESULT_MISS)]	= 0x00c5,	/* BR_MISP_RETIRED.ALL_BRANCHES */
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]	= -1,
+			[C(RESULT_MISS)]	= -1,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]	= -1,
+			[C(RESULT_MISS)]	= -1,
+		},
+	},
+};
+
+static __initconst const u64 glm_hw_cache_extra_regs
+				[PERF_COUNT_HW_CACHE_MAX]
+				[PERF_COUNT_HW_CACHE_OP_MAX]
+				[PERF_COUNT_HW_CACHE_RESULT_MAX] = {
+	[C(LL)] = {
+		[C(OP_READ)] = {
+			[C(RESULT_ACCESS)]	= GLM_DEMAND_READ|
+						  GLM_LLC_ACCESS,
+			[C(RESULT_MISS)]	= GLM_DEMAND_READ|
+						  GLM_LLC_MISS,
+		},
+		[C(OP_WRITE)] = {
+			[C(RESULT_ACCESS)]	= GLM_DEMAND_WRITE|
+						  GLM_LLC_ACCESS,
+			[C(RESULT_MISS)]	= GLM_DEMAND_WRITE|
+						  GLM_LLC_MISS,
+		},
+		[C(OP_PREFETCH)] = {
+			[C(RESULT_ACCESS)]	= GLM_DEMAND_PREFETCH|
+						  GLM_LLC_ACCESS,
+			[C(RESULT_MISS)]	= GLM_DEMAND_PREFETCH|
+						  GLM_LLC_MISS,
+		},
+	},
 };
 
 #define KNL_OT_L2_HITE		BIT_ULL(19) /* Other Tile L2 Hit */
@@ -3447,13 +3610,37 @@ __init int intel_pmu_init(void)
 		memcpy(hw_cache_extra_regs, slm_hw_cache_extra_regs,
 		       sizeof(hw_cache_extra_regs));
 
-		intel_pmu_lbr_init_atom();
+		intel_pmu_lbr_init_slm();
 
 		x86_pmu.event_constraints = intel_slm_event_constraints;
 		x86_pmu.pebs_constraints = intel_slm_pebs_event_constraints;
 		x86_pmu.extra_regs = intel_slm_extra_regs;
 		x86_pmu.flags |= PMU_FL_HAS_RSP_1;
 		pr_cont("Silvermont events, ");
+		break;
+
+	case 92: /* 14nm Atom "Goldmont" */
+	case 95: /* 14nm Atom "Goldmont Denverton" */
+		memcpy(hw_cache_event_ids, glm_hw_cache_event_ids,
+		       sizeof(hw_cache_event_ids));
+		memcpy(hw_cache_extra_regs, glm_hw_cache_extra_regs,
+		       sizeof(hw_cache_extra_regs));
+
+		intel_pmu_lbr_init_skl();
+
+		x86_pmu.event_constraints = intel_slm_event_constraints;
+		x86_pmu.pebs_constraints = intel_glm_pebs_event_constraints;
+		x86_pmu.extra_regs = intel_glm_extra_regs;
+		/*
+		 * It's recommended to use CPU_CLK_UNHALTED.CORE_P + NPEBS
+		 * for precise cycles.
+		 * :pp is identical to :ppp
+		 */
+		x86_pmu.pebs_aliases = NULL;
+		x86_pmu.pebs_prec_dist = true;
+		x86_pmu.lbr_pt_coexist = true;
+		x86_pmu.flags |= PMU_FL_HAS_RSP_1;
+		pr_cont("Goldmont events, ");
 		break;
 
 	case 37: /* 32nm Westmere    */
@@ -3637,8 +3824,11 @@ __init int intel_pmu_init(void)
 		pr_cont("Knights Landing events, ");
 		break;
 
+	case 142: /* 14nm Kabylake Mobile */
+	case 158: /* 14nm Kabylake Desktop */
 	case 78: /* 14nm Skylake Mobile */
 	case 94: /* 14nm Skylake Desktop */
+	case 85: /* 14nm Skylake Server */
 		x86_pmu.late_ack = true;
 		memcpy(hw_cache_event_ids, skl_hw_cache_event_ids, sizeof(hw_cache_event_ids));
 		memcpy(hw_cache_extra_regs, skl_hw_cache_extra_regs, sizeof(hw_cache_extra_regs));
@@ -3705,7 +3895,7 @@ __init int intel_pmu_init(void)
 				c->idxmsk64 |= (1ULL << x86_pmu.num_counters) - 1;
 			}
 			c->idxmsk64 &=
-				~(~0UL << (INTEL_PMC_IDX_FIXED + x86_pmu.num_counters_fixed));
+				~(~0ULL << (INTEL_PMC_IDX_FIXED + x86_pmu.num_counters_fixed));
 			c->weight = hweight64(c->idxmsk64);
 		}
 	}

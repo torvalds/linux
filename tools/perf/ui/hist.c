@@ -635,7 +635,7 @@ unsigned int hists__sort_list_width(struct hists *hists)
 		ret += fmt->width(fmt, &dummy_hpp, hists_to_evsel(hists));
 	}
 
-	if (verbose && sort__has_sym) /* Addr + origin */
+	if (verbose && hists__has(hists, sym)) /* Addr + origin */
 		ret += 3 + BITS_PER_LONG / 4;
 
 	return ret;

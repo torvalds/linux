@@ -1,7 +1,6 @@
 /dts-v1/;
 
 #include "tango4-smp8758.dtsi"
-#include "tango4-common.dtsi"
 
 / {
 	model = "Sigma Designs SMP8758 Vantage-1172 Rev E1";

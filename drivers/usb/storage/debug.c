@@ -1,4 +1,5 @@
-/* Driver for USB Mass Storage compliant devices
+/*
+ * Driver for USB Mass Storage compliant devices
  * Debugging Functions Source Code File
  *
  * Current development and maintenance by:

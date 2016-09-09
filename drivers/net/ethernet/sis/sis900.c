@@ -1575,7 +1575,7 @@ static void sis900_tx_timeout(struct net_device *net_dev)
 
 	spin_unlock_irqrestore(&sis_priv->lock, flags);
 
-	net_dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(net_dev); /* prevent tx timeout */
 
 	/* load Transmit Descriptor Register */
 	sw32(txdp, sis_priv->tx_ring_dma);

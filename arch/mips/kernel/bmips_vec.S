@@ -88,12 +88,13 @@ NESTED(bmips_reset_nmi_vec, PT_SIZE, sp)
 	li	k1, (1 << 19)
 	mfc0	k0, CP0_STATUS
 	and	k0, k1
-	beqz	k0, bmips_smp_entry
+	beqz	k0, soft_reset
 
 #if defined(CONFIG_CPU_BMIPS5000)
 	mfc0	k0, CP0_PRID
 	li	k1, PRID_IMP_BMIPS5000
-	andi	k0, 0xff00
+	/* mask with PRID_IMP_BMIPS5000 to cover both variants */
+	andi	k0, PRID_IMP_BMIPS5000
 	bne	k0, k1, 1f
 
 	/* if we're not on core 0, this must be the SMP boot signal */
@@ -125,12 +126,47 @@ NESTED(bmips_reset_nmi_vec, PT_SIZE, sp)
 	.set	arch=r4000
 	eret
 
+#ifdef CONFIG_SMP
+soft_reset:
+
+#if defined(CONFIG_CPU_BMIPS5000)
+	mfc0	k0, CP0_PRID
+	andi	k0, 0xff00
+	li	k1, PRID_IMP_BMIPS5200
+	bne	k0, k1, bmips_smp_entry
+
+        /* if running on TP 1, jump  to  bmips_smp_entry */
+        mfc0    k0, $22
+        li      k1, (1 << 24)
+        and     k1, k0
+        bnez    k1, bmips_smp_entry
+        nop
+
+        /*
+         * running on TP0, can not be core 0 (the boot core).
+         * Check for soft reset.  Indicates a warm boot
+         */
+        mfc0    k0, $12
+        li      k1, (1 << 20)
+        and     k0, k1
+        beqz    k0, bmips_smp_entry
+
+        /*
+         * Warm boot.
+         * Cache init is only done on TP0
+         */
+        la      k0, bmips_5xxx_init
+        jalr    k0
+        nop
+
+        b       bmips_smp_entry
+        nop
+#endif
+
 /***********************************************************************
  * CPU1 reset vector (used for the initial boot only)
  * This is still part of bmips_reset_nmi_vec().
  ***********************************************************************/
-
-#ifdef CONFIG_SMP
 
 bmips_smp_entry:
 
@@ -166,10 +202,12 @@ bmips_smp_entry:
 2:
 #endif /* CONFIG_CPU_BMIPS4350 || CONFIG_CPU_BMIPS4380 */
 #if defined(CONFIG_CPU_BMIPS5000)
-	/* set exception vector base */
+	/* mask with PRID_IMP_BMIPS5000 to cover both variants */
 	li	k1, PRID_IMP_BMIPS5000
+	andi	k0, PRID_IMP_BMIPS5000
 	bne	k0, k1, 3f
 
+	/* set exception vector base */
 	la	k0, ebase
 	lw	k0, 0(k0)
 	mtc0	k0, $15, 1
@@ -263,6 +301,8 @@ LEAF(bmips_enable_xks01)
 #endif /* CONFIG_CPU_BMIPS4380 */
 #if defined(CONFIG_CPU_BMIPS5000)
 	li	t1, PRID_IMP_BMIPS5000
+	/* mask with PRID_IMP_BMIPS5000 to cover both variants */
+	andi	t2, PRID_IMP_BMIPS5000
 	bne	t2, t1, 2f
 
 	mfc0	t0, $22, 5

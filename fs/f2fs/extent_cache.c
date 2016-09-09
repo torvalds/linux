@@ -196,8 +196,7 @@ bool f2fs_init_extent_tree(struct inode *inode, struct f2fs_extent *i_ext)
 	if (!i_ext || !i_ext->len)
 		return false;
 
-	set_extent_info(&ei, le32_to_cpu(i_ext->fofs),
-		le32_to_cpu(i_ext->blk), le32_to_cpu(i_ext->len));
+	get_extent_info(&ei, i_ext);
 
 	write_lock(&et->lock);
 	if (atomic_read(&et->node_cnt))

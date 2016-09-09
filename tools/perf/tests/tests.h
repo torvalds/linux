@@ -85,6 +85,8 @@ int test__synthesize_stat_config(int subtest);
 int test__synthesize_stat(int subtest);
 int test__synthesize_stat_round(int subtest);
 int test__event_update(int subtest);
+int test__event_times(int subtest);
+int test__backward_ring_buffer(int subtest);
 
 #if defined(__arm__) || defined(__aarch64__)
 #ifdef HAVE_DWARF_UNWIND_SUPPORT

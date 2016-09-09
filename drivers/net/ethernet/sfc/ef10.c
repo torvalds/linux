@@ -619,6 +619,17 @@ fail:
 	return rc;
 }
 
+static void efx_ef10_forget_old_piobufs(struct efx_nic *efx)
+{
+	struct efx_channel *channel;
+	struct efx_tx_queue *tx_queue;
+
+	/* All our existing PIO buffers went away */
+	efx_for_each_channel(channel, efx)
+		efx_for_each_channel_tx_queue(tx_queue, channel)
+			tx_queue->piobuf = NULL;
+}
+
 #else /* !EFX_USE_PIO */
 
 static int efx_ef10_alloc_piobufs(struct efx_nic *efx, unsigned int n)
@@ -632,6 +643,10 @@ static int efx_ef10_link_piobufs(struct efx_nic *efx)
 }
 
 static void efx_ef10_free_piobufs(struct efx_nic *efx)
+{
+}
+
+static void efx_ef10_forget_old_piobufs(struct efx_nic *efx)
 {
 }
 
@@ -1018,6 +1033,7 @@ static void efx_ef10_reset_mc_allocations(struct efx_nic *efx)
 	nic_data->must_realloc_vis = true;
 	nic_data->must_restore_filters = true;
 	nic_data->must_restore_piobufs = true;
+	efx_ef10_forget_old_piobufs(efx);
 	nic_data->rx_rss_context = EFX_EF10_RSS_CONTEXT_INVALID;
 
 	/* Driver-created vswitches and vports must be re-created */
@@ -1919,6 +1935,10 @@ static int efx_ef10_alloc_rss_context(struct efx_nic *efx, u32 *context,
 			*context_size = 1;
 		return 0;
 	}
+
+	if (nic_data->datapath_caps &
+	    1 << MC_CMD_GET_CAPABILITIES_OUT_RX_RSS_LIMITED_LBN)
+		return -EOPNOTSUPP;
 
 	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_ALLOC_IN_UPSTREAM_PORT_ID,
 		       nic_data->vport_id);
@@ -2923,8 +2943,15 @@ static void efx_ef10_filter_push_prep(struct efx_nic *efx,
 				      bool replacing)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	u32 flags = spec->flags;
 
 	memset(inbuf, 0, MC_CMD_FILTER_OP_IN_LEN);
+
+	/* Remove RSS flag if we don't have an RSS context. */
+	if (flags & EFX_FILTER_FLAG_RX_RSS &&
+	    spec->rss_context == EFX_FILTER_RSS_CONTEXT_DEFAULT &&
+	    nic_data->rx_rss_context == EFX_EF10_RSS_CONTEXT_INVALID)
+		flags &= ~EFX_FILTER_FLAG_RX_RSS;
 
 	if (replacing) {
 		MCDI_SET_DWORD(inbuf, FILTER_OP_IN_OP,
@@ -2985,10 +3012,10 @@ static void efx_ef10_filter_push_prep(struct efx_nic *efx,
 		       spec->dmaq_id == EFX_FILTER_RX_DMAQ_ID_DROP ?
 		       0 : spec->dmaq_id);
 	MCDI_SET_DWORD(inbuf, FILTER_OP_IN_RX_MODE,
-		       (spec->flags & EFX_FILTER_FLAG_RX_RSS) ?
+		       (flags & EFX_FILTER_FLAG_RX_RSS) ?
 		       MC_CMD_FILTER_OP_IN_RX_MODE_RSS :
 		       MC_CMD_FILTER_OP_IN_RX_MODE_SIMPLE);
-	if (spec->flags & EFX_FILTER_FLAG_RX_RSS)
+	if (flags & EFX_FILTER_FLAG_RX_RSS)
 		MCDI_SET_DWORD(inbuf, FILTER_OP_IN_RX_CONTEXT,
 			       spec->rss_context !=
 			       EFX_FILTER_RSS_CONTEXT_DEFAULT ?

@@ -526,52 +526,6 @@ acpi_ev_attach_region(union acpi_operand_object *handler_obj,
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ev_associate_reg_method
- *
- * PARAMETERS:  region_obj          - Region object
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Find and associate _REG method to a region
- *
- ******************************************************************************/
-
-void acpi_ev_associate_reg_method(union acpi_operand_object *region_obj)
-{
-	acpi_name *reg_name_ptr = (acpi_name *) METHOD_NAME__REG;
-	struct acpi_namespace_node *method_node;
-	struct acpi_namespace_node *node;
-	union acpi_operand_object *region_obj2;
-	acpi_status status;
-
-	ACPI_FUNCTION_TRACE(ev_associate_reg_method);
-
-	region_obj2 = acpi_ns_get_secondary_object(region_obj);
-	if (!region_obj2) {
-		return_VOID;
-	}
-
-	node = region_obj->region.node->parent;
-
-	/* Find any "_REG" method associated with this region definition */
-
-	status =
-	    acpi_ns_search_one_scope(*reg_name_ptr, node, ACPI_TYPE_METHOD,
-				     &method_node);
-	if (ACPI_SUCCESS(status)) {
-		/*
-		 * The _REG method is optional and there can be only one per region
-		 * definition. This will be executed when the handler is attached
-		 * or removed
-		 */
-		region_obj2->extra.method_REG = method_node;
-	}
-
-	return_VOID;
-}
-
-/*******************************************************************************
- *
  * FUNCTION:    acpi_ev_execute_reg_method
  *
  * PARAMETERS:  region_obj          - Region object
@@ -589,18 +543,42 @@ acpi_ev_execute_reg_method(union acpi_operand_object *region_obj, u32 function)
 	struct acpi_evaluate_info *info;
 	union acpi_operand_object *args[3];
 	union acpi_operand_object *region_obj2;
+	const acpi_name *reg_name_ptr =
+	    ACPI_CAST_PTR(acpi_name, METHOD_NAME__REG);
+	struct acpi_namespace_node *method_node;
+	struct acpi_namespace_node *node;
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(ev_execute_reg_method);
+
+	if (!acpi_gbl_namespace_initialized ||
+	    region_obj->region.handler == NULL) {
+		return_ACPI_STATUS(AE_OK);
+	}
 
 	region_obj2 = acpi_ns_get_secondary_object(region_obj);
 	if (!region_obj2) {
 		return_ACPI_STATUS(AE_NOT_EXIST);
 	}
 
-	if (region_obj2->extra.method_REG == NULL ||
-	    region_obj->region.handler == NULL ||
-	    !acpi_gbl_namespace_initialized) {
+	/*
+	 * Find any "_REG" method associated with this region definition.
+	 * The method should always be updated as this function may be
+	 * invoked after a namespace change.
+	 */
+	node = region_obj->region.node->parent;
+	status =
+	    acpi_ns_search_one_scope(*reg_name_ptr, node, ACPI_TYPE_METHOD,
+				     &method_node);
+	if (ACPI_SUCCESS(status)) {
+		/*
+		 * The _REG method is optional and there can be only one per
+		 * region definition. This will be executed when the handler is
+		 * attached or removed.
+		 */
+		region_obj2->extra.method_REG = method_node;
+	}
+	if (region_obj2->extra.method_REG == NULL) {
 		return_ACPI_STATUS(AE_OK);
 	}
 

@@ -40,11 +40,13 @@ static void rxrpc_abort_calls(struct rxrpc_connection *conn, int state,
 		write_lock(&call->state_lock);
 		if (call->state <= RXRPC_CALL_COMPLETE) {
 			call->state = state;
-			call->abort_code = abort_code;
-			if (state == RXRPC_CALL_LOCALLY_ABORTED)
+			if (state == RXRPC_CALL_LOCALLY_ABORTED) {
+				call->local_abort = conn->local_abort;
 				set_bit(RXRPC_CALL_EV_CONN_ABORT, &call->events);
-			else
+			} else {
+				call->remote_abort = conn->remote_abort;
 				set_bit(RXRPC_CALL_EV_RCVD_ABORT, &call->events);
+			}
 			rxrpc_queue_call(call);
 		}
 		write_unlock(&call->state_lock);
@@ -84,8 +86,8 @@ static int rxrpc_abort_connection(struct rxrpc_connection *conn,
 
 	rxrpc_abort_calls(conn, RXRPC_CALL_LOCALLY_ABORTED, abort_code);
 
-	msg.msg_name	= &conn->trans->peer->srx.transport.sin;
-	msg.msg_namelen	= sizeof(conn->trans->peer->srx.transport.sin);
+	msg.msg_name	= &conn->trans->peer->srx.transport;
+	msg.msg_namelen	= conn->trans->peer->srx.transport_len;
 	msg.msg_control	= NULL;
 	msg.msg_controllen = 0;
 	msg.msg_flags	= 0;
@@ -101,7 +103,7 @@ static int rxrpc_abort_connection(struct rxrpc_connection *conn,
 	whdr._rsvd	= 0;
 	whdr.serviceId	= htons(conn->service_id);
 
-	word = htonl(abort_code);
+	word		= htonl(conn->local_abort);
 
 	iov[0].iov_base	= &whdr;
 	iov[0].iov_len	= sizeof(whdr);
@@ -112,7 +114,7 @@ static int rxrpc_abort_connection(struct rxrpc_connection *conn,
 
 	serial = atomic_inc_return(&conn->serial);
 	whdr.serial = htonl(serial);
-	_proto("Tx CONN ABORT %%%u { %d }", serial, abort_code);
+	_proto("Tx CONN ABORT %%%u { %d }", serial, conn->local_abort);
 
 	ret = kernel_sendmsg(conn->trans->local->socket, &msg, iov, 2, len);
 	if (ret < 0) {
@@ -172,15 +174,10 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 		return -ECONNABORTED;
 
 	case RXRPC_PACKET_TYPE_CHALLENGE:
-		if (conn->security)
-			return conn->security->respond_to_challenge(
-				conn, skb, _abort_code);
-		return -EPROTO;
+		return conn->security->respond_to_challenge(conn, skb,
+							    _abort_code);
 
 	case RXRPC_PACKET_TYPE_RESPONSE:
-		if (!conn->security)
-			return -EPROTO;
-
 		ret = conn->security->verify_response(conn, skb, _abort_code);
 		if (ret < 0)
 			return ret;
@@ -235,8 +232,6 @@ static void rxrpc_secure_connection(struct rxrpc_connection *conn)
 			goto abort;
 		}
 	}
-
-	ASSERT(conn->security != NULL);
 
 	if (conn->security->issue_challenge(conn) < 0) {
 		abort_code = RX_CALL_DEAD;

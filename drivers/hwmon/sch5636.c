@@ -449,7 +449,7 @@ static int sch5636_probe(struct platform_device *pdev)
 		}
 		revision[i] = val;
 	}
-	pr_info("Found %s chip at %#hx, revison: %d.%02d\n", DEVNAME,
+	pr_info("Found %s chip at %#hx, revision: %d.%02d\n", DEVNAME,
 		data->addr, revision[0], revision[1]);
 
 	/* Read all temp + fan ctrl registers to determine which are active */

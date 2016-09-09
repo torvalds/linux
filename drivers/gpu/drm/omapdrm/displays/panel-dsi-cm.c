@@ -14,7 +14,7 @@
 #include <linux/backlight.h>
 #include <linux/delay.h>
 #include <linux/fb.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/jiffies.h>
 #include <linux/module.h>

@@ -24,6 +24,19 @@
 #include "../w1_int.h"
 
 /**
+ * Allow the active pullup to be disabled, default is enabled.
+ *
+ * Note from the DS2482 datasheet:
+ * The APU bit controls whether an active pullup (controlled slew-rate
+ * transistor) or a passive pullup (Rwpu resistor) will be used to drive
+ * a 1-Wire line from low to high. When APU = 0, active pullup is disabled
+ * (resistor mode). Active Pullup should always be selected unless there is
+ * only a single slave on the 1-Wire line.
+ */
+static int ds2482_active_pullup = 1;
+module_param_named(active_pullup, ds2482_active_pullup, int, 0644);
+
+/**
  * The DS2482 registers - there are 3 registers that are addressed by a read
  * pointer. The read pointer is set by the last command executed.
  *
@@ -138,6 +151,9 @@ struct ds2482_data {
  */
 static inline u8 ds2482_calculate_config(u8 conf)
 {
+	if (ds2482_active_pullup)
+		conf |= DS2482_REG_CFG_APU;
+
 	return conf | ((~conf & 0x0f) << 4);
 }
 
@@ -546,6 +562,8 @@ static int ds2482_remove(struct i2c_client *client)
 
 module_i2c_driver(ds2482_driver);
 
+MODULE_PARM_DESC(active_pullup, "Active pullup (apply to all buses): " \
+				"0-disable, 1-enable (default)");
 MODULE_AUTHOR("Ben Gardner <bgardner@wabtec.com>");
 MODULE_DESCRIPTION("DS2482 driver");
 MODULE_LICENSE("GPL");

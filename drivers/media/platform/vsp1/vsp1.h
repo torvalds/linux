@@ -26,7 +26,6 @@
 struct clk;
 struct device;
 
-struct vsp1_dl;
 struct vsp1_drm;
 struct vsp1_entity;
 struct vsp1_platform_data;
@@ -49,6 +48,7 @@ struct vsp1_uds;
 
 struct vsp1_device_info {
 	u32 version;
+	unsigned int gen;
 	unsigned int features;
 	unsigned int rpf_count;
 	unsigned int uds_count;
@@ -85,8 +85,6 @@ struct vsp1_device {
 	struct media_entity_operations media_ops;
 
 	struct vsp1_drm *drm;
-
-	bool use_dl;
 };
 
 int vsp1_device_get(struct vsp1_device *vsp1);
@@ -102,16 +100,6 @@ static inline u32 vsp1_read(struct vsp1_device *vsp1, u32 reg)
 static inline void vsp1_write(struct vsp1_device *vsp1, u32 reg, u32 data)
 {
 	iowrite32(data, vsp1->mmio + reg);
-}
-
-#include "vsp1_dl.h"
-
-static inline void vsp1_mod_write(struct vsp1_entity *e, u32 reg, u32 data)
-{
-	if (e->vsp1->use_dl)
-		vsp1_dl_add(e, reg, data);
-	else
-		vsp1_write(e->vsp1, reg, data);
 }
 
 #endif /* __VSP1_H__ */

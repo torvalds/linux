@@ -96,16 +96,35 @@ struct mtd_oob_ops {
 
 #define MTD_MAX_OOBFREE_ENTRIES_LARGE	32
 #define MTD_MAX_ECCPOS_ENTRIES_LARGE	640
-/*
- * Internal ECC layout control structure. For historical reasons, there is a
- * similar, smaller struct nand_ecclayout_user (in mtd-abi.h) that is retained
- * for export to user-space via the ECCGETLAYOUT ioctl.
- * nand_ecclayout should be expandable in the future simply by the above macros.
+/**
+ * struct mtd_oob_region - oob region definition
+ * @offset: region offset
+ * @length: region length
+ *
+ * This structure describes a region of the OOB area, and is used
+ * to retrieve ECC or free bytes sections.
+ * Each section is defined by an offset within the OOB area and a
+ * length.
  */
-struct nand_ecclayout {
-	__u32 eccbytes;
-	__u32 eccpos[MTD_MAX_ECCPOS_ENTRIES_LARGE];
-	struct nand_oobfree oobfree[MTD_MAX_OOBFREE_ENTRIES_LARGE];
+struct mtd_oob_region {
+	u32 offset;
+	u32 length;
+};
+
+/*
+ * struct mtd_ooblayout_ops - NAND OOB layout operations
+ * @ecc: function returning an ECC region in the OOB area.
+ *	 Should return -ERANGE if %section exceeds the total number of
+ *	 ECC sections.
+ * @free: function returning a free region in the OOB area.
+ *	  Should return -ERANGE if %section exceeds the total number of
+ *	  free sections.
+ */
+struct mtd_ooblayout_ops {
+	int (*ecc)(struct mtd_info *mtd, int section,
+		   struct mtd_oob_region *oobecc);
+	int (*free)(struct mtd_info *mtd, int section,
+		    struct mtd_oob_region *oobfree);
 };
 
 struct module;	/* only needed for owner field in mtd_info */
@@ -166,8 +185,8 @@ struct mtd_info {
 	const char *name;
 	int index;
 
-	/* ECC layout structure pointer - read only! */
-	struct nand_ecclayout *ecclayout;
+	/* OOB layout description */
+	const struct mtd_ooblayout_ops *ooblayout;
 
 	/* the ecc step size. */
 	unsigned int ecc_step_size;
@@ -253,6 +272,30 @@ struct mtd_info {
 	int usecount;
 };
 
+int mtd_ooblayout_ecc(struct mtd_info *mtd, int section,
+		      struct mtd_oob_region *oobecc);
+int mtd_ooblayout_find_eccregion(struct mtd_info *mtd, int eccbyte,
+				 int *section,
+				 struct mtd_oob_region *oobregion);
+int mtd_ooblayout_get_eccbytes(struct mtd_info *mtd, u8 *eccbuf,
+			       const u8 *oobbuf, int start, int nbytes);
+int mtd_ooblayout_set_eccbytes(struct mtd_info *mtd, const u8 *eccbuf,
+			       u8 *oobbuf, int start, int nbytes);
+int mtd_ooblayout_free(struct mtd_info *mtd, int section,
+		       struct mtd_oob_region *oobfree);
+int mtd_ooblayout_get_databytes(struct mtd_info *mtd, u8 *databuf,
+				const u8 *oobbuf, int start, int nbytes);
+int mtd_ooblayout_set_databytes(struct mtd_info *mtd, const u8 *databuf,
+				u8 *oobbuf, int start, int nbytes);
+int mtd_ooblayout_count_freebytes(struct mtd_info *mtd);
+int mtd_ooblayout_count_eccbytes(struct mtd_info *mtd);
+
+static inline void mtd_set_ooblayout(struct mtd_info *mtd,
+				     const struct mtd_ooblayout_ops *ooblayout)
+{
+	mtd->ooblayout = ooblayout;
+}
+
 static inline void mtd_set_of_node(struct mtd_info *mtd,
 				   struct device_node *np)
 {
@@ -283,17 +326,7 @@ int mtd_panic_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen,
 		    const u_char *buf);
 
 int mtd_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops);
-
-static inline int mtd_write_oob(struct mtd_info *mtd, loff_t to,
-				struct mtd_oob_ops *ops)
-{
-	ops->retlen = ops->oobretlen = 0;
-	if (!mtd->_write_oob)
-		return -EOPNOTSUPP;
-	if (!(mtd->flags & MTD_WRITEABLE))
-		return -EROFS;
-	return mtd->_write_oob(mtd, to, ops);
-}
+int mtd_write_oob(struct mtd_info *mtd, loff_t to, struct mtd_oob_ops *ops);
 
 int mtd_get_fact_prot_info(struct mtd_info *mtd, size_t len, size_t *retlen,
 			   struct otp_info *buf);

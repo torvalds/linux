@@ -104,7 +104,7 @@ static const struct pinctrl_ops berlin_pinctrl_ops = {
 	.get_groups_count	= &berlin_pinctrl_get_group_count,
 	.get_group_name		= &berlin_pinctrl_get_group_name,
 	.dt_node_to_map		= &berlin_pinctrl_dt_node_to_map,
-	.dt_free_map		= &pinctrl_utils_dt_free_map,
+	.dt_free_map		= &pinctrl_utils_free_map,
 };
 
 static int berlin_pinmux_get_functions_count(struct pinctrl_dev *pctrl_dev)
@@ -316,7 +316,8 @@ int berlin_pinctrl_probe_regmap(struct platform_device *pdev,
 		return ret;
 	}
 
-	pctrl->pctrl_dev = pinctrl_register(&berlin_pctrl_desc, dev, pctrl);
+	pctrl->pctrl_dev = devm_pinctrl_register(dev, &berlin_pctrl_desc,
+						 pctrl);
 	if (IS_ERR(pctrl->pctrl_dev)) {
 		dev_err(dev, "failed to register pinctrl driver\n");
 		return PTR_ERR(pctrl->pctrl_dev);

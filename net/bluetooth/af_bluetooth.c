@@ -65,7 +65,7 @@ static const char *const bt_slock_key_strings[BT_MAX_PROTO] = {
 void bt_sock_reclassify_lock(struct sock *sk, int proto)
 {
 	BUG_ON(!sk);
-	BUG_ON(sock_owned_by_user(sk));
+	BUG_ON(!sock_allow_reclassification(sk));
 
 	sock_lock_init_class_and_name(sk,
 			bt_slock_key_strings[proto], &bt_slock_key[proto],

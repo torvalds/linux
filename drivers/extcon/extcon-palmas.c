@@ -360,6 +360,8 @@ static int palmas_usb_probe(struct platform_device *pdev)
 
 	palmas_enable_irq(palmas_usb);
 	/* perform initial detection */
+	if (palmas_usb->enable_gpio_vbus_detection)
+		palmas_vbus_irq_handler(palmas_usb->gpio_vbus_irq, palmas_usb);
 	palmas_gpio_id_detect(&palmas_usb->wq_detectid.work);
 	device_set_wakeup_capable(&pdev->dev, true);
 	return 0;

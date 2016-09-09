@@ -323,6 +323,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pcie>;
 	reset-gpio = <&gpio7 12 GPIO_ACTIVE_HIGH>;
+	fsl,tx-swing-full = <103>;
+	fsl,tx-swing-low = <103>;
 	status = "okay";
 };
 
@@ -335,7 +337,7 @@
 &pwm2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm2>;
-	status = "okay";
+	status = "disabled";
 };
 
 &sata {
@@ -390,7 +392,6 @@
 	pinctrl-0 = <&pinctrl_usdhc3 &pinctrl_usdhc3_reset>;
 	bus-width = <8>;
 	vmmc-supply = <&vdd_bperi>;
-	vqmmc-supply = <&vdd_bio>;
 	non-removable;
 	keep-power-in-suspend;
 	status = "okay";
@@ -399,6 +400,7 @@
 &wdog1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_wdog>;
+	fsl,ext-reset-output;
 };
 
 &iomuxc {

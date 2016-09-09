@@ -87,6 +87,31 @@ config EFI_RUNTIME_WRAPPERS
 config EFI_ARMSTUB
 	bool
 
+config EFI_BOOTLOADER_CONTROL
+	tristate "EFI Bootloader Control"
+	depends on EFI_VARS
+	default n
+	---help---
+	  This module installs a reboot hook, such that if reboot() is
+	  invoked with a string argument NNN, "NNN" is copied to the
+	  "LoaderEntryOneShot" EFI variable, to be read by the
+	  bootloader. If the string matches one of the boot labels
+	  defined in its configuration, the bootloader will boot once
+	  to that label. The "LoaderEntryRebootReason" EFI variable is
+	  set with the reboot reason: "reboot" or "shutdown". The
+	  bootloader reads this reboot reason and takes particular
+	  action according to its policy.
+
+config EFI_CAPSULE_LOADER
+	tristate "EFI capsule loader"
+	depends on EFI
+	help
+	  This option exposes a loader interface "/dev/efi_capsule_loader" for
+	  users to load EFI capsules. This driver requires working runtime
+	  capsule support in the firmware, which many OEMs do not provide.
+
+	  Most users should say N.
+
 endmenu
 
 config UEFI_CPER

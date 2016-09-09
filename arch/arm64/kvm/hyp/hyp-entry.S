@@ -42,19 +42,17 @@
 	 * Shuffle the parameters before calling the function
 	 * pointed to in x0. Assumes parameters in x[1,2,3].
 	 */
-	sub	sp, sp, #16
-	str	lr, [sp]
 	mov	lr, x0
 	mov	x0, x1
 	mov	x1, x2
 	mov	x2, x3
 	blr	lr
-	ldr	lr, [sp]
-	add	sp, sp, #16
 .endm
 
 ENTRY(__vhe_hyp_call)
+	str	lr, [sp, #-16]!
 	do_el2_call
+	ldr	lr, [sp], #16
 	/*
 	 * We used to rely on having an exception return to get
 	 * an implicit isb. In the E2H case, we don't have it anymore.
@@ -84,8 +82,8 @@ alternative_endif
 	/* Here, we're pretty sure the host called HVC. */
 	restore_x0_to_x3
 
-	/* Check for __hyp_get_vectors */
-	cbnz	x0, 1f
+	cmp	x0, #HVC_GET_VECTORS
+	b.ne	1f
 	mrs	x0, vbar_el2
 	b	2f
 

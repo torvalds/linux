@@ -1058,6 +1058,7 @@ int ubi_scan_fastmap(struct ubi_device *ubi, struct ubi_attach_info *ai,
 	ubi_msg(ubi, "fastmap WL pool size: %d",
 		ubi->fm_wl_pool.max_size);
 	ubi->fm_disabled = 0;
+	ubi->fast_attach = 1;
 
 	ubi_free_vid_hdr(ubi, vh);
 	kfree(ech);

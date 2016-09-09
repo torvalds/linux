@@ -133,6 +133,9 @@ struct netns_ipv4 {
 	struct fib_rules_ops	*mr_rules_ops;
 #endif
 #endif
+#ifdef CONFIG_IP_ROUTE_MULTIPATH
+	int sysctl_fib_multipath_use_neigh;
+#endif
 	atomic_t	rt_genid;
 };
 #endif

@@ -13,6 +13,10 @@
 		serial0 = &uartd;
 	};
 
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	memory {
 		reg = <0x00000000 0x40000000>;
 	};
@@ -807,7 +811,7 @@
 			label = "Power";
 			gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		lid {
@@ -816,7 +820,7 @@
 			linux,input-type = <5>; /* EV_SW */
 			linux,code = <0>; /* SW_LID */
 			debounce-interval = <1>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 

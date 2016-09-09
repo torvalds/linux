@@ -89,7 +89,7 @@ def parse_options():
 
     if opts.diff and not re.match(r"^[\w\-\.]+\.\.[\w\-\.]+$", opts.diff):
         sys.exit("Please specify valid input in the following format: "
-                 "\'commmit1..commit2\'")
+                 "\'commit1..commit2\'")
 
     if opts.commit or opts.diff:
         if not opts.force and tree_is_dirty():

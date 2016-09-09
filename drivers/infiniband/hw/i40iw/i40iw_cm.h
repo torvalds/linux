@@ -1,6 +1,6 @@
 /*******************************************************************************
 *
-* Copyright (c) 2015 Intel Corporation.  All rights reserved.
+* Copyright (c) 2015-2016 Intel Corporation.  All rights reserved.
 *
 * This software is available to you under a choice of one of two
 * licenses.  You may choose to be licensed under the terms of the GNU
@@ -291,8 +291,6 @@ struct i40iw_cm_listener {
 	u8 loc_mac[ETH_ALEN];
 	u32 loc_addr[4];
 	u16 loc_port;
-	u32 map_loc_addr[4];
-	u16 map_loc_port;
 	struct iw_cm_id *cm_id;
 	atomic_t ref_count;
 	struct i40iw_device *iwdev;
@@ -317,8 +315,6 @@ struct i40iw_kmem_info {
 struct i40iw_cm_node {
 	u32 loc_addr[4], rem_addr[4];
 	u16 loc_port, rem_port;
-	u32 map_loc_addr[4], map_rem_addr[4];
-	u16 map_loc_port, map_rem_port;
 	u16 vlan_id;
 	enum i40iw_cm_node_state state;
 	u8 loc_mac[ETH_ALEN];
@@ -370,10 +366,6 @@ struct i40iw_cm_info {
 	u16 rem_port;
 	u32 loc_addr[4];
 	u32 rem_addr[4];
-	u16 map_loc_port;
-	u16 map_rem_port;
-	u32 map_loc_addr[4];
-	u32 map_rem_addr[4];
 	u16 vlan_id;
 	int backlog;
 	u16 user_pri;

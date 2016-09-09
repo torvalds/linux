@@ -129,7 +129,8 @@ static int __init chacha20_simd_mod_init(void)
 		return -ENODEV;
 
 #ifdef CONFIG_AS_AVX2
-	chacha20_use_avx2 = cpu_has_avx && cpu_has_avx2 &&
+	chacha20_use_avx2 = boot_cpu_has(X86_FEATURE_AVX) &&
+			    boot_cpu_has(X86_FEATURE_AVX2) &&
 			    cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL);
 #endif
 	return crypto_register_alg(&alg);

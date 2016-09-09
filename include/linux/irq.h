@@ -530,6 +530,10 @@ static inline void irq_set_chip_and_handler(unsigned int irq, struct irq_chip *c
 }
 
 extern int irq_set_percpu_devid(unsigned int irq);
+extern int irq_set_percpu_devid_partition(unsigned int irq,
+					  const struct cpumask *affinity);
+extern int irq_get_percpu_devid_partition(unsigned int irq,
+					  struct cpumask *affinity);
 
 extern void
 __irq_set_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,

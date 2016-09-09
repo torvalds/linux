@@ -694,7 +694,7 @@ static int mwifiex_uap_custom_ie_prepare(u8 *tlv, void *cmd_buf, u16 *ie_size)
 	struct mwifiex_ie_list *ap_ie = cmd_buf;
 	struct mwifiex_ie_types_header *tlv_ie = (void *)tlv;
 
-	if (!ap_ie || !ap_ie->len || !ap_ie->ie_list)
+	if (!ap_ie || !ap_ie->len)
 		return -1;
 
 	*ie_size += le16_to_cpu(ap_ie->len) +
@@ -816,7 +816,7 @@ void mwifiex_uap_set_channel(struct mwifiex_private *priv,
 						     chandef.chan->center_freq);
 
 	/* Set appropriate bands */
-	if (chandef.chan->band == IEEE80211_BAND_2GHZ) {
+	if (chandef.chan->band == NL80211_BAND_2GHZ) {
 		bss_cfg->band_cfg = BAND_CONFIG_BG;
 		config_bands = BAND_B | BAND_G;
 

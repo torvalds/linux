@@ -1130,7 +1130,9 @@ static int xol_add_vma(struct mm_struct *mm, struct xol_area *area)
 	struct vm_area_struct *vma;
 	int ret;
 
-	down_write(&mm->mmap_sem);
+	if (down_write_killable(&mm->mmap_sem))
+		return -EINTR;
+
 	if (mm->uprobes_state.xol_area) {
 		ret = -EALREADY;
 		goto fail;
@@ -1469,7 +1471,8 @@ static void dup_xol_work(struct callback_head *work)
 	if (current->flags & PF_EXITING)
 		return;
 
-	if (!__create_xol_area(current->utask->dup_xol_addr))
+	if (!__create_xol_area(current->utask->dup_xol_addr) &&
+			!fatal_signal_pending(current))
 		uprobe_warn(current, "dup xol area");
 }
 
@@ -1694,8 +1697,7 @@ static int is_trap_at_addr(struct mm_struct *mm, unsigned long vaddr)
 	int result;
 
 	pagefault_disable();
-	result = __copy_from_user_inatomic(&opcode, (void __user*)vaddr,
-							sizeof(opcode));
+	result = __get_user(opcode, (uprobe_opcode_t __user *)vaddr);
 	pagefault_enable();
 
 	if (likely(result == 0))

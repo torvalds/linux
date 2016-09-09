@@ -5351,7 +5351,7 @@ static int ocfs2_truncate_rec(handle_t *handle,
 {
 	int ret;
 	u32 left_cpos, rec_range, trunc_range;
-	int wants_rotate = 0, is_rightmost_tree_rec = 0;
+	int is_rightmost_tree_rec = 0;
 	struct super_block *sb = ocfs2_metadata_cache_get_super(et->et_ci);
 	struct ocfs2_path *left_path = NULL;
 	struct ocfs2_extent_list *el = path_leaf_el(path);
@@ -5457,7 +5457,6 @@ static int ocfs2_truncate_rec(handle_t *handle,
 
 		memset(rec, 0, sizeof(*rec));
 		ocfs2_cleanup_merge(el, index);
-		wants_rotate = 1;
 
 		next_free = le16_to_cpu(el->l_next_free_rec);
 		if (is_rightmost_tree_rec && next_free > 1) {

@@ -332,7 +332,7 @@ int migrate_page_move_mapping(struct address_space *mapping,
 		newpage->index = page->index;
 		newpage->mapping = page->mapping;
 		if (PageSwapBacked(page))
-			SetPageSwapBacked(newpage);
+			__SetPageSwapBacked(newpage);
 
 		return MIGRATEPAGE_SUCCESS;
 	}
@@ -378,7 +378,7 @@ int migrate_page_move_mapping(struct address_space *mapping,
 	newpage->index = page->index;
 	newpage->mapping = page->mapping;
 	if (PageSwapBacked(page))
-		SetPageSwapBacked(newpage);
+		__SetPageSwapBacked(newpage);
 
 	get_page(newpage);	/* add cache reference */
 	if (PageSwapCache(page)) {
@@ -431,6 +431,7 @@ int migrate_page_move_mapping(struct address_space *mapping,
 
 	return MIGRATEPAGE_SUCCESS;
 }
+EXPORT_SYMBOL(migrate_page_move_mapping);
 
 /*
  * The expected number of remaining references is the same as that
@@ -586,6 +587,7 @@ void migrate_page_copy(struct page *newpage, struct page *page)
 
 	mem_cgroup_migrate(page, newpage);
 }
+EXPORT_SYMBOL(migrate_page_copy);
 
 /************************************************************
  *                    Migration functions
@@ -975,7 +977,13 @@ out:
 		dec_zone_page_state(page, NR_ISOLATED_ANON +
 				page_is_file_cache(page));
 		/* Soft-offlined page shouldn't go through lru cache list */
-		if (reason == MR_MEMORY_FAILURE) {
+		if (reason == MR_MEMORY_FAILURE && rc == MIGRATEPAGE_SUCCESS) {
+			/*
+			 * With this release, we free successfully migrated
+			 * page and set PG_HWPoison on just freed page
+			 * intentionally. Although it's rather weird, it's how
+			 * HWPoison flag works at the moment.
+			 */
 			put_page(page);
 			if (!test_set_page_hwpoison(page))
 				num_poisoned_pages_inc();
@@ -1165,6 +1173,7 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
 
 			switch(rc) {
 			case -ENOMEM:
+				nr_failed++;
 				goto out;
 			case -EAGAIN:
 				retry++;
@@ -1785,7 +1794,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
 
 	/* Prepare a page as a migration target */
 	__SetPageLocked(new_page);
-	SetPageSwapBacked(new_page);
+	__SetPageSwapBacked(new_page);
 
 	/* anon mapping, we can simply copy page->mapping to the new page: */
 	new_page->mapping = page->mapping;

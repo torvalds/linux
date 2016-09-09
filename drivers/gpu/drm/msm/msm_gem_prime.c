@@ -55,7 +55,7 @@ int msm_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 struct drm_gem_object *msm_gem_prime_import_sg_table(struct drm_device *dev,
 		struct dma_buf_attachment *attach, struct sg_table *sg)
 {
-	return msm_gem_import(dev, attach->dmabuf->size, sg);
+	return msm_gem_import(dev, attach->dmabuf, sg);
 }
 
 int msm_gem_prime_pin(struct drm_gem_object *obj)

@@ -37,8 +37,6 @@ extern void cifs_buf_release(void *);
 extern struct smb_hdr *cifs_small_buf_get(void);
 extern void cifs_small_buf_release(void *);
 extern void free_rsp_buf(int, void *);
-extern void cifs_rqst_page_to_kvec(struct smb_rqst *rqst, unsigned int idx,
-					struct kvec *iov);
 extern int smb_send(struct TCP_Server_Info *, struct smb_hdr *,
 			unsigned int /* length */);
 extern unsigned int _get_xid(void);
@@ -60,6 +58,8 @@ do {								\
 } while (0)
 extern int init_cifs_idmap(void);
 extern void exit_cifs_idmap(void);
+extern int init_cifs_spnego(void);
+extern void exit_cifs_spnego(void);
 extern char *build_path_from_dentry(struct dentry *);
 extern char *cifs_build_path_to_root(struct smb_vol *vol,
 				     struct cifs_sb_info *cifs_sb,
@@ -181,10 +181,9 @@ extern int set_cifs_acl(struct cifs_ntsd *, __u32, struct inode *,
 
 extern void dequeue_mid(struct mid_q_entry *mid, bool malformed);
 extern int cifs_read_from_socket(struct TCP_Server_Info *server, char *buf,
-		     unsigned int to_read);
-extern int cifs_readv_from_socket(struct TCP_Server_Info *server,
-		struct kvec *iov_orig, unsigned int nr_segs,
-		unsigned int to_read);
+			         unsigned int to_read);
+extern int cifs_read_page_from_socket(struct TCP_Server_Info *server,
+				      struct page *page, unsigned int to_read);
 extern void cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 			       struct cifs_sb_info *cifs_sb);
 extern int cifs_match_super(struct super_block *, void *);
@@ -512,4 +511,7 @@ int cifs_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 			   struct cifs_sb_info *cifs_sb,
 			   const unsigned char *path, char *pbuf,
 			   unsigned int *pbytes_written);
+int __cifs_calc_signature(struct smb_rqst *rqst,
+			struct TCP_Server_Info *server, char *signature,
+			struct shash_desc *shash);
 #endif			/* _CIFSPROTO_H */

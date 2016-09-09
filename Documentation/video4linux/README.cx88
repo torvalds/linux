@@ -50,7 +50,7 @@ the driver.  What to do then?
      cx88-cards.c.  If that worked, mail me your changes as unified
      diff ("diff -u").
  (3) Or you can mail me the config information.  I need at least the
-     following informations to add the card:
+     following information to add the card:
 
      * the PCI Subsystem ID ("0070:3400" from the line above,
        "lspci -v" output is fine too).

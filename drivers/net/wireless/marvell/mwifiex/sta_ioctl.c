@@ -146,6 +146,7 @@ int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
 	size_t beacon_ie_len;
 	struct mwifiex_bss_priv *bss_priv = (void *)bss->priv;
 	const struct cfg80211_bss_ies *ies;
+	int ret;
 
 	rcu_read_lock();
 	ies = rcu_dereference(bss->ies);
@@ -189,7 +190,48 @@ int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
 	if (bss_desc->cap_info_bitmap & WLAN_CAPABILITY_SPECTRUM_MGMT)
 		bss_desc->sensed_11h = true;
 
-	return mwifiex_update_bss_desc_with_ie(priv->adapter, bss_desc);
+	ret = mwifiex_update_bss_desc_with_ie(priv->adapter, bss_desc);
+	if (ret)
+		return ret;
+
+	/* Update HT40 capability based on current channel information */
+	if (bss_desc->bcn_ht_oper && bss_desc->bcn_ht_cap) {
+		u8 ht_param = bss_desc->bcn_ht_oper->ht_param;
+		u8 radio = mwifiex_band_to_radio_type(bss_desc->bss_band);
+		struct ieee80211_supported_band *sband =
+						priv->wdev.wiphy->bands[radio];
+		int freq = ieee80211_channel_to_frequency(bss_desc->channel,
+							  radio);
+		struct ieee80211_channel *chan =
+			ieee80211_get_channel(priv->adapter->wiphy, freq);
+
+		switch (ht_param & IEEE80211_HT_PARAM_CHA_SEC_OFFSET) {
+		case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
+			if (chan->flags & IEEE80211_CHAN_NO_HT40PLUS) {
+				sband->ht_cap.cap &=
+					~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+				sband->ht_cap.cap &= ~IEEE80211_HT_CAP_SGI_40;
+			} else {
+				sband->ht_cap.cap |=
+					IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
+					IEEE80211_HT_CAP_SGI_40;
+			}
+			break;
+		case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
+			if (chan->flags & IEEE80211_CHAN_NO_HT40MINUS) {
+				sband->ht_cap.cap &=
+					~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+				sband->ht_cap.cap &= ~IEEE80211_HT_CAP_SGI_40;
+			} else {
+				sband->ht_cap.cap |=
+					IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
+					IEEE80211_HT_CAP_SGI_40;
+			}
+			break;
+		}
+	}
+
+	return 0;
 }
 
 void mwifiex_dnld_txpwr_table(struct mwifiex_private *priv)
@@ -509,7 +551,8 @@ int mwifiex_enable_hs(struct mwifiex_adapter *adapter)
 
 	if (priv && priv->sched_scanning) {
 #ifdef CONFIG_PM
-		if (!priv->wdev.wiphy->wowlan_config->nd_config) {
+		if (priv->wdev.wiphy->wowlan_config &&
+		    !priv->wdev.wiphy->wowlan_config->nd_config) {
 #endif
 			mwifiex_dbg(adapter, CMD, "aborting bgscan!\n");
 			mwifiex_stop_bg_scan(priv);

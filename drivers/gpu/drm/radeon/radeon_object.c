@@ -832,13 +832,13 @@ int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type, bool no_wait)
 {
 	int r;
 
-	r = ttm_bo_reserve(&bo->tbo, true, no_wait, false, NULL);
+	r = ttm_bo_reserve(&bo->tbo, true, no_wait, NULL);
 	if (unlikely(r != 0))
 		return r;
 	if (mem_type)
 		*mem_type = bo->tbo.mem.mem_type;
 
-	r = ttm_bo_wait(&bo->tbo, true, true, no_wait);
+	r = ttm_bo_wait(&bo->tbo, true, no_wait);
 	ttm_bo_unreserve(&bo->tbo);
 	return r;
 }

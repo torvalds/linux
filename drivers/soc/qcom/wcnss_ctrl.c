@@ -100,17 +100,17 @@ struct wcnss_download_nv_resp {
 
 /**
  * wcnss_ctrl_smd_callback() - handler from SMD responses
- * @qsdev:	smd device handle
+ * @channel:	smd channel handle
  * @data:	pointer to the incoming data packet
  * @count:	size of the incoming data packet
  *
  * Handles any incoming packets from the remote WCNSS_CTRL service.
  */
-static int wcnss_ctrl_smd_callback(struct qcom_smd_device *qsdev,
+static int wcnss_ctrl_smd_callback(struct qcom_smd_channel *channel,
 				   const void *data,
 				   size_t count)
 {
-	struct wcnss_ctrl *wcnss = dev_get_drvdata(&qsdev->dev);
+	struct wcnss_ctrl *wcnss = qcom_smd_get_drvdata(channel);
 	const struct wcnss_download_nv_resp *nvresp;
 	const struct wcnss_version_resp *version;
 	const struct wcnss_msg_hdr *hdr = data;
@@ -246,7 +246,7 @@ static int wcnss_ctrl_probe(struct qcom_smd_device *sdev)
 	init_completion(&wcnss->ack);
 	INIT_WORK(&wcnss->download_nv_work, wcnss_download_nv);
 
-	dev_set_drvdata(&sdev->dev, wcnss);
+	qcom_smd_set_drvdata(sdev->channel, wcnss);
 
 	return wcnss_request_version(wcnss);
 }

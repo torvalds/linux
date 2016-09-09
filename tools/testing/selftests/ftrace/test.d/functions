@@ -14,3 +14,12 @@ enable_tracing() { # start trace recording
 reset_tracer() { # reset the current tracer
     echo nop > current_tracer
 }
+
+reset_trigger() { # reset all current setting triggers
+    grep -v ^# events/*/*/trigger |
+    while read line; do
+        cmd=`echo $line | cut -f2- -d: | cut -f1 -d" "`
+	echo "!$cmd" > `echo $line | cut -f1 -d:`
+    done
+}
+

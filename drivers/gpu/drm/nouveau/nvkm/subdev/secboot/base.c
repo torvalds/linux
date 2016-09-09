@@ -264,7 +264,7 @@ nvkm_secboot_ctor(const struct nvkm_secboot_func *func,
 {
 	unsigned long fid;
 
-	nvkm_subdev_ctor(&nvkm_secboot, device, index, 0, &sb->subdev);
+	nvkm_subdev_ctor(&nvkm_secboot, device, index, &sb->subdev);
 	sb->func = func;
 
 	/* setup the performing falcon's base address and masks */

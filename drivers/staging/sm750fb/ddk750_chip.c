@@ -306,7 +306,7 @@ unsigned int calcPllValue(unsigned int request_orig, pll_value_t *pll)
 	unsigned int input, request;
 	unsigned int tmpClock, ret;
 	const int max_OD = 3;
-	int max_d;
+	int max_d = 6;
 
 	if (getChipType() == SM750LE) {
 		/* SM750LE don't have prgrammable PLL and M/N values to work on.

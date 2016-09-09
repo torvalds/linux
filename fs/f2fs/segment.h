@@ -158,16 +158,17 @@ struct victim_sel_policy {
 };
 
 struct seg_entry {
-	unsigned short valid_blocks;	/* # of valid blocks */
+	unsigned int type:6;		/* segment type like CURSEG_XXX_TYPE */
+	unsigned int valid_blocks:10;	/* # of valid blocks */
+	unsigned int ckpt_valid_blocks:10;	/* # of valid blocks last cp */
+	unsigned int padding:6;		/* padding */
 	unsigned char *cur_valid_map;	/* validity bitmap of blocks */
 	/*
 	 * # of valid blocks and the validity bitmap stored in the the last
 	 * checkpoint pack. This information is used by the SSR mode.
 	 */
-	unsigned short ckpt_valid_blocks;
-	unsigned char *ckpt_valid_map;
+	unsigned char *ckpt_valid_map;	/* validity bitmap of blocks last cp */
 	unsigned char *discard_map;
-	unsigned char type;		/* segment type like CURSEG_XXX_TYPE */
 	unsigned long long mtime;	/* modification time of the segment */
 };
 

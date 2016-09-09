@@ -35,6 +35,22 @@
 	};
 };
 
+/* LDO4 is VPP1 - ball AD9 */
+&ldo4_reg {
+	regulator-min-microvolt = <2000000>;
+	regulator-max-microvolt = <2000000>;
+};
+
+/*
+ * LDO7 is used for HDMI: VDDA_DSIPORTA - ball AA33, VDDA_DSIPORTC - ball AE33,
+ * VDDA_HDMI - ball AN25
+ */
+&ldo7_reg {
+	status = "okay";
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+};
+
 &omap5_pmx_core {
 	i2c4_pins: pinmux_i2c4_pins {
 		pinctrl-single,pins = <
@@ -52,3 +68,13 @@
 		<&gpio7 3 0>;		/* 195, SDA */
 };
 
+&twl6040 {
+	ti,audpwron-gpio = <&gpio5 16 GPIO_ACTIVE_HIGH>;  /* gpio line 144 */
+};
+
+&twl6040_pins {
+	pinctrl-single,pins = <
+		OMAP5_IOPAD(0x1c4, PIN_OUTPUT | MUX_MODE6)	/* mcspi1_somi.gpio5_144 */
+		OMAP5_IOPAD(0x1ca, PIN_OUTPUT | MUX_MODE6)	/* perslimbus2_clock.gpio5_145 */
+	>;
+};

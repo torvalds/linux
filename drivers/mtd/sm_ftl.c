@@ -386,7 +386,7 @@ restart:
 		if (test_bit(boffset / SM_SECTOR_SIZE, &invalid_bitmap)) {
 
 			sm_printk("sector %d of block at LBA %d of zone %d"
-				" coudn't be read, marking it as invalid",
+				" couldn't be read, marking it as invalid",
 				boffset / SM_SECTOR_SIZE, lba, zone);
 
 			oob.data_status = 0;

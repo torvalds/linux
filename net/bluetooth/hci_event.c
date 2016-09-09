@@ -4727,6 +4727,19 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 	u32 flags;
 	u8 *ptr, real_len;
 
+	switch (type) {
+	case LE_ADV_IND:
+	case LE_ADV_DIRECT_IND:
+	case LE_ADV_SCAN_IND:
+	case LE_ADV_NONCONN_IND:
+	case LE_ADV_SCAN_RSP:
+		break;
+	default:
+		BT_ERR_RATELIMITED("Unknown advetising packet type: 0x%02x",
+				   type);
+		return;
+	}
+
 	/* Find the end of the data in case the report contains padded zero
 	 * bytes at the end causing an invalid length value.
 	 *

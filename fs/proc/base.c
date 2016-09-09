@@ -434,7 +434,7 @@ static int proc_pid_wchan(struct seq_file *m, struct pid_namespace *ns,
 			&& !lookup_symbol_name(wchan, symname))
 		seq_printf(m, "%s", symname);
 	else
-		seq_puts(m, "0\n");
+		seq_putc(m, '0');
 
 	return 0;
 }
@@ -955,7 +955,8 @@ static ssize_t environ_read(struct file *file, char __user *buf,
 	struct mm_struct *mm = file->private_data;
 	unsigned long env_start, env_end;
 
-	if (!mm)
+	/* Ensure the process spawned far enough to have an environment. */
+	if (!mm || !mm->env_end)
 		return 0;
 
 	page = (char *)__get_free_page(GFP_TEMPORARY);
@@ -1819,12 +1820,17 @@ bool proc_fill_cache(struct file *file, struct dir_context *ctx,
 
 	child = d_hash_and_lookup(dir, &qname);
 	if (!child) {
-		child = d_alloc(dir, &qname);
-		if (!child)
+		DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
+		child = d_alloc_parallel(dir, &qname, &wq);
+		if (IS_ERR(child))
 			goto end_instantiate;
-		if (instantiate(d_inode(dir), child, task, ptr) < 0) {
-			dput(child);
-			goto end_instantiate;
+		if (d_in_lookup(child)) {
+			int err = instantiate(d_inode(dir), child, task, ptr);
+			d_lookup_done(child);
+			if (err < 0) {
+				dput(child);
+				goto end_instantiate;
+			}
 		}
 	}
 	inode = d_inode(child);
@@ -2154,8 +2160,8 @@ out:
 
 static const struct file_operations proc_map_files_operations = {
 	.read		= generic_read_dir,
-	.iterate	= proc_map_files_readdir,
-	.llseek		= default_llseek,
+	.iterate_shared	= proc_map_files_readdir,
+	.llseek		= generic_file_llseek,
 };
 
 #ifdef CONFIG_CHECKPOINT_RESTORE
@@ -2502,8 +2508,8 @@ static int proc_attr_dir_readdir(struct file *file, struct dir_context *ctx)
 
 static const struct file_operations proc_attr_dir_operations = {
 	.read		= generic_read_dir,
-	.iterate	= proc_attr_dir_readdir,
-	.llseek		= default_llseek,
+	.iterate_shared	= proc_attr_dir_readdir,
+	.llseek		= generic_file_llseek,
 };
 
 static struct dentry *proc_attr_dir_lookup(struct inode *dir,
@@ -2910,8 +2916,8 @@ static int proc_tgid_base_readdir(struct file *file, struct dir_context *ctx)
 
 static const struct file_operations proc_tgid_base_operations = {
 	.read		= generic_read_dir,
-	.iterate	= proc_tgid_base_readdir,
-	.llseek		= default_llseek,
+	.iterate_shared	= proc_tgid_base_readdir,
+	.llseek		= generic_file_llseek,
 };
 
 static struct dentry *proc_tgid_base_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
@@ -3157,6 +3163,44 @@ int proc_pid_readdir(struct file *file, struct dir_context *ctx)
 }
 
 /*
+ * proc_tid_comm_permission is a special permission function exclusively
+ * used for the node /proc/<pid>/task/<tid>/comm.
+ * It bypasses generic permission checks in the case where a task of the same
+ * task group attempts to access the node.
+ * The rationale behind this is that glibc and bionic access this node for
+ * cross thread naming (pthread_set/getname_np(!self)). However, if
+ * PR_SET_DUMPABLE gets set to 0 this node among others becomes uid=0 gid=0,
+ * which locks out the cross thread naming implementation.
+ * This function makes sure that the node is always accessible for members of
+ * same thread group.
+ */
+static int proc_tid_comm_permission(struct inode *inode, int mask)
+{
+	bool is_same_tgroup;
+	struct task_struct *task;
+
+	task = get_proc_task(inode);
+	if (!task)
+		return -ESRCH;
+	is_same_tgroup = same_thread_group(current, task);
+	put_task_struct(task);
+
+	if (likely(is_same_tgroup && !(mask & MAY_EXEC))) {
+		/* This file (/proc/<pid>/task/<tid>/comm) can always be
+		 * read or written by the members of the corresponding
+		 * thread group.
+		 */
+		return 0;
+	}
+
+	return generic_permission(inode, mask);
+}
+
+static const struct inode_operations proc_tid_comm_inode_operations = {
+		.permission = proc_tid_comm_permission,
+};
+
+/*
  * Tasks
  */
 static const struct pid_entry tid_base_stuff[] = {
@@ -3174,7 +3218,9 @@ static const struct pid_entry tid_base_stuff[] = {
 #ifdef CONFIG_SCHED_DEBUG
 	REG("sched",     S_IRUGO|S_IWUSR, proc_pid_sched_operations),
 #endif
-	REG("comm",      S_IRUGO|S_IWUSR, proc_pid_set_comm_operations),
+	NOD("comm",      S_IFREG|S_IRUGO|S_IWUSR,
+			 &proc_tid_comm_inode_operations,
+			 &proc_pid_set_comm_operations, {}),
 #ifdef CONFIG_HAVE_ARCH_TRACEHOOK
 	ONE("syscall",   S_IRUSR, proc_pid_syscall),
 #endif
@@ -3258,8 +3304,8 @@ static struct dentry *proc_tid_base_lookup(struct inode *dir, struct dentry *den
 
 static const struct file_operations proc_tid_base_operations = {
 	.read		= generic_read_dir,
-	.iterate	= proc_tid_base_readdir,
-	.llseek		= default_llseek,
+	.iterate_shared	= proc_tid_base_readdir,
+	.llseek		= generic_file_llseek,
 };
 
 static const struct inode_operations proc_tid_base_inode_operations = {
@@ -3469,6 +3515,6 @@ static const struct inode_operations proc_task_inode_operations = {
 
 static const struct file_operations proc_task_operations = {
 	.read		= generic_read_dir,
-	.iterate	= proc_task_readdir,
-	.llseek		= default_llseek,
+	.iterate_shared	= proc_task_readdir,
+	.llseek		= generic_file_llseek,
 };

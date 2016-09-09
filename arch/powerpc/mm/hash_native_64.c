@@ -221,7 +221,7 @@ static long native_hpte_insert(unsigned long hpte_group, unsigned long vpn,
 		return -1;
 
 	hpte_v = hpte_encode_v(vpn, psize, apsize, ssize) | vflags | HPTE_V_VALID;
-	hpte_r = hpte_encode_r(pa, psize, apsize) | rflags;
+	hpte_r = hpte_encode_r(pa, psize, apsize, ssize) | rflags;
 
 	if (!(vflags & HPTE_V_BOLTED)) {
 		DBG_LOW(" i=%x hpte_v=%016lx, hpte_r=%016lx\n",
@@ -316,8 +316,8 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 			DBG_LOW(" -> hit\n");
 			/* Update the HPTE */
 			hptep->r = cpu_to_be64((be64_to_cpu(hptep->r) &
-						~(HPTE_R_PP | HPTE_R_N)) |
-					       (newpp & (HPTE_R_PP | HPTE_R_N |
+						~(HPTE_R_PPP | HPTE_R_N)) |
+					       (newpp & (HPTE_R_PPP | HPTE_R_N |
 							 HPTE_R_C)));
 		}
 		native_unlock_hpte(hptep);
@@ -385,8 +385,8 @@ static void native_hpte_updateboltedpp(unsigned long newpp, unsigned long ea,
 
 	/* Update the HPTE */
 	hptep->r = cpu_to_be64((be64_to_cpu(hptep->r) &
-			~(HPTE_R_PP | HPTE_R_N)) |
-		(newpp & (HPTE_R_PP | HPTE_R_N)));
+				~(HPTE_R_PPP | HPTE_R_N)) |
+			       (newpp & (HPTE_R_PPP | HPTE_R_N)));
 	/*
 	 * Ensure it is out of the tlb too. Bolted entries base and
 	 * actual page size will be same.
@@ -550,7 +550,11 @@ static void hpte_decode(struct hash_pte *hpte, unsigned long slot,
 		}
 	}
 	/* This works for all page sizes, and for 256M and 1T segments */
-	*ssize = hpte_v >> HPTE_V_SSIZE_SHIFT;
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		*ssize = hpte_r >> HPTE_R_3_0_SSIZE_SHIFT;
+	else
+		*ssize = hpte_v >> HPTE_V_SSIZE_SHIFT;
+
 	shift = mmu_psize_defs[size].shift;
 
 	avpn = (HPTE_V_AVPN_VAL(hpte_v) & ~mmu_psize_defs[size].avpnm);
@@ -719,6 +723,12 @@ static void native_flush_hash_range(unsigned long number, int local)
 	local_irq_restore(flags);
 }
 
+static int native_update_partition_table(u64 patb1)
+{
+	partition_tb->patb1 = cpu_to_be64(patb1);
+	return 0;
+}
+
 void __init hpte_init_native(void)
 {
 	ppc_md.hpte_invalidate	= native_hpte_invalidate;
@@ -729,4 +739,7 @@ void __init hpte_init_native(void)
 	ppc_md.hpte_clear_all	= native_hpte_clear;
 	ppc_md.flush_hash_range = native_flush_hash_range;
 	ppc_md.hugepage_invalidate   = native_hugepage_invalidate;
+
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		ppc_md.update_partition_table = native_update_partition_table;
 }

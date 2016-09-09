@@ -28,7 +28,7 @@
  * }
  * ulist_free(ulist);
  *
- * This assumes the graph nodes are adressable by u64. This stems from the
+ * This assumes the graph nodes are addressable by u64. This stems from the
  * usage for tree enumeration in btrfs, where the logical addresses are
  * 64 bit.
  *

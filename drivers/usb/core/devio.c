@@ -216,7 +216,7 @@ static void usbdev_vm_close(struct vm_area_struct *vma)
 	dec_usb_memory_use_count(usbm, &usbm->vma_use_count);
 }
 
-struct vm_operations_struct usbdev_vm_ops = {
+static struct vm_operations_struct usbdev_vm_ops = {
 	.open = usbdev_vm_open,
 	.close = usbdev_vm_close
 };
@@ -1316,10 +1316,11 @@ static int proc_getdriver(struct usb_dev_state *ps, void __user *arg)
 
 static int proc_connectinfo(struct usb_dev_state *ps, void __user *arg)
 {
-	struct usbdevfs_connectinfo ci = {
-		.devnum = ps->dev->devnum,
-		.slow = ps->dev->speed == USB_SPEED_LOW
-	};
+	struct usbdevfs_connectinfo ci;
+
+	memset(&ci, 0, sizeof(ci));
+	ci.devnum = ps->dev->devnum;
+	ci.slow = ps->dev->speed == USB_SPEED_LOW;
 
 	if (copy_to_user(arg, &ci, sizeof(ci)))
 		return -EFAULT;

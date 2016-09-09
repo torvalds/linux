@@ -55,11 +55,11 @@
 
 struct mma7455_data {
 	struct regmap *regmap;
-	struct device *dev;
 };
 
 static int mma7455_drdy(struct mma7455_data *mma7455)
 {
+	struct device *dev = regmap_get_device(mma7455->regmap);
 	unsigned int reg;
 	int tries = 3;
 	int ret;
@@ -75,7 +75,7 @@ static int mma7455_drdy(struct mma7455_data *mma7455)
 		msleep(20);
 	}
 
-	dev_warn(mma7455->dev, "data not ready\n");
+	dev_warn(dev, "data not ready\n");
 
 	return -EIO;
 }
@@ -260,7 +260,6 @@ int mma7455_core_probe(struct device *dev, struct regmap *regmap,
 	dev_set_drvdata(dev, indio_dev);
 	mma7455 = iio_priv(indio_dev);
 	mma7455->regmap = regmap;
-	mma7455->dev = dev;
 
 	indio_dev->info = &mma7455_info;
 	indio_dev->name = name;

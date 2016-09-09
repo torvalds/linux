@@ -815,7 +815,7 @@ static int rk_iommu_attach_device(struct iommu_domain *domain,
 	dte_addr = virt_to_phys(rk_domain->dt);
 	for (i = 0; i < iommu->num_mmu; i++) {
 		rk_iommu_write(iommu->bases[i], RK_MMU_DTE_ADDR, dte_addr);
-		rk_iommu_command(iommu->bases[i], RK_MMU_CMD_ZAP_CACHE);
+		rk_iommu_base_command(iommu->bases[i], RK_MMU_CMD_ZAP_CACHE);
 		rk_iommu_write(iommu->bases[i], RK_MMU_INT_MASK, RK_MMU_IRQ_MASK);
 	}
 
@@ -1049,6 +1049,8 @@ static int rk_iommu_probe(struct platform_device *pdev)
 
 	for (i = 0; i < pdev->num_resources; i++) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
+		if (!res)
+			continue;
 		iommu->bases[i] = devm_ioremap_resource(&pdev->dev, res);
 		if (IS_ERR(iommu->bases[i]))
 			continue;

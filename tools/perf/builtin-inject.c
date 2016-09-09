@@ -748,6 +748,7 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 			.auxtrace_info	= perf_event__repipe_op2_synth,
 			.auxtrace	= perf_event__repipe_auxtrace,
 			.auxtrace_error	= perf_event__repipe_op2_synth,
+			.time_conv	= perf_event__repipe_op2_synth,
 			.finished_round	= perf_event__repipe_oe_synth,
 			.build_id	= perf_event__repipe_op2_synth,
 			.id_index	= perf_event__repipe_op2_synth,

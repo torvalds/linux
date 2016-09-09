@@ -232,7 +232,7 @@ static int __init shirq_init(struct spear_shirq **shirq_blocks, int block_nr,
 		nr_irqs += shirq_blocks[i]->nr_irqs;
 
 	virq_base = irq_alloc_descs(-1, 0, nr_irqs, 0);
-	if (IS_ERR_VALUE(virq_base)) {
+	if (virq_base < 0) {
 		pr_err("%s: irq desc alloc failed\n", __func__);
 		goto err_unmap;
 	}

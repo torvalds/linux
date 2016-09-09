@@ -49,6 +49,10 @@ struct vc4_crtc {
 	/* Which HVS channel we're using for our CRTC. */
 	int channel;
 
+	u8 lut_r[256];
+	u8 lut_g[256];
+	u8 lut_b[256];
+
 	struct drm_pending_vblank_event *event;
 };
 
@@ -145,6 +149,46 @@ int vc4_crtc_debugfs_regs(struct seq_file *m, void *unused)
 static void vc4_crtc_destroy(struct drm_crtc *crtc)
 {
 	drm_crtc_cleanup(crtc);
+}
+
+static void
+vc4_crtc_lut_load(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+	u32 i;
+
+	/* The LUT memory is laid out with each HVS channel in order,
+	 * each of which takes 256 writes for R, 256 for G, then 256
+	 * for B.
+	 */
+	HVS_WRITE(SCALER_GAMADDR,
+		  SCALER_GAMADDR_AUTOINC |
+		  (vc4_crtc->channel * 3 * crtc->gamma_size));
+
+	for (i = 0; i < crtc->gamma_size; i++)
+		HVS_WRITE(SCALER_GAMDATA, vc4_crtc->lut_r[i]);
+	for (i = 0; i < crtc->gamma_size; i++)
+		HVS_WRITE(SCALER_GAMDATA, vc4_crtc->lut_g[i]);
+	for (i = 0; i < crtc->gamma_size; i++)
+		HVS_WRITE(SCALER_GAMDATA, vc4_crtc->lut_b[i]);
+}
+
+static void
+vc4_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
+		   uint32_t start, uint32_t size)
+{
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+	u32 i;
+
+	for (i = start; i < start + size; i++) {
+		vc4_crtc->lut_r[i] = r[i] >> 8;
+		vc4_crtc->lut_g[i] = g[i] >> 8;
+		vc4_crtc->lut_b[i] = b[i] >> 8;
+	}
+
+	vc4_crtc_lut_load(crtc);
 }
 
 static u32 vc4_get_fifo_full_level(u32 format)
@@ -260,7 +304,13 @@ static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 
 	HVS_WRITE(SCALER_DISPBKGNDX(vc4_crtc->channel),
 		  SCALER_DISPBKGND_AUTOHS |
+		  SCALER_DISPBKGND_GAMMA |
 		  (interlace ? SCALER_DISPBKGND_INTERLACE : 0));
+
+	/* Reload the LUT, since the SRAMs would have been disabled if
+	 * all CRTCs had SCALER_DISPBKGND_GAMMA unset at once.
+	 */
+	vc4_crtc_lut_load(crtc);
 
 	if (debug_dump_regs) {
 		DRM_INFO("CRTC %d regs after:\n", drm_crtc_index(crtc));
@@ -406,14 +456,6 @@ static void vc4_crtc_atomic_flush(struct drm_crtc *crtc,
 
 	WARN_ON_ONCE(dlist_next - dlist_start != vc4_state->mm.size);
 
-	HVS_WRITE(SCALER_DISPLISTX(vc4_crtc->channel),
-		  vc4_state->mm.start);
-
-	if (debug_dump_regs) {
-		DRM_INFO("CRTC %d HVS after:\n", drm_crtc_index(crtc));
-		vc4_hvs_dump_state(dev);
-	}
-
 	if (crtc->state->event) {
 		unsigned long flags;
 
@@ -423,8 +465,20 @@ static void vc4_crtc_atomic_flush(struct drm_crtc *crtc,
 
 		spin_lock_irqsave(&dev->event_lock, flags);
 		vc4_crtc->event = crtc->state->event;
-		spin_unlock_irqrestore(&dev->event_lock, flags);
 		crtc->state->event = NULL;
+
+		HVS_WRITE(SCALER_DISPLISTX(vc4_crtc->channel),
+			  vc4_state->mm.start);
+
+		spin_unlock_irqrestore(&dev->event_lock, flags);
+	} else {
+		HVS_WRITE(SCALER_DISPLISTX(vc4_crtc->channel),
+			  vc4_state->mm.start);
+	}
+
+	if (debug_dump_regs) {
+		DRM_INFO("CRTC %d HVS after:\n", drm_crtc_index(crtc));
+		vc4_hvs_dump_state(dev);
 	}
 }
 
@@ -450,12 +504,17 @@ static void vc4_crtc_handle_page_flip(struct vc4_crtc *vc4_crtc)
 {
 	struct drm_crtc *crtc = &vc4_crtc->base;
 	struct drm_device *dev = crtc->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
+	u32 chan = vc4_crtc->channel;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
-	if (vc4_crtc->event) {
+	if (vc4_crtc->event &&
+	    (vc4_state->mm.start == HVS_READ(SCALER_DISPLACTX(chan)))) {
 		drm_crtc_send_vblank_event(crtc, vc4_crtc->event);
 		vc4_crtc->event = NULL;
+		drm_crtc_vblank_put(crtc);
 	}
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
@@ -506,6 +565,7 @@ vc4_async_page_flip_complete(struct vc4_seqno_cb *cb)
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
 
+	drm_crtc_vblank_put(crtc);
 	drm_framebuffer_unreference(flip_state->fb);
 	kfree(flip_state);
 
@@ -547,6 +607,8 @@ static int vc4_async_page_flip(struct drm_crtc *crtc,
 		kfree(flip_state);
 		return ret;
 	}
+
+	WARN_ON(drm_crtc_vblank_get(crtc) != 0);
 
 	/* Immediately update the plane's legacy fb pointer, so that later
 	 * modeset prep sees the state that will be present when the semaphore
@@ -600,7 +662,7 @@ static void vc4_crtc_destroy_state(struct drm_crtc *crtc,
 
 	}
 
-	__drm_atomic_helper_crtc_destroy_state(crtc, state);
+	__drm_atomic_helper_crtc_destroy_state(state);
 }
 
 static const struct drm_crtc_funcs vc4_crtc_funcs = {
@@ -613,6 +675,7 @@ static const struct drm_crtc_funcs vc4_crtc_funcs = {
 	.reset = drm_atomic_helper_crtc_reset,
 	.atomic_duplicate_state = vc4_crtc_duplicate_state,
 	.atomic_destroy_state = vc4_crtc_destroy_state,
+	.gamma_set = vc4_crtc_gamma_set,
 };
 
 static const struct drm_crtc_helper_funcs vc4_crtc_helper_funcs = {
@@ -711,6 +774,7 @@ static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 	primary_plane->crtc = crtc;
 	vc4->crtc[drm_crtc_index(crtc)] = vc4_crtc;
 	vc4_crtc->channel = vc4_crtc->data->hvs_channel;
+	drm_mode_crtc_set_gamma_size(crtc, ARRAY_SIZE(vc4_crtc->lut_r));
 
 	/* Set up some arbitrary number of planes.  We're not limited
 	 * by a set number of physical registers, just the space in
@@ -750,6 +814,12 @@ static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 		goto err_destroy_planes;
 
 	vc4_set_crtc_possible_masks(drm, crtc);
+
+	for (i = 0; i < crtc->gamma_size; i++) {
+		vc4_crtc->lut_r[i] = i;
+		vc4_crtc->lut_g[i] = i;
+		vc4_crtc->lut_b[i] = i;
+	}
 
 	platform_set_drvdata(pdev, vc4_crtc);
 

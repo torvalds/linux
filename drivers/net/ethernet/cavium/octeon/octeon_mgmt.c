@@ -1320,7 +1320,7 @@ static int octeon_mgmt_xmit(struct sk_buff *skb, struct net_device *netdev)
 	/* Ring the bell.  */
 	cvmx_write_csr(p->mix + MIX_ORING2, 1);
 
-	netdev->trans_start = jiffies;
+	netif_trans_update(netdev);
 	rv = NETDEV_TX_OK;
 out:
 	octeon_mgmt_update_tx_stats(netdev);

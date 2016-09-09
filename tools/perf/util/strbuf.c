@@ -1,3 +1,4 @@
+#include "debug.h"
 #include "cache.h"
 #include <linux/kernel.h>
 
@@ -17,12 +18,13 @@ int prefixcmp(const char *str, const char *prefix)
  */
 char strbuf_slopbuf[1];
 
-void strbuf_init(struct strbuf *sb, ssize_t hint)
+int strbuf_init(struct strbuf *sb, ssize_t hint)
 {
 	sb->alloc = sb->len = 0;
 	sb->buf = strbuf_slopbuf;
 	if (hint)
-		strbuf_grow(sb, hint);
+		return strbuf_grow(sb, hint);
+	return 0;
 }
 
 void strbuf_release(struct strbuf *sb)
@@ -42,67 +44,104 @@ char *strbuf_detach(struct strbuf *sb, size_t *sz)
 	return res;
 }
 
-void strbuf_grow(struct strbuf *sb, size_t extra)
+int strbuf_grow(struct strbuf *sb, size_t extra)
 {
-	if (sb->len + extra + 1 <= sb->len)
-		die("you want to use way too much memory");
-	if (!sb->alloc)
-		sb->buf = NULL;
-	ALLOC_GROW(sb->buf, sb->len + extra + 1, sb->alloc);
+	char *buf;
+	size_t nr = sb->len + extra + 1;
+
+	if (nr < sb->alloc)
+		return 0;
+
+	if (nr <= sb->len)
+		return -E2BIG;
+
+	if (alloc_nr(sb->alloc) > nr)
+		nr = alloc_nr(sb->alloc);
+
+	/*
+	 * Note that sb->buf == strbuf_slopbuf if sb->alloc == 0, and it is
+	 * a static variable. Thus we have to avoid passing it to realloc.
+	 */
+	buf = realloc(sb->alloc ? sb->buf : NULL, nr * sizeof(*buf));
+	if (!buf)
+		return -ENOMEM;
+
+	sb->buf = buf;
+	sb->alloc = nr;
+	return 0;
 }
 
-void strbuf_addch(struct strbuf *sb, int c)
+int strbuf_addch(struct strbuf *sb, int c)
 {
-	strbuf_grow(sb, 1);
+	int ret = strbuf_grow(sb, 1);
+	if (ret)
+		return ret;
+
 	sb->buf[sb->len++] = c;
 	sb->buf[sb->len] = '\0';
+	return 0;
 }
 
-void strbuf_add(struct strbuf *sb, const void *data, size_t len)
+int strbuf_add(struct strbuf *sb, const void *data, size_t len)
 {
-	strbuf_grow(sb, len);
+	int ret = strbuf_grow(sb, len);
+	if (ret)
+		return ret;
+
 	memcpy(sb->buf + sb->len, data, len);
-	strbuf_setlen(sb, sb->len + len);
+	return strbuf_setlen(sb, sb->len + len);
 }
 
-static void strbuf_addv(struct strbuf *sb, const char *fmt, va_list ap)
+static int strbuf_addv(struct strbuf *sb, const char *fmt, va_list ap)
 {
-	int len;
+	int len, ret;
 	va_list ap_saved;
 
-	if (!strbuf_avail(sb))
-		strbuf_grow(sb, 64);
+	if (!strbuf_avail(sb)) {
+		ret = strbuf_grow(sb, 64);
+		if (ret)
+			return ret;
+	}
 
 	va_copy(ap_saved, ap);
 	len = vsnprintf(sb->buf + sb->len, sb->alloc - sb->len, fmt, ap);
 	if (len < 0)
-		die("your vsnprintf is broken");
+		return len;
 	if (len > strbuf_avail(sb)) {
-		strbuf_grow(sb, len);
+		ret = strbuf_grow(sb, len);
+		if (ret)
+			return ret;
 		len = vsnprintf(sb->buf + sb->len, sb->alloc - sb->len, fmt, ap_saved);
 		va_end(ap_saved);
 		if (len > strbuf_avail(sb)) {
-			die("this should not happen, your vsnprintf is broken");
+			pr_debug("this should not happen, your vsnprintf is broken");
+			return -EINVAL;
 		}
 	}
-	strbuf_setlen(sb, sb->len + len);
+	return strbuf_setlen(sb, sb->len + len);
 }
 
-void strbuf_addf(struct strbuf *sb, const char *fmt, ...)
+int strbuf_addf(struct strbuf *sb, const char *fmt, ...)
 {
 	va_list ap;
+	int ret;
 
 	va_start(ap, fmt);
-	strbuf_addv(sb, fmt, ap);
+	ret = strbuf_addv(sb, fmt, ap);
 	va_end(ap);
+	return ret;
 }
 
 ssize_t strbuf_read(struct strbuf *sb, int fd, ssize_t hint)
 {
 	size_t oldlen = sb->len;
 	size_t oldalloc = sb->alloc;
+	int ret;
 
-	strbuf_grow(sb, hint ? hint : 8192);
+	ret = strbuf_grow(sb, hint ? hint : 8192);
+	if (ret)
+		return ret;
+
 	for (;;) {
 		ssize_t cnt;
 
@@ -112,12 +151,14 @@ ssize_t strbuf_read(struct strbuf *sb, int fd, ssize_t hint)
 				strbuf_release(sb);
 			else
 				strbuf_setlen(sb, oldlen);
-			return -1;
+			return cnt;
 		}
 		if (!cnt)
 			break;
 		sb->len += cnt;
-		strbuf_grow(sb, 8192);
+		ret = strbuf_grow(sb, 8192);
+		if (ret)
+			return ret;
 	}
 
 	sb->buf[sb->len] = '\0';

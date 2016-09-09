@@ -123,7 +123,7 @@ int tipc_nl_parse_link_prop(struct nlattr *prop, struct nlattr *props[]);
 int tipc_link_timeout(struct tipc_link *l, struct sk_buff_head *xmitq);
 int tipc_link_rcv(struct tipc_link *l, struct sk_buff *skb,
 		  struct sk_buff_head *xmitq);
-int tipc_link_build_ack_msg(struct tipc_link *l, struct sk_buff_head *xmitq);
+int tipc_link_build_state_msg(struct tipc_link *l, struct sk_buff_head *xmitq);
 void tipc_link_add_bc_peer(struct tipc_link *snd_l,
 			   struct tipc_link *uc_l,
 			   struct sk_buff_head *xmitq);

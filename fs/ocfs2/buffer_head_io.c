@@ -139,11 +139,16 @@ int ocfs2_read_blocks_sync(struct ocfs2_super *osb, u64 block,
 
 		lock_buffer(bh);
 		if (buffer_jbd(bh)) {
+#ifdef CATCH_BH_JBD_RACES
 			mlog(ML_ERROR,
 			     "block %llu had the JBD bit set "
 			     "while I was in lock_buffer!",
 			     (unsigned long long)bh->b_blocknr);
 			BUG();
+#else
+			unlock_buffer(bh);
+			continue;
+#endif
 		}
 
 		clear_buffer_uptodate(bh);

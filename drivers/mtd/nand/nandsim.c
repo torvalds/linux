@@ -569,7 +569,7 @@ static void nandsim_debugfs_remove(struct nandsim *ns)
  *
  * RETURNS: 0 if success, -ENOMEM if memory alloc fails.
  */
-static int alloc_device(struct nandsim *ns)
+static int __init alloc_device(struct nandsim *ns)
 {
 	struct file *cfile;
 	int i, err;
@@ -654,7 +654,7 @@ static void free_device(struct nandsim *ns)
 	}
 }
 
-static char *get_partition_name(int i)
+static char __init *get_partition_name(int i)
 {
 	return kasprintf(GFP_KERNEL, "NAND simulator partition %d", i);
 }
@@ -664,7 +664,7 @@ static char *get_partition_name(int i)
  *
  * RETURNS: 0 if success, -ERRNO if failure.
  */
-static int init_nandsim(struct mtd_info *mtd)
+static int __init init_nandsim(struct mtd_info *mtd)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct nandsim   *ns   = nand_get_controller_data(chip);
@@ -2261,6 +2261,7 @@ static int __init ns_init_module(void)
 	chip->read_buf   = ns_nand_read_buf;
 	chip->read_word  = ns_nand_read_word;
 	chip->ecc.mode   = NAND_ECC_SOFT;
+	chip->ecc.algo   = NAND_ECC_HAMMING;
 	/* The NAND_SKIP_BBTSCAN option is necessary for 'overridesize' */
 	/* and 'badblocks' parameters to work */
 	chip->options   |= NAND_SKIP_BBTSCAN;
@@ -2338,7 +2339,8 @@ static int __init ns_init_module(void)
 			retval = -EINVAL;
 			goto error;
 		}
-		chip->ecc.mode = NAND_ECC_SOFT_BCH;
+		chip->ecc.mode = NAND_ECC_SOFT;
+		chip->ecc.algo = NAND_ECC_BCH;
 		chip->ecc.size = 512;
 		chip->ecc.strength = bch;
 		chip->ecc.bytes = eccbytes;

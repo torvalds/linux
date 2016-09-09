@@ -115,7 +115,7 @@ static __initconst const u64 amd_hw_cache_event_ids
 /*
  * AMD Performance Monitor K7 and later.
  */
-static const u64 amd_perfmon_event_map[] =
+static const u64 amd_perfmon_event_map[PERF_COUNT_HW_MAX] =
 {
   [PERF_COUNT_HW_CPU_CYCLES]			= 0x0076,
   [PERF_COUNT_HW_INSTRUCTIONS]			= 0x00c0,

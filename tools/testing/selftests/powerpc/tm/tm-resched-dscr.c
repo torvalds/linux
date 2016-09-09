@@ -31,12 +31,6 @@
 #include "utils.h"
 #include "tm.h"
 
-#define TBEGIN          ".long 0x7C00051D ;"
-#define TEND            ".long 0x7C00055D ;"
-#define TCHECK          ".long 0x7C00059C ;"
-#define TSUSPEND        ".long 0x7C0005DD ;"
-#define TRESUME         ".long 0x7C2005DD ;"
-#define SPRN_TEXASR     0x82
 #define SPRN_DSCR       0x03
 
 int test_body(void)
@@ -55,13 +49,13 @@ int test_body(void)
 			"mtspr   %[sprn_dscr], 3;"
 
 			/* start and suspend a transaction */
-			TBEGIN
+			"tbegin.;"
 			"beq     1f;"
-			TSUSPEND
+			"tsuspend.;"
 
 			/* hard loop until the transaction becomes doomed */
 			"2: ;"
-			TCHECK
+			"tcheck 0;"
 			"bc      4, 0, 2b;"
 
 			/* record DSCR and TEXASR */
@@ -70,8 +64,8 @@ int test_body(void)
 			"mfspr   3, %[sprn_texasr];"
 			"std     3, %[texasr];"
 
-			TRESUME
-			TEND
+			"tresume.;"
+			"tend.;"
 			"li      %[rv], 0;"
 			"1: ;"
 			: [rv]"=r"(rv), [dscr2]"=m"(dscr2), [texasr]"=m"(texasr)

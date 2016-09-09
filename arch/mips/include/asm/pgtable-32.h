@@ -103,8 +103,8 @@ static inline void pmd_clear(pmd_t *pmdp)
 	pmd_val(*pmdp) = ((unsigned long) invalid_pte_table);
 }
 
-#if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
-#define pte_page(x)		pfn_to_page(pte_pfn(x))
+#if defined(CONFIG_XPA)
+
 #define pte_pfn(x)		(((unsigned long)((x).pte_high >> _PFN_SHIFT)) | (unsigned long)((x).pte_low << _PAGE_PRESENT_SHIFT))
 static inline pte_t
 pfn_pte(unsigned long pfn, pgprot_t prot)
@@ -118,9 +118,21 @@ pfn_pte(unsigned long pfn, pgprot_t prot)
 	return pte;
 }
 
-#else
+#elif defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
 
-#define pte_page(x)		pfn_to_page(pte_pfn(x))
+#define pte_pfn(x)		((unsigned long)((x).pte_high >> 6))
+
+static inline pte_t pfn_pte(unsigned long pfn, pgprot_t prot)
+{
+	pte_t pte;
+
+	pte.pte_high = (pfn << 6) | (pgprot_val(prot) & 0x3f);
+	pte.pte_low = pgprot_val(prot);
+
+	return pte;
+}
+
+#else
 
 #ifdef CONFIG_CPU_VR41XX
 #define pte_pfn(x)		((unsigned long)((x).pte >> (PAGE_SHIFT + 2)))
@@ -130,6 +142,8 @@ pfn_pte(unsigned long pfn, pgprot_t prot)
 #define pfn_pte(pfn, prot)	__pte(((unsigned long long)(pfn) << _PFN_SHIFT) | pgprot_val(prot))
 #endif
 #endif /* defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32) */
+
+#define pte_page(x)		pfn_to_page(pte_pfn(x))
 
 #define __pgd_offset(address)	pgd_index(address)
 #define __pud_offset(address)	(((address) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
@@ -166,12 +180,21 @@ pfn_pte(unsigned long pfn, pgprot_t prot)
 
 #else
 
-#if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
+#if defined(CONFIG_XPA)
 
 /* Swap entries must have VALID and GLOBAL bits cleared. */
 #define __swp_type(x)			(((x).val >> 4) & 0x1f)
 #define __swp_offset(x)			 ((x).val >> 9)
 #define __swp_entry(type,offset)	((swp_entry_t)  { ((type) << 4) | ((offset) << 9) })
+#define __pte_to_swp_entry(pte)		((swp_entry_t) { (pte).pte_high })
+#define __swp_entry_to_pte(x)		((pte_t) { 0, (x).val })
+
+#elif defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
+
+/* Swap entries must have VALID and GLOBAL bits cleared. */
+#define __swp_type(x)			(((x).val >> 2) & 0x1f)
+#define __swp_offset(x)			 ((x).val >> 7)
+#define __swp_entry(type, offset)	((swp_entry_t)  { ((type) << 2) | ((offset) << 7) })
 #define __pte_to_swp_entry(pte)		((swp_entry_t) { (pte).pte_high })
 #define __swp_entry_to_pte(x)		((pte_t) { 0, (x).val })
 

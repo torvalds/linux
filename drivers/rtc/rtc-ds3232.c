@@ -369,6 +369,11 @@ static int ds3232_probe(struct device *dev, struct regmap *regmap, int irq,
 	if (ret)
 		return ret;
 
+	ds3232->rtc = devm_rtc_device_register(dev, name, &ds3232_rtc_ops,
+						THIS_MODULE);
+	if (IS_ERR(ds3232->rtc))
+		return PTR_ERR(ds3232->rtc);
+
 	if (ds3232->irq > 0) {
 		ret = devm_request_threaded_irq(dev, ds3232->irq, NULL,
 						ds3232_irq,
@@ -380,10 +385,8 @@ static int ds3232_probe(struct device *dev, struct regmap *regmap, int irq,
 		} else
 			device_init_wakeup(dev, 1);
 	}
-	ds3232->rtc = devm_rtc_device_register(dev, name, &ds3232_rtc_ops,
-						THIS_MODULE);
 
-	return PTR_ERR_OR_ZERO(ds3232->rtc);
+	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

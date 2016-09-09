@@ -140,7 +140,7 @@ int mlx5_core_sriov_configure(struct pci_dev *pdev, int num_vfs)
 	struct mlx5_core_sriov *sriov = &dev->priv.sriov;
 	int err;
 
-	mlx5_core_dbg(dev, "requsted num_vfs %d\n", num_vfs);
+	mlx5_core_dbg(dev, "requested num_vfs %d\n", num_vfs);
 	if (!mlx5_core_is_pf(dev))
 		return -EPERM;
 

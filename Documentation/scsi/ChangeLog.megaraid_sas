@@ -63,7 +63,7 @@ Release Date    : Sat. Feb 9, 2013 17:00:00 PST 2013 -
 Current Version : 06.506.00.00-rc1
 Old Version     : 06.504.01.00-rc1
     1. Add 4k FastPath DIF support.
-    2. Dont load DevHandle unless FastPath enabled.
+    2. Don't load DevHandle unless FastPath enabled.
     3. Version and Changelog update.
 -------------------------------------------------------------------------------
 Release Date    : Mon. Oct 1, 2012 17:00:00 PST 2012 -
@@ -105,7 +105,7 @@ Old Version     : 00.00.06.12-rc1
     1. Fix reglockFlags for degraded raid5/6 for MR 9360/9380.
     2. Mask off flags in ioctl path to prevent memory scribble with older
        MegaCLI versions.
-    3. Remove poll_mode_io module paramater, sysfs node, and associated code.
+    3. Remove poll_mode_io module parameter, sysfs node, and associated code.
 -------------------------------------------------------------------------------
 Release Date    : Wed. Oct 5, 2011 17:00:00 PST 2010 -
 			(emaild-id:megaraidlinux@lsi.com)
@@ -199,7 +199,7 @@ Old Version     : 00.00.04.31-rc1
 1.	Add the Online Controller Reset (OCR) to the Driver.
 	OCR is the new feature for megaraid_sas driver which
 	will allow the fw to do the chip reset which will not
-	affact the OS behavious.
+	affect the OS behavior.
 
 	To add the OCR support, driver need to do:
 		a). reset the controller chips -- Xscale and Gen2 which
@@ -233,7 +233,7 @@ Old Version     : 00.00.04.31-rc1
 	failed state.  Driver will kill adapter if can't bring back FW after the
 	this three times reset.
 4.	Add the input parameter max_sectors to 1MB support to our GEN2 controller.
-	customer can use the input paramenter max_sectors to add 1MB support to GEN2
+	customer can use the input parameter max_sectors to add 1MB support to GEN2
 	controller.
 
 1 Release Date    : Thur.  Oct 29, 2009 09:12:45 PST 2009 -
@@ -582,11 +582,11 @@ ii.	Bug fix : Disable controller interrupt before firing INIT cmd to FW.
 
 1 Release Date    : Wed Feb 03 14:31:44 PST 2006 - Sumant Patro <Sumant.Patro@lsil.com>
 2 Current Version : 00.00.02.04
-3 Older Version   : 00.00.02.04 
+3 Older Version   : 00.00.02.04
 
-i.	Remove superflous instance_lock
+i.	Remove superfluous instance_lock
 
-	gets rid of the otherwise superflous instance_lock and avoids an unsave 
+	gets rid of the otherwise superfluous instance_lock and avoids an unsafe
 	unsynchronized access in the error handler.
 
 		- Christoph Hellwig <hch@lst.de>
@@ -594,43 +594,43 @@ i.	Remove superflous instance_lock
 
 1 Release Date    : Wed Feb 03 14:31:44 PST 2006 - Sumant Patro <Sumant.Patro@lsil.com>
 2 Current Version : 00.00.02.04
-3 Older Version   : 00.00.02.04 
+3 Older Version   : 00.00.02.04
 
 i.	Support for 1078 type (ppc IOP) controller, device id : 0x60 added.
-	During initialization, depending on the device id, the template members 
-	are initialized with function pointers specific to the ppc or 
-	xscale controllers.  
+	During initialization, depending on the device id, the template members
+	are initialized with function pointers specific to the ppc or
+	xscale controllers.
 
 		-Sumant Patro <Sumant.Patro@lsil.com>
 		
-1 Release Date    : Fri Feb 03 14:16:25 PST 2006 - Sumant Patro 
+1 Release Date    : Fri Feb 03 14:16:25 PST 2006 - Sumant Patro
 							<Sumant.Patro@lsil.com>
 2 Current Version : 00.00.02.04
-3 Older Version   : 00.00.02.02 
-i.	Register 16 byte CDB capability with scsi midlayer 
+3 Older Version   : 00.00.02.02
+i.	Register 16 byte CDB capability with scsi midlayer
 
-	"This patch properly registers the 16 byte command length capability of the 
-	megaraid_sas controlled hardware with the scsi midlayer. All megaraid_sas 
+	"This patch properly registers the 16 byte command length capability of the
+	megaraid_sas controlled hardware with the scsi midlayer. All megaraid_sas
 	hardware supports 16 byte CDB's."
 
-		-Joshua Giles <joshua_giles@dell.com> 
+		-Joshua Giles <joshua_giles@dell.com>
 
 1 Release Date    : Mon Jan 23 14:09:01 PST 2006 - Sumant Patro <Sumant.Patro@lsil.com>
 2 Current Version : 00.00.02.02
-3 Older Version   : 00.00.02.01 
+3 Older Version   : 00.00.02.01
 
-i.	New template defined to represent each family of controllers (identified by processor used). 
-	The template will have defintions that will be initialised to appropritae values for a specific family of controllers. The template definition has four function pointers. During driver initialisation the function pointers will be set based on the controller family type. This change is done to support new controllers that has different processors and thus different register set.
+i.	New template defined to represent each family of controllers (identified by processor used).
+	The template will have definitions that will be initialised to appropriate values for a specific family of controllers. The template definition has four function pointers. During driver initialisation the function pointers will be set based on the controller family type. This change is done to support new controllers that has different processors and thus different register set.
 
 		-Sumant Patro <Sumant.Patro@lsil.com>
 
 1 Release Date    : Mon Dec 19 14:36:26 PST 2005 - Sumant Patro <Sumant.Patro@lsil.com>
-2 Current Version : 00.00.02.00-rc4 
-3 Older Version   : 00.00.02.01 
+2 Current Version : 00.00.02.00-rc4
+3 Older Version   : 00.00.02.01
 
-i.	Code reorganized to remove code duplication in megasas_build_cmd. 
+i.	Code reorganized to remove code duplication in megasas_build_cmd.
 
-	"There's a lot of duplicate code megasas_build_cmd.  Move that out of the different codepathes and merge the reminder of megasas_build_cmd into megasas_queue_command"
+	"There's a lot of duplicate code megasas_build_cmd.  Move that out of the different codepaths and merge the reminder of megasas_build_cmd into megasas_queue_command"
 
 		- Christoph Hellwig <hch@lst.de>
 

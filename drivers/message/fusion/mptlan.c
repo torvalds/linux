@@ -791,7 +791,7 @@ mpt_lan_sdu_send (struct sk_buff *skb, struct net_device *dev)
 		pSimple->Address.High = 0;
 
 	mpt_put_msg_frame (LanCtx, mpt_dev, mf);
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 
 	dioprintk((KERN_INFO MYNAM ": %s/%s: Sending packet. FlagsLength = %08x.\n",
 			IOC_AND_NETDEV_NAMES_s_s(dev),

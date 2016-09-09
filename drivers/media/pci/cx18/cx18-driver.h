@@ -707,11 +707,7 @@ static inline int cx18_raw_vbi(const struct cx18 *cx)
 /* Call the specified callback for all subdevs with a grp_id bit matching the
  * mask in hw (if 0, then match them all). Ignore any errors. */
 #define cx18_call_hw(cx, hw, o, f, args...)				\
-	do {								\
-		struct v4l2_subdev *__sd;				\
-		__v4l2_device_call_subdevs_p(&(cx)->v4l2_dev, __sd,	\
-			!(hw) || (__sd->grp_id & (hw)), o, f , ##args);	\
-	} while (0)
+	v4l2_device_mask_call_all(&(cx)->v4l2_dev, hw, o, f, ##args)
 
 #define cx18_call_all(cx, o, f, args...) cx18_call_hw(cx, 0, o, f , ##args)
 
@@ -719,12 +715,7 @@ static inline int cx18_raw_vbi(const struct cx18 *cx)
  * mask in hw (if 0, then match them all). If the callback returns an error
  * other than 0 or -ENOIOCTLCMD, then return with that error code. */
 #define cx18_call_hw_err(cx, hw, o, f, args...)				\
-({									\
-	struct v4l2_subdev *__sd;					\
-	__v4l2_device_call_subdevs_until_err_p(&(cx)->v4l2_dev,		\
-			__sd, !(hw) || (__sd->grp_id & (hw)), o, f,	\
-			##args);					\
-})
+	v4l2_device_mask_call_until_err(&(cx)->v4l2_dev, hw, o, f, ##args)
 
 #define cx18_call_all_err(cx, o, f, args...) \
 	cx18_call_hw_err(cx, 0, o, f , ##args)

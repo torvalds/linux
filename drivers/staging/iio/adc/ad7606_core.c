@@ -36,7 +36,7 @@ int ad7606_reset(struct ad7606_state *st)
 	return -ENODEV;
 }
 
-static int ad7606_scan_direct(struct iio_dev *indio_dev, unsigned ch)
+static int ad7606_scan_direct(struct iio_dev *indio_dev, unsigned int ch)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
 	int ret;
@@ -88,12 +88,12 @@ static int ad7606_read_raw(struct iio_dev *indio_dev,
 
 	switch (m) {
 	case IIO_CHAN_INFO_RAW:
-		mutex_lock(&indio_dev->mlock);
-		if (iio_buffer_enabled(indio_dev))
-			ret = -EBUSY;
-		else
-			ret = ad7606_scan_direct(indio_dev, chan->address);
-		mutex_unlock(&indio_dev->mlock);
+		ret = iio_device_claim_direct_mode(indio_dev);
+		if (ret)
+			return ret;
+
+		ret = ad7606_scan_direct(indio_dev, chan->address);
+		iio_device_release_direct_mode(indio_dev);
 
 		if (ret < 0)
 			return ret;
@@ -155,7 +155,7 @@ static ssize_t ad7606_show_oversampling_ratio(struct device *dev,
 	return sprintf(buf, "%u\n", st->oversampling);
 }
 
-static int ad7606_oversampling_get_index(unsigned val)
+static int ad7606_oversampling_get_index(unsigned int val)
 {
 	unsigned char supported[] = {0, 2, 4, 8, 16, 32, 64};
 	int i;
@@ -446,7 +446,7 @@ static const struct iio_info ad7606_info_range = {
 
 struct iio_dev *ad7606_probe(struct device *dev, int irq,
 			     void __iomem *base_address,
-			     unsigned id,
+			     unsigned int id,
 			     const struct ad7606_bus_ops *bops)
 {
 	struct ad7606_platform_data *pdata = dev->platform_data;

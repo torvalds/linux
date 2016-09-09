@@ -22,7 +22,6 @@ OBJECTS += $(obj)/head.o $(obj)/misc.o $(obj)/piggy.o
 LDFLAGS_vmlinux := --oformat $(LD_BFD) -e startup -T
 $(obj)/vmlinux: $(obj)/vmlinux.lds $(OBJECTS)
 	$(call if_changed,ld)
-	@:
 
 sed-sizes := -e 's/^\([0-9a-fA-F]*\) . \(__bss_start\|_end\)$$/\#define SZ\2 0x\1/p'
 

@@ -333,16 +333,6 @@ static void vhost_scsi_release_cmd(struct se_cmd *se_cmd)
 	percpu_ida_free(&se_sess->sess_tag_pool, se_cmd->map_tag);
 }
 
-static int vhost_scsi_shutdown_session(struct se_session *se_sess)
-{
-	return 0;
-}
-
-static void vhost_scsi_close_session(struct se_session *se_sess)
-{
-	return;
-}
-
 static u32 vhost_scsi_sess_get_index(struct se_session *se_sess)
 {
 	return 0;
@@ -2114,8 +2104,6 @@ static struct target_core_fabric_ops vhost_scsi_ops = {
 	.tpg_get_inst_index		= vhost_scsi_tpg_get_inst_index,
 	.release_cmd			= vhost_scsi_release_cmd,
 	.check_stop_free		= vhost_scsi_check_stop_free,
-	.shutdown_session		= vhost_scsi_shutdown_session,
-	.close_session			= vhost_scsi_close_session,
 	.sess_get_index			= vhost_scsi_sess_get_index,
 	.sess_get_initiator_sid		= NULL,
 	.write_pending			= vhost_scsi_write_pending,

@@ -14,6 +14,7 @@
 #include <asm/time.h>
 #include <asm/intel-mid.h>
 #include <asm/rtc.h>
+#include <asm/setup.h>
 
 #ifdef CONFIG_X86_32
 /*
@@ -185,22 +186,7 @@ static __init int add_rtc_cmos(void)
 		}
 	}
 #endif
-	if (of_have_populated_dt())
-		return 0;
-
-	/* Intel MID platforms don't have ioport rtc */
-	if (intel_mid_identify_cpu())
-		return -ENODEV;
-
-#ifdef CONFIG_ACPI
-	if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_CMOS_RTC) {
-		/* This warning can likely go away again in a year or two. */
-		pr_info("ACPI: not registering RTC platform device\n");
-		return -ENODEV;
-	}
-#endif
-
-	if (paravirt_enabled() && !paravirt_has(RTC))
+	if (!x86_platform.legacy.rtc)
 		return -ENODEV;
 
 	platform_device_register(&rtc_device);

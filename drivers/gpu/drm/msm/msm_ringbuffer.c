@@ -40,6 +40,10 @@ struct msm_ringbuffer *msm_ringbuffer_new(struct msm_gpu *gpu, int size)
 	}
 
 	ring->start = msm_gem_vaddr_locked(ring->bo);
+	if (IS_ERR(ring->start)) {
+		ret = PTR_ERR(ring->start);
+		goto fail;
+	}
 	ring->end   = ring->start + (size / 4);
 	ring->cur   = ring->start;
 

@@ -31,8 +31,9 @@ struct vsp1_bru {
 
 	struct {
 		struct vsp1_rwpf *rpf;
-		struct v4l2_rect compose;
 	} inputs[VSP1_MAX_RPF];
+
+	u32 bgcolor;
 };
 
 static inline struct vsp1_bru *to_bru(struct v4l2_subdev *subdev)

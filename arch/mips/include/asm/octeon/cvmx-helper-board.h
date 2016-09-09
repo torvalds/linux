@@ -94,7 +94,7 @@ extern int cvmx_helper_board_get_mii_address(int ipd_port);
  * @phy_addr:  The address of the PHY to program
  * @link_flags:
  *		    Flags to control autonegotiation.  Bit 0 is autonegotiation
- *		    enable/disable to maintain backware compatibility.
+ *		    enable/disable to maintain backward compatibility.
  * @link_info: Link speed to program. If the speed is zero and autonegotiation
  *		    is enabled, all possible negotiation speeds are advertised.
  *

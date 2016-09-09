@@ -3,7 +3,7 @@
 
 #include <subdev/mmu.h>
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 
 struct nouveau_framebuffer {
 	struct drm_framebuffer base;

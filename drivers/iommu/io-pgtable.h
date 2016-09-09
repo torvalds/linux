@@ -60,10 +60,16 @@ struct io_pgtable_cfg {
 	 * IO_PGTABLE_QUIRK_TLBI_ON_MAP: If the format forbids caching invalid
 	 *	(unmapped) entries but the hardware might do so anyway, perform
 	 *	TLB maintenance when mapping as well as when unmapping.
+	 *
+	 * IO_PGTABLE_QUIRK_ARM_MTK_4GB: (ARM v7s format) Set bit 9 in all
+	 *	PTEs, for Mediatek IOMMUs which treat it as a 33rd address bit
+	 *	when the SoC is in "4GB mode" and they can only access the high
+	 *	remap of DRAM (0x1_00000000 to 0x1_ffffffff).
 	 */
 	#define IO_PGTABLE_QUIRK_ARM_NS		BIT(0)
 	#define IO_PGTABLE_QUIRK_NO_PERMS	BIT(1)
 	#define IO_PGTABLE_QUIRK_TLBI_ON_MAP	BIT(2)
+	#define IO_PGTABLE_QUIRK_ARM_MTK_4GB	BIT(3)
 	unsigned long			quirks;
 	unsigned long			pgsize_bitmap;
 	unsigned int			ias;

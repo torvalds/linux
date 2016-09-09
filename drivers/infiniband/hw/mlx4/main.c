@@ -505,9 +505,9 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 			props->device_cap_flags |= IB_DEVICE_MEM_WINDOW_TYPE_2B;
 		else
 			props->device_cap_flags |= IB_DEVICE_MEM_WINDOW_TYPE_2A;
-	if (dev->steering_support ==  MLX4_STEERING_MODE_DEVICE_MANAGED)
-		props->device_cap_flags |= IB_DEVICE_MANAGED_FLOW_STEERING;
 	}
+	if (dev->steering_support == MLX4_STEERING_MODE_DEVICE_MANAGED)
+		props->device_cap_flags |= IB_DEVICE_MANAGED_FLOW_STEERING;
 
 	props->device_cap_flags |= IB_DEVICE_RAW_IP_CSUM;
 
@@ -1601,7 +1601,7 @@ static int __mlx4_ib_create_flow(struct ib_qp *qp, struct ib_flow_attr *flow_att
 	else if (ret == -ENXIO)
 		pr_err("Device managed flow steering is disabled. Fail to register network rule.\n");
 	else if (ret)
-		pr_err("Invalid argumant. Fail to register network rule.\n");
+		pr_err("Invalid argument. Fail to register network rule.\n");
 
 	mlx4_free_cmd_mailbox(mdev->dev, mailbox);
 	return ret;
@@ -1703,6 +1703,9 @@ static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 	enum mlx4_net_trans_promisc_mode type[2];
 	struct mlx4_dev *dev = (to_mdev(qp->device))->dev;
 	int is_bonded = mlx4_is_bonded(dev);
+
+	if (flow_attr->port < 1 || flow_attr->port > qp->device->phys_port_cnt)
+		return ERR_PTR(-EINVAL);
 
 	if ((flow_attr->flags & IB_FLOW_ATTR_FLAGS_DONT_TRAP) &&
 	    (flow_attr->type != IB_FLOW_ATTR_NORMAL))

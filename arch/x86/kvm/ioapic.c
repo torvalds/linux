@@ -443,7 +443,7 @@ static void __kvm_ioapic_update_eoi(struct kvm_vcpu *vcpu,
 		spin_lock(&ioapic->lock);
 
 		if (trigger_mode != IOAPIC_LEVEL_TRIG ||
-		    kvm_apic_get_reg(apic, APIC_SPIV) & APIC_SPIV_DIRECTED_EOI)
+		    kvm_lapic_get_reg(apic, APIC_SPIV) & APIC_SPIV_DIRECTED_EOI)
 			continue;
 
 		ASSERT(ent->fields.trig_mode == IOAPIC_LEVEL_TRIG);

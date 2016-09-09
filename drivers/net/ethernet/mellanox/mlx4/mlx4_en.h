@@ -270,6 +270,7 @@ struct mlx4_en_tx_ring {
 	unsigned long		tx_csum;
 	unsigned long		tso_packets;
 	unsigned long		xmit_more;
+	unsigned int		tx_dropped;
 	struct mlx4_bf		bf;
 	unsigned long		queue_stopped;
 
@@ -352,12 +353,14 @@ struct mlx4_en_port_profile {
 	u32 rx_ring_num;
 	u32 tx_ring_size;
 	u32 rx_ring_size;
+	u8 num_tx_rings_p_up;
 	u8 rx_pause;
 	u8 rx_ppp;
 	u8 tx_pause;
 	u8 tx_ppp;
 	int rss_rings;
 	int inline_thold;
+	struct hwtstamp_config hwtstamp_config;
 };
 
 struct mlx4_en_profile {
@@ -482,8 +485,6 @@ struct mlx4_en_priv {
 	struct mlx4_en_port_profile *prof;
 	struct net_device *dev;
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
-	struct net_device_stats stats;
-	struct net_device_stats ret_stats;
 	struct mlx4_en_port_state port_state;
 	spinlock_t stats_lock;
 	struct ethtool_flow_id ethtool_rules[MAX_NUM_OF_FS_RULES];
@@ -624,8 +625,11 @@ void mlx4_en_set_stats_bitmap(struct mlx4_dev *dev,
 			      u8 rx_ppp, u8 rx_pause,
 			      u8 tx_ppp, u8 tx_pause);
 
-void mlx4_en_free_resources(struct mlx4_en_priv *priv);
-int mlx4_en_alloc_resources(struct mlx4_en_priv *priv);
+int mlx4_en_try_alloc_resources(struct mlx4_en_priv *priv,
+				struct mlx4_en_priv *tmp,
+				struct mlx4_en_port_profile *prof);
+void mlx4_en_safe_replace_resources(struct mlx4_en_priv *priv,
+				    struct mlx4_en_priv *tmp);
 
 int mlx4_en_create_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq **pcq,
 		      int entries, int ring, enum cq_type mode, int node);
@@ -672,8 +676,6 @@ void mlx4_en_fill_qp_context(struct mlx4_en_priv *priv, int size, int stride,
 		int is_tx, int rss, int qpn, int cqn, int user_prio,
 		struct mlx4_qp_context *context);
 void mlx4_en_sqp_event(struct mlx4_qp *qp, enum mlx4_event event);
-int mlx4_en_map_buffer(struct mlx4_buf *buf);
-void mlx4_en_unmap_buffer(struct mlx4_buf *buf);
 int mlx4_en_change_mcast_lb(struct mlx4_en_priv *priv, struct mlx4_qp *qp,
 			    int loopback);
 void mlx4_en_calc_rx_buf(struct net_device *dev);

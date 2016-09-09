@@ -219,6 +219,9 @@
 #define KNL_CHA_MSR_PMON_BOX_FILTER_TID		0x1ff
 #define KNL_CHA_MSR_PMON_BOX_FILTER_STATE	(7 << 18)
 #define KNL_CHA_MSR_PMON_BOX_FILTER_OP		(0xfffffe2aULL << 32)
+#define KNL_CHA_MSR_PMON_BOX_FILTER_REMOTE_NODE	(0x1ULL << 32)
+#define KNL_CHA_MSR_PMON_BOX_FILTER_LOCAL_NODE	(0x1ULL << 33)
+#define KNL_CHA_MSR_PMON_BOX_FILTER_NNC		(0x1ULL << 37)
 
 /* KNL EDC/MC UCLK */
 #define KNL_UCLK_MSR_PMON_CTR0_LOW		0x400
@@ -1902,6 +1905,10 @@ static int knl_cha_hw_config(struct intel_uncore_box *box,
 		reg1->reg = HSWEP_C0_MSR_PMON_BOX_FILTER0 +
 			    KNL_CHA_MSR_OFFSET * box->pmu->pmu_idx;
 		reg1->config = event->attr.config1 & knl_cha_filter_mask(idx);
+
+		reg1->config |= KNL_CHA_MSR_PMON_BOX_FILTER_REMOTE_NODE;
+		reg1->config |= KNL_CHA_MSR_PMON_BOX_FILTER_LOCAL_NODE;
+		reg1->config |= KNL_CHA_MSR_PMON_BOX_FILTER_NNC;
 		reg1->idx = idx;
 	}
 	return 0;
@@ -2861,27 +2868,10 @@ static struct intel_uncore_type bdx_uncore_cbox = {
 	.format_group		= &hswep_uncore_cbox_format_group,
 };
 
-static struct intel_uncore_type bdx_uncore_sbox = {
-	.name			= "sbox",
-	.num_counters		= 4,
-	.num_boxes		= 4,
-	.perf_ctr_bits		= 48,
-	.event_ctl		= HSWEP_S0_MSR_PMON_CTL0,
-	.perf_ctr		= HSWEP_S0_MSR_PMON_CTR0,
-	.event_mask		= HSWEP_S_MSR_PMON_RAW_EVENT_MASK,
-	.box_ctl		= HSWEP_S0_MSR_PMON_BOX_CTL,
-	.msr_offset		= HSWEP_SBOX_MSR_OFFSET,
-	.ops			= &hswep_uncore_sbox_msr_ops,
-	.format_group		= &hswep_uncore_sbox_format_group,
-};
-
-#define BDX_MSR_UNCORE_SBOX	3
-
 static struct intel_uncore_type *bdx_msr_uncores[] = {
 	&bdx_uncore_ubox,
 	&bdx_uncore_cbox,
 	&hswep_uncore_pcu,
-	&bdx_uncore_sbox,
 	NULL,
 };
 
@@ -2890,10 +2880,6 @@ void bdx_uncore_cpu_init(void)
 	if (bdx_uncore_cbox.num_boxes > boot_cpu_data.x86_max_cores)
 		bdx_uncore_cbox.num_boxes = boot_cpu_data.x86_max_cores;
 	uncore_msr_uncores = bdx_msr_uncores;
-
-	/* BDX-DE doesn't have SBOX */
-	if (boot_cpu_data.x86_model == 86)
-		uncore_msr_uncores[BDX_MSR_UNCORE_SBOX] = NULL;
 }
 
 static struct intel_uncore_type bdx_uncore_ha = {

@@ -272,7 +272,7 @@ static int atmel_hlcdc_pwm_probe(struct platform_device *pdev)
 	chip->chip.of_pwm_n_cells = 3;
 	chip->chip.can_sleep = 1;
 
-	ret = pwmchip_add(&chip->chip);
+	ret = pwmchip_add_with_polarity(&chip->chip, PWM_POLARITY_INVERSED);
 	if (ret) {
 		clk_disable_unprepare(hlcdc->periph_clk);
 		return ret;

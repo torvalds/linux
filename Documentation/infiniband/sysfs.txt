@@ -56,6 +56,18 @@ SYSFS FILES
   ports/1/pkeys/10 contains the value at index 10 in port 1's P_Key
   table.
 
+  There is an optional "hw_counters" subdirectory that may be under either
+  the parent device or the port subdirectories or both.  If present,
+  there are a list of counters provided by the hardware.  They may match
+  some of the counters in the counters directory, but they often include
+  many other counters.  In addition to the various counters, there will
+  be a file named "lifespan" that configures how frequently the core
+  should update the counters when they are being accessed (counters are
+  not updated if they are not being accessed).  The lifespan is in milli-
+  seconds and defaults to 10 unless set to something else by the driver.
+  Users may echo a value between 0 - 10000 to the lifespan file to set
+  the length of time between updates in milliseconds.
+
 MTHCA
 
   The Mellanox HCA driver also creates the files:

@@ -24,6 +24,7 @@
 #include "priv.h"
 #include "ram.h"
 
+#include <core/memory.h>
 #include <subdev/bios.h>
 #include <subdev/bios/M0203.h>
 #include <engine/gr.h>
@@ -98,6 +99,7 @@ static int
 nvkm_fb_oneinit(struct nvkm_subdev *subdev)
 {
 	struct nvkm_fb *fb = nvkm_fb(subdev);
+
 	if (fb->func->ram_new) {
 		int ret = fb->func->ram_new(fb, &fb->ram);
 		if (ret) {
@@ -105,6 +107,13 @@ nvkm_fb_oneinit(struct nvkm_subdev *subdev)
 			return ret;
 		}
 	}
+
+	if (fb->func->oneinit) {
+		int ret = fb->func->oneinit(fb);
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 
@@ -134,6 +143,9 @@ nvkm_fb_dtor(struct nvkm_subdev *subdev)
 	struct nvkm_fb *fb = nvkm_fb(subdev);
 	int i;
 
+	nvkm_memory_del(&fb->mmu_wr);
+	nvkm_memory_del(&fb->mmu_rd);
+
 	for (i = 0; i < fb->tile.regions; i++)
 		fb->func->tile.fini(fb, i, &fb->tile.region[i]);
 
@@ -156,7 +168,7 @@ void
 nvkm_fb_ctor(const struct nvkm_fb_func *func, struct nvkm_device *device,
 	     int index, struct nvkm_fb *fb)
 {
-	nvkm_subdev_ctor(&nvkm_fb, device, index, 0, &fb->subdev);
+	nvkm_subdev_ctor(&nvkm_fb, device, index, &fb->subdev);
 	fb->func = func;
 	fb->tile.regions = fb->func->tile.regions;
 }

@@ -314,7 +314,7 @@ static void rcar_du_crtc_finish_page_flip(struct rcar_du_crtc *rcrtc)
 		return;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
-	drm_send_vblank_event(dev, rcrtc->index, event);
+	drm_crtc_send_vblank_event(&rcrtc->crtc, event);
 	wake_up(&rcrtc->flip_wait);
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 

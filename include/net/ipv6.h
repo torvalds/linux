@@ -121,21 +121,21 @@ struct frag_hdr {
 extern int sysctl_mld_max_msf;
 extern int sysctl_mld_qrv;
 
-#define _DEVINC(net, statname, modifier, idev, field)			\
+#define _DEVINC(net, statname, mod, idev, field)			\
 ({									\
 	struct inet6_dev *_idev = (idev);				\
 	if (likely(_idev != NULL))					\
-		SNMP_INC_STATS##modifier((_idev)->stats.statname, (field)); \
-	SNMP_INC_STATS##modifier((net)->mib.statname##_statistics, (field));\
+		mod##SNMP_INC_STATS64((_idev)->stats.statname, (field));\
+	mod##SNMP_INC_STATS64((net)->mib.statname##_statistics, (field));\
 })
 
 /* per device counters are atomic_long_t */
-#define _DEVINCATOMIC(net, statname, modifier, idev, field)		\
+#define _DEVINCATOMIC(net, statname, mod, idev, field)			\
 ({									\
 	struct inet6_dev *_idev = (idev);				\
 	if (likely(_idev != NULL))					\
 		SNMP_INC_STATS_ATOMIC_LONG((_idev)->stats.statname##dev, (field)); \
-	SNMP_INC_STATS##modifier((net)->mib.statname##_statistics, (field));\
+	mod##SNMP_INC_STATS((net)->mib.statname##_statistics, (field));\
 })
 
 /* per device and per net counters are atomic_long_t */
@@ -147,46 +147,44 @@ extern int sysctl_mld_qrv;
 	SNMP_INC_STATS_ATOMIC_LONG((net)->mib.statname##_statistics, (field));\
 })
 
-#define _DEVADD(net, statname, modifier, idev, field, val)		\
+#define _DEVADD(net, statname, mod, idev, field, val)			\
 ({									\
 	struct inet6_dev *_idev = (idev);				\
 	if (likely(_idev != NULL))					\
-		SNMP_ADD_STATS##modifier((_idev)->stats.statname, (field), (val)); \
-	SNMP_ADD_STATS##modifier((net)->mib.statname##_statistics, (field), (val));\
+		mod##SNMP_ADD_STATS((_idev)->stats.statname, (field), (val)); \
+	mod##SNMP_ADD_STATS((net)->mib.statname##_statistics, (field), (val));\
 })
 
-#define _DEVUPD(net, statname, modifier, idev, field, val)		\
+#define _DEVUPD(net, statname, mod, idev, field, val)			\
 ({									\
 	struct inet6_dev *_idev = (idev);				\
 	if (likely(_idev != NULL))					\
-		SNMP_UPD_PO_STATS##modifier((_idev)->stats.statname, field, (val)); \
-	SNMP_UPD_PO_STATS##modifier((net)->mib.statname##_statistics, field, (val));\
+		mod##SNMP_UPD_PO_STATS((_idev)->stats.statname, field, (val)); \
+	mod##SNMP_UPD_PO_STATS((net)->mib.statname##_statistics, field, (val));\
 })
 
 /* MIBs */
 
 #define IP6_INC_STATS(net, idev,field)		\
-		_DEVINC(net, ipv6, 64, idev, field)
-#define IP6_INC_STATS_BH(net, idev,field)	\
-		_DEVINC(net, ipv6, 64_BH, idev, field)
+		_DEVINC(net, ipv6, , idev, field)
+#define __IP6_INC_STATS(net, idev,field)	\
+		_DEVINC(net, ipv6, __, idev, field)
 #define IP6_ADD_STATS(net, idev,field,val)	\
-		_DEVADD(net, ipv6, 64, idev, field, val)
-#define IP6_ADD_STATS_BH(net, idev,field,val)	\
-		_DEVADD(net, ipv6, 64_BH, idev, field, val)
+		_DEVADD(net, ipv6, , idev, field, val)
+#define __IP6_ADD_STATS(net, idev,field,val)	\
+		_DEVADD(net, ipv6, __, idev, field, val)
 #define IP6_UPD_PO_STATS(net, idev,field,val)   \
-		_DEVUPD(net, ipv6, 64, idev, field, val)
-#define IP6_UPD_PO_STATS_BH(net, idev,field,val)   \
-		_DEVUPD(net, ipv6, 64_BH, idev, field, val)
+		_DEVUPD(net, ipv6, , idev, field, val)
+#define __IP6_UPD_PO_STATS(net, idev,field,val)   \
+		_DEVUPD(net, ipv6, __, idev, field, val)
 #define ICMP6_INC_STATS(net, idev, field)	\
 		_DEVINCATOMIC(net, icmpv6, , idev, field)
-#define ICMP6_INC_STATS_BH(net, idev, field)	\
-		_DEVINCATOMIC(net, icmpv6, _BH, idev, field)
+#define __ICMP6_INC_STATS(net, idev, field)	\
+		_DEVINCATOMIC(net, icmpv6, __, idev, field)
 
 #define ICMP6MSGOUT_INC_STATS(net, idev, field)		\
 	_DEVINC_ATOMIC_ATOMIC(net, icmpv6msg, idev, field +256)
-#define ICMP6MSGOUT_INC_STATS_BH(net, idev, field)	\
-	_DEVINC_ATOMIC_ATOMIC(net, icmpv6msg, idev, field +256)
-#define ICMP6MSGIN_INC_STATS_BH(net, idev, field)	\
+#define ICMP6MSGIN_INC_STATS(net, idev, field)	\
 	_DEVINC_ATOMIC_ATOMIC(net, icmpv6msg, idev, field)
 
 struct ip6_ra_chain {
@@ -251,6 +249,13 @@ struct ipv6_fl_socklist {
 	struct ipv6_fl_socklist	__rcu	*next;
 	struct ip6_flowlabel		*fl;
 	struct rcu_head			rcu;
+};
+
+struct ipcm6_cookie {
+	__s16 hlimit;
+	__s16 tclass;
+	__s8  dontfrag;
+	struct ipv6_txoptions *opt;
 };
 
 static inline struct ipv6_txoptions *txopt_get(const struct ipv6_pinfo *np)
@@ -865,9 +870,10 @@ int ip6_find_1stfragopt(struct sk_buff *skb, u8 **nexthdr);
 int ip6_append_data(struct sock *sk,
 		    int getfrag(void *from, char *to, int offset, int len,
 				int odd, struct sk_buff *skb),
-		    void *from, int length, int transhdrlen, int hlimit,
-		    int tclass, struct ipv6_txoptions *opt, struct flowi6 *fl6,
-		    struct rt6_info *rt, unsigned int flags, int dontfrag);
+		    void *from, int length, int transhdrlen,
+		    struct ipcm6_cookie *ipc6, struct flowi6 *fl6,
+		    struct rt6_info *rt, unsigned int flags,
+		    const struct sockcm_cookie *sockc);
 
 int ip6_push_pending_frames(struct sock *sk);
 
@@ -882,9 +888,9 @@ struct sk_buff *ip6_make_skb(struct sock *sk,
 			     int getfrag(void *from, char *to, int offset,
 					 int len, int odd, struct sk_buff *skb),
 			     void *from, int length, int transhdrlen,
-			     int hlimit, int tclass, struct ipv6_txoptions *opt,
-			     struct flowi6 *fl6, struct rt6_info *rt,
-			     unsigned int flags, int dontfrag);
+			     struct ipcm6_cookie *ipc6, struct flowi6 *fl6,
+			     struct rt6_info *rt, unsigned int flags,
+			     const struct sockcm_cookie *sockc);
 
 static inline struct sk_buff *ip6_finish_skb(struct sock *sk)
 {

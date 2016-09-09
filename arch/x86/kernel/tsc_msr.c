@@ -23,6 +23,7 @@
 #include <asm/param.h>
 
 /* CPU reference clock frequency: in KHz */
+#define FREQ_80		80000
 #define FREQ_83		83200
 #define FREQ_100	99840
 #define FREQ_133	133200
@@ -56,6 +57,8 @@ static struct freq_desc freq_desc_tables[] = {
 	{ 6, 0x37, 1, { FREQ_83, FREQ_100, FREQ_133, FREQ_166, 0, 0, 0, 0 } },
 	/* ANN */
 	{ 6, 0x5a, 1, { FREQ_83, FREQ_100, FREQ_133, FREQ_100, 0, 0, 0, 0 } },
+	/* AIRMONT */
+	{ 6, 0x4c, 1, { FREQ_83, FREQ_100, FREQ_133, FREQ_166, FREQ_80,	0, 0, 0 } },
 };
 
 static int match_cpu(u8 family, u8 model)
@@ -92,7 +95,7 @@ unsigned long try_msr_calibrate_tsc(void)
 
 	if (freq_desc_tables[cpu_index].msr_plat) {
 		rdmsr(MSR_PLATFORM_INFO, lo, hi);
-		ratio = (lo >> 8) & 0x1f;
+		ratio = (lo >> 8) & 0xff;
 	} else {
 		rdmsr(MSR_IA32_PERF_STATUS, lo, hi);
 		ratio = (hi >> 8) & 0x1f;

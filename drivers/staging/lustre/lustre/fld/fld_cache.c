@@ -178,8 +178,9 @@ restart_fixup:
 				if (n_range->lsr_end <= c_range->lsr_end) {
 					*n_range = *c_range;
 					fld_cache_entry_delete(cache, f_curr);
-				} else
+				} else {
 					n_range->lsr_start = c_range->lsr_end;
+				}
 			}
 
 			/* we could have overlap over next

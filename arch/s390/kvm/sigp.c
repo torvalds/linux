@@ -240,6 +240,12 @@ static int __sigp_sense_running(struct kvm_vcpu *vcpu,
 	struct kvm_s390_local_interrupt *li;
 	int rc;
 
+	if (!test_kvm_facility(vcpu->kvm, 9)) {
+		*reg &= 0xffffffff00000000UL;
+		*reg |= SIGP_STATUS_INVALID_ORDER;
+		return SIGP_CC_STATUS_STORED;
+	}
+
 	li = &dst_vcpu->arch.local_int;
 	if (atomic_read(li->cpuflags) & CPUSTAT_RUNNING) {
 		/* running */

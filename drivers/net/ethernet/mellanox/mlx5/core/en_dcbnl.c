@@ -96,7 +96,7 @@ static void mlx5e_build_tc_tx_bw(struct ieee_ets *ets, u8 *tc_tx_bw,
 			tc_tx_bw[i] = MLX5E_MAX_BW_ALLOC;
 			break;
 		case IEEE_8021QAZ_TSA_ETS:
-			tc_tx_bw[i] = ets->tc_tx_bw[i] ?: MLX5E_MIN_BW_ALLOC;
+			tc_tx_bw[i] = ets->tc_tx_bw[i];
 			break;
 		}
 	}
@@ -140,8 +140,12 @@ static int mlx5e_dbcnl_validate_ets(struct ieee_ets *ets)
 
 	/* Validate Bandwidth Sum */
 	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
-		if (ets->tc_tsa[i] == IEEE_8021QAZ_TSA_ETS)
+		if (ets->tc_tsa[i] == IEEE_8021QAZ_TSA_ETS) {
+			if (!ets->tc_tx_bw[i])
+				return -EINVAL;
+
 			bw_sum += ets->tc_tx_bw[i];
+		}
 	}
 
 	if (bw_sum != 0 && bw_sum != 100)
@@ -174,8 +178,14 @@ static int mlx5e_dcbnl_ieee_getpfc(struct net_device *dev,
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct mlx5_core_dev *mdev = priv->mdev;
+	struct mlx5e_pport_stats *pstats = &priv->stats.pport;
+	int i;
 
 	pfc->pfc_cap = mlx5_max_tc(mdev) + 1;
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
+		pfc->requests[i]    = PPORT_PER_PRIO_GET(pstats, i, tx_pause);
+		pfc->indications[i] = PPORT_PER_PRIO_GET(pstats, i, rx_pause);
+	}
 
 	return mlx5_query_port_pfc(mdev, &pfc->pfc_en, NULL);
 }

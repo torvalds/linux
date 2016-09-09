@@ -54,7 +54,7 @@ EXPORT_SYMBOL(channel5g_80m);
 void rtl_addr_delay(u32 addr)
 {
 	if (addr == 0xfe)
-		msleep(50);
+		mdelay(50);
 	else if (addr == 0xfd)
 		msleep(5);
 	else if (addr == 0xfc)
@@ -75,7 +75,7 @@ void rtl_rfreg_delay(struct ieee80211_hw *hw, enum radio_path rfpath, u32 addr,
 		rtl_addr_delay(addr);
 	} else {
 		rtl_set_rfreg(hw, rfpath, addr, mask, data);
-		usleep_range(1, 2);
+		udelay(1);
 	}
 }
 EXPORT_SYMBOL(rtl_rfreg_delay);
@@ -86,7 +86,7 @@ void rtl_bb_delay(struct ieee80211_hw *hw, u32 addr, u32 data)
 		rtl_addr_delay(addr);
 	} else {
 		rtl_set_bbreg(hw, addr, MASKDWORD, data);
-		usleep_range(1, 2);
+		udelay(1);
 	}
 }
 EXPORT_SYMBOL(rtl_bb_delay);

@@ -53,7 +53,7 @@
 #define ACPI_DEBUG_BUFFER_SIZE  0x4000	/* 16K buffer for return objects */
 
 struct acpi_db_command_info {
-	char *name;		/* Command Name */
+	const char *name;	/* Command Name */
 	u8 min_args;		/* Minimum arguments required */
 };
 
@@ -64,7 +64,7 @@ struct acpi_db_command_help {
 };
 
 struct acpi_db_argument_info {
-	char *name;		/* Argument Name */
+	const char *name;	/* Argument Name */
 };
 
 struct acpi_db_execute_walk {
@@ -196,7 +196,7 @@ ACPI_DBR_DEPENDENT_RETURN_VOID(void
 							     acpi_walk_state
 							     *walk_state))
 
- acpi_status acpi_db_display_all_methods(char *display_count_arg);
+acpi_status acpi_db_display_all_methods(char *display_count_arg);
 
 void acpi_db_display_arguments(void);
 
@@ -220,7 +220,7 @@ ACPI_DBR_DEPENDENT_RETURN_VOID(void
  * dbexec - debugger control method execution
  */
 void
-acpi_db_execute(char *name, char **args, acpi_object_type * types, u32 flags);
+acpi_db_execute(char *name, char **args, acpi_object_type *types, u32 flags);
 
 void
 acpi_db_create_execution_threads(char *num_threads_arg,
@@ -271,7 +271,7 @@ void ACPI_SYSTEM_XFACE acpi_db_execute_thread(void *context);
 acpi_status acpi_db_user_commands(void);
 
 char *acpi_db_get_next_token(char *string,
-			     char **next, acpi_object_type * return_type);
+			     char **next, acpi_object_type *return_type);
 
 /*
  * dbobject

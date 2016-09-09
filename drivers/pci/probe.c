@@ -179,9 +179,6 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 	u16 orig_cmd;
 	struct pci_bus_region region, inverted_region;
 
-	if (dev->non_compliant_bars)
-		return 0;
-
 	mask = type ? PCI_ROM_ADDRESS_MASK : ~0;
 
 	/* No printks while decoding is disabled! */
@@ -321,6 +318,9 @@ out:
 static void pci_read_bases(struct pci_dev *dev, unsigned int howmany, int rom)
 {
 	unsigned int pos, reg;
+
+	if (dev->non_compliant_bars)
+		return;
 
 	for (pos = 0; pos < howmany; pos++) {
 		struct resource *res = &dev->resource[pos];
@@ -1537,6 +1537,7 @@ static void pci_release_dev(struct device *dev)
 	pcibios_release_device(pci_dev);
 	pci_bus_put(pci_dev->bus);
 	kfree(pci_dev->driver_override);
+	kfree(pci_dev->dma_alias_mask);
 	kfree(pci_dev);
 }
 

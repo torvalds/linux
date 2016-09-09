@@ -244,7 +244,7 @@
 /* Various constants */
 
 /* Coalescing */
-#define MVNETA_TXDONE_COAL_PKTS		1
+#define MVNETA_TXDONE_COAL_PKTS		0	/* interrupt per packet */
 #define MVNETA_RX_COAL_PKTS		32
 #define MVNETA_RX_COAL_USEC		100
 
@@ -3354,8 +3354,7 @@ static int mvneta_percpu_notifier(struct notifier_block *nfb,
 		/* Enable per-CPU interrupts on the CPU that is
 		 * brought up.
 		 */
-		smp_call_function_single(cpu, mvneta_percpu_enable,
-					 pp, true);
+		mvneta_percpu_enable(pp);
 
 		/* Enable per-CPU interrupt on the one CPU we care
 		 * about.
@@ -3387,8 +3386,7 @@ static int mvneta_percpu_notifier(struct notifier_block *nfb,
 		/* Disable per-CPU interrupts on the CPU that is
 		 * brought down.
 		 */
-		smp_call_function_single(cpu, mvneta_percpu_disable,
-					 pp, true);
+		mvneta_percpu_disable(pp);
 
 		break;
 	case CPU_DEAD:
@@ -3460,6 +3458,8 @@ static int mvneta_open(struct net_device *dev)
 	return 0;
 
 err_free_irq:
+	unregister_cpu_notifier(&pp->cpu_notifier);
+	on_each_cpu(mvneta_percpu_disable, pp, true);
 	free_percpu_irq(pp->dev->irq, pp->ports);
 err_cleanup_txqs:
 	mvneta_cleanup_txqs(pp);

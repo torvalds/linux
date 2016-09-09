@@ -157,7 +157,7 @@ efivarfs_ioc_setxflags(struct file *file, void __user *arg)
 	return 0;
 }
 
-long
+static long
 efivarfs_file_ioctl(struct file *file, unsigned int cmd, unsigned long p)
 {
 	void __user *arg = (void __user *)p;

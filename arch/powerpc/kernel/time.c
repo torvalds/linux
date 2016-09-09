@@ -55,6 +55,7 @@
 #include <linux/delay.h>
 #include <linux/irq_work.h>
 #include <linux/clk-provider.h>
+#include <linux/suspend.h>
 #include <asm/trace.h>
 
 #include <asm/io.h>

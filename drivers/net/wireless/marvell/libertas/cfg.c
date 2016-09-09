@@ -23,7 +23,7 @@
 
 
 #define CHAN2G(_channel, _freq, _flags) {        \
-	.band             = IEEE80211_BAND_2GHZ, \
+	.band             = NL80211_BAND_2GHZ, \
 	.center_freq      = (_freq),             \
 	.hw_value         = (_channel),          \
 	.flags            = (_flags),            \
@@ -639,7 +639,7 @@ static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 		if (chan_no != -1) {
 			struct wiphy *wiphy = priv->wdev->wiphy;
 			int freq = ieee80211_channel_to_frequency(chan_no,
-							IEEE80211_BAND_2GHZ);
+							NL80211_BAND_2GHZ);
 			struct ieee80211_channel *channel =
 				ieee80211_get_channel(wiphy, freq);
 
@@ -1266,7 +1266,7 @@ _new_connect_scan_req(struct wiphy *wiphy, struct cfg80211_connect_params *sme)
 {
 	struct cfg80211_scan_request *creq = NULL;
 	int i, n_channels = ieee80211_get_num_supported_channels(wiphy);
-	enum ieee80211_band band;
+	enum nl80211_band band;
 
 	creq = kzalloc(sizeof(*creq) + sizeof(struct cfg80211_ssid) +
 		       n_channels * sizeof(void *),
@@ -1281,7 +1281,7 @@ _new_connect_scan_req(struct wiphy *wiphy, struct cfg80211_connect_params *sme)
 
 	/* Scan all available channels */
 	i = 0;
-	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+	for (band = 0; band < NUM_NL80211_BANDS; band++) {
 		int j;
 
 		if (!wiphy->bands[band])
@@ -2200,7 +2200,7 @@ int lbs_cfg_register(struct lbs_private *priv)
 	if (lbs_mesh_activated(priv))
 		wdev->wiphy->interface_modes |= BIT(NL80211_IFTYPE_MESH_POINT);
 
-	wdev->wiphy->bands[IEEE80211_BAND_2GHZ] = &lbs_band_2ghz;
+	wdev->wiphy->bands[NL80211_BAND_2GHZ] = &lbs_band_2ghz;
 
 	/*
 	 * We could check priv->fwcapinfo && FW_CAPINFO_WPA, but I have

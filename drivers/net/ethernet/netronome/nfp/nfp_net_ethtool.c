@@ -153,37 +153,25 @@ static int nfp_net_set_ringparam(struct net_device *netdev,
 	struct nfp_net *nn = netdev_priv(netdev);
 	u32 rxd_cnt, txd_cnt;
 
-	if (netif_running(netdev)) {
-		/* Some NIC drivers allow reconfiguration on the fly,
-		 * some down the interface, change and then up it
-		 * again.  For now we don't allow changes when the
-		 * device is up.
-		 */
-		nn_warn(nn, "Can't change rings while device is up\n");
-		return -EBUSY;
-	}
-
 	/* We don't have separate queues/rings for small/large frames. */
 	if (ring->rx_mini_pending || ring->rx_jumbo_pending)
 		return -EINVAL;
 
 	/* Round up to supported values */
 	rxd_cnt = roundup_pow_of_two(ring->rx_pending);
-	rxd_cnt = max_t(u32, rxd_cnt, NFP_NET_MIN_RX_DESCS);
-	rxd_cnt = min_t(u32, rxd_cnt, NFP_NET_MAX_RX_DESCS);
-
 	txd_cnt = roundup_pow_of_two(ring->tx_pending);
-	txd_cnt = max_t(u32, txd_cnt, NFP_NET_MIN_TX_DESCS);
-	txd_cnt = min_t(u32, txd_cnt, NFP_NET_MAX_TX_DESCS);
 
-	if (nn->rxd_cnt != rxd_cnt || nn->txd_cnt != txd_cnt)
-		nn_dbg(nn, "Change ring size: RxQ %u->%u, TxQ %u->%u\n",
-		       nn->rxd_cnt, rxd_cnt, nn->txd_cnt, txd_cnt);
+	if (rxd_cnt < NFP_NET_MIN_RX_DESCS || rxd_cnt > NFP_NET_MAX_RX_DESCS ||
+	    txd_cnt < NFP_NET_MIN_TX_DESCS || txd_cnt > NFP_NET_MAX_TX_DESCS)
+		return -EINVAL;
 
-	nn->rxd_cnt = rxd_cnt;
-	nn->txd_cnt = txd_cnt;
+	if (nn->rxd_cnt == rxd_cnt && nn->txd_cnt == txd_cnt)
+		return 0;
 
-	return 0;
+	nn_dbg(nn, "Change ring size: RxQ %u->%u, TxQ %u->%u\n",
+	       nn->rxd_cnt, rxd_cnt, nn->txd_cnt, txd_cnt);
+
+	return nfp_net_set_ring_size(nn, rxd_cnt, txd_cnt);
 }
 
 static void nfp_net_get_strings(struct net_device *netdev,

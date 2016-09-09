@@ -630,6 +630,23 @@ void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
 /*
  * GPU helpers function.
  */
+
+/**
+ * radeon_device_is_virtual - check if we are running is a virtual environment
+ *
+ * Check if the asic has been passed through to a VM (all asics).
+ * Used at driver startup.
+ * Returns true if virtual or false if not.
+ */
+static bool radeon_device_is_virtual(void)
+{
+#ifdef CONFIG_X86
+	return boot_cpu_has(X86_FEATURE_HYPERVISOR);
+#else
+	return false;
+#endif
+}
+
 /**
  * radeon_card_posted - check if the hw has already been initialized
  *
@@ -642,6 +659,10 @@ void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
 bool radeon_card_posted(struct radeon_device *rdev)
 {
 	uint32_t reg;
+
+	/* for pass through, always force asic_init */
+	if (radeon_device_is_virtual())
+		return false;
 
 	/* required for EFI mode on macbook2,1 which uses an r5xx asic */
 	if (efi_enabled(EFI_BOOT) &&
@@ -1230,7 +1251,7 @@ static void radeon_switcheroo_set_state(struct pci_dev *pdev, enum vga_switchero
 		printk(KERN_INFO "radeon: switched off\n");
 		drm_kms_helper_poll_disable(dev);
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
-		radeon_suspend_kms(dev, true, true);
+		radeon_suspend_kms(dev, true, true, false);
 		dev->switch_power_state = DRM_SWITCH_POWER_OFF;
 	}
 }
@@ -1555,7 +1576,8 @@ void radeon_device_fini(struct radeon_device *rdev)
  * Returns 0 for success or an error on failure.
  * Called at driver suspend.
  */
-int radeon_suspend_kms(struct drm_device *dev, bool suspend, bool fbcon)
+int radeon_suspend_kms(struct drm_device *dev, bool suspend,
+		       bool fbcon, bool freeze)
 {
 	struct radeon_device *rdev;
 	struct drm_crtc *crtc;
@@ -1630,7 +1652,10 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend, bool fbcon)
 	radeon_agp_suspend(rdev);
 
 	pci_save_state(dev->pdev);
-	if (suspend) {
+	if (freeze && rdev->family >= CHIP_CEDAR) {
+		rdev->asic->asic_reset(rdev, true);
+		pci_restore_state(dev->pdev);
+	} else if (suspend) {
 		/* Shut down the device */
 		pci_disable_device(dev->pdev);
 		pci_set_power_state(dev->pdev, PCI_D3hot);

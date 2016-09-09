@@ -105,11 +105,6 @@ static void __init imx7d_init_irq(void)
 	irqchip_init();
 }
 
-static void __init imx7d_init_late(void)
-{
-	platform_device_register_simple("cpufreq-dt", -1, NULL, 0);
-}
-
 static const char *const imx7d_dt_compat[] __initconst = {
 	"fsl,imx7d",
 	NULL,
@@ -117,7 +112,6 @@ static const char *const imx7d_dt_compat[] __initconst = {
 
 DT_MACHINE_START(IMX7D, "Freescale i.MX7 Dual (Device Tree)")
 	.init_irq	= imx7d_init_irq,
-	.init_late	= imx7d_init_late,
 	.init_machine	= imx7d_init_machine,
 	.dt_compat	= imx7d_dt_compat,
 MACHINE_END

@@ -171,7 +171,7 @@ static inline int da9052_group_read(struct da9052 *da9052, unsigned char reg,
 static inline int da9052_group_write(struct da9052 *da9052, unsigned char reg,
 				      unsigned reg_cnt, unsigned char *val)
 {
-	int ret;
+	int ret = 0;
 	int i;
 
 	for (i = 0; i < reg_cnt; i++) {

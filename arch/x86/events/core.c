@@ -263,7 +263,7 @@ static bool check_hw_exists(void)
 
 msr_fail:
 	pr_cont("Broken PMU hardware detected, using software events only.\n");
-	pr_info("%sFailed to access perfctr msr (MSR %x is %Lx)\n",
+	printk("%sFailed to access perfctr msr (MSR %x is %Lx)\n",
 		boot_cpu_has(X86_FEATURE_HYPERVISOR) ? KERN_INFO : KERN_ERR,
 		reg, val_new);
 
@@ -360,6 +360,9 @@ int x86_add_exclusive(unsigned int what)
 {
 	int i;
 
+	if (x86_pmu.lbr_pt_coexist)
+		return 0;
+
 	if (!atomic_inc_not_zero(&x86_pmu.lbr_exclusive[what])) {
 		mutex_lock(&pmc_reserve_mutex);
 		for (i = 0; i < ARRAY_SIZE(x86_pmu.lbr_exclusive); i++) {
@@ -380,6 +383,9 @@ fail_unlock:
 
 void x86_del_exclusive(unsigned int what)
 {
+	if (x86_pmu.lbr_pt_coexist)
+		return;
+
 	atomic_dec(&x86_pmu.lbr_exclusive[what]);
 	atomic_dec(&active_events);
 }
@@ -1518,7 +1524,7 @@ x86_pmu_notifier(struct notifier_block *self, unsigned long action, void *hcpu)
 
 static void __init pmu_check_apic(void)
 {
-	if (cpu_has_apic)
+	if (boot_cpu_has(X86_FEATURE_APIC))
 		return;
 
 	x86_pmu.apic = 0;
@@ -2177,7 +2183,7 @@ void arch_perf_update_userpage(struct perf_event *event,
 	 * cap_user_time_zero doesn't make sense when we're using a different
 	 * time base for the records.
 	 */
-	if (event->clock == &local_clock) {
+	if (!event->attr.use_clockid) {
 		userpg->cap_user_time_zero = 1;
 		userpg->time_zero = data->cyc2ns_offset;
 	}
@@ -2196,7 +2202,7 @@ static int backtrace_stack(void *data, char *name)
 
 static int backtrace_address(void *data, unsigned long addr, int reliable)
 {
-	struct perf_callchain_entry *entry = data;
+	struct perf_callchain_entry_ctx *entry = data;
 
 	return perf_callchain_store(entry, addr);
 }
@@ -2208,7 +2214,7 @@ static const struct stacktrace_ops backtrace_ops = {
 };
 
 void
-perf_callchain_kernel(struct perf_callchain_entry *entry, struct pt_regs *regs)
+perf_callchain_kernel(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs)
 {
 	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
 		/* TODO: We don't support guest os callchain now */
@@ -2262,7 +2268,7 @@ static unsigned long get_segment_base(unsigned int segment)
 #include <asm/compat.h>
 
 static inline int
-perf_callchain_user32(struct pt_regs *regs, struct perf_callchain_entry *entry)
+perf_callchain_user32(struct pt_regs *regs, struct perf_callchain_entry_ctx *entry)
 {
 	/* 32-bit process in 64-bit kernel. */
 	unsigned long ss_base, cs_base;
@@ -2277,7 +2283,7 @@ perf_callchain_user32(struct pt_regs *regs, struct perf_callchain_entry *entry)
 
 	fp = compat_ptr(ss_base + regs->bp);
 	pagefault_disable();
-	while (entry->nr < PERF_MAX_STACK_DEPTH) {
+	while (entry->nr < entry->max_stack) {
 		unsigned long bytes;
 		frame.next_frame     = 0;
 		frame.return_address = 0;
@@ -2303,17 +2309,17 @@ perf_callchain_user32(struct pt_regs *regs, struct perf_callchain_entry *entry)
 }
 #else
 static inline int
-perf_callchain_user32(struct pt_regs *regs, struct perf_callchain_entry *entry)
+perf_callchain_user32(struct pt_regs *regs, struct perf_callchain_entry_ctx *entry)
 {
     return 0;
 }
 #endif
 
 void
-perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
+perf_callchain_user(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs)
 {
 	struct stack_frame frame;
-	const void __user *fp;
+	const unsigned long __user *fp;
 
 	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
 		/* TODO: We don't support guest os callchain now */
@@ -2326,7 +2332,7 @@ perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 	if (regs->flags & (X86_VM_MASK | PERF_EFLAGS_VM))
 		return;
 
-	fp = (void __user *)regs->bp;
+	fp = (unsigned long __user *)regs->bp;
 
 	perf_callchain_store(entry, regs->ip);
 
@@ -2337,18 +2343,19 @@ perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 		return;
 
 	pagefault_disable();
-	while (entry->nr < PERF_MAX_STACK_DEPTH) {
+	while (entry->nr < entry->max_stack) {
 		unsigned long bytes;
+
 		frame.next_frame	     = NULL;
 		frame.return_address = 0;
 
-		if (!access_ok(VERIFY_READ, fp, 16))
+		if (!access_ok(VERIFY_READ, fp, sizeof(*fp) * 2))
 			break;
 
-		bytes = __copy_from_user_nmi(&frame.next_frame, fp, 8);
+		bytes = __copy_from_user_nmi(&frame.next_frame, fp, sizeof(*fp));
 		if (bytes != 0)
 			break;
-		bytes = __copy_from_user_nmi(&frame.return_address, fp+8, 8);
+		bytes = __copy_from_user_nmi(&frame.return_address, fp + 1, sizeof(*fp));
 		if (bytes != 0)
 			break;
 

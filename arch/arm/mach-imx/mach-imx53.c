@@ -40,8 +40,6 @@ static void __init imx53_dt_init(void)
 static void __init imx53_init_late(void)
 {
 	imx53_pm_init();
-
-	platform_device_register_simple("cpufreq-dt", -1, NULL, 0);
 }
 
 static const char * const imx53_dt_board_compat[] __initconst = {

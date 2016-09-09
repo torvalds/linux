@@ -41,7 +41,7 @@ using an rx_handler which gives the impression that packets flow through
 the VRF device. Similarly on egress routing rules are used to send packets
 to the VRF device driver before getting sent out the actual interface. This
 allows tcpdump on a VRF device to capture all packets into and out of the
-VRF as a whole.[1] Similiarly, netfilter [2] and tc rules can be applied
+VRF as a whole.[1] Similarly, netfilter [2] and tc rules can be applied
 using the VRF device to specify rules that apply to the VRF domain as a whole.
 
 [1] Packets in the forwarded state do not flow through the device, so those

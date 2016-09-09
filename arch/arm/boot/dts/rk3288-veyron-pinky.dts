@@ -65,6 +65,13 @@
 	pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_bus8 &emmc_reset>;
 };
 
+&edp {
+	/delete-property/pinctrl-names;
+	/delete-property/pinctrl-0;
+
+	force-hpd;
+};
+
 &gpio_keys {
 	pinctrl-0 = <&pwr_key_h &ap_lid_int_l>;
 

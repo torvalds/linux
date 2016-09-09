@@ -134,6 +134,7 @@
 #define TWL6040_HFDACENA		(1 << 0)
 #define TWL6040_HFPGAENA		(1 << 1)
 #define TWL6040_HFDRVENA		(1 << 4)
+#define TWL6040_HFSWENA			(1 << 6)
 
 /* VIBCTLL/R (0x18/0x1A) fields */
 

@@ -428,7 +428,7 @@ static void hists__baseline_only(struct hists *hists)
 	struct rb_root *root;
 	struct rb_node *next;
 
-	if (sort__need_collapse)
+	if (hists__has(hists, need_collapse))
 		root = &hists->entries_collapsed;
 	else
 		root = hists->entries_in;
@@ -450,7 +450,7 @@ static void hists__precompute(struct hists *hists)
 	struct rb_root *root;
 	struct rb_node *next;
 
-	if (sort__need_collapse)
+	if (hists__has(hists, need_collapse))
 		root = &hists->entries_collapsed;
 	else
 		root = hists->entries_in;
@@ -812,8 +812,9 @@ static const struct option options[] = {
 	OPT_STRING_NOEMPTY('t', "field-separator", &symbol_conf.field_sep, "separator",
 		   "separator for columns, no spaces will be added between "
 		   "columns '.' is reserved."),
-	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
-		    "Look for files with symbols relative to this directory"),
+	OPT_CALLBACK(0, "symfs", NULL, "directory",
+		     "Look for files with symbols relative to this directory",
+		     symbol__config_symfs),
 	OPT_UINTEGER('o', "order", &sort_compute, "Specify compute sorting."),
 	OPT_CALLBACK(0, "percentage", NULL, "relative|absolute",
 		     "How to display percentage of filtered entries", parse_filter_percentage),

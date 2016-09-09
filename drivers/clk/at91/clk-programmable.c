@@ -99,7 +99,7 @@ static int clk_programmable_set_parent(struct clk_hw *hw, u8 index)
 	struct clk_programmable *prog = to_clk_programmable(hw);
 	const struct clk_programmable_layout *layout = prog->layout;
 	unsigned int mask = layout->css_mask;
-	unsigned int pckr = 0;
+	unsigned int pckr = index;
 
 	if (layout->have_slck_mck)
 		mask |= AT91_PMC_CSSMCK_MCK;

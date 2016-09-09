@@ -1510,7 +1510,6 @@ static void cpumf_measurement_alert(struct ext_code ext_code,
 static int cpumf_pmu_notifier(struct notifier_block *self,
 			      unsigned long action, void *hcpu)
 {
-	unsigned int cpu = (long) hcpu;
 	int flags;
 
 	/* Ignore the notification if no events are scheduled on the PMU.
@@ -1523,11 +1522,15 @@ static int cpumf_pmu_notifier(struct notifier_block *self,
 	case CPU_ONLINE:
 	case CPU_DOWN_FAILED:
 		flags = PMC_INIT;
-		smp_call_function_single(cpu, setup_pmc_cpu, &flags, 1);
+		local_irq_disable();
+		setup_pmc_cpu(&flags);
+		local_irq_enable();
 		break;
 	case CPU_DOWN_PREPARE:
 		flags = PMC_RELEASE;
-		smp_call_function_single(cpu, setup_pmc_cpu, &flags, 1);
+		local_irq_disable();
+		setup_pmc_cpu(&flags);
+		local_irq_enable();
 		break;
 	default:
 		break;

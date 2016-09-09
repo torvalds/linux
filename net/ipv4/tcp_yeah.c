@@ -56,15 +56,16 @@ static void tcp_yeah_init(struct sock *sk)
 	tp->snd_cwnd_clamp = min_t(u32, tp->snd_cwnd_clamp, 0xffffffff/128);
 }
 
-static void tcp_yeah_pkts_acked(struct sock *sk, u32 pkts_acked, s32 rtt_us)
+static void tcp_yeah_pkts_acked(struct sock *sk,
+				const struct ack_sample *sample)
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct yeah *yeah = inet_csk_ca(sk);
 
 	if (icsk->icsk_ca_state == TCP_CA_Open)
-		yeah->pkts_acked = pkts_acked;
+		yeah->pkts_acked = sample->pkts_acked;
 
-	tcp_vegas_pkts_acked(sk, pkts_acked, rtt_us);
+	tcp_vegas_pkts_acked(sk, sample);
 }
 
 static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack, u32 acked)

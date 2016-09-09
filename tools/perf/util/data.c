@@ -136,3 +136,44 @@ ssize_t perf_data_file__write(struct perf_data_file *file,
 {
 	return writen(file->fd, buf, size);
 }
+
+int perf_data_file__switch(struct perf_data_file *file,
+			   const char *postfix,
+			   size_t pos, bool at_exit)
+{
+	char *new_filepath;
+	int ret;
+
+	if (check_pipe(file))
+		return -EINVAL;
+	if (perf_data_file__is_read(file))
+		return -EINVAL;
+
+	if (asprintf(&new_filepath, "%s.%s", file->path, postfix) < 0)
+		return -ENOMEM;
+
+	/*
+	 * Only fire a warning, don't return error, continue fill
+	 * original file.
+	 */
+	if (rename(file->path, new_filepath))
+		pr_warning("Failed to rename %s to %s\n", file->path, new_filepath);
+
+	if (!at_exit) {
+		close(file->fd);
+		ret = perf_data_file__open(file);
+		if (ret < 0)
+			goto out;
+
+		if (lseek(file->fd, pos, SEEK_SET) == (off_t)-1) {
+			ret = -errno;
+			pr_debug("Failed to lseek to %zu: %s",
+				 pos, strerror(errno));
+			goto out;
+		}
+	}
+	ret = file->fd;
+out:
+	free(new_filepath);
+	return ret;
+}

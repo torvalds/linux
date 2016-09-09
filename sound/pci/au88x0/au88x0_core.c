@@ -1444,9 +1444,8 @@ static int vortex_wtdma_bufshift(vortex_t * vortex, int wtdma)
 	int page, p, pp, delta, i;
 
 	page =
-	    (hwread(vortex->mmio, VORTEX_WTDMA_STAT + (wtdma << 2)) &
-	     WT_SUBBUF_MASK)
-	    >> WT_SUBBUF_SHIFT;
+	    (hwread(vortex->mmio, VORTEX_WTDMA_STAT + (wtdma << 2))
+	     >> WT_SUBBUF_SHIFT) & WT_SUBBUF_MASK;
 	if (dma->nr_periods >= 4)
 		delta = (page - dma->period_real) & 3;
 	else {
@@ -2151,8 +2150,7 @@ vortex_adb_allocroute(vortex_t *vortex, int dma, int nr_ch, int dir,
 							   stream->resources, en,
 							   VORTEX_RESOURCE_SRC)) < 0) {
 					memset(stream->resources, 0,
-					       sizeof(unsigned char) *
-					       VORTEX_RESOURCE_LAST);
+					       sizeof(stream->resources));
 					return -EBUSY;
 				}
 				if (stream->type != VORTEX_PCM_A3D) {
@@ -2162,7 +2160,7 @@ vortex_adb_allocroute(vortex_t *vortex, int dma, int nr_ch, int dir,
 								   VORTEX_RESOURCE_MIXIN)) < 0) {
 						memset(stream->resources,
 						       0,
-						       sizeof(unsigned char) * VORTEX_RESOURCE_LAST);
+						       sizeof(stream->resources));
 						return -EBUSY;
 					}
 				}
@@ -2175,8 +2173,7 @@ vortex_adb_allocroute(vortex_t *vortex, int dma, int nr_ch, int dir,
 						   stream->resources, en,
 						   VORTEX_RESOURCE_A3D)) < 0) {
 				memset(stream->resources, 0,
-				       sizeof(unsigned char) *
-				       VORTEX_RESOURCE_LAST);
+				       sizeof(stream->resources));
 				dev_err(vortex->card->dev,
 					"out of A3D sources. Sorry\n");
 				return -EBUSY;
@@ -2290,8 +2287,7 @@ vortex_adb_allocroute(vortex_t *vortex, int dma, int nr_ch, int dir,
 						   VORTEX_RESOURCE_MIXOUT))
 			    < 0) {
 				memset(stream->resources, 0,
-				       sizeof(unsigned char) *
-				       VORTEX_RESOURCE_LAST);
+				       sizeof(stream->resources));
 				return -EBUSY;
 			}
 			if ((src[i] =
@@ -2299,8 +2295,7 @@ vortex_adb_allocroute(vortex_t *vortex, int dma, int nr_ch, int dir,
 						   stream->resources, en,
 						   VORTEX_RESOURCE_SRC)) < 0) {
 				memset(stream->resources, 0,
-				       sizeof(unsigned char) *
-				       VORTEX_RESOURCE_LAST);
+				       sizeof(stream->resources));
 				return -EBUSY;
 			}
 		}

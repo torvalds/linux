@@ -380,7 +380,7 @@ static void cachefiles_sync_cache(struct fscache_cache *_cache)
  * check if the backing cache is updated to FS-Cache
  * - called by FS-Cache when evaluates if need to invalidate the cache
  */
-static bool cachefiles_check_consistency(struct fscache_operation *op)
+static int cachefiles_check_consistency(struct fscache_operation *op)
 {
 	struct cachefiles_object *object;
 	struct cachefiles_cache *cache;

@@ -32,7 +32,6 @@
     EXPORT(x);
 
 /* Overload, Danger Will Robinson!! */
-#define PT_HOST_ASID        PT_BVADDR
 #define PT_HOST_USERLOCAL   PT_EPC
 
 #define CP0_DDATA_LO        $28,3
@@ -49,45 +48,18 @@
  * a1: vcpu
  */
 	.set	noreorder
-	.set	noat
 
 FEXPORT(__kvm_mips_vcpu_run)
 	/* k0/k1 not being used in host kernel context */
 	INT_ADDIU k1, sp, -PT_SIZE
-	LONG_S	$0, PT_R0(k1)
-	LONG_S	$1, PT_R1(k1)
-	LONG_S	$2, PT_R2(k1)
-	LONG_S	$3, PT_R3(k1)
-
-	LONG_S	$4, PT_R4(k1)
-	LONG_S	$5, PT_R5(k1)
-	LONG_S	$6, PT_R6(k1)
-	LONG_S	$7, PT_R7(k1)
-
-	LONG_S	$8,  PT_R8(k1)
-	LONG_S	$9,  PT_R9(k1)
-	LONG_S	$10, PT_R10(k1)
-	LONG_S	$11, PT_R11(k1)
-	LONG_S	$12, PT_R12(k1)
-	LONG_S	$13, PT_R13(k1)
-	LONG_S	$14, PT_R14(k1)
-	LONG_S	$15, PT_R15(k1)
 	LONG_S	$16, PT_R16(k1)
 	LONG_S	$17, PT_R17(k1)
-
 	LONG_S	$18, PT_R18(k1)
 	LONG_S	$19, PT_R19(k1)
 	LONG_S	$20, PT_R20(k1)
 	LONG_S	$21, PT_R21(k1)
 	LONG_S	$22, PT_R22(k1)
 	LONG_S	$23, PT_R23(k1)
-	LONG_S	$24, PT_R24(k1)
-	LONG_S	$25, PT_R25(k1)
-
-	/*
-	 * XXXKYMA k0/k1 not saved, not being used if we got here through
-	 * an ioctl()
-	 */
 
 	LONG_S	$28, PT_R28(k1)
 	LONG_S	$29, PT_R29(k1)
@@ -103,11 +75,6 @@ FEXPORT(__kvm_mips_vcpu_run)
 	/* Save host status */
 	mfc0	v0, CP0_STATUS
 	LONG_S	v0, PT_STATUS(k1)
-
-	/* Save host ASID, shove it into the BVADDR location */
-	mfc0	v1, CP0_ENTRYHI
-	andi	v1, 0xff
-	LONG_S	v1, PT_HOST_ASID(k1)
 
 	/* Save DDATA_LO, will be used to store pointer to vcpu */
 	mfc0	v1, CP0_DDATA_LO
@@ -170,13 +137,21 @@ FEXPORT(__kvm_mips_load_asid)
 	INT_SLL	t2, t2, 2                   /* x4 */
 	REG_ADDU t3, t1, t2
 	LONG_L	k0, (t3)
-	andi	k0, k0, 0xff
+#ifdef CONFIG_MIPS_ASID_BITS_VARIABLE
+	li	t3, CPUINFO_SIZE/4
+	mul	t2, t2, t3		/* x sizeof(struct cpuinfo_mips)/4 */
+	LONG_L	t2, (cpu_data + CPUINFO_ASID_MASK)(t2)
+	and	k0, k0, t2
+#else
+	andi	k0, k0, MIPS_ENTRYHI_ASID
+#endif
 	mtc0	k0, CP0_ENTRYHI
 	ehb
 
 	/* Disable RDHWR access */
 	mtc0	zero, CP0_HWRENA
 
+	.set	noat
 	/* Now load up the Guest Context from VCPU */
 	LONG_L	$1, VCPU_R1(k1)
 	LONG_L	$2, VCPU_R2(k1)
@@ -227,6 +202,7 @@ FEXPORT(__kvm_mips_load_k0k1)
 
 	/* Jump to guest */
 	eret
+EXPORT(__kvm_mips_vcpu_run_end)
 
 VECTOR(MIPSX(exception), unknown)
 /* Find out what mode we came from and jump to the proper handler. */
@@ -288,6 +264,8 @@ NESTED (MIPSX(GuestException), CALLFRAME_SIZ, ra)
 	LONG_S	$30, VCPU_R30(k1)
 	LONG_S	$31, VCPU_R31(k1)
 
+	.set at
+
 	/* We need to save hi/lo and restore them on the way out */
 	mfhi	t0
 	LONG_S	t0, VCPU_HI(k1)
@@ -339,9 +317,7 @@ NESTED (MIPSX(GuestException), CALLFRAME_SIZ, ra)
 	/* load up the host EBASE */
 	mfc0	v0, CP0_STATUS
 
-	.set	at
 	or	k0, v0, ST0_BEV
-	.set	noat
 
 	mtc0	k0, CP0_STATUS
 	ehb
@@ -353,7 +329,6 @@ NESTED (MIPSX(GuestException), CALLFRAME_SIZ, ra)
 	 * If FPU is enabled, save FCR31 and clear it so that later ctc1's don't
 	 * trigger FPE for pending exceptions.
 	 */
-	.set	at
 	and	v1, v0, ST0_CU1
 	beqz	v1, 1f
 	 nop
@@ -363,7 +338,6 @@ NESTED (MIPSX(GuestException), CALLFRAME_SIZ, ra)
 	sw	t0, VCPU_FCR31(k1)
 	ctc1	zero,fcr31
 	.set	pop
-	.set	noat
 1:
 
 #ifdef CONFIG_CPU_HAS_MSA
@@ -386,10 +360,8 @@ NESTED (MIPSX(GuestException), CALLFRAME_SIZ, ra)
 #endif
 
 	/* Now that the new EBASE has been loaded, unset BEV and KSU_USER */
-	.set	at
 	and	v0, v0, ~(ST0_EXL | KSU_USER | ST0_IE)
 	or	v0, v0, ST0_CU0
-	.set	noat
 	mtc0	v0, CP0_STATUS
 	ehb
 
@@ -456,18 +428,14 @@ __kvm_mips_return_to_guest:
 
 	/* Switch EBASE back to the one used by KVM */
 	mfc0	v1, CP0_STATUS
-	.set	at
 	or	k0, v1, ST0_BEV
-	.set	noat
 	mtc0	k0, CP0_STATUS
 	ehb
 	mtc0	t0, CP0_EBASE
 
 	/* Setup status register for running guest in UM */
-	.set	at
 	or	v1, v1, (ST0_EXL | KSU_USER | ST0_IE)
 	and	v1, v1, ~(ST0_CU0 | ST0_MX)
-	.set	noat
 	mtc0	v1, CP0_STATUS
 	ehb
 
@@ -489,13 +457,21 @@ __kvm_mips_return_to_guest:
 	INT_SLL	t2, t2, 2		/* x4 */
 	REG_ADDU t3, t1, t2
 	LONG_L	k0, (t3)
-	andi	k0, k0, 0xff
+#ifdef CONFIG_MIPS_ASID_BITS_VARIABLE
+	li	t3, CPUINFO_SIZE/4
+	mul	t2, t2, t3		/* x sizeof(struct cpuinfo_mips)/4 */
+	LONG_L	t2, (cpu_data + CPUINFO_ASID_MASK)(t2)
+	and	k0, k0, t2
+#else
+	andi	k0, k0, MIPS_ENTRYHI_ASID
+#endif
 	mtc0	k0, CP0_ENTRYHI
 	ehb
 
 	/* Disable RDHWR access */
 	mtc0	zero, CP0_HWRENA
 
+	.set	noat
 	/* load the guest context from VCPU and return */
 	LONG_L	$0, VCPU_R0(k1)
 	LONG_L	$1, VCPU_R1(k1)
@@ -541,6 +517,7 @@ FEXPORT(__kvm_mips_skip_guest_restore)
 	LONG_L	k1, VCPU_R27(k1)
 
 	eret
+	.set	at
 
 __kvm_mips_return_to_host:
 	/* EBASE is already pointing to Linux */
@@ -551,16 +528,6 @@ __kvm_mips_return_to_host:
 	LONG_L	k0, PT_HOST_USERLOCAL(k1)
 	mtc0	k0, CP0_DDATA_LO
 
-	/* Restore host ASID */
-	LONG_L	k0, PT_HOST_ASID(sp)
-	andi	k0, 0xff
-	mtc0	k0,CP0_ENTRYHI
-	ehb
-
-	/* Load context saved on the host stack */
-	LONG_L	$0, PT_R0(k1)
-	LONG_L	$1, PT_R1(k1)
-
 	/*
 	 * r2/v0 is the return code, shift it down by 2 (arithmetic)
 	 * to recover the err code
@@ -568,19 +535,7 @@ __kvm_mips_return_to_host:
 	INT_SRA	k0, v0, 2
 	move	$2, k0
 
-	LONG_L	$3, PT_R3(k1)
-	LONG_L	$4, PT_R4(k1)
-	LONG_L	$5, PT_R5(k1)
-	LONG_L	$6, PT_R6(k1)
-	LONG_L	$7, PT_R7(k1)
-	LONG_L	$8, PT_R8(k1)
-	LONG_L	$9, PT_R9(k1)
-	LONG_L	$10, PT_R10(k1)
-	LONG_L	$11, PT_R11(k1)
-	LONG_L	$12, PT_R12(k1)
-	LONG_L	$13, PT_R13(k1)
-	LONG_L	$14, PT_R14(k1)
-	LONG_L	$15, PT_R15(k1)
+	/* Load context saved on the host stack */
 	LONG_L	$16, PT_R16(k1)
 	LONG_L	$17, PT_R17(k1)
 	LONG_L	$18, PT_R18(k1)
@@ -589,10 +544,6 @@ __kvm_mips_return_to_host:
 	LONG_L	$21, PT_R21(k1)
 	LONG_L	$22, PT_R22(k1)
 	LONG_L	$23, PT_R23(k1)
-	LONG_L	$24, PT_R24(k1)
-	LONG_L	$25, PT_R25(k1)
-
-	/* Host k0/k1 were not saved */
 
 	LONG_L	$28, PT_R28(k1)
 	LONG_L	$29, PT_R29(k1)

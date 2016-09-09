@@ -11,11 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
  ******************************************************************************/
 #define _RTL8188E_REDESC_C_
 
@@ -45,7 +40,7 @@ static void process_link_qual(struct adapter *padapter,
 	struct rx_pkt_attrib *pattrib;
 	struct signal_stat *signal_stat;
 
-	if (prframe == NULL || padapter == NULL)
+	if (!prframe || !padapter)
 		return;
 
 	pattrib = &prframe->attrib;
@@ -64,7 +59,7 @@ static void process_link_qual(struct adapter *padapter,
 
 void rtl8188e_process_phy_info(struct adapter *padapter, void *prframe)
 {
-	struct recv_frame *precvframe = (struct recv_frame *)prframe;
+	struct recv_frame *precvframe = prframe;
 
 	/*  Check RSSI */
 	process_rssi(padapter, precvframe);

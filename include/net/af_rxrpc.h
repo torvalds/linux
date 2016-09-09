@@ -12,6 +12,7 @@
 #ifndef _NET_RXRPC_H
 #define _NET_RXRPC_H
 
+#include <linux/skbuff.h>
 #include <linux/rxrpc.h>
 
 struct rxrpc_call;
@@ -19,11 +20,12 @@ struct rxrpc_call;
 /*
  * the mark applied to socket buffers that may be intercepted
  */
-enum {
+enum rxrpc_skb_mark {
 	RXRPC_SKB_MARK_DATA,		/* data message */
 	RXRPC_SKB_MARK_FINAL_ACK,	/* final ACK received message */
 	RXRPC_SKB_MARK_BUSY,		/* server busy message */
 	RXRPC_SKB_MARK_REMOTE_ABORT,	/* remote abort message */
+	RXRPC_SKB_MARK_LOCAL_ABORT,	/* local abort message */
 	RXRPC_SKB_MARK_NET_ERROR,	/* network error message */
 	RXRPC_SKB_MARK_LOCAL_ERROR,	/* local error message */
 	RXRPC_SKB_MARK_NEW_CALL,	/* local error message */

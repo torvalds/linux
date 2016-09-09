@@ -1489,27 +1489,6 @@ static struct s5p_mfc_variant mfc_drvdata_v8 = {
 	.fw_name[0]     = "s5p-mfc-v8.fw",
 };
 
-static const struct platform_device_id mfc_driver_ids[] = {
-	{
-		.name = "s5p-mfc",
-		.driver_data = (unsigned long)&mfc_drvdata_v5,
-	}, {
-		.name = "s5p-mfc-v5",
-		.driver_data = (unsigned long)&mfc_drvdata_v5,
-	}, {
-		.name = "s5p-mfc-v6",
-		.driver_data = (unsigned long)&mfc_drvdata_v6,
-	}, {
-		.name = "s5p-mfc-v7",
-		.driver_data = (unsigned long)&mfc_drvdata_v7,
-	}, {
-		.name = "s5p-mfc-v8",
-		.driver_data = (unsigned long)&mfc_drvdata_v8,
-	},
-	{},
-};
-MODULE_DEVICE_TABLE(platform, mfc_driver_ids);
-
 static const struct of_device_id exynos_mfc_match[] = {
 	{
 		.compatible = "samsung,mfc-v5",
@@ -1531,24 +1510,18 @@ MODULE_DEVICE_TABLE(of, exynos_mfc_match);
 static void *mfc_get_drv_data(struct platform_device *pdev)
 {
 	struct s5p_mfc_variant *driver_data = NULL;
+	const struct of_device_id *match;
 
-	if (pdev->dev.of_node) {
-		const struct of_device_id *match;
-		match = of_match_node(exynos_mfc_match,
-				pdev->dev.of_node);
-		if (match)
-			driver_data = (struct s5p_mfc_variant *)match->data;
-	} else {
-		driver_data = (struct s5p_mfc_variant *)
-			platform_get_device_id(pdev)->driver_data;
-	}
+	match = of_match_node(exynos_mfc_match, pdev->dev.of_node);
+	if (match)
+		driver_data = (struct s5p_mfc_variant *)match->data;
+
 	return driver_data;
 }
 
 static struct platform_driver s5p_mfc_driver = {
 	.probe		= s5p_mfc_probe,
 	.remove		= s5p_mfc_remove,
-	.id_table	= mfc_driver_ids,
 	.driver	= {
 		.name	= S5P_MFC_NAME,
 		.pm	= &s5p_mfc_pm_ops,

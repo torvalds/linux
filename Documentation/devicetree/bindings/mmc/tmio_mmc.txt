@@ -26,3 +26,6 @@ Required properties:
 
 Optional properties:
 - toshiba,mmc-wrprotect-disable: write-protect detection is unavailable
+- pinctrl-names: should be "default", "state_uhs"
+- pinctrl-0: should contain default/high speed pin ctrl
+- pinctrl-1: should contain uhs mode pin ctrl

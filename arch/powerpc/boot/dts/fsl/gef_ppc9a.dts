@@ -211,6 +211,10 @@
 				  0x0 0x00400000>;
 		};
 	};
+
+	pci1: pcie@fef09000 {
+		status = "disabled";
+	};
 };
 
 /include/ "mpc8641si-post.dtsi"

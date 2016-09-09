@@ -1913,7 +1913,7 @@ static int ipw2100_wdev_init(struct net_device *dev)
 	if (geo->bg_channels) {
 		struct ieee80211_supported_band *bg_band = &priv->ieee->bg_band;
 
-		bg_band->band = IEEE80211_BAND_2GHZ;
+		bg_band->band = NL80211_BAND_2GHZ;
 		bg_band->n_channels = geo->bg_channels;
 		bg_band->channels = kcalloc(geo->bg_channels,
 					    sizeof(struct ieee80211_channel),
@@ -1924,7 +1924,7 @@ static int ipw2100_wdev_init(struct net_device *dev)
 		}
 		/* translate geo->bg to bg_band.channels */
 		for (i = 0; i < geo->bg_channels; i++) {
-			bg_band->channels[i].band = IEEE80211_BAND_2GHZ;
+			bg_band->channels[i].band = NL80211_BAND_2GHZ;
 			bg_band->channels[i].center_freq = geo->bg[i].freq;
 			bg_band->channels[i].hw_value = geo->bg[i].channel;
 			bg_band->channels[i].max_power = geo->bg[i].max_power;
@@ -1945,7 +1945,7 @@ static int ipw2100_wdev_init(struct net_device *dev)
 		bg_band->bitrates = ipw2100_bg_rates;
 		bg_band->n_bitrates = RATE_COUNT;
 
-		wdev->wiphy->bands[IEEE80211_BAND_2GHZ] = bg_band;
+		wdev->wiphy->bands[NL80211_BAND_2GHZ] = bg_band;
 	}
 
 	wdev->wiphy->cipher_suites = ipw_cipher_suites;
@@ -2954,7 +2954,7 @@ static int __ipw2100_tx_process(struct ipw2100_priv *priv)
 
 		/* A packet was processed by the hardware, so update the
 		 * watchdog */
-		priv->net_dev->trans_start = jiffies;
+		netif_trans_update(priv->net_dev);
 
 		break;
 
@@ -3521,7 +3521,7 @@ static void ipw2100_msg_free(struct ipw2100_priv *priv)
 static ssize_t show_pci(struct device *d, struct device_attribute *attr,
 			char *buf)
 {
-	struct pci_dev *pci_dev = container_of(d, struct pci_dev, dev);
+	struct pci_dev *pci_dev = to_pci_dev(d);
 	char *out = buf;
 	int i, j;
 	u32 val;

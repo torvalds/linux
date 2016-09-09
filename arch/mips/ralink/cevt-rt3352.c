@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2013 by John Crispin <blogic@openwrt.org>
+ * Copyright (C) 2013 by John Crispin <john@phrozen.org>
  */
 
 #include <linux/clockchips.h>

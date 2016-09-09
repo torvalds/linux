@@ -212,7 +212,7 @@ static void hpet_setup(void)
 	/* set hpet base address */
 	smbus_write(SMBUS_PCI_REGB4, HPET_ADDR);
 
-	/* enable decodeing of access to HPET MMIO*/
+	/* enable decoding of access to HPET MMIO*/
 	smbus_enable(SMBUS_PCI_REG40, (1 << 28));
 
 	/* HPET irq enable */

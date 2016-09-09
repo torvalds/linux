@@ -82,6 +82,8 @@ static int omap_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct dma_chan *chan;
 	int err = 0;
 
+	memset(&config, 0x00, sizeof(config));
+
 	dma_data = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	/* return if this is a bufferless transfer e.g.

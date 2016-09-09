@@ -6,7 +6,7 @@
  *         Title:  MPI Configuration messages and pages
  * Creation Date:  November 10, 2006
  *
- *   mpi2_cnfg.h Version:  02.00.33
+ *   mpi2_cnfg.h Version:  02.00.35
  *
  * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *       prefix are for use only on MPI v2.5 products, and must not be used
@@ -183,9 +183,12 @@
  *                     Added MPI2_BIOSPAGE1_OPTIONS_ADVANCED_CONFIG.
  *                     Added AdapterOrderAux fields to BIOS Page 3.
  * 03-16-15  02.00.31  Updated for MPI v2.6.
+ *                     Added Flags field to IO Unit Page 7.
  *                     Added new SAS Phy Event codes
  * 05-25-15  02.00.33  Added more defines for the BiosOptions field of
  *                     MPI2_CONFIG_PAGE_BIOS_1.
+ * 08-25-15  02.00.34  Bumped Header Version.
+ * 12-18-15  02.00.35  Added SATADeviceWaitTime to SAS IO Unit Page 4.
  * --------------------------------------------------------------------------
  */
 
@@ -958,13 +961,16 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_7 {
 	U8                      Reserved3;              /*0x17 */
 	U32			BoardPowerRequirement;	/*0x18 */
 	U32			PCISlotPowerAllocation;	/*0x1C */
-	U32			Reserved6;		/* 0x20 */
-	U32			Reserved7;		/* 0x24 */
+/* reserved prior to MPI v2.6 */
+	U8		Flags;			/* 0x20 */
+	U8		Reserved6;			/* 0x21 */
+	U16		Reserved7;			/* 0x22 */
+	U32		Reserved8;			/* 0x24 */
 } MPI2_CONFIG_PAGE_IO_UNIT_7,
 	*PTR_MPI2_CONFIG_PAGE_IO_UNIT_7,
 	Mpi2IOUnitPage7_t, *pMpi2IOUnitPage7_t;
 
-#define MPI2_IOUNITPAGE7_PAGEVERSION			(0x04)
+#define MPI2_IOUNITPAGE7_PAGEVERSION			(0x05)
 
 /*defines for IO Unit Page 7 CurrentPowerMode and PreviousPowerMode fields */
 #define MPI25_IOUNITPAGE7_PM_INIT_MASK              (0xC0)
@@ -1045,6 +1051,8 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_7 {
 #define MPI2_IOUNITPAGE7_BOARD_TEMP_FAHRENHEIT      (0x01)
 #define MPI2_IOUNITPAGE7_BOARD_TEMP_CELSIUS         (0x02)
 
+/* defines for IO Unit Page 7 Flags field */
+#define MPI2_IOUNITPAGE7_FLAG_CABLE_POWER_EXC       (0x01)
 
 /*IO Unit Page 8 */
 
@@ -2271,7 +2279,7 @@ typedef struct _MPI2_CONFIG_PAGE_SASIOUNIT_4 {
 	U8
 		BootDeviceWaitTime;             /*0x24 */
 	U8
-		Reserved4;                      /*0x25 */
+		SATADeviceWaitTime;		/*0x25 */
 	U16
 		Reserved5;                      /*0x26 */
 	U8

@@ -251,7 +251,7 @@ static ssize_t commands_show(struct device *dev,
 	struct nvdimm_bus *nvdimm_bus = to_nvdimm_bus(dev);
 	struct nvdimm_bus_descriptor *nd_desc = nvdimm_bus->nd_desc;
 
-	for_each_set_bit(cmd, &nd_desc->dsm_mask, BITS_PER_LONG)
+	for_each_set_bit(cmd, &nd_desc->cmd_mask, BITS_PER_LONG)
 		len += sprintf(buf + len, "%s ", nvdimm_bus_cmd_name(cmd));
 	len += sprintf(buf + len, "\n");
 	return len;
@@ -648,6 +648,9 @@ static __exit void libnvdimm_exit(void)
 	nd_region_exit();
 	nvdimm_exit();
 	nvdimm_bus_exit();
+	nd_region_devs_exit();
+	nvdimm_devs_exit();
+	ida_destroy(&nd_ida);
 }
 
 MODULE_LICENSE("GPL v2");

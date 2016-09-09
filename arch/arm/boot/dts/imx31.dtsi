@@ -69,6 +69,14 @@
 				status = "disabled";
 			};
 
+			kpp: kpp@43fa8000 {
+				compatible = "fsl,imx31-kpp", "fsl,imx21-kpp";
+				reg = <0x43fa8000 0x4000>;
+				interrupts = <24>;
+				clocks = <&clks 46>;
+				status = "disabled";
+			};
+
 			uart4: serial@43fb0000 {
 				compatible = "fsl,imx31-uart", "fsl,imx21-uart";
 				reg = <0x43fb0000 0x4000>;

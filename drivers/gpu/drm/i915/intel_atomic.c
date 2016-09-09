@@ -96,8 +96,11 @@ intel_crtc_duplicate_state(struct drm_crtc *crtc)
 	crtc_state->update_pipe = false;
 	crtc_state->disable_lp_wm = false;
 	crtc_state->disable_cxsr = false;
-	crtc_state->wm_changed = false;
+	crtc_state->update_wm_pre = false;
+	crtc_state->update_wm_post = false;
 	crtc_state->fb_changed = false;
+	crtc_state->wm.need_postvbl_update = false;
+	crtc_state->fb_bits = 0;
 
 	return &crtc_state->base;
 }

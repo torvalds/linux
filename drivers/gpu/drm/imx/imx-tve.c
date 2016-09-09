@@ -294,8 +294,10 @@ static void imx_tve_encoder_prepare(struct drm_encoder *encoder)
 
 	switch (tve->mode) {
 	case TVE_MODE_VGA:
-		imx_drm_set_bus_format_pins(encoder, MEDIA_BUS_FMT_GBR888_1X24,
-					    tve->hsync_pin, tve->vsync_pin);
+		imx_drm_set_bus_config(encoder, MEDIA_BUS_FMT_GBR888_1X24,
+				       tve->hsync_pin, tve->vsync_pin,
+				       DRM_BUS_FLAG_DE_HIGH |
+				       DRM_BUS_FLAG_PIXDATA_NEGEDGE);
 		break;
 	case TVE_MODE_TVOUT:
 		imx_drm_set_bus_format(encoder, MEDIA_BUS_FMT_YUV8_1X24);

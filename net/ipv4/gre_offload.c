@@ -26,18 +26,6 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 	int gre_offset, outer_hlen;
 	bool need_csum, ufo;
 
-	if (unlikely(skb_shinfo(skb)->gso_type &
-				~(SKB_GSO_TCPV4 |
-				  SKB_GSO_TCPV6 |
-				  SKB_GSO_UDP |
-				  SKB_GSO_DODGY |
-				  SKB_GSO_TCP_ECN |
-				  SKB_GSO_GRE |
-				  SKB_GSO_GRE_CSUM |
-				  SKB_GSO_IPIP |
-				  SKB_GSO_SIT)))
-		goto out;
-
 	if (!skb->encapsulation)
 		goto out;
 
@@ -86,7 +74,7 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 	skb = segs;
 	do {
 		struct gre_base_hdr *greh;
-		__be32 *pcsum;
+		__sum16 *pcsum;
 
 		/* Set up inner headers if we are offloading inner checksum */
 		if (skb->ip_summed == CHECKSUM_PARTIAL) {
@@ -106,10 +94,25 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 			continue;
 
 		greh = (struct gre_base_hdr *)skb_transport_header(skb);
-		pcsum = (__be32 *)(greh + 1);
+		pcsum = (__sum16 *)(greh + 1);
 
-		*pcsum = 0;
-		*(__sum16 *)pcsum = gso_make_checksum(skb, 0);
+		if (skb_is_gso(skb)) {
+			unsigned int partial_adj;
+
+			/* Adjust checksum to account for the fact that
+			 * the partial checksum is based on actual size
+			 * whereas headers should be based on MSS size.
+			 */
+			partial_adj = skb->len + skb_headroom(skb) -
+				      SKB_GSO_CB(skb)->data_offset -
+				      skb_shinfo(skb)->gso_size;
+			*pcsum = ~csum_fold((__force __wsum)htonl(partial_adj));
+		} else {
+			*pcsum = 0;
+		}
+
+		*(pcsum + 1) = 0;
+		*pcsum = gso_make_checksum(skb, 0);
 	} while ((skb = skb->next));
 out:
 	return segs;
@@ -275,6 +278,18 @@ static const struct net_offload gre_offload = {
 
 static int __init gre_offload_init(void)
 {
-	return inet_add_offload(&gre_offload, IPPROTO_GRE);
+	int err;
+
+	err = inet_add_offload(&gre_offload, IPPROTO_GRE);
+#if IS_ENABLED(CONFIG_IPV6)
+	if (err)
+		return err;
+
+	err = inet6_add_offload(&gre_offload, IPPROTO_GRE);
+	if (err)
+		inet_del_offload(&gre_offload, IPPROTO_GRE);
+#endif
+
+	return err;
 }
 device_initcall(gre_offload_init);

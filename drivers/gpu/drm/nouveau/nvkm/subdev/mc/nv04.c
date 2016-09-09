@@ -23,18 +23,20 @@
  */
 #include "priv.h"
 
-const struct nvkm_mc_intr
-nv04_mc_intr[] = {
-	{ 0x00000001, NVKM_ENGINE_MPEG },	/* NV17- MPEG/ME */
-	{ 0x00000100, NVKM_ENGINE_FIFO },
+const struct nvkm_mc_map
+nv04_mc_reset[] = {
 	{ 0x00001000, NVKM_ENGINE_GR },
-	{ 0x00010000, NVKM_ENGINE_DISP },
-	{ 0x00020000, NVKM_ENGINE_VP },	/* NV40- */
-	{ 0x00100000, NVKM_SUBDEV_TIMER },
-	{ 0x01000000, NVKM_ENGINE_DISP },	/* NV04- PCRTC0 */
-	{ 0x02000000, NVKM_ENGINE_DISP },	/* NV11- PCRTC1 */
+	{ 0x00000100, NVKM_ENGINE_FIFO },
+	{}
+};
+
+static const struct nvkm_mc_map
+nv04_mc_intr[] = {
+	{ 0x01010000, NVKM_ENGINE_DISP },
+	{ 0x00001000, NVKM_ENGINE_GR },
+	{ 0x00000100, NVKM_ENGINE_FIFO },
 	{ 0x10000000, NVKM_SUBDEV_BUS },
-	{ 0x80000000, NVKM_ENGINE_SW },
+	{ 0x00100000, NVKM_SUBDEV_TIMER },
 	{}
 };
 
@@ -74,6 +76,7 @@ nv04_mc = {
 	.intr_unarm = nv04_mc_intr_unarm,
 	.intr_rearm = nv04_mc_intr_rearm,
 	.intr_mask = nv04_mc_intr_mask,
+	.reset = nv04_mc_reset,
 };
 
 int

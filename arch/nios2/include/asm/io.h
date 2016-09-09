@@ -50,7 +50,6 @@ static inline void iounmap(void __iomem *addr)
 
 /* Pages to physical address... */
 #define page_to_phys(page)	virt_to_phys(page_to_virt(page))
-#define page_to_bus(page)	page_to_virt(page)
 
 /* Macros used for converting between virtual and physical mappings. */
 #define phys_to_virt(vaddr)	\

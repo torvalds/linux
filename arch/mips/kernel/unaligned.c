@@ -1191,6 +1191,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 	case ldc1_op:
 	case swc1_op:
 	case sdc1_op:
+	case cop1x_op:
 		die_if_kernel("Unaligned FP access in kernel code", regs);
 		BUG_ON(!used_math());
 

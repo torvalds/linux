@@ -74,7 +74,7 @@
 #define KVM_GUEST_KUSEG			0x00000000UL
 #define KVM_GUEST_KSEG0			0x40000000UL
 #define KVM_GUEST_KSEG23		0x60000000UL
-#define KVM_GUEST_KSEGX(a)		((_ACAST32_(a)) & 0x60000000)
+#define KVM_GUEST_KSEGX(a)		((_ACAST32_(a)) & 0xe0000000)
 #define KVM_GUEST_CPHYSADDR(a)		((_ACAST32_(a)) & 0x1fffffff)
 
 #define KVM_GUEST_CKSEG0ADDR(a)		(KVM_GUEST_CPHYSADDR(a) | KVM_GUEST_KSEG0)
@@ -122,6 +122,7 @@ struct kvm_vcpu_stat {
 	u32 flush_dcache_exits;
 	u32 halt_successful_poll;
 	u32 halt_attempted_poll;
+	u32 halt_poll_invalid;
 	u32 halt_wakeup;
 };
 
@@ -311,17 +312,18 @@ enum emulation_result {
 #define MIPS3_PG_FRAME		0x3fffffc0
 
 #define VPN2_MASK		0xffffe000
+#define KVM_ENTRYHI_ASID	MIPS_ENTRYHI_ASID
 #define TLB_IS_GLOBAL(x)	(((x).tlb_lo0 & MIPS3_PG_G) &&		\
 				 ((x).tlb_lo1 & MIPS3_PG_G))
 #define TLB_VPN2(x)		((x).tlb_hi & VPN2_MASK)
-#define TLB_ASID(x)		((x).tlb_hi & ASID_MASK)
+#define TLB_ASID(x)		((x).tlb_hi & KVM_ENTRYHI_ASID)
 #define TLB_IS_VALID(x, va)	(((va) & (1 << PAGE_SHIFT))		\
 				 ? ((x).tlb_lo1 & MIPS3_PG_V)		\
 				 : ((x).tlb_lo0 & MIPS3_PG_V))
 #define TLB_HI_VPN2_HIT(x, y)	((TLB_VPN2(x) & ~(x).tlb_mask) ==	\
 				 ((y) & VPN2_MASK & ~(x).tlb_mask))
 #define TLB_HI_ASID_HIT(x, y)	(TLB_IS_GLOBAL(x) ||			\
-				 TLB_ASID(x) == ((y) & ASID_MASK))
+				 TLB_ASID(x) == ((y) & KVM_ENTRYHI_ASID))
 
 struct kvm_mips_tlb {
 	long tlb_mask;
@@ -336,6 +338,7 @@ struct kvm_mips_tlb {
 #define KVM_MIPS_GUEST_TLB_SIZE	64
 struct kvm_vcpu_arch {
 	void *host_ebase, *guest_ebase;
+	int (*vcpu_run)(struct kvm_run *run, struct kvm_vcpu *vcpu);
 	unsigned long host_stack;
 	unsigned long host_gp;
 
@@ -747,7 +750,7 @@ extern enum emulation_result kvm_mips_complete_mmio_load(struct kvm_vcpu *vcpu,
 
 uint32_t kvm_mips_read_count(struct kvm_vcpu *vcpu);
 void kvm_mips_write_count(struct kvm_vcpu *vcpu, uint32_t count);
-void kvm_mips_write_compare(struct kvm_vcpu *vcpu, uint32_t compare);
+void kvm_mips_write_compare(struct kvm_vcpu *vcpu, uint32_t compare, bool ack);
 void kvm_mips_init_count(struct kvm_vcpu *vcpu);
 int kvm_mips_set_count_ctl(struct kvm_vcpu *vcpu, s64 count_ctl);
 int kvm_mips_set_count_resume(struct kvm_vcpu *vcpu, s64 count_resume);
@@ -812,5 +815,6 @@ static inline void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu) {}
 static inline void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu) {}
+static inline void kvm_arch_vcpu_block_finish(struct kvm_vcpu *vcpu) {}
 
 #endif /* __MIPS_KVM_HOST_H__ */

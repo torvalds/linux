@@ -38,6 +38,9 @@ static const struct nf_nat_l3proto __rcu *nf_nat_l3protos[NFPROTO_NUMPROTO]
 static const struct nf_nat_l4proto __rcu **nf_nat_l4protos[NFPROTO_NUMPROTO]
 						__read_mostly;
 
+static struct hlist_head *nf_nat_bysource __read_mostly;
+static unsigned int nf_nat_htable_size __read_mostly;
+static unsigned int nf_nat_hash_rnd __read_mostly;
 
 inline const struct nf_nat_l3proto *
 __nf_nat_l3proto_find(u8 family)
@@ -118,15 +121,17 @@ EXPORT_SYMBOL(nf_xfrm_me_harder);
 
 /* We keep an extra hash for each conntrack, for fast searching. */
 static inline unsigned int
-hash_by_src(const struct net *net, const struct nf_conntrack_tuple *tuple)
+hash_by_src(const struct net *n, const struct nf_conntrack_tuple *tuple)
 {
 	unsigned int hash;
 
+	get_random_once(&nf_nat_hash_rnd, sizeof(nf_nat_hash_rnd));
+
 	/* Original src, to ensure we map it consistently if poss. */
 	hash = jhash2((u32 *)&tuple->src, sizeof(tuple->src) / sizeof(u32),
-		      tuple->dst.protonum ^ nf_conntrack_hash_rnd);
+		      tuple->dst.protonum ^ nf_nat_hash_rnd ^ net_hash_mix(n));
 
-	return reciprocal_scale(hash, net->ct.nat_htable_size);
+	return reciprocal_scale(hash, nf_nat_htable_size);
 }
 
 /* Is this tuple already taken? (not by us) */
@@ -196,9 +201,10 @@ find_appropriate_src(struct net *net,
 	const struct nf_conn_nat *nat;
 	const struct nf_conn *ct;
 
-	hlist_for_each_entry_rcu(nat, &net->ct.nat_bysource[h], bysource) {
+	hlist_for_each_entry_rcu(nat, &nf_nat_bysource[h], bysource) {
 		ct = nat->ct;
 		if (same_src(ct, tuple) &&
+		    net_eq(net, nf_ct_net(ct)) &&
 		    nf_ct_zone_equal(ct, zone, IP_CT_DIR_ORIGINAL)) {
 			/* Copy source part from reply tuple. */
 			nf_ct_invert_tuplepr(result,
@@ -431,7 +437,7 @@ nf_nat_setup_info(struct nf_conn *ct,
 		nat = nfct_nat(ct);
 		nat->ct = ct;
 		hlist_add_head_rcu(&nat->bysource,
-				   &net->ct.nat_bysource[srchash]);
+				   &nf_nat_bysource[srchash]);
 		spin_unlock_bh(&nf_nat_lock);
 	}
 
@@ -819,27 +825,14 @@ nfnetlink_parse_nat_setup(struct nf_conn *ct,
 }
 #endif
 
-static int __net_init nf_nat_net_init(struct net *net)
-{
-	/* Leave them the same for the moment. */
-	net->ct.nat_htable_size = net->ct.htable_size;
-	net->ct.nat_bysource = nf_ct_alloc_hashtable(&net->ct.nat_htable_size, 0);
-	if (!net->ct.nat_bysource)
-		return -ENOMEM;
-	return 0;
-}
-
 static void __net_exit nf_nat_net_exit(struct net *net)
 {
 	struct nf_nat_proto_clean clean = {};
 
 	nf_ct_iterate_cleanup(net, nf_nat_proto_clean, &clean, 0, 0);
-	synchronize_rcu();
-	nf_ct_free_hashtable(net->ct.nat_bysource, net->ct.nat_htable_size);
 }
 
 static struct pernet_operations nf_nat_net_ops = {
-	.init = nf_nat_net_init,
 	.exit = nf_nat_net_exit,
 };
 
@@ -852,8 +845,16 @@ static int __init nf_nat_init(void)
 {
 	int ret;
 
+	/* Leave them the same for the moment. */
+	nf_nat_htable_size = nf_conntrack_htable_size;
+
+	nf_nat_bysource = nf_ct_alloc_hashtable(&nf_nat_htable_size, 0);
+	if (!nf_nat_bysource)
+		return -ENOMEM;
+
 	ret = nf_ct_extend_register(&nat_extend);
 	if (ret < 0) {
+		nf_ct_free_hashtable(nf_nat_bysource, nf_nat_htable_size);
 		printk(KERN_ERR "nf_nat_core: Unable to register extension\n");
 		return ret;
 	}
@@ -877,6 +878,7 @@ static int __init nf_nat_init(void)
 	return 0;
 
  cleanup_extend:
+	nf_ct_free_hashtable(nf_nat_bysource, nf_nat_htable_size);
 	nf_ct_extend_unregister(&nat_extend);
 	return ret;
 }
@@ -895,6 +897,7 @@ static void __exit nf_nat_cleanup(void)
 	for (i = 0; i < NFPROTO_NUMPROTO; i++)
 		kfree(nf_nat_l4protos[i]);
 	synchronize_net();
+	nf_ct_free_hashtable(nf_nat_bysource, nf_nat_htable_size);
 }
 
 MODULE_LICENSE("GPL");
