@@ -844,9 +844,12 @@ void mlx5e_cleanup_nic_tx(struct mlx5e_priv *priv);
 int mlx5e_close(struct net_device *netdev);
 int mlx5e_open(struct net_device *netdev);
 void mlx5e_update_stats_work(struct work_struct *work);
-void *mlx5e_create_netdev(struct mlx5_core_dev *mdev,
-			  const struct mlx5e_profile *profile, void *ppriv);
+struct net_device *mlx5e_create_netdev(struct mlx5_core_dev *mdev,
+				       const struct mlx5e_profile *profile,
+				       void *ppriv);
 void mlx5e_destroy_netdev(struct mlx5_core_dev *mdev, struct mlx5e_priv *priv);
+int mlx5e_attach_netdev(struct mlx5_core_dev *mdev, struct net_device *netdev);
+void mlx5e_detach_netdev(struct mlx5_core_dev *mdev, struct net_device *netdev);
 struct rtnl_link_stats64 *
 mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats);
 
