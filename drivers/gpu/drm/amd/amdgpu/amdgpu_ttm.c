@@ -160,7 +160,7 @@ static int amdgpu_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		break;
 	case TTM_PL_TT:
-		man->func = &ttm_bo_manager_func;
+		man->func = &amdgpu_gtt_mgr_func;
 		man->gpu_offset = adev->mc.gtt_start;
 		man->available_caching = TTM_PL_MASK_CACHING;
 		man->default_caching = TTM_PL_FLAG_CACHED;
@@ -277,7 +277,7 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 
 	switch (old_mem->mem_type) {
 	case TTM_PL_TT:
-		r = amdgpu_ttm_bind(bo->ttm, old_mem);
+		r = amdgpu_ttm_bind(bo, old_mem);
 		if (r)
 			return r;
 
@@ -290,7 +290,7 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 	}
 	switch (new_mem->mem_type) {
 	case TTM_PL_TT:
-		r = amdgpu_ttm_bind(bo->ttm, new_mem);
+		r = amdgpu_ttm_bind(bo, new_mem);
 		if (r)
 			return r;
 
@@ -675,7 +675,6 @@ static int amdgpu_ttm_backend_bind(struct ttm_tt *ttm,
 			return r;
 		}
 	}
-	gtt->offset = (u64)bo_mem->start << PAGE_SHIFT;
 	if (!ttm->num_pages) {
 		WARN(1, "nothing to bind %lu pages for mreg %p back %p!\n",
 		     ttm->num_pages, bo_mem, ttm);
@@ -696,16 +695,25 @@ bool amdgpu_ttm_is_bound(struct ttm_tt *ttm)
 	return gtt && !list_empty(&gtt->list);
 }
 
-int amdgpu_ttm_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem)
+int amdgpu_ttm_bind(struct ttm_buffer_object *bo, struct ttm_mem_reg *bo_mem)
 {
-	struct amdgpu_ttm_tt *gtt = (void *)ttm;
+	struct ttm_tt *ttm = bo->ttm;
+	struct amdgpu_ttm_tt *gtt = (void *)bo->ttm;
 	uint32_t flags;
 	int r;
 
 	if (!ttm || amdgpu_ttm_is_bound(ttm))
 		return 0;
 
+	r = amdgpu_gtt_mgr_alloc(&bo->bdev->man[TTM_PL_TT], bo,
+				 NULL, bo_mem);
+	if (r) {
+		DRM_ERROR("Failed to allocate GTT address space (%d)\n", r);
+		return r;
+	}
+
 	flags = amdgpu_ttm_tt_pte_flags(gtt->adev, ttm, bo_mem);
+	gtt->offset = (u64)bo_mem->start << PAGE_SHIFT;
 	r = amdgpu_gart_bind(gtt->adev, gtt->offset, ttm->num_pages,
 		ttm->pages, gtt->ttm.dma_address, flags);
 

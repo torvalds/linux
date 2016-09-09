@@ -673,7 +673,7 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 		dev_err(bo->adev->dev, "%p pin failed\n", bo);
 		goto error;
 	}
-	r = amdgpu_ttm_bind(bo->tbo.ttm, &bo->tbo.mem);
+	r = amdgpu_ttm_bind(&bo->tbo, &bo->tbo.mem);
 	if (unlikely(r)) {
 		dev_err(bo->adev->dev, "%p bind failed\n", bo);
 		goto error;
