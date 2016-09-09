@@ -361,6 +361,16 @@
 					};
 				};
 
+				nor_pins: nor {
+					mux {
+						groups = "nor_d",
+						       "nor_q",
+						       "nor_c",
+						       "nor_cs";
+						function = "nor";
+					};
+				};
+
 				sdcard_pins: sdcard {
 					mux {
 						groups = "sdcard_d0",
