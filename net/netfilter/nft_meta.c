@@ -52,6 +52,8 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 		*dest = pkt->pf;
 		break;
 	case NFT_META_L4PROTO:
+		if (!pkt->tprot_set)
+			goto err;
 		*dest = pkt->tprot;
 		break;
 	case NFT_META_PRIORITY:

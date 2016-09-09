@@ -71,7 +71,7 @@ static inline void nft_bridge_set_pktinfo_ipv4(struct nft_pktinfo *pkt,
 	if (nft_bridge_iphdr_validate(skb))
 		nft_set_pktinfo_ipv4(pkt, skb, state);
 	else
-		nft_set_pktinfo(pkt, skb, state);
+		nft_set_pktinfo_unspec(pkt, skb, state);
 }
 
 static inline void nft_bridge_set_pktinfo_ipv6(struct nft_pktinfo *pkt,
@@ -83,7 +83,7 @@ static inline void nft_bridge_set_pktinfo_ipv6(struct nft_pktinfo *pkt,
 	    nft_set_pktinfo_ipv6(pkt, skb, state) == 0)
 		return;
 #endif
-	nft_set_pktinfo(pkt, skb, state);
+	nft_set_pktinfo_unspec(pkt, skb, state);
 }
 
 static unsigned int
@@ -101,7 +101,7 @@ nft_do_chain_bridge(void *priv,
 		nft_bridge_set_pktinfo_ipv6(&pkt, skb, state);
 		break;
 	default:
-		nft_set_pktinfo(&pkt, skb, state);
+		nft_set_pktinfo_unspec(&pkt, skb, state);
 		break;
 	}
 

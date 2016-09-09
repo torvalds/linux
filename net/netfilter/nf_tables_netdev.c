@@ -41,6 +41,7 @@ nft_netdev_set_pktinfo_ipv4(struct nft_pktinfo *pkt,
 	else if (len < thoff)
 		return;
 
+	pkt->tprot_set = true;
 	pkt->tprot = iph->protocol;
 	pkt->xt.thoff = thoff;
 	pkt->xt.fragoff = ntohs(iph->frag_off) & IP_OFFSET;
@@ -74,6 +75,7 @@ __nft_netdev_set_pktinfo_ipv6(struct nft_pktinfo *pkt,
 	if (protohdr < 0)
                 return;
 
+	pkt->tprot_set = true;
 	pkt->tprot = protohdr;
 	pkt->xt.thoff = thoff;
 	pkt->xt.fragoff = frag_off;
@@ -102,7 +104,7 @@ nft_do_chain_netdev(void *priv, struct sk_buff *skb,
 		nft_netdev_set_pktinfo_ipv6(&pkt, skb, state);
 		break;
 	default:
-		nft_set_pktinfo(&pkt, skb, state);
+		nft_set_pktinfo_unspec(&pkt, skb, state);
 		break;
 	}
 
