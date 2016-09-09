@@ -16,6 +16,7 @@
 #include <linux/ktime.h>
 #include <linux/sched.h>
 #include <linux/uidgid.h>
+#include <linux/filter.h>
 
 /* If kernel subsystem is allowing eBPF programs to call this function,
  * inside its own verifier_ops->get_func_proto() callback it should return
@@ -26,24 +27,10 @@
  * if program is allowed to access maps, so check rcu_read_lock_held in
  * all three functions.
  */
-static u64 bpf_map_lookup_elem(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
+BPF_CALL_2(bpf_map_lookup_elem, struct bpf_map *, map, void *, key)
 {
-	/* verifier checked that R1 contains a valid pointer to bpf_map
-	 * and R2 points to a program stack and map->key_size bytes were
-	 * initialized
-	 */
-	struct bpf_map *map = (struct bpf_map *) (unsigned long) r1;
-	void *key = (void *) (unsigned long) r2;
-	void *value;
-
 	WARN_ON_ONCE(!rcu_read_lock_held());
-
-	value = map->ops->map_lookup_elem(map, key);
-
-	/* lookup() returns either pointer to element value or NULL
-	 * which is the meaning of PTR_TO_MAP_VALUE_OR_NULL type
-	 */
-	return (unsigned long) value;
+	return (unsigned long) map->ops->map_lookup_elem(map, key);
 }
 
 const struct bpf_func_proto bpf_map_lookup_elem_proto = {
@@ -54,15 +41,11 @@ const struct bpf_func_proto bpf_map_lookup_elem_proto = {
 	.arg2_type	= ARG_PTR_TO_MAP_KEY,
 };
 
-static u64 bpf_map_update_elem(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
+BPF_CALL_4(bpf_map_update_elem, struct bpf_map *, map, void *, key,
+	   void *, value, u64, flags)
 {
-	struct bpf_map *map = (struct bpf_map *) (unsigned long) r1;
-	void *key = (void *) (unsigned long) r2;
-	void *value = (void *) (unsigned long) r3;
-
 	WARN_ON_ONCE(!rcu_read_lock_held());
-
-	return map->ops->map_update_elem(map, key, value, r4);
+	return map->ops->map_update_elem(map, key, value, flags);
 }
 
 const struct bpf_func_proto bpf_map_update_elem_proto = {
@@ -75,13 +58,9 @@ const struct bpf_func_proto bpf_map_update_elem_proto = {
 	.arg4_type	= ARG_ANYTHING,
 };
 
-static u64 bpf_map_delete_elem(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
+BPF_CALL_2(bpf_map_delete_elem, struct bpf_map *, map, void *, key)
 {
-	struct bpf_map *map = (struct bpf_map *) (unsigned long) r1;
-	void *key = (void *) (unsigned long) r2;
-
 	WARN_ON_ONCE(!rcu_read_lock_held());
-
 	return map->ops->map_delete_elem(map, key);
 }
 
@@ -99,7 +78,7 @@ const struct bpf_func_proto bpf_get_prandom_u32_proto = {
 	.ret_type	= RET_INTEGER,
 };
 
-static u64 bpf_get_smp_processor_id(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
+BPF_CALL_0(bpf_get_smp_processor_id)
 {
 	return smp_processor_id();
 }
@@ -110,7 +89,7 @@ const struct bpf_func_proto bpf_get_smp_processor_id_proto = {
 	.ret_type	= RET_INTEGER,
 };
 
-static u64 bpf_ktime_get_ns(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
+BPF_CALL_0(bpf_ktime_get_ns)
 {
 	/* NMI safe access to clock monotonic */
 	return ktime_get_mono_fast_ns();
@@ -122,7 +101,7 @@ const struct bpf_func_proto bpf_ktime_get_ns_proto = {
 	.ret_type	= RET_INTEGER,
 };
 
-static u64 bpf_get_current_pid_tgid(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
+BPF_CALL_0(bpf_get_current_pid_tgid)
 {
 	struct task_struct *task = current;
 
@@ -138,7 +117,7 @@ const struct bpf_func_proto bpf_get_current_pid_tgid_proto = {
 	.ret_type	= RET_INTEGER,
 };
 
-static u64 bpf_get_current_uid_gid(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
+BPF_CALL_0(bpf_get_current_uid_gid)
 {
 	struct task_struct *task = current;
 	kuid_t uid;
@@ -158,10 +137,9 @@ const struct bpf_func_proto bpf_get_current_uid_gid_proto = {
 	.ret_type	= RET_INTEGER,
 };
 
-static u64 bpf_get_current_comm(u64 r1, u64 size, u64 r3, u64 r4, u64 r5)
+BPF_CALL_2(bpf_get_current_comm, char *, buf, u32, size)
 {
 	struct task_struct *task = current;
-	char *buf = (char *) (long) r1;
 
 	if (unlikely(!task))
 		goto err_clear;
