@@ -554,6 +554,9 @@ static int ac100_rtc_probe(struct platform_device *pdev)
 	int ret;
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
+	if (!chip)
+		return -ENOMEM;
+
 	platform_set_drvdata(pdev, chip);
 	chip->dev = &pdev->dev;
 	chip->regmap = ac100->regmap;
