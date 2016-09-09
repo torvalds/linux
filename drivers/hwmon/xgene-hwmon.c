@@ -27,6 +27,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
+#include <linux/io.h>
 #include <linux/interrupt.h>
 #include <linux/kfifo.h>
 #include <linux/mailbox_controller.h>
@@ -34,7 +35,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <acpi/acpi_io.h>
+
 #include <acpi/pcc.h>
 
 /* SLIMpro message defines */
@@ -126,10 +127,10 @@ static u16 xgene_word_tst_and_clr(u16 *addr, u16 mask)
 {
 	u16 ret, val;
 
-	val = readw_relaxed(addr);
+	val = le16_to_cpu(READ_ONCE(*addr));
 	ret = val & mask;
 	val &= ~mask;
-	writew_relaxed(val, addr);
+	WRITE_ONCE(*addr, cpu_to_le16(val));
 
 	return ret;
 }
@@ -137,7 +138,7 @@ static u16 xgene_word_tst_and_clr(u16 *addr, u16 mask)
 static int xgene_hwmon_pcc_rd(struct xgene_hwmon_dev *ctx, u32 *msg)
 {
 	struct acpi_pcct_shared_memory *generic_comm_base = ctx->pcc_comm_addr;
-	void *ptr = generic_comm_base + 1;
+	u32 *ptr = (void *)(generic_comm_base + 1);
 	int rc, i;
 	u16 val;
 
@@ -146,21 +147,21 @@ static int xgene_hwmon_pcc_rd(struct xgene_hwmon_dev *ctx, u32 *msg)
 	ctx->resp_pending = true;
 
 	/* Write signature for subspace */
-	writel_relaxed(PCC_SIGNATURE_MASK | ctx->mbox_idx,
-		       &generic_comm_base->signature);
+	WRITE_ONCE(generic_comm_base->signature,
+		   cpu_to_le32(PCC_SIGNATURE_MASK | ctx->mbox_idx));
 
 	/* Write to the shared command region */
-	writew_relaxed(MSG_TYPE(msg[0]) | PCCC_GENERATE_DB_INT,
-		       &generic_comm_base->command);
+	WRITE_ONCE(generic_comm_base->command,
+		   cpu_to_le16(MSG_TYPE(msg[0]) | PCCC_GENERATE_DB_INT));
 
 	/* Flip CMD COMPLETE bit */
-	val = readw_relaxed(&generic_comm_base->status);
+	val = le16_to_cpu(READ_ONCE(generic_comm_base->status));
 	val &= ~PCCS_CMD_COMPLETE;
-	writew_relaxed(val, &generic_comm_base->status);
+	WRITE_ONCE(generic_comm_base->status, cpu_to_le16(val));
 
 	/* Copy the message to the PCC comm space */
 	for (i = 0; i < sizeof(struct slimpro_resp_msg) / 4; i++)
-		writel_relaxed(msg[i], ptr + i * 4);
+		WRITE_ONCE(ptr[i], cpu_to_le32(msg[i]));
 
 	/* Ring the doorbell */
 	rc = mbox_send_message(ctx->mbox_chan, msg);
@@ -689,9 +690,9 @@ static int xgene_hwmon_probe(struct platform_device *pdev)
 		 */
 		ctx->comm_base_addr = cppc_ss->base_address;
 		if (ctx->comm_base_addr) {
-			ctx->pcc_comm_addr =
-					acpi_os_ioremap(ctx->comm_base_addr,
-							cppc_ss->length);
+			ctx->pcc_comm_addr = memremap(ctx->comm_base_addr,
+							cppc_ss->length,
+							MEMREMAP_WB);
 		} else {
 			dev_err(&pdev->dev, "Failed to get PCC comm region\n");
 			rc = -ENODEV;
