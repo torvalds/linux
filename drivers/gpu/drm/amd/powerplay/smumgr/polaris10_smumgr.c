@@ -38,6 +38,8 @@
 #include "ppatomctrl.h"
 #include "pp_debug.h"
 #include "cgs_common.h"
+#include "polaris10_smc.h"
+#include "smu7_ppsmc.h"
 
 #define POLARIS10_SMC_SIZE 0x20000
 
@@ -46,7 +48,7 @@
 #define MAX_STRING_SIZE             15
 #define BUFFER_SIZETWO              131072  /* 128 *1024 */
 
-#define SMC_RAM_END 0x40000
+#define PPPOLARIS10_TARGETACTIVITY_DFLT                     50
 
 static const SMU74_Discrete_GraphicsLevel avfs_graphics_level_polaris10[8] = {
 	/*  Min      pcie   DeepSleep Activity  CgSpll      CgSpll    CcPwr  CcPwr  Sclk         Enabled      Enabled                       Voltage    Power */
@@ -61,8 +63,8 @@ static const SMU74_Discrete_GraphicsLevel avfs_graphics_level_polaris10[8] = {
 	{ 0xa00fa446, 0x01, 0x00, 0x3200, 0, 0, 0, 0, 0, 0, 0x01, 0x01, 0x0a, 0x00, 0x00, 0x00, { 0xa0860100, 0x2800, 0, 0x2000, 2, 1, 0x0004, 0x0c02, 0xffff, 0x2700, 0x6433, 0x2100 } }
 };
 
-static const SMU74_Discrete_MemoryLevel avfs_memory_level_polaris10 =
-	{0x100ea446, 0, 0x30750000, 0x01, 0x01, 0x01, 0x00, 0x00, 0x64, 0x00, 0x00, 0x1f00, 0x00, 0x00};
+static const SMU74_Discrete_MemoryLevel avfs_memory_level_polaris10 = {
+	0x100ea446, 0, 0x30750000, 0x01, 0x01, 0x01, 0x00, 0x00, 0x64, 0x00, 0x00, 0x1f00, 0x00, 0x00};
 
 /**
 * Set the address for reading/writing the SMC SRAM space.
@@ -921,6 +923,8 @@ static int polaris10_smu_init(struct pp_smumgr *smumgr)
 	struct polaris10_smumgr *smu_data;
 	uint8_t *internal_buf;
 	uint64_t mc_addr = 0;
+	int i;
+
 	/* Allocate memory for backend private data */
 	smu_data = (struct polaris10_smumgr *)(smumgr->backend);
 	smu_data->header_buffer.data_size =
@@ -974,6 +978,9 @@ static int polaris10_smu_init(struct pp_smumgr *smumgr)
 	else
 		smu_data->avfs.avfs_btc_status = AVFS_BTC_NOTSUPPORTED;
 
+	for (i = 0; i < SMU74_MAX_LEVELS_GRAPHICS; i++)
+		smu_data->activity_target[i] = PPPOLARIS10_TARGETACTIVITY_DFLT;
+
 	return 0;
 }
 
@@ -988,6 +995,17 @@ static const struct pp_smumgr_func polaris10_smu_funcs = {
 	.send_msg_to_smc_with_parameter = polaris10_send_msg_to_smc_with_parameter,
 	.download_pptable_settings = NULL,
 	.upload_pptable_settings = NULL,
+	.update_smc_table = polaris10_update_smc_table,
+	.get_offsetof = polaris10_get_offsetof,
+	.process_firmware_header = polaris10_process_firmware_header,
+	.init_smc_table = polaris10_init_smc_table,
+	.update_sclk_threshold = polaris10_update_sclk_threshold,
+	.thermal_avfs_enable = polaris10_thermal_avfs_enable,
+	.thermal_setup_fan_table = polaris10_thermal_setup_fan_table,
+	.populate_all_graphic_levels = polaris10_populate_all_graphic_levels,
+	.populate_all_memory_levels = polaris10_populate_all_memory_levels,
+	.get_mac_definition = polaris10_get_mac_definition,
+	.is_dpm_running = polaris10_is_dpm_running,
 };
 
 int polaris10_smum_init(struct pp_smumgr *smumgr)
