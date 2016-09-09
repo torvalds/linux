@@ -566,6 +566,10 @@ static irqreturn_t pciehp_isr(int irq, void *dev_id)
 	if (!events)
 		return IRQ_NONE;
 
+	/* Capture link status before clearing interrupts */
+	if (events & PCI_EXP_SLTSTA_DLLSC)
+		link = pciehp_check_link_active(ctrl);
+
 	pcie_capability_write_word(pdev, PCI_EXP_SLTSTA, events);
 	ctrl_dbg(ctrl, "pending interrupts %#06x from Slot Status\n", events);
 
@@ -598,7 +602,7 @@ static irqreturn_t pciehp_isr(int irq, void *dev_id)
 
 	/* Check Presence Detect Changed */
 	if (events & PCI_EXP_SLTSTA_PDC) {
-		pciehp_get_adapter_status(slot, &present);
+		present = !!(status & PCI_EXP_SLTSTA_PDS);
 		ctrl_info(ctrl, "Card %spresent on Slot(%s)\n",
 			  present ? "" : "not ", slot_name(slot));
 		pciehp_queue_interrupt_event(slot, present ? INT_PRESENCE_ON :
@@ -613,7 +617,6 @@ static irqreturn_t pciehp_isr(int irq, void *dev_id)
 	}
 
 	if (events & PCI_EXP_SLTSTA_DLLSC) {
-		link = pciehp_check_link_active(ctrl);
 		ctrl_info(ctrl, "slot(%s): Link %s event\n",
 			  slot_name(slot), link ? "Up" : "Down");
 		pciehp_queue_interrupt_event(slot, link ? INT_LINK_UP :
