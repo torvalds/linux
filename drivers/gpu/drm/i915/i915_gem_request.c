@@ -402,7 +402,6 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	req->previous_context = NULL;
 	req->file_priv = NULL;
 	req->batch = NULL;
-	req->elsp_submitted = 0;
 
 	/*
 	 * Reserve space in the ring buffer for all the commands required to

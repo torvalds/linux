@@ -298,11 +298,14 @@ struct intel_engine_cs {
 	/* Execlists */
 	struct tasklet_struct irq_tasklet;
 	spinlock_t execlist_lock; /* used inside tasklet, use spin_lock_bh */
+	struct execlist_port {
+		struct drm_i915_gem_request *request;
+		unsigned int count;
+	} execlist_port[2];
 	struct list_head execlist_queue;
 	unsigned int fw_domains;
-	unsigned int next_context_status_buffer;
-	unsigned int idle_lite_restore_wa;
 	bool disable_lite_restore_wa;
+	bool preempt_wa;
 	u32 ctx_desc_template;
 
 	/**

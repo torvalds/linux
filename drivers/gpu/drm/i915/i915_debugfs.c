@@ -2051,7 +2051,7 @@ static int i915_execlists(struct seq_file *m, void *data)
 		status_pointer = I915_READ(RING_CONTEXT_STATUS_PTR(engine));
 		seq_printf(m, "\tStatus pointer: 0x%08X\n", status_pointer);
 
-		read_pointer = engine->next_context_status_buffer;
+		read_pointer = GEN8_CSB_READ_PTR(status_pointer);
 		write_pointer = GEN8_CSB_WRITE_PTR(status_pointer);
 		if (read_pointer > write_pointer)
 			write_pointer += GEN8_CSB_ENTRIES;

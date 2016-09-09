@@ -97,6 +97,4 @@ int intel_sanitize_enable_execlists(struct drm_i915_private *dev_priv,
 				    int enable_execlists);
 void intel_execlists_enable_submission(struct drm_i915_private *dev_priv);
 
-void intel_execlists_cancel_requests(struct intel_engine_cs *engine);
-
 #endif /* _INTEL_LRC_H_ */
