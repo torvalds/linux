@@ -1073,7 +1073,7 @@ static int get_stat_reg_addr(const struct regs *regs, int size,
 static ssize_t show_value(struct most_dci_obj *dci_obj,
 			  struct most_dci_attribute *attr, char *buf)
 {
-	u16 tmp_val;
+	u16 val;
 	u16 reg_addr;
 	int err;
 
@@ -1085,11 +1085,11 @@ static ssize_t show_value(struct most_dci_obj *dci_obj,
 		 get_static_reg_addr(rw_regs, attr->attr.name, &reg_addr))
 		return -EFAULT;
 
-	err = drci_rd_reg(dci_obj->usb_device, reg_addr, &tmp_val);
+	err = drci_rd_reg(dci_obj->usb_device, reg_addr, &val);
 	if (err < 0)
 		return err;
 
-	return snprintf(buf, PAGE_SIZE, "%04x\n", tmp_val);
+	return snprintf(buf, PAGE_SIZE, "%04x\n", val);
 }
 
 static ssize_t store_value(struct most_dci_obj *dci_obj,
