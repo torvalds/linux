@@ -317,20 +317,21 @@ static int sbs_get_battery_presence_and_health(
 		return ret;
 	}
 
-	/* Write to ManufacturerAccess with
-	 * ManufacturerAccess command and then
-	 * read the status */
-	ret = sbs_write_word_data(client, sbs_data[REG_MANUFACTURER_DATA].addr,
-					MANUFACTURER_ACCESS_STATUS);
+	/*
+	 * Write to ManufacturerAccess with ManufacturerAccess command
+	 * and then read the status. Do not check for error on the write
+	 * since not all batteries implement write access to this command,
+	 * while others mandate it.
+	 */
+	sbs_write_word_data(client, sbs_data[REG_MANUFACTURER_DATA].addr,
+			    MANUFACTURER_ACCESS_STATUS);
+
+	ret = sbs_read_word_data(client, sbs_data[REG_MANUFACTURER_DATA].addr);
 	if (ret < 0) {
 		if (psp == POWER_SUPPLY_PROP_PRESENT)
 			val->intval = 0; /* battery removed */
 		return ret;
 	}
-
-	ret = sbs_read_word_data(client, sbs_data[REG_MANUFACTURER_DATA].addr);
-	if (ret < 0)
-		return ret;
 
 	if (ret < sbs_data[REG_MANUFACTURER_DATA].min_value ||
 	    ret > sbs_data[REG_MANUFACTURER_DATA].max_value) {
@@ -882,16 +883,16 @@ static int sbs_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct sbs_info *chip = i2c_get_clientdata(client);
-	s32 ret;
 
 	if (chip->poll_time > 0)
 		cancel_delayed_work_sync(&chip->work);
 
-	/* write to manufacturer access with sleep command */
-	ret = sbs_write_word_data(client, sbs_data[REG_MANUFACTURER_DATA].addr,
+	/*
+	 * Write to manufacturer access with sleep command.
+	 * Support is manufacturer dependend, so ignore errors.
+	 */
+	sbs_write_word_data(client, sbs_data[REG_MANUFACTURER_DATA].addr,
 		MANUFACTURER_ACCESS_SLEEP);
-	if (chip->is_present && ret < 0)
-		return ret;
 
 	return 0;
 }
