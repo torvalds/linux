@@ -1009,23 +1009,33 @@ verify_local_cpu_features(const struct arm64_cpu_capabilities *caps)
  * cannot do anything to fix it up and could cause unexpected failures. So
  * we park the CPU.
  */
-void verify_local_cpu_capabilities(void)
+static void verify_local_cpu_capabilities(void)
 {
-
-	check_early_cpu_features();
-
-	/*
-	 * If we haven't computed the system capabilities, there is nothing
-	 * to verify.
-	 */
-	if (!sys_caps_initialised)
-		return;
-
 	verify_local_cpu_errata_workarounds();
 	verify_local_cpu_features(arm64_features);
 	verify_local_elf_hwcaps(arm64_elf_hwcaps);
 	if (system_supports_32bit_el0())
 		verify_local_elf_hwcaps(compat_elf_hwcaps);
+}
+
+void check_local_cpu_capabilities(void)
+{
+	/*
+	 * All secondary CPUs should conform to the early CPU features
+	 * in use by the kernel based on boot CPU.
+	 */
+	check_early_cpu_features();
+
+	/*
+	 * If we haven't finalised the system capabilities, this CPU gets
+	 * a chance to update the errata work arounds.
+	 * Otherwise, this CPU should verify that it has all the system
+	 * advertised capabilities.
+	 */
+	if (!sys_caps_initialised)
+		update_cpu_errata_workarounds();
+	else
+		verify_local_cpu_capabilities();
 }
 
 static void __init setup_feature_capabilities(void)
