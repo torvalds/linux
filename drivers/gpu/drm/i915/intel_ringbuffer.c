@@ -564,6 +564,8 @@ static int init_ring_common(struct intel_engine_cs *engine)
 	else
 		intel_ring_setup_status_page(engine);
 
+	intel_engine_reset_irq(engine);
+
 	/* Enforce ordering by reading HEAD register back */
 	I915_READ_HEAD(engine);
 
@@ -577,33 +579,32 @@ static int init_ring_common(struct intel_engine_cs *engine)
 	if (I915_READ_HEAD(engine))
 		DRM_DEBUG("%s initialization failed [head=%08x], fudging\n",
 			  engine->name, I915_READ_HEAD(engine));
-	I915_WRITE_HEAD(engine, 0);
-	(void)I915_READ_HEAD(engine);
+
+	intel_ring_update_space(ring);
+	I915_WRITE_HEAD(engine, ring->head);
+	I915_WRITE_TAIL(engine, ring->tail);
+	(void)I915_READ_TAIL(engine);
 
 	I915_WRITE_CTL(engine,
 			((ring->size - PAGE_SIZE) & RING_NR_PAGES)
 			| RING_VALID);
 
 	/* If the head is still not zero, the ring is dead */
-	if (wait_for((I915_READ_CTL(engine) & RING_VALID) != 0 &&
-		     I915_READ_START(engine) == i915_ggtt_offset(ring->vma) &&
-		     (I915_READ_HEAD(engine) & HEAD_ADDR) == 0, 50)) {
+	if (intel_wait_for_register_fw(dev_priv, RING_CTL(engine->mmio_base),
+				       RING_VALID, RING_VALID,
+				       50)) {
 		DRM_ERROR("%s initialization failed "
-			  "ctl %08x (valid? %d) head %08x tail %08x start %08x [expected %08x]\n",
+			  "ctl %08x (valid? %d) head %08x [%08x] tail %08x [%08x] start %08x [expected %08x]\n",
 			  engine->name,
 			  I915_READ_CTL(engine),
 			  I915_READ_CTL(engine) & RING_VALID,
-			  I915_READ_HEAD(engine), I915_READ_TAIL(engine),
+			  I915_READ_HEAD(engine), ring->head,
+			  I915_READ_TAIL(engine), ring->tail,
 			  I915_READ_START(engine),
 			  i915_ggtt_offset(ring->vma));
 		ret = -EIO;
 		goto out;
 	}
-
-	ring->last_retired_head = -1;
-	ring->head = I915_READ_HEAD(engine);
-	ring->tail = I915_READ_TAIL(engine) & TAIL_ADDR;
-	intel_ring_update_space(ring);
 
 	intel_engine_init_hangcheck(engine);
 
@@ -611,6 +612,15 @@ out:
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 
 	return ret;
+}
+
+static void reset_ring_common(struct intel_engine_cs *engine,
+			      struct drm_i915_gem_request *request)
+{
+	struct intel_ring *ring = request->ring;
+
+	ring->head = request->postfix;
+	ring->last_retired_head = -1;
 }
 
 static int intel_ring_workarounds_emit(struct drm_i915_gem_request *req)
@@ -2007,7 +2017,6 @@ intel_engine_create_ring(struct intel_engine_cs *engine, int size)
 	}
 	ring->vma = vma;
 
-	list_add(&ring->link, &engine->buffers);
 	return ring;
 }
 
@@ -2015,7 +2024,6 @@ void
 intel_ring_free(struct intel_ring *ring)
 {
 	i915_vma_put(ring->vma);
-	list_del(&ring->link);
 	kfree(ring);
 }
 
@@ -2167,6 +2175,16 @@ void intel_engine_cleanup(struct intel_engine_cs *engine)
 	intel_ring_context_unpin(dev_priv->kernel_context, engine);
 
 	engine->i915 = NULL;
+}
+
+void intel_legacy_submission_resume(struct drm_i915_private *dev_priv)
+{
+	struct intel_engine_cs *engine;
+
+	for_each_engine(engine, dev_priv) {
+		engine->buffer->head = engine->buffer->tail;
+		engine->buffer->last_retired_head = -1;
+	}
 }
 
 int intel_ring_alloc_request_extras(struct drm_i915_gem_request *request)
@@ -2654,6 +2672,7 @@ static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 	intel_ring_init_semaphores(dev_priv, engine);
 
 	engine->init_hw = init_ring_common;
+	engine->reset_hw = reset_ring_common;
 
 	engine->emit_request = i9xx_emit_request;
 	if (i915.semaphores)

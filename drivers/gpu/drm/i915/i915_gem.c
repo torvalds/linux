@@ -2555,29 +2555,85 @@ i915_gem_find_active_request(struct intel_engine_cs *engine)
 	return NULL;
 }
 
-static void i915_gem_reset_engine_status(struct intel_engine_cs *engine)
+static void reset_request(struct drm_i915_gem_request *request)
 {
-	struct drm_i915_gem_request *request;
-	bool ring_hung;
+	void *vaddr = request->ring->vaddr;
+	u32 head;
 
-	request = i915_gem_find_active_request(engine);
-	if (request == NULL)
-		return;
-
-	ring_hung = engine->hangcheck.score >= HANGCHECK_SCORE_RING_HUNG;
-
-	i915_set_reset_status(request->ctx, ring_hung);
-	list_for_each_entry_continue(request, &engine->request_list, link)
-		i915_set_reset_status(request->ctx, false);
+	/* As this request likely depends on state from the lost
+	 * context, clear out all the user operations leaving the
+	 * breadcrumb at the end (so we get the fence notifications).
+	 */
+	head = request->head;
+	if (request->postfix < head) {
+		memset(vaddr + head, 0, request->ring->size - head);
+		head = 0;
+	}
+	memset(vaddr + head, 0, request->postfix - head);
 }
 
-static void i915_gem_reset_engine_cleanup(struct intel_engine_cs *engine)
+static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_request *request;
-	struct intel_ring *ring;
+	struct i915_gem_context *incomplete_ctx;
+	bool ring_hung;
 
 	/* Ensure irq handler finishes, and not run again. */
 	tasklet_kill(&engine->irq_tasklet);
+	if (engine->irq_seqno_barrier)
+		engine->irq_seqno_barrier(engine);
+
+	request = i915_gem_find_active_request(engine);
+	if (!request)
+		return;
+
+	ring_hung = engine->hangcheck.score >= HANGCHECK_SCORE_RING_HUNG;
+	i915_set_reset_status(request->ctx, ring_hung);
+	if (!ring_hung)
+		return;
+
+	DRM_DEBUG_DRIVER("resetting %s to restart from tail of request 0x%x\n",
+			 engine->name, request->fence.seqno);
+
+	/* Setup the CS to resume from the breadcrumb of the hung request */
+	engine->reset_hw(engine, request);
+
+	/* Users of the default context do not rely on logical state
+	 * preserved between batches. They have to emit full state on
+	 * every batch and so it is safe to execute queued requests following
+	 * the hang.
+	 *
+	 * Other contexts preserve state, now corrupt. We want to skip all
+	 * queued requests that reference the corrupt context.
+	 */
+	incomplete_ctx = request->ctx;
+	if (i915_gem_context_is_default(incomplete_ctx))
+		return;
+
+	list_for_each_entry_continue(request, &engine->request_list, link)
+		if (request->ctx == incomplete_ctx)
+			reset_request(request);
+}
+
+void i915_gem_reset(struct drm_i915_private *dev_priv)
+{
+	struct intel_engine_cs *engine;
+
+	i915_gem_retire_requests(dev_priv);
+
+	for_each_engine(engine, dev_priv)
+		i915_gem_reset_engine(engine);
+
+	i915_gem_restore_fences(&dev_priv->drm);
+}
+
+static void nop_submit_request(struct drm_i915_gem_request *request)
+{
+}
+
+static void i915_gem_cleanup_engine(struct intel_engine_cs *engine)
+{
+	engine->submit_request = nop_submit_request;
 
 	/* Mark all pending requests as complete so that any concurrent
 	 * (lockless) lookup doesn't try and wait upon the request as we
@@ -2600,54 +2656,22 @@ static void i915_gem_reset_engine_cleanup(struct intel_engine_cs *engine)
 		spin_unlock(&engine->execlist_lock);
 	}
 
-	/*
-	 * We must free the requests after all the corresponding objects have
-	 * been moved off active lists. Which is the same order as the normal
-	 * retire_requests function does. This is important if object hold
-	 * implicit references on things like e.g. ppgtt address spaces through
-	 * the request.
-	 */
-	request = i915_gem_active_raw(&engine->last_request,
-				      &engine->i915->drm.struct_mutex);
-	if (request)
-		i915_gem_request_retire_upto(request);
-	GEM_BUG_ON(intel_engine_is_active(engine));
-
-	/* Having flushed all requests from all queues, we know that all
-	 * ringbuffers must now be empty. However, since we do not reclaim
-	 * all space when retiring the request (to prevent HEADs colliding
-	 * with rapid ringbuffer wraparound) the amount of available space
-	 * upon reset is less than when we start. Do one more pass over
-	 * all the ringbuffers to reset last_retired_head.
-	 */
-	list_for_each_entry(ring, &engine->buffers, link) {
-		ring->last_retired_head = ring->tail;
-		intel_ring_update_space(ring);
-	}
-
 	engine->i915->gt.active_engines &= ~intel_engine_flag(engine);
 }
 
-void i915_gem_reset(struct drm_device *dev)
+void i915_gem_set_wedged(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_engine_cs *engine;
 
-	/*
-	 * Before we free the objects from the requests, we need to inspect
-	 * them for finding the guilty party. As the requests only borrow
-	 * their reference to the objects, the inspection must be done first.
-	 */
-	for_each_engine(engine, dev_priv)
-		i915_gem_reset_engine_status(engine);
+	lockdep_assert_held(&dev_priv->drm.struct_mutex);
+	set_bit(I915_WEDGED, &dev_priv->gpu_error.flags);
 
+	i915_gem_context_lost(dev_priv);
 	for_each_engine(engine, dev_priv)
-		i915_gem_reset_engine_cleanup(engine);
+		i915_gem_cleanup_engine(engine);
 	mod_delayed_work(dev_priv->wq, &dev_priv->gt.idle_work, 0);
 
-	i915_gem_context_reset(dev);
-
-	i915_gem_restore_fences(dev);
+	i915_gem_retire_requests(dev_priv);
 }
 
 static void
@@ -4343,8 +4367,7 @@ void i915_gem_resume(struct drm_device *dev)
 	 * guarantee that the context image is complete. So let's just reset
 	 * it and start again.
 	 */
-	if (i915.enable_execlists)
-		intel_lr_context_reset(dev_priv, dev_priv->kernel_context);
+	dev_priv->gt.resume(dev_priv);
 
 	mutex_unlock(&dev->struct_mutex);
 }
@@ -4496,8 +4519,10 @@ int i915_gem_init(struct drm_device *dev)
 	mutex_lock(&dev->struct_mutex);
 
 	if (!i915.enable_execlists) {
+		dev_priv->gt.resume = intel_legacy_submission_resume;
 		dev_priv->gt.cleanup_engine = intel_engine_cleanup;
 	} else {
+		dev_priv->gt.resume = intel_lr_context_resume;
 		dev_priv->gt.cleanup_engine = intel_logical_ring_cleanup;
 	}
 
@@ -4530,7 +4555,7 @@ int i915_gem_init(struct drm_device *dev)
 		 * for all other failure, such as an allocation failure, bail.
 		 */
 		DRM_ERROR("Failed to initialize GPU, declaring it wedged\n");
-		set_bit(I915_WEDGED, &dev_priv->gpu_error.flags);
+		i915_gem_set_wedged(dev_priv);
 		ret = 0;
 	}
 

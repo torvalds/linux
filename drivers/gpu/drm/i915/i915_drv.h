@@ -2042,6 +2042,7 @@ struct drm_i915_private {
 
 	/* Abstract the submission mechanism (legacy ringbuffer or execlists) away */
 	struct {
+		void (*resume)(struct drm_i915_private *);
 		void (*cleanup_engine)(struct intel_engine_cs *engine);
 
 		/**
@@ -3263,7 +3264,8 @@ static inline u32 i915_reset_count(struct i915_gpu_error *error)
 	return READ_ONCE(error->reset_count);
 }
 
-void i915_gem_reset(struct drm_device *dev);
+void i915_gem_reset(struct drm_i915_private *dev_priv);
+void i915_gem_set_wedged(struct drm_i915_private *dev_priv);
 bool i915_gem_clflush_object(struct drm_i915_gem_object *obj, bool force);
 int __must_check i915_gem_init(struct drm_device *dev);
 int __must_check i915_gem_init_hw(struct drm_device *dev);
@@ -3392,7 +3394,6 @@ void i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj);
 int __must_check i915_gem_context_init(struct drm_device *dev);
 void i915_gem_context_lost(struct drm_i915_private *dev_priv);
 void i915_gem_context_fini(struct drm_device *dev);
-void i915_gem_context_reset(struct drm_device *dev);
 int i915_gem_context_open(struct drm_device *dev, struct drm_file *file);
 void i915_gem_context_close(struct drm_device *dev, struct drm_file *file);
 int i915_switch_context(struct drm_i915_gem_request *req);

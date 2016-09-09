@@ -994,6 +994,7 @@ int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 	struct intel_guc *guc = &dev_priv->guc;
 	struct i915_guc_client *client;
 	struct intel_engine_cs *engine;
+	struct drm_i915_gem_request *request;
 
 	/* client for execbuf submission */
 	client = guc_client_alloc(dev_priv,
@@ -1010,8 +1011,13 @@ int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 	guc_init_doorbell_hw(guc);
 
 	/* Take over from manual control of ELSP (execlists) */
-	for_each_engine(engine, dev_priv)
+	for_each_engine(engine, dev_priv) {
 		engine->submit_request = i915_guc_submit;
+
+		/* Replay the current set of previously submitted requests */
+		list_for_each_entry(request, &engine->request_list, link)
+			i915_guc_submit(request);
+	}
 
 	return 0;
 }

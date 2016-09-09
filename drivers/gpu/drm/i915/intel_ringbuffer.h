@@ -87,7 +87,6 @@ struct intel_ring {
 	void *vaddr;
 
 	struct intel_engine_cs *engine;
-	struct list_head link;
 
 	struct list_head request_list;
 
@@ -157,7 +156,6 @@ struct intel_engine_cs {
 	u32		mmio_base;
 	unsigned int irq_shift;
 	struct intel_ring *buffer;
-	struct list_head buffers;
 
 	/* Rather than have every client wait upon all user interrupts,
 	 * with the herd waking after every interrupt and each doing the
@@ -211,6 +209,8 @@ struct intel_engine_cs {
 	void		(*irq_disable)(struct intel_engine_cs *engine);
 
 	int		(*init_hw)(struct intel_engine_cs *engine);
+	void		(*reset_hw)(struct intel_engine_cs *engine,
+				    struct drm_i915_gem_request *req);
 
 	int		(*init_context)(struct drm_i915_gem_request *req);
 
@@ -444,6 +444,8 @@ void intel_ring_free(struct intel_ring *ring);
 void intel_engine_stop(struct intel_engine_cs *engine);
 void intel_engine_cleanup(struct intel_engine_cs *engine);
 
+void intel_legacy_submission_resume(struct drm_i915_private *dev_priv);
+
 int intel_ring_alloc_request_extras(struct drm_i915_gem_request *request);
 
 int __must_check intel_ring_begin(struct drm_i915_gem_request *req, int n);
@@ -482,6 +484,7 @@ int __intel_ring_space(int head, int tail, int size);
 void intel_ring_update_space(struct intel_ring *ring);
 
 void intel_engine_init_seqno(struct intel_engine_cs *engine, u32 seqno);
+void intel_engine_reset_irq(struct intel_engine_cs *engine);
 
 void intel_engine_setup_common(struct intel_engine_cs *engine);
 int intel_engine_init_common(struct intel_engine_cs *engine);
