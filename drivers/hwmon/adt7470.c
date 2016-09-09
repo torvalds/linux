@@ -273,9 +273,12 @@ static int adt7470_update_thread(void *p)
 		mutex_lock(&data->lock);
 		adt7470_read_temperatures(client, data);
 		mutex_unlock(&data->lock);
+
+		set_current_state(TASK_INTERRUPTIBLE);
 		if (kthread_should_stop())
 			break;
-		msleep_interruptible(data->auto_update_interval);
+
+		schedule_timeout(msecs_to_jiffies(data->auto_update_interval));
 	}
 
 	complete_all(&data->auto_update_stop);
