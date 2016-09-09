@@ -33,6 +33,69 @@ struct mcfg_entry {
 	u8			bus_end;
 };
 
+#ifdef CONFIG_PCI_QUIRKS
+struct mcfg_fixup {
+	char oem_id[ACPI_OEM_ID_SIZE + 1];
+	char oem_table_id[ACPI_OEM_TABLE_ID_SIZE + 1];
+	u32 oem_revision;
+	u16 segment;
+	struct resource bus_range;
+	struct pci_ecam_ops *ops;
+	struct resource cfgres;
+};
+
+#define MCFG_BUS_RANGE(start, end)	DEFINE_RES_NAMED((start),	\
+						((end) - (start) + 1),	\
+						NULL, IORESOURCE_BUS)
+#define MCFG_BUS_ANY			MCFG_BUS_RANGE(0x0, 0xff)
+
+static struct mcfg_fixup mcfg_quirks[] = {
+/*	{ OEM_ID, OEM_TABLE_ID, REV, SEGMENT, BUS_RANGE, ops, cfgres }, */
+};
+
+static char mcfg_oem_id[ACPI_OEM_ID_SIZE];
+static char mcfg_oem_table_id[ACPI_OEM_TABLE_ID_SIZE];
+static u32 mcfg_oem_revision;
+
+static int pci_mcfg_quirk_matches(struct mcfg_fixup *f, u16 segment,
+				  struct resource *bus_range)
+{
+	if (!memcmp(f->oem_id, mcfg_oem_id, ACPI_OEM_ID_SIZE) &&
+	    !memcmp(f->oem_table_id, mcfg_oem_table_id,
+	            ACPI_OEM_TABLE_ID_SIZE) &&
+	    f->oem_revision == mcfg_oem_revision &&
+	    f->segment == segment &&
+	    resource_contains(&f->bus_range, bus_range))
+		return 1;
+
+	return 0;
+}
+#endif
+
+static void pci_mcfg_apply_quirks(struct acpi_pci_root *root,
+				  struct resource *cfgres,
+				  struct pci_ecam_ops **ecam_ops)
+{
+#ifdef CONFIG_PCI_QUIRKS
+	u16 segment = root->segment;
+	struct resource *bus_range = &root->secondary;
+	struct mcfg_fixup *f;
+	int i;
+
+	for (i = 0, f = mcfg_quirks; i < ARRAY_SIZE(mcfg_quirks); i++, f++) {
+		if (pci_mcfg_quirk_matches(f, segment, bus_range)) {
+			if (f->cfgres.start)
+				*cfgres = f->cfgres;
+			if (f->ops)
+				*ecam_ops =  f->ops;
+			dev_info(&root->device->dev, "MCFG quirk: ECAM at %pR for %pR with %ps\n",
+				 cfgres, bus_range, *ecam_ops);
+			return;
+		}
+	}
+#endif
+}
+
 /* List to save MCFG entries */
 static LIST_HEAD(pci_mcfg_list);
 
@@ -61,14 +124,24 @@ int pci_mcfg_lookup(struct acpi_pci_root *root, struct resource *cfgres,
 
 	}
 
-	if (!root->mcfg_addr)
-		return -ENXIO;
-
 skip_lookup:
 	memset(&res, 0, sizeof(res));
-	res.start = root->mcfg_addr + (bus_res->start << 20);
-	res.end = res.start + (resource_size(bus_res) << 20) - 1;
-	res.flags = IORESOURCE_MEM;
+	if (root->mcfg_addr) {
+		res.start = root->mcfg_addr + (bus_res->start << 20);
+		res.end = res.start + (resource_size(bus_res) << 20) - 1;
+		res.flags = IORESOURCE_MEM;
+	}
+
+	/*
+	 * Allow quirks to override default ECAM ops and CFG resource
+	 * range.  This may even fabricate a CFG resource range in case
+	 * MCFG does not have it.  Invalid CFG start address means MCFG
+	 * firmware bug or we need another quirk in array.
+	 */
+	pci_mcfg_apply_quirks(root, &res, &ops);
+	if (!res.start)
+		return -ENXIO;
+
 	*cfgres = res;
 	*ecam_ops = ops;
 	return 0;
@@ -100,6 +173,13 @@ static __init int pci_mcfg_parse(struct acpi_table_header *header)
 		e->bus_end = mptr->end_bus_number;
 		list_add(&e->list, &pci_mcfg_list);
 	}
+
+#ifdef CONFIG_PCI_QUIRKS
+	/* Save MCFG IDs and revision for quirks matching */
+	memcpy(mcfg_oem_id, header->oem_id, ACPI_OEM_ID_SIZE);
+	memcpy(mcfg_oem_table_id, header->oem_table_id, ACPI_OEM_TABLE_ID_SIZE);
+	mcfg_oem_revision = header->oem_revision;
+#endif
 
 	pr_info("MCFG table detected, %d entries\n", n);
 	return 0;
