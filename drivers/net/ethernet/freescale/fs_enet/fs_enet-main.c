@@ -830,6 +830,44 @@ static void fs_set_msglevel(struct net_device *dev, u32 value)
 	fep->msg_enable = value;
 }
 
+static int fs_get_tunable(struct net_device *dev,
+			  const struct ethtool_tunable *tuna, void *data)
+{
+	struct fs_enet_private *fep = netdev_priv(dev);
+	struct fs_platform_info *fpi = fep->fpi;
+	int ret = 0;
+
+	switch (tuna->id) {
+	case ETHTOOL_RX_COPYBREAK:
+		*(u32 *)data = fpi->rx_copybreak;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+static int fs_set_tunable(struct net_device *dev,
+			  const struct ethtool_tunable *tuna, const void *data)
+{
+	struct fs_enet_private *fep = netdev_priv(dev);
+	struct fs_platform_info *fpi = fep->fpi;
+	int ret = 0;
+
+	switch (tuna->id) {
+	case ETHTOOL_RX_COPYBREAK:
+		fpi->rx_copybreak = *(u32 *)data;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
 static const struct ethtool_ops fs_ethtool_ops = {
 	.get_drvinfo = fs_get_drvinfo,
 	.get_regs_len = fs_get_regs_len,
@@ -841,6 +879,8 @@ static const struct ethtool_ops fs_ethtool_ops = {
 	.get_ts_info = ethtool_op_get_ts_info,
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
+	.get_tunable = fs_get_tunable,
+	.set_tunable = fs_set_tunable,
 };
 
 static int fs_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
