@@ -329,13 +329,15 @@ static int ixgbe_pci_sriov_enable(struct pci_dev *dev, int num_vfs)
 	for (i = 0; i < adapter->num_vfs; i++)
 		ixgbe_vf_configuration(dev, (i | 0x10000000));
 
+	/* reset before enabling SRIOV to avoid mailbox issues */
+	ixgbe_sriov_reinit(adapter);
+
 	err = pci_enable_sriov(dev, num_vfs);
 	if (err) {
 		e_dev_warn("Failed to enable PCI sriov: %d\n", err);
 		return err;
 	}
 	ixgbe_get_vfs(adapter);
-	ixgbe_sriov_reinit(adapter);
 
 	return num_vfs;
 #else
