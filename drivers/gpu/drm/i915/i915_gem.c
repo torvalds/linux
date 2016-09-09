@@ -4589,6 +4589,11 @@ void i915_gem_load_cleanup(struct drm_device *dev)
 int i915_gem_freeze_late(struct drm_i915_private *dev_priv)
 {
 	struct drm_i915_gem_object *obj;
+	struct list_head *phases[] = {
+		&dev_priv->mm.unbound_list,
+		&dev_priv->mm.bound_list,
+		NULL
+	}, **p;
 
 	/* Called just before we write the hibernation image.
 	 *
@@ -4599,16 +4604,18 @@ int i915_gem_freeze_late(struct drm_i915_private *dev_priv)
 	 *
 	 * To make sure the hibernation image contains the latest state,
 	 * we update that state just before writing out the image.
+	 *
+	 * To try and reduce the hibernation image, we manually shrink
+	 * the objects as well.
 	 */
 
-	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_list) {
-		obj->base.read_domains = I915_GEM_DOMAIN_CPU;
-		obj->base.write_domain = I915_GEM_DOMAIN_CPU;
-	}
+	i915_gem_shrink_all(dev_priv);
 
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
-		obj->base.read_domains = I915_GEM_DOMAIN_CPU;
-		obj->base.write_domain = I915_GEM_DOMAIN_CPU;
+	for (p = phases; *p; p++) {
+		list_for_each_entry(obj, *p, global_list) {
+			obj->base.read_domains = I915_GEM_DOMAIN_CPU;
+			obj->base.write_domain = I915_GEM_DOMAIN_CPU;
+		}
 	}
 
 	return 0;
