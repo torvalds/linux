@@ -122,9 +122,11 @@ static int mwifiex_sdio_probe_of(struct device *dev, struct sdio_mmc_card *card)
 					       IRQF_TRIGGER_LOW,
 					       "wifi_wake", cfg);
 			if (ret) {
-				dev_err(dev,
+				dev_dbg(dev,
 					"Failed to request irq_wifi %d (%d)\n",
 					cfg->irq_wifi, ret);
+				card->plt_wake_cfg = NULL;
+				return 0;
 			}
 			disable_irq(cfg->irq_wifi);
 		}
