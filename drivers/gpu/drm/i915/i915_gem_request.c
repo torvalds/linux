@@ -494,6 +494,8 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 	u32 reserved_tail;
 	int ret;
 
+	trace_i915_gem_request_add(request);
+
 	/*
 	 * To ensure that this call will not fail, space for its emissions
 	 * should already have been reserved in the ring buffer. Let the ring
@@ -517,20 +519,6 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 		WARN(ret, "engine->emit_flush() failed: %d!\n", ret);
 	}
 
-	trace_i915_gem_request_add(request);
-
-	/* Seal the request and mark it as pending execution. Note that
-	 * we may inspect this state, without holding any locks, during
-	 * hangcheck. Hence we apply the barrier to ensure that we do not
-	 * see a more recent value in the hws than we are tracking.
-	 */
-	request->emitted_jiffies = jiffies;
-	request->previous_seqno = engine->last_submitted_seqno;
-	engine->last_submitted_seqno = request->fence.seqno;
-	i915_gem_active_set(&engine->last_request, request);
-	list_add_tail(&request->link, &engine->request_list);
-	list_add_tail(&request->ring_link, &ring->request_list);
-
 	/* Record the position of the start of the breadcrumb so that
 	 * should we detect the updated seqno part-way through the
 	 * GPU processing the request, we never over-estimate the
@@ -550,6 +538,18 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 		  "Not enough space reserved (%d bytes) "
 		  "for adding the request (%d bytes)\n",
 		  reserved_tail, ret);
+
+	/* Seal the request and mark it as pending execution. Note that
+	 * we may inspect this state, without holding any locks, during
+	 * hangcheck. Hence we apply the barrier to ensure that we do not
+	 * see a more recent value in the hws than we are tracking.
+	 */
+	request->emitted_jiffies = jiffies;
+	request->previous_seqno = engine->last_submitted_seqno;
+	engine->last_submitted_seqno = request->fence.seqno;
+	i915_gem_active_set(&engine->last_request, request);
+	list_add_tail(&request->link, &engine->request_list);
+	list_add_tail(&request->ring_link, &ring->request_list);
 
 	i915_gem_mark_busy(engine);
 
