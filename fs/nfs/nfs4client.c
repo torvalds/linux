@@ -637,9 +637,10 @@ out_scope_mismatch:
 }
 
 /**
- * nfs4_detect_session_trunking - Checks for session trunking called
- * after a successful EXCHANGE_ID testing a multi-addr connection to be
- * potentially added as a session trunk
+ * nfs4_detect_session_trunking - Checks for session trunking.
+ *
+ * Called after a successful EXCHANGE_ID on a multi-addr connection.
+ * Upon success, add the transport.
  *
  * @clp:    original mount nfs_client
  * @res:    result structure from an exchange_id using the original mount
@@ -672,6 +673,9 @@ int nfs4_detect_session_trunking(struct nfs_client *clp,
 	/* Check eir_server_scope */
 	if (!nfs4_check_server_scope(clp->cl_serverscope, res->server_scope))
 		goto out_err;
+
+	/* Session trunking passed, add the xprt */
+	rpc_clnt_xprt_switch_add_xprt(clp->cl_rpcclient, xprt);
 
 	pr_info("NFS:  %s: Session trunking succeeded for %s\n",
 		clp->cl_hostname,
