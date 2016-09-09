@@ -801,17 +801,17 @@ static int hdm_update_netinfo(struct most_dev *mdev)
 	if (!is_valid_ether_addr(mdev->hw_addr)) {
 		if (drci_rd_reg(usb_device, DRCI_REG_HW_ADDR_HI, &hi) < 0) {
 			dev_err(dev, "Vendor request \"hw_addr_hi\" failed\n");
-			return -1;
+			return -EFAULT;
 		}
 
 		if (drci_rd_reg(usb_device, DRCI_REG_HW_ADDR_MI, &mi) < 0) {
 			dev_err(dev, "Vendor request \"hw_addr_mid\" failed\n");
-			return -1;
+			return -EFAULT;
 		}
 
 		if (drci_rd_reg(usb_device, DRCI_REG_HW_ADDR_LO, &lo) < 0) {
 			dev_err(dev, "Vendor request \"hw_addr_low\" failed\n");
-			return -1;
+			return -EFAULT;
 		}
 
 		mutex_lock(&mdev->io_mutex);
@@ -826,7 +826,7 @@ static int hdm_update_netinfo(struct most_dev *mdev)
 
 	if (drci_rd_reg(usb_device, DRCI_REG_NI_STATE, &link) < 0) {
 		dev_err(dev, "Vendor request \"link status\" failed\n");
-		return -1;
+		return -EFAULT;
 	}
 
 	mutex_lock(&mdev->io_mutex);
@@ -1116,7 +1116,7 @@ static ssize_t store_value(struct most_dci_obj *dci_obj,
 		reg_addr = DRCI_REG_BASE + DRCI_COMMAND + ep * 16;
 		val = 1;
 	} else
-		return -EIO;
+		return -EFAULT;
 
 	err = drci_wr_reg(dci_obj->usb_device, reg_addr, val);
 	if (err < 0)
