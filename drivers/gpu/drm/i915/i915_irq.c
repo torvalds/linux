@@ -2831,10 +2831,10 @@ semaphore_wait_to_signaller_ring(struct intel_engine_cs *engine, u32 ipehr,
 		}
 	}
 
-	DRM_ERROR("No signaller ring found for ring %i, ipehr 0x%08x, offset 0x%016llx\n",
-		  engine->id, ipehr, offset);
+	DRM_DEBUG_DRIVER("No signaller ring found for ring %i, ipehr 0x%08x, offset 0x%016llx\n",
+			 engine->id, ipehr, offset);
 
-	return NULL;
+	return ERR_PTR(-ENODEV);
 }
 
 static struct intel_engine_cs *
@@ -2921,6 +2921,9 @@ static int semaphore_passed(struct intel_engine_cs *engine)
 	signaller = semaphore_waits_for(engine, &seqno);
 	if (signaller == NULL)
 		return -1;
+
+	if (IS_ERR(signaller))
+		return 0;
 
 	/* Prevent pathological recursion due to driver bugs */
 	if (signaller->hangcheck.deadlock >= I915_NUM_ENGINES)
