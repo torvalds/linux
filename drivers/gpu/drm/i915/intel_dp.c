@@ -1438,6 +1438,25 @@ static void intel_dp_print_hw_revision(struct intel_dp *intel_dp)
 	DRM_DEBUG_KMS("sink hw revision: %d.%d\n", (rev & 0xf0) >> 4, rev & 0xf);
 }
 
+static void intel_dp_print_sw_revision(struct intel_dp *intel_dp)
+{
+	uint8_t rev[2];
+	int len;
+
+	if ((drm_debug & DRM_UT_KMS) == 0)
+		return;
+
+	if (!(intel_dp->dpcd[DP_DOWNSTREAMPORT_PRESENT] &
+	      DP_DWN_STRM_PORT_PRESENT))
+		return;
+
+	len = drm_dp_dpcd_read(&intel_dp->aux, DP_BRANCH_SW_REV, &rev, 2);
+	if (len < 0)
+		return;
+
+	DRM_DEBUG_KMS("sink sw revision: %d.%d\n", rev[0], rev[1]);
+}
+
 static int rate_to_index(int find, const int *rates)
 {
 	int i = 0;
@@ -4332,6 +4351,7 @@ intel_dp_long_pulse(struct intel_connector *intel_connector)
 	intel_dp_probe_oui(intel_dp);
 
 	intel_dp_print_hw_revision(intel_dp);
+	intel_dp_print_sw_revision(intel_dp);
 
 	intel_dp_configure_mst(intel_dp);
 
