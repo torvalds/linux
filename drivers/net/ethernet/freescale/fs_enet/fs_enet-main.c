@@ -226,20 +226,9 @@ static int fs_enet_napi(struct napi_struct *napi, int budget)
 			if (sc & BD_ENET_RX_OV)
 				fep->stats.rx_crc_errors++;
 
-			skb = fep->rx_skbuff[curidx];
-
-			dma_unmap_single(fep->dev, CBDR_BUFADDR(bdp),
-				L1_CACHE_ALIGN(PKT_MAXBUF_SIZE),
-				DMA_FROM_DEVICE);
-
-			skbn = skb;
-
+			skbn = fep->rx_skbuff[curidx];
 		} else {
 			skb = fep->rx_skbuff[curidx];
-
-			dma_unmap_single(fep->dev, CBDR_BUFADDR(bdp),
-				L1_CACHE_ALIGN(PKT_MAXBUF_SIZE),
-				DMA_FROM_DEVICE);
 
 			/*
 			 * Process the incoming frame.
@@ -256,12 +245,30 @@ static int fs_enet_napi(struct napi_struct *napi, int budget)
 					skb_copy_from_linear_data(skb,
 						      skbn->data, pkt_len);
 					swap(skb, skbn);
+					dma_sync_single_for_cpu(fep->dev,
+						CBDR_BUFADDR(bdp),
+						L1_CACHE_ALIGN(pkt_len),
+						DMA_FROM_DEVICE);
 				}
 			} else {
 				skbn = netdev_alloc_skb(dev, ENET_RX_FRSIZE);
 
-				if (skbn)
+				if (skbn) {
+					dma_addr_t dma;
+
 					skb_align(skbn, ENET_RX_ALIGN);
+
+					dma_unmap_single(fep->dev,
+						CBDR_BUFADDR(bdp),
+						L1_CACHE_ALIGN(PKT_MAXBUF_SIZE),
+						DMA_FROM_DEVICE);
+
+					dma = dma_map_single(fep->dev,
+						skbn->data,
+						L1_CACHE_ALIGN(PKT_MAXBUF_SIZE),
+						DMA_FROM_DEVICE);
+					CBDW_BUFADDR(bdp, dma);
+				}
 			}
 
 			if (skbn != NULL) {
@@ -276,9 +283,6 @@ static int fs_enet_napi(struct napi_struct *napi, int budget)
 		}
 
 		fep->rx_skbuff[curidx] = skbn;
-		CBDW_BUFADDR(bdp, dma_map_single(fep->dev, skbn->data,
-			     L1_CACHE_ALIGN(PKT_MAXBUF_SIZE),
-			     DMA_FROM_DEVICE));
 		CBDW_DATLEN(bdp, 0);
 		CBDW_SC(bdp, (sc & ~BD_ENET_RX_STATS) | BD_ENET_RX_EMPTY);
 
