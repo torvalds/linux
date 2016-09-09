@@ -116,7 +116,7 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
  * and the related information is freed soon after. If the new CPU requires
  * an errata not detected at boot, fail this CPU.
  */
-void verify_local_cpu_errata(void)
+void verify_local_cpu_errata_workarounds(void)
 {
 	const struct arm64_cpu_capabilities *caps = arm64_errata;
 
@@ -131,7 +131,7 @@ void verify_local_cpu_errata(void)
 		}
 }
 
-void check_local_cpu_errata(void)
+void update_cpu_errata_workarounds(void)
 {
 	update_cpu_capabilities(arm64_errata, "enabling workaround for");
 }
