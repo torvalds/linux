@@ -1559,6 +1559,25 @@ void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw)
 	esw_enable_vport(esw, 0, UC_ADDR_CHANGE);
 }
 
+void mlx5_eswitch_attach(struct mlx5_eswitch *esw)
+{
+	if (!esw || !MLX5_CAP_GEN(esw->dev, vport_group_manager) ||
+	    MLX5_CAP_GEN(esw->dev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
+		return;
+
+	esw_enable_vport(esw, 0, UC_ADDR_CHANGE);
+	/* VF Vports will be enabled when SRIOV is enabled */
+}
+
+void mlx5_eswitch_detach(struct mlx5_eswitch *esw)
+{
+	if (!esw || !MLX5_CAP_GEN(esw->dev, vport_group_manager) ||
+	    MLX5_CAP_GEN(esw->dev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
+		return;
+
+	esw_disable_vport(esw, 0);
+}
+
 int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 {
 	int l2_table_size = 1 << MLX5_CAP_GEN(dev, log_max_l2_table);
@@ -1635,9 +1654,8 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 	esw->enabled_vports = 0;
 	esw->mode = SRIOV_NONE;
 
+	mlx5_eswitch_attach(esw);
 	dev->priv.eswitch = esw;
-	esw_enable_vport(esw, 0, UC_ADDR_CHANGE);
-	/* VF Vports will be enabled when SRIOV is enabled */
 	return 0;
 abort:
 	if (esw->work_queue)
@@ -1656,8 +1674,8 @@ void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw)
 		return;
 
 	esw_info(esw->dev, "cleanup\n");
-	esw_disable_vport(esw, 0);
 
+	mlx5_eswitch_detach(esw);
 	esw->dev->priv.eswitch = NULL;
 	destroy_workqueue(esw->work_queue);
 	kfree(esw->l2_table.bitmap);
