@@ -952,7 +952,7 @@ static struct usb_device_id usbid[] = {
 
 #define MOST_DCI_WO_ATTR(_name) \
 	struct most_dci_attribute most_dci_attr_##_name = \
-		__ATTR(_name, S_IWUSR, show_value, store_value)
+		__ATTR(_name, S_IWUSR, NULL, store_value)
 
 /**
  * struct most_dci_attribute - to access the attributes of a dci object
