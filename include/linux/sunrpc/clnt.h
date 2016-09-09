@@ -125,6 +125,13 @@ struct rpc_create_args {
 	struct svc_xprt		*bc_xprt;	/* NFSv4.1 backchannel */
 };
 
+struct rpc_add_xprt_test {
+	int (*add_xprt_test)(struct rpc_clnt *,
+		struct rpc_xprt *,
+		void *calldata);
+	void *data;
+};
+
 /* Values for "flags" field */
 #define RPC_CLNT_CREATE_HARDRTRY	(1UL << 0)
 #define RPC_CLNT_CREATE_AUTOBIND	(1UL << 2)
@@ -197,6 +204,11 @@ int		rpc_clnt_add_xprt(struct rpc_clnt *, struct xprt_create *,
 			void *data);
 void		rpc_cap_max_reconnect_timeout(struct rpc_clnt *clnt,
 			unsigned long timeo);
+
+int		rpc_clnt_setup_test_and_add_xprt(struct rpc_clnt *,
+			struct rpc_xprt_switch *,
+			struct rpc_xprt *,
+			void *);
 
 const char *rpc_proc_name(const struct rpc_task *task);
 

@@ -2614,6 +2614,70 @@ int rpc_clnt_test_and_add_xprt(struct rpc_clnt *clnt,
 EXPORT_SYMBOL_GPL(rpc_clnt_test_and_add_xprt);
 
 /**
+ * rpc_clnt_setup_test_and_add_xprt()
+ *
+ * This is an rpc_clnt_add_xprt setup() function which returns 1 so:
+ *   1) caller of the test function must dereference the rpc_xprt_switch
+ *   and the rpc_xprt.
+ *   2) test function must call rpc_xprt_switch_add_xprt, usually in
+ *   the rpc_call_done routine.
+ *
+ * Upon success (return of 1), the test function adds the new
+ * transport to the rpc_clnt xprt switch
+ *
+ * @clnt: struct rpc_clnt to get the new transport
+ * @xps:  the rpc_xprt_switch to hold the new transport
+ * @xprt: the rpc_xprt to test
+ * @data: a struct rpc_add_xprt_test pointer that holds the test function
+ *        and test function call data
+ */
+int rpc_clnt_setup_test_and_add_xprt(struct rpc_clnt *clnt,
+				     struct rpc_xprt_switch *xps,
+				     struct rpc_xprt *xprt,
+				     void *data)
+{
+	struct rpc_cred *cred;
+	struct rpc_task *task;
+	struct rpc_add_xprt_test *xtest = (struct rpc_add_xprt_test *)data;
+	int status = -EADDRINUSE;
+
+	xprt = xprt_get(xprt);
+	xprt_switch_get(xps);
+
+	if (rpc_xprt_switch_has_addr(xps, (struct sockaddr *)&xprt->addr))
+		goto out_err;
+
+	/* Test the connection */
+	cred = authnull_ops.lookup_cred(NULL, NULL, 0);
+	task = rpc_call_null_helper(clnt, xprt, cred,
+				    RPC_TASK_SOFT | RPC_TASK_SOFTCONN,
+				    NULL, NULL);
+	put_rpccred(cred);
+	if (IS_ERR(task)) {
+		status = PTR_ERR(task);
+		goto out_err;
+	}
+	status = task->tk_status;
+	rpc_put_task(task);
+
+	if (status < 0)
+		goto out_err;
+
+	/* rpc_xprt_switch and rpc_xprt are deferrenced by add_xprt_test() */
+	xtest->add_xprt_test(clnt, xprt, xtest->data);
+
+	/* so that rpc_clnt_add_xprt does not call rpc_xprt_switch_add_xprt */
+	return 1;
+out_err:
+	xprt_put(xprt);
+	xprt_switch_put(xps);
+	pr_info("RPC:   rpc_clnt_test_xprt failed: %d addr %s not added\n",
+		status, xprt->address_strings[RPC_DISPLAY_ADDR]);
+	return status;
+}
+EXPORT_SYMBOL_GPL(rpc_clnt_setup_test_and_add_xprt);
+
+/**
  * rpc_clnt_add_xprt - Add a new transport to a rpc_clnt
  * @clnt: pointer to struct rpc_clnt
  * @xprtargs: pointer to struct xprt_create
