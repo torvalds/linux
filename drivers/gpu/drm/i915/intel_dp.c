@@ -1524,6 +1524,20 @@ void intel_dp_compute_rate(struct intel_dp *intel_dp, int port_clock,
 	}
 }
 
+int intel_dp_compute_bpp(struct intel_dp *intel_dp,
+			 struct intel_crtc_state *pipe_config)
+{
+	int bpp, bpc;
+
+	bpp = pipe_config->pipe_bpp;
+	bpc = drm_dp_downstream_max_bpc(intel_dp->dpcd, intel_dp->downstream_ports);
+
+	if (bpc > 0)
+		bpp = min(bpp, 3*bpc);
+
+	return bpp;
+}
+
 bool
 intel_dp_compute_config(struct intel_encoder *encoder,
 			struct intel_crtc_state *pipe_config,
@@ -1590,7 +1604,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 
 	/* Walk through all bpp values. Luckily they're all nicely spaced with 2
 	 * bpc in between. */
-	bpp = pipe_config->pipe_bpp;
+	bpp = intel_dp_compute_bpp(intel_dp, pipe_config);
 	if (is_edp(intel_dp)) {
 
 		/* Get bpp from vbt only for panels that dont have bpp in edid */
