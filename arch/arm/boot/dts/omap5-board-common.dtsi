@@ -393,14 +393,23 @@
 		interrupt-controller;
 		#interrupt-cells = <2>;
 		ti,system-power-controller;
+		ti,mux-pad1 = <0xa1>;
+		ti,mux-pad2 = <0x1b>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&palmas_sys_nirq_pins &palmas_msecure_pins>;
+
+		palmas_gpio: gpio {
+			compatible = "ti,palmas-gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
 
 		extcon_usb3: palmas_usb {
 			compatible = "ti,palmas-usb-vid";
 			ti,enable-vbus-detection;
 			ti,enable-id-detection;
 			ti,wakeup;
+			id-gpios = <&palmas_gpio 0 GPIO_ACTIVE_HIGH>;
 		};
 
 		clk32kgaudio: palmas_clk32k@1 {

@@ -863,7 +863,7 @@
 			#size-cells = <1>;
 			utmi-mode = <2>;
 			ranges;
-			dwc3@4a030000 {
+			dwc3: dwc3@4a030000 {
 				compatible = "snps,dwc3";
 				reg = <0x4a030000 0x10000>;
 				interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>,
