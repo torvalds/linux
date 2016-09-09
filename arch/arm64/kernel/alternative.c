@@ -79,6 +79,12 @@ static u32 get_alt_insn(struct alt_instr *alt, u32 *insnptr, u32 *altinsnptr)
 			offset = target - (unsigned long)insnptr;
 			insn = aarch64_set_branch_offset(insn, offset);
 		}
+	} else if (aarch64_insn_uses_literal(insn)) {
+		/*
+		 * Disallow patching unhandled instructions using PC relative
+		 * literal addresses
+		 */
+		BUG();
 	}
 
 	return insn;
