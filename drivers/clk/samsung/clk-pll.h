@@ -33,6 +33,7 @@ enum samsung_pll_type {
 	pll_s3c2440_mpll,
 	pll_2550x,
 	pll_2550xx,
+	pll_2650x,
 	pll_2650xx,
 	pll_1450x,
 	pll_1451x,
