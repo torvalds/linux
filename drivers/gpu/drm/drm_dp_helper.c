@@ -525,6 +525,91 @@ int drm_dp_downstream_id(struct drm_dp_aux *aux, char id[6])
 }
 EXPORT_SYMBOL(drm_dp_downstream_id);
 
+/**
+ * drm_dp_downstream_debug() - debug DP branch devices
+ * @m: pointer for debugfs file
+ * @dpcd: DisplayPort configuration data
+ * @port_cap: port capabilities
+ * @aux: DisplayPort AUX channel
+ *
+ */
+void drm_dp_downstream_debug(struct seq_file *m,
+			     const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+			     const u8 port_cap[4], struct drm_dp_aux *aux)
+{
+	bool detailed_cap_info = dpcd[DP_DOWNSTREAMPORT_PRESENT] &
+				 DP_DETAILED_CAP_INFO_AVAILABLE;
+	int clk;
+	int bpc;
+	char id[6];
+	int len;
+	uint8_t rev[2];
+	int type = port_cap[0] & DP_DS_PORT_TYPE_MASK;
+	bool branch_device = dpcd[DP_DOWNSTREAMPORT_PRESENT] &
+			     DP_DWN_STRM_PORT_PRESENT;
+
+	seq_printf(m, "\tDP branch device present: %s\n",
+		   branch_device ? "yes" : "no");
+
+	if (!branch_device)
+		return;
+
+	switch (type) {
+	case DP_DS_PORT_TYPE_DP:
+		seq_puts(m, "\t\tType: DisplayPort\n");
+		break;
+	case DP_DS_PORT_TYPE_VGA:
+		seq_puts(m, "\t\tType: VGA\n");
+		break;
+	case DP_DS_PORT_TYPE_DVI:
+		seq_puts(m, "\t\tType: DVI\n");
+		break;
+	case DP_DS_PORT_TYPE_HDMI:
+		seq_puts(m, "\t\tType: HDMI\n");
+		break;
+	case DP_DS_PORT_TYPE_NON_EDID:
+		seq_puts(m, "\t\tType: others without EDID support\n");
+		break;
+	case DP_DS_PORT_TYPE_DP_DUALMODE:
+		seq_puts(m, "\t\tType: DP++\n");
+		break;
+	case DP_DS_PORT_TYPE_WIRELESS:
+		seq_puts(m, "\t\tType: Wireless\n");
+		break;
+	default:
+		seq_puts(m, "\t\tType: N/A\n");
+	}
+
+	drm_dp_downstream_id(aux, id);
+	seq_printf(m, "\t\tID: %s\n", id);
+
+	len = drm_dp_dpcd_read(aux, DP_BRANCH_HW_REV, &rev[0], 1);
+	if (len > 0)
+		seq_printf(m, "\t\tHW: %d.%d\n",
+			   (rev[0] & 0xf0) >> 4, rev[0] & 0xf);
+
+	len = drm_dp_dpcd_read(aux, DP_BRANCH_SW_REV, &rev, 2);
+	if (len > 0)
+		seq_printf(m, "\t\tSW: %d.%d\n", rev[0], rev[1]);
+
+	if (detailed_cap_info) {
+		clk = drm_dp_downstream_max_clock(dpcd, port_cap);
+
+		if (clk > 0) {
+			if (type == DP_DS_PORT_TYPE_VGA)
+				seq_printf(m, "\t\tMax dot clock: %d kHz\n", clk);
+			else
+				seq_printf(m, "\t\tMax TMDS clock: %d kHz\n", clk);
+		}
+
+		bpc = drm_dp_downstream_max_bpc(dpcd, port_cap);
+
+		if (bpc > 0)
+			seq_printf(m, "\t\tMax bpc: %d\n", bpc);
+	}
+}
+EXPORT_SYMBOL(drm_dp_downstream_debug);
+
 /*
  * I2C-over-AUX implementation
  */
