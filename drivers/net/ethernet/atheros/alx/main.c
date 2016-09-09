@@ -302,22 +302,15 @@ static int alx_poll(struct napi_struct *napi, int budget)
 	return work;
 }
 
-static irqreturn_t alx_intr_handle(struct alx_priv *alx, u32 intr)
+static bool alx_intr_handle_misc(struct alx_priv *alx, u32 intr)
 {
 	struct alx_hw *hw = &alx->hw;
-	bool write_int_mask = false;
-
-	spin_lock(&alx->irq_lock);
-
-	/* ACK interrupt */
-	alx_write_mem32(hw, ALX_ISR, intr | ALX_ISR_DIS);
-	intr &= alx->int_mask;
 
 	if (intr & ALX_ISR_FATAL) {
 		netif_warn(alx, hw, alx->dev,
 			   "fatal interrupt 0x%x, resetting\n", intr);
 		alx_schedule_reset(alx);
-		goto out;
+		return true;
 	}
 
 	if (intr & ALX_ISR_ALERT)
@@ -329,19 +322,32 @@ static irqreturn_t alx_intr_handle(struct alx_priv *alx, u32 intr)
 		 * is cleared, the interrupt status could be cleared.
 		 */
 		alx->int_mask &= ~ALX_ISR_PHY;
-		write_int_mask = true;
+		alx_write_mem32(hw, ALX_IMR, alx->int_mask);
 		alx_schedule_link_check(alx);
 	}
+
+	return false;
+}
+
+static irqreturn_t alx_intr_handle(struct alx_priv *alx, u32 intr)
+{
+	struct alx_hw *hw = &alx->hw;
+
+	spin_lock(&alx->irq_lock);
+
+	/* ACK interrupt */
+	alx_write_mem32(hw, ALX_ISR, intr | ALX_ISR_DIS);
+	intr &= alx->int_mask;
+
+	if (alx_intr_handle_misc(alx, intr))
+		goto out;
 
 	if (intr & (ALX_ISR_TX_Q0 | ALX_ISR_RX_Q0)) {
 		napi_schedule(&alx->napi);
 		/* mask rx/tx interrupt, enable them when napi complete */
 		alx->int_mask &= ~ALX_ISR_ALL_QUEUES;
-		write_int_mask = true;
-	}
-
-	if (write_int_mask)
 		alx_write_mem32(hw, ALX_IMR, alx->int_mask);
+	}
 
 	alx_write_mem32(hw, ALX_ISR, 0);
 
