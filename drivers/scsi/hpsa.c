@@ -4270,6 +4270,11 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
 		lunaddrbytes = figure_lunaddrbytes(h, raid_ctlr_position,
 			i, nphysicals, nlogicals, physdev_list, logdev_list);
 
+		/* Determine if this is a lun from an external target array */
+		tmpdevice->external =
+			figure_external_status(h, raid_ctlr_position, i,
+						nphysicals, nlocal_logicals);
+
 		/*
 		 * Skip over some devices such as a spare.
 		 */
@@ -4294,11 +4299,6 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
 				"Inquiry failed, skipping device.\n");
 			continue;
 		}
-
-		/* Determine if this is a lun from an external target array */
-		tmpdevice->external =
-			figure_external_status(h, raid_ctlr_position, i,
-						nphysicals, nlocal_logicals);
 
 		figure_bus_target_lun(h, lunaddrbytes, tmpdevice);
 		hpsa_update_device_supports_aborts(h, tmpdevice, lunaddrbytes);
