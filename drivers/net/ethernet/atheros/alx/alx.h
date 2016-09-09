@@ -84,6 +84,11 @@ struct alx_priv {
 
 	struct alx_hw hw;
 
+	/* msi-x vectors */
+	int num_vec;
+	struct msix_entry *msix_entries;
+	char irq_lbl[IFNAMSIZ + 8];
+
 	/* all descriptor memory */
 	struct {
 		dma_addr_t dma;
