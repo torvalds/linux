@@ -432,20 +432,23 @@ int i915_guc_wq_check_space(struct drm_i915_gem_request *request)
 {
 	const size_t wqi_size = sizeof(struct guc_wq_item);
 	struct i915_guc_client *gc = request->i915->guc.execbuf_client;
-	struct guc_process_desc *desc;
+	struct guc_process_desc *desc = gc->client_base + gc->proc_desc_offset;
 	u32 freespace;
+	int ret;
 
-	GEM_BUG_ON(gc == NULL);
-
-	desc = gc->client_base + gc->proc_desc_offset;
-
+	spin_lock(&gc->wq_lock);
 	freespace = CIRC_SPACE(gc->wq_tail, desc->head, gc->wq_size);
-	if (likely(freespace >= wqi_size))
-		return 0;
+	freespace -= gc->wq_rsvd;
+	if (likely(freespace >= wqi_size)) {
+		gc->wq_rsvd += wqi_size;
+		ret = 0;
+	} else {
+		gc->no_wq_space++;
+		ret = -EAGAIN;
+	}
+	spin_unlock(&gc->wq_lock);
 
-	gc->no_wq_space += 1;
-
-	return -EAGAIN;
+	return ret;
 }
 
 static void guc_add_workqueue_item(struct i915_guc_client *gc,
@@ -480,12 +483,14 @@ static void guc_add_workqueue_item(struct i915_guc_client *gc,
 	 * workqueue buffer dw by dw.
 	 */
 	BUILD_BUG_ON(wqi_size != 16);
+	GEM_BUG_ON(gc->wq_rsvd < wqi_size);
 
 	/* postincrement WQ tail for next time */
 	wq_off = gc->wq_tail;
+	GEM_BUG_ON(wq_off & (wqi_size - 1));
 	gc->wq_tail += wqi_size;
 	gc->wq_tail &= gc->wq_size - 1;
-	GEM_BUG_ON(wq_off & (wqi_size - 1));
+	gc->wq_rsvd -= wqi_size;
 
 	/* WQ starts from the page after doorbell / process_desc */
 	wq_page = (wq_off + GUC_DB_SIZE) >> PAGE_SHIFT;
@@ -589,6 +594,7 @@ static void i915_guc_submit(struct drm_i915_gem_request *rq)
 	struct i915_guc_client *client = guc->execbuf_client;
 	int b_ret;
 
+	spin_lock(&client->wq_lock);
 	guc_add_workqueue_item(client, rq);
 	b_ret = guc_ring_doorbell(client);
 
@@ -599,6 +605,7 @@ static void i915_guc_submit(struct drm_i915_gem_request *rq)
 
 	guc->submissions[engine_id] += 1;
 	guc->last_seqno[engine_id] = rq->fence.seqno;
+	spin_unlock(&client->wq_lock);
 }
 
 /*
@@ -789,6 +796,8 @@ guc_client_alloc(struct drm_i915_private *dev_priv,
 	/* We'll keep just the first (doorbell/proc) page permanently kmap'd. */
 	client->vma = vma;
 	client->client_base = kmap(i915_vma_first_page(vma));
+
+	spin_lock_init(&client->wq_lock);
 	client->wq_offset = GUC_DB_SIZE;
 	client->wq_size = GUC_WQ_SIZE;
 
@@ -1015,9 +1024,11 @@ int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 		engine->submit_request = i915_guc_submit;
 
 		/* Replay the current set of previously submitted requests */
-		list_for_each_entry(request, &engine->request_list, link)
+		list_for_each_entry(request, &engine->request_list, link) {
+			client->wq_rsvd += sizeof(struct guc_wq_item);
 			if (i915_sw_fence_done(&request->submit))
 				i915_guc_submit(request);
+		}
 	}
 
 	return 0;
