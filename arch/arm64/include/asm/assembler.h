@@ -218,9 +218,10 @@ lr	.req	x30		// link register
 	.endm
 
 /*
- * dcache_line_size - get the minimum D-cache line size from the CTR register.
+ * raw_dcache_line_size - get the minimum D-cache line size on this CPU
+ * from the CTR register.
  */
-	.macro	dcache_line_size, reg, tmp
+	.macro	raw_dcache_line_size, reg, tmp
 	mrs	\tmp, ctr_el0			// read CTR
 	ubfm	\tmp, \tmp, #16, #19		// cache line size encoding
 	mov	\reg, #4			// bytes per word
@@ -228,13 +229,28 @@ lr	.req	x30		// link register
 	.endm
 
 /*
- * icache_line_size - get the minimum I-cache line size from the CTR register.
+ * dcache_line_size - get the safe D-cache line size across all CPUs
  */
-	.macro	icache_line_size, reg, tmp
+	.macro	dcache_line_size, reg, tmp
+	raw_dcache_line_size	\reg, \tmp
+	.endm
+
+/*
+ * raw_icache_line_size - get the minimum I-cache line size on this CPU
+ * from the CTR register.
+ */
+	.macro	raw_icache_line_size, reg, tmp
 	mrs	\tmp, ctr_el0			// read CTR
 	and	\tmp, \tmp, #0xf		// cache line size encoding
 	mov	\reg, #4			// bytes per word
 	lsl	\reg, \reg, \tmp		// actual cache line size
+	.endm
+
+/*
+ * icache_line_size - get the safe I-cache line size across all CPUs
+ */
+	.macro	icache_line_size, reg, tmp
+	raw_icache_line_size	\reg, \tmp
 	.endm
 
 /*

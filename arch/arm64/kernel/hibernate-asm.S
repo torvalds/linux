@@ -96,7 +96,7 @@ ENTRY(swsusp_arch_suspend_exit)
 
 	add	x1, x10, #PAGE_SIZE
 	/* Clean the copied page to PoU - based on flush_icache_range() */
-	dcache_line_size x2, x3
+	raw_dcache_line_size x2, x3
 	sub	x3, x2, #1
 	bic	x4, x10, x3
 2:	dc	cvau, x4	/* clean D line / unified line */
