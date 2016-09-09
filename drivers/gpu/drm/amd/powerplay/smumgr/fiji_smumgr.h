@@ -23,6 +23,10 @@
 #ifndef _FIJI_SMUMANAGER_H_
 #define _FIJI_SMUMANAGER_H_
 
+#include "smu73_discrete.h"
+#include <pp_endian.h>
+
+#define SMC_RAM_END		0x40000
 
 struct fiji_smu_avfs {
 	enum AVFS_BTC_STATUS AvfsBtcStatus;
@@ -40,11 +44,22 @@ struct fiji_buffer_entry {
 struct fiji_smumgr {
 	uint8_t        *header;
 	uint8_t        *mec_image;
-	uint32_t        soft_regs_start;
+
+	uint32_t                             soft_regs_start;
+	uint32_t                             dpm_table_start;
+	uint32_t                             mc_reg_table_start;
+	uint32_t                             fan_table_start;
+	uint32_t                             arb_table_start;
 	struct fiji_smu_avfs avfs;
 	uint32_t        acpi_optimization;
-
 	struct fiji_buffer_entry header_buffer;
+
+	struct SMU73_Discrete_DpmTable       smc_state_table;
+	struct SMU73_Discrete_Ulv            ulv_setting;
+	struct SMU73_Discrete_PmFuses  power_tune_table;
+	const struct fiji_pt_defaults  *power_tune_defaults;
+	uint32_t        activity_target[SMU73_MAX_LEVELS_GRAPHICS];
+
 };
 
 int fiji_smum_init(struct pp_smumgr *smumgr);

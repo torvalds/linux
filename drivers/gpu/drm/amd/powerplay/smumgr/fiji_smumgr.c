@@ -38,6 +38,7 @@
 #include "bif/bif_5_0_sh_mask.h"
 #include "pp_debug.h"
 #include "fiji_pwrvirus.h"
+#include "fiji_smc.h"
 
 #define AVFS_EN_MSB                                        1568
 #define AVFS_EN_LSB                                        1568
@@ -219,16 +220,27 @@ bool fiji_is_smc_ram_running(struct pp_smumgr *smumgr)
 */
 int fiji_send_msg_to_smc(struct pp_smumgr *smumgr, uint16_t msg)
 {
+	int ret;
+
 	if (!fiji_is_smc_ram_running(smumgr))
 		return -1;
 
-	if (1 != SMUM_READ_FIELD(smumgr->device, SMC_RESP_0, SMC_RESP)) {
-		printk(KERN_ERR "Failed to send Previous Message.");
-		SMUM_WAIT_FIELD_UNEQUAL(smumgr, SMC_RESP_0, SMC_RESP, 0);
-	}
+
+	SMUM_WAIT_FIELD_UNEQUAL(smumgr, SMC_RESP_0, SMC_RESP, 0);
+
+	ret = SMUM_READ_FIELD(smumgr->device, SMC_RESP_0, SMC_RESP);
+
+	if (ret != 1)
+		printk("\n failed to send pre message %x ret is %d \n",  msg, ret);
 
 	cgs_write_register(smumgr->device, mmSMC_MESSAGE_0, msg);
+
 	SMUM_WAIT_FIELD_UNEQUAL(smumgr, SMC_RESP_0, SMC_RESP, 0);
+
+	ret = SMUM_READ_FIELD(smumgr->device, SMC_RESP_0, SMC_RESP);
+
+	if (ret != 1)
+		printk("\n failed to send message %x ret is %d \n",  msg, ret);
 
 	return 0;
 }
@@ -840,7 +852,7 @@ int fiji_avfs_event_mgr(struct pp_smumgr *smumgr, bool smu_started)
 	case AVFS_BTC_COMPLETED_RESTORED: /*S3 State - Post SMU Start*/
 		priv->avfs.AvfsBtcStatus = AVFS_BTC_SMUMSG_ERROR;
 		PP_ASSERT_WITH_CODE(0 == fiji_send_msg_to_smc(smumgr,
-				PPSMC_MSG_VftTableIsValid),
+				0x666),
 				"[AVFS][fiji_avfs_event_mgr] SMU did not respond "
 				"correctly to VftTableIsValid Msg",
 				return -1;);
@@ -964,6 +976,7 @@ static int fiji_smu_init(struct pp_smumgr *smumgr)
 {
 	struct fiji_smumgr *priv = (struct fiji_smumgr *)(smumgr->backend);
 	uint64_t mc_addr;
+	int i;
 
 	priv->header_buffer.data_size =
 			((sizeof(struct SMU_DRAMData_TOC) / 4096) + 1) * 4096;
@@ -1001,6 +1014,9 @@ static int fiji_smu_init(struct pp_smumgr *smumgr)
 
 	priv->acpi_optimization = 1;
 
+	for (i = 0; i < SMU73_MAX_LEVELS_GRAPHICS; i++)
+		priv->activity_target[i] = 30;
+
 	return 0;
 }
 
@@ -1030,6 +1046,17 @@ static const struct pp_smumgr_func fiji_smu_funcs = {
 	.send_msg_to_smc_with_parameter = &fiji_send_msg_to_smc_with_parameter,
 	.download_pptable_settings = NULL,
 	.upload_pptable_settings = NULL,
+	.update_smc_table = fiji_update_smc_table,
+	.get_offsetof = fiji_get_offsetof,
+	.process_firmware_header = fiji_process_firmware_header,
+	.init_smc_table = fiji_init_smc_table,
+	.update_sclk_threshold = fiji_update_sclk_threshold,
+	.thermal_setup_fan_table = fiji_thermal_setup_fan_table,
+	.populate_all_graphic_levels = fiji_populate_all_graphic_levels,
+	.populate_all_memory_levels = fiji_populate_all_memory_levels,
+	.get_mac_definition = fiji_get_mac_definition,
+	.initialize_mc_reg_table = fiji_initialize_mc_reg_table,
+	.is_dpm_running = fiji_is_dpm_running,
 };
 
 int fiji_smum_init(struct pp_smumgr *smumgr)
