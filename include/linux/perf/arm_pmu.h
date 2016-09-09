@@ -78,6 +78,7 @@ struct pmu_hw_events {
 };
 
 enum armpmu_attr_groups {
+	ARMPMU_ATTR_GROUP_COMMON,
 	ARMPMU_ATTR_GROUP_EVENTS,
 	ARMPMU_ATTR_GROUP_FORMATS,
 	ARMPMU_NR_ATTR_GROUPS

@@ -534,6 +534,24 @@ static int armpmu_filter_match(struct perf_event *event)
 	return cpumask_test_cpu(cpu, &armpmu->supported_cpus);
 }
 
+static ssize_t armpmu_cpumask_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct arm_pmu *armpmu = to_arm_pmu(dev_get_drvdata(dev));
+	return cpumap_print_to_pagebuf(true, buf, &armpmu->supported_cpus);
+}
+
+static DEVICE_ATTR(cpus, S_IRUGO, armpmu_cpumask_show, NULL);
+
+static struct attribute *armpmu_common_attrs[] = {
+	&dev_attr_cpus.attr,
+	NULL,
+};
+
+static struct attribute_group armpmu_common_attr_group = {
+	.attrs = armpmu_common_attrs,
+};
+
 static void armpmu_init(struct arm_pmu *armpmu)
 {
 	atomic_set(&armpmu->active_events, 0);
@@ -551,6 +569,8 @@ static void armpmu_init(struct arm_pmu *armpmu)
 		.filter_match	= armpmu_filter_match,
 		.attr_groups	= armpmu->attr_groups,
 	};
+	armpmu->attr_groups[ARMPMU_ATTR_GROUP_COMMON] =
+		&armpmu_common_attr_group;
 }
 
 /* Set at runtime when we know what CPU type we are. */
