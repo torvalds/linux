@@ -497,23 +497,20 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 			    struct sk_buff_head *skbs);
 void iwl_trans_pcie_tx_reset(struct iwl_trans *trans);
 
-static inline u16 iwl_pcie_tfd_tb_get_len(struct iwl_trans *trans, void *tfd,
+static inline u16 iwl_pcie_tfd_tb_get_len(struct iwl_trans *trans, void *_tfd,
 					  u8 idx)
 {
-	struct iwl_tfd *tfd_fh;
-	struct iwl_tfd_tb *tb;
-
 	if (trans->cfg->use_tfh) {
-		struct iwl_tfh_tfd *tfd_fh = (void *)tfd;
-		struct iwl_tfh_tb *tb = &tfd_fh->tbs[idx];
+		struct iwl_tfh_tfd *tfd = _tfd;
+		struct iwl_tfh_tb *tb = &tfd->tbs[idx];
 
 		return le16_to_cpu(tb->tb_len);
+	} else {
+		struct iwl_tfd *tfd = _tfd;
+		struct iwl_tfd_tb *tb = &tfd->tbs[idx];
+
+		return le16_to_cpu(tb->hi_n_len) >> 4;
 	}
-
-	tfd_fh = (void *)tfd;
-	tb = &tfd_fh->tbs[idx];
-
-	return le16_to_cpu(tb->hi_n_len) >> 4;
 }
 
 /*****************************************************
