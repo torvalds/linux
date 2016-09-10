@@ -107,26 +107,6 @@ struct net_device *l3mdev_master_dev_rcu(const struct net_device *_dev)
 	return master;
 }
 
-/* get index of an interface to use for FIB lookups. For devices
- * enslaved to an L3 master device FIB lookups are based on the
- * master index
- */
-static inline int l3mdev_fib_oif_rcu(struct net_device *dev)
-{
-	return l3mdev_master_ifindex_rcu(dev) ? : dev->ifindex;
-}
-
-static inline int l3mdev_fib_oif(struct net_device *dev)
-{
-	int oif;
-
-	rcu_read_lock();
-	oif = l3mdev_fib_oif_rcu(dev);
-	rcu_read_unlock();
-
-	return oif;
-}
-
 u32 l3mdev_fib_table_rcu(const struct net_device *dev);
 u32 l3mdev_fib_table_by_index(struct net *net, int ifindex);
 static inline u32 l3mdev_fib_table(const struct net_device *dev)
@@ -246,15 +226,6 @@ static inline
 struct net_device *l3mdev_master_dev_rcu(const struct net_device *dev)
 {
 	return NULL;
-}
-
-static inline int l3mdev_fib_oif_rcu(struct net_device *dev)
-{
-	return dev ? dev->ifindex : 0;
-}
-static inline int l3mdev_fib_oif(struct net_device *dev)
-{
-	return dev ? dev->ifindex : 0;
 }
 
 static inline u32 l3mdev_fib_table_rcu(const struct net_device *dev)
