@@ -34,6 +34,7 @@
 #include <linux/power_supply.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
+#include <linux/usb/of.h>
 #include <linux/usb/otg.h>
 #include <linux/wakelock.h>
 
@@ -185,6 +186,7 @@ struct rockchip_usb2phy_cfg {
  * @wakelock: wake lock struct to prevent system suspend
  *	      when USB is active.
  * @state: define OTG enumeration states before device reset.
+ * @mode: the dr_mode of the controller.
  */
 struct rockchip_usb2phy_port {
 	struct phy	*phy;
@@ -202,6 +204,7 @@ struct rockchip_usb2phy_port {
 	struct notifier_block	event_nb;
 	struct wake_lock	wakelock;
 	enum usb_otg_state	state;
+	enum usb_dr_mode	mode;
 };
 
 /**
@@ -411,21 +414,18 @@ static int rockchip_usb2phy_init(struct phy *phy)
 
 	mutex_lock(&rport->mutex);
 
-	if (rport->port_id == USB2PHY_PORT_OTG) {
+	if (rport->port_id == USB2PHY_PORT_OTG &&
+	    rport->mode != USB_DR_MODE_HOST) {
 		/* clear bvalid status and enable bvalid detect irq */
 		ret = property_enable(rphy,
 				      &rport->port_cfg->bvalid_det_clr, true);
-		if (ret) {
-			mutex_unlock(&rport->mutex);
-			return ret;
-		}
+		if (ret)
+			goto err;
 
 		ret = property_enable(rphy,
 				      &rport->port_cfg->bvalid_det_en, true);
-		if (ret) {
-			mutex_unlock(&rport->mutex);
-			return ret;
-		}
+		if (ret)
+			goto err;
 
 		mutex_unlock(&rport->mutex);
 		schedule_delayed_work(&rport->otg_sm_work, OTG_SCHEDULE_DELAY);
@@ -433,22 +433,22 @@ static int rockchip_usb2phy_init(struct phy *phy)
 	} else if (rport->port_id == USB2PHY_PORT_HOST) {
 		/* clear linestate and enable linestate detect irq */
 		ret = property_enable(rphy, &rport->port_cfg->ls_det_clr, true);
-		if (ret) {
-			mutex_unlock(&rport->mutex);
-			return ret;
-		}
+		if (ret)
+			goto err;
 
 		ret = property_enable(rphy, &rport->port_cfg->ls_det_en, true);
-		if (ret) {
-			mutex_unlock(&rport->mutex);
-			return ret;
-		}
+		if (ret)
+			goto err;
 
 		mutex_unlock(&rport->mutex);
 		schedule_delayed_work(&rport->sm_work, SCHEDULE_DELAY);
 	}
 
 	return 0;
+
+err:
+	mutex_unlock(&rport->mutex);
+	return ret;
 }
 
 static int rockchip_usb2phy_power_on(struct phy *phy)
@@ -987,6 +987,7 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 	rport->port_id = USB2PHY_PORT_OTG;
 	rport->port_cfg = &rphy->phy_cfg->port_cfgs[USB2PHY_PORT_OTG];
 	rport->state = OTG_STATE_UNDEFINED;
+
 	/*
 	 * set suspended flag to true, but actually don't
 	 * put phy in suspend mode, it aims to enable usb
@@ -997,6 +998,11 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 	rport->vbus_attached = false;
 
 	mutex_init(&rport->mutex);
+
+	rport->mode = of_usb_get_dr_mode_by_phy(child_np, -1);
+	if (rport->mode == USB_DR_MODE_HOST)
+		return 0;
+
 	wake_lock_init(&rport->wakelock, WAKE_LOCK_SUSPEND, "rockchip_otg");
 	INIT_DELAYED_WORK(&rport->chg_work, rockchip_chg_detect_work);
 	INIT_DELAYED_WORK(&rport->otg_sm_work, rockchip_usb2phy_otg_sm_work);
