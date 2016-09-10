@@ -130,37 +130,6 @@ struct dst_entry *l3mdev_link_scope_lookup(struct net *net,
 }
 EXPORT_SYMBOL_GPL(l3mdev_link_scope_lookup);
 
-/**
- *	l3mdev_get_saddr - get source address for a flow based on an interface
- *			   enslaved to an L3 master device
- *	@net: network namespace for device index lookup
- *	@ifindex: Interface index
- *	@fl4: IPv4 flow struct
- */
-
-int l3mdev_get_saddr(struct net *net, int ifindex, struct flowi4 *fl4)
-{
-	struct net_device *dev;
-	int rc = 0;
-
-	if (ifindex) {
-		rcu_read_lock();
-
-		dev = dev_get_by_index_rcu(net, ifindex);
-		if (dev && netif_is_l3_slave(dev))
-			dev = netdev_master_upper_dev_get_rcu(dev);
-
-		if (dev && netif_is_l3_master(dev) &&
-		    dev->l3mdev_ops->l3mdev_get_saddr)
-			rc = dev->l3mdev_ops->l3mdev_get_saddr(dev, fl4);
-
-		rcu_read_unlock();
-	}
-
-	return rc;
-}
-EXPORT_SYMBOL_GPL(l3mdev_get_saddr);
-
 int l3mdev_get_saddr6(struct net *net, const struct sock *sk,
 		      struct flowi6 *fl6)
 {

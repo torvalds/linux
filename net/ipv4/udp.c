@@ -1021,12 +1021,6 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 				   flow_flags,
 				   faddr, saddr, dport, inet->inet_sport);
 
-		if (!saddr && ipc.oif) {
-			err = l3mdev_get_saddr(net, ipc.oif, fl4);
-			if (err < 0)
-				goto out;
-		}
-
 		security_sk_classify_flow(sk, flowi4_to_flowi(fl4));
 		rt = ip_route_output_flow(net, fl4, sk);
 		if (IS_ERR(rt)) {

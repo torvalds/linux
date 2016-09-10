@@ -863,43 +863,6 @@ static struct rtable *vrf_get_rtable(const struct net_device *dev,
 	return rth;
 }
 
-/* called under rcu_read_lock */
-static int vrf_get_saddr(struct net_device *dev, struct flowi4 *fl4)
-{
-	struct fib_result res = { .tclassid = 0 };
-	struct net *net = dev_net(dev);
-	u32 orig_tos = fl4->flowi4_tos;
-	u8 flags = fl4->flowi4_flags;
-	u8 scope = fl4->flowi4_scope;
-	u8 tos = RT_FL_TOS(fl4);
-	int rc;
-
-	if (unlikely(!fl4->daddr))
-		return 0;
-
-	fl4->flowi4_flags |= FLOWI_FLAG_SKIP_NH_OIF;
-	fl4->flowi4_iif = LOOPBACK_IFINDEX;
-	/* make sure oif is set to VRF device for lookup */
-	fl4->flowi4_oif = dev->ifindex;
-	fl4->flowi4_tos = tos & IPTOS_RT_MASK;
-	fl4->flowi4_scope = ((tos & RTO_ONLINK) ?
-			     RT_SCOPE_LINK : RT_SCOPE_UNIVERSE);
-
-	rc = fib_lookup(net, fl4, &res, 0);
-	if (!rc) {
-		if (res.type == RTN_LOCAL)
-			fl4->saddr = res.fi->fib_prefsrc ? : fl4->daddr;
-		else
-			fib_select_path(net, &res, fl4, -1);
-	}
-
-	fl4->flowi4_flags = flags;
-	fl4->flowi4_tos = orig_tos;
-	fl4->flowi4_scope = scope;
-
-	return rc;
-}
-
 static int vrf_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	return 0;
@@ -1166,7 +1129,6 @@ static int vrf_get_saddr6(struct net_device *dev, const struct sock *sk,
 static const struct l3mdev_ops vrf_l3mdev_ops = {
 	.l3mdev_fib_table	= vrf_fib_table,
 	.l3mdev_get_rtable	= vrf_get_rtable,
-	.l3mdev_get_saddr	= vrf_get_saddr,
 	.l3mdev_l3_rcv		= vrf_l3_rcv,
 	.l3mdev_l3_out		= vrf_l3_out,
 #if IS_ENABLED(CONFIG_IPV6)
