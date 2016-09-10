@@ -1855,7 +1855,10 @@ void __init pci_assign_unassigned_resources(void)
 
 	list_for_each_entry(root_bus, &pci_root_buses, node) {
 		pci_assign_unassigned_root_bus_resources(root_bus);
-		acpi_ioapic_add(ACPI_HANDLE(root_bus->bridge));
+
+		/* Make sure the root bridge has a companion ACPI device: */
+		if (ACPI_HANDLE(root_bus->bridge))
+			acpi_ioapic_add(ACPI_HANDLE(root_bus->bridge));
 	}
 }
 
