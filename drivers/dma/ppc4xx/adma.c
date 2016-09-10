@@ -3891,7 +3891,7 @@ static int ppc440spe_adma_setup_irqs(struct ppc440spe_adma_device *adev,
 	np = ofdev->dev.of_node;
 	if (adev->id != PPC440SPE_XOR_ID) {
 		adev->err_irq = irq_of_parse_and_map(np, 1);
-		if (adev->err_irq == NO_IRQ) {
+		if (!adev->err_irq) {
 			dev_warn(adev->dev, "no err irq resource?\n");
 			*initcode = PPC_ADMA_INIT_IRQ2;
 			adev->err_irq = -ENXIO;
@@ -3902,7 +3902,7 @@ static int ppc440spe_adma_setup_irqs(struct ppc440spe_adma_device *adev,
 	}
 
 	adev->irq = irq_of_parse_and_map(np, 0);
-	if (adev->irq == NO_IRQ) {
+	if (!adev->irq) {
 		dev_err(adev->dev, "no irq resource\n");
 		*initcode = PPC_ADMA_INIT_IRQ1;
 		ret = -ENXIO;

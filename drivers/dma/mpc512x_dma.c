@@ -926,7 +926,7 @@ static int mpc_dma_probe(struct platform_device *op)
 	}
 
 	mdma->irq = irq_of_parse_and_map(dn, 0);
-	if (mdma->irq == NO_IRQ) {
+	if (!mdma->irq) {
 		dev_err(dev, "Error mapping IRQ!\n");
 		retval = -EINVAL;
 		goto err;
@@ -935,7 +935,7 @@ static int mpc_dma_probe(struct platform_device *op)
 	if (of_device_is_compatible(dn, "fsl,mpc8308-dma")) {
 		mdma->is_mpc8308 = 1;
 		mdma->irq2 = irq_of_parse_and_map(dn, 1);
-		if (mdma->irq2 == NO_IRQ) {
+		if (!mdma->irq2) {
 			dev_err(dev, "Error mapping IRQ!\n");
 			retval = -EINVAL;
 			goto err_dispose1;

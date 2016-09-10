@@ -1153,7 +1153,7 @@ static void fsldma_free_irqs(struct fsldma_device *fdev)
 	struct fsldma_chan *chan;
 	int i;
 
-	if (fdev->irq != NO_IRQ) {
+	if (fdev->irq) {
 		dev_dbg(fdev->dev, "free per-controller IRQ\n");
 		free_irq(fdev->irq, fdev);
 		return;
@@ -1161,7 +1161,7 @@ static void fsldma_free_irqs(struct fsldma_device *fdev)
 
 	for (i = 0; i < FSL_DMA_MAX_CHANS_PER_DEVICE; i++) {
 		chan = fdev->chan[i];
-		if (chan && chan->irq != NO_IRQ) {
+		if (chan && chan->irq) {
 			chan_dbg(chan, "free per-channel IRQ\n");
 			free_irq(chan->irq, chan);
 		}
@@ -1175,7 +1175,7 @@ static int fsldma_request_irqs(struct fsldma_device *fdev)
 	int i;
 
 	/* if we have a per-controller IRQ, use that */
-	if (fdev->irq != NO_IRQ) {
+	if (fdev->irq) {
 		dev_dbg(fdev->dev, "request per-controller IRQ\n");
 		ret = request_irq(fdev->irq, fsldma_ctrl_irq, IRQF_SHARED,
 				  "fsldma-controller", fdev);
@@ -1188,7 +1188,7 @@ static int fsldma_request_irqs(struct fsldma_device *fdev)
 		if (!chan)
 			continue;
 
-		if (chan->irq == NO_IRQ) {
+		if (!chan->irq) {
 			chan_err(chan, "interrupts property missing in device tree\n");
 			ret = -ENODEV;
 			goto out_unwind;
@@ -1211,7 +1211,7 @@ out_unwind:
 		if (!chan)
 			continue;
 
-		if (chan->irq == NO_IRQ)
+		if (!chan->irq)
 			continue;
 
 		free_irq(chan->irq, chan);
@@ -1311,7 +1311,7 @@ static int fsl_dma_chan_probe(struct fsldma_device *fdev,
 	list_add_tail(&chan->common.device_node, &fdev->common.channels);
 
 	dev_info(fdev->dev, "#%d (%s), irq %d\n", chan->id, compatible,
-		 chan->irq != NO_IRQ ? chan->irq : fdev->irq);
+		 chan->irq ? chan->irq : fdev->irq);
 
 	return 0;
 

@@ -670,7 +670,7 @@ static int fsl_re_chan_probe(struct platform_device *ofdev,
 
 	/* read irq property from dts */
 	chan->irq = irq_of_parse_and_map(np, 0);
-	if (chan->irq == NO_IRQ) {
+	if (!chan->irq) {
 		dev_err(dev, "No IRQ defined for JR %d\n", q);
 		ret = -ENODEV;
 		goto err_free;
