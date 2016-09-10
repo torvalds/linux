@@ -1967,6 +1967,7 @@ static int mb86a20s_read_status_and_stats(struct dvb_frontend *fe,
 	if (status_nr < 0) {
 		dev_err(&state->i2c->dev,
 			"%s: Can't read frontend lock status\n", __func__);
+		rc = status_nr;
 		goto error;
 	}
 
