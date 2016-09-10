@@ -23,8 +23,6 @@
  *
  * @l3mdev_l3_out:    Hook in L3 output path
  *
- * @l3mdev_get_rtable: Get cached IPv4 rtable (dst_entry) for device
- *
  * @l3mdev_link_scope_lookup: IPv6 lookup for linklocal and mcast destinations
  */
 
@@ -35,10 +33,6 @@ struct l3mdev_ops {
 	struct sk_buff * (*l3mdev_l3_out)(struct net_device *dev,
 					  struct sock *sk, struct sk_buff *skb,
 					  u16 proto);
-
-	/* IPv4 ops */
-	struct rtable *	(*l3mdev_get_rtable)(const struct net_device *dev,
-					     const struct flowi4 *fl4);
 
 	/* IPv6 ops */
 	struct dst_entry * (*l3mdev_link_scope_lookup)(const struct net_device *dev,
@@ -118,15 +112,6 @@ static inline u32 l3mdev_fib_table(const struct net_device *dev)
 	rcu_read_unlock();
 
 	return tb_id;
-}
-
-static inline struct rtable *l3mdev_get_rtable(const struct net_device *dev,
-					       const struct flowi4 *fl4)
-{
-	if (netif_is_l3_master(dev) && dev->l3mdev_ops->l3mdev_get_rtable)
-		return dev->l3mdev_ops->l3mdev_get_rtable(dev, fl4);
-
-	return NULL;
 }
 
 static inline bool netif_index_is_l3_master(struct net *net, int ifindex)
@@ -239,12 +224,6 @@ static inline u32 l3mdev_fib_table(const struct net_device *dev)
 static inline u32 l3mdev_fib_table_by_index(struct net *net, int ifindex)
 {
 	return 0;
-}
-
-static inline struct rtable *l3mdev_get_rtable(const struct net_device *dev,
-					       const struct flowi4 *fl4)
-{
-	return NULL;
 }
 
 static inline bool netif_index_is_l3_master(struct net *net, int ifindex)
