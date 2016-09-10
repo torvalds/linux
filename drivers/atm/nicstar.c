@@ -2023,7 +2023,8 @@ static void dequeue_rx(ns_dev * card, ns_rsqe * rsqe)
 
 		cell = skb->data;
 		for (i = ns_rsqe_cellcount(rsqe); i; i--) {
-			if ((sb = dev_alloc_skb(NS_SMSKBSIZE)) == NULL) {
+			sb = dev_alloc_skb(NS_SMSKBSIZE);
+			if (!sb) {
 				printk
 				    ("nicstar%d: Can't allocate buffers for aal0.\n",
 				     card->index);
