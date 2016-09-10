@@ -1084,46 +1084,6 @@ static struct dst_entry *vrf_link_scope_lookup(const struct net_device *dev,
 
 	return dst;
 }
-
-/* called under rcu_read_lock */
-static int vrf_get_saddr6(struct net_device *dev, const struct sock *sk,
-			  struct flowi6 *fl6)
-{
-	struct net *net = dev_net(dev);
-	struct dst_entry *dst;
-	struct rt6_info *rt;
-	int err;
-
-	if (rt6_need_strict(&fl6->daddr)) {
-		rt = vrf_ip6_route_lookup(net, dev, fl6, fl6->flowi6_oif,
-					  RT6_LOOKUP_F_IFACE);
-		if (unlikely(!rt))
-			return 0;
-
-		dst = &rt->dst;
-	} else {
-		__u8 flags = fl6->flowi6_flags;
-
-		fl6->flowi6_flags |= FLOWI_FLAG_L3MDEV_SRC;
-		fl6->flowi6_flags |= FLOWI_FLAG_SKIP_NH_OIF;
-
-		dst = ip6_route_output(net, sk, fl6);
-		rt = (struct rt6_info *)dst;
-
-		fl6->flowi6_flags = flags;
-	}
-
-	err = dst->error;
-	if (!err) {
-		err = ip6_route_get_saddr(net, rt, &fl6->daddr,
-					  sk ? inet6_sk(sk)->srcprefs : 0,
-					  &fl6->saddr);
-	}
-
-	dst_release(dst);
-
-	return err;
-}
 #endif
 
 static const struct l3mdev_ops vrf_l3mdev_ops = {
@@ -1133,7 +1093,6 @@ static const struct l3mdev_ops vrf_l3mdev_ops = {
 	.l3mdev_l3_out		= vrf_l3_out,
 #if IS_ENABLED(CONFIG_IPV6)
 	.l3mdev_link_scope_lookup = vrf_link_scope_lookup,
-	.l3mdev_get_saddr6	= vrf_get_saddr6,
 #endif
 };
 

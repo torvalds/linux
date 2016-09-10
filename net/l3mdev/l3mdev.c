@@ -130,30 +130,6 @@ struct dst_entry *l3mdev_link_scope_lookup(struct net *net,
 }
 EXPORT_SYMBOL_GPL(l3mdev_link_scope_lookup);
 
-int l3mdev_get_saddr6(struct net *net, const struct sock *sk,
-		      struct flowi6 *fl6)
-{
-	struct net_device *dev;
-	int rc = 0;
-
-	if (fl6->flowi6_oif) {
-		rcu_read_lock();
-
-		dev = dev_get_by_index_rcu(net, fl6->flowi6_oif);
-		if (dev && netif_is_l3_slave(dev))
-			dev = netdev_master_upper_dev_get_rcu(dev);
-
-		if (dev && netif_is_l3_master(dev) &&
-		    dev->l3mdev_ops->l3mdev_get_saddr6)
-			rc = dev->l3mdev_ops->l3mdev_get_saddr6(dev, sk, fl6);
-
-		rcu_read_unlock();
-	}
-
-	return rc;
-}
-EXPORT_SYMBOL_GPL(l3mdev_get_saddr6);
-
 /**
  *	l3mdev_fib_rule_match - Determine if flowi references an
  *				L3 master device
