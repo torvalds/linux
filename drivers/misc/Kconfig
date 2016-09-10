@@ -4,6 +4,13 @@
 
 menu "Misc devices"
 
+config ROCKCHIP_SCR
+	tristate "Rockchip Smartcard Reader Controller support"
+	default n
+	help
+	  say Y here to enable Rockchip Smartcard Reader Controller driver
+	  for Soc such as RK3128,RK322x,RK3288,RK3368,RK3366 and etc.
+
 config SENSORS_LIS3LV02D
 	tristate
 	depends on INPUT
@@ -530,13 +537,6 @@ config UID_CPUTIME
 	depends on PROFILING
 	help
 	  Per UID based cpu time statistics exported to /proc/uid_cputime
-
-config ROCKCHIP_SCR
-	tristate "Rockchip Smartcard Reader Controller support"
-	default n
-	help
-	  say Y here to enable Rockchip Smartcard Reader Controller driver
-	  for Soc such as RK3128,RK322x,RK3288,RK3368,RK3366 and etc.
 
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
