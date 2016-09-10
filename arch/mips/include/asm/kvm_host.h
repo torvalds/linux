@@ -554,6 +554,7 @@ extern int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu);
 /* Building of entry/exception code */
 int kvm_mips_entry_setup(void);
 void *kvm_mips_build_vcpu_run(void *addr);
+void *kvm_mips_build_tlb_refill_exception(void *addr, void *handler);
 void *kvm_mips_build_exception(void *addr, void *handler);
 void *kvm_mips_build_exit(void *addr);
 

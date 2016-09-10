@@ -264,7 +264,7 @@ static inline void dump_handler(const char *symbol, void *start, void *end)
 struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 {
 	int err, size;
-	void *gebase, *p, *handler;
+	void *gebase, *p, *handler, *refill_start, *refill_end;
 	int i;
 
 	struct kvm_vcpu *vcpu = kzalloc(sizeof(struct kvm_vcpu), GFP_KERNEL);
@@ -317,8 +317,9 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 	/* Build guest exception vectors dynamically in unmapped memory */
 	handler = gebase + 0x2000;
 
-	/* TLB Refill, EXL = 0 */
-	kvm_mips_build_exception(gebase, handler);
+	/* TLB refill */
+	refill_start = gebase;
+	refill_end = kvm_mips_build_tlb_refill_exception(refill_start, handler);
 
 	/* General Exception Entry point */
 	kvm_mips_build_exception(gebase + 0x180, handler);
@@ -344,6 +345,7 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 	pr_debug("#include <asm/regdef.h>\n");
 	pr_debug("\n");
 	dump_handler("kvm_vcpu_run", vcpu->arch.vcpu_run, p);
+	dump_handler("kvm_tlb_refill", refill_start, refill_end);
 	dump_handler("kvm_gen_exc", gebase + 0x180, gebase + 0x200);
 	dump_handler("kvm_exit", gebase + 0x2000, vcpu->arch.vcpu_run);
 
