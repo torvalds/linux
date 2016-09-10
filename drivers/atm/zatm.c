@@ -1399,7 +1399,7 @@ static int zatm_open(struct atm_vcc *vcc)
 	DPRINTK(DEV_LABEL "(itf %d): open %d.%d\n",vcc->dev->number,vcc->vpi,
 	    vcc->vci);
 	if (!test_bit(ATM_VF_PARTIAL,&vcc->flags)) {
-		zatm_vcc = kmalloc(sizeof(struct zatm_vcc),GFP_KERNEL);
+		zatm_vcc = kmalloc(sizeof(*zatm_vcc), GFP_KERNEL);
 		if (!zatm_vcc) {
 			clear_bit(ATM_VF_ADDR,&vcc->flags);
 			return -ENOMEM;
