@@ -641,8 +641,4 @@ static struct platform_driver altera_pcie_driver = {
 	},
 };
 
-static int altera_pcie_init(void)
-{
-	return platform_driver_register(&altera_pcie_driver);
-}
-device_initcall(altera_pcie_init);
+builtin_platform_driver(altera_pcie_driver);
