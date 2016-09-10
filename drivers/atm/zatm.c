@@ -598,12 +598,13 @@ static void close_rx(struct atm_vcc *vcc)
 static int start_rx(struct atm_dev *dev)
 {
 	struct zatm_dev *zatm_dev;
-	int size,i;
+	int i;
 
 DPRINTK("start_rx\n");
 	zatm_dev = ZATM_DEV(dev);
-	size = sizeof(struct atm_vcc *)*zatm_dev->chans;
-	zatm_dev->rx_map =  kzalloc(size,GFP_KERNEL);
+	zatm_dev->rx_map = kcalloc(zatm_dev->chans,
+				   sizeof(*zatm_dev->rx_map),
+				   GFP_KERNEL);
 	if (!zatm_dev->rx_map) return -ENOMEM;
 	/* set VPI/VCI split (use all VCIs and give what's left to VPIs) */
 	zpokel(zatm_dev,(1 << dev->ci_range.vci_bits)-1,uPD98401_VRR);
