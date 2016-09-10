@@ -902,11 +902,9 @@ static int read_ext_controller_info(struct sock *sk, struct hci_dev *hdev,
 	eir_len = eir_append_data(buff, eir_len, EIR_NAME_SHORT,
 				  hdev->short_name, name_len);
 
-	rp = kmalloc(sizeof(*rp) + eir_len, GFP_KERNEL);
+	rp = kzalloc(sizeof(*rp) + eir_len, GFP_KERNEL);
 	if (!rp)
 		return -ENOMEM;
-
-	memset(rp, 0, sizeof(*rp) + eir_len);
 
 	rp->eir_len = cpu_to_le16(eir_len);
 	memcpy(rp->eir, buff, eir_len);
