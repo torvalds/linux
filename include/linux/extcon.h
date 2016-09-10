@@ -133,9 +133,20 @@
 #define EXTCON_PROP_JACK_MAX		100
 #define EXTCON_PROP_JACK_CNT (EXTCON_PROP_JACK_MAX - EXTCON_PROP_JACK_MIN + 1)
 
+/*
+ * Properties of EXTCON_TYPE_DISP.
+ *
+ * - EXTCON_PROP_DISP_HPD (Hot Plug Detect)
+ * @type:       integer (intval)
+ * @value:      0 (no hpd) or 1 (hpd)
+ * @default:    0 (no hpd)
+ *
+ */
+#define EXTCON_PROP_DISP_HPD		150
+
 /* Properties of EXTCON_TYPE_DISP. */
 #define EXTCON_PROP_DISP_MIN		150
-#define EXTCON_PROP_DISP_MAX		150
+#define EXTCON_PROP_DISP_MAX		151
 #define EXTCON_PROP_DISP_CNT (EXTCON_PROP_DISP_MAX - EXTCON_PROP_DISP_MIN + 1)
 
 /*
