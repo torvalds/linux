@@ -600,7 +600,7 @@ static int start_rx(struct atm_dev *dev)
 	struct zatm_dev *zatm_dev;
 	int i;
 
-DPRINTK("start_rx\n");
+	DPRINTK("start_rx\n");
 	zatm_dev = ZATM_DEV(dev);
 	zatm_dev->rx_map = kcalloc(zatm_dev->chans,
 				   sizeof(*zatm_dev->rx_map),
