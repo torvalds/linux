@@ -1398,7 +1398,7 @@ static int macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (macb_clear_csum(skb)) {
 		dev_kfree_skb_any(skb);
-		return NETDEV_TX_OK;
+		goto unlock;
 	}
 
 	/* Map socket buffer for DMA transfer */
