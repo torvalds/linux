@@ -50,8 +50,6 @@ struct bcm_sf2_port_status {
 	unsigned int link;
 
 	struct ethtool_eee eee;
-
-	u16 vlan_ctl_mask;
 };
 
 struct bcm_sf2_priv {
