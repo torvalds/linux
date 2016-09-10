@@ -611,7 +611,7 @@ static int ns_init_card(int i, struct pci_dev *pcidev)
 	for (j = 0; j < card->rct_size; j++)
 		ns_write_sram(card, j * 4, u32d, 4);
 
-	memset(card->vcmap, 0, NS_MAX_RCTSIZE * sizeof(vc_map));
+	memset(card->vcmap, 0, sizeof(card->vcmap));
 
 	for (j = 0; j < NS_FRSCD_NUM; j++)
 		card->scd2vc[j] = NULL;
