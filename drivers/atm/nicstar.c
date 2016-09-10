@@ -370,7 +370,8 @@ static int ns_init_card(int i, struct pci_dev *pcidev)
 		return error;
         }
 
-	if ((card = kmalloc(sizeof(ns_dev), GFP_KERNEL)) == NULL) {
+	card = kmalloc(sizeof(*card), GFP_KERNEL);
+	if (!card) {
 		printk
 		    ("nicstar%d: can't allocate memory for device structure.\n",
 		     i);
