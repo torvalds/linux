@@ -17,6 +17,7 @@
 static const char *const rxrpc_conn_states[RXRPC_CONN__NR_STATES] = {
 	[RXRPC_CONN_UNUSED]			= "Unused  ",
 	[RXRPC_CONN_CLIENT]			= "Client  ",
+	[RXRPC_CONN_SERVICE_PREALLOC]		= "SvPrealc",
 	[RXRPC_CONN_SERVICE_UNSECURED]		= "SvUnsec ",
 	[RXRPC_CONN_SERVICE_CHALLENGING]	= "SvChall ",
 	[RXRPC_CONN_SERVICE]			= "SvSecure",
@@ -156,6 +157,11 @@ static int rxrpc_connection_seq_show(struct seq_file *seq, void *v)
 	}
 
 	conn = list_entry(v, struct rxrpc_connection, proc_link);
+	if (conn->state == RXRPC_CONN_SERVICE_PREALLOC) {
+		strcpy(lbuff, "no_local");
+		strcpy(rbuff, "no_connection");
+		goto print;
+	}
 
 	sprintf(lbuff, "%pI4:%u",
 		&conn->params.local->srx.transport.sin.sin_addr,
@@ -164,7 +170,7 @@ static int rxrpc_connection_seq_show(struct seq_file *seq, void *v)
 	sprintf(rbuff, "%pI4:%u",
 		&conn->params.peer->srx.transport.sin.sin_addr,
 		ntohs(conn->params.peer->srx.transport.sin.sin_port));
-
+print:
 	seq_printf(seq,
 		   "UDP   %-22.22s %-22.22s %4x %08x %s %3u"
 		   " %s %08x %08x %08x\n",

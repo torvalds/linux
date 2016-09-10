@@ -30,12 +30,16 @@ static int none_secure_packet(struct rxrpc_call *call,
 	return 0;
 }
 
-static int none_verify_packet(struct rxrpc_call *call,
-			      struct sk_buff *skb,
-			      rxrpc_seq_t seq,
-			      u16 expected_cksum)
+static int none_verify_packet(struct rxrpc_call *call, struct sk_buff *skb,
+			      unsigned int offset, unsigned int len,
+			      rxrpc_seq_t seq, u16 expected_cksum)
 {
 	return 0;
+}
+
+static void none_locate_data(struct rxrpc_call *call, struct sk_buff *skb,
+			     unsigned int *_offset, unsigned int *_len)
+{
 }
 
 static int none_respond_to_challenge(struct rxrpc_connection *conn,
@@ -79,6 +83,7 @@ const struct rxrpc_security rxrpc_no_security = {
 	.prime_packet_security		= none_prime_packet_security,
 	.secure_packet			= none_secure_packet,
 	.verify_packet			= none_verify_packet,
+	.locate_data			= none_locate_data,
 	.respond_to_challenge		= none_respond_to_challenge,
 	.verify_response		= none_verify_response,
 	.clear				= none_clear,

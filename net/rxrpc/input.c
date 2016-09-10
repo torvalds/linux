@@ -1,6 +1,6 @@
 /* RxRPC packet reception
  *
- * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2007, 2016 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -27,549 +27,547 @@
 #include <net/net_namespace.h>
 #include "ar-internal.h"
 
-/*
- * queue a packet for recvmsg to pass to userspace
- * - the caller must hold a lock on call->lock
- * - must not be called with interrupts disabled (sk_filter() disables BH's)
- * - eats the packet whether successful or not
- * - there must be just one reference to the packet, which the caller passes to
- *   this function
- */
-int rxrpc_queue_rcv_skb(struct rxrpc_call *call, struct sk_buff *skb,
-			bool force, bool terminal)
+static void rxrpc_proto_abort(const char *why,
+			      struct rxrpc_call *call, rxrpc_seq_t seq)
 {
-	struct rxrpc_skb_priv *sp;
-	struct rxrpc_sock *rx;
-	struct sock *sk;
-	int ret;
-
-	_enter(",,%d,%d", force, terminal);
-
-	ASSERT(!irqs_disabled());
-
-	sp = rxrpc_skb(skb);
-	ASSERTCMP(sp->call, ==, call);
-
-	/* if we've already posted the terminal message for a call, then we
-	 * don't post any more */
-	if (test_bit(RXRPC_CALL_TERMINAL_MSG, &call->flags)) {
-		_debug("already terminated");
-		ASSERTCMP(call->state, >=, RXRPC_CALL_COMPLETE);
-		rxrpc_free_skb(skb);
-		return 0;
+	if (rxrpc_abort_call(why, call, seq, RX_PROTOCOL_ERROR, EBADMSG)) {
+		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
+		rxrpc_queue_call(call);
 	}
-
-	/* The socket may go away under us */
-	ret = 0;
-	rcu_read_lock();
-	rx = rcu_dereference(call->socket);
-	if (!rx)
-		goto out;
-	sk = &rx->sk;
-	if (sock_flag(sk, SOCK_DEAD))
-		goto out;
-
-	if (!force) {
-		/* cast skb->rcvbuf to unsigned...  It's pointless, but
-		 * reduces number of warnings when compiling with -W
-		 * --ANK */
-//		ret = -ENOBUFS;
-//		if (atomic_read(&sk->sk_rmem_alloc) + skb->truesize >=
-//		    (unsigned int) sk->sk_rcvbuf)
-//			goto out;
-
-		ret = sk_filter(sk, skb);
-		if (ret < 0)
-			goto out;
-	}
-
-	spin_lock_bh(&sk->sk_receive_queue.lock);
-	if (!test_bit(RXRPC_CALL_TERMINAL_MSG, &call->flags) &&
-	    !test_bit(RXRPC_CALL_RELEASED, &call->flags) &&
-	    sk->sk_state != RXRPC_CLOSE) {
-		skb->destructor = rxrpc_packet_destructor;
-		skb->dev = NULL;
-		skb->sk = sk;
-		atomic_add(skb->truesize, &sk->sk_rmem_alloc);
-
-		if (terminal) {
-			_debug("<<<< TERMINAL MESSAGE >>>>");
-			set_bit(RXRPC_CALL_TERMINAL_MSG, &call->flags);
-		}
-
-		/* allow interception by a kernel service */
-		if (skb->mark == RXRPC_SKB_MARK_NEW_CALL &&
-		    rx->notify_new_call) {
-			spin_unlock_bh(&sk->sk_receive_queue.lock);
-			skb_queue_tail(&call->knlrecv_queue, skb);
-			rx->notify_new_call(&rx->sk);
-		} else if (call->notify_rx) {
-			spin_unlock_bh(&sk->sk_receive_queue.lock);
-			skb_queue_tail(&call->knlrecv_queue, skb);
-			call->notify_rx(&rx->sk, call, call->user_call_ID);
-		} else {
-			_net("post skb %p", skb);
-			__skb_queue_tail(&sk->sk_receive_queue, skb);
-			spin_unlock_bh(&sk->sk_receive_queue.lock);
-
-			sk->sk_data_ready(sk);
-		}
-		skb = NULL;
-	} else {
-		spin_unlock_bh(&sk->sk_receive_queue.lock);
-	}
-	ret = 0;
-
-out:
-	rxrpc_free_skb(skb);
-	rcu_read_unlock();
-
-	_leave(" = %d", ret);
-	return ret;
 }
 
 /*
- * process a DATA packet, posting the packet to the appropriate queue
- * - eats the packet if successful
+ * Apply a hard ACK by advancing the Tx window.
  */
-static int rxrpc_fast_process_data(struct rxrpc_call *call,
-				   struct sk_buff *skb, u32 seq)
+static void rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to)
 {
-	struct rxrpc_skb_priv *sp;
-	bool terminal;
-	int ret, ackbit, ack;
-	u32 serial;
-	u16 skew;
-	u8 flags;
-
-	_enter("{%u,%u},,{%u}", call->rx_data_post, call->rx_first_oos, seq);
-
-	sp = rxrpc_skb(skb);
-	ASSERTCMP(sp->call, ==, NULL);
-	flags = sp->hdr.flags;
-	serial = sp->hdr.serial;
-	skew = skb->priority;
+	struct sk_buff *skb, *list = NULL;
+	int ix;
 
 	spin_lock(&call->lock);
 
-	if (call->state > RXRPC_CALL_COMPLETE)
-		goto discard;
-
-	ASSERTCMP(call->rx_data_expect, >=, call->rx_data_post);
-	ASSERTCMP(call->rx_data_post, >=, call->rx_data_recv);
-	ASSERTCMP(call->rx_data_recv, >=, call->rx_data_eaten);
-
-	if (seq < call->rx_data_post) {
-		_debug("dup #%u [-%u]", seq, call->rx_data_post);
-		ack = RXRPC_ACK_DUPLICATE;
-		ret = -ENOBUFS;
-		goto discard_and_ack;
-	}
-
-	/* we may already have the packet in the out of sequence queue */
-	ackbit = seq - (call->rx_data_eaten + 1);
-	ASSERTCMP(ackbit, >=, 0);
-	if (__test_and_set_bit(ackbit, call->ackr_window)) {
-		_debug("dup oos #%u [%u,%u]",
-		       seq, call->rx_data_eaten, call->rx_data_post);
-		ack = RXRPC_ACK_DUPLICATE;
-		goto discard_and_ack;
-	}
-
-	if (seq >= call->ackr_win_top) {
-		_debug("exceed #%u [%u]", seq, call->ackr_win_top);
-		__clear_bit(ackbit, call->ackr_window);
-		ack = RXRPC_ACK_EXCEEDS_WINDOW;
-		goto discard_and_ack;
-	}
-
-	if (seq == call->rx_data_expect) {
-		clear_bit(RXRPC_CALL_EXPECT_OOS, &call->flags);
-		call->rx_data_expect++;
-	} else if (seq > call->rx_data_expect) {
-		_debug("oos #%u [%u]", seq, call->rx_data_expect);
-		call->rx_data_expect = seq + 1;
-		if (test_and_set_bit(RXRPC_CALL_EXPECT_OOS, &call->flags)) {
-			ack = RXRPC_ACK_OUT_OF_SEQUENCE;
-			goto enqueue_and_ack;
-		}
-		goto enqueue_packet;
-	}
-
-	if (seq != call->rx_data_post) {
-		_debug("ahead #%u [%u]", seq, call->rx_data_post);
-		goto enqueue_packet;
-	}
-
-	if (test_bit(RXRPC_CALL_RCVD_LAST, &call->flags))
-		goto protocol_error;
-
-	/* if the packet need security things doing to it, then it goes down
-	 * the slow path */
-	if (call->security_ix)
-		goto enqueue_packet;
-
-	sp->call = call;
-	rxrpc_get_call_for_skb(call, skb);
-	terminal = ((flags & RXRPC_LAST_PACKET) &&
-		    !(flags & RXRPC_CLIENT_INITIATED));
-	ret = rxrpc_queue_rcv_skb(call, skb, false, terminal);
-	if (ret < 0) {
-		if (ret == -ENOMEM || ret == -ENOBUFS) {
-			__clear_bit(ackbit, call->ackr_window);
-			ack = RXRPC_ACK_NOSPACE;
-			goto discard_and_ack;
-		}
-		goto out;
-	}
-
-	skb = NULL;
-	sp = NULL;
-
-	_debug("post #%u", seq);
-	ASSERTCMP(call->rx_data_post, ==, seq);
-	call->rx_data_post++;
-
-	if (flags & RXRPC_LAST_PACKET)
-		set_bit(RXRPC_CALL_RCVD_LAST, &call->flags);
-
-	/* if we've reached an out of sequence packet then we need to drain
-	 * that queue into the socket Rx queue now */
-	if (call->rx_data_post == call->rx_first_oos) {
-		_debug("drain rx oos now");
-		read_lock(&call->state_lock);
-		if (call->state < RXRPC_CALL_COMPLETE &&
-		    !test_and_set_bit(RXRPC_CALL_EV_DRAIN_RX_OOS, &call->events))
-			rxrpc_queue_call(call);
-		read_unlock(&call->state_lock);
+	while (before(call->tx_hard_ack, to)) {
+		call->tx_hard_ack++;
+		ix = call->tx_hard_ack & RXRPC_RXTX_BUFF_MASK;
+		skb = call->rxtx_buffer[ix];
+		rxrpc_see_skb(skb);
+		call->rxtx_buffer[ix] = NULL;
+		call->rxtx_annotations[ix] = 0;
+		skb->next = list;
+		list = skb;
 	}
 
 	spin_unlock(&call->lock);
-	atomic_inc(&call->ackr_not_idle);
-	rxrpc_propose_ACK(call, RXRPC_ACK_DELAY, skew, serial, false);
-	_leave(" = 0 [posted]");
-	return 0;
 
-protocol_error:
-	ret = -EBADMSG;
-out:
-	spin_unlock(&call->lock);
-	_leave(" = %d", ret);
-	return ret;
-
-discard_and_ack:
-	_debug("discard and ACK packet %p", skb);
-	__rxrpc_propose_ACK(call, ack, skew, serial, true);
-discard:
-	spin_unlock(&call->lock);
-	rxrpc_free_skb(skb);
-	_leave(" = 0 [discarded]");
-	return 0;
-
-enqueue_and_ack:
-	__rxrpc_propose_ACK(call, ack, skew, serial, true);
-enqueue_packet:
-	_net("defer skb %p", skb);
-	spin_unlock(&call->lock);
-	skb_queue_tail(&call->rx_queue, skb);
-	atomic_inc(&call->ackr_not_idle);
-	read_lock(&call->state_lock);
-	if (call->state < RXRPC_CALL_COMPLETE)
-		rxrpc_queue_call(call);
-	read_unlock(&call->state_lock);
-	_leave(" = 0 [queued]");
-	return 0;
+	while (list) {
+		skb = list;
+		list = skb->next;
+		skb->next = NULL;
+		rxrpc_free_skb(skb);
+	}
 }
 
 /*
- * assume an implicit ACKALL of the transmission phase of a client socket upon
- * reception of the first reply packet
+ * End the transmission phase of a call.
+ *
+ * This occurs when we get an ACKALL packet, the first DATA packet of a reply,
+ * or a final ACK packet.
  */
-static void rxrpc_assume_implicit_ackall(struct rxrpc_call *call, u32 serial)
+static bool rxrpc_end_tx_phase(struct rxrpc_call *call, const char *abort_why)
 {
-	write_lock_bh(&call->state_lock);
+	_enter("");
 
 	switch (call->state) {
+	case RXRPC_CALL_CLIENT_RECV_REPLY:
+		return true;
+	case RXRPC_CALL_CLIENT_AWAIT_REPLY:
+	case RXRPC_CALL_SERVER_AWAIT_ACK:
+		break;
+	default:
+		rxrpc_proto_abort(abort_why, call, call->tx_top);
+		return false;
+	}
+
+	rxrpc_rotate_tx_window(call, call->tx_top);
+
+	write_lock(&call->state_lock);
+
+	switch (call->state) {
+	default:
+		break;
 	case RXRPC_CALL_CLIENT_AWAIT_REPLY:
 		call->state = RXRPC_CALL_CLIENT_RECV_REPLY;
-		call->acks_latest = serial;
-
-		_debug("implicit ACKALL %%%u", call->acks_latest);
-		set_bit(RXRPC_CALL_EV_RCVD_ACKALL, &call->events);
-		write_unlock_bh(&call->state_lock);
-
-		if (try_to_del_timer_sync(&call->resend_timer) >= 0) {
-			clear_bit(RXRPC_CALL_EV_RESEND_TIMER, &call->events);
-			clear_bit(RXRPC_CALL_EV_RESEND, &call->events);
-			clear_bit(RXRPC_CALL_RUN_RTIMER, &call->flags);
-		}
 		break;
-
-	default:
-		write_unlock_bh(&call->state_lock);
+	case RXRPC_CALL_SERVER_AWAIT_ACK:
+		__rxrpc_call_completed(call);
+		rxrpc_notify_socket(call);
 		break;
+	}
+
+	write_unlock(&call->state_lock);
+	_leave(" = ok");
+	return true;
+}
+
+/*
+ * Scan a jumbo packet to validate its structure and to work out how many
+ * subpackets it contains.
+ *
+ * A jumbo packet is a collection of consecutive packets glued together with
+ * little headers between that indicate how to change the initial header for
+ * each subpacket.
+ *
+ * RXRPC_JUMBO_PACKET must be set on all but the last subpacket - and all but
+ * the last are RXRPC_JUMBO_DATALEN in size.  The last subpacket may be of any
+ * size.
+ */
+static bool rxrpc_validate_jumbo(struct sk_buff *skb)
+{
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
+	unsigned int offset = sp->offset;
+	unsigned int len = skb->data_len;
+	int nr_jumbo = 1;
+	u8 flags = sp->hdr.flags;
+
+	do {
+		nr_jumbo++;
+		if (len - offset < RXRPC_JUMBO_SUBPKTLEN)
+			goto protocol_error;
+		if (flags & RXRPC_LAST_PACKET)
+			goto protocol_error;
+		offset += RXRPC_JUMBO_DATALEN;
+		if (skb_copy_bits(skb, offset, &flags, 1) < 0)
+			goto protocol_error;
+		offset += sizeof(struct rxrpc_jumbo_header);
+	} while (flags & RXRPC_JUMBO_PACKET);
+
+	sp->nr_jumbo = nr_jumbo;
+	return true;
+
+protocol_error:
+	return false;
+}
+
+/*
+ * Handle reception of a duplicate packet.
+ *
+ * We have to take care to avoid an attack here whereby we're given a series of
+ * jumbograms, each with a sequence number one before the preceding one and
+ * filled up to maximum UDP size.  If they never send us the first packet in
+ * the sequence, they can cause us to have to hold on to around 2MiB of kernel
+ * space until the call times out.
+ *
+ * We limit the space usage by only accepting three duplicate jumbo packets per
+ * call.  After that, we tell the other side we're no longer accepting jumbos
+ * (that information is encoded in the ACK packet).
+ */
+static void rxrpc_input_dup_data(struct rxrpc_call *call, rxrpc_seq_t seq,
+				 u8 annotation, bool *_jumbo_dup)
+{
+	/* Discard normal packets that are duplicates. */
+	if (annotation == 0)
+		return;
+
+	/* Skip jumbo subpackets that are duplicates.  When we've had three or
+	 * more partially duplicate jumbo packets, we refuse to take any more
+	 * jumbos for this call.
+	 */
+	if (!*_jumbo_dup) {
+		call->nr_jumbo_dup++;
+		*_jumbo_dup = true;
 	}
 }
 
 /*
- * post an incoming packet to the nominated call to deal with
- * - must get rid of the sk_buff, either by freeing it or by queuing it
+ * Process a DATA packet, adding the packet to the Rx ring.
  */
-void rxrpc_fast_process_packet(struct rxrpc_call *call, struct sk_buff *skb)
+static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb,
+			     u16 skew)
+{
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
+	unsigned int offset = sp->offset;
+	unsigned int ix;
+	rxrpc_serial_t serial = sp->hdr.serial, ack_serial = 0;
+	rxrpc_seq_t seq = sp->hdr.seq, hard_ack;
+	bool immediate_ack = false, jumbo_dup = false, queued;
+	u16 len;
+	u8 ack = 0, flags, annotation = 0;
+
+	_enter("{%u,%u},{%u,%u}",
+	       call->rx_hard_ack, call->rx_top, skb->data_len, seq);
+
+	_proto("Rx DATA %%%u { #%u f=%02x }",
+	       sp->hdr.serial, seq, sp->hdr.flags);
+
+	if (call->state >= RXRPC_CALL_COMPLETE)
+		return;
+
+	/* Received data implicitly ACKs all of the request packets we sent
+	 * when we're acting as a client.
+	 */
+	if (call->state == RXRPC_CALL_CLIENT_AWAIT_REPLY &&
+	    !rxrpc_end_tx_phase(call, "ETD"))
+		return;
+
+	call->ackr_prev_seq = seq;
+
+	hard_ack = READ_ONCE(call->rx_hard_ack);
+	if (after(seq, hard_ack + call->rx_winsize)) {
+		ack = RXRPC_ACK_EXCEEDS_WINDOW;
+		ack_serial = serial;
+		goto ack;
+	}
+
+	flags = sp->hdr.flags;
+	if (flags & RXRPC_JUMBO_PACKET) {
+		if (call->nr_jumbo_dup > 3) {
+			ack = RXRPC_ACK_NOSPACE;
+			ack_serial = serial;
+			goto ack;
+		}
+		annotation = 1;
+	}
+
+next_subpacket:
+	queued = false;
+	ix = seq & RXRPC_RXTX_BUFF_MASK;
+	len = skb->data_len;
+	if (flags & RXRPC_JUMBO_PACKET)
+		len = RXRPC_JUMBO_DATALEN;
+
+	if (flags & RXRPC_LAST_PACKET) {
+		if (test_and_set_bit(RXRPC_CALL_RX_LAST, &call->flags) &&
+		    seq != call->rx_top)
+			return rxrpc_proto_abort("LSN", call, seq);
+	} else {
+		if (test_bit(RXRPC_CALL_RX_LAST, &call->flags) &&
+		    after_eq(seq, call->rx_top))
+			return rxrpc_proto_abort("LSA", call, seq);
+	}
+
+	if (before_eq(seq, hard_ack)) {
+		ack = RXRPC_ACK_DUPLICATE;
+		ack_serial = serial;
+		goto skip;
+	}
+
+	if (flags & RXRPC_REQUEST_ACK && !ack) {
+		ack = RXRPC_ACK_REQUESTED;
+		ack_serial = serial;
+	}
+
+	if (call->rxtx_buffer[ix]) {
+		rxrpc_input_dup_data(call, seq, annotation, &jumbo_dup);
+		if (ack != RXRPC_ACK_DUPLICATE) {
+			ack = RXRPC_ACK_DUPLICATE;
+			ack_serial = serial;
+		}
+		immediate_ack = true;
+		goto skip;
+	}
+
+	/* Queue the packet.  We use a couple of memory barriers here as need
+	 * to make sure that rx_top is perceived to be set after the buffer
+	 * pointer and that the buffer pointer is set after the annotation and
+	 * the skb data.
+	 *
+	 * Barriers against rxrpc_recvmsg_data() and rxrpc_rotate_rx_window()
+	 * and also rxrpc_fill_out_ack().
+	 */
+	rxrpc_get_skb(skb);
+	call->rxtx_annotations[ix] = annotation;
+	smp_wmb();
+	call->rxtx_buffer[ix] = skb;
+	if (after(seq, call->rx_top))
+		smp_store_release(&call->rx_top, seq);
+	queued = true;
+
+	if (after_eq(seq, call->rx_expect_next)) {
+		if (after(seq, call->rx_expect_next)) {
+			_net("OOS %u > %u", seq, call->rx_expect_next);
+			ack = RXRPC_ACK_OUT_OF_SEQUENCE;
+			ack_serial = serial;
+		}
+		call->rx_expect_next = seq + 1;
+	}
+
+skip:
+	offset += len;
+	if (flags & RXRPC_JUMBO_PACKET) {
+		if (skb_copy_bits(skb, offset, &flags, 1) < 0)
+			return rxrpc_proto_abort("XJF", call, seq);
+		offset += sizeof(struct rxrpc_jumbo_header);
+		seq++;
+		serial++;
+		annotation++;
+		if (flags & RXRPC_JUMBO_PACKET)
+			annotation |= RXRPC_RX_ANNO_JLAST;
+
+		_proto("Rx DATA Jumbo %%%u", serial);
+		goto next_subpacket;
+	}
+
+	if (queued && flags & RXRPC_LAST_PACKET && !ack) {
+		ack = RXRPC_ACK_DELAY;
+		ack_serial = serial;
+	}
+
+ack:
+	if (ack)
+		rxrpc_propose_ACK(call, ack, skew, ack_serial,
+				  immediate_ack, true);
+
+	if (sp->hdr.seq == READ_ONCE(call->rx_hard_ack) + 1)
+		rxrpc_notify_socket(call);
+	_leave(" [queued]");
+}
+
+/*
+ * Process the extra information that may be appended to an ACK packet
+ */
+static void rxrpc_input_ackinfo(struct rxrpc_call *call, struct sk_buff *skb,
+				struct rxrpc_ackinfo *ackinfo)
+{
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
+	struct rxrpc_peer *peer;
+	unsigned int mtu;
+
+	_proto("Rx ACK %%%u Info { rx=%u max=%u rwin=%u jm=%u }",
+	       sp->hdr.serial,
+	       ntohl(ackinfo->rxMTU), ntohl(ackinfo->maxMTU),
+	       ntohl(ackinfo->rwind), ntohl(ackinfo->jumbo_max));
+
+	if (call->tx_winsize > ntohl(ackinfo->rwind))
+		call->tx_winsize = ntohl(ackinfo->rwind);
+
+	mtu = min(ntohl(ackinfo->rxMTU), ntohl(ackinfo->maxMTU));
+
+	peer = call->peer;
+	if (mtu < peer->maxdata) {
+		spin_lock_bh(&peer->lock);
+		peer->maxdata = mtu;
+		peer->mtu = mtu + peer->hdrsize;
+		spin_unlock_bh(&peer->lock);
+		_net("Net MTU %u (maxdata %u)", peer->mtu, peer->maxdata);
+	}
+}
+
+/*
+ * Process individual soft ACKs.
+ *
+ * Each ACK in the array corresponds to one packet and can be either an ACK or
+ * a NAK.  If we get find an explicitly NAK'd packet we resend immediately;
+ * packets that lie beyond the end of the ACK list are scheduled for resend by
+ * the timer on the basis that the peer might just not have processed them at
+ * the time the ACK was sent.
+ */
+static void rxrpc_input_soft_acks(struct rxrpc_call *call, u8 *acks,
+				  rxrpc_seq_t seq, int nr_acks)
+{
+	bool resend = false;
+	int ix;
+
+	for (; nr_acks > 0; nr_acks--, seq++) {
+		ix = seq & RXRPC_RXTX_BUFF_MASK;
+		switch (*acks) {
+		case RXRPC_ACK_TYPE_ACK:
+			call->rxtx_annotations[ix] = RXRPC_TX_ANNO_ACK;
+			break;
+		case RXRPC_ACK_TYPE_NACK:
+			if (call->rxtx_annotations[ix] == RXRPC_TX_ANNO_NAK)
+				continue;
+			call->rxtx_annotations[ix] = RXRPC_TX_ANNO_NAK;
+			resend = true;
+			break;
+		default:
+			return rxrpc_proto_abort("SFT", call, 0);
+		}
+	}
+
+	if (resend &&
+	    !test_and_set_bit(RXRPC_CALL_EV_RESEND, &call->events))
+		rxrpc_queue_call(call);
+}
+
+/*
+ * Process an ACK packet.
+ *
+ * ack.firstPacket is the sequence number of the first soft-ACK'd/NAK'd packet
+ * in the ACK array.  Anything before that is hard-ACK'd and may be discarded.
+ *
+ * A hard-ACK means that a packet has been processed and may be discarded; a
+ * soft-ACK means that the packet may be discarded and retransmission
+ * requested.  A phase is complete when all packets are hard-ACK'd.
+ */
+static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb,
+			    u16 skew)
+{
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
+	union {
+		struct rxrpc_ackpacket ack;
+		struct rxrpc_ackinfo info;
+		u8 acks[RXRPC_MAXACKS];
+	} buf;
+	rxrpc_seq_t first_soft_ack, hard_ack;
+	int nr_acks, offset;
+
+	_enter("");
+
+	if (skb_copy_bits(skb, sp->offset, &buf.ack, sizeof(buf.ack)) < 0) {
+		_debug("extraction failure");
+		return rxrpc_proto_abort("XAK", call, 0);
+	}
+	sp->offset += sizeof(buf.ack);
+
+	first_soft_ack = ntohl(buf.ack.firstPacket);
+	hard_ack = first_soft_ack - 1;
+	nr_acks = buf.ack.nAcks;
+
+	_proto("Rx ACK %%%u { m=%hu f=#%u p=#%u s=%%%u r=%s n=%u }",
+	       sp->hdr.serial,
+	       ntohs(buf.ack.maxSkew),
+	       first_soft_ack,
+	       ntohl(buf.ack.previousPacket),
+	       ntohl(buf.ack.serial),
+	       rxrpc_acks(buf.ack.reason),
+	       buf.ack.nAcks);
+
+	if (buf.ack.reason == RXRPC_ACK_PING) {
+		_proto("Rx ACK %%%u PING Request", sp->hdr.serial);
+		rxrpc_propose_ACK(call, RXRPC_ACK_PING_RESPONSE,
+				  skew, sp->hdr.serial, true, true);
+	} else if (sp->hdr.flags & RXRPC_REQUEST_ACK) {
+		rxrpc_propose_ACK(call, RXRPC_ACK_REQUESTED,
+				  skew, sp->hdr.serial, true, true);
+	}
+
+	offset = sp->offset + nr_acks + 3;
+	if (skb->data_len >= offset + sizeof(buf.info)) {
+		if (skb_copy_bits(skb, offset, &buf.info, sizeof(buf.info)) < 0)
+			return rxrpc_proto_abort("XAI", call, 0);
+		rxrpc_input_ackinfo(call, skb, &buf.info);
+	}
+
+	if (first_soft_ack == 0)
+		return rxrpc_proto_abort("AK0", call, 0);
+
+	/* Ignore ACKs unless we are or have just been transmitting. */
+	switch (call->state) {
+	case RXRPC_CALL_CLIENT_SEND_REQUEST:
+	case RXRPC_CALL_CLIENT_AWAIT_REPLY:
+	case RXRPC_CALL_SERVER_SEND_REPLY:
+	case RXRPC_CALL_SERVER_AWAIT_ACK:
+		break;
+	default:
+		return;
+	}
+
+	/* Discard any out-of-order or duplicate ACKs. */
+	if ((int)sp->hdr.serial - (int)call->acks_latest <= 0) {
+		_debug("discard ACK %d <= %d",
+		       sp->hdr.serial, call->acks_latest);
+		return;
+	}
+	call->acks_latest = sp->hdr.serial;
+
+	if (test_bit(RXRPC_CALL_TX_LAST, &call->flags) &&
+	    hard_ack == call->tx_top) {
+		rxrpc_end_tx_phase(call, "ETA");
+		return;
+	}
+
+	if (before(hard_ack, call->tx_hard_ack) ||
+	    after(hard_ack, call->tx_top))
+		return rxrpc_proto_abort("AKW", call, 0);
+
+	if (after(hard_ack, call->tx_hard_ack))
+		rxrpc_rotate_tx_window(call, hard_ack);
+
+	if (after(first_soft_ack, call->tx_top))
+		return;
+
+	if (nr_acks > call->tx_top - first_soft_ack + 1)
+		nr_acks = first_soft_ack - call->tx_top + 1;
+	if (skb_copy_bits(skb, sp->offset, buf.acks, nr_acks) < 0)
+		return rxrpc_proto_abort("XSA", call, 0);
+	rxrpc_input_soft_acks(call, buf.acks, first_soft_ack, nr_acks);
+}
+
+/*
+ * Process an ACKALL packet.
+ */
+static void rxrpc_input_ackall(struct rxrpc_call *call, struct sk_buff *skb)
+{
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
+
+	_proto("Rx ACKALL %%%u", sp->hdr.serial);
+
+	rxrpc_end_tx_phase(call, "ETL");
+}
+
+/*
+ * Process an ABORT packet.
+ */
+static void rxrpc_input_abort(struct rxrpc_call *call, struct sk_buff *skb)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	__be32 wtmp;
-	u32 abort_code;
+	u32 abort_code = RX_CALL_DEAD;
+
+	_enter("");
+
+	if (skb->len >= 4 &&
+	    skb_copy_bits(skb, sp->offset, &wtmp, sizeof(wtmp)) >= 0)
+		abort_code = ntohl(wtmp);
+
+	_proto("Rx ABORT %%%u { %x }", sp->hdr.serial, abort_code);
+
+	if (rxrpc_set_call_completion(call, RXRPC_CALL_REMOTELY_ABORTED,
+				      abort_code, ECONNABORTED))
+		rxrpc_notify_socket(call);
+}
+
+/*
+ * Process an incoming call packet.
+ */
+static void rxrpc_input_call_packet(struct rxrpc_call *call,
+				    struct sk_buff *skb, u16 skew)
+{
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 
 	_enter("%p,%p", call, skb);
 
-	ASSERT(!irqs_disabled());
-
-#if 0 // INJECT RX ERROR
-	if (sp->hdr.type == RXRPC_PACKET_TYPE_DATA) {
-		static int skip = 0;
-		if (++skip == 3) {
-			printk("DROPPED 3RD PACKET!!!!!!!!!!!!!\n");
-			skip = 0;
-			goto free_packet;
-		}
-	}
-#endif
-
-	/* request ACK generation for any ACK or DATA packet that requests
-	 * it */
-	if (sp->hdr.flags & RXRPC_REQUEST_ACK) {
-		_proto("ACK Requested on %%%u", sp->hdr.serial);
-		rxrpc_propose_ACK(call, RXRPC_ACK_REQUESTED,
-				  skb->priority, sp->hdr.serial, false);
-	}
-
 	switch (sp->hdr.type) {
-	case RXRPC_PACKET_TYPE_ABORT:
-		_debug("abort");
+	case RXRPC_PACKET_TYPE_DATA:
+		rxrpc_input_data(call, skb, skew);
+		break;
 
-		if (skb_copy_bits(skb, 0, &wtmp, sizeof(wtmp)) < 0)
-			goto protocol_error;
-
-		abort_code = ntohl(wtmp);
-		_proto("Rx ABORT %%%u { %x }", sp->hdr.serial, abort_code);
-
-		if (__rxrpc_set_call_completion(call,
-						RXRPC_CALL_REMOTELY_ABORTED,
-						abort_code, ECONNABORTED)) {
-			set_bit(RXRPC_CALL_EV_RCVD_ABORT, &call->events);
-			rxrpc_queue_call(call);
-		}
-		goto free_packet;
+	case RXRPC_PACKET_TYPE_ACK:
+		rxrpc_input_ack(call, skb, skew);
+		break;
 
 	case RXRPC_PACKET_TYPE_BUSY:
 		_proto("Rx BUSY %%%u", sp->hdr.serial);
 
-		if (rxrpc_is_service_call(call))
-			goto protocol_error;
+		/* Just ignore BUSY packets from the server; the retry and
+		 * lifespan timers will take care of business.  BUSY packets
+		 * from the client don't make sense.
+		 */
+		break;
 
-		write_lock_bh(&call->state_lock);
-		switch (call->state) {
-		case RXRPC_CALL_CLIENT_SEND_REQUEST:
-			__rxrpc_set_call_completion(call,
-						    RXRPC_CALL_SERVER_BUSY,
-						    0, EBUSY);
-			set_bit(RXRPC_CALL_EV_RCVD_BUSY, &call->events);
-			rxrpc_queue_call(call);
-		case RXRPC_CALL_SERVER_BUSY:
-			goto free_packet_unlock;
-		default:
-			goto protocol_error_locked;
-		}
+	case RXRPC_PACKET_TYPE_ABORT:
+		rxrpc_input_abort(call, skb);
+		break;
+
+	case RXRPC_PACKET_TYPE_ACKALL:
+		rxrpc_input_ackall(call, skb);
+		break;
 
 	default:
 		_proto("Rx %s %%%u", rxrpc_pkts[sp->hdr.type], sp->hdr.serial);
-		goto protocol_error;
-
-	case RXRPC_PACKET_TYPE_DATA:
-		_proto("Rx DATA %%%u { #%u }", sp->hdr.serial, sp->hdr.seq);
-
-		if (sp->hdr.seq == 0)
-			goto protocol_error;
-
-		call->ackr_prev_seq = sp->hdr.seq;
-
-		/* received data implicitly ACKs all of the request packets we
-		 * sent when we're acting as a client */
-		if (call->state == RXRPC_CALL_CLIENT_AWAIT_REPLY)
-			rxrpc_assume_implicit_ackall(call, sp->hdr.serial);
-
-		switch (rxrpc_fast_process_data(call, skb, sp->hdr.seq)) {
-		case 0:
-			skb = NULL;
-			goto done;
-
-		default:
-			BUG();
-
-			/* data packet received beyond the last packet */
-		case -EBADMSG:
-			goto protocol_error;
-		}
-
-	case RXRPC_PACKET_TYPE_ACKALL:
-	case RXRPC_PACKET_TYPE_ACK:
-		/* ACK processing is done in process context */
-		read_lock_bh(&call->state_lock);
-		if (call->state < RXRPC_CALL_COMPLETE) {
-			skb_queue_tail(&call->rx_queue, skb);
-			rxrpc_queue_call(call);
-			skb = NULL;
-		}
-		read_unlock_bh(&call->state_lock);
-		goto free_packet;
-	}
-
-protocol_error:
-	_debug("protocol error");
-	write_lock_bh(&call->state_lock);
-protocol_error_locked:
-	if (__rxrpc_abort_call("FPR", call, 0, RX_PROTOCOL_ERROR, EPROTO))
-		rxrpc_queue_call(call);
-free_packet_unlock:
-	write_unlock_bh(&call->state_lock);
-free_packet:
-	rxrpc_free_skb(skb);
-done:
-	_leave("");
-}
-
-/*
- * split up a jumbo data packet
- */
-static void rxrpc_process_jumbo_packet(struct rxrpc_call *call,
-				       struct sk_buff *jumbo)
-{
-	struct rxrpc_jumbo_header jhdr;
-	struct rxrpc_skb_priv *sp;
-	struct sk_buff *part;
-
-	_enter(",{%u,%u}", jumbo->data_len, jumbo->len);
-
-	sp = rxrpc_skb(jumbo);
-
-	do {
-		sp->hdr.flags &= ~RXRPC_JUMBO_PACKET;
-
-		/* make a clone to represent the first subpacket in what's left
-		 * of the jumbo packet */
-		part = skb_clone(jumbo, GFP_ATOMIC);
-		if (!part) {
-			/* simply ditch the tail in the event of ENOMEM */
-			pskb_trim(jumbo, RXRPC_JUMBO_DATALEN);
-			break;
-		}
-		rxrpc_new_skb(part);
-
-		pskb_trim(part, RXRPC_JUMBO_DATALEN);
-
-		if (!pskb_pull(jumbo, RXRPC_JUMBO_DATALEN))
-			goto protocol_error;
-
-		if (skb_copy_bits(jumbo, 0, &jhdr, sizeof(jhdr)) < 0)
-			goto protocol_error;
-		if (!pskb_pull(jumbo, sizeof(jhdr)))
-			BUG();
-
-		sp->hdr.seq	+= 1;
-		sp->hdr.serial	+= 1;
-		sp->hdr.flags	= jhdr.flags;
-		sp->hdr._rsvd	= ntohs(jhdr._rsvd);
-
-		_proto("Rx DATA Jumbo %%%u", sp->hdr.serial - 1);
-
-		rxrpc_fast_process_packet(call, part);
-		part = NULL;
-
-	} while (sp->hdr.flags & RXRPC_JUMBO_PACKET);
-
-	rxrpc_fast_process_packet(call, jumbo);
-	_leave("");
-	return;
-
-protocol_error:
-	_debug("protocol error");
-	rxrpc_free_skb(part);
-	if (rxrpc_abort_call("PJP", call, sp->hdr.seq,
-			     RX_PROTOCOL_ERROR, EPROTO))
-		rxrpc_queue_call(call);
-	rxrpc_free_skb(jumbo);
-	_leave("");
-}
-
-/*
- * post an incoming packet to the appropriate call/socket to deal with
- * - must get rid of the sk_buff, either by freeing it or by queuing it
- */
-static void rxrpc_post_packet_to_call(struct rxrpc_connection *conn,
-				      struct rxrpc_call *call,
-				      struct sk_buff *skb)
-{
-	struct rxrpc_skb_priv *sp;
-
-	_enter("%p,%p", call, skb);
-
-	sp = rxrpc_skb(skb);
-
-	_debug("extant call [%d]", call->state);
-
-	read_lock(&call->state_lock);
-	switch (call->state) {
-	case RXRPC_CALL_COMPLETE:
-		switch (call->completion) {
-		case RXRPC_CALL_LOCALLY_ABORTED:
-			if (!test_and_set_bit(RXRPC_CALL_EV_ABORT,
-					      &call->events)) {
-				rxrpc_queue_call(call);
-				goto free_unlock;
-			}
-		default:
-			goto dead_call;
-		case RXRPC_CALL_SUCCEEDED:
-			if (rxrpc_is_service_call(call))
-				goto dead_call;
-			goto resend_final_ack;
-		}
-
-	case RXRPC_CALL_CLIENT_FINAL_ACK:
-		goto resend_final_ack;
-
-	default:
 		break;
 	}
 
-	read_unlock(&call->state_lock);
-
-	if (sp->hdr.type == RXRPC_PACKET_TYPE_DATA &&
-	    sp->hdr.flags & RXRPC_JUMBO_PACKET)
-		rxrpc_process_jumbo_packet(call, skb);
-	else
-		rxrpc_fast_process_packet(call, skb);
-
-	goto done;
-
-resend_final_ack:
-	_debug("final ack again");
-	set_bit(RXRPC_CALL_EV_ACK_FINAL, &call->events);
-	rxrpc_queue_call(call);
-	goto free_unlock;
-
-dead_call:
-	if (sp->hdr.type != RXRPC_PACKET_TYPE_ABORT) {
-		skb->priority = RX_CALL_DEAD;
-		rxrpc_reject_packet(conn->params.local, skb);
-		goto unlock;
-	}
-free_unlock:
-	rxrpc_free_skb(skb);
-unlock:
-	read_unlock(&call->state_lock);
-done:
 	_leave("");
 }
 
@@ -601,6 +599,17 @@ static void rxrpc_post_packet_to_local(struct rxrpc_local *local,
 }
 
 /*
+ * put a packet up for transport-level abort
+ */
+static void rxrpc_reject_packet(struct rxrpc_local *local, struct sk_buff *skb)
+{
+	CHECK_SLAB_OKAY(&local->usage);
+
+	skb_queue_tail(&local->reject_queue, skb);
+	rxrpc_queue_local(local);
+}
+
+/*
  * Extract the wire header from a packet and translate the byte order.
  */
 static noinline
@@ -611,8 +620,6 @@ int rxrpc_extract_header(struct rxrpc_skb_priv *sp, struct sk_buff *skb)
 	/* dig out the RxRPC connection details */
 	if (skb_copy_bits(skb, 0, &whdr, sizeof(whdr)) < 0)
 		return -EBADMSG;
-	if (!pskb_pull(skb, sizeof(whdr)))
-		BUG();
 
 	memset(sp, 0, sizeof(*sp));
 	sp->hdr.epoch		= ntohl(whdr.epoch);
@@ -626,6 +633,7 @@ int rxrpc_extract_header(struct rxrpc_skb_priv *sp, struct sk_buff *skb)
 	sp->hdr.securityIndex	= whdr.securityIndex;
 	sp->hdr._rsvd		= ntohs(whdr._rsvd);
 	sp->hdr.serviceId	= ntohs(whdr.serviceId);
+	sp->offset = sizeof(whdr);
 	return 0;
 }
 
@@ -637,19 +645,22 @@ int rxrpc_extract_header(struct rxrpc_skb_priv *sp, struct sk_buff *skb)
  * shut down and the local endpoint from going away, thus sk_user_data will not
  * be cleared until this function returns.
  */
-void rxrpc_data_ready(struct sock *sk)
+void rxrpc_data_ready(struct sock *udp_sk)
 {
 	struct rxrpc_connection *conn;
+	struct rxrpc_channel *chan;
+	struct rxrpc_call *call;
 	struct rxrpc_skb_priv *sp;
-	struct rxrpc_local *local = sk->sk_user_data;
+	struct rxrpc_local *local = udp_sk->sk_user_data;
 	struct sk_buff *skb;
+	unsigned int channel;
 	int ret, skew;
 
-	_enter("%p", sk);
+	_enter("%p", udp_sk);
 
 	ASSERT(!irqs_disabled());
 
-	skb = skb_recv_datagram(sk, 0, 1, &ret);
+	skb = skb_recv_datagram(udp_sk, 0, 1, &ret);
 	if (!skb) {
 		if (ret == -EAGAIN)
 			return;
@@ -683,6 +694,7 @@ void rxrpc_data_ready(struct sock *sk)
 	/* dig out the RxRPC connection details */
 	if (rxrpc_extract_header(sp, skb) < 0)
 		goto bad_message;
+	trace_rxrpc_rx_packet(sp);
 
 	_net("Rx RxRPC %s ep=%x call=%x:%x",
 	     sp->hdr.flags & RXRPC_CLIENT_INITIATED ? "ToServer" : "ToClient",
@@ -694,110 +706,124 @@ void rxrpc_data_ready(struct sock *sk)
 		goto bad_message;
 	}
 
-	if (sp->hdr.type == RXRPC_PACKET_TYPE_VERSION) {
+	switch (sp->hdr.type) {
+	case RXRPC_PACKET_TYPE_VERSION:
 		rxrpc_post_packet_to_local(local, skb);
 		goto out;
-	}
 
-	if (sp->hdr.type == RXRPC_PACKET_TYPE_DATA &&
-	    (sp->hdr.callNumber == 0 || sp->hdr.seq == 0))
-		goto bad_message;
+	case RXRPC_PACKET_TYPE_BUSY:
+		if (sp->hdr.flags & RXRPC_CLIENT_INITIATED)
+			goto discard;
+
+	case RXRPC_PACKET_TYPE_DATA:
+		if (sp->hdr.callNumber == 0)
+			goto bad_message;
+		if (sp->hdr.flags & RXRPC_JUMBO_PACKET &&
+		    !rxrpc_validate_jumbo(skb))
+			goto bad_message;
+		break;
+	}
 
 	rcu_read_lock();
 
 	conn = rxrpc_find_connection_rcu(local, skb);
-	if (!conn) {
-		skb->priority = 0;
-		goto cant_route_call;
-	}
+	if (conn) {
+		if (sp->hdr.securityIndex != conn->security_ix)
+			goto wrong_security;
 
-	/* Note the serial number skew here */
-	skew = (int)sp->hdr.serial - (int)conn->hi_serial;
-	if (skew >= 0) {
-		if (skew > 0)
-			conn->hi_serial = sp->hdr.serial;
-		skb->priority = 0;
-	} else {
-		skew = -skew;
-		skb->priority = min(skew, 65535);
-	}
+		if (sp->hdr.callNumber == 0) {
+			/* Connection-level packet */
+			_debug("CONN %p {%d}", conn, conn->debug_id);
+			rxrpc_post_packet_to_conn(conn, skb);
+			goto out_unlock;
+		}
 
-	if (sp->hdr.callNumber == 0) {
-		/* Connection-level packet */
-		_debug("CONN %p {%d}", conn, conn->debug_id);
-		rxrpc_post_packet_to_conn(conn, skb);
-		goto out_unlock;
-	} else {
+		/* Note the serial number skew here */
+		skew = (int)sp->hdr.serial - (int)conn->hi_serial;
+		if (skew >= 0) {
+			if (skew > 0)
+				conn->hi_serial = sp->hdr.serial;
+		} else {
+			skew = -skew;
+			skew = min(skew, 65535);
+		}
+
 		/* Call-bound packets are routed by connection channel. */
-		unsigned int channel = sp->hdr.cid & RXRPC_CHANNELMASK;
-		struct rxrpc_channel *chan = &conn->channels[channel];
-		struct rxrpc_call *call;
+		channel = sp->hdr.cid & RXRPC_CHANNELMASK;
+		chan = &conn->channels[channel];
 
 		/* Ignore really old calls */
 		if (sp->hdr.callNumber < chan->last_call)
 			goto discard_unlock;
 
 		if (sp->hdr.callNumber == chan->last_call) {
-			/* For the previous service call, if completed
-			 * successfully, we discard all further packets.
+			/* For the previous service call, if completed successfully, we
+			 * discard all further packets.
 			 */
 			if (rxrpc_conn_is_service(conn) &&
 			    (chan->last_type == RXRPC_PACKET_TYPE_ACK ||
 			     sp->hdr.type == RXRPC_PACKET_TYPE_ABORT))
 				goto discard_unlock;
 
-			/* But otherwise we need to retransmit the final packet
-			 * from data cached in the connection record.
+			/* But otherwise we need to retransmit the final packet from
+			 * data cached in the connection record.
 			 */
 			rxrpc_post_packet_to_conn(conn, skb);
 			goto out_unlock;
 		}
 
 		call = rcu_dereference(chan->call);
-		if (!call || atomic_read(&call->usage) == 0)
-			goto cant_route_call;
-
-		rxrpc_see_call(call);
-		rxrpc_post_packet_to_call(conn, call, skb);
-		goto out_unlock;
+	} else {
+		skew = 0;
+		call = NULL;
 	}
+
+	if (!call || atomic_read(&call->usage) == 0) {
+		if (!(sp->hdr.type & RXRPC_CLIENT_INITIATED) ||
+		    sp->hdr.callNumber == 0 ||
+		    sp->hdr.type != RXRPC_PACKET_TYPE_DATA)
+			goto bad_message_unlock;
+		if (sp->hdr.seq != 1)
+			goto discard_unlock;
+		call = rxrpc_new_incoming_call(local, conn, skb);
+		if (!call) {
+			rcu_read_unlock();
+			goto reject_packet;
+		}
+	}
+
+	rxrpc_input_call_packet(call, skb, skew);
+	goto discard_unlock;
 
 discard_unlock:
+	rcu_read_unlock();
+discard:
 	rxrpc_free_skb(skb);
+out:
+	trace_rxrpc_rx_done(0, 0);
+	return;
+
 out_unlock:
 	rcu_read_unlock();
-out:
-	return;
+	goto out;
 
-cant_route_call:
+wrong_security:
 	rcu_read_unlock();
+	trace_rxrpc_abort("SEC", sp->hdr.cid, sp->hdr.callNumber, sp->hdr.seq,
+			  RXKADINCONSISTENCY, EBADMSG);
+	skb->priority = RXKADINCONSISTENCY;
+	goto post_abort;
 
-	_debug("can't route call");
-	if (sp->hdr.flags & RXRPC_CLIENT_INITIATED &&
-	    sp->hdr.type == RXRPC_PACKET_TYPE_DATA) {
-		if (sp->hdr.seq == 1) {
-			_debug("first packet");
-			skb_queue_tail(&local->accept_queue, skb);
-			rxrpc_queue_work(&local->processor);
-			_leave(" [incoming]");
-			return;
-		}
-		skb->priority = RX_INVALID_OPERATION;
-	} else {
-		skb->priority = RX_CALL_DEAD;
-	}
-
-	if (sp->hdr.type != RXRPC_PACKET_TYPE_ABORT) {
-		_debug("reject type %d",sp->hdr.type);
-		rxrpc_reject_packet(local, skb);
-	} else {
-		rxrpc_free_skb(skb);
-	}
-	_leave(" [no call]");
-	return;
-
+bad_message_unlock:
+	rcu_read_unlock();
 bad_message:
+	trace_rxrpc_abort("BAD", sp->hdr.cid, sp->hdr.callNumber, sp->hdr.seq,
+			  RX_PROTOCOL_ERROR, EBADMSG);
 	skb->priority = RX_PROTOCOL_ERROR;
+post_abort:
+	skb->mark = RXRPC_SKB_MARK_LOCAL_ABORT;
+reject_packet:
+	trace_rxrpc_rx_done(skb->mark, skb->priority);
 	rxrpc_reject_packet(local, skb);
 	_leave(" [badmsg]");
 }

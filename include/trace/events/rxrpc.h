@@ -18,16 +18,14 @@
 
 TRACE_EVENT(rxrpc_call,
 	    TP_PROTO(struct rxrpc_call *call, enum rxrpc_call_trace op,
-		     int usage, int nskb,
-		     const void *where, const void *aux),
+		     int usage, const void *where, const void *aux),
 
-	    TP_ARGS(call, op, usage, nskb, where, aux),
+	    TP_ARGS(call, op, usage, where, aux),
 
 	    TP_STRUCT__entry(
 		    __field(struct rxrpc_call *,	call		)
 		    __field(int,			op		)
 		    __field(int,			usage		)
-		    __field(int,			nskb		)
 		    __field(const void *,		where		)
 		    __field(const void *,		aux		)
 			     ),
@@ -36,16 +34,14 @@ TRACE_EVENT(rxrpc_call,
 		    __entry->call = call;
 		    __entry->op = op;
 		    __entry->usage = usage;
-		    __entry->nskb = nskb;
 		    __entry->where = where;
 		    __entry->aux = aux;
 			   ),
 
-	    TP_printk("c=%p %s u=%d s=%d p=%pSR a=%p",
+	    TP_printk("c=%p %s u=%d sp=%pSR a=%p",
 		      __entry->call,
 		      rxrpc_call_traces[__entry->op],
 		      __entry->usage,
-		      __entry->nskb,
 		      __entry->where,
 		      __entry->aux)
 	    );
@@ -82,6 +78,44 @@ TRACE_EVENT(rxrpc_skb,
 		      __entry->usage,
 		      __entry->mod_count,
 		      __entry->where)
+	    );
+
+TRACE_EVENT(rxrpc_rx_packet,
+	    TP_PROTO(struct rxrpc_skb_priv *sp),
+
+	    TP_ARGS(sp),
+
+	    TP_STRUCT__entry(
+		    __field_struct(struct rxrpc_host_header,	hdr		)
+			     ),
+
+	    TP_fast_assign(
+		    memcpy(&__entry->hdr, &sp->hdr, sizeof(__entry->hdr));
+			   ),
+
+	    TP_printk("%08x:%08x:%08x:%04x %08x %08x %02x %02x",
+		      __entry->hdr.epoch, __entry->hdr.cid,
+		      __entry->hdr.callNumber, __entry->hdr.serviceId,
+		      __entry->hdr.serial, __entry->hdr.seq,
+		      __entry->hdr.type, __entry->hdr.flags)
+	    );
+
+TRACE_EVENT(rxrpc_rx_done,
+	    TP_PROTO(int result, int abort_code),
+
+	    TP_ARGS(result, abort_code),
+
+	    TP_STRUCT__entry(
+		    __field(int,			result		)
+		    __field(int,			abort_code	)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->result = result;
+		    __entry->abort_code = abort_code;
+			   ),
+
+	    TP_printk("r=%d a=%d", __entry->result, __entry->abort_code)
 	    );
 
 TRACE_EVENT(rxrpc_abort,
