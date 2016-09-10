@@ -665,7 +665,8 @@ static int tipc_udp_enable(struct net *net, struct tipc_bearer *b,
 
 	if (!opts[TIPC_NLA_UDP_LOCAL] || !opts[TIPC_NLA_UDP_REMOTE]) {
 		pr_err("Invalid UDP bearer configuration");
-		return -EINVAL;
+		err = -EINVAL;
+		goto err;
 	}
 
 	err = tipc_parse_udp_addr(opts[TIPC_NLA_UDP_LOCAL], &local,
