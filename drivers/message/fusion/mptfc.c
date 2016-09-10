@@ -1326,8 +1326,10 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ioc->fc_rescan_work_q =
 		alloc_ordered_workqueue(ioc->fc_rescan_work_q_name,
 					WQ_MEM_RECLAIM);
-	if (!ioc->fc_rescan_work_q)
+	if (!ioc->fc_rescan_work_q) {
+		error = -ENOMEM;
 		goto out_mptfc_probe;
+	}
 
 	/*
 	 *  Pre-fetch FC port WWN and stuff...
