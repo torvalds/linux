@@ -138,7 +138,7 @@ static void at91_stop_hc(struct platform_device *pdev)
 
 static void usb_hcd_at91_remove (struct usb_hcd *, struct platform_device *);
 
-struct regmap *at91_dt_syscon_sfr(void)
+static struct regmap *at91_dt_syscon_sfr(void)
 {
 	struct regmap *regmap;
 
