@@ -11,12 +11,17 @@
 #ifndef _NET_L3MDEV_H_
 #define _NET_L3MDEV_H_
 
+#include <net/dst.h>
 #include <net/fib_rules.h>
 
 /**
  * struct l3mdev_ops - l3mdev operations
  *
  * @l3mdev_fib_table: Get FIB table id to use for lookups
+ *
+ * @l3mdev_l3_rcv:    Hook in L3 receive path
+ *
+ * @l3mdev_l3_out:    Hook in L3 output path
  *
  * @l3mdev_get_rtable: Get cached IPv4 rtable (dst_entry) for device
  *
@@ -29,6 +34,9 @@ struct l3mdev_ops {
 	u32		(*l3mdev_fib_table)(const struct net_device *dev);
 	struct sk_buff * (*l3mdev_l3_rcv)(struct net_device *dev,
 					  struct sk_buff *skb, u16 proto);
+	struct sk_buff * (*l3mdev_l3_out)(struct net_device *dev,
+					  struct sock *sk, struct sk_buff *skb,
+					  u16 proto);
 
 	/* IPv4 ops */
 	struct rtable *	(*l3mdev_get_rtable)(const struct net_device *dev,
@@ -201,6 +209,34 @@ struct sk_buff *l3mdev_ip6_rcv(struct sk_buff *skb)
 	return l3mdev_l3_rcv(skb, AF_INET6);
 }
 
+static inline
+struct sk_buff *l3mdev_l3_out(struct sock *sk, struct sk_buff *skb, u16 proto)
+{
+	struct net_device *dev = skb_dst(skb)->dev;
+
+	if (netif_is_l3_slave(dev)) {
+		struct net_device *master;
+
+		master = netdev_master_upper_dev_get_rcu(dev);
+		if (master && master->l3mdev_ops->l3mdev_l3_out)
+			skb = master->l3mdev_ops->l3mdev_l3_out(master, sk,
+								skb, proto);
+	}
+
+	return skb;
+}
+
+static inline
+struct sk_buff *l3mdev_ip_out(struct sock *sk, struct sk_buff *skb)
+{
+	return l3mdev_l3_out(sk, skb, AF_INET);
+}
+
+static inline
+struct sk_buff *l3mdev_ip6_out(struct sock *sk, struct sk_buff *skb)
+{
+	return l3mdev_l3_out(sk, skb, AF_INET6);
+}
 #else
 
 static inline int l3mdev_master_ifindex_rcu(const struct net_device *dev)
@@ -282,6 +318,18 @@ struct sk_buff *l3mdev_ip_rcv(struct sk_buff *skb)
 
 static inline
 struct sk_buff *l3mdev_ip6_rcv(struct sk_buff *skb)
+{
+	return skb;
+}
+
+static inline
+struct sk_buff *l3mdev_ip_out(struct sock *sk, struct sk_buff *skb)
+{
+	return skb;
+}
+
+static inline
+struct sk_buff *l3mdev_ip6_out(struct sock *sk, struct sk_buff *skb)
 {
 	return skb;
 }
