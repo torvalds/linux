@@ -871,8 +871,9 @@ static scq_info *get_scq(ns_dev *card, int size, u32 scd)
 		kfree(scq);
 		return NULL;
 	}
-	scq->skb = kmalloc(sizeof(struct sk_buff *) *
-			   (size / NS_SCQE_SIZE), GFP_KERNEL);
+	scq->skb = kmalloc_array(size / NS_SCQE_SIZE,
+				 sizeof(*scq->skb),
+				 GFP_KERNEL);
 	if (!scq->skb) {
 		dma_free_coherent(&card->pcidev->dev,
 				  2 * size, scq->org, scq->dma);
