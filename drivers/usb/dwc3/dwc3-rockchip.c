@@ -117,12 +117,17 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 		reset_control_assert(rockchip->otg_rst);
 
 		ret = phy_power_on(dwc->usb2_generic_phy);
-		if (ret < 0)
+		if (ret < 0) {
+			reset_control_deassert(rockchip->otg_rst);
 			return;
+		}
 
 		ret = phy_power_on(dwc->usb3_generic_phy);
-		if (ret < 0)
+		if (ret < 0) {
+			phy_power_off(dwc->usb2_generic_phy);
+			reset_control_deassert(rockchip->otg_rst);
 			return;
+		}
 
 		reset_control_deassert(rockchip->otg_rst);
 
@@ -252,27 +257,20 @@ static int dwc3_rockchip_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, rockchip);
 
 	rockchip->dev = dev;
-	rockchip->edev = NULL;
 
 	for (i = 0; i < rockchip->num_clocks; i++) {
 		struct clk	*clk;
 
 		clk = of_clk_get(np, i);
 		if (IS_ERR(clk)) {
-			while (--i >= 0)
-				clk_put(rockchip->clks[i]);
-			return PTR_ERR(clk);
+			ret = PTR_ERR(clk);
+			goto err0;
 		}
 
 		ret = clk_prepare_enable(clk);
 		if (ret < 0) {
-			while (--i >= 0) {
-				clk_disable_unprepare(rockchip->clks[i]);
-				clk_put(rockchip->clks[i]);
-			}
 			clk_put(clk);
-
-			return ret;
+			goto err0;
 		}
 
 		rockchip->clks[i] = clk;
@@ -293,37 +291,37 @@ static int dwc3_rockchip_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
-	ret = dwc3_rockchip_extcon_register(rockchip);
-	if (ret < 0)
-		goto err1;
-
 	child = of_get_child_by_name(np, "dwc3");
 	if (!child) {
 		dev_err(dev, "failed to find dwc3 core node\n");
 		ret = -ENODEV;
-		goto err2;
+		goto err1;
 	}
 
 	/* Allocate and initialize the core */
 	ret = of_platform_populate(np, NULL, NULL, dev);
 	if (ret) {
 		dev_err(dev, "failed to create dwc3 core\n");
-		goto err2;
+		goto err1;
 	}
 
 	child_pdev = of_find_device_by_node(child);
 	if (!child_pdev) {
 		dev_err(dev, "failed to find dwc3 core device\n");
 		ret = -ENODEV;
-		goto err3;
+		goto err2;
 	}
 
 	rockchip->dwc = platform_get_drvdata(child_pdev);
 	if (!rockchip->dwc) {
 		dev_err(dev, "failed to get drvdata dwc3\n");
-		ret = -ENODEV;
-		goto err3;
+		ret = -EPROBE_DEFER;
+		goto err2;
 	}
+
+	ret = dwc3_rockchip_extcon_register(rockchip);
+	if (ret < 0)
+		goto err2;
 
 	if (rockchip->edev) {
 		pm_runtime_set_autosuspend_delay(&child_pdev->dev,
@@ -342,21 +340,27 @@ static int dwc3_rockchip_probe(struct platform_device *pdev)
 		}
 
 		pm_runtime_put_sync(dev);
+
+		if ((extcon_get_cable_state_(rockchip->edev,
+					     EXTCON_USB) > 0) ||
+		    (extcon_get_cable_state_(rockchip->edev,
+					     EXTCON_USB_HOST) > 0))
+			schedule_work(&rockchip->otg_work);
 	}
 
 	return ret;
 
-err3:
-	of_platform_depopulate(dev);
-
 err2:
-	dwc3_rockchip_extcon_unregister(rockchip);
+	of_platform_depopulate(dev);
 
 err1:
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
 
-	for (i = 0; i < rockchip->num_clocks; i++) {
+err0:
+	for (i = 0; i < rockchip->num_clocks && rockchip->clks[i]; i++) {
+		if (!pm_runtime_status_suspended(dev))
+			clk_disable(rockchip->clks[i]);
 		clk_unprepare(rockchip->clks[i]);
 		clk_put(rockchip->clks[i]);
 	}
@@ -374,10 +378,15 @@ static int dwc3_rockchip_remove(struct platform_device *pdev)
 
 	of_platform_depopulate(dev);
 
-	pm_runtime_put_sync(dev);
+	if (!rockchip->edev)
+		pm_runtime_put_sync(dev);
+
 	pm_runtime_disable(dev);
+	pm_runtime_set_suspended(dev);
 
 	for (i = 0; i < rockchip->num_clocks; i++) {
+		if (!pm_runtime_status_suspended(dev))
+			clk_disable(rockchip->clks[i]);
 		clk_unprepare(rockchip->clks[i]);
 		clk_put(rockchip->clks[i]);
 	}
