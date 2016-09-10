@@ -957,11 +957,11 @@ int btrfs_write_marked_extents(struct btrfs_fs_info *fs_info,
 		 * time a temporary error. So when it happens, ignore the error
 		 * and wait for writeback of this range to finish - because we
 		 * failed to set the bit EXTENT_NEED_WAIT for the range, a call
-		 * to btrfs_wait_marked_extents() would not know that writeback
-		 * for this range started and therefore wouldn't wait for it to
-		 * finish - we don't want to commit a superblock that points to
-		 * btree nodes/leafs for which writeback hasn't finished yet
-		 * (and without errors).
+		 * to __btrfs_wait_marked_extents() would not know that
+		 * writeback for this range started and therefore wouldn't
+		 * wait for it to finish - we don't want to commit a
+		 * superblock that points to btree nodes/leafs for which
+		 * writeback hasn't finished yet (and without errors).
 		 * We cleanup any entries left in the io tree when committing
 		 * the transaction (through clear_btree_io_tree()).
 		 */
@@ -989,17 +989,15 @@ int btrfs_write_marked_extents(struct btrfs_fs_info *fs_info,
  * those extents are on disk for transaction or log commit.  We wait
  * on all the pages and clear them from the dirty pages state tree
  */
-int btrfs_wait_marked_extents(struct btrfs_root *root,
-			      struct extent_io_tree *dirty_pages, int mark)
+static int __btrfs_wait_marked_extents(struct btrfs_fs_info *fs_info,
+				       struct extent_io_tree *dirty_pages)
 {
 	int err = 0;
 	int werr = 0;
-	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct address_space *mapping = fs_info->btree_inode->i_mapping;
 	struct extent_state *cached_state = NULL;
 	u64 start = 0;
 	u64 end;
-	bool errors = false;
 
 	while (!find_first_extent_bit(dirty_pages, start, &start, &end,
 				      EXTENT_NEED_WAIT, &cached_state)) {
@@ -1027,24 +1025,45 @@ int btrfs_wait_marked_extents(struct btrfs_root *root,
 	}
 	if (err)
 		werr = err;
-
-	if (root->root_key.objectid == BTRFS_TREE_LOG_OBJECTID) {
-		if ((mark & EXTENT_DIRTY) &&
-		    test_and_clear_bit(BTRFS_FS_LOG1_ERR, &fs_info->flags))
-			errors = true;
-
-		if ((mark & EXTENT_NEW) &&
-		    test_and_clear_bit(BTRFS_FS_LOG2_ERR, &fs_info->flags))
-			errors = true;
-	} else {
-		if (test_and_clear_bit(BTRFS_FS_BTREE_ERR, &fs_info->flags))
-			errors = true;
-	}
-
-	if (errors && !werr)
-		werr = -EIO;
-
 	return werr;
+}
+
+int btrfs_wait_extents(struct btrfs_fs_info *fs_info,
+		       struct extent_io_tree *dirty_pages)
+{
+	bool errors = false;
+	int err;
+
+	err = __btrfs_wait_marked_extents(fs_info, dirty_pages);
+	if (test_and_clear_bit(BTRFS_FS_BTREE_ERR, &fs_info->flags))
+		errors = true;
+
+	if (errors && !err)
+		err = -EIO;
+	return err;
+}
+
+int btrfs_wait_tree_log_extents(struct btrfs_root *log_root, int mark)
+{
+	struct btrfs_fs_info *fs_info = log_root->fs_info;
+	struct extent_io_tree *dirty_pages = &log_root->dirty_log_pages;
+	bool errors = false;
+	int err;
+
+	ASSERT(log_root->root_key.objectid == BTRFS_TREE_LOG_OBJECTID);
+
+	err = __btrfs_wait_marked_extents(fs_info, dirty_pages);
+	if ((mark & EXTENT_DIRTY) &&
+	    test_and_clear_bit(BTRFS_FS_LOG1_ERR, &fs_info->flags))
+		errors = true;
+
+	if ((mark & EXTENT_NEW) &&
+	    test_and_clear_bit(BTRFS_FS_LOG2_ERR, &fs_info->flags))
+		errors = true;
+
+	if (errors && !err)
+		err = -EIO;
+	return err;
 }
 
 /*
@@ -1052,7 +1071,7 @@ int btrfs_wait_marked_extents(struct btrfs_root *root,
  * them in one of two extent_io trees.  This is used to make sure all of
  * those extents are on disk for transaction or log commit
  */
-static int btrfs_write_and_wait_marked_extents(struct btrfs_root *root,
+static int btrfs_write_and_wait_marked_extents(struct btrfs_fs_info *fs_info,
 				struct extent_io_tree *dirty_pages, int mark)
 {
 	int ret;
@@ -1060,9 +1079,9 @@ static int btrfs_write_and_wait_marked_extents(struct btrfs_root *root,
 	struct blk_plug plug;
 
 	blk_start_plug(&plug);
-	ret = btrfs_write_marked_extents(root->fs_info, dirty_pages, mark);
+	ret = btrfs_write_marked_extents(fs_info, dirty_pages, mark);
 	blk_finish_plug(&plug);
-	ret2 = btrfs_wait_marked_extents(root, dirty_pages, mark);
+	ret2 = btrfs_wait_extents(fs_info, dirty_pages);
 
 	if (ret)
 		return ret;
@@ -1072,11 +1091,11 @@ static int btrfs_write_and_wait_marked_extents(struct btrfs_root *root,
 }
 
 static int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans,
-					    struct btrfs_root *root)
+					    struct btrfs_fs_info *fs_info)
 {
 	int ret;
 
-	ret = btrfs_write_and_wait_marked_extents(root,
+	ret = btrfs_write_and_wait_marked_extents(fs_info,
 					   &trans->transaction->dirty_pages,
 					   EXTENT_DIRTY);
 	clear_btree_io_tree(&trans->transaction->dirty_pages);
@@ -1384,7 +1403,7 @@ static int qgroup_account_snapshot(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto out;
 	switch_commit_roots(trans->transaction, fs_info);
-	ret = btrfs_write_and_wait_transaction(trans, src);
+	ret = btrfs_write_and_wait_transaction(trans, fs_info);
 	if (ret)
 		btrfs_handle_fs_error(fs_info, ret,
 			"Error while writing out transaction for qgroup");
@@ -2231,7 +2250,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 	wake_up(&fs_info->transaction_wait);
 
-	ret = btrfs_write_and_wait_transaction(trans, root);
+	ret = btrfs_write_and_wait_transaction(trans, fs_info);
 	if (ret) {
 		btrfs_handle_fs_error(fs_info, ret,
 				      "Error while writing out transaction");
