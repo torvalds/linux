@@ -165,7 +165,7 @@ static netdev_tx_t vrf_process_v6_outbound(struct sk_buff *skb,
 		.flowlabel = ip6_flowinfo(iph),
 		.flowi6_mark = skb->mark,
 		.flowi6_proto = iph->nexthdr,
-		.flowi6_flags = FLOWI_FLAG_L3MDEV_SRC | FLOWI_FLAG_SKIP_NH_OIF,
+		.flowi6_flags = FLOWI_FLAG_SKIP_NH_OIF,
 	};
 	int ret = NET_XMIT_DROP;
 	struct dst_entry *dst;
@@ -265,8 +265,7 @@ static netdev_tx_t vrf_process_v4_outbound(struct sk_buff *skb,
 		.flowi4_oif = vrf_dev->ifindex,
 		.flowi4_iif = LOOPBACK_IFINDEX,
 		.flowi4_tos = RT_TOS(ip4h->tos),
-		.flowi4_flags = FLOWI_FLAG_ANYSRC | FLOWI_FLAG_L3MDEV_SRC |
-				FLOWI_FLAG_SKIP_NH_OIF,
+		.flowi4_flags = FLOWI_FLAG_ANYSRC | FLOWI_FLAG_SKIP_NH_OIF,
 		.daddr = ip4h->daddr,
 	};
 	struct net *net = dev_net(vrf_dev);
