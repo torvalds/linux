@@ -49,6 +49,8 @@ struct l3mdev_ops {
 int l3mdev_fib_rule_match(struct net *net, struct flowi *fl,
 			  struct fib_lookup_arg *arg);
 
+void l3mdev_update_flow(struct net *net, struct flowi *fl);
+
 int l3mdev_master_ifindex_rcu(const struct net_device *dev);
 static inline int l3mdev_master_ifindex(struct net_device *dev)
 {
@@ -289,6 +291,10 @@ int l3mdev_fib_rule_match(struct net *net, struct flowi *fl,
 			  struct fib_lookup_arg *arg)
 {
 	return 1;
+}
+static inline
+void l3mdev_update_flow(struct net *net, struct flowi *fl)
+{
 }
 #endif
 
