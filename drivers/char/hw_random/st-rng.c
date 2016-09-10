@@ -108,6 +108,7 @@ static int st_rng_probe(struct platform_device *pdev)
 	ret = hwrng_register(&ddata->ops);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register HW RNG\n");
+		clk_disable_unprepare(clk);
 		return ret;
 	}
 
