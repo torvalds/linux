@@ -227,6 +227,20 @@ static netdev_tx_t vrf_process_v6_outbound(struct sk_buff *skb,
 }
 #endif
 
+/* based on ip_local_out; can't use it b/c the dst is switched pointing to us */
+static int vrf_ip_local_out(struct net *net, struct sock *sk,
+			    struct sk_buff *skb)
+{
+	int err;
+
+	err = nf_hook(NFPROTO_IPV4, NF_INET_LOCAL_OUT, net, sk,
+		      skb, NULL, skb_dst(skb)->dev, dst_output);
+	if (likely(err == 1))
+		err = dst_output(net, sk, skb);
+
+	return err;
+}
+
 static netdev_tx_t vrf_process_v4_outbound(struct sk_buff *skb,
 					   struct net_device *vrf_dev)
 {
@@ -292,7 +306,7 @@ static netdev_tx_t vrf_process_v4_outbound(struct sk_buff *skb,
 					       RT_SCOPE_LINK);
 	}
 
-	ret = ip_local_out(dev_net(skb_dst(skb)->dev), skb->sk, skb);
+	ret = vrf_ip_local_out(dev_net(skb_dst(skb)->dev), skb->sk, skb);
 	if (unlikely(net_xmit_eval(ret)))
 		vrf_dev->stats.tx_errors++;
 	else
@@ -529,6 +543,53 @@ static int vrf_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 			    net, sk, skb, NULL, dev,
 			    vrf_finish_output,
 			    !(IPCB(skb)->flags & IPSKB_REROUTED));
+}
+
+/* set dst on skb to send packet to us via dev_xmit path. Allows
+ * packet to go through device based features such as qdisc, netfilter
+ * hooks and packet sockets with skb->dev set to vrf device.
+ */
+static struct sk_buff *vrf_ip_out(struct net_device *vrf_dev,
+				  struct sock *sk,
+				  struct sk_buff *skb)
+{
+	struct net_vrf *vrf = netdev_priv(vrf_dev);
+	struct dst_entry *dst = NULL;
+	struct rtable *rth;
+
+	rcu_read_lock();
+
+	rth = rcu_dereference(vrf->rth);
+	if (likely(rth)) {
+		dst = &rth->dst;
+		dst_hold(dst);
+	}
+
+	rcu_read_unlock();
+
+	if (unlikely(!dst)) {
+		vrf_tx_error(vrf_dev, skb);
+		return NULL;
+	}
+
+	skb_dst_drop(skb);
+	skb_dst_set(skb, dst);
+
+	return skb;
+}
+
+/* called with rcu lock held */
+static struct sk_buff *vrf_l3_out(struct net_device *vrf_dev,
+				  struct sock *sk,
+				  struct sk_buff *skb,
+				  u16 proto)
+{
+	switch (proto) {
+	case AF_INET:
+		return vrf_ip_out(vrf_dev, sk, skb);
+	}
+
+	return skb;
 }
 
 /* holding rtnl */
@@ -1067,6 +1128,7 @@ static const struct l3mdev_ops vrf_l3mdev_ops = {
 	.l3mdev_get_rtable	= vrf_get_rtable,
 	.l3mdev_get_saddr	= vrf_get_saddr,
 	.l3mdev_l3_rcv		= vrf_l3_rcv,
+	.l3mdev_l3_out		= vrf_l3_out,
 #if IS_ENABLED(CONFIG_IPV6)
 	.l3mdev_get_rt6_dst	= vrf_get_rt6_dst,
 	.l3mdev_get_saddr6	= vrf_get_saddr6,

@@ -2246,10 +2246,6 @@ struct rtable *__ip_route_output_key_hash(struct net *net, struct flowi4 *fl4,
 				fl4->saddr = inet_select_addr(dev_out, 0,
 							      RT_SCOPE_HOST);
 		}
-
-		rth = l3mdev_get_rtable(dev_out, fl4);
-		if (rth)
-			goto out;
 	}
 
 	if (!fl4->daddr) {
