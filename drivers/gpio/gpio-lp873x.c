@@ -154,20 +154,11 @@ static int lp873x_gpio_probe(struct platform_device *pdev)
 	gpio->chip = template_chip;
 	gpio->chip.parent = gpio->lp873->dev;
 
-	ret = gpiochip_add_data(&gpio->chip, gpio);
+	ret = devm_gpiochip_add_data(&pdev->dev, &gpio->chip, gpio);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
 		return ret;
 	}
-
-	return 0;
-}
-
-static int lp873x_gpio_remove(struct platform_device *pdev)
-{
-	struct lp873x_gpio *gpio = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&gpio->chip);
 
 	return 0;
 }
@@ -183,7 +174,6 @@ static struct platform_driver lp873x_gpio_driver = {
 		.name = "lp873x-gpio",
 	},
 	.probe = lp873x_gpio_probe,
-	.remove = lp873x_gpio_remove,
 	.id_table = lp873x_gpio_id_table,
 };
 module_platform_driver(lp873x_gpio_driver);
