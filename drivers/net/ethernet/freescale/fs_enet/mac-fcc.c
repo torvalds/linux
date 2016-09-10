@@ -90,7 +90,7 @@ static int do_pd_setup(struct fs_enet_private *fep)
 	int ret = -EINVAL;
 
 	fep->interrupt = irq_of_parse_and_map(ofdev->dev.of_node, 0);
-	if (fep->interrupt == NO_IRQ)
+	if (!fep->interrupt)
 		goto out;
 
 	fep->fcc.fccp = of_iomap(ofdev->dev.of_node, 0);

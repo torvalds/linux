@@ -192,7 +192,7 @@ struct fman_mac_params {
 	/* A handle to the FM object this port related to */
 	void *fm;
 	/* MDIO exceptions interrupt source - not valid for all
-	 * MACs; MUST be set to 'NO_IRQ' for MACs that don't have
+	 * MACs; MUST be set to 0 for MACs that don't have
 	 * mdio-irq, or for polling
 	 */
 	void *dev_id; /* device cookie used by the exception cbs */
