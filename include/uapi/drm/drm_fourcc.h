@@ -155,6 +155,7 @@
 #define DRM_FORMAT_MOD_VENDOR_NV      0x03
 #define DRM_FORMAT_MOD_VENDOR_SAMSUNG 0x04
 #define DRM_FORMAT_MOD_VENDOR_QCOM    0x05
+#define DRM_FORMAT_MOD_VENDOR_ARM     0x06
 /* add more to the end as needed */
 
 #define fourcc_mod_code(vendor, val) \
@@ -228,5 +229,11 @@
  * For more information: see http://linuxtv.org/downloads/v4l-dvb-apis/re32.html
  */
 #define DRM_FORMAT_MOD_SAMSUNG_64_32_TILE	fourcc_mod_code(SAMSUNG, 1)
+
+/*
+ * FIXME: AFBC is arm vendor format, it's a compressed format.
+ *
+ */
+#define DRM_FORMAT_MOD_ARM_AFBC	fourcc_mod_code(ARM, 1)
 
 #endif /* DRM_FOURCC_H */
