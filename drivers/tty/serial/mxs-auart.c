@@ -1510,10 +1510,7 @@ static int mxs_get_clks(struct mxs_auart_port *s,
 
 	if (!is_asm9260_auart(s)) {
 		s->clk = devm_clk_get(&pdev->dev, NULL);
-		if (IS_ERR(s->clk))
-			return PTR_ERR(s->clk);
-
-		return 0;
+		return PTR_ERR_OR_ZERO(s->clk);
 	}
 
 	s->clk = devm_clk_get(s->dev, "mod");
