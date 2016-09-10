@@ -80,7 +80,10 @@ static int __init nf_tables_arp_init(void)
 {
 	int ret;
 
-	nft_register_chain_type(&filter_arp);
+	ret = nft_register_chain_type(&filter_arp);
+	if (ret < 0)
+		return ret;
+
 	ret = register_pernet_subsys(&nf_tables_arp_net_ops);
 	if (ret < 0)
 		nft_unregister_chain_type(&filter_arp);

@@ -100,7 +100,10 @@ static int __init nf_tables_ipv6_init(void)
 {
 	int ret;
 
-	nft_register_chain_type(&filter_ipv6);
+	ret = nft_register_chain_type(&filter_ipv6);
+	if (ret < 0)
+		return ret;
+
 	ret = register_pernet_subsys(&nf_tables_ipv6_net_ops);
 	if (ret < 0)
 		nft_unregister_chain_type(&filter_ipv6);

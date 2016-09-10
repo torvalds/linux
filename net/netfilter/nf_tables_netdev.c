@@ -149,7 +149,10 @@ static int __init nf_tables_netdev_init(void)
 {
 	int ret;
 
-	nft_register_chain_type(&nft_filter_chain_netdev);
+	ret = nft_register_chain_type(&nft_filter_chain_netdev);
+	if (ret)
+		return ret;
+
 	ret = register_pernet_subsys(&nf_tables_netdev_net_ops);
 	if (ret)
 		goto err1;

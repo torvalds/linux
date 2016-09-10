@@ -139,12 +139,20 @@ static int __init nf_tables_bridge_init(void)
 	int ret;
 
 	nf_register_afinfo(&nf_br_afinfo);
-	nft_register_chain_type(&filter_bridge);
+	ret = nft_register_chain_type(&filter_bridge);
+	if (ret < 0)
+		goto err1;
+
 	ret = register_pernet_subsys(&nf_tables_bridge_net_ops);
-	if (ret < 0) {
-		nft_unregister_chain_type(&filter_bridge);
-		nf_unregister_afinfo(&nf_br_afinfo);
-	}
+	if (ret < 0)
+		goto err2;
+
+	return ret;
+
+err2:
+	nft_unregister_chain_type(&filter_bridge);
+err1:
+	nf_unregister_afinfo(&nf_br_afinfo);
 	return ret;
 }
 
