@@ -42,7 +42,7 @@ static int nfit_handle_mce(struct notifier_block *nb, unsigned long val,
 		list_for_each_entry(nfit_spa, &acpi_desc->spas, list) {
 			struct acpi_nfit_system_address *spa = nfit_spa->spa;
 
-			if (nfit_spa_type(spa) == NFIT_SPA_PM)
+			if (nfit_spa_type(spa) != NFIT_SPA_PM)
 				continue;
 			/* find the spa that covers the mce addr */
 			if (spa->address > mce->addr)
