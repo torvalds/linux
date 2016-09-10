@@ -6112,7 +6112,7 @@ again:
 			goto commit_trans;
 
 	if (trans)
-		return btrfs_end_transaction(trans, sctx->send_root);
+		return btrfs_end_transaction(trans);
 
 	return 0;
 
@@ -6125,7 +6125,7 @@ commit_trans:
 		goto again;
 	}
 
-	return btrfs_commit_transaction(trans, sctx->send_root);
+	return btrfs_commit_transaction(trans);
 }
 
 static void btrfs_root_dec_send_in_progress(struct btrfs_root* root)

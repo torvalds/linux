@@ -4540,7 +4540,7 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 						 root->objectid,
 						 btrfs_ino(inode), bytenr);
 			if (trans)
-				btrfs_end_transaction(trans, root);
+				btrfs_end_transaction(trans);
 			if (ret < 0)
 				goto out_free;
 			if (ret)

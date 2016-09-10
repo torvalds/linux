@@ -303,7 +303,7 @@ int btrfs_find_orphan_roots(struct btrfs_fs_info *fs_info)
 			}
 			err = btrfs_del_orphan_item(trans, tree_root,
 						    root_key.objectid);
-			btrfs_end_transaction(trans, tree_root);
+			btrfs_end_transaction(trans);
 			if (err) {
 				btrfs_handle_fs_error(fs_info, err,
 					    "Failed to delete root orphan item");

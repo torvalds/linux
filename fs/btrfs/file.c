@@ -2146,7 +2146,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	 * which are indicated by ctx.io_err.
 	 */
 	if (ctx.io_err) {
-		btrfs_end_transaction(trans, root);
+		btrfs_end_transaction(trans);
 		ret = ctx.io_err;
 		goto out;
 	}
@@ -2155,20 +2155,20 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 		if (!ret) {
 			ret = btrfs_sync_log(trans, root, &ctx);
 			if (!ret) {
-				ret = btrfs_end_transaction(trans, root);
+				ret = btrfs_end_transaction(trans);
 				goto out;
 			}
 		}
 		if (!full_sync) {
 			ret = btrfs_wait_ordered_range(inode, start, len);
 			if (ret) {
-				btrfs_end_transaction(trans, root);
+				btrfs_end_transaction(trans);
 				goto out;
 			}
 		}
-		ret = btrfs_commit_transaction(trans, root);
+		ret = btrfs_commit_transaction(trans);
 	} else {
-		ret = btrfs_end_transaction(trans, root);
+		ret = btrfs_end_transaction(trans);
 	}
 out:
 	return ret > 0 ? -EIO : ret;
@@ -2574,7 +2574,7 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 			break;
 		}
 
-		btrfs_end_transaction(trans, root);
+		btrfs_end_transaction(trans);
 		btrfs_btree_balance_dirty(fs_info);
 
 		trans = btrfs_start_transaction(root, rsv_count);
@@ -2642,7 +2642,7 @@ out_trans:
 	trans->block_rsv = &fs_info->trans_block_rsv;
 	ret = btrfs_update_inode(trans, root, inode);
 	updated_inode = true;
-	btrfs_end_transaction(trans, root);
+	btrfs_end_transaction(trans);
 	btrfs_btree_balance_dirty(fs_info);
 out_free:
 	btrfs_free_path(path);
@@ -2664,7 +2664,7 @@ out_only_mutex:
 			err = PTR_ERR(trans);
 		} else {
 			err = btrfs_update_inode(trans, root, inode);
-			ret = btrfs_end_transaction(trans, root);
+			ret = btrfs_end_transaction(trans);
 		}
 	}
 	inode_unlock(inode);
@@ -2906,9 +2906,9 @@ static long btrfs_fallocate(struct file *file, int mode,
 			btrfs_ordered_update_i_size(inode, actual_end, NULL);
 			ret = btrfs_update_inode(trans, root, inode);
 			if (ret)
-				btrfs_end_transaction(trans, root);
+				btrfs_end_transaction(trans);
 			else
-				ret = btrfs_end_transaction(trans, root);
+				ret = btrfs_end_transaction(trans);
 		}
 	}
 out_unlock:

@@ -259,7 +259,7 @@ int __btrfs_setxattr(struct btrfs_trans_handle *trans,
 	ret = btrfs_update_inode(trans, root, inode);
 	BUG_ON(ret);
 out:
-	btrfs_end_transaction(trans, root);
+	btrfs_end_transaction(trans);
 	return ret;
 }
 

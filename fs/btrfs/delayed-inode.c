@@ -1280,7 +1280,7 @@ int btrfs_commit_inode_delayed_inode(struct inode *inode)
 	btrfs_free_path(path);
 	trans->block_rsv = block_rsv;
 trans_out:
-	btrfs_end_transaction(trans, delayed_node->root);
+	btrfs_end_transaction(trans);
 	btrfs_btree_balance_dirty(fs_info);
 out:
 	btrfs_release_delayed_node(delayed_node);
@@ -1345,7 +1345,7 @@ again:
 	__btrfs_commit_inode_delayed_items(trans, path, delayed_node);
 
 	trans->block_rsv = block_rsv;
-	btrfs_end_transaction(trans, root);
+	btrfs_end_transaction(trans);
 	btrfs_btree_balance_dirty_nodelay(root->fs_info);
 
 release_path:

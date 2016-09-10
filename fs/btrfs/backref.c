@@ -2056,7 +2056,7 @@ int iterate_extent_inodes(struct btrfs_fs_info *fs_info,
 out:
 	if (!search_commit_root) {
 		btrfs_put_tree_mod_seq(fs_info, &tree_mod_seq_elem);
-		btrfs_end_transaction(trans, fs_info->extent_root);
+		btrfs_end_transaction(trans);
 	} else {
 		up_read(&fs_info->commit_root_sem);
 	}

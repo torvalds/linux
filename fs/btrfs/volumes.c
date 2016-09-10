@@ -1773,7 +1773,7 @@ static int btrfs_rm_dev_item(struct btrfs_fs_info *fs_info,
 		goto out;
 out:
 	btrfs_free_path(path);
-	btrfs_commit_transaction(trans, root);
+	btrfs_commit_transaction(trans);
 	return ret;
 }
 
@@ -2475,7 +2475,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, char *device_path)
 
 	fs_info->num_tolerated_disk_barrier_failures =
 		btrfs_calc_num_tolerated_disk_barrier_failures(fs_info);
-	ret = btrfs_commit_transaction(trans, root);
+	ret = btrfs_commit_transaction(trans);
 
 	if (seeding_dev) {
 		mutex_unlock(&uuid_mutex);
@@ -2494,7 +2494,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, char *device_path)
 				return 0;
 			return PTR_ERR(trans);
 		}
-		ret = btrfs_commit_transaction(trans, root);
+		ret = btrfs_commit_transaction(trans);
 	}
 
 	/* Update ctime/mtime for libblkid */
@@ -2502,7 +2502,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, char *device_path)
 	return ret;
 
 error_trans:
-	btrfs_end_transaction(trans, root);
+	btrfs_end_transaction(trans);
 	rcu_string_free(device->name);
 	btrfs_sysfs_rm_device_link(fs_info->fs_devices, device);
 	kfree(device);
@@ -2899,7 +2899,6 @@ out:
 static int btrfs_relocate_chunk(struct btrfs_fs_info *fs_info, u64 chunk_offset)
 {
 	struct btrfs_root *root = fs_info->chunk_root;
-	struct btrfs_root *extent_root = fs_info->extent_root;
 	struct btrfs_trans_handle *trans;
 	int ret;
 
@@ -2941,7 +2940,7 @@ static int btrfs_relocate_chunk(struct btrfs_fs_info *fs_info, u64 chunk_offset)
 	 * chunk tree entries
 	 */
 	ret = btrfs_remove_chunk(trans, fs_info, chunk_offset);
-	btrfs_end_transaction(trans, extent_root);
+	btrfs_end_transaction(trans);
 	return ret;
 }
 
@@ -3067,7 +3066,7 @@ static int insert_balance_item(struct btrfs_fs_info *fs_info,
 	btrfs_mark_buffer_dirty(leaf);
 out:
 	btrfs_free_path(path);
-	err = btrfs_commit_transaction(trans, root);
+	err = btrfs_commit_transaction(trans);
 	if (err && !ret)
 		ret = err;
 	return ret;
@@ -3106,7 +3105,7 @@ static int del_balance_item(struct btrfs_fs_info *fs_info)
 	ret = btrfs_del_item(trans, root, path);
 out:
 	btrfs_free_path(path);
-	err = btrfs_commit_transaction(trans, root);
+	err = btrfs_commit_transaction(trans);
 	if (err && !ret)
 		ret = err;
 	return ret;
@@ -3513,7 +3512,7 @@ static int __btrfs_balance(struct btrfs_fs_info *fs_info)
 
 		ret = btrfs_grow_device(trans, device, old_size);
 		if (ret) {
-			btrfs_end_transaction(trans, dev_root);
+			btrfs_end_transaction(trans);
 			/* btrfs_grow_device never returns ret > 0 */
 			WARN_ON(ret > 0);
 			btrfs_info_in_rcu(fs_info,
@@ -3523,7 +3522,7 @@ static int __btrfs_balance(struct btrfs_fs_info *fs_info)
 			goto error;
 		}
 
-		btrfs_end_transaction(trans, dev_root);
+		btrfs_end_transaction(trans);
 	}
 
 	/* step two, relocate all the chunks */
@@ -3653,7 +3652,7 @@ again:
 
 			ret = btrfs_force_chunk_alloc(trans, fs_info,
 						      BTRFS_BLOCK_GROUP_DATA);
-			btrfs_end_transaction(trans, chunk_root);
+			btrfs_end_transaction(trans);
 			if (ret < 0) {
 				mutex_unlock(&fs_info->delete_unused_bgs_mutex);
 				goto error;
@@ -4182,7 +4181,7 @@ update_tree:
 
 skip:
 		if (trans) {
-			ret = btrfs_end_transaction(trans, fs_info->uuid_root);
+			ret = btrfs_end_transaction(trans);
 			trans = NULL;
 			if (ret)
 				break;
@@ -4207,7 +4206,7 @@ skip:
 out:
 	btrfs_free_path(path);
 	if (trans && !IS_ERR(trans))
-		btrfs_end_transaction(trans, fs_info->uuid_root);
+		btrfs_end_transaction(trans);
 	if (ret)
 		btrfs_warn(fs_info, "btrfs_uuid_scan_kthread failed %d", ret);
 	else
@@ -4301,13 +4300,13 @@ int btrfs_create_uuid_tree(struct btrfs_fs_info *fs_info)
 	if (IS_ERR(uuid_root)) {
 		ret = PTR_ERR(uuid_root);
 		btrfs_abort_transaction(trans, ret);
-		btrfs_end_transaction(trans, tree_root);
+		btrfs_end_transaction(trans);
 		return ret;
 	}
 
 	fs_info->uuid_root = uuid_root;
 
-	ret = btrfs_commit_transaction(trans, tree_root);
+	ret = btrfs_commit_transaction(trans);
 	if (ret)
 		return ret;
 
@@ -4479,7 +4478,7 @@ again:
 			checked_pending_chunks = true;
 			failed = 0;
 			retried = false;
-			ret = btrfs_commit_transaction(trans, root);
+			ret = btrfs_commit_transaction(trans);
 			if (ret)
 				goto done;
 			goto again;
@@ -4497,7 +4496,7 @@ again:
 
 	/* Now btrfs_update_device() will change the on-disk size. */
 	ret = btrfs_update_device(trans, device);
-	btrfs_end_transaction(trans, root);
+	btrfs_end_transaction(trans);
 done:
 	btrfs_free_path(path);
 	if (ret) {

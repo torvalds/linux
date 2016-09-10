@@ -577,7 +577,7 @@ again:
 	if (cur_trans->state >= TRANS_STATE_BLOCKED &&
 	    may_wait_transaction(fs_info, type)) {
 		current->journal_info = h;
-		btrfs_commit_transaction(h, root);
+		btrfs_commit_transaction(h);
 		goto again;
 	}
 
@@ -637,7 +637,7 @@ struct btrfs_trans_handle *btrfs_start_transaction_fallback_global_rsv(
 	ret = btrfs_cond_migrate_bytes(fs_info, &fs_info->trans_block_rsv,
 				       num_bytes, min_factor);
 	if (ret) {
-		btrfs_end_transaction(trans, root);
+		btrfs_end_transaction(trans);
 		return ERR_PTR(ret);
 	}
 
@@ -795,11 +795,10 @@ static int should_end_transaction(struct btrfs_trans_handle *trans)
 	return !!btrfs_block_rsv_check(&fs_info->global_block_rsv, 5);
 }
 
-int btrfs_should_end_transaction(struct btrfs_trans_handle *trans,
-				 struct btrfs_root *root)
+int btrfs_should_end_transaction(struct btrfs_trans_handle *trans)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_transaction *cur_trans = trans->transaction;
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	int updates;
 	int err;
 
@@ -820,10 +819,10 @@ int btrfs_should_end_transaction(struct btrfs_trans_handle *trans,
 }
 
 static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
-			  struct btrfs_root *root, int throttle)
+				   int throttle)
 {
+	struct btrfs_fs_info *info = trans->fs_info;
 	struct btrfs_transaction *cur_trans = trans->transaction;
-	struct btrfs_fs_info *info = root->fs_info;
 	u64 transid = trans->transid;
 	unsigned long cur = trans->delayed_ref_updates;
 	int lock = (trans->type != TRANS_JOIN_NOLOCK);
@@ -876,7 +875,7 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 
 	if (lock && ACCESS_ONCE(cur_trans->state) == TRANS_STATE_BLOCKED) {
 		if (throttle)
-			return btrfs_commit_transaction(trans, root);
+			return btrfs_commit_transaction(trans);
 		else
 			wake_up_process(info->transaction_kthread);
 	}
@@ -918,16 +917,14 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	return err;
 }
 
-int btrfs_end_transaction(struct btrfs_trans_handle *trans,
-			  struct btrfs_root *root)
+int btrfs_end_transaction(struct btrfs_trans_handle *trans)
 {
-	return __btrfs_end_transaction(trans, root, 0);
+	return __btrfs_end_transaction(trans, 0);
 }
 
-int btrfs_end_transaction_throttle(struct btrfs_trans_handle *trans,
-				   struct btrfs_root *root)
+int btrfs_end_transaction_throttle(struct btrfs_trans_handle *trans)
 {
-	return __btrfs_end_transaction(trans, root, 1);
+	return __btrfs_end_transaction(trans, 1);
 }
 
 /*
@@ -1319,7 +1316,7 @@ int btrfs_defrag_root(struct btrfs_root *root)
 
 		ret = btrfs_defrag_leaves(trans, root);
 
-		btrfs_end_transaction(trans, root);
+		btrfs_end_transaction(trans);
 		btrfs_btree_balance_dirty(info);
 		cond_resched();
 
@@ -1794,7 +1791,6 @@ static void wait_current_trans_commit_start_and_unblock(
  */
 struct btrfs_async_commit {
 	struct btrfs_trans_handle *newtrans;
-	struct btrfs_root *root;
 	struct work_struct work;
 };
 
@@ -1808,19 +1804,18 @@ static void do_async_commit(struct work_struct *work)
 	 * Tell lockdep about it.
 	 */
 	if (ac->newtrans->type & __TRANS_FREEZABLE)
-		__sb_writers_acquired(ac->root->fs_info->sb, SB_FREEZE_FS);
+		__sb_writers_acquired(ac->newtrans->fs_info->sb, SB_FREEZE_FS);
 
 	current->journal_info = ac->newtrans;
 
-	btrfs_commit_transaction(ac->newtrans, ac->root);
+	btrfs_commit_transaction(ac->newtrans);
 	kfree(ac);
 }
 
 int btrfs_commit_transaction_async(struct btrfs_trans_handle *trans,
-				   struct btrfs_root *root,
 				   int wait_for_unblock)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_async_commit *ac;
 	struct btrfs_transaction *cur_trans;
 
@@ -1829,8 +1824,7 @@ int btrfs_commit_transaction_async(struct btrfs_trans_handle *trans,
 		return -ENOMEM;
 
 	INIT_WORK(&ac->work, do_async_commit);
-	ac->root = root;
-	ac->newtrans = btrfs_join_transaction(root);
+	ac->newtrans = btrfs_join_transaction(trans->root);
 	if (IS_ERR(ac->newtrans)) {
 		int err = PTR_ERR(ac->newtrans);
 		kfree(ac);
@@ -1841,7 +1835,7 @@ int btrfs_commit_transaction_async(struct btrfs_trans_handle *trans,
 	cur_trans = trans->transaction;
 	atomic_inc(&cur_trans->use_count);
 
-	btrfs_end_transaction(trans, root);
+	btrfs_end_transaction(trans);
 
 	/*
 	 * Tell lockdep we've released the freeze rwsem, since the
@@ -1938,10 +1932,9 @@ btrfs_wait_pending_ordered(struct btrfs_transaction *cur_trans)
 		   atomic_read(&cur_trans->pending_ordered) == 0);
 }
 
-int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
-			     struct btrfs_root *root)
+int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_transaction *cur_trans = trans->transaction;
 	struct btrfs_transaction *prev_trans = NULL;
 	int ret;
@@ -1949,7 +1942,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	/* Stop the commit early if ->aborted is set */
 	if (unlikely(ACCESS_ONCE(cur_trans->aborted))) {
 		ret = cur_trans->aborted;
-		btrfs_end_transaction(trans, root);
+		btrfs_end_transaction(trans);
 		return ret;
 	}
 
@@ -1958,7 +1951,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	 */
 	ret = btrfs_run_delayed_refs(trans, fs_info, 0);
 	if (ret) {
-		btrfs_end_transaction(trans, root);
+		btrfs_end_transaction(trans);
 		return ret;
 	}
 
@@ -1979,7 +1972,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_run_delayed_refs(trans, fs_info, 0);
 	if (ret) {
-		btrfs_end_transaction(trans, root);
+		btrfs_end_transaction(trans);
 		return ret;
 	}
 
@@ -2009,7 +2002,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 			ret = btrfs_start_dirty_block_groups(trans, fs_info);
 	}
 	if (ret) {
-		btrfs_end_transaction(trans, root);
+		btrfs_end_transaction(trans);
 		return ret;
 	}
 
@@ -2017,7 +2010,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	if (cur_trans->state >= TRANS_STATE_COMMIT_START) {
 		spin_unlock(&fs_info->trans_lock);
 		atomic_inc(&cur_trans->use_count);
-		ret = btrfs_end_transaction(trans, root);
+		ret = btrfs_end_transaction(trans);
 
 		wait_for_commit(cur_trans);
 
@@ -2293,7 +2286,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	if (trans->type & __TRANS_FREEZABLE)
 		sb_end_intwrite(fs_info->sb);
 
-	trace_btrfs_transaction_commit(root);
+	trace_btrfs_transaction_commit(trans->root);
 
 	btrfs_scrub_continue(fs_info);
 
@@ -2321,7 +2314,7 @@ cleanup_transaction:
 	btrfs_warn(fs_info, "Skipping commit of aborted transaction.");
 	if (current->journal_info == trans)
 		current->journal_info = NULL;
-	cleanup_transaction(trans, root, ret);
+	cleanup_transaction(trans, trans->root, ret);
 
 	return ret;
 }

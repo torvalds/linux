@@ -1189,7 +1189,7 @@ int btrfs_create_free_space_tree(struct btrfs_fs_info *fs_info)
 	btrfs_set_fs_compat_ro(fs_info, FREE_SPACE_TREE_VALID);
 	clear_bit(BTRFS_FS_CREATING_FREE_SPACE_TREE, &fs_info->flags);
 
-	ret = btrfs_commit_transaction(trans, tree_root);
+	ret = btrfs_commit_transaction(trans);
 	if (ret)
 		return ret;
 
@@ -1198,7 +1198,7 @@ int btrfs_create_free_space_tree(struct btrfs_fs_info *fs_info)
 abort:
 	clear_bit(BTRFS_FS_CREATING_FREE_SPACE_TREE, &fs_info->flags);
 	btrfs_abort_transaction(trans, ret);
-	btrfs_end_transaction(trans, tree_root);
+	btrfs_end_transaction(trans);
 	return ret;
 }
 
@@ -1278,7 +1278,7 @@ int btrfs_clear_free_space_tree(struct btrfs_fs_info *fs_info)
 	free_extent_buffer(free_space_root->commit_root);
 	kfree(free_space_root);
 
-	ret = btrfs_commit_transaction(trans, tree_root);
+	ret = btrfs_commit_transaction(trans);
 	if (ret)
 		return ret;
 
@@ -1286,7 +1286,7 @@ int btrfs_clear_free_space_tree(struct btrfs_fs_info *fs_info)
 
 abort:
 	btrfs_abort_transaction(trans, ret);
-	btrfs_end_transaction(trans, tree_root);
+	btrfs_end_transaction(trans);
 	return ret;
 }
 

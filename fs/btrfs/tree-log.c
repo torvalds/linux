@@ -5695,7 +5695,7 @@ again:
 	btrfs_free_path(path);
 
 	/* step 4: commit the transaction, which also unpins the blocks */
-	ret = btrfs_commit_transaction(trans, fs_info->tree_root);
+	ret = btrfs_commit_transaction(trans);
 	if (ret)
 		return ret;
 
@@ -5707,7 +5707,7 @@ again:
 	return 0;
 error:
 	if (wc.trans)
-		btrfs_end_transaction(wc.trans, fs_info->tree_root);
+		btrfs_end_transaction(wc.trans);
 	btrfs_free_path(path);
 	return ret;
 }

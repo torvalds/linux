@@ -252,7 +252,7 @@ static int btrfs_uuid_iter_rem(struct btrfs_root *uuid_root, u8 *uuid, u8 type,
 	}
 
 	ret = btrfs_uuid_tree_rem(trans, uuid_root->fs_info, uuid, type, subid);
-	btrfs_end_transaction(trans, uuid_root);
+	btrfs_end_transaction(trans);
 
 out:
 	return ret;
