@@ -90,7 +90,7 @@ static inline int l3mdev_master_ifindex_by_index(struct net *net, int ifindex)
 }
 
 static inline
-const struct net_device *l3mdev_master_dev_rcu(const struct net_device *_dev)
+struct net_device *l3mdev_master_dev_rcu(const struct net_device *_dev)
 {
 	/* netdev_master_upper_dev_get_rcu calls
 	 * list_first_or_null_rcu to walk the upper dev list.
@@ -99,7 +99,7 @@ const struct net_device *l3mdev_master_dev_rcu(const struct net_device *_dev)
 	 * typecast to remove the const
 	 */
 	struct net_device *dev = (struct net_device *)_dev;
-	const struct net_device *master;
+	struct net_device *master;
 
 	if (!dev)
 		return NULL;
@@ -254,7 +254,7 @@ static inline int l3mdev_master_ifindex_by_index(struct net *net, int ifindex)
 }
 
 static inline
-const struct net_device *l3mdev_master_dev_rcu(const struct net_device *dev)
+struct net_device *l3mdev_master_dev_rcu(const struct net_device *dev)
 {
 	return NULL;
 }
