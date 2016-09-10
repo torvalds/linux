@@ -100,15 +100,14 @@ u32 l3mdev_fib_table_by_index(struct net *net, int ifindex)
 EXPORT_SYMBOL_GPL(l3mdev_fib_table_by_index);
 
 /**
- *	l3mdev_get_rt6_dst - IPv6 route lookup based on flow. Returns
- *			     cached route for L3 master device if relevant
- *			     to flow
+ *	l3mdev_link_scope_lookup - IPv6 route lookup based on flow for link
+ *			     local and multicast addresses
  *	@net: network namespace for device index lookup
  *	@fl6: IPv6 flow struct for lookup
  */
 
-struct dst_entry *l3mdev_get_rt6_dst(struct net *net,
-				     struct flowi6 *fl6)
+struct dst_entry *l3mdev_link_scope_lookup(struct net *net,
+					   struct flowi6 *fl6)
 {
 	struct dst_entry *dst = NULL;
 	struct net_device *dev;
@@ -121,15 +120,15 @@ struct dst_entry *l3mdev_get_rt6_dst(struct net *net,
 			dev = netdev_master_upper_dev_get_rcu(dev);
 
 		if (dev && netif_is_l3_master(dev) &&
-		    dev->l3mdev_ops->l3mdev_get_rt6_dst)
-			dst = dev->l3mdev_ops->l3mdev_get_rt6_dst(dev, fl6);
+		    dev->l3mdev_ops->l3mdev_link_scope_lookup)
+			dst = dev->l3mdev_ops->l3mdev_link_scope_lookup(dev, fl6);
 
 		rcu_read_unlock();
 	}
 
 	return dst;
 }
-EXPORT_SYMBOL_GPL(l3mdev_get_rt6_dst);
+EXPORT_SYMBOL_GPL(l3mdev_link_scope_lookup);
 
 /**
  *	l3mdev_get_saddr - get source address for a flow based on an interface

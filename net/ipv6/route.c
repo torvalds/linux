@@ -1188,12 +1188,15 @@ static struct rt6_info *ip6_pol_route_output(struct net *net, struct fib6_table 
 struct dst_entry *ip6_route_output_flags(struct net *net, const struct sock *sk,
 					 struct flowi6 *fl6, int flags)
 {
-	struct dst_entry *dst;
 	bool any_src;
 
-	dst = l3mdev_get_rt6_dst(net, fl6);
-	if (dst)
-		return dst;
+	if (rt6_need_strict(&fl6->daddr)) {
+		struct dst_entry *dst;
+
+		dst = l3mdev_link_scope_lookup(net, fl6);
+		if (dst)
+			return dst;
+	}
 
 	fl6->flowi6_iif = LOOPBACK_IFINDEX;
 

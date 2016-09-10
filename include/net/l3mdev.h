@@ -27,7 +27,7 @@
  *
  * @l3mdev_get_saddr: Get source address for a flow
  *
- * @l3mdev_get_rt6_dst: Get cached IPv6 rt6_info (dst_entry) for device
+ * @l3mdev_link_scope_lookup: IPv6 lookup for linklocal and mcast destinations
  */
 
 struct l3mdev_ops {
@@ -45,7 +45,7 @@ struct l3mdev_ops {
 					    struct flowi4 *fl4);
 
 	/* IPv6 ops */
-	struct dst_entry * (*l3mdev_get_rt6_dst)(const struct net_device *dev,
+	struct dst_entry * (*l3mdev_link_scope_lookup)(const struct net_device *dev,
 						 struct flowi6 *fl6);
 	int		   (*l3mdev_get_saddr6)(struct net_device *dev,
 						const struct sock *sk,
@@ -177,7 +177,7 @@ static inline bool netif_index_is_l3_master(struct net *net, int ifindex)
 
 int l3mdev_get_saddr(struct net *net, int ifindex, struct flowi4 *fl4);
 
-struct dst_entry *l3mdev_get_rt6_dst(struct net *net, struct flowi6 *fl6);
+struct dst_entry *l3mdev_link_scope_lookup(struct net *net, struct flowi6 *fl6);
 int l3mdev_get_saddr6(struct net *net, const struct sock *sk,
 		      struct flowi6 *fl6);
 
@@ -299,7 +299,7 @@ static inline int l3mdev_get_saddr(struct net *net, int ifindex,
 }
 
 static inline
-struct dst_entry *l3mdev_get_rt6_dst(struct net *net, struct flowi6 *fl6)
+struct dst_entry *l3mdev_link_scope_lookup(struct net *net, struct flowi6 *fl6)
 {
 	return NULL;
 }

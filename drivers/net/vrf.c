@@ -137,6 +137,20 @@ static int vrf_local_xmit(struct sk_buff *skb, struct net_device *dev,
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
+static int vrf_ip6_local_out(struct net *net, struct sock *sk,
+			     struct sk_buff *skb)
+{
+	int err;
+
+	err = nf_hook(NFPROTO_IPV6, NF_INET_LOCAL_OUT, net,
+		      sk, skb, NULL, skb_dst(skb)->dev, dst_output);
+
+	if (likely(err == 1))
+		err = dst_output(net, sk, skb);
+
+	return err;
+}
+
 static netdev_tx_t vrf_process_v6_outbound(struct sk_buff *skb,
 					   struct net_device *dev)
 {
@@ -207,7 +221,7 @@ static netdev_tx_t vrf_process_v6_outbound(struct sk_buff *skb,
 	/* strip the ethernet header added for pass through VRF device */
 	__skb_pull(skb, skb_network_offset(skb));
 
-	ret = ip6_local_out(net, skb->sk, skb);
+	ret = vrf_ip6_local_out(net, skb->sk, skb);
 	if (unlikely(net_xmit_eval(ret)))
 		dev->stats.tx_errors++;
 	else
@@ -391,6 +405,43 @@ static int vrf_output6(struct net *net, struct sock *sk, struct sk_buff *skb)
 			    !(IP6CB(skb)->flags & IP6SKB_REROUTED));
 }
 
+/* set dst on skb to send packet to us via dev_xmit path. Allows
+ * packet to go through device based features such as qdisc, netfilter
+ * hooks and packet sockets with skb->dev set to vrf device.
+ */
+static struct sk_buff *vrf_ip6_out(struct net_device *vrf_dev,
+				   struct sock *sk,
+				   struct sk_buff *skb)
+{
+	struct net_vrf *vrf = netdev_priv(vrf_dev);
+	struct dst_entry *dst = NULL;
+	struct rt6_info *rt6;
+
+	/* don't divert link scope packets */
+	if (rt6_need_strict(&ipv6_hdr(skb)->daddr))
+		return skb;
+
+	rcu_read_lock();
+
+	rt6 = rcu_dereference(vrf->rt6);
+	if (likely(rt6)) {
+		dst = &rt6->dst;
+		dst_hold(dst);
+	}
+
+	rcu_read_unlock();
+
+	if (unlikely(!dst)) {
+		vrf_tx_error(vrf_dev, skb);
+		return NULL;
+	}
+
+	skb_dst_drop(skb);
+	skb_dst_set(skb, dst);
+
+	return skb;
+}
+
 /* holding rtnl */
 static void vrf_rt6_release(struct net_device *dev, struct net_vrf *vrf)
 {
@@ -477,6 +528,13 @@ out:
 	return rc;
 }
 #else
+static struct sk_buff *vrf_ip6_out(struct net_device *vrf_dev,
+				   struct sock *sk,
+				   struct sk_buff *skb)
+{
+	return skb;
+}
+
 static void vrf_rt6_release(struct net_device *dev, struct net_vrf *vrf)
 {
 }
@@ -587,6 +645,8 @@ static struct sk_buff *vrf_l3_out(struct net_device *vrf_dev,
 	switch (proto) {
 	case AF_INET:
 		return vrf_ip_out(vrf_dev, sk, skb);
+	case AF_INET6:
+		return vrf_ip6_out(vrf_dev, sk, skb);
 	}
 
 	return skb;
@@ -1031,53 +1091,33 @@ static struct sk_buff *vrf_l3_rcv(struct net_device *vrf_dev,
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
-static struct dst_entry *vrf_get_rt6_dst(const struct net_device *dev,
-					 struct flowi6 *fl6)
+/* send to link-local or multicast address via interface enslaved to
+ * VRF device. Force lookup to VRF table without changing flow struct
+ */
+static struct dst_entry *vrf_link_scope_lookup(const struct net_device *dev,
+					      struct flowi6 *fl6)
 {
-	bool need_strict = rt6_need_strict(&fl6->daddr);
-	struct net_vrf *vrf = netdev_priv(dev);
 	struct net *net = dev_net(dev);
+	int flags = RT6_LOOKUP_F_IFACE;
 	struct dst_entry *dst = NULL;
 	struct rt6_info *rt;
 
-	/* send to link-local or multicast address */
-	if (need_strict) {
-		int flags = RT6_LOOKUP_F_IFACE;
-
-		/* VRF device does not have a link-local address and
-		 * sending packets to link-local or mcast addresses over
-		 * a VRF device does not make sense
-		 */
-		if (fl6->flowi6_oif == dev->ifindex) {
-			struct dst_entry *dst = &net->ipv6.ip6_null_entry->dst;
-
-			dst_hold(dst);
-			return dst;
-		}
-
-		if (!ipv6_addr_any(&fl6->saddr))
-			flags |= RT6_LOOKUP_F_HAS_SADDR;
-
-		rt = vrf_ip6_route_lookup(net, dev, fl6, fl6->flowi6_oif, flags);
-		if (rt)
-			dst = &rt->dst;
-
-	} else if (!(fl6->flowi6_flags & FLOWI_FLAG_L3MDEV_SRC)) {
-
-		rcu_read_lock();
-
-		rt = rcu_dereference(vrf->rt6);
-		if (likely(rt)) {
-			dst = &rt->dst;
-			dst_hold(dst);
-		}
-
-		rcu_read_unlock();
+	/* VRF device does not have a link-local address and
+	 * sending packets to link-local or mcast addresses over
+	 * a VRF device does not make sense
+	 */
+	if (fl6->flowi6_oif == dev->ifindex) {
+		dst = &net->ipv6.ip6_null_entry->dst;
+		dst_hold(dst);
+		return dst;
 	}
 
-	/* make sure oif is set to VRF device for lookup */
-	if (!need_strict)
-		fl6->flowi6_oif = dev->ifindex;
+	if (!ipv6_addr_any(&fl6->saddr))
+		flags |= RT6_LOOKUP_F_HAS_SADDR;
+
+	rt = vrf_ip6_route_lookup(net, dev, fl6, fl6->flowi6_oif, flags);
+	if (rt)
+		dst = &rt->dst;
 
 	return dst;
 }
@@ -1130,7 +1170,7 @@ static const struct l3mdev_ops vrf_l3mdev_ops = {
 	.l3mdev_l3_rcv		= vrf_l3_rcv,
 	.l3mdev_l3_out		= vrf_l3_out,
 #if IS_ENABLED(CONFIG_IPV6)
-	.l3mdev_get_rt6_dst	= vrf_get_rt6_dst,
+	.l3mdev_link_scope_lookup = vrf_link_scope_lookup,
 	.l3mdev_get_saddr6	= vrf_get_saddr6,
 #endif
 };
