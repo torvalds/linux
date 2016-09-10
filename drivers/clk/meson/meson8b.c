@@ -673,8 +673,4 @@ static struct platform_driver meson8b_driver = {
 	},
 };
 
-static int __init meson8b_clkc_init(void)
-{
-	return platform_driver_register(&meson8b_driver);
-}
-device_initcall(meson8b_clkc_init);
+builtin_platform_driver(meson8b_driver);
