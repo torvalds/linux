@@ -37,6 +37,7 @@
 
 struct dwc3_rockchip {
 	int			num_clocks;
+	bool			connected;
 	struct device		*dev;
 	struct clk		**clks;
 	struct dwc3		*dwc;
@@ -84,7 +85,7 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 		return;
 
 	if (extcon_get_cable_state_(edev, EXTCON_USB) > 0) {
-		if (dwc->connected)
+		if (rockchip->connected)
 			return;
 
 		/*
@@ -97,13 +98,13 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 		pm_runtime_get_sync(dwc->dev);
 
 		spin_lock_irqsave(&dwc->lock, flags);
-		dwc->connected = true;
 		dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_DEVICE);
 		spin_unlock_irqrestore(&dwc->lock, flags);
 
+		rockchip->connected = true;
 		dev_info(rockchip->dev, "USB peripheral connected\n");
 	} else if (extcon_get_cable_state_(edev, EXTCON_USB_HOST) > 0) {
-		if (dwc->connected)
+		if (rockchip->connected)
 			return;
 
 		/*
@@ -131,7 +132,6 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 
 		spin_lock_irqsave(&dwc->lock, flags);
 		dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_HOST);
-		dwc->connected = true;
 		spin_unlock_irqrestore(&dwc->lock, flags);
 
 		if (hcd->state == HC_STATE_HALT) {
@@ -139,9 +139,10 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 			usb_add_hcd(hcd->shared_hcd, hcd->irq, IRQF_SHARED);
 		}
 
+		rockchip->connected = true;
 		dev_info(rockchip->dev, "USB HOST connected\n");
 	} else {
-		if (!dwc->connected)
+		if (!rockchip->connected)
 			return;
 
 		reg = dwc3_readl(dwc->regs, DWC3_GCTL);
@@ -160,12 +161,9 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 
 		}
 
-		spin_lock_irqsave(&dwc->lock, flags);
-		dwc->connected = false;
-		spin_unlock_irqrestore(&dwc->lock, flags);
-
 		pm_runtime_put_sync(dwc->dev);
 
+		rockchip->connected = false;
 		dev_info(rockchip->dev, "USB unconnected\n");
 	}
 }
