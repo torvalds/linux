@@ -2143,8 +2143,9 @@ static int f2fs_move_file_range(struct file *file_in, loff_t pos_in,
 
 	f2fs_balance_fs(sbi, true);
 	f2fs_lock_op(sbi);
-	ret = __exchange_data_block(src, dst, pos_in,
-				pos_out, len >> F2FS_BLKSIZE_BITS, false);
+	ret = __exchange_data_block(src, dst, pos_in >> F2FS_BLKSIZE_BITS,
+				pos_out >> F2FS_BLKSIZE_BITS,
+				len >> F2FS_BLKSIZE_BITS, false);
 
 	if (!ret) {
 		if (dst_max_i_size)
