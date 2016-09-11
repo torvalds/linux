@@ -4657,7 +4657,7 @@ static int rt5677_to_irq(struct gpio_chip *chip, unsigned offset)
 	return regmap_irq_get_virq(data, irq);
 }
 
-static struct gpio_chip rt5677_template_chip = {
+static const struct gpio_chip rt5677_template_chip = {
 	.label			= "rt5677",
 	.owner			= THIS_MODULE,
 	.direction_output	= rt5677_gpio_direction_out,

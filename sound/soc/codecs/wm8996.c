@@ -2184,7 +2184,7 @@ static int wm8996_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 				  (1 << WM8996_GP1_DIR_SHIFT));
 }
 
-static struct gpio_chip wm8996_template_chip = {
+static const struct gpio_chip wm8996_template_chip = {
 	.label			= "wm8996",
 	.owner			= THIS_MODULE,
 	.direction_output	= wm8996_gpio_direction_out,

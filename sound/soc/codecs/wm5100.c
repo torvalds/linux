@@ -2285,7 +2285,7 @@ static int wm5100_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 				  (1 << WM5100_GP1_DIR_SHIFT));
 }
 
-static struct gpio_chip wm5100_template_chip = {
+static const struct gpio_chip wm5100_template_chip = {
 	.label			= "wm5100",
 	.owner			= THIS_MODULE,
 	.direction_output	= wm5100_gpio_direction_out,

@@ -3357,7 +3357,7 @@ static int wm8962_gpio_direction_out(struct gpio_chip *chip,
 	return 0;
 }
 
-static struct gpio_chip wm8962_template_chip = {
+static const struct gpio_chip wm8962_template_chip = {
 	.label			= "wm8962",
 	.owner			= THIS_MODULE,
 	.request		= wm8962_gpio_request,
