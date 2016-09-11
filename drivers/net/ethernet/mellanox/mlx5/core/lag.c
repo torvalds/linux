@@ -277,7 +277,7 @@ static void mlx5_do_bond_work(struct work_struct *work)
 					     bond_work);
 	int status;
 
-	status = mutex_trylock(&mlx5_intf_mutex);
+	status = mlx5_dev_list_trylock();
 	if (!status) {
 		/* 1 sec delay. */
 		mlx5_queue_bond_work(ldev, HZ);
@@ -285,7 +285,7 @@ static void mlx5_do_bond_work(struct work_struct *work)
 	}
 
 	mlx5_do_bond(ldev);
-	mutex_unlock(&mlx5_intf_mutex);
+	mlx5_dev_list_unlock();
 }
 
 static int mlx5_handle_changeupper_event(struct mlx5_lag *ldev,
@@ -466,35 +466,21 @@ static void mlx5_lag_dev_remove_pf(struct mlx5_lag *ldev,
 	mutex_unlock(&lag_mutex);
 }
 
-static u16 mlx5_gen_pci_id(struct mlx5_core_dev *dev)
-{
-	return (u16)((dev->pdev->bus->number << 8) |
-		     PCI_SLOT(dev->pdev->devfn));
-}
 
 /* Must be called with intf_mutex held */
 void mlx5_lag_add(struct mlx5_core_dev *dev, struct net_device *netdev)
 {
 	struct mlx5_lag *ldev = NULL;
 	struct mlx5_core_dev *tmp_dev;
-	struct mlx5_priv *priv;
-	u16 pci_id;
 
 	if (!MLX5_CAP_GEN(dev, vport_group_manager) ||
 	    !MLX5_CAP_GEN(dev, lag_master) ||
 	    (MLX5_CAP_GEN(dev, num_lag_ports) != MLX5_MAX_PORTS))
 		return;
 
-	pci_id = mlx5_gen_pci_id(dev);
-
-	mlx5_core_for_each_priv(priv) {
-		tmp_dev = container_of(priv, struct mlx5_core_dev, priv);
-		if ((dev != tmp_dev) &&
-		    (mlx5_gen_pci_id(tmp_dev) == pci_id)) {
-			ldev = tmp_dev->priv.lag;
-			break;
-		}
-	}
+	tmp_dev = mlx5_get_next_phys_dev(dev);
+	if (tmp_dev)
+		ldev = tmp_dev->priv.lag;
 
 	if (!ldev) {
 		ldev = mlx5_lag_dev_alloc();
