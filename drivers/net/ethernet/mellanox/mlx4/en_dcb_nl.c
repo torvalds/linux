@@ -158,10 +158,9 @@ static u8 mlx4_en_dcbnl_set_all(struct net_device *netdev)
 	struct mlx4_en_priv *priv = netdev_priv(netdev);
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_en_cee_config *dcb_cfg = &priv->cee_params.dcb_cfg;
-	int err = 0;
 
 	if (!(priv->cee_params.dcbx_cap & DCB_CAP_DCBX_VER_CEE))
-		return -EINVAL;
+		return 1;
 
 	if (dcb_cfg->pfc_state) {
 		int tc;
@@ -199,15 +198,17 @@ static u8 mlx4_en_dcbnl_set_all(struct net_device *netdev)
 		en_dbg(DRV, priv, "Set pfc off\n");
 	}
 
-	err = mlx4_SET_PORT_general(mdev->dev, priv->port,
-				    priv->rx_skb_size + ETH_FCS_LEN,
-				    priv->prof->tx_pause,
-				    priv->prof->tx_ppp,
-				    priv->prof->rx_pause,
-				    priv->prof->rx_ppp);
-	if (err)
+	if (mlx4_SET_PORT_general(mdev->dev, priv->port,
+				  priv->rx_skb_size + ETH_FCS_LEN,
+				  priv->prof->tx_pause,
+				  priv->prof->tx_ppp,
+				  priv->prof->rx_pause,
+				  priv->prof->rx_ppp)) {
 		en_err(priv, "Failed setting pause params\n");
-	return err;
+		return 1;
+	}
+
+	return 0;
 }
 
 static u8 mlx4_en_dcbnl_get_state(struct net_device *dev)
