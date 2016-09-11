@@ -169,6 +169,7 @@ static const unsigned int sdio_d2_pins[] = { PIN(GPIOX_2, EE_OFF) };
 static const unsigned int sdio_d3_pins[] = { PIN(GPIOX_3, EE_OFF) };
 static const unsigned int sdio_cmd_pins[] = { PIN(GPIOX_4, EE_OFF) };
 static const unsigned int sdio_clk_pins[] = { PIN(GPIOX_5, EE_OFF) };
+static const unsigned int sdio_irq_pins[] = { PIN(GPIOX_7, EE_OFF) };
 
 static const unsigned int uart_tx_a_pins[]	= { PIN(GPIOX_12, EE_OFF) };
 static const unsigned int uart_rx_a_pins[]	= { PIN(GPIOX_13, EE_OFF) };
@@ -383,6 +384,7 @@ static struct meson_pmx_group meson_gxbb_periphs_groups[] = {
 	GROUP(sdio_d3,		8,	2),
 	GROUP(sdio_cmd,		8,	1),
 	GROUP(sdio_clk,		8,	0),
+	GROUP(sdio_irq,		8,	11),
 	GROUP(uart_tx_a,	4,	13),
 	GROUP(uart_rx_a,	4,	12),
 	GROUP(uart_cts_a,	4,	11),
@@ -522,7 +524,7 @@ static const char * const sdcard_groups[] = {
 
 static const char * const sdio_groups[] = {
 	"sdio_d0", "sdio_d1", "sdio_d2", "sdio_d3",
-	"sdio_cmd", "sdio_clk",
+	"sdio_cmd", "sdio_clk", "sdio_irq",
 };
 
 static const char * const uart_a_groups[] = {
