@@ -30,4 +30,15 @@ config FSL_HV_MANAGER
           4) A kernel interface for receiving callbacks when a managed
 	     partition shuts down.
 
+config JAILHOUSE_DBGCON
+	tristate "Jailhouse console driver"
+	depends on X86 || ARM || ARM64
+	help
+	  The Jailhouse hypervisor provides a simple write-only console for
+	  debugging the bootstrap process of its cells. This driver registers
+	  a console with the kernel to make use of it.
+
+	  Note that Jailhouse has to be configured to permit a cell the usage
+	  of the console interface.
+
 endif
