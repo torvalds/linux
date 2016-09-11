@@ -26,7 +26,6 @@
 #define MXC6255_REG_YOUT		0x01
 #define MXC6255_REG_CHIP_ID		0x08
 
-#define MXC6225_CHIP_ID			0xe5
 #define MXC6255_CHIP_ID			0x05
 
 /*
@@ -155,11 +154,7 @@ static int mxc6255_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	switch (chip_id) {
-	case MXC6225_CHIP_ID:
-	case MXC6255_CHIP_ID:
-		break;
-	default:
+	if ((chip_id & 0x1f) != MXC6255_CHIP_ID) {
 		dev_err(&client->dev, "Invalid chip id %x\n", chip_id);
 		return -ENODEV;
 	}
