@@ -986,7 +986,6 @@ static int rbd_header_from_disk(struct rbd_device *rbd_dev,
 	char *snap_names = NULL;
 	u64 *snap_sizes = NULL;
 	u32 snap_count;
-	size_t size;
 	int ret = -ENOMEM;
 	u32 i;
 
@@ -1024,9 +1023,9 @@ static int rbd_header_from_disk(struct rbd_device *rbd_dev,
 			goto out_err;
 
 		/* ...as well as the array of their sizes. */
-
-		size = snap_count * sizeof (*header->snap_sizes);
-		snap_sizes = kmalloc(size, GFP_KERNEL);
+		snap_sizes = kmalloc_array(snap_count,
+					   sizeof(*header->snap_sizes),
+					   GFP_KERNEL);
 		if (!snap_sizes)
 			goto out_err;
 
