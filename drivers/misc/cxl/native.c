@@ -924,7 +924,7 @@ static irqreturn_t native_irq_multiplexed(int irq, void *data)
 	return fail_psl_irq(afu, &irq_info);
 }
 
-void native_irq_wait(struct cxl_context *ctx)
+static void native_irq_wait(struct cxl_context *ctx)
 {
 	u64 dsisr;
 	int timeout = 1000;

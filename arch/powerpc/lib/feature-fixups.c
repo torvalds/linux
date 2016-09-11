@@ -188,7 +188,10 @@ void __init apply_feature_fixups(void)
 			  &__start___fw_ftr_fixup, &__stop___fw_ftr_fixup);
 #endif
 	do_final_fixups();
+}
 
+void __init setup_feature_keys(void)
+{
 	/*
 	 * Initialise jump label. This causes all the cpu/mmu_has_feature()
 	 * checks to take on their correct polarity based on the current set of

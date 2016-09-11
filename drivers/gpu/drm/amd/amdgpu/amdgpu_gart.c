@@ -221,7 +221,7 @@ void amdgpu_gart_table_vram_free(struct amdgpu_device *adev)
  * Unbinds the requested pages from the gart page table and
  * replaces them with the dummy page (all asics).
  */
-void amdgpu_gart_unbind(struct amdgpu_device *adev, unsigned offset,
+void amdgpu_gart_unbind(struct amdgpu_device *adev, uint64_t offset,
 			int pages)
 {
 	unsigned t;
@@ -268,7 +268,7 @@ void amdgpu_gart_unbind(struct amdgpu_device *adev, unsigned offset,
  * (all asics).
  * Returns 0 for success, -EINVAL for failure.
  */
-int amdgpu_gart_bind(struct amdgpu_device *adev, unsigned offset,
+int amdgpu_gart_bind(struct amdgpu_device *adev, uint64_t offset,
 		     int pages, struct page **pagelist, dma_addr_t *dma_addr,
 		     uint32_t flags)
 {
