@@ -1350,7 +1350,7 @@ static int resp_inquiry(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 		} else if (0x86 == cmd[2]) { /* extended inquiry */
 			arr[1] = cmd[2];	/*sanity */
 			arr[3] = 0x3c;	/* number of following entries */
-			if (sdebug_dif == SD_DIF_TYPE3_PROTECTION)
+			if (sdebug_dif == T10_PI_TYPE3_PROTECTION)
 				arr[4] = 0x4;	/* SPT: GRD_CHK:1 */
 			else if (have_dif_prot)
 				arr[4] = 0x5;   /* SPT: GRD_CHK:1, REF_CHK:1 */
@@ -2443,13 +2443,13 @@ static int dif_verify(struct t10_pi_tuple *sdt, const void *data,
 			be16_to_cpu(csum));
 		return 0x01;
 	}
-	if (sdebug_dif == SD_DIF_TYPE1_PROTECTION &&
+	if (sdebug_dif == T10_PI_TYPE1_PROTECTION &&
 	    be32_to_cpu(sdt->ref_tag) != (sector & 0xffffffff)) {
 		pr_err("REF check failed on sector %lu\n",
 			(unsigned long)sector);
 		return 0x03;
 	}
-	if (sdebug_dif == SD_DIF_TYPE2_PROTECTION &&
+	if (sdebug_dif == T10_PI_TYPE2_PROTECTION &&
 	    be32_to_cpu(sdt->ref_tag) != ei_lba) {
 		pr_err("REF check failed on sector %lu\n",
 			(unsigned long)sector);
@@ -2581,13 +2581,13 @@ static int resp_read_dt0(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 		break;
 	}
 	if (unlikely(have_dif_prot && check_prot)) {
-		if (sdebug_dif == SD_DIF_TYPE2_PROTECTION &&
+		if (sdebug_dif == T10_PI_TYPE2_PROTECTION &&
 		    (cmd[1] & 0xe0)) {
 			mk_sense_invalid_opcode(scp);
 			return check_condition_result;
 		}
-		if ((sdebug_dif == SD_DIF_TYPE1_PROTECTION ||
-		     sdebug_dif == SD_DIF_TYPE3_PROTECTION) &&
+		if ((sdebug_dif == T10_PI_TYPE1_PROTECTION ||
+		     sdebug_dif == T10_PI_TYPE3_PROTECTION) &&
 		    (cmd[1] & 0xe0) == 0)
 			sdev_printk(KERN_ERR, scp->device, "Unprotected RD "
 				    "to DIF device\n");
@@ -2894,13 +2894,13 @@ static int resp_write_dt0(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 		break;
 	}
 	if (unlikely(have_dif_prot && check_prot)) {
-		if (sdebug_dif == SD_DIF_TYPE2_PROTECTION &&
+		if (sdebug_dif == T10_PI_TYPE2_PROTECTION &&
 		    (cmd[1] & 0xe0)) {
 			mk_sense_invalid_opcode(scp);
 			return check_condition_result;
 		}
-		if ((sdebug_dif == SD_DIF_TYPE1_PROTECTION ||
-		     sdebug_dif == SD_DIF_TYPE3_PROTECTION) &&
+		if ((sdebug_dif == T10_PI_TYPE1_PROTECTION ||
+		     sdebug_dif == T10_PI_TYPE3_PROTECTION) &&
 		    (cmd[1] & 0xe0) == 0)
 			sdev_printk(KERN_ERR, scp->device, "Unprotected WR "
 				    "to DIF device\n");
@@ -3136,13 +3136,13 @@ static int resp_comp_write(struct scsi_cmnd *scp,
 	num = cmd[13];		/* 1 to a maximum of 255 logical blocks */
 	if (0 == num)
 		return 0;	/* degenerate case, not an error */
-	if (sdebug_dif == SD_DIF_TYPE2_PROTECTION &&
+	if (sdebug_dif == T10_PI_TYPE2_PROTECTION &&
 	    (cmd[1] & 0xe0)) {
 		mk_sense_invalid_opcode(scp);
 		return check_condition_result;
 	}
-	if ((sdebug_dif == SD_DIF_TYPE1_PROTECTION ||
-	     sdebug_dif == SD_DIF_TYPE3_PROTECTION) &&
+	if ((sdebug_dif == T10_PI_TYPE1_PROTECTION ||
+	     sdebug_dif == T10_PI_TYPE3_PROTECTION) &&
 	    (cmd[1] & 0xe0) == 0)
 		sdev_printk(KERN_ERR, scp->device, "Unprotected WR "
 			    "to DIF device\n");
@@ -4940,12 +4940,11 @@ static int __init scsi_debug_init(void)
 	}
 
 	switch (sdebug_dif) {
-
-	case SD_DIF_TYPE0_PROTECTION:
+	case T10_PI_TYPE0_PROTECTION:
 		break;
-	case SD_DIF_TYPE1_PROTECTION:
-	case SD_DIF_TYPE2_PROTECTION:
-	case SD_DIF_TYPE3_PROTECTION:
+	case T10_PI_TYPE1_PROTECTION:
+	case T10_PI_TYPE2_PROTECTION:
+	case T10_PI_TYPE3_PROTECTION:
 		have_dif_prot = true;
 		break;
 
@@ -5481,19 +5480,19 @@ static int sdebug_driver_probe(struct device * dev)
 
 	switch (sdebug_dif) {
 
-	case SD_DIF_TYPE1_PROTECTION:
+	case T10_PI_TYPE1_PROTECTION:
 		hprot = SHOST_DIF_TYPE1_PROTECTION;
 		if (sdebug_dix)
 			hprot |= SHOST_DIX_TYPE1_PROTECTION;
 		break;
 
-	case SD_DIF_TYPE2_PROTECTION:
+	case T10_PI_TYPE2_PROTECTION:
 		hprot = SHOST_DIF_TYPE2_PROTECTION;
 		if (sdebug_dix)
 			hprot |= SHOST_DIX_TYPE2_PROTECTION;
 		break;
 
-	case SD_DIF_TYPE3_PROTECTION:
+	case T10_PI_TYPE3_PROTECTION:
 		hprot = SHOST_DIF_TYPE3_PROTECTION;
 		if (sdebug_dix)
 			hprot |= SHOST_DIX_TYPE3_PROTECTION;
