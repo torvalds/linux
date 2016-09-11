@@ -46,11 +46,11 @@ AFLAGS___remqu.o =       -DREM
 AFLAGS___divlu.o = -DDIV       -DINTSIZE
 AFLAGS___remlu.o =       -DREM -DINTSIZE
 
-$(obj)/__divqu.o: $(obj)/$(ev6-y)divide.S
+$(obj)/__divqu.o: $(src)/$(ev6-y)divide.S
 	$(cmd_as_o_S)
-$(obj)/__remqu.o: $(obj)/$(ev6-y)divide.S
+$(obj)/__remqu.o: $(src)/$(ev6-y)divide.S
 	$(cmd_as_o_S)
-$(obj)/__divlu.o: $(obj)/$(ev6-y)divide.S
+$(obj)/__divlu.o: $(src)/$(ev6-y)divide.S
 	$(cmd_as_o_S)
-$(obj)/__remlu.o: $(obj)/$(ev6-y)divide.S
+$(obj)/__remlu.o: $(src)/$(ev6-y)divide.S
 	$(cmd_as_o_S)
