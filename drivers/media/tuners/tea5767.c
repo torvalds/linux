@@ -426,7 +426,7 @@ static int tea5767_set_config (struct dvb_frontend *fe, void *priv_cfg)
 	return 0;
 }
 
-static struct dvb_tuner_ops tea5767_tuner_ops = {
+static const struct dvb_tuner_ops tea5767_tuner_ops = {
 	.info = {
 		.name           = "tea5767", // Philips TEA5767HN FM Radio
 	},
