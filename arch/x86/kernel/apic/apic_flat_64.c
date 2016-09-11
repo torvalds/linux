@@ -116,27 +116,17 @@ static void flat_send_IPI_all(int vector)
 
 static unsigned int flat_get_apic_id(unsigned long x)
 {
-	unsigned int id;
-
-	id = (((x)>>24) & 0xFFu);
-
-	return id;
+	return (x >> 24) & 0xFF;
 }
 
 static unsigned long set_apic_id(unsigned int id)
 {
-	unsigned long x;
-
-	x = ((id & 0xFFu)<<24);
-	return x;
+	return (id & 0xFF) << 24;
 }
 
 static unsigned int read_xapic_id(void)
 {
-	unsigned int id;
-
-	id = flat_get_apic_id(apic_read(APIC_ID));
-	return id;
+	return flat_get_apic_id(apic_read(APIC_ID));
 }
 
 static int flat_apic_id_registered(void)

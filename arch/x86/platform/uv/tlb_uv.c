@@ -580,11 +580,7 @@ static int uv1_wait_completion(struct bau_desc *bau_desc,
  */
 static unsigned long uv2_3_read_status(unsigned long offset, int rshft, int desc)
 {
-	unsigned long descriptor_status;
-
-	descriptor_status =
-		((read_lmmr(offset) >> rshft) & UV_ACT_STATUS_MASK) << 1;
-	return descriptor_status;
+	return ((read_lmmr(offset) >> rshft) & UV_ACT_STATUS_MASK) << 1;
 }
 
 /*

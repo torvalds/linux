@@ -533,11 +533,8 @@ static unsigned int x2apic_get_apic_id(unsigned long x)
 
 static unsigned long set_apic_id(unsigned int id)
 {
-	unsigned long x;
-
-	/* maskout x2apic_extra_bits ? */
-	x = id;
-	return x;
+	/* CHECKME: Do we need to mask out the xapic extra bits? */
+	return id;
 }
 
 static unsigned int uv_read_apic_id(void)
