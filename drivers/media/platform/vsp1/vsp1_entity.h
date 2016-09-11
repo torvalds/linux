@@ -35,6 +35,16 @@ enum vsp1_entity_type {
 	VSP1_ENTITY_WPF,
 };
 
+/*
+ * enum vsp1_entity_params - Entity configuration parameters class
+ * @VSP1_ENTITY_PARAMS_INIT - Initial parameters
+ * @VSP1_ENTITY_PARAMS_RUNTIME - Runtime-configurable parameters
+ */
+enum vsp1_entity_params {
+	VSP1_ENTITY_PARAMS_INIT,
+	VSP1_ENTITY_PARAMS_RUNTIME,
+};
+
 #define VSP1_ENTITY_MAX_INPUTS		5	/* For the BRU */
 
 /*
@@ -73,7 +83,7 @@ struct vsp1_entity_operations {
 	void (*destroy)(struct vsp1_entity *);
 	void (*set_memory)(struct vsp1_entity *, struct vsp1_dl_list *dl);
 	void (*configure)(struct vsp1_entity *, struct vsp1_pipeline *,
-			  struct vsp1_dl_list *, bool);
+			  struct vsp1_dl_list *, enum vsp1_entity_params);
 };
 
 struct vsp1_entity {

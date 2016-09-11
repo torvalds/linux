@@ -60,7 +60,8 @@ static void rpf_set_memory(struct vsp1_entity *entity, struct vsp1_dl_list *dl)
 
 static void rpf_configure(struct vsp1_entity *entity,
 			  struct vsp1_pipeline *pipe,
-			  struct vsp1_dl_list *dl, bool full)
+			  struct vsp1_dl_list *dl,
+			  enum vsp1_entity_params params)
 {
 	struct vsp1_rwpf *rpf = to_rwpf(&entity->subdev);
 	const struct vsp1_format_info *fmtinfo = rpf->fmtinfo;
@@ -73,7 +74,7 @@ static void rpf_configure(struct vsp1_entity *entity,
 	u32 pstride;
 	u32 infmt;
 
-	if (!full) {
+	if (params == VSP1_ENTITY_PARAMS_RUNTIME) {
 		vsp1_rpf_write(rpf, dl, VI6_RPF_VRTCOL_SET,
 			       rpf->alpha << VI6_RPF_VRTCOL_SET_LAYA_SHIFT);
 		vsp1_rpf_write(rpf, dl, VI6_RPF_MULT_ALPHA, rpf->mult_alpha |

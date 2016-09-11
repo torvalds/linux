@@ -190,24 +190,28 @@ static const struct v4l2_subdev_ops lut_ops = {
 
 static void lut_configure(struct vsp1_entity *entity,
 			  struct vsp1_pipeline *pipe,
-			  struct vsp1_dl_list *dl, bool full)
+			  struct vsp1_dl_list *dl,
+			  enum vsp1_entity_params params)
 {
 	struct vsp1_lut *lut = to_lut(&entity->subdev);
 	struct vsp1_dl_body *dlb;
 	unsigned long flags;
 
-	if (full) {
+	switch (params) {
+	case VSP1_ENTITY_PARAMS_INIT:
 		vsp1_lut_write(lut, dl, VI6_LUT_CTRL, VI6_LUT_CTRL_EN);
-		return;
+		break;
+
+	case VSP1_ENTITY_PARAMS_RUNTIME:
+		spin_lock_irqsave(&lut->lock, flags);
+		dlb = lut->lut;
+		lut->lut = NULL;
+		spin_unlock_irqrestore(&lut->lock, flags);
+
+		if (dlb)
+			vsp1_dl_list_add_fragment(dl, dlb);
+		break;
 	}
-
-	spin_lock_irqsave(&lut->lock, flags);
-	dlb = lut->lut;
-	lut->lut = NULL;
-	spin_unlock_irqrestore(&lut->lock, flags);
-
-	if (dlb)
-		vsp1_dl_list_add_fragment(dl, dlb);
 }
 
 static const struct vsp1_entity_operations lut_entity_ops = {

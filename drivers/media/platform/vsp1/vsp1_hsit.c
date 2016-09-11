@@ -132,11 +132,12 @@ static const struct v4l2_subdev_ops hsit_ops = {
 
 static void hsit_configure(struct vsp1_entity *entity,
 			   struct vsp1_pipeline *pipe,
-			   struct vsp1_dl_list *dl, bool full)
+			   struct vsp1_dl_list *dl,
+			   enum vsp1_entity_params params)
 {
 	struct vsp1_hsit *hsit = to_hsit(&entity->subdev);
 
-	if (!full)
+	if (params != VSP1_ENTITY_PARAMS_INIT)
 		return;
 
 	if (hsit->inverse)

@@ -254,7 +254,8 @@ static void vsp1_video_pipeline_run(struct vsp1_pipeline *pipe)
 
 	list_for_each_entry(entity, &pipe->entities, list_pipe) {
 		if (entity->ops->configure)
-			entity->ops->configure(entity, pipe, pipe->dl, false);
+			entity->ops->configure(entity, pipe, pipe->dl,
+					       VSP1_ENTITY_PARAMS_RUNTIME);
 	}
 
 	for (i = 0; i < vsp1->info->rpf_count; ++i) {
@@ -629,7 +630,8 @@ static int vsp1_video_setup_pipeline(struct vsp1_pipeline *pipe)
 		vsp1_entity_route_setup(entity, pipe->dl);
 
 		if (entity->ops->configure)
-			entity->ops->configure(entity, pipe, pipe->dl, true);
+			entity->ops->configure(entity, pipe, pipe->dl,
+					       VSP1_ENTITY_PARAMS_INIT);
 	}
 
 	return 0;

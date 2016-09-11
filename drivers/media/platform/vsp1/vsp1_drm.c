@@ -492,8 +492,10 @@ void vsp1_du_atomic_flush(struct device *dev)
 		vsp1_entity_route_setup(entity, pipe->dl);
 
 		if (entity->ops->configure) {
-			entity->ops->configure(entity, pipe, pipe->dl, true);
-			entity->ops->configure(entity, pipe, pipe->dl, false);
+			entity->ops->configure(entity, pipe, pipe->dl,
+					       VSP1_ENTITY_PARAMS_INIT);
+			entity->ops->configure(entity, pipe, pipe->dl,
+					       VSP1_ENTITY_PARAMS_RUNTIME);
 		}
 
 		/* The memory buffer address must be applied after configuring

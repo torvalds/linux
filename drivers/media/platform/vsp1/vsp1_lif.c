@@ -129,7 +129,8 @@ static const struct v4l2_subdev_ops lif_ops = {
 
 static void lif_configure(struct vsp1_entity *entity,
 			  struct vsp1_pipeline *pipe,
-			  struct vsp1_dl_list *dl, bool full)
+			  struct vsp1_dl_list *dl,
+			  enum vsp1_entity_params params)
 {
 	const struct v4l2_mbus_framefmt *format;
 	struct vsp1_lif *lif = to_lif(&entity->subdev);
@@ -137,7 +138,7 @@ static void lif_configure(struct vsp1_entity *entity,
 	unsigned int obth = 400;
 	unsigned int lbth = 200;
 
-	if (!full)
+	if (params != VSP1_ENTITY_PARAMS_INIT)
 		return;
 
 	format = vsp1_entity_get_pad_format(&lif->entity, lif->entity.config,

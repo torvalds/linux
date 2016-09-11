@@ -214,42 +214,47 @@ static const struct v4l2_subdev_ops clu_ops = {
 
 static void clu_configure(struct vsp1_entity *entity,
 			  struct vsp1_pipeline *pipe,
-			  struct vsp1_dl_list *dl, bool full)
+			  struct vsp1_dl_list *dl,
+			  enum vsp1_entity_params params)
 {
 	struct vsp1_clu *clu = to_clu(&entity->subdev);
 	struct vsp1_dl_body *dlb;
 	unsigned long flags;
 	u32 ctrl = VI6_CLU_CTRL_AAI | VI6_CLU_CTRL_MVS | VI6_CLU_CTRL_EN;
 
-	/* The format can't be changed during streaming, only verify it at
-	 * stream start and store the information internally for future partial
-	 * reconfiguration calls.
-	 */
-	if (full) {
+	switch (params) {
+	case VSP1_ENTITY_PARAMS_INIT: {
+		/* The format can't be changed during streaming, only verify it
+		 * at setup time and store the information internally for future
+		 * runtime configuration calls.
+		 */
 		struct v4l2_mbus_framefmt *format;
 
 		format = vsp1_entity_get_pad_format(&clu->entity,
 						    clu->entity.config,
 						    CLU_PAD_SINK);
 		clu->yuv_mode = format->code == MEDIA_BUS_FMT_AYUV8_1X32;
-		return;
+		break;
 	}
 
-	/* 2D mode can only be used with the YCbCr pixel encoding. */
-	if (clu->mode == V4L2_CID_VSP1_CLU_MODE_2D && clu->yuv_mode)
-		ctrl |= VI6_CLU_CTRL_AX1I_2D | VI6_CLU_CTRL_AX2I_2D
-		     |  VI6_CLU_CTRL_OS0_2D | VI6_CLU_CTRL_OS1_2D
-		     |  VI6_CLU_CTRL_OS2_2D | VI6_CLU_CTRL_M2D;
+	case VSP1_ENTITY_PARAMS_RUNTIME:
+		/* 2D mode can only be used with the YCbCr pixel encoding. */
+		if (clu->mode == V4L2_CID_VSP1_CLU_MODE_2D && clu->yuv_mode)
+			ctrl |= VI6_CLU_CTRL_AX1I_2D | VI6_CLU_CTRL_AX2I_2D
+			     |  VI6_CLU_CTRL_OS0_2D | VI6_CLU_CTRL_OS1_2D
+			     |  VI6_CLU_CTRL_OS2_2D | VI6_CLU_CTRL_M2D;
 
-	vsp1_clu_write(clu, dl, VI6_CLU_CTRL, ctrl);
+		vsp1_clu_write(clu, dl, VI6_CLU_CTRL, ctrl);
 
-	spin_lock_irqsave(&clu->lock, flags);
-	dlb = clu->clu;
-	clu->clu = NULL;
-	spin_unlock_irqrestore(&clu->lock, flags);
+		spin_lock_irqsave(&clu->lock, flags);
+		dlb = clu->clu;
+		clu->clu = NULL;
+		spin_unlock_irqrestore(&clu->lock, flags);
 
-	if (dlb)
-		vsp1_dl_list_add_fragment(dl, dlb);
+		if (dlb)
+			vsp1_dl_list_add_fragment(dl, dlb);
+		break;
+	}
 }
 
 static const struct vsp1_entity_operations clu_entity_ops = {
