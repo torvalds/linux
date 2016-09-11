@@ -1054,7 +1054,7 @@ static int mtk_gpio_set_debounce(struct gpio_chip *chip, unsigned offset,
 	return 0;
 }
 
-static struct gpio_chip mtk_gpio_chip = {
+static const struct gpio_chip mtk_gpio_chip = {
 	.owner			= THIS_MODULE,
 	.request		= gpiochip_generic_request,
 	.free			= gpiochip_generic_free,
