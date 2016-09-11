@@ -174,7 +174,6 @@ struct xgene_cle_ops {
 struct xgene_enet_pdata {
 	struct net_device *ndev;
 	struct mii_bus *mdio_bus;
-	struct phy_device *phy_dev;
 	int phy_speed;
 	struct clk *clk;
 	struct platform_device *pdev;

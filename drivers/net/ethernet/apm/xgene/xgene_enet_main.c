@@ -748,8 +748,8 @@ static int xgene_enet_open(struct net_device *ndev)
 	if (ret)
 		return ret;
 
-	if (pdata->phy_dev) {
-		phy_start(pdata->phy_dev);
+	if (ndev->phydev) {
+		phy_start(ndev->phydev);
 	} else {
 		schedule_delayed_work(&pdata->link_work, PHY_POLL_LINK_OFF);
 		netif_carrier_off(ndev);
@@ -772,8 +772,8 @@ static int xgene_enet_close(struct net_device *ndev)
 	mac_ops->tx_disable(pdata);
 	mac_ops->rx_disable(pdata);
 
-	if (pdata->phy_dev)
-		phy_stop(pdata->phy_dev);
+	if (ndev->phydev)
+		phy_stop(ndev->phydev);
 	else
 		cancel_delayed_work_sync(&pdata->link_work);
 

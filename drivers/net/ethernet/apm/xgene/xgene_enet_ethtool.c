@@ -57,7 +57,7 @@ static void xgene_get_drvinfo(struct net_device *ndev,
 static int xgene_get_settings(struct net_device *ndev, struct ethtool_cmd *cmd)
 {
 	struct xgene_enet_pdata *pdata = netdev_priv(ndev);
-	struct phy_device *phydev = pdata->phy_dev;
+	struct phy_device *phydev = ndev->phydev;
 
 	if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII) {
 		if (phydev == NULL)
@@ -96,7 +96,7 @@ static int xgene_get_settings(struct net_device *ndev, struct ethtool_cmd *cmd)
 static int xgene_set_settings(struct net_device *ndev, struct ethtool_cmd *cmd)
 {
 	struct xgene_enet_pdata *pdata = netdev_priv(ndev);
-	struct phy_device *phydev = pdata->phy_dev;
+	struct phy_device *phydev = ndev->phydev;
 
 	if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII) {
 		if (!phydev)
