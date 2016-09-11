@@ -4018,7 +4018,7 @@ static int ca0132_build_controls(struct hda_codec *codec)
 /*
  * PCM
  */
-static struct hda_pcm_stream ca0132_pcm_analog_playback = {
+static const struct hda_pcm_stream ca0132_pcm_analog_playback = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 6,
@@ -4029,7 +4029,7 @@ static struct hda_pcm_stream ca0132_pcm_analog_playback = {
 	},
 };
 
-static struct hda_pcm_stream ca0132_pcm_analog_capture = {
+static const struct hda_pcm_stream ca0132_pcm_analog_capture = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -4040,7 +4040,7 @@ static struct hda_pcm_stream ca0132_pcm_analog_capture = {
 	},
 };
 
-static struct hda_pcm_stream ca0132_pcm_digital_playback = {
+static const struct hda_pcm_stream ca0132_pcm_digital_playback = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -4052,7 +4052,7 @@ static struct hda_pcm_stream ca0132_pcm_digital_playback = {
 	},
 };
 
-static struct hda_pcm_stream ca0132_pcm_digital_capture = {
+static const struct hda_pcm_stream ca0132_pcm_digital_capture = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -4614,7 +4614,7 @@ static void ca0132_free(struct hda_codec *codec)
 	kfree(codec->spec);
 }
 
-static struct hda_codec_ops ca0132_patch_ops = {
+static const struct hda_codec_ops ca0132_patch_ops = {
 	.build_controls = ca0132_build_controls,
 	.build_pcms = ca0132_build_pcms,
 	.init = ca0132_init,
