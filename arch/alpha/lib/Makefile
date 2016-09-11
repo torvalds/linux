@@ -47,5 +47,5 @@ AFLAGS___divlu.o = -DDIV       -DINTSIZE
 AFLAGS___remlu.o =       -DREM -DINTSIZE
 
 $(addprefix $(obj)/,__divqu.o __remqu.o __divlu.o __remlu.o): \
-							$(src)/$(ev6-y)divide.S
-	$(cmd_as_o_S)
+						$(src)/$(ev6-y)divide.S FORCE
+	$(call if_changed_rule,as_o_S)
