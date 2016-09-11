@@ -17,6 +17,16 @@
 		device_type = "memory";
 		reg = <0x80000000 0x7F000000>; /* 2032 MB */
 	};
+
+	leds {
+		compatible = "gpio-leds";
+		led1 {
+			label = "omap5:blue:usr1";
+			gpios = <&gpio5 25 GPIO_ACTIVE_HIGH>; /* gpio5_153 D1 LED */
+			linux,default-trigger = "heartbeat";
+			default-state = "off";
+		};
+	};
 };
 
 &hdmi {

@@ -77,16 +77,6 @@
 		reset-gpios = <&gpio3 15 GPIO_ACTIVE_LOW>; /* gpio3_79 ETH_NRESET */
 	};
 
-	leds {
-		compatible = "gpio-leds";
-		led1 {
-			label = "omap5:blue:usr1";
-			gpios = <&gpio5 25 GPIO_ACTIVE_HIGH>; /* gpio5_153 D1 LED */
-			linux,default-trigger = "heartbeat";
-			default-state = "off";
-		};
-	};
-
 	tpd12s015: encoder {
 		compatible = "ti,tpd12s015";
 

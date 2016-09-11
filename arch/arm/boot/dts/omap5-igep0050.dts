@@ -30,6 +30,25 @@
 			gpios = <&gpio4 22 GPIO_ACTIVE_HIGH>;
 		};
 	};
+
+	leds {
+		compatible = "gpio-leds";
+		led@1 {
+			label = "board:green:usr0";
+			gpios = <&tca6416 1 0>;
+			default-state = "off";
+		};
+		led@2 {
+			label = "board:red:usr1";
+			gpios = <&tca6416 2 0>;
+			default-state = "off";
+		};
+		led@3 {
+			label = "board:blue:usr1";
+			gpios = <&tca6416 3 0>;
+			default-state = "off";
+		};
+	};
 };
 
 &hdmi {
