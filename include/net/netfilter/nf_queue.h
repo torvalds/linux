@@ -54,7 +54,6 @@ static inline u32 hash_v4(const struct sk_buff *skb, u32 jhash_initval)
 			(__force u32)iph->saddr, iph->protocol, jhash_initval);
 }
 
-#if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
 static inline u32 hash_v6(const struct sk_buff *skb, u32 jhash_initval)
 {
 	const struct ipv6hdr *ip6h = ipv6_hdr(skb);
@@ -77,7 +76,6 @@ static inline u32 hash_v6(const struct sk_buff *skb, u32 jhash_initval)
 
 	return jhash_3words(a, b, c, jhash_initval);
 }
-#endif
 
 static inline u32
 nfqueue_hash(const struct sk_buff *skb, u16 queue, u16 queues_total, u8 family,
@@ -85,10 +83,8 @@ nfqueue_hash(const struct sk_buff *skb, u16 queue, u16 queues_total, u8 family,
 {
 	if (family == NFPROTO_IPV4)
 		queue += ((u64) hash_v4(skb, jhash_initval) * queues_total) >> 32;
-#if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
 	else if (family == NFPROTO_IPV6)
 		queue += ((u64) hash_v6(skb, jhash_initval) * queues_total) >> 32;
-#endif
 
 	return queue;
 }
