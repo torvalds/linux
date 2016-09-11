@@ -19,7 +19,6 @@
 #include <linux/highmem.h>
 #include <linux/rculist.h>
 #include <linux/module.h>
-#include <linux/platform_device.h>
 #include "tpm.h"
 
 #define ACPI_SIG_TPM2 "TPM2"
