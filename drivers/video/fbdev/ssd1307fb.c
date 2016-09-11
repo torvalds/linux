@@ -84,7 +84,7 @@ struct ssd1307fb_array {
 	u8	data[0];
 };
 
-static struct fb_fix_screeninfo ssd1307fb_fix = {
+static const struct fb_fix_screeninfo ssd1307fb_fix = {
 	.id		= "Solomon SSD1307",
 	.type		= FB_TYPE_PACKED_PIXELS,
 	.visual		= FB_VISUAL_MONO10,
@@ -94,7 +94,7 @@ static struct fb_fix_screeninfo ssd1307fb_fix = {
 	.accel		= FB_ACCEL_NONE,
 };
 
-static struct fb_var_screeninfo ssd1307fb_var = {
+static const struct fb_var_screeninfo ssd1307fb_var = {
 	.bits_per_pixel	= 1,
 };
 

@@ -33,14 +33,14 @@
 #include <linux/parser.h>
 #include <linux/regulator/consumer.h>
 
-static struct fb_fix_screeninfo simplefb_fix = {
+static const struct fb_fix_screeninfo simplefb_fix = {
 	.id		= "simple",
 	.type		= FB_TYPE_PACKED_PIXELS,
 	.visual		= FB_VISUAL_TRUECOLOR,
 	.accel		= FB_ACCEL_NONE,
 };
 
-static struct fb_var_screeninfo simplefb_var = {
+static const struct fb_var_screeninfo simplefb_var = {
 	.height		= -1,
 	.width		= -1,
 	.activate	= FB_ACTIVATE_NOW,
