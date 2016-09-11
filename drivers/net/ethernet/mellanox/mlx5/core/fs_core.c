@@ -920,7 +920,8 @@ static struct mlx5_flow_rule *alloc_rule(struct mlx5_flow_destination *dest)
 /* fte should not be deleted while calling this function */
 static struct mlx5_flow_rule *add_rule_fte(struct fs_fte *fte,
 					   struct mlx5_flow_group *fg,
-					   struct mlx5_flow_destination *dest)
+					   struct mlx5_flow_destination *dest,
+					   bool update_action)
 {
 	struct mlx5_flow_table *ft;
 	struct mlx5_flow_rule *rule;
@@ -930,6 +931,9 @@ static struct mlx5_flow_rule *add_rule_fte(struct fs_fte *fte,
 	rule = alloc_rule(dest);
 	if (!rule)
 		return ERR_PTR(-ENOMEM);
+
+	if (update_action)
+		modify_mask |= BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_ACTION);
 
 	fs_get_obj(ft, fg->node.parent);
 	/* Add dest to dests list- we need flow tables to be in the
@@ -1109,7 +1113,9 @@ static struct mlx5_flow_rule *add_rule_fg(struct mlx5_flow_group *fg,
 	fs_for_each_fte(fte, fg) {
 		nested_lock_ref_node(&fte->node, FS_MUTEX_CHILD);
 		if (compare_match_value(&fg->mask, match_value, &fte->val) &&
-		    action == fte->action && flow_tag == fte->flow_tag) {
+		    (action & fte->action) && flow_tag == fte->flow_tag) {
+			int old_action = fte->action;
+
 			rule = find_flow_rule(fte, dest);
 			if (rule) {
 				atomic_inc(&rule->node.refcount);
@@ -1117,11 +1123,15 @@ static struct mlx5_flow_rule *add_rule_fg(struct mlx5_flow_group *fg,
 				unlock_ref_node(&fg->node);
 				return rule;
 			}
-			rule = add_rule_fte(fte, fg, dest);
-			if (IS_ERR(rule))
+			fte->action |= action;
+			rule = add_rule_fte(fte, fg, dest,
+					    old_action != action);
+			if (IS_ERR(rule)) {
+				fte->action = old_action;
 				goto unlock_fte;
-			else
+			} else {
 				goto add_rule;
+			}
 		}
 		unlock_ref_node(&fte->node);
 	}
@@ -1138,7 +1148,7 @@ static struct mlx5_flow_rule *add_rule_fg(struct mlx5_flow_group *fg,
 	}
 	tree_init_node(&fte->node, 0, del_fte);
 	nested_lock_ref_node(&fte->node, FS_MUTEX_CHILD);
-	rule = add_rule_fte(fte, fg, dest);
+	rule = add_rule_fte(fte, fg, dest, false);
 	if (IS_ERR(rule)) {
 		kfree(fte);
 		goto unlock_fg;
