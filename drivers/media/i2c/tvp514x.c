@@ -977,7 +977,7 @@ static const struct v4l2_subdev_ops tvp514x_ops = {
 	.pad = &tvp514x_pad_ops,
 };
 
-static struct tvp514x_decoder tvp514x_dev = {
+static const struct tvp514x_decoder tvp514x_dev = {
 	.streaming = 0,
 	.fmt_list = tvp514x_fmt_list,
 	.num_fmts = ARRAY_SIZE(tvp514x_fmt_list),
