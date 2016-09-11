@@ -1001,7 +1001,7 @@ static int sm501_gpio_output(struct gpio_chip *chip,
 	return 0;
 }
 
-static struct gpio_chip gpio_chip_template = {
+static const struct gpio_chip gpio_chip_template = {
 	.ngpio			= 32,
 	.direction_input	= sm501_gpio_input,
 	.direction_output	= sm501_gpio_output,
