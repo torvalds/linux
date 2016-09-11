@@ -606,7 +606,7 @@ static int pulse8_connect(struct serio *serio, struct serio_driver *drv)
 	struct pulse8 *pulse8;
 	int err = -ENOMEM;
 	struct cec_log_addrs log_addrs = {};
-	u16 pa;
+	u16 pa = CEC_PHYS_ADDR_INVALID;
 
 	pulse8 = kzalloc(sizeof(*pulse8), GFP_KERNEL);
 
