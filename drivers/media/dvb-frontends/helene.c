@@ -842,7 +842,7 @@ static int helene_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 	return 0;
 }
 
-static struct dvb_tuner_ops helene_tuner_ops = {
+static const struct dvb_tuner_ops helene_tuner_ops = {
 	.info = {
 		.name = "Sony HELENE Ter tuner",
 		.frequency_min = 1000000,
@@ -856,7 +856,7 @@ static struct dvb_tuner_ops helene_tuner_ops = {
 	.get_frequency = helene_get_frequency,
 };
 
-static struct dvb_tuner_ops helene_tuner_ops_s = {
+static const struct dvb_tuner_ops helene_tuner_ops_s = {
 	.info = {
 		.name = "Sony HELENE Sat tuner",
 		.frequency_min = 500000,

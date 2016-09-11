@@ -464,7 +464,7 @@ static int ascot2e_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 	return 0;
 }
 
-static struct dvb_tuner_ops ascot2e_tuner_ops = {
+static const struct dvb_tuner_ops ascot2e_tuner_ops = {
 	.info = {
 		.name = "Sony ASCOT2E",
 		.frequency_min = 1000000,
