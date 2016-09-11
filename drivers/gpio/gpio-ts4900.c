@@ -101,7 +101,7 @@ static const struct regmap_config ts4900_regmap_config = {
 	.val_bits = 8,
 };
 
-static struct gpio_chip template_chip = {
+static const struct gpio_chip template_chip = {
 	.label			= "ts4900-gpio",
 	.owner			= THIS_MODULE,
 	.get_direction		= ts4900_gpio_get_direction,

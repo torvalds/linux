@@ -124,7 +124,7 @@ static int lp873x_gpio_set_single_ended(struct gpio_chip *gc,
 	}
 }
 
-static struct gpio_chip template_chip = {
+static const struct gpio_chip template_chip = {
 	.label			= "lp873x-gpio",
 	.owner			= THIS_MODULE,
 	.request		= lp873x_gpio_request,

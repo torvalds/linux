@@ -172,7 +172,7 @@ static int tps65218_gpio_set_single_ended(struct gpio_chip *gc,
 	return -ENOTSUPP;
 }
 
-static struct gpio_chip template_chip = {
+static const struct gpio_chip template_chip = {
 	.label			= "gpio-tps65218",
 	.owner			= THIS_MODULE,
 	.request		= tps65218_gpio_request,

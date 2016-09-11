@@ -121,7 +121,7 @@ static int stmpe_gpio_request(struct gpio_chip *chip, unsigned offset)
 	return stmpe_set_altfunc(stmpe, 1 << offset, STMPE_BLOCK_GPIO);
 }
 
-static struct gpio_chip template_chip = {
+static const struct gpio_chip template_chip = {
 	.label			= "stmpe",
 	.owner			= THIS_MODULE,
 	.get_direction		= stmpe_gpio_get_direction,

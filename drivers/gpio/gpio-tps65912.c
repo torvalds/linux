@@ -90,7 +90,7 @@ static void tps65912_gpio_set(struct gpio_chip *gc, unsigned offset,
 			   GPIO_SET_MASK, value ? GPIO_SET_MASK : 0);
 }
 
-static struct gpio_chip template_chip = {
+static const struct gpio_chip template_chip = {
 	.label			= "tps65912-gpio",
 	.owner			= THIS_MODULE,
 	.get_direction		= tps65912_gpio_get_direction,

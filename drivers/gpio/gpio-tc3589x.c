@@ -124,7 +124,7 @@ static int tc3589x_gpio_single_ended(struct gpio_chip *chip,
 	return -ENOTSUPP;
 }
 
-static struct gpio_chip template_chip = {
+static const struct gpio_chip template_chip = {
 	.label			= "tc3589x",
 	.owner			= THIS_MODULE,
 	.direction_input	= tc3589x_gpio_direction_input,
