@@ -151,6 +151,25 @@
 		#size-cells = <2>;
 		ranges;
 
+		usb0_phy: phy@c0000000 {
+			compatible = "amlogic,meson-gxbb-usb2-phy";
+			#phy-cells = <0>;
+			reg = <0x0 0xc0000000 0x0 0x20>;
+			resets = <&reset RESET_USB_OTG>;
+			clocks = <&clkc CLKID_USB>, <&clkc CLKID_USB0>;
+			clock-names = "usb_general", "usb";
+			status = "disabled";
+		};
+
+		usb1_phy: phy@c0000020 {
+			compatible = "amlogic,meson-gxbb-usb2-phy";
+			#phy-cells = <0>;
+			reg = <0x0 0xc0000020 0x0 0x20>;
+			clocks = <&clkc CLKID_USB>, <&clkc CLKID_USB1>;
+			clock-names = "usb_general", "usb";
+			status = "disabled";
+		};
+
 		cbus: cbus@c1100000 {
 			compatible = "simple-bus";
 			reg = <0x0 0xc1100000 0x0 0x100000>;
@@ -607,6 +626,30 @@
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges = <0x0 0x0 0x0 0xd0000000 0x0 0x200000>;
+		};
+
+		usb0: usb@c9000000 {
+			compatible = "amlogic,meson-gxbb-usb", "snps,dwc2";
+			reg = <0x0 0xc9000000 0x0 0x40000>;
+			interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clkc CLKID_USB0_DDR_BRIDGE>;
+			clock-names = "otg";
+			phys = <&usb0_phy>;
+			phy-names = "usb2-phy";
+			dr_mode = "host";
+			status = "disabled";
+		};
+
+		usb1: usb@c9100000 {
+			compatible = "amlogic,meson-gxbb-usb", "snps,dwc2";
+			reg = <0x0 0xc9100000 0x0 0x40000>;
+			interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clkc CLKID_USB1_DDR_BRIDGE>;
+			clock-names = "otg";
+			phys = <&usb1_phy>;
+			phy-names = "usb2-phy";
+			dr_mode = "host";
+			status = "disabled";
 		};
 
 		ethmac: ethernet@c9410000 {
