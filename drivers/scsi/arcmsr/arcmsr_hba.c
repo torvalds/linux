@@ -720,51 +720,39 @@ static void arcmsr_message_isr_bh_fn(struct work_struct *work)
 static int
 arcmsr_request_irq(struct pci_dev *pdev, struct AdapterControlBlock *acb)
 {
-	int	i, j, r;
-	struct msix_entry entries[ARCMST_NUM_MSIX_VECTORS];
+	unsigned long flags;
+	int nvec, i;
 
-	for (i = 0; i < ARCMST_NUM_MSIX_VECTORS; i++)
-		entries[i].entry = i;
-	r = pci_enable_msix_range(pdev, entries, 1, ARCMST_NUM_MSIX_VECTORS);
-	if (r < 0)
-		goto msi_int;
-	acb->msix_vector_count = r;
-	for (i = 0; i < r; i++) {
-		if (request_irq(entries[i].vector,
-			arcmsr_do_interrupt, 0, "arcmsr", acb)) {
+	nvec = pci_alloc_irq_vectors(pdev, 1, ARCMST_NUM_MSIX_VECTORS,
+			PCI_IRQ_MSIX);
+	if (nvec > 0) {
+		pr_info("arcmsr%d: msi-x enabled\n", acb->host->host_no);
+		flags = 0;
+	} else {
+		nvec = pci_alloc_irq_vectors(pdev, 1, 1,
+				PCI_IRQ_MSI | PCI_IRQ_LEGACY);
+		if (nvec < 1)
+			return FAILED;
+
+		flags = IRQF_SHARED;
+	}
+
+	acb->vector_count = nvec;
+	for (i = 0; i < nvec; i++) {
+		if (request_irq(pci_irq_vector(pdev, i), arcmsr_do_interrupt,
+				flags, "arcmsr", acb)) {
 			pr_warn("arcmsr%d: request_irq =%d failed!\n",
-				acb->host->host_no, entries[i].vector);
-			for (j = 0 ; j < i ; j++)
-				free_irq(entries[j].vector, acb);
-			pci_disable_msix(pdev);
-			goto msi_int;
+				acb->host->host_no, pci_irq_vector(pdev, i));
+			goto out_free_irq;
 		}
-		acb->entries[i] = entries[i];
 	}
-	acb->acb_flags |= ACB_F_MSIX_ENABLED;
-	pr_info("arcmsr%d: msi-x enabled\n", acb->host->host_no);
+
 	return SUCCESS;
-msi_int:
-	if (pci_enable_msi_exact(pdev, 1) < 0)
-		goto legacy_int;
-	if (request_irq(pdev->irq, arcmsr_do_interrupt,
-		IRQF_SHARED, "arcmsr", acb)) {
-		pr_warn("arcmsr%d: request_irq =%d failed!\n",
-			acb->host->host_no, pdev->irq);
-		pci_disable_msi(pdev);
-		goto legacy_int;
-	}
-	acb->acb_flags |= ACB_F_MSI_ENABLED;
-	pr_info("arcmsr%d: msi enabled\n", acb->host->host_no);
-	return SUCCESS;
-legacy_int:
-	if (request_irq(pdev->irq, arcmsr_do_interrupt,
-		IRQF_SHARED, "arcmsr", acb)) {
-		pr_warn("arcmsr%d: request_irq = %d failed!\n",
-			acb->host->host_no, pdev->irq);
-		return FAILED;
-	}
-	return SUCCESS;
+out_free_irq:
+	while (--i >= 0)
+		free_irq(pci_irq_vector(pdev, i), acb);
+	pci_free_irq_vectors(pdev);
+	return FAILED;
 }
 
 static int arcmsr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -886,15 +874,9 @@ static void arcmsr_free_irq(struct pci_dev *pdev,
 {
 	int i;
 
-	if (acb->acb_flags & ACB_F_MSI_ENABLED) {
-		free_irq(pdev->irq, acb);
-		pci_disable_msi(pdev);
-	} else if (acb->acb_flags & ACB_F_MSIX_ENABLED) {
-		for (i = 0; i < acb->msix_vector_count; i++)
-			free_irq(acb->entries[i].vector, acb);
-		pci_disable_msix(pdev);
-	} else
-		free_irq(pdev->irq, acb);
+	for (i = 0; i < acb->vector_count; i++)
+		free_irq(pci_irq_vector(pdev, i), acb);
+	pci_free_irq_vectors(pdev);
 }
 
 static int arcmsr_suspend(struct pci_dev *pdev, pm_message_t state)
