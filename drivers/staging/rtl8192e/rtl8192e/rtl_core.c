@@ -38,7 +38,7 @@ static int channels = 0x3fff;
 static char *ifname = "wlan%d";
 
 
-static struct rtl819x_ops rtl819xp_ops = {
+static const struct rtl819x_ops rtl819xp_ops = {
 	.nic_type			= NIC_8192E,
 	.get_eeprom_size		= rtl92e_get_eeprom_size,
 	.init_adapter_variable		= rtl92e_init_variables,
