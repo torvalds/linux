@@ -759,12 +759,13 @@ static void smp_call_on_cpu_callback(struct work_struct *work)
 int smp_call_on_cpu(unsigned int cpu, int (*func)(void *), void *par, bool phys)
 {
 	struct smp_call_on_cpu_struct sscs = {
-		.work = __WORK_INITIALIZER(sscs.work, smp_call_on_cpu_callback),
 		.done = COMPLETION_INITIALIZER_ONSTACK(sscs.done),
 		.func = func,
 		.data = par,
 		.cpu  = phys ? cpu : -1,
 	};
+
+	INIT_WORK_ONSTACK(&sscs.work, smp_call_on_cpu_callback);
 
 	if (cpu >= nr_cpu_ids || !cpu_online(cpu))
 		return -ENXIO;
