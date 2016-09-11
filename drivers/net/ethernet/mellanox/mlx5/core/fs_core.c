@@ -946,7 +946,7 @@ static struct mlx5_flow_rule *add_rule_fte(struct fs_fte *fte,
 			BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_DESTINATION_LIST);
 	}
 
-	if (fte->dests_size == 1 || !dest)
+	if (!(fte->status & FS_FTE_STATUS_EXISTING))
 		err = mlx5_cmd_create_fte(get_dev(&ft->node),
 					  ft, fg->id, fte);
 	else
