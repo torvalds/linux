@@ -239,7 +239,10 @@ static u8 mlx4_en_dcbnl_set_state(struct net_device *dev, u8 state)
 		priv->flags &= ~MLX4_EN_FLAG_DCB_ENABLED;
 	}
 
-	return mlx4_en_setup_tc(dev, num_tcs);
+	if (mlx4_en_setup_tc(dev, num_tcs))
+		return 1;
+
+	return 0;
 }
 
 /* On success returns a non-zero 802.1p user priority bitmap
