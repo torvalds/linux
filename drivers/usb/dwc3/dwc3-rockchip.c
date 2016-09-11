@@ -332,7 +332,11 @@ static int dwc3_rockchip_probe(struct platform_device *pdev)
 		    rockchip->dwc->dr_mode == USB_DR_MODE_OTG) {
 			struct usb_hcd *hcd =
 				dev_get_drvdata(&rockchip->dwc->xhci->dev);
-
+			if (!hcd) {
+				dev_err(dev, "fail to get drvdata hcd\n");
+				ret = -EPROBE_DEFER;
+				goto err2;
+			}
 			if (hcd->state != HC_STATE_HALT) {
 				usb_remove_hcd(hcd->shared_hcd);
 				usb_remove_hcd(hcd);
