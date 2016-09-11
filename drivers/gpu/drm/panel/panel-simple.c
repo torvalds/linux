@@ -1214,7 +1214,7 @@ static const struct panel_desc olimex_lcd_olinuxino_43ts = {
 		.width = 105,
 		.height = 67,
 	},
-	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
 };
 
 /*
