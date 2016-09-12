@@ -1430,6 +1430,13 @@ static int parse_flow_attr(u32 *match_c, u32 *match_v,
 					     dmac_47_16),
 				ib_spec->eth.val.dst_mac);
 
+		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, outer_headers_c,
+					     smac_47_16),
+				ib_spec->eth.mask.src_mac);
+		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, outer_headers_v,
+					     smac_47_16),
+				ib_spec->eth.val.src_mac);
+
 		if (ib_spec->eth.mask.vlan_tag) {
 			MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c,
 				 vlan_tag, 1);
