@@ -269,9 +269,7 @@ static const struct v4l2_subdev_internal_ops ad5820_internal_ops = {
 /*
  * I2C driver
  */
-#ifdef CONFIG_PM
-
-static int ad5820_suspend(struct device *dev)
+static int __maybe_unused ad5820_suspend(struct device *dev)
 {
 	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
 	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
@@ -283,7 +281,7 @@ static int ad5820_suspend(struct device *dev)
 	return ad5820_power_off(coil, false);
 }
 
-static int ad5820_resume(struct device *dev)
+static int __maybe_unused ad5820_resume(struct device *dev)
 {
 	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
 	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
@@ -294,13 +292,6 @@ static int ad5820_resume(struct device *dev)
 
 	return ad5820_power_on(coil, true);
 }
-
-#else
-
-#define ad5820_suspend	NULL
-#define ad5820_resume	NULL
-
-#endif /* CONFIG_PM */
 
 static int ad5820_probe(struct i2c_client *client,
 			const struct i2c_device_id *devid)
