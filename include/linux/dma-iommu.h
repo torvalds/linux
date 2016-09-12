@@ -30,7 +30,8 @@ int iommu_get_dma_cookie(struct iommu_domain *domain);
 void iommu_put_dma_cookie(struct iommu_domain *domain);
 
 /* Setup call for arch DMA mapping code */
-int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base, u64 size);
+int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
+		u64 size, struct device *dev);
 
 /* General helpers for DMA-API <-> IOMMU-API interaction */
 int dma_direction_to_prot(enum dma_data_direction dir, bool coherent);
