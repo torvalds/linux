@@ -1254,7 +1254,10 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
  out:
 	if (ret < 0) {
 		iwl_mvm_ref(mvm, IWL_MVM_REF_UCODE_DOWN);
-		ieee80211_restart_hw(mvm->hw);
+		if (mvm->restart_fw > 0) {
+			mvm->restart_fw--;
+			ieee80211_restart_hw(mvm->hw);
+		}
 		iwl_mvm_free_nd(mvm);
 	}
  out_noreset:
