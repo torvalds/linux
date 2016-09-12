@@ -7570,12 +7570,20 @@ static int _nfs4_proc_create_session(struct nfs_client *clp,
 	status = rpc_call_sync(session->clp->cl_rpcclient, &msg, RPC_TASK_TIMEOUT);
 	trace_nfs4_create_session(clp, status);
 
+	switch (status) {
+	case -NFS4ERR_STALE_CLIENTID:
+	case -NFS4ERR_DELAY:
+	case -ETIMEDOUT:
+	case -EACCES:
+	case -EAGAIN:
+		goto out;
+	};
+
+	clp->cl_seqid++;
 	if (!status) {
 		/* Verify the session's negotiated channel_attrs values */
 		status = nfs4_verify_channel_attrs(&args, &res);
 		/* Increment the clientid slot sequence id */
-		if (clp->cl_seqid == res.seqid)
-			clp->cl_seqid++;
 		if (status)
 			goto out;
 		nfs4_update_session(session, &res);
@@ -8190,10 +8198,13 @@ static void nfs4_layoutreturn_release(void *calldata)
 
 	dprintk("--> %s\n", __func__);
 	spin_lock(&lo->plh_inode->i_lock);
-	pnfs_mark_matching_lsegs_invalid(lo, &freeme, &lrp->args.range,
-			be32_to_cpu(lrp->args.stateid.seqid));
-	if (lrp->res.lrs_present && pnfs_layout_is_valid(lo))
+	if (lrp->res.lrs_present) {
+		pnfs_mark_matching_lsegs_invalid(lo, &freeme,
+				&lrp->args.range,
+				be32_to_cpu(lrp->args.stateid.seqid));
 		pnfs_set_layout_stateid(lo, &lrp->res.stateid, true);
+	} else
+		pnfs_mark_layout_stateid_invalid(lo, &freeme);
 	pnfs_clear_layoutreturn_waitbit(lo);
 	spin_unlock(&lo->plh_inode->i_lock);
 	nfs4_sequence_free_slot(&lrp->res.seq_res);
