@@ -103,9 +103,6 @@
 #define HOST2GUC_INTERRUPT		_MMIO(0xc4c8)
 #define   HOST2GUC_TRIGGER		  (1<<0)
 
-#define DRBMISC1			0x1984
-#define   DOORBELL_ENABLE		  (1<<0)
-
 #define GEN8_DRBREGL(x)			_MMIO(0x1000 + (x) * 8)
 #define   GEN8_DRB_VALID		  (1<<0)
 #define GEN8_DRBREGU(x)			_MMIO(0x1000 + (x) * 8 + 4)

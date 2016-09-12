@@ -97,7 +97,7 @@ const char *intel_guc_fw_status_repr(enum intel_guc_fw_status status)
 	}
 };
 
-static void direct_interrupts_to_host(struct drm_i915_private *dev_priv)
+static void guc_interrupts_release(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
 	int irqs;
@@ -114,7 +114,7 @@ static void direct_interrupts_to_host(struct drm_i915_private *dev_priv)
 	I915_WRITE(GUC_WD_VECS_IER, 0);
 }
 
-static void direct_interrupts_to_guc(struct drm_i915_private *dev_priv)
+static void guc_interrupts_capture(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
 	int irqs;
@@ -179,7 +179,12 @@ static u32 get_core_family(struct drm_i915_private *dev_priv)
 	}
 }
 
-static void set_guc_init_params(struct drm_i915_private *dev_priv)
+/*
+ * Initialise the GuC parameter block before starting the firmware
+ * transfer. These parameters are read by the firmware on startup
+ * and cannot be changed thereafter.
+ */
+static void guc_params_init(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
 	u32 params[GUC_CTL_MAX_DWORDS];
@@ -392,11 +397,11 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 		I915_WRITE(GEN7_MISCCPCTL, (GEN8_DOP_CLOCK_GATE_GUC_ENABLE |
 					    I915_READ(GEN7_MISCCPCTL)));
 
-		/* allows for 5us before GT can go to RC6 */
+		/* allows for 5us (in 10ns units) before GT can go to RC6 */
 		I915_WRITE(GUC_ARAT_C6DIS, 0x1FF);
 	}
 
-	set_guc_init_params(dev_priv);
+	guc_params_init(dev_priv);
 
 	ret = guc_ucode_xfer_dma(dev_priv, vma);
 
@@ -411,7 +416,7 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 	return ret;
 }
 
-static int i915_reset_guc(struct drm_i915_private *dev_priv)
+static int guc_hw_reset(struct drm_i915_private *dev_priv)
 {
 	int ret;
 	u32 guc_status;
@@ -478,7 +483,7 @@ int intel_guc_setup(struct drm_device *dev)
 		goto fail;
 	}
 
-	direct_interrupts_to_host(dev_priv);
+	guc_interrupts_release(dev_priv);
 
 	guc_fw->guc_fw_load_status = GUC_FIRMWARE_PENDING;
 
@@ -501,7 +506,7 @@ int intel_guc_setup(struct drm_device *dev)
 		 * Always reset the GuC just before (re)loading, so
 		 * that the state and timing are fairly predictable
 		 */
-		err = i915_reset_guc(dev_priv);
+		err = guc_hw_reset(dev_priv);
 		if (err)
 			goto fail;
 
@@ -526,7 +531,7 @@ int intel_guc_setup(struct drm_device *dev)
 		err = i915_guc_submission_enable(dev_priv);
 		if (err)
 			goto fail;
-		direct_interrupts_to_guc(dev_priv);
+		guc_interrupts_capture(dev_priv);
 	}
 
 	return 0;
@@ -535,7 +540,7 @@ fail:
 	if (guc_fw->guc_fw_load_status == GUC_FIRMWARE_PENDING)
 		guc_fw->guc_fw_load_status = GUC_FIRMWARE_FAIL;
 
-	direct_interrupts_to_host(dev_priv);
+	guc_interrupts_release(dev_priv);
 	i915_guc_submission_disable(dev_priv);
 	i915_guc_submission_fini(dev_priv);
 
@@ -768,7 +773,7 @@ void intel_guc_fini(struct drm_device *dev)
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
 
 	mutex_lock(&dev->struct_mutex);
-	direct_interrupts_to_host(dev_priv);
+	guc_interrupts_release(dev_priv);
 	i915_guc_submission_disable(dev_priv);
 	i915_guc_submission_fini(dev_priv);
 
