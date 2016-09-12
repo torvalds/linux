@@ -927,7 +927,7 @@ static void decode_smca_errors(struct mce *m)
 	size_t len;
 
 	if (rdmsr_safe(addr, &low, &high)) {
-		pr_emerg("Invalid IP block specified, error information is unreliable.\n");
+		pr_emerg(HW_ERR "Invalid IP block specified.\n");
 		return;
 	}
 
@@ -1078,6 +1078,8 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 		u32 low, high;
 		u32 addr = MSR_AMD64_SMCA_MCx_CONFIG(m->bank);
 
+		pr_cont("|%s", ((m->status & MCI_STATUS_SYNDV) ? "SyndV" : "-"));
+
 		if (!rdmsr_safe(addr, &low, &high) &&
 		    (low & MCI_CONFIG_MCAX))
 			pr_cont("|%s", ((m->status & MCI_STATUS_TCC) ? "TCC" : "-"));
@@ -1091,12 +1093,18 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 	pr_cont("]: 0x%016llx\n", m->status);
 
 	if (m->status & MCI_STATUS_ADDRV)
-		pr_emerg(HW_ERR "MC%d Error Address: 0x%016llx\n", m->bank, m->addr);
+		pr_emerg(HW_ERR "Error Addr: 0x%016llx", m->addr);
 
 	if (boot_cpu_has(X86_FEATURE_SMCA)) {
+		if (m->status & MCI_STATUS_SYNDV)
+			pr_cont(", Syndrome: 0x%016llx", m->synd);
+
+		pr_cont("\n");
+
 		decode_smca_errors(m);
 		goto err_code;
-	}
+	} else
+		pr_cont("\n");
 
 	if (!fam_ops)
 		goto err_code;
