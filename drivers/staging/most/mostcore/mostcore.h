@@ -112,7 +112,7 @@ struct most_channel_capability {
 	u16 buffer_size_packet;
 	u16 num_buffers_streaming;
 	u16 buffer_size_streaming;
-	char *name_suffix;
+	const char *name_suffix;
 };
 
 /**
