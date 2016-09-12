@@ -158,7 +158,8 @@ static void dump_dev_cap_flags2(struct mlx4_dev *dev, u64 flags)
 		[31] = "Modifying loopback source checks using UPDATE_QP support",
 		[32] = "Loopback source checks support",
 		[33] = "RoCEv2 support",
-		[34] = "DMFS Sniffer support (UC & MC)"
+		[34] = "DMFS Sniffer support (UC & MC)",
+		[36] = "sl to vl mapping table change event support"
 	};
 	int i;
 
@@ -703,6 +704,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_DEV_CAP_FLOW_STEERING_IPOIB_OFFSET	0x74
 #define QUERY_DEV_CAP_FLOW_STEERING_RANGE_EN_OFFSET	0x76
 #define QUERY_DEV_CAP_FLOW_STEERING_MAX_QP_OFFSET	0x77
+#define QUERY_DEV_CAP_SL2VL_EVENT_OFFSET	0x78
 #define QUERY_DEV_CAP_CQ_EQ_CACHE_LINE_STRIDE	0x7a
 #define QUERY_DEV_CAP_ECN_QCN_VER_OFFSET	0x7b
 #define QUERY_DEV_CAP_RDMARC_ENTRY_SZ_OFFSET	0x80
@@ -822,6 +824,9 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_DMFS_IPOIB;
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_FLOW_STEERING_MAX_QP_OFFSET);
 	dev_cap->fs_max_num_qp_per_entry = field;
+	MLX4_GET(field, outbox, QUERY_DEV_CAP_SL2VL_EVENT_OFFSET);
+	if (field & (1 << 5))
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_SL_TO_VL_CHANGE_EVENT;
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_ECN_QCN_VER_OFFSET);
 	if (field & 0x1)
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_QCN;
@@ -2698,7 +2703,6 @@ static int mlx4_check_smp_firewall_active(struct mlx4_dev *dev,
 int mlx4_config_mad_demux(struct mlx4_dev *dev)
 {
 	struct mlx4_cmd_mailbox *mailbox;
-	int secure_host_active;
 	int err;
 
 	/* Check if mad_demux is supported */
@@ -2721,7 +2725,8 @@ int mlx4_config_mad_demux(struct mlx4_dev *dev)
 		goto out;
 	}
 
-	secure_host_active = mlx4_check_smp_firewall_active(dev, mailbox);
+	if (mlx4_check_smp_firewall_active(dev, mailbox))
+		dev->flags |= MLX4_FLAG_SECURE_HOST;
 
 	/* Config mad_demux to handle all MADs returned by the query above */
 	err = mlx4_cmd(dev, mailbox->dma, 0x01 /* subn mgmt class */,
@@ -2732,7 +2737,7 @@ int mlx4_config_mad_demux(struct mlx4_dev *dev)
 		goto out;
 	}
 
-	if (secure_host_active)
+	if (dev->flags & MLX4_FLAG_SECURE_HOST)
 		mlx4_warn(dev, "HCA operating in secure-host mode. SMP firewall activated.\n");
 out:
 	mlx4_free_cmd_mailbox(dev, mailbox);

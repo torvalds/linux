@@ -71,7 +71,8 @@ enum {
 	MLX4_FLAG_SLAVE		= 1 << 3,
 	MLX4_FLAG_SRIOV		= 1 << 4,
 	MLX4_FLAG_OLD_REG_MAC	= 1 << 6,
-	MLX4_FLAG_BONDED	= 1 << 7
+	MLX4_FLAG_BONDED	= 1 << 7,
+	MLX4_FLAG_SECURE_HOST	= 1 << 8,
 };
 
 enum {
@@ -221,6 +222,7 @@ enum {
 	MLX4_DEV_CAP_FLAG2_ROCE_V1_V2		= 1ULL <<  33,
 	MLX4_DEV_CAP_FLAG2_DMFS_UC_MC_SNIFFER   = 1ULL <<  34,
 	MLX4_DEV_CAP_FLAG2_DIAG_PER_PORT	= 1ULL <<  35,
+	MLX4_DEV_CAP_FLAG2_SL_TO_VL_CHANGE_EVENT = 1ULL << 36,
 };
 
 enum {
@@ -448,6 +450,7 @@ enum {
 	MLX4_DEV_PMC_SUBTYPE_GUID_INFO	 = 0x14,
 	MLX4_DEV_PMC_SUBTYPE_PORT_INFO	 = 0x15,
 	MLX4_DEV_PMC_SUBTYPE_PKEY_TABLE	 = 0x16,
+	MLX4_DEV_PMC_SUBTYPE_SL_TO_VL_MAP = 0x17,
 };
 
 /* Port mgmt change event handling */
@@ -457,6 +460,11 @@ enum {
 	MLX4_EQ_PORT_INFO_LID_CHANGE_MASK		= 1 << 2,
 	MLX4_EQ_PORT_INFO_CLIENT_REREG_MASK		= 1 << 3,
 	MLX4_EQ_PORT_INFO_MSTR_SM_SL_CHANGE_MASK	= 1 << 4,
+};
+
+union sl2vl_tbl_to_u64 {
+	u8	sl8[8];
+	u64	sl64;
 };
 
 enum {
@@ -945,6 +953,9 @@ struct mlx4_eqe {
 					__be32 block_ptr;
 					__be32 tbl_entries_mask;
 				} __packed tbl_change_info;
+				struct {
+					u8 sl2vl_table[8];
+				} __packed sl2vl_tbl_change_info;
 			} params;
 		} __packed port_mgmt_change;
 		struct {
