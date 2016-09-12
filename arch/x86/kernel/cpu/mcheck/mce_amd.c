@@ -463,6 +463,20 @@ prepare_threshold_block(unsigned int bank, unsigned int block, u32 addr,
 		 */
 		smca_high &= ~BIT(2);
 
+		/*
+		 * SMCA sets the Deferred Error Interrupt type per bank.
+		 *
+		 * MCA_CONFIG[DeferredIntTypeSupported] is bit 5, and tells us
+		 * if the DeferredIntType bit field is available.
+		 *
+		 * MCA_CONFIG[DeferredIntType] is bits [38:37] ([6:5] in the
+		 * high portion of the MSR). OS should set this to 0x1 to enable
+		 * APIC based interrupt. First, check that no interrupt has been
+		 * set.
+		 */
+		if ((smca_low & BIT(5)) && !((smca_high >> 5) & 0x3))
+			smca_high |= BIT(5);
+
 		wrmsr(smca_addr, smca_low, smca_high);
 	}
 
