@@ -50,7 +50,7 @@
 #include <linux/log2.h>
 #include <linux/aer.h>
 
-#if defined(CONFIG_CNIC) || defined(CONFIG_CNIC_MODULE)
+#if IS_ENABLED(CONFIG_CNIC)
 #define BCM_CNIC 1
 #include "cnic_if.h"
 #endif
