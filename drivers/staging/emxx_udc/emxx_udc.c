@@ -131,7 +131,6 @@ static void _nbu2ss_dump_register(struct nbu2ss_udc *udc)
 		reg_data =  _nbu2ss_readl(
 			(u32 *)IO_ADDRESS(USB_BASE_ADDRESS + i + 12));
 		dev_dbg(&udc->dev, " %08x\n", (int)reg_data);
-
 	}
 
 	spin_lock(&udc->lock);
