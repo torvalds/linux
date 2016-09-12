@@ -1828,7 +1828,6 @@ static int mlxsw_sp_port_get_settings(struct net_device *dev,
 	mlxsw_sp_from_ptys_speed_duplex(netif_carrier_ok(dev),
 					eth_proto_oper, cmd);
 
-	eth_proto_oper = eth_proto_oper ? eth_proto_oper : eth_proto_cap;
 	cmd->port = mlxsw_sp_port_connector_port(eth_proto_oper);
 
 	if (autoneg_status == MLXSW_REG_PTYS_AN_STATUS_OK && eth_proto_lp)
