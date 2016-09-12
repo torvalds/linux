@@ -16,6 +16,8 @@
 #ifndef _DT_BINDINGS_CLK_ROCKCHIP_RK3399_H
 #define _DT_BINDINGS_CLK_ROCKCHIP_RK3399_H
 
+/* #define RK3399_TWO_PLL_FOR_VOP */
+
 /* core clocks */
 #define PLL_APLLL			1
 #define PLL_APLLB			2
@@ -135,6 +137,12 @@
 #define SCLK_USBPHY1_480M_SRC		169
 #define SCLK_DDRCLK			170
 #define SCLK_TESTOUT2			171
+#define SCLK_UART0_SRC			172
+#define SCLK_UART_SRC			173
+#define SCLK_I2S0_DIV			174
+#define SCLK_I2S1_DIV			175
+#define SCLK_I2S2_DIV			176
+#define SCLK_SPDIF_DIV			177
 
 #define DCLK_VOP0			180
 #define DCLK_VOP1			181
