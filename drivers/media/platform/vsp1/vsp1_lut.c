@@ -202,6 +202,9 @@ static void lut_configure(struct vsp1_entity *entity,
 		vsp1_lut_write(lut, dl, VI6_LUT_CTRL, VI6_LUT_CTRL_EN);
 		break;
 
+	case VSP1_ENTITY_PARAMS_PARTITION:
+		break;
+
 	case VSP1_ENTITY_PARAMS_RUNTIME:
 		spin_lock_irqsave(&lut->lock, flags);
 		dlb = lut->lut;

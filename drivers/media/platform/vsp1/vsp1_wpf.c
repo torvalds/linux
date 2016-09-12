@@ -173,37 +173,6 @@ static void vsp1_wpf_destroy(struct vsp1_entity *entity)
 	vsp1_dlm_destroy(wpf->dlm);
 }
 
-static void wpf_set_memory(struct vsp1_entity *entity, struct vsp1_dl_list *dl)
-{
-	struct vsp1_rwpf *wpf = entity_to_rwpf(entity);
-	const struct v4l2_pix_format_mplane *format = &wpf->format;
-	struct vsp1_rwpf_memory mem = wpf->mem;
-	unsigned int flip = wpf->flip.active;
-	unsigned int offset;
-
-	/* Update the memory offsets based on flipping configuration. The
-	 * destination addresses point to the locations where the VSP starts
-	 * writing to memory, which can be different corners of the image
-	 * depending on vertical flipping. Horizontal flipping is handled
-	 * through a line buffer and doesn't modify the start address.
-	 */
-	if (flip & BIT(WPF_CTRL_VFLIP)) {
-		mem.addr[0] += (format->height - 1)
-			     * format->plane_fmt[0].bytesperline;
-
-		if (format->num_planes > 1) {
-			offset = (format->height / wpf->fmtinfo->vsub - 1)
-			       * format->plane_fmt[1].bytesperline;
-			mem.addr[1] += offset;
-			mem.addr[2] += offset;
-		}
-	}
-
-	vsp1_wpf_write(wpf, dl, VI6_WPF_DSTM_ADDR_Y, mem.addr[0]);
-	vsp1_wpf_write(wpf, dl, VI6_WPF_DSTM_ADDR_C0, mem.addr[1]);
-	vsp1_wpf_write(wpf, dl, VI6_WPF_DSTM_ADDR_C1, mem.addr[2]);
-}
-
 static void wpf_configure(struct vsp1_entity *entity,
 			  struct vsp1_pipeline *pipe,
 			  struct vsp1_dl_list *dl,
@@ -237,7 +206,6 @@ static void wpf_configure(struct vsp1_entity *entity,
 		return;
 	}
 
-	/* Format */
 	sink_format = vsp1_entity_get_pad_format(&wpf->entity,
 						 wpf->entity.config,
 						 RWPF_PAD_SINK);
@@ -245,13 +213,53 @@ static void wpf_configure(struct vsp1_entity *entity,
 						   wpf->entity.config,
 						   RWPF_PAD_SOURCE);
 
-	vsp1_wpf_write(wpf, dl, VI6_WPF_HSZCLIP, VI6_WPF_SZCLIP_EN |
-		       (0 << VI6_WPF_SZCLIP_OFST_SHIFT) |
-		       (source_format->width << VI6_WPF_SZCLIP_SIZE_SHIFT));
-	vsp1_wpf_write(wpf, dl, VI6_WPF_VSZCLIP, VI6_WPF_SZCLIP_EN |
-		       (0 << VI6_WPF_SZCLIP_OFST_SHIFT) |
-		       (source_format->height << VI6_WPF_SZCLIP_SIZE_SHIFT));
+	if (params == VSP1_ENTITY_PARAMS_PARTITION) {
+		const struct v4l2_pix_format_mplane *format = &wpf->format;
+		struct vsp1_rwpf_memory mem = wpf->mem;
+		unsigned int flip = wpf->flip.active;
+		unsigned int width = source_format->width;
+		unsigned int height = source_format->height;
+		unsigned int offset;
 
+		/* Cropping. The partition algorithm can split the image into
+		 * multiple slices.
+		 */
+		vsp1_wpf_write(wpf, dl, VI6_WPF_HSZCLIP, VI6_WPF_SZCLIP_EN |
+			       (0 << VI6_WPF_SZCLIP_OFST_SHIFT) |
+			       (width << VI6_WPF_SZCLIP_SIZE_SHIFT));
+		vsp1_wpf_write(wpf, dl, VI6_WPF_VSZCLIP, VI6_WPF_SZCLIP_EN |
+			       (0 << VI6_WPF_SZCLIP_OFST_SHIFT) |
+			       (height << VI6_WPF_SZCLIP_SIZE_SHIFT));
+
+		if (pipe->lif)
+			return;
+
+		/* Update the memory offsets based on flipping configuration.
+		 * The destination addresses point to the locations where the
+		 * VSP starts writing to memory, which can be different corners
+		 * of the image depending on vertical flipping. Horizontal
+		 * flipping is handled through a line buffer and doesn't modify
+		 * the start address.
+		 */
+		if (flip & BIT(WPF_CTRL_VFLIP)) {
+			mem.addr[0] += (format->height - 1)
+				     * format->plane_fmt[0].bytesperline;
+
+			if (format->num_planes > 1) {
+				offset = (format->height / wpf->fmtinfo->vsub - 1)
+				       * format->plane_fmt[1].bytesperline;
+				mem.addr[1] += offset;
+				mem.addr[2] += offset;
+			}
+		}
+
+		vsp1_wpf_write(wpf, dl, VI6_WPF_DSTM_ADDR_Y, mem.addr[0]);
+		vsp1_wpf_write(wpf, dl, VI6_WPF_DSTM_ADDR_C0, mem.addr[1]);
+		vsp1_wpf_write(wpf, dl, VI6_WPF_DSTM_ADDR_C1, mem.addr[2]);
+		return;
+	}
+
+	/* Format */
 	if (!pipe->lif) {
 		const struct v4l2_pix_format_mplane *format = &wpf->format;
 		const struct vsp1_format_info *fmtinfo = wpf->fmtinfo;
@@ -320,7 +328,6 @@ static void wpf_configure(struct vsp1_entity *entity,
 
 static const struct vsp1_entity_operations wpf_entity_ops = {
 	.destroy = vsp1_wpf_destroy,
-	.set_memory = wpf_set_memory,
 	.configure = wpf_configure,
 };
 

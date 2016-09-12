@@ -46,18 +46,6 @@ static const struct v4l2_subdev_ops rpf_ops = {
  * VSP1 Entity Operations
  */
 
-static void rpf_set_memory(struct vsp1_entity *entity, struct vsp1_dl_list *dl)
-{
-	struct vsp1_rwpf *rpf = entity_to_rwpf(entity);
-
-	vsp1_rpf_write(rpf, dl, VI6_RPF_SRCM_ADDR_Y,
-		       rpf->mem.addr[0] + rpf->offsets[0]);
-	vsp1_rpf_write(rpf, dl, VI6_RPF_SRCM_ADDR_C0,
-		       rpf->mem.addr[1] + rpf->offsets[1]);
-	vsp1_rpf_write(rpf, dl, VI6_RPF_SRCM_ADDR_C1,
-		       rpf->mem.addr[2] + rpf->offsets[1]);
-}
-
 static void rpf_configure(struct vsp1_entity *entity,
 			  struct vsp1_pipeline *pipe,
 			  struct vsp1_dl_list *dl,
@@ -68,7 +56,6 @@ static void rpf_configure(struct vsp1_entity *entity,
 	const struct v4l2_pix_format_mplane *format = &rpf->format;
 	const struct v4l2_mbus_framefmt *source_format;
 	const struct v4l2_mbus_framefmt *sink_format;
-	const struct v4l2_rect *crop;
 	unsigned int left = 0;
 	unsigned int top = 0;
 	u32 pstride;
@@ -84,35 +71,51 @@ static void rpf_configure(struct vsp1_entity *entity,
 		return;
 	}
 
-	/* Source size, stride and crop offsets.
-	 *
-	 * The crop offsets correspond to the location of the crop rectangle top
-	 * left corner in the plane buffer. Only two offsets are needed, as
-	 * planes 2 and 3 always have identical strides.
-	 */
-	crop = vsp1_rwpf_get_crop(rpf, rpf->entity.config);
+	if (params == VSP1_ENTITY_PARAMS_PARTITION) {
+		const struct v4l2_rect *crop;
+		unsigned int offsets[2];
 
-	vsp1_rpf_write(rpf, dl, VI6_RPF_SRC_BSIZE,
-		       (crop->width << VI6_RPF_SRC_BSIZE_BHSIZE_SHIFT) |
-		       (crop->height << VI6_RPF_SRC_BSIZE_BVSIZE_SHIFT));
-	vsp1_rpf_write(rpf, dl, VI6_RPF_SRC_ESIZE,
-		       (crop->width << VI6_RPF_SRC_ESIZE_EHSIZE_SHIFT) |
-		       (crop->height << VI6_RPF_SRC_ESIZE_EVSIZE_SHIFT));
+		/* Source size and crop offsets.
+		 *
+		 * The crop offsets correspond to the location of the crop
+		 * rectangle top left corner in the plane buffer. Only two
+		 * offsets are needed, as planes 2 and 3 always have identical
+		 * strides.
+		 */
+		crop = vsp1_rwpf_get_crop(rpf, rpf->entity.config);
 
-	rpf->offsets[0] = crop->top * format->plane_fmt[0].bytesperline
-			+ crop->left * fmtinfo->bpp[0] / 8;
+		vsp1_rpf_write(rpf, dl, VI6_RPF_SRC_BSIZE,
+			       (crop->width << VI6_RPF_SRC_BSIZE_BHSIZE_SHIFT) |
+			       (crop->height << VI6_RPF_SRC_BSIZE_BVSIZE_SHIFT));
+		vsp1_rpf_write(rpf, dl, VI6_RPF_SRC_ESIZE,
+			       (crop->width << VI6_RPF_SRC_ESIZE_EHSIZE_SHIFT) |
+			       (crop->height << VI6_RPF_SRC_ESIZE_EVSIZE_SHIFT));
+
+		offsets[0] = crop->top * format->plane_fmt[0].bytesperline
+			   + crop->left * fmtinfo->bpp[0] / 8;
+
+		if (format->num_planes > 1)
+			offsets[1] = crop->top * format->plane_fmt[1].bytesperline
+				   + crop->left / fmtinfo->hsub
+				   * fmtinfo->bpp[1] / 8;
+		else
+			offsets[1] = 0;
+
+		vsp1_rpf_write(rpf, dl, VI6_RPF_SRCM_ADDR_Y,
+			       rpf->mem.addr[0] + offsets[0]);
+		vsp1_rpf_write(rpf, dl, VI6_RPF_SRCM_ADDR_C0,
+			       rpf->mem.addr[1] + offsets[1]);
+		vsp1_rpf_write(rpf, dl, VI6_RPF_SRCM_ADDR_C1,
+			       rpf->mem.addr[2] + offsets[1]);
+		return;
+	}
+
+	/* Stride */
 	pstride = format->plane_fmt[0].bytesperline
 		<< VI6_RPF_SRCM_PSTRIDE_Y_SHIFT;
-
-	if (format->num_planes > 1) {
-		rpf->offsets[1] = crop->top * format->plane_fmt[1].bytesperline
-				+ crop->left / fmtinfo->hsub * fmtinfo->bpp[1]
-				/ 8;
+	if (format->num_planes > 1)
 		pstride |= format->plane_fmt[1].bytesperline
 			<< VI6_RPF_SRCM_PSTRIDE_C_SHIFT;
-	} else {
-		rpf->offsets[1] = 0;
-	}
 
 	vsp1_rpf_write(rpf, dl, VI6_RPF_SRCM_PSTRIDE, pstride);
 
@@ -217,7 +220,6 @@ static void rpf_configure(struct vsp1_entity *entity,
 }
 
 static const struct vsp1_entity_operations rpf_entity_ops = {
-	.set_memory = rpf_set_memory,
 	.configure = rpf_configure,
 };
 

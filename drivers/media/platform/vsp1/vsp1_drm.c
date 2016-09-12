@@ -496,14 +496,9 @@ void vsp1_du_atomic_flush(struct device *dev)
 					       VSP1_ENTITY_PARAMS_INIT);
 			entity->ops->configure(entity, pipe, pipe->dl,
 					       VSP1_ENTITY_PARAMS_RUNTIME);
+			entity->ops->configure(entity, pipe, pipe->dl,
+					       VSP1_ENTITY_PARAMS_PARTITION);
 		}
-
-		/* The memory buffer address must be applied after configuring
-		 * the RPF to make sure the crop offset are computed.
-		 */
-		if (entity->type == VSP1_ENTITY_RPF)
-			vsp1_rwpf_set_memory(to_rwpf(&entity->subdev),
-					     pipe->dl);
 	}
 
 	vsp1_dl_list_commit(pipe->dl);

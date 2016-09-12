@@ -237,6 +237,9 @@ static void clu_configure(struct vsp1_entity *entity,
 		break;
 	}
 
+	case VSP1_ENTITY_PARAMS_PARTITION:
+		break;
+
 	case VSP1_ENTITY_PARAMS_RUNTIME:
 		/* 2D mode can only be used with the YCbCr pixel encoding. */
 		if (clu->mode == V4L2_CID_VSP1_CLU_MODE_2D && clu->yuv_mode)

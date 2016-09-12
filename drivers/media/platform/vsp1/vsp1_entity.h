@@ -38,10 +38,12 @@ enum vsp1_entity_type {
 /*
  * enum vsp1_entity_params - Entity configuration parameters class
  * @VSP1_ENTITY_PARAMS_INIT - Initial parameters
+ * @VSP1_ENTITY_PARAMS_PARTITION - Per-image partition parameters
  * @VSP1_ENTITY_PARAMS_RUNTIME - Runtime-configurable parameters
  */
 enum vsp1_entity_params {
 	VSP1_ENTITY_PARAMS_INIT,
+	VSP1_ENTITY_PARAMS_PARTITION,
 	VSP1_ENTITY_PARAMS_RUNTIME,
 };
 
@@ -73,15 +75,11 @@ struct vsp1_route {
 /**
  * struct vsp1_entity_operations - Entity operations
  * @destroy:	Destroy the entity.
- * @set_memory:	Setup memory buffer access. This operation applies the settings
- *		stored in the rwpf mem field to the display list. Valid for RPF
- *		and WPF only.
  * @configure:	Setup the hardware based on the entity state (pipeline, formats,
  *		selection rectangles, ...)
  */
 struct vsp1_entity_operations {
 	void (*destroy)(struct vsp1_entity *);
-	void (*set_memory)(struct vsp1_entity *, struct vsp1_dl_list *dl);
 	void (*configure)(struct vsp1_entity *, struct vsp1_pipeline *,
 			  struct vsp1_dl_list *, enum vsp1_entity_params);
 };
