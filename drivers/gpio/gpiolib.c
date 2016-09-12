@@ -1614,13 +1614,18 @@ int _gpiochip_irqchip_add(struct gpio_chip *gpiochip,
 		of_node = gpiochip->of_node;
 #endif
 	/*
-	 * Specifying a default trigger is a terrible idea if DT is
+	 * Specifying a default trigger is a terrible idea if DT or ACPI is
 	 * used to configure the interrupts, as you may end-up with
 	 * conflicting triggers. Tell the user, and reset to NONE.
 	 */
 	if (WARN(of_node && type != IRQ_TYPE_NONE,
 		 "%s: Ignoring %d default trigger\n", of_node->full_name, type))
 		type = IRQ_TYPE_NONE;
+	if (has_acpi_companion(gpiochip->parent) && type != IRQ_TYPE_NONE) {
+		acpi_handle_warn(ACPI_HANDLE(gpiochip->parent),
+				 "Ignoring %d default trigger\n", type);
+		type = IRQ_TYPE_NONE;
+	}
 
 	gpiochip->irqchip = irqchip;
 	gpiochip->irq_handler = handler;
