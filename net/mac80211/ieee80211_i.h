@@ -818,6 +818,7 @@ struct txq_info {
 	struct fq_tin tin;
 	struct fq_flow def_flow;
 	struct codel_vars def_cvars;
+	struct codel_stats cstats;
 	unsigned long flags;
 
 	/* keep last! */
@@ -1117,7 +1118,6 @@ struct ieee80211_local {
 	struct fq fq;
 	struct codel_vars *cvars;
 	struct codel_params cparams;
-	struct codel_stats cstats;
 
 	const struct ieee80211_ops *ops;
 

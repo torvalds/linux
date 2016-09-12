@@ -1343,7 +1343,7 @@ static struct sk_buff *fq_tin_dequeue_func(struct fq *fq,
 	local = container_of(fq, struct ieee80211_local, fq);
 	txqi = container_of(tin, struct txq_info, tin);
 	cparams = &local->cparams;
-	cstats = &local->cstats;
+	cstats = &txqi->cstats;
 
 	if (flow == &txqi->def_flow)
 		cvars = &txqi->def_cvars;
@@ -1403,6 +1403,7 @@ void ieee80211_txq_init(struct ieee80211_sub_if_data *sdata,
 	fq_tin_init(&txqi->tin);
 	fq_flow_init(&txqi->def_flow);
 	codel_vars_init(&txqi->def_cvars);
+	codel_stats_init(&txqi->cstats);
 
 	txqi->txq.vif = &sdata->vif;
 
@@ -1441,7 +1442,6 @@ int ieee80211_txq_setup_flows(struct ieee80211_local *local)
 		return ret;
 
 	codel_params_init(&local->cparams);
-	codel_stats_init(&local->cstats);
 	local->cparams.interval = MS2TIME(100);
 	local->cparams.target = MS2TIME(20);
 	local->cparams.ecn = true;
