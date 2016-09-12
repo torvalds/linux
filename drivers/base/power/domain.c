@@ -1306,6 +1306,8 @@ int pm_genpd_init(struct generic_pm_domain *genpd,
 	genpd->device_count = 0;
 	genpd->max_off_time_ns = -1;
 	genpd->max_off_time_changed = true;
+	genpd->provider = NULL;
+	genpd->has_provider = false;
 	genpd->domain.ops.runtime_suspend = genpd_runtime_suspend;
 	genpd->domain.ops.runtime_resume = genpd_runtime_resume;
 	genpd->domain.ops.prepare = pm_genpd_prepare;
@@ -1491,6 +1493,11 @@ int of_genpd_add_provider_simple(struct device_node *np,
 	if (pm_genpd_present(genpd))
 		ret = genpd_add_provider(np, genpd_xlate_simple, genpd);
 
+	if (!ret) {
+		genpd->provider = &np->fwnode;
+		genpd->has_provider = true;
+	}
+
 	mutex_unlock(&gpd_list_lock);
 
 	return ret;
@@ -1506,7 +1513,7 @@ int of_genpd_add_provider_onecell(struct device_node *np,
 				  struct genpd_onecell_data *data)
 {
 	unsigned int i;
-	int ret;
+	int ret = -EINVAL;
 
 	if (!np || !data)
 		return -EINVAL;
@@ -1514,13 +1521,26 @@ int of_genpd_add_provider_onecell(struct device_node *np,
 	mutex_lock(&gpd_list_lock);
 
 	for (i = 0; i < data->num_domains; i++) {
-		if (!pm_genpd_present(data->domains[i])) {
-			mutex_unlock(&gpd_list_lock);
-			return -EINVAL;
-		}
+		if (!pm_genpd_present(data->domains[i]))
+			goto error;
+
+		data->domains[i]->provider = &np->fwnode;
+		data->domains[i]->has_provider = true;
 	}
 
 	ret = genpd_add_provider(np, genpd_xlate_onecell, data);
+	if (ret < 0)
+		goto error;
+
+	mutex_unlock(&gpd_list_lock);
+
+	return 0;
+
+error:
+	while (i--) {
+		data->domains[i]->provider = NULL;
+		data->domains[i]->has_provider = false;
+	}
 
 	mutex_unlock(&gpd_list_lock);
 
@@ -1535,10 +1555,21 @@ EXPORT_SYMBOL_GPL(of_genpd_add_provider_onecell);
 void of_genpd_del_provider(struct device_node *np)
 {
 	struct of_genpd_provider *cp;
+	struct generic_pm_domain *gpd;
 
+	mutex_lock(&gpd_list_lock);
 	mutex_lock(&of_genpd_mutex);
 	list_for_each_entry(cp, &of_genpd_providers, link) {
 		if (cp->node == np) {
+			/*
+			 * For each PM domain associated with the
+			 * provider, set the 'has_provider' to false
+			 * so that the PM domain can be safely removed.
+			 */
+			list_for_each_entry(gpd, &gpd_list, gpd_list_node)
+				if (gpd->provider == &np->fwnode)
+					gpd->has_provider = false;
+
 			list_del(&cp->link);
 			of_node_put(cp->node);
 			kfree(cp);
@@ -1546,6 +1577,7 @@ void of_genpd_del_provider(struct device_node *np)
 		}
 	}
 	mutex_unlock(&of_genpd_mutex);
+	mutex_unlock(&gpd_list_lock);
 }
 EXPORT_SYMBOL_GPL(of_genpd_del_provider);
 
