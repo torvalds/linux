@@ -50,7 +50,7 @@ config MFD_AS3711
 	  Support for the AS3711 PMIC from AMS
 
 config MFD_AS3722
-	bool "ams AS3722 Power Management IC"
+	tristate "ams AS3722 Power Management IC"
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
