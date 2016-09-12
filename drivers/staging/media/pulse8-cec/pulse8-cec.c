@@ -342,8 +342,10 @@ static int pulse8_setup(struct pulse8 *pulse8, struct serio *serio,
 		return err;
 	pulse8->vers = (data[0] << 8) | data[1];
 	dev_info(pulse8->dev, "Firmware version %04x\n", pulse8->vers);
-	if (pulse8->vers < 2)
+	if (pulse8->vers < 2) {
+		*pa = CEC_PHYS_ADDR_INVALID;
 		return 0;
+	}
 
 	cmd[0] = MSGCODE_GET_BUILDDATE;
 	err = pulse8_send_and_wait(pulse8, cmd, 1, cmd[0], 4);
