@@ -170,7 +170,6 @@ static int mpc85xx_pci_err_probe(struct platform_device *op)
 
 	pdata = pci->pvt_info;
 	pdata->name = "mpc85xx_pci_err";
-	pdata->irq = NO_IRQ;
 
 	plat_data = op->dev.platform_data;
 	if (!plat_data) {
@@ -491,7 +490,6 @@ static int mpc85xx_l2_err_probe(struct platform_device *op)
 
 	pdata = edac_dev->pvt_info;
 	pdata->name = "mpc85xx_l2_err";
-	pdata->irq = NO_IRQ;
 	edac_dev->dev = &op->dev;
 	dev_set_drvdata(edac_dev->dev, edac_dev);
 	edac_dev->ctl_name = pdata->name;
