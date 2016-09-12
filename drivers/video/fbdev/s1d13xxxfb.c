@@ -929,7 +929,7 @@ static int s1d13xxxfb_suspend(struct platform_device *dev, pm_message_t state)
 		s1dfb->disp_save = kmalloc(info->fix.smem_len, GFP_KERNEL);
 
 	if (!s1dfb->disp_save) {
-		printk(KERN_ERR PFX "no memory to save screen");
+		printk(KERN_ERR PFX "no memory to save screen\n");
 		return -ENOMEM;
 	}
 
