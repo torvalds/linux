@@ -159,7 +159,7 @@ static int crb_send(struct tpm_chip *chip, u8 *buf, size_t len)
 	wmb();
 
 	if (priv->flags & CRB_FL_CRB_START)
-		iowrite32(cpu_to_le32(CRB_START_INVOKE), &priv->cca->start);
+		iowrite32(CRB_START_INVOKE, &priv->cca->start);
 
 	if (priv->flags & CRB_FL_ACPI_START)
 		rc = crb_do_acpi_start(chip);
@@ -171,7 +171,7 @@ static void crb_cancel(struct tpm_chip *chip)
 {
 	struct crb_priv *priv = dev_get_drvdata(&chip->dev);
 
-	iowrite32(cpu_to_le32(CRB_CANCEL_INVOKE), &priv->cca->cancel);
+	iowrite32(CRB_CANCEL_INVOKE, &priv->cca->cancel);
 
 	if ((priv->flags & CRB_FL_ACPI_START) && crb_do_acpi_start(chip))
 		dev_err(&chip->dev, "ACPI Start failed\n");
