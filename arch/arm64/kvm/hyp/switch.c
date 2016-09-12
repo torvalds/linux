@@ -16,6 +16,8 @@
  */
 
 #include <linux/types.h>
+#include <linux/jump_label.h>
+
 #include <asm/kvm_asm.h>
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_hyp.h>
@@ -136,17 +138,13 @@ static void __hyp_text __deactivate_vm(struct kvm_vcpu *vcpu)
 	write_sysreg(0, vttbr_el2);
 }
 
-static hyp_alternate_select(__vgic_call_save_state,
-			    __vgic_v2_save_state, __vgic_v3_save_state,
-			    ARM64_HAS_SYSREG_GIC_CPUIF);
-
-static hyp_alternate_select(__vgic_call_restore_state,
-			    __vgic_v2_restore_state, __vgic_v3_restore_state,
-			    ARM64_HAS_SYSREG_GIC_CPUIF);
-
 static void __hyp_text __vgic_save_state(struct kvm_vcpu *vcpu)
 {
-	__vgic_call_save_state()(vcpu);
+	if (static_branch_unlikely(&kvm_vgic_global_state.gicv3_cpuif))
+		__vgic_v3_save_state(vcpu);
+	else
+		__vgic_v2_save_state(vcpu);
+
 	write_sysreg(read_sysreg(hcr_el2) & ~HCR_INT_OVERRIDE, hcr_el2);
 }
 
@@ -159,7 +157,10 @@ static void __hyp_text __vgic_restore_state(struct kvm_vcpu *vcpu)
 	val |= vcpu->arch.irq_lines;
 	write_sysreg(val, hcr_el2);
 
-	__vgic_call_restore_state()(vcpu);
+	if (static_branch_unlikely(&kvm_vgic_global_state.gicv3_cpuif))
+		__vgic_v3_restore_state(vcpu);
+	else
+		__vgic_v2_restore_state(vcpu);
 }
 
 static bool __hyp_text __true_value(void)
