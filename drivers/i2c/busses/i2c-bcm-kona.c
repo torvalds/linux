@@ -643,7 +643,7 @@ static int bcm_kona_i2c_xfer(struct i2c_adapter *adapter,
 			if (rc < 0) {
 				dev_err(dev->device,
 					"restart cmd failed rc = %d\n", rc);
-					goto xfer_send_stop;
+				goto xfer_send_stop;
 			}
 		}
 

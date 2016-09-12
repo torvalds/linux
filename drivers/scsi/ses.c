@@ -587,7 +587,7 @@ static void ses_match_to_enclosure(struct enclosure_device *edev,
 
 	ses_enclosure_data_process(edev, to_scsi_device(edev->edev.parent), 0);
 
-	if (is_sas_attached(sdev))
+	if (scsi_is_sas_rphy(&sdev->sdev_gendev))
 		efd.addr = sas_get_address(sdev);
 
 	if (efd.addr) {
