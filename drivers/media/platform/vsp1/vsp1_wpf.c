@@ -212,7 +212,6 @@ static void wpf_configure(struct vsp1_entity *entity,
 	struct vsp1_device *vsp1 = wpf->entity.vsp1;
 	const struct v4l2_mbus_framefmt *source_format;
 	const struct v4l2_mbus_framefmt *sink_format;
-	const struct v4l2_rect *crop;
 	unsigned int i;
 	u32 outfmt = 0;
 	u32 srcrpf = 0;
@@ -237,16 +236,6 @@ static void wpf_configure(struct vsp1_entity *entity,
 		return;
 	}
 
-	/* Cropping */
-	crop = vsp1_rwpf_get_crop(wpf, wpf->entity.config);
-
-	vsp1_wpf_write(wpf, dl, VI6_WPF_HSZCLIP, VI6_WPF_SZCLIP_EN |
-		       (crop->left << VI6_WPF_SZCLIP_OFST_SHIFT) |
-		       (crop->width << VI6_WPF_SZCLIP_SIZE_SHIFT));
-	vsp1_wpf_write(wpf, dl, VI6_WPF_VSZCLIP, VI6_WPF_SZCLIP_EN |
-		       (crop->top << VI6_WPF_SZCLIP_OFST_SHIFT) |
-		       (crop->height << VI6_WPF_SZCLIP_SIZE_SHIFT));
-
 	/* Format */
 	sink_format = vsp1_entity_get_pad_format(&wpf->entity,
 						 wpf->entity.config,
@@ -254,6 +243,13 @@ static void wpf_configure(struct vsp1_entity *entity,
 	source_format = vsp1_entity_get_pad_format(&wpf->entity,
 						   wpf->entity.config,
 						   RWPF_PAD_SOURCE);
+
+	vsp1_wpf_write(wpf, dl, VI6_WPF_HSZCLIP, VI6_WPF_SZCLIP_EN |
+		       (0 << VI6_WPF_SZCLIP_OFST_SHIFT) |
+		       (source_format->width << VI6_WPF_SZCLIP_SIZE_SHIFT));
+	vsp1_wpf_write(wpf, dl, VI6_WPF_VSZCLIP, VI6_WPF_SZCLIP_EN |
+		       (0 << VI6_WPF_SZCLIP_OFST_SHIFT) |
+		       (source_format->height << VI6_WPF_SZCLIP_SIZE_SHIFT));
 
 	if (!pipe->lif) {
 		const struct v4l2_pix_format_mplane *format = &wpf->format;
