@@ -413,7 +413,7 @@ static struct rtnl_link_stats64 *xlr_get_stats64(struct net_device *ndev,
 	return stats;
 }
 
-static struct net_device_ops xlr_netdev_ops = {
+static const struct net_device_ops xlr_netdev_ops = {
 	.ndo_open = xlr_net_open,
 	.ndo_stop = xlr_net_stop,
 	.ndo_start_xmit = xlr_net_start_xmit,
