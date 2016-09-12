@@ -26,6 +26,8 @@
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
 			next-level-cache = <&xgene_L2_0>;
+			#clock-cells = <1>;
+			clocks = <&pmd0clk 0>;
 		};
 		cpu@001 {
 			device_type = "cpu";
@@ -34,6 +36,8 @@
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
 			next-level-cache = <&xgene_L2_0>;
+			#clock-cells = <1>;
+			clocks = <&pmd0clk 0>;
 		};
 		cpu@100 {
 			device_type = "cpu";
@@ -42,6 +46,8 @@
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
 			next-level-cache = <&xgene_L2_1>;
+			#clock-cells = <1>;
+			clocks = <&pmd1clk 0>;
 		};
 		cpu@101 {
 			device_type = "cpu";
@@ -50,6 +56,8 @@
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
 			next-level-cache = <&xgene_L2_1>;
+			#clock-cells = <1>;
+			clocks = <&pmd1clk 0>;
 		};
 		cpu@200 {
 			device_type = "cpu";
@@ -58,6 +66,8 @@
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
 			next-level-cache = <&xgene_L2_2>;
+			#clock-cells = <1>;
+			clocks = <&pmd2clk 0>;
 		};
 		cpu@201 {
 			device_type = "cpu";
@@ -66,6 +76,8 @@
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
 			next-level-cache = <&xgene_L2_2>;
+			#clock-cells = <1>;
+			clocks = <&pmd2clk 0>;
 		};
 		cpu@300 {
 			device_type = "cpu";
@@ -74,6 +86,8 @@
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
 			next-level-cache = <&xgene_L2_3>;
+			#clock-cells = <1>;
+			clocks = <&pmd3clk 0>;
 		};
 		cpu@301 {
 			device_type = "cpu";
@@ -82,6 +96,8 @@
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
 			next-level-cache = <&xgene_L2_3>;
+			#clock-cells = <1>;
+			clocks = <&pmd3clk 0>;
 		};
 		xgene_L2_0: l2-cache-0 {
 			compatible = "cache";
@@ -221,6 +237,46 @@
 				#clock-cells = <1>;
 				clock-frequency = <100000000>;
 				clock-output-names = "refclk";
+			};
+
+			pmdpll: pmdpll@170000f0 {
+				compatible = "apm,xgene-pcppll-v2-clock";
+				#clock-cells = <1>;
+				clocks = <&refclk 0>;
+				reg = <0x0 0x170000f0 0x0 0x10>;
+				clock-output-names = "pmdpll";
+			};
+
+			pmd0clk: pmd0clk@7e200200 {
+				compatible = "apm,xgene-pmd-clock";
+				#clock-cells = <1>;
+				clocks = <&pmdpll 0>;
+				reg = <0x0 0x7e200200 0x0 0x10>;
+				clock-output-names = "pmd0clk";
+			};
+
+			pmd1clk: pmd1clk@7e200210 {
+				compatible = "apm,xgene-pmd-clock";
+				#clock-cells = <1>;
+				clocks = <&pmdpll 0>;
+				reg = <0x0 0x7e200210 0x0 0x10>;
+				clock-output-names = "pmd1clk";
+			};
+
+			pmd2clk: pmd2clk@7e200220 {
+				compatible = "apm,xgene-pmd-clock";
+				#clock-cells = <1>;
+				clocks = <&pmdpll 0>;
+				reg = <0x0 0x7e200220 0x0 0x10>;
+				clock-output-names = "pmd2clk";
+			};
+
+			pmd3clk: pmd3clk@7e200230 {
+				compatible = "apm,xgene-pmd-clock";
+				#clock-cells = <1>;
+				clocks = <&pmdpll 0>;
+				reg = <0x0 0x7e200230 0x0 0x10>;
+				clock-output-names = "pmd3clk";
 			};
 
 			socpll: socpll@17000120 {
