@@ -45,7 +45,7 @@ static DEFINE_MUTEX(gpd_list_lock);
  * and checks that the PM domain pointer is a real generic PM domain.
  * Any failure results in NULL being returned.
  */
-struct generic_pm_domain *pm_genpd_lookup_dev(struct device *dev)
+static struct generic_pm_domain *genpd_lookup_dev(struct device *dev)
 {
 	struct generic_pm_domain *genpd = NULL, *gpd;
 
@@ -1119,7 +1119,7 @@ int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 
 	dev_dbg(dev, "%s()\n", __func__);
 
-	if (!genpd || genpd != pm_genpd_lookup_dev(dev))
+	if (!genpd || genpd != genpd_lookup_dev(dev))
 		return -EINVAL;
 
 	/* The above validation also means we have existing domain_data. */
@@ -1466,7 +1466,7 @@ void of_genpd_del_provider(struct device_node *np)
 EXPORT_SYMBOL_GPL(of_genpd_del_provider);
 
 /**
- * of_genpd_get_from_provider() - Look-up PM domain
+ * genpd_get_from_provider() - Look-up PM domain
  * @genpdspec: OF phandle args to use for look-up
  *
  * Looks for a PM domain provider under the node specified by @genpdspec and if
@@ -1476,7 +1476,7 @@ EXPORT_SYMBOL_GPL(of_genpd_del_provider);
  * Returns a valid pointer to struct generic_pm_domain on success or ERR_PTR()
  * on failure.
  */
-struct generic_pm_domain *of_genpd_get_from_provider(
+static struct generic_pm_domain *genpd_get_from_provider(
 					struct of_phandle_args *genpdspec)
 {
 	struct generic_pm_domain *genpd = ERR_PTR(-ENOENT);
@@ -1499,7 +1499,6 @@ struct generic_pm_domain *of_genpd_get_from_provider(
 
 	return genpd;
 }
-EXPORT_SYMBOL_GPL(of_genpd_get_from_provider);
 
 /**
  * of_genpd_add_device() - Add a device to an I/O PM domain
@@ -1513,7 +1512,7 @@ int of_genpd_add_device(struct of_phandle_args *genpdspec, struct device *dev)
 {
 	struct generic_pm_domain *genpd;
 
-	genpd = of_genpd_get_from_provider(genpdspec);
+	genpd = genpd_get_from_provider(genpdspec);
 	if (IS_ERR(genpd))
 		return PTR_ERR(genpd);
 
@@ -1535,11 +1534,11 @@ int of_genpd_add_subdomain(struct of_phandle_args *parent_spec,
 {
 	struct generic_pm_domain *parent, *subdomain;
 
-	parent = of_genpd_get_from_provider(parent_spec);
+	parent = genpd_get_from_provider(parent_spec);
 	if (IS_ERR(parent))
 		return PTR_ERR(parent);
 
-	subdomain = of_genpd_get_from_provider(subdomain_spec);
+	subdomain = genpd_get_from_provider(subdomain_spec);
 	if (IS_ERR(subdomain))
 		return PTR_ERR(subdomain);
 
@@ -1561,7 +1560,7 @@ static void genpd_dev_pm_detach(struct device *dev, bool power_off)
 	unsigned int i;
 	int ret = 0;
 
-	pd = pm_genpd_lookup_dev(dev);
+	pd = genpd_lookup_dev(dev);
 	if (!pd)
 		return;
 
@@ -1642,7 +1641,7 @@ int genpd_dev_pm_attach(struct device *dev)
 			return -ENOENT;
 	}
 
-	pd = of_genpd_get_from_provider(&pd_args);
+	pd = genpd_get_from_provider(&pd_args);
 	of_node_put(pd_args.np);
 	if (IS_ERR(pd)) {
 		dev_dbg(dev, "%s() failed to find PM domain: %ld\n",
