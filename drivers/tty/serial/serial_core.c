@@ -1484,15 +1484,15 @@ static void uart_tty_port_shutdown(struct tty_port *port)
 	struct uart_state *state = container_of(port, struct uart_state, port);
 	struct uart_port *uport = uart_port_check(state);
 
-	spin_lock_irq(&uport->lock);
 	/*
 	 * At this point, we stop accepting input.  To do this, we
 	 * disable the receive line status interrupts.
 	 */
-	WARN(!uport, "detached port still initialized!\n");
+	if (WARN(!uport, "detached port still initialized!\n"))
+		return;
 
+	spin_lock_irq(&uport->lock);
 	uport->ops->stop_rx(uport);
-
 	spin_unlock_irq(&uport->lock);
 
 	uart_port_shutdown(port);
