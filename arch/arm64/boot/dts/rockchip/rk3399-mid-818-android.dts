@@ -236,6 +236,12 @@
 		rockchip,uboot-charge-on = <0>;
 		rockchip,android-charge-on = <1>;
 	};
+
+	vibrator {
+		compatible = "rk-vibrator-gpio";
+		vibrator-gpio = <&gpio4 30 GPIO_ACTIVE_LOW>;
+		status = "okay";
+	};
 };
 
 &dfi {
@@ -270,12 +276,6 @@
 		opp-hz = /bits/ 64 <666000000>;
 		opp-microvolt = <900000>;
 		opp-suspend;
-	};
-
-	vibrator {
-		compatible = "rk-vibrator-gpio";
-		vibrator-gpio = <&gpio4 30 GPIO_ACTIVE_LOW>;
-		status = "okay";
 	};
 };
 
