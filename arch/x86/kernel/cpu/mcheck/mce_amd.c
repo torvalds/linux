@@ -564,8 +564,12 @@ __log_error(unsigned int bank, bool deferred_err, bool threshold_err, u64 misc)
 	if (m.status & MCI_STATUS_ADDRV)
 		rdmsrl(msr_addr, m.addr);
 
-	if (mce_flags.smca && (m.status & MCI_STATUS_SYNDV))
-		rdmsrl(MSR_AMD64_SMCA_MCx_SYND(bank), m.synd);
+	if (mce_flags.smca) {
+		rdmsrl(MSR_AMD64_SMCA_MCx_IPID(bank), m.ipid);
+
+		if (m.status & MCI_STATUS_SYNDV)
+			rdmsrl(MSR_AMD64_SMCA_MCx_SYND(bank), m.synd);
+	}
 
 	mce_log(&m);
 

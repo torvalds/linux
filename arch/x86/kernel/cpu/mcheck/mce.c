@@ -583,8 +583,12 @@ static void mce_read_aux(struct mce *m, int i)
 		}
 	}
 
-	if (mce_flags.smca && (m->status & MCI_STATUS_SYNDV))
-		m->synd = mce_rdmsrl(MSR_AMD64_SMCA_MCx_SYND(i));
+	if (mce_flags.smca) {
+		m->ipid = mce_rdmsrl(MSR_AMD64_SMCA_MCx_IPID(i));
+
+		if (m->status & MCI_STATUS_SYNDV)
+			m->synd = mce_rdmsrl(MSR_AMD64_SMCA_MCx_SYND(i));
+	}
 }
 
 static bool memory_error(struct mce *m)
