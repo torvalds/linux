@@ -1885,9 +1885,9 @@ static int open_tx(struct atm_vcc *vcc)
                 if ((ret = ia_cbr_setup (iadev, vcc)) < 0) {     
                     return ret;
                 }
-       } 
-	else  
-           printk("iadev:  Non UBR, ABR and CBR traffic not supportedn"); 
+	} else {
+		printk("iadev:  Non UBR, ABR and CBR traffic not supported\n");
+	}
         
         iadev->testTable[vcc->vci]->vc_status |= VC_ACTIVE;
 	IF_EVENT(printk("ia open_tx returning \n");)  
