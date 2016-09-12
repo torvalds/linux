@@ -859,6 +859,9 @@ static void decode_smca_errors(struct mce *m)
 	if (m->bank >= ARRAY_SIZE(smca_banks))
 		return;
 
+	if (boot_cpu_data.x86 >= 0x17 && m->bank == 4)
+		pr_emerg(HW_ERR "Bank 4 is reserved on Fam17h.\n");
+
 	type = smca_banks[m->bank].type;
 	if (!type)
 		return;
