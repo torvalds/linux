@@ -11,6 +11,14 @@ Required properties:
 
 Example:
 
+	hall_sensor: hall-mh248 {
+		compatible = "hall-mh248";
+		pinctrl-names = "default";
+		pinctrl-0 = <&mh248_irq_gpio>;
+		irq-gpio = <&gpio1 2 IRQ_TYPE_EDGE_RISING>;
+		hall-active = <1>;
+		status = "okay";
+	};
   	sensor@1d {
 		compatible = "gs_mma8452";
 		reg = <0x1d>;
