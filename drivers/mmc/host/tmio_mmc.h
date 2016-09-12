@@ -245,6 +245,12 @@ static inline u32 sd_ctrl_read16_and_16_as_32(struct tmio_mmc_host *host, int ad
 	       readw(host->ctl + ((addr + 2) << host->bus_shift)) << 16;
 }
 
+static inline void sd_ctrl_read32_rep(struct tmio_mmc_host *host, int addr,
+		u32 *buf, int count)
+{
+	readsl(host->ctl + (addr << host->bus_shift), buf, count);
+}
+
 static inline void sd_ctrl_write16(struct tmio_mmc_host *host, int addr, u16 val)
 {
 	/* If there is a hook and it returns non-zero then there
@@ -265,6 +271,12 @@ static inline void sd_ctrl_write32_as_16_and_16(struct tmio_mmc_host *host, int 
 {
 	writew(val & 0xffff, host->ctl + (addr << host->bus_shift));
 	writew(val >> 16, host->ctl + ((addr + 2) << host->bus_shift));
+}
+
+static inline void sd_ctrl_write32_rep(struct tmio_mmc_host *host, int addr,
+		const u32 *buf, int count)
+{
+	writesl(host->ctl + (addr << host->bus_shift), buf, count);
 }
 
 #endif
