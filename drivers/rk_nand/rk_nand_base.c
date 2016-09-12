@@ -17,6 +17,7 @@
 #include <asm/cacheflush.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/uaccess.h>
 #ifdef CONFIG_OF
 #include <linux/of.h>
 #endif
@@ -128,6 +129,18 @@ int rknand_get_boot_media(void)
 	return rknand_boot_media;
 }
 EXPORT_SYMBOL(rknand_get_boot_media);
+
+unsigned long rk_copy_from_user(void *to, const void __user *from,
+				unsigned long n)
+{
+	return copy_from_user(to, from, n);
+}
+
+unsigned long rk_copy_to_user(void __user *to, const void *from,
+			      unsigned long n)
+{
+	return copy_to_user(to, from, n);
+}
 
 int rk_nand_schedule_enable_config(int en)
 {
