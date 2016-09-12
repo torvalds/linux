@@ -59,7 +59,7 @@
  * WQ_TYPE_INORDER is needed to support legacy submission via GuC, which
  * represents in-order queue. The kernel driver packs ring tail pointer and an
  * ELSP context descriptor dword into Work Item.
- * See guc_add_workqueue_item()
+ * See guc_wq_item_append()
  *
  */
 
@@ -288,7 +288,7 @@ static uint32_t select_doorbell_cacheline(struct intel_guc *guc)
 /*
  * Initialise the process descriptor shared with the GuC firmware.
  */
-static void guc_init_proc_desc(struct intel_guc *guc,
+static void guc_proc_desc_init(struct intel_guc *guc,
 			       struct i915_guc_client *client)
 {
 	struct guc_process_desc *desc;
@@ -320,7 +320,7 @@ static void guc_init_proc_desc(struct intel_guc *guc,
  * write queue, etc).
  */
 
-static void guc_init_ctx_desc(struct intel_guc *guc,
+static void guc_ctx_desc_init(struct intel_guc *guc,
 			      struct i915_guc_client *client)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
@@ -399,7 +399,7 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 			     sizeof(desc) * client->ctx_index);
 }
 
-static void guc_fini_ctx_desc(struct intel_guc *guc,
+static void guc_ctx_desc_fini(struct intel_guc *guc,
 			      struct i915_guc_client *client)
 {
 	struct guc_context_desc desc;
@@ -413,7 +413,7 @@ static void guc_fini_ctx_desc(struct intel_guc *guc,
 }
 
 /**
- * i915_guc_wq_check_space() - check that the GuC can accept a request
+ * i915_guc_wq_reserve() - reserve space in the GuC's workqueue
  * @request:	request associated with the commands
  *
  * Return:	0 if space is available
@@ -421,14 +421,14 @@ static void guc_fini_ctx_desc(struct intel_guc *guc,
  *
  * This function must be called (and must return 0) before a request
  * is submitted to the GuC via i915_guc_submit() below. Once a result
- * of 0 has been returned, it remains valid until (but only until)
- * the next call to submit().
+ * of 0 has been returned, it must be balanced by a corresponding
+ * call to submit().
  *
- * This precheck allows the caller to determine in advance that space
+ * Reservation allows the caller to determine in advance that space
  * will be available for the next submission before committing resources
  * to it, and helps avoid late failures with complicated recovery paths.
  */
-int i915_guc_wq_check_space(struct drm_i915_gem_request *request)
+int i915_guc_wq_reserve(struct drm_i915_gem_request *request)
 {
 	const size_t wqi_size = sizeof(struct guc_wq_item);
 	struct i915_guc_client *gc = request->i915->guc.execbuf_client;
@@ -451,8 +451,9 @@ int i915_guc_wq_check_space(struct drm_i915_gem_request *request)
 	return ret;
 }
 
-static void guc_add_workqueue_item(struct i915_guc_client *gc,
-				   struct drm_i915_gem_request *rq)
+/* Construct a Work Item and append it to the GuC's Work Queue */
+static void guc_wq_item_append(struct i915_guc_client *gc,
+			       struct drm_i915_gem_request *rq)
 {
 	/* wqi_len is in DWords, and does not include the one-word header */
 	const size_t wqi_size = sizeof(struct guc_wq_item);
@@ -465,7 +466,7 @@ static void guc_add_workqueue_item(struct i915_guc_client *gc,
 
 	desc = gc->client_base + gc->proc_desc_offset;
 
-	/* Free space is guaranteed, see i915_guc_wq_check_space() above */
+	/* Free space is guaranteed, see i915_guc_wq_reserve() above */
 	freespace = CIRC_SPACE(gc->wq_tail, desc->head, gc->wq_size);
 	GEM_BUG_ON(freespace < wqi_size);
 
@@ -575,14 +576,13 @@ static int guc_ring_doorbell(struct i915_guc_client *gc)
  * Return:	0 on success, otherwise an errno.
  * 		(Note: nonzero really shouldn't happen!)
  *
- * The caller must have already called i915_guc_wq_check_space() above
- * with a result of 0 (success) since the last request submission. This
- * guarantees that there is space in the work queue for the new request,
- * so enqueuing the item cannot fail.
+ * The caller must have already called i915_guc_wq_reserve() above with
+ * a result of 0 (success), guaranteeing that there is space in the work
+ * queue for the new request, so enqueuing the item cannot fail.
  *
  * Bad Things Will Happen if the caller violates this protocol e.g. calls
- * submit() when check() says there's no space, or calls submit() multiple
- * times with no intervening check().
+ * submit() when _reserve() says there's no space, or calls _submit()
+ * a different number of times from (successful) calls to _reserve().
  *
  * The only error here arises if the doorbell hardware isn't functioning
  * as expected, which really shouln't happen.
@@ -595,7 +595,7 @@ static void i915_guc_submit(struct drm_i915_gem_request *rq)
 	int b_ret;
 
 	spin_lock(&client->wq_lock);
-	guc_add_workqueue_item(client, rq);
+	guc_wq_item_append(client, rq);
 	b_ret = guc_ring_doorbell(client);
 
 	client->submissions[engine_id] += 1;
@@ -686,7 +686,7 @@ guc_client_free(struct drm_i915_private *dev_priv,
 	i915_vma_unpin_and_release(&client->vma);
 
 	if (client->ctx_index != GUC_INVALID_CTX_ID) {
-		guc_fini_ctx_desc(guc, client);
+		guc_ctx_desc_fini(guc, client);
 		ida_simple_remove(&guc->ctx_ids, client->ctx_index);
 	}
 
@@ -818,8 +818,8 @@ guc_client_alloc(struct drm_i915_private *dev_priv,
 	else
 		client->proc_desc_offset = (GUC_DB_SIZE / 2);
 
-	guc_init_proc_desc(guc, client);
-	guc_init_ctx_desc(guc, client);
+	guc_proc_desc_init(guc, client);
+	guc_ctx_desc_init(guc, client);
 	if (guc_init_doorbell(guc, client, db_id))
 		goto err;
 
@@ -835,7 +835,7 @@ err:
 	return NULL;
 }
 
-static void guc_create_log(struct intel_guc *guc)
+static void guc_log_create(struct intel_guc *guc)
 {
 	struct i915_vma *vma;
 	unsigned long offset;
@@ -875,7 +875,7 @@ static void guc_create_log(struct intel_guc *guc)
 	guc->log_flags = (offset << GUC_LOG_BUF_ADDR_SHIFT) | flags;
 }
 
-static void init_guc_policies(struct guc_policies *policies)
+static void guc_policies_init(struct guc_policies *policies)
 {
 	struct guc_policy *policy;
 	u32 p, i;
@@ -897,7 +897,7 @@ static void init_guc_policies(struct guc_policies *policies)
 	policies->is_valid = 1;
 }
 
-static void guc_create_ads(struct intel_guc *guc)
+static void guc_addon_create(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	struct i915_vma *vma;
@@ -940,7 +940,7 @@ static void guc_create_ads(struct intel_guc *guc)
 
 	/* GuC scheduling policies */
 	policies = (void *)ads + sizeof(struct guc_ads);
-	init_guc_policies(policies);
+	guc_policies_init(policies);
 
 	ads->scheduler_policies =
 		i915_ggtt_offset(vma) + sizeof(struct guc_ads);
@@ -971,9 +971,11 @@ static void guc_create_ads(struct intel_guc *guc)
  */
 int i915_guc_submission_init(struct drm_i915_private *dev_priv)
 {
+	const size_t ctxsize = sizeof(struct guc_context_desc);
+	const size_t poolsize = GUC_MAX_GPU_CONTEXTS * ctxsize;
+	const size_t gemsize = round_up(poolsize, PAGE_SIZE);
 	struct intel_guc *guc = &dev_priv->guc;
 	struct i915_vma *vma;
-	u32 size;
 
 	/* Wipe bitmap & delete client in case of reinitialisation */
 	bitmap_clear(guc->doorbell_bitmap, 0, GUC_MAX_DOORBELLS);
@@ -985,15 +987,14 @@ int i915_guc_submission_init(struct drm_i915_private *dev_priv)
 	if (guc->ctx_pool_vma)
 		return 0; /* already allocated */
 
-	size = PAGE_ALIGN(GUC_MAX_GPU_CONTEXTS*sizeof(struct guc_context_desc));
-	vma = guc_allocate_vma(guc, size);
+	vma = guc_allocate_vma(guc, gemsize);
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
 	guc->ctx_pool_vma = vma;
 	ida_init(&guc->ctx_ids);
-	guc_create_log(guc);
-	guc_create_ads(guc);
+	guc_log_create(guc);
+	guc_addon_create(guc);
 
 	return 0;
 }
