@@ -3,7 +3,6 @@
 
 #include <linux/device.h>
 #include <linux/types.h>
-#include <linux/module.h>
 #include <linux/irq.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
@@ -16,6 +15,7 @@ struct of_phandle_args;
 struct device_node;
 struct seq_file;
 struct gpio_device;
+struct module;
 
 #ifdef CONFIG_GPIOLIB
 
