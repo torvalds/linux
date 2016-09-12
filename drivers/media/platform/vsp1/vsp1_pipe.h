@@ -79,6 +79,7 @@ enum vsp1_pipeline_state {
  * @dl: display list associated with the pipeline
  * @div_size: The maximum allowed partition size for the pipeline
  * @partitions: The number of partitions used to process one frame
+ * @current_partition: The partition number currently being configured
  */
 struct vsp1_pipeline {
 	struct media_pipeline pipe;
@@ -109,6 +110,8 @@ struct vsp1_pipeline {
 
 	unsigned int div_size;
 	unsigned int partitions;
+	struct v4l2_rect partition;
+	unsigned int current_partition;
 };
 
 void vsp1_pipeline_reset(struct vsp1_pipeline *pipe);

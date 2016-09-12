@@ -72,8 +72,8 @@ static void rpf_configure(struct vsp1_entity *entity,
 	}
 
 	if (params == VSP1_ENTITY_PARAMS_PARTITION) {
-		const struct v4l2_rect *crop;
 		unsigned int offsets[2];
+		struct v4l2_rect crop;
 
 		/* Source size and crop offsets.
 		 *
@@ -82,21 +82,47 @@ static void rpf_configure(struct vsp1_entity *entity,
 		 * offsets are needed, as planes 2 and 3 always have identical
 		 * strides.
 		 */
-		crop = vsp1_rwpf_get_crop(rpf, rpf->entity.config);
+		crop = *vsp1_rwpf_get_crop(rpf, rpf->entity.config);
+
+		/* Partition Algorithm Control
+		 *
+		 * The partition algorithm can split this frame into multiple
+		 * slices. We must scale our partition window based on the pipe
+		 * configuration to match the destination partition window.
+		 * To achieve this, we adjust our crop to provide a 'sub-crop'
+		 * matching the expected partition window. Only 'left' and
+		 * 'width' need to be adjusted.
+		 */
+		if (pipe->partitions > 1) {
+			const struct v4l2_mbus_framefmt *output;
+			struct vsp1_entity *wpf = &pipe->output->entity;
+			unsigned int input_width = crop.width;
+
+			/* Scale the partition window based on the configuration
+			 * of the pipeline.
+			 */
+			output = vsp1_entity_get_pad_format(wpf, wpf->config,
+							    RWPF_PAD_SOURCE);
+
+			crop.width = pipe->partition.width * input_width
+				   / output->width;
+			crop.left += pipe->partition.left * input_width
+				   / output->width;
+		}
 
 		vsp1_rpf_write(rpf, dl, VI6_RPF_SRC_BSIZE,
-			       (crop->width << VI6_RPF_SRC_BSIZE_BHSIZE_SHIFT) |
-			       (crop->height << VI6_RPF_SRC_BSIZE_BVSIZE_SHIFT));
+			       (crop.width << VI6_RPF_SRC_BSIZE_BHSIZE_SHIFT) |
+			       (crop.height << VI6_RPF_SRC_BSIZE_BVSIZE_SHIFT));
 		vsp1_rpf_write(rpf, dl, VI6_RPF_SRC_ESIZE,
-			       (crop->width << VI6_RPF_SRC_ESIZE_EHSIZE_SHIFT) |
-			       (crop->height << VI6_RPF_SRC_ESIZE_EVSIZE_SHIFT));
+			       (crop.width << VI6_RPF_SRC_ESIZE_EHSIZE_SHIFT) |
+			       (crop.height << VI6_RPF_SRC_ESIZE_EVSIZE_SHIFT));
 
-		offsets[0] = crop->top * format->plane_fmt[0].bytesperline
-			   + crop->left * fmtinfo->bpp[0] / 8;
+		offsets[0] = crop.top * format->plane_fmt[0].bytesperline
+			   + crop.left * fmtinfo->bpp[0] / 8;
 
 		if (format->num_planes > 1)
-			offsets[1] = crop->top * format->plane_fmt[1].bytesperline
-				   + crop->left / fmtinfo->hsub
+			offsets[1] = crop.top * format->plane_fmt[1].bytesperline
+				   + crop.left / fmtinfo->hsub
 				   * fmtinfo->bpp[1] / 8;
 		else
 			offsets[1] = 0;

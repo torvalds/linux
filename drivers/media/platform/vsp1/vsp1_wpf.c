@@ -224,6 +224,9 @@ static void wpf_configure(struct vsp1_entity *entity,
 		/* Cropping. The partition algorithm can split the image into
 		 * multiple slices.
 		 */
+		if (pipe->partitions > 1)
+			width = pipe->partition.width;
+
 		vsp1_wpf_write(wpf, dl, VI6_WPF_HSZCLIP, VI6_WPF_SZCLIP_EN |
 			       (0 << VI6_WPF_SZCLIP_OFST_SHIFT) |
 			       (width << VI6_WPF_SZCLIP_SIZE_SHIFT));
@@ -237,10 +240,31 @@ static void wpf_configure(struct vsp1_entity *entity,
 		/* Update the memory offsets based on flipping configuration.
 		 * The destination addresses point to the locations where the
 		 * VSP starts writing to memory, which can be different corners
-		 * of the image depending on vertical flipping. Horizontal
-		 * flipping is handled through a line buffer and doesn't modify
-		 * the start address.
+		 * of the image depending on vertical flipping.
 		 */
+		if (pipe->partitions > 1) {
+			const struct vsp1_format_info *fmtinfo = wpf->fmtinfo;
+
+			/* Horizontal flipping is handled through a line buffer
+			 * and doesn't modify the start address, but still needs
+			 * to be handled when image partitioning is in effect to
+			 * order the partitions correctly.
+			 */
+			if (flip & BIT(WPF_CTRL_HFLIP))
+				offset = format->width - pipe->partition.left
+					- pipe->partition.width;
+			else
+				offset = pipe->partition.left;
+
+			mem.addr[0] += offset * fmtinfo->bpp[0] / 8;
+			if (format->num_planes > 1) {
+				mem.addr[1] += offset / fmtinfo->hsub
+					     * fmtinfo->bpp[1] / 8;
+				mem.addr[2] += offset / fmtinfo->hsub
+					     * fmtinfo->bpp[2] / 8;
+			}
+		}
+
 		if (flip & BIT(WPF_CTRL_VFLIP)) {
 			mem.addr[0] += (format->height - 1)
 				     * format->plane_fmt[0].bytesperline;

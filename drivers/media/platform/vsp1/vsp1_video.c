@@ -205,6 +205,74 @@ static void vsp1_video_pipeline_setup_partitions(struct vsp1_pipeline *pipe)
 	pipe->partitions = DIV_ROUND_UP(format->width, div_size);
 }
 
+/*
+ * vsp1_video_partition - Calculate the active partition output window
+ *
+ * @div_size: pre-determined maximum partition division size
+ * @index: partition index
+ *
+ * Returns a v4l2_rect describing the partition window.
+ */
+static struct v4l2_rect vsp1_video_partition(struct vsp1_pipeline *pipe,
+					     unsigned int div_size,
+					     unsigned int index)
+{
+	const struct v4l2_mbus_framefmt *format;
+	struct v4l2_rect partition;
+	unsigned int modulus;
+
+	format = vsp1_entity_get_pad_format(&pipe->output->entity,
+					    pipe->output->entity.config,
+					    RWPF_PAD_SOURCE);
+
+	/* A single partition simply processes the output size in full. */
+	if (pipe->partitions <= 1) {
+		partition.left = 0;
+		partition.top = 0;
+		partition.width = format->width;
+		partition.height = format->height;
+		return partition;
+	}
+
+	/* Initialise the partition with sane starting conditions. */
+	partition.left = index * div_size;
+	partition.top = 0;
+	partition.width = div_size;
+	partition.height = format->height;
+
+	modulus = format->width % div_size;
+
+	/* We need to prevent the last partition from being smaller than the
+	 * *minimum* width of the hardware capabilities.
+	 *
+	 * If the modulus is less than half of the partition size,
+	 * the penultimate partition is reduced to half, which is added
+	 * to the final partition: |1234|1234|1234|12|341|
+	 * to prevents this:       |1234|1234|1234|1234|1|.
+	 */
+	if (modulus) {
+		/* pipe->partitions is 1 based, whilst index is a 0 based index.
+		 * Normalise this locally.
+		 */
+		unsigned int partitions = pipe->partitions - 1;
+
+		if (modulus < div_size / 2) {
+			if (index == partitions - 1) {
+				/* Halve the penultimate partition. */
+				partition.width = div_size / 2;
+			} else if (index == partitions) {
+				/* Increase the final partition. */
+				partition.width = (div_size / 2) + modulus;
+				partition.left -= div_size / 2;
+			}
+		} else if (index == partitions) {
+			partition.width = modulus;
+		}
+	}
+
+	return partition;
+}
+
 /* -----------------------------------------------------------------------------
  * Pipeline Management
  */
@@ -280,22 +348,69 @@ static void vsp1_video_frame_end(struct vsp1_pipeline *pipe,
 	pipe->buffers_ready |= 1 << video->pipe_index;
 }
 
+static void vsp1_video_pipeline_run_partition(struct vsp1_pipeline *pipe,
+					      struct vsp1_dl_list *dl)
+{
+	struct vsp1_entity *entity;
+
+	pipe->partition = vsp1_video_partition(pipe, pipe->div_size,
+					       pipe->current_partition);
+
+	list_for_each_entry(entity, &pipe->entities, list_pipe) {
+		if (entity->ops->configure)
+			entity->ops->configure(entity, pipe, dl,
+					       VSP1_ENTITY_PARAMS_PARTITION);
+	}
+}
+
 static void vsp1_video_pipeline_run(struct vsp1_pipeline *pipe)
 {
+	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
 	struct vsp1_entity *entity;
 
 	if (!pipe->dl)
 		pipe->dl = vsp1_dl_list_get(pipe->output->dlm);
 
+	/* Start with the runtime parameters as the configure operation can
+	 * compute/cache information needed when configuring partitions. This
+	 * is the case with flipping in the WPF.
+	 */
 	list_for_each_entry(entity, &pipe->entities, list_pipe) {
-		if (entity->ops->configure) {
+		if (entity->ops->configure)
 			entity->ops->configure(entity, pipe, pipe->dl,
 					       VSP1_ENTITY_PARAMS_RUNTIME);
-			entity->ops->configure(entity, pipe, pipe->dl,
-					       VSP1_ENTITY_PARAMS_PARTITION);
-		}
 	}
 
+	/* Run the first partition */
+	pipe->current_partition = 0;
+	vsp1_video_pipeline_run_partition(pipe, pipe->dl);
+
+	/* Process consecutive partitions as necessary */
+	for (pipe->current_partition = 1;
+	     pipe->current_partition < pipe->partitions;
+	     pipe->current_partition++) {
+		struct vsp1_dl_list *dl;
+
+		/* Partition configuration operations will utilise
+		 * the pipe->current_partition variable to determine
+		 * the work they should complete.
+		 */
+		dl = vsp1_dl_list_get(pipe->output->dlm);
+
+		/* An incomplete chain will still function, but output only
+		 * the partitions that had a dl available. The frame end
+		 * interrupt will be marked on the last dl in the chain.
+		 */
+		if (!dl) {
+			dev_err(vsp1->dev, "Failed to obtain a dl list. Frame will be incomplete\n");
+			break;
+		}
+
+		vsp1_video_pipeline_run_partition(pipe, dl);
+		vsp1_dl_list_add_chain(pipe->dl, dl);
+	}
+
+	/* Complete, and commit the head display list. */
 	vsp1_dl_list_commit(pipe->dl);
 	pipe->dl = NULL;
 

@@ -18,6 +18,7 @@
 
 #include "vsp1.h"
 #include "vsp1_dl.h"
+#include "vsp1_pipe.h"
 #include "vsp1_uds.h"
 
 #define UDS_MIN_SIZE				4U
@@ -270,6 +271,15 @@ static void uds_configure(struct vsp1_entity *entity,
 	unsigned int vscale;
 	bool multitap;
 
+	if (params == VSP1_ENTITY_PARAMS_PARTITION) {
+		const struct v4l2_rect *clip = &pipe->partition;
+
+		vsp1_uds_write(uds, dl, VI6_UDS_CLIP_SIZE,
+			       (clip->width << VI6_UDS_CLIP_SIZE_HSIZE_SHIFT) |
+			       (clip->height << VI6_UDS_CLIP_SIZE_VSIZE_SHIFT));
+		return;
+	}
+
 	if (params != VSP1_ENTITY_PARAMS_INIT)
 		return;
 
@@ -302,13 +312,10 @@ static void uds_configure(struct vsp1_entity *entity,
 		       (uds_passband_width(vscale)
 				<< VI6_UDS_PASS_BWIDTH_V_SHIFT));
 
-	/* Set the scaling ratios and the output size. */
+	/* Set the scaling ratios. */
 	vsp1_uds_write(uds, dl, VI6_UDS_SCALE,
 		       (hscale << VI6_UDS_SCALE_HFRAC_SHIFT) |
 		       (vscale << VI6_UDS_SCALE_VFRAC_SHIFT));
-	vsp1_uds_write(uds, dl, VI6_UDS_CLIP_SIZE,
-		       (output->width << VI6_UDS_CLIP_SIZE_HSIZE_SHIFT) |
-		       (output->height << VI6_UDS_CLIP_SIZE_VSIZE_SHIFT));
 }
 
 static unsigned int uds_max_width(struct vsp1_entity *entity,
