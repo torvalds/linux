@@ -68,6 +68,7 @@ static int inj_##reg##_set(void *data, u64 val)				\
 MCE_INJECT_SET(status);
 MCE_INJECT_SET(misc);
 MCE_INJECT_SET(addr);
+MCE_INJECT_SET(synd);
 
 #define MCE_INJECT_GET(reg)						\
 static int inj_##reg##_get(void *data, u64 *val)			\
@@ -81,10 +82,12 @@ static int inj_##reg##_get(void *data, u64 *val)			\
 MCE_INJECT_GET(status);
 MCE_INJECT_GET(misc);
 MCE_INJECT_GET(addr);
+MCE_INJECT_GET(synd);
 
 DEFINE_SIMPLE_ATTRIBUTE(status_fops, inj_status_get, inj_status_set, "%llx\n");
 DEFINE_SIMPLE_ATTRIBUTE(misc_fops, inj_misc_get, inj_misc_set, "%llx\n");
 DEFINE_SIMPLE_ATTRIBUTE(addr_fops, inj_addr_get, inj_addr_set, "%llx\n");
+DEFINE_SIMPLE_ATTRIBUTE(synd_fops, inj_synd_get, inj_synd_set, "%llx\n");
 
 /*
  * Caller needs to be make sure this cpu doesn't disappear
@@ -258,6 +261,7 @@ static void prepare_msrs(void *info)
 		}
 
 		wrmsrl(MSR_AMD64_SMCA_MCx_MISC(b), i_mce.misc);
+		wrmsrl(MSR_AMD64_SMCA_MCx_SYND(b), i_mce.synd);
 	} else {
 		wrmsrl(MSR_IA32_MCx_STATUS(b), i_mce.status);
 		wrmsrl(MSR_IA32_MCx_ADDR(b), i_mce.addr);
@@ -274,6 +278,9 @@ static void do_inject(void)
 
 	if (i_mce.misc)
 		i_mce.status |= MCI_STATUS_MISCV;
+
+	if (i_mce.synd)
+		i_mce.status |= MCI_STATUS_SYNDV;
 
 	if (inj_type == SW_INJ) {
 		mce_inject_log(&i_mce);
@@ -371,6 +378,9 @@ static const char readme_msg[] =
 "\t used for error thresholding purposes and its validity is indicated by\n"
 "\t MCi_STATUS[MiscV].\n"
 "\n"
+"synd:\t Set MCi_SYND: provide syndrome info about the error. Only valid on\n"
+"\t Scalable MCA systems, and its validity is indicated by MCi_STATUS[SyndV].\n"
+"\n"
 "addr:\t Error address value to be written to MCi_ADDR. Log address information\n"
 "\t associated with the error.\n"
 "\n"
@@ -420,6 +430,7 @@ static struct dfs_node {
 	{ .name = "status",	.fops = &status_fops, .perm = S_IRUSR | S_IWUSR },
 	{ .name = "misc",	.fops = &misc_fops,   .perm = S_IRUSR | S_IWUSR },
 	{ .name = "addr",	.fops = &addr_fops,   .perm = S_IRUSR | S_IWUSR },
+	{ .name = "synd",	.fops = &synd_fops,   .perm = S_IRUSR | S_IWUSR },
 	{ .name = "bank",	.fops = &bank_fops,   .perm = S_IRUSR | S_IWUSR },
 	{ .name = "flags",	.fops = &flags_fops,  .perm = S_IRUSR | S_IWUSR },
 	{ .name = "cpu",	.fops = &extcpu_fops, .perm = S_IRUSR | S_IWUSR },
