@@ -343,12 +343,12 @@ static int nfnl_acct_del(struct net *net, struct sock *nfnl,
 			 struct sk_buff *skb, const struct nlmsghdr *nlh,
 			 const struct nlattr * const tb[])
 {
-	char *acct_name;
-	struct nf_acct *cur;
+	struct nf_acct *cur, *tmp;
 	int ret = -ENOENT;
+	char *acct_name;
 
 	if (!tb[NFACCT_NAME]) {
-		list_for_each_entry(cur, &net->nfnl_acct_list, head)
+		list_for_each_entry_safe(cur, tmp, &net->nfnl_acct_list, head)
 			nfnl_acct_try_del(cur);
 
 		return 0;
