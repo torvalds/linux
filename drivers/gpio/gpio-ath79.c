@@ -15,6 +15,7 @@
 #include <linux/platform_data/gpio-ath79.h>
 #include <linux/of_device.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/irq.h>
 
 #define AR71XX_GPIO_REG_OE		0x00
