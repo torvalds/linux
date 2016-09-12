@@ -1937,6 +1937,9 @@ static void atmel_shutdown(struct uart_port *port)
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 
+	/* Disable modem control lines interrupts */
+	atmel_disable_ms(port);
+
 	/* Disable interrupts at device level */
 	atmel_uart_writel(port, ATMEL_US_IDR, -1);
 
@@ -1986,8 +1989,6 @@ static void atmel_shutdown(struct uart_port *port)
 	 * Free the interrupts
 	 */
 	free_irq(port->irq, port);
-
-	atmel_port->ms_irq_enabled = false;
 
 	atmel_flush_buffer(port);
 }
