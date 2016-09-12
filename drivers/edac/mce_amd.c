@@ -984,6 +984,8 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 		if (m->status & MCI_STATUS_SYNDV)
 			pr_cont(", Syndrome: 0x%016llx", m->synd);
 
+		pr_cont(", IPID: 0x%016llx", m->ipid);
+
 		pr_cont("\n");
 
 		decode_smca_errors(m);
