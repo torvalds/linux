@@ -551,6 +551,114 @@ subsys_initcall(topology_init);
 
 void cpu_reset(void)
 {
+#if XCHAL_HAVE_PTP_MMU
+	local_irq_disable();
+	/*
+	 * We have full MMU: all autoload ways, ways 7, 8 and 9 of DTLB must
+	 * be flushed.
+	 * Way 4 is not currently used by linux.
+	 * Ways 5 and 6 shall not be touched on MMUv2 as they are hardwired.
+	 * Way 5 shall be flushed and way 6 shall be set to identity mapping
+	 * on MMUv3.
+	 */
+	local_flush_tlb_all();
+	invalidate_page_directory();
+#if XCHAL_HAVE_SPANNING_WAY
+	/* MMU v3 */
+	{
+		unsigned long vaddr = (unsigned long)cpu_reset;
+		unsigned long paddr = __pa(vaddr);
+		unsigned long tmpaddr = vaddr + SZ_512M;
+		unsigned long tmp0, tmp1, tmp2, tmp3;
+
+		/*
+		 * Find a place for the temporary mapping. It must not be
+		 * in the same 512MB region with vaddr or paddr, otherwise
+		 * there may be multihit exception either on entry to the
+		 * temporary mapping, or on entry to the identity mapping.
+		 * (512MB is the biggest page size supported by TLB.)
+		 */
+		while (((tmpaddr ^ paddr) & -SZ_512M) == 0)
+			tmpaddr += SZ_512M;
+
+		/* Invalidate mapping in the selected temporary area */
+		if (itlb_probe(tmpaddr) & 0x8)
+			invalidate_itlb_entry(itlb_probe(tmpaddr));
+		if (itlb_probe(tmpaddr + PAGE_SIZE) & 0x8)
+			invalidate_itlb_entry(itlb_probe(tmpaddr + PAGE_SIZE));
+
+		/*
+		 * Map two consecutive pages starting at the physical address
+		 * of this function to the temporary mapping area.
+		 */
+		write_itlb_entry(__pte((paddr & PAGE_MASK) |
+				       _PAGE_HW_VALID |
+				       _PAGE_HW_EXEC |
+				       _PAGE_CA_BYPASS),
+				 tmpaddr & PAGE_MASK);
+		write_itlb_entry(__pte(((paddr & PAGE_MASK) + PAGE_SIZE) |
+				       _PAGE_HW_VALID |
+				       _PAGE_HW_EXEC |
+				       _PAGE_CA_BYPASS),
+				 (tmpaddr & PAGE_MASK) + PAGE_SIZE);
+
+		/* Reinitialize TLB */
+		__asm__ __volatile__ ("movi	%0, 1f\n\t"
+				      "movi	%3, 2f\n\t"
+				      "add	%0, %0, %4\n\t"
+				      "add	%3, %3, %5\n\t"
+				      "jx	%0\n"
+				      /*
+				       * No literal, data or stack access
+				       * below this point
+				       */
+				      "1:\n\t"
+				      /* Initialize *tlbcfg */
+				      "movi	%0, 0\n\t"
+				      "wsr	%0, itlbcfg\n\t"
+				      "wsr	%0, dtlbcfg\n\t"
+				      /* Invalidate TLB way 5 */
+				      "movi	%0, 4\n\t"
+				      "movi	%1, 5\n"
+				      "1:\n\t"
+				      "iitlb	%1\n\t"
+				      "idtlb	%1\n\t"
+				      "add	%1, %1, %6\n\t"
+				      "addi	%0, %0, -1\n\t"
+				      "bnez	%0, 1b\n\t"
+				      /* Initialize TLB way 6 */
+				      "movi	%0, 7\n\t"
+				      "addi	%1, %9, 3\n\t"
+				      "addi	%2, %9, 6\n"
+				      "1:\n\t"
+				      "witlb	%1, %2\n\t"
+				      "wdtlb	%1, %2\n\t"
+				      "add	%1, %1, %7\n\t"
+				      "add	%2, %2, %7\n\t"
+				      "addi	%0, %0, -1\n\t"
+				      "bnez	%0, 1b\n\t"
+				      /* Jump to identity mapping */
+				      "jx	%3\n"
+				      "2:\n\t"
+				      /* Complete way 6 initialization */
+				      "witlb	%1, %2\n\t"
+				      "wdtlb	%1, %2\n\t"
+				      /* Invalidate temporary mapping */
+				      "sub	%0, %9, %7\n\t"
+				      "iitlb	%0\n\t"
+				      "add	%0, %0, %8\n\t"
+				      "iitlb	%0"
+				      : "=&a"(tmp0), "=&a"(tmp1), "=&a"(tmp2),
+					"=&a"(tmp3)
+				      : "a"(tmpaddr - vaddr),
+					"a"(paddr - vaddr),
+					"a"(SZ_128M), "a"(SZ_512M),
+					"a"(PAGE_SIZE),
+					"a"((tmpaddr + SZ_512M) & PAGE_MASK)
+				      : "memory");
+	}
+#endif
+#endif
 	__asm__ __volatile__ ("movi	a2, 0\n\t"
 			      "wsr	a2, icountlevel\n\t"
 			      "movi	a2, 0\n\t"
