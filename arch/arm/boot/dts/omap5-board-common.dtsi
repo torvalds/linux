@@ -332,7 +332,7 @@
 
 	wlcore_irq_pin: pinmux_wlcore_irq_pin {
 		pinctrl-single,pins = <
-			OMAP5_IOPAD(0x40, PIN_INPUT_PULLUP | MUX_MODE6)	/* llia_wakereqin.gpio1_wk14 */
+			OMAP5_IOPAD(0x40, PIN_INPUT | MUX_MODE6)	/* llia_wakereqin.gpio1_wk14 */
 		>;
 	};
 };
@@ -355,15 +355,17 @@
 	non-removable;
 	cap-power-off-card;
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc3_pins &wlcore_irq_pin>;
-	interrupts-extended = <&gic GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH
-			       &omap5_pmx_core 0x168>;
+	pinctrl-0 = <&mmc3_pins>;
+	interrupts-extended = <&wakeupgen GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH
+			       &omap5_pmx_core 0x16a>;
 
 	#address-cells = <1>;
 	#size-cells = <0>;
 	wlcore: wlcore@2 {
 		compatible = "ti,wl1271";
 		reg = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&wlcore_irq_pin>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <14 IRQ_TYPE_LEVEL_HIGH>;	/* gpio 14 */
 		ref-clock-frequency = <26000000>;

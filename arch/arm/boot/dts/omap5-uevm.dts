@@ -61,3 +61,7 @@
 		OMAP5_IOPAD(0x1be, PIN_OUTPUT | MUX_MODE6)	/* mcspi1_somi.gpio5_141 */
 	>;
 };
+
+&wlcore {
+	compatible = "ti,wl1837";
+};
