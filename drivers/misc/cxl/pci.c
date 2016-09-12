@@ -1530,11 +1530,11 @@ static void set_sl_ops(struct cxl *adapter, struct pci_dev *dev)
 {
 	if (dev->vendor == PCI_VENDOR_ID_MELLANOX && dev->device == 0x1013) {
 		/* Mellanox CX-4 */
-		dev_info(&adapter->dev, "Device uses an XSL\n");
+		dev_info(&dev->dev, "Device uses an XSL\n");
 		adapter->native->sl_ops = &xsl_ops;
 		adapter->min_pe = 1; /* Workaround for CX-4 hardware bug */
 	} else {
-		dev_info(&adapter->dev, "Device uses a PSL\n");
+		dev_info(&dev->dev, "Device uses a PSL\n");
 		adapter->native->sl_ops = &psl_ops;
 	}
 }
