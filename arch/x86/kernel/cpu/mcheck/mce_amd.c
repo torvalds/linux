@@ -869,7 +869,7 @@ static int threshold_create_bank(unsigned int cpu, unsigned int bank)
 		}
 	}
 
-	err = allocate_threshold_blocks(cpu, bank, 0, MSR_IA32_MCx_MISC(bank));
+	err = allocate_threshold_blocks(cpu, bank, 0, msr_ops.misc(bank));
 	if (!err)
 		goto out;
 
