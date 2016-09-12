@@ -293,7 +293,7 @@ static void deferred_error_interrupt_enable(struct cpuinfo_x86 *c)
 	wrmsr(MSR_CU_DEF_ERR, low, high);
 }
 
-static u32 get_block_address(u32 current_addr, u32 low, u32 high,
+static u32 get_block_address(unsigned int cpu, u32 current_addr, u32 low, u32 high,
 			     unsigned int bank, unsigned int block)
 {
 	u32 addr = 0, offset = 0;
@@ -309,13 +309,13 @@ static u32 get_block_address(u32 current_addr, u32 low, u32 high,
 			 */
 			u32 low, high;
 
-			if (rdmsr_safe(MSR_AMD64_SMCA_MCx_CONFIG(bank), &low, &high))
+			if (rdmsr_safe_on_cpu(cpu, MSR_AMD64_SMCA_MCx_CONFIG(bank), &low, &high))
 				return addr;
 
 			if (!(low & MCI_CONFIG_MCAX))
 				return addr;
 
-			if (!rdmsr_safe(MSR_AMD64_SMCA_MCx_MISC(bank), &low, &high) &&
+			if (!rdmsr_safe_on_cpu(cpu, MSR_AMD64_SMCA_MCx_MISC(bank), &low, &high) &&
 			    (low & MASK_BLKPTR_LO))
 				addr = MSR_AMD64_SMCA_MCx_MISCy(bank, block - 1);
 		}
@@ -421,12 +421,12 @@ out:
 void mce_amd_feature_init(struct cpuinfo_x86 *c)
 {
 	u32 low = 0, high = 0, address = 0;
-	unsigned int bank, block;
+	unsigned int bank, block, cpu = smp_processor_id();
 	int offset = -1;
 
 	for (bank = 0; bank < mca_cfg.banks; ++bank) {
 		for (block = 0; block < NR_BLOCKS; ++block) {
-			address = get_block_address(address, low, high, bank, block);
+			address = get_block_address(cpu, address, low, high, bank, block);
 			if (!address)
 				break;
 
@@ -544,15 +544,14 @@ static void amd_deferred_error_interrupt(void)
 static void amd_threshold_interrupt(void)
 {
 	u32 low = 0, high = 0, address = 0;
-	int cpu = smp_processor_id();
-	unsigned int bank, block;
+	unsigned int bank, block, cpu = smp_processor_id();
 
 	/* assume first bank caused it */
 	for (bank = 0; bank < mca_cfg.banks; ++bank) {
 		if (!(per_cpu(bank_map, cpu) & (1 << bank)))
 			continue;
 		for (block = 0; block < NR_BLOCKS; ++block) {
-			address = get_block_address(address, low, high, bank, block);
+			address = get_block_address(cpu, address, low, high, bank, block);
 			if (!address)
 				break;
 
@@ -774,7 +773,7 @@ static int allocate_threshold_blocks(unsigned int cpu, unsigned int bank,
 	if (err)
 		goto out_free;
 recurse:
-	address = get_block_address(address, low, high, bank, ++block);
+	address = get_block_address(cpu, address, low, high, bank, ++block);
 	if (!address)
 		return 0;
 
