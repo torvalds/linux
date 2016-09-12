@@ -1009,29 +1009,46 @@ EXPORT_SYMBOL(drm_atomic_helper_commit_modeset_enables);
  * drm_atomic_helper_wait_for_fences - wait for fences stashed in plane state
  * @dev: DRM device
  * @state: atomic state object with old state structures
+ * @pre_swap: if true, do an interruptible wait
  *
  * For implicit sync, driver should fish the exclusive fence out from the
  * incoming fb's and stash it in the drm_plane_state.  This is called after
  * drm_atomic_helper_swap_state() so it uses the current plane state (and
  * just uses the atomic state to find the changed planes)
+ *
+ * Returns zero if success or < 0 if fence_wait() fails.
  */
-void drm_atomic_helper_wait_for_fences(struct drm_device *dev,
-			    struct drm_atomic_state *state)
+int drm_atomic_helper_wait_for_fences(struct drm_device *dev,
+				      struct drm_atomic_state *state,
+				      bool pre_swap)
 {
 	struct drm_plane *plane;
 	struct drm_plane_state *plane_state;
-	int i;
+	int i, ret;
 
 	for_each_plane_in_state(state, plane, plane_state, i) {
-		if (!plane->state->fence)
+		if (!pre_swap)
+			plane_state = plane->state;
+
+		if (!plane_state->fence)
 			continue;
 
-		WARN_ON(!plane->state->fb);
+		WARN_ON(!plane_state->fb);
 
-		fence_wait(plane->state->fence, false);
-		fence_put(plane->state->fence);
-		plane->state->fence = NULL;
+		/*
+		 * If waiting for fences pre-swap (ie: nonblock), userspace can
+		 * still interrupt the operation. Instead of blocking until the
+		 * timer expires, make the wait interruptible.
+		 */
+		ret = fence_wait(plane_state->fence, pre_swap);
+		if (ret)
+			return ret;
+
+		fence_put(plane_state->fence);
+		plane_state->fence = NULL;
 	}
+
+	return 0;
 }
 EXPORT_SYMBOL(drm_atomic_helper_wait_for_fences);
 
@@ -1179,7 +1196,7 @@ static void commit_tail(struct drm_atomic_state *state)
 
 	funcs = dev->mode_config.helper_private;
 
-	drm_atomic_helper_wait_for_fences(dev, state);
+	drm_atomic_helper_wait_for_fences(dev, state, false);
 
 	drm_atomic_helper_wait_for_dependencies(state);
 
@@ -1237,6 +1254,12 @@ int drm_atomic_helper_commit(struct drm_device *dev,
 	ret = drm_atomic_helper_prepare_planes(dev, state);
 	if (ret)
 		return ret;
+
+	if (!nonblock) {
+		ret = drm_atomic_helper_wait_for_fences(dev, state, true);
+		if (ret)
+			return ret;
+	}
 
 	/*
 	 * This is the point of no return - everything below never fails except
