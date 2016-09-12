@@ -80,6 +80,7 @@ struct crb_priv {
 	struct crb_control_area __iomem *cca;
 	u8 __iomem *cmd;
 	u8 __iomem *rsp;
+	u32 cmd_size;
 };
 
 static SIMPLE_DEV_PM_OPS(crb_pm, tpm_pm_suspend, tpm_pm_resume);
@@ -146,11 +147,9 @@ static int crb_send(struct tpm_chip *chip, u8 *buf, size_t len)
 	 */
 	iowrite32(0, &priv->cca->cancel);
 
-	if (len > ioread32(&priv->cca->cmd_size)) {
-		dev_err(&chip->dev,
-			"invalid command count value %x %zx\n",
-			(unsigned int) len,
-			(size_t) ioread32(&priv->cca->cmd_size));
+	if (len > priv->cmd_size) {
+		dev_err(&chip->dev, "invalid command count value %zd %d\n",
+			len, priv->cmd_size);
 		return -E2BIG;
 	}
 
@@ -301,6 +300,7 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 		dev_err(dev, FW_BUG "overlapping command and response buffer sizes are not identical");
 		return -EINVAL;
 	}
+	priv->cmd_size = cmd_size;
 
 	priv->rsp = priv->cmd;
 	return 0;
