@@ -106,10 +106,12 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 		 */
 		relo_type = ELF32_R_TYPE(rel_entry[i].r_info);
 
-		if (likely(R_ARC_32_ME == relo_type))
+		if (likely(R_ARC_32_ME == relo_type))	/* ME ( S + A ) */
 			arc_write_me((unsigned short *)location, relocation);
-		else if (R_ARC_32 == relo_type)
+		else if (R_ARC_32 == relo_type)		/* ( S + A ) */
 			*((Elf32_Addr *) location) = relocation;
+		else if (R_ARC_32_PCREL == relo_type)	/* ( S + A ) - PDATA ) */
+			*((Elf32_Addr *) location) = relocation - location;
 		else
 			goto relo_err;
 
