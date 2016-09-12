@@ -941,15 +941,7 @@ static void d40_desc_load(struct d40_chan *d40c, struct d40_desc *d40d)
 
 static struct d40_desc *d40_first_active_get(struct d40_chan *d40c)
 {
-	struct d40_desc *d;
-
-	if (list_empty(&d40c->active))
-		return NULL;
-
-	d = list_first_entry(&d40c->active,
-			     struct d40_desc,
-			     node);
-	return d;
+	return list_first_entry_or_null(&d40c->active, struct d40_desc, node);
 }
 
 /* remove desc from current queue and add it to the pending_queue */
@@ -962,36 +954,18 @@ static void d40_desc_queue(struct d40_chan *d40c, struct d40_desc *desc)
 
 static struct d40_desc *d40_first_pending(struct d40_chan *d40c)
 {
-	struct d40_desc *d;
-
-	if (list_empty(&d40c->pending_queue))
-		return NULL;
-
-	d = list_first_entry(&d40c->pending_queue,
-			     struct d40_desc,
-			     node);
-	return d;
+	return list_first_entry_or_null(&d40c->pending_queue, struct d40_desc,
+					node);
 }
 
 static struct d40_desc *d40_first_queued(struct d40_chan *d40c)
 {
-	struct d40_desc *d;
-
-	if (list_empty(&d40c->queue))
-		return NULL;
-
-	d = list_first_entry(&d40c->queue,
-			     struct d40_desc,
-			     node);
-	return d;
+	return list_first_entry_or_null(&d40c->queue, struct d40_desc, node);
 }
 
 static struct d40_desc *d40_first_done(struct d40_chan *d40c)
 {
-	if (list_empty(&d40c->done))
-		return NULL;
-
-	return list_first_entry(&d40c->done, struct d40_desc, node);
+	return list_first_entry_or_null(&d40c->done, struct d40_desc, node);
 }
 
 static int d40_psize_2_burst_size(bool is_log, int psize)

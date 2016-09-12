@@ -1553,15 +1553,8 @@ coh901318_desc_submit(struct coh901318_chan *cohc, struct coh901318_desc *desc)
 static struct coh901318_desc *
 coh901318_first_active_get(struct coh901318_chan *cohc)
 {
-	struct coh901318_desc *d;
-
-	if (list_empty(&cohc->active))
-		return NULL;
-
-	d = list_first_entry(&cohc->active,
-			     struct coh901318_desc,
-			     node);
-	return d;
+	return list_first_entry_or_null(&cohc->active, struct coh901318_desc,
+					node);
 }
 
 static void
@@ -1579,15 +1572,8 @@ coh901318_desc_queue(struct coh901318_chan *cohc, struct coh901318_desc *desc)
 static struct coh901318_desc *
 coh901318_first_queued(struct coh901318_chan *cohc)
 {
-	struct coh901318_desc *d;
-
-	if (list_empty(&cohc->queue))
-		return NULL;
-
-	d = list_first_entry(&cohc->queue,
-			     struct coh901318_desc,
-			     node);
-	return d;
+	return list_first_entry_or_null(&cohc->queue, struct coh901318_desc,
+					node);
 }
 
 static inline u32 coh901318_get_bytes_in_lli(struct coh901318_lli *in_lli)

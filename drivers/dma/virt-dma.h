@@ -123,10 +123,8 @@ static inline void vchan_cyclic_callback(struct virt_dma_desc *vd)
  */
 static inline struct virt_dma_desc *vchan_next_desc(struct virt_dma_chan *vc)
 {
-	if (list_empty(&vc->desc_issued))
-		return NULL;
-
-	return list_first_entry(&vc->desc_issued, struct virt_dma_desc, node);
+	return list_first_entry_or_null(&vc->desc_issued,
+					struct virt_dma_desc, node);
 }
 
 /**

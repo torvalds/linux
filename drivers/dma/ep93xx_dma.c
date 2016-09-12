@@ -262,10 +262,8 @@ static void ep93xx_dma_set_active(struct ep93xx_dma_chan *edmac,
 static struct ep93xx_dma_desc *
 ep93xx_dma_get_active(struct ep93xx_dma_chan *edmac)
 {
-	if (list_empty(&edmac->active))
-		return NULL;
-
-	return list_first_entry(&edmac->active, struct ep93xx_dma_desc, node);
+	return list_first_entry_or_null(&edmac->active,
+					struct ep93xx_dma_desc, node);
 }
 
 /**
