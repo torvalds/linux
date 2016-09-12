@@ -307,18 +307,15 @@ struct vc4_exec_info {
 static inline struct vc4_exec_info *
 vc4_first_bin_job(struct vc4_dev *vc4)
 {
-	if (list_empty(&vc4->bin_job_list))
-		return NULL;
-	return list_first_entry(&vc4->bin_job_list, struct vc4_exec_info, head);
+	return list_first_entry_or_null(&vc4->bin_job_list,
+					struct vc4_exec_info, head);
 }
 
 static inline struct vc4_exec_info *
 vc4_first_render_job(struct vc4_dev *vc4)
 {
-	if (list_empty(&vc4->render_job_list))
-		return NULL;
-	return list_first_entry(&vc4->render_job_list,
-				struct vc4_exec_info, head);
+	return list_first_entry_or_null(&vc4->render_job_list,
+					struct vc4_exec_info, head);
 }
 
 static inline struct vc4_exec_info *
