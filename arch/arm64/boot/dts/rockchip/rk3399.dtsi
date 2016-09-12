@@ -118,7 +118,7 @@
 			#cooling-cells = <2>; /* min followed by max */
 			dynamic-power-coefficient = <100>;
 			clocks = <&cru ARMCLKL>;
-			cpu-idle-states = <&cpu_sleep>;
+			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
 			operating-points-v2 = <&cluster0_opp>;
 			sched-energy-costs = <&CPU_COST_A53 &CLUSTER_COST_A53>;
 		};
@@ -129,7 +129,7 @@
 			reg = <0x0 0x1>;
 			enable-method = "psci";
 			clocks = <&cru ARMCLKL>;
-			cpu-idle-states = <&cpu_sleep>;
+			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
 			operating-points-v2 = <&cluster0_opp>;
 			sched-energy-costs = <&CPU_COST_A53 &CLUSTER_COST_A53>;
 		};
@@ -140,7 +140,7 @@
 			reg = <0x0 0x2>;
 			enable-method = "psci";
 			clocks = <&cru ARMCLKL>;
-			cpu-idle-states = <&cpu_sleep>;
+			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
 			operating-points-v2 = <&cluster0_opp>;
 			sched-energy-costs = <&CPU_COST_A53 &CLUSTER_COST_A53>;
 		};
@@ -151,7 +151,7 @@
 			reg = <0x0 0x3>;
 			enable-method = "psci";
 			clocks = <&cru ARMCLKL>;
-			cpu-idle-states = <&cpu_sleep>;
+			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
 			operating-points-v2 = <&cluster0_opp>;
 			sched-energy-costs = <&CPU_COST_A53 &CLUSTER_COST_A53>;
 		};
@@ -164,7 +164,7 @@
 			#cooling-cells = <2>; /* min followed by max */
 			dynamic-power-coefficient = <436>;
 			clocks = <&cru ARMCLKB>;
-			cpu-idle-states = <&cpu_sleep>;
+			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
 			operating-points-v2 = <&cluster1_opp>;
 			sched-energy-costs = <&CPU_COST_A72 &CLUSTER_COST_A72>;
 		};
@@ -175,20 +175,30 @@
 			reg = <0x0 0x101>;
 			enable-method = "psci";
 			clocks = <&cru ARMCLKB>;
-			cpu-idle-states = <&cpu_sleep>;
+			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
 			operating-points-v2 = <&cluster1_opp>;
 			sched-energy-costs = <&CPU_COST_A72 &CLUSTER_COST_A72>;
 		};
 
 		idle-states {
 			entry-method = "psci";
-			cpu_sleep: cpu-sleep-0 {
+
+			CPU_SLEEP: cpu-sleep {
 				compatible = "arm,idle-state";
 				local-timer-stop;
 				arm,psci-suspend-param = <0x0010000>;
-				entry-latency-us = <350>;
-				exit-latency-us = <600>;
-				min-residency-us = <1150>;
+				entry-latency-us = <120>;
+				exit-latency-us = <250>;
+				min-residency-us = <900>;
+			};
+
+			CLUSTER_SLEEP: cluster-sleep {
+				compatible = "arm,idle-state";
+				local-timer-stop;
+				arm,psci-suspend-param = <0x1010000>;
+				entry-latency-us = <400>;
+				exit-latency-us = <500>;
+				min-residency-us = <2000>;
 			};
 		};
 
