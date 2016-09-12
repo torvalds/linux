@@ -1,4 +1,8 @@
 /*
+ * Altera Arria10 DevKit System Resource MFD Driver
+ *
+ * Author: Thor Thayer <tthayer@opensource.altera.com>
+ *
  * Copyright Intel Corporation (C) 2014-2016. All Rights Reserved
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -20,7 +24,7 @@
 
 #include <linux/mfd/altera-a10sr.h>
 #include <linux/mfd/core.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/spi/spi.h>
 
@@ -152,7 +156,6 @@ static const struct of_device_id altr_a10sr_spi_of_match[] = {
 	{ .compatible = "altr,a10sr" },
 	{ },
 };
-MODULE_DEVICE_TABLE(of, altr_a10sr_spi_of_match);
 
 static struct spi_driver altr_a10sr_spi_driver = {
 	.probe = altr_a10sr_spi_probe,
@@ -161,9 +164,4 @@ static struct spi_driver altr_a10sr_spi_driver = {
 		.of_match_table = of_match_ptr(altr_a10sr_spi_of_match),
 	},
 };
-
-module_spi_driver(altr_a10sr_spi_driver);
-
-MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Thor Thayer <tthayer@opensource.altera.com>");
-MODULE_DESCRIPTION("Altera Arria10 DevKit System Resource MFD Driver");
+builtin_driver(altr_a10sr_spi_driver, spi_register_driver)
