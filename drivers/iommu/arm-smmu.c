@@ -28,6 +28,7 @@
 
 #define pr_fmt(fmt) "arm-smmu: " fmt
 
+#include <linux/atomic.h>
 #include <linux/delay.h>
 #include <linux/dma-iommu.h>
 #include <linux/dma-mapping.h>
@@ -54,9 +55,6 @@
 
 /* Maximum number of context banks per SMMU */
 #define ARM_SMMU_MAX_CBS		128
-
-/* Maximum number of mapping groups per SMMU */
-#define ARM_SMMU_MAX_SMRS		128
 
 /* SMMU global address space */
 #define ARM_SMMU_GR0(smmu)		((smmu)->base)
@@ -295,16 +293,17 @@ enum arm_smmu_implementation {
 };
 
 struct arm_smmu_smr {
-	u8				idx;
 	u16				mask;
 	u16				id;
+	bool				valid;
 };
 
 struct arm_smmu_master_cfg {
 	int				num_streamids;
 	u16				streamids[MAX_MASTER_STREAMIDS];
-	struct arm_smmu_smr		*smrs;
+	s16				smendx[MAX_MASTER_STREAMIDS];
 };
+#define INVALID_SMENDX			-1
 
 struct arm_smmu_master {
 	struct device_node		*of_node;
@@ -346,7 +345,7 @@ struct arm_smmu_device {
 	u32				num_mapping_groups;
 	u16				streamid_mask;
 	u16				smr_mask_mask;
-	DECLARE_BITMAP(smr_map, ARM_SMMU_MAX_SMRS);
+	struct arm_smmu_smr		*smrs;
 
 	unsigned long			va_size;
 	unsigned long			ipa_size;
@@ -550,6 +549,7 @@ static int register_smmu_master(struct arm_smmu_device *smmu,
 			return -ERANGE;
 		}
 		master->cfg.streamids[i] = streamid;
+		master->cfg.smendx[i] = INVALID_SMENDX;
 	}
 	return insert_smmu_master(smmu, master);
 }
@@ -1080,79 +1080,91 @@ static void arm_smmu_domain_free(struct iommu_domain *domain)
 	kfree(smmu_domain);
 }
 
-static int arm_smmu_master_configure_smrs(struct arm_smmu_device *smmu,
-					  struct arm_smmu_master_cfg *cfg)
+static int arm_smmu_alloc_smr(struct arm_smmu_device *smmu)
 {
 	int i;
-	struct arm_smmu_smr *smrs;
-	void __iomem *gr0_base = ARM_SMMU_GR0(smmu);
 
-	if (!(smmu->features & ARM_SMMU_FEAT_STREAM_MATCH))
-		return 0;
+	for (i = 0; i < smmu->num_mapping_groups; i++)
+		if (!cmpxchg(&smmu->smrs[i].valid, false, true))
+			return i;
 
-	if (cfg->smrs)
-		return -EEXIST;
+	return INVALID_SMENDX;
+}
 
-	smrs = kmalloc_array(cfg->num_streamids, sizeof(*smrs), GFP_KERNEL);
-	if (!smrs) {
-		dev_err(smmu->dev, "failed to allocate %d SMRs\n",
-			cfg->num_streamids);
-		return -ENOMEM;
-	}
+static void arm_smmu_free_smr(struct arm_smmu_device *smmu, int idx)
+{
+	writel_relaxed(~SMR_VALID, ARM_SMMU_GR0(smmu) + ARM_SMMU_GR0_SMR(idx));
+	WRITE_ONCE(smmu->smrs[idx].valid, false);
+}
+
+static void arm_smmu_write_smr(struct arm_smmu_device *smmu, int idx)
+{
+	struct arm_smmu_smr *smr = smmu->smrs + idx;
+	u32 reg = (smr->id & smmu->streamid_mask) << SMR_ID_SHIFT |
+		  (smr->mask & smmu->smr_mask_mask) << SMR_MASK_SHIFT;
+
+	if (smr->valid)
+		reg |= SMR_VALID;
+	writel_relaxed(reg, ARM_SMMU_GR0(smmu) + ARM_SMMU_GR0_SMR(idx));
+}
+
+static int arm_smmu_master_alloc_smes(struct arm_smmu_device *smmu,
+				      struct arm_smmu_master_cfg *cfg)
+{
+	struct arm_smmu_smr *smrs = smmu->smrs;
+	int i, idx;
 
 	/* Allocate the SMRs on the SMMU */
 	for (i = 0; i < cfg->num_streamids; ++i) {
-		int idx = __arm_smmu_alloc_bitmap(smmu->smr_map, 0,
-						  smmu->num_mapping_groups);
+		if (cfg->smendx[i] != INVALID_SMENDX)
+			return -EEXIST;
+
+		/* ...except on stream indexing hardware, of course */
+		if (!smrs) {
+			cfg->smendx[i] = cfg->streamids[i];
+			continue;
+		}
+
+		idx = arm_smmu_alloc_smr(smmu);
 		if (idx < 0) {
 			dev_err(smmu->dev, "failed to allocate free SMR\n");
 			goto err_free_smrs;
 		}
+		cfg->smendx[i] = idx;
 
-		smrs[i] = (struct arm_smmu_smr) {
-			.idx	= idx,
-			.mask	= 0, /* We don't currently share SMRs */
-			.id	= cfg->streamids[i],
-		};
+		smrs[idx].id = cfg->streamids[i];
+		smrs[idx].mask = 0; /* We don't currently share SMRs */
 	}
+
+	if (!smrs)
+		return 0;
 
 	/* It worked! Now, poke the actual hardware */
-	for (i = 0; i < cfg->num_streamids; ++i) {
-		u32 reg = SMR_VALID | smrs[i].id << SMR_ID_SHIFT |
-			  smrs[i].mask << SMR_MASK_SHIFT;
-		writel_relaxed(reg, gr0_base + ARM_SMMU_GR0_SMR(smrs[i].idx));
-	}
+	for (i = 0; i < cfg->num_streamids; ++i)
+		arm_smmu_write_smr(smmu, cfg->smendx[i]);
 
-	cfg->smrs = smrs;
 	return 0;
 
 err_free_smrs:
-	while (--i >= 0)
-		__arm_smmu_free_bitmap(smmu->smr_map, smrs[i].idx);
-	kfree(smrs);
+	while (i--) {
+		arm_smmu_free_smr(smmu, cfg->smendx[i]);
+		cfg->smendx[i] = INVALID_SMENDX;
+	}
 	return -ENOSPC;
 }
 
-static void arm_smmu_master_free_smrs(struct arm_smmu_device *smmu,
+static void arm_smmu_master_free_smes(struct arm_smmu_device *smmu,
 				      struct arm_smmu_master_cfg *cfg)
 {
 	int i;
-	void __iomem *gr0_base = ARM_SMMU_GR0(smmu);
-	struct arm_smmu_smr *smrs = cfg->smrs;
-
-	if (!smrs)
-		return;
 
 	/* Invalidate the SMRs before freeing back to the allocator */
 	for (i = 0; i < cfg->num_streamids; ++i) {
-		u8 idx = smrs[i].idx;
+		if (smmu->smrs)
+			arm_smmu_free_smr(smmu, cfg->smendx[i]);
 
-		writel_relaxed(~SMR_VALID, gr0_base + ARM_SMMU_GR0_SMR(idx));
-		__arm_smmu_free_bitmap(smmu->smr_map, idx);
+		cfg->smendx[i] = INVALID_SMENDX;
 	}
-
-	cfg->smrs = NULL;
-	kfree(smrs);
 }
 
 static int arm_smmu_domain_add_master(struct arm_smmu_domain *smmu_domain,
@@ -1172,14 +1184,14 @@ static int arm_smmu_domain_add_master(struct arm_smmu_domain *smmu_domain,
 		return 0;
 
 	/* Devices in an IOMMU group may already be configured */
-	ret = arm_smmu_master_configure_smrs(smmu, cfg);
+	ret = arm_smmu_master_alloc_smes(smmu, cfg);
 	if (ret)
 		return ret == -EEXIST ? 0 : ret;
 
 	for (i = 0; i < cfg->num_streamids; ++i) {
 		u32 idx, s2cr;
 
-		idx = cfg->smrs ? cfg->smrs[i].idx : cfg->streamids[i];
+		idx = cfg->smendx[i];
 		s2cr = S2CR_TYPE_TRANS | S2CR_PRIVCFG_UNPRIV |
 		       (smmu_domain->cfg.cbndx << S2CR_CBNDX_SHIFT);
 		writel_relaxed(s2cr, gr0_base + ARM_SMMU_GR0_S2CR(idx));
@@ -1195,22 +1207,22 @@ static void arm_smmu_domain_remove_master(struct arm_smmu_domain *smmu_domain,
 	struct arm_smmu_device *smmu = smmu_domain->smmu;
 	void __iomem *gr0_base = ARM_SMMU_GR0(smmu);
 
-	/* An IOMMU group is torn down by the first device to be removed */
-	if ((smmu->features & ARM_SMMU_FEAT_STREAM_MATCH) && !cfg->smrs)
-		return;
-
 	/*
 	 * We *must* clear the S2CR first, because freeing the SMR means
 	 * that it can be re-allocated immediately.
 	 */
 	for (i = 0; i < cfg->num_streamids; ++i) {
-		u32 idx = cfg->smrs ? cfg->smrs[i].idx : cfg->streamids[i];
+		int idx = cfg->smendx[i];
 		u32 reg = disable_bypass ? S2CR_TYPE_FAULT : S2CR_TYPE_BYPASS;
+
+		/* An IOMMU group is torn down by the first device to be removed */
+		if (idx == INVALID_SMENDX)
+			return;
 
 		writel_relaxed(reg, gr0_base + ARM_SMMU_GR0_S2CR(idx));
 	}
 
-	arm_smmu_master_free_smrs(smmu, cfg);
+	arm_smmu_master_free_smes(smmu, cfg);
 }
 
 static void arm_smmu_detach_dev(struct device *dev,
@@ -1424,8 +1436,11 @@ static int arm_smmu_init_pci_device(struct pci_dev *pdev,
 			break;
 
 	/* Avoid duplicate SIDs, as this can lead to SMR conflicts */
-	if (i == cfg->num_streamids)
-		cfg->streamids[cfg->num_streamids++] = sid;
+	if (i == cfg->num_streamids) {
+		cfg->streamids[i] = sid;
+		cfg->smendx[i] = INVALID_SMENDX;
+		cfg->num_streamids++;
+	}
 
 	return 0;
 }
@@ -1556,17 +1571,21 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 {
 	void __iomem *gr0_base = ARM_SMMU_GR0(smmu);
 	void __iomem *cb_base;
-	int i = 0;
+	int i;
 	u32 reg, major;
 
 	/* clear global FSR */
 	reg = readl_relaxed(ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sGFSR);
 	writel(reg, ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sGFSR);
 
-	/* Mark all SMRn as invalid and all S2CRn as bypass unless overridden */
+	/*
+	 * Reset stream mapping groups: Initial values mark all SMRn as
+	 * invalid and all S2CRn as bypass unless overridden.
+	 */
 	reg = disable_bypass ? S2CR_TYPE_FAULT : S2CR_TYPE_BYPASS;
 	for (i = 0; i < smmu->num_mapping_groups; ++i) {
-		writel_relaxed(0, gr0_base + ARM_SMMU_GR0_SMR(i));
+		if (smmu->smrs)
+			arm_smmu_write_smr(smmu, i);
 		writel_relaxed(reg, gr0_base + ARM_SMMU_GR0_S2CR(i));
 	}
 
@@ -1743,6 +1762,12 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 		writel_relaxed(smr, gr0_base + ARM_SMMU_GR0_SMR(0));
 		smr = readl_relaxed(gr0_base + ARM_SMMU_GR0_SMR(0));
 		smmu->smr_mask_mask = smr >> SMR_MASK_SHIFT;
+
+		/* Zero-initialised to mark as invalid */
+		smmu->smrs = devm_kcalloc(smmu->dev, size, sizeof(*smmu->smrs),
+					  GFP_KERNEL);
+		if (!smmu->smrs)
+			return -ENOMEM;
 
 		dev_notice(smmu->dev,
 			   "\tstream matching with %lu register groups, mask 0x%x",
