@@ -37,7 +37,7 @@ static void nft_ng_inc_eval(const struct nft_expr *expr,
 		nval = (oval + 1 < priv->modulus) ? oval + 1 : 0;
 	} while (atomic_cmpxchg(&priv->counter, oval, nval) != oval);
 
-	memcpy(&regs->data[priv->dreg], &priv->counter, sizeof(u32));
+	regs->data[priv->dreg] = nval;
 }
 
 static const struct nla_policy nft_ng_policy[NFTA_NG_MAX + 1] = {
