@@ -371,7 +371,7 @@ void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv)
 	spin_lock_irq(&dev_priv->irq_lock);
 	dev_priv->rps.interrupts_enabled = false;
 
-	I915_WRITE(GEN6_PMINTRMSK, gen6_sanitize_rps_pm_mask(dev_priv, ~0));
+	I915_WRITE(GEN6_PMINTRMSK, gen6_sanitize_rps_pm_mask(dev_priv, ~0u));
 
 	__gen6_disable_pm_irq(dev_priv, dev_priv->pm_rps_events);
 	I915_WRITE(gen6_pm_ier(dev_priv), I915_READ(gen6_pm_ier(dev_priv)) &
@@ -4500,7 +4500,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		dev_priv->rps.pm_intr_keep |= GEN6_PM_RP_UP_EI_EXPIRED;
 
 	if (INTEL_INFO(dev_priv)->gen >= 8)
-		dev_priv->rps.pm_intr_keep |= GEN8_PMINTR_REDIRECT_TO_NON_DISP;
+		dev_priv->rps.pm_intr_keep |= GEN8_PMINTR_REDIRECT_TO_GUC;
 
 	INIT_DELAYED_WORK(&dev_priv->gpu_error.hangcheck_work,
 			  i915_hangcheck_elapsed);
