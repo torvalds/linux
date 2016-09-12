@@ -1623,7 +1623,7 @@ static int atc_resume(struct ct_atc *atc)
 }
 #endif
 
-static struct ct_atc atc_preset = {
+static const struct ct_atc atc_preset = {
 	.map_audio_buffer = ct_map_audio_buffer,
 	.unmap_audio_buffer = ct_unmap_audio_buffer,
 	.pcm_playback_prepare = atc_pcm_playback_prepare,
