@@ -225,6 +225,17 @@ static bool nouveau_pr3_present(struct pci_dev *pdev)
 	if (!parent_pdev)
 		return false;
 
+	if (!parent_pdev->bridge_d3) {
+		/*
+		 * Parent PCI bridge is currently not power managed.
+		 * Since userspace can change these afterwards to be on
+		 * the safe side we stick with _DSM and prevent usage of
+		 * _PR3 from the bridge.
+		 */
+		pci_d3cold_disable(pdev);
+		return false;
+	}
+
 	parent_adev = ACPI_COMPANION(&parent_pdev->dev);
 	if (!parent_adev)
 		return false;

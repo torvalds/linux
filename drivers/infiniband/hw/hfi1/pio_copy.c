@@ -771,6 +771,9 @@ void seg_pio_copy_mid(struct pio_buf *pbuf, const void *from, size_t nbytes)
 			read_extra_bytes(pbuf, from, to_fill);
 			from += to_fill;
 			nbytes -= to_fill;
+			/* may not be enough valid bytes left to align */
+			if (extra > nbytes)
+				extra = nbytes;
 
 			/* ...now write carry */
 			dest = pbuf->start + (pbuf->qw_written * sizeof(u64));
@@ -798,6 +801,15 @@ void seg_pio_copy_mid(struct pio_buf *pbuf, const void *from, size_t nbytes)
 			read_low_bytes(pbuf, from, extra);
 			from += extra;
 			nbytes -= extra;
+			/*
+			 * If no bytes are left, return early - we are done.
+			 * NOTE: This short-circuit is *required* because
+			 * "extra" may have been reduced in size and "from"
+			 * is not aligned, as required when leaving this
+			 * if block.
+			 */
+			if (nbytes == 0)
+				return;
 		}
 
 		/* at this point, from is QW aligned */

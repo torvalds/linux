@@ -125,6 +125,8 @@ static unsigned long clk_36864_get_rate(struct clk *clk)
 }
 
 static struct clkops clk_36864_ops = {
+	.enable		= clk_cpu_enable,
+	.disable	= clk_cpu_disable,
 	.get_rate	= clk_36864_get_rate,
 };
 
@@ -140,9 +142,8 @@ static struct clk_lookup sa11xx_clkregs[] = {
 	CLKDEV_INIT(NULL, "OSTIMER0", &clk_36864),
 };
 
-static int __init sa11xx_clk_init(void)
+int __init sa11xx_clk_init(void)
 {
 	clkdev_add_table(sa11xx_clkregs, ARRAY_SIZE(sa11xx_clkregs));
 	return 0;
 }
-core_initcall(sa11xx_clk_init);

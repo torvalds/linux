@@ -282,9 +282,14 @@ static void nic_set_tx_pkt_pad(struct nicpf *nic, int size)
 	u16 sdevid;
 	u64 lmac_cfg;
 
-	/* Max value that can be set is 60 */
-	if (size > 60)
-		size = 60;
+	/* There is a issue in HW where-in while sending GSO sized
+	 * pkts as part of TSO, if pkt len falls below this size
+	 * NIC will zero PAD packet and also updates IP total length.
+	 * Hence set this value to lessthan min pkt size of MAC+IP+TCP
+	 * headers, BGX will do the padding to transmit 64 byte pkt.
+	 */
+	if (size > 52)
+		size = 52;
 
 	pci_read_config_word(nic->pdev, PCI_SUBSYSTEM_ID, &sdevid);
 	/* 81xx's RGX has only one LMAC */

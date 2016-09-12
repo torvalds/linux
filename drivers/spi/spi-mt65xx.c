@@ -685,7 +685,6 @@ static int mtk_spi_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	mtk_spi_reset(mdata);
-	spi_master_put(master);
 
 	return 0;
 }

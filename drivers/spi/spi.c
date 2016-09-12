@@ -960,7 +960,7 @@ static int spi_transfer_one_message(struct spi_master *master,
 	struct spi_transfer *xfer;
 	bool keep_cs = false;
 	int ret = 0;
-	unsigned long ms = 1;
+	unsigned long long ms = 1;
 	struct spi_statistics *statm = &master->statistics;
 	struct spi_statistics *stats = &msg->spi->statistics;
 
@@ -991,8 +991,12 @@ static int spi_transfer_one_message(struct spi_master *master,
 
 			if (ret > 0) {
 				ret = 0;
-				ms = xfer->len * 8 * 1000 / xfer->speed_hz;
+				ms = 8LL * 1000LL * xfer->len;
+				do_div(ms, xfer->speed_hz);
 				ms += ms + 100; /* some tolerance */
+
+				if (ms > UINT_MAX)
+					ms = UINT_MAX;
 
 				ms = wait_for_completion_timeout(&master->xfer_completion,
 								 msecs_to_jiffies(ms));
@@ -1159,6 +1163,7 @@ static void __spi_pump_messages(struct spi_master *master, bool in_kthread)
 		if (ret < 0) {
 			dev_err(&master->dev, "Failed to power device: %d\n",
 				ret);
+			mutex_unlock(&master->io_mutex);
 			return;
 		}
 	}
@@ -1174,6 +1179,7 @@ static void __spi_pump_messages(struct spi_master *master, bool in_kthread)
 
 			if (master->auto_runtime_pm)
 				pm_runtime_put(master->dev.parent);
+			mutex_unlock(&master->io_mutex);
 			return;
 		}
 	}

@@ -18,13 +18,17 @@ and config2 fields of the perf_event_attr structure. The "events"
 directory provides configuration templates for all documented
 events, that can be used with perf tool. For example "xp_valid_flit"
 is an equivalent of "type=0x8,event=0x4". Other parameters must be
-explicitly specified. For events originating from device, "node"
-defines its index. All crosspoint events require "xp" (index),
-"port" (device port number) and "vc" (virtual channel ID) and
-"dir" (direction). Watchpoints (special "event" value 0xfe) also
-require comparator values ("cmp_l" and "cmp_h") and "mask", being
-index of the comparator mask.
+explicitly specified.
 
+For events originating from device, "node" defines its index.
+
+Crosspoint PMU events require "xp" (index), "bus" (bus number)
+and "vc" (virtual channel ID).
+
+Crosspoint watchpoint-based events (special "event" value 0xfe)
+require "xp" and "vc" as as above plus "port" (device port index),
+"dir" (transmit/receive direction), comparator values ("cmp_l"
+and "cmp_h") and "mask", being index of the comparator mask.
 Masks are defined separately from the event description
 (due to limited number of the config values) in the "cmp_mask"
 directory, with first 8 configurable by user and additional

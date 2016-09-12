@@ -1604,11 +1604,8 @@ static int super_1_validate(struct mddev *mddev, struct md_rdev *rdev)
 			mddev->new_chunk_sectors = mddev->chunk_sectors;
 		}
 
-		if (le32_to_cpu(sb->feature_map) & MD_FEATURE_JOURNAL) {
+		if (le32_to_cpu(sb->feature_map) & MD_FEATURE_JOURNAL)
 			set_bit(MD_HAS_JOURNAL, &mddev->flags);
-			if (mddev->recovery_cp == MaxSector)
-				set_bit(MD_JOURNAL_CLEAN, &mddev->flags);
-		}
 	} else if (mddev->pers == NULL) {
 		/* Insist of good event counter while assembling, except for
 		 * spares (which don't need an event count) */
@@ -5851,6 +5848,9 @@ static int get_array_info(struct mddev *mddev, void __user *arg)
 			working++;
 			if (test_bit(In_sync, &rdev->flags))
 				insync++;
+			else if (test_bit(Journal, &rdev->flags))
+				/* TODO: add journal count to md_u.h */
+				;
 			else
 				spare++;
 		}
@@ -7862,6 +7862,7 @@ void md_do_sync(struct md_thread *thread)
 	 */
 
 	do {
+		int mddev2_minor = -1;
 		mddev->curr_resync = 2;
 
 	try_again:
@@ -7891,10 +7892,14 @@ void md_do_sync(struct md_thread *thread)
 				prepare_to_wait(&resync_wait, &wq, TASK_INTERRUPTIBLE);
 				if (!test_bit(MD_RECOVERY_INTR, &mddev->recovery) &&
 				    mddev2->curr_resync >= mddev->curr_resync) {
-					printk(KERN_INFO "md: delaying %s of %s"
-					       " until %s has finished (they"
-					       " share one or more physical units)\n",
-					       desc, mdname(mddev), mdname(mddev2));
+					if (mddev2_minor != mddev2->md_minor) {
+						mddev2_minor = mddev2->md_minor;
+						printk(KERN_INFO "md: delaying %s of %s"
+						       " until %s has finished (they"
+						       " share one or more physical units)\n",
+						       desc, mdname(mddev),
+						       mdname(mddev2));
+					}
 					mddev_put(mddev2);
 					if (signal_pending(current))
 						flush_signals(current);
@@ -8275,16 +8280,13 @@ no_add:
 static void md_start_sync(struct work_struct *ws)
 {
 	struct mddev *mddev = container_of(ws, struct mddev, del_work);
-	int ret = 0;
 
 	mddev->sync_thread = md_register_thread(md_do_sync,
 						mddev,
 						"resync");
 	if (!mddev->sync_thread) {
-		if (!(mddev_is_clustered(mddev) && ret == -EAGAIN))
-			printk(KERN_ERR "%s: could not start resync"
-			       " thread...\n",
-			       mdname(mddev));
+		printk(KERN_ERR "%s: could not start resync thread...\n",
+		       mdname(mddev));
 		/* leave the spares where they are, it shouldn't hurt */
 		clear_bit(MD_RECOVERY_SYNC, &mddev->recovery);
 		clear_bit(MD_RECOVERY_RESHAPE, &mddev->recovery);

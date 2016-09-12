@@ -78,7 +78,11 @@ int putreg(struct task_struct *child, int regno, unsigned long value)
 	case RSI:
 	case RDI:
 	case RBP:
+		break;
+
 	case ORIG_RAX:
+		/* Update the syscall number. */
+		UPT_SYSCALL_NR(&child->thread.regs.regs) = value;
 		break;
 
 	case FS:

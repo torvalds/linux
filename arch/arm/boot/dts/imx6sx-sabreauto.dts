@@ -64,7 +64,7 @@
 	cd-gpios = <&gpio7 11 GPIO_ACTIVE_LOW>;
 	no-1-8-v;
 	keep-power-in-suspend;
-	enable-sdio-wakup;
+	wakeup-source;
 	status = "okay";
 };
 

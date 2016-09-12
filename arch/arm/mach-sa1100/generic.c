@@ -34,6 +34,7 @@
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>
+#include <mach/reset.h>
 
 #include "generic.h"
 #include <clocksource/pxa.h>
@@ -95,6 +96,8 @@ static void sa1100_power_off(void)
 
 void sa11x0_restart(enum reboot_mode mode, const char *cmd)
 {
+	clear_reset_status(RESET_STATUS_ALL);
+
 	if (mode == REBOOT_SOFT) {
 		/* Jump into ROM at address 0 */
 		soft_restart(0);
@@ -388,6 +391,7 @@ void __init sa1100_init_irq(void)
 	sa11x0_init_irq_nodt(IRQ_GPIO0_SC, irq_resource.start);
 
 	sa1100_init_gpio();
+	sa11xx_clk_init();
 }
 
 /*
