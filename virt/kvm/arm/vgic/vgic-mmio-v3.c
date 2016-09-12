@@ -42,6 +42,7 @@ u64 update_64bit_reg(u64 reg, unsigned int offset, unsigned int len,
 	return reg | ((u64)val << lower);
 }
 
+#ifdef CONFIG_KVM_ARM_VGIC_V3_ITS
 bool vgic_has_its(struct kvm *kvm)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
@@ -51,6 +52,7 @@ bool vgic_has_its(struct kvm *kvm)
 
 	return dist->has_its;
 }
+#endif
 
 static unsigned long vgic_mmio_read_v3_misc(struct kvm_vcpu *vcpu,
 					    gpa_t addr, unsigned int len)
