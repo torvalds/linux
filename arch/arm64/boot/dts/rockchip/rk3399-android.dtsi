@@ -41,6 +41,7 @@
  */
 #include <dt-bindings/display/rk_fb.h>
 #include <dt-bindings/display/mipi_dsi.h>
+#include "rk3399-vop-clk-set.dtsi"
 
 / {
 	compatible = "rockchip,android", "rockchip,rk3399";

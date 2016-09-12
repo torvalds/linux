@@ -1,0 +1,183 @@
+/*
+ * Copyright (c) 2016 Fuzhou Rockchip Electronics Co., Ltd
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/*
+ * This define is for support double show any dclk frequency.
+ * dclk_vop will have a exclusive pll as parent.
+ * set dclk_vop will change the pll rate as well.
+ */
+
+#ifdef RK3399_TWO_PLL_FOR_VOP
+
+&sdhci {
+		assigned-clocks = <&cru SCLK_EMMC>;
+		assigned-clock-parents = <&cru PLL_GPLL>;
+		assigned-clock-rates = <200000000>;
+};
+
+&uart0 {
+		assigned-clocks = <&cru SCLK_UART0_SRC>;
+		assigned-clock-parents = <&cru PLL_GPLL>;
+};
+
+&uart1 {
+		assigned-clocks = <&cru SCLK_UART_SRC>;
+		assigned-clock-parents = <&cru PLL_GPLL>;
+};
+
+&uart2 {
+		assigned-clocks = <&cru SCLK_UART_SRC>;
+		assigned-clock-parents = <&cru PLL_GPLL>;
+};
+
+&uart3 {
+		assigned-clocks = <&cru SCLK_UART_SRC>;
+		assigned-clock-parents = <&cru PLL_GPLL>;
+};
+
+&uart4 {
+		assigned-clocks = <&cru SCLK_UART_SRC>;
+		assigned-clock-parents = <&cru PLL_GPLL>;
+};
+
+&spdif {
+		assigned-clocks = <&cru SCLK_SPDIF_DIV>;
+		assigned-clock-parents = <&cru PLL_GPLL>;
+};
+
+&i2s0{
+		assigned-clocks = <&cru SCLK_I2S0_DIV>;
+		assigned-clock-parents = <&cru PLL_GPLL>;
+};
+
+&i2s1 {
+		assigned-clocks = <&cru SCLK_I2S1_DIV>;
+		assigned-clock-parents = <&cru PLL_GPLL>;
+};
+
+&i2s2 {
+		assigned-clocks = <&cru SCLK_I2S2_DIV>;
+		assigned-clock-parents = <&cru PLL_GPLL>;
+};
+
+&cru {
+		assigned-clocks =
+			<&cru ACLK_PERIHP>, <&cru ACLK_PERILP0>,
+			<&cru HCLK_PERILP1>, <&cru ACLK_VOP0>,
+			<&cru ACLK_VOP1>, <&cru SCLK_SDMMC>,
+			<&cru ACLK_EMMC>, <&cru ACLK_CENTER>,
+			<&cru HCLK_SD>, <&cru SCLK_VDU_CA>,
+			<&cru SCLK_VDU_CORE>, <&cru ACLK_USB3>,
+			<&cru FCLK_CM0S>, <&cru ACLK_CCI>,
+			<&cru PCLK_ALIVE>, <&cru ACLK_GMAC>,
+			<&cru SCLK_CS>, <&cru SCLK_CCI_TRACE>,
+			<&cru ARMCLKL>, <&cru ARMCLKB>,
+			<&cru PLL_GPLL>, <&cru ACLK_GPU>,
+			<&cru PLL_NPLL>, <&cru ACLK_PERIHP>,
+			<&cru HCLK_PERIHP>, <&cru PCLK_PERIHP>,
+			<&cru ACLK_PERILP0>, <&cru HCLK_PERILP0>,
+			<&cru PCLK_PERILP0>, <&cru HCLK_PERILP1>,
+			<&cru PCLK_PERILP1>, <&cru ACLK_VOP0>,
+			<&cru HCLK_VOP0>, <&cru ACLK_VOP1>,
+			<&cru HCLK_VOP1>, <&cru SCLK_I2C1>,
+			<&cru SCLK_I2C2>, <&cru SCLK_I2C3>,
+			<&cru SCLK_I2C5>, <&cru SCLK_I2C6>,
+			<&cru SCLK_I2C7>, <&cru SCLK_SPI0>,
+			<&cru SCLK_SPI1>, <&cru SCLK_SPI2>,
+			<&cru SCLK_SPI4>, <&cru SCLK_SPI5>,
+			<&cru ACLK_GIC>, <&cru ACLK_ISP0>,
+			<&cru ACLK_ISP1>, <&cru SCLK_VOP0_PWM>,
+			<&cru SCLK_VOP1_PWM>, <&cru PCLK_EDP>,
+			<&cru ACLK_HDCP>, <&cru ACLK_VIO>,
+			<&cru HCLK_SD>, <&cru SCLK_CRYPTO0>,
+			<&cru SCLK_CRYPTO1>, <&cru SCLK_EMMC>,
+			<&cru ACLK_EMMC>, <&cru ACLK_CENTER>,
+			<&cru ACLK_IEP>, <&cru ACLK_RGA>,
+			<&cru SCLK_RGA_CORE>, <&cru ACLK_VDU>,
+			<&cru ACLK_VCODEC>, <&cru PCLK_DDR>,
+			<&cru ACLK_GMAC>, <&cru SCLK_VDU_CA>,
+			<&cru SCLK_VDU_CORE>, <&cru ACLK_USB3>,
+			<&cru FCLK_CM0S>, <&cru ACLK_CCI>,
+			<&cru PCLK_ALIVE>, <&cru SCLK_CS>,
+			<&cru SCLK_CCI_TRACE>;
+		assigned-clock-rates =
+			 <75000000>, <50000000>,
+			 <50000000>, <200000000>,
+			 <200000000>,  <50000000>,
+			 <50000000>, <100000000>,
+			 <50000000>, <150000000>,
+			 <150000000>, <150000000>,
+			 <50000000>, <150000000>,
+			 <50000000>, <100000000>,
+			 <75000000>, <75000000>,
+			 <816000000>, <816000000>,
+			 <1200000000>, <200000000>,
+			 <800000000>, <150000000>,
+			 <75000000>, <37500000>,
+			 <100000000>, <100000000>,
+			 <50000000>, <100000000>,
+			 <50000000>, <400000000>,
+			 <200000000>, <400000000>,
+			 <200000000>, <100000000>,
+			 <100000000>, <100000000>,
+			 <100000000>, <100000000>,
+			 <100000000>, <50000000>,
+			 <50000000>, <50000000>,
+			 <50000000>, <50000000>,
+			 <200000000>, <400000000>,
+			 <400000000>, <100000000>,
+			 <100000000>, <100000000>,
+			 <400000000>, <400000000>,
+			 <200000000>, <100000000>,
+			 <200000000>, <200000000>,
+			 <100000000>, <400000000>,
+			 <400000000>, <400000000>,
+			 <400000000>, <300000000>,
+			 <400000000>, <200000000>,
+			 <400000000>, <300000000>,
+			 <300000000>, <300000000>,
+			 <300000000>, <300000000>,
+			 <100000000>, <150000000>,
+			 <150000000>;
+};
+#endif
+
