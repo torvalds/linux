@@ -23,10 +23,10 @@
 
 static void icp_opal_teardown_cpu(void)
 {
-	int cpu = smp_processor_id();
+	int hw_cpu = hard_smp_processor_id();
 
 	/* Clear any pending IPI */
-	opal_int_set_mfrr(cpu, 0xff);
+	opal_int_set_mfrr(hw_cpu, 0xff);
 }
 
 static void icp_opal_flush_ipi(void)
@@ -101,14 +101,16 @@ static void icp_opal_eoi(struct irq_data *d)
 
 static void icp_opal_cause_ipi(int cpu, unsigned long data)
 {
-	opal_int_set_mfrr(cpu, IPI_PRIORITY);
+	int hw_cpu = get_hard_smp_processor_id(cpu);
+
+	opal_int_set_mfrr(hw_cpu, IPI_PRIORITY);
 }
 
 static irqreturn_t icp_opal_ipi_action(int irq, void *dev_id)
 {
-	int cpu = smp_processor_id();
+	int hw_cpu = hard_smp_processor_id();
 
-	opal_int_set_mfrr(cpu, 0xff);
+	opal_int_set_mfrr(hw_cpu, 0xff);
 
 	return smp_ipi_demux();
 }
