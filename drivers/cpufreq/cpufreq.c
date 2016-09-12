@@ -1073,12 +1073,8 @@ static void handle_update(struct work_struct *work)
 
 static struct cpufreq_policy *cpufreq_policy_alloc(unsigned int cpu)
 {
-	struct device *dev = get_cpu_device(cpu);
 	struct cpufreq_policy *policy;
 	int ret;
-
-	if (WARN_ON(!dev))
-		return NULL;
 
 	policy = kzalloc(sizeof(*policy), GFP_KERNEL);
 	if (!policy)
