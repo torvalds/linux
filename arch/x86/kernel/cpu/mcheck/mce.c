@@ -569,6 +569,7 @@ static void mce_read_aux(struct mce *m, int i)
 {
 	if (m->status & MCI_STATUS_MISCV)
 		m->misc = mce_rdmsrl(msr_ops.misc(i));
+
 	if (m->status & MCI_STATUS_ADDRV) {
 		m->addr = mce_rdmsrl(msr_ops.addr(i));
 
@@ -581,6 +582,9 @@ static void mce_read_aux(struct mce *m, int i)
 			m->addr <<= shift;
 		}
 	}
+
+	if (mce_flags.smca && (m->status & MCI_STATUS_SYNDV))
+		m->synd = mce_rdmsrl(MSR_AMD64_SMCA_MCx_SYND(i));
 }
 
 static bool memory_error(struct mce *m)

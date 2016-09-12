@@ -40,9 +40,10 @@
 #define MCI_STATUS_AR	 (1ULL<<55)  /* Action required */
 
 /* AMD-specific bits */
+#define MCI_STATUS_TCC		(1ULL<<55)  /* Task context corrupt */
+#define MCI_STATUS_SYNDV	(1ULL<<53)  /* synd reg. valid */
 #define MCI_STATUS_DEFERRED	(1ULL<<44)  /* uncorrected error, deferred exception */
 #define MCI_STATUS_POISON	(1ULL<<43)  /* access poisonous data */
-#define MCI_STATUS_TCC		(1ULL<<55)  /* Task context corrupt */
 
 /*
  * McaX field if set indicates a given bank supports MCA extensions:
@@ -110,6 +111,7 @@
 #define MSR_AMD64_SMCA_MC0_MISC0	0xc0002003
 #define MSR_AMD64_SMCA_MC0_CONFIG	0xc0002004
 #define MSR_AMD64_SMCA_MC0_IPID		0xc0002005
+#define MSR_AMD64_SMCA_MC0_SYND		0xc0002006
 #define MSR_AMD64_SMCA_MC0_DESTAT	0xc0002008
 #define MSR_AMD64_SMCA_MC0_DEADDR	0xc0002009
 #define MSR_AMD64_SMCA_MC0_MISC1	0xc000200a
@@ -119,6 +121,7 @@
 #define MSR_AMD64_SMCA_MCx_MISC(x)	(MSR_AMD64_SMCA_MC0_MISC0 + 0x10*(x))
 #define MSR_AMD64_SMCA_MCx_CONFIG(x)	(MSR_AMD64_SMCA_MC0_CONFIG + 0x10*(x))
 #define MSR_AMD64_SMCA_MCx_IPID(x)	(MSR_AMD64_SMCA_MC0_IPID + 0x10*(x))
+#define MSR_AMD64_SMCA_MCx_SYND(x)	(MSR_AMD64_SMCA_MC0_SYND + 0x10*(x))
 #define MSR_AMD64_SMCA_MCx_DESTAT(x)	(MSR_AMD64_SMCA_MC0_DESTAT + 0x10*(x))
 #define MSR_AMD64_SMCA_MCx_DEADDR(x)	(MSR_AMD64_SMCA_MC0_DEADDR + 0x10*(x))
 #define MSR_AMD64_SMCA_MCx_MISCy(x, y)	((MSR_AMD64_SMCA_MC0_MISC1 + y) + (0x10*(x)))
