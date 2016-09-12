@@ -148,12 +148,12 @@ static const char * const mc6_mce_desc[] = {
 };
 
 /* Scalable MCA error strings */
-static const char * const f17h_ls_mce_desc[] = {
+static const char * const smca_ls_mce_desc[] = {
 	"Load queue parity",
 	"Store queue parity",
 	"Miss address buffer payload parity",
 	"L1 TLB parity",
-	"",						/* reserved */
+	"Reserved",
 	"DC tag error type 6",
 	"DC tag error type 1",
 	"Internal error type 1",
@@ -172,7 +172,7 @@ static const char * const f17h_ls_mce_desc[] = {
 	"L2 fill data error",
 };
 
-static const char * const f17h_if_mce_desc[] = {
+static const char * const smca_if_mce_desc[] = {
 	"microtag probe port parity error",
 	"IC microtag or full tag multi-hit error",
 	"IC full tag parity",
@@ -189,14 +189,14 @@ static const char * const f17h_if_mce_desc[] = {
 	"System Read Data error",
 };
 
-static const char * const f17h_l2_mce_desc[] = {
+static const char * const smca_l2_mce_desc[] = {
 	"L2M tag multi-way-hit error",
 	"L2M tag ECC error",
 	"L2M data ECC error",
 	"HW assert",
 };
 
-static const char * const f17h_de_mce_desc[] = {
+static const char * const smca_de_mce_desc[] = {
 	"uop cache tag parity error",
 	"uop cache data parity error",
 	"Insn buffer parity error",
@@ -208,7 +208,7 @@ static const char * const f17h_de_mce_desc[] = {
 	"uop buffer parity"
 };
 
-static const char * const f17h_ex_mce_desc[] = {
+static const char * const smca_ex_mce_desc[] = {
 	"Watchdog timeout error",
 	"Phy register file parity",
 	"Flag register file parity",
@@ -222,7 +222,7 @@ static const char * const f17h_ex_mce_desc[] = {
 	"Branch buffer queue parity error",
 };
 
-static const char * const f17h_fp_mce_desc[] = {
+static const char * const smca_fp_mce_desc[] = {
 	"Physical register file parity",
 	"Freelist parity error",
 	"Schedule queue parity",
@@ -232,7 +232,7 @@ static const char * const f17h_fp_mce_desc[] = {
 	"Hardware assertion",
 };
 
-static const char * const f17h_l3_mce_desc[] = {
+static const char * const smca_l3_mce_desc[] = {
 	"Shadow tag macro ECC error",
 	"Shadow tag macro multi-way-hit error",
 	"L3M tag ECC error",
@@ -243,7 +243,7 @@ static const char * const f17h_l3_mce_desc[] = {
 	"L3 HW assert",
 };
 
-static const char * const f17h_cs_mce_desc[] = {
+static const char * const smca_cs_mce_desc[] = {
 	"Illegal request from transport layer",
 	"Address violation",
 	"Security violation",
@@ -255,14 +255,14 @@ static const char * const f17h_cs_mce_desc[] = {
 	"ECC error on probe filter access",
 };
 
-static const char * const f17h_pie_mce_desc[] = {
+static const char * const smca_pie_mce_desc[] = {
 	"HW assert",
 	"Internal PIE register security violation",
 	"Error on GMI link",
 	"Poison data written to internal PIE register",
 };
 
-static const char * const f17h_umc_mce_desc[] = {
+static const char * const smca_umc_mce_desc[] = {
 	"DRAM ECC error",
 	"Data poison error on DRAM",
 	"SDP parity error",
@@ -271,15 +271,15 @@ static const char * const f17h_umc_mce_desc[] = {
 	"Write data CRC error",
 };
 
-static const char * const f17h_pb_mce_desc[] = {
+static const char * const smca_pb_mce_desc[] = {
 	"Parameter Block RAM ECC error",
 };
 
-static const char * const f17h_psp_mce_desc[] = {
+static const char * const smca_psp_mce_desc[] = {
 	"PSP RAM ECC or parity error",
 };
 
-static const char * const f17h_smu_mce_desc[] = {
+static const char * const smca_smu_mce_desc[] = {
 	"SMU RAM ECC or parity error",
 };
 
@@ -837,8 +837,8 @@ static void decode_f17h_core_errors(const char *ip_name, u8 xec,
 
 	switch (mca_type) {
 	case SMCA_LS:
-		error_desc_array = f17h_ls_mce_desc;
-		len = ARRAY_SIZE(f17h_ls_mce_desc) - 1;
+		error_desc_array = smca_ls_mce_desc;
+		len = ARRAY_SIZE(smca_ls_mce_desc) - 1;
 
 		if (xec == 0x4) {
 			pr_cont("Unrecognized LS MCA error code.\n");
@@ -847,33 +847,33 @@ static void decode_f17h_core_errors(const char *ip_name, u8 xec,
 		break;
 
 	case SMCA_IF:
-		error_desc_array = f17h_if_mce_desc;
-		len = ARRAY_SIZE(f17h_if_mce_desc) - 1;
+		error_desc_array = smca_if_mce_desc;
+		len = ARRAY_SIZE(smca_if_mce_desc) - 1;
 		break;
 
 	case SMCA_L2_CACHE:
-		error_desc_array = f17h_l2_mce_desc;
-		len = ARRAY_SIZE(f17h_l2_mce_desc) - 1;
+		error_desc_array = smca_l2_mce_desc;
+		len = ARRAY_SIZE(smca_l2_mce_desc) - 1;
 		break;
 
 	case SMCA_DE:
-		error_desc_array = f17h_de_mce_desc;
-		len = ARRAY_SIZE(f17h_de_mce_desc) - 1;
+		error_desc_array = smca_de_mce_desc;
+		len = ARRAY_SIZE(smca_de_mce_desc) - 1;
 		break;
 
 	case SMCA_EX:
-		error_desc_array = f17h_ex_mce_desc;
-		len = ARRAY_SIZE(f17h_ex_mce_desc) - 1;
+		error_desc_array = smca_ex_mce_desc;
+		len = ARRAY_SIZE(smca_ex_mce_desc) - 1;
 		break;
 
 	case SMCA_FP:
-		error_desc_array = f17h_fp_mce_desc;
-		len = ARRAY_SIZE(f17h_fp_mce_desc) - 1;
+		error_desc_array = smca_fp_mce_desc;
+		len = ARRAY_SIZE(smca_fp_mce_desc) - 1;
 		break;
 
 	case SMCA_L3_CACHE:
-		error_desc_array = f17h_l3_mce_desc;
-		len = ARRAY_SIZE(f17h_l3_mce_desc) - 1;
+		error_desc_array = smca_l3_mce_desc;
+		len = ARRAY_SIZE(smca_l3_mce_desc) - 1;
 		break;
 
 	default:
@@ -899,13 +899,13 @@ static void decode_df_errors(u8 xec, unsigned int mca_type)
 
 	switch (mca_type) {
 	case  SMCA_CS:
-		error_desc_array = f17h_cs_mce_desc;
-		len = ARRAY_SIZE(f17h_cs_mce_desc) - 1;
+		error_desc_array = smca_cs_mce_desc;
+		len = ARRAY_SIZE(smca_cs_mce_desc) - 1;
 		break;
 
 	case SMCA_PIE:
-		error_desc_array = f17h_pie_mce_desc;
-		len = ARRAY_SIZE(f17h_pie_mce_desc) - 1;
+		error_desc_array = smca_pie_mce_desc;
+		len = ARRAY_SIZE(smca_pie_mce_desc) - 1;
 		break;
 
 	default:
@@ -963,23 +963,23 @@ static void decode_smca_errors(struct mce *m)
 		break;
 
 	case SMCA_UMC:
-		error_desc_array = f17h_umc_mce_desc;
-		len = ARRAY_SIZE(f17h_umc_mce_desc) - 1;
+		error_desc_array = smca_umc_mce_desc;
+		len = ARRAY_SIZE(smca_umc_mce_desc) - 1;
 		break;
 
 	case SMCA_PB:
-		error_desc_array = f17h_pb_mce_desc;
-		len = ARRAY_SIZE(f17h_pb_mce_desc) - 1;
+		error_desc_array = smca_pb_mce_desc;
+		len = ARRAY_SIZE(smca_pb_mce_desc) - 1;
 		break;
 
 	case SMCA_PSP:
-		error_desc_array = f17h_psp_mce_desc;
-		len = ARRAY_SIZE(f17h_psp_mce_desc) - 1;
+		error_desc_array = smca_psp_mce_desc;
+		len = ARRAY_SIZE(smca_psp_mce_desc) - 1;
 		break;
 
 	case SMCA_SMU:
-		error_desc_array = f17h_smu_mce_desc;
-		len = ARRAY_SIZE(f17h_smu_mce_desc) - 1;
+		error_desc_array = smca_smu_mce_desc;
+		len = ARRAY_SIZE(smca_smu_mce_desc) - 1;
 		break;
 
 	default:
