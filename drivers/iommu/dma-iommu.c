@@ -25,9 +25,27 @@
 #include <linux/huge_mm.h>
 #include <linux/iommu.h>
 #include <linux/iova.h>
+#include <linux/irq.h>
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
 #include <linux/vmalloc.h>
+
+struct iommu_dma_msi_page {
+	struct list_head	list;
+	dma_addr_t		iova;
+	phys_addr_t		phys;
+};
+
+struct iommu_dma_cookie {
+	struct iova_domain	iovad;
+	struct list_head	msi_page_list;
+	spinlock_t		msi_lock;
+};
+
+static inline struct iova_domain *cookie_iovad(struct iommu_domain *domain)
+{
+	return &((struct iommu_dma_cookie *)domain->iova_cookie)->iovad;
+}
 
 int iommu_dma_init(void)
 {
@@ -43,15 +61,19 @@ int iommu_dma_init(void)
  */
 int iommu_get_dma_cookie(struct iommu_domain *domain)
 {
-	struct iova_domain *iovad;
+	struct iommu_dma_cookie *cookie;
 
 	if (domain->iova_cookie)
 		return -EEXIST;
 
-	iovad = kzalloc(sizeof(*iovad), GFP_KERNEL);
-	domain->iova_cookie = iovad;
+	cookie = kzalloc(sizeof(*cookie), GFP_KERNEL);
+	if (!cookie)
+		return -ENOMEM;
 
-	return iovad ? 0 : -ENOMEM;
+	spin_lock_init(&cookie->msi_lock);
+	INIT_LIST_HEAD(&cookie->msi_page_list);
+	domain->iova_cookie = cookie;
+	return 0;
 }
 EXPORT_SYMBOL(iommu_get_dma_cookie);
 
@@ -63,14 +85,20 @@ EXPORT_SYMBOL(iommu_get_dma_cookie);
  */
 void iommu_put_dma_cookie(struct iommu_domain *domain)
 {
-	struct iova_domain *iovad = domain->iova_cookie;
+	struct iommu_dma_cookie *cookie = domain->iova_cookie;
+	struct iommu_dma_msi_page *msi, *tmp;
 
-	if (!iovad)
+	if (!cookie)
 		return;
 
-	if (iovad->granule)
-		put_iova_domain(iovad);
-	kfree(iovad);
+	if (cookie->iovad.granule)
+		put_iova_domain(&cookie->iovad);
+
+	list_for_each_entry_safe(msi, tmp, &cookie->msi_page_list, list) {
+		list_del(&msi->list);
+		kfree(msi);
+	}
+	kfree(cookie);
 	domain->iova_cookie = NULL;
 }
 EXPORT_SYMBOL(iommu_put_dma_cookie);
@@ -88,7 +116,7 @@ EXPORT_SYMBOL(iommu_put_dma_cookie);
  */
 int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base, u64 size)
 {
-	struct iova_domain *iovad = domain->iova_cookie;
+	struct iova_domain *iovad = cookie_iovad(domain);
 	unsigned long order, base_pfn, end_pfn;
 
 	if (!iovad)
@@ -155,7 +183,7 @@ int dma_direction_to_prot(enum dma_data_direction dir, bool coherent)
 static struct iova *__alloc_iova(struct iommu_domain *domain, size_t size,
 		dma_addr_t dma_limit)
 {
-	struct iova_domain *iovad = domain->iova_cookie;
+	struct iova_domain *iovad = cookie_iovad(domain);
 	unsigned long shift = iova_shift(iovad);
 	unsigned long length = iova_align(iovad, size) >> shift;
 
@@ -171,7 +199,7 @@ static struct iova *__alloc_iova(struct iommu_domain *domain, size_t size,
 /* The IOVA allocator knows what we mapped, so just unmap whatever that was */
 static void __iommu_dma_unmap(struct iommu_domain *domain, dma_addr_t dma_addr)
 {
-	struct iova_domain *iovad = domain->iova_cookie;
+	struct iova_domain *iovad = cookie_iovad(domain);
 	unsigned long shift = iova_shift(iovad);
 	unsigned long pfn = dma_addr >> shift;
 	struct iova *iova = find_iova(iovad, pfn);
@@ -294,7 +322,7 @@ struct page **iommu_dma_alloc(struct device *dev, size_t size, gfp_t gfp,
 		void (*flush_page)(struct device *, const void *, phys_addr_t))
 {
 	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
-	struct iova_domain *iovad = domain->iova_cookie;
+	struct iova_domain *iovad = cookie_iovad(domain);
 	struct iova *iova;
 	struct page **pages;
 	struct sg_table sgt;
@@ -386,7 +414,7 @@ dma_addr_t iommu_dma_map_page(struct device *dev, struct page *page,
 {
 	dma_addr_t dma_addr;
 	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
-	struct iova_domain *iovad = domain->iova_cookie;
+	struct iova_domain *iovad = cookie_iovad(domain);
 	phys_addr_t phys = page_to_phys(page) + offset;
 	size_t iova_off = iova_offset(iovad, phys);
 	size_t len = iova_align(iovad, size + iova_off);
@@ -495,7 +523,7 @@ int iommu_dma_map_sg(struct device *dev, struct scatterlist *sg,
 		int nents, int prot)
 {
 	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
-	struct iova_domain *iovad = domain->iova_cookie;
+	struct iova_domain *iovad = cookie_iovad(domain);
 	struct iova *iova;
 	struct scatterlist *s, *prev = NULL;
 	dma_addr_t dma_addr;
@@ -586,4 +614,82 @@ int iommu_dma_supported(struct device *dev, u64 mask)
 int iommu_dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
 	return dma_addr == DMA_ERROR_CODE;
+}
+
+static struct iommu_dma_msi_page *iommu_dma_get_msi_page(struct device *dev,
+		phys_addr_t msi_addr, struct iommu_domain *domain)
+{
+	struct iommu_dma_cookie *cookie = domain->iova_cookie;
+	struct iommu_dma_msi_page *msi_page;
+	struct iova_domain *iovad = &cookie->iovad;
+	struct iova *iova;
+	int prot = IOMMU_WRITE | IOMMU_NOEXEC | IOMMU_MMIO;
+
+	msi_addr &= ~(phys_addr_t)iova_mask(iovad);
+	list_for_each_entry(msi_page, &cookie->msi_page_list, list)
+		if (msi_page->phys == msi_addr)
+			return msi_page;
+
+	msi_page = kzalloc(sizeof(*msi_page), GFP_ATOMIC);
+	if (!msi_page)
+		return NULL;
+
+	iova = __alloc_iova(domain, iovad->granule, dma_get_mask(dev));
+	if (!iova)
+		goto out_free_page;
+
+	msi_page->phys = msi_addr;
+	msi_page->iova = iova_dma_addr(iovad, iova);
+	if (iommu_map(domain, msi_page->iova, msi_addr, iovad->granule, prot))
+		goto out_free_iova;
+
+	INIT_LIST_HEAD(&msi_page->list);
+	list_add(&msi_page->list, &cookie->msi_page_list);
+	return msi_page;
+
+out_free_iova:
+	__free_iova(iovad, iova);
+out_free_page:
+	kfree(msi_page);
+	return NULL;
+}
+
+void iommu_dma_map_msi_msg(int irq, struct msi_msg *msg)
+{
+	struct device *dev = msi_desc_to_dev(irq_get_msi_desc(irq));
+	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
+	struct iommu_dma_cookie *cookie;
+	struct iommu_dma_msi_page *msi_page;
+	phys_addr_t msi_addr = (u64)msg->address_hi << 32 | msg->address_lo;
+	unsigned long flags;
+
+	if (!domain || !domain->iova_cookie)
+		return;
+
+	cookie = domain->iova_cookie;
+
+	/*
+	 * We disable IRQs to rule out a possible inversion against
+	 * irq_desc_lock if, say, someone tries to retarget the affinity
+	 * of an MSI from within an IPI handler.
+	 */
+	spin_lock_irqsave(&cookie->msi_lock, flags);
+	msi_page = iommu_dma_get_msi_page(dev, msi_addr, domain);
+	spin_unlock_irqrestore(&cookie->msi_lock, flags);
+
+	if (WARN_ON(!msi_page)) {
+		/*
+		 * We're called from a void callback, so the best we can do is
+		 * 'fail' by filling the message with obviously bogus values.
+		 * Since we got this far due to an IOMMU being present, it's
+		 * not like the existing address would have worked anyway...
+		 */
+		msg->address_hi = ~0U;
+		msg->address_lo = ~0U;
+		msg->data = ~0U;
+	} else {
+		msg->address_hi = upper_32_bits(msi_page->iova);
+		msg->address_lo &= iova_mask(&cookie->iovad);
+		msg->address_lo += lower_32_bits(msi_page->iova);
+	}
 }

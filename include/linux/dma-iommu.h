@@ -21,6 +21,7 @@
 
 #ifdef CONFIG_IOMMU_DMA
 #include <linux/iommu.h>
+#include <linux/msi.h>
 
 int iommu_dma_init(void);
 
@@ -62,9 +63,13 @@ void iommu_dma_unmap_sg(struct device *dev, struct scatterlist *sg, int nents,
 int iommu_dma_supported(struct device *dev, u64 mask);
 int iommu_dma_mapping_error(struct device *dev, dma_addr_t dma_addr);
 
+/* The DMA API isn't _quite_ the whole story, though... */
+void iommu_dma_map_msi_msg(int irq, struct msi_msg *msg);
+
 #else
 
 struct iommu_domain;
+struct msi_msg;
 
 static inline int iommu_dma_init(void)
 {
@@ -77,6 +82,10 @@ static inline int iommu_get_dma_cookie(struct iommu_domain *domain)
 }
 
 static inline void iommu_put_dma_cookie(struct iommu_domain *domain)
+{
+}
+
+static inline void iommu_dma_map_msi_msg(int irq, struct msi_msg *msg)
 {
 }
 
