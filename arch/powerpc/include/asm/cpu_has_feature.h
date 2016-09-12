@@ -15,7 +15,7 @@ static inline bool early_cpu_has_feature(unsigned long feature)
 #ifdef CONFIG_JUMP_LABEL_FEATURE_CHECKS
 #include <linux/jump_label.h>
 
-#define NUM_CPU_FTR_KEYS	64
+#define NUM_CPU_FTR_KEYS	BITS_PER_LONG
 
 extern struct static_key_true cpu_feature_keys[NUM_CPU_FTR_KEYS];
 
