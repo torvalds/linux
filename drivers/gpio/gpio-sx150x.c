@@ -236,7 +236,6 @@ static const struct i2c_device_id sx150x_id[] = {
 	{"sx1502q", 3},
 	{}
 };
-MODULE_DEVICE_TABLE(i2c, sx150x_id);
 
 static const struct of_device_id sx150x_of_match[] = {
 	{ .compatible = "semtech,sx1508q" },
@@ -245,7 +244,6 @@ static const struct of_device_id sx150x_of_match[] = {
 	{ .compatible = "semtech,sx1502q" },
 	{},
 };
-MODULE_DEVICE_TABLE(of, sx150x_of_match);
 
 static s32 sx150x_i2c_write(struct i2c_client *client, u8 reg, u8 val)
 {
