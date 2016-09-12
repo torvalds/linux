@@ -1815,7 +1815,12 @@ static int mlxsw_sp_port_get_settings(struct net_device *dev,
 			 mlxsw_sp_from_ptys_supported_link(eth_proto_cap) |
 			 SUPPORTED_Pause | SUPPORTED_Asym_Pause |
 			 SUPPORTED_Autoneg;
-	cmd->advertising = mlxsw_sp_from_ptys_advert_link(eth_proto_admin);
+	if (mlxsw_sp_port->link.autoneg) {
+		cmd->advertising =
+			mlxsw_sp_from_ptys_advert_link(eth_proto_admin);
+		cmd->advertising |= ADVERTISED_Autoneg;
+		cmd->autoneg = AUTONEG_ENABLE;
+	}
 	mlxsw_sp_from_ptys_speed_duplex(netif_carrier_ok(dev),
 					eth_proto_oper, cmd);
 
@@ -1873,11 +1878,13 @@ static int mlxsw_sp_port_set_settings(struct net_device *dev,
 	u32 eth_proto_new;
 	u32 eth_proto_cap;
 	u32 eth_proto_admin;
+	bool autoneg;
 	int err;
 
+	autoneg = cmd->autoneg == AUTONEG_ENABLE;
 	speed = ethtool_cmd_speed(cmd);
 
-	eth_proto_new = cmd->autoneg == AUTONEG_ENABLE ?
+	eth_proto_new = autoneg ?
 		mlxsw_sp_to_ptys_advert_link(cmd->advertising) :
 		mlxsw_sp_to_ptys_speed(speed);
 
@@ -1906,6 +1913,8 @@ static int mlxsw_sp_port_set_settings(struct net_device *dev,
 
 	if (!netif_running(dev))
 		return 0;
+
+	mlxsw_sp_port->link.autoneg = autoneg;
 
 	err = mlxsw_sp_port_admin_status_set(mlxsw_sp_port, false);
 	if (err) {
@@ -2082,6 +2091,7 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 	mlxsw_sp_port->mapping.module = module;
 	mlxsw_sp_port->mapping.width = width;
 	mlxsw_sp_port->mapping.lane = lane;
+	mlxsw_sp_port->link.autoneg = 1;
 	bytes = DIV_ROUND_UP(VLAN_N_VID, BITS_PER_BYTE);
 	mlxsw_sp_port->active_vlans = kzalloc(bytes, GFP_KERNEL);
 	if (!mlxsw_sp_port->active_vlans) {

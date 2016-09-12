@@ -341,7 +341,8 @@ struct mlxsw_sp_port {
 	} vport;
 	struct {
 		u8 tx_pause:1,
-		   rx_pause:1;
+		   rx_pause:1,
+		   autoneg:1;
 	} link;
 	struct {
 		struct ieee_ets *ets;
