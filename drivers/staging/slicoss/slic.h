@@ -92,6 +92,7 @@ struct slic_rcvbuf_info {
 	u32     lasttime;
 	u32     lastid;
 };
+
 /*
  * SLIC Handle structure.  Used to restrict handle values to
  * 32 bits by using an index rather than an address.
