@@ -266,7 +266,7 @@ static int enqueue_txdev(struct ks_wlan_private *priv, unsigned char *p,
 
 	if (priv->dev_state < DEVICE_STATE_BOOT) {
 		kfree(p);
-		if (complete_handler != NULL)
+		if (complete_handler)
 			(*complete_handler) (arg1, arg2);
 		return 1;
 	}
@@ -275,7 +275,7 @@ static int enqueue_txdev(struct ks_wlan_private *priv, unsigned char *p,
 		/* in case of buffer overflow */
 		DPRINTK(1, "tx buffer overflow\n");
 		kfree(p);
-		if (complete_handler != NULL)
+		if (complete_handler)
 			(*complete_handler) (arg1, arg2);
 		return 1;
 	}
@@ -346,7 +346,7 @@ static void tx_device_task(void *dev)
 
 		}
 		kfree(sp->sendp);	/* allocated memory free */
-		if (sp->complete_handler != NULL)	/* TX Complete */
+		if (sp->complete_handler)	/* TX Complete */
 			(*sp->complete_handler) (sp->arg1, sp->arg2);
 		inc_txqhead(priv);
 
@@ -687,7 +687,7 @@ static void trx_device_exit(struct ks_wlan_private *priv)
 	while (cnt_txqbody(priv) > 0) {
 		sp = &priv->tx_dev.tx_dev_buff[priv->tx_dev.qhead];
 		kfree(sp->sendp);	/* allocated memory free */
-		if (sp->complete_handler != NULL)	/* TX Complete */
+		if (sp->complete_handler)	/* TX Complete */
 			(*sp->complete_handler) (sp->arg1, sp->arg2);
 		inc_txqhead(priv);
 	}
@@ -1010,7 +1010,7 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 
 	/* private memory allocate */
 	netdev = alloc_etherdev(sizeof(*priv));
-	if (netdev == NULL) {
+	if (!netdev) {
 		printk(KERN_ERR "ks7010 : Unable to alloc new net device\n");
 		goto error_release_irq;
 	}
@@ -1126,7 +1126,7 @@ static void ks7010_sdio_remove(struct sdio_func *func)
 
 	card = sdio_get_drvdata(func);
 
-	if (card == NULL)
+	if (!card)
 		return;
 
 	DPRINTK(1, "priv = card->priv\n");
@@ -1149,7 +1149,7 @@ static void ks7010_sdio_remove(struct sdio_func *func)
 			struct hostif_stop_request_t *pp;
 			pp = (struct hostif_stop_request_t *)
 			    kzalloc(hif_align_size(sizeof(*pp)), GFP_KERNEL);
-			if (pp == NULL) {
+			if (!pp) {
 				DPRINTK(3, "allocate memory failed..\n");
 				return;	/* to do goto ni suru */
 			}

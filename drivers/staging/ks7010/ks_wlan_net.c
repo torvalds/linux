@@ -3366,7 +3366,7 @@ int ks_wlan_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	DPRINTK(3, "in_interrupt()=%ld\n", in_interrupt());
 
-	if (skb == NULL) {
+	if (!skb) {
 		printk(KERN_ERR "ks_wlan:  skb == NULL!!!\n");
 		return 0;
 	}
