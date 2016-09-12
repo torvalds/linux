@@ -2849,11 +2849,8 @@ static void btrfsic_cmp_log_and_dev_bytenr(struct btrfsic_state *state,
 static struct btrfsic_dev_state *btrfsic_dev_state_lookup(
 		struct block_device *bdev)
 {
-	struct btrfsic_dev_state *ds;
-
-	ds = btrfsic_dev_state_hashtable_lookup(bdev,
-						&btrfsic_dev_state_hashtable);
-	return ds;
+	return btrfsic_dev_state_hashtable_lookup(bdev,
+						  &btrfsic_dev_state_hashtable);
 }
 
 int btrfsic_submit_bh(int op, int op_flags, struct buffer_head *bh)

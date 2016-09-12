@@ -730,11 +730,7 @@ static int cache_block_group(struct btrfs_block_group_cache *cache,
 static struct btrfs_block_group_cache *
 btrfs_lookup_first_block_group(struct btrfs_fs_info *info, u64 bytenr)
 {
-	struct btrfs_block_group_cache *cache;
-
-	cache = block_group_cache_tree_search(info, bytenr, 0);
-
-	return cache;
+	return block_group_cache_tree_search(info, bytenr, 0);
 }
 
 /*
@@ -744,11 +740,7 @@ struct btrfs_block_group_cache *btrfs_lookup_block_group(
 						 struct btrfs_fs_info *info,
 						 u64 bytenr)
 {
-	struct btrfs_block_group_cache *cache;
-
-	cache = block_group_cache_tree_search(info, bytenr, 1);
-
-	return cache;
+	return block_group_cache_tree_search(info, bytenr, 1);
 }
 
 static struct btrfs_space_info *__find_space_info(struct btrfs_fs_info *info,

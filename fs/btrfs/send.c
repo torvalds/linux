@@ -4398,12 +4398,8 @@ static int process_new_xattr(struct send_ctx *sctx)
 
 static int process_deleted_xattr(struct send_ctx *sctx)
 {
-	int ret;
-
-	ret = iterate_dir_item(sctx->parent_root, sctx->right_path,
-			       sctx->cmp_key, __process_deleted_xattr, sctx);
-
-	return ret;
+	return iterate_dir_item(sctx->parent_root, sctx->right_path,
+				sctx->cmp_key, __process_deleted_xattr, sctx);
 }
 
 struct find_xattr_ctx {
