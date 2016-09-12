@@ -50,6 +50,15 @@
 / {
 	compatible = "rockchip,rk3399-mid", "rockchip,rk3399";
 
+	hall_sensor: hall-mh248 {
+		compatible = "hall-mh248";
+		pinctrl-names = "default";
+		pinctrl-0 = <&mh248_irq_gpio>;
+		irq-gpio = <&gpio1 2 IRQ_TYPE_EDGE_BOTH>;
+		hall-active = <1>;
+		status = "okay";
+	};
+
 	vcc_sys: vcc-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sys";
@@ -1101,6 +1110,12 @@
 		vsel2_gpio: vsel2-gpio {
 			rockchip,pins =
 				<1 14 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+
+	hallsensor {
+		mh248_irq_gpio: mh248-irq-gpio {
+			rockchip,pins = <1 2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
