@@ -1470,7 +1470,7 @@ static int atmel_isc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int isc_runtime_suspend(struct device *dev)
+static int __maybe_unused isc_runtime_suspend(struct device *dev)
 {
 	struct isc_device *isc = dev_get_drvdata(dev);
 
@@ -1480,7 +1480,7 @@ static int isc_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int isc_runtime_resume(struct device *dev)
+static int __maybe_unused isc_runtime_resume(struct device *dev)
 {
 	struct isc_device *isc = dev_get_drvdata(dev);
 	int ret;
