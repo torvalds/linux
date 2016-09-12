@@ -8282,6 +8282,8 @@ static int i40e_pf_config_rss(struct i40e_pf *pf)
 	if (!vsi->rss_size)
 		vsi->rss_size = min_t(int, pf->alloc_rss_size,
 				      vsi->num_queue_pairs);
+	if (!vsi->rss_size)
+		return -EINVAL;
 
 	lut = kzalloc(vsi->rss_table_size, GFP_KERNEL);
 	if (!lut)
