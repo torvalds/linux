@@ -1970,11 +1970,22 @@ static int i40e_set_phys_id(struct net_device *netdev,
  * 125us (8000 interrupts per second) == ITR(62)
  */
 
+/**
+ * __i40e_get_coalesce - get per-queue coalesce settings
+ * @netdev: the netdev to check
+ * @ec: ethtool coalesce data structure
+ * @queue: which queue to pick
+ *
+ * Gets the per-queue settings for coalescence. Specifically Rx and Tx usecs
+ * are per queue. If queue is <0 then we default to queue 0 as the
+ * representative value.
+ **/
 static int __i40e_get_coalesce(struct net_device *netdev,
 			       struct ethtool_coalesce *ec,
 			       int queue)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_ring *rx_ring, *tx_ring;
 	struct i40e_vsi *vsi = np->vsi;
 
 	ec->tx_max_coalesced_frames_irq = vsi->work_limit;
@@ -1989,14 +2000,18 @@ static int __i40e_get_coalesce(struct net_device *netdev,
 		return -EINVAL;
 	}
 
-	if (ITR_IS_DYNAMIC(vsi->rx_rings[queue]->rx_itr_setting))
+	rx_ring = vsi->rx_rings[queue];
+	tx_ring = vsi->tx_rings[queue];
+
+	if (ITR_IS_DYNAMIC(rx_ring->rx_itr_setting))
 		ec->use_adaptive_rx_coalesce = 1;
 
-	if (ITR_IS_DYNAMIC(vsi->tx_rings[queue]->tx_itr_setting))
+	if (ITR_IS_DYNAMIC(tx_ring->tx_itr_setting))
 		ec->use_adaptive_tx_coalesce = 1;
 
-	ec->rx_coalesce_usecs = vsi->rx_rings[queue]->rx_itr_setting & ~I40E_ITR_DYNAMIC;
-	ec->tx_coalesce_usecs = vsi->tx_rings[queue]->tx_itr_setting & ~I40E_ITR_DYNAMIC;
+	ec->rx_coalesce_usecs = rx_ring->rx_itr_setting & ~I40E_ITR_DYNAMIC;
+	ec->tx_coalesce_usecs = tx_ring->tx_itr_setting & ~I40E_ITR_DYNAMIC;
+
 
 	/* we use the _usecs_high to store/set the interrupt rate limit
 	 * that the hardware supports, that almost but not quite
@@ -2010,17 +2025,43 @@ static int __i40e_get_coalesce(struct net_device *netdev,
 	return 0;
 }
 
+/**
+ * i40e_get_coalesce - get a netdev's coalesce settings
+ * @netdev: the netdev to check
+ * @ec: ethtool coalesce data structure
+ *
+ * Gets the coalesce settings for a particular netdev. Note that if user has
+ * modified per-queue settings, this only guarantees to represent queue 0. See
+ * __i40e_get_coalesce for more details.
+ **/
 static int i40e_get_coalesce(struct net_device *netdev,
 			     struct ethtool_coalesce *ec)
 {
 	return __i40e_get_coalesce(netdev, ec, -1);
 }
 
+/**
+ * i40e_get_per_queue_coalesce - gets coalesce settings for particular queue
+ * @netdev: netdev structure
+ * @ec: ethtool's coalesce settings
+ * @queue: the particular queue to read
+ *
+ * Will read a specific queue's coalesce settings
+ **/
 static int i40e_get_per_queue_coalesce(struct net_device *netdev, u32 queue,
 				       struct ethtool_coalesce *ec)
 {
 	return __i40e_get_coalesce(netdev, ec, queue);
 }
+
+/**
+ * i40e_set_itr_per_queue - set ITR values for specific queue
+ * @vsi: the VSI to set values for
+ * @ec: coalesce settings from ethtool
+ * @queue: the queue to modify
+ *
+ * Change the ITR settings for a specific queue.
+ **/
 
 static void i40e_set_itr_per_queue(struct i40e_vsi *vsi,
 				   struct ethtool_coalesce *ec,
@@ -2060,6 +2101,14 @@ static void i40e_set_itr_per_queue(struct i40e_vsi *vsi,
 	i40e_flush(hw);
 }
 
+/**
+ * __i40e_set_coalesce - set coalesce settings for particular queue
+ * @netdev: the netdev to change
+ * @ec: ethtool coalesce settings
+ * @queue: the queue to change
+ *
+ * Sets the coalesce settings for a particular queue.
+ **/
 static int __i40e_set_coalesce(struct net_device *netdev,
 			       struct ethtool_coalesce *ec,
 			       int queue)
@@ -2120,12 +2169,27 @@ static int __i40e_set_coalesce(struct net_device *netdev,
 	return 0;
 }
 
+/**
+ * i40e_set_coalesce - set coalesce settings for every queue on the netdev
+ * @netdev: the netdev to change
+ * @ec: ethtool coalesce settings
+ *
+ * This will set each queue to the same coalesce settings.
+ **/
 static int i40e_set_coalesce(struct net_device *netdev,
 			     struct ethtool_coalesce *ec)
 {
 	return __i40e_set_coalesce(netdev, ec, -1);
 }
 
+/**
+ * i40e_set_per_queue_coalesce - set specific queue's coalesce settings
+ * @netdev: the netdev to change
+ * @ec: ethtool's coalesce settings
+ * @queue: the queue to change
+ *
+ * Sets the specified queue's coalesce settings.
+ **/
 static int i40e_set_per_queue_coalesce(struct net_device *netdev, u32 queue,
 				       struct ethtool_coalesce *ec)
 {

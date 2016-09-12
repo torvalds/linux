@@ -1877,6 +1877,15 @@ static u32 i40e_buildreg_itr(const int type, const u16 itr)
 
 /* a small macro to shorten up some long lines */
 #define INTREG I40E_PFINT_DYN_CTLN
+static inline int get_rx_itr_enabled(struct i40e_vsi *vsi, int idx)
+{
+	return !!(vsi->rx_rings[idx]->rx_itr_setting);
+}
+
+static inline int get_tx_itr_enabled(struct i40e_vsi *vsi, int idx)
+{
+	return !!(vsi->tx_rings[idx]->tx_itr_setting);
+}
 
 /**
  * i40e_update_enable_itr - Update itr and re-enable MSIX interrupt
@@ -1892,6 +1901,7 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 	u32 rxval, txval;
 	int vector;
 	int idx = q_vector->v_idx;
+	int rx_itr_setting, tx_itr_setting;
 
 	vector = (q_vector->v_idx + vsi->base_vector);
 
@@ -1900,18 +1910,21 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 	 */
 	rxval = txval = i40e_buildreg_itr(I40E_ITR_NONE, 0);
 
+	rx_itr_setting = get_rx_itr_enabled(vsi, idx);
+	tx_itr_setting = get_tx_itr_enabled(vsi, idx);
+
 	if (q_vector->itr_countdown > 0 ||
-	    (!ITR_IS_DYNAMIC(vsi->rx_rings[idx]->rx_itr_setting) &&
-	     !ITR_IS_DYNAMIC(vsi->tx_rings[idx]->tx_itr_setting))) {
+	    (!ITR_IS_DYNAMIC(rx_itr_setting) &&
+	     !ITR_IS_DYNAMIC(tx_itr_setting))) {
 		goto enable_int;
 	}
 
-	if (ITR_IS_DYNAMIC(vsi->rx_rings[idx]->rx_itr_setting)) {
+	if (ITR_IS_DYNAMIC(tx_itr_setting)) {
 		rx = i40e_set_new_dynamic_itr(&q_vector->rx);
 		rxval = i40e_buildreg_itr(I40E_RX_ITR, q_vector->rx.itr);
 	}
 
-	if (ITR_IS_DYNAMIC(vsi->tx_rings[idx]->tx_itr_setting)) {
+	if (ITR_IS_DYNAMIC(tx_itr_setting)) {
 		tx = i40e_set_new_dynamic_itr(&q_vector->tx);
 		txval = i40e_buildreg_itr(I40E_TX_ITR, q_vector->tx.itr);
 	}
