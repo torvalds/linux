@@ -1800,6 +1800,8 @@ static int mlxsw_sp_port_get_settings(struct net_device *dev,
 	u32 eth_proto_cap;
 	u32 eth_proto_admin;
 	u32 eth_proto_oper;
+	u8 autoneg_status;
+	u32 eth_proto_lp;
 	int err;
 
 	mlxsw_reg_ptys_pack(ptys_pl, mlxsw_sp_port->local_port, 0);
@@ -1810,6 +1812,8 @@ static int mlxsw_sp_port_get_settings(struct net_device *dev,
 	}
 	mlxsw_reg_ptys_unpack(ptys_pl, &eth_proto_cap,
 			      &eth_proto_admin, &eth_proto_oper);
+	eth_proto_lp = mlxsw_reg_ptys_eth_proto_lp_advertise_get(ptys_pl);
+	autoneg_status = mlxsw_reg_ptys_an_status_get(ptys_pl);
 
 	cmd->supported = mlxsw_sp_from_ptys_supported_port(eth_proto_cap) |
 			 mlxsw_sp_from_ptys_supported_link(eth_proto_cap) |
@@ -1826,7 +1830,10 @@ static int mlxsw_sp_port_get_settings(struct net_device *dev,
 
 	eth_proto_oper = eth_proto_oper ? eth_proto_oper : eth_proto_cap;
 	cmd->port = mlxsw_sp_port_connector_port(eth_proto_oper);
-	cmd->lp_advertising = mlxsw_sp_from_ptys_advert_link(eth_proto_oper);
+
+	if (autoneg_status == MLXSW_REG_PTYS_AN_STATUS_OK && eth_proto_lp)
+		cmd->lp_advertising =
+			mlxsw_sp_from_ptys_advert_link(eth_proto_lp);
 
 	cmd->transceiver = XCVR_INTERNAL;
 	return 0;
