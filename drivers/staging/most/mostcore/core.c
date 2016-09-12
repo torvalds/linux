@@ -848,7 +848,23 @@ static ssize_t show_add_link(struct most_aim_obj *aim_obj,
 			     struct most_aim_attribute *attr,
 			     char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%s\n", aim_obj->add_link);
+	struct most_c_obj *c;
+	struct most_inst_obj *i;
+	int offs = 0;
+
+	list_for_each_entry(i, &instance_list, list) {
+		list_for_each_entry(c, &i->channel_list, list) {
+			if (c->aim0.ptr == aim_obj->driver ||
+			    c->aim1.ptr == aim_obj->driver) {
+				offs += snprintf(buf + offs, PAGE_SIZE - offs,
+						 "%s:%s\n",
+						 kobject_name(&i->kobj),
+						 kobject_name(&c->kobj));
+			}
+		}
+	}
+
+	return offs;
 }
 
 /**
