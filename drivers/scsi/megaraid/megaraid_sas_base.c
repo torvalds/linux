@@ -5782,7 +5782,7 @@ static int megasas_probe_one(struct pci_dev *pdev,
 					     &instance->consumer_h);
 
 		if (!instance->producer || !instance->consumer) {
-			dev_printk(KERN_DEBUG, &pdev->dev, "Failed to allocate"
+			dev_printk(KERN_DEBUG, &pdev->dev, "Failed to allocate "
 			       "memory for producer, consumer\n");
 			goto fail_alloc_dma_buf;
 		}
