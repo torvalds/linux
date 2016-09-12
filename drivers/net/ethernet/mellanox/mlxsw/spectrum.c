@@ -1706,21 +1706,23 @@ static const struct mlxsw_sp_port_link_mode mlxsw_sp_port_link_mode[] = {
 
 static u32 mlxsw_sp_from_ptys_supported_port(u32 ptys_eth_proto)
 {
+	u32 modes = 0;
+
 	if (ptys_eth_proto & (MLXSW_REG_PTYS_ETH_SPEED_10GBASE_CR |
 			      MLXSW_REG_PTYS_ETH_SPEED_10GBASE_SR |
 			      MLXSW_REG_PTYS_ETH_SPEED_40GBASE_CR4 |
 			      MLXSW_REG_PTYS_ETH_SPEED_40GBASE_SR4 |
 			      MLXSW_REG_PTYS_ETH_SPEED_100GBASE_SR4 |
 			      MLXSW_REG_PTYS_ETH_SPEED_SGMII))
-		return SUPPORTED_FIBRE;
+		modes |= SUPPORTED_FIBRE;
 
 	if (ptys_eth_proto & (MLXSW_REG_PTYS_ETH_SPEED_10GBASE_KR |
 			      MLXSW_REG_PTYS_ETH_SPEED_10GBASE_KX4 |
 			      MLXSW_REG_PTYS_ETH_SPEED_40GBASE_KR4 |
 			      MLXSW_REG_PTYS_ETH_SPEED_100GBASE_KR4 |
 			      MLXSW_REG_PTYS_ETH_SPEED_1000BASE_KX))
-		return SUPPORTED_Backplane;
-	return 0;
+		modes |= SUPPORTED_Backplane;
+	return modes;
 }
 
 static u32 mlxsw_sp_from_ptys_supported_link(u32 ptys_eth_proto)
