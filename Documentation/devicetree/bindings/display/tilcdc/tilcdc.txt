@@ -17,9 +17,9 @@ Optional properties:
    the lcd controller.
  - max-pixelclock: The maximum pixel clock that can be supported
    by the lcd controller in KHz.
- - blue-and-red-wiring: Recognized values "default", "straight" or
-   "crossed". This property deals with the LCDC revision 2 (found on
-   AM335x) color errata [1].
+ - blue-and-red-wiring: Recognized values "straight" or "crossed".
+   This property deals with the LCDC revision 2 (found on AM335x)
+   color errata [1].
     - "straight" indicates normal wiring that supports RGB565,
       BGR888, and XBGR8888 color formats.
     - "crossed" indicates wiring that has blue and red wires
