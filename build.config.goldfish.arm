@@ -1,0 +1,12 @@
+ARCH=arm
+BRANCH=android-4.4
+CROSS_COMPILE=arm-linux-androidkernel-
+DEFCONFIG=ranchu_defconfig
+EXTRA_CMDS=''
+KERNEL_DIR=goldfish
+LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/bin
+FILES="
+arch/arm/boot/zImage
+vmlinux
+System.map
+"
