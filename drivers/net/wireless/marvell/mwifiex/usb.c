@@ -1026,6 +1026,10 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 			dnld_cmd = le32_to_cpu(fwdata->fw_hdr.dnld_cmd);
 			tlen += sizeof(struct fw_header);
 
+			/* Command 7 doesn't have data length field */
+			if (dnld_cmd == FW_CMD_7)
+				dlen = 0;
+
 			memcpy(fwdata->data, &firmware[tlen], dlen);
 
 			fwdata->seq_num = cpu_to_le32(fw_seqnum);
