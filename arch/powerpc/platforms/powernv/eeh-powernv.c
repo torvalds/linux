@@ -1090,14 +1090,15 @@ static int pnv_eeh_reset(struct eeh_pe *pe, int option)
 		}
 	}
 
+	if (pe->type & EEH_PE_VF)
+		return pnv_eeh_reset_vf_pe(pe, option);
+
 	bus = eeh_pe_bus_get(pe);
 	if (!bus) {
 		pr_err("%s: Cannot find PCI bus for PHB#%d-PE#%x\n",
 			__func__, pe->phb->global_number, pe->addr);
 		return -EIO;
 	}
-	if (pe->type & EEH_PE_VF)
-		return pnv_eeh_reset_vf_pe(pe, option);
 
 	if (pci_is_root_bus(bus) ||
 	    pci_is_root_bus(bus->parent))
