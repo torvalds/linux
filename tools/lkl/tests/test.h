@@ -5,7 +5,7 @@
 static int g_test_pass = 0;
 #define TEST(name, ...)						\
 {								\
-	char str[MAX_MSG_LEN];					\
+	char str[MAX_MSG_LEN] = { 0, };				\
 	int (*fn)(char *str, int len, ...);			\
 	int ret;						\
 								\
