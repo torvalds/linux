@@ -684,7 +684,6 @@ static int __hpp__slsmg_color_printf(struct perf_hpp *hpp, const char *fmt, ...)
 	ret = scnprintf(hpp->buf, hpp->size, fmt, len, percent);
 	ui_browser__printf(arg->b, "%s", hpp->buf);
 
-	advance_hpp(hpp, ret);
 	return ret;
 }
 
