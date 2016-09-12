@@ -246,28 +246,27 @@ static void toggle_nb_mca_mst_cpu(u16 nid)
 
 static void prepare_msrs(void *info)
 {
-	struct mce i_mce = *(struct mce *)info;
-	u8 b = i_mce.bank;
+	struct mce m = *(struct mce *)info;
+	u8 b = m.bank;
 
-	wrmsrl(MSR_IA32_MCG_STATUS, i_mce.mcgstatus);
+	wrmsrl(MSR_IA32_MCG_STATUS, m.mcgstatus);
 
 	if (boot_cpu_has(X86_FEATURE_SMCA)) {
-		if (i_mce.inject_flags == DFR_INT_INJ) {
-			wrmsrl(MSR_AMD64_SMCA_MCx_DESTAT(b), i_mce.status);
-			wrmsrl(MSR_AMD64_SMCA_MCx_DEADDR(b), i_mce.addr);
+		if (m.inject_flags == DFR_INT_INJ) {
+			wrmsrl(MSR_AMD64_SMCA_MCx_DESTAT(b), m.status);
+			wrmsrl(MSR_AMD64_SMCA_MCx_DEADDR(b), m.addr);
 		} else {
-			wrmsrl(MSR_AMD64_SMCA_MCx_STATUS(b), i_mce.status);
-			wrmsrl(MSR_AMD64_SMCA_MCx_ADDR(b), i_mce.addr);
+			wrmsrl(MSR_AMD64_SMCA_MCx_STATUS(b), m.status);
+			wrmsrl(MSR_AMD64_SMCA_MCx_ADDR(b), m.addr);
 		}
 
-		wrmsrl(MSR_AMD64_SMCA_MCx_MISC(b), i_mce.misc);
-		wrmsrl(MSR_AMD64_SMCA_MCx_SYND(b), i_mce.synd);
+		wrmsrl(MSR_AMD64_SMCA_MCx_MISC(b), m.misc);
+		wrmsrl(MSR_AMD64_SMCA_MCx_SYND(b), m.synd);
 	} else {
-		wrmsrl(MSR_IA32_MCx_STATUS(b), i_mce.status);
-		wrmsrl(MSR_IA32_MCx_ADDR(b), i_mce.addr);
-		wrmsrl(MSR_IA32_MCx_MISC(b), i_mce.misc);
+		wrmsrl(MSR_IA32_MCx_STATUS(b), m.status);
+		wrmsrl(MSR_IA32_MCx_ADDR(b), m.addr);
+		wrmsrl(MSR_IA32_MCx_MISC(b), m.misc);
 	}
-
 }
 
 static void do_inject(void)
@@ -441,7 +440,7 @@ static struct dfs_node {
 
 static int __init init_mce_inject(void)
 {
-	int i;
+	unsigned int i;
 	u64 cap;
 
 	rdmsrl(MSR_IA32_MCG_CAP, cap);
