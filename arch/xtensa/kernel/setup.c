@@ -551,7 +551,7 @@ subsys_initcall(topology_init);
 
 void cpu_reset(void)
 {
-	__asm__ __volatile__ ("movi	a2, 15\n\t"
+	__asm__ __volatile__ ("movi	a2, 0\n\t"
 			      "wsr	a2, icountlevel\n\t"
 			      "movi	a2, 0\n\t"
 			      "wsr	a2, icount\n\t"
