@@ -194,15 +194,12 @@ static void tunnel_key_release(struct tc_action *a, int bind)
 	struct tcf_tunnel_key *t = to_tunnel_key(a);
 	struct tcf_tunnel_key_params *params;
 
-	rcu_read_lock();
-	params = rcu_dereference(t->params);
+	params = rcu_dereference_protected(t->params, 1);
 
 	if (params->tcft_action == TCA_TUNNEL_KEY_ACT_SET)
 		dst_release(&params->tcft_enc_metadata->dst);
 
 	kfree_rcu(params, rcu);
-
-	rcu_read_unlock();
 }
 
 static int tunnel_key_dump_addresses(struct sk_buff *skb,
@@ -245,10 +242,8 @@ static int tunnel_key_dump(struct sk_buff *skb, struct tc_action *a,
 		.bindcnt  = t->tcf_bindcnt - bind,
 	};
 	struct tcf_t tm;
-	int ret = -1;
 
-	rcu_read_lock();
-	params = rcu_dereference(t->params);
+	params = rtnl_dereference(t->params);
 
 	opt.t_action = params->tcft_action;
 	opt.action = params->action;
@@ -272,15 +267,11 @@ static int tunnel_key_dump(struct sk_buff *skb, struct tc_action *a,
 			  &tm, TCA_TUNNEL_KEY_PAD))
 		goto nla_put_failure;
 
-	ret = skb->len;
-	goto out;
+	return skb->len;
 
 nla_put_failure:
 	nlmsg_trim(skb, b);
-out:
-	rcu_read_unlock();
-
-	return ret;
+	return -1;
 }
 
 static int tunnel_key_walker(struct net *net, struct sk_buff *skb,
