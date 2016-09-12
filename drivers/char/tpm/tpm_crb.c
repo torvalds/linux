@@ -315,6 +315,7 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 	struct list_head resources;
 	struct resource io_res;
 	struct device *dev = &device->dev;
+	u32 pa_high, pa_low;
 	u64 cmd_pa;
 	u32 cmd_size;
 	u64 rsp_pa;
@@ -342,12 +343,27 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 	if (IS_ERR(priv->cca))
 		return PTR_ERR(priv->cca);
 
-	cmd_pa = ((u64) ioread32(&priv->cca->cmd_pa_high) << 32) |
-		  (u64) ioread32(&priv->cca->cmd_pa_low);
+	/*
+	 * PTT HW bug w/a: wake up the device to access
+	 * possibly not retained registers.
+	 */
+	ret = crb_cmd_ready(dev, priv);
+	if (ret)
+		return ret;
+
+	pa_high = ioread32(&priv->cca->cmd_pa_high);
+	pa_low  = ioread32(&priv->cca->cmd_pa_low);
+	cmd_pa = ((u64)pa_high << 32) | pa_low;
 	cmd_size = ioread32(&priv->cca->cmd_size);
+
+	dev_dbg(dev, "cmd_hi = %X cmd_low = %X cmd_size %X\n",
+		pa_high, pa_low, cmd_size);
+
 	priv->cmd = crb_map_res(dev, priv, &io_res, cmd_pa, cmd_size);
-	if (IS_ERR(priv->cmd))
-		return PTR_ERR(priv->cmd);
+	if (IS_ERR(priv->cmd)) {
+		ret = PTR_ERR(priv->cmd);
+		goto out;
+	}
 
 	memcpy_fromio(&rsp_pa, &priv->cca->rsp_pa, 8);
 	rsp_pa = le64_to_cpu(rsp_pa);
@@ -355,7 +371,8 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 
 	if (cmd_pa != rsp_pa) {
 		priv->rsp = crb_map_res(dev, priv, &io_res, rsp_pa, rsp_size);
-		return PTR_ERR_OR_ZERO(priv->rsp);
+		ret = PTR_ERR_OR_ZERO(priv->rsp);
+		goto out;
 	}
 
 	/* According to the PTP specification, overlapping command and response
@@ -363,12 +380,18 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 	 */
 	if (cmd_size != rsp_size) {
 		dev_err(dev, FW_BUG "overlapping command and response buffer sizes are not identical");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
+
 	priv->cmd_size = cmd_size;
 
 	priv->rsp = priv->cmd;
-	return 0;
+
+out:
+	crb_go_idle(dev, priv);
+
+	return ret;
 }
 
 static int crb_acpi_add(struct acpi_device *device)
@@ -412,7 +435,15 @@ static int crb_acpi_add(struct acpi_device *device)
 	if (rc)
 		return rc;
 
-	return crb_init(device, priv);
+	rc  = crb_cmd_ready(dev, priv);
+	if (rc)
+		return rc;
+
+	rc = crb_init(device, priv);
+	if (rc)
+		crb_go_idle(dev, priv);
+
+	return rc;
 }
 
 static int crb_acpi_remove(struct acpi_device *device)
