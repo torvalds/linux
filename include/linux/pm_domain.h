@@ -187,19 +187,12 @@ struct genpd_onecell_data {
 	unsigned int num_domains;
 };
 
-typedef struct generic_pm_domain *(*genpd_xlate_t)(struct of_phandle_args *args,
-						void *data);
-
 #ifdef CONFIG_PM_GENERIC_DOMAINS_OF
-int __of_genpd_add_provider(struct device_node *np, genpd_xlate_t xlate,
-			void *data);
+int of_genpd_add_provider_simple(struct device_node *np,
+				 struct generic_pm_domain *genpd);
+int of_genpd_add_provider_onecell(struct device_node *np,
+				  struct genpd_onecell_data *data);
 void of_genpd_del_provider(struct device_node *np);
-struct generic_pm_domain *__of_genpd_xlate_simple(
-					struct of_phandle_args *genpdspec,
-					void *data);
-struct generic_pm_domain *__of_genpd_xlate_onecell(
-					struct of_phandle_args *genpdspec,
-					void *data);
 extern int of_genpd_add_device(struct of_phandle_args *args,
 			       struct device *dev);
 extern int of_genpd_add_subdomain(struct of_phandle_args *parent,
@@ -207,15 +200,19 @@ extern int of_genpd_add_subdomain(struct of_phandle_args *parent,
 
 int genpd_dev_pm_attach(struct device *dev);
 #else /* !CONFIG_PM_GENERIC_DOMAINS_OF */
-static inline int __of_genpd_add_provider(struct device_node *np,
-					genpd_xlate_t xlate, void *data)
+static inline int of_genpd_add_provider_simple(struct device_node *np,
+					struct generic_pm_domain *genpd)
 {
-	return 0;
+	return -ENOTSUPP;
 }
-static inline void of_genpd_del_provider(struct device_node *np) {}
 
-#define __of_genpd_xlate_simple		NULL
-#define __of_genpd_xlate_onecell	NULL
+static inline int of_genpd_add_provider_onecell(struct device_node *np,
+					struct genpd_onecell_data *data)
+{
+	return -ENOTSUPP;
+}
+
+static inline void of_genpd_del_provider(struct device_node *np) {}
 
 static inline int of_genpd_add_device(struct of_phandle_args *args,
 				      struct device *dev)
@@ -234,17 +231,6 @@ static inline int genpd_dev_pm_attach(struct device *dev)
 	return -ENODEV;
 }
 #endif /* CONFIG_PM_GENERIC_DOMAINS_OF */
-
-static inline int of_genpd_add_provider_simple(struct device_node *np,
-					struct generic_pm_domain *genpd)
-{
-	return __of_genpd_add_provider(np, __of_genpd_xlate_simple, genpd);
-}
-static inline int of_genpd_add_provider_onecell(struct device_node *np,
-					struct genpd_onecell_data *data)
-{
-	return __of_genpd_add_provider(np, __of_genpd_xlate_onecell, data);
-}
 
 #ifdef CONFIG_PM
 extern int dev_pm_domain_attach(struct device *dev, bool power_on);
