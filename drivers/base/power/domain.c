@@ -1060,14 +1060,8 @@ static void genpd_free_dev_data(struct device *dev,
 	dev_pm_put_subsys_data(dev);
 }
 
-/**
- * __pm_genpd_add_device - Add a device to an I/O PM domain.
- * @genpd: PM domain to add the device to.
- * @dev: Device to be added.
- * @td: Set of PM QoS timing parameters to attach to the device.
- */
-int __pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
-			  struct gpd_timing_data *td)
+static int genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
+			    struct gpd_timing_data *td)
 {
 	struct generic_pm_domain_data *gpd_data;
 	int ret = 0;
@@ -1104,6 +1098,24 @@ int __pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 		genpd_free_dev_data(dev, gpd_data);
 	else
 		dev_pm_qos_add_notifier(dev, &gpd_data->nb);
+
+	return ret;
+}
+
+/**
+ * __pm_genpd_add_device - Add a device to an I/O PM domain.
+ * @genpd: PM domain to add the device to.
+ * @dev: Device to be added.
+ * @td: Set of PM QoS timing parameters to attach to the device.
+ */
+int __pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
+			  struct gpd_timing_data *td)
+{
+	int ret;
+
+	mutex_lock(&gpd_list_lock);
+	ret = genpd_add_device(genpd, dev, td);
+	mutex_unlock(&gpd_list_lock);
 
 	return ret;
 }
@@ -1160,13 +1172,8 @@ int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 }
 EXPORT_SYMBOL_GPL(pm_genpd_remove_device);
 
-/**
- * pm_genpd_add_subdomain - Add a subdomain to an I/O PM domain.
- * @genpd: Master PM domain to add the subdomain to.
- * @subdomain: Subdomain to be added.
- */
-int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
-			   struct generic_pm_domain *subdomain)
+static int genpd_add_subdomain(struct generic_pm_domain *genpd,
+			       struct generic_pm_domain *subdomain)
 {
 	struct gpd_link *link, *itr;
 	int ret = 0;
@@ -1207,6 +1214,23 @@ int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
 	mutex_unlock(&subdomain->lock);
 	if (ret)
 		kfree(link);
+	return ret;
+}
+
+/**
+ * pm_genpd_add_subdomain - Add a subdomain to an I/O PM domain.
+ * @genpd: Master PM domain to add the subdomain to.
+ * @subdomain: Subdomain to be added.
+ */
+int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
+			   struct generic_pm_domain *subdomain)
+{
+	int ret;
+
+	mutex_lock(&gpd_list_lock);
+	ret = genpd_add_subdomain(genpd, subdomain);
+	mutex_unlock(&gpd_list_lock);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(pm_genpd_add_subdomain);
@@ -1571,12 +1595,22 @@ static struct generic_pm_domain *genpd_get_from_provider(
 int of_genpd_add_device(struct of_phandle_args *genpdspec, struct device *dev)
 {
 	struct generic_pm_domain *genpd;
+	int ret;
+
+	mutex_lock(&gpd_list_lock);
 
 	genpd = genpd_get_from_provider(genpdspec);
-	if (IS_ERR(genpd))
-		return PTR_ERR(genpd);
+	if (IS_ERR(genpd)) {
+		ret = PTR_ERR(genpd);
+		goto out;
+	}
 
-	return pm_genpd_add_device(genpd, dev);
+	ret = genpd_add_device(genpd, dev, NULL);
+
+out:
+	mutex_unlock(&gpd_list_lock);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(of_genpd_add_device);
 
@@ -1593,16 +1627,28 @@ int of_genpd_add_subdomain(struct of_phandle_args *parent_spec,
 			   struct of_phandle_args *subdomain_spec)
 {
 	struct generic_pm_domain *parent, *subdomain;
+	int ret;
+
+	mutex_lock(&gpd_list_lock);
 
 	parent = genpd_get_from_provider(parent_spec);
-	if (IS_ERR(parent))
-		return PTR_ERR(parent);
+	if (IS_ERR(parent)) {
+		ret = PTR_ERR(parent);
+		goto out;
+	}
 
 	subdomain = genpd_get_from_provider(subdomain_spec);
-	if (IS_ERR(subdomain))
-		return PTR_ERR(subdomain);
+	if (IS_ERR(subdomain)) {
+		ret = PTR_ERR(subdomain);
+		goto out;
+	}
 
-	return pm_genpd_add_subdomain(parent, subdomain);
+	ret = genpd_add_subdomain(parent, subdomain);
+
+out:
+	mutex_unlock(&gpd_list_lock);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(of_genpd_add_subdomain);
 
@@ -1701,9 +1747,11 @@ int genpd_dev_pm_attach(struct device *dev)
 			return -ENOENT;
 	}
 
+	mutex_lock(&gpd_list_lock);
 	pd = genpd_get_from_provider(&pd_args);
 	of_node_put(pd_args.np);
 	if (IS_ERR(pd)) {
+		mutex_unlock(&gpd_list_lock);
 		dev_dbg(dev, "%s() failed to find PM domain: %ld\n",
 			__func__, PTR_ERR(pd));
 		return -EPROBE_DEFER;
@@ -1712,13 +1760,14 @@ int genpd_dev_pm_attach(struct device *dev)
 	dev_dbg(dev, "adding to PM domain %s\n", pd->name);
 
 	for (i = 1; i < GENPD_RETRY_MAX_MS; i <<= 1) {
-		ret = pm_genpd_add_device(pd, dev);
+		ret = genpd_add_device(pd, dev, NULL);
 		if (ret != -EAGAIN)
 			break;
 
 		mdelay(i);
 		cond_resched();
 	}
+	mutex_unlock(&gpd_list_lock);
 
 	if (ret < 0) {
 		dev_err(dev, "failed to add to PM domain %s: %d",
