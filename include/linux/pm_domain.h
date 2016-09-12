@@ -208,6 +208,10 @@ struct generic_pm_domain *__of_genpd_xlate_simple(
 struct generic_pm_domain *__of_genpd_xlate_onecell(
 					struct of_phandle_args *genpdspec,
 					void *data);
+extern int of_genpd_add_device(struct of_phandle_args *args,
+			       struct device *dev);
+extern int of_genpd_add_subdomain(struct of_phandle_args *parent,
+				  struct of_phandle_args *new_subdomain);
 
 int genpd_dev_pm_attach(struct device *dev);
 #else /* !CONFIG_PM_GENERIC_DOMAINS_OF */
@@ -226,6 +230,18 @@ static inline struct generic_pm_domain *of_genpd_get_from_provider(
 
 #define __of_genpd_xlate_simple		NULL
 #define __of_genpd_xlate_onecell	NULL
+
+static inline int of_genpd_add_device(struct of_phandle_args *args,
+				      struct device *dev)
+{
+	return -ENODEV;
+}
+
+static inline int of_genpd_add_subdomain(struct of_phandle_args *parent,
+					 struct of_phandle_args *new_subdomain)
+{
+	return -ENODEV;
+}
 
 static inline int genpd_dev_pm_attach(struct device *dev)
 {

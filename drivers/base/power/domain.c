@@ -1502,6 +1502,52 @@ struct generic_pm_domain *of_genpd_get_from_provider(
 EXPORT_SYMBOL_GPL(of_genpd_get_from_provider);
 
 /**
+ * of_genpd_add_device() - Add a device to an I/O PM domain
+ * @genpdspec: OF phandle args to use for look-up PM domain
+ * @dev: Device to be added.
+ *
+ * Looks-up an I/O PM domain based upon phandle args provided and adds
+ * the device to the PM domain. Returns a negative error code on failure.
+ */
+int of_genpd_add_device(struct of_phandle_args *genpdspec, struct device *dev)
+{
+	struct generic_pm_domain *genpd;
+
+	genpd = of_genpd_get_from_provider(genpdspec);
+	if (IS_ERR(genpd))
+		return PTR_ERR(genpd);
+
+	return pm_genpd_add_device(genpd, dev);
+}
+EXPORT_SYMBOL_GPL(of_genpd_add_device);
+
+/**
+ * of_genpd_add_subdomain - Add a subdomain to an I/O PM domain.
+ * @parent_spec: OF phandle args to use for parent PM domain look-up
+ * @subdomain_spec: OF phandle args to use for subdomain look-up
+ *
+ * Looks-up a parent PM domain and subdomain based upon phandle args
+ * provided and adds the subdomain to the parent PM domain. Returns a
+ * negative error code on failure.
+ */
+int of_genpd_add_subdomain(struct of_phandle_args *parent_spec,
+			   struct of_phandle_args *subdomain_spec)
+{
+	struct generic_pm_domain *parent, *subdomain;
+
+	parent = of_genpd_get_from_provider(parent_spec);
+	if (IS_ERR(parent))
+		return PTR_ERR(parent);
+
+	subdomain = of_genpd_get_from_provider(subdomain_spec);
+	if (IS_ERR(subdomain))
+		return PTR_ERR(subdomain);
+
+	return pm_genpd_add_subdomain(parent, subdomain);
+}
+EXPORT_SYMBOL_GPL(of_genpd_add_subdomain);
+
+/**
  * genpd_dev_pm_detach - Detach a device from its PM domain.
  * @dev: Device to detach.
  * @power_off: Currently not used
