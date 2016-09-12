@@ -168,7 +168,7 @@ static int qxl_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		break;
 	case TTM_PL_VRAM:
-	case TTM_PL_PRIV0:
+	case TTM_PL_PRIV:
 		/* "On-card" video ram */
 		man->func = &ttm_bo_manager_func;
 		man->gpu_offset = 0;
@@ -235,7 +235,7 @@ static int qxl_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
 		mem->bus.base = qdev->vram_base;
 		mem->bus.offset = mem->start << PAGE_SHIFT;
 		break;
-	case TTM_PL_PRIV0:
+	case TTM_PL_PRIV:
 		mem->bus.is_iomem = true;
 		mem->bus.base = qdev->surfaceram_base;
 		mem->bus.offset = mem->start << PAGE_SHIFT;
@@ -376,7 +376,7 @@ static void qxl_bo_move_notify(struct ttm_buffer_object *bo,
 	qbo = to_qxl_bo(bo);
 	qdev = qbo->gem_base.dev->dev_private;
 
-	if (bo->mem.mem_type == TTM_PL_PRIV0 && qbo->surface_id)
+	if (bo->mem.mem_type == TTM_PL_PRIV && qbo->surface_id)
 		qxl_surface_evict(qdev, qbo, new_mem ? true : false);
 }
 
@@ -422,7 +422,7 @@ int qxl_ttm_init(struct qxl_device *qdev)
 		DRM_ERROR("Failed initializing VRAM heap.\n");
 		return r;
 	}
-	r = ttm_bo_init_mm(&qdev->mman.bdev, TTM_PL_PRIV0,
+	r = ttm_bo_init_mm(&qdev->mman.bdev, TTM_PL_PRIV,
 			   qdev->surfaceram_size / PAGE_SIZE);
 	if (r) {
 		DRM_ERROR("Failed initializing Surfaces heap.\n");
@@ -445,7 +445,7 @@ int qxl_ttm_init(struct qxl_device *qdev)
 void qxl_ttm_fini(struct qxl_device *qdev)
 {
 	ttm_bo_clean_mm(&qdev->mman.bdev, TTM_PL_VRAM);
-	ttm_bo_clean_mm(&qdev->mman.bdev, TTM_PL_PRIV0);
+	ttm_bo_clean_mm(&qdev->mman.bdev, TTM_PL_PRIV);
 	ttm_bo_device_release(&qdev->mman.bdev);
 	qxl_ttm_global_fini(qdev);
 	DRM_INFO("qxl: ttm finalized\n");
@@ -489,7 +489,7 @@ static int qxl_ttm_debugfs_init(struct qxl_device *qdev)
 		if (i == 0)
 			qxl_mem_types_list[i].data = qdev->mman.bdev.man[TTM_PL_VRAM].priv;
 		else
-			qxl_mem_types_list[i].data = qdev->mman.bdev.man[TTM_PL_PRIV0].priv;
+			qxl_mem_types_list[i].data = qdev->mman.bdev.man[TTM_PL_PRIV].priv;
 
 	}
 	return qxl_debugfs_add_files(qdev, qxl_mem_types_list, i);
