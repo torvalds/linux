@@ -1358,6 +1358,66 @@ int pm_genpd_init(struct generic_pm_domain *genpd,
 }
 EXPORT_SYMBOL_GPL(pm_genpd_init);
 
+static int genpd_remove(struct generic_pm_domain *genpd)
+{
+	struct gpd_link *l, *link;
+
+	if (IS_ERR_OR_NULL(genpd))
+		return -EINVAL;
+
+	mutex_lock(&genpd->lock);
+
+	if (genpd->has_provider) {
+		mutex_unlock(&genpd->lock);
+		pr_err("Provider present, unable to remove %s\n", genpd->name);
+		return -EBUSY;
+	}
+
+	if (!list_empty(&genpd->master_links) || genpd->device_count) {
+		mutex_unlock(&genpd->lock);
+		pr_err("%s: unable to remove %s\n", __func__, genpd->name);
+		return -EBUSY;
+	}
+
+	list_for_each_entry_safe(link, l, &genpd->slave_links, slave_node) {
+		list_del(&link->master_node);
+		list_del(&link->slave_node);
+		kfree(link);
+	}
+
+	list_del(&genpd->gpd_list_node);
+	mutex_unlock(&genpd->lock);
+	cancel_work_sync(&genpd->power_off_work);
+	pr_debug("%s: removed %s\n", __func__, genpd->name);
+
+	return 0;
+}
+
+/**
+ * pm_genpd_remove - Remove a generic I/O PM domain
+ * @genpd: Pointer to PM domain that is to be removed.
+ *
+ * To remove the PM domain, this function:
+ *  - Removes the PM domain as a subdomain to any parent domains,
+ *    if it was added.
+ *  - Removes the PM domain from the list of registered PM domains.
+ *
+ * The PM domain will only be removed, if the associated provider has
+ * been removed, it is not a parent to any other PM domain and has no
+ * devices associated with it.
+ */
+int pm_genpd_remove(struct generic_pm_domain *genpd)
+{
+	int ret;
+
+	mutex_lock(&gpd_list_lock);
+	ret = genpd_remove(genpd);
+	mutex_unlock(&gpd_list_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(pm_genpd_remove);
+
 #ifdef CONFIG_PM_GENERIC_DOMAINS_OF
 
 typedef struct generic_pm_domain *(*genpd_xlate_t)(struct of_phandle_args *args,
