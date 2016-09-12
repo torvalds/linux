@@ -27,6 +27,12 @@ the PCIe specification.
                       * "cmdq-sync" - CMD_SYNC complete
                       * "gerror"    - Global Error activated
 
+- #iommu-cells      : See the generic IOMMU binding described in
+                        devicetree/bindings/pci/pci-iommu.txt
+                      for details. For SMMUv3, must be 1, with each cell
+                      describing a single stream ID. All possible stream
+                      IDs which a device may emit must be described.
+
 ** SMMUv3 optional properties:
 
 - dma-coherent      : Present if DMA operations made by the SMMU (page
@@ -54,6 +60,6 @@ the PCIe specification.
                              <GIC_SPI 79 IRQ_TYPE_EDGE_RISING>;
                 interrupt-names = "eventq", "priq", "cmdq-sync", "gerror";
                 dma-coherent;
-                #iommu-cells = <0>;
+                #iommu-cells = <1>;
                 msi-parent = <&its 0xff0000>;
         };
