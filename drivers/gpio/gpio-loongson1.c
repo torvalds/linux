@@ -8,6 +8,7 @@
  * warranty of any kind, whether express or implied.
  */
 
+#include <linux/module.h>
 #include <linux/gpio/driver.h>
 #include <linux/platform_device.h>
 
