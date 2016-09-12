@@ -204,6 +204,7 @@ extern int of_genpd_add_device(struct of_phandle_args *args,
 			       struct device *dev);
 extern int of_genpd_add_subdomain(struct of_phandle_args *parent,
 				  struct of_phandle_args *new_subdomain);
+extern struct generic_pm_domain *of_genpd_remove_last(struct device_node *np);
 
 int genpd_dev_pm_attach(struct device *dev);
 #else /* !CONFIG_PM_GENERIC_DOMAINS_OF */
@@ -236,6 +237,12 @@ static inline int of_genpd_add_subdomain(struct of_phandle_args *parent,
 static inline int genpd_dev_pm_attach(struct device *dev)
 {
 	return -ENODEV;
+}
+
+static inline
+struct generic_pm_domain *of_genpd_remove_last(struct device_node *np)
+{
+	return ERR_PTR(-ENOTSUPP);
 }
 #endif /* CONFIG_PM_GENERIC_DOMAINS_OF */
 
