@@ -20,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/cpu.h>
 #include <linux/smp.h>
+#include <linux/string.h>
 
 #include <asm/amd_nb.h>
 #include <asm/apic.h>
@@ -61,6 +62,11 @@ static const char * const th_names[] = {
 	"",
 	"northbridge",
 	"execution_unit",
+};
+
+static const char * const smca_umc_block_names[] = {
+	"dram_ecc",
+	"misc_umc"
 };
 
 struct smca_bank_name smca_bank_names[] = {
@@ -112,6 +118,17 @@ static struct smca_hwid_mcatype smca_hwid_mcatypes[] = {
 
 struct smca_bank_info smca_banks[MAX_NR_BANKS];
 EXPORT_SYMBOL_GPL(smca_banks);
+
+/*
+ * In SMCA enabled processors, we can have multiple banks for a given IP type.
+ * So to define a unique name for each bank, we use a temp c-string to append
+ * the MCA_IPID[InstanceId] to type's name in get_name().
+ *
+ * InstanceId is 32 bits which is 8 characters. Make sure MAX_MCATYPE_NAME_LEN
+ * is greater than 8 plus 1 (for underscore) plus length of longest type name.
+ */
+#define MAX_MCATYPE_NAME_LEN	30
+static char buf_mcatype[MAX_MCATYPE_NAME_LEN];
 
 static DEFINE_PER_CPU(struct threshold_bank **, threshold_banks);
 static DEFINE_PER_CPU(unsigned int, bank_map);	/* see which banks are on */
@@ -769,6 +786,34 @@ static struct kobj_type threshold_ktype = {
 	.default_attrs		= default_attrs,
 };
 
+static const char *get_name(unsigned int bank, struct threshold_block *b)
+{
+	unsigned int bank_type;
+
+	if (!mce_flags.smca) {
+		if (b && bank == 4)
+			return bank4_names(b);
+
+		return th_names[bank];
+	}
+
+	if (!smca_banks[bank].type)
+		return NULL;
+
+	bank_type = smca_banks[bank].type->bank_type;
+
+	if (b && bank_type == SMCA_UMC) {
+		if (b->block < ARRAY_SIZE(smca_umc_block_names))
+			return smca_umc_block_names[b->block];
+		return NULL;
+	}
+
+	snprintf(buf_mcatype, MAX_MCATYPE_NAME_LEN,
+		 "%s_%x", smca_bank_names[bank_type].name,
+			  smca_banks[bank].type_instance);
+	return buf_mcatype;
+}
+
 static int allocate_threshold_blocks(unsigned int cpu, unsigned int bank,
 				     unsigned int block, u32 address)
 {
@@ -823,7 +868,7 @@ static int allocate_threshold_blocks(unsigned int cpu, unsigned int bank,
 
 	err = kobject_init_and_add(&b->kobj, &threshold_ktype,
 				   per_cpu(threshold_banks, cpu)[bank]->kobj,
-				   (bank == 4 ? bank4_names(b) : th_names[bank]));
+				   get_name(bank, b));
 	if (err)
 		goto out_free;
 recurse:
@@ -878,7 +923,7 @@ static int threshold_create_bank(unsigned int cpu, unsigned int bank)
 	struct device *dev = per_cpu(mce_device, cpu);
 	struct amd_northbridge *nb = NULL;
 	struct threshold_bank *b = NULL;
-	const char *name = th_names[bank];
+	const char *name = get_name(bank, NULL);
 	int err = 0;
 
 	if (is_shared_bank(bank)) {
