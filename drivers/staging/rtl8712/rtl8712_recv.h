@@ -116,13 +116,13 @@ struct recv_buf {
 };
 
 /*
-	head  ----->
-		data  ----->
-			payload
-		tail  ----->
-	end   ----->
-	len = (unsigned int )(tail - data);
-*/
+ *	head  ----->
+ *		data  ----->
+ *			payload
+ *		tail  ----->
+ *	end   ----->
+ *	len = (unsigned int )(tail - data);
+ */
 struct recv_frame_hdr {
 	struct list_head list;
 	_pkt	*pkt;
