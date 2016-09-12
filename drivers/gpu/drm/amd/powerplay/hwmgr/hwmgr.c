@@ -443,6 +443,27 @@ uint8_t phm_get_voltage_index(
 	return i - 1;
 }
 
+uint8_t phm_get_voltage_id(pp_atomctrl_voltage_table *voltage_table,
+		uint32_t voltage)
+{
+	uint8_t count = (uint8_t) (voltage_table->count);
+	uint8_t i = 0;
+
+	PP_ASSERT_WITH_CODE((NULL != voltage_table),
+		"Voltage Table empty.", return 0;);
+	PP_ASSERT_WITH_CODE((0 != count),
+		"Voltage Table empty.", return 0;);
+
+	for (i = 0; i < count; i++) {
+		/* find first voltage bigger than requested */
+		if (voltage_table->entries[i].value >= voltage)
+			return i;
+	}
+
+	/* voltage is bigger than max voltage in the table */
+	return i - 1;
+}
+
 uint16_t phm_find_closest_vddci(struct pp_atomctrl_voltage_table *vddci_table, uint16_t vddci)
 {
 	uint32_t  i;

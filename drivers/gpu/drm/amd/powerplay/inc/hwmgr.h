@@ -685,6 +685,8 @@ extern void phm_trim_voltage_table_to_fit_state_table(uint32_t max_vol_steps, st
 extern int phm_reset_single_dpm_table(void *table, uint32_t count, int max);
 extern void phm_setup_pcie_table_entry(void *table, uint32_t index, uint32_t pcie_gen, uint32_t pcie_lanes);
 extern int32_t phm_get_dpm_level_enable_mask_value(void *table);
+extern uint8_t phm_get_voltage_id(struct pp_atomctrl_voltage_table *voltage_table,
+		uint32_t voltage);
 extern uint8_t phm_get_voltage_index(struct phm_ppt_v1_voltage_lookup_table *lookup_table, uint16_t voltage);
 extern uint16_t phm_find_closest_vddci(struct pp_atomctrl_voltage_table *vddci_table, uint16_t vddci);
 extern int phm_find_boot_level(void *table, uint32_t value, uint32_t *boot_level);
@@ -707,8 +709,6 @@ extern void phm_apply_dal_min_voltage_request(struct pp_hwmgr *hwmgr);
 #define PHM_GET_FIELD(value, reg, field)	\
 	(((value) & PHM_FIELD_MASK(reg, field)) >>	\
 	 PHM_FIELD_SHIFT(reg, field))
-
-
 
 
 /* Operations on named fields. */
