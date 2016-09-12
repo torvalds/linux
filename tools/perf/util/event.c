@@ -1,5 +1,5 @@
 #include <linux/types.h>
-#include <sys/mman.h>
+#include <uapi/linux/mman.h> /* To get things like MAP_HUGETLB even on older libc headers */
 #include <api/fs/fs.h>
 #include "event.h"
 #include "debug.h"
@@ -249,10 +249,8 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 	bool truncation = false;
 	unsigned long long timeout = proc_map_timeout * 1000000ULL;
 	int rc = 0;
-#ifdef MAP_HUGETLB
 	const char *hugetlbfs_mnt = hugetlbfs__mountpoint();
 	int hugetlbfs_mnt_len = hugetlbfs_mnt ? strlen(hugetlbfs_mnt) : 0;
-#endif
 
 	if (machine__is_default_guest(machine))
 		return 0;
@@ -347,12 +345,11 @@ out:
 
 		if (!strcmp(execname, ""))
 			strcpy(execname, anonstr);
-#ifdef MAP_HUGETLB
+
 		if (!strncmp(execname, hugetlbfs_mnt, hugetlbfs_mnt_len)) {
 			strcpy(execname, anonstr);
 			event->mmap2.flags |= MAP_HUGETLB;
 		}
-#endif
 
 		size = strlen(execname) + 1;
 		memcpy(event->mmap2.filename, execname, size);
