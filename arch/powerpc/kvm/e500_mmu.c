@@ -907,7 +907,7 @@ int kvmppc_e500_tlb_init(struct kvmppc_vcpu_e500 *vcpu_e500)
 	struct kvm_vcpu *vcpu = &vcpu_e500->vcpu;
 
 	if (e500_mmu_host_init(vcpu_e500))
-		goto err;
+		goto free_vcpu;
 
 	vcpu_e500->gtlb_params[0].entries = KVM_E500_TLB0_SIZE;
 	vcpu_e500->gtlb_params[1].entries = KVM_E500_TLB1_SIZE;
@@ -933,26 +933,25 @@ int kvmppc_e500_tlb_init(struct kvmppc_vcpu_e500 *vcpu_e500)
 					  sizeof(struct tlbe_ref),
 					  GFP_KERNEL);
 	if (!vcpu_e500->gtlb_priv[0])
-		goto err;
+		goto free_vcpu;
 
 	vcpu_e500->gtlb_priv[1] = kcalloc(vcpu_e500->gtlb_params[1].entries,
 					  sizeof(struct tlbe_ref),
 					  GFP_KERNEL);
 	if (!vcpu_e500->gtlb_priv[1])
-		goto err;
+		goto free_vcpu;
 
 	vcpu_e500->g2h_tlb1_map = kcalloc(vcpu_e500->gtlb_params[1].entries,
 					  sizeof(*vcpu_e500->g2h_tlb1_map),
 					  GFP_KERNEL);
 	if (!vcpu_e500->g2h_tlb1_map)
-		goto err;
+		goto free_vcpu;
 
 	vcpu_mmu_init(vcpu, vcpu_e500->gtlb_params);
 
 	kvmppc_recalc_tlb1map_range(vcpu_e500);
 	return 0;
-
-err:
+ free_vcpu:
 	free_gtlb(vcpu_e500);
 	return -1;
 }
