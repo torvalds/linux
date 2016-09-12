@@ -161,6 +161,16 @@ config KXCJK1013
 	  To compile this driver as a module, choose M here: the module will
 	  be called kxcjk-1013.
 
+config MC3230
+	tristate "mCube MC3230 Digital Accelerometer Driver"
+	depends on I2C
+	help
+	  Say yes here to build support for the mCube MC3230 low-g tri-axial
+	  digital accelerometer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mc3230.
+
 config MMA7455
 	tristate
 	select IIO_BUFFER
