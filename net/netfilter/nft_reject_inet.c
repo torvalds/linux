@@ -66,7 +66,11 @@ static int nft_reject_inet_init(const struct nft_ctx *ctx,
 				const struct nlattr * const tb[])
 {
 	struct nft_reject *priv = nft_expr_priv(expr);
-	int icmp_code;
+	int icmp_code, err;
+
+	err = nft_reject_validate(ctx, expr, NULL);
+	if (err < 0)
+		return err;
 
 	if (tb[NFTA_REJECT_TYPE] == NULL)
 		return -EINVAL;
@@ -124,6 +128,7 @@ static const struct nft_expr_ops nft_reject_inet_ops = {
 	.eval		= nft_reject_inet_eval,
 	.init		= nft_reject_inet_init,
 	.dump		= nft_reject_inet_dump,
+	.validate	= nft_reject_validate,
 };
 
 static struct nft_expr_type nft_reject_inet_type __read_mostly = {

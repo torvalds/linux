@@ -227,7 +227,7 @@ struct escan_info {
  */
 struct brcmf_cfg80211_vif_event {
 	wait_queue_head_t vif_wq;
-	struct mutex vif_event_lock;
+	spinlock_t vif_event_lock;
 	u8 action;
 	struct brcmf_cfg80211_vif *vif;
 };

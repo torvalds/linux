@@ -470,7 +470,9 @@ smc_pxa_dma_insw(void __iomem *ioaddr, struct smc_local *lp, int reg, int dma,
 #endif
 
 #if ! SMC_CAN_USE_8BIT
+#undef SMC_inb
 #define SMC_inb(ioaddr, reg)		({ BUG(); 0; })
+#undef SMC_outb
 #define SMC_outb(x, ioaddr, reg)	BUG()
 #define SMC_insb(a, r, p, l)		BUG()
 #define SMC_outsb(a, r, p, l)		BUG()
