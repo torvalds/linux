@@ -653,11 +653,9 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	/* the hardware splits the A-MSDU */
 	if (mvm->cfg->mq_rx_supported)
 		trans_cfg.rx_buf_size = IWL_AMSDU_4K;
-	trans->wide_cmd_header = fw_has_api(&mvm->fw->ucode_capa,
-					    IWL_UCODE_TLV_API_WIDE_CMD_HDR);
 
-	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_DW_BC_TABLE)
-		trans_cfg.bc_table_dword = true;
+	trans->wide_cmd_header = true;
+	trans_cfg.bc_table_dword = true;
 
 	trans_cfg.command_groups = iwl_mvm_groups;
 	trans_cfg.command_groups_size = ARRAY_SIZE(iwl_mvm_groups);

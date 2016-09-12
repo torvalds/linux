@@ -1046,18 +1046,10 @@ static int iwl_mvm_sar_init(struct iwl_mvm *mvm)
 {
 	struct iwl_mvm_sar_table sar_table;
 	struct iwl_dev_tx_power_cmd cmd = {
-		.v3.v2.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_CHAINS),
+		.v3.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_CHAINS),
 	};
 	int ret, i, j, idx;
 	int len = sizeof(cmd);
-
-	/* we can't do anything with the table if the FW doesn't support it */
-	if (!fw_has_api(&mvm->fw->ucode_capa,
-			IWL_UCODE_TLV_API_TX_POWER_CHAIN)) {
-		IWL_DEBUG_RADIO(mvm,
-				"FW doesn't support per-chain TX power settings.\n");
-		return 0;
-	}
 
 	if (!fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_TX_POWER_ACK))
 		len = sizeof(cmd.v3);
