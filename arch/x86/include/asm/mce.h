@@ -337,44 +337,47 @@ extern void apei_mce_report_mem_error(int corrected,
  * Scalable MCA.
  */
 #ifdef CONFIG_X86_MCE_AMD
-enum amd_ip_types {
-	SMCA_F17H_CORE = 0,	/* Core errors */
-	SMCA_DF,		/* Data Fabric */
-	SMCA_UMC,		/* Unified Memory Controller */
-	SMCA_PB,		/* Parameter Block */
-	SMCA_PSP,		/* Platform Security Processor */
-	SMCA_SMU,		/* System Management Unit */
-	N_AMD_IP_TYPES
-};
 
-struct amd_hwid {
-	const char *name;
-	unsigned int hwid;
-};
-
-extern struct amd_hwid amd_hwids[N_AMD_IP_TYPES];
-
-enum amd_core_mca_blocks {
+/* These may be used by multiple smca_hwid_mcatypes */
+enum smca_bank_types {
 	SMCA_LS = 0,	/* Load Store */
 	SMCA_IF,	/* Instruction Fetch */
-	SMCA_L2_CACHE,	/* L2 cache */
-	SMCA_DE,	/* Decoder unit */
-	RES,		/* Reserved */
-	SMCA_EX,	/* Execution unit */
+	SMCA_L2_CACHE,	/* L2 Cache */
+	SMCA_DE,	/* Decoder Unit */
+	SMCA_EX,	/* Execution Unit */
 	SMCA_FP,	/* Floating Point */
-	SMCA_L3_CACHE,	/* L3 cache */
-	N_CORE_MCA_BLOCKS
+	SMCA_L3_CACHE,	/* L3 Cache */
+	SMCA_CS,	/* Coherent Slave */
+	SMCA_PIE,	/* Power, Interrupts, etc. */
+	SMCA_UMC,	/* Unified Memory Controller */
+	SMCA_PB,	/* Parameter Block */
+	SMCA_PSP,	/* Platform Security Processor */
+	SMCA_SMU,	/* System Management Unit */
+	N_SMCA_BANK_TYPES
 };
 
-extern const char * const amd_core_mcablock_names[N_CORE_MCA_BLOCKS];
-
-enum amd_df_mca_blocks {
-	SMCA_CS = 0,	/* Coherent Slave */
-	SMCA_PIE,	/* Power management, Interrupts, etc */
-	N_DF_BLOCKS
+struct smca_bank_name {
+	const char *name;	/* Short name for sysfs */
+	const char *long_name;	/* Long name for pretty-printing */
 };
 
-extern const char * const amd_df_mcablock_names[N_DF_BLOCKS];
+extern struct smca_bank_name smca_bank_names[N_SMCA_BANK_TYPES];
+
+#define HWID_MCATYPE(hwid, mcatype) ((hwid << 16) | mcatype)
+
+struct smca_hwid_mcatype {
+	unsigned int bank_type;	/* Use with smca_bank_types for easy indexing. */
+	u32 hwid_mcatype;	/* (hwid,mcatype) tuple */
+	u32 xec_bitmap;		/* Bitmap of valid ExtErrorCodes; current max is 21. */
+};
+
+struct smca_bank_info {
+	struct smca_hwid_mcatype *type;
+	u32 type_instance;
+};
+
+extern struct smca_bank_info smca_banks[MAX_NR_BANKS];
+
 #endif
 
 #endif /* _ASM_X86_MCE_H */

@@ -63,34 +63,55 @@ static const char * const th_names[] = {
 	"execution_unit",
 };
 
-/* Define HWID to IP type mappings for Scalable MCA */
-struct amd_hwid amd_hwids[] = {
-	[SMCA_F17H_CORE]	= { "f17h_core",	0xB0 },
-	[SMCA_DF]		= { "data_fabric",	0x2E },
-	[SMCA_UMC]		= { "umc",		0x96 },
-	[SMCA_PB]		= { "param_block",	0x5 },
-	[SMCA_PSP]		= { "psp",		0xFF },
-	[SMCA_SMU]		= { "smu",		0x1 },
+struct smca_bank_name smca_bank_names[] = {
+	[SMCA_LS]	= { "load_store",	"Load Store Unit" },
+	[SMCA_IF]	= { "insn_fetch",	"Instruction Fetch Unit" },
+	[SMCA_L2_CACHE]	= { "l2_cache",		"L2 Cache" },
+	[SMCA_DE]	= { "decode_unit",	"Decode Unit" },
+	[SMCA_EX]	= { "execution_unit",	"Execution Unit" },
+	[SMCA_FP]	= { "floating_point",	"Floating Point Unit" },
+	[SMCA_L3_CACHE]	= { "l3_cache",		"L3 Cache" },
+	[SMCA_CS]	= { "coherent_slave",	"Coherent Slave" },
+	[SMCA_PIE]	= { "pie",		"Power, Interrupts, etc." },
+	[SMCA_UMC]	= { "umc",		"Unified Memory Controller" },
+	[SMCA_PB]	= { "param_block",	"Parameter Block" },
+	[SMCA_PSP]	= { "psp",		"Platform Security Processor" },
+	[SMCA_SMU]	= { "smu",		"System Management Unit" },
 };
-EXPORT_SYMBOL_GPL(amd_hwids);
+EXPORT_SYMBOL_GPL(smca_bank_names);
 
-const char * const amd_core_mcablock_names[] = {
-	[SMCA_LS]		= "load_store",
-	[SMCA_IF]		= "insn_fetch",
-	[SMCA_L2_CACHE]		= "l2_cache",
-	[SMCA_DE]		= "decode_unit",
-	[RES]			= "",
-	[SMCA_EX]		= "execution_unit",
-	[SMCA_FP]		= "floating_point",
-	[SMCA_L3_CACHE]		= "l3_cache",
-};
-EXPORT_SYMBOL_GPL(amd_core_mcablock_names);
+static struct smca_hwid_mcatype smca_hwid_mcatypes[] = {
+	/* { bank_type, hwid_mcatype, xec_bitmap } */
 
-const char * const amd_df_mcablock_names[] = {
-	[SMCA_CS]		= "coherent_slave",
-	[SMCA_PIE]		= "pie",
+	/* ZN Core (HWID=0xB0) MCA types */
+	{ SMCA_LS,	 HWID_MCATYPE(0xB0, 0x0), 0x1FFFEF },
+	{ SMCA_IF,	 HWID_MCATYPE(0xB0, 0x1), 0x3FFF },
+	{ SMCA_L2_CACHE, HWID_MCATYPE(0xB0, 0x2), 0xF },
+	{ SMCA_DE,	 HWID_MCATYPE(0xB0, 0x3), 0x1FF },
+	/* HWID 0xB0 MCATYPE 0x4 is Reserved */
+	{ SMCA_EX,	 HWID_MCATYPE(0xB0, 0x5), 0x7FF },
+	{ SMCA_FP,	 HWID_MCATYPE(0xB0, 0x6), 0x7F },
+	{ SMCA_L3_CACHE, HWID_MCATYPE(0xB0, 0x7), 0xFF },
+
+	/* Data Fabric MCA types */
+	{ SMCA_CS,	 HWID_MCATYPE(0x2E, 0x0), 0x1FF },
+	{ SMCA_PIE,	 HWID_MCATYPE(0x2E, 0x1), 0xF },
+
+	/* Unified Memory Controller MCA type */
+	{ SMCA_UMC,	 HWID_MCATYPE(0x96, 0x0), 0x3F },
+
+	/* Parameter Block MCA type */
+	{ SMCA_PB,	 HWID_MCATYPE(0x05, 0x0), 0x1 },
+
+	/* Platform Security Processor MCA type */
+	{ SMCA_PSP,	 HWID_MCATYPE(0xFF, 0x0), 0x1 },
+
+	/* System Management Unit MCA type */
+	{ SMCA_SMU,	 HWID_MCATYPE(0x01, 0x0), 0x1 },
 };
-EXPORT_SYMBOL_GPL(amd_df_mcablock_names);
+
+struct smca_bank_info smca_banks[MAX_NR_BANKS];
+EXPORT_SYMBOL_GPL(smca_banks);
 
 static DEFINE_PER_CPU(struct threshold_bank **, threshold_banks);
 static DEFINE_PER_CPU(unsigned int, bank_map);	/* see which banks are on */
@@ -107,6 +128,36 @@ void (*deferred_error_int_vector)(void) = default_deferred_error_interrupt;
 /*
  * CPU Initialization
  */
+
+static void get_smca_bank_info(unsigned int bank)
+{
+	unsigned int i, hwid_mcatype, cpu = smp_processor_id();
+	struct smca_hwid_mcatype *type;
+	u32 high, instanceId;
+	u16 hwid, mcatype;
+
+	/* Collect bank_info using CPU 0 for now. */
+	if (cpu)
+		return;
+
+	if (rdmsr_safe_on_cpu(cpu, MSR_AMD64_SMCA_MCx_IPID(bank), &instanceId, &high)) {
+		pr_warn("Failed to read MCA_IPID for bank %d\n", bank);
+		return;
+	}
+
+	hwid = high & MCI_IPID_HWID;
+	mcatype = (high & MCI_IPID_MCATYPE) >> 16;
+	hwid_mcatype = HWID_MCATYPE(hwid, mcatype);
+
+	for (i = 0; i < ARRAY_SIZE(smca_hwid_mcatypes); i++) {
+		type = &smca_hwid_mcatypes[i];
+		if (hwid_mcatype == type->hwid_mcatype) {
+			smca_banks[bank].type = type;
+			smca_banks[bank].type_instance = instanceId;
+			break;
+		}
+	}
+}
 
 struct thresh_restart {
 	struct threshold_block	*b;
@@ -425,6 +476,9 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 	int offset = -1;
 
 	for (bank = 0; bank < mca_cfg.banks; ++bank) {
+		if (mce_flags.smca)
+			get_smca_bank_info(bank);
+
 		for (block = 0; block < NR_BLOCKS; ++block) {
 			address = get_block_address(cpu, address, low, high, bank, block);
 			if (!address)

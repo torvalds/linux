@@ -283,6 +283,27 @@ static const char * const smca_smu_mce_desc[] = {
 	"SMU RAM ECC or parity error",
 };
 
+struct smca_mce_desc {
+	const char * const *descs;
+	unsigned int num_descs;
+};
+
+static struct smca_mce_desc smca_mce_descs[] = {
+	[SMCA_LS]	= { smca_ls_mce_desc,	ARRAY_SIZE(smca_ls_mce_desc)	},
+	[SMCA_IF]	= { smca_if_mce_desc,	ARRAY_SIZE(smca_if_mce_desc)	},
+	[SMCA_L2_CACHE]	= { smca_l2_mce_desc,	ARRAY_SIZE(smca_l2_mce_desc)	},
+	[SMCA_DE]	= { smca_de_mce_desc,	ARRAY_SIZE(smca_de_mce_desc)	},
+	[SMCA_EX]	= { smca_ex_mce_desc,	ARRAY_SIZE(smca_ex_mce_desc)	},
+	[SMCA_FP]	= { smca_fp_mce_desc,	ARRAY_SIZE(smca_fp_mce_desc)	},
+	[SMCA_L3_CACHE]	= { smca_l3_mce_desc,	ARRAY_SIZE(smca_l3_mce_desc)	},
+	[SMCA_CS]	= { smca_cs_mce_desc,	ARRAY_SIZE(smca_cs_mce_desc)	},
+	[SMCA_PIE]	= { smca_pie_mce_desc,	ARRAY_SIZE(smca_pie_mce_desc)	},
+	[SMCA_UMC]	= { smca_umc_mce_desc,	ARRAY_SIZE(smca_umc_mce_desc)	},
+	[SMCA_PB]	= { smca_pb_mce_desc,	ARRAY_SIZE(smca_pb_mce_desc)	},
+	[SMCA_PSP]	= { smca_psp_mce_desc,	ARRAY_SIZE(smca_psp_mce_desc)	},
+	[SMCA_SMU]	= { smca_smu_mce_desc,	ARRAY_SIZE(smca_smu_mce_desc)	},
+};
+
 static bool f12h_mc0_mce(u16 ec, u8 xec)
 {
 	bool ret = false;
@@ -827,175 +848,32 @@ static void decode_mc6_mce(struct mce *m)
 	pr_emerg(HW_ERR "Corrupted MC6 MCE info?\n");
 }
 
-static void decode_f17h_core_errors(const char *ip_name, u8 xec,
-				   unsigned int mca_type)
-{
-	const char * const *error_desc_array;
-	size_t len;
-
-	pr_emerg(HW_ERR "%s Error: ", ip_name);
-
-	switch (mca_type) {
-	case SMCA_LS:
-		error_desc_array = smca_ls_mce_desc;
-		len = ARRAY_SIZE(smca_ls_mce_desc) - 1;
-
-		if (xec == 0x4) {
-			pr_cont("Unrecognized LS MCA error code.\n");
-			return;
-		}
-		break;
-
-	case SMCA_IF:
-		error_desc_array = smca_if_mce_desc;
-		len = ARRAY_SIZE(smca_if_mce_desc) - 1;
-		break;
-
-	case SMCA_L2_CACHE:
-		error_desc_array = smca_l2_mce_desc;
-		len = ARRAY_SIZE(smca_l2_mce_desc) - 1;
-		break;
-
-	case SMCA_DE:
-		error_desc_array = smca_de_mce_desc;
-		len = ARRAY_SIZE(smca_de_mce_desc) - 1;
-		break;
-
-	case SMCA_EX:
-		error_desc_array = smca_ex_mce_desc;
-		len = ARRAY_SIZE(smca_ex_mce_desc) - 1;
-		break;
-
-	case SMCA_FP:
-		error_desc_array = smca_fp_mce_desc;
-		len = ARRAY_SIZE(smca_fp_mce_desc) - 1;
-		break;
-
-	case SMCA_L3_CACHE:
-		error_desc_array = smca_l3_mce_desc;
-		len = ARRAY_SIZE(smca_l3_mce_desc) - 1;
-		break;
-
-	default:
-		pr_cont("Corrupted MCA core error info.\n");
-		return;
-	}
-
-	if (xec > len) {
-		pr_cont("Unrecognized %s MCA bank error code.\n",
-			 amd_core_mcablock_names[mca_type]);
-		return;
-	}
-
-	pr_cont("%s.\n", error_desc_array[xec]);
-}
-
-static void decode_df_errors(u8 xec, unsigned int mca_type)
-{
-	const char * const *error_desc_array;
-	size_t len;
-
-	pr_emerg(HW_ERR "Data Fabric Error: ");
-
-	switch (mca_type) {
-	case  SMCA_CS:
-		error_desc_array = smca_cs_mce_desc;
-		len = ARRAY_SIZE(smca_cs_mce_desc) - 1;
-		break;
-
-	case SMCA_PIE:
-		error_desc_array = smca_pie_mce_desc;
-		len = ARRAY_SIZE(smca_pie_mce_desc) - 1;
-		break;
-
-	default:
-		pr_cont("Corrupted MCA Data Fabric info.\n");
-		return;
-	}
-
-	if (xec > len) {
-		pr_cont("Unrecognized %s MCA bank error code.\n",
-			 amd_df_mcablock_names[mca_type]);
-		return;
-	}
-
-	pr_cont("%s.\n", error_desc_array[xec]);
-}
-
 /* Decode errors according to Scalable MCA specification */
 static void decode_smca_errors(struct mce *m)
 {
-	u32 addr = MSR_AMD64_SMCA_MCx_IPID(m->bank);
-	unsigned int hwid, mca_type, i;
-	u8 xec = XEC(m->status, xec_mask);
-	const char * const *error_desc_array;
+	struct smca_hwid_mcatype *type;
+	unsigned int bank_type;
 	const char *ip_name;
-	u32 low, high;
-	size_t len;
+	u8 xec = XEC(m->status, xec_mask);
 
-	if (rdmsr_safe(addr, &low, &high)) {
-		pr_emerg(HW_ERR "Invalid IP block specified.\n");
+	if (m->bank >= ARRAY_SIZE(smca_banks))
 		return;
-	}
 
-	hwid = high & MCI_IPID_HWID;
-	mca_type = (high & MCI_IPID_MCATYPE) >> 16;
-
-	pr_emerg(HW_ERR "MC%d IPID value: 0x%08x%08x\n", m->bank, high, low);
-
-	/*
-	 * Based on hwid and mca_type values, decode errors from respective IPs.
-	 * Note: mca_type values make sense only in the context of an hwid.
-	 */
-	for (i = 0; i < ARRAY_SIZE(amd_hwids); i++)
-		if (amd_hwids[i].hwid == hwid)
-			break;
-
-	switch (i) {
-	case SMCA_F17H_CORE:
-		ip_name = (mca_type == SMCA_L3_CACHE) ?
-			  "L3 Cache" : "F17h Core";
-		return decode_f17h_core_errors(ip_name, xec, mca_type);
-		break;
-
-	case SMCA_DF:
-		return decode_df_errors(xec, mca_type);
-		break;
-
-	case SMCA_UMC:
-		error_desc_array = smca_umc_mce_desc;
-		len = ARRAY_SIZE(smca_umc_mce_desc) - 1;
-		break;
-
-	case SMCA_PB:
-		error_desc_array = smca_pb_mce_desc;
-		len = ARRAY_SIZE(smca_pb_mce_desc) - 1;
-		break;
-
-	case SMCA_PSP:
-		error_desc_array = smca_psp_mce_desc;
-		len = ARRAY_SIZE(smca_psp_mce_desc) - 1;
-		break;
-
-	case SMCA_SMU:
-		error_desc_array = smca_smu_mce_desc;
-		len = ARRAY_SIZE(smca_smu_mce_desc) - 1;
-		break;
-
-	default:
-		pr_emerg(HW_ERR "HWID:%d does not match any existing IPs.\n", hwid);
+	type = smca_banks[m->bank].type;
+	if (!type)
 		return;
+
+	bank_type = type->bank_type;
+	ip_name = smca_bank_names[bank_type].long_name;
+
+	pr_emerg(HW_ERR "%s Extended Error Code: %d\n", ip_name, xec);
+
+	/* Only print the decode of valid error codes */
+	if (xec < smca_mce_descs[bank_type].num_descs &&
+			(type->xec_bitmap & BIT_ULL(xec))) {
+		pr_emerg(HW_ERR "%s Error: ", ip_name);
+		pr_cont("%s.\n", smca_mce_descs[bank_type].descs[xec]);
 	}
-
-	ip_name = amd_hwids[i].name;
-	pr_emerg(HW_ERR "%s Error: ", ip_name);
-
-	if (xec > len) {
-		pr_cont("Unrecognized %s MCA bank error code.\n", ip_name);
-		return;
-	}
-
-	pr_cont("%s.\n", error_desc_array[xec]);
 }
 
 static inline void amd_decode_err_code(u16 ec)
