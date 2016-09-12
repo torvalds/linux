@@ -361,6 +361,14 @@ struct amd_powerplay_funcs {
 	int (*set_mclk_od)(void *handle, uint32_t value);
 	int (*read_sensor)(void *handle, int idx, int32_t *value);
 	struct amd_vce_state* (*get_vce_clock_state)(void *handle, unsigned idx);
+	int (*reset_power_profile_state)(void *handle,
+			struct amd_pp_profile *request);
+	int (*get_power_profile_state)(void *handle,
+			struct amd_pp_profile *query);
+	int (*set_power_profile_state)(void *handle,
+			struct amd_pp_profile *request);
+	int (*switch_power_profile)(void *handle,
+			enum amd_pp_profile_type type);
 };
 
 struct amd_powerplay {

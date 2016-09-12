@@ -917,8 +917,138 @@ pp_dpm_get_vce_clock_state(void *handle, unsigned idx)
 
 	if (hwmgr && idx < hwmgr->num_vce_state_tables)
 		return &hwmgr->vce_states[idx];
-
 	return NULL;
+}
+
+static int pp_dpm_reset_power_profile_state(void *handle,
+		struct amd_pp_profile *request)
+{
+	struct pp_hwmgr *hwmgr;
+	struct pp_instance *pp_handle = (struct pp_instance *)handle;
+
+	if (!request || pp_check(pp_handle))
+		return -EINVAL;
+
+	hwmgr = pp_handle->hwmgr;
+
+	if (hwmgr->hwmgr_func->set_power_profile_state == NULL) {
+		pr_info("%s was not implemented.\n", __func__);
+		return 0;
+	}
+
+	if (request->type == AMD_PP_GFX_PROFILE) {
+		hwmgr->gfx_power_profile = hwmgr->default_gfx_power_profile;
+		return hwmgr->hwmgr_func->set_power_profile_state(hwmgr,
+				&hwmgr->gfx_power_profile);
+	} else if (request->type == AMD_PP_COMPUTE_PROFILE) {
+		hwmgr->compute_power_profile =
+				hwmgr->default_compute_power_profile;
+		return hwmgr->hwmgr_func->set_power_profile_state(hwmgr,
+				&hwmgr->compute_power_profile);
+	} else
+		return -EINVAL;
+}
+
+static int pp_dpm_get_power_profile_state(void *handle,
+		struct amd_pp_profile *query)
+{
+	struct pp_hwmgr *hwmgr;
+	struct pp_instance *pp_handle = (struct pp_instance *)handle;
+
+	if (!query || pp_check(pp_handle))
+		return -EINVAL;
+
+	hwmgr = pp_handle->hwmgr;
+
+	if (query->type == AMD_PP_GFX_PROFILE)
+		memcpy(query, &hwmgr->gfx_power_profile,
+				sizeof(struct amd_pp_profile));
+	else if (query->type == AMD_PP_COMPUTE_PROFILE)
+		memcpy(query, &hwmgr->compute_power_profile,
+				sizeof(struct amd_pp_profile));
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
+static int pp_dpm_set_power_profile_state(void *handle,
+		struct amd_pp_profile *request)
+{
+	struct pp_hwmgr *hwmgr;
+	struct pp_instance *pp_handle = (struct pp_instance *)handle;
+	int ret = -1;
+
+	if (!request || pp_check(pp_handle))
+		return -EINVAL;
+
+	hwmgr = pp_handle->hwmgr;
+
+	if (hwmgr->hwmgr_func->set_power_profile_state == NULL) {
+		pr_info("%s was not implemented.\n", __func__);
+		return 0;
+	}
+
+	if (request->min_sclk ||
+		request->min_mclk ||
+		request->activity_threshold ||
+		request->up_hyst ||
+		request->down_hyst) {
+		if (request->type == AMD_PP_GFX_PROFILE)
+			memcpy(&hwmgr->gfx_power_profile, request,
+					sizeof(struct amd_pp_profile));
+		else if (request->type == AMD_PP_COMPUTE_PROFILE)
+			memcpy(&hwmgr->compute_power_profile, request,
+					sizeof(struct amd_pp_profile));
+		else
+			return -EINVAL;
+
+		if (request->type == hwmgr->current_power_profile)
+			ret = hwmgr->hwmgr_func->set_power_profile_state(
+					hwmgr,
+					request);
+	} else {
+		/* set power profile if it exists */
+		switch (request->type) {
+		case AMD_PP_GFX_PROFILE:
+			ret = hwmgr->hwmgr_func->set_power_profile_state(
+					hwmgr,
+					&hwmgr->gfx_power_profile);
+			break;
+		case AMD_PP_COMPUTE_PROFILE:
+			ret = hwmgr->hwmgr_func->set_power_profile_state(
+					hwmgr,
+					&hwmgr->compute_power_profile);
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+
+	if (!ret)
+		hwmgr->current_power_profile = request->type;
+
+	return 0;
+}
+
+static int pp_dpm_switch_power_profile(void *handle,
+		enum amd_pp_profile_type type)
+{
+	struct pp_hwmgr *hwmgr;
+	struct amd_pp_profile request = {0};
+	struct pp_instance *pp_handle = (struct pp_instance *)handle;
+
+	if (pp_check(pp_handle))
+		return -EINVAL;
+
+	hwmgr = pp_handle->hwmgr;
+
+	if (hwmgr->current_power_profile != type) {
+		request.type = type;
+		pp_dpm_set_power_profile_state(handle, &request);
+	}
+
+	return 0;
 }
 
 const struct amd_powerplay_funcs pp_dpm_funcs = {
@@ -949,6 +1079,10 @@ const struct amd_powerplay_funcs pp_dpm_funcs = {
 	.set_mclk_od = pp_dpm_set_mclk_od,
 	.read_sensor = pp_dpm_read_sensor,
 	.get_vce_clock_state = pp_dpm_get_vce_clock_state,
+	.reset_power_profile_state = pp_dpm_reset_power_profile_state,
+	.get_power_profile_state = pp_dpm_get_power_profile_state,
+	.set_power_profile_state = pp_dpm_set_power_profile_state,
+	.switch_power_profile = pp_dpm_switch_power_profile,
 };
 
 int amd_powerplay_create(struct amd_pp_init *pp_init,

@@ -120,6 +120,20 @@ enum amd_vce_level {
 	AMD_VCE_LEVEL_DC_GP_HIGH = 5, /* DC, general purpose queue, 1080 >= res > 720 */
 };
 
+enum amd_pp_profile_type {
+	AMD_PP_GFX_PROFILE,
+	AMD_PP_COMPUTE_PROFILE,
+};
+
+struct amd_pp_profile {
+	enum amd_pp_profile_type type;
+	uint32_t min_sclk;
+	uint32_t min_mclk;
+	uint16_t activity_threshold;
+	uint8_t up_hyst;
+	uint8_t down_hyst;
+};
+
 /* CG flags */
 #define AMD_CG_SUPPORT_GFX_MGCG			(1 << 0)
 #define AMD_CG_SUPPORT_GFX_MGLS			(1 << 1)

@@ -358,6 +358,8 @@ struct pp_hwmgr_func {
 	int (*read_sensor)(struct pp_hwmgr *hwmgr, int idx, int32_t *value);
 	int (*request_firmware)(struct pp_hwmgr *hwmgr);
 	int (*release_firmware)(struct pp_hwmgr *hwmgr);
+	int (*set_power_profile_state)(struct pp_hwmgr *hwmgr,
+			struct amd_pp_profile *request);
 };
 
 struct pp_table_func {
@@ -650,6 +652,13 @@ struct pp_hwmgr {
 	struct pp_power_state    *uvd_ps;
 	struct amd_pp_display_configuration display_config;
 	uint32_t feature_mask;
+
+	/* power profile */
+	struct amd_pp_profile gfx_power_profile;
+	struct amd_pp_profile compute_power_profile;
+	struct amd_pp_profile default_gfx_power_profile;
+	struct amd_pp_profile default_compute_power_profile;
+	enum amd_pp_profile_type current_power_profile;
 };
 
 extern int hwmgr_early_init(struct pp_instance *handle);

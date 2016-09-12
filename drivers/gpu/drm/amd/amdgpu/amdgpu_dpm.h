@@ -272,6 +272,14 @@ struct amdgpu_dpm_funcs {
 				bool *equal);
 
 	struct amd_vce_state* (*get_vce_clock_state)(struct amdgpu_device *adev, unsigned idx);
+	int (*reset_power_profile_state)(struct amdgpu_device *adev,
+			struct amd_pp_profile *request);
+	int (*get_power_profile_state)(struct amdgpu_device *adev,
+			struct amd_pp_profile *query);
+	int (*set_power_profile_state)(struct amdgpu_device *adev,
+			struct amd_pp_profile *request);
+	int (*switch_power_profile)(struct amdgpu_device *adev,
+			enum amd_pp_profile_type type);
 };
 
 #define amdgpu_dpm_pre_set_power_state(adev) (adev)->pm.funcs->pre_set_power_state((adev))
@@ -387,6 +395,22 @@ struct amdgpu_dpm_funcs {
 	((adev)->pp_enabled ?						\
 	(adev)->powerplay.pp_funcs->get_performance_level((adev)->powerplay.pp_handle) : \
 	(adev)->pm.dpm.forced_level)
+
+#define amdgpu_dpm_reset_power_profile_state(adev, request) \
+	((adev)->powerplay.pp_funcs->reset_power_profile_state(\
+			(adev)->powerplay.pp_handle, request))
+
+#define amdgpu_dpm_get_power_profile_state(adev, query) \
+	((adev)->powerplay.pp_funcs->get_power_profile_state(\
+			(adev)->powerplay.pp_handle, query))
+
+#define amdgpu_dpm_set_power_profile_state(adev, request) \
+	((adev)->powerplay.pp_funcs->set_power_profile_state(\
+			(adev)->powerplay.pp_handle, request))
+
+#define amdgpu_dpm_switch_power_profile(adev, type) \
+	((adev)->powerplay.pp_funcs->switch_power_profile(\
+			(adev)->powerplay.pp_handle, type))
 
 struct amdgpu_dpm {
 	struct amdgpu_ps        *ps;
