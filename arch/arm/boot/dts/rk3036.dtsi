@@ -381,6 +381,7 @@
 			mode-recovery = <BOOT_RECOVERY>;
 			mode-bootloader = <BOOT_FASTBOOT>;
 			mode-loader = <BOOT_LOADER>;
+			mode-ums = <BOOT_UMS>;
 		};
 	};
 

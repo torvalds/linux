@@ -1093,6 +1093,7 @@
 			mode-loader = <BOOT_LOADER>;
 			mode-normal = <BOOT_NORMAL>;
 			mode-recovery = <BOOT_RECOVERY>;
+			mode-ums = <BOOT_UMS>;
 		};
 	};
 
