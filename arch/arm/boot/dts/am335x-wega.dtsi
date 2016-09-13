@@ -11,10 +11,14 @@
 	model = "Phytec AM335x phyBOARD-WEGA";
 	compatible = "phytec,am335x-wega", "phytec,am335x-phycore-som", "ti,am33xx";
 
+	sound: sound_iface {
+		compatible = "ti,da830-evm-audio";
+	};
+
 	regulators {
 		compatible = "simple-bus";
 
-		vcc3v3: fixedregulator@1 {
+		vcc3v3: fixedregulator1 {
 			compatible = "regulator-fixed";
 			regulator-name = "vcc3v3";
 			regulator-min-microvolt = <3300000>;
@@ -22,6 +26,58 @@
 			regulator-boot-on;
 		};
 	};
+};
+
+/* Audio */
+&am33xx_pinmux {
+	mcasp0_pins: pinmux_mcasp0 {
+		pinctrl-single,pins = <
+			AM33XX_IOPAD(0x9AC, PIN_OUTPUT_PULLDOWN | MUX_MODE0) /* mcasp0_ahclkx.mcasp0_ahclkx */
+			AM33XX_IOPAD(0x990, PIN_INPUT_PULLDOWN | MUX_MODE0)  /* mcasp0_aclkx.mcasp0_aclkx */
+			AM33XX_IOPAD(0x994, PIN_INPUT_PULLDOWN | MUX_MODE0)  /* mcasp0_fsx.mcasp0_fsx */
+			AM33XX_IOPAD(0x998, PIN_INPUT_PULLDOWN | MUX_MODE0)  /* mcasp0_axr0.mcasp0_axr0 */
+			AM33XX_IOPAD(0x9A8, PIN_OUTPUT_PULLDOWN | MUX_MODE0) /* mcasp0_axr1.mcasp0_axr1 */
+		>;
+	};
+};
+
+&i2c0 {
+	tlv320aic3007: tlv320aic3007@18 {
+		compatible = "ti,tlv320aic3007";
+		reg = <0x18>;
+		AVDD-supply = <&vcc3v3>;
+		IOVDD-supply = <&vcc3v3>;
+		DRVDD-supply = <&vcc3v3>;
+		DVDD-supply = <&vdig1_reg>;
+		status = "okay";
+	};
+};
+
+&mcasp0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcasp0_pins>;
+	op-mode = <0>; /* DAVINCI_MCASP_IIS_MODE */
+	tdm-slots = <2>;
+	serial-dir = <
+		2 1 0 0 /* # 0: INACTIVE, 1: TX, 2: RX */
+	>;
+	tx-num-evt = <16>;
+	rt-num-evt = <16>;
+	status = "okay";
+};
+
+&sound {
+	ti,model = "AM335x-Wega";
+	ti,audio-codec = <&tlv320aic3007>;
+	ti,mcasp-controller = <&mcasp0>;
+	ti,audio-routing =
+		"Line Out",		"LLOUT",
+		"Line Out",		"RLOUT",
+		"LINE1L",		"Line In",
+		"LINE1R",		"Line In";
+	clocks = <&mcasp0_fck>;
+	clock-names = "mclk";
+	status = "okay";
 };
 
 /* CAN Busses */
@@ -97,6 +153,12 @@
 	pinctrl-0 = <&mmc1_pins>;
 	cd-gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>;
 	status = "okay";
+};
+
+/* Power */
+&vdig1_reg {
+	regulator-boot-on;
+	regulator-always-on;
 };
 
 /* UARTs */

@@ -16,7 +16,7 @@
 	model = "TI DRA742";
 	compatible = "ti,dra7-evm", "ti,dra742", "ti,dra74", "ti,dra7";
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x80000000 0x0 0x60000000>; /* 1536 MB */
 	};
@@ -105,25 +105,25 @@
 
 	leds {
 		compatible = "gpio-leds";
-		led@0 {
+		led0 {
 			label = "dra7:usr1";
 			gpios = <&pcf_lcd 4 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
-		led@1 {
+		led1 {
 			label = "dra7:usr2";
 			gpios = <&pcf_lcd 5 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
-		led@2 {
+		led2 {
 			label = "dra7:usr3";
 			gpios = <&pcf_lcd 6 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
-		led@3 {
+		led3 {
 			label = "dra7:usr4";
 			gpios = <&pcf_lcd 7 GPIO_ACTIVE_LOW>;
 			default-state = "off";
@@ -664,10 +664,10 @@
 &qspi {
 	status = "okay";
 
-	spi-max-frequency = <64000000>;
+	spi-max-frequency = <76800000>;
 	m25p80@0 {
 		compatible = "s25fl256s1";
-		spi-max-frequency = <64000000>;
+		spi-max-frequency = <76800000>;
 		reg = <0>;
 		spi-tx-bus-width = <1>;
 		spi-rx-bus-width = <4>;

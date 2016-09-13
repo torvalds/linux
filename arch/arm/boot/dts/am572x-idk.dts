@@ -18,7 +18,7 @@
 	compatible = "ti,am5728-idk", "ti,am5728", "ti,dra742", "ti,dra74",
 		     "ti,dra7";
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x80000000 0x0 0x80000000>;
 	};
