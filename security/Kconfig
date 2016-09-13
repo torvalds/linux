@@ -118,6 +118,34 @@ config LSM_MMAP_MIN_ADDR
 	  this low address space will need the permission specific to the
 	  systems running LSM.
 
+config HAVE_HARDENED_USERCOPY_ALLOCATOR
+	bool
+	help
+	  The heap allocator implements __check_heap_object() for
+	  validating memory ranges against heap object sizes in
+	  support of CONFIG_HARDENED_USERCOPY.
+
+config HAVE_ARCH_HARDENED_USERCOPY
+	bool
+	help
+	  The architecture supports CONFIG_HARDENED_USERCOPY by
+	  calling check_object_size() just before performing the
+	  userspace copies in the low level implementation of
+	  copy_to_user() and copy_from_user().
+
+config HARDENED_USERCOPY
+	bool "Harden memory copies between kernel and userspace"
+	depends on HAVE_ARCH_HARDENED_USERCOPY
+	select BUG
+	help
+	  This option checks for obviously wrong memory regions when
+	  copying memory to/from the kernel (via copy_to_user() and
+	  copy_from_user() functions) by rejecting memory ranges that
+	  are larger than the specified heap object, span multiple
+	  separately allocates pages, are not on the process stack,
+	  or are part of the kernel text. This kills entire classes
+	  of heap overflow exploits and similar kernel memory exposures.
+
 source security/selinux/Kconfig
 source security/smack/Kconfig
 source security/tomoyo/Kconfig

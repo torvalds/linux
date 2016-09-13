@@ -5779,6 +5779,7 @@ static int ci_dpm_init_microcode(struct amdgpu_device *adev)
 		break;
 	case CHIP_KAVERI:
 	case CHIP_KABINI:
+	case CHIP_MULLINS:
 	default: BUG();
 	}
 

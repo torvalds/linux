@@ -1347,9 +1347,12 @@ void ceph_flush_snaps(struct ceph_inode_info *ci,
 {
 	struct inode *inode = &ci->vfs_inode;
 	struct ceph_mds_client *mdsc = ceph_inode_to_client(inode)->mdsc;
-	struct ceph_mds_session *session = *psession;
+	struct ceph_mds_session *session = NULL;
 	int mds;
+
 	dout("ceph_flush_snaps %p\n", inode);
+	if (psession)
+		session = *psession;
 retry:
 	spin_lock(&ci->i_ceph_lock);
 	if (!(ci->i_ceph_flags & CEPH_I_FLUSH_SNAPS)) {
