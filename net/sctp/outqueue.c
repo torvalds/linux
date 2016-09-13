@@ -304,7 +304,6 @@ int sctp_outq_tail(struct sctp_outq *q, struct sctp_chunk *chunk, gfp_t gfp)
 			 sctp_cname(SCTP_ST_CHUNK(chunk->chunk_hdr->type)) :
 			 "illegal chunk");
 
-		sctp_chunk_hold(chunk);
 		sctp_outq_tail_data(q, chunk);
 		if (chunk->asoc->prsctp_enable &&
 		    SCTP_PR_PRIO_ENABLED(chunk->sinfo.sinfo_flags))
