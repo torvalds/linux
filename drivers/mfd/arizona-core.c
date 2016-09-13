@@ -828,6 +828,7 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 	struct property *prop;
 	const __be32 *cur;
 	u32 val;
+	u32 pdm_val[ARIZONA_MAX_PDM_SPK];
 	int ret, i;
 	int count = 0;
 
@@ -883,6 +884,35 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 		pdata->out_mono[count] = !!val;
 		count++;
 	}
+
+	count = 0;
+	of_property_for_each_u32(arizona->dev->of_node,
+				 "wlf,max-channels-clocked",
+				 prop, cur, val) {
+		if (count == ARRAY_SIZE(pdata->max_channels_clocked))
+			break;
+
+		pdata->max_channels_clocked[count] = val;
+		count++;
+	}
+
+	ret = of_property_read_u32_array(arizona->dev->of_node,
+					 "wlf,spk-fmt",
+					 pdm_val,
+					 ARRAY_SIZE(pdm_val));
+
+	if (ret >= 0)
+		for (count = 0; count < ARRAY_SIZE(pdata->spk_fmt); ++count)
+			pdata->spk_fmt[count] = pdm_val[count];
+
+	ret = of_property_read_u32_array(arizona->dev->of_node,
+					 "wlf,spk-mute",
+					 pdm_val,
+					 ARRAY_SIZE(pdm_val));
+
+	if (ret >= 0)
+		for (count = 0; count < ARRAY_SIZE(pdata->spk_mute); ++count)
+			pdata->spk_mute[count] = pdm_val[count];
 
 	return 0;
 }
