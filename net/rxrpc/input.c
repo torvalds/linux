@@ -59,6 +59,8 @@ static void rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to)
 
 	spin_unlock(&call->lock);
 
+	wake_up(&call->waitq);
+
 	while (list) {
 		skb = list;
 		list = skb->next;
