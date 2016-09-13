@@ -17,6 +17,8 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/of_net.h>
+#include <linux/if_ether.h>
+#include <linux/if_vlan.h>
 
 #include <net/dst.h>
 
@@ -38,6 +40,8 @@
 #include <asm/octeon/cvmx-asxx-defs.h>
 #include <asm/octeon/cvmx-gmxx-defs.h>
 #include <asm/octeon/cvmx-smix-defs.h>
+
+#define OCTEON_MAX_MTU 65392
 
 static int num_packet_buffers = 1024;
 module_param(num_packet_buffers, int, 0444);
@@ -249,19 +253,21 @@ static int cvm_oct_common_change_mtu(struct net_device *dev, int new_mtu)
 	struct octeon_ethernet *priv = netdev_priv(dev);
 	int interface = INTERFACE(priv->port);
 #if IS_ENABLED(CONFIG_VLAN_8021Q)
-	int vlan_bytes = 4;
+	int vlan_bytes = VLAN_HLEN;
 #else
 	int vlan_bytes = 0;
 #endif
+	int mtu_overhead = ETH_HLEN + ETH_FCS_LEN + vlan_bytes;
 
 	/*
 	 * Limit the MTU to make sure the ethernet packets are between
 	 * 64 bytes and 65535 bytes.
 	 */
-	if ((new_mtu + 14 + 4 + vlan_bytes < 64) ||
-	    (new_mtu + 14 + 4 + vlan_bytes > 65392)) {
+	if ((new_mtu + mtu_overhead < VLAN_ETH_ZLEN) ||
+	    (new_mtu + mtu_overhead > OCTEON_MAX_MTU)) {
 		pr_err("MTU must be between %d and %d.\n",
-		       64 - 14 - 4 - vlan_bytes, 65392 - 14 - 4 - vlan_bytes);
+		       VLAN_ETH_ZLEN - mtu_overhead,
+		       OCTEON_MAX_MTU - mtu_overhead);
 		return -EINVAL;
 	}
 	dev->mtu = new_mtu;
@@ -271,7 +277,7 @@ static int cvm_oct_common_change_mtu(struct net_device *dev, int new_mtu)
 		CVMX_HELPER_INTERFACE_MODE_SPI)) {
 		int index = INDEX(priv->port);
 		/* Add ethernet header and FCS, and VLAN if configured. */
-		int max_packet = new_mtu + 14 + 4 + vlan_bytes;
+		int max_packet = new_mtu + mtu_overhead;
 
 		if (OCTEON_IS_MODEL(OCTEON_CN3XXX) ||
 		    OCTEON_IS_MODEL(OCTEON_CN58XX)) {
@@ -286,7 +292,7 @@ static int cvm_oct_common_change_mtu(struct net_device *dev, int new_mtu)
 			union cvmx_pip_frm_len_chkx frm_len_chk;
 
 			frm_len_chk.u64 = 0;
-			frm_len_chk.s.minlen = 64;
+			frm_len_chk.s.minlen = VLAN_ETH_ZLEN;
 			frm_len_chk.s.maxlen = max_packet;
 			cvmx_write_csr(CVMX_PIP_FRM_LEN_CHKX(interface),
 				       frm_len_chk.u64);
