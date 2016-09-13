@@ -203,6 +203,7 @@ struct rxrpc_peer *rxrpc_alloc_peer(struct rxrpc_local *local, gfp_t gfp)
  */
 static void rxrpc_init_peer(struct rxrpc_peer *peer, unsigned long hash_key)
 {
+	peer->hash_key = hash_key;
 	rxrpc_assess_MTU_size(peer);
 	peer->mtu = peer->if_mtu;
 
@@ -238,7 +239,6 @@ static struct rxrpc_peer *rxrpc_create_peer(struct rxrpc_local *local,
 
 	peer = rxrpc_alloc_peer(local, gfp);
 	if (peer) {
-		peer->hash_key = hash_key;
 		memcpy(&peer->srx, srx, sizeof(*srx));
 		rxrpc_init_peer(peer, hash_key);
 	}
