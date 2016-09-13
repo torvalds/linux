@@ -71,6 +71,8 @@ struct ovs_frag_data {
 static DEFINE_PER_CPU(struct ovs_frag_data, ovs_frag_data_storage);
 
 #define DEFERRED_ACTION_FIFO_SIZE 10
+#define OVS_RECURSION_LIMIT 5
+#define OVS_DEFERRED_ACTION_THRESHOLD (OVS_RECURSION_LIMIT - 2)
 struct action_fifo {
 	int head;
 	int tail;
@@ -78,7 +80,12 @@ struct action_fifo {
 	struct deferred_action fifo[DEFERRED_ACTION_FIFO_SIZE];
 };
 
+struct recirc_keys {
+	struct sw_flow_key key[OVS_DEFERRED_ACTION_THRESHOLD];
+};
+
 static struct action_fifo __percpu *action_fifos;
+static struct recirc_keys __percpu *recirc_keys;
 static DEFINE_PER_CPU(int, exec_actions_level);
 
 static void action_fifo_init(struct action_fifo *fifo)
@@ -1020,6 +1027,7 @@ static int execute_recirc(struct datapath *dp, struct sk_buff *skb,
 			  const struct nlattr *a, int rem)
 {
 	struct deferred_action *da;
+	int level;
 
 	if (!is_flow_key_valid(key)) {
 		int err;
@@ -1041,6 +1049,18 @@ static int execute_recirc(struct datapath *dp, struct sk_buff *skb,
 		 */
 		if (!skb)
 			return 0;
+	}
+
+	level = this_cpu_read(exec_actions_level);
+	if (level <= OVS_DEFERRED_ACTION_THRESHOLD) {
+		struct recirc_keys *rks = this_cpu_ptr(recirc_keys);
+		struct sw_flow_key *recirc_key = &rks->key[level - 1];
+
+		*recirc_key = *key;
+		recirc_key->recirc_id = nla_get_u32(a);
+		ovs_dp_process_packet(skb, recirc_key);
+
+		return 0;
 	}
 
 	da = add_deferred_actions(skb, key, NULL);
@@ -1209,11 +1229,10 @@ int ovs_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			const struct sw_flow_actions *acts,
 			struct sw_flow_key *key)
 {
-	static const int ovs_recursion_limit = 5;
 	int err, level;
 
 	level = __this_cpu_inc_return(exec_actions_level);
-	if (unlikely(level > ovs_recursion_limit)) {
+	if (unlikely(level > OVS_RECURSION_LIMIT)) {
 		net_crit_ratelimited("ovs: recursion limit reached on datapath %s, probable configuration error\n",
 				     ovs_dp_name(dp));
 		kfree_skb(skb);
@@ -1238,10 +1257,17 @@ int action_fifos_init(void)
 	if (!action_fifos)
 		return -ENOMEM;
 
+	recirc_keys = alloc_percpu(struct recirc_keys);
+	if (!recirc_keys) {
+		free_percpu(action_fifos);
+		return -ENOMEM;
+	}
+
 	return 0;
 }
 
 void action_fifos_exit(void)
 {
 	free_percpu(action_fifos);
+	free_percpu(recirc_keys);
 }
