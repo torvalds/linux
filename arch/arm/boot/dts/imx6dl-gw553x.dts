@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Toradex AG
+ * Copyright 2016 Gateworks Corporation
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -8,13 +8,18 @@
  *
  *  a) This file is free software; you can redistribute it and/or
  *     modify it under the terms of the GNU General Public License as
- *     published by the Free Software Foundation; either version 2 of the
- *     License, or (at your option) any later version.
+ *     published by the Free Software Foundation; either version 2 of
+ *     the License, or (at your option) any later version.
  *
  *     This file is distributed in the hope that it will be useful,
  *     but WITHOUT ANY WARRANTY; without even the implied warranty of
  *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public
+ *     License along with this file; if not, write to the Free
+ *     Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+ *     MA 02110-1301 USA
  *
  * Or, alternatively,
  *
@@ -40,105 +45,11 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
+/dts-v1/;
+#include "imx6dl.dtsi"
+#include "imx6qdl-gw553x.dtsi"
+
 / {
-	chosen {
-		stdout-path = "serial0:115200n8";
-	};
-};
-
-&bl {
-	brightness-levels = <0 4 8 16 32 64 128 255>;
-	default-brightness-level = <6>;
-	status = "okay";
-};
-
-&adc1 {
-	status = "okay";
-};
-
-&adc2 {
-	status = "okay";
-};
-
-&fec1 {
-	status = "okay";
-};
-
-&i2c4 {
-	status = "okay";
-
-	/* M41T0M6 real time clock on carrier board */
-	rtc: m41t0m6@68 {
-		compatible = "st,m41t00";
-		reg = <0x68>;
-	};
-};
-
-&lcdif {
-	display = <&display0>;
-	status = "okay";
-
-	display0: lcd-display {
-		bits-per-pixel = <16>;
-		bus-width = <18>;
-
-		display-timings {
-			native-mode = <&timing_vga>;
-
-			/* Standard VGA timing */
-			timing_vga: 640x480 {
-				clock-frequency = <25175000>;
-				hactive = <640>;
-				vactive = <480>;
-				hback-porch = <40>;
-				hfront-porch = <24>;
-				vback-porch = <32>;
-				vfront-porch = <11>;
-				hsync-len = <96>;
-				vsync-len = <2>;
-				de-active = <1>;
-				hsync-active = <0>;
-				vsync-active = <0>;
-				pixelclk-active = <0>;
-			};
-		};
-	};
-};
-
-&pwm1 {
-	status = "okay";
-};
-
-&pwm2 {
-	status = "okay";
-};
-
-&pwm3 {
-	status = "okay";
-};
-
-&pwm4 {
-	status = "okay";
-};
-
-&uart1 {
-	status = "okay";
-};
-
-&uart2 {
-	status = "okay";
-};
-
-&uart3 {
-	status = "okay";
-};
-
-&usbotg1 {
-	status = "okay";
-};
-
-&usdhc1 {
-	keep-power-in-suspend;
-	wakeup-source;
-	status = "okay";
+	model = "Gateworks Ventana i.MX6 DualLite/Solo GW553X";
+	compatible = "gw,imx6dl-gw553x", "gw,ventana", "fsl,imx6dl";
 };

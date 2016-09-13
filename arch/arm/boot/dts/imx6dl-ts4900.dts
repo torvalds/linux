@@ -1,6 +1,5 @@
 /*
- * Copyright 2015 Timesys Corporation.
- * Copyright 2015 General Electric Company
+ * Copyright 2015 Technologic Systems
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -41,67 +40,10 @@
  */
 
 /dts-v1/;
-
-#include "imx6q-bx50v3.dtsi"
+#include "imx6dl.dtsi"
+#include "imx6qdl-ts4900.dtsi"
 
 / {
-	model = "General Electric B450v3";
-	compatible = "ge,imx6q-b450v3", "advantech,imx6q-ba16", "fsl,imx6q";
-
-	chosen {
-		stdout-path = &uart3;
-	};
-
-	panel-lvds0 {
-		compatible = "innolux,g121x1-l03";
-		backlight = <&backlight_lvds>;
-		power-supply = <&reg_lvds>;
-
-		port {
-			panel_in_lvds0: endpoint {
-				remote-endpoint = <&lvds0_out>;
-			};
-		};
-	};
-};
-
-&clks {
-	assigned-clocks = <&clks IMX6QDL_CLK_LDB_DI0_SEL>,
-			  <&clks IMX6QDL_CLK_LDB_DI1_SEL>;
-	assigned-clock-parents = <&clks IMX6QDL_CLK_PLL3_USB_OTG>,
-				 <&clks IMX6QDL_CLK_PLL3_USB_OTG>;
-};
-
-&ldb {
-	status = "okay";
-
-	lvds0: lvds-channel@0 {
-		fsl,data-mapping = "spwg";
-		fsl,data-width = <24>;
-		status = "okay";
-
-		port@4 {
-			reg = <4>;
-
-			lvds0_out: endpoint {
-				remote-endpoint = <&panel_in_lvds0>;
-			};
-		};
-	};
-};
-
-&pca9539 {
-	P04 {
-		gpio-hog;
-		gpios = <4 0>;
-		output-low;
-		line-name = "PCA9539-P04";
-	};
-
-	P05 {
-		gpio-hog;
-		gpios = <5 0>;
-		output-low;
-		line-name = "PCA9539-P05";
-	};
+	model = "Technologic Systems i.MX6 Solo/DualLite TS-4900 (Default Device Tree)";
+	compatible = "technologic,imx6dl-ts4900", "fsl,imx6dl";
 };
