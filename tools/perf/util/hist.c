@@ -2149,6 +2149,50 @@ out:
 	return he;
 }
 
+static struct hist_entry *add_dummy_hierarchy_entry(struct hists *hists,
+						    struct rb_root *root,
+						    struct hist_entry *pair)
+{
+	struct rb_node **p;
+	struct rb_node *parent = NULL;
+	struct hist_entry *he;
+	struct perf_hpp_fmt *fmt;
+
+	p = &root->rb_node;
+	while (*p != NULL) {
+		int64_t cmp = 0;
+
+		parent = *p;
+		he = rb_entry(parent, struct hist_entry, rb_node_in);
+
+		perf_hpp_list__for_each_sort_list(he->hpp_list, fmt) {
+			cmp = fmt->collapse(fmt, he, pair);
+			if (cmp)
+				break;
+		}
+		if (!cmp)
+			goto out;
+
+		if (cmp < 0)
+			p = &parent->rb_left;
+		else
+			p = &parent->rb_right;
+	}
+
+	he = hist_entry__new(pair, true);
+	if (he) {
+		rb_link_node(&he->rb_node_in, parent, p);
+		rb_insert_color(&he->rb_node_in, root);
+
+		he->dummy = true;
+		he->hists = hists;
+		memset(&he->stat, 0, sizeof(he->stat));
+		hists__inc_stats(hists, he);
+	}
+out:
+	return he;
+}
+
 static struct hist_entry *hists__find_entry(struct hists *hists,
 					    struct hist_entry *he)
 {
@@ -2248,6 +2292,50 @@ void hists__match(struct hists *leader, struct hists *other)
 	}
 }
 
+static int hists__link_hierarchy(struct hists *leader_hists,
+				 struct hist_entry *parent,
+				 struct rb_root *leader_root,
+				 struct rb_root *other_root)
+{
+	struct rb_node *nd;
+	struct hist_entry *pos, *leader;
+
+	for (nd = rb_first(other_root); nd; nd = rb_next(nd)) {
+		pos = rb_entry(nd, struct hist_entry, rb_node_in);
+
+		if (hist_entry__has_pairs(pos)) {
+			bool found = false;
+
+			list_for_each_entry(leader, &pos->pairs.head, pairs.node) {
+				if (leader->hists == leader_hists) {
+					found = true;
+					break;
+				}
+			}
+			if (!found)
+				return -1;
+		} else {
+			leader = add_dummy_hierarchy_entry(leader_hists,
+							   leader_root, pos);
+			if (leader == NULL)
+				return -1;
+
+			/* do not point parent in the pos */
+			leader->parent_he = parent;
+
+			hist_entry__add_pair(pos, leader);
+		}
+
+		if (!pos->leaf) {
+			if (hists__link_hierarchy(leader_hists, leader,
+						  &leader->hroot_in,
+						  &pos->hroot_in) < 0)
+				return -1;
+		}
+	}
+	return 0;
+}
+
 /*
  * Look for entries in the other hists that are not present in the leader, if
  * we find them, just add a dummy entry on the leader hists, with period=0,
@@ -2258,6 +2346,13 @@ int hists__link(struct hists *leader, struct hists *other)
 	struct rb_root *root;
 	struct rb_node *nd;
 	struct hist_entry *pos, *pair;
+
+	if (symbol_conf.report_hierarchy) {
+		/* hierarchy report always collapses entries */
+		return hists__link_hierarchy(leader, NULL,
+					     &leader->entries_collapsed,
+					     &other->entries_collapsed);
+	}
 
 	if (hists__has(other, need_collapse))
 		root = &other->entries_collapsed;
