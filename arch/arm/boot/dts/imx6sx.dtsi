@@ -926,7 +926,6 @@
 				#size-cells = <1>;
 				reg = <0x2100000 0x40000>;
 				ranges = <0 0x2100000 0x40000>;
-				interrupt-parent = <&intc>; /* interrupts = <0 92 0x4>; */
 				clocks = <&clks IMX6SX_CLK_CAAM_MEM>, <&clks IMX6SX_CLK_CAAM_ACLK>,
 				         <&clks IMX6SX_CLK_CAAM_IPG> ,<&clks IMX6SX_CLK_EIM_SLOW>;
 				clock-names = "caam_mem", "caam_aclk", "caam_ipg", "caam_emi_slow";
@@ -934,15 +933,13 @@
 				sec_jr0: jr0@1000 {
 					compatible = "fsl,sec-v4.0-job-ring";
 					reg = <0x1000 0x1000>;
-					interrupt-parent = <&intc>;
-					interrupts = <0 105 0x4>;
+					interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
 				};
 
 				sec_jr1: jr1@2000 {
 					compatible = "fsl,sec-v4.0-job-ring";
 					reg = <0x2000 0x1000>;
-					interrupt-parent = <&intc>;
-					interrupts = <0 106 0x4>;
+					interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
 				};
 			};
 
