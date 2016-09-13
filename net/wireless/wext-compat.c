@@ -487,6 +487,9 @@ static int __cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 	err = 0;
 	if (wdev->current_bss)
 		err = rdev_add_key(rdev, dev, idx, pairwise, addr, params);
+	else if (params->cipher != WLAN_CIPHER_SUITE_WEP40 &&
+		 params->cipher != WLAN_CIPHER_SUITE_WEP104)
+		return -EINVAL;
 	if (err)
 		return err;
 
