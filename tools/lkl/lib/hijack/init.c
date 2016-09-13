@@ -229,6 +229,15 @@ hijack_init(void)
 	if (offload1)
 		offload = strtol(offload1, NULL, 0);
 
+	if (lkl_debug & 0x200) {
+		char c;
+
+		printf("press 'enter' to continue\n");
+		if (scanf("%c", &c) <= 0) {
+			fprintf(stderr, "scanf() fails\n");
+			return;
+		}
+	}
 	if (single_cpu) {
 		single_cpu_mode = atoi(single_cpu);
 		switch (single_cpu_mode) {
