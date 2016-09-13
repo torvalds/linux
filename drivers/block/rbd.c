@@ -1618,11 +1618,17 @@ static bool obj_request_type_valid(enum obj_request_type type)
 	}
 }
 
+static void rbd_img_obj_callback(struct rbd_obj_request *obj_request);
+
 static void rbd_obj_request_submit(struct rbd_obj_request *obj_request)
 {
 	struct ceph_osd_request *osd_req = obj_request->osd_req;
 
 	dout("%s %p osd_req %p\n", __func__, obj_request, osd_req);
+	if (obj_request_img_data_test(obj_request)) {
+		WARN_ON(obj_request->callback != rbd_img_obj_callback);
+		rbd_img_request_get(obj_request->img_request);
+	}
 	ceph_osdc_start_request(osd_req->r_osdc, osd_req, false);
 }
 
@@ -2588,8 +2594,6 @@ static int rbd_img_request_fill(struct rbd_img_request *img_request,
 
 		rbd_img_obj_request_fill(obj_request, osd_req, op_type, 0);
 
-		rbd_img_request_get(img_request);
-
 		img_offset += length;
 		resid -= length;
 	}
@@ -2723,10 +2727,9 @@ rbd_img_obj_parent_read_full_callback(struct rbd_img_request *img_request)
 	return;
 
 out_err:
-	/* Record the error code and complete the request */
-
 	orig_request->result = img_result;
 	orig_request->xferred = 0;
+	rbd_img_request_get(orig_request->img_request);
 	obj_request_done_set(orig_request);
 	rbd_obj_request_complete(orig_request);
 }
@@ -2881,6 +2884,7 @@ static void rbd_img_obj_exists_callback(struct rbd_obj_request *obj_request)
 fail_orig_request:
 	orig_request->result = result;
 	orig_request->xferred = 0;
+	rbd_img_request_get(orig_request->img_request);
 	obj_request_done_set(orig_request);
 	rbd_obj_request_complete(orig_request);
 }
