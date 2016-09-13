@@ -505,5 +505,5 @@ static struct i2c_driver lm95241_driver = {
 module_i2c_driver(lm95241_driver);
 
 MODULE_AUTHOR("Davide Rizzo <elpa.rizzo@gmail.com>");
-MODULE_DESCRIPTION("LM95241 sensor driver");
+MODULE_DESCRIPTION("LM95231/LM95241 sensor driver");
 MODULE_LICENSE("GPL");
