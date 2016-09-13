@@ -323,7 +323,7 @@ config REGULATOR_LP872X
 
 config REGULATOR_LP873X
 	tristate "TI LP873X Power regulators"
-	depends on MFD_LP873X && OF
+	depends on MFD_TI_LP873X && OF
 	help
 	  This driver supports LP873X voltage regulator chips. LP873X
 	  provides two step-down converters and two general-purpose LDO
