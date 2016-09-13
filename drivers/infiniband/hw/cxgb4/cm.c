@@ -652,21 +652,16 @@ static int send_halfclose(struct c4iw_ep *ep)
 
 static int send_abort(struct c4iw_ep *ep)
 {
-	struct cpl_abort_req *req;
-	int wrlen = roundup(sizeof *req, 16);
+	u32 wrlen = roundup(sizeof(struct cpl_abort_req), 16);
 	struct sk_buff *req_skb = skb_dequeue(&ep->com.ep_skb_list);
 
 	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
 	if (WARN_ON(!req_skb))
 		return -ENOMEM;
 
-	set_wr_txq(req_skb, CPL_PRIORITY_DATA, ep->txq_idx);
-	t4_set_arp_err_handler(req_skb, ep, abort_arp_failure);
-	req = (struct cpl_abort_req *)skb_put(req_skb, wrlen);
-	memset(req, 0, wrlen);
-	INIT_TP_WR(req, ep->hwtid);
-	OPCODE_TID(req) = cpu_to_be32(MK_OPCODE_TID(CPL_ABORT_REQ, ep->hwtid));
-	req->cmd = CPL_ABORT_SEND_RST;
+	cxgb_mk_abort_req(req_skb, wrlen, ep->hwtid, ep->txq_idx,
+			  ep, abort_arp_failure);
+
 	return c4iw_l2t_send(&ep->com.dev->rdev, req_skb, ep->l2t);
 }
 

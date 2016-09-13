@@ -647,9 +647,8 @@ static void cxgbit_abort_arp_failure(void *handle, struct sk_buff *skb)
 
 static int cxgbit_send_abort_req(struct cxgbit_sock *csk)
 {
-	struct cpl_abort_req *req;
-	unsigned int len = roundup(sizeof(*req), 16);
 	struct sk_buff *skb;
+	u32 len = roundup(sizeof(struct cpl_abort_req), 16);
 
 	pr_debug("%s: csk %p tid %u; state %d\n",
 		 __func__, csk, csk->tid, csk->com.state);
@@ -660,15 +659,9 @@ static int cxgbit_send_abort_req(struct cxgbit_sock *csk)
 		cxgbit_send_tx_flowc_wr(csk);
 
 	skb = __skb_dequeue(&csk->skbq);
-	req = (struct cpl_abort_req *)__skb_put(skb, len);
-	memset(req, 0, len);
+	cxgb_mk_abort_req(skb, len, csk->tid, csk->txq_idx,
+			  csk->com.cdev, cxgbit_abort_arp_failure);
 
-	set_wr_txq(skb, CPL_PRIORITY_DATA, csk->txq_idx);
-	t4_set_arp_err_handler(skb, csk->com.cdev, cxgbit_abort_arp_failure);
-	INIT_TP_WR(req, csk->tid);
-	OPCODE_TID(req) = cpu_to_be32(MK_OPCODE_TID(CPL_ABORT_REQ,
-						    csk->tid));
-	req->cmd = CPL_ABORT_SEND_RST;
 	return cxgbit_l2t_send(csk->com.cdev, skb, csk->l2t);
 }
 

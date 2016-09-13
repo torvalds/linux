@@ -112,4 +112,20 @@ cxgb_mk_close_con_req(struct sk_buff *skb, u32 len, u32 tid, u16 chan,
 	set_wr_txq(skb, CPL_PRIORITY_DATA, chan);
 	t4_set_arp_err_handler(skb, handle, handler);
 }
+
+static inline void
+cxgb_mk_abort_req(struct sk_buff *skb, u32 len, u32 tid, u16 chan,
+		  void *handle, arp_err_handler_t handler)
+{
+	struct cpl_abort_req *req;
+
+	req = (struct cpl_abort_req *)__skb_put(skb, len);
+	memset(req, 0, len);
+
+	INIT_TP_WR(req, tid);
+	OPCODE_TID(req) = cpu_to_be32(MK_OPCODE_TID(CPL_ABORT_REQ, tid));
+	req->cmd = CPL_ABORT_SEND_RST;
+	set_wr_txq(skb, CPL_PRIORITY_DATA, chan);
+	t4_set_arp_err_handler(skb, handle, handler);
+}
 #endif
