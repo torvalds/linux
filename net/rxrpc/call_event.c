@@ -95,7 +95,7 @@ static void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 		break;
 
 	case RXRPC_ACK_IDLE:
-		if (rxrpc_soft_ack_delay < expiry)
+		if (rxrpc_idle_ack_delay < expiry)
 			expiry = rxrpc_idle_ack_delay;
 		break;
 
