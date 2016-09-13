@@ -176,16 +176,9 @@ struct smiapp_sensor {
 	 * "mutex" is used to serialise access to all fields here
 	 * except v4l2_ctrls at the end of the struct. "mutex" is also
 	 * used to serialise access to file handle specific
-	 * information. The exception to this rule is the power_mutex
-	 * below.
+	 * information.
 	 */
 	struct mutex mutex;
-	/*
-	 * power_mutex is used to serialise power management related
-	 * activities. Acquiring "mutex" at that time isn't necessary
-	 * since there are no other users anyway.
-	 */
-	struct mutex power_mutex;
 	struct smiapp_subdev ssds[SMIAPP_SUBDEVS];
 	u32 ssds_used;
 	struct smiapp_subdev *src;
@@ -217,8 +210,6 @@ struct smiapp_sensor {
 	u16 embedded_end;
 	u16 image_start; /* image data start line */
 	u16 visible_pixel_start; /* start pixel of the visible image */
-
-	int power_count;
 
 	bool streaming;
 	bool dev_init_done;
