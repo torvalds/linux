@@ -152,7 +152,7 @@ struct rxrpc_call *rxrpc_alloc_call(gfp_t gfp)
 	memset(&call->sock_node, 0xed, sizeof(call->sock_node));
 
 	/* Leave space in the ring to handle a maxed-out jumbo packet */
-	call->rx_winsize = RXRPC_RXTX_BUFF_SIZE - 1 - 46;
+	call->rx_winsize = rxrpc_rx_window_size;
 	call->tx_winsize = 16;
 	call->rx_expect_next = 1;
 	return call;
