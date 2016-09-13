@@ -2122,7 +2122,7 @@ static long snd_seq_ioctl(struct file *file, unsigned int cmd,
 	 * within 13 bits. We can safely pick up the size from the command.
 	 */
 	size = _IOC_SIZE(handler->cmd);
-	if (_IOC_DIR(handler->cmd) & IOC_IN) {
+	if (handler->cmd & IOC_IN) {
 		if (copy_from_user(&buf, (const void __user *)arg, size))
 			return -EFAULT;
 	}
@@ -2132,7 +2132,7 @@ static long snd_seq_ioctl(struct file *file, unsigned int cmd,
 		/* Some commands includes a bug in 'dir' field. */
 		if (handler->cmd == SNDRV_SEQ_IOCTL_SET_QUEUE_CLIENT ||
 		    handler->cmd == SNDRV_SEQ_IOCTL_SET_CLIENT_POOL ||
-		    (_IOC_DIR(handler->cmd) & IOC_OUT))
+		    (handler->cmd & IOC_OUT))
 			if (copy_to_user((void __user *)arg, &buf, size))
 				return -EFAULT;
 	}
