@@ -427,7 +427,7 @@ static ssize_t vfd_write(struct file *file, const char __user *buf,
 
 	do {
 		memcpy(context->usb_tx_buf, context->tx.data_buf + offset, 7);
-		context->usb_tx_buf[7] = (unsigned char) seq;
+		context->usb_tx_buf[7] = (unsigned char)seq;
 
 		retval = send_packet(context);
 		if (retval) {
@@ -445,7 +445,7 @@ static ssize_t vfd_write(struct file *file, const char __user *buf,
 	if (context->vfd_proto_6p) {
 		/* Send packet #6 */
 		memcpy(context->usb_tx_buf, &vfd_packet6, sizeof(vfd_packet6));
-		context->usb_tx_buf[7] = (unsigned char) seq;
+		context->usb_tx_buf[7] = (unsigned char)seq;
 		retval = send_packet(context);
 		if (retval)
 			dev_err(&context->usbdev->dev,
