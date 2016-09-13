@@ -56,8 +56,10 @@ const char rxrpc_call_traces[rxrpc_call__nr_trace][4] = {
 	[rxrpc_call_seen]		= "SEE",
 	[rxrpc_call_got]		= "GOT",
 	[rxrpc_call_got_userid]		= "Gus",
+	[rxrpc_call_got_kernel]		= "Gke",
 	[rxrpc_call_put]		= "PUT",
 	[rxrpc_call_put_userid]		= "Pus",
+	[rxrpc_call_put_kernel]		= "Pke",
 	[rxrpc_call_put_noqueue]	= "PNQ",
 };
 

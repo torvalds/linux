@@ -121,7 +121,7 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 
 		call->user_call_ID = user_call_ID;
 		call->notify_rx = notify_rx;
-		rxrpc_get_call(call, rxrpc_call_got);
+		rxrpc_get_call(call, rxrpc_call_got_kernel);
 		user_attach_call(call, user_call_ID);
 		rxrpc_get_call(call, rxrpc_call_got_userid);
 		rb_link_node(&call->sock_node, parent, pp);
@@ -300,6 +300,7 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 	smp_store_release(&b->call_backlog_tail,
 			  (call_tail + 1) & (RXRPC_BACKLOG_MAX - 1));
 
+	rxrpc_see_call(call);
 	call->conn = conn;
 	call->peer = rxrpc_get_peer(conn->params.peer);
 	return call;
