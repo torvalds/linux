@@ -71,10 +71,10 @@ struct omap_type2_desc {
 	uint32_t addr; /* src or dst */
 	uint16_t fn;
 	uint16_t cicr;
-	uint16_t cdei;
-	uint16_t csei;
-	uint32_t cdfi;
-	uint32_t csfi;
+	int16_t cdei;
+	int16_t csei;
+	int32_t cdfi;
+	int32_t csfi;
 } __packed;
 
 struct omap_sg {
