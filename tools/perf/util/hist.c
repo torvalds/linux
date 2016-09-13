@@ -2174,6 +2174,51 @@ static struct hist_entry *hists__find_entry(struct hists *hists,
 	return NULL;
 }
 
+static struct hist_entry *hists__find_hierarchy_entry(struct rb_root *root,
+						      struct hist_entry *he)
+{
+	struct rb_node *n = root->rb_node;
+
+	while (n) {
+		struct hist_entry *iter;
+		struct perf_hpp_fmt *fmt;
+		int64_t cmp = 0;
+
+		iter = rb_entry(n, struct hist_entry, rb_node_in);
+		perf_hpp_list__for_each_sort_list(he->hpp_list, fmt) {
+			cmp = fmt->collapse(fmt, iter, he);
+			if (cmp)
+				break;
+		}
+
+		if (cmp < 0)
+			n = n->rb_left;
+		else if (cmp > 0)
+			n = n->rb_right;
+		else
+			return iter;
+	}
+
+	return NULL;
+}
+
+static void hists__match_hierarchy(struct rb_root *leader_root,
+				   struct rb_root *other_root)
+{
+	struct rb_node *nd;
+	struct hist_entry *pos, *pair;
+
+	for (nd = rb_first(leader_root); nd; nd = rb_next(nd)) {
+		pos  = rb_entry(nd, struct hist_entry, rb_node_in);
+		pair = hists__find_hierarchy_entry(other_root, pos);
+
+		if (pair) {
+			hist_entry__add_pair(pair, pos);
+			hists__match_hierarchy(&pos->hroot_in, &pair->hroot_in);
+		}
+	}
+}
+
 /*
  * Look for pairs to link to the leader buckets (hist_entries):
  */
@@ -2182,6 +2227,12 @@ void hists__match(struct hists *leader, struct hists *other)
 	struct rb_root *root;
 	struct rb_node *nd;
 	struct hist_entry *pos, *pair;
+
+	if (symbol_conf.report_hierarchy) {
+		/* hierarchy report always collapses entries */
+		return hists__match_hierarchy(&leader->entries_collapsed,
+					      &other->entries_collapsed);
+	}
 
 	if (hists__has(leader, need_collapse))
 		root = &leader->entries_collapsed;
