@@ -836,15 +836,15 @@ dtb-$(CONFIG_ARCH_U8500) += \
 	ste-ccu8540.dtb \
 	ste-ccu9540.dtb
 dtb-$(CONFIG_ARCH_UNIPHIER) += \
-	uniphier-ph1-ld4-ref.dtb \
-	uniphier-ph1-ld6b-ref.dtb \
-	uniphier-ph1-pro4-ace.dtb \
-	uniphier-ph1-pro4-ref.dtb \
-	uniphier-ph1-pro4-sanji.dtb \
-	uniphier-ph1-sld3-ref.dtb \
-	uniphier-ph1-sld8-ref.dtb \
-	uniphier-proxstream2-gentil.dtb \
-	uniphier-proxstream2-vodka.dtb
+	uniphier-ld4-ref.dtb \
+	uniphier-ld6b-ref.dtb \
+	uniphier-pro4-ace.dtb \
+	uniphier-pro4-ref.dtb \
+	uniphier-pro4-sanji.dtb \
+	uniphier-pxs2-gentil.dtb \
+	uniphier-pxs2-vodka.dtb \
+	uniphier-sld3-ref.dtb \
+	uniphier-sld8-ref.dtb
 dtb-$(CONFIG_ARCH_VERSATILE) += \
 	versatile-ab.dtb \
 	versatile-pb.dtb

@@ -1,7 +1,8 @@
 /*
- * Device Tree Source for UniPhier PH1-Pro4 Sanji Board
+ * Device Tree Source for UniPhier PXs2 Gentil Board
  *
- * Copyright (C) 2016 Masahiro Yamada <yamada.masahiro@socionext.com>
+ * Copyright (C) 2015-2016 Socionext Inc.
+ *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -43,11 +44,12 @@
  */
 
 /dts-v1/;
-/include/ "uniphier-ph1-pro4.dtsi"
+/include/ "uniphier-pxs2.dtsi"
 
 / {
-	model = "UniPhier PH1-Pro4 Sanji Board";
-	compatible = "socionext,ph1-pro4-sanji", "socionext,ph1-pro4";
+	model = "UniPhier PXs2 Gentil Board";
+	compatible = "socionext,uniphier-pxs2-gentil",
+		     "socionext,uniphier-pxs2";
 
 	memory {
 		device_type = "memory";
@@ -59,22 +61,18 @@
 	};
 
 	aliases {
-		serial0 = &serial0;
-		serial1 = &serial1;
+		serial0 = &serial2;
+		serial1 = &serial0;
+		serial2 = &serial1;
 		i2c0 = &i2c0;
-		i2c1 = &i2c1;
 		i2c2 = &i2c2;
-		i2c3 = &i2c3;
+		i2c4 = &i2c4;
 		i2c5 = &i2c5;
 		i2c6 = &i2c6;
 	};
 };
 
-&serial0 {
-	status = "okay";
-};
-
-&serial1 {
+&serial2 {
 	status = "okay";
 };
 
@@ -87,22 +85,6 @@
 	};
 };
 
-&i2c1 {
-	status = "okay";
-};
-
 &i2c2 {
-	status = "okay";
-};
-
-&i2c3 {
-	status = "okay";
-};
-
-&usb2 {
-	status = "okay";
-};
-
-&usb3 {
 	status = "okay";
 };

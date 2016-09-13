@@ -1,7 +1,8 @@
 /*
- * Device Tree Source for UniPhier PH1-Pro4 SoC
+ * Device Tree Source for UniPhier PXs2 SoC
  *
- * Copyright (C) 2015 Masahiro Yamada <yamada.masahiro@socionext.com>
+ * Copyright (C) 2015-2016 Socionext Inc.
+ *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -45,17 +46,17 @@
 /include/ "uniphier-common32.dtsi"
 
 / {
-	compatible = "socionext,ph1-pro4";
+	compatible = "socionext,uniphier-pxs2";
 
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		enable-method = "socionext,uniphier-smp";
 
 		cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <0>;
+			enable-method = "psci";
 			next-level-cache = <&l2>;
 		};
 
@@ -63,24 +64,29 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <1>;
+			enable-method = "psci";
+			next-level-cache = <&l2>;
+		};
+
+		cpu@2 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			reg = <2>;
+			enable-method = "psci";
+			next-level-cache = <&l2>;
+		};
+
+		cpu@3 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			reg = <3>;
+			enable-method = "psci";
 			next-level-cache = <&l2>;
 		};
 	};
 
 	clocks {
 		arm_timer_clk: arm_timer_clk {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-			clock-frequency = <50000000>;
-		};
-
-		uart_clk: uart_clk {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-			clock-frequency = <73728000>;
-		};
-
-		i2c_clk: i2c_clk {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <50000000>;
@@ -92,10 +98,10 @@
 	l2: l2-cache@500c0000 {
 		compatible = "socionext,uniphier-system-cache";
 		reg = <0x500c0000 0x2000>, <0x503c0100 0x4>, <0x506c0000 0x400>;
-		interrupts = <0 174 4>, <0 175 4>;
+		interrupts = <0 174 4>, <0 175 4>, <0 190 4>, <0 191 4>;
 		cache-unified;
-		cache-size = <(768 * 1024)>;
-		cache-sets = <256>;
+		cache-size = <(1280 * 1024)>;
+		cache-sets = <512>;
 		cache-line-size = <128>;
 		cache-level = <2>;
 	};
@@ -109,7 +115,7 @@
 		interrupts = <0 41 4>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c0>;
-		clocks = <&i2c_clk>;
+		clocks = <&peri_clk 4>;
 		clock-frequency = <100000>;
 	};
 
@@ -122,7 +128,7 @@
 		interrupts = <0 42 4>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c1>;
-		clocks = <&i2c_clk>;
+		clocks = <&peri_clk 5>;
 		clock-frequency = <100000>;
 	};
 
@@ -132,10 +138,10 @@
 		reg = <0x58782000 0x80>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		interrupts = <0 43 4>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c2>;
-		clocks = <&i2c_clk>;
+		interrupts = <0 43 4>;
+		clocks = <&peri_clk 6>;
 		clock-frequency = <100000>;
 	};
 
@@ -148,20 +154,29 @@
 		interrupts = <0 44 4>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c3>;
-		clocks = <&i2c_clk>;
+		clocks = <&peri_clk 7>;
 		clock-frequency = <100000>;
 	};
 
-	/* i2c4 does not exist */
-
 	/* chip-internal connection for DMD */
+	i2c4: i2c@58784000 {
+		compatible = "socionext,uniphier-fi2c";
+		reg = <0x58784000 0x80>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupts = <0 45 4>;
+		clocks = <&peri_clk 8>;
+		clock-frequency = <400000>;
+	};
+
+	/* chip-internal connection for STM */
 	i2c5: i2c@58785000 {
 		compatible = "socionext,uniphier-fi2c";
 		reg = <0x58785000 0x80>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		interrupts = <0 25 4>;
-		clocks = <&i2c_clk>;
+		clocks = <&peri_clk 9>;
 		clock-frequency = <400000>;
 	};
 
@@ -172,26 +187,8 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		interrupts = <0 26 4>;
-		clocks = <&i2c_clk>;
+		clocks = <&peri_clk 10>;
 		clock-frequency = <400000>;
-	};
-
-	usb2: usb@5a800100 {
-		compatible = "socionext,uniphier-ehci", "generic-ehci";
-		status = "disabled";
-		reg = <0x5a800100 0x100>;
-		interrupts = <0 80 4>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_usb2>;
-	};
-
-	usb3: usb@5a810100 {
-		compatible = "socionext,uniphier-ehci", "generic-ehci";
-		status = "disabled";
-		reg = <0x5a810100 0x100>;
-		interrupts = <0 81 4>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_usb3>;
 	};
 };
 
@@ -199,6 +196,30 @@
 	clock-frequency = <25000000>;
 };
 
+&mio_clk {
+	compatible = "socionext,uniphier-pxs2-mio-clock";
+};
+
+&mio_rst {
+	compatible = "socionext,uniphier-pxs2-mio-reset";
+};
+
+&peri_clk {
+	compatible = "socionext,uniphier-pxs2-peri-clock";
+};
+
+&peri_rst {
+	compatible = "socionext,uniphier-pxs2-peri-reset";
+};
+
 &pinctrl {
-	compatible = "socionext,uniphier-pro4-pinctrl";
+	compatible = "socionext,uniphier-pxs2-pinctrl";
+};
+
+&sys_clk {
+	compatible = "socionext,uniphier-pxs2-clock";
+};
+
+&sys_rst {
+	compatible = "socionext,uniphier-pxs2-reset";
 };

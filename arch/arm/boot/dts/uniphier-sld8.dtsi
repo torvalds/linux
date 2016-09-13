@@ -1,7 +1,8 @@
 /*
- * Device Tree Source for UniPhier PH1-LD4 SoC
+ * Device Tree Source for UniPhier sLD8 SoC
  *
- * Copyright (C) 2015 Masahiro Yamada <yamada.masahiro@socionext.com>
+ * Copyright (C) 2015-2016 Socionext Inc.
+ *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -45,7 +46,7 @@
 /include/ "uniphier-common32.dtsi"
 
 / {
-	compatible = "socionext,ph1-ld4";
+	compatible = "socionext,uniphier-sld8";
 
 	cpus {
 		#address-cells = <1>;
@@ -55,6 +56,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <0>;
+			enable-method = "psci";
 			next-level-cache = <&l2>;
 		};
 	};
@@ -65,18 +67,6 @@
 			compatible = "fixed-clock";
 			clock-frequency = <50000000>;
 		};
-
-		uart_clk: uart_clk {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-			clock-frequency = <36864000>;
-		};
-
-		iobus_clk: iobus_clk {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-			clock-frequency = <100000000>;
-		};
 	};
 };
 
@@ -86,7 +76,7 @@
 		reg = <0x500c0000 0x2000>, <0x503c0100 0x4>, <0x506c0000 0x400>;
 		interrupts = <0 174 4>, <0 175 4>;
 		cache-unified;
-		cache-size = <(512 * 1024)>;
+		cache-size = <(256 * 1024)>;
 		cache-sets = <256>;
 		cache-line-size = <128>;
 		cache-level = <2>;
@@ -101,7 +91,7 @@
 		interrupts = <0 41 1>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c0>;
-		clocks = <&iobus_clk>;
+		clocks = <&peri_clk 4>;
 		clock-frequency = <100000>;
 	};
 
@@ -114,7 +104,7 @@
 		interrupts = <0 42 1>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c1>;
-		clocks = <&iobus_clk>;
+		clocks = <&peri_clk 5>;
 		clock-frequency = <100000>;
 	};
 
@@ -127,7 +117,7 @@
 		interrupts = <0 43 1>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c2>;
-		clocks = <&iobus_clk>;
+		clocks = <&peri_clk 6>;
 		clock-frequency = <400000>;
 	};
 
@@ -140,7 +130,7 @@
 		interrupts = <0 44 1>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c3>;
-		clocks = <&iobus_clk>;
+		clocks = <&peri_clk 7>;
 		clock-frequency = <100000>;
 	};
 
@@ -151,6 +141,8 @@
 		interrupts = <0 80 4>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_usb0>;
+		clocks = <&mio_clk 7>, <&mio_clk 8>, <&mio_clk 12>;
+		resets = <&mio_rst 7>, <&mio_rst 8>, <&mio_rst 12>, <&sys_rst 8>;
 	};
 
 	usb1: usb@5a810100 {
@@ -160,6 +152,8 @@
 		interrupts = <0 81 4>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_usb1>;
+		clocks = <&mio_clk 7>, <&mio_clk 9>, <&mio_clk 13>;
+		resets = <&mio_rst 7>, <&mio_rst 9>, <&mio_rst 13>, <&sys_rst 8>;
 	};
 
 	usb2: usb@5a820100 {
@@ -169,18 +163,44 @@
 		interrupts = <0 82 4>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_usb2>;
+		clocks = <&mio_clk 7>, <&mio_clk 10>, <&mio_clk 14>;
+		resets = <&mio_rst 7>, <&mio_rst 10>, <&mio_rst 14>, <&sys_rst 8>;
 	};
-
 };
 
 &refclk {
-	clock-frequency = <24576000>;
+	clock-frequency = <25000000>;
 };
 
 &serial3 {
 	interrupts = <0 29 4>;
 };
 
+&mio_clk {
+	compatible = "socionext,uniphier-sld8-mio-clock";
+};
+
+&mio_rst {
+	compatible = "socionext,uniphier-sld8-mio-reset";
+	resets = <&sys_rst 7>;
+};
+
+&peri_clk {
+	compatible = "socionext,uniphier-sld8-peri-clock";
+};
+
+&peri_rst {
+	compatible = "socionext,uniphier-sld8-peri-reset";
+};
+
 &pinctrl {
-	compatible = "socionext,uniphier-ld4-pinctrl";
+	compatible = "socionext,uniphier-sld8-pinctrl";
+};
+
+&sys_clk {
+	compatible = "socionext,uniphier-sld8-clock";
+};
+
+&sys_rst {
+	compatible = "socionext,uniphier-sld8-reset";
 };

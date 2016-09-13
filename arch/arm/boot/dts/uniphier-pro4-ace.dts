@@ -1,7 +1,8 @@
 /*
- * Device Tree Source for UniPhier PH1-LD6b SoC
+ * Device Tree Source for UniPhier Pro4 Ace Board
  *
- * Copyright (C) 2015 Masahiro Yamada <yamada.masahiro@socionext.com>
+ * Copyright (C) 2016 Socionext Inc.
+ *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -42,26 +43,72 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/*
- * PH1-LD6b consists of two silicon dies: D-chip and A-chip.
- * The D-chip (digital chip) is the same as the ProXstream2 die.
- * Reuse the ProXstream2 device tree with some properties overridden.
- */
-/include/ "uniphier-proxstream2.dtsi"
+/dts-v1/;
+/include/ "uniphier-pro4.dtsi"
 
 / {
-	compatible = "socionext,ph1-ld6b";
+	model = "UniPhier Pro4 Ace Board";
+	compatible = "socionext,uniphier-pro4-ace", "socionext,uniphier-pro4";
+
+	memory {
+		device_type = "memory";
+		reg = <0x80000000 0x40000000>;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	aliases {
+		serial0 = &serial0;
+		serial1 = &serial1;
+		serial2 = &serial2;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		i2c5 = &i2c5;
+		i2c6 = &i2c6;
+	};
 };
 
-/* UART3 unavailable: the pads are not wired to the package balls */
-&serial3 {
-	status = "disabled";
+&serial0 {
+	status = "okay";
 };
 
-/*
- * PH1-LD6b and ProXstream2 have completely different packages,
- * which makes the pinctrl driver unshareable.
- */
-&pinctrl {
-	compatible = "socionext,uniphier-ld6b-pinctrl";
+&serial1 {
+	status = "okay";
+};
+
+&serial2 {
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+
+	eeprom@54 {
+		compatible = "st,24c64";
+		reg = <0x54>;
+	};
+};
+
+&i2c1 {
+	status = "okay";
+};
+
+&i2c2 {
+	status = "okay";
+};
+
+&i2c3 {
+	status = "okay";
+};
+
+&usb2 {
+	status = "okay";
+};
+
+&usb3 {
+	status = "okay";
 };
