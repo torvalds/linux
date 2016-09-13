@@ -247,6 +247,10 @@ static void otg_timer(unsigned long _musb)
 
 	spin_lock_irqsave(&musb->lock, flags);
 	switch (musb->xceiv->otg->state) {
+	case OTG_STATE_A_WAIT_VRISE:
+		mod_timer(&glue->timer, jiffies +
+				msecs_to_jiffies(wrp->poll_timeout));
+		break;
 	case OTG_STATE_A_WAIT_BCON:
 		musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 		skip_session = 1;
@@ -338,7 +342,8 @@ static irqreturn_t dsps_interrupt(int irq, void *hci)
 			MUSB_HST_MODE(musb);
 			musb->xceiv->otg->default_a = 1;
 			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
-			del_timer(&glue->timer);
+			mod_timer(&glue->timer, jiffies +
+				  msecs_to_jiffies(wrp->poll_timeout));
 		} else {
 			musb->is_active = 0;
 			MUSB_DEV_MODE(musb);
@@ -358,11 +363,17 @@ static irqreturn_t dsps_interrupt(int irq, void *hci)
 	if (musb->int_tx || musb->int_rx || musb->int_usb)
 		ret |= musb_interrupt(musb);
 
-	/* Poll for ID change in OTG port mode */
-	if (musb->xceiv->otg->state == OTG_STATE_B_IDLE &&
-			musb->port_mode == MUSB_PORT_MODE_DUAL_ROLE)
+	/* Poll for ID change and connect */
+	switch (musb->xceiv->otg->state) {
+	case OTG_STATE_B_IDLE:
+	case OTG_STATE_A_WAIT_BCON:
 		mod_timer(&glue->timer, jiffies +
 				msecs_to_jiffies(wrp->poll_timeout));
+		break;
+	default:
+		break;
+	}
+
 out:
 	spin_unlock_irqrestore(&musb->lock, flags);
 
@@ -460,6 +471,9 @@ static int dsps_musb_init(struct musb *musb)
 		val |= MUSB_BABBLE_SW_SESSION_CTRL;
 		musb_writeb(musb->mregs, MUSB_BABBLE_CTL, val);
 	}
+
+	mod_timer(&glue->timer, jiffies +
+		  msecs_to_jiffies(glue->wrp->poll_timeout));
 
 	return dsps_musb_dbg_init(musb, glue);
 }
