@@ -152,7 +152,7 @@ early_param("apic", parse_apic);
 
 void __init default_setup_apic_routing(void)
 {
-	int version = apic_version[boot_cpu_physical_apicid];
+	int version = boot_cpu_apic_version;
 
 	if (num_possible_cpus() > 8) {
 		switch (boot_cpu_data.x86_vendor) {
