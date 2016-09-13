@@ -20,6 +20,9 @@
 #define LPC_GPIO(port, pin)	(port * 32 + pin)
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
