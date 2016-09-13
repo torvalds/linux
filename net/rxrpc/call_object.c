@@ -464,9 +464,6 @@ void rxrpc_release_call(struct rxrpc_sock *rx, struct rxrpc_call *call)
 		call->rxtx_buffer[i] = NULL;
 	}
 
-	/* We have to release the prealloc backlog ref */
-	if (rxrpc_is_service_call(call))
-		rxrpc_put_call(call, rxrpc_call_put);
 	_leave("");
 }
 

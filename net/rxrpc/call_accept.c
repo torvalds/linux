@@ -221,6 +221,7 @@ void rxrpc_discard_prealloc(struct rxrpc_sock *rx)
 		if (rx->discard_new_call) {
 			_debug("discard %lx", call->user_call_ID);
 			rx->discard_new_call(call, call->user_call_ID);
+			rxrpc_put_call(call, rxrpc_call_put_kernel);
 		}
 		rxrpc_call_completed(call);
 		rxrpc_release_call(rx, call);
@@ -402,6 +403,13 @@ found_service:
 	if (call->state == RXRPC_CALL_SERVER_ACCEPTING)
 		rxrpc_notify_socket(call);
 
+	/* We have to discard the prealloc queue's ref here and rely on a
+	 * combination of the RCU read lock and refs held either by the socket
+	 * (recvmsg queue, to-be-accepted queue or user ID tree) or the kernel
+	 * service to prevent the call from being deallocated too early.
+	 */
+	rxrpc_put_call(call, rxrpc_call_put);
+
 	_leave(" = %p{%d}", call, call->debug_id);
 out:
 	spin_unlock(&rx->incoming_lock);
@@ -469,7 +477,6 @@ struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *rx,
 	}
 
 	/* formalise the acceptance */
-	rxrpc_get_call(call, rxrpc_call_got);
 	call->notify_rx = notify_rx;
 	call->user_call_ID = user_call_ID;
 	rxrpc_get_call(call, rxrpc_call_got_userid);
