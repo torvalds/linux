@@ -156,6 +156,11 @@ gckKERNEL_NewDatabase(
     return gcvSTATUS_OK;
 
 OnError:
+    if (pointer)
+    {
+        gcmkVERIFY_OK(gckOS_Free(Kernel->os,pointer));
+    }
+
     if (acquired)
     {
         /* Release the database mutex. */

@@ -441,6 +441,11 @@ _CMAFSLAlloctorInit(
     return gcvSTATUS_OK;
 
 OnError:
+    if(allocator)
+    {
+        gcmkVERIFY_OK(gckOS_Free(Os, (gctPOINTER)allocator));
+    }
+
     return status;
 }
 

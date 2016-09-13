@@ -2641,6 +2641,7 @@ gckVIDMEM_NODE_Dereference(
 #endif
         gcmkVERIFY_OK(gckOS_DeleteMutex(Kernel->os, Node->mutex));
         gcmkOS_SAFE_FREE(Kernel->os, Node);
+        Node = NULL;
     }
 
     gcmkFOOTER_NO();
