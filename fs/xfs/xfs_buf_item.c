@@ -1095,7 +1095,8 @@ xfs_buf_iodone_callback_error(
 	     bp->b_last_error != bp->b_error) {
 		bp->b_flags |= (XBF_WRITE | XBF_DONE | XBF_WRITE_FAIL);
 		bp->b_last_error = bp->b_error;
-		if (cfg->retry_timeout && !bp->b_first_retry_time)
+		if (cfg->retry_timeout != XFS_ERR_RETRY_FOREVER &&
+		    !bp->b_first_retry_time)
 			bp->b_first_retry_time = jiffies;
 
 		xfs_buf_ioerror(bp, 0);
@@ -1111,7 +1112,7 @@ xfs_buf_iodone_callback_error(
 	if (cfg->max_retries != XFS_ERR_RETRY_FOREVER &&
 	    ++bp->b_retries > cfg->max_retries)
 			goto permanent_error;
-	if (cfg->retry_timeout &&
+	if (cfg->retry_timeout != XFS_ERR_RETRY_FOREVER &&
 	    time_after(jiffies, cfg->retry_timeout + bp->b_first_retry_time))
 			goto permanent_error;
 

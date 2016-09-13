@@ -57,10 +57,16 @@ enum {
 
 #define XFS_ERR_RETRY_FOREVER	-1
 
+/*
+ * Although retry_timeout is in jiffies which is normally an unsigned long,
+ * we limit the retry timeout to 86400 seconds, or one day.  So even a
+ * signed 32-bit long is sufficient for a HZ value up to 24855.  Making it
+ * signed lets us store the special "-1" value, meaning retry forever.
+ */
 struct xfs_error_cfg {
 	struct xfs_kobj	kobj;
 	int		max_retries;
-	unsigned long	retry_timeout;	/* in jiffies, 0 = no timeout */
+	long		retry_timeout;	/* in jiffies, -1 = infinite */
 };
 
 typedef struct xfs_mount {
