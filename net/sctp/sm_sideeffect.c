@@ -1421,8 +1421,7 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 				local_cork = 1;
 			}
 			/* Send a chunk to our peer.  */
-			error = sctp_outq_tail(&asoc->outqueue, cmd->obj.chunk,
-					       gfp);
+			sctp_outq_tail(&asoc->outqueue, cmd->obj.chunk, gfp);
 			break;
 
 		case SCTP_CMD_SEND_PKT:
@@ -1676,7 +1675,7 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 		case SCTP_CMD_FORCE_PRIM_RETRAN:
 			t = asoc->peer.retran_path;
 			asoc->peer.retran_path = asoc->peer.primary_path;
-			error = sctp_outq_uncork(&asoc->outqueue, gfp);
+			sctp_outq_uncork(&asoc->outqueue, gfp);
 			local_cork = 0;
 			asoc->peer.retran_path = t;
 			break;
@@ -1733,9 +1732,9 @@ out:
 	 */
 	if (asoc && SCTP_EVENT_T_CHUNK == event_type && chunk) {
 		if (chunk->end_of_packet || chunk->singleton)
-			error = sctp_outq_uncork(&asoc->outqueue, gfp);
+			sctp_outq_uncork(&asoc->outqueue, gfp);
 	} else if (local_cork)
-		error = sctp_outq_uncork(&asoc->outqueue, gfp);
+		sctp_outq_uncork(&asoc->outqueue, gfp);
 
 	if (sp->data_ready_signalled)
 		sp->data_ready_signalled = 0;

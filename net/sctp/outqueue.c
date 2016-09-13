@@ -68,7 +68,7 @@ static void sctp_mark_missing(struct sctp_outq *q,
 
 static void sctp_generate_fwdtsn(struct sctp_outq *q, __u32 sack_ctsn);
 
-static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp);
+static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp);
 
 /* Add data to the front of the queue. */
 static inline void sctp_outq_head_data(struct sctp_outq *q,
@@ -285,10 +285,9 @@ void sctp_outq_free(struct sctp_outq *q)
 }
 
 /* Put a new chunk in an sctp_outq.  */
-int sctp_outq_tail(struct sctp_outq *q, struct sctp_chunk *chunk, gfp_t gfp)
+void sctp_outq_tail(struct sctp_outq *q, struct sctp_chunk *chunk, gfp_t gfp)
 {
 	struct net *net = sock_net(q->asoc->base.sk);
-	int error = 0;
 
 	pr_debug("%s: outq:%p, chunk:%p[%s]\n", __func__, q, chunk,
 		 chunk && chunk->chunk_hdr ?
@@ -318,9 +317,7 @@ int sctp_outq_tail(struct sctp_outq *q, struct sctp_chunk *chunk, gfp_t gfp)
 	}
 
 	if (!q->cork)
-		error = sctp_outq_flush(q, 0, gfp);
-
-	return error;
+		sctp_outq_flush(q, 0, gfp);
 }
 
 /* Insert a chunk into the sorted list based on the TSNs.  The retransmit list
@@ -748,12 +745,12 @@ redo:
 }
 
 /* Cork the outqueue so queued chunks are really queued. */
-int sctp_outq_uncork(struct sctp_outq *q, gfp_t gfp)
+void sctp_outq_uncork(struct sctp_outq *q, gfp_t gfp)
 {
 	if (q->cork)
 		q->cork = 0;
 
-	return sctp_outq_flush(q, 0, gfp);
+	sctp_outq_flush(q, 0, gfp);
 }
 
 
@@ -766,7 +763,7 @@ int sctp_outq_uncork(struct sctp_outq *q, gfp_t gfp)
  * locking concerns must be made.  Today we use the sock lock to protect
  * this function.
  */
-static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
+static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 {
 	struct sctp_packet *packet;
 	struct sctp_packet singleton;
@@ -891,7 +888,7 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 			error = sctp_packet_transmit(&singleton, gfp);
 			if (error < 0) {
 				asoc->base.sk->sk_err = -error;
-				return 0;
+				return;
 			}
 			break;
 
@@ -1175,8 +1172,6 @@ sctp_flush_out:
 		/* Clear the burst limited state, if any */
 		sctp_transport_burst_reset(t);
 	}
-
-	return 0;
 }
 
 /* Update unack_data based on the incoming SACK chunk */
