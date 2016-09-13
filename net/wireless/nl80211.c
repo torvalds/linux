@@ -854,7 +854,6 @@ nl80211_parse_connkeys(struct cfg80211_registered_device *rdev,
 		return ERR_PTR(-ENOMEM);
 
 	result->def = -1;
-	result->defmgmt = -1;
 
 	nla_for_each_nested(key, keys, rem) {
 		memset(&parse, 0, sizeof(parse));
