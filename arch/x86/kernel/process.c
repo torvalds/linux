@@ -549,9 +549,7 @@ unsigned long get_wchan(struct task_struct *p)
 	 * PADDING
 	 * ----------- top = topmax - TOP_OF_KERNEL_STACK_PADDING
 	 * stack
-	 * ----------- bottom = start + sizeof(thread_info)
-	 * thread_info
-	 * ----------- start
+	 * ----------- bottom = start
 	 *
 	 * The tasks stack pointer points at the location where the
 	 * framepointer is stored. The data on the stack is:
@@ -562,7 +560,7 @@ unsigned long get_wchan(struct task_struct *p)
 	 */
 	top = start + THREAD_SIZE - TOP_OF_KERNEL_STACK_PADDING;
 	top -= 2 * sizeof(unsigned long);
-	bottom = start + sizeof(struct thread_info);
+	bottom = start;
 
 	sp = READ_ONCE(p->thread.sp);
 	if (sp < bottom || sp > top)

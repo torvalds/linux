@@ -157,6 +157,7 @@ config X86
 	select SPARSE_IRQ
 	select SRCU
 	select SYSCTL_EXCEPTION_TRACE
+	select THREAD_INFO_IN_TASK
 	select USER_STACKTRACE_SUPPORT
 	select VIRT_TO_BUS
 	select X86_DEV_DMA_OPS			if X86_64

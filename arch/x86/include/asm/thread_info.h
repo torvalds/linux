@@ -52,20 +52,6 @@ struct task_struct;
 #include <asm/cpufeature.h>
 #include <linux/atomic.h>
 
-struct thread_info {
-	struct task_struct	*task;		/* main task structure */
-	__u32			flags;		/* low level flags */
-	__u32			cpu;		/* current CPU */
-};
-
-#define INIT_THREAD_INFO(tsk)			\
-{						\
-	.task		= &tsk,			\
-	.flags		= 0,			\
-	.cpu		= 0,			\
-}
-
-#define init_thread_info	(init_thread_union.thread_info)
 #define init_stack		(init_thread_union.stack)
 
 #else /* !__ASSEMBLY__ */
@@ -157,11 +143,6 @@ struct thread_info {
  */
 #ifndef __ASSEMBLY__
 
-static inline struct thread_info *current_thread_info(void)
-{
-	return (struct thread_info *)(current_top_of_stack() - THREAD_SIZE);
-}
-
 static inline unsigned long current_stack_pointer(void)
 {
 	unsigned long sp;
@@ -222,33 +203,6 @@ static inline int arch_within_stack_frames(const void * const stack,
 #ifdef CONFIG_X86_64
 # define cpu_current_top_of_stack (cpu_tss + TSS_sp0)
 #endif
-
-/*
- * ASM operand which evaluates to a 'thread_info' address of
- * the current task, if it is known that "reg" is exactly "off"
- * bytes below the top of the stack currently.
- *
- * ( The kernel stack's size is known at build time, it is usually
- *   2 or 4 pages, and the bottom  of the kernel stack contains
- *   the thread_info structure. So to access the thread_info very
- *   quickly from assembly code we can calculate down from the
- *   top of the kernel stack to the bottom, using constant,
- *   build-time calculations only. )
- *
- * For example, to fetch the current thread_info->flags value into %eax
- * on x86-64 defconfig kernels, in syscall entry code where RSP is
- * currently at exactly SIZEOF_PTREGS bytes away from the top of the
- * stack:
- *
- *      mov ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS), %eax
- *
- * will translate to:
- *
- *      8b 84 24 b8 c0 ff ff      mov    -0x3f48(%rsp), %eax
- *
- * which is below the current RSP by almost 16K.
- */
-#define ASM_THREAD_INFO(field, reg, off) ((field)+(off)-THREAD_SIZE)(reg)
 
 #endif
 

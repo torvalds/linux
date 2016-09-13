@@ -179,7 +179,8 @@ GLOBAL(entry_SYSCALL_64_after_swapgs)
 	 * If we need to do entry work or if we guess we'll need to do
 	 * exit work, go straight to the slow path.
 	 */
-	testl	$_TIF_WORK_SYSCALL_ENTRY|_TIF_ALLWORK_MASK, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
+	movq	PER_CPU_VAR(current_task), %r11
+	testl	$_TIF_WORK_SYSCALL_ENTRY|_TIF_ALLWORK_MASK, TASK_TI_flags(%r11)
 	jnz	entry_SYSCALL64_slow_path
 
 entry_SYSCALL_64_fastpath:
@@ -217,7 +218,8 @@ entry_SYSCALL_64_fastpath:
 	 */
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
-	testl	$_TIF_ALLWORK_MASK, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
+	movq	PER_CPU_VAR(current_task), %r11
+	testl	$_TIF_ALLWORK_MASK, TASK_TI_flags(%r11)
 	jnz	1f
 
 	LOCKDEP_SYS_EXIT
@@ -370,6 +372,7 @@ END(ptregs_\func)
 /*
  * %rdi: prev task
  * %rsi: next task
+ * rsi: task we're switching to
  */
 ENTRY(__switch_to_asm)
 	/*
