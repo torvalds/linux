@@ -1,9 +1,9 @@
 /*
- * Device Tree Include file for Marvell Armada 398 SoC.
+ * Device Tree Include file for Marvell Armada 395 SoC.
  *
- * Copyright (C) 2015 Marvell
+ * Copyright (C) 2016 Marvell
  *
- * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+ * Grzegorz Jaszczyk <jaz@semihalf.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -44,23 +44,31 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "armada-395.dtsi"
+#include "armada-39x.dtsi"
 
 / {
-	compatible = "marvell,armada398", "marvell,armada390";
+	compatible = "marvell,armada395", "marvell,armada390";
 
 	soc {
 		internal-regs {
 			pinctrl@18000 {
-				compatible = "marvell,mv88f6928-pinctrl";
+				compatible = "marvell,mv88f6925-pinctrl";
 				reg = <0x18000 0x20>;
 			};
 
-			sata@e0000 {
+			sata@a8000 {
 				compatible = "marvell,armada-380-ahci";
-				reg = <0xe0000 0x2000>;
-				interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&gateclk 30>;
+				reg = <0xa8000 0x2000>;
+				interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&gateclk 15>;
+				status = "disabled";
+			};
+
+			usb3@f0000 {
+				compatible = "marvell,armada-380-xhci";
+				reg = <0xf0000 0x4000>,<0xf4000 0x4000>;
+				interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&gateclk 9>;
 				status = "disabled";
 			};
 		};

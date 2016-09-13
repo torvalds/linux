@@ -70,18 +70,6 @@
 			  MBUS_ID(0x0c, 0x04) 0 0xf1200000 0x100000>;
 
 		internal-regs {
-			spi@10600 {
-				status = "okay";
-
-				spi-flash@0 {
-					#address-cells = <1>;
-					#size-cells = <1>;
-					compatible = "w25q32", "jedec,spi-nor";
-					reg = <0>; /* Chip select 0 */
-					spi-max-frequency = <108000000>;
-				};
-			};
-
 			i2c@11000 {
 				status = "okay";
 				clock-frequency = <100000>;
@@ -201,3 +189,16 @@
 		};
 	};
 };
+
+&spi0 {
+	status = "okay";
+
+	spi-flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "w25q32", "jedec,spi-nor";
+		reg = <0>; /* Chip select 0 */
+		spi-max-frequency = <108000000>;
+	};
+};
+

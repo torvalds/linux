@@ -148,26 +148,6 @@
 				interrupts = <50>;
 			};
 
-			spi0: spi@10600 {
-				reg = <0x10600 0x28>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-				cell-index = <0>;
-				interrupts = <30>;
-				clocks = <&coreclk 0>;
-				status = "disabled";
-			};
-
-			spi1: spi@10680 {
-				reg = <0x10680 0x28>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-				cell-index = <1>;
-				interrupts = <92>;
-				clocks = <&coreclk 0>;
-				status = "disabled";
-			};
-
 			i2c0: i2c@11000 {
 				compatible = "marvell,mv64xxx-i2c";
 				#address-cells = <1>;
@@ -319,6 +299,42 @@
 				cap-mmc-highspeed;
 				status = "disabled";
 			};
+		};
+
+		spi0: spi@10600 {
+			reg = <MBUS_ID(0xf0, 0x01) 0x10600 0x28>, /* control */
+			      <MBUS_ID(0x01, 0x1e) 0 0xffffffff>, /* CS0 */
+			      <MBUS_ID(0x01, 0x5e) 0 0xffffffff>, /* CS1 */
+			      <MBUS_ID(0x01, 0x9e) 0 0xffffffff>, /* CS2 */
+			      <MBUS_ID(0x01, 0xde) 0 0xffffffff>, /* CS3 */
+			      <MBUS_ID(0x01, 0x1f) 0 0xffffffff>, /* CS4 */
+			      <MBUS_ID(0x01, 0x5f) 0 0xffffffff>, /* CS5 */
+			      <MBUS_ID(0x01, 0x9f) 0 0xffffffff>, /* CS6 */
+			      <MBUS_ID(0x01, 0xdf) 0 0xffffffff>; /* CS7 */
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <0>;
+			interrupts = <30>;
+			clocks = <&coreclk 0>;
+			status = "disabled";
+		};
+
+		spi1: spi@10680 {
+			reg = <MBUS_ID(0xf0, 0x01) 0x10680 0x28>, /* control */
+			      <MBUS_ID(0x01, 0x1a) 0 0xffffffff>, /* CS0 */
+			      <MBUS_ID(0x01, 0x5a) 0 0xffffffff>, /* CS1 */
+			      <MBUS_ID(0x01, 0x9a) 0 0xffffffff>, /* CS2 */
+			      <MBUS_ID(0x01, 0xda) 0 0xffffffff>, /* CS3 */
+			      <MBUS_ID(0x01, 0x1b) 0 0xffffffff>, /* CS4 */
+			      <MBUS_ID(0x01, 0x5b) 0 0xffffffff>, /* CS5 */
+			      <MBUS_ID(0x01, 0x9b) 0 0xffffffff>, /* CS6 */
+			      <MBUS_ID(0x01, 0xdb) 0 0xffffffff>; /* CS7 */
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <1>;
+			interrupts = <92>;
+			clocks = <&coreclk 0>;
+			status = "disabled";
 		};
 	};
 
