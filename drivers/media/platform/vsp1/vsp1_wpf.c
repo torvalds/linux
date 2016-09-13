@@ -189,11 +189,12 @@ static void wpf_configure(struct vsp1_entity *entity,
 	if (params == VSP1_ENTITY_PARAMS_RUNTIME) {
 		const unsigned int mask = BIT(WPF_CTRL_VFLIP)
 					| BIT(WPF_CTRL_HFLIP);
+		unsigned long flags;
 
-		spin_lock(&wpf->flip.lock);
+		spin_lock_irqsave(&wpf->flip.lock, flags);
 		wpf->flip.active = (wpf->flip.active & ~mask)
 				 | (wpf->flip.pending & mask);
-		spin_unlock(&wpf->flip.lock);
+		spin_unlock_irqrestore(&wpf->flip.lock, flags);
 
 		outfmt = (wpf->alpha << VI6_WPF_OUTFMT_PDV_SHIFT) | wpf->outfmt;
 
