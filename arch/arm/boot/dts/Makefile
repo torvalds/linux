@@ -686,6 +686,7 @@ dtb-$(CONFIG_ARCH_SPEAR6XX) += \
 dtb-$(CONFIG_ARCH_STI) += \
 	stih407-b2120.dtb \
 	stih410-b2120.dtb \
+	stih410-b2260.dtb \
 	stih415-b2000.dtb \
 	stih415-b2020.dtb \
 	stih416-b2000.dtb \

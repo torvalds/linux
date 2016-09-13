@@ -58,7 +58,7 @@
 
 			pio0: gpio@09610000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x0 0x100>;
@@ -66,7 +66,7 @@
 			};
 			pio1: gpio@09611000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x1000 0x100>;
@@ -74,7 +74,7 @@
 			};
 			pio2: gpio@09612000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x2000 0x100>;
@@ -82,7 +82,7 @@
 			};
 			pio3: gpio@09613000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x3000 0x100>;
@@ -90,7 +90,7 @@
 			};
 			pio4: gpio@09614000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x4000 0x100>;
@@ -99,7 +99,7 @@
 
 			pio5: gpio@09615000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x5000 0x100>;
@@ -227,6 +227,13 @@
 						mdio = <&pio1 0 ALT1 OUT BYPASS 0>;
 						mdc = <&pio1 1 ALT1 OUT NICLK 0 CLK_A>;
 						mdint = <&pio1 3 ALT1 IN BYPASS 0>;
+					};
+				};
+
+				pinctrl_rgmii1_mdio_1: rgmii1-mdio-1 {
+					st,pins {
+						mdio = <&pio1 0 ALT1 OUT BYPASS 0>;
+						mdc = <&pio1 1 ALT1 OUT NICLK 0 CLK_A>;
 					};
 				};
 
@@ -373,7 +380,7 @@
 
 			pio10: pio@09200000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x0 0x100>;
@@ -381,7 +388,7 @@
 			};
 			pio11: pio@09201000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x1000 0x100>;
@@ -389,7 +396,7 @@
 			};
 			pio12: pio@09202000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x2000 0x100>;
@@ -397,7 +404,7 @@
 			};
 			pio13: pio@09203000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x3000 0x100>;
@@ -405,7 +412,7 @@
 			};
 			pio14: pio@09204000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x4000 0x100>;
@@ -413,7 +420,7 @@
 			};
 			pio15: pio@09205000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x5000 0x100>;
@@ -421,7 +428,7 @@
 			};
 			pio16: pio@09206000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x6000 0x100>;
@@ -429,7 +436,7 @@
 			};
 			pio17: pio@09207000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x7000 0x100>;
@@ -437,7 +444,7 @@
 			};
 			pio18: pio@09208000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x8000 0x100>;
@@ -445,7 +452,7 @@
 			};
 			pio19: pio@09209000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x9000 0x100>;
@@ -521,6 +528,13 @@
 					st,pins {
 						sda = <&pio15 6 ALT2 BIDIR>;
 						scl = <&pio15 5 ALT2 BIDIR>;
+					};
+				};
+
+				pinctrl_i2c2_alt2_1: i2c2-alt2-1 {
+					st,pins {
+						sda = <&pio12 6 ALT2 BIDIR>;
+						scl = <&pio12 5 ALT2 BIDIR>;
 					};
 				};
 			};
@@ -916,6 +930,15 @@
 			interrupt-names = "irqmux";
 			ranges = <0 0x09210000 0x10000>;
 
+			pio20: pio@09210000 {
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg = <0x0 0x100>;
+				st,bank-name = "PIO20";
+			};
+
 			tsin4 {
 				pinctrl_tsin4_serial_alt1: tsin4_serial_alt1 {
 					st,pins {
@@ -926,15 +949,6 @@
 						PKCLK = <&pio20 2 ALT1 IN SE_NICLK_IO 0 CLK_A>;
 					};
 				};
-			};
-
-			pio20: pio@09210000 {
-				gpio-controller;
-				#gpio-cells = <1>;
-				interrupt-controller;
-				#interrupt-cells = <2>;
-				reg = <0x0 0x100>;
-				st,bank-name = "PIO20";
 			};
 		};
 
@@ -951,7 +965,7 @@
 
 			pio30: gpio@09220000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x0 0x100>;
@@ -959,7 +973,7 @@
 			};
 			pio31: gpio@09221000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x1000 0x100>;
@@ -967,7 +981,7 @@
 			};
 			pio32: gpio@09222000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x2000 0x100>;
@@ -975,7 +989,7 @@
 			};
 			pio33: gpio@09223000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x3000 0x100>;
@@ -983,7 +997,7 @@
 			};
 			pio34: gpio@09224000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x4000 0x100>;
@@ -991,7 +1005,7 @@
 			};
 			pio35: gpio@09225000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x5000 0x100>;
@@ -1090,7 +1104,7 @@
 
 			pio40: gpio@09230000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0 0x100>;
@@ -1098,7 +1112,7 @@
 			};
 			pio41: gpio@09231000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x1000 0x100>;
@@ -1106,7 +1120,7 @@
 			};
 			pio42: gpio@09232000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x2000 0x100>;

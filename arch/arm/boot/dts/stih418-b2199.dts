@@ -8,6 +8,7 @@
  */
 /dts-v1/;
 #include "stih418.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 / {
 	model = "STiH418 B2199";
 	compatible = "st,stih418-b2199", "st,stih418";
@@ -35,14 +36,12 @@
 		leds {
 			compatible = "gpio-leds";
 			red {
-				#gpio-cells = <2>;
 				label = "Front Panel LED";
-				gpios = <&pio4 1 0>;
+				gpios = <&pio4 1 GPIO_ACTIVE_HIGH>;
 				linux,default-trigger = "heartbeat";
 			};
 			green {
-				#gpio-cells = <2>;
-				gpios = <&pio1 3 0>;
+				gpios = <&pio1 3 GPIO_ACTIVE_HIGH>;
 				default-state = "off";
 			};
 		};
@@ -86,6 +85,7 @@
 			sd-uhs-sdr50;
 			sd-uhs-sdr104;
 			sd-uhs-ddr50;
+			non-removable;
 		};
 
 		miphy28lp_phy: miphy28lp@9b22000 {
