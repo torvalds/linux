@@ -83,4 +83,17 @@ static inline u32 cxgb_compute_wscale(u32 win)
 		wscale++;
 	return wscale;
 }
+
+static inline void
+cxgb_mk_tid_release(struct sk_buff *skb, u32 len, u32 tid, u16 chan)
+{
+	struct cpl_tid_release *req;
+
+	req = (struct cpl_tid_release *)__skb_put(skb, len);
+	memset(req, 0, len);
+
+	INIT_TP_WR(req, tid);
+	OPCODE_TID(req) = cpu_to_be32(MK_OPCODE_TID(CPL_TID_RELEASE, tid));
+	set_wr_txq(skb, CPL_PRIORITY_SETUP, chan);
+}
 #endif

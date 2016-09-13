@@ -961,21 +961,14 @@ int cxgbit_ofld_send(struct cxgbit_device *cdev, struct sk_buff *skb)
 
 static void cxgbit_release_tid(struct cxgbit_device *cdev, u32 tid)
 {
-	struct cpl_tid_release *req;
-	unsigned int len = roundup(sizeof(*req), 16);
+	u32 len = roundup(sizeof(struct cpl_tid_release), 16);
 	struct sk_buff *skb;
 
 	skb = alloc_skb(len, GFP_ATOMIC);
 	if (!skb)
 		return;
 
-	req = (struct cpl_tid_release *)__skb_put(skb, len);
-	memset(req, 0, len);
-
-	INIT_TP_WR(req, tid);
-	OPCODE_TID(req) = cpu_to_be32(MK_OPCODE_TID(
-		   CPL_TID_RELEASE, tid));
-	set_wr_txq(skb, CPL_PRIORITY_SETUP, 0);
+	cxgb_mk_tid_release(skb, len, tid, 0);
 	cxgbit_ofld_send(cdev, skb);
 }
 

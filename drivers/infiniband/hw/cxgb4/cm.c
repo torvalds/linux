@@ -240,15 +240,13 @@ int c4iw_ofld_send(struct c4iw_rdev *rdev, struct sk_buff *skb)
 
 static void release_tid(struct c4iw_rdev *rdev, u32 hwtid, struct sk_buff *skb)
 {
-	struct cpl_tid_release *req;
+	u32 len = roundup(sizeof(struct cpl_tid_release), 16);
 
-	skb = get_skb(skb, sizeof *req, GFP_KERNEL);
+	skb = get_skb(skb, len, GFP_KERNEL);
 	if (!skb)
 		return;
-	req = (struct cpl_tid_release *) skb_put(skb, sizeof(*req));
-	INIT_TP_WR(req, hwtid);
-	OPCODE_TID(req) = cpu_to_be32(MK_OPCODE_TID(CPL_TID_RELEASE, hwtid));
-	set_wr_txq(skb, CPL_PRIORITY_SETUP, 0);
+
+	cxgb_mk_tid_release(skb, len, hwtid, 0);
 	c4iw_ofld_send(rdev, skb);
 	return;
 }
