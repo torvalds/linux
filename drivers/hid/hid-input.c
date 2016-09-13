@@ -604,6 +604,15 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			break;
 		}
 
+		/*
+		 * Some lazy vendors declare 255 usages for System Control,
+		 * leading to the creation of ABS_X|Y axis and too many others.
+		 * It wouldn't be a problem if joydev doesn't consider the
+		 * device as a joystick then.
+		 */
+		if (field->application == HID_GD_SYSTEM_CONTROL)
+			goto ignore;
+
 		if ((usage->hid & 0xf0) == 0x90) {	/* D-pad */
 			switch (usage->hid) {
 			case HID_GD_UP:	   usage->hat_dir = 1; break;
