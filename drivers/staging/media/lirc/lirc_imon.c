@@ -211,7 +211,6 @@ static void deregister_from_lirc(struct imon_context *context)
 	else
 		dev_info(&context->usbdev->dev,
 			 "Deregistered iMON driver (minor:%d)\n", minor);
-
 }
 
 /**
