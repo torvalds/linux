@@ -973,6 +973,9 @@ struct intel_fbc {
 	bool enabled;
 	bool active;
 
+	bool underrun_detected;
+	struct work_struct underrun_work;
+
 	struct intel_fbc_state_cache {
 		struct {
 			unsigned int mode_flags;

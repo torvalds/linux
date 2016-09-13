@@ -1516,6 +1516,7 @@ void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
 void intel_fbc_flush(struct drm_i915_private *dev_priv,
 		     unsigned int frontbuffer_bits, enum fb_op_origin origin);
 void intel_fbc_cleanup_cfb(struct drm_i915_private *dev_priv);
+void intel_fbc_handle_fifo_underrun_irq(struct drm_i915_private *dev_priv);
 
 /* intel_hdmi.c */
 void intel_hdmi_init(struct drm_device *dev, i915_reg_t hdmi_reg, enum port port);

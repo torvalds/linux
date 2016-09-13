@@ -372,6 +372,8 @@ void intel_cpu_fifo_underrun_irq_handler(struct drm_i915_private *dev_priv,
 	if (intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false))
 		DRM_ERROR("CPU pipe %c FIFO underrun\n",
 			  pipe_name(pipe));
+
+	intel_fbc_handle_fifo_underrun_irq(dev_priv);
 }
 
 /**
