@@ -790,46 +790,6 @@ void _cxgbit_free_csk(struct kref *kref)
 	kfree(csk);
 }
 
-static int
-cxgbit_our_interface(struct cxgbit_device *cdev, struct net_device *egress_dev)
-{
-	u8 i;
-
-	egress_dev = cxgbit_get_real_dev(egress_dev);
-	for (i = 0; i < cdev->lldi.nports; i++)
-		if (cdev->lldi.ports[i] == egress_dev)
-			return 1;
-	return 0;
-}
-
-static struct dst_entry *
-cxgbit_find_route6(struct cxgbit_device *cdev, __u8 *local_ip, __u8 *peer_ip,
-		   __be16 local_port, __be16 peer_port, u8 tos,
-		   __u32 sin6_scope_id)
-{
-	struct dst_entry *dst = NULL;
-
-	if (IS_ENABLED(CONFIG_IPV6)) {
-		struct flowi6 fl6;
-
-		memset(&fl6, 0, sizeof(fl6));
-		memcpy(&fl6.daddr, peer_ip, 16);
-		memcpy(&fl6.saddr, local_ip, 16);
-		if (ipv6_addr_type(&fl6.daddr) & IPV6_ADDR_LINKLOCAL)
-			fl6.flowi6_oif = sin6_scope_id;
-		dst = ip6_route_output(&init_net, NULL, &fl6);
-		if (!dst)
-			goto out;
-		if (!cxgbit_our_interface(cdev, ip6_dst_idev(dst)->dev) &&
-		    !(ip6_dst_idev(dst)->dev->flags & IFF_LOOPBACK)) {
-			dst_release(dst);
-			dst = NULL;
-		}
-	}
-out:
-	return dst;
-}
-
 static void cxgbit_set_tcp_window(struct cxgbit_sock *csk, struct port_info *pi)
 {
 	unsigned int linkspeed;
@@ -1299,11 +1259,12 @@ cxgbit_pass_accept_req(struct cxgbit_device *cdev, struct sk_buff *skb)
 			 , __func__, cnp, tid,
 			 local_ip, peer_ip, ntohs(local_port),
 			 ntohs(peer_port), peer_mss);
-		dst = cxgbit_find_route6(cdev, local_ip, peer_ip,
-					 local_port, peer_port,
-					 PASS_OPEN_TOS_G(ntohl(req->tos_stid)),
-					 ((struct sockaddr_in6 *)
-					 &cnp->com.local_addr)->sin6_scope_id);
+		dst = cxgb_find_route6(&cdev->lldi, cxgbit_get_real_dev,
+				       local_ip, peer_ip,
+				       local_port, peer_port,
+				       PASS_OPEN_TOS_G(ntohl(req->tos_stid)),
+				       ((struct sockaddr_in6 *)
+					&cnp->com.local_addr)->sin6_scope_id);
 	}
 	if (!dst) {
 		pr_err("%s - failed to find dst entry!\n",

@@ -465,46 +465,6 @@ static struct net_device *get_real_dev(struct net_device *egress_dev)
 	return rdma_vlan_dev_real_dev(egress_dev) ? : egress_dev;
 }
 
-static int our_interface(struct c4iw_dev *dev, struct net_device *egress_dev)
-{
-	int i;
-
-	egress_dev = get_real_dev(egress_dev);
-	for (i = 0; i < dev->rdev.lldi.nports; i++)
-		if (dev->rdev.lldi.ports[i] == egress_dev)
-			return 1;
-	return 0;
-}
-
-static struct dst_entry *find_route6(struct c4iw_dev *dev, __u8 *local_ip,
-				     __u8 *peer_ip, __be16 local_port,
-				     __be16 peer_port, u8 tos,
-				     __u32 sin6_scope_id)
-{
-	struct dst_entry *dst = NULL;
-
-	if (IS_ENABLED(CONFIG_IPV6)) {
-		struct flowi6 fl6;
-
-		memset(&fl6, 0, sizeof(fl6));
-		memcpy(&fl6.daddr, peer_ip, 16);
-		memcpy(&fl6.saddr, local_ip, 16);
-		if (ipv6_addr_type(&fl6.daddr) & IPV6_ADDR_LINKLOCAL)
-			fl6.flowi6_oif = sin6_scope_id;
-		dst = ip6_route_output(&init_net, NULL, &fl6);
-		if (!dst)
-			goto out;
-		if (!our_interface(dev, ip6_dst_idev(dst)->dev) &&
-		    !(ip6_dst_idev(dst)->dev->flags & IFF_LOOPBACK)) {
-			dst_release(dst);
-			dst = NULL;
-		}
-	}
-
-out:
-	return dst;
-}
-
 static void arp_failure_discard(void *handle, struct sk_buff *skb)
 {
 	pr_err(MOD "ARP failure\n");
@@ -2197,10 +2157,13 @@ static int c4iw_reconnect(struct c4iw_ep *ep)
 		iptype = 4;
 		ra = (__u8 *)&raddr->sin_addr;
 	} else {
-		ep->dst = find_route6(ep->com.dev, laddr6->sin6_addr.s6_addr,
-				      raddr6->sin6_addr.s6_addr,
-				      laddr6->sin6_port, raddr6->sin6_port, 0,
-				      raddr6->sin6_scope_id);
+		ep->dst = cxgb_find_route6(&ep->com.dev->rdev.lldi,
+					   get_real_dev,
+					   laddr6->sin6_addr.s6_addr,
+					   raddr6->sin6_addr.s6_addr,
+					   laddr6->sin6_port,
+					   raddr6->sin6_port, 0,
+					   raddr6->sin6_scope_id);
 		iptype = 6;
 		ra = (__u8 *)&raddr6->sin6_addr;
 	}
@@ -2540,10 +2503,11 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 		     , __func__, parent_ep, hwtid,
 		     local_ip, peer_ip, ntohs(local_port),
 		     ntohs(peer_port), peer_mss);
-		dst = find_route6(dev, local_ip, peer_ip, local_port, peer_port,
-				  PASS_OPEN_TOS_G(ntohl(req->tos_stid)),
-				  ((struct sockaddr_in6 *)
-				  &parent_ep->com.local_addr)->sin6_scope_id);
+		dst = cxgb_find_route6(&dev->rdev.lldi, get_real_dev,
+				local_ip, peer_ip, local_port, peer_port,
+				PASS_OPEN_TOS_G(ntohl(req->tos_stid)),
+				((struct sockaddr_in6 *)
+				 &parent_ep->com.local_addr)->sin6_scope_id);
 	}
 	if (!dst) {
 		printk(KERN_ERR MOD "%s - failed to find dst entry!\n",
@@ -3339,10 +3303,12 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		     __func__, laddr6->sin6_addr.s6_addr,
 		     ntohs(laddr6->sin6_port),
 		     raddr6->sin6_addr.s6_addr, ntohs(raddr6->sin6_port));
-		ep->dst = find_route6(dev, laddr6->sin6_addr.s6_addr,
-				      raddr6->sin6_addr.s6_addr,
-				      laddr6->sin6_port, raddr6->sin6_port, 0,
-				      raddr6->sin6_scope_id);
+		ep->dst = cxgb_find_route6(&dev->rdev.lldi, get_real_dev,
+					   laddr6->sin6_addr.s6_addr,
+					   raddr6->sin6_addr.s6_addr,
+					   laddr6->sin6_port,
+					   raddr6->sin6_port, 0,
+					   raddr6->sin6_scope_id);
 	}
 	if (!ep->dst) {
 		printk(KERN_ERR MOD "%s - cannot find route.\n", __func__);

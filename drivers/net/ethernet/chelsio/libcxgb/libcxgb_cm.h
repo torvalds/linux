@@ -43,4 +43,8 @@ struct dst_entry *
 cxgb_find_route(struct cxgb4_lld_info *,
 		struct net_device *(*)(struct net_device *),
 		__be32, __be32, __be16,	__be16, u8);
+struct dst_entry *
+cxgb_find_route6(struct cxgb4_lld_info *,
+		 struct net_device *(*)(struct net_device *),
+		 __u8 *, __u8 *, __be16, __be16, u8, __u32);
 #endif
