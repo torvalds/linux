@@ -181,6 +181,14 @@ static ssize_t blk_mq_hw_sysfs_poll_show(struct blk_mq_hw_ctx *hctx, char *page)
 		       hctx->poll_success);
 }
 
+static ssize_t blk_mq_hw_sysfs_poll_store(struct blk_mq_hw_ctx *hctx,
+					  const char *page, size_t size)
+{
+	hctx->poll_considered = hctx->poll_invoked = hctx->poll_success = 0;
+
+	return size;
+}
+
 static ssize_t blk_mq_hw_sysfs_queued_show(struct blk_mq_hw_ctx *hctx,
 					   char *page)
 {
@@ -303,8 +311,9 @@ static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_cpus = {
 	.show = blk_mq_hw_sysfs_cpus_show,
 };
 static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_poll = {
-	.attr = {.name = "io_poll", .mode = S_IRUGO },
+	.attr = {.name = "io_poll", .mode = S_IWUSR | S_IRUGO },
 	.show = blk_mq_hw_sysfs_poll_show,
+	.store = blk_mq_hw_sysfs_poll_store,
 };
 
 static struct attribute *default_hw_ctx_attrs[] = {
