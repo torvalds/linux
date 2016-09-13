@@ -128,4 +128,18 @@ cxgb_mk_abort_req(struct sk_buff *skb, u32 len, u32 tid, u16 chan,
 	set_wr_txq(skb, CPL_PRIORITY_DATA, chan);
 	t4_set_arp_err_handler(skb, handle, handler);
 }
+
+static inline void
+cxgb_mk_abort_rpl(struct sk_buff *skb, u32 len, u32 tid, u16 chan)
+{
+	struct cpl_abort_rpl *rpl;
+
+	rpl = (struct cpl_abort_rpl *)__skb_put(skb, len);
+	memset(rpl, 0, len);
+
+	INIT_TP_WR(rpl, tid);
+	OPCODE_TID(rpl) = cpu_to_be32(MK_OPCODE_TID(CPL_ABORT_RPL, tid));
+	rpl->cmd = CPL_ABORT_NO_RST;
+	set_wr_txq(skb, CPL_PRIORITY_DATA, chan);
+}
 #endif

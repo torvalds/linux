@@ -2705,12 +2705,12 @@ static int peer_abort(struct c4iw_dev *dev, struct sk_buff *skb)
 {
 	struct cpl_abort_req_rss *req = cplhdr(skb);
 	struct c4iw_ep *ep;
-	struct cpl_abort_rpl *rpl;
 	struct sk_buff *rpl_skb;
 	struct c4iw_qp_attributes attrs;
 	int ret;
 	int release = 0;
 	unsigned int tid = GET_TID(req);
+	u32 len = roundup(sizeof(struct cpl_abort_rpl), 16);
 
 	ep = get_ep_from_tid(dev, tid);
 	if (!ep)
@@ -2809,11 +2809,9 @@ static int peer_abort(struct c4iw_dev *dev, struct sk_buff *skb)
 		release = 1;
 		goto out;
 	}
-	set_wr_txq(skb, CPL_PRIORITY_DATA, ep->txq_idx);
-	rpl = (struct cpl_abort_rpl *) skb_put(rpl_skb, sizeof(*rpl));
-	INIT_TP_WR(rpl, ep->hwtid);
-	OPCODE_TID(rpl) = cpu_to_be32(MK_OPCODE_TID(CPL_ABORT_RPL, ep->hwtid));
-	rpl->cmd = CPL_ABORT_NO_RST;
+
+	cxgb_mk_abort_rpl(rpl_skb, len, ep->hwtid, ep->txq_idx);
+
 	c4iw_ofld_send(&ep->com.dev->rdev, rpl_skb);
 out:
 	if (release)

@@ -1642,11 +1642,10 @@ static void cxgbit_abort_req_rss(struct cxgbit_sock *csk, struct sk_buff *skb)
 {
 	struct cpl_abort_req_rss *hdr = cplhdr(skb);
 	unsigned int tid = GET_TID(hdr);
-	struct cpl_abort_rpl *rpl;
 	struct sk_buff *rpl_skb;
 	bool release = false;
 	bool wakeup_thread = false;
-	unsigned int len = roundup(sizeof(*rpl), 16);
+	u32 len = roundup(sizeof(struct cpl_abort_rpl), 16);
 
 	pr_debug("%s: csk %p; tid %u; state %d\n",
 		 __func__, csk, tid, csk->com.state);
@@ -1686,14 +1685,8 @@ static void cxgbit_abort_req_rss(struct cxgbit_sock *csk, struct sk_buff *skb)
 		cxgbit_send_tx_flowc_wr(csk);
 
 	rpl_skb = __skb_dequeue(&csk->skbq);
-	set_wr_txq(skb, CPL_PRIORITY_DATA, csk->txq_idx);
 
-	rpl = (struct cpl_abort_rpl *)__skb_put(rpl_skb, len);
-	memset(rpl, 0, len);
-
-	INIT_TP_WR(rpl, csk->tid);
-	OPCODE_TID(rpl) = cpu_to_be32(MK_OPCODE_TID(CPL_ABORT_RPL, tid));
-	rpl->cmd = CPL_ABORT_NO_RST;
+	cxgb_mk_abort_rpl(rpl_skb, len, csk->tid, csk->txq_idx);
 	cxgbit_ofld_send(csk->com.cdev, rpl_skb);
 
 	if (wakeup_thread) {
