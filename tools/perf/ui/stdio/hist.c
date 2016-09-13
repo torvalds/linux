@@ -628,14 +628,6 @@ hists__fprintf_hierarchy_headers(struct hists *hists,
 				 struct perf_hpp *hpp,
 				 FILE *fp)
 {
-	struct perf_hpp_list_node *fmt_node;
-	struct perf_hpp_fmt *fmt;
-
-	list_for_each_entry(fmt_node, &hists->hpp_formats, list) {
-		perf_hpp_list__for_each_format(&fmt_node->hpp, fmt)
-			perf_hpp__reset_width(fmt, hists);
-	}
-
 	return print_hierarchy_header(hists, hpp, symbol_conf.field_sep, fp);
 }
 
@@ -733,6 +725,7 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		      bool use_callchain)
 {
 	struct perf_hpp_fmt *fmt;
+	struct perf_hpp_list_node *node;
 	struct rb_node *nd;
 	size_t ret = 0;
 	const char *sep = symbol_conf.field_sep;
@@ -745,6 +738,11 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 
 	hists__for_each_format(hists, fmt)
 		perf_hpp__reset_width(fmt, hists);
+	/* hierarchy entries have their own hpp list */
+	list_for_each_entry(node, &hists->hpp_formats, list) {
+		perf_hpp_list__for_each_format(&node->hpp, fmt)
+			perf_hpp__reset_width(fmt, hists);
+	}
 
 	if (symbol_conf.col_width_list_str)
 		perf_hpp__set_user_width(symbol_conf.col_width_list_str);
