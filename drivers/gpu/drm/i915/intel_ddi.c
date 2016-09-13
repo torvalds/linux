@@ -2424,7 +2424,7 @@ intel_ddi_get_link_dpll(struct intel_dp *intel_dp, int clock)
 			pll->config = tmp_pll_config;
 			return NULL;
 		}
-	} else if (IS_SKYLAKE(dev_priv)) {
+	} else if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
 		pll = skl_find_link_pll(dev_priv, clock);
 	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		pll = hsw_ddi_dp_get_dpll(encoder, clock);
