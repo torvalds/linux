@@ -1766,7 +1766,7 @@ static int coh901318_resume(struct dma_chan *chan)
 
 bool coh901318_filter_id(struct dma_chan *chan, void *chan_id)
 {
-	unsigned int ch_nr = (unsigned int) chan_id;
+	unsigned long ch_nr = (unsigned long) chan_id;
 
 	if (ch_nr == to_coh901318_chan(chan)->id)
 		return true;
@@ -2744,8 +2744,8 @@ static int __init coh901318_probe(struct platform_device *pdev)
 		goto err_register_of_dma;
 
 	platform_set_drvdata(pdev, base);
-	dev_info(&pdev->dev, "Initialized COH901318 DMA on virtual base 0x%08x\n",
-		(u32) base->virtbase);
+	dev_info(&pdev->dev, "Initialized COH901318 DMA on virtual base 0x%p\n",
+		base->virtbase);
 
 	return err;
 
