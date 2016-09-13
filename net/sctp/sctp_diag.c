@@ -13,6 +13,7 @@ static void inet_diag_msg_sctpasoc_fill(struct inet_diag_msg *r,
 {
 	union sctp_addr laddr, paddr;
 	struct dst_entry *dst;
+	struct timer_list *t3_rtx = &asoc->peer.primary_path->T3_rtx_timer;
 
 	laddr = list_entry(asoc->base.bind_addr.address_list.next,
 			   struct sctp_sockaddr_entry, list)->a;
@@ -40,10 +41,15 @@ static void inet_diag_msg_sctpasoc_fill(struct inet_diag_msg *r,
 	}
 
 	r->idiag_state = asoc->state;
-	r->idiag_timer = SCTP_EVENT_TIMEOUT_T3_RTX;
-	r->idiag_retrans = asoc->rtx_data_chunks;
-	r->idiag_expires = jiffies_to_msecs(
-		asoc->timeouts[SCTP_EVENT_TIMEOUT_T3_RTX] - jiffies);
+	if (timer_pending(t3_rtx)) {
+		r->idiag_timer = SCTP_EVENT_TIMEOUT_T3_RTX;
+		r->idiag_retrans = asoc->rtx_data_chunks;
+		r->idiag_expires = jiffies_to_msecs(t3_rtx->expires - jiffies);
+	} else {
+		r->idiag_timer = 0;
+		r->idiag_retrans = 0;
+		r->idiag_expires = 0;
+	}
 }
 
 static int inet_diag_msg_sctpladdrs_fill(struct sk_buff *skb,
@@ -350,7 +356,7 @@ static int sctp_ep_dump(struct sctp_endpoint *ep, void *p)
 	if (cb->args[4] < cb->args[1])
 		goto next;
 
-	if ((r->idiag_states & ~TCPF_LISTEN) && !list_empty(&ep->asocs))
+	if (!(r->idiag_states & TCPF_LISTEN) && !list_empty(&ep->asocs))
 		goto next;
 
 	if (r->sdiag_family != AF_UNSPEC &&
@@ -465,7 +471,7 @@ skip:
 	 * 3 : to mark if we have dumped the ep info of the current asoc
 	 * 4 : to work as a temporary variable to traversal list
 	 */
-	if (!(idiag_states & ~TCPF_LISTEN))
+	if (!(idiag_states & ~(TCPF_LISTEN | TCPF_CLOSE)))
 		goto done;
 	sctp_for_each_transport(sctp_tsp_dump, net, cb->args[2], &commp);
 done:

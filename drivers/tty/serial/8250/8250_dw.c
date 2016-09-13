@@ -298,12 +298,17 @@ static void dw8250_quirks(struct uart_port *p, struct dw8250_data *data)
 			p->serial_out = dw8250_serial_out32be;
 		}
 	} else if (has_acpi_companion(p->dev)) {
-		p->iotype = UPIO_MEM32;
-		p->regshift = 2;
-		p->serial_in = dw8250_serial_in32;
+		const struct acpi_device_id *id;
+
+		id = acpi_match_device(p->dev->driver->acpi_match_table,
+				       p->dev);
+		if (id && !strcmp(id->id, "APMC0D08")) {
+			p->iotype = UPIO_MEM32;
+			p->regshift = 2;
+			p->serial_in = dw8250_serial_in32;
+			data->uart_16550_compatible = true;
+		}
 		p->set_termios = dw8250_set_termios;
-		/* So far none of there implement the Busy Functionality */
-		data->uart_16550_compatible = true;
 	}
 
 	/* Platforms with iDMA */
