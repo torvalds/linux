@@ -621,7 +621,7 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 	ret = send_reply(rdma, rqstp, res_page, rdma_resp, vec,
 			 inline_bytes);
 	if (ret < 0)
-		goto err1;
+		goto err0;
 
 	svc_rdma_put_req_map(rdma, vec);
 	dprintk("svcrdma: send_reply returns %d\n", ret);
