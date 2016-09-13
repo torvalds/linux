@@ -127,7 +127,7 @@ static bool rxrpc_validate_jumbo(struct sk_buff *skb)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	unsigned int offset = sp->offset;
-	unsigned int len = skb->data_len;
+	unsigned int len = skb->len;
 	int nr_jumbo = 1;
 	u8 flags = sp->hdr.flags;
 
@@ -196,7 +196,7 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb,
 	u8 ack = 0, flags, annotation = 0;
 
 	_enter("{%u,%u},{%u,%u}",
-	       call->rx_hard_ack, call->rx_top, skb->data_len, seq);
+	       call->rx_hard_ack, call->rx_top, skb->len, seq);
 
 	_proto("Rx DATA %%%u { #%u f=%02x }",
 	       sp->hdr.serial, seq, sp->hdr.flags);
@@ -233,7 +233,7 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb,
 next_subpacket:
 	queued = false;
 	ix = seq & RXRPC_RXTX_BUFF_MASK;
-	len = skb->data_len;
+	len = skb->len;
 	if (flags & RXRPC_JUMBO_PACKET)
 		len = RXRPC_JUMBO_DATALEN;
 
@@ -444,7 +444,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb,
 	}
 
 	offset = sp->offset + nr_acks + 3;
-	if (skb->data_len >= offset + sizeof(buf.info)) {
+	if (skb->len >= offset + sizeof(buf.info)) {
 		if (skb_copy_bits(skb, offset, &buf.info, sizeof(buf.info)) < 0)
 			return rxrpc_proto_abort("XAI", call, 0);
 		rxrpc_input_ackinfo(call, skb, &buf.info);
