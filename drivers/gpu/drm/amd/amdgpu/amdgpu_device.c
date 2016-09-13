@@ -1367,6 +1367,9 @@ static int amdgpu_late_init(struct amdgpu_device *adev)
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if (!adev->ip_block_status[i].valid)
 			continue;
+		if (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_UVD ||
+			adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_VCE)
+			continue;
 		/* enable clockgating to save power */
 		r = adev->ip_blocks[i].funcs->set_clockgating_state((void *)adev,
 								    AMD_CG_STATE_GATE);
