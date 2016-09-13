@@ -4242,6 +4242,12 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 		fbi->fix = def_fix;
 		sprintf(fbi->fix.id, "fb%d", rk_fb->num_fb);
 		fb_videomode_to_var(&fbi->var, &dev_drv->cur_screen->mode);
+		if (dev_drv->dsp_mode == ONE_VOP_DUAL_MIPI_VER_SCAN) {
+			fbi->var.xres /= 2;
+			fbi->var.yres *= 2;
+			fbi->var.xres_virtual /= 2;
+			fbi->var.yres_virtual *= 2;
+		}
 		fbi->var.width = dev_drv->cur_screen->width;
 		fbi->var.height = dev_drv->cur_screen->height;
 		fbi->var.grayscale |=
@@ -4253,8 +4259,6 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 #endif
 		fbi->fix.line_length =
 		    (fbi->var.xres_virtual) * (fbi->var.bits_per_pixel >> 3);
-		fbi->var.width = dev_drv->cur_screen->width;
-		fbi->var.height = dev_drv->cur_screen->height;
 		if (dev_drv->iommu_enabled)
 			fb_ops.fb_mmap = rk_fb_mmap;
 		fbi->fbops = &fb_ops;
