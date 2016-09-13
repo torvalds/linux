@@ -518,18 +518,13 @@ static void gic_handle_local_int(bool chained)
 
 	bitmap_and(&pending, &pending, &masked, GIC_NUM_LOCAL_INTRS);
 
-	intr = find_first_bit(&pending, GIC_NUM_LOCAL_INTRS);
-	while (intr != GIC_NUM_LOCAL_INTRS) {
+	for_each_set_bit(intr, &pending, GIC_NUM_LOCAL_INTRS) {
 		virq = irq_linear_revmap(gic_irq_domain,
 					 GIC_LOCAL_TO_HWIRQ(intr));
 		if (chained)
 			generic_handle_irq(virq);
 		else
 			do_IRQ(virq);
-
-		/* go to next pending bit */
-		bitmap_clear(&pending, intr, 1);
-		intr = find_first_bit(&pending, GIC_NUM_LOCAL_INTRS);
 	}
 }
 
