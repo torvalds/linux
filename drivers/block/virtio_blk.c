@@ -376,7 +376,7 @@ static void virtblk_config_changed(struct virtio_device *vdev)
 
 static int init_vq(struct virtio_blk *vblk)
 {
-	int err = 0;
+	int err;
 	int i;
 	vq_callback_t **callbacks;
 	const char **names;
