@@ -23,7 +23,7 @@
 /* SPI/eSPI Controller driver's private data. */
 struct mpc8xxx_spi {
 	struct device *dev;
-	void *reg_base;
+	void __iomem *reg_base;
 
 	/* rx & tx bufs from the spi_transfer */
 	const void *tx;
