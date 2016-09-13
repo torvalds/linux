@@ -14,5 +14,7 @@
 #define BOOT_FASTBOOT		(REBOOT_FLAG + 9)
 /* enter charging mode */
 #define BOOT_CHARGING		(REBOOT_FLAG + 11)
+/* enter usb mass storage mode */
+#define BOOT_UMS		(REBOOT_FLAG + 12)
 
 #endif
