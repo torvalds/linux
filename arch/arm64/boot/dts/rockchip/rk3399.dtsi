@@ -1156,6 +1156,7 @@
 			mode-loader = <BOOT_BL_DOWNLOAD>;
 			mode-normal = <BOOT_NORMAL>;
 			mode-recovery = <BOOT_RECOVERY>;
+			mode-ums = <BOOT_UMS>;
 		};
 
 		pmu_pvtm: pmu-pvtm {
