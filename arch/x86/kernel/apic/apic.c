@@ -64,6 +64,8 @@ unsigned disabled_cpus;
 unsigned int boot_cpu_physical_apicid = -1U;
 EXPORT_SYMBOL_GPL(boot_cpu_physical_apicid);
 
+u8 boot_cpu_apic_version;
+
 /*
  * The highest APIC ID seen during enumeration.
  */
@@ -1816,8 +1818,7 @@ void __init init_apic_mappings(void)
 		 * since smp_sanity_check is prepared for such a case
 		 * and disable smp mode
 		 */
-		apic_version[new_apicid] =
-			 GET_APIC_VERSION(apic_read(APIC_LVR));
+		boot_cpu_apic_version = GET_APIC_VERSION(apic_read(APIC_LVR));
 	}
 }
 
@@ -1832,12 +1833,9 @@ void __init register_lapic_address(unsigned long address)
 	}
 	if (boot_cpu_physical_apicid == -1U) {
 		boot_cpu_physical_apicid  = read_apic_id();
-		apic_version[boot_cpu_physical_apicid] =
-			 GET_APIC_VERSION(apic_read(APIC_LVR));
+		boot_cpu_apic_version = GET_APIC_VERSION(apic_read(APIC_LVR));
 	}
 }
-
-int apic_version[MAX_LOCAL_APIC];
 
 /*
  * Local APIC interrupts
@@ -2130,11 +2128,10 @@ int generic_processor_info(int apicid, int version)
 			   cpu, apicid);
 		version = 0x10;
 	}
-	apic_version[apicid] = version;
 
-	if (version != apic_version[boot_cpu_physical_apicid]) {
+	if (version != boot_cpu_apic_version) {
 		pr_warning("BIOS bug: APIC version mismatch, boot CPU: %x, CPU %d: version %x\n",
-			apic_version[boot_cpu_physical_apicid], cpu, version);
+			boot_cpu_apic_version, cpu, version);
 	}
 
 	physid_set(apicid, phys_cpu_present_map);
@@ -2277,7 +2274,7 @@ int __init APIC_init_uniprocessor(void)
 	 * Complain if the BIOS pretends there is one.
 	 */
 	if (!boot_cpu_has(X86_FEATURE_APIC) &&
-	    APIC_INTEGRATED(apic_version[boot_cpu_physical_apicid])) {
+	    APIC_INTEGRATED(boot_cpu_apic_version)) {
 		pr_err("BIOS bug, local APIC 0x%x not detected!...\n",
 			boot_cpu_physical_apicid);
 		return -1;

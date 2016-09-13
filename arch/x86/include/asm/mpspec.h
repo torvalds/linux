@@ -6,7 +6,6 @@
 #include <asm/x86_init.h>
 #include <asm/apicdef.h>
 
-extern int apic_version[];
 extern int pic_mode;
 
 #ifdef CONFIG_X86_32
@@ -40,6 +39,7 @@ extern int mp_bus_id_to_type[MAX_MP_BUSSES];
 extern DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
 
 extern unsigned int boot_cpu_physical_apicid;
+extern u8 boot_cpu_apic_version;
 extern unsigned long mp_lapic_addr;
 
 #ifdef CONFIG_X86_LOCAL_APIC

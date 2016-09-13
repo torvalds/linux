@@ -690,7 +690,7 @@ wakeup_secondary_cpu_via_nmi(int apicid, unsigned long start_eip)
 	 * Give the other CPU some time to accept the IPI.
 	 */
 	udelay(200);
-	if (APIC_INTEGRATED(apic_version[boot_cpu_physical_apicid])) {
+	if (APIC_INTEGRATED(boot_cpu_apic_version)) {
 		maxlvt = lapic_get_maxlvt();
 		if (maxlvt > 3)			/* Due to the Pentium erratum 3AP.  */
 			apic_write(APIC_ESR, 0);
@@ -717,7 +717,7 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 	/*
 	 * Be paranoid about clearing APIC errors.
 	 */
-	if (APIC_INTEGRATED(apic_version[phys_apicid])) {
+	if (APIC_INTEGRATED(boot_cpu_apic_version)) {
 		if (maxlvt > 3)		/* Due to the Pentium erratum 3AP.  */
 			apic_write(APIC_ESR, 0);
 		apic_read(APIC_ESR);
@@ -756,7 +756,7 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 	 * Determine this based on the APIC version.
 	 * If we don't have an integrated APIC, don't send the STARTUP IPIs.
 	 */
-	if (APIC_INTEGRATED(apic_version[phys_apicid]))
+	if (APIC_INTEGRATED(boot_cpu_apic_version))
 		num_starts = 2;
 	else
 		num_starts = 0;
@@ -994,7 +994,7 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 		/*
 		 * Be paranoid about clearing APIC errors.
 		*/
-		if (APIC_INTEGRATED(apic_version[boot_cpu_physical_apicid])) {
+		if (APIC_INTEGRATED(boot_cpu_apic_version)) {
 			apic_write(APIC_ESR, 0);
 			apic_read(APIC_ESR);
 		}
@@ -1249,7 +1249,7 @@ static int __init smp_sanity_check(unsigned max_cpus)
 	/*
 	 * If we couldn't find a local APIC, then get out of here now!
 	 */
-	if (APIC_INTEGRATED(apic_version[boot_cpu_physical_apicid]) &&
+	if (APIC_INTEGRATED(boot_cpu_apic_version) &&
 	    !boot_cpu_has(X86_FEATURE_APIC)) {
 		if (!disable_apic) {
 			pr_err("BIOS bug, local APIC #%d not detected!...\n",
