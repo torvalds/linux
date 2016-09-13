@@ -41,7 +41,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)				\
 
 #define SYSCALL_PSERIES_2_RFID 					\
 	mfspr	r12,SPRN_SRR1 ;					\
-	LOAD_HANDLER(r10, system_call_entry) ; 			\
+	LOAD_HANDLER(r10, system_call_common) ; 		\
 	mtspr	SPRN_SRR0,r10 ; 				\
 	ld	r10,PACAKMSR(r13) ;				\
 	mtspr	SPRN_SRR1,r10 ; 				\
@@ -62,7 +62,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)				\
 	 * is volatile across system calls.
 	 */
 #define SYSCALL_PSERIES_2_DIRECT				\
-	LOAD_HANDLER(r12, system_call_entry) ;			\
+	LOAD_HANDLER(r12, system_call_common) ;			\
 	mtctr	r12 ;						\
 	mfspr	r12,SPRN_SRR1 ;					\
 	li	r10,MSR_RI ;					\
@@ -901,10 +901,6 @@ hv_facility_unavailable_relon_trampoline:
 	b	denorm_exception_hv
 #endif
 	STD_RELON_EXCEPTION_PSERIES(0x5700, 0x1700, altivec_assist)
-
-	.align	7
-system_call_entry:
-	b	system_call_common
 
 ppc64_runlatch_on_trampoline:
 	b	__ppc64_runlatch_on
