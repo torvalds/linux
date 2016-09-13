@@ -1028,7 +1028,7 @@ static int __alx_open(struct alx_priv *alx, bool resume)
 
 	err = alx_alloc_rings(alx);
 	if (err)
-		return err;
+		goto out_disable_adv_intr;
 
 	alx_configure(alx);
 
@@ -1049,6 +1049,8 @@ static int __alx_open(struct alx_priv *alx, bool resume)
 
 out_free_rings:
 	alx_free_rings(alx);
+out_disable_adv_intr:
+	alx_disable_advanced_intr(alx);
 	return err;
 }
 
