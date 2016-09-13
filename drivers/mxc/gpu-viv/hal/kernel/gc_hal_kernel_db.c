@@ -1485,6 +1485,9 @@ gckKERNEL_DestroyProcessDB(
             break;
 
         case gcvDB_MAP_USER_MEMORY:
+
+            gcmkERR_BREAK(gckCOMMAND_Stall(Kernel->command, gcvFALSE));
+
             /* TODO: Unmap user memory. */
             status = gckOS_UnmapUserMemory(Kernel->os,
                                            Kernel->core,
