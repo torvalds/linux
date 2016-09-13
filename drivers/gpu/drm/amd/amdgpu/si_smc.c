@@ -44,9 +44,9 @@ static int si_set_smc_sram_address(struct amdgpu_device *adev,
 	return 0;
 }
 
-int si_copy_bytes_to_smc(struct amdgpu_device *adev,
-			 u32 smc_start_address,
-			 const u8 *src, u32 byte_count, u32 limit)
+int amdgpu_si_copy_bytes_to_smc(struct amdgpu_device *adev,
+				u32 smc_start_address,
+				const u8 *src, u32 byte_count, u32 limit)
 {
 	unsigned long flags;
 	int ret = 0;
@@ -108,7 +108,7 @@ done:
 	return ret;
 }
 
-void si_start_smc(struct amdgpu_device *adev)
+void amdgpu_si_start_smc(struct amdgpu_device *adev)
 {
 	u32 tmp = RREG32_SMC(SMC_SYSCON_RESET_CNTL);
 
@@ -117,7 +117,7 @@ void si_start_smc(struct amdgpu_device *adev)
 	WREG32_SMC(SMC_SYSCON_RESET_CNTL, tmp);
 }
 
-void si_reset_smc(struct amdgpu_device *adev)
+void amdgpu_si_reset_smc(struct amdgpu_device *adev)
 {
 	u32 tmp;
 
@@ -131,14 +131,14 @@ void si_reset_smc(struct amdgpu_device *adev)
 	WREG32_SMC(SMC_SYSCON_RESET_CNTL, tmp);
 }
 
-int si_program_jump_on_start(struct amdgpu_device *adev)
+int amdgpu_si_program_jump_on_start(struct amdgpu_device *adev)
 {
 	static const u8 data[] = { 0x0E, 0x00, 0x40, 0x40 };
 
-	return si_copy_bytes_to_smc(adev, 0x0, data, 4, sizeof(data)+1);
+	return amdgpu_si_copy_bytes_to_smc(adev, 0x0, data, 4, sizeof(data)+1);
 }
 
-void si_smc_clock(struct amdgpu_device *adev, bool enable)
+void amdgpu_si_smc_clock(struct amdgpu_device *adev, bool enable)
 {
 	u32 tmp = RREG32_SMC(SMC_SYSCON_CLOCK_CNTL_0);
 
@@ -150,7 +150,7 @@ void si_smc_clock(struct amdgpu_device *adev, bool enable)
 	WREG32_SMC(SMC_SYSCON_CLOCK_CNTL_0, tmp);
 }
 
-bool si_is_smc_running(struct amdgpu_device *adev)
+bool amdgpu_si_is_smc_running(struct amdgpu_device *adev)
 {
 	u32 rst = RREG32_SMC(SMC_SYSCON_RESET_CNTL);
 	u32 clk = RREG32_SMC(SMC_SYSCON_CLOCK_CNTL_0);
@@ -161,12 +161,13 @@ bool si_is_smc_running(struct amdgpu_device *adev)
 	return false;
 }
 
-PPSMC_Result si_send_msg_to_smc(struct amdgpu_device *adev, PPSMC_Msg msg)
+PPSMC_Result amdgpu_si_send_msg_to_smc(struct amdgpu_device *adev,
+				       PPSMC_Msg msg)
 {
 	u32 tmp;
 	int i;
 
-	if (!si_is_smc_running(adev))
+	if (!amdgpu_si_is_smc_running(adev))
 		return PPSMC_Result_Failed;
 
 	WREG32(SMC_MESSAGE_0, msg);
@@ -181,12 +182,12 @@ PPSMC_Result si_send_msg_to_smc(struct amdgpu_device *adev, PPSMC_Msg msg)
 	return (PPSMC_Result)RREG32(SMC_RESP_0);
 }
 
-PPSMC_Result si_wait_for_smc_inactive(struct amdgpu_device *adev)
+PPSMC_Result amdgpu_si_wait_for_smc_inactive(struct amdgpu_device *adev)
 {
 	u32 tmp;
 	int i;
 
-	if (!si_is_smc_running(adev))
+	if (!amdgpu_si_is_smc_running(adev))
 		return PPSMC_Result_OK;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
@@ -199,7 +200,7 @@ PPSMC_Result si_wait_for_smc_inactive(struct amdgpu_device *adev)
 	return PPSMC_Result_OK;
 }
 
-int si_load_smc_ucode(struct amdgpu_device *adev, u32 limit)
+int amdgpu_si_load_smc_ucode(struct amdgpu_device *adev, u32 limit)
 {
 	const struct smc_firmware_header_v1_0 *hdr;
 	unsigned long flags;
@@ -241,8 +242,8 @@ int si_load_smc_ucode(struct amdgpu_device *adev, u32 limit)
 	return 0;
 }
 
-int si_read_smc_sram_dword(struct amdgpu_device *adev, u32 smc_address,
-			   u32 *value, u32 limit)
+int amdgpu_si_read_smc_sram_dword(struct amdgpu_device *adev, u32 smc_address,
+				  u32 *value, u32 limit)
 {
 	unsigned long flags;
 	int ret;
@@ -256,8 +257,8 @@ int si_read_smc_sram_dword(struct amdgpu_device *adev, u32 smc_address,
 	return ret;
 }
 
-int si_write_smc_sram_dword(struct amdgpu_device *adev, u32 smc_address,
-			    u32 value, u32 limit)
+int amdgpu_si_write_smc_sram_dword(struct amdgpu_device *adev, u32 smc_address,
+				   u32 value, u32 limit)
 {
 	unsigned long flags;
 	int ret;

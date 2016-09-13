@@ -402,21 +402,21 @@ typedef struct Smc_SIslands_DTE_Configuration Smc_SIslands_DTE_Configuration;
 
 #pragma pack(pop)
 
-int si_copy_bytes_to_smc(struct amdgpu_device *adev,
-			 u32 smc_start_address,
-			 const u8 *src, u32 byte_count, u32 limit);
-void si_start_smc(struct amdgpu_device *adev);
-void si_reset_smc(struct amdgpu_device *adev);
-int si_program_jump_on_start(struct amdgpu_device *adev);
-void si_smc_clock(struct amdgpu_device *adev, bool enable);
-bool si_is_smc_running(struct amdgpu_device *adev);
-PPSMC_Result si_send_msg_to_smc(struct amdgpu_device *adev, PPSMC_Msg msg);
-PPSMC_Result si_wait_for_smc_inactive(struct amdgpu_device *adev);
-int si_load_smc_ucode(struct amdgpu_device *adev, u32 limit);
-int si_read_smc_sram_dword(struct amdgpu_device *adev, u32 smc_address,
-			   u32 *value, u32 limit);
-int si_write_smc_sram_dword(struct amdgpu_device *adev, u32 smc_address,
-			    u32 value, u32 limit);
+int amdgpu_si_copy_bytes_to_smc(struct amdgpu_device *adev,
+				u32 smc_start_address,
+				const u8 *src, u32 byte_count, u32 limit);
+void amdgpu_si_start_smc(struct amdgpu_device *adev);
+void amdgpu_si_reset_smc(struct amdgpu_device *adev);
+int amdgpu_si_program_jump_on_start(struct amdgpu_device *adev);
+void amdgpu_si_smc_clock(struct amdgpu_device *adev, bool enable);
+bool amdgpu_si_is_smc_running(struct amdgpu_device *adev);
+PPSMC_Result amdgpu_si_send_msg_to_smc(struct amdgpu_device *adev, PPSMC_Msg msg);
+PPSMC_Result amdgpu_si_wait_for_smc_inactive(struct amdgpu_device *adev);
+int amdgpu_si_load_smc_ucode(struct amdgpu_device *adev, u32 limit);
+int amdgpu_si_read_smc_sram_dword(struct amdgpu_device *adev, u32 smc_address,
+				  u32 *value, u32 limit);
+int amdgpu_si_write_smc_sram_dword(struct amdgpu_device *adev, u32 smc_address,
+				   u32 value, u32 limit);
 
 #endif
 

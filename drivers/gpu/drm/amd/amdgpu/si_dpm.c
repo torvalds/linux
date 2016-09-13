@@ -2274,12 +2274,12 @@ static int si_populate_smc_tdp_limits(struct amdgpu_device *adev,
 		smc_table->dpm2Params.SafePowerLimit =
 			cpu_to_be32(si_scale_power_for_smc((near_tdp_limit * SISLANDS_DPM2_TDP_SAFE_LIMIT_PERCENT) / 100, scaling_factor) * 1000);
 
-		ret = si_copy_bytes_to_smc(adev,
-					   (si_pi->state_table_start + offsetof(SISLANDS_SMC_STATETABLE, dpm2Params) +
-						 offsetof(PP_SIslands_DPM2Parameters, TDPLimit)),
-					   (u8 *)(&(smc_table->dpm2Params.TDPLimit)),
-					   sizeof(u32) * 3,
-					   si_pi->sram_end);
+		ret = amdgpu_si_copy_bytes_to_smc(adev,
+						  (si_pi->state_table_start + offsetof(SISLANDS_SMC_STATETABLE, dpm2Params) +
+						   offsetof(PP_SIslands_DPM2Parameters, TDPLimit)),
+						  (u8 *)(&(smc_table->dpm2Params.TDPLimit)),
+						  sizeof(u32) * 3,
+						  si_pi->sram_end);
 		if (ret)
 			return ret;
 
@@ -2293,10 +2293,10 @@ static int si_populate_smc_tdp_limits(struct amdgpu_device *adev,
 			papm_parm->PlatformPowerLimit = 0xffffffff;
 			papm_parm->NearTDPLimitPAPM = 0xffffffff;
 
-			ret = si_copy_bytes_to_smc(adev, si_pi->papm_cfg_table_start,
-						   (u8 *)papm_parm,
-						   sizeof(PP_SIslands_PAPMParameters),
-						   si_pi->sram_end);
+			ret = amdgpu_si_copy_bytes_to_smc(adev, si_pi->papm_cfg_table_start,
+							  (u8 *)papm_parm,
+							  sizeof(PP_SIslands_PAPMParameters),
+							  si_pi->sram_end);
 			if (ret)
 				return ret;
 		}
@@ -2322,13 +2322,13 @@ static int si_populate_smc_tdp_limits_2(struct amdgpu_device *adev,
 		smc_table->dpm2Params.SafePowerLimit =
 			cpu_to_be32(si_scale_power_for_smc((adev->pm.dpm.near_tdp_limit_adjusted * SISLANDS_DPM2_TDP_SAFE_LIMIT_PERCENT) / 100, scaling_factor) * 1000);
 
-		ret = si_copy_bytes_to_smc(adev,
-					   (si_pi->state_table_start +
-					    offsetof(SISLANDS_SMC_STATETABLE, dpm2Params) +
-					    offsetof(PP_SIslands_DPM2Parameters, NearTDPLimit)),
-					   (u8 *)(&(smc_table->dpm2Params.NearTDPLimit)),
-					   sizeof(u32) * 2,
-					   si_pi->sram_end);
+		ret = amdgpu_si_copy_bytes_to_smc(adev,
+						  (si_pi->state_table_start +
+						   offsetof(SISLANDS_SMC_STATETABLE, dpm2Params) +
+						   offsetof(PP_SIslands_DPM2Parameters, NearTDPLimit)),
+						  (u8 *)(&(smc_table->dpm2Params.NearTDPLimit)),
+						  sizeof(u32) * 2,
+						  si_pi->sram_end);
 		if (ret)
 			return ret;
 	}
@@ -2538,7 +2538,7 @@ static int si_enable_power_containment(struct amdgpu_device *adev,
 	if (ni_pi->enable_power_containment) {
 		if (enable) {
 			if (!si_should_disable_uvd_powertune(adev, amdgpu_new_state)) {
-				smc_result = si_send_msg_to_smc(adev, PPSMC_TDPClampingActive);
+				smc_result = amdgpu_si_send_msg_to_smc(adev, PPSMC_TDPClampingActive);
 				if (smc_result != PPSMC_Result_OK) {
 					ret = -EINVAL;
 					ni_pi->pc_enabled = false;
@@ -2547,7 +2547,7 @@ static int si_enable_power_containment(struct amdgpu_device *adev,
 				}
 			}
 		} else {
-			smc_result = si_send_msg_to_smc(adev, PPSMC_TDPClampingInactive);
+			smc_result = amdgpu_si_send_msg_to_smc(adev, PPSMC_TDPClampingInactive);
 			if (smc_result != PPSMC_Result_OK)
 				ret = -EINVAL;
 			ni_pi->pc_enabled = false;
@@ -2615,8 +2615,10 @@ static int si_initialize_smc_dte_tables(struct amdgpu_device *adev)
 		dte_tables->Tdep_R[i] = cpu_to_be32(dte_data->tdep_r[i]);
 	}
 
-	ret = si_copy_bytes_to_smc(adev, si_pi->dte_table_start, (u8 *)dte_tables,
-				   sizeof(Smc_SIslands_DTE_Configuration), si_pi->sram_end);
+	ret = amdgpu_si_copy_bytes_to_smc(adev, si_pi->dte_table_start,
+					  (u8 *)dte_tables,
+					  sizeof(Smc_SIslands_DTE_Configuration),
+					  si_pi->sram_end);
 	kfree(dte_tables);
 
 	return ret;
@@ -2806,8 +2808,10 @@ static int si_initialize_smc_cac_tables(struct amdgpu_device *adev)
 	cac_tables->lkge_lut_T0 = cpu_to_be32((u32)t0);
 	cac_tables->lkge_lut_Tstep = cpu_to_be32((u32)t_step);
 
-	ret = si_copy_bytes_to_smc(adev, si_pi->cac_table_start, (u8 *)cac_tables,
-				   sizeof(PP_SIslands_CacConfig), si_pi->sram_end);
+	ret = amdgpu_si_copy_bytes_to_smc(adev, si_pi->cac_table_start,
+					  (u8 *)cac_tables,
+					  sizeof(PP_SIslands_CacConfig),
+					  si_pi->sram_end);
 
 	if (ret)
 		goto done_free;
@@ -2900,12 +2904,12 @@ static int si_enable_smc_cac(struct amdgpu_device *adev,
 		if (enable) {
 			if (!si_should_disable_uvd_powertune(adev, amdgpu_new_state)) {
 				if (ni_pi->support_cac_long_term_average) {
-					smc_result = si_send_msg_to_smc(adev, PPSMC_CACLongTermAvgEnable);
+					smc_result = amdgpu_si_send_msg_to_smc(adev, PPSMC_CACLongTermAvgEnable);
 					if (smc_result != PPSMC_Result_OK)
 						ni_pi->support_cac_long_term_average = false;
 				}
 
-				smc_result = si_send_msg_to_smc(adev, PPSMC_MSG_EnableCac);
+				smc_result = amdgpu_si_send_msg_to_smc(adev, PPSMC_MSG_EnableCac);
 				if (smc_result != PPSMC_Result_OK) {
 					ret = -EINVAL;
 					ni_pi->cac_enabled = false;
@@ -2914,21 +2918,21 @@ static int si_enable_smc_cac(struct amdgpu_device *adev,
 				}
 
 				if (si_pi->enable_dte) {
-					smc_result = si_send_msg_to_smc(adev, PPSMC_MSG_EnableDTE);
+					smc_result = amdgpu_si_send_msg_to_smc(adev, PPSMC_MSG_EnableDTE);
 					if (smc_result != PPSMC_Result_OK)
 						ret = -EINVAL;
 				}
 			}
 		} else if (ni_pi->cac_enabled) {
 			if (si_pi->enable_dte)
-				smc_result = si_send_msg_to_smc(adev, PPSMC_MSG_DisableDTE);
+				smc_result = amdgpu_si_send_msg_to_smc(adev, PPSMC_MSG_DisableDTE);
 
-			smc_result = si_send_msg_to_smc(adev, PPSMC_MSG_DisableCac);
+			smc_result = amdgpu_si_send_msg_to_smc(adev, PPSMC_MSG_DisableCac);
 
 			ni_pi->cac_enabled = false;
 
 			if (ni_pi->support_cac_long_term_average)
-				smc_result = si_send_msg_to_smc(adev, PPSMC_CACLongTermAvgDisable);
+				smc_result = amdgpu_si_send_msg_to_smc(adev, PPSMC_CACLongTermAvgDisable);
 		}
 	}
 	return ret;
@@ -2992,9 +2996,10 @@ static int si_init_smc_spll_table(struct amdgpu_device *adev)
 
 
 	if (!ret)
-		ret = si_copy_bytes_to_smc(adev, si_pi->spll_table_start,
-					   (u8 *)spll_table, sizeof(SMC_SISLANDS_SPLL_DIV_TABLE),
-					   si_pi->sram_end);
+		ret = amdgpu_si_copy_bytes_to_smc(adev, si_pi->spll_table_start,
+						  (u8 *)spll_table,
+						  sizeof(SMC_SISLANDS_SPLL_DIV_TABLE),
+						  si_pi->sram_end);
 
 	if (ret)
 		ni_pi->enable_power_containment = false;
@@ -3664,9 +3669,9 @@ static int si_read_smc_soft_register(struct amdgpu_device *adev,
 {
 	struct si_power_info *si_pi = si_get_pi(adev);
 
-	return si_read_smc_sram_dword(adev,
-				      si_pi->soft_regs_start + reg_offset, value,
-				      si_pi->sram_end);
+	return amdgpu_si_read_smc_sram_dword(adev,
+					     si_pi->soft_regs_start + reg_offset, value,
+					     si_pi->sram_end);
 }
 #endif
 
@@ -3675,9 +3680,9 @@ static int si_write_smc_soft_register(struct amdgpu_device *adev,
 {
 	struct si_power_info *si_pi = si_get_pi(adev);
 
-	return si_write_smc_sram_dword(adev,
-				       si_pi->soft_regs_start + reg_offset,
-				       value, si_pi->sram_end);
+	return amdgpu_si_write_smc_sram_dword(adev,
+					      si_pi->soft_regs_start + reg_offset,
+					      value, si_pi->sram_end);
 }
 
 static bool si_is_special_1gb_platform(struct amdgpu_device *adev)
@@ -3834,7 +3839,7 @@ static int si_notify_hardware_of_thermal_state(struct amdgpu_device *adev,
 	PPSMC_Result ret;
 
 	if (thermal_level == 0) {
-		ret = si_send_msg_to_smc(adev, PPSMC_MSG_EnableThermalInterrupt);
+		ret = amdgpu_si_send_msg_to_smc(adev, PPSMC_MSG_EnableThermalInterrupt);
 		if (ret == PPSMC_Result_OK)
 			return 0;
 		else
@@ -3853,7 +3858,7 @@ static void si_notify_hardware_vpu_recovery_event(struct amdgpu_device *adev)
 static int si_notify_hw_of_powersource(struct amdgpu_device *adev, bool ac_power)
 {
 	if (ac_power)
-		return (si_send_msg_to_smc(adev, PPSMC_MSG_RunningOnAC) == PPSMC_Result_OK) ?
+		return (amdgpu_si_send_msg_to_smc(adev, PPSMC_MSG_RunningOnAC) == PPSMC_Result_OK) ?
 			0 : -EINVAL;
 
 	return 0;
@@ -3864,12 +3869,12 @@ static PPSMC_Result si_send_msg_to_smc_with_parameter(struct amdgpu_device *adev
 						      PPSMC_Msg msg, u32 parameter)
 {
 	WREG32(SMC_SCRATCH0, parameter);
-	return si_send_msg_to_smc(adev, msg);
+	return amdgpu_si_send_msg_to_smc(adev, msg);
 }
 
 static int si_restrict_performance_levels_before_switch(struct amdgpu_device *adev)
 {
-	if (si_send_msg_to_smc(adev, PPSMC_MSG_NoForcedLevel) != PPSMC_Result_OK)
+	if (amdgpu_si_send_msg_to_smc(adev, PPSMC_MSG_NoForcedLevel) != PPSMC_Result_OK)
 		return -EINVAL;
 
 	return (si_send_msg_to_smc_with_parameter(adev, PPSMC_MSG_SetEnabledLevels, 1) == PPSMC_Result_OK) ?
@@ -3911,46 +3916,46 @@ static int si_dpm_force_performance_level(struct amdgpu_device *adev,
 #if 0
 static int si_set_boot_state(struct amdgpu_device *adev)
 {
-	return (si_send_msg_to_smc(adev, PPSMC_MSG_SwitchToInitialState) == PPSMC_Result_OK) ?
+	return (amdgpu_si_send_msg_to_smc(adev, PPSMC_MSG_SwitchToInitialState) == PPSMC_Result_OK) ?
 		0 : -EINVAL;
 }
 #endif
 
 static int si_set_sw_state(struct amdgpu_device *adev)
 {
-	return (si_send_msg_to_smc(adev, PPSMC_MSG_SwitchToSwState) == PPSMC_Result_OK) ?
+	return (amdgpu_si_send_msg_to_smc(adev, PPSMC_MSG_SwitchToSwState) == PPSMC_Result_OK) ?
 		0 : -EINVAL;
 }
 
 static int si_halt_smc(struct amdgpu_device *adev)
 {
-	if (si_send_msg_to_smc(adev, PPSMC_MSG_Halt) != PPSMC_Result_OK)
+	if (amdgpu_si_send_msg_to_smc(adev, PPSMC_MSG_Halt) != PPSMC_Result_OK)
 		return -EINVAL;
 
-	return (si_wait_for_smc_inactive(adev) == PPSMC_Result_OK) ?
+	return (amdgpu_si_wait_for_smc_inactive(adev) == PPSMC_Result_OK) ?
 		0 : -EINVAL;
 }
 
 static int si_resume_smc(struct amdgpu_device *adev)
 {
-	if (si_send_msg_to_smc(adev, PPSMC_FlushDataCache) != PPSMC_Result_OK)
+	if (amdgpu_si_send_msg_to_smc(adev, PPSMC_FlushDataCache) != PPSMC_Result_OK)
 		return -EINVAL;
 
-	return (si_send_msg_to_smc(adev, PPSMC_MSG_Resume) == PPSMC_Result_OK) ?
+	return (amdgpu_si_send_msg_to_smc(adev, PPSMC_MSG_Resume) == PPSMC_Result_OK) ?
 		0 : -EINVAL;
 }
 
 static void si_dpm_start_smc(struct amdgpu_device *adev)
 {
-	si_program_jump_on_start(adev);
-	si_start_smc(adev);
-	si_smc_clock(adev, true);
+	amdgpu_si_program_jump_on_start(adev);
+	amdgpu_si_start_smc(adev);
+	amdgpu_si_smc_clock(adev, true);
 }
 
 static void si_dpm_stop_smc(struct amdgpu_device *adev)
 {
-	si_reset_smc(adev);
-	si_smc_clock(adev, false);
+	amdgpu_si_reset_smc(adev);
+	amdgpu_si_smc_clock(adev, false);
 }
 
 static int si_process_firmware_header(struct amdgpu_device *adev)
@@ -3959,82 +3964,82 @@ static int si_process_firmware_header(struct amdgpu_device *adev)
 	u32 tmp;
 	int ret;
 
-	ret = si_read_smc_sram_dword(adev,
-				     SISLANDS_SMC_FIRMWARE_HEADER_LOCATION +
-				     SISLANDS_SMC_FIRMWARE_HEADER_stateTable,
-				     &tmp, si_pi->sram_end);
+	ret = amdgpu_si_read_smc_sram_dword(adev,
+					    SISLANDS_SMC_FIRMWARE_HEADER_LOCATION +
+					    SISLANDS_SMC_FIRMWARE_HEADER_stateTable,
+					    &tmp, si_pi->sram_end);
 	if (ret)
 		return ret;
 
 	si_pi->state_table_start = tmp;
 
-	ret = si_read_smc_sram_dword(adev,
-				     SISLANDS_SMC_FIRMWARE_HEADER_LOCATION +
-				     SISLANDS_SMC_FIRMWARE_HEADER_softRegisters,
-				     &tmp, si_pi->sram_end);
+	ret = amdgpu_si_read_smc_sram_dword(adev,
+					    SISLANDS_SMC_FIRMWARE_HEADER_LOCATION +
+					    SISLANDS_SMC_FIRMWARE_HEADER_softRegisters,
+					    &tmp, si_pi->sram_end);
 	if (ret)
 		return ret;
 
 	si_pi->soft_regs_start = tmp;
 
-	ret = si_read_smc_sram_dword(adev,
-				     SISLANDS_SMC_FIRMWARE_HEADER_LOCATION +
-				     SISLANDS_SMC_FIRMWARE_HEADER_mcRegisterTable,
-				     &tmp, si_pi->sram_end);
+	ret = amdgpu_si_read_smc_sram_dword(adev,
+					    SISLANDS_SMC_FIRMWARE_HEADER_LOCATION +
+					    SISLANDS_SMC_FIRMWARE_HEADER_mcRegisterTable,
+					    &tmp, si_pi->sram_end);
 	if (ret)
 		return ret;
 
 	si_pi->mc_reg_table_start = tmp;
 
-	ret = si_read_smc_sram_dword(adev,
-				     SISLANDS_SMC_FIRMWARE_HEADER_LOCATION +
-				     SISLANDS_SMC_FIRMWARE_HEADER_fanTable,
-				     &tmp, si_pi->sram_end);
+	ret = amdgpu_si_read_smc_sram_dword(adev,
+					    SISLANDS_SMC_FIRMWARE_HEADER_LOCATION +
+					    SISLANDS_SMC_FIRMWARE_HEADER_fanTable,
+					    &tmp, si_pi->sram_end);
 	if (ret)
 		return ret;
 
 	si_pi->fan_table_start = tmp;
 
-	ret = si_read_smc_sram_dword(adev,
-				     SISLANDS_SMC_FIRMWARE_HEADER_LOCATION +
-				     SISLANDS_SMC_FIRMWARE_HEADER_mcArbDramAutoRefreshTable,
-				     &tmp, si_pi->sram_end);
+	ret = amdgpu_si_read_smc_sram_dword(adev,
+					    SISLANDS_SMC_FIRMWARE_HEADER_LOCATION +
+					    SISLANDS_SMC_FIRMWARE_HEADER_mcArbDramAutoRefreshTable,
+					    &tmp, si_pi->sram_end);
 	if (ret)
 		return ret;
 
 	si_pi->arb_table_start = tmp;
 
-	ret = si_read_smc_sram_dword(adev,
-				     SISLANDS_SMC_FIRMWARE_HEADER_LOCATION +
-				     SISLANDS_SMC_FIRMWARE_HEADER_CacConfigTable,
-				     &tmp, si_pi->sram_end);
+	ret = amdgpu_si_read_smc_sram_dword(adev,
+					    SISLANDS_SMC_FIRMWARE_HEADER_LOCATION +
+					    SISLANDS_SMC_FIRMWARE_HEADER_CacConfigTable,
+					    &tmp, si_pi->sram_end);
 	if (ret)
 		return ret;
 
 	si_pi->cac_table_start = tmp;
 
-	ret = si_read_smc_sram_dword(adev,
-				     SISLANDS_SMC_FIRMWARE_HEADER_LOCATION +
-				     SISLANDS_SMC_FIRMWARE_HEADER_DteConfiguration,
-				     &tmp, si_pi->sram_end);
+	ret = amdgpu_si_read_smc_sram_dword(adev,
+					    SISLANDS_SMC_FIRMWARE_HEADER_LOCATION +
+					    SISLANDS_SMC_FIRMWARE_HEADER_DteConfiguration,
+					    &tmp, si_pi->sram_end);
 	if (ret)
 		return ret;
 
 	si_pi->dte_table_start = tmp;
 
-	ret = si_read_smc_sram_dword(adev,
-				     SISLANDS_SMC_FIRMWARE_HEADER_LOCATION +
-				     SISLANDS_SMC_FIRMWARE_HEADER_spllTable,
-				     &tmp, si_pi->sram_end);
+	ret = amdgpu_si_read_smc_sram_dword(adev,
+					    SISLANDS_SMC_FIRMWARE_HEADER_LOCATION +
+					    SISLANDS_SMC_FIRMWARE_HEADER_spllTable,
+					    &tmp, si_pi->sram_end);
 	if (ret)
 		return ret;
 
 	si_pi->spll_table_start = tmp;
 
-	ret = si_read_smc_sram_dword(adev,
-				     SISLANDS_SMC_FIRMWARE_HEADER_LOCATION +
-				     SISLANDS_SMC_FIRMWARE_HEADER_PAPMParameters,
-				     &tmp, si_pi->sram_end);
+	ret = amdgpu_si_read_smc_sram_dword(adev,
+					    SISLANDS_SMC_FIRMWARE_HEADER_LOCATION +
+					    SISLANDS_SMC_FIRMWARE_HEADER_PAPMParameters,
+					    &tmp, si_pi->sram_end);
 	if (ret)
 		return ret;
 
@@ -4112,7 +4117,7 @@ static int si_notify_smc_display_change(struct amdgpu_device *adev,
 	PPSMC_Msg msg = has_display ?
 		PPSMC_MSG_HasDisplay : PPSMC_MSG_NoDisplay;
 
-	return (si_send_msg_to_smc(adev, msg) == PPSMC_Result_OK) ?
+	return (amdgpu_si_send_msg_to_smc(adev, msg) == PPSMC_Result_OK) ?
 		0 : -EINVAL;
 }
 
@@ -4365,10 +4370,10 @@ static int si_upload_firmware(struct amdgpu_device *adev)
 {
 	struct si_power_info *si_pi = si_get_pi(adev);
 
-	si_reset_smc(adev);
-	si_smc_clock(adev, false);
+	amdgpu_si_reset_smc(adev);
+	amdgpu_si_smc_clock(adev, false);
 
-	return si_load_smc_ucode(adev, si_pi->sram_end);
+	return amdgpu_si_load_smc_ucode(adev, si_pi->sram_end);
 }
 
 static bool si_validate_phase_shedding_tables(struct amdgpu_device *adev,
@@ -4712,14 +4717,16 @@ static int si_init_arb_table_index(struct amdgpu_device *adev)
 	u32 tmp;
 	int ret;
 
-	ret = si_read_smc_sram_dword(adev, si_pi->arb_table_start, &tmp, si_pi->sram_end);
+	ret = amdgpu_si_read_smc_sram_dword(adev, si_pi->arb_table_start,
+					    &tmp, si_pi->sram_end);
 	if (ret)
 		return ret;
 
 	tmp &= 0x00FFFFFF;
 	tmp |= MC_CG_ARB_FREQ_F1 << 24;
 
-	return si_write_smc_sram_dword(adev, si_pi->arb_table_start,  tmp, si_pi->sram_end);
+	return amdgpu_si_write_smc_sram_dword(adev, si_pi->arb_table_start,
+					      tmp, si_pi->sram_end);
 }
 
 static int si_initial_switch_from_arb_f0_to_f1(struct amdgpu_device *adev)
@@ -4729,7 +4736,7 @@ static int si_initial_switch_from_arb_f0_to_f1(struct amdgpu_device *adev)
 
 static int si_reset_to_default(struct amdgpu_device *adev)
 {
-	return (si_send_msg_to_smc(adev, PPSMC_MSG_ResetToDefaults) == PPSMC_Result_OK) ?
+	return (amdgpu_si_send_msg_to_smc(adev, PPSMC_MSG_ResetToDefaults) == PPSMC_Result_OK) ?
 		0 : -EINVAL;
 }
 
@@ -4739,8 +4746,8 @@ static int si_force_switch_to_arb_f0(struct amdgpu_device *adev)
 	u32 tmp;
 	int ret;
 
-	ret = si_read_smc_sram_dword(adev, si_pi->arb_table_start,
-				     &tmp, si_pi->sram_end);
+	ret = amdgpu_si_read_smc_sram_dword(adev, si_pi->arb_table_start,
+					    &tmp, si_pi->sram_end);
 	if (ret)
 		return ret;
 
@@ -4810,13 +4817,13 @@ static int si_do_program_memory_timing_parameters(struct amdgpu_device *adev,
 		ret = si_populate_memory_timing_parameters(adev, &state->performance_levels[i], &arb_regs);
 		if (ret)
 			break;
-		ret = si_copy_bytes_to_smc(adev,
-					   si_pi->arb_table_start +
-					   offsetof(SMC_SIslands_MCArbDramTimingRegisters, data) +
-					   sizeof(SMC_SIslands_MCArbDramTimingRegisterSet) * (first_arb_set + i),
-					   (u8 *)&arb_regs,
-					   sizeof(SMC_SIslands_MCArbDramTimingRegisterSet),
-					   si_pi->sram_end);
+		ret = amdgpu_si_copy_bytes_to_smc(adev,
+						  si_pi->arb_table_start +
+						  offsetof(SMC_SIslands_MCArbDramTimingRegisters, data) +
+						  sizeof(SMC_SIslands_MCArbDramTimingRegisterSet) * (first_arb_set + i),
+						  (u8 *)&arb_regs,
+						  sizeof(SMC_SIslands_MCArbDramTimingRegisterSet),
+						  si_pi->sram_end);
 		if (ret)
 			break;
 	}
@@ -5152,13 +5159,13 @@ static int si_program_ulv_memory_timing_parameters(struct amdgpu_device *adev)
 	si_write_smc_soft_register(adev, SI_SMC_SOFT_REGISTER_ulv_volt_change_delay,
 				   ulv->volt_change_delay);
 
-	ret = si_copy_bytes_to_smc(adev,
-				   si_pi->arb_table_start +
-				   offsetof(SMC_SIslands_MCArbDramTimingRegisters, data) +
-				   sizeof(SMC_SIslands_MCArbDramTimingRegisterSet) * SISLANDS_ULV_STATE_ARB_INDEX,
-				   (u8 *)&arb_regs,
-				   sizeof(SMC_SIslands_MCArbDramTimingRegisterSet),
-				   si_pi->sram_end);
+	ret = amdgpu_si_copy_bytes_to_smc(adev,
+					  si_pi->arb_table_start +
+					  offsetof(SMC_SIslands_MCArbDramTimingRegisters, data) +
+					  sizeof(SMC_SIslands_MCArbDramTimingRegisterSet) * SISLANDS_ULV_STATE_ARB_INDEX,
+					  (u8 *)&arb_regs,
+					  sizeof(SMC_SIslands_MCArbDramTimingRegisterSet),
+					  si_pi->sram_end);
 
 	return ret;
 }
@@ -5252,9 +5259,9 @@ static int si_init_smc_table(struct amdgpu_device *adev)
 		table->ULVState = table->initialState;
 	}
 
-	return si_copy_bytes_to_smc(adev, si_pi->state_table_start,
-				    (u8 *)table, sizeof(SISLANDS_SMC_STATETABLE),
-				    si_pi->sram_end);
+	return amdgpu_si_copy_bytes_to_smc(adev, si_pi->state_table_start,
+					   (u8 *)table, sizeof(SISLANDS_SMC_STATETABLE),
+					   si_pi->sram_end);
 }
 
 static int si_calculate_sclk_params(struct amdgpu_device *adev,
@@ -5616,7 +5623,7 @@ static int si_disable_ulv(struct amdgpu_device *adev)
 	struct si_ulv_param *ulv = &si_pi->ulv;
 
 	if (ulv->supported)
-		return (si_send_msg_to_smc(adev, PPSMC_MSG_DisableULV) == PPSMC_Result_OK) ?
+		return (amdgpu_si_send_msg_to_smc(adev, PPSMC_MSG_DisableULV) == PPSMC_Result_OK) ?
 			0 : -EINVAL;
 
 	return 0;
@@ -5658,7 +5665,7 @@ static int si_set_power_state_conditionally_enable_ulv(struct amdgpu_device *ade
 
 	if (ulv->supported) {
 		if (si_is_state_ulv_compatible(adev, amdgpu_new_state))
-			return (si_send_msg_to_smc(adev, PPSMC_MSG_EnableULV) == PPSMC_Result_OK) ?
+			return (amdgpu_si_send_msg_to_smc(adev, PPSMC_MSG_EnableULV) == PPSMC_Result_OK) ?
 				0 : -EINVAL;
 	}
 	return 0;
@@ -5763,8 +5770,8 @@ static int si_upload_sw_state(struct amdgpu_device *adev,
 	if (ret)
 		return ret;
 
-	return si_copy_bytes_to_smc(adev, address, (u8 *)smc_state,
-				    state_size, si_pi->sram_end);
+	return amdgpu_si_copy_bytes_to_smc(adev, address, (u8 *)smc_state,
+					   state_size, si_pi->sram_end);
 }
 
 static int si_upload_ulv_state(struct amdgpu_device *adev)
@@ -5783,8 +5790,8 @@ static int si_upload_ulv_state(struct amdgpu_device *adev)
 
 		ret = si_populate_ulv_state(adev, smc_state);
 		if (!ret)
-			ret = si_copy_bytes_to_smc(adev, address, (u8 *)smc_state,
-						   state_size, si_pi->sram_end);
+			ret = amdgpu_si_copy_bytes_to_smc(adev, address, (u8 *)smc_state,
+							  state_size, si_pi->sram_end);
 	}
 
 	return ret;
@@ -6155,9 +6162,9 @@ static int si_populate_mc_reg_table(struct amdgpu_device *adev,
 
 	si_convert_mc_reg_table_to_smc(adev, amdgpu_boot_state, smc_mc_reg_table);
 
-	return si_copy_bytes_to_smc(adev, si_pi->mc_reg_table_start,
-				    (u8 *)smc_mc_reg_table,
-				    sizeof(SMC_SIslands_MCRegisters), si_pi->sram_end);
+	return amdgpu_si_copy_bytes_to_smc(adev, si_pi->mc_reg_table_start,
+					   (u8 *)smc_mc_reg_table,
+					   sizeof(SMC_SIslands_MCRegisters), si_pi->sram_end);
 }
 
 static int si_upload_mc_reg_table(struct amdgpu_device *adev,
@@ -6174,10 +6181,10 @@ static int si_upload_mc_reg_table(struct amdgpu_device *adev,
 
 	si_convert_mc_reg_table_to_smc(adev, amdgpu_new_state, smc_mc_reg_table);
 
-	return si_copy_bytes_to_smc(adev, address,
-				    (u8 *)&smc_mc_reg_table->data[SISLANDS_MCREGISTERTABLE_FIRST_DRIVERSTATE_SLOT],
-				    sizeof(SMC_SIslands_MCRegisterSet) * new_state->performance_level_count,
-				    si_pi->sram_end);
+	return amdgpu_si_copy_bytes_to_smc(adev, address,
+					   (u8 *)&smc_mc_reg_table->data[SISLANDS_MCREGISTERTABLE_FIRST_DRIVERSTATE_SLOT],
+					   sizeof(SMC_SIslands_MCRegisterSet) * new_state->performance_level_count,
+					   si_pi->sram_end);
 }
 
 static void si_enable_voltage_control(struct amdgpu_device *adev, bool enable)
@@ -6285,11 +6292,11 @@ static int si_ds_request(struct amdgpu_device *adev,
 
 	if (eg_pi->sclk_deep_sleep) {
 		if (ds_status_on)
-			return (si_send_msg_to_smc(adev, PPSMC_MSG_CancelThrottleOVRDSCLKDS) ==
+			return (amdgpu_si_send_msg_to_smc(adev, PPSMC_MSG_CancelThrottleOVRDSCLKDS) ==
 				PPSMC_Result_OK) ?
 				0 : -EINVAL;
 		else
-			return (si_send_msg_to_smc(adev, PPSMC_MSG_ThrottleOVRDSCLKDS) ==
+			return (amdgpu_si_send_msg_to_smc(adev, PPSMC_MSG_ThrottleOVRDSCLKDS) ==
 				PPSMC_Result_OK) ? 0 : -EINVAL;
 	}
 	return 0;
@@ -6420,7 +6427,7 @@ static int si_thermal_enable_alert(struct amdgpu_device *adev,
 
 		thermal_int &= ~(THERM_INT_MASK_HIGH | THERM_INT_MASK_LOW);
 		WREG32(CG_THERMAL_INT, thermal_int);
-		result = si_send_msg_to_smc(adev, PPSMC_MSG_EnableThermalInterrupt);
+		result = amdgpu_si_send_msg_to_smc(adev, PPSMC_MSG_EnableThermalInterrupt);
 		if (result != PPSMC_Result_OK) {
 			DRM_DEBUG_KMS("Could not enable thermal interrupts.\n");
 			return -EINVAL;
@@ -6535,11 +6542,11 @@ static int si_thermal_setup_fan_table(struct amdgpu_device *adev)
 	tmp = (RREG32(CG_MULT_THERMAL_CTRL) & TEMP_SEL_MASK) >> TEMP_SEL_SHIFT;
 	fan_table.temp_src = (uint8_t)tmp;
 
-	ret = si_copy_bytes_to_smc(adev,
-				   si_pi->fan_table_start,
-				   (u8 *)(&fan_table),
-				   sizeof(fan_table),
-				   si_pi->sram_end);
+	ret = amdgpu_si_copy_bytes_to_smc(adev,
+					  si_pi->fan_table_start,
+					  (u8 *)(&fan_table),
+					  sizeof(fan_table),
+					  si_pi->sram_end);
 
 	if (ret) {
 		DRM_ERROR("Failed to load fan table to the SMC.");
@@ -6554,7 +6561,7 @@ static int si_fan_ctrl_start_smc_fan_control(struct amdgpu_device *adev)
 	struct si_power_info *si_pi = si_get_pi(adev);
 	PPSMC_Result ret;
 
-	ret = si_send_msg_to_smc(adev, PPSMC_StartFanControl);
+	ret = amdgpu_si_send_msg_to_smc(adev, PPSMC_StartFanControl);
 	if (ret == PPSMC_Result_OK) {
 		si_pi->fan_is_controlled_by_smc = true;
 		return 0;
@@ -6568,7 +6575,7 @@ static int si_fan_ctrl_stop_smc_fan_control(struct amdgpu_device *adev)
 	struct si_power_info *si_pi = si_get_pi(adev);
 	PPSMC_Result ret;
 
-	ret = si_send_msg_to_smc(adev, PPSMC_StopFanControl);
+	ret = amdgpu_si_send_msg_to_smc(adev, PPSMC_StopFanControl);
 
 	if (ret == PPSMC_Result_OK) {
 		si_pi->fan_is_controlled_by_smc = false;
@@ -6799,7 +6806,7 @@ static int si_dpm_enable(struct amdgpu_device *adev)
 	struct amdgpu_ps *boot_ps = adev->pm.dpm.boot_ps;
 	int ret;
 
-	if (si_is_smc_running(adev))
+	if (amdgpu_si_is_smc_running(adev))
 		return -EINVAL;
 	if (pi->voltage_control || si_pi->voltage_control_svi2)
 		si_enable_voltage_control(adev, true);
@@ -6930,7 +6937,7 @@ static void si_dpm_disable(struct amdgpu_device *adev)
 	struct rv7xx_power_info *pi = rv770_get_pi(adev);
 	struct amdgpu_ps *boot_ps = adev->pm.dpm.boot_ps;
 
-	if (!si_is_smc_running(adev))
+	if (!amdgpu_si_is_smc_running(adev))
 		return;
 	si_thermal_stop_thermal_controller(adev);
 	si_disable_ulv(adev);
