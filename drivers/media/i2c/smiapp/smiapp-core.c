@@ -2610,6 +2610,7 @@ static void smiapp_create_subdev(struct smiapp_sensor *sensor,
 
 	ssd->sd.internal_ops = &smiapp_internal_ops;
 	ssd->sd.owner = THIS_MODULE;
+	ssd->sd.dev = &client->dev;
 	v4l2_set_subdevdata(&ssd->sd, client);
 }
 
