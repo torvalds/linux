@@ -76,7 +76,7 @@ static int nft_hash_init(const struct nft_ctx *ctx,
 	if (priv->modulus <= 1)
 		return -ERANGE;
 
-	if (priv->offset + priv->modulus - 1 < U32_MAX)
+	if (priv->offset + priv->modulus - 1 < priv->offset)
 		return -EOVERFLOW;
 
 	priv->seed = ntohl(nla_get_be32(tb[NFTA_HASH_SEED]));
