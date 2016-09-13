@@ -417,6 +417,8 @@ static int hist_entry__init(struct hist_entry *he,
 	}
 	INIT_LIST_HEAD(&he->pairs.node);
 	thread__get(he->thread);
+	he->hroot_in  = RB_ROOT;
+	he->hroot_out = RB_ROOT;
 
 	if (!symbol_conf.report_hierarchy)
 		he->leaf = true;
