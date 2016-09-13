@@ -1,3 +1,3 @@
 subdir-y := accounting auxdisplay blackfin \
 	ia64 laptops mic misc-devices \
-	networking pcmcia prctl ptp timers vDSO watchdog
+	networking pcmcia ptp timers vDSO watchdog
