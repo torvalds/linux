@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Hans de Goede <hdegoede@redhat.com>
+ * Copyright 2016 Hans de Goede <hdegoede@redhat.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -39,23 +39,16 @@
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "sunxi-reference-design-tablet.dtsi"
 
-#include <dt-bindings/pwm/pwm.h>
+#include "sunxi-common-regulators.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	aliases {
-		serial0 = &r_uart;
-	};
-
-	backlight: backlight {
-		compatible = "pwm-backlight";
-		pinctrl-names = "default";
-		pinctrl-0 = <&bl_en_pin>;
-		pwms = <&pwm 0 50000 PWM_POLARITY_INVERTED>;
-		brightness-levels = <0 10 20 30 40 50 60 70 80 90 100>;
-		default-brightness-level = <8>;
-		enable-gpios = <&pio 7 6 GPIO_ACTIVE_HIGH>; /* PH6 */
+		serial0 = &uart0;
 	};
 
 	chosen {
@@ -63,74 +56,49 @@
 	};
 };
 
-&i2c0 {
-	/*
-	 * The gsl1680 is rated at 400KHz and it will not work reliable at
-	 * 100KHz, this has been confirmed on multiple different q8 tablets.
-	 * The gsl1680 is the only device on this bus.
-	 */
-	clock-frequency = <400000>;
+&cpu0 {
+	cpu-supply = <&reg_dcdc3>;
+};
 
-	touchscreen: touchscreen@0 {
-		interrupt-parent = <&pio>;
-		interrupts = <1 5 IRQ_TYPE_EDGE_FALLING>; /* PB5 */
-		pinctrl-names = "default";
-		pinctrl-0 = <&ts_power_pin>;
-		power-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
-		/* Tablet dts must provide reg and compatible */
-		status = "disabled";
-	};
+&ehci0 {
+	/* Wifi is connected here */
+	status = "okay";
 };
 
 &mmc0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin>;
+	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_e708_q1>;
 	vmmc-supply = <&reg_dcdc1>;
 	bus-width = <4>;
-	cd-gpios = <&pio 1 4 GPIO_ACTIVE_HIGH>; /* PB4 */
+	cd-gpios = <&pio 0 8 GPIO_ACTIVE_HIGH>; /* PA8 */
 	cd-inverted;
 	status = "okay";
 };
 
 &pio {
-	bl_en_pin: bl_en_pin@0 {
-		allwinner,pins = "PH6";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-	};
-
-	mmc0_cd_pin: mmc0_cd_pin@0 {
-		allwinner,pins = "PB4";
+	mmc0_cd_pin_e708_q1: mmc0_cd_pin@0 {
+		allwinner,pins = "PA8";
 		allwinner,function = "gpio_in";
 		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 	};
 
-	ts_power_pin: ts_power_pin@0 {
-		allwinner,pins = "PH1";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-	};
-
 	usb0_id_detect_pin: usb0_id_detect_pin@0 {
-		allwinner,pins = "PH8";
+		allwinner,pins = "PA15";
 		allwinner,function = "gpio_in";
 		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 	};
 };
 
-&r_rsb {
+&p2wi {
 	status = "okay";
 
-	axp22x: pmic@3a3 {
-		compatible = "x-powers,axp223";
-		reg = <0x3a3>;
+	axp22x: pmic@68 {
+		compatible = "x-powers,axp221";
+		reg = <0x68>;
 		interrupt-parent = <&nmi_intc>;
 		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
-		eldoin-supply = <&reg_dcdc1>;
 		drivevbus-supply = <&reg_vcc5v0>;
 		x-powers,drive-vbus-en;
 	};
@@ -138,25 +106,11 @@
 
 #include "axp22x.dtsi"
 
-&reg_aldo1 {
-	regulator-always-on;
-	regulator-min-microvolt = <3000000>;
-	regulator-max-microvolt = <3000000>;
-	regulator-name = "vcc-io";
-};
-
-&reg_aldo2 {
-	regulator-always-on;
-	regulator-min-microvolt = <2350000>;
-	regulator-max-microvolt = <2650000>;
-	regulator-name = "vdd-dll";
-};
-
 &reg_aldo3 {
 	regulator-always-on;
 	regulator-min-microvolt = <2700000>;
 	regulator-max-microvolt = <3300000>;
-	regulator-name = "vcc-pll-avcc";
+	regulator-name = "avcc";
 };
 
 &reg_dc1sw {
@@ -165,9 +119,9 @@
 
 &reg_dc5ldo {
 	regulator-always-on;
-	regulator-min-microvolt = <900000>;
-	regulator-max-microvolt = <1400000>;
-	regulator-name = "vdd-cpus";
+	regulator-min-microvolt = <700000>;
+	regulator-max-microvolt = <1320000>;
+	regulator-name = "vdd-cpus"; /* This is an educated guess */
 };
 
 &reg_dcdc1 {
@@ -178,17 +132,23 @@
 };
 
 &reg_dcdc2 {
-	regulator-always-on;
-	regulator-min-microvolt = <900000>;
-	regulator-max-microvolt = <1400000>;
-	regulator-name = "vdd-sys";
+	regulator-min-microvolt = <700000>;
+	regulator-max-microvolt = <1320000>;
+	regulator-name = "vdd-gpu";
 };
 
 &reg_dcdc3 {
 	regulator-always-on;
-	regulator-min-microvolt = <900000>;
-	regulator-max-microvolt = <1400000>;
+	regulator-min-microvolt = <700000>;
+	regulator-max-microvolt = <1320000>;
 	regulator-name = "vdd-cpu";
+};
+
+&reg_dcdc4 {
+	regulator-always-on;
+	regulator-min-microvolt = <700000>;
+	regulator-max-microvolt = <1320000>;
+	regulator-name = "vdd-sys-dll";
 };
 
 &reg_dcdc5 {
@@ -209,16 +169,6 @@
 	status = "okay";
 };
 
-&reg_rtc_ldo {
-	regulator-name = "vcc-rtc";
-};
-
-&r_uart {
-	pinctrl-names = "default";
-	pinctrl-0 = <&r_uart_pins_a>;
-	status = "okay";
-};
-
 &simplefb_lcd {
 	vcc-lcd-supply = <&reg_dc1sw>;
 };
@@ -235,8 +185,9 @@
 &usbphy {
 	pinctrl-names = "default";
 	pinctrl-0 = <&usb0_id_detect_pin>;
-	usb0_id_det-gpio = <&pio 7 8 GPIO_ACTIVE_HIGH>; /* PH8 */
+	usb0_id_det-gpio = <&pio 0 15 GPIO_ACTIVE_HIGH>; /* PA15 */
 	usb0_vbus_power-supply = <&usb_power_supply>;
 	usb0_vbus-supply = <&reg_drivevbus>;
+	usb1_vbus-supply = <&reg_dldo1>;
 	status = "okay";
 };

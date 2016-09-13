@@ -1,5 +1,6 @@
 /*
  * Copyright 2015 Hans de Goede <hdegoede@redhat.com>
+ * Copyright 2016 Icenowy Zheng <icenowy@aosc.xyz>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -39,46 +40,24 @@
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "sunxi-reference-design-tablet.dtsi"
+
+/dts-v1/;
+#include "sun8i-a33.dtsi"
 #include "sun8i-reference-design-tablet.dtsi"
 
 / {
-	aliases {
-		serial0 = &r_uart;
-		/* Make u-boot set mac-address for wifi without an eeprom */
-		ethernet0 = &sdio_wifi;
-	};
+	model = "INet-D978 Rev 02";
+	compatible = "primux,inet-d978-rev2", "allwinner,sun8i-a33";
 
-	wifi_pwrseq: wifi_pwrseq {
-		compatible = "mmc-pwrseq-simple";
-		/*
-		 * Q8 boards use various PL# pins as wifi-en. On other boards
-		 * these may be connected to a wifi module output pin. To avoid
-		 * short-circuits we configure these as inputs with pull-ups via
-		 * pinctrl, instead of listing them as active-low reset-gpios.
-		 */
+	leds {
+		compatible = "gpio-leds";
 		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_pwrseq_pin_q8>;
-		/* The esp8089 needs 200 ms after driving wifi-en high */
-		post-power-on-delay-ms = <200>;
-	};
-};
+		pinctrl-0 = <&led_pin_d978>;
 
-&ehci0 {
-	status  = "okay";
-};
-
-&mmc1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc1_pins_a>;
-	vmmc-supply = <&reg_dldo1>;
-	mmc-pwrseq = <&wifi_pwrseq>;
-	bus-width = <4>;
-	non-removable;
-	status = "okay";
-
-	sdio_wifi: sdio_wifi@1 {
-		reg = <1>;
+		home {
+			label = "d978:blue:home";
+			gpios = <&r_pio 0 5 GPIO_ACTIVE_HIGH>; /* PL5 */
+		};
 	};
 };
 
@@ -86,15 +65,24 @@
 	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 };
 
-&r_pio {
-	wifi_pwrseq_pin_q8: wifi_pwrseq_pin@0 {
-		allwinner,pins = "PL6", "PL7", "PL11";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+&mmc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins_a>;
+	vmmc-supply = <&reg_dldo1>;
+	bus-width = <4>;
+	non-removable;
+	status = "okay";
+
+	rtl8723bs: sdio_wifi@1 {
+		reg = <1>;
 	};
 };
 
-&usbphy {
-	usb1_vbus-supply = <&reg_dldo1>;
+&r_pio {
+	led_pin_d978: led_pin_d978@0 {
+		allwinner,pins = "PL5";
+		allwinner,function = "gpio_out";
+		allwinner,drive = <SUN4I_PINCTRL_20_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+	};
 };

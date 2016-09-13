@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Hans de Goede <hdegoede@redhat.com>
+ * Copyright 2016 Hans de Goede <hdegoede@redhat.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -39,62 +39,62 @@
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "sunxi-reference-design-tablet.dtsi"
-#include "sun8i-reference-design-tablet.dtsi"
+
+/dts-v1/;
+#include "sun6i-a31s.dtsi"
+#include "sun6i-reference-design-tablet.dtsi"
 
 / {
-	aliases {
-		serial0 = &r_uart;
-		/* Make u-boot set mac-address for wifi without an eeprom */
-		ethernet0 = &sdio_wifi;
-	};
-
-	wifi_pwrseq: wifi_pwrseq {
-		compatible = "mmc-pwrseq-simple";
-		/*
-		 * Q8 boards use various PL# pins as wifi-en. On other boards
-		 * these may be connected to a wifi module output pin. To avoid
-		 * short-circuits we configure these as inputs with pull-ups via
-		 * pinctrl, instead of listing them as active-low reset-gpios.
-		 */
-		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_pwrseq_pin_q8>;
-		/* The esp8089 needs 200 ms after driving wifi-en high */
-		post-power-on-delay-ms = <200>;
-	};
+	model = "iNet Q972 tablet";
+	compatible = "inet-tek,inet-q972", "allwinner,sun6i-a31s";
 };
 
-&ehci0 {
-	status  = "okay";
+&ehci1 {
+	status = "okay";
 };
 
-&mmc1 {
+&i2c1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc1_pins_a>;
-	vmmc-supply = <&reg_dldo1>;
-	mmc-pwrseq = <&wifi_pwrseq>;
-	bus-width = <4>;
-	non-removable;
+	pinctrl-0 = <&i2c1_pins_a>;
 	status = "okay";
 
-	sdio_wifi: sdio_wifi@1 {
-		reg = <1>;
+	ft5406ee8: touchscreen@38 {
+		compatible = "edt,edt-ft5406";
+		reg = <0x38>;
+		interrupt-parent = <&pio>;
+		interrupts = <0 3 IRQ_TYPE_LEVEL_HIGH>; /* PA3 */
+		touchscreen-size-x = <768>;
+		touchscreen-size-y = <1024>;
+		touchscreen-swapped-x-y;
 	};
 };
 
-&mmc1_pins_a {
-	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
-};
+&lradc {
+	vref-supply = <&reg_aldo3>;
+	status = "okay";
 
-&r_pio {
-	wifi_pwrseq_pin_q8: wifi_pwrseq_pin@0 {
-		allwinner,pins = "PL6", "PL7", "PL11";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+	button@200 {
+		label = "Volume Down";
+		linux,code = <KEY_VOLUMEDOWN>;
+		channel = <0>;
+		voltage = <200000>;
+	};
+
+	button@900 {
+		label = "Volume Up";
+		linux,code = <KEY_VOLUMEUP>;
+		channel = <0>;
+		voltage = <900000>;
+	};
+
+	button@1200 {
+		label = "Back";
+		linux,code = <KEY_BACK>;
+		channel = <0>;
+		voltage = <1200000>;
 	};
 };
 
-&usbphy {
-	usb1_vbus-supply = <&reg_dldo1>;
+&ohci1 {
+	status = "okay";
 };

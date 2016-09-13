@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Hans de Goede <hdegoede@redhat.com>
+ * Copyright (C) 2016 James Pettigrew <james@innovum.com.au>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -39,62 +39,87 @@
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "sunxi-reference-design-tablet.dtsi"
-#include "sun8i-reference-design-tablet.dtsi"
+
+/dts-v1/;
+#include "sun8i-h3.dtsi"
+#include "sunxi-common-regulators.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
+	model = "FriendlyARM NanoPi NEO";
+	compatible = "friendlyarm,nanopi-neo", "allwinner,sun8i-h3";
+
 	aliases {
-		serial0 = &r_uart;
-		/* Make u-boot set mac-address for wifi without an eeprom */
-		ethernet0 = &sdio_wifi;
+		serial0 = &uart0;
 	};
 
-	wifi_pwrseq: wifi_pwrseq {
-		compatible = "mmc-pwrseq-simple";
-		/*
-		 * Q8 boards use various PL# pins as wifi-en. On other boards
-		 * these may be connected to a wifi module output pin. To avoid
-		 * short-circuits we configure these as inputs with pull-ups via
-		 * pinctrl, instead of listing them as active-low reset-gpios.
-		 */
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	leds {
+		compatible = "gpio-leds";
 		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_pwrseq_pin_q8>;
-		/* The esp8089 needs 200 ms after driving wifi-en high */
-		post-power-on-delay-ms = <200>;
+		pinctrl-0 = <&leds_opc>, <&leds_r_opc>;
+
+		pwr {
+			label = "nanopi:green:pwr";
+			gpios = <&r_pio 0 10 GPIO_ACTIVE_HIGH>; /* PL10 */
+			default-state = "on";
+		};
+
+		status {
+			label = "nanopi:blue:status";
+			gpios = <&pio 0 10 GPIO_ACTIVE_HIGH>; /* PA10 */
+		};
 	};
 };
 
-&ehci0 {
-	status  = "okay";
-};
-
-&mmc1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc1_pins_a>;
-	vmmc-supply = <&reg_dldo1>;
-	mmc-pwrseq = <&wifi_pwrseq>;
-	bus-width = <4>;
-	non-removable;
+&ehci3 {
 	status = "okay";
-
-	sdio_wifi: sdio_wifi@1 {
-		reg = <1>;
-	};
 };
 
-&mmc1_pins_a {
-	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+&mmc0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin>;
+	vmmc-supply = <&reg_vcc3v3>;
+	bus-width = <4>;
+	cd-gpios = <&pio 5 6 GPIO_ACTIVE_HIGH>; /* PF6 */
+	cd-inverted;
+	status = "okay";
+};
+
+&ohci3 {
+	status = "okay";
+};
+
+&pio {
+	leds_opc: led-pins {
+		allwinner,pins = "PA10";
+		allwinner,function = "gpio_out";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+	};
 };
 
 &r_pio {
-	wifi_pwrseq_pin_q8: wifi_pwrseq_pin@0 {
-		allwinner,pins = "PL6", "PL7", "PL11";
-		allwinner,function = "gpio_in";
+	leds_r_opc: led-pins {
+		allwinner,pins = "PL10";
+		allwinner,function = "gpio_out";
 		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };
 
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pins_a>;
+	status = "okay";
+};
+
 &usbphy {
-	usb1_vbus-supply = <&reg_dldo1>;
+	/* USB VBUS is always on */
+	status = "okay";
 };
