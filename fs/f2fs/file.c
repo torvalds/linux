@@ -2092,6 +2092,13 @@ static int f2fs_move_file_range(struct file *file_in, loff_t pos_in,
 	if (f2fs_encrypted_inode(src) || f2fs_encrypted_inode(dst))
 		return -EOPNOTSUPP;
 
+	if (src == dst) {
+		if (pos_in == pos_out)
+			return 0;
+		if (pos_out > pos_in && pos_out < pos_in + len)
+			return -EINVAL;
+	}
+
 	inode_lock(src);
 	if (src != dst) {
 		if (!inode_trylock(dst)) {
