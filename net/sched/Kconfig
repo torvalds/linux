@@ -749,6 +749,17 @@ config NET_ACT_CONNMARK
 	  To compile this code as a module, choose M here: the
 	  module will be called act_connmark.
 
+config NET_ACT_SKBMOD
+        tristate "skb data modification action"
+        depends on NET_CLS_ACT
+        ---help---
+         Say Y here to allow modification of skb data
+
+         If unsure, say N.
+
+         To compile this code as a module, choose M here: the
+         module will be called act_skbmod.
+
 config NET_ACT_IFE
         tristate "Inter-FE action based on IETF ForCES InterFE LFB"
         depends on NET_CLS_ACT
