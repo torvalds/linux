@@ -425,9 +425,11 @@ struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *rx,
 
 	write_lock(&rx->call_lock);
 
-	ret = -ENODATA;
-	if (list_empty(&rx->to_be_accepted))
-		goto out;
+	if (list_empty(&rx->to_be_accepted)) {
+		write_unlock(&rx->call_lock);
+		kleave(" = -ENODATA [empty]");
+		return ERR_PTR(-ENODATA);
+	}
 
 	/* check the user ID isn't already in use */
 	pp = &rx->calls.rb_node;
