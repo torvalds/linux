@@ -3426,7 +3426,17 @@ static void pnv_ioda_release_pe(struct pnv_ioda_pe *pe)
 		}
 	}
 
-	pnv_ioda_free_pe(pe);
+	/*
+	 * The PE for root bus can be removed because of hotplug in EEH
+	 * recovery for fenced PHB error. We need to mark the PE dead so
+	 * that it can be populated again in PCI hot add path. The PE
+	 * shouldn't be destroyed as it's the global reserved resource.
+	 */
+	if (phb->ioda.root_pe_populated &&
+	    phb->ioda.root_pe_idx == pe->pe_number)
+		phb->ioda.root_pe_populated = false;
+	else
+		pnv_ioda_free_pe(pe);
 }
 
 static void pnv_pci_release_device(struct pci_dev *pdev)
