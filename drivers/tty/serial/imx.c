@@ -1122,7 +1122,7 @@ static void imx_setup_ufcr(struct imx_port *sport,
 static void imx_uart_dma_exit(struct imx_port *sport)
 {
 	if (sport->dma_chan_rx) {
-		dmaengine_terminate_all(sport->dma_chan_rx);
+		dmaengine_terminate_sync(sport->dma_chan_rx);
 		dma_release_channel(sport->dma_chan_rx);
 		sport->dma_chan_rx = NULL;
 		sport->rx_cookie = -EINVAL;
@@ -1131,7 +1131,7 @@ static void imx_uart_dma_exit(struct imx_port *sport)
 	}
 
 	if (sport->dma_chan_tx) {
-		dmaengine_terminate_all(sport->dma_chan_tx);
+		dmaengine_terminate_sync(sport->dma_chan_tx);
 		dma_release_channel(sport->dma_chan_tx);
 		sport->dma_chan_tx = NULL;
 	}
@@ -1351,8 +1351,8 @@ static void imx_shutdown(struct uart_port *port)
 	if (sport->dma_is_enabled) {
 		sport->dma_is_rxing = 0;
 		sport->dma_is_txing = 0;
-		dmaengine_terminate_all(sport->dma_chan_tx);
-		dmaengine_terminate_all(sport->dma_chan_rx);
+		dmaengine_terminate_sync(sport->dma_chan_tx);
+		dmaengine_terminate_sync(sport->dma_chan_rx);
 
 		spin_lock_irqsave(&sport->port.lock, flags);
 		imx_stop_tx(port);
