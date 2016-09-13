@@ -180,7 +180,6 @@ sctp_xmit_t sctp_packet_transmit_chunk(struct sctp_packet *packet,
 				       int one_packet, gfp_t gfp)
 {
 	sctp_xmit_t retval;
-	int error = 0;
 
 	pr_debug("%s: packet:%p size:%Zu chunk:%p size:%d\n", __func__,
 		 packet, packet->size, chunk, chunk->skb ? chunk->skb->len : -1);
@@ -188,6 +187,8 @@ sctp_xmit_t sctp_packet_transmit_chunk(struct sctp_packet *packet,
 	switch ((retval = (sctp_packet_append_chunk(packet, chunk)))) {
 	case SCTP_XMIT_PMTU_FULL:
 		if (!packet->has_cookie_echo) {
+			int error = 0;
+
 			error = sctp_packet_transmit(packet, gfp);
 			if (error < 0)
 				chunk->skb->sk->sk_err = -error;

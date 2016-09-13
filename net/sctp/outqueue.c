@@ -533,7 +533,6 @@ void sctp_retransmit(struct sctp_outq *q, struct sctp_transport *transport,
 		     sctp_retransmit_reason_t reason)
 {
 	struct net *net = sock_net(q->asoc->base.sk);
-	int error = 0;
 
 	switch (reason) {
 	case SCTP_RTXR_T3_RTX:
@@ -577,10 +576,7 @@ void sctp_retransmit(struct sctp_outq *q, struct sctp_transport *transport,
 	 * will be flushed at the end.
 	 */
 	if (reason != SCTP_RTXR_FAST_RTX)
-		error = sctp_outq_flush(q, /* rtx_timeout */ 1, GFP_ATOMIC);
-
-	if (error)
-		q->asoc->base.sk->sk_err = -error;
+		sctp_outq_flush(q, /* rtx_timeout */ 1, GFP_ATOMIC);
 }
 
 /*
@@ -893,8 +889,10 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 			sctp_packet_config(&singleton, vtag, 0);
 			sctp_packet_append_chunk(&singleton, chunk);
 			error = sctp_packet_transmit(&singleton, gfp);
-			if (error < 0)
-				return error;
+			if (error < 0) {
+				asoc->base.sk->sk_err = -error;
+				return 0;
+			}
 			break;
 
 		case SCTP_CID_ABORT:
@@ -992,6 +990,8 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 		retran:
 			error = sctp_outq_flush_rtx(q, packet,
 						    rtx_timeout, &start_timer);
+			if (error < 0)
+				asoc->base.sk->sk_err = -error;
 
 			if (start_timer) {
 				sctp_transport_reset_t3_rtx(transport);
@@ -1166,14 +1166,17 @@ sctp_flush_out:
 						      struct sctp_transport,
 						      send_ready);
 		packet = &t->packet;
-		if (!sctp_packet_empty(packet))
+		if (!sctp_packet_empty(packet)) {
 			error = sctp_packet_transmit(packet, gfp);
+			if (error < 0)
+				asoc->base.sk->sk_err = -error;
+		}
 
 		/* Clear the burst limited state, if any */
 		sctp_transport_burst_reset(t);
 	}
 
-	return error;
+	return 0;
 }
 
 /* Update unack_data based on the incoming SACK chunk */
