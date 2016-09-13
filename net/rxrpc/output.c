@@ -15,8 +15,6 @@
 #include <linux/gfp.h>
 #include <linux/skbuff.h>
 #include <linux/export.h>
-#include <linux/udp.h>
-#include <linux/ip.h>
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
 #include "ar-internal.h"
@@ -272,10 +270,7 @@ send_fragmentable:
  */
 void rxrpc_reject_packets(struct rxrpc_local *local)
 {
-	union {
-		struct sockaddr sa;
-		struct sockaddr_in sin;
-	} sa;
+	struct sockaddr_rxrpc srx;
 	struct rxrpc_skb_priv *sp;
 	struct rxrpc_wire_header whdr;
 	struct sk_buff *skb;
@@ -292,21 +287,10 @@ void rxrpc_reject_packets(struct rxrpc_local *local)
 	iov[1].iov_len = sizeof(code);
 	size = sizeof(whdr) + sizeof(code);
 
-	msg.msg_name = &sa;
+	msg.msg_name = &srx.transport;
 	msg.msg_control = NULL;
 	msg.msg_controllen = 0;
 	msg.msg_flags = 0;
-
-	memset(&sa, 0, sizeof(sa));
-	sa.sa.sa_family = local->srx.transport.family;
-	switch (sa.sa.sa_family) {
-	case AF_INET:
-		msg.msg_namelen = sizeof(sa.sin);
-		break;
-	default:
-		msg.msg_namelen = 0;
-		break;
-	}
 
 	memset(&whdr, 0, sizeof(whdr));
 	whdr.type = RXRPC_PACKET_TYPE_ABORT;
@@ -314,10 +298,10 @@ void rxrpc_reject_packets(struct rxrpc_local *local)
 	while ((skb = skb_dequeue(&local->reject_queue))) {
 		rxrpc_see_skb(skb);
 		sp = rxrpc_skb(skb);
-		switch (sa.sa.sa_family) {
-		case AF_INET:
-			sa.sin.sin_port = udp_hdr(skb)->source;
-			sa.sin.sin_addr.s_addr = ip_hdr(skb)->saddr;
+
+		if (rxrpc_extract_addr_from_skb(&srx, skb) == 0) {
+			msg.msg_namelen = srx.transport_len;
+
 			code = htonl(skb->priority);
 
 			whdr.epoch	= htonl(sp->hdr.epoch);
@@ -329,10 +313,6 @@ void rxrpc_reject_packets(struct rxrpc_local *local)
 			whdr.flags	&= RXRPC_CLIENT_INITIATED;
 
 			kernel_sendmsg(local->socket, &msg, iov, 2, size);
-			break;
-
-		default:
-			break;
 		}
 
 		rxrpc_free_skb(skb);

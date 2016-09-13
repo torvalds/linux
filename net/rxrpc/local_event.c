@@ -15,8 +15,6 @@
 #include <linux/net.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
-#include <linux/udp.h>
-#include <linux/ip.h>
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
 #include <generated/utsrelease.h>
@@ -33,7 +31,7 @@ static void rxrpc_send_version_request(struct rxrpc_local *local,
 {
 	struct rxrpc_wire_header whdr;
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-	struct sockaddr_in sin;
+	struct sockaddr_rxrpc srx;
 	struct msghdr msg;
 	struct kvec iov[2];
 	size_t len;
@@ -41,12 +39,11 @@ static void rxrpc_send_version_request(struct rxrpc_local *local,
 
 	_enter("");
 
-	sin.sin_family = AF_INET;
-	sin.sin_port = udp_hdr(skb)->source;
-	sin.sin_addr.s_addr = ip_hdr(skb)->saddr;
+	if (rxrpc_extract_addr_from_skb(&srx, skb) < 0)
+		return;
 
-	msg.msg_name	= &sin;
-	msg.msg_namelen	= sizeof(sin);
+	msg.msg_name	= &srx.transport;
+	msg.msg_namelen	= srx.transport_len;
 	msg.msg_control	= NULL;
 	msg.msg_controllen = 0;
 	msg.msg_flags	= 0;
