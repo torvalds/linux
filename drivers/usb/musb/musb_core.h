@@ -378,6 +378,7 @@ struct musb {
 	u8			min_power;	/* vbus for periph, in mA/2 */
 
 	int			port_mode;	/* MUSB_PORT_MODE_* */
+	bool			session;
 	bool			is_host;
 
 	int			a_wait_bcon;	/* VBUS timeout in msecs */
