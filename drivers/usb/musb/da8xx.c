@@ -490,18 +490,16 @@ static int da8xx_probe(struct platform_device *pdev)
 	struct da8xx_glue		*glue;
 	struct platform_device_info	pinfo;
 	struct clk			*clk;
+	int				ret;
 
-	int				ret = -ENOMEM;
-
-	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
+	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
 	if (!glue)
-		goto err0;
+		return -ENOMEM;
 
-	clk = clk_get(&pdev->dev, "usb20");
+	clk = devm_clk_get(&pdev->dev, "usb20");
 	if (IS_ERR(clk)) {
 		dev_err(&pdev->dev, "failed to get clock\n");
-		ret = PTR_ERR(clk);
-		goto err3;
+		return PTR_ERR(clk);
 	}
 
 	ret = clk_enable(clk);
@@ -558,12 +556,7 @@ err5:
 	clk_disable(clk);
 
 err4:
-	clk_put(clk);
 
-err3:
-	kfree(glue);
-
-err0:
 	return ret;
 }
 
@@ -574,8 +567,6 @@ static int da8xx_remove(struct platform_device *pdev)
 	platform_device_unregister(glue->musb);
 	usb_phy_generic_unregister(glue->phy);
 	clk_disable(glue->clk);
-	clk_put(glue->clk);
-	kfree(glue);
 
 	return 0;
 }
