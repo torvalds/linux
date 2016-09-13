@@ -82,21 +82,12 @@ void __init efi_bgrt_init(void)
 	}
 	bgrt_image_size = bmp_header.size;
 
-	bgrt_image = kmalloc(bgrt_image_size, GFP_KERNEL | __GFP_NOWARN);
+	bgrt_image = memremap(bgrt_tab->image_address, bmp_header.size, MEMREMAP_WB);
 	if (!bgrt_image) {
-		pr_notice("Ignoring BGRT: failed to allocate memory for image (wanted %zu bytes)\n",
-		       bgrt_image_size);
-		return;
-	}
-
-	image = memremap(bgrt_tab->image_address, bmp_header.size, MEMREMAP_WB);
-	if (!image) {
 		pr_notice("Ignoring BGRT: failed to map image memory\n");
-		kfree(bgrt_image);
 		bgrt_image = NULL;
 		return;
 	}
 
-	memcpy(bgrt_image, image, bgrt_image_size);
-	memunmap(image);
+	efi_mem_reserve(bgrt_tab->image_address, bgrt_image_size);
 }

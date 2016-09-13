@@ -112,6 +112,23 @@ config EFI_CAPSULE_LOADER
 
 	  Most users should say N.
 
+config EFI_TEST
+	tristate "EFI Runtime Service Tests Support"
+	depends on EFI
+	default n
+	help
+	  This driver uses the efi.<service> function pointers directly instead
+	  of going through the efivar API, because it is not trying to test the
+	  kernel subsystem, just for testing the UEFI runtime service
+	  interfaces which are provided by the firmware. This driver is used
+	  by the Firmware Test Suite (FWTS) for testing the UEFI runtime
+	  interfaces readiness of the firmware.
+	  Details for FWTS are available from:
+	  <https://wiki.ubuntu.com/FirmwareTestSuite>
+
+	  Say Y here to enable the runtime services support via /dev/efi_test.
+	  If unsure, say N.
+
 endmenu
 
 config UEFI_CPER
