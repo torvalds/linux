@@ -109,7 +109,7 @@ static int gic_clockevent_init(void)
 {
 	int ret;
 
-	if (!cpu_has_counter || !gic_frequency)
+	if (!gic_frequency)
 		return -ENXIO;
 
 	ret = setup_percpu_irq(gic_timer_irq, &gic_compare_irqaction);
