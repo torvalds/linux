@@ -137,6 +137,7 @@ struct svcxprt_rdma {
 	int		     sc_ord;		/* RDMA read limit */
 	int                  sc_max_sge;
 	int                  sc_max_sge_rd;	/* max sge for read target */
+	bool		     sc_snd_w_inv;	/* OK to use Send With Invalidate */
 
 	atomic_t             sc_sq_count;	/* Number of SQ WR on queue */
 	unsigned int	     sc_sq_depth;	/* Depth of SQ */

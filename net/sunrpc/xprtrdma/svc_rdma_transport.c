@@ -657,9 +657,14 @@ svc_rdma_parse_connect_private(struct svcxprt_rdma *newxprt,
 	if (pmsg &&
 	    pmsg->cp_magic == rpcrdma_cmp_magic &&
 	    pmsg->cp_version == RPCRDMA_CMP_VERSION) {
-		dprintk("svcrdma: client send_size %u, recv_size %u\n",
+		newxprt->sc_snd_w_inv = pmsg->cp_flags &
+					RPCRDMA_CMP_F_SND_W_INV_OK;
+
+		dprintk("svcrdma: client send_size %u, recv_size %u "
+			"remote inv %ssupported\n",
 			rpcrdma_decode_buffer_size(pmsg->cp_send_size),
-			rpcrdma_decode_buffer_size(pmsg->cp_recv_size));
+			rpcrdma_decode_buffer_size(pmsg->cp_recv_size),
+			newxprt->sc_snd_w_inv ? "" : "un");
 	}
 }
 
@@ -1093,7 +1098,8 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 			dev->attrs.max_fast_reg_page_list_len;
 		newxprt->sc_dev_caps |= SVCRDMA_DEVCAP_FAST_REG;
 		newxprt->sc_reader = rdma_read_chunk_frmr;
-	}
+	} else
+		newxprt->sc_snd_w_inv = false;
 
 	/*
 	 * Determine if a DMA MR is required and if so, what privs are required
