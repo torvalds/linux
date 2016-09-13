@@ -462,7 +462,7 @@ static void cppi41_dma_issue_pending(struct dma_chan *chan)
 
 	/* PM runtime paired with dmaengine_desc_get_callback_invoke */
 	error = pm_runtime_get(cdd->ddev.dev);
-	if (error < 0) {
+	if ((error != -EINPROGRESS) && error < 0) {
 		dev_err(cdd->ddev.dev, "Failed to pm_runtime_get: %i\n",
 			error);
 
