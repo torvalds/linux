@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Hans de Goede <hdegoede@redhat.com>
+ * Copyright (C) 2016 Maxime Ripard <maxime.ripard@free-electrons.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -39,62 +39,49 @@
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "sunxi-reference-design-tablet.dtsi"
-#include "sun8i-reference-design-tablet.dtsi"
 
-/ {
-	aliases {
-		serial0 = &r_uart;
-		/* Make u-boot set mac-address for wifi without an eeprom */
-		ethernet0 = &sdio_wifi;
-	};
+#ifndef _DT_BINDINGS_RST_SUN8I_A23_A33_H_
+#define _DT_BINDINGS_RST_SUN8I_A23_A33_H_
 
-	wifi_pwrseq: wifi_pwrseq {
-		compatible = "mmc-pwrseq-simple";
-		/*
-		 * Q8 boards use various PL# pins as wifi-en. On other boards
-		 * these may be connected to a wifi module output pin. To avoid
-		 * short-circuits we configure these as inputs with pull-ups via
-		 * pinctrl, instead of listing them as active-low reset-gpios.
-		 */
-		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_pwrseq_pin_q8>;
-		/* The esp8089 needs 200 ms after driving wifi-en high */
-		post-power-on-delay-ms = <200>;
-	};
-};
+#define RST_USB_PHY0		0
+#define RST_USB_PHY1		1
+#define RST_USB_HSIC		2
+#define RST_MBUS		3
+#define RST_BUS_MIPI_DSI	4
+#define RST_BUS_SS		5
+#define RST_BUS_DMA		6
+#define RST_BUS_MMC0		7
+#define RST_BUS_MMC1		8
+#define RST_BUS_MMC2		9
+#define RST_BUS_NAND		10
+#define RST_BUS_DRAM		11
+#define RST_BUS_HSTIMER		12
+#define RST_BUS_SPI0		13
+#define RST_BUS_SPI1		14
+#define RST_BUS_OTG		15
+#define RST_BUS_EHCI		16
+#define RST_BUS_OHCI		17
+#define RST_BUS_VE		18
+#define RST_BUS_LCD		19
+#define RST_BUS_CSI		20
+#define RST_BUS_DE_BE		21
+#define RST_BUS_DE_FE		22
+#define RST_BUS_GPU		23
+#define RST_BUS_MSGBOX		24
+#define RST_BUS_SPINLOCK	25
+#define RST_BUS_DRC		26
+#define RST_BUS_SAT		27
+#define RST_BUS_LVDS		28
+#define RST_BUS_CODEC		29
+#define RST_BUS_I2S0		30
+#define RST_BUS_I2S1		31
+#define RST_BUS_I2C0		32
+#define RST_BUS_I2C1		33
+#define RST_BUS_I2C2		34
+#define RST_BUS_UART0		35
+#define RST_BUS_UART1		36
+#define RST_BUS_UART2		37
+#define RST_BUS_UART3		38
+#define RST_BUS_UART4		39
 
-&ehci0 {
-	status  = "okay";
-};
-
-&mmc1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc1_pins_a>;
-	vmmc-supply = <&reg_dldo1>;
-	mmc-pwrseq = <&wifi_pwrseq>;
-	bus-width = <4>;
-	non-removable;
-	status = "okay";
-
-	sdio_wifi: sdio_wifi@1 {
-		reg = <1>;
-	};
-};
-
-&mmc1_pins_a {
-	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
-};
-
-&r_pio {
-	wifi_pwrseq_pin_q8: wifi_pwrseq_pin@0 {
-		allwinner,pins = "PL6", "PL7", "PL11";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
-	};
-};
-
-&usbphy {
-	usb1_vbus-supply = <&reg_dldo1>;
-};
+#endif /* _DT_BINDINGS_RST_SUN8I_A23_A33_H_ */

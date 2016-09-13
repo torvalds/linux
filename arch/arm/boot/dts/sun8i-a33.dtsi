@@ -59,105 +59,177 @@
 		};
 	};
 
+	de: display-engine {
+		compatible = "allwinner,sun8i-a33-display-engine";
+		allwinner,pipelines = <&fe0>;
+		status = "disabled";
+	};
+
 	memory {
 		reg = <0x40000000 0x80000000>;
 	};
 
-	clocks {
-		/* Dummy clock for pll11 (DDR1) until actually implemented */
-		pll11: pll11_clk {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-			clock-frequency = <0>;
-			clock-output-names = "pll11";
-		};
-
-		ahb1_gates: clk@01c20060 {
-			#clock-cells = <1>;
-			compatible = "allwinner,sun8i-a33-ahb1-gates-clk";
-			reg = <0x01c20060 0x8>;
-			clocks = <&ahb1>;
-			clock-indices = <1>, <5>,
-				        <6>, <8>, <9>,
-				        <10>, <13>, <14>,
-					<19>, <20>,
-					<21>, <24>, <26>,
-					<29>, <32>, <36>,
-					<40>, <44>, <46>,
-					<52>, <53>,
-					<54>, <57>,
-					<58>;
-			clock-output-names = "ahb1_mipidsi", "ahb1_ss",
-					"ahb1_dma","ahb1_mmc0", "ahb1_mmc1",
-					"ahb1_mmc2", "ahb1_nand", "ahb1_sdram",
-					"ahb1_hstimer", "ahb1_spi0",
-					"ahb1_spi1", "ahb1_otg", "ahb1_ehci",
-					"ahb1_ohci", "ahb1_ve", "ahb1_lcd",
-					"ahb1_csi", "ahb1_be",	"ahb1_fe",
-					"ahb1_gpu", "ahb1_msgbox",
-					"ahb1_spinlock", "ahb1_drc",
-					"ahb1_sat";
-		};
-
-		ss_clk: clk@01c2009c {
-			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-a10-mod0-clk";
-			reg = <0x01c2009c 0x4>;
-			clocks = <&osc24M>, <&pll6 0>;
-			clock-output-names = "ss";
-		};
-
-		mbus_clk: clk@01c2015c {
-			#clock-cells = <0>;
-			compatible = "allwinner,sun8i-a23-mbus-clk";
-			reg = <0x01c2015c 0x4>;
-			clocks = <&osc24M>, <&pll6 1>, <&pll5>, <&pll11>;
-			clock-output-names = "mbus";
-		};
-	};
-
 	soc@01c00000 {
+		tcon0: lcd-controller@01c0c000 {
+			compatible = "allwinner,sun8i-a33-tcon";
+			reg = <0x01c0c000 0x1000>;
+			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_BUS_LCD>,
+				 <&ccu CLK_LCD_CH0>;
+			clock-names = "ahb",
+				      "tcon-ch0";
+			clock-output-names = "tcon-pixel-clock";
+			resets = <&ccu RST_BUS_LCD>;
+			reset-names = "lcd";
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				tcon0_in: port@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+
+					tcon0_in_drc0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&drc0_out_tcon0>;
+					};
+				};
+
+				tcon0_out: port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+				};
+			};
+		};
+
 		crypto: crypto-engine@01c15000 {
 			compatible = "allwinner,sun4i-a10-crypto";
 			reg = <0x01c15000 0x1000>;
 			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&ahb1_gates 5>, <&ss_clk>;
+			clocks = <&ccu CLK_BUS_SS>, <&ccu CLK_SS>;
 			clock-names = "ahb", "mod";
-			resets = <&ahb1_rst 5>;
+			resets = <&ccu RST_BUS_SS>;
 			reset-names = "ahb";
 		};
 
-		usb_otg: usb@01c19000 {
-			compatible = "allwinner,sun8i-a33-musb";
-			reg = <0x01c19000 0x0400>;
-			clocks = <&ahb1_gates 24>;
-			resets = <&ahb1_rst 24>;
-			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "mc";
-			phys = <&usbphy 0>;
-			phy-names = "usb";
-			extcon = <&usbphy 0>;
+		fe0: display-frontend@01e00000 {
+			compatible = "allwinner,sun8i-a33-display-frontend";
+			reg = <0x01e00000 0x20000>;
+			interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_BUS_DE_FE>, <&ccu CLK_DE_FE>,
+				 <&ccu CLK_DRAM_DE_FE>;
+			clock-names = "ahb", "mod",
+				      "ram";
+			resets = <&ccu RST_BUS_DE_FE>;
 			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				fe0_out: port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+
+					fe0_out_be0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&be0_in_fe0>;
+					};
+				};
+			};
 		};
 
-		usbphy: phy@01c19400 {
-			compatible = "allwinner,sun8i-a33-usb-phy";
-			reg = <0x01c19400 0x14>,
-			      <0x01c1a800 0x4>;
-			reg-names = "phy_ctrl",
-				    "pmu1";
-			clocks = <&usb_clk 8>,
-				 <&usb_clk 9>;
-			clock-names = "usb0_phy",
-				      "usb1_phy";
-			resets = <&usb_clk 0>,
-				 <&usb_clk 1>;
-			reset-names = "usb0_reset",
-				      "usb1_reset";
-			status = "disabled";
-			#phy-cells = <1>;
+		be0: display-backend@01e60000 {
+			compatible = "allwinner,sun8i-a33-display-backend";
+			reg = <0x01e60000 0x10000>, <0x01e80000 0x1000>;
+			reg-names = "be", "sat";
+			interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_BUS_DE_BE>, <&ccu CLK_DE_BE>,
+				 <&ccu CLK_DRAM_DE_BE>, <&ccu CLK_BUS_SAT>;
+			clock-names = "ahb", "mod",
+				      "ram", "sat";
+			resets = <&ccu RST_BUS_DE_BE>, <&ccu RST_BUS_SAT>;
+			reset-names = "be", "sat";
+			assigned-clocks = <&ccu CLK_DE_BE>;
+			assigned-clock-rates = <300000000>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				be0_in: port@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+
+					be0_in_fe0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&fe0_out_be0>;
+					};
+				};
+
+				be0_out: port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+
+					be0_out_drc0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&drc0_in_be0>;
+					};
+				};
+			};
+		};
+
+		drc0: drc@01e70000 {
+			compatible = "allwinner,sun8i-a33-drc";
+			reg = <0x01e70000 0x10000>;
+			interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_BUS_DRC>, <&ccu CLK_DRC>,
+				 <&ccu CLK_DRAM_DRC>;
+			clock-names = "ahb", "mod", "ram";
+			resets = <&ccu RST_BUS_DRC>;
+
+			assigned-clocks = <&ccu CLK_DRC>;
+			assigned-clock-rates = <300000000>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				drc0_in: port@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+
+					drc0_in_be0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&be0_out_drc0>;
+					};
+				};
+
+				drc0_out: port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+
+					drc0_out_tcon0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&tcon0_in_drc0>;
+					};
+				};
+			};
 		};
 	};
+};
+
+&ccu {
+	compatible = "allwinner,sun8i-a33-ccu";
 };
 
 &pio {
@@ -172,4 +244,14 @@
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
+};
+
+&usb_otg {
+	compatible = "allwinner,sun8i-a33-musb";
+};
+
+&usbphy {
+	compatible = "allwinner,sun8i-a33-usb-phy";
+	reg = <0x01c19400 0x14>, <0x01c1a800 0x4>;
+	reg-names = "phy_ctrl", "pmu1";
 };

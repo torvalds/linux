@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Hans de Goede <hdegoede@redhat.com>
+ * Copyright (C) 2016 Chen-Yu Tsai <wens@csie.org>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -39,62 +39,68 @@
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "sunxi-reference-design-tablet.dtsi"
-#include "sun8i-reference-design-tablet.dtsi"
 
-/ {
-	aliases {
-		serial0 = &r_uart;
-		/* Make u-boot set mac-address for wifi without an eeprom */
-		ethernet0 = &sdio_wifi;
-	};
+#ifndef _DT_BINDINGS_RST_SUN6I_A31_H_
+#define _DT_BINDINGS_RST_SUN6I_A31_H_
 
-	wifi_pwrseq: wifi_pwrseq {
-		compatible = "mmc-pwrseq-simple";
-		/*
-		 * Q8 boards use various PL# pins as wifi-en. On other boards
-		 * these may be connected to a wifi module output pin. To avoid
-		 * short-circuits we configure these as inputs with pull-ups via
-		 * pinctrl, instead of listing them as active-low reset-gpios.
-		 */
-		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_pwrseq_pin_q8>;
-		/* The esp8089 needs 200 ms after driving wifi-en high */
-		post-power-on-delay-ms = <200>;
-	};
-};
+#define RST_USB_PHY0		0
+#define RST_USB_PHY1		1
+#define RST_USB_PHY2		2
 
-&ehci0 {
-	status  = "okay";
-};
+#define RST_AHB1_MIPI_DSI	3
+#define RST_AHB1_SS		4
+#define RST_AHB1_DMA		5
+#define RST_AHB1_MMC0		6
+#define RST_AHB1_MMC1		7
+#define RST_AHB1_MMC2		8
+#define RST_AHB1_MMC3		9
+#define RST_AHB1_NAND1		10
+#define RST_AHB1_NAND0		11
+#define RST_AHB1_SDRAM		12
+#define RST_AHB1_EMAC		13
+#define RST_AHB1_TS		14
+#define RST_AHB1_HSTIMER	15
+#define RST_AHB1_SPI0		16
+#define RST_AHB1_SPI1		17
+#define RST_AHB1_SPI2		18
+#define RST_AHB1_SPI3		19
+#define RST_AHB1_OTG		20
+#define RST_AHB1_EHCI0		21
+#define RST_AHB1_EHCI1		22
+#define RST_AHB1_OHCI0		23
+#define RST_AHB1_OHCI1		24
+#define RST_AHB1_OHCI2		25
+#define RST_AHB1_VE		26
+#define RST_AHB1_LCD0		27
+#define RST_AHB1_LCD1		28
+#define RST_AHB1_CSI		29
+#define RST_AHB1_HDMI		30
+#define RST_AHB1_BE0		31
+#define RST_AHB1_BE1		32
+#define RST_AHB1_FE0		33
+#define RST_AHB1_FE1		34
+#define RST_AHB1_MP		35
+#define RST_AHB1_GPU		36
+#define RST_AHB1_DEU0		37
+#define RST_AHB1_DEU1		38
+#define RST_AHB1_DRC0		39
+#define RST_AHB1_DRC1		40
+#define RST_AHB1_LVDS		41
 
-&mmc1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc1_pins_a>;
-	vmmc-supply = <&reg_dldo1>;
-	mmc-pwrseq = <&wifi_pwrseq>;
-	bus-width = <4>;
-	non-removable;
-	status = "okay";
+#define RST_APB1_CODEC		42
+#define RST_APB1_SPDIF		43
+#define RST_APB1_DIGITAL_MIC	44
+#define RST_APB1_DAUDIO0	45
+#define RST_APB1_DAUDIO1	46
+#define RST_APB2_I2C0		47
+#define RST_APB2_I2C1		48
+#define RST_APB2_I2C2		49
+#define RST_APB2_I2C3		50
+#define RST_APB2_UART0		51
+#define RST_APB2_UART1		52
+#define RST_APB2_UART2		53
+#define RST_APB2_UART3		54
+#define RST_APB2_UART4		55
+#define RST_APB2_UART5		56
 
-	sdio_wifi: sdio_wifi@1 {
-		reg = <1>;
-	};
-};
-
-&mmc1_pins_a {
-	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
-};
-
-&r_pio {
-	wifi_pwrseq_pin_q8: wifi_pwrseq_pin@0 {
-		allwinner,pins = "PL6", "PL7", "PL11";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
-	};
-};
-
-&usbphy {
-	usb1_vbus-supply = <&reg_dldo1>;
-};
+#endif /* _DT_BINDINGS_RST_SUN6I_A31_H_ */

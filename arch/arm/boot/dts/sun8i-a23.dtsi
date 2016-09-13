@@ -48,74 +48,10 @@
 	memory {
 		reg = <0x40000000 0x40000000>;
 	};
+};
 
-	clocks {
-		ahb1_gates: clk@01c20060 {
-			#clock-cells = <1>;
-			compatible = "allwinner,sun8i-a23-ahb1-gates-clk";
-			reg = <0x01c20060 0x8>;
-			clocks = <&ahb1>;
-			clock-indices = <1>, <6>,
-					<8>, <9>, <10>,
-					<13>, <14>,
-					<19>, <20>,
-					<21>, <24>, <26>,
-					<29>, <32>, <36>,
-					<40>, <44>, <46>,
-					<52>, <53>,
-					<54>, <57>;
-			clock-output-names = "ahb1_mipidsi", "ahb1_dma",
-					"ahb1_mmc0", "ahb1_mmc1", "ahb1_mmc2",
-					"ahb1_nand", "ahb1_sdram",
-					"ahb1_hstimer", "ahb1_spi0",
-					"ahb1_spi1", "ahb1_otg", "ahb1_ehci",
-					"ahb1_ohci", "ahb1_ve", "ahb1_lcd",
-					"ahb1_csi", "ahb1_be",	"ahb1_fe",
-					"ahb1_gpu", "ahb1_msgbox",
-					"ahb1_spinlock", "ahb1_drc";
-		};
-
-		mbus_clk: clk@01c2015c {
-			#clock-cells = <0>;
-			compatible = "allwinner,sun8i-a23-mbus-clk";
-			reg = <0x01c2015c 0x4>;
-			clocks = <&osc24M>, <&pll6 1>, <&pll5>;
-			clock-output-names = "mbus";
-		};
-	};
-
-	soc@01c00000 {
-		usb_otg: usb@01c19000 {
-			compatible = "allwinner,sun6i-a31-musb";
-			reg = <0x01c19000 0x0400>;
-			clocks = <&ahb1_gates 24>;
-			resets = <&ahb1_rst 24>;
-			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "mc";
-			phys = <&usbphy 0>;
-			phy-names = "usb";
-			extcon = <&usbphy 0>;
-			status = "disabled";
-		};
-
-		usbphy: phy@01c19400 {
-			compatible = "allwinner,sun8i-a23-usb-phy";
-			reg = <0x01c19400 0x10>,
-			      <0x01c1a800 0x4>;
-			reg-names = "phy_ctrl",
-				    "pmu1";
-			clocks = <&usb_clk 8>,
-				 <&usb_clk 9>;
-			clock-names = "usb0_phy",
-				      "usb1_phy";
-			resets = <&usb_clk 0>,
-				 <&usb_clk 1>;
-			reset-names = "usb0_reset",
-				      "usb1_reset";
-			status = "disabled";
-			#phy-cells = <1>;
-		};
-	};
+&ccu {
+	compatible = "allwinner,sun8i-a23-ccu";
 };
 
 &pio {
@@ -123,4 +59,14 @@
 	interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>,
 		     <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>,
 		     <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&usb_otg {
+	compatible = "allwinner,sun6i-a31-musb";
+};
+
+&usbphy {
+	compatible = "allwinner,sun8i-a23-usb-phy";
+	reg = <0x01c19400 0x10>, <0x01c1a800 0x4>;
+	reg-names = "phy_ctrl", "pmu1";
 };
