@@ -214,55 +214,6 @@ int kvm_mips_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long va,
 }
 EXPORT_SYMBOL_GPL(kvm_mips_host_tlb_inv);
 
-void kvm_mips_flush_host_tlb(int skip_kseg0)
-{
-	unsigned long flags;
-	unsigned long old_entryhi, entryhi;
-	unsigned long old_pagemask;
-	int entry = 0;
-	int maxentry = current_cpu_data.tlbsize;
-
-	local_irq_save(flags);
-
-	old_entryhi = read_c0_entryhi();
-	old_pagemask = read_c0_pagemask();
-
-	/* Blast 'em all away. */
-	for (entry = 0; entry < maxentry; entry++) {
-		write_c0_index(entry);
-
-		if (skip_kseg0) {
-			mtc0_tlbr_hazard();
-			tlb_read();
-			tlb_read_hazard();
-
-			entryhi = read_c0_entryhi();
-
-			/* Don't blow away guest kernel entries */
-			if (KVM_GUEST_KSEGX(entryhi) == KVM_GUEST_KSEG0)
-				continue;
-
-			write_c0_pagemask(old_pagemask);
-		}
-
-		/* Make sure all entries differ. */
-		write_c0_entryhi(UNIQUE_ENTRYHI(entry));
-		write_c0_entrylo0(0);
-		write_c0_entrylo1(0);
-		mtc0_tlbw_hazard();
-
-		tlb_write_indexed();
-		tlbw_use_hazard();
-	}
-
-	write_c0_entryhi(old_entryhi);
-	write_c0_pagemask(old_pagemask);
-	mtc0_tlbw_hazard();
-
-	local_irq_restore(flags);
-}
-EXPORT_SYMBOL_GPL(kvm_mips_flush_host_tlb);
-
 /**
  * kvm_mips_suspend_mm() - Suspend the active mm.
  * @cpu		The CPU we're running on.
