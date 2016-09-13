@@ -463,6 +463,10 @@ try_again:
 					 flags, &copied);
 		if (ret == -EAGAIN)
 			ret = 0;
+
+		if (after(call->rx_top, call->rx_hard_ack) &&
+		    call->rxtx_buffer[(call->rx_hard_ack + 1) & RXRPC_RXTX_BUFF_MASK])
+			rxrpc_notify_socket(call);
 		break;
 	default:
 		ret = 0;
