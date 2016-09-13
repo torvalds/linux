@@ -16,12 +16,14 @@
 #include <linux/skbuff.h>
 #include <linux/udp.h>
 #include <linux/in.h>
+#include <linux/in6.h>
 #include <linux/slab.h>
 #include <linux/hashtable.h>
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
 #include <net/ip.h>
 #include <net/route.h>
+#include <net/ip6_route.h>
 #include "ar-internal.h"
 
 static DEFINE_HASHTABLE(rxrpc_peer_hash, 10);
@@ -49,6 +51,11 @@ static unsigned long rxrpc_peer_hash_key(struct rxrpc_local *local,
 		hash_key += (u16 __force)srx->transport.sin.sin_port;
 		size = sizeof(srx->transport.sin.sin_addr);
 		p = (u16 *)&srx->transport.sin.sin_addr;
+		break;
+	case AF_INET6:
+		hash_key += (u16 __force)srx->transport.sin.sin_port;
+		size = sizeof(srx->transport.sin6.sin6_addr);
+		p = (u16 *)&srx->transport.sin6.sin6_addr;
 		break;
 	default:
 		WARN(1, "AF_RXRPC: Unsupported transport address family\n");
@@ -93,6 +100,12 @@ static long rxrpc_peer_cmp_key(const struct rxrpc_peer *peer,
 			memcmp(&peer->srx.transport.sin.sin_addr,
 			       &srx->transport.sin.sin_addr,
 			       sizeof(struct in_addr));
+	case AF_INET6:
+		return ((u16 __force)peer->srx.transport.sin6.sin6_port -
+			(u16 __force)srx->transport.sin6.sin6_port) ?:
+			memcmp(&peer->srx.transport.sin6.sin6_addr,
+			       &srx->transport.sin6.sin6_addr,
+			       sizeof(struct in6_addr));
 	default:
 		BUG();
 	}
@@ -130,17 +143,7 @@ struct rxrpc_peer *rxrpc_lookup_peer_rcu(struct rxrpc_local *local,
 
 	peer = __rxrpc_lookup_peer_rcu(local, srx, hash_key);
 	if (peer) {
-		switch (srx->transport.family) {
-		case AF_INET:
-			_net("PEER %d {%d,%u,%pI4+%hu}",
-			     peer->debug_id,
-			     peer->srx.transport_type,
-			     peer->srx.transport.family,
-			     &peer->srx.transport.sin.sin_addr,
-			     ntohs(peer->srx.transport.sin.sin_port));
-			break;
-		}
-
+		_net("PEER %d {%pISp}", peer->debug_id, &peer->srx.transport);
 		_leave(" = %p {u=%d}", peer, atomic_read(&peer->usage));
 	}
 	return peer;
@@ -152,22 +155,49 @@ struct rxrpc_peer *rxrpc_lookup_peer_rcu(struct rxrpc_local *local,
  */
 static void rxrpc_assess_MTU_size(struct rxrpc_peer *peer)
 {
+	struct dst_entry *dst;
 	struct rtable *rt;
-	struct flowi4 fl4;
+	struct flowi fl;
+	struct flowi4 *fl4 = &fl.u.ip4;
+	struct flowi6 *fl6 = &fl.u.ip6;
 
 	peer->if_mtu = 1500;
 
-	rt = ip_route_output_ports(&init_net, &fl4, NULL,
-				   peer->srx.transport.sin.sin_addr.s_addr, 0,
-				   htons(7000), htons(7001),
-				   IPPROTO_UDP, 0, 0);
-	if (IS_ERR(rt)) {
-		_leave(" [route err %ld]", PTR_ERR(rt));
-		return;
+	memset(&fl, 0, sizeof(fl));
+	switch (peer->srx.transport.family) {
+	case AF_INET:
+		rt = ip_route_output_ports(
+			&init_net, fl4, NULL,
+			peer->srx.transport.sin.sin_addr.s_addr, 0,
+			htons(7000), htons(7001), IPPROTO_UDP, 0, 0);
+		if (IS_ERR(rt)) {
+			_leave(" [route err %ld]", PTR_ERR(rt));
+			return;
+		}
+		dst = &rt->dst;
+		break;
+
+	case AF_INET6:
+		fl6->flowi6_iif = LOOPBACK_IFINDEX;
+		fl6->flowi6_scope = RT_SCOPE_UNIVERSE;
+		fl6->flowi6_proto = IPPROTO_UDP;
+		memcpy(&fl6->daddr, &peer->srx.transport.sin6.sin6_addr,
+		       sizeof(struct in6_addr));
+		fl6->fl6_dport = htons(7001);
+		fl6->fl6_sport = htons(7000);
+		dst = ip6_route_output(&init_net, NULL, fl6);
+		if (IS_ERR(dst)) {
+			_leave(" [route err %ld]", PTR_ERR(dst));
+			return;
+		}
+		break;
+
+	default:
+		BUG();
 	}
 
-	peer->if_mtu = dst_mtu(&rt->dst);
-	dst_release(&rt->dst);
+	peer->if_mtu = dst_mtu(dst);
+	dst_release(dst);
 
 	_leave(" [if_mtu %u]", peer->if_mtu);
 }
@@ -207,17 +237,22 @@ static void rxrpc_init_peer(struct rxrpc_peer *peer, unsigned long hash_key)
 	rxrpc_assess_MTU_size(peer);
 	peer->mtu = peer->if_mtu;
 
-	if (peer->srx.transport.family == AF_INET) {
+	switch (peer->srx.transport.family) {
+	case AF_INET:
 		peer->hdrsize = sizeof(struct iphdr);
-		switch (peer->srx.transport_type) {
-		case SOCK_DGRAM:
-			peer->hdrsize += sizeof(struct udphdr);
-			break;
-		default:
-			BUG();
-			break;
-		}
-	} else {
+		break;
+	case AF_INET6:
+		peer->hdrsize = sizeof(struct ipv6hdr);
+		break;
+	default:
+		BUG();
+	}
+
+	switch (peer->srx.transport_type) {
+	case SOCK_DGRAM:
+		peer->hdrsize += sizeof(struct udphdr);
+		break;
+	default:
 		BUG();
 	}
 
@@ -285,11 +320,7 @@ struct rxrpc_peer *rxrpc_lookup_peer(struct rxrpc_local *local,
 	struct rxrpc_peer *peer, *candidate;
 	unsigned long hash_key = rxrpc_peer_hash_key(local, srx);
 
-	_enter("{%d,%d,%pI4+%hu}",
-	       srx->transport_type,
-	       srx->transport_len,
-	       &srx->transport.sin.sin_addr,
-	       ntohs(srx->transport.sin.sin_port));
+	_enter("{%pISp}", &srx->transport);
 
 	/* search the peer list first */
 	rcu_read_lock();
@@ -326,11 +357,7 @@ struct rxrpc_peer *rxrpc_lookup_peer(struct rxrpc_local *local,
 			peer = candidate;
 	}
 
-	_net("PEER %d {%d,%pI4+%hu}",
-	     peer->debug_id,
-	     peer->srx.transport_type,
-	     &peer->srx.transport.sin.sin_addr,
-	     ntohs(peer->srx.transport.sin.sin_port));
+	_net("PEER %d {%pISp}", peer->debug_id, &peer->srx.transport);
 
 	_leave(" = %p {u=%d}", peer, atomic_read(&peer->usage));
 	return peer;

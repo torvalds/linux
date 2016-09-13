@@ -58,6 +58,15 @@ static long rxrpc_local_cmp_key(const struct rxrpc_local *local,
 			memcmp(&local->srx.transport.sin.sin_addr,
 			       &srx->transport.sin.sin_addr,
 			       sizeof(struct in_addr));
+	case AF_INET6:
+		/* If the choice of UDP6 port is left up to the transport, then
+		 * the endpoint record doesn't match.
+		 */
+		return ((u16 __force)local->srx.transport.sin6.sin6_port -
+			(u16 __force)srx->transport.sin6.sin6_port) ?:
+			memcmp(&local->srx.transport.sin6.sin6_addr,
+			       &srx->transport.sin6.sin6_addr,
+			       sizeof(struct in6_addr));
 	default:
 		BUG();
 	}
@@ -100,7 +109,8 @@ static int rxrpc_open_socket(struct rxrpc_local *local)
 	struct sock *sock;
 	int ret, opt;
 
-	_enter("%p{%d}", local, local->srx.transport_type);
+	_enter("%p{%d,%d}",
+	       local, local->srx.transport_type, local->srx.transport.family);
 
 	/* create a socket to represent the local endpoint */
 	ret = sock_create_kern(&init_net, local->srx.transport.family,
@@ -169,18 +179,8 @@ struct rxrpc_local *rxrpc_lookup_local(const struct sockaddr_rxrpc *srx)
 	long diff;
 	int ret;
 
-	if (srx->transport.family == AF_INET) {
-		_enter("{%d,%u,%pI4+%hu}",
-		       srx->transport_type,
-		       srx->transport.family,
-		       &srx->transport.sin.sin_addr,
-		       ntohs(srx->transport.sin.sin_port));
-	} else {
-		_enter("{%d,%u}",
-		       srx->transport_type,
-		       srx->transport.family);
-		return ERR_PTR(-EAFNOSUPPORT);
-	}
+	_enter("{%d,%d,%pISp}",
+	       srx->transport_type, srx->transport.family, &srx->transport);
 
 	mutex_lock(&rxrpc_local_mutex);
 
@@ -233,13 +233,8 @@ struct rxrpc_local *rxrpc_lookup_local(const struct sockaddr_rxrpc *srx)
 found:
 	mutex_unlock(&rxrpc_local_mutex);
 
-	_net("LOCAL %s %d {%d,%u,%pI4+%hu}",
-	     age,
-	     local->debug_id,
-	     local->srx.transport_type,
-	     local->srx.transport.family,
-	     &local->srx.transport.sin.sin_addr,
-	     ntohs(local->srx.transport.sin.sin_port));
+	_net("LOCAL %s %d {%pISp}",
+	     age, local->debug_id, &local->srx.transport);
 
 	_leave(" = %p", local);
 	return local;

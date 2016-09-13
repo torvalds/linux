@@ -66,6 +66,30 @@ static struct rxrpc_peer *rxrpc_lookup_peer_icmp_rcu(struct rxrpc_local *local,
 		}
 		break;
 
+	case AF_INET6:
+		srx.transport.sin6.sin6_port = serr->port;
+		srx.transport_len = sizeof(struct sockaddr_in6);
+		switch (serr->ee.ee_origin) {
+		case SO_EE_ORIGIN_ICMP6:
+			_net("Rx ICMP6");
+			memcpy(&srx.transport.sin6.sin6_addr,
+			       skb_network_header(skb) + serr->addr_offset,
+			       sizeof(struct in6_addr));
+			break;
+		case SO_EE_ORIGIN_ICMP:
+			_net("Rx ICMP on v6 sock");
+			memcpy(&srx.transport.sin6.sin6_addr.s6_addr + 12,
+			       skb_network_header(skb) + serr->addr_offset,
+			       sizeof(struct in_addr));
+			break;
+		default:
+			memcpy(&srx.transport.sin6.sin6_addr,
+			       &ipv6_hdr(skb)->saddr,
+			       sizeof(struct in6_addr));
+			break;
+		}
+		break;
+
 	default:
 		BUG();
 	}

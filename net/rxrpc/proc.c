@@ -52,11 +52,12 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 	struct rxrpc_sock *rx;
 	struct rxrpc_peer *peer;
 	struct rxrpc_call *call;
-	char lbuff[4 + 4 + 4 + 4 + 5 + 1], rbuff[4 + 4 + 4 + 4 + 5 + 1];
+	char lbuff[50], rbuff[50];
 
 	if (v == &rxrpc_calls) {
 		seq_puts(seq,
-			 "Proto Local                  Remote                "
+			 "Proto Local                                          "
+			 " Remote                                         "
 			 " SvID ConnID   CallID   End Use State    Abort   "
 			 " UserID\n");
 		return 0;
@@ -68,9 +69,7 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 	if (rx) {
 		local = READ_ONCE(rx->local);
 		if (local)
-			sprintf(lbuff, "%pI4:%u",
-				&local->srx.transport.sin.sin_addr,
-				ntohs(local->srx.transport.sin.sin_port));
+			sprintf(lbuff, "%pISpc", &local->srx.transport);
 		else
 			strcpy(lbuff, "no_local");
 	} else {
@@ -79,14 +78,12 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 
 	peer = call->peer;
 	if (peer)
-		sprintf(rbuff, "%pI4:%u",
-			&peer->srx.transport.sin.sin_addr,
-			ntohs(peer->srx.transport.sin.sin_port));
+		sprintf(rbuff, "%pISpc", &peer->srx.transport);
 	else
 		strcpy(rbuff, "no_connection");
 
 	seq_printf(seq,
-		   "UDP   %-22.22s %-22.22s %4x %08x %08x %s %3u"
+		   "UDP   %-47.47s %-47.47s %4x %08x %08x %s %3u"
 		   " %-8.8s %08x %lx\n",
 		   lbuff,
 		   rbuff,
@@ -145,11 +142,12 @@ static void rxrpc_connection_seq_stop(struct seq_file *seq, void *v)
 static int rxrpc_connection_seq_show(struct seq_file *seq, void *v)
 {
 	struct rxrpc_connection *conn;
-	char lbuff[4 + 4 + 4 + 4 + 5 + 1], rbuff[4 + 4 + 4 + 4 + 5 + 1];
+	char lbuff[50], rbuff[50];
 
 	if (v == &rxrpc_connection_proc_list) {
 		seq_puts(seq,
-			 "Proto Local                  Remote                "
+			 "Proto Local                                          "
+			 " Remote                                         "
 			 " SvID ConnID   End Use State    Key     "
 			 " Serial   ISerial\n"
 			 );
@@ -163,16 +161,12 @@ static int rxrpc_connection_seq_show(struct seq_file *seq, void *v)
 		goto print;
 	}
 
-	sprintf(lbuff, "%pI4:%u",
-		&conn->params.local->srx.transport.sin.sin_addr,
-		ntohs(conn->params.local->srx.transport.sin.sin_port));
+	sprintf(lbuff, "%pISpc", &conn->params.local->srx.transport);
 
-	sprintf(rbuff, "%pI4:%u",
-		&conn->params.peer->srx.transport.sin.sin_addr,
-		ntohs(conn->params.peer->srx.transport.sin.sin_port));
+	sprintf(rbuff, "%pISpc", &conn->params.peer->srx.transport);
 print:
 	seq_printf(seq,
-		   "UDP   %-22.22s %-22.22s %4x %08x %s %3u"
+		   "UDP   %-47.47s %-47.47s %4x %08x %s %3u"
 		   " %s %08x %08x %08x\n",
 		   lbuff,
 		   rbuff,

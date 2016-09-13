@@ -258,6 +258,22 @@ send_fragmentable:
 					  (char *)&opt, sizeof(opt));
 		}
 		break;
+
+	case AF_INET6:
+		opt = IPV6_PMTUDISC_DONT;
+		ret = kernel_setsockopt(conn->params.local->socket,
+					SOL_IPV6, IPV6_MTU_DISCOVER,
+					(char *)&opt, sizeof(opt));
+		if (ret == 0) {
+			ret = kernel_sendmsg(conn->params.local->socket, &msg,
+					     iov, 1, iov[0].iov_len);
+
+			opt = IPV6_PMTUDISC_DO;
+			kernel_setsockopt(conn->params.local->socket,
+					  SOL_IPV6, IPV6_MTU_DISCOVER,
+					  (char *)&opt, sizeof(opt));
+		}
+		break;
 	}
 
 	up_write(&conn->params.local->defrag_sem);
