@@ -499,9 +499,10 @@ static int rockchip_usb2phy_exit(struct phy *phy)
 {
 	struct rockchip_usb2phy_port *rport = phy_get_drvdata(phy);
 
-	if (rport->port_id == USB2PHY_PORT_OTG) {
+	if (rport->port_id == USB2PHY_PORT_OTG &&
+	    rport->mode != USB_DR_MODE_HOST)
 		cancel_delayed_work_sync(&rport->chg_work);
-	} else if (rport->port_id == USB2PHY_PORT_HOST)
+	else if (rport->port_id == USB2PHY_PORT_HOST)
 		cancel_delayed_work_sync(&rport->sm_work);
 
 	return 0;
