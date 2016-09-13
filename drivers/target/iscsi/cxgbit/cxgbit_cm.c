@@ -997,20 +997,6 @@ cxgbit_l2t_send(struct cxgbit_device *cdev, struct sk_buff *skb,
 	return ret < 0 ? ret : 0;
 }
 
-static void
-cxgbit_best_mtu(const unsigned short *mtus, unsigned short mtu,
-		unsigned int *idx, int use_ts, int ipv6)
-{
-	unsigned short hdr_size = (ipv6 ? sizeof(struct ipv6hdr) :
-				   sizeof(struct iphdr)) +
-				   sizeof(struct tcphdr) +
-				   (use_ts ? round_up(TCPOLEN_TIMESTAMP,
-				    4) : 0);
-	unsigned short data_size = mtu - hdr_size;
-
-	cxgb4_best_aligned_mtu(mtus, hdr_size, data_size, 8, idx);
-}
-
 static void cxgbit_send_rx_credits(struct cxgbit_sock *csk, struct sk_buff *skb)
 {
 	if (csk->com.state != CSK_STATE_ESTABLISHED) {
@@ -1135,9 +1121,9 @@ cxgbit_pass_accept_rpl(struct cxgbit_sock *csk, struct cpl_pass_accept_req *req)
 	INIT_TP_WR(rpl5, csk->tid);
 	OPCODE_TID(rpl5) = cpu_to_be32(MK_OPCODE_TID(CPL_PASS_ACCEPT_RPL,
 						     csk->tid));
-	cxgbit_best_mtu(csk->com.cdev->lldi.mtus, csk->mtu, &mtu_idx,
-			req->tcpopt.tstamp,
-			(csk->com.remote_addr.ss_family == AF_INET) ? 0 : 1);
+	cxgb_best_mtu(csk->com.cdev->lldi.mtus, csk->mtu, &mtu_idx,
+		      req->tcpopt.tstamp,
+		      (csk->com.remote_addr.ss_family == AF_INET) ? 0 : 1);
 	wscale = cxgbit_compute_wscale(csk->rcv_win);
 	/*
 	 * Specify the largest window that will fit in opt0. The

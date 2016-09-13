@@ -33,6 +33,9 @@
 #ifndef __LIBCXGB_CM_H__
 #define __LIBCXGB_CM_H__
 
+
+#include <net/tcp.h>
+
 #include <cxgb4.h>
 #include <t4_msg.h>
 
@@ -55,5 +58,20 @@ static inline bool cxgb_is_neg_adv(unsigned int status)
 	return status == CPL_ERR_RTX_NEG_ADVICE ||
 	       status == CPL_ERR_PERSIST_NEG_ADVICE ||
 	       status == CPL_ERR_KEEPALV_NEG_ADVICE;
+}
+
+static inline void
+cxgb_best_mtu(const unsigned short *mtus, unsigned short mtu,
+	      unsigned int *idx, int use_ts, int ipv6)
+{
+	unsigned short hdr_size = (ipv6 ?
+				   sizeof(struct ipv6hdr) :
+				   sizeof(struct iphdr)) +
+				  sizeof(struct tcphdr) +
+				  (use_ts ?
+				   round_up(TCPOLEN_TIMESTAMP, 4) : 0);
+	unsigned short data_size = mtu - hdr_size;
+
+	cxgb4_best_aligned_mtu(mtus, hdr_size, data_size, 8, idx);
 }
 #endif
