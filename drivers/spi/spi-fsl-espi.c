@@ -176,22 +176,10 @@ static void fsl_espi_setup_transfer(struct spi_device *spi,
 					struct spi_transfer *t)
 {
 	struct mpc8xxx_spi *mpc8xxx_spi = spi_master_get_devdata(spi->master);
-	int bits_per_word = 0;
+	int bits_per_word = t ? t->bits_per_word : spi->bits_per_word;
+	u32 hz = t ? t->speed_hz : spi->max_speed_hz;
 	u8 pm;
-	u32 hz = 0;
 	struct spi_mpc8xxx_cs *cs = spi->controller_state;
-
-	if (t) {
-		bits_per_word = t->bits_per_word;
-		hz = t->speed_hz;
-	}
-
-	/* spi_transfer level calls that work per-word */
-	if (!bits_per_word)
-		bits_per_word = spi->bits_per_word;
-
-	if (!hz)
-		hz = spi->max_speed_hz;
 
 	cs->rx_shift = 0;
 	cs->tx_shift = 0;
