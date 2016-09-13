@@ -1085,15 +1085,6 @@ out:
 	return -ENOMEM;
 }
 
-static u32 cxgbit_compute_wscale(u32 win)
-{
-	u32 wscale = 0;
-
-	while (wscale < 14 && (65535 << wscale) < win)
-		wscale++;
-	return wscale;
-}
-
 static void
 cxgbit_pass_accept_rpl(struct cxgbit_sock *csk, struct cpl_pass_accept_req *req)
 {
@@ -1124,7 +1115,7 @@ cxgbit_pass_accept_rpl(struct cxgbit_sock *csk, struct cpl_pass_accept_req *req)
 	cxgb_best_mtu(csk->com.cdev->lldi.mtus, csk->mtu, &mtu_idx,
 		      req->tcpopt.tstamp,
 		      (csk->com.remote_addr.ss_family == AF_INET) ? 0 : 1);
-	wscale = cxgbit_compute_wscale(csk->rcv_win);
+	wscale = cxgb_compute_wscale(csk->rcv_win);
 	/*
 	 * Specify the largest window that will fit in opt0. The
 	 * remainder will be specified in the rx_data_ack.

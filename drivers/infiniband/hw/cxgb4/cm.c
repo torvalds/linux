@@ -689,7 +689,7 @@ static int send_connect(struct c4iw_ep *ep)
 	u64 opt0;
 	u32 opt2;
 	unsigned int mtu_idx;
-	int wscale;
+	u32 wscale;
 	int win, sizev4, sizev6, wrlen;
 	struct sockaddr_in *la = (struct sockaddr_in *)
 				 &ep->com.local_addr;
@@ -739,7 +739,7 @@ static int send_connect(struct c4iw_ep *ep)
 	cxgb_best_mtu(ep->com.dev->rdev.lldi.mtus, ep->mtu, &mtu_idx,
 		      enable_tcp_timestamps,
 		      (ep->com.remote_addr.ss_family == AF_INET) ? 0 : 1);
-	wscale = compute_wscale(rcv_win);
+	wscale = cxgb_compute_wscale(rcv_win);
 
 	/*
 	 * Specify the largest window that will fit in opt0. The
@@ -1891,7 +1891,7 @@ static int send_fw_act_open_req(struct c4iw_ep *ep, unsigned int atid)
 	struct sk_buff *skb;
 	struct fw_ofld_connection_wr *req;
 	unsigned int mtu_idx;
-	int wscale;
+	u32 wscale;
 	struct sockaddr_in *sin;
 	int win;
 
@@ -1919,7 +1919,7 @@ static int send_fw_act_open_req(struct c4iw_ep *ep, unsigned int atid)
 	cxgb_best_mtu(ep->com.dev->rdev.lldi.mtus, ep->mtu, &mtu_idx,
 		      enable_tcp_timestamps,
 		      (ep->com.remote_addr.ss_family == AF_INET) ? 0 : 1);
-	wscale = compute_wscale(rcv_win);
+	wscale = cxgb_compute_wscale(rcv_win);
 
 	/*
 	 * Specify the largest window that will fit in opt0. The
@@ -2339,7 +2339,7 @@ static int accept_cr(struct c4iw_ep *ep, struct sk_buff *skb,
 	unsigned int mtu_idx;
 	u64 opt0;
 	u32 opt2;
-	int wscale;
+	u32 wscale;
 	struct cpl_t5_pass_accept_rpl *rpl5 = NULL;
 	int win;
 	enum chip_type adapter_type = ep->com.dev->rdev.lldi.adapter_type;
@@ -2363,7 +2363,7 @@ static int accept_cr(struct c4iw_ep *ep, struct sk_buff *skb,
 	cxgb_best_mtu(ep->com.dev->rdev.lldi.mtus, ep->mtu, &mtu_idx,
 		      enable_tcp_timestamps && req->tcpopt.tstamp,
 		      (ep->com.remote_addr.ss_family == AF_INET) ? 0 : 1);
-	wscale = compute_wscale(rcv_win);
+	wscale = cxgb_compute_wscale(rcv_win);
 
 	/*
 	 * Specify the largest window that will fit in opt0. The

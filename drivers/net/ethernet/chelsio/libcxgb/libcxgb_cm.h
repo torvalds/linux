@@ -74,4 +74,13 @@ cxgb_best_mtu(const unsigned short *mtus, unsigned short mtu,
 
 	cxgb4_best_aligned_mtu(mtus, hdr_size, data_size, 8, idx);
 }
+
+static inline u32 cxgb_compute_wscale(u32 win)
+{
+	u32 wscale = 0;
+
+	while (wscale < 14 && (65535 << wscale) < win)
+		wscale++;
+	return wscale;
+}
 #endif
