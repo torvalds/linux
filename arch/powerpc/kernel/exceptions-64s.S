@@ -350,7 +350,7 @@ facility_unavailable_trampoline:
 hv_facility_unavailable_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
-	b	facility_unavailable_hv
+	b	hv_facility_unavailable_hv
 
 #ifdef CONFIG_CBE_RAS
 	STD_EXCEPTION_HV(0x1200, 0x1202, cbe_system_error)
@@ -592,7 +592,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0xf40)
 	STD_EXCEPTION_PSERIES_OOL(0xf60, facility_unavailable)
 	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0xf60)
-	STD_EXCEPTION_HV_OOL(0xf82, facility_unavailable)
+	STD_EXCEPTION_HV_OOL(0xf82, hv_facility_unavailable)
 	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xf82)
 
 /*
