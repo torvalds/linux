@@ -222,7 +222,7 @@ int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 	ASSERT_WDEV_LOCK(wdev);
 
 	if (auth_type == NL80211_AUTHTYPE_SHARED_KEY)
-		if (!key || !key_len || key_idx < 0 || key_idx > 4)
+		if (!key || !key_len || key_idx < 0 || key_idx > 3)
 			return -EINVAL;
 
 	if (wdev->current_bss &&

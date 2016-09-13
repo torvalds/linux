@@ -7388,7 +7388,7 @@ static int nl80211_authenticate(struct sk_buff *skb, struct genl_info *info)
 		    (key.p.cipher != WLAN_CIPHER_SUITE_WEP104 ||
 		     key.p.key_len != WLAN_KEY_LEN_WEP104))
 			return -EINVAL;
-		if (key.idx > 4)
+		if (key.idx > 3)
 			return -EINVAL;
 	} else {
 		key.p.key_len = 0;
