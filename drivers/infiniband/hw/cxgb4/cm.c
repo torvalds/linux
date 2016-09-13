@@ -637,21 +637,16 @@ static int send_flowc(struct c4iw_ep *ep)
 
 static int send_halfclose(struct c4iw_ep *ep)
 {
-	struct cpl_close_con_req *req;
 	struct sk_buff *skb = skb_dequeue(&ep->com.ep_skb_list);
-	int wrlen = roundup(sizeof *req, 16);
+	u32 wrlen = roundup(sizeof(struct cpl_close_con_req), 16);
 
 	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
 	if (WARN_ON(!skb))
 		return -ENOMEM;
 
-	set_wr_txq(skb, CPL_PRIORITY_DATA, ep->txq_idx);
-	t4_set_arp_err_handler(skb, NULL, arp_failure_discard);
-	req = (struct cpl_close_con_req *) skb_put(skb, wrlen);
-	memset(req, 0, wrlen);
-	INIT_TP_WR(req, ep->hwtid);
-	OPCODE_TID(req) = cpu_to_be32(MK_OPCODE_TID(CPL_CLOSE_CON_REQ,
-						    ep->hwtid));
+	cxgb_mk_close_con_req(skb, wrlen, ep->hwtid, ep->txq_idx,
+			      NULL, arp_failure_discard);
+
 	return c4iw_l2t_send(&ep->com.dev->rdev, skb, ep->l2t);
 }
 

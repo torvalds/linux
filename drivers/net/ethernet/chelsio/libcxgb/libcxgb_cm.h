@@ -38,6 +38,7 @@
 
 #include <cxgb4.h>
 #include <t4_msg.h>
+#include <l2t.h>
 
 void
 cxgb_get_4tuple(struct cpl_pass_accept_req *, enum chip_type,
@@ -95,5 +96,20 @@ cxgb_mk_tid_release(struct sk_buff *skb, u32 len, u32 tid, u16 chan)
 	INIT_TP_WR(req, tid);
 	OPCODE_TID(req) = cpu_to_be32(MK_OPCODE_TID(CPL_TID_RELEASE, tid));
 	set_wr_txq(skb, CPL_PRIORITY_SETUP, chan);
+}
+
+static inline void
+cxgb_mk_close_con_req(struct sk_buff *skb, u32 len, u32 tid, u16 chan,
+		      void *handle, arp_err_handler_t handler)
+{
+	struct cpl_close_con_req *req;
+
+	req = (struct cpl_close_con_req *)__skb_put(skb, len);
+	memset(req, 0, len);
+
+	INIT_TP_WR(req, tid);
+	OPCODE_TID(req) = cpu_to_be32(MK_OPCODE_TID(CPL_CLOSE_CON_REQ, tid));
+	set_wr_txq(skb, CPL_PRIORITY_DATA, chan);
+	t4_set_arp_err_handler(skb, handle, handler);
 }
 #endif

@@ -615,21 +615,14 @@ void cxgbit_free_np(struct iscsi_np *np)
 static void cxgbit_send_halfclose(struct cxgbit_sock *csk)
 {
 	struct sk_buff *skb;
-	struct cpl_close_con_req *req;
-	unsigned int len = roundup(sizeof(struct cpl_close_con_req), 16);
+	u32 len = roundup(sizeof(struct cpl_close_con_req), 16);
 
 	skb = alloc_skb(len, GFP_ATOMIC);
 	if (!skb)
 		return;
 
-	req = (struct cpl_close_con_req *)__skb_put(skb, len);
-	memset(req, 0, len);
-
-	set_wr_txq(skb, CPL_PRIORITY_DATA, csk->txq_idx);
-	INIT_TP_WR(req, csk->tid);
-	OPCODE_TID(req) = cpu_to_be32(MK_OPCODE_TID(CPL_CLOSE_CON_REQ,
-						    csk->tid));
-	req->rsvd = 0;
+	cxgb_mk_close_con_req(skb, len, csk->tid, csk->txq_idx,
+			      NULL, NULL);
 
 	cxgbit_skcb_flags(skb) |= SKCBF_TX_FLAG_COMPL;
 	__skb_queue_tail(&csk->txq, skb);
