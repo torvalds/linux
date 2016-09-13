@@ -1354,9 +1354,9 @@ static void established_upcall(struct c4iw_ep *ep)
 
 static int update_rx_credits(struct c4iw_ep *ep, u32 credits)
 {
-	struct cpl_rx_data_ack *req;
 	struct sk_buff *skb;
-	int wrlen = roundup(sizeof *req, 16);
+	u32 wrlen = roundup(sizeof(struct cpl_rx_data_ack), 16);
+	u32 credit_dack;
 
 	PDBG("%s ep %p tid %u credits %u\n", __func__, ep, ep->hwtid, credits);
 	skb = get_skb(NULL, wrlen, GFP_KERNEL);
@@ -1373,15 +1373,12 @@ static int update_rx_credits(struct c4iw_ep *ep, u32 credits)
 	if (ep->rcv_win > RCV_BUFSIZ_M * 1024)
 		credits += ep->rcv_win - RCV_BUFSIZ_M * 1024;
 
-	req = (struct cpl_rx_data_ack *) skb_put(skb, wrlen);
-	memset(req, 0, wrlen);
-	INIT_TP_WR(req, ep->hwtid);
-	OPCODE_TID(req) = cpu_to_be32(MK_OPCODE_TID(CPL_RX_DATA_ACK,
-						    ep->hwtid));
-	req->credit_dack = cpu_to_be32(credits | RX_FORCE_ACK_F |
-				       RX_DACK_CHANGE_F |
-				       RX_DACK_MODE_V(dack_mode));
-	set_wr_txq(skb, CPL_PRIORITY_ACK, ep->ctrlq_idx);
+	credit_dack = credits | RX_FORCE_ACK_F | RX_DACK_CHANGE_F |
+		      RX_DACK_MODE_V(dack_mode);
+
+	cxgb_mk_rx_data_ack(skb, wrlen, ep->hwtid, ep->ctrlq_idx,
+			    credit_dack);
+
 	c4iw_ofld_send(&ep->com.dev->rdev, skb);
 	return credits;
 }

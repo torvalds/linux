@@ -994,22 +994,18 @@ static void cxgbit_send_rx_credits(struct cxgbit_sock *csk, struct sk_buff *skb)
 int cxgbit_rx_data_ack(struct cxgbit_sock *csk)
 {
 	struct sk_buff *skb;
-	struct cpl_rx_data_ack *req;
-	unsigned int len = roundup(sizeof(*req), 16);
+	u32 len = roundup(sizeof(struct cpl_rx_data_ack), 16);
+	u32 credit_dack;
 
 	skb = alloc_skb(len, GFP_KERNEL);
 	if (!skb)
 		return -1;
 
-	req = (struct cpl_rx_data_ack *)__skb_put(skb, len);
-	memset(req, 0, len);
+	credit_dack = RX_DACK_CHANGE_F | RX_DACK_MODE_V(1) |
+		      RX_CREDITS_V(csk->rx_credits);
 
-	set_wr_txq(skb, CPL_PRIORITY_ACK, csk->ctrlq_idx);
-	INIT_TP_WR(req, csk->tid);
-	OPCODE_TID(req) = cpu_to_be32(MK_OPCODE_TID(CPL_RX_DATA_ACK,
-						    csk->tid));
-	req->credit_dack = cpu_to_be32(RX_DACK_CHANGE_F | RX_DACK_MODE_V(1) |
-				       RX_CREDITS_V(csk->rx_credits));
+	cxgb_mk_rx_data_ack(skb, len, csk->tid, csk->ctrlq_idx,
+			    credit_dack);
 
 	csk->rx_credits = 0;
 

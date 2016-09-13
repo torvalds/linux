@@ -142,4 +142,19 @@ cxgb_mk_abort_rpl(struct sk_buff *skb, u32 len, u32 tid, u16 chan)
 	rpl->cmd = CPL_ABORT_NO_RST;
 	set_wr_txq(skb, CPL_PRIORITY_DATA, chan);
 }
+
+static inline void
+cxgb_mk_rx_data_ack(struct sk_buff *skb, u32 len, u32 tid, u16 chan,
+		    u32 credit_dack)
+{
+	struct cpl_rx_data_ack *req;
+
+	req = (struct cpl_rx_data_ack *)__skb_put(skb, len);
+	memset(req, 0, len);
+
+	INIT_TP_WR(req, tid);
+	OPCODE_TID(req) = cpu_to_be32(MK_OPCODE_TID(CPL_RX_DATA_ACK, tid));
+	req->credit_dack = cpu_to_be32(credit_dack);
+	set_wr_txq(skb, CPL_PRIORITY_ACK, chan);
+}
 #endif
