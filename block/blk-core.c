@@ -3307,10 +3307,16 @@ bool blk_poll(struct request_queue *q, blk_qc_t cookie)
 {
 	struct blk_plug *plug;
 	long state;
+	unsigned int queue_num;
+	struct blk_mq_hw_ctx *hctx;
 
 	if (!q->mq_ops || !q->mq_ops->poll || !blk_qc_t_valid(cookie) ||
 	    !test_bit(QUEUE_FLAG_POLL, &q->queue_flags))
 		return false;
+
+	queue_num = blk_qc_t_to_queue_num(cookie);
+	hctx = q->queue_hw_ctx[queue_num];
+	hctx->poll_considered++;
 
 	plug = current->plug;
 	if (plug)
@@ -3318,8 +3324,6 @@ bool blk_poll(struct request_queue *q, blk_qc_t cookie)
 
 	state = current->state;
 	while (!need_resched()) {
-		unsigned int queue_num = blk_qc_t_to_queue_num(cookie);
-		struct blk_mq_hw_ctx *hctx = q->queue_hw_ctx[queue_num];
 		int ret;
 
 		hctx->poll_invoked++;

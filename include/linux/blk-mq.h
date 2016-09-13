@@ -61,6 +61,7 @@ struct blk_mq_hw_ctx {
 	struct blk_mq_cpu_notifier	cpu_notifier;
 	struct kobject		kobj;
 
+	unsigned long		poll_considered;
 	unsigned long		poll_invoked;
 	unsigned long		poll_success;
 };
