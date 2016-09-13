@@ -587,7 +587,7 @@ static void imon_incoming_packet(struct imon_context *context,
 
 	if (len != 8) {
 		dev_warn(dev, "imon %s: invalid incoming packet size (len = %d, intf%d)\n",
-			__func__, len, intf);
+			 __func__, len, intf);
 		return;
 	}
 
@@ -828,7 +828,7 @@ static int imon_probe(struct usb_interface *interface,
 	}
 
 	dev_info(dev, "Registered iMON driver (lirc minor: %d)\n",
-			lirc_minor);
+		 lirc_minor);
 
 	/* Needed while unregistering! */
 	driver->minor = lirc_minor;
@@ -849,8 +849,8 @@ static int imon_probe(struct usb_interface *interface,
 		context->display = 1;
 
 	usb_fill_int_urb(context->rx_urb, context->usbdev,
-		usb_rcvintpipe(context->usbdev,
-			context->rx_endpoint->bEndpointAddress),
+			 usb_rcvintpipe(context->usbdev,
+			 context->rx_endpoint->bEndpointAddress),
 		context->usb_rx_buf, sizeof(context->usb_rx_buf),
 		usb_rx_callback, context,
 		context->rx_endpoint->bInterval);
@@ -875,7 +875,7 @@ static int imon_probe(struct usb_interface *interface,
 	}
 
 	dev_info(dev, "iMON device (%04x:%04x, intf%d) on usb<%d:%d> initialized\n",
-		vendor, product, ifnum, usbdev->bus->busnum, usbdev->devnum);
+		 vendor, product, ifnum, usbdev->bus->busnum, usbdev->devnum);
 
 	/* Everything went fine. Just unlock and return retval (with is 0) */
 	mutex_unlock(&context->ctx_lock);
@@ -966,8 +966,8 @@ static int imon_resume(struct usb_interface *intf)
 	struct imon_context *context = usb_get_intfdata(intf);
 
 	usb_fill_int_urb(context->rx_urb, context->usbdev,
-		usb_rcvintpipe(context->usbdev,
-			context->rx_endpoint->bEndpointAddress),
+			 usb_rcvintpipe(context->usbdev,
+			 context->rx_endpoint->bEndpointAddress),
 		context->usb_rx_buf, sizeof(context->usb_rx_buf),
 		usb_rx_callback, context,
 		context->rx_endpoint->bInterval);
