@@ -448,6 +448,8 @@ static inline void io_schedule(void)
 	io_schedule_timeout(MAX_SCHEDULE_TIMEOUT);
 }
 
+void __noreturn do_task_dead(void);
+
 struct nsproxy;
 struct user_namespace;
 

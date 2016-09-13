@@ -3331,17 +3331,6 @@ static void __sched notrace __schedule(bool preempt)
 	rq = cpu_rq(cpu);
 	prev = rq->curr;
 
-	/*
-	 * do_exit() calls schedule() with preemption disabled as an exception;
-	 * however we must fix that up, otherwise the next task will see an
-	 * inconsistent (higher) preempt count.
-	 *
-	 * It also avoids the below schedule_debug() test from complaining
-	 * about this.
-	 */
-	if (unlikely(prev->state == TASK_DEAD))
-		preempt_enable_no_resched_notrace();
-
 	schedule_debug(prev);
 
 	if (sched_feat(HRTICK))
@@ -3408,6 +3397,33 @@ static void __sched notrace __schedule(bool preempt)
 	balance_callback(rq);
 }
 STACK_FRAME_NON_STANDARD(__schedule); /* switch_to() */
+
+void __noreturn do_task_dead(void)
+{
+	/*
+	 * The setting of TASK_RUNNING by try_to_wake_up() may be delayed
+	 * when the following two conditions become true.
+	 *   - There is race condition of mmap_sem (It is acquired by
+	 *     exit_mm()), and
+	 *   - SMI occurs before setting TASK_RUNINNG.
+	 *     (or hypervisor of virtual machine switches to other guest)
+	 *  As a result, we may become TASK_RUNNING after becoming TASK_DEAD
+	 *
+	 * To avoid it, we have to wait for releasing tsk->pi_lock which
+	 * is held by try_to_wake_up()
+	 */
+	smp_mb();
+	raw_spin_unlock_wait(&current->pi_lock);
+
+	/* causes final put_task_struct in finish_task_switch(). */
+	__set_current_state(TASK_DEAD);
+	current->flags |= PF_NOFREEZE;	/* tell freezer to ignore us */
+	__schedule(false);
+	BUG();
+	/* Avoid "noreturn function does return".  */
+	for (;;)
+		cpu_relax();	/* For when BUG is null */
+}
 
 static inline void sched_submit_work(struct task_struct *tsk)
 {
