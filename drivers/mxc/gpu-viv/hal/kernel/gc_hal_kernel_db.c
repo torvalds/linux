@@ -94,6 +94,7 @@ gckKERNEL_NewDatabase(
     gctBOOL acquired = gcvFALSE;
     gctSIZE_T slot;
     gcsDATABASE_PTR existingDatabase;
+    gctPOINTER pointer = gcvNULL;
 
     gcmkHEADER_ARG("Kernel=0x%x ProcessID=%d", Kernel, ProcessID);
 
@@ -124,8 +125,6 @@ gckKERNEL_NewDatabase(
     }
     else
     {
-        gctPOINTER pointer = gcvNULL;
-
         /* Allocate a new database from the heap. */
         gcmkONERROR(gckOS_Allocate(Kernel->os,
                                    gcmSIZEOF(gcsDATABASE),
