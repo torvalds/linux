@@ -146,6 +146,9 @@ struct sun4i_backend {
 	struct clk		*bus_clk;
 	struct clk		*mod_clk;
 	struct clk		*ram_clk;
+
+	struct clk		*sat_clk;
+	struct reset_control	*sat_reset;
 };
 
 void sun4i_backend_apply_color_correction(struct sun4i_backend *backend);
