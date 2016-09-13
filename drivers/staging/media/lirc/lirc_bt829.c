@@ -120,7 +120,7 @@ int init_module(void)
 	int rc;
 
 	pdev = do_pci_probe();
-	if (pdev == NULL)
+	if (!pdev)
 		return -ENODEV;
 
 	rc = pci_enable_device(pdev);
