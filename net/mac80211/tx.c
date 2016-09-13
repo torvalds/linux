@@ -2263,15 +2263,9 @@ static int ieee80211_lookup_ra_sta(struct ieee80211_sub_if_data *sdata,
 	case NL80211_IFTYPE_STATION:
 		if (sdata->wdev.wiphy->flags & WIPHY_FLAG_SUPPORTS_TDLS) {
 			sta = sta_info_get(sdata, skb->data);
-			if (sta) {
-				bool tdls_peer, tdls_auth;
-
-				tdls_peer = test_sta_flag(sta,
-							  WLAN_STA_TDLS_PEER);
-				tdls_auth = test_sta_flag(sta,
-						WLAN_STA_TDLS_PEER_AUTH);
-
-				if (tdls_peer && tdls_auth) {
+			if (sta && test_sta_flag(sta, WLAN_STA_TDLS_PEER)) {
+				if (test_sta_flag(sta,
+						  WLAN_STA_TDLS_PEER_AUTH)) {
 					*sta_out = sta;
 					return 0;
 				}
@@ -2283,8 +2277,7 @@ static int ieee80211_lookup_ra_sta(struct ieee80211_sub_if_data *sdata,
 				 * after a TDLS sta is removed due to being
 				 * unreachable.
 				 */
-				if (tdls_peer && !tdls_auth &&
-				    !ieee80211_is_tdls_setup(skb))
+				if (!ieee80211_is_tdls_setup(skb))
 					return -EINVAL;
 			}
 
