@@ -52,8 +52,12 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "dec",         VCPU_STAT(dec_exits) },
 	{ "ext_intr",    VCPU_STAT(ext_intr_exits) },
 	{ "queue_intr",  VCPU_STAT(queue_intr) },
+	{ "halt_poll_success_ns",	VCPU_STAT(halt_poll_success_ns) },
+	{ "halt_poll_fail_ns",		VCPU_STAT(halt_poll_fail_ns) },
+	{ "halt_wait_ns",		VCPU_STAT(halt_wait_ns) },
 	{ "halt_successful_poll", VCPU_STAT(halt_successful_poll), },
 	{ "halt_attempted_poll", VCPU_STAT(halt_attempted_poll), },
+	{ "halt_successful_wait",	VCPU_STAT(halt_successful_wait) },
 	{ "halt_poll_invalid", VCPU_STAT(halt_poll_invalid) },
 	{ "halt_wakeup", VCPU_STAT(halt_wakeup) },
 	{ "pf_storage",  VCPU_STAT(pf_storage) },
@@ -64,6 +68,9 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "ld_slow",     VCPU_STAT(ld_slow) },
 	{ "st",          VCPU_STAT(st) },
 	{ "st_slow",     VCPU_STAT(st_slow) },
+	{ "pthru_all",       VCPU_STAT(pthru_all) },
+	{ "pthru_host",      VCPU_STAT(pthru_host) },
+	{ "pthru_bad_aff",   VCPU_STAT(pthru_bad_aff) },
 	{ NULL }
 };
 
