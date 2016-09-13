@@ -2709,8 +2709,6 @@ static int smiapp_suspend(struct device *dev)
 	struct smiapp_sensor *sensor = to_smiapp_sensor(subdev);
 	bool streaming;
 
-	BUG_ON(mutex_is_locked(&sensor->mutex));
-
 	if (sensor->power_count == 0)
 		return 0;
 
