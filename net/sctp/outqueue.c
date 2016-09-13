@@ -299,49 +299,24 @@ int sctp_outq_tail(struct sctp_outq *q, struct sctp_chunk *chunk, gfp_t gfp)
 	 * immediately.
 	 */
 	if (sctp_chunk_is_data(chunk)) {
-		/* Is it OK to queue data chunks?  */
-		/* From 9. Termination of Association
-		 *
-		 * When either endpoint performs a shutdown, the
-		 * association on each peer will stop accepting new
-		 * data from its user and only deliver data in queue
-		 * at the time of sending or receiving the SHUTDOWN
-		 * chunk.
-		 */
-		switch (q->asoc->state) {
-		case SCTP_STATE_CLOSED:
-		case SCTP_STATE_SHUTDOWN_PENDING:
-		case SCTP_STATE_SHUTDOWN_SENT:
-		case SCTP_STATE_SHUTDOWN_RECEIVED:
-		case SCTP_STATE_SHUTDOWN_ACK_SENT:
-			/* Cannot send after transport endpoint shutdown */
-			error = -ESHUTDOWN;
-			break;
+		pr_debug("%s: outqueueing: outq:%p, chunk:%p[%s])\n",
+			 __func__, q, chunk, chunk && chunk->chunk_hdr ?
+			 sctp_cname(SCTP_ST_CHUNK(chunk->chunk_hdr->type)) :
+			 "illegal chunk");
 
-		default:
-			pr_debug("%s: outqueueing: outq:%p, chunk:%p[%s])\n",
-				 __func__, q, chunk, chunk && chunk->chunk_hdr ?
-				 sctp_cname(SCTP_ST_CHUNK(chunk->chunk_hdr->type)) :
-				 "illegal chunk");
-
-			sctp_chunk_hold(chunk);
-			sctp_outq_tail_data(q, chunk);
-			if (chunk->asoc->prsctp_enable &&
-			    SCTP_PR_PRIO_ENABLED(chunk->sinfo.sinfo_flags))
-				chunk->asoc->sent_cnt_removable++;
-			if (chunk->chunk_hdr->flags & SCTP_DATA_UNORDERED)
-				SCTP_INC_STATS(net, SCTP_MIB_OUTUNORDERCHUNKS);
-			else
-				SCTP_INC_STATS(net, SCTP_MIB_OUTORDERCHUNKS);
-			break;
-		}
+		sctp_chunk_hold(chunk);
+		sctp_outq_tail_data(q, chunk);
+		if (chunk->asoc->prsctp_enable &&
+		    SCTP_PR_PRIO_ENABLED(chunk->sinfo.sinfo_flags))
+			chunk->asoc->sent_cnt_removable++;
+		if (chunk->chunk_hdr->flags & SCTP_DATA_UNORDERED)
+			SCTP_INC_STATS(net, SCTP_MIB_OUTUNORDERCHUNKS);
+		else
+			SCTP_INC_STATS(net, SCTP_MIB_OUTORDERCHUNKS);
 	} else {
 		list_add_tail(&chunk->list, &q->control_chunk_list);
 		SCTP_INC_STATS(net, SCTP_MIB_OUTCTRLCHUNKS);
 	}
-
-	if (error < 0)
-		return error;
 
 	if (!q->cork)
 		error = sctp_outq_flush(q, 0, gfp);
