@@ -401,6 +401,18 @@ static int rxrpc_sendmsg(struct socket *sock, struct msghdr *m, size_t len)
 
 	switch (rx->sk.sk_state) {
 	case RXRPC_UNBOUND:
+		rx->srx.srx_family = AF_RXRPC;
+		rx->srx.srx_service = 0;
+		rx->srx.transport_type = SOCK_DGRAM;
+		rx->srx.transport.family = rx->family;
+		switch (rx->family) {
+		case AF_INET:
+			rx->srx.transport_len = sizeof(struct sockaddr_in);
+			break;
+		default:
+			ret = -EAFNOSUPPORT;
+			goto error_unlock;
+		}
 		local = rxrpc_lookup_local(&rx->srx);
 		if (IS_ERR(local)) {
 			ret = PTR_ERR(local);
