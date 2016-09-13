@@ -415,8 +415,9 @@ static void acm_read_bulk_callback(struct urb *urb)
 	unsigned long flags;
 	int status = urb->status;
 
-	dev_vdbg(&acm->data->dev, "%s - urb %d, len %d\n", __func__,
-					rb->index, urb->actual_length);
+	dev_vdbg(&acm->data->dev, "got urb %d, len %d, status %d\n",
+					rb->index, urb->actual_length,
+					status);
 
 	if (!acm->dev) {
 		set_bit(rb->index, &acm->read_urbs_free);
@@ -426,8 +427,6 @@ static void acm_read_bulk_callback(struct urb *urb)
 
 	if (status) {
 		set_bit(rb->index, &acm->read_urbs_free);
-		dev_dbg(&acm->data->dev, "%s - non-zero urb status: %d\n",
-							__func__, status);
 		if ((status != -ENOENT) || (urb->actual_length == 0))
 			return;
 	}
@@ -462,8 +461,7 @@ static void acm_write_bulk(struct urb *urb)
 	int status = urb->status;
 
 	if (status || (urb->actual_length != urb->transfer_buffer_length))
-		dev_vdbg(&acm->data->dev, "%s - len %d/%d, status %d\n",
-			__func__,
+		dev_vdbg(&acm->data->dev, "wrote len %d/%d, status %d\n",
 			urb->actual_length,
 			urb->transfer_buffer_length,
 			status);
@@ -477,8 +475,6 @@ static void acm_write_bulk(struct urb *urb)
 static void acm_softint(struct work_struct *work)
 {
 	struct acm *acm = container_of(work, struct acm, work);
-
-	dev_vdbg(&acm->data->dev, "%s\n", __func__);
 
 	tty_port_tty_wakeup(&acm->port);
 }
@@ -674,7 +670,7 @@ static int acm_tty_write(struct tty_struct *tty,
 	if (!count)
 		return 0;
 
-	dev_vdbg(&acm->data->dev, "%s - count %d\n", __func__, count);
+	dev_vdbg(&acm->data->dev, "%d bytes from tty layer\n", count);
 
 	spin_lock_irqsave(&acm->write_lock, flags);
 	wbn = acm_wb_alloc(acm);
@@ -691,7 +687,7 @@ static int acm_tty_write(struct tty_struct *tty,
 	}
 
 	count = (count > acm->writesize) ? acm->writesize : count;
-	dev_vdbg(&acm->data->dev, "%s - write %d\n", __func__, count);
+	dev_vdbg(&acm->data->dev, "writing %d bytes\n", count);
 	memcpy(wb->buf, buf, count);
 	wb->len = count;
 
