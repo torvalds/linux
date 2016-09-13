@@ -881,16 +881,19 @@ nl80211_parse_connkeys(struct cfg80211_registered_device *rdev,
 						     parse.idx, false, NULL);
 		if (err)
 			goto error;
+		if (parse.p.cipher != WLAN_CIPHER_SUITE_WEP40 &&
+		    parse.p.cipher != WLAN_CIPHER_SUITE_WEP104) {
+			err = -EINVAL;
+			goto error;
+		}
 		result->params[parse.idx].cipher = parse.p.cipher;
 		result->params[parse.idx].key_len = parse.p.key_len;
 		result->params[parse.idx].key = result->data[parse.idx];
 		memcpy(result->data[parse.idx], parse.p.key, parse.p.key_len);
 
-		if (parse.p.cipher == WLAN_CIPHER_SUITE_WEP40 ||
-		    parse.p.cipher == WLAN_CIPHER_SUITE_WEP104) {
-			if (no_ht)
-				*no_ht = true;
-		}
+		/* must be WEP key if we got here */
+		if (no_ht)
+			*no_ht = true;
 	}
 
 	return result;
