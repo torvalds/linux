@@ -441,7 +441,7 @@ static void iwl_mvm_set_tx_cmd_crypto(struct iwl_mvm *mvm,
 		 * one.
 		 * Need to handle this.
 		 */
-		tx_cmd->sec_ctl |= TX_CMD_SEC_GCMP | TC_CMD_SEC_KEY_FROM_TABLE;
+		tx_cmd->sec_ctl |= TX_CMD_SEC_GCMP | TX_CMD_SEC_KEY_FROM_TABLE;
 		tx_cmd->key[0] = keyconf->hw_key_idx;
 		iwl_mvm_set_tx_cmd_pn(info, crypto_hdr);
 		break;

@@ -147,7 +147,7 @@ enum iwl_tx_pm_timeouts {
  * @TX_CMD_SEC_EXT: extended cipher algorithm.
  * @TX_CMD_SEC_GCMP: GCMP encryption algorithm.
  * @TX_CMD_SEC_KEY128: set for 104 bits WEP key.
- * @TC_CMD_SEC_KEY_FROM_TABLE: for a non-WEP key, set if the key should be taken
+ * @TX_CMD_SEC_KEY_FROM_TABLE: for a non-WEP key, set if the key should be taken
  *	from the table instead of from the TX command.
  *	If the key is taken from the key table its index should be given by the
  *	first byte of the TX command key field.
@@ -159,7 +159,7 @@ enum iwl_tx_cmd_sec_ctrl {
 	TX_CMD_SEC_EXT			= 0x04,
 	TX_CMD_SEC_GCMP			= 0x05,
 	TX_CMD_SEC_KEY128		= 0x08,
-	TC_CMD_SEC_KEY_FROM_TABLE	= 0x08,
+	TX_CMD_SEC_KEY_FROM_TABLE	= 0x08,
 };
 
 /* TODO: how does these values are OK with only 16 bit variable??? */
