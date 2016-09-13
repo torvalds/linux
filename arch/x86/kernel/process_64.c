@@ -510,7 +510,7 @@ void set_personality_ia32(bool x32)
 		current->personality &= ~READ_IMPLIES_EXEC;
 		/* in_compat_syscall() uses the presence of the x32
 		   syscall bit flag to determine compat status */
-		current_thread_info()->status &= ~TS_COMPAT;
+		current->thread.status &= ~TS_COMPAT;
 	} else {
 		set_thread_flag(TIF_IA32);
 		clear_thread_flag(TIF_X32);
@@ -518,7 +518,7 @@ void set_personality_ia32(bool x32)
 			current->mm->context.ia32_compat = TIF_IA32;
 		current->personality |= force_personality32;
 		/* Prepare the first "return" to user space */
-		current_thread_info()->status |= TS_COMPAT;
+		current->thread.status |= TS_COMPAT;
 	}
 }
 EXPORT_SYMBOL_GPL(set_personality_ia32);

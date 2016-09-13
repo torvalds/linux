@@ -55,7 +55,6 @@ struct task_struct;
 struct thread_info {
 	struct task_struct	*task;		/* main task structure */
 	__u32			flags;		/* low level flags */
-	__u32			status;		/* thread synchronous flags */
 	__u32			cpu;		/* current CPU */
 };
 
@@ -253,31 +252,17 @@ static inline int arch_within_stack_frames(const void * const stack,
 
 #endif
 
-/*
- * Thread-synchronous status.
- *
- * This is different from the flags in that nobody else
- * ever touches our thread-synchronous status, so we don't
- * have to worry about atomic accesses.
- */
-#define TS_COMPAT		0x0002	/* 32bit syscall active (64BIT)*/
 #ifdef CONFIG_COMPAT
 #define TS_I386_REGS_POKED	0x0004	/* regs poked by 32-bit ptracer */
 #endif
-
 #ifndef __ASSEMBLY__
 
-static inline bool in_ia32_syscall(void)
-{
 #ifdef CONFIG_X86_32
-	return true;
+#define in_ia32_syscall() true
+#else
+#define in_ia32_syscall() (IS_ENABLED(CONFIG_IA32_EMULATION) && \
+			   current->thread.status & TS_COMPAT)
 #endif
-#ifdef CONFIG_IA32_EMULATION
-	if (current_thread_info()->status & TS_COMPAT)
-		return true;
-#endif
-	return false;
-}
 
 /*
  * Force syscall return via IRET by making it look as if there was

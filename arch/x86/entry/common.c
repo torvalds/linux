@@ -209,7 +209,7 @@ __visible inline void prepare_exit_to_usermode(struct pt_regs *regs)
 	 * special case only applies after poking regs and before the
 	 * very next return to user mode.
 	 */
-	ti->status &= ~(TS_COMPAT|TS_I386_REGS_POKED);
+	current->thread.status &= ~(TS_COMPAT|TS_I386_REGS_POKED);
 #endif
 
 	user_enter_irqoff();
@@ -307,7 +307,7 @@ static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs)
 	unsigned int nr = (unsigned int)regs->orig_ax;
 
 #ifdef CONFIG_IA32_EMULATION
-	ti->status |= TS_COMPAT;
+	current->thread.status |= TS_COMPAT;
 #endif
 
 	if (READ_ONCE(ti->flags) & _TIF_WORK_SYSCALL_ENTRY) {

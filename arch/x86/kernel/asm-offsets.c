@@ -36,7 +36,6 @@ void common(void) {
 
 	BLANK();
 	OFFSET(TI_flags, thread_info, flags);
-	OFFSET(TI_status, thread_info, status);
 
 	BLANK();
 	OFFSET(TASK_addr_limit, task_struct, thread.addr_limit);
