@@ -91,7 +91,7 @@ union pplib_clock_info {
 	struct _ATOM_PPLIB_SI_CLOCK_INFO si;
 };
 
-const u32 r600_utc[R600_PM_NUMBER_OF_TC] =
+static const u32 r600_utc[R600_PM_NUMBER_OF_TC] =
 {
 	R600_UTC_DFLT_00,
 	R600_UTC_DFLT_01,
@@ -110,7 +110,7 @@ const u32 r600_utc[R600_PM_NUMBER_OF_TC] =
 	R600_UTC_DFLT_14,
 };
 
-const u32 r600_dtc[R600_PM_NUMBER_OF_TC] =
+static const u32 r600_dtc[R600_PM_NUMBER_OF_TC] =
 {
 	R600_DTC_DFLT_00,
 	R600_DTC_DFLT_01,
@@ -432,7 +432,7 @@ static const struct si_dte_data dte_data_malta =
 	true
 };
 
-struct si_cac_config_reg cac_weights_pitcairn[] =
+static const struct si_cac_config_reg cac_weights_pitcairn[] =
 {
 	{ 0x0, 0x0000ffff, 0, 0x8a, SISLANDS_CACCONFIG_CGIND },
 	{ 0x0, 0xffff0000, 16, 0x0, SISLANDS_CACCONFIG_CGIND },
@@ -1188,7 +1188,7 @@ static const struct si_dte_data dte_data_venus_pro =
 	true
 };
 
-struct si_cac_config_reg cac_weights_oland[] =
+static const struct si_cac_config_reg cac_weights_oland[] =
 {
 	{ 0x0, 0x0000ffff, 0, 0x82, SISLANDS_CACCONFIG_CGIND },
 	{ 0x0, 0xffff0000, 16, 0x4F, SISLANDS_CACCONFIG_CGIND },
@@ -1825,10 +1825,10 @@ static const struct si_powertune_data powertune_data_hainan =
 	true
 };
 
-struct rv7xx_power_info *rv770_get_pi(struct amdgpu_device *adev);
-struct evergreen_power_info *evergreen_get_pi(struct amdgpu_device *adev);
-struct ni_power_info *ni_get_pi(struct amdgpu_device *adev);
-struct  si_ps *si_get_ps(struct amdgpu_ps *rps);
+static struct rv7xx_power_info *rv770_get_pi(struct amdgpu_device *adev);
+static struct evergreen_power_info *evergreen_get_pi(struct amdgpu_device *adev);
+static struct ni_power_info *ni_get_pi(struct amdgpu_device *adev);
+static struct  si_ps *si_get_ps(struct amdgpu_ps *rps);
 
 static int si_populate_voltage_value(struct amdgpu_device *adev,
 				     const struct atom_voltage_table *table,
@@ -1849,8 +1849,6 @@ static void si_thermal_start_smc_fan_control(struct amdgpu_device *adev);
 static void si_fan_ctrl_set_default_mode(struct amdgpu_device *adev);
 static void si_dpm_set_dpm_funcs(struct amdgpu_device *adev);
 static void si_dpm_set_irq_funcs(struct amdgpu_device *adev);
-
-extern u32 si_pciep_rreg(struct amdgpu_device *adev, u32 reg);
 
 static struct si_power_info *si_get_pi(struct amdgpu_device *adev)
 {
@@ -1954,21 +1952,21 @@ static void si_update_dte_from_pl2(struct amdgpu_device *adev,
 	}
 }
 
-struct rv7xx_power_info *rv770_get_pi(struct amdgpu_device *adev)
+static struct rv7xx_power_info *rv770_get_pi(struct amdgpu_device *adev)
 {
 	struct rv7xx_power_info *pi = adev->pm.dpm.priv;
 
 	return pi;
 }
 
-struct ni_power_info *ni_get_pi(struct amdgpu_device *adev)
+static struct ni_power_info *ni_get_pi(struct amdgpu_device *adev)
 {
 	struct ni_power_info *pi = adev->pm.dpm.priv;
 
 	return pi;
 }
 
-struct  si_ps *si_get_ps(struct amdgpu_ps *aps)
+static struct si_ps *si_get_ps(struct amdgpu_ps *aps)
 {
 	struct  si_ps *ps = aps->ps_priv;
 
@@ -3257,8 +3255,8 @@ static u32 btc_get_valid_sclk(struct amdgpu_device *adev,
 				    max_sclk, requested_sclk);
 }
 
-void btc_get_max_clock_from_voltage_dependency_table(struct amdgpu_clock_voltage_dependency_table *table,
-						     u32 *max_clock)
+static void btc_get_max_clock_from_voltage_dependency_table(struct amdgpu_clock_voltage_dependency_table *table,
+							    u32 *max_clock)
 {
 	u32 i, clock = 0;
 
@@ -4308,7 +4306,7 @@ static void si_clear_vc(struct amdgpu_device *adev)
 	WREG32(CG_FTV, 0);
 }
 
-u8 si_get_ddr3_mclk_frequency_ratio(u32 memory_clock)
+static u8 si_get_ddr3_mclk_frequency_ratio(u32 memory_clock)
 {
 	u8 mc_para_index;
 
@@ -4321,7 +4319,7 @@ u8 si_get_ddr3_mclk_frequency_ratio(u32 memory_clock)
 	return mc_para_index;
 }
 
-u8 si_get_mclk_frequency_ratio(u32 memory_clock, bool strobe_mode)
+static u8 si_get_mclk_frequency_ratio(u32 memory_clock, bool strobe_mode)
 {
 	u8 mc_para_index;
 
@@ -7561,7 +7559,7 @@ static int si_dpm_set_interrupt_state(struct amdgpu_device *adev,
 }
 
 static int si_dpm_process_interrupt(struct amdgpu_device *adev,
-				    struct amdgpu_irq_src *source, 
+				    struct amdgpu_irq_src *source,
 				    struct amdgpu_iv_entry *entry)
 {
 	bool queue_thermal = false;
