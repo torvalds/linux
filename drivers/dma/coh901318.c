@@ -1335,7 +1335,7 @@ static void coh901318_list_print(struct coh901318_chan *cohc,
 static struct coh901318_base *debugfs_dma_base;
 static struct dentry *dma_dentry;
 
-static int coh901318_debugfs_read(struct file *file, char __user *buf,
+static ssize_t coh901318_debugfs_read(struct file *file, char __user *buf,
 				  size_t count, loff_t *f_pos)
 {
 	u64 started_channels = debugfs_dma_base->pm.started_channels;
