@@ -1448,7 +1448,7 @@ static int musb_core_init(u16 musb_type, struct musb *musb)
 {
 	u8 reg;
 	char *type;
-	char aInfo[90], aRevision[32], aDate[12];
+	char aInfo[90];
 	void __iomem	*mbase = musb->mregs;
 	int		status = 0;
 	int		i;
@@ -1482,7 +1482,6 @@ static int musb_core_init(u16 musb_type, struct musb *musb)
 
 	pr_debug("%s: ConfigData=0x%02x (%s)\n", musb_driver_name, reg, aInfo);
 
-	aDate[0] = 0;
 	if (MUSB_CONTROLLER_MHDRC == musb_type) {
 		musb->is_multipoint = 1;
 		type = "M";
@@ -1497,11 +1496,10 @@ static int musb_core_init(u16 musb_type, struct musb *musb)
 
 	/* log release info */
 	musb->hwvers = musb_read_hwvers(mbase);
-	snprintf(aRevision, 32, "%d.%d%s", MUSB_HWVERS_MAJOR(musb->hwvers),
-		MUSB_HWVERS_MINOR(musb->hwvers),
-		(musb->hwvers & MUSB_HWVERS_RC) ? "RC" : "");
-	pr_debug("%s: %sHDRC RTL version %s %s\n",
-		 musb_driver_name, type, aRevision, aDate);
+	pr_debug("%s: %sHDRC RTL version %d.%d%s\n",
+		 musb_driver_name, type, MUSB_HWVERS_MAJOR(musb->hwvers),
+		 MUSB_HWVERS_MINOR(musb->hwvers),
+		 (musb->hwvers & MUSB_HWVERS_RC) ? "RC" : "");
 
 	/* configure ep0 */
 	musb_configure_ep0(musb);
