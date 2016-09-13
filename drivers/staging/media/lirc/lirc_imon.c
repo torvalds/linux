@@ -561,7 +561,7 @@ static void submit_data(struct imon_context *context)
 		value |= PULSE_BIT;
 
 	for (i = 0; i < 4; ++i)
-		buf[i] = value>>(i*8);
+		buf[i] = value >> (i * 8);
 
 	lirc_buffer_write(context->driver->rbuf, buf);
 	wake_up(&context->driver->rbuf->wait_poll);
