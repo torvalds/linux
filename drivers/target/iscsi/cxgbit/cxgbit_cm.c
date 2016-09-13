@@ -24,6 +24,7 @@
 #include <net/ip6_route.h>
 #include <net/addrconf.h>
 
+#include <libcxgb_cm.h>
 #include "cxgbit.h"
 #include "clip_tbl.h"
 
@@ -789,42 +790,6 @@ void _cxgbit_free_csk(struct kref *kref)
 	kfree(csk);
 }
 
-static void
-cxgbit_get_tuple_info(struct cpl_pass_accept_req *req, int *iptype,
-		      __u8 *local_ip, __u8 *peer_ip, __be16 *local_port,
-		      __be16 *peer_port)
-{
-	u32 eth_len = ETH_HDR_LEN_G(be32_to_cpu(req->hdr_len));
-	u32 ip_len = IP_HDR_LEN_G(be32_to_cpu(req->hdr_len));
-	struct iphdr *ip = (struct iphdr *)((u8 *)(req + 1) + eth_len);
-	struct ipv6hdr *ip6 = (struct ipv6hdr *)((u8 *)(req + 1) + eth_len);
-	struct tcphdr *tcp = (struct tcphdr *)
-			      ((u8 *)(req + 1) + eth_len + ip_len);
-
-	if (ip->version == 4) {
-		pr_debug("%s saddr 0x%x daddr 0x%x sport %u dport %u\n",
-			 __func__,
-			 ntohl(ip->saddr), ntohl(ip->daddr),
-			 ntohs(tcp->source),
-			 ntohs(tcp->dest));
-		*iptype = 4;
-		memcpy(peer_ip, &ip->saddr, 4);
-		memcpy(local_ip, &ip->daddr, 4);
-	} else {
-		pr_debug("%s saddr %pI6 daddr %pI6 sport %u dport %u\n",
-			 __func__,
-			 ip6->saddr.s6_addr, ip6->daddr.s6_addr,
-			 ntohs(tcp->source),
-			 ntohs(tcp->dest));
-		*iptype = 6;
-		memcpy(peer_ip, ip6->saddr.s6_addr, 16);
-		memcpy(local_ip, ip6->daddr.s6_addr, 16);
-	}
-
-	*peer_port = tcp->source;
-	*local_port = tcp->dest;
-}
-
 static int
 cxgbit_our_interface(struct cxgbit_device *cdev, struct net_device *egress_dev)
 {
@@ -1340,8 +1305,8 @@ cxgbit_pass_accept_req(struct cxgbit_device *cdev, struct sk_buff *skb)
 		goto rel_skb;
 	}
 
-	cxgbit_get_tuple_info(req, &iptype, local_ip, peer_ip,
-			      &local_port, &peer_port);
+	cxgb_get_4tuple(req, cdev->lldi.adapter_type, &iptype, local_ip,
+			peer_ip, &local_port, &peer_port);
 
 	/* Find output route */
 	if (iptype == 4)  {
