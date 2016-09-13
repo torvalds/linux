@@ -830,33 +830,6 @@ out:
 	return dst;
 }
 
-static struct dst_entry *
-cxgbit_find_route(struct cxgbit_device *cdev, __be32 local_ip, __be32 peer_ip,
-		  __be16 local_port, __be16 peer_port, u8 tos)
-{
-	struct rtable *rt;
-	struct flowi4 fl4;
-	struct neighbour *n;
-
-	rt = ip_route_output_ports(&init_net, &fl4, NULL, peer_ip,
-				   local_ip,
-				   peer_port, local_port, IPPROTO_TCP,
-				   tos, 0);
-	if (IS_ERR(rt))
-		return NULL;
-	n = dst_neigh_lookup(&rt->dst, &peer_ip);
-	if (!n)
-		return NULL;
-	if (!cxgbit_our_interface(cdev, n->dev) &&
-	    !(n->dev->flags & IFF_LOOPBACK)) {
-		neigh_release(n);
-		dst_release(&rt->dst);
-		return NULL;
-	}
-	neigh_release(n);
-	return &rt->dst;
-}
-
 static void cxgbit_set_tcp_window(struct cxgbit_sock *csk, struct port_info *pi)
 {
 	unsigned int linkspeed;
@@ -1315,10 +1288,11 @@ cxgbit_pass_accept_req(struct cxgbit_device *cdev, struct sk_buff *skb)
 			 , __func__, cnp, tid,
 			 local_ip, peer_ip, ntohs(local_port),
 			 ntohs(peer_port), peer_mss);
-		dst = cxgbit_find_route(cdev, *(__be32 *)local_ip,
-					*(__be32 *)peer_ip,
-					local_port, peer_port,
-					PASS_OPEN_TOS_G(ntohl(req->tos_stid)));
+		dst = cxgb_find_route(&cdev->lldi, cxgbit_get_real_dev,
+				      *(__be32 *)local_ip,
+				      *(__be32 *)peer_ip,
+				      local_port, peer_port,
+				      PASS_OPEN_TOS_G(ntohl(req->tos_stid)));
 	} else {
 		pr_debug("%s parent sock %p tid %u laddr %pI6 raddr %pI6 "
 			 "lport %d rport %d peer_mss %d\n"

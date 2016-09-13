@@ -505,32 +505,6 @@ out:
 	return dst;
 }
 
-static struct dst_entry *find_route(struct c4iw_dev *dev, __be32 local_ip,
-				 __be32 peer_ip, __be16 local_port,
-				 __be16 peer_port, u8 tos)
-{
-	struct rtable *rt;
-	struct flowi4 fl4;
-	struct neighbour *n;
-
-	rt = ip_route_output_ports(&init_net, &fl4, NULL, peer_ip, local_ip,
-				   peer_port, local_port, IPPROTO_TCP,
-				   tos, 0);
-	if (IS_ERR(rt))
-		return NULL;
-	n = dst_neigh_lookup(&rt->dst, &peer_ip);
-	if (!n)
-		return NULL;
-	if (!our_interface(dev, n->dev) &&
-	    !(n->dev->flags & IFF_LOOPBACK)) {
-		neigh_release(n);
-		dst_release(&rt->dst);
-		return NULL;
-	}
-	neigh_release(n);
-	return &rt->dst;
-}
-
 static void arp_failure_discard(void *handle, struct sk_buff *skb)
 {
 	pr_err(MOD "ARP failure\n");
@@ -2215,9 +2189,11 @@ static int c4iw_reconnect(struct c4iw_ep *ep)
 
 	/* find a route */
 	if (ep->com.cm_id->m_local_addr.ss_family == AF_INET) {
-		ep->dst = find_route(ep->com.dev, laddr->sin_addr.s_addr,
-				     raddr->sin_addr.s_addr, laddr->sin_port,
-				     raddr->sin_port, ep->com.cm_id->tos);
+		ep->dst = cxgb_find_route(&ep->com.dev->rdev.lldi, get_real_dev,
+					  laddr->sin_addr.s_addr,
+					  raddr->sin_addr.s_addr,
+					  laddr->sin_port,
+					  raddr->sin_port, ep->com.cm_id->tos);
 		iptype = 4;
 		ra = (__u8 *)&raddr->sin_addr;
 	} else {
@@ -2556,9 +2532,9 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 		     , __func__, parent_ep, hwtid,
 		     local_ip, peer_ip, ntohs(local_port),
 		     ntohs(peer_port), peer_mss);
-		dst = find_route(dev, *(__be32 *)local_ip, *(__be32 *)peer_ip,
-				 local_port, peer_port,
-				 tos);
+		dst = cxgb_find_route(&dev->rdev.lldi, get_real_dev,
+				      *(__be32 *)local_ip, *(__be32 *)peer_ip,
+				      local_port, peer_port, tos);
 	} else {
 		PDBG("%s parent ep %p hwtid %u laddr %pI6 raddr %pI6 lport %d rport %d peer_mss %d\n"
 		     , __func__, parent_ep, hwtid,
@@ -3340,9 +3316,11 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		PDBG("%s saddr %pI4 sport 0x%x raddr %pI4 rport 0x%x\n",
 		     __func__, &laddr->sin_addr, ntohs(laddr->sin_port),
 		     ra, ntohs(raddr->sin_port));
-		ep->dst = find_route(dev, laddr->sin_addr.s_addr,
-				     raddr->sin_addr.s_addr, laddr->sin_port,
-				     raddr->sin_port, cm_id->tos);
+		ep->dst = cxgb_find_route(&dev->rdev.lldi, get_real_dev,
+					  laddr->sin_addr.s_addr,
+					  raddr->sin_addr.s_addr,
+					  laddr->sin_port,
+					  raddr->sin_port, cm_id->tos);
 	} else {
 		iptype = 6;
 		ra = (__u8 *)&raddr6->sin6_addr;
@@ -4006,8 +3984,9 @@ static int rx_pkt(struct c4iw_dev *dev, struct sk_buff *skb)
 	     ntohl(iph->daddr), ntohs(tcph->dest), ntohl(iph->saddr),
 	     ntohs(tcph->source), iph->tos);
 
-	dst = find_route(dev, iph->daddr, iph->saddr, tcph->dest, tcph->source,
-			 iph->tos);
+	dst = cxgb_find_route(&dev->rdev.lldi, get_real_dev,
+			      iph->daddr, iph->saddr, tcph->dest,
+			      tcph->source, iph->tos);
 	if (!dst) {
 		pr_err("%s - failed to find dst entry!\n",
 		       __func__);

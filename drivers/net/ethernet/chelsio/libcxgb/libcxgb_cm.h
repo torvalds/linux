@@ -39,4 +39,8 @@
 void
 cxgb_get_4tuple(struct cpl_pass_accept_req *, enum chip_type,
 		int *, __u8 *, __u8 *, __be16 *, __be16 *);
+struct dst_entry *
+cxgb_find_route(struct cxgb4_lld_info *,
+		struct net_device *(*)(struct net_device *),
+		__be32, __be32, __be16,	__be16, u8);
 #endif
