@@ -1987,15 +1987,6 @@ static inline int act_open_has_tid(int status)
 		status != CPL_ERR_CONN_EXIST);
 }
 
-/* Returns whether a CPL status conveys negative advice.
- */
-static int is_neg_adv(unsigned int status)
-{
-	return status == CPL_ERR_RTX_NEG_ADVICE ||
-	       status == CPL_ERR_PERSIST_NEG_ADVICE ||
-	       status == CPL_ERR_KEEPALV_NEG_ADVICE;
-}
-
 static char *neg_adv_str(unsigned int status)
 {
 	switch (status) {
@@ -2235,7 +2226,7 @@ static int act_open_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	PDBG("%s ep %p atid %u status %u errno %d\n", __func__, ep, atid,
 	     status, status2errno(status));
 
-	if (is_neg_adv(status)) {
+	if (cxgb_is_neg_adv(status)) {
 		PDBG("%s Connection problems for atid %u status %u (%s)\n",
 		     __func__, atid, status, neg_adv_str(status));
 		ep->stats.connect_neg_adv++;
@@ -2751,7 +2742,7 @@ static int peer_abort(struct c4iw_dev *dev, struct sk_buff *skb)
 	if (!ep)
 		return 0;
 
-	if (is_neg_adv(req->status)) {
+	if (cxgb_is_neg_adv(req->status)) {
 		PDBG("%s Negative advice on abort- tid %u status %d (%s)\n",
 		     __func__, ep->hwtid, req->status,
 		     neg_adv_str(req->status));
@@ -4227,7 +4218,7 @@ static int peer_abort_intr(struct c4iw_dev *dev, struct sk_buff *skb)
 		kfree_skb(skb);
 		return 0;
 	}
-	if (is_neg_adv(req->status)) {
+	if (cxgb_is_neg_adv(req->status)) {
 		PDBG("%s Negative advice on abort- tid %u status %d (%s)\n",
 		     __func__, ep->hwtid, req->status,
 		     neg_adv_str(req->status));

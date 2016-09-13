@@ -73,15 +73,6 @@ out:
 	return wr_waitp->ret;
 }
 
-/* Returns whether a CPL status conveys negative advice.
- */
-static int cxgbit_is_neg_adv(unsigned int status)
-{
-	return status == CPL_ERR_RTX_NEG_ADVICE ||
-		status == CPL_ERR_PERSIST_NEG_ADVICE ||
-		status == CPL_ERR_KEEPALV_NEG_ADVICE;
-}
-
 static int cxgbit_np_hashfn(const struct cxgbit_np *cnp)
 {
 	return ((unsigned long)cnp >> 10) & (NP_INFO_HASH_SIZE - 1);
@@ -1704,7 +1695,7 @@ static void cxgbit_abort_req_rss(struct cxgbit_sock *csk, struct sk_buff *skb)
 	pr_debug("%s: csk %p; tid %u; state %d\n",
 		 __func__, csk, tid, csk->com.state);
 
-	if (cxgbit_is_neg_adv(hdr->status)) {
+	if (cxgb_is_neg_adv(hdr->status)) {
 		pr_err("%s: got neg advise %d on tid %u\n",
 		       __func__, hdr->status, tid);
 		goto rel_skb;

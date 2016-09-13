@@ -47,4 +47,13 @@ struct dst_entry *
 cxgb_find_route6(struct cxgb4_lld_info *,
 		 struct net_device *(*)(struct net_device *),
 		 __u8 *, __u8 *, __be16, __be16, u8, __u32);
+
+/* Returns whether a CPL status conveys negative advice.
+ */
+static inline bool cxgb_is_neg_adv(unsigned int status)
+{
+	return status == CPL_ERR_RTX_NEG_ADVICE ||
+	       status == CPL_ERR_PERSIST_NEG_ADVICE ||
+	       status == CPL_ERR_KEEPALV_NEG_ADVICE;
+}
 #endif
