@@ -443,16 +443,10 @@ static void fsl_espi_cpu_irq(struct mpc8xxx_spi *mspi, u32 events)
 				&reg_base->event)) & SPIE_NF), 1000, 0);
 		if (!ret) {
 			dev_err(mspi->dev, "tired waiting for SPIE_NF\n");
-
-			/* Clear the SPIE bits */
-			mpc8xxx_spi_write_reg(&reg_base->event, events);
 			complete(&mspi->done);
 			return;
 		}
 	}
-
-	/* Clear the events */
-	mpc8xxx_spi_write_reg(&reg_base->event, events);
 
 	mspi->count -= 1;
 	if (mspi->count) {
@@ -468,19 +462,21 @@ static irqreturn_t fsl_espi_irq(s32 irq, void *context_data)
 {
 	struct mpc8xxx_spi *mspi = context_data;
 	struct fsl_espi_reg *reg_base = mspi->reg_base;
-	irqreturn_t ret = IRQ_NONE;
 	u32 events;
 
 	/* Get interrupt events(tx/rx) */
 	events = mpc8xxx_spi_read_reg(&reg_base->event);
-	if (events)
-		ret = IRQ_HANDLED;
+	if (!events)
+		return IRQ_NONE;
 
 	dev_vdbg(mspi->dev, "%s: events %x\n", __func__, events);
 
 	fsl_espi_cpu_irq(mspi, events);
 
-	return ret;
+	/* Clear the events */
+	mpc8xxx_spi_write_reg(&reg_base->event, events);
+
+	return IRQ_HANDLED;
 }
 
 #ifdef CONFIG_PM
