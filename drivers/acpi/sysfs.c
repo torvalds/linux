@@ -314,10 +314,14 @@ static struct kobject *tables_kobj;
 static struct kobject *dynamic_tables_kobj;
 static struct kobject *hotplug_kobj;
 
+#define ACPI_MAX_TABLE_INSTANCES	999
+#define ACPI_INST_SIZE			4 /* including trailing 0 */
+
 struct acpi_table_attr {
 	struct bin_attribute attr;
-	char name[8];
+	char name[ACPI_NAME_SIZE];
 	int instance;
+	char filename[ACPI_NAME_SIZE+ACPI_INST_SIZE];
 	struct list_head node;
 };
 
@@ -329,14 +333,9 @@ static ssize_t acpi_table_show(struct file *filp, struct kobject *kobj,
 	    container_of(bin_attr, struct acpi_table_attr, attr);
 	struct acpi_table_header *table_header = NULL;
 	acpi_status status;
-	char name[ACPI_NAME_SIZE];
 
-	if (strncmp(table_attr->name, "NULL", 4))
-		memcpy(name, table_attr->name, ACPI_NAME_SIZE);
-	else
-		memcpy(name, "\0\0\0\0", 4);
-
-	status = acpi_get_table(name, table_attr->instance, &table_header);
+	status = acpi_get_table(table_attr->name, table_attr->instance,
+				&table_header);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
@@ -344,38 +343,45 @@ static ssize_t acpi_table_show(struct file *filp, struct kobject *kobj,
 				       table_header, table_header->length);
 }
 
-static void acpi_table_attr_init(struct acpi_table_attr *table_attr,
-				 struct acpi_table_header *table_header)
+static int acpi_table_attr_init(struct kobject *tables_obj,
+				struct acpi_table_attr *table_attr,
+				struct acpi_table_header *table_header)
 {
 	struct acpi_table_header *header = NULL;
 	struct acpi_table_attr *attr = NULL;
+	char instance_str[ACPI_INST_SIZE];
 
 	sysfs_attr_init(&table_attr->attr.attr);
-	if (table_header->signature[0] != '\0')
-		memcpy(table_attr->name, table_header->signature,
-		       ACPI_NAME_SIZE);
-	else
-		memcpy(table_attr->name, "NULL", 4);
+	ACPI_MOVE_NAME(table_attr->name, table_header->signature);
 
 	list_for_each_entry(attr, &acpi_table_attr_list, node) {
-		if (!memcmp(table_attr->name, attr->name, ACPI_NAME_SIZE))
+		if (ACPI_COMPARE_NAME(table_attr->name, attr->name))
 			if (table_attr->instance < attr->instance)
 				table_attr->instance = attr->instance;
 	}
 	table_attr->instance++;
+	if (table_attr->instance > ACPI_MAX_TABLE_INSTANCES) {
+		pr_warn("%4.4s: too many table instances\n",
+			table_attr->name);
+		return -ERANGE;
+	}
 
+	ACPI_MOVE_NAME(table_attr->filename, table_header->signature);
+	table_attr->filename[ACPI_NAME_SIZE] = '\0';
 	if (table_attr->instance > 1 || (table_attr->instance == 1 &&
 					 !acpi_get_table
-					 (table_header->signature, 2, &header)))
-		sprintf(table_attr->name + ACPI_NAME_SIZE, "%d",
-			table_attr->instance);
+					 (table_header->signature, 2, &header))) {
+		snprintf(instance_str, sizeof(instance_str), "%u",
+			 table_attr->instance);
+		strcat(table_attr->filename, instance_str);
+	}
 
 	table_attr->attr.size = table_header->length;
 	table_attr->attr.read = acpi_table_show;
-	table_attr->attr.attr.name = table_attr->name;
+	table_attr->attr.attr.name = table_attr->filename;
 	table_attr->attr.attr.mode = 0400;
 
-	return;
+	return sysfs_create_bin_file(tables_obj, &table_attr->attr);
 }
 
 acpi_status acpi_sysfs_table_handler(u32 event, void *table, void *context)
@@ -389,13 +395,12 @@ acpi_status acpi_sysfs_table_handler(u32 event, void *table, void *context)
 		if (!table_attr)
 			return AE_NO_MEMORY;
 
-		acpi_table_attr_init(table_attr, table);
-		if (sysfs_create_bin_file(dynamic_tables_kobj,
-					  &table_attr->attr)) {
+		if (acpi_table_attr_init(dynamic_tables_kobj,
+					 table_attr, table)) {
 			kfree(table_attr);
 			return AE_ERROR;
-		} else
-			list_add_tail(&table_attr->node, &acpi_table_attr_list);
+		}
+		list_add_tail(&table_attr->node, &acpi_table_attr_list);
 		break;
 	case ACPI_TABLE_EVENT_LOAD:
 	case ACPI_TABLE_EVENT_UNLOAD:
@@ -437,13 +442,12 @@ static int acpi_tables_sysfs_init(void)
 		if (ACPI_FAILURE(status))
 			continue;
 
-		table_attr = NULL;
 		table_attr = kzalloc(sizeof(*table_attr), GFP_KERNEL);
 		if (!table_attr)
 			return -ENOMEM;
 
-		acpi_table_attr_init(table_attr, table_header);
-		ret = sysfs_create_bin_file(tables_kobj, &table_attr->attr);
+		ret = acpi_table_attr_init(tables_kobj,
+					   table_attr, table_header);
 		if (ret) {
 			kfree(table_attr);
 			return ret;
