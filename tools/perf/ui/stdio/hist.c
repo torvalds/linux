@@ -528,8 +528,8 @@ static int print_hierarchy_indent(const char *sep, int indent,
 	return fprintf(fp, "%-.*s", (indent - 2) * HIERARCHY_INDENT, line);
 }
 
-static int print_hierarchy_header(struct hists *hists, struct perf_hpp *hpp,
-				  const char *sep, FILE *fp)
+static int hists__fprintf_hierarchy_headers(struct hists *hists,
+					    struct perf_hpp *hpp, FILE *fp)
 {
 	bool first_node, first_col;
 	int indent;
@@ -538,6 +538,7 @@ static int print_hierarchy_header(struct hists *hists, struct perf_hpp *hpp,
 	unsigned header_width = 0;
 	struct perf_hpp_fmt *fmt;
 	struct perf_hpp_list_node *fmt_node;
+	const char *sep = symbol_conf.field_sep;
 
 	indent = hists->nr_hpp_node;
 
@@ -621,14 +622,6 @@ static int print_hierarchy_header(struct hists *hists, struct perf_hpp *hpp,
 	fprintf(fp, "\n#\n");
 
 	return 2;
-}
-
-static int
-hists__fprintf_hierarchy_headers(struct hists *hists,
-				 struct perf_hpp *hpp,
-				 FILE *fp)
-{
-	return print_hierarchy_header(hists, hpp, symbol_conf.field_sep, fp);
 }
 
 static void fprintf_line(struct hists *hists, struct perf_hpp *hpp,
