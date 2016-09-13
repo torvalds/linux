@@ -280,7 +280,7 @@ static int send_write(struct svcxprt_rdma *xprt, struct svc_rqst *rqstp,
 		if (ib_dma_mapping_error(xprt->sc_cm_id->device,
 					 sge[sge_no].addr))
 			goto err;
-		atomic_inc(&xprt->sc_dma_used);
+		svc_rdma_count_mappings(xprt, ctxt);
 		sge[sge_no].lkey = xprt->sc_pd->local_dma_lkey;
 		ctxt->count++;
 		sge_off = 0;
@@ -489,7 +489,7 @@ static int send_reply(struct svcxprt_rdma *rdma,
 			    ctxt->sge[0].length, DMA_TO_DEVICE);
 	if (ib_dma_mapping_error(rdma->sc_cm_id->device, ctxt->sge[0].addr))
 		goto err;
-	atomic_inc(&rdma->sc_dma_used);
+	svc_rdma_count_mappings(rdma, ctxt);
 
 	ctxt->direction = DMA_TO_DEVICE;
 
@@ -505,7 +505,7 @@ static int send_reply(struct svcxprt_rdma *rdma,
 		if (ib_dma_mapping_error(rdma->sc_cm_id->device,
 					 ctxt->sge[sge_no].addr))
 			goto err;
-		atomic_inc(&rdma->sc_dma_used);
+		svc_rdma_count_mappings(rdma, ctxt);
 		ctxt->sge[sge_no].lkey = rdma->sc_pd->local_dma_lkey;
 		ctxt->sge[sge_no].length = sge_bytes;
 	}
@@ -523,22 +523,8 @@ static int send_reply(struct svcxprt_rdma *rdma,
 		ctxt->pages[page_no+1] = rqstp->rq_respages[page_no];
 		ctxt->count++;
 		rqstp->rq_respages[page_no] = NULL;
-		/*
-		 * If there are more pages than SGE, terminate SGE
-		 * list so that svc_rdma_unmap_dma doesn't attempt to
-		 * unmap garbage.
-		 */
-		if (page_no+1 >= sge_no)
-			ctxt->sge[page_no+1].length = 0;
 	}
 	rqstp->rq_next_page = rqstp->rq_respages + 1;
-
-	/* The loop above bumps sc_dma_used for each sge. The
-	 * xdr_buf.tail gets a separate sge, but resides in the
-	 * same page as xdr_buf.head. Don't count it twice.
-	 */
-	if (sge_no > ctxt->count)
-		atomic_dec(&rdma->sc_dma_used);
 
 	if (sge_no > rdma->sc_max_sge) {
 		pr_err("svcrdma: Too many sges (%d)\n", sge_no);
@@ -692,7 +678,7 @@ void svc_rdma_send_error(struct svcxprt_rdma *xprt, struct rpcrdma_msg *rmsgp,
 		svc_rdma_put_context(ctxt, 1);
 		return;
 	}
-	atomic_inc(&xprt->sc_dma_used);
+	svc_rdma_count_mappings(xprt, ctxt);
 
 	/* Prepare SEND WR */
 	memset(&err_wr, 0, sizeof(err_wr));

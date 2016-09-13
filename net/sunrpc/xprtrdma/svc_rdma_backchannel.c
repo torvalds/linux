@@ -129,7 +129,7 @@ static int svc_rdma_bc_sendto(struct svcxprt_rdma *rdma,
 		ret = -EIO;
 		goto out_unmap;
 	}
-	atomic_inc(&rdma->sc_dma_used);
+	svc_rdma_count_mappings(rdma, ctxt);
 
 	memset(&send_wr, 0, sizeof(send_wr));
 	ctxt->cqe.done = svc_rdma_wc_send;

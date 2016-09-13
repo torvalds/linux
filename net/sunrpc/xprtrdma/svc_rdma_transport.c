@@ -198,6 +198,7 @@ struct svc_rdma_op_ctxt *svc_rdma_get_context(struct svcxprt_rdma *xprt)
 
 out:
 	ctxt->count = 0;
+	ctxt->mapped_sges = 0;
 	ctxt->frmr = NULL;
 	return ctxt;
 
@@ -221,22 +222,27 @@ out_empty:
 void svc_rdma_unmap_dma(struct svc_rdma_op_ctxt *ctxt)
 {
 	struct svcxprt_rdma *xprt = ctxt->xprt;
-	int i;
-	for (i = 0; i < ctxt->count && ctxt->sge[i].length; i++) {
+	struct ib_device *device = xprt->sc_cm_id->device;
+	u32 lkey = xprt->sc_pd->local_dma_lkey;
+	unsigned int i, count;
+
+	for (count = 0, i = 0; i < ctxt->mapped_sges; i++) {
 		/*
 		 * Unmap the DMA addr in the SGE if the lkey matches
 		 * the local_dma_lkey, otherwise, ignore it since it is
 		 * an FRMR lkey and will be unmapped later when the
 		 * last WR that uses it completes.
 		 */
-		if (ctxt->sge[i].lkey == xprt->sc_pd->local_dma_lkey) {
-			atomic_dec(&xprt->sc_dma_used);
-			ib_dma_unmap_page(xprt->sc_cm_id->device,
+		if (ctxt->sge[i].lkey == lkey) {
+			count++;
+			ib_dma_unmap_page(device,
 					    ctxt->sge[i].addr,
 					    ctxt->sge[i].length,
 					    ctxt->direction);
 		}
 	}
+	ctxt->mapped_sges = 0;
+	atomic_sub(count, &xprt->sc_dma_used);
 }
 
 void svc_rdma_put_context(struct svc_rdma_op_ctxt *ctxt, int free_pages)
@@ -600,7 +606,7 @@ int svc_rdma_post_recv(struct svcxprt_rdma *xprt, gfp_t flags)
 				     DMA_FROM_DEVICE);
 		if (ib_dma_mapping_error(xprt->sc_cm_id->device, pa))
 			goto err_put_ctxt;
-		atomic_inc(&xprt->sc_dma_used);
+		svc_rdma_count_mappings(xprt, ctxt);
 		ctxt->sge[sge_no].addr = pa;
 		ctxt->sge[sge_no].length = PAGE_SIZE;
 		ctxt->sge[sge_no].lkey = xprt->sc_pd->local_dma_lkey;
