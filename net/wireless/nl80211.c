@@ -866,7 +866,7 @@ nl80211_parse_connkeys(struct cfg80211_registered_device *rdev,
 		err = -EINVAL;
 		if (!parse.p.key)
 			goto error;
-		if (parse.idx < 0 || parse.idx > 4)
+		if (parse.idx < 0 || parse.idx > 3)
 			goto error;
 		if (parse.def) {
 			if (def)
