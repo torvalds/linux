@@ -1047,6 +1047,23 @@ err_out:
 	return err;
 }
 
+static int intel_use_opregion_panel_type_callback(const struct dmi_system_id *id)
+{
+	DRM_INFO("Using panel type from OpRegion on %s\n", id->ident);
+	return 1;
+}
+
+static const struct dmi_system_id intel_use_opregion_panel_type[] = {
+	{
+		.callback = intel_use_opregion_panel_type_callback,
+		.ident = "Conrac GmbH IX45GM2",
+		.matches = {DMI_MATCH(DMI_SYS_VENDOR, "Conrac GmbH"),
+			    DMI_MATCH(DMI_PRODUCT_NAME, "IX45GM2"),
+		},
+	},
+	{ }
+};
+
 int
 intel_opregion_get_panel_type(struct drm_i915_private *dev_priv)
 {
@@ -1069,6 +1086,16 @@ intel_opregion_get_panel_type(struct drm_i915_private *dev_priv)
 	/* fall back to VBT panel type? */
 	if (ret == 0x0) {
 		DRM_DEBUG_KMS("No panel type in OpRegion\n");
+		return -ENODEV;
+	}
+
+	/*
+	 * So far we know that some machined must use it, others must not use it.
+	 * There doesn't seem to be any way to determine which way to go, except
+	 * via a quirk list :(
+	 */
+	if (!dmi_check_system(intel_use_opregion_panel_type)) {
+		DRM_DEBUG_KMS("Ignoring OpRegion panel type (%d)\n", ret - 1);
 		return -ENODEV;
 	}
 
