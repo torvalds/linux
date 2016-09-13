@@ -7109,9 +7109,8 @@ F:	arch/powerpc/platforms/83xx/
 F:	arch/powerpc/platforms/85xx/
 
 LINUX FOR POWERPC PA SEMI PWRFICIENT
-M:	Olof Johansson <olof@lixom.net>
 L:	linuxppc-dev@lists.ozlabs.org
-S:	Maintained
+S:	Orphan
 F:	arch/powerpc/platforms/pasemi/
 F:	drivers/*/*pasemi*
 F:	drivers/*/*/*pasemi*
@@ -8784,15 +8783,13 @@ S:	Maintained
 F:	drivers/net/wireless/intersil/p54/
 
 PA SEMI ETHERNET DRIVER
-M:	Olof Johansson <olof@lixom.net>
 L:	netdev@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	drivers/net/ethernet/pasemi/*
 
 PA SEMI SMBUS DRIVER
-M:	Olof Johansson <olof@lixom.net>
 L:	linux-i2c@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	drivers/i2c/busses/i2c-pasemi.c
 
 PADATA PARALLEL EXECUTION MECHANISM
