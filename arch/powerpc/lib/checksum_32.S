@@ -127,8 +127,9 @@ _GLOBAL(csum_partial_copy_generic)
 	stw	r7,12(r1)
 	stw	r8,8(r1)
 
-	andi.	r0,r4,1			/* is destination address even ? */
-	cmplwi	cr7,r0,0
+	rlwinm	r0,r4,3,0x8
+	rlwnm	r6,r6,r0,0,31	/* odd destination address: rotate one byte */
+	cmplwi	cr7,r0,0	/* is destination address even ? */
 	addic	r12,r6,0
 	addi	r6,r4,-4
 	neg	r0,r4
@@ -237,7 +238,7 @@ _GLOBAL(csum_partial_copy_generic)
 66:	addze	r3,r12
 	addi	r1,r1,16
 	beqlr+	cr7
-	rlwinm	r3,r3,8,0,31	/* swap bytes for odd destination */
+	rlwinm	r3,r3,8,0,31	/* odd destination address: rotate one byte */
 	blr
 
 /* read fault */

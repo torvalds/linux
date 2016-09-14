@@ -4,6 +4,7 @@
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
+#include <linux/cpufeature.h>
 #include <asm/switch_to.h>
 
 #define CHKSUM_BLOCK_SIZE	1
@@ -157,7 +158,7 @@ static void __exit crc32c_vpmsum_mod_fini(void)
 	crypto_unregister_shash(&alg);
 }
 
-module_init(crc32c_vpmsum_mod_init);
+module_cpu_feature_match(PPC_MODULE_FEATURE_VEC_CRYPTO, crc32c_vpmsum_mod_init);
 module_exit(crc32c_vpmsum_mod_fini);
 
 MODULE_AUTHOR("Anton Blanchard <anton@samba.org>");

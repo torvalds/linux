@@ -1080,8 +1080,8 @@ static int riocm_send_ack(struct rio_channel *ch)
 static struct rio_channel *riocm_ch_accept(u16 ch_id, u16 *new_ch_id,
 					   long timeout)
 {
-	struct rio_channel *ch = NULL;
-	struct rio_channel *new_ch = NULL;
+	struct rio_channel *ch;
+	struct rio_channel *new_ch;
 	struct conn_req *req;
 	struct cm_peer *peer;
 	int found = 0;
@@ -1155,6 +1155,7 @@ static struct rio_channel *riocm_ch_accept(u16 ch_id, u16 *new_ch_id,
 
 	spin_unlock_bh(&ch->lock);
 	riocm_put_channel(ch);
+	ch = NULL;
 	kfree(req);
 
 	down_read(&rdev_sem);
@@ -1172,7 +1173,7 @@ static struct rio_channel *riocm_ch_accept(u16 ch_id, u16 *new_ch_id,
 	if (!found) {
 		/* If peer device object not found, simply ignore the request */
 		err = -ENODEV;
-		goto err_nodev;
+		goto err_put_new_ch;
 	}
 
 	new_ch->rdev = peer->rdev;
@@ -1184,15 +1185,16 @@ static struct rio_channel *riocm_ch_accept(u16 ch_id, u16 *new_ch_id,
 
 	*new_ch_id = new_ch->id;
 	return new_ch;
+
+err_put_new_ch:
+	spin_lock_bh(&idr_lock);
+	idr_remove(&ch_idr, new_ch->id);
+	spin_unlock_bh(&idr_lock);
+	riocm_put_channel(new_ch);
+
 err_put:
-	riocm_put_channel(ch);
-err_nodev:
-	if (new_ch) {
-		spin_lock_bh(&idr_lock);
-		idr_remove(&ch_idr, new_ch->id);
-		spin_unlock_bh(&idr_lock);
-		riocm_put_channel(new_ch);
-	}
+	if (ch)
+		riocm_put_channel(ch);
 	*new_ch_id = 0;
 	return ERR_PTR(err);
 }

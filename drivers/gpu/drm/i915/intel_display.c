@@ -3093,40 +3093,110 @@ static void intel_update_primary_planes(struct drm_device *dev)
 
 	for_each_crtc(dev, crtc) {
 		struct intel_plane *plane = to_intel_plane(crtc->primary);
-		struct intel_plane_state *plane_state;
-
-		drm_modeset_lock_crtc(crtc, &plane->base);
-		plane_state = to_intel_plane_state(plane->base.state);
+		struct intel_plane_state *plane_state =
+			to_intel_plane_state(plane->base.state);
 
 		if (plane_state->visible)
 			plane->update_plane(&plane->base,
 					    to_intel_crtc_state(crtc->state),
 					    plane_state);
-
-		drm_modeset_unlock_crtc(crtc);
 	}
+}
+
+static int
+__intel_display_resume(struct drm_device *dev,
+		       struct drm_atomic_state *state)
+{
+	struct drm_crtc_state *crtc_state;
+	struct drm_crtc *crtc;
+	int i, ret;
+
+	intel_modeset_setup_hw_state(dev);
+	i915_redisable_vga(dev);
+
+	if (!state)
+		return 0;
+
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		/*
+		 * Force recalculation even if we restore
+		 * current state. With fast modeset this may not result
+		 * in a modeset when the state is compatible.
+		 */
+		crtc_state->mode_changed = true;
+	}
+
+	/* ignore any reset values/BIOS leftovers in the WM registers */
+	to_intel_atomic_state(state)->skip_intermediate_wm = true;
+
+	ret = drm_atomic_commit(state);
+
+	WARN_ON(ret == -EDEADLK);
+	return ret;
 }
 
 void intel_prepare_reset(struct drm_i915_private *dev_priv)
 {
+	struct drm_device *dev = &dev_priv->drm;
+	struct drm_modeset_acquire_ctx *ctx = &dev_priv->reset_ctx;
+	struct drm_atomic_state *state;
+	int ret;
+
 	/* no reset support for gen2 */
 	if (IS_GEN2(dev_priv))
 		return;
 
-	/* reset doesn't touch the display */
+	/*
+	 * Need mode_config.mutex so that we don't
+	 * trample ongoing ->detect() and whatnot.
+	 */
+	mutex_lock(&dev->mode_config.mutex);
+	drm_modeset_acquire_init(ctx, 0);
+	while (1) {
+		ret = drm_modeset_lock_all_ctx(dev, ctx);
+		if (ret != -EDEADLK)
+			break;
+
+		drm_modeset_backoff(ctx);
+	}
+
+	/* reset doesn't touch the display, but flips might get nuked anyway, */
 	if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv))
 		return;
 
-	drm_modeset_lock_all(&dev_priv->drm);
 	/*
 	 * Disabling the crtcs gracefully seems nicer. Also the
 	 * g33 docs say we should at least disable all the planes.
 	 */
-	intel_display_suspend(&dev_priv->drm);
+	state = drm_atomic_helper_duplicate_state(dev, ctx);
+	if (IS_ERR(state)) {
+		ret = PTR_ERR(state);
+		state = NULL;
+		DRM_ERROR("Duplicating state failed with %i\n", ret);
+		goto err;
+	}
+
+	ret = drm_atomic_helper_disable_all(dev, ctx);
+	if (ret) {
+		DRM_ERROR("Suspending crtc's failed with %i\n", ret);
+		goto err;
+	}
+
+	dev_priv->modeset_restore_state = state;
+	state->acquire_ctx = ctx;
+	return;
+
+err:
+	drm_atomic_state_free(state);
 }
 
 void intel_finish_reset(struct drm_i915_private *dev_priv)
 {
+	struct drm_device *dev = &dev_priv->drm;
+	struct drm_modeset_acquire_ctx *ctx = &dev_priv->reset_ctx;
+	struct drm_atomic_state *state = dev_priv->modeset_restore_state;
+	int ret;
+
 	/*
 	 * Flips in the rings will be nuked by the reset,
 	 * so complete all pending flips so that user space
@@ -3137,6 +3207,8 @@ void intel_finish_reset(struct drm_i915_private *dev_priv)
 	/* no reset support for gen2 */
 	if (IS_GEN2(dev_priv))
 		return;
+
+	dev_priv->modeset_restore_state = NULL;
 
 	/* reset doesn't touch the display */
 	if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv)) {
@@ -3149,29 +3221,32 @@ void intel_finish_reset(struct drm_i915_private *dev_priv)
 		 * FIXME: Atomic will make this obsolete since we won't schedule
 		 * CS-based flips (which might get lost in gpu resets) any more.
 		 */
-		intel_update_primary_planes(&dev_priv->drm);
-		return;
+		intel_update_primary_planes(dev);
+	} else {
+		/*
+		 * The display has been reset as well,
+		 * so need a full re-initialization.
+		 */
+		intel_runtime_pm_disable_interrupts(dev_priv);
+		intel_runtime_pm_enable_interrupts(dev_priv);
+
+		intel_modeset_init_hw(dev);
+
+		spin_lock_irq(&dev_priv->irq_lock);
+		if (dev_priv->display.hpd_irq_setup)
+			dev_priv->display.hpd_irq_setup(dev_priv);
+		spin_unlock_irq(&dev_priv->irq_lock);
+
+		ret = __intel_display_resume(dev, state);
+		if (ret)
+			DRM_ERROR("Restoring old state failed with %i\n", ret);
+
+		intel_hpd_init(dev_priv);
 	}
 
-	/*
-	 * The display has been reset as well,
-	 * so need a full re-initialization.
-	 */
-	intel_runtime_pm_disable_interrupts(dev_priv);
-	intel_runtime_pm_enable_interrupts(dev_priv);
-
-	intel_modeset_init_hw(&dev_priv->drm);
-
-	spin_lock_irq(&dev_priv->irq_lock);
-	if (dev_priv->display.hpd_irq_setup)
-		dev_priv->display.hpd_irq_setup(dev_priv);
-	spin_unlock_irq(&dev_priv->irq_lock);
-
-	intel_display_resume(&dev_priv->drm);
-
-	intel_hpd_init(dev_priv);
-
-	drm_modeset_unlock_all(&dev_priv->drm);
+	drm_modeset_drop_locks(ctx);
+	drm_modeset_acquire_fini(ctx);
+	mutex_unlock(&dev->mode_config.mutex);
 }
 
 static bool intel_crtc_has_pending_flip(struct drm_crtc *crtc)
@@ -5691,15 +5766,7 @@ static bool skl_cdclk_pcu_ready(struct drm_i915_private *dev_priv)
 
 static bool skl_cdclk_wait_for_pcu_ready(struct drm_i915_private *dev_priv)
 {
-	unsigned int i;
-
-	for (i = 0; i < 15; i++) {
-		if (skl_cdclk_pcu_ready(dev_priv))
-			return true;
-		udelay(10);
-	}
-
-	return false;
+	return _wait_for(skl_cdclk_pcu_ready(dev_priv), 3000, 10) == 0;
 }
 
 static void skl_set_cdclk(struct drm_i915_private *dev_priv, int cdclk, int vco)
@@ -12114,21 +12181,11 @@ connected_sink_compute_bpp(struct intel_connector *connector,
 		pipe_config->pipe_bpp = connector->base.display_info.bpc*3;
 	}
 
-	/* Clamp bpp to default limit on screens without EDID 1.4 */
-	if (connector->base.display_info.bpc == 0) {
-		int type = connector->base.connector_type;
-		int clamp_bpp = 24;
-
-		/* Fall back to 18 bpp when DP sink capability is unknown. */
-		if (type == DRM_MODE_CONNECTOR_DisplayPort ||
-		    type == DRM_MODE_CONNECTOR_eDP)
-			clamp_bpp = 18;
-
-		if (bpp > clamp_bpp) {
-			DRM_DEBUG_KMS("clamping display bpp (was %d) to default limit of %d\n",
-				      bpp, clamp_bpp);
-			pipe_config->pipe_bpp = clamp_bpp;
-		}
+	/* Clamp bpp to 8 on screens without EDID 1.4 */
+	if (connector->base.display_info.bpc == 0 && bpp > 24) {
+		DRM_DEBUG_KMS("clamping display bpp (was %d) to default limit of 24\n",
+			      bpp);
+		pipe_config->pipe_bpp = 24;
 	}
 }
 
@@ -16174,9 +16231,10 @@ void intel_display_resume(struct drm_device *dev)
 	struct drm_atomic_state *state = dev_priv->modeset_restore_state;
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
-	bool setup = false;
 
 	dev_priv->modeset_restore_state = NULL;
+	if (state)
+		state->acquire_ctx = &ctx;
 
 	/*
 	 * This is a cludge because with real atomic modeset mode_config.mutex
@@ -16187,42 +16245,16 @@ void intel_display_resume(struct drm_device *dev)
 	mutex_lock(&dev->mode_config.mutex);
 	drm_modeset_acquire_init(&ctx, 0);
 
-retry:
-	ret = drm_modeset_lock_all_ctx(dev, &ctx);
+	while (1) {
+		ret = drm_modeset_lock_all_ctx(dev, &ctx);
+		if (ret != -EDEADLK)
+			break;
 
-	if (ret == 0 && !setup) {
-		setup = true;
-
-		intel_modeset_setup_hw_state(dev);
-		i915_redisable_vga(dev);
-	}
-
-	if (ret == 0 && state) {
-		struct drm_crtc_state *crtc_state;
-		struct drm_crtc *crtc;
-		int i;
-
-		state->acquire_ctx = &ctx;
-
-		/* ignore any reset values/BIOS leftovers in the WM registers */
-		to_intel_atomic_state(state)->skip_intermediate_wm = true;
-
-		for_each_crtc_in_state(state, crtc, crtc_state, i) {
-			/*
-			 * Force recalculation even if we restore
-			 * current state. With fast modeset this may not result
-			 * in a modeset when the state is compatible.
-			 */
-			crtc_state->mode_changed = true;
-		}
-
-		ret = drm_atomic_commit(state);
-	}
-
-	if (ret == -EDEADLK) {
 		drm_modeset_backoff(&ctx);
-		goto retry;
 	}
+
+	if (!ret)
+		ret = __intel_display_resume(dev, state);
 
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);

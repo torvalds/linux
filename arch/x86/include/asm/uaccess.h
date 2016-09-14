@@ -761,9 +761,10 @@ copy_from_user(void *to, const void __user *from, unsigned long n)
 	 * case, and do only runtime checking for non-constant sizes.
 	 */
 
-	if (likely(sz < 0 || sz >= n))
+	if (likely(sz < 0 || sz >= n)) {
+		check_object_size(to, n, false);
 		n = _copy_from_user(to, from, n);
-	else if(__builtin_constant_p(n))
+	} else if (__builtin_constant_p(n))
 		copy_from_user_overflow();
 	else
 		__copy_from_user_overflow(sz, n);
@@ -781,9 +782,10 @@ copy_to_user(void __user *to, const void *from, unsigned long n)
 	might_fault();
 
 	/* See the comment in copy_from_user() above. */
-	if (likely(sz < 0 || sz >= n))
+	if (likely(sz < 0 || sz >= n)) {
+		check_object_size(from, n, true);
 		n = _copy_to_user(to, from, n);
-	else if(__builtin_constant_p(n))
+	} else if (__builtin_constant_p(n))
 		copy_to_user_overflow();
 	else
 		__copy_to_user_overflow(sz, n);
@@ -812,21 +814,21 @@ copy_to_user(void __user *to, const void *from, unsigned long n)
 #define user_access_begin()	__uaccess_begin()
 #define user_access_end()	__uaccess_end()
 
-#define unsafe_put_user(x, ptr)						\
-({										\
+#define unsafe_put_user(x, ptr, err_label)					\
+do {										\
 	int __pu_err;								\
 	__put_user_size((x), (ptr), sizeof(*(ptr)), __pu_err, -EFAULT);		\
-	__builtin_expect(__pu_err, 0);						\
-})
+	if (unlikely(__pu_err)) goto err_label;					\
+} while (0)
 
-#define unsafe_get_user(x, ptr)						\
-({										\
+#define unsafe_get_user(x, ptr, err_label)					\
+do {										\
 	int __gu_err;								\
 	unsigned long __gu_val;							\
 	__get_user_size(__gu_val, (ptr), sizeof(*(ptr)), __gu_err, -EFAULT);	\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;				\
-	__builtin_expect(__gu_err, 0);						\
-})
+	if (unlikely(__gu_err)) goto err_label;					\
+} while (0)
 
 #endif /* _ASM_X86_UACCESS_H */
 

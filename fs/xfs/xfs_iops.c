@@ -1009,7 +1009,14 @@ xfs_vn_fiemap(
 	int			error;
 
 	xfs_ilock(XFS_I(inode), XFS_IOLOCK_SHARED);
-	error = iomap_fiemap(inode, fieinfo, start, length, &xfs_iomap_ops);
+	if (fieinfo->fi_flags & FIEMAP_FLAG_XATTR) {
+		fieinfo->fi_flags &= ~FIEMAP_FLAG_XATTR;
+		error = iomap_fiemap(inode, fieinfo, start, length,
+				&xfs_xattr_iomap_ops);
+	} else {
+		error = iomap_fiemap(inode, fieinfo, start, length,
+				&xfs_iomap_ops);
+	}
 	xfs_iunlock(XFS_I(inode), XFS_IOLOCK_SHARED);
 
 	return error;

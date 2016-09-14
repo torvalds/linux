@@ -248,6 +248,7 @@ xfs_growfs_data_private(
 			agf->agf_roots[XFS_BTNUM_RMAPi] =
 						cpu_to_be32(XFS_RMAP_BLOCK(mp));
 			agf->agf_levels[XFS_BTNUM_RMAPi] = cpu_to_be32(1);
+			agf->agf_rmap_blocks = cpu_to_be32(1);
 		}
 
 		agf->agf_flfirst = cpu_to_be32(1);

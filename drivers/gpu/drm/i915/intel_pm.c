@@ -3344,6 +3344,8 @@ static uint32_t skl_wm_method2(uint32_t pixel_rate, uint32_t pipe_htotal,
 		plane_bytes_per_line *= 4;
 		plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512);
 		plane_blocks_per_line /= 4;
+	} else if (tiling == DRM_FORMAT_MOD_NONE) {
+		plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512) + 1;
 	} else {
 		plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512);
 	}
@@ -4892,7 +4894,8 @@ void gen6_rps_idle(struct drm_i915_private *dev_priv)
 		else
 			gen6_set_rps(dev_priv, dev_priv->rps.idle_freq);
 		dev_priv->rps.last_adj = 0;
-		I915_WRITE(GEN6_PMINTRMSK, 0xffffffff);
+		I915_WRITE(GEN6_PMINTRMSK,
+			   gen6_sanitize_rps_pm_mask(dev_priv, ~0));
 	}
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
@@ -6573,9 +6576,7 @@ void intel_init_gt_powersave(struct drm_i915_private *dev_priv)
 
 void intel_cleanup_gt_powersave(struct drm_i915_private *dev_priv)
 {
-	if (IS_CHERRYVIEW(dev_priv))
-		return;
-	else if (IS_VALLEYVIEW(dev_priv))
+	if (IS_VALLEYVIEW(dev_priv))
 		valleyview_cleanup_gt_powersave(dev_priv);
 
 	if (!i915.enable_rc6)

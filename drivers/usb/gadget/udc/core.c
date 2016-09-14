@@ -1145,7 +1145,7 @@ int usb_add_gadget_udc_release(struct device *parent, struct usb_gadget *gadget,
 			if (ret != -EPROBE_DEFER)
 				list_del(&driver->pending);
 			if (ret)
-				goto err4;
+				goto err5;
 			break;
 		}
 	}
@@ -1153,6 +1153,9 @@ int usb_add_gadget_udc_release(struct device *parent, struct usb_gadget *gadget,
 	mutex_unlock(&udc_lock);
 
 	return 0;
+
+err5:
+	device_del(&udc->dev);
 
 err4:
 	list_del(&udc->list);

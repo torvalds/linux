@@ -318,6 +318,7 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 				u32 *action, u32 *flow_tag)
 {
 	const struct tc_action *a;
+	LIST_HEAD(actions);
 
 	if (tc_no_actions(exts))
 		return -EINVAL;
@@ -325,7 +326,8 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 	*flow_tag = MLX5_FS_DEFAULT_FLOW_TAG;
 	*action = 0;
 
-	tc_for_each_action(a, exts) {
+	tcf_exts_to_list(exts, &actions);
+	list_for_each_entry(a, &actions, list) {
 		/* Only support a single action per rule */
 		if (*action)
 			return -EINVAL;
@@ -362,13 +364,15 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 				u32 *action, u32 *dest_vport)
 {
 	const struct tc_action *a;
+	LIST_HEAD(actions);
 
 	if (tc_no_actions(exts))
 		return -EINVAL;
 
 	*action = 0;
 
-	tc_for_each_action(a, exts) {
+	tcf_exts_to_list(exts, &actions);
+	list_for_each_entry(a, &actions, list) {
 		/* Only support a single action per rule */
 		if (*action)
 			return -EINVAL;
@@ -503,6 +507,7 @@ int mlx5e_stats_flower(struct mlx5e_priv *priv,
 	struct mlx5e_tc_flow *flow;
 	struct tc_action *a;
 	struct mlx5_fc *counter;
+	LIST_HEAD(actions);
 	u64 bytes;
 	u64 packets;
 	u64 lastuse;
@@ -518,7 +523,8 @@ int mlx5e_stats_flower(struct mlx5e_priv *priv,
 
 	mlx5_fc_query_cached(counter, &bytes, &packets, &lastuse);
 
-	tc_for_each_action(a, f->exts)
+	tcf_exts_to_list(f->exts, &actions);
+	list_for_each_entry(a, &actions, list)
 		tcf_action_stats_update(a, bytes, packets, lastuse);
 
 	return 0;

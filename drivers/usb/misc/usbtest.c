@@ -585,7 +585,6 @@ static void sg_timeout(unsigned long _req)
 {
 	struct usb_sg_request	*req = (struct usb_sg_request *) _req;
 
-	req->status = -ETIMEDOUT;
 	usb_sg_cancel(req);
 }
 
@@ -616,8 +615,10 @@ static int perform_sglist(
 		mod_timer(&sg_timer, jiffies +
 				msecs_to_jiffies(SIMPLE_IO_TIMEOUT));
 		usb_sg_wait(req);
-		del_timer_sync(&sg_timer);
-		retval = req->status;
+		if (!del_timer_sync(&sg_timer))
+			retval = -ETIMEDOUT;
+		else
+			retval = req->status;
 
 		/* FIXME check resulting data pattern */
 
@@ -2602,7 +2603,7 @@ usbtest_ioctl(struct usb_interface *intf, unsigned int code, void *buf)
 	ktime_get_ts64(&start);
 
 	retval = usbtest_do_ioctl(intf, param_32);
-	if (retval)
+	if (retval < 0)
 		goto free_mutex;
 
 	ktime_get_ts64(&end);
