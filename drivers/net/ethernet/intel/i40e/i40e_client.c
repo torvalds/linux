@@ -565,7 +565,7 @@ void i40e_client_subtask(struct i40e_pf *pf)
 			if (test_bit(__I40E_DOWN, &pf->vsi[pf->lan_vsi]->state))
 				continue;
 		} else {
-			dev_warn(&pf->pdev->dev, "This client %s is being instanciated at probe\n",
+			dev_warn(&pf->pdev->dev, "This client %s is being instantiated at probe\n",
 				 client->name);
 		}
 
@@ -582,24 +582,21 @@ void i40e_client_subtask(struct i40e_pf *pf)
 			dev_info(&pf->pdev->dev, "Added instance of Client %s to PF%d bus=0x%02x func=0x%02x\n",
 				 client->name, pf->hw.pf_id,
 				 pf->hw.bus.device, pf->hw.bus.func);
-		}
-
-		mutex_lock(&i40e_client_instance_mutex);
-		/* Send an Open request to the client */
-		atomic_inc(&cdev->ref_cnt);
-		if (client->ops && client->ops->open)
-			ret = client->ops->open(&cdev->lan_info, client);
-		atomic_dec(&cdev->ref_cnt);
-		if (!ret) {
+			mutex_lock(&i40e_client_instance_mutex);
+			atomic_inc(&cdev->ref_cnt);
+			if (client->ops && client->ops->open)
+				ret = client->ops->open(&cdev->lan_info,
+							client);
+			atomic_dec(&cdev->ref_cnt);
+			if (ret < 0) {
+				mutex_unlock(&i40e_client_instance_mutex);
+				i40e_client_del_instance(pf, client);
+				atomic_dec(&client->ref_cnt);
+				continue;
+			}
 			set_bit(__I40E_CLIENT_INSTANCE_OPENED, &cdev->state);
-		} else {
-			/* remove client instance */
 			mutex_unlock(&i40e_client_instance_mutex);
-			i40e_client_del_instance(pf, client);
-			atomic_dec(&client->ref_cnt);
-			continue;
 		}
-		mutex_unlock(&i40e_client_instance_mutex);
 	}
 	mutex_unlock(&i40e_client_mutex);
 }
