@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/iopoll.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/pm_runtime.h>
@@ -1059,6 +1060,32 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	rockchip_drm_psr_activate(&vop->crtc);
 }
 
+static bool vop_fs_irq_is_pending(struct vop *vop)
+{
+	return VOP_INTR_GET_TYPE(vop, status, FS_INTR);
+}
+
+static void vop_wait_for_irq_handler(struct vop *vop)
+{
+	bool pending;
+	int ret;
+
+	/*
+	 * Spin until frame start interrupt status bit goes low, which means
+	 * that interrupt handler was invoked and cleared it. The timeout of
+	 * 10 msecs is really too long, but it is just a safety measure if
+	 * something goes really wrong. The wait will only happen in the very
+	 * unlikely case of a vblank happening exactly at the same time and
+	 * shouldn't exceed microseconds range.
+	 */
+	ret = readx_poll_timeout_atomic(vop_fs_irq_is_pending, vop, pending,
+					!pending, 0, 10 * 1000);
+	if (ret)
+		DRM_DEV_ERROR(vop->dev, "VOP vblank IRQ stuck for 10 ms\n");
+
+	synchronize_irq(vop->irq);
+}
+
 static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 				  struct drm_crtc_state *old_crtc_state)
 {
@@ -1072,6 +1099,13 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 	vop_cfg_done(vop);
 
 	spin_unlock(&vop->reg_lock);
+
+	/*
+	 * There is a (rather unlikely) possiblity that a vblank interrupt
+	 * fired before we set the cfg_done bit. To avoid spuriously
+	 * signalling flip completion we need to wait for it to finish.
+	 */
+	vop_wait_for_irq_handler(vop);
 }
 
 static void vop_crtc_atomic_begin(struct drm_crtc *crtc,
