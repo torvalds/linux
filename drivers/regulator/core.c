@@ -2804,9 +2804,7 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 		goto out;
 
 	/* Call set_voltage_time_sel if successfully obtained old_selector */
-	if (!rdev->constraints->ramp_disable && old_selector >= 0
-		&& old_selector != selector) {
-
+	if (!old_selector >= 0 && old_selector != selector) {
 		delay = ops->set_voltage_time_sel(rdev,
 						old_selector, selector);
 		if (delay < 0) {
@@ -3051,10 +3049,8 @@ int regulator_set_voltage_time_sel(struct regulator_dev *rdev,
 	else if (rdev->desc->ramp_delay)
 		ramp_delay = rdev->desc->ramp_delay;
 
-	if (ramp_delay == 0) {
-		rdev_warn(rdev, "ramp_delay not set\n");
+	if (ramp_delay == 0)
 		return 0;
-	}
 
 	/* sanity check */
 	if (!rdev->desc->ops->list_voltage)
