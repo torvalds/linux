@@ -116,7 +116,6 @@ struct vop {
 	struct device *dev;
 	struct drm_device *drm_dev;
 	bool is_enabled;
-	bool vblank_active;
 
 	/* mutex vsync_ work */
 	struct mutex vsync_mutex;
@@ -1131,11 +1130,10 @@ static void vop_crtc_atomic_begin(struct drm_crtc *crtc,
 	rockchip_drm_psr_flush(crtc);
 
 	spin_lock_irq(&crtc->dev->event_lock);
-	vop->vblank_active = true;
-	WARN_ON(drm_crtc_vblank_get(crtc) != 0);
-	WARN_ON(vop->event);
-
 	if (crtc->state->event) {
+		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
+		WARN_ON(vop->event);
+
 		vop->event = crtc->state->event;
 		crtc->state->event = NULL;
 	}
@@ -1232,12 +1230,8 @@ static void vop_handle_vblank(struct vop *vop)
 	spin_lock_irqsave(&drm->event_lock, flags);
 	if (vop->event) {
 		drm_crtc_send_vblank_event(crtc, vop->event);
-		vop->event = NULL;
-
-	}
-	if (vop->vblank_active) {
-		vop->vblank_active = false;
 		drm_crtc_vblank_put(crtc);
+		vop->event = NULL;
 	}
 	spin_unlock_irqrestore(&drm->event_lock, flags);
 
@@ -1514,7 +1508,6 @@ static int vop_initial(struct vop *vop)
 	clk_disable(vop->aclk);
 
 	vop->is_enabled = false;
-	vop->vblank_active = false;
 
 	return 0;
 
