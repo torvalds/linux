@@ -1390,6 +1390,13 @@ void vsx_unavailable_exception(struct pt_regs *regs)
 }
 
 #ifdef CONFIG_PPC64
+static void tm_unavailable(struct pt_regs *regs)
+{
+	pr_emerg("Unrecoverable TM Unavailable Exception "
+			"%lx at %lx\n", regs->trap, regs->nip);
+	die("Unrecoverable TM Unavailable Exception", regs, SIGABRT);
+}
+
 void facility_unavailable_exception(struct pt_regs *regs)
 {
 	static char *facility_strings[] = {
@@ -1469,6 +1476,27 @@ void facility_unavailable_exception(struct pt_regs *regs)
 		return;
 	}
 
+	if (status == FSCR_TM_LG) {
+		/*
+		 * If we're here then the hardware is TM aware because it
+		 * generated an exception with FSRM_TM set.
+		 *
+		 * If cpu_has_feature(CPU_FTR_TM) is false, then either firmware
+		 * told us not to do TM, or the kernel is not built with TM
+		 * support.
+		 *
+		 * If both of those things are true, then userspace can spam the
+		 * console by triggering the printk() below just by continually
+		 * doing tbegin (or any TM instruction). So in that case just
+		 * send the process a SIGILL immediately.
+		 */
+		if (!cpu_has_feature(CPU_FTR_TM))
+			goto out;
+
+		tm_unavailable(regs);
+		return;
+	}
+
 	if ((status < ARRAY_SIZE(facility_strings)) &&
 	    facility_strings[status])
 		facility = facility_strings[status];
@@ -1481,6 +1509,7 @@ void facility_unavailable_exception(struct pt_regs *regs)
 		"%sFacility '%s' unavailable, exception at 0x%lx, MSR=%lx\n",
 		hv ? "Hypervisor " : "", facility, regs->nip, regs->msr);
 
+out:
 	if (user_mode(regs)) {
 		_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
 		return;
