@@ -599,7 +599,7 @@ static struct dma_async_tx_descriptor *sa11x0_dma_prep_slave_sg(
 	txd->size = size;
 	txd->sglen = j;
 
-	dev_dbg(chan->device->dev, "vchan %p: txd %p: size %u nr %u\n",
+	dev_dbg(chan->device->dev, "vchan %p: txd %p: size %zu nr %u\n",
 		&c->vc, &txd->vd, txd->size, txd->sglen);
 
 	return vchan_tx_prep(&c->vc, &txd->vd, flags);
