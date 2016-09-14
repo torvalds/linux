@@ -1095,11 +1095,6 @@ static int ubifs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		old_dentry, old_inode->i_ino, old_dir->i_ino,
 		new_dentry, new_dir->i_ino, flags);
 
-	if (flags & ~(RENAME_NOREPLACE | RENAME_WHITEOUT))
-		return -EINVAL;
-
-	ubifs_assert(inode_is_locked(old_dir));
-	ubifs_assert(inode_is_locked(new_dir));
 	if (unlink)
 		ubifs_assert(inode_is_locked(new_inode));
 
@@ -1283,6 +1278,64 @@ out_cancel:
 	return err;
 }
 
+static int ubifs_xrename(struct inode *old_dir, struct dentry *old_dentry,
+			struct inode *new_dir, struct dentry *new_dentry)
+{
+	struct ubifs_info *c = old_dir->i_sb->s_fs_info;
+	struct ubifs_budget_req req = { .new_dent = 1, .mod_dent = 1,
+				.dirtied_ino = 2 };
+	int sync = IS_DIRSYNC(old_dir) || IS_DIRSYNC(new_dir);
+	struct inode *fst_inode = d_inode(old_dentry);
+	struct inode *snd_inode = d_inode(new_dentry);
+	struct timespec time;
+	int err;
+
+	ubifs_assert(fst_inode && snd_inode);
+
+	lock_4_inodes(old_dir, new_dir, NULL, NULL);
+
+	time = ubifs_current_time(old_dir);
+	fst_inode->i_ctime = time;
+	snd_inode->i_ctime = time;
+	old_dir->i_mtime = old_dir->i_ctime = time;
+	new_dir->i_mtime = new_dir->i_ctime = time;
+
+	if (old_dir != new_dir) {
+		if (S_ISDIR(fst_inode->i_mode) && !S_ISDIR(snd_inode->i_mode)) {
+			inc_nlink(new_dir);
+			drop_nlink(old_dir);
+		}
+		else if (!S_ISDIR(fst_inode->i_mode) && S_ISDIR(snd_inode->i_mode)) {
+			drop_nlink(new_dir);
+			inc_nlink(old_dir);
+		}
+	}
+
+	err = ubifs_jnl_xrename(c, old_dir, old_dentry, new_dir, new_dentry,
+				sync);
+
+	unlock_4_inodes(old_dir, new_dir, NULL, NULL);
+	ubifs_release_budget(c, &req);
+
+	return err;
+}
+
+static int ubifs_rename2(struct inode *old_dir, struct dentry *old_dentry,
+			struct inode *new_dir, struct dentry *new_dentry,
+			unsigned int flags)
+{
+	if (flags & ~(RENAME_NOREPLACE | RENAME_WHITEOUT | RENAME_EXCHANGE))
+		return -EINVAL;
+
+	ubifs_assert(inode_is_locked(old_dir));
+	ubifs_assert(inode_is_locked(new_dir));
+
+	if (flags & RENAME_EXCHANGE)
+		return ubifs_xrename(old_dir, old_dentry, new_dir, new_dentry);
+
+	return ubifs_rename(old_dir, old_dentry, new_dir, new_dentry, flags);
+}
+
 int ubifs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 		  struct kstat *stat)
 {
@@ -1331,7 +1384,7 @@ const struct inode_operations ubifs_dir_inode_operations = {
 	.mkdir       = ubifs_mkdir,
 	.rmdir       = ubifs_rmdir,
 	.mknod       = ubifs_mknod,
-	.rename2     = ubifs_rename,
+	.rename2     = ubifs_rename2,
 	.setattr     = ubifs_setattr,
 	.getattr     = ubifs_getattr,
 	.setxattr    = generic_setxattr,

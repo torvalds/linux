@@ -908,6 +908,147 @@ int ubifs_jnl_delete_inode(struct ubifs_info *c, const struct inode *inode)
 }
 
 /**
+ * ubifs_jnl_xrename - cross rename two directory entries.
+ * @c: UBIFS file-system description object
+ * @fst_dir: parent inode of 1st directory entry to exchange
+ * @fst_dentry: 1st directory entry to exchange
+ * @snd_dir: parent inode of 2nd directory entry to exchange
+ * @snd_dentry: 2nd directory entry to exchange
+ * @sync: non-zero if the write-buffer has to be synchronized
+ *
+ * This function implements the cross rename operation which may involve
+ * writing 2 inodes and 2 directory entries. It marks the written inodes as clean
+ * and returns zero on success. In case of failure, a negative error code is
+ * returned.
+ */
+int ubifs_jnl_xrename(struct ubifs_info *c, const struct inode *fst_dir,
+		      const struct dentry *fst_dentry,
+		      const struct inode *snd_dir,
+		      const struct dentry *snd_dentry, int sync)
+{
+	union ubifs_key key;
+	struct ubifs_dent_node *dent1, *dent2;
+	int err, dlen1, dlen2, lnum, offs, len, plen = UBIFS_INO_NODE_SZ;
+	int aligned_dlen1, aligned_dlen2;
+	int twoparents = (fst_dir != snd_dir);
+	const struct inode *fst_inode = d_inode(fst_dentry);
+	const struct inode *snd_inode = d_inode(snd_dentry);
+	void *p;
+
+	dbg_jnl("dent '%pd' in dir ino %lu between dent '%pd' in dir ino %lu",
+		fst_dentry, fst_dir->i_ino, snd_dentry, snd_dir->i_ino);
+
+	ubifs_assert(ubifs_inode(fst_dir)->data_len == 0);
+	ubifs_assert(ubifs_inode(snd_dir)->data_len == 0);
+	ubifs_assert(mutex_is_locked(&ubifs_inode(fst_dir)->ui_mutex));
+	ubifs_assert(mutex_is_locked(&ubifs_inode(snd_dir)->ui_mutex));
+
+	dlen1 = UBIFS_DENT_NODE_SZ + snd_dentry->d_name.len + 1;
+	dlen2 = UBIFS_DENT_NODE_SZ + fst_dentry->d_name.len + 1;
+	aligned_dlen1 = ALIGN(dlen1, 8);
+	aligned_dlen2 = ALIGN(dlen2, 8);
+
+	len = aligned_dlen1 + aligned_dlen2 + ALIGN(plen, 8);
+	if (twoparents)
+		len += plen;
+
+	dent1 = kmalloc(len, GFP_NOFS);
+	if (!dent1)
+		return -ENOMEM;
+
+	/* Make reservation before allocating sequence numbers */
+	err = make_reservation(c, BASEHD, len);
+	if (err)
+		goto out_free;
+
+	/* Make new dent for 1st entry */
+	dent1->ch.node_type = UBIFS_DENT_NODE;
+	dent_key_init_flash(c, &dent1->key, snd_dir->i_ino, &snd_dentry->d_name);
+	dent1->inum = cpu_to_le64(fst_inode->i_ino);
+	dent1->type = get_dent_type(fst_inode->i_mode);
+	dent1->nlen = cpu_to_le16(snd_dentry->d_name.len);
+	memcpy(dent1->name, snd_dentry->d_name.name, snd_dentry->d_name.len);
+	dent1->name[snd_dentry->d_name.len] = '\0';
+	zero_dent_node_unused(dent1);
+	ubifs_prep_grp_node(c, dent1, dlen1, 0);
+
+	/* Make new dent for 2nd entry */
+	dent2 = (void *)dent1 + aligned_dlen1;
+	dent2->ch.node_type = UBIFS_DENT_NODE;
+	dent_key_init_flash(c, &dent2->key, fst_dir->i_ino, &fst_dentry->d_name);
+	dent2->inum = cpu_to_le64(snd_inode->i_ino);
+	dent2->type = get_dent_type(snd_inode->i_mode);
+	dent2->nlen = cpu_to_le16(fst_dentry->d_name.len);
+	memcpy(dent2->name, fst_dentry->d_name.name, fst_dentry->d_name.len);
+	dent2->name[fst_dentry->d_name.len] = '\0';
+	zero_dent_node_unused(dent2);
+	ubifs_prep_grp_node(c, dent2, dlen2, 0);
+
+	p = (void *)dent2 + aligned_dlen2;
+	if (!twoparents)
+		pack_inode(c, p, fst_dir, 1);
+	else {
+		pack_inode(c, p, fst_dir, 0);
+		p += ALIGN(plen, 8);
+		pack_inode(c, p, snd_dir, 1);
+	}
+
+	err = write_head(c, BASEHD, dent1, len, &lnum, &offs, sync);
+	if (err)
+		goto out_release;
+	if (!sync) {
+		struct ubifs_wbuf *wbuf = &c->jheads[BASEHD].wbuf;
+
+		ubifs_wbuf_add_ino_nolock(wbuf, fst_dir->i_ino);
+		ubifs_wbuf_add_ino_nolock(wbuf, snd_dir->i_ino);
+	}
+	release_head(c, BASEHD);
+
+	dent_key_init(c, &key, snd_dir->i_ino, &snd_dentry->d_name);
+	err = ubifs_tnc_add_nm(c, &key, lnum, offs, dlen1, &snd_dentry->d_name);
+	if (err)
+		goto out_ro;
+
+	offs += aligned_dlen1;
+	dent_key_init(c, &key, fst_dir->i_ino, &fst_dentry->d_name);
+	err = ubifs_tnc_add_nm(c, &key, lnum, offs, dlen2, &fst_dentry->d_name);
+	if (err)
+		goto out_ro;
+
+	offs += aligned_dlen2;
+
+	ino_key_init(c, &key, fst_dir->i_ino);
+	err = ubifs_tnc_add(c, &key, lnum, offs, plen);
+	if (err)
+		goto out_ro;
+
+	if (twoparents) {
+		offs += ALIGN(plen, 8);
+		ino_key_init(c, &key, snd_dir->i_ino);
+		err = ubifs_tnc_add(c, &key, lnum, offs, plen);
+		if (err)
+			goto out_ro;
+	}
+
+	finish_reservation(c);
+
+	mark_inode_clean(c, ubifs_inode(fst_dir));
+	if (twoparents)
+		mark_inode_clean(c, ubifs_inode(snd_dir));
+	kfree(dent1);
+	return 0;
+
+out_release:
+	release_head(c, BASEHD);
+out_ro:
+	ubifs_ro_mode(c, err);
+	finish_reservation(c);
+out_free:
+	kfree(dent1);
+	return err;
+}
+
+/**
  * ubifs_jnl_rename - rename a directory entry.
  * @c: UBIFS file-system description object
  * @old_dir: parent inode of directory entry to rename
