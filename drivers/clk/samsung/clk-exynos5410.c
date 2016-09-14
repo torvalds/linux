@@ -14,6 +14,7 @@
 #include <linux/clk-provider.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/clk.h>
 
 #include "clk.h"
 
@@ -21,6 +22,8 @@
 #define APLL_CON0               0x100
 #define CPLL_LOCK               0x10020
 #define CPLL_CON0               0x10120
+#define EPLL_LOCK               0x10040
+#define EPLL_CON0               0x10130
 #define MPLL_LOCK               0x4000
 #define MPLL_CON0               0x4100
 #define BPLL_LOCK               0x20010
@@ -58,7 +61,7 @@
 
 /* list of PLLs */
 enum exynos5410_plls {
-	apll, cpll, mpll,
+	apll, cpll, epll, mpll,
 	bpll, kpll,
 	nr_plls                 /* number of PLLs */
 };
@@ -67,6 +70,7 @@ enum exynos5410_plls {
 PNAME(apll_p)		= { "fin_pll", "fout_apll", };
 PNAME(bpll_p)		= { "fin_pll", "fout_bpll", };
 PNAME(cpll_p)		= { "fin_pll", "fout_cpll" };
+PNAME(epll_p)		= { "fin_pll", "fout_epll" };
 PNAME(mpll_p)		= { "fin_pll", "fout_mpll", };
 PNAME(kpll_p)		= { "fin_pll", "fout_kpll", };
 
@@ -94,6 +98,8 @@ static const struct samsung_mux_clock exynos5410_mux_clks[] __initconst = {
 
 	MUX(0, "sclk_bpll", bpll_p, SRC_CDREX, 0, 1),
 	MUX(0, "sclk_bpll_muxed", bpll_user_p, SRC_TOP2, 24, 1),
+
+	MUX(0, "sclk_epll", epll_p, SRC_TOP2, 12, 1),
 
 	MUX(0, "sclk_cpll", cpll_p, SRC_TOP2, 8, 1),
 
@@ -176,6 +182,8 @@ static const struct samsung_gate_clock exynos5410_gate_clks[] __initconst = {
 	GATE(CLK_MMC0, "sdmmc0", "aclk200", GATE_BUS_FSYS0, 12, 0, 0),
 	GATE(CLK_MMC1, "sdmmc1", "aclk200", GATE_BUS_FSYS0, 13, 0, 0),
 	GATE(CLK_MMC2, "sdmmc2", "aclk200", GATE_BUS_FSYS0, 14, 0, 0),
+	GATE(CLK_PDMA1, "pdma1", "aclk200", GATE_BUS_FSYS0, 2, 0, 0),
+	GATE(CLK_PDMA0, "pdma0", "aclk200", GATE_BUS_FSYS0, 1, 0, 0),
 
 	GATE(CLK_SCLK_USBPHY301, "sclk_usbphy301", "dout_usbphy301",
 	     GATE_TOP_SCLK_FSYS, 7, CLK_SET_RATE_PARENT, 0),
@@ -217,11 +225,26 @@ static const struct samsung_gate_clock exynos5410_gate_clks[] __initconst = {
 	GATE(CLK_USBD301, "usbd301", "aclk200_fsys", GATE_IP_FSYS, 20, 0, 0),
 };
 
-static const struct samsung_pll_clock exynos5410_plls[nr_plls] __initconst = {
+static const struct samsung_pll_rate_table exynos5410_pll2550x_24mhz_tbl[] __initconst = {
+	PLL_36XX_RATE(400000000U, 200, 3, 2, 0),
+	PLL_36XX_RATE(333000000U, 111, 2, 2, 0),
+	PLL_36XX_RATE(300000000U, 100, 2, 2, 0),
+	PLL_36XX_RATE(266000000U, 266, 3, 3, 0),
+	PLL_36XX_RATE(200000000U, 200, 3, 3, 0),
+	PLL_36XX_RATE(192000000U, 192, 3, 3, 0),
+	PLL_36XX_RATE(166000000U, 166, 3, 3, 0),
+	PLL_36XX_RATE(133000000U, 266, 3, 4, 0),
+	PLL_36XX_RATE(100000000U, 200, 3, 4, 0),
+	PLL_36XX_RATE(66000000U,  176, 2, 5, 0),
+};
+
+static struct samsung_pll_clock exynos5410_plls[nr_plls] __initdata = {
 	[apll] = PLL(pll_35xx, CLK_FOUT_APLL, "fout_apll", "fin_pll", APLL_LOCK,
 		APLL_CON0, NULL),
 	[cpll] = PLL(pll_35xx, CLK_FOUT_CPLL, "fout_cpll", "fin_pll", CPLL_LOCK,
 		CPLL_CON0, NULL),
+	[epll] = PLL(pll_2650x, CLK_FOUT_EPLL, "fout_epll", "fin_pll", EPLL_LOCK,
+		EPLL_CON0, NULL),
 	[mpll] = PLL(pll_35xx, CLK_FOUT_MPLL, "fout_mpll", "fin_pll", MPLL_LOCK,
 		MPLL_CON0, NULL),
 	[bpll] = PLL(pll_35xx, CLK_FOUT_BPLL, "fout_bpll", "fin_pll", BPLL_LOCK,
@@ -230,29 +253,27 @@ static const struct samsung_pll_clock exynos5410_plls[nr_plls] __initconst = {
 		KPLL_CON0, NULL),
 };
 
+static const struct samsung_cmu_info cmu __initconst = {
+	.pll_clks	= exynos5410_plls,
+	.nr_pll_clks	= ARRAY_SIZE(exynos5410_plls),
+	.mux_clks	= exynos5410_mux_clks,
+	.nr_mux_clks	= ARRAY_SIZE(exynos5410_mux_clks),
+	.div_clks	= exynos5410_div_clks,
+	.nr_div_clks	= ARRAY_SIZE(exynos5410_div_clks),
+	.gate_clks	= exynos5410_gate_clks,
+	.nr_gate_clks	= ARRAY_SIZE(exynos5410_gate_clks),
+	.nr_clk_ids	= CLK_NR_CLKS,
+};
+
 /* register exynos5410 clocks */
 static void __init exynos5410_clk_init(struct device_node *np)
 {
-	struct samsung_clk_provider *ctx;
-	void __iomem *reg_base;
+	struct clk *xxti = of_clk_get(np, 0);
 
-	reg_base = of_iomap(np, 0);
-	if (!reg_base)
-		panic("%s: failed to map registers\n", __func__);
+	if (!IS_ERR(xxti) && clk_get_rate(xxti) == 24 * MHZ)
+		exynos5410_plls[epll].rate_table = exynos5410_pll2550x_24mhz_tbl;
 
-	ctx = samsung_clk_init(np, reg_base, CLK_NR_CLKS);
-
-	samsung_clk_register_pll(ctx, exynos5410_plls,
-			ARRAY_SIZE(exynos5410_plls), reg_base);
-
-	samsung_clk_register_mux(ctx, exynos5410_mux_clks,
-			ARRAY_SIZE(exynos5410_mux_clks));
-	samsung_clk_register_div(ctx, exynos5410_div_clks,
-			ARRAY_SIZE(exynos5410_div_clks));
-	samsung_clk_register_gate(ctx, exynos5410_gate_clks,
-			ARRAY_SIZE(exynos5410_gate_clks));
-
-	samsung_clk_of_add_provider(np, ctx);
+	samsung_cmu_register_one(np, &cmu);
 
 	pr_debug("Exynos5410: clock setup completed.\n");
 }
