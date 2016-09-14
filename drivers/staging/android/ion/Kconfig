@@ -43,7 +43,7 @@ source "drivers/staging/android/ion/hisilicon/Kconfig"
 
 config ION_OF
 	bool "Devicetree support for Ion"
-	depends on ION && OF
+	depends on ION && OF_ADDRESS
 	help
 	  Provides base support for defining Ion heaps in devicetree
 	  and setting them up. Also includes functions for platforms
