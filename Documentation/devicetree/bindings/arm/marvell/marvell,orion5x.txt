@@ -22,3 +22,4 @@ board. Currently known boards are:
 "lacie,d2-network"
 "marvell,rd-88f5182-nas"
 "maxtor,shared-storage-2"
+"netgear,wnr854t"
