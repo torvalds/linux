@@ -266,6 +266,11 @@
 #define SYSCFG0_GE_MASK		0x3
 #define SYSCFG0_GE_MODE(x, y)	(x << (12 + (y * 2)))
 
+/*ethernet reset control register*/
+#define ETHSYS_RSTCTRL		0x34
+#define RSTCTRL_FE		BIT(6)
+#define RSTCTRL_PPE		BIT(31)
+
 struct mtk_rx_dma {
 	unsigned int rxd1;
 	unsigned int rxd2;
@@ -423,7 +428,6 @@ struct mtk_rx_ring {
 struct mtk_eth {
 	struct device			*dev;
 	void __iomem			*base;
-	struct reset_control		*rstc;
 	spinlock_t			page_lock;
 	spinlock_t			irq_lock;
 	struct net_device		dummy_dev;

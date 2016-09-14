@@ -1414,6 +1414,19 @@ static int mtk_stop(struct net_device *dev)
 	return 0;
 }
 
+static void ethsys_reset(struct mtk_eth *eth, u32 reset_bits)
+{
+	regmap_update_bits(eth->ethsys, ETHSYS_RSTCTRL,
+			   reset_bits,
+			   reset_bits);
+
+	usleep_range(1000, 1100);
+	regmap_update_bits(eth->ethsys, ETHSYS_RSTCTRL,
+			   reset_bits,
+			   ~reset_bits);
+	mdelay(10);
+}
+
 static int mtk_hw_init(struct mtk_eth *eth)
 {
 	int i, val;
@@ -1428,12 +1441,8 @@ static int mtk_hw_init(struct mtk_eth *eth)
 	clk_prepare_enable(eth->clks[MTK_CLK_ESW]);
 	clk_prepare_enable(eth->clks[MTK_CLK_GP1]);
 	clk_prepare_enable(eth->clks[MTK_CLK_GP2]);
-
-	/* reset the frame engine */
-	reset_control_assert(eth->rstc);
-	usleep_range(10, 20);
-	reset_control_deassert(eth->rstc);
-	usleep_range(10, 20);
+	ethsys_reset(eth, RSTCTRL_FE);
+	ethsys_reset(eth, RSTCTRL_PPE);
 
 	regmap_read(eth->ethsys, ETHSYS_SYSCFG0, &val);
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
@@ -1894,12 +1903,6 @@ static int mtk_probe(struct platform_device *pdev)
 	if (IS_ERR(eth->pctl)) {
 		dev_err(&pdev->dev, "no pctl regmap found\n");
 		return PTR_ERR(eth->pctl);
-	}
-
-	eth->rstc = devm_reset_control_get(&pdev->dev, "eth");
-	if (IS_ERR(eth->rstc)) {
-		dev_err(&pdev->dev, "no eth reset found\n");
-		return PTR_ERR(eth->rstc);
 	}
 
 	for (i = 0; i < 3; i++) {
