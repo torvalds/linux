@@ -336,7 +336,8 @@ enum mtk_clks_map {
 };
 
 enum mtk_dev_state {
-	MTK_HW_INIT
+	MTK_HW_INIT,
+	MTK_RESETTING
 };
 
 /* struct mtk_tx_buf -	This struct holds the pointers to the memory pointed at

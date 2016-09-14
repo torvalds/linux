@@ -145,6 +145,9 @@ static void mtk_phy_link_adjust(struct net_device *dev)
 		  MAC_MCR_RX_EN | MAC_MCR_BACKOFF_EN |
 		  MAC_MCR_BACKPR_EN;
 
+	if (unlikely(test_bit(MTK_RESETTING, &mac->hw->state)))
+		return;
+
 	switch (mac->phy_dev->speed) {
 	case SPEED_1000:
 		mcr |= MAC_MCR_SPEED_1000;
@@ -369,6 +372,9 @@ static int mtk_set_mac_address(struct net_device *dev, void *p)
 
 	if (ret)
 		return ret;
+
+	if (unlikely(test_bit(MTK_RESETTING, &mac->hw->state)))
+		return -EBUSY;
 
 	spin_lock_bh(&mac->hw->page_lock);
 	mtk_w32(mac->hw, (macaddr[0] << 8) | macaddr[1],
@@ -770,6 +776,9 @@ static int mtk_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	spin_lock(&eth->page_lock);
 
+	if (unlikely(test_bit(MTK_RESETTING, &eth->state)))
+		goto drop;
+
 	tx_num = mtk_cal_txd_req(skb);
 	if (unlikely(atomic_read(&ring->free_count) <= tx_num)) {
 		mtk_stop_queue(eth);
@@ -841,6 +850,9 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 		mac--;
 
 		netdev = eth->netdev[mac];
+
+		if (unlikely(test_bit(MTK_RESETTING, &eth->state)))
+			goto release_desc;
 
 		/* alloc new buffer */
 		new_data = napi_alloc_frag(ring->frag_size);
@@ -1576,6 +1588,12 @@ static void mtk_pending_work(struct work_struct *work)
 
 	rtnl_lock();
 
+	dev_dbg(eth->dev, "[%s][%d] reset\n", __func__, __LINE__);
+
+	while (test_and_set_bit_lock(MTK_RESETTING, &eth->state))
+		cpu_relax();
+
+	dev_dbg(eth->dev, "[%s][%d] mtk_stop starts\n", __func__, __LINE__);
 	/* stop all devices to make sure that dma is properly shut down */
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
 		if (!eth->netdev[i])
@@ -1583,6 +1601,7 @@ static void mtk_pending_work(struct work_struct *work)
 		mtk_stop(eth->netdev[i]);
 		__set_bit(i, &restart);
 	}
+	dev_dbg(eth->dev, "[%s][%d] mtk_stop ends\n", __func__, __LINE__);
 
 	/* restart underlying hardware such as power, clock, pin mux
 	 * and the connected phy
@@ -1615,6 +1634,11 @@ static void mtk_pending_work(struct work_struct *work)
 			dev_close(eth->netdev[i]);
 		}
 	}
+
+	dev_dbg(eth->dev, "[%s][%d] reset done\n", __func__, __LINE__);
+
+	clear_bit_unlock(MTK_RESETTING, &eth->state);
+
 	rtnl_unlock();
 }
 
@@ -1658,6 +1682,9 @@ static int mtk_get_settings(struct net_device *dev,
 {
 	struct mtk_mac *mac = netdev_priv(dev);
 	int err;
+
+	if (unlikely(test_bit(MTK_RESETTING, &mac->hw->state)))
+		return -EBUSY;
 
 	err = phy_read_status(mac->phy_dev);
 	if (err)
@@ -1709,6 +1736,9 @@ static int mtk_nway_reset(struct net_device *dev)
 {
 	struct mtk_mac *mac = netdev_priv(dev);
 
+	if (unlikely(test_bit(MTK_RESETTING, &mac->hw->state)))
+		return -EBUSY;
+
 	return genphy_restart_aneg(mac->phy_dev);
 }
 
@@ -1716,6 +1746,9 @@ static u32 mtk_get_link(struct net_device *dev)
 {
 	struct mtk_mac *mac = netdev_priv(dev);
 	int err;
+
+	if (unlikely(test_bit(MTK_RESETTING, &mac->hw->state)))
+		return -EBUSY;
 
 	err = genphy_update_link(mac->phy_dev);
 	if (err)
@@ -1756,6 +1789,9 @@ static void mtk_get_ethtool_stats(struct net_device *dev,
 	u64 *data_src, *data_dst;
 	unsigned int start;
 	int i;
+
+	if (unlikely(test_bit(MTK_RESETTING, &mac->hw->state)))
+		return;
 
 	if (netif_running(dev) && netif_device_present(dev)) {
 		if (spin_trylock(&hwstats->stats_lock)) {
