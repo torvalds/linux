@@ -370,6 +370,7 @@ const char *ceph_session_state_name(int s)
 	case CEPH_MDS_SESSION_CLOSING: return "closing";
 	case CEPH_MDS_SESSION_RESTARTING: return "restarting";
 	case CEPH_MDS_SESSION_RECONNECTING: return "reconnecting";
+	case CEPH_MDS_SESSION_REJECTED: return "rejected";
 	default: return "???";
 	}
 }
@@ -1378,7 +1379,7 @@ static int request_close_session(struct ceph_mds_client *mdsc,
 	if (!msg)
 		return -ENOMEM;
 	ceph_con_send(&session->s_con, msg);
-	return 0;
+	return 1;
 }
 
 /*
@@ -2131,6 +2132,10 @@ static int __do_request(struct ceph_mds_client *mdsc,
 	     ceph_session_state_name(session->s_state));
 	if (session->s_state != CEPH_MDS_SESSION_OPEN &&
 	    session->s_state != CEPH_MDS_SESSION_HUNG) {
+		if (session->s_state == CEPH_MDS_SESSION_REJECTED) {
+			err = -EACCES;
+			goto out_session;
+		}
 		if (session->s_state == CEPH_MDS_SESSION_NEW ||
 		    session->s_state == CEPH_MDS_SESSION_CLOSING)
 			__open_session(mdsc, session);
@@ -2650,6 +2655,15 @@ static void handle_session(struct ceph_mds_session *session,
 		session->s_readonly = true;
 		spin_unlock(&session->s_cap_lock);
 		wake_up_session_caps(session, 0);
+		break;
+
+	case CEPH_SESSION_REJECT:
+		WARN_ON(session->s_state != CEPH_MDS_SESSION_OPENING);
+		pr_info("mds%d rejected session\n", session->s_mds);
+		session->s_state = CEPH_MDS_SESSION_REJECTED;
+		cleanup_session_requests(mdsc, session);
+		remove_session_caps(session);
+		wake = 2; /* for good measure */
 		break;
 
 	default:
@@ -3557,11 +3571,11 @@ void ceph_mdsc_sync(struct ceph_mds_client *mdsc)
 /*
  * true if all sessions are closed, or we force unmount
  */
-static bool done_closing_sessions(struct ceph_mds_client *mdsc)
+static bool done_closing_sessions(struct ceph_mds_client *mdsc, int skipped)
 {
 	if (ACCESS_ONCE(mdsc->fsc->mount_state) == CEPH_MOUNT_SHUTDOWN)
 		return true;
-	return atomic_read(&mdsc->num_sessions) == 0;
+	return atomic_read(&mdsc->num_sessions) <= skipped;
 }
 
 /*
@@ -3572,6 +3586,7 @@ void ceph_mdsc_close_sessions(struct ceph_mds_client *mdsc)
 	struct ceph_options *opts = mdsc->fsc->client->options;
 	struct ceph_mds_session *session;
 	int i;
+	int skipped = 0;
 
 	dout("close_sessions\n");
 
@@ -3583,7 +3598,8 @@ void ceph_mdsc_close_sessions(struct ceph_mds_client *mdsc)
 			continue;
 		mutex_unlock(&mdsc->mutex);
 		mutex_lock(&session->s_mutex);
-		__close_session(mdsc, session);
+		if (__close_session(mdsc, session) <= 0)
+			skipped++;
 		mutex_unlock(&session->s_mutex);
 		ceph_put_mds_session(session);
 		mutex_lock(&mdsc->mutex);
@@ -3591,7 +3607,8 @@ void ceph_mdsc_close_sessions(struct ceph_mds_client *mdsc)
 	mutex_unlock(&mdsc->mutex);
 
 	dout("waiting for sessions to close\n");
-	wait_event_timeout(mdsc->session_close_wq, done_closing_sessions(mdsc),
+	wait_event_timeout(mdsc->session_close_wq,
+			   done_closing_sessions(mdsc, skipped),
 			   ceph_timeout_jiffies(opts->mount_timeout));
 
 	/* tear down remaining sessions */
