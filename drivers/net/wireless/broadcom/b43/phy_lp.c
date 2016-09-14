@@ -46,7 +46,7 @@ static inline u16 channel2freq_lp(u8 channel)
 
 static unsigned int b43_lpphy_op_get_default_chan(struct b43_wldev *dev)
 {
-	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
+	if (b43_current_band(dev->wl) == NL80211_BAND_2GHZ)
 		return 1;
 	return 36;
 }
@@ -91,7 +91,7 @@ static void lpphy_read_band_sprom(struct b43_wldev *dev)
 	u32 ofdmpo;
 	int i;
 
-	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
+	if (b43_current_band(dev->wl) == NL80211_BAND_2GHZ) {
 		lpphy->tx_isolation_med_band = sprom->tri2g;
 		lpphy->bx_arch = sprom->bxa2g;
 		lpphy->rx_pwr_offset = sprom->rxpo2g;
@@ -174,7 +174,7 @@ static void lpphy_adjust_gain_table(struct b43_wldev *dev, u32 freq)
 
 	B43_WARN_ON(dev->phy.rev >= 2);
 
-	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
+	if (b43_current_band(dev->wl) == NL80211_BAND_2GHZ)
 		isolation = lpphy->tx_isolation_med_band;
 	else if (freq <= 5320)
 		isolation = lpphy->tx_isolation_low_band;
@@ -238,7 +238,7 @@ static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
 	b43_phy_maskset(dev, B43_LPPHY_INPUT_PWRDB,
 			0xFF00, lpphy->rx_pwr_offset);
 	if ((sprom->boardflags_lo & B43_BFL_FEM) &&
-	   ((b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ) ||
+	   ((b43_current_band(dev->wl) == NL80211_BAND_5GHZ) ||
 	   (sprom->boardflags_hi & B43_BFH_PAREF))) {
 		ssb_pmu_set_ldo_voltage(&bus->chipco, LDO_PAREF, 0x28);
 		ssb_pmu_set_ldo_paref(&bus->chipco, true);
@@ -280,7 +280,7 @@ static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_7, 0xC0FF, 0x0900);
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_8, 0xFFC0, 0x000A);
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_8, 0xC0FF, 0x0B00);
-	} else if (b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ ||
+	} else if (b43_current_band(dev->wl) == NL80211_BAND_5GHZ ||
 		   (dev->dev->board_type == SSB_BOARD_BU4312) ||
 		   (dev->phy.rev == 0 && (sprom->boardflags_lo & B43_BFL_FEM))) {
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_1, 0xFFC0, 0x0001);
@@ -326,7 +326,7 @@ static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
 		//FIXME the Broadcom driver caches & delays this HF write!
 		b43_hf_write(dev, b43_hf_read(dev) | B43_HF_PR45960W);
 	}
-	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
+	if (b43_current_band(dev->wl) == NL80211_BAND_2GHZ) {
 		b43_phy_set(dev, B43_LPPHY_LP_PHY_CTL, 0x8000);
 		b43_phy_set(dev, B43_LPPHY_CRSGAIN_CTL, 0x0040);
 		b43_phy_maskset(dev, B43_LPPHY_MINPWR_LEVEL, 0x00FF, 0xA400);
@@ -466,7 +466,7 @@ static void lpphy_baseband_rev2plus_init(struct b43_wldev *dev)
 		b43_lptab_write(dev, B43_LPTAB16(0x08, 0x12), 0x40);
 	}
 
-	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
+	if (b43_current_band(dev->wl) == NL80211_BAND_2GHZ) {
 		b43_phy_set(dev, B43_LPPHY_CRSGAIN_CTL, 0x40);
 		b43_phy_maskset(dev, B43_LPPHY_CRSGAIN_CTL, 0xF0FF, 0xB00);
 		b43_phy_maskset(dev, B43_LPPHY_SYNCPEAKCNT, 0xFFF8, 0x6);
@@ -547,7 +547,7 @@ static void lpphy_2062_init(struct b43_wldev *dev)
 		b43_radio_write(dev, B2062_S_BG_CTL1,
 			(b43_radio_read(dev, B2062_N_COMM2) >> 1) | 0x80);
 	}
-	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
+	if (b43_current_band(dev->wl) == NL80211_BAND_2GHZ)
 		b43_radio_set(dev, B2062_N_TSSI_CTL0, 0x1);
 	else
 		b43_radio_mask(dev, B2062_N_TSSI_CTL0, ~0x1);
@@ -746,7 +746,7 @@ static void lpphy_clear_deaf(struct b43_wldev *dev, bool user)
 		lpphy->crs_sys_disable = false;
 
 	if (!lpphy->crs_usr_disable && !lpphy->crs_sys_disable) {
-		if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
+		if (b43_current_band(dev->wl) == NL80211_BAND_2GHZ)
 			b43_phy_maskset(dev, B43_LPPHY_CRSGAIN_CTL,
 					0xFF1F, 0x60);
 		else
@@ -807,7 +807,7 @@ static void lpphy_disable_rx_gain_override(struct b43_wldev *dev)
 	b43_phy_mask(dev, B43_LPPHY_RF_OVERRIDE_0, 0xFFBF);
 	if (dev->phy.rev >= 2) {
 		b43_phy_mask(dev, B43_LPPHY_RF_OVERRIDE_2, 0xFEFF);
-		if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
+		if (b43_current_band(dev->wl) == NL80211_BAND_2GHZ) {
 			b43_phy_mask(dev, B43_LPPHY_RF_OVERRIDE_2, 0xFBFF);
 			b43_phy_mask(dev, B43_PHY_OFDM(0xE5), 0xFFF7);
 		}
@@ -823,7 +823,7 @@ static void lpphy_enable_rx_gain_override(struct b43_wldev *dev)
 	b43_phy_set(dev, B43_LPPHY_RF_OVERRIDE_0, 0x40);
 	if (dev->phy.rev >= 2) {
 		b43_phy_set(dev, B43_LPPHY_RF_OVERRIDE_2, 0x100);
-		if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
+		if (b43_current_band(dev->wl) == NL80211_BAND_2GHZ) {
 			b43_phy_set(dev, B43_LPPHY_RF_OVERRIDE_2, 0x400);
 			b43_phy_set(dev, B43_PHY_OFDM(0xE5), 0x8);
 		}
@@ -951,7 +951,7 @@ static void lpphy_rev2plus_set_rx_gain(struct b43_wldev *dev, u32 gain)
 			0xFBFF, ext_lna << 10);
 	b43_phy_write(dev, B43_LPPHY_RX_GAIN_CTL_OVERRIDE_VAL, low_gain);
 	b43_phy_maskset(dev, B43_LPPHY_AFE_DDFS, 0xFFF0, high_gain);
-	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
+	if (b43_current_band(dev->wl) == NL80211_BAND_2GHZ) {
 		tmp = (gain >> 2) & 0x3;
 		b43_phy_maskset(dev, B43_LPPHY_RF_OVERRIDE_2_VAL,
 				0xE7FF, tmp<<11);
@@ -1344,7 +1344,7 @@ static void lpphy_calibrate_rc(struct b43_wldev *dev)
 	if (dev->phy.rev >= 2) {
 		lpphy_rev2plus_rc_calib(dev);
 	} else if (!lpphy->rc_cap) {
-		if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
+		if (b43_current_band(dev->wl) == NL80211_BAND_2GHZ)
 			lpphy_rev0_1_rc_calib(dev);
 	} else {
 		lpphy_set_rc_cap(dev);
@@ -1548,7 +1548,7 @@ static void lpphy_tx_pctl_init_sw(struct b43_wldev *dev)
 {
 	struct lpphy_tx_gains gains;
 
-	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
+	if (b43_current_band(dev->wl) == NL80211_BAND_2GHZ) {
 		gains.gm = 4;
 		gains.pad = 12;
 		gains.pga = 12;
@@ -1902,7 +1902,7 @@ static int lpphy_rx_iq_cal(struct b43_wldev *dev, bool noise, bool tx,
 
 	lpphy_set_trsw_over(dev, tx, rx);
 
-	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
+	if (b43_current_band(dev->wl) == NL80211_BAND_2GHZ) {
 		b43_phy_set(dev, B43_LPPHY_RF_OVERRIDE_0, 0x8);
 		b43_phy_maskset(dev, B43_LPPHY_RF_OVERRIDE_VAL_0,
 				0xFFF7, pa << 3);

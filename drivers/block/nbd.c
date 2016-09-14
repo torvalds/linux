@@ -693,9 +693,9 @@ static void nbd_parse_flags(struct nbd_device *nbd, struct block_device *bdev)
 	if (nbd->flags & NBD_FLAG_SEND_TRIM)
 		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, nbd->disk->queue);
 	if (nbd->flags & NBD_FLAG_SEND_FLUSH)
-		blk_queue_flush(nbd->disk->queue, REQ_FLUSH);
+		blk_queue_write_cache(nbd->disk->queue, true, false);
 	else
-		blk_queue_flush(nbd->disk->queue, 0);
+		blk_queue_write_cache(nbd->disk->queue, false, false);
 }
 
 static int nbd_dev_dbg_init(struct nbd_device *nbd);
@@ -941,7 +941,7 @@ static int nbd_dev_dbg_init(struct nbd_device *nbd)
 	debugfs_create_u64("size_bytes", 0444, dir, &nbd->bytesize);
 	debugfs_create_u32("timeout", 0444, dir, &nbd->xmit_timeout);
 	debugfs_create_u32("blocksize", 0444, dir, &nbd->blksize);
-	debugfs_create_file("flags", 0444, dir, &nbd, &nbd_dbg_flags_ops);
+	debugfs_create_file("flags", 0444, dir, nbd, &nbd_dbg_flags_ops);
 
 	return 0;
 }

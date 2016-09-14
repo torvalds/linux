@@ -208,10 +208,6 @@ struct brcmf_if {
 	u8 ipv6addr_idx;
 };
 
-struct brcmf_skb_reorder_data {
-	u8 *reorder;
-};
-
 int brcmf_netdev_wait_pend8021x(struct brcmf_if *ifp);
 
 /* Return pointer to interface name */
@@ -227,6 +223,7 @@ void brcmf_txflowblock_if(struct brcmf_if *ifp,
 void brcmf_txfinalize(struct brcmf_if *ifp, struct sk_buff *txp, bool success);
 void brcmf_netif_rx(struct brcmf_if *ifp, struct sk_buff *skb);
 void brcmf_net_setcarrier(struct brcmf_if *ifp, bool on);
+void brcmf_c_set_joinpref_default(struct brcmf_if *ifp);
 int __init brcmf_core_init(void);
 void __exit brcmf_core_exit(void);
 

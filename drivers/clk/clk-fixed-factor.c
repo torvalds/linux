@@ -68,13 +68,14 @@ const struct clk_ops clk_fixed_factor_ops = {
 };
 EXPORT_SYMBOL_GPL(clk_fixed_factor_ops);
 
-struct clk *clk_register_fixed_factor(struct device *dev, const char *name,
-		const char *parent_name, unsigned long flags,
+struct clk_hw *clk_hw_register_fixed_factor(struct device *dev,
+		const char *name, const char *parent_name, unsigned long flags,
 		unsigned int mult, unsigned int div)
 {
 	struct clk_fixed_factor *fix;
 	struct clk_init_data init;
-	struct clk *clk;
+	struct clk_hw *hw;
+	int ret;
 
 	fix = kmalloc(sizeof(*fix), GFP_KERNEL);
 	if (!fix)
@@ -91,12 +92,28 @@ struct clk *clk_register_fixed_factor(struct device *dev, const char *name,
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 
-	clk = clk_register(dev, &fix->hw);
-
-	if (IS_ERR(clk))
+	hw = &fix->hw;
+	ret = clk_hw_register(dev, hw);
+	if (ret) {
 		kfree(fix);
+		hw = ERR_PTR(ret);
+	}
 
-	return clk;
+	return hw;
+}
+EXPORT_SYMBOL_GPL(clk_hw_register_fixed_factor);
+
+struct clk *clk_register_fixed_factor(struct device *dev, const char *name,
+		const char *parent_name, unsigned long flags,
+		unsigned int mult, unsigned int div)
+{
+	struct clk_hw *hw;
+
+	hw = clk_hw_register_fixed_factor(dev, name, parent_name, flags, mult,
+					  div);
+	if (IS_ERR(hw))
+		return ERR_CAST(hw);
+	return hw->clk;
 }
 EXPORT_SYMBOL_GPL(clk_register_fixed_factor);
 
@@ -112,6 +129,17 @@ void clk_unregister_fixed_factor(struct clk *clk)
 	kfree(to_clk_fixed_factor(hw));
 }
 EXPORT_SYMBOL_GPL(clk_unregister_fixed_factor);
+
+void clk_hw_unregister_fixed_factor(struct clk_hw *hw)
+{
+	struct clk_fixed_factor *fix;
+
+	fix = to_clk_fixed_factor(hw);
+
+	clk_hw_unregister(hw);
+	kfree(fix);
+}
+EXPORT_SYMBOL_GPL(clk_hw_unregister_fixed_factor);
 
 #ifdef CONFIG_OF
 /**

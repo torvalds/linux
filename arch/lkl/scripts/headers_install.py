@@ -55,7 +55,13 @@ def find_enums(block_regexp, symbol_regexp, store):
     for h in headers:
         # remove comments
         content = re.sub(re.compile("(\/\*(\*(?!\/)|[^*])*\*\/)", re.S|re.M), " ", open(h).read())
-        for i in block_regexp.finditer(content):
+        # remove preprocesor lines
+        clean_content = ""
+        for l in content.split("\n"):
+            if re.match("\s*#", l):
+                continue
+            clean_content += l + "\n"
+        for i in block_regexp.finditer(clean_content):
             for j in reversed(i.groups()):
                 if j:
                     for k in symbol_regexp.finditer(j):

@@ -359,8 +359,6 @@ extern void fsnotify_clear_vfsmount_marks_by_group(struct fsnotify_group *group)
 extern void fsnotify_clear_inode_marks_by_group(struct fsnotify_group *group);
 /* run all the marks in a group, and clear all of the marks where mark->flags & flags is true*/
 extern void fsnotify_clear_marks_by_group_flags(struct fsnotify_group *group, unsigned int flags);
-/* run all the marks in a group, and flag them to be freed */
-extern void fsnotify_clear_marks_by_group(struct fsnotify_group *group);
 extern void fsnotify_get_mark(struct fsnotify_mark *mark);
 extern void fsnotify_put_mark(struct fsnotify_mark *mark);
 extern void fsnotify_unmount_inodes(struct super_block *sb);

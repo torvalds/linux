@@ -34,6 +34,7 @@
 #define IFI_CANFD_STCMD_LOOPBACK		BIT(18)
 #define IFI_CANFD_STCMD_DISABLE_CANFD		BIT(24)
 #define IFI_CANFD_STCMD_ENABLE_ISO		BIT(25)
+#define IFI_CANFD_STCMD_ENABLE_7_9_8_8_TIMING	BIT(26)
 #define IFI_CANFD_STCMD_NORMAL_MODE		((u32)BIT(31))
 
 #define IFI_CANFD_RXSTCMD			0x4
@@ -51,7 +52,8 @@
 #define IFI_CANFD_TXSTCMD_OVERFLOW		BIT(13)
 
 #define IFI_CANFD_INTERRUPT			0xc
-#define IFI_CANFD_INTERRUPT_ERROR_WARNING	((u32)BIT(1))
+#define IFI_CANFD_INTERRUPT_ERROR_WARNING	BIT(1)
+#define IFI_CANFD_INTERRUPT_ERROR_COUNTER	BIT(10)
 #define IFI_CANFD_INTERRUPT_TXFIFO_EMPTY	BIT(16)
 #define IFI_CANFD_INTERRUPT_TXFIFO_REMOVE	BIT(22)
 #define IFI_CANFD_INTERRUPT_RXFIFO_NEMPTY	BIT(24)
@@ -71,12 +73,12 @@
 #define IFI_CANFD_TIME_TIMEB_OFF		0
 #define IFI_CANFD_TIME_TIMEA_OFF		8
 #define IFI_CANFD_TIME_PRESCALE_OFF		16
-#define IFI_CANFD_TIME_SJW_OFF_ISO		25
-#define IFI_CANFD_TIME_SJW_OFF_BOSCH		28
-#define IFI_CANFD_TIME_SET_SJW_BOSCH		BIT(6)
-#define IFI_CANFD_TIME_SET_TIMEB_BOSCH		BIT(7)
-#define IFI_CANFD_TIME_SET_PRESC_BOSCH		BIT(14)
-#define IFI_CANFD_TIME_SET_TIMEA_BOSCH		BIT(15)
+#define IFI_CANFD_TIME_SJW_OFF_7_9_8_8		25
+#define IFI_CANFD_TIME_SJW_OFF_4_12_6_6		28
+#define IFI_CANFD_TIME_SET_SJW_4_12_6_6		BIT(6)
+#define IFI_CANFD_TIME_SET_TIMEB_4_12_6_6	BIT(7)
+#define IFI_CANFD_TIME_SET_PRESC_4_12_6_6	BIT(14)
+#define IFI_CANFD_TIME_SET_TIMEA_4_12_6_6	BIT(15)
 
 #define IFI_CANFD_TDELAY			0x1c
 
@@ -102,7 +104,26 @@
 
 #define IFI_CANFD_RES1				0x40
 
-#define IFI_CANFD_RES2				0x44
+#define IFI_CANFD_ERROR_CTR			0x44
+#define IFI_CANFD_ERROR_CTR_UNLOCK_MAGIC	0x21302899
+#define IFI_CANFD_ERROR_CTR_OVERLOAD_FIRST	BIT(0)
+#define IFI_CANFD_ERROR_CTR_ACK_ERROR_FIRST	BIT(1)
+#define IFI_CANFD_ERROR_CTR_BIT0_ERROR_FIRST	BIT(2)
+#define IFI_CANFD_ERROR_CTR_BIT1_ERROR_FIRST	BIT(3)
+#define IFI_CANFD_ERROR_CTR_STUFF_ERROR_FIRST	BIT(4)
+#define IFI_CANFD_ERROR_CTR_CRC_ERROR_FIRST	BIT(5)
+#define IFI_CANFD_ERROR_CTR_FORM_ERROR_FIRST	BIT(6)
+#define IFI_CANFD_ERROR_CTR_OVERLOAD_ALL	BIT(8)
+#define IFI_CANFD_ERROR_CTR_ACK_ERROR_ALL	BIT(9)
+#define IFI_CANFD_ERROR_CTR_BIT0_ERROR_ALL	BIT(10)
+#define IFI_CANFD_ERROR_CTR_BIT1_ERROR_ALL	BIT(11)
+#define IFI_CANFD_ERROR_CTR_STUFF_ERROR_ALL	BIT(12)
+#define IFI_CANFD_ERROR_CTR_CRC_ERROR_ALL	BIT(13)
+#define IFI_CANFD_ERROR_CTR_FORM_ERROR_ALL	BIT(14)
+#define IFI_CANFD_ERROR_CTR_BITPOSITION_OFFSET	16
+#define IFI_CANFD_ERROR_CTR_BITPOSITION_MASK	0xff
+#define IFI_CANFD_ERROR_CTR_ER_RESET		BIT(30)
+#define IFI_CANFD_ERROR_CTR_ER_ENABLE		((u32)BIT(31))
 
 #define IFI_CANFD_PAR				0x48
 
@@ -196,6 +217,8 @@ static void ifi_canfd_irq_enable(struct net_device *ndev, bool enable)
 	if (enable) {
 		enirq = IFI_CANFD_IRQMASK_TXFIFO_EMPTY |
 			IFI_CANFD_IRQMASK_RXFIFO_NEMPTY;
+		if (priv->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING)
+			enirq |= IFI_CANFD_INTERRUPT_ERROR_COUNTER;
 	}
 
 	writel(IFI_CANFD_IRQMASK_SET_ERR |
@@ -329,6 +352,68 @@ static int ifi_canfd_handle_lost_msg(struct net_device *ndev)
 	frame->can_id |= CAN_ERR_CRTL;
 	frame->data[1] = CAN_ERR_CRTL_RX_OVERFLOW;
 
+	netif_receive_skb(skb);
+
+	return 1;
+}
+
+static int ifi_canfd_handle_lec_err(struct net_device *ndev, const u32 errctr)
+{
+	struct ifi_canfd_priv *priv = netdev_priv(ndev);
+	struct net_device_stats *stats = &ndev->stats;
+	struct can_frame *cf;
+	struct sk_buff *skb;
+	const u32 errmask = IFI_CANFD_ERROR_CTR_OVERLOAD_FIRST |
+			    IFI_CANFD_ERROR_CTR_ACK_ERROR_FIRST |
+			    IFI_CANFD_ERROR_CTR_BIT0_ERROR_FIRST |
+			    IFI_CANFD_ERROR_CTR_BIT1_ERROR_FIRST |
+			    IFI_CANFD_ERROR_CTR_STUFF_ERROR_FIRST |
+			    IFI_CANFD_ERROR_CTR_CRC_ERROR_FIRST |
+			    IFI_CANFD_ERROR_CTR_FORM_ERROR_FIRST;
+
+	if (!(errctr & errmask))	/* No error happened. */
+		return 0;
+
+	priv->can.can_stats.bus_error++;
+	stats->rx_errors++;
+
+	/* Propagate the error condition to the CAN stack. */
+	skb = alloc_can_err_skb(ndev, &cf);
+	if (unlikely(!skb))
+		return 0;
+
+	/* Read the error counter register and check for new errors. */
+	cf->can_id |= CAN_ERR_PROT | CAN_ERR_BUSERROR;
+
+	if (errctr & IFI_CANFD_ERROR_CTR_OVERLOAD_FIRST)
+		cf->data[2] |= CAN_ERR_PROT_OVERLOAD;
+
+	if (errctr & IFI_CANFD_ERROR_CTR_ACK_ERROR_FIRST)
+		cf->data[3] = CAN_ERR_PROT_LOC_ACK;
+
+	if (errctr & IFI_CANFD_ERROR_CTR_BIT0_ERROR_FIRST)
+		cf->data[2] |= CAN_ERR_PROT_BIT0;
+
+	if (errctr & IFI_CANFD_ERROR_CTR_BIT1_ERROR_FIRST)
+		cf->data[2] |= CAN_ERR_PROT_BIT1;
+
+	if (errctr & IFI_CANFD_ERROR_CTR_STUFF_ERROR_FIRST)
+		cf->data[2] |= CAN_ERR_PROT_STUFF;
+
+	if (errctr & IFI_CANFD_ERROR_CTR_CRC_ERROR_FIRST)
+		cf->data[3] = CAN_ERR_PROT_LOC_CRC_SEQ;
+
+	if (errctr & IFI_CANFD_ERROR_CTR_FORM_ERROR_FIRST)
+		cf->data[2] |= CAN_ERR_PROT_FORM;
+
+	/* Reset the error counter, ack the IRQ and re-enable the counter. */
+	writel(IFI_CANFD_ERROR_CTR_ER_RESET, priv->base + IFI_CANFD_ERROR_CTR);
+	writel(IFI_CANFD_INTERRUPT_ERROR_COUNTER,
+	       priv->base + IFI_CANFD_INTERRUPT);
+	writel(IFI_CANFD_ERROR_CTR_ER_ENABLE, priv->base + IFI_CANFD_ERROR_CTR);
+
+	stats->rx_packets++;
+	stats->rx_bytes += cf->can_dlc;
 	netif_receive_skb(skb);
 
 	return 1;
@@ -469,6 +554,7 @@ static int ifi_canfd_poll(struct napi_struct *napi, int quota)
 
 	u32 stcmd = readl(priv->base + IFI_CANFD_STCMD);
 	u32 rxstcmd = readl(priv->base + IFI_CANFD_STCMD);
+	u32 errctr = readl(priv->base + IFI_CANFD_ERROR_CTR);
 
 	/* Handle bus state changes */
 	if ((stcmd & stcmd_state_mask) ||
@@ -478,6 +564,10 @@ static int ifi_canfd_poll(struct napi_struct *napi, int quota)
 	/* Handle lost messages on RX */
 	if (rxstcmd & IFI_CANFD_RXSTCMD_OVERFLOW)
 		work_done += ifi_canfd_handle_lost_msg(ndev);
+
+	/* Handle lec errors on the bus */
+	if (priv->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING)
+		work_done += ifi_canfd_handle_lec_err(ndev, errctr);
 
 	/* Handle normal messages on RX */
 	if (!(rxstcmd & IFI_CANFD_RXSTCMD_EMPTY))
@@ -497,11 +587,13 @@ static irqreturn_t ifi_canfd_isr(int irq, void *dev_id)
 	struct ifi_canfd_priv *priv = netdev_priv(ndev);
 	struct net_device_stats *stats = &ndev->stats;
 	const u32 rx_irq_mask = IFI_CANFD_INTERRUPT_RXFIFO_NEMPTY |
-				IFI_CANFD_INTERRUPT_RXFIFO_NEMPTY_PER;
+				IFI_CANFD_INTERRUPT_RXFIFO_NEMPTY_PER |
+				IFI_CANFD_INTERRUPT_ERROR_WARNING |
+				IFI_CANFD_INTERRUPT_ERROR_COUNTER;
 	const u32 tx_irq_mask = IFI_CANFD_INTERRUPT_TXFIFO_EMPTY |
 				IFI_CANFD_INTERRUPT_TXFIFO_REMOVE;
-	const u32 clr_irq_mask = ~(IFI_CANFD_INTERRUPT_SET_IRQ |
-				   IFI_CANFD_INTERRUPT_ERROR_WARNING);
+	const u32 clr_irq_mask = ~((u32)(IFI_CANFD_INTERRUPT_SET_IRQ |
+					 IFI_CANFD_INTERRUPT_ERROR_WARNING));
 	u32 isr;
 
 	isr = readl(priv->base + IFI_CANFD_INTERRUPT);
@@ -513,19 +605,21 @@ static irqreturn_t ifi_canfd_isr(int irq, void *dev_id)
 	/* Clear all pending interrupts but ErrWarn */
 	writel(clr_irq_mask, priv->base + IFI_CANFD_INTERRUPT);
 
-	/* RX IRQ, start NAPI */
+	/* RX IRQ or bus warning, start NAPI */
 	if (isr & rx_irq_mask) {
 		ifi_canfd_irq_enable(ndev, 0);
 		napi_schedule(&priv->napi);
 	}
 
 	/* TX IRQ */
-	if (isr & tx_irq_mask) {
+	if (isr & IFI_CANFD_INTERRUPT_TXFIFO_REMOVE) {
 		stats->tx_bytes += can_get_echo_skb(ndev, 0);
 		stats->tx_packets++;
 		can_led_event(ndev, CAN_LED_EVENT_TX);
-		netif_wake_queue(ndev);
 	}
+
+	if (isr & tx_irq_mask)
+		netif_wake_queue(ndev);
 
 	return IRQ_HANDLED;
 }
@@ -533,24 +627,12 @@ static irqreturn_t ifi_canfd_isr(int irq, void *dev_id)
 static const struct can_bittiming_const ifi_canfd_bittiming_const = {
 	.name		= KBUILD_MODNAME,
 	.tseg1_min	= 1,	/* Time segment 1 = prop_seg + phase_seg1 */
-	.tseg1_max	= 64,
+	.tseg1_max	= 256,
 	.tseg2_min	= 2,	/* Time segment 2 = phase_seg2 */
-	.tseg2_max	= 64,
-	.sjw_max	= 16,
+	.tseg2_max	= 256,
+	.sjw_max	= 128,
 	.brp_min	= 2,
-	.brp_max	= 256,
-	.brp_inc	= 1,
-};
-
-static const struct can_bittiming_const ifi_canfd_data_bittiming_const = {
-	.name		= KBUILD_MODNAME,
-	.tseg1_min	= 1,	/* Time segment 1 = prop_seg + phase_seg1 */
-	.tseg1_max	= 64,
-	.tseg2_min	= 2,	/* Time segment 2 = phase_seg2 */
-	.tseg2_max	= 64,
-	.sjw_max	= 16,
-	.brp_min	= 2,
-	.brp_max	= 256,
+	.brp_max	= 512,
 	.brp_inc	= 1,
 };
 
@@ -560,19 +642,6 @@ static void ifi_canfd_set_bittiming(struct net_device *ndev)
 	const struct can_bittiming *bt = &priv->can.bittiming;
 	const struct can_bittiming *dbt = &priv->can.data_bittiming;
 	u16 brp, sjw, tseg1, tseg2;
-	u32 noniso_arg = 0;
-	u32 time_off;
-
-	if ((priv->can.ctrlmode & CAN_CTRLMODE_FD) &&
-	    !(priv->can.ctrlmode & CAN_CTRLMODE_FD_NON_ISO)) {
-		time_off = IFI_CANFD_TIME_SJW_OFF_ISO;
-	} else {
-		noniso_arg = IFI_CANFD_TIME_SET_TIMEB_BOSCH |
-			     IFI_CANFD_TIME_SET_TIMEA_BOSCH |
-			     IFI_CANFD_TIME_SET_PRESC_BOSCH |
-			     IFI_CANFD_TIME_SET_SJW_BOSCH;
-		time_off = IFI_CANFD_TIME_SJW_OFF_BOSCH;
-	}
 
 	/* Configure bit timing */
 	brp = bt->brp - 2;
@@ -582,8 +651,7 @@ static void ifi_canfd_set_bittiming(struct net_device *ndev)
 	writel((tseg2 << IFI_CANFD_TIME_TIMEB_OFF) |
 	       (tseg1 << IFI_CANFD_TIME_TIMEA_OFF) |
 	       (brp << IFI_CANFD_TIME_PRESCALE_OFF) |
-	       (sjw << time_off) |
-	       noniso_arg,
+	       (sjw << IFI_CANFD_TIME_SJW_OFF_7_9_8_8),
 	       priv->base + IFI_CANFD_TIME);
 
 	/* Configure data bit timing */
@@ -594,8 +662,7 @@ static void ifi_canfd_set_bittiming(struct net_device *ndev)
 	writel((tseg2 << IFI_CANFD_TIME_TIMEB_OFF) |
 	       (tseg1 << IFI_CANFD_TIME_TIMEA_OFF) |
 	       (brp << IFI_CANFD_TIME_PRESCALE_OFF) |
-	       (sjw << time_off) |
-	       noniso_arg,
+	       (sjw << IFI_CANFD_TIME_SJW_OFF_7_9_8_8),
 	       priv->base + IFI_CANFD_FTIME);
 }
 
@@ -640,7 +707,8 @@ static void ifi_canfd_start(struct net_device *ndev)
 
 	/* Reset the IP */
 	writel(IFI_CANFD_STCMD_HARDRESET, priv->base + IFI_CANFD_STCMD);
-	writel(0, priv->base + IFI_CANFD_STCMD);
+	writel(IFI_CANFD_STCMD_ENABLE_7_9_8_8_TIMING,
+	       priv->base + IFI_CANFD_STCMD);
 
 	ifi_canfd_set_bittiming(ndev);
 	ifi_canfd_set_filters(ndev);
@@ -659,7 +727,8 @@ static void ifi_canfd_start(struct net_device *ndev)
 	writel((u32)(~IFI_CANFD_INTERRUPT_SET_IRQ),
 	       priv->base + IFI_CANFD_INTERRUPT);
 
-	stcmd = IFI_CANFD_STCMD_ENABLE | IFI_CANFD_STCMD_NORMAL_MODE;
+	stcmd = IFI_CANFD_STCMD_ENABLE | IFI_CANFD_STCMD_NORMAL_MODE |
+		IFI_CANFD_STCMD_ENABLE_7_9_8_8_TIMING;
 
 	if (priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
 		stcmd |= IFI_CANFD_STCMD_BUSMONITOR;
@@ -667,15 +736,22 @@ static void ifi_canfd_start(struct net_device *ndev)
 	if (priv->can.ctrlmode & CAN_CTRLMODE_LOOPBACK)
 		stcmd |= IFI_CANFD_STCMD_LOOPBACK;
 
-	if (priv->can.ctrlmode & CAN_CTRLMODE_FD)
+	if ((priv->can.ctrlmode & CAN_CTRLMODE_FD) &&
+	    !(priv->can.ctrlmode & CAN_CTRLMODE_FD_NON_ISO))
 		stcmd |= IFI_CANFD_STCMD_ENABLE_ISO;
 
-	if (!(priv->can.ctrlmode & (CAN_CTRLMODE_FD | CAN_CTRLMODE_FD_NON_ISO)))
+	if (!(priv->can.ctrlmode & CAN_CTRLMODE_FD))
 		stcmd |= IFI_CANFD_STCMD_DISABLE_CANFD;
 
 	priv->can.state = CAN_STATE_ERROR_ACTIVE;
 
 	ifi_canfd_irq_enable(ndev, 1);
+
+	/* Unlock, reset and enable the error counter. */
+	writel(IFI_CANFD_ERROR_CTR_UNLOCK_MAGIC,
+	       priv->base + IFI_CANFD_ERROR_CTR);
+	writel(IFI_CANFD_ERROR_CTR_ER_RESET, priv->base + IFI_CANFD_ERROR_CTR);
+	writel(IFI_CANFD_ERROR_CTR_ER_ENABLE, priv->base + IFI_CANFD_ERROR_CTR);
 
 	/* Enable controller */
 	writel(stcmd, priv->base + IFI_CANFD_STCMD);
@@ -684,6 +760,10 @@ static void ifi_canfd_start(struct net_device *ndev)
 static void ifi_canfd_stop(struct net_device *ndev)
 {
 	struct ifi_canfd_priv *priv = netdev_priv(ndev);
+
+	/* Reset and disable the error counter. */
+	writel(IFI_CANFD_ERROR_CTR_ER_RESET, priv->base + IFI_CANFD_ERROR_CTR);
+	writel(0, priv->base + IFI_CANFD_ERROR_CTR);
 
 	/* Reset the IP */
 	writel(IFI_CANFD_STCMD_HARDRESET, priv->base + IFI_CANFD_STCMD);
@@ -877,7 +957,7 @@ static int ifi_canfd_plat_probe(struct platform_device *pdev)
 	priv->can.clock.freq = readl(addr + IFI_CANFD_CANCLOCK);
 
 	priv->can.bittiming_const	= &ifi_canfd_bittiming_const;
-	priv->can.data_bittiming_const	= &ifi_canfd_data_bittiming_const;
+	priv->can.data_bittiming_const	= &ifi_canfd_bittiming_const;
 	priv->can.do_set_mode		= ifi_canfd_set_mode;
 	priv->can.do_get_berr_counter	= ifi_canfd_get_berr_counter;
 
@@ -888,7 +968,8 @@ static int ifi_canfd_plat_probe(struct platform_device *pdev)
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_LOOPBACK |
 				       CAN_CTRLMODE_LISTENONLY |
 				       CAN_CTRLMODE_FD |
-				       CAN_CTRLMODE_FD_NON_ISO;
+				       CAN_CTRLMODE_FD_NON_ISO |
+				       CAN_CTRLMODE_BERR_REPORTING;
 
 	platform_set_drvdata(pdev, ndev);
 	SET_NETDEV_DEV(ndev, dev);

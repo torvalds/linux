@@ -1155,6 +1155,10 @@ static __init void tegra124_periph_clk_init(void __iomem *clk_base,
 					1, 2);
 	clks[TEGRA124_CLK_XUSB_SS_DIV2] = clk;
 
+	clk = tegra_clk_register_periph_fixed("dpaux", "pll_p", 0, clk_base,
+					      1, 17, 181);
+	clks[TEGRA124_CLK_DPAUX] = clk;
+
 	clk = clk_register_gate(NULL, "pll_d_dsi_out", "pll_d_out0", 0,
 				clk_base + PLLD_MISC, 30, 0, &pll_d_lock);
 	clks[TEGRA124_CLK_PLL_D_DSI_OUT] = clk;

@@ -614,7 +614,7 @@ static hfa384x_usbctlx_t *usbctlx_alloc(void)
 
 	ctlx = kzalloc(sizeof(*ctlx),
 		       in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
-	if (ctlx != NULL)
+	if (ctlx)
 		init_completion(&ctlx->done);
 
 	return ctlx;
@@ -797,7 +797,7 @@ static inline struct usbctlx_completor *init_rmem_completor(
 ----------------------------------------------------------------*/
 static void hfa384x_cb_status(hfa384x_t *hw, const hfa384x_usbctlx_t *ctlx)
 {
-	if (ctlx->usercb != NULL) {
+	if (ctlx->usercb) {
 		hfa384x_cmdresult_t cmdresult;
 
 		if (ctlx->state != CTLX_COMPLETE) {
@@ -2738,7 +2738,7 @@ static void hfa384x_usbctlx_completion_task(unsigned long data)
 		/* Call the completion function that this
 		 * command was assigned, assuming it has one.
 		 */
-		if (ctlx->cmdcb != NULL) {
+		if (ctlx->cmdcb) {
 			spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
 			ctlx->cmdcb(hw, ctlx);
 			spin_lock_irqsave(&hw->ctlxq.lock, flags);
@@ -3629,7 +3629,7 @@ static void hfa384x_ctlxout_callback(struct urb *urb)
 	dbprint_urb(urb);
 #endif
 	if ((urb->status == -ESHUTDOWN) ||
-	    (urb->status == -ENODEV) || (hw == NULL))
+	    (urb->status == -ENODEV) || !hw)
 		return;
 
 retry:

@@ -3,10 +3,10 @@
 #use last CPU for host. Why not the first?
 #many devices tend to use cpu0 by default so
 #it tends to be busier
-HOST_AFFINITY=$(cd /dev/cpu; ls|grep -v '[a-z]'|sort -n|tail -1)
+HOST_AFFINITY=$(lscpu -p=cpu | tail -1)
 
 #run command on all cpus
-for cpu in $(cd /dev/cpu; ls|grep -v '[a-z]'|sort -n);
+for cpu in $(seq 0 $HOST_AFFINITY)
 do
 	#Don't run guest and host on same CPU
 	#It actually works ok if using signalling

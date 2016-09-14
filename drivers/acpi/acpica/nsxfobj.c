@@ -63,7 +63,7 @@ ACPI_MODULE_NAME("nsxfobj")
  * DESCRIPTION: This routine returns the type associatd with a particular handle
  *
  ******************************************************************************/
-acpi_status acpi_get_type(acpi_handle handle, acpi_object_type * ret_type)
+acpi_status acpi_get_type(acpi_handle handle, acpi_object_type *ret_type)
 {
 	struct acpi_namespace_node *node;
 	acpi_status status;
@@ -115,7 +115,7 @@ ACPI_EXPORT_SYMBOL(acpi_get_type)
  *              Handle.
  *
  ******************************************************************************/
-acpi_status acpi_get_parent(acpi_handle handle, acpi_handle * ret_handle)
+acpi_status acpi_get_parent(acpi_handle handle, acpi_handle *ret_handle)
 {
 	struct acpi_namespace_node *node;
 	struct acpi_namespace_node *parent_node;
@@ -183,7 +183,7 @@ ACPI_EXPORT_SYMBOL(acpi_get_parent)
 acpi_status
 acpi_get_next_object(acpi_object_type type,
 		     acpi_handle parent,
-		     acpi_handle child, acpi_handle * ret_handle)
+		     acpi_handle child, acpi_handle *ret_handle)
 {
 	acpi_status status;
 	struct acpi_namespace_node *node;

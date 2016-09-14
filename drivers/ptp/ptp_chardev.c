@@ -208,14 +208,10 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 		break;
 
 	case PTP_SYS_OFFSET:
-		sysoff = kmalloc(sizeof(*sysoff), GFP_KERNEL);
-		if (!sysoff) {
-			err = -ENOMEM;
-			break;
-		}
-		if (copy_from_user(sysoff, (void __user *)arg,
-				   sizeof(*sysoff))) {
-			err = -EFAULT;
+		sysoff = memdup_user((void __user *)arg, sizeof(*sysoff));
+		if (IS_ERR(sysoff)) {
+			err = PTR_ERR(sysoff);
+			sysoff = NULL;
 			break;
 		}
 		if (sysoff->n_samples > PTP_MAX_SAMPLES) {

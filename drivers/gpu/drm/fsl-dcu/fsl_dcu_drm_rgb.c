@@ -17,6 +17,7 @@
 #include <drm/drm_panel.h>
 
 #include "fsl_dcu_drm_drv.h"
+#include "fsl_tcon.h"
 
 static int
 fsl_dcu_drm_encoder_atomic_check(struct drm_encoder *encoder,
@@ -28,10 +29,20 @@ fsl_dcu_drm_encoder_atomic_check(struct drm_encoder *encoder,
 
 static void fsl_dcu_drm_encoder_disable(struct drm_encoder *encoder)
 {
+	struct drm_device *dev = encoder->dev;
+	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
+
+	if (fsl_dev->tcon)
+		fsl_tcon_bypass_disable(fsl_dev->tcon);
 }
 
 static void fsl_dcu_drm_encoder_enable(struct drm_encoder *encoder)
 {
+	struct drm_device *dev = encoder->dev;
+	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
+
+	if (fsl_dev->tcon)
+		fsl_tcon_bypass_enable(fsl_dev->tcon);
 }
 
 static const struct drm_encoder_helper_funcs encoder_helper_funcs = {
@@ -68,7 +79,10 @@ int fsl_dcu_drm_encoder_create(struct fsl_dcu_drm_device *fsl_dev,
 
 static void fsl_dcu_drm_connector_destroy(struct drm_connector *connector)
 {
+	struct fsl_dcu_drm_connector *fsl_con = to_fsl_dcu_connector(connector);
+
 	drm_connector_unregister(connector);
+	drm_panel_detach(fsl_con->panel);
 	drm_connector_cleanup(connector);
 }
 
@@ -131,7 +145,7 @@ int fsl_dcu_drm_connector_create(struct fsl_dcu_drm_device *fsl_dev,
 				 struct drm_encoder *encoder)
 {
 	struct drm_connector *connector = &fsl_dev->connector.base;
-	struct drm_mode_config mode_config = fsl_dev->drm->mode_config;
+	struct drm_mode_config *mode_config = &fsl_dev->drm->mode_config;
 	struct device_node *panel_node;
 	int ret;
 
@@ -153,18 +167,22 @@ int fsl_dcu_drm_connector_create(struct fsl_dcu_drm_device *fsl_dev,
 		goto err_sysfs;
 
 	drm_object_property_set_value(&connector->base,
-				      mode_config.dpms_property,
+				      mode_config->dpms_property,
 				      DRM_MODE_DPMS_OFF);
 
 	panel_node = of_parse_phandle(fsl_dev->np, "fsl,panel", 0);
-	if (panel_node) {
-		fsl_dev->connector.panel = of_drm_find_panel(panel_node);
-		if (!fsl_dev->connector.panel) {
-			ret = -EPROBE_DEFER;
-			goto err_sysfs;
-		}
-	of_node_put(panel_node);
+	if (!panel_node) {
+		dev_err(fsl_dev->dev, "fsl,panel property not found\n");
+		ret = -ENODEV;
+		goto err_sysfs;
 	}
+
+	fsl_dev->connector.panel = of_drm_find_panel(panel_node);
+	if (!fsl_dev->connector.panel) {
+		ret = -EPROBE_DEFER;
+		goto err_panel;
+	}
+	of_node_put(panel_node);
 
 	ret = drm_panel_attach(fsl_dev->connector.panel, connector);
 	if (ret) {
@@ -174,6 +192,8 @@ int fsl_dcu_drm_connector_create(struct fsl_dcu_drm_device *fsl_dev,
 
 	return 0;
 
+err_panel:
+	of_node_put(panel_node);
 err_sysfs:
 	drm_connector_unregister(connector);
 err_cleanup:

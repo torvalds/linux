@@ -227,6 +227,12 @@ int copy_siginfo_to_user32(compat_siginfo_t __user *to, const siginfo_t *from)
 			err |= __put_user(from->si_uid, &to->si_uid);
 			err |= __put_user(from->si_int, &to->si_int);
 			break;
+		case __SI_SYS >> 16:
+			err |= __copy_to_user(&to->si_call_addr, &from->si_call_addr,
+					      sizeof(compat_uptr_t));
+			err |= __put_user(from->si_syscall, &to->si_syscall);
+			err |= __put_user(from->si_arch, &to->si_arch);
+			break;
 		}
 	}
 	return err;

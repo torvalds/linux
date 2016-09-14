@@ -185,8 +185,7 @@ void md_from_obdo(struct md_op_data *op_data, struct obdo *oa, u32 valid)
 		op_data->op_attr.ia_valid |= ATTR_BLOCKS;
 	}
 	if (valid & OBD_MD_FLFLAGS) {
-		((struct ll_iattr *)&op_data->op_attr)->ia_attr_flags =
-			oa->o_flags;
+		op_data->op_attr_flags = oa->o_flags;
 		op_data->op_attr.ia_valid |= ATTR_ATTR_FLAG;
 	}
 }

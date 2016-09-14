@@ -74,5 +74,5 @@ $(MODLIB)/vdso: FORCE
 	@mkdir -p $(MODLIB)/vdso
 
 PHONY += vdso_install
-vdso_install: $(obj)/vdso.so.dbg $(MODLIB)/vdso FORCE
+vdso_install: $(obj)/vdso.so.dbg $(MODLIB)/vdso
 	$(call cmd,vdso_install)

@@ -371,10 +371,15 @@ PAGEFLAG(Idle, idle, PF_ANY)
 #define PAGE_MAPPING_KSM	2
 #define PAGE_MAPPING_FLAGS	(PAGE_MAPPING_ANON | PAGE_MAPPING_KSM)
 
+static __always_inline int PageAnonHead(struct page *page)
+{
+	return ((unsigned long)page->mapping & PAGE_MAPPING_ANON) != 0;
+}
+
 static __always_inline int PageAnon(struct page *page)
 {
 	page = compound_head(page);
-	return ((unsigned long)page->mapping & PAGE_MAPPING_ANON) != 0;
+	return PageAnonHead(page);
 }
 
 #ifdef CONFIG_KSM
@@ -474,7 +479,7 @@ static inline void ClearPageCompound(struct page *page)
 }
 #endif
 
-#define PG_head_mask ((1L << PG_head))
+#define PG_head_mask ((1UL << PG_head))
 
 #ifdef CONFIG_HUGETLB_PAGE
 int PageHuge(struct page *page);
@@ -514,6 +519,27 @@ static inline int PageTransHuge(struct page *page)
 static inline int PageTransCompound(struct page *page)
 {
 	return PageCompound(page);
+}
+
+/*
+ * PageTransCompoundMap is the same as PageTransCompound, but it also
+ * guarantees the primary MMU has the entire compound page mapped
+ * through pmd_trans_huge, which in turn guarantees the secondary MMUs
+ * can also map the entire compound page. This allows the secondary
+ * MMUs to call get_user_pages() only once for each compound page and
+ * to immediately map the entire compound page with a single secondary
+ * MMU fault. If there will be a pmd split later, the secondary MMUs
+ * will get an update through the MMU notifier invalidation through
+ * split_huge_pmd().
+ *
+ * Unlike PageTransCompound, this is safe to be called only while
+ * split_huge_pmd() cannot run from under us, like if protected by the
+ * MMU notifier, otherwise it may result in page->_mapcount < 0 false
+ * positives.
+ */
+static inline int PageTransCompoundMap(struct page *page)
+{
+	return PageTransCompound(page) && atomic_read(&page->_mapcount) < 0;
 }
 
 /*
@@ -559,6 +585,7 @@ static inline int TestClearPageDoubleMap(struct page *page)
 #else
 TESTPAGEFLAG_FALSE(TransHuge)
 TESTPAGEFLAG_FALSE(TransCompound)
+TESTPAGEFLAG_FALSE(TransCompoundMap)
 TESTPAGEFLAG_FALSE(TransTail)
 TESTPAGEFLAG_FALSE(DoubleMap)
 	TESTSETFLAG_FALSE(DoubleMap)
@@ -643,7 +670,7 @@ static inline void ClearPageSlabPfmemalloc(struct page *page)
 }
 
 #ifdef CONFIG_MMU
-#define __PG_MLOCKED		(1 << PG_mlocked)
+#define __PG_MLOCKED		(1UL << PG_mlocked)
 #else
 #define __PG_MLOCKED		0
 #endif
@@ -653,11 +680,11 @@ static inline void ClearPageSlabPfmemalloc(struct page *page)
  * these flags set.  It they are, there is a problem.
  */
 #define PAGE_FLAGS_CHECK_AT_FREE \
-	(1 << PG_lru	 | 1 << PG_locked    | \
-	 1 << PG_private | 1 << PG_private_2 | \
-	 1 << PG_writeback | 1 << PG_reserved | \
-	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
-	 1 << PG_unevictable | __PG_MLOCKED)
+	(1UL << PG_lru	 | 1UL << PG_locked    | \
+	 1UL << PG_private | 1UL << PG_private_2 | \
+	 1UL << PG_writeback | 1UL << PG_reserved | \
+	 1UL << PG_slab	 | 1UL << PG_swapcache | 1UL << PG_active | \
+	 1UL << PG_unevictable | __PG_MLOCKED)
 
 /*
  * Flags checked when a page is prepped for return by the page allocator.
@@ -668,10 +695,10 @@ static inline void ClearPageSlabPfmemalloc(struct page *page)
  * alloc-free cycle to prevent from reusing the page.
  */
 #define PAGE_FLAGS_CHECK_AT_PREP	\
-	(((1 << NR_PAGEFLAGS) - 1) & ~__PG_HWPOISON)
+	(((1UL << NR_PAGEFLAGS) - 1) & ~__PG_HWPOISON)
 
 #define PAGE_FLAGS_PRIVATE				\
-	(1 << PG_private | 1 << PG_private_2)
+	(1UL << PG_private | 1UL << PG_private_2)
 /**
  * page_has_private - Determine if page has private stuff
  * @page: The page to be checked

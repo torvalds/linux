@@ -30,6 +30,7 @@
 #include <linux/delay.h>
 #include <linux/seq_file.h>
 #include <linux/clk.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/gfp.h>

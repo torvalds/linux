@@ -212,6 +212,8 @@ struct ttm_bo_driver bochs_bo_driver = {
 	.verify_access = bochs_bo_verify_access,
 	.io_mem_reserve = &bochs_ttm_io_mem_reserve,
 	.io_mem_free = &bochs_ttm_io_mem_free,
+	.lru_tail = &ttm_bo_default_lru_tail,
+	.swap_lru_tail = &ttm_bo_default_swap_lru_tail,
 };
 
 int bochs_mm_init(struct bochs_device *bochs)
@@ -456,7 +458,7 @@ int bochs_dumb_mmap_offset(struct drm_file *file, struct drm_device *dev,
 	struct drm_gem_object *obj;
 	struct bochs_bo *bo;
 
-	obj = drm_gem_object_lookup(dev, file, handle);
+	obj = drm_gem_object_lookup(file, handle);
 	if (obj == NULL)
 		return -ENOENT;
 
@@ -518,7 +520,7 @@ bochs_user_framebuffer_create(struct drm_device *dev,
 	if (mode_cmd->pixel_format != DRM_FORMAT_XRGB8888)
 		return ERR_PTR(-ENOENT);
 
-	obj = drm_gem_object_lookup(dev, filp, mode_cmd->handles[0]);
+	obj = drm_gem_object_lookup(filp, mode_cmd->handles[0]);
 	if (obj == NULL)
 		return ERR_PTR(-ENOENT);
 

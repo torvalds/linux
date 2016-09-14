@@ -63,6 +63,14 @@ static void to_talitos_ptr(struct talitos_ptr *ptr, dma_addr_t dma_addr,
 		ptr->eptr = upper_32_bits(dma_addr);
 }
 
+static void copy_talitos_ptr(struct talitos_ptr *dst_ptr,
+			     struct talitos_ptr *src_ptr, bool is_sec1)
+{
+	dst_ptr->ptr = src_ptr->ptr;
+	if (!is_sec1)
+		dst_ptr->eptr = src_ptr->eptr;
+}
+
 static void to_talitos_ptr_len(struct talitos_ptr *ptr, unsigned int len,
 			       bool is_sec1)
 {
@@ -827,6 +835,16 @@ struct talitos_ahash_req_ctx {
 	struct scatterlist *psrc;
 };
 
+struct talitos_export_state {
+	u32 hw_context[TALITOS_MDEU_MAX_CONTEXT_SIZE / sizeof(u32)];
+	u8 buf[HASH_MAX_BLOCK_SIZE];
+	unsigned int swinit;
+	unsigned int first;
+	unsigned int last;
+	unsigned int to_hash_later;
+	unsigned int nbuf;
+};
+
 static int aead_setkey(struct crypto_aead *authenc,
 		       const u8 *key, unsigned int keylen)
 {
@@ -1083,21 +1101,20 @@ static int ipsec_esp(struct talitos_edesc *edesc, struct aead_request *areq,
 	sg_count = dma_map_sg(dev, areq->src, edesc->src_nents ?: 1,
 			      (areq->src == areq->dst) ? DMA_BIDIRECTIONAL
 							   : DMA_TO_DEVICE);
-
 	/* hmac data */
 	desc->ptr[1].len = cpu_to_be16(areq->assoclen);
 	if (sg_count > 1 &&
 	    (ret = sg_to_link_tbl_offset(areq->src, sg_count, 0,
 					 areq->assoclen,
 					 &edesc->link_tbl[tbl_off])) > 1) {
-		tbl_off += ret;
-
 		to_talitos_ptr(&desc->ptr[1], edesc->dma_link_tbl + tbl_off *
 			       sizeof(struct talitos_ptr), 0);
 		desc->ptr[1].j_extent = DESC_PTR_LNKTBL_JUMP;
 
 		dma_sync_single_for_device(dev, edesc->dma_link_tbl,
 					   edesc->dma_len, DMA_BIDIRECTIONAL);
+
+		tbl_off += ret;
 	} else {
 		to_talitos_ptr(&desc->ptr[1], sg_dma_address(areq->src), 0);
 		desc->ptr[1].j_extent = 0;
@@ -1126,11 +1143,13 @@ static int ipsec_esp(struct talitos_edesc *edesc, struct aead_request *areq,
 	if (edesc->desc.hdr & DESC_HDR_MODE1_MDEU_CICV)
 		sg_link_tbl_len += authsize;
 
-	if (sg_count > 1 &&
-	    (ret = sg_to_link_tbl_offset(areq->src, sg_count, areq->assoclen,
-					 sg_link_tbl_len,
-					 &edesc->link_tbl[tbl_off])) > 1) {
-		tbl_off += ret;
+	if (sg_count == 1) {
+		to_talitos_ptr(&desc->ptr[4], sg_dma_address(areq->src) +
+			       areq->assoclen, 0);
+	} else if ((ret = sg_to_link_tbl_offset(areq->src, sg_count,
+						areq->assoclen, sg_link_tbl_len,
+						&edesc->link_tbl[tbl_off])) >
+		   1) {
 		desc->ptr[4].j_extent |= DESC_PTR_LNKTBL_JUMP;
 		to_talitos_ptr(&desc->ptr[4], edesc->dma_link_tbl +
 					      tbl_off *
@@ -1138,8 +1157,10 @@ static int ipsec_esp(struct talitos_edesc *edesc, struct aead_request *areq,
 		dma_sync_single_for_device(dev, edesc->dma_link_tbl,
 					   edesc->dma_len,
 					   DMA_BIDIRECTIONAL);
-	} else
-		to_talitos_ptr(&desc->ptr[4], sg_dma_address(areq->src), 0);
+		tbl_off += ret;
+	} else {
+		copy_talitos_ptr(&desc->ptr[4], &edesc->link_tbl[tbl_off], 0);
+	}
 
 	/* cipher out */
 	desc->ptr[5].len = cpu_to_be16(cryptlen);
@@ -1151,11 +1172,13 @@ static int ipsec_esp(struct talitos_edesc *edesc, struct aead_request *areq,
 
 	edesc->icv_ool = false;
 
-	if (sg_count > 1 &&
-	    (sg_count = sg_to_link_tbl_offset(areq->dst, sg_count,
+	if (sg_count == 1) {
+		to_talitos_ptr(&desc->ptr[5], sg_dma_address(areq->dst) +
+			       areq->assoclen, 0);
+	} else if ((sg_count =
+			sg_to_link_tbl_offset(areq->dst, sg_count,
 					      areq->assoclen, cryptlen,
-					      &edesc->link_tbl[tbl_off])) >
-	    1) {
+					      &edesc->link_tbl[tbl_off])) > 1) {
 		struct talitos_ptr *tbl_ptr = &edesc->link_tbl[tbl_off];
 
 		to_talitos_ptr(&desc->ptr[5], edesc->dma_link_tbl +
@@ -1178,8 +1201,9 @@ static int ipsec_esp(struct talitos_edesc *edesc, struct aead_request *areq,
 					   edesc->dma_len, DMA_BIDIRECTIONAL);
 
 		edesc->icv_ool = true;
-	} else
-		to_talitos_ptr(&desc->ptr[5], sg_dma_address(areq->dst), 0);
+	} else {
+		copy_talitos_ptr(&desc->ptr[5], &edesc->link_tbl[tbl_off], 0);
+	}
 
 	/* iv out */
 	map_single_talitos_ptr(dev, &desc->ptr[6], ivsize, ctx->iv,
@@ -1967,6 +1991,46 @@ static int ahash_digest(struct ahash_request *areq)
 	return ahash_process_req(areq, areq->nbytes);
 }
 
+static int ahash_export(struct ahash_request *areq, void *out)
+{
+	struct talitos_ahash_req_ctx *req_ctx = ahash_request_ctx(areq);
+	struct talitos_export_state *export = out;
+
+	memcpy(export->hw_context, req_ctx->hw_context,
+	       req_ctx->hw_context_size);
+	memcpy(export->buf, req_ctx->buf, req_ctx->nbuf);
+	export->swinit = req_ctx->swinit;
+	export->first = req_ctx->first;
+	export->last = req_ctx->last;
+	export->to_hash_later = req_ctx->to_hash_later;
+	export->nbuf = req_ctx->nbuf;
+
+	return 0;
+}
+
+static int ahash_import(struct ahash_request *areq, const void *in)
+{
+	struct talitos_ahash_req_ctx *req_ctx = ahash_request_ctx(areq);
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(areq);
+	const struct talitos_export_state *export = in;
+
+	memset(req_ctx, 0, sizeof(*req_ctx));
+	req_ctx->hw_context_size =
+		(crypto_ahash_digestsize(tfm) <= SHA256_DIGEST_SIZE)
+			? TALITOS_MDEU_CONTEXT_SIZE_MD5_SHA1_SHA256
+			: TALITOS_MDEU_CONTEXT_SIZE_SHA384_SHA512;
+	memcpy(req_ctx->hw_context, export->hw_context,
+	       req_ctx->hw_context_size);
+	memcpy(req_ctx->buf, export->buf, export->nbuf);
+	req_ctx->swinit = export->swinit;
+	req_ctx->first = export->first;
+	req_ctx->last = export->last;
+	req_ctx->to_hash_later = export->to_hash_later;
+	req_ctx->nbuf = export->nbuf;
+
+	return 0;
+}
+
 struct keyhash_result {
 	struct completion completion;
 	int err;
@@ -2444,6 +2508,7 @@ static struct talitos_alg_template driver_algs[] = {
 	{	.type = CRYPTO_ALG_TYPE_AHASH,
 		.alg.hash = {
 			.halg.digestsize = MD5_DIGEST_SIZE,
+			.halg.statesize = sizeof(struct talitos_export_state),
 			.halg.base = {
 				.cra_name = "md5",
 				.cra_driver_name = "md5-talitos",
@@ -2459,6 +2524,7 @@ static struct talitos_alg_template driver_algs[] = {
 	{	.type = CRYPTO_ALG_TYPE_AHASH,
 		.alg.hash = {
 			.halg.digestsize = SHA1_DIGEST_SIZE,
+			.halg.statesize = sizeof(struct talitos_export_state),
 			.halg.base = {
 				.cra_name = "sha1",
 				.cra_driver_name = "sha1-talitos",
@@ -2474,6 +2540,7 @@ static struct talitos_alg_template driver_algs[] = {
 	{	.type = CRYPTO_ALG_TYPE_AHASH,
 		.alg.hash = {
 			.halg.digestsize = SHA224_DIGEST_SIZE,
+			.halg.statesize = sizeof(struct talitos_export_state),
 			.halg.base = {
 				.cra_name = "sha224",
 				.cra_driver_name = "sha224-talitos",
@@ -2489,6 +2556,7 @@ static struct talitos_alg_template driver_algs[] = {
 	{	.type = CRYPTO_ALG_TYPE_AHASH,
 		.alg.hash = {
 			.halg.digestsize = SHA256_DIGEST_SIZE,
+			.halg.statesize = sizeof(struct talitos_export_state),
 			.halg.base = {
 				.cra_name = "sha256",
 				.cra_driver_name = "sha256-talitos",
@@ -2504,6 +2572,7 @@ static struct talitos_alg_template driver_algs[] = {
 	{	.type = CRYPTO_ALG_TYPE_AHASH,
 		.alg.hash = {
 			.halg.digestsize = SHA384_DIGEST_SIZE,
+			.halg.statesize = sizeof(struct talitos_export_state),
 			.halg.base = {
 				.cra_name = "sha384",
 				.cra_driver_name = "sha384-talitos",
@@ -2519,6 +2588,7 @@ static struct talitos_alg_template driver_algs[] = {
 	{	.type = CRYPTO_ALG_TYPE_AHASH,
 		.alg.hash = {
 			.halg.digestsize = SHA512_DIGEST_SIZE,
+			.halg.statesize = sizeof(struct talitos_export_state),
 			.halg.base = {
 				.cra_name = "sha512",
 				.cra_driver_name = "sha512-talitos",
@@ -2534,6 +2604,7 @@ static struct talitos_alg_template driver_algs[] = {
 	{	.type = CRYPTO_ALG_TYPE_AHASH,
 		.alg.hash = {
 			.halg.digestsize = MD5_DIGEST_SIZE,
+			.halg.statesize = sizeof(struct talitos_export_state),
 			.halg.base = {
 				.cra_name = "hmac(md5)",
 				.cra_driver_name = "hmac-md5-talitos",
@@ -2549,6 +2620,7 @@ static struct talitos_alg_template driver_algs[] = {
 	{	.type = CRYPTO_ALG_TYPE_AHASH,
 		.alg.hash = {
 			.halg.digestsize = SHA1_DIGEST_SIZE,
+			.halg.statesize = sizeof(struct talitos_export_state),
 			.halg.base = {
 				.cra_name = "hmac(sha1)",
 				.cra_driver_name = "hmac-sha1-talitos",
@@ -2564,6 +2636,7 @@ static struct talitos_alg_template driver_algs[] = {
 	{	.type = CRYPTO_ALG_TYPE_AHASH,
 		.alg.hash = {
 			.halg.digestsize = SHA224_DIGEST_SIZE,
+			.halg.statesize = sizeof(struct talitos_export_state),
 			.halg.base = {
 				.cra_name = "hmac(sha224)",
 				.cra_driver_name = "hmac-sha224-talitos",
@@ -2579,6 +2652,7 @@ static struct talitos_alg_template driver_algs[] = {
 	{	.type = CRYPTO_ALG_TYPE_AHASH,
 		.alg.hash = {
 			.halg.digestsize = SHA256_DIGEST_SIZE,
+			.halg.statesize = sizeof(struct talitos_export_state),
 			.halg.base = {
 				.cra_name = "hmac(sha256)",
 				.cra_driver_name = "hmac-sha256-talitos",
@@ -2594,6 +2668,7 @@ static struct talitos_alg_template driver_algs[] = {
 	{	.type = CRYPTO_ALG_TYPE_AHASH,
 		.alg.hash = {
 			.halg.digestsize = SHA384_DIGEST_SIZE,
+			.halg.statesize = sizeof(struct talitos_export_state),
 			.halg.base = {
 				.cra_name = "hmac(sha384)",
 				.cra_driver_name = "hmac-sha384-talitos",
@@ -2609,6 +2684,7 @@ static struct talitos_alg_template driver_algs[] = {
 	{	.type = CRYPTO_ALG_TYPE_AHASH,
 		.alg.hash = {
 			.halg.digestsize = SHA512_DIGEST_SIZE,
+			.halg.statesize = sizeof(struct talitos_export_state),
 			.halg.base = {
 				.cra_name = "hmac(sha512)",
 				.cra_driver_name = "hmac-sha512-talitos",
@@ -2629,20 +2705,10 @@ struct talitos_crypto_alg {
 	struct talitos_alg_template algt;
 };
 
-static int talitos_cra_init(struct crypto_tfm *tfm)
+static int talitos_init_common(struct talitos_ctx *ctx,
+			       struct talitos_crypto_alg *talitos_alg)
 {
-	struct crypto_alg *alg = tfm->__crt_alg;
-	struct talitos_crypto_alg *talitos_alg;
-	struct talitos_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct talitos_private *priv;
-
-	if ((alg->cra_flags & CRYPTO_ALG_TYPE_MASK) == CRYPTO_ALG_TYPE_AHASH)
-		talitos_alg = container_of(__crypto_ahash_alg(alg),
-					   struct talitos_crypto_alg,
-					   algt.alg.hash);
-	else
-		talitos_alg = container_of(alg, struct talitos_crypto_alg,
-					   algt.alg.crypto);
 
 	/* update context with ptr to dev */
 	ctx->dev = talitos_alg->dev;
@@ -2661,10 +2727,33 @@ static int talitos_cra_init(struct crypto_tfm *tfm)
 	return 0;
 }
 
+static int talitos_cra_init(struct crypto_tfm *tfm)
+{
+	struct crypto_alg *alg = tfm->__crt_alg;
+	struct talitos_crypto_alg *talitos_alg;
+	struct talitos_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	if ((alg->cra_flags & CRYPTO_ALG_TYPE_MASK) == CRYPTO_ALG_TYPE_AHASH)
+		talitos_alg = container_of(__crypto_ahash_alg(alg),
+					   struct talitos_crypto_alg,
+					   algt.alg.hash);
+	else
+		talitos_alg = container_of(alg, struct talitos_crypto_alg,
+					   algt.alg.crypto);
+
+	return talitos_init_common(ctx, talitos_alg);
+}
+
 static int talitos_cra_init_aead(struct crypto_aead *tfm)
 {
-	talitos_cra_init(crypto_aead_tfm(tfm));
-	return 0;
+	struct aead_alg *alg = crypto_aead_alg(tfm);
+	struct talitos_crypto_alg *talitos_alg;
+	struct talitos_ctx *ctx = crypto_aead_ctx(tfm);
+
+	talitos_alg = container_of(alg, struct talitos_crypto_alg,
+				   algt.alg.aead);
+
+	return talitos_init_common(ctx, talitos_alg);
 }
 
 static int talitos_cra_init_ahash(struct crypto_tfm *tfm)
@@ -2787,6 +2876,8 @@ static struct talitos_crypto_alg *talitos_alg_alloc(struct device *dev,
 		t_alg->algt.alg.hash.finup = ahash_finup;
 		t_alg->algt.alg.hash.digest = ahash_digest;
 		t_alg->algt.alg.hash.setkey = ahash_setkey;
+		t_alg->algt.alg.hash.import = ahash_import;
+		t_alg->algt.alg.hash.export = ahash_export;
 
 		if (!(priv->features & TALITOS_FTR_HMAC_OK) &&
 		    !strncmp(alg->cra_name, "hmac", 4)) {

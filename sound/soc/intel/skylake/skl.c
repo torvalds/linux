@@ -222,20 +222,36 @@ static int skl_suspend(struct device *dev)
 	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
 	struct skl *skl  = ebus_to_skl(ebus);
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	int ret = 0;
 
 	/*
 	 * Do not suspend if streams which are marked ignore suspend are
 	 * running, we need to save the state for these and continue
 	 */
 	if (skl->supend_active) {
+		/* turn off the links and stop the CORB/RIRB DMA if it is On */
 		snd_hdac_ext_bus_link_power_down_all(ebus);
+
+		if (ebus->cmd_dma_state)
+			snd_hdac_bus_stop_cmd_io(&ebus->bus);
+
 		enable_irq_wake(bus->irq);
 		pci_save_state(pci);
 		pci_disable_device(pci);
-		return 0;
 	} else {
-		return _skl_suspend(ebus);
+		ret = _skl_suspend(ebus);
+		if (ret < 0)
+			return ret;
 	}
+
+	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)) {
+		ret = snd_hdac_display_power(bus, false);
+		if (ret < 0)
+			dev_err(bus->dev,
+				"Cannot turn OFF display power on i915\n");
+	}
+
+	return ret;
 }
 
 static int skl_resume(struct device *dev)
@@ -244,6 +260,7 @@ static int skl_resume(struct device *dev)
 	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
 	struct skl *skl  = ebus_to_skl(ebus);
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct hdac_ext_link *hlink = NULL;
 	int ret;
 
 	/* Turned OFF in HDMI codec driver after codec reconfiguration */
@@ -265,8 +282,29 @@ static int skl_resume(struct device *dev)
 		ret = pci_enable_device(pci);
 		snd_hdac_ext_bus_link_power_up_all(ebus);
 		disable_irq_wake(bus->irq);
+		/*
+		 * turn On the links which are On before active suspend
+		 * and start the CORB/RIRB DMA if On before
+		 * active suspend.
+		 */
+		list_for_each_entry(hlink, &ebus->hlink_list, list) {
+			if (hlink->ref_count)
+				snd_hdac_ext_bus_link_power_up(hlink);
+		}
+
+		if (ebus->cmd_dma_state)
+			snd_hdac_bus_init_cmd_io(&ebus->bus);
 	} else {
 		ret = _skl_resume(ebus);
+
+		/* turn off the links which are off before suspend */
+		list_for_each_entry(hlink, &ebus->hlink_list, list) {
+			if (!hlink->ref_count)
+				snd_hdac_ext_bus_link_power_down(hlink);
+		}
+
+		if (!ebus->cmd_dma_state)
+			snd_hdac_bus_stop_cmd_io(&ebus->bus);
 	}
 
 	return ret;
@@ -316,17 +354,20 @@ static int skl_free(struct hdac_ext_bus *ebus)
 
 	if (bus->irq >= 0)
 		free_irq(bus->irq, (void *)bus);
-	if (bus->remap_addr)
-		iounmap(bus->remap_addr);
-
 	snd_hdac_bus_free_stream_pages(bus);
 	snd_hdac_stream_free_all(ebus);
 	snd_hdac_link_free_all(ebus);
+
+	if (bus->remap_addr)
+		iounmap(bus->remap_addr);
+
 	pci_release_regions(skl->pci);
 	pci_disable_device(skl->pci);
 
 	snd_hdac_ext_bus_exit(ebus);
 
+	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI))
+		snd_hdac_i915_exit(&ebus->bus);
 	return 0;
 }
 
@@ -599,6 +640,7 @@ static int skl_probe(struct pci_dev *pci,
 	struct skl *skl;
 	struct hdac_ext_bus *ebus = NULL;
 	struct hdac_bus *bus = NULL;
+	struct hdac_ext_link *hlink = NULL;
 	int err;
 
 	/* we use ext core ops, so provide NULL for ops here */
@@ -629,7 +671,7 @@ static int skl_probe(struct pci_dev *pci,
 		err = skl_machine_device_register(skl,
 				  (void *)pci_id->driver_data);
 		if (err < 0)
-			goto out_free;
+			goto out_nhlt_free;
 
 		err = skl_init_dsp(skl);
 		if (err < 0) {
@@ -665,6 +707,12 @@ static int skl_probe(struct pci_dev *pci,
 		}
 	}
 
+	/*
+	 * we are done probling so decrement link counts
+	 */
+	list_for_each_entry(hlink, &ebus->hlink_list, list)
+		snd_hdac_ext_bus_link_put(ebus, hlink);
+
 	/*configure PM */
 	pm_runtime_put_noidle(bus->dev);
 	pm_runtime_allow(bus->dev);
@@ -679,6 +727,8 @@ out_dsp_free:
 	skl_free_dsp(skl);
 out_mach_free:
 	skl_machine_device_unregister(skl);
+out_nhlt_free:
+	skl_nhlt_free(skl->nhlt);
 out_free:
 	skl->init_failed = 1;
 	skl_free(ebus);
@@ -719,16 +769,17 @@ static void skl_remove(struct pci_dev *pci)
 	if (skl->tplg)
 		release_firmware(skl->tplg);
 
-	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI))
-		snd_hdac_i915_exit(&ebus->bus);
-
 	if (pci_dev_run_wake(pci))
 		pm_runtime_get_noresume(&pci->dev);
-	pci_dev_put(pci);
+
+	/* codec removal, invoke bus_device_remove */
+	snd_hdac_ext_bus_device_remove(ebus);
+
 	skl_platform_unregister(&pci->dev);
 	skl_free_dsp(skl);
 	skl_machine_device_unregister(skl);
 	skl_dmic_device_unregister(skl);
+	skl_nhlt_free(skl->nhlt);
 	skl_free(ebus);
 	dev_set_drvdata(&pci->dev, NULL);
 }

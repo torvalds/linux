@@ -55,6 +55,7 @@ void vivid_rds_generate(struct vivid_rds_gen *rds)
 {
 	struct v4l2_rds_data *data = rds->data;
 	unsigned grp;
+	unsigned idx;
 	struct tm tm;
 	unsigned date;
 	unsigned time;
@@ -73,24 +74,26 @@ void vivid_rds_generate(struct vivid_rds_gen *rds)
 		case 0 ... 3:
 		case 22 ... 25:
 		case 44 ... 47: /* Group 0B */
+			idx = (grp % 22) % 4;
 			data[1].lsb |= (rds->ta << 4) | (rds->ms << 3);
-			data[1].lsb |= vivid_get_di(rds, grp % 22);
+			data[1].lsb |= vivid_get_di(rds, idx);
 			data[1].msb |= 1 << 3;
 			data[2].lsb = rds->picode & 0xff;
 			data[2].msb = rds->picode >> 8;
 			data[2].block = V4L2_RDS_BLOCK_C_ALT | (V4L2_RDS_BLOCK_C_ALT << 3);
-			data[3].lsb = rds->psname[2 * (grp % 22) + 1];
-			data[3].msb = rds->psname[2 * (grp % 22)];
+			data[3].lsb = rds->psname[2 * idx + 1];
+			data[3].msb = rds->psname[2 * idx];
 			break;
 		case 4 ... 19:
 		case 26 ... 41: /* Group 2A */
-			data[1].lsb |= (grp - 4) % 22;
+			idx = ((grp - 4) % 22) % 16;
+			data[1].lsb |= idx;
 			data[1].msb |= 4 << 3;
-			data[2].msb = rds->radiotext[4 * ((grp - 4) % 22)];
-			data[2].lsb = rds->radiotext[4 * ((grp - 4) % 22) + 1];
+			data[2].msb = rds->radiotext[4 * idx];
+			data[2].lsb = rds->radiotext[4 * idx + 1];
 			data[2].block = V4L2_RDS_BLOCK_C | (V4L2_RDS_BLOCK_C << 3);
-			data[3].msb = rds->radiotext[4 * ((grp - 4) % 22) + 2];
-			data[3].lsb = rds->radiotext[4 * ((grp - 4) % 22) + 3];
+			data[3].msb = rds->radiotext[4 * idx + 2];
+			data[3].lsb = rds->radiotext[4 * idx + 3];
 			break;
 		case 56:
 			/*

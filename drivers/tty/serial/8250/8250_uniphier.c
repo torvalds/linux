@@ -209,7 +209,7 @@ static int uniphier_uart_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(dev, "failed to get IRQ number");
+		dev_err(dev, "failed to get IRQ number\n");
 		return irq;
 	}
 

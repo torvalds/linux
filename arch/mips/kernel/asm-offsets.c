@@ -14,6 +14,7 @@
 #include <linux/mm.h>
 #include <linux/kbuild.h>
 #include <linux/suspend.h>
+#include <asm/cpu-info.h>
 #include <asm/pm.h>
 #include <asm/ptrace.h>
 #include <asm/processor.h>
@@ -337,6 +338,15 @@ void output_pm_defines(void)
 	BLANK();
 }
 #endif
+
+void output_cpuinfo_defines(void)
+{
+	COMMENT(" MIPS cpuinfo offsets. ");
+	DEFINE(CPUINFO_SIZE, sizeof(struct cpuinfo_mips));
+#ifdef CONFIG_MIPS_ASID_BITS_VARIABLE
+	OFFSET(CPUINFO_ASID_MASK, cpuinfo_mips, asid_mask);
+#endif
+}
 
 void output_kvm_defines(void)
 {

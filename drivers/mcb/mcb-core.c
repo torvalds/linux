@@ -61,20 +61,35 @@ static int mcb_probe(struct device *dev)
 	struct mcb_driver *mdrv = to_mcb_driver(dev->driver);
 	struct mcb_device *mdev = to_mcb_device(dev);
 	const struct mcb_device_id *found_id;
+	struct module *carrier_mod;
+	int ret;
 
 	found_id = mcb_match_id(mdrv->id_table, mdev);
 	if (!found_id)
 		return -ENODEV;
 
-	return mdrv->probe(mdev, found_id);
+	carrier_mod = mdev->dev.parent->driver->owner;
+	if (!try_module_get(carrier_mod))
+		return -EINVAL;
+
+	get_device(dev);
+	ret = mdrv->probe(mdev, found_id);
+	if (ret)
+		module_put(carrier_mod);
+
+	return ret;
 }
 
 static int mcb_remove(struct device *dev)
 {
 	struct mcb_driver *mdrv = to_mcb_driver(dev->driver);
 	struct mcb_device *mdev = to_mcb_device(dev);
+	struct module *carrier_mod;
 
 	mdrv->remove(mdev);
+
+	carrier_mod = mdev->dev.parent->driver->owner;
+	module_put(carrier_mod);
 
 	put_device(&mdev->dev);
 
@@ -83,12 +98,66 @@ static int mcb_remove(struct device *dev)
 
 static void mcb_shutdown(struct device *dev)
 {
+	struct mcb_driver *mdrv = to_mcb_driver(dev->driver);
 	struct mcb_device *mdev = to_mcb_device(dev);
-	struct mcb_driver *mdrv = mdev->driver;
 
 	if (mdrv && mdrv->shutdown)
 		mdrv->shutdown(mdev);
 }
+
+static ssize_t revision_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct mcb_bus *bus = to_mcb_bus(dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", bus->revision);
+}
+static DEVICE_ATTR_RO(revision);
+
+static ssize_t model_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct mcb_bus *bus = to_mcb_bus(dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%c\n", bus->model);
+}
+static DEVICE_ATTR_RO(model);
+
+static ssize_t minor_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct mcb_bus *bus = to_mcb_bus(dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", bus->minor);
+}
+static DEVICE_ATTR_RO(minor);
+
+static ssize_t name_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct mcb_bus *bus = to_mcb_bus(dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", bus->name);
+}
+static DEVICE_ATTR_RO(name);
+
+static struct attribute *mcb_bus_attrs[] = {
+	&dev_attr_revision.attr,
+	&dev_attr_model.attr,
+	&dev_attr_minor.attr,
+	&dev_attr_name.attr,
+	NULL,
+};
+
+static const struct attribute_group mcb_carrier_group = {
+	.attrs = mcb_bus_attrs,
+};
+
+static const struct attribute_group *mcb_carrier_groups[] = {
+	&mcb_carrier_group,
+	NULL,
+};
+
 
 static struct bus_type mcb_bus_type = {
 	.name = "mcb",
@@ -97,6 +166,11 @@ static struct bus_type mcb_bus_type = {
 	.probe = mcb_probe,
 	.remove = mcb_remove,
 	.shutdown = mcb_shutdown,
+};
+
+static struct device_type mcb_carrier_device_type = {
+	.name = "mcb-carrier",
+	.groups = mcb_carrier_groups,
 };
 
 /**
@@ -155,6 +229,7 @@ int mcb_device_register(struct mcb_bus *bus, struct mcb_device *dev)
 	int device_id;
 
 	device_initialize(&dev->dev);
+	mcb_bus_get(bus);
 	dev->dev.bus = &mcb_bus_type;
 	dev->dev.parent = bus->dev.parent;
 	dev->dev.release = mcb_release_dev;
@@ -178,6 +253,15 @@ out:
 }
 EXPORT_SYMBOL_GPL(mcb_device_register);
 
+static void mcb_free_bus(struct device *dev)
+{
+	struct mcb_bus *bus = to_mcb_bus(dev);
+
+	put_device(bus->carrier);
+	ida_simple_remove(&mcb_ida, bus->bus_nr);
+	kfree(bus);
+}
+
 /**
  * mcb_alloc_bus() - Allocate a new @mcb_bus
  *
@@ -187,6 +271,7 @@ struct mcb_bus *mcb_alloc_bus(struct device *carrier)
 {
 	struct mcb_bus *bus;
 	int bus_nr;
+	int rc;
 
 	bus = kzalloc(sizeof(struct mcb_bus), GFP_KERNEL);
 	if (!bus)
@@ -194,14 +279,29 @@ struct mcb_bus *mcb_alloc_bus(struct device *carrier)
 
 	bus_nr = ida_simple_get(&mcb_ida, 0, 0, GFP_KERNEL);
 	if (bus_nr < 0) {
-		kfree(bus);
-		return ERR_PTR(bus_nr);
+		rc = bus_nr;
+		goto err_free;
 	}
 
-	INIT_LIST_HEAD(&bus->children);
 	bus->bus_nr = bus_nr;
-	bus->carrier = carrier;
+	bus->carrier = get_device(carrier);
+
+	device_initialize(&bus->dev);
+	bus->dev.parent = carrier;
+	bus->dev.bus = &mcb_bus_type;
+	bus->dev.type = &mcb_carrier_device_type;
+	bus->dev.release = &mcb_free_bus;
+
+	dev_set_name(&bus->dev, "mcb:%d", bus_nr);
+	rc = device_add(&bus->dev);
+	if (rc)
+		goto err_free;
+
 	return bus;
+err_free:
+	put_device(carrier);
+	kfree(bus);
+	return ERR_PTR(rc);
 }
 EXPORT_SYMBOL_GPL(mcb_alloc_bus);
 
@@ -224,10 +324,6 @@ static void mcb_devices_unregister(struct mcb_bus *bus)
 void mcb_release_bus(struct mcb_bus *bus)
 {
 	mcb_devices_unregister(bus);
-
-	ida_simple_remove(&mcb_ida, bus->bus_nr);
-
-	kfree(bus);
 }
 EXPORT_SYMBOL_GPL(mcb_release_bus);
 

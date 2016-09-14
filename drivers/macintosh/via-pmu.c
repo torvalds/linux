@@ -1851,7 +1851,7 @@ static int powerbook_sleep_grackle(void)
  		_set_L2CR(save_l2cr);
 	
 	/* Restore userland MMU context */
-	switch_mmu_context(NULL, current->active_mm);
+	switch_mmu_context(NULL, current->active_mm, NULL);
 
 	/* Power things up */
 	pmu_unlock();
@@ -1940,7 +1940,7 @@ powerbook_sleep_Core99(void)
  		_set_L3CR(save_l3cr);
 	
 	/* Restore userland MMU context */
-	switch_mmu_context(NULL, current->active_mm);
+	switch_mmu_context(NULL, current->active_mm, NULL);
 
 	/* Tell PMU we are ready */
 	pmu_unlock();

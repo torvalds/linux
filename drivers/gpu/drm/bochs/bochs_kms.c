@@ -43,7 +43,7 @@ static int bochs_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	if (old_fb) {
 		bochs_fb = to_bochs_framebuffer(old_fb);
 		bo = gem_to_bochs_bo(bochs_fb->obj);
-		ret = ttm_bo_reserve(&bo->bo, true, false, false, NULL);
+		ret = ttm_bo_reserve(&bo->bo, true, false, NULL);
 		if (ret) {
 			DRM_ERROR("failed to reserve old_fb bo\n");
 		} else {
@@ -57,7 +57,7 @@ static int bochs_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 
 	bochs_fb = to_bochs_framebuffer(crtc->primary->fb);
 	bo = gem_to_bochs_bo(bochs_fb->obj);
-	ret = ttm_bo_reserve(&bo->bo, true, false, false, NULL);
+	ret = ttm_bo_reserve(&bo->bo, true, false, NULL);
 	if (ret)
 		return ret;
 
@@ -93,11 +93,6 @@ static void bochs_crtc_commit(struct drm_crtc *crtc)
 {
 }
 
-static void bochs_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
-				 u16 *blue, uint32_t start, uint32_t size)
-{
-}
-
 static int bochs_crtc_page_flip(struct drm_crtc *crtc,
 				struct drm_framebuffer *fb,
 				struct drm_pending_vblank_event *event,
@@ -120,7 +115,6 @@ static int bochs_crtc_page_flip(struct drm_crtc *crtc,
 
 /* These provide the minimum set of functions required to handle a CRTC */
 static const struct drm_crtc_funcs bochs_crtc_funcs = {
-	.gamma_set = bochs_crtc_gamma_set,
 	.set_config = drm_crtc_helper_set_config,
 	.destroy = drm_crtc_cleanup,
 	.page_flip = bochs_crtc_page_flip,
@@ -140,7 +134,6 @@ static void bochs_crtc_init(struct drm_device *dev)
 	struct drm_crtc *crtc = &bochs->crtc;
 
 	drm_crtc_init(dev, crtc, &bochs_crtc_funcs);
-	drm_mode_crtc_set_gamma_size(crtc, 256);
 	drm_crtc_helper_add(crtc, &bochs_helper_funcs);
 }
 

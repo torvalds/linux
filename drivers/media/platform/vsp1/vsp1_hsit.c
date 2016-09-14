@@ -17,6 +17,7 @@
 #include <media/v4l2-subdev.h>
 
 #include "vsp1.h"
+#include "vsp1_dl.h"
 #include "vsp1_hsit.h"
 
 #define HSIT_MIN_SIZE				4U
@@ -26,32 +27,14 @@
  * Device Access
  */
 
-static inline void vsp1_hsit_write(struct vsp1_hsit *hsit, u32 reg, u32 data)
+static inline void vsp1_hsit_write(struct vsp1_hsit *hsit,
+				   struct vsp1_dl_list *dl, u32 reg, u32 data)
 {
-	vsp1_write(hsit->entity.vsp1, reg, data);
+	vsp1_dl_list_write(dl, reg, data);
 }
 
 /* -----------------------------------------------------------------------------
- * V4L2 Subdevice Core Operations
- */
-
-static int hsit_s_stream(struct v4l2_subdev *subdev, int enable)
-{
-	struct vsp1_hsit *hsit = to_hsit(subdev);
-
-	if (!enable)
-		return 0;
-
-	if (hsit->inverse)
-		vsp1_hsit_write(hsit, VI6_HSI_CTRL, VI6_HSI_CTRL_EN);
-	else
-		vsp1_hsit_write(hsit, VI6_HST_CTRL, VI6_HST_CTRL_EN);
-
-	return 0;
-}
-
-/* -----------------------------------------------------------------------------
- * V4L2 Subdevice Pad Operations
+ * V4L2 Subdevice Operations
  */
 
 static int hsit_enum_mbus_code(struct v4l2_subdev *subdev,
@@ -76,43 +59,9 @@ static int hsit_enum_frame_size(struct v4l2_subdev *subdev,
 				struct v4l2_subdev_pad_config *cfg,
 				struct v4l2_subdev_frame_size_enum *fse)
 {
-	struct vsp1_hsit *hsit = to_hsit(subdev);
-	struct v4l2_mbus_framefmt *format;
-
-	format = vsp1_entity_get_pad_format(&hsit->entity, cfg, fse->pad,
-					    fse->which);
-
-	if (fse->index || fse->code != format->code)
-		return -EINVAL;
-
-	if (fse->pad == HSIT_PAD_SINK) {
-		fse->min_width = HSIT_MIN_SIZE;
-		fse->max_width = HSIT_MAX_SIZE;
-		fse->min_height = HSIT_MIN_SIZE;
-		fse->max_height = HSIT_MAX_SIZE;
-	} else {
-		/* The size on the source pad are fixed and always identical to
-		 * the size on the sink pad.
-		 */
-		fse->min_width = format->width;
-		fse->max_width = format->width;
-		fse->min_height = format->height;
-		fse->max_height = format->height;
-	}
-
-	return 0;
-}
-
-static int hsit_get_format(struct v4l2_subdev *subdev,
-			   struct v4l2_subdev_pad_config *cfg,
-			   struct v4l2_subdev_format *fmt)
-{
-	struct vsp1_hsit *hsit = to_hsit(subdev);
-
-	fmt->format = *vsp1_entity_get_pad_format(&hsit->entity, cfg, fmt->pad,
-						  fmt->which);
-
-	return 0;
+	return vsp1_subdev_enum_frame_size(subdev, cfg, fse, HSIT_MIN_SIZE,
+					   HSIT_MIN_SIZE, HSIT_MAX_SIZE,
+					   HSIT_MAX_SIZE);
 }
 
 static int hsit_set_format(struct v4l2_subdev *subdev,
@@ -120,10 +69,14 @@ static int hsit_set_format(struct v4l2_subdev *subdev,
 			   struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_hsit *hsit = to_hsit(subdev);
+	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
 
-	format = vsp1_entity_get_pad_format(&hsit->entity, cfg, fmt->pad,
-					    fmt->which);
+	config = vsp1_entity_get_pad_config(&hsit->entity, cfg, fmt->which);
+	if (!config)
+		return -EINVAL;
+
+	format = vsp1_entity_get_pad_format(&hsit->entity, config, fmt->pad);
 
 	if (fmt->pad == HSIT_PAD_SOURCE) {
 		/* The HST and HSI output format code and resolution can't be
@@ -145,8 +98,8 @@ static int hsit_set_format(struct v4l2_subdev *subdev,
 	fmt->format = *format;
 
 	/* Propagate the format to the source pad. */
-	format = vsp1_entity_get_pad_format(&hsit->entity, cfg, HSIT_PAD_SOURCE,
-					    fmt->which);
+	format = vsp1_entity_get_pad_format(&hsit->entity, config,
+					    HSIT_PAD_SOURCE);
 	*format = fmt->format;
 	format->code = hsit->inverse ? MEDIA_BUS_FMT_ARGB8888_1X32
 		     : MEDIA_BUS_FMT_AHSV8888_1X32;
@@ -154,24 +107,36 @@ static int hsit_set_format(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-/* -----------------------------------------------------------------------------
- * V4L2 Subdevice Operations
- */
-
-static struct v4l2_subdev_video_ops hsit_video_ops = {
-	.s_stream = hsit_s_stream,
-};
-
 static struct v4l2_subdev_pad_ops hsit_pad_ops = {
+	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = hsit_enum_mbus_code,
 	.enum_frame_size = hsit_enum_frame_size,
-	.get_fmt = hsit_get_format,
+	.get_fmt = vsp1_subdev_get_pad_format,
 	.set_fmt = hsit_set_format,
 };
 
 static struct v4l2_subdev_ops hsit_ops = {
-	.video	= &hsit_video_ops,
 	.pad    = &hsit_pad_ops,
+};
+
+/* -----------------------------------------------------------------------------
+ * VSP1 Entity Operations
+ */
+
+static void hsit_configure(struct vsp1_entity *entity,
+			   struct vsp1_pipeline *pipe,
+			   struct vsp1_dl_list *dl)
+{
+	struct vsp1_hsit *hsit = to_hsit(&entity->subdev);
+
+	if (hsit->inverse)
+		vsp1_hsit_write(hsit, dl, VI6_HSI_CTRL, VI6_HSI_CTRL_EN);
+	else
+		vsp1_hsit_write(hsit, dl, VI6_HST_CTRL, VI6_HST_CTRL_EN);
+}
+
+static const struct vsp1_entity_operations hsit_entity_ops = {
+	.configure = hsit_configure,
 };
 
 /* -----------------------------------------------------------------------------
@@ -180,7 +145,6 @@ static struct v4l2_subdev_ops hsit_ops = {
 
 struct vsp1_hsit *vsp1_hsit_create(struct vsp1_device *vsp1, bool inverse)
 {
-	struct v4l2_subdev *subdev;
 	struct vsp1_hsit *hsit;
 	int ret;
 
@@ -190,27 +154,17 @@ struct vsp1_hsit *vsp1_hsit_create(struct vsp1_device *vsp1, bool inverse)
 
 	hsit->inverse = inverse;
 
+	hsit->entity.ops = &hsit_entity_ops;
+
 	if (inverse)
 		hsit->entity.type = VSP1_ENTITY_HSI;
 	else
 		hsit->entity.type = VSP1_ENTITY_HST;
 
-	ret = vsp1_entity_init(vsp1, &hsit->entity, 2);
+	ret = vsp1_entity_init(vsp1, &hsit->entity, inverse ? "hsi" : "hst", 2,
+			       &hsit_ops);
 	if (ret < 0)
 		return ERR_PTR(ret);
-
-	/* Initialize the V4L2 subdev. */
-	subdev = &hsit->entity.subdev;
-	v4l2_subdev_init(subdev, &hsit_ops);
-
-	subdev->entity.ops = &vsp1->media_ops;
-	subdev->internal_ops = &vsp1_subdev_internal_ops;
-	snprintf(subdev->name, sizeof(subdev->name), "%s %s",
-		 dev_name(vsp1->dev), inverse ? "hsi" : "hst");
-	v4l2_set_subdevdata(subdev, hsit);
-	subdev->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-
-	vsp1_entity_init_formats(subdev, NULL);
 
 	return hsit;
 }

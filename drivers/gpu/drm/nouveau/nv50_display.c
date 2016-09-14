@@ -39,7 +39,7 @@
 #include <nvif/cl507d.h>
 #include <nvif/cl507e.h>
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nouveau_gem.h"
 #include "nouveau_connector.h"
@@ -1305,7 +1305,6 @@ nv50_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 		     uint32_t handle, uint32_t width, uint32_t height)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	struct drm_device *dev = crtc->dev;
 	struct drm_gem_object *gem = NULL;
 	struct nouveau_bo *nvbo = NULL;
 	int ret = 0;
@@ -1314,7 +1313,7 @@ nv50_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 		if (width != 64 || height != 64)
 			return -EINVAL;
 
-		gem = drm_gem_object_lookup(dev, file_priv, handle);
+		gem = drm_gem_object_lookup(file_priv, handle);
 		if (unlikely(!gem))
 			return -ENOENT;
 		nvbo = nouveau_gem_object(gem);

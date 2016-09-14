@@ -129,9 +129,10 @@ static struct notifier_block cs_cpufreq_notifier_block = {
 /************************** sysfs interface ************************/
 static struct dbs_governor cs_dbs_gov;
 
-static ssize_t store_sampling_down_factor(struct dbs_data *dbs_data,
-		const char *buf, size_t count)
+static ssize_t store_sampling_down_factor(struct gov_attr_set *attr_set,
+					  const char *buf, size_t count)
 {
+	struct dbs_data *dbs_data = to_dbs_data(attr_set);
 	unsigned int input;
 	int ret;
 	ret = sscanf(buf, "%u", &input);
@@ -143,9 +144,10 @@ static ssize_t store_sampling_down_factor(struct dbs_data *dbs_data,
 	return count;
 }
 
-static ssize_t store_up_threshold(struct dbs_data *dbs_data, const char *buf,
-		size_t count)
+static ssize_t store_up_threshold(struct gov_attr_set *attr_set,
+				  const char *buf, size_t count)
 {
+	struct dbs_data *dbs_data = to_dbs_data(attr_set);
 	struct cs_dbs_tuners *cs_tuners = dbs_data->tuners;
 	unsigned int input;
 	int ret;
@@ -158,9 +160,10 @@ static ssize_t store_up_threshold(struct dbs_data *dbs_data, const char *buf,
 	return count;
 }
 
-static ssize_t store_down_threshold(struct dbs_data *dbs_data, const char *buf,
-		size_t count)
+static ssize_t store_down_threshold(struct gov_attr_set *attr_set,
+				    const char *buf, size_t count)
 {
+	struct dbs_data *dbs_data = to_dbs_data(attr_set);
 	struct cs_dbs_tuners *cs_tuners = dbs_data->tuners;
 	unsigned int input;
 	int ret;
@@ -175,9 +178,10 @@ static ssize_t store_down_threshold(struct dbs_data *dbs_data, const char *buf,
 	return count;
 }
 
-static ssize_t store_ignore_nice_load(struct dbs_data *dbs_data,
-		const char *buf, size_t count)
+static ssize_t store_ignore_nice_load(struct gov_attr_set *attr_set,
+				      const char *buf, size_t count)
 {
+	struct dbs_data *dbs_data = to_dbs_data(attr_set);
 	unsigned int input;
 	int ret;
 
@@ -199,9 +203,10 @@ static ssize_t store_ignore_nice_load(struct dbs_data *dbs_data,
 	return count;
 }
 
-static ssize_t store_freq_step(struct dbs_data *dbs_data, const char *buf,
-		size_t count)
+static ssize_t store_freq_step(struct gov_attr_set *attr_set, const char *buf,
+			       size_t count)
 {
+	struct dbs_data *dbs_data = to_dbs_data(attr_set);
 	struct cs_dbs_tuners *cs_tuners = dbs_data->tuners;
 	unsigned int input;
 	int ret;

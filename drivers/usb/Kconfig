@@ -31,8 +31,6 @@ if USB_SUPPORT
 
 config USB_COMMON
 	tristate
-	default y
-	depends on USB || USB_GADGET
 
 config USB_ARCH_HAS_HCD
 	def_bool y
@@ -41,6 +39,7 @@ config USB_ARCH_HAS_HCD
 config USB
 	tristate "Support for Host-side USB"
 	depends on USB_ARCH_HAS_HCD
+	select USB_COMMON
 	select NLS  # for UTF-8 strings
 	---help---
 	  Universal Serial Bus (USB) is a specification for a serial bus

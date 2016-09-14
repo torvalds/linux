@@ -418,7 +418,7 @@ int mlx5_core_xrcd_alloc(struct mlx5_core_dev *dev, u32 *xrcdn)
 	if (out.hdr.status)
 		err = mlx5_cmd_status_to_err(&out.hdr);
 	else
-		*xrcdn = be32_to_cpu(out.xrcdn);
+		*xrcdn = be32_to_cpu(out.xrcdn) & 0xffffff;
 
 	return err;
 }
@@ -538,3 +538,71 @@ void mlx5_core_destroy_sq_tracked(struct mlx5_core_dev *dev,
 	mlx5_core_destroy_sq(dev, sq->qpn);
 }
 EXPORT_SYMBOL(mlx5_core_destroy_sq_tracked);
+
+int mlx5_core_alloc_q_counter(struct mlx5_core_dev *dev, u16 *counter_id)
+{
+	u32 in[MLX5_ST_SZ_DW(alloc_q_counter_in)];
+	u32 out[MLX5_ST_SZ_DW(alloc_q_counter_out)];
+	int err;
+
+	memset(in, 0, sizeof(in));
+	memset(out, 0, sizeof(out));
+
+	MLX5_SET(alloc_q_counter_in, in, opcode, MLX5_CMD_OP_ALLOC_Q_COUNTER);
+	err = mlx5_cmd_exec_check_status(dev, in, sizeof(in), out, sizeof(out));
+	if (!err)
+		*counter_id = MLX5_GET(alloc_q_counter_out, out,
+				       counter_set_id);
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx5_core_alloc_q_counter);
+
+int mlx5_core_dealloc_q_counter(struct mlx5_core_dev *dev, u16 counter_id)
+{
+	u32 in[MLX5_ST_SZ_DW(dealloc_q_counter_in)];
+	u32 out[MLX5_ST_SZ_DW(dealloc_q_counter_out)];
+
+	memset(in, 0, sizeof(in));
+	memset(out, 0, sizeof(out));
+
+	MLX5_SET(dealloc_q_counter_in, in, opcode,
+		 MLX5_CMD_OP_DEALLOC_Q_COUNTER);
+	MLX5_SET(dealloc_q_counter_in, in, counter_set_id, counter_id);
+	return mlx5_cmd_exec_check_status(dev, in, sizeof(in), out,
+					  sizeof(out));
+}
+EXPORT_SYMBOL_GPL(mlx5_core_dealloc_q_counter);
+
+int mlx5_core_query_q_counter(struct mlx5_core_dev *dev, u16 counter_id,
+			      int reset, void *out, int out_size)
+{
+	u32 in[MLX5_ST_SZ_DW(query_q_counter_in)];
+
+	memset(in, 0, sizeof(in));
+
+	MLX5_SET(query_q_counter_in, in, opcode, MLX5_CMD_OP_QUERY_Q_COUNTER);
+	MLX5_SET(query_q_counter_in, in, clear, reset);
+	MLX5_SET(query_q_counter_in, in, counter_set_id, counter_id);
+	return mlx5_cmd_exec_check_status(dev, in, sizeof(in), out, out_size);
+}
+EXPORT_SYMBOL_GPL(mlx5_core_query_q_counter);
+
+int mlx5_core_query_out_of_buffer(struct mlx5_core_dev *dev, u16 counter_id,
+				  u32 *out_of_buffer)
+{
+	int outlen = MLX5_ST_SZ_BYTES(query_q_counter_out);
+	void *out;
+	int err;
+
+	out = mlx5_vzalloc(outlen);
+	if (!out)
+		return -ENOMEM;
+
+	err = mlx5_core_query_q_counter(dev, counter_id, 0, out, outlen);
+	if (!err)
+		*out_of_buffer = MLX5_GET(query_q_counter_out, out,
+					  out_of_buffer);
+
+	kfree(out);
+	return err;
+}

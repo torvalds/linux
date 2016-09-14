@@ -285,14 +285,6 @@ static void __init paravirt_ops_setup(void)
 {
 	pv_info.name = "KVM";
 
-	/*
-	 * KVM isn't paravirt in the sense of paravirt_enabled.  A KVM
-	 * guest kernel works like a bare metal kernel with additional
-	 * features, and paravirt_enabled is about features that are
-	 * missing.
-	 */
-	pv_info.paravirt_enabled = 0;
-
 	if (kvm_para_has_feature(KVM_FEATURE_NOP_IO_DELAY))
 		pv_cpu_ops.io_delay = kvm_io_delay;
 
@@ -522,7 +514,7 @@ static noinline uint32_t __kvm_cpuid_base(void)
 	if (boot_cpu_data.cpuid_level < 0)
 		return 0;	/* So we don't blow up on old processors */
 
-	if (cpu_has_hypervisor)
+	if (boot_cpu_has(X86_FEATURE_HYPERVISOR))
 		return hypervisor_cpuid_base("KVMKVMKVM\0\0\0", 0);
 
 	return 0;

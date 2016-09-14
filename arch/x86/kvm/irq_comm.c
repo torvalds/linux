@@ -382,9 +382,6 @@ void kvm_scan_ioapic_routes(struct kvm_vcpu *vcpu,
 	u32 i, nr_ioapic_pins;
 	int idx;
 
-	/* kvm->irq_routing must be read after clearing
-	 * KVM_SCAN_IOAPIC. */
-	smp_mb();
 	idx = srcu_read_lock(&kvm->irq_srcu);
 	table = srcu_dereference(kvm->irq_routing, &kvm->irq_srcu);
 	nr_ioapic_pins = min_t(u32, table->nr_rt_entries,

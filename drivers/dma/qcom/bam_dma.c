@@ -342,7 +342,7 @@ static const struct reg_offset_data bam_v1_7_reg_info[] = {
 
 #define BAM_DESC_FIFO_SIZE	SZ_32K
 #define MAX_DESCRIPTORS (BAM_DESC_FIFO_SIZE / sizeof(struct bam_desc_hw) - 1)
-#define BAM_MAX_DATA_SIZE	(SZ_32K - 8)
+#define BAM_FIFO_SIZE	(SZ_32K - 8)
 
 struct bam_chan {
 	struct virt_dma_chan vc;
@@ -387,6 +387,7 @@ struct bam_device {
 
 	/* execution environment ID, from DT */
 	u32 ee;
+	bool controlled_remotely;
 
 	const struct reg_offset_data *layout;
 
@@ -458,7 +459,7 @@ static void bam_chan_init_hw(struct bam_chan *bchan,
 	 */
 	writel_relaxed(ALIGN(bchan->fifo_phys, sizeof(struct bam_desc_hw)),
 			bam_addr(bdev, bchan->id, BAM_P_DESC_FIFO_ADDR));
-	writel_relaxed(BAM_DESC_FIFO_SIZE,
+	writel_relaxed(BAM_FIFO_SIZE,
 			bam_addr(bdev, bchan->id, BAM_P_FIFO_SIZES));
 
 	/* enable the per pipe interrupts, enable EOT, ERR, and INT irqs */
@@ -604,7 +605,7 @@ static struct dma_async_tx_descriptor *bam_prep_slave_sg(struct dma_chan *chan,
 
 	/* calculate number of required entries */
 	for_each_sg(sgl, sg, sg_len, i)
-		num_alloc += DIV_ROUND_UP(sg_dma_len(sg), BAM_MAX_DATA_SIZE);
+		num_alloc += DIV_ROUND_UP(sg_dma_len(sg), BAM_FIFO_SIZE);
 
 	/* allocate enough room to accomodate the number of entries */
 	async_desc = kzalloc(sizeof(*async_desc) +
@@ -635,10 +636,10 @@ static struct dma_async_tx_descriptor *bam_prep_slave_sg(struct dma_chan *chan,
 			desc->addr = cpu_to_le32(sg_dma_address(sg) +
 						 curr_offset);
 
-			if (remainder > BAM_MAX_DATA_SIZE) {
-				desc->size = cpu_to_le16(BAM_MAX_DATA_SIZE);
-				remainder -= BAM_MAX_DATA_SIZE;
-				curr_offset += BAM_MAX_DATA_SIZE;
+			if (remainder > BAM_FIFO_SIZE) {
+				desc->size = cpu_to_le16(BAM_FIFO_SIZE);
+				remainder -= BAM_FIFO_SIZE;
+				curr_offset += BAM_FIFO_SIZE;
 			} else {
 				desc->size = cpu_to_le16(remainder);
 				remainder = 0;
@@ -801,13 +802,17 @@ static irqreturn_t bam_dma_irq(int irq, void *data)
 	if (srcs & P_IRQ)
 		tasklet_schedule(&bdev->task);
 
-	if (srcs & BAM_IRQ)
+	if (srcs & BAM_IRQ) {
 		clr_mask = readl_relaxed(bam_addr(bdev, 0, BAM_IRQ_STTS));
 
-	/* don't allow reorder of the various accesses to the BAM registers */
-	mb();
+		/*
+		 * don't allow reorder of the various accesses to the BAM
+		 * registers
+		 */
+		mb();
 
-	writel_relaxed(clr_mask, bam_addr(bdev, 0, BAM_IRQ_CLR));
+		writel_relaxed(clr_mask, bam_addr(bdev, 0, BAM_IRQ_CLR));
+	}
 
 	return IRQ_HANDLED;
 }
@@ -1038,6 +1043,9 @@ static int bam_init(struct bam_device *bdev)
 	val = readl_relaxed(bam_addr(bdev, 0, BAM_NUM_PIPES));
 	bdev->num_channels = val & BAM_NUM_PIPES_MASK;
 
+	if (bdev->controlled_remotely)
+		return 0;
+
 	/* s/w reset bam */
 	/* after reset all pipes are disabled and idle */
 	val = readl_relaxed(bam_addr(bdev, 0, BAM_CTRL));
@@ -1125,6 +1133,9 @@ static int bam_dma_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	bdev->controlled_remotely = of_property_read_bool(pdev->dev.of_node,
+						"qcom,controlled-remotely");
+
 	bdev->bamclk = devm_clk_get(bdev->dev, "bam_clk");
 	if (IS_ERR(bdev->bamclk))
 		return PTR_ERR(bdev->bamclk);
@@ -1163,7 +1174,7 @@ static int bam_dma_probe(struct platform_device *pdev)
 	/* set max dma segment size */
 	bdev->common.dev = bdev->dev;
 	bdev->common.dev->dma_parms = &bdev->dma_parms;
-	ret = dma_set_max_seg_size(bdev->common.dev, BAM_MAX_DATA_SIZE);
+	ret = dma_set_max_seg_size(bdev->common.dev, BAM_FIFO_SIZE);
 	if (ret) {
 		dev_err(bdev->dev, "cannot set maximum segment size\n");
 		goto err_bam_channel_exit;
@@ -1233,6 +1244,9 @@ static int bam_dma_remove(struct platform_device *pdev)
 	for (i = 0; i < bdev->num_channels; i++) {
 		bam_dma_terminate_all(&bdev->channels[i].vc.chan);
 		tasklet_kill(&bdev->channels[i].vc.task);
+
+		if (!bdev->channels[i].fifo_virt)
+			continue;
 
 		dma_free_wc(bdev->dev, BAM_DESC_FIFO_SIZE,
 			    bdev->channels[i].fifo_virt,

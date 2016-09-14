@@ -111,7 +111,7 @@ void __init config_BSP(char *commandp, int size)
 /***************************************************************************/
 
 /*
- * Some 5272 based boards have the FEC ethernet diectly connected to
+ * Some 5272 based boards have the FEC ethernet directly connected to
  * an ethernet switch. In this case we need to use the fixed phy type,
  * and we need to declare it early in boot.
  */

@@ -17,7 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/module.h>
+#include <linux/acpi.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -83,6 +83,17 @@ static void xgene_gpio_set(struct gpio_chip *gc, unsigned int offset, int val)
 	spin_lock_irqsave(&chip->lock, flags);
 	__xgene_gpio_set(gc, offset, val);
 	spin_unlock_irqrestore(&chip->lock, flags);
+}
+
+static int xgene_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
+{
+	struct xgene_gpio *chip = gpiochip_get_data(gc);
+	unsigned long bank_offset, bit_offset;
+
+	bank_offset = GPIO_SET_DR_OFFSET + GPIO_BANK_OFFSET(offset);
+	bit_offset = GPIO_BIT_OFFSET(offset);
+
+	return !!(ioread32(chip->base + bank_offset) & BIT(bit_offset));
 }
 
 static int xgene_gpio_dir_in(struct gpio_chip *gc, unsigned int offset)
@@ -189,6 +200,7 @@ static int xgene_gpio_probe(struct platform_device *pdev)
 
 	spin_lock_init(&gpio->lock);
 	gpio->chip.parent = &pdev->dev;
+	gpio->chip.get_direction = xgene_gpio_get_direction;
 	gpio->chip.direction_input = xgene_gpio_dir_in;
 	gpio->chip.direction_output = xgene_gpio_dir_out;
 	gpio->chip.get = xgene_gpio_get;
@@ -216,19 +228,21 @@ static const struct of_device_id xgene_gpio_of_match[] = {
 	{ .compatible = "apm,xgene-gpio", },
 	{},
 };
-MODULE_DEVICE_TABLE(of, xgene_gpio_of_match);
+
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id xgene_gpio_acpi_match[] = {
+	{ "APMC0D14", 0 },
+	{ },
+};
+#endif
 
 static struct platform_driver xgene_gpio_driver = {
 	.driver = {
 		.name = "xgene-gpio",
 		.of_match_table = xgene_gpio_of_match,
+		.acpi_match_table = ACPI_PTR(xgene_gpio_acpi_match),
 		.pm     = XGENE_GPIO_PM_OPS,
 	},
 	.probe = xgene_gpio_probe,
 };
-
-module_platform_driver(xgene_gpio_driver);
-
-MODULE_AUTHOR("Feng Kan <fkan@apm.com>");
-MODULE_DESCRIPTION("APM X-Gene GPIO driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(xgene_gpio_driver);

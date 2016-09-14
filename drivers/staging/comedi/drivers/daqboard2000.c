@@ -26,7 +26,7 @@
  * Much of the functionality of this driver was determined from reading
  * the source code for the Windows driver.
  *
- * The FPGA on the board requires fimware, which is available from
+ * The FPGA on the board requires firmware, which is available from
  * http://www.comedi.org in the comedi_nonfree_firmware tarball.
  *
  * Configuration options: not applicable, uses PCI auto config

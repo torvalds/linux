@@ -2608,6 +2608,51 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 			}
 		}
 		break;
+	case PACKET3_SET_APPEND_CNT:
+	{
+		uint32_t areg;
+		uint32_t allowed_reg_base;
+		uint32_t source_sel;
+		if (pkt->count != 2) {
+			DRM_ERROR("bad SET_APPEND_CNT (invalid count)\n");
+			return -EINVAL;
+		}
+
+		allowed_reg_base = GDS_APPEND_COUNT_0;
+		allowed_reg_base -= PACKET3_SET_CONTEXT_REG_START;
+		allowed_reg_base >>= 2;
+
+		areg = idx_value >> 16;
+		if (areg < allowed_reg_base || areg > (allowed_reg_base + 11)) {
+			dev_warn(p->dev, "forbidden register for append cnt 0x%08x at %d\n",
+				 areg, idx);
+			return -EINVAL;
+		}
+
+		source_sel = G_PACKET3_SET_APPEND_CNT_SRC_SELECT(idx_value);
+		if (source_sel == PACKET3_SAC_SRC_SEL_MEM) {
+			uint64_t offset;
+			uint32_t swap;
+			r = radeon_cs_packet_next_reloc(p, &reloc, 0);
+			if (r) {
+				DRM_ERROR("bad SET_APPEND_CNT (missing reloc)\n");
+				return -EINVAL;
+			}
+			offset = radeon_get_ib_value(p, idx + 1);
+			swap = offset & 0x3;
+			offset &= ~0x3;
+
+			offset += ((u64)(radeon_get_ib_value(p, idx + 2) & 0xff)) << 32;
+
+			offset += reloc->gpu_offset;
+			ib[idx+1] = (offset & 0xfffffffc) | swap;
+			ib[idx+2] = upper_32_bits(offset) & 0xff;
+		} else {
+			DRM_ERROR("bad SET_APPEND_CNT (unsupported operation)\n");
+			return -EINVAL;
+		}
+		break;
+	}
 	case PACKET3_NOP:
 		break;
 	default:
@@ -3438,6 +3483,27 @@ static int evergreen_vm_packet3_check(struct radeon_device *rdev,
 			}
 		}
 		break;
+	case PACKET3_SET_APPEND_CNT: {
+		uint32_t areg;
+		uint32_t allowed_reg_base;
+
+		if (pkt->count != 2) {
+			DRM_ERROR("bad SET_APPEND_CNT (invalid count)\n");
+			return -EINVAL;
+		}
+
+		allowed_reg_base = GDS_APPEND_COUNT_0;
+		allowed_reg_base -= PACKET3_SET_CONTEXT_REG_START;
+		allowed_reg_base >>= 2;
+
+		areg = idx_value >> 16;
+		if (areg < allowed_reg_base || areg > (allowed_reg_base + 11)) {
+			DRM_ERROR("forbidden register for append cnt 0x%08x at %d\n",
+				  areg, idx);
+			return -EINVAL;
+		}
+		break;
+	}
 	default:
 		return -EINVAL;
 	}

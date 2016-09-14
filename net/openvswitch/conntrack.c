@@ -439,20 +439,12 @@ ovs_ct_find_existing(struct net *net, const struct nf_conntrack_zone *zone,
 	u8 protonum;
 
 	l3proto = __nf_ct_l3proto_find(l3num);
-	if (!l3proto) {
-		pr_debug("ovs_ct_find_existing: Can't get l3proto\n");
-		return NULL;
-	}
 	if (l3proto->get_l4proto(skb, skb_network_offset(skb), &dataoff,
 				 &protonum) <= 0) {
 		pr_debug("ovs_ct_find_existing: Can't get protonum\n");
 		return NULL;
 	}
 	l4proto = __nf_ct_l4proto_find(l3num, protonum);
-	if (!l4proto) {
-		pr_debug("ovs_ct_find_existing: Can't get l4proto\n");
-		return NULL;
-	}
 	if (!nf_ct_get_tuple(skb, skb_network_offset(skb), dataoff, l3num,
 			     protonum, net, &tuple, l3proto, l4proto)) {
 		pr_debug("ovs_ct_find_existing: Can't get tuple\n");
@@ -776,6 +768,19 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 			return -EINVAL;
 		}
 
+		/* Userspace may decide to perform a ct lookup without a helper
+		 * specified followed by a (recirculate and) commit with one.
+		 * Therefore, for unconfirmed connections which we will commit,
+		 * we need to attach the helper here.
+		 */
+		if (!nf_ct_is_confirmed(ct) && info->commit &&
+		    info->helper && !nfct_help(ct)) {
+			int err = __nf_ct_try_assign_helper(ct, info->ct,
+							    GFP_ATOMIC);
+			if (err)
+				return err;
+		}
+
 		/* Call the helper only if:
 		 * - nf_conntrack_in() was executed above ("!cached") for a
 		 *   confirmed connection, or
@@ -813,8 +818,18 @@ static int ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 		 */
 		state = OVS_CS_F_TRACKED | OVS_CS_F_NEW | OVS_CS_F_RELATED;
 		__ovs_ct_update_key(key, state, &info->zone, exp->master);
-	} else
-		return __ovs_ct_lookup(net, key, info, skb);
+	} else {
+		struct nf_conn *ct;
+		int err;
+
+		err = __ovs_ct_lookup(net, key, info, skb);
+		if (err)
+			return err;
+
+		ct = (struct nf_conn *)skb->nfct;
+		if (ct)
+			nf_ct_deliver_cached_events(ct);
+	}
 
 	return 0;
 }
@@ -1345,7 +1360,7 @@ void ovs_ct_init(struct net *net)
 	unsigned int n_bits = sizeof(struct ovs_key_ct_labels) * BITS_PER_BYTE;
 	struct ovs_net *ovs_net = net_generic(net, ovs_net_id);
 
-	if (nf_connlabels_get(net, n_bits)) {
+	if (nf_connlabels_get(net, n_bits - 1)) {
 		ovs_net->xt_label = false;
 		OVS_NLERR(true, "Failed to set connlabel length");
 	} else {

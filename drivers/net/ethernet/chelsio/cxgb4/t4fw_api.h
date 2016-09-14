@@ -2510,6 +2510,11 @@ struct fw_port_cmd {
 #define FW_PORT_CMD_PTYPE_G(x)	\
 	(((x) >> FW_PORT_CMD_PTYPE_S) & FW_PORT_CMD_PTYPE_M)
 
+#define FW_PORT_CMD_LINKDNRC_S		5
+#define FW_PORT_CMD_LINKDNRC_M		0x7
+#define FW_PORT_CMD_LINKDNRC_G(x)	\
+	(((x) >> FW_PORT_CMD_LINKDNRC_S) & FW_PORT_CMD_LINKDNRC_M)
+
 #define FW_PORT_CMD_MODTYPE_S		0
 #define FW_PORT_CMD_MODTYPE_M		0x1f
 #define FW_PORT_CMD_MODTYPE_V(x)	((x) << FW_PORT_CMD_MODTYPE_S)

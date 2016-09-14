@@ -152,11 +152,11 @@ cmd_cc_s_c       = $(CC) $(c_flags) $(DISABLE_LTO) -fverbose-asm -S -o $@ $<
 $(obj)/%.s: $(src)/%.c FORCE
 	$(call if_changed_dep,cc_s_c)
 
-quiet_cmd_cc_i_c = CPP $(quiet_modtag) $@
-cmd_cc_i_c       = $(CPP) $(c_flags)   -o $@ $<
+quiet_cmd_cpp_i_c = CPP $(quiet_modtag) $@
+cmd_cpp_i_c       = $(CPP) $(c_flags) -o $@ $<
 
 $(obj)/%.i: $(src)/%.c FORCE
-	$(call if_changed_dep,cc_i_c)
+	$(call if_changed_dep,cpp_i_c)
 
 cmd_gensymtypes =                                                           \
     $(CPP) -D__GENKSYMS__ $(c_flags) $< |                                   \
@@ -266,25 +266,23 @@ endif # CONFIG_STACK_VALIDATION
 
 define rule_cc_o_c
 	$(call echo-cmd,checksrc) $(cmd_checksrc)			  \
-	$(call echo-cmd,cc_o_c) $(cmd_cc_o_c);				  \
+	$(call cmd_and_fixdep,cc_o_c)					  \
 	$(cmd_modversions)						  \
-	$(cmd_objtool)						  \
-	$(call echo-cmd,record_mcount)					  \
-	$(cmd_record_mcount)						  \
-	scripts/basic/fixdep $(depfile) $@ '$(call make-cmd,cc_o_c)' >    \
-	                                              $(dot-target).tmp;  \
-	rm -f $(depfile);						  \
-	mv -f $(dot-target).tmp $(dot-target).cmd
+	$(cmd_objtool)						          \
+	$(call echo-cmd,record_mcount) $(cmd_record_mcount)
 endef
 
 define rule_as_o_S
-	$(call echo-cmd,as_o_S) $(cmd_as_o_S);				  \
-	$(cmd_objtool)						  \
-	scripts/basic/fixdep $(depfile) $@ '$(call make-cmd,as_o_S)' >    \
-	                                              $(dot-target).tmp;  \
-	rm -f $(depfile);						  \
-	mv -f $(dot-target).tmp $(dot-target).cmd
+	$(call cmd_and_fixdep,as_o_S)					  \
+	$(cmd_objtool)
 endef
+
+# List module undefined symbols (or empty line if not enabled)
+ifdef CONFIG_TRIM_UNUSED_KSYMS
+cmd_undef_syms = $(NM) $@ | sed -n 's/^ \+U //p' | xargs echo
+else
+cmd_undef_syms = echo
+endif
 
 # Built-in and composite module parts
 $(obj)/%.o: $(src)/%.c $(recordmcount_source) $(objtool_obj) FORCE
@@ -296,7 +294,8 @@ $(obj)/%.o: $(src)/%.c $(recordmcount_source) $(objtool_obj) FORCE
 $(single-used-m): $(obj)/%.o: $(src)/%.c $(recordmcount_source) $(objtool_obj) FORCE
 	$(call cmd,force_checksrc)
 	$(call if_changed_rule,cc_o_c)
-	@{ echo $(@:.o=.ko); echo $@; } > $(MODVERDIR)/$(@F:.o=.mod)
+	@{ echo $(@:.o=.ko); echo $@; \
+	   $(cmd_undef_syms); } > $(MODVERDIR)/$(@F:.o=.mod)
 
 quiet_cmd_cc_lst_c = MKLST   $@
       cmd_cc_lst_c = $(CC) $(c_flags) -g -c -o $*.o $< && \
@@ -314,11 +313,11 @@ modkern_aflags := $(KBUILD_AFLAGS_KERNEL) $(AFLAGS_KERNEL)
 $(real-objs-m)      : modkern_aflags := $(KBUILD_AFLAGS_MODULE) $(AFLAGS_MODULE)
 $(real-objs-m:.o=.s): modkern_aflags := $(KBUILD_AFLAGS_MODULE) $(AFLAGS_MODULE)
 
-quiet_cmd_as_s_S = CPP $(quiet_modtag) $@
-cmd_as_s_S       = $(CPP) $(a_flags)   -o $@ $<
+quiet_cmd_cpp_s_S = CPP $(quiet_modtag) $@
+cmd_cpp_s_S       = $(CPP) $(a_flags) -o $@ $<
 
 $(obj)/%.s: $(src)/%.S FORCE
-	$(call if_changed_dep,as_s_S)
+	$(call if_changed_dep,cpp_s_S)
 
 quiet_cmd_as_o_S = AS $(quiet_modtag)  $@
 cmd_as_o_S       = $(CC) $(a_flags) -c -o $@ $<
@@ -426,7 +425,8 @@ $(call multi_depend, $(multi-used-y), .o, -objs -y)
 
 $(multi-used-m): FORCE
 	$(call if_changed,link_multi-m)
-	@{ echo $(@:.o=.ko); echo $(link_multi_deps); } > $(MODVERDIR)/$(@F:.o=.mod)
+	@{ echo $(@:.o=.ko); echo $(link_multi_deps); \
+	   $(cmd_undef_syms); } > $(MODVERDIR)/$(@F:.o=.mod)
 $(call multi_depend, $(multi-used-m), .o, -objs -y -m)
 
 targets += $(multi-used-y) $(multi-used-m)

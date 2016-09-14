@@ -672,7 +672,7 @@ enum {
 
 /* global timers (device member) */
 #define SNDRV_TIMER_GLOBAL_SYSTEM	0
-#define SNDRV_TIMER_GLOBAL_RTC		1
+#define SNDRV_TIMER_GLOBAL_RTC		1	/* unused */
 #define SNDRV_TIMER_GLOBAL_HPET		2
 #define SNDRV_TIMER_GLOBAL_HRTIMER	3
 

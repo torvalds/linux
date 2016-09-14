@@ -152,6 +152,5 @@ nvkm_dma_new_(const struct nvkm_dma_func *func, struct nvkm_device *device,
 		return -ENOMEM;
 	dma->func = func;
 
-	return nvkm_engine_ctor(&nvkm_dma, device, index,
-				0, true, &dma->engine);
+	return nvkm_engine_ctor(&nvkm_dma, device, index, true, &dma->engine);
 }

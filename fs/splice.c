@@ -1143,6 +1143,9 @@ static long do_splice_to(struct file *in, loff_t *ppos,
 	if (unlikely(ret < 0))
 		return ret;
 
+	if (unlikely(len > MAX_RW_COUNT))
+		len = MAX_RW_COUNT;
+
 	if (in->f_op->splice_read)
 		splice_read = in->f_op->splice_read;
 	else

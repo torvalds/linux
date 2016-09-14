@@ -1176,6 +1176,7 @@ void __init dm365_init(void)
 {
 	davinci_common_init(&davinci_soc_info_dm365);
 	davinci_map_sysmod();
+	davinci_clk_init(davinci_soc_info_dm365.cpu_clks);
 }
 
 static struct resource dm365_vpss_resources[] = {

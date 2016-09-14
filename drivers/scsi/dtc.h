@@ -21,14 +21,17 @@
 
 #define NCR5380_dma_xfer_len(instance, cmd, phase) \
         dtc_dma_xfer_len(cmd)
+#define NCR5380_dma_recv_setup		dtc_pread
+#define NCR5380_dma_send_setup		dtc_pwrite
+#define NCR5380_dma_residual(instance)	(0)
 
 #define NCR5380_intr			dtc_intr
 #define NCR5380_queue_command		dtc_queue_command
 #define NCR5380_abort			dtc_abort
 #define NCR5380_bus_reset		dtc_bus_reset
 #define NCR5380_info			dtc_info
-#define NCR5380_show_info		dtc_show_info 
-#define NCR5380_write_info		dtc_write_info 
+
+#define NCR5380_io_delay(x)		udelay(x)
 
 /* 15 12 11 10
    1001 1100 0000 0000 */

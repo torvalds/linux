@@ -1,0 +1,17 @@
+config VIDEO_TW686X_KH
+	tristate "Intersil/Techwell TW686x Video For Linux"
+	depends on VIDEO_DEV && PCI && VIDEO_V4L2
+	depends on !(VIDEO_TW686X=y || VIDEO_TW686X=m) || COMPILE_TEST
+	select VIDEOBUF2_DMA_SG
+	help
+	  Support for Intersil/Techwell TW686x-based frame grabber cards.
+
+	  Currently supported chips:
+	  - TW6864 (4 video channels),
+	  - TW6865 (4 video channels, not tested, second generation chip),
+	  - TW6868 (8 video channels but only 4 first channels using
+	    built-in video decoder are supported, not tested),
+	  - TW6869 (8 video channels, second generation chip).
+
+	  To compile this driver as a module, choose M here: the module
+	  will be named tw686x-kh.

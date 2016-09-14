@@ -107,7 +107,7 @@ static void mfd_acpi_add_device(const struct mfd_cell *cell,
 
 			strlcpy(ids[0].id, match->pnpid, sizeof(ids[0].id));
 			list_for_each_entry(child, &parent->children, node) {
-				if (acpi_match_device_ids(child, ids)) {
+				if (!acpi_match_device_ids(child, ids)) {
 					adev = child;
 					break;
 				}
@@ -193,8 +193,8 @@ static int mfd_add_device(struct device *parent, int id,
 			goto fail_alias;
 	}
 
-	if (cell->pset) {
-		ret = platform_device_add_properties(pdev, cell->pset);
+	if (cell->properties) {
+		ret = platform_device_add_properties(pdev, cell->properties);
 		if (ret)
 			goto fail_alias;
 	}
@@ -333,6 +333,44 @@ void mfd_remove_devices(struct device *parent)
 	kfree(cnts);
 }
 EXPORT_SYMBOL(mfd_remove_devices);
+
+static void devm_mfd_dev_release(struct device *dev, void *res)
+{
+	mfd_remove_devices(dev);
+}
+
+/**
+ * devm_mfd_add_devices - Resource managed version of mfd_add_devices()
+ *
+ * Returns 0 on success or an appropriate negative error number on failure.
+ * All child-devices of the MFD will automatically be removed when it gets
+ * unbinded.
+ */
+int devm_mfd_add_devices(struct device *dev, int id,
+			 const struct mfd_cell *cells, int n_devs,
+			 struct resource *mem_base,
+			 int irq_base, struct irq_domain *domain)
+{
+	struct device **ptr;
+	int ret;
+
+	ptr = devres_alloc(devm_mfd_dev_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+
+	ret = mfd_add_devices(dev, id, cells, n_devs, mem_base,
+			      irq_base, domain);
+	if (ret < 0) {
+		devres_free(ptr);
+		return ret;
+	}
+
+	*ptr = dev;
+	devres_add(dev, ptr);
+
+	return ret;
+}
+EXPORT_SYMBOL(devm_mfd_add_devices);
 
 int mfd_clone_cell(const char *cell, const char **clones, size_t n_clones)
 {

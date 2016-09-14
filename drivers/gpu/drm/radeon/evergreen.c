@@ -1407,11 +1407,14 @@ void dce4_wait_for_vblank(struct radeon_device *rdev, int crtc)
  * Triggers the actual pageflip by updating the primary
  * surface base address (evergreen+).
  */
-void evergreen_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
+void evergreen_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base,
+			 bool async)
 {
 	struct radeon_crtc *radeon_crtc = rdev->mode_info.crtcs[crtc_id];
 
 	/* update the scanout addresses */
+	WREG32(EVERGREEN_GRPH_FLIP_CONTROL + radeon_crtc->crtc_offset,
+	       async ? EVERGREEN_GRPH_SURFACE_UPDATE_H_RETRACE_EN : 0);
 	WREG32(EVERGREEN_GRPH_PRIMARY_SURFACE_ADDRESS_HIGH + radeon_crtc->crtc_offset,
 	       upper_32_bits(crtc_base));
 	WREG32(EVERGREEN_GRPH_PRIMARY_SURFACE_ADDRESS + radeon_crtc->crtc_offset,
@@ -1864,7 +1867,8 @@ void evergreen_hpd_init(struct radeon_device *rdev)
 			break;
 		}
 		radeon_hpd_set_polarity(rdev, radeon_connector->hpd.hpd);
-		enabled |= 1 << radeon_connector->hpd.hpd;
+		if (radeon_connector->hpd.hpd != RADEON_HPD_NONE)
+			enabled |= 1 << radeon_connector->hpd.hpd;
 	}
 	radeon_irq_kms_enable_hpd(rdev, enabled);
 }
@@ -1907,7 +1911,8 @@ void evergreen_hpd_fini(struct radeon_device *rdev)
 		default:
 			break;
 		}
-		disabled |= 1 << radeon_connector->hpd.hpd;
+		if (radeon_connector->hpd.hpd != RADEON_HPD_NONE)
+			disabled |= 1 << radeon_connector->hpd.hpd;
 	}
 	radeon_irq_kms_disable_hpd(rdev, disabled);
 }
@@ -2608,10 +2613,152 @@ static void evergreen_agp_enable(struct radeon_device *rdev)
 	WREG32(VM_CONTEXT1_CNTL, 0);
 }
 
+static const unsigned ni_dig_offsets[] =
+{
+	NI_DIG0_REGISTER_OFFSET,
+	NI_DIG1_REGISTER_OFFSET,
+	NI_DIG2_REGISTER_OFFSET,
+	NI_DIG3_REGISTER_OFFSET,
+	NI_DIG4_REGISTER_OFFSET,
+	NI_DIG5_REGISTER_OFFSET
+};
+
+static const unsigned ni_tx_offsets[] =
+{
+	NI_DCIO_UNIPHY0_UNIPHY_TX_CONTROL1,
+	NI_DCIO_UNIPHY1_UNIPHY_TX_CONTROL1,
+	NI_DCIO_UNIPHY2_UNIPHY_TX_CONTROL1,
+	NI_DCIO_UNIPHY3_UNIPHY_TX_CONTROL1,
+	NI_DCIO_UNIPHY4_UNIPHY_TX_CONTROL1,
+	NI_DCIO_UNIPHY5_UNIPHY_TX_CONTROL1
+};
+
+static const unsigned evergreen_dp_offsets[] =
+{
+	EVERGREEN_DP0_REGISTER_OFFSET,
+	EVERGREEN_DP1_REGISTER_OFFSET,
+	EVERGREEN_DP2_REGISTER_OFFSET,
+	EVERGREEN_DP3_REGISTER_OFFSET,
+	EVERGREEN_DP4_REGISTER_OFFSET,
+	EVERGREEN_DP5_REGISTER_OFFSET
+};
+
+
+/*
+ * Assumption is that EVERGREEN_CRTC_MASTER_EN enable for requested crtc
+ * We go from crtc to connector and it is not relible  since it
+ * should be an opposite direction .If crtc is enable then
+ * find the dig_fe which selects this crtc and insure that it enable.
+ * if such dig_fe is found then find dig_be which selects found dig_be and
+ * insure that it enable and in DP_SST mode.
+ * if UNIPHY_PLL_CONTROL1.enable then we should disconnect timing
+ * from dp symbols clocks .
+ */
+static bool evergreen_is_dp_sst_stream_enabled(struct radeon_device *rdev,
+					       unsigned crtc_id, unsigned *ret_dig_fe)
+{
+	unsigned i;
+	unsigned dig_fe;
+	unsigned dig_be;
+	unsigned dig_en_be;
+	unsigned uniphy_pll;
+	unsigned digs_fe_selected;
+	unsigned dig_be_mode;
+	unsigned dig_fe_mask;
+	bool is_enabled = false;
+	bool found_crtc = false;
+
+	/* loop through all running dig_fe to find selected crtc */
+	for (i = 0; i < ARRAY_SIZE(ni_dig_offsets); i++) {
+		dig_fe = RREG32(NI_DIG_FE_CNTL + ni_dig_offsets[i]);
+		if (dig_fe & NI_DIG_FE_CNTL_SYMCLK_FE_ON &&
+		    crtc_id == NI_DIG_FE_CNTL_SOURCE_SELECT(dig_fe)) {
+			/* found running pipe */
+			found_crtc = true;
+			dig_fe_mask = 1 << i;
+			dig_fe = i;
+			break;
+		}
+	}
+
+	if (found_crtc) {
+		/* loop through all running dig_be to find selected dig_fe */
+		for (i = 0; i < ARRAY_SIZE(ni_dig_offsets); i++) {
+			dig_be = RREG32(NI_DIG_BE_CNTL + ni_dig_offsets[i]);
+			/* if dig_fe_selected by dig_be? */
+			digs_fe_selected = NI_DIG_BE_CNTL_FE_SOURCE_SELECT(dig_be);
+			dig_be_mode = NI_DIG_FE_CNTL_MODE(dig_be);
+			if (dig_fe_mask &  digs_fe_selected &&
+			    /* if dig_be in sst mode? */
+			    dig_be_mode == NI_DIG_BE_DPSST) {
+				dig_en_be = RREG32(NI_DIG_BE_EN_CNTL +
+						   ni_dig_offsets[i]);
+				uniphy_pll = RREG32(NI_DCIO_UNIPHY0_PLL_CONTROL1 +
+						    ni_tx_offsets[i]);
+				/* dig_be enable and tx is running */
+				if (dig_en_be & NI_DIG_BE_EN_CNTL_ENABLE &&
+				    dig_en_be & NI_DIG_BE_EN_CNTL_SYMBCLK_ON &&
+				    uniphy_pll & NI_DCIO_UNIPHY0_PLL_CONTROL1_ENABLE) {
+					is_enabled = true;
+					*ret_dig_fe = dig_fe;
+					break;
+				}
+			}
+		}
+	}
+
+	return is_enabled;
+}
+
+/*
+ * Blank dig when in dp sst mode
+ * Dig ignores crtc timing
+ */
+static void evergreen_blank_dp_output(struct radeon_device *rdev,
+				      unsigned dig_fe)
+{
+	unsigned stream_ctrl;
+	unsigned fifo_ctrl;
+	unsigned counter = 0;
+
+	if (dig_fe >= ARRAY_SIZE(evergreen_dp_offsets)) {
+		DRM_ERROR("invalid dig_fe %d\n", dig_fe);
+		return;
+	}
+
+	stream_ctrl = RREG32(EVERGREEN_DP_VID_STREAM_CNTL +
+			     evergreen_dp_offsets[dig_fe]);
+	if (!(stream_ctrl & EVERGREEN_DP_VID_STREAM_CNTL_ENABLE)) {
+		DRM_ERROR("dig %d , should be enable\n", dig_fe);
+		return;
+	}
+
+	stream_ctrl &=~EVERGREEN_DP_VID_STREAM_CNTL_ENABLE;
+	WREG32(EVERGREEN_DP_VID_STREAM_CNTL +
+	       evergreen_dp_offsets[dig_fe], stream_ctrl);
+
+	stream_ctrl = RREG32(EVERGREEN_DP_VID_STREAM_CNTL +
+			     evergreen_dp_offsets[dig_fe]);
+	while (counter < 32 && stream_ctrl & EVERGREEN_DP_VID_STREAM_STATUS) {
+		msleep(1);
+		counter++;
+		stream_ctrl = RREG32(EVERGREEN_DP_VID_STREAM_CNTL +
+				     evergreen_dp_offsets[dig_fe]);
+	}
+	if (counter >= 32 )
+		DRM_ERROR("counter exceeds %d\n", counter);
+
+	fifo_ctrl = RREG32(EVERGREEN_DP_STEER_FIFO + evergreen_dp_offsets[dig_fe]);
+	fifo_ctrl |= EVERGREEN_DP_STEER_FIFO_RESET;
+	WREG32(EVERGREEN_DP_STEER_FIFO + evergreen_dp_offsets[dig_fe], fifo_ctrl);
+
+}
+
 void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *save)
 {
 	u32 crtc_enabled, tmp, frame_count, blackout;
 	int i, j;
+	unsigned dig_fe;
 
 	if (!ASIC_IS_NODCE(rdev)) {
 		save->vga_render_control = RREG32(VGA_RENDER_CONTROL);
@@ -2651,7 +2798,17 @@ void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *sav
 					break;
 				udelay(1);
 			}
-
+			/*we should disable dig if it drives dp sst*/
+			/*but we are in radeon_device_init and the topology is unknown*/
+			/*and it is available after radeon_modeset_init*/
+			/*the following method radeon_atom_encoder_dpms_dig*/
+			/*does the job if we initialize it properly*/
+			/*for now we do it this manually*/
+			/**/
+			if (ASIC_IS_DCE5(rdev) &&
+			    evergreen_is_dp_sst_stream_enabled(rdev, i ,&dig_fe))
+				evergreen_blank_dp_output(rdev, dig_fe);
+			/*we could remove 6 lines below*/
 			/* XXX this is a hack to avoid strange behavior with EFI on certain systems */
 			WREG32(EVERGREEN_CRTC_UPDATE_LOCK + crtc_offsets[i], 1);
 			tmp = RREG32(EVERGREEN_CRTC_CONTROL + crtc_offsets[i]);
@@ -3984,9 +4141,14 @@ void evergreen_gpu_pci_config_reset(struct radeon_device *rdev)
 	}
 }
 
-int evergreen_asic_reset(struct radeon_device *rdev)
+int evergreen_asic_reset(struct radeon_device *rdev, bool hard)
 {
 	u32 reset_mask;
+
+	if (hard) {
+		evergreen_gpu_pci_config_reset(rdev);
+		return 0;
+	}
 
 	reset_mask = evergreen_gpu_check_soft_reset(rdev);
 
@@ -5363,6 +5525,73 @@ restart_ih:
 	return IRQ_HANDLED;
 }
 
+static void evergreen_uvd_init(struct radeon_device *rdev)
+{
+	int r;
+
+	if (!rdev->has_uvd)
+		return;
+
+	r = radeon_uvd_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "failed UVD (%d) init.\n", r);
+		/*
+		 * At this point rdev->uvd.vcpu_bo is NULL which trickles down
+		 * to early fails uvd_v2_2_resume() and thus nothing happens
+		 * there. So it is pointless to try to go through that code
+		 * hence why we disable uvd here.
+		 */
+		rdev->has_uvd = 0;
+		return;
+	}
+	rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_obj = NULL;
+	r600_ring_init(rdev, &rdev->ring[R600_RING_TYPE_UVD_INDEX], 4096);
+}
+
+static void evergreen_uvd_start(struct radeon_device *rdev)
+{
+	int r;
+
+	if (!rdev->has_uvd)
+		return;
+
+	r = uvd_v2_2_resume(rdev);
+	if (r) {
+		dev_err(rdev->dev, "failed UVD resume (%d).\n", r);
+		goto error;
+	}
+	r = radeon_fence_driver_start_ring(rdev, R600_RING_TYPE_UVD_INDEX);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing UVD fences (%d).\n", r);
+		goto error;
+	}
+	return;
+
+error:
+	rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_size = 0;
+}
+
+static void evergreen_uvd_resume(struct radeon_device *rdev)
+{
+	struct radeon_ring *ring;
+	int r;
+
+	if (!rdev->has_uvd || !rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_size)
+		return;
+
+	ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
+	r = radeon_ring_init(rdev, ring, ring->ring_size, 0, RADEON_CP_PACKET2);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing UVD ring (%d).\n", r);
+		return;
+	}
+	r = uvd_v1_0_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing UVD (%d).\n", r);
+		return;
+	}
+}
+
 static int evergreen_startup(struct radeon_device *rdev)
 {
 	struct radeon_ring *ring;
@@ -5427,16 +5656,7 @@ static int evergreen_startup(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = uvd_v2_2_resume(rdev);
-	if (!r) {
-		r = radeon_fence_driver_start_ring(rdev,
-						   R600_RING_TYPE_UVD_INDEX);
-		if (r)
-			dev_err(rdev->dev, "UVD fences init error (%d).\n", r);
-	}
-
-	if (r)
-		rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_size = 0;
+	evergreen_uvd_start(rdev);
 
 	/* Enable IRQ */
 	if (!rdev->irq.installed) {
@@ -5475,16 +5695,7 @@ static int evergreen_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
-	if (ring->ring_size) {
-		r = radeon_ring_init(rdev, ring, ring->ring_size, 0,
-				     RADEON_CP_PACKET2);
-		if (!r)
-			r = uvd_v1_0_init(rdev);
-
-		if (r)
-			DRM_ERROR("radeon: error initializing UVD (%d).\n", r);
-	}
+	evergreen_uvd_resume(rdev);
 
 	r = radeon_ib_pool_init(rdev);
 	if (r) {
@@ -5539,8 +5750,10 @@ int evergreen_suspend(struct radeon_device *rdev)
 {
 	radeon_pm_suspend(rdev);
 	radeon_audio_fini(rdev);
-	uvd_v1_0_fini(rdev);
-	radeon_uvd_suspend(rdev);
+	if (rdev->has_uvd) {
+		uvd_v1_0_fini(rdev);
+		radeon_uvd_suspend(rdev);
+	}
 	r700_cp_stop(rdev);
 	r600_dma_stop(rdev);
 	evergreen_irq_suspend(rdev);
@@ -5641,12 +5854,7 @@ int evergreen_init(struct radeon_device *rdev)
 	rdev->ring[R600_RING_TYPE_DMA_INDEX].ring_obj = NULL;
 	r600_ring_init(rdev, &rdev->ring[R600_RING_TYPE_DMA_INDEX], 64 * 1024);
 
-	r = radeon_uvd_init(rdev);
-	if (!r) {
-		rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_obj = NULL;
-		r600_ring_init(rdev, &rdev->ring[R600_RING_TYPE_UVD_INDEX],
-			       4096);
-	}
+	evergreen_uvd_init(rdev);
 
 	rdev->ih.ring_obj = NULL;
 	r600_ih_ring_init(rdev, 64 * 1024);

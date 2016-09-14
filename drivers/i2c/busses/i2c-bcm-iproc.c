@@ -267,7 +267,7 @@ static int bcm_iproc_i2c_xfer_single_msg(struct bcm_iproc_i2c_dev *iproc_i2c,
 	iproc_i2c->msg = msg;
 
 	/* format and load slave address into the TX FIFO */
-	addr = msg->addr << 1 | (msg->flags & I2C_M_RD ? 1 : 0);
+	addr = i2c_8bit_addr_from_msg(msg);
 	writel(addr, iproc_i2c->base + M_TX_OFFSET);
 
 	/*

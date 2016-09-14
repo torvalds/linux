@@ -3349,7 +3349,7 @@ static void et131x_down(struct net_device *netdev)
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 
 	/* Save the timestamp for the TX watchdog, prevent a timeout */
-	netdev->trans_start = jiffies;
+	netif_trans_update(netdev);
 
 	phy_stop(adapter->phydev);
 	et131x_disable_txrx(netdev);
@@ -3816,7 +3816,7 @@ static netdev_tx_t et131x_tx(struct sk_buff *skb, struct net_device *netdev)
 		netif_stop_queue(netdev);
 
 	/* Save the timestamp for the TX timeout watchdog */
-	netdev->trans_start = jiffies;
+	netif_trans_update(netdev);
 
 	/* TCB is not available */
 	if (tx_ring->used >= NUM_TCB)
@@ -3851,7 +3851,7 @@ static void et131x_tx_timeout(struct net_device *netdev)
 	unsigned long flags;
 
 	/* If the device is closed, ignore the timeout */
-	if (~(adapter->flags & FMP_ADAPTER_INTERRUPT_IN_USE))
+	if (!(adapter->flags & FMP_ADAPTER_INTERRUPT_IN_USE))
 		return;
 
 	/* Any nonrecoverable hardware error?

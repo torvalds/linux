@@ -78,7 +78,7 @@ struct thread_info {
 
 #ifndef __ASSEMBLY__
 
-void arch_release_thread_info(struct thread_info *info);
+void arch_release_thread_stack(unsigned long *stack);
 
 /* How to get the thread information struct from C. */
 register unsigned long stack_pointer __asm__("sp");

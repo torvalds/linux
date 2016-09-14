@@ -1548,7 +1548,7 @@ static int snd_es1373_line_get(struct snd_kcontrol *kcontrol,
 	int val = 0;
 	
 	spin_lock_irq(&ensoniq->reg_lock);
-	if ((ensoniq->ctrl & ES_1371_GPIO_OUTM) >= 4)
+	if (ensoniq->ctrl & ES_1371_GPIO_OUT(4))
 	    	val = 1;
 	ucontrol->value.integer.value[0] = val;
 	spin_unlock_irq(&ensoniq->reg_lock);

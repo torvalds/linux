@@ -36,6 +36,7 @@
 };
 
 &gmac1 {
+	phy-mode = "rgmii";
 	status = "okay";
 };
 

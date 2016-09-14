@@ -5,12 +5,18 @@ Required properties:
 	* "qcom,ath10k"
 	* "qcom,ipq4019-wifi"
 
-PCI based devices uses compatible string "qcom,ath10k" and takes only
-calibration data via "qcom,ath10k-calibration-data". Rest of the properties
-are not applicable for PCI based devices.
+PCI based devices uses compatible string "qcom,ath10k" and takes calibration
+data along with board specific data via "qcom,ath10k-calibration-data".
+Rest of the properties are not applicable for PCI based devices.
 
 AHB based devices (i.e. ipq4019) uses compatible string "qcom,ipq4019-wifi"
-and also uses most of the properties defined in this doc.
+and also uses most of the properties defined in this doc (except
+"qcom,ath10k-calibration-data"). It uses "qcom,ath10k-pre-calibration-data"
+to carry pre calibration data.
+
+In general, entry "qcom,ath10k-pre-calibration-data" and
+"qcom,ath10k-calibration-data" conflict with each other and only one
+can be provided per device.
 
 Optional properties:
 - reg: Address and length of the register set for the device.
@@ -35,8 +41,11 @@ Optional properties:
 - qcom,msi_addr: MSI interrupt address.
 - qcom,msi_base: Base value to add before writing MSI data into
 		MSI address register.
-- qcom,ath10k-calibration-data : calibration data as an array, the
-				 length can vary between hw versions
+- qcom,ath10k-calibration-data : calibration data + board specific data
+				 as an array, the length can vary between
+				 hw versions.
+- qcom,ath10k-pre-calibration-data : pre calibration data as an array,
+				     the length can vary between hw versions.
 
 Example (to supply the calibration data alone):
 
@@ -105,5 +114,5 @@ wifi0: wifi@a000000 {
 			  "legacy";
 	qcom,msi_addr = <0x0b006040>;
 	qcom,msi_base = <0x40>;
-	qcom,ath10k-calibration-data = [ 01 02 03 ... ];
+	qcom,ath10k-pre-calibration-data = [ 01 02 03 ... ];
 };

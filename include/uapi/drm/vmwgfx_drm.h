@@ -30,6 +30,10 @@
 
 #include "drm.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #define DRM_VMW_MAX_SURFACE_FACES 6
 #define DRM_VMW_MAX_MIP_LEVELS 24
 
@@ -1087,4 +1091,9 @@ union drm_vmw_extended_context_arg {
 	enum drm_vmw_extended_context req;
 	struct drm_vmw_context_arg rep;
 };
+
+#if defined(__cplusplus)
+}
+#endif
+
 #endif

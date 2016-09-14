@@ -259,7 +259,6 @@ struct ntc_data {
 	struct device *dev;
 	int n_comp;
 	char name[PLATFORM_NAME_SIZE];
-	struct thermal_zone_device *tz;
 };
 
 #if defined(CONFIG_OF) && IS_ENABLED(CONFIG_IIO)
@@ -579,6 +578,7 @@ static const struct thermal_zone_of_device_ops ntc_of_thermal_ops = {
 
 static int ntc_thermistor_probe(struct platform_device *pdev)
 {
+	struct thermal_zone_device *tz;
 	const struct of_device_id *of_id =
 			of_match_device(of_match_ptr(ntc_match), &pdev->dev);
 	const struct platform_device_id *pdev_id;
@@ -677,12 +677,10 @@ static int ntc_thermistor_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "Thermistor type: %s successfully probed.\n",
 								pdev_id->name);
 
-	data->tz = thermal_zone_of_sensor_register(data->dev, 0, data->dev,
-						   &ntc_of_thermal_ops);
-	if (IS_ERR(data->tz)) {
+	tz = devm_thermal_zone_of_sensor_register(data->dev, 0, data->dev,
+						  &ntc_of_thermal_ops);
+	if (IS_ERR(tz))
 		dev_dbg(&pdev->dev, "Failed to register to thermal fw.\n");
-		data->tz = NULL;
-	}
 
 	return 0;
 err_after_sysfs:
@@ -699,8 +697,6 @@ static int ntc_thermistor_remove(struct platform_device *pdev)
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&data->dev->kobj, &ntc_attr_group);
 	ntc_iio_channel_release(pdata);
-
-	thermal_zone_of_sensor_unregister(data->dev, data->tz);
 
 	return 0;
 }

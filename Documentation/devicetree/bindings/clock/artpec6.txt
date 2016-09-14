@@ -1,0 +1,41 @@
+* Clock bindings for Axis ARTPEC-6 chip
+
+The bindings are based on the clock provider binding in
+Documentation/devicetree/bindings/clock/clock-bindings.txt
+
+External clocks:
+----------------
+
+There are two external inputs to the main clock controller which should be
+provided using the common clock bindings.
+- "sys_refclk": External 50 Mhz oscillator (required)
+- "i2s_refclk": Alternate audio reference clock (optional).
+
+Main clock controller
+---------------------
+
+Required properties:
+- #clock-cells: Should be <1>
+  See dt-bindings/clock/axis,artpec6-clkctrl.h for the list of valid identifiers.
+- compatible: Should be "axis,artpec6-clkctrl"
+- reg: Must contain the base address and length of the system controller
+- clocks:  Must contain a phandle entry for each clock in clock-names
+- clock-names: Must include the external oscillator ("sys_refclk"). Optional
+  ones are the audio reference clock ("i2s_refclk") and the audio fractional
+  dividers ("frac_clk0" and "frac_clk1").
+
+Examples:
+
+ext_clk: ext_clk {
+	#clock-cells = <0>;
+	compatible = "fixed-clock";
+	clock-frequency = <50000000>;
+};
+
+clkctrl: clkctrl@f8000000 {
+	#clock-cells = <1>;
+	compatible = "axis,artpec6-clkctrl";
+	reg = <0xf8000000 0x48>;
+	clocks = <&ext_clk>;
+	clock-names = "sys_refclk";
+};

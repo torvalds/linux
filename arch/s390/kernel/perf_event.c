@@ -224,13 +224,13 @@ arch_initcall(service_level_perf_register);
 
 static int __perf_callchain_kernel(void *data, unsigned long address)
 {
-	struct perf_callchain_entry *entry = data;
+	struct perf_callchain_entry_ctx *entry = data;
 
 	perf_callchain_store(entry, address);
 	return 0;
 }
 
-void perf_callchain_kernel(struct perf_callchain_entry *entry,
+void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
 			   struct pt_regs *regs)
 {
 	if (user_mode(regs))

@@ -24,6 +24,7 @@
 #include "priv.h"
 
 #include <core/option.h>
+#include <subdev/top.h>
 
 void
 nvkm_mc_unk260(struct nvkm_mc *mc, u32 data)
@@ -58,10 +59,19 @@ nvkm_mc_intr(struct nvkm_mc *mc, bool *handled)
 {
 	struct nvkm_device *device = mc->subdev.device;
 	struct nvkm_subdev *subdev;
-	const struct nvkm_mc_intr *map = mc->func->intr;
-	u32 stat, intr;
+	const struct nvkm_mc_map *map = mc->func->intr;
+	u32 stat, intr = nvkm_mc_intr_mask(mc);
+	u64 subdevs;
 
-	stat = intr = nvkm_mc_intr_mask(mc);
+	stat = nvkm_top_intr(device->top, intr, &subdevs);
+	while (subdevs) {
+		enum nvkm_devidx subidx = __ffs64(subdevs);
+		subdev = nvkm_device_subdev(device, subidx);
+		if (subdev)
+			nvkm_subdev_intr(subdev);
+		subdevs &= ~BIT_ULL(subidx);
+	}
+
 	while (map->stat) {
 		if (intr & map->stat) {
 			subdev = nvkm_device_subdev(device, map->unit);
@@ -75,6 +85,36 @@ nvkm_mc_intr(struct nvkm_mc *mc, bool *handled)
 	if (stat)
 		nvkm_error(&mc->subdev, "intr %08x\n", stat);
 	*handled = intr != 0;
+}
+
+static void
+nvkm_mc_reset_(struct nvkm_mc *mc, enum nvkm_devidx devidx)
+{
+	struct nvkm_device *device = mc->subdev.device;
+	const struct nvkm_mc_map *map;
+	u64 pmc_enable;
+
+	if (!(pmc_enable = nvkm_top_reset(device->top, devidx))) {
+		for (map = mc->func->reset; map && map->stat; map++) {
+			if (map->unit == devidx) {
+				pmc_enable = map->stat;
+				break;
+			}
+		}
+	}
+
+	if (pmc_enable) {
+		nvkm_mask(device, 0x000200, pmc_enable, 0x00000000);
+		nvkm_mask(device, 0x000200, pmc_enable, pmc_enable);
+		nvkm_rd32(device, 0x000200);
+	}
+}
+
+void
+nvkm_mc_reset(struct nvkm_mc *mc, enum nvkm_devidx devidx)
+{
+	if (likely(mc))
+		nvkm_mc_reset_(mc, devidx);
 }
 
 static int
@@ -117,7 +157,7 @@ nvkm_mc_new_(const struct nvkm_mc_func *func, struct nvkm_device *device,
 	if (!(mc = *pmc = kzalloc(sizeof(*mc), GFP_KERNEL)))
 		return -ENOMEM;
 
-	nvkm_subdev_ctor(&nvkm_mc, device, index, 0, &mc->subdev);
+	nvkm_subdev_ctor(&nvkm_mc, device, index, &mc->subdev);
 	mc->func = func;
 	return 0;
 }

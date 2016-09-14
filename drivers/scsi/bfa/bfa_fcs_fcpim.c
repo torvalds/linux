@@ -588,12 +588,13 @@ bfa_fcs_itnim_create(struct bfa_fcs_rport_s *rport)
 	struct bfa_fcs_lport_s *port = rport->port;
 	struct bfa_fcs_itnim_s *itnim;
 	struct bfad_itnim_s   *itnim_drv;
+	int ret;
 
 	/*
 	 * call bfad to allocate the itnim
 	 */
-	bfa_fcb_itnim_alloc(port->fcs->bfad, &itnim, &itnim_drv);
-	if (itnim == NULL) {
+	ret = bfa_fcb_itnim_alloc(port->fcs->bfad, &itnim, &itnim_drv);
+	if (ret) {
 		bfa_trc(port->fcs, rport->pwwn);
 		return NULL;
 	}

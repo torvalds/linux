@@ -17,13 +17,11 @@ struct x509_certificate {
 	struct x509_certificate *next;
 	struct x509_certificate *signer;	/* Certificate that signed this one */
 	struct public_key *pub;			/* Public key details */
-	struct public_key_signature sig;	/* Signature parameters */
+	struct public_key_signature *sig;	/* Signature parameters */
 	char		*issuer;		/* Name of certificate issuer */
 	char		*subject;		/* Name of certificate subject */
 	struct asymmetric_key_id *id;		/* Issuer + Serial number */
 	struct asymmetric_key_id *skid;		/* Subject + subjectKeyId (optional) */
-	struct asymmetric_key_id *akid_id;	/* CA AuthKeyId matching ->id (optional) */
-	struct asymmetric_key_id *akid_skid;	/* CA AuthKeyId matching ->skid (optional) */
 	time64_t	valid_from;
 	time64_t	valid_to;
 	const void	*tbs;			/* Signed data */
@@ -41,8 +39,9 @@ struct x509_certificate {
 	unsigned	index;
 	bool		seen;			/* Infinite recursion prevention */
 	bool		verified;
-	bool		trusted;
-	bool		unsupported_crypto;	/* T if can't be verified due to missing crypto */
+	bool		self_signed;		/* T if self-signed (check unsupported_sig too) */
+	bool		unsupported_key;	/* T if key uses unsupported crypto */
+	bool		unsupported_sig;	/* T if signature uses unsupported crypto */
 };
 
 /*
@@ -58,5 +57,4 @@ extern int x509_decode_time(time64_t *_t,  size_t hdrlen,
  * x509_public_key.c
  */
 extern int x509_get_sig_params(struct x509_certificate *cert);
-extern int x509_check_signature(const struct public_key *pub,
-				struct x509_certificate *cert);
+extern int x509_check_for_self_signed(struct x509_certificate *cert);

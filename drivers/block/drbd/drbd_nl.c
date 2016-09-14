@@ -3633,14 +3633,15 @@ static int nla_put_status_info(struct sk_buff *skb, struct drbd_device *device,
 		goto nla_put_failure;
 	if (nla_put_u32(skb, T_sib_reason, sib ? sib->sib_reason : SIB_GET_STATUS_REPLY) ||
 	    nla_put_u32(skb, T_current_state, device->state.i) ||
-	    nla_put_u64(skb, T_ed_uuid, device->ed_uuid) ||
-	    nla_put_u64(skb, T_capacity, drbd_get_capacity(device->this_bdev)) ||
-	    nla_put_u64(skb, T_send_cnt, device->send_cnt) ||
-	    nla_put_u64(skb, T_recv_cnt, device->recv_cnt) ||
-	    nla_put_u64(skb, T_read_cnt, device->read_cnt) ||
-	    nla_put_u64(skb, T_writ_cnt, device->writ_cnt) ||
-	    nla_put_u64(skb, T_al_writ_cnt, device->al_writ_cnt) ||
-	    nla_put_u64(skb, T_bm_writ_cnt, device->bm_writ_cnt) ||
+	    nla_put_u64_0pad(skb, T_ed_uuid, device->ed_uuid) ||
+	    nla_put_u64_0pad(skb, T_capacity,
+			     drbd_get_capacity(device->this_bdev)) ||
+	    nla_put_u64_0pad(skb, T_send_cnt, device->send_cnt) ||
+	    nla_put_u64_0pad(skb, T_recv_cnt, device->recv_cnt) ||
+	    nla_put_u64_0pad(skb, T_read_cnt, device->read_cnt) ||
+	    nla_put_u64_0pad(skb, T_writ_cnt, device->writ_cnt) ||
+	    nla_put_u64_0pad(skb, T_al_writ_cnt, device->al_writ_cnt) ||
+	    nla_put_u64_0pad(skb, T_bm_writ_cnt, device->bm_writ_cnt) ||
 	    nla_put_u32(skb, T_ap_bio_cnt, atomic_read(&device->ap_bio_cnt)) ||
 	    nla_put_u32(skb, T_ap_pending_cnt, atomic_read(&device->ap_pending_cnt)) ||
 	    nla_put_u32(skb, T_rs_pending_cnt, atomic_read(&device->rs_pending_cnt)))
@@ -3657,13 +3658,16 @@ static int nla_put_status_info(struct sk_buff *skb, struct drbd_device *device,
 			goto nla_put_failure;
 
 		if (nla_put_u32(skb, T_disk_flags, device->ldev->md.flags) ||
-		    nla_put_u64(skb, T_bits_total, drbd_bm_bits(device)) ||
-		    nla_put_u64(skb, T_bits_oos, drbd_bm_total_weight(device)))
+		    nla_put_u64_0pad(skb, T_bits_total, drbd_bm_bits(device)) ||
+		    nla_put_u64_0pad(skb, T_bits_oos,
+				     drbd_bm_total_weight(device)))
 			goto nla_put_failure;
 		if (C_SYNC_SOURCE <= device->state.conn &&
 		    C_PAUSED_SYNC_T >= device->state.conn) {
-			if (nla_put_u64(skb, T_bits_rs_total, device->rs_total) ||
-			    nla_put_u64(skb, T_bits_rs_failed, device->rs_failed))
+			if (nla_put_u64_0pad(skb, T_bits_rs_total,
+					     device->rs_total) ||
+			    nla_put_u64_0pad(skb, T_bits_rs_failed,
+					     device->rs_failed))
 				goto nla_put_failure;
 		}
 	}

@@ -1398,11 +1398,9 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 	}
 
 	dotclock = pipe_config->port_clock;
+
 	if (pipe_config->pixel_multiplier)
 		dotclock /= pipe_config->pixel_multiplier;
-
-	if (HAS_PCH_SPLIT(dev))
-		ironlake_check_encoder_dotclock(pipe_config, dotclock);
 
 	pipe_config->base.adjusted_mode.crtc_clock = dotclock;
 
@@ -2262,9 +2260,9 @@ intel_sdvo_select_ddc_bus(struct drm_i915_private *dev_priv,
 	struct sdvo_device_mapping *mapping;
 
 	if (sdvo->port == PORT_B)
-		mapping = &(dev_priv->sdvo_mappings[0]);
+		mapping = &dev_priv->vbt.sdvo_mappings[0];
 	else
-		mapping = &(dev_priv->sdvo_mappings[1]);
+		mapping = &dev_priv->vbt.sdvo_mappings[1];
 
 	if (mapping->initialized)
 		sdvo->ddc_bus = 1 << ((mapping->ddc_pin & 0xf0) >> 4);
@@ -2280,9 +2278,9 @@ intel_sdvo_select_i2c_bus(struct drm_i915_private *dev_priv,
 	u8 pin;
 
 	if (sdvo->port == PORT_B)
-		mapping = &dev_priv->sdvo_mappings[0];
+		mapping = &dev_priv->vbt.sdvo_mappings[0];
 	else
-		mapping = &dev_priv->sdvo_mappings[1];
+		mapping = &dev_priv->vbt.sdvo_mappings[1];
 
 	if (mapping->initialized &&
 	    intel_gmbus_is_valid_pin(dev_priv, mapping->i2c_pin))
@@ -2318,11 +2316,11 @@ intel_sdvo_get_slave_addr(struct drm_device *dev, struct intel_sdvo *sdvo)
 	struct sdvo_device_mapping *my_mapping, *other_mapping;
 
 	if (sdvo->port == PORT_B) {
-		my_mapping = &dev_priv->sdvo_mappings[0];
-		other_mapping = &dev_priv->sdvo_mappings[1];
+		my_mapping = &dev_priv->vbt.sdvo_mappings[0];
+		other_mapping = &dev_priv->vbt.sdvo_mappings[1];
 	} else {
-		my_mapping = &dev_priv->sdvo_mappings[1];
-		other_mapping = &dev_priv->sdvo_mappings[0];
+		my_mapping = &dev_priv->vbt.sdvo_mappings[1];
+		other_mapping = &dev_priv->vbt.sdvo_mappings[0];
 	}
 
 	/* If the BIOS described our SDVO device, take advantage of it. */

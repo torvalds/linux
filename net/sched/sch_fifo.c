@@ -37,14 +37,18 @@ static int pfifo_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 
 static int pfifo_tail_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 {
+	unsigned int prev_backlog;
+
 	if (likely(skb_queue_len(&sch->q) < sch->limit))
 		return qdisc_enqueue_tail(skb, sch);
 
+	prev_backlog = sch->qstats.backlog;
 	/* queue full, remove one skb to fulfill the limit */
 	__qdisc_queue_drop_head(sch, &sch->q);
 	qdisc_qstats_drop(sch);
 	qdisc_enqueue_tail(skb, sch);
 
+	qdisc_tree_reduce_backlog(sch, 0, prev_backlog - sch->qstats.backlog);
 	return NET_XMIT_CN;
 }
 

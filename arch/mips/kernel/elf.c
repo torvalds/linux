@@ -88,7 +88,7 @@ int arch_elf_pt_proc(void *_ehdr, void *_phdr, struct file *elf,
 	elf32 = ehdr->e32.e_ident[EI_CLASS] == ELFCLASS32;
 	flags = elf32 ? ehdr->e32.e_flags : ehdr->e64.e_flags;
 
-	/* Lets see if this is an O32 ELF */
+	/* Let's see if this is an O32 ELF */
 	if (elf32) {
 		if (flags & EF_MIPS_FP64) {
 			/*

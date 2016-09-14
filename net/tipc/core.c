@@ -112,11 +112,9 @@ static int __init tipc_init(void)
 
 	pr_info("Activated (version " TIPC_MOD_VER ")\n");
 
-	sysctl_tipc_rmem[0] = TIPC_CONN_OVERLOAD_LIMIT >> 4 <<
-			      TIPC_LOW_IMPORTANCE;
-	sysctl_tipc_rmem[1] = TIPC_CONN_OVERLOAD_LIMIT >> 4 <<
-			      TIPC_CRITICAL_IMPORTANCE;
-	sysctl_tipc_rmem[2] = TIPC_CONN_OVERLOAD_LIMIT;
+	sysctl_tipc_rmem[0] = RCVBUF_MIN;
+	sysctl_tipc_rmem[1] = RCVBUF_DEF;
+	sysctl_tipc_rmem[2] = RCVBUF_MAX;
 
 	err = tipc_netlink_start();
 	if (err)

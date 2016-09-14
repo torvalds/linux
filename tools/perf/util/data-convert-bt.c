@@ -204,6 +204,44 @@ static unsigned long long adjust_signedness(unsigned long long value_int, int si
 	return (value_int & value_mask) | ~value_mask;
 }
 
+static int string_set_value(struct bt_ctf_field *field, const char *string)
+{
+	char *buffer = NULL;
+	size_t len = strlen(string), i, p;
+	int err;
+
+	for (i = p = 0; i < len; i++, p++) {
+		if (isprint(string[i])) {
+			if (!buffer)
+				continue;
+			buffer[p] = string[i];
+		} else {
+			char numstr[5];
+
+			snprintf(numstr, sizeof(numstr), "\\x%02x",
+				 (unsigned int)(string[i]) & 0xff);
+
+			if (!buffer) {
+				buffer = zalloc(i + (len - i) * 4 + 2);
+				if (!buffer) {
+					pr_err("failed to set unprintable string '%s'\n", string);
+					return bt_ctf_field_string_set_value(field, "UNPRINTABLE-STRING");
+				}
+				if (i > 0)
+					strncpy(buffer, string, i);
+			}
+			strncat(buffer + p, numstr, 4);
+			p += 3;
+		}
+	}
+
+	if (!buffer)
+		return bt_ctf_field_string_set_value(field, string);
+	err = bt_ctf_field_string_set_value(field, buffer);
+	free(buffer);
+	return err;
+}
+
 static int add_tracepoint_field_value(struct ctf_writer *cw,
 				      struct bt_ctf_event_class *event_class,
 				      struct bt_ctf_event *event,
@@ -270,8 +308,7 @@ static int add_tracepoint_field_value(struct ctf_writer *cw,
 		}
 
 		if (flags & FIELD_IS_STRING)
-			ret = bt_ctf_field_string_set_value(field,
-					data + offset + i * len);
+			ret = string_set_value(field, data + offset + i * len);
 		else {
 			unsigned long long value_int;
 

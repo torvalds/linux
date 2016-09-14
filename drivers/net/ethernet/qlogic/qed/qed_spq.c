@@ -27,6 +27,7 @@
 #include "qed_mcp.h"
 #include "qed_reg_addr.h"
 #include "qed_sp.h"
+#include "qed_sriov.h"
 
 /***************************************************************************
 * Structures & Definitions
@@ -212,19 +213,15 @@ static int qed_spq_hw_post(struct qed_hwfn *p_hwfn,
 	SET_FIELD(db.params, CORE_DB_DATA_AGG_VAL_SEL,
 		  DQ_XCM_CORE_SPQ_PROD_CMD);
 	db.agg_flags = DQ_XCM_CORE_DQ_CF_CMD;
-
-	/* validate producer is up to-date */
-	rmb();
-
 	db.spq_prod = cpu_to_le16(qed_chain_get_prod_idx(p_chain));
 
-	/* do not reorder */
-	barrier();
+	/* make sure the SPQE is updated before the doorbell */
+	wmb();
 
 	DOORBELL(p_hwfn, qed_db_addr(p_spq->cid, DQ_DEMS_LEGACY), *(u32 *)&db);
 
 	/* make sure doorbell is rang */
-	mmiowb();
+	wmb();
 
 	DP_VERBOSE(p_hwfn, QED_MSG_SPQ,
 		   "Doorbelled [0x%08x, CID 0x%08x] with Flags: %02x agg_params: %02x, prod: %04x\n",
@@ -242,10 +239,17 @@ static int
 qed_async_event_completion(struct qed_hwfn *p_hwfn,
 			   struct event_ring_entry *p_eqe)
 {
-	DP_NOTICE(p_hwfn,
-		  "Unknown Async completion for protocol: %d\n",
-		   p_eqe->protocol_id);
-	return -EINVAL;
+	switch (p_eqe->protocol_id) {
+	case PROTOCOLID_COMMON:
+		return qed_sriov_eqe_event(p_hwfn,
+					   p_eqe->opcode,
+					   p_eqe->echo, &p_eqe->data);
+	default:
+		DP_NOTICE(p_hwfn,
+			  "Unknown Async completion for protocol: %d\n",
+			  p_eqe->protocol_id);
+		return -EINVAL;
+	}
 }
 
 /***************************************************************************
@@ -379,6 +383,9 @@ static int qed_cqe_completion(
 	struct eth_slow_path_rx_cqe *cqe,
 	enum protocol_type protocol)
 {
+	if (IS_VF(p_hwfn->cdev))
+		return 0;
+
 	/* @@@tmp - it's possible we'll eventually want to handle some
 	 * actual commands that can arrive here, but for now this is only
 	 * used to complete the ramrod using the echo value on the cqe
@@ -603,7 +610,9 @@ qed_spq_add_entry(struct qed_hwfn *p_hwfn,
 
 			*p_en2 = *p_ent;
 
-			kfree(p_ent);
+			/* EBLOCK responsible to free the allocated p_ent */
+			if (p_ent->comp_mode != QED_SPQ_MODE_EBLOCK)
+				kfree(p_ent);
 
 			p_ent = p_en2;
 		}
@@ -738,6 +747,15 @@ int qed_spq_post(struct qed_hwfn *p_hwfn,
 		 * Thus, after gaining the answer perform the cleanup here.
 		 */
 		rc = qed_spq_block(p_hwfn, p_ent, fw_return_code);
+
+		if (p_ent->queue == &p_spq->unlimited_pending) {
+			/* This is an allocated p_ent which does not need to
+			 * return to pool.
+			 */
+			kfree(p_ent);
+			return rc;
+		}
+
 		if (rc)
 			goto spq_post_fail2;
 
@@ -833,8 +851,12 @@ int qed_spq_completion(struct qed_hwfn *p_hwfn,
 		found->comp_cb.function(p_hwfn, found->comp_cb.cookie, p_data,
 					fw_return_code);
 
-	if (found->comp_mode != QED_SPQ_MODE_EBLOCK)
-		/* EBLOCK is responsible for freeing its own entry */
+	if ((found->comp_mode != QED_SPQ_MODE_EBLOCK) ||
+	    (found->queue == &p_spq->unlimited_pending))
+		/* EBLOCK  is responsible for returning its own entry into the
+		 * free list, unless it originally added the entry into the
+		 * unlimited pending list.
+		 */
 		qed_spq_return_entry(p_hwfn, found);
 
 	/* Attempt to post pending requests */

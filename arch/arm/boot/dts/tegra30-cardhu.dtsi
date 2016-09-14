@@ -35,6 +35,10 @@
 		serial1 = &uartc;
 	};
 
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	memory {
 		reg = <0x80000000 0x40000000>;
 	};
@@ -626,7 +630,7 @@
 			interrupts = <2 0>;
 			linux,code = <KEY_POWER>;
 			debounce-interval = <100>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		volume-down {

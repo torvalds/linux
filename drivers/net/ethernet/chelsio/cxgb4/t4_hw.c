@@ -224,18 +224,34 @@ static void fw_asrt(struct adapter *adap, u32 mbox_addr)
 		  be32_to_cpu(asrt.u.assert.x), be32_to_cpu(asrt.u.assert.y));
 }
 
-static void dump_mbox(struct adapter *adap, int mbox, u32 data_reg)
+/**
+ *	t4_record_mbox - record a Firmware Mailbox Command/Reply in the log
+ *	@adapter: the adapter
+ *	@cmd: the Firmware Mailbox Command or Reply
+ *	@size: command length in bytes
+ *	@access: the time (ms) needed to access the Firmware Mailbox
+ *	@execute: the time (ms) the command spent being executed
+ */
+static void t4_record_mbox(struct adapter *adapter,
+			   const __be64 *cmd, unsigned int size,
+			   int access, int execute)
 {
-	dev_err(adap->pdev_dev,
-		"mbox %d: %llx %llx %llx %llx %llx %llx %llx %llx\n", mbox,
-		(unsigned long long)t4_read_reg64(adap, data_reg),
-		(unsigned long long)t4_read_reg64(adap, data_reg + 8),
-		(unsigned long long)t4_read_reg64(adap, data_reg + 16),
-		(unsigned long long)t4_read_reg64(adap, data_reg + 24),
-		(unsigned long long)t4_read_reg64(adap, data_reg + 32),
-		(unsigned long long)t4_read_reg64(adap, data_reg + 40),
-		(unsigned long long)t4_read_reg64(adap, data_reg + 48),
-		(unsigned long long)t4_read_reg64(adap, data_reg + 56));
+	struct mbox_cmd_log *log = adapter->mbox_log;
+	struct mbox_cmd *entry;
+	int i;
+
+	entry = mbox_cmd_log_entry(log, log->cursor++);
+	if (log->cursor == log->size)
+		log->cursor = 0;
+
+	for (i = 0; i < size / 8; i++)
+		entry->cmd[i] = be64_to_cpu(cmd[i]);
+	while (i < MBOX_LEN / 8)
+		entry->cmd[i++] = 0;
+	entry->timestamp = jiffies;
+	entry->seqno = log->seqno++;
+	entry->access = access;
+	entry->execute = execute;
 }
 
 /**
@@ -268,12 +284,16 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 		1, 1, 3, 5, 10, 10, 20, 50, 100, 200
 	};
 
+	u16 access = 0;
+	u16 execute = 0;
 	u32 v;
 	u64 res;
-	int i, ms, delay_idx;
+	int i, ms, delay_idx, ret;
 	const __be64 *p = cmd;
 	u32 data_reg = PF_REG(mbox, CIM_PF_MAILBOX_DATA_A);
 	u32 ctl_reg = PF_REG(mbox, CIM_PF_MAILBOX_CTRL_A);
+	__be64 cmd_rpl[MBOX_LEN / 8];
+	u32 pcie_fw;
 
 	if ((size & 15) || size > MBOX_LEN)
 		return -EINVAL;
@@ -285,13 +305,24 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 	if (adap->pdev->error_state != pci_channel_io_normal)
 		return -EIO;
 
+	/* If we have a negative timeout, that implies that we can't sleep. */
+	if (timeout < 0) {
+		sleep_ok = false;
+		timeout = -timeout;
+	}
+
 	v = MBOWNER_G(t4_read_reg(adap, ctl_reg));
 	for (i = 0; v == MBOX_OWNER_NONE && i < 3; i++)
 		v = MBOWNER_G(t4_read_reg(adap, ctl_reg));
 
-	if (v != MBOX_OWNER_DRV)
-		return v ? -EBUSY : -ETIMEDOUT;
+	if (v != MBOX_OWNER_DRV) {
+		ret = (v == MBOX_OWNER_FW) ? -EBUSY : -ETIMEDOUT;
+		t4_record_mbox(adap, cmd, MBOX_LEN, access, ret);
+		return ret;
+	}
 
+	/* Copy in the new mailbox command and send it on its way ... */
+	t4_record_mbox(adap, cmd, MBOX_LEN, access, 0);
 	for (i = 0; i < size; i += 8)
 		t4_write_reg64(adap, data_reg + i, be64_to_cpu(*p++));
 
@@ -301,7 +332,10 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 	delay_idx = 0;
 	ms = delay[0];
 
-	for (i = 0; i < timeout; i += ms) {
+	for (i = 0;
+	     !((pcie_fw = t4_read_reg(adap, PCIE_FW_A)) & PCIE_FW_ERR_F) &&
+	     i < timeout;
+	     i += ms) {
 		if (sleep_ok) {
 			ms = delay[delay_idx];  /* last element may repeat */
 			if (delay_idx < ARRAY_SIZE(delay) - 1)
@@ -317,26 +351,31 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 				continue;
 			}
 
-			res = t4_read_reg64(adap, data_reg);
+			get_mbox_rpl(adap, cmd_rpl, MBOX_LEN / 8, data_reg);
+			res = be64_to_cpu(cmd_rpl[0]);
+
 			if (FW_CMD_OP_G(res >> 32) == FW_DEBUG_CMD) {
 				fw_asrt(adap, data_reg);
 				res = FW_CMD_RETVAL_V(EIO);
 			} else if (rpl) {
-				get_mbox_rpl(adap, rpl, size / 8, data_reg);
+				memcpy(rpl, cmd_rpl, size);
 			}
 
-			if (FW_CMD_RETVAL_G((int)res))
-				dump_mbox(adap, mbox, data_reg);
 			t4_write_reg(adap, ctl_reg, 0);
+
+			execute = i + ms;
+			t4_record_mbox(adap, cmd_rpl,
+				       MBOX_LEN, access, execute);
 			return -FW_CMD_RETVAL_G((int)res);
 		}
 	}
 
-	dump_mbox(adap, mbox, data_reg);
+	ret = (pcie_fw & PCIE_FW_ERR_F) ? -ENXIO : -ETIMEDOUT;
+	t4_record_mbox(adap, cmd, MBOX_LEN, access, ret);
 	dev_err(adap->pdev_dev, "command %#x in mailbox %d timed out\n",
 		*(const u8 *)cmd, mbox);
 	t4_report_fw_error(adap);
-	return -ETIMEDOUT;
+	return ret;
 }
 
 int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
@@ -2932,6 +2971,20 @@ unlock:
 int t4_get_fw_version(struct adapter *adapter, u32 *vers)
 {
 	return t4_read_flash(adapter, FLASH_FW_START +
+			     offsetof(struct fw_hdr, fw_ver), 1,
+			     vers, 0);
+}
+
+/**
+ *	t4_get_bs_version - read the firmware bootstrap version
+ *	@adapter: the adapter
+ *	@vers: where to place the version
+ *
+ *	Reads the FW Bootstrap version from flash.
+ */
+int t4_get_bs_version(struct adapter *adapter, u32 *vers)
+{
+	return t4_read_flash(adapter, FLASH_FWBOOTSTRAP_START +
 			     offsetof(struct fw_hdr, fw_ver), 1,
 			     vers, 0);
 }
@@ -7089,52 +7142,122 @@ int t4_ofld_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 }
 
 /**
- *	t4_handle_fw_rpl - process a FW reply message
+ *	t4_link_down_rc_str - return a string for a Link Down Reason Code
  *	@adap: the adapter
+ *	@link_down_rc: Link Down Reason Code
+ *
+ *	Returns a string representation of the Link Down Reason Code.
+ */
+static const char *t4_link_down_rc_str(unsigned char link_down_rc)
+{
+	static const char * const reason[] = {
+		"Link Down",
+		"Remote Fault",
+		"Auto-negotiation Failure",
+		"Reserved",
+		"Insufficient Airflow",
+		"Unable To Determine Reason",
+		"No RX Signal Detected",
+		"Reserved",
+	};
+
+	if (link_down_rc >= ARRAY_SIZE(reason))
+		return "Bad Reason Code";
+
+	return reason[link_down_rc];
+}
+
+/**
+ *	t4_handle_get_port_info - process a FW reply message
+ *	@pi: the port info
  *	@rpl: start of the FW message
  *
- *	Processes a FW message, such as link state change messages.
+ *	Processes a GET_PORT_INFO FW reply message.
+ */
+void t4_handle_get_port_info(struct port_info *pi, const __be64 *rpl)
+{
+	const struct fw_port_cmd *p = (const void *)rpl;
+	struct adapter *adap = pi->adapter;
+
+	/* link/module state change message */
+	int speed = 0, fc = 0;
+	struct link_config *lc;
+	u32 stat = be32_to_cpu(p->u.info.lstatus_to_modtype);
+	int link_ok = (stat & FW_PORT_CMD_LSTATUS_F) != 0;
+	u32 mod = FW_PORT_CMD_MODTYPE_G(stat);
+
+	if (stat & FW_PORT_CMD_RXPAUSE_F)
+		fc |= PAUSE_RX;
+	if (stat & FW_PORT_CMD_TXPAUSE_F)
+		fc |= PAUSE_TX;
+	if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_100M))
+		speed = 100;
+	else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_1G))
+		speed = 1000;
+	else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_10G))
+		speed = 10000;
+	else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_40G))
+		speed = 40000;
+
+	lc = &pi->link_cfg;
+
+	if (mod != pi->mod_type) {
+		pi->mod_type = mod;
+		t4_os_portmod_changed(adap, pi->port_id);
+	}
+	if (link_ok != lc->link_ok || speed != lc->speed ||
+	    fc != lc->fc) {	/* something changed */
+		if (!link_ok && lc->link_ok) {
+			unsigned char rc = FW_PORT_CMD_LINKDNRC_G(stat);
+
+			lc->link_down_rc = rc;
+			dev_warn(adap->pdev_dev,
+				 "Port %d link down, reason: %s\n",
+				 pi->port_id, t4_link_down_rc_str(rc));
+		}
+		lc->link_ok = link_ok;
+		lc->speed = speed;
+		lc->fc = fc;
+		lc->supported = be16_to_cpu(p->u.info.pcap);
+		t4_os_link_changed(adap, pi->port_id, link_ok);
+	}
+}
+
+/**
+ *      t4_handle_fw_rpl - process a FW reply message
+ *      @adap: the adapter
+ *      @rpl: start of the FW message
+ *
+ *      Processes a FW message, such as link state change messages.
  */
 int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 {
 	u8 opcode = *(const u8 *)rpl;
 
-	if (opcode == FW_PORT_CMD) {    /* link/module state change message */
-		int speed = 0, fc = 0;
-		const struct fw_port_cmd *p = (void *)rpl;
+	/* This might be a port command ... this simplifies the following
+	 * conditionals ...  We can get away with pre-dereferencing
+	 * action_to_len16 because it's in the first 16 bytes and all messages
+	 * will be at least that long.
+	 */
+	const struct fw_port_cmd *p = (const void *)rpl;
+	unsigned int action =
+		FW_PORT_CMD_ACTION_G(be32_to_cpu(p->action_to_len16));
+
+	if (opcode == FW_PORT_CMD && action == FW_PORT_ACTION_GET_PORT_INFO) {
+		int i;
 		int chan = FW_PORT_CMD_PORTID_G(be32_to_cpu(p->op_to_portid));
-		int port = adap->chan_map[chan];
-		struct port_info *pi = adap2pinfo(adap, port);
-		struct link_config *lc = &pi->link_cfg;
-		u32 stat = be32_to_cpu(p->u.info.lstatus_to_modtype);
-		int link_ok = (stat & FW_PORT_CMD_LSTATUS_F) != 0;
-		u32 mod = FW_PORT_CMD_MODTYPE_G(stat);
+		struct port_info *pi = NULL;
 
-		if (stat & FW_PORT_CMD_RXPAUSE_F)
-			fc |= PAUSE_RX;
-		if (stat & FW_PORT_CMD_TXPAUSE_F)
-			fc |= PAUSE_TX;
-		if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_100M))
-			speed = 100;
-		else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_1G))
-			speed = 1000;
-		else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_10G))
-			speed = 10000;
-		else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_40G))
-			speed = 40000;
+		for_each_port(adap, i) {
+			pi = adap2pinfo(adap, i);
+			if (pi->tx_chan == chan)
+				break;
+		}
 
-		if (link_ok != lc->link_ok || speed != lc->speed ||
-		    fc != lc->fc) {                    /* something changed */
-			lc->link_ok = link_ok;
-			lc->speed = speed;
-			lc->fc = fc;
-			lc->supported = be16_to_cpu(p->u.info.pcap);
-			t4_os_link_changed(adap, port, link_ok);
-		}
-		if (mod != pi->mod_type) {
-			pi->mod_type = mod;
-			t4_os_portmod_changed(adap, port);
-		}
+		t4_handle_get_port_info(pi, rpl);
+	} else {
+		dev_warn(adap->pdev_dev, "Unknown firmware reply %d\n", opcode);
+		return -EINVAL;
 	}
 	return 0;
 }
@@ -7654,61 +7777,74 @@ int t4_init_rss_mode(struct adapter *adap, int mbox)
 	return 0;
 }
 
+/**
+ *	t4_init_portinfo - allocate a virtual interface amd initialize port_info
+ *	@pi: the port_info
+ *	@mbox: mailbox to use for the FW command
+ *	@port: physical port associated with the VI
+ *	@pf: the PF owning the VI
+ *	@vf: the VF owning the VI
+ *	@mac: the MAC address of the VI
+ *
+ *	Allocates a virtual interface for the given physical port.  If @mac is
+ *	not %NULL it contains the MAC address of the VI as assigned by FW.
+ *	@mac should be large enough to hold an Ethernet address.
+ *	Returns < 0 on error.
+ */
+int t4_init_portinfo(struct port_info *pi, int mbox,
+		     int port, int pf, int vf, u8 mac[])
+{
+	int ret;
+	struct fw_port_cmd c;
+	unsigned int rss_size;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_portid = cpu_to_be32(FW_CMD_OP_V(FW_PORT_CMD) |
+				     FW_CMD_REQUEST_F | FW_CMD_READ_F |
+				     FW_PORT_CMD_PORTID_V(port));
+	c.action_to_len16 = cpu_to_be32(
+		FW_PORT_CMD_ACTION_V(FW_PORT_ACTION_GET_PORT_INFO) |
+		FW_LEN16(c));
+	ret = t4_wr_mbox(pi->adapter, mbox, &c, sizeof(c), &c);
+	if (ret)
+		return ret;
+
+	ret = t4_alloc_vi(pi->adapter, mbox, port, pf, vf, 1, mac, &rss_size);
+	if (ret < 0)
+		return ret;
+
+	pi->viid = ret;
+	pi->tx_chan = port;
+	pi->lport = port;
+	pi->rss_size = rss_size;
+
+	ret = be32_to_cpu(c.u.info.lstatus_to_modtype);
+	pi->mdio_addr = (ret & FW_PORT_CMD_MDIOCAP_F) ?
+		FW_PORT_CMD_MDIOADDR_G(ret) : -1;
+	pi->port_type = FW_PORT_CMD_PTYPE_G(ret);
+	pi->mod_type = FW_PORT_MOD_TYPE_NA;
+
+	init_link_config(&pi->link_cfg, be16_to_cpu(c.u.info.pcap));
+	return 0;
+}
+
 int t4_port_init(struct adapter *adap, int mbox, int pf, int vf)
 {
 	u8 addr[6];
 	int ret, i, j = 0;
-	struct fw_port_cmd c;
-	struct fw_rss_vi_config_cmd rvc;
-
-	memset(&c, 0, sizeof(c));
-	memset(&rvc, 0, sizeof(rvc));
 
 	for_each_port(adap, i) {
-		unsigned int rss_size;
-		struct port_info *p = adap2pinfo(adap, i);
+		struct port_info *pi = adap2pinfo(adap, i);
 
 		while ((adap->params.portvec & (1 << j)) == 0)
 			j++;
 
-		c.op_to_portid = cpu_to_be32(FW_CMD_OP_V(FW_PORT_CMD) |
-					     FW_CMD_REQUEST_F | FW_CMD_READ_F |
-					     FW_PORT_CMD_PORTID_V(j));
-		c.action_to_len16 = cpu_to_be32(
-			FW_PORT_CMD_ACTION_V(FW_PORT_ACTION_GET_PORT_INFO) |
-			FW_LEN16(c));
-		ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
+		ret = t4_init_portinfo(pi, mbox, j, pf, vf, addr);
 		if (ret)
 			return ret;
 
-		ret = t4_alloc_vi(adap, mbox, j, pf, vf, 1, addr, &rss_size);
-		if (ret < 0)
-			return ret;
-
-		p->viid = ret;
-		p->tx_chan = j;
-		p->lport = j;
-		p->rss_size = rss_size;
 		memcpy(adap->port[i]->dev_addr, addr, ETH_ALEN);
 		adap->port[i]->dev_port = j;
-
-		ret = be32_to_cpu(c.u.info.lstatus_to_modtype);
-		p->mdio_addr = (ret & FW_PORT_CMD_MDIOCAP_F) ?
-			FW_PORT_CMD_MDIOADDR_G(ret) : -1;
-		p->port_type = FW_PORT_CMD_PTYPE_G(ret);
-		p->mod_type = FW_PORT_MOD_TYPE_NA;
-
-		rvc.op_to_viid =
-			cpu_to_be32(FW_CMD_OP_V(FW_RSS_VI_CONFIG_CMD) |
-				    FW_CMD_REQUEST_F | FW_CMD_READ_F |
-				    FW_RSS_VI_CONFIG_CMD_VIID(p->viid));
-		rvc.retval_len16 = cpu_to_be32(FW_LEN16(rvc));
-		ret = t4_wr_mbox(adap, mbox, &rvc, sizeof(rvc), &rvc);
-		if (ret)
-			return ret;
-		p->rss_mode = be32_to_cpu(rvc.u.basicvirtual.defaultq_to_udpen);
-
-		init_link_config(&p->link_cfg, be16_to_cpu(c.u.info.pcap));
 		j++;
 	}
 	return 0;

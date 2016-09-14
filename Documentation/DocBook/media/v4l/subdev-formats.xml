@@ -4002,12 +4002,6 @@ see <xref linkend="colorspaces" />.</entry>
     <section id="v4l2-mbus-vendor-spec-fmts">
       <title>Vendor and Device Specific Formats</title>
 
-      <note>
-	<title>Experimental</title>
-	<para>This is an <link linkend="experimental">experimental</link>
-interface and may change in the future.</para>
-      </note>
-
       <para>This section lists complex data formats that are either vendor or
 	device specific.
       </para>

@@ -138,8 +138,8 @@ ssize_t v9fs_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size)
 }
 
 static int v9fs_xattr_handler_get(const struct xattr_handler *handler,
-				  struct dentry *dentry, const char *name,
-				  void *buffer, size_t size)
+				  struct dentry *dentry, struct inode *inode,
+				  const char *name, void *buffer, size_t size)
 {
 	const char *full_name = xattr_full_name(handler, name);
 
@@ -147,8 +147,9 @@ static int v9fs_xattr_handler_get(const struct xattr_handler *handler,
 }
 
 static int v9fs_xattr_handler_set(const struct xattr_handler *handler,
-				  struct dentry *dentry, const char *name,
-				  const void *value, size_t size, int flags)
+				  struct dentry *dentry, struct inode *inode,
+				  const char *name, const void *value,
+				  size_t size, int flags)
 {
 	const char *full_name = xattr_full_name(handler, name);
 

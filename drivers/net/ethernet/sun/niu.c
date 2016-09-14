@@ -6431,7 +6431,7 @@ static int niu_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 static void niu_netif_stop(struct niu *np)
 {
-	np->dev->trans_start = jiffies;	/* prevent tx timeout */
+	netif_trans_update(np->dev);	/* prevent tx timeout */
 
 	niu_disable_napi(np);
 

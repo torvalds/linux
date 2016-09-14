@@ -242,6 +242,16 @@ config LP8788_ADC
 	  To compile this driver as a module, choose M here: the module will be
 	  called lp8788_adc.
 
+config LPC18XX_ADC
+	tristate "NXP LPC18xx ADC driver"
+	depends on ARCH_LPC18XX || COMPILE_TEST
+	depends on OF && HAS_IOMEM
+	help
+	  Say yes here to build support for NXP LPC18XX ADC.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called lpc18xx_adc.
+
 config MAX1027
 	tristate "Maxim max1027 ADC driver"
 	depends on SPI
@@ -375,11 +385,11 @@ config ROCKCHIP_SARADC
 	  module will be called rockchip_saradc.
 
 config TI_ADC081C
-	tristate "Texas Instruments ADC081C021/027"
+	tristate "Texas Instruments ADC081C/ADC101C/ADC121C family"
 	depends on I2C
 	help
-	  If you say yes here you get support for Texas Instruments ADC081C021
-	  and ADC081C027 ADC chips.
+	  If you say yes here you get support for Texas Instruments ADC081C,
+	  ADC101C and ADC121C ADC chips.
 
 	  This driver can also be built as a module. If so, the module will be
 	  called ti-adc081c.

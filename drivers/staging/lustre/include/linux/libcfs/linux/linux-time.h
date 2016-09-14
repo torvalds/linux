@@ -70,12 +70,12 @@ static inline unsigned long cfs_time_current(void)
 
 static inline long cfs_time_seconds(int seconds)
 {
-	return ((long)seconds) * HZ;
+	return ((long)seconds) * msecs_to_jiffies(MSEC_PER_SEC);
 }
 
 static inline long cfs_duration_sec(long d)
 {
-	return d / HZ;
+	return d / msecs_to_jiffies(MSEC_PER_SEC);
 }
 
 #define cfs_time_current_64 get_jiffies_64

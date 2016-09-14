@@ -765,6 +765,12 @@ int vb2_queue_init(struct vb2_queue *q)
 	q->is_output = V4L2_TYPE_IS_OUTPUT(q->type);
 	q->copy_timestamp = (q->timestamp_flags & V4L2_BUF_FLAG_TIMESTAMP_MASK)
 			== V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	/*
+	 * For compatibility with vb1: if QBUF hasn't been called yet, then
+	 * return POLLERR as well. This only affects capture queues, output
+	 * queues will always initialize waiting_for_buffers to false.
+	 */
+	q->quirk_poll_must_check_waiting_for_buffers = true;
 
 	return vb2_core_queue_init(q);
 }
@@ -817,14 +823,6 @@ unsigned int vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait)
 		else if (req_events & POLLPRI)
 			poll_wait(file, &fh->wait, wait);
 	}
-
-	/*
-	 * For compatibility with vb1: if QBUF hasn't been called yet, then
-	 * return POLLERR as well. This only affects capture queues, output
-	 * queues will always initialize waiting_for_buffers to false.
-	 */
-	if (q->waiting_for_buffers && (req_events & (POLLIN | POLLRDNORM)))
-		return POLLERR;
 
 	return res | vb2_core_poll(q, file, wait);
 }

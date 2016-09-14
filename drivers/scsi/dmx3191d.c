@@ -34,10 +34,13 @@
  * Definitions for the generic 5380 driver.
  */
 
-#define DONT_USE_INTR
-
 #define NCR5380_read(reg)		inb(instance->io_port + reg)
 #define NCR5380_write(reg, value)	outb(value, instance->io_port + reg)
+
+#define NCR5380_dma_xfer_len(instance, cmd, phase)	(0)
+#define NCR5380_dma_recv_setup(instance, dst, len)	(0)
+#define NCR5380_dma_send_setup(instance, src, len)	(0)
+#define NCR5380_dma_residual(instance)			(0)
 
 #define NCR5380_implementation_fields	/* none */
 
@@ -62,7 +65,6 @@ static struct scsi_host_template dmx3191d_driver_template = {
 	.cmd_per_lun		= 2,
 	.use_clustering		= DISABLE_CLUSTERING,
 	.cmd_size		= NCR5380_CMD_SIZE,
-	.max_sectors		= 128,
 };
 
 static int dmx3191d_probe_one(struct pci_dev *pdev,
@@ -93,7 +95,7 @@ static int dmx3191d_probe_one(struct pci_dev *pdev,
 	 */
 	shost->irq = NO_IRQ;
 
-	error = NCR5380_init(shost, FLAG_NO_PSEUDO_DMA);
+	error = NCR5380_init(shost, 0);
 	if (error)
 		goto out_host_put;
 

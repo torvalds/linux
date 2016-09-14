@@ -356,7 +356,7 @@ struct bfi_ioc_image_hdr_s {
 	u8	port0_mode;	/* device mode for port 0	*/
 	u8	port1_mode;	/* device mode for port 1	*/
 	u32	exec;		/* exec vector			*/
-	u32	bootenv;	/* fimware boot env		*/
+	u32	bootenv;	/* firmware boot env		*/
 	u32	rsvd_b[2];
 	struct bfi_ioc_fwver_s	fwver;
 	u32	md5sum[BFI_IOC_MD5SUM_SZ];

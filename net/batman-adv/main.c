@@ -401,11 +401,19 @@ int batadv_batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 
 	hard_iface = container_of(ptype, struct batadv_hard_iface,
 				  batman_adv_ptype);
+
+	/* Prevent processing a packet received on an interface which is getting
+	 * shut down otherwise the packet may trigger de-reference errors
+	 * further down in the receive path.
+	 */
+	if (!kref_get_unless_zero(&hard_iface->refcount))
+		goto err_out;
+
 	skb = skb_share_check(skb, GFP_ATOMIC);
 
 	/* skb was released by skb_share_check() */
 	if (!skb)
-		goto err_out;
+		goto err_put;
 
 	/* packet should hold at least type and version */
 	if (unlikely(!pskb_may_pull(skb, 2)))
@@ -448,6 +456,8 @@ int batadv_batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	if (ret == NET_RX_DROP)
 		kfree_skb(skb);
 
+	batadv_hardif_put(hard_iface);
+
 	/* return NET_RX_SUCCESS in any case as we
 	 * most probably dropped the packet for
 	 * routing-logical reasons.
@@ -456,6 +466,8 @@ int batadv_batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 
 err_free:
 	kfree_skb(skb);
+err_put:
+	batadv_hardif_put(hard_iface);
 err_out:
 	return NET_RX_DROP;
 }
@@ -663,8 +675,8 @@ static void batadv_tvlv_handler_put(struct batadv_tvlv_handler *tvlv_handler)
  *
  * Return: tvlv handler if found or NULL otherwise.
  */
-static struct batadv_tvlv_handler
-*batadv_tvlv_handler_get(struct batadv_priv *bat_priv, u8 type, u8 version)
+static struct batadv_tvlv_handler *
+batadv_tvlv_handler_get(struct batadv_priv *bat_priv, u8 type, u8 version)
 {
 	struct batadv_tvlv_handler *tvlv_handler_tmp, *tvlv_handler = NULL;
 
@@ -722,8 +734,8 @@ static void batadv_tvlv_container_put(struct batadv_tvlv_container *tvlv)
  *
  * Return: tvlv container if found or NULL otherwise.
  */
-static struct batadv_tvlv_container
-*batadv_tvlv_container_get(struct batadv_priv *bat_priv, u8 type, u8 version)
+static struct batadv_tvlv_container *
+batadv_tvlv_container_get(struct batadv_priv *bat_priv, u8 type, u8 version)
 {
 	struct batadv_tvlv_container *tvlv_tmp, *tvlv = NULL;
 
@@ -736,9 +748,7 @@ static struct batadv_tvlv_container
 		if (tvlv_tmp->tvlv_hdr.version != version)
 			continue;
 
-		if (!kref_get_unless_zero(&tvlv_tmp->refcount))
-			continue;
-
+		kref_get(&tvlv_tmp->refcount);
 		tvlv = tvlv_tmp;
 		break;
 	}

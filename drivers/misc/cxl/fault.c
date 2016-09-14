@@ -149,11 +149,13 @@ static void cxl_handle_page_fault(struct cxl_context *ctx,
 	 * update_mmu_cache() will not have loaded the hash since current->trap
 	 * is not a 0x400 or 0x300, so just call hash_page_mm() here.
 	 */
-	access = _PAGE_PRESENT;
+	access = _PAGE_PRESENT | _PAGE_READ;
 	if (dsisr & CXL_PSL_DSISR_An_S)
-		access |= _PAGE_RW;
-	if ((!ctx->kernel) || ~(dar & (1ULL << 63)))
-		access |= _PAGE_USER;
+		access |= _PAGE_WRITE;
+
+	access |= _PAGE_PRIVILEGED;
+	if ((!ctx->kernel) || (REGION_ID(dar) == USER_REGION_ID))
+		access &= ~_PAGE_PRIVILEGED;
 
 	if (dsisr & DSISR_NOHPTE)
 		inv_flags |= HPTE_NOHPTE_UPDATE;

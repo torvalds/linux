@@ -1454,7 +1454,7 @@ void native_disable_io_apic(void)
 		ioapic_write_entry(ioapic_i8259.apic, ioapic_i8259.pin, entry);
 	}
 
-	if (cpu_has_apic || apic_from_smp_config())
+	if (boot_cpu_has(X86_FEATURE_APIC) || apic_from_smp_config())
 		disconnect_bsp_APIC(ioapic_i8259.pin != -1);
 }
 
@@ -2588,8 +2588,8 @@ static struct resource * __init ioapic_setup_resources(void)
 		res[num].flags = IORESOURCE_MEM | IORESOURCE_BUSY;
 		snprintf(mem, IOAPIC_RESOURCE_NAME_SIZE, "IOAPIC %u", i);
 		mem += IOAPIC_RESOURCE_NAME_SIZE;
+		ioapics[i].iomem_res = &res[num];
 		num++;
-		ioapics[i].iomem_res = res;
 	}
 
 	ioapic_resources = res;

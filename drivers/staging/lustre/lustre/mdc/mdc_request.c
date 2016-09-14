@@ -142,9 +142,8 @@ static int mdc_getattr_common(struct obd_export *exp,
 
 	CDEBUG(D_NET, "mode: %o\n", body->mode);
 
+	mdc_update_max_ea_from_body(exp, body);
 	if (body->eadatasize != 0) {
-		mdc_update_max_ea_from_body(exp, body);
-
 		eadata = req_capsule_server_sized_get(pill, &RMF_MDT_MD,
 						      body->eadatasize);
 		if (!eadata)
@@ -1169,7 +1168,7 @@ static int mdc_ioc_hsm_progress(struct obd_export *exp,
 		goto out;
 	}
 
-	mdc_pack_body(req, NULL, OBD_MD_FLRMTPERM, 0, 0, 0);
+	mdc_pack_body(req, NULL, OBD_MD_FLRMTPERM, 0, -1, 0);
 
 	/* Copy hsm_progress struct */
 	req_hpk = req_capsule_client_get(&req->rq_pill, &RMF_MDS_HSM_PROGRESS);
@@ -1203,7 +1202,7 @@ static int mdc_ioc_hsm_ct_register(struct obd_import *imp, __u32 archives)
 		goto out;
 	}
 
-	mdc_pack_body(req, NULL, OBD_MD_FLRMTPERM, 0, 0, 0);
+	mdc_pack_body(req, NULL, OBD_MD_FLRMTPERM, 0, -1, 0);
 
 	/* Copy hsm_progress struct */
 	archive_mask = req_capsule_client_get(&req->rq_pill,
@@ -1278,7 +1277,7 @@ static int mdc_ioc_hsm_ct_unregister(struct obd_import *imp)
 		goto out;
 	}
 
-	mdc_pack_body(req, NULL, OBD_MD_FLRMTPERM, 0, 0, 0);
+	mdc_pack_body(req, NULL, OBD_MD_FLRMTPERM, 0, -1, 0);
 
 	ptlrpc_request_set_replen(req);
 
@@ -1395,7 +1394,7 @@ static int mdc_ioc_hsm_request(struct obd_export *exp,
 		return rc;
 	}
 
-	mdc_pack_body(req, NULL, OBD_MD_FLRMTPERM, 0, 0, 0);
+	mdc_pack_body(req, NULL, OBD_MD_FLRMTPERM, 0, -1, 0);
 
 	/* Copy hsm_request struct */
 	req_hr = req_capsule_client_get(&req->rq_pill, &RMF_MDS_HSM_REQUEST);
@@ -1952,7 +1951,7 @@ static void lustre_swab_hal(struct hsm_action_list *h)
 	__swab32s(&h->hal_count);
 	__swab32s(&h->hal_archive_id);
 	__swab64s(&h->hal_flags);
-	hai = hai_zero(h);
+	hai = hai_first(h);
 	for (i = 0; i < h->hal_count; i++, hai = hai_next(hai))
 		lustre_swab_hai(hai);
 }
@@ -2249,7 +2248,7 @@ static struct obd_uuid *mdc_get_uuid(struct obd_export *exp)
  * recovery, non zero value will be return if the lock can be canceled,
  * or zero returned for not
  */
-static int mdc_cancel_for_recovery(struct ldlm_lock *lock)
+static int mdc_cancel_weight(struct ldlm_lock *lock)
 {
 	if (lock->l_resource->lr_type != LDLM_IBITS)
 		return 0;
@@ -2314,12 +2313,14 @@ static int mdc_setup(struct obd_device *obd, struct lustre_cfg *cfg)
 		return -ENOMEM;
 	mdc_init_rpc_lock(cli->cl_rpc_lock);
 
-	ptlrpcd_addref();
+	rc = ptlrpcd_addref();
+	if (rc < 0)
+		goto err_rpc_lock;
 
 	cli->cl_close_lock = kzalloc(sizeof(*cli->cl_close_lock), GFP_NOFS);
 	if (!cli->cl_close_lock) {
 		rc = -ENOMEM;
-		goto err_rpc_lock;
+		goto err_ptlrpcd_decref;
 	}
 	mdc_init_rpc_lock(cli->cl_close_lock);
 
@@ -2331,7 +2332,7 @@ static int mdc_setup(struct obd_device *obd, struct lustre_cfg *cfg)
 	sptlrpc_lprocfs_cliobd_attach(obd);
 	ptlrpc_lprocfs_register_obd(obd);
 
-	ns_register_cancel(obd->obd_namespace, mdc_cancel_for_recovery);
+	ns_register_cancel(obd->obd_namespace, mdc_cancel_weight);
 
 	obd->obd_namespace->ns_lvbo = &inode_lvbo;
 
@@ -2345,9 +2346,10 @@ static int mdc_setup(struct obd_device *obd, struct lustre_cfg *cfg)
 
 err_close_lock:
 	kfree(cli->cl_close_lock);
+err_ptlrpcd_decref:
+	ptlrpcd_decref();
 err_rpc_lock:
 	kfree(cli->cl_rpc_lock);
-	ptlrpcd_decref();
 	return rc;
 }
 

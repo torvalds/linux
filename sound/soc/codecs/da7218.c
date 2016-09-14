@@ -1868,27 +1868,27 @@ static int da7218_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 
 	/* Verify 32KHz, 2MHz - 54MHz MCLK provided, and set input divider */
 	if (da7218->mclk_rate == 32768) {
-		indiv_bits = DA7218_PLL_INDIV_2_5_MHZ;
-		indiv = DA7218_PLL_INDIV_2_10_MHZ_VAL;
+		indiv_bits = DA7218_PLL_INDIV_9_TO_18_MHZ;
+		indiv = DA7218_PLL_INDIV_9_TO_18_MHZ_VAL;
 	} else if (da7218->mclk_rate < 2000000) {
 		dev_err(codec->dev, "PLL input clock %d below valid range\n",
 			da7218->mclk_rate);
 		return -EINVAL;
-	} else if (da7218->mclk_rate <= 5000000) {
-		indiv_bits = DA7218_PLL_INDIV_2_5_MHZ;
-		indiv = DA7218_PLL_INDIV_2_10_MHZ_VAL;
-	} else if (da7218->mclk_rate <= 10000000) {
-		indiv_bits = DA7218_PLL_INDIV_5_10_MHZ;
-		indiv = DA7218_PLL_INDIV_2_10_MHZ_VAL;
-	} else if (da7218->mclk_rate <= 20000000) {
-		indiv_bits = DA7218_PLL_INDIV_10_20_MHZ;
-		indiv = DA7218_PLL_INDIV_10_20_MHZ_VAL;
-	} else if (da7218->mclk_rate <= 40000000) {
-		indiv_bits = DA7218_PLL_INDIV_20_40_MHZ;
-		indiv = DA7218_PLL_INDIV_20_40_MHZ_VAL;
+	} else if (da7218->mclk_rate <= 4500000) {
+		indiv_bits = DA7218_PLL_INDIV_2_TO_4_5_MHZ;
+		indiv = DA7218_PLL_INDIV_2_TO_4_5_MHZ_VAL;
+	} else if (da7218->mclk_rate <= 9000000) {
+		indiv_bits = DA7218_PLL_INDIV_4_5_TO_9_MHZ;
+		indiv = DA7218_PLL_INDIV_4_5_TO_9_MHZ_VAL;
+	} else if (da7218->mclk_rate <= 18000000) {
+		indiv_bits = DA7218_PLL_INDIV_9_TO_18_MHZ;
+		indiv = DA7218_PLL_INDIV_9_TO_18_MHZ_VAL;
+	} else if (da7218->mclk_rate <= 36000000) {
+		indiv_bits = DA7218_PLL_INDIV_18_TO_36_MHZ;
+		indiv = DA7218_PLL_INDIV_18_TO_36_MHZ_VAL;
 	} else if (da7218->mclk_rate <= 54000000) {
-		indiv_bits = DA7218_PLL_INDIV_40_54_MHZ;
-		indiv = DA7218_PLL_INDIV_40_54_MHZ_VAL;
+		indiv_bits = DA7218_PLL_INDIV_36_TO_54_MHZ;
+		indiv = DA7218_PLL_INDIV_36_TO_54_MHZ_VAL;
 	} else {
 		dev_err(codec->dev, "PLL input clock %d above valid range\n",
 			da7218->mclk_rate);

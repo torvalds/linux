@@ -74,7 +74,8 @@ static int dflt_msg_enable = DFLT_MSG_ENABLE;
 
 module_param(dflt_msg_enable, int, 0644);
 MODULE_PARM_DESC(dflt_msg_enable,
-		 "default adapter ethtool message level bitmap");
+		 "default adapter ethtool message level bitmap, "
+		 "deprecated parameter");
 
 /*
  * The driver uses the best interrupt scheme available on a platform in the
@@ -1703,6 +1704,105 @@ static const struct ethtool_ops cxgb4vf_ethtool_ops = {
  */
 
 /*
+ * Show Firmware Mailbox Command/Reply Log
+ *
+ * Note that we don't do any locking when dumping the Firmware Mailbox Log so
+ * it's possible that we can catch things during a log update and therefore
+ * see partially corrupted log entries.  But i9t's probably Good Enough(tm).
+ * If we ever decide that we want to make sure that we're dumping a coherent
+ * log, we'd need to perform locking in the mailbox logging and in
+ * mboxlog_open() where we'd need to grab the entire mailbox log in one go
+ * like we do for the Firmware Device Log.  But as stated above, meh ...
+ */
+static int mboxlog_show(struct seq_file *seq, void *v)
+{
+	struct adapter *adapter = seq->private;
+	struct mbox_cmd_log *log = adapter->mbox_log;
+	struct mbox_cmd *entry;
+	int entry_idx, i;
+
+	if (v == SEQ_START_TOKEN) {
+		seq_printf(seq,
+			   "%10s  %15s  %5s  %5s  %s\n",
+			   "Seq#", "Tstamp", "Atime", "Etime",
+			   "Command/Reply");
+		return 0;
+	}
+
+	entry_idx = log->cursor + ((uintptr_t)v - 2);
+	if (entry_idx >= log->size)
+		entry_idx -= log->size;
+	entry = mbox_cmd_log_entry(log, entry_idx);
+
+	/* skip over unused entries */
+	if (entry->timestamp == 0)
+		return 0;
+
+	seq_printf(seq, "%10u  %15llu  %5d  %5d",
+		   entry->seqno, entry->timestamp,
+		   entry->access, entry->execute);
+	for (i = 0; i < MBOX_LEN / 8; i++) {
+		u64 flit = entry->cmd[i];
+		u32 hi = (u32)(flit >> 32);
+		u32 lo = (u32)flit;
+
+		seq_printf(seq, "  %08x %08x", hi, lo);
+	}
+	seq_puts(seq, "\n");
+	return 0;
+}
+
+static inline void *mboxlog_get_idx(struct seq_file *seq, loff_t pos)
+{
+	struct adapter *adapter = seq->private;
+	struct mbox_cmd_log *log = adapter->mbox_log;
+
+	return ((pos <= log->size) ? (void *)(uintptr_t)(pos + 1) : NULL);
+}
+
+static void *mboxlog_start(struct seq_file *seq, loff_t *pos)
+{
+	return *pos ? mboxlog_get_idx(seq, *pos) : SEQ_START_TOKEN;
+}
+
+static void *mboxlog_next(struct seq_file *seq, void *v, loff_t *pos)
+{
+	++*pos;
+	return mboxlog_get_idx(seq, *pos);
+}
+
+static void mboxlog_stop(struct seq_file *seq, void *v)
+{
+}
+
+static const struct seq_operations mboxlog_seq_ops = {
+	.start = mboxlog_start,
+	.next  = mboxlog_next,
+	.stop  = mboxlog_stop,
+	.show  = mboxlog_show
+};
+
+static int mboxlog_open(struct inode *inode, struct file *file)
+{
+	int res = seq_open(file, &mboxlog_seq_ops);
+
+	if (!res) {
+		struct seq_file *seq = file->private_data;
+
+		seq->private = inode->i_private;
+	}
+	return res;
+}
+
+static const struct file_operations mboxlog_fops = {
+	.owner   = THIS_MODULE,
+	.open    = mboxlog_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = seq_release,
+};
+
+/*
  * Show SGE Queue Set information.  We display QPL Queues Sets per line.
  */
 #define QPL	4
@@ -2121,6 +2221,7 @@ struct cxgb4vf_debugfs_entry {
 };
 
 static struct cxgb4vf_debugfs_entry debugfs_files[] = {
+	{ "mboxlog",    S_IRUGO, &mboxlog_fops },
 	{ "sge_qinfo",  S_IRUGO, &sge_qinfo_debugfs_fops },
 	{ "sge_qstats", S_IRUGO, &sge_qstats_proc_fops },
 	{ "resources",  S_IRUGO, &resources_proc_fops },
@@ -2663,6 +2764,16 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	adapter->pdev = pdev;
 	adapter->pdev_dev = &pdev->dev;
 
+	adapter->mbox_log = kzalloc(sizeof(*adapter->mbox_log) +
+				    (sizeof(struct mbox_cmd) *
+				     T4VF_OS_LOG_MBOX_CMDS),
+				    GFP_KERNEL);
+	if (!adapter->mbox_log) {
+		err = -ENOMEM;
+		goto err_free_adapter;
+	}
+	adapter->mbox_log->size = T4VF_OS_LOG_MBOX_CMDS;
+
 	/*
 	 * Initialize SMP data synchronization resources.
 	 */
@@ -2912,6 +3023,7 @@ err_unmap_bar0:
 	iounmap(adapter->regs);
 
 err_free_adapter:
+	kfree(adapter->mbox_log);
 	kfree(adapter);
 
 err_release_regions:
@@ -2981,6 +3093,7 @@ static void cxgb4vf_pci_remove(struct pci_dev *pdev)
 		iounmap(adapter->regs);
 		if (!is_t4(adapter->params.chip))
 			iounmap(adapter->bar2);
+		kfree(adapter->mbox_log);
 		kfree(adapter);
 	}
 

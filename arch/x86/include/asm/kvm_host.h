@@ -27,6 +27,7 @@
 #include <linux/irqbypass.h>
 #include <linux/hyperv.h>
 
+#include <asm/apic.h>
 #include <asm/pvclock-abi.h>
 #include <asm/desc.h>
 #include <asm/mtrr.h>
@@ -562,7 +563,6 @@ struct kvm_vcpu_arch {
 	struct {
 		u64 msr_val;
 		u64 last_steal;
-		u64 accum_steal;
 		struct gfn_to_hva_cache stime;
 		struct kvm_steal_time steal;
 	} st;
@@ -774,6 +774,11 @@ struct kvm_arch {
 	u8 nr_reserved_ioapic_pins;
 
 	bool disabled_lapic_found;
+
+	/* Struct members for AVIC */
+	u32 ldr_mode;
+	struct page *avic_logical_id_table_page;
+	struct page *avic_physical_id_table_page;
 };
 
 struct kvm_vm_stat {
@@ -804,6 +809,7 @@ struct kvm_vcpu_stat {
 	u32 halt_exits;
 	u32 halt_successful_poll;
 	u32 halt_attempted_poll;
+	u32 halt_poll_invalid;
 	u32 halt_wakeup;
 	u32 request_irq_exits;
 	u32 irq_exits;
@@ -847,6 +853,9 @@ struct kvm_x86_ops {
 	bool (*cpu_has_accelerated_tpr)(void);
 	bool (*cpu_has_high_real_mode_segbase)(void);
 	void (*cpuid_update)(struct kvm_vcpu *vcpu);
+
+	int (*vm_init)(struct kvm *kvm);
+	void (*vm_destroy)(struct kvm *kvm);
 
 	/* Create, but do not attach this VCPU */
 	struct kvm_vcpu *(*vcpu_create)(struct kvm *kvm, unsigned id);
@@ -914,7 +923,7 @@ struct kvm_x86_ops {
 	bool (*get_enable_apicv)(void);
 	void (*refresh_apicv_exec_ctrl)(struct kvm_vcpu *vcpu);
 	void (*hwapic_irr_update)(struct kvm_vcpu *vcpu, int max_irr);
-	void (*hwapic_isr_update)(struct kvm *kvm, int isr);
+	void (*hwapic_isr_update)(struct kvm_vcpu *vcpu, int isr);
 	void (*load_eoi_exitmap)(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap);
 	void (*set_virtual_x2apic_mode)(struct kvm_vcpu *vcpu, bool set);
 	void (*set_apic_access_page_addr)(struct kvm_vcpu *vcpu, hpa_t hpa);
@@ -990,8 +999,13 @@ struct kvm_x86_ops {
 	 */
 	int (*pre_block)(struct kvm_vcpu *vcpu);
 	void (*post_block)(struct kvm_vcpu *vcpu);
+
+	void (*vcpu_blocking)(struct kvm_vcpu *vcpu);
+	void (*vcpu_unblocking)(struct kvm_vcpu *vcpu);
+
 	int (*update_pi_irte)(struct kvm *kvm, unsigned int host_irq,
 			      uint32_t guest_irq, bool set);
+	void (*apicv_post_state_restore)(struct kvm_vcpu *vcpu);
 };
 
 struct kvm_arch_async_pf {
@@ -1341,7 +1355,28 @@ bool kvm_intr_is_single_vcpu(struct kvm *kvm, struct kvm_lapic_irq *irq,
 void kvm_set_msi_irq(struct kvm_kernel_irq_routing_entry *e,
 		     struct kvm_lapic_irq *irq);
 
-static inline void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu) {}
-static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu) {}
+static inline void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu)
+{
+	if (kvm_x86_ops->vcpu_blocking)
+		kvm_x86_ops->vcpu_blocking(vcpu);
+}
+
+static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu)
+{
+	if (kvm_x86_ops->vcpu_unblocking)
+		kvm_x86_ops->vcpu_unblocking(vcpu);
+}
+
+static inline void kvm_arch_vcpu_block_finish(struct kvm_vcpu *vcpu) {}
+
+static inline int kvm_cpu_get_apicid(int mps_cpu)
+{
+#ifdef CONFIG_X86_LOCAL_APIC
+	return __default_cpu_present_to_apicid(mps_cpu);
+#else
+	WARN_ON_ONCE(1);
+	return BAD_APICID;
+#endif
+}
 
 #endif /* _ASM_X86_KVM_HOST_H */

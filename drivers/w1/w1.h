@@ -58,6 +58,8 @@ struct w1_reg_num
 #define W1_ALARM_SEARCH		0xEC
 #define W1_CONVERT_TEMP		0x44
 #define W1_SKIP_ROM		0xCC
+#define W1_COPY_SCRATCHPAD	0x48
+#define W1_WRITE_SCRATCHPAD	0x4E
 #define W1_READ_SCRATCHPAD	0xBE
 #define W1_READ_ROM		0x33
 #define W1_READ_PSUPPLY		0xB4

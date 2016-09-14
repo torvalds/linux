@@ -716,7 +716,8 @@ static int smi_fe_init(struct smi_port *port)
 	/* init MAC.*/
 	ret = smi_read_eeprom(&dev->i2c_bus[0], 0xc0, mac_ee, 16);
 	dev_info(&port->dev->pci_dev->dev,
-		"DVBSky SMI PCIe MAC= %pM\n", mac_ee + (port->idx)*8);
+		"%s port %d MAC: %pM\n", dev->info->name,
+		port->idx, mac_ee + (port->idx)*8);
 	memcpy(adap->proposed_mac, mac_ee + (port->idx)*8, 6);
 	return ret;
 }
@@ -1066,6 +1067,7 @@ static struct smi_cfg_info dvbsky_s950_cfg = {
 	.ts_1 = SMI_TS_DMA_BOTH,
 	.fe_0 = DVBSKY_FE_NULL,
 	.fe_1 = DVBSKY_FE_M88DS3103,
+	.rc_map = RC_MAP_DVBSKY,
 };
 
 static struct smi_cfg_info dvbsky_s952_cfg = {
@@ -1075,6 +1077,7 @@ static struct smi_cfg_info dvbsky_s952_cfg = {
 	.ts_1 = SMI_TS_DMA_BOTH,
 	.fe_0 = DVBSKY_FE_M88RS6000,
 	.fe_1 = DVBSKY_FE_M88RS6000,
+	.rc_map = RC_MAP_DVBSKY,
 };
 
 static struct smi_cfg_info dvbsky_t9580_cfg = {
@@ -1084,6 +1087,17 @@ static struct smi_cfg_info dvbsky_t9580_cfg = {
 	.ts_1 = SMI_TS_DMA_BOTH,
 	.fe_0 = DVBSKY_FE_SIT2,
 	.fe_1 = DVBSKY_FE_M88DS3103,
+	.rc_map = RC_MAP_DVBSKY,
+};
+
+static struct smi_cfg_info technotrend_s2_4200_cfg = {
+	.type = SMI_TECHNOTREND_S2_4200,
+	.name = "TechnoTrend TT-budget S2-4200 Twin",
+	.ts_0 = SMI_TS_DMA_BOTH,
+	.ts_1 = SMI_TS_DMA_BOTH,
+	.fe_0 = DVBSKY_FE_M88RS6000,
+	.fe_1 = DVBSKY_FE_M88RS6000,
+	.rc_map = RC_MAP_TT_1500,
 };
 
 /* PCI IDs */
@@ -1096,6 +1110,7 @@ static const struct pci_device_id smi_id_table[] = {
 	SMI_ID(0x4254, 0x0550, dvbsky_s950_cfg),
 	SMI_ID(0x4254, 0x0552, dvbsky_s952_cfg),
 	SMI_ID(0x4254, 0x5580, dvbsky_t9580_cfg),
+	SMI_ID(0x13c2, 0x3016, technotrend_s2_4200_cfg),
 	{0}
 };
 MODULE_DEVICE_TABLE(pci, smi_id_table);

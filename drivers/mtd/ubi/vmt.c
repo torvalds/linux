@@ -405,7 +405,7 @@ int ubi_remove_volume(struct ubi_volume_desc *desc, int no_vtbl)
 	if (!no_vtbl)
 		self_check_volumes(ubi);
 
-	return err;
+	return 0;
 
 out_err:
 	ubi_err(ubi, "cannot remove volume %d, error %d", vol_id, err);

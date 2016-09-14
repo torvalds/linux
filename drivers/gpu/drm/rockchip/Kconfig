@@ -16,6 +16,15 @@ config DRM_ROCKCHIP
 	  2D or 3D acceleration; acceleration is performed by other
 	  IP found on the SoC.
 
+config ROCKCHIP_ANALOGIX_DP
+	tristate "Rockchip specific extensions for Analogix DP driver"
+	depends on DRM_ROCKCHIP
+	select DRM_ANALOGIX_DP
+	help
+	  This selects support for Rockchip SoC specific extensions
+	  for the Analogix Core DP driver. If you want to enable DP
+	  on RK3288 based SoC, you should selet this option.
+
 config ROCKCHIP_DW_HDMI
         tristate "Rockchip specific extensions for Synopsys DW HDMI"
         depends on DRM_ROCKCHIP

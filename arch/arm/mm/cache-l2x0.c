@@ -647,11 +647,6 @@ static void __init l2c310_enable(void __iomem *base, unsigned num_lock)
 		aux &= ~(L310_AUX_CTRL_FULL_LINE_ZERO | L310_AUX_CTRL_EARLY_BRESP);
 	}
 
-	/* r3p0 or later has power control register */
-	if (rev >= L310_CACHE_ID_RTL_R3P0)
-		l2x0_saved_regs.pwr_ctrl = L310_DYNAMIC_CLK_GATING_EN |
-						L310_STNDBY_MODE_EN;
-
 	/*
 	 * Always enable non-secure access to the lockdown registers -
 	 * we write to them as part of the L2C enable sequence so they
@@ -1141,6 +1136,7 @@ static void __init l2c310_of_parse(const struct device_node *np,
 	u32 filter[2] = { 0, 0 };
 	u32 assoc;
 	u32 prefetch;
+	u32 power;
 	u32 val;
 	int ret;
 
@@ -1271,6 +1267,26 @@ static void __init l2c310_of_parse(const struct device_node *np,
 	}
 
 	l2x0_saved_regs.prefetch_ctrl = prefetch;
+
+	power = l2x0_saved_regs.pwr_ctrl |
+		L310_DYNAMIC_CLK_GATING_EN | L310_STNDBY_MODE_EN;
+
+	ret = of_property_read_u32(np, "arm,dynamic-clock-gating", &val);
+	if (!ret) {
+		if (!val)
+			power &= ~L310_DYNAMIC_CLK_GATING_EN;
+	} else if (ret != -EINVAL) {
+		pr_err("L2C-310 OF dynamic-clock-gating property value is missing or invalid\n");
+	}
+	ret = of_property_read_u32(np, "arm,standby-mode", &val);
+	if (!ret) {
+		if (!val)
+			power &= ~L310_STNDBY_MODE_EN;
+	} else if (ret != -EINVAL) {
+		pr_err("L2C-310 OF standby-mode property value is missing or invalid\n");
+	}
+
+	l2x0_saved_regs.pwr_ctrl = power;
 }
 
 static const struct l2c_init_data of_l2c310_data __initconst = {

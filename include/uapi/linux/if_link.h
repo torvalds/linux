@@ -155,6 +155,7 @@ enum {
 	IFLA_PROTO_DOWN,
 	IFLA_GSO_MAX_SEGS,
 	IFLA_GSO_MAX_SIZE,
+	IFLA_PAD,
 	__IFLA_MAX
 };
 
@@ -270,6 +271,8 @@ enum {
 	IFLA_BR_NF_CALL_IP6TABLES,
 	IFLA_BR_NF_CALL_ARPTABLES,
 	IFLA_BR_VLAN_DEFAULT_PVID,
+	IFLA_BR_PAD,
+	IFLA_BR_VLAN_STATS_ENABLED,
 	__IFLA_BR_MAX,
 };
 
@@ -312,6 +315,7 @@ enum {
 	IFLA_BRPORT_HOLD_TIMER,
 	IFLA_BRPORT_FLUSH,
 	IFLA_BRPORT_MULTICAST_ROUTER,
+	IFLA_BRPORT_PAD,
 	__IFLA_BRPORT_MAX
 };
 #define IFLA_BRPORT_MAX (__IFLA_BRPORT_MAX - 1)
@@ -431,6 +435,7 @@ enum {
 	IFLA_MACSEC_SCB,
 	IFLA_MACSEC_REPLAY_PROTECT,
 	IFLA_MACSEC_VALIDATION,
+	IFLA_MACSEC_PAD,
 	__IFLA_MACSEC_MAX,
 };
 
@@ -488,6 +493,7 @@ enum {
 	IFLA_VXLAN_REMCSUM_NOPARTIAL,
 	IFLA_VXLAN_COLLECT_METADATA,
 	IFLA_VXLAN_LABEL,
+	IFLA_VXLAN_GPE,
 	__IFLA_VXLAN_MAX
 };
 #define IFLA_VXLAN_MAX	(__IFLA_VXLAN_MAX - 1)
@@ -514,6 +520,24 @@ enum {
 	__IFLA_GENEVE_MAX
 };
 #define IFLA_GENEVE_MAX	(__IFLA_GENEVE_MAX - 1)
+
+/* PPP section */
+enum {
+	IFLA_PPP_UNSPEC,
+	IFLA_PPP_DEV_FD,
+	__IFLA_PPP_MAX
+};
+#define IFLA_PPP_MAX (__IFLA_PPP_MAX - 1)
+
+/* GTP section */
+enum {
+	IFLA_GTP_UNSPEC,
+	IFLA_GTP_FD0,
+	IFLA_GTP_FD1,
+	IFLA_GTP_PDP_HASHSIZE,
+	__IFLA_GTP_MAX,
+};
+#define IFLA_GTP_MAX (__IFLA_GTP_MAX - 1)
 
 /* Bonding section */
 
@@ -664,6 +688,7 @@ enum {
 	IFLA_VF_STATS_TX_BYTES,
 	IFLA_VF_STATS_BROADCAST,
 	IFLA_VF_STATS_MULTICAST,
+	IFLA_VF_STATS_PAD,
 	__IFLA_VF_STATS_MAX,
 };
 
@@ -774,9 +799,46 @@ enum {
 	IFLA_HSR_MULTICAST_SPEC,	/* Last byte of supervision addr */
 	IFLA_HSR_SUPERVISION_ADDR,	/* Supervision frame multicast addr */
 	IFLA_HSR_SEQ_NR,
+	IFLA_HSR_VERSION,		/* HSR version */
 	__IFLA_HSR_MAX,
 };
 
 #define IFLA_HSR_MAX (__IFLA_HSR_MAX - 1)
+
+/* STATS section */
+
+struct if_stats_msg {
+	__u8  family;
+	__u8  pad1;
+	__u16 pad2;
+	__u32 ifindex;
+	__u32 filter_mask;
+};
+
+/* A stats attribute can be netdev specific or a global stat.
+ * For netdev stats, lets use the prefix IFLA_STATS_LINK_*
+ */
+enum {
+	IFLA_STATS_UNSPEC, /* also used as 64bit pad attribute */
+	IFLA_STATS_LINK_64,
+	IFLA_STATS_LINK_XSTATS,
+	__IFLA_STATS_MAX,
+};
+
+#define IFLA_STATS_MAX (__IFLA_STATS_MAX - 1)
+
+#define IFLA_STATS_FILTER_BIT(ATTR)	(1 << (ATTR - 1))
+
+/* These are embedded into IFLA_STATS_LINK_XSTATS:
+ * [IFLA_STATS_LINK_XSTATS]
+ * -> [LINK_XSTATS_TYPE_xxx]
+ *    -> [rtnl link type specific attributes]
+ */
+enum {
+	LINK_XSTATS_TYPE_UNSPEC,
+	LINK_XSTATS_TYPE_BRIDGE,
+	__LINK_XSTATS_TYPE_MAX
+};
+#define LINK_XSTATS_TYPE_MAX (__LINK_XSTATS_TYPE_MAX - 1)
 
 #endif /* _UAPI_LINUX_IF_LINK_H */

@@ -117,8 +117,41 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 --syscalls::
 	Trace system calls. This options is enabled by default.
 
+--call-graph [mode,type,min[,limit],order[,key][,branch]]::
+        Setup and enable call-graph (stack chain/backtrace) recording.
+        See `--call-graph` section in perf-record and perf-report
+        man pages for details. The ones that are most useful in 'perf trace'
+        are 'dwarf' and 'lbr', where available, try: 'perf trace --call-graph dwarf'.
+
+        Using this will, for the root user, bump the value of --mmap-pages to 4
+        times the maximum for non-root users, based on the kernel.perf_event_mlock_kb
+        sysctl. This is done only if the user doesn't specify a --mmap-pages value.
+
+--kernel-syscall-graph::
+	 Show the kernel callchains on the syscall exit path.
+
 --event::
 	Trace other events, see 'perf list' for a complete list.
+
+--max-stack::
+        Set the stack depth limit when parsing the callchain, anything
+        beyond the specified depth will be ignored. Note that at this point
+        this is just about the presentation part, i.e. the kernel is still
+        not limiting, the overhead of callchains needs to be set via the
+        knobs in --call-graph dwarf.
+
+        Implies '--call-graph dwarf' when --call-graph not present on the
+        command line, on systems where DWARF unwinding was built in.
+
+        Default: /proc/sys/kernel/perf_event_max_stack when present for
+                 live sessions (without --input/-i), 127 otherwise.
+
+--min-stack::
+        Set the stack depth limit when parsing the callchain, anything
+        below the specified depth will be ignored. Disabled by default.
+
+        Implies '--call-graph dwarf' when --call-graph not present on the
+        command line, on systems where DWARF unwinding was built in.
 
 --proc-map-timeout::
 	When processing pre-existing threads /proc/XXX/mmap, it may take a long time,

@@ -3,7 +3,7 @@
 #
 
 config NET_SWITCHDEV
-	bool "Switch (and switch-ish) device support (EXPERIMENTAL)"
+	bool "Switch (and switch-ish) device support"
 	depends on INET
 	---help---
 	  This module provides glue between core networking code and device

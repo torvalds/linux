@@ -1128,7 +1128,7 @@ static int rx_pkt(struct atm_dev *dev)
 	/* make the ptr point to the corresponding buffer desc entry */  
 	buf_desc_ptr += desc;	  
         if (!desc || (desc > iadev->num_rx_desc) || 
-                      ((buf_desc_ptr->vc_index & 0xffff) > iadev->num_vc)) { 
+                      ((buf_desc_ptr->vc_index & 0xffff) >= iadev->num_vc)) {
             free_desc(dev, desc);
             IF_ERR(printk("IA: bad descriptor desc = %d \n", desc);)
             return -1;

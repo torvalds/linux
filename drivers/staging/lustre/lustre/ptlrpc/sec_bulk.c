@@ -41,7 +41,6 @@
 #define DEBUG_SUBSYSTEM S_SEC
 
 #include "../../include/linux/libcfs/libcfs.h"
-#include <linux/crypto.h>
 
 #include "../include/obd.h"
 #include "../include/obd_cksum.h"
@@ -511,7 +510,6 @@ int sptlrpc_get_bulk_checksum(struct ptlrpc_bulk_desc *desc, __u8 alg,
 {
 	struct cfs_crypto_hash_desc *hdesc;
 	int hashsize;
-	char hashbuf[64];
 	unsigned int bufsize;
 	int i, err;
 
@@ -529,21 +527,23 @@ int sptlrpc_get_bulk_checksum(struct ptlrpc_bulk_desc *desc, __u8 alg,
 
 	for (i = 0; i < desc->bd_iov_count; i++) {
 		cfs_crypto_hash_update_page(hdesc, desc->bd_iov[i].kiov_page,
-				  desc->bd_iov[i].kiov_offset & ~CFS_PAGE_MASK,
+				  desc->bd_iov[i].kiov_offset & ~PAGE_MASK,
 				  desc->bd_iov[i].kiov_len);
 	}
+
 	if (hashsize > buflen) {
+		unsigned char hashbuf[CFS_CRYPTO_HASH_DIGESTSIZE_MAX];
+
 		bufsize = sizeof(hashbuf);
-		err = cfs_crypto_hash_final(hdesc, (unsigned char *)hashbuf,
-					    &bufsize);
+		LASSERTF(bufsize >= hashsize, "bufsize = %u < hashsize %u\n",
+			 bufsize, hashsize);
+		err = cfs_crypto_hash_final(hdesc, hashbuf, &bufsize);
 		memcpy(buf, hashbuf, buflen);
 	} else {
 		bufsize = buflen;
 		err = cfs_crypto_hash_final(hdesc, buf, &bufsize);
 	}
 
-	if (err)
-		cfs_crypto_hash_final(hdesc, NULL, NULL);
 	return err;
 }
 EXPORT_SYMBOL(sptlrpc_get_bulk_checksum);

@@ -20,9 +20,9 @@ extern void debug_mutex_wake_waiter(struct mutex *lock,
 extern void debug_mutex_free_waiter(struct mutex_waiter *waiter);
 extern void debug_mutex_add_waiter(struct mutex *lock,
 				   struct mutex_waiter *waiter,
-				   struct thread_info *ti);
+				   struct task_struct *task);
 extern void mutex_remove_waiter(struct mutex *lock, struct mutex_waiter *waiter,
-				struct thread_info *ti);
+				struct task_struct *task);
 extern void debug_mutex_unlock(struct mutex *lock);
 extern void debug_mutex_init(struct mutex *lock, const char *name,
 			     struct lock_class_key *key);

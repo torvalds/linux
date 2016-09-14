@@ -1,7 +1,7 @@
 config LKL
        def_bool y
        depends on !SMP && !MMU && !COREDUMP && !SECCOMP && !UPROBES && !COMPAT && !USER_RETURN_NOTIFIER
-       select ARCH_THREAD_INFO_ALLOCATOR
+       select ARCH_THREAD_STACK_ALLOCATOR
        select RWSEM_GENERIC_SPINLOCK
        select GENERIC_ATOMIC64
        select SEMAPHORE_SLEEPERS

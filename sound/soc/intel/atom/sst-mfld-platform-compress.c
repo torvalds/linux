@@ -182,24 +182,29 @@ static int sst_platform_compr_trigger(struct snd_compr_stream *cstream, int cmd)
 	case SNDRV_PCM_TRIGGER_START:
 		if (stream->compr_ops->stream_start)
 			return stream->compr_ops->stream_start(sst->dev, stream->id);
+		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		if (stream->compr_ops->stream_drop)
 			return stream->compr_ops->stream_drop(sst->dev, stream->id);
+		break;
 	case SND_COMPR_TRIGGER_DRAIN:
 		if (stream->compr_ops->stream_drain)
 			return stream->compr_ops->stream_drain(sst->dev, stream->id);
+		break;
 	case SND_COMPR_TRIGGER_PARTIAL_DRAIN:
 		if (stream->compr_ops->stream_partial_drain)
 			return stream->compr_ops->stream_partial_drain(sst->dev, stream->id);
+		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		if (stream->compr_ops->stream_pause)
 			return stream->compr_ops->stream_pause(sst->dev, stream->id);
+		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		if (stream->compr_ops->stream_pause_release)
 			return stream->compr_ops->stream_pause_release(sst->dev, stream->id);
-	default:
-		return -EINVAL;
+		break;
 	}
+	return -EINVAL;
 }
 
 static int sst_platform_compr_pointer(struct snd_compr_stream *cstream,

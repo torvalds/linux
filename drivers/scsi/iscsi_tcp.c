@@ -131,10 +131,10 @@ static void iscsi_sw_tcp_data_ready(struct sock *sk)
 	struct iscsi_tcp_conn *tcp_conn;
 	read_descriptor_t rd_desc;
 
-	read_lock(&sk->sk_callback_lock);
+	read_lock_bh(&sk->sk_callback_lock);
 	conn = sk->sk_user_data;
 	if (!conn) {
-		read_unlock(&sk->sk_callback_lock);
+		read_unlock_bh(&sk->sk_callback_lock);
 		return;
 	}
 	tcp_conn = conn->dd_data;
@@ -154,7 +154,7 @@ static void iscsi_sw_tcp_data_ready(struct sock *sk)
 	/* If we had to (atomically) map a highmem page,
 	 * unmap it now. */
 	iscsi_tcp_segment_unmap(&tcp_conn->in.segment);
-	read_unlock(&sk->sk_callback_lock);
+	read_unlock_bh(&sk->sk_callback_lock);
 }
 
 static void iscsi_sw_tcp_state_change(struct sock *sk)
@@ -165,10 +165,10 @@ static void iscsi_sw_tcp_state_change(struct sock *sk)
 	struct iscsi_session *session;
 	void (*old_state_change)(struct sock *);
 
-	read_lock(&sk->sk_callback_lock);
+	read_lock_bh(&sk->sk_callback_lock);
 	conn = sk->sk_user_data;
 	if (!conn) {
-		read_unlock(&sk->sk_callback_lock);
+		read_unlock_bh(&sk->sk_callback_lock);
 		return;
 	}
 	session = conn->session;
@@ -179,7 +179,7 @@ static void iscsi_sw_tcp_state_change(struct sock *sk)
 	tcp_sw_conn = tcp_conn->dd_data;
 	old_state_change = tcp_sw_conn->old_state_change;
 
-	read_unlock(&sk->sk_callback_lock);
+	read_unlock_bh(&sk->sk_callback_lock);
 
 	old_state_change(sk);
 }

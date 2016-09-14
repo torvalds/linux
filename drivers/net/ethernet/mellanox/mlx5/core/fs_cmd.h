@@ -34,6 +34,7 @@
 #define _MLX5_FS_CMD_
 
 int mlx5_cmd_create_flow_table(struct mlx5_core_dev *dev,
+			       u16 vport,
 			       enum fs_flow_table_type type, unsigned int level,
 			       unsigned int log_size, struct mlx5_flow_table
 			       *next_ft, unsigned int *table_id);
@@ -61,6 +62,7 @@ int mlx5_cmd_create_fte(struct mlx5_core_dev *dev,
 int mlx5_cmd_update_fte(struct mlx5_core_dev *dev,
 			struct mlx5_flow_table *ft,
 			unsigned group_id,
+			int modify_mask,
 			struct fs_fte *fte);
 
 int mlx5_cmd_delete_fte(struct mlx5_core_dev *dev,
@@ -69,4 +71,9 @@ int mlx5_cmd_delete_fte(struct mlx5_core_dev *dev,
 
 int mlx5_cmd_update_root_ft(struct mlx5_core_dev *dev,
 			    struct mlx5_flow_table *ft);
+
+int mlx5_cmd_fc_alloc(struct mlx5_core_dev *dev, u16 *id);
+int mlx5_cmd_fc_free(struct mlx5_core_dev *dev, u16 id);
+int mlx5_cmd_fc_query(struct mlx5_core_dev *dev, u16 id,
+		      u64 *packets, u64 *bytes);
 #endif

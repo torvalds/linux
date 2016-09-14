@@ -1,6 +1,6 @@
 #ifndef __NV04_DISPLAY_H__
 #define __NV04_DISPLAY_H__
-
+#include <subdev/bios.h>
 #include <subdev/bios/pll.h>
 
 #include "nouveau_display.h"

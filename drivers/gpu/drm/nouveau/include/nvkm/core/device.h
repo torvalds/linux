@@ -7,6 +7,7 @@ enum nvkm_devidx {
 	NVKM_SUBDEV_PCI,
 	NVKM_SUBDEV_VBIOS,
 	NVKM_SUBDEV_DEVINIT,
+	NVKM_SUBDEV_TOP,
 	NVKM_SUBDEV_IBUS,
 	NVKM_SUBDEV_GPIO,
 	NVKM_SUBDEV_I2C,
@@ -15,9 +16,9 @@ enum nvkm_devidx {
 	NVKM_SUBDEV_MC,
 	NVKM_SUBDEV_BUS,
 	NVKM_SUBDEV_TIMER,
+	NVKM_SUBDEV_INSTMEM,
 	NVKM_SUBDEV_FB,
 	NVKM_SUBDEV_LTC,
-	NVKM_SUBDEV_INSTMEM,
 	NVKM_SUBDEV_MMU,
 	NVKM_SUBDEV_BAR,
 	NVKM_SUBDEV_PMU,
@@ -131,6 +132,7 @@ struct nvkm_device {
 	struct nvkm_secboot *secboot;
 	struct nvkm_therm *therm;
 	struct nvkm_timer *timer;
+	struct nvkm_top *top;
 	struct nvkm_volt *volt;
 
 	struct nvkm_engine *bsp;
@@ -200,6 +202,7 @@ struct nvkm_device_chip {
 	int (*secboot )(struct nvkm_device *, int idx, struct nvkm_secboot **);
 	int (*therm   )(struct nvkm_device *, int idx, struct nvkm_therm **);
 	int (*timer   )(struct nvkm_device *, int idx, struct nvkm_timer **);
+	int (*top     )(struct nvkm_device *, int idx, struct nvkm_top **);
 	int (*volt    )(struct nvkm_device *, int idx, struct nvkm_volt **);
 
 	int (*bsp     )(struct nvkm_device *, int idx, struct nvkm_engine **);

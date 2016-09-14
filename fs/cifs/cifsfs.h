@@ -120,15 +120,19 @@ extern const char *cifs_get_link(struct dentry *, struct inode *,
 			struct delayed_call *);
 extern int cifs_symlink(struct inode *inode, struct dentry *direntry,
 			const char *symname);
-extern int	cifs_removexattr(struct dentry *, const char *);
-extern int	cifs_setxattr(struct dentry *, const char *, const void *,
-			size_t, int);
-extern ssize_t	cifs_getxattr(struct dentry *, const char *, void *, size_t);
+
+#ifdef CONFIG_CIFS_XATTR
+extern const struct xattr_handler *cifs_xattr_handlers[];
 extern ssize_t	cifs_listxattr(struct dentry *, char *, size_t);
+#else
+# define cifs_xattr_handlers NULL
+# define cifs_listxattr NULL
+#endif
+
 extern long cifs_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
 #ifdef CONFIG_CIFS_NFSD_EXPORT
 extern const struct export_operations cifs_export_ops;
 #endif /* CONFIG_CIFS_NFSD_EXPORT */
 
-#define CIFS_VERSION   "2.08"
+#define CIFS_VERSION   "2.09"
 #endif				/* _CIFSFS_H */

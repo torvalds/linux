@@ -26,3 +26,4 @@ extern bool acpi_atcs_functions_supported(void *device,
 extern int acpi_pcie_perf_request(void *device,
 						uint8_t perf_req,
 						bool advertise);
+extern bool acpi_atcs_notify_pcie_device_ready(void *device);

@@ -213,6 +213,11 @@ static void slabs_destroy(struct kmem_cache *cachep, struct list_head *list);
 static int enable_cpucache(struct kmem_cache *cachep, gfp_t gfp);
 static void cache_reap(struct work_struct *unused);
 
+static inline void fixup_objfreelist_debug(struct kmem_cache *cachep,
+						void **list);
+static inline void fixup_slab_list(struct kmem_cache *cachep,
+				struct kmem_cache_node *n, struct page *page,
+				void **list);
 static int slab_early_init = 1;
 
 #define INDEX_NODE kmalloc_index(sizeof(struct kmem_cache_node))
@@ -421,8 +426,6 @@ static struct kmem_cache kmem_cache_boot = {
 	.name = "kmem_cache",
 };
 
-#define BAD_ALIEN_MAGIC 0x01020304ul
-
 static DEFINE_PER_CPU(struct delayed_work, slab_reap_work);
 
 static inline struct array_cache *cpu_cache_get(struct kmem_cache *cachep)
@@ -519,22 +522,15 @@ static DEFINE_PER_CPU(unsigned long, slab_reap_node);
 
 static void init_reap_node(int cpu)
 {
-	int node;
-
-	node = next_node(cpu_to_mem(cpu), node_online_map);
-	if (node == MAX_NUMNODES)
-		node = first_node(node_online_map);
-
-	per_cpu(slab_reap_node, cpu) = node;
+	per_cpu(slab_reap_node, cpu) = next_node_in(cpu_to_mem(cpu),
+						    node_online_map);
 }
 
 static void next_reap_node(void)
 {
 	int node = __this_cpu_read(slab_reap_node);
 
-	node = next_node(node, node_online_map);
-	if (unlikely(node >= MAX_NUMNODES))
-		node = first_node(node_online_map);
+	node = next_node_in(node, node_online_map);
 	__this_cpu_write(slab_reap_node, node);
 }
 
@@ -644,7 +640,7 @@ static int transfer_objects(struct array_cache *to,
 static inline struct alien_cache **alloc_alien_cache(int node,
 						int limit, gfp_t gfp)
 {
-	return (struct alien_cache **)BAD_ALIEN_MAGIC;
+	return NULL;
 }
 
 static inline void free_alien_cache(struct alien_cache **ac_ptr)
@@ -850,6 +846,46 @@ static inline gfp_t gfp_exact_node(gfp_t flags)
 }
 #endif
 
+static int init_cache_node(struct kmem_cache *cachep, int node, gfp_t gfp)
+{
+	struct kmem_cache_node *n;
+
+	/*
+	 * Set up the kmem_cache_node for cpu before we can
+	 * begin anything. Make sure some other cpu on this
+	 * node has not already allocated this
+	 */
+	n = get_node(cachep, node);
+	if (n) {
+		spin_lock_irq(&n->list_lock);
+		n->free_limit = (1 + nr_cpus_node(node)) * cachep->batchcount +
+				cachep->num;
+		spin_unlock_irq(&n->list_lock);
+
+		return 0;
+	}
+
+	n = kmalloc_node(sizeof(struct kmem_cache_node), gfp, node);
+	if (!n)
+		return -ENOMEM;
+
+	kmem_cache_node_init(n);
+	n->next_reap = jiffies + REAPTIMEOUT_NODE +
+		    ((unsigned long)cachep) % REAPTIMEOUT_NODE;
+
+	n->free_limit =
+		(1 + nr_cpus_node(node)) * cachep->batchcount + cachep->num;
+
+	/*
+	 * The kmem_cache_nodes don't come and go as CPUs
+	 * come and go.  slab_mutex is sufficient
+	 * protection here.
+	 */
+	cachep->node[node] = n;
+
+	return 0;
+}
+
 /*
  * Allocates and initializes node for a node on each slab cache, used for
  * either memory or cpu hotplug.  If memory is being hot-added, the kmem_cache_node
@@ -861,46 +897,82 @@ static inline gfp_t gfp_exact_node(gfp_t flags)
  */
 static int init_cache_node_node(int node)
 {
+	int ret;
 	struct kmem_cache *cachep;
-	struct kmem_cache_node *n;
-	const size_t memsize = sizeof(struct kmem_cache_node);
 
 	list_for_each_entry(cachep, &slab_caches, list) {
-		/*
-		 * Set up the kmem_cache_node for cpu before we can
-		 * begin anything. Make sure some other cpu on this
-		 * node has not already allocated this
-		 */
-		n = get_node(cachep, node);
-		if (!n) {
-			n = kmalloc_node(memsize, GFP_KERNEL, node);
-			if (!n)
-				return -ENOMEM;
-			kmem_cache_node_init(n);
-			n->next_reap = jiffies + REAPTIMEOUT_NODE +
-			    ((unsigned long)cachep) % REAPTIMEOUT_NODE;
-
-			/*
-			 * The kmem_cache_nodes don't come and go as CPUs
-			 * come and go.  slab_mutex is sufficient
-			 * protection here.
-			 */
-			cachep->node[node] = n;
-		}
-
-		spin_lock_irq(&n->list_lock);
-		n->free_limit =
-			(1 + nr_cpus_node(node)) *
-			cachep->batchcount + cachep->num;
-		spin_unlock_irq(&n->list_lock);
+		ret = init_cache_node(cachep, node, GFP_KERNEL);
+		if (ret)
+			return ret;
 	}
+
 	return 0;
 }
 
-static inline int slabs_tofree(struct kmem_cache *cachep,
-						struct kmem_cache_node *n)
+static int setup_kmem_cache_node(struct kmem_cache *cachep,
+				int node, gfp_t gfp, bool force_change)
 {
-	return (n->free_objects + cachep->num - 1) / cachep->num;
+	int ret = -ENOMEM;
+	struct kmem_cache_node *n;
+	struct array_cache *old_shared = NULL;
+	struct array_cache *new_shared = NULL;
+	struct alien_cache **new_alien = NULL;
+	LIST_HEAD(list);
+
+	if (use_alien_caches) {
+		new_alien = alloc_alien_cache(node, cachep->limit, gfp);
+		if (!new_alien)
+			goto fail;
+	}
+
+	if (cachep->shared) {
+		new_shared = alloc_arraycache(node,
+			cachep->shared * cachep->batchcount, 0xbaadf00d, gfp);
+		if (!new_shared)
+			goto fail;
+	}
+
+	ret = init_cache_node(cachep, node, gfp);
+	if (ret)
+		goto fail;
+
+	n = get_node(cachep, node);
+	spin_lock_irq(&n->list_lock);
+	if (n->shared && force_change) {
+		free_block(cachep, n->shared->entry,
+				n->shared->avail, node, &list);
+		n->shared->avail = 0;
+	}
+
+	if (!n->shared || force_change) {
+		old_shared = n->shared;
+		n->shared = new_shared;
+		new_shared = NULL;
+	}
+
+	if (!n->alien) {
+		n->alien = new_alien;
+		new_alien = NULL;
+	}
+
+	spin_unlock_irq(&n->list_lock);
+	slabs_destroy(cachep, &list);
+
+	/*
+	 * To protect lockless access to n->shared during irq disabled context.
+	 * If n->shared isn't NULL in irq disabled context, accessing to it is
+	 * guaranteed to be valid until irq is re-enabled, because it will be
+	 * freed after synchronize_sched().
+	 */
+	if (force_change)
+		synchronize_sched();
+
+fail:
+	kfree(old_shared);
+	kfree(new_shared);
+	free_alien_cache(new_alien);
+
+	return ret;
 }
 
 static void cpuup_canceled(long cpu)
@@ -967,14 +1039,13 @@ free_slab:
 		n = get_node(cachep, node);
 		if (!n)
 			continue;
-		drain_freelist(cachep, n, slabs_tofree(cachep, n));
+		drain_freelist(cachep, n, INT_MAX);
 	}
 }
 
 static int cpuup_prepare(long cpu)
 {
 	struct kmem_cache *cachep;
-	struct kmem_cache_node *n = NULL;
 	int node = cpu_to_mem(cpu);
 	int err;
 
@@ -993,44 +1064,9 @@ static int cpuup_prepare(long cpu)
 	 * array caches
 	 */
 	list_for_each_entry(cachep, &slab_caches, list) {
-		struct array_cache *shared = NULL;
-		struct alien_cache **alien = NULL;
-
-		if (cachep->shared) {
-			shared = alloc_arraycache(node,
-				cachep->shared * cachep->batchcount,
-				0xbaadf00d, GFP_KERNEL);
-			if (!shared)
-				goto bad;
-		}
-		if (use_alien_caches) {
-			alien = alloc_alien_cache(node, cachep->limit, GFP_KERNEL);
-			if (!alien) {
-				kfree(shared);
-				goto bad;
-			}
-		}
-		n = get_node(cachep, node);
-		BUG_ON(!n);
-
-		spin_lock_irq(&n->list_lock);
-		if (!n->shared) {
-			/*
-			 * We are serialised from CPU_DEAD or
-			 * CPU_UP_CANCELLED by the cpucontrol lock
-			 */
-			n->shared = shared;
-			shared = NULL;
-		}
-#ifdef CONFIG_NUMA
-		if (!n->alien) {
-			n->alien = alien;
-			alien = NULL;
-		}
-#endif
-		spin_unlock_irq(&n->list_lock);
-		kfree(shared);
-		free_alien_cache(alien);
+		err = setup_kmem_cache_node(cachep, node, GFP_KERNEL, false);
+		if (err)
+			goto bad;
 	}
 
 	return 0;
@@ -1119,7 +1155,7 @@ static int __meminit drain_cache_node_node(int node)
 		if (!n)
 			continue;
 
-		drain_freelist(cachep, n, slabs_tofree(cachep, n));
+		drain_freelist(cachep, n, INT_MAX);
 
 		if (!list_empty(&n->slabs_full) ||
 		    !list_empty(&n->slabs_partial)) {
@@ -1200,6 +1236,61 @@ static void __init set_up_node(struct kmem_cache *cachep, int index)
 	}
 }
 
+#ifdef CONFIG_SLAB_FREELIST_RANDOM
+static void freelist_randomize(struct rnd_state *state, freelist_idx_t *list,
+			size_t count)
+{
+	size_t i;
+	unsigned int rand;
+
+	for (i = 0; i < count; i++)
+		list[i] = i;
+
+	/* Fisher-Yates shuffle */
+	for (i = count - 1; i > 0; i--) {
+		rand = prandom_u32_state(state);
+		rand %= (i + 1);
+		swap(list[i], list[rand]);
+	}
+}
+
+/* Create a random sequence per cache */
+static int cache_random_seq_create(struct kmem_cache *cachep, gfp_t gfp)
+{
+	unsigned int seed, count = cachep->num;
+	struct rnd_state state;
+
+	if (count < 2)
+		return 0;
+
+	/* If it fails, we will just use the global lists */
+	cachep->random_seq = kcalloc(count, sizeof(freelist_idx_t), gfp);
+	if (!cachep->random_seq)
+		return -ENOMEM;
+
+	/* Get best entropy at this stage */
+	get_random_bytes_arch(&seed, sizeof(seed));
+	prandom_seed_state(&state, seed);
+
+	freelist_randomize(&state, cachep->random_seq, count);
+	return 0;
+}
+
+/* Destroy the per-cache random freelist sequence */
+static void cache_random_seq_destroy(struct kmem_cache *cachep)
+{
+	kfree(cachep->random_seq);
+	cachep->random_seq = NULL;
+}
+#else
+static inline int cache_random_seq_create(struct kmem_cache *cachep, gfp_t gfp)
+{
+	return 0;
+}
+static inline void cache_random_seq_destroy(struct kmem_cache *cachep) { }
+#endif /* CONFIG_SLAB_FREELIST_RANDOM */
+
+
 /*
  * Initialisation.  Called after the page allocator have been initialised and
  * before smp_init().
@@ -1212,7 +1303,7 @@ void __init kmem_cache_init(void)
 					sizeof(struct rcu_head));
 	kmem_cache = &kmem_cache_boot;
 
-	if (num_possible_nodes() == 1)
+	if (!IS_ENABLED(CONFIG_NUMA) || num_possible_nodes() == 1)
 		use_alien_caches = 0;
 
 	for (i = 0; i < NUM_INIT_LISTS; i++)
@@ -1781,7 +1872,7 @@ static size_t calculate_slab_order(struct kmem_cache *cachep,
 
 			/*
 			 * Needed to avoid possible looping condition
-			 * in cache_grow()
+			 * in cache_grow_begin()
 			 */
 			if (OFF_SLAB(freelist_cache))
 				continue;
@@ -2138,7 +2229,7 @@ done:
 	cachep->freelist_size = cachep->num * sizeof(freelist_idx_t);
 	cachep->flags = flags;
 	cachep->allocflags = __GFP_COMP;
-	if (CONFIG_ZONE_DMA_FLAG && (flags & SLAB_CACHE_DMA))
+	if (flags & SLAB_CACHE_DMA)
 		cachep->allocflags |= GFP_DMA;
 	cachep->size = size;
 	cachep->reciprocal_buffer_size = reciprocal_value(size);
@@ -2180,6 +2271,11 @@ static void check_irq_on(void)
 	BUG_ON(irqs_disabled());
 }
 
+static void check_mutex_acquired(void)
+{
+	BUG_ON(!mutex_is_locked(&slab_mutex));
+}
+
 static void check_spinlock_acquired(struct kmem_cache *cachep)
 {
 #ifdef CONFIG_SMP
@@ -2199,13 +2295,27 @@ static void check_spinlock_acquired_node(struct kmem_cache *cachep, int node)
 #else
 #define check_irq_off()	do { } while(0)
 #define check_irq_on()	do { } while(0)
+#define check_mutex_acquired()	do { } while(0)
 #define check_spinlock_acquired(x) do { } while(0)
 #define check_spinlock_acquired_node(x, y) do { } while(0)
 #endif
 
-static void drain_array(struct kmem_cache *cachep, struct kmem_cache_node *n,
-			struct array_cache *ac,
-			int force, int node);
+static void drain_array_locked(struct kmem_cache *cachep, struct array_cache *ac,
+				int node, bool free_all, struct list_head *list)
+{
+	int tofree;
+
+	if (!ac || !ac->avail)
+		return;
+
+	tofree = free_all ? ac->avail : (ac->limit + 4) / 5;
+	if (tofree > ac->avail)
+		tofree = (ac->avail + 1) / 2;
+
+	free_block(cachep, ac->entry, tofree, node, list);
+	ac->avail -= tofree;
+	memmove(ac->entry, &(ac->entry[tofree]), sizeof(void *) * ac->avail);
+}
 
 static void do_drain(void *arg)
 {
@@ -2229,6 +2339,7 @@ static void drain_cpu_caches(struct kmem_cache *cachep)
 {
 	struct kmem_cache_node *n;
 	int node;
+	LIST_HEAD(list);
 
 	on_each_cpu(do_drain, cachep, 1);
 	check_irq_on();
@@ -2236,8 +2347,13 @@ static void drain_cpu_caches(struct kmem_cache *cachep)
 		if (n->alien)
 			drain_alien_cache(cachep, n->alien);
 
-	for_each_kmem_cache_node(cachep, node, n)
-		drain_array(cachep, n, n->shared, 1, node);
+	for_each_kmem_cache_node(cachep, node, n) {
+		spin_lock_irq(&n->list_lock);
+		drain_array_locked(cachep, n->shared, node, true, &list);
+		spin_unlock_irq(&n->list_lock);
+
+		slabs_destroy(cachep, &list);
+	}
 }
 
 /*
@@ -2288,7 +2404,7 @@ int __kmem_cache_shrink(struct kmem_cache *cachep, bool deactivate)
 
 	check_irq_on();
 	for_each_kmem_cache_node(cachep, node, n) {
-		drain_freelist(cachep, n, slabs_tofree(cachep, n));
+		drain_freelist(cachep, n, INT_MAX);
 
 		ret += !list_empty(&n->slabs_full) ||
 			!list_empty(&n->slabs_partial);
@@ -2305,6 +2421,8 @@ void __kmem_cache_release(struct kmem_cache *cachep)
 {
 	int i;
 	struct kmem_cache_node *n;
+
+	cache_random_seq_destroy(cachep);
 
 	free_percpu(cachep->cpu_cache);
 
@@ -2412,15 +2530,115 @@ static void cache_init_objs_debug(struct kmem_cache *cachep, struct page *page)
 #endif
 }
 
+#ifdef CONFIG_SLAB_FREELIST_RANDOM
+/* Hold information during a freelist initialization */
+union freelist_init_state {
+	struct {
+		unsigned int pos;
+		freelist_idx_t *list;
+		unsigned int count;
+		unsigned int rand;
+	};
+	struct rnd_state rnd_state;
+};
+
+/*
+ * Initialize the state based on the randomization methode available.
+ * return true if the pre-computed list is available, false otherwize.
+ */
+static bool freelist_state_initialize(union freelist_init_state *state,
+				struct kmem_cache *cachep,
+				unsigned int count)
+{
+	bool ret;
+	unsigned int rand;
+
+	/* Use best entropy available to define a random shift */
+	get_random_bytes_arch(&rand, sizeof(rand));
+
+	/* Use a random state if the pre-computed list is not available */
+	if (!cachep->random_seq) {
+		prandom_seed_state(&state->rnd_state, rand);
+		ret = false;
+	} else {
+		state->list = cachep->random_seq;
+		state->count = count;
+		state->pos = 0;
+		state->rand = rand;
+		ret = true;
+	}
+	return ret;
+}
+
+/* Get the next entry on the list and randomize it using a random shift */
+static freelist_idx_t next_random_slot(union freelist_init_state *state)
+{
+	return (state->list[state->pos++] + state->rand) % state->count;
+}
+
+/*
+ * Shuffle the freelist initialization state based on pre-computed lists.
+ * return true if the list was successfully shuffled, false otherwise.
+ */
+static bool shuffle_freelist(struct kmem_cache *cachep, struct page *page)
+{
+	unsigned int objfreelist = 0, i, count = cachep->num;
+	union freelist_init_state state;
+	bool precomputed;
+
+	if (count < 2)
+		return false;
+
+	precomputed = freelist_state_initialize(&state, cachep, count);
+
+	/* Take a random entry as the objfreelist */
+	if (OBJFREELIST_SLAB(cachep)) {
+		if (!precomputed)
+			objfreelist = count - 1;
+		else
+			objfreelist = next_random_slot(&state);
+		page->freelist = index_to_obj(cachep, page, objfreelist) +
+						obj_offset(cachep);
+		count--;
+	}
+
+	/*
+	 * On early boot, generate the list dynamically.
+	 * Later use a pre-computed list for speed.
+	 */
+	if (!precomputed) {
+		freelist_randomize(&state.rnd_state, page->freelist, count);
+	} else {
+		for (i = 0; i < count; i++)
+			set_free_obj(page, i, next_random_slot(&state));
+	}
+
+	if (OBJFREELIST_SLAB(cachep))
+		set_free_obj(page, cachep->num - 1, objfreelist);
+
+	return true;
+}
+#else
+static inline bool shuffle_freelist(struct kmem_cache *cachep,
+				struct page *page)
+{
+	return false;
+}
+#endif /* CONFIG_SLAB_FREELIST_RANDOM */
+
 static void cache_init_objs(struct kmem_cache *cachep,
 			    struct page *page)
 {
 	int i;
 	void *objp;
+	bool shuffled;
 
 	cache_init_objs_debug(cachep, page);
 
-	if (OBJFREELIST_SLAB(cachep)) {
+	/* Try to randomize the freelist if enabled */
+	shuffled = shuffle_freelist(cachep, page);
+
+	if (!shuffled && OBJFREELIST_SLAB(cachep)) {
 		page->freelist = index_to_obj(cachep, page, cachep->num - 1) +
 						obj_offset(cachep);
 	}
@@ -2434,17 +2652,8 @@ static void cache_init_objs(struct kmem_cache *cachep,
 			kasan_poison_object_data(cachep, objp);
 		}
 
-		set_free_obj(page, i, i);
-	}
-}
-
-static void kmem_flagcheck(struct kmem_cache *cachep, gfp_t flags)
-{
-	if (CONFIG_ZONE_DMA_FLAG) {
-		if (flags & GFP_DMA)
-			BUG_ON(!(cachep->allocflags & GFP_DMA));
-		else
-			BUG_ON(cachep->allocflags & GFP_DMA);
+		if (!shuffled)
+			set_free_obj(page, i, i);
 	}
 }
 
@@ -2502,13 +2711,15 @@ static void slab_map_pages(struct kmem_cache *cache, struct page *page,
  * Grow (by 1) the number of slabs within a cache.  This is called by
  * kmem_cache_alloc() when there are no active objs left in a cache.
  */
-static int cache_grow(struct kmem_cache *cachep,
-		gfp_t flags, int nodeid, struct page *page)
+static struct page *cache_grow_begin(struct kmem_cache *cachep,
+				gfp_t flags, int nodeid)
 {
 	void *freelist;
 	size_t offset;
 	gfp_t local_flags;
+	int page_node;
 	struct kmem_cache_node *n;
+	struct page *page;
 
 	/*
 	 * Be lazy and only check for valid flags here,  keeping it out of the
@@ -2520,43 +2731,35 @@ static int cache_grow(struct kmem_cache *cachep,
 	}
 	local_flags = flags & (GFP_CONSTRAINT_MASK|GFP_RECLAIM_MASK);
 
-	/* Take the node list lock to change the colour_next on this node */
 	check_irq_off();
-	n = get_node(cachep, nodeid);
-	spin_lock(&n->list_lock);
-
-	/* Get colour for the slab, and cal the next value. */
-	offset = n->colour_next;
-	n->colour_next++;
-	if (n->colour_next >= cachep->colour)
-		n->colour_next = 0;
-	spin_unlock(&n->list_lock);
-
-	offset *= cachep->colour_off;
-
 	if (gfpflags_allow_blocking(local_flags))
 		local_irq_enable();
-
-	/*
-	 * The test for missing atomic flag is performed here, rather than
-	 * the more obvious place, simply to reduce the critical path length
-	 * in kmem_cache_alloc(). If a caller is seriously mis-behaving they
-	 * will eventually be caught here (where it matters).
-	 */
-	kmem_flagcheck(cachep, flags);
 
 	/*
 	 * Get mem for the objs.  Attempt to allocate a physical page from
 	 * 'nodeid'.
 	 */
-	if (!page)
-		page = kmem_getpages(cachep, local_flags, nodeid);
+	page = kmem_getpages(cachep, local_flags, nodeid);
 	if (!page)
 		goto failed;
 
+	page_node = page_to_nid(page);
+	n = get_node(cachep, page_node);
+
+	/* Get colour for the slab, and cal the next value. */
+	n->colour_next++;
+	if (n->colour_next >= cachep->colour)
+		n->colour_next = 0;
+
+	offset = n->colour_next;
+	if (offset >= cachep->colour)
+		offset = 0;
+
+	offset *= cachep->colour_off;
+
 	/* Get slab management. */
 	freelist = alloc_slabmgmt(cachep, page, offset,
-			local_flags & ~GFP_CONSTRAINT_MASK, nodeid);
+			local_flags & ~GFP_CONSTRAINT_MASK, page_node);
 	if (OFF_SLAB(cachep) && !freelist)
 		goto opps1;
 
@@ -2567,21 +2770,40 @@ static int cache_grow(struct kmem_cache *cachep,
 
 	if (gfpflags_allow_blocking(local_flags))
 		local_irq_disable();
-	check_irq_off();
-	spin_lock(&n->list_lock);
 
-	/* Make slab active. */
-	list_add_tail(&page->lru, &(n->slabs_free));
-	STATS_INC_GROWN(cachep);
-	n->free_objects += cachep->num;
-	spin_unlock(&n->list_lock);
-	return 1;
+	return page;
+
 opps1:
 	kmem_freepages(cachep, page);
 failed:
 	if (gfpflags_allow_blocking(local_flags))
 		local_irq_disable();
-	return 0;
+	return NULL;
+}
+
+static void cache_grow_end(struct kmem_cache *cachep, struct page *page)
+{
+	struct kmem_cache_node *n;
+	void *list = NULL;
+
+	check_irq_off();
+
+	if (!page)
+		return;
+
+	INIT_LIST_HEAD(&page->lru);
+	n = get_node(cachep, page_to_nid(page));
+
+	spin_lock(&n->list_lock);
+	if (!page->active)
+		list_add_tail(&page->lru, &(n->slabs_free));
+	else
+		fixup_slab_list(cachep, n, page, &list);
+	STATS_INC_GROWN(cachep);
+	n->free_objects += cachep->num - page->active;
+	spin_unlock(&n->list_lock);
+
+	fixup_objfreelist_debug(cachep, &list);
 }
 
 #if DEBUG
@@ -2785,18 +3007,42 @@ static noinline void *cache_alloc_pfmemalloc(struct kmem_cache *cachep,
 	return obj;
 }
 
+/*
+ * Slab list should be fixed up by fixup_slab_list() for existing slab
+ * or cache_grow_end() for new slab
+ */
+static __always_inline int alloc_block(struct kmem_cache *cachep,
+		struct array_cache *ac, struct page *page, int batchcount)
+{
+	/*
+	 * There must be at least one object available for
+	 * allocation.
+	 */
+	BUG_ON(page->active >= cachep->num);
+
+	while (page->active < cachep->num && batchcount--) {
+		STATS_INC_ALLOCED(cachep);
+		STATS_INC_ACTIVE(cachep);
+		STATS_SET_HIGH(cachep);
+
+		ac->entry[ac->avail++] = slab_get_obj(cachep, page);
+	}
+
+	return batchcount;
+}
+
 static void *cache_alloc_refill(struct kmem_cache *cachep, gfp_t flags)
 {
 	int batchcount;
 	struct kmem_cache_node *n;
-	struct array_cache *ac;
+	struct array_cache *ac, *shared;
 	int node;
 	void *list = NULL;
+	struct page *page;
 
 	check_irq_off();
 	node = numa_mem_id();
 
-retry:
 	ac = cpu_cache_get(cachep);
 	batchcount = ac->batchcount;
 	if (!ac->touched && batchcount > BATCHREFILL_LIMIT) {
@@ -2810,16 +3056,20 @@ retry:
 	n = get_node(cachep, node);
 
 	BUG_ON(ac->avail > 0 || !n);
+	shared = READ_ONCE(n->shared);
+	if (!n->free_objects && (!shared || !shared->avail))
+		goto direct_grow;
+
 	spin_lock(&n->list_lock);
+	shared = READ_ONCE(n->shared);
 
 	/* See if we can refill from the shared array */
-	if (n->shared && transfer_objects(ac, n->shared, batchcount)) {
-		n->shared->touched = 1;
+	if (shared && transfer_objects(ac, shared, batchcount)) {
+		shared->touched = 1;
 		goto alloc_done;
 	}
 
 	while (batchcount > 0) {
-		struct page *page;
 		/* Get slab alloc is to come from. */
 		page = get_first_slab(n, false);
 		if (!page)
@@ -2827,21 +3077,7 @@ retry:
 
 		check_spinlock_acquired(cachep);
 
-		/*
-		 * The slab was either on partial or free list so
-		 * there must be at least one object available for
-		 * allocation.
-		 */
-		BUG_ON(page->active >= cachep->num);
-
-		while (page->active < cachep->num && batchcount--) {
-			STATS_INC_ALLOCED(cachep);
-			STATS_INC_ACTIVE(cachep);
-			STATS_SET_HIGH(cachep);
-
-			ac->entry[ac->avail++] = slab_get_obj(cachep, page);
-		}
-
+		batchcount = alloc_block(cachep, ac, page, batchcount);
 		fixup_slab_list(cachep, n, page, &list);
 	}
 
@@ -2851,9 +3087,8 @@ alloc_done:
 	spin_unlock(&n->list_lock);
 	fixup_objfreelist_debug(cachep, &list);
 
+direct_grow:
 	if (unlikely(!ac->avail)) {
-		int x;
-
 		/* Check if we can use obj in pfmemalloc slab */
 		if (sk_memalloc_socks()) {
 			void *obj = cache_alloc_pfmemalloc(cachep, n, flags);
@@ -2862,18 +3097,19 @@ alloc_done:
 				return obj;
 		}
 
-		x = cache_grow(cachep, gfp_exact_node(flags), node, NULL);
+		page = cache_grow_begin(cachep, gfp_exact_node(flags), node);
 
-		/* cache_grow can reenable interrupts, then ac could change. */
+		/*
+		 * cache_grow_begin() can reenable interrupts,
+		 * then ac could change.
+		 */
 		ac = cpu_cache_get(cachep);
-		node = numa_mem_id();
+		if (!ac->avail && page)
+			alloc_block(cachep, ac, page, batchcount);
+		cache_grow_end(cachep, page);
 
-		/* no objects in sight? abort */
-		if (!x && ac->avail == 0)
+		if (!ac->avail)
 			return NULL;
-
-		if (!ac->avail)		/* objects refilled by interrupt? */
-			goto retry;
 	}
 	ac->touched = 1;
 
@@ -2884,9 +3120,6 @@ static inline void cache_alloc_debugcheck_before(struct kmem_cache *cachep,
 						gfp_t flags)
 {
 	might_sleep_if(gfpflags_allow_blocking(flags));
-#if DEBUG
-	kmem_flagcheck(cachep, flags);
-#endif
 }
 
 #if DEBUG
@@ -2998,18 +3231,16 @@ static void *alternate_node_alloc(struct kmem_cache *cachep, gfp_t flags)
 static void *fallback_alloc(struct kmem_cache *cache, gfp_t flags)
 {
 	struct zonelist *zonelist;
-	gfp_t local_flags;
 	struct zoneref *z;
 	struct zone *zone;
 	enum zone_type high_zoneidx = gfp_zone(flags);
 	void *obj = NULL;
+	struct page *page;
 	int nid;
 	unsigned int cpuset_mems_cookie;
 
 	if (flags & __GFP_THISNODE)
 		return NULL;
-
-	local_flags = flags & (GFP_CONSTRAINT_MASK|GFP_RECLAIM_MASK);
 
 retry_cpuset:
 	cpuset_mems_cookie = read_mems_allowed_begin();
@@ -3040,33 +3271,19 @@ retry:
 		 * We may trigger various forms of reclaim on the allowed
 		 * set and go into memory reserves if necessary.
 		 */
-		struct page *page;
-
-		if (gfpflags_allow_blocking(local_flags))
-			local_irq_enable();
-		kmem_flagcheck(cache, flags);
-		page = kmem_getpages(cache, local_flags, numa_mem_id());
-		if (gfpflags_allow_blocking(local_flags))
-			local_irq_disable();
+		page = cache_grow_begin(cache, flags, numa_mem_id());
+		cache_grow_end(cache, page);
 		if (page) {
-			/*
-			 * Insert into the appropriate per node queues
-			 */
 			nid = page_to_nid(page);
-			if (cache_grow(cache, flags, nid, page)) {
-				obj = ____cache_alloc_node(cache,
-					gfp_exact_node(flags), nid);
-				if (!obj)
-					/*
-					 * Another processor may allocate the
-					 * objects in the slab since we are
-					 * not holding any locks.
-					 */
-					goto retry;
-			} else {
-				/* cache_grow already freed obj */
-				obj = NULL;
-			}
+			obj = ____cache_alloc_node(cache,
+				gfp_exact_node(flags), nid);
+
+			/*
+			 * Another processor may allocate the objects in
+			 * the slab since we are not holding any locks.
+			 */
+			if (!obj)
+				goto retry;
 		}
 	}
 
@@ -3083,15 +3300,13 @@ static void *____cache_alloc_node(struct kmem_cache *cachep, gfp_t flags,
 {
 	struct page *page;
 	struct kmem_cache_node *n;
-	void *obj;
+	void *obj = NULL;
 	void *list = NULL;
-	int x;
 
 	VM_BUG_ON(nodeid < 0 || nodeid >= MAX_NUMNODES);
 	n = get_node(cachep, nodeid);
 	BUG_ON(!n);
 
-retry:
 	check_irq_off();
 	spin_lock(&n->list_lock);
 	page = get_first_slab(n, false);
@@ -3113,18 +3328,18 @@ retry:
 
 	spin_unlock(&n->list_lock);
 	fixup_objfreelist_debug(cachep, &list);
-	goto done;
+	return obj;
 
 must_grow:
 	spin_unlock(&n->list_lock);
-	x = cache_grow(cachep, gfp_exact_node(flags), nodeid, NULL);
-	if (x)
-		goto retry;
+	page = cache_grow_begin(cachep, gfp_exact_node(flags), nodeid);
+	if (page) {
+		/* This slab isn't counted yet so don't update free_objects */
+		obj = slab_get_obj(cachep, page);
+	}
+	cache_grow_end(cachep, page);
 
-	return fallback_alloc(cachep, flags);
-
-done:
-	return obj;
+	return obj ? obj : fallback_alloc(cachep, flags);
 }
 
 static __always_inline void *
@@ -3242,6 +3457,9 @@ static void free_block(struct kmem_cache *cachep, void **objpp,
 {
 	int i;
 	struct kmem_cache_node *n = get_node(cachep, node);
+	struct page *page;
+
+	n->free_objects += nr_objects;
 
 	for (i = 0; i < nr_objects; i++) {
 		void *objp;
@@ -3254,23 +3472,25 @@ static void free_block(struct kmem_cache *cachep, void **objpp,
 		check_spinlock_acquired_node(cachep, node);
 		slab_put_obj(cachep, page, objp);
 		STATS_DEC_ACTIVE(cachep);
-		n->free_objects++;
 
 		/* fixup slab chains */
-		if (page->active == 0) {
-			if (n->free_objects > n->free_limit) {
-				n->free_objects -= cachep->num;
-				list_add_tail(&page->lru, list);
-			} else {
-				list_add(&page->lru, &n->slabs_free);
-			}
-		} else {
+		if (page->active == 0)
+			list_add(&page->lru, &n->slabs_free);
+		else {
 			/* Unconditionally move a slab to the end of the
 			 * partial list on free - maximum time for the
 			 * other objects to be freed, too.
 			 */
 			list_add_tail(&page->lru, &n->slabs_partial);
 		}
+	}
+
+	while (n->free_objects > n->free_limit && !list_empty(&n->slabs_free)) {
+		n->free_objects -= cachep->num;
+
+		page = list_last_entry(&n->slabs_free, struct page, lru);
+		list_del(&page->lru);
+		list_add(&page->lru, list);
 	}
 }
 
@@ -3327,9 +3547,17 @@ free_done:
 static inline void __cache_free(struct kmem_cache *cachep, void *objp,
 				unsigned long caller)
 {
-	struct array_cache *ac = cpu_cache_get(cachep);
+	/* Put the object into the quarantine, don't touch it for now. */
+	if (kasan_slab_free(cachep, objp))
+		return;
 
-	kasan_slab_free(cachep, objp);
+	___cache_free(cachep, objp, caller);
+}
+
+void ___cache_free(struct kmem_cache *cachep, void *objp,
+		unsigned long caller)
+{
+	struct array_cache *ac = cpu_cache_get(cachep);
 
 	check_irq_off();
 	kmemleak_free_recursive(objp, cachep->flags);
@@ -3645,72 +3873,19 @@ EXPORT_SYMBOL(kfree);
 /*
  * This initializes kmem_cache_node or resizes various caches for all nodes.
  */
-static int alloc_kmem_cache_node(struct kmem_cache *cachep, gfp_t gfp)
+static int setup_kmem_cache_nodes(struct kmem_cache *cachep, gfp_t gfp)
 {
+	int ret;
 	int node;
 	struct kmem_cache_node *n;
-	struct array_cache *new_shared;
-	struct alien_cache **new_alien = NULL;
 
 	for_each_online_node(node) {
-
-		if (use_alien_caches) {
-			new_alien = alloc_alien_cache(node, cachep->limit, gfp);
-			if (!new_alien)
-				goto fail;
-		}
-
-		new_shared = NULL;
-		if (cachep->shared) {
-			new_shared = alloc_arraycache(node,
-				cachep->shared*cachep->batchcount,
-					0xbaadf00d, gfp);
-			if (!new_shared) {
-				free_alien_cache(new_alien);
-				goto fail;
-			}
-		}
-
-		n = get_node(cachep, node);
-		if (n) {
-			struct array_cache *shared = n->shared;
-			LIST_HEAD(list);
-
-			spin_lock_irq(&n->list_lock);
-
-			if (shared)
-				free_block(cachep, shared->entry,
-						shared->avail, node, &list);
-
-			n->shared = new_shared;
-			if (!n->alien) {
-				n->alien = new_alien;
-				new_alien = NULL;
-			}
-			n->free_limit = (1 + nr_cpus_node(node)) *
-					cachep->batchcount + cachep->num;
-			spin_unlock_irq(&n->list_lock);
-			slabs_destroy(cachep, &list);
-			kfree(shared);
-			free_alien_cache(new_alien);
-			continue;
-		}
-		n = kmalloc_node(sizeof(struct kmem_cache_node), gfp, node);
-		if (!n) {
-			free_alien_cache(new_alien);
-			kfree(new_shared);
+		ret = setup_kmem_cache_node(cachep, node, gfp, true);
+		if (ret)
 			goto fail;
-		}
 
-		kmem_cache_node_init(n);
-		n->next_reap = jiffies + REAPTIMEOUT_NODE +
-				((unsigned long)cachep) % REAPTIMEOUT_NODE;
-		n->shared = new_shared;
-		n->alien = new_alien;
-		n->free_limit = (1 + nr_cpus_node(node)) *
-					cachep->batchcount + cachep->num;
-		cachep->node[node] = n;
 	}
+
 	return 0;
 
 fail:
@@ -3752,7 +3927,7 @@ static int __do_tune_cpucache(struct kmem_cache *cachep, int limit,
 	cachep->shared = shared;
 
 	if (!prev)
-		goto alloc_node;
+		goto setup_node;
 
 	for_each_online_cpu(cpu) {
 		LIST_HEAD(list);
@@ -3769,8 +3944,8 @@ static int __do_tune_cpucache(struct kmem_cache *cachep, int limit,
 	}
 	free_percpu(prev);
 
-alloc_node:
-	return alloc_kmem_cache_node(cachep, gfp);
+setup_node:
+	return setup_kmem_cache_nodes(cachep, gfp);
 }
 
 static int do_tune_cpucache(struct kmem_cache *cachep, int limit,
@@ -3803,6 +3978,10 @@ static int enable_cpucache(struct kmem_cache *cachep, gfp_t gfp)
 	int limit = 0;
 	int shared = 0;
 	int batchcount = 0;
+
+	err = cache_random_seq_create(cachep, gfp);
+	if (err)
+		goto end;
 
 	if (!is_root_cache(cachep)) {
 		struct kmem_cache *root = memcg_root_cache(cachep);
@@ -3857,6 +4036,7 @@ static int enable_cpucache(struct kmem_cache *cachep, gfp_t gfp)
 	batchcount = (limit + 1) / 2;
 skip_setup:
 	err = do_tune_cpucache(cachep, limit, batchcount, shared, gfp);
+end:
 	if (err)
 		pr_err("enable_cpucache failed for %s, error %d\n",
 		       cachep->name, -err);
@@ -3869,29 +4049,26 @@ skip_setup:
  * if drain_array() is used on the shared array.
  */
 static void drain_array(struct kmem_cache *cachep, struct kmem_cache_node *n,
-			 struct array_cache *ac, int force, int node)
+			 struct array_cache *ac, int node)
 {
 	LIST_HEAD(list);
-	int tofree;
+
+	/* ac from n->shared can be freed if we don't hold the slab_mutex. */
+	check_mutex_acquired();
 
 	if (!ac || !ac->avail)
 		return;
-	if (ac->touched && !force) {
+
+	if (ac->touched) {
 		ac->touched = 0;
-	} else {
-		spin_lock_irq(&n->list_lock);
-		if (ac->avail) {
-			tofree = force ? ac->avail : (ac->limit + 4) / 5;
-			if (tofree > ac->avail)
-				tofree = (ac->avail + 1) / 2;
-			free_block(cachep, ac->entry, tofree, node, &list);
-			ac->avail -= tofree;
-			memmove(ac->entry, &(ac->entry[tofree]),
-				sizeof(void *) * ac->avail);
-		}
-		spin_unlock_irq(&n->list_lock);
-		slabs_destroy(cachep, &list);
+		return;
 	}
+
+	spin_lock_irq(&n->list_lock);
+	drain_array_locked(cachep, ac, node, false, &list);
+	spin_unlock_irq(&n->list_lock);
+
+	slabs_destroy(cachep, &list);
 }
 
 /**
@@ -3929,7 +4106,7 @@ static void cache_reap(struct work_struct *w)
 
 		reap_alien(searchp, n);
 
-		drain_array(searchp, n, cpu_cache_get(searchp), 0, node);
+		drain_array(searchp, n, cpu_cache_get(searchp), node);
 
 		/*
 		 * These are racy checks but it does not matter
@@ -3940,7 +4117,7 @@ static void cache_reap(struct work_struct *w)
 
 		n->next_reap = jiffies + REAPTIMEOUT_NODE;
 
-		drain_array(searchp, n, n->shared, 0, node);
+		drain_array(searchp, n, n->shared, node);
 
 		if (n->free_touched)
 			n->free_touched = 0;
@@ -4324,7 +4501,7 @@ size_t ksize(const void *objp)
 	/* We assume that ksize callers could use the whole allocated area,
 	 * so we need to unpoison this area.
 	 */
-	kasan_krealloc(objp, size, GFP_NOWAIT);
+	kasan_unpoison_shadow(objp, size);
 
 	return size;
 }

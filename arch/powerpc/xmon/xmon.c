@@ -86,6 +86,7 @@ static char tmpstr[128];
 
 static long bus_error_jmp[JMP_BUF_LEN];
 static int catch_memory_errors;
+static int catch_spr_faults;
 static long *xmon_fault_jmp[NR_CPUS];
 
 /* Breakpoint stuff */
@@ -147,7 +148,7 @@ void getstring(char *, int);
 static void flush_input(void);
 static int inchar(void);
 static void take_input(char *);
-static unsigned long read_spr(int);
+static int  read_spr(int, unsigned long *);
 static void write_spr(int, unsigned long);
 static void super_regs(void);
 static void remove_bpts(void);
@@ -250,6 +251,9 @@ Commands:\n\
   sdi #	disassemble spu local store for spu # (in hex)\n"
 #endif
 "  S	print special registers\n\
+  Sa    print all SPRs\n\
+  Sr #	read SPR #\n\
+  Sw #v write v to SPR #\n\
   t	print backtrace\n\
   x	exit monitor and recover\n\
   X	exit monitor and don't recover\n"
@@ -442,6 +446,12 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 #ifdef CONFIG_SMP
 	cpu = smp_processor_id();
 	if (cpumask_test_cpu(cpu, &cpus_in_xmon)) {
+		/*
+		 * We catch SPR read/write faults here because the 0x700, 0xf60
+		 * etc. handlers don't call debugger_fault_handler().
+		 */
+		if (catch_spr_faults)
+			longjmp(bus_error_jmp, 1);
 		get_output_lock();
 		excprint(regs);
 		printf("cpu 0x%x: Exception %lx %s in xmon, "
@@ -1635,89 +1645,87 @@ static void cacheflush(void)
 	catch_memory_errors = 0;
 }
 
-static unsigned long
-read_spr(int n)
+extern unsigned long xmon_mfspr(int spr, unsigned long default_value);
+extern void xmon_mtspr(int spr, unsigned long value);
+
+static int
+read_spr(int n, unsigned long *vp)
 {
-	unsigned int instrs[2];
-	unsigned long (*code)(void);
 	unsigned long ret = -1UL;
-#ifdef CONFIG_PPC64
-	unsigned long opd[3];
-
-	opd[0] = (unsigned long)instrs;
-	opd[1] = 0;
-	opd[2] = 0;
-	code = (unsigned long (*)(void)) opd;
-#else
-	code = (unsigned long (*)(void)) instrs;
-#endif
-
-	/* mfspr r3,n; blr */
-	instrs[0] = 0x7c6002a6 + ((n & 0x1F) << 16) + ((n & 0x3e0) << 6);
-	instrs[1] = 0x4e800020;
-	store_inst(instrs);
-	store_inst(instrs+1);
+	int ok = 0;
 
 	if (setjmp(bus_error_jmp) == 0) {
-		catch_memory_errors = 1;
+		catch_spr_faults = 1;
 		sync();
 
-		ret = code();
+		ret = xmon_mfspr(n, *vp);
 
 		sync();
-		/* wait a little while to see if we get a machine check */
-		__delay(200);
-		n = size;
+		*vp = ret;
+		ok = 1;
 	}
+	catch_spr_faults = 0;
 
-	return ret;
+	return ok;
 }
 
 static void
 write_spr(int n, unsigned long val)
 {
-	unsigned int instrs[2];
-	unsigned long (*code)(unsigned long);
-#ifdef CONFIG_PPC64
-	unsigned long opd[3];
-
-	opd[0] = (unsigned long)instrs;
-	opd[1] = 0;
-	opd[2] = 0;
-	code = (unsigned long (*)(unsigned long)) opd;
-#else
-	code = (unsigned long (*)(unsigned long)) instrs;
-#endif
-
-	instrs[0] = 0x7c6003a6 + ((n & 0x1F) << 16) + ((n & 0x3e0) << 6);
-	instrs[1] = 0x4e800020;
-	store_inst(instrs);
-	store_inst(instrs+1);
-
 	if (setjmp(bus_error_jmp) == 0) {
-		catch_memory_errors = 1;
+		catch_spr_faults = 1;
 		sync();
 
-		code(val);
+		xmon_mtspr(n, val);
 
 		sync();
-		/* wait a little while to see if we get a machine check */
-		__delay(200);
-		n = size;
+	} else {
+		printf("SPR 0x%03x (%4d) Faulted during write\n", n, n);
 	}
+	catch_spr_faults = 0;
 }
 
 static unsigned long regno;
 extern char exc_prolog;
 extern char dec_exc;
 
+static void dump_one_spr(int spr, bool show_unimplemented)
+{
+	unsigned long val;
+
+	val = 0xdeadbeef;
+	if (!read_spr(spr, &val)) {
+		printf("SPR 0x%03x (%4d) Faulted during read\n", spr, spr);
+		return;
+	}
+
+	if (val == 0xdeadbeef) {
+		/* Looks like read was a nop, confirm */
+		val = 0x0badcafe;
+		if (!read_spr(spr, &val)) {
+			printf("SPR 0x%03x (%4d) Faulted during read\n", spr, spr);
+			return;
+		}
+
+		if (val == 0x0badcafe) {
+			if (show_unimplemented)
+				printf("SPR 0x%03x (%4d) Unimplemented\n", spr, spr);
+			return;
+		}
+	}
+
+	printf("SPR 0x%03x (%4d) = 0x%lx\n", spr, spr, val);
+}
+
 static void super_regs(void)
 {
 	int cmd;
-	unsigned long val;
+	int spr;
 
 	cmd = skipbl();
-	if (cmd == '\n') {
+
+	switch (cmd) {
+	case '\n': {
 		unsigned long sp, toc;
 		asm("mr %0,1" : "=r" (sp) :);
 		asm("mr %0,2" : "=r" (toc) :);
@@ -1730,21 +1738,29 @@ static void super_regs(void)
 		       mfspr(SPRN_DEC), mfspr(SPRN_SPRG2));
 		printf("sp   = "REG"  sprg3= "REG"\n", sp, mfspr(SPRN_SPRG3));
 		printf("toc  = "REG"  dar  = "REG"\n", toc, mfspr(SPRN_DAR));
-
 		return;
 	}
-
-	scanhex(&regno);
-	switch (cmd) {
-	case 'w':
-		val = read_spr(regno);
+	case 'w': {
+		unsigned long val;
+		scanhex(&regno);
+		val = 0;
+		read_spr(regno, &val);
 		scanhex(&val);
 		write_spr(regno, val);
-		/* fall through */
-	case 'r':
-		printf("spr %lx = %lx\n", regno, read_spr(regno));
+		dump_one_spr(regno, true);
 		break;
 	}
+	case 'r':
+		scanhex(&regno);
+		dump_one_spr(regno, true);
+		break;
+	case 'a':
+		/* dump ALL SPRs */
+		for (spr = 1; spr < 1024; ++spr)
+			dump_one_spr(spr, false);
+		break;
+	}
+
 	scannl();
 }
 
@@ -2913,7 +2929,7 @@ static void xmon_print_symbol(unsigned long address, const char *mid,
 	printf("%s", after);
 }
 
-#ifdef CONFIG_PPC_BOOK3S_64
+#ifdef CONFIG_PPC_STD_MMU_64
 void dump_segments(void)
 {
 	int i;

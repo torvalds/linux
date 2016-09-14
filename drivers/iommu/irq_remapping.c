@@ -36,7 +36,7 @@ static void irq_remapping_disable_io_apic(void)
 	 * As this gets called during crash dump, keep this simple for
 	 * now.
 	 */
-	if (cpu_has_apic || apic_from_smp_config())
+	if (boot_cpu_has(X86_FEATURE_APIC) || apic_from_smp_config())
 		disconnect_bsp_APIC(0);
 }
 

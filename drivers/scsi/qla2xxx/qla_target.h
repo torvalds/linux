@@ -738,7 +738,6 @@ struct qla_tgt_func_tmpl {
 	struct qla_tgt_sess *(*find_sess_by_s_id)(struct scsi_qla_host *,
 						const uint8_t *);
 	void (*clear_nacl_from_fcport_map)(struct qla_tgt_sess *);
-	void (*put_sess)(struct qla_tgt_sess *);
 	void (*shutdown_sess)(struct qla_tgt_sess *);
 };
 
@@ -930,6 +929,7 @@ struct qla_tgt_sess {
 	int generation;
 
 	struct se_session *se_sess;
+	struct kref sess_kref;
 	struct scsi_qla_host *vha;
 	struct qla_tgt *tgt;
 
@@ -1101,7 +1101,7 @@ extern int qlt_remove_target(struct qla_hw_data *, struct scsi_qla_host *);
 extern int qlt_lport_register(void *, u64, u64, u64,
 			int (*callback)(struct scsi_qla_host *, void *, u64, u64));
 extern void qlt_lport_deregister(struct scsi_qla_host *);
-extern void qlt_unreg_sess(struct qla_tgt_sess *);
+void qlt_put_sess(struct qla_tgt_sess *sess);
 extern void qlt_fc_port_added(struct scsi_qla_host *, fc_port_t *);
 extern void qlt_fc_port_deleted(struct scsi_qla_host *, fc_port_t *, int);
 extern int __init qlt_init(void);

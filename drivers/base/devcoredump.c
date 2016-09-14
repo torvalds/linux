@@ -4,6 +4,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2015 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -41,12 +42,12 @@ static bool devcd_disabled;
 
 struct devcd_entry {
 	struct device devcd_dev;
-	const void *data;
+	void *data;
 	size_t datalen;
 	struct module *owner;
 	ssize_t (*read)(char *buffer, loff_t offset, size_t count,
-			const void *data, size_t datalen);
-	void (*free)(const void *data);
+			void *data, size_t datalen);
+	void (*free)(void *data);
 	struct delayed_work del_wk;
 	struct device *failing_dev;
 };
@@ -174,7 +175,7 @@ static struct class devcd_class = {
 };
 
 static ssize_t devcd_readv(char *buffer, loff_t offset, size_t count,
-			   const void *data, size_t datalen)
+			   void *data, size_t datalen)
 {
 	if (offset > datalen)
 		return -EINVAL;
@@ -188,6 +189,11 @@ static ssize_t devcd_readv(char *buffer, loff_t offset, size_t count,
 	return count;
 }
 
+static void devcd_freev(void *data)
+{
+	vfree(data);
+}
+
 /**
  * dev_coredumpv - create device coredump with vmalloc data
  * @dev: the struct device for the crashed device
@@ -198,10 +204,10 @@ static ssize_t devcd_readv(char *buffer, loff_t offset, size_t count,
  * This function takes ownership of the vmalloc'ed data and will free
  * it when it is no longer used. See dev_coredumpm() for more information.
  */
-void dev_coredumpv(struct device *dev, const void *data, size_t datalen,
+void dev_coredumpv(struct device *dev, void *data, size_t datalen,
 		   gfp_t gfp)
 {
-	dev_coredumpm(dev, NULL, data, datalen, gfp, devcd_readv, vfree);
+	dev_coredumpm(dev, NULL, data, datalen, gfp, devcd_readv, devcd_freev);
 }
 EXPORT_SYMBOL_GPL(dev_coredumpv);
 
@@ -210,6 +216,44 @@ static int devcd_match_failing(struct device *dev, const void *failing)
 	struct devcd_entry *devcd = dev_to_devcd(dev);
 
 	return devcd->failing_dev == failing;
+}
+
+/**
+ * devcd_free_sgtable - free all the memory of the given scatterlist table
+ * (i.e. both pages and scatterlist instances)
+ * NOTE: if two tables allocated with devcd_alloc_sgtable and then chained
+ * using the sg_chain function then that function should be called only once
+ * on the chained table
+ * @table: pointer to sg_table to free
+ */
+static void devcd_free_sgtable(void *data)
+{
+	_devcd_free_sgtable(data);
+}
+
+/**
+ * devcd_read_from_table - copy data from sg_table to a given buffer
+ * and return the number of bytes read
+ * @buffer: the buffer to copy the data to it
+ * @buf_len: the length of the buffer
+ * @data: the scatterlist table to copy from
+ * @offset: start copy from @offset@ bytes from the head of the data
+ *	in the given scatterlist
+ * @data_len: the length of the data in the sg_table
+ */
+static ssize_t devcd_read_from_sgtable(char *buffer, loff_t offset,
+				       size_t buf_len, void *data,
+				       size_t data_len)
+{
+	struct scatterlist *table = data;
+
+	if (offset > data_len)
+		return -EINVAL;
+
+	if (offset + buf_len > data_len)
+		buf_len = data_len - offset;
+	return sg_pcopy_to_buffer(table, sg_nents(table), buffer, buf_len,
+				  offset);
 }
 
 /**
@@ -228,10 +272,10 @@ static int devcd_match_failing(struct device *dev, const void *failing)
  * function will be called to free the data.
  */
 void dev_coredumpm(struct device *dev, struct module *owner,
-		   const void *data, size_t datalen, gfp_t gfp,
+		   void *data, size_t datalen, gfp_t gfp,
 		   ssize_t (*read)(char *buffer, loff_t offset, size_t count,
-				   const void *data, size_t datalen),
-		   void (*free)(const void *data))
+				   void *data, size_t datalen),
+		   void (*free)(void *data))
 {
 	static atomic_t devcd_count = ATOMIC_INIT(0);
 	struct devcd_entry *devcd;
@@ -290,6 +334,27 @@ void dev_coredumpm(struct device *dev, struct module *owner,
 	free(data);
 }
 EXPORT_SYMBOL_GPL(dev_coredumpm);
+
+/**
+ * dev_coredumpmsg - create device coredump that uses scatterlist as data
+ * parameter
+ * @dev: the struct device for the crashed device
+ * @table: the dump data
+ * @datalen: length of the data
+ * @gfp: allocation flags
+ *
+ * Creates a new device coredump for the given device. If a previous one hasn't
+ * been read yet, the new coredump is discarded. The data lifetime is determined
+ * by the device coredump framework and when it is no longer needed
+ * it will free the data.
+ */
+void dev_coredumpsg(struct device *dev, struct scatterlist *table,
+		    size_t datalen, gfp_t gfp)
+{
+	dev_coredumpm(dev, NULL, table, datalen, gfp, devcd_read_from_sgtable,
+		      devcd_free_sgtable);
+}
+EXPORT_SYMBOL_GPL(dev_coredumpsg);
 
 static int __init devcoredump_init(void)
 {

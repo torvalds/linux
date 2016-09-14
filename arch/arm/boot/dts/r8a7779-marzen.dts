@@ -170,49 +170,49 @@
 
 	du_pins: du {
 		du0 {
-			renesas,groups = "du0_rgb888", "du0_sync_1", "du0_clk_out_0";
-			renesas,function = "du0";
+			groups = "du0_rgb888", "du0_sync_1", "du0_clk_out_0";
+			function = "du0";
 		};
 		du1 {
-			renesas,groups = "du1_rgb666", "du1_sync_1", "du1_clk_out";
-			renesas,function = "du1";
+			groups = "du1_rgb666", "du1_sync_1", "du1_clk_out";
+			function = "du1";
 		};
 	};
 
 	scif_clk_pins: scif_clk {
-		renesas,groups = "scif_clk_b";
-		renesas,function = "scif_clk";
+		groups = "scif_clk_b";
+		function = "scif_clk";
 	};
 
 	ethernet_pins: ethernet {
 		intc {
-			renesas,groups = "intc_irq1_b";
-			renesas,function = "intc";
+			groups = "intc_irq1_b";
+			function = "intc";
 		};
 		lbsc {
-			renesas,groups = "lbsc_ex_cs0";
-			renesas,function = "lbsc";
+			groups = "lbsc_ex_cs0";
+			function = "lbsc";
 		};
 	};
 
 	scif2_pins: serial2 {
-		renesas,groups = "scif2_data_c";
-		renesas,function = "scif2";
+		groups = "scif2_data_c";
+		function = "scif2";
 	};
 
 	scif4_pins: serial4 {
-		renesas,groups = "scif4_data";
-		renesas,function = "scif4";
+		groups = "scif4_data";
+		function = "scif4";
 	};
 
 	sdhi0_pins: sd0 {
-		renesas,groups = "sdhi0_data4", "sdhi0_ctrl", "sdhi0_cd";
-		renesas,function = "sdhi0";
+		groups = "sdhi0_data4", "sdhi0_ctrl", "sdhi0_cd";
+		function = "sdhi0";
 	};
 
 	hspi0_pins: hspi0 {
-		renesas,groups = "hspi0";
-		renesas,function = "hspi0";
+		groups = "hspi0";
+		function = "hspi0";
 	};
 };
 

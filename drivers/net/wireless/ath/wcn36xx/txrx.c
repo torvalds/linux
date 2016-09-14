@@ -57,7 +57,7 @@ int wcn36xx_rx_skb(struct wcn36xx *wcn, struct sk_buff *skb)
 		       RX_FLAG_MMIC_STRIPPED |
 		       RX_FLAG_DECRYPTED;
 
-	wcn36xx_dbg(WCN36XX_DBG_RX, "status.flags=%x\n", status.flag);
+	wcn36xx_dbg(WCN36XX_DBG_RX, "status.flags=%llx\n", status.flag);
 
 	memcpy(IEEE80211_SKB_RXCB(skb), &status, sizeof(status));
 
@@ -102,9 +102,7 @@ static inline struct wcn36xx_vif *get_vif_by_addr(struct wcn36xx *wcn,
 	struct wcn36xx_vif *vif_priv = NULL;
 	struct ieee80211_vif *vif = NULL;
 	list_for_each_entry(vif_priv, &wcn->vif_list, list) {
-			vif = container_of((void *)vif_priv,
-				   struct ieee80211_vif,
-				   drv_priv);
+			vif = wcn36xx_priv_to_vif(vif_priv);
 			if (memcmp(vif->addr, addr, ETH_ALEN) == 0)
 				return vif_priv;
 	}
@@ -167,9 +165,7 @@ static void wcn36xx_set_tx_data(struct wcn36xx_tx_bd *bd,
 	 */
 	if (sta_priv) {
 		__vif_priv = sta_priv->vif;
-		vif = container_of((void *)__vif_priv,
-				   struct ieee80211_vif,
-				   drv_priv);
+		vif = wcn36xx_priv_to_vif(__vif_priv);
 
 		bd->dpu_sign = sta_priv->ucast_dpu_sign;
 		if (vif->type == NL80211_IFTYPE_STATION) {
@@ -225,7 +221,7 @@ static void wcn36xx_set_tx_mgmt(struct wcn36xx_tx_bd *bd,
 
 	/* default rate for unicast */
 	if (ieee80211_is_mgmt(hdr->frame_control))
-		bd->bd_rate = (WCN36XX_BAND(wcn) == IEEE80211_BAND_5GHZ) ?
+		bd->bd_rate = (WCN36XX_BAND(wcn) == NL80211_BAND_5GHZ) ?
 			WCN36XX_BD_RATE_CTRL :
 			WCN36XX_BD_RATE_MGMT;
 	else if (ieee80211_is_ctl(hdr->frame_control))

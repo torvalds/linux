@@ -12,6 +12,7 @@
 #define __MV88E6XXX_H
 
 #include <linux/if_vlan.h>
+#include <linux/gpio/consumer.h>
 
 #ifndef UINT64_MAX
 #define UINT64_MAX		(u64)(~((u64)0))
@@ -68,52 +69,23 @@
 #define PORT_PCS_CTRL_UNFORCED		0x03
 #define PORT_PAUSE_CTRL		0x02
 #define PORT_SWITCH_ID		0x03
-#define PORT_SWITCH_ID_PROD_NUM_MASK	0xfff0
-#define PORT_SWITCH_ID_REV_MASK		0x000f
-#define PORT_SWITCH_ID_6031	0x0310
-#define PORT_SWITCH_ID_6035	0x0350
-#define PORT_SWITCH_ID_6046	0x0480
-#define PORT_SWITCH_ID_6061	0x0610
-#define PORT_SWITCH_ID_6065	0x0650
-#define PORT_SWITCH_ID_6085	0x04a0
-#define PORT_SWITCH_ID_6092	0x0970
-#define PORT_SWITCH_ID_6095	0x0950
-#define PORT_SWITCH_ID_6096	0x0980
-#define PORT_SWITCH_ID_6097	0x0990
-#define PORT_SWITCH_ID_6108	0x1070
-#define PORT_SWITCH_ID_6121	0x1040
-#define PORT_SWITCH_ID_6122	0x1050
-#define PORT_SWITCH_ID_6123	0x1210
-#define PORT_SWITCH_ID_6123_A1	0x1212
-#define PORT_SWITCH_ID_6123_A2	0x1213
-#define PORT_SWITCH_ID_6131	0x1060
-#define PORT_SWITCH_ID_6131_B2	0x1066
-#define PORT_SWITCH_ID_6152	0x1a40
-#define PORT_SWITCH_ID_6155	0x1a50
-#define PORT_SWITCH_ID_6161	0x1610
-#define PORT_SWITCH_ID_6161_A1	0x1612
-#define PORT_SWITCH_ID_6161_A2	0x1613
-#define PORT_SWITCH_ID_6165	0x1650
-#define PORT_SWITCH_ID_6165_A1	0x1652
-#define PORT_SWITCH_ID_6165_A2	0x1653
-#define PORT_SWITCH_ID_6171	0x1710
-#define PORT_SWITCH_ID_6172	0x1720
-#define PORT_SWITCH_ID_6175	0x1750
-#define PORT_SWITCH_ID_6176	0x1760
-#define PORT_SWITCH_ID_6182	0x1a60
-#define PORT_SWITCH_ID_6185	0x1a70
-#define PORT_SWITCH_ID_6240	0x2400
-#define PORT_SWITCH_ID_6320	0x1150
-#define PORT_SWITCH_ID_6320_A1	0x1151
-#define PORT_SWITCH_ID_6320_A2	0x1152
-#define PORT_SWITCH_ID_6321	0x3100
-#define PORT_SWITCH_ID_6321_A1	0x3101
-#define PORT_SWITCH_ID_6321_A2	0x3102
-#define PORT_SWITCH_ID_6350	0x3710
-#define PORT_SWITCH_ID_6351	0x3750
-#define PORT_SWITCH_ID_6352	0x3520
-#define PORT_SWITCH_ID_6352_A0	0x3521
-#define PORT_SWITCH_ID_6352_A1	0x3522
+#define PORT_SWITCH_ID_PROD_NUM_6085	0x04a
+#define PORT_SWITCH_ID_PROD_NUM_6095	0x095
+#define PORT_SWITCH_ID_PROD_NUM_6131	0x106
+#define PORT_SWITCH_ID_PROD_NUM_6320	0x115
+#define PORT_SWITCH_ID_PROD_NUM_6123	0x121
+#define PORT_SWITCH_ID_PROD_NUM_6161	0x161
+#define PORT_SWITCH_ID_PROD_NUM_6165	0x165
+#define PORT_SWITCH_ID_PROD_NUM_6171	0x171
+#define PORT_SWITCH_ID_PROD_NUM_6172	0x172
+#define PORT_SWITCH_ID_PROD_NUM_6175	0x175
+#define PORT_SWITCH_ID_PROD_NUM_6176	0x176
+#define PORT_SWITCH_ID_PROD_NUM_6185	0x1a7
+#define PORT_SWITCH_ID_PROD_NUM_6240	0x240
+#define PORT_SWITCH_ID_PROD_NUM_6321	0x310
+#define PORT_SWITCH_ID_PROD_NUM_6352	0x352
+#define PORT_SWITCH_ID_PROD_NUM_6350	0x371
+#define PORT_SWITCH_ID_PROD_NUM_6351	0x375
 #define PORT_CONTROL		0x04
 #define PORT_CONTROL_USE_CORE_TAG	BIT(15)
 #define PORT_CONTROL_DROP_ON_LOCK	BIT(14)
@@ -367,9 +339,187 @@
 
 #define MV88E6XXX_N_FID		4096
 
-struct mv88e6xxx_switch_id {
-	u16 id;
-	char *name;
+/* List of supported models */
+enum mv88e6xxx_model {
+	MV88E6085,
+	MV88E6095,
+	MV88E6123,
+	MV88E6131,
+	MV88E6161,
+	MV88E6165,
+	MV88E6171,
+	MV88E6172,
+	MV88E6175,
+	MV88E6176,
+	MV88E6185,
+	MV88E6240,
+	MV88E6320,
+	MV88E6321,
+	MV88E6350,
+	MV88E6351,
+	MV88E6352,
+};
+
+enum mv88e6xxx_family {
+	MV88E6XXX_FAMILY_NONE,
+	MV88E6XXX_FAMILY_6065,	/* 6031 6035 6061 6065 */
+	MV88E6XXX_FAMILY_6095,	/* 6092 6095 */
+	MV88E6XXX_FAMILY_6097,	/* 6046 6085 6096 6097 */
+	MV88E6XXX_FAMILY_6165,	/* 6123 6161 6165 */
+	MV88E6XXX_FAMILY_6185,	/* 6108 6121 6122 6131 6152 6155 6182 6185 */
+	MV88E6XXX_FAMILY_6320,	/* 6320 6321 */
+	MV88E6XXX_FAMILY_6351,	/* 6171 6175 6350 6351 */
+	MV88E6XXX_FAMILY_6352,	/* 6172 6176 6240 6352 */
+};
+
+enum mv88e6xxx_cap {
+	/* Address Translation Unit.
+	 * The ATU is used to lookup and learn MAC addresses. See GLOBAL_ATU_OP.
+	 */
+	MV88E6XXX_CAP_ATU,
+
+	/* Energy Efficient Ethernet.
+	 */
+	MV88E6XXX_CAP_EEE,
+
+	/* EEPROM Command and Data registers.
+	 * See GLOBAL2_EEPROM_OP and GLOBAL2_EEPROM_DATA.
+	 */
+	MV88E6XXX_CAP_EEPROM,
+
+	/* Port State Filtering for 802.1D Spanning Tree.
+	 * See PORT_CONTROL_STATE_* values in the PORT_CONTROL register.
+	 */
+	MV88E6XXX_CAP_PORTSTATE,
+
+	/* PHY Polling Unit.
+	 * See GLOBAL_CONTROL_PPU_ENABLE and GLOBAL_STATUS_PPU_POLLING.
+	 */
+	MV88E6XXX_CAP_PPU,
+	MV88E6XXX_CAP_PPU_ACTIVE,
+
+	/* SMI PHY Command and Data registers.
+	 * This requires an indirect access to PHY registers through
+	 * GLOBAL2_SMI_OP, otherwise direct access to PHY registers is done.
+	 */
+	MV88E6XXX_CAP_SMI_PHY,
+
+	/* Per VLAN Spanning Tree Unit (STU).
+	 * The Port State database, if present, is accessed through VTU
+	 * operations and dedicated SID registers. See GLOBAL_VTU_SID.
+	 */
+	MV88E6XXX_CAP_STU,
+
+	/* Switch MAC/WoL/WoF register.
+	 * This requires an indirect access to set the switch MAC address
+	 * through GLOBAL2_SWITCH_MAC, otherwise GLOBAL_MAC_01, GLOBAL_MAC_23,
+	 * and GLOBAL_MAC_45 are used with a direct access.
+	 */
+	MV88E6XXX_CAP_SWITCH_MAC_WOL_WOF,
+
+	/* Internal temperature sensor.
+	 * Available from any enabled port's PHY register 26, page 6.
+	 */
+	MV88E6XXX_CAP_TEMP,
+	MV88E6XXX_CAP_TEMP_LIMIT,
+
+	/* In-chip Port Based VLANs.
+	 * Each port VLANTable register (see PORT_BASE_VLAN) is used to restrict
+	 * the output (or egress) ports to which it is allowed to send frames.
+	 */
+	MV88E6XXX_CAP_VLANTABLE,
+
+	/* VLAN Table Unit.
+	 * The VTU is used to program 802.1Q VLANs. See GLOBAL_VTU_OP.
+	 */
+	MV88E6XXX_CAP_VTU,
+};
+
+/* Bitmask of capabilities */
+#define MV88E6XXX_FLAG_ATU		BIT(MV88E6XXX_CAP_ATU)
+#define MV88E6XXX_FLAG_EEE		BIT(MV88E6XXX_CAP_EEE)
+#define MV88E6XXX_FLAG_EEPROM		BIT(MV88E6XXX_CAP_EEPROM)
+#define MV88E6XXX_FLAG_PORTSTATE	BIT(MV88E6XXX_CAP_PORTSTATE)
+#define MV88E6XXX_FLAG_PPU		BIT(MV88E6XXX_CAP_PPU)
+#define MV88E6XXX_FLAG_PPU_ACTIVE	BIT(MV88E6XXX_CAP_PPU_ACTIVE)
+#define MV88E6XXX_FLAG_SMI_PHY		BIT(MV88E6XXX_CAP_SMI_PHY)
+#define MV88E6XXX_FLAG_STU		BIT(MV88E6XXX_CAP_STU)
+#define MV88E6XXX_FLAG_SWITCH_MAC	BIT(MV88E6XXX_CAP_SWITCH_MAC_WOL_WOF)
+#define MV88E6XXX_FLAG_TEMP		BIT(MV88E6XXX_CAP_TEMP)
+#define MV88E6XXX_FLAG_TEMP_LIMIT	BIT(MV88E6XXX_CAP_TEMP_LIMIT)
+#define MV88E6XXX_FLAG_VLANTABLE	BIT(MV88E6XXX_CAP_VLANTABLE)
+#define MV88E6XXX_FLAG_VTU		BIT(MV88E6XXX_CAP_VTU)
+
+#define MV88E6XXX_FLAGS_FAMILY_6095	\
+	(MV88E6XXX_FLAG_ATU |		\
+	 MV88E6XXX_FLAG_PPU |		\
+	 MV88E6XXX_FLAG_VLANTABLE |	\
+	 MV88E6XXX_FLAG_VTU)
+
+#define MV88E6XXX_FLAGS_FAMILY_6097	\
+	(MV88E6XXX_FLAG_ATU |		\
+	 MV88E6XXX_FLAG_PPU |		\
+	 MV88E6XXX_FLAG_STU |		\
+	 MV88E6XXX_FLAG_VLANTABLE |	\
+	 MV88E6XXX_FLAG_VTU)
+
+#define MV88E6XXX_FLAGS_FAMILY_6165	\
+	(MV88E6XXX_FLAG_STU |		\
+	 MV88E6XXX_FLAG_SWITCH_MAC |	\
+	 MV88E6XXX_FLAG_TEMP |		\
+	 MV88E6XXX_FLAG_VTU)
+
+#define MV88E6XXX_FLAGS_FAMILY_6185	\
+	(MV88E6XXX_FLAG_ATU |		\
+	 MV88E6XXX_FLAG_PPU |		\
+	 MV88E6XXX_FLAG_VLANTABLE |	\
+	 MV88E6XXX_FLAG_VTU)
+
+#define MV88E6XXX_FLAGS_FAMILY_6320	\
+	(MV88E6XXX_FLAG_ATU |		\
+	 MV88E6XXX_FLAG_EEE |		\
+	 MV88E6XXX_FLAG_EEPROM |	\
+	 MV88E6XXX_FLAG_PORTSTATE |	\
+	 MV88E6XXX_FLAG_PPU_ACTIVE |	\
+	 MV88E6XXX_FLAG_SMI_PHY |	\
+	 MV88E6XXX_FLAG_SWITCH_MAC |	\
+	 MV88E6XXX_FLAG_TEMP |		\
+	 MV88E6XXX_FLAG_TEMP_LIMIT |	\
+	 MV88E6XXX_FLAG_VLANTABLE |	\
+	 MV88E6XXX_FLAG_VTU)
+
+#define MV88E6XXX_FLAGS_FAMILY_6351	\
+	(MV88E6XXX_FLAG_ATU |		\
+	 MV88E6XXX_FLAG_PORTSTATE |	\
+	 MV88E6XXX_FLAG_PPU_ACTIVE |	\
+	 MV88E6XXX_FLAG_SMI_PHY |	\
+	 MV88E6XXX_FLAG_STU |		\
+	 MV88E6XXX_FLAG_SWITCH_MAC |	\
+	 MV88E6XXX_FLAG_TEMP |		\
+	 MV88E6XXX_FLAG_VLANTABLE |	\
+	 MV88E6XXX_FLAG_VTU)
+
+#define MV88E6XXX_FLAGS_FAMILY_6352	\
+	(MV88E6XXX_FLAG_ATU |		\
+	 MV88E6XXX_FLAG_EEE |		\
+	 MV88E6XXX_FLAG_EEPROM |	\
+	 MV88E6XXX_FLAG_PORTSTATE |	\
+	 MV88E6XXX_FLAG_PPU_ACTIVE |	\
+	 MV88E6XXX_FLAG_SMI_PHY |	\
+	 MV88E6XXX_FLAG_STU |		\
+	 MV88E6XXX_FLAG_SWITCH_MAC |	\
+	 MV88E6XXX_FLAG_TEMP |		\
+	 MV88E6XXX_FLAG_TEMP_LIMIT |	\
+	 MV88E6XXX_FLAG_VLANTABLE |	\
+	 MV88E6XXX_FLAG_VTU)
+
+struct mv88e6xxx_info {
+	enum mv88e6xxx_family family;
+	u16 prod_num;
+	const char *name;
+	unsigned int num_databases;
+	unsigned int num_ports;
+	unsigned long flags;
 };
 
 struct mv88e6xxx_atu_entry {
@@ -393,17 +543,29 @@ struct mv88e6xxx_vtu_stu_entry {
 
 struct mv88e6xxx_priv_port {
 	struct net_device *bridge_dev;
-	u8 state;
 };
 
 struct mv88e6xxx_priv_state {
+	const struct mv88e6xxx_info *info;
+
+	/* The dsa_switch this private structure is related to */
+	struct dsa_switch *ds;
+
+	/* The device this structure is associated to */
+	struct device *dev;
+
 	/* When using multi-chip addressing, this mutex protects
 	 * access to the indirect access registers.  (In single-chip
 	 * mode, this mutex is effectively useless.)
 	 */
 	struct mutex	smi_mutex;
 
-#ifdef CONFIG_NET_DSA_MV88E6XXX_NEED_PPU
+	/* The MII bus and the address on the bus that is used to
+	 * communication with the switch
+	 */
+	struct mii_bus *bus;
+	int sw_addr;
+
 	/* Handles automatic disabling and re-enabling of the PHY
 	 * polling unit.
 	 */
@@ -411,7 +573,6 @@ struct mv88e6xxx_priv_state {
 	int			ppu_disabled;
 	struct work_struct	ppu_work;
 	struct timer_list	ppu_timer;
-#endif
 
 	/* This mutex serialises access to the statistics unit.
 	 * Hold this mutex over snapshot + dump sequences.
@@ -429,14 +590,16 @@ struct mv88e6xxx_priv_state {
 	 */
 	struct mutex eeprom_mutex;
 
-	int		id; /* switch product id */
-	int		num_ports;	/* number of switch ports */
-
 	struct mv88e6xxx_priv_port	ports[DSA_MAX_PORTS];
 
-	DECLARE_BITMAP(port_state_update_mask, DSA_MAX_PORTS);
+	/* A switch may have a GPIO line tied to its reset pin. Parse
+	 * this from the device tree, and use it before performing
+	 * switch soft reset.
+	 */
+	struct gpio_desc *reset;
 
-	struct work_struct bridge_work;
+	/* set to size of eeprom if supported by the switch */
+	int		eeprom_len;
 };
 
 enum stat_type {
@@ -452,104 +615,10 @@ struct mv88e6xxx_hw_stat {
 	enum stat_type type;
 };
 
-int mv88e6xxx_switch_reset(struct dsa_switch *ds, bool ppu_active);
-char *mv88e6xxx_lookup_name(struct device *host_dev, int sw_addr,
-			    const struct mv88e6xxx_switch_id *table,
-			    unsigned int num);
-int mv88e6xxx_setup_ports(struct dsa_switch *ds);
-int mv88e6xxx_setup_common(struct dsa_switch *ds);
-int mv88e6xxx_setup_global(struct dsa_switch *ds);
-int mv88e6xxx_reg_read(struct dsa_switch *ds, int addr, int reg);
-int mv88e6xxx_reg_write(struct dsa_switch *ds, int addr, int reg, u16 val);
-int mv88e6xxx_set_addr_direct(struct dsa_switch *ds, u8 *addr);
-int mv88e6xxx_set_addr_indirect(struct dsa_switch *ds, u8 *addr);
-int mv88e6xxx_phy_read(struct dsa_switch *ds, int port, int regnum);
-int mv88e6xxx_phy_write(struct dsa_switch *ds, int port, int regnum, u16 val);
-int mv88e6xxx_phy_read_indirect(struct dsa_switch *ds, int port, int regnum);
-int mv88e6xxx_phy_write_indirect(struct dsa_switch *ds, int port, int regnum,
-				 u16 val);
-void mv88e6xxx_ppu_state_init(struct dsa_switch *ds);
-int mv88e6xxx_phy_read_ppu(struct dsa_switch *ds, int addr, int regnum);
-int mv88e6xxx_phy_write_ppu(struct dsa_switch *ds, int addr,
-			    int regnum, u16 val);
-void mv88e6xxx_get_strings(struct dsa_switch *ds, int port, uint8_t *data);
-void mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds, int port,
-				 uint64_t *data);
-int mv88e6xxx_get_sset_count(struct dsa_switch *ds);
-int mv88e6xxx_get_sset_count_basic(struct dsa_switch *ds);
-void mv88e6xxx_adjust_link(struct dsa_switch *ds, int port,
-			   struct phy_device *phydev);
-int mv88e6xxx_get_regs_len(struct dsa_switch *ds, int port);
-void mv88e6xxx_get_regs(struct dsa_switch *ds, int port,
-			struct ethtool_regs *regs, void *_p);
-int mv88e6xxx_get_temp(struct dsa_switch *ds, int *temp);
-int mv88e6xxx_get_temp_limit(struct dsa_switch *ds, int *temp);
-int mv88e6xxx_set_temp_limit(struct dsa_switch *ds, int temp);
-int mv88e6xxx_get_temp_alarm(struct dsa_switch *ds, bool *alarm);
-int mv88e6xxx_eeprom_load_wait(struct dsa_switch *ds);
-int mv88e6xxx_eeprom_busy_wait(struct dsa_switch *ds);
-int mv88e6xxx_phy_read_indirect(struct dsa_switch *ds, int addr, int regnum);
-int mv88e6xxx_phy_write_indirect(struct dsa_switch *ds, int addr, int regnum,
-				 u16 val);
-int mv88e6xxx_get_eee(struct dsa_switch *ds, int port, struct ethtool_eee *e);
-int mv88e6xxx_set_eee(struct dsa_switch *ds, int port,
-		      struct phy_device *phydev, struct ethtool_eee *e);
-int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port,
-			       struct net_device *bridge);
-void mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port);
-int mv88e6xxx_port_stp_update(struct dsa_switch *ds, int port, u8 state);
-int mv88e6xxx_port_vlan_filtering(struct dsa_switch *ds, int port,
-				  bool vlan_filtering);
-int mv88e6xxx_port_vlan_prepare(struct dsa_switch *ds, int port,
-				const struct switchdev_obj_port_vlan *vlan,
-				struct switchdev_trans *trans);
-int mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
-			    const struct switchdev_obj_port_vlan *vlan,
-			    struct switchdev_trans *trans);
-int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port,
-			    const struct switchdev_obj_port_vlan *vlan);
-int mv88e6xxx_port_vlan_dump(struct dsa_switch *ds, int port,
-			     struct switchdev_obj_port_vlan *vlan,
-			     int (*cb)(struct switchdev_obj *obj));
-int mv88e6xxx_port_fdb_prepare(struct dsa_switch *ds, int port,
-			       const struct switchdev_obj_port_fdb *fdb,
-			       struct switchdev_trans *trans);
-int mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port,
-			   const struct switchdev_obj_port_fdb *fdb,
-			   struct switchdev_trans *trans);
-int mv88e6xxx_port_fdb_del(struct dsa_switch *ds, int port,
-			   const struct switchdev_obj_port_fdb *fdb);
-int mv88e6xxx_port_fdb_dump(struct dsa_switch *ds, int port,
-			    struct switchdev_obj_port_fdb *fdb,
-			    int (*cb)(struct switchdev_obj *obj));
-int mv88e6xxx_phy_page_read(struct dsa_switch *ds, int port, int page, int reg);
-int mv88e6xxx_phy_page_write(struct dsa_switch *ds, int port, int page,
-			     int reg, int val);
-
-extern struct dsa_switch_driver mv88e6131_switch_driver;
-extern struct dsa_switch_driver mv88e6123_switch_driver;
-extern struct dsa_switch_driver mv88e6352_switch_driver;
-extern struct dsa_switch_driver mv88e6171_switch_driver;
-
-#define REG_READ(addr, reg)						\
-	({								\
-		int __ret;						\
-									\
-		__ret = mv88e6xxx_reg_read(ds, addr, reg);		\
-		if (__ret < 0)						\
-			return __ret;					\
-		__ret;							\
-	})
-
-#define REG_WRITE(addr, reg, val)					\
-	({								\
-		int __ret;						\
-									\
-		__ret = mv88e6xxx_reg_write(ds, addr, reg, val);	\
-		if (__ret < 0)						\
-			return __ret;					\
-	})
-
-
+static inline bool mv88e6xxx_has(struct mv88e6xxx_priv_state *ps,
+				 unsigned long flags)
+{
+	return (ps->info->flags & flags) == flags;
+}
 
 #endif

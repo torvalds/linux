@@ -122,7 +122,7 @@ static int parse_options(char *options, struct exofs_mountopt *opts)
 			if (match_int(&args[0], &option))
 				return -EINVAL;
 			if (option <= 0) {
-				EXOFS_ERR("Timout must be > 0");
+				EXOFS_ERR("Timeout must be > 0");
 				return -EINVAL;
 			}
 			opts->timeout = option * HZ;
@@ -958,7 +958,7 @@ static struct dentry *exofs_get_parent(struct dentry *child)
 	if (!ino)
 		return ERR_PTR(-ESTALE);
 
-	return d_obtain_alias(exofs_iget(d_inode(child)->i_sb, ino));
+	return d_obtain_alias(exofs_iget(child->d_sb, ino));
 }
 
 static struct inode *exofs_nfs_get_inode(struct super_block *sb,

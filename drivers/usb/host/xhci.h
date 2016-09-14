@@ -1338,6 +1338,9 @@ union xhci_trb {
 /* TRB buffer pointers can't cross 64KB boundaries */
 #define TRB_MAX_BUFF_SHIFT		16
 #define TRB_MAX_BUFF_SIZE	(1 << TRB_MAX_BUFF_SHIFT)
+/* How much data is left before the 64KB boundary? */
+#define TRB_BUFF_LEN_UP_TO_BOUNDARY(addr)	(TRB_MAX_BUFF_SIZE - \
+					(addr & (TRB_MAX_BUFF_SIZE - 1)))
 
 struct xhci_segment {
 	union xhci_trb		*trbs;
@@ -1964,5 +1967,16 @@ void xhci_ring_device(struct xhci_hcd *xhci, int slot_id);
 struct xhci_input_control_ctx *xhci_get_input_control_ctx(struct xhci_container_ctx *ctx);
 struct xhci_slot_ctx *xhci_get_slot_ctx(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx);
 struct xhci_ep_ctx *xhci_get_ep_ctx(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx, unsigned int ep_index);
+
+struct xhci_ring *xhci_triad_to_transfer_ring(struct xhci_hcd *xhci,
+		unsigned int slot_id, unsigned int ep_index,
+		unsigned int stream_id);
+static inline struct xhci_ring *xhci_urb_to_transfer_ring(struct xhci_hcd *xhci,
+								struct urb *urb)
+{
+	return xhci_triad_to_transfer_ring(xhci, urb->dev->slot_id,
+					xhci_get_endpoint_index(&urb->ep->desc),
+					urb->stream_id);
+}
 
 #endif /* __LINUX_XHCI_HCD_H */

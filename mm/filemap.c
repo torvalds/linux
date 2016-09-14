@@ -114,14 +114,11 @@ static void page_cache_tree_delete(struct address_space *mapping,
 				   struct page *page, void *shadow)
 {
 	struct radix_tree_node *node;
-	unsigned long index;
-	unsigned int offset;
-	unsigned int tag;
-	void **slot;
 
 	VM_BUG_ON(!PageLocked(page));
 
-	__radix_tree_lookup(&mapping->page_tree, page->index, &node, &slot);
+	node = radix_tree_replace_clear_tags(&mapping->page_tree, page->index,
+								shadow);
 
 	if (shadow) {
 		mapping->nrexceptional++;
@@ -135,23 +132,9 @@ static void page_cache_tree_delete(struct address_space *mapping,
 	}
 	mapping->nrpages--;
 
-	if (!node) {
-		/* Clear direct pointer tags in root node */
-		mapping->page_tree.gfp_mask &= __GFP_BITS_MASK;
-		radix_tree_replace_slot(slot, shadow);
+	if (!node)
 		return;
-	}
 
-	/* Clear tree tags for the removed page */
-	index = page->index;
-	offset = index & RADIX_TREE_MAP_MASK;
-	for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++) {
-		if (test_bit(offset, node->tags[tag]))
-			radix_tree_tag_clear(&mapping->page_tree, index, tag);
-	}
-
-	/* Delete page, swap shadow entry */
-	radix_tree_replace_slot(slot, shadow);
 	workingset_node_pages_dec(node);
 	if (shadow)
 		workingset_node_shadows_inc(node);
@@ -160,13 +143,15 @@ static void page_cache_tree_delete(struct address_space *mapping,
 			return;
 
 	/*
-	 * Track node that only contains shadow entries.
+	 * Track node that only contains shadow entries. DAX mappings contain
+	 * no shadow entries and may contain other exceptional entries so skip
+	 * those.
 	 *
 	 * Avoid acquiring the list_lru lock if already tracked.  The
 	 * list_empty() test is safe as node->private_list is
 	 * protected by mapping->tree_lock.
 	 */
-	if (!workingset_node_pages(node) &&
+	if (!dax_mapping(mapping) && !workingset_node_pages(node) &&
 	    list_empty(&node->private_list)) {
 		node->private_data = mapping;
 		list_lru_add(&workingset_shadow_nodes, &node->private_list);
@@ -213,7 +198,7 @@ void __delete_from_page_cache(struct page *page, void *shadow)
 			 * some other bad page check should catch it later.
 			 */
 			page_mapcount_reset(page);
-			atomic_sub(mapcount, &page->_count);
+			page_ref_sub(page, mapcount);
 		}
 	}
 
@@ -597,14 +582,24 @@ static int page_cache_tree_insert(struct address_space *mapping,
 		if (!radix_tree_exceptional_entry(p))
 			return -EEXIST;
 
-		if (WARN_ON(dax_mapping(mapping)))
-			return -EINVAL;
-
-		if (shadowp)
-			*shadowp = p;
 		mapping->nrexceptional--;
-		if (node)
-			workingset_node_shadows_dec(node);
+		if (!dax_mapping(mapping)) {
+			if (shadowp)
+				*shadowp = p;
+			if (node)
+				workingset_node_shadows_dec(node);
+		} else {
+			/* DAX can replace empty locked entry with a hole */
+			WARN_ON_ONCE(p !=
+				(void *)(RADIX_TREE_EXCEPTIONAL_ENTRY |
+					 RADIX_DAX_ENTRY_LOCK));
+			/* DAX accounts exceptional entries as normal pages */
+			if (node)
+				workingset_node_pages_dec(node);
+			/* Wakeup waiters for exceptional entry lock */
+			dax_wake_mapping_entry_waiter(mapping, page->index,
+						      false);
+		}
 	}
 	radix_tree_replace_slot(slot, page);
 	mapping->nrpages++;
@@ -713,8 +708,12 @@ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
 		 * The page might have been evicted from cache only
 		 * recently, in which case it should be activated like
 		 * any other repeatedly accessed page.
+		 * The exception is pages getting rewritten; evicting other
+		 * data from the working set, only to cache data that will
+		 * get overwritten with something else, is a waste of memory.
 		 */
-		if (shadow && workingset_refault(shadow)) {
+		if (!(gfp_mask & __GFP_WRITE) &&
+		    shadow && workingset_refault(shadow)) {
 			SetPageActive(page);
 			workingset_activation(page);
 		} else
@@ -1838,8 +1837,6 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *file = iocb->ki_filp;
 	ssize_t retval = 0;
-	loff_t *ppos = &iocb->ki_pos;
-	loff_t pos = *ppos;
 	size_t count = iov_iter_count(iter);
 
 	if (!count)
@@ -1851,15 +1848,15 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 		loff_t size;
 
 		size = i_size_read(inode);
-		retval = filemap_write_and_wait_range(mapping, pos,
-					pos + count - 1);
+		retval = filemap_write_and_wait_range(mapping, iocb->ki_pos,
+					iocb->ki_pos + count - 1);
 		if (!retval) {
 			struct iov_iter data = *iter;
-			retval = mapping->a_ops->direct_IO(iocb, &data, pos);
+			retval = mapping->a_ops->direct_IO(iocb, &data);
 		}
 
 		if (retval > 0) {
-			*ppos = pos + retval;
+			iocb->ki_pos += retval;
 			iov_iter_advance(iter, retval);
 		}
 
@@ -1872,14 +1869,14 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 		 * the rest of the read.  Buffered reads will not work for
 		 * DAX files, so don't bother trying.
 		 */
-		if (retval < 0 || !iov_iter_count(iter) || *ppos >= size ||
+		if (retval < 0 || !iov_iter_count(iter) || iocb->ki_pos >= size ||
 		    IS_DAX(inode)) {
 			file_accessed(file);
 			goto out;
 		}
 	}
 
-	retval = do_generic_file_read(file, ppos, iter, retval);
+	retval = do_generic_file_read(file, &iocb->ki_pos, iter, retval);
 out:
 	return retval;
 }
@@ -2500,11 +2497,12 @@ int pagecache_write_end(struct file *file, struct address_space *mapping,
 EXPORT_SYMBOL(pagecache_write_end);
 
 ssize_t
-generic_file_direct_write(struct kiocb *iocb, struct iov_iter *from, loff_t pos)
+generic_file_direct_write(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file	*file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
 	struct inode	*inode = mapping->host;
+	loff_t		pos = iocb->ki_pos;
 	ssize_t		written;
 	size_t		write_len;
 	pgoff_t		end;
@@ -2538,7 +2536,7 @@ generic_file_direct_write(struct kiocb *iocb, struct iov_iter *from, loff_t pos)
 	}
 
 	data = *from;
-	written = mapping->a_ops->direct_IO(iocb, &data, pos);
+	written = mapping->a_ops->direct_IO(iocb, &data);
 
 	/*
 	 * Finally, try again to invalidate clean pages which might have been
@@ -2575,7 +2573,7 @@ struct page *grab_cache_page_write_begin(struct address_space *mapping,
 					pgoff_t index, unsigned flags)
 {
 	struct page *page;
-	int fgp_flags = FGP_LOCK|FGP_ACCESSED|FGP_WRITE|FGP_CREAT;
+	int fgp_flags = FGP_LOCK|FGP_WRITE|FGP_CREAT;
 
 	if (flags & AOP_FLAG_NOFS)
 		fgp_flags |= FGP_NOFS;
@@ -2718,7 +2716,7 @@ ssize_t __generic_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (iocb->ki_flags & IOCB_DIRECT) {
 		loff_t pos, endbyte;
 
-		written = generic_file_direct_write(iocb, from, iocb->ki_pos);
+		written = generic_file_direct_write(iocb, from);
 		/*
 		 * If the write stopped short of completing, fall back to
 		 * buffered writes.  Some filesystems do this for writes to
@@ -2792,13 +2790,8 @@ ssize_t generic_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		ret = __generic_file_write_iter(iocb, from);
 	inode_unlock(inode);
 
-	if (ret > 0) {
-		ssize_t err;
-
-		err = generic_write_sync(file, iocb->ki_pos - ret, ret);
-		if (err < 0)
-			ret = err;
-	}
+	if (ret > 0)
+		ret = generic_write_sync(iocb, ret);
 	return ret;
 }
 EXPORT_SYMBOL(generic_file_write_iter);

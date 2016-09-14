@@ -1933,7 +1933,8 @@ int cipso_v4_sock_setattr(struct sock *sk,
 
 	sk_inet = inet_sk(sk);
 
-	old = rcu_dereference_protected(sk_inet->inet_opt, sock_owned_by_user(sk));
+	old = rcu_dereference_protected(sk_inet->inet_opt,
+					lockdep_sock_is_held(sk));
 	if (sk_inet->is_icsk) {
 		sk_conn = inet_csk(sk);
 		if (old)

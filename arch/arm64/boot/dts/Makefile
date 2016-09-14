@@ -18,6 +18,7 @@ dts-dirs += rockchip
 dts-dirs += socionext
 dts-dirs += sprd
 dts-dirs += xilinx
+dts-dirs += lg
 
 subdir-y	:= $(dts-dirs)
 

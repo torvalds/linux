@@ -38,7 +38,7 @@ Optional properties:
 - bus-width:		Number of data lines.
 			See:  Documentation/devicetree/bindings/mmc/mmc.txt.
 
-- max-frequency: 	Can be 200MHz, 100Mz or 50MHz (default) and used for
+- max-frequency:	Can be 200MHz, 100Mz or 50MHz (default) and used for
 			configuring the CCONFIG3 in the mmcss.
 			See:  Documentation/devicetree/bindings/mmc/mmc.txt.
 
@@ -48,7 +48,7 @@ Optional properties:
 - vqmmc-supply:		Phandle to the regulator dt node, mentioned as the vcc/vdd
 			supply in eMMC/SD specs.
 
-- sd-uhs--sdr50:	To enable the SDR50 in the mmcss.
+- sd-uhs-sdr50:	To enable the SDR50 in the mmcss.
 			See:  Documentation/devicetree/bindings/mmc/mmc.txt.
 
 - sd-uhs-sdr104:	To enable the SDR104 in the mmcss.

@@ -132,10 +132,6 @@ static int msg_do_config(struct usb_configuration *c)
 	if (IS_ERR(f_msg))
 		return PTR_ERR(f_msg);
 
-	ret = fsg_common_run_thread(opts->common);
-	if (ret)
-		goto put_func;
-
 	ret = usb_add_function(c, f_msg);
 	if (ret)
 		goto put_func;

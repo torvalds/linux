@@ -1,0 +1,26 @@
+menuconfig DEV_DAX
+	tristate "DAX: direct access to differentiated memory"
+	default m if NVDIMM_DAX
+	depends on TRANSPARENT_HUGEPAGE
+	help
+	  Support raw access to differentiated (persistence, bandwidth,
+	  latency...) memory via an mmap(2) capable character
+	  device.  Platform firmware or a device driver may identify a
+	  platform memory resource that is differentiated from the
+	  baseline memory pool.  Mappings of a /dev/daxX.Y device impose
+	  restrictions that make the mapping behavior deterministic.
+
+if DEV_DAX
+
+config DEV_DAX_PMEM
+	tristate "PMEM DAX: direct access to persistent memory"
+	depends on NVDIMM_DAX
+	default DEV_DAX
+	help
+	  Support raw access to persistent memory.  Note that this
+	  driver consumes memory ranges allocated and exported by the
+	  libnvdimm sub-system.
+
+	  Say Y if unsure
+
+endif

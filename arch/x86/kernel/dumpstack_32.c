@@ -61,15 +61,13 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 		bp = stack_frame(task, regs);
 
 	for (;;) {
-		struct thread_info *context;
 		void *end_stack;
 
 		end_stack = is_hardirq_stack(stack, cpu);
 		if (!end_stack)
 			end_stack = is_softirq_stack(stack, cpu);
 
-		context = task_thread_info(task);
-		bp = ops->walk_stack(context, stack, bp, ops, data,
+		bp = ops->walk_stack(task, stack, bp, ops, data,
 				     end_stack, &graph);
 
 		/* Stop if not on irq stack */

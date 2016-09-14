@@ -212,6 +212,4 @@ int uniphier_pinctrl_probe(struct platform_device *pdev,
 			   struct pinctrl_desc *desc,
 			   struct uniphier_pinctrl_socdata *socdata);
 
-int uniphier_pinctrl_remove(struct platform_device *pdev);
-
 #endif /* __PINCTRL_UNIPHIER_H__ */

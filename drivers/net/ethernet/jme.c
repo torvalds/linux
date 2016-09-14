@@ -222,7 +222,7 @@ jme_clear_ghc_reset(struct jme_adapter *jme)
 	jwrite32f(jme, JME_GHC, jme->reg_ghc);
 }
 
-static inline void
+static void
 jme_reset_mac_processor(struct jme_adapter *jme)
 {
 	static const u32 mask[WAKEUP_FRAME_MASK_DWNR] = {0, 0, 0, 0};

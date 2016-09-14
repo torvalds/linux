@@ -28,14 +28,12 @@ enum gpd_status {
 
 struct dev_power_governor {
 	bool (*power_down_ok)(struct dev_pm_domain *domain);
-	bool (*stop_ok)(struct device *dev);
+	bool (*suspend_ok)(struct device *dev);
 };
 
 struct gpd_dev_ops {
 	int (*start)(struct device *dev);
 	int (*stop)(struct device *dev);
-	int (*save_state)(struct device *dev);
-	int (*restore_state)(struct device *dev);
 	bool (*active_wakeup)(struct device *dev);
 };
 
@@ -94,7 +92,7 @@ struct gpd_timing_data {
 	s64 resume_latency_ns;
 	s64 effective_constraint_ns;
 	bool constraint_changed;
-	bool cached_stop_ok;
+	bool cached_suspend_ok;
 };
 
 struct pm_domain_data {

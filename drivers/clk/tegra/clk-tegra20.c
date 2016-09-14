@@ -623,7 +623,7 @@ static unsigned int tegra20_get_pll_ref_div(void)
 	case OSC_CTRL_PLL_REF_DIV_4:
 		return 4;
 	default:
-		pr_err("Invalied pll ref divider %d\n", pll_ref_div);
+		pr_err("Invalid pll ref divider %d\n", pll_ref_div);
 		BUG();
 	}
 	return 0;

@@ -13,9 +13,9 @@
 #include <linux/kernel.h>
 #include <linux/of.h>
 #include <linux/smp.h>
+#include <linux/soc/renesas/rcar-sysc.h>
 #include <asm/io.h>
 #include "common.h"
-#include "pm-rcar.h"
 #include "rcar-gen2.h"
 
 /* RST */

@@ -748,6 +748,9 @@
 			clocks = <&uart0clk>, <&pclkuart0>;
 			clock-names = "uartclk", "apb_pclk";
 			status = "disabled";
+			dmas = <&dmac0 14 1>,
+			       <&dmac0 15 1>;
+			dma-names = "rx", "tx";
 		};
 
 		uart1: uart@101fb000 {
@@ -759,6 +762,9 @@
 			clock-names = "uartclk", "apb_pclk";
 			pinctrl-names = "default";
 			pinctrl-0 = <&uart1_default_mux>;
+			dmas = <&dmac1 22 1>,
+			       <&dmac1 23 1>;
+			dma-names = "rx", "tx";
 		};
 
 		uart2: uart@101f2000 {
@@ -769,6 +775,9 @@
 			clocks = <&uart2clk>, <&pclkuart2>;
 			clock-names = "uartclk", "apb_pclk";
 			status = "disabled";
+			dmas = <&dmac1 30 1>,
+			       <&dmac1 31 1>;
+			dma-names = "rx", "tx";
 		};
 
 		rng: rng@101b0000 {
@@ -812,6 +821,35 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&mmcsd_default_mux>, <&mmcsd_default_mode>;
 			vmmc-supply = <&vmmc_regulator>;
+		};
+
+		dmac0: dma-controller@10130000 {
+			compatible = "arm,pl080", "arm,primecell";
+			reg = <0x10130000 0x1000>;
+			interrupt-parent = <&vica>;
+			interrupts = <15>;
+			clocks = <&hclkdma0>;
+			clock-names = "apb_pclk";
+			lli-bus-interface-ahb1;
+			lli-bus-interface-ahb2;
+			mem-bus-interface-ahb2;
+			memcpy-burst-size = <256>;
+			memcpy-bus-width = <32>;
+			#dma-cells = <2>;
+		};
+		dmac1: dma-controller@10150000 {
+			compatible = "arm,pl080", "arm,primecell";
+			reg = <0x10150000 0x1000>;
+			interrupt-parent = <&vica>;
+			interrupts = <13>;
+			clocks = <&hclkdma1>;
+			clock-names = "apb_pclk";
+			lli-bus-interface-ahb1;
+			lli-bus-interface-ahb2;
+			mem-bus-interface-ahb2;
+			memcpy-burst-size = <256>;
+			memcpy-bus-width = <32>;
+			#dma-cells = <2>;
 		};
 	};
 };

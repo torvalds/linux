@@ -17,7 +17,7 @@
 		reg = <0x80000000 0x40000000>; /* 1 GB */
 	};
 
-	sound: sound@0 {
+	sound: sound {
 		compatible = "ti,abe-twl6040";
 		ti,model = "VAR-SOM-OM44";
 

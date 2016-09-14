@@ -27,6 +27,7 @@
 		pinctrl6 = &pinctrl_fsys0;
 		pinctrl7 = &pinctrl_fsys1;
 		pinctrl8 = &pinctrl_bus1;
+		tmuctrl0 = &tmuctrl_0;
 	};
 
 	cpus {
@@ -93,6 +94,35 @@
 				<0x11002000 0x1000>,
 				<0x11004000 0x2000>,
 				<0x11006000 0x2000>;
+		};
+
+		amba {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			pdma0: pdma@10E10000 {
+				compatible = "arm,pl330", "arm,primecell";
+				reg = <0x10E10000 0x1000>;
+				interrupts = <0 225 0>;
+				clocks = <&clock_fsys0 ACLK_PDMA0>;
+				clock-names = "apb_pclk";
+				#dma-cells = <1>;
+				#dma-channels = <8>;
+				#dma-requests = <32>;
+			};
+
+			pdma1: pdma@10EB0000 {
+				compatible = "arm,pl330", "arm,primecell";
+				reg = <0x10EB0000 0x1000>;
+				interrupts = <0 226 0>;
+				clocks = <&clock_fsys0 ACLK_PDMA1>;
+				clock-names = "apb_pclk";
+				#dma-cells = <1>;
+				#dma-channels = <8>;
+				#dma-requests = <32>;
+			};
 		};
 
 		clock_topc: clock-controller@10570000 {
@@ -537,6 +567,25 @@
 			#pwm-cells = <3>;
 			clocks = <&clock_peric0 PCLK_PWM>;
 			clock-names = "timers";
+		};
+
+		tmuctrl_0: tmu@10060000 {
+			compatible = "samsung,exynos7-tmu";
+			reg = <0x10060000 0x200>;
+			interrupts = <0 108 0>;
+			clocks = <&clock_peris PCLK_TMU>,
+				 <&clock_peris SCLK_TMU>;
+			clock-names = "tmu_apbif", "tmu_sclk";
+			#include "exynos7-tmu-sensor-conf.dtsi"
+		};
+
+		thermal-zones {
+			atlas_thermal: cluster0-thermal {
+				polling-delay-passive = <0>; /* milliseconds */
+				polling-delay = <0>; /* milliseconds */
+				thermal-sensors = <&tmuctrl_0>;
+				#include "exynos7-trip-points.dtsi"
+			};
 		};
 	};
 };

@@ -2455,6 +2455,8 @@ int dlm_deref_lockres_done_handler(struct o2net_msg *msg, u32 len, void *data,
 
 	spin_unlock(&dlm->spinlock);
 
+	ret = 0;
+
 done:
 	dlm_put(dlm);
 	return ret;

@@ -28,8 +28,6 @@
 /**
  * struct i2c_arbitrator_data - Driver data for I2C arbitrator
  *
- * @parent: Parent adapter
- * @child: Child bus
  * @our_gpio: GPIO we'll use to claim.
  * @our_gpio_release: 0 if active high; 1 if active low; AKA if the GPIO ==
  *   this then consider it released.
@@ -42,8 +40,6 @@
  */
 
 struct i2c_arbitrator_data {
-	struct i2c_adapter *parent;
-	struct i2c_adapter *child;
 	int our_gpio;
 	int our_gpio_release;
 	int their_gpio;
@@ -59,9 +55,9 @@ struct i2c_arbitrator_data {
  *
  * Use the GPIO-based signalling protocol; return -EBUSY if we fail.
  */
-static int i2c_arbitrator_select(struct i2c_adapter *adap, void *data, u32 chan)
+static int i2c_arbitrator_select(struct i2c_mux_core *muxc, u32 chan)
 {
-	const struct i2c_arbitrator_data *arb = data;
+	const struct i2c_arbitrator_data *arb = i2c_mux_priv(muxc);
 	unsigned long stop_retry, stop_time;
 
 	/* Start a round of trying to claim the bus */
@@ -93,7 +89,7 @@ static int i2c_arbitrator_select(struct i2c_adapter *adap, void *data, u32 chan)
 	/* Give up, release our claim */
 	gpio_set_value(arb->our_gpio, arb->our_gpio_release);
 	udelay(arb->slew_delay_us);
-	dev_err(&adap->dev, "Could not claim bus, timeout\n");
+	dev_err(muxc->dev, "Could not claim bus, timeout\n");
 	return -EBUSY;
 }
 
@@ -102,10 +98,9 @@ static int i2c_arbitrator_select(struct i2c_adapter *adap, void *data, u32 chan)
  *
  * Release the I2C bus using the GPIO-based signalling protocol.
  */
-static int i2c_arbitrator_deselect(struct i2c_adapter *adap, void *data,
-				   u32 chan)
+static int i2c_arbitrator_deselect(struct i2c_mux_core *muxc, u32 chan)
 {
-	const struct i2c_arbitrator_data *arb = data;
+	const struct i2c_arbitrator_data *arb = i2c_mux_priv(muxc);
 
 	/* Release the bus and wait for the other master to notice */
 	gpio_set_value(arb->our_gpio, arb->our_gpio_release);
@@ -119,6 +114,7 @@ static int i2c_arbitrator_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct device_node *parent_np;
+	struct i2c_mux_core *muxc;
 	struct i2c_arbitrator_data *arb;
 	enum of_gpio_flags gpio_flags;
 	unsigned long out_init;
@@ -134,12 +130,13 @@ static int i2c_arbitrator_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	arb = devm_kzalloc(dev, sizeof(*arb), GFP_KERNEL);
-	if (!arb) {
-		dev_err(dev, "Cannot allocate i2c_arbitrator_data\n");
+	muxc = i2c_mux_alloc(NULL, dev, 1, sizeof(*arb), 0,
+			     i2c_arbitrator_select, i2c_arbitrator_deselect);
+	if (!muxc)
 		return -ENOMEM;
-	}
-	platform_set_drvdata(pdev, arb);
+	arb = i2c_mux_priv(muxc);
+
+	platform_set_drvdata(pdev, muxc);
 
 	/* Request GPIOs */
 	ret = of_get_named_gpio_flags(np, "our-claim-gpio", 0, &gpio_flags);
@@ -196,21 +193,18 @@ static int i2c_arbitrator_probe(struct platform_device *pdev)
 		dev_err(dev, "Cannot parse i2c-parent\n");
 		return -EINVAL;
 	}
-	arb->parent = of_get_i2c_adapter_by_node(parent_np);
+	muxc->parent = of_get_i2c_adapter_by_node(parent_np);
 	of_node_put(parent_np);
-	if (!arb->parent) {
+	if (!muxc->parent) {
 		dev_err(dev, "Cannot find parent bus\n");
 		return -EPROBE_DEFER;
 	}
 
 	/* Actually add the mux adapter */
-	arb->child = i2c_add_mux_adapter(arb->parent, dev, arb, 0, 0, 0,
-					 i2c_arbitrator_select,
-					 i2c_arbitrator_deselect);
-	if (!arb->child) {
+	ret = i2c_mux_add_adapter(muxc, 0, 0, 0);
+	if (ret) {
 		dev_err(dev, "Failed to add adapter\n");
-		ret = -ENODEV;
-		i2c_put_adapter(arb->parent);
+		i2c_put_adapter(muxc->parent);
 	}
 
 	return ret;
@@ -218,11 +212,10 @@ static int i2c_arbitrator_probe(struct platform_device *pdev)
 
 static int i2c_arbitrator_remove(struct platform_device *pdev)
 {
-	struct i2c_arbitrator_data *arb = platform_get_drvdata(pdev);
+	struct i2c_mux_core *muxc = platform_get_drvdata(pdev);
 
-	i2c_del_mux_adapter(arb->child);
-	i2c_put_adapter(arb->parent);
-
+	i2c_mux_del_adapters(muxc);
+	i2c_put_adapter(muxc->parent);
 	return 0;
 }
 

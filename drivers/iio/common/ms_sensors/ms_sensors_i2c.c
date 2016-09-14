@@ -106,7 +106,7 @@ int ms_sensors_convert_and_read(void *cli, u8 conv, u8 rd,
 				unsigned int delay, u32 *adc)
 {
 	int ret;
-        __be32 buf = 0;
+	__be32 buf = 0;
 	struct i2c_client *client = (struct i2c_client *)cli;
 
 	/* Trigger conversion */

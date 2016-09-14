@@ -76,7 +76,11 @@ int rds_tcp_accept_one(struct socket *sock)
 	struct rds_connection *conn;
 	int ret;
 	struct inet_sock *inet;
-	struct rds_tcp_connection *rs_tcp;
+	struct rds_tcp_connection *rs_tcp = NULL;
+	int conn_state;
+
+	if (!sock) /* module unload or netns delete in progress */
+		return -ENETUNREACH;
 
 	ret = sock_create_kern(sock_net(sock->sk), sock->sk->sk_family,
 			       sock->sk->sk_type, sock->sk->sk_protocol,
@@ -115,28 +119,41 @@ int rds_tcp_accept_one(struct socket *sock)
 	 * rds_tcp_state_change() will do that cleanup
 	 */
 	rs_tcp = (struct rds_tcp_connection *)conn->c_transport_data;
-	if (rs_tcp->t_sock &&
-	    ntohl(inet->inet_saddr) < ntohl(inet->inet_daddr)) {
-		struct sock *nsk = new_sock->sk;
-
-		nsk->sk_user_data = NULL;
-		nsk->sk_prot->disconnect(nsk, 0);
-		tcp_done(nsk);
-		new_sock = NULL;
-		ret = 0;
-		goto out;
-	} else if (rs_tcp->t_sock) {
-		rds_tcp_restore_callbacks(rs_tcp->t_sock, rs_tcp);
-		conn->c_outgoing = 0;
-	}
-
 	rds_conn_transition(conn, RDS_CONN_DOWN, RDS_CONN_CONNECTING);
-	rds_tcp_set_callbacks(new_sock, conn);
-	rds_connect_complete(conn);
+	mutex_lock(&rs_tcp->t_conn_lock);
+	conn_state = rds_conn_state(conn);
+	if (conn_state != RDS_CONN_CONNECTING && conn_state != RDS_CONN_UP)
+		goto rst_nsk;
+	if (rs_tcp->t_sock) {
+		/* Need to resolve a duelling SYN between peers.
+		 * We have an outstanding SYN to this peer, which may
+		 * potentially have transitioned to the RDS_CONN_UP state,
+		 * so we must quiesce any send threads before resetting
+		 * c_transport_data.
+		 */
+		if (ntohl(inet->inet_saddr) < ntohl(inet->inet_daddr) ||
+		    !conn->c_outgoing) {
+			goto rst_nsk;
+		} else {
+			rds_tcp_reset_callbacks(new_sock, conn);
+			conn->c_outgoing = 0;
+			/* rds_connect_path_complete() marks RDS_CONN_UP */
+			rds_connect_path_complete(conn, RDS_CONN_RESETTING);
+		}
+	} else {
+		rds_tcp_set_callbacks(new_sock, conn);
+		rds_connect_path_complete(conn, RDS_CONN_CONNECTING);
+	}
 	new_sock = NULL;
 	ret = 0;
-
+	goto out;
+rst_nsk:
+	/* reset the newly returned accept sock and bail */
+	kernel_sock_shutdown(new_sock, SHUT_RDWR);
+	ret = 0;
 out:
+	if (rs_tcp)
+		mutex_unlock(&rs_tcp->t_conn_lock);
 	if (new_sock)
 		sock_release(new_sock);
 	return ret;
@@ -148,7 +165,7 @@ void rds_tcp_listen_data_ready(struct sock *sk)
 
 	rdsdebug("listen data ready sk %p\n", sk);
 
-	read_lock(&sk->sk_callback_lock);
+	read_lock_bh(&sk->sk_callback_lock);
 	ready = sk->sk_user_data;
 	if (!ready) { /* check for teardown race */
 		ready = sk->sk_data_ready;
@@ -165,7 +182,7 @@ void rds_tcp_listen_data_ready(struct sock *sk)
 		rds_tcp_accept_work(sk);
 
 out:
-	read_unlock(&sk->sk_callback_lock);
+	read_unlock_bh(&sk->sk_callback_lock);
 	ready(sk);
 }
 

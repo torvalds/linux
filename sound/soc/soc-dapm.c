@@ -2188,6 +2188,13 @@ static ssize_t dapm_widget_show_component(struct snd_soc_component *cmpnt,
 	int count = 0;
 	char *state = "not set";
 
+	/* card won't be set for the dummy component, as a spot fix
+	 * we're checking for that case specifically here but in future
+	 * we will ensure that the dummy component looks like others.
+	 */
+	if (!cmpnt->card)
+		return 0;
+
 	list_for_each_entry(w, &cmpnt->card->widgets, list) {
 		if (w->dapm != dapm)
 			continue;

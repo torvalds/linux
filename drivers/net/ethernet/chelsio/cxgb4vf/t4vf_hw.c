@@ -76,21 +76,33 @@ static void get_mbox_rpl(struct adapter *adapter, __be64 *rpl, int size,
 		*rpl++ = cpu_to_be64(t4_read_reg64(adapter, mbox_data));
 }
 
-/*
- * Dump contents of mailbox with a leading tag.
+/**
+ *	t4vf_record_mbox - record a Firmware Mailbox Command/Reply in the log
+ *	@adapter: the adapter
+ *	@cmd: the Firmware Mailbox Command or Reply
+ *	@size: command length in bytes
+ *	@access: the time (ms) needed to access the Firmware Mailbox
+ *	@execute: the time (ms) the command spent being executed
  */
-static void dump_mbox(struct adapter *adapter, const char *tag, u32 mbox_data)
+static void t4vf_record_mbox(struct adapter *adapter, const __be64 *cmd,
+			     int size, int access, int execute)
 {
-	dev_err(adapter->pdev_dev,
-		"mbox %s: %llx %llx %llx %llx %llx %llx %llx %llx\n", tag,
-		(unsigned long long)t4_read_reg64(adapter, mbox_data +  0),
-		(unsigned long long)t4_read_reg64(adapter, mbox_data +  8),
-		(unsigned long long)t4_read_reg64(adapter, mbox_data + 16),
-		(unsigned long long)t4_read_reg64(adapter, mbox_data + 24),
-		(unsigned long long)t4_read_reg64(adapter, mbox_data + 32),
-		(unsigned long long)t4_read_reg64(adapter, mbox_data + 40),
-		(unsigned long long)t4_read_reg64(adapter, mbox_data + 48),
-		(unsigned long long)t4_read_reg64(adapter, mbox_data + 56));
+	struct mbox_cmd_log *log = adapter->mbox_log;
+	struct mbox_cmd *entry;
+	int i;
+
+	entry = mbox_cmd_log_entry(log, log->cursor++);
+	if (log->cursor == log->size)
+		log->cursor = 0;
+
+	for (i = 0; i < size / 8; i++)
+		entry->cmd[i] = be64_to_cpu(cmd[i]);
+	while (i < MBOX_LEN / 8)
+		entry->cmd[i++] = 0;
+	entry->timestamp = jiffies;
+	entry->seqno = log->seqno++;
+	entry->access = access;
+	entry->execute = execute;
 }
 
 /**
@@ -120,10 +132,13 @@ int t4vf_wr_mbox_core(struct adapter *adapter, const void *cmd, int size,
 		1, 1, 3, 5, 10, 10, 20, 50, 100
 	};
 
+	u16 access = 0, execute = 0;
 	u32 v, mbox_data;
-	int i, ms, delay_idx;
+	int i, ms, delay_idx, ret;
 	const __be64 *p;
 	u32 mbox_ctl = T4VF_CIM_BASE_ADDR + CIM_VF_EXT_MAILBOX_CTRL;
+	u32 cmd_op = FW_CMD_OP_G(be32_to_cpu(((struct fw_cmd_hdr *)cmd)->hi));
+	__be64 cmd_rpl[MBOX_LEN / 8];
 
 	/* In T6, mailbox size is changed to 128 bytes to avoid
 	 * invalidating the entire prefetch buffer.
@@ -148,8 +163,11 @@ int t4vf_wr_mbox_core(struct adapter *adapter, const void *cmd, int size,
 	v = MBOWNER_G(t4_read_reg(adapter, mbox_ctl));
 	for (i = 0; v == MBOX_OWNER_NONE && i < 3; i++)
 		v = MBOWNER_G(t4_read_reg(adapter, mbox_ctl));
-	if (v != MBOX_OWNER_DRV)
-		return v == MBOX_OWNER_FW ? -EBUSY : -ETIMEDOUT;
+	if (v != MBOX_OWNER_DRV) {
+		ret = (v == MBOX_OWNER_FW) ? -EBUSY : -ETIMEDOUT;
+		t4vf_record_mbox(adapter, cmd, size, access, ret);
+		return ret;
+	}
 
 	/*
 	 * Write the command array into the Mailbox Data register array and
@@ -164,6 +182,8 @@ int t4vf_wr_mbox_core(struct adapter *adapter, const void *cmd, int size,
 	 * Data registers before doing the write to the VF Mailbox Control
 	 * register.
 	 */
+	if (cmd_op != FW_VI_STATS_CMD)
+		t4vf_record_mbox(adapter, cmd, size, access, 0);
 	for (i = 0, p = cmd; i < size; i += 8)
 		t4_write_reg64(adapter, mbox_data + i, be64_to_cpu(*p++));
 	t4_read_reg(adapter, mbox_data);         /* flush write */
@@ -209,31 +229,33 @@ int t4vf_wr_mbox_core(struct adapter *adapter, const void *cmd, int size,
 			 * We return the (negated) firmware command return
 			 * code (this depends on FW_SUCCESS == 0).
 			 */
+			get_mbox_rpl(adapter, cmd_rpl, size, mbox_data);
 
 			/* return value in low-order little-endian word */
-			v = t4_read_reg(adapter, mbox_data);
-			if (FW_CMD_RETVAL_G(v))
-				dump_mbox(adapter, "FW Error", mbox_data);
+			v = be64_to_cpu(cmd_rpl[0]);
 
 			if (rpl) {
 				/* request bit in high-order BE word */
 				WARN_ON((be32_to_cpu(*(const __be32 *)cmd)
 					 & FW_CMD_REQUEST_F) == 0);
-				get_mbox_rpl(adapter, rpl, size, mbox_data);
+				memcpy(rpl, cmd_rpl, size);
 				WARN_ON((be32_to_cpu(*(__be32 *)rpl)
 					 & FW_CMD_REQUEST_F) != 0);
 			}
 			t4_write_reg(adapter, mbox_ctl,
 				     MBOWNER_V(MBOX_OWNER_NONE));
+			execute = i + ms;
+			if (cmd_op != FW_VI_STATS_CMD)
+				t4vf_record_mbox(adapter, cmd_rpl, size, access,
+						 execute);
 			return -FW_CMD_RETVAL_G(v);
 		}
 	}
 
-	/*
-	 * We timed out.  Return the error ...
-	 */
-	dump_mbox(adapter, "FW Timeout", mbox_data);
-	return -ETIMEDOUT;
+	/* We timed out.  Return the error ... */
+	ret = -ETIMEDOUT;
+	t4vf_record_mbox(adapter, cmd, size, access, ret);
+	return ret;
 }
 
 #define ADVERT_MASK (FW_PORT_CAP_SPEED_100M | FW_PORT_CAP_SPEED_1G |\

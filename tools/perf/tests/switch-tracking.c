@@ -417,7 +417,7 @@ int test__switch_tracking(int subtest __maybe_unused)
 	perf_evsel__set_sample_bit(tracking_evsel, TIME);
 
 	/* Config events */
-	perf_evlist__config(evlist, &opts);
+	perf_evlist__config(evlist, &opts, NULL);
 
 	/* Check moved event is still at the front */
 	if (cycles_evsel != perf_evlist__first(evlist)) {

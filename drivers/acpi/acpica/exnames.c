@@ -178,7 +178,7 @@ static acpi_status acpi_ex_name_segment(u8 ** in_aml_address, char *name_string)
 
 	for (index = 0;
 	     (index < ACPI_NAME_SIZE)
-	     && (acpi_ut_valid_acpi_char(*aml_address, 0)); index++) {
+	     && (acpi_ut_valid_name_char(*aml_address, 0)); index++) {
 		char_buf[index] = *aml_address++;
 		ACPI_DEBUG_PRINT((ACPI_DB_LOAD, "%c\n", char_buf[index]));
 	}

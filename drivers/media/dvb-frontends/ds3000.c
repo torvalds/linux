@@ -458,7 +458,7 @@ static int ds3000_read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 		break;
 	default:
-		return 1;
+		return -EINVAL;
 	}
 
 	if (state->config->set_lock_led)
@@ -528,7 +528,7 @@ static int ds3000_read_ber(struct dvb_frontend *fe, u32* ber)
 			*ber = 0xffffffff;
 		break;
 	default:
-		return 1;
+		return -EINVAL;
 	}
 
 	return 0;
@@ -623,7 +623,7 @@ static int ds3000_read_snr(struct dvb_frontend *fe, u16 *snr)
 				snr_reading, *snr);
 		break;
 	default:
-		return 1;
+		return -EINVAL;
 	}
 
 	return 0;
@@ -661,7 +661,7 @@ static int ds3000_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 		state->prevUCBS2 = _ucblocks;
 		break;
 	default:
-		return 1;
+		return -EINVAL;
 	}
 
 	return 0;
@@ -754,7 +754,7 @@ static int ds3000_send_diseqc_msg(struct dvb_frontend *fe,
 		data |= 0x80;
 		ds3000_writereg(state, 0xa2, data);
 
-		return 1;
+		return -ETIMEDOUT;
 	}
 
 	data = ds3000_readreg(state, 0xa2);
@@ -808,7 +808,7 @@ static int ds3000_diseqc_send_burst(struct dvb_frontend *fe,
 		data |= 0x80;
 		ds3000_writereg(state, 0xa2, data);
 
-		return 1;
+		return -ETIMEDOUT;
 	}
 
 	data = ds3000_readreg(state, 0xa2);
@@ -951,7 +951,7 @@ static int ds3000_set_frontend(struct dvb_frontend *fe)
 			ds3000_writereg(state, 0xfe, 0x98);
 		break;
 	default:
-		return 1;
+		return -EINVAL;
 	}
 
 	/* enable 27MHz clock output */

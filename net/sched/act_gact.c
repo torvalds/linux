@@ -148,6 +148,20 @@ static int tcf_gact(struct sk_buff *skb, const struct tc_action *a,
 	return action;
 }
 
+static void tcf_gact_stats_update(struct tc_action *a, u64 bytes, u32 packets,
+				  u64 lastuse)
+{
+	struct tcf_gact *gact = a->priv;
+	int action = READ_ONCE(gact->tcf_action);
+	struct tcf_t *tm = &gact->tcf_tm;
+
+	_bstats_cpu_update(this_cpu_ptr(gact->common.cpu_bstats), bytes, packets);
+	if (action == TC_ACT_SHOT)
+		this_cpu_ptr(gact->common.cpu_qstats)->drops += packets;
+
+	tm->lastuse = lastuse;
+}
+
 static int tcf_gact_dump(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 {
 	unsigned char *b = skb_tail_pointer(skb);
@@ -177,7 +191,7 @@ static int tcf_gact_dump(struct sk_buff *skb, struct tc_action *a, int bind, int
 	t.install = jiffies_to_clock_t(jiffies - gact->tcf_tm.install);
 	t.lastuse = jiffies_to_clock_t(jiffies - gact->tcf_tm.lastuse);
 	t.expires = jiffies_to_clock_t(gact->tcf_tm.expires);
-	if (nla_put(skb, TCA_GACT_TM, sizeof(t), &t))
+	if (nla_put_64bit(skb, TCA_GACT_TM, sizeof(t), &t, TCA_GACT_PAD))
 		goto nla_put_failure;
 	return skb->len;
 
@@ -207,6 +221,7 @@ static struct tc_action_ops act_gact_ops = {
 	.type		=	TCA_ACT_GACT,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_gact,
+	.stats_update	=	tcf_gact_stats_update,
 	.dump		=	tcf_gact_dump,
 	.init		=	tcf_gact_init,
 	.walk		=	tcf_gact_walker,

@@ -288,9 +288,12 @@ static ssize_t snd_compr_write(struct file *f, const char __user *buf,
 	stream = &data->stream;
 	mutex_lock(&stream->device->lock);
 	/* write is allowed when stream is running or has been steup */
-	if (stream->runtime->state != SNDRV_PCM_STATE_SETUP &&
-	    stream->runtime->state != SNDRV_PCM_STATE_PREPARED &&
-			stream->runtime->state != SNDRV_PCM_STATE_RUNNING) {
+	switch (stream->runtime->state) {
+	case SNDRV_PCM_STATE_SETUP:
+	case SNDRV_PCM_STATE_PREPARED:
+	case SNDRV_PCM_STATE_RUNNING:
+		break;
+	default:
 		mutex_unlock(&stream->device->lock);
 		return -EBADFD;
 	}
@@ -391,14 +394,13 @@ static unsigned int snd_compr_poll(struct file *f, poll_table *wait)
 	int retval = 0;
 
 	if (snd_BUG_ON(!data))
-		return -EFAULT;
+		return POLLERR;
+
 	stream = &data->stream;
-	if (snd_BUG_ON(!stream))
-		return -EFAULT;
 
 	mutex_lock(&stream->device->lock);
 	if (stream->runtime->state == SNDRV_PCM_STATE_OPEN) {
-		retval = -EBADFD;
+		retval = snd_compr_get_poll(stream) | POLLERR;
 		goto out;
 	}
 	poll_wait(f, &stream->runtime->sleep, wait);
@@ -421,10 +423,7 @@ static unsigned int snd_compr_poll(struct file *f, poll_table *wait)
 			retval = snd_compr_get_poll(stream);
 		break;
 	default:
-		if (stream->direction == SND_COMPRESS_PLAYBACK)
-			retval = POLLOUT | POLLWRNORM | POLLERR;
-		else
-			retval = POLLIN | POLLRDNORM | POLLERR;
+		retval = snd_compr_get_poll(stream) | POLLERR;
 		break;
 	}
 out:
@@ -802,9 +801,9 @@ static long snd_compr_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 
 	if (snd_BUG_ON(!data))
 		return -EFAULT;
+
 	stream = &data->stream;
-	if (snd_BUG_ON(!stream))
-		return -EFAULT;
+
 	mutex_lock(&stream->device->lock);
 	switch (_IOC_NR(cmd)) {
 	case _IOC_NR(SNDRV_COMPRESS_IOCTL_VERSION):

@@ -75,13 +75,13 @@
 /**
  * ath5k_hw_radio_revision() - Get the PHY Chip revision
  * @ah: The &struct ath5k_hw
- * @band: One of enum ieee80211_band
+ * @band: One of enum nl80211_band
  *
  * Returns the revision number of a 2GHz, 5GHz or single chip
  * radio.
  */
 u16
-ath5k_hw_radio_revision(struct ath5k_hw *ah, enum ieee80211_band band)
+ath5k_hw_radio_revision(struct ath5k_hw *ah, enum nl80211_band band)
 {
 	unsigned int i;
 	u32 srev;
@@ -91,10 +91,10 @@ ath5k_hw_radio_revision(struct ath5k_hw *ah, enum ieee80211_band band)
 	 * Set the radio chip access register
 	 */
 	switch (band) {
-	case IEEE80211_BAND_2GHZ:
+	case NL80211_BAND_2GHZ:
 		ath5k_hw_reg_write(ah, AR5K_PHY_SHIFT_2GHZ, AR5K_PHY(0));
 		break;
-	case IEEE80211_BAND_5GHZ:
+	case NL80211_BAND_5GHZ:
 		ath5k_hw_reg_write(ah, AR5K_PHY_SHIFT_5GHZ, AR5K_PHY(0));
 		break;
 	default:
@@ -138,11 +138,11 @@ ath5k_channel_ok(struct ath5k_hw *ah, struct ieee80211_channel *channel)
 	u16 freq = channel->center_freq;
 
 	/* Check if the channel is in our supported range */
-	if (channel->band == IEEE80211_BAND_2GHZ) {
+	if (channel->band == NL80211_BAND_2GHZ) {
 		if ((freq >= ah->ah_capabilities.cap_range.range_2ghz_min) &&
 		    (freq <= ah->ah_capabilities.cap_range.range_2ghz_max))
 			return true;
-	} else if (channel->band == IEEE80211_BAND_5GHZ)
+	} else if (channel->band == NL80211_BAND_5GHZ)
 		if ((freq >= ah->ah_capabilities.cap_range.range_5ghz_min) &&
 		    (freq <= ah->ah_capabilities.cap_range.range_5ghz_max))
 			return true;
@@ -743,7 +743,7 @@ done:
 /**
  * ath5k_hw_rfgain_init() - Write initial RF gain settings to hw
  * @ah: The &struct ath5k_hw
- * @band: One of enum ieee80211_band
+ * @band: One of enum nl80211_band
  *
  * Write initial RF gain table to set the RF sensitivity.
  *
@@ -751,7 +751,7 @@ done:
  * with Gain_F calibration
  */
 static int
-ath5k_hw_rfgain_init(struct ath5k_hw *ah, enum ieee80211_band band)
+ath5k_hw_rfgain_init(struct ath5k_hw *ah, enum nl80211_band band)
 {
 	const struct ath5k_ini_rfgain *ath5k_rfg;
 	unsigned int i, size, index;
@@ -786,7 +786,7 @@ ath5k_hw_rfgain_init(struct ath5k_hw *ah, enum ieee80211_band band)
 		return -EINVAL;
 	}
 
-	index = (band == IEEE80211_BAND_2GHZ) ? 1 : 0;
+	index = (band == NL80211_BAND_2GHZ) ? 1 : 0;
 
 	for (i = 0; i < size; i++) {
 		AR5K_REG_WAIT(i);
@@ -917,7 +917,7 @@ ath5k_hw_rfregs_init(struct ath5k_hw *ah,
 	}
 
 	/* Set Output and Driver bias current (OB/DB) */
-	if (channel->band == IEEE80211_BAND_2GHZ) {
+	if (channel->band == NL80211_BAND_2GHZ) {
 
 		if (channel->hw_value == AR5K_MODE_11B)
 			ee_mode = AR5K_EEPROM_MODE_11B;
@@ -944,7 +944,7 @@ ath5k_hw_rfregs_init(struct ath5k_hw *ah,
 						AR5K_RF_DB_2GHZ, true);
 
 	/* RF5111 always needs OB/DB for 5GHz, even if we use 2GHz */
-	} else if ((channel->band == IEEE80211_BAND_5GHZ) ||
+	} else if ((channel->band == NL80211_BAND_5GHZ) ||
 			(ah->ah_radio == AR5K_RF5111)) {
 
 		/* For 11a, Turbo and XR we need to choose
@@ -1145,7 +1145,7 @@ ath5k_hw_rfregs_init(struct ath5k_hw *ah,
 	}
 
 	if (ah->ah_radio == AR5K_RF5413 &&
-	channel->band == IEEE80211_BAND_2GHZ) {
+	channel->band == NL80211_BAND_2GHZ) {
 
 		ath5k_hw_rfb_op(ah, rf_regs, 1, AR5K_RF_DERBY_CHAN_SEL_MODE,
 									true);
@@ -1270,7 +1270,7 @@ ath5k_hw_rf5111_channel(struct ath5k_hw *ah,
 	 */
 	data0 = data1 = 0;
 
-	if (channel->band == IEEE80211_BAND_2GHZ) {
+	if (channel->band == NL80211_BAND_2GHZ) {
 		/* Map 2GHz channel to 5GHz Atheros channel ID */
 		ret = ath5k_hw_rf5111_chan2athchan(
 			ieee80211_frequency_to_channel(channel->center_freq),
@@ -1446,7 +1446,7 @@ ath5k_hw_channel(struct ath5k_hw *ah,
 			"channel frequency (%u MHz) out of supported "
 			"band range\n",
 			channel->center_freq);
-			return -EINVAL;
+		return -EINVAL;
 	}
 
 	/*
@@ -1919,7 +1919,7 @@ ath5k_hw_set_spur_mitigation_filter(struct ath5k_hw *ah,
 	/* Convert current frequency to fbin value (the same way channels
 	 * are stored on EEPROM, check out ath5k_eeprom_bin2freq) and scale
 	 * up by 2 so we can compare it later */
-	if (channel->band == IEEE80211_BAND_2GHZ) {
+	if (channel->band == NL80211_BAND_2GHZ) {
 		chan_fbin = (channel->center_freq - 2300) * 10;
 		freq_band = AR5K_EEPROM_BAND_2GHZ;
 	} else {
@@ -1983,7 +1983,7 @@ ath5k_hw_set_spur_mitigation_filter(struct ath5k_hw *ah,
 			symbol_width = AR5K_SPUR_SYMBOL_WIDTH_BASE_100Hz / 4;
 			break;
 		default:
-			if (channel->band == IEEE80211_BAND_5GHZ) {
+			if (channel->band == NL80211_BAND_5GHZ) {
 				/* Both sample_freq and chip_freq are 40MHz */
 				spur_delta_phase = (spur_offset << 17) / 25;
 				spur_freq_sigma_delta =

@@ -67,6 +67,38 @@ int snd_fw_transaction(struct fw_unit *unit, int tcode,
 }
 EXPORT_SYMBOL(snd_fw_transaction);
 
+#define PROBE_DELAY_MS		(2 * MSEC_PER_SEC)
+
+/**
+ * snd_fw_schedule_registration - schedule work for sound card registration
+ * @unit: an instance for unit on IEEE 1394 bus
+ * @dwork: delayed work with callback function
+ *
+ * This function is not designed for general purposes. When new unit is
+ * connected to IEEE 1394 bus, the bus is under bus-reset state because of
+ * topological change. In this state, units tend to fail both of asynchronous
+ * and isochronous communication. To avoid this problem, this function is used
+ * to postpone sound card registration after the state. The callers must
+ * set up instance of delayed work in advance.
+ */
+void snd_fw_schedule_registration(struct fw_unit *unit,
+				  struct delayed_work *dwork)
+{
+	u64 now, delay;
+
+	now = get_jiffies_64();
+	delay = fw_parent_device(unit)->card->reset_jiffies
+					+ msecs_to_jiffies(PROBE_DELAY_MS);
+
+	if (time_after64(delay, now))
+		delay -= now;
+	else
+		delay = 0;
+
+	mod_delayed_work(system_wq, dwork, delay);
+}
+EXPORT_SYMBOL(snd_fw_schedule_registration);
+
 static void async_midi_port_callback(struct fw_card *card, int rcode,
 				     void *data, size_t length,
 				     void *callback_data)

@@ -104,8 +104,8 @@ static inline void dmadesc_set_addr(struct bcmgenet_priv *priv,
 static inline void dmadesc_set(struct bcmgenet_priv *priv,
 			       void __iomem *d, dma_addr_t addr, u32 val)
 {
-	dmadesc_set_length_status(priv, d, val);
 	dmadesc_set_addr(priv, d, addr);
+	dmadesc_set_length_status(priv, d, val);
 }
 
 static inline dma_addr_t dmadesc_get_addr(struct bcmgenet_priv *priv,
@@ -1225,8 +1225,10 @@ static unsigned int __bcmgenet_tx_reclaim(struct net_device *dev,
 	dev->stats.tx_packets += pkts_compl;
 	dev->stats.tx_bytes += bytes_compl;
 
+	txq = netdev_get_tx_queue(dev, ring->queue);
+	netdev_tx_completed_queue(txq, pkts_compl, bytes_compl);
+
 	if (ring->free_bds > (MAX_SKB_FRAGS + 1)) {
-		txq = netdev_get_tx_queue(dev, ring->queue);
 		if (netif_tx_queue_stopped(txq))
 			netif_tx_wake_queue(txq);
 	}
@@ -1335,6 +1337,7 @@ static int bcmgenet_xmit_frag(struct net_device *dev,
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	struct device *kdev = &priv->pdev->dev;
 	struct enet_cb *tx_cb_ptr;
+	unsigned int frag_size;
 	dma_addr_t mapping;
 	int ret;
 
@@ -1342,10 +1345,12 @@ static int bcmgenet_xmit_frag(struct net_device *dev,
 
 	if (unlikely(!tx_cb_ptr))
 		BUG();
+
 	tx_cb_ptr->skb = NULL;
 
-	mapping = skb_frag_dma_map(kdev, frag, 0,
-				   skb_frag_size(frag), DMA_TO_DEVICE);
+	frag_size = skb_frag_size(frag);
+
+	mapping = skb_frag_dma_map(kdev, frag, 0, frag_size, DMA_TO_DEVICE);
 	ret = dma_mapping_error(kdev, mapping);
 	if (ret) {
 		priv->mib.tx_dma_failed++;
@@ -1355,10 +1360,10 @@ static int bcmgenet_xmit_frag(struct net_device *dev,
 	}
 
 	dma_unmap_addr_set(tx_cb_ptr, dma_addr, mapping);
-	dma_unmap_len_set(tx_cb_ptr, dma_len, frag->size);
+	dma_unmap_len_set(tx_cb_ptr, dma_len, frag_size);
 
 	dmadesc_set(priv, tx_cb_ptr->bd_addr, mapping,
-		    (frag->size << DMA_BUFLENGTH_SHIFT) | dma_desc_flags |
+		    (frag_size << DMA_BUFLENGTH_SHIFT) | dma_desc_flags |
 		    (priv->hw_params->qtag_mask << DMA_TX_QTAG_SHIFT));
 
 	return 0;
@@ -1451,15 +1456,19 @@ static netdev_tx_t bcmgenet_xmit(struct sk_buff *skb, struct net_device *dev)
 	else
 		index -= 1;
 
-	nr_frags = skb_shinfo(skb)->nr_frags;
 	ring = &priv->tx_rings[index];
 	txq = netdev_get_tx_queue(dev, ring->queue);
 
+	nr_frags = skb_shinfo(skb)->nr_frags;
+
 	spin_lock_irqsave(&ring->lock, flags);
-	if (ring->free_bds <= nr_frags + 1) {
-		netif_tx_stop_queue(txq);
-		netdev_err(dev, "%s: tx ring %d full when queue %d awake\n",
-			   __func__, index, ring->queue);
+	if (ring->free_bds <= (nr_frags + 1)) {
+		if (!netif_tx_queue_stopped(txq)) {
+			netif_tx_stop_queue(txq);
+			netdev_err(dev,
+				   "%s: tx ring %d full when queue %d awake\n",
+				   __func__, index, ring->queue);
+		}
 		ret = NETDEV_TX_BUSY;
 		goto out;
 	}
@@ -1512,6 +1521,8 @@ static netdev_tx_t bcmgenet_xmit(struct sk_buff *skb, struct net_device *dev)
 	ring->free_bds -= nr_frags + 1;
 	ring->prod_index += nr_frags + 1;
 	ring->prod_index &= DMA_P_INDEX_MASK;
+
+	netdev_tx_sent_queue(txq, GENET_CB(skb)->bytes_sent);
 
 	if (ring->free_bds <= (MAX_SKB_FRAGS + 1))
 		netif_tx_stop_queue(txq);
@@ -1732,7 +1743,7 @@ static int bcmgenet_rx_poll(struct napi_struct *napi, int budget)
 	work_done = bcmgenet_desc_rx(ring, budget);
 
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		ring->int_enable(ring);
 	}
 
@@ -2361,6 +2372,7 @@ static int bcmgenet_dma_teardown(struct bcmgenet_priv *priv)
 static void bcmgenet_fini_dma(struct bcmgenet_priv *priv)
 {
 	int i;
+	struct netdev_queue *txq;
 
 	bcmgenet_fini_rx_napi(priv);
 	bcmgenet_fini_tx_napi(priv);
@@ -2374,6 +2386,14 @@ static void bcmgenet_fini_dma(struct bcmgenet_priv *priv)
 			priv->tx_cbs[i].skb = NULL;
 		}
 	}
+
+	for (i = 0; i < priv->hw_params->tx_queues; i++) {
+		txq = netdev_get_tx_queue(priv->dev, priv->tx_rings[i].queue);
+		netdev_tx_reset_queue(txq);
+	}
+
+	txq = netdev_get_tx_queue(priv->dev, priv->tx_rings[DESC_INDEX].queue);
+	netdev_tx_reset_queue(txq);
 
 	bcmgenet_free_rx_buffers(priv);
 	kfree(priv->rx_cbs);
@@ -2490,7 +2510,7 @@ static irqreturn_t bcmgenet_isr1(int irq, void *dev_id)
 
 		if (likely(napi_schedule_prep(&rx_ring->napi))) {
 			rx_ring->int_disable(rx_ring);
-			__napi_schedule(&rx_ring->napi);
+			__napi_schedule_irqoff(&rx_ring->napi);
 		}
 	}
 
@@ -2503,7 +2523,7 @@ static irqreturn_t bcmgenet_isr1(int irq, void *dev_id)
 
 		if (likely(napi_schedule_prep(&tx_ring->napi))) {
 			tx_ring->int_disable(tx_ring);
-			__napi_schedule(&tx_ring->napi);
+			__napi_schedule_irqoff(&tx_ring->napi);
 		}
 	}
 
@@ -2533,7 +2553,7 @@ static irqreturn_t bcmgenet_isr0(int irq, void *dev_id)
 
 		if (likely(napi_schedule_prep(&rx_ring->napi))) {
 			rx_ring->int_disable(rx_ring);
-			__napi_schedule(&rx_ring->napi);
+			__napi_schedule_irqoff(&rx_ring->napi);
 		}
 	}
 
@@ -2542,7 +2562,7 @@ static irqreturn_t bcmgenet_isr0(int irq, void *dev_id)
 
 		if (likely(napi_schedule_prep(&tx_ring->napi))) {
 			tx_ring->int_disable(tx_ring);
-			__napi_schedule(&tx_ring->napi);
+			__napi_schedule_irqoff(&tx_ring->napi);
 		}
 	}
 
@@ -3039,7 +3059,7 @@ static void bcmgenet_timeout(struct net_device *dev)
 	bcmgenet_intrl2_0_writel(priv, int0_enable, INTRL2_CPU_MASK_CLEAR);
 	bcmgenet_intrl2_1_writel(priv, int1_enable, INTRL2_CPU_MASK_CLEAR);
 
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 
 	dev->stats.tx_errors++;
 

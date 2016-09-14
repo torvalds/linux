@@ -302,12 +302,31 @@ static inline ktime_t kvm_mips_count_time(struct kvm_vcpu *vcpu)
  */
 static uint32_t kvm_mips_read_count_running(struct kvm_vcpu *vcpu, ktime_t now)
 {
-	ktime_t expires;
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	ktime_t expires, threshold;
+	uint32_t count, compare;
 	int running;
 
-	/* Is the hrtimer pending? */
+	/* Calculate the biased and scaled guest CP0_Count */
+	count = vcpu->arch.count_bias + kvm_mips_ktime_to_count(vcpu, now);
+	compare = kvm_read_c0_guest_compare(cop0);
+
+	/*
+	 * Find whether CP0_Count has reached the closest timer interrupt. If
+	 * not, we shouldn't inject it.
+	 */
+	if ((int32_t)(count - compare) < 0)
+		return count;
+
+	/*
+	 * The CP0_Count we're going to return has already reached the closest
+	 * timer interrupt. Quickly check if it really is a new interrupt by
+	 * looking at whether the interval until the hrtimer expiry time is
+	 * less than 1/4 of the timer period.
+	 */
 	expires = hrtimer_get_expires(&vcpu->arch.comparecount_timer);
-	if (ktime_compare(now, expires) >= 0) {
+	threshold = ktime_add_ns(now, vcpu->arch.count_period / 4);
+	if (ktime_before(expires, threshold)) {
 		/*
 		 * Cancel it while we handle it so there's no chance of
 		 * interference with the timeout handler.
@@ -329,8 +348,7 @@ static uint32_t kvm_mips_read_count_running(struct kvm_vcpu *vcpu, ktime_t now)
 		}
 	}
 
-	/* Return the biased and scaled guest CP0_Count */
-	return vcpu->arch.count_bias + kvm_mips_ktime_to_count(vcpu, now);
+	return count;
 }
 
 /**
@@ -417,32 +435,6 @@ static void kvm_mips_resume_hrtimer(struct kvm_vcpu *vcpu,
 	/* Update hrtimer to use new timeout */
 	hrtimer_cancel(&vcpu->arch.comparecount_timer);
 	hrtimer_start(&vcpu->arch.comparecount_timer, expire, HRTIMER_MODE_ABS);
-}
-
-/**
- * kvm_mips_update_hrtimer() - Update next expiry time of hrtimer.
- * @vcpu:	Virtual CPU.
- *
- * Recalculates and updates the expiry time of the hrtimer. This can be used
- * after timer parameters have been altered which do not depend on the time that
- * the change occurs (in those cases kvm_mips_freeze_hrtimer() and
- * kvm_mips_resume_hrtimer() are used directly).
- *
- * It is guaranteed that no timer interrupts will be lost in the process.
- *
- * Assumes !kvm_mips_count_disabled(@vcpu) (guest CP0_Count timer is running).
- */
-static void kvm_mips_update_hrtimer(struct kvm_vcpu *vcpu)
-{
-	ktime_t now;
-	uint32_t count;
-
-	/*
-	 * freeze_hrtimer takes care of a timer interrupts <= count, and
-	 * resume_hrtimer the hrtimer takes care of a timer interrupts > count.
-	 */
-	now = kvm_mips_freeze_hrtimer(vcpu, &count);
-	kvm_mips_resume_hrtimer(vcpu, now, count);
 }
 
 /**
@@ -540,23 +532,42 @@ int kvm_mips_set_count_hz(struct kvm_vcpu *vcpu, s64 count_hz)
  * kvm_mips_write_compare() - Modify compare and update timer.
  * @vcpu:	Virtual CPU.
  * @compare:	New CP0_Compare value.
+ * @ack:	Whether to acknowledge timer interrupt.
  *
  * Update CP0_Compare to a new value and update the timeout.
+ * If @ack, atomically acknowledge any pending timer interrupt, otherwise ensure
+ * any pending timer interrupt is preserved.
  */
-void kvm_mips_write_compare(struct kvm_vcpu *vcpu, uint32_t compare)
+void kvm_mips_write_compare(struct kvm_vcpu *vcpu, uint32_t compare, bool ack)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	int dc;
+	u32 old_compare = kvm_read_c0_guest_compare(cop0);
+	ktime_t now;
+	uint32_t count;
 
 	/* if unchanged, must just be an ack */
-	if (kvm_read_c0_guest_compare(cop0) == compare)
+	if (old_compare == compare) {
+		if (!ack)
+			return;
+		kvm_mips_callbacks->dequeue_timer_int(vcpu);
+		kvm_write_c0_guest_compare(cop0, compare);
 		return;
+	}
 
-	/* Update compare */
+	/* freeze_hrtimer() takes care of timer interrupts <= count */
+	dc = kvm_mips_count_disabled(vcpu);
+	if (!dc)
+		now = kvm_mips_freeze_hrtimer(vcpu, &count);
+
+	if (ack)
+		kvm_mips_callbacks->dequeue_timer_int(vcpu);
+
 	kvm_write_c0_guest_compare(cop0, compare);
 
-	/* Update timeout if count enabled */
-	if (!kvm_mips_count_disabled(vcpu))
-		kvm_mips_update_hrtimer(vcpu);
+	/* resume_hrtimer() takes care of timer interrupts > count */
+	if (!dc)
+		kvm_mips_resume_hrtimer(vcpu, now, count);
 }
 
 /**
@@ -1068,15 +1079,15 @@ enum emulation_result kvm_mips_emulate_CP0(uint32_t inst, uint32_t *opc,
 					kvm_read_c0_guest_ebase(cop0));
 			} else if (rd == MIPS_CP0_TLB_HI && sel == 0) {
 				uint32_t nasid =
-					vcpu->arch.gprs[rt] & ASID_MASK;
+					vcpu->arch.gprs[rt] & KVM_ENTRYHI_ASID;
 				if ((KSEGX(vcpu->arch.gprs[rt]) != CKSEG0) &&
 				    ((kvm_read_c0_guest_entryhi(cop0) &
-				      ASID_MASK) != nasid)) {
+				      KVM_ENTRYHI_ASID) != nasid)) {
 					kvm_debug("MTCz, change ASID from %#lx to %#lx\n",
 						kvm_read_c0_guest_entryhi(cop0)
-						& ASID_MASK,
+						& KVM_ENTRYHI_ASID,
 						vcpu->arch.gprs[rt]
-						& ASID_MASK);
+						& KVM_ENTRYHI_ASID);
 
 					/* Blow away the shadow host TLBs */
 					kvm_mips_flush_host_tlb(1);
@@ -1095,9 +1106,9 @@ enum emulation_result kvm_mips_emulate_CP0(uint32_t inst, uint32_t *opc,
 
 				/* If we are writing to COMPARE */
 				/* Clear pending timer interrupt, if any */
-				kvm_mips_callbacks->dequeue_timer_int(vcpu);
 				kvm_mips_write_compare(vcpu,
-						       vcpu->arch.gprs[rt]);
+						       vcpu->arch.gprs[rt],
+						       true);
 			} else if ((rd == MIPS_CP0_STATUS) && (sel == 0)) {
 				unsigned int old_val, val, change;
 
@@ -1620,11 +1631,12 @@ enum emulation_result kvm_mips_emulate_cache(uint32_t inst, uint32_t *opc,
 		 */
 		index = kvm_mips_guest_tlb_lookup(vcpu, (va & VPN2_MASK) |
 						  (kvm_read_c0_guest_entryhi
-						   (cop0) & ASID_MASK));
+						   (cop0) & KVM_ENTRYHI_ASID));
 
 		if (index < 0) {
 			vcpu->arch.host_cp0_entryhi = (va & VPN2_MASK);
 			vcpu->arch.host_cp0_badvaddr = va;
+			vcpu->arch.pc = curr_pc;
 			er = kvm_mips_emulate_tlbmiss_ld(cause, NULL, run,
 							 vcpu);
 			preempt_enable();
@@ -1636,6 +1648,8 @@ enum emulation_result kvm_mips_emulate_cache(uint32_t inst, uint32_t *opc,
 			 * invalid exception to the guest
 			 */
 			if (!TLB_IS_VALID(*tlb, va)) {
+				vcpu->arch.host_cp0_badvaddr = va;
+				vcpu->arch.pc = curr_pc;
 				er = kvm_mips_emulate_tlbinv_ld(cause, NULL,
 								run, vcpu);
 				preempt_enable();
@@ -1655,7 +1669,7 @@ enum emulation_result kvm_mips_emulate_cache(uint32_t inst, uint32_t *opc,
 			cache, op, base, arch->gprs[base], offset);
 		er = EMULATE_FAIL;
 		preempt_enable();
-		goto dont_update_pc;
+		goto done;
 
 	}
 
@@ -1683,16 +1697,20 @@ skip_fault:
 		kvm_err("NO-OP CACHE (cache: %#x, op: %#x, base[%d]: %#lx, offset: %#x\n",
 			cache, op, base, arch->gprs[base], offset);
 		er = EMULATE_FAIL;
-		preempt_enable();
-		goto dont_update_pc;
 	}
 
 	preempt_enable();
+done:
+	/* Rollback PC only if emulation was unsuccessful */
+	if (er == EMULATE_FAIL)
+		vcpu->arch.pc = curr_pc;
 
 dont_update_pc:
-	/* Rollback PC */
-	vcpu->arch.pc = curr_pc;
-done:
+	/*
+	 * This is for exceptions whose emulation updates the PC, so do not
+	 * overwrite the PC under any circumstances
+	 */
+
 	return er;
 }
 
@@ -1786,7 +1804,7 @@ enum emulation_result kvm_mips_emulate_tlbmiss_ld(unsigned long cause,
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	struct kvm_vcpu_arch *arch = &vcpu->arch;
 	unsigned long entryhi = (vcpu->arch.  host_cp0_badvaddr & VPN2_MASK) |
-				(kvm_read_c0_guest_entryhi(cop0) & ASID_MASK);
+			(kvm_read_c0_guest_entryhi(cop0) & KVM_ENTRYHI_ASID);
 
 	if ((kvm_read_c0_guest_status(cop0) & ST0_EXL) == 0) {
 		/* save old pc */
@@ -1833,7 +1851,7 @@ enum emulation_result kvm_mips_emulate_tlbinv_ld(unsigned long cause,
 	struct kvm_vcpu_arch *arch = &vcpu->arch;
 	unsigned long entryhi =
 		(vcpu->arch.host_cp0_badvaddr & VPN2_MASK) |
-		(kvm_read_c0_guest_entryhi(cop0) & ASID_MASK);
+		(kvm_read_c0_guest_entryhi(cop0) & KVM_ENTRYHI_ASID);
 
 	if ((kvm_read_c0_guest_status(cop0) & ST0_EXL) == 0) {
 		/* save old pc */
@@ -1878,7 +1896,7 @@ enum emulation_result kvm_mips_emulate_tlbmiss_st(unsigned long cause,
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	struct kvm_vcpu_arch *arch = &vcpu->arch;
 	unsigned long entryhi = (vcpu->arch.host_cp0_badvaddr & VPN2_MASK) |
-				(kvm_read_c0_guest_entryhi(cop0) & ASID_MASK);
+			(kvm_read_c0_guest_entryhi(cop0) & KVM_ENTRYHI_ASID);
 
 	if ((kvm_read_c0_guest_status(cop0) & ST0_EXL) == 0) {
 		/* save old pc */
@@ -1922,7 +1940,7 @@ enum emulation_result kvm_mips_emulate_tlbinv_st(unsigned long cause,
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	struct kvm_vcpu_arch *arch = &vcpu->arch;
 	unsigned long entryhi = (vcpu->arch.host_cp0_badvaddr & VPN2_MASK) |
-		(kvm_read_c0_guest_entryhi(cop0) & ASID_MASK);
+		(kvm_read_c0_guest_entryhi(cop0) & KVM_ENTRYHI_ASID);
 
 	if ((kvm_read_c0_guest_status(cop0) & ST0_EXL) == 0) {
 		/* save old pc */
@@ -1967,7 +1985,7 @@ enum emulation_result kvm_mips_handle_tlbmod(unsigned long cause, uint32_t *opc,
 #ifdef DEBUG
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	unsigned long entryhi = (vcpu->arch.host_cp0_badvaddr & VPN2_MASK) |
-				(kvm_read_c0_guest_entryhi(cop0) & ASID_MASK);
+			(kvm_read_c0_guest_entryhi(cop0) & KVM_ENTRYHI_ASID);
 	int index;
 
 	/* If address not in the guest TLB, then we are in trouble */
@@ -1994,7 +2012,7 @@ enum emulation_result kvm_mips_emulate_tlbmod(unsigned long cause,
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	unsigned long entryhi = (vcpu->arch.host_cp0_badvaddr & VPN2_MASK) |
-				(kvm_read_c0_guest_entryhi(cop0) & ASID_MASK);
+			(kvm_read_c0_guest_entryhi(cop0) & KVM_ENTRYHI_ASID);
 	struct kvm_vcpu_arch *arch = &vcpu->arch;
 
 	if ((kvm_read_c0_guest_status(cop0) & ST0_EXL) == 0) {
@@ -2569,7 +2587,8 @@ enum emulation_result kvm_mips_handle_tlbmiss(unsigned long cause,
 	 */
 	index = kvm_mips_guest_tlb_lookup(vcpu,
 		      (va & VPN2_MASK) |
-		      (kvm_read_c0_guest_entryhi(vcpu->arch.cop0) & ASID_MASK));
+		      (kvm_read_c0_guest_entryhi(vcpu->arch.cop0) &
+		       KVM_ENTRYHI_ASID));
 	if (index < 0) {
 		if (exccode == EXCCODE_TLBL) {
 			er = kvm_mips_emulate_tlbmiss_ld(cause, opc, run, vcpu);

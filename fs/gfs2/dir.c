@@ -783,12 +783,15 @@ static int get_leaf_nr(struct gfs2_inode *dip, u32 index,
 		       u64 *leaf_out)
 {
 	__be64 *hash;
+	int error;
 
 	hash = gfs2_dir_get_hash_table(dip);
-	if (IS_ERR(hash))
-		return PTR_ERR(hash);
-	*leaf_out = be64_to_cpu(*(hash + index));
-	return 0;
+	error = PTR_ERR_OR_ZERO(hash);
+
+	if (!error)
+		*leaf_out = be64_to_cpu(*(hash + index));
+
+	return error;
 }
 
 static int get_first_leaf(struct gfs2_inode *dip, u32 index,
@@ -798,7 +801,7 @@ static int get_first_leaf(struct gfs2_inode *dip, u32 index,
 	int error;
 
 	error = get_leaf_nr(dip, index, &leaf_no);
-	if (!IS_ERR_VALUE(error))
+	if (!error)
 		error = get_leaf(dip, leaf_no, bh_out);
 
 	return error;
@@ -1014,7 +1017,7 @@ static int dir_split_leaf(struct inode *inode, const struct qstr *name)
 
 	index = name->hash >> (32 - dip->i_depth);
 	error = get_leaf_nr(dip, index, &leaf_no);
-	if (IS_ERR_VALUE(error))
+	if (error)
 		return error;
 
 	/*  Get the old leaf block  */

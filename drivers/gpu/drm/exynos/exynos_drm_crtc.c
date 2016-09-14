@@ -157,9 +157,8 @@ err_crtc:
 
 int exynos_drm_crtc_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
-	struct exynos_drm_private *private = dev->dev_private;
-	struct exynos_drm_crtc *exynos_crtc =
-		to_exynos_crtc(private->crtc[pipe]);
+	struct exynos_drm_crtc *exynos_crtc = exynos_drm_crtc_from_pipe(dev,
+									pipe);
 
 	if (exynos_crtc->ops->enable_vblank)
 		return exynos_crtc->ops->enable_vblank(exynos_crtc);
@@ -169,9 +168,8 @@ int exynos_drm_crtc_enable_vblank(struct drm_device *dev, unsigned int pipe)
 
 void exynos_drm_crtc_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
-	struct exynos_drm_private *private = dev->dev_private;
-	struct exynos_drm_crtc *exynos_crtc =
-		to_exynos_crtc(private->crtc[pipe]);
+	struct exynos_drm_crtc *exynos_crtc = exynos_drm_crtc_from_pipe(dev,
+									pipe);
 
 	if (exynos_crtc->ops->disable_vblank)
 		exynos_crtc->ops->disable_vblank(exynos_crtc);
@@ -235,20 +233,15 @@ void exynos_drm_crtc_cancel_page_flip(struct drm_crtc *crtc,
 	unsigned long flags;
 
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
+
 	e = exynos_crtc->event;
 	if (e && e->base.file_priv == file) {
 		exynos_crtc->event = NULL;
-		/*
-		 * event will be destroyed by core part
-		 * so below line should be removed later with core changes
-		 */
-		e->base.destroy(&e->base);
-		/*
-		 * event_space will be increased by core part
-		 * so below line should be removed later with core changes.
-		 */
-		file->event_space += sizeof(e->event);
 		atomic_dec(&exynos_crtc->pending_update);
 	}
+
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+
+	if (e && e->base.file_priv == file)
+		drm_event_cancel_free(crtc->dev, &e->base);
 }

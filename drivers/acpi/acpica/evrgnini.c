@@ -227,7 +227,7 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 
 				/* Install a handler for this PCI root bridge */
 
-				status = acpi_install_address_space_handler((acpi_handle) pci_root_node, ACPI_ADR_SPACE_PCI_CONFIG, ACPI_DEFAULT_HANDLER, NULL, NULL);
+				status = acpi_install_address_space_handler((acpi_handle)pci_root_node, ACPI_ADR_SPACE_PCI_CONFIG, ACPI_DEFAULT_HANDLER, NULL, NULL);
 				if (ACPI_FAILURE(status)) {
 					if (status == AE_SAME_HANDLER) {
 						/*
@@ -518,7 +518,6 @@ acpi_ev_initialize_region(union acpi_operand_object *region_obj,
 		return_ACPI_STATUS(AE_OK);
 	}
 
-	acpi_ev_associate_reg_method(region_obj);
 	region_obj->common.flags |= AOPOBJ_OBJECT_INITIALIZED;
 
 	node = region_obj->region.node->parent;

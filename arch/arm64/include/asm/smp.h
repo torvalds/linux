@@ -113,6 +113,29 @@ static inline void update_cpu_boot_status(int val)
 	dsb(ishst);
 }
 
+/*
+ * The calling secondary CPU has detected serious configuration mismatch,
+ * which calls for a kernel panic. Update the boot status and park the calling
+ * CPU.
+ */
+static inline void cpu_panic_kernel(void)
+{
+	update_cpu_boot_status(CPU_PANIC_KERNEL);
+	cpu_park_loop();
+}
+
+/*
+ * If a secondary CPU enters the kernel but fails to come online,
+ * (e.g. due to mismatched features), and cannot exit the kernel,
+ * we increment cpus_stuck_in_kernel and leave the CPU in a
+ * quiesecent loop within the kernel text. The memory containing
+ * this loop must not be re-used for anything else as the 'stuck'
+ * core is executing it.
+ *
+ * This function is used to inhibit features like kexec and hibernate.
+ */
+bool cpus_are_stuck_in_kernel(void);
+
 #endif /* ifndef __ASSEMBLY__ */
 
 #endif /* ifndef __ASM_SMP_H */

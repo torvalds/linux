@@ -33,7 +33,15 @@ temperature conversion at a time.  If none of the devices are parasite
 powered it would be possible to convert all the devices at the same
 time and then go back to read individual sensors.  That isn't
 currently supported.  The driver also doesn't support reduced
-precision (which would also reduce the conversion time).
+precision (which would also reduce the conversion time) when reading values.
+
+Writing a value between 9 and 12 to the sysfs w1_slave file will change the
+precision of the sensor for the next readings. This value is in (volatile)
+SRAM, so it is reset when the sensor gets power-cycled.
+
+To store the current precision configuration into EEPROM, the value 0
+has to be written to the sysfs w1_slave file. Since the EEPROM has a limited
+amount of writes (>50k), this command should be used wisely.
 
 The module parameter strong_pullup can be set to 0 to disable the
 strong pullup, 1 to enable autodetection or 2 to force strong pullup.

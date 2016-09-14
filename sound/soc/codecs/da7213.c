@@ -726,6 +726,68 @@ static const struct snd_kcontrol_new da7213_dapm_mixoutr_controls[] = {
 
 
 /*
+ * DAPM Events
+ */
+
+static int da7213_dai_event(struct snd_soc_dapm_widget *w,
+			    struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct da7213_priv *da7213 = snd_soc_codec_get_drvdata(codec);
+	u8 pll_ctrl, pll_status;
+	int i = 0;
+	bool srm_lock = false;
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		/* Enable DAI clks for master mode */
+		if (da7213->master)
+			snd_soc_update_bits(codec, DA7213_DAI_CLK_MODE,
+					    DA7213_DAI_CLK_EN_MASK,
+					    DA7213_DAI_CLK_EN_MASK);
+
+		/* PC synchronised to DAI */
+		snd_soc_update_bits(codec, DA7213_PC_COUNT,
+				    DA7213_PC_FREERUN_MASK, 0);
+
+		/* Slave mode, if SRM not enabled no need for status checks */
+		pll_ctrl = snd_soc_read(codec, DA7213_PLL_CTRL);
+		if (!(pll_ctrl & DA7213_PLL_SRM_EN))
+			return 0;
+
+		/* Check SRM has locked */
+		do {
+			pll_status = snd_soc_read(codec, DA7213_PLL_STATUS);
+			if (pll_status & DA7219_PLL_SRM_LOCK) {
+				srm_lock = true;
+			} else {
+				++i;
+				msleep(50);
+			}
+		} while ((i < DA7213_SRM_CHECK_RETRIES) & (!srm_lock));
+
+		if (!srm_lock)
+			dev_warn(codec->dev, "SRM failed to lock\n");
+
+		return 0;
+	case SND_SOC_DAPM_POST_PMD:
+		/* PC free-running */
+		snd_soc_update_bits(codec, DA7213_PC_COUNT,
+				    DA7213_PC_FREERUN_MASK,
+				    DA7213_PC_FREERUN_MASK);
+
+		/* Disable DAI clks if in master mode */
+		if (da7213->master)
+			snd_soc_update_bits(codec, DA7213_DAI_CLK_MODE,
+					    DA7213_DAI_CLK_EN_MASK, 0);
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
+
+/*
  * DAPM widgets
  */
 
@@ -736,7 +798,8 @@ static const struct snd_soc_dapm_widget da7213_dapm_widgets[] = {
 
 	/* Use a supply here as this controls both input & output DAIs */
 	SND_SOC_DAPM_SUPPLY("DAI", DA7213_DAI_CTRL, DA7213_DAI_EN_SHIFT,
-			    DA7213_NO_INVERT, NULL, 0),
+			    DA7213_NO_INVERT, da7213_dai_event,
+			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
 	/*
 	 * Input
@@ -1143,11 +1206,9 @@ static int da7213_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	/* Set master/slave mode */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
-		dai_clk_mode |= DA7213_DAI_CLK_EN_MASTER_MODE;
 		da7213->master = true;
 		break;
 	case SND_SOC_DAIFMT_CBS_CFS:
-		dai_clk_mode |= DA7213_DAI_CLK_EN_SLAVE_MODE;
 		da7213->master = false;
 		break;
 	default:
@@ -1281,28 +1342,28 @@ static int da7213_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 	pll_ctrl = 0;
 
 	/* Workout input divider based on MCLK rate */
-	if ((da7213->mclk_rate == 32768) && (source == DA7213_SYSCLK_PLL)) {
+	if (da7213->mclk_rate == 32768) {
 		/* 32KHz PLL Mode */
-		indiv_bits = DA7213_PLL_INDIV_10_20_MHZ;
-		indiv = DA7213_PLL_INDIV_10_20_MHZ_VAL;
+		indiv_bits = DA7213_PLL_INDIV_9_TO_18_MHZ;
+		indiv = DA7213_PLL_INDIV_9_TO_18_MHZ_VAL;
 		freq_ref = 3750000;
 		pll_ctrl |= DA7213_PLL_32K_MODE;
 	} else {
 		/* 5 - 54MHz MCLK */
 		if (da7213->mclk_rate < 5000000) {
 			goto pll_err;
-		} else if (da7213->mclk_rate <= 10000000) {
-			indiv_bits = DA7213_PLL_INDIV_5_10_MHZ;
-			indiv = DA7213_PLL_INDIV_5_10_MHZ_VAL;
-		} else if (da7213->mclk_rate <= 20000000) {
-			indiv_bits = DA7213_PLL_INDIV_10_20_MHZ;
-			indiv = DA7213_PLL_INDIV_10_20_MHZ_VAL;
-		} else if (da7213->mclk_rate <= 40000000) {
-			indiv_bits = DA7213_PLL_INDIV_20_40_MHZ;
-			indiv = DA7213_PLL_INDIV_20_40_MHZ_VAL;
+		} else if (da7213->mclk_rate <= 9000000) {
+			indiv_bits = DA7213_PLL_INDIV_5_TO_9_MHZ;
+			indiv = DA7213_PLL_INDIV_5_TO_9_MHZ_VAL;
+		} else if (da7213->mclk_rate <= 18000000) {
+			indiv_bits = DA7213_PLL_INDIV_9_TO_18_MHZ;
+			indiv = DA7213_PLL_INDIV_9_TO_18_MHZ_VAL;
+		} else if (da7213->mclk_rate <= 36000000) {
+			indiv_bits = DA7213_PLL_INDIV_18_TO_36_MHZ;
+			indiv = DA7213_PLL_INDIV_18_TO_36_MHZ_VAL;
 		} else if (da7213->mclk_rate <= 54000000) {
-			indiv_bits = DA7213_PLL_INDIV_40_54_MHZ;
-			indiv = DA7213_PLL_INDIV_40_54_MHZ_VAL;
+			indiv_bits = DA7213_PLL_INDIV_36_TO_54_MHZ;
+			indiv = DA7213_PLL_INDIV_36_TO_54_MHZ_VAL;
 		} else {
 			goto pll_err;
 		}
@@ -1546,6 +1607,10 @@ static int da7213_probe(struct snd_soc_codec *codec)
 
 	/* Default to using SRM for slave mode */
 	da7213->srm_en = true;
+
+	/* Default PC counter to free-running */
+	snd_soc_update_bits(codec, DA7213_PC_COUNT, DA7213_PC_FREERUN_MASK,
+			    DA7213_PC_FREERUN_MASK);
 
 	/* Enable all Gain Ramps */
 	snd_soc_update_bits(codec, DA7213_AUX_L_CTRL,

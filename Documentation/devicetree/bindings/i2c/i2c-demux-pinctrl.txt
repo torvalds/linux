@@ -27,7 +27,8 @@ Required properties:
 - i2c-bus-name: The name of this bus. Also needed as pinctrl-name for the I2C
 		parents.
 
-Furthermore, I2C mux properties and child nodes. See mux.txt in this directory.
+Furthermore, I2C mux properties and child nodes. See i2c-mux.txt in this
+directory.
 
 Example:
 

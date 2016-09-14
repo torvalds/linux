@@ -101,8 +101,7 @@ ldlm_flock_destroy(struct ldlm_lock *lock, enum ldlm_mode mode, __u64 flags)
 	LASSERT(hlist_unhashed(&lock->l_exp_flock_hash));
 
 	list_del_init(&lock->l_res_link);
-	if (flags == LDLM_FL_WAIT_NOREPROC &&
-	    !(lock->l_flags & LDLM_FL_FAILED)) {
+	if (flags == LDLM_FL_WAIT_NOREPROC && !ldlm_is_failed(lock)) {
 		/* client side - set a flag to prevent sending a CANCEL */
 		lock->l_flags |= LDLM_FL_LOCAL_ONLY | LDLM_FL_CBPENDING;
 
@@ -436,7 +435,7 @@ ldlm_flock_interrupted_wait(void *data)
 	lock_res_and_lock(lock);
 
 	/* client side - set flag to prevent lock from being put on LRU list */
-	lock->l_flags |= LDLM_FL_CBPENDING;
+	ldlm_set_cbpending(lock);
 	unlock_res_and_lock(lock);
 }
 
@@ -520,30 +519,29 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 granted:
 	OBD_FAIL_TIMEOUT(OBD_FAIL_LDLM_CP_CB_WAIT, 10);
 
-	if (lock->l_flags & LDLM_FL_DESTROYED) {
-		LDLM_DEBUG(lock, "client-side enqueue waking up: destroyed");
-		return 0;
-	}
-
-	if (lock->l_flags & LDLM_FL_FAILED) {
+	if (ldlm_is_failed(lock)) {
 		LDLM_DEBUG(lock, "client-side enqueue waking up: failed");
 		return -EIO;
-	}
-
-	if (rc) {
-		LDLM_DEBUG(lock, "client-side enqueue waking up: failed (%d)",
-			   rc);
-		return rc;
 	}
 
 	LDLM_DEBUG(lock, "client-side enqueue granted");
 
 	lock_res_and_lock(lock);
 
+	/*
+	 * Protect against race where lock could have been just destroyed
+	 * due to overlap in ldlm_process_flock_lock().
+	 */
+	if (ldlm_is_destroyed(lock)) {
+		unlock_res_and_lock(lock);
+		LDLM_DEBUG(lock, "client-side enqueue waking up: destroyed");
+		return 0;
+	}
+
 	/* ldlm_lock_enqueue() has already placed lock on the granted list. */
 	list_del_init(&lock->l_res_link);
 
-	if (lock->l_flags & LDLM_FL_FLOCK_DEADLOCK) {
+	if (ldlm_is_flock_deadlock(lock)) {
 		LDLM_DEBUG(lock, "client-side enqueue deadlock received");
 		rc = -EDEADLK;
 	} else if (flags & LDLM_FL_TEST_LOCK) {

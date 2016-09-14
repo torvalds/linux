@@ -54,7 +54,7 @@ struct hpet_dev {
 	char				name[10];
 };
 
-inline struct hpet_dev *EVT_TO_HPET_DEV(struct clock_event_device *evtdev)
+static inline struct hpet_dev *EVT_TO_HPET_DEV(struct clock_event_device *evtdev)
 {
 	return container_of(evtdev, struct hpet_dev, evt);
 }
@@ -773,7 +773,6 @@ static struct clocksource clocksource_hpet = {
 	.mask		= HPET_MASK,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 	.resume		= hpet_resume_counter,
-	.archdata	= { .vclock_mode = VCLOCK_HPET },
 };
 
 static int hpet_clocksource_register(void)

@@ -33,7 +33,7 @@
 
 struct seq_file;
 
-int batadv_compare_orig(const struct hlist_node *node, const void *data2);
+bool batadv_compare_orig(const struct hlist_node *node, const void *data2);
 int batadv_originator_init(struct batadv_priv *bat_priv);
 void batadv_originator_free(struct batadv_priv *bat_priv);
 void batadv_purge_orig_ref(struct batadv_priv *bat_priv);

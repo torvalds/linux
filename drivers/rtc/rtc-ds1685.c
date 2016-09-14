@@ -32,8 +32,6 @@
 #include <linux/proc_fs.h>
 #endif
 
-#define DRV_VERSION	"0.42.0"
-
 
 /* ----------------------------------------------------------------------- */
 /* Standard read/write functions if platform does not provide overrides */
@@ -2213,6 +2211,7 @@ ds1685_rtc_poweroff(struct platform_device *pdev)
 			   (ctrl4a | RTC_CTRL_4A_PAB));
 
 		/* Spin ... we do not switch back to bank0. */
+		while(1);
 		unreachable();
 	}
 }
@@ -2224,5 +2223,4 @@ MODULE_AUTHOR("Joshua Kinard <kumba@gentoo.org>");
 MODULE_AUTHOR("Matthias Fuchs <matthias.fuchs@esd-electronics.com>");
 MODULE_DESCRIPTION("Dallas/Maxim DS1685/DS1687-series RTC driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);
 MODULE_ALIAS("platform:rtc-ds1685");

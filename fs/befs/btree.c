@@ -88,15 +88,15 @@ struct befs_btree_node {
 static const befs_off_t befs_bt_inval = 0xffffffffffffffffULL;
 
 /* local functions */
-static int befs_btree_seekleaf(struct super_block *sb, befs_data_stream * ds,
+static int befs_btree_seekleaf(struct super_block *sb, const befs_data_stream *ds,
 			       befs_btree_super * bt_super,
 			       struct befs_btree_node *this_node,
 			       befs_off_t * node_off);
 
-static int befs_bt_read_super(struct super_block *sb, befs_data_stream * ds,
+static int befs_bt_read_super(struct super_block *sb, const befs_data_stream *ds,
 			      befs_btree_super * sup);
 
-static int befs_bt_read_node(struct super_block *sb, befs_data_stream * ds,
+static int befs_bt_read_node(struct super_block *sb, const befs_data_stream *ds,
 			     struct befs_btree_node *node,
 			     befs_off_t node_off);
 
@@ -134,7 +134,7 @@ static int befs_compare_strings(const void *key1, int keylen1,
  * On failure, BEFS_ERR is returned.
  */
 static int
-befs_bt_read_super(struct super_block *sb, befs_data_stream * ds,
+befs_bt_read_super(struct super_block *sb, const befs_data_stream *ds,
 		   befs_btree_super * sup)
 {
 	struct buffer_head *bh;
@@ -193,7 +193,7 @@ befs_bt_read_super(struct super_block *sb, befs_data_stream * ds,
  */
 
 static int
-befs_bt_read_node(struct super_block *sb, befs_data_stream * ds,
+befs_bt_read_node(struct super_block *sb, const befs_data_stream *ds,
 		  struct befs_btree_node *node, befs_off_t node_off)
 {
 	uint off = 0;
@@ -247,7 +247,7 @@ befs_bt_read_node(struct super_block *sb, befs_data_stream * ds,
  *   actuall value stored with the key.
  */
 int
-befs_btree_find(struct super_block *sb, befs_data_stream * ds,
+befs_btree_find(struct super_block *sb, const befs_data_stream *ds,
 		const char *key, befs_off_t * value)
 {
 	struct befs_btree_node *this_node;
@@ -416,7 +416,7 @@ befs_find_key(struct super_block *sb, struct befs_btree_node *node,
  *   until the (key_no)th key is found or the tree is out of keys.
  */
 int
-befs_btree_read(struct super_block *sb, befs_data_stream * ds,
+befs_btree_read(struct super_block *sb, const befs_data_stream *ds,
 		loff_t key_no, size_t bufsize, char *keybuf, size_t * keysize,
 		befs_off_t * value)
 {
@@ -548,7 +548,7 @@ befs_btree_read(struct super_block *sb, befs_data_stream * ds,
  * Also checks for an empty tree. If there are no keys, returns BEFS_BT_EMPTY.
  */
 static int
-befs_btree_seekleaf(struct super_block *sb, befs_data_stream * ds,
+befs_btree_seekleaf(struct super_block *sb, const befs_data_stream *ds,
 		    befs_btree_super *bt_super,
 		    struct befs_btree_node *this_node,
 		    befs_off_t * node_off)

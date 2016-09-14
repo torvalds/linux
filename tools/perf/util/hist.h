@@ -52,6 +52,8 @@ enum hist_column {
 	HISTC_MEM_IADDR_SYMBOL,
 	HISTC_TRANSACTION,
 	HISTC_CYCLES,
+	HISTC_SRCLINE_FROM,
+	HISTC_SRCLINE_TO,
 	HISTC_TRACE,
 	HISTC_NR_COLS, /* Last entry */
 };
@@ -81,6 +83,8 @@ struct hists {
 	struct list_head	hpp_formats;
 	int			nr_hpp_node;
 };
+
+#define hists__has(__h, __f) (__h)->hpp_list->__f
 
 struct hist_entry_iter;
 
@@ -199,8 +203,6 @@ int hists__init(void);
 int __hists__init(struct hists *hists, struct perf_hpp_list *hpp_list);
 
 struct rb_root *hists__get_rotate_entries_in(struct hists *hists);
-int hists__collapse_insert_entry(struct hists *hists,
-				  struct rb_root *root, struct hist_entry *he);
 
 struct perf_hpp {
 	char *buf;
@@ -240,6 +242,14 @@ struct perf_hpp_fmt {
 struct perf_hpp_list {
 	struct list_head fields;
 	struct list_head sorts;
+
+	int need_collapse;
+	int parent;
+	int sym;
+	int dso;
+	int socket;
+	int thread;
+	int comm;
 };
 
 extern struct perf_hpp_list perf_hpp_list;

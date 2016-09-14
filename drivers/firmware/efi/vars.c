@@ -202,29 +202,44 @@ static const struct variable_validate variable_validate[] = {
 	{ NULL_GUID, "", NULL },
 };
 
+/*
+ * Check if @var_name matches the pattern given in @match_name.
+ *
+ * @var_name: an array of @len non-NUL characters.
+ * @match_name: a NUL-terminated pattern string, optionally ending in "*". A
+ *              final "*" character matches any trailing characters @var_name,
+ *              including the case when there are none left in @var_name.
+ * @match: on output, the number of non-wildcard characters in @match_name
+ *         that @var_name matches, regardless of the return value.
+ * @return: whether @var_name fully matches @match_name.
+ */
 static bool
 variable_matches(const char *var_name, size_t len, const char *match_name,
 		 int *match)
 {
 	for (*match = 0; ; (*match)++) {
 		char c = match_name[*match];
-		char u = var_name[*match];
 
-		/* Wildcard in the matching name means we've matched */
-		if (c == '*')
+		switch (c) {
+		case '*':
+			/* Wildcard in @match_name means we've matched. */
 			return true;
 
-		/* Case sensitive match */
-		if (!c && *match == len)
-			return true;
+		case '\0':
+			/* @match_name has ended. Has @var_name too? */
+			return (*match == len);
 
-		if (c != u)
+		default:
+			/*
+			 * We've reached a non-wildcard char in @match_name.
+			 * Continue only if there's an identical character in
+			 * @var_name.
+			 */
+			if (*match < len && c == var_name[*match])
+				continue;
 			return false;
-
-		if (!c)
-			return true;
+		}
 	}
-	return true;
 }
 
 bool
@@ -312,39 +327,6 @@ check_var_size_nonblocking(u32 attributes, unsigned long size)
 		return EFI_UNSUPPORTED;
 
 	return fops->query_variable_store(attributes, size, true);
-}
-
-static int efi_status_to_err(efi_status_t status)
-{
-	int err;
-
-	switch (status) {
-	case EFI_SUCCESS:
-		err = 0;
-		break;
-	case EFI_INVALID_PARAMETER:
-		err = -EINVAL;
-		break;
-	case EFI_OUT_OF_RESOURCES:
-		err = -ENOSPC;
-		break;
-	case EFI_DEVICE_ERROR:
-		err = -EIO;
-		break;
-	case EFI_WRITE_PROTECTED:
-		err = -EROFS;
-		break;
-	case EFI_SECURITY_VIOLATION:
-		err = -EACCES;
-		break;
-	case EFI_NOT_FOUND:
-		err = -ENOENT;
-		break;
-	default:
-		err = -EINVAL;
-	}
-
-	return err;
 }
 
 static bool variable_is_present(efi_char16_t *variable_name, efi_guid_t *vendor,
@@ -437,8 +419,7 @@ static void dup_variable_bug(efi_char16_t *str16, efi_guid_t *vendor_guid,
  * Returns 0 on success, or a kernel error code on failure.
  */
 int efivar_init(int (*func)(efi_char16_t *, efi_guid_t, unsigned long, void *),
-		void *data, bool atomic, bool duplicates,
-		struct list_head *head)
+		void *data, bool duplicates, struct list_head *head)
 {
 	const struct efivar_operations *ops = __efivars->ops;
 	unsigned long variable_name_size = 1024;
@@ -468,7 +449,7 @@ int efivar_init(int (*func)(efi_char16_t *, efi_guid_t, unsigned long, void *),
 						&vendor_guid);
 		switch (status) {
 		case EFI_SUCCESS:
-			if (!atomic)
+			if (duplicates)
 				spin_unlock_irq(&__efivars->lock);
 
 			variable_name_size = var_name_strnsize(variable_name,
@@ -483,21 +464,19 @@ int efivar_init(int (*func)(efi_char16_t *, efi_guid_t, unsigned long, void *),
 			 * and may end up looping here forever.
 			 */
 			if (duplicates &&
-			    variable_is_present(variable_name, &vendor_guid, head)) {
+			    variable_is_present(variable_name, &vendor_guid,
+						head)) {
 				dup_variable_bug(variable_name, &vendor_guid,
 						 variable_name_size);
-				if (!atomic)
-					spin_lock_irq(&__efivars->lock);
-
 				status = EFI_NOT_FOUND;
-				break;
+			} else {
+				err = func(variable_name, vendor_guid,
+					   variable_name_size, data);
+				if (err)
+					status = EFI_NOT_FOUND;
 			}
 
-			err = func(variable_name, vendor_guid, variable_name_size, data);
-			if (err)
-				status = EFI_NOT_FOUND;
-
-			if (!atomic)
+			if (duplicates)
 				spin_lock_irq(&__efivars->lock);
 
 			break;

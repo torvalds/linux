@@ -1002,7 +1002,7 @@ struct snd_soc_dai_link {
 	 */
 	const char *platform_name;
 	struct device_node *platform_of_node;
-	int be_id;	/* optional ID for machine driver BE identification */
+	int id;	/* optional ID for machine driver link identification */
 
 	const struct snd_soc_pcm_stream *params;
 	unsigned int num_params;
@@ -1682,6 +1682,9 @@ void snd_soc_remove_dai_link(struct snd_soc_card *card,
 
 int snd_soc_register_dai(struct snd_soc_component *component,
 	struct snd_soc_dai_driver *dai_drv);
+
+struct snd_soc_dai *snd_soc_find_dai(
+	const struct snd_soc_dai_link_component *dlc);
 
 #include <sound/soc-dai.h>
 

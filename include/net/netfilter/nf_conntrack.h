@@ -284,13 +284,19 @@ static inline bool nf_is_loopback_packet(const struct sk_buff *skb)
 	return skb->dev && skb->skb_iif && skb->dev->flags & IFF_LOOPBACK;
 }
 
+/* jiffies until ct expires, 0 if already expired */
+static inline unsigned long nf_ct_expires(const struct nf_conn *ct)
+{
+	long timeout = (long)ct->timeout.expires - (long)jiffies;
+
+	return timeout > 0 ? timeout : 0;
+}
+
 struct kernel_param;
 
 int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp);
 extern unsigned int nf_conntrack_htable_size;
 extern unsigned int nf_conntrack_max;
-extern unsigned int nf_conntrack_hash_rnd;
-void init_nf_conntrack_hash_rnd(void);
 
 struct nf_conn *nf_ct_tmpl_alloc(struct net *net,
 				 const struct nf_conntrack_zone *zone,

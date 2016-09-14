@@ -414,7 +414,7 @@ static int write(struct fbtft_par *par, void *buf, size_t len)
 	while (len--) {
 		u8 i, data;
 
-		data = *(u8 *) buf++;
+		data = *(u8 *)buf++;
 
 		/* set data bus */
 		for (i = 0; i < 8; ++i)

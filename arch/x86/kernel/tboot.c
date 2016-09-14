@@ -74,12 +74,6 @@ void __init tboot_probe(void)
 		return;
 	}
 
-	/* only a natively booted kernel should be using TXT */
-	if (paravirt_enabled()) {
-		pr_warning("non-0 tboot_addr but pv_ops is enabled\n");
-		return;
-	}
-
 	/* Map and check for tboot UUID. */
 	set_fixmap(FIX_TBOOT_BASE, boot_params.tboot_addr);
 	tboot = (struct tboot *)fix_to_virt(FIX_TBOOT_BASE);

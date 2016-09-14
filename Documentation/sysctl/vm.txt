@@ -57,6 +57,7 @@ Currently, these files are in /proc/sys/vm:
 - panic_on_oom
 - percpu_pagelist_fraction
 - stat_interval
+- stat_refresh
 - swappiness
 - user_reserve_kbytes
 - vfs_cache_pressure
@@ -581,15 +582,16 @@ Specify "[Nn]ode" for node order
 "Zone Order" orders the zonelists by zone type, then by node within each
 zone.  Specify "[Zz]one" for zone order.
 
-Specify "[Dd]efault" to request automatic configuration.  Autoconfiguration
-will select "node" order in following case.
-(1) if the DMA zone does not exist or
-(2) if the DMA zone comprises greater than 50% of the available memory or
-(3) if any node's DMA zone comprises greater than 70% of its local memory and
-    the amount of local memory is big enough.
+Specify "[Dd]efault" to request automatic configuration.
 
-Otherwise, "zone" order will be selected. Default order is recommended unless
-this is causing problems for your system/application.
+On 32-bit, the Normal zone needs to be preserved for allocations accessible
+by the kernel, so "zone" order will be selected.
+
+On 64-bit, devices that require DMA32/DMA are relatively rare, so "node"
+order will be selected.
+
+Default order is recommended unless this is causing problems for your
+system/application.
 
 ==============================================================
 
@@ -751,6 +753,19 @@ stat_interval
 
 The time interval between which vm statistics are updated.  The default
 is 1 second.
+
+==============================================================
+
+stat_refresh
+
+Any read or write (by root only) flushes all the per-cpu vm statistics
+into their global totals, for more accurate reports when testing
+e.g. cat /proc/sys/vm/stat_refresh /proc/meminfo
+
+As a side-effect, it also checks for negative totals (elsewhere reported
+as 0) and "fails" with EINVAL if any are found, with a warning in dmesg.
+(At time of writing, a few stats are known sometimes to be found negative,
+with no ill effects: errors and warnings on these stats are suppressed.)
 
 ==============================================================
 

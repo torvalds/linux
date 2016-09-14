@@ -1175,8 +1175,6 @@ int InitLLTTable23a(struct rtw_adapter *padapter, u32 boundary)
 
 	/*  Let last entry point to the start entry of ring buffer */
 	status = _LLTWrite(padapter, Last_Entry_Of_TxPktBuf, txpktbuf_bndy);
-	if (status != _SUCCESS)
-		return status;
 
 	return status;
 }

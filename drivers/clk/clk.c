@@ -574,6 +574,9 @@ static void clk_core_unprepare(struct clk_core *core)
 	if (WARN_ON(core->prepare_count == 0))
 		return;
 
+	if (WARN_ON(core->prepare_count == 1 && core->flags & CLK_IS_CRITICAL))
+		return;
+
 	if (--core->prepare_count > 0)
 		return;
 
@@ -677,6 +680,9 @@ static void clk_core_disable(struct clk_core *core)
 		return;
 
 	if (WARN_ON(core->enable_count == 0))
+		return;
+
+	if (WARN_ON(core->enable_count == 1 && core->flags & CLK_IS_CRITICAL))
 		return;
 
 	if (--core->enable_count > 0)
@@ -2397,6 +2403,16 @@ static int __clk_core_init(struct clk_core *core)
 	if (core->ops->init)
 		core->ops->init(core->hw);
 
+	if (core->flags & CLK_IS_CRITICAL) {
+		unsigned long flags;
+
+		clk_core_prepare(core);
+
+		flags = clk_enable_lock();
+		clk_core_enable(core);
+		clk_enable_unlock(flags);
+	}
+
 	kref_init(&core->ref);
 out:
 	clk_prepare_unlock();
@@ -2536,6 +2552,22 @@ fail_out:
 }
 EXPORT_SYMBOL_GPL(clk_register);
 
+/**
+ * clk_hw_register - register a clk_hw and return an error code
+ * @dev: device that is registering this clock
+ * @hw: link to hardware-specific clock data
+ *
+ * clk_hw_register is the primary interface for populating the clock tree with
+ * new clock nodes. It returns an integer equal to zero indicating success or
+ * less than zero indicating failure. Drivers must test for an error code after
+ * calling clk_hw_register().
+ */
+int clk_hw_register(struct device *dev, struct clk_hw *hw)
+{
+	return PTR_ERR_OR_ZERO(clk_register(dev, hw));
+}
+EXPORT_SYMBOL_GPL(clk_hw_register);
+
 /* Free memory allocated for a clock. */
 static void __clk_release(struct kref *ref)
 {
@@ -2637,9 +2669,24 @@ unlock:
 }
 EXPORT_SYMBOL_GPL(clk_unregister);
 
+/**
+ * clk_hw_unregister - unregister a currently registered clk_hw
+ * @hw: hardware-specific clock data to unregister
+ */
+void clk_hw_unregister(struct clk_hw *hw)
+{
+	clk_unregister(hw->clk);
+}
+EXPORT_SYMBOL_GPL(clk_hw_unregister);
+
 static void devm_clk_release(struct device *dev, void *res)
 {
 	clk_unregister(*(struct clk **)res);
+}
+
+static void devm_clk_hw_release(struct device *dev, void *res)
+{
+	clk_hw_unregister(*(struct clk_hw **)res);
 }
 
 /**
@@ -2672,12 +2719,51 @@ struct clk *devm_clk_register(struct device *dev, struct clk_hw *hw)
 }
 EXPORT_SYMBOL_GPL(devm_clk_register);
 
+/**
+ * devm_clk_hw_register - resource managed clk_hw_register()
+ * @dev: device that is registering this clock
+ * @hw: link to hardware-specific clock data
+ *
+ * Managed clk_hw_register(). Clocks registered by this function are
+ * automatically clk_hw_unregister()ed on driver detach. See clk_hw_register()
+ * for more information.
+ */
+int devm_clk_hw_register(struct device *dev, struct clk_hw *hw)
+{
+	struct clk_hw **hwp;
+	int ret;
+
+	hwp = devres_alloc(devm_clk_hw_release, sizeof(*hwp), GFP_KERNEL);
+	if (!hwp)
+		return -ENOMEM;
+
+	ret = clk_hw_register(dev, hw);
+	if (!ret) {
+		*hwp = hw;
+		devres_add(dev, hwp);
+	} else {
+		devres_free(hwp);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(devm_clk_hw_register);
+
 static int devm_clk_match(struct device *dev, void *res, void *data)
 {
 	struct clk *c = res;
 	if (WARN_ON(!c))
 		return 0;
 	return c == data;
+}
+
+static int devm_clk_hw_match(struct device *dev, void *res, void *data)
+{
+	struct clk_hw *hw = res;
+
+	if (WARN_ON(!hw))
+		return 0;
+	return hw == data;
 }
 
 /**
@@ -2693,6 +2779,22 @@ void devm_clk_unregister(struct device *dev, struct clk *clk)
 	WARN_ON(devres_release(dev, devm_clk_release, devm_clk_match, clk));
 }
 EXPORT_SYMBOL_GPL(devm_clk_unregister);
+
+/**
+ * devm_clk_hw_unregister - resource managed clk_hw_unregister()
+ * @dev: device that is unregistering the hardware-specific clock data
+ * @hw: link to hardware-specific clock data
+ *
+ * Unregister a clk_hw registered with devm_clk_hw_register(). Normally
+ * this function will not need to be called and the resource management
+ * code will ensure that the resource is freed.
+ */
+void devm_clk_hw_unregister(struct device *dev, struct clk_hw *hw)
+{
+	WARN_ON(devres_release(dev, devm_clk_hw_release, devm_clk_hw_match,
+				hw));
+}
+EXPORT_SYMBOL_GPL(devm_clk_hw_unregister);
 
 /*
  * clkdev helpers
@@ -2855,6 +2957,7 @@ struct of_clk_provider {
 
 	struct device_node *node;
 	struct clk *(*get)(struct of_phandle_args *clkspec, void *data);
+	struct clk_hw *(*get_hw)(struct of_phandle_args *clkspec, void *data);
 	void *data;
 };
 
@@ -2871,6 +2974,12 @@ struct clk *of_clk_src_simple_get(struct of_phandle_args *clkspec,
 }
 EXPORT_SYMBOL_GPL(of_clk_src_simple_get);
 
+struct clk_hw *of_clk_hw_simple_get(struct of_phandle_args *clkspec, void *data)
+{
+	return data;
+}
+EXPORT_SYMBOL_GPL(of_clk_hw_simple_get);
+
 struct clk *of_clk_src_onecell_get(struct of_phandle_args *clkspec, void *data)
 {
 	struct clk_onecell_data *clk_data = data;
@@ -2884,6 +2993,21 @@ struct clk *of_clk_src_onecell_get(struct of_phandle_args *clkspec, void *data)
 	return clk_data->clks[idx];
 }
 EXPORT_SYMBOL_GPL(of_clk_src_onecell_get);
+
+struct clk_hw *
+of_clk_hw_onecell_get(struct of_phandle_args *clkspec, void *data)
+{
+	struct clk_hw_onecell_data *hw_data = data;
+	unsigned int idx = clkspec->args[0];
+
+	if (idx >= hw_data->num) {
+		pr_err("%s: invalid index %u\n", __func__, idx);
+		return ERR_PTR(-EINVAL);
+	}
+
+	return hw_data->hws[idx];
+}
+EXPORT_SYMBOL_GPL(of_clk_hw_onecell_get);
 
 /**
  * of_clk_add_provider() - Register a clock provider for a node
@@ -2921,6 +3045,41 @@ int of_clk_add_provider(struct device_node *np,
 EXPORT_SYMBOL_GPL(of_clk_add_provider);
 
 /**
+ * of_clk_add_hw_provider() - Register a clock provider for a node
+ * @np: Device node pointer associated with clock provider
+ * @get: callback for decoding clk_hw
+ * @data: context pointer for @get callback.
+ */
+int of_clk_add_hw_provider(struct device_node *np,
+			   struct clk_hw *(*get)(struct of_phandle_args *clkspec,
+						 void *data),
+			   void *data)
+{
+	struct of_clk_provider *cp;
+	int ret;
+
+	cp = kzalloc(sizeof(*cp), GFP_KERNEL);
+	if (!cp)
+		return -ENOMEM;
+
+	cp->node = of_node_get(np);
+	cp->data = data;
+	cp->get_hw = get;
+
+	mutex_lock(&of_clk_mutex);
+	list_add(&cp->link, &of_clk_providers);
+	mutex_unlock(&of_clk_mutex);
+	pr_debug("Added clk_hw provider from %s\n", np->full_name);
+
+	ret = of_clk_set_defaults(np, true);
+	if (ret < 0)
+		of_clk_del_provider(np);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(of_clk_add_hw_provider);
+
+/**
  * of_clk_del_provider() - Remove a previously registered clock provider
  * @np: Device node pointer associated with clock provider
  */
@@ -2941,11 +3100,32 @@ void of_clk_del_provider(struct device_node *np)
 }
 EXPORT_SYMBOL_GPL(of_clk_del_provider);
 
+static struct clk_hw *
+__of_clk_get_hw_from_provider(struct of_clk_provider *provider,
+			      struct of_phandle_args *clkspec)
+{
+	struct clk *clk;
+	struct clk_hw *hw = ERR_PTR(-EPROBE_DEFER);
+
+	if (provider->get_hw) {
+		hw = provider->get_hw(clkspec, provider->data);
+	} else if (provider->get) {
+		clk = provider->get(clkspec, provider->data);
+		if (!IS_ERR(clk))
+			hw = __clk_get_hw(clk);
+		else
+			hw = ERR_CAST(clk);
+	}
+
+	return hw;
+}
+
 struct clk *__of_clk_get_from_provider(struct of_phandle_args *clkspec,
 				       const char *dev_id, const char *con_id)
 {
 	struct of_clk_provider *provider;
 	struct clk *clk = ERR_PTR(-EPROBE_DEFER);
+	struct clk_hw *hw = ERR_PTR(-EPROBE_DEFER);
 
 	if (!clkspec)
 		return ERR_PTR(-EINVAL);
@@ -2954,10 +3134,9 @@ struct clk *__of_clk_get_from_provider(struct of_phandle_args *clkspec,
 	mutex_lock(&of_clk_mutex);
 	list_for_each_entry(provider, &of_clk_providers, link) {
 		if (provider->node == clkspec->np)
-			clk = provider->get(clkspec, provider->data);
-		if (!IS_ERR(clk)) {
-			clk = __clk_create_clk(__clk_get_hw(clk), dev_id,
-					       con_id);
+			hw = __of_clk_get_hw_from_provider(provider, clkspec);
+		if (!IS_ERR(hw)) {
+			clk = __clk_create_clk(hw, dev_id, con_id);
 
 			if (!IS_ERR(clk) && !__clk_get(clk)) {
 				__clk_free_clk(clk);
@@ -3124,6 +3303,41 @@ static int parent_ready(struct device_node *np)
 		 */
 		return 1;
 	}
+}
+
+/**
+ * of_clk_detect_critical() - set CLK_IS_CRITICAL flag from Device Tree
+ * @np: Device node pointer associated with clock provider
+ * @index: clock index
+ * @flags: pointer to clk_core->flags
+ *
+ * Detects if the clock-critical property exists and, if so, sets the
+ * corresponding CLK_IS_CRITICAL flag.
+ *
+ * Do not use this function. It exists only for legacy Device Tree
+ * bindings, such as the one-clock-per-node style that are outdated.
+ * Those bindings typically put all clock data into .dts and the Linux
+ * driver has no clock data, thus making it impossible to set this flag
+ * correctly from the driver. Only those drivers may call
+ * of_clk_detect_critical from their setup functions.
+ *
+ * Return: error code or zero on success
+ */
+int of_clk_detect_critical(struct device_node *np,
+					  int index, unsigned long *flags)
+{
+	struct property *prop;
+	const __be32 *cur;
+	uint32_t idx;
+
+	if (!np || !flags)
+		return -EINVAL;
+
+	of_property_for_each_u32(np, "clock-critical", prop, cur, idx)
+		if (index == idx)
+			*flags |= CLK_IS_CRITICAL;
+
+	return 0;
 }
 
 /**

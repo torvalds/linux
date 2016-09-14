@@ -97,8 +97,8 @@ struct srcu_struct fsnotify_mark_srcu;
 static DEFINE_SPINLOCK(destroy_lock);
 static LIST_HEAD(destroy_list);
 
-static void fsnotify_mark_destroy(struct work_struct *work);
-static DECLARE_DELAYED_WORK(reaper_work, fsnotify_mark_destroy);
+static void fsnotify_mark_destroy_workfn(struct work_struct *work);
+static DECLARE_DELAYED_WORK(reaper_work, fsnotify_mark_destroy_workfn);
 
 void fsnotify_get_mark(struct fsnotify_mark *mark)
 {
@@ -173,11 +173,15 @@ void fsnotify_detach_mark(struct fsnotify_mark *mark)
 }
 
 /*
- * Free fsnotify mark. The freeing is actually happening from a kthread which
- * first waits for srcu period end. Caller must have a reference to the mark
- * or be protected by fsnotify_mark_srcu.
+ * Prepare mark for freeing and add it to the list of marks prepared for
+ * freeing. The actual freeing must happen after SRCU period ends and the
+ * caller is responsible for this.
+ *
+ * The function returns true if the mark was added to the list of marks for
+ * freeing. The function returns false if someone else has already called
+ * __fsnotify_free_mark() for the mark.
  */
-void fsnotify_free_mark(struct fsnotify_mark *mark)
+static bool __fsnotify_free_mark(struct fsnotify_mark *mark)
 {
 	struct fsnotify_group *group = mark->group;
 
@@ -185,16 +189,10 @@ void fsnotify_free_mark(struct fsnotify_mark *mark)
 	/* something else already called this function on this mark */
 	if (!(mark->flags & FSNOTIFY_MARK_FLAG_ALIVE)) {
 		spin_unlock(&mark->lock);
-		return;
+		return false;
 	}
 	mark->flags &= ~FSNOTIFY_MARK_FLAG_ALIVE;
 	spin_unlock(&mark->lock);
-
-	spin_lock(&destroy_lock);
-	list_add(&mark->g_list, &destroy_list);
-	spin_unlock(&destroy_lock);
-	queue_delayed_work(system_unbound_wq, &reaper_work,
-				FSNOTIFY_REAPER_DELAY);
 
 	/*
 	 * Some groups like to know that marks are being freed.  This is a
@@ -203,6 +201,25 @@ void fsnotify_free_mark(struct fsnotify_mark *mark)
 	 */
 	if (group->ops->freeing_mark)
 		group->ops->freeing_mark(mark, group);
+
+	spin_lock(&destroy_lock);
+	list_add(&mark->g_list, &destroy_list);
+	spin_unlock(&destroy_lock);
+
+	return true;
+}
+
+/*
+ * Free fsnotify mark. The freeing is actually happening from a workqueue which
+ * first waits for srcu period end. Caller must have a reference to the mark
+ * or be protected by fsnotify_mark_srcu.
+ */
+void fsnotify_free_mark(struct fsnotify_mark *mark)
+{
+	if (__fsnotify_free_mark(mark)) {
+		queue_delayed_work(system_unbound_wq, &reaper_work,
+				   FSNOTIFY_REAPER_DELAY);
+	}
 }
 
 void fsnotify_destroy_mark(struct fsnotify_mark *mark,
@@ -468,11 +485,29 @@ void fsnotify_clear_marks_by_group_flags(struct fsnotify_group *group,
 }
 
 /*
- * Given a group, destroy all of the marks associated with that group.
+ * Given a group, prepare for freeing all the marks associated with that group.
+ * The marks are attached to the list of marks prepared for destruction, the
+ * caller is responsible for freeing marks in that list after SRCU period has
+ * ended.
  */
-void fsnotify_clear_marks_by_group(struct fsnotify_group *group)
+void fsnotify_detach_group_marks(struct fsnotify_group *group)
 {
-	fsnotify_clear_marks_by_group_flags(group, (unsigned int)-1);
+	struct fsnotify_mark *mark;
+
+	while (1) {
+		mutex_lock_nested(&group->mark_mutex, SINGLE_DEPTH_NESTING);
+		if (list_empty(&group->marks_list)) {
+			mutex_unlock(&group->mark_mutex);
+			break;
+		}
+		mark = list_first_entry(&group->marks_list,
+					struct fsnotify_mark, g_list);
+		fsnotify_get_mark(mark);
+		fsnotify_detach_mark(mark);
+		mutex_unlock(&group->mark_mutex);
+		__fsnotify_free_mark(mark);
+		fsnotify_put_mark(mark);
+	}
 }
 
 void fsnotify_duplicate_mark(struct fsnotify_mark *new, struct fsnotify_mark *old)
@@ -499,7 +534,11 @@ void fsnotify_init_mark(struct fsnotify_mark *mark,
 	mark->free_mark = free_mark;
 }
 
-static void fsnotify_mark_destroy(struct work_struct *work)
+/*
+ * Destroy all marks in destroy_list, waits for SRCU period to finish before
+ * actually freeing marks.
+ */
+void fsnotify_mark_destroy_list(void)
 {
 	struct fsnotify_mark *mark, *next;
 	struct list_head private_destroy_list;
@@ -515,4 +554,9 @@ static void fsnotify_mark_destroy(struct work_struct *work)
 		list_del_init(&mark->g_list);
 		fsnotify_put_mark(mark);
 	}
+}
+
+static void fsnotify_mark_destroy_workfn(struct work_struct *work)
+{
+	fsnotify_mark_destroy_list();
 }

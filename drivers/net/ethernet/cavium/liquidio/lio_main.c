@@ -2821,7 +2821,7 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 		if (!g) {
 			netif_info(lio, tx_err, lio->netdev,
 				   "Transmit scatter gather: glist null!\n");
-			goto lio_xmit_failed;
+			goto lio_xmit_dma_failed;
 		}
 
 		cmdsetup.s.gather = 1;
@@ -2892,26 +2892,27 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 	else
 		status = octnet_send_nic_data_pkt(oct, &ndata, xmit_more);
 	if (status == IQ_SEND_FAILED)
-		goto lio_xmit_failed;
+		goto lio_xmit_dma_failed;
 
 	netif_info(lio, tx_queued, lio->netdev, "Transmit queued successfully\n");
 
 	if (status == IQ_SEND_STOP)
 		stop_q(lio->netdev, q_idx);
 
-	netdev->trans_start = jiffies;
+	netif_trans_update(netdev);
 
 	stats->tx_done++;
 	stats->tx_tot_bytes += skb->len;
 
 	return NETDEV_TX_OK;
 
+lio_xmit_dma_failed:
+	dma_unmap_single(&oct->pci_dev->dev, ndata.cmd.dptr,
+			 ndata.datasize, DMA_TO_DEVICE);
 lio_xmit_failed:
 	stats->tx_dropped++;
 	netif_info(lio, tx_err, lio->netdev, "IQ%d Transmit dropped:%llu\n",
 		   iq_no, stats->tx_dropped);
-	dma_unmap_single(&oct->pci_dev->dev, ndata.cmd.dptr,
-			 ndata.datasize, DMA_TO_DEVICE);
 	recv_buffer_free(skb);
 	return NETDEV_TX_OK;
 }
@@ -2928,7 +2929,7 @@ static void liquidio_tx_timeout(struct net_device *netdev)
 	netif_info(lio, tx_err, lio->netdev,
 		   "Transmit timeout tx_dropped:%ld, waking up queues now!!\n",
 		   netdev->stats.tx_dropped);
-	netdev->trans_start = jiffies;
+	netif_trans_update(netdev);
 	txqs_wake(netdev);
 }
 

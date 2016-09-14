@@ -710,6 +710,7 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	chip->select_chip = mpc5121_nfc_select_chip;
 	chip->bbt_options = NAND_BBT_USE_FLASH;
 	chip->ecc.mode = NAND_ECC_SOFT;
+	chip->ecc.algo = NAND_ECC_HAMMING;
 
 	/* Support external chip-select logic on ADS5121 board */
 	if (of_machine_is_compatible("fsl,mpc5121ads")) {

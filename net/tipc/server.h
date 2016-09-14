@@ -53,7 +53,7 @@
  * @send_wq: send workqueue
  * @max_rcvbuf_size: maximum permitted receive message length
  * @tipc_conn_new: callback will be called when new connection is incoming
- * @tipc_conn_shutdown: callback will be called when connection is shut down
+ * @tipc_conn_release: callback will be called before releasing the connection
  * @tipc_conn_recvmsg: callback will be called when message arrives
  * @saddr: TIPC server address
  * @name: server name
@@ -70,7 +70,7 @@ struct tipc_server {
 	struct workqueue_struct *send_wq;
 	int max_rcvbuf_size;
 	void *(*tipc_conn_new)(int conid);
-	void (*tipc_conn_shutdown)(int conid, void *usr_data);
+	void (*tipc_conn_release)(int conid, void *usr_data);
 	void (*tipc_conn_recvmsg)(struct net *net, int conid,
 				  struct sockaddr_tipc *addr, void *usr_data,
 				  void *buf, size_t len);

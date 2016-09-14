@@ -181,9 +181,10 @@ static inline int pmd_trans_huge(pmd_t pmd)
 	return (pmd_val(pmd) & (_PAGE_PSE|_PAGE_DEVMAP)) == _PAGE_PSE;
 }
 
+#define has_transparent_hugepage has_transparent_hugepage
 static inline int has_transparent_hugepage(void)
 {
-	return cpu_has_pse;
+	return boot_cpu_has(X86_FEATURE_PSE);
 }
 
 #ifdef __HAVE_ARCH_PTE_DEVMAP

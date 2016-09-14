@@ -105,7 +105,7 @@ do {									\
 	__clear_software_ll_bit();					\
 	if (cpu_has_userlocal)						\
 		write_c0_userlocal(task_thread_info(next)->tp_value);	\
-	__restore_watch();						\
+	__restore_watch(next);						\
 	(last) = resume(prev, next, task_thread_info(next));		\
 } while (0)
 

@@ -48,6 +48,8 @@ static int global_phb_number;		/* Global phb counter */
 resource_size_t isa_mem_base;
 
 unsigned long isa_io_base;
+EXPORT_SYMBOL(isa_io_base);
+
 static int pci_bus_count;
 
 struct pci_controller *pcibios_alloc_controller(struct device_node *dev)

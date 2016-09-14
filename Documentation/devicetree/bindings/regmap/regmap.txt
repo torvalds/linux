@@ -1,50 +1,29 @@
-Device-Tree binding for regmap
-
-The endianness mode of CPU & Device scenarios:
-Index     Device     Endianness properties
----------------------------------------------------
-1         BE         'big-endian'
-2         LE         'little-endian'
-3	  Native     'native-endian'
-
-For one device driver, which will run in different scenarios above
-on different SoCs using the devicetree, we need one way to simplify
-this.
+Devicetree binding for regmap
 
 Optional properties:
-- {big,little,native}-endian: these are boolean properties, if absent
-  then the implementation will choose a default based on the device
-  being controlled.  These properties are for register values and all
-  the buffers only.  Native endian means that the CPU and device have
-  the same endianness.
+
+   little-endian,
+   big-endian,
+   native-endian:	See common-properties.txt for a definition
+
+Note:
+Regmap defaults to little-endian register access on MMIO based
+devices, this is by far the most common setting. On CPU
+architectures that typically run big-endian operating systems
+(e.g. PowerPC), registers can be defined as big-endian and must
+be marked that way in the devicetree.
+
+On SoCs that can be operated in both big-endian and little-endian
+modes, with a single hardware switch controlling both the endianess
+of the CPU and a byteswap for MMIO registers (e.g. many Broadcom MIPS
+chips), "native-endian" is used to allow using the same device tree
+blob in both cases.
 
 Examples:
-Scenario 1 : CPU in LE mode & device in LE mode.
+Scenario 1 : a register set in big-endian mode.
 dev: dev@40031000 {
-	      compatible = "name";
+	      compatible = "syscon";
 	      reg = <0x40031000 0x1000>;
-	      ...
-};
-
-Scenario 2 : CPU in LE mode & device in BE mode.
-dev: dev@40031000 {
-	      compatible = "name";
-	      reg = <0x40031000 0x1000>;
-	      ...
 	      big-endian;
-};
-
-Scenario 3 : CPU in BE mode & device in BE mode.
-dev: dev@40031000 {
-	      compatible = "name";
-	      reg = <0x40031000 0x1000>;
 	      ...
-};
-
-Scenario 4 : CPU in BE mode & device in LE mode.
-dev: dev@40031000 {
-	      compatible = "name";
-	      reg = <0x40031000 0x1000>;
-	      ...
-	      little-endian;
 };

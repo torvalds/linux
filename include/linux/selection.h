@@ -24,10 +24,10 @@ extern void mouse_report(struct tty_struct * tty, int butt, int mrx, int mry);
 
 extern int console_blanked;
 
-extern unsigned char color_table[];
-extern int default_red[];
-extern int default_grn[];
-extern int default_blu[];
+extern const unsigned char color_table[];
+extern unsigned char default_red[];
+extern unsigned char default_grn[];
+extern unsigned char default_blu[];
 
 extern unsigned short *screen_pos(struct vc_data *vc, int w_offset, int viewed);
 extern u16 screen_glyph(struct vc_data *vc, int offset);

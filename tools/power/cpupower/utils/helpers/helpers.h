@@ -14,6 +14,7 @@
 #include <locale.h>
 
 #include "helpers/bitmask.h"
+#include <cpupower.h>
 
 /* Internationalization ****************************/
 #ifdef NLS
@@ -91,31 +92,6 @@ struct cpupower_cpu_info {
 extern int get_cpu_info(unsigned int cpu, struct cpupower_cpu_info *cpu_info);
 extern struct cpupower_cpu_info cpupower_cpu_info;
 /* cpuid and cpuinfo helpers  **************************/
-
-struct cpuid_core_info {
-	int pkg;
-	int core;
-	int cpu;
-
-	/* flags */
-	unsigned int is_online:1;
-};
-
-/* CPU topology/hierarchy parsing ******************/
-struct cpupower_topology {
-	/* Amount of CPU cores, packages and threads per core in the system */
-	unsigned int cores;
-	unsigned int pkgs;
-	unsigned int threads; /* per core */
-
-	/* Array gets mallocated with cores entries, holding per core info */
-	struct cpuid_core_info *core_info;
-};
-
-extern int get_cpu_topology(struct cpupower_topology *cpu_top);
-extern void cpu_topology_release(struct cpupower_topology cpu_top);
-
-/* CPU topology/hierarchy parsing ******************/
 
 /* X86 ONLY ****************************************/
 #if defined(__i386__) || defined(__x86_64__)

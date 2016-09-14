@@ -35,8 +35,6 @@
 #define QCA988X_HW_2_0_VERSION		0x4100016c
 #define QCA988X_HW_2_0_CHIP_ID_REV	0x2
 #define QCA988X_HW_2_0_FW_DIR		ATH10K_FW_DIR "/QCA988X/hw2.0"
-#define QCA988X_HW_2_0_FW_FILE		"firmware.bin"
-#define QCA988X_HW_2_0_OTP_FILE		"otp.bin"
 #define QCA988X_HW_2_0_BOARD_DATA_FILE	"board.bin"
 #define QCA988X_HW_2_0_PATCH_LOAD_ADDR	0x1234
 
@@ -76,14 +74,10 @@ enum qca9377_chip_id_rev {
 };
 
 #define QCA6174_HW_2_1_FW_DIR		"ath10k/QCA6174/hw2.1"
-#define QCA6174_HW_2_1_FW_FILE		"firmware.bin"
-#define QCA6174_HW_2_1_OTP_FILE		"otp.bin"
 #define QCA6174_HW_2_1_BOARD_DATA_FILE	"board.bin"
 #define QCA6174_HW_2_1_PATCH_LOAD_ADDR	0x1234
 
 #define QCA6174_HW_3_0_FW_DIR		"ath10k/QCA6174/hw3.0"
-#define QCA6174_HW_3_0_FW_FILE		"firmware.bin"
-#define QCA6174_HW_3_0_OTP_FILE		"otp.bin"
 #define QCA6174_HW_3_0_BOARD_DATA_FILE	"board.bin"
 #define QCA6174_HW_3_0_PATCH_LOAD_ADDR	0x1234
 
@@ -94,23 +88,17 @@ enum qca9377_chip_id_rev {
 #define QCA99X0_HW_2_0_DEV_VERSION     0x01000000
 #define QCA99X0_HW_2_0_CHIP_ID_REV     0x1
 #define QCA99X0_HW_2_0_FW_DIR          ATH10K_FW_DIR "/QCA99X0/hw2.0"
-#define QCA99X0_HW_2_0_FW_FILE         "firmware.bin"
-#define QCA99X0_HW_2_0_OTP_FILE        "otp.bin"
 #define QCA99X0_HW_2_0_BOARD_DATA_FILE "board.bin"
 #define QCA99X0_HW_2_0_PATCH_LOAD_ADDR	0x1234
 
 /* QCA9377 1.0 definitions */
 #define QCA9377_HW_1_0_FW_DIR          ATH10K_FW_DIR "/QCA9377/hw1.0"
-#define QCA9377_HW_1_0_FW_FILE         "firmware.bin"
-#define QCA9377_HW_1_0_OTP_FILE        "otp.bin"
 #define QCA9377_HW_1_0_BOARD_DATA_FILE "board.bin"
 #define QCA9377_HW_1_0_PATCH_LOAD_ADDR	0x1234
 
 /* QCA4019 1.0 definitions */
 #define QCA4019_HW_1_0_DEV_VERSION     0x01000000
 #define QCA4019_HW_1_0_FW_DIR          ATH10K_FW_DIR "/QCA4019/hw1.0"
-#define QCA4019_HW_1_0_FW_FILE         "firmware.bin"
-#define QCA4019_HW_1_0_OTP_FILE        "otp.bin"
 #define QCA4019_HW_1_0_BOARD_DATA_FILE "board.bin"
 #define QCA4019_HW_1_0_PATCH_LOAD_ADDR  0x1234
 
@@ -133,8 +121,6 @@ enum qca9377_chip_id_rev {
 #define ATH10K_BOARD_API2_FILE         "board-2.bin"
 
 #define REG_DUMP_COUNT_QCA988X 60
-
-#define QCA988X_CAL_DATA_LEN		2116
 
 struct ath10k_fw_ie {
 	__le32 id;
@@ -431,10 +417,14 @@ enum ath10k_hw_4addr_pad {
 #define TARGET_10_4_ACTIVE_PEERS		0
 
 #define TARGET_10_4_NUM_QCACHE_PEERS_MAX	512
+#define TARGET_10_4_QCACHE_ACTIVE_PEERS		50
+#define TARGET_10_4_QCACHE_ACTIVE_PEERS_PFC	35
 #define TARGET_10_4_NUM_OFFLOAD_PEERS		0
 #define TARGET_10_4_NUM_OFFLOAD_REORDER_BUFFS	0
 #define TARGET_10_4_NUM_PEER_KEYS		2
 #define TARGET_10_4_TGT_NUM_TIDS		((TARGET_10_4_NUM_PEERS) * 2)
+#define TARGET_10_4_NUM_MSDU_DESC		(1024 + 400)
+#define TARGET_10_4_NUM_MSDU_DESC_PFC		2500
 #define TARGET_10_4_AST_SKID_LIMIT		32
 
 /* 100 ms for video, best-effort, and background */

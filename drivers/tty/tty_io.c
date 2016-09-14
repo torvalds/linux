@@ -230,9 +230,6 @@ static void tty_del_file(struct file *file)
 	tty_free_file(file);
 }
 
-
-#define TTY_NUMBER(tty) ((tty)->index + (tty)->driver->name_base)
-
 /**
  *	tty_name	-	return tty naming
  *	@tty: tty structure
@@ -1070,7 +1067,7 @@ static ssize_t tty_read(struct file *file, char __user *buf, size_t count,
 
 	if (tty_paranoia_check(tty, inode, "tty_read"))
 		return -EIO;
-	if (!tty || (test_bit(TTY_IO_ERROR, &tty->flags)))
+	if (!tty || tty_io_error(tty))
 		return -EIO;
 
 	/* We want to wait for the line discipline to sort out in this
@@ -1245,8 +1242,7 @@ static ssize_t tty_write(struct file *file, const char __user *buf,
 
 	if (tty_paranoia_check(tty, file_inode(file), "tty_write"))
 		return -EIO;
-	if (!tty || !tty->ops->write ||
-		(test_bit(TTY_IO_ERROR, &tty->flags)))
+	if (!tty || !tty->ops->write ||	tty_io_error(tty))
 			return -EIO;
 	/* Short term debug to catch buggy drivers */
 	if (tty->ops->write_room == NULL)
@@ -1367,12 +1363,12 @@ static ssize_t tty_line_name(struct tty_driver *driver, int index, char *p)
  *	Locking: tty_mutex must be held. If the tty is found, bump the tty kref.
  */
 static struct tty_struct *tty_driver_lookup_tty(struct tty_driver *driver,
-		struct inode *inode, int idx)
+		struct file *file, int idx)
 {
 	struct tty_struct *tty;
 
 	if (driver->ops->lookup)
-		tty = driver->ops->lookup(driver, inode, idx);
+		tty = driver->ops->lookup(driver, file, idx);
 	else
 		tty = driver->ttys[idx];
 
@@ -1964,7 +1960,6 @@ static struct tty_struct *tty_open_current_tty(dev_t device, struct file *filp)
  *	tty_lookup_driver - lookup a tty driver for a given device file
  *	@device: device number
  *	@filp: file pointer to tty
- *	@noctty: set if the device should not become a controlling tty
  *	@index: index for the device in the @return driver
  *	@return: driver for this inode (with increased refcount)
  *
@@ -2040,7 +2035,7 @@ static struct tty_struct *tty_open_by_driver(dev_t device, struct inode *inode,
 	}
 
 	/* check whether we're reopening an existing tty */
-	tty = tty_driver_lookup_tty(driver, inode, index);
+	tty = tty_driver_lookup_tty(driver, filp, index);
 	if (IS_ERR(tty)) {
 		mutex_unlock(&tty_mutex);
 		goto out;

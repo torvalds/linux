@@ -265,7 +265,6 @@ repeat:
 		for (rec = (struct llog_rec_hdr *)buf;
 		     (char *)rec < buf + LLOG_CHUNK_SIZE;
 		     rec = (struct llog_rec_hdr *)((char *)rec + rec->lrh_len)) {
-
 			CDEBUG(D_OTHER, "processing rec 0x%p type %#x\n",
 			       rec, rec->lrh_type);
 

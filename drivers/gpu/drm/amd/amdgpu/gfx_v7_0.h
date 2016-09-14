@@ -32,6 +32,5 @@ void gfx_v7_0_exit_rlc_safe_mode(struct amdgpu_device *adev);
 void gfx_v7_0_rlc_stop(struct amdgpu_device *adev);
 uint64_t gfx_v7_0_get_gpu_clock_counter(struct amdgpu_device *adev);
 void gfx_v7_0_select_se_sh(struct amdgpu_device *adev, u32 se_num, u32 sh_num);
-int gfx_v7_0_get_cu_info(struct amdgpu_device *adev, struct amdgpu_cu_info *cu_info);
 
 #endif

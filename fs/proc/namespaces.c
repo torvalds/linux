@@ -139,7 +139,8 @@ out:
 
 const struct file_operations proc_ns_dir_operations = {
 	.read		= generic_read_dir,
-	.iterate	= proc_ns_dir_readdir,
+	.iterate_shared	= proc_ns_dir_readdir,
+	.llseek		= generic_file_llseek,
 };
 
 static struct dentry *proc_ns_dir_lookup(struct inode *dir,

@@ -120,6 +120,9 @@ static ssize_t btrfs_feature_attr_store(struct kobject *kobj,
 	if (!fs_info)
 		return -EPERM;
 
+	if (fs_info->sb->s_flags & MS_RDONLY)
+		return -EROFS;
+
 	ret = kstrtoul(skip_spaces(buf), 0, &val);
 	if (ret)
 		return ret;
@@ -364,7 +367,13 @@ static ssize_t btrfs_label_show(struct kobject *kobj,
 {
 	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
 	char *label = fs_info->super_copy->label;
-	return snprintf(buf, PAGE_SIZE, label[0] ? "%s\n" : "%s", label);
+	ssize_t ret;
+
+	spin_lock(&fs_info->super_lock);
+	ret = snprintf(buf, PAGE_SIZE, label[0] ? "%s\n" : "%s", label);
+	spin_unlock(&fs_info->super_lock);
+
+	return ret;
 }
 
 static ssize_t btrfs_label_store(struct kobject *kobj,
@@ -373,6 +382,9 @@ static ssize_t btrfs_label_store(struct kobject *kobj,
 {
 	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
 	size_t p_len;
+
+	if (!fs_info)
+		return -EPERM;
 
 	if (fs_info->sb->s_flags & MS_RDONLY)
 		return -EROFS;
