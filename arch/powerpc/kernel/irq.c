@@ -157,6 +157,15 @@ notrace unsigned int __check_irq_replay(void)
 	}
 
 	/*
+	 * Check if an hypervisor Maintenance interrupt happened.
+	 * This is a higher priority interrupt than the others, so
+	 * replay it first.
+	 */
+	local_paca->irq_happened &= ~PACA_IRQ_HMI;
+	if (happened & PACA_IRQ_HMI)
+		return 0xe60;
+
+	/*
 	 * We may have missed a decrementer interrupt. We check the
 	 * decrementer itself rather than the paca irq_happened field
 	 * in case we also had a rollover while hard disabled
@@ -190,11 +199,6 @@ notrace unsigned int __check_irq_replay(void)
 		return 0xa00;
 	}
 #endif /* CONFIG_PPC_BOOK3E */
-
-	/* Check if an hypervisor Maintenance interrupt happened */
-	local_paca->irq_happened &= ~PACA_IRQ_HMI;
-	if (happened & PACA_IRQ_HMI)
-		return 0xe60;
 
 	/* There should be nothing left ! */
 	BUG_ON(local_paca->irq_happened != 0);
