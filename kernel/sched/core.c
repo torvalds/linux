@@ -7558,11 +7558,6 @@ void __init sched_init(void)
 	enter_lazy_tlb(&init_mm, current);
 
 	/*
-	 * During early bootup we pretend to be a normal task:
-	 */
-	current->sched_class = &fair_sched_class;
-
-	/*
 	 * Make us the idle thread. Technically, schedule() should not be
 	 * called from this thread, however somewhere below it might be,
 	 * but because we are the idle thread, we just pick up running again
