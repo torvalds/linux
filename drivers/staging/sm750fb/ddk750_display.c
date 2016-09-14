@@ -137,7 +137,6 @@ static void swPanelPowerSequence(int disp, int delay)
 	reg |= (disp ? PANEL_DISPLAY_CTRL_FPEN : 0);
 	POKE32(PANEL_DISPLAY_CTRL, reg);
 	primaryWaitVerticalSync(delay);
-
 }
 
 void ddk750_setLogicalDispOut(disp_output_t output)
@@ -162,7 +161,6 @@ void ddk750_setLogicalDispOut(disp_output_t output)
 		/*se blank off */
 		reg &= ~CRT_DISPLAY_CTRL_BLANK;
 		POKE32(CRT_DISPLAY_CTRL, reg);
-
 	}
 
 	if (output & PRI_TP_USAGE) {
