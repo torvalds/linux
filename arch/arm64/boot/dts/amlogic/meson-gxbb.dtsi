@@ -274,6 +274,14 @@
 					};
 				};
 
+				i2c_ao_pins: i2c_ao {
+					mux {
+						groups = "i2c_sck_ao",
+						       "i2c_sda_ao";
+						function = "i2c_ao";
+					};
+				};
+
 				pwm_ao_a_3_pins: pwm_ao_a_3 {
 					mux {
 						groups = "pwm_ao_a_3";
@@ -432,6 +440,30 @@
 						groups = "uart_tx_c",
 						       "uart_rx_c";
 						function = "uart_c";
+					};
+				};
+
+				i2c_a_pins: i2c_a {
+					mux {
+						groups = "i2c_sck_a",
+						       "i2c_sda_a";
+						function = "i2c_a";
+					};
+				};
+
+				i2c_b_pins: i2c_b {
+					mux {
+						groups = "i2c_sck_b",
+						       "i2c_sda_b";
+						function = "i2c_b";
+					};
+				};
+
+				i2c_c_pins: i2c_c {
+					mux {
+						groups = "i2c_sck_c",
+						       "i2c_sda_c";
+						function = "i2c_c";
 					};
 				};
 
