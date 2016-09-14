@@ -8022,6 +8022,8 @@ __cfg80211_alloc_vendor_skb(struct cfg80211_registered_device *rdev,
 	}
 
 	data = nla_nest_start(skb, attr);
+	if (!data)
+		goto nla_put_failure;
 
 	((void **)skb->cb)[0] = rdev;
 	((void **)skb->cb)[1] = hdr;
@@ -9458,8 +9460,14 @@ static int nl80211_send_wowlan_nd(struct sk_buff *msg,
 
 	if (req->n_match_sets) {
 		matches = nla_nest_start(msg, NL80211_ATTR_SCHED_SCAN_MATCH);
+		if (!matches)
+			return -ENOBUFS;
+
 		for (i = 0; i < req->n_match_sets; i++) {
 			match = nla_nest_start(msg, i);
+			if (!match)
+				return -ENOBUFS;
+
 			nla_put(msg, NL80211_SCHED_SCAN_MATCH_ATTR_SSID,
 				req->match_sets[i].ssid.ssid_len,
 				req->match_sets[i].ssid.ssid);
@@ -9474,6 +9482,9 @@ static int nl80211_send_wowlan_nd(struct sk_buff *msg,
 
 	for (i = 0; i < req->n_scan_plans; i++) {
 		scan_plan = nla_nest_start(msg, i + 1);
+		if (!scan_plan)
+			return -ENOBUFS;
+
 		if (!scan_plan ||
 		    nla_put_u32(msg, NL80211_SCHED_SCAN_PLAN_INTERVAL,
 				req->scan_plans[i].interval) ||
