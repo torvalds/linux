@@ -1522,18 +1522,10 @@ static u32 num_interrupts[AB8500_MAX_NR_IRQS];
 static u32 num_wake_interrupts[AB8500_MAX_NR_IRQS];
 static int num_interrupt_lines;
 
-bool __attribute__((weak)) suspend_test_wake_cause_interrupt_is_mine(u32 my_int)
-{
-	return false;
-}
-
 void ab8500_debug_register_interrupt(int line)
 {
-	if (line < num_interrupt_lines) {
+	if (line < num_interrupt_lines)
 		num_interrupts[line]++;
-		if (suspend_test_wake_cause_interrupt_is_mine(irq_ab8500))
-			num_wake_interrupts[line]++;
-	}
 }
 
 static int ab8500_interrupts_print(struct seq_file *s, void *p)
