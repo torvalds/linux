@@ -12267,6 +12267,7 @@ F:	drivers/net/usb/rtl8150.c
 USB SERIAL SUBSYSTEM
 M:	Johan Hovold <johan@kernel.org>
 L:	linux-usb@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/johan/usb-serial.git
 S:	Maintained
 F:	Documentation/usb/usb-serial.txt
 F:	drivers/usb/serial/
