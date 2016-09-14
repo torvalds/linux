@@ -502,7 +502,7 @@ EXPORT_SYMBOL(blk_mq_requeue_request);
 static void blk_mq_requeue_work(struct work_struct *work)
 {
 	struct request_queue *q =
-		container_of(work, struct request_queue, requeue_work);
+		container_of(work, struct request_queue, requeue_work.work);
 	LIST_HEAD(rq_list);
 	struct request *rq, *next;
 	unsigned long flags;
@@ -557,15 +557,23 @@ EXPORT_SYMBOL(blk_mq_add_to_requeue_list);
 
 void blk_mq_cancel_requeue_work(struct request_queue *q)
 {
-	cancel_work_sync(&q->requeue_work);
+	cancel_delayed_work_sync(&q->requeue_work);
 }
 EXPORT_SYMBOL_GPL(blk_mq_cancel_requeue_work);
 
 void blk_mq_kick_requeue_list(struct request_queue *q)
 {
-	kblockd_schedule_work(&q->requeue_work);
+	kblockd_schedule_delayed_work(&q->requeue_work, 0);
 }
 EXPORT_SYMBOL(blk_mq_kick_requeue_list);
+
+void blk_mq_delay_kick_requeue_list(struct request_queue *q,
+				    unsigned long msecs)
+{
+	kblockd_schedule_delayed_work(&q->requeue_work,
+				      msecs_to_jiffies(msecs));
+}
+EXPORT_SYMBOL(blk_mq_delay_kick_requeue_list);
 
 void blk_mq_abort_requeue_list(struct request_queue *q)
 {
@@ -2084,7 +2092,7 @@ struct request_queue *blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 
 	q->sg_reserved_size = INT_MAX;
 
-	INIT_WORK(&q->requeue_work, blk_mq_requeue_work);
+	INIT_DELAYED_WORK(&q->requeue_work, blk_mq_requeue_work);
 	INIT_LIST_HEAD(&q->requeue_list);
 	spin_lock_init(&q->requeue_lock);
 
