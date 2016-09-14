@@ -68,7 +68,6 @@ static struct inode *proc_alloc_inode(struct super_block *sb)
 	ei->sysctl_entry = NULL;
 	ei->ns_ops = NULL;
 	inode = &ei->vfs_inode;
-	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
 	return inode;
 }
 
