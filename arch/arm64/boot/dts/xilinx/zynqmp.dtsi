@@ -95,6 +95,11 @@
 		};
 	};
 
+	dcc: dcc {
+		compatible = "arm,dcc";
+		status = "disabled";
+	};
+
 	pmu {
 		compatible = "arm,armv8-pmuv3";
 		interrupt-parent = <&gic>;
