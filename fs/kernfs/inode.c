@@ -241,7 +241,7 @@ static inline void set_default_inode_attr(struct inode *inode, umode_t mode)
 {
 	inode->i_mode = mode;
 	inode->i_atime = inode->i_mtime =
-		inode->i_ctime = current_fs_time(inode->i_sb);
+		inode->i_ctime = current_time(inode);
 }
 
 static inline void set_inode_attr(struct inode *inode, struct iattr *iattr)

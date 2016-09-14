@@ -1539,7 +1539,7 @@ void lease_get_mtime(struct inode *inode, struct timespec *time)
 	}
 
 	if (has_lease)
-		*time = current_fs_time(inode->i_sb);
+		*time = current_time(inode);
 	else
 		*time = inode->i_mtime;
 }

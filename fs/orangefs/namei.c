@@ -81,7 +81,7 @@ static int orangefs_create(struct inode *dir,
 		     dentry->d_name.name);
 
 	SetMtimeFlag(parent);
-	dir->i_mtime = dir->i_ctime = current_fs_time(dir->i_sb);
+	dir->i_mtime = dir->i_ctime = current_time(dir);
 	mark_inode_dirty_sync(dir);
 	ret = 0;
 out:
@@ -254,7 +254,7 @@ static int orangefs_unlink(struct inode *dir, struct dentry *dentry)
 		drop_nlink(inode);
 
 		SetMtimeFlag(parent);
-		dir->i_mtime = dir->i_ctime = current_fs_time(dir->i_sb);
+		dir->i_mtime = dir->i_ctime = current_time(dir);
 		mark_inode_dirty_sync(dir);
 	}
 	return ret;
@@ -331,7 +331,7 @@ static int orangefs_symlink(struct inode *dir,
 		     dentry->d_name.name);
 
 	SetMtimeFlag(parent);
-	dir->i_mtime = dir->i_ctime = current_fs_time(dir->i_sb);
+	dir->i_mtime = dir->i_ctime = current_time(dir);
 	mark_inode_dirty_sync(dir);
 	ret = 0;
 out:
@@ -399,7 +399,7 @@ static int orangefs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 	 * across clients; keep constant at 1.
 	 */
 	SetMtimeFlag(parent);
-	dir->i_mtime = dir->i_ctime = current_fs_time(dir->i_sb);
+	dir->i_mtime = dir->i_ctime = current_time(dir);
 	mark_inode_dirty_sync(dir);
 out:
 	op_release(new_op);
@@ -443,7 +443,7 @@ static int orangefs_rename(struct inode *old_dir,
 		     ret);
 
 	if (new_dentry->d_inode)
-		new_dentry->d_inode->i_ctime = CURRENT_TIME;
+		new_dentry->d_inode->i_ctime = current_time(new_dentry->d_inode);
 
 	op_release(new_op);
 	return ret;
