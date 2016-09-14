@@ -104,6 +104,7 @@ typedef void (busy_iter_fn)(struct blk_mq_hw_ctx *, struct request *, void *,
 		bool);
 typedef void (busy_tag_iter_fn)(struct request *, void *, bool);
 typedef int (poll_fn)(struct blk_mq_hw_ctx *, unsigned int);
+typedef int (map_queues_fn)(struct blk_mq_tag_set *set);
 
 
 struct blk_mq_ops {
@@ -144,6 +145,8 @@ struct blk_mq_ops {
 	init_request_fn		*init_request;
 	exit_request_fn		*exit_request;
 	reinit_request_fn	*reinit_request;
+
+	map_queues_fn		*map_queues;
 };
 
 enum {
