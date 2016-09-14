@@ -1477,6 +1477,16 @@ static int __init mtk_hw_init(struct mtk_eth *eth)
 	return 0;
 }
 
+static int mtk_hw_deinit(struct mtk_eth *eth)
+{
+	clk_disable_unprepare(eth->clks[MTK_CLK_GP2]);
+	clk_disable_unprepare(eth->clks[MTK_CLK_GP1]);
+	clk_disable_unprepare(eth->clks[MTK_CLK_ESW]);
+	clk_disable_unprepare(eth->clks[MTK_CLK_ETHIF]);
+
+	return 0;
+}
+
 static int __init mtk_init(struct net_device *dev)
 {
 	struct mtk_mac *mac = netdev_priv(dev);
@@ -1926,10 +1936,7 @@ static int mtk_remove(struct platform_device *pdev)
 		mtk_stop(eth->netdev[i]);
 	}
 
-	clk_disable_unprepare(eth->clks[MTK_CLK_ETHIF]);
-	clk_disable_unprepare(eth->clks[MTK_CLK_ESW]);
-	clk_disable_unprepare(eth->clks[MTK_CLK_GP1]);
-	clk_disable_unprepare(eth->clks[MTK_CLK_GP2]);
+	mtk_hw_deinit(eth);
 
 	netif_napi_del(&eth->tx_napi);
 	netif_napi_del(&eth->rx_napi);
