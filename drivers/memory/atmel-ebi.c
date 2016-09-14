@@ -410,10 +410,7 @@ static int at91sam9_ebi_init(struct at91_ebi *ebi)
 
 	field.reg = AT91SAM9_SMC_MODE(AT91SAM9_SMC_GENERIC);
 	fields->mode = devm_regmap_field_alloc(ebi->dev, ebi->smc, field);
-	if (IS_ERR(fields->mode))
-		return PTR_ERR(fields->mode);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(fields->mode);
 }
 
 static int sama5d3_ebi_init(struct at91_ebi *ebi)
@@ -441,10 +438,7 @@ static int sama5d3_ebi_init(struct at91_ebi *ebi)
 
 	field.reg = SAMA5_SMC_MODE(SAMA5_SMC_GENERIC);
 	fields->mode = devm_regmap_field_alloc(ebi->dev, ebi->smc, field);
-	if (IS_ERR(fields->mode))
-		return PTR_ERR(fields->mode);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(fields->mode);
 }
 
 static int at91_ebi_dev_setup(struct at91_ebi *ebi, struct device_node *np,
