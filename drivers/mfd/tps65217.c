@@ -82,7 +82,7 @@ static void tps65217_irq_sync_unlock(struct irq_data *data)
 	mutex_unlock(&tps->irq_lock);
 }
 
-static const inline struct tps65217_irq *
+static inline const struct tps65217_irq *
 irq_to_tps65217_irq(struct tps65217 *tps, struct irq_data *data)
 {
 	return &tps65217_irqs[data->hwirq];
