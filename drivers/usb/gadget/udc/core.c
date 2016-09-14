@@ -107,10 +107,8 @@ int usb_ep_enable(struct usb_ep *ep)
 		goto out;
 
 	ret = ep->ops->enable(ep, ep->desc);
-	if (ret) {
-		ret = ret;
+	if (ret)
 		goto out;
-	}
 
 	ep->enabled = true;
 

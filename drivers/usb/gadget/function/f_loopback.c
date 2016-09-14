@@ -308,9 +308,7 @@ static void disable_loopback(struct f_loopback *loop)
 
 static inline struct usb_request *lb_alloc_ep_req(struct usb_ep *ep, int len)
 {
-	struct f_loopback	*loop = ep->driver_data;
-
-	return alloc_ep_req(ep, len, loop->buflen);
+	return alloc_ep_req(ep, len);
 }
 
 static int alloc_requests(struct usb_composite_dev *cdev,
@@ -333,7 +331,7 @@ static int alloc_requests(struct usb_composite_dev *cdev,
 		if (!in_req)
 			goto fail;
 
-		out_req = lb_alloc_ep_req(loop->out_ep, 0);
+		out_req = lb_alloc_ep_req(loop->out_ep, loop->buflen);
 		if (!out_req)
 			goto fail_in;
 
@@ -593,13 +591,9 @@ DECLARE_USB_FUNCTION(Loopback, loopback_alloc_instance, loopback_alloc);
 
 int __init lb_modinit(void)
 {
-	int ret;
-
-	ret = usb_function_register(&Loopbackusb_func);
-	if (ret)
-		return ret;
-	return ret;
+	return usb_function_register(&Loopbackusb_func);
 }
+
 void __exit lb_modexit(void)
 {
 	usb_function_unregister(&Loopbackusb_func);
