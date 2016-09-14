@@ -90,11 +90,12 @@ struct bio {
 };
 
 #define BIO_OP_SHIFT	(8 * FIELD_SIZEOF(struct bio, bi_opf) - REQ_OP_BITS)
+#define bio_flags(bio)	((bio)->bi_opf & ((1 << BIO_OP_SHIFT) - 1))
 #define bio_op(bio)	((bio)->bi_opf >> BIO_OP_SHIFT)
 
 #define bio_set_op_attrs(bio, op, op_flags) do {		\
 	WARN_ON(op >= (1 << REQ_OP_BITS));			\
-	(bio)->bi_opf &= ((1 << BIO_OP_SHIFT) - 1);		\
+	(bio)->bi_opf = bio_flags(bio);				\
 	(bio)->bi_opf |= ((unsigned int) (op) << BIO_OP_SHIFT);	\
 	(bio)->bi_opf |= op_flags;				\
 } while (0)
