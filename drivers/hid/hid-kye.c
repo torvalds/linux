@@ -19,11 +19,6 @@
 
 #include "hid-ids.h"
 
-/*
- * See EasyPen i405X description, device and HID report descriptors at
- * http://sf.net/apps/mediawiki/digimend/?title=KYE_EasyPen_i405X
- */
-
 /* Original EasyPen i405X report descriptor size */
 #define EASYPEN_I405X_RDESC_ORIG_SIZE	476
 
@@ -81,11 +76,6 @@ static __u8 easypen_i405x_rdesc_fixed[] = {
 	0xC0,             /*    End Collection,               */
 	0xC0              /*  End Collection                  */
 };
-
-/*
- * See MousePen i608X description, device and HID report descriptors at
- * http://sf.net/apps/mediawiki/digimend/?title=KYE_MousePen_i608X
- */
 
 /* Original MousePen i608X report descriptor size */
 #define MOUSEPEN_I608X_RDESC_ORIG_SIZE	476
@@ -185,11 +175,6 @@ static __u8 mousepen_i608x_rdesc_fixed[] = {
 	0xC0,             /*    End Collection,               */
 	0xC0              /*  End Collection                  */
 };
-
-/*
- * See EasyPen M610X description, device and HID report descriptors at
- * http://sf.net/apps/mediawiki/digimend/?title=KYE_EasyPen_M610X
- */
 
 /* Original EasyPen M610X report descriptor size */
 #define EASYPEN_M610X_RDESC_ORIG_SIZE	476

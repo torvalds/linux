@@ -21,13 +21,6 @@
 
 #include "hid-ids.h"
 
-/*
- * See WPXXXXU model descriptions, device and HID report descriptors at
- * http://sf.net/apps/mediawiki/digimend/?title=UC-Logic_Tablet_WP4030U
- * http://sf.net/apps/mediawiki/digimend/?title=UC-Logic_Tablet_WP5540U
- * http://sf.net/apps/mediawiki/digimend/?title=UC-Logic_Tablet_WP8060U
- */
-
 /* Size of the original descriptor of WPXXXXU tablets */
 #define WPXXXXU_RDESC_ORIG_SIZE	212
 
@@ -221,11 +214,6 @@ static __u8 wp8060u_rdesc_fixed[] = {
 	0xC0                /*  End Collection                      */
 };
 
-/*
- * See WP1062 description, device and HID report descriptors at
- * http://sf.net/apps/mediawiki/digimend/?title=UC-Logic_Tablet_WP1062
- */
-
 /* Size of the original descriptor of WP1062 tablet */
 #define WP1062_RDESC_ORIG_SIZE	254
 
@@ -273,11 +261,6 @@ static __u8 wp1062_rdesc_fixed[] = {
 	0xC0,               /*      End Collection,                 */
 	0xC0                /*  End Collection                      */
 };
-
-/*
- * See PF1209 description, device and HID report descriptors at
- * http://sf.net/apps/mediawiki/digimend/?title=UC-Logic_Tablet_PF1209
- */
 
 /* Size of the original descriptor of PF1209 tablet */
 #define PF1209_RDESC_ORIG_SIZE	234
@@ -355,11 +338,6 @@ static __u8 pf1209_rdesc_fixed[] = {
 	0xC0,               /*      End Collection,                 */
 	0xC0                /*  End Collection                      */
 };
-
-/*
- * See TWHL850 description, device and HID report descriptors at
- * http://sf.net/apps/mediawiki/digimend/?title=UC-Logic_Wireless_Tablet_TWHL850
- */
 
 /* Size of the original descriptors of TWHL850 tablet */
 #define TWHL850_RDESC_ORIG_SIZE0	182
@@ -468,11 +446,6 @@ static __u8 twhl850_rdesc_fixed2[] = {
 	0x80,               /*      Input,                          */
 	0xC0                /*  End Collection                      */
 };
-
-/*
- * See TWHA60 description, device and HID report descriptors at
- * http://sf.net/apps/mediawiki/digimend/?title=UC-Logic_Tablet_TWHA60
- */
 
 /* Size of the original descriptors of TWHA60 tablet */
 #define TWHA60_RDESC_ORIG_SIZE0 254
