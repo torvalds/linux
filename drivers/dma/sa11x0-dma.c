@@ -491,7 +491,7 @@ static enum dma_status sa11x0_dma_tx_status(struct dma_chan *chan,
 	}
 	spin_unlock_irqrestore(&c->vc.lock, flags);
 
-	dev_vdbg(d->slave.dev, "tx_status: bytes 0x%zx\n", state->residue);
+	dev_vdbg(d->slave.dev, "tx_status: bytes 0x%x\n", state->residue);
 
 	return ret;
 }
