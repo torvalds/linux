@@ -478,7 +478,9 @@ config LD_DEAD_CODE_DATA_ELIMINATION
 	  This requires that the arch annotates or otherwise protects
 	  its external entry points from being discarded. Linker scripts
 	  must also merge .text.*, .data.*, and .bss.* correctly into
-	  output sections.
+	  output sections. Care must be taken not to pull in unrelated
+	  sections (e.g., '.text.init'). Typically '.' in section names
+	  is used to distinguish them from label names / C identifiers.
 
 config HAVE_CONTEXT_TRACKING
 	bool
