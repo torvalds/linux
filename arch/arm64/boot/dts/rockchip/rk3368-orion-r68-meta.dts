@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Heiko Stuebner <heiko@sntech.de>
+ * Copyright (c) 2016 Matthias Brugger <mbrugger@suse.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -41,12 +41,12 @@
  */
 
 /dts-v1/;
-#include "rk3368.dtsi"
 #include <dt-bindings/input/input.h>
+#include "rk3368.dtsi"
 
 / {
-	model = "Rockchip R88";
-	compatible = "rockchip,r88", "rockchip,rk3368";
+	model = "Rockchip Orion R68";
+	compatible = "tronsmart,orion-r68-meta", "rockchip,rk3368";
 
 	chosen {
 		stdout-path = "serial2:115200n8";
@@ -54,7 +54,7 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0x0 0x0 0x0 0x40000000>;
+		reg = <0x0 0x0 0x0 0x80000000>;
 	};
 
 	emmc_pwrseq: emmc-pwrseq {
@@ -64,6 +64,13 @@
 		reset-gpios = <&gpio2 3 GPIO_ACTIVE_HIGH>;
 	};
 
+	ext_gmac: external-gmac-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <125000000>;
+		clock-output-names = "ext_gmac";
+	};
+
 	keys: gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
@@ -71,7 +78,7 @@
 
 		power {
 			wakeup-source;
-			gpios = <&gpio0 2 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
 			label = "GPIO Power";
 			linux,code = <KEY_POWER>;
 		};
@@ -80,34 +87,21 @@
 	leds: gpio-leds {
 		compatible = "gpio-leds";
 
-		work {
+		red {
 			gpios = <&gpio3 29 GPIO_ACTIVE_HIGH>;
-			label = "r88:green:led";
+			label = "orion:red:led";
 			pinctrl-names = "default";
 			pinctrl-0 = <&led_ctl>;
+			default-state = "on";
 		};
-	};
 
-	ir: ir-receiver {
-		compatible = "gpio-ir-receiver";
-		gpios = <&gpio3 30 GPIO_ACTIVE_LOW>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&ir_int>;
-	};
-
-	sdio_pwrseq: sdio-pwrseq {
-		compatible = "mmc-pwrseq-simple";
-		clocks = <&hym8563>;
-		clock-names = "ext_clock";
-		pinctrl-names = "default";
-		pinctrl-0 = <&bt_rst>, <&wifi_reg_on>;
-
-		reset-gpios =
-			/* BT_RST_N */
-			<&gpio3 5 GPIO_ACTIVE_LOW>,
-
-			/* WL_REG_ON */
-			<&gpio3 4 GPIO_ACTIVE_LOW>;
+		blue {
+			gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>;
+			label = "orion:blue:led";
+			pinctrl-names = "default";
+			pinctrl-0 = <&stby_pwren>;
+			default-state = "off";
+		};
 	};
 
 	vcc_18: vcc18-regulator {
@@ -123,8 +117,7 @@
 	/* supplies both host and otg */
 	vcc_host: vcc-host-regulator {
 		compatible = "regulator-fixed";
-		enable-active-high;
-		gpio = <&gpio0 4 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 4 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&host_vbus_drv>;
 		regulator-name = "vcc_host";
@@ -153,6 +146,17 @@
 		vin-supply = <&vcc_io>;
 	};
 
+	vcc_sd: vcc-sd-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_sd";
+		gpio = <&gpio3 11 GPIO_ACTIVE_LOW>;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		regulator-boot-on;
+		vin-supply = <&vcc_io>;
+	};
+
 	vcc_sys: vcc-sys-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sys";
@@ -160,6 +164,16 @@
 		regulator-max-microvolt = <5000000>;
 		regulator-always-on;
 		regulator-boot-on;
+	};
+
+	vccio_sd: vcc-io-sd-regulator {
+		compatible = "regulator-fixed";
+		regulator-name= "vccio_sd";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		regulator-boot-on;
+		vin-supply = <&vcc_io>;
 	};
 
 	vccio_wl: vccio-wl-regulator {
@@ -187,7 +201,10 @@
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	disable-wp;
+	keep-power-in-suspend;
 	mmc-pwrseq = <&emmc_pwrseq>;
+	mmc-hs200-1_2v;
+	mmc-hs200-1_8v;
 	non-removable;
 	num-slots = <1>;
 	pinctrl-names = "default";
@@ -196,14 +213,16 @@
 };
 
 &gmac {
+	assigned-clocks = <&cru SCLK_MAC>;
+	assigned-clock-parents = <&ext_gmac>;
+	clock_in_out = "input";
 	phy-supply = <&vcc_lan>;
-	phy-mode = "rmii";
-	clock_in_out = "output";
+	phy-mode = "rgmii";
+	pinctrl-names = "default";
+	pinctrl-0 = <&rgmii_pins>;
 	snps,reset-gpio = <&gpio3 12 0>;
 	snps,reset-active-low;
 	snps,reset-delays-us = <0 10000 1000000>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&rmii_pins>;
 	tx_delay = <0x30>;
 	rx_delay = <0x10>;
 	status = "ok";
@@ -234,32 +253,6 @@
 		clock-output-names = "xin32k";
 		/* rtc_int is not connected */
 	};
-};
-
-&io_domains {
-	status = "ok";
-
-	audio-supply = <&vcc_io>;
-	gpio30-supply = <&vcc_io>;
-	gpio1830-supply = <&vcc_io>;
-	wifi-supply = <&vccio_wl>;
-};
-
-&sdio0 {
-	assigned-clocks = <&cru SCLK_SDIO0>;
-	assigned-clock-parents = <&cru PLL_CPLL>;
-	bus-width = <4>;
-	cap-sd-highspeed;
-	cap-sdio-irq;
-	keep-power-in-suspend;
-	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
-	num-slots = <1>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&sdio0_clk &sdio0_cmd &sdio0_bus4>;
-	vmmc-supply = <&vcc_io>;
-	vqmmc-supply = <&vccio_wl>;
-	status = "okay";
 };
 
 &pinctrl {
@@ -298,15 +291,9 @@
 		};
 	};
 
-	ir {
-		ir_int: ir-int {
-			rockchip,pins = <3 30 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-	};
-
 	keys {
 		pwr_key: pwr-key {
-			rockchip,pins = <0 2 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 5 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
@@ -320,13 +307,28 @@
 		};
 	};
 
-	sdio {
-		wifi_reg_on: wifi-reg-on {
-			rockchip,pins = <3 4 RK_FUNC_GPIO &pcfg_pull_none>;
+	sdmmc {
+		sdmmc_clk: sdmmc-clk {
+			rockchip,pins = <2 9 RK_FUNC_1 &pcfg_pull_none_drv_8ma>;
 		};
 
-		bt_rst: bt-rst {
-			rockchip,pins = <3 5 RK_FUNC_GPIO &pcfg_pull_none>;
+		sdmmc_cmd: sdmmc-cmd {
+			rockchip,pins = <2 10 RK_FUNC_1 &pcfg_pull_up_drv_8ma>;
+		};
+
+		sdmmc_cd: sdmmc-cd {
+			rockchip,pins = <2 11 RK_FUNC_1 &pcfg_pull_up_drv_8ma>;
+		};
+
+		sdmmc_bus1: sdmmc-bus1 {
+			rockchip,pins = <2 5 RK_FUNC_1 &pcfg_pull_up_drv_8ma>;
+		};
+
+		sdmmc_bus4: sdmmc-bus4 {
+			rockchip,pins = <2 5 RK_FUNC_1 &pcfg_pull_up_drv_8ma>,
+					<2 6 RK_FUNC_1 &pcfg_pull_up_drv_8ma>,
+					<2 7 RK_FUNC_1 &pcfg_pull_up_drv_8ma>,
+					<2 8 RK_FUNC_1 &pcfg_pull_up_drv_8ma>;
 		};
 	};
 
@@ -337,25 +339,33 @@
 	};
 };
 
-&pmu_io_domains {
-	status = "okay";
-
-	pmu-supply = <&vcc_io>;
-	vop-supply = <&vcc_io>;
-};
-
 &saradc {
 	vref-supply = <&vcc_18>;
 	status = "okay";
 };
 
-&tsadc {
-	rockchip,hw-tshut-mode = <0>; /* tshut mode 0:CRU 1:GPIO */
-	rockchip,hw-tshut-polarity = <0>; /* tshut polarity 0:LOW 1:HIGH */
+&sdmmc {
+	bus-width = <4>;
+	clock-frequency = <50000000>;
+	clock-freq-min-max = <400000 50000000>;
+	cap-sd-highspeed;
+	card-detect-delay = <200>;
+	keep-power-in-suspend;
+	num-slots = <1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd &sdmmc_bus4>;
+	vmmc-supply = <&vcc_sd>;
+	vqmmc-supply = <&vccio_sd>;
 	status = "okay";
 };
 
 &uart2 {
+	status = "okay";
+};
+
+&uart4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart4_xfer>;
 	status = "okay";
 };
 
@@ -364,7 +374,6 @@
 };
 
 &usb_otg {
-	dr_mode = "host";
 	status = "okay";
 };
 
