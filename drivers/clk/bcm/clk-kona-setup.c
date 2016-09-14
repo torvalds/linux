@@ -586,8 +586,8 @@ static u32 *parent_process(const char *clocks[],
 	}
 
 	/* There is at least one parent, so allocate a selector array */
-
-	parent_sel = kmalloc(parent_count * sizeof(*parent_sel), GFP_KERNEL);
+	parent_sel = kmalloc_array(parent_count, sizeof(*parent_sel),
+				   GFP_KERNEL);
 	if (!parent_sel) {
 		pr_err("%s: error allocating %u parent selectors\n", __func__,
 				parent_count);
