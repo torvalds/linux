@@ -917,14 +917,15 @@ int ubifs_jnl_delete_inode(struct ubifs_info *c, const struct inode *inode)
  * @sync: non-zero if the write-buffer has to be synchronized
  *
  * This function implements the re-name operation which may involve writing up
- * to 3 inodes and 2 directory entries. It marks the written inodes as clean
+ * to 4 inodes and 2 directory entries. It marks the written inodes as clean
  * and returns zero on success. In case of failure, a negative error code is
  * returned.
  */
 int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 		     const struct dentry *old_dentry,
 		     const struct inode *new_dir,
-		     const struct dentry *new_dentry, int sync)
+		     const struct dentry *new_dentry,
+		     const struct inode *whiteout, int sync)
 {
 	void *p;
 	union ubifs_key key;
@@ -980,13 +981,19 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 	zero_dent_node_unused(dent);
 	ubifs_prep_grp_node(c, dent, dlen1, 0);
 
-	/* Make deletion dent */
 	dent2 = (void *)dent + aligned_dlen1;
 	dent2->ch.node_type = UBIFS_DENT_NODE;
 	dent_key_init_flash(c, &dent2->key, old_dir->i_ino,
 			    &old_dentry->d_name);
-	dent2->inum = 0;
-	dent2->type = DT_UNKNOWN;
+
+	if (whiteout) {
+		dent2->inum = cpu_to_le64(whiteout->i_ino);
+		dent2->type = get_dent_type(whiteout->i_mode);
+	} else {
+		/* Make deletion dent */
+		dent2->inum = 0;
+		dent2->type = DT_UNKNOWN;
+	}
 	dent2->nlen = cpu_to_le16(old_dentry->d_name.len);
 	memcpy(dent2->name, old_dentry->d_name.name, old_dentry->d_name.len);
 	dent2->name[old_dentry->d_name.len] = '\0';
@@ -1035,16 +1042,26 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 	if (err)
 		goto out_ro;
 
-	err = ubifs_add_dirt(c, lnum, dlen2);
-	if (err)
-		goto out_ro;
+	offs += aligned_dlen1;
+	if (whiteout) {
+		dent_key_init(c, &key, old_dir->i_ino, &old_dentry->d_name);
+		err = ubifs_tnc_add_nm(c, &key, lnum, offs, dlen2, &old_dentry->d_name);
+		if (err)
+			goto out_ro;
 
-	dent_key_init(c, &key, old_dir->i_ino, &old_dentry->d_name);
-	err = ubifs_tnc_remove_nm(c, &key, &old_dentry->d_name);
-	if (err)
-		goto out_ro;
+		ubifs_delete_orphan(c, whiteout->i_ino);
+	} else {
+		err = ubifs_add_dirt(c, lnum, dlen2);
+		if (err)
+			goto out_ro;
 
-	offs += aligned_dlen1 + aligned_dlen2;
+		dent_key_init(c, &key, old_dir->i_ino, &old_dentry->d_name);
+		err = ubifs_tnc_remove_nm(c, &key, &old_dentry->d_name);
+		if (err)
+			goto out_ro;
+	}
+
+	offs += aligned_dlen2;
 	if (new_inode) {
 		ino_key_init(c, &key, new_inode->i_ino);
 		err = ubifs_tnc_add(c, &key, lnum, offs, ilen);
