@@ -2743,6 +2743,24 @@ static int _regulator_call_set_voltage_sel(struct regulator_dev *rdev,
 	return ret;
 }
 
+static int _regulator_set_voltage_time(struct regulator_dev *rdev,
+				       int old_uV, int new_uV)
+{
+	unsigned int ramp_delay = 0;
+
+	if (rdev->constraints->ramp_delay)
+		ramp_delay = rdev->constraints->ramp_delay;
+	else if (rdev->desc->ramp_delay)
+		ramp_delay = rdev->desc->ramp_delay;
+
+	if (ramp_delay == 0) {
+		rdev_warn(rdev, "ramp_delay not set\n");
+		return 0;
+	}
+
+	return DIV_ROUND_UP(abs(new_uV - old_uV), ramp_delay);
+}
+
 static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 				     int min_uV, int max_uV)
 {
@@ -2752,6 +2770,7 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 	unsigned int selector;
 	int old_selector = -1;
 	const struct regulator_ops *ops = rdev->desc->ops;
+	int old_uV = _regulator_get_voltage(rdev);
 
 	trace_regulator_set_voltage(rdev_get_name(rdev), min_uV, max_uV);
 
@@ -2803,23 +2822,37 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 	if (ret)
 		goto out;
 
-	/* Call set_voltage_time_sel if successfully obtained old_selector */
-	if (!old_selector >= 0 && old_selector != selector) {
-		delay = ops->set_voltage_time_sel(rdev,
-						old_selector, selector);
-		if (delay < 0) {
-			rdev_warn(rdev, "set_voltage_time_sel() failed: %d\n",
-				  delay);
-			delay = 0;
+	if (ops->set_voltage_time_sel) {
+		/*
+		 * Call set_voltage_time_sel if successfully obtained
+		 * old_selector
+		 */
+		if (old_selector >= 0 && old_selector != selector)
+			delay = ops->set_voltage_time_sel(rdev, old_selector,
+							  selector);
+	} else {
+		if (old_uV != best_val) {
+			if (ops->set_voltage_time)
+				delay = ops->set_voltage_time(rdev, old_uV,
+							      best_val);
+			else
+				delay = _regulator_set_voltage_time(rdev,
+								    old_uV,
+								    best_val);
 		}
+	}
 
-		/* Insert any necessary delays */
-		if (delay >= 1000) {
-			mdelay(delay / 1000);
-			udelay(delay % 1000);
-		} else if (delay) {
-			udelay(delay);
-		}
+	if (delay < 0) {
+		rdev_warn(rdev, "failed to get delay: %d\n", delay);
+		delay = 0;
+	}
+
+	/* Insert any necessary delays */
+	if (delay >= 1000) {
+		mdelay(delay / 1000);
+		udelay(delay % 1000);
+	} else if (delay) {
+		udelay(delay);
 	}
 
 	if (best_val >= 0) {
@@ -3000,9 +3033,13 @@ int regulator_set_voltage_time(struct regulator *regulator,
 	int voltage;
 	int i;
 
+	if (ops->set_voltage_time)
+		return ops->set_voltage_time(rdev, old_uV, new_uV);
+	else if (!ops->set_voltage_time_sel)
+		return _regulator_set_voltage_time(rdev, old_uV, new_uV);
+
 	/* Currently requires operations to do this */
-	if (!ops->list_voltage || !ops->set_voltage_time_sel
-	    || !rdev->desc->n_voltages)
+	if (!ops->list_voltage || !rdev->desc->n_voltages)
 		return -EINVAL;
 
 	for (i = 0; i < rdev->desc->n_voltages; i++) {
@@ -3041,16 +3078,7 @@ int regulator_set_voltage_time_sel(struct regulator_dev *rdev,
 				   unsigned int old_selector,
 				   unsigned int new_selector)
 {
-	unsigned int ramp_delay = 0;
 	int old_volt, new_volt;
-
-	if (rdev->constraints->ramp_delay)
-		ramp_delay = rdev->constraints->ramp_delay;
-	else if (rdev->desc->ramp_delay)
-		ramp_delay = rdev->desc->ramp_delay;
-
-	if (ramp_delay == 0)
-		return 0;
 
 	/* sanity check */
 	if (!rdev->desc->ops->list_voltage)
@@ -3059,7 +3087,11 @@ int regulator_set_voltage_time_sel(struct regulator_dev *rdev,
 	old_volt = rdev->desc->ops->list_voltage(rdev, old_selector);
 	new_volt = rdev->desc->ops->list_voltage(rdev, new_selector);
 
-	return DIV_ROUND_UP(abs(new_volt - old_volt), ramp_delay);
+	if (rdev->desc->ops->set_voltage_time)
+		return rdev->desc->ops->set_voltage_time(rdev, old_volt,
+							 new_volt);
+	else
+		return _regulator_set_voltage_time(rdev, old_volt, new_volt);
 }
 EXPORT_SYMBOL_GPL(regulator_set_voltage_time_sel);
 
