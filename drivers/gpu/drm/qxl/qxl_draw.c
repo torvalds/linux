@@ -57,11 +57,8 @@ static struct qxl_rect *drawable_set_clipping(struct qxl_device *qdev,
 static int
 alloc_drawable(struct qxl_device *qdev, struct qxl_release **release)
 {
-	int ret;
-	ret = qxl_alloc_release_reserved(qdev, sizeof(struct qxl_drawable),
-					 QXL_RELEASE_DRAWABLE, release,
-					 NULL);
-	return ret;
+	return qxl_alloc_release_reserved(qdev, sizeof(struct qxl_drawable),
+					  QXL_RELEASE_DRAWABLE, release, NULL);
 }
 
 static void
