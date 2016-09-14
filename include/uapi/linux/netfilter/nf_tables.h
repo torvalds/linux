@@ -894,12 +894,14 @@ enum nft_log_attributes {
  * @NFTA_QUEUE_NUM: netlink queue to send messages to (NLA_U16)
  * @NFTA_QUEUE_TOTAL: number of queues to load balance packets on (NLA_U16)
  * @NFTA_QUEUE_FLAGS: various flags (NLA_U16)
+ * @NFTA_QUEUE_SREG_QNUM: source register of queue number (NLA_U32: nft_registers)
  */
 enum nft_queue_attributes {
 	NFTA_QUEUE_UNSPEC,
 	NFTA_QUEUE_NUM,
 	NFTA_QUEUE_TOTAL,
 	NFTA_QUEUE_FLAGS,
+	NFTA_QUEUE_SREG_QNUM,
 	__NFTA_QUEUE_MAX
 };
 #define NFTA_QUEUE_MAX		(__NFTA_QUEUE_MAX - 1)
