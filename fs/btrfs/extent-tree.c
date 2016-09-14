@@ -8488,6 +8488,7 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 				       &wc->flags[level - 1]);
 	if (ret < 0) {
 		btrfs_tree_unlock(next);
+		free_extent_buffer(next);
 		return ret;
 	}
 
