@@ -463,7 +463,7 @@ static enum dma_status sa11x0_dma_tx_status(struct dma_chan *chan,
 			dma_addr_t addr = sa11x0_dma_pos(p);
 			unsigned i;
 
-			dev_vdbg(d->slave.dev, "tx_status: addr:%x\n", addr);
+			dev_vdbg(d->slave.dev, "tx_status: addr:%pad\n", &addr);
 
 			for (i = 0; i < txd->sglen; i++) {
 				dev_vdbg(d->slave.dev, "tx_status: [%u] %x+%x\n",
@@ -551,8 +551,8 @@ static struct dma_async_tx_descriptor *sa11x0_dma_prep_slave_sg(
 		if (len > DMA_MAX_SIZE)
 			j += DIV_ROUND_UP(len, DMA_MAX_SIZE & ~DMA_ALIGN) - 1;
 		if (addr & DMA_ALIGN) {
-			dev_dbg(chan->device->dev, "vchan %p: bad buffer alignment: %08x\n",
-				&c->vc, addr);
+			dev_dbg(chan->device->dev, "vchan %p: bad buffer alignment: %pad\n",
+				&c->vc, &addr);
 			return NULL;
 		}
 	}
@@ -693,8 +693,8 @@ static int sa11x0_dma_device_config(struct dma_chan *chan,
 	if (maxburst == 8)
 		ddar |= DDAR_BS;
 
-	dev_dbg(c->vc.chan.device->dev, "vchan %p: dma_slave_config addr %x width %u burst %u\n",
-		&c->vc, addr, width, maxburst);
+	dev_dbg(c->vc.chan.device->dev, "vchan %p: dma_slave_config addr %pad width %u burst %u\n",
+		&c->vc, &addr, width, maxburst);
 
 	c->ddar = ddar | (addr & 0xf0000000) | (addr & 0x003ffffc) << 6;
 
