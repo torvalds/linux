@@ -30,6 +30,7 @@ bad_relocs=$(
 	# On PPC64:
 	#	R_PPC64_RELATIVE, R_PPC64_NONE
 	#	R_PPC64_ADDR64 mach_<name>
+	#	R_PPC64_ADDR64 __crc_<name>
 	# On PPC:
 	#	R_PPC_RELATIVE, R_PPC_ADDR16_HI,
 	#	R_PPC_ADDR16_HA,R_PPC_ADDR16_LO,
@@ -41,7 +42,8 @@ R_PPC_ADDR16_HI
 R_PPC_ADDR16_HA
 R_PPC_RELATIVE
 R_PPC_NONE' |
-	grep -E -v '\<R_PPC64_ADDR64[[:space:]]+mach_'
+	grep -E -v '\<R_PPC64_ADDR64[[:space:]]+mach_' |
+	grep -E -v '\<R_PPC64_ADDR64[[:space:]]+__crc_'
 )
 
 if [ -z "$bad_relocs" ]; then
