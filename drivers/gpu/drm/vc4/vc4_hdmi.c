@@ -174,6 +174,9 @@ vc4_hdmi_connector_detect(struct drm_connector *connector, bool force)
 			return connector_status_disconnected;
 	}
 
+	if (drm_probe_ddc(vc4->hdmi->ddc))
+		return connector_status_connected;
+
 	if (HDMI_READ(VC4_HDMI_HOTPLUG) & VC4_HDMI_HOTPLUG_CONNECTED)
 		return connector_status_connected;
 	else
