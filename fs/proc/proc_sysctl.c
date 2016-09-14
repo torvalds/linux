@@ -444,7 +444,7 @@ static struct inode *proc_sys_make_inode(struct super_block *sb,
 	ei->sysctl = head;
 	ei->sysctl_entry = table;
 
-	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
+	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
 	inode->i_mode = table->mode;
 	if (!S_ISDIR(table->mode)) {
 		inode->i_mode |= S_IFREG;

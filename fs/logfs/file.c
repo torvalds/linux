@@ -211,7 +211,7 @@ long logfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		li->li_flags = flags;
 		inode_unlock(inode);
 
-		inode->i_ctime = CURRENT_TIME;
+		inode->i_ctime = current_time(inode);
 		mark_inode_dirty_sync(inode);
 		return 0;
 

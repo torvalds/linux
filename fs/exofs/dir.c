@@ -416,7 +416,7 @@ int exofs_set_link(struct inode *dir, struct exofs_dir_entry *de,
 	if (likely(!err))
 		err = exofs_commit_chunk(page, pos, len);
 	exofs_put_page(page);
-	dir->i_mtime = dir->i_ctime = CURRENT_TIME;
+	dir->i_mtime = dir->i_ctime = current_time(dir);
 	mark_inode_dirty(dir);
 	return err;
 }
@@ -503,7 +503,7 @@ got_it:
 	de->inode_no = cpu_to_le64(inode->i_ino);
 	exofs_set_de_type(de, inode);
 	err = exofs_commit_chunk(page, pos, rec_len);
-	dir->i_mtime = dir->i_ctime = CURRENT_TIME;
+	dir->i_mtime = dir->i_ctime = current_time(dir);
 	mark_inode_dirty(dir);
 	sbi->s_numfiles++;
 
@@ -554,7 +554,7 @@ int exofs_delete_entry(struct exofs_dir_entry *dir, struct page *page)
 	dir->inode_no = 0;
 	if (likely(!err))
 		err = exofs_commit_chunk(page, pos, to - from);
-	inode->i_ctime = inode->i_mtime = CURRENT_TIME;
+	inode->i_ctime = inode->i_mtime = current_time(inode);
 	mark_inode_dirty(inode);
 	sbi->s_numfiles--;
 out:

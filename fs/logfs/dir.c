@@ -226,7 +226,7 @@ static int logfs_unlink(struct inode *dir, struct dentry *dentry)
 	ta->state = UNLINK_1;
 	ta->ino = inode->i_ino;
 
-	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
+	inode->i_ctime = dir->i_ctime = dir->i_mtime = current_time(inode);
 
 	page = logfs_get_dd_page(dir, dentry);
 	if (!page) {
@@ -540,7 +540,7 @@ static int logfs_link(struct dentry *old_dentry, struct inode *dir,
 {
 	struct inode *inode = d_inode(old_dentry);
 
-	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
+	inode->i_ctime = dir->i_ctime = dir->i_mtime = current_time(inode);
 	ihold(inode);
 	inc_nlink(inode);
 	mark_inode_dirty_sync(inode);
@@ -573,7 +573,7 @@ static int logfs_delete_dd(struct inode *dir, loff_t pos)
 	 * (crc-protected) journal.
 	 */
 	BUG_ON(beyond_eof(dir, pos));
-	dir->i_ctime = dir->i_mtime = CURRENT_TIME;
+	dir->i_ctime = dir->i_mtime = current_time(dir);
 	log_dir(" Delete dentry (%lx, %llx)\n", dir->i_ino, pos);
 	return logfs_delete(dir, pos, NULL);
 }
