@@ -313,6 +313,12 @@ rockchip_gem_alloc_object(struct drm_device *drm, unsigned int size)
 	return rk_obj;
 }
 
+static void rockchip_gem_release_object(struct rockchip_gem_object *rk_obj)
+{
+	drm_gem_object_release(&rk_obj->base);
+	kfree(rk_obj);
+}
+
 struct rockchip_gem_object *
 rockchip_gem_create_object(struct drm_device *drm, unsigned int size,
 			   bool alloc_kmap)
@@ -331,7 +337,7 @@ rockchip_gem_create_object(struct drm_device *drm, unsigned int size,
 	return rk_obj;
 
 err_free_rk_obj:
-	kfree(rk_obj);
+	rockchip_gem_release_object(rk_obj);
 	return ERR_PTR(ret);
 }
 
@@ -344,8 +350,6 @@ void rockchip_gem_free_object(struct drm_gem_object *obj)
 	struct drm_device *drm = obj->dev;
 	struct rockchip_drm_private *private = drm->dev_private;
 	struct rockchip_gem_object *rk_obj = to_rockchip_obj(obj);
-
-	drm_gem_free_mmap_offset(obj);
 
 	if (obj->import_attach) {
 		if (private->domain) {
@@ -363,7 +367,7 @@ void rockchip_gem_free_object(struct drm_gem_object *obj)
 	drm_fence_signal_and_put(&rk_obj->acquire_fence);
 #endif
 
-	kfree(rk_obj);
+	rockchip_gem_release_object(rk_obj);
 }
 
 /*
@@ -806,7 +810,7 @@ rockchip_gem_prime_import_sg_table(struct drm_device *drm,
 	return &rk_obj->base;
 
 err_free_rk_obj:
-	kfree(rk_obj);
+	rockchip_gem_release_object(rk_obj);
 	return ERR_PTR(ret);
 }
 
