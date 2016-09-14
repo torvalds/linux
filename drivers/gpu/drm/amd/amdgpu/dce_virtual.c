@@ -466,11 +466,7 @@ static int dce_virtual_suspend(void *handle)
 
 static int dce_virtual_resume(void *handle)
 {
-	int ret;
-
-	ret = dce_virtual_hw_init(handle);
-
-	return ret;
+	return dce_virtual_hw_init(handle);
 }
 
 static bool dce_virtual_is_idle(void *handle)
