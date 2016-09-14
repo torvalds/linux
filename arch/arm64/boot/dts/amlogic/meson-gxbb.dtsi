@@ -45,6 +45,9 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/gpio/meson-gxbb-gpio.h>
 #include <dt-bindings/reset/amlogic,meson-gxbb-reset.h>
+#include <dt-bindings/clock/gxbb-clkc.h>
+#include <dt-bindings/clock/gxbb-aoclkc.h>
+#include <dt-bindings/reset/gxbb-aoclkc.h>
 
 / {
 	compatible = "amlogic,meson-gxbb";
@@ -97,6 +100,30 @@
 	psci {
 		compatible = "arm,psci-0.2";
 		method = "smc";
+	};
+
+	firmware {
+		sm: secure-monitor {
+			compatible = "amlogic,meson-gxbb-sm";
+		};
+	};
+
+	efuse: efuse {
+		compatible = "amlogic,meson-gxbb-efuse";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		sn: sn@14 {
+			reg = <0x14 0x10>;
+		};
+
+		eth_mac: eth_mac@34 {
+			reg = <0x34 0x10>;
+		};
+
+		bid: bid@46 {
+			reg = <0x46 0x30>;
+		};
 	};
 
 	timer {
@@ -160,6 +187,12 @@
 				clocks = <&xtal>;
 				status = "disabled";
 			};
+
+			watchdog@98d0 {
+				compatible = "amlogic,meson-gxbb-wdt";
+				reg = <0x0 0x098d0 0x0 0x10>;
+				clocks = <&xtal>;
+			};
 		};
 
 		gic: interrupt-controller@c4301000 {
@@ -203,6 +236,48 @@
 						function = "uart_ao";
 					};
 				};
+
+				remote_input_ao_pins: remote_input_ao {
+					mux {
+						groups = "remote_input_ao";
+						function = "remote_input_ao";
+					};
+				};
+
+				pwm_ao_a_3_pins: pwm_ao_a_3 {
+					mux {
+						groups = "pwm_ao_a_3";
+						function = "pwm_ao_a_3";
+					};
+				};
+
+				pwm_ao_a_6_pins: pwm_ao_a_6 {
+					mux {
+						groups = "pwm_ao_a_6";
+						function = "pwm_ao_a_6";
+					};
+				};
+
+				pwm_ao_a_12_pins: pwm_ao_a_12 {
+					mux {
+						groups = "pwm_ao_a_12";
+						function = "pwm_ao_a_12";
+					};
+				};
+
+				pwm_ao_b_pins: pwm_ao_b {
+					mux {
+						groups = "pwm_ao_b";
+						function = "pwm_ao_b";
+					};
+				};
+			};
+
+			clkc_AO: clock-controller@040 {
+				compatible = "amlogic,gxbb-aoclkc";
+				reg = <0x0 0x00040 0x0 0x4>;
+				#clock-cells = <1>;
+				#reset-cells = <1>;
 			};
 
 			uart_AO: serial@4c0 {
@@ -210,6 +285,13 @@
 				reg = <0x0 0x004c0 0x0 0x14>;
 				interrupts = <GIC_SPI 193 IRQ_TYPE_EDGE_RISING>;
 				clocks = <&xtal>;
+				status = "disabled";
+			};
+
+			ir: ir@580 {
+				compatible = "amlogic,meson-gxbb-ir";
+				reg = <0x0 0x00580 0x0 0x40>;
+				interrupts = <GIC_SPI 196 IRQ_TYPE_EDGE_RISING>;
 				status = "disabled";
 			};
 		};
@@ -306,6 +388,55 @@
 						function = "eth";
 					};
 				};
+
+				pwm_a_x_pins: pwm_a_x {
+					mux {
+						groups = "pwm_a_x";
+						function = "pwm_a_x";
+					};
+				};
+
+				pwm_a_y_pins: pwm_a_y {
+					mux {
+						groups = "pwm_a_y";
+						function = "pwm_a_y";
+					};
+				};
+
+				pwm_b_pins: pwm_b {
+					mux {
+						groups = "pwm_b";
+						function = "pwm_b";
+					};
+				};
+
+				pwm_d_pins: pwm_d {
+					mux {
+						groups = "pwm_d";
+						function = "pwm_d";
+					};
+				};
+
+				pwm_e_pins: pwm_e {
+					mux {
+						groups = "pwm_e";
+						function = "pwm_e";
+					};
+				};
+
+				pwm_f_x_pins: pwm_f_x {
+					mux {
+						groups = "pwm_f_x";
+						function = "pwm_f_x";
+					};
+				};
+
+				pwm_f_y_pins: pwm_f_y {
+					mux {
+						groups = "pwm_f_y";
+						function = "pwm_f_y";
+					};
+				};
 			};
 		};
 
@@ -337,7 +468,7 @@
 			       0x0 0xc8834540 0x0 0x4>;
 			interrupts = <0 8 1>;
 			interrupt-names = "macirq";
-			clocks = <&xtal>;
+			clocks = <&clkc CLKID_ETH>;
 			clock-names = "stmmaceth";
 			phy-mode = "rgmii";
 			status = "disabled";
