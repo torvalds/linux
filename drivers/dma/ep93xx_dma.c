@@ -1047,11 +1047,11 @@ ep93xx_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 
 	first = NULL;
 	for_each_sg(sgl, sg, sg_len, i) {
-		size_t sg_len = sg_dma_len(sg);
+		size_t len = sg_dma_len(sg);
 
-		if (sg_len > DMA_MAX_CHAN_BYTES) {
+		if (len > DMA_MAX_CHAN_BYTES) {
 			dev_warn(chan2dev(edmac), "too big transfer size %zu\n",
-				 sg_len);
+				 len);
 			goto fail;
 		}
 
@@ -1068,7 +1068,7 @@ ep93xx_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			desc->src_addr = edmac->runtime_addr;
 			desc->dst_addr = sg_dma_address(sg);
 		}
-		desc->size = sg_len;
+		desc->size = len;
 
 		if (!first)
 			first = desc;
