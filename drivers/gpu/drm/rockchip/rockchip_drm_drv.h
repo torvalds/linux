@@ -42,7 +42,6 @@ struct rockchip_crtc_funcs {
 	int (*loader_protect)(struct drm_crtc *crtc, bool on);
 	int (*enable_vblank)(struct drm_crtc *crtc);
 	void (*disable_vblank)(struct drm_crtc *crtc);
-	void (*wait_for_update)(struct drm_crtc *crtc);
 	void (*cancel_pending_vblank)(struct drm_crtc *crtc, struct drm_file *file_priv);
 	int (*debugfs_dump)(struct drm_crtc *crtc, struct seq_file *s);
 	void (*regs_dump)(struct drm_crtc *crtc, struct seq_file *s);
