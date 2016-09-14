@@ -658,16 +658,10 @@ void hwmgr_init_default_caps(struct pp_hwmgr *hwmgr)
 		PHM_PlatformCaps_DynamicPatchPowerState);
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-			 PHM_PlatformCaps_TablelessHardwareInterface);
-
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 		PHM_PlatformCaps_EnableSMU7ThermalManagement);
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_DynamicPowerManagement);
-
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_UnTabledHardwareInterface);
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 					PHM_PlatformCaps_SMC);
