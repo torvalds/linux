@@ -812,6 +812,12 @@ static inline bool hw_brk_match(struct arch_hw_breakpoint *a,
 }
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+
+static inline bool tm_enabled(struct task_struct *tsk)
+{
+	return tsk && tsk->thread.regs && (tsk->thread.regs->msr & MSR_TM);
+}
+
 static void tm_reclaim_thread(struct thread_struct *thr,
 			      struct thread_info *ti, uint8_t cause)
 {
@@ -892,6 +898,9 @@ void tm_recheckpoint(struct thread_struct *thread,
 {
 	unsigned long flags;
 
+	if (!(thread->regs->msr & MSR_TM))
+		return;
+
 	/* We really can't be interrupted here as the TEXASR registers can't
 	 * change and later in the trecheckpoint code, we have a userspace R1.
 	 * So let's hard disable over this region.
@@ -924,7 +933,7 @@ static inline void tm_recheckpoint_new_task(struct task_struct *new)
 	 * unavailable later, we are unable to determine which set of FP regs
 	 * need to be restored.
 	 */
-	if (!new->thread.regs)
+	if (!tm_enabled(new))
 		return;
 
 	if (!MSR_TM_ACTIVE(new->thread.regs->msr)){
@@ -955,8 +964,16 @@ static inline void __switch_to_tm(struct task_struct *prev,
 		struct task_struct *new)
 {
 	if (cpu_has_feature(CPU_FTR_TM)) {
-		tm_enable();
-		tm_reclaim_task(prev);
+		if (tm_enabled(prev) || tm_enabled(new))
+			tm_enable();
+
+		if (tm_enabled(prev)) {
+			prev->thread.load_tm++;
+			tm_reclaim_task(prev);
+			if (!MSR_TM_ACTIVE(prev->thread.regs->msr) && prev->thread.load_tm == 0)
+				prev->thread.regs->msr &= ~MSR_TM;
+		}
+
 		tm_recheckpoint_new_task(new);
 	}
 }
@@ -1393,6 +1410,9 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 	 * transitions the CPU out of TM mode.  Hence we need to call
 	 * tm_recheckpoint_new_task() (on the same task) to restore the
 	 * checkpointed state back and the TM mode.
+	 *
+	 * Can't pass dst because it isn't ready. Doesn't matter, passing
+	 * dst is only important for __switch_to()
 	 */
 	__switch_to_tm(src, src);
 
@@ -1636,8 +1656,6 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 	current->thread.used_spe = 0;
 #endif /* CONFIG_SPE */
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	if (cpu_has_feature(CPU_FTR_TM))
-		regs->msr |= MSR_TM;
 	current->thread.tm_tfhar = 0;
 	current->thread.tm_texasr = 0;
 	current->thread.tm_tfiar = 0;

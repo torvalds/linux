@@ -1392,6 +1392,15 @@ void vsx_unavailable_exception(struct pt_regs *regs)
 #ifdef CONFIG_PPC64
 static void tm_unavailable(struct pt_regs *regs)
 {
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	if (user_mode(regs)) {
+		current->thread.load_tm++;
+		regs->msr |= MSR_TM;
+		tm_enable();
+		tm_restore_sprs(&current->thread);
+		return;
+	}
+#endif
 	pr_emerg("Unrecoverable TM Unavailable Exception "
 			"%lx at %lx\n", regs->trap, regs->nip);
 	die("Unrecoverable TM Unavailable Exception", regs, SIGABRT);
