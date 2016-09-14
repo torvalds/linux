@@ -3111,8 +3111,7 @@ static const struct i2c_device_id smiapp_id_table[] = {
 MODULE_DEVICE_TABLE(i2c, smiapp_id_table);
 
 static const struct dev_pm_ops smiapp_pm_ops = {
-	.suspend	= smiapp_suspend,
-	.resume		= smiapp_resume,
+	SET_SYSTEM_SLEEP_PM_OPS(smiapp_suspend, smiapp_resume)
 };
 
 static struct i2c_driver smiapp_i2c_driver = {
