@@ -190,7 +190,7 @@
 #define CLKID_PL301		  19
 #define CLKID_PERIPHS		  20
 #define CLKID_SPICC		  21
-#define CLKID_I2C		  22
+/* CLKID_I2C */
 #define CLKID_SAR_ADC		  23
 #define CLKID_SMART_CARD	  24
 #define CLKID_RNG0		  25
@@ -261,7 +261,7 @@
 #define CLKID_AO_AHB_SRAM	  90
 #define CLKID_AO_AHB_BUS	  91
 #define CLKID_AO_IFACE		  92
-#define CLKID_AO_I2C		  93
+/* CLKID_AO_I2C */
 /* CLKID_SD_EMMC_A */
 /* CLKID_SD_EMMC_B */
 /* CLKID_SD_EMMC_C */
