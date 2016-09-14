@@ -451,24 +451,7 @@ fail:
 static struct dentry *devpts_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data)
 {
-	int error;
-	struct super_block *s;
-
-	s = sget(fs_type, NULL, set_anon_super, flags, NULL);
-	if (IS_ERR(s))
-		return ERR_CAST(s);
-
-	if (!s->s_root) {
-		error = devpts_fill_super(s, data, flags & MS_SILENT ? 1 : 0);
-		if (error)
-			goto out_undo_sget;
-		s->s_flags |= MS_ACTIVE;
-	}
-	return dget(s->s_root);
-
-out_undo_sget:
-	deactivate_locked_super(s);
-	return ERR_PTR(error);
+	return mount_nodev(fs_type, flags, data, devpts_fill_super);
 }
 
 static void devpts_kill_sb(struct super_block *sb)
