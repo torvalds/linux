@@ -586,6 +586,27 @@ static const __u8 uclogic_tablet_rdesc_template[] = {
 	0xC0                    /*  End Collection                          */
 };
 
+/* Fixed virtual pad report descriptor */
+static const __u8 uclogic_buttonpad_rdesc[] = {
+	0x05, 0x01,             /*  Usage Page (Desktop),                   */
+	0x09, 0x07,             /*  Usage (Keypad),                         */
+	0xA1, 0x01,             /*  Collection (Application),               */
+	0x85, 0xF7,             /*      Report ID (247),                    */
+	0x05, 0x0D,             /*      Usage Page (Digitizers),            */
+	0x09, 0x39,             /*      Usage (Tablet Function Keys),       */
+	0xA0,                   /*      Collection (Physical),              */
+	0x05, 0x09,             /*          Usage Page (Button),            */
+	0x75, 0x01,             /*          Report Size (1),                */
+	0x95, 0x18,             /*          Report Count (24),              */
+	0x81, 0x03,             /*          Input (Constant, Variable),     */
+	0x19, 0x01,             /*          Usage Minimum (01h),            */
+	0x29, 0x08,             /*          Usage Maximum (08h),            */
+	0x95, 0x08,             /*          Report Count (8),               */
+	0x81, 0x02,             /*          Input (Variable),               */
+	0xC0,                   /*      End Collection                      */
+	0xC0                    /*  End Collection                          */
+};
+
 /* Parameter indices */
 enum uclogic_prm {
 	UCLOGIC_PRM_X_LM	= 1,
@@ -601,6 +622,7 @@ struct uclogic_drvdata {
 	unsigned int rsize;
 	bool invert_pen_inrange;
 	bool ignore_pen_usage;
+	bool has_virtual_pad_interface;
 };
 
 static __u8 *uclogic_report_fixup(struct hid_device *hdev, __u8 *rdesc,
@@ -847,6 +869,69 @@ cleanup:
 	return rc;
 }
 
+/**
+ * Enable actual button mode.
+ *
+ * @hdev:	HID device
+ */
+static int uclogic_button_enable(struct hid_device *hdev)
+{
+	int rc;
+	struct usb_device *usb_dev = hid_to_usb_dev(hdev);
+	struct uclogic_drvdata *drvdata = hid_get_drvdata(hdev);
+	char *str_buf;
+	size_t str_len = 16;
+	unsigned char *rdesc;
+	size_t rdesc_len;
+
+	str_buf = kzalloc(str_len, GFP_KERNEL);
+	if (str_buf == NULL) {
+		rc = -ENOMEM;
+		goto cleanup;
+	}
+
+	/* Enable abstract keyboard mode */
+	rc = usb_string(usb_dev, 0x7b, str_buf, str_len);
+	if (rc == -EPIPE) {
+		hid_info(hdev, "button mode setting not found\n");
+		rc = 0;
+		goto cleanup;
+	} else if (rc < 0) {
+		hid_err(hdev, "failed to enable abstract keyboard\n");
+		goto cleanup;
+	} else if (strncmp(str_buf, "HK On", rc)) {
+		hid_info(hdev, "invalid answer when requesting buttons: '%s'\n",
+			str_buf);
+		rc = -EINVAL;
+		goto cleanup;
+	}
+
+	/* Re-allocate fixed report descriptor */
+	rdesc_len = drvdata->rsize + sizeof(uclogic_buttonpad_rdesc);
+	rdesc = devm_kzalloc(&hdev->dev, rdesc_len, GFP_KERNEL);
+	if (!rdesc) {
+		rc = -ENOMEM;
+		goto cleanup;
+	}
+
+	memcpy(rdesc, drvdata->rdesc, drvdata->rsize);
+
+	/* Append the buttonpad descriptor */
+	memcpy(rdesc + drvdata->rsize, uclogic_buttonpad_rdesc,
+	       sizeof(uclogic_buttonpad_rdesc));
+
+	/* clean up old rdesc and use the new one */
+	drvdata->rsize = rdesc_len;
+	devm_kfree(&hdev->dev, drvdata->rdesc);
+	drvdata->rdesc = rdesc;
+
+	rc = 0;
+
+cleanup:
+	kfree(str_buf);
+	return rc;
+}
+
 static int uclogic_probe(struct hid_device *hdev,
 		const struct hid_device_id *id)
 {
@@ -878,6 +963,9 @@ static int uclogic_probe(struct hid_device *hdev,
 				return rc;
 			}
 			drvdata->invert_pen_inrange = true;
+
+			rc = uclogic_button_enable(hdev);
+			drvdata->has_virtual_pad_interface = !rc;
 		} else {
 			drvdata->ignore_pen_usage = true;
 		}
@@ -904,12 +992,16 @@ static int uclogic_raw_event(struct hid_device *hdev, struct hid_report *report,
 {
 	struct uclogic_drvdata *drvdata = hid_get_drvdata(hdev);
 
-	if ((drvdata->invert_pen_inrange) &&
-	    (report->type == HID_INPUT_REPORT) &&
+	if ((report->type == HID_INPUT_REPORT) &&
 	    (report->id == UCLOGIC_PEN_REPORT_ID) &&
-	    (size >= 2))
-		/* Invert the in-range bit */
-		data[1] ^= 0x40;
+	    (size >= 2)) {
+		if (drvdata->has_virtual_pad_interface && (data[1] & 0x20))
+			/* Change to virtual frame button report ID */
+			data[0] = 0xf7;
+		else if (drvdata->invert_pen_inrange)
+			/* Invert the in-range bit */
+			data[1] ^= 0x40;
+	}
 
 	return 0;
 }
