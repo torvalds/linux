@@ -393,7 +393,6 @@ static int null_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 
 static struct blk_mq_ops null_mq_ops = {
 	.queue_rq       = null_queue_rq,
-	.map_queue      = blk_mq_map_queue,
 	.init_hctx	= null_init_hctx,
 	.complete	= null_softirq_done_fn,
 };

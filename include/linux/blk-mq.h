@@ -91,7 +91,6 @@ struct blk_mq_queue_data {
 };
 
 typedef int (queue_rq_fn)(struct blk_mq_hw_ctx *, const struct blk_mq_queue_data *);
-typedef struct blk_mq_hw_ctx *(map_queue_fn)(struct request_queue *, const int);
 typedef enum blk_eh_timer_return (timeout_fn)(struct request *, bool);
 typedef int (init_hctx_fn)(struct blk_mq_hw_ctx *, void *, unsigned int);
 typedef void (exit_hctx_fn)(struct blk_mq_hw_ctx *, unsigned int);
@@ -112,11 +111,6 @@ struct blk_mq_ops {
 	 * Queue request
 	 */
 	queue_rq_fn		*queue_rq;
-
-	/*
-	 * Map to specific hardware queue
-	 */
-	map_queue_fn		*map_queue;
 
 	/*
 	 * Called on request timeout
@@ -223,7 +217,6 @@ static inline u16 blk_mq_unique_tag_to_tag(u32 unique_tag)
 	return unique_tag & BLK_MQ_UNIQUE_TAG_MASK;
 }
 
-struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *, const int ctx_index);
 
 int blk_mq_request_started(struct request *rq);
 void blk_mq_start_request(struct request *rq);
