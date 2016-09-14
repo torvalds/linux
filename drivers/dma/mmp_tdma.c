@@ -433,7 +433,7 @@ static struct dma_async_tx_descriptor *mmp_tdma_prep_dma_cyclic(
 
 	if (period_len > TDMA_MAX_XFER_BYTES) {
 		dev_err(tdmac->dev,
-				"maximum period size exceeded: %d > %d\n",
+				"maximum period size exceeded: %zu > %d\n",
 				period_len, TDMA_MAX_XFER_BYTES);
 		goto err_out;
 	}
