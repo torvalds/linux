@@ -177,16 +177,15 @@ static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
 		led.gpiod = devm_get_gpiod_from_child(dev, NULL, child);
 		if (IS_ERR(led.gpiod)) {
 			fwnode_handle_put(child);
-			ret = PTR_ERR(led.gpiod);
-			goto err;
+			return ERR_CAST(led.gpiod);
 		}
 
 		ret = fwnode_property_read_string(child, "label", &led.name);
 		if (ret && IS_ENABLED(CONFIG_OF) && np)
 			led.name = np->name;
 		if (!led.name) {
-			ret = -EINVAL;
-			goto err;
+			fwnode_handle_put(child);
+			return ERR_PTR(-EINVAL);
 		}
 
 		fwnode_property_read_string(child, "linux,default-trigger",
@@ -210,16 +209,13 @@ static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
 		ret = create_gpio_led(&led, led_dat, dev, NULL);
 		if (ret < 0) {
 			fwnode_handle_put(child);
-			goto err;
+			return ERR_PTR(ret);
 		}
 		led_dat->cdev.dev->of_node = np;
 		priv->num_leds++;
 	}
 
 	return priv;
-
-err:
-	return ERR_PTR(ret);
 }
 
 static const struct of_device_id of_gpio_leds_match[] = {
