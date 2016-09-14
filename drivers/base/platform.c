@@ -108,9 +108,14 @@ int platform_get_irq(struct platform_device *dev, unsigned int num)
 	 * IORESOURCE_BITS correspond 1-to-1 to the IRQF_TRIGGER*
 	 * settings.
 	 */
-	if (r && r->flags & IORESOURCE_BITS)
-		irqd_set_trigger_type(irq_get_irq_data(r->start),
-				      r->flags & IORESOURCE_BITS);
+	if (r && r->flags & IORESOURCE_BITS) {
+		struct irq_data *irqd;
+
+		irqd = irq_get_irq_data(r->start);
+		if (!irqd)
+			return -ENXIO;
+		irqd_set_trigger_type(irqd, r->flags & IORESOURCE_BITS);
+	}
 
 	return r ? r->start : -ENXIO;
 #endif
