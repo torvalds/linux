@@ -201,7 +201,6 @@ struct request *blk_mq_alloc_request(struct request_queue *q, int rw,
 struct request *blk_mq_alloc_request_hctx(struct request_queue *q, int op,
 		unsigned int flags, unsigned int hctx_idx);
 struct request *blk_mq_tag_to_rq(struct blk_mq_tags *tags, unsigned int tag);
-struct cpumask *blk_mq_tags_cpumask(struct blk_mq_tags *tags);
 
 enum {
 	BLK_MQ_UNIQUE_TAG_BITS = 16,
