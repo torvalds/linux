@@ -1316,7 +1316,8 @@ static inline void intel_pstate_adjust_busy_pstate(struct cpudata *cpu)
 		sample->mperf,
 		sample->aperf,
 		sample->tsc,
-		get_avg_frequency(cpu));
+		get_avg_frequency(cpu),
+		fp_toint(cpu->iowait_boost * 100));
 }
 
 static void intel_pstate_update_util(struct update_util_data *data, u64 time,
