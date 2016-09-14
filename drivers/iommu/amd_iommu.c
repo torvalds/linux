@@ -940,15 +940,13 @@ static void build_inv_irt(struct iommu_cmd *cmd, u16 devid)
  * Writes the command to the IOMMUs command buffer and informs the
  * hardware about the new command.
  */
-static int iommu_queue_command_sync(struct amd_iommu *iommu,
-				    struct iommu_cmd *cmd,
-				    bool sync)
+static int __iommu_queue_command_sync(struct amd_iommu *iommu,
+				      struct iommu_cmd *cmd,
+				      bool sync)
 {
 	u32 left, tail, head, next_tail;
-	unsigned long flags;
 
 again:
-	spin_lock_irqsave(&iommu->lock, flags);
 
 	head      = readl(iommu->mmio_base + MMIO_CMD_HEAD_OFFSET);
 	tail      = readl(iommu->mmio_base + MMIO_CMD_TAIL_OFFSET);
@@ -957,15 +955,14 @@ again:
 
 	if (left <= 2) {
 		struct iommu_cmd sync_cmd;
-		volatile u64 sem = 0;
 		int ret;
 
-		build_completion_wait(&sync_cmd, (u64)&sem);
+		iommu->cmd_sem = 0;
+
+		build_completion_wait(&sync_cmd, (u64)&iommu->cmd_sem);
 		copy_cmd_to_buffer(iommu, &sync_cmd, tail);
 
-		spin_unlock_irqrestore(&iommu->lock, flags);
-
-		if ((ret = wait_on_sem(&sem)) != 0)
+		if ((ret = wait_on_sem(&iommu->cmd_sem)) != 0)
 			return ret;
 
 		goto again;
@@ -976,9 +973,21 @@ again:
 	/* We need to sync now to make sure all commands are processed */
 	iommu->need_sync = sync;
 
+	return 0;
+}
+
+static int iommu_queue_command_sync(struct amd_iommu *iommu,
+				    struct iommu_cmd *cmd,
+				    bool sync)
+{
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&iommu->lock, flags);
+	ret = __iommu_queue_command_sync(iommu, cmd, sync);
 	spin_unlock_irqrestore(&iommu->lock, flags);
 
-	return 0;
+	return ret;
 }
 
 static int iommu_queue_command(struct amd_iommu *iommu, struct iommu_cmd *cmd)
@@ -993,19 +1002,29 @@ static int iommu_queue_command(struct amd_iommu *iommu, struct iommu_cmd *cmd)
 static int iommu_completion_wait(struct amd_iommu *iommu)
 {
 	struct iommu_cmd cmd;
-	volatile u64 sem = 0;
+	unsigned long flags;
 	int ret;
 
 	if (!iommu->need_sync)
 		return 0;
 
-	build_completion_wait(&cmd, (u64)&sem);
 
-	ret = iommu_queue_command_sync(iommu, &cmd, false);
+	build_completion_wait(&cmd, (u64)&iommu->cmd_sem);
+
+	spin_lock_irqsave(&iommu->lock, flags);
+
+	iommu->cmd_sem = 0;
+
+	ret = __iommu_queue_command_sync(iommu, &cmd, false);
 	if (ret)
-		return ret;
+		goto out_unlock;
 
-	return wait_on_sem(&sem);
+	ret = wait_on_sem(&iommu->cmd_sem);
+
+out_unlock:
+	spin_unlock_irqrestore(&iommu->lock, flags);
+
+	return ret;
 }
 
 static int iommu_flush_dte(struct amd_iommu *iommu, u16 devid)
