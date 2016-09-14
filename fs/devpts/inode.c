@@ -425,11 +425,19 @@ devpts_fill_super(struct super_block *s, void *data, int silent)
 	set_nlink(inode, 2);
 
 	s->s_root = d_make_root(inode);
-	if (s->s_root)
-		return 0;
+	if (!s->s_root) {
+		pr_err("get root dentry failed\n");
+		goto fail;
+	}
 
-	pr_err("get root dentry failed\n");
+	error = mknod_ptmx(s);
+	if (error)
+		goto fail_dput;
 
+	return 0;
+fail_dput:
+	dput(s->s_root);
+	s->s_root = NULL;
 fail:
 	return error;
 }
@@ -456,11 +464,6 @@ static struct dentry *devpts_mount(struct file_system_type *fs_type,
 			goto out_undo_sget;
 		s->s_flags |= MS_ACTIVE;
 	}
-
-	error = mknod_ptmx(s);
-	if (error)
-		goto out_undo_sget;
-
 	return dget(s->s_root);
 
 out_undo_sget:
