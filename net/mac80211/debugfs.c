@@ -201,6 +201,7 @@ static const char *hw_flag_names[] = {
 	FLAG(USES_RSS),
 	FLAG(TX_AMSDU),
 	FLAG(TX_FRAG_LIST),
+	FLAG(REPORTS_LOW_ACK),
 #undef FLAG
 };
 
