@@ -1270,6 +1270,37 @@ int pci_irq_vector(struct pci_dev *dev, unsigned int nr)
 }
 EXPORT_SYMBOL(pci_irq_vector);
 
+/**
+ * pci_irq_get_affinity - return the affinity of a particular msi vector
+ * @dev:	PCI device to operate on
+ * @nr:		device-relative interrupt vector index (0-based).
+ */
+const struct cpumask *pci_irq_get_affinity(struct pci_dev *dev, int nr)
+{
+	if (dev->msix_enabled) {
+		struct msi_desc *entry;
+		int i = 0;
+
+		for_each_pci_msi_entry(entry, dev) {
+			if (i == nr)
+				return entry->affinity;
+			i++;
+		}
+		WARN_ON_ONCE(1);
+		return NULL;
+	} else if (dev->msi_enabled) {
+		struct msi_desc *entry = first_pci_msi_entry(dev);
+
+		if (WARN_ON_ONCE(!entry || nr >= entry->nvec_used))
+			return NULL;
+
+		return &entry->affinity[nr];
+	} else {
+		return cpu_possible_mask;
+	}
+}
+EXPORT_SYMBOL(pci_irq_get_affinity);
+
 struct pci_dev *msi_desc_to_pci_dev(struct msi_desc *desc)
 {
 	return to_pci_dev(desc->dev);
