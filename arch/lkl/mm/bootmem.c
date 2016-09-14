@@ -21,7 +21,8 @@ void __init bootmem_init(int mem_size)
 		memory_start = PAGE_ALIGN(memory_start);
 		mem_size = (mem_size / PAGE_SIZE) * PAGE_SIZE;
 	}
-
+	pr_info("bootmem address range: 0x%lx - 0x%lx\n", memory_start,
+		memory_start+mem_size);
 	/*
 	 * Give all the memory to the bootmap allocator, tell it to put the
 	 * boot mem_map at the start of memory.
