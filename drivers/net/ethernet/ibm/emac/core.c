@@ -977,7 +977,10 @@ static void emac_set_multicast_list(struct net_device *ndev)
 		dev->mcast_pending = 1;
 		return;
 	}
+
+	mutex_lock(&dev->link_lock);
 	__emac_set_multicast_list(dev);
+	mutex_unlock(&dev->link_lock);
 }
 
 static int emac_set_mac_address(struct net_device *ndev, void *sa)
