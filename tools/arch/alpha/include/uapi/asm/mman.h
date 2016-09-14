@@ -5,6 +5,7 @@
 #define MADV_DONTDUMP   16
 #define MADV_DONTFORK	10
 #define MADV_DONTNEED	6
+#define MADV_FREE	8
 #define MADV_HUGEPAGE	14
 #define MADV_MERGEABLE   12
 #define MADV_NOHUGEPAGE	15
@@ -35,4 +36,12 @@
 #define PROT_READ	0x1
 #define PROT_SEM	0x8
 #define PROT_WRITE	0x2
+/* MADV_HWPOISON is undefined on alpha, fix it for perf */
+#define MADV_HWPOISON	100
+/* MADV_SOFT_OFFLINE is undefined on alpha, fix it for perf */
+#define MADV_SOFT_OFFLINE 101
+/* MAP_32BIT is undefined on alpha, fix it for perf */
+#define MAP_32BIT	0
+/* MAP_UNINITIALIZED is undefined on alpha, fix it for perf */
+#define MAP_UNINITIALIZED	0
 #endif

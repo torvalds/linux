@@ -5,6 +5,7 @@
 #define MADV_DONTDUMP	16
 #define MADV_DONTFORK	10
 #define MADV_DONTNEED	4
+#define MADV_FREE	8
 #define MADV_HUGEPAGE	14
 #define MADV_HWPOISON	 100
 #define MADV_MERGEABLE	 12
@@ -36,4 +37,10 @@
 #define PROT_READ	0x01
 #define PROT_SEM	0x10
 #define PROT_WRITE	0x02
+/* MADV_SOFT_OFFLINE is undefined on mips, fix it for perf */
+#define MADV_SOFT_OFFLINE 101
+/* MAP_32BIT is undefined on mips, fix it for perf */
+#define MAP_32BIT	0
+/* MAP_UNINITIALIZED is undefined on mips, fix it for perf */
+#define MAP_UNINITIALIZED	0
 #endif

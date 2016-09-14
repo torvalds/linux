@@ -10,4 +10,6 @@
 #define MAP_POPULATE	0x8000
 #define MAP_STACK	0x20000
 #include <uapi/asm-generic/mman-common.h>
+/* MAP_32BIT is undefined on powerpc, fix it for perf */
+#define MAP_32BIT	0
 #endif

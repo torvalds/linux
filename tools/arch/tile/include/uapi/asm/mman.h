@@ -10,4 +10,6 @@
 #define MAP_POPULATE	0x0040
 #define MAP_STACK	MAP_GROWSDOWN
 #include <uapi/asm-generic/mman-common.h>
+/* MAP_32BIT is undefined on tile, fix it for perf */
+#define MAP_32BIT	0
 #endif
