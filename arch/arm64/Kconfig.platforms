@@ -161,6 +161,8 @@ config ARCH_TEGRA
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CLK
 	select PINCTRL
+	select PM
+	select PM_GENERIC_DOMAINS
 	select RESET_CONTROLLER
 	help
 	  This enables support for the NVIDIA Tegra SoC family.
