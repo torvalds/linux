@@ -1073,34 +1073,22 @@ void analogix_dp_set_lane3_link_training(struct analogix_dp_device *dp,
 
 u32 analogix_dp_get_lane0_link_training(struct analogix_dp_device *dp)
 {
-	u32 reg;
-
-	reg = readl(dp->reg_base + ANALOGIX_DP_LN0_LINK_TRAINING_CTL);
-	return reg;
+	return readl(dp->reg_base + ANALOGIX_DP_LN0_LINK_TRAINING_CTL);
 }
 
 u32 analogix_dp_get_lane1_link_training(struct analogix_dp_device *dp)
 {
-	u32 reg;
-
-	reg = readl(dp->reg_base + ANALOGIX_DP_LN1_LINK_TRAINING_CTL);
-	return reg;
+	return readl(dp->reg_base + ANALOGIX_DP_LN1_LINK_TRAINING_CTL);
 }
 
 u32 analogix_dp_get_lane2_link_training(struct analogix_dp_device *dp)
 {
-	u32 reg;
-
-	reg = readl(dp->reg_base + ANALOGIX_DP_LN2_LINK_TRAINING_CTL);
-	return reg;
+	return readl(dp->reg_base + ANALOGIX_DP_LN2_LINK_TRAINING_CTL);
 }
 
 u32 analogix_dp_get_lane3_link_training(struct analogix_dp_device *dp)
 {
-	u32 reg;
-
-	reg = readl(dp->reg_base + ANALOGIX_DP_LN3_LINK_TRAINING_CTL);
-	return reg;
+	return readl(dp->reg_base + ANALOGIX_DP_LN3_LINK_TRAINING_CTL);
 }
 
 void analogix_dp_reset_macro(struct analogix_dp_device *dp)
