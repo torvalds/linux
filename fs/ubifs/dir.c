@@ -301,6 +301,76 @@ out_budg:
 	return err;
 }
 
+static int ubifs_tmpfile(struct inode *dir, struct dentry *dentry,
+			 umode_t mode)
+{
+	struct inode *inode;
+	struct ubifs_info *c = dir->i_sb->s_fs_info;
+	struct ubifs_budget_req req = { .new_ino = 1, .new_dent = 1};
+	struct ubifs_budget_req ino_req = { .dirtied_ino = 1 };
+	struct ubifs_inode *ui, *dir_ui = ubifs_inode(dir);
+	int err, instantiated = 0;
+
+	/*
+	 * Budget request settings: new dirty inode, new direntry,
+	 * budget for dirtied inode will be released via writeback.
+	 */
+
+	dbg_gen("dent '%pd', mode %#hx in dir ino %lu",
+		dentry, mode, dir->i_ino);
+
+	err = ubifs_budget_space(c, &req);
+	if (err)
+		return err;
+
+	err = ubifs_budget_space(c, &ino_req);
+	if (err) {
+		ubifs_release_budget(c, &req);
+		return err;
+	}
+
+	inode = ubifs_new_inode(c, dir, mode);
+	if (IS_ERR(inode)) {
+		err = PTR_ERR(inode);
+		goto out_budg;
+	}
+	ui = ubifs_inode(inode);
+
+	err = ubifs_init_security(dir, inode, &dentry->d_name);
+	if (err)
+		goto out_inode;
+
+	mutex_lock(&ui->ui_mutex);
+	insert_inode_hash(inode);
+	d_tmpfile(dentry, inode);
+	ubifs_assert(ui->dirty);
+	instantiated = 1;
+	mutex_unlock(&ui->ui_mutex);
+
+	mutex_lock(&dir_ui->ui_mutex);
+	err = ubifs_jnl_update(c, dir, &dentry->d_name, inode, 1, 0);
+	if (err)
+		goto out_cancel;
+	mutex_unlock(&dir_ui->ui_mutex);
+
+	ubifs_release_budget(c, &req);
+
+	return 0;
+
+out_cancel:
+	mutex_unlock(&dir_ui->ui_mutex);
+out_inode:
+	make_bad_inode(inode);
+	if (!instantiated)
+		iput(inode);
+out_budg:
+	ubifs_release_budget(c, &req);
+	if (!instantiated)
+		ubifs_release_budget(c, &ino_req);
+	ubifs_err(c, "cannot create temporary file, error %d", err);
+	return err;
+}
+
 /**
  * vfs_dent_type - get VFS directory entry type.
  * @type: UBIFS directory entry type
@@ -1189,6 +1259,7 @@ const struct inode_operations ubifs_dir_inode_operations = {
 #ifdef CONFIG_UBIFS_ATIME_SUPPORT
 	.update_time = ubifs_update_time,
 #endif
+	.tmpfile     = ubifs_tmpfile,
 };
 
 const struct file_operations ubifs_dir_operations = {
