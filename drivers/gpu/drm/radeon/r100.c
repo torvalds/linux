@@ -1071,11 +1071,7 @@ u32 r100_gfx_get_rptr(struct radeon_device *rdev,
 u32 r100_gfx_get_wptr(struct radeon_device *rdev,
 		      struct radeon_ring *ring)
 {
-	u32 wptr;
-
-	wptr = RREG32(RADEON_CP_RB_WPTR);
-
-	return wptr;
+	return RREG32(RADEON_CP_RB_WPTR);
 }
 
 void r100_gfx_set_wptr(struct radeon_device *rdev,
