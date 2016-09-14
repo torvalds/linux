@@ -330,6 +330,10 @@ enum mtk_clks_map {
 	MTK_CLK_MAX
 };
 
+enum mtk_dev_state {
+	MTK_HW_INIT
+};
+
 /* struct mtk_tx_buf -	This struct holds the pointers to the memory pointed at
  *			by the TX descriptor	s
  * @skb:		The SKB pointer of the packet being sent
@@ -413,6 +417,7 @@ struct mtk_rx_ring {
  * @clks:		clock array for all clocks required
  * @mii_bus:		If there is a bus we need to create an instance for it
  * @pending_work:	The workqueue used to reset the dma ring
+ * @state               Initialization and runtime state of the device.
  */
 
 struct mtk_eth {
@@ -441,11 +446,13 @@ struct mtk_eth {
 
 	struct mii_bus			*mii_bus;
 	struct work_struct		pending_work;
+	unsigned long			state;
 };
 
 /* struct mtk_mac -	the structure that holds the info about the MACs of the
  *			SoC
  * @id:			The number of the MAC
+ * @ge_mode:            Interface mode kept for setup restoring
  * @of_node:		Our devicetree node
  * @hw:			Backpointer to our main datastruture
  * @hw_stats:		Packet statistics counter
@@ -453,6 +460,7 @@ struct mtk_eth {
  */
 struct mtk_mac {
 	int				id;
+	int				ge_mode;
 	struct device_node		*of_node;
 	struct mtk_eth			*hw;
 	struct mtk_hw_stats		*hw_stats;

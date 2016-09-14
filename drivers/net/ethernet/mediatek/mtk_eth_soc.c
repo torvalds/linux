@@ -231,7 +231,7 @@ static int mtk_phy_connect(struct mtk_mac *mac)
 {
 	struct mtk_eth *eth = mac->hw;
 	struct device_node *np;
-	u32 val, ge_mode;
+	u32 val;
 
 	np = of_parse_phandle(mac->of_node, "phy-handle", 0);
 	if (!np && of_phy_is_fixed_link(mac->of_node))
@@ -245,18 +245,18 @@ static int mtk_phy_connect(struct mtk_mac *mac)
 	case PHY_INTERFACE_MODE_RGMII_RXID:
 	case PHY_INTERFACE_MODE_RGMII_ID:
 	case PHY_INTERFACE_MODE_RGMII:
-		ge_mode = 0;
+		mac->ge_mode = 0;
 		break;
 	case PHY_INTERFACE_MODE_MII:
-		ge_mode = 1;
+		mac->ge_mode = 1;
 		break;
 	case PHY_INTERFACE_MODE_REVMII:
-		ge_mode = 2;
+		mac->ge_mode = 2;
 		break;
 	case PHY_INTERFACE_MODE_RMII:
 		if (!mac->id)
 			goto err_phy;
-		ge_mode = 3;
+		mac->ge_mode = 3;
 		break;
 	default:
 		goto err_phy;
@@ -265,7 +265,7 @@ static int mtk_phy_connect(struct mtk_mac *mac)
 	/* put the gmac into the right mode */
 	regmap_read(eth->ethsys, ETHSYS_SYSCFG0, &val);
 	val &= ~SYSCFG0_GE_MODE(SYSCFG0_GE_MASK, mac->id);
-	val |= SYSCFG0_GE_MODE(ge_mode, mac->id);
+	val |= SYSCFG0_GE_MODE(mac->ge_mode, mac->id);
 	regmap_write(eth->ethsys, ETHSYS_SYSCFG0, val);
 
 	mtk_phy_connect_node(eth, mac, np);
@@ -1414,9 +1414,12 @@ static int mtk_stop(struct net_device *dev)
 	return 0;
 }
 
-static int __init mtk_hw_init(struct mtk_eth *eth)
+static int mtk_hw_init(struct mtk_eth *eth)
 {
-	int i;
+	int i, val;
+
+	if (test_and_set_bit(MTK_HW_INIT, &eth->state))
+		return 0;
 
 	pm_runtime_enable(eth->dev);
 	pm_runtime_get_sync(eth->dev);
@@ -1431,6 +1434,15 @@ static int __init mtk_hw_init(struct mtk_eth *eth)
 	usleep_range(10, 20);
 	reset_control_deassert(eth->rstc);
 	usleep_range(10, 20);
+
+	regmap_read(eth->ethsys, ETHSYS_SYSCFG0, &val);
+	for (i = 0; i < MTK_MAC_COUNT; i++) {
+		if (!eth->mac[i])
+			continue;
+		val &= ~SYSCFG0_GE_MODE(SYSCFG0_GE_MASK, eth->mac[i]->id);
+		val |= SYSCFG0_GE_MODE(eth->mac[i]->ge_mode, eth->mac[i]->id);
+	}
+	regmap_write(eth->ethsys, ETHSYS_SYSCFG0, val);
 
 	/* Set GE2 driving and slew rate */
 	regmap_write(eth->pctl, GPIO_DRV_SEL10, 0xa00);
@@ -1483,6 +1495,9 @@ static int __init mtk_hw_init(struct mtk_eth *eth)
 
 static int mtk_hw_deinit(struct mtk_eth *eth)
 {
+	if (!test_and_clear_bit(MTK_HW_INIT, &eth->state))
+		return 0;
+
 	clk_disable_unprepare(eth->clks[MTK_CLK_GP2]);
 	clk_disable_unprepare(eth->clks[MTK_CLK_GP1]);
 	clk_disable_unprepare(eth->clks[MTK_CLK_ESW]);
@@ -1558,6 +1573,26 @@ static void mtk_pending_work(struct work_struct *work)
 			continue;
 		mtk_stop(eth->netdev[i]);
 		__set_bit(i, &restart);
+	}
+
+	/* restart underlying hardware such as power, clock, pin mux
+	 * and the connected phy
+	 */
+	mtk_hw_deinit(eth);
+
+	if (eth->dev->pins)
+		pinctrl_select_state(eth->dev->pins->p,
+				     eth->dev->pins->default_state);
+	mtk_hw_init(eth);
+
+	for (i = 0; i < MTK_MAC_COUNT; i++) {
+		if (!eth->mac[i] ||
+		    of_phy_is_fixed_link(eth->mac[i]->of_node))
+			continue;
+		err = phy_init_hw(eth->mac[i]->phy_dev);
+		if (err)
+			dev_err(eth->dev, "%s: PHY init failed.\n",
+				eth->netdev[i]->name);
 	}
 
 	/* restart DMA and enable IRQs */
