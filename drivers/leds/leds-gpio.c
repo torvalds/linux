@@ -181,16 +181,14 @@ static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
 			goto err;
 		}
 
-		if (fwnode_property_present(child, "label")) {
-			fwnode_property_read_string(child, "label", &led.name);
-		} else {
-			if (IS_ENABLED(CONFIG_OF) && !led.name && np)
-				led.name = np->name;
-			if (!led.name) {
-				ret = -EINVAL;
-				goto err;
-			}
+		ret = fwnode_property_read_string(child, "label", &led.name);
+		if (ret && IS_ENABLED(CONFIG_OF) && np)
+			led.name = np->name;
+		if (!led.name) {
+			ret = -EINVAL;
+			goto err;
 		}
+
 		fwnode_property_read_string(child, "linux,default-trigger",
 					    &led.default_trigger);
 
