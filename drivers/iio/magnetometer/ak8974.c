@@ -783,8 +783,7 @@ static int __exit ak8974_remove(struct i2c_client *i2c)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int ak8974_runtime_suspend(struct device *dev)
+static int __maybe_unused ak8974_runtime_suspend(struct device *dev)
 {
 	struct ak8974 *ak8974 =
 		iio_priv(i2c_get_clientdata(to_i2c_client(dev)));
@@ -795,7 +794,7 @@ static int ak8974_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int ak8974_runtime_resume(struct device *dev)
+static int __maybe_unused ak8974_runtime_resume(struct device *dev)
 {
 	struct ak8974 *ak8974 =
 		iio_priv(i2c_get_clientdata(to_i2c_client(dev)));
@@ -822,7 +821,6 @@ out_regulator_disable:
 
 	return ret;
 }
-#endif /* CONFIG_PM */
 
 static const struct dev_pm_ops ak8974_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
@@ -847,7 +845,6 @@ MODULE_DEVICE_TABLE(of, ak8974_of_match);
 static struct i2c_driver ak8974_driver = {
 	.driver	 = {
 		.name	= "ak8974",
-		.owner	= THIS_MODULE,
 		.pm = &ak8974_dev_pm_ops,
 		.of_match_table = of_match_ptr(ak8974_of_match),
 	},

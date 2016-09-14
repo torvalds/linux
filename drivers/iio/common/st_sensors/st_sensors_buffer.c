@@ -63,7 +63,7 @@ irqreturn_t st_sensors_trigger_handler(int irq, void *p)
 	 * the hardware trigger) and the hw_timestamp may get updated.
 	 * By storing it in a local variable first, we are safe.
 	 */
-	if (sdata->hw_irq_trigger)
+	if (iio_trigger_using_own(indio_dev))
 		timestamp = sdata->hw_timestamp;
 	else
 		timestamp = iio_get_time_ns(indio_dev);

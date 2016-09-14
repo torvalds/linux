@@ -199,8 +199,7 @@ error_ret:
 }
 EXPORT_SYMBOL(hid_sensor_setup_trigger);
 
-#ifdef CONFIG_PM
-static int hid_sensor_suspend(struct device *dev)
+static int __maybe_unused hid_sensor_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
@@ -209,7 +208,7 @@ static int hid_sensor_suspend(struct device *dev)
 	return _hid_sensor_power_state(attrb, false);
 }
 
-static int hid_sensor_resume(struct device *dev)
+static int __maybe_unused hid_sensor_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
@@ -218,15 +217,13 @@ static int hid_sensor_resume(struct device *dev)
 	return 0;
 }
 
-static int hid_sensor_runtime_resume(struct device *dev)
+static int __maybe_unused hid_sensor_runtime_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct hid_sensor_common *attrb = iio_device_get_drvdata(indio_dev);
 	return _hid_sensor_power_state(attrb, true);
 }
-
-#endif
 
 const struct dev_pm_ops hid_sensor_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(hid_sensor_suspend, hid_sensor_resume)

@@ -66,7 +66,7 @@ static int st_sensors_new_samples_available(struct iio_dev *indio_dev,
  * @irq: irq number
  * @p: private handler data
  */
-irqreturn_t st_sensors_irq_handler(int irq, void *p)
+static irqreturn_t st_sensors_irq_handler(int irq, void *p)
 {
 	struct iio_trigger *trig = p;
 	struct iio_dev *indio_dev = iio_trigger_get_drvdata(trig);
@@ -82,7 +82,7 @@ irqreturn_t st_sensors_irq_handler(int irq, void *p)
  * @irq: irq number
  * @p: private handler data
  */
-irqreturn_t st_sensors_irq_thread(int irq, void *p)
+static irqreturn_t st_sensors_irq_thread(int irq, void *p)
 {
 	struct iio_trigger *trig = p;
 	struct iio_dev *indio_dev = iio_trigger_get_drvdata(trig);

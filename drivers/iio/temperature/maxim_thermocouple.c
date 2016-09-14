@@ -32,7 +32,7 @@ enum {
 	MAX31855,
 };
 
-const struct iio_chan_spec max6675_channels[] = {
+static const struct iio_chan_spec max6675_channels[] = {
 	{	/* thermocouple temperature */
 		.type = IIO_TEMP,
 		.info_mask_separate =
@@ -49,7 +49,7 @@ const struct iio_chan_spec max6675_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(1),
 };
 
-const struct iio_chan_spec max31855_channels[] = {
+static const struct iio_chan_spec max31855_channels[] = {
 	{	/* thermocouple temperature */
 		.type = IIO_TEMP,
 		.address = 2,
@@ -95,7 +95,7 @@ struct maxim_thermocouple_chip {
 	u32 status_bit;
 };
 
-const struct maxim_thermocouple_chip maxim_thermocouple_chips[] = {
+static const struct maxim_thermocouple_chip maxim_thermocouple_chips[] = {
 	[MAX6675] = {
 			.channels = max6675_channels,
 			.num_channels = ARRAY_SIZE(max6675_channels),
