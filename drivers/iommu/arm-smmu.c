@@ -317,17 +317,12 @@ struct arm_smmu_smr {
 };
 
 struct arm_smmu_master_cfg {
+	struct arm_smmu_device		*smmu;
 	int				num_streamids;
 	u16				streamids[MAX_MASTER_STREAMIDS];
 	s16				smendx[MAX_MASTER_STREAMIDS];
 };
 #define INVALID_SMENDX			-1
-
-struct arm_smmu_master {
-	struct device_node		*of_node;
-	struct rb_node			node;
-	struct arm_smmu_master_cfg	cfg;
-};
 
 struct arm_smmu_device {
 	struct device			*dev;
@@ -376,7 +371,6 @@ struct arm_smmu_device {
 	unsigned int			*irqs;
 
 	struct list_head		list;
-	struct rb_root			masters;
 
 	u32				cavium_id_base; /* Specific to Cavium */
 };
@@ -413,12 +407,6 @@ struct arm_smmu_domain {
 	enum arm_smmu_domain_stage	stage;
 	struct mutex			init_mutex; /* Protects smmu pointer */
 	struct iommu_domain		domain;
-};
-
-struct arm_smmu_phandle_args {
-	struct device_node *np;
-	int args_count;
-	uint32_t args[MAX_MASTER_STREAMIDS];
 };
 
 static DEFINE_SPINLOCK(arm_smmu_devices_lock);
@@ -462,132 +450,89 @@ static struct device_node *dev_get_dev_node(struct device *dev)
 
 		while (!pci_is_root_bus(bus))
 			bus = bus->parent;
-		return bus->bridge->parent->of_node;
+		return of_node_get(bus->bridge->parent->of_node);
 	}
 
-	return dev->of_node;
+	return of_node_get(dev->of_node);
 }
 
-static struct arm_smmu_master *find_smmu_master(struct arm_smmu_device *smmu,
-						struct device_node *dev_node)
+static int __arm_smmu_get_pci_sid(struct pci_dev *pdev, u16 alias, void *data)
 {
-	struct rb_node *node = smmu->masters.rb_node;
-
-	while (node) {
-		struct arm_smmu_master *master;
-
-		master = container_of(node, struct arm_smmu_master, node);
-
-		if (dev_node < master->of_node)
-			node = node->rb_left;
-		else if (dev_node > master->of_node)
-			node = node->rb_right;
-		else
-			return master;
-	}
-
-	return NULL;
+	*((__be32 *)data) = cpu_to_be32(alias);
+	return 0; /* Continue walking */
 }
 
-static struct arm_smmu_master_cfg *
-find_smmu_master_cfg(struct device *dev)
+static int __find_legacy_master_phandle(struct device *dev, void *data)
 {
-	struct arm_smmu_master_cfg *cfg = NULL;
-	struct iommu_group *group = iommu_group_get(dev);
+	struct of_phandle_iterator *it = *(void **)data;
+	struct device_node *np = it->node;
+	int err;
 
-	if (group) {
-		cfg = iommu_group_get_iommudata(group);
-		iommu_group_put(group);
-	}
-
-	return cfg;
-}
-
-static int insert_smmu_master(struct arm_smmu_device *smmu,
-			      struct arm_smmu_master *master)
-{
-	struct rb_node **new, *parent;
-
-	new = &smmu->masters.rb_node;
-	parent = NULL;
-	while (*new) {
-		struct arm_smmu_master *this
-			= container_of(*new, struct arm_smmu_master, node);
-
-		parent = *new;
-		if (master->of_node < this->of_node)
-			new = &((*new)->rb_left);
-		else if (master->of_node > this->of_node)
-			new = &((*new)->rb_right);
-		else
-			return -EEXIST;
-	}
-
-	rb_link_node(&master->node, parent, new);
-	rb_insert_color(&master->node, &smmu->masters);
-	return 0;
-}
-
-static int register_smmu_master(struct arm_smmu_device *smmu,
-				struct device *dev,
-				struct arm_smmu_phandle_args *masterspec)
-{
-	int i;
-	struct arm_smmu_master *master;
-
-	master = find_smmu_master(smmu, masterspec->np);
-	if (master) {
-		dev_err(dev,
-			"rejecting multiple registrations for master device %s\n",
-			masterspec->np->name);
-		return -EBUSY;
-	}
-
-	if (masterspec->args_count > MAX_MASTER_STREAMIDS) {
-		dev_err(dev,
-			"reached maximum number (%d) of stream IDs for master device %s\n",
-			MAX_MASTER_STREAMIDS, masterspec->np->name);
-		return -ENOSPC;
-	}
-
-	master = devm_kzalloc(dev, sizeof(*master), GFP_KERNEL);
-	if (!master)
-		return -ENOMEM;
-
-	master->of_node			= masterspec->np;
-	master->cfg.num_streamids	= masterspec->args_count;
-
-	for (i = 0; i < master->cfg.num_streamids; ++i) {
-		u16 streamid = masterspec->args[i];
-
-		if (!(smmu->features & ARM_SMMU_FEAT_STREAM_MATCH) &&
-		     (streamid >= smmu->num_mapping_groups)) {
-			dev_err(dev,
-				"stream ID for master device %s greater than maximum allowed (%d)\n",
-				masterspec->np->name, smmu->num_mapping_groups);
-			return -ERANGE;
+	of_for_each_phandle(it, err, dev->of_node, "mmu-masters",
+			    "#stream-id-cells", 0)
+		if (it->node == np) {
+			*(void **)data = dev;
+			return 1;
 		}
-		master->cfg.streamids[i] = streamid;
-		master->cfg.smendx[i] = INVALID_SMENDX;
-	}
-	return insert_smmu_master(smmu, master);
+	it->node = np;
+	return err == -ENOENT ? 0 : err;
 }
 
-static struct arm_smmu_device *find_smmu_for_device(struct device *dev)
+static int arm_smmu_register_legacy_master(struct device *dev)
 {
 	struct arm_smmu_device *smmu;
-	struct arm_smmu_master *master = NULL;
-	struct device_node *dev_node = dev_get_dev_node(dev);
+	struct arm_smmu_master_cfg *cfg;
+	struct device_node *np;
+	struct of_phandle_iterator it;
+	void *data = &it;
+	__be32 pci_sid;
+	int err;
 
+	np = dev_get_dev_node(dev);
+	if (!np || !of_find_property(np, "#stream-id-cells", NULL)) {
+		of_node_put(np);
+		return -ENODEV;
+	}
+
+	it.node = np;
 	spin_lock(&arm_smmu_devices_lock);
 	list_for_each_entry(smmu, &arm_smmu_devices, list) {
-		master = find_smmu_master(smmu, dev_node);
-		if (master)
+		err = __find_legacy_master_phandle(smmu->dev, &data);
+		if (err)
 			break;
 	}
 	spin_unlock(&arm_smmu_devices_lock);
+	of_node_put(np);
+	if (err == 0)
+		return -ENODEV;
+	if (err < 0)
+		return err;
 
-	return master ? smmu : NULL;
+	if (it.cur_count > MAX_MASTER_STREAMIDS) {
+		dev_err(smmu->dev,
+			"reached maximum number (%d) of stream IDs for master device %s\n",
+			MAX_MASTER_STREAMIDS, dev_name(dev));
+		return -ENOSPC;
+	}
+	if (dev_is_pci(dev)) {
+		/* "mmu-masters" assumes Stream ID == Requester ID */
+		pci_for_each_dma_alias(to_pci_dev(dev), __arm_smmu_get_pci_sid,
+				       &pci_sid);
+		it.cur = &pci_sid;
+		it.cur_count = 1;
+	}
+
+	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+	if (!cfg)
+		return -ENOMEM;
+
+	cfg->smmu = smmu;
+	dev->archdata.iommu = cfg;
+
+	while (it.cur_count--)
+		cfg->streamids[cfg->num_streamids++] = be32_to_cpup(it.cur++);
+
+	return 0;
 }
 
 static int __arm_smmu_alloc_bitmap(unsigned long *map, int start, int end)
@@ -1119,8 +1064,7 @@ static void arm_smmu_free_smr(struct arm_smmu_device *smmu, int idx)
 static void arm_smmu_write_smr(struct arm_smmu_device *smmu, int idx)
 {
 	struct arm_smmu_smr *smr = smmu->smrs + idx;
-	u32 reg = (smr->id & smmu->streamid_mask) << SMR_ID_SHIFT |
-		  (smr->mask & smmu->smr_mask_mask) << SMR_MASK_SHIFT;
+	u32 reg = smr->id << SMR_ID_SHIFT | smr->mask << SMR_MASK_SHIFT;
 
 	if (smr->valid)
 		reg |= SMR_VALID;
@@ -1189,9 +1133,9 @@ err_free_smrs:
 	return -ENOSPC;
 }
 
-static void arm_smmu_master_free_smes(struct arm_smmu_device *smmu,
-				      struct arm_smmu_master_cfg *cfg)
+static void arm_smmu_master_free_smes(struct arm_smmu_master_cfg *cfg)
 {
+	struct arm_smmu_device *smmu = cfg->smmu;
 	int i;
 
 	/*
@@ -1262,17 +1206,15 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 {
 	int ret;
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
-	struct arm_smmu_device *smmu;
-	struct arm_smmu_master_cfg *cfg;
+	struct arm_smmu_master_cfg *cfg = dev->archdata.iommu;
 
-	smmu = find_smmu_for_device(dev);
-	if (!smmu) {
+	if (!cfg) {
 		dev_err(dev, "cannot attach to SMMU, is it on the same bus?\n");
 		return -ENXIO;
 	}
 
 	/* Ensure that the domain is finalised */
-	ret = arm_smmu_init_domain_context(domain, smmu);
+	ret = arm_smmu_init_domain_context(domain, cfg->smmu);
 	if (ret < 0)
 		return ret;
 
@@ -1280,18 +1222,14 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	 * Sanity check the domain. We don't support domains across
 	 * different SMMUs.
 	 */
-	if (smmu_domain->smmu != smmu) {
+	if (smmu_domain->smmu != cfg->smmu) {
 		dev_err(dev,
 			"cannot attach to SMMU %s whilst already attached to domain on SMMU %s\n",
-			dev_name(smmu_domain->smmu->dev), dev_name(smmu->dev));
+			dev_name(smmu_domain->smmu->dev), dev_name(cfg->smmu->dev));
 		return -EINVAL;
 	}
 
 	/* Looks ok, so add the device to the domain */
-	cfg = find_smmu_master_cfg(dev);
-	if (!cfg)
-		return -ENODEV;
-
 	return arm_smmu_domain_add_master(smmu_domain, cfg);
 }
 
@@ -1411,119 +1349,64 @@ static bool arm_smmu_capable(enum iommu_cap cap)
 	}
 }
 
-static int __arm_smmu_get_pci_sid(struct pci_dev *pdev, u16 alias, void *data)
-{
-	*((u16 *)data) = alias;
-	return 0; /* Continue walking */
-}
-
-static void __arm_smmu_release_pci_iommudata(void *data)
-{
-	kfree(data);
-}
-
-static int arm_smmu_init_pci_device(struct pci_dev *pdev,
-				    struct iommu_group *group)
-{
-	struct arm_smmu_master_cfg *cfg;
-	u16 sid;
-	int i;
-
-	cfg = iommu_group_get_iommudata(group);
-	if (!cfg) {
-		cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
-		if (!cfg)
-			return -ENOMEM;
-
-		iommu_group_set_iommudata(group, cfg,
-					  __arm_smmu_release_pci_iommudata);
-	}
-
-	if (cfg->num_streamids >= MAX_MASTER_STREAMIDS)
-		return -ENOSPC;
-
-	/*
-	 * Assume Stream ID == Requester ID for now.
-	 * We need a way to describe the ID mappings in FDT.
-	 */
-	pci_for_each_dma_alias(pdev, __arm_smmu_get_pci_sid, &sid);
-	for (i = 0; i < cfg->num_streamids; ++i)
-		if (cfg->streamids[i] == sid)
-			break;
-
-	/* Avoid duplicate SIDs, as this can lead to SMR conflicts */
-	if (i == cfg->num_streamids) {
-		cfg->streamids[i] = sid;
-		cfg->smendx[i] = INVALID_SMENDX;
-		cfg->num_streamids++;
-	}
-
-	return 0;
-}
-
-static int arm_smmu_init_platform_device(struct device *dev,
-					 struct iommu_group *group)
-{
-	struct arm_smmu_device *smmu = find_smmu_for_device(dev);
-	struct arm_smmu_master *master;
-
-	if (!smmu)
-		return -ENODEV;
-
-	master = find_smmu_master(smmu, dev->of_node);
-	if (!master)
-		return -ENODEV;
-
-	iommu_group_set_iommudata(group, &master->cfg, NULL);
-
-	return 0;
-}
-
 static int arm_smmu_add_device(struct device *dev)
 {
+	struct arm_smmu_master_cfg *cfg;
 	struct iommu_group *group;
+	int i, ret;
+
+	ret = arm_smmu_register_legacy_master(dev);
+	cfg = dev->archdata.iommu;
+	if (ret)
+		goto out_free;
+
+	ret = -EINVAL;
+	for (i = 0; i < cfg->num_streamids; i++) {
+		u16 sid = cfg->streamids[i];
+
+		if (sid & ~cfg->smmu->streamid_mask) {
+			dev_err(dev, "stream ID 0x%x out of range for SMMU (0x%x)\n",
+				sid, cfg->smmu->streamid_mask);
+			goto out_free;
+		}
+		cfg->smendx[i] = INVALID_SMENDX;
+	}
 
 	group = iommu_group_get_for_dev(dev);
-	if (IS_ERR(group))
-		return PTR_ERR(group);
-
+	if (IS_ERR(group)) {
+		ret = PTR_ERR(group);
+		goto out_free;
+	}
 	iommu_group_put(group);
 	return 0;
+
+out_free:
+	kfree(cfg);
+	dev->archdata.iommu = NULL;
+	return ret;
 }
 
 static void arm_smmu_remove_device(struct device *dev)
 {
-	struct arm_smmu_device *smmu = find_smmu_for_device(dev);
-	struct arm_smmu_master_cfg *cfg = find_smmu_master_cfg(dev);
+	struct arm_smmu_master_cfg *cfg = dev->archdata.iommu;
 
-	if (smmu && cfg)
-		arm_smmu_master_free_smes(smmu, cfg);
+	if (!cfg)
+		return;
 
+	arm_smmu_master_free_smes(cfg);
 	iommu_group_remove_device(dev);
+	kfree(cfg);
+	dev->archdata.iommu = NULL;
 }
 
 static struct iommu_group *arm_smmu_device_group(struct device *dev)
 {
 	struct iommu_group *group;
-	int ret;
 
 	if (dev_is_pci(dev))
 		group = pci_device_group(dev);
 	else
 		group = generic_device_group(dev);
-
-	if (IS_ERR(group))
-		return group;
-
-	if (dev_is_pci(dev))
-		ret = arm_smmu_init_pci_device(to_pci_dev(dev), group);
-	else
-		ret = arm_smmu_init_platform_device(dev, group);
-
-	if (ret) {
-		iommu_group_put(group);
-		group = ERR_PTR(ret);
-	}
 
 	return group;
 }
@@ -1938,9 +1821,6 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct arm_smmu_device *smmu;
 	struct device *dev = &pdev->dev;
-	struct rb_node *node;
-	struct of_phandle_iterator it;
-	struct arm_smmu_phandle_args *masterspec;
 	int num_irqs, i, err;
 
 	smmu = devm_kzalloc(dev, sizeof(*smmu), GFP_KERNEL);
@@ -2001,37 +1881,6 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	i = 0;
-	smmu->masters = RB_ROOT;
-
-	err = -ENOMEM;
-	/* No need to zero the memory for masterspec */
-	masterspec = kmalloc(sizeof(*masterspec), GFP_KERNEL);
-	if (!masterspec)
-		goto out_put_masters;
-
-	of_for_each_phandle(&it, err, dev->of_node,
-			    "mmu-masters", "#stream-id-cells", 0) {
-		int count = of_phandle_iterator_args(&it, masterspec->args,
-						     MAX_MASTER_STREAMIDS);
-		masterspec->np		= of_node_get(it.node);
-		masterspec->args_count	= count;
-
-		err = register_smmu_master(smmu, dev, masterspec);
-		if (err) {
-			dev_err(dev, "failed to add master %s\n",
-				masterspec->np->name);
-			kfree(masterspec);
-			goto out_put_masters;
-		}
-
-		i++;
-	}
-
-	dev_notice(dev, "registered %d master devices\n", i);
-
-	kfree(masterspec);
-
 	parse_driver_options(smmu);
 
 	if (smmu->version == ARM_SMMU_V2 &&
@@ -2039,8 +1888,7 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 		dev_err(dev,
 			"found only %d context interrupt(s) but %d required\n",
 			smmu->num_context_irqs, smmu->num_context_banks);
-		err = -ENODEV;
-		goto out_put_masters;
+		return -ENODEV;
 	}
 
 	for (i = 0; i < smmu->num_global_irqs; ++i) {
@@ -2052,7 +1900,7 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 		if (err) {
 			dev_err(dev, "failed to request global IRQ %d (%u)\n",
 				i, smmu->irqs[i]);
-			goto out_put_masters;
+			return err;
 		}
 	}
 
@@ -2063,22 +1911,12 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 
 	arm_smmu_device_reset(smmu);
 	return 0;
-
-out_put_masters:
-	for (node = rb_first(&smmu->masters); node; node = rb_next(node)) {
-		struct arm_smmu_master *master
-			= container_of(node, struct arm_smmu_master, node);
-		of_node_put(master->of_node);
-	}
-
-	return err;
 }
 
 static int arm_smmu_device_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct arm_smmu_device *curr, *smmu = NULL;
-	struct rb_node *node;
 
 	spin_lock(&arm_smmu_devices_lock);
 	list_for_each_entry(curr, &arm_smmu_devices, list) {
@@ -2092,12 +1930,6 @@ static int arm_smmu_device_remove(struct platform_device *pdev)
 
 	if (!smmu)
 		return -ENODEV;
-
-	for (node = rb_first(&smmu->masters); node; node = rb_next(node)) {
-		struct arm_smmu_master *master
-			= container_of(node, struct arm_smmu_master, node);
-		of_node_put(master->of_node);
-	}
 
 	if (!bitmap_empty(smmu->context_map, ARM_SMMU_MAX_CBS))
 		dev_err(dev, "removing device with active domains!\n");
