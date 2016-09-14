@@ -56,6 +56,7 @@
 		serial0 = &uart0;
 		/* ethernet0 is the H3 emac, defined in sun8i-h3.dtsi */
 		ethernet1 = &rtl8189;
+		ethernet0 = &emac;
 	};
 
 	chosen {
@@ -202,5 +203,12 @@
 
 &usbphy {
 	usb1_vbus-supply = <&reg_usb1_vbus>;
+	status = "okay";
+};
+
+&emac {
+	phy-handle = <&int_mii_phy>;
+	phy-mode = "mii";
+	allwinner,leds-active-low;
 	status = "okay";
 };
