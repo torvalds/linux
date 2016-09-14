@@ -25,6 +25,34 @@
 	chosen { };
 };
 
+&eth0 {
+	status = "ok";
+};
+
+&eth1 {
+	status = "ok";
+};
+
+&eth2 {
+	status = "ok";
+};
+
+&eth3 {
+	status = "ok";
+};
+
+&sas0 {
+	status = "ok";
+};
+
+&sas1 {
+	status = "ok";
+};
+
+&sas2 {
+	status = "ok";
+};
+
 &usb_ohci {
 	status = "ok";
 };
