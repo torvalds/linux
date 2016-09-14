@@ -1418,7 +1418,7 @@ bool s3c24xx_dma_filter(struct dma_chan *chan, void *param)
 
 	s3cchan = to_s3c24xx_dma_chan(chan);
 
-	return s3cchan->id == (int)param;
+	return s3cchan->id == (uintptr_t)param;
 }
 EXPORT_SYMBOL(s3c24xx_dma_filter);
 
