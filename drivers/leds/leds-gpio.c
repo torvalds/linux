@@ -159,7 +159,6 @@ static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
 	struct fwnode_handle *child;
 	struct gpio_leds_priv *priv;
 	int count, ret;
-	struct device_node *np;
 
 	count = device_get_child_node_count(dev);
 	if (!count)
@@ -173,6 +172,7 @@ static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
 		struct gpio_led_data *led_dat = &priv->leds[priv->num_leds];
 		struct gpio_led led = {};
 		const char *state = NULL;
+		struct device_node *np = to_of_node(child);
 
 		led.gpiod = devm_get_gpiod_from_child(dev, NULL, child);
 		if (IS_ERR(led.gpiod)) {
@@ -180,8 +180,6 @@ static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
 			ret = PTR_ERR(led.gpiod);
 			goto err;
 		}
-
-		np = to_of_node(child);
 
 		if (fwnode_property_present(child, "label")) {
 			fwnode_property_read_string(child, "label", &led.name);
