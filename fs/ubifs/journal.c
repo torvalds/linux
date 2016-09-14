@@ -1100,7 +1100,7 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 	aligned_dlen1 = ALIGN(dlen1, 8);
 	aligned_dlen2 = ALIGN(dlen2, 8);
 	len = aligned_dlen1 + aligned_dlen2 + ALIGN(ilen, 8) + ALIGN(plen, 8);
-	if (old_dir != new_dir)
+	if (move)
 		len += plen;
 	dent = kmalloc(len, GFP_NOFS);
 	if (!dent)
@@ -1216,7 +1216,7 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 	if (err)
 		goto out_ro;
 
-	if (old_dir != new_dir) {
+	if (move) {
 		offs += ALIGN(plen, 8);
 		ino_key_init(c, &key, new_dir->i_ino);
 		err = ubifs_tnc_add(c, &key, lnum, offs, plen);
