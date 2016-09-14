@@ -75,7 +75,7 @@ coda_file_write_iter(struct kiocb *iocb, struct iov_iter *to)
 	ret = vfs_iter_write(cfi->cfi_container, to, &iocb->ki_pos);
 	coda_inode->i_size = file_inode(host_file)->i_size;
 	coda_inode->i_blocks = (coda_inode->i_size + 511) >> 9;
-	coda_inode->i_mtime = coda_inode->i_ctime = CURRENT_TIME_SEC;
+	coda_inode->i_mtime = coda_inode->i_ctime = current_time(coda_inode);
 	inode_unlock(coda_inode);
 	file_end_write(host_file);
 	return ret;

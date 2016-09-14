@@ -242,7 +242,7 @@ int jffs2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 
 				attr.ia_valid = ATTR_MODE | ATTR_CTIME;
 				attr.ia_mode = mode;
-				attr.ia_ctime = CURRENT_TIME_SEC;
+				attr.ia_ctime = current_time(inode);
 				rc = jffs2_do_setattr(inode, &attr);
 				if (rc < 0)
 					return rc;

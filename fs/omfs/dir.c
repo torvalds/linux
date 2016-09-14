@@ -143,7 +143,7 @@ static int omfs_add_link(struct dentry *dentry, struct inode *inode)
 	mark_buffer_dirty(bh);
 	brelse(bh);
 
-	dir->i_ctime = CURRENT_TIME_SEC;
+	dir->i_ctime = current_time(dir);
 
 	/* mark affected inodes dirty to rebuild checksums */
 	mark_inode_dirty(dir);
@@ -395,7 +395,7 @@ static int omfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (err)
 		goto out;
 
-	old_inode->i_ctime = CURRENT_TIME_SEC;
+	old_inode->i_ctime = current_time(old_inode);
 	mark_inode_dirty(old_inode);
 out:
 	return err;

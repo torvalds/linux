@@ -450,13 +450,13 @@ int reiserfs_commit_write(struct file *f, struct page *page,
 
 static void update_ctime(struct inode *inode)
 {
-	struct timespec now = current_fs_time(inode->i_sb);
+	struct timespec now = current_time(inode);
 
 	if (inode_unhashed(inode) || !inode->i_nlink ||
 	    timespec_equal(&inode->i_ctime, &now))
 		return;
 
-	inode->i_ctime = CURRENT_TIME_SEC;
+	inode->i_ctime = current_time(inode);
 	mark_inode_dirty(inode);
 }
 
@@ -575,7 +575,7 @@ reiserfs_xattr_set_handle(struct reiserfs_transaction_handle *th,
 	new_size = buffer_size + sizeof(struct reiserfs_xattr_header);
 	if (!err && new_size < i_size_read(d_inode(dentry))) {
 		struct iattr newattrs = {
-			.ia_ctime = current_fs_time(inode->i_sb),
+			.ia_ctime = current_time(inode),
 			.ia_size = new_size,
 			.ia_valid = ATTR_SIZE | ATTR_CTIME,
 		};
