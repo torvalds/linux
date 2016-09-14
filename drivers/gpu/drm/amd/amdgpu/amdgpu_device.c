@@ -50,6 +50,7 @@
 #include "vi.h"
 #include "bif/bif_4_1_d.h"
 #include <linux/pci.h>
+#include <linux/firmware.h>
 
 static int amdgpu_debugfs_regs_init(struct amdgpu_device *adev);
 static void amdgpu_debugfs_regs_cleanup(struct amdgpu_device *adev);
@@ -649,6 +650,46 @@ bool amdgpu_card_posted(struct amdgpu_device *adev)
 
 	return false;
 
+}
+
+static bool amdgpu_vpost_needed(struct amdgpu_device *adev)
+{
+	if (amdgpu_sriov_vf(adev))
+		return false;
+
+	if (amdgpu_passthrough(adev)) {
+		/* for FIJI: In whole GPU pass-through virtualization case
+		 * old smc fw won't clear some registers (e.g. MEM_SIZE, BIOS_SCRATCH)
+		 * so amdgpu_card_posted return false and driver will incorrectly skip vPost.
+		 * but if we force vPost do in pass-through case, the driver reload will hang.
+		 * whether doing vPost depends on amdgpu_card_posted if smc version is above
+		 * 00160e00 for FIJI.
+		 */
+		if (adev->asic_type == CHIP_FIJI) {
+			int err;
+			uint32_t fw_ver;
+			err = request_firmware(&adev->pm.fw, "amdgpu/fiji_smc.bin", adev->dev);
+			/* force vPost if error occured */
+			if (err)
+				return true;
+
+			fw_ver = *((uint32_t *)adev->pm.fw->data + 69);
+			if (fw_ver >= 0x00160e00)
+				return !amdgpu_card_posted(adev);
+		}
+	} else {
+		/* in bare-metal case, amdgpu_card_posted return false
+		 * after system reboot/boot, and return true if driver
+		 * reloaded.
+		 * we shouldn't do vPost after driver reload otherwise GPU
+		 * could hang.
+		 */
+		if (amdgpu_card_posted(adev))
+			return false;
+	}
+
+	/* we assume vPost is neede for all other cases */
+	return true;
 }
 
 /**
@@ -1649,14 +1690,13 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	amdgpu_device_detect_sriov_bios(adev);
 
 	/* Post card if necessary */
-	if (!amdgpu_sriov_vf(adev) &&
-		(!amdgpu_card_posted(adev) || amdgpu_passthrough(adev))) {
+	if (amdgpu_vpost_needed(adev)) {
 		if (!adev->bios) {
-			dev_err(adev->dev, "Card not posted and no BIOS - ignoring\n");
+			dev_err(adev->dev, "no vBIOS found\n");
 			r = -EINVAL;
 			goto failed;
 		}
-		DRM_INFO("GPU not posted. posting now...\n");
+		DRM_INFO("GPU posting now...\n");
 		r = amdgpu_atom_asic_init(adev->mode_info.atom_context);
 		if (r) {
 			dev_err(adev->dev, "gpu post error!\n");
