@@ -1567,17 +1567,36 @@ static void mtk_pending_work(struct work_struct *work)
 	rtnl_unlock();
 }
 
-static int mtk_cleanup(struct mtk_eth *eth)
+static int mtk_free_dev(struct mtk_eth *eth)
 {
 	int i;
 
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
 		if (!eth->netdev[i])
 			continue;
-
-		unregister_netdev(eth->netdev[i]);
 		free_netdev(eth->netdev[i]);
 	}
+
+	return 0;
+}
+
+static int mtk_unreg_dev(struct mtk_eth *eth)
+{
+	int i;
+
+	for (i = 0; i < MTK_MAC_COUNT; i++) {
+		if (!eth->netdev[i])
+			continue;
+		unregister_netdev(eth->netdev[i]);
+	}
+
+	return 0;
+}
+
+static int mtk_cleanup(struct mtk_eth *eth)
+{
+	mtk_unreg_dev(eth);
+	mtk_free_dev(eth);
 	cancel_work_sync(&eth->pending_work);
 
 	return 0;
@@ -1875,7 +1894,7 @@ static int mtk_probe(struct platform_device *pdev)
 
 		err = mtk_add_mac(eth, mac_np);
 		if (err)
-			goto err_free_dev;
+			goto err_deinit_hw;
 	}
 
 	err = devm_request_irq(eth->dev, eth->irq[1], mtk_handle_irq_tx, 0,
@@ -1899,7 +1918,7 @@ static int mtk_probe(struct platform_device *pdev)
 		err = register_netdev(eth->netdev[i]);
 		if (err) {
 			dev_err(eth->dev, "error bringing up device\n");
-			goto err_free_dev;
+			goto err_deinit_mdio;
 		} else
 			netif_info(eth, probe, eth->netdev[i],
 				   "mediatek frame engine at 0x%08lx, irq %d\n",
@@ -1919,8 +1938,13 @@ static int mtk_probe(struct platform_device *pdev)
 
 	return 0;
 
+err_deinit_mdio:
+	mtk_mdio_cleanup(eth);
 err_free_dev:
-	mtk_cleanup(eth);
+	mtk_free_dev(eth);
+err_deinit_hw:
+	mtk_hw_deinit(eth);
+
 	return err;
 }
 
