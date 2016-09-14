@@ -549,15 +549,23 @@ error_attrs:
 	return ret;
 }
 
-static struct msi_desc *msi_setup_entry(struct pci_dev *dev, int nvec)
+static struct msi_desc *
+msi_setup_entry(struct pci_dev *dev, int nvec, bool affinity)
 {
-	u16 control;
+	struct cpumask *masks = NULL;
 	struct msi_desc *entry;
+	u16 control;
+
+	if (affinity) {
+		masks = irq_create_affinity_masks(dev->irq_affinity, nvec);
+		if (!masks)
+			pr_err("Unable to allocate affinity masks, ignoring\n");
+	}
 
 	/* MSI Entry Initialization */
-	entry = alloc_msi_entry(&dev->dev, nvec, NULL);
+	entry = alloc_msi_entry(&dev->dev, nvec, masks);
 	if (!entry)
-		return NULL;
+		goto out;
 
 	pci_read_config_word(dev, dev->msi_cap + PCI_MSI_FLAGS, &control);
 
@@ -568,7 +576,6 @@ static struct msi_desc *msi_setup_entry(struct pci_dev *dev, int nvec)
 	entry->msi_attrib.default_irq	= dev->irq;	/* Save IOAPIC IRQ */
 	entry->msi_attrib.multi_cap	= (control & PCI_MSI_FLAGS_QMASK) >> 1;
 	entry->msi_attrib.multiple	= ilog2(__roundup_pow_of_two(nvec));
-	entry->affinity			= dev->irq_affinity;
 
 	if (control & PCI_MSI_FLAGS_64BIT)
 		entry->mask_pos = dev->msi_cap + PCI_MSI_MASK_64;
@@ -579,6 +586,8 @@ static struct msi_desc *msi_setup_entry(struct pci_dev *dev, int nvec)
 	if (entry->msi_attrib.maskbit)
 		pci_read_config_dword(dev, entry->mask_pos, &entry->masked);
 
+out:
+	kfree(masks);
 	return entry;
 }
 
@@ -607,7 +616,7 @@ static int msi_verify_entries(struct pci_dev *dev)
  * an error, and a positive return value indicates the number of interrupts
  * which could have been allocated.
  */
-static int msi_capability_init(struct pci_dev *dev, int nvec)
+static int msi_capability_init(struct pci_dev *dev, int nvec, bool affinity)
 {
 	struct msi_desc *entry;
 	int ret;
@@ -615,7 +624,7 @@ static int msi_capability_init(struct pci_dev *dev, int nvec)
 
 	pci_msi_set_enable(dev, 0);	/* Disable MSI during set up */
 
-	entry = msi_setup_entry(dev, nvec);
+	entry = msi_setup_entry(dev, nvec, affinity);
 	if (!entry)
 		return -ENOMEM;
 
@@ -678,28 +687,29 @@ static void __iomem *msix_map_region(struct pci_dev *dev, unsigned nr_entries)
 }
 
 static int msix_setup_entries(struct pci_dev *dev, void __iomem *base,
-			      struct msix_entry *entries, int nvec)
+			      struct msix_entry *entries, int nvec,
+			      bool affinity)
 {
-	const struct cpumask *mask = NULL;
+	struct cpumask *curmsk, *masks = NULL;
 	struct msi_desc *entry;
-	int cpu = -1, i;
+	int ret, i;
 
-	for (i = 0; i < nvec; i++) {
-		if (dev->irq_affinity) {
-			cpu = cpumask_next(cpu, dev->irq_affinity);
-			if (cpu >= nr_cpu_ids)
-				cpu = cpumask_first(dev->irq_affinity);
-			mask = cpumask_of(cpu);
-		}
+	if (affinity) {
+		masks = irq_create_affinity_masks(dev->irq_affinity, nvec);
+		if (!masks)
+			pr_err("Unable to allocate affinity masks, ignoring\n");
+	}
 
-		entry = alloc_msi_entry(&dev->dev, 1, NULL);
+	for (i = 0, curmsk = masks; i < nvec; i++) {
+		entry = alloc_msi_entry(&dev->dev, 1, curmsk);
 		if (!entry) {
 			if (!i)
 				iounmap(base);
 			else
 				free_msi_irqs(dev);
 			/* No enough memory. Don't try again */
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto out;
 		}
 
 		entry->msi_attrib.is_msix	= 1;
@@ -710,11 +720,14 @@ static int msix_setup_entries(struct pci_dev *dev, void __iomem *base,
 			entry->msi_attrib.entry_nr = i;
 		entry->msi_attrib.default_irq	= dev->irq;
 		entry->mask_base		= base;
-		entry->affinity			= mask;
 
 		list_add_tail(&entry->list, dev_to_msi_list(&dev->dev));
+		if (masks)
+			curmsk++;
 	}
-
+	ret = 0;
+out:
+	kfree(masks);
 	return 0;
 }
 
@@ -743,8 +756,8 @@ static void msix_program_entries(struct pci_dev *dev,
  * single MSI-X irq. A return of zero indicates the successful setup of
  * requested MSI-X entries with allocated irqs or non-zero for otherwise.
  **/
-static int msix_capability_init(struct pci_dev *dev,
-				struct msix_entry *entries, int nvec)
+static int msix_capability_init(struct pci_dev *dev, struct msix_entry *entries,
+				int nvec, bool affinity)
 {
 	int ret;
 	u16 control;
@@ -759,7 +772,7 @@ static int msix_capability_init(struct pci_dev *dev,
 	if (!base)
 		return -ENOMEM;
 
-	ret = msix_setup_entries(dev, base, entries, nvec);
+	ret = msix_setup_entries(dev, base, entries, nvec, affinity);
 	if (ret)
 		return ret;
 
@@ -939,22 +952,8 @@ int pci_msix_vec_count(struct pci_dev *dev)
 }
 EXPORT_SYMBOL(pci_msix_vec_count);
 
-/**
- * pci_enable_msix - configure device's MSI-X capability structure
- * @dev: pointer to the pci_dev data structure of MSI-X device function
- * @entries: pointer to an array of MSI-X entries (optional)
- * @nvec: number of MSI-X irqs requested for allocation by device driver
- *
- * Setup the MSI-X capability structure of device function with the number
- * of requested irqs upon its software driver call to request for
- * MSI-X mode enabled on its hardware device function. A return of zero
- * indicates the successful configuration of MSI-X capability structure
- * with new allocated MSI-X irqs. A return of < 0 indicates a failure.
- * Or a return of > 0 indicates that driver request is exceeding the number
- * of irqs or MSI-X vectors available. Driver should use the returned value to
- * re-send its request.
- **/
-int pci_enable_msix(struct pci_dev *dev, struct msix_entry *entries, int nvec)
+static int __pci_enable_msix(struct pci_dev *dev, struct msix_entry *entries,
+			     int nvec, bool affinity)
 {
 	int nr_entries;
 	int i, j;
@@ -986,7 +985,27 @@ int pci_enable_msix(struct pci_dev *dev, struct msix_entry *entries, int nvec)
 		dev_info(&dev->dev, "can't enable MSI-X (MSI IRQ already assigned)\n");
 		return -EINVAL;
 	}
-	return msix_capability_init(dev, entries, nvec);
+	return msix_capability_init(dev, entries, nvec, affinity);
+}
+
+/**
+ * pci_enable_msix - configure device's MSI-X capability structure
+ * @dev: pointer to the pci_dev data structure of MSI-X device function
+ * @entries: pointer to an array of MSI-X entries (optional)
+ * @nvec: number of MSI-X irqs requested for allocation by device driver
+ *
+ * Setup the MSI-X capability structure of device function with the number
+ * of requested irqs upon its software driver call to request for
+ * MSI-X mode enabled on its hardware device function. A return of zero
+ * indicates the successful configuration of MSI-X capability structure
+ * with new allocated MSI-X irqs. A return of < 0 indicates a failure.
+ * Or a return of > 0 indicates that driver request is exceeding the number
+ * of irqs or MSI-X vectors available. Driver should use the returned value to
+ * re-send its request.
+ **/
+int pci_enable_msix(struct pci_dev *dev, struct msix_entry *entries, int nvec)
+{
+	return __pci_enable_msix(dev, entries, nvec, false);
 }
 EXPORT_SYMBOL(pci_enable_msix);
 
@@ -1039,6 +1058,7 @@ EXPORT_SYMBOL(pci_msi_enabled);
 static int __pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec,
 		unsigned int flags)
 {
+	bool affinity = flags & PCI_IRQ_AFFINITY;
 	int nvec;
 	int rc;
 
@@ -1067,18 +1087,16 @@ static int __pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec,
 		nvec = maxvec;
 
 	for (;;) {
-		if (flags & PCI_IRQ_AFFINITY) {
-			dev->irq_affinity = irq_create_affinity_mask(&nvec);
+		if (affinity) {
+			nvec = irq_calc_affinity_vectors(dev->irq_affinity,
+					nvec);
 			if (nvec < minvec)
 				return -ENOSPC;
 		}
 
-		rc = msi_capability_init(dev, nvec);
+		rc = msi_capability_init(dev, nvec, affinity);
 		if (rc == 0)
 			return nvec;
-
-		kfree(dev->irq_affinity);
-		dev->irq_affinity = NULL;
 
 		if (rc < 0)
 			return rc;
@@ -1111,25 +1129,23 @@ static int __pci_enable_msix_range(struct pci_dev *dev,
 		struct msix_entry *entries, int minvec, int maxvec,
 		unsigned int flags)
 {
-	int nvec = maxvec;
-	int rc;
+	bool affinity = flags & PCI_IRQ_AFFINITY;
+	int rc, nvec = maxvec;
 
 	if (maxvec < minvec)
 		return -ERANGE;
 
 	for (;;) {
-		if (flags & PCI_IRQ_AFFINITY) {
-			dev->irq_affinity = irq_create_affinity_mask(&nvec);
+		if (affinity) {
+			nvec = irq_calc_affinity_vectors(dev->irq_affinity,
+					nvec);
 			if (nvec < minvec)
 				return -ENOSPC;
 		}
 
-		rc = pci_enable_msix(dev, entries, nvec);
+		rc = __pci_enable_msix(dev, entries, nvec, affinity);
 		if (rc == 0)
 			return nvec;
-
-		kfree(dev->irq_affinity);
-		dev->irq_affinity = NULL;
 
 		if (rc < 0)
 			return rc;
