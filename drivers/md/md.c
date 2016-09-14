@@ -8882,7 +8882,9 @@ static void autostart_arrays(int part)
 		list_del(&node_detected_dev->list);
 		dev = node_detected_dev->dev;
 		kfree(node_detected_dev);
+		mutex_unlock(&detected_devices_mutex);
 		rdev = md_import_device(dev,0, 90);
+		mutex_lock(&detected_devices_mutex);
 		if (IS_ERR(rdev))
 			continue;
 
